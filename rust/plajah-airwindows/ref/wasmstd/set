@@ -1,0 +1,10 @@
+// wasm-only stand-in for <set>: the plugins' `_canDo` capability list is VST host plumbing that
+// nothing here reads. Dropping real libc++ containers takes tens of KB off every effect.
+#pragma once
+namespace std {
+template <class T> struct set {
+  void insert(const char*) {}
+  int find(const char*) const { return 0; }
+  int end() const { return 0; }
+};
+}

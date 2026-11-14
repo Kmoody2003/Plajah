@@ -7,9 +7,11 @@ import { DEFAULT_SETTINGS, DEFAULT_GIFTS } from './eviteTypes';
 
 const ALPHABET = 'abcdefghijkmnpqrstuvwxyz23456789';   // no look-alikes (0/o, 1/l)
 /** Short, unguessable-enough, link-friendly id. `rand` is injectable for tests. */
-export function newShortId(len = 8, rand: () => number = Math.random): string {
+export function newShortId(len = 8, rand?: () => number): string {
   let s = '';
-  for (let i = 0; i < len; i++) s += ALPHABET[Math.floor(rand() * ALPHABET.length)];
+  // 32 letters divides 256 evenly, so taking a byte modulo the alphabet stays uniform.
+  const bytes = rand ? null : globalThis.crypto.getRandomValues(new Uint8Array(len));
+  for (let i = 0; i < len; i++) s += ALPHABET[bytes ? bytes[i] % ALPHABET.length : Math.floor(rand!() * ALPHABET.length)];
   return s;
 }
 export const isShortId = (s: unknown): s is string => typeof s === 'string' && /^[a-z0-9]{6,14}$/.test(s);

@@ -74,6 +74,11 @@ import VespersRecap from '../scripture/VespersRecap';
 import { sessionIdFor } from '../../services/kairosService';
 import ElevateMobilizeHub from './ElevateMobilizeHub';
 import MyOrgTasksAndDepartments from './MyOrgTasksAndDepartments';
+import InstallAppCard from './InstallAppCard';
+import MinistryPage from './MinistryPage';
+import { ensureDefaultTemplatedClassrooms, type ChurchProgram } from '../../services/churchEducationService';
+import { memberDepartments, educationDepartment } from '../../services/memberDepartments';
+import { auth } from '../../services/backendService';
 import ElevateCommunicationsHub from './ElevateCommunicationsHub';
 import { EV, EvLabel, EvLectioSheet } from './vellum';
 import { elevateCan } from '../../services/elevateRoles';
@@ -172,7 +177,15 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
   /** Demo keeps its showcase copy; a real church gets plain member-facing wording. */
   const t = (demoText: string, realText: string) => (demo ? demoText : realText);
 
-  const [section, setSection] = useState<HubStudioSection>('SANCTUARY_STUDIO');
+  const [section, setSection] = useState<HubStudioSection>(() => {
+    // Coming back from Tela's "Back to class" button: reopen Christian Education.
+    try {
+      if (sessionStorage.getItem('plajah:eduReturnClass')) return 'RECENT_LESSONS_AND_VESPERS';
+    } catch {
+      /* storage blocked */
+    }
+    return 'SANCTUARY_STUDIO';
+  });
   const studioNavItems = useMemo(() => getStudioNavItems(org.orgType, vocab), [org.orgType, vocab]);
 
   // Tailored to the church's tradition by default; a member can choose to see every tradition (saved on their profile).
@@ -344,8 +357,8 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
     openPrintWindow(
       statementsHtml([sampleStmt], {
         name: org.name,
-        legalName: org.legalName || `${org.name} Inc.`,
-        ein: org.ein || '58-1948271',
+        legalName: org.legalName,
+        ein: org.ein,
         address: org.location?.address || 'Atlanta, GA',
         faith: true,
       })
@@ -438,6 +451,29 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
   const greeting = hour < 12 ? 'Morning' : hour < 17 ? 'Afternoon' : 'Evening';
   const greetingLine = firstName ? `${greeting}, ${firstName}.` : `Good ${greeting.toLowerCase()}.`;
 
+  // ── My departments (tab row) + Christian Ed classes ──
+  const viewerUid: string = user?.uid || auth.currentUser?.uid || '';
+  const [programs, setPrograms] = useState<ChurchProgram[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setPrograms(null);
+    ensureDefaultTemplatedClassrooms(org).then(list => { if (alive) setPrograms(list); }).catch(() => { if (alive) setPrograms([]); });
+    return () => { alive = false; };
+  }, [org.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const eduDept = useMemo(() => educationDepartment(org), [org.ministries]); // eslint-disable-line react-hooks/exhaustive-deps
+  const myDepartments = useMemo(
+    () => memberDepartments(org, membership, viewerUid, { programs: programs || [], runsChristianEd: canEditContent }),
+    [org, membership, viewerUid, programs, canEditContent],
+  );
+  /** A department opened from the tab row, shown in place of the section below the tabs. */
+  const [openDept, setOpenDept] = useState<{ id: string; classId?: string; n: number } | null>(null);
+  const openDeptMinistry = openDept ? (org.ministries || []).find(m => m.id === openDept.id) : undefined;
+  const openDepartment = (id: string, classId?: string) => {
+    if (!(org.ministries || []).some(m => m.id === id)) { onOpenMinistry?.(id); return; }
+    setOpenDept(prev => ({ id, classId, n: (prev?.n || 0) + 1 }));
+  };
+  const openClass = (classId: string) => { if (eduDept) openDepartment(eduDept.id, classId); else setSection('RECENT_LESSONS_AND_VESPERS'); };
+
   return (
     <div className="my-2 space-y-8">
       {/* ── Greeting + in-service presence (schedule + GPS auto-engage drives Lectio follow-along) ── */}
@@ -477,14 +513,70 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
       {/* ── Member home navigation ── */}
       <nav aria-label="Member home" className="flex gap-6 overflow-x-auto scrollbar-hide border-b" style={{ borderColor: EV.line }}>
         {studioNavItems.map(item => (
-          <button key={item.id} onClick={() => setSection(item.id)} className="ev-tab" aria-current={section === item.id ? 'page' : undefined}>
+          <button key={item.id} onClick={() => { setSection(item.id); setOpenDept(null); }} className="ev-tab" aria-current={!openDept && section === item.id ? 'page' : undefined}>
             {item.label}
           </button>
         ))}
       </nav>
 
+      {/* ── My departments: one tab per department this member is in ── */}
+      {myDepartments.length > 0 && (
+        <nav aria-label="My departments" className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mt-4">
+          <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A49CB2] shrink-0 pr-1">My departments</span>
+          {myDepartments.map(m => {
+            const active = openDept?.id === m.id;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => (active ? setOpenDept(null) : openDepartment(m.id))}
+                aria-current={active ? 'page' : undefined}
+                className={`shrink-0 h-9 px-3.5 rounded-full text-[13px] font-bold inline-flex items-center gap-1.5 border transition ${
+                  active ? 'bg-[#7A1FC0] border-[#E2C27E]/60 text-white' : 'bg-white/[0.04] border-white/12 text-white/75 hover:text-white hover:bg-white/[0.08]'
+                }`}
+              >
+                {m.iconEmoji && <span aria-hidden="true">{m.iconEmoji}</span>}
+                {m.name}
+              </button>
+            );
+          })}
+        </nav>
+      )}
+
       {/* ── MAIN STUDIO BODY ── */}
       <div className="space-y-8">
+        {/* My work: departments, tasks & shifts, classes — first thing on Home, above the viewer. */}
+        {!openDept && section === 'SANCTUARY_STUDIO' && (
+          <MyOrgTasksAndDepartments
+            org={org}
+            membership={membership}
+            departments={myDepartments}
+            programs={programs}
+            seesAllClasses={canEditContent}
+            onOpenDepartment={id => openDepartment(id)}
+            onOpenClass={openClass}
+            onOpenServe={() => setSection('MOBILIZE_AND_SHIFTS')}
+          />
+        )}
+
+        {/* Install Plajah as a web app on this device (hidden once installed). */}
+        {!openDept && section === 'SANCTUARY_STUDIO' && <InstallAppCard orgName={org?.name} />}
+
+        {/* A department opened from the tab row (Christian Ed shows its class tabs + class gallery). */}
+        {openDept && openDeptMinistry && (
+          <div className="ev-fade">
+            <MinistryPage
+              key={`${openDept.id}:${openDept.n}`}
+              org={org}
+              ministry={openDeptMinistry}
+              myMembership={membership || null}
+              onBack={() => setOpenDept(null)}
+              initialClassId={openDept.classId}
+              embedded
+            />
+          </div>
+        )}
+
         {/* PERSISTENT LIVE STREAM & MINISTRY TV CHANNEL CAROUSEL (Always mounted under the tabs so switching tabs never interrupts watching) */}
         <RelloChurchViewer
           org={org}
@@ -492,12 +584,14 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
           onOpenFullLectio={ref => setFullLectioRef(ref)}
           defaultPlayerExpanded={true}
           viewerIsOrgMember={membership?.status === 'ACTIVE'}
+          compact={!!openDept}
+          onExpand={() => setOpenDept(null)}
         />
 
         {/* ═══════════════════════════════════════════════════════════════════════
             TAB 1: SANCTUARY STUDIO OVERVIEW
             ═══════════════════════════════════════════════════════════════════════ */}
-        {section === 'SANCTUARY_STUDIO' && (
+        {!openDept && section === 'SANCTUARY_STUDIO' && (
           <div className="ev-fade space-y-8">
             {/* Verse · today's reading on Vellum. Demo: sample church plan with Sunday's Stage cues in the
                 margin. Real church: today's devotional passage only — no invented notes, plan or progress. */}
@@ -529,13 +623,6 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
             />
             )}
 
-            {/* Assigned Departments, Ministry Activities & Quick Actions Grid */}
-            <MyOrgTasksAndDepartments
-              org={org}
-              membership={membership}
-              onOpenDepartment={deptId => onOpenMinistry?.(deptId)}
-              onOpenEducation={() => setSection('RECENT_LESSONS_AND_VESPERS')}
-            />
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* My Assigned Departments & Ministry Activities (7 cols) */}
               <div
@@ -574,7 +661,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                         {(org.ministries || []).filter(m => !m.parentId && !m.isInternal).slice(0, 8).map(m => (
                           <button
                             key={m.id}
-                            onClick={() => onOpenMinistry?.(m.id)}
+                            onClick={() => openDepartment(m.id)}
                             className="ev-btn ev-btn-ghost"
                             style={{ minHeight: 32, fontSize: 13 }}
                           >
@@ -591,7 +678,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
                   {assignedMinistries.map(m => (
                     <div
                       key={m.id}
-                      onClick={() => onOpenMinistry?.(m.id)}
+                      onClick={() => openDepartment(m.id)}
                       className="p-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 cursor-pointer transition-all flex flex-col justify-between gap-2"
                     >
                       <div>
@@ -701,7 +788,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
         {/* ═══════════════════════════════════════════════════════════════════════
             TAB 1B: MOBILIZE, VOLUNTEER SHIFTS, SPOKE HOSTING & IMPACT PASSPORT
             ═══════════════════════════════════════════════════════════════════════ */}
-        {section === 'MOBILIZE_AND_SHIFTS' && (
+        {!openDept && section === 'MOBILIZE_AND_SHIFTS' && (
           <ElevateMobilizeHub
             org={org}
             currentUserId={demo ? user?.uid || 'demo-member-elena' : user?.uid || ''}
@@ -715,7 +802,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
         {/* ═══════════════════════════════════════════════════════════════════════
             TAB 1C: COMMUNICATIONS — PLAJAH CHAT MINI-UI & PLAJAH DISCUSSIONS MINI-UI
             ═══════════════════════════════════════════════════════════════════════ */}
-        {section === 'COMMUNICATIONS' && (
+        {!openDept && section === 'COMMUNICATIONS' && (
           <div className="ev-fade">
             <ElevateCommunicationsHub
               org={org}
@@ -728,7 +815,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
         {/* ═══════════════════════════════════════════════════════════════════════
             TAB 2: DAILY DEVOTIONAL SYSTEM & 365-DAY READ THE BIBLE IN A YEAR
             ═══════════════════════════════════════════════════════════════════════ */}
-        {section === 'DEVOTIONAL_AND_BIBLE_365' && (
+        {!openDept && section === 'DEVOTIONAL_AND_BIBLE_365' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left 6 Cols: Daily Sanctuary Breviary & Devotional Journal */}
             <div
@@ -942,7 +1029,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
         {/* ═══════════════════════════════════════════════════════════════════════
             TAB 3: RECENT LESSONS, ARTICLES & VESPERS SERVICE REVIEW BRIEFS
             ═══════════════════════════════════════════════════════════════════════ */}
-        {section === 'RECENT_LESSONS_AND_VESPERS' && (
+        {!openDept && section === 'RECENT_LESSONS_AND_VESPERS' && (
           <div className="ev-fade space-y-8">
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div>
@@ -1028,7 +1115,7 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
         {/* ═══════════════════════════════════════════════════════════════════════
             TAB 4: MUSIC DEPARTMENT (CHORA SCRATCHPAD, SETLISTS, GLOBAL SCORES) + HYMNS, GOSPEL & PRAYERS
             ═══════════════════════════════════════════════════════════════════════ */}
-        {section === 'HYMNS_PRAYERS_AND_SCORES' && (
+        {!openDept && section === 'HYMNS_PRAYERS_AND_SCORES' && (
           <div className="ev-fade space-y-8">
             <ChurchMusicDepartmentHub church={org} canEdit={canEditContent} />
 

@@ -11,6 +11,7 @@
 //  Public  GET /v/:token  printable history (short-lived HMAC share token)
 // Collections (all SERVER-WRITE-ONLY, see firestore.rules): vehicles, vinCache, recallCache, inspections, passports,
 // passportEntries, serviceReminders. Object arrays are JSON-stringified (the REST writer cannot store them).
+import { deviceTokens } from './pushTokensCore';
 import nodeCrypto from 'node:crypto';
 import { casUpdate } from './casCore';
 import { parseTicket, type Ticket } from './ticketCore';
@@ -28,7 +29,7 @@ import { toPublicInspection, sanitizeInspection, serializeInspection, parseInspe
 import { buildAdvisorPrompt, buildFindings, validateAdvisorResponse, fallbackDraft, type AdvisorVehicle } from './advisorCore';
 import { predictNextService, resolveIntervals, classifyLine, reminderMessage } from './serviceReminderCore';
 import {
-  buildEntry, canReadEntries, visibleToShop, makeClaimCode, normalizeClaimCode, formatShareToken, parseShareToken, renderPassportHtml, SHARE_TTL_MS, type PassportEntry,
+  ownerAfterPublish, buildEntry, canReadEntries, visibleToShop, makeClaimCode, normalizeClaimCode, formatShareToken, parseShareToken, renderPassportHtml, SHARE_TTL_MS, type PassportEntry,
 } from './passportCore';
 
 export interface AutoDeps {
@@ -276,6 +277,8 @@ export function registerAutoRoutes(d: AutoDeps): void {
 
   // ── Passport: shop publishes a verified entry from a closed ticket ───────────────────────────────
   wrap('passport/publish', async (req, res, { businessUid, actor }) => {
+    // A signed-in account counts as "owner" of itself at the register, so this is what makes it an actual shop.
+    if (req.isAnonymous || !(await (d as any).hasBusinessPage?.(businessUid))) return res.status(403).json({ error: 'Set up your shop’s business page before publishing vehicle history.' });
     const t = await loadTicket(String(req.body?.ticketId || ''), businessUid); if (!t) return res.status(404).json({ error: 'Ticket not found.' });
     const cfg = cfgForTicket(t.packId); if (!cfg) return res.status(400).json({ error: 'Not an auto ticket.' });
     const st = cfg.stages.find(x => x.id === t.stage);
@@ -296,12 +299,17 @@ export function registerAutoRoutes(d: AutoDeps): void {
     // passport doc (create if first entry). Owner = the ticket's Plajah customer when linked; otherwise a claim code is issued.
     let claimCode = '';
     const pp = await casUpdate<{ ownerUid: string; claimCode: string }>(d.restCas('passports'), key, cur => {
-      if (cur) return { patch: { updatedAt: Date.now(), ...(!cur.ownerUid && t.customer.uid ? { ownerUid: t.customer.uid } : {}) }, result: { ownerUid: String(cur.ownerUid || t.customer.uid || ''), claimCode: String(cur.claimCode || '') } };
+      // An existing passport never changes owner from a ticket, and its claim code only goes back to the shop that first issued it.
+      if (cur?.selfClaimed) {
+        const next = ownerAfterPublish(cur as any, t.customer.uid, () => makeClaimCode(nodeCrypto.randomBytes(8)));
+        return { patch: { ownerUid: next.ownerUid, selfClaimed: false, ...(next.claimCode !== undefined ? { claimCode: next.claimCode, claimShopUid: businessUid } : {}), updatedAt: Date.now() }, result: { ownerUid: next.ownerUid, claimCode: next.claimCode || '' } };
+      }
+      if (cur) return { patch: { updatedAt: Date.now() }, result: { ownerUid: String(cur.ownerUid || ''), claimCode: cur.claimShopUid === businessUid ? String(cur.claimCode || '') : '' } };
       const code = t.customer.uid ? '' : makeClaimCode(nodeCrypto.randomBytes(8));
       return { patch: {
         key, vin: String(s.vin || ''), plate: normalizePlate(String(s.plate || '')), state: normalizeState(String(s.state || '')),
         year: Number(s.year) || 0, make: String(s.make || ''), model: String(s.model || ''), trim: String(s.trim || ''),
-        ownerUid: t.customer.uid || '', claimCode: code, createdAt: Date.now(), updatedAt: Date.now(),
+        ownerUid: t.customer.uid || '', claimCode: code, claimShopUid: businessUid, createdAt: Date.now(), updatedAt: Date.now(),
       }, result: { ownerUid: t.customer.uid || '', claimCode: code } };
     });
     if (pp.ok === false) return res.status(500).json({ error: 'Could not write the vehicle passport.' });
@@ -348,7 +356,7 @@ export function registerAutoRoutes(d: AutoDeps): void {
         if (!(sub && sub.transactional === false)) {
           await d.firestoreCreate('notifications', { userId: v.ownerUid, senderId: businessUid, senderName: shop, senderPhoto: '', type: 'BUSINESS_UPDATE', title: msg.title, message: msg.body, link: 'PROFILE', targetId: businessUid, isRead: false, timestamp: Date.now() });
           const u = await d.firestoreGetDeep('users', v.ownerUid);
-          const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+          const tokens: string[] = deviceTokens(u, await d.firestoreGetDeep(`users/${v.ownerUid}/private`, 'profile'));
           if (tokens.length) d.sendFcmMulticast([...new Set(tokens)], { title: msg.title, body: msg.body.slice(0, 180), channelId: 'system', data: { type: 'BUSINESS_UPDATE', targetId: businessUid, senderName: shop } }).catch(() => {});
           out.push = true;
         }
@@ -395,7 +403,7 @@ export function registerAutoRoutes(d: AutoDeps): void {
     let fail: { status: number; error: string } | null = null;
     const out = await casUpdate<string>(d.restCas('passports'), key, cur => {
       const now = Date.now();
-      if (!cur) return { patch: { key, vin: c.valid ? c.vin : '', plate: normalizePlate(String(req.body?.plate || '')), state: normalizeState(String(req.body?.state || '')), year: Number(req.body?.year) || 0, make: String(req.body?.make || '').slice(0, 60), model: String(req.body?.model || '').slice(0, 80), trim: '', ownerUid: uid, claimCode: '', createdAt: now, updatedAt: now }, result: 'CREATED' };
+      if (!cur) return { patch: { selfClaimed: true, key, vin: c.valid ? c.vin : '', plate: normalizePlate(String(req.body?.plate || '')), state: normalizeState(String(req.body?.state || '')), year: Number(req.body?.year) || 0, make: String(req.body?.make || '').slice(0, 60), model: String(req.body?.model || '').slice(0, 80), trim: '', ownerUid: uid, claimCode: '', createdAt: now, updatedAt: now }, result: 'CREATED' };
       if (cur.ownerUid === uid) return { abort: true, result: 'MINE' };
       if (cur.ownerUid) { fail = { status: 409, error: 'This vehicle is already in another Plajah garage. Ownership transfer is not available yet; contact support if this is yours.' }; return { abort: true, result: '' }; }
       if (!cur.claimCode || !code || !safeEq(normalizeClaimCode(String(cur.claimCode)), code)) { fail = { status: 403, error: 'This vehicle already has service history. Enter the claim code your shop gave you.' }; return { abort: true, result: '' }; }

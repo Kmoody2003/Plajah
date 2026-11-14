@@ -12,13 +12,14 @@
 // or zips the WAVs + a release manifest for delivery elsewhere.
 
 import { zipSync, strToU8 } from 'fflate';
-import { db, auth } from '../../firebase';
+import { opsDb, auth } from '../../firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import type { SampleRef } from './grooveDoc';
 import { dbToGain, softClipCurve } from './engine/graph';
 import { hydrateSample } from './sampleStore';
 import { MasteringChain, type MasteringState } from './fx/mastering';
 import { FxChainHost, type FxInstance } from './fx/devices';
+import { airwindowsSettled } from './fx/airwindows';
 import { encodeWav } from '../../audio/wavEncode';
 import {
   presetById, planSides, buildCueSheet, buildPqLog, ditherTpdf, toFrame, allCredits, creditsToText,
@@ -255,7 +256,7 @@ export function moveTrack(project: MasterProjectDoc, from: number, to: number): 
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 
-const projectRef = (prodId: string, id: string) => doc(db, 'melosProductions', prodId, 'projects', id);
+const projectRef = (prodId: string, id: string) => doc(opsDb, 'melosProductions', prodId, 'projects', id);
 
 export async function saveMasterProject(prodId: string, project: MasterProjectDoc): Promise<boolean> {
   const user = auth.currentUser;
@@ -263,7 +264,9 @@ export async function saveMasterProject(prodId: string, project: MasterProjectDo
   try {
     if (!project.ownerId) project.ownerId = user.uid;
     // JSON round-trip drops undefined — the Firestore rule (grooveDoc.ts:serializeGroove).
-    await setDoc(projectRef(prodId, project.id), JSON.parse(JSON.stringify({ ...project, updatedAt: Date.now() })), { merge: true });
+    // Full overwrite (not merge, which resurrected deleted map keys). Writers: useMasterProject
+    // and albumImport, both with the whole project; no server-managed fields.
+    await setDoc(projectRef(prodId, project.id), JSON.parse(JSON.stringify({ ...project, updatedAt: Date.now() })));
     return true;
   } catch (e) {
     console.warn('[beats] project save failed', e);
@@ -402,6 +405,7 @@ export async function renderProjectTrack(
   const suite = buildMasterFx(offline, opts.masterFx);
   const bus = albumLimiter(offline);
   if (suite) { voice.connect(suite.input); suite.output.connect(bus); } else voice.connect(bus);
+  await airwindowsSettled(offline); // async inserts must be in the path before the bounce
   const rendered = await offline.startRendering();
   return { blob: encodeWav(rendered, opts.bitDepth ?? 24), seconds };
 }
@@ -457,6 +461,7 @@ export async function renderAlbumContinuous(
     if (voice) { voice.connect(busIn); placed++; }
   }
   if (!placed) return null;
+  await airwindowsSettled(offline); // async inserts must be in the path before the bounce
   const rendered = await offline.startRendering();
   if (opts.dither && (opts.bitDepth ?? 24) === 16) ditherTpdf(rendered, 16);
   return { blob: encodeWav(rendered, opts.bitDepth ?? 24), buffer: rendered, seconds };

@@ -1,0 +1,312 @@
+{
+  "id": "neon-orbit",
+  "name": "Neon Orbit",
+  "at": "2026-11-07T00:41:03.739Z",
+  "deliberation": {
+    "proposals": [
+      {
+        "seat": "The Classical Mind, the Classical Mind",
+        "proposal": "That score does not resolve if the light pathways wander without harmonic proportion. We open with an intro plate at slow drift, using Magenta Rush. The composition's focal loop demands a strict counterpoint: as the strings enter, the neon ribbons trace symmetrical arcs against the crystalline plane before any violent drop scatters them.",
+        "risk": "Over-structuring a purely kinetic track into a stiff, academic exercise."
+      },
+      {
+        "seat": "The Rebellious Hand, the Rebellious Hand",
+        "proposal": "Who is this clean digital glow for? Make the foil bleed. Use Rock Chase with high-contrast cuts. I want scratches in the foil, tape hiss on the hi-hats, and ink splatters breaking up those too-smooth vector loops. Let the camera shake on every single snare snap.",
+        "risk": "Noise that obscures the core neon geometry on mobile screens."
+      },
+      {
+        "seat": "The Futurist, the Futurist",
+        "proposal": "Input: kick onsets drive 3D particle scattering; output: 60fps stable point-cloud buffer across mobile and desktop. State machine transitions from plate push on verse to full 3D world flythrough on drop with Ultraviolet look active.",
+        "risk": "Heavy particle counts stalling lower-end mobile GPUs."
+      },
+      {
+        "seat": "The World-Eclectic Traveler, the World-Eclectic Traveller",
+        "proposal": "The holographic foil texture echoes the market stalls of Osaka in 1999. Let us ground the color palette with an Aurora wash during the breakdown, honoring the refractive sheen of hand-hammered street tin without appropriating sacred motifs.",
+        "risk": "Foil textures reading as generic cyberpunk stock instead of specific worldly craft."
+      },
+      {
+        "seat": "The Baroque Dramatist, the Baroque Dramatist",
+        "proposal": "Treat every frame as a stage! In the build, use a vertigo plate shot while the light trails gather like rising velvet curtains. On the drop, execute an explode gesture with the Sunset Stadium look, painting the crystals in dramatic chiaroscuro.",
+        "risk": "Visual clutter overpowering the central focal loop."
+      },
+      {
+        "seat": "The Radical Minimalist, the Radical Minimalist",
+        "proposal": "Remove half the light strands. Leave only one cyan vector stroke tracking the bass wobble. Silence is not empty space; it is the rest between beats where a single hairline cuts through the dark.",
+        "risk": "Audiences expecting relentless sensory overload feeling shortchanged."
+      },
+      {
+        "seat": "The Silicon Pioneer & Pixel Architect",
+        "proposal": "Maintain crisp 1x silhouettes by baking the neon glow maps into optimized palette registers. Run the plate through authentic CRT scanlines for mobile retro-purity, keeping frame pacing locked at a rock-solid 60fps.",
+        "risk": "CRT overlays reducing the perceived high-end punch of modern holographic shaders."
+      },
+      {
+        "seat": "The Real-Time 3D Engine & Shader Guru",
+        "proposal": "Push the real-time viewport to its limit with multi-layer 2D-to-3D relief displacement on the crystalline foil. Layer physically based specular highlights over ray-marched volumetric mist driven by the bass wobble.",
+        "risk": "Spiking thermal throttling on mobile devices during heavy drop sequences."
+      },
+      {
+        "seat": "The Fun & Level Design Virtuoso",
+        "proposal": "The 3-second fun loop must rule: every kick punches the camera lens with immediate hit-stop. Make the world orbit feel like a playable track where spatial landmarks beckon the eye forward instantly.",
+        "risk": "Excessive camera juice inducing motion sickness on fast cuts."
+      },
+      {
+        "seat": "The Japanese Game Auteur & World Director",
+        "proposal": "Treat the overworld diorama with emotional weight. In the breakdown, introduce a deliberate ma—a poetic, atmospheric pause of stillness before the drop—using Sanctuary Gold lighting to frame the miniature crystal shell.",
+        "risk": "Slowing down the tempo too drastically in a high-energy club track."
+      },
+      {
+        "seat": "The 3D Dramatist, the 3D Dramatist",
+        "proposal": "Scale the world up during the drop. Move from a tight macro plate into an expansive 3D crane shot looking down at the sixty orbiting light trails reacting to the bass.",
+        "risk": "Scale transition revealing geometry seams in the holographic crystal shell."
+      },
+      {
+        "seat": "The Generative Artist, the Generative Artist",
+        "proposal": "Let the neon filaments self-organize via procedural flow fields linked to the song's energy curve. No two playbacks share the exact same particle trajectories.",
+        "risk": "Unpredictable procedural outputs straying too far from the master plate's silhouette."
+      },
+      {
+        "seat": "The Signal Bender, the Signal Bender",
+        "proposal": "Feed the audio directly into RGB delay lines and tape saturation shaders. On every snare hit, glitch the holographic foil coordinates with an analog video feedback smear.",
+        "risk": "Glitch artifacts completely erasing the underlying image readability."
+      },
+      {
+        "seat": "The Lighting Director",
+        "proposal": "Call the looks directly to the beat: Amber Anthem on the build, hard cut to EDM Drop on the flash, and Aurora for the breakdown. Keep the board locked to the track's internal energy curve without manual overrides.",
+        "risk": "Rapid look changes causing palette fatigue over long durations."
+      }
+    ],
+    "disputes": [
+      {
+        "between": [
+          "The Radical Minimalist, the Radical Minimalist",
+          "The Baroque Dramatist, the Baroque Dramatist"
+        ],
+        "issue": "Minimalist single-line restraint versus Baroque maximalist staging and spectacle.",
+        "resolution": "Use minimalist stillness during the intro breakdown, then unleash full baroque staging and particle explosion on the drop."
+      },
+      {
+        "between": [
+          "The Silicon Pioneer & Pixel Architect",
+          "The Real-Time 3D Engine & Shader Guru"
+        ],
+        "issue": "Strict 60fps mobile pixel-grid constraints versus heavy volumetric ray-marching shaders.",
+        "resolution": "Scale shader complexity dynamically based on device capability: fallback to optimized relief displacement on mobile while keeping full volumetric passes on desktop."
+      }
+    ],
+    "consensus": "We unite the master plate's iconic holographic foil and neon silhouette with a dynamic show mode: transitioning from a measured, minimalist classical intro through a high-juice 3D world drop driven by real-time audio reactivity, locked to a rock-solid 60fps frame pace."
+  },
+  "synthesis": {
+    "summary": "Pulsing neon ribbons and fractured holographic foil react in real-time to the audio tracks, shifting from measured minimalist plate studies into explosive 3D world drops.",
+    "looks": {
+      "intro": "Magenta Rush",
+      "verse": "Cyan Stab",
+      "build": "Amber Anthem",
+      "drop": "EDM Drop",
+      "breakdown": "Aurora",
+      "outro": "Ballad Silhouette"
+    },
+    "lightPalette": [
+      "#ff1a8c",
+      "#00e0ff",
+      "#10e090"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "flythrough",
+          "crane"
+        ],
+        "build": [
+          "vertigo",
+          "hero"
+        ],
+        "drop": [
+          "wide",
+          "crane",
+          "flythrough"
+        ],
+        "breakdown": [
+          "top",
+          "macro"
+        ],
+        "outro": [
+          "orbit",
+          "wide"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift",
+          "rack"
+        ],
+        "verse": [
+          "push",
+          "pan"
+        ],
+        "build": [
+          "tilt",
+          "dutch"
+        ],
+        "drop": [
+          "snap",
+          "push"
+        ],
+        "breakdown": [
+          "pull",
+          "drift"
+        ],
+        "outro": [
+          "rack",
+          "pull"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "world"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "tremble",
+        "rise"
+      ],
+      "breakdown": [
+        "slow",
+        "sparse"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.4,
+      "glow": 1.3
+    },
+    "notes": {
+      "art": "Balancing classical counterpoint in the neon curves with raw, tactile foil textures.",
+      "threeD": "Dynamic relief displacement on holographic crystals with volumetric mist reacting to bass wobble.",
+      "motion": "Beat-locked camera cuts with aggressive hit-stop on kick drums and smooth energy curves.",
+      "lighting": "Strict adherence to the master palette, shifting cleanly from magenta intros to EDM drop whites and cyan stabs.",
+      "performance": "Optimized mobile shader fallbacks ensuring rock-solid 60fps frame pacing without dropping silhouette clarity."
+    }
+  },
+  "direction": {
+    "summary": "Pulsing neon ribbons and fractured holographic foil react in real-time to the audio tracks, shifting from measured minimalist plate studies into explosive 3D world drops.",
+    "looks": {
+      "intro": "Magenta Rush",
+      "verse": "Cyan Stab",
+      "build": "Amber Anthem",
+      "drop": "EDM Drop",
+      "breakdown": "Aurora",
+      "outro": "Ballad Silhouette"
+    },
+    "lightPalette": [
+      "#ff1a8c",
+      "#00e0ff",
+      "#10e090"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "flythrough",
+          "crane"
+        ],
+        "build": [
+          "vertigo",
+          "hero"
+        ],
+        "drop": [
+          "wide",
+          "crane",
+          "flythrough"
+        ],
+        "breakdown": [
+          "top",
+          "macro"
+        ],
+        "outro": [
+          "orbit",
+          "wide"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift",
+          "rack"
+        ],
+        "verse": [
+          "push",
+          "pan"
+        ],
+        "build": [
+          "tilt",
+          "dutch"
+        ],
+        "drop": [
+          "snap",
+          "push"
+        ],
+        "breakdown": [
+          "pull",
+          "drift"
+        ],
+        "outro": [
+          "rack",
+          "pull"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "world"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "shockwave",
+        "flash"
+      ],
+      "build": [
+        "gather",
+        "tremble",
+        "rise"
+      ],
+      "breakdown": [
+        "slow",
+        "sparse"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.4,
+      "glow": 1.3
+    },
+    "notes": {
+      "art": "Balancing classical counterpoint in the neon curves with raw, tactile foil textures.",
+      "threeD": "Dynamic relief displacement on holographic crystals with volumetric mist reacting to bass wobble.",
+      "motion": "Beat-locked camera cuts with aggressive hit-stop on kick drums and smooth energy curves.",
+      "lighting": "Strict adherence to the master palette, shifting cleanly from magenta intros to EDM drop whites and cyan stabs.",
+      "performance": "Optimized mobile shader fallbacks ensuring rock-solid 60fps frame pacing without dropping silhouette clarity."
+    }
+  }
+}

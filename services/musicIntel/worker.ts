@@ -16,6 +16,9 @@
 // All I/O is injected (see routes/musicIntel.ts for the real wiring, tests for fakes).
 
 import { measureAudio } from './dsp';
+import { analysisFromMono, downmix } from '../trackAnalysisCore';
+import { buildSongMap, fineEnvelope, type SongMap } from '../fabula/songMap';
+import type { AudioAnalysis } from '../../types';
 import {
   albumPrompt, looksLikeSoundtrack, normalizeAlbumIntel, normalizeTrackIntel, parseJsonLoose, trackPrompt,
 } from './prompts';
@@ -54,6 +57,11 @@ export interface MusicIntelDeps {
   patchJob(albumId: string, patch: Partial<MusicIntelJob> & Record<string, unknown>): Promise<void>;
   readTracks(albumId: string): Promise<Record<string, TrackIntel>>;
   writeTrack(albumId: string, intel: TrackIntel): Promise<void>;
+  /** Save the track's shared analysis (waveform, beat grid, song map) to `trackAnalysis/{trackId}`, merged.
+   *  Computed once here at upload so every surface — Chora, DJ decks, Breakdown, visualizers — reads it. */
+  writeTrackAnalysis?(trackId: string, analysis: AudioAnalysis): Promise<void>;
+  /** Longest audio decode() returns (s); a song that hits it is longer and its analysis is left to the client. */
+  decodeCapSec?: number;
   /** Decode to interleaved f32 PCM. Null when the file can't be decoded. */
   decode(url: string): Promise<{ pcm: Float32Array; sampleRate: number; channels: 1 | 2 } | null>;
   /** A compressed copy the listening model can take inline. */
@@ -170,9 +178,21 @@ export async function runMusicIntel(deps: MusicIntelDeps, albumId: string, opts:
       const lyrics = lyricText(t, synced);
 
       let measured: MeasuredAudio | null = null;
+      let songMap: SongMap | null = null;
       try {
         const pcm = await deps.decode(t.url!);
-        if (pcm) measured = measureAudio(pcm.pcm, pcm.sampleRate, pcm.channels);
+        if (pcm) {
+          measured = measureAudio(pcm.pcm, pcm.sampleRate, pcm.channels);
+          // The shared track analysis, from the same decode: waveform, beat grid, meter and the song map.
+          // Written before the listening model runs, so a model outage never costs the song its analysis.
+          const mono = downmix(pcm.pcm, pcm.channels), dur = mono.length / pcm.sampleRate;
+          try {
+            const analysis = analysisFromMono(mono, pcm.sampleRate, dur);
+            songMap = buildSongMap(measured, { bpm: analysis.bpm, firstBeat: analysis.downbeatSec ?? analysis.firstBeatSec }, fineEnvelope(mono, pcm.sampleRate));
+            const truncated = deps.decodeCapSec != null && dur >= deps.decodeCapSec - 1;
+            if (deps.writeTrackAnalysis && !truncated) await deps.writeTrackAnalysis(t.id, { ...analysis, songMap });
+          } catch (e: any) { errors.push(`${t.id}: analysis ${e?.message || e}`); }
+        }
       } catch (e: any) { errors.push(`${t.id}: measure ${e?.message || e}`); }
       measuredById[t.id] = measured;
 
@@ -189,6 +209,7 @@ export async function runMusicIntel(deps: MusicIntelDeps, albumId: string, opts:
         trackId: t.id, title: t.title || `Track ${n + 1}`, version: MUSIC_INTEL_VERSION,
         analyzedAt: now(), sourceUrl: t.url!, measured,
       }, lyrics);
+      if (songMap) intel.songMap = songMap;
       await deps.writeTrack(albumId, intel);
       existing[t.id] = intel;
       heard[t.id] = t.url!;

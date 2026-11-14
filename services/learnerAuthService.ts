@@ -79,13 +79,12 @@ export async function requestTeacherVerification(): Promise<{ verification: stri
 export interface ChildCredentialInfo {
   childUid: string;
   username: string;
-  savedPassword: string;
   hasPasswordHash: boolean;
   failedAttempts: number;
   lockedUntil: number;
 }
 
-/** Guardian or teacher fetches a child's login username, saved password, and lock status. */
+/** Guardian or teacher fetches a child's login username and lock status. */
 export async function getChildCredentials(childUid: string): Promise<ChildCredentialInfo> {
   try {
     const res = await fetch(`/api/learner-auth/child-credentials?childUid=${encodeURIComponent(childUid)}`, {
@@ -96,7 +95,6 @@ export async function getChildCredentials(childUid: string): Promise<ChildCreden
       return {
         childUid: data.childUid || childUid,
         username: data.username || '',
-        savedPassword: data.savedPassword || '',
         hasPasswordHash: Boolean(data.hasPasswordHash),
         failedAttempts: Number(data.failedAttempts || 0),
         lockedUntil: Number(data.lockedUntil || 0),
@@ -107,12 +105,10 @@ export async function getChildCredentials(childUid: string): Promise<ChildCreden
   // Fallback: read from users/{childUid} directly via guardian Firestore rules
   const snap = await getDoc(doc(db, 'users', childUid));
   const d = snap.data() as any;
-  const savedPassword = String(d?.parentalControls?.savedChildPassword || '');
   return {
     childUid,
     username: String(d?.username || ''),
-    savedPassword,
-    hasPasswordHash: Boolean(savedPassword || d?.username),
+    hasPasswordHash: Boolean(d?.username),
     failedAttempts: 0,
     lockedUntil: 0,
   };
@@ -155,27 +151,6 @@ export async function resetChildPassword(
     }
   } catch (e: any) {
     serverErr = e?.message || 'Network error.';
-  }
-
-  // Always mirror username + savedChildPassword on the child's Firestore doc when childUid is known
-  // so the guardian immediately sees the updated password in the UI.
-  if (payload.childUid) {
-    try {
-      const snap = await getDoc(doc(db, 'users', payload.childUid));
-      const existingControls = snap.data()?.parentalControls || CHILD_DEFAULTS;
-      await updateDoc(doc(db, 'users', payload.childUid), {
-        username: cleanUsername,
-        parentalControls: {
-          ...CHILD_DEFAULTS,
-          ...existingControls,
-          adultFilter: true,
-          savedChildPassword: cleanPassword,
-          updatedAt: Date.now(),
-          updatedBy: auth.currentUser?.uid,
-        },
-      });
-      serverOk = true;
-    } catch { /* ignore if rules disallow teacher on non-guardian field */ }
   }
 
   if (!serverOk && serverErr) {

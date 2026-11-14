@@ -13,6 +13,7 @@
 //
 // Ledger IO goes through services/acctService.ts (idempotent journal ids, period locks, reversals).
 
+import { withOrgFinance, orgCanReceiveGiving } from './orgFinance';
 import { collection, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { opsDb, auth } from './firebase';
 import { logOrgAction, type OrgAuditAction } from './orgAudit';
@@ -85,6 +86,9 @@ export const categoryName = (orgId: string, accountId: string, accounts?: AcctAc
 };
 
 // ── settings helpers (approval policy) ─────────────────────────────────────────
+/** A fresh org doc with its private finance fields (a plain fetch no longer has them). */
+const freshWithFinance = async (org: Organization): Promise<Organization> => withOrgFinance((await fetchOrganization(org.id)) || org);
+
 export function spendingSettings(org: Pick<Organization, 'financeSettings'>): ChmsFinanceSettings {
   return org.financeSettings || {};
 }
@@ -138,13 +142,13 @@ export function canApproveExpense(org: Organization, member: OrgMembership | nul
     if (member?.roleKey === 'DEPARTMENT_HEAD' && !owner && !isHead && !member.ministryRoles?.some(r => r.ministryId === e.deptId)) return { ok: false, reason: 'Only this department’s head, a pastor, or finance can approve it.' };
     return { ok: true };
   }
-  return { ok: false, reason: 'Only a department head, pastor or finance can approve this.' };
+  return { ok: false, reason: 'Only a department head, Senior Pastor or finance can approve this.' };
 }
 
-/** Who should be nudged to approve: dept heads first; else pastors + finance. */
+/** Who should be nudged to approve: dept heads first; else Senior Pastors + finance. */
 export function approverUidsFor(org: Organization, e: Pick<AcctExpense, 'deptId' | 'submittedBy'>): string[] {
   const heads = ministryOf(org, e.deptId)?.headUids || [];
-  const set = new Set<string>(heads.length ? heads : [...(org.pastorUids || []), ...(org.accountingUids || org.financeUids || [])]);
+  const set = new Set<string>(heads.length ? heads : [...(org.seniorPastorUids || []), ...(org.accountingUids || org.financeUids || [])]);
   if (!set.size) set.add(org.creatorId);
   set.delete(e.submittedBy);
   return Array.from(set);
@@ -555,7 +559,7 @@ export const dueRecurring = (org: Pick<Organization, 'financeSettings'>, today =
 /** Auto-draft due recurring bills as APPROVED (the template itself was finance-approved). Deterministic ids ⇒ safe to run from any client. */
 export async function draftRecurringBills(org: Organization): Promise<number> {
   const uid = uid_(); const today = todayISO();
-  const fresh = (await fetchOrganization(org.id)) || org;
+  const fresh = await freshWithFinance(org);
   const list = fresh.financeSettings?.recurringBills || []; let made = 0; let changed = false;
   const next: RecurringBill[] = [];
   for (const r of list) {
@@ -723,7 +727,7 @@ export interface SetupStep { key: string; title: string; why: string; done: bool
 export function moneySetupSteps(org: Organization, bundle: SpendingBundle | null, teamRoleKeys: string[] = []): SetupStep[] {
   const flags = org.setupState?.moneySetup || {}; const s = org.financeSettings || {};
   return [
-    { key: 'stripe', title: 'Connect Stripe for online giving', why: 'Cards and ACH land in your bank automatically — Plajah never holds your money.', done: !!org.stripeAccountId || !!flags.stripe, tab: 'settings', minutes: 3 },
+    { key: 'stripe', title: 'Connect Stripe for online giving', why: 'Cards and ACH land in your bank automatically — Plajah never holds your money.', done: orgCanReceiveGiving(org) || !!flags.stripe, tab: 'settings', minutes: 3 },
     { key: 'funds', title: 'Name your funds', why: 'General, Missions, Building… so every gift is tracked to its purpose.', done: (org.givingFunds || []).length > 0 || !!flags.funds, tab: 'funds', minutes: 2 },
     { key: 'chart', title: 'Create your chart of accounts', why: 'A church-ready chart in one click — you can rename anything later.', done: (bundle?.accounts.length || 0) > 0 || !!flags.chart, manual: false, minutes: 1 },
     { key: 'bank', title: 'Add your bank account', why: 'Lets us match deposits, checks and Stripe payouts to the bank.', done: (bundle?.bankAccounts.length || 0) > 0 || !!flags.bank, minutes: 1 },
@@ -746,7 +750,7 @@ export async function dismissSetup(org: Organization, dismissed = true): Promise
   return { ...fresh, setupState };
 }
 export async function saveSpendingSettings(org: Organization, patch: Pick<ChmsFinanceSettings, 'autoApproveUnder' | 'deptAutoApprove' | 'dualApprovalAbove'>): Promise<Organization> {
-  const fresh = (await fetchOrganization(org.id)) || org;
+  const fresh = await freshWithFinance(org);
   const financeSettings: ChmsFinanceSettings = { ...(fresh.financeSettings || {}), ...patch };
   (Object.keys(financeSettings) as (keyof ChmsFinanceSettings)[]).forEach(k => { if (financeSettings[k] === undefined) delete financeSettings[k]; });
   await updateOrganization(org.id, { financeSettings });
@@ -754,7 +758,7 @@ export async function saveSpendingSettings(org: Organization, patch: Pick<ChmsFi
   return { ...fresh, financeSettings };
 }
 export async function saveRecurringBills(org: Organization, list: RecurringBill[]): Promise<Organization> {
-  const fresh = (await fetchOrganization(org.id)) || org;
+  const fresh = await freshWithFinance(org);
   const financeSettings = { ...(fresh.financeSettings || {}), recurringBills: list };
   await updateOrganization(org.id, { financeSettings });
   audit(org.id, 'FIN_RECURRING', `${list.length} recurring bill(s)`, {});

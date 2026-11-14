@@ -1,4 +1,7 @@
 import type { AlbumMeta as ChoraAlbumMeta, TrackMeta as ChoraTrackMeta, AnimatedCover, TelaCoverLink, VisualsState as AlbumVisuals, ShowSetup } from './services/melos/beats/releaseDesk';
+import type { ChatAttachment } from './services/chat/chatCore';
+import type { MeetingRecapRef } from './services/meetings/meetingRecordingCore';
+import type { MeetingInviteRef } from './services/meetings/meetingSchedule';
 
 
 export interface Story {
@@ -228,6 +231,9 @@ export interface AudioAnalysis {
   meterConfidence?: number;
   /** Decode sample rate — lets consumers rebuild a full BeatAnalysis without re-decoding. */
   sampleRate?: number;
+  /** The song's shape (intro / verse / build / drop / breakdown / outro, energy curve, drops), from Music
+   *  Intelligence at upload. Visualizers anticipate drops with it; see services/fabula/songMap.ts. */
+  songMap?: import('./services/fabula/songMap').SongMap;
 }
 
 export interface Photo {
@@ -757,6 +763,11 @@ export interface Album {
   publishToAudius?: boolean;        // artist toggled "publish to Audius"
   audiusPublishStatus?: 'pending' | 'publishing' | 'published' | 'failed';
   audiusPermalinks?: string[];      // one URL per track published to Audius
+  audiusTrackIds?: Record<string, string>; // Plajah track id → Audius track id (retries skip these)
+  audiusAlbumId?: string;           // the Audius album collection, once created
+  audiusUrl?: string;               // where the release lives on Audius
+  audiusError?: string | null;      // why the last publish didn't finish
+  audiusPublishedAt?: number;
   // Early Access & Review Codes
   earlyAccessEnabled?: boolean;
   earlyAccessList?: EarlyAccessEntry[];
@@ -981,7 +992,7 @@ export interface WorldBackgroundConfig {
 // Which Plajah tool a world entry originated from. Worlds is the shared hub:
 // Lorea (books + scripts), FABULA, and the Worlds editor all read/write entries
 // tagged with their source so data flows freely between them.
-export type WorldSourceApp = 'WORLD' | 'LOREA_BOOK' | 'LOREA_SCRIPT' | 'FABULA';
+export type WorldSourceApp = 'WORLD' | 'LOREA_BOOK' | 'LOREA_SCRIPT' | 'FABULA' | 'STORY_INTEL';
 
 export interface IPWorld {
   id: string;
@@ -1173,6 +1184,10 @@ export interface TimelineEvent {
   clips?: string[];
   locationRef?: string;        // LoreEntry ID of the location
   significance?: 'MINOR' | 'MAJOR' | 'PIVOTAL';
+  // World Hub tagging (see Character).
+  sourceApp?: WorldSourceApp;
+  sourceProjectId?: string;
+  sourceRefId?: string;
 }
 
 
@@ -1277,6 +1292,12 @@ export interface Video {
   remixEndSec?: number;
   /** Sounds — the Chora track used as this short's sound ("use this sound"). */
   soundTrackId?: string;
+  /** Picture shape, recorded at upload and again when Mux reports the asset (services/reello/shortForm). */
+  aspectRatio?: 'VERTICAL' | 'SQUARE' | 'HORIZONTAL';
+  /** The creator's own call: 'short' puts it in Shorts, 'long' keeps a vertical video out. Unset = decided by shape and length. */
+  format?: 'short' | 'long';
+  /** This Short was cut from that video (Story Intelligence). */
+  shortOf?: string;
   /** Creator Passport provenance — so reused/remixed work always resolves to origin. */
   provenance?: { passportId?: string; originVideoId?: string; originOwnerId?: string; stampedAt?: number };
   /** Skip-intro / skip-recap timeline markers (seconds). */
@@ -1856,6 +1877,8 @@ export interface UserProfile {
   provisionedRoleKey?: string;
 
   // ─── Family / child-safety (accountType 'PARENT' | 'CHILD') ─────────────────
+  /** True when this account may appear in list queries. Never set on a child (firestore.rules). */
+   listable?: boolean;
   /** True for a managed child account. Safe defaults are applied regardless of who edits. */
   isChild?: boolean;
   /** uid of the managing parent/guardian (set on a CHILD account). */
@@ -2025,6 +2048,7 @@ export interface NowActiveEntry {
 // ── Creator Earnings ──────────────────────────────────────────────────────────
 
 export type EarningCategory =
+  | 'content_purchase' // albums, tracks, films and books bought or rented
   | 'tip'            // live stream tips & gift payments
   | 'digital_sale'   // music, books, movies sold individually
   | 'sanctuary'      // Sanctuary membership fees
@@ -2327,6 +2351,8 @@ export interface Post {
   orgRoomId?: string;
   /** Elevate: display labels for the targeted feeds/departments/groups shown on post badges. */
   orgTargetLabels?: string[];
+  /** Elevate: shared by the per-department copies of one post aimed at several departments (shown once). */
+  orgPostGroupId?: string;
   text: string;
   /** Creator-applied safety labels — viewer settings decide blur/consent gating */
   contentLabels?: ('GRAPHIC_VIOLENCE' | 'MATURE_18' | 'ARTISTIC_NUDITY' | 'SENSITIVE_OTHER')[];
@@ -2730,7 +2756,7 @@ export interface ChurchPrayer {
   timestamp: number;
 }
 
-// ── Ministry Content Synergy Engine ─────────────────────────────────────────────
+// ── Event Intelligence ─────────────────────────────────────────────
 // Turn one captured service/stream into publishable content (article/podcast/book)
 // via ARIA. See docs/MINISTRY_CONTENT_SYNERGY_BLUEPRINT.md.
 
@@ -2927,8 +2953,10 @@ export interface Organization {
   orgKindLabel?: string;
   /** Denormalized role index — Firestore rules cannot query memberships, so these are derived by
    *  elevateService.recomputeOrgRoleIndex. NEVER trust client edits: derived from orgMemberships. */
+  itAdminUids?: string[];    // owner + IT Admins: master access inside this org. Server-only (routes/elevateAccess.ts)
+  seniorPastorUids?: string[]; // Senior Pastors: full finance access. Server-only
   pastorUids?: string[];     // senior pastors, pastors, ministers
-  financeUids?: string[];    // finance / treasurer / trustees with MANAGE_GIVING
+  financeUids?: string[];    // finance roles with MANAGE_GIVING. This and the three money lists below are server-only
   prayerUids?: string[];     // may read the private prayer queue (pastors + prayer warriors)
   leaderUids?: string[];     // dept heads + ministry leaders
   givingViewUids?: string[]; // trustees etc. - read-only access to giving records
@@ -2950,10 +2978,15 @@ export interface Organization {
   statementOfFaith?: string;
   givingUrl?: string;         // external giving link (fallback to native Stripe giving)
   /** Legal entity name + EIN printed on giving statements (Finance Hub settings). */
+  /** The finance fields below live on organizations/{id}/private/finance; load them with services/orgFinance. */
   legalName?: string;
   ein?: string;
   statementFooter?: string;
   financeSettings?: ChmsFinanceSettings;
+  /** Public, server-set: Stripe giving is connected. */
+  canReceiveGiving?: boolean;
+  /** Public: this org turned the donor fee-cover offer off. */
+  donorFeeCoverOff?: boolean;
 
   // ── Org chat workspace (services/orgChatService) ───────────────────────────
   /** Set when the org's chat channels were last provisioned (mirrors productions). */
@@ -3497,6 +3530,8 @@ export interface OrgMembership {
   // ── Employee / delegated-role fields (business pages) ──────────────────────
   /** Template role key (services/businessTemplates.ts), e.g. "AR", "CHEF". Drives the badge. */
   roleKey?: string;
+  /** IT Admin, Senior Pastor and finance roles actually held. Server-only: `roleKey`/`roleKeys` alone grant none of their powers. */
+  protectedRoles?: string[];
   /** Additional org-wide role keys held simultaneously (e.g. ['MEMBER', 'INSTRUCTOR', 'DEPARTMENT_VOLUNTEER']). */
   roleKeys?: string[];
   /** True when this membership represents an employee (renders as a work badge). */
@@ -3545,6 +3580,11 @@ export interface OrgMembership {
   ministryIds?: string[];
   /** When a real person claimed the provisioned seat. */
   claimedAt?: number;
+  /** Claim-invitation email state, written only by the server (routes/elevateInvites.ts). */
+  claimInviteStatus?: 'SENT' | 'FAILED' | 'BOUNCED' | 'OPTED_OUT';
+  claimInviteEmail?: string;
+  claimInviteSentAt?: number;
+  claimInviteCount?: number;
   /** Member onboarding details submitted with a PENDING membership request (doubles as church/org member onboarding). */
   onboarding?: OrgMembershipOnboarding;
 }
@@ -3775,7 +3815,10 @@ export interface Submission {
   grade?: number;
   feedback?: string;
   timestamp: number;
-  /** Lets the course owner query a gradebook (assignments are embedded in the classroom doc). */
+  /**
+   * The class this submission belongs to. Required on create by the rules (the student must be in
+   * that class's enrolledStudents); also lets the owner query a gradebook.
+   */
   classroomId?: string;
 }
 
@@ -3788,9 +3831,24 @@ export interface Classroom {
   thumbnailUrl: string;
   price: number; // 0 for free
   syllabus: string;
+  /**
+   * Always [] on the public doc — the real coursework lives in
+   * `classrooms/{id}/private/coursework` (owner + enrolled only; services/classroomCoursework).
+   * Pre-split classes may still embed it here until the owner opens them. In-memory copies loaded
+   * through the coursework service carry the real arrays.
+   */
   lessons: Lesson[];
   assignments: Assignment[];
+  /** Catalog-safe preview of the private coursework: lesson ids + titles only. */
+  lessonOutline?: { id: string; title: string }[];
+  /** Catalog-safe count of the private assignments. */
+  assignmentCount?: number;
+  /** Filled by services/classRoster for the class's teacher and students; lives on private/roster. */
   enrolledStudents: string[]; // UIDs
+  /** Public seat count. */
+  enrolledCount?: number;
+  /** 'open' lets anyone self-enroll (publicly listed creator courses). Default closed: teacher add or join code. */
+  enrollment?: 'open' | 'closed';
   liveSessionUrl?: string;
   category: string;
   // Which track this class belongs to. Both share the same classroom infrastructure:
@@ -4091,14 +4149,13 @@ export interface ParentalControls {
   /** School-hours focus mode: restrict non-learning surfaces during weekday school hours (8am-3pm). */
   schoolHoursLearningOnly?: boolean;
   /** Parent-visible copy of the child's login password so the parent can view/remind the child. */
-  savedChildPassword?: string;
   /** Timestamp of last password reset by parent. */
   passwordUpdatedAt?: number;
   updatedAt?: number;
   updatedBy?: string;
 }
 
-export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'PRAXIS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS' | 'ARTIST_MANAGER' | 'MELOS' | 'CAREER_IMPORT' | 'ARTIST_BOARDS' | 'EVENT_PRODUCTION_STUDIO' | 'TICKET_DESIGNER' | 'PLAJAH_PIXELS' | 'BIBLE' | 'AMBO' | 'AMBO_PRO' | 'FOLLOW_ALONG' | 'VESPERS' | 'SACRED_LIBRARY' | 'ATHLETE_SHOWCASE' | 'MATCH_FAN_ROOMS' | 'CLASS_POINTS' | 'ACADEMIA_TOUR' | 'ACADEMIA_HOME' | 'ACADEMIA_DIRECTORY' | 'LEARN' | 'HOMESCHOOL' | 'INQUIRY' | 'ACADEMIA_LANDING' | 'ACADEMIA_COURSES' | 'SCHOOL_PACKAGE' | 'LANGUAGE_QUEST' | 'EDU_SOCIAL' | 'KIDS_LIBRARY' | 'ROOM' | 'PODCAST_STUDIO' | 'LIVE_TRANSLATION' | 'PODCAST_CALLIN' | 'PODCAST_LISTEN' | 'ORG_HUB' | 'TELEPROMPTER' | 'SPATIAL_MIXER' | 'MELOS_BEATS' | 'MEDIA_CONVERTER' | 'COMIC_MUSEUM' | 'AUDIUS_ARTIST' | 'PLAJAH_ELEVATE' | 'PLATFORM_CHANGELOG' | 'MEDIA_ROUTER' | 'CROSSOVER' | 'SMART_DIRECTOR' | 'HISTORY_QUEST' | 'TV_SEARCH' | 'TERRA' | 'TERRA_MAP' | 'TERRA_PASSPORT' | 'TERRA_STUDIO' | 'TERRA_SCOUT' | 'TERRA_FILM' | 'TERRA_FEED' | 'TERRA_LISTINGS' | 'TELA' | 'TELA_EMBED_DEMO' | 'CREATOR_HUB' | 'MACHINE_ATLAS' | 'CREATOR_COURSES' | 'JOURNALIST_DESK' | 'PUBLICATION_PAGE'
+export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'PRAXIS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS' | 'ARTIST_MANAGER' | 'MELOS' | 'CAREER_IMPORT' | 'ARTIST_BOARDS' | 'EVENT_PRODUCTION_STUDIO' | 'TICKET_DESIGNER' | 'PLAJAH_PIXELS' | 'BIBLE' | 'AMBO' | 'AMBO_PRO' | 'FOLLOW_ALONG' | 'MEETING_JOIN' | 'VESPERS' | 'SACRED_LIBRARY' | 'ATHLETE_SHOWCASE' | 'MATCH_FAN_ROOMS' | 'CLASS_POINTS' | 'ACADEMIA_TOUR' | 'ACADEMIA_HOME' | 'ACADEMIA_DIRECTORY' | 'LEARN' | 'HOMESCHOOL' | 'INQUIRY' | 'ACADEMIA_LANDING' | 'ACADEMIA_COURSES' | 'SCHOOL_PACKAGE' | 'LANGUAGE_QUEST' | 'EDU_SOCIAL' | 'KIDS_LIBRARY' | 'ROOM' | 'PODCAST_STUDIO' | 'LIVE_TRANSLATION' | 'PODCAST_CALLIN' | 'PODCAST_LISTEN' | 'ORG_HUB' | 'TELEPROMPTER' | 'SPATIAL_MIXER' | 'MELOS_BEATS' | 'MEDIA_CONVERTER' | 'COMIC_MUSEUM' | 'AUDIUS_ARTIST' | 'PLAJAH_ELEVATE' | 'PLATFORM_CHANGELOG' | 'MEDIA_ROUTER' | 'CROSSOVER' | 'SMART_DIRECTOR' | 'HISTORY_QUEST' | 'TV_SEARCH' | 'TERRA' | 'TERRA_MAP' | 'TERRA_PASSPORT' | 'TERRA_STUDIO' | 'TERRA_SCOUT' | 'TERRA_FILM' | 'TERRA_FEED' | 'TERRA_LISTINGS' | 'TERRA_LAW' | 'TELA' | 'TELA_EMBED_DEMO' | 'CREATOR_HUB' | 'MACHINE_ATLAS' | 'CREATOR_COURSES' | 'JOURNALIST_DESK' | 'PUBLICATION_PAGE'
   | 'PLAJAH_FSE'
   | 'LIVE_FX_LAB'
   | 'DJ_CONSOLE'
@@ -4179,6 +4236,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'JOURNALISM_SCHOOL'
   // Art College — four-year studio + scholarship curriculum with live museum study (data/artCollege)
   | 'ART_COLLEGE'
+  // Music Law Library — statutes, landmark cases, live feed and the law-music course (components/academia/MusicLawLibrary)
+  | 'MUSIC_LAW'
   // Periodicals — Publication Studio (student / pro) and the Lorea issue reader (services/publication)
   | 'PUBLICATION_STUDIO'
   | 'ISSUE_READER'
@@ -4230,6 +4289,7 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'SHOW_MODE'
   // Chora Artist Page — music-centric artist profile (Editorial Gallery layout)
   | 'CHORA_ARTIST'
+  | 'BACK_SHOW'
   // Personal Artist Page — enriched external artist from music locker (Wikipedia + MusicBrainz)
   | 'PERSONAL_ARTIST'
   // Plajah Home — Matter smart home controller, repurposed device hub, intercom & digital frames
@@ -4662,11 +4722,27 @@ export interface ChatMessage {
   };
   threadRootId?: string;
   mentionUids?: string[];
+  /** Epoch ms of the sender's last edit; shows "edited". */
+  editedAt?: number;
+  /** Set when deleted for everyone: content cleared, the doc stays as a tombstone. */
+  deletedAt?: number;
+  /** A file shared in chat (Storage chat/{roomId}/files/…); see services/chat/chatCore. */
+  attachment?: ChatAttachment;
+  /** Card for the first link in `text`, captured at send time (never in protected threads). */
+  linkPreview?: { url: string; title: string; description?: string; image?: string; siteName: string };
+  /** Display name of the original author when this was forwarded from another room. */
+  forwardedFrom?: string;
+  /** Recap card for a recorded meeting (chat_rooms/{id}/recordings/{recordingId}). */
+  meetingRecap?: MeetingRecapRef;
+  /** Invite card for a scheduled meeting (chat_rooms/{id}/scheduled_meetings/{meetingId}). */
+  meetingInvite?: MeetingInviteRef;
+  /** Storage object this message owns (removed on delete/burn). */
+  storagePath?: string;
 }
 
 // ─── CONTENT HQ / CREATIVE REVIEW ──────────────────────────────────────────
 // One deliberately small workflow shared by creators, classrooms, clients and orgs.
-export type HqScopeKind = 'user' | 'org';
+export type HqScopeKind = 'user' | 'org' | 'business';
 export type HqAssetStatus = 'DRAFT' | 'IN_REVIEW' | 'CHANGES_REQUESTED' | 'APPROVED' | 'DELIVERED' | 'ARCHIVED';
 export type HqReviewDecision = 'PENDING' | 'APPROVED' | 'CHANGES_REQUESTED';
 export type HqWorkspaceRole = 'OWNER' | 'MANAGER' | 'CONTRIBUTOR' | 'REVIEWER';
@@ -4752,7 +4828,7 @@ export interface HqActivityEvent {
     'APPROVED' | 'CHANGES_REQUESTED' | 'DELIVERED' | 'MOVED' | 'TRASHED' | 'RESTORED' |
     'DOWNLOADED' | 'SHARED' | 'RIGHTS_UPDATED' | 'PUBLISHED' |
     // Wave 3 trust hardening: server-side security events.
-    'SCANNED' | 'QUARANTINED' | 'PURGED' | 'QUOTA_REJECTED';
+    'SCANNED' | 'QUARANTINED' | 'PURGED' | 'QUOTA_REJECTED' | 'ACCESS_CHANGED' | 'ACCESS_REVOKED';
   meta?: Record<string, string | number | boolean | null>;
   createdAt: number;
 }
@@ -4781,6 +4857,8 @@ export interface ChatRoom {
   id: string;
   participants: string[]; // UIDs
   lastMessage?: string;
+  /** Who posted lastMessage — unread = updatedAt past your read cursor and not you. */
+  lastSenderId?: string;
   updatedAt: number;
   type: 'PRIVATE' | 'GROUP' | 'PUBLIC_LIVE' | 'CLASSROOM';
   /** For CLASSROOM rooms: the class this group thread belongs to. */
@@ -5196,7 +5274,7 @@ export interface SystemSettingsConfig {
 export type AchievementCategory = 'USER' | 'ARTIST' | 'ORGANIZATION';
 export type AchievementTriggerType =
   | 'FIRST_PLAY' | 'FIRST_ALBUM_LISTEN' | 'FIRST_SONG' | 'FIRST_MOVIE_COMPLETED'
-  | 'FIRST_TV_COMPLETED' | 'FIRST_VIDEO_COMPLETED' | 'FIRST_GIFT' | 'FIRST_DONATION'
+  | 'FIRST_TV_COMPLETED' | 'FIRST_VIDEO_COMPLETED' | 'FIRST_GIFT' | 'FIRST_DONATION' | 'FIRST_STORE_PURCHASE' | 'LOYAL_SHOPPER'
   | 'FIRST_ENGAGEMENT' | 'FIRST_UPLOAD' | 'FIRST_LISTENER' | 'FIRST_FAN'
   | 'FIRST_SIGN_IN' | 'FIRST_FOLLOW' | 'WATCH_LIVE' | 'POST_COMMENT'
   | 'FIRST_LIVE_STREAM'
@@ -5204,7 +5282,7 @@ export type AchievementTriggerType =
   | 'THEME_FIRST_ADD' | 'THEME_RECEIVED' | 'USE_FEELING_LUCKY'
   // Academia — gamified learning
   | 'MATH_FIRST_SESSION' | 'MATH_STREAK_10' | 'MATH_TIME_ATTACK_100' | 'WORKSHEET_TURNED_IN' | 'WORKSHEET_PERFECT'
-  // Games — Ravencrest (Cinema's Halloween collection)
+  // Games — Ravencrest (Cinema's Plajah Horror Classics collection)
   | 'RAVENCREST_TROLL_SLAYER' | 'RAVENCREST_DRACULA_SLAIN' | 'RAVENCREST_CURSE_BREAKER'
   // Kith sightings — minted server-side by routes/kithSightings.ts. The
   // achievement ids are these trigger strings, so a claim can mint without a
@@ -5731,19 +5809,6 @@ export interface PlajahPlusSubscription {
   storageLimitGb: number;
   monthlyPoints: number;
   createdAt: number;
-  updatedAt: number;
-}
-
-export interface CreatorSplitEntry {
-  targetId: string;
-  targetType: 'USER' | 'CHARITY' | 'CLUB';
-  targetName: string;
-  percentage: number;
-}
-
-export interface CreatorSplit {
-  creatorId: string;
-  splits: CreatorSplitEntry[];
   updatedAt: number;
 }
 
@@ -6380,7 +6445,8 @@ export interface SanctuaryGate {
 
 export type StoreProductCategory =
   | 'APPAREL' | 'MUSIC' | 'ACCESSORIES' | 'DIGITAL'
-  | 'COLLECTIBLES' | 'BOOKS' | 'ELECTRONICS' | 'HOME' | 'ART' | 'OTHER';
+  | 'COLLECTIBLES' | 'BOOKS' | 'ELECTRONICS' | 'HOME' | 'ART' | 'OTHER'
+  | 'WELLNESS' | 'JEWELRY';
 
 export interface StoreProductVariant {
   id: string;
@@ -6443,6 +6509,9 @@ export interface StoreProduct {
   worldId?: string;         // linked world/brand
   // ── Ownership (a store can belong to a user OR an org/brand) ──
   sellerType?: 'USER' | 'ORG';
+  /** ORG stores only: the department/ministry (org.ministries[].id) whose shop this product belongs to.
+   *  Unset = the org's main shop. The product is still sold by the org account (sellerId). */
+  ministryId?: string;
   // ── Media / DAM link (surfaces a store product in the Content Asset Manager) ──
   videoUrl?: string;
   linkedAssetId?: string;   // Track/Video/Album this product is tied to
@@ -6514,6 +6583,11 @@ export interface StoreReview {
   isVerifiedPurchase: boolean;
   helpfulCount: number;
   timestamp: number;
+  editedAt?: number;
+  sellerId?: string;
+  /** The shop's public answer (server-written). */
+  sellerReply?: string;
+  sellerReplyAt?: number;
 }
 
 // ── GARAGE SALE (AUCTIONS) ────────────────────────────────────────────────────
@@ -7583,7 +7657,7 @@ export interface TelaDomainBinding {
   storageKey?: string;
   field?: string;
   label?: string;
-  /** Sensitive components are encrypted before the Tela bundle reaches OPFS/localStorage. */
+  /** Sensitive components are scrambled before the Tela bundle is stored, and stay out of shared sessions. Not real encryption: see telaStore. */
   encryptedAtRest?: boolean;
 }
 
@@ -7842,7 +7916,7 @@ export interface TelaFormDevice {
 // Slug analytic-curve text engine (spec §04) is a LATER dedicated push; SVG text
 // delivers sharp-at-zoom today.
 
-export type TelaVectorObjectKind = 'RECT' | 'ELLIPSE' | 'LINE' | 'PATH' | 'TEXT' | 'IMAGE' | 'LOTTIE' | 'MOTION_TEMPLATE';
+export type TelaVectorObjectKind = 'RECT' | 'ELLIPSE' | 'LINE' | 'PATH' | 'TEXT' | 'IMAGE' | 'LOTTIE' | 'MOTION_TEMPLATE' | 'VISUALIZER';
 
 // ── Lottie — native animation objects (kind 'LOTTIE') ────────────────────────
 // A Lottie (.json) or dotLottie (.lottie) animation placed on a vector artboard
@@ -7924,6 +7998,36 @@ export interface TelaMotionTemplateTiming {
   loop?: boolean;
   /** Empty gap between loop cycles (default 0.6 s). */
   gapSec?: number;
+}
+
+/** A live visualizer placed on a page. `value` is a platform visualizer value: a generator / Flux mode
+ *  ("FLUX_CANVAS_EMBER_BARK"), "SHADER:<name>" or "MILKDROP:<preset>" — the same values Stage stores. */
+export interface TelaVisualizerSpec {
+  value: string;
+  name?: string;
+  /** Shader source, kept so a shader placed from the library renders even if its catalog name changes. */
+  shaderSrc?: string;
+  /** What it reacts to: whatever plays on the Plajah player, the microphone, or nothing (idle motion). */
+  audio?: 'player' | 'mic' | 'none';
+  /** Pace multiplier (1 = normal). */
+  speed?: number;
+  /** Flux Canvas: pattern morph and the beat-locked director (default on). */
+  morph?: boolean;
+  director?: boolean;
+  /** Still frame (data URL) for print / PDF / image export and static previews. */
+  posterSrc?: string;
+}
+
+/** Pixels / Fabula effects on an image: a chain of effect steps (a single effect or a Look), an overall amount. */
+export interface TelaPixelsFx {
+  steps: { effectId: string; params?: number[]; mix?: number }[];
+  /** 0..1 blend of the effect over the original. */
+  amount: number;
+  name?: string;
+  /** Animate the effect live (and react to the Plajah player) wherever the document plays. */
+  live?: boolean;
+  /** The filtered picture (data URL), used by every static path: thumbnails, print, PDF, export. */
+  filteredSrc?: string;
 }
 
 export interface TelaMotionTemplateSpec {
@@ -8119,6 +8223,10 @@ export interface TelaVectorObject {
   lottie?: TelaLottieSpec;
   /** MOTION_TEMPLATE-only: which code template to draw, its content and the doc-owned timing. */
   motionTemplate?: TelaMotionTemplateSpec;
+  /** VISUALIZER-only: a live platform visualizer (Pixels generator, shader, MilkDrop, Flux, Flux Canvas, Typo). */
+  visualizer?: TelaVisualizerSpec;
+  /** IMAGE-only: Pixels / Fabula effects applied to the picture (baked into `filteredSrc`; optionally live). */
+  pixelsFx?: TelaPixelsFx;
 }
 
 /** Vector design surface — an artboard of SVG objects (z-order = array order). */
@@ -8326,6 +8434,8 @@ export interface TelaMediaDevice {
   height: number;
   storagePath?: string;
   sessionOnly?: boolean;
+  /** Set when this model was sculpted in Argilla, so it can be reopened as clay. */
+  argillaProjectId?: string;
 }
 
 /** A typed teaching figure (plate, audio, video, diagram, timeline, graph). Data charts use the native CHART device instead. */
@@ -8393,6 +8503,10 @@ export interface TelaDoc {
   print?: import('./services/print/types').DocPrintSpec;
   /** Periodical issue this doc lays out (services/publication). */
   issue?: { publicationId: string; issueId: string; volume?: number; number: number; date: string };
+  /** The organization this document was made for (announcements, Classwork, org templates). Gates sharing it as a public template (services/templates/docTemplateLibrary). */
+  orgOrigin?: { orgId: string; orgName?: string };
+  /** Accounts that have edited this doc, so the Tela home page can list "Mine" as made or worked on by you (services/tela/recentScope). */
+  editedBy?: string[];
   createdAt: number;
   updatedAt: number;
   /** Last structural assignment formatting pass. Source content remains editable. */
@@ -8429,6 +8543,13 @@ export interface TelaDocMeta {
   updatedAt: number;
   /** Newest published version (P2b) — mirrors TelaDoc.currentVersionId. */
   latestVersionId?: string;
+  /** The organization the doc was made for (TelaDoc.orgOrigin, or the shared project's orgId). */
+  orgId?: string;
+  orgName?: string;
+  /** Accounts that have edited it (TelaDoc.editedBy). */
+  editedBy?: string[];
+  /** Display name of the person who shared it with you; set only on docs other people shared. */
+  sharedBy?: string;
 }
 
 // ── Versions — immutable published snapshots (P2b) ───────────────────────────

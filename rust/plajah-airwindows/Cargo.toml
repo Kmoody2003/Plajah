@@ -1,0 +1,9 @@
+[package]
+name = "plajah-airwindows"
+version = "0.1.0"
+edition = "2024"
+description = "Airwindows effects (Chris Johnson, MIT) ported to Rust for the MEKA/Melos insert rack. Compiles to wasm32 for one AudioWorklet per device; each port is checked sample-for-sample against the original C++ (see ref/)."
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]

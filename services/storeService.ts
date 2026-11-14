@@ -1,6 +1,6 @@
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy, limit, addDoc, increment, arrayUnion, arrayRemove, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
-import { db, auth } from './firebase';
+import { db, opsDb, auth } from './firebase';
 import type {
   StoreProduct, StoreOrder, StoreOrderItem, StoreCartItem,
   StoreReview, GarageSaleItem, GarageSaleBid, StoreProductCategory,
@@ -9,18 +9,18 @@ import type {
 // ── PRODUCTS ─────────────────────────────────────────────────────────────────
 
 export const createProduct = async (product: Omit<StoreProduct, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
-  const ref = doc(collection(db, 'storeProducts'));
+  const ref = doc(collection(opsDb, 'storeProducts'));
   const now = Date.now();
   await setDoc(ref, { ...product, id: ref.id, createdAt: now, updatedAt: now });
   return ref.id;
 };
 
 export const updateProduct = async (productId: string, updates: Partial<StoreProduct>): Promise<void> => {
-  await updateDoc(doc(db, 'storeProducts', productId), { ...updates, updatedAt: Date.now() });
+  await updateDoc(doc(opsDb, 'storeProducts', productId), { ...updates, updatedAt: Date.now() });
 };
 
 export const deleteProduct = async (productId: string): Promise<void> => {
-  await deleteDoc(doc(db, 'storeProducts', productId));
+  await deleteDoc(doc(opsDb, 'storeProducts', productId));
 };
 
 const newestFirst = (a: StoreProduct, b: StoreProduct) => (b.createdAt || 0) - (a.createdAt || 0);
@@ -28,13 +28,13 @@ const newestFirst = (a: StoreProduct, b: StoreProduct) => (b.createdAt || 0) - (
 // Equality-only query + client sort: `where(sellerId) + orderBy(createdAt)` needs a composite index, and a
 // missing index makes the read fail silently (an empty inventory that looks like data loss).
 export const fetchProductsBySeller = async (sellerId: string): Promise<StoreProduct[]> => {
-  const snap = await getDocs(query(collection(db, 'storeProducts'), where('sellerId', '==', sellerId)));
+  const snap = await getDocs(query(collection(opsDb, 'storeProducts'), where('sellerId', '==', sellerId)));
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreProduct)).sort(newestFirst);
 };
 
 export const fetchFeaturedProducts = async (limitCount = 20): Promise<StoreProduct[]> => {
   const q = query(
-    collection(db, 'storeProducts'),
+    collection(opsDb, 'storeProducts'),
     where('isActive', '==', true),
     where('isFeatured', '==', true),
     orderBy('createdAt', 'desc'),
@@ -49,7 +49,7 @@ export const fetchProductsByCategory = async (
   limitCount = 40,
 ): Promise<StoreProduct[]> => {
   const q = query(
-    collection(db, 'storeProducts'),
+    collection(opsDb, 'storeProducts'),
     where('isActive', '==', true),
     where('category', '==', category),
     orderBy('createdAt', 'desc'),
@@ -61,7 +61,7 @@ export const fetchProductsByCategory = async (
 
 export const fetchAllActiveProducts = async (limitCount = 60): Promise<StoreProduct[]> => {
   const q = query(
-    collection(db, 'storeProducts'),
+    collection(opsDb, 'storeProducts'),
     where('isActive', '==', true),
     orderBy('createdAt', 'desc'),
     limit(limitCount),
@@ -76,8 +76,8 @@ export const listenToProducts = (
 ) => {
   // A seller's own shop page shows only what they've published (hidden drafts must never reach shoppers).
   const q = sellerId
-    ? query(collection(db, 'storeProducts'), where('sellerId', '==', sellerId))
-    : query(collection(db, 'storeProducts'), where('isActive', '==', true), orderBy('createdAt', 'desc'), limit(60));
+    ? query(collection(opsDb, 'storeProducts'), where('sellerId', '==', sellerId))
+    : query(collection(opsDb, 'storeProducts'), where('isActive', '==', true), orderBy('createdAt', 'desc'), limit(60));
   return onSnapshot(q, snap => {
     const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreProduct));
     callback(sellerId ? all.filter(p => p.isActive !== false).sort(newestFirst) : all);
@@ -144,7 +144,7 @@ export const fetchUnifiedSellerProducts = async (ownerId: string, sellerName = '
  */
 export const migrateMerchItem = async (m: any, sellerName = ''): Promise<string> => {
   const mapped = merchToStoreProduct(m, sellerName);
-  const ref = doc(collection(db, 'storeProducts'));
+  const ref = doc(collection(opsDb, 'storeProducts'));
   const now = Date.now();
   const { id, ...rest } = mapped;
   // strip undefined (Firestore rejects undefined field writes)
@@ -155,22 +155,53 @@ export const migrateMerchItem = async (m: any, sellerName = ''): Promise<string>
 
 // ── REVIEWS ───────────────────────────────────────────────────────────────────
 
-export const addProductReview = async (review: Omit<StoreReview, 'id' | 'timestamp' | 'helpfulCount'>): Promise<void> => {
-  const ref = doc(collection(db, 'storeReviews'));
-  await setDoc(ref, { ...review, id: ref.id, helpfulCount: 0, timestamp: Date.now() });
-  await updateDoc(doc(db, 'storeProducts', review.productId), {
-    reviewCount: increment(1),
-  });
+// Writes go through the server (/api/store/reviews): it decides "Verified purchase" from paid orders,
+// keeps one review per person per product, and recomputes the product's rating from the reviews.
+const reviewApi = async (path: string, init: RequestInit = {}) => {
+  const u = auth.currentUser;
+  if (!u) throw new Error('Sign in first.');
+  const res = await fetch(path, { ...init, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await u.getIdToken()}`, ...(init.headers || {}) } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Something went wrong. Try again.');
+  return data;
 };
+
+export interface ReviewDraft { productId: string; rating: number; title?: string; body: string; images?: string[] }
+export const addProductReview = async (review: ReviewDraft): Promise<{ review: StoreReview; rating: number; reviewCount: number }> =>
+  reviewApi('/api/store/reviews', { method: 'POST', body: JSON.stringify(review) });
+
+export const deleteMyProductReview = async (productId: string): Promise<{ rating: number; reviewCount: number }> =>
+  reviewApi(`/api/store/reviews/${encodeURIComponent(productId)}`, { method: 'DELETE' });
 
 export const fetchProductReviews = async (productId: string): Promise<StoreReview[]> => {
-  const q = query(collection(db, 'storeReviews'), where('productId', '==', productId), orderBy('timestamp', 'desc'));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreReview));
+  const snap = await getDocs(query(collection(db, 'storeReviews'), where('productId', '==', productId), limit(500)));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreReview)).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 };
 
-export const markReviewHelpful = async (reviewId: string): Promise<void> => {
-  await updateDoc(doc(db, 'storeReviews', reviewId), { helpfulCount: increment(1) });
+export const markReviewHelpful = async (reviewId: string): Promise<{ already: boolean }> =>
+  reviewApi(`/api/store/reviews/${encodeURIComponent(reviewId)}/helpful`, { method: 'POST' });
+
+export const replyToReview = async (reviewId: string, text: string): Promise<{ sellerReply: string }> =>
+  reviewApi(`/api/store/reviews/${encodeURIComponent(reviewId)}/reply`, { method: 'POST', body: JSON.stringify({ text }) });
+
+/** Straight to Stripe Checkout for these lines from ONE shop (Buy now). The server re-prices and stock-checks;
+ *  money goes to the shop. Navigates away on success, throws a readable error otherwise. */
+export const startStoreCheckout = async (sellerId: string, lines: StoreCartItem[]): Promise<void> => {
+  const u = auth.currentUser;
+  if (!u) throw new Error('Sign in to check out.');
+  const res = await fetch('/api/store/create-order', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${await u.getIdToken()}` },
+    body: JSON.stringify({
+      businessUid: sellerId,
+      items: lines.map(i => ({ productId: i.product.id, variantId: i.variantId, qty: i.quantity })),
+      fulfillment: lines.every(i => i.product.isDigital) ? 'PICKUP' : 'SHIP',
+      customerName: u.displayName || '',
+    }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.url) throw new Error(data.error || 'Could not start checkout. Try again.');
+  window.location.href = data.url;
 };
 
 // ── ORDERS ────────────────────────────────────────────────────────────────────
@@ -183,7 +214,7 @@ export const markReviewHelpful = async (reviewId: string): Promise<void> => {
 export const fetchMyOrders = async (): Promise<StoreOrder[]> => {
   if (!auth.currentUser) return [];
   const q = query(
-    collection(db, 'storeOrders'),
+    collection(opsDb, 'storeOrders'),
     where('buyerId', '==', auth.currentUser.uid),
     orderBy('createdAt', 'desc'),
   );
@@ -193,7 +224,7 @@ export const fetchMyOrders = async (): Promise<StoreOrder[]> => {
 
 export const fetchSellerOrders = async (sellerId: string): Promise<StoreOrder[]> => {
   const q = query(
-    collection(db, 'storeOrders'),
+    collection(opsDb, 'storeOrders'),
     where('sellerId', '==', sellerId),
     orderBy('createdAt', 'desc'),
   );
@@ -204,7 +235,7 @@ export const fetchSellerOrders = async (sellerId: string): Promise<StoreOrder[]>
 export const updateOrderStatus = async (orderId: string, status: StoreOrder['status'], trackingNumber?: string): Promise<void> => {
   const updates: any = { status, updatedAt: Date.now() };
   if (trackingNumber) updates.trackingNumber = trackingNumber;
-  await updateDoc(doc(db, 'storeOrders', orderId), updates);
+  await updateDoc(doc(opsDb, 'storeOrders', orderId), updates);
 };
 
 // ── GARAGE SALE (AUCTIONS) ────────────────────────────────────────────────────
@@ -212,7 +243,7 @@ export const updateOrderStatus = async (orderId: string, status: StoreOrder['sta
 export const createGarageSaleItem = async (
   item: Omit<GarageSaleItem, 'id' | 'bidCount' | 'watchers' | 'currentBid' | 'createdAt' | 'status'>,
 ): Promise<string> => {
-  const ref = doc(collection(db, 'garageSale'));
+  const ref = doc(collection(opsDb, 'garageSale'));
   await setDoc(ref, {
     ...item,
     id: ref.id,
@@ -227,14 +258,14 @@ export const createGarageSaleItem = async (
 export const listenToGarageSaleItems = (callback: (items: GarageSaleItem[]) => void, category?: string) => {
   const base = [where('status', '==', 'ACTIVE'), orderBy('endTime', 'asc'), limit(50)] as any[];
   if (category) base.unshift(where('category', '==', category));
-  const q = query(collection(db, 'garageSale'), ...base);
+  const q = query(collection(opsDb, 'garageSale'), ...base);
   return onSnapshot(q, snap => {
     callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as GarageSaleItem)));
   });
 };
 
 export const fetchGarageSaleItem = async (itemId: string): Promise<GarageSaleItem | null> => {
-  const snap = await getDoc(doc(db, 'garageSale', itemId));
+  const snap = await getDoc(doc(opsDb, 'garageSale', itemId));
   return snap.exists() ? ({ id: snap.id, ...snap.data() } as GarageSaleItem) : null;
 };
 
@@ -246,8 +277,8 @@ export const placeBid = async (
   if (!auth.currentUser) return { success: false, message: 'Must be signed in' };
 
   try {
-    const result = await runTransaction(db, async (tx) => {
-      const itemRef = doc(db, 'garageSale', itemId);
+    const result = await runTransaction(opsDb, async (tx) => {
+      const itemRef = doc(opsDb, 'garageSale', itemId);
       const itemSnap = await tx.get(itemRef);
       if (!itemSnap.exists()) throw new Error('Item not found');
 
@@ -260,7 +291,7 @@ export const placeBid = async (
       if (amount < minBid) throw new Error(`Minimum bid is $${minBid.toFixed(2)}`);
 
       // Place bid
-      const bidRef = doc(collection(db, 'garageSale', itemId, 'bids'));
+      const bidRef = doc(collection(opsDb, 'garageSale', itemId, 'bids'));
       const bid: GarageSaleBid = {
         id: bidRef.id,
         itemId,
@@ -292,21 +323,21 @@ export const placeBid = async (
 
 export const watchGarageSaleItem = async (itemId: string): Promise<void> => {
   if (!auth.currentUser) return;
-  await updateDoc(doc(db, 'garageSale', itemId), {
+  await updateDoc(doc(opsDb, 'garageSale', itemId), {
     watchers: arrayUnion(auth.currentUser.uid),
   });
 };
 
 export const unwatchGarageSaleItem = async (itemId: string): Promise<void> => {
   if (!auth.currentUser) return;
-  await updateDoc(doc(db, 'garageSale', itemId), {
+  await updateDoc(doc(opsDb, 'garageSale', itemId), {
     watchers: arrayRemove(auth.currentUser.uid),
   });
 };
 
 export const fetchBidHistory = async (itemId: string): Promise<GarageSaleBid[]> => {
   const q = query(
-    collection(db, 'garageSale', itemId, 'bids'),
+    collection(opsDb, 'garageSale', itemId, 'bids'),
     orderBy('timestamp', 'desc'),
     limit(50),
   );
@@ -324,7 +355,7 @@ const routeAuctionToFundraiser = async (item: GarageSaleItem, finalPrice: number
   try {
     const { contributeToCampaign } = await import('./sanctuaryService'); // dynamic → avoid circular
     await contributeToCampaign(link.sanctuaryId, amount);
-    await updateDoc(doc(db, 'garageSale', itemId), { 'sanctuaryFundraiserLink.raisedViaAuction': increment(amount) });
+    await updateDoc(doc(opsDb, 'garageSale', itemId), { 'sanctuaryFundraiserLink.raisedViaAuction': increment(amount) });
   } catch { /* fundraiser contribution is best-effort */ }
   return amount;
 };
@@ -332,8 +363,8 @@ const routeAuctionToFundraiser = async (item: GarageSaleItem, finalPrice: number
 export const buyItNow = async (itemId: string): Promise<{ success: boolean; message: string; raisedForCampaign?: number }> => {
   if (!auth.currentUser) return { success: false, message: 'Must be signed in' };
   try {
-    const result = await runTransaction(db, async (tx) => {
-      const itemRef = doc(db, 'garageSale', itemId);
+    const result = await runTransaction(opsDb, async (tx) => {
+      const itemRef = doc(opsDb, 'garageSale', itemId);
       const itemSnap = await tx.get(itemRef);
       if (!itemSnap.exists()) throw new Error('Item not found');
       const item = itemSnap.data() as GarageSaleItem;
@@ -359,8 +390,8 @@ export const buyItNow = async (itemId: string): Promise<{ success: boolean; mess
 export const settleAuction = async (itemId: string): Promise<{ success: boolean; message: string; raisedForCampaign?: number }> => {
   if (!auth.currentUser) return { success: false, message: 'Must be signed in' };
   try {
-    const outcome = await runTransaction(db, async (tx) => {
-      const itemRef = doc(db, 'garageSale', itemId);
+    const outcome = await runTransaction(opsDb, async (tx) => {
+      const itemRef = doc(opsDb, 'garageSale', itemId);
       const itemSnap = await tx.get(itemRef);
       if (!itemSnap.exists()) throw new Error('Item not found');
       const item = itemSnap.data() as GarageSaleItem;
@@ -383,7 +414,7 @@ export const settleAuction = async (itemId: string): Promise<{ success: boolean;
 
 export const fetchMyGarageSaleItems = async (): Promise<GarageSaleItem[]> => {
   if (!auth.currentUser) return [];
-  const q = query(collection(db, 'garageSale'), where('sellerId', '==', auth.currentUser.uid), orderBy('createdAt', 'desc'));
+  const q = query(collection(opsDb, 'garageSale'), where('sellerId', '==', auth.currentUser.uid), orderBy('createdAt', 'desc'));
   const snap = await getDocs(q);
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as GarageSaleItem));
 };

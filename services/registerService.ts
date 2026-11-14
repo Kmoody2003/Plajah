@@ -3,7 +3,8 @@
 // the pure cores (taxCore / ebtCore / tenderCore / refundCore / drawerCore) shared with the server.
 
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db, auth } from './backendService';
+import { auth } from './backendService';
+import { opsDb } from './firebase';
 import type { RegisterSettings } from '../types';
 import { parseTaxSettings, type TaxSettings } from './taxCore';
 import type { Tender } from './tenderCore';
@@ -14,7 +15,7 @@ export interface LoadedRegisterSettings { tax: TaxSettings; refundApprovalCents:
 export async function fetchRegisterSettings(businessUid: string): Promise<LoadedRegisterSettings> {
   let raw: RegisterSettings = {};
   try {
-    const snap = await getDoc(doc(db, 'businesses', businessUid));
+    const snap = await getDoc(doc(opsDb, 'businesses', businessUid));
     const v = snap.exists() ? (snap.data() as any).registerSettings : null;
     raw = typeof v === 'string' ? JSON.parse(v) : (v || {});
   } catch { /* no settings = no tax */ }
@@ -29,7 +30,7 @@ export async function fetchRegisterSettings(businessUid: string): Promise<Loaded
 
 /** Owner-only (Firestore rules: businesses/{uid} writable by the owner). Stored as a JSON string, which is what the server reads. */
 export async function saveRegisterSettings(businessUid: string, s: RegisterSettings): Promise<void> {
-  await setDoc(doc(db, 'businesses', businessUid), { registerSettings: JSON.stringify(s), updatedAt: Date.now() }, { merge: true });
+  await setDoc(doc(opsDb, 'businesses', businessUid), { registerSettings: JSON.stringify(s), updatedAt: Date.now() }, { merge: true });
 }
 
 export async function authedFetch(path: string, body: any, extraHeaders: Record<string, string> = {}) {
@@ -129,13 +130,13 @@ export const receiptLink = (businessUid: string, orderId: string, businessName: 
 import { collection, query, where, getDocs } from 'firebase/firestore';
 export async function fetchPosOrders(businessUid: string): Promise<any[]> {
   try {
-    const snap = await getDocs(query(collection(db, 'storeOrders'), where('sellerId', '==', businessUid)));
+    const snap = await getDocs(query(collection(opsDb, 'storeOrders'), where('sellerId', '==', businessUid)));
     return snap.docs.map(d => ({ id: d.id, ...d.data() })).filter((o: any) => o.source === 'POS').sort((a: any, b: any) => (b.createdAt || 0) - (a.createdAt || 0));
   } catch { return []; }
 }
 export async function fetchRefunds(businessUid: string): Promise<any[]> {
   try {
-    const snap = await getDocs(query(collection(db, 'storeRefunds'), where('sellerId', '==', businessUid)));
+    const snap = await getDocs(query(collection(opsDb, 'storeRefunds'), where('sellerId', '==', businessUid)));
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   } catch { return []; }
 }

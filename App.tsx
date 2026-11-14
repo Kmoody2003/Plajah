@@ -1,3 +1,4 @@
+import { acceptHandoff } from './services/crossover/handoff';
 import { UserAvatar } from './components/avatar/UserAvatar';
 import React, { useState, useEffect, lazy, Suspense, useCallback, useRef, useMemo } from 'react';
 import { Album, Track, AppView, ThemeType, Game, IPWorld, LiveFeed, PhotoGallery, Photo } from './types';
@@ -181,6 +182,7 @@ import { isSpeakerPickerSupported } from './services/speakerGroupsBridge';
 import TooltipSuppressor from './components/TooltipSuppressor';
 import ResumeUploadPrompt from './components/ResumeUploadPrompt';
 import StandingBanner from './components/enforcement/StandingBanner';
+import { TermsUpdateBar } from './components/legal/TermsUpdateBar';
 // Off the boot path (TV first paint parses everything eager): desktop/rare-only surfaces load on demand.
 const StoreDemoView = retryLazy(() => import('./components/StoreDemoView'));
 import { DEMO_SANCTUARY_ID, DEMO_STORE_ID, DEMO_STORE_PRODUCTS } from './data/demoShowcase';
@@ -215,6 +217,7 @@ const GalleryView = retryLazy(() => import('./components/gallery/GalleryView'));
 const GalleryEditor = retryLazy(() => import('./components/gallery/GalleryEditor'));
 // Tela — the unified document canvas (P0: canvas + Writer + Grid devices)
 const TelaView = retryLazy(() => import('./components/tela/TelaView'));
+import type { TelaClassworkContext } from './components/tela/classwork/classworkTypes';
 // Machine Atlas — generic 3D mechanical models + simulations (pilot: brakes)
 const MachineAtlasView = retryLazy(() => import('./components/atlas/MachineAtlasView'));
 const CreatorHub = retryLazy(() => import('./components/CreatorHub'));
@@ -276,6 +279,7 @@ const EconSchoolView = retryLazy(() => import('./components/EconSchoolView'));
 const PhilosophySchoolView = retryLazy(() => import('./components/PhilosophySchoolView'));
 const JournalismSchoolView = retryLazy(() => import('./components/JournalismSchoolView'));
 const ArtCollegeView = retryLazy(() => import('./components/artCollege/ArtCollegeView'));
+const MusicLawLibrary = retryLazy(() => import('./components/academia/MusicLawLibrary'));
 const PublicationStudio = retryLazy(() => import('./components/publication/PublicationStudio'));
 const IssueReader = retryLazy(() => import('./components/publication/IssueReader'));
 const PaperTradingView = retryLazy(() => import('./components/PaperTradingView'));
@@ -494,6 +498,7 @@ const SacredLibraryHub = retryLazy(() => import('./components/SacredLibraryHub')
 const AmboPresenter = retryLazy(() => import('./components/scripture/AmboPresenter'));
 const AmboProPresenter = retryLazy(() => import('./components/scripture/AmboProPresenter'));
 const FollowAlongView = retryLazy(() => import('./components/scripture/FollowAlongView'));
+const MeetingJoinPage = retryLazy(() => import('./components/meetings/MeetingJoinPage'));
 const AmboOutputWindow = retryLazy(() => import('./components/scripture/AmboOutputWindow'));
 const AmboOperatorWindow = retryLazy(() => import('./components/scripture/AmboOperatorWindow'));
 const TelehealthJoinPage = retryLazy(() => import('./components/clinic/TelehealthJoinPage'));
@@ -530,6 +535,7 @@ const TerraExplorer = retryLazy(() => import('./components/terra/TerraExplorer')
 const PropertyPassport = retryLazy(() => import('./components/terra/PropertyPassport'));
 const ParcelStudio = retryLazy(() => import('./components/terra/ParcelStudio'));
 const SiteScout = retryLazy(() => import('./components/terra/SiteScout'));
+const LawLibrary = retryLazy(() => import('./components/terra/LawLibrary'));
 const ListingFilm = retryLazy(() => import('./components/terra/ListingFilm'));
 const TerraFeed = retryLazy(() => import('./components/terra/TerraFeed'));
 const TerraListings = retryLazy(() => import('./components/terra/ListingsManager'));
@@ -537,6 +543,7 @@ const AdPackageManager = retryLazy(() => import('./components/AdPackageManager')
 const ArtistProjectManager = retryLazy(() => import('./components/ArtistProjectManager'));
 const ChoraArtistManager = retryLazy(() => import('./components/ChoraArtistManager'));
 const ChoraArtistPage = retryLazy(() => import('./components/ChoraArtistPage'));
+const BackShowPage = retryLazy(() => import('./components/chora/BackThisShow').then(m => ({ default: m.BackShowPage })));
 const PersonalArtistPage = retryLazy(() => import('./components/PersonalArtistPage'));
 const MelosWorkspace = retryLazy(() => import('./components/melos/MelosWorkspace'));
 const CareerImportStudio = retryLazy(() => import('./components/CareerImportStudio'));
@@ -565,6 +572,7 @@ type AdSlot =
   | { kind: 'album'; album: import('./types').Album; profile: import('./types').UserProfile }
   | { kind: 'custom_ad'; ad: import('./types').UserAd; profile: import('./types').UserProfile }
   | { kind: 'product'; product: import('./data/demoShowcase').DemoProduct }
+  | { kind: 'store'; product: import('./types').StoreProduct }
   | { kind: 'promo'; promo: import('./services/promos/platformPromos').PlajahPromo };
 
 const AD_DURATION: Record<AdSlot['kind'], number> = {
@@ -574,6 +582,7 @@ const AD_DURATION: Record<AdSlot['kind'], number> = {
   album:     45000,
   custom_ad: 30000,
   product:   20000,
+  store:     20000,
 };
 
 // ~14-frame crossfade at 60 fps ≈ 233 ms
@@ -674,6 +683,8 @@ import { isFeedLive } from './services/liveFeedLiveness';
 import MediaRepairApprovals from './components/MediaRepairApprovals';
 import AchievementListView from './components/AchievementListView';
 import UploadManager from './components/UploadManager';
+import ReelloUploadDock, { openReelloUploader } from './components/reello/upload/ReelloUploadDock';
+import LessonLibraryOverlay from './components/library/LessonLibraryOverlay';
 import { PublishQueueProvider } from './contexts/PublishQueueContext';
 import PublishTray from './components/PublishTray';
 import { CallProvider } from './contexts/CallContext';
@@ -818,6 +829,9 @@ const App: React.FC = () => {
   // Shared links must never flash the globe launch page while the shared item is fetched.
   const [shareResolving, setShareResolving] = useState<boolean>(hasDeepLink && !channelShareOnLoad);
   const [telaRequestedDocId, setTelaRequestedDocId] = useState<string | null>(null);
+  /** Where Tela was opened from (a class, the Education hub, My Desk): drives Tela's "Back to …" button. */
+  const [telaReturnTo, setTelaReturnTo] = useState<{ label: string; programId?: string } | null>(null);
+  const [telaClasswork, setTelaClasswork] = useState<TelaClassworkContext | null>(null);
   // Which role the Demos corridor opened the tour at, so it skips its own role picker.
   const [demoRole, setDemoRole] = useState<'teacher' | 'parent' | 'student' | undefined>(undefined);
   // Academia Hub → open a Labs module directly (routes into ClassroomsView with the module preselected).
@@ -827,6 +841,7 @@ const App: React.FC = () => {
   // Admin kill-switch for the standalone Crossover converter (systemConfig/settings).
   const [crossoverSystemEnabled, setCrossoverSystemEnabled] = useState(true);
   useEffect(() => { fetchSystemSettingsConfig().then(c => setCrossoverSystemEnabled(c?.crossoverEnabled !== false)).catch(() => {}); }, []);
+  const crossoverInNav = crossoverSystemEnabled;
   // Load platform feature flags (config/featureFlags) + live-update — without this,
   // isFeatureEnabled() always returns the built-in defaults (e.g. CONTENT_LICENSING off).
   useEffect(() => { const unsub = initFeatureFlagListener(); return () => unsub(); }, []);
@@ -908,6 +923,7 @@ const App: React.FC = () => {
   const [bibleRefId, setBibleRefId] = useState<string | null>(null);
   // Kairos session a congregant is following (?follow=<id>, or the Elevate card).
   const [followSessionId, setFollowSessionId] = useState<string | null>(null);
+  const [meetingJoinId, setMeetingJoinId] = useState<string | null>(null);
   // Vespers briefing being read (?recap=<id>, a push tap, or Ambo's "Service filed").
   const [vespersRecapId, setVespersRecapId] = useState<string | null>(null);
   // Plajah Gallery — the shareable photo experience currently open, plus its resolved photos
@@ -987,7 +1003,7 @@ const App: React.FC = () => {
     return () => window.removeEventListener('plajah:openGalleryEditor', h as EventListener);
   }, [openGalleryEditor]);
 
-  // Open a Taleo curated collection (e.g. Special Halloween Curation) from anywhere in the app (such as a shared PostCard in the Plajah feed).
+  // Open a Taleo curated collection (e.g. Plajah Horror Classics) from anywhere in the app (such as a shared PostCard in the Plajah feed).
   useEffect(() => {
     const h = (e: Event) => {
       const d = (e as CustomEvent)?.detail || {};
@@ -1023,7 +1039,17 @@ const App: React.FC = () => {
   // openGallery CustomEvent pattern above.
   useEffect(() => {
     const h = (event: Event) => {
-      setTelaRequestedDocId((event as CustomEvent)?.detail?.docId || null);
+      const detail = (event as CustomEvent)?.detail || {};
+      setTelaRequestedDocId(detail.docId || null);
+      const cw = detail.classwork as TelaClassworkContext | undefined;
+      setTelaClasswork(cw || null);
+      setTelaReturnTo(
+        detail.returnTo
+          ? { label: String(detail.returnTo.label || 'Back'), programId: detail.returnTo.programId }
+          : cw
+            ? { label: cw.programName || 'Christian Education', programId: cw.programId }
+            : null
+      );
       setView('TELA');
     };
     window.addEventListener('plajah:openTela', h as EventListener);
@@ -1036,9 +1062,12 @@ const App: React.FC = () => {
   useEffect(() => {
     const openStudio = (e: Event) => { setPublicationTier((e as CustomEvent)?.detail?.tier === 'student' ? 'student' : 'pro'); setView('PUBLICATION_STUDIO'); };
     const openIssue = (e: Event) => { const id = (e as CustomEvent)?.detail?.issueId; if (id) { setOpenIssueId(id); setView('ISSUE_READER'); } };
+    // Content HQ "Start an article with it": opens the editor on an unsaved draft (cover photo already in place).
+    const openArticleEditor = (e: Event) => { const a = (e as CustomEvent)?.detail?.article; setEditingArticle(a || null); setView('ARTICLE_EDITOR'); };
     window.addEventListener('plajah:openPublicationStudio', openStudio);
     window.addEventListener('plajah:openIssue', openIssue);
-    return () => { window.removeEventListener('plajah:openPublicationStudio', openStudio); window.removeEventListener('plajah:openIssue', openIssue); };
+    window.addEventListener('plajah:openArticleEditor', openArticleEditor);
+    return () => { window.removeEventListener('plajah:openPublicationStudio', openStudio); window.removeEventListener('plajah:openIssue', openIssue); window.removeEventListener('plajah:openArticleEditor', openArticleEditor); };
   }, [setView]);
 
   // Create an event from anywhere: profile, org, business, school, teacher (components/events/CreateEventButton.tsx)
@@ -1191,6 +1220,8 @@ const App: React.FC = () => {
     window.history.replaceState({ view: initialView }, '', window.location.pathname + window.location.search + window.location.hash);
 
     const handlePopState = (event: PopStateEvent) => {
+      // A store product page (components/store/ProductPage useProductRoute) owns its own ?product= entries.
+      if ((event.state && event.state.productSheet) || (window as any).__plajahProductSheet) return;
       // Ignore in-page anchor clicks (#browse, #shelf, etc.) which fire popstate with event.state === null
       if (!event.state && window.location.hash && !/^#g\//.test(window.location.hash)) {
         return;
@@ -1586,7 +1617,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         window.location.pathname.startsWith('/ch/') ||
         window.location.pathname.startsWith('/reello') ||
         window.location.pathname.startsWith('/video') ||
-        window.location.pathname.startsWith('/link')
+        window.location.pathname.startsWith('/link') ||
+        window.location.pathname.startsWith('/back/')
       );
       if (isDeepLink) return false;
       const isWin = isWindowsApp();
@@ -1640,7 +1672,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         window.location.pathname.startsWith('/ch/') ||
         window.location.pathname.startsWith('/reello') ||
         window.location.pathname.startsWith('/video') ||
-        window.location.pathname.startsWith('/link')
+        window.location.pathname.startsWith('/link') ||
+        window.location.pathname.startsWith('/back/')
       );
       if (!isDeepLink) {
         const checkWin = () => {
@@ -1672,6 +1705,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [selectedBusinessPage, setSelectedBusinessPage] = useState<any>(null);
   const [terraPassportTarget, setTerraPassportTarget] = useState<{ parcelId?: string; listingKey?: string } | null>(null);
   const [terraStudioParcel, setTerraStudioParcel] = useState<string | undefined>(undefined);
+  const [terraLawTarget, setTerraLawTarget] = useState<{ query?: string; zoningDistrict?: string; parcelId?: string } | null>(null);
   const [selectedBrandPage, setSelectedBrandPage] = useState<any>(null);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -1780,6 +1814,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   }, []);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | undefined>(undefined);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [backShowId, setBackShowId] = useState<string | null>(null);
   // Plajah Evites studio: which invite to edit, which design to start from, and who is hosting (you / org / business / school / teacher)
   const [eviteCtx, setEviteCtx] = useState<{ editId?: string; plateId?: string; host?: any } | null>(null);
   const [pixelsPayload, setPixelsPayload] = useState<{ album?: any; track?: any; fluxScene?: string } | null>(null);
@@ -1941,6 +1976,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const insertPressedRef = useRef(false);
   const [showWelcomeAchievement, setShowWelcomeAchievement] = useState(false);
   const [showWelcomePackage, setShowWelcomePackage] = useState(false);
+  // Door sign-in, first visit: a one-time note that the Welcome Package waits in the Postman.
+  const [doorWelcomeNote, setDoorWelcomeNote] = useState(false);
   // First-login sequence: the Welcome Package letter → the 2-page Onboarding → the app.
   // (Named distinctly from the legacy `showOnboarding` OnboardingTour state, now retired.)
   const [showFirstRunOnboarding, setShowFirstRunOnboarding] = useState(false);
@@ -2132,11 +2169,22 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     window.addEventListener('plajah:open-live-fx-lab', handleOpenLiveFxLab);
 
     const handleOpenFabulaMedia = (e: any) => {
+      acceptHandoff('fabula', e?.detail);
       setView('FABULA');
     };
     window.addEventListener('OPEN_FABULA_MEDIA', handleOpenFabulaMedia);
 
+    const handleOpenPixelsMedia = (e: any) => {
+      const d = e?.detail;
+      const f = d?.file ?? d;
+      const mediaUrl = d?.url ?? f?.url ?? (f instanceof Blob ? URL.createObjectURL(f) : undefined);
+      setPixelsPayload({ mediaUrl, fileName: d?.name ?? f?.name } as any);
+      setView('PLAJAH_PIXELS');
+    };
+    window.addEventListener('OPEN_PIXELS_MEDIA', handleOpenPixelsMedia);
+
     const handleOpenCrossoverMedia = (e: any) => {
+      acceptHandoff('crossover', e?.detail);
       setView('CROSSOVER');
     };
     window.addEventListener('OPEN_CROSSOVER_MEDIA', handleOpenCrossoverMedia);
@@ -2736,6 +2784,24 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     setView(target);
   }), [setView]);
 
+  // Reello department channel pages (components/reello/ReelloDeptChannelPage) open videos and streams
+  // from anywhere: 'plajah:open-video' { videoId } and 'plajah:open-live-feed' { feed }.
+  const selectItemRef = useRef(handleSelectItem);
+  selectItemRef.current = handleSelectItem;
+  useEffect(() => {
+    const onVideo = async (e: Event) => {
+      const id = (e as CustomEvent<{ videoId?: string }>).detail?.videoId;
+      if (!id) return;
+      const m = await import('./services/backendService');
+      const v = await m.fetchVideoById(id).catch(() => null);
+      if (v) selectItemRef.current(v);
+    };
+    const onLive = (e: Event) => { const f = (e as CustomEvent<{ feed?: LiveFeed }>).detail?.feed; if (f) setActiveLiveFeed(f); };
+    window.addEventListener('plajah:open-video', onVideo);
+    window.addEventListener('plajah:open-live-feed', onLive);
+    return () => { window.removeEventListener('plajah:open-video', onVideo); window.removeEventListener('plajah:open-live-feed', onLive); };
+  }, []);
+
   // A local video the user wants to share: sharing means uploading it to Reello, so open the upload flow
   // with the file filled in (VideoManager shows the rights declaration before anything uploads).
   const handleUploadLocalToReello = async (f: WindowsPickedFile) => {
@@ -2745,8 +2811,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       const file = new File([blob], f.name, { type: blob.type || 'video/mp4', lastModified: f.lastModified || Date.now() });
       setActiveUniversalVideo(null);
       setIsMediaPlajahMode(false);
-      setReelloUploadSeed(file);
-      setView('VIDEO_MANAGER');
+      // The Upload Studio asks for the rights declaration itself before anything uploads.
+      openReelloUploader({ files: [file] });
     } catch (e) {
       console.error('[Reello upload] could not read the local file', e);
       alert('Could not read that file. Try uploading it from Reello directly.');
@@ -2845,6 +2911,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('TERRA_STUDIO');
     } else if (target === 'TERRA_SCOUT') {
       setView('TERRA_SCOUT');
+    } else if (target === 'TERRA_LAW') {
+      setTerraLawTarget(params?.terraLaw || null);
+      setView('TERRA_LAW');
     } else if (target === 'TERRA_FILM') {
       setView('TERRA_FILM');
     } else if (target === 'TERRA_FEED') {
@@ -2916,6 +2985,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('JOURNALISM_SCHOOL');
     } else if (target === 'ART_COLLEGE') {
       setView('ART_COLLEGE');
+    } else if (target === 'MUSIC_LAW') {
+      setView('MUSIC_LAW');
     } else if (target === 'PAPER_TRADING') {
       setView('PAPER_TRADING');
     } else if (target === 'PAPER_TRADING_CLASS') {
@@ -3205,12 +3276,33 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           updateUserProfile(u.uid, { hasCompletedOnboarding: true } as any).catch(() => {});
         }
 
+        // Came in through an organization door (school, faith/nonprofit, work, studio): they go
+        // straight to that org's home. No Plajah intro, no points pop-up, Smart Guide off. Their
+        // Welcome Package waits in the Postman for whenever they want the tour.
+        const doorEntry = !!pendingPortal && pendingPortal.portal !== 'personal';
+
         if (p && !p.welcomeAchievementShown && firstTime('welcome_achievement')) {
-          setShowWelcomeAchievement(true);
+          if (!doorEntry) setShowWelcomeAchievement(true);
           updateUserProfile(u.uid, { welcomeAchievementShown: true, totalPoints: (p.totalPoints || 0) + 100 } as any).catch(() => {});
         }
 
-        if (p && !p.hasCompletedOnboarding && !LAUNCHED_VIA_SHARE && firstTime('welcome_package')) {
+        if (doorEntry && p && !p.hasSeenWelcomePackage && !p.welcomePackageInPostman && firstTime('welcome_package')) {
+          updateUserProfile(u.uid, {
+            hasCompletedOnboarding: true, welcomePackageNotified: true, welcomePackageInPostman: true, isPioneer: true,
+            hasSeenSmartGuide: true,
+            ...(p.smartGuideEnabled === undefined ? { smartGuideEnabled: false } : {}),
+          } as any).catch(() => {});
+          import('./services/backendService').then(({ createNotification }) => {
+            createNotification({
+              userId: u.uid, senderId: 'plajah_system', senderName: 'Plajah',
+              senderPhoto: '/icons/icon-192.png', type: 'SYSTEM',
+              title: 'Your Welcome Package is in the Postman',
+              message: 'Whenever you want the tour of Plajah, open the Postman. Your welcome package is waiting there.',
+              link: 'POSTMAN',
+            } as any).catch(() => {});
+          });
+          setTimeout(() => setDoorWelcomeNote(true), 1500);
+        } else if (p && !p.hasCompletedOnboarding && !LAUNCHED_VIA_SHARE && firstTime('welcome_package')) {
           // Brand-new account → open the Boarding Plajah welcome package live (letter →
           // Continue → onboarding), drop the "Love, Plajah" letter into the system inbox once,
           // and mark it notified so the existing-user campaign below never also nudges them.
@@ -3237,8 +3329,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         }
 
         // Smart Guide — auto-enable for new users
-        setHasSeenSmartGuide(!!p?.hasSeenSmartGuide);
-        setSmartGuideEnabled(p?.smartGuideEnabled ?? !p?.hasSeenSmartGuide);
+        setHasSeenSmartGuide(!!p?.hasSeenSmartGuide || doorEntry); // door entries skip the first-run guide overlay
+        setSmartGuideEnabled(p?.smartGuideEnabled ?? (doorEntry ? false : !p?.hasSeenSmartGuide));
         // Load linked accounts for hot-switch. The DEVICE roster (localStorage) is
         // the source of truth so saved slots survive account switches; seed it from
         // the profile's list on first run, then upsert the now-active account.
@@ -3439,6 +3531,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
       // Deep-link: ?recap={id} — a member opening their Vespers briefing, which
       // is where the push notification and the church's link both land.
+      // Deep-link: ?meet={meetingId} — a scheduled meeting's link. No auth gate: guests (no account)
+      // knock from a waiting room; members of the chat go straight in.
+      const meetParam = params.get('meet');
+      if (meetParam && /^[A-Za-z0-9]{20,40}$/.test(meetParam)) {
+        setMeetingJoinId(meetParam);
+        setView('MEETING_JOIN' as AppView);
+        document.title = 'Meeting | Plajah';
+        setIsLoading(false);
+        return;
+      }
+
       const recapParam = params.get('recap');
       if (recapParam) {
         setVespersRecapId(recapParam);
@@ -3514,7 +3617,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           setIsPublicView(true);
           setView('MOVIES_TV');
           document.title = colSlug.includes('halloween')
-            ? 'Cinema Halloween — 31 Nights of Cinema Terror | Plajah'
+            ? 'Plajah Horror Classics — 31 Nights of Cinema Terror | Plajah'
             : 'Cinema | Plajah';
         }
         setIsLoading(false);
@@ -3522,6 +3625,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       }
 
       if (projectId) {
+        // Audius songs/albums/mixes (`audius:…` ids) live on the Audius network, not in Firestore —
+        // rebuild them from Audius, or the lookup misses and the visitor lands on the sign-in page.
+        const loadSharedMusic = async (id: string): Promise<any> => {
+          if (id.startsWith('audius:')) {
+            const { resolveAudiusShareId } = await import('./services/audiusService');
+            return resolveAudiusShareId(id).catch(() => null);
+          }
+          return fetchProjectFromCloud(id);
+        };
         if (shareType === 'movie') {
           // A shared Taleo film/TV title — always lands on the Taleo movie page
           // (MOVIE_UX). Reconstruct it from wherever it lives: creator film (album),
@@ -3632,7 +3744,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           setIsLoading(false);
           return;
         } else if (shareType === 'mix') {
-          const remoteAlbum = await fetchProjectFromCloud(projectId);
+          const remoteAlbum = await loadSharedMusic(projectId);
           if (remoteAlbum) {
             document.title = `${remoteAlbum.title} | Plajah`;
             setSelectedAlbum(remoteAlbum);
@@ -3645,7 +3757,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           return;
         } else {
           // Defaults to album
-          const remoteAlbum = await fetchProjectFromCloud(projectId);
+          const remoteAlbum = await loadSharedMusic(projectId);
           if (remoteAlbum) {
             document.title = `${remoteAlbum.title} | Plajah`;
             if (remoteAlbum.subType === 'MIX') {
@@ -3702,6 +3814,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (pathParts[1] === 'event' && pathParts[2]) {
         setSelectedEventId(pathParts[2]);
         setView('EVENT_DETAIL');
+        setIsLoading(false);
+        return;
+      }
+
+      // Back This Show: /back/:campaignId is public and needs no sign-in.
+      if (pathParts[1] === 'back' && pathParts[2]) {
+        setBackShowId(pathParts[2]);
+        setIsPublicView(true);
+        setView('BACK_SHOW');
         setIsLoading(false);
         return;
       }
@@ -4008,6 +4129,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     }
   };
 
+  // Shell nav destinations are bare view ids, but "My Profile" also has to say whose profile.
+  const handleShellNavigate = (id: string) => {
+    if (id !== 'USER_PROFILE') { setView(id as AppView); return; }
+    if (user) handleVisitUser(user.uid); else loginWithGoogle();
+  };
+
   // Smart artist router — handles audius:, personal:, and Plajah UIDs
   const handleVisitArtist = async (uid: string) => {
     if (!uid) return;
@@ -4066,7 +4193,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           import('./components/ContentHQ'),
         ]);
         const asset = await fetchHqAsset(assetId).catch(() => null);
-        if (asset?.scopeKind === 'org') {
+        const { fetchUserOrganizations } = await import('./services/organizationService');
+        const inOrg = asset?.scopeKind === 'org' && !!user && (await fetchUserOrganizations(user.uid).catch(() => [])).some(o => o.id === asset.scopeId);
+        if (inOrg && asset) {
           setOrgHubInitial({ orgId: asset.scopeId, contentHq: true });
           setView('ORG_HUB');
         } else {
@@ -4138,9 +4267,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           try {
             // Audius albums (`audius:album:<id>`) live on the network, not Firestore —
             // rehydrate them through the Audius resolver so deep-links/reloads work.
-            if (targetId.startsWith('audius:album:')) {
-              const { resolveNativeAudiusAlbum } = await import('./services/audiusService');
-              const aud = await resolveNativeAudiusAlbum(targetId);
+            if (targetId.startsWith('audius:')) {
+              const { resolveAudiusShareId } = await import('./services/audiusService');
+              const aud = await resolveAudiusShareId(targetId);
               if (aud) { handleSelectItem(aud); } else { setView('MUSIC'); }
               break;
             }
@@ -4285,6 +4414,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     }
   }, [viewedUserId, view, visitedProfile]);
 
+  // USER_PROFILE renders nothing without a uid. Reload resume, Back, the player and studio "back"
+  // buttons all arrive here with just the view, which means the signed-in person's own profile.
+  useEffect(() => {
+    if (view === 'USER_PROFILE' && !viewedUserId && user) {
+      setViewedUserId(user.uid);
+      window.history.replaceState({ view: 'USER_PROFILE' }, '', `/profile/${user.uid}`);
+    }
+  }, [view, viewedUserId, user]);
+
   // Build the ad slot pool once on mount — profiles + latest album + custom user ads
   useEffect(() => {
     fetchFeaturedProfiles().then(async profiles => {
@@ -4304,8 +4442,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       const adMap   = new Map(adEntries.filter(([, a]) => !!a)   as [string, import('./types').UserAd][]);
 
       const slots: AdSlot[] = [{ kind: 'plus' }];
-      // A demo product ad in the rotation — shows what advertising your store looks like.
-      if (DEMO_STORE_PRODUCTS[0]) slots.push({ kind: 'product', product: DEMO_STORE_PRODUCTS[0] });
+      // Real featured shop products (orgs, departments, creators). The demo product only fills in when no shop has featured one yet.
+      const featured = await import('./services/commerceBus').then(m => m.fetchFeaturedStoreProducts(6)).catch(() => []);
+      if (featured.length) featured.forEach(product => slots.push({ kind: 'store', product }));
+      else if (DEMO_STORE_PRODUCTS[0]) slots.push({ kind: 'product', product: DEMO_STORE_PRODUCTS[0] });
       for (const profile of shuffled) {
         const customAd = adMap.get(profile.uid);
         if (customAd) {
@@ -4407,6 +4547,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         <ResumeUploadPrompt />
         {/* Fair Process: calm account-standing banner + Appeal Center (renders nothing in good standing). */}
         <StandingBanner />
+        <TermsUpdateBar />
         {/* Plajah TV-app opening ident — a random bumper from the platform library, once per launch. */}
         {!tvIntroDone && <PlatformBumperPlayer kind="TV_OPEN_BUMPER" onDone={() => setTvIntroDone(true)} />}
         <Suspense fallback={
@@ -4617,7 +4758,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 userProfile={userProfile}
                 activePersonaKey={activePersonaKey}
                 onOpenPersonaModal={() => setIsPersonaModalOpen(true)}
-                onOpenSearch={() => setView('SEARCH')}
+                onOpenSearch={() => {
+                  // The command pillar claims this with preventDefault; the search page covers shells without one.
+                  if (window.dispatchEvent(new CustomEvent('plajah:open-command', { cancelable: true }))) setView('SEARCH');
+                }}
                 isFullscreen={isFullscreen}
                 onToggleFullscreen={handleToggleFullscreen}
                 isWindowsNative={isWindowsApp()}
@@ -4641,7 +4785,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           )) && (
             <aside className={`hidden lg:block z-50 shrink-0 overflow-hidden border-white/[0.06] relative ${
               navLayout.isBar
-                ? 'lg:order-last border-l lg:w-56 sticky lg:top-14 h-[calc(100vh-3.5rem)]'
+                ? `lg:order-last border-l lg:w-56 sticky ${shellNext.enabled ? 'lg:top-[calc(100px+var(--pj-toolbar-h,0px))] h-[calc(100vh-100px-var(--pj-toolbar-h,0px))]' : 'lg:top-14 h-[calc(100vh-3.5rem)]'}`
                 : navLayout.isSplit
                   ? 'lg:order-last border-l lg:w-80 sticky top-0 h-screen'
                   : 'lg:w-80 border-r sticky top-0 h-screen'
@@ -4733,6 +4877,33 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       </div>
                     </button>
                   );
+                } else if (currentSlot.kind === 'store') {
+                  const pr = currentSlot.product;
+                  const pts = Math.floor(pr.price);
+                  slotContent = (
+                    <button
+                      key={`store-ad-${pr.id}`}
+                      onClick={() => { setViewedUserId(pr.sellerId); setView('STORE'); }}
+                      className="group relative block w-full h-full text-left overflow-hidden cursor-pointer"
+                      style={{ background: 'radial-gradient(120% 80% at 50% 30%, #2a2420 0%, #0b0b0d 70%)' }}
+                    >
+                      <img src={pr.images[0]} className="absolute inset-x-0 top-0 w-full h-[72%] object-contain p-6 group-hover:scale-105 transition-transform duration-[1200ms]" alt="" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
+                      <div className="absolute top-3 left-3">
+                        <span className="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-[8px] font-black uppercase tracking-widest text-small-orange border border-small-orange/30">Sponsored · {pr.sellerName}</span>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-small-orange mb-1">In the store</p>
+                        <p className="text-white font-black text-lg leading-tight line-clamp-2 mb-1.5">{pr.title}</p>
+                        <div className="flex items-center gap-2 mb-2.5">
+                          <span className="text-white font-black text-base tabular-nums">${pr.price.toFixed(2)}</span>
+                          {pr.compareAtPrice && pr.compareAtPrice > pr.price && <span className="text-white/40 line-through text-xs tabular-nums">${pr.compareAtPrice.toFixed(2)}</span>}
+                          {pts > 0 && <span className="text-[9px] font-bold text-amber-300">+{pts} pts</span>}
+                        </div>
+                        <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-small-orange text-black text-[10px] font-black uppercase tracking-widest group-hover:scale-105 transition-transform">Shop now →</span>
+                      </div>
+                    </button>
+                  );
                 } else if (currentSlot.kind !== 'profile') {
                   /* ── Plajah+ subscription tiers billboard ── */
                   slotContent = (
@@ -4793,8 +4964,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                             </div>
                             <div className="text-right pt-0.5">
                               <p className="text-[6.5px] uppercase tracking-widest text-white/25 mb-0.5">creator gets</p>
-                              <p className="text-[13px] font-black text-green-400 leading-none">$3.00</p>
-                              <p className="text-[6px] text-white/20 mt-0.5">platform: $1.99</p>
+                              <p className="text-[13px] font-black text-green-400 leading-none">$2.99</p>
+                              <p className="text-[6px] text-white/20 mt-0.5">platform: $2.00</p>
                             </div>
                           </div>
                           <p className="text-[7.5px] text-white/40 leading-relaxed">50 GB storage · 100 pts/mo · 10% off everything</p>
@@ -4809,8 +4980,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                             </div>
                             <div className="text-right pt-0.5">
                               <p className="text-[6.5px] uppercase tracking-widest text-white/25 mb-0.5">creator gets</p>
-                              <p className="text-[13px] font-black text-green-400 leading-none">$7.00</p>
-                              <p className="text-[6px] text-white/20 mt-0.5">platform: $2.99</p>
+                              <p className="text-[13px] font-black text-green-400 leading-none">$5.99</p>
+                              <p className="text-[6px] text-white/20 mt-0.5">platform: $4.00</p>
                             </div>
                           </div>
                           <p className="text-[7.5px] text-white/40 leading-relaxed">75 GB · 300 pts/mo · 15% off · TV & Pay-Per-View</p>
@@ -4825,8 +4996,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                             </div>
                             <div className="text-right pt-0.5">
                               <p className="text-[6.5px] uppercase tracking-widest text-white/25 mb-0.5">creator gets</p>
-                              <p className="text-[13px] font-black text-green-400 leading-none">$11.00</p>
-                              <p className="text-[6px] text-white/20 mt-0.5">platform: $3.99</p>
+                              <p className="text-[13px] font-black text-green-400 leading-none">$9.99</p>
+                              <p className="text-[6px] text-white/20 mt-0.5">platform: $5.00</p>
                             </div>
                           </div>
                           <p className="text-[7.5px] text-white/40 leading-relaxed">100 GB · 1,000 pts/mo · 20% off · Max promo boost</p>
@@ -4964,7 +5135,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             shellNext.enabled ? (
               <CommandSplitBar
                 view={view}
-                onNavigate={(id) => setView(id as AppView)}
+                onNavigate={handleShellNavigate}
                 hasUser={!!user}
                 displayName={user?.displayName || userProfile?.displayName || undefined}
                 avatarUrl={user?.photoURL || userProfile?.photoURL || undefined}
@@ -4984,7 +5155,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <ChoraNavBar
               pages={barPages}
               activeView={view}
-              onNavigate={(id) => setView(id as AppView)}
+              onNavigate={handleShellNavigate}
               onMore={() => setView('DASHBOARD')}
               onCreate={() => setShowCreator(true)}
               switcher={<NavLayoutSwitcher pref={navLayout.pref} onSetPref={navLayout.setPref} compact />}
@@ -5029,7 +5200,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             shellNext.enabled ? (
               <CommandSplitNav
                 view={view}
-                onNavigate={(v) => setView(v as any)}
+                onNavigate={handleShellNavigate}
                 hasUser={!!user}
                 displayName={user?.displayName || userProfile?.displayName || undefined}
                 subtitle={user?.email || undefined}
@@ -5044,7 +5215,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     onExpandFromNano={() => { setIsNanoView(false); setIsNanoDocked(false); setIsMinimized(false); }}
                   />
                 ) : undefined}
-                onCreate={() => setShowCreator(true)}
+                onOpenAria={() => setIsMuseOpen(o => !o)}
                 onGoLive={() => { if (!user) { loginWithGoogle(); return; } (window as any).__reelloGoLivePending = true; setView('VIDEOS'); window.dispatchEvent(new CustomEvent('plajah:reelloGoLive')); }}
                 notificationCount={commsUnread}
                 onOpenNotifications={toggleComms}
@@ -5143,7 +5314,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'PLAJAH_HOME', order: 6.6, isVisible: true },
                     { id: 'RADIO', order: 7, isVisible: true },
                     { id: 'APPS', order: 8.5, isVisible: true },
-                    { id: 'CROSSOVER', order: 8.6, isVisible: crossoverSystemEnabled },
+                    { id: 'CROSSOVER', order: 8.6, isVisible: crossoverInNav },
                     { id: 'GAMES', order: 4.5, isVisible: true },
                     { id: 'CLUBS', order: 0.5, isVisible: true },
                     { id: 'CHARITY', order: 11, isVisible: true },
@@ -5403,7 +5574,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     };
                     const groups = [
                       { id: 'discover', label: 'Discover', ids: ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH'] },
-                      { id: 'entertain', label: 'Entertainment', ids: ['MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', ...(crossoverSystemEnabled ? ['CROSSOVER'] : []), 'GLOBAL_PHOTOS'] },
+                      { id: 'entertain', label: 'Entertainment', ids: ['MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', ...(crossoverInNav ? ['CROSSOVER'] : []), 'GLOBAL_PHOTOS'] },
                       { id: 'sports', label: 'Sports & News', ids: ['PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES'] },
                       { id: 'education', label: 'Education', ids: ['BOOKS', 'CLASSROOMS', 'PLAJAH_LABS'] },
                       { id: 'community', label: 'Community', ids: ['CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'SACRED_LIBRARY', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB'] },
@@ -6680,6 +6851,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onBack={() => goBack('TERRA')}
                   onOpenPassport={(parcelId) => { setTerraPassportTarget({ parcelId }); setView('TERRA_PASSPORT'); }}
                   onOpenStudio={(parcelId) => { setTerraStudioParcel(parcelId); setView('TERRA_STUDIO'); }}
+                  onOpenLaws={(t) => { setTerraLawTarget(t); setView('TERRA_LAW'); }}
                 />
               </Suspense>
             )}
@@ -6704,6 +6876,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'TERRA_SCOUT' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <SiteScout currentUser={userProfile} onBack={() => goBack('TERRA')} />
+              </Suspense>
+            )}
+
+            {view === 'TERRA_LAW' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <LawLibrary
+                  initialQuery={terraLawTarget?.query}
+                  zoningDistrict={terraLawTarget?.zoningDistrict}
+                  onBack={() => goBack('TERRA')}
+                  onOpenStudio={() => { setTerraStudioParcel(terraLawTarget?.parcelId); setView('TERRA_STUDIO'); }}
+                />
               </Suspense>
             )}
 
@@ -6897,7 +7080,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     onNavigate={(v) => setView(v as any)}
                     isPublicView={isPublicView}
                   />
-                  {/* ── Premiere rails — Special Halloween Curation Carousel + per-service new releases + Lorea classics ── */}
+                  {/* ── Premiere rails — Plajah Horror Classics Carousel + per-service new releases + Lorea classics ── */}
                   <ArchiveRails
                     albums={albums}
                     onSelectItem={handleSelectItem}
@@ -7322,6 +7505,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
+            {view === 'BACK_SHOW' && backShowId && (
+              <BackShowPage id={backShowId} signedIn={!!userProfile} onSignIn={loginWithGoogle} />
+            )}
             {view === 'EVENT_DETAIL' && selectedEventId && (
               <EventLandingPage
                 eventId={selectedEventId}
@@ -7747,6 +7933,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {/* Old "Ambo Presenter" retired — the AMBO view now redirects to the new presenter. */}
             {(view === 'AMBO' || view === 'AMBO_PRO') && <AmboProPresenter onBack={() => setView('APPS')} />}
             {view === 'FOLLOW_ALONG' && <FollowAlongView sessionId={followSessionId} onBack={() => setView('APPS')} />}
+            {view === 'MEETING_JOIN' && meetingJoinId && (
+              <MeetingJoinPage meetingId={meetingJoinId} onExit={() => {
+                setMeetingJoinId(null);
+                try { window.history.replaceState({}, '', '/'); } catch { /* sandboxed */ }
+                setView((user ? 'FEED' : 'DASHBOARD') as AppView);
+              }} />
+            )}
             {view === 'VESPERS' && vespersRecapId && <VespersRecap recapId={vespersRecapId} onBack={() => setView('APPS')} />}
             {(view === 'CLASSROOMS' || view === 'ACADEMIA_LANDING') && (
               <Suspense fallback={null}>
@@ -7802,6 +7995,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   user={user}
                   profile={userProfile}
                 />
+              </Suspense>
+            )}
+            {view === 'MUSIC_LAW' && (
+              <Suspense fallback={null}>
+                <MusicLawLibrary onBack={() => goBack('LEARN')} onNavigate={(v) => setView(v as AppView)} />
               </Suspense>
             )}
             {view === 'JOURNALISM_SCHOOL' && (
@@ -7960,7 +8158,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'TELA' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening Tela…</div>}>
-                <TelaView initialDocId={telaRequestedDocId} onBack={() => goBack('CREATOR_HUB')} />
+                <TelaView
+                  initialDocId={telaRequestedDocId}
+                  onBack={() => goBack('CREATOR_HUB')}
+                  classwork={telaClasswork}
+                  returnTo={telaReturnTo ? {
+                    label: telaReturnTo.label,
+                    onReturn: () => {
+                      try { if (telaReturnTo.programId) sessionStorage.setItem('plajah:eduReturnClass', telaReturnTo.programId); } catch { /* storage blocked */ }
+                      setTelaReturnTo(null);
+                      setTelaClasswork(null);
+                      goBack('CREATOR_HUB');
+                    },
+                  } : null}
+                />
               </Suspense>
             )}
             {view === 'MACHINE_ATLAS' && (
@@ -8335,6 +8546,19 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <WelcomeAchievement onDone={() => setShowWelcomeAchievement(false)} />
           )}
 
+          {doorWelcomeNote && (
+            <div className="fixed bottom-[max(16px,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[400] w-[min(92vw,440px)] rounded-2xl border border-white/15 bg-[#0d0612]/95 backdrop-blur-xl shadow-[0_20px_60px_rgba(0,0,0,0.6)] p-4 flex items-start gap-3" role="status">
+              <span className="shrink-0 w-10 h-10 rounded-xl bg-[#8B5CF6]/25 text-[#C4B5FD] grid place-items-center text-lg" aria-hidden>✉</span>
+              <div className="min-w-0 flex-1 text-left">
+                <p className="text-sm font-black text-white">Welcome! You’re in.</p>
+                <p className="text-[12px] text-white/70 leading-snug mt-0.5">Want the tour of Plajah? Your welcome package is waiting in the Postman whenever you’re ready.</p>
+                <div className="flex gap-3 mt-2.5">
+                  <button onClick={() => { setDoorWelcomeNote(false); setView('POSTMAN'); }} className="px-3 py-1.5 rounded-full bg-white text-black text-[11px] font-black">Open the Postman</button>
+                  <button onClick={() => setDoorWelcomeNote(false)} className="px-3 py-1.5 rounded-full bg-white/10 text-white text-[11px] font-bold">Later</button>
+                </div>
+              </div>
+            </div>
+          )}
           {showWelcomePackage && (
             <WelcomePackageModal
               displayName={user?.displayName || userProfile?.displayName}
@@ -8420,7 +8644,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           </Suspense>
           )}
 
-        {!isMobile && !getPlatformInfo().isTV && (
+        {!isMobile && !getPlatformInfo().isTV && !(!isPublicView && theme !== 'PHONE' && !navLayout.isBar && shellNext.enabled) && (
           <button
             type="button"
             aria-label="Open Aria"
@@ -8429,7 +8653,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             className="fixed right-5 bottom-[172px] z-[260] flex items-center justify-center rounded-full border border-violet-400/40 bg-[#120b1f]/90 shadow-[0_20px_60px_rgba(99,102,241,0.45)] backdrop-blur-xl transition-all hover:scale-105 hover:border-violet-300 active:scale-95"
             style={{ width: 58, height: 58 }}
           >
-            <AriaMark size={26} petals={false} />
+            <AriaMark size={26} petals={false} lively />
           </button>
         )}
 
@@ -8574,6 +8798,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         isMinimizedCreator={isCreatorMinimized}
         onRestoreCreator={() => setIsCreatorMinimized(false)}
       />
+      <ReelloUploadDock />
+      <LessonLibraryOverlay />
       <PublishTray />
       <ProjectTray
         isOpen={isProjectTrayOpen}
@@ -8793,6 +9019,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           }}
           onSendToFabula={(f) => {
             setActivatedNativeFile(null);
+            acceptHandoff('fabula', f);
             setView('FABULA');
           }}
           onSendToPixels={(f) => {
@@ -8802,6 +9029,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           }}
           onSendToCrossover={(f) => {
             setActivatedNativeFile(null);
+            acceptHandoff('crossover', f);
             setView('CROSSOVER');
           }}
           onSendToTela={(f) => {

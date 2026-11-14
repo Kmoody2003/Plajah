@@ -5,17 +5,18 @@
 // per-business, per-category opt-in is also the consent spine the later SMS/TCPA phase will require.
 
 import { collection, doc, getDoc, getDocs, query, where, setDoc, addDoc } from 'firebase/firestore';
-import { db, auth, createNotification } from './backendService';
+import { auth, createNotification } from './backendService';
+import { opsDb } from './firebase';
 import type { BusinessSubscription, BusinessBroadcast } from '../types';
 
-const subCol = (businessUid: string) => collection(db, 'businesses', businessUid, 'subscribers');
+const subCol = (businessUid: string) => collection(opsDb, 'businesses', businessUid, 'subscribers');
 
 /** The signed-in customer's opt-in state for a business (null if never subscribed). */
 export async function getMyBusinessSubscription(businessUid: string): Promise<BusinessSubscription | null> {
   const uid = auth.currentUser?.uid;
   if (!uid) return null;
   try {
-    const snap = await getDoc(doc(db, 'businesses', businessUid, 'subscribers', uid));
+    const snap = await getDoc(doc(opsDb, 'businesses', businessUid, 'subscribers', uid));
     return snap.exists() ? (snap.data() as BusinessSubscription) : null;
   } catch { return null; }
 }
@@ -28,7 +29,7 @@ export async function setBusinessSubscription(
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Sign in to manage business updates.');
   const existing = await getMyBusinessSubscription(businessUid);
-  await setDoc(doc(db, 'businesses', businessUid, 'subscribers', uid), {
+  await setDoc(doc(opsDb, 'businesses', businessUid, 'subscribers', uid), {
     customerUid: uid,
     businessUid,
     transactional: !!prefs.transactional,
@@ -86,7 +87,7 @@ export async function sendBusinessBroadcast(
     sentAt: Date.now(),
     recipientCount: targets.length,
   };
-  try { await addDoc(collection(db, 'businesses', business.uid, 'broadcasts'), record); } catch { /* */ }
+  try { await addDoc(collection(opsDb, 'businesses', business.uid, 'broadcasts'), record); } catch { /* */ }
   if (subs.length > MAX) console.warn(`[businessMessaging] broadcast capped at ${MAX}/${subs.length}; use a server batch for large lists.`);
   return { recipientCount: targets.length };
 }
@@ -103,7 +104,7 @@ export async function notifyOrderReady(
   link?: string,
 ): Promise<boolean> {
   try {
-    const snap = await getDoc(doc(db, 'businesses', business.uid, 'subscribers', customerUid));
+    const snap = await getDoc(doc(opsDb, 'businesses', business.uid, 'subscribers', customerUid));
     if (!(snap.exists() && (snap.data() as BusinessSubscription).transactional)) return false;
     await createNotification({
       userId: customerUid,
@@ -128,7 +129,7 @@ export async function notifyOrderShipped(
   tracking?: { carrier?: string; number?: string },
 ): Promise<boolean> {
   try {
-    const snap = await getDoc(doc(db, 'businesses', business.uid, 'subscribers', customerUid));
+    const snap = await getDoc(doc(opsDb, 'businesses', business.uid, 'subscribers', customerUid));
     if (!(snap.exists() && (snap.data() as BusinessSubscription).transactional)) return false;
     await createNotification({
       userId: customerUid,

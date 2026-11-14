@@ -167,12 +167,13 @@ function shared<T>(key: string, start: Starter<T>, cb: Listener<T>, onError?: (e
   };
 }
 
-/** Run an onSnapshot registration after lazily loading Firebase; the returned stop works before/after load. */
+/** Run an onSnapshot registration after lazily loading Firebase; the returned stop works before/after load.
+ *  Every channel here reads store/business back-office collections, which live in plajah-ops. */
 function lazySnapshot(register: (fs: typeof import('firebase/firestore'), db: any, onSnapshot: typeof import('./safeSnapshot').onSnapshot) => () => void, fail: (e: unknown) => void): () => void {
   let unsub: (() => void) | null = null;
   let stopped = false;
   Promise.all([import('firebase/firestore'), import('./firebase'), import('./safeSnapshot')])
-    .then(([fs, fb, ss]) => { if (!stopped) unsub = register(fs, fb.db, ss.onSnapshot); })
+    .then(([fs, fb, ss]) => { if (!stopped) unsub = register(fs, fb.opsDb, ss.onSnapshot); })
     .catch(fail);
   return () => { stopped = true; if (unsub) { try { unsub(); } catch { /* */ } } };
 }
@@ -189,6 +190,18 @@ export function subscribeCatalog(sellerUid: string, cb: (products: StoreProduct[
     onSnapshot(fs.query(fs.collection(db, 'storeProducts'), fs.where('sellerId', '==', sellerUid)),
       snap => emit(snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreProduct)).sort(newestFirst)),
       fail), fail), cb, opts.onError);
+}
+
+/** Featured, published products with a photo from any shop — the ad panel's "In the store" spots.
+ *  A seller opts a product in with "Feature it" (StoreProduct.isFeatured) in the product editor. */
+export async function fetchFeaturedStoreProducts(max = 8): Promise<StoreProduct[]> {
+  try {
+    const [fs, fb] = await Promise.all([import('firebase/firestore'), import('./firebase')]);
+    const snap = await fs.getDocs(fs.query(fs.collection(fb.opsDb, 'storeProducts'), fs.where('isFeatured', '==', true), fs.limit(40)));
+    const rows = snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreProduct))
+      .filter(p => p.isActive !== false && p.price > 0 && !!p.images?.[0] && !(p.tags || []).includes('demo-seed'));
+    return rows.sort(() => Math.random() - 0.5).slice(0, max);
+  } catch { return []; }
 }
 
 /** Live: a business's offers (businesses/{uid}/offers). */

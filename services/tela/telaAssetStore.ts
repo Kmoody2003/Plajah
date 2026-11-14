@@ -9,7 +9,7 @@
 //   memory                               (last resort — session only)
 //
 // Ids are content-addressed-ish (size + FNV hash) so re-importing the same file
-// reuses one copy. Pure browser module: no Firebase, safe for any surface.
+// reuses one copy.
 
 const OPFS_DIR = 'tela-assets';
 const LS_PREFIX = 'tela_asset_';
@@ -18,7 +18,12 @@ const LS_MAX = 3 * 1024 * 1024;
 const memory = new Map<string, Blob>();
 const urlCache = new Map<string, string>();
 
-async function assetsDir(): Promise<any | null> {
+// One browser, many accounts: each person's assets live in their own folder. Files from before this split have no
+// owner, so one moves across only when a document this account opened asks for it by id. Nothing lists them.
+async function scopeOf(): Promise<string> {
+  try { const { activeScopeUid } = await import('../userScope'); return activeScopeUid() || 'guest'; } catch { return 'guest'; }
+}
+async function legacyDir(): Promise<any | null> {
   try {
     const nav: any = navigator;
     if (!nav?.storage?.getDirectory) return null;
@@ -26,6 +31,13 @@ async function assetsDir(): Promise<any | null> {
     return await root.getDirectoryHandle(OPFS_DIR, { create: true });
   } catch { return null; }
 }
+async function assetsDir(): Promise<any | null> {
+  try {
+    const base = await legacyDir();
+    return base ? await base.getDirectoryHandle(`u_${(await scopeOf()).replace(/[^\w-]/g, '_')}`, { create: true }) : null;
+  } catch { return null; }
+}
+const lsKey = async (assetId: string) => `${LS_PREFIX}${await scopeOf()}_${assetId}`;
 
 function fnv(bytes: Uint8Array): string {
   let h = 0x811c9dc5;
@@ -58,7 +70,7 @@ export async function putTelaAsset(blob: Blob, ext = 'bin'): Promise<TelaAssetPu
   if (blob.size <= LS_MAX) {
     try {
       const dataUrl = await new Promise<string>((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(String(r.result)); r.onerror = () => reject(r.error); r.readAsDataURL(blob); });
-      localStorage.setItem(LS_PREFIX + assetId, dataUrl);
+      localStorage.setItem(await lsKey(assetId), dataUrl);
       return { assetId, persisted: 'local' };
     } catch { /* quota */ }
   }
@@ -77,9 +89,20 @@ export async function getTelaAssetBlob(assetId: string): Promise<Blob | null> {
       memory.set(assetId, file);
       return file;
     } catch { /* not in OPFS */ }
+    // An unowned file from before the per-account split: this account's document named it, so it moves in.
+    try {
+      const old = await legacyDir();
+      if (old) {
+        const file: File = await (await old.getFileHandle(safeId(assetId))).getFile();
+        const fh = await dir.getFileHandle(safeId(assetId), { create: true });
+        if (typeof fh.createWritable === 'function') { const w = await fh.createWritable(); await w.write(file); await w.close(); await old.removeEntry(safeId(assetId)).catch(() => {}); }
+        memory.set(assetId, file);
+        return file;
+      }
+    } catch { /* not there either */ }
   }
   try {
-    const dataUrl = localStorage.getItem(LS_PREFIX + assetId);
+    const dataUrl = localStorage.getItem(await lsKey(assetId)) ?? localStorage.getItem(LS_PREFIX + assetId);
     if (dataUrl) { const blob = await (await fetch(dataUrl)).blob(); memory.set(assetId, blob); return blob; }
   } catch { /* private mode */ }
   return null;

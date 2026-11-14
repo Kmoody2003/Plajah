@@ -3,7 +3,7 @@
 // one groove document; the engine is a singleton the views never own.
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { Plus, Sparkles, AlignStartVertical, FolderOpen, FilePlus2, Trash2, Download } from 'lucide-react';
+import { Plus, Sparkles, AlignStartVertical, FolderOpen, FilePlus2, Trash2, Download, Disc3 as Disc3Icon, Radio, Cable } from 'lucide-react';
 import { auth } from '../../../services/firebase';
 import { BeatsEngine } from '../../../services/melos/beats/engine/BeatsEngine';
 import { MeterMap } from '../../../services/melos/beats/tempoMap';
@@ -12,10 +12,15 @@ import { downloadMusicXml, exportMusicXml, importMusicXml, musicXmlText } from '
 import { flattenClipNotes } from '../../../services/melos/beats/clipEdit';
 import { songTime } from '../../../services/melos/beats/tempoMap';
 import { docKey } from '../../../services/melos/beats/songKey';
-import { defaultPattern, grooveUid, type GrooveDoc, type InstrumentType, type ArrangeTrack } from '../../../services/melos/beats/grooveDoc';
+import { defaultPattern, deserializeGroove, grooveUid, type GrooveDoc, type InstrumentType, type ArrangeTrack } from '../../../services/melos/beats/grooveDoc';
 import { useContextMenu, type MenuNode } from '../../ui/ContextMenu';
 import { autoFill, quantizePattern } from '../../../services/melos/beats/grooveTools';
 import { GENRE_PRESETS, applyGenrePreset, type GenrePreset } from '../../../services/melos/beats/genrePresets';
+import { applyHandPattern, type HandPatternResult } from '../../../services/melos/beats/patterns/applyHandPattern';
+import { performDoc } from '../../../services/melos/beats/patterns/performNotes';
+import { seedOf } from '../../../services/melos/beats/patterns/handDrumPerformer';
+import { HandDrumLibrary, type HandDrumChoice } from './machine/HandDrumLibrary';
+import { playerById } from '../../../services/melos/beats/band/roster';
 import { BASSLINES, applyBassline, type BasslinePreset } from '../../../services/melos/beats/bassLines';
 import { DrumPatternThumb, BasslineThumb, cachedPattern } from './PatternThumb';
 import { UniversalLibraryPanel } from '../../shared/UniversalLibrary/UniversalLibraryPanel';
@@ -34,7 +39,19 @@ import { importDawproject } from '../../../services/melos/beats/dawproject/impor
 import { transcribeToPattern, addTranscribedPattern } from '../../../services/melos/beats/transcribeImport';
 import type { MelosSampleRef } from './melosSamples';
 import { useBeatsDoc } from './useBeatsDoc';
+import { useChoraCoedit } from './useChoraCoedit';
+import { CollabDock } from '../../collab/CollabDock';
+import { useChoraJam } from './jam/useChoraJam';
+import { JamPanel } from './jam/JamPanel';
+import { VersionChip } from './jam/VersionChip';
+import { ContribLedgerPanel } from './contrib/ContribLedgerPanel';
+import { Fingerprint as LedgerIcon } from 'lucide-react';
+import { coProjectId, listSharedWithMe, type CoProject } from '../../../services/coedit/project';
+import { loadSharedDoc } from '../../../services/coedit/session';
+import type { SharedMasterRef } from './project/useMasterProject';
 import { useAutomationRecorder } from './useAutomationRecorder';
+import { useMultitrackCapture } from './useMultitrackCapture';
+import { HardwareInputsPanel } from './inputs/HardwareInputsPanel';
 import {
   forgetPattern, groupLetter, groupPatterns, ideasSet, newGroupPattern, padGroup, patternGroup, scenePatternIds, syncSongFromSections,
 } from '../../../services/melos/beats/songSections';
@@ -48,6 +65,7 @@ import { VoicePanel } from './voice/VoicePanel';
 import { MenuBar, type MenuGroup } from './shared/MenuBar';
 import { useHasStudioMenuBar, StudioMenuPublisher } from '../StudioMenus';
 import { InstrumentWindow } from './instrument/InstrumentWindow';
+import { ModulatorHost } from './assist/ModulatorHost';
 import { DiagnosticsReadout } from './shared/DiagnosticsReadout';
 import { MidiLearnPanel } from './shared/MidiLearnPanel';
 import { midiStatus } from '../../../services/melos/midiInput';
@@ -65,6 +83,7 @@ import { VelaPanel } from './instrument/VelaPanel';
 import { BajoPanel } from './instrument/BajoPanel';
 import { AuraPanel } from './instrument/AuraPanel';
 import { SomaPanel } from './instrument/SomaPanel';
+import { LyraPanel } from './instrument/LyraPanel';
 import { isSuite, instrumentLabel, instrumentColor, addPadInstrument, addInstrumentToNextPad, detachPadInstrument, addInstrument } from '../../../services/melos/beats/instrumentFactory';
 import { SpectraPanel } from './mixer/SpectraPanel';
 import { MuseLibrary } from './muse/MuseLibrary';
@@ -76,6 +95,8 @@ import { getMusicEngines, unavailableMusicEngines, type EngineStatus } from '../
 import { insertGeneratedAudio, insertGeneratedNotes } from '../../../services/melos/generation/insert';
 import GenerationPanel, { type GenerationInsertion } from './composer/GenerationPanel';
 import { encodeWav } from '../../../services/audio/wavEncode';
+import { pushTrackPatch } from '../../../services/melos/beats/presetHub';
+import { focusedPage, fromUnit, setControlFocus, stepControlPage, writeInstrumentMacro } from '../../../services/melos/beats/controlPages';
 import { halloweenAudio } from '../../../services/halloween/halloweenAudioSfx';
 import { stopRealtimeSympPlayback } from '../../../services/melos/melosRealtimeSympPlayer';
 import {
@@ -116,8 +137,21 @@ interface BeatsRoomProps {
 const AVAILABLE_VIEWS: BeatsViewId[] = ['machine', 'glass', 'timeline', 'mixer'];
 
 const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, embedded, melosSamples, onRenderTake, takeTargetName, musicLabAdmin = false }) => {
-  const { doc, saveState, grooves, mutate, undo, redo, canUndo, canRedo, replace, saveNow, openGroove, newGroove, removeGroove } =
-    useBeatsDoc(payload?.grooveId, production?.prodId || payload?.productionId);
+  const {
+    doc, rev, saveState, grooves, mutate, undo: localUndo, redo: localRedo, canUndo: localCanUndo, canRedo: localCanRedo,
+    replace, applyRemote, getDoc, openShared, setGuestOf, saveNow, openGroove, newGroove, removeGroove,
+  } = useBeatsDoc(payload?.grooveId, production?.prodId || payload?.productionId);
+  // Live collaboration on this groove (inert until the owner shares it). Remote merges fold into
+  // the live doc via applyRemote; while shared, Ctrl+Z is the session's selective undo (only YOUR
+  // edits) instead of the whole-doc snapshot stack, which would also revert collaborators' work.
+  const co = useChoraCoedit<GrooveDoc>({ kind: 'beats', localId: doc.id, title: doc.name || 'Groove', rev, getDoc, applyRemote });
+  const sharedSession = co.isShared ? co.session : null;
+  const undo = useCallback(() => { if (sharedSession) sharedSession.undo(); else localUndo(); }, [sharedSession, localUndo]);
+  const redo = useCallback(() => { if (sharedSession) sharedSession.redo(); else localRedo(); }, [sharedSession, localRedo]);
+  const canUndo = sharedSession ? !!co.snap?.canUndo : localCanUndo;
+  const canRedo = sharedSession ? !!co.snap?.canRedo : localCanRedo;
+  const transportRowRef = React.useRef<HTMLDivElement>(null);
+  const phoneHeaderRef = React.useRef<HTMLDivElement>(null);
   // Under the Chora Studio shell the menu bar lives at the top of the workspace; standalone,
   // the transport bar keeps drawing its own.
   const shellMenuBar = useHasStudioMenuBar();
@@ -262,6 +296,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const [showLibrary, setShowLibrary] = useState(false);
   const [showMidi, setShowMidi] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
+  const [showInputs, setShowInputs] = useState(false);
   const [midiConnected, setMidiConnected] = useState(false);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -280,7 +315,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
 
   // The armed instrument track owns the QWERTY keyboard (the pads stand down while it does),
   // and receives anything played or recorded.
-  const armedTrack = doc.arrangement.find((t) => t.kind === 'instrument' && t.armed) || null;
+  // Never a pad's own track: a pad instrument is played by its pad, not the armed keyboard.
+  const armedTrack = doc.arrangement.find((t) => t.kind === 'instrument' && t.armed && !t.padOwned) || null;
   useInstrumentKeyboard({
     doc,
     armedTrack,
@@ -299,6 +335,80 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const musicXmlRef = React.useRef<HTMLInputElement>(null);
 
   const flash = useCallback((msg: string) => { setNotice(msg); setTimeout(() => setNotice(null), 3200); }, []);
+  // Armed hardware-input tracks record through the desktop app's ASIO engine during a record pass.
+  useMultitrackCapture({ doc, mutate, recording, running: snap.running, flash });
+  // A non-owner member of the live project is a guest: their autosave stays on this device and in
+  // the session, never in a Melos production (useBeatsDoc.setGuestOf).
+  useEffect(() => {
+    const p = co.project;
+    const uid = auth.currentUser?.uid;
+    if (!p || !uid || p.localId !== doc.id) return;
+    setGuestOf(p.ownerId !== uid ? p.ownerId : null);
+  }, [co.project, doc.id, setGuestOf]);
+
+  // ── Shared with me: grooves + albums other people shared through live collaboration ──
+  const [sharedGrooves, setSharedGrooves] = useState<CoProject[]>([]);
+  const [sharedAlbums, setSharedAlbums] = useState<CoProject[]>([]);
+  const [sharedAlbum, setSharedAlbum] = useState<SharedMasterRef | null>(null);
+  const refreshShared = useCallback(async () => {
+    const [g, a] = await Promise.all([listSharedWithMe('beats'), listSharedWithMe('melos')]);
+    setSharedGrooves(g);
+    setSharedAlbums(a);
+  }, []);
+  const openSharedGroove = useCallback(async (p: CoProject) => {
+    const loaded = await loadSharedDoc<GrooveDoc>(coProjectId('beats', p.localId));
+    const g = loaded ? deserializeGroove(structuredClone(loaded)) : null;
+    if (!g) { flash('That shared groove has no saved version yet'); return; }
+    g.id = p.localId; // the live session keys on it
+    openShared(g, p.ownerId);
+    setShowGrooves(false);
+  }, [openShared, flash]);
+  const openSharedAlbum = useCallback((p: CoProject) => {
+    setSharedAlbum({ projectId: coProjectId('melos', p.localId), localId: p.localId, ownerId: p.ownerId, title: p.title });
+    setShowGrooves(false);
+    setView('project');
+  }, [setView]);
+  useEffect(() => { if (showGrooves) void refreshShared(); }, [showGrooves, refreshShared]);
+
+  // ── Live jam (shared grooves only): play, record and bring your rig together ──
+  const jam = useChoraJam({
+    co, rev, getDoc, mutate, melosSamples, songStartBeats, setSongStartBeats, running: snap.running, flash,
+  });
+  const jamApiRef = React.useRef(jam);
+  jamApiRef.current = jam;
+  const [showJam, setShowJam] = useState(false);
+  useEffect(() => { if (!co.isShared) setShowJam(false); }, [co.isShared]);
+  // A commit-mode MIDI pass becomes one tray take when recording stops.
+  const wasRecording = React.useRef(false);
+  useEffect(() => {
+    if (wasRecording.current && !recording) void jam.flushMidiTake();
+    wasRecording.current = recording;
+  }, [recording]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** The groove's collaboration dock — desktop puts it in the transport row, phone in its appbar.
+   *  zIndex clears the standalone room (z-100) and the phone shell (z-90). */
+  const grooveDock = (anchor: React.RefObject<HTMLElement | null>, pill: 'inline' | 'none') => (
+    <CollabDock<GrooveDoc>
+      co={co}
+      kind="beats"
+      title={doc.name || 'Groove'}
+      doc={doc}
+      localId={doc.id}
+      serialize={(d) => JSON.stringify(d)}
+      restoreSolo={(json) => {
+        const restored = deserializeGroove(JSON.parse(json));
+        if (!restored) return;
+        restored.id = doc.id; // a restore is a new version of THIS groove
+        restored.updatedAt = Date.now();
+        replace(restored);
+        void saveNow();
+      }}
+      anchor={anchor}
+      pill={pill}
+      zIndex={160}
+      extraTab={{ label: 'Credits', icon: LedgerIcon, render: () => <ContribLedgerPanel doc={doc} signedIn={co.signedIn} /> }}
+    />
+  );
 
   // MusicXML out: every instrument track as a part, with what its clips PLAY (slip/loop baked in).
   const handleExportMusicXml = useCallback(() => {
@@ -435,24 +545,38 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
     // `mutate` runs its callback synchronously against the live doc, so the track is in hand
     // before this returns — the note that triggered it still sounds on the same event.
     mutate((d) => {
-      const first = d.arrangement.find((t) => t.kind === 'instrument');
+      // Only a Timeline instrument track is ever armed. A pad's own (hidden) instrument track is
+      // played by its pad — arming one sent every keyboard note, knob turn and Maschine pad to that
+      // one pad's sound, whichever pad you had selected.
+      const first = d.arrangement.find((t) => t.kind === 'instrument' && !t.padOwned);
       if (!first) return;
-      for (const t of d.arrangement) t.armed = t.id === first.id;
+      for (const t of d.arrangement) if (t.kind === 'instrument') t.armed = t.id === first.id;
       picked = first;
     });
     return picked;
   }, [mutate]);
 
   const midiRec = React.useRef(new Map<number, RecordedNote>());
+  // Keyboard notes that are playing an instrument pad (MEKA focus): MIDI note → pad index.
+  const midiPadNotes = React.useRef(new Map<number, { pad: number; semi: number }>());
   useEffect(() => {
     ensureMidi(); // request access now so the device readout populates before you play
     return subscribeMidi((e) => {
       const engine = BeatsEngine.get();
-      const armed = engine.armedTrack();
+      const doc0 = docRefForChoice.current;
+      const armed = engine.armedTrack(); // never a pad's own track (see armedTrack)
+      // MEKA follows Maschine's focus: the keys, wheels and knobs play the SELECTED sound. When that
+      // is an instrument pad, keyboard notes are pitched hits on it (recorded into its pitch roll).
+      const inMeka = viewRef.current === 'machine';
+      const selIdx = selectedPadRef.current;
+      const selPad = doc0.kit[selIdx];
+      const padTrack = inMeka && selPad?.source === 'instrument' && selPad.instrumentTrackId
+        ? doc0.arrangement.find((t) => t.id === selPad.instrumentTrackId && t.kind === 'instrument') ?? null
+        : null;
       // Learned user bindings win over the premap; 'captured' means learn mode ate this event.
       const learned = learnedAction(e);
       if (learned === 'captured') return;
-      const action = learned ?? mapMidiEvent(e, !!armed);
+      const action = learned ?? mapMidiEvent(e, !!(padTrack ?? armed), !inMeka);
       if (!action) return;
       // MIDI plays in every view EXCEPT Project — that page assembles releases, it doesn't
       // perform. Transport controls still pass so hardware play/stop always works.
@@ -467,6 +591,13 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           engine.padUp(action.pad);
           break;
         case 'note': {
+          if (padTrack) {
+            const semi = action.note - ((selPad.instrumentNote ?? 60) + (selPad.pitchSemis || 0));
+            midiPadNotes.current.set(action.note, { pad: selIdx, semi });
+            void engine.init().then(() => engine.padDownPitched(selIdx, action.velocity, semi, true, true));
+            midiSendNoteOn(action.note, action.velocity);
+            break;
+          }
           // Auto-route. `mapMidiEvent` deliberately returns a note for a generic keyboard so it is
           // "never dead" — and this used to drop it on the floor whenever no track happened to be
           // armed, which is a device that connects, lights up, and makes no sound. Arm the first
@@ -474,88 +605,96 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           // not routed" rather than leaving you guessing.
           const target = armed ?? autoArm();
           if (!target) break;
-          void engine.ensureInstrument(target).then(() => engine.instrumentNoteOn(target, action.note, action.velocity));
+          const playOn = () => void engine.ensureInstrument(target).then(() => engine.instrumentNoteOn(target, action.note, action.velocity));
+          // Jamming: the note goes to everyone and sounds here JAM_JITTER_MS later, together.
+          if (!jamApiRef.current?.sendNote(target.id, true, action.note, action.velocity, playOn)) playOn();
           midiSendNoteOn(action.note, action.velocity);
           // Hardware takes record through the SAME path as the QWERTY keyboard.
           if (recordingRef.current && engine.isRunning()) {
-            midiRec.current.set(action.note, { key: action.note, vel: action.velocity, startBeats: engine.posBeats() });
+            midiRec.current.set(action.note, { key: action.note, vel: action.velocity, startBeats: engine.posBeats(), keys: engine.liveKeysFor(target, action.note) });
           }
           break;
         }
         case 'noteOff': {
-          const target = armed ?? engine.armedTrack();
-          if (target) engine.instrumentNoteOff(target, action.note);
+          // A note that started on an instrument pad ends there, even if the selection moved.
+          const onPad = midiPadNotes.current.get(action.note);
+          if (onPad) {
+            midiPadNotes.current.delete(action.note);
+            engine.padNoteUp(onPad.pad, onPad.semi);
+            midiSendNoteOff(action.note);
+            break;
+          }
+          const target = armed;
+          if (target) {
+            const playOff = () => engine.instrumentNoteOff(target, action.note);
+            if (!jamApiRef.current?.sendNote(target.id, false, action.note, 0, playOff)) playOff();
+          }
           midiSendNoteOff(action.note);
           const rec = midiRec.current.get(action.note);
           if (rec && target) {
             midiRec.current.delete(action.note);
-            if (recordingRef.current) commitRecordedNote(target.id, rec, engine.posBeats(), mutate);
+            // Jam Commit mode keeps the notes in the local Takes tray; otherwise (and in Live mode)
+            // they go straight into the clip and sync to everyone through the doc.
+            if (recordingRef.current && !jamApiRef.current?.captureMidiNote(target.id, rec, engine.posBeats())) {
+              commitRecordedNote(target.id, rec, engine.posBeats(), mutate);
+            }
           }
           break;
         }
         case 'modWheel': {
-          const target = armed ?? autoArm();
+          const target = padTrack ?? armed ?? autoArm();
           if (target) engine.setInstrumentModWheel(target, action.value);
           break;
         }
         case 'pitchBend': {
-          const target = armed ?? autoArm();
+          const target = padTrack ?? armed ?? autoArm();
           if (target) engine.setInstrumentPitchBend(target, action.value);
           break;
         }
         case 'sustain': {
-          const target = armed ?? engine.armedTrack();
+          const target = padTrack ?? armed;
           if (target && !action.on) {
             engine.getInstrument(target.id)?.allNotesOff(false);
           }
           break;
         }
-        case 'macro':
-          // The eight knobs drive the armed instrument's macros, else the selected pad's first
-          // eight parameters (so a Maschine is useful whether you're on drums or a synth).
-          if (armed) {
-            engine.getInstrument(armed.id)?.setMacro(action.index, action.value);
-            mutate((d) => {
-              const t = d.arrangement.find((x) => x.id === armed.id);
-              const rawPatch = t?.instrument?.patch as Record<string, unknown> | undefined;
-              if (!rawPatch) return;
-              if (t?.instrument?.type === 'aura' && rawPatch.macros && !Array.isArray(rawPatch.macros)) {
-                const auraMacroKeys = ['warmth', 'cutoff', 'resonance', 'aura', 'ensemble', 'space'] as const;
-                const key = auraMacroKeys[action.index];
-                if (key) {
-                  (rawPatch.macros as Record<string, number>)[key] = action.value;
-                  void engine.reloadPatch(t);
-                }
-              } else if (t?.instrument?.type === 'soma' && rawPatch.macros && !Array.isArray(rawPatch.macros)) {
-                const somaMacroKeys = ['strikePos', 'malletHardness', 'tension', 'chamberDepth', 'shellWood', 'roomSpace'] as const;
-                const key = somaMacroKeys[action.index];
-                if (key) {
-                  (rawPatch.macros as Record<string, number>)[key] = action.value;
-                  void engine.reloadPatch(t);
-                }
-              } else if (Array.isArray(rawPatch.macros)) {
-                const macros = rawPatch.macros as { value: number }[];
-                if (macros[action.index]) macros[action.index].value = action.value;
-              }
-            });
-          } else {
-            mutate((d) => {
-              const p = d.kit[selectedPadRef.current];
-              if (!p) return;
-              const v = action.value;
-              switch (action.index) {
-                case 0: p.pitchSemis = Math.round(-24 + v * 48); break;
-                case 1: p.env.attackMs = Math.round(v * 200); break;
-                case 2: p.env.decayMs = Math.round(20 + v * 1980); break;
-                case 3: p.env.holdMs = Math.round(v * 500); break;
-                case 4: p.env.sustain = v; break;
-                case 5: p.env.releaseMs = Math.round(5 + v * 1995); break;
-                case 6: p.filter.cutoff = Math.round(60 + v * 17940); break;
-                case 7: p.filter.q = 0.3 + v * 11.7; break;
-              }
-            });
+        case 'macro': {
+          // The eight knobs drive the armed instrument's macros, else whatever page MEKA's control
+          // area is on (Sound / Group / Master) — screen knob N and hardware knob N are one slot.
+          // In MEKA the knobs follow the screen (the selected pad's page); elsewhere, the armed synth.
+          if (armed && !inMeka) {
+            let how: 'live' | 'reload' | null = null;
+            mutate((d) => { how = writeInstrumentMacro(d, armed.id, action.index, action.value); });
+            if (how === 'live') engine.getInstrument(armed.id)?.setMacro(action.index, action.value);
+            else if (how === 'reload') pushTrackPatch(armed.id);
+            break;
+          }
+          const { page } = focusedPage(docRefForChoice.current, selectedPadRef.current);
+          const param = page?.params[action.index];
+          if (!page || !param) break;
+          mutate((d) => param.set(d, fromUnit(param, action.value)));
+          if (page.instrumentTrackId) {
+            const tid = page.instrumentTrackId;
+            if (Array.isArray(docRefForChoice.current.arrangement.find((t) => t.id === tid)?.instrument?.patch?.macros)) engine.getInstrument(tid)?.setMacro(action.index, action.value);
+            else pushTrackPatch(tid);
           }
           break;
+        }
+        case 'nav': {
+          const pad = selectedPadRef.current;
+          const a = action.action;
+          if (a === 'pagePrev' || a === 'pageNext') stepControlPage(docRefForChoice.current, pad, a === 'pagePrev' ? -1 : 1);
+          else if (a === 'tabMaster') setControlFocus({ tab: 'master' });
+          else if (a === 'tabGroup') setControlFocus({ tab: 'group' });
+          else if (a === 'tabSound') setControlFocus({ tab: 'sound' });
+          else if (a === 'sampling') window.dispatchEvent(new Event('meka:sampler'));
+          else {
+            const banks = Math.max(1, Math.ceil(docRefForChoice.current.kit.length / 16));
+            const b = (Math.floor(pad / 16) + (a === 'groupNext' ? 1 : -1) + banks) % banks;
+            setSelectedPad(b * 16 + (pad % 16));
+          }
+          break;
+        }
         case 'transport':
           if (action.action === 'play') handlePlay();
           else if (action.action === 'stop') handleStop();
@@ -765,7 +904,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       const engine = BeatsEngine.get();
       if (!pass) pass = `pad-rec:${Date.now()}`;
       const playing = engine.playingPatternIds();
-      mutate((d) => { recordPadHit(d, { padIdx: hit.padIdx, vel: hit.vel, beat: hit.beat!, mode: hit.mode }, playing, recQuantRef.current || hit.repeat); }, { coalesce: pass });
+      mutate((d) => { recordPadHit(d, { padIdx: hit.padIdx, vel: hit.vel, beat: hit.beat!, mode: hit.mode, semi: hit.semi }, playing, recQuantRef.current || hit.repeat); }, { coalesce: pass });
     });
   }, [mutate]);
 
@@ -775,9 +914,30 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const applyGenre = useCallback((preset: GenrePreset) => {
     let id = '';
     mutate((d: GrooveDoc) => { id = applyGenrePreset(d, preset); });
+    // Genre patterns play the default kit (Group A): go there and onto the kick, so the new pattern
+    // shows in the pads, the step sequencer and the piano roll rather than landing out of sight.
+    if (padGroup(selectedPad) !== 0) setSelectedPad(0);
     if (id) setActivePatternId(id);
     setShowGenres(false);
-  }, [mutate]);
+  }, [mutate, selectedPad]);
+
+  // Hand-drum library — Amara performs a rhythm into the SOMA pad's piano roll.
+  const [showHands, setShowHands] = useState(false);
+  const applyHands = useCallback((c: HandDrumChoice) => {
+    const persona = playerById('amara')?.personas.find((p) => p.id === c.personaId) ?? playerById('amara')!.personas[0];
+    let res: HandPatternResult | null = null;
+    mutate((d: GrooveDoc) => {
+      res = applyHandPattern(d, selectedPad, {
+        rhythm: c.rhythm, persona: persona.traits, mood: c.mood, role: c.role, bars: c.bars, seed: c.seed, setTempo: c.setTempo,
+        name: `${c.rhythm.name} · ${c.mood} ${c.role}`,
+      }, (dd) => addInstrumentToNextPad(dd, 'soma', undefined, 'SOMA').padIdx);
+    });
+    const r = res as HandPatternResult | null;
+    if (!r) return;
+    setSelectedPad(r.padIdx);
+    setActivePatternId(r.patternId);
+    void BeatsEngine.get().init().then(() => BeatsEngine.get().syncInstruments());
+  }, [mutate, selectedPad]);
 
   // Genre MIDI basslines — spawn a BAJO on the next pad and write the line into the active pattern.
   const [showBass, setShowBass] = useState(false);
@@ -794,6 +954,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
   const loadClassicBookTemplate = useCallback((themeId: string, trackIdx = 0, mode: 'full-film-score' | 'light-background' = showcaseScoreMode) => {
     const master = getMasterBookScore(themeId);
     const nextDoc = buildClassicBookGrooveDoc(themeId, auth.currentUser?.uid || 'lorea-classic-showcase', trackIdx, mode);
+    // The score is written on the grid; the band plays it in (same performance every time you open it).
+    performDoc(nextDoc, seedOf(themeId));
     replace(nextDoc);
     setActivePatternId(nextDoc.patterns[trackIdx]?.id || nextDoc.patterns[0]?.id || '');
     setPlayMode('song');
@@ -954,6 +1116,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onClose={onClose}
           hideClose={embedded}
           embedded={embedded}
+          headerRef={phoneHeaderRef}
+          headerSlot={grooveDock(phoneHeaderRef, 'inline')}
         />
         {showInstrumentPicker && (
           <InstrumentPicker
@@ -1011,6 +1175,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           if (t.instrument?.type === 'bajo') return <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (t.instrument?.type === 'aura') return <AuraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (t.instrument?.type === 'soma') return <SomaPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
+          if (t.instrument?.type === 'lyra') return <LyraPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           if (isSuite(t.instrument?.type as InstrumentType)) return <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
           return <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} />;
         })()}
@@ -1096,6 +1261,10 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       {shellMenuBar && (
         <StudioMenuPublisher owner="beats" menus={menus} save={{ state: saveState, onSave: () => { void saveNow(); }, what: 'groove' }} />
       )}
+      {/* Transport row + the collaboration pill at its right end. The row is the panel's anchor,
+          so the collab panel opens just below the header (shell menu bar or not). */}
+      <div ref={transportRowRef} className="flex items-stretch flex-none min-w-0">
+      <div className="flex-1 min-w-0">
       <TransportBar
         doc={doc}
         running={snap.running}
@@ -1138,6 +1307,24 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
         hideClose={embedded}
         onClose={onClose}
       />
+      </div>
+      {/* The album project has its own collaborators/dock (ProjectView); this one is the groove's. */}
+      <div className="flex items-center px-2 h-14 border-b border-white/10 bg-white/[0.04] shrink-0">
+        {co.isShared && view !== 'project' && <VersionChip co={co} flash={flash} />}
+        {co.isShared && (
+          <button onClick={() => setShowJam((v) => !v)} title="Live jam — play, record and bring your rig"
+            className={`mx-1.5 h-7 px-2.5 rounded-full border text-[11px] flex items-center gap-1.5 shrink-0 ${showJam || jam.joined ? 'border-[#FF4D8D]/50 text-[#FF4D8D] bg-[#FF4D8D]/10' : 'border-white/15 text-white/70 hover:bg-white/10'}`}>
+            <Radio size={12} /> {jam.joined ? `Jam · ${jam.peers.length + 1}` : 'Jam'}
+            {Object.keys(jam.ghosts).length > 0 && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
+          </button>
+        )}
+        <button onClick={() => setShowInputs((v) => !v)} title="Hardware inputs — record a console or interface, many tracks at once"
+          className={`mx-1.5 h-7 px-2.5 rounded-full border text-[11px] flex items-center gap-1.5 shrink-0 ${showInputs ? 'border-[#FF4D4D]/50 text-[#FF4D4D] bg-[#FF4D4D]/10' : 'border-white/15 text-white/70 hover:bg-white/10'}`}>
+          <Cable size={12} /> Inputs
+        </button>
+        {grooveDock(transportRowRef, view === 'project' ? 'none' : 'inline')}
+      </div>
+      </div>
 
       <input
         ref={dawFileRef}
@@ -1231,6 +1418,25 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                   <FolderOpen size={10} /> Open file
                 </button>
               </div>
+              {(sharedGrooves.length > 0 || sharedAlbums.length > 0) && (
+                <div className="mb-1 pb-1 border-b border-white/10">
+                  <p className="px-2 pt-1 pb-0.5 text-[9px] font-bold uppercase tracking-[0.16em] text-[#D0BCFF]/70">Shared with me</p>
+                  {sharedGrooves.map((p) => (
+                    <button key={p.id} onClick={() => { void openSharedGroove(p); }}
+                      className={`w-full text-left px-2 py-1.5 rounded-lg text-[11px] truncate ${p.localId === doc.id ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+                      title={`Live groove shared by ${p.names?.[p.ownerId] || 'a collaborator'}`}>
+                      {p.title || 'Groove'} <span className="text-white/25 text-[9px] ml-1">{p.names?.[p.ownerId] || 'shared'}</span>
+                    </button>
+                  ))}
+                  {sharedAlbums.map((p) => (
+                    <button key={p.id} onClick={() => openSharedAlbum(p)}
+                      className={`w-full text-left px-2 py-1.5 rounded-lg text-[11px] truncate ${sharedAlbum?.localId === p.localId ? 'text-white bg-white/10' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+                      title={`Album project shared by ${p.names?.[p.ownerId] || 'a collaborator'} — opens on the Project page`}>
+                      <Disc3Icon size={10} className="inline -mt-0.5 mr-1 text-[#D0BCFF]" />{p.title || 'Album project'} <span className="text-white/25 text-[9px] ml-1">{p.names?.[p.ownerId] || 'shared'}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               {grooves.length === 0 && <p className="px-2 py-3 text-[11px] text-white/35">No saved grooves yet — they autosave as you work.</p>}
               {grooves.map((g) => (
                 <div key={g.id} className="flex items-center gap-1 group">
@@ -1296,6 +1502,18 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
                     </button>
                   ))}
                 </div>
+              </>
+            )}
+          </div>
+          <div className="relative shrink-0">
+            <button onClick={() => setShowHands(v => !v)} title="Hand-drum patterns for SOMA, played by Amara"
+              className="h-6 px-2.5 rounded-lg text-[10px] border border-[#E86A33]/40 text-[#E86A33] hover:bg-[#E86A33]/10 flex items-center gap-1 shrink-0 whitespace-nowrap">
+              <Sparkles size={10} /> Hand drums
+            </button>
+            {showHands && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowHands(false)} />
+                <HandDrumLibrary onApply={applyHands} onClose={() => setShowHands(false)} />
               </>
             )}
           </div>
@@ -1476,6 +1694,9 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           snap={snap}
           onMutate={mutate}
           productionId={production?.prodId || payload?.productionId}
+          collabAnchor={transportRowRef}
+          sharedProject={sharedAlbum}
+          onLeaveShared={() => setSharedAlbum(null)}
         />
       )}
 
@@ -1515,12 +1736,26 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           onLaunchScene={launchScene}
           recQuantize={recQuantize}
           onToggleRecQuantize={() => setRecQuantize((v) => { const n = !v; try { localStorage.setItem('melos:padrec:quantize', n ? '1' : '0'); } catch { /* */ } return n; })}
+          renderInstrument={(trackId) => {
+            // The same panel body the instrument window shows, inline in MEKA's control area.
+            const t = doc.arrangement.find((x) => x.id === trackId && x.kind === 'instrument');
+            if (!t) return null;
+            const close = () => setOpenInstrumentId(null);
+            return t.instrument?.type === 'kera' ? <KeraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+              : t.instrument?.type === 'bajo' ? <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+              : t.instrument?.type === 'aura' ? <AuraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+              : t.instrument?.type === 'soma' ? <SomaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+              : t.instrument?.type === 'lyra' ? <LyraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+              : isSuite(t.instrument?.type as InstrumentType) ? <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+              : <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />;
+          }}
         />
       )}
       </div>
       {showGeneration && musicEngines && <GenerationPanel key={doc.id} doc={doc} engines={musicEngines} startBeats={songStartBeats}
         initialDestination={view === 'machine' ? 'meka' : view === 'glass' ? 'glass' : 'timeline'} onClose={() => setShowGeneration(false)} onInsert={insertGeneration} />}
       {showLibrary && <MuseLibrary docked doc={doc} onMutate={mutate} onClose={() => setShowLibrary(false)} />}
+      {showJam && co.isShared && <JamPanel jam={jam} doc={doc} onClose={() => setShowJam(false)} />}
       {ulOpen && (
         <UniversalLibraryPanel accent="#FF8C00" side="right" defaultDock="docked" storageKey="melos.ullib.geo.v2" accepts={['groove', 'bassline']}
           onClose={() => setUlOpen(false)}
@@ -1536,6 +1771,8 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
       )}
 
       {showMidi && <MidiLearnPanel onClose={() => setShowMidi(false)} />}
+      <ModulatorHost doc={doc} onMutate={mutate} />
+      {showInputs && <HardwareInputsPanel doc={doc} mutate={mutate} recording={recording} onClose={() => setShowInputs(false)} />}
       {showVoice && <VoicePanel doc={doc} mutate={mutate} isRecording={() => recordingRef.current} onClose={() => setShowVoice(false)} />}
 
       {/* Add an instrument from the pattern-editing views — the picker leads with the
@@ -1614,6 +1851,7 @@ const BeatsRoom: React.FC<BeatsRoomProps> = ({ onClose, payload, production, emb
           : t.instrument?.type === 'bajo' ? <BajoPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : t.instrument?.type === 'aura' ? <AuraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : t.instrument?.type === 'soma' ? <SomaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
+              : t.instrument?.type === 'lyra' ? <LyraPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : isSuite(t.instrument?.type as InstrumentType) ? <VelaPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />
           : <InstrumentPanel doc={doc} track={t} onMutate={mutate} onClose={close} embedded />;
         return (

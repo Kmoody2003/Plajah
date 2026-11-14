@@ -16,6 +16,7 @@
  *   • channel → services/fastChannelTimeline.playoutPosition (+ resolveSlotMedia)
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { canAirTrack } from '../services/rights/trackClearance';
 import type {
   Album, Track, UserProfile, Sanctuary, SanctuaryCampaign, ChannelSource,
 } from '../types';
@@ -82,7 +83,7 @@ export function useRadioNowPlaying(
       if (a.isDraft || a.isPrivate) continue;
       for (const t of a.tracks || []) {
         if (!t?.url) continue;
-        if (t.isRadioEligible === false) continue;
+        if (t.isRadioEligible === false || !canAirTrack(t)) continue;
         if (t.mediaKind === 'VIDEO') continue;
         out.push({ ...t, artistId: t.artistId || uid, albumCover: t.albumCover || a.coverImage });
       }

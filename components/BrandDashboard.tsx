@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrandAccount, UserProfile } from '../types';
-import { fetchBrandAccounts, createBrandAccount, addBrandManager, fetchUserProfileByEmail } from '../services/backendService';
+import { fetchBrandAccounts, createBrandAccount, addBrandManager } from '../services/backendService';
 import { Building2, Plus, Users, Settings, Video, ArrowLeft, Globe, Shield, Mail, Trash2, X, Check, Layout } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 

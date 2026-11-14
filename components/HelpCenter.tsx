@@ -11,6 +11,8 @@ import {
   Sliders, Lightbulb, Layers, HeartPulse, Building2, MonitorPlay,
 } from 'lucide-react';
 import { FeatureTutorialModal } from './tutorial/FeatureTutorialModal';
+import { LEGAL_LAUNCHED } from '../services/legal/terms';
+const DMCARequestForm = React.lazy(() => import('./DMCARequestForm'));
 import { getTutorialForFeature, TUTORIAL_REGISTRY, FeatureTutorial } from '../services/tutorial/tutorialRegistry';
 
 interface HelpSection {
@@ -390,7 +392,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'Binding a Subscription to a Creator',
-        description: 'When subscribing to Plajah+, you can "bind" your subscription to a specific creator. This means the creator share of your subscription ($3.00–$11.00 depending on tier) goes directly to that creator every month via their Stripe payout. You can rebind to a different creator for a one-time $2.99 fee.'
+        description: 'When subscribing to Plajah+, you can "bind" your subscription to a specific creator. This means the creator share of your subscription ($2.99–$9.99 depending on tier) goes directly to that creator every month via their Stripe payout. You can rebind to a different creator for a one-time $2.99 fee.'
       },
       {
         name: 'Morph Mode',
@@ -414,7 +416,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'How Payouts Work',
-        description: 'When a fan tips you, buys your content, or subscribes to your Backstage, Stripe processes the payment and automatically transfers your share (90% of the total) to your connected bank account on Stripe\'s standard payout schedule (typically 2 business days in the US). You do not need to manually request a withdrawal — it\'s fully automatic.'
+        description: 'When a fan tips you, buys your content, or subscribes to your Backstage, Stripe processes the payment and automatically transfers your share (the total, less Plajah\'s fee and card processing) to your connected bank account on Stripe\'s standard payout schedule (typically 2 business days in the US). You do not need to manually request a withdrawal — it\'s fully automatic.'
       },
       {
         name: 'Earnings Dashboard — Overview',
@@ -434,7 +436,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'Platform Fee',
-        description: 'Plajah takes a 10% platform fee on all creator-to-fan transactions (tips, sales, memberships, store orders). For SeedRaiser crowdfunding, the platform fee is 5%. Plajah+ subscription revenue goes to creators at a fixed dollar amount per tier — not a percentage. The Earnings Dashboard always shows your fee alongside your net so there are no surprises.'
+        description: 'Plajah takes 5% on direct sales (tips, sales, memberships, sync licences, merch), or 0% if you hold Plajah+. Card processing, about 2.9% + 30¢, comes out of every sale. Book sales use the author cut shown when you price the book. Plajah+ subscription revenue goes to creators at a fixed dollar amount per tier — not a percentage. The Earnings Dashboard always shows your fee alongside your net so there are no surprises.'
       },
       {
         name: 'Stripe Express Dashboard',
@@ -565,7 +567,7 @@ const helpSections: HelpSection[] = [
       },
       {
         name: 'One-Tap Export to Fabula NLE',
-        description: 'Send finished beats, stems, or grooves directly into active Fabula video timelines with the "→ Fabula" button. Complete sample clearance licensing is attached automatically.',
+        description: 'Send finished beats, stems, or grooves directly into active Fabula video timelines with the "→ Fabula" button. Clearing any samples you used is still up to you.',
         tutorial: 'melos-synth-sampler'
       }
     ]
@@ -731,6 +733,7 @@ const HelpCenter: React.FC<HelpCenterProps> = ({ onBack, onDeleteAccount, onOpen
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [quickPolicy, setQuickPolicy] = useState<string | null>(null);
+  const [showCopyrightForm, setShowCopyrightForm] = useState(() => typeof window !== 'undefined' && window.location.hash === '#copyright-notice');
   const [selectedTutorial, setSelectedTutorial] = useState<FeatureTutorial | null>(null);
 
   const filteredSections = helpSections.filter(s => 
@@ -981,9 +984,15 @@ const HelpCenter: React.FC<HelpCenterProps> = ({ onBack, onDeleteAccount, onOpen
                 <div className="mt-4 flex gap-2">
                   <button onClick={() => setQuickPolicy('dmca')} className="px-3 py-2 bg-white/10 hover:bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest">Quick</button>
                   <a href="/policies/dmca.html" target="_blank" rel="noreferrer" className="px-3 py-2 bg-white/5 hover:bg-white/10 rounded-full text-[10px] font-black uppercase tracking-widest">Full</a>
+                  {LEGAL_LAUNCHED && <button onClick={() => setShowCopyrightForm((v) => !v)} className="px-3 py-2 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest">{showCopyrightForm ? 'Close' : 'File a notice'}</button>}
                 </div>
               </div>
             </div>
+            {LEGAL_LAUNCHED && showCopyrightForm && (
+              <div id="copyright-notice" className="mt-4">
+                <React.Suspense fallback={null}><DMCARequestForm /></React.Suspense>
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-3">
             <h4 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20">Policies</h4>

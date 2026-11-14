@@ -7,9 +7,12 @@ import {
   Camera, Image as ImageIcon,
 } from 'lucide-react';
 import { Album, Video, StoreProduct, Photo } from '../types';
-import { fetchUserAlbums, fetchUserVideos, fetchUserPhotos, updateAlbum, updateVideo, updatePhoto, addVideoToFastChannel, deleteCloudAlbum, deleteVideo, deletePhoto, deleteMerchItem, auth } from '../services/backendService';
+import { fetchUserAlbums, fetchUserVideos, fetchUserPhotos, updateAlbum, updateVideo, updatePhoto, addVideoToFastChannel, deleteMerchItem, auth } from '../services/backendService';
 import { fetchUnifiedSellerProducts, deleteProduct } from '../services/storeService';
-import { crossover, type MediaKind, type Recipe, type ConvertResult } from '../services/crossover';
+import type { MediaKind } from '../services/crossover';
+import QuickConvert from './crossover/QuickConvert';
+import { addHqAsset } from '../services/orgAssets';
+import { listMediaTrash, moveMediaToTrash, purgeMedia, restoreMedia, type MediaTrashItem } from '../services/mediaTrash';
 
 // ── Unified asset model — one normalized record across every Plajah service ──────
 type ServiceKey = 'CHORA' | 'TALEO' | 'LOREA' | 'REELLO' | 'PHOTOS' | 'STORE' | 'OTHER';
@@ -124,6 +127,14 @@ const ContentAssetManager: React.FC<{
   const [detail, setDetail] = useState<Asset | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const [trash, setTrash] = useState<MediaTrashItem[]>([]);
+  const [trashCount, setTrashCount] = useState(0);
+  const [showTrash, setShowTrash] = useState(false);
+  const refreshTrash = useCallback(() => {
+    listMediaTrash().then(items => { setTrash(items); setTrashCount(items.length); }).catch(() => {});
+  }, []);
+  useEffect(() => { if (uid === auth.currentUser?.uid) refreshTrash(); }, [uid, refreshTrash]);
+
   const load = useCallback(async () => {
     setLoading(true);
     const [al, vi, pr, ph] = await Promise.all([
@@ -170,7 +181,7 @@ const ContentAssetManager: React.FC<{
       out.push({
         id: p.id, service: 'STORE', typeLabel: cat.charAt(0) + cat.slice(1).toLowerCase(),
         title: p.title || 'Product', cover: p.images?.[0], status: p.isActive && (p.stock ?? 0) > 0 ? 'PUBLIC' : 'DRAFT',
-        plays: p.reviewCount || 0, updatedAt: p.updatedAt || p.createdAt || 0, editable: true, price: p.price, product: p,
+        plays: p.reviewCount || 0, updatedAt: p.updatedAt || p.createdAt || 0, editable: !!onManageStore, price: p.price, product: p,
       });
     }
     // Plajah Photos library — stills and short clips. Photos carry `isPublic` (not `isPrivate`),
@@ -190,7 +201,7 @@ const ContentAssetManager: React.FC<{
       });
     }
     return out;
-  }, [albums, videos, products, photos]);
+  }, [albums, videos, products, photos, onManageStore]);
 
   const counts = useMemo(() => {
     const c: Record<string, number> = { ALL: assets.length, PROJECTS: projects.length };
@@ -243,12 +254,11 @@ const ContentAssetManager: React.FC<{
 
   const edit = (a: Asset) => { if (a.album) onEditAlbum(a.album); else if (a.product) onManageStore?.(); };
 
-  // Delete one asset from its home service. These are permanent deletes (the
-  // manager has no trash of its own), so every caller confirms first.
+  // Albums, videos and photos go to Trash for 30 days. Store products are still deleted outright.
   const deleteOne = async (a: Asset) => {
-    if (a.album) return deleteCloudAlbum(a.id);
-    if (a.video) return deleteVideo(a.id);
-    if (a.photo) return deletePhoto(a.id);
+    if (a.album) return moveMediaToTrash('album', a.id);
+    if (a.video) return moveMediaToTrash('video', a.id);
+    if (a.photo) return moveMediaToTrash('photo', a.id);
     if (a.product) {
       const legacyId = (a.product as any).legacyMerchId;
       return legacyId ? deleteMerchItem(legacyId) : deleteProduct(a.id);
@@ -256,20 +266,24 @@ const ContentAssetManager: React.FC<{
   };
 
   const deleteSingle = async (a: Asset) => {
-    if (!confirm(`Delete "${a.title}"? This permanently deletes it and cannot be undone.`)) return;
+    if (!confirm(a.product ? `Delete "${a.title}"? This permanently deletes it and cannot be undone.` : `Move "${a.title}" to Trash? It stops showing right away and stays recoverable for 30 days, then is permanently deleted.`)) return;
     setBusy(true);
     try {
       await deleteOne(a);
       if (detail?.id === a.id) setDetail(null);
+      setTrashCount(n => (a.product ? n : n + 1));
       setSelected(s => { const n = new Set(s); n.delete(a.id); return n; });
       await load();
+    } catch (e: any) {
+      alert(e?.message || 'That could not be deleted.');
     } finally { setBusy(false); }
   };
 
   const bulkDelete = async () => {
     const items = [...selected].map(id => assets.find(x => x.id === id)).filter(Boolean) as Asset[];
     if (!items.length) return;
-    if (!confirm(`Delete ${items.length} item${items.length > 1 ? 's' : ''}? This permanently deletes them and cannot be undone.`)) return;
+    const products = items.filter(a => a.product).length;
+    if (!confirm(`Delete ${items.length} item${items.length > 1 ? 's' : ''}? Albums, videos and photos go to Trash for 30 days.${products ? ` ${products} store product${products > 1 ? 's are' : ' is'} permanently deleted and cannot be restored.` : ''}`)) return;
     setBusy(true);
     try {
       const results = await Promise.allSettled(items.map(a => deleteOne(a)));
@@ -277,6 +291,7 @@ const ContentAssetManager: React.FC<{
       if (detail && items.some(a => a.id === detail.id)) setDetail(null);
       clearSel();
       await load();
+      refreshTrash();
       if (failed) alert(`${failed} item${failed > 1 ? 's' : ''} could not be deleted.`);
     } finally { setBusy(false); }
   };
@@ -309,12 +324,56 @@ const ContentAssetManager: React.FC<{
     finally { setBusy(false); }
   };
 
+  const trashAct = async (task: () => Promise<unknown>) => {
+    setBusy(true);
+    try { await task(); refreshTrash(); await load(); }
+    catch (e: any) { alert(e?.message || 'That could not be completed.'); }
+    finally { setBusy(false); }
+  };
+
+  if (showTrash) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-end justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none text-white">Trash</h1>
+            <p className="text-white/35 text-sm font-bold uppercase tracking-widest mt-2">Albums, videos and photos stay here for 30 days</p>
+          </div>
+          <button onClick={() => { setShowTrash(false); refreshTrash(); }} className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white/50 border border-white/10 hover:text-white hover:bg-white/5"><X size={13} /> Back to library</button>
+        </div>
+        {trash.length === 0
+          ? <div className="grid place-items-center h-48 text-center text-white/30 text-sm px-8">Trash is empty.</div>
+          : <div className="space-y-2">
+              {trash.map(t => {
+                const days = Math.max(0, Math.ceil((t.retentionDeleteAt - Date.now()) / 86400000));
+                return (
+                  <div key={t.id} className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/10">
+                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-white/5 grid place-items-center shrink-0 text-white/30">
+                      {t.cover ? <img src={t.cover} alt="" className="w-full h-full object-cover" /> : <FileText size={16} />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-semibold text-white truncate">{t.title}</div>
+                      <div className="text-[11px] text-red-300/70 mt-0.5">Deletes in {days} day{days === 1 ? '' : 's'}</div>
+                    </div>
+                    <button disabled={busy} onClick={() => trashAct(() => restoreMedia(t.id))} className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/5 text-white/70 hover:text-white text-[9px] font-black uppercase tracking-widest disabled:opacity-40"><Repeat size={13} /> Restore</button>
+                    <button disabled={busy} onClick={() => { if (confirm(`Permanently delete "${t.title}" and its files? This cannot be undone.`)) trashAct(() => purgeMedia(t.id)); }} className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/5 text-red-300 hover:text-red-200 text-[9px] font-black uppercase tracking-widest disabled:opacity-40"><Trash2 size={13} /> Delete</button>
+                  </div>
+                );
+              })}
+            </div>}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none text-white">Content <span className="text-[#FF8C00]">Manager</span></h1>
-        <p className="text-white/35 text-sm font-bold uppercase tracking-widest mt-2">Every asset you've made, across the whole platform</p>
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-4xl md:text-6xl font-black uppercase tracking-tighter leading-none text-white">Content <span className="text-[#FF8C00]">Manager</span></h1>
+          <p className="text-white/35 text-sm font-bold uppercase tracking-widest mt-2">Every asset you've made, across the whole platform</p>
+        </div>
+        {trashCount > 0 && <button onClick={() => { refreshTrash(); setShowTrash(true); }} className="flex items-center gap-2 px-4 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest text-white/50 border border-white/10 hover:text-white hover:bg-white/5"><Trash2 size={13} /> Trash <span className="px-1.5 py-0.5 rounded-full text-[8px] bg-white/10 text-white/40">{trashCount}</span></button>}
       </div>
 
       {/* Service tabs */}
@@ -337,7 +396,7 @@ const ContentAssetManager: React.FC<{
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px]">
             <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-white/25" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search assets, metadata…"
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by title or type…"
               className="w-full bg-white/5 border border-white/10 rounded-full py-2.5 pl-11 pr-4 text-sm outline-none focus:border-white/25" />
           </div>
           <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full px-3 py-2">
@@ -471,25 +530,6 @@ const AssetRow: React.FC<{ asset: Asset; selected: boolean; open?: boolean; onTo
 );
 
 // ── Crossover-powered conversion, right in the asset detail ──────────────────
-const CROSSOVER_TARGETS: Record<MediaKind, { id: string; label: string; recipe: Recipe }[]> = {
-  audio: [
-    { id: 'wav16', label: 'WAV - 16-bit PCM (browser)', recipe: { containerId: 'wav', audioCodecId: 'pcm_s16le', hwAccel: 'auto', qualityMode: 'lossless', fixTimestamps: true } },
-    { id: 'mp3', label: 'MP3 - 320k (cloud)', recipe: { containerId: 'mp3', audioCodecId: 'mp3', hwAccel: 'auto', qualityMode: 'bitrate', audioBitrate: '320k', fixTimestamps: true } },
-    { id: 'flac', label: 'FLAC - lossless (cloud)', recipe: { containerId: 'flac', audioCodecId: 'flac', hwAccel: 'auto', qualityMode: 'lossless', fixTimestamps: true } },
-  ],
-  video: [
-    { id: 'mp4', label: 'MP4 / H.264 (cloud)', recipe: { containerId: 'mp4', videoCodecId: 'h264', audioCodecId: 'aac', hwAccel: 'auto', qualityMode: 'crf', crf: 20, audioBitrate: '256k', fixTimestamps: true } },
-    { id: 'prores', label: 'MOV / ProRes 422 (cloud)', recipe: { containerId: 'mov', videoCodecId: 'prores', audioCodecId: 'pcm_s16le', hwAccel: 'none', qualityMode: 'lossless', fixTimestamps: true } },
-    { id: 'mpeg2', label: 'MPEG-2 .mpg (cloud)', recipe: { containerId: 'mpeg', videoCodecId: 'mpeg2', audioCodecId: 'mp3', hwAccel: 'none', qualityMode: 'bitrate', videoBitrate: '8M', audioBitrate: '256k', fixTimestamps: true } },
-    { id: 'webm', label: 'WebM / VP9 (cloud)', recipe: { containerId: 'webm', videoCodecId: 'vp9', audioCodecId: 'opus', hwAccel: 'none', qualityMode: 'crf', crf: 31, audioBitrate: '160k', fixTimestamps: true } },
-  ],
-  image: [
-    { id: 'png', label: 'PNG (browser)', recipe: { containerId: 'png', imageFormatId: 'png', hwAccel: 'auto', qualityMode: 'crf' } },
-    { id: 'jpg', label: 'JPEG (browser)', recipe: { containerId: 'jpg', imageFormatId: 'jpg', hwAccel: 'auto', qualityMode: 'crf' } },
-    { id: 'webp', label: 'WebP (browser)', recipe: { containerId: 'webp', imageFormatId: 'webp', hwAccel: 'auto', qualityMode: 'crf' } },
-  ],
-};
-
 const CrossoverConvertPanel: React.FC<{ asset: Asset }> = ({ asset }) => {
   const url = asset.album?.tracks?.[0]?.url || asset.video?.url;
   const kind: MediaKind = asset.service === 'CHORA'
@@ -497,51 +537,18 @@ const CrossoverConvertPanel: React.FC<{ asset: Asset }> = ({ asset }) => {
     : (asset.service === 'TALEO' || asset.service === 'REELLO')
       ? 'video'
       : (url && /\.(png|jpe?g|webp|gif|tiff?|bmp)(\?|$)/i.test(url) ? 'image' : 'video');
-  const targets = CROSSOVER_TARGETS[kind];
-  const [targetId, setTargetId] = useState(targets[0].id);
-  const [busy, setBusy] = useState(false);
-  const [pct, setPct] = useState(0);
-  const [result, setResult] = useState<ConvertResult | null>(null);
-  const [err, setErr] = useState<string | null>(null);
   if (!url) return null;
-
-  const run = async () => {
-    const t = targets.find((x) => x.id === targetId);
-    if (!t) return;
-    setBusy(true); setErr(null); setResult(null); setPct(0);
-    try {
-      const blob = await (await fetch(url)).blob();
-      const safe = (asset.title || 'asset').replace(/[^\w.\-]+/g, '_');
-      const srcExt = (url.split('?')[0].split('.').pop() || 'bin');
-      const file = new File([blob], `${safe}.${srcExt}`, { type: blob.type || 'application/octet-stream' });
-      const r = await crossover.convert(
-        { id: asset.id, name: file.name, kind, sizeBytes: blob.size, file },
-        t.recipe, (p) => setPct(p.progress),
-      );
-      setResult(r);
-    } catch (e: any) {
-      setErr(e?.message || String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
+  const name = `${(asset.title || 'asset').replace(/[^\w.\-]+/g, '_')}.${url.split('?')[0].split('.').pop() || 'bin'}`;
+  const uid = auth.currentUser?.uid;
   return (
-    <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/8 space-y-3">
-      <div className="flex items-center gap-2"><Repeat size={14} className="text-[#34e0d0]" /><p className="text-[10px] font-black uppercase tracking-widest text-white/70">Convert with Crossover</p></div>
-      <div className="flex gap-2">
-        <select value={targetId} onChange={(e) => setTargetId(e.target.value)} className="flex-1 px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-xs text-white outline-none [&>option]:bg-neutral-900">
-          {targets.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-        </select>
-        <button onClick={run} disabled={busy} className="px-4 py-2 rounded-xl bg-[#FF8C00] text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-40 flex items-center gap-1.5">
-          {busy ? <Loader2 size={13} className="animate-spin" /> : 'Convert'}
-        </button>
-      </div>
-      {busy && <div className="h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-[#34e0d0] transition-all" style={{ width: `${pct * 100}%` }} /></div>}
-      {result && <a href={result.outputUrl} download={result.outputName} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#3ddc84]"><Download size={12} /> Download {result.outputName}</a>}
-      {err && <p className="text-[9px] text-[#ff6b6b] leading-relaxed">{err} — video/pro formats need the Crossover cloud (deploy pending).</p>}
-      <p className="text-[8px] text-white/25 leading-relaxed">Audio &amp; images convert instantly in your browser; video routes to the Crossover cloud.</p>
-    </div>
+    <QuickConvert name={name} kind={kind}
+      getFile={async () => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Could not load this file to convert.');
+        const blob = await res.blob();
+        return new File([blob], name, { type: blob.type || 'application/octet-stream' });
+      }}
+      onSaveToHq={uid ? async (file, onProgress) => { await addHqAsset({ kind: 'user', id: uid }, file, 'Conversions', onProgress); } : undefined} />
   );
 };
 

@@ -113,7 +113,7 @@ function oraEntriesToTelaDevice(entries: OraEntry[], ownerId: string, existingId
     blocks: [{ id: blockId(`${entry.id}_body`), kind: 'p', text: inline(entry.body), textRole: 'JOURNAL', semanticLabel: 'Journal' }],
     tags: [], createdAt: entry.createdAt, updatedAt: entry.updatedAt, privacy: 'PRIVATE',
   }));
-  return { id: existingId || id('dev'), type: 'NOTES', name: 'Ora Longhand', entries: converted, activeEntryId: converted[0]?.id, defaultKind: 'JOURNAL', domainBinding: domain('PLAJAH', 'JOURNAL', { recordId: ownerId, field: 'ora_entries', label: 'Ora Longhand · encrypted', encryptedAtRest: true }) };
+  return { id: existingId || id('dev'), type: 'NOTES', name: 'Ora Longhand', entries: converted, activeEntryId: converted[0]?.id, defaultKind: 'JOURNAL', domainBinding: domain('PLAJAH', 'JOURNAL', { recordId: ownerId, field: 'ora_entries', label: 'Ora Longhand · private', encryptedAtRest: true }) };
 }
 
 function melosDocId(productionId: string, suffix: string) { return `tela_melos_${productionId}_${suffix}`.replace(/[^a-z0-9_-]/gi, '_'); }

@@ -1,9 +1,9 @@
 /**
- * Halloween Curation & Classic Cinema — Story Intelligence, Character Dossiers & The Actors Behind Them.
+ * Plajah Horror Classics & Classic Cinema — Story Intelligence, Character Dossiers & The Actors Behind Them.
  *
  * Provides complete, structured Story Intelligence (`StoryReport` + `TaleoAnalysisJob`),
  * Character profiles (`Character` + `StoryReportCharacter`), and Actor biographies/portraits
- * (`ClassicActorBehindCharacter`) for every film in the Halloween Curation and Curated Classics.
+ * (`ClassicActorBehindCharacter`) for every film in Plajah Horror Classics and Curated Classics.
  */
 
 import type { StoryReport, TaleoAnalysisJob } from '../services/storyIntelService';
@@ -3396,7 +3396,7 @@ export function getSyntheticAnalysisJob(identifierOrTitle?: string | null): Tale
 }
 
 /**
- * Return all Halloween Curation characters + actors across all curated films for the Halloween Showcase rail.
+ * Return all Plajah Horror Classics characters + actors across all curated films for the Plajah Horror Classics rail.
  */
 export function getAllHalloweenCharactersWithActors(): Array<ClassicActorBehindCharacter & { filmIdentifier: string; filmTitle: string; filmYear: string; filmDirector: string }> {
   const result: Array<ClassicActorBehindCharacter & { filmIdentifier: string; filmTitle: string; filmYear: string; filmDirector: string }> = [];

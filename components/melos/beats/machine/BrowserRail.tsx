@@ -3,22 +3,22 @@
 
 import React, { useRef, useState } from 'react';
 import { Upload, Piano, SlidersHorizontal } from 'lucide-react';
-import type { GrooveDoc, SynthVoiceId, InstrumentType } from '../../../../services/melos/beats/grooveDoc';
+import type { GrooveDoc, InstrumentType } from '../../../../services/melos/beats/grooveDoc';
+import { ENGINE_LABEL, drumSynthFromLegacy, newDrumSynth, setPadDrumSynth, type DrumEngine } from '../../../../services/melos/beats/drumSynth';
 import { instrumentLabel } from '../../../../services/melos/beats/instrumentFactory';
 import { useContextMenu, type MenuNode } from '../../../ui/ContextMenu';
 import { NksBrowser } from './NksBrowser';
+import { KitLibrary } from './KitLibrary';
 import type { MelosSampleRef } from '../melosSamples';
 import { PLAYHEAD, SELECT, SURFACE_RAISED } from '../theme';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const noteLabel = (n: number) => `${NOTE_NAMES[((n % 12) + 12) % 12]}${Math.floor(n / 12) - 1}`;
 
-type RailTab = 'kit' | 'samples' | 'nks';
+type RailTab = 'kit' | 'library' | 'samples' | 'nks';
 
-const SYNTH_VOICES: { id: SynthVoiceId; label: string }[] = [
-  { id: 'kick', label: 'Kick' }, { id: 'sub', label: 'Sub' }, { id: 'snare', label: 'Snare' },
-  { id: 'clap', label: 'Clap' }, { id: 'hat-closed', label: 'Cl Hat' }, { id: 'hat-open', label: 'Op Hat' },
-];
+// The Drum Synth engines (drumSynth.ts) — pick one, shape it on the control area's Synth page.
+const SYNTH_ENGINES: DrumEngine[] = ['kick', 'snare', 'hat', 'tom', 'perc', 'clap'];
 
 interface BrowserRailProps {
   doc: GrooveDoc;
@@ -32,11 +32,16 @@ interface BrowserRailProps {
   onPickInstrumentForPad?: (padIdx: number) => void;
   /** Open the editor panel for the instrument already on this pad. */
   onEditPadInstrument?: (padIdx: number) => void;
+  /** The Group showing in the pad grid — the Library loads kits into it. */
+  bank?: number;
+  /** The rail widens while the Library is open (Maschine's browser takes the room it needs). */
+  onWideChange?: (wide: boolean) => void;
 }
 
-export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSelectPad, onMutate, onLoadSampleFile, melosSamples, onLoadMelosSample, onPickInstrumentForPad, onEditPadInstrument }) => {
+export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSelectPad, onMutate, onLoadSampleFile, melosSamples, onLoadMelosSample, onPickInstrumentForPad, onEditPadInstrument, bank = 0, onWideChange }) => {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [tab, setTab] = useState<RailTab>('kit');
+  const [tab, setTabState] = useState<RailTab>('kit');
+  const setTab = (t: RailTab) => { setTabState(t); onWideChange?.(t === 'library'); };
   const pad = doc.kit[selectedPad];
   const padInstTrack = pad?.source === 'instrument' && pad.instrumentTrackId
     ? doc.arrangement.find((t) => t.id === pad.instrumentTrackId)
@@ -62,12 +67,12 @@ export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSe
   return (
     <div className="flex flex-col gap-3 h-full min-h-0">
       <div className="flex gap-0.5 bg-white/[0.06] border border-white/10 rounded-lg p-0.5 flex-none">
-        {(melosSamples ? (['kit', 'samples', 'nks'] as RailTab[]) : (['kit', 'nks'] as RailTab[])).map((t) => (
+        {(melosSamples ? (['kit', 'library', 'samples', 'nks'] as RailTab[]) : (['kit', 'library', 'nks'] as RailTab[])).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`flex-1 h-6 rounded-md text-[10px] uppercase tracking-wide ${tab === t ? 'bg-white/15 text-white font-semibold' : 'text-white/40 hover:text-white'}`}
-          >{t === 'kit' ? 'Kit' : t === 'samples' ? 'Samples' : 'NKS'}</button>
+          >{t === 'kit' ? 'Kit' : t === 'library' ? 'Library' : t === 'samples' ? 'Samples' : 'NKS'}</button>
         ))}
       </div>
 
@@ -99,6 +104,12 @@ export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSe
               </p>
             )}
           </div>
+        </div>
+      )}
+
+      {tab === 'library' && (
+        <div className="flex-1 min-h-0 flex flex-col">
+          <KitLibrary doc={doc} selectedPad={selectedPad} bank={bank} onMutate={onMutate} onLoadSampleFile={onLoadSampleFile} onSelectPad={onSelectPad} />
         </div>
       )}
 
@@ -164,20 +175,24 @@ export const BrowserRail: React.FC<BrowserRailProps> = ({ doc, selectedPad, onSe
                   className="w-6 h-6 rounded-md border border-white/12 text-white/60 hover:text-white">+</button>
               </div>
               <button
-                onClick={() => onMutate((d) => { const p = d.kit[selectedPad]; if (p) { p.source = 'synth'; p.synthVoice = p.synthVoice || 'kick'; p.instrumentTrackId = undefined; } })}
+                onClick={() => onMutate((d) => { const p = d.kit[selectedPad]; if (p) { setPadDrumSynth(p, p.drumSynth ?? drumSynthFromLegacy(p.synthVoice)); p.instrumentTrackId = undefined; } })}
                 className="text-[9px] text-white/30 hover:text-white/60 underline decoration-dotted"
               >Replace with a one-shot sound</button>
             </div>
           ) : (
             <>
               <div className="grid grid-cols-3 gap-1 mb-2">
-                {SYNTH_VOICES.map((v) => (
-                  <button
-                    key={v.id}
-                    onClick={() => onMutate((d) => { const p = d.kit[selectedPad]; if (p) { p.source = 'synth'; p.synthVoice = v.id; p.empty = false; } })}
-                    className={`h-6 rounded-lg text-[10px] border ${pad.source === 'synth' && pad.synthVoice === v.id ? 'bg-white/15 border-white/25 text-white font-semibold' : 'border-white/10 text-white/40 hover:text-white'}`}
-                  >{v.label}</button>
-                ))}
+                {SYNTH_ENGINES.map((eng) => {
+                  const on = pad.source === 'synth' && (pad.drumSynth ?? drumSynthFromLegacy(pad.synthVoice)).engine === eng;
+                  return (
+                    <button
+                      key={eng}
+                      title={`Drum Synth: ${ENGINE_LABEL[eng]} — shape it on the Synth page above the pads`}
+                      onClick={() => onMutate((d) => { const p = d.kit[selectedPad]; if (p) setPadDrumSynth(p, newDrumSynth(eng)); })}
+                      className={`h-6 rounded-lg text-[10px] border ${on ? 'bg-white/15 border-white/25 text-white font-semibold' : 'border-white/10 text-white/40 hover:text-white'}`}
+                    >{eng === 'perc' ? 'Perc' : ENGINE_LABEL[eng]}</button>
+                  );
+                })}
               </div>
               <button
                 onClick={() => fileRef.current?.click()}

@@ -11,22 +11,28 @@
 //   · createNotification / fetchUserProfiles  (backendService)  — notify + resolve guardians
 //   · appendRecord                            (learningLedger)  — the knowledge-graph substrate
 //   · autoGradeWorksheet                      (worksheetDigitizer)
+// Answer keys never reach student or guardian devices (services/worksheetKeys.ts): the published copy
+// has none, the key sits in teacher-only digital_worksheet_keys, and Check my work + turn-in grading
+// go through routes/worksheetGrading.ts.
 // Firestore is written directly, matching learningLedgerService's standalone-service pattern.
 //
 // simulate:true computes the fan-out counts WITHOUT writing notifications — used by the demo class
 // (whose roster isn't real accounts) so the UI can show the wire result honestly without spraying
 // notification docs at placeholder uids. Real classrooms pass simulate:false.
 
+import { fetchGuardiansOf } from './userPrivate';
 import { collection, doc, addDoc, arrayUnion, setDoc, getDoc, updateDoc, query, where, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage, auth } from './firebase';
-import { createNotification, fetchUserProfiles } from './backendService';
+import { opsDb, storage, auth } from './firebase';
+import { createNotification } from './backendService';
 import { unlockAchievementByTrigger } from './achievementService';
 import { appendRecord } from './learningLedgerService';
 import { autoGradeWorksheet, type DigitalWorksheet, type GradeResult } from './worksheetDigitizer';
 import { readCompletedWorksheet } from './worksheetDigitizer';
 import { preAssessWorksheet, preAssessFromAnswers, buildTurnInBrief, type WorksheetPreAssessment, type TurnInBrief } from './worksheetGrading';
 import { recordAssignmentQualityEvent } from './assignmentQualityService';
+import { selfCheckWorksheet, type SelfCheckResult } from './worksheetScanCore';
+import { hasEmbeddedKeys, splitWorksheetKeys, withWorksheetKeys, type WorksheetAnswerKeys } from './worksheetKeys';
 
 export interface RosterStudent { id: string; name: string }
 export interface TeacherRef { uid: string; name: string; photo?: string }
@@ -38,6 +44,10 @@ export interface PublishInput {
   students: RosterStudent[];
   teacher: TeacherRef;
   dueDate?: number;
+  /** Scheduled ahead (Lesson Library calendar): students' lists hide it until then. A display gate, not access control. */
+  opensAt?: number;
+  /** Set when it came from the Lesson Library, so the course calendar can link back to the item. */
+  librarySource?: { unitId: string; kind: string };
   /** true ⇒ compute counts but write no notifications (demo / preview). */
   simulate?: boolean;
   /** Untouched camera/file original. Stored beside the digitized Tela form for audit/re-edit. */
@@ -65,21 +75,39 @@ export const assignmentLink = (worksheetId: string) => `?view=assignment&id=${wo
 /** Load a persisted DigitalWorksheet by id (for the assignment deep-link). Null if missing/failed. */
 export async function fetchWorksheet(id: string): Promise<DigitalWorksheet | null> {
   try {
-    const snap = await getDoc(doc(db, 'digital_worksheets', id));
+    const snap = await getDoc(doc(opsDb, 'digital_worksheets', id));
     if (!snap.exists()) return null;
-    return { id: snap.id, ...(snap.data() as Omit<DigitalWorksheet, 'id'>) };
+    const sheet: DigitalWorksheet = { id: snap.id, ...(snap.data() as Omit<DigitalWorksheet, 'id'>) };
+    const uid = auth.currentUser?.uid;
+    if (uid && sheet.createdBy === uid) {
+      // The teacher: merge the key back in. A worksheet saved before keys were split gets split now.
+      if (hasEmbeddedKeys(sheet)) { await writeSplitWorksheet(id, sheet).catch(e => console.warn('[worksheetAssignment] key split failed', e)); return sheet; }
+      const key = await getDoc(doc(opsDb, 'digital_worksheet_keys', id)).catch(() => null);
+      return withWorksheetKeys(sheet, key?.exists() ? (key.data().keys as WorksheetAnswerKeys) : null);
+    }
+    // Everyone else gets the student copy, even from an old document that still carries its key.
+    return hasEmbeddedKeys(sheet) ? splitWorksheetKeys(sheet).publicSheet : sheet;
   } catch (e) {
     console.error('[worksheetAssignment] fetchWorksheet failed:', e);
     return null;
   }
 }
 
+/** Store the student copy on digital_worksheets/{id} and the key on teacher-only digital_worksheet_keys/{id}. */
+async function writeSplitWorksheet(id: string, sheet: DigitalWorksheet): Promise<void> {
+  const { publicSheet, keys } = splitWorksheetKeys(sheet);
+  await setDoc(doc(opsDb, 'digital_worksheet_keys', id), { worksheetId: id, createdBy: sheet.createdBy, keys, updatedAt: Date.now() });
+  const { id: _drop, ...rest } = publicSheet;
+  await setDoc(doc(opsDb, 'digital_worksheets', id), JSON.parse(JSON.stringify(rest)));
+}
+
 /** Save a DigitalWorksheet to Firestore. Returns the new id, or null on failure (non-fatal). */
 export async function saveWorksheet(sheet: DigitalWorksheet, originalFile?: File, pageImageDataUrl?: string): Promise<string | null> {
   try {
-    const { id: _drop, ...rest } = sheet;
+    const { id: _drop, ...full } = sheet;
+    const { publicSheet: rest, keys } = splitWorksheetKeys(full as DigitalWorksheet);
     const signedInUid = auth.currentUser?.uid;
-    const worksheetRef = await addDoc(collection(db, 'digital_worksheets'), {
+    const worksheetRef = await addDoc(collection(opsDb, 'digital_worksheets'), {
       ...rest,
       // Rules bind authorship to the signed-in teacher. Existing callers still provide createdBy,
       // but a stale demo identity must never become the owner of a production document.
@@ -87,6 +115,9 @@ export async function saveWorksheet(sheet: DigitalWorksheet, originalFile?: File
       status: 'published',
       savedAt: Date.now(),
     });
+    if (Object.keys(keys).length) {
+      await setDoc(doc(opsDb, 'digital_worksheet_keys', worksheetRef.id), { worksheetId: worksheetRef.id, createdBy: signedInUid || rest.createdBy, keys, updatedAt: Date.now() });
+    }
     if (originalFile && auth.currentUser) {
       try {
         const safe = originalFile.name.replace(/[^\w.\-]+/g, '_').slice(-64) || 'worksheet.jpg';
@@ -123,6 +154,7 @@ export async function saveWorksheet(sheet: DigitalWorksheet, originalFile?: File
  */
 export async function publishWorksheet(input: PublishInput): Promise<WireResult> {
   const { sheet, classId, className, students, teacher, dueDate, simulate, originalFile, pageImageDataUrl } = input;
+  const opensAt = input.opensAt && input.opensAt > Date.now() ? input.opensAt : null;
   const result: WireResult = {
     ok: false, worksheetId: null, assignmentId: null,
     studentsNotified: 0, parentsNotified: 0,
@@ -141,13 +173,15 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
   if (worksheetId) {
     try {
       const assignedAt = Date.now();
-      const ref = await addDoc(collection(db, 'worksheet_assignments'), {
+      const ref = await addDoc(collection(opsDb, 'worksheet_assignments'), {
         worksheetId, classId, className,
         teacherUid: teacher.uid,
         title: sheet.title, subject: sheet.subject, objective: sheet.objective,
         standardIds: sheet.standardIds,
         studentIds: students.map(s => s.id),
         dueDate: dueDate || null,
+        opensAt,
+        ...(input.librarySource ? { librarySource: input.librarySource } : {}),
         tutorEnabled: true,     // attaches the in-worksheet Plajah tutor
         autoGrade: true,        // arms auto-grade on turn-in
         createdAt: assignedAt,
@@ -155,11 +189,11 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
       });
       result.assignmentId = ref.id;
       if (!simulate) {
-        await Promise.all(students.map(student => setDoc(doc(db, 'worksheet_submissions', `${worksheetId}_${student.id}`), {
+        await Promise.all(students.map(student => setDoc(doc(opsDb, 'worksheet_submissions', `${worksheetId}_${student.id}`), {
           worksheetId, assignmentId: ref.id, studentId: student.id, studentName: student.name,
           // Title + due ride on each submission so a guardian's calendar can show it without
           // reading the class-wide assignment (which they are never given).
-          title: sheet.title, subject: sheet.subject, className, teacherUid: teacher.uid, dueDate: dueDate || null,
+          title: sheet.title, subject: sheet.subject, className, teacherUid: teacher.uid, dueDate: dueDate || null, opensAt,
           status: 'assigned', assignedAt,
           timeline: arrayUnion({ status: 'ASSIGNED', at: assignedAt, actorId: teacher.uid, actorName: teacher.name }),
         }, { merge: true })));
@@ -181,7 +215,7 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
       senderId: teacher.uid, senderName: teacher.name, senderPhoto: teacher.photo || '',
       type: 'CONTENT',
       title: `New homework: ${sheet.title}`,
-      message: `${sheet.subject}${dueDate ? ` · due ${new Date(dueDate).toLocaleDateString()}` : ''} — tap to start. Plajah can help.`,
+      message: `${sheet.subject}${opensAt ? ` · opens ${new Date(opensAt).toLocaleDateString()}` : ''}${dueDate ? ` · due ${new Date(dueDate).toLocaleDateString()}` : ''} — ${opensAt ? 'it’ll be on your desk then' : 'tap to start'}. Plajah can help.`,
       link, targetId: worksheetId || classId,
     }).catch(() => null)));
     result.studentsNotified = sent.filter(Boolean).length;
@@ -196,7 +230,7 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
     // The assignment was already created so students could be notified immediately. Extend the
     // same access boundary to guardians before sending their deep links.
     if (guardianUids.length && worksheetId) {
-      await updateDoc(doc(db, 'digital_worksheets', worksheetId), {
+      await updateDoc(doc(opsDb, 'digital_worksheets', worksheetId), {
         accessUids: arrayUnion(...guardianUids),
       }).catch(error => console.warn('[worksheetAssignment] guardian worksheet access update failed', error));
       // A guardian may see only their own child's submission, never the whole class roster.
@@ -205,7 +239,7 @@ export async function publishWorksheet(input: PublishInput): Promise<WireResult>
           .filter(pair => pair.studentId === student.id)
           .map(pair => pair.guardianUid);
         if (studentGuardianUids.length) {
-          await updateDoc(doc(db, 'worksheet_submissions', `${worksheetId}_${student.id}`), {
+          await updateDoc(doc(opsDb, 'worksheet_submissions', `${worksheetId}_${student.id}`), {
             guardianUids: arrayUnion(...studentGuardianUids),
           }).catch(error => console.warn('[worksheetAssignment] guardian submission access update failed', error));
         }
@@ -292,7 +326,7 @@ export async function fetchAssignmentBrief(
 ): Promise<TurnInBrief> {
   const assessments: WorksheetPreAssessment[] = [];
   try {
-    const snap = await getDocs(query(collection(db, 'worksheet_submissions'), where('worksheetId', '==', worksheetId)));
+    const snap = await getDocs(query(collection(opsDb, 'worksheet_submissions'), where('worksheetId', '==', worksheetId)));
     snap.forEach(docSnap => {
       const data: any = docSnap.data();
       if (data.status !== 'turned-in') return;
@@ -300,7 +334,10 @@ export async function fetchAssignmentBrief(
       else if (data.answers) assessments.push(preAssessFromAnswers(sheet, data.answers, { id: data.studentId, name: data.studentName }, data.turnedInAt || now));
     });
   } catch (error) { console.warn('[worksheetAssignment] fetchAssignmentBrief failed; empty brief.', error); }
-  return buildTurnInBrief(sheet.title, assessments, roster, now);
+  // Stored pre-assessments carry no key (the student can read their own submission); the teacher's copy does.
+  const keyOf = new Map(sheet.fields.filter(f => f.correctAnswer !== undefined).map(f => [f.id, String(f.correctAnswer)]));
+  const withKey = assessments.map(a => ({ ...a, perField: a.perField.map(fr => (fr.expected === undefined && keyOf.has(fr.fieldId) ? { ...fr, expected: keyOf.get(fr.fieldId) } : fr)) }));
+  return buildTurnInBrief(sheet.title, withKey, roster, now);
 }
 
 /**
@@ -316,7 +353,7 @@ export async function confirmSubmissionField(
   teacher?: TeacherRef,
 ): Promise<boolean> {
   try {
-    const submissionRef = doc(db, 'worksheet_submissions', `${worksheetId}_${studentId}`);
+    const submissionRef = doc(opsDb, 'worksheet_submissions', `${worksheetId}_${studentId}`);
     await updateDoc(submissionRef, {
       [`teacherOverrides.${fieldId}`]: { correct, at: Date.now(), by: teacher?.uid || null },
       teacherReviewedAt: Date.now(),
@@ -335,7 +372,7 @@ export async function markWorksheetOpened(input: {
 }): Promise<number> {
   const openedAt = Date.now();
   if (input.simulate) return openedAt;
-  const submissionRef = doc(db, 'worksheet_submissions', `${input.worksheetId}_${input.studentId}`);
+  const submissionRef = doc(opsDb, 'worksheet_submissions', `${input.worksheetId}_${input.studentId}`);
   try {
     const existing = await getDoc(submissionRef);
     const previous = existing.exists() ? existing.data() : {};
@@ -353,6 +390,24 @@ export async function markWorksheetOpened(input: {
   return openedAt;
 }
 
+async function gradingApi<T>(path: string, body: unknown): Promise<T | null> {
+  const token = await auth.currentUser?.getIdToken().catch(() => null);
+  if (!token) return null;
+  try {
+    const res = await fetch(`/api/worksheets/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(body) });
+    return res.ok ? await res.json() as T : null;
+  } catch { return null; }
+}
+
+/**
+ * Check my work. With the key on this device (the teacher, the sample) it runs here; a student's copy
+ * has no key, so the server checks it. Offline, keyed answers show as "your teacher reviews this one".
+ */
+export async function checkWorksheetWork(sheet: DigitalWorksheet, worksheetId: string | undefined, answers: Record<string, string>, readConfidence: Record<string, number> = {}): Promise<SelfCheckResult> {
+  if (hasEmbeddedKeys(sheet) || !worksheetId) return selfCheckWorksheet(sheet, answers, readConfidence);
+  return (await gradingApi<SelfCheckResult>('check', { worksheetId, answers, readConfidence })) || selfCheckWorksheet(sheet, answers, readConfidence);
+}
+
 /**
  * Student turns in a worksheet: persist answers, auto-grade, credit standards to the ledger, and
  * alert the teacher (needs-review when open-response fields exist).
@@ -360,7 +415,9 @@ export async function markWorksheetOpened(input: {
 export async function turnInWorksheet(input: TurnInInput): Promise<TurnInResult> {
   const { worksheetId, assignmentId, sheet, studentId, studentName, answers, teacher, simulate, completedScanFile, selfChecks, readConfidence } = input;
   const submittedAt = Date.now();
-  const grade = autoGradeWorksheet(sheet, answers);
+  // A student copy has no key: the server grades it once the answers are saved (below).
+  const serverGrades = !simulate && !hasEmbeddedKeys(sheet);
+  let grade = autoGradeWorksheet(sheet, answers);
   let standardsRecorded = 0;
   let teacherNotified = false;
   let openedAt = submittedAt;
@@ -369,7 +426,7 @@ export async function turnInWorksheet(input: TurnInInput): Promise<TurnInResult>
   if (!simulate) {
     // 1. Persist the submission (one doc per student per worksheet).
     try {
-      const submissionRef = doc(db, 'worksheet_submissions', `${worksheetId}_${studentId}`);
+      const submissionRef = doc(opsDb, 'worksheet_submissions', `${worksheetId}_${studentId}`);
       const previous = await getDoc(submissionRef).catch(() => null);
       const previousData = previous?.exists() ? previous.data() : {};
       openedAt = typeof previousData.openedAt === 'number' ? previousData.openedAt : submittedAt;
@@ -385,32 +442,60 @@ export async function turnInWorksheet(input: TurnInInput): Promise<TurnInResult>
       // Pre-assess for the teacher's turn-in brief: read the completed photo, or grade the typed
       // answers. Never fatal — a failure just leaves the submission without a pre-assessment.
       let preAssessment: WorksheetPreAssessment | null = null;
-      try {
-        if (completedScanFile && readConfidence && Object.keys(answers).length) {
-          // The student already reviewed and confirmed what the scan read; assess THOSE answers,
-          // carrying the read confidence so shaky handwriting still routes to the teacher.
-          preAssessment = preAssessWorksheet(sheet, { answers, confidence: { ...Object.fromEntries(Object.keys(answers).map(id => [id, 1])), ...readConfidence } }, { id: studentId, name: studentName }, turnedInAt);
-        } else if (completedScanFile) {
-          const b64 = await fileToBase64(completedScanFile);
-          preAssessment = await preAssessCompletedScan(sheet, b64, completedScanFile.type || 'image/jpeg', { id: studentId, name: studentName }, { now: turnedInAt });
-        } else {
-          preAssessment = preAssessFromAnswers(sheet, answers, { id: studentId, name: studentName }, turnedInAt);
+      if (serverGrades) {
+        // No key here. Save what the student wrote (reading an unconfirmed paper photo first), then the
+        // server grades it and writes the score + pre-assessment onto the submission.
+        let saved = answers, savedConf = readConfidence;
+        if (completedScanFile && !readConfidence) {
+          try {
+            const reading = await readCompletedWorksheet(await fileToBase64(completedScanFile), completedScanFile.type || 'image/jpeg', sheet);
+            saved = { ...reading.answers, ...answers };
+            savedConf = reading.confidence;
+          } catch (error) { console.warn('[worksheetAssignment] completed-photo read skipped.', error); }
         }
-      } catch (error) { console.warn('[worksheetAssignment] pre-assessment skipped.', error); }
-      await setDoc(submissionRef, {
-        worksheetId, assignmentId: assignmentId || previousData.assignmentId || null, studentId, studentName, answers,
-        score: grade.score, maxScore: grade.maxScore, percent: grade.percent,
-        needsManualReview: grade.needsManualReview,
-        status: 'turned-in', submittedAt, turnedInAt, gradedAt: turnedInAt,
-        openedAt, durationMs: Math.max(0, submittedAt - openedAt), submittedBy: { id: studentId, name: studentName },
-        timeline: arrayUnion(
-          { status: 'SUBMITTED', at: submittedAt, actorId: studentId, actorName: studentName },
-          { status: 'TURNED_IN', at: turnedInAt, actorId: studentId, actorName: studentName },
-        ),
-        completedScanUrl, completedScanStoragePath,
-        selfChecks: selfChecks || 0,
-        ...(preAssessment ? { preAssessment } : {}),
-      }, { merge: true });
+        await setDoc(submissionRef, {
+          worksheetId, assignmentId: assignmentId || previousData.assignmentId || null, studentId, studentName, answers: saved,
+          ...(savedConf && Object.keys(savedConf).length ? { readConfidence: savedConf } : {}),
+          status: 'turned-in', submittedAt, turnedInAt,
+          openedAt, durationMs: Math.max(0, submittedAt - openedAt), submittedBy: { id: studentId, name: studentName },
+          timeline: arrayUnion(
+            { status: 'SUBMITTED', at: submittedAt, actorId: studentId, actorName: studentName },
+            { status: 'TURNED_IN', at: turnedInAt, actorId: studentId, actorName: studentName },
+          ),
+          completedScanUrl, completedScanStoragePath,
+          selfChecks: selfChecks || 0,
+        }, { merge: true });
+        const graded = await gradingApi<{ grade: GradeResult }>('grade', { worksheetId });
+        // Unreachable grader: everything waits for the teacher rather than scoring against no key.
+        grade = graded?.grade || { ...autoGradeWorksheet(sheet, saved), needsManualReview: true };
+      } else {
+        try {
+          if (completedScanFile && readConfidence && Object.keys(answers).length) {
+            // The student already reviewed and confirmed what the scan read; assess THOSE answers,
+            // carrying the read confidence so shaky handwriting still routes to the teacher.
+            preAssessment = preAssessWorksheet(sheet, { answers, confidence: { ...Object.fromEntries(Object.keys(answers).map(id => [id, 1])), ...readConfidence } }, { id: studentId, name: studentName }, turnedInAt);
+          } else if (completedScanFile) {
+            const b64 = await fileToBase64(completedScanFile);
+            preAssessment = await preAssessCompletedScan(sheet, b64, completedScanFile.type || 'image/jpeg', { id: studentId, name: studentName }, { now: turnedInAt });
+          } else {
+            preAssessment = preAssessFromAnswers(sheet, answers, { id: studentId, name: studentName }, turnedInAt);
+          }
+        } catch (error) { console.warn('[worksheetAssignment] pre-assessment skipped.', error); }
+        await setDoc(submissionRef, {
+          worksheetId, assignmentId: assignmentId || previousData.assignmentId || null, studentId, studentName, answers,
+          score: grade.score, maxScore: grade.maxScore, percent: grade.percent,
+          needsManualReview: grade.needsManualReview,
+          status: 'turned-in', submittedAt, turnedInAt, gradedAt: turnedInAt,
+          openedAt, durationMs: Math.max(0, submittedAt - openedAt), submittedBy: { id: studentId, name: studentName },
+          timeline: arrayUnion(
+            { status: 'SUBMITTED', at: submittedAt, actorId: studentId, actorName: studentName },
+            { status: 'TURNED_IN', at: turnedInAt, actorId: studentId, actorName: studentName },
+          ),
+          completedScanUrl, completedScanStoragePath,
+          selfChecks: selfChecks || 0,
+          ...(preAssessment ? { preAssessment } : {}),
+        }, { merge: true });
+      }
     } catch (e) {
       console.error('[worksheetAssignment] submission persist failed:', e);
       void recordAssignmentQualityEvent({ worksheetId, assignmentId, title: sheet.title, actorId: studentId, actorName: studentName, actorRole: 'STUDENT', kind: 'SUBMISSION_FAILURE', severity: 'ERROR', source: 'turnInWorksheet', message: e instanceof Error ? e.message : 'Submission persist failed' });
@@ -463,14 +548,11 @@ async function resolveGuardians(
 ): Promise<{ pairs: { guardianUid: string; studentId: string; childName: string }[]; estimated: number }> {
   if (simulate) return { pairs: [], estimated: students.length };
   try {
-    const profiles = await fetchUserProfiles(students.map(s => s.id));
-    const byId = new Map(profiles.map(p => [(p as any).uid, p]));
+    const links = await fetchGuardiansOf(students.map(s => s.id));
     const pairs: { guardianUid: string; studentId: string; childName: string }[] = [];
     const seen = new Set<string>();
     for (const st of students) {
-      const p: any = byId.get(st.id);
-      if (!p) continue;
-      const guardians: string[] = [p.guardianUid, ...(p.coGuardianUids || [])].filter(Boolean);
+      const guardians: string[] = links[st.id] || [];
       for (const g of guardians) {
         const key = `${g}|${st.id}`;
         if (seen.has(key)) continue;

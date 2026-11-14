@@ -24,11 +24,12 @@
  * the calendar.
  */
 
+import { myClassIds } from '../classRoster';
 import {
   collection, deleteDoc, doc, getDoc, getDocs, limit, query, setDoc, where,
 } from 'firebase/firestore';
 import { onSnapshot } from '../safeSnapshot';
-import { auth, db } from '../firebase';
+import { auth, db, opsDb } from '../firebase';
 import { fetchFollowingIds, fetchMyTickets, fetchPublicEvents } from '../backendService';
 import { releaseMs } from '../releases/visibility';
 import { DAY, HOUR, MIN, addDays, localZone, startOfDay, type Recurrence } from './calendarTime';
@@ -271,8 +272,8 @@ export async function fetchPlatformFeed(from: number, to: number, force = false)
     ).then((r) => r.flat()), [] as Record<string, any>[]),
     // Premieres the person asked to be reminded about, plus followed creators' premieres.
     safe('premieres', Promise.all([
-      getDocs(query(collection(db, 'videos'), where('premiereConfig.remindUserIds', 'array-contains', uid), limit(40))),
-      ...authorChunks.slice(0, 6).map((a) => getDocs(query(collection(db, 'videos'), where('ownerId', 'in', a), where('premiereConfig.status', '==', 'SCHEDULED'), limit(20)))),
+      getDocs(query(collection(db, 'videos'), where('isPrivate', '==', false), where('premiereConfig.remindUserIds', 'array-contains', uid), limit(40))),
+      ...authorChunks.slice(0, 6).map((a) => getDocs(query(collection(db, 'videos'), where('isPrivate', '==', false), where('ownerId', 'in', a), where('premiereConfig.status', '==', 'SCHEDULED'), limit(20)))),
     ]).then((snaps) => snaps.flatMap((s) => s.docs.map((d) => ({ id: d.id, ...(d.data() as Record<string, any>) })))), [] as Record<string, any>[]),
     // Pay-per-view: bought, or upcoming from people you follow (same shape as the feed cards).
     safe('ppv', Promise.all([
@@ -286,8 +287,8 @@ export async function fetchPlatformFeed(from: number, to: number, force = false)
     safe('tickets', fetchMyTickets(), [] as any[]),
     safe('publicEvents', fetchPublicEvents(), [] as any[]),
     safe('classes', (async () => {
-      const rooms = await getDocs(query(collection(db, 'classrooms'), where('enrolledStudents', 'array-contains', uid), limit(30)));
-      const names = new Map(rooms.docs.map((d) => [d.id, String(d.data().title ?? 'Class')]));
+      const rooms = await Promise.all([...(await myClassIds(uid))].slice(0, 30).map((id) => getDoc(doc(db, 'classrooms', id))));
+      const names = new Map(rooms.filter((d) => d.exists()).map((d) => [d.id, String(d.data()?.title ?? 'Class')]));
       const sessions = await Promise.all(chunk([...names.keys()], 10).map((ids) =>
         getDocs(query(collection(db, 'liveClassSessions'), where('classroomId', 'in', ids), limit(60)))));
       return sessions.flatMap((s) => s.docs.map((d) => ({ id: d.id, className: names.get(String(d.data().classroomId)) ?? 'Class', ...(d.data() as Record<string, any>) })));
@@ -537,12 +538,13 @@ interface WorksheetDueItem { key: string; worksheetId: string; assignmentId?: st
 /** Worksheet homework with a due date, from the three vantage points rules allow each person to read. */
 async function fetchWorksheetDue(uid: string): Promise<WorksheetDueItem[]> {
   const [mine, kids, taught] = await Promise.all([
-    getDocs(query(collection(db, 'worksheet_assignments'), where('studentIds', 'array-contains', uid), limit(60))).catch(() => null),
-    getDocs(query(collection(db, 'worksheet_submissions'), where('guardianUids', 'array-contains', uid), limit(80))).catch(() => null),
-    getDocs(query(collection(db, 'worksheet_assignments'), where('teacherUid', '==', uid), limit(60))).catch(() => null),
+    getDocs(query(collection(opsDb, 'worksheet_assignments'), where('studentIds', 'array-contains', uid), limit(60))).catch(() => null),
+    getDocs(query(collection(opsDb, 'worksheet_submissions'), where('guardianUids', 'array-contains', uid), limit(80))).catch(() => null),
+    getDocs(query(collection(opsDb, 'worksheet_assignments'), where('teacherUid', '==', uid), limit(60))).catch(() => null),
   ]);
   const out: WorksheetDueItem[] = [];
-  mine?.docs.forEach(d => { const a: any = d.data(); if (a.dueDate) out.push({ key: `s:${d.id}`, worksheetId: a.worksheetId, assignmentId: d.id, title: String(a.title || 'Worksheet'), className: String(a.className || 'Class'), dueDate: Number(a.dueDate), role: 'student' }); });
+  // Scheduled-ahead homework (Lesson Library) shows on a student's calendar once it opens; guardians and teachers see it all along.
+  mine?.docs.forEach(d => { const a: any = d.data(); if (a.dueDate && (!a.opensAt || a.opensAt <= Date.now())) out.push({ key: `s:${d.id}`, worksheetId: a.worksheetId, assignmentId: d.id, title: String(a.title || 'Worksheet'), className: String(a.className || 'Class'), dueDate: Number(a.dueDate), role: 'student' }); });
   kids?.docs.forEach(d => { const s: any = d.data(); if (s.dueDate) out.push({ key: `g:${d.id}`, worksheetId: s.worksheetId, assignmentId: s.assignmentId, title: String(s.title || 'Homework'), className: String(s.className || 'Class'), dueDate: Number(s.dueDate), role: 'guardian', who: String(s.studentName || '').split(' ')[0] || undefined, done: s.status === 'turned-in' }); });
   taught?.docs.forEach(d => { const a: any = d.data(); if (a.dueDate) out.push({ key: `t:${d.id}`, worksheetId: a.worksheetId, assignmentId: d.id, title: String(a.title || 'Worksheet'), className: String(a.className || 'Class'), dueDate: Number(a.dueDate), role: 'teacher' }); });
   return out;

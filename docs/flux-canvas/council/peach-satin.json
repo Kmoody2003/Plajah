@@ -1,0 +1,317 @@
+{
+  "id": "peach-satin",
+  "name": "Peach Satin",
+  "at": "2026-11-07T00:44:56.165Z",
+  "deliberation": {
+    "proposals": [
+      {
+        "seat": "The Classical Mind, the Classical Mind",
+        "proposal": "Let us examine the structural cadence of these folds. The proportions of the crest and trough follow a golden section; the intro begins with a slow plate drift, locking the camera speed strictly to the bar lines, using Warm Day to maintain harmonic proportion before any drop resolves.",
+        "risk": "Risk of feeling overly academic or static if the energy curve accelerates too sharply."
+      },
+      {
+        "seat": "The Rebellious Hand, the Rebellious Hand",
+        "proposal": "Drop the clean satin nonsense. We want physical friction. Smash the plate with high-speed cuts on the snare, let the bass wobble distort the fabric coordinates like rough ink dragged across wet paper, and make it feel like it's fighting the screen.",
+        "risk": "Risk of completely obliterating the soft peach palette into an unreadable mess."
+      },
+      {
+        "seat": "The Futurist, the Futurist",
+        "proposal": "Map the song's RMS and bass wobble directly to vertex displacement in a Trapcode-Form point cloud. Input kick onsets trigger immediate shockwave pulses across the mesh, maintaining a strict 60fps frame budget across mobile devices.",
+        "risk": "Risk of cold algorithmic precision overshadowing the natural organic warmth of the textile."
+      },
+      {
+        "seat": "The World-Eclectic Traveler, the World-Eclectic Traveller",
+        "proposal": "Draw upon the draping traditions of mid-century silk markets in Lyon, 1954. Ground the world shot in an expansive, unhurried space where pearl drift and warm apricot light honour the specific craftsmanship of woven textiles without borrowing generic tropes.",
+        "risk": "Risk of slowing the track's tempo down too much during an aggressive build section."
+      },
+      {
+        "seat": "The Baroque Dramatist, the Baroque Dramatist",
+        "proposal": "Treat the frame as a grand stage! On the drop, execute an explosive transition from plate to a vertigo world shot, flooding the velvet folds with Candlelit and Sanctuary Gold lighting, creating immense depth, shadow, and theatrical majesty.",
+        "risk": "Risk of visual overload making the mobile viewport stutter under heavy volumetric lighting."
+      },
+      {
+        "seat": "The Radical Minimalist, the Radical Minimalist",
+        "proposal": "Remove half the folds. Keep one single, perfect hairline contour that responds to the kick drum with absolute emptiness, trading noise for profound spatial silence.",
+        "risk": "Risk of being too sparse for an audience expecting a high-energy festival drop."
+      },
+      {
+        "seat": "The Silicon Pioneer & Pixel Architect",
+        "proposal": "Bake the peach gradient into precise palette registers and sub-pixel animation curves. Execute the plate-to-world transition using a lightweight Mode-7 affine plane simulation that guarantees rock-solid 60fps on every mobile device.",
+        "risk": "Risk of hardware-authentic constraints limiting the true organic softness of modern PBR cloth."
+      },
+      {
+        "seat": "The Real-Time 3D Engine & Shader Guru",
+        "proposal": "Deploy a custom GLSL relief displacement shader combined with physically based specular velvet lighting and ray-marched atmospheric mist. The viewport becomes a breathtaking window into a hyper-realistic satin canyon.",
+        "risk": "Risk of severe mobile GPU throttling due to heavy fragment shader math on volumetric depth."
+      },
+      {
+        "seat": "The Fun & Level Design Virtuoso",
+        "proposal": "Make the world explorable within the first three seconds. Anchor the satin dunes with glowing pearl landmarks that reward camera navigation with tactile hit-stop feedback on every bass kick.",
+        "risk": "Risk of turning a passive music visualizer into an overly gamified spatial puzzle."
+      },
+      {
+        "seat": "The Japanese Game Auteur & World Director",
+        "proposal": "Treat the overworld diorama with intentional ma—allow moments of profound, poetic stillness during breakdowns, followed by an iconic silhouette staging on the drop that evokes the emotional climax of a classic JRPG world map.",
+        "risk": "Risk of contemplative atmospheric pauses clashing with heavy EDM drop energy."
+      },
+      {
+        "seat": "The 3D Dramatist, the 3D Dramatist",
+        "proposal": "Choreograph the camera path to swoop through the satin canyons with an accelerating crane move during the build, culminating in a violent spin and flash gesture right on the drop to maximize kinetic impact.",
+        "risk": "Risk of inducing motion sickness on smaller screens during fast rotational moves."
+      },
+      {
+        "seat": "The Generative Artist, the Generative Artist",
+        "proposal": "Drive the fabric fold frequencies using a multi-layered Perlin noise field modulated live by audio frequencies, ensuring every performance of the song generates entirely unique, non-repeating satin topographies.",
+        "risk": "Risk of procedural unpredictability ruining the carefully timed sync with the song map."
+      },
+      {
+        "seat": "The Signal Bender, the Signal Bender",
+        "proposal": "Feed the final composite through an analog video feedback loop, smearing the peach highlights across the scanlines whenever the bass wobble crosses threshold limits, injecting raw hardware grit.",
+        "risk": "Risk of completely washing out the delicate colour palette with chromatic aberration."
+      },
+      {
+        "seat": "The Lighting Director",
+        "proposal": "Call 'Sunset Stadium' for the main verses to lock in the warm peach and amber tones, trigger an 'EDM Drop' flicker look with brilliant whites on the chorus drop, and use 'Candlelit' during the breakdown to maintain emotional intimacy.",
+        "risk": "Risk of lighting cues overpowering the subtle fabric textures if transitions are too abrupt."
+      }
+    ],
+    "disputes": [
+      {
+        "between": [
+          "The Rebellious Hand, the Rebellious Hand",
+          "The Classical Mind, the Classical Mind"
+        ],
+        "issue": "Disagreement over structural proportion versus raw, destructive physical friction on the fabric plates.",
+        "resolution": "We will use Classical proportion during the intro and breakdown, but shatter it with Rebellious ink-drag and distortion exclusively on the drop."
+      },
+      {
+        "between": [
+          "The Real-Time 3D Engine & Shader Guru",
+          "The Silicon Pioneer & Pixel Architect"
+        ],
+        "issue": "Heavy PBR ray-marched volumetrics versus lightweight 60fps mobile-safe tilemap and sub-pixel constraints.",
+        "resolution": "We implement a scalable LOD pipeline: mobile devices receive a lightweight vertex-displaced plate, while desktop and high-end hardware run full PBR relief shaders."
+      },
+      {
+        "between": [
+          "The Baroque Dramatist, the Baroque Dramatist",
+          "The Radical Minimalist, the Radical Minimalist"
+        ],
+        "issue": "Maximum theatrical spectacle and lighting depth versus extreme sparse emptiness.",
+        "resolution": "We alternate: verses employ Radical Minimalist stillness and a single hairline fold, while drops explode into Baroque Dramatist theatrical lighting and sweeping world orbits."
+      }
+    ],
+    "consensus": "The councils agree to elevate the visual experience by shifting dynamically between a 2.5D relief plate and an expansive 3D world diorama keyed strictly to the song map. We balance mobile-first performance efficiency with breathtaking PBR shader depth, ensuring every kick, snare, bass wobble, and drop is met with precise lighting cues from the library and uncompromising artistic intent."
+  },
+  "synthesis": {
+    "summary": "A warm peach satin landscape breathes and folds in sync with the track's tempo, shifting dynamically between intimate relief plates and expansive 3D world dioramas. High-energy drops trigger sweeping camera gestures and brilliant lighting bursts, while breakdowns offer serene, poetic stillness.",
+    "looks": {
+      "intro": "Warm Day",
+      "verse": "Sunset Stadium",
+      "build": "Amber Anthem",
+      "drop": "EDM Drop",
+      "breakdown": "Candlelit",
+      "outro": "Dawn"
+    },
+    "lightPalette": [
+      "#ffb030",
+      "#ff4a1a",
+      "#ffd9a0"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "crane",
+          "hero"
+        ],
+        "build": [
+          "flythrough",
+          "truck"
+        ],
+        "drop": [
+          "vertigo",
+          "orbit"
+        ],
+        "breakdown": [
+          "wide",
+          "top"
+        ],
+        "outro": [
+          "orbit",
+          "wide"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift",
+          "slow"
+        ],
+        "verse": [
+          "push",
+          "pull"
+        ],
+        "build": [
+          "pan",
+          "tilt"
+        ],
+        "drop": [
+          "snap",
+          "dutch"
+        ],
+        "breakdown": [
+          "rack",
+          "drift"
+        ],
+        "outro": [
+          "pull",
+          "drift"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "world"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "flash",
+        "spin"
+      ],
+      "build": [
+        "gather",
+        "rise",
+        "brighten"
+      ],
+      "breakdown": [
+        "slow",
+        "desaturate"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.3,
+      "glow": 1.1
+    },
+    "notes": {
+      "art": "Harmonic proportions of folds balance classical rigor with warm, inviting organic textures.",
+      "threeD": "Expansive world dioramas provide profound depth without feeling constrained on mobile viewports.",
+      "motion": "Beat-locked camera movements and sharp drop gestures maximize kinetic impact across sections.",
+      "lighting": "Sunset Stadium and EDM Drop looks orchestrate a seamless transition from warm intimacy to explosive festival energy.",
+      "performance": "Optimized LOD pipeline ensures rock-solid 60fps frame pacing across all devices."
+    }
+  },
+  "direction": {
+    "summary": "A warm peach satin landscape breathes and folds in sync with the track's tempo, shifting dynamically between intimate relief plates and expansive 3D world dioramas. High-energy drops trigger sweeping camera gestures and brilliant lighting bursts, while breakdowns offer serene, poetic stillness.",
+    "looks": {
+      "intro": "Warm Day",
+      "verse": "Sunset Stadium",
+      "build": "Amber Anthem",
+      "drop": "EDM Drop",
+      "breakdown": "Candlelit",
+      "outro": "Dawn"
+    },
+    "lightPalette": [
+      "#ffb030",
+      "#ff4a1a",
+      "#ffd9a0"
+    ],
+    "shots": {
+      "world": {
+        "intro": [
+          "wide",
+          "orbit"
+        ],
+        "verse": [
+          "crane",
+          "hero"
+        ],
+        "build": [
+          "flythrough",
+          "truck"
+        ],
+        "drop": [
+          "vertigo",
+          "orbit"
+        ],
+        "breakdown": [
+          "wide",
+          "top"
+        ],
+        "outro": [
+          "orbit",
+          "wide"
+        ]
+      },
+      "plate": {
+        "intro": [
+          "drift"
+        ],
+        "verse": [
+          "push",
+          "pull"
+        ],
+        "build": [
+          "pan",
+          "tilt"
+        ],
+        "drop": [
+          "snap",
+          "dutch"
+        ],
+        "breakdown": [
+          "rack",
+          "drift"
+        ],
+        "outro": [
+          "pull",
+          "drift"
+        ]
+      }
+    },
+    "show": {
+      "intro": "plate",
+      "verse": "plate",
+      "build": "world",
+      "drop": "world",
+      "breakdown": "plate",
+      "outro": "world"
+    },
+    "gestures": {
+      "drop": [
+        "explode",
+        "flash",
+        "spin"
+      ],
+      "build": [
+        "gather",
+        "rise",
+        "brighten"
+      ],
+      "breakdown": [
+        "slow",
+        "desaturate"
+      ]
+    },
+    "intensity": {
+      "camera": 1.2,
+      "reactivity": 1.3,
+      "glow": 1.1
+    },
+    "notes": {
+      "art": "Harmonic proportions of folds balance classical rigor with warm, inviting organic textures.",
+      "threeD": "Expansive world dioramas provide profound depth without feeling constrained on mobile viewports.",
+      "motion": "Beat-locked camera movements and sharp drop gestures maximize kinetic impact across sections.",
+      "lighting": "Sunset Stadium and EDM Drop looks orchestrate a seamless transition from warm intimacy to explosive festival energy.",
+      "performance": "Optimized LOD pipeline ensures rock-solid 60fps frame pacing across all devices."
+    }
+  }
+}

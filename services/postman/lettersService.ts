@@ -27,7 +27,7 @@ import {
   addDoc, collection, doc, getDoc, getDocs, limit, orderBy, query, setDoc, updateDoc, where,
 } from 'firebase/firestore';
 import { onSnapshot } from '../safeSnapshot';
-import { auth, db } from '../firebase';
+import { auth, db, opsDb } from '../firebase';
 import { createChatRoom, fetchFollowingIds, fetchUserProfiles, sendMessage } from '../backendService';
 import { decryptText, encryptText } from '../cryptoService';
 import type { ChatRoom, TelaDoc, UserProfile } from '../../types';
@@ -358,7 +358,7 @@ export async function postBulletin(input: { title: string; doc: TelaDoc; excerpt
   if (!user) throw new Error('Sign in first.');
   const json = JSON.stringify(input.doc);
   if (json.length > MAX_LETTER_BYTES) throw new Error('This bulletin is too large to post.');
-  const ref = await addDoc(collection(db, 'bulletins'), {
+  const ref = await addDoc(collection(opsDb, 'bulletins'), {
     authorId: user.uid,
     authorName: user.displayName || 'A Plajah business',
     authorPhoto: user.photoURL || '',
@@ -378,7 +378,7 @@ export async function fetchBulletins(max = 40): Promise<Bulletin[]> {
   const chunks: string[][] = [];
   for (let i = 0; i < following.length && chunks.length < 20; i += 10) chunks.push(following.slice(i, i + 10));
   const snaps = await Promise.all(chunks.map((c) =>
-    getDocs(query(collection(db, 'bulletins'), where('authorId', 'in', c), limit(12))).catch(() => null)));
+    getDocs(query(collection(opsDb, 'bulletins'), where('authorId', 'in', c), limit(12))).catch(() => null)));
   const out: Bulletin[] = [];
   for (const s of snaps) {
     if (!s) continue;

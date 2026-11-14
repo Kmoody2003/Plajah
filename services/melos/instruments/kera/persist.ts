@@ -90,14 +90,14 @@ function unpackPcm(ab: ArrayBuffer): { channels: Float32Array[]; sampleRate: num
 }
 
 /** Store one sample's PCM: hash → OPFS (dedupe) → durable per-user locker copy. */
-async function putSamplePcm(sample: KeraSample): Promise<{ key: string; lockerUrl?: string }> {
+async function putSamplePcm(sample: KeraSample, locker = true): Promise<{ key: string; lockerUrl?: string }> {
   const ab = packPcm(sample);
   const hash = await sha256Hex(ab);
   const key = keyFor(hash);
   if (!(await hasBytes(key))) await putBytes(key, new Blob([ab], { type: 'application/octet-stream' }));
   let lockerUrl: string | undefined;
   const user = auth.currentUser;
-  if (user) {
+  if (user && locker) {
     try {
       const safe = sample.name.replace(/[^\w.-]+/g, '_').slice(0, 40) || 'sample';
       lockerUrl = await uploadFile(`personal/${user.uid}/melos/beats/kera/${hash}_${safe}`, new Blob([ab]));
@@ -126,7 +126,7 @@ async function getSamplePcm(s: SerializedKeraSample): Promise<{ channels: Float3
  * deduped by content hash, and the returned object (metadata + refs, no PCM) is what gets written
  * into TrackInstrument.kera. Safe to run after the sound is already playing — it only persists.
  */
-export async function serializeKeraProgram(program: KeraProgram, prior?: SerializedKeraProgram | null): Promise<SerializedKeraProgram> {
+export async function serializeKeraProgram(program: KeraProgram, prior?: SerializedKeraProgram | null, opts: { locker?: boolean } = {}): Promise<SerializedKeraProgram> {
   // Editing zones/loops/amp doesn't change PCM, so reuse a prior store-ref when the audio is
   // provably identical (same id, frame count, rate, channels) instead of re-hashing megabytes on
   // every drag. Fresh PCM (a newly loaded sample) has no match and is stored.
@@ -136,7 +136,7 @@ export async function serializeKeraProgram(program: KeraProgram, prior?: Seriali
     const frames = s.channels[0]?.length ?? 0;
     const p = priorById.get(s.id);
     const reusable = p && p.frames === frames && p.sampleRate === s.sampleRate && p.channelCount === s.channels.length;
-    const { key, lockerUrl } = reusable ? { key: p.key, lockerUrl: p.lockerUrl } : await putSamplePcm(s);
+    const { key, lockerUrl } = reusable ? { key: p.key, lockerUrl: p.lockerUrl } : await putSamplePcm(s, opts.locker !== false);
     samples.push({
       id: s.id, name: s.name, sampleRate: s.sampleRate,
       frames, channelCount: s.channels.length,
@@ -150,6 +150,29 @@ export async function serializeKeraProgram(program: KeraProgram, prior?: Seriali
     playMode: program.playMode, transpose: program.transpose, gainDb: program.gainDb,
     polyphony: program.polyphony, samples,
   };
+}
+
+/**
+ * The durable half of a save done with `{ locker: false }`: upload every sample that has no
+ * locker copy yet (from OPFS, where the fast save put it) and return the refs with their URLs.
+ * A big library loads and plays at once; its backup runs after, without holding the UI.
+ */
+export async function backupKeraSamples(sp: SerializedKeraProgram): Promise<SerializedKeraProgram> {
+  const user = auth.currentUser;
+  if (!user) return sp;
+  const samples: SerializedKeraSample[] = [];
+  for (const s of sp.samples) {
+    if (s.lockerUrl) { samples.push(s); continue; }
+    let lockerUrl: string | undefined;
+    try {
+      const blob = await getBytes(s.key);
+      const hash = s.key.split('/').pop() || '';
+      const safe = s.name.replace(/[^\w.-]+/g, '_').slice(0, 40) || 'sample';
+      if (blob) lockerUrl = await uploadFile(`personal/${user.uid}/melos/beats/kera/${hash}_${safe}`, blob);
+    } catch { /* best-effort, like putSamplePcm */ }
+    samples.push(lockerUrl ? { ...s, lockerUrl } : s);
+  }
+  return { ...sp, samples };
 }
 
 /**

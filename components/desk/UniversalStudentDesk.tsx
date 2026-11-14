@@ -1,10 +1,13 @@
 // components/desk/UniversalStudentDesk.tsx
 // Universal Platform-Wide Student Desk (Powered by Tela)
-// The dedicated, tactile, living workspace where students across Academia, Christian Education (Great Faith Ministries),
+// The dedicated, tactile, living workspace where students across Academia, Christian Education,
 // and Elevate Organizations receive assigned digital worksheets/tests, fill them out with integrated study tools,
 // self-check their work, and turn them in for instant auto-grading & Mastery Graph / Learner Ledger credit.
 
+import { auth } from '../../services/firebase';
 import React, { useEffect, useMemo, useState } from 'react';
+import { DueStatePanel, dueChipText, useMyExtension } from './DueStatePanel';
+import { canTurnIn, turnInState } from '../../services/edu/assignmentPolicy';
 import {
   BookOpen,
   CheckCircle2,
@@ -30,7 +33,6 @@ import {
   Wand2,
 } from 'lucide-react';
 import {
-  ensureUniversalStudentDeskSeeded,
   listDeskAssignments,
   getAllStudentDeskWorkspaces,
   saveStudentDeskDraft,
@@ -50,17 +52,14 @@ import {
   matchSacredLibrarySupplementsForLesson,
   type SacredLibrarySupplementItem,
 } from '../../services/sacredLibraryCurriculumBridge';
-import { loadOrgMasterySummary } from '../../services/curriculumIngestionService';
+import { countQuestions, loadOrgMasterySummary } from '../../services/curriculumIngestionService';
 import { LEVEL_NAME, LEVEL_COLOR, type SkillLevel } from '../../services/mastery';
 import { openScripture } from '../scripture/ScriptureRefChip';
 import { parseRef } from '../../services/scriptureRef';
 import { pinResearchSource } from '../../services/sacredResearch';
-import {
-  GREAT_FAITH_MINISTRIES_DEFAULT_ID,
-  GREAT_FAITH_MINISTRIES_NAME,
-} from '../../services/orgAssets';
 import { TelaDocumentPreviewModal, type TelaDocumentPreviewProps } from '../church/TelaDocumentPreviewModal';
-import { LivingTemplateBespokeRenderer } from './LivingTemplateBespokeRenderer';
+import { AnswerArea, LivingTemplateBespokeRenderer, promptWithStem } from './LivingTemplateBespokeRenderer';
+import { useViewport } from '../../hooks/useViewport';
 
 export interface UniversalStudentDeskProps {
   studentUid?: string;
@@ -75,8 +74,11 @@ export interface UniversalStudentDeskProps {
   compactHeader?: boolean;
 }
 
+/** Some answers wait for the teacher's key (Christian Ed class copies carry none), so the score isn't final yet. */
+const awaitingTeacher = (sub: { questionScores?: Record<string, { pending?: boolean }> }) => Object.values(sub.questionScores || {}).some(q => q.pending);
+
 export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
-  studentUid = 'student_great_faith',
+  studentUid: givenStudentUid,
   studentName = 'Student Scholar',
   defaultDomain = 'ALL',
   orgId: rawOrgId,
@@ -87,26 +89,28 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
   onOpenTelaStudio,
   compactHeader = false,
 }) => {
-  const orgId =
-    !rawOrgId || rawOrgId === 'demo-grace-chapel' || rawOrgId.startsWith('demo-')
-      ? GREAT_FAITH_MINISTRIES_DEFAULT_ID
-      : rawOrgId;
-  const orgName =
-    !rawOrgName || rawOrgName.toLowerCase().includes('grace chapel') || rawOrgName.toLowerCase().includes('demo')
-      ? GREAT_FAITH_MINISTRIES_NAME
-      : rawOrgName;
+  // The desk is its signed-in owner's. No uid means the signed-out bucket, never a shared made-up student.
+  const studentUid = givenStudentUid || auth.currentUser?.uid || 'signed_out';
+  // The desk shows only what this person was given. No org means no org, never a default one.
+  const orgId = rawOrgId || '';
+  const orgName = rawOrgName || '';
+  const christianEdLabel = orgName ? `${orgName} · Christian Education` : 'Christian Education';
 
   const [domainFilter, setDomainFilter] = useState<DeskContextDomain | 'ALL'>(defaultDomain);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'TODO' | 'TURNED_IN'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [assignments, setAssignments] = useState<UniversalDeskAssignment[]>(() =>
-    listDeskAssignments({ domain: defaultDomain, classroomId })
+    listDeskAssignments({ domain: defaultDomain, classroomId, studentUid })
   );
   const [workspaces, setWorkspaces] = useState<Record<string, StudentDeskWorkspaceState>>(() =>
     getAllStudentDeskWorkspaces(studentUid)
   );
   const [activeAssignmentId, setActiveAssignmentId] = useState<string>(initialAssignmentId || '');
+  // Phone: the tray and the open worksheet are separate screens (list → work → back), not a stack.
+  const { isPhone } = useViewport();
+  const [phonePane, setPhonePane] = useState<'tray' | 'work'>(initialAssignmentId ? 'work' : 'tray');
+  const openOnDesk = (id: string) => { setActiveAssignmentId(id); if (isPhone) { setPhonePane('work'); window.scrollTo({ top: 0 }); } };
 
   // Active Desk workspace local state
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -131,12 +135,11 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
   const [telaPreviewModal, setTelaPreviewModal] = useState<Omit<TelaDocumentPreviewProps, 'isOpen' | 'onClose'> | null>(null);
   const [masteryMap, setMasteryMap] = useState(() => loadOrgMasterySummary(orgId));
 
-  // Seed & synchronize assignments
   const refreshDesk = async () => {
-    await ensureUniversalStudentDeskSeeded(orgId);
     const list = listDeskAssignments({
       domain: domainFilter,
       classroomId,
+      studentUid,
     });
     setAssignments(list);
     const wsMap = getAllStudentDeskWorkspaces(studentUid);
@@ -191,6 +194,10 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
       null
     );
   }, [assignments, filteredAssignments, activeAssignmentId]);
+  // Due date, after-due rule and this student's extension (services/edu/assignmentPolicy).
+  const [myExtension, setMyExtension] = useMyExtension(activeAssignment);
+  const dueState = activeAssignment ? turnInState(activeAssignment, myExtension) : null;
+  const turnInAllowed = !dueState || canTurnIn(dueState);
 
   const activeWorkspace: StudentDeskWorkspaceState | null = useMemo(() => {
     if (!activeAssignment) return null;
@@ -305,14 +312,22 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
 
   const handleTurnInFromDesk = () => {
     if (!activeAssignment) return;
-    const { workspace } = turnInStudentDeskAssignment({
-      studentUid,
-      studentName,
-      assignment: activeAssignment,
-      answers,
-      scratchpadNotes: scratchpad,
-      deskLivingTemplateId: deskTemplateOverride || activeAssignment.livingTemplateId,
-    });
+    let workspace;
+    try {
+      ({ workspace } = turnInStudentDeskAssignment({
+        studentUid,
+        studentName,
+        assignment: activeAssignment,
+        answers,
+        scratchpadNotes: scratchpad,
+        deskLivingTemplateId: deskTemplateOverride || activeAssignment.livingTemplateId,
+        extension: myExtension,
+      }));
+    } catch {
+      // Past due on a locked assignment: the panel by the Turn In button explains and offers an extension.
+      setSelfCheckBanner(null);
+      return;
+    }
     setWorkspaces(prev => ({ ...prev, [activeAssignment.id]: workspace }));
     setMasteryMap(loadOrgMasterySummary(orgId));
     setTurnInCelebration(true);
@@ -377,7 +392,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
         inProgressCount++;
       } else if (ws.status === 'TURNED_IN' || ws.status === 'RETURNED_WITH_FEEDBACK') {
         turnedInCount++;
-        if (ws.submission) {
+        if (ws.submission && !awaitingTeacher(ws.submission)) {
           totalScorePct += ws.submission.percentage;
           gradedItems++;
         }
@@ -402,9 +417,10 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
 
   return (
     <div
-      className="space-y-5 text-white"
+      className={`space-y-5 text-white ${isPhone ? 'usd-phone' : ''}`}
       style={{ fontFamily: "'Inter', system-ui, sans-serif" }}
     >
+      {isPhone && <style>{'.usd-phone input:not([type=checkbox]):not([type=radio]),.usd-phone textarea,.usd-phone select{font-size:16px!important}.usd-phone button{min-height:40px}'}</style>}
       {/* Top Universal Plajah Student Desk Command Banner */}
       <div
         className="rounded-3xl border border-purple-500/35 p-5 shadow-2xl relative overflow-hidden"
@@ -428,17 +444,21 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                 <button
                   type="button"
                   onClick={onBack}
-                  className="px-3 py-1 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 text-xs font-black text-white"
+                  className={`px-3 rounded-full bg-white/10 hover:bg-white/15 border border-white/20 text-xs font-black text-white ${isPhone ? 'min-h-[44px] px-4 text-sm' : 'py-1'}`}
                 >
                   ← Back
                 </button>
               )}
-              <span className="px-3 py-1 rounded-full bg-amber-400/20 border border-amber-300/45 text-amber-200 text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">
-                <Sparkles size={12} /> Universal Platform-Wide Student Desk · Powered by Tela
-              </span>
-              <span className="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-[10px] font-black uppercase">
-                Academia × {orgName} · Christian Education
-              </span>
+              {!isPhone && (
+                <>
+                  <span className="px-3 py-1 rounded-full bg-amber-400/20 border border-amber-300/45 text-amber-200 text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">
+                    <Sparkles size={12} /> Universal Platform-Wide Student Desk · Powered by Tela
+                  </span>
+                  <span className="px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-[10px] font-black uppercase">
+                    Academia × {christianEdLabel}
+                  </span>
+                </>
+              )}
             </div>
 
             {!compactHeader && (
@@ -457,7 +477,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
           </div>
 
           {/* Desk KPI Pills */}
-          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+          <div className={isPhone ? 'grid gap-2 w-full' : 'flex flex-wrap items-center gap-2.5 shrink-0'} style={isPhone ? { gridTemplateColumns: `repeat(${deskKpis.avgMasteryPct !== null ? 4 : 3}, minmax(0, 1fr))` } : undefined}>
             <div className="rounded-2xl border border-amber-400/35 bg-black/45 px-3.5 py-2 text-center">
               <div className="text-base font-black text-amber-300">{deskKpis.todoCount}</div>
               <div className="text-[10px] font-bold uppercase tracking-wider text-white/60">
@@ -488,12 +508,39 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
         </div>
 
         {/* Desk Domain & Status Filter Bar */}
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 mt-4 pt-3.5 border-t border-white/15">
+        {isPhone && (
+          <div className="relative z-10 grid gap-2 mt-4 pt-3.5 border-t border-white/15">
+            <select
+              aria-label="Which classes"
+              value={domainFilter}
+              onChange={e => setDomainFilter(e.target.value as typeof domainFilter)}
+              className="w-full min-h-[44px] rounded-xl bg-black/50 border border-white/15 px-3 text-base text-white"
+            >
+              <option value="ALL">All my classes</option>
+              <option value="CHRISTIAN_EDUCATION">{christianEdLabel}</option>
+              <option value="ACADEMIA">Plajah Academia</option>
+            </select>
+            <div className="flex gap-1 p-1 rounded-2xl bg-black/40 border border-white/12" role="group" aria-label="Show">
+              {(['ALL', 'TODO', 'TURNED_IN'] as const).map(st => (
+                <button
+                  key={st}
+                  type="button"
+                  aria-pressed={statusFilter === st}
+                  onClick={() => setStatusFilter(st)}
+                  className={`flex-1 min-h-[40px] rounded-xl text-sm font-black ${statusFilter === st ? 'bg-amber-400 text-black' : 'text-white/70'}`}
+                >
+                  {st === 'ALL' ? 'All' : st === 'TODO' ? 'To do' : 'Turned in'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className={`relative z-10 flex flex-wrap items-center justify-between gap-3 mt-4 pt-3.5 border-t border-white/15 ${isPhone ? 'hidden' : ''}`}>
           <div className="flex flex-wrap items-center gap-1.5">
             {(
               [
                 { id: 'ALL', label: '🌐 All My Classes (Universal)' },
-                { id: 'CHRISTIAN_EDUCATION', label: `🏛️ ${orgName} · Christian Education` },
+                { id: 'CHRISTIAN_EDUCATION', label: `🏛️ ${christianEdLabel}` },
                 { id: 'ACADEMIA', label: '🎓 Plajah Academia' },
               ] as const
             ).map(tab => (
@@ -587,7 +634,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
       {/* Main 3-Zone Universal Student Desk Layout */}
       <div className="grid lg:grid-cols-12 gap-5 items-start">
         {/* LEFT DESK TRAY (3 Cols): Assigned Worksheets, Quizzes & Tests Stack */}
-        <div className="lg:col-span-3 rounded-3xl border border-white/12 bg-white/[0.03] p-4 space-y-3">
+        <div className={`lg:col-span-3 rounded-3xl border border-white/12 bg-white/[0.03] p-4 space-y-3 ${isPhone && phonePane === 'work' && activeAssignment ? 'hidden' : ''}`}>
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-black uppercase tracking-widest text-amber-300 flex items-center gap-1.5">
               <Layers size={13} /> My Desk Tray ({filteredAssignments.length})
@@ -601,7 +648,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Filter worksheets or classes..."
-              className="w-full bg-black/50 border border-white/12 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white outline-none focus:border-amber-400"
+              className={`w-full bg-black/50 border border-white/12 rounded-xl pl-8 pr-3 text-white outline-none focus:border-amber-400 ${isPhone ? 'min-h-[44px] text-base' : 'py-1.5 text-xs'}`}
             />
           </div>
 
@@ -621,7 +668,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
               return (
                 <div
                   key={item.id}
-                  onClick={() => setActiveAssignmentId(item.id)}
+                  onClick={() => openOnDesk(item.id)}
                   className={`rounded-2xl border p-3 cursor-pointer transition-all space-y-2 ${
                     isSelected
                       ? 'border-amber-400 bg-amber-500/15 shadow-lg'
@@ -641,7 +688,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
 
                     {turnedIn ? (
                       <span className="px-2 py-0.5 rounded-full bg-emerald-400 text-black text-[9px] font-black uppercase">
-                        ✓ Turned In {ws?.submission ? `· ${ws.submission.percentage}%` : ''}
+                        ✓ Turned In {ws?.submission && !awaitingTeacher(ws.submission) ? `· ${ws.submission.percentage}%` : ''}
                       </span>
                     ) : ansCount > 0 ? (
                       <span className="px-2 py-0.5 rounded-full bg-amber-400/25 border border-amber-300/40 text-amber-200 text-[9px] font-black uppercase">
@@ -686,8 +733,13 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
         </div>
 
         {/* CENTER DESK BLOTTER (6 Cols): The Living Tela Worksheet & Turn-In Surface */}
-        {activeAssignment && (
+        {activeAssignment && (!isPhone || phonePane === 'work') && (
           <div className="lg:col-span-6 space-y-4">
+            {isPhone && (
+              <button type="button" onClick={() => { setPhonePane('tray'); window.scrollTo({ top: 0 }); }} className="min-h-[44px] px-4 rounded-full bg-white/10 border border-white/20 text-sm font-black text-white">
+                ← All my work
+              </button>
+            )}
             <div
               className="rounded-3xl border-2 p-5 sm:p-6 space-y-5 relative overflow-hidden transition-all duration-500"
               style={{
@@ -716,7 +768,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                       {activeAssignment.classroomName}
                     </span>
                     <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-300/40 text-amber-200 text-[10px] font-bold">
-                      📅 {activeAssignment.dueLabel}
+                      📅 {dueState ? dueChipText(activeAssignment, dueState) : activeAssignment.dueLabel}
                     </span>
                   </div>
 
@@ -777,7 +829,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                           Official Plajah Desk Turn-In Receipt · Auto-Graded &amp; Recorded
                         </div>
                         <h4 className="text-sm font-black text-white">
-                          Score: {activeSubmission.earnedPoints} / {activeSubmission.totalPoints} Pts ({activeSubmission.percentage}%)
+                          {awaitingTeacher(activeSubmission) ? 'Score comes back after your teacher checks it' : <>Score: {activeSubmission.earnedPoints} / {activeSubmission.totalPoints} Pts ({activeSubmission.percentage}%)</>}
                         </h4>
                       </div>
                     </div>
@@ -864,7 +916,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                       </>
                     )}
                   </div>
-                  {selfCheckBanner.ready && (
+                  {selfCheckBanner.ready && turnInAllowed && (
                     <button
                       type="button"
                       onClick={handleTurnInFromDesk}
@@ -884,7 +936,8 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                     unit={activeAssignment.unitSnapshot}
                     answers={answers}
                     onUpdateAnswer={handleUpdateAnswer}
-                    supplements={activeSupplements}
+                    // Background stays in the Sources panel beside the work, never in the assignment itself.
+                    supplements={[]}
                     isTurnedIn={isTurnedIn}
                     submission={activeSubmission}
                     showAnswerKey={isTurnedIn}
@@ -958,7 +1011,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-black uppercase tracking-wider text-purple-200 flex items-center gap-1.5">
-                        <GraduationCap size={14} /> Frame 2 · Fillable Tela Worksheet ({activeAssignment.unitSnapshot.questions.length} Prompts · {activeAssignment.totalPoints} Pts)
+                        <GraduationCap size={14} /> Your answers ({countQuestions(activeAssignment.unitSnapshot.questions)} questions{activeAssignment.unitSnapshot.pointsAssigned ? ` · ${activeAssignment.totalPoints} pts` : ''})
                       </span>
                     </div>
 
@@ -986,8 +1039,8 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                               className="text-xs sm:text-sm font-bold text-white leading-relaxed flex-1"
                               style={{ fontFamily: activeTemplate.bodyFont }}
                             >
-                              <span className="text-amber-300 font-black mr-1.5">Q{q.number}.</span>
-                              {q.prompt}
+                              <span className="text-amber-300 font-black mr-1.5">{q.label || q.number}.</span>
+                              {promptWithStem(q, activeAssignment.unitSnapshot.questions)}
                             </p>
                             <div className="flex items-center gap-1.5 shrink-0">
                               {parsedPassage && (
@@ -1055,13 +1108,11 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                               })}
                             </div>
                           ) : (
-                            <textarea
-                              rows={3}
-                              disabled={isTurnedIn}
+                            <AnswerArea
                               value={val}
-                              onChange={e => handleUpdateAnswer(q.id, e.target.value)}
-                              placeholder="Write your response, textual evidence, or Scripture reflection on your Desk..."
-                              className="w-full bg-black/55 border border-white/15 rounded-xl p-3 text-xs text-white leading-relaxed outline-none focus:border-amber-400 disabled:opacity-75"
+                              disabled={isTurnedIn}
+                              onChange={v => handleUpdateAnswer(q.id, v)}
+                              className="w-full bg-black/55 border border-white/15 rounded-xl p-3 text-xs text-white leading-relaxed outline-none focus:border-amber-400"
                             />
                           )}
 
@@ -1074,7 +1125,9 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                                     qResult.correct ? 'text-emerald-300' : 'text-amber-300'
                                   }
                                 >
-                                  {qResult.correct
+                                  {qResult.pending
+                                    ? 'Waiting for your teacher to check this one'
+                                    : qResult.correct
                                     ? `✓ Correct (+${qResult.earnedPoints}/${qResult.maxPoints} pts)`
                                     : `✦ Reviewed (+${qResult.earnedPoints}/${qResult.maxPoints} pts)`}
                                 </span>
@@ -1082,9 +1135,9 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                                   Answer Key &amp; Rubric
                                 </span>
                               </div>
-                              {q.correctAnswer && (
+                              {(q.correctAnswer || qResult?.expected) && (
                                 <p className="text-emerald-200/95">
-                                  <strong>Expected Answer:</strong> {q.correctAnswer}
+                                  <strong>Expected Answer:</strong> {q.correctAnswer || qResult?.expected}
                                 </p>
                               )}
                               {q.explanation && (
@@ -1120,6 +1173,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                 <div className="flex flex-wrap items-center gap-2">
                   {!isTurnedIn ? (
                     <>
+                      <DueStatePanel assignment={activeAssignment} studentName={studentName} extension={myExtension} onExtension={setMyExtension} />
                       {activeAssignment.toolsConfig.allowSelfCheckBeforeTurnIn && (
                         <button
                           type="button"
@@ -1129,14 +1183,16 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
                           <Check size={13} /> Self-Check My Work
                         </button>
                       )}
-                      <button
-                        type="button"
-                        onClick={handleTurnInFromDesk}
-                        className="px-5 py-2.5 rounded-full text-xs font-black text-black shadow-xl inline-flex items-center gap-1.5 transition hover:opacity-95"
-                        style={{ background: activeTemplate.accentGradient }}
-                      >
-                        <Send size={13} /> Turn In Assignment to Teacher
-                      </button>
+                      {turnInAllowed && (
+                        <button
+                          type="button"
+                          onClick={handleTurnInFromDesk}
+                          className="px-5 py-2.5 rounded-full text-xs font-black text-black shadow-xl inline-flex items-center gap-1.5 transition hover:opacity-95"
+                          style={{ background: activeTemplate.accentGradient }}
+                        >
+                          <Send size={13} /> {dueState?.kind === 'late_allowed' ? 'Turn In Late' : 'Turn In Assignment to Teacher'}
+                        </button>
+                      )}
                     </>
                   ) : (
                     <button
@@ -1154,7 +1210,7 @@ export const UniversalStudentDesk: React.FC<UniversalStudentDeskProps> = ({
         )}
 
         {/* RIGHT DESK CADDY (3 Cols): Sacred Library Drawer, Scratchpad, Ask Teacher & Mastery */}
-        {activeAssignment && (
+        {activeAssignment && (!isPhone || phonePane === 'work') && (
           <div className="lg:col-span-3 space-y-4">
             <div className="rounded-3xl border border-white/12 bg-white/[0.03] p-4 space-y-3.5">
               <div className="flex items-center justify-between border-b border-white/10 pb-2.5">

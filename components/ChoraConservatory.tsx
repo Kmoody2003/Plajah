@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, Music, Landmark, BookOpen, Ear, Sparkles, GraduationCap, AudioLines, Library, Disc3, Headphones, Music2, Compass } from 'lucide-react';
+import { ChevronLeft, Music, Landmark, BookOpen, Ear, Sparkles, GraduationCap, AudioLines, Library, Disc3, Headphones, Music2, Compass, Users, FileMusic } from 'lucide-react';
 import MuseumHall from './MuseumHall';
 import { CONSERVATORY_HALLS, CONSERVATORY_FIGURES } from '../data/musicFigures';
 import { MUSIC_HISTORY_ERAS } from '../data/musicHistory';
@@ -10,9 +10,11 @@ import { CHORA_CURRICULUM } from '../data/choraCurriculum';
 import InstrumentPrimers from './chora/InstrumentPrimers';
 import RepertoireLibrary from './chora/RepertoireLibrary';
 import PublicDomainLibrary from './chora/PublicDomainLibrary';
+import SheetMusicLibrary from './chora/SheetMusicLibrary';
 import EarGym from './conservatory/EarGym';
 import StaffSprint from './conservatory/StaffSprint';
 import MusicSchoolCompass from './conservatory/MusicSchoolCompass';
+import BandFaculty from './conservatory/BandFaculty';
 import type { Curriculum } from '../services/schoolChassis';
 import type { SpineLink } from '../services/musicPedagogy/musicSpine';
 
@@ -29,13 +31,14 @@ import type { SpineLink } from '../services/musicPedagogy/musicSpine';
 //   • Scope & Sequence — the Pre-K→lifelong music spine, its standards crosswalk into
 //     math and ELA, and the research philosophy behind it.
 //   • Curriculum — every music course on the shared School chassis, switchable.
+//   • Faculty — the Chora Session Band as teachers (components/conservatory/BandFaculty).
 //
 // Chora's warm-brass accent.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ACCENT = '#E0A458';
 
-type ConservatoryTab = 'HALL' | 'HISTORY' | 'CURRICULUM' | 'INSTRUMENTS' | 'REPERTOIRE' | 'PUBLIC_DOMAIN' | 'EAR_GYM' | 'NOTATION' | 'COMPASS';
+type ConservatoryTab = 'HALL' | 'FACULTY' | 'HISTORY' | 'CURRICULUM' | 'INSTRUMENTS' | 'REPERTOIRE' | 'SHEET_MUSIC' | 'PUBLIC_DOMAIN' | 'EAR_GYM' | 'NOTATION' | 'COMPASS';
 
 /** Music courses the Curriculum tab can switch between (lazy, so the tab stays light). */
 const COURSES: { id: string; label: string; load?: () => Promise<Curriculum> }[] = [
@@ -164,6 +167,7 @@ const ChoraConservatory: React.FC<{ onBack: () => void; onNavigate?: (view: stri
         <div className="flex gap-2 mb-6 flex-wrap">
           {([
             { id: 'HALL' as const, label: 'Conservatory Hall', icon: Music },
+            { id: 'FACULTY' as const, label: 'Faculty', icon: Users },
             { id: 'EAR_GYM' as const, label: 'Ear Gym', icon: Headphones },
             { id: 'NOTATION' as const, label: 'Staff Sprint', icon: Music2 },
             { id: 'CURRICULUM' as const, label: 'Curriculum', icon: GraduationCap },
@@ -171,6 +175,7 @@ const ChoraConservatory: React.FC<{ onBack: () => void; onNavigate?: (view: stri
             { id: 'HISTORY' as const, label: 'Music History', icon: BookOpen },
             { id: 'INSTRUMENTS' as const, label: 'Instruments', icon: AudioLines },
             { id: 'REPERTOIRE' as const, label: 'Repertoire', icon: Library },
+            { id: 'SHEET_MUSIC' as const, label: 'Sheet Music', icon: FileMusic },
             { id: 'PUBLIC_DOMAIN' as const, label: 'Public Domain', icon: Disc3 },
           ]).map(t => {
             const active = tab === t.id;
@@ -205,6 +210,10 @@ const ChoraConservatory: React.FC<{ onBack: () => void; onNavigate?: (view: stri
                 shareDiscipline="Music"
               />
             </motion.div>
+          ) : tab === 'FACULTY' ? (
+            <motion.div key="faculty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <BandFaculty />
+            </motion.div>
           ) : tab === 'CURRICULUM' ? (
             <motion.div key="curriculum" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="-mx-4 sm:-mx-6 lg:-mx-10">
               <CurriculumShelf courseId={courseId} onPick={setCourseId} />
@@ -228,6 +237,10 @@ const ChoraConservatory: React.FC<{ onBack: () => void; onNavigate?: (view: stri
           ) : tab === 'REPERTOIRE' ? (
             <motion.div key="repertoire" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <RepertoireLibrary />
+            </motion.div>
+          ) : tab === 'SHEET_MUSIC' ? (
+            <motion.div key="sheet-music" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <SheetMusicLibrary />
             </motion.div>
           ) : tab === 'PUBLIC_DOMAIN' ? (
             <motion.div key="public-domain" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

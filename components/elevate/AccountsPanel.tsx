@@ -5,11 +5,11 @@
 //   • Member ID cards CSV (name, member ID, claim link) for the office to print / mail-merge
 //   • Payroll import (Paychex / ADP / Gusto / QuickBooks export → staff seats with roles + departments)
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Copy, Check, Download, Link2, Loader2, QrCode, Users, UserPlus, Briefcase, RefreshCw } from 'lucide-react';
+import { Copy, Check, Download, Link2, Loader2, QrCode, Users, UserPlus, Briefcase, RefreshCw, Mail } from 'lucide-react';
 import type { Organization, OrgMembership, ChmsPerson } from '../../types';
 import { fetchPeople, toCSV, downloadText } from '../../services/chmsPeople';
 import { fetchOrgMembers, updateOrganization } from '../../services/organizationService';
-import { accountStats, provisionAccountsBulk, joinUrl, joinQr, claimUrl, importRoleToKey, canProvision, memberNumberPrefix } from '../../services/elevateAccounts';
+import { accountStats, provisionAccountsBulk, joinUrl, joinQr, claimUrl, importRoleToKey, canProvision, memberNumberPrefix, sendClaimInvites, describeInviteResult, claimInvitesConfigured } from '../../services/elevateAccounts';
 import PayrollImport from './PayrollImport';
 
 interface Props { org: Organization; myMembership: OrgMembership | null; onOrgChange?: (o: Organization) => void }
@@ -30,6 +30,9 @@ const AccountsPanel: React.FC<Props> = ({ org, myMembership, onOrgChange }) => {
   const [prefix, setPrefix] = useState(org.memberNumberPrefix || '');
   const [onImport, setOnImport] = useState(org.accountProvisioning?.onImport !== false);
   const [tab, setTab] = useState<'access' | 'payroll'>('access');
+  const [mailReady, setMailReady] = useState<boolean | null>(null);
+  const [inviting, setInviting] = useState(false);
+  useEffect(() => { if (allowed) claimInvitesConfigured().then(setMailReady); }, [allowed]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -40,6 +43,12 @@ const AccountsPanel: React.FC<Props> = ({ org, myMembership, onOrgChange }) => {
   useEffect(() => { joinQr(org).then(setQr).catch(() => setQr('')); }, [org.id, org.handle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const stats = useMemo(() => accountStats(people, members), [people, members]);
+  // Unclaimed seats with an address on file that haven't been invited yet (the server re-checks every rule).
+  const uninvited = useMemo(() => {
+    const emailOf = new Map(people.map(p => [p.id, p.email]));
+    return members.filter(m => m.isProvisioned && !m.claimInviteStatus && (m.claimEmailLower || (m.provisionedPersonId && emailOf.get(m.provisionedPersonId)))).length;
+  }, [people, members]);
+  const unclaimedWithEmail = useMemo(() => members.filter(m => m.isProvisioned && m.claimEmailLower).length, [members]);
   const url = joinUrl(org);
 
   if (!allowed) return <div className={`${card} p-6 text-sm text-white/50`}>Accounts &amp; access is for roster staff (pastors, admins, department heads).</div>;
@@ -58,6 +67,14 @@ const AccountsPanel: React.FC<Props> = ({ org, myMembership, onOrgChange }) => {
       await load();
     } catch (e: any) { setMsg(e?.message || 'Could not provision.'); }
     setBusy(null);
+  };
+
+  const inviteAll = async () => {
+    if (!window.confirm(`Email claim invitations to ${uninvited ? `${uninvited} people who haven't been invited yet` : 'everyone still unclaimed'}? People invited in the last 24 hours, bounced addresses and anyone who opted out are skipped. Up to 100 go out per click.`)) return;
+    setInviting(true); setMsg('');
+    try { setMsg(`Invitations: ${describeInviteResult(await sendClaimInvites(org.id, { all: true }))}`); await load(); }
+    catch (e: any) { setMsg(e?.message || 'Could not send invitations.'); }
+    setInviting(false);
   };
 
   const cardsCsv = () => {
@@ -117,9 +134,15 @@ const AccountsPanel: React.FC<Props> = ({ org, myMembership, onOrgChange }) => {
               <button onClick={provisionAll} disabled={!!busy || loading || stats.unlinked === 0} className={`${pill} bg-small-orange text-black border-small-orange disabled:opacity-40`}>
                 {busy ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />} {busy ? `${busy.done} / ${busy.total}` : `Provision ${stats.unlinked} ${stats.unlinked === 1 ? 'person' : 'people'}`}
               </button>
+              {mailReady && (
+                <button onClick={inviteAll} disabled={inviting || loading || (uninvited === 0 && unclaimedWithEmail === 0)} className={`${pill} bg-white text-black border-white disabled:opacity-40`}>
+                  {inviting ? <Loader2 size={12} className="animate-spin" /> : <Mail size={12} />} {inviting ? 'Sending…' : uninvited ? `Email ${uninvited} claim ${uninvited === 1 ? 'invite' : 'invites'}` : 'Re-send claim invites'}
+                </button>
+              )}
               <button onClick={cardsCsv} disabled={loading || (stats.provisioned + stats.claimed) === 0} className={`${pill} bg-white/5 border-white/10 text-white/70 disabled:opacity-40`}><Download size={12} /> Member ID list (CSV)</button>
               <button onClick={load} className={`${pill} bg-white/5 border-white/10 text-white/50`}><RefreshCw size={12} /> Refresh</button>
             </div>
+            {mailReady === false && <p className="text-[11px] text-white/35">Email invitations turn on once Plajah's email sender is configured. Until then, use the Member ID list or each person's claim link.</p>}
             {msg && <p className="text-[11px] text-sky-300">{msg}</p>}
           </div>
 

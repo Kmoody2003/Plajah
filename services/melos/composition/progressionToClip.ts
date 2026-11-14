@@ -5,6 +5,7 @@
 import { CHORDS, realiseProgression, type DiatonicDegree } from '../theory';
 import { getProgression } from '../progressionRepo';
 import { grooveUid, type NoteEvent, type TimelineClip } from '../beats/grooveDoc';
+import { performClipNotes, personaFor } from '../beats/patterns/performNotes';
 
 const DEFAULT_BAR_BEATS = 4;
 
@@ -14,6 +15,8 @@ export interface ProgressionClipOpts {
   barBeats?: number;      // beats per chord (default 4)
   startBeats?: number;    // where the clip starts on the track
   velocity?: number;      // 1–127 (default 90)
+  /** Play it like a musician (the band's pianist, or `player`): rolled chords, voiced top note, pocket. Off = exact grid. */
+  feel?: { seed: number; player?: string; genre?: string; role?: 'chords' | 'pad' | 'bass' };
 }
 
 /** Voice one diatonic degree into absolute MIDI notes: the chord's intervals over baseMidi+rootPc. */
@@ -40,7 +43,10 @@ export function progressionToClip(progId: string, rootPc: number, opts: Progress
       notes.push({ id: grooveUid(), startBeats: start, lengthBeats: barBeats * 0.96, key: midi, vel });
     }
   });
-  return { id: grooveUid(), startBeats: opts.startBeats ?? 0, lengthBeats: degrees.length * barBeats, notes };
+  const played = opts.feel
+    ? performClipNotes(notes, { role: opts.feel.role ?? 'chords', traits: personaFor(opts.feel.player ?? 'theo', opts.feel.genre).traits, seed: opts.feel.seed, beatsPerBar: barBeats })
+    : notes;
+  return { id: grooveUid(), startBeats: opts.startBeats ?? 0, lengthBeats: degrees.length * barBeats, notes: played };
 }
 
 /** The roman-numeral / chord-symbol preview for a progression in a key — for the browser's chord chips. */

@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   MessageSquare, Users, Send, X, ChevronLeft, Mic, Music, Heart,
   Mail, Loader2, MapPin, Bell, MessageCircle, Plus, UserPlus, Zap,
-  Inbox, CheckCheck, Radio, Play, Lock, ExternalLink, Headphones,
+  Inbox, CheckCheck, Radio, Play, Lock, ExternalLink, Headphones, BellOff,
 } from 'lucide-react';
 import { ChatMessage, ChatRoom, AppView, AppNotification, UserProfile, NowActiveEntry } from '../types';
 import {
@@ -26,6 +26,8 @@ import { useFollowedLive } from '../hooks/useFollowedLive';
 import { useFollowing } from '../hooks/useFollowing';
 import LiveTalkView from './LiveTalkView';
 import RoomMessagePreview from './chat/RoomMessagePreview';
+import { useChatRoomPrefs } from '../hooks/useChatRoomPrefs';
+import { roomUnreadCount, isRoomMuted } from '../services/chat/chatCore';
 import { formatDistanceToNow } from 'date-fns';
 import { HelloActions } from './NotificationCenter';
 import FollowRequestsInbox from './safety/FollowRequestsInbox';
@@ -467,16 +469,28 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({
   // per-conversation unread count is just the unread MESSAGE notifications for that room.
   // Public live rooms also file MESSAGE notifications (every joiner is a participant); those are
   // crowd chatter, not someone writing to you, so they don't count toward the Inbox.
+  // The per-room read cursor (users/{uid}/chat_prefs) then corrects it: a room you've opened is read
+  // even if its notifications weren't, and muted rooms don't add to the Inbox badge.
+  const roomPrefs = useChatRoomPrefs(uid);
   const unreadByRoom = useMemo(() => {
-    const map: Record<string, number> = {};
+    const fromNotifications: Record<string, number> = {};
     for (const n of notifications) {
       if (n.type === 'MESSAGE' && !n.isRead && n.targetId && !n.targetId.startsWith('live_chat_')) {
-        map[n.targetId] = (map[n.targetId] || 0) + 1;
+        fromNotifications[n.targetId] = (fromNotifications[n.targetId] || 0) + 1;
       }
     }
+    const map: Record<string, number> = {};
+    for (const r of rooms) {
+      if (r.id.startsWith('live_chat_')) continue;
+      const count = roomUnreadCount(r, fromNotifications[r.id] || 0, roomPrefs[r.id], uid);
+      if (count) map[r.id] = count;
+    }
     return map;
-  }, [notifications]);
-  const unreadMessages = useMemo(() => Object.values(unreadByRoom).reduce((a, b) => a + b, 0), [unreadByRoom]);
+  }, [notifications, rooms, roomPrefs, uid]);
+  const unreadMessages = useMemo(
+    () => Object.entries(unreadByRoom).reduce((a, [id, n]) => a + (isRoomMuted(roomPrefs[id]) ? 0 : n), 0),
+    [unreadByRoom, roomPrefs],
+  );
   const alerts = useMemo(() => notifications.filter(n => n.type !== 'MESSAGE'), [notifications]);
   const unreadAlerts = useMemo(() => alerts.filter(n => !n.isRead).length, [alerts]);
 
@@ -779,8 +793,11 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({
                                 : room.protected ? 'Protected conversation'
                                 : <RoomMessagePreview roomId={room.id} text={room.lastMessage} />}
                             </p>
+                            {isRoomMuted(roomPrefs[room.id]) && <BellOff size={11} className="text-white/30 shrink-0" aria-label="Muted" />}
                             {unread > 0 && (
-                              <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-black text-[10px] font-black flex items-center justify-center shrink-0">
+                              <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black flex items-center justify-center shrink-0 ${
+                                isRoomMuted(roomPrefs[room.id]) ? 'bg-white/20 text-white' : 'bg-orange-500 text-black'
+                              }`}>
                                 {unread > 9 ? '9+' : unread}
                               </span>
                             )}

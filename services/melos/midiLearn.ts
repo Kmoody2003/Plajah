@@ -10,13 +10,14 @@
 // knob/fader/button, `note:<ch>:<num>` for a key/pad. Value/velocity is filled in at play time.
 
 import type { BeatsMidiEvent } from './midiInput';
-import type { MelosMidiAction } from './midiMap';
+import { NAV_LABELS, type MelosMidiAction, type NavAction } from './midiMap';
 
 export type LearnTarget =
   | { kind: 'transport'; action: 'play' | 'stop' | 'record' }
   | { kind: 'pad'; pad: number }
   | { kind: 'macro'; index: number }
-  | { kind: 'note'; note: number };
+  | { kind: 'note'; note: number }
+  | { kind: 'nav'; action: NavAction };
 
 export interface MidiBinding {
   signature: string;    // 'cc:0:20' | 'note:0:60'
@@ -52,6 +53,7 @@ export function targetLabel(t: LearnTarget): string {
     case 'pad': return `Pad ${t.pad + 1}`;
     case 'macro': return `Macro ${t.index + 1}`;
     case 'note': return `Note ${t.note}`;
+    case 'nav': return NAV_LABELS[t.action];
   }
 }
 
@@ -90,6 +92,7 @@ function sameTarget(a: LearnTarget, b: LearnTarget): boolean {
   if (a.kind === 'pad' && b.kind === 'pad') return a.pad === b.pad;
   if (a.kind === 'macro' && b.kind === 'macro') return a.index === b.index;
   if (a.kind === 'note' && b.kind === 'note') return a.note === b.note;
+  if (a.kind === 'nav' && b.kind === 'nav') return a.action === b.action;
   return false;
 }
 
@@ -108,6 +111,8 @@ function actionFor(t: LearnTarget, e: BeatsMidiEvent): MelosMidiAction {
     case 'note':
       if (e.kind === 'noteoff' || (e.kind === 'cc' && (e.value ?? 0) === 0)) return { kind: 'noteOff', note: t.note };
       return { kind: 'note', note: t.note, velocity: e.velocity ?? 100 };
+    case 'nav':
+      return on ? { kind: 'nav', action: t.action } : null;
   }
 }
 

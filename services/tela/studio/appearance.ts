@@ -193,7 +193,7 @@ export function sourcePathOf(o: TelaVectorObject): CompoundPath | null {
 export interface StrokePatch { width?: number; cap?: StrokeStyle['cap']; join?: StrokeStyle['join']; miterLimit?: number; dash?: number[] | null; dashOffset?: number; align?: StrokeStyle['align']; alignDashes?: boolean }
 const NEEDS_PATH: Array<keyof StrokePatch> = ['cap', 'join', 'miterLimit', 'dashOffset', 'align'];
 export function applyStroke(o: TelaVectorObject, patch: StrokePatch): TelaVectorObject {
-  if (o.kind === 'TEXT' || o.kind === 'IMAGE' || o.kind === 'LOTTIE' || o.kind === 'MOTION_TEMPLATE') {
+  if (o.kind === 'TEXT' || o.kind === 'IMAGE' || o.kind === 'LOTTIE' || o.kind === 'MOTION_TEMPLATE' || o.kind === 'VISUALIZER') {
     if (patch.width === undefined) return o;
     return { ...o, strokeWidth: Math.max(0, patch.width) };
   }

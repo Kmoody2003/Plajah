@@ -12,6 +12,7 @@ import {
 } from '../../../../services/melos/midiInput';
 import { MidiActivityLight } from './MidiActivityLight';
 import { deviceLabel, deviceCapabilities } from '../../../../services/melos/midiMap';
+import { NAV_LABELS, type NavAction } from '../../../../services/melos/midiMap';
 import { beginLearn, cancelLearn, isLearning, getBindings, clearBinding, clearAllBindings, subscribeLearn, type LearnTarget } from '../../../../services/melos/midiLearn';
 
 const CYAN = '#00DAF3';
@@ -152,8 +153,12 @@ export const MidiLearnPanel: React.FC<{ onClose: () => void }> = ({ onClose }) =
                 <Row label="Record" target={{ kind: 'transport', action: 'record' }} />
               </div>
               <div className="py-2">
-                <p className="text-[9px] uppercase tracking-[0.14em] text-[#D0BCFF]/70 font-semibold mb-1">Macros (turn the armed instrument / selected pad)</p>
-                {Array.from({ length: 8 }, (_, i) => <Row key={i} label={`Macro ${i + 1}`} target={{ kind: 'macro', index: i }} />)}
+                <p className="text-[9px] uppercase tracking-[0.14em] text-[#D0BCFF]/70 font-semibold mb-1">Knobs 1–8 (the armed instrument, else the MEKA control page)</p>
+                {Array.from({ length: 8 }, (_, i) => <Row key={i} label={`Knob ${i + 1}`} target={{ kind: 'macro', index: i }} />)}
+              </div>
+              <div className="py-2">
+                <p className="text-[9px] uppercase tracking-[0.14em] text-[#FF8C00]/70 font-semibold mb-1">Navigation (Maschine page / group / tab buttons)</p>
+                {(Object.keys(NAV_LABELS) as NavAction[]).map((a) => <Row key={a} label={NAV_LABELS[a]} target={{ kind: 'nav', action: a }} />)}
               </div>
               <div className="py-2">
                 <p className="text-[9px] uppercase tracking-[0.14em] text-white/40 font-semibold mb-1">Pads</p>
@@ -175,6 +180,7 @@ function sameTarget(a: LearnTarget, b: LearnTarget): boolean {
   if (a.kind === 'pad' && b.kind === 'pad') return a.pad === b.pad;
   if (a.kind === 'macro' && b.kind === 'macro') return a.index === b.index;
   if (a.kind === 'note' && b.kind === 'note') return a.note === b.note;
+  if (a.kind === 'nav' && b.kind === 'nav') return a.action === b.action;
   return false;
 }
 

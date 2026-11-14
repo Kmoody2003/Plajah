@@ -24,6 +24,20 @@ export const emailConfigured = () => !!process.env.RESEND_API_KEY && !!unsubSecr
 
 interface AuthUser { email?: string; emailVerified: boolean; createdAt?: number; disabled?: boolean }
 
+/** uid for a sign-in address, from Firebase Auth. Null if none. */
+export async function lookupUidByEmail(email: string): Promise<string | null> {
+  const at = await getAccessToken();
+  if (!at) return null;
+  try {
+    const r = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${PROJECT_ID}/accounts:lookup`, {
+      method: 'POST', headers: { Authorization: `Bearer ${at}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: [email] }),
+    });
+    if (!r.ok) return null;
+    return ((await r.json()) as any).users?.[0]?.localId || null;
+  } catch { return null; }
+}
+
 /** Email comes from Firebase Auth, never the (self-editable, public) users doc. */
 export async function lookupAuthUser(uid: string): Promise<AuthUser | null> {
   const at = await getAccessToken();
@@ -47,7 +61,7 @@ function unsubUrl(uid: string, scope: string): string {
 }
 
 /** `attachments[].content` is base64 (Resend's format). */
-export async function sendViaResend(to: string, mail: RenderedEmail, unsubscribe?: string, attachments?: Array<{ filename: string; content: string }>, replyTo?: string): Promise<boolean> {
+export async function sendViaResend(to: string, mail: RenderedEmail, unsubscribe?: string, attachments?: Array<{ filename: string; content: string }>, replyTo?: string, from?: string): Promise<boolean> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return false;
   const headers: Record<string, string> = {};
@@ -59,7 +73,7 @@ export async function sendViaResend(to: string, mail: RenderedEmail, unsubscribe
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>',
+        from: from || process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>',
         to, subject: mail.subject, text: mail.text, html: mail.html, headers,
         ...(attachments?.length ? { attachments } : {}), ...(replyTo ? { reply_to: replyTo } : {}),
       }),

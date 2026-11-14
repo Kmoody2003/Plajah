@@ -22,8 +22,9 @@ import {
   decodeCtx, renderAlbum, renderAlbumContinuous, seedAlbumCreator, exportAlbumZip, projectUid,
   albumLayout, setCrossfade, crossfadeAt, DISC_FORMATS, discFormatById, checkFormatFit, effectiveDur, moveTrack,
   exportPhysicalPackage,
-  type ProjectTrack,
+  type ProjectTrack, type MasterProjectDoc,
 } from '../../../../services/melos/beats/masterProject';
+import { reconcileInPlace } from '../../../../services/melos/beats/reconcileInPlace';
 import { deskOf, presetById } from '../../../../services/melos/beats/releaseDesk';
 import type { FxInstance } from '../../../../services/melos/beats/fx/devices';
 import { ingestSample, backupToLocker, hydrateSample } from '../../../../services/melos/beats/sampleStore';
@@ -31,7 +32,11 @@ import { renderGroove, downloadBlob } from '../../../../services/melos/beats/ren
 import { encodeWav } from '../../../../services/audio/wavEncode';
 import type { MelosSong, MelosArrangement } from '../../../../services/melosService';
 import type { EngineSnapshot } from '../useEngineBridge';
-import { useMasterProject } from './useMasterProject';
+import { useMasterProject, type SharedMasterRef } from './useMasterProject';
+import { useChoraCoedit } from '../useChoraCoedit';
+import { CollabDock } from '../../../collab/CollabDock';
+import { VersionChip } from '../jam/VersionChip';
+import { SongLinesBadge } from '../jam/SongLinesBadge';
 import { useMelosSongs } from './useMelosSongs';
 import { FxRack } from './FxRack';
 import { TrackAssets } from './TrackAssets';
@@ -120,6 +125,11 @@ interface ProjectViewProps {
   melosArrangements?: MelosArrangement[];
   /** Optional arrangement pre-selected from ArrangeRoom ("Send to Chora Mastering Desk"). */
   activeArrangementId?: string | null;
+  /** The host's header row — the collaboration panel opens just below it. */
+  collabAnchor?: React.RefObject<HTMLElement | null>;
+  /** Open an album someone shared with us instead of this production's own. */
+  sharedProject?: SharedMasterRef | null;
+  onLeaveShared?: () => void;
 }
 
 const readState = (doc: GrooveDoc): MasteringState => {
@@ -170,13 +180,25 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
   melosSongs,
   melosArrangements,
   activeArrangementId,
+  collabAnchor,
+  sharedProject,
+  onLeaveShared,
 }) => {
   const state = readState(doc);
   const era = eraById(state.eraId);
   const loud = snap.loudness;
   /** The album's pressing, or null when it's switched off — what a track inherits. */
   const albumPressing = state.on ? state : null;
-  const { project, mutateProject, saveState, saveNow, reload: reloadProject } = useMasterProject(productionId);
+  const {
+    project, mutateProject, saveState, saveNow, reload: reloadProject,
+    rev: projectRev, applyRemote: applyRemoteProject, getProject, localId: projectLocalId,
+  } = useMasterProject(productionId, sharedProject);
+  // Live collaboration on the album project (inert until shared). The master FX rack follows
+  // remote edits through the masterFx effect below (reconcileInPlace hands it a new array).
+  const projectTitle = project.publishing?.title || 'Album project';
+  const co = useChoraCoedit<MasterProjectDoc>({
+    kind: 'melos', localId: projectLocalId, title: projectTitle, rev: projectRev, getDoc: getProject, applyRemote: applyRemoteProject,
+  });
   const [bay, setBay] = useState<BayId>('pressing');
   const [deckTrackId, setDeckTrackId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -824,6 +846,39 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
   return (
     <div className="flex-1 min-h-0 flex flex-col">
       <StudioMenuPublisher owner="mastering" menus={menus} save={{ state: saveState, onSave: () => { void saveNow(); }, what: 'mastering project' }} />
+      <CollabDock<MasterProjectDoc>
+        co={co}
+        kind="melos"
+        title={projectTitle}
+        doc={project}
+        localId={projectLocalId}
+        serialize={(p) => JSON.stringify(p)}
+        restoreSolo={(json) => {
+          const restored = JSON.parse(json) as MasterProjectDoc;
+          if (!restored || !Array.isArray(restored.tracks)) return;
+          mutateProject((p) => { reconcileInPlace(p, { ...restored, id: p.id }); });
+          void saveNow();
+        }}
+        anchor={collabAnchor}
+        top={collabAnchor ? undefined : 56}
+        pill="bottom-right"
+      />
+      {co.isShared && (
+        <div className="flex items-center justify-end gap-2 px-4 py-1 border-b border-white/[0.06] shrink-0">
+          <span className="text-[10px] text-white/35">Album versions</span>
+          <VersionChip co={co} />
+        </div>
+      )}
+      {sharedProject && (
+        <div className="flex items-center gap-2 px-4 py-1.5 border-b border-[#D0BCFF]/20 bg-[#D0BCFF]/[0.06] text-[11px] text-white/70 shrink-0">
+          <span className="font-bold uppercase tracking-wider text-[#D0BCFF]">Shared album</span>
+          <span className="truncate">{sharedProject.title || projectTitle} — edits go live to everyone on it</span>
+          <span className="flex-1" />
+          {onLeaveShared && (
+            <button type="button" onClick={onLeaveShared} className="h-6 px-2 rounded-md border border-white/15 text-white/70 hover:text-white hover:bg-white/10">Back to my album</button>
+          )}
+        </div>
+      )}
       <div className="flex-1 min-h-0 overflow-auto p-4">
       <div className={`${slabPanel} p-5`}>
 
@@ -1163,6 +1218,7 @@ export const ProjectView: React.FC<ProjectViewProps> = ({
                         {trackEra && <span style={{ color: trackEra.discColor }}>{trackEra.year} pressing</span>}
                         {!t.mastering && <span>album pressing</span>}
                         {!t.sample.lockerUrl && <span className="text-white/20">device only</span>}
+                        <SongLinesBadge grooveId={availableSongs.find((sg) => sg.id === t.sourceSongId)?.grooveId} />
                       </div>
                     </div>
                     {/* Per-track pressing — the "master each song to its own decade" control. */}

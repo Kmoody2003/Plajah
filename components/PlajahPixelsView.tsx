@@ -29,6 +29,9 @@ export interface PlajahPixelsPayload {
   fluxScene?: string;
   album?: Album | null;
   track?: Track | null;
+  /** A file sent from Crossover or the Photos viewer. */
+  mediaUrl?: string;
+  fileName?: string;
 }
 
 // Album art + slideshow + current-track images → the visualizer media layer.
@@ -50,7 +53,8 @@ const PlajahPixelsView: React.FC<{ payload?: PlajahPixelsPayload | null; onClose
 
   const album = payload?.album ?? gp.currentAlbum ?? null;
   const track = payload?.track ?? gp.currentTrack ?? null;
-  const standalone = !payload?.album && !payload?.track;
+  const sentImage = payload?.mediaUrl && /\.(png|jpe?g|webp|avif|gif|bmp)$/i.test(payload.fileName || '') ? payload.mediaUrl : null;
+  const standalone = !payload?.album && !payload?.track && !sentImage;
 
   // Seamless launch (runs once): "send this song" plays the requested track if
   // it isn't already current; an album load starts track 1 ONLY if nothing is
@@ -67,7 +71,7 @@ const PlajahPixelsView: React.FC<{ payload?: PlajahPixelsPayload | null; onClose
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const mediaImages = useMemo(() => buildMediaImages(album, gp.currentTrack), [album, gp.currentTrack]);
+  const mediaImages = useMemo(() => [...(sentImage ? [sentImage] : []), ...buildMediaImages(album, gp.currentTrack)], [sentImage, album, gp.currentTrack]);
 
   const bridge: PlajahPixelsPlatformBridge = useMemo(() => ({
     analyser: gp.analyser,

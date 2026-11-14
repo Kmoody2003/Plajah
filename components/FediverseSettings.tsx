@@ -44,8 +44,8 @@ const PROTOCOLS: ProtocolMeta[] = [
     color: '#888',
     bg: '#88888815',
     icon: <Layers size={16} />,
-    description: 'Meta Threads — publish-only. No follow graph or notifications via API.',
-    oauthSupported: false,
+    description: 'Meta Threads — share your Plajah posts (photos, video, carousels), reply and repost, and see your Threads posts in Social. Meta’s API has no likes, follows or home feed.',
+    oauthSupported: true,
   },
 ];
 
@@ -314,38 +314,35 @@ function BlueskyForm({ onSuccess }: { onSuccess: () => void }) {
 // ─── Threads form ──────────────────────────────────────────────────────────────
 
 function ThreadsForm({ onSuccess }: { onSuccess: () => void }) {
-  const { connectThreadsAccount } = useFediverse();
-  const [token, setToken] = useState('');
-  const [status, setStatus] = useState<ConnectStatus>('idle');
+  const { connectThreadsOAuth } = useFediverse();
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
   const [errMsg, setErrMsg] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!token.trim()) return;
-    setStatus('loading');
+  // One click: Threads' own sign-in/consent page in a popup. No tokens, no developer portal.
+  const go = async () => {
+    setBusy(true); setErrMsg('');
     try {
-      await connectThreadsAccount(token.trim());
-      setStatus('success');
+      await connectThreadsOAuth();
+      setDone(true);
       setTimeout(onSuccess, 800);
     } catch (err) {
-      setStatus('error');
-      setErrMsg(err instanceof Error ? err.message : 'Connection failed');
-    }
+      setErrMsg(err instanceof Error ? err.message : 'Sign-in failed');
+    } finally { setBusy(false); }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 mt-4">
-      <input value={token} onChange={e => setToken(e.target.value)}
-        placeholder="Long-lived access token"
-        type="password"
-        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/25 focus:outline-none focus:border-white/20"
-        required />
+    <div className="flex flex-col gap-3 mt-4">
+      <button type="button" onClick={go} disabled={busy || done}
+        className="w-full py-2.5 rounded-xl text-sm font-bold text-black bg-white hover:bg-white/90 disabled:opacity-60 flex items-center justify-center gap-2">
+        <span className="text-base leading-none">@</span>
+        {done ? 'Connected' : busy ? 'Waiting for Threads…' : 'Continue with Threads'}
+      </button>
       <p className="text-[9px] text-white/30 leading-relaxed">
-        From the <strong>Meta Developer Portal → Threads API</strong>.
-        Threads only supports publishing — no timeline or notifications.
+        You approve Plajah on Threads' own page — your password never reaches us. No Threads account yet? You can make one on that same screen with your Instagram login. Remove access any time in Threads → Settings → Account → Website permissions.
       </p>
-      <StatusButton status={status} color="#888" label="Connect Threads" errMsg={errMsg} />
-    </form>
+      {errMsg && <p className="text-[10px] text-red-300/90">{errMsg}</p>}
+    </div>
   );
 }
 
@@ -484,13 +481,14 @@ export default function FediverseSettings() {
             </thead>
             <tbody>
               {([
-                ['OAuth sign-in',     ['✅', '❌', '❌']],
-                ['Home timeline',     ['✅', '✅', '❌']],
+                ['OAuth sign-in',     ['✅', '✅', '✅']],
+                ['Home timeline',     ['✅', '✅', 'Your posts']],
                 ['Publish posts',     ['✅', '✅', '✅']],
-                ['Rich link cards',   ['✅', '✅', '❌']],
+                ['Photos / video',    ['✅', '✅', '✅']],
+                ['Rich link cards',   ['✅', '✅', '✅']],
                 ['Reply threading',   ['✅', '✅', '✅']],
                 ['Like / unlike',     ['✅', '✅', '❌']],
-                ['Repost / boost',    ['✅', '✅', '❌']],
+                ['Repost / boost',    ['✅', '✅', '✅']],
                 ['Follow / unfollow', ['✅', '✅', '❌']],
                 ['Notifications',     ['✅', '✅', '❌']],
                 ['Cross-post',        ['✅', '✅', '✅']],

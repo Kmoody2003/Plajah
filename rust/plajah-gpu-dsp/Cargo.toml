@@ -1,0 +1,18 @@
+[package]
+name = "plajah-gpu-dsp"
+version = "0.1.0"
+edition = "2024"
+license = "UNLICENSED"
+description = "Chora's cross-vendor GPU audio DSP: WGSL compute kernels on wgpu (D3D12/Vulkan/Metal) with bit-comparable CPU references and a deadline fallback"
+
+# Standalone on purpose: wgpu is a heavy dependency, and keeping it out of the rust/ workspace
+# means the WASM build of plajah-audio and the shared Cargo.lock are untouched.
+[workspace]
+
+[dependencies]
+wgpu = "25"
+bytemuck = { version = "1", features = ["derive"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"

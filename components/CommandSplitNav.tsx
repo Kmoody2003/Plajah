@@ -21,10 +21,11 @@ import {
   Heart, Landmark, Shield, ShoppingBag, GraduationCap, Camera, MessageSquare, MessageCircle,
   Mail, Rss, Sparkles, Clapperboard, MonitorPlay, Cctv, Search, HelpCircle, Monitor, Factory, Building2,
   Briefcase, MapPin, TrendingUp, Ticket, Home, LayoutPanelTop, Megaphone,
-  Compass, Palette, Trophy, Bell, Plus, ChevronLeft,
-  ChevronRight, LogOut, Command, RotateCcw, X, Disc3, Grid3x3, Lightbulb, CalendarDays,
+  Compass, Palette, Trophy, Bell, ChevronLeft,
+  ChevronRight, LogOut, RotateCcw, X, Disc3, Grid3x3, Lightbulb, CalendarDays,
 } from 'lucide-react';
 import UniversalCommandResults from './UniversalCommandResults';
+import AriaMark from './aria/AriaMark';
 
 type ViewId = string;
 
@@ -67,6 +68,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'RADIO', label: 'Radio', icon: Radio },
     { id: 'GAMES', label: 'Games', icon: Gamepad2 },
     { id: 'GLOBAL_PHOTOS', label: 'Photos', icon: Camera },
+    { id: 'BOOKS', label: 'Lorea', icon: BookOpen },
     { id: 'LIVE_HUB', label: 'Live Hub', icon: Sparkles },
     { id: 'PPV_EVENTS', label: 'Live Events', icon: Ticket },
   ]},
@@ -104,6 +106,7 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'TERRA', label: 'Terra', icon: MapPin, requiresUser: true },
     { id: 'TELA', label: 'Tela', icon: LayoutPanelTop },
     { id: 'FABULA', label: 'Fabula', icon: Film },
+    { id: 'BOOKS', label: 'Lorea', icon: BookOpen },
     { id: 'DJ_CONSOLE', label: 'DJ Console', icon: Disc3 },
     { id: 'PLAJAH_PIXELS', label: 'Plajah Pixels', icon: Grid3x3 },
     { id: 'TV_STUDIO', label: 'TV Studio', icon: Clapperboard },
@@ -133,7 +136,7 @@ export const NAV_SECTIONS: NavSection[] = [
 
 const PINNED_IDS: ViewId[] = ['DASHBOARD', 'FEED', 'MUSIC', 'VIDEOS', 'PLAJAH_SPORTS', 'CHAT'];
 
-const ALL_DESTS: NavDest[] = NAV_SECTIONS.flatMap(s => s.items);
+const ALL_DESTS: NavDest[] = NAV_SECTIONS.flatMap(s => s.items).filter((d, i, all) => all.findIndex(x => x.id === d.id) === i);
 const destById = (id: ViewId) => ALL_DESTS.find(d => d.id === id);
 const sectionIndexOf = (id: ViewId) => NAV_SECTIONS.findIndex(s => s.items.some(i => i.id === id));
 
@@ -148,7 +151,7 @@ export interface CommandSplitNavProps {
   linkedAccounts?: Array<{ uid: string; displayName: string; email: string; photoURL?: string; slot: number }>;
   playerController?: React.ReactNode;
   notificationCount?: number;
-  onCreate?: () => void;
+  onOpenAria?: () => void;
   onGoLive?: () => void;
   onOpenNotifications?: () => void;
   onOpenAccountSwitcher?: () => void;
@@ -166,7 +169,7 @@ export interface CommandSplitNavProps {
 
 const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
   view, onNavigate, hasUser, displayName, subtitle, avatarUrl, accountSlot, linkedAccounts = [], playerController,
-  notificationCount = 0, onCreate, onGoLive, onOpenNotifications, onOpenAccountSwitcher,
+  notificationCount = 0, onOpenAria, onGoLive, onOpenNotifications, onOpenAccountSwitcher,
   onSignOut, onExitNew, slim, onVisitUser, onSelectItem, onSelectArticle, onSelectGame, onSelectLiveFeed,
 }) => {
   const [collapsed, setCollapsed] = useState<boolean>(() => {
@@ -179,7 +182,8 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   // keep the open category following the active view
-  useEffect(() => { const si = sectionIndexOf(view); if (si >= 0) setOpenCat(si); }, [view]);
+  // A destination can live in several sections; stay put if the open one has it.
+  useEffect(() => { const si = sectionIndexOf(view); if (si >= 0) setOpenCat(cur => NAV_SECTIONS[cur]?.items.some(i => i.id === view) ? cur : si); }, [view]);
 
   // ⌘K / Ctrl-K opens the launcher; Esc closes
   useEffect(() => {
@@ -187,7 +191,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); openLauncher(); }
       if (e.key === 'Escape') setLauncher(false);
     };
-    const onOpenCmd = () => openLauncher();
+    const onOpenCmd = (e: Event) => { e.preventDefault(); openLauncher(); };
     window.addEventListener('keydown', onKey);
     window.addEventListener('plajah:open-command', onOpenCmd);
     return () => {
@@ -305,7 +309,6 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
           <button onClick={() => go('DASHBOARD')} title="Home"
             className="w-10 h-10 rounded-xl grid place-items-center font-display italic text-white text-[1rem] mb-1"
             style={{ background: 'linear-gradient(135deg,#6B0099 0%,#D40055 55%,#FF8C00 100%)' }}>P</button>
-          <IconBtn title="Command menu (Ctrl K)" onClick={openLauncher} className="!text-[#00DAF3]"><Command size={20} /></IconBtn>
           <div className="w-10 h-px bg-white/[0.08] my-2" />
           {NAV_SECTIONS.map((s, i) => (
             <button key={s.key} title={s.key}
@@ -317,8 +320,10 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
           ))}
           <div className="w-10 h-px bg-white/[0.08] my-2" />
           <div className="mt-auto flex flex-col items-center gap-1.5">
-            <IconBtn title="Search" onClick={openLauncher}><Search size={18} style={plajahIconStroke} /></IconBtn>
-            <IconBtn title="Create" onClick={onCreate}><Plus size={18} style={plajahIconStroke} /></IconBtn>
+            <button title="Ask Aria" aria-label="Open Aria" onClick={onOpenAria}
+              className="grid place-items-center w-11 h-11 rounded-[13px] hover:bg-white/[0.08] transition-colors shrink-0">
+              <AriaMark size={30} lively />
+            </button>
             <IconBtn title="Go Live" onClick={onGoLive}><Radio size={18} style={plajahIconStroke} /></IconBtn>
             <IconBtn title="Notifications" onClick={onOpenNotifications} badge={notificationCount}><Bell size={18} style={plajahIconStroke} /></IconBtn>
             <IconBtn title="Settings" onClick={() => go('CREATOR')}><SettingsIcon size={18} style={plajahIconStroke} /></IconBtn>

@@ -2,6 +2,7 @@
 // teams. MANAGE_ACCOUNTING writes; VIEW_ACCOUNTING (trustees, external CPA) is read-only. Department heads
 // get a budget-only view. Everything posts through services/acctService.ts (idempotent, period-locked, audited).
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
+import { loadOrgFinance, mergeOrgFinance } from '../../../../services/orgFinance';
 import { ArrowLeft, BarChart3, BookOpen, Calculator, CalendarCheck, Landmark, ListTree, Loader2, PiggyBank, RefreshCw, Settings as Cog, ScrollText } from 'lucide-react';
 import type { Organization, OrgMembership } from '../../../../types';
 import { elevateCan } from '../../../../services/elevateRoles';
@@ -34,6 +35,7 @@ const FINANCE_TAB: Record<string, string> = { 'finance:batches': 'batches', 'fin
 
 const AccountingHub: React.FC<AccountingHubProps> = ({ org: initialOrg, myMembership, onClose, onOpenFinanceTab, onOrgChange }) => {
   const [org, setOrgState] = useState<Organization>(initialOrg);
+  useEffect(() => { let live = true; loadOrgFinance(initialOrg.id).then(f => { if (live) setOrgState(o => mergeOrgFinance(o, f)); }); return () => { live = false; }; }, [initialOrg.id]);
   const setOrg = useCallback((o: Organization) => { setOrgState(o); onOrgChange?.(o); }, [onOrgChange]);
   const uid = auth.currentUser?.uid || '';
   const canManage = elevateCan(myMembership, org, 'MANAGE_ACCOUNTING');

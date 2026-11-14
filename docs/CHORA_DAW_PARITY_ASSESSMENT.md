@@ -168,6 +168,57 @@ Not done:
 - Audio-clip channels in the rack.
 - Release velocity as its own lane (the tail lane covers note length).
 
+## MEKA kit import + Maschine pad modes (2026-10-28)
+
+Done:
+- **Library** tab in MEKA's rail (`machine/KitLibrary.tsx`, `services/melos/beats/kits/`): add folders, index kits + one-shots (IndexedDB cache), Groups / Sounds / Mine tabs, product + format filters, sound-type chips, NKS `.previews` audition, 4×4 preview of a kit before loading.
+- Loading a kit replaces the 16 pads of a Group (or a new one), like Maschine; kits over 16 pads spill into the next Groups. One-shot envelope = the whole sample. Missing samples keep their pad name and are counted in the status line.
+- Readers (`parsers.ts`): MPC `.xpm` (pad note map, tune, pan, volume, mute groups), Ableton `.adg` (receiving note, choke, transpose, Live 10 + 11 paths), Studio One Impact `.preset` (zip + XML) and Impact kits inside `.soundset` zips, Bitwig `.bwpreset` (typed strings), Maschine `.mxgrp` / `.mxsnd` and Battery `.nbkt` (embedded UTF-16 sample paths, zlib sections), SFZ, Hydrogen (`drumkit.xml`, `.h2drumkit`), Decent Sampler, SoundFont `.sf2` (percussion bank, samples cut out as WAV), mixed one-shot folders (laid out kick → hats by name). AIFF converts to WAV.
+- Paths written on another machine resolve by kit-relative path → longest path tail → file name.
+- Pad modes: Pads / Keys (scale-locked to the song key or chromatic, octave) / Chords (diatonic triads or 7ths, labelled I ii iii…) / 16 Vel; Fixed Velocity; Mute and Solo tap modes. Keys and Chords record into the pitch roll.
+- Group slots: name, colour, Save Group to Library ("Mine"), Clear Group, source shown in the menu. Scenes can be moved left/right.
+- Tests: `tests/melosKits.test.ts`, `tests/melosKitsLibrary.test.ts`, `tests/melosControlPages.test.ts` (in `npm run test:melostime`).
+- **Control area above the pads** (`machine/ControlArea.tsx`, `services/melos/beats/controlPages.ts`), Maschine-style:
+  - MASTER / GROUP / SOUND tabs, pages of eight knobs, Page ◀ ▶. Sound pages: Pitch/Gain, Amp Envelope, Filter, Sends; an instrument pad leads with its macro page. Group knobs are relative (Tune / Level / Decay / Cutoff move every pad in the Group by the change), plus Group Swing. Master: Volume, Tempo, Swing, Limiter; Buses: A–D and FX returns.
+  - Plug-in slot: Sampler / Drum Synth / instrument name, preset ◀ ▶ (instrument presets, or same-type sounds from the Library for sample pads), Plug-in toggle that shows the instrument's own panel inline, and open-in-window.
+  - Display tile: sample waveform with start/hold markers, the instrument's face + preset, the Group's pad map, or a Master summary.
+  - Hardware: knobs 1–8 (CC 14–21, or learned) drive the focused page when no instrument track is armed. Page ◀ ▶, Group ◀ ▶ and the three tabs are MIDI-learnable (no NI MIDI-mode template sends fixed CCs for them).
+  - The right macro rail is gone (the control area replaces it). The piano roll moved under the step sequencer; scenes are at the top.
+  - Fixes the hardware-knob path for AURA and SOMA, which wrote macro names that don't exist.
+
+Not verified / not done:
+- No real Maschine, Battery, MPC or Ableton kit files were on the dev machine; those readers are tested against fixtures built to each layout. The real Studio One and Bitwig default kits parse.
+- Maschine/Battery/Bitwig per-sound settings (tune, envelopes, FX) and plug-in sounds aren't decoded; velocity layers / round robins use the first layer.
+- Kit import not checked in the browser with real kit files. The control area was checked in the browser lab (:3187): tabs, pages, Group Tune, AURA macros, preset ◀ ▶ and the inline plug-in view.
+- Sample-pad preset ◀ ▶ needs a granted Library folder; not exercised in the browser. Hardware knobs and learned nav buttons are untested on a real Maschine.
+- Kontakt `.nki` and melodic multisample libraries need a multisample instrument (pads are one-shots).
+
+## MEKA Sampler (2026-10-28)
+
+Done (the parity list's items 4–6: sampling, chop/slice, pad sample editor):
+- **Sampling** button in the control area (MIDI-learnable as the Sampling nav button) opens `machine/SamplerPanel.tsx` on the selected pad.
+- **Record:** any audio input or MEKA's own output (resample), through an AudioWorklet tap (`sampler/inputCapture.ts`). Modes: Threshold (dB, pre-roll so the attack is kept), Now, Sync (starts with the transport, records N bars). Input meter, max length, silence trimmed, take history with audition and "to pad".
+- **Edit:** drag-select on the waveform; Truncate, Normalize, Reverse, Fade in/out, Silence, ±3 dB (reusing `audio/audioEdit.ts`); each edit stores a new content-addressed sample; Undo.
+- **Slice:** Detect (transients, sensitivity), Grid (1/4–1/32 at the song tempo or the loop's own 1-/2-bar tempo), Split (N parts), Manual (click to add/remove cuts). Slices → pads from the selected pad (to the end of the Group), with an optional pattern that replays the loop in its original timing; or → one KERA instrument, a slice per key from C1, on the pad or a new track (`sampler/sliceInstrument.ts`).
+- Pure logic in `sampler/takeRecorder.ts` and `sampler/slices.ts`; tests `tests/melosSampler.test.ts`. Checked in the lab: resampled four hits, normalized, auto-sliced to four pads + a pattern at the right steps.
+
+Not done:
+- Time-stretch to tempo, loop points, and Maschine's per-zone mapping page.
+- Recording from a real microphone/interface wasn't exercised in the lab (permission prompt); the input path is the same tap.
+
+## MEKA Drum Synth (2026-10-28)
+
+Done:
+- `services/melos/beats/drumSynth.ts` (pure) + `engine/drumSynthVoice.ts` (Web Audio, live and bounce): six engines with their own models — Kick (Analog, Sub, Dusty, FM, Acoustic), Snare (Analog, Acoustic, Bit, Metal), Hi-hat (Metal, Noise, Hybrid), Tom (Analog, Acoustic, FM), Percussion (FM, Membrane, Shaker), Clap (Analog, Room). Parameters in real units (Hz, s, st). Pad envelope opens to the hit's length.
+- Control area: Synth / Synth 2 pages (Engine, Model, then the engine's knobs); slot ◀ ▶ steps models. The rail's starter-voice chips are now the six engines. Default-kit starter voices become patches on first edit.
+- Translation on kit import: Maschine Drum Synths (engine + model names → nearest model), Bitwig E-Kick/E-Snare/E-Hat/E-Clap (+ E-Tom/E-Cowbell by name) with their real parameter values (MIDI-note tuning, log10-second times), Live DS Kick/Snare/HH/Tom/Clap/Cymbal/FM by device name and named knobs.
+- Fixed: Ableton branches with no SampleRef took any FileRef (e.g. a Max device) as the sample.
+- Tests: `tests/melosDrumSynth.test.ts` (real Bitwig 5.1 E-drum presets when installed). Offline renders checked in the lab: every model sounds, levels trimmed, the translated Bitwig E-Kick plays at its set pitch.
+
+Not verified / not done:
+- No Maschine or Live files with drum synths on the dev machine — those translations are fixture-tested. Maschine knob values aren't decoded (model + pad tuning come across).
+- Velocity → tone/click modulation, per-engine modulation pages, and Maschine's exact sound are not goals; the engines are MEKA's own.
+
 ## Phase 3 status (2026-10-21)
 
 Done:
@@ -299,9 +350,9 @@ engine-side step probability, undo.
 1. **Group-scoped patterns** (`Pattern.groupId`, per-group length/time-sig).
 2. **Scenes + Song/Sections → auto-populated timeline** (design below).
 3. **Live pad recording** with record-quantize, overdub/replace — pad hits are never written (BeatsRoom:372).
-4. **Sampling** — record from input with threshold, resample internal audio.
-5. **Chop/slice** (transient / grid / manual) → slice to pads / to keygroup.
-6. **Pad sample editor** — start/end/loop/reverse/normalize/stretch (reuse `audioEdit.ts`, `timeStretch.ts`).
+4. **Sampling** — record from input with threshold, resample internal audio. *(done 2026-10-28, see MEKA Sampler)*
+5. **Chop/slice** (transient / grid / manual) → slice to pads / to keygroup. *(done 2026-10-28)*
+6. **Pad sample editor** — start/end/loop/reverse/normalize/stretch (reuse `audioEdit.ts`, `timeStretch.ts`). *(edit ops done 2026-10-28; loop + stretch not yet)*
 7. **Kit / program save-load-browse** with user tags.
 8. **Note repeat** scheduled by the engine (today a `setInterval` UI timer), with rate, swing, arp, latch, recorded.
 9. **Parameter locks** beyond pitch/pan (cutoff, decay, sample start, FX params) + per-pad automation.

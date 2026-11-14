@@ -304,8 +304,8 @@ export async function purchaseMusic(opts: { kind: 'album' | 'track'; albumId: st
 export const TIER_META = {
   1: {
     price: 4.99,
-    platformTake: 1.99,
-    creatorShare: 3.00,
+    platformTake: 2.00,
+    creatorShare: 2.99,
     storageGb: 50,
     monthlyPoints: 100,
     transactionDiscount: 10,
@@ -328,8 +328,8 @@ export const TIER_META = {
   },
   2: {
     price: 9.99,
-    platformTake: 2.99,
-    creatorShare: 7.00,
+    platformTake: 4.00,
+    creatorShare: 5.99,
     storageGb: 75,
     monthlyPoints: 300,
     transactionDiscount: 15,
@@ -352,8 +352,8 @@ export const TIER_META = {
   },
   3: {
     price: 14.99,
-    platformTake: 3.99,
-    creatorShare: 11.00,
+    platformTake: 5.00,
+    creatorShare: 9.99,
     storageGb: 100,
     monthlyPoints: 1000,
     transactionDiscount: 20,

@@ -8,6 +8,9 @@
 import wasmUrl from './dsp/plajah_audio.wasm?url';
 import workletUrl from './instrumentProcessor.worklet.js?url';
 import { selectZones, type KeraProgram } from '../../instruments/kera/zones';
+import { DEEP_VARIANTS, deepVelBucket, lookupDeep, requestDeep, somaDeepSupported, somaParamsKey, type DeepHit } from '../../instruments/soma/deep/somaDeep';
+import { modCapture } from '../modulators';
+import type { NativeTrack } from './nativeStream';
 
 /** Envelope seconds → the engine's normalised 0..1 (inverse of env_time in params.rs: 0.001 + 12·n³). */
 function secToNorm(sec: number): number {
@@ -17,7 +20,7 @@ function secToNorm(sec: number): number {
 
 /** 11 adds AURA (param block 1700+): 1960s & 1970s analogue synthesis circuitry. Bumping this
  *  is what stops a stale committed .wasm from loading against a host that expects the new parameters. */
-export const DSP_ABI_VERSION = 12;
+export const DSP_ABI_VERSION = 16; // 16: SOMA deep skin (GPU modes, note_on_deep); 15: LYRA brass, strings, plucked, guitar rig; 14: LYRA physical models (block 1900+); 13: scheduled KERA notes
 
 /** Output layouts — must mirror `spatial::Layout` in the Rust crate. */
 export enum SpatialLayout {
@@ -43,7 +46,8 @@ export interface SpatialState {
 let modulePromise: Promise<WebAssembly.Module> | null = null;
 const workletLoaded = new WeakSet<BaseAudioContext>();
 
-async function getModule(): Promise<WebAssembly.Module> {
+/** The compiled DSP core, shared (also used on the main thread for SOMA deep-skin excitation). */
+export async function getModule(): Promise<WebAssembly.Module> {
   if (!modulePromise) {
     const bustUrl = `${wasmUrl}${wasmUrl.includes('?') ? '&' : '?'}abi=${DSP_ABI_VERSION}`;
     modulePromise = fetch(bustUrl, { cache: 'no-cache' })
@@ -62,6 +66,10 @@ async function ensureWorklet(ctx: BaseAudioContext): Promise<void> {
   workletLoaded.add(ctx);
 }
 
+/** Rewrites a key before it sounds: the engine note, velocity and parameters for this one note. */
+export type NoteMapper = (key: number, velocity01: number, modWheel: number, live: boolean) =>
+  { note: number; velocity: number; params: Array<[number, number]> } | null;
+
 export interface InstrumentOptions {
   channels?: number;
   onError?: (message: string) => void;
@@ -74,6 +82,8 @@ export interface InstrumentOptions {
  */
 export class Instrument {
   readonly node: AudioWorkletNode;
+  /** The track this plays, so a touched control can be traced back to it (modulators.ts). */
+  trackId = '';
   readonly analyser: AnalyserNode | null = null;
   private readonly outGain: GainNode | null = null;
   private disposed = false;
@@ -177,15 +187,130 @@ export class Instrument {
    * Start a note. `when` is an absolute AudioContext time; it becomes a sample offset inside the
    * render block, so an asynchronous message still yields a sample-accurate onset.
    */
-  noteOn(note: number, velocity01: number, ctxTime: number, currentTime: number, sampleRate: number): number {
+  /** Times are optional: without them the note plays now (an audition key, not a scheduled note). */
+  /** `raw` skips the note mapper (a strike that already set exactly where it lands, e.g. a click on SOMA's drumhead). */
+  noteOn(key: number, velocity: number, ctxTime = 0, currentTime = 0, sampleRate = 48000, raw = false): number {
     const voiceId = this.nextVoiceId++;
-    const frameOffset = Math.max(0, Math.round((ctxTime - currentTime) * sampleRate));
+    const off = Math.round((ctxTime - currentTime) * sampleRate);
+    const frameOffset = Number.isFinite(off) ? Math.max(0, off) : 0;
+    const { note, velocity01 } = raw ? { note: key, velocity01: velocity } : this.mapNote(key, velocity, ctxTime > 0 ? Math.round(ctxTime * sampleRate) : 0, ctxTime === 0);
     this.lastNote = note;
     this.lastVelocity = velocity01;
     this.lastNoteOnPerf = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    this.post({ type: 'noteOn', note, velocity: velocity01, voiceId, frameOffset });
-    this.heldVoices.set(note, voiceId);
+    const deep = this.somaDeep(note, velocity01);
+    if (deep) this.post({ type: 'noteOnDeep', note, velocity: velocity01, voiceId, frameOffset, ...deep });
+    else this.post({ type: 'noteOn', note, velocity: velocity01, voiceId, frameOffset });
+    this.heldVoices.set(key, voiceId);
     return voiceId;
+  }
+
+  // ── Note mapping ──────────────────────────────────────────────────────────────
+  // An instrument can rewrite each key before it sounds — SOMA's hand map turns a key or pad into a
+  // stroke at a place on the drum. The mapper's per-note parameters ride a frame-timed message, so
+  // they land on exactly this note whether it's live, scheduled ahead or in an offline bounce.
+
+  private noteMapper: NoteMapper | null = null;
+  setNoteMapper(m: NoteMapper | null): void { if (m) this.detachNative(); this.noteMapper = m; }
+
+  private mapNote(key: number, velocity: number, frame: number, live: boolean): { note: number; velocity01: number } {
+    const m = this.noteMapper?.(key, velocity, this.modWheelValue, live);
+    if (!m) return { note: key, velocity01: velocity };
+    if (m.params.length) {
+      for (const [id, v] of m.params) this.params.set(id, v);
+      this.paramsKeyMemo = null;
+      this.post({ type: 'paramsAt', frame, ids: Int32Array.from(m.params.map((e) => e[0])), values: Float32Array.from(m.params.map((e) => e[1])) });
+    }
+    return { note: m.note, velocity01: m.velocity };
+  }
+
+  // ── SOMA deep skin (ABI 16) ──────────────────────────────────────────────────
+  // A SOMA strike whose GPU-rendered upper membrane is cached plays it inside the voice
+  // (somaDeep.ts); otherwise it plays as before and the layer is rendered for next time.
+
+  private params = new Map<number, number>();
+  private paramsKeyMemo: string | null = null;
+  private deepSlots = new Map<DeepHit, number>(); // LRU: insertion order = age
+  private deepTick = 0;
+
+  private isSoma(): boolean {
+    return (this.params.get(1800) ?? 0) > 0.5 && !this.keraProgram;
+  }
+
+  private somaKey(): string {
+    return (this.paramsKeyMemo ??= somaParamsKey(this.params));
+  }
+
+  private get sampleRate(): number {
+    return this.node.context.sampleRate;
+  }
+
+  /** Slot, level and cloud floor for a deep strike, or null to play it on the CPU cloud. */
+  private somaDeep(note: number, velocity01: number): { slot: number; gain: number; top: number } | null {
+    if (!this.isSoma() || !somaDeepSupported()) return null;
+    const key = this.somaKey();
+    const variant = this.deepTick++ % DEEP_VARIANTS;
+    let hit: DeepHit | undefined;
+    for (let i = 0; i < DEEP_VARIANTS && !hit; i++) hit = lookupDeep(key, note, velocity01, (variant + i) % DEEP_VARIANTS, this.sampleRate);
+    if (!hit) {
+      void requestDeep(this.params, key, note, this.sampleRate, getModule);
+      return null;
+    }
+    const v = Math.max(0.02, Math.min(1, velocity01));
+    return { slot: this.deepSlot(hit), gain: v / deepVelBucket(v), top: hit.topRatio };
+  }
+
+  /** The engine sample slot holding `hit`, uploading it (and evicting the oldest) if needed. */
+  private deepSlot(hit: DeepHit): number {
+    const have = this.deepSlots.get(hit);
+    if (have !== undefined) {
+      this.deepSlots.delete(hit);
+      this.deepSlots.set(hit, have);
+      return have;
+    }
+    let slot = this.deepSlots.size;
+    if (slot >= 128) {
+      const [oldHit, oldSlot] = this.deepSlots.entries().next().value as [DeepHit, number];
+      this.deepSlots.delete(oldHit);
+      slot = oldSlot;
+    }
+    this.deepSlots.set(hit, slot);
+    const data = hit.data.slice();
+    this.node.port.postMessage({
+      type: 'loadSample', slot, data, frames: hit.frames, channels: 2,
+      sampleRate: this.sampleRate, rootNote: 60, loopStart: 0, loopEnd: 0, loopMode: 0,
+    }, [data.buffer]);
+    return slot;
+  }
+
+  /** Render the deep layers for these notes now (an offline bounce awaits this before scheduling). */
+  async warmSomaDeep(notes: number[]): Promise<void> {
+    if (!this.isSoma() || !somaDeepSupported()) return;
+    const key = this.somaKey();
+    await Promise.all([...new Set(notes)].map((n) => requestDeep(this.params, key, n, this.sampleRate, getModule)));
+  }
+
+  /** Gate a scheduled voice at `ctxTime`. A native voice is stamped now, since its frames render ahead of the clock. */
+  noteOffAt(voiceId: number, ctxTime: number): void {
+    if (this.native?.owns(voiceId)) { this.native.offAt(voiceId, ctxTime); return; }
+    setTimeout(() => this.noteOff(voiceId, true), Math.max(0, ctxTime - this.node.context.currentTime) * 1000);
+  }
+
+  // ── Native engine (Windows app, nativeStream.ts) ─────────────────────────────
+  // While attached, sequenced notes render on the native engine and stream back into this
+  // instrument's output, so meters, FX and mixer see them as usual. Live notes stay in the worklet.
+
+  private native: NativeTrack | null = null;
+
+  attachNative(track: NativeTrack): void {
+    this.native = track;
+    track.connect(this.outGain ?? this.node.context.destination, this.analyser, () => { this.native = null; });
+    for (const [id, value] of this.params) track.mirror({ type: 'param', id, value });
+  }
+
+  /** The native side has no samples or wavetables: an instrument that needs them plays in the worklet. */
+  private detachNative(): void {
+    this.native?.dispose();
+    this.native = null;
   }
 
   noteOff(noteOrVoiceId: number, byVoiceId = false): void {
@@ -219,6 +344,7 @@ export class Instrument {
 
   /** Upload a KERA program's samples into engine slots. Idempotent per program id. */
   loadKeraProgram(program: KeraProgram): void {
+    this.detachNative();
     this.keraProgram = program;
     this.keraSlotOf.clear();
     this.keraRr.clear();
@@ -249,23 +375,48 @@ export class Instrument {
     ]);
   }
 
-  /** Play a note through the loaded KERA program — selects zones (velocity layers, round-robins)
-   *  and fires one sampled voice per matching zone. */
-  keraNoteOn(note: number, velocity127: number): void {
-    if (!this.keraProgram) return;
-    const zones = selectZones(this.keraProgram, note, velocity127, this.keraRr);
-    if (!zones.length) return;
+  /** The engine voices a note fires through the loaded KERA program: zones selected (velocity
+   *  layers, round-robins), each zone's tuning + its sample's fine-tune folded into detune cents
+   *  (the engine resamples from the sample's root itself), and the zone + program level folded
+   *  into the voice velocity (the engine scales amplitude by it; attenuation only, never > 1). */
+  private keraVoices(note: number, velocity127: number): { velocity: number; voices: Array<{ voiceId: number; slot: number; detune: number; startFrame: number }> } {
+    const prog = this.keraProgram;
+    if (!prog) return { velocity: 0, voices: [] };
+    const zones = selectZones(prog, note, velocity127, this.keraRr);
+    const sampleById = new Map(prog.samples.map((s) => [s.id, s]));
     const voices: Array<{ voiceId: number; slot: number; detune: number; startFrame: number }> = [];
+    let gainDb = -Infinity;
     for (const z of zones) {
       const slot = this.keraSlotOf.get(z.sampleId);
       if (slot === undefined) continue;
-      // Fold zone semis into detune cents so the engine's root-relative resample stays one path.
-      const detune = z.tuneSemis * 100 + z.tuneCents + this.keraProgram.transpose * 100;
+      const detune = z.tuneSemis * 100 + z.tuneCents + prog.transpose * 100 + (sampleById.get(z.sampleId)?.fineTune ?? 0);
       voices.push({ voiceId: this.nextVoiceId++, slot, detune, startFrame: 0 });
+      gainDb = Math.max(gainDb, z.gainDb);
     }
+    const level = Math.min(1, Math.pow(10, ((Number.isFinite(gainDb) ? gainDb : 0) + (prog.gainDb || 0)) / 20));
+    // voice.rs scales amplitude by (0.25 + 0.75·vel); solve for the vel that lands `level` lower.
+    const vel = Math.max(0.05, velocity127 / 127);
+    return { velocity: Math.max(0, ((0.25 + 0.75 * vel) * level - 0.25) / 0.75), voices };
+  }
+
+  /** Play a note through the loaded KERA program — one sampled voice per matching zone. */
+  keraNoteOn(note: number, velocity127: number): void {
+    const { velocity, voices } = this.keraVoices(note, velocity127);
     if (!voices.length) return;
     this.keraHeld.set(note, voices.map((v) => v.voiceId));
-    this.post({ type: 'noteOnSampled', note, velocity: Math.max(0.05, velocity127 / 127), frameOffset: 0, voices });
+    this.post({ type: 'noteOnSampled', note, velocity, frameOffset: 0, voices });
+  }
+
+  /** The offline twin of keraNoteOn: zones are chosen now (round-robins advance in note order),
+   *  voices fire at absolute frames on the engine's own clock. Returns the voice ids so the caller
+   *  can schedule their note-offs. */
+  keraScheduleNote(note: number, velocity127: number, onFrame: number, offFrame: number): number {
+    const { velocity, voices } = this.keraVoices(note, velocity127);
+    for (const v of voices) {
+      this.post({ type: 'scheduleOnSampled', note, velocity, voiceId: v.voiceId, frame: onFrame, slot: v.slot, detune: v.detune, startFrame: v.startFrame });
+      this.post({ type: 'scheduleOff', voiceId: v.voiceId, frame: offFrame });
+    }
+    return voices.length;
   }
 
   keraNoteOff(note: number): void {
@@ -285,9 +436,12 @@ export class Instrument {
    * posted before `startRendering()` and fired by the engine's own frame counter.
    * Returns the voice id so the caller can schedule the matching note-off.
    */
-  scheduleNoteOn(note: number, velocity01: number, frame: number): number {
+  scheduleNoteOn(key: number, velocity: number, frame: number): number {
     const voiceId = this.nextVoiceId++;
-    this.post({ type: 'scheduleOn', note, velocity: velocity01, voiceId, frame });
+    const { note, velocity01 } = this.mapNote(key, velocity, frame, false);
+    const deep = this.somaDeep(note, velocity01);
+    if (deep) this.post({ type: 'scheduleOnDeep', note, velocity: velocity01, voiceId, frame, ...deep });
+    else this.post({ type: 'scheduleOn', note, velocity: velocity01, voiceId, frame });
     return voiceId;
   }
 
@@ -309,13 +463,37 @@ export class Instrument {
     return this.readyPromise;
   }
 
+  /** Frame-stamped parameter writes: land inside the block at `frame`, live or in a bounce. */
+  paramsAt(frame: number, entries: Array<[number, number]>): void {
+    if (!entries.length) return;
+    this.post({ type: 'paramsAt', frame, ids: Int32Array.from(entries.map((e) => e[0])), values: Float32Array.from(entries.map((e) => e[1])) });
+  }
+
+  /** A modulator's write: reaches the engine but leaves the stored sound alone, so the patch keeps
+   *  its base value (and SOMA's per-sound cache isn't invalidated by a moving knob). */
+  modParam(id: number, value: number): void {
+    this.post({ type: 'param', id, value });
+  }
+
+  private captureWrite(id: number, value: number): void {
+    if (modCapture.active) modCapture.writes.push({ trackId: this.trackId, id, before: this.params.get(id) ?? value, after: value });
+  }
+
   setParam(id: number, value: number): void {
+    this.captureWrite(id, value);
+    this.params.set(id, value);
+    this.paramsKeyMemo = null;
     this.post({ type: 'param', id, value });
   }
 
   /** Bulk apply — one message instead of hundreds when loading a preset. */
   setParams(entries: Array<[number, number]>): void {
     if (!entries.length) return;
+    for (const [id, v] of entries) {
+      if (modCapture.active && this.params.get(id) !== v) this.captureWrite(id, v);
+      this.params.set(id, v);
+    }
+    this.paramsKeyMemo = null;
     this.post({
       type: 'params',
       ids: Int32Array.from(entries.map((e) => e[0])),
@@ -324,6 +502,7 @@ export class Instrument {
   }
 
   setMacro(index: number, value: number): void {
+    if (modCapture.active) modCapture.messages.push({ trackId: this.trackId, target: { kind: 'macro', index } });
     this.post({ type: 'macro', index, value });
   }
 
@@ -337,10 +516,12 @@ export class Instrument {
   }
 
   setModWheel(v: number): void {
+    if (modCapture.active) modCapture.messages.push({ trackId: this.trackId, target: { kind: 'mod-wheel' } });
     this.modWheelValue = Math.max(0, Math.min(1, v));
     this.post({ type: 'modWheel', value: this.modWheelValue });
   }
   setPitchBend(v: number): void {
+    if (modCapture.active) modCapture.messages.push({ trackId: this.trackId, target: { kind: 'pitch-bend' } });
     this.pitchBendValue = Math.max(-1, Math.min(1, v));
     this.post({ type: 'pitchBend', value: this.pitchBendValue });
   }
@@ -357,6 +538,7 @@ export class Instrument {
 
   /** Upload a wavetable: `data` is `frames * frameSize` samples; frameSize must be a power of 2. */
   loadWavetable(slot: number, data: Float32Array, frames: number, frameSize: number): void {
+    this.detachNative();
     // Transfer a copy so the caller keeps ownership of its bank.
     const copy = new Float32Array(data);
     this.node.port.postMessage({ type: 'wavetable', slot, data: copy, frames, frameSize }, [copy.buffer]);
@@ -366,6 +548,7 @@ export class Instrument {
     if (this.disposed) return;
     this.disposed = true;
     this.post({ type: 'dispose' });
+    this.detachNative();
     try { this.node.disconnect(); } catch { /* already detached */ }
     try { this.outGain?.disconnect(); } catch { /* already detached */ }
     try { this.analyser?.disconnect(); } catch { /* already detached */ }
@@ -374,6 +557,7 @@ export class Instrument {
 
   private post(msg: Record<string, unknown>): void {
     if (this.disposed) return;
+    if (this.native?.mirror(msg)) return;
     this.node.port.postMessage(msg);
   }
 }

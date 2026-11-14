@@ -1,3 +1,4 @@
+import { fetchClassIdsOf } from '../../../services/classRoster';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { BookHeart, ClipboardList, HeartHandshake, Lock, Newspaper, Sparkles, Users } from 'lucide-react';
 import {
@@ -94,12 +95,14 @@ const SupportCenterView: React.FC<Props> = ({ user, profile, onNavigate }) => {
   const editShared = (p: SupportPlan) => { setShared(list => (list || []).map(x => (x.learnerUid === p.learnerUid ? p : x))); setTeamDirty(true); };
   const teamSave = useAutosave(sharedPlan, teamDirty, p => saveTeamFields(p.learnerUid, { goals: p.goals, teamNotes: p.teamNotes || '' }));
 
+  const [subjectClassIds, setSubjectClassIds] = useState<Set<string>>(new Set());
+  useEffect(() => { let alive = true; if (subjectUid) fetchClassIdsOf(subjectUid).then(s => { if (alive) setSubjectClassIds(s); }); return () => { alive = false; }; }, [subjectUid]);
   const candidates: TeamMember[] = useMemo(() => {
     if (!subjectUid) return [];
     const m = new Map<string, TeamMember>();
-    for (const c of classes) if (c?.ownerId && c.ownerId !== subjectUid && c.ownerId !== uid && (c.enrolledStudents || []).includes(subjectUid)) m.set(c.ownerId, { uid: c.ownerId, name: c.ownerName || 'Teacher', role: 'teacher' });
+    for (const c of classes) if (c?.ownerId && c.ownerId !== subjectUid && c.ownerId !== uid && subjectClassIds.has(c.id)) m.set(c.ownerId, { uid: c.ownerId, name: c.ownerName || 'Teacher', role: 'teacher' });
     return [...m.values()];
-  }, [classes, subjectUid, uid]);
+  }, [classes, subjectUid, uid, subjectClassIds]);
 
   const self = who.kind === 'me';
   const mode: PlanMode = self && isChildAcct ? 'view' : 'family';

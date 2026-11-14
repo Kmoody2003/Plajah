@@ -23,9 +23,9 @@ const CONFIGS: Record<PitchSegment, {
     icon: Music,
     color: '#ff8c00',
     gradient: 'linear-gradient(135deg, #ff8c00 0%, #ff4500 100%)',
-    headline: 'Your music. Your 24/7 radio. Your 90%.',
+    headline: 'Your music. Your 24/7 radio. Your 95%.',
     subline: 'The first platform built for independent musicians who own their revenue.',
-    points: ['Artist Radio auto-built from your catalog', '90% of every tip, sale, and subscription', 'Backstage fan memberships — like Patreon, built in', 'Hide N Seek gamified discovery'],
+    points: ['Artist Radio auto-built from your catalog', '95% of every tip, sale, and membership before card fees, 100% with Plajah+', 'Backstage fan memberships — like Patreon, built in', 'Hide N Seek gamified discovery'],
     cta: 'plajah.com/for-music',
   },
   film: {
@@ -43,7 +43,7 @@ const CONFIGS: Record<PitchSegment, {
     gradient: 'linear-gradient(135deg, #10b981 0%, #06b6d4 100%)',
     headline: 'Write, publish, and get paid — on your terms.',
     subline: 'Articles, books, podcasts, and memberships. One owned platform.',
-    points: ['Direct reader subscriptions (90% to you)', 'E-books, podcasts, and articles cross-linked', 'Fediverse cross-posting to Mastodon + Bluesky', 'No algorithm. Your audience is yours.'],
+    points: ['Direct reader subscriptions (95% to you before card fees)', 'E-books, podcasts, and articles cross-linked', 'Fediverse cross-posting to Mastodon + Bluesky', 'No algorithm. Your audience is yours.'],
     cta: 'plajah.com/for-writers',
   },
 };

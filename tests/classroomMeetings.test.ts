@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 const compiled = ts.transpileModule(fs.readFileSync(new URL('../services/classroomMeetings.ts', import.meta.url), 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
 function harness(uid = 'teacher') {
-  const records = new Map<string, any>([['classrooms/school', { ownerId: 'teacher', enrolledStudents: ['student', 'student'] }]]);
+  const records = new Map<string, any>([['classrooms/school', { ownerId: 'teacher' }], ['classrooms/school/private/roster', { enrolledStudents: ['student', 'student'] }]]);
   const snapshot = (path: string) => ({ exists: () => records.has(path), data: () => records.get(path) });
   const firestore = {
     collection: (_db: unknown, path: string) => ({ path }),
@@ -34,14 +34,14 @@ test('native scheduling atomically creates a class session and an exact deduplic
 });
 test('external sessions preserve HTTPS links without creating native room data', async () => {
   const { api, records } = harness(); await api.scheduleClassroomMeeting('school', { ...form, meetingUrl: 'https://example.com/meeting' });
-  assert.equal(records.size, 2); assert.equal(records.get('liveClassSessions/session').meetingUrl, 'https://example.com/meeting');
+  assert.equal(records.size, 3); assert.equal(records.get('liveClassSessions/session').meetingUrl, 'https://example.com/meeting');
 });
 test('students cannot schedule and malformed scheduling data is rejected', async () => {
   await assert.rejects(harness('student').api.scheduleClassroomMeeting('school', form));
   const h = harness();
   await assert.rejects(h.api.scheduleClassroomMeeting('school', { ...form, durationMinutes: NaN }));
   await assert.rejects(h.api.scheduleClassroomMeeting('school', { ...form, meetingUrl: 'javascript:alert(1)' }));
-  assert.equal(h.records.size, 1);
+  assert.equal(h.records.size, 2);
 });
 test('only teacher starts native meeting; enrollment and ended state gate joining', async () => {
   const teacher = harness(); await teacher.api.scheduleClassroomMeeting('school', form);
@@ -51,7 +51,7 @@ test('only teacher starts native meeting; enrollment and ended state gate joinin
   teacher.records.forEach((value, key) => student.records.set(key, value));
   assert.equal((await student.api.joinClassroomMeeting('session')).id, room.id);
   await assert.rejects(student.api.endClassroomMeeting('session'), /Only the host/);
-  student.records.set('classrooms/school', { ownerId: 'teacher', enrolledStudents: [] });
+  student.records.set('classrooms/school/private/roster', { enrolledStudents: [] });
   await assert.rejects(student.api.joinClassroomMeeting('session'), /enrolled/);
   await teacher.api.endClassroomMeeting('session');
   await assert.rejects(teacher.api.joinClassroomMeeting('session'), /unavailable/);

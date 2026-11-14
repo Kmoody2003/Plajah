@@ -22,6 +22,19 @@ export const TRANSLATIONS: BibleTranslation[] = [
   { slug: 'codex',          label: 'Hebrew (WLC)',      lang: 'he', rtl: true, testament: 'OT' },
 ];
 
+/**
+ * Public-domain modern English editions on getbible.net. Not in TRANSLATIONS (Stage, Lectio and
+ * the presenters keep their own list); the Elevate player's scripture panel offers them, and
+ * switches to one when the reader on the stream is reading from it.
+ */
+export const EXTRA_ENGLISH_EDITIONS: BibleTranslation[] = [
+  { slug: 'web',          label: 'World English Bible',       lang: 'en', testament: 'BOTH' },
+  { slug: 'asv',          label: 'American Standard',         lang: 'en', testament: 'BOTH' },
+  { slug: 'akjv',         label: 'American King James',       lang: 'en', testament: 'BOTH' },
+  { slug: 'basicenglish', label: 'Bible in Basic English',    lang: 'en', testament: 'BOTH' },
+  { slug: 'ylt',          label: 'Young’s Literal',           lang: 'en', testament: 'BOTH' },
+];
+
 export interface BibleBook { num: number; name: string; chapters: number; testament: 'OT' | 'NT'; }
 
 // Standard 66-book canon with chapter counts (getbible book numbers 1–66).

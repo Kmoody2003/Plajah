@@ -86,7 +86,7 @@ export const TelaTypographyStudio: React.FC<TelaTypographyStudioProps> = ({
       className="select-none flex flex-col overflow-hidden text-white"
       style={{
         width: 440,
-        maxHeight: 'min(86vh, 640px)',
+        maxHeight: 'min(calc(100vh - 190px), 640px)',
         background: 'rgba(14, 11, 20, 0.98)',
         border: '1px solid rgba(255, 255, 255, 0.16)',
         borderRadius: 16,

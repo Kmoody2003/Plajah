@@ -42,7 +42,7 @@ export interface PsdAssetSink { putBitmap(bm: Bitmap8, name: string): string; pu
 
 // ── Adjustments ─────────────────────────────────────────────────────────────
 const HUE_RANGE_NAMES = ['reds', 'yellows', 'greens', 'cyans', 'blues', 'magentas'] as const;
-function adjFromPsd(a: PsdAdj, warn: (s: string) => void): Adjustment | null {
+export function adjFromPsd(a: PsdAdj, warn: (s: string) => void): Adjustment | null {
   switch (a.type) {
     case 'levels': {
       const ch = (c?: { shadowInput: number; highlightInput: number; shadowOutput: number; highlightOutput: number; midtoneInput: number }) => c ? { inBlack: c.shadowInput / 255, inWhite: c.highlightInput / 255, gamma: c.midtoneInput || 1, outBlack: c.shadowOutput / 255, outWhite: c.highlightOutput / 255 } : undefined;

@@ -44,6 +44,8 @@ export const CREDIT_ROLES: Record<CreditCategory, string[]> = {
   other: ['Liner Notes', 'Translation', 'Special Thanks'],
 };
 
+import type { TrackRights } from '../../rights/trackClearance';
+
 export type ExplicitFlag = 'none' | 'clean' | 'explicit';
 
 /** Per-song metadata — what a distributor, a CD's subcode and Chora's player all want. */
@@ -70,6 +72,8 @@ export interface TrackMeta {
   notes?: string;
   /** CD-Text fields; empty = derived from title/artist/credits. */
   cdText?: { title?: string; performer?: string; songwriter?: string; composer?: string; arranger?: string; message?: string };
+  /** The uploader's rights answers for this song (services/rights/trackClearance). */
+  rights?: TrackRights;
 }
 
 export type ReleaseType = 'ALBUM' | 'EP' | 'SINGLE' | 'MIX' | 'COMPILATION';

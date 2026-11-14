@@ -222,6 +222,9 @@ function liveDeps(extra: MusicIntelRouterDeps): MusicIntelDeps & { cleanup(): Pr
       return Object.fromEntries(rows.map(r => [r.id, r.data as TrackIntel]));
     },
     writeTrack: async (albumId, intel) => { await store.set(`${JOBS}/${albumId}/tracks/${encodeURIComponent(intel.trackId)}`, intel as any); },
+    // Public per-track analysis (rules: public read). patch = merge, so a saved key/theory survives.
+    writeTrackAnalysis: async (trackId, analysis) => { await store.patch(`trackAnalysis/${encodeURIComponent(trackId)}`, JSON.parse(JSON.stringify(analysis))); },
+    decodeCapSec: MEASURE_SEC,
     decode: async (url) => {
       const file = await cache.get(resolve(url));
       const buf = await ffmpegToBuffer(['-v', 'error', '-i', file, '-t', String(MEASURE_SEC), '-ac', '2', '-ar', '22050', '-f', 'f32le', 'pipe:1'], 120_000);
@@ -283,13 +286,15 @@ export function createMusicIntelRouter(extra: MusicIntelRouterDeps = {}): Router
   });
 
   r.post('/continue', async (req: Request, res: Response) => {
+    // Resuming spends model budget, so it takes an account. The cron is the driver for everything else.
+    const caller = await callerUid(req);
+    if (!caller) return res.status(401).json({ error: 'Sign in required.' });
     const albumId = String(req.body?.albumId || '').trim();
     if (!ID_RE.test(albumId)) return res.status(400).json({ error: 'albumId is required.' });
     const album = await fsGet(`albums/${albumId}`);
     if (!album || album.type !== 'MUSIC') return res.status(404).json({ error: 'No such album.' });
     if (album.isPrivate === true) {
-      const uid = await callerUid(req);
-      if (uid !== album.ownerId) return res.status(404).json({ error: 'No such album.' });
+      if (caller !== album.ownerId) return res.status(404).json({ error: 'No such album.' });
     }
     const job = await fsGet(`${JOBS}/${albumId}`) as MusicIntelJob | null;
     // Only resume what the creator started: a page view never starts a paid analysis.

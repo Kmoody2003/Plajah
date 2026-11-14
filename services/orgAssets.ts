@@ -1,53 +1,38 @@
-import { collection, doc, setDoc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
+import { userScopedKey } from './userScope';
+import { collection, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { ref, uploadBytesResumable, deleteObject } from 'firebase/storage';
 import { db, opsDb, auth, storage } from './firebase';
-import type { Organization, Ministry, TelaDoc } from '../types';
-import { defaultMinistries, ensureChurchMusicAndEducationDepartments } from './elevateTemplates';
+import type { Ministry, TelaDoc } from '../types';
+import { hqCacheKey, isStandaloneTeacherScopeId, onlyRowsInScope, ownUnitStorageIds, resolveHqReadScope, type HqReadScope } from './hqScopeWall';
+
+export { isStandaloneTeacherScopeId } from './hqScopeWall';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Org / per-account private Digital Asset Manager (Content HQ).
 //
 // Arbitrary files (brand specs, documents, PDFs, images, media, and paired
 // Original + Interactive Tela Documents) held privately for an ORG
-// (scopeKind 'org', scopeId = organization id, e.g. Great Faith Ministries)
+// (scopeKind 'org', scopeId = organization id)
 // or a single ACCOUNT (scopeKind 'user', scopeId = uid).
 // Each department of the organization has its own Folder Scope inside
 // Content HQ (e.g., "Christian Education", "Music Department", "Media", etc.).
 // ─────────────────────────────────────────────────────────────────────────
 
-export const GREAT_FAITH_MINISTRIES_DEFAULT_ID = 'great-faith-ministries';
-export const GREAT_FAITH_MINISTRIES_NAME = 'Great Faith Ministries';
-
-export const GREAT_FAITH_MINISTRIES_ORG: Organization = {
-  id: GREAT_FAITH_MINISTRIES_DEFAULT_ID,
-  orgType: 'CHURCH',
-  name: GREAT_FAITH_MINISTRIES_NAME,
-  handle: 'greatfaithministries',
-  tagline: 'Walking by Faith, Teaching the Word, Equipping the Saints.',
-  about:
-    'Great Faith Ministries — Official Plajah Elevate Organization Account, Christian Education Classrooms, Interactive Tela Curriculum Library, and Department Operations.',
-  accentColor: '#8B5CF6',
-  creatorId: 'great-faith-admin',
-  admins: ['great-faith-admin'],
-  category: 'Christian Ministry',
-  denomination: 'Christian Ministry',
-  isDemo: false,
-  isPublic: true,
-  isVerified: true,
-  ministries: defaultMinistries('CHURCH'),
-  createdAt: 1_725_000_000_000,
-  updatedAt: 1_725_000_000_000,
-};
-
 export type OwnerScope =
-  | { kind: 'org'; id: string; ownerUid?: string; adminUids?: string[]; label?: string }
-  | { kind: 'user'; id: string; label?: string };
+  | { kind: 'org'; id: string; ownerUid?: string; adminUids?: string[]; label?: string; departments?: Ministry[] }
+  | { kind: 'user'; id: string; label?: string }
+  /** id is the businessPages doc id. Its owner and staff seats share these files. */
+  | { kind: 'business'; id: string; ownerUid?: string; label?: string };
 
 export type OrgAssetKind = 'image' | 'video' | 'audio' | 'pdf' | 'doc' | 'other';
 
 export interface OrgAsset {
   id: string;
-  scopeKind: 'org' | 'user';
+  /** Who may use this file. Missing means open. Server-only (routes/elevateAccess.ts). */
+  access?: 'open' | 'restricted' | 'revoked';
+  accessSpec?: { departments?: string[]; roles?: string[]; users?: string[] };
+  accessUids?: string[];
+  scopeKind: 'org' | 'user' | 'business';
   scopeId: string;
   uploadedByUid: string;
   name: string;
@@ -72,11 +57,16 @@ export interface OrgAsset {
   sourceUrl?: string;
   /** Preserved text/markdown snapshot of the original document for instant preview inside Content HQ. */
   rawContentText?: string;
+  /** The server holds document text for this file. Read it with getHqAssetText. */
+  hasText?: boolean;
   tags?: string[];
   status?: import('../types').HqAssetStatus;
   scanStatus?: 'PENDING' | 'CLEAN' | 'QUARANTINED';
   scanReason?: string;
   scannedAt?: number;
+  /** Which checks really ran. Server-only. A file says "antivirus" only if ClamAV read it. */
+  scanEngine?: 'clamav' | 'heuristics';
+  scanEngineNote?: string;
   currentVersionId?: string;
   versionCount?: number;
   deletedAt?: number;
@@ -126,7 +116,7 @@ function contentTypeFor(file: File): string {
  * Throws STORAGE_CAP_EXCEEDED when over cap; a server/network error is non-fatal (fail-open,
  * so an outage never blocks all uploads — the client-side UX check still applies).
  */
-async function assertUnderHqCap(scope: OwnerScope, incomingBytes: number): Promise<void> {
+async function assertUnderHqCap(scope: { kind: 'org' | 'user' | 'business'; id: string }, incomingBytes: number): Promise<void> {
   let res: Response;
   try {
     const token = await auth.currentUser?.getIdToken();
@@ -143,103 +133,15 @@ async function assertUnderHqCap(scope: OwnerScope, incomingBytes: number): Promi
   }
 }
 
-const LOCAL_MIRROR_KEY = (scopeId: string) => `plajah_org_assets_mirror_v1_${scopeId}`;
-
-function readLocalMirrorAssets(scopeId: string): OrgAsset[] {
-  try {
-    const raw = localStorage.getItem(LOCAL_MIRROR_KEY(scopeId));
-    const list: OrgAsset[] = raw ? JSON.parse(raw) : [];
-    return Array.isArray(list) ? list : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalMirrorAssets(scopeId: string, assets: OrgAsset[]): void {
-  try {
-    localStorage.setItem(LOCAL_MIRROR_KEY(scopeId), JSON.stringify(assets));
-  } catch {
-    // ignore storage quota
-  }
-}
-
-/**
- * Resolves the Great Faith Ministries organization account (and NEVER routes to DEMO_CHURCH / 'demo-grace-chapel').
- */
-export async function resolveGreatFaithMinistriesOrg(preferredOrg?: Organization | null): Promise<Organization> {
-  if (
-    preferredOrg &&
-    !preferredOrg.isDemo &&
-    preferredOrg.id !== 'demo-grace-chapel' &&
-    preferredOrg.name?.toLowerCase().includes('great faith')
-  ) {
-    return {
-      ...preferredOrg,
-      ministries: ensureChurchMusicAndEducationDepartments(preferredOrg),
-    };
-  }
-
-  try {
-    const snap = await getDocs(collection(db, 'organizations'));
-    const allOrgs = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) } as Organization));
-    const exactGreatFaith = allOrgs.find(
-      o =>
-        !o.isDemo &&
-        o.id !== 'demo-grace-chapel' &&
-        (o.name?.toLowerCase().includes('great faith') || o.handle?.toLowerCase().includes('greatfaith'))
-    );
-    if (exactGreatFaith) {
-      return {
-        ...exactGreatFaith,
-        ministries: ensureChurchMusicAndEducationDepartments(exactGreatFaith),
-      };
-    }
-
-    if (preferredOrg && !preferredOrg.isDemo && preferredOrg.id !== 'demo-grace-chapel') {
-      return {
-        ...preferredOrg,
-        ministries: ensureChurchMusicAndEducationDepartments(preferredOrg),
-      };
-    }
-
-    const firstRealChurch = allOrgs.find(
-      o => !o.isDemo && o.id !== 'demo-grace-chapel' && (o.orgType === 'CHURCH' || o.orgType === 'RELIGIOUS')
-    );
-    if (firstRealChurch) {
-      return {
-        ...firstRealChurch,
-        ministries: ensureChurchMusicAndEducationDepartments(firstRealChurch),
-      };
-    }
-  } catch {
-    // offline or rules fallback
-  }
-
-  if (preferredOrg && !preferredOrg.isDemo && preferredOrg.id !== 'demo-grace-chapel') {
-    return {
-      ...preferredOrg,
-      ministries: ensureChurchMusicAndEducationDepartments(preferredOrg),
-    };
-  }
-
-  return GREAT_FAITH_MINISTRIES_ORG;
-}
-
 /**
  * Builds the organization's education department folder name as `<Organization Name> Education`
  * (e.g., "Great Faith Ministries Education", "Hope Foundation Education", "Civic Youth Alliance Education")
  * so that it works for any non-profit, school, civic, or faith organization structure.
  */
 export function getOrgEducationFolderName(orgName?: string | null): string {
-  const raw = (orgName || GREAT_FAITH_MINISTRIES_NAME).trim() || GREAT_FAITH_MINISTRIES_NAME;
-  const baseName =
-    raw
-      .split('·')[0]
-      .replace(/\s*\([^)]*\)\s*$/, '')
-      .trim() || GREAT_FAITH_MINISTRIES_NAME;
-  if (/\beducation$/i.test(baseName)) {
-    return baseName;
-  }
+  const baseName = (orgName || '').trim().split('·')[0].replace(/\s*\([^)]*\)\s*$/, '').trim();
+  if (!baseName) return 'Education';
+  if (/\beducation$/i.test(baseName)) return baseName;
   return `${baseName} Education`;
 }
 
@@ -363,17 +265,6 @@ export function resolveDocumentClassFolder(params: {
   return 'Lessons & Course Resources';
 }
 
-export function isStandaloneTeacherScopeId(scopeId?: string | null): boolean {
-  if (!scopeId) return false;
-  const clean = scopeId.trim().toLowerCase();
-  return (
-    clean === 'teacher-personal-hq' ||
-    clean.startsWith('teacher-') ||
-    clean.startsWith('teacher_') ||
-    clean.startsWith('user-')
-  );
-}
-
 export function getStandaloneTeacherScopeId(uid?: string | null): string {
   const clean = (uid || '').trim();
   if (!clean || clean === 'demo' || clean === 'demo-teacher' || clean === 'teacher_demo') {
@@ -385,52 +276,23 @@ export function getStandaloneTeacherScopeId(uid?: string | null): string {
   return `teacher-${clean}`;
 }
 
-/**
- * Returns the canonical Department Folder Scopes for an organization in Content HQ
- * (`<Organization Name> Education`, Music Department, Worship Teams, Media, Finance, etc.).
- */
+/** An org's folders are its own departments. An org with none has none: nothing is borrowed from another org. */
 export function getOrgDepartmentFolders(
-  org?: Organization | null,
-  scopeLabel?: string | null
-): Array<{
-  id: string;
-  folderName: string;
-  iconEmoji: string;
-  isChristianEd: boolean;
-}> {
-  const resolvedOrgName = org?.name || scopeLabel || GREAT_FAITH_MINISTRIES_NAME;
-  const eduFolderName = getOrgEducationFolderName(resolvedOrgName);
-  const ministries: Ministry[] = org
-    ? ensureChurchMusicAndEducationDepartments(org)
-    : GREAT_FAITH_MINISTRIES_ORG.ministries || defaultMinistries('CHURCH');
-
+  departments: Ministry[] | undefined,
+  orgName?: string | null
+): Array<{ id: string; folderName: string; iconEmoji: string; isChristianEd: boolean }> {
+  const eduFolderName = getOrgEducationFolderName(orgName);
   const seen = new Set<string>();
   const folders: Array<{ id: string; folderName: string; iconEmoji: string; isChristianEd: boolean }> = [];
-
-  // Ensure `<Organization Name> Education` is always the primary education folder scope at the top
-  folders.push({
-    id: 'dept-christian-education',
-    folderName: eduFolderName,
-    iconEmoji: '🎓',
-    isChristianEd: true,
-  });
-  seen.add(eduFolderName.toLowerCase());
-  seen.add('christian education');
-  seen.add('education');
-
-  for (const m of ministries) {
+  for (const m of departments || []) {
     const clean = (m.name || '').trim();
-    if (!clean || seen.has(clean.toLowerCase())) continue;
-    if (clean.toLowerCase().includes('christian education')) continue;
-    seen.add(clean.toLowerCase());
-    folders.push({
-      id: m.id,
-      folderName: clean,
-      iconEmoji: m.iconEmoji || '📁',
-      isChristianEd: clean.toLowerCase().includes('education'),
-    });
+    if (!clean) continue;
+    const isEducation = isOrgEducationFolderName(clean, orgName);
+    const folderName = isEducation ? eduFolderName : clean;
+    if (seen.has(folderName.toLowerCase())) continue;
+    seen.add(folderName.toLowerCase());
+    folders.push({ id: m.id, folderName, iconEmoji: isEducation ? '🎓' : m.iconEmoji || '📁', isChristianEd: isEducation });
   }
-
   return folders;
 }
 
@@ -468,8 +330,9 @@ export async function copyCurriculumPairToOrgAssets(params: {
   telaAsset: OrgAsset;
   answerKeyAsset?: OrgAsset;
 }> {
+  // No org named means it's this person's own: it never lands in some other org.
   const isStandaloneTeacher =
-    params.scopeKind === 'user' || isStandaloneTeacherScopeId(params.orgId);
+    params.scopeKind === 'user' || !params.orgId || isStandaloneTeacherScopeId(params.orgId);
 
   const documentClassFolder = resolveDocumentClassFolder({
     unitTitle: params.unitTitle,
@@ -488,16 +351,8 @@ export async function copyCurriculumPairToOrgAssets(params: {
     targetOrgName = params.orgName || auth.currentUser?.displayName || 'Teacher Content HQ';
     departmentFolder = params.isAnswerKeyOnly ? 'Answer Keys & Rubrics' : documentClassFolder;
   } else {
-    // Organization mode: never write to demo-grace-chapel
-    const isDemoId =
-      !params.orgId || params.orgId === 'demo-grace-chapel' || params.orgId.startsWith('demo-');
-    const resolvedOrg = isDemoId ? await resolveGreatFaithMinistriesOrg() : null;
-    targetOrgId = isDemoId
-      ? resolvedOrg?.id || GREAT_FAITH_MINISTRIES_DEFAULT_ID
-      : params.orgId!;
-    targetOrgName = isDemoId
-      ? resolvedOrg?.name || GREAT_FAITH_MINISTRIES_NAME
-      : params.orgName || GREAT_FAITH_MINISTRIES_NAME;
+    targetOrgId = params.orgId!;
+    targetOrgName = params.orgName || '';
     const rawDept = params.departmentFolder?.trim();
     departmentFolder =
       !rawDept || isOrgEducationFolderName(rawDept, targetOrgName)
@@ -506,7 +361,9 @@ export async function copyCurriculumPairToOrgAssets(params: {
   }
 
   const answerKeyFolder = isStandaloneTeacher ? 'Answer Keys & Rubrics' : departmentFolder;
-  const uid = auth.currentUser?.uid || (isStandaloneTeacher ? targetOrgId : 'great-faith-admin');
+  const uid = auth.currentUser?.uid || '';
+  // A person's files are stored under their uid, which is what the rules and the server check.
+  const assetScopeId = isStandaloneTeacher ? uid : targetOrgId;
   const now = Date.now();
   const baseSlug = params.unitTitle.replace(/[^\w.\-]+/g, '_').slice(0, 64);
 
@@ -526,13 +383,13 @@ export async function copyCurriculumPairToOrgAssets(params: {
   const originalAsset: OrgAsset = {
     id: originalAssetId,
     scopeKind: targetScopeKind,
-    scopeId: targetOrgId,
+    scopeId: assetScopeId,
     uploadedByUid: uid,
     name: `${params.unitTitle} (Original Document).${originalExt}`,
     kind: originalKind,
     mimeType: originalKind === 'pdf' ? 'application/pdf' : 'text/markdown',
     url: params.sourceUrl || `/api/hq/assets/${encodeURIComponent(originalAssetId)}/download`,
-    storagePath: `protected-hq/${targetScopeKind}/${targetOrgId}/${departmentFolder}/${originalAssetId}/${baseSlug}_original.${originalExt}`,
+    storagePath: `protected-hq/${targetScopeKind}/${assetScopeId}/${departmentFolder}/${originalAssetId}/${baseSlug}_original.${originalExt}`,
     sizeBytes: Math.max(512, originalBytes),
     folder: departmentFolder,
     departmentId: isStandaloneTeacher ? `class-${documentClassFolder}` : 'dept-christian-education',
@@ -554,13 +411,13 @@ export async function copyCurriculumPairToOrgAssets(params: {
   const telaAsset: OrgAsset = {
     id: telaAssetId,
     scopeKind: targetScopeKind,
-    scopeId: targetOrgId,
+    scopeId: assetScopeId,
     uploadedByUid: uid,
     name: `${params.unitTitle} (Interactive Tela Document).tela`,
     kind: 'doc',
     mimeType: 'application/vnd.plajah.tela+json',
     url: `/tela/${encodeURIComponent(params.telaDoc.id)}`,
-    storagePath: `protected-hq/${targetScopeKind}/${targetOrgId}/${departmentFolder}/${telaAssetId}/${baseSlug}.tela.json`,
+    storagePath: `protected-hq/${targetScopeKind}/${assetScopeId}/${departmentFolder}/${telaAssetId}/${baseSlug}.tela.json`,
     sizeBytes: Math.max(1024, telaBytes),
     folder: departmentFolder,
     departmentId: isStandaloneTeacher ? `class-${documentClassFolder}` : 'dept-christian-education',
@@ -585,13 +442,13 @@ export async function copyCurriculumPairToOrgAssets(params: {
     answerKeyAsset = {
       id: keyAssetId,
       scopeKind: targetScopeKind,
-      scopeId: targetOrgId,
+      scopeId: assetScopeId,
       uploadedByUid: uid,
       name: `${params.unitTitle} (Teacher Answer Key).doc`,
       kind: 'doc',
       mimeType: 'text/plain',
       url: `/api/hq/assets/${encodeURIComponent(keyAssetId)}/download`,
-      storagePath: `protected-hq/${targetScopeKind}/${targetOrgId}/${answerKeyFolder}/${keyAssetId}/${baseSlug}_answer_key.txt`,
+      storagePath: `protected-hq/${targetScopeKind}/${assetScopeId}/${answerKeyFolder}/${keyAssetId}/${baseSlug}_answer_key.txt`,
       sizeBytes: Math.max(256, keyBytes),
       folder: answerKeyFolder,
       departmentId: isStandaloneTeacher ? 'class-Answer Keys & Rubrics' : 'dept-christian-education',
@@ -609,60 +466,19 @@ export async function copyCurriculumPairToOrgAssets(params: {
     };
   }
 
-  // Save to local mirror for instant zero-latency access in Content HQ
-  const existingLocal = readLocalMirrorAssets(targetOrgId).filter(
-    a => a.id !== originalAssetId && a.id !== telaAssetId && a.id !== keyAssetId
-  );
-  const newMirrorList = [
-    telaAsset,
-    originalAsset,
-    ...(answerKeyAsset ? [answerKeyAsset] : []),
-    ...existingLocal,
-  ];
-  saveLocalMirrorAssets(targetOrgId, newMirrorList);
-
-  if (isStandaloneTeacher) {
-    // Also mirror under raw auth uid and 'teacher-personal-hq' so personal Content HQ always sees it
-    const rawUid = auth.currentUser?.uid;
-    const mirrorKeys = new Set<string>(['teacher-personal-hq']);
-    if (rawUid) mirrorKeys.add(rawUid);
-    for (const mKey of mirrorKeys) {
-      if (mKey === targetOrgId) continue;
-      const mExisting = readLocalMirrorAssets(mKey).filter(
-        a => a.id !== originalAssetId && a.id !== telaAssetId && a.id !== keyAssetId
-      );
-      saveLocalMirrorAssets(mKey, [
-        { ...telaAsset, scopeId: mKey },
-        { ...originalAsset, scopeId: mKey },
-        ...(answerKeyAsset ? [{ ...answerKeyAsset, scopeId: mKey }] : []),
-        ...mExisting,
-      ]);
+  // Signed out there is no account to file these under; the lesson itself stays in its own local list.
+  if (uid) {
+    try {
+      // The text goes through the server, which holds it behind the department check. A record never carries it.
+      for (const asset of [originalAsset, telaAsset, ...(answerKeyAsset ? [answerKeyAsset] : [])]) {
+        const { rawContentText: text, ...record } = asset;
+        await setDoc(doc(opsDb, COLLECTION, asset.id), record);
+        if (text) await saveHqAssetText(asset.id, text);
+      }
+    } catch (err) {
+      // The lesson still lists from its local unit until this can be written.
+      console.warn('[Content HQ] could not save curriculum assets:', err);
     }
-  } else if (
-    targetOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID &&
-    targetOrgName.toLowerCase().includes('great faith')
-  ) {
-    // Mirror under the canonical Great Faith Ministries ID when operating on Great Faith Ministries
-    const gfExisting = readLocalMirrorAssets(GREAT_FAITH_MINISTRIES_DEFAULT_ID).filter(
-      a => a.id !== originalAssetId && a.id !== telaAssetId && a.id !== keyAssetId
-    );
-    saveLocalMirrorAssets(GREAT_FAITH_MINISTRIES_DEFAULT_ID, [
-      { ...telaAsset, scopeId: GREAT_FAITH_MINISTRIES_DEFAULT_ID },
-      { ...originalAsset, scopeId: GREAT_FAITH_MINISTRIES_DEFAULT_ID },
-      ...(answerKeyAsset ? [{ ...answerKeyAsset, scopeId: GREAT_FAITH_MINISTRIES_DEFAULT_ID }] : []),
-      ...gfExisting,
-    ]);
-  }
-
-  // Persist to Firestore `orgAssets` collection (best-effort)
-  try {
-    await setDoc(doc(opsDb, COLLECTION, originalAsset.id), originalAsset);
-    await setDoc(doc(opsDb, COLLECTION, telaAsset.id), telaAsset);
-    if (answerKeyAsset) {
-      await setDoc(doc(opsDb, COLLECTION, answerKeyAsset.id), answerKeyAsset);
-    }
-  } catch {
-    // Local mirror is already updated if Firestore ops rules or offline mode is active
   }
 
   try {
@@ -684,286 +500,232 @@ export async function copyCurriculumPairToOrgAssets(params: {
   };
 }
 
-/**
- * All Content HQ assets for a scope:
- * - For `scope.kind === 'user'` (standalone teacher / personal Content HQ):
- *   organizes education assets into Document Class Folders (`Lessons & Course Resources`,
- *   `Assignments & Worksheets`, `Quizzes & Assessments`, `Syllabi & Master Source Docs`, `Answer Keys & Rubrics`).
- * - For `scope.kind === 'org'` (organization Content HQ):
- *   organizes education assets into `<Organization Name> Education` (normalizing any legacy `"Christian Education"` folder).
- */
-export async function listHqAssets(scope: OwnerScope, includeTrash = false): Promise<OrgAsset[]> {
-  const byId = new Map<string, OrgAsset>();
-  const isUserScope = scope.kind === 'user' || isStandaloneTeacherScopeId(scope.id);
-  const resolvedOrgName = scope.label || GREAT_FAITH_MINISTRIES_NAME;
-  const orgEduFolder = getOrgEducationFolderName(resolvedOrgName);
+async function hqFileHeaders(): Promise<Record<string, string>> {
+  const token = await auth.currentUser?.getIdToken();
+  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+}
 
-  const normalizeAssetFolder = (item: OrgAsset): OrgAsset => {
-    const docClass =
-      item.documentClassFolder ||
-      resolveDocumentClassFolder({
-        unitTitle: item.name,
-        isAnswerKey: item.assetVariant === 'ANSWER_KEY',
-      });
-    if (isUserScope) {
-      const targetFolder =
-        item.assetVariant === 'ANSWER_KEY'
-          ? 'Answer Keys & Rubrics'
-          : !item.folder || isOrgEducationFolderName(item.folder, resolvedOrgName)
-            ? docClass
-            : item.folder;
-      return {
-        ...item,
-        scopeKind: 'user',
-        scopeId: scope.id,
-        folder: targetFolder,
-        departmentName: targetFolder,
-        documentClassFolder: docClass,
-      };
-    }
-    const normalizedOrgFolder =
-      !item.folder || isOrgEducationFolderName(item.folder, resolvedOrgName)
-        ? orgEduFolder
-        : item.folder;
-    return {
-      ...item,
-      scopeKind: 'org',
-      scopeId: scope.id,
-      folder: normalizedOrgFolder,
-      departmentName: normalizedOrgFolder,
-      documentClassFolder: docClass,
-    };
-  };
+async function saveHqAssetText(assetId: string, text: string): Promise<void> {
+  const res = await fetch(`/api/hq/file/${encodeURIComponent(assetId)}/text`, { method: 'PUT', headers: await hqFileHeaders(), body: JSON.stringify({ text }) });
+  if (!res.ok) throw new Error(`Could not save the document text (${res.status}).`);
+}
 
-  // 1. Load local mirror for this scope
-  const mirrorScopeIds = isUserScope
-    ? Array.from(
-        new Set([
-          scope.id,
-          getStandaloneTeacherScopeId(scope.id),
-          'teacher-personal-hq',
-        ])
-      )
-    : Array.from(
-        new Set([
-          scope.id,
-          GREAT_FAITH_MINISTRIES_DEFAULT_ID,
-        ])
-      );
+/** The text behind a file's preview. Files held only on this device already carry theirs. */
+export async function getHqAssetText(asset: Pick<OrgAsset, 'id' | 'rawContentText' | 'hasText'>): Promise<string> {
+  if (asset.rawContentText) return asset.rawContentText;
+  if (!asset.hasText) return '';
+  try {
+    const res = await fetch(`/api/hq/file/${encodeURIComponent(asset.id)}/text`, { headers: await hqFileHeaders() });
+    return res.ok ? String((await res.json()).text || '') : '';
+  } catch { return ''; }
+}
 
-  for (const mId of mirrorScopeIds) {
-    for (const item of readLocalMirrorAssets(mId)) {
-      if ((includeTrash || !item.deletedAt) && !byId.has(item.id)) {
-        byId.set(item.id, normalizeAssetFolder(item));
-      }
-    }
+export type HqListStatus = 'ok' | 'offline' | 'denied';
+
+function readHqCache(uid: string, scopeId: string): OrgAsset[] {
+  try {
+    const rows = JSON.parse(localStorage.getItem(hqCacheKey(uid, scopeId)) || '[]');
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    return [];
   }
+}
 
-  // 2. Materialize any ingested curriculum units into Content HQ
-  const unitKeys = isUserScope
-    ? Array.from(
-        new Set([
-          `plajah_ingested_curriculum_units_v1_${scope.id}`,
-          `plajah_ingested_curriculum_units_v1_${getStandaloneTeacherScopeId(scope.id)}`,
-          `plajah_ingested_curriculum_units_v1_teacher-personal-hq`,
-        ])
-      )
-    : Array.from(
-        new Set([
-          `plajah_ingested_curriculum_units_v1_${scope.id}`,
-          `plajah_ingested_curriculum_units_v1_${GREAT_FAITH_MINISTRIES_DEFAULT_ID}`,
-        ])
-      );
+function writeHqCache(uid: string, scopeId: string, rows: OrgAsset[]): void {
+  try {
+    localStorage.setItem(hqCacheKey(uid, scopeId), JSON.stringify(rows.map(({ rawContentText: _text, ...row }) => row)));
+  } catch {
+    // ignore storage quota
+  }
+}
 
-  for (const key of unitKeys) {
+function normalizeAssetFolder(item: OrgAsset, read: HqReadScope, orgName: string): OrgAsset {
+  const isEducationDoc = !!item.assetVariant || !!item.documentClassFolder;
+  const docClass = item.documentClassFolder || (read.teacher || isEducationDoc
+    ? resolveDocumentClassFolder({ unitTitle: item.name, isAnswerKey: item.assetVariant === 'ANSWER_KEY' })
+    : undefined);
+  if (read.kind === 'user') {
+    const targetFolder = !read.teacher
+      ? item.folder
+      : item.assetVariant === 'ANSWER_KEY'
+        ? 'Answer Keys & Rubrics'
+        : !item.folder || isOrgEducationFolderName(item.folder, orgName) ? docClass : item.folder;
+    return { ...item, folder: targetFolder, departmentName: targetFolder, documentClassFolder: docClass };
+  }
+  const folder = item.folder && isOrgEducationFolderName(item.folder, orgName) ? getOrgEducationFolderName(orgName) : item.folder;
+  return { ...item, folder, departmentName: folder, documentClassFolder: docClass };
+}
+
+/** The lessons and department uploads this device holds for this scope, shown until they reach the server. */
+function localOnlyAssets(read: HqReadScope, orgName: string, known: Set<string>): OrgAsset[] {
+  const out: OrgAsset[] = [];
+  const add = (a: OrgAsset) => { if (!known.has(a.id)) { known.add(a.id); out.push(a); } };
+  const uid = auth.currentUser?.uid || '';
+  const orgEduFolder = getOrgEducationFolderName(orgName);
+  const isUserScope = read.kind === 'user';
+
+  // A business has no lessons on this device.
+  for (const storageId of read.kind === 'business' ? [] : ownUnitStorageIds(read)) {
     try {
-      const raw = localStorage.getItem(key);
+      const raw = localStorage.getItem(userScopedKey(uid, `plajah_ingested_curriculum_units_v1_${storageId}`));
       const units: any[] = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(units)) {
-        for (const u of units) {
-          if (!u || !u.telaDocId || !u.title) continue;
-          const docClass = resolveDocumentClassFolder({
-            unitTitle: u.title,
-            unitKind: u.kind,
-            libraryCategory: u.libraryCategory,
-            isAnswerKey: u.isAnswerKeyOnly,
-          });
-          const primaryFolder = isUserScope
-            ? u.isAnswerKeyOnly
-              ? 'Answer Keys & Rubrics'
-              : docClass
-            : !u.departmentFolder || isOrgEducationFolderName(u.departmentFolder, resolvedOrgName)
-              ? orgEduFolder
-              : u.departmentFolder;
-          const answerKeyFolder = isUserScope ? 'Answer Keys & Rubrics' : primaryFolder;
-
-          const origId = u.originalAssetId || `hq_orig_${u.telaDocId}`;
-          const telaId = u.telaAssetId || `hq_tela_${u.telaDocId}`;
-          const keyId = u.answerKeyAssetId || `hq_key_${u.telaDocId}`;
-          const isPdf = u.sourceKind === 'PDF_DOCUMENT';
-          const ext = isPdf ? 'pdf' : 'doc';
-          const created = Number(u.createdAt) || Date.now();
-
-          if (!byId.has(origId)) {
-            byId.set(origId, {
-              id: origId,
-              scopeKind: isUserScope ? 'user' : 'org',
-              scopeId: scope.id,
-              uploadedByUid: isUserScope ? scope.id : 'great-faith-admin',
-              name: `${u.title} (Original Document).${ext}`,
-              kind: isPdf ? 'pdf' : 'doc',
-              mimeType: isPdf ? 'application/pdf' : 'text/markdown',
-              url: u.sourceUrl || `/api/hq/assets/${encodeURIComponent(origId)}/download`,
-              storagePath: `protected-hq/${isUserScope ? 'user' : 'org'}/${scope.id}/${primaryFolder}/${origId}/${u.id}_original.${ext}`,
-              sizeBytes: Math.max(1024, (u.rawCurriculumText || u.title).length),
-              folder: primaryFolder,
-              departmentId: isUserScope ? `class-${docClass}` : 'dept-christian-education',
-              departmentName: primaryFolder,
-              documentClassFolder: docClass,
-              assetVariant: 'ORIGINAL_SOURCE',
-              telaDocId: u.telaDocId,
-              pairedAssetId: telaId,
-              sourceUrl: u.sourceUrl,
-              rawContentText: u.rawCurriculumText,
-              tags: [primaryFolder, docClass, 'Original Source', u.sourceKind || 'DOCUMENT'],
-              status: 'APPROVED',
-              scanStatus: 'CLEAN',
-              versionCount: 1,
-              uploadedAt: created,
-            });
-          }
-
-          if (!byId.has(telaId)) {
-            byId.set(telaId, {
-              id: telaId,
-              scopeKind: isUserScope ? 'user' : 'org',
-              scopeId: scope.id,
-              uploadedByUid: isUserScope ? scope.id : 'great-faith-admin',
-              name: `${u.title} (Interactive Tela Document).tela`,
-              kind: 'doc',
-              mimeType: 'application/vnd.plajah.tela+json',
-              url: `/tela/${encodeURIComponent(u.telaDocId)}`,
-              storagePath: `protected-hq/${isUserScope ? 'user' : 'org'}/${scope.id}/${primaryFolder}/${telaId}/${u.id}.tela.json`,
-              sizeBytes: Math.max(2048, (u.rawCurriculumText || u.title).length * 2),
-              folder: primaryFolder,
-              departmentId: isUserScope ? `class-${docClass}` : 'dept-christian-education',
-              departmentName: primaryFolder,
-              documentClassFolder: docClass,
-              assetVariant: 'TELA_DOCUMENT',
-              telaDocId: u.telaDocId,
-              pairedAssetId: origId,
-              sourceUrl: u.sourceUrl,
-              rawContentText: u.rawCurriculumText,
-              tags: [primaryFolder, docClass, 'Interactive Tela Document', 'Mastery Enabled'],
-              status: 'APPROVED',
-              scanStatus: 'CLEAN',
-              versionCount: 1,
-              uploadedAt: created + 1,
-            });
-          }
-
-          if (u.rawAnswerKeyText && !byId.has(keyId)) {
-            byId.set(keyId, {
-              id: keyId,
-              scopeKind: isUserScope ? 'user' : 'org',
-              scopeId: scope.id,
-              uploadedByUid: isUserScope ? scope.id : 'great-faith-admin',
-              name: `${u.title} (Teacher Answer Key).doc`,
-              kind: 'doc',
-              mimeType: 'text/plain',
-              url: `/api/hq/assets/${encodeURIComponent(keyId)}/download`,
-              storagePath: `protected-hq/${isUserScope ? 'user' : 'org'}/${scope.id}/${answerKeyFolder}/${keyId}/${u.id}_answer_key.txt`,
-              sizeBytes: Math.max(512, String(u.rawAnswerKeyText).length),
-              folder: answerKeyFolder,
-              departmentId: isUserScope ? 'class-Answer Keys & Rubrics' : 'dept-christian-education',
-              departmentName: answerKeyFolder,
-              documentClassFolder: 'Answer Keys & Rubrics',
-              assetVariant: 'ANSWER_KEY',
-              telaDocId: u.telaDocId,
-              pairedAssetId: telaId,
-              rawContentText: u.rawAnswerKeyText,
-              tags: [answerKeyFolder, 'Answer Keys & Rubrics', 'Answer Key', 'Teacher Only'],
-              status: 'APPROVED',
-              scanStatus: 'CLEAN',
-              versionCount: 1,
-              uploadedAt: created + 2,
-            });
-          }
-        }
+      if (!Array.isArray(units)) continue;
+      for (const u of units) {
+        if (!u || !u.telaDocId || !u.title) continue;
+        const docClass = resolveDocumentClassFolder({ unitTitle: u.title, unitKind: u.kind, libraryCategory: u.libraryCategory, isAnswerKey: u.isAnswerKeyOnly });
+        const primaryFolder = isUserScope
+          ? u.isAnswerKeyOnly ? 'Answer Keys & Rubrics' : docClass
+          : !u.departmentFolder || isOrgEducationFolderName(u.departmentFolder, orgName) ? orgEduFolder : u.departmentFolder;
+        const answerKeyFolder = isUserScope ? 'Answer Keys & Rubrics' : primaryFolder;
+        const origId = u.originalAssetId || `hq_orig_${u.telaDocId}`;
+        const telaId = u.telaAssetId || `hq_tela_${u.telaDocId}`;
+        const keyId = u.answerKeyAssetId || `hq_key_${u.telaDocId}`;
+        const isPdf = u.sourceKind === 'PDF_DOCUMENT';
+        const ext = isPdf ? 'pdf' : 'doc';
+        const created = Number(u.createdAt) || Date.now();
+        const shared = {
+          scopeKind: read.kind, scopeId: read.id, uploadedByUid: u.ownerUid || uid,
+          departmentId: isUserScope ? `class-${docClass}` : 'dept-christian-education',
+          telaDocId: u.telaDocId, status: 'APPROVED' as const, scanStatus: 'CLEAN' as const, versionCount: 1,
+        };
+        add({
+          ...shared, id: origId, name: `${u.title} (Original Document).${ext}`, kind: isPdf ? 'pdf' : 'doc',
+          mimeType: isPdf ? 'application/pdf' : 'text/markdown',
+          url: u.sourceUrl || `/api/hq/assets/${encodeURIComponent(origId)}/download`,
+          storagePath: `protected-hq/${read.kind}/${read.id}/${primaryFolder}/${origId}/${u.id}_original.${ext}`,
+          sizeBytes: Math.max(1024, (u.rawCurriculumText || u.title).length),
+          folder: primaryFolder, departmentName: primaryFolder, documentClassFolder: docClass,
+          assetVariant: 'ORIGINAL_SOURCE', pairedAssetId: telaId, sourceUrl: u.sourceUrl, rawContentText: u.rawCurriculumText,
+          tags: [primaryFolder, docClass, 'Original Source', u.sourceKind || 'DOCUMENT'], uploadedAt: created,
+        });
+        add({
+          ...shared, id: telaId, name: `${u.title} (Interactive Tela Document).tela`, kind: 'doc',
+          mimeType: 'application/vnd.plajah.tela+json', url: `/tela/${encodeURIComponent(u.telaDocId)}`,
+          storagePath: `protected-hq/${read.kind}/${read.id}/${primaryFolder}/${telaId}/${u.id}.tela.json`,
+          sizeBytes: Math.max(2048, (u.rawCurriculumText || u.title).length * 2),
+          folder: primaryFolder, departmentName: primaryFolder, documentClassFolder: docClass,
+          assetVariant: 'TELA_DOCUMENT', pairedAssetId: origId, sourceUrl: u.sourceUrl, rawContentText: u.rawCurriculumText,
+          tags: [primaryFolder, docClass, 'Interactive Tela Document', 'Mastery Enabled'], uploadedAt: created + 1,
+        });
+        if (u.rawAnswerKeyText) add({
+          ...shared, id: keyId, name: `${u.title} (Teacher Answer Key).doc`, kind: 'doc', mimeType: 'text/plain',
+          url: `/api/hq/assets/${encodeURIComponent(keyId)}/download`,
+          storagePath: `protected-hq/${read.kind}/${read.id}/${answerKeyFolder}/${keyId}/${u.id}_answer_key.txt`,
+          sizeBytes: Math.max(512, String(u.rawAnswerKeyText).length),
+          folder: answerKeyFolder, departmentName: answerKeyFolder, documentClassFolder: 'Answer Keys & Rubrics',
+          assetVariant: 'ANSWER_KEY', pairedAssetId: telaId, rawContentText: u.rawAnswerKeyText,
+          tags: [answerKeyFolder, 'Answer Keys & Rubrics', 'Answer Key', 'Teacher Only'], uploadedAt: created + 2,
+        });
       }
     } catch {
       // ignore parse errors
     }
   }
 
-  // 3. Materialize any volunteer/member department uploads into Content HQ under their department folder (for org scopes)
-  if (!isUserScope) {
-    const uploadKeys = Array.from(
-      new Set([
-        `plajah_vol_dept_uploads_v1_${scope.id}`,
-        `plajah_vol_dept_uploads_v1_${GREAT_FAITH_MINISTRIES_DEFAULT_ID}`,
-      ])
-    );
-    for (const uKey of uploadKeys) {
-      try {
-        const raw = localStorage.getItem(uKey);
-        const uploads: any[] = raw ? JSON.parse(raw) : [];
-        if (Array.isArray(uploads)) {
-          for (const up of uploads) {
-            if (!up || !up.id) continue;
-            const hqId = `hq_dept_up_${up.id}`;
-            if (!byId.has(hqId)) {
-              const rawDeptName = up.departmentName || orgEduFolder;
-              const deptName = isOrgEducationFolderName(rawDeptName, resolvedOrgName)
-                ? orgEduFolder
-                : rawDeptName;
-              const docClass = resolveDocumentClassFolder({ unitTitle: up.fileName || up.title });
-              byId.set(hqId, {
-                id: hqId,
-                scopeKind: 'org',
-                scopeId: scope.id,
-                uploadedByUid: up.uploadedByUid || 'member',
-                name: up.fileName || up.title || 'Department Upload',
-                kind: kindFromMime(up.mimeType || 'application/pdf', up.fileName || up.title || 'doc.pdf'),
-                mimeType: up.mimeType || 'application/pdf',
-                url: up.dataUrl || `/api/hq/assets/${encodeURIComponent(hqId)}/download`,
-                storagePath: `protected-hq/org/${scope.id}/${deptName}/${hqId}/${up.fileName || 'upload'}`,
-                sizeBytes: Number(up.sizeBytes) || 2048,
-                folder: deptName,
-                departmentId: up.departmentId || 'dept-christian-education',
-                departmentName: deptName,
-                documentClassFolder: docClass,
-                assetVariant: 'ORIGINAL_SOURCE',
-                rawContentText: up.notes || up.title,
-                tags: [deptName, docClass, 'Department Upload'],
-                status: 'APPROVED',
-                scanStatus: 'CLEAN',
-                versionCount: 1,
-                uploadedAt: Number(up.createdAt) || Date.now(),
-              });
-            }
-          }
+  if (read.kind === 'org') {
+    try {
+      const raw = localStorage.getItem(`plajah_vol_dept_uploads_v1_${read.id}`);
+      const uploads: any[] = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(uploads)) {
+        for (const up of uploads) {
+          if (!up || !up.id) continue;
+          const hqId = `hq_dept_up_${up.id}`;
+          const rawDeptName = up.departmentName || orgEduFolder;
+          const deptName = isOrgEducationFolderName(rawDeptName, orgName) ? orgEduFolder : rawDeptName;
+          add({
+            id: hqId, scopeKind: 'org', scopeId: read.id, uploadedByUid: up.uploadedByUid || 'member',
+            name: up.fileName || up.title || 'Department Upload',
+            kind: kindFromMime(up.mimeType || 'application/pdf', up.fileName || up.title || 'doc.pdf'),
+            mimeType: up.mimeType || 'application/pdf',
+            url: up.dataUrl || `/api/hq/assets/${encodeURIComponent(hqId)}/download`,
+            storagePath: `protected-hq/org/${read.id}/${deptName}/${hqId}/${up.fileName || 'upload'}`,
+            sizeBytes: Number(up.sizeBytes) || 2048, folder: deptName, departmentId: up.departmentId,
+            departmentName: deptName, assetVariant: 'ORIGINAL_SOURCE', rawContentText: up.notes || up.title,
+            tags: [deptName, 'Department Upload'], status: 'APPROVED', scanStatus: 'CLEAN', versionCount: 1,
+            uploadedAt: Number(up.createdAt) || Date.now(),
+          });
         }
-      } catch {
-        // ignore
       }
+    } catch {
+      // ignore
     }
   }
+  return out;
+}
 
-  // 4. Load Firestore `orgAssets`
+/**
+ * The Content HQ files this person may see in this scope, and whether the server could be reached.
+ * The server decides. Files held on this device are added only once the server has confirmed the
+ * person belongs to the scope, so nothing on a shared computer can cross between accounts.
+ */
+export async function listHqAssetsDetailed(scope: OwnerScope, includeTrash = false): Promise<{ assets: OrgAsset[]; status: HqListStatus }> {
+  const uid = auth.currentUser?.uid;
+  const read = resolveHqReadScope(scope, uid);
+  if (!read || !uid) return { assets: [], status: 'denied' };
+  const orgName = scope.label || '';
+  let rows: OrgAsset[] = [];
+  let status: HqListStatus = 'ok';
+  let belongs = read.kind === 'user';
   try {
-    const snap = await getDocs(query(collection(opsDb, COLLECTION), where('scopeId', '==', scope.id)));
-    for (const d of snap.docs) {
-      const data = d.data() as OrgAsset;
-      if (includeTrash || !data.deletedAt) {
-        byId.set(data.id, normalizeAssetFolder(data));
-      }
-    }
+    const token = await auth.currentUser?.getIdToken();
+    const res = await fetch(`/api/elevate/access/assets?scopeId=${encodeURIComponent(read.id)}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (res.status === 401 || res.status === 403) return { assets: [], status: 'denied' };
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const payload = await res.json();
+    rows = onlyRowsInScope(payload.assets as OrgAsset[], read);
+    belongs = belongs || payload.inScope === true;
+    writeHqCache(uid, read.id, rows);
   } catch {
-    // fallback to local mirror
+    status = 'offline';
+    rows = onlyRowsInScope(readHqCache(uid, read.id), read);
+    belongs = belongs || rows.length > 0;
   }
+  // Every id the server knows, trashed ones too, so a deleted lesson isn't brought back from local copies.
+  const known = new Set(rows.map(r => r.id));
+  const assets = rows.filter(r => includeTrash || !r.deletedAt).map(r => normalizeAssetFolder(r, read, orgName));
+  if (belongs) assets.push(...localOnlyAssets(read, orgName, known));
+  return { assets: assets.sort((a, b) => (b.uploadedAt || 0) - (a.uploadedAt || 0)), status };
+}
 
-  return Array.from(byId.values()).sort((a, b) => (b.uploadedAt || 0) - (a.uploadedAt || 0));
+/** The storage allowance the server enforces for a scope, in GB. */
+export async function fetchHqScopeCapGb(scope: { kind: string; id: string }): Promise<number> {
+  const res = await fetch('/api/hq/quota-check', { method: 'POST', headers: await hqFileHeaders(), body: JSON.stringify({ scopeKind: scope.kind, scopeId: scope.id, incomingBytes: 0 }) });
+  if (!res.ok) throw new Error(String(res.status));
+  return Math.round(Number((await res.json()).capBytes || 0) / 1024 ** 3);
+}
+
+/** Org files deliberately shared with this person. Each stays the org's; access ends when the org revokes it. */
+export async function listHqSharedWithMe(): Promise<OrgAsset[]> {
+  const user = auth.currentUser;
+  if (!user) return [];
+  try {
+    const res = await fetch('/api/elevate/access/shared-with-me', { headers: { Authorization: `Bearer ${await user.getIdToken()}` } });
+    return res.ok ? ((await res.json()).assets as OrgAsset[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Files other orgs shared with this org. Each stays theirs, read-only, until they take it back. */
+export async function listHqSharedWithOrg(orgId: string): Promise<OrgAsset[]> {
+  try {
+    const res = await fetch(`/api/elevate/access/shared-with-org?orgId=${encodeURIComponent(orgId)}`, { headers: await hqFileHeaders() });
+    return res.ok ? ((await res.json()).assets as OrgAsset[]) : [];
+  } catch { return []; }
+}
+
+export async function listHqOrgShares(assetId: string): Promise<{ id: string; name: string }[] | null> {
+  const res = await fetch(`/api/elevate/access/org-share?assetId=${encodeURIComponent(assetId)}`, { headers: await hqFileHeaders() });
+  return res.ok ? (await res.json()).orgs : null;
+}
+
+export async function setHqOrgShare(assetId: string, targetOrgId: string, on: boolean): Promise<void> {
+  const res = await fetch('/api/elevate/access/org-share', { method: 'POST', headers: await hqFileHeaders(), body: JSON.stringify({ assetId, targetOrgId, on }) });
+  if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || 'Could not save.');
+}
+
+export async function listHqAssets(scope: OwnerScope, includeTrash = false): Promise<OrgAsset[]> {
+  return (await listHqAssetsDetailed(scope, includeTrash)).assets;
 }
 
 /** Upload a file into a scope's DAM and write its Firestore record. */
@@ -974,10 +736,12 @@ export async function addHqAsset(
   onProgress?: (pct: number) => void,
 ): Promise<OrgAsset> {
   const uid = await ensureAuthUid();
-  await assertUnderHqCap(scope, file.size);
+  const target = resolveHqReadScope(scope, uid);
+  if (!target) throw new Error('You can only add files to your own Content HQ or your organization\'s.');
+  await assertUnderHqCap(target, file.size);
   const id = doc(collection(opsDb, COLLECTION)).id;
   const safe = file.name.replace(/[^\w.\-]+/g, '_');
-  const storagePath = `protected-hq/${scope.kind}/${scope.id}/${id}/${safe}`;
+  const storagePath = `protected-hq/${target.kind}/${target.id}/${id}/${safe}`;
   const storageRef = ref(storage, storagePath);
   const mimeType = contentTypeFor(file);
 
@@ -993,8 +757,8 @@ export async function addHqAsset(
 
   const asset: OrgAsset = {
     id,
-    scopeKind: scope.kind,
-    scopeId: scope.id,
+    scopeKind: target.kind,
+    scopeId: target.id,
     uploadedByUid: uid,
     name: file.name,
     kind: kindFromMime(mimeType, file.name),
@@ -1030,6 +794,12 @@ export async function addHqAsset(
  * a malware heuristic, then flips scanStatus to CLEAN or QUARANTINED server-side.
  * Returns the verdict, or null when the endpoint is unreachable (asset stays PENDING).
  */
+export async function setHqAssetAccess(assetId: string, access: 'open' | 'restricted' | 'revoked', spec: { departments: string[]; roles: string[]; users: string[] }): Promise<void> {
+  const token = await auth.currentUser?.getIdToken();
+  const res = await fetch('/api/elevate/access/asset', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ assetId, access, ...spec }) });
+  if (!res.ok) throw new Error((await res.json().catch(() => null))?.error || 'Could not change who can use this file.');
+}
+
 export async function requestHqScan(assetId: string): Promise<{ scanStatus: 'PENDING' | 'CLEAN' | 'QUARANTINED'; scanReason?: string } | null> {
   try {
     const token = await auth.currentUser?.getIdToken();
@@ -1047,8 +817,32 @@ export async function setHqAssetFolder(asset: OrgAsset, folder: string | undefin
   await setDoc(doc(opsDb, COLLECTION, asset.id), { folder: folder || null }, { merge: true });
 }
 
+/**
+ * Extra copies of imported course files. Older importers gave each re-import new ids, so every run
+ * added another Original + Tela (+ Answer Key) set for the same link. For each link and variant the
+ * copy the library's lesson points at is kept (`keepIds`); without one, the newest. Everything else
+ * from that link is a duplicate. Files people uploaded themselves (no link) are never counted.
+ */
+export function findDuplicateImportCopies(assets: OrgAsset[], courseUrls: ReadonlySet<string>, keepIds: ReadonlySet<string>): OrgAsset[] {
+  const groups = new Map<string, OrgAsset[]>();
+  for (const a of assets) {
+    if (a.deletedAt || !a.sourceUrl || !courseUrls.has(a.sourceUrl) || !/^hq_(orig|tela|key)_/.test(a.id)) continue;
+    const k = `${a.sourceUrl}\u0000${a.assetVariant || a.id.split('_')[1]}`;
+    const g = groups.get(k);
+    if (g) g.push(a); else groups.set(k, [a]);
+  }
+  const dupes: OrgAsset[] = [];
+  for (const g of groups.values()) {
+    if (g.length < 2) continue;
+    const keep = g.find(a => keepIds.has(a.id)) || [...g].sort((a, b) => (b.uploadedAt || 0) - (a.uploadedAt || 0))[0];
+    for (const a of g) if (a !== keep) dupes.push(a);
+  }
+  return dupes;
+}
+
 /** Delete an asset's Firestore record + its Storage object (best-effort). */
 export async function deleteHqAsset(asset: OrgAsset): Promise<void> {
+  await fetch(`/api/hq/file/${encodeURIComponent(asset.id)}/text`, { method: 'DELETE', headers: await hqFileHeaders() }).catch(() => {});
   await deleteDoc(doc(opsDb, COLLECTION, asset.id));
   try { await deleteObject(ref(storage, asset.storagePath)); } catch { /* object may already be gone */ }
 }

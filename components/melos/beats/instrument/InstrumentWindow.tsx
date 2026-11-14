@@ -13,6 +13,7 @@ import {
   listPresets, applyPresetToDoc, pushTrackPatch, saveUserPreset, deleteUserPreset, type PresetEntry,
 } from '../../../../services/melos/beats/presetHub';
 import { ARMED, SURFACE } from '../theme';
+import { NoteFxRack } from '../assist/NoteFxRack';
 
 interface Geometry { x: number; y: number; w: number; h: number }
 
@@ -29,6 +30,17 @@ const DEFAULT_SIZE: Record<string, { w: number; h: number }> = {
   ison: { w: 720, h: 620 },
   pneuma: { w: 720, h: 620 },
 };
+
+/** Fit a window inside the screen: no taller or wider than it, top edge moved up so the bottom shows. */
+function fitToScreen(g: Geometry): Geometry {
+  const w = Math.max(420, Math.min(g.w, window.innerWidth - 16));
+  const h = Math.max(320, Math.min(g.h, window.innerHeight - 16));
+  return {
+    w, h,
+    x: Math.max(8, Math.min(g.x, window.innerWidth - w - 8)),
+    y: Math.max(8, Math.min(g.y, window.innerHeight - h - 8)),
+  };
+}
 
 function loadGeo(type: InstrumentType): Geometry | null {
   try {
@@ -57,10 +69,12 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
   const accent = instrumentColor(type);
   const label = instrumentLabel(type);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [noteFxOpen, setNoteFxOpen] = useState(false);
 
   const [geo, setGeo] = useState<Geometry>(() => {
     const saved = loadGeo(type);
-    if (saved) return saved;
+    // A size saved on a bigger screen (or before the window was resized) mustn't hang off this one.
+    if (saved) return fitToScreen(saved);
     const d = DEFAULT_SIZE[type] ?? { w: 900, h: 660 };
     const w = Math.min(d.w, window.innerWidth - 48);
     const h = Math.min(d.h, window.innerHeight - 96);
@@ -72,10 +86,17 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
 
   const clamp = (g: Geometry): Geometry => ({
     w: Math.max(420, Math.min(g.w, window.innerWidth - 16)),
-    h: Math.max(320, Math.min(g.h, window.innerHeight - 24)),
+    // Never taller than the room below its top edge, so its scrolling body always reaches the bottom.
+    h: Math.max(320, Math.min(g.h, window.innerHeight - Math.max(0, g.y) - 8)),
     x: Math.max(-g.w + 120, Math.min(g.x, window.innerWidth - 120)),
     y: Math.max(0, Math.min(g.y, window.innerHeight - 48)),
   });
+  // The browser window shrinking (or the app resizing) refits it.
+  useEffect(() => {
+    const onResize = () => setGeo((g) => fitToScreen(g));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const startDrag = (mode: 'move' | 'resize') => (e: React.PointerEvent) => {
     // Buttons/inputs in the title bar keep their own gestures.
@@ -177,7 +198,7 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
           />
         ) : (
           <span
-            className="text-[11.5px] font-semibold text-white/85 truncate max-w-[180px]"
+            className="text-[11.5px] font-semibold text-white/85 truncate max-w-[260px]"
             onDoubleClick={() => { setNameText(track.name); setRenaming(true); }}
             title="Double-click to rename this track"
           >{track.name}</span>
@@ -192,7 +213,7 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
             <select
               value={currentIdx >= 0 ? presets[currentIdx].id : ''}
               onChange={(e) => { if (e.target.value) applyPreset(e.target.value); }}
-              className="h-6 max-w-[190px] bg-transparent text-[11px] text-white outline-none cursor-pointer"
+              className="h-6 max-w-[300px] bg-transparent text-[11px] text-white outline-none cursor-pointer"
               aria-label="Preset"
               title="Choose a preset"
             >
@@ -236,18 +257,31 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
         )}
 
         <button
+          onClick={() => setNoteFxOpen((v) => !v)}
+          aria-pressed={noteFxOpen}
+          className="h-7 px-2 rounded-lg border text-[10px]"
+          style={noteFxOpen || track.instrument?.noteFx?.length ? { borderColor: '#FF8C00', color: '#FF8C00', background: 'rgba(255,140,0,0.1)' } : { borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.45)' }}
+          title="Note FX: arp, gate, chord, echo and more, on drawn notes, steps and playing"
+        >Note FX</button>
+        {track.padOwned ? (
+          <span className="h-7 px-2 rounded-lg border border-white/12 flex items-center text-[10px] text-white/50"
+            title="This instrument belongs to a MEKA pad — play it from the pad (Keys mode, or select the pad and play your keyboard)"
+          >On pad {(track.padIndex ?? 0) + 1}</span>
+        ) : <button
           onClick={toggleArm}
           className="h-7 px-2 rounded-lg border flex items-center gap-1 text-[10px]"
           style={track.armed
             ? { borderColor: ARMED, color: ARMED, background: 'rgba(255,140,0,0.12)' }
             : { borderColor: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.45)' }}
           title={track.armed ? 'Armed — your keyboard and MIDI play this' : 'Arm for playing and recording'}
-        ><Circle size={7} fill="currentColor" /> {track.armed ? 'Armed' : 'Arm'}</button>
+        ><Circle size={7} fill="currentColor" /> {track.armed ? 'Armed' : 'Arm'}</button>}
 
         <button onClick={onClose} aria-label="Close instrument" className="w-7 h-7 grid place-items-center rounded-lg border border-white/10 text-white/45 hover:text-white hover:bg-white/10">
           <X size={13} />
         </button>
       </div>
+
+      {noteFxOpen && <div className="flex-none p-2 border-b border-white/10 max-h-[45%] overflow-y-auto"><NoteFxRack doc={doc} target={{ trackId: track.id }} onMutate={onMutate} /></div>}
 
       {/* user-preset manager drawer */}
       {manageOpen && (
@@ -266,7 +300,7 @@ export const InstrumentWindow: React.FC<Props> = ({ doc, track, onMutate, onClos
 
       {/* panel body — the instrument's own play surface. `relative` so deep editors that
           position absolute inset-0 fill the window, not the page. */}
-      <div className="relative flex-1 min-h-0 flex flex-col">
+      <div className="relative flex-1 min-h-0 flex flex-col overflow-y-auto overflow-x-hidden custom-scrollbar">
         {children}
       </div>
 

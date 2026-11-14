@@ -398,8 +398,8 @@ export const TaleoFilmCurator: React.FC<TaleoFilmCuratorProps> = ({
                   url={buildShareUrl('taleoCollection', 'halloween')}
                   imageUrl={CURATED_HALLOWEEN_FILMS[0]?.thumbnailUrl}
                   contentType="movie"
-                  ctaText="🎃 EXPLORE HALLOWEEN CURATION ON PLAJAH"
-                  plajahLabel="Share Halloween Curation to Plajah feed"
+                  ctaText="🎃 EXPLORE PLAJAH HORROR CLASSICS"
+                  plajahLabel="Share Plajah Horror Classics to Plajah feed"
                   onPostToPlajah={async () => {
                     let user = auth.currentUser;
                     if (!user) {
@@ -412,13 +412,13 @@ export const TaleoFilmCurator: React.FC<TaleoFilmCuratorProps> = ({
                       authorName: user.displayName || 'Cinema Curator',
                       authorAvatar: user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.uid}`,
                       authorRole: 'Filmmaker',
-                      content: `🎃 Explore the Special Halloween Curation on Plajah Cinema — 12 restored public-domain horror & Gothic cinema classics streaming free!\n\n${shareUrl}`,
+                      content: `🎃 Explore Plajah Horror Classics on Plajah Cinema — 12 restored public-domain horror & Gothic cinema classics streaming free!\n\n${shareUrl}`,
                       mediaType: 'IMAGE',
                       mediaUrl: CURATED_HALLOWEEN_FILMS[0]?.thumbnailUrl,
                       assetEmbed: {
                         type: 'TALEO_COLLECTION',
                         id: 'halloween',
-                        title: '🎃 Special Halloween Curation — 31 Nights of Cinema Terror',
+                        title: '🎃 Plajah Horror Classics — 31 Nights of Cinema Terror',
                         subtitle: `${CURATED_HALLOWEEN_FILMS.length} Restored Horror Classics · Free on Plajah Cinema`,
                         imageUrl: CURATED_HALLOWEEN_FILMS[0]?.thumbnailUrl,
                       },
@@ -430,7 +430,7 @@ export const TaleoFilmCurator: React.FC<TaleoFilmCuratorProps> = ({
                   className="px-4 py-2 rounded-full bg-[#FF8C00]/20 hover:bg-[#FF8C00]/30 border border-[#FF8C00]/40 text-[#FFB68D] text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all cursor-pointer"
                 >
                   <Share2 size={12} />
-                  <span>Share Halloween Curation</span>
+                  <span>Share Plajah Horror Classics</span>
                 </ShareButton>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">

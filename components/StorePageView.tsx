@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import ProductPage, { useProductRoute } from './store/ProductPage';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Search, ShoppingCart, Star, Filter, ChevronLeft, ChevronRight,
@@ -11,7 +13,7 @@ import { motion as m, AnimatePresence as AP } from 'motion/react';
 import { auth } from '../services/backendService';
 import {
   fetchAllActiveProducts, fetchFeaturedProducts, fetchProductsByCategory,
-  fetchProductReviews, addProductReview, listenToProducts,
+  listenToProducts, startStoreCheckout,
 } from '../services/storeService';
 import { availableFor, storefrontBadge, unitPriceCents, liveVariants } from '../services/inventoryCore';
 import { joinWaitlist, leaveWaitlist, isOnWaitlist } from '../services/inventoryService';
@@ -208,13 +210,17 @@ export const CartSidebar: React.FC<{
     return m;
   }, new Map<string, StoreCartItem[]>()));
 
-  return (
+  // Portalled so it sits above a full-screen product page wherever the shop is mounted.
+  return createPortal(
+    <>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/60 z-[340]" onClick={onClose} />
     <motion.div
       initial={{ x: '100%' }}
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
       transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-      className="fixed right-0 top-0 bottom-0 w-full sm:w-96 bg-[#0e0e0e] border-l border-white/[0.08] z-[200] flex flex-col shadow-2xl"
+      className="fixed right-0 top-0 bottom-0 w-full sm:w-96 bg-[#0e0e0e] border-l border-white/[0.08] z-[350] flex flex-col shadow-2xl"
     >
       <div className="px-6 py-5 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -305,295 +311,8 @@ export const CartSidebar: React.FC<{
         </div>
       )}
     </motion.div>
-  );
-};
-
-// ── Product Detail Modal ──────────────────────────────────────────────────────
-export const ProductDetailModal: React.FC<{
-  product: StoreProduct;
-  onClose: () => void;
-  onAddToCart: (product: StoreProduct, variantId?: string, quantity?: number) => void;
-}> = ({ product, onClose, onAddToCart }) => {
-  const [selectedImage, setSelectedImage] = useState(0);
-  const [selectedVariant, setSelectedVariant] = useState<string | undefined>(product.variants?.length === 1 ? product.variants[0].id : undefined);
-  const [onList, setOnList] = useState(false);
-  const [listBusy, setListBusy] = useState(false);
-  const [listMsg, setListMsg] = useState('');
-  const [quantity, setQuantity] = useState(1);
-  const [reviews, setReviews] = useState<StoreReview[]>([]);
-  const [showReviewForm, setShowReviewForm] = useState(false);
-  const [reviewRating, setReviewRating] = useState(5);
-  const [reviewTitle, setReviewTitle] = useState('');
-  const [reviewBody, setReviewBody] = useState('');
-  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'REVIEWS' | 'SHIPPING'>('OVERVIEW');
-
-  useEffect(() => {
-    fetchProductReviews(product.id).then(setReviews);
-    isOnWaitlist(product.id).then(setOnList);
-  }, [product.id]);
-
-  const hasOptions = !!product.variants?.length;
-  const needsChoice = hasOptions && !selectedVariant;
-  const avail = needsChoice ? Infinity : availableFor(product, selectedVariant);
-  const soldOut = hasOptions ? (needsChoice ? storefrontBadge(product).soldOut : avail <= 0) : avail <= 0;
-  const unitPrice = unitPriceCents(product, selectedVariant) / 100;
-  const stockBadge = needsChoice ? storefrontBadge(product) : storefrontBadge(product, selectedVariant);
-  const toggleWaitlist = async () => {
-    if (!auth.currentUser) { setListMsg('Sign in to get notified.'); return; }
-    setListBusy(true); setListMsg('');
-    try {
-      if (onList) { await leaveWaitlist(product.id); setOnList(false); }
-      else { await joinWaitlist(product.id); setOnList(true); setListMsg("We'll let you know the moment it's back."); }
-    } catch { setListMsg('Couldn\'t save that — try again.'); }
-    finally { setListBusy(false); }
-  };
-
-  const avgRating = reviews.length > 0 ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length : product.rating || 0;
-
-  const handleSubmitReview = async () => {
-    if (!auth.currentUser || !reviewBody.trim()) return;
-    setIsSubmittingReview(true);
-    try {
-      await addProductReview({
-        productId: product.id,
-        reviewerId: auth.currentUser.uid,
-        reviewerName: auth.currentUser.displayName || 'Anonymous',
-        reviewerPhoto: auth.currentUser.photoURL || '',
-        rating: reviewRating,
-        title: reviewTitle,
-        body: reviewBody,
-        isVerifiedPurchase: false,
-      });
-      setReviews(prev => [{
-        id: Date.now().toString(), productId: product.id, reviewerId: auth.currentUser!.uid,
-        reviewerName: auth.currentUser!.displayName || 'Anonymous', reviewerPhoto: auth.currentUser!.photoURL || '',
-        rating: reviewRating, title: reviewTitle, body: reviewBody, isVerifiedPurchase: false,
-        helpfulCount: 0, timestamp: Date.now(),
-      }, ...prev]);
-      setShowReviewForm(false);
-      setReviewBody('');
-      setReviewTitle('');
-      setReviewRating(5);
-    } finally {
-      setIsSubmittingReview(false);
-    }
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[300] flex items-center justify-center p-4 overflow-y-auto"
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        className="max-w-4xl w-full bg-[#0e0e0e] border border-white/10 rounded-3xl overflow-hidden shadow-2xl my-4"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex flex-col md:flex-row">
-          {/* Images */}
-          <div className="md:w-1/2 p-6">
-            <div className="aspect-square rounded-2xl overflow-hidden bg-black/40 mb-3">
-              <img src={product.images[selectedImage] || ''} alt={product.title}
-                className="w-full h-full object-cover" />
-            </div>
-            {product.images.length > 1 && (
-              <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-                {product.images.map((img, i) => (
-                  <button key={i} onClick={() => setSelectedImage(i)}
-                    className={`w-14 h-14 rounded-xl overflow-hidden shrink-0 border-2 transition-all ${selectedImage === i ? 'border-small-orange' : 'border-white/10 hover:border-white/20'}`}>
-                    <img src={img} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Info */}
-          <div className="md:w-1/2 p-6 flex flex-col">
-            <div className="flex items-start justify-between gap-4 mb-4">
-              <div>
-                <span className="text-[9px] font-black uppercase tracking-widest text-white/30 mb-1 block">
-                  {product.category} · {product.sellerName}
-                </span>
-                <h2 className="text-xl font-black uppercase tracking-tighter">{product.title}</h2>
-              </div>
-              <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-xl shrink-0"><X size={18} /></button>
-            </div>
-
-            {/* Rating */}
-            <div className="flex items-center gap-3 mb-4">
-              <StarRating rating={avgRating} size={14} />
-              <span className="text-[10px] text-white/30">{avgRating.toFixed(1)} ({reviews.length} reviews)</span>
-            </div>
-
-            {/* Price */}
-            <div className="flex items-baseline gap-3 mb-6">
-              <span className="text-3xl font-black text-small-orange">${unitPrice.toFixed(2)}</span>
-              {product.compareAtPrice && (
-                <>
-                  <span className="text-base text-white/25 line-through">${product.compareAtPrice.toFixed(2)}</span>
-                  <span className="px-2 py-0.5 bg-red-500/20 text-red-400 text-[8px] font-black rounded-full">
-                    -{Math.round((1 - product.price / product.compareAtPrice) * 100)}%
-                  </span>
-                </>
-              )}
-            </div>
-
-            {/* Variants */}
-            {product.variants && product.variants.length > 0 && (
-              <div className="mb-4">
-                <label className="text-[9px] font-black uppercase tracking-widest text-white/30 block mb-2">Select Option</label>
-                <div className="flex flex-wrap gap-2">
-                  {liveVariants(product).map(v => {
-                    const out = availableFor(product, v.id) <= 0;
-                    return (
-                      <button key={v.id} onClick={() => { setSelectedVariant(v.id); setQuantity(1); }}
-                        disabled={out} aria-pressed={selectedVariant === v.id}
-                        className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border disabled:opacity-30 disabled:cursor-not-allowed disabled:line-through ${selectedVariant === v.id ? 'bg-small-orange border-small-orange text-white' : 'border-white/10 hover:border-white/20 text-white/60'}`}>
-                        {v.name}
-                        {out && ' (sold out)'}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Quantity + availability */}
-            {!soldOut && (
-              <div className="flex items-center gap-4 mb-6">
-                <div className="flex items-center gap-2 bg-white/[0.05] rounded-xl border border-white/10">
-                  <button onClick={() => setQuantity(q => Math.max(1, q - 1))} aria-label="One fewer" className="p-2.5 hover:bg-white/5 rounded-xl transition-all">
-                    <Minus size={14} />
-                  </button>
-                  <span className="w-8 text-center font-black">{quantity}</span>
-                  <button onClick={() => setQuantity(q => Math.min(Math.min(avail, 99), q + 1))} aria-label="One more" disabled={quantity >= Math.min(avail, 99)} className="p-2.5 hover:bg-white/5 rounded-xl transition-all disabled:opacity-30">
-                    <Plus size={14} />
-                  </button>
-                </div>
-                {stockBadge.label && <span className="text-[10px] font-bold text-red-400">{stockBadge.label}</span>}
-              </div>
-            )}
-
-            {/* Actions */}
-            {soldOut ? (
-              <div className="mb-6 space-y-2">
-                <button onClick={toggleWaitlist} disabled={listBusy}
-                  className={`w-full py-3.5 font-black uppercase tracking-widest text-[10px] rounded-2xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${onList ? 'bg-white/10 text-white' : 'bg-small-orange text-white hover:bg-small-orange/80'}`}>
-                  {listBusy ? <Loader2 size={15} className="animate-spin" /> : <Bell size={15} />} {onList ? "You're on the list — tap to cancel" : 'Notify me when it\'s back'}
-                </button>
-                {listMsg && <p className="text-[10px] text-white/40 text-center">{listMsg}</p>}
-              </div>
-            ) : (
-              <div className="flex gap-3 mb-6">
-                <button
-                  onClick={() => onAddToCart(product, selectedVariant, quantity)}
-                  disabled={needsChoice}
-                  className="flex-1 py-3.5 bg-small-orange text-white font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-small-orange/80 transition-all disabled:opacity-40 flex items-center justify-center gap-2"
-                >
-                  <ShoppingCart size={16} /> {needsChoice ? 'Choose an option' : 'Add to Cart'}
-                </button>
-                <button className="p-3.5 bg-white/5 rounded-2xl hover:bg-white/10 transition-all border border-white/10" aria-label="Save for later">
-                  <Heart size={18} className="text-white/40" />
-                </button>
-              </div>
-            )}
-
-            {/* Trust badges */}
-            <div className="flex items-center gap-4 mb-6">
-              {[
-                { icon: Shield, label: 'Buyer Protected' },
-                { icon: Truck, label: 'Free over $50' },
-                { icon: Zap, label: 'Fast Delivery' },
-              ].map(({ icon: Icon, label }) => (
-                <div key={label} className="flex items-center gap-1.5 text-[8px] font-bold text-white/20">
-                  <Icon size={11} className="text-white/20" /> {label}
-                </div>
-              ))}
-            </div>
-
-            {/* Tabs */}
-            <div className="flex gap-1 p-1 bg-black/30 rounded-xl mb-4">
-              {(['OVERVIEW', 'REVIEWS', 'SHIPPING'] as const).map(tab => (
-                <button key={tab} onClick={() => setActiveTab(tab)}
-                  className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}>
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            {activeTab === 'OVERVIEW' && (
-              <p className="text-[11px] text-white/50 leading-relaxed">{product.description}</p>
-            )}
-
-            {activeTab === 'REVIEWS' && (
-              <div className="space-y-3 max-h-48 overflow-y-auto scrollbar-hide">
-                {!showReviewForm && auth.currentUser && (
-                  <button onClick={() => setShowReviewForm(true)}
-                    className="w-full py-2 border border-dashed border-white/10 rounded-xl text-[9px] font-black uppercase tracking-widest text-white/20 hover:text-white hover:border-white/20 transition-all">
-                    Write a Review
-                  </button>
-                )}
-                {showReviewForm && (
-                  <div className="p-3 bg-white/[0.03] border border-white/[0.08] rounded-xl space-y-3">
-                    <StarRating rating={reviewRating} onRate={setReviewRating} size={18} />
-                    <input value={reviewTitle} onChange={e => setReviewTitle(e.target.value)} placeholder="Review title…"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none" />
-                    <textarea value={reviewBody} onChange={e => setReviewBody(e.target.value)} placeholder="Share your experience…" rows={3}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none resize-none" />
-                    <div className="flex gap-2">
-                      <button onClick={() => setShowReviewForm(false)} className="flex-1 py-2 bg-white/5 rounded-xl text-[9px] font-black uppercase text-white/30">Cancel</button>
-                      <button onClick={handleSubmitReview} disabled={isSubmittingReview || !reviewBody.trim()}
-                        className="flex-1 py-2 bg-small-orange rounded-xl text-[9px] font-black uppercase text-white disabled:opacity-30">
-                        {isSubmittingReview ? 'Posting…' : 'Post'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {reviews.map(r => (
-                  <div key={r.id} className="p-3 bg-white/[0.03] border border-white/[0.06] rounded-xl">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <img src={r.reviewerPhoto || `https://api.dicebear.com/7.x/avataaars/svg?seed=${r.reviewerId}`}
-                        className="w-6 h-6 rounded-full object-cover" />
-                      <span className="text-[10px] font-black">{r.reviewerName}</span>
-                      {r.isVerifiedPurchase && <span className="text-[8px] text-green-400 font-bold">✓ Verified</span>}
-                    </div>
-                    <StarRating rating={r.rating} size={11} />
-                    {r.title && <p className="text-[11px] font-bold mt-1">{r.title}</p>}
-                    <p className="text-[10px] text-white/40 mt-1">{r.body}</p>
-                  </div>
-                ))}
-                {reviews.length === 0 && <p className="text-[9px] text-white/20 text-center py-4">No reviews yet</p>}
-              </div>
-            )}
-
-            {activeTab === 'SHIPPING' && (
-              <div className="space-y-3">
-                {[
-                  { icon: Truck, label: 'Standard Shipping', desc: '5-7 business days · $5.99 (free over $50)' },
-                  { icon: Zap, label: 'Express Shipping', desc: '2-3 business days · $12.99' },
-                  { icon: Shield, label: 'Returns', desc: '30-day hassle-free returns on most items' },
-                ].map(({ icon: Icon, label, desc }) => (
-                  <div key={label} className="flex items-start gap-3 p-3 bg-white/[0.03] rounded-xl">
-                    <Icon size={14} className="text-small-orange shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest">{label}</p>
-                      <p className="text-[9px] text-white/30">{desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>
+    </>,
+    document.body,
   );
 };
 
@@ -615,7 +334,9 @@ const StorePageView: React.FC<StorePageViewProps> = ({ onBack, onGarageSale, sel
   const [searchQuery, setSearchQuery] = useState('');
   const [layout, setLayout] = useState<'grid' | 'list'>('grid');
   const [showCart, setShowCart] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<StoreProduct | null>(null);
+  const route = useProductRoute(products.length ? products.map(p => p.id) : null);
+  const selectedProduct = route.openId ? products.find(p => p.id === route.openId) || null : null;
+  const openProduct = (p: StoreProduct) => route.open(p.id);
   const [isLoading, setIsLoading] = useState(true);
   const [showCheckout, setShowCheckout] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
@@ -669,7 +390,7 @@ const StorePageView: React.FC<StorePageViewProps> = ({ onBack, onGarageSale, sel
   useEffect(() => { if (hydrated.current) persistCart(cart); }, [cart]);
 
   const addToCart = (product: StoreProduct, variantId?: string, quantity = 1) => {
-    if (product.variants?.length && !variantId) { setSelectedProduct(product); return; }   // pick a size first
+    if (product.variants?.length && !variantId) { openProduct(product); return; }   // pick a size first
     const avail = availableFor(product, variantId);
     if (avail <= 0) return;
     const variant = product.variants?.find(v => v.id === variantId);
@@ -680,7 +401,6 @@ const StorePageView: React.FC<StorePageViewProps> = ({ onBack, onGarageSale, sel
       }
       return [...prev, { product, variantId, variantName: variant?.name, quantity: Math.min(avail, quantity) }];
     });
-    setSelectedProduct(null);
     setCheckoutError('');
   };
 
@@ -813,7 +533,7 @@ const StorePageView: React.FC<StorePageViewProps> = ({ onBack, onGarageSale, sel
                       Add to Cart
                     </button>
                     <button
-                      onClick={() => setSelectedProduct(featured[featuredSlide])}
+                      onClick={() => featured[featuredSlide] && openProduct(featured[featuredSlide])}
                       className="px-6 py-2.5 bg-white/10 text-white text-[10px] font-black uppercase tracking-widest rounded-full hover:bg-white/20 transition-all"
                     >
                       View
@@ -919,7 +639,7 @@ const StorePageView: React.FC<StorePageViewProps> = ({ onBack, onGarageSale, sel
               <ProductCard
                 key={product.id}
                 product={product}
-                onSelect={() => setSelectedProduct(product)}
+                onSelect={() => openProduct(product)}
                 onAddToCart={() => addToCart(product)}
                 layout={layout}
               />
@@ -932,8 +652,6 @@ const StorePageView: React.FC<StorePageViewProps> = ({ onBack, onGarageSale, sel
       <AnimatePresence>
         {showCart && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/60 z-[190]" onClick={() => setShowCart(false)} />
             <CartSidebar
               items={cart}
               onUpdateQty={updateQty}
@@ -948,15 +666,21 @@ const StorePageView: React.FC<StorePageViewProps> = ({ onBack, onGarageSale, sel
       </AnimatePresence>
 
       {/* ── PRODUCT DETAIL ─────────────────────────────────────── */}
-      <AnimatePresence>
-        {selectedProduct && (
-          <ProductDetailModal
-            product={selectedProduct}
-            onClose={() => setSelectedProduct(null)}
-            onAddToCart={addToCart}
-          />
-        )}
-      </AnimatePresence>
+      {selectedProduct && (
+        <ProductPage
+          product={selectedProduct}
+          related={products.filter(p => p.id !== selectedProduct.id && p.sellerId === selectedProduct.sellerId)
+            .sort((a, b) => Number(b.category === selectedProduct.category) - Number(a.category === selectedProduct.category))}
+          shopName={selectedProduct.sellerName || 'this shop'}
+          backLabel={embedded ? `${selectedProduct.sellerName || 'Shop'}` : 'Store'}
+          cartCount={cart.reduce((n, i) => n + i.quantity, 0)}
+          onOpenCart={() => setShowCart(true)}
+          onAddToCart={addToCart}
+          onBuyNow={async (p, v, q) => { persistCart(cart); await startStoreCheckout(p.sellerId, [{ product: p, variantId: v, quantity: q || 1 }]); }}
+          onOpenProduct={openProduct}
+          onBack={route.close}
+        />
+      )}
 
       {/* ── ORDER SUCCESS TOAST ─────────────────────────────────── */}
       <AnimatePresence>

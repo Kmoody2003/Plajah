@@ -13,6 +13,7 @@
  * the live canvas film. Interactive content (kind 'interactive') can be uploaded to Mux but has no Reello or hall actions.
  */
 import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { opsDb } from '../../firebase';
 import { auth, db, pollMuxUploadUntilReady, uploadFile, uploadVideoFileMux } from '../../backendService';
 import { buildProvenance } from '../../creatorPassport';
 import { forgetHallFilm } from './experienceFilmClient';
@@ -157,7 +158,7 @@ async function syncHallFor(rec: ExperienceRecord): Promise<ExperienceRecord> {
   const reello: ReelloVideoState = rec.publishedReelloId ? await getReelloState(rec.publishedReelloId) : { exists: false };
   const pub = hallBlockers(rec, reello).length ? null : toPublicFilm(rec, reello);
   if (!pub) return removeFromHall(rec);
-  await setDoc(doc(db, HALL, rec.exhibitId), stripUndefined(pub));
+  await setDoc(doc(opsDb, HALL, rec.exhibitId), stripUndefined(pub));
   forgetHallFilm(rec.exhibitId);
   return rec;
 }
@@ -176,7 +177,7 @@ export async function putInHall(rec: ExperienceRecord): Promise<ExperienceRecord
   const others = await getDocs(query(collection(db, COL), where('exhibitId', '==', rec.exhibitId), where('inHall', '==', true)));
   for (const d of others.docs) if (d.id !== rec.id) await patchExperience(d.id, { inHall: false });
   const next = { ...rec, inHall: true, updatedAt: Date.now() };
-  await setDoc(doc(db, HALL, rec.exhibitId), stripUndefined(pub));
+  await setDoc(doc(opsDb, HALL, rec.exhibitId), stripUndefined(pub));
   forgetHallFilm(rec.exhibitId);
   await saveExperience(next);
   return next;
@@ -185,7 +186,7 @@ export async function putInHall(rec: ExperienceRecord): Promise<ExperienceRecord
 /** Takes the exhibit's Mux film down: the hall goes back to the live canvas film. */
 export async function removeFromHall(rec: ExperienceRecord): Promise<ExperienceRecord> {
   if (!rec.inHall) return rec;
-  await deleteDoc(doc(db, HALL, rec.exhibitId));
+  await deleteDoc(doc(opsDb, HALL, rec.exhibitId));
   forgetHallFilm(rec.exhibitId);
   const next = { ...rec, inHall: false, updatedAt: Date.now() };
   await saveExperience(next);

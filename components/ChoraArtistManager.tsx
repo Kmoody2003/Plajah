@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { MusicReleasesTab } from './music/MusicReleasesTab';
+import { LabelDesk } from './chora/LabelDesk';
+import { BackShowDesk } from './chora/BackThisShow';
 import { isDemoMode, setDemoMode, subscribeDemoMode } from '../services/demoMode';
 
 // Re-use or import existing tabs from ArtistProjectManager or internal definitions
@@ -48,6 +50,8 @@ export const ChoraArtistManager: React.FC<Props> = ({
     switch (activeTab) {
       case 'overview':            return <OverviewTab onSwitchTab={setActiveTab} />;
       case 'releases':            return <MusicReleasesTab currentUser={currentUser} />;
+      case 'label':               return <LabelDesk />;
+      case 'backshow':            return <BackShowDesk />;
       case 'productions':         return <MelosLaunchTab currentUser={currentUser} />;
       case 'import':              return <CareerImportLaunchTab />;
       case 'events':              return <EventsLaunchTab />;

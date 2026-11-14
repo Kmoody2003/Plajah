@@ -420,159 +420,451 @@ export {
 export type { AudiusSession, AudiusScope } from './audiusAuth';
 
 // ─── Publish (Chora → Audius) ─────────────────────────────────────────────────
+//
+// How Audius takes an upload (verified 2026-11-05 against api.audius.co/v1/swagger.yaml and
+// @audius/sdk's Storage/UploadsApi/TracksApi on main):
+//   1. The FILES go to a storage node over tus (resumable upload): POST {node}/files/ with
+//      tus metadata {filename, filetype, template: audio|img_square, userId: <numeric id>}.
+//      No auth header — the node attests the resulting CIDs to that user id.
+//   2. Poll GET {node}/uploads/{uploadId} until status 'done'. Audio → results['320'] (the
+//      stream CID), orig_file_cid, probe.format.duration; image → orig_file_cid.
+//   3. POST api.audius.co/v1/tracks?user_id=<hashId> with a JSON body {title, genre, track_cid,
+//      …} and the user's OAuth bearer token (scope write). 201 → {track_id}.
+//   4. An album is POST /v1/playlists?user_id=… {playlist_name, is_album: true,
+//      playlist_contents: [{track_id, timestamp}], playlist_image_sizes_multihash}.
+// The old version POSTed multipart track_file/metadata to /v1/tracks — not an Audius request
+// shape — and swallowed the error, so turning the toggle on never sent anything.
+// App info goes in the query string: only `authorization, content-type` pass api.audius.co's
+// CORS preflight, so X-API-KEY / X-User-ID headers would block the write from the browser.
 
 export interface AudiusPublishResult {
   trackId: string;
   permalink: string;
+  /** The Plajah track this came from. */
+  sourceTrackId?: string;
+  /** Artwork CID, reused for the album collection. */
+  coverCid?: string;
 }
 
 export interface AudiusAlbumPublishResponse {
   albumId?: string;
   albumPermalink?: string;
   published: AudiusPublishResult[];
+  /** Track titles that didn't go, each with the reason. */
   failed: string[];
+  /** First error message, for the status line. */
+  error?: string;
 }
 
-export async function publishTrackToAudius(
-  track: Track,
-  album: Album,
-  bearerToken: string,
-  audiusUserId: string
-): Promise<AudiusPublishResult | null> {
+const AUDIUS_WRITE_BASE = 'https://api.audius.co/v1';
+
+/** Storage nodes from the network health check (the SDK's own source of truth). */
+async function audiusStorageNodes(): Promise<string[]> {
   try {
-    const host = await getAudiusHost();
-    const audioRes = await fetch(track.url);
-    if (!audioRes.ok) throw new Error('Could not fetch audio file');
-    const audioBlob = await audioRes.blob();
+    const res = await fetch('https://api.audius.co/health_check', { signal: AbortSignal.timeout(8000) });
+    const json = await res.json();
+    const nodes: string[] = (json?.data?.network?.content_nodes ?? [])
+      .map((n: any) => String(n?.endpoint || '').replace(/\/$/, ''))
+      .filter(Boolean);
+    if (nodes.length) return nodes;
+  } catch { /* fall through */ }
+  return ['https://creatornode.audius.co'];
+}
 
-    let coverBlob: Blob | null = null;
-    const coverUrl = track.albumCover ?? album.coverImage;
-    if (coverUrl) {
-      try {
-        const coverRes = await fetch(coverUrl);
-        if (coverRes.ok) coverBlob = await coverRes.blob();
-      } catch { /* continue without cover */ }
+/** The numeric id the storage node attests uploads to (the API speaks hash ids). */
+const numericIdCache = new Map<string, number>();
+async function audiusNumericUserId(hashId: string): Promise<number> {
+  const hit = numericIdCache.get(hashId);
+  if (hit) return hit;
+  const data = await audiusFetch(`/v1/users/${encodeURIComponent(hashId)}`);
+  const n = Number(data?.data?.user_id);
+  if (!Number.isFinite(n) || n <= 0) throw new Error('Could not read your Audius account id.');
+  numericIdCache.set(hashId, n);
+  return n;
+}
+
+interface StorageUploadResult {
+  status: string;
+  orig_file_cid?: string;
+  orig_filename?: string;
+  results?: Record<string, string>;
+  probe?: { format?: { duration?: string } };
+  transcode_progress?: number;
+  error?: string;
+}
+
+/** Where one file is: going up to the storage node, or being transcoded/resized there. */
+export type AudiusUploadPhase = 'upload' | 'processing';
+export interface AudiusTrackProgress { phase: AudiusUploadPhase; fraction: number }
+
+/**
+ * A write token, or a getter for one. Audius access tokens are short-lived and an album can take
+ * longer than one lasts (each track uploads and transcodes in turn), so the album job passes a
+ * getter and every write asks for a fresh token instead of reusing the one from the start.
+ */
+export type AudiusToken = string | (() => Promise<string>);
+const resolveToken = (t: AudiusToken) => (typeof t === 'string' ? Promise.resolve(t) : t());
+
+/** tus-upload one file to a storage node and wait for transcode/resize to finish. */
+async function uploadToAudiusStorage(
+  file: Blob, filename: string, template: 'audio' | 'img_square', userId: number,
+  onProgress?: (p: AudiusTrackProgress) => void,
+): Promise<StorageUploadResult> {
+  const tus: any = await import('tus-js-client');
+  const Upload = ('Upload' in tus ? tus : tus.default).Upload;
+  const nodes = await audiusStorageNodes();
+  let lastErr: unknown = null;
+  for (const node of nodes) {
+    try {
+      const uploadId = await new Promise<string>((resolve, reject) => {
+        const up = new Upload(file, {
+          endpoint: `${node}/files/`,
+          retryDelays: [0, 3000, 5000, 10000, 20000],
+          chunkSize: 100_000_000,
+          removeFingerprintOnSuccess: true,
+          // Same metadata as the Audius SDK: userId rides only on audio uploads.
+          metadata: {
+            filename, filetype: file.type || (template === 'audio' ? 'audio/mpeg' : 'image/jpeg'), template,
+            ...(template === 'audio' ? { userId: String(userId) } : {}),
+          },
+          onError: reject,
+          onProgress: (loaded: number, total: number) => onProgress?.({ phase: 'upload', fraction: total ? loaded / total : 0 }),
+          onSuccess: () => {
+            const id = String(up.url || '').split('/').pop();
+            id ? resolve(id) : reject(new Error('The Audius storage node returned no upload id.'));
+          },
+        });
+        up.start();
+      });
+      // The SDK's limits: audio gets an hour overall but fails after 20 minutes without progress;
+      // images resize in seconds. Once the file is up, a rejection is final — don't re-send it
+      // to another node.
+      onProgress?.({ phase: 'processing', fraction: 0 });
+      const started = Date.now();
+      const limit = started + (template === 'audio' ? 60 * 60_000 : 5 * 60_000);
+      let lastProgress = -1;
+      let lastProgressAt = started;
+      while (Date.now() < limit) {
+        await new Promise(r => setTimeout(r, 3000));
+        const res = await fetch(`${node}/uploads/${uploadId}`).catch(() => null);
+        if (res && res.status >= 400 && res.status < 500 && res.status !== 404 && res.status !== 429) {
+          const why = await res.text().catch(() => '');
+          throw new UploadRejected(`Audius couldn't process ${filename}${why ? `: ${why.slice(0, 200)}` : ` (HTTP ${res.status})`}.`);
+        }
+        if (!res?.ok) continue;
+        const body: StorageUploadResult = await res.json();
+        if (body.status === 'done' && (template !== 'audio' || body.results?.['320'])) return body;
+        if (body.status === 'error' || body.status === 'error_retranscode_preview') {
+          throw new UploadRejected(body.error || `Audius couldn't process ${filename}.`);
+        }
+        const p = Number(body.transcode_progress);
+        if (Number.isFinite(p) && p > lastProgress) {
+          lastProgress = p;
+          lastProgressAt = Date.now();
+          onProgress?.({ phase: 'processing', fraction: Math.min(1, p) });
+        }
+        if (template === 'audio' && Date.now() - lastProgressAt > 20 * 60_000) break;
+      }
+      throw new UploadRejected(`Audius took too long processing ${filename}. Try again later.`);
+    } catch (err) {
+      if (err instanceof UploadRejected) throw err;
+      lastErr = err;
     }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error('Audius storage upload failed.');
+}
 
-    const form = new FormData();
-    form.append('track_file', audioBlob, `${track.title ?? 'track'}.mp3`);
-    if (coverBlob) form.append('cover_art_file', coverBlob, 'cover.jpg');
-    form.append('metadata', JSON.stringify({
-      title: track.title ?? album.title,
-      genre: track.genre ?? album.genre ?? 'Electronic',
-      mood: 'Other',
-      description: album.description ?? '',
-      is_downloadable: false,
-      is_unlisted: false,
-    }));
+/** The storage node took the file but won't (or can't) process it: trying another node won't help. */
+class UploadRejected extends Error {}
 
-    const uploadRes = await fetch(`${host}/v1/tracks?app_name=${APP_NAME}`, {
-      method: 'POST',
-      headers: { ...audiusHeaders(), Authorization: `Bearer ${bearerToken}`, 'X-User-ID': audiusUserId },
-      body: form,
-    });
-    if (!uploadRes.ok) return null;
-    const uploadData = await uploadRes.json();
-    const trackId: string = uploadData.data?.id ?? uploadData.id;
-    return { trackId, permalink: `https://audius.co/tracks/${trackId}` };
+/** A write to api.audius.co as the signed-in user; throws with Audius's own message. */
+async function audiusWrite(path: string, body: unknown, token: AudiusToken, userHashId: string): Promise<any> {
+  const bearerToken = await resolveToken(token);
+  const qs = new URLSearchParams({ user_id: userHashId, api_key: AUDIUS_API_KEY, app_name: APP_NAME });
+  const res = await fetch(`${AUDIUS_WRITE_BASE}${path}?${qs}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${bearerToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({} as any));
+  if (!res.ok) {
+    const msg = json?.error || json?.message || `HTTP ${res.status}`;
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(`Audius refused the upload (${msg}). Reconnect Audius with upload permission and try again.`);
+    }
+    throw new Error(`Audius rejected the ${path.includes('playlist') ? 'album' : 'track'}: ${msg}`);
+  }
+  return json;
+}
+
+async function fetchBlob(url: string, what: string): Promise<Blob> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Couldn't read the ${what} (${res.status}).`);
+  return res.blob();
+}
+
+const extFor = (blob: Blob, url: string, fallback: string) => {
+  const fromType = blob.type.split('/')[1]?.replace('mpeg', 'mp3').replace('x-', '');
+  const fromUrl = /\.([a-z0-9]{2,5})(?:\?|$)/i.exec(url)?.[1];
+  return (fromUrl || fromType || fallback).toLowerCase();
+};
+
+/** Upload a cover once and return its CID (null when there's no usable cover). */
+async function uploadAudiusCover(coverUrl: string | undefined, userNumericId: number): Promise<string | null> {
+  if (!coverUrl) return null;
+  try {
+    const blob = await fetchBlob(coverUrl, 'cover art');
+    const res = await uploadToAudiusStorage(blob, `cover.${extFor(blob, coverUrl, 'jpg')}`, 'img_square', userNumericId);
+    return res.orig_file_cid || null;
   } catch (err) {
-    console.error('[Audius] publishTrackToAudius:', err);
+    console.warn('[Audius] cover upload failed, publishing without art:', err);
     return null;
   }
 }
 
+/** Publish one track. Throws with a readable reason on failure. */
+export async function publishTrackToAudius(
+  track: Track,
+  album: Album,
+  bearerToken: AudiusToken,
+  audiusUserId: string,
+  opts: { coverCid?: string | null; onProgress?: (p: AudiusTrackProgress) => void } = {},
+): Promise<AudiusPublishResult> {
+  if (!track.url) throw new Error('This track has no audio file.');
+  const numericId = await audiusNumericUserId(audiusUserId);
+  const audio = await fetchBlob(track.url, 'audio file');
+  const filename = `${(track.title || 'track').replace(/[\\/:*?"<>|]+/g, ' ').trim() || 'track'}.${extFor(audio, track.url, 'mp3')}`;
+  const up = await uploadToAudiusStorage(audio, filename, 'audio', numericId, opts.onProgress);
+
+  const coverCid = opts.coverCid !== undefined
+    ? opts.coverCid
+    : await uploadAudiusCover(track.albumCover ?? album.coverImage, numericId);
+
+  const metadata: Record<string, unknown> = {
+    title: (track.title || album.title || 'Untitled').slice(0, 200),
+    genre: String(track.genre || album.genre || 'Electronic').slice(0, 100),
+    track_cid: up.results!['320'],
+    orig_file_cid: up.orig_file_cid,
+    orig_filename: up.orig_filename || filename,
+    duration: Math.round(Number(up.probe?.format?.duration) || track.duration || 0) || undefined,
+    description: (album.description || '').slice(0, 1000) || undefined,
+    mood: 'Other',
+    is_downloadable: false,
+    is_unlisted: false,
+  };
+  if (coverCid) metadata.cover_art_sizes = coverCid;
+  if ((track as any).isrc) metadata.isrc = (track as any).isrc;
+
+  const out = await audiusWrite('/tracks', metadata, bearerToken, audiusUserId);
+  const trackId: string | undefined = out?.track_id ?? out?.data?.track_id ?? out?.data?.id;
+  if (!trackId) throw new Error('Audius accepted the track but returned no id.');
+
+  // Real permalink once the network has indexed it; the id URL works meanwhile.
+  let permalink = `https://audius.co/tracks/${trackId}`;
+  try {
+    const t = await audiusFetch(`/v1/tracks/${encodeURIComponent(trackId)}`);
+    if (t?.data?.permalink) permalink = `https://audius.co${t.data.permalink}`;
+  } catch { /* not indexed yet */ }
+  return { trackId: String(trackId), permalink, sourceTrackId: track.id, coverCid: coverCid || undefined };
+}
+
 /**
- * Bundles uploaded Audius track IDs into an official Audius Album (a playlist record with `is_album: true`).
+ * Bundles uploaded Audius track IDs into an official Audius Album (a playlist with `is_album: true`).
  */
 export async function createAudiusAlbumCollection(
   album: Album,
   trackIds: string[],
-  bearerToken: string,
+  bearerToken: AudiusToken,
   audiusUserId: string,
-  audiusHandle?: string
-): Promise<{ albumId: string; permalink: string } | null> {
-  if (!trackIds.length) return null;
+  audiusHandle?: string,
+  coverCid?: string | null,
+): Promise<{ albumId: string; permalink: string }> {
+  if (!trackIds.length) throw new Error('No tracks to put in the album.');
+  const now = Math.floor(Date.now() / 1000);
+  const body: Record<string, unknown> = {
+    playlist_name: (album.title || 'Untitled Album').slice(0, 200),
+    description: (album.description || '').slice(0, 1000) || undefined,
+    genre: album.genre ? String(album.genre).slice(0, 100) : undefined,
+    is_album: true,
+    is_private: false,
+    playlist_contents: trackIds.map(id => ({ track_id: id, timestamp: now })),
+  };
+  if (coverCid) body.playlist_image_sizes_multihash = coverCid;
+  if ((album as any).upc) body.upc = (album as any).upc;
+  const out = await audiusWrite('/playlists', body, bearerToken, audiusUserId);
+  const albumId: string | undefined = out?.playlist_id ?? out?.data?.playlist_id ?? out?.data?.id;
+  if (!albumId) throw new Error('Audius accepted the album but returned no id.');
+  let permalink = audiusHandle ? `https://audius.co/${audiusHandle}` : 'https://audius.co/';
   try {
-    const host = await getAudiusHost();
-    let coverBlob: Blob | null = null;
-    if (album.coverImage) {
-      try {
-        const coverRes = await fetch(album.coverImage);
-        if (coverRes.ok) coverBlob = await coverRes.blob();
-      } catch { /* continue without cover */ }
-    }
-
-    const form = new FormData();
-    if (coverBlob) form.append('cover_art_file', coverBlob, 'album-cover.jpg');
-    form.append('metadata', JSON.stringify({
-      playlist_name: album.title || 'Untitled Album',
-      description: album.description ?? '',
-      genre: album.genre ?? 'Electronic',
-      mood: 'Other',
-      is_album: true,
-      is_private: false,
-      playlist_contents: {
-        track_ids: trackIds.map(id => ({ track: id, time: Math.floor(Date.now() / 1000) })),
-      },
-      track_ids: trackIds,
-    }));
-
-    const res = await fetch(`${host}/v1/playlists?app_name=${APP_NAME}`, {
-      method: 'POST',
-      headers: { ...audiusHeaders(), Authorization: `Bearer ${bearerToken}`, 'X-User-ID': audiusUserId },
-      body: form,
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const albumId: string = data.data?.id ?? data.id ?? data.playlistId;
-    if (!albumId) return null;
-    const slug = (album.title || 'album').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-    const permalink = audiusHandle
-      ? `https://audius.co/${audiusHandle}/album/${slug}-${albumId}`
-      : `https://audius.co/albums/${albumId}`;
-    return { albumId, permalink };
-  } catch (err) {
-    console.error('[Audius] createAudiusAlbumCollection:', err);
-    return null;
-  }
+    const p = await audiusFetch(`/v1/playlists/${encodeURIComponent(albumId)}`);
+    const rec = Array.isArray(p?.data) ? p.data[0] : p?.data;
+    if (rec?.permalink) permalink = `https://audius.co${rec.permalink}`;
+  } catch { /* not indexed yet */ }
+  return { albumId: String(albumId), permalink };
 }
 
+/** `done` whole tracks finished out of `total`; `current` is where the next track is. */
+export type AudiusAlbumProgress = (done: number, total: number, current?: AudiusTrackProgress) => void;
+
+/**
+ * Publish a Plajah release to Audius. Tracks already sent (`alreadyPublished`, keyed by Plajah
+ * track id) are skipped, so a retry after a partial failure — or a later re-save — never
+ * uploads a song twice.
+ */
 export async function publishAlbumToAudius(
   album: Album,
-  bearerToken: string,
+  bearerToken: AudiusToken,
   audiusUserId: string,
-  onProgress?: (done: number, total: number) => void,
-  audiusHandle?: string
+  onProgress?: AudiusAlbumProgress,
+  audiusHandle?: string,
+  alreadyPublished: Record<string, string> = {},
 ): Promise<AudiusAlbumPublishResponse> {
-  const tracks = album.tracks ?? [];
+  const tracks = (album.tracks ?? []).filter(t => !!t?.url);
   const published: AudiusPublishResult[] = [];
   const failed: string[] = [];
+  let error: string | undefined;
+
+  let coverCid: string | null = null;
+  try { coverCid = await uploadAudiusCover(album.coverImage, await audiusNumericUserId(audiusUserId)); }
+  catch (err: any) { error = err?.message; }
+
   for (let i = 0; i < tracks.length; i++) {
-    const result = await publishTrackToAudius(tracks[i], album, bearerToken, audiusUserId);
-    result ? published.push(result) : failed.push(tracks[i].title ?? `Track ${i + 1}`);
+    const t = tracks[i];
+    const prior = alreadyPublished[t.id];
+    if (prior) {
+      published.push({ trackId: prior, permalink: `https://audius.co/tracks/${prior}`, sourceTrackId: t.id });
+    } else {
+      try {
+        onProgress?.(i, tracks.length, { phase: 'upload', fraction: 0 });
+        published.push(await publishTrackToAudius(t, album, bearerToken, audiusUserId, {
+          coverCid: t.albumCover && t.albumCover !== album.coverImage ? undefined : coverCid,
+          onProgress: p => onProgress?.(i, tracks.length, p),
+        }));
+      } catch (err: any) {
+        const why = err?.message || 'upload failed';
+        error ??= why;
+        failed.push(`${t.title ?? `Track ${i + 1}`}: ${why}`);
+        console.error('[Audius] publish track failed:', t.title, err);
+        // An auth refusal will refuse every track — stop instead of hammering.
+        if (/refused the upload|Reconnect Audius/.test(why)) break;
+      }
+    }
     onProgress?.(i + 1, tracks.length);
   }
 
-  // Group uploaded tracks into a single Audius Album (is_album: true) when publishing an album/EP or multiple tracks
-  let albumId: string | undefined;
+  // Group into one Audius Album when the release has more than one track.
+  let albumId: string | undefined = (album as any).audiusAlbumId;
   let albumPermalink: string | undefined;
-  if (published.length > 0 && (tracks.length > 1 || (album.subType && album.subType !== 'SINGLE'))) {
-    const collection = await createAudiusAlbumCollection(
-      album,
-      published.map(p => p.trackId),
-      bearerToken,
-      audiusUserId,
-      audiusHandle,
-    );
-    if (collection) {
-      albumId = collection.albumId;
-      albumPermalink = collection.permalink;
+  const wantsCollection = tracks.length > 1;
+  if (published.length > 0 && wantsCollection && !failed.length && !albumId) {
+    try {
+      const c = await createAudiusAlbumCollection(album, published.map(p => p.trackId), bearerToken, audiusUserId, audiusHandle, coverCid);
+      albumId = c.albumId;
+      albumPermalink = c.permalink;
+    } catch (err: any) {
+      error ??= err?.message;
+      console.error('[Audius] album collection failed:', err);
     }
   } else if (published.length === 1) {
     albumPermalink = published[0].permalink;
   }
 
-  return { albumId, albumPermalink, published, failed };
+  return { albumId, albumPermalink, published, failed, error };
+}
+
+/**
+ * The whole "publish to Audius" job for a saved release: refreshes the token, skips what's
+ * already there, and writes the outcome (status, links, ids, error) back onto the album doc so
+ * the creator sees it in the Distribution hub. Used by the album creator's toggle and the modal.
+ */
+export async function runAudiusPublishForAlbum(
+  album: Album,
+  onProgress?: AudiusAlbumProgress,
+): Promise<AudiusAlbumPublishResponse & { albumUrl?: string }> {
+  // One run per album at a time: a second click (or a save while the first is still going)
+  // joins the running job instead of uploading every song twice.
+  const key = album.id || '';
+  const running = key ? audiusRuns.get(key) : undefined;
+  if (running) {
+    if (onProgress) {
+      running.listeners.add(onProgress);
+      if (running.last) onProgress(...running.last);
+    }
+    return running.promise;
+  }
+  if (!key) return runAudiusPublishOnce(album, onProgress);
+  const entry: AudiusRun = { listeners: new Set(onProgress ? [onProgress] : []), promise: null as any };
+  entry.promise = runAudiusPublishOnce(album, (...args) => {
+    entry.last = args;
+    entry.listeners.forEach(l => l(...args));
+  });
+  audiusRuns.set(key, entry);
+  window.addEventListener('beforeunload', warnBeforeLeaving);
+  entry.promise.finally(() => {
+    audiusRuns.delete(key);
+    if (!audiusRuns.size) window.removeEventListener('beforeunload', warnBeforeLeaving);
+  }).catch(() => {});
+  return entry.promise;
+}
+
+interface AudiusRun {
+  promise: Promise<AudiusAlbumPublishResponse & { albumUrl?: string }>;
+  listeners: Set<AudiusAlbumProgress>;
+  last?: Parameters<AudiusAlbumProgress>;
+}
+const audiusRuns = new Map<string, AudiusRun>();
+
+/** Leaving the page mid-upload kills the job, so ask first while any album is still sending. */
+const warnBeforeLeaving = (e: BeforeUnloadEvent) => {
+  if (!audiusRuns.size) return;
+  e.preventDefault();
+  e.returnValue = '';
+};
+
+async function runAudiusPublishOnce(
+  album: Album,
+  onProgress?: AudiusAlbumProgress,
+): Promise<AudiusAlbumPublishResponse & { albumUrl?: string }> {
+  const { getAudiusSession, getAudiusAccessToken } = await import('./audiusAuth');
+  const { updateCloudAlbum } = await import('./backendService');
+  const save = (patch: Record<string, unknown>) =>
+    album.id ? updateCloudAlbum(album.id, patch as any).catch(err => console.error('[Audius] status save failed:', err)) : Promise.resolve();
+
+  const session = getAudiusSession();
+  const token = session?.scope === 'write' ? await getAudiusAccessToken() : null;
+  if (!session || session.scope !== 'write' || !token) {
+    const error = 'Connect your Audius account (with upload permission) to publish there.';
+    await save({ audiusPublishStatus: 'failed', audiusError: error });
+    return { published: [], failed: [], error };
+  }
+
+  await save({ audiusPublishStatus: 'publishing', audiusError: null });
+  const prior: Record<string, string> = { ...((album as any).audiusTrackIds || {}) };
+  // Fresh token for every write: it refreshes itself when the current one is near expiry.
+  const freshToken = async () => {
+    const t = await getAudiusAccessToken();
+    if (!t) throw new Error('Your Audius sign-in expired. Reconnect Audius with upload permission and try again.');
+    return t;
+  };
+  const res = await publishAlbumToAudius(album, freshToken, session.userId, onProgress, session.handle, prior);
+
+  const audiusTrackIds = { ...prior };
+  for (const p of res.published) if (p.sourceTrackId) audiusTrackIds[p.sourceTrackId] = p.trackId;
+  // Any error (a track, or the album collection) leaves it 'failed'; a retry skips the tracks
+  // already sent and finishes the rest.
+  const ok = res.published.length > 0 && !res.failed.length && !res.error;
+  const albumUrl = res.albumPermalink || (res.published.length ? `https://audius.co/${session.handle}` : undefined);
+  await save({
+    publishToAudius: true,
+    audiusPublishStatus: ok ? 'published' : 'failed',
+    audiusError: ok ? null : (res.error || 'Some tracks did not upload.'),
+    audiusTrackIds,
+    ...(res.albumId ? { audiusAlbumId: res.albumId } : {}),
+    ...(albumUrl ? { audiusUrl: albumUrl } : {}),
+    audiusPermalinks: res.published.map(p => p.permalink),
+    ...(ok ? { audiusPublishedAt: Date.now() } : {}),
+  });
+  return { ...res, albumUrl };
 }
 
 export function generateAudiusUploadLink(): string {
@@ -685,8 +977,9 @@ export async function unrepostAudiusTrack(trackId: string): Promise<boolean> {
   }
 }
 
-function mapAudiusComment(c: any): AudiusComment {
-  const u = c.user ?? {};
+function mapAudiusComment(c: any, users?: Map<string, any>): AudiusComment {
+  // The comments endpoint sends profiles once, in `related.users`, keyed by the comment's user_id.
+  const u = c.user ?? users?.get(String(c.user_id)) ?? {};
   return {
     id: String(c.id ?? ''),
     userId: String(c.user_id ?? u.id ?? ''),
@@ -698,46 +991,51 @@ function mapAudiusComment(c: any): AudiusComment {
     trackTimestampS: typeof c.track_timestamp_s === 'number' ? c.track_timestamp_s : undefined,
     createdAt: c.created_at ? Date.parse(c.created_at) || Date.now() : Date.now(),
     reactCount: Number(c.react_count ?? 0),
-    replies: Array.isArray(c.replies) ? c.replies.map(mapAudiusComment) : undefined,
+    replies: Array.isArray(c.replies) ? c.replies.map((r: any) => mapAudiusComment(r, users)) : undefined,
   };
 }
 
 export async function fetchAudiusTrackComments(trackId: string, limit = 30): Promise<AudiusComment[]> {
   const cleanId = trackId.replace(/^audius_/, '');
   try {
-    const data = await audiusFetch(`/v1/tracks/${encodeURIComponent(cleanId)}/comments`, { limit: String(limit) });
-    return (data.data ?? []).map(mapAudiusComment);
+    const data = await audiusFetch(`/v1/tracks/${encodeURIComponent(cleanId)}/comments`, { limit: String(limit), sort_method: 'newest' });
+    const users = new Map<string, any>((data.related?.users ?? []).map((u: any) => [String(u.id), u]));
+    return (data.data ?? []).filter((c: any) => !c.is_tombstone).map((c: any) => mapAudiusComment(c, users));
   } catch {
     return [];
   }
 }
 
+/**
+ * Comment on an Audius track as the connected user. Audius wants the NUMERIC track id
+ * (`entityId: integer`, camelCase body); `parentId` makes it a reply.
+ */
 export async function postAudiusTrackComment(
-  trackId: string,
+  trackNumericId: number,
   message: string,
-  trackTimestampS?: number
+  opts: { trackTimestampS?: number; parentId?: number } = {},
 ): Promise<AudiusComment | null> {
-  const cleanId = trackId.replace(/^audius_/, '');
+  const body = message.trim().slice(0, 500);
+  if (!body || !Number.isFinite(trackNumericId)) return null;
   try {
     const res = await audiusMutate('/v1/comments', 'POST', {
-      entity_id: cleanId,
-      entity_type: 'Track',
-      body: message.trim(),
-      ...(typeof trackTimestampS === 'number' ? { track_timestamp_s: Math.floor(trackTimestampS) } : {}),
+      entityType: 'Track',
+      entityId: trackNumericId,
+      body,
+      ...(typeof opts.trackTimestampS === 'number' ? { trackTimestampS: Math.max(0, Math.floor(opts.trackTimestampS)) } : {}),
+      ...(typeof opts.parentId === 'number' ? { parentId: opts.parentId } : {}),
     });
-    const d = res?.data ?? res;
-    if (d?.id) return mapAudiusComment(d);
     const { getAudiusSession } = await import('./audiusAuth');
     const s = getAudiusSession();
     return {
-      id: `audius_c_${Date.now()}`,
+      id: String(res?.comment_id ?? res?.data?.comment_id ?? `audius_c_${Date.now()}`),
       userId: s?.userId ?? '',
       userName: s?.name ?? 'You',
       userHandle: s?.handle ?? '',
       userAvatar: s?.profilePicture,
       userVerified: !!s?.verified,
-      message: message.trim(),
-      trackTimestampS,
+      message: body,
+      trackTimestampS: opts.trackTimestampS,
       createdAt: Date.now(),
       reactCount: 0,
     };
@@ -767,82 +1065,99 @@ export async function fetchAudiusFollowing(userId: string, limit = 30): Promise<
   }
 }
 
+/** Which Audius feed: the network's personalized picks, or new tracks + reposts from the people you follow. */
+export type AudiusFeedMode = 'for-you' | 'latest';
+
 /**
- * Fetches recent track releases and reposts from the connected user's followed Audius artists,
- * normalized as FediversePost items so they weave chronologically into Plajah's main social timeline.
+ * The connected user's Audius feed (`/v1/users/{id}/feed/for-you` or `/feed`), shaped like the
+ * FediversePost items Plajah's Social Stream already weaves in by time. Personal flags (liked,
+ * reposted, follows) need the user's own token; without a usable one it falls back to the public feed.
  */
-export async function fetchAudiusSocialFeed(limit = 20): Promise<any[]> {
+export async function fetchAudiusFeed(
+  mode: AudiusFeedMode,
+  opts: { limit?: number; offset?: number } = {},
+): Promise<any[]> {
   try {
-    const { getAudiusSession } = await import('./audiusAuth');
-    const { fetchAudiusLibrary } = await import('./audiusLibrary');
+    const { getAudiusSession, getAudiusAccessToken } = await import('./audiusAuth');
     const session = getAudiusSession();
     if (!session?.userId) return [];
-
     const host = await getAudiusHost();
-    const lib = await fetchAudiusLibrary({ limit: 25 });
-    const followed = lib.following.slice(0, 8);
+    const path = `/v1/users/${encodeURIComponent(session.userId)}/${mode === 'for-you' ? 'feed/for-you' : 'feed'}`;
+    const params: Record<string, string> = { limit: String(opts.limit ?? 30), offset: String(opts.offset ?? 0) };
+    if (mode === 'for-you') params.max_per_artist = '2';
+    else params.tracks_only = 'true';
 
-    // Fetch latest tracks from followed artists concurrently
-    const rawTracksByArtist = await Promise.all(
-      followed.map(async artist => {
-        try {
-          const data = await audiusFetch(`/v1/users/${encodeURIComponent(artist.id)}/tracks`, { limit: '4' });
-          return (data.data ?? []).map((t: any) => ({ raw: t, artist }));
-        } catch {
-          return [];
-        }
-      })
-    );
-
-    const favIds = new Set(lib.favorites.map(f => f.id.replace(/^audius_/, '')));
-    const repostIds = new Set(lib.reposts.map(r => r.id.replace(/^audius_/, '')));
-    const flat = rawTracksByArtist.flat();
-
-    const posts = flat.map(({ raw: t, artist }) => {
-      const mapped = mapTrack(t, host);
-      const createdAt = t.release_date
-        ? Date.parse(t.release_date) || Date.now() - 3600_000
-        : t.created_at
-          ? Date.parse(t.created_at) || Date.now() - 3600_000
-          : Date.now() - 3600_000;
-      const desc = t.description ? String(t.description).trim() : '';
-      const content = desc ? `🎵 ${mapped.title}${mapped.genre ? ` (${mapped.genre})` : ''}\n${desc}` : `🎵 Released "${mapped.title}"${mapped.genre ? ` · ${mapped.genre}` : ''}`;
-      return {
-        id: `audius_${t.id}`,
-        uri: `audius://track/${t.id}`,
-        protocol: 'audius',
-        accountId: session.userId,
-        authorHandle: `@${artist.handle}`,
-        authorDisplayName: artist.name,
-        authorAvatarUrl: artist.profilePicture || undefined,
-        authorDid: `audius:${artist.id}`,
-        content,
-        contentText: content,
-        createdAt,
-        url: mapped.sourcePageUrl || `https://audius.co/${artist.handle}`,
-        replyCount: Number(t.comment_count ?? 0),
-        repostCount: Number(t.repost_count ?? 0),
-        likeCount: Number(t.favorite_count ?? 0),
-        isLiked: favIds.has(String(t.id)),
-        isReposted: repostIds.has(String(t.id)),
-        isBookmarked: false,
-        media: [
-          {
-            type: 'audio' as const,
-            url: mapped.url,
-            previewUrl: mapped.thumbnailUrl,
-            altText: `${mapped.title} — ${artist.name}`,
-          },
-        ],
-      };
-    });
-
-    posts.sort((a, b) => b.createdAt - a.createdAt);
-    return posts.slice(0, limit);
+    const get = async (personal: boolean) => {
+      const q = new URLSearchParams({ app_name: APP_NAME, ...params, ...(personal ? { user_id: session.userId } : {}) });
+      const token = personal ? await getAudiusAccessToken().catch(() => null) : null;
+      if (personal && !token) return null;
+      const res = await fetch(`${host}${path}?${q}`, {
+        headers: { ...audiusHeaders(), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      });
+      if (!res.ok) return null;
+      return res.json();
+    };
+    const data = (await get(true)) ?? (await get(false));
+    const items: any[] = Array.isArray(data?.data) ? data.data : [];
+    return items
+      .filter(x => x?.type === 'track' && x.item && !x.item.is_delete && x.item.access?.stream !== false)
+      .map(x => audiusTrackToPost(x.item, host, session.userId, x.timestamp, mode));
   } catch (err) {
-    console.warn('[Audius] fetchAudiusSocialFeed:', err);
+    console.warn('[Audius] fetchAudiusFeed:', err);
     return [];
   }
+}
+
+/** Latest from the people you follow (kept for older callers). */
+export async function fetchAudiusSocialFeed(limit = 20): Promise<any[]> {
+  return fetchAudiusFeed('latest', { limit });
+}
+
+function audiusTrackToPost(t: any, host: string, viewerId: string, feedTime: string | undefined, mode: AudiusFeedMode) {
+  const mapped = mapTrack(t, host);
+  const u = t.user ?? {};
+  const handle = u.handle ?? '';
+  const when = (v: unknown) => (typeof v === 'string' ? Date.parse(v) : NaN);
+  // Feed time is when it landed in this feed (a repost lands when reposted), so use it first.
+  const createdAt = [when(feedTime), when(t.release_date), when(t.created_at)].find(n => Number.isFinite(n) && n > 0) ?? Date.now();
+  const desc = t.description ? String(t.description).trim() : '';
+  const content = desc ? `${mapped.title}${mapped.genre ? ` · ${mapped.genre}` : ''}
+${desc}` : `New track: "${mapped.title}"${mapped.genre ? ` · ${mapped.genre}` : ''}`;
+  // In Latest, a track from someone you don't follow is there because a follow reposted it.
+  const reposted = mode === 'latest' && Array.isArray(t.followee_reposts) && t.followee_reposts.length > 0 && u.does_current_user_follow === false;
+  return {
+    id: `audius_${t.id}`,
+    uri: `audius://track/${t.id}`,
+    protocol: 'audius',
+    accountId: viewerId,
+    authorHandle: `@${handle}`,
+    authorDisplayName: u.name || handle,
+    authorAvatarUrl: u.profile_picture?.['150x150'] ?? u.profile_picture?.['480x480'] ?? undefined,
+    authorDid: `audius:${u.id ?? ''}`,
+    content,
+    contentText: content,
+    createdAt,
+    url: mapped.sourcePageUrl || (handle ? `https://audius.co/${handle}` : 'https://audius.co/'),
+    replyCount: Number(t.comment_count ?? 0),
+    repostCount: Number(t.repost_count ?? 0),
+    likeCount: Number(t.favorite_count ?? 0),
+    isLiked: !!t.has_current_user_saved,
+    isReposted: !!t.has_current_user_reposted,
+    isBookmarked: false,
+    ...(reposted ? { repostedBy: 'Someone you follow' } : {}),
+    // Comments are posted against the numeric track id; the feed is either For You or Latest.
+    audiusTrackNumericId: typeof t.track_id === 'number' ? t.track_id : undefined,
+    audiusCommentsDisabled: !!t.comments_disabled,
+    audiusFeed: mode,
+    media: [
+      {
+        type: 'audio' as const,
+        url: mapped.url,
+        previewUrl: mapped.thumbnailUrl,
+        altText: mapped.title,
+      },
+    ],
+  };
 }
 
 // ─── Native normalization (Audius → Plajah Album/Track) ────────────────────────
@@ -903,6 +1218,34 @@ export const resolveNativeAudiusAlbum = async (nativeId: string): Promise<Album 
     return audiusAlbumToNativeAlbum(album, tracks, curator);
   } catch { return null; }
 };
+
+/** One Audius track by its id (raw or `audius_`-prefixed). */
+export async function fetchAudiusTrackById(trackId: string): Promise<ArchiveTrack | null> {
+  try {
+    const host = await getAudiusHost();
+    const data = await audiusFetch(`/v1/tracks/${encodeURIComponent(trackId.replace(/^audius_/, ''))}`);
+    return data?.data ? mapTrack(data.data, host) : null;
+  } catch { return null; }
+}
+
+/** Any Audius share id → the native Album it was shared from:
+ *  `audius:album:single_<trackId>` (a song), `audius:mix:<trackId>` (a long set),
+ *  `audius:album:<playlistId>` (an album/playlist). Share links and notifications carry
+ *  these ids; none of them live in Firestore, so the app must rebuild them from Audius. */
+export async function resolveAudiusShareId(nativeId: string): Promise<Album | null> {
+  const single = /^audius:album:single_(.+)$/.exec(nativeId);
+  if (single) {
+    const t = await fetchAudiusTrackById(single[1]);
+    return t ? audiusTrackToNativeAlbum(t) : null;
+  }
+  const mix = /^audius:mix:(.+)$/.exec(nativeId);
+  if (mix) {
+    const t = await fetchAudiusTrackById(mix[1]);
+    return t ? audiusTrackToMixAlbum(t) : null;
+  }
+  if (nativeId.startsWith('audius:album:')) return resolveNativeAudiusAlbum(nativeId);
+  return null;
+}
 
 /** A long-form Audius set → a Chora Mix album, so it opens in MixPlayerView (waveform + Pixels
  *  auto-show) instead of the album view. Comments stay off: they live on a Plajah album doc. */

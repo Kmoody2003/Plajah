@@ -8,6 +8,8 @@ import PodcastManager from './PodcastManager';
 import FastChannelManager from './FastChannelManager';
 import { motion, AnimatePresence } from 'motion/react';
 import { ReleaseLaterField, ScheduleEditor, releaseLaterInvalid, type ReleaseLaterValue } from './release/ReleaseLaterField';
+import { openReelloUploader } from './reello/upload/ReelloUploadDock';
+import { onItemDone } from '../services/reello/uploadQueue';
 
 interface VideoManagerProps {
   user: any;
@@ -54,6 +56,8 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack, seedFile, onS
   useEffect(() => {
     loadData();
   }, [user.uid]);
+  // Uploads finishing in the Reello Upload Studio (or a watch folder) show up here without a reload.
+  useEffect(() => onItemDone(() => { loadData(); }), [user.uid]);
 
   // A video handed over from the local player: pre-fill the upload and ask for the rights declaration first.
   useEffect(() => {
@@ -837,7 +841,9 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack, seedFile, onS
                   disabled={!rightsConfirmed}
                   onClick={() => {
                     setShowRightsModal(false);
-                    setIsUploading(true);
+                    // The Reello Upload Studio (bulk, watch folders, templates, Story Intelligence) takes it from here.
+                    openReelloUploader({ files: uploadFile ? [uploadFile] : undefined, rightsConfirmed: true });
+                    setUploadFile(null);
                   }}
                   className="flex-1 py-4 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-30 transition-all hover:scale-[1.02] active:scale-95"
                 >

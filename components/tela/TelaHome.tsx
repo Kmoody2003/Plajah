@@ -8,7 +8,9 @@ import {
   Tv, Mail, Film, Printer, Store, Share2, Receipt, QrCode, MonitorPlay,
   RotateCcw, Sliders, Waves, Eye, Mic, Shirt,
 } from 'lucide-react';
+import { openLessonLibrary } from '../../services/lessonLibraryNav';
 import type { TelaDocMeta, TelaVectorObject } from '../../types';
+import { filterRecents, isSharedWithMe, orgChoices, type RecentScope } from '../../services/tela/recentScope';
 import type { TelaStyleEra } from '../../services/telaStyleEraLibrary';
 import type { TelaPublicationTemplate } from '../../services/telaPublicationTemplates';
 import TelaTemplateGallery from './TelaTemplateGallery';
@@ -249,9 +251,19 @@ export default function TelaHome({
   onChooseTemplate,
   onImport,
   onOpenMerch,
+  onOpenStoryIntel,
+  onOpenArgilla,
   onBack,
+  viewerUid = null,
+  memberOrgIds = [],
+  orgNames = {},
 }: {
   recent: TelaDocMeta[];
+  /** Signed-in account; Recents shows only its own docs (made or edited) unless an org or Shared filter is picked. */
+  viewerUid?: string | null;
+  /** Orgs the viewer is an active member of — the org filters list only these. */
+  memberOrgIds?: string[];
+  orgNames?: Record<string, string>;
   onOpen: (id: string) => void;
   onCreate: (kind: TelaHomeDocumentKind) => void;
   onChooseStyle: (style: TelaStyleEra) => void;
@@ -260,9 +272,16 @@ export default function TelaHome({
   onImport: () => void;
   /** Opens the Merch Designer (product design + 3D product photography). */
   onOpenMerch?: () => void;
+  /** Story Intelligence workspace: what it read in your videos, filed into your Worlds. */
+  onOpenStoryIntel?: () => void;
+  onOpenArgilla?: () => void;
   onBack?: () => void;
 }) {
   const [promptText, setPromptText] = useState('');
+  const [recentScope, setRecentScope] = useState<RecentScope>({ kind: 'mine' });
+  const orgs = useMemo(() => orgChoices(recent, viewerUid, memberOrgIds, orgNames), [recent, viewerUid, memberOrgIds, orgNames]);
+  const sharedCount = useMemo(() => recent.filter(d => isSharedWithMe(d, viewerUid)).length, [recent, viewerUid]);
+  const shown = useMemo(() => filterRecents(recent, recentScope, viewerUid, memberOrgIds), [recent, recentScope, viewerUid, memberOrgIds]);
   // Put the living dial carousel prominently near the top by default!
   const [templateView, setTemplateView] = useState<'dial' | 'shelves' | 'grid'>('dial');
 
@@ -716,6 +735,26 @@ export default function TelaHome({
         </div>
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          {onOpenArgilla && (
+            <button
+              onClick={onOpenArgilla}
+              className="h-9 px-3.5 flex items-center gap-2 rounded-[10px] text-[.72rem] font-bold text-white/85 bg-white/[.05] border border-white/20 hover:bg-white/10 hover:text-white transition-all font-sans"
+              title="Describe a form, then sculpt it like clay"
+            >
+              <span className="hidden sm:inline">Sculpt in 3D</span>
+              <span className="sm:hidden">3D</span>
+            </button>
+          )}
+          {onOpenStoryIntel && (
+            <button
+              onClick={onOpenStoryIntel}
+              className="h-9 px-3.5 flex items-center gap-2 rounded-[10px] text-[.72rem] font-bold text-white/85 bg-white/[.05] border border-[#b9a4ff]/40 hover:bg-[#b9a4ff]/15 hover:text-white transition-all font-sans"
+              title="What Story Intelligence found in your videos: add people, places and moments to your Worlds"
+            >
+              <Sparkles size={13} className="text-[#b9a4ff]" />
+              <span className="hidden sm:inline">Story Intelligence</span>
+            </button>
+          )}
           {onOpenMerch && (
             <button
               onClick={onOpenMerch}
@@ -733,6 +772,16 @@ export default function TelaHome({
           >
             <Import size={13} />
             <span className="hidden sm:inline">Import Document</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => openLessonLibrary()}
+            className="h-9 px-3.5 flex items-center gap-2 rounded-[10px] text-[.72rem] font-bold text-white/85 bg-white/[.05] border border-[#34e0d0]/40 hover:bg-[#34e0d0]/15 hover:text-white transition-all font-sans"
+            title="Lessons, assignments and exams: your organization's library, your own, and the platform's"
+          >
+            <BookOpen size={13} className="text-[#34e0d0]" />
+            <span className="hidden sm:inline">Lesson Library</span>
           </button>
 
           <button 
@@ -944,7 +993,7 @@ export default function TelaHome({
                       Recent Documents & Activity
                     </h2>
                     <span className="px-2 py-0.5 rounded text-[8px] font-mono font-extrabold uppercase tracking-wider bg-white/[0.08] text-white/70 border border-white/10">
-                      {recent.length} {recent.length === 1 ? 'FILE' : 'FILES'}
+                      {shown.length} {shown.length === 1 ? 'FILE' : 'FILES'}
                     </span>
                   </div>
                 </div>
@@ -962,9 +1011,27 @@ export default function TelaHome({
               </div>
             </div>
 
-            {recent.length ? (
+            {(orgs.length > 0 || sharedCount > 0) && (
+              <div className="flex flex-wrap items-center gap-2 mb-4" role="group" aria-label="Show documents">
+                {([
+                  { scope: { kind: 'mine' } as RecentScope, label: 'Mine', key: 'mine' },
+                  ...orgs.map(o => ({ scope: { kind: 'org', orgId: o.orgId } as RecentScope, label: `${o.orgName} · ${o.count}`, key: `org:${o.orgId}` })),
+                  ...(sharedCount ? [{ scope: { kind: 'shared' } as RecentScope, label: `Shared with me · ${sharedCount}`, key: 'shared' }] : []),
+                ]).map(c => {
+                  const on = c.key === (recentScope.kind === 'org' ? `org:${recentScope.orgId}` : recentScope.kind);
+                  return (
+                    <button key={c.key} type="button" aria-pressed={on} onClick={() => setRecentScope(c.scope)}
+                      className={`min-h-[36px] px-3.5 rounded-full text-[.74rem] font-bold border transition-colors ${on ? 'bg-white text-[#14101c] border-white' : 'bg-white/[0.04] text-white/70 border-white/12 hover:text-white hover:bg-white/[0.08]'}`}>
+                      {c.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {shown.length ? (
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
-                {recent.slice(0, 8).map((doc, index) => (
+                {shown.slice(0, 8).map((doc, index) => (
                   <button
                     key={doc.id}
                     onClick={() => onOpen(doc.id)}
@@ -1000,6 +1067,7 @@ export default function TelaHome({
                           day: 'numeric',
                           year: doc.updatedAt < Date.now() - 31_536_000_000 ? 'numeric' : undefined
                         })}
+                        {doc.sharedBy ? <span className="truncate">· {doc.sharedBy}</span> : recentScope.kind === 'mine' && doc.orgName ? <span className="truncate">· {doc.orgName}</span> : null}
                       </span>
                     </span>
 
@@ -1018,7 +1086,7 @@ export default function TelaHome({
                     <FilePlus2 size={18} />
                   </div>
                   <div>
-                    <h4 className="text-[.86rem] font-bold text-white font-sans">No recent canvas files yet</h4>
+                    <h4 className="text-[.86rem] font-bold text-white font-sans">{recentScope.kind === 'mine' ? 'No recent canvas files yet' : 'Nothing here yet'}</h4>
                     <p className="text-[.74rem] text-white/50 font-sans">
                       Start your first document below from 9 canonical archetypes or launch the 3D channel dial.
                     </p>

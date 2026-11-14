@@ -11,7 +11,7 @@
   <Identity
     Name="Plajah.App"
     Publisher="CN=PlajahInc"
-    Version="1.0.104.0"
+    Version="1.0.106.0"
     ProcessorArchitecture="neutral" />
 
   <mp:PhoneIdentity
@@ -176,6 +176,7 @@
 
     <!-- Microphone — for audiobook recording (MAI Transcribe 1.5) -->
     <DeviceCapability Name="microphone" />
+    <DeviceCapability Name="webcam" />
 
     <!-- Pictures library — for local photos import & gallery viewing -->
     <uap:Capability Name="picturesLibrary" />

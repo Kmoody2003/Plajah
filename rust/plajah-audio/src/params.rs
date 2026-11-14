@@ -390,7 +390,51 @@ pub const SM_SHELL_WARMTH: u32 = 26;     // 0..1 high-SPL chamber air compressio
 pub const SM_MIC_PERSPECTIVE: u32 = 27;  // 0..1 top batter skin vs. bottom air port & shell radiation mix
 pub const SM_ROOM_EARLY: u32 = 28;       // 0..1 early studio/stage boundary reflections
 
-pub const MAX_PARAM_ID: usize = 1900;
+// ── LYRA (instrument 07): physical models — guitar, piano, violin, sax, trumpet, tine piano,
+// flute, clarinet, double reeds ───
+// Block 1900 upward (lyra.rs). Defaults to LY_ENABLE = 0 (bypass) so existing patches are
+// bit-identical. Every control is 0..1 except MODEL and VARIANT, which are indices.
+pub const LYRA_BASE: u32 = 1900;
+pub const LY_ENABLE: u32 = 0;
+pub const LY_MODEL: u32 = 1;        // 0 guitar, 1 piano, 2 violin, 3 sax, 4 trumpet, 5 tine piano, 6 flute, 7 clarinet, 8 double reed, 9 brass, 10 plucked
+pub const LY_VARIANT: u32 = 2;      // guitar: 0 steel, 1 nylon, 2 electric single coil, 3 electric humbucker · piano: 0 grand, 1 upright · sax: 0 alto, 1 tenor · trumpet: 0 open, 1 cup, 2 harmon, 3 straight
+pub const LY_BRIGHTNESS: u32 = 3;   // loop damping / bell / tine bell
+pub const LY_DECAY: u32 = 4;        // ring time (struck/plucked) · release (bowed/blown)
+pub const LY_BODY: u32 = 5;         // body / soundboard / formant / cab amount
+pub const LY_BODY_SIZE: u32 = 6;    // body size (scales its resonances)
+pub const LY_EXCITE_POS: u32 = 7;   // pick / hammer / bow / reed position · tine pickup voicing
+pub const LY_EXCITE_HARD: u32 = 8;  // pick / hammer hardness · bow pressure · reed stiffness · lip tension
+pub const LY_VEL_SENS: u32 = 9;     // velocity response
+pub const LY_VIB_DEPTH: u32 = 10;
+pub const LY_VIB_RATE: u32 = 11;    // 3..8 Hz
+pub const LY_VIB_DELAY: u32 = 12;   // 0..1 s before vibrato blooms
+pub const LY_NOISE: u32 = 13;       // bow hair / breath / hammer knock
+pub const LY_DRIVE: u32 = 14;       // amp drive (electric, tine) · growl (sax)
+pub const LY_DETUNE: u32 = 15;      // piano unison detune
+pub const LY_PEDAL: u32 = 16;       // sustain pedal (piano, tine): >0.5 = dampers up
+pub const LY_TREM_DEPTH: u32 = 17;  // tine piano stereo tremolo
+pub const LY_TREM_RATE: u32 = 18;
+pub const LY_WIDTH: u32 = 19;       // stereo spread across the keyboard
+pub const LY_ATTACK: u32 = 20;      // bow / breath onset
+pub const LY_DAMP: u32 = 21;        // guitar palm mute
+pub const LY_TONE: u32 = 22;        // tine amp treble · electric guitar's tone knob
+pub const LY_LEGATO: u32 = 23;      // bowed/blown: >0.5 = a note into a held one slurs (chords stay chords)
+// The electric guitar's rig (rack). LY_DRIVE is the preamp gain, LY_TONE the guitar's tone knob,
+// LY_BODY the mic position on the cab, LY_TREM_* the amp's tremolo.
+pub const LY_PICKUP: u32 = 24;      // selector: 0 neck … 1 bridge (5 positions; humbuckers 3)
+pub const LY_AMP: u32 = 25;         // index: 0 American clean, 1 British crunch, 2 chime, 3 high gain
+pub const LY_BASS: u32 = 26;
+pub const LY_MID: u32 = 27;
+pub const LY_TREBLE: u32 = 28;
+pub const LY_MASTER: u32 = 29;      // power-amp drive and sag
+pub const LY_CAB: u32 = 30;         // index: 0 1x12 open, 1 2x12 alnico, 2 4x12 closed, 3 1x10
+pub const LY_COMP: u32 = 31;        // compressor pedal (0 = off)
+pub const LY_OD: u32 = 32;          // overdrive pedal (0 = off)
+pub const LY_CHORUS: u32 = 33;      // chorus (0 = off)
+pub const LY_ECHO: u32 = 34;        // tape echo amount (0 = off)
+pub const LY_ECHO_TIME: u32 = 35;   // 80 ms … 900 ms
+
+pub const MAX_PARAM_ID: usize = 2000;
 
 /// Flat store. A plain array keeps `set_param` and the mod matrix's destination lookup O(1)
 /// with no hashing on the audio thread.
@@ -656,6 +700,44 @@ impl Params {
         self.set(SOMA_BASE + SM_SHELL_WARMTH, 0.35);
         self.set(SOMA_BASE + SM_MIC_PERSPECTIVE, 0.45);
         self.set(SOMA_BASE + SM_ROOM_EARLY, 0.28);
+
+        // ── LYRA ─────────────────────────────────────────────────────────────
+        self.set(LYRA_BASE + LY_ENABLE, 0.0);
+        self.set(LYRA_BASE + LY_MODEL, 0.0);
+        self.set(LYRA_BASE + LY_VARIANT, 0.0);
+        self.set(LYRA_BASE + LY_BRIGHTNESS, 0.55);
+        self.set(LYRA_BASE + LY_DECAY, 0.5);
+        self.set(LYRA_BASE + LY_BODY, 0.6);
+        self.set(LYRA_BASE + LY_BODY_SIZE, 0.5);
+        self.set(LYRA_BASE + LY_EXCITE_POS, 0.4);
+        self.set(LYRA_BASE + LY_EXCITE_HARD, 0.5);
+        self.set(LYRA_BASE + LY_VEL_SENS, 0.85);
+        self.set(LYRA_BASE + LY_VIB_DEPTH, 0.25);
+        self.set(LYRA_BASE + LY_VIB_RATE, 0.5);
+        self.set(LYRA_BASE + LY_VIB_DELAY, 0.3);
+        self.set(LYRA_BASE + LY_NOISE, 0.3);
+        self.set(LYRA_BASE + LY_DRIVE, 0.0);
+        self.set(LYRA_BASE + LY_DETUNE, 0.35);
+        self.set(LYRA_BASE + LY_PEDAL, 0.0);
+        self.set(LYRA_BASE + LY_TREM_DEPTH, 0.0);
+        self.set(LYRA_BASE + LY_TREM_RATE, 0.45);
+        self.set(LYRA_BASE + LY_WIDTH, 0.6);
+        self.set(LYRA_BASE + LY_ATTACK, 0.25);
+        self.set(LYRA_BASE + LY_DAMP, 0.0);
+        self.set(LYRA_BASE + LY_TONE, 0.5);
+        self.set(LYRA_BASE + LY_LEGATO, 1.0);
+        self.set(LYRA_BASE + LY_PICKUP, 0.5);
+        self.set(LYRA_BASE + LY_AMP, 0.0);
+        self.set(LYRA_BASE + LY_BASS, 0.5);
+        self.set(LYRA_BASE + LY_MID, 0.5);
+        self.set(LYRA_BASE + LY_TREBLE, 0.6);
+        self.set(LYRA_BASE + LY_MASTER, 0.4);
+        self.set(LYRA_BASE + LY_CAB, 0.0);
+        self.set(LYRA_BASE + LY_COMP, 0.0);
+        self.set(LYRA_BASE + LY_OD, 0.0);
+        self.set(LYRA_BASE + LY_CHORUS, 0.0);
+        self.set(LYRA_BASE + LY_ECHO, 0.0);
+        self.set(LYRA_BASE + LY_ECHO_TIME, 0.4);
     }
 }
 

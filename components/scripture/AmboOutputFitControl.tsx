@@ -1,6 +1,7 @@
 // AmboOutputFitControl — "Fit" on the audio bar.
 //
-// What to do with media whose aspect ratio is not the output's: letterbox it (and fill the
+// Each bus's own format: match its display or a fixed ratio / resolution of any shape, and how a
+// fixed format sits on a screen of another shape. Then, what to do with media whose aspect ratio is not the output's: letterbox it (and fill the
 // bars with a blurred or abstract version of the picture, a colour, or black), fill the whole
 // screen, or stretch. Plus alignment, zoom and shift of the media, and placement of the whole
 // output (shrink + align it on the screen). Applies to one output or all of them; the Program
@@ -10,7 +11,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Frame, X } from 'lucide-react';
 import type { AmboOutput } from '../../services/ambo/outputRouter';
-import { ALIGN_PRESETS, DEFAULT_FIT, normalizeFit, type FitSpec } from '../../services/ambo/outputFit';
+import { ALIGN_PRESETS, normalizeFit, type FitSpec } from '../../services/ambo/outputFit';
+import { ASPECT_PRESETS, aspectLabel, busSize, parseAspect, setBusAspect, setBusResolution, type DisplayScale } from '../../services/ambo/busFormat';
 import type { TransformSpec } from '../../services/ambo/showModel';
 
 interface Props {
@@ -19,8 +21,8 @@ interface Props {
 }
 
 const MODES: Array<[FitSpec['mode'], string, string]> = [
-  ['auto', 'Auto letterbox', 'Fit inside the screen, never crop — bars only when the shape differs'],
   ['fill', 'Full fill', 'Cover the whole screen; the edges are cropped'],
+  ['auto', 'Auto letterbox', 'Fit inside the screen, never crop — bars only when the shape differs'],
   ['stretch', 'Stretch', 'Distort to the screen'],
 ];
 const FILLS: Array<[FitSpec['fill'], string, string]> = [
@@ -29,6 +31,24 @@ const FILLS: Array<[FitSpec['fill'], string, string]> = [
   ['black', 'Black', 'Plain black bars'],
   ['color', 'Colour', 'A colour of your choice'],
 ];
+
+const SCALES: Array<[DisplayScale, string, string]> = [
+  ['fit', 'Fit', 'Show the whole format; bars where the screen is another shape'],
+  ['fill', 'Fill', 'Cover the screen; the edges of the format are cropped'],
+  ['stretch', 'Stretch', 'Distort the format to the screen'],
+];
+
+/** Edits locally and commits on blur / Enter, so typing '32:9' never passes through '3:9'. */
+const Commit: React.FC<{ value: string; placeholder?: string; label: string; width: string; onCommit: (v: string) => boolean | void }> = ({ value, placeholder, label, width, onCommit }) => {
+  const [text, setText] = useState(value);
+  useEffect(() => setText(value), [value]);
+  const commit = () => { if (text !== value && onCommit(text) === false) setText(value); };
+  return (
+    <input value={text} placeholder={placeholder} aria-label={label} onChange={e => setText(e.target.value)} onBlur={commit}
+      onKeyDown={e => { if (e.key === 'Enter') commit(); }}
+      className="h-6 rounded bg-white/5 border border-white/15 px-1.5 font-mono text-[10px] text-white outline-none focus:border-[#00DAF3]/60" style={{ width }} />
+  );
+};
 
 const Seg = <T extends string>({ value, options, onChange }: { value: T; options: Array<[T, string, string]>; onChange: (v: T) => void }) => (
   <div className="flex flex-wrap gap-1">
@@ -89,24 +109,29 @@ const AmboOutputFitControl: React.FC<Props> = ({ outputs, setOutputs }) => {
   }, [open]);
 
   const first = target === 'ALL' ? (outputs.find(o => o.kind === 'PROGRAM') ?? outputs[0]) : outputs.find(o => o.id === target);
-  const fit = normalizeFit(first?.fit);
+  const fit = { ...normalizeFit(first?.fit), mode: first?.fit?.mode ?? 'fill' };
+  const size = busSize(first);
+  const auto = first?.autoDetectDisplay !== false;
+  const label = aspectLabel(size.w, size.h);
   const place = placementOf(first?.transform);
 
   const apply = (fn: (o: AmboOutput) => AmboOutput) =>
     setOutputs(prev => prev.map(o => (target === 'ALL' || o.id === target) ? fn(o) : o));
-  const setFit = (patch: Partial<FitSpec>) => apply(o => ({ ...o, fit: normalizeFit({ ...normalizeFit(o.fit), ...patch }) }));
+  const setFit = (patch: Partial<FitSpec>) => apply(o => ({ ...o, fit: normalizeFit({ ...normalizeFit(o.fit), mode: o.fit?.mode ?? 'fill', ...patch }) }));
+  const setFormat = (patch: Partial<AmboOutput> | null) => { if (!patch) return false; apply(o => ({ ...o, ...patch })); return true; };
   const setPlace = (s: number, ax: number, ay: number) =>
     apply(o => ({ ...o, transform: s >= 0.999 ? { ...(o.transform || {}), rect: undefined } : { ...(o.transform || {}), rect: rectFor(s, ax, ay) } }));
-  const reset = () => apply(o => ({ ...o, fit: { ...DEFAULT_FIT }, transform: { ...(o.transform || {}), rect: undefined } }));
+  const reset = () => apply(o => ({ ...o, fit: undefined, displayScale: undefined, autoDetectDisplay: true, transform: { ...(o.transform || {}), rect: undefined } }));
 
-  const changed = outputs.some(o => o.fit && JSON.stringify(normalizeFit(o.fit)) !== JSON.stringify(normalizeFit(DEFAULT_FIT))) || outputs.some(o => o.transform?.rect);
+  const changed = outputs.some(o => o.fit && JSON.stringify(normalizeFit(o.fit)) !== JSON.stringify(normalizeFit({ mode: 'fill' })))
+    || outputs.some(o => o.transform?.rect || o.autoDetectDisplay === false);
 
   const panel = open ? createPortal(
     <div ref={panelRef} className="fixed z-[10000] w-[420px] max-w-[calc(100vw-24px)] rounded-xl border shadow-2xl flex flex-col"
       style={{ background: 'rgba(14,11,22,0.98)', borderColor: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(14px)', ...anchorPos(btnRef.current) }}>
       <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10">
         <Frame size={14} className="text-[#00DAF3]" />
-        <div className="text-[11px] font-bold text-white">Output fit &amp; position</div>
+        <div className="text-[11px] font-bold text-white">Bus format, fit &amp; position</div>
         <div className="flex-1" />
         <button onClick={reset} className="px-2 py-0.5 rounded text-[9.5px] font-bold text-white/60 hover:text-white hover:bg-white/10">Reset</button>
         <button onClick={() => setOpen(false)} className="p-1 rounded text-white/50 hover:text-white hover:bg-white/10" aria-label="Close"><X size={13} /></button>
@@ -118,6 +143,32 @@ const AmboOutputFitControl: React.FC<Props> = ({ outputs, setOutputs }) => {
             {outputs.map(o => <option key={o.id} value={o.id} className="bg-[#14101e]">{o.name || o.kind}</option>)}
           </select>
         </Row>
+        <Row label="Aspect">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex flex-wrap gap-1" data-bus-aspects>
+              <button onClick={() => setFormat({ autoDetectDisplay: true })} title="Fill whatever display this bus is on, at that display's own size and shape"
+                className={`px-2 py-1 rounded-md text-[10px] font-bold border transition-all ${auto ? 'text-[#00DAF3] bg-[#00DAF3]/15 border-[#00DAF3]/40' : 'text-white/60 border-white/10 hover:text-white hover:bg-white/5'}`}>Match display</button>
+              {ASPECT_PRESETS.map(r => (
+                <button key={r} onClick={() => setFormat(setBusAspect(r))}
+                  className={`px-2 py-1 rounded-md font-mono text-[10px] font-bold border transition-all ${!auto && label === r ? 'text-[#00DAF3] bg-[#00DAF3]/15 border-[#00DAF3]/40' : 'text-white/60 border-white/10 hover:text-white hover:bg-white/5'}`}>{r}</button>
+              ))}
+            </div>
+            <label className="flex items-center gap-1.5 text-[10px] text-white/50">
+              Custom
+              <Commit value={auto ? '' : label} placeholder="W:H" label="Custom aspect ratio" width="72px"
+                onCommit={v => (parseAspect(v) ? setFormat(setBusAspect(v)) : false)} />
+            </label>
+          </div>
+        </Row>
+        <Row label="Resolution">
+          <div className="flex items-center gap-1.5 text-[10px] text-white/50">
+            <Commit value={String(size.w)} label="Width in pixels" width="58px" onCommit={v => setFormat(setBusResolution(Number(v), size.h))} />
+            ×
+            <Commit value={String(size.h)} label="Height in pixels" width="58px" onCommit={v => setFormat(setBusResolution(size.w, Number(v)))} />
+            <span className="font-mono text-white/40">{auto ? 'from display' : label}</span>
+          </div>
+        </Row>
+        {!auto && <Row label="On screen"><Seg value={first?.displayScale ?? 'fit'} options={SCALES} onChange={displayScale => setFormat({ displayScale })} /></Row>}
         <Row label="Media fit"><Seg value={fit.mode} options={MODES} onChange={mode => setFit({ mode })} /></Row>
         {fit.mode === 'auto' && (
           <Row label="Bar fill">
@@ -138,7 +189,7 @@ const AmboOutputFitControl: React.FC<Props> = ({ outputs, setOutputs }) => {
           <Row label="Position"><AlignGrid ax={place.ax} ay={place.ay} onPick={(ax, ay) => setPlace(place.s, ax, ay)} /></Row>
         </div>
         <p className="text-[9.5px] text-white/40 leading-snug">
-          Only images, video, live feeds and Lottie are fitted — generators, text, scripture and templates already re-flow to each output.
+          Each bus has its own format and fit. Only images, video, live feeds and Lottie are fitted — generators, text, scripture and templates already re-flow to each output.
           The bar fill shows behind background media.
         </p>
       </div>
@@ -150,7 +201,7 @@ const AmboOutputFitControl: React.FC<Props> = ({ outputs, setOutputs }) => {
     <>
       <button ref={btnRef} onClick={() => setOpen(o => !o)}
         className={`px-2 py-1 rounded text-[9.5px] font-bold border flex items-center gap-1 ${changed ? 'text-black bg-[#00DAF3] border-[#00DAF3]' : open ? 'text-[#00DAF3] bg-[#00DAF3]/15 border-[#00DAF3]/30' : 'text-white/70 bg-white/5 border-white/10 hover:bg-white/15'}`}
-        title="Letterbox, fill, align and reposition media on the outputs">
+        title="Each bus's aspect ratio, resolution and scaling; fill, letterbox, align and reposition media">
         <Frame size={11} /> Fit
       </button>
       {panel}

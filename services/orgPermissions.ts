@@ -23,6 +23,15 @@ export const ROLE_PERMISSIONS: Record<OrgRole, OrgPermission[]> = {
   MEMBER: [],
 };
 
+/** Reach an org's money. Only the owner, IT Admins, Senior Pastors and held finance roles (protectedRoles) get these. */
+export const FINANCE_PERMISSIONS: OrgPermission[] = ['MANAGE_MONEY', 'MANAGE_ACCOUNTING', 'VIEW_ACCOUNTING', 'MANAGE_GIVING', 'VIEW_GIVING'];
+
+/** The owner, an IT Admin or a Senior Pastor: never blocked from finance. */
+export function isFinanceLead(uid: string | undefined, org: Pick<Organization, 'creatorId' | 'itAdminUids' | 'seniorPastorUids'> | null | undefined): boolean {
+  if (!uid || !org) return false;
+  return org.creatorId === uid || !!org.itAdminUids?.includes(uid) || !!org.seniorPastorUids?.includes(uid);
+}
+
 /** The effective permission set for a membership: explicit override, else the role default. */
 export function permissionsForMember(member: Pick<OrgMembership, 'role' | 'permissions'>): Set<OrgPermission> {
   if (member.permissions && member.permissions.length) return new Set(member.permissions);
@@ -35,10 +44,14 @@ export function permissionsForMember(member: Pick<OrgMembership, 'role' | 'permi
  * never left un-manageable if a membership row is missing.
  */
 export function orgCan(
-  member: Pick<OrgMembership, 'role' | 'permissions' | 'userId' | 'status'> | null | undefined,
-  org: Pick<Organization, 'creatorId' | 'admins'> | null | undefined,
+  member: (Pick<OrgMembership, 'role' | 'permissions' | 'userId' | 'status'> & Partial<Pick<OrgMembership, 'protectedRoles'>>) | null | undefined,
+  org: (Pick<Organization, 'creatorId' | 'admins'> & Partial<Pick<Organization, 'itAdminUids' | 'seniorPastorUids'>>) | null | undefined,
   action: OrgPermission,
 ): boolean {
+  if (FINANCE_PERMISSIONS.includes(action)) {
+    if (isFinanceLead(member?.userId, org)) return true;
+    return member?.status === 'ACTIVE' && !!member.protectedRoles?.length && permissionsForMember(member).has(action);
+  }
   if (!member || member.status !== 'ACTIVE') {
     // Fall back to org-level ownership even without an ACTIVE membership row.
     return isOrgOwner(member?.userId, org);
@@ -53,5 +66,5 @@ export function isOrgOwner(
   org: Pick<Organization, 'creatorId' | 'admins'> | null | undefined,
 ): boolean {
   if (!uid || !org) return false;
-  return org.creatorId === uid || (org.admins || []).includes(uid);
+  return org.creatorId === uid || (org.admins || []).includes(uid) || !!(org as Partial<Organization>).itAdminUids?.includes(uid);
 }

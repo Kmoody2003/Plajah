@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useChatRoomPrefs } from '../hooks/useChatRoomPrefs';
+import { isRoomUnread, isRoomMuted } from '../services/chat/chatCore';
 import { MessageSquare, ChevronRight, Bell, X, User, Users, Pin, PinOff } from 'lucide-react';
 import { ChatRoom, UserProfile } from '../types';
 import { listenToChatRooms, fetchUserProfiles, auth, updateUserProfile } from '../services/backendService';
@@ -14,8 +16,11 @@ const ChatFlyout: React.FC<ChatFlyoutProps> = ({ onNavigateToChat, onSelectRoom,
   const [isOpen, setIsOpen] = useState(false);
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [participantProfiles, setParticipantProfiles] = useState<Record<string, UserProfile>>({});
-  const [unreadRooms, setUnreadRooms] = useState<Set<string>>(new Set());
-  
+  const roomPrefs = useChatRoomPrefs(auth.currentUser?.uid);
+  const unreadRooms = useMemo(() => new Set(rooms.filter(r =>
+    isRoomUnread(r, roomPrefs[r.id], auth.currentUser?.uid) === true && !isRoomMuted(roomPrefs[r.id])).map(r => r.id)),
+  [rooms, roomPrefs]);
+
   // Drag and Pin State
   const [position, setPosition] = useState(userProfile?.uiSettings?.chatIconPosition || { x: 0, y: -200 });
   const [isPinned, setIsPinned] = useState(userProfile?.uiSettings?.isChatIconPinned ?? false);
@@ -60,16 +65,6 @@ const ChatFlyout: React.FC<ChatFlyoutProps> = ({ onNavigateToChat, onSelectRoom,
         });
       }
 
-      // Mock unread status for demo purposes if not explicitly in DB
-      // In a real app, we'd compare lastMessage timestamp with a local 'lastRead' timestamp
-      const newUnread = new Set<string>();
-      recentRooms.forEach(room => {
-        // Simple heuristic: if updated in last 5 mins, mark as "new" for this flyout demo
-        if (Date.now() - room.updatedAt < 300000) {
-          newUnread.add(room.id);
-        }
-      });
-      setUnreadRooms(newUnread);
     });
 
     return () => unsubscribe();

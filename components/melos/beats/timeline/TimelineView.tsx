@@ -6,7 +6,7 @@
 // right-edge grip = trim (beat snap) · click = select · Delete = remove · drop audio = clip.
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform, Piano, Circle, MousePointer2, Pencil, Scissors, Combine, Eraser, Scan, LocateFixed, FolderPlus, Sparkles, Layers, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, Music2, AudioWaveform, Piano, Circle, MousePointer2, Pencil, Scissors, Combine, Eraser, Scan, LocateFixed, FolderPlus, Sparkles, Layers, Loader2, Users } from 'lucide-react';
 import { unzipSync } from 'fflate';
 import type { GrooveDoc, Pattern, TimelineClip, InstrumentType } from '../../../../services/melos/beats/grooveDoc';
 import { grooveUid } from '../../../../services/melos/beats/grooveDoc';
@@ -39,6 +39,7 @@ import { TempoLane, TimelineGrid } from './TempoLane';
 import { TrackAutomation } from './TrackAutomation';
 import { ArrangerLane } from './ArrangerLane';
 import { CouncilComposerPanel } from '../council/CouncilComposerPanel';
+import { SessionBandConsole } from '../band/SessionBandConsole';
 import { syncSongFromSections } from '../../../../services/melos/beats/songSections';
 import { downloadMidi, exportClipMidi, exportTrackMidi } from '../../../../services/melos/beats/midiExport';
 
@@ -482,7 +483,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     if (track.kind === 'instrument' && !track.foreign) {
       items.push(
         { id: 'open', label: 'Open instrument', onSelect: () => requestOpen(trackId) },
-        { id: 'arm', label: 'Arm for play/record', checked: !!track.armed, onSelect: () => p.onMutate((d) => { const on = !track.armed; for (const t of d.arrangement) t.armed = false; const t = d.arrangement.find((x) => x.id === trackId); if (t) t.armed = on; }) },
+        { id: 'arm', label: 'Arm for play/record', checked: !!track.armed, onSelect: () => p.onMutate((d) => { const on = !track.armed; for (const t of d.arrangement) if (t.kind === 'instrument') t.armed = false; const t = d.arrangement.find((x) => x.id === trackId); if (t) t.armed = on; }) },
         { id: 'insertprog', label: 'Insert chord progression…', onSelect: () => setProgBrowserTrack(trackId) },
         { id: 'prompt', label: 'Describe a part (AI)…', onSelect: () => setPromptTrack(trackId) },
         { id: 'hum', label: 'Hum a melody…', onSelect: () => setHumTrack(trackId) },
@@ -713,7 +714,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
         id: grooveUid(),
         startBeats,
         lengthBeats: Math.max(1 / 16, audioLengthBeats(d, startBeats, result.buffer.duration)),
-        audio: { sampleKey: result.ref.key, name, offsetSec: 0, gainDb: 0, durationSec: result.buffer.duration },
+        audio: { sampleKey: result.ref.key, name, offsetSec: 0, gainDb: 0, durationSec: result.buffer.duration, origin: { how: 'imported', file: file.name.slice(0, 160), at: Date.now() } },
       });
     });
     void backupToLocker(result.ref).then((lockerUrl) => {
@@ -735,14 +736,14 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
     const ctx = engine.getContext();
     if (!ctx) return;
     const startBar = barFloorOf(p.doc, atBeats);
-    const made: { name: string; key: string; dur: number; peaks: number[]; bpm: number | null }[] = [];
+    const made: { name: string; file: string; key: string; dur: number; peaks: number[]; bpm: number | null }[] = [];
     for (let fileIdx = 0; fileIdx < audio.length; fileIdx++) {
       const file = audio[fileIdx]; setIngest({ done: fileIdx, total: audio.length, name: file.name });
       const name = file.name.replace(/\.[^.]+$/, '').slice(0, 40) || 'Audio';
       const result = await ingestSample(file, name, ctx);
       if (!result) continue;
       engine.setSampleBuffer(result.ref.key, result.buffer);
-      made.push({ name, key: result.ref.key, dur: result.buffer.duration, peaks: audioPeaks(result.buffer), bpm: detectTempo(result.buffer) });
+      made.push({ name, file: file.name.slice(0, 160), key: result.ref.key, dur: result.buffer.duration, peaks: audioPeaks(result.buffer), bpm: detectTempo(result.buffer) });
       setIngest({ done: fileIdx + 1, total: audio.length, name: file.name });
     }
     if (!made.length) return;
@@ -754,7 +755,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
           clips: [{
             id: grooveUid(), startBeats: startBar,
             lengthBeats: Math.max(1 / 16, audioLengthBeats(d, startBar, m.dur)),
-            audio: { sampleKey: m.key, name: m.name, offsetSec: 0, gainDb: 0, durationSec: m.dur, peaks: m.peaks, detectedBpm: m.bpm ?? undefined },
+            audio: { sampleKey: m.key, name: m.name, offsetSec: 0, gainDb: 0, durationSec: m.dur, peaks: m.peaks, detectedBpm: m.bpm ?? undefined, origin: { how: 'imported', file: m.file, at: Date.now() } },
           }],
         });
       });
@@ -825,6 +826,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
   const loop = p.doc.loop ?? { on: false, startBeats: 0, endBeats: meter.barToBeat(4) };
   const [regionGenMode, setRegionGenMode] = useState<'council' | 'stems' | 'holistic' | 'idea' | 'full_song'>('council');
   const [councilOpen, setCouncilOpen] = useState(false);
+  const [bandOpen, setBandOpen] = useState(false);
   const [regionPrompt, setRegionPrompt] = useState('');
   const [partInstrument, setPartInstrument] = useState<InstrumentType>('onda');
   const [regionGenerating, setRegionGenerating] = useState(false);
@@ -1057,7 +1059,7 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
           onClose={() => setProgBrowserTrack(null)}
           onInsert={(progId, rootPc, seventh) => {
             const startBeats = barFloorOf(p.doc, p.beats || 0);
-            const clip = progressionToClip(progId, rootPc, { seventh, startBeats });
+            const clip = progressionToClip(progId, rootPc, { seventh, startBeats, feel: { seed: Date.now() & 0x7fffffff } });
             if (!clip) return;
             p.onMutate((d) => {
               const t = d.arrangement.find((x) => x.id === progBrowserTrack);
@@ -1229,6 +1231,14 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               );
             })}
           </div>
+          <button
+            onClick={() => setBandOpen((o) => !o)}
+            aria-pressed={bandOpen}
+            title="Session Band — thirteen session players who play your song live, take direction, and teach"
+            className={`h-7 px-2.5 rounded-lg border text-[10.5px] font-bold flex items-center gap-1.5 shrink-0 ${bandOpen ? 'bg-[#8B5CFF] border-[#8B5CFF] text-white' : 'border-white/15 bg-black/30 text-white/70 hover:text-white'}`}
+          >
+            <Users size={12} /> Session Band
+          </button>
           <div className="flex flex-wrap rounded-lg border border-white/15 bg-black/30 p-0.5 max-w-full" role="group" aria-label="Timeline generation mode">
             {([
               ['council', 'Council · Notation'],
@@ -1285,6 +1295,17 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
               endBeats={Math.max(barFloorOf(p.doc, loop.startBeats) + barsSpan(p.doc, barFloorOf(p.doc, loop.startBeats), 1), loop.endBeats)}
               initialDescription={regionPrompt}
               onClose={() => setCouncilOpen(false)}
+            />
+          )}
+          {bandOpen && (
+            <SessionBandConsole
+              doc={p.doc}
+              onMutate={p.onMutate}
+              running={p.running && p.playMode === 'song'}
+              onPlayFrom={p.onPlayFrom}
+              startBeats={barFloorOf(p.doc, loop.startBeats)}
+              endBeats={Math.max(barFloorOf(p.doc, loop.startBeats) + barsSpan(p.doc, barFloorOf(p.doc, loop.startBeats), 4), loop.endBeats)}
+              onClose={() => setBandOpen(false)}
             />
           )}
         </div>
@@ -1516,8 +1537,9 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                           <button
                             onClick={() => p.onMutate((d) => {
                               const on = !track.armed;
-                              // Only one armed track: playing the keyboard has to be unambiguous.
-                              for (const t of d.arrangement) t.armed = false;
+                              // Only one armed instrument: playing the keyboard has to be unambiguous.
+                              // Hardware-input tracks arm independently (multitrack).
+                              for (const t of d.arrangement) if (t.kind === 'instrument') t.armed = false;
                               const t = d.arrangement.find((x) => x.id === track.id);
                               if (t) t.armed = on;
                             })}
@@ -1527,6 +1549,19 @@ export const TimelineView: React.FC<TimelineViewProps> = (p) => {
                               : { borderColor: 'rgba(255,255,255,0.16)', color: 'rgba(255,255,255,0.3)' }}
                             title={track.armed ? 'Armed — your keyboard plays this' : 'Arm for playing and recording'}
                             aria-label={`Arm ${track.name}`}
+                          ><Circle size={7} fill="currentColor" /></button>
+                        )}
+                        {track.kind === 'audio' && track.input && (
+                          <button
+                            onClick={() => p.onMutate((d) => { const t = d.arrangement.find((x) => x.id === track.id); if (t) t.armed = !t.armed; })}
+                            className="w-[17px] h-[17px] rounded-full border grid place-items-center flex-none"
+                            style={track.armed
+                              ? { background: 'rgba(255,77,77,0.22)', borderColor: '#FF4D4D', color: '#FF4D4D' }
+                              : { borderColor: 'rgba(255,255,255,0.16)', color: 'rgba(255,255,255,0.3)' }}
+                            title={track.armed
+                              ? `Armed — records input ${track.input.input + 1}${track.input.inputR != null ? `/${track.input.inputR + 1}` : ''}`
+                              : `Arm to record input ${track.input.input + 1}${track.input.inputR != null ? `/${track.input.inputR + 1}` : ''}`}
+                            aria-label={`Arm ${track.name} for recording`}
                           ><Circle size={7} fill="currentColor" /></button>
                         )}
                         {!track.isFolder && (

@@ -361,7 +361,7 @@ export interface NativeLlmReply {
   tokensUsed: number; seconds: number; error?: string | null;
 }
 export interface NativeLlmModel { key: string; label: string; present: boolean; path?: string | null; downloadable: boolean; loaded: boolean }
-export interface NativeLlmStatus { models: NativeLlmModel[]; backend: string; gpu: string; modelDir: string; ready: boolean }
+export interface NativeLlmStatus { models: NativeLlmModel[]; backend: string; gpu: string; modelDir: string; ready: boolean; vision?: boolean; visionDownloadBytes?: number }
 
 let nativeLlmSeq = 0;
 
@@ -378,6 +378,29 @@ export function nativeLlmChat(
     { requestId, messages, model: opts.model, maxTokens: opts.maxTokens ?? 512, temperature: opts.temperature ?? 0.7 },
     (m) => m?.requestId === requestId,
     opts.timeoutMs ?? 10 * 60_000, // a cold load of a 7B model plus a long answer
+  ).finally(() => opts.signal?.removeEventListener('abort', cancel));
+}
+
+export interface NativeLookReply { requestId: string; success: boolean; text: string; model: string; backend: string; seconds: number; loadSeconds: number; error?: string | null }
+
+/**
+ * Shows the app's vision model (Gemma 4 with its projector) one picture and asks about it. `prefill` starts
+ * the answer; `unloadAfter` frees its memory at once for heavy work that follows.
+ */
+export function nativeLlmLook(
+  image: string,
+  prompt: string,
+  opts: { prefill?: string; maxTokens?: number; unloadAfter?: boolean; signal?: AbortSignal; timeoutMs?: number } = {},
+): Promise<NativeLookReply> {
+  if (!isWindowsApp()) return Promise.reject(new Error('On-device models run in the Plajah desktop app'));
+  const requestId = `look-${Date.now().toString(36)}-${++nativeLlmSeq}`;
+  const cancel = () => postToNative({ type: 'LOCAL_LLM_CANCEL', requestId });
+  opts.signal?.addEventListener('abort', cancel, { once: true });
+  return requestNativeResponse<NativeLookReply>('LOCAL_LLM_LOOK', 'LOCAL_LLM_LOOK_RESULT',
+    { requestId, image, prompt, prefill: opts.prefill ?? '', maxTokens: opts.maxTokens ?? 900, unloadAfter: !!opts.unloadAfter },
+    (m) => m?.requestId === requestId,
+    // A cold load is 40 to 50 s, the first picture ever adds about two minutes of GPU shader setup.
+    opts.timeoutMs ?? 6 * 60_000,
   ).finally(() => opts.signal?.removeEventListener('abort', cancel));
 }
 
@@ -407,6 +430,18 @@ export function downloadNativeLlmModel(key: string, onProgress?: (done: number, 
 export function ensureNativeTela3d(): Promise<{ success: boolean; port: number; booting?: boolean; error?: string }> {
   if (!isWindowsApp()) return Promise.reject(new Error('Tela 3D runs in the Plajah desktop app'));
   return requestNativeResponse<{ success: boolean; port: number; booting?: boolean; error?: string }>('TELA3D_ENSURE', 'TELA3D_ENSURE_RESULT');
+}
+
+export function ensureNativeArgillaNpu(): Promise<{ success: boolean; port: number; booting?: boolean; needsInstall?: boolean; installMegabytes?: number; error?: string }> {
+  if (!isWindowsApp()) return Promise.reject(new Error('The NPU engine runs in the Plajah desktop app'));
+  return requestNativeResponse<{ success: boolean; port: number; booting?: boolean; needsInstall?: boolean; installMegabytes?: number; error?: string }>('ARGILLA_NPU_ENSURE', 'ARGILLA_NPU_ENSURE_RESULT');
+}
+
+/** Sets up the NPU engine's env and models on this PC. Reports each stage; a slow connection can take a while. */
+export function installNativeArgillaNpu(onProgress?: (label: string, fraction: number) => void): Promise<{ success: boolean; error?: string }> {
+  if (!isWindowsApp()) return Promise.reject(new Error('The NPU engine runs in the Plajah desktop app'));
+  const stop = onNativeMessage((m: any) => { if (m?.type === 'ARGILLA_NPU_INSTALL_PROGRESS') onProgress?.(m.label, m.fraction); });
+  return requestNativeResponse<{ success: boolean; error?: string }>('ARGILLA_NPU_INSTALL', 'ARGILLA_NPU_INSTALL_RESULT', {}, undefined, 2 * 60 * 60_000).finally(stop);
 }
 
 export interface WindowsVstPlugin {
@@ -485,6 +520,71 @@ export async function selectWindowsAudioDevice(
     { deviceId, driverType }
   );
   return result.success;
+}
+
+// ── Chora multitrack capture (native ASIO, AsioMultitrackRecorder.cs) ───────
+
+export interface AsioDriverProbe {
+  driver: string;
+  ok: boolean;
+  error?: string | null;
+  inputs: number;
+  outputs: number;
+  inputNames: string[];
+  sampleRates: number[];
+}
+
+export interface AsioTakeFile { input: number; path: string; url: string; frames: number }
+
+export interface AsioTakeResult {
+  ok: boolean;
+  takeId: string;
+  sampleRate: number;
+  durationSec: number;
+  droppedFrames: number;
+  clippedInputs: number[];
+  error?: string | null;
+  files: AsioTakeFile[];
+  /** Wall clock (unix ms) of the first driver callback, and that buffer's size in frames. */
+  firstBufferMs: number;
+  bufferFrames: number;
+  /** The driver's reported input latency in frames (includes the buffer); 0 = not reported. */
+  inputLatencyFrames?: number;
+}
+
+export async function listAsioDrivers(): Promise<string[]> {
+  if (!isWindowsApp()) return [];
+  const r = await requestNativeResponse<{ drivers: string[] }>('ASIO_DRIVERS', 'ASIO_DRIVERS_RESULT');
+  return r.drivers || [];
+}
+
+export async function probeAsioDriver(driver: string): Promise<AsioDriverProbe> {
+  return requestNativeResponse<AsioDriverProbe>('ASIO_PROBE', 'ASIO_PROBE_RESULT', { driver },
+    (m) => m.driver === driver, 15_000);
+}
+
+/** Opens the driver and starts capture of 0-based `inputs`. `write: false` = meters only. */
+export async function startAsioCapture(opts: { driver: string; inputs: number[]; sampleRate: number; takeId: string; write: boolean }):
+  Promise<{ ok: boolean; takeId: string; startedAtMs?: number; inputs?: number[]; error?: string }> {
+  return requestNativeResponse('ASIO_REC_START', 'ASIO_REC_START_RESULT', opts, (m) => m.takeId === opts.takeId, 15_000);
+}
+
+/** Stops the capture named `takeId` (a different running capture is left alone). */
+export async function stopAsioCapture(takeId: string): Promise<AsioTakeResult> {
+  return requestNativeResponse<AsioTakeResult>('ASIO_REC_STOP', 'ASIO_REC_STOP_RESULT', { takeId }, (m) => m.takeId === takeId, 15_000);
+}
+
+/** Per-input peaks (0..1) pushed ~15×/s while a capture runs. Returns an unsubscribe. */
+export function onAsioLevels(fn: (m: { takeId: string; inputs: number[]; peaks: number[] }) => void): () => void {
+  const webview = (window as any).chrome?.webview;
+  if (!webview) return () => {};
+  const h = (event: MessageEvent) => {
+    let m: any;
+    try { m = typeof event.data === 'string' ? JSON.parse(event.data) : event.data; } catch { return; }
+    if (m?.type === 'ASIO_LEVELS') fn(m);
+  };
+  webview.addEventListener('message', h);
+  return () => webview.removeEventListener('message', h);
 }
 
 export interface WindowsPickedFile {

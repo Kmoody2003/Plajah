@@ -4,6 +4,7 @@
 // Nothing here registers a copyright, determines fair use, or proves originality. The similarity helper compares
 // two texts the CALLER supplies; it is not a plagiarism guarantee and does not search the web.
 import { anchorAt, flatten, paragraphsOf, sentencesOf, wordCount, wordsOf, type Flat } from './editorialMetrics';
+import { usWorkCutoffYear } from '../../publicDomainRights';
 import { NOT_LEGAL_ADVICE, type Anchor, type ManuscriptInput, type RightsItem, type Severity } from './editorialTypes';
 
 export const RIGHTS_DISCLAIMER = NOT_LEGAL_ADVICE;
@@ -62,9 +63,9 @@ export function personNames(text: string, limit = 12): Array<{ name: string; cou
 }
 
 export interface PublicDomainHint { status: 'LIKELY_PUBLIC_DOMAIN_US' | 'LIKELY_STILL_PROTECTED_US' | 'UNKNOWN'; cutoffYear: number; message: string; lifePlus70Year?: number }
-/** US rule of thumb: works published up to 95 years ago are public domain (so, in year Y, published in or before Y-96 on Jan 1). Many countries use life + 70. */
+/** US rule of thumb: works published up to 95 years ago are public domain (so, in year Y, published in or before Y-96 on Jan 1). Many countries use life + 70. The cutoff comes from services/publicDomainRights, the one shared rights engine. */
 export function publicDomainHint(input: { publicationYear?: number; authorDeathYear?: number; now?: Date }): PublicDomainHint {
-  const year = (input.now ?? new Date()).getUTCFullYear(); const cutoffYear = year - 96;
+  const now = input.now ?? new Date(); const year = now.getFullYear(); const cutoffYear = usWorkCutoffYear(now);
   const l70 = input.authorDeathYear ? input.authorDeathYear + 70 : undefined;
   if (!input.publicationYear) return { status: 'UNKNOWN', cutoffYear, message: `Give a publication year. As a rule of thumb for the United States, works first published in ${cutoffYear} or earlier are in the public domain as of ${year}.`, lifePlus70Year: l70 };
   if (input.publicationYear <= cutoffYear) return { status: 'LIKELY_PUBLIC_DOMAIN_US', cutoffYear, lifePlus70Year: l70, message: `A work first published in ${input.publicationYear} is likely public domain in the United States (cutoff ${cutoffYear} in ${year}). Other countries often use life + 70 years${l70 ? ` (protected until about ${l70})` : ''}. A modern translation, edition, introduction or illustration may have its own copyright.` };

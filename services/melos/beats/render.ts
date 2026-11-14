@@ -6,17 +6,22 @@
 
 import type { GrooveDoc } from './grooveDoc';
 import { songTime } from './tempoMap';
-import { noteOccurrences } from './clipContent';
-import { effectiveLanes, isMessageTarget, laneValueAt, sustainedEnd } from './automation';
+import { isMessageTarget, laneValueAt } from './automation';
+import type { ParamLock } from '../arp';
 import { AutomationPlayer, applyMessage } from './engine/automationPlayer';
 import { buildGraph } from './engine/graph';
 import { MasteringChain, type MasteringState } from './fx/mastering';
 import { FxChainHost } from './fx/devices';
+import { airwindowsSettled } from './fx/airwindows';
 import { VoiceBank } from './engine/voices';
 import { StepScheduler, seededRng } from './engine/scheduler';
 import { startAudioClipSource } from './engine/clips';
 import { Instrument } from './engine/InstrumentHost';
 import { applyPatch, deserializePatch } from '../instruments/onda/patch';
+import { deserializeKeraProgram, type SerializedKeraProgram } from '../instruments/kera/persist';
+import { trackNotesForRender } from './noteFx';
+import { ModulationPlayer } from './engine/modulationPlayer';
+import { overlayPadHit } from './modulators';
 import { encodeWav } from '../../audio/wavEncode';
 import { uploadFile } from '../../backendService';
 import { auth } from '../../firebase';
@@ -36,6 +41,13 @@ function hashSeed(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return h >>> 0;
+}
+
+/** An arp step's parameter locks, on the engine's own frames: set for the note, then back. */
+function printLocks(inst: Instrument, track: GrooveDoc['arrangement'][number], locks: ParamLock[], onFrame: number, offFrame: number): void {
+  const params = (track.instrument?.patch as { params?: Record<number, number> } | undefined)?.params;
+  inst.paramsAt(onFrame, locks.map((l) => [l.paramId, l.value]));
+  inst.paramsAt(offFrame, locks.map((l) => [l.paramId, params?.[l.paramId] ?? 0]));
 }
 
 export async function renderGroove(
@@ -76,15 +88,17 @@ export async function renderGroove(
   // The mixer's inserts + aux sends print too — FxChainHost is context-agnostic, so the bounce
   // is the same board the live room heard (BeatsEngine.syncMixerFx, offline). Every channel.
   // Tempo-synced devices (Gater, Beatmasher) need the song's BPM before the chain builds.
-  const chain = (instances: Parameters<FxChainHost['setChain']>[0]) => {
+  const fxHosts = new Map<string, FxChainHost>(); // `${scope}:${owner}` → host, for modulators
+  const chain = (instances: Parameters<FxChainHost['setChain']>[0], scope = '') => {
     const h = new FxChainHost(offline);
     h.setTempo(doc.bpm || 120);
     h.setChain(instances);
+    if (scope) fxHosts.set(scope, h);
     return h;
   };
   doc.kit.forEach((pad, i) => {
     const inserts = (pad.inserts ?? []).filter((f) => f.on);
-    if (inserts.length) { const h = chain(pad.inserts ?? []); graph.setPadInsert(i, h.input, h.output); }
+    if (inserts.length) { const h = chain(pad.inserts ?? [], `pad:${i}`); graph.setPadInsert(i, h.input, h.output); }
     const sends = pad.sends ?? [];
     for (let s = 0; s < 2; s++) graph.setPadSend(i, s, sends[s] ?? 0);
   });
@@ -95,20 +109,20 @@ export async function renderGroove(
     if (t.foreign) continue;
     graph.trackDestination(t); // ensure the strip exists before wiring its insert/sends
     const inserts = (t.inserts ?? []).filter((f) => f.on);
-    if (inserts.length) { const h = chain(t.inserts ?? []); graph.setTrackInsert(t.id, h.input, h.output); }
+    if (inserts.length) { const h = chain(t.inserts ?? [], `track:${t.id}`); graph.setTrackInsert(t.id, h.input, h.output); }
     const sends = t.sends ?? [];
     for (let s = 0; s < 2; s++) graph.setTrackSend(t.id, s, sends[s] ?? 0);
   }
   doc.mixer.groups.forEach((ch, i) => {
     const inserts = (ch.inserts ?? []).filter((f) => f.on);
-    if (inserts.length) { const h = chain(ch.inserts ?? []); graph.setGroupInsert(i, h.input, h.output); }
+    if (inserts.length) { const h = chain(ch.inserts ?? [], `group:${i}`); graph.setGroupInsert(i, h.input, h.output); }
     const sends = ch.sends ?? [];
     for (let s = 0; s < 2; s++) graph.setGroupSend(i, s, sends[s] ?? 0);
   });
   (doc.mixer.sendBuses ?? []).forEach((b, s) => {
     graph.setSendReturnGain(s, b.gainDb ?? 0);
     const inserts = (b.inserts ?? []).filter((f) => f.on);
-    if (inserts.length) { const h = chain(b.inserts ?? []); graph.setSendInsert(s, h.input, h.output); }
+    if (inserts.length) { const h = chain(b.inserts ?? [], `send:${s}`); graph.setSendInsert(s, h.input, h.output); }
   });
   const voices = new VoiceBank(graph);
   for (const [key, buf] of buffers) voices.setBuffer(key, buf);
@@ -128,6 +142,8 @@ export async function renderGroove(
   );
   const anySolo = doc.arrangement.some((t) => t.solo);
   const instByTrackId = new Map<string, Instrument>();
+  // KERA tracks play sampled voices — their notes go through keraScheduleNote, not the synth path.
+  const keraTrackIds = new Set<string>();
   let skippedInstruments = 0;
 
   for (const track of instrumentTracks) {
@@ -139,6 +155,7 @@ export async function renderGroove(
       await inst.whenReady();
       inst.output.connect(graph.trackDestination(track));
       inst.setTempo(1 / spb);
+      inst.trackId = track.id;
       if (track.position) inst.setSpatial({ position: track.position });
       if (track.instrument?.patch) {
         const tType = track.instrument.type;
@@ -154,6 +171,10 @@ export async function renderGroove(
           const { deserializeSomaPatch, applySomaPatch } = await import('../instruments/soma/patch');
           const p = deserializeSomaPatch(track.instrument.patch);
           if (p) applySomaPatch(inst, p);
+        } else if (tType === 'lyra') {
+          const { deserializeLyraPatch, applyLyraPatch } = await import('../instruments/lyra/patch');
+          const p = deserializeLyraPatch(track.instrument.patch);
+          if (p) applyLyraPatch(inst, p);
         } else if (tType === 'bajo') {
           const { deserializeBajoPatch, applyBajoPatch } = await import('../instruments/bajo/patch');
           const p = deserializeBajoPatch(track.instrument.patch);
@@ -163,38 +184,44 @@ export async function renderGroove(
           if (patch) applyPatch(inst, patch);
         }
       }
+      if (track.instrument?.type === 'kera') {
+        // The program's PCM comes back from the owner's OPFS/locker, exactly as the live engine
+        // hydrates it; nothing to load = an empty sampler, counted rather than bounced as silence.
+        const sp = track.instrument.kera as unknown as SerializedKeraProgram | undefined;
+        const prog = sp ? await deserializeKeraProgram(sp) : null;
+        if (!prog) { inst.dispose(); skippedInstruments++; continue; }
+        inst.loadKeraProgram(prog);
+        keraTrackIds.add(track.id);
+      }
       inst.resetTransport(0);
       inst.clearSchedule();
       instByTrackId.set(track.id, inst);
+      const kera = keraTrackIds.has(track.id);
+      if (track.instrument?.type === 'soma') {
+        // SOMA deep skin: render the GPU layers for every note this bounce strikes first, so the
+        // print gets them on the first hit (scheduleNoteOn falls back to the CPU cloud per note).
+        const notes: number[] = [];
+        for (const n of trackNotesForRender(doc, track)) notes.push(n.key);
+        for (const pad of doc.kit) if (pad?.source === 'instrument' && pad.instrumentTrackId === track.id) notes.push(Math.max(0, Math.min(127, (pad.instrumentNote ?? 60) + (pad.pitchSemis || 0))));
+        await inst.warmSomaDeep(notes);
+      }
 
-      const sustain = effectiveLanes(track).get('sustain');
-      for (const clip of track.clips) {
-        if (!clip.notes?.length) continue;
-        // Same window (slip offset + loop) and sustain-pedal rules as the live scheduler.
-        for (const occ of noteOccurrences(clip, -Infinity, endBeats)) {
-          const startBeats = occ.songBeat;
-          const end = sustainedEnd(sustain, startBeats + Math.max(0.05, occ.lengthBeats), clip.startBeats + clip.lengthBeats);
-          // anchor mirrors the drum scheduler's lead-in so both land on the same grid.
-          const onFrame = Math.round((anchor + tempo.beatToSec(startBeats)) * SAMPLE_RATE);
-          const offFrame = Math.round((anchor + tempo.beatToSec(end)) * SAMPLE_RATE);
-          const voiceId = inst.scheduleNoteOn(occ.note.key, Math.max(0.05, occ.note.vel / 127), onFrame);
-          inst.scheduleNoteOff(voiceId, offFrame);
-        }
+      // Same window (slip offset + loop), sustain-pedal rules and note FX as the live scheduler.
+      for (const n of trackNotesForRender(doc, track)) {
+        if (n.beat >= endBeats) continue;
+        // anchor mirrors the drum scheduler's lead-in so both land on the same grid.
+        const onFrame = Math.round((anchor + tempo.beatToSec(n.beat)) * SAMPLE_RATE);
+        const offFrame = Math.round((anchor + tempo.beatToSec(n.beat + n.len)) * SAMPLE_RATE);
+        if (n.locks?.length) printLocks(inst, track, n.locks, onFrame, offFrame);
+        if (kera) { inst.keraScheduleNote(n.key, n.vel, onFrame, offFrame); continue; }
+        const voiceId = inst.scheduleNoteOn(n.key, Math.max(0.05, n.vel / 127), onFrame);
+        inst.scheduleNoteOff(voiceId, offFrame);
       }
     } catch (e) {
       console.warn('[beats] offline instrument failed', track.name, e);
       skippedInstruments++;
     }
   }
-
-  // KERA pads can't render offline yet — a KERA program is decoded audio loaded at runtime, not
-  // part of the serialized patch, so there's nothing to re-instantiate here. Count them honestly
-  // rather than bouncing silence that reads as "rendered".
-  const trackById = new Map(doc.arrangement.map((t) => [t.id, t]));
-  const keraPadTrackIds = new Set(
-    [...padInstrumentTrackIds].filter((id) => trackById.get(id)?.instrument?.type === 'kera'),
-  );
-  skippedInstruments += keraPadTrackIds.size;
 
   const scheduler = new StepScheduler({
     doc: () => doc,
@@ -205,25 +232,33 @@ export async function renderGroove(
       const pad = doc.kit[padIdx];
       if (pad?.empty || pad?.mute) return; // placeholder / muted pad prints nothing
       if (pad?.source === 'instrument' && pad.instrumentTrackId) {
-        // ONDA pad: pre-schedule at absolute frames, the same path clip notes use.
-        if (keraPadTrackIds.has(pad.instrumentTrackId)) return; // KERA offline: see above
+        // Instrument pad: pre-schedule at absolute frames, the same path clip notes use.
         const inst = instByTrackId.get(pad.instrumentTrackId);
         if (!inst) return;
         const note = Math.max(0, Math.min(127, (pad.instrumentNote ?? 60) + (pad.pitchSemis || 0) + (semiOffset || 0)));
         const onFrame = Math.round(when * SAMPLE_RATE);
         const gate = gateSec ?? 0.25; // one-shot instrument pads get a short articulating gate
         const offFrame = Math.round((when + gate) * SAMPLE_RATE);
+        if (keraTrackIds.has(pad.instrumentTrackId)) { inst.keraScheduleNote(note, vel, onFrame, offFrame); return; }
         const voiceId = inst.scheduleNoteOn(note, Math.max(0.05, vel / 127), onFrame);
         inst.scheduleNoteOff(voiceId, offFrame);
         return;
       }
       // Per-step pan prints in the bounce; Step-FX offline routing is a follow-up.
+      const hitBeat = tempo.secToBeat(when - anchor);
+      const undoHit = overlayPadHit(doc, padIdx, hitBeat, tempo.beatToSec(hitBeat));
       voices.trigger(doc, padIdx, vel, when, gateSec, semiOffset, pan, undefined, skipChoke, mods);
+      undoHit?.();
     },
     startAudioClip: (track, clip, when, offset) =>
       void startAudioClipSource(offline, graph, (k) => voices.getBuffer(k), track, clip, when, offset,
         tempo.secBetween(clip.startBeats, clip.startBeats + clip.lengthBeats)),
     startInstrumentNote: () => { /* see RenderResult.skippedInstruments */ },
+    paramLocks: (trackId, when, until, locks) => {
+      const inst = instByTrackId.get(trackId);
+      const track = doc.arrangement.find((t) => t.id === trackId);
+      if (inst && track) printLocks(inst, track, locks, Math.round(when * SAMPLE_RATE), Math.round(until * SAMPLE_RATE));
+    },
   });
   if (opts.range === 'pattern') {
     scheduler.start('pattern', 0, opts.patternId);
@@ -239,10 +274,24 @@ export async function renderGroove(
   // go silent (live playback is unaffected — it always has real time between load and note).
   // Track automation: AudioParam lanes as sample-accurate ramps; instrument-message lanes (macros,
   // mod wheel, pitch bend) by suspending the render at each change and posting the message.
+  const QUANTUM = 128 / SAMPLE_RATE;
+  const events = new Map<number, (() => void)[]>();
+  // Modulators print on every bounce, a pattern's as well as a song's.
+  if (doc.modulators?.some((m) => m.on)) {
+    new ModulationPlayer().print(doc, {
+      graph,
+      inst: (id) => instByTrackId.get(id) ?? null,
+      fxNode: (t) => fxHosts.get(`${t.scope}:${t.owner}`)?.nodeOf(t.fxId),
+    }, endBeats, (b) => anchor + tempo.beatToSec(b), (b) => tempo.beatToSec(b), SAMPLE_RATE, (time, act) => {
+      const q = Math.floor(time / QUANTUM) * QUANTUM;
+      if (q <= 0) { act(); return; }
+      const list = events.get(q) ?? [];
+      list.push(act);
+      events.set(q, list);
+    });
+  }
   if (opts.range === 'song') {
     automation.scheduleParams(doc, graph, 0, 0, endBeats, (b) => anchor + tempo.beatToSec(b));
-    const QUANTUM = 128 / SAMPLE_RATE;
-    const events = new Map<number, (() => void)[]>();
     const MAX_EVENTS = 4000;
     let count = 0;
     for (const [trackId, inst] of instByTrackId) {
@@ -267,18 +316,20 @@ export async function renderGroove(
         }
       }
     }
-    const insts = [...instByTrackId.values()];
-    for (const [q, acts] of events) {
-      if (q >= seconds) continue;
-      void offline.suspend(q).then(async () => {
-        for (const a of acts) a();
-        await Promise.all(insts.map((i) => i.flush()));
-        await offline.resume();
-      });
-    }
+  }
+  const insts = [...instByTrackId.values()];
+  for (const [q, acts] of events) {
+    if (q >= seconds) continue;
+    void offline.suspend(q).then(async () => {
+      for (const a of acts) a();
+      await Promise.all(insts.map((i) => i.flush()));
+      await offline.resume();
+    });
   }
 
   await Promise.all([...instByTrackId.values()].map((i) => i.flush()));
+  // Worklet-hosted inserts (Airwindows) join the path asynchronously — wait, or they print dry.
+  await airwindowsSettled(offline);
 
   const rendered = await offline.startRendering();
   return { blob: encodeWav(rendered, opts.bitDepth ?? 24), buffer: rendered, seconds, skippedInstruments };

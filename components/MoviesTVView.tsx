@@ -440,10 +440,10 @@ const HomeView: React.FC<{
 
   const handleShareHalloweenCollection = async () => {
     const res = await shareAsset('taleoCollection', 'halloween', {
-      title: 'Cinema Halloween — 31 Nights of Cinema Terror | Plajah',
+      title: 'Plajah Horror Classics — 31 Nights of Cinema Terror | Plajah',
       text: 'Stream 12 restored horror masterpieces — Night of the Living Dead, House on Haunted Hill, Carnival of Souls, Nosferatu & more — free on Plajah Cinema!',
     });
-    if (res === 'copied') onShareToast?.('Halloween Showcase link copied to clipboard!');
+    if (res === 'copied') onShareToast?.('Plajah Horror Classics link copied to clipboard!');
   };
 
   const currentWorld = worlds[worldBannerIdx];
@@ -552,7 +552,7 @@ const HomeView: React.FC<{
                     ? 'bg-orange-500/20 text-orange-300 border-orange-500/40'
                     : 'bg-white/10 text-white/70 border-white/12'
                 }`}>
-                  {heroIsHalloween ? '🎃 Halloween Showcase' : heroIsplatform ? 'Platform Original' : 'Cinema'}
+                  {heroIsHalloween ? '🎃 Plajah Horror Classics' : heroIsplatform ? 'Platform Original' : 'Cinema'}
                 </span>
                 {heroGenre && (
                   <span className="text-[#FFB68D] text-[9px] font-black uppercase tracking-[0.2em]">{heroGenre}</span>
@@ -860,14 +860,14 @@ const HomeView: React.FC<{
                   <Flame size={14} className="hidden sm:block text-orange-400" /> 🏰 <span className="sm:hidden">Ravencrest</span><span className="hidden sm:inline">Explore Ravencrest</span>
                 </button>
                 <ShareButton
-                  title={`Halloween Curation · Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`}
-                  artist="Directed by Brian James Gage · Halloween Curation"
-                  text={`Stream Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics in the Halloween Curation`}
+                  title={`Plajah Horror Classics · Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`}
+                  artist="Directed by Brian James Gage · Plajah Horror Classics"
+                  text={`Stream Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics in Plajah Horror Classics`}
                   url={buildShareUrl('taleoCollection', 'halloween')}
                   imageUrl={pumpkinPatchHero.headerImage || pumpkinPatchHero.coverImage}
                   contentType="movie"
-                  ctaText="🎃 EXPLORE HALLOWEEN CURATION"
-                  plajahLabel="Share Halloween Curation to feed"
+                  ctaText="🎃 EXPLORE PLAJAH HORROR CLASSICS"
+                  plajahLabel="Share Plajah Horror Classics to feed"
                   onPostToPlajah={async () => {
                     if (!auth.currentUser) {
                       await loginWithGoogle();
@@ -875,17 +875,17 @@ const HomeView: React.FC<{
                     }
                     const img = pumpkinPatchHero.headerImage || pumpkinPatchHero.coverImage;
                     await createPost({
-                      text: `🎃 Exploring the Halloween Curation — headlined by Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror & Gothic classics!`,
+                      text: `🎃 Exploring Plajah Horror Classics — headlined by Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror & Gothic classics!`,
                       isPublic: true,
                       tags: ['HalloweenCuration', 'Taleo', 'PumpkinPatch', 'HorrorCinema'],
                       assetEmbed: {
                         type: 'TALEO_COLLECTION',
                         id: 'halloween',
-                        title: `🎃 Halloween Curation — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`,
+                        title: `🎃 Plajah Horror Classics — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`,
                         subtitle: 'Headlined by Brian James Gage’s Pumpkin Patch · Korean Gothic · Midnight Horror',
                         imageUrl: img,
                       },
-                      media: img ? [{ type: 'PHOTO' as any, url: img, title: `🎃 Halloween Curation — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics` }] : undefined,
+                      media: img ? [{ type: 'PHOTO' as any, url: img, title: `🎃 Plajah Horror Classics — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics` }] : undefined,
                     } as any);
                   }}
                   className="w-full sm:w-auto h-12 sm:h-11 px-5 bg-white/5 hover:bg-white/10 border border-white/15 text-white/80 font-black text-[10px] uppercase tracking-widest rounded-full flex items-center justify-center gap-2 transition-all cursor-pointer"
@@ -970,7 +970,7 @@ const HomeView: React.FC<{
                         if (!auth.currentUser) throw new Error('Sign in required');
                       }
                       await createPost({
-                        text: `🎃 Watching Brian James Gage’s "Pumpkin Patch" in the Cinema Halloween Curation!`,
+                        text: `🎃 Watching Brian James Gage’s "Pumpkin Patch" in Plajah Horror Classics!`,
                         isPublic: true,
                         tags: ['PumpkinPatch', 'HalloweenCuration', 'Taleo'],
                         assetEmbed: {
@@ -1003,8 +1003,8 @@ const HomeView: React.FC<{
                   <div onClick={ev => ev.stopPropagation()} className="absolute top-2 right-2 z-10 opacity-0 group-hover/hcard:opacity-100 [@media(hover:none)]:opacity-100 transition-all">
                     <ShareButton
                       title={`${film.title} (${film.year})`}
-                      artist={film.director ? `Dir. ${film.director} · Cinema Halloween` : 'Cinema Halloween'}
-                      text={`Watch "${film.title}" (${film.year}) free in the Plajah Halloween Curation`}
+                      artist={film.director ? `Dir. ${film.director} · Plajah Horror Classics` : 'Plajah Horror Classics'}
+                      text={`Watch "${film.title}" (${film.year}) free in Plajah Horror Classics`}
                       url={buildShareUrl('archive', film.identifier)}
                       imageUrl={film.thumbnailUrl}
                       contentType="movie"
@@ -1016,14 +1016,14 @@ const HomeView: React.FC<{
                           if (!auth.currentUser) throw new Error('Sign in required');
                         }
                         await createPost({
-                          text: `🎬 Streaming "${film.title}" (${film.year}${film.director ? `, dir. ${film.director}` : ''}) in the Plajah Halloween Curation!`,
+                          text: `🎬 Streaming "${film.title}" (${film.year}${film.director ? `, dir. ${film.director}` : ''}) in Plajah Horror Classics!`,
                           isPublic: true,
                           tags: ['HalloweenCuration', 'Taleo', 'ClassicHorror'],
                           assetEmbed: {
                             type: 'ARCHIVE',
                             id: film.identifier,
                             title: `${film.title} (${film.year})`,
-                            subtitle: `${film.director ? `Dir. ${film.director} · ` : ''}Cinema Halloween Curation`,
+                            subtitle: `${film.director ? `Dir. ${film.director} · ` : ''}Plajah Horror Classics`,
                             imageUrl: film.thumbnailUrl,
                           },
                           media: film.thumbnailUrl ? [{ type: 'PHOTO' as any, url: film.thumbnailUrl, title: film.title }] : undefined,
@@ -1370,7 +1370,7 @@ const HomeView: React.FC<{
           onPlayFilm={handlePlayFilmById}
         />
 
-        {/* Halloween Curation: Full Story Intelligence, Characters & The Actors Behind Them */}
+        {/* Plajah Horror Classics: Full Story Intelligence, Characters & The Actors Behind Them */}
         <HalloweenCurationStoryIntelSection
           onPlayFilm={handlePlayFilmById}
           onOpenFilmStoryIntel={handlePlayFilmById}
@@ -1823,11 +1823,11 @@ const HalloweenShowcaseView: React.FC<{
     }
     const titleText = shelfTitle
       ? `🎃 ${shelfTitle} · Cinema Halloween Double Feature`
-      : `🎃 Halloween Curation — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`;
+      : `🎃 Plajah Horror Classics — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`;
     await createPost({
       text: shelfTitle
-        ? `🎃 Watching the "${shelfTitle}" Double Feature in the Halloween Curation on Cinema!`
-        : `🎃 Exploring the Halloween Curation — headlined by Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics on Cinema!`,
+        ? `🎃 Watching the "${shelfTitle}" Double Feature in Plajah Horror Classics on Cinema!`
+        : `🎃 Exploring Plajah Horror Classics — headlined by Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics on Cinema!`,
       isPublic: true,
       tags: ['HalloweenCuration', 'Taleo', 'PumpkinPatch', 'HorrorCinema'],
       assetEmbed: {
@@ -1842,7 +1842,7 @@ const HalloweenShowcaseView: React.FC<{
         ? [{ type: 'PHOTO' as any, url: halloweenShareImage, title: titleText }]
         : undefined,
     } as any);
-    onShareToast(shelf ? 'Double Feature shared!' : 'Halloween Curation shared!');
+    onShareToast(shelf ? 'Double Feature shared!' : 'Plajah Horror Classics shared!');
   };
 
   const handleRandomFright = () => {
@@ -1858,7 +1858,7 @@ const HalloweenShowcaseView: React.FC<{
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="text-base shrink-0">🎃🕸️🦇</span>
             <span className="font-black uppercase tracking-widest text-orange-300 text-[10px] truncate">
-              Halloween Curation Vault<span className="hidden sm:inline"> · Midnight Coven Edition</span>
+              Plajah Horror Classics Vault
             </span>
             <span className="hidden md:inline text-[11px] text-amber-200/70">
               Live Persistent Chat &amp; Fan Room · 6 Realistic Monster Face Filters · Found-Footage Night Beam · Ravencrest, the playable 3D castle
@@ -1992,7 +1992,7 @@ const HalloweenShowcaseView: React.FC<{
                     if (!auth.currentUser) throw new Error('Sign in required');
                   }
                   await createPost({
-                    text: `🎃 Watching Brian James Gage’s "Pumpkin Patch" in the Cinema Halloween Curation!`,
+                    text: `🎃 Watching Brian James Gage’s "Pumpkin Patch" in Plajah Horror Classics!`,
                     isPublic: true,
                     tags: ['PumpkinPatch', 'HalloweenCuration', 'Taleo'],
                     assetEmbed: {
@@ -2043,7 +2043,7 @@ const HalloweenShowcaseView: React.FC<{
                 <Flame size={14} className="text-orange-400" />
               </div>
               <p className="text-xs text-white/60 leading-relaxed">
-                Share the entire Halloween curation — featuring <span className="text-white font-semibold">Pumpkin Patch</span> &amp; {CURATED_HALLOWEEN_FILMS.length} restored horror classics — with a rich preview card.
+                Share all of Plajah Horror Classics — featuring <span className="text-white font-semibold">Pumpkin Patch</span> &amp; {CURATED_HALLOWEEN_FILMS.length} restored horror classics — with a rich preview card.
               </p>
               <div className="hidden sm:flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
                 <span className="text-[10px] font-mono text-white/70 truncate flex-1">
@@ -2051,18 +2051,18 @@ const HalloweenShowcaseView: React.FC<{
                 </span>
               </div>
               <ShareButton
-                title={`Halloween Curation · Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`}
+                title={`Plajah Horror Classics · Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`}
                 artist="Headlined by Brian James Gage"
-                text={`Stream Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics in the Halloween Curation`}
+                text={`Stream Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics in Plajah Horror Classics`}
                 url={halloweenShareUrl}
                 imageUrl={halloweenShareImage}
                 contentType="movie"
-                ctaText="🎃 EXPLORE HALLOWEEN CURATION"
-                plajahLabel="Share Halloween Curation"
+                ctaText="🎃 EXPLORE PLAJAH HORROR CLASSICS"
+                plajahLabel="Share Plajah Horror Classics"
                 onPostToPlajah={() => handlePostHalloweenCollectionToPlajah()}
                 className="w-full min-h-[44px] py-2.5 px-4 rounded-xl bg-orange-500 hover:bg-orange-400 text-black font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-orange-500/20"
               >
-                <Share2 size={13} /> Share Halloween Curation
+                <Share2 size={13} /> Share Plajah Horror Classics
               </ShareButton>
             </div>
           </div>
@@ -2448,8 +2448,8 @@ const HalloweenShowcaseView: React.FC<{
                     </button>
                     <ShareButton
                       title={`${film.title} (${film.year})`}
-                      artist={film.director ? `Dir. ${film.director} · Cinema Halloween` : 'Cinema Halloween'}
-                      text={`Watch "${film.title}" (${film.year}) free in the Plajah Halloween Curation`}
+                      artist={film.director ? `Dir. ${film.director} · Plajah Horror Classics` : 'Plajah Horror Classics'}
+                      text={`Watch "${film.title}" (${film.year}) free in Plajah Horror Classics`}
                       url={buildShareUrl('archive', film.identifier)}
                       imageUrl={film.thumbnailUrl}
                       contentType="movie"
@@ -2461,14 +2461,14 @@ const HalloweenShowcaseView: React.FC<{
                           if (!auth.currentUser) throw new Error('Sign in required');
                         }
                         await createPost({
-                          text: `🎬 Streaming "${film.title}" (${film.year}${film.director ? `, dir. ${film.director}` : ''}) in the Plajah Halloween Curation!`,
+                          text: `🎬 Streaming "${film.title}" (${film.year}${film.director ? `, dir. ${film.director}` : ''}) in Plajah Horror Classics!`,
                           isPublic: true,
                           tags: ['HalloweenCuration', 'Taleo', 'ClassicHorror'],
                           assetEmbed: {
                             type: 'ARCHIVE',
                             id: film.identifier,
                             title: `${film.title} (${film.year})`,
-                            subtitle: `${film.director ? `Dir. ${film.director} · ` : ''}Cinema Halloween Curation`,
+                            subtitle: `${film.director ? `Dir. ${film.director} · ` : ''}Plajah Horror Classics`,
                             imageUrl: film.thumbnailUrl,
                           },
                           media: film.thumbnailUrl ? [{ type: 'PHOTO' as any, url: film.thumbnailUrl, title: film.title }] : undefined,
@@ -2880,7 +2880,7 @@ const MoviesTVView: React.FC<MoviesTVViewProps> = ({ onBack, onSelectMovie, onNa
     if (taleoSessionCache) taleoSessionCache.lastSubView = currentSubView;
   }, [currentSubView]);
 
-  // Listen for in-app OPEN_TALEO_COLLECTION events (e.g. clicking a shared Halloween Curation card in Plajah feed)
+  // Listen for in-app OPEN_TALEO_COLLECTION events (e.g. clicking a shared Plajah Horror Classics card in Plajah feed)
   useEffect(() => {
     const onOpenCollection = (e: Event) => {
       const detail = (e as CustomEvent).detail || {};

@@ -5,11 +5,12 @@
 // - Unified "Page & Hero Identity" studio (Live WYSIWYG Hero Cover & Logo uploader, Identity & Welcome Copy,
 //   Service Times & Gatherings, Multi-site Campuses, Visibility, and Danger Zone) + Operations pillars.
 
+import { orgCanReceiveGiving } from '../../services/orgFinanceCore';
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   LayoutDashboard, Users, Church, Link2, Gift, HandHeart, MonitorPlay, MessagesSquare, ShoppingBag,
   Megaphone, Check, Circle, Loader2, Trash2, Sparkles, Mail, HardDrive, UserCog, Mic2, Wallet, KeyRound, GraduationCap, Music, ShieldCheck,
-  Calendar, Radio, Upload, Send, DollarSign, BookOpen, Landmark, Palette, Clock, MapPin, Plus, Globe,
+  Calendar, Radio, Upload, Send, DollarSign, BookOpen, Landmark, Palette, Clock, MapPin, Plus, Globe, Bot,
 } from 'lucide-react';
 import { spendingPerms } from '../../services/acctSpending';
 import { CountBadge, useMoneyInbox } from './chms/finance/SpendingUi';
@@ -60,6 +61,7 @@ const ElevateMobilizeHub = lazy(() => import('./ElevateMobilizeHub'));
 const ElevateTelaOperationsSuite = lazy(() => import('./ElevateTelaOperationsSuite'));
 const GrowthHub = lazy(() => import('../growth/GrowthHub'));
 const GrantHub = lazy(() => import('./GrantHub'));
+const OrgCrewPanel = lazy(() => import('../crew/OrgCrewPanel'));
 const OrgCentralCalendarHub = lazy(() => import('./OrgCentralCalendarHub'));
 const VolunteerMemberManageHub = lazy(() => import('./VolunteerMemberManageHub'));
 import { EV, EvKpiStrip } from './vellum';
@@ -109,7 +111,8 @@ export type SectionKey =
   | 'marketing'
   | 'calendar'
   | 'my_settings'
-  | 'grants';
+  | 'grants'
+  | 'crew';
 type Tool = null | 'sermons' | 'sermonprep' | 'master' | 'console' | 'hq' | 'employees' | 'hiring' | 'marketing';
 
 interface Props {
@@ -133,7 +136,16 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
     ministries: ensureChurchMusicAndEducationDepartments(initialOrg),
   }));
   const [members, setMembers] = useState<OrgMembership[]>([]);
-  const [section, setSection] = useState<SectionKey>(initialSection ?? 'overview');
+  const [section, setSection] = useState<SectionKey>(() => {
+    if (initialSection) return initialSection;
+    // Coming back from Tela's "Back to class" button: reopen Christian Education.
+    try {
+      if (sessionStorage.getItem('plajah:eduReturnClass')) return 'education';
+    } catch {
+      /* storage blocked */
+    }
+    return 'overview';
+  });
   const [tool, setTool] = useState<Tool>(initialTool ?? null);
   const [financeOpen, setFinanceOpen] = useState(false);
   const [billingOpen, setBillingOpen] = useState(false);
@@ -183,6 +195,8 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
     { key: 'people' as const, label: 'People & Roster', icon: Users, show: can('MANAGE_ROSTER') || can('ASSIGN_ROLES') || (!!uid && (org.ministries || []).some(m => m.headUids?.includes(uid))) },
     { key: 'giving' as const, label: 'Giving & Funds', icon: Gift, show: can('MANAGE_GIVING') || can('VIEW_GIVING') || can('MANAGE_ACCOUNTING') || can('VIEW_ACCOUNTING') },
     { key: 'grants' as const, label: 'Grants', icon: Landmark, show: can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING') || isOwner },
+    // Same people the server lets manage the crew (routes/crew.ts canManageCrew): owner, org admins, IT Admins.
+    { key: 'crew' as const, label: "Aria's Crew", icon: Bot, show: isOwner || (!!uid && ((org.admins || []).includes(uid) || (org.itAdminUids || []).includes(uid))) },
     { key: 'events' as const, label: 'Events', icon: Calendar, show: can('POST_AS_ORG') || can('MANAGE_CONTENT') || isOwner },
     { key: 'prayer' as const, label: 'Prayer Wall', icon: HandHeart, show: faith && can('VIEW_PRAYER') },
     { key: 'messages' as const, label: 'Messages', icon: Mail, show: can('MANAGE_MEDIA') },
@@ -238,7 +252,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
         {tool === 'master' && can('MANAGE_MEDIA') && <ChurchMasterControl church={org} onClose={closeTool} />}
         {tool === 'console' && can('MANAGE_MEDIA') && <ChurchConsole church={org} onClose={closeTool} />}
         {tool === 'hq' && (can('MANAGE_CONTENT') || can('MANAGE_MEDIA') || myMembership?.status === 'ACTIVE') && (
-          <ContentHQ scope={{ kind: 'org', id: org.id, ownerUid: org.creatorId, adminUids: org.admins, label: org.name }}
+          <ContentHQ scope={{ kind: 'org', id: org.id, ownerUid: org.creatorId, adminUids: org.admins, label: org.name, departments: org.ministries }}
             canEdit={can('MANAGE_CONTENT') || can('MANAGE_MEDIA')}
             canViewAnswerKey={canViewerAccessAnswerKey({ membership: myMembership, org, user: auth.currentUser as any, explicitCanEdit: isOwner })}
             mediaOwnerUid={org.creatorId} onClose={closeTool} />
@@ -433,8 +447,9 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
                       ownerUid: org.creatorId,
                       adminUids: org.admins,
                       label: org.name,
+                      departments: org.ministries,
                     }}
-                    canEdit={isOwner || can('MANAGE_CONTENT') || can('MANAGE_MEDIA') || !!myMembership}
+                    canEdit={isOwner || can('MANAGE_CONTENT') || can('MANAGE_MEDIA')}
                     canViewAnswerKey={canViewerAccessAnswerKey({ membership: myMembership, org, user: auth.currentUser as any, explicitCanEdit: isOwner })}
                     mediaOwnerUid={org.creatorId}
                   />
@@ -577,6 +592,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
                 />
               )}
               {section === 'grants' && <GrantHub org={org} />}
+              {section === 'crew' && <OrgCrewPanel org={org} onOpenSection={k => setSection(k as SectionKey)} />}
             </Suspense>
           </div>
         </div>
@@ -972,7 +988,7 @@ const GivingPanel: React.FC<{ org: Organization; canManage: boolean; totals: Rec
       const saved = await saveFunds(org, funds, id => bal?.get(id) ?? totals[(org.givingFunds || []).find(f => f.id === id)?.name || ''] ?? 0);
       const patch: Partial<Organization> = {
         givingUrl: givingUrl.trim() || undefined,
-        setupState: { ...(org.setupState || {}), givingReady: !!(org.stripeAccountId || givingUrl.trim()) },
+        setupState: { ...(org.setupState || {}), givingReady: !!(orgCanReceiveGiving(org) || givingUrl.trim()) },
       };
       await updateOrganization(org.id, patch);
       setFunds(saved);
@@ -1012,11 +1028,11 @@ const GivingPanel: React.FC<{ org: Organization; canManage: boolean; totals: Rec
           </div>
           <h3 className="text-[10px] font-semibold text-[#FF8C00] mb-3">Payouts</h3>
           <div className="flex items-center gap-2 mb-3">
-            <p className="flex-1 text-[11px] text-white/50">{org.stripeAccountId ? 'Stripe is connected. Payout details are managed in Stripe.' : 'Connect Stripe to accept card and bank gifts. Stripe verifies the account; nobody types an account number here.'}</p>
+            <p className="flex-1 text-[11px] text-white/50">{orgCanReceiveGiving(org) ? 'Stripe is connected. Payout details are managed in Stripe.' : 'Connect Stripe to accept card and bank gifts. Stripe verifies the account; nobody types an account number here.'}</p>
             <button type="button" onClick={async () => { const t = await auth.currentUser?.getIdToken(); if (t) connectStripe({ orgId: org.id, userIdToken: t }).catch(e => alert(e?.message || 'Could not start Stripe onboarding')); }}
               className="px-4 py-3 rounded-2xl bg-[#635bff] text-white text-[10px] font-semibold hover:brightness-110 shrink-0 whitespace-nowrap">Connect Stripe</button>
           </div>
-          {org.stripeAccountId && <p className="text-[9px] font-semibold text-green-400 mb-3 flex items-center gap-1.5"><Check size={11} /> Payouts connected</p>}
+          {orgCanReceiveGiving(org) && <p className="text-[9px] font-semibold text-green-400 mb-3 flex items-center gap-1.5"><Check size={11} /> Payouts connected</p>}
           <input value={givingUrl} onChange={e => setGivingUrl(e.target.value)} placeholder="External giving link (optional — overrides native Stripe giving)" className={`${field} mb-5`} />
           <button onClick={save} disabled={busy} className="w-full py-4 rounded-full font-black text-xs uppercase tracking-widest text-white hover:brightness-110 disabled:opacity-30 flex items-center justify-center gap-2" style={{ background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}>
             {busy ? <><Loader2 size={16} className="animate-spin" /> Saving…</> : 'Save giving settings'}

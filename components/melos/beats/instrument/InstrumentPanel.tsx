@@ -155,7 +155,7 @@ export const InstrumentPanel: React.FC<Props> = ({ doc, track, onMutate, onClose
             {patch?.name || 'Init'} <span className="text-white/30">{patch?.category}</span>
           </span>
           <span className="flex-1" />
-          {!embedded && (
+          {!embedded && !track.padOwned && (
             <button
               onClick={() => onMutate((d) => {
                 const on = !track.armed;

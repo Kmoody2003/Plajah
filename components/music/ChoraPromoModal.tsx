@@ -1,3 +1,4 @@
+import { scopedKey } from '../../services/userScope';
 import { thumb, onThumbError, THUMB, coverGridSrc } from '../../src/lib/imageThumb';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -714,7 +715,7 @@ export const ChoraPromoModal: React.FC<ChoraPromoModalProps> = ({
       );
       const docId = `promo-${release.id}-${Date.now()}`;
       const telaDoc = promoTelaDocument(release, scenes, docId);
-      localStorage.setItem(`tela_doc_${docId}`, JSON.stringify(telaDoc));
+      localStorage.setItem(scopedKey(`tela_doc_${docId}`), JSON.stringify(telaDoc));
       if (onOpenTela) {
         onOpenTela(docId);
       } else {

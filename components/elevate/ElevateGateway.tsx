@@ -12,14 +12,24 @@
 //   CREATE — Set up a ministry / organization (staff): hands off to the Elevate setup wizard.
 import React, { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
-import { ArrowRight, Bell, Check, Church, Clock, HeartHandshake, KeyRound, Loader2, LogIn, Search, ShieldCheck, Sparkles, UserCheck, UserPlus, X } from 'lucide-react';
+import { ArrowRight, Bell, Check, Church, Clock, HeartHandshake, KeyRound, Loader2, LogIn, Mail, Search, ShieldCheck, Sparkles, UserCheck, UserPlus, X } from 'lucide-react';
 import type { Organization, OrgMembership } from '../../types';
-import { auth, fetchUserProfile, updateUserProfile } from '../../services/backendService';
+import { auth, fetchUserProfile, updateUserProfile, loginWithGoogle, loginWithFacebook, loginWithMicrosoft, loginWithTwitter } from '../../services/backendService';
+import { sendEmailVerification } from 'firebase/auth';
+import { GoogleIcon, FacebookIcon, MicrosoftIcon, XIcon } from '../ui/ProviderIcons';
 import { fetchPublicOrganizations, requestOrgMembership, fetchUserMemberships } from '../../services/organizationService';
 import { followOrg, unfollowOrg, isFollowing } from '../../services/orgFollowService';
 import { isElevateOrg } from '../../services/elevateTemplates';
 import { lookupProvisionedSeat, claimProvisionedSeat, resolveJoinTarget, type SeatLookup } from '../../services/elevateAccounts';
 import AuthExperience from '../AuthExperience';
+
+const CLAIM_PROVIDERS = [
+  { id: 'google.com', label: 'Google', Icon: GoogleIcon, bg: 'bg-white text-black', fn: () => loginWithGoogle() },
+  { id: 'facebook.com', label: 'Facebook', Icon: FacebookIcon, bg: 'bg-[#1877F2] text-white', fn: () => loginWithFacebook() },
+  { id: 'microsoft.com', label: 'Microsoft', Icon: MicrosoftIcon, bg: 'bg-[#2f2f2f] border border-white/15 text-white', fn: () => loginWithMicrosoft() },
+  { id: 'twitter.com', label: 'X', Icon: XIcon, bg: 'bg-black border border-white/20 text-white', fn: () => loginWithTwitter() },
+] as const;
+const isUnverified = (reason?: string) => !!reason && /verify your email/i.test(reason);
 
 export type GatewayMode = 'home' | 'claim' | 'join' | 'create';
 export interface ElevateGatewayProps {
@@ -221,6 +231,12 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
     }
   }, [mode, email]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A lookup held back for sign-in runs on its own once they are in.
+  useEffect(() => {
+    if (signedIn && lookup?.needsSignIn && !busy) doLookup();
+  }, [signedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Claimed → straight into the org's Member Home; no success screen in between.
   const doClaim = async () => {
     if (!signedIn) {
       setAuthMode('REGISTER');
@@ -231,10 +247,44 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
       const res = await claimProvisionedSeat(claimInput());
       if (res.orgId) followOrg(res.orgId).catch(() => {});
       setClaimed(res);
+      if (res.orgId) { onOpenOrg(res.orgId); return; }
     } catch (e: any) {
       setErr(e?.message || 'Could not claim.');
     }
     setBusy(false);
+  };
+
+  // Provider sign-in right inside the claim screen. Signed in, the account's email is looked up on its own.
+  const [providerBusy, setProviderBusy] = useState<string | null>(null);
+  const [showIdClaim, setShowIdClaim] = useState(!!initialMemberNumber);
+  const [verifySent, setVerifySent] = useState(false);
+  const signInWith = async (id: string) => {
+    const p = CLAIM_PROVIDERS.find(x => x.id === id);
+    if (!p) return;
+    setErr(''); setProviderBusy(id);
+    try { await p.fn(); } catch (e: any) { setErr(e?.message || 'Sign-in failed. Please try again.'); }
+    setProviderBusy(null);
+  };
+  // Email-and-password accounts start unverified; the server only matches a verified email.
+  const sendVerify = async () => {
+    const u = auth.currentUser;
+    if (!u) return;
+    setBusy(true); setErr('');
+    try { await sendEmailVerification(u); setVerifySent(true); } catch (e: any) { setErr(e?.message || 'Could not send the link. Try again in a minute.'); }
+    setBusy(false);
+  };
+  const recheckVerified = async () => {
+    const u = auth.currentUser;
+    if (!u) return;
+    setBusy(true); setErr('');
+    try {
+      await u.reload();
+      await u.getIdToken(true);
+      if (!auth.currentUser?.emailVerified) { setErr('Not confirmed yet. Open the link in the email we sent, then try again.'); setBusy(false); return; }
+    } catch { /* fall through to the lookup */ }
+    setBusy(false);
+    setLookup(null);
+    doLookup(email.trim() || undefined);
   };
 
   const toggleMinistry = (ministryId: string) => {
@@ -286,6 +336,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
           followOrg(o.id).catch(() => {});
           setClaimed(c);
           setBusy(false);
+          onOpenOrg(c.orgId || o.id); // claimed → straight into their Member Home
           return;
         }
       } catch { /* fall through to PENDING membership onboarding request */ }
@@ -333,6 +384,8 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
       setFollowingOrg(true);
 
       setJoined({ orgId: o.id, orgName: o.name, pending: m.status === 'PENDING' });
+      // Joined (pending approval or not) → into the org right away; it shows their membership status.
+      onOpenOrg(o.id);
     } catch (e: any) {
       setErr(e?.message || 'Could not submit membership request.');
     }
@@ -454,172 +507,87 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
                 </>
               )}
 
-              {/* ── CLAIM ── */}
+              {/* ── CLAIM ──
+                  One question: who are you? Sign in with the email the organization has for you
+                  (Google / Facebook / Microsoft / X, or an email address). The server checks that
+                  verified email for a seat. Found → claim → straight into the org. Not found → join. */}
               {mode === 'claim' && (
                 <>
                   <Head
-                    title={target ? `Claim your ${target.name} membership` : 'Claim your organization membership'}
-                    sub={target ? 'Don’t know your Member ID or Employment Number? No problem — claim with your name & email, and your ID numbers auto-populate on the backend upon approval.' : 'Open the link or QR code your organization shared, or find it below.'}
+                    title={target ? `Find your ${target.name} account` : 'Find your organization account'}
+                    sub={signedIn
+                      ? `We check ${email || 'your email'} for an account your organization set up for you.`
+                      : 'Sign in with the email your organization has for you. We’ll check whether they already set up your account.'}
                   />
-                  {claimed ? (
-                    <div className="text-center py-4 space-y-3">
-                      <div className="w-14 h-14 rounded-full bg-[#7A1FC0]/25 grid place-items-center mx-auto"><Check className="text-[#C4B5FD]" /></div>
-                      <h3 className="text-xl font-black">Welcome to {claimed.orgName}</h3>
-                      <p className="text-sm text-white/55">Your membership is claimed and active as <span className="text-white font-bold">{claimed.roleLabel}</span>. Your department feeds, chat rooms and profile are ready.</p>
-                      {(claimed.memberNumber || claimed.employeeNumber) && (
-                        <div className="flex items-center justify-center gap-2 flex-wrap">
-                          {claimed.memberNumber && (
-                            <span className="px-3 py-1 rounded-full bg-white/[0.06] border border-white/15 text-xs font-mono text-white">
-                              Member ID: <strong>{claimed.memberNumber}</strong>
-                            </span>
-                          )}
-                          {claimed.employeeNumber && (
-                            <span className="px-3 py-1 rounded-full bg-[#7A1FC0]/20 border border-[#7A1FC0]/40 text-xs font-mono text-[#D8D2E2]">
-                              Employment #: <strong>{claimed.employeeNumber}</strong>
-                            </span>
-                          )}
-                        </div>
-                      )}
-                      <button onClick={() => onOpenOrg(claimed.orgId)} className={primary}>Open {claimed.orgName} <ArrowRight size={14} /></button>
-                    </div>
-                  ) : joined ? (
-                    <div className="text-center py-4 space-y-3">
-                      <div className="w-14 h-14 rounded-full bg-emerald-500/20 grid place-items-center mx-auto"><Check className="text-emerald-300" /></div>
-                      <h3 className="text-xl font-black">Membership Claim Sent for Approval</h3>
-                      <p className="text-sm text-white/60 leading-relaxed">
-                        Your claim has been submitted to <span className="text-white font-bold">{joined.orgName}</span>. Your <strong>Member ID</strong> and <strong>Employment Number</strong> will auto-populate on your account as soon as leadership approves your seat.
-                      </p>
-                      <button onClick={() => onOpenOrg(joined.orgId)} className={primary}>Open {joined.orgName} <ArrowRight size={14} /></button>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="p-3 rounded-2xl bg-emerald-500/[0.07] border border-emerald-400/25 flex items-start gap-2.5">
-                        <ShieldCheck size={15} className="text-emerald-300 shrink-0 mt-0.5" />
-                        <p className="text-[11px] text-white/75 leading-relaxed">
-                          <strong className="text-emerald-300">Claim by Email or Member ID:</strong> Enter the email address your church or organization provisioned for you below. Your pre-assigned department, role, Member ID, and Employment # will link automatically.
-                        </p>
-                      </div>
-
-                      {!target && (
-                        <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10">
-                          <span className="text-[11px] text-white/60">Enter your email below to auto-detect your organization, or</span>
-                          <button type="button" onClick={() => setMode('join')} className="text-[10px] font-black uppercase tracking-widest text-[#C4B5FD] hover:text-white underline shrink-0">
-                            Browse Organizations
-                          </button>
-                        </div>
-                      )}
-
-                      <div className="flex gap-1.5">
-                        {([['name_email', 'Email / Name (No ID Needed)'], ['member', 'I Have My Member / Emp ID']] as const).map(([k, l]) => (
-                          <button key={k} onClick={() => { setVia(k); setLookup(null); setErr(''); }} className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${via === k ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/50'}`}>{l}</button>
-                        ))}
-                      </div>
-
-                      <div>
-                        <input className={field} type="email" placeholder="Your pre-provisioned email address *" value={email} onChange={e => { setEmail(e.target.value); if (lookup) setLookup(null); }} />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <input className={field} placeholder="First name (optional for lookup)" value={firstName} onChange={e => setFirstName(e.target.value)} />
-                        <input className={field} placeholder="Last name (optional for lookup)" value={lastName} onChange={e => { setLastName(e.target.value); setOnboardingLastName(e.target.value); }} />
-                      </div>
-
-                      {via === 'member' && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <input className={field} placeholder="Member ID (optional, e.g. GFM-17234)" value={memberNumber} onChange={e => setMemberNumber(e.target.value.toUpperCase())} />
-                          <input className={field} placeholder="Employment # (optional, e.g. GFM-EMP-4866)" value={employeeNumber} onChange={e => setEmployeeNumber(e.target.value.toUpperCase())} />
-                        </div>
-                      )}
-
-                      {lookup && !lookup.found && (
-                        <div className="p-3.5 rounded-2xl bg-[#7A1FC0]/12 border border-[#7A1FC0]/35 space-y-2.5">
-                          <p className="text-xs text-white/85 leading-relaxed">
-                            {lookup.reason || "We didn't find a pre-created roster seat under that exact entry yet — you can submit your claim right now and your Member ID & Employment # will auto-populate on the backend once approved:"}
-                          </p>
-                          {target && signedIn && (
-                            <button
-                              type="button"
-                              onClick={() => doRequestMembership(target)}
-                              disabled={busy}
-                              className={primary}
-                            >
-                              {busy ? <Loader2 size={13} className="animate-spin" /> : <UserCheck size={14} />}
-                              Claim &amp; Submit for Approval (Auto-Assign IDs)
+                  <div className="space-y-3">
+                    {!signedIn ? (
+                      <>
+                        <div className="flex items-start justify-center gap-4 pt-1">
+                          {CLAIM_PROVIDERS.map(p => (
+                            <button key={p.id} onClick={() => signInWith(p.id)} disabled={!!providerBusy} className="flex flex-col items-center gap-1.5 group disabled:opacity-50" aria-label={`Continue with ${p.label}`}>
+                              <span className={`w-14 h-14 rounded-full grid place-items-center group-hover:scale-110 transition-transform ${p.bg}`}>
+                                {providerBusy === p.id ? <Loader2 size={20} className="animate-spin" /> : <p.Icon size={22} />}
+                              </span>
+                              <span className="text-[10px] font-bold text-white/65">{p.label}</span>
                             </button>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => { setMode('join'); setLookup(null); setErr(''); }}
-                            className="block w-full text-center text-[10px] font-black uppercase tracking-widest text-[#C4B5FD] hover:text-white underline"
-                          >
-                            Or complete full New Member Church Onboarding →
-                          </button>
+                          ))}
                         </div>
-                      )}
-                      {lookup?.found && (
-                        <div className="p-4 rounded-2xl bg-[#7A1FC0]/10 border border-[#7A1FC0]/30 space-y-1.5">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-[#C4B5FD]">
-                            We found your pre-provisioned account{lookup.orgName ? ` · ${lookup.orgName}` : ''}
-                          </p>
-                          <p className="text-sm font-bold">{lookup.maskedName} · {lookup.roleLabel}</p>
-                          {!!lookup.departments?.length && <p className="text-[11px] text-white/65">Department: <strong className="text-white">{lookup.departments.join(' · ')}</strong></p>}
-                          {(lookup.memberNumber || lookup.employeeNumber) && (
-                            <p className="text-[11px] font-mono text-emerald-300 pt-0.5">
-                              {lookup.memberNumber ? `Member ID: ${lookup.memberNumber}` : ''}
-                              {lookup.memberNumber && lookup.employeeNumber ? ' · ' : ''}
-                              {lookup.employeeNumber ? `Volunteer/Staff ID: ${lookup.employeeNumber}` : ''}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      {err && <p className="text-xs text-red-300">{err}</p>}
-                      {lookup?.found ? (
-                        signedIn ? (
-                          <button onClick={doClaim} disabled={busy} className={primary}>
-                            {busy && <Loader2 size={13} className="animate-spin" />} Yes, that's me — claim my membership
-                          </button>
-                        ) : (
-                          <div className="space-y-2 pt-1">
-                            <p className="text-xs text-white/75 text-center">
-                              Create your Plajah login or sign in with <strong className="text-white">{email || 'your email'}</strong> to finish claiming your seat:
-                            </p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <button type="button" onClick={() => setAuthMode('REGISTER')} className={primary}>
-                                <UserPlus size={14} /> Create Account to Claim
-                              </button>
-                              <button type="button" onClick={() => setAuthMode('LOGIN')} className={ghost}>
-                                <LogIn size={14} /> Sign In to Claim
-                              </button>
-                            </div>
+                        <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.25em] text-white/40"><span className="flex-1 h-px bg-white/10" />or<span className="flex-1 h-px bg-white/10" /></div>
+                        <button onClick={() => setAuthMode('REGISTER')} className={primary}><Mail size={15} /> Use my email address</button>
+                        <p className="text-[11px] text-white/45 text-center leading-relaxed">Use the same email your organization has on file. No Member ID needed.</p>
+                      </>
+                    ) : busy && !lookup ? (
+                      <div className="py-8 flex flex-col items-center gap-3 text-sm text-white/60"><Loader2 className="animate-spin text-[#C4B5FD]" /> Checking {email || 'your account'}…</div>
+                    ) : lookup?.found ? (
+                      <>
+                        <div className="p-4 rounded-2xl bg-[#7A1FC0]/12 border border-[#7A1FC0]/40 flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-full bg-[#7A1FC0]/30 grid place-items-center shrink-0"><UserCheck size={18} className="text-[#C4B5FD]" /></div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-[#C4B5FD]">Your account is waiting</p>
+                            <p className="text-sm font-bold truncate">{lookup.maskedName || 'Your seat'}{lookup.orgName ? ` · ${lookup.orgName}` : ''}</p>
                           </div>
-                        )
-                      ) : (
-                        <div className="space-y-2">
-                          <button
-                            onClick={() => doLookup()}
-                            disabled={busy || (!email.trim() && !lastName.trim() && !memberNumber.trim() && !employeeNumber.trim())}
-                            className={primary}
-                          >
-                            {busy && <Loader2 size={13} className="animate-spin" />} Find my membership record
-                          </button>
-                          {target && signedIn && firstName.trim() && lastName.trim() && (
-                            <button
-                              type="button"
-                              onClick={() => doRequestMembership(target)}
-                              disabled={busy}
-                              className="w-full py-2.5 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-[10px] font-black uppercase tracking-widest text-[#D8D2E2] flex items-center justify-center gap-1.5"
-                            >
-                              <UserCheck size={13} /> Claim Without ID (Auto-Assigns on Approval)
-                            </button>
-                          )}
                         </div>
-                      )}
-                      <div className="flex justify-between items-center pt-1">
-                        <button onClick={() => { setMode('join'); setErr(''); }} className="text-[10px] font-black uppercase tracking-widest text-white/50 hover:text-white">New member? Complete full Church &amp; Org Onboarding →</button>
-                        {!orgKey && <button onClick={() => setMode('home')} className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white">Back</button>}
+                        <button onClick={doClaim} disabled={busy} className={primary}>
+                          {busy ? <Loader2 size={13} className="animate-spin" /> : <ArrowRight size={14} />} That’s me — take me to my Member Home
+                        </button>
+                      </>
+                    ) : lookup && isUnverified(lookup.reason) ? (
+                      <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 space-y-3">
+                        <p className="text-sm font-bold">Confirm your email first</p>
+                        <p className="text-[12px] text-white/60 leading-relaxed">So nobody else can take your seat, we need to know <strong className="text-white">{email}</strong> is yours. {verifySent ? 'We sent you a link. Open it, then come back here.' : 'We’ll send you a link.'}</p>
+                        {!verifySent
+                          ? <button onClick={sendVerify} disabled={busy} className={primary}><Mail size={14} /> Send me the link</button>
+                          : <button onClick={recheckVerified} disabled={busy} className={primary}>{busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />} I confirmed it — check again</button>}
                       </div>
-                    </div>
-                  )}
+                    ) : lookup ? (
+                      <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 space-y-3">
+                        <p className="text-sm font-bold">{lookup.alreadyClaimed ? 'That account is already claimed' : `No account is waiting for ${email || 'this email'} yet`}</p>
+                        <p className="text-[12px] text-white/60 leading-relaxed">
+                          {lookup.alreadyClaimed
+                            ? (lookup.reason || 'Someone already claimed this seat. If that wasn’t you, ask your organization’s office.')
+                            : `That’s fine. Join ${target?.name || 'your organization'} and fill in what they need. Leadership approves new members.`}
+                        </p>
+                        <button onClick={() => { setMode('join'); setErr(''); }} className={primary}><UserPlus size={14} /> {target ? `Join ${target.name}` : 'Find my organization and join'}</button>
+                      </div>
+                    ) : null}
+
+                    {signedIn && !lookup?.found && !(busy && !lookup) && (
+                      showIdClaim ? (
+                        <div className="space-y-2 pt-1">
+                          <p className="text-[11px] text-white/55">Member ID from your card, plus the last name on file:</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input className={field} placeholder="Member ID" value={memberNumber} onChange={e => setMemberNumber(e.target.value.toUpperCase())} />
+                            <input className={field} placeholder="Last name" value={lastName} onChange={e => setLastName(e.target.value)} />
+                          </div>
+                          <button onClick={() => doLookup()} disabled={busy || !memberNumber.trim() || !lastName.trim()} className={ghost}>{busy && <Loader2 size={12} className="animate-spin" />} Check my Member ID</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setShowIdClaim(true)} className="block mx-auto text-[11px] font-bold text-white/55 hover:text-white underline underline-offset-2">Have a Member ID card instead?</button>
+                      )
+                    )}
+                    {err && <p className="text-xs text-red-300 text-center">{err}</p>}
+                    {!orgKey && <div className="text-center pt-1"><button onClick={() => setMode('home')} className="text-[10px] font-black uppercase tracking-widest text-white/40 hover:text-white">Back</button></div>}
+                  </div>
                 </>
               )}
 

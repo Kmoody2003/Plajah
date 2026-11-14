@@ -11,7 +11,7 @@ import { verifyIdToken, fsGet, fsPatch } from '../services/firebaseAdminRest';
 import { decentralizedAuth } from '../services/fediverse/auth';
 import { blueskyadapter } from '../services/fediverse/bluesky';
 import { mastodonAdapter } from '../services/fediverse/mastodon';
-import { threadsAdapter } from '../services/fediverse/threads';
+import { threadsPublish } from '../services/fediverse/threads';
 import { planBlueskyVersion, planPlainVersion, type NativePostLike } from '../services/fediverse/blueskyVersion';
 import type { FediverseAccount } from '../services/fediverse/types';
 
@@ -94,7 +94,16 @@ export async function crosspostNativePost(
         const p = await mastodonAdapter.createPost(acct.credentials, plain.text, { visibility: 'public', images: plan.images.length ? plan.images : undefined });
         return { ...base, ok: true, url: p.url };
       }
-      const p = await threadsAdapter.createPost(acct.credentials, plain.text);
+      // Threads: photos/video/carousel (up to 20) as public URLs, otherwise a link preview back to Plajah.
+      const media = Array.isArray(post.media) ? post.media as { type?: string; url?: string; alt?: string }[] : [];
+      const photos = media.filter(m => m.type === 'IMAGE' && m.url).map(m => ({ url: m.url!, alt: m.alt }));
+      const vids = media.filter(m => m.type === 'VIDEO' && m.url);
+      const p = await threadsPublish(acct.credentials, plain.text, {
+        images: photos.length ? photos : undefined,
+        video: !photos.length && vids[0] ? { url: vids[0].url!, alt: vids[0].alt } : undefined,
+        link: !photos.length && !vids.length ? { uri: plan.card?.uri ?? postUrl } : undefined,
+        replyGate: plan.replyGate,
+      });
       return { ...base, ok: true, url: p.url };
     } catch (e: any) {
       return { ...base, ok: false, error: String(e?.message || e).slice(0, 240) };

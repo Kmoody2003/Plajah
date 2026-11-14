@@ -103,7 +103,8 @@ service firebase.storage {
     // get stays public (avatars/covers are fetched by path); listing is owner-only so nobody can
     // enumerate another user's files (worksheets, production attachments, drafts …).
     match /users/{uid}/{allPaths=**} {
-      allow get: if true;
+      // Schoolwork isn't public: only its student reads by path (their teacher opens the link saved on the submission).
+      allow get: if !allPaths.matches('academia/.*') || (isAuth() && request.auth.uid == uid);
       allow list: if isAuth() && request.auth.uid == uid;
       allow write: if (isRegisteredUser() && request.auth.uid == uid && isOwnerPathType() && withinSizeLimit())
                    || isAdmin();
@@ -169,6 +170,18 @@ service firebase.storage {
     }
 
     // Real-time live-stream recording segments (video only)
+    // Meeting cloud recordings: ~10 s segments uploaded by the host while recording
+    // (services/meetings/meetingRecording). Played back through the download URLs stored on the
+    // recording doc, which only room members can read; the bucket path itself is owner-only.
+    match /meetings/{roomId}/{recId}/{file} {
+      allow get: if (isAuth() && ownsExisting()) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if canCreateStamped() && (isAudioType() || request.resource.contentType.matches('video/.*')) &&
+        request.resource.size < 200 * 1024 * 1024 && file.matches('seg_[0-9]{5}[.]webm');
+      allow delete: if canDeleteStamped();
+      allow write: if isAdmin();
+    }
+
     match /liveRecordings/{streamId}/{allPaths=**} {
       allow get: if true;
       allow list: if isAdmin();
@@ -197,6 +210,12 @@ service firebase.storage {
 
     // ── Classic books — public domain texts hosted on Plajah storage ─────────
     match /books/classics/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── Public-domain sheet music copies (scripts/scores/mirrorScores.mts) ────
+    match /scores/{allPaths=**} {
       allow read: if true;
       allow write: if isAdmin();
     }
@@ -256,7 +275,8 @@ service firebase.storage {
       // No client read at all → no client can mint a download token, so any file type (PSD, AI,
       // SVG, FDX …) is acceptable here; the server scans and streams it with safe headers.
       allow read: if false;
-      allow create: if canCreateStamped() && request.resource.contentType != null && withinSizeLimit();
+      // Nobody writes into another person's space. (Org membership is checked on the file's record.)
+      allow create: if canCreateStamped() && (scopeKind != 'user' || scopeId == request.auth.uid) && request.resource.contentType != null && withinSizeLimit();
       allow update: if canUpdateStamped() && request.resource.contentType != null && withinSizeLimit();
       allow delete: if canDeleteStamped();
     }
@@ -297,6 +317,36 @@ service firebase.storage {
     match /taleoAnalysis/{ownerId}/{allPaths=**} {
       allow read: if isAuth() && (request.auth.uid == ownerId || isAdmin());
       allow write: if false;
+    }
+
+    // ── Shared project media (services/coedit/assets.ts) ───────────────────────
+    // coedit-assets/{projectId}/{uid}/{sha-id}/{proxy|master}.{ext}. Only the contributor writes their own folder.
+    // Nobody reads these directly: membership lives in plajah-ops, which Storage rules can't see, so reads go through
+    // GET /api/coedit/assets (routes/coeditSecurity.ts).
+    match /coedit-assets/{projectId}/{uid}/{assetId}/{file} {
+      allow read: if false;
+      allow create, update: if isRegisteredUser() && request.auth.uid == uid && isOwnerPathType() && request.resource.size < 2 * 1024 * 1024 * 1024;
+      allow delete: if isRegisteredUser() && request.auth.uid == uid;
+    }
+
+    // ── A document's images and media (services/telaAssets.ts) ─────────────────
+    // No client reads and no download tokens: GET /api/tela-media checks the document's members on every request, so
+    // revoking someone really ends what they can load.
+    match /tela-media/{pid}/user/{uid}/{file} {
+      allow read: if false;
+      allow create: if isRegisteredUser() && request.auth.uid == uid && isOwnerPathType() && request.resource.size < 2 * 1024 * 1024 * 1024;
+      allow delete: if isRegisteredUser() && request.auth.uid == uid;
+    }
+    match /tela-media/{pid}/org/{orgId}/{uid}/{file} {
+      allow read: if false;
+      allow create: if isRegisteredUser() && request.auth.uid == uid && isOwnerPathType() && request.resource.size < 2 * 1024 * 1024 * 1024;
+      allow delete: if isRegisteredUser() && request.auth.uid == uid;
+    }
+
+    // Gated sanctuary files: the owner uploads, nobody reads directly. /api/sanctuary/media checks access per request.
+    match /sanctuaries/{ownerUid}/{allPaths=**} {
+      allow read: if false;
+      allow write: if isRegisteredUser() && request.auth.uid == ownerUid && isPublicSafeType() && withinSizeLimit();
     }
 
     // ── Fallback: deny everything not explicitly matched ──────────────────────

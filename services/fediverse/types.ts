@@ -20,6 +20,8 @@ export interface FediverseCredentials {
   pdsUrl?: string;
   // Mastodon specific
   instanceUrl?: string;
+  /** Threads: when the long-lived token was last issued/refreshed (Meta won't refresh a token younger than 24h). */
+  refreshedAt?: number;
 }
 
 export interface FediverseAccount {

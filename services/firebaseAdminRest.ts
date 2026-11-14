@@ -50,6 +50,9 @@ async function signerEmail(): Promise<string | null> {
 // ── OAuth access token (cloud-platform scope) — SA key, else ADC metadata ─────────
 let _token: { token: string; exp: number } | null = null;
 export async function getAccessToken(): Promise<string | null> {
+  // Local maintenance scripts may run as the operator's own Firebase CLI login instead of a key
+  // (scripts/migrateClassroomCoursework.ts --firebase-login). Never set on the server.
+  if (process.env.ADMIN_REST_ACCESS_TOKEN) return process.env.ADMIN_REST_ACCESS_TOKEN;
   if (_token && Date.now() < _token.exp - 120_000) return _token.token;
   const sa = serviceAccount();
   if (sa) {
@@ -190,6 +193,7 @@ function toValue(v: unknown): any {
   if (typeof v === 'string') return { stringValue: v };
   if (typeof v === 'boolean') return { booleanValue: v };
   if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (v instanceof Date) return { timestampValue: v.toISOString() };
   if (Array.isArray(v)) return { arrayValue: { values: v.map(toValue) } };
   if (typeof v === 'object') return { mapValue: { fields: toFields(v as Record<string, unknown>) } };
   return { stringValue: String(v) };
@@ -233,6 +237,16 @@ export async function fsGet(path: string): Promise<Record<string, any> | null> {
   } catch { return null; }
 }
 
+/** Like fsGet, but only a real 404 reads as "missing" — any other failure THROWS. For migrations, where
+ *  mistaking a failed read for an absent doc would overwrite data. */
+export async function fsGetStrict(path: string): Promise<Record<string, any> | null> {
+  const res = await fetch(`${baseFor(path)}/${path}`, { headers: await authHeaders() });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GET ${path} failed: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+  const data = await res.json() as any;
+  return data.fields ? fromFields(data.fields) : {};
+}
+
 /** Create-or-replace a document at a known id. Returns success. */
 export async function fsSet(path: string, data: Record<string, unknown>): Promise<boolean> {
   try {
@@ -248,6 +262,23 @@ export async function fsPatch(path: string, data: Record<string, unknown>): Prom
     const res = await fetch(`${baseFor(path)}/${path}?${mask}`, { method: 'PATCH', headers: await authHeaders(), body: JSON.stringify({ fields: toFields(data) }) });
     return res.ok;
   } catch { return false; }
+}
+
+const PRIVATE_USER_FIELDS = ['email', 'birthYear', 'dateOfBirth', 'guardianUid', 'coGuardianUids', 'provisionedByTeacherUid', 'childUids', 'parentalControls'];
+
+/** A user with users/{uid} and users/{uid}/private/profile merged, or null if there is no user. */
+export async function fsGetUser(uid: string): Promise<Record<string, any> | null> {
+  const [pub, priv] = await Promise.all([fsGet(`users/${uid}`), fsGet(`users/${uid}/private/profile`)]);
+  return pub ? { ...pub, ...(priv || {}) } : null;
+}
+
+/** Patch a user, sending private fields to private/profile. */
+export async function fsPatchUser(uid: string, data: Record<string, unknown>): Promise<boolean> {
+  const pub: Record<string, unknown> = {}, priv: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(data)) (PRIVATE_USER_FIELDS.includes(k) ? priv : pub)[k] = v;
+  const a = Object.keys(pub).length ? await fsPatch(`users/${uid}`, pub) : true;
+  const b = Object.keys(priv).length ? await fsPatch(`users/${uid}/private/profile`, priv) : true;
+  return a && b;
 }
 
 /** Append a doc with an auto id to a collection. Returns new id or null. */
@@ -314,11 +345,58 @@ export async function fsBatchWrite(docs: { path: string; data: Record<string, un
   return ok;
 }
 
+/** Atomic increment; returns the new count, or null when it couldn't be counted. */
+export async function fsBumpCounter(path: string, by = 1): Promise<number | null> {
+  const root = docRootFor(path);
+  const res = await fetch(`https://firestore.googleapis.com/v1/${root}:commit`, {
+    method: 'POST',
+    headers: await authHeaders(),
+    body: JSON.stringify({ writes: [{ update: { name: `${root}/${path}`, fields: toFields({ at: Date.now() }) }, updateMask: { fieldPaths: ['at'] }, updateTransforms: [{ fieldPath: 'count', increment: { integerValue: String(by) } }] }] }),
+  });
+  if (!res.ok) return null;
+  const v = ((await res.json()) as any)?.writeResults?.[0]?.transformResults?.[0]?.integerValue;
+  return v === undefined ? null : Number(v);
+}
+
+/** Add one student atomically: marker (only if new), private roster, public seat count. Idempotent. */
+export async function fsAddClassMember(classId: string, uid: string, source = 'class'): Promise<'added' | 'already' | 'error'> {
+  const r = await addClassMemberOnce(classId, uid);
+  // Every seat granted here (join code, open course, payment) makes the learner an Enrolled Student of it.
+  if (r !== 'error') void import('./enrollmentServer').then(m => m.recordClassEnrollment(classId, uid, source)).catch(() => {});
+  return r;
+}
+
+async function addClassMemberOnce(classId: string, uid: string): Promise<'added' | 'already' | 'error'> {
+  const root = docRootFor('classMembers');
+  try {
+    const res = await fetch(`https://firestore.googleapis.com/v1/${root}:commit`, {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify({ writes: [
+        { update: { name: `${root}/classMembers/${classId}_${uid}`, fields: toFields({ classId, uid, at: Date.now() }) }, currentDocument: { exists: false } },
+        { transform: { document: `${root}/classrooms/${classId}/private/roster`, fieldTransforms: [{ fieldPath: 'enrolledStudents', appendMissingElements: { values: [{ stringValue: uid }] } }] } },
+        { transform: { document: `${root}/classrooms/${classId}`, fieldTransforms: [{ fieldPath: 'enrolledCount', increment: { integerValue: '1' } }] } },
+      ] }),
+    });
+    if (res.ok) return 'added';
+    return res.status === 409 ? 'already' : 'error';
+  } catch { return 'error'; }
+}
+
+/** A class's roster: the private doc, plus a not-yet-stripped public list. */
+export async function fsClassRoster(classId: string, cls?: Record<string, any> | null): Promise<string[]> {
+  const roster = await fsGet(`classrooms/${classId}/private/roster`);
+  const legacy = Array.isArray(cls?.enrolledStudents) ? cls!.enrolledStudents : [];
+  return [...new Set<string>([...(Array.isArray(roster?.enrolledStudents) ? roster!.enrolledStudents : []), ...legacy])];
+}
+
 /** List a collection's documents (id + data), following pagination. Server-side only — this
  *  bypasses security rules, so callers must do their own authorization. */
+class StrictListError extends Error {}
+
 export async function fsList(
   collection: string,
-  opts: { pageSize?: number; maxDocs?: number } = {},
+  opts: { pageSize?: number; maxDocs?: number; idsOnly?: boolean; strict?: boolean } = {},
 ): Promise<Array<{ id: string; data: Record<string, any> }>> {
   const pageSize = opts.pageSize ?? 100;
   const maxDocs = opts.maxDocs ?? 1000;
@@ -326,9 +404,13 @@ export async function fsList(
   let pageToken: string | undefined;
   try {
     do {
-      const qs = `pageSize=${pageSize}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
+      const qs = `pageSize=${pageSize}${opts.idsOnly ? '&mask.fieldPaths=__name__' : ''}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''}`;
       const res = await fetch(`${baseFor(collection)}/${collection}?${qs}`, { headers: await authHeaders() });
-      if (!res.ok) break;
+      if (!res.ok) {
+        // A migration must never mistake a failed read for an empty collection.
+        if (opts.strict) throw new StrictListError(`List ${collection} failed: HTTP ${res.status}`);
+        break;
+      }
       const json = await res.json() as any;
       for (const d of json.documents ?? []) {
         out.push({ id: String(d.name).split('/').pop()!, data: d.fields ? fromFields(d.fields) : {} });
@@ -336,7 +418,10 @@ export async function fsList(
       }
       pageToken = json.nextPageToken;
     } while (pageToken);
-  } catch { /* return whatever we got */ }
+  } catch (e) {
+    if (opts.strict) throw e;
+    /* return whatever we got */
+  }
   return out;
 }
 
@@ -344,24 +429,46 @@ export async function fsList(
  *  filters are AND-ed. Returns id + data, max `limit` docs. */
 export async function fsQuery(
   collection: string,
-  filters: { field: string; value: string | number | boolean }[],
+  filters: { field: string; value: string | number | boolean; op?: 'EQUAL' | 'ARRAY_CONTAINS' | 'LESS_THAN_OR_EQUAL' }[],
   limit = 50,
+  orderBy?: { field: string; direction: 'ASCENDING' | 'DESCENDING' },
 ): Promise<Array<{ id: string; data: Record<string, any> }>> {
-  const fieldFilter = (f: { field: string; value: string | number | boolean }) => ({
+  const fieldFilter = (f: { field: string; value: string | number | boolean; op?: 'EQUAL' | 'ARRAY_CONTAINS' | 'LESS_THAN_OR_EQUAL' }) => ({
     fieldFilter: {
       field: { fieldPath: f.field },
-      op: 'EQUAL',
+      op: f.op || 'EQUAL',
       value: typeof f.value === 'string' ? { stringValue: f.value } : typeof f.value === 'boolean' ? { booleanValue: f.value } : Number.isInteger(f.value) ? { integerValue: String(f.value) } : { doubleValue: f.value },
     },
   });
   const where = filters.length === 1 ? fieldFilter(filters[0]) : { compositeFilter: { op: 'AND', filters: filters.map(fieldFilter) } };
-  const body = { structuredQuery: { from: [{ collectionId: collection }], where, limit } };
+  const body = { structuredQuery: { from: [{ collectionId: collection }], where, limit, ...(orderBy ? { orderBy: [{ field: { fieldPath: orderBy.field }, direction: orderBy.direction }] } : {}) } };
   try {
     const res = await fetch(`${baseFor(collection)}:runQuery`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify(body) });
     if (!res.ok) return [];
     const rows = await res.json() as any[];
     return rows.filter(r => r.document).map(r => ({ id: String(r.document.name).split('/').pop()!, data: r.document.fields ? fromFields(r.document.fields) : {} }));
   } catch { return []; }
+}
+
+/** Like fsQuery, but a failed query THROWS instead of reading as "no rows". For anything where a missing row
+ *  would become a wrong figure, such as a finalized royalty statement. */
+export async function fsQueryStrict(
+  collection: string,
+  filters: { field: string; value: string | number | boolean; op?: 'EQUAL' | 'ARRAY_CONTAINS' }[],
+  limit = 50,
+): Promise<Array<{ id: string; data: Record<string, any> }>> {
+  const fieldFilter = (f: { field: string; value: string | number | boolean; op?: 'EQUAL' | 'ARRAY_CONTAINS' }) => ({
+    fieldFilter: {
+      field: { fieldPath: f.field },
+      op: f.op || 'EQUAL',
+      value: typeof f.value === 'string' ? { stringValue: f.value } : typeof f.value === 'boolean' ? { booleanValue: f.value } : Number.isInteger(f.value) ? { integerValue: String(f.value) } : { doubleValue: f.value },
+    },
+  });
+  const where = filters.length === 1 ? fieldFilter(filters[0]) : { compositeFilter: { op: 'AND', filters: filters.map(fieldFilter) } };
+  const res = await fetch(`${baseFor(collection)}:runQuery`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ structuredQuery: { from: [{ collectionId: collection }], where, limit } }) });
+  if (!res.ok) throw new Error(`query ${collection} failed: HTTP ${res.status}`);
+  const rows = await res.json() as any[];
+  return rows.filter(r => r.document).map(r => ({ id: String(r.document.name).split('/').pop()!, data: r.document.fields ? fromFields(r.document.fields) : {} }));
 }
 
 // ── Custom auth claims (Identity Toolkit) ────────────────────────────────────────

@@ -1,6 +1,16 @@
 import { addInstrument, addInstrumentToNextPad } from '../beats/instrumentFactory';
 import { addPadBank, defaultPattern, firstEmptyPadIndex, grooveUid, type GrooveDoc, type SampleRef, type InstrumentType } from '../beats/grooveDoc';
 import { validateGeneratedNotes, type GeneratedNote } from './types';
+import { guessPartRole, isOnGrid, performClipNotes, performMeloLane, personaFor, playerForPart } from '../beats/patterns/performNotes';
+
+/** Generated parts come out on the grid: the band member who plays that instrument plays them in. */
+function played<T extends { startBeats: number; lengthBeats: number; key: number; vel: number }>(notes: T[], target: InsertTarget): T[] {
+  if (!isOnGrid(notes)) return notes;
+  const who = `${target.name} ${target.instrument}`;
+  const asEvents = notes.map((n, i) => ({ ...n, id: String(i) }));
+  const role = guessPartRole(asEvents, who);
+  return performClipNotes(asEvents, { role, traits: personaFor(playerForPart(who, role)).traits, seed: Date.now() & 0x7fffffff }) as unknown as T[];
+}
 
 export interface InsertTarget {
   destination: 'timeline' | 'meka' | 'glass';
@@ -22,7 +32,7 @@ export function insertGeneratedNotes(doc: GrooveDoc, raw: GeneratedNote[], targe
     const trackId = existing?.id || addInstrument(doc, target.instrument);
     const track = doc.arrangement.find(item => item.id === trackId)!;
     if (!existing) track.name = target.name;
-    const clip = { id: grooveUid(), startBeats: target.startBeats, lengthBeats: Math.max(4, Math.ceil(end / 4) * 4), notes: notes.map(note => ({ ...note, id: grooveUid() })) };
+    const clip = { id: grooveUid(), startBeats: target.startBeats, lengthBeats: Math.max(4, Math.ceil(end / 4) * 4), notes: played(notes, target).map(note => ({ ...note, id: grooveUid() })) };
     track.clips.push(clip);
     return { trackId, clipId: clip.id };
   }
@@ -40,6 +50,9 @@ export function insertGeneratedNotes(doc: GrooveDoc, raw: GeneratedNote[], targe
     const chord = pattern.melo[padIdx][step] ||= [];
     chord.push({ semi: note.key - base, v: note.vel, len: Math.max(1, Math.min(pattern.length - step, Math.round(note.lengthBeats * 4))) });
   }
+  const who = `${target.name} ${target.instrument}`;
+  const role = guessPartRole(notes.map((n, i) => ({ ...n, id: String(i) })), who);
+  pattern.melo[padIdx] = performMeloLane(pattern.melo[padIdx], { role, traits: personaFor(playerForPart(who, role)).traits, seed: Date.now() & 0x7fffffff });
   doc.patterns.push(pattern);
   return { padIdx, trackId, patternId: pattern.id };
 }
@@ -57,7 +70,7 @@ export function insertGeneratedAudio(doc: GrooveDoc, sample: SampleRef, target: 
   const track = existing || { id: grooveUid(), kind: 'audio' as const, name: target.name, color: '#D0BCFF', mute: false, solo: false, gainDb: 0, pan: 0, clips: [] };
   if (!existing) doc.arrangement.push(track);
   const clip = { id: grooveUid(), startBeats: target.startBeats, lengthBeats: sample.durationSec * doc.bpm / 60,
-    audio: { sampleKey: sample.key, name: sample.name, offsetSec: 0, gainDb: 0, durationSec: sample.durationSec } };
+    audio: { sampleKey: sample.key, name: sample.name, offsetSec: 0, gainDb: 0, durationSec: sample.durationSec, origin: { how: 'generated' as const, at: Date.now() } } };
   track.clips.push(clip);
   return { trackId: track.id, clipId: clip.id };
 }

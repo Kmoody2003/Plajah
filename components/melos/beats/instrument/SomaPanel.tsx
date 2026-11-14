@@ -44,6 +44,8 @@ import {
   serializeSomaPatch,
   applySomaPreset,
   applySomaPatch,
+  somaHandConfig,
+  somaEngineValue,
   crossformSomaPatch,
   polarToDrumPad,
   drumPadToPolar,
@@ -54,6 +56,10 @@ import {
   type SomaPatch,
 } from '../../../../services/melos/instruments/soma/patch';
 import { Knob } from '../shared/Knob';
+import { SomaDrumStory } from './SomaDrumStory';
+import { SomaDeepToggle } from './SomaDeepToggle';
+import { SomaHandMapCard } from './SomaHandMapCard';
+import { liveBus, now as liveNow } from '../../../../services/melos/beats/band/live/events';
 
 interface Props {
   doc: GrooveDoc;
@@ -166,6 +172,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
     ) => {
       const rho = overridePos ?? resolvedParams[SM.STRIKE_POS] ?? 0.62;
       const ang = overrideAngle ?? resolvedParams[SM.STRIKE_ANGLE] ?? 0.5;
+      liveBus.emit({ kind: 'strike', instrument: 'soma', trackId: track.id, at: liveNow(), note, velocity, pos: rho, striker: overrideStriker ?? resolvedParams[SM.STRIKER_TYPE] ?? 0 });
       const weights = BESSEL_MODES.map((m) => besselJ(m.m, m.besselRoot * rho));
       strikeAnimRef.current = {
         time: performance.now(),
@@ -180,10 +187,16 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
       void engine.init().then(async () => {
         const inst = await engine.ensureInstrument(track);
         if (!inst) return;
-        if (overridePos !== undefined) inst.setParam(SM.STRIKE_POS, overridePos);
-        if (overrideAngle !== undefined) inst.setParam(SM.STRIKE_ANGLE, overrideAngle);
-        if (overrideStriker !== undefined) inst.setParam(SM.STRIKER_TYPE, overrideStriker);
-        const vid = inst.noteOn(note, velocity);
+        // The whole strike, every time: a hand-map key played before may have left its own hand
+        // settings in the engine. Raw: this strike says exactly where it lands (no hand map).
+        inst.setParams([
+          [SM.STRIKE_POS, rho], [SM.STRIKE_ANGLE, ang],
+          [SM.STRIKER_TYPE, overrideStriker ?? resolvedParams[SM.STRIKER_TYPE] ?? 1],
+          [SM.STRIKER_HARDNESS, resolvedParams[SM.STRIKER_HARDNESS] ?? 0.5],
+          [SM.STRIKER_MASS, resolvedParams[SM.STRIKER_MASS] ?? 0.5],
+          [SM.HAND_BRUSH, resolvedParams[SM.HAND_BRUSH] ?? 0.2],
+        ]);
+        const vid = inst.noteOn(note, velocity, 0, 0, 48000, true);
         setTimeout(() => {
           inst.noteOff(vid, true);
         }, 180);
@@ -336,6 +349,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
 
   const handleSelectPreset = (preset: SomaPreset) => {
     const next = applySomaPreset(patch, preset);
+    liveBus.emit({ kind: 'preset', instrument: 'soma', trackId: track.id, at: liveNow(), presetId: preset.id, presetName: preset.name });
     setMorphAmt(0);
     commitPatch(next, preset.name);
     setTimeout(() => {
@@ -350,6 +364,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
   };
 
   const setParamValue = (id: number, value: number) => {
+    liveBus.emit({ kind: 'param', instrument: 'soma', trackId: track.id, at: liveNow(), paramId: id });
     const nextParams = { ...patch.params, [id]: value };
     let nextPad = patch.strikePad;
     if (id === SM.STRIKE_POS || id === SM.STRIKE_ANGLE) {
@@ -362,7 +377,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
     const inst = BeatsEngine.get().getInstrument(track.id);
     if (inst) {
       const expanded = expandSomaMacros(nextParams, patch.macros);
-      inst.setParam(id, expanded[id] ?? value);
+      inst.setParam(id, somaEngineValue(id, expanded[id] ?? value));
     }
   };
 
@@ -495,7 +510,8 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
             }
 
             // Propagating wave from exact strike point
-            const rippleR = Math.min(R, elapsedSec * 340);
+            // (A hit stamped just after this frame began has a hair of negative elapsed time.)
+            const rippleR = Math.max(0, Math.min(R, elapsedSec * 340));
             ctx.beginPath();
             ctx.arc(strikeX, strikeY, rippleR, 0, Math.PI * 2);
             ctx.strokeStyle = `rgba(245, 158, 11, ${(env * 0.75).toFixed(3)})`;
@@ -818,6 +834,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
         </div>
 
         <div className="flex items-center gap-1.5">
+          <SomaDeepToggle />
           <button
             onClick={() => triggerPhysicalStrike(patch.defaultNote || 48, 0.92)}
             className="h-7 px-3 rounded-lg text-[11px] font-bold flex items-center gap-1.5 border transition"
@@ -871,12 +888,13 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
 
       {/* Category & Curated World/Orchestral Drum Selector */}
       <div className="px-4 py-2 border-b border-white/[0.07] bg-black/30 flex flex-col gap-1.5">
-        <div className="flex items-center gap-1 overflow-x-auto pb-0.5" style={{ scrollbarWidth: 'none' }}>
+        {/* Wraps rather than scrolling sideways, so every category name reads in full. */}
+        <div className="flex flex-wrap items-center gap-1 pb-0.5">
           {SOMA_CATEGORY_ORDER.map((cat) => (
             <button
               key={cat}
               onClick={() => setCategory(cat)}
-              className="h-6 px-2.5 rounded-full text-[10px] font-semibold whitespace-nowrap border transition"
+              className="h-6 px-2.5 rounded-full text-[10px] font-semibold whitespace-nowrap border transition shrink-0"
               style={
                 category === cat
                   ? {
@@ -925,6 +943,9 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
           })}
         </div>
       </div>
+
+      {/* The real drum behind the preset — photo, Amara's intro, history / build / technique */}
+      <SomaDrumStory presetId={patch.presetId} presetName={patch.name} trackId={track.id} defaultNote={patch.defaultNote || 48} strike={triggerPhysicalStrike} />
 
       {mode === 'play' ? (
         <div className="p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -983,6 +1004,8 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
                 ))}
               </div>
             </div>
+
+            <SomaHandMapCard track={track} hand={somaHandConfig(patch)} explicit={!!patch.hand} onChange={(hand) => commitPatch({ ...patch, hand })} />
           </div>
 
           {/* Right 7 cols: Coupled Air Chamber Cross-Section + Live Tension Pedal + 6 Physical Macros */}
@@ -1076,7 +1099,7 @@ export const SomaPanel: React.FC<Props> = ({ doc, track, onMutate, onClose, embe
                 <span className="text-[10px] font-bold uppercase tracking-wider text-white/60">
                   Physical Performance Macros
                 </span>
-                <span className="text-[10px] text-white/40 truncate max-w-[340px]">
+                <span className="text-[10px] text-white/40 truncate max-w-[60%]" title={patch.acoustics}>
                   {patch.acoustics}
                 </span>
               </div>

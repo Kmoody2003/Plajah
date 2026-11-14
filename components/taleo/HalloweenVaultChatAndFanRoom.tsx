@@ -923,7 +923,7 @@ export const HalloweenVaultChatAndFanRoom: React.FC<HalloweenVaultChatAndFanRoom
               </span>
             </div>
             <h2 className="text-[1.65rem] leading-[1.05] sm:text-4xl font-black uppercase tracking-tight text-white">
-              <span className="hidden sm:inline">Halloween Curation </span><span className="text-orange-400">Fan Room</span> &amp; Live Filter Chat
+              <span className="hidden sm:inline">Plajah Horror Classics </span><span className="text-orange-400">Fan Room</span> &amp; Live Filter Chat
             </h2>
             <p className="text-[13px] sm:text-sm text-white/65 max-w-3xl leading-relaxed line-clamp-3 sm:line-clamp-none">
               Transform any talking head into a realistic <span className="text-orange-300 font-bold">Carved Jack-o’-Lantern</span>,{' '}

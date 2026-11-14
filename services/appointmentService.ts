@@ -1,8 +1,11 @@
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, orderBy } from 'firebase/firestore';
 import { db, auth } from './firebase';
+import { scopedKey } from './userScope';
 import type { Appointment, AppointmentStatus, AppointmentType } from '../types/clinic';
 
-const LOCAL_STORAGE_KEY = 'plajah_appointments_cache';
+const LOCAL_STORAGE_KEY = () => scopedKey('plajah_appointments_cache');
+/** The sample clinic. Its sample patients appear nowhere else. */
+const DEMO_BUSINESS_ID = 'demo-health-clinic';
 
 // Rich demo appointments to showcase out of the box
 const DEFAULT_DEMO_APPOINTMENTS: Appointment[] = [
@@ -104,7 +107,7 @@ const DEFAULT_DEMO_APPOINTMENTS: Appointment[] = [
 
 function getLocalStore(): Appointment[] {
   try {
-    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY());
     if (raw) return JSON.parse(raw);
   } catch (e) {
     // fallback
@@ -114,7 +117,7 @@ function getLocalStore(): Appointment[] {
 
 function saveLocalStore(items: Appointment[]): void {
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem(LOCAL_STORAGE_KEY(), JSON.stringify(items));
   } catch (e) {
     // ignore
   }
@@ -138,7 +141,7 @@ export async function fetchAppointmentsForBusiness(businessId: string): Promise<
 
   // Fallback to local store
   const local = getLocalStore();
-  return local.filter(a => a.businessId === businessId || businessId === 'demo' || a.businessId === 'demo-health-clinic');
+  return local.filter(a => a.businessId === (businessId === 'demo' ? DEMO_BUSINESS_ID : businessId));
 }
 
 export async function saveAppointment(apt: Partial<Appointment>): Promise<Appointment> {

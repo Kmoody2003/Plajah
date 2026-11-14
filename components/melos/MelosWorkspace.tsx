@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   PenLine, ListMusic, Layers, LayoutGrid, Disc3, Plus, ChevronLeft,
   Sparkles, Loader2, Drum, Sliders, Briefcase, Music2, Megaphone,
-  Mic, MapPin, Truck, Users, FileText, Receipt, CheckSquare, Download,
+  Mic, MapPin, Truck, Users, FileText, Receipt, CheckSquare, Download, Scale,
 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import {
@@ -25,6 +25,8 @@ import {
   TasksTab, VendorsTab, VenuesTab, PMTab,
 } from '../ArtistProjectManager';
 import { MusicReleasesTab } from '../music/MusicReleasesTab';
+import { LabelDesk } from '../chora/LabelDesk';
+import { BackShowDesk } from '../chora/BackThisShow';
 import {
   MelosProduction, MelosSong, MelosArrangement, InspirationPin, SampleCandidate,
   StudioSession, Collaborator, PadSkin, SongTake,
@@ -56,16 +58,22 @@ import ArrangeRoom from './ArrangeRoom';
 import BoardRoom from './BoardRoom';
 // Beats & Mastering Desk load on demand.
 const BeatsRoom = React.lazy(() => import('./beats/BeatsRoom'));
+import { coProjectId, listSharedWithMe, type CoProject } from '../../services/coedit/project';
+import type { SharedMasterRef } from './beats/project/useMasterProject';
 const ProjectView = React.lazy(() =>
   import('./beats/project/ProjectView').then((m) => ({ default: m.ProjectView })),
 );
 const ChoraStudioMixer = React.lazy(() => import('../chora/ChoraStudioMixer'));
+// The Academia Music Law Library, shown in Chora so artists can check rights before release.
+const MusicLawLibrary = React.lazy(() => import('../academia/MusicLawLibrary'));
 
 // ─── Rooms ("Concept to Concert" Pipeline) ──────────────────────────────────
 
 export type ArtistManagerRoom =
   | 'overview'
   | 'releases'
+  | 'label'
+  | 'backshow'
   | 'promote'
   | 'events'
   | 'venues'
@@ -83,6 +91,7 @@ export type MelosRoom =
   | 'board'
   | 'beats'
   | 'master'
+  | 'law'
   | 'mixer'
   | ArtistManagerRoom;
 
@@ -108,10 +117,13 @@ const ROOMS: RoomMeta[] = [
   // 2. Studio, Mastering & Live Mix (Instrument Tier)
   { id: 'beats',     label: 'Chora Studio',         shortLabel: 'Studio',    icon: <Drum size={13} />,        tier: 'instrument', stage: 'studio' },
   { id: 'master',    label: 'Chora Mastering Desk', shortLabel: 'Mastering', icon: <Disc3 size={13} />,       tier: 'instrument', stage: 'studio' },
+  { id: 'law',       label: 'Music Law',            shortLabel: 'Law',       icon: <Scale size={13} />,       tier: 'instrument', stage: 'studio' },
   { id: 'mixer',     label: 'Chora Mixer',          shortLabel: 'Mixer',     icon: <Sliders size={13} />,     tier: 'instrument', stage: 'studio' },
   // 3. Release, Promotion, Touring & Operations — "Concept to Concert" (Artist Manager Tools)
   { id: 'overview',  label: 'Artist Manager',       shortLabel: 'Manager',   icon: <Briefcase size={13} />,   tier: 'instrument', stage: 'concert', accent: '#FF8C00' },
   { id: 'releases',  label: 'Releases',             shortLabel: 'Releases',  icon: <Music2 size={13} />,      tier: 'instrument', stage: 'concert', accent: '#FF8C00' },
+  { id: 'label',     label: 'Label Desk',           shortLabel: 'Label',     icon: <Briefcase size={13} />,   tier: 'instrument', stage: 'concert', accent: '#FF8C00' },
+  { id: 'backshow',  label: 'Sponsor This Show',    shortLabel: 'Sponsors', icon: <Mic size={13} />,         tier: 'instrument', stage: 'concert', accent: '#FF8C00' },
   { id: 'promote',   label: 'Promote',              shortLabel: 'Promote',   icon: <Megaphone size={13} />,   tier: 'instrument', stage: 'concert', accent: '#6366f1' },
   { id: 'events',    label: 'Events & Tour',        shortLabel: 'Tour',      icon: <Mic size={13} />,         tier: 'instrument', stage: 'concert', accent: '#FF8C00' },
   { id: 'venues',    label: 'Venues',               shortLabel: 'Venues',    icon: <MapPin size={13} />,      tier: 'instrument', stage: 'concert', accent: '#ef4444' },
@@ -124,7 +136,7 @@ const ROOMS: RoomMeta[] = [
 ];
 
 const ARTIST_MANAGER_ROOM_IDS = new Set<string>([
-  'overview', 'releases', 'promote', 'events', 'venues', 'vendors',
+  'overview', 'releases', 'label', 'backshow', 'promote', 'events', 'venues', 'vendors',
   'payroll', 'contracts', 'invoices', 'tasks', 'import',
 ]);
 
@@ -271,16 +283,38 @@ const MasteringDeskHost: React.FC = () => {
   const { prodId, selectedSong, songs, arrangements, activeArrangementId, goRoom } = useMelos();
   const { doc, mutate } = useBeatsDoc(selectedSong?.grooveId, prodId);
   const snap = useEngineBridge();
+  // The album's live-collaboration panel opens below this header (ProjectView mounts the dock).
+  const headerRef = React.useRef<HTMLDivElement>(null);
+  // Albums other people shared with me — open one in place of this production's own.
+  const [sharedAlbums, setSharedAlbums] = useState<CoProject[]>([]);
+  const [sharedAlbum, setSharedAlbum] = useState<SharedMasterRef | null>(null);
+  useEffect(() => { void listSharedWithMe('melos').then(setSharedAlbums); }, []);
 
   return (
     <div className="relative h-full flex flex-col" style={{ background: '#0A0A0D' }}>
-      <div className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-2 border-b border-white/[0.06] bg-[#0E0E13] shrink-0">
+      <div ref={headerRef} className="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-2 border-b border-white/[0.06] bg-[#0E0E13] shrink-0">
         <div className="flex items-center gap-2 text-[11px] text-white/60">
           <Disc3 size={13} className="text-[#D0BCFF]" />
           <span className="font-bold uppercase tracking-wider text-white/85">Chora Mastering Desk</span>
           <span className="hidden sm:inline text-white/40">· Final arrangement mastering & distribution prep</span>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
+          {sharedAlbums.length > 0 && (
+            <select
+              aria-label="Albums shared with me"
+              value={sharedAlbum?.localId ?? ''}
+              onChange={(e) => {
+                const p = sharedAlbums.find((a) => a.localId === e.target.value);
+                setSharedAlbum(p ? { projectId: coProjectId('melos', p.localId), localId: p.localId, ownerId: p.ownerId, title: p.title } : null);
+              }}
+              className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg bg-[#D0BCFF]/10 text-[#D0BCFF] border border-[#D0BCFF]/30"
+            >
+              <option value="">My album</option>
+              {sharedAlbums.map((a) => (
+                <option key={a.id} value={a.localId}>Shared · {a.title || 'Album'}{a.names?.[a.ownerId] ? ` (${a.names[a.ownerId]})` : ''}</option>
+              ))}
+            </select>
+          )}
           <button
             type="button"
             onClick={() => goRoom('releases')}
@@ -317,6 +351,9 @@ const MasteringDeskHost: React.FC = () => {
             melosSongs={songs}
             melosArrangements={arrangements}
             activeArrangementId={activeArrangementId}
+            collabAnchor={headerRef}
+            sharedProject={sharedAlbum}
+            onLeaveShared={() => setSharedAlbum(null)}
           />
         </Suspense>
       </div>
@@ -353,6 +390,8 @@ const ArtistManagerHost: React.FC<{
     switch (tab) {
       case 'overview':  return <OverviewTab onSwitchTab={handleOverviewSwitch} />;
       case 'releases':  return <MusicReleasesTab currentUser={currentUser} />;
+      case 'label':     return <LabelDesk />;
+      case 'backshow':  return <BackShowDesk />;
       case 'promote':   return <AdHubTab />;
       case 'events':    return <EventsLaunchTab />;
       case 'venues':    return <VenuesTab />;
@@ -1209,6 +1248,11 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
               {room === 'board'     && <BoardRoom />}
               {room === 'beats'     && <BeatsHost musicLabAdmin={currentUser?.role === 'admin' || currentUser?.email?.toLowerCase() === 'kmoody2003@gmail.com'} />}
               {room === 'master'    && <MasteringDeskHost />}
+              {room === 'law'       && (
+                <div className="h-full overflow-y-auto bg-[#0E0C13]">
+                  <Suspense fallback={null}><MusicLawLibrary /></Suspense>
+                </div>
+              )}
               {room === 'mixer'     && (
                 <Suspense fallback={<div className="h-full grid place-items-center bg-[#090A0F]"><div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" /></div>}>
                   <ChoraStudioMixer onClose={() => setRoom('beats')} embedded={true} />

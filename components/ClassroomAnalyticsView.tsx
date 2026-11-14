@@ -5,6 +5,7 @@ import {
   DollarSign, ChevronDown, BarChart2, GraduationCap,
 } from 'lucide-react';
 import { fetchClassrooms, auth } from '../services/backendService';
+import { withCoursework } from '../services/classroomCoursework';
 import { getDocs, query, collection, where } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { loadProficiency } from '../services/learningLedgerService';
@@ -53,7 +54,8 @@ export default function ClassroomAnalyticsView() {
 
     // Fetch teacher's classrooms
     const all = await fetchClassrooms();
-    const mine = all.filter((c: Classroom) => c.ownerId === uid);
+    // Coursework lives in each class's private doc (owner-readable); merge it back in for the stats below.
+    const mine = await Promise.all(all.filter((c: Classroom) => c.ownerId === uid).map(c => withCoursework(c, uid)));
 
     // Fetch all submissions for these classrooms' assignments
     const allAssignmentIds = mine.flatMap(c => c.assignments.map(a => a.id));

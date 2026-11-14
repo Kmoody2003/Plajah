@@ -22,7 +22,16 @@ export type MelosMidiAction =
   | { kind: 'pitchBend'; value: number }               // -1..1 (0xE0 14-bit Pitch Wheel)
   | { kind: 'sustain'; on: boolean }                   // CC #64 Hold Pedal
   | { kind: 'transport'; action: 'play' | 'stop' | 'record' }
+  | { kind: 'nav'; action: NavAction }
   | null;
+
+/** Maschine's navigation buttons: Page ◀ ▶, Group ◀ ▶ and the MASTER / GROUP / SOUND tabs of the
+ *  control area. No NI MIDI-mode template sends a fixed CC for these, so they are MIDI-learned. */
+export type NavAction = 'pagePrev' | 'pageNext' | 'groupPrev' | 'groupNext' | 'tabMaster' | 'tabGroup' | 'tabSound' | 'sampling';
+export const NAV_LABELS: Record<NavAction, string> = {
+  pagePrev: 'Page ◀', pageNext: 'Page ▶', groupPrev: 'Group ◀', groupNext: 'Group ▶',
+  tabMaster: 'Master tab', tabGroup: 'Group tab', tabSound: 'Sound tab', sampling: 'Sampling',
+};
 
 /** The eight knobs. NI controllers in MIDI mode default to CC 14–21 for the top row; that is the
  *  Melos macro range, matching the instrument's eight front-panel knobs one-to-one. */
@@ -43,9 +52,10 @@ const CC_REC = 119;
 /**
  * Map one event to one action. `instrumentArmed` decides whether a keyboard key or Maschine pad
  * should PLAY THE SYNTH (armed instrument) or hit the DRUM PAD — the same physical control does
- * the obviously-right thing for what you're pointed at.
+ * the obviously-right thing for what you're pointed at. `gridPlaysKeys` false keeps a grid
+ * controller's pads on the drum pads even then (MEKA: Maschine's pads are always pads).
  */
-export function mapMidiEvent(e: BeatsMidiEvent, instrumentArmed: boolean): MelosMidiAction {
+export function mapMidiEvent(e: BeatsMidiEvent, instrumentArmed: boolean, gridPlaysKeys = true): MelosMidiAction {
   const dev = e.deviceType;
 
   // ── 14-bit Pitch Bend wheel & Channel Aftertouch ──
@@ -77,7 +87,7 @@ export function mapMidiEvent(e: BeatsMidiEvent, instrumentArmed: boolean): Melos
   // A grid controller (Maschine, Jam) plays the synth chromatically FROM its pads when an
   // instrument is armed — the pad grid becomes an isomorphic keyboard.
   if (pad >= 0) {
-    if (instrumentArmed) {
+    if (instrumentArmed && gridPlaysKeys) {
       // Pad index → a chromatic note from C1, so two octaves of grid cover a playable range.
       const note = 36 + pad;
       return on ? { kind: 'note', note, velocity: e.velocity ?? 100 } : { kind: 'noteOff', note };

@@ -37,7 +37,9 @@ const WorksheetAssignSetup: React.FC<{
   uid?: string;
   locked?: boolean;
   onTarget: (target: AssignTarget) => void;
-}> = ({ sheet, onSheet, uid, locked, onTarget }) => {
+  /** The class Teacher Tools is working in, preferred over the sheet-based guess. */
+  preferClassId?: string;
+}> = ({ sheet, onSheet, uid, locked, onTarget, preferClassId }) => {
   const [classes, setClasses] = useState<TeachingClass[] | null>(null);
   const [classId, setClassId] = useState<string>('');
   const [reason, setReason] = useState('');
@@ -53,6 +55,8 @@ const WorksheetAssignSetup: React.FC<{
     void loadMyTeachingClasses(uid).then(list => {
       if (!alive) return;
       setClasses(list);
+      const preferred = preferClassId ? list.find(c => c.id === preferClassId) : undefined;
+      if (preferred) { setClassId(preferred.id); setReason('The class you’re working in'); return; }
       const pick = suggestClassFor(sheet, list);
       if (pick) {
         setClassId(pick.id);

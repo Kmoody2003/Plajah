@@ -21,5 +21,5 @@ test('every built Flux scene is offered once and existing FX preset indices rema
   assert.equal(FLUX_PLATFORM_MODES.length,new Set(FLUX_PLATFORM_MODES.map(s=>s.mode)).size);
   assert.equal(FLUX_PLATFORM_MODES[0].mode,VisualizerMode.FluxField);
   assert.equal(FLUX_PLATFORM_MODES[15].mode,VisualizerMode.AfricanBogolan);
-  assert.equal(FLUX_PLATFORM_MODES.length,29);
+  assert.equal(FLUX_PLATFORM_MODES.length,29 + 36);
 });

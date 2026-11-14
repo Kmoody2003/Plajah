@@ -237,6 +237,33 @@ async function decideSynthetic(req: any, res: Response, appealId: string, appeal
   return res.json({ ok: true, outcome });
 }
 
+/**
+ * Create one enforcement action + its standing summary + the user's notice. Callers have already
+ * validated level/rule/duration (the admin /action route, routes/copyright.ts repeat-infringer step).
+ */
+export async function recordEnforcementAction(o: {
+  uid: string; level: StandingLevel; rule: string; ruleText: string; contentRef: ContentRef | null;
+  durationHours: number | null; createdBy: string; reportIds?: string[]; note?: string;
+}): Promise<Record<string, any> | null> {
+  const now = Date.now();
+  const expiresAt = o.durationHours == null ? null : now + Math.round(o.durationHours * 3_600_000);
+  const id = newId('ea');
+  const restrictions = restrictionsFor(o.level);
+  const action = {
+    id, uid: o.uid, contentRef: o.contentRef, rule: o.rule, ruleText: o.ruleText, level: o.level, restrictions, expiresAt, durationHours: o.durationHours,
+    createdBy: o.createdBy, createdAt: now, status: 'ACTIVE', reportIds: o.reportIds || [], csam: false,
+    reviewerNote: o.note || null, correction: null, lastAppealId: null, updatedAt: now,
+    history: [{ at: now, kind: 'CREATED', by: o.createdBy, level: o.level, expiresAt }],
+  };
+  if (!(await createWithId('enforcement_actions', id, action))) return null;
+  await writeSummary(o.uid, sanctionsSummary({ ...action }));
+  await notify(o.uid,
+    'A limit was placed on your account',
+    `What: ${contentLabel(o.contentRef)}. Rule: ${o.ruleText} Limited: ${restrictions.join(' ')} How long: ${durationLabel(expiresAt, now)}. You can still sign in, read and message. You can fix the content or appeal from the banner at the top of Plajah.`,
+  );
+  return action;
+}
+
 export function createEnforcementRouter({ authMiddleware, requireVerifiedAdmin }: EnforcementDeps): Router {
   const r = Router();
   const json = express.json({ limit: '32kb' });
@@ -373,23 +400,9 @@ export function createEnforcementRouter({ authMiddleware, requireVerifiedAdmin }
     if (hours == null && LEVEL_RANK[level] < LEVEL_RANK.CRIMINAL_REVIEW && b.indefinite !== true) {
       return res.status(400).json({ error: 'Give a duration, or pass indefinite:true to make it last until reviewed.' });
     }
-    const now = Date.now();
-    const expiresAt = hours == null ? null : now + Math.round(hours * 3_600_000);
-    const id = newId('ea');
     const reportIds = (Array.isArray(b.reportIds) ? b.reportIds : []).filter((x: unknown) => typeof x === 'string').slice(0, 50);
-    const restrictions = restrictionsFor(level);
-    const action = {
-      id, uid, contentRef, rule, ruleText, level, restrictions, expiresAt, durationHours: hours,
-      createdBy: req.uid as string, createdAt: now, status: 'ACTIVE', reportIds, csam: false,
-      reviewerNote: str(b.note, 1000) || null, correction: null, lastAppealId: null, updatedAt: now,
-      history: [{ at: now, kind: 'CREATED', by: req.uid as string, level, expiresAt }],
-    };
-    if (!(await createWithId('enforcement_actions', id, action))) return res.status(500).json({ error: 'Could not record the action.' });
-    await writeSummary(uid, sanctionsSummary({ ...action }));
-    await notify(uid,
-      'A limit was placed on your account',
-      `What: ${contentLabel(contentRef)}. Rule: ${ruleText} Limited: ${restrictions.join(' ')} How long: ${durationLabel(expiresAt, now)}. You can still sign in, read and message. You can fix the content or appeal from the banner at the top of Plajah.`,
-    );
+    const action = await recordEnforcementAction({ uid, level, rule, ruleText, contentRef, durationHours: hours, createdBy: req.uid, reportIds, note: str(b.note, 1000) });
+    if (!action) return res.status(500).json({ error: 'Could not record the action.' });
     res.json({ ok: true, action });
   });
 

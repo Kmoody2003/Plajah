@@ -29,7 +29,7 @@ export function worksheetToTelaDoc(sheet: DigitalWorksheet, ownerId: string, ori
   const writerId = `${id}_writer`; const baseId = `${id}_base`; const formId = `${id}_form`; const imageId = `${id}_original`; const vectorId = `${id}_vectors`;
   const writer: TelaWriterDevice = { id: writerId, type: 'WRITER', blocks: [
     { id: `${id}_title`, kind: 'h1', text: sheet.title },
-    { id: `${id}_objective`, kind: 'p', text: `<strong>Learning target:</strong> ${sheet.objective}` },
+    ...(sheet.objective?.trim() ? [{ id: `${id}_objective`, kind: 'p' as const, text: `<strong>Learning target:</strong> ${sheet.objective}` }] : []),
     ...sheet.fields.flatMap((f, i) => [{ id: `${id}_q_${i}`, kind: 'h2' as const, text: `${f.ordinal ? `${f.ordinal}. ` : `${i + 1}. `}${f.label}` }, { id: `${id}_hint_${i}`, kind: 'p' as const, text: f.type === 'multiple-choice' ? (f.choices || []).join(' · ') : 'Response' }]),
   ] };
   const baseFields: TelaField[] = sheet.fields.map(f => ({

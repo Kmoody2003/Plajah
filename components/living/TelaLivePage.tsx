@@ -59,6 +59,8 @@ export interface TelaLivePageProps {
   onNarrationWord?: (i: number) => void;
   /** Draw the visual "you can touch this" cues (components/living/LiveHints.tsx). Default true. */
   hints?: boolean;
+  /** Behaviour `emit` events, for hosts that act on them (a flyer's call-to-action opens its link). */
+  onEmit?: (name: string, payload?: unknown) => void;
   /** Asked at the moment it matters (never captured): is this page the one the reader is on? A page-turn keeps a stale copy of the page being left (still
    *  `active` as it was when captured) alongside the incoming one; only the current page may own the music, ambience and narration. Default: yes. */
   isCurrent?: () => boolean;
@@ -77,7 +79,7 @@ const ObjectG = memo(function ObjectG({ o, html }: { o: TelaVectorObject; html: 
 let instanceCounter = 0;
 
 const TelaLivePage = forwardRef<TelaLivePageHandle, TelaLivePageProps>(function TelaLivePage(props, ref) {
-  const { objects, width, height, living, audio, soundEnabled, onGoto, onGoal, active = true, background, pageAudio = true, autoNarrate, writerTexts, className, style, label, onNarrationWord, hints = true, isCurrent } = props;
+  const { objects, width, height, living, audio, soundEnabled, onGoto, onGoal, onEmit, active = true, background, pageAudio = true, autoNarrate, writerTexts, className, style, label, onNarrationWord, hints = true, isCurrent } = props;
   const [reducedOverride, setReducedOverride] = useState<boolean | null>(null);
   const reduced = reducedOverride ?? props.reducedMotion;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -95,8 +97,8 @@ const TelaLivePage = forwardRef<TelaLivePageHandle, TelaLivePageProps>(function 
   const token = useMemo(() => Symbol('live-page'), []);
 
   // Stable callbacks so the engine is not rebuilt when the host re-renders.
-  const cb = useRef({ onGoto, onGoal, onNarrationWord });
-  cb.current = { onGoto, onGoal, onNarrationWord };
+  const cb = useRef({ onGoto, onGoal, onNarrationWord, onEmit });
+  cb.current = { onGoto, onGoal, onNarrationWord, onEmit };
 
   const visible = useMemo(() => objects.filter(o => !o.hidden), [objects]);
   const htmls = useMemo(() => visible.map(o => objectToSvg(o, writerTexts).replace(/(id="|url\(#)(g_|f_)/g, `$1${prefix}$2`)), [visible, writerTexts, prefix]);
@@ -115,6 +117,7 @@ const TelaLivePage = forwardRef<TelaLivePageHandle, TelaLivePageProps>(function 
       onGoto: p => cb.current.onGoto?.(p), onGoal: (pg, id) => cb.current.onGoal?.(pg, id),
       announce: t => setSaid(prev => (prev === t ? t + '​' : t)),
       onWord: i => cb.current.onNarrationWord?.(i),
+      onEmit: (n, p) => cb.current.onEmit?.(n, p),
     });
     engineRef.current = eng;
     setItems(eng.interactiveItems()); setDiscovered(new Set());

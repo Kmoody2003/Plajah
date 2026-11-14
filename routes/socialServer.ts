@@ -32,13 +32,15 @@ import {
 import { normalizeHashtag } from '../services/postingLogic';
 import { serverSpamCheck, profileCreatedMs } from '../services/trust/serverSpamGate';
 import { recordSecurityEvent } from '../services/securityEvents';
+import { OPS_COLLECTIONS, OPS_DATABASE_ID } from '../services/opsCollections';
 
 export const socialServerRouter = Router();
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0665118474';
 const DB_ID = process.env.FIREBASE_DB_ID || 'plajah-prod';
-const DOC_ROOT = `projects/${PROJECT_ID}/databases/${DB_ID}/documents`;
-const FS = `https://firestore.googleapis.com/v1/${DOC_ROOT}`;
+// Back-office collections (scheduled_posts …) live in plajah-ops — route every path by its first segment.
+const DOC_ROOT = (path: string) => `projects/${PROJECT_ID}/databases/${OPS_COLLECTIONS.has(path.split('/')[0]) ? OPS_DATABASE_ID : DB_ID}/documents`;
+const FS = (path: string) => `https://firestore.googleapis.com/v1/${DOC_ROOT(path)}`;
 
 // ── Firestore REST (typed values; nulls kept, undefined dropped) ──────────────
 
@@ -82,7 +84,7 @@ interface DocRead { data: Record<string, any>; updateTime: string }
 
 async function getDoc(path: string): Promise<DocRead | null> {
   try {
-    const res = await fetch(`${FS}/${path}`, { headers: await hdrs() });
+    const res = await fetch(`${FS(path)}/${path}`, { headers: await hdrs() });
     if (!res.ok) return null;
     const j = await res.json() as any;
     return { data: decFields(j.fields || {}), updateTime: j.updateTime };
@@ -92,7 +94,7 @@ async function getDoc(path: string): Promise<DocRead | null> {
 /** Create only if absent. 409 ALREADY_EXISTS ⇒ 'exists'. */
 async function createOnce(collection: string, id: string, data: Record<string, any>): Promise<'created' | 'exists' | 'error'> {
   try {
-    const res = await fetch(`${FS}/${collection}?documentId=${encodeURIComponent(id)}`, {
+    const res = await fetch(`${FS(collection)}/${collection}?documentId=${encodeURIComponent(id)}`, {
       method: 'POST', headers: await hdrs(), body: JSON.stringify({ fields: encFields(data) }),
     });
     if (res.ok) return 'created';
@@ -110,7 +112,7 @@ async function patch(path: string, data: Record<string, any>, ifUpdateTime?: str
   const mask = Object.keys(data).map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
   const pre = ifUpdateTime ? `&currentDocument.updateTime=${encodeURIComponent(ifUpdateTime)}` : '';
   try {
-    const res = await fetch(`${FS}/${path}?${mask}${pre}`, { method: 'PATCH', headers: await hdrs(), body: JSON.stringify({ fields: encFields(data) }) });
+    const res = await fetch(`${FS(path)}/${path}?${mask}${pre}`, { method: 'PATCH', headers: await hdrs(), body: JSON.stringify({ fields: encFields(data) }) });
     if (res.ok) return 'ok';
     if (res.status === 409 || res.status === 400 || res.status === 412) {
       const body = await res.text();
@@ -127,7 +129,7 @@ async function runQuery(collectionId: string, filters: Array<{ field: string; op
   const fieldFilters = filters.map(f => ({ fieldFilter: { field: { fieldPath: f.field }, op: f.op, value: enc(f.value) } }));
   const where = fieldFilters.length === 1 ? fieldFilters[0] : { compositeFilter: { op: 'AND', filters: fieldFilters } };
   const body = { structuredQuery: { from: [{ collectionId }], where, orderBy: [{ field: { fieldPath: 'publishAt' }, direction: 'ASCENDING' }], limit } };
-  const res = await fetch(`${FS}:runQuery`, { method: 'POST', headers: await hdrs(), body: JSON.stringify(body) });
+  const res = await fetch(`${FS(collectionId)}:runQuery`, { method: 'POST', headers: await hdrs(), body: JSON.stringify(body) });
   if (!res.ok) throw new Error(`runQuery ${collectionId} HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
   const rows = await res.json() as any[];
   return (Array.isArray(rows) ? rows : []).filter(r => r.document).map(r => ({
@@ -140,10 +142,10 @@ async function runQuery(collectionId: string, filters: Array<{ field: string; op
 /** Atomic increment on an EXISTING doc (never creates it). */
 async function incrementExisting(path: string, field: string, by: number): Promise<boolean> {
   try {
-    const res = await fetch(`${FS}:commit`, {
+    const res = await fetch(`${FS(path)}:commit`, {
       method: 'POST', headers: await hdrs(),
       body: JSON.stringify({ writes: [{
-        update: { name: `${DOC_ROOT}/${path}`, fields: {} },
+        update: { name: `${DOC_ROOT(path)}/${path}`, fields: {} },
         updateMask: { fieldPaths: [] },
         updateTransforms: [{ fieldPath: field, increment: { integerValue: String(Math.round(by)) } }],
         currentDocument: { exists: true },
@@ -157,10 +159,10 @@ async function incrementExisting(path: string, field: string, by: number): Promi
 /** Atomic increment that creates the doc when missing (hashtag rollups). */
 async function incrementUpsert(path: string, field: string, by: number, set: Record<string, any>): Promise<void> {
   try {
-    await fetch(`${FS}:commit`, {
+    await fetch(`${FS(path)}:commit`, {
       method: 'POST', headers: await hdrs(),
       body: JSON.stringify({ writes: [{
-        update: { name: `${DOC_ROOT}/${path}`, fields: encFields(set) },
+        update: { name: `${DOC_ROOT(path)}/${path}`, fields: encFields(set) },
         updateMask: { fieldPaths: Object.keys(set) },
         updateTransforms: [{ fieldPath: field, increment: { integerValue: String(by) } }],
       }] }),

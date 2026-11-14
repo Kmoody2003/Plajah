@@ -13,8 +13,8 @@ export function fetchHallFilm(exhibitId: string, timeoutMs = 3500): Promise<Expe
   if (hit) return hit;
   const p = (async () => {
     try {
-      const [{ db }, { doc, getDoc }] = await Promise.all([import('../../firebase'), import('firebase/firestore')]);
-      const read = getDoc(doc(db, 'experienceFilms', exhibitId)).then(s => (s.exists() ? parsePublicFilm(s.data()) : null));
+      const [{ opsDb }, { doc, getDoc }] = await Promise.all([import('../../firebase'), import('firebase/firestore')]);
+      const read = getDoc(doc(opsDb, 'experienceFilms', exhibitId)).then(s => (s.exists() ? parsePublicFilm(s.data()) : null));
       const timeout = new Promise<null>(r => setTimeout(() => r(null), timeoutMs));
       return await Promise.race([read, timeout]);
     } catch {

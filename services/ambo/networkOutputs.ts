@@ -37,7 +37,11 @@ export interface NetworkOutputConfig {
   srt?: SrtSettings;
 }
 
-export interface FeedFormat { width: number; height: number; fps: number; bitrateKbps: number }
+export interface FeedFormat {
+  width: number; height: number; fps: number; bitrateKbps: number;
+  /** Send the Program bus at its own size and shape instead of width×height. */
+  followBus?: boolean;
+}
 
 /** What the native sink reports (ProgramSink.Snapshot). */
 export type NativeOutputState = 'starting' | 'waiting' | 'live' | 'retrying' | 'error' | 'stopped';
@@ -148,7 +152,7 @@ const realClock: Clock = { now: () => Date.now(), setTimeout: (f, ms) => setTime
 export const OUTPUTS_KEY = 'ambo.networkOutputs.v1';
 const BACKOFF = [1000, 2000, 4000, 8000, 15000, 30000];
 
-export const DEFAULT_FORMAT: FeedFormat = { width: 1920, height: 1080, fps: 30, bitrateKbps: 6000 };
+export const DEFAULT_FORMAT: FeedFormat = { width: 1920, height: 1080, fps: 30, bitrateKbps: 6000, followBus: true };
 
 export function defaultOutput(kind: NetworkOutputKind, existing: NetworkOutputConfig[] = [], rand = Math.random): NetworkOutputConfig {
   const n = existing.filter(o => o.kind === kind).length + 1;
@@ -243,7 +247,8 @@ export class NetworkOutputManager {
   }
 
   setFormat(patch: Partial<FeedFormat>): void {
-    const f = { ...this.format, ...patch };
+    // Picking a size is picking a fixed format.
+    const f = { ...this.format, ...patch, followBus: patch.followBus ?? (patch.width || patch.height ? false : this.format.followBus) };
     f.width = clampInt(f.width, 320, 3840); f.height = clampInt(f.height, 180, 2160);
     f.fps = [24, 25, 29.97, 30, 50, 59.94, 60].includes(f.fps) ? f.fps : 30;
     f.bitrateKbps = clampInt(f.bitrateKbps, 500, 50000);
@@ -416,7 +421,8 @@ export class NetworkOutputManager {
         this.outputs = p.outputs.filter(o => o && typeof o.id === 'string' && ['ndi', 'omt', 'srt'].includes(o.kind))
           .map(o => ({ ...o, srt: o.srt ? { ...o.srt } : (o.kind === 'srt' ? { mode: 'listener', port: SRT_DEFAULT_PORT, latencyMs: SRT_DEFAULT_LATENCY } : undefined) }));
       }
-      if (p?.format) this.format = { ...DEFAULT_FORMAT, ...p.format };
+      // Saved before followBus: 1920×1080 was just the default; any other size was chosen.
+      if (p?.format) this.format = { ...DEFAULT_FORMAT, ...p.format, followBus: p.format.followBus ?? (p.format.width === 1920 && p.format.height === 1080) };
     } catch { this.outputs = []; }
   }
 

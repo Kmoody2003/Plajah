@@ -1,5 +1,5 @@
 /**
- * Classic Cinema & Halloween Curation — Directors, Biographies, Portraits & Filmographies.
+ * Classic Cinema & Plajah Horror Classics — Directors, Biographies, Portraits & Filmographies.
  *
  * Powers:
  *  - Classic Movies presentation on the Taleo landing page (`MoviesTVView.tsx` & `MoviesSpecificView.tsx`)

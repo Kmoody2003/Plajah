@@ -3,8 +3,9 @@
 // Provider 1: Paychex Flex (developer.paychex.com). A Flex client admin creates an application under
 //   Company Settings → Connected Applications, which yields an API key (client id) + secret. The server holds
 //   ONE Paychex app (PAYCHEX_CLIENT_ID / PAYCHEX_CLIENT_SECRET — Paychex lets one key serve many authorized
-//   client companies); each Plajah org stores the Paychex company id it is authorized for on its org doc
-//   (organizations/{id}.payroll.paychexCompanyId, set by an org admin via POST /paychex/connect).
+//   client companies), so a client-supplied company id alone would open ANY authorized company's directory. A platform
+//   admin therefore records the org → company mapping after confirming it with the customer, in the server-only
+//   payrollPaychexApprovals/{orgId} (POST /paychex/approve); only then can an org admin connect, and every pull re-checks it.
 //   Auth: client-credentials call to the Paychex token endpoint → 60-minute bearer (no refresh; re-request).
 //   Data: GET /companies/{companyId}/workers (scope workers:read) — names, job title, organization, work email.
 //   We never request or forward compensation endpoints.
@@ -22,8 +23,10 @@
 // Mounted in server.ts as:  app.use('/api/payroll', express.json({ limit: '8kb' }), payrollConnectRouter)
 
 import { Router, Request, Response } from 'express';
-import { verifyIdToken, fsGet, fsPatch, fsSet, fsDelete, adminConfig } from '../services/firebaseAdminRest';
+import { verifyIdToken, verifyIdTokenDetailed, fsGet, fsPatch, fsSet, fsDelete, adminConfig } from '../services/firebaseAdminRest';
 import { encryptSecret, decryptSecret } from '../services/fabula/genVault';
+import { isVerifiedAdmin } from '../services/platformAdmin';
+import { signConnectState, verifyConnectState } from '../services/serverGuards';
 
 export const payrollConnectRouter = Router();
 
@@ -36,15 +39,20 @@ async function callerUid(req: Request): Promise<string | null> {
   if (!auth?.startsWith('Bearer ')) return null;
   return verifyIdToken(auth.slice(7));
 }
-/** Org admins / creator, plus the pastors index (same people who can import the directory). */
+/** Org admins / creator, plus the pastors index (same people who can import the directory). Department leaders are not: this is the whole staff directory. */
 async function orgStaff(orgId: string, uid: string): Promise<{ ok: boolean; org?: Record<string, any> }> {
   if (!orgId || orgId.length > 120) return { ok: false };
   const org = await fsGet(`organizations/${orgId}`);
   if (!org) return { ok: false };
   const admins: string[] = Array.isArray(org.admins) ? org.admins : [];
   const pastors: string[] = Array.isArray(org.pastorUids) ? org.pastorUids : [];
-  const leaders: string[] = Array.isArray(org.leaderUids) ? org.leaderUids : [];
-  return { ok: org.creatorId === uid || admins.includes(uid) || pastors.includes(uid) || leaders.includes(uid), org };
+  return { ok: org.creatorId === uid || admins.includes(uid) || pastors.includes(uid), org };
+}
+
+/** The company a platform admin approved for this org; null until then. */
+async function approvedPaychexCompany(orgId: string): Promise<string | null> {
+  const doc = await fsGet(`payrollPaychexApprovals/${orgId}`);
+  return typeof doc?.companyId === 'string' && doc.companyId ? doc.companyId : null;
 }
 
 // ── Paychex token (cached until ~55 min) ───────────────────────────────────────
@@ -83,7 +91,20 @@ payrollConnectRouter.get('/paychex/status', async (req: Request, res: Response) 
   });
 });
 
-// ── POST /paychex/connect { orgId, companyId } — org admin binds their Paychex company ──
+// ── POST /paychex/approve { orgId, companyId } — platform admin records the verified mapping ──
+payrollConnectRouter.post('/paychex/approve', async (req: Request, res: Response) => {
+  const auth = req.headers.authorization;
+  const who = auth?.startsWith('Bearer ') ? await verifyIdTokenDetailed(auth.slice(7)) : null;
+  if (!who) return res.status(401).json({ error: 'Sign in first.' });
+  const isAdmin = isVerifiedAdmin({ email: who.email, emailVerified: who.emailVerified === true, isAdminDoc: !!(await fsGet(`admins/${who.uid}`)), extraAdminEmails: process.env.PLATFORM_ADMIN_EMAILS || process.env.ARIA_VOICE_ADMIN_EMAILS });
+  if (!isAdmin) return res.status(403).json({ error: 'Platform admin access required.' });
+  const orgId = String(req.body?.orgId || ''); const companyId = String(req.body?.companyId || '').trim();
+  if (!orgId || orgId.length > 120 || orgId.includes('/') || !/^[A-Za-z0-9-]{1,64}$/.test(companyId)) return res.status(400).json({ error: 'orgId and companyId are required.' });
+  await fsSet(`payrollPaychexApprovals/${orgId}`, { companyId, approvedBy: who.uid, approvedAt: Date.now() });
+  return res.json({ ok: true });
+});
+
+// ── POST /paychex/connect { orgId, companyId } — org admin binds their approved Paychex company ──
 payrollConnectRouter.post('/paychex/connect', async (req: Request, res: Response) => {
   const uid = await callerUid(req);
   if (!uid) return res.status(401).json({ error: 'Sign in first.' });
@@ -93,6 +114,7 @@ payrollConnectRouter.post('/paychex/connect', async (req: Request, res: Response
   if (!ok || !org) return res.status(403).json({ error: 'Not allowed for this organization.' });
   if (!(org.creatorId === uid || (org.admins || []).includes(uid))) return res.status(403).json({ error: 'Only org owners / admins can connect payroll.' });
   if (!/^[A-Za-z0-9-]{1,64}$/.test(companyId)) return res.status(400).json({ error: 'Enter the Paychex company id.' });
+  if ((await approvedPaychexCompany(orgId)) !== companyId) return res.status(403).json({ error: 'Plajah has to confirm this Paychex company for your organization first. Contact support with your company id.', code: 'PAYCHEX_NOT_APPROVED' });
   try {
     const company = await paychexGet(`/companies/${encodeURIComponent(companyId)}`);
     const name = company?.content?.[0]?.legalName || company?.legalName || company?.displayName || companyId;
@@ -111,6 +133,7 @@ payrollConnectRouter.post('/paychex/workers', async (req: Request, res: Response
   if (!ok || !org) return res.status(403).json({ error: 'Not allowed for this organization.' });
   const companyId = org.payroll?.paychexCompanyId as string | undefined;
   if (!companyId) return res.status(409).json({ error: 'This organization is not connected to a Paychex company yet.' });
+  if ((await approvedPaychexCompany(orgId)) !== companyId) return res.status(403).json({ error: 'Plajah has not confirmed this Paychex company for your organization.', code: 'PAYCHEX_NOT_APPROVED' });
   try {
     const workers: any[] = [];
     let offset = 0; const limit = 100;
@@ -192,6 +215,9 @@ async function finchConnection(orgId: string): Promise<FinchConnection | null> {
   return doc && doc.provider === 'finch' && typeof doc.token === 'string' ? doc as FinchConnection : null;
 }
 const isOrgOwnerOrAdmin = (org: Record<string, any>, uid: string) => org.creatorId === uid || (Array.isArray(org.admins) && org.admins.includes(uid));
+/** Binds a Finch Connect round trip to this org and caller; the key never leaves the server. */
+const finchStateKey = () => `finch-state:${process.env.ENCRYPTION_KEY || ''}`;
+const FINCH_STATE_TTL_MS = 60 * 60_000;
 const finchStatusMessage = (configured: boolean, connected: boolean) =>
   !configured ? 'Finch is not configured on this server (FINCH_CLIENT_ID / FINCH_CLIENT_SECRET + ENCRYPTION_KEY). Use the file export for now.'
     : !connected ? 'Connect this organization\'s payroll (Accounts & Access → Import staff from payroll → Connect payroll).' : undefined;
@@ -211,7 +237,7 @@ payrollConnectRouter.get('/finch/status', async (req: Request, res: Response) =>
     configured, connected, canConnect,
     provider: conn?.providerId, providerName: finchProviderName(conn?.providerId), products: conn?.products, connectedAt: conn?.connectedAt,
     // Public bits the client needs to build the Finch Connect URL (the secret never leaves the server).
-    ...(configured && canConnect ? { connectUrl: FINCH_CONNECT_URL, clientId: process.env.FINCH_CLIENT_ID, redirectUri: finchRedirectUri(req), requestedProducts: FINCH_PRODUCTS, sandbox: FINCH_SANDBOX || undefined } : {}),
+    ...(configured && canConnect ? { connectUrl: FINCH_CONNECT_URL, clientId: process.env.FINCH_CLIENT_ID, redirectUri: finchRedirectUri(req), requestedProducts: FINCH_PRODUCTS, sandbox: FINCH_SANDBOX || undefined, connectState: signConnectState(finchStateKey(), orgId, uid, Date.now() + FINCH_STATE_TTL_MS) } : {}),
     message: finchStatusMessage(configured, connected),
   });
 });
@@ -244,6 +270,7 @@ payrollConnectRouter.post('/finch/connect', async (req: Request, res: Response) 
   if (!ok || !org) return res.status(403).json({ error: 'Not allowed for this organization.' });
   if (!isOrgOwnerOrAdmin(org, uid)) return res.status(403).json({ error: 'Only org owners / admins can connect payroll.' });
   if (!/^[A-Za-z0-9._~-]{8,512}$/.test(code)) return res.status(400).json({ error: 'Missing Finch authorization code.' });
+  if (!verifyConnectState(finchStateKey(), req.body?.state, orgId, uid, Date.now())) return res.status(400).json({ error: 'That payroll connection attempt expired. Press Connect payroll again.', code: 'BAD_STATE' });
   try {
     const r = await fetch(`${FINCH_API}/auth/token`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },

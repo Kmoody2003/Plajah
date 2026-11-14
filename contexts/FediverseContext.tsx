@@ -46,6 +46,8 @@ interface FediverseContextValue {
   notifications: FediverseNotification[];
   feedErrors: FediverseFeedResult['errors'];
   isLoadingAccounts: boolean;
+  accountsError: string | null;
+  reloadAccounts: () => Promise<void>;
   isLoadingFeed: boolean;
   isCrossPosting: boolean;
 
@@ -55,6 +57,8 @@ interface FediverseContextValue {
   /** "Sign in with Bluesky" (AT Protocol OAuth) — opens Bluesky's own consent screen in a popup. */
   connectBlueskyOAuth: (handle?: string) => Promise<void>;
   connectThreadsAccount: (token: string) => Promise<FediverseAccount>;
+  /** "Continue with Threads" (Meta OAuth) — Threads' own consent screen in a popup; comes back connected. */
+  connectThreadsOAuth: () => Promise<void>;
   disconnectAccount: (accountId: string) => Promise<void>;
 
   refreshFeed: () => Promise<void>;
@@ -90,6 +94,7 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [feedErrors, setFeedErrors]       = useState<FediverseFeedResult['errors']>([]);
   const [notifications, setNotifications] = useState<FediverseNotification[]>([]);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(true);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
   const [isLoadingFeed, setIsLoadingFeed]         = useState(false);
   const [isCrossPosting, setIsCrossPosting]       = useState(false);
   const [dmConversations, setDmConversations]     = useState<BskyConversation[]>([]);
@@ -107,9 +112,11 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     try {
       const data = await serverJson<{ accounts: FediverseAccount[] }>('/api/fediverse/accounts', token);
       setAccounts(data.accounts);
+      setAccountsError(null);
     } catch (err) {
       console.error('[Fediverse] Failed to load accounts:', err);
-      setAccounts([]);
+      // A failed load is not "no accounts": keep what we had and say so.
+      setAccountsError(err instanceof Error ? err.message : 'Could not load your linked accounts.');
     } finally {
       setIsLoadingAccounts(false);
     }
@@ -202,14 +209,17 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       const timeout = setTimeout(() => { reject(new Error('OAuth timed out')); cleanup(); }, 3 * 60 * 1000);
 
-      function cleanup() {
+      let cleanup = function () {
         clearTimeout(timeout);
         window.removeEventListener('message', onMessage);
-      }
+      };
 
+      let handled = false;
       async function onMessage(e: MessageEvent) {
         if (e.origin !== window.location.origin) return;
+        if (handled) return;
         if (e.data?.type === 'FEDIVERSE_AUTH_SUCCESS') {
+          handled = true;
           cleanup();
           try {
             const { account } = await serverJson<{ account: FediverseAccount }>(
@@ -220,12 +230,19 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             resolve();
           } catch (err) { reject(err); }
         } else if (e.data?.type === 'FEDIVERSE_AUTH_ERROR') {
+          handled = true;
           cleanup();
           reject(new Error(String(e.data.error ?? 'OAuth failed')));
         }
       }
 
       window.addEventListener('message', onMessage);
+      // The opener link can be severed by the instance's cross-origin-opener-policy; the callback page also
+      // broadcasts on a same-origin channel, which survives that.
+      let bc: BroadcastChannel | null = null;
+      try { bc = new BroadcastChannel('plajah-fediverse-oauth'); bc.onmessage = ev => { onMessage({ origin: window.location.origin, data: ev.data } as MessageEvent); }; } catch { /* unsupported */ }
+      const origCleanup = cleanup;
+      cleanup = function () { origCleanup(); if (bc) bc.close(); } as typeof cleanup;
     });
   }, [uid]);
 
@@ -265,14 +282,73 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       ({ url } = await serverJson<{ url: string }>(`/api/fediverse/bluesky/oauth/start?handle=${encodeURIComponent((handle ?? '').trim())}`, token));
     } catch (e) { popup.close(); throw e; }
     popup.location.href = url;
+    // bsky.social's cross-origin-opener-policy can sever window.opener, so also listen on a BroadcastChannel, and
+    // when the popup closes without a message, ask the server whether the account actually got linked.
+    const startedAt = Date.now() - 5000;
     await new Promise<void>((resolve, reject) => {
-      const done = (fn: () => void) => { window.removeEventListener('message', onMsg); clearInterval(poll); fn(); };
-      const onMsg = (ev: MessageEvent) => {
-        if (ev.origin !== window.location.origin || ev.data?.type !== 'plajah-bsky-oauth') return;
-        done(() => (ev.data.ok ? resolve() : reject(new Error(ev.data.error || 'Bluesky sign-in failed.'))));
-      };
+      let bc: BroadcastChannel | null = null;
+      try { bc = new BroadcastChannel('plajah-bsky-oauth'); } catch { /* unsupported */ }
+      const done = (fn: () => void) => { window.removeEventListener('message', onMsg); if (bc) bc.close(); clearInterval(poll); fn(); };
+      const handle_ = (d: any) => { if (d?.type === 'plajah-bsky-oauth') done(() => (d.ok ? resolve() : reject(new Error(d.error || 'Bluesky sign-in failed.')))); };
+      const onMsg = (ev: MessageEvent) => { if (ev.origin === window.location.origin) handle_(ev.data); };
       window.addEventListener('message', onMsg);
-      const poll = setInterval(() => { if (popup.closed) done(() => reject(new Error('The sign-in window was closed.'))); }, 800);
+      if (bc) bc.onmessage = ev => handle_(ev.data);
+      // popup.closed is NOT trustworthy here: once the popup navigates to bsky.social (cross-origin-opener-policy)
+      // the browser reports it as closed while it is still open. So never fail on it — poll the server for the
+      // linked account instead, and only give up after a generous timeout.
+      let checking = false;
+      const deadline = Date.now() + 4 * 60_000;
+      const poll = setInterval(async () => {
+        if (Date.now() > deadline) return done(() => reject(new Error('Bluesky sign-in timed out. Try again.')));
+        if (checking) return;
+        checking = true;
+        try {
+          const t = await getToken();
+          const { accounts: list } = await serverJson<{ accounts: FediverseAccount[] }>('/api/fediverse/accounts', t!);
+          if ((list || []).some(a => a.protocol === 'bluesky' && Number(a.connectedAt || 0) >= startedAt)) done(resolve);
+        } catch { /* transient — keep waiting */ }
+        finally { checking = false; }
+      }, 2500);
+    });
+    await loadAccounts();
+  }, [uid, loadAccounts]);
+
+  const connectThreadsOAuth = useCallback(async () => {
+    if (!uid) throw new Error('Not authenticated');
+    // Open the popup inside the click (popup blockers), then point it at threads.net once the server built the URL.
+    const popup = window.open('about:blank', `plajah-threads-oauth-${Date.now()}`, 'width=520,height=760');
+    if (!popup) throw new Error('Allow pop-ups for Plajah to continue with Threads.');
+    let url: string;
+    try {
+      const token = await getToken();
+      if (!token) throw new Error('No Firebase token');
+      ({ url } = await serverJson<{ url: string }>('/api/fediverse/threads/oauth/start', token));
+    } catch (e) { popup.close(); throw e; }
+    popup.location.href = url;
+    // Meta's cross-origin-opener-policy can sever window.opener and makes popup.closed unreliable, so listen on a
+    // BroadcastChannel too and poll the server for the newly linked account.
+    const startedAt = Date.now() - 5000;
+    await new Promise<void>((resolve, reject) => {
+      let bc: BroadcastChannel | null = null;
+      try { bc = new BroadcastChannel('plajah-threads-oauth'); } catch { /* unsupported */ }
+      const done = (fn: () => void) => { window.removeEventListener('message', onMsg); if (bc) bc.close(); clearInterval(poll); fn(); };
+      const handle_ = (d: any) => { if (d?.type === 'plajah-threads-oauth') done(() => (d.ok ? resolve() : reject(new Error(d.error || 'Threads sign-in failed.')))); };
+      const onMsg = (ev: MessageEvent) => { if (ev.origin === window.location.origin) handle_(ev.data); };
+      window.addEventListener('message', onMsg);
+      if (bc) bc.onmessage = ev => handle_(ev.data);
+      let checking = false;
+      const deadline = Date.now() + 5 * 60_000;
+      const poll = setInterval(async () => {
+        if (Date.now() > deadline) return done(() => reject(new Error('Threads sign-in timed out. Try again.')));
+        if (checking) return;
+        checking = true;
+        try {
+          const t = await getToken();
+          const { accounts: list } = await serverJson<{ accounts: FediverseAccount[] }>('/api/fediverse/accounts', t!);
+          if ((list || []).some(a => a.protocol === 'threads' && Number(a.connectedAt || 0) >= startedAt)) done(resolve);
+        } catch { /* transient — keep waiting */ }
+        finally { checking = false; }
+      }, 2500);
     });
     await loadAccounts();
   }, [uid, loadAccounts]);
@@ -457,9 +533,9 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const value: FediverseContextValue = {
     accounts, feed, notifications, feedErrors,
-    isLoadingAccounts, isLoadingFeed, isCrossPosting,
+    isLoadingAccounts, accountsError, reloadAccounts: loadAccounts, isLoadingFeed, isCrossPosting,
     connectMastodonOAuth, connectMastodonToken,
-    connectBlueskyAccount, connectBlueskyOAuth, connectThreadsAccount, disconnectAccount,
+    connectBlueskyAccount, connectBlueskyOAuth, connectThreadsAccount, connectThreadsOAuth, disconnectAccount,
     refreshFeed, refreshNotifications,
     crossPost, broadcast, toggleLike, toggleRepost,
     accountsByProtocol, hasProtocol,

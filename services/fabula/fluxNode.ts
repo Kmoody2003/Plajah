@@ -27,7 +27,10 @@ export interface FluxAudio {
 export const SILENT_AUDIO: FluxAudio = { bass: 0, mid: 0, treble: 0, level: 0, beat: 0 };
 
 import { FLUX_MATH_SCENES, type FluxMathSceneId } from './fluxMathCatalog';
-export type FluxSceneId = FluxMathSceneId | 'math-morph' | 'field' | 'tapestry' | 'tapestry-ii' | 'lattice' | 'tunnel' | 'aurora' | 'sanctum' | 'porcelain-tide' | 'velvet-bloom' | 'prism-archive' | 'deco-morph' | 'egypt-temple' | 'venetian-maiolica' | 'hellenic-marble' | 'japanese-ink' | 'african-bogolan';
+import { FLUX_CANVAS_SCENES } from './fluxCanvasCatalog';
+/** Flux Canvas ids carry the image: canvas:<id> (directed), canvas-plate:<id> (2.5D), canvas-world:<id> (3D). */
+export type FluxCanvasSceneId = `canvas:${string}` | `canvas-plate:${string}` | `canvas-world:${string}`;
+export type FluxSceneId = FluxCanvasSceneId | FluxMathSceneId | 'math-morph' | 'field' | 'tapestry' | 'tapestry-ii' | 'lattice' | 'tunnel' | 'aurora' | 'sanctum' | 'porcelain-tide' | 'velvet-bloom' | 'prism-archive' | 'deco-morph' | 'egypt-temple' | 'venetian-maiolica' | 'hellenic-marble' | 'japanese-ink' | 'african-bogolan';
 
 export interface FluxSceneInfo {
   id: FluxSceneId;
@@ -75,6 +78,7 @@ export const FLUX_SCENES: FluxSceneInfo[] = [
     line: 'An impossible crimson couture sculpture. Bass opens the pleated petals, voices torque the folds, and high frequencies ignite the silk edges.' },
   { id: 'prism-archive', name: 'Prism Archive', cat: 'Optics', built: true,
     line: 'Suspended dichroic pages over an ink-black plinth. Bass fans the archive open, mids turn its glass leaves, and treble draws spectral light across the floor.' },
+  ...FLUX_CANVAS_SCENES,
 ];
 
 export function fluxSceneInfo(id: FluxSceneId): FluxSceneInfo | undefined {
@@ -101,6 +105,10 @@ export interface FluxSpec {
   background: string;    // solid colour behind the scene
   /** Render tier. 'ultra' opts into the expensive photoreal variants (Deco: PBR gold, soft shadows, AO, 2× rays). */
   quality?: 'standard' | 'ultra';
+  /** Flux Canvas: the picture's shapes morph with the music (default on). */
+  morph?: boolean;
+  /** Scenes with a director: false holds the camera for manual framing (default on). */
+  director?: boolean;
 }
 
 export const FLUX_DEFAULT: FluxSpec = {

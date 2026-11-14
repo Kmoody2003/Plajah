@@ -26,12 +26,17 @@ public sealed partial class MainWindow : Window
     private AppWindow? _appWindow;
     private readonly PlajahStudioBridgeService _studioBridge;
     private readonly NdiReceiverService _ndiRecv = new();
+    private CrossoverNativeService? _crossoverSvc;
+    private CrossoverNativeService Crossover => _crossoverSvc ??= new CrossoverNativeService((type, payload) => DispatcherQueue.TryEnqueue(() => PostNativeMessage(type, payload)));
     /// <summary>Stage Program out as NDI / OMT / SRT (frames arrive from the page through a shared buffer).</summary>
     private ProgramOutputHub? _programOutHub;
     private ProgramOutputHub ProgramOut => _programOutHub ??= new ProgramOutputHub(() => _studioBridge.NdiDllPath);
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _programOutTimer;
     private string _programOutLastStatus = "";
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _liveLevelTimer;
+    /// <summary>Chora multitrack capture from an ASIO interface/console (one open driver per process).</summary>
+    private readonly AsioMultitrackRecorder _asioRec = new();
+    private Microsoft.UI.Dispatching.DispatcherQueueTimer? _asioLevelTimer;
     private DateTime _lastNavRecovery = DateTime.MinValue;
     private DateTime _lastRendererRecovery = DateTime.MinValue;
     private bool _localShellAvailable;
@@ -160,6 +165,8 @@ public sealed partial class MainWindow : Window
         // Network outputs announce themselves (NDI/OMT) and own ffmpeg children (SRT): close them cleanly.
         try { _programOutHub?.Dispose(); } catch (Exception ex) { CrashLog.Write("Close.ProgramOut", ex); }
         try { _ndiRecv.Dispose(); } catch (Exception ex) { CrashLog.Write("Close.LiveInputs", ex); }
+        // A take in progress: stopping finalizes the WAV headers so the audio isn't lost.
+        try { _asioRec.Dispose(); } catch (Exception ex) { CrashLog.Write("Close.AsioCapture", ex); }
     }
 
     private bool _ecoMode;
@@ -196,12 +203,15 @@ public sealed partial class MainWindow : Window
             "--gpu-rasterization-msaa-sample-count=0 --enable-features=WebCodecs,WebGPU,CanvasOopRasterization,UseDirectCompositionVideoOverlays,D3D11VideoDecoder,VaapiVideoDecoder,PlatformHEVCDecoderSupport,AudioWorkletRealtimeThread,WebMachineLearningNeuralNetwork,WebNNOnnxRuntime,WebNNDirectML " +
             "--disable-features=CalculateNativeWinOcclusion --autoplay-policy=no-user-gesture-required " +
             "--ignore-gpu-blocklist --enable-native-gpu-memory-buffers";
+#if DEBUG
+        // A remote debugging port reads every account's session on this PC, so release builds never open one.
         try
         {
             var flag = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Plajah", "devtools.flag");
             if (System.IO.File.Exists(flag)) browserArgs += " --remote-debugging-port=9333 --remote-allow-origins=http://127.0.0.1:9333";
         }
         catch { }
+#endif
 
         try
         {
@@ -465,8 +475,8 @@ public sealed partial class MainWindow : Window
             "  };" +
             "  var _pme = {" +
             "    capabilities: {" +
-            "      host: 'winui', platform: 'windows', hardwareGenlock: true, ndi: true, brawDecode: true, webgpu: true," +
-            "      sources: { decklink: true, ndi: true, srt: true, rtmp: true, webrtc: true, uvc: true, file: true, braw: true, ambo: true, switcher: true }," +
+            "      host: 'winui', platform: 'windows', hardwareGenlock: true, ndi: true, brawDecode: " + (BrawRuntime.LooksInstalled ? "true" : "false") + ", webgpu: true," +
+            "      sources: { decklink: true, ndi: true, srt: true, rtmp: true, webrtc: true, uvc: true, file: true, braw: " + (BrawRuntime.LooksInstalled ? "true" : "false") + ", ambo: true, switcher: true }," +
             "      cameraControl: true, mainconceptMpeg2: true" +
             "    }," +
             "    invoke: function(cmd, args) {" +
@@ -834,8 +844,9 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            using var document = JsonDocument.Parse(args.TryGetWebMessageAsString());
+            using var document = JsonDocument.Parse(ReadWebMessage(args));
             var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return;   // every message is { type, ... }
             var type = root.TryGetProperty("type", out var typeValue)
                 ? typeValue.GetString()
                 : null;
@@ -843,6 +854,13 @@ public sealed partial class MainWindow : Window
             // Stage Program → network outputs (30–60 messages a second; keep this first and cheap).
             if (type == "PROGRAM_OUT_FRAME") { _programOutHub?.OnFrame(root); return; }
             if (type == "PROGRAM_OUT_AUDIO") { _programOutHub?.OnAudio(root); return; }
+            if (type == "LD_UDP_SEND") { LightingUdpSender.Send(root); return; }
+
+            if (type == "NATIVE_AUDIO_OPEN")
+            {
+                PostNativeMessage("NATIVE_AUDIO_OPEN_RESULT", NativeAudioBridge.Open());
+                return;
+            }
 
             if (type is "SPEECH_START" or "SPEECH_STOP" or "SPEECH_SUSPEND" or "SPEECH_RESUME")
             {
@@ -1003,6 +1021,33 @@ public sealed partial class MainWindow : Window
                 var requestId = root.TryGetProperty("requestId", out var rid) ? rid.GetString() ?? string.Empty : string.Empty;
                 if (NativeLlmService.Inflight.TryGetValue(requestId, out var cts)) cts.Cancel();
             }
+            else if (type == "LOCAL_LLM_LOOK")
+            {
+                // One picture (base64) and a question for the vision model; Argilla names parts this way.
+                var requestId = root.TryGetProperty("requestId", out var rid) ? rid.GetString() ?? string.Empty : string.Empty;
+                byte[] image;
+                try { image = Convert.FromBase64String(root.GetProperty("image").GetString() ?? string.Empty); }
+                catch { PostNativeMessage("LOCAL_LLM_LOOK_RESULT", new { requestId, success = false, error = "The picture didn't arrive" }); return; }
+                var prompt = root.TryGetProperty("prompt", out var p) ? p.GetString() ?? string.Empty : string.Empty;
+                var prefill = root.TryGetProperty("prefill", out var pf) ? pf.GetString() ?? string.Empty : string.Empty;
+                var maxTokens = root.TryGetProperty("maxTokens", out var mt) && mt.TryGetInt32(out var mti) ? mti : 900;
+                var unloadAfter = root.TryGetProperty("unloadAfter", out var ua) && ua.ValueKind == System.Text.Json.JsonValueKind.True;
+                using var cts = new System.Threading.CancellationTokenSource();
+                if (requestId.Length > 0) NativeLlmService.Inflight[requestId] = cts;
+                try
+                {
+                    var res = await NativeLlmService.LookAsync(image, prompt, prefill, maxTokens, unloadAfter, cts.Token);
+                    PostNativeMessage("LOCAL_LLM_LOOK_RESULT", new
+                    {
+                        requestId, success = res.success, text = res.text, model = res.model, backend = res.backend,
+                        seconds = res.seconds, loadSeconds = res.loadSeconds, error = res.error,
+                    });
+                }
+                finally
+                {
+                    if (requestId.Length > 0) NativeLlmService.Inflight.TryRemove(requestId, out _);
+                }
+            }
             else if (type == "LOCAL_LLM_STATUS")
             {
                 PostNativeMessage("LOCAL_LLM_STATUS_RESULT", NativeLlmService.Status());
@@ -1010,6 +1055,15 @@ public sealed partial class MainWindow : Window
             else if (type == "TELA3D_ENSURE")
             {
                 PostNativeMessage("TELA3D_ENSURE_RESULT", await Tela3dRuntimeService.EnsureAsync());
+            }
+            else if (type == "ARGILLA_NPU_ENSURE")
+            {
+                PostNativeMessage("ARGILLA_NPU_ENSURE_RESULT", await ArgillaNpuService.EnsureAsync());
+            }
+            else if (type == "ARGILLA_NPU_INSTALL")
+            {
+                PostNativeMessage("ARGILLA_NPU_INSTALL_RESULT", await ArgillaNpuService.InstallAsync((label, fraction) =>
+                    PostNativeMessage("ARGILLA_NPU_INSTALL_PROGRESS", new { label, fraction })));
             }
             else if (type == "LOCAL_LLM_DOWNLOAD")
             {
@@ -1036,6 +1090,16 @@ public sealed partial class MainWindow : Window
             {
                 PostNativeMessage("VST_SCAN_RESULT", new { plugins = WindowsVstService.Scan() });
             }
+            else if (type is not null && type.StartsWith("PS_PLUGIN_", StringComparison.Ordinal))
+            {
+                await WindowsPhotoshopPluginService.HandleMessageAsync(type, root, PostNativeMessage, async () =>
+                {
+                    var picker = new Windows.Storage.Pickers.FolderPicker();
+                    InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+                    picker.FileTypeFilter.Add("*");
+                    return (await picker.PickSingleFolderAsync())?.Path;
+                });
+            }
             else if (type == "AUDIO_DEVICE_LIST")
             {
                 PostNativeMessage("AUDIO_DEVICE_LIST_RESULT", new { devices = PlajahAiNativeService.GetAudioDevices() });
@@ -1045,6 +1109,75 @@ public sealed partial class MainWindow : Window
                 var deviceId = root.TryGetProperty("deviceId", out var did) ? did.GetString() ?? string.Empty : string.Empty;
                 var driverType = root.TryGetProperty("driverType", out var dt) ? dt.GetString() ?? "WASAPI_EXCLUSIVE" : "WASAPI_EXCLUSIVE";
                 PostNativeMessage("AUDIO_DEVICE_SELECT_RESULT", new { success = true, deviceId, driverType });
+            }
+            // ── Chora multitrack capture (ASIO) ─────────────────────────────
+            else if (type == "ASIO_DRIVERS")
+            {
+                PostNativeMessage("ASIO_DRIVERS_RESULT", new { drivers = AsioMultitrackRecorder.DriverNames() });
+            }
+            else if (type == "ASIO_PROBE")
+            {
+                var driver = root.TryGetProperty("driver", out var dv) ? dv.GetString() ?? "" : "";
+                // The open driver can't be probed again mid-capture; answer from the request instead.
+                var probe = _asioRec.IsRunning
+                    ? new AsioMultitrackRecorder.DriverProbe(driver, false, "A capture is running", 0, 0, Array.Empty<string>(), Array.Empty<int>())
+                    : AsioMultitrackRecorder.Probe(driver);
+                // camelCase like every other reply — the web side matches on `driver`.
+                PostNativeMessage("ASIO_PROBE_RESULT", new
+                {
+                    driver = probe.Driver, ok = probe.Ok, error = probe.Error, inputs = probe.Inputs, outputs = probe.Outputs,
+                    inputNames = probe.InputNames, sampleRates = probe.SampleRates,
+                });
+            }
+            else if (type == "ASIO_REC_START")
+            {
+                var driver = root.TryGetProperty("driver", out var dv) ? dv.GetString() ?? "" : "";
+                var takeId = root.TryGetProperty("takeId", out var tk) ? tk.GetString() ?? "" : "";
+                int rate = root.TryGetProperty("sampleRate", out var sr) ? sr.GetInt32() : 48000;
+                bool write = !root.TryGetProperty("write", out var wr) || wr.GetBoolean();
+                int[] inputs = root.TryGetProperty("inputs", out var ins) ? ins.EnumerateArray().Select(x => x.GetInt32()).ToArray() : Array.Empty<int>();
+                try
+                {
+                    if (_asioRec.IsRunning) _asioRec.Stop();   // a meter-only session yields to a take
+                    var safeId = string.Concat(takeId.Where(char.IsLetterOrDigit));
+                    if (safeId.Length == 0) safeId = Guid.NewGuid().ToString("N")[..12];
+                    var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Plajah", "Recordings", safeId);
+                    _asioRec.Start(driver, inputs, rate, takeId, dir, write);
+                    EnsureAsioLevelTimer();
+                    PostNativeMessage("ASIO_REC_START_RESULT", new { ok = true, takeId, startedAtMs = new DateTimeOffset(_asioRec.StartedAtUtc).ToUnixTimeMilliseconds(), inputs = _asioRec.Inputs });
+                }
+                catch (Exception ex)
+                {
+                    PostNativeMessage("ASIO_REC_START_RESULT", new { ok = false, takeId, error = ex.Message });
+                }
+            }
+            else if (type == "ASIO_REC_STOP")
+            {
+                // A stop names its take, so a late meter-stop can never end someone's recording.
+                var want = root.TryGetProperty("takeId", out var wt) ? wt.GetString() : null;
+                var r = want != null && (!_asioRec.IsRunning || _asioRec.TakeId != want)
+                    ? new AsioMultitrackRecorder.TakeResult(want, 0, 0, Array.Empty<AsioMultitrackRecorder.TakeFile>(), 0, Array.Empty<int>(), "Not running")
+                    : _asioRec.Stop();
+                PostNativeMessage("ASIO_REC_STOP_RESULT", new
+                {
+                    ok = r.Error is null || r.Files.Length > 0,
+                    takeId = r.TakeId,
+                    sampleRate = r.SampleRate,
+                    durationSec = r.DurationSec,
+                    droppedFrames = r.DroppedFrames,
+                    clippedInputs = r.ClippedInputs,
+                    error = r.Error,
+                    firstBufferMs = r.FirstBufferUnixMs,
+                    bufferFrames = r.BufferFrames,
+                    inputLatencyFrames = r.InputLatencyFrames,
+                    files = r.Files.Select(f => new
+                    {
+                        input = f.Input,
+                        path = f.Path,
+                        frames = f.Frames,
+                        url = $"https://localmedia.plajah/{Uri.EscapeDataString(Path.GetFileName(f.Path))}?path={Uri.EscapeDataString(f.Path)}",
+                    }).ToArray(),
+                });
             }
             else if (type == "PICK_FOLDER")
             {
@@ -1321,7 +1454,7 @@ public sealed partial class MainWindow : Window
                         omt = true,
                         srt = true,
                         avb = true,
-                        brawDecode = true,
+                        brawDecode = BrawRuntime.Available,
                         webgpu = true,
                         nativeOmt = true,
                         nativeSrt = FfmpegLocator.SrtAvailable,
@@ -1338,13 +1471,79 @@ public sealed partial class MainWindow : Window
                             ["webrtc"] = true,
                             ["uvc"] = true,
                             ["file"] = true,
-                            ["braw"] = true,
+                            ["braw"] = BrawRuntime.Available,
                             ["ambo"] = true,
                             ["switcher"] = true
                         },
                         cameraControl = true,
                         mainconceptMpeg2 = true
                     };
+                }
+                else if (cmd.StartsWith("crossover_"))
+                {
+                    string Str(string name) => argsObj.ValueKind == JsonValueKind.Object && argsObj.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? "" : "";
+                    switch (cmd)
+                    {
+                        case "crossover_status": result = Crossover.Status(); break;
+                        case "crossover_install_engine": result = await Crossover.InstallEngineAsync(); break;
+                        case "crossover_probe": result = await Crossover.ProbeAsync(Str("path")); break;
+                        case "crossover_cancel": result = Crossover.Cancel(Str("jobId")); break;
+                        case "crossover_convert":
+                        {
+                            var jobArgs = argsObj.TryGetProperty("args", out var ja) ? CrossoverNativeService.ArgsFrom(ja) : new List<string>();
+                            var dur = argsObj.TryGetProperty("durationSec", out var de) && de.TryGetDouble(out var dv2) ? dv2 : 0;
+                            var prev = argsObj.TryGetProperty("preview", out var pe) && pe.ValueKind == JsonValueKind.True;
+                            result = await Crossover.ConvertAsync(Str("jobId"), jobArgs, Str("outputPath"), dur, prev);
+                            break;
+                        }
+                        case "crossover_unique_path": result = new { path = CrossoverNativeService.UniquePath(Str("path")) }; break;
+                        case "crossover_temp_path": result = new { path = CrossoverNativeService.TempPath(Str("name")) }; break;
+                        case "crossover_append_base64":
+                            try
+                            {
+                                await using var appendTo = new FileStream(Str("path"), FileMode.Append, FileAccess.Write);
+                                await appendTo.WriteAsync(System.Convert.FromBase64String(Str("data")));
+                                result = new { success = true };
+                            }
+                            catch (Exception appendEx) { result = new { success = false, error = appendEx.Message }; }
+                            break;
+                        case "crossover_write_text": result = CrossoverNativeService.WriteText(Str("path"), Str("text")); break;
+                        case "crossover_read_text":
+                        {
+                            var rp = Str("path");
+                            result = File.Exists(rp) && new FileInfo(rp).Length < 256L * 1024 * 1024
+                                ? new { success = true, text = (string?)await File.ReadAllTextAsync(rp) }
+                                : new { success = false, text = (string?)null };
+                            break;
+                        }
+                        case "crossover_pick_files":
+                        {
+                            var picker = new Windows.Storage.Pickers.FileOpenPicker();
+                            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+                            picker.FileTypeFilter.Add("*");
+                            var picked = await picker.PickMultipleFilesAsync();
+                            result = new { files = picked.Select(f => { var fi = new FileInfo(f.Path); return new { name = f.Name, path = f.Path, size = fi.Exists ? fi.Length : 0 }; }).ToList() };
+                            break;
+                        }
+                        case "crossover_pick_folder":
+                        {
+                            var picker = new Windows.Storage.Pickers.FolderPicker();
+                            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+                            picker.FileTypeFilter.Add("*");
+                            var folder = await picker.PickSingleFolderAsync();
+                            result = new { path = folder?.Path };
+                            break;
+                        }
+                        case "crossover_get_braw":
+                            await LaunchExternalUriAsync(new Uri("https://www.blackmagicdesign.com/developer/products/braw/sdk-and-software"));
+                            result = new { success = true };
+                            break;
+                        case "crossover_reveal":
+                            try { System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + Str("path") + "\""); } catch { }
+                            result = new { success = true };
+                            break;
+                        default: result = new { success = false, error = "Unknown command." }; break;
+                    }
                 }
                 else if (cmd == "list_sources")
                 {
@@ -1579,21 +1778,11 @@ public sealed partial class MainWindow : Window
                 }
                 else if (cmd == "avb_talker")
                 {
-                    string sId = argsObj.TryGetProperty("streamId", out var si) ? si.GetString() ?? "avb_master_out" : "avb_master_out";
-                    string sName = argsObj.TryGetProperty("name", out var sn) ? sn.GetString() ?? "Plajah Chora Master Output" : "Plajah Chora Master Output";
-                    int chs = argsObj.TryGetProperty("channels", out var cp) && cp.TryGetInt32(out var cv) ? cv : 16;
-                    int sr = argsObj.TryGetProperty("sampleRate", out var sp) && sp.TryGetInt32(out var sv) ? sv : 48000;
-                    var config = _studioBridge.ConfigureAvbTalkerStream(sId, sName, chs, sr);
-                    result = new { success = true, config };
+                    result = new { success = false, error = PlajahStudioBridgeService.AvbUnavailable };
                 }
                 else if (cmd == "avb_listener")
                 {
-                    string sId = argsObj.TryGetProperty("streamId", out var si) ? si.GetString() ?? "avb_stage_in" : "avb_stage_in";
-                    string entId = argsObj.TryGetProperty("entityId", out var ei) ? ei.GetString() ?? "" : "";
-                    int chs = argsObj.TryGetProperty("channels", out var cp) && cp.TryGetInt32(out var cv) ? cv : 16;
-                    int sr = argsObj.TryGetProperty("sampleRate", out var sp) && sp.TryGetInt32(out var sv) ? sv : 48000;
-                    var config = _studioBridge.ConnectAvbListenerStream(sId, entId, chs, sr);
-                    result = new { success = true, config };
+                    result = new { success = false, error = PlajahStudioBridgeService.AvbUnavailable };
                 }
                 else if (cmd == "avb_stop_stream")
                 {
@@ -2253,6 +2442,19 @@ public sealed partial class MainWindow : Window
         {
             // Ignore malformed messages from the web surface.
         }
+        catch (Exception ex)
+        {
+            // Thrown inside the WebView2 callback, an escaping exception is a fail-fast that skips
+            // App's crash guards — one bad message used to close the app with nothing logged.
+            CrashLog.Write("WebMessage", ex);
+        }
+    }
+
+    /// The web layer posts JSON strings; postMessage(object) arrives as JSON too instead of throwing.
+    private static string ReadWebMessage(CoreWebView2WebMessageReceivedEventArgs args)
+    {
+        try { return args.TryGetWebMessageAsString(); }
+        catch (ArgumentException) { return args.WebMessageAsJson; }
     }
 
     private void Root_DragOver(object sender, DragEventArgs e)
@@ -2463,6 +2665,20 @@ public sealed partial class MainWindow : Window
         if (!force && key == _programOutLastStatus) return;
         _programOutLastStatus = key;
         PostNativeMessage("PROGRAM_OUT_STATUS", status);
+    }
+
+    /// <summary>~15x a second while an ASIO capture runs: per-input peaks for Chora's input meters.</summary>
+    private void EnsureAsioLevelTimer()
+    {
+        if (_asioLevelTimer != null) return;
+        _asioLevelTimer = DispatcherQueue.CreateTimer();
+        _asioLevelTimer.Interval = TimeSpan.FromMilliseconds(66);
+        _asioLevelTimer.Tick += (_, _) =>
+        {
+            if (!_asioRec.IsRunning) return;
+            PostNativeMessage("ASIO_LEVELS", new { takeId = _asioRec.TakeId, inputs = _asioRec.Inputs, peaks = _asioRec.TakePeaks() });
+        };
+        _asioLevelTimer.Start();
     }
 
     /// <summary>~10x a second: every live input's audio levels + status, for the tiles' meters.</summary>

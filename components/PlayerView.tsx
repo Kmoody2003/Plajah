@@ -1068,6 +1068,35 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   // Keep localTracks in sync if album prop changes
   useEffect(() => { setLocalTracks(album.tracks); }, [album.tracks]);
 
+  // Real track lengths for songs saved without a duration — read from the audio file's own metadata.
+  const [probedDurations, setProbedDurations] = useState<Record<string, number>>({});
+  useEffect(() => {
+    const missing = localTracks.filter(t => !t.duration && t.url && !probedDurations[t.id]);
+    if (!missing.length) return;
+    let cancelled = false;
+    import('../services/mediaProbe').then(async ({ probeDurations }) => {
+      const byUrl = await probeDurations(missing.map(t => t.url), 4);
+      if (cancelled) return;
+      const next: Record<string, number> = {};
+      missing.forEach(t => { const d = byUrl.get(t.url); if (d) next[t.id] = d; });
+      if (Object.keys(next).length) setProbedDurations(prev => ({ ...prev, ...next }));
+    }).catch(() => {});
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localTracks]);
+
+  // Uploader's name, for albums whose artist field was never filled in.
+  const [ownerArtistName, setOwnerArtistName] = useState('');
+  useEffect(() => {
+    if (!album.ownerId || (album.artist && !/^\s*unknown artist\s*$/i.test(album.artist))) return;
+    let cancelled = false;
+    import('../services/backendService')
+      .then(({ fetchUserProfile }) => fetchUserProfile(album.ownerId!))
+      .then((p: any) => { if (!cancelled && p?.displayName) setOwnerArtistName(p.displayName); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [album.ownerId, album.artist]);
+
   // Load world characters + content when album is linked to a world
   useEffect(() => {
     if (!album.worldId) return;
@@ -3067,8 +3096,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
     );
   }
 
-  // The credits column only appears when some song credits someone other than the album artist.
-  const hasTrackCredits = localTracks.some(t => !!t.artist && t.artist !== album.artist);
+  // Artist column: the song's own artist, else the album artist, else the uploader's name.
+  // Imports without tags store the literal "Unknown Artist" — treat that as no name at all.
+  const realArtist = (s?: string) => (s && !/^\s*unknown artist\s*$/i.test(s) ? s.trim() : '');
+  const albumArtistName = realArtist(album.artist) || ownerArtistName;
+  const trackArtistName = (t: Track) => realArtist(t.artist) || albumArtistName;
 
   const pinAlbumToProfile = async () => {
     try {
@@ -3392,7 +3424,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             <div className="sticky top-0 z-20 flex items-center gap-5 h-10 px-4 text-[13px] font-semibold text-white/45 border-b border-white/10 normal-case font-sans" style={{ background: '#06040A' }}>
                               <span className="w-7 shrink-0">#</span>
                               <span className="flex-1">Title</span>
-                              {hasTrackCredits && <span className="hidden xl:block w-[220px] shrink-0">Credits</span>}
+                              <span className="hidden xl:block w-[220px] shrink-0">Artist</span>
                               <span className="w-16 shrink-0 text-right">Time</span>
                               <span className="w-[116px] shrink-0" aria-hidden="true" />
                             </div>
@@ -3485,11 +3517,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                       )}
                                     </button>
 
-                                    {hasTrackCredits && (
-                                      <span className={`relative z-10 hidden xl:block w-[220px] shrink-0 truncate ${isActive ? 'text-white/90' : 'text-white/60'}`} style={{ fontFamily: 'Newsreader, Georgia, serif', fontStyle: 'italic', fontSize: 16 }}>
-                                        {t.artist && t.artist !== album.artist ? t.artist : ''}
-                                      </span>
-                                    )}
+                                    <span className={`relative z-10 hidden xl:block w-[220px] shrink-0 truncate ${isActive ? 'text-white/90' : 'text-white/60'}`} style={{ fontFamily: 'Newsreader, Georgia, serif', fontStyle: 'italic', fontSize: 16 }}>
+                                      {trackArtistName(t)}
+                                    </span>
 
                                     <div className="relative z-10 flex items-center gap-2 shrink-0">
                                       {isNextUp && <span className="text-[11px] font-bold text-[#06040A] bg-[#00DAF3] px-2.5 py-0.5 rounded-full">Next</span>}
@@ -3497,7 +3527,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                                     </div>
 
                                     <span className="relative z-10 w-16 shrink-0 text-right text-[13px] tabular-nums" style={{ fontFamily: "'JetBrains Mono', monospace", color: isActive && isCurrentTrackGlobal && globalDuration > 0 ? (isEndingSoon ? '#F87171' : '#fff') : 'rgba(255,255,255,0.6)' }}>
-                                      {isActive && isCurrentTrackGlobal && globalDuration > 0 ? `-${formatTime(trackRemaining)}` : t.duration ? formatTime(t.duration) : ''}
+                                      {isActive && isCurrentTrackGlobal && globalDuration > 0 ? `-${formatTime(trackRemaining)}` : (t.duration || probedDurations[t.id]) ? formatTime(t.duration || probedDurations[t.id]) : ''}
                                     </span>
 
                                     {/* Like / love / dislike — your mark stays visible; un-rated rows show it on hover */}

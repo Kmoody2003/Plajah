@@ -39,7 +39,32 @@ export interface ScaleDef {
   tier: 'easy' | 'core' | 'colour';
   /** Degree names for the teaching overlay (parallel to `intervals`). */
   degrees?: string[];
+  /** Picker group (SCALE_FAMILIES). Absent on the original fifteen, which FAMILY_OF places. */
+  family?: ScaleFamily;
 }
+
+export type ScaleFamily = 'common' | 'modes' | 'minor' | 'symmetric' | 'jazz' | 'world';
+/** Picker groups, in the order the menus show them. */
+export const SCALE_FAMILIES: { id: ScaleFamily; name: string }[] = [
+  { id: 'common', name: 'Common' },
+  { id: 'modes', name: 'Church modes' },
+  { id: 'minor', name: 'Melodic + harmonic families' },
+  { id: 'jazz', name: 'Jazz + bebop' },
+  { id: 'symmetric', name: 'Symmetric' },
+  { id: 'world', name: 'World + exotic' },
+];
+const FAMILY_OF: Record<string, ScaleFamily> = {
+  'major-pent': 'common', 'minor-pent': 'common', blues: 'common', major: 'common', minor: 'common', chromatic: 'common',
+  dorian: 'modes', mixolydian: 'modes', phrygian: 'modes', lydian: 'modes', locrian: 'modes',
+  'harmonic-minor': 'minor', 'whole-tone': 'symmetric', hirajoshi: 'world',
+};
+/** A scale's picker group. */
+export const scaleFamily = (s: ScaleDef): ScaleFamily => s.family ?? FAMILY_OF[s.id] ?? 'world';
+
+// Compact table form for the extended library. Twelve-tone approximations are named as such: a
+// maqam or raga's real intonation lies between these keys, and the character line says so.
+const sc = (family: ScaleFamily, id: string, name: string, intervals: number[], character: string): ScaleDef =>
+  ({ id, name, intervals, character, tier: 'colour', family });
 
 export const SCALES: ScaleDef[] = [
   { id: 'major-pent', name: 'Major pentatonic', intervals: [0, 2, 4, 7, 9], tier: 'easy',
@@ -84,6 +109,97 @@ export const SCALES: ScaleDef[] = [
   { id: 'chromatic', name: 'Chromatic', intervals: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], tier: 'colour',
     character: 'Every note. No guard rails — the setting for when you want none.',
     degrees: ['1', '♭2', '2', '♭3', '3', '4', '♭5', '5', '♭6', '6', '♭7', '7'] },
+  // ── Extended library. Ids are saved in projects: append, never rename. ──
+  sc('common', 'blues-major', 'Major blues', [0, 2, 3, 4, 7, 9], 'Major pentatonic with the flat third sliding up — country, gospel, soul.'),
+  sc('common', 'dominant-pent', 'Dominant pentatonic', [0, 2, 4, 7, 10], 'Five notes that sit over any dominant seventh.'),
+  sc('common', 'minor-hexatonic', 'Minor hexatonic', [0, 2, 3, 5, 7, 10], 'Natural minor without the sixth, so it never clashes.'),
+  sc('common', 'major-hexatonic', 'Major hexatonic', [0, 2, 4, 5, 7, 9], 'Major without the leading tone — folk-song calm.'),
+  sc('minor', 'melodic-minor', 'Melodic minor', [0, 2, 3, 5, 7, 9, 11], 'Minor with both top notes raised: smooth, modern, jazz-school minor.'),
+  sc('minor', 'dorian-b2', 'Dorian ♭2', [0, 1, 3, 5, 7, 9, 10], 'Second mode of melodic minor: dorian with a dark first step.'),
+  sc('minor', 'lydian-augmented', 'Lydian augmented', [0, 2, 4, 6, 8, 9, 11], 'Third mode of melodic minor: lydian lifted further still.'),
+  sc('minor', 'lydian-dominant', 'Lydian dominant', [0, 2, 4, 6, 7, 9, 10], 'Fourth mode of melodic minor: a dominant that floats.'),
+  sc('minor', 'mixolydian-b6', 'Mixolydian ♭6', [0, 2, 4, 5, 7, 8, 10], 'Fifth mode of melodic minor: major that turns bittersweet.'),
+  sc('minor', 'locrian-n2', 'Locrian ♮2', [0, 2, 3, 5, 6, 8, 10], 'Sixth mode of melodic minor: the sound of a half-diminished chord.'),
+  sc('minor', 'altered', 'Altered (super locrian)', [0, 1, 3, 4, 6, 8, 10], 'Seventh mode of melodic minor: every tension at once over a dominant.'),
+  sc('minor', 'locrian-n6', 'Locrian ♮6', [0, 1, 3, 5, 6, 9, 10], 'Second mode of harmonic minor.'),
+  sc('minor', 'ionian-augmented', 'Ionian ♯5', [0, 2, 4, 5, 8, 9, 11], 'Third mode of harmonic minor: major with a raised fifth.'),
+  sc('minor', 'dorian-s4', 'Dorian ♯4', [0, 2, 3, 6, 7, 9, 10], 'Fourth mode of harmonic minor; Romanian minor in folk music.'),
+  sc('minor', 'phrygian-dominant', 'Phrygian dominant', [0, 1, 4, 5, 7, 8, 10], 'Fifth mode of harmonic minor: Freygish, flamenco, Hijaz in twelve tones.'),
+  sc('minor', 'lydian-s2', 'Lydian ♯2', [0, 3, 4, 6, 7, 9, 11], 'Sixth mode of harmonic minor.'),
+  sc('minor', 'ultralocrian', 'Ultralocrian', [0, 1, 3, 4, 6, 8, 9], 'Seventh mode of harmonic minor: as unstable as a scale gets.'),
+  sc('minor', 'harmonic-major', 'Harmonic major', [0, 2, 4, 5, 7, 8, 11], 'Major with a flat sixth: bright with a shadow across it.'),
+  sc('minor', 'double-harmonic', 'Double harmonic', [0, 1, 4, 5, 7, 8, 11], 'Two leading-tone leaps: Byzantine, Arabic, Bhairav.'),
+  sc('minor', 'neapolitan-major', 'Neapolitan major', [0, 1, 3, 5, 7, 9, 11], 'Flat second over a melodic-minor top.'),
+  sc('minor', 'neapolitan-minor', 'Neapolitan minor', [0, 1, 3, 5, 7, 8, 11], 'Flat second over a harmonic-minor top.'),
+  sc('jazz', 'bebop-dominant', 'Bebop dominant', [0, 2, 4, 5, 7, 9, 10, 11], 'Mixolydian with a passing tone, so eighth-note lines land chord tones on the beat.'),
+  sc('jazz', 'bebop-major', 'Bebop major', [0, 2, 4, 5, 7, 8, 9, 11], 'Major with a passing ♯5.'),
+  sc('jazz', 'bebop-minor', 'Bebop minor', [0, 2, 3, 5, 7, 8, 9, 10], 'Dorian with a passing ♭6.'),
+  sc('jazz', 'bebop-dorian', 'Bebop dorian', [0, 2, 3, 4, 5, 7, 9, 10], 'Dorian with a passing major third.'),
+  sc('jazz', 'bebop-melodic-minor', 'Bebop melodic minor', [0, 2, 3, 5, 7, 8, 9, 11], 'Melodic minor with a passing ♭6.'),
+  sc('jazz', 'half-whole', 'Half-whole diminished', [0, 1, 3, 4, 6, 7, 9, 10], 'The dominant diminished scale: colour over a 13♭9 chord.'),
+  sc('jazz', 'lydian-pent', 'Lydian pentatonic', [0, 4, 6, 7, 11], 'Five notes of pure major-seven-sharp-eleven.'),
+  sc('jazz', 'altered-pent', 'Altered pentatonic', [0, 1, 4, 6, 10], 'Five notes that outline an altered dominant.'),
+  sc('symmetric', 'diminished', 'Diminished (whole-half)', [0, 2, 3, 5, 6, 8, 9, 11], 'Repeats every minor third, so it can pivot to four different keys.'),
+  sc('symmetric', 'augmented', 'Augmented', [0, 3, 4, 7, 8, 11], 'Two augmented triads interlocked. Repeats every major third.'),
+  sc('symmetric', 'tritone', 'Tritone', [0, 1, 4, 6, 7, 10], 'Two major triads a tritone apart — the Petrushka chord as a scale.'),
+  sc('symmetric', 'two-semitone-tritone', 'Two-semitone tritone', [0, 1, 2, 6, 7, 8], 'Clusters a tritone apart. Tense and mechanical.'),
+  sc('symmetric', 'messiaen-3', 'Messiaen mode 3', [0, 2, 3, 4, 6, 7, 8, 10, 11], 'A mode of limited transposition: lush and slowly turning.'),
+  sc('symmetric', 'messiaen-4', 'Messiaen mode 4', [0, 1, 2, 5, 6, 7, 8, 11], 'A mode of limited transposition with clustered colour.'),
+  sc('symmetric', 'messiaen-5', 'Messiaen mode 5', [0, 1, 5, 6, 7, 11], 'A mode of limited transposition, stark and bell-like.'),
+  sc('symmetric', 'messiaen-6', 'Messiaen mode 6', [0, 2, 4, 5, 6, 8, 10, 11], 'A mode of limited transposition near the whole-tone scale.'),
+  sc('symmetric', 'messiaen-7', 'Messiaen mode 7', [0, 1, 2, 3, 5, 6, 7, 8, 9, 11], 'The densest mode of limited transposition.'),
+  sc('world', 'hungarian-minor', 'Hungarian minor', [0, 2, 3, 6, 7, 8, 11], 'Harmonic minor with a raised fourth — two augmented seconds, very dramatic.'),
+  sc('world', 'hungarian-major', 'Hungarian major', [0, 3, 4, 6, 7, 9, 10], 'A dominant colour with an opening leap.'),
+  sc('world', 'romanian-major', 'Romanian major', [0, 1, 4, 6, 7, 9, 10], 'A Balkan major with a flat second.'),
+  sc('world', 'spanish-8', 'Spanish eight-tone', [0, 1, 3, 4, 5, 6, 8, 10], 'Phrygian with both thirds — flamenco guitar vocabulary.'),
+  sc('world', 'persian', 'Persian', [0, 1, 4, 5, 6, 8, 11], 'A twelve-tone sketch of Persian modal colour, with a flat fifth.'),
+  sc('world', 'arabic-hijaz', 'Maqam Hijaz (12-TET)', [0, 1, 4, 5, 7, 8, 10], 'Hijaz on the piano keys; the real maqam bends its intervals between them.'),
+  sc('world', 'arabic-nahawand', 'Maqam Nahawand (12-TET)', [0, 2, 3, 5, 7, 8, 11], 'The Arabic relative of harmonic minor.'),
+  sc('world', 'arabic-kurd', 'Maqam Kurd (12-TET)', [0, 1, 3, 5, 7, 8, 10], 'A flat-second minor maqam; phrygian in twelve tones.'),
+  sc('world', 'arabic-ajam', 'Maqam Ajam (12-TET)', [0, 2, 4, 5, 7, 9, 11], 'The Arabic major.'),
+  sc('world', 'arabic-saba', 'Maqam Saba (12-TET)', [0, 2, 3, 4, 7, 8, 10], 'A sorrowful maqam approximated with a lowered fourth.'),
+  sc('world', 'arabic-bayati', 'Maqam Bayati (12-TET)', [0, 2, 3, 5, 7, 8, 10], 'Its neutral second has no piano key; this is the nearest twelve-tone spelling.'),
+  sc('world', 'arabic-rast', 'Maqam Rast (12-TET)', [0, 2, 4, 5, 7, 9, 10], 'Its neutral third and seventh are approximated on the keys.'),
+  sc('world', 'byzantine', 'Byzantine', [0, 1, 4, 5, 7, 8, 11], 'The same notes as the double harmonic, used in Orthodox chant.'),
+  sc('world', 'ahava-rabbah', 'Ahava Rabbah', [0, 1, 4, 5, 7, 8, 10], 'The klezmer and cantorial Freygish mode.'),
+  sc('world', 'misheberach', 'Mi Sheberach', [0, 2, 3, 6, 7, 9, 10], 'The Ukrainian Dorian of klezmer.'),
+  sc('world', 'gypsy', 'Gypsy minor', [0, 2, 3, 6, 7, 8, 10], 'Minor with a raised fourth and a soft seventh.'),
+  sc('world', 'enigmatic', 'Enigmatic', [0, 1, 4, 6, 8, 10, 11], 'Verdi’s puzzle scale: whole tones with a leading-tone twist.'),
+  sc('world', 'prometheus', 'Prometheus', [0, 2, 4, 6, 9, 10], 'Scriabin’s mystic chord spread into a scale.'),
+  sc('world', 'raga-bhairav', 'Raga Bhairav (12-TET)', [0, 1, 4, 5, 7, 8, 11], 'The dawn raga; the same pitch set as the double harmonic.'),
+  sc('world', 'raga-todi', 'Raga Todi (12-TET)', [0, 1, 3, 6, 7, 8, 11], 'A grave morning raga with a sharp fourth.'),
+  sc('world', 'raga-purvi', 'Raga Purvi (12-TET)', [0, 1, 4, 6, 7, 8, 11], 'A sunset raga: both flat second and sharp fourth.'),
+  sc('world', 'raga-marwa', 'Raga Marwa (12-TET)', [0, 1, 4, 6, 7, 9, 11], 'A twilight raga that leans away from the fifth.'),
+  sc('world', 'raga-kafi', 'Raga Kafi (12-TET)', [0, 2, 3, 5, 7, 9, 10], 'A folk-rooted raga, dorian in twelve tones.'),
+  sc('world', 'raga-bhairavi', 'Raga Bhairavi (12-TET)', [0, 1, 3, 5, 7, 8, 10], 'The closing raga of a concert, phrygian in twelve tones.'),
+  sc('world', 'raga-asavari', 'Raga Asavari (12-TET)', [0, 2, 3, 5, 7, 8, 10], 'A late-morning raga, natural minor in twelve tones.'),
+  sc('world', 'raga-yaman', 'Raga Yaman (12-TET)', [0, 2, 4, 6, 7, 9, 11], 'The first raga most students learn, lydian in twelve tones.'),
+  sc('world', 'raga-khamaj', 'Raga Khamaj (12-TET)', [0, 2, 4, 5, 7, 9, 10], 'Romantic and light, mixolydian in twelve tones.'),
+  sc('world', 'raga-malkauns', 'Raga Malkauns (12-TET)', [0, 3, 5, 8, 10], 'A deep pentatonic night raga.'),
+  sc('world', 'raga-durga', 'Raga Durga (12-TET)', [0, 2, 5, 7, 9], 'A serene pentatonic raga.'),
+  sc('world', 'raga-hamsadhwani', 'Raga Hamsadhwani (12-TET)', [0, 2, 4, 7, 11], 'A bright Carnatic pentatonic.'),
+  sc('world', 'in-sen', 'In-sen', [0, 1, 5, 7, 10], 'A Japanese pentatonic with a flat second, spare and austere.'),
+  sc('world', 'iwato', 'Iwato', [0, 1, 5, 6, 10], 'The darkest Japanese pentatonic, with a tritone.'),
+  sc('world', 'yo', 'Yo', [0, 2, 5, 7, 9], 'The Japanese folk pentatonic, with no semitones.'),
+  sc('world', 'kumoi', 'Kumoi', [0, 2, 3, 7, 9], 'A koto tuning with a gentle minor colour.'),
+  sc('world', 'ritsu', 'Ritsu', [0, 1, 3, 5, 8, 10], 'A court-music gagaku mode.'),
+  sc('world', 'gong', 'Chinese gong', [0, 2, 4, 7, 9], 'The Chinese pentatonic on its first degree.'),
+  sc('world', 'shang', 'Chinese shang', [0, 2, 5, 7, 10], 'The Chinese pentatonic on its second degree.'),
+  sc('world', 'jue', 'Chinese jue', [0, 3, 5, 8, 10], 'The Chinese pentatonic on its third degree.'),
+  sc('world', 'zhi', 'Chinese zhi', [0, 2, 5, 7, 9], 'The Chinese pentatonic on its fourth degree.'),
+  sc('world', 'yu', 'Chinese yu', [0, 3, 5, 7, 10], 'The Chinese pentatonic on its fifth degree.'),
+  sc('world', 'pelog', 'Pelog (12-TET)', [0, 1, 3, 7, 8], 'Javanese gamelan tuning; real sets are tuned between these keys.'),
+  sc('world', 'slendro', 'Slendro (12-TET)', [0, 2, 5, 7, 10], 'Gamelan’s nearly-equal five steps, approximated.'),
+  sc('world', 'tezeta-major', 'Tezeta major', [0, 2, 4, 7, 9], 'The Ethiopian qenet of memory and longing.'),
+  sc('world', 'tezeta-minor', 'Tezeta minor', [0, 2, 3, 7, 8], 'The minor qenet, heard in Ethiopian jazz.'),
+  sc('world', 'bati', 'Bati', [0, 4, 5, 7, 11], 'An Ethiopian qenet with a wide opening.'),
+  sc('world', 'ambassel', 'Ambassel', [0, 1, 5, 7, 8], 'An Ethiopian qenet, dark and swaying.'),
+  sc('world', 'anchihoye', 'Anchihoye', [0, 1, 5, 6, 9], 'The most angular Ethiopian qenet.'),
+  sc('world', 'egyptian', 'Egyptian', [0, 2, 5, 7, 10], 'An old suspended pentatonic with no thirds.'),
+  sc('world', 'balinese', 'Balinese', [0, 1, 3, 7, 8], 'A pelog selection from Balinese gamelan.'),
+  sc('world', 'mongolian', 'Mongolian', [0, 2, 4, 7, 9], 'The wide-open steppe pentatonic.'),
+  sc('world', 'scottish', 'Scottish pentatonic', [0, 2, 5, 7, 9], 'The bagpipe-friendly pentatonic.'),
+  sc('world', 'oriental', 'Oriental', [0, 1, 4, 5, 6, 9, 10], 'A heavily chromatic exotic scale with a flat fifth.'),
 ];
 
 export const scaleById = (id: string): ScaleDef => SCALES.find((s) => s.id === id) || SCALES[3];
@@ -135,7 +251,24 @@ export interface ChordDef {
   symbol: string;
   intervals: number[];
   tier: 'easy' | 'core' | 'colour';
+  /** Picker group (CHORD_FAMILIES). Absent on the original sixteen, which CHORD_FAMILY_OF places. */
+  family?: ChordFamily;
 }
+
+export type ChordFamily = 'triad' | 'sixth' | 'seventh' | 'extended' | 'sus' | 'add' | 'altered';
+export const CHORD_FAMILIES: { id: ChordFamily; name: string }[] = [
+  { id: 'triad', name: 'Triads' }, { id: 'sixth', name: 'Sixths' }, { id: 'seventh', name: 'Sevenths' },
+  { id: 'extended', name: '9ths, 11ths, 13ths' }, { id: 'sus', name: 'Suspended' }, { id: 'add', name: 'Added tones' },
+  { id: 'altered', name: 'Altered' },
+];
+const ch = (family: ChordFamily, id: string, name: string, symbol: string, intervals: number[]): ChordDef =>
+  ({ id, name, symbol, intervals, tier: 'colour', family });
+const CHORD_FAMILY_OF: Record<string, ChordFamily> = {
+  maj: 'triad', min: 'triad', dim: 'triad', aug: 'triad', sus4: 'sus', sus2: 'sus', maj7: 'seventh', min7: 'seventh',
+  dom7: 'seventh', dim7: 'seventh', min6: 'sixth', min9: 'extended', maj9: 'extended', dom9: 'extended', min11: 'extended', add9: 'add',
+};
+/** A chord's picker group. */
+export const chordFamily = (c: ChordDef): ChordFamily => c.family ?? CHORD_FAMILY_OF[c.id] ?? 'altered';
 
 export const CHORDS: ChordDef[] = [
   { id: 'maj', name: 'Major', symbol: '', intervals: [0, 4, 7], tier: 'easy' },
@@ -154,6 +287,50 @@ export const CHORDS: ChordDef[] = [
   { id: 'add9', name: 'Add 9', symbol: 'add9', intervals: [0, 4, 7, 14], tier: 'colour' },
   { id: 'min6', name: 'Minor 6th', symbol: 'm6', intervals: [0, 3, 7, 9], tier: 'colour' },
   { id: 'dim7', name: 'Diminished 7th', symbol: '°7', intervals: [0, 3, 6, 9], tier: 'colour' },
+  // ── Extended library. Ids are saved in projects: append, never rename. ──
+  ch('triad', 'b5', 'Major ♭5', 'M♭5', [0, 4, 6]),
+  ch('triad', 'pow', 'Power (no third)', '5', [0, 7]),
+  ch('sixth', 'maj6', 'Major 6th', '6', [0, 4, 7, 9]),
+  ch('sixth', 'maj69', 'Six-nine', '6/9', [0, 4, 7, 9, 14]),
+  ch('sixth', 'min69', 'Minor six-nine', 'm6/9', [0, 3, 7, 9, 14]),
+  ch('seventh', 'hdim7', 'Half-diminished', 'ø7', [0, 3, 6, 10]),
+  ch('seventh', 'minmaj7', 'Minor-major 7th', 'mMaj7', [0, 3, 7, 11]),
+  ch('seventh', 'augmaj7', 'Augmented major 7th', '+Maj7', [0, 4, 8, 11]),
+  ch('seventh', 'aug7', 'Augmented 7th', '+7', [0, 4, 8, 10]),
+  ch('seventh', 'dimmaj7', 'Diminished major 7th', '°Maj7', [0, 3, 6, 11]),
+  ch('extended', 'minmaj9', 'Minor-major 9th', 'mMaj9', [0, 3, 7, 11, 14]),
+  ch('extended', 'hdim9', 'Half-diminished 9th', 'ø9', [0, 3, 6, 10, 14]),
+  ch('extended', 'maj11', 'Major 11th', 'maj11', [0, 4, 7, 11, 14, 17]),
+  ch('extended', 'dom11', 'Dominant 11th', '11', [0, 4, 7, 10, 14, 17]),
+  ch('extended', 'maj7s11', 'Major 7♯11', 'maj7♯11', [0, 4, 7, 11, 18]),
+  ch('extended', 'maj13', 'Major 13th', 'maj13', [0, 4, 7, 11, 14, 21]),
+  ch('extended', 'min13', 'Minor 13th', 'm13', [0, 3, 7, 10, 14, 21]),
+  ch('extended', 'dom13', 'Dominant 13th', '13', [0, 4, 7, 10, 14, 21]),
+  ch('sus', 'sus24', 'Sus 2 + 4', 'sus2/4', [0, 2, 5, 7]),
+  ch('sus', '7sus4', '7 sus 4', '7sus4', [0, 5, 7, 10]),
+  ch('sus', '7sus2', '7 sus 2', '7sus2', [0, 2, 7, 10]),
+  ch('sus', '9sus4', '9 sus 4', '9sus4', [0, 5, 7, 10, 14]),
+  ch('sus', '13sus4', '13 sus 4', '13sus4', [0, 5, 7, 10, 14, 21]),
+  ch('sus', 'maj7sus4', 'Major 7 sus 4', 'maj7sus4', [0, 5, 7, 11]),
+  ch('add', 'madd9', 'Minor add 9', 'madd9', [0, 3, 7, 14]),
+  ch('add', 'add11', 'Add 11', 'add11', [0, 4, 7, 17]),
+  ch('add', 'madd11', 'Minor add 11', 'madd11', [0, 3, 7, 17]),
+  ch('add', 'adds11', 'Add ♯11', 'add♯11', [0, 4, 7, 18]),
+  ch('add', 'add13', 'Add 13', 'add13', [0, 4, 7, 21]),
+  ch('altered', '7b5', '7 flat 5', '7♭5', [0, 4, 6, 10]),
+  ch('altered', '7b9', '7 flat 9', '7♭9', [0, 4, 7, 10, 13]),
+  ch('altered', '7s9', '7 sharp 9 (Hendrix)', '7♯9', [0, 4, 7, 10, 15]),
+  ch('altered', '7s11', '7 sharp 11', '7♯11', [0, 4, 7, 10, 18]),
+  ch('altered', '7b13', '7 flat 13', '7♭13', [0, 4, 7, 10, 20]),
+  ch('altered', '7b5b9', '7 flat 5 flat 9', '7♭5♭9', [0, 4, 6, 10, 13]),
+  ch('altered', '7b5s9', '7 flat 5 sharp 9', '7♭5♯9', [0, 4, 6, 10, 15]),
+  ch('altered', '7s5b9', '7 sharp 5 flat 9', '7♯5♭9', [0, 4, 8, 10, 13]),
+  ch('altered', '7s5s9', '7 sharp 5 sharp 9', '7♯5♯9', [0, 4, 8, 10, 15]),
+  ch('altered', '9s11', '9 sharp 11', '9♯11', [0, 4, 7, 10, 14, 18]),
+  ch('altered', '9b5', '9 flat 5', '9♭5', [0, 4, 6, 10, 14]),
+  ch('altered', '13b9', '13 flat 9', '13♭9', [0, 4, 7, 10, 13, 21]),
+  ch('altered', '13s11', '13 sharp 11', '13♯11', [0, 4, 7, 10, 14, 18, 21]),
+  ch('altered', 'alt', 'Altered dominant', '7alt', [0, 4, 8, 10, 13, 15]),
 ];
 
 export const chordById = (id: string): ChordDef => CHORDS.find((c) => c.id === id) || CHORDS[0];

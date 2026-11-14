@@ -25,6 +25,8 @@ export interface RemotePeer {
 
 export interface UseRtcSession {
   localStream: MediaStream | null;
+  /** The audio track actually being sent (raw mic, voice FX or mixer output) — follows swaps. */
+  localAudioTrack: MediaStreamTrack | null;
   /** peerId → MediaStream */
   remoteStreams: Map<string, MediaStream>;
   /** remote streams joined with per-peer role/name (host vs participant/guest vs …). */
@@ -65,6 +67,8 @@ export interface UseRtcSession {
   publishExternalAudio: (track: MediaStreamTrack) => Promise<void>;
   toggleScreenShare: () => void;
   leave: () => void;
+  /** Tear down and rejoin from scratch, re-requesting the camera and mic (after a failed start). */
+  rejoin: () => void;
   /** Available input/output devices (populated after join; refreshed on hot-plug). */
   devices: { cameras: MediaDeviceInfo[]; mics: MediaDeviceInfo[]; speakers: MediaDeviceInfo[] };
   /** deviceIds currently being published (to highlight the active pick). */
@@ -99,6 +103,8 @@ export function useRtcSession(
   const onRecordingStoppedRef = useRef(opts.onRecordingStopped);
   onRecordingStoppedRef.current = opts.onRecordingStopped;
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  // The session mutates the same MediaStream on track swaps; this re-renders consumers that read its tracks.
+  const [, setLocalTracksVer] = useState(0);
   const [activeSessionKey, setActiveSessionKey] = useState<string | null>(null);
   const emptySession = useRef({ remoteStreams: new Map<string, MediaStream>(), remotePeers: [] as RemotePeer[], participants: [] as RtcParticipant[], peerStates: new Map<string, RTCPeerConnectionState>() }).current;
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
@@ -139,7 +145,7 @@ export function useRtcSession(
     let cancelled = false;
     const priorLeave = pendingLeaves.get(sessionPath);
     const session = new RtcSession(config, {
-      onLocalStream: s => { if (!cancelled) { s.getAudioTracks().forEach(t => { t.enabled = enabledRef.current.audio; }); s.getVideoTracks().forEach(t => { t.enabled = enabledRef.current.video; }); setLocalStream(s); } },
+      onLocalStream: s => { if (!cancelled) { s.getAudioTracks().forEach(t => { t.enabled = enabledRef.current.audio; }); s.getVideoTracks().forEach(t => { t.enabled = enabledRef.current.video; }); setLocalStream(s); setLocalTracksVer(v => v + 1); } },
       onScreenStream: s => { if (!cancelled) { setScreenStream(s); setSharingScreen(!!s); } },
       onRemoteStream: (id, stream) => {
         if (cancelled) return;
@@ -317,8 +323,12 @@ export function useRtcSession(
     if (s) trackLeave(s.path, s.leave());
   }, []);
 
+  const rejoin = useCallback(() => { setError(null); setRevive(n => n + 1); }, []);
+
   return {
+    rejoin,
     localStream: activeSessionKey === key ? localStream : null,
+    localAudioTrack: activeSessionKey === key ? (localStream?.getAudioTracks()[0] ?? null) : null,
     remoteStreams: activeSessionKey === key ? remoteStreams : emptySession.remoteStreams,
     remotePeers: activeSessionKey === key ? remotePeers : emptySession.remotePeers,
     participants: activeSessionKey === key ? participants : emptySession.participants,

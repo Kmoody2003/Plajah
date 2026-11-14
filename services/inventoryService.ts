@@ -8,7 +8,7 @@ import {
   collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, where, orderBy, limit as qlimit,
   runTransaction, writeBatch,
 } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { opsDb, auth } from './firebase';
 import type { StoreProduct, StoreProductVariant, StoreProductCategory } from '../types';
 import {
   saleLinesFromOrder, mergeProductData, summarizeSales, isTracked, variantStockOf, liveVariants,
@@ -16,11 +16,11 @@ import {
 } from './inventoryCore';
 
 const strip = <T,>(o: T): T => JSON.parse(JSON.stringify(o));      // Firestore rejects undefined field values
-const newMoveRef = () => doc(collection(db, 'stockMoves'));
+const newMoveRef = () => doc(collection(opsDb, 'stockMoves'));
 
 export const sellerProducts = async (sellerId: string): Promise<StoreProduct[]> => {
   // Equality-only query + client sort: where+orderBy on another field would need a composite index.
-  const snap = await getDocs(query(collection(db, 'storeProducts'), where('sellerId', '==', sellerId)));
+  const snap = await getDocs(query(collection(opsDb, 'storeProducts'), where('sellerId', '==', sellerId)));
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreProduct)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 };
 
@@ -43,12 +43,12 @@ export interface SaveProductArgs {
 
 export async function saveProduct(a: SaveProductArgs): Promise<string> {
   const now = Date.now(), by = auth.currentUser?.uid;
-  const ref = a.id ? doc(db, 'storeProducts', a.id) : doc(collection(db, 'storeProducts'));
+  const ref = a.id ? doc(opsDb, 'storeProducts', a.id) : doc(collection(opsDb, 'storeProducts'));
   const hasVariants = a.variants.length > 0;
   const tracked = isTracked({ ...a.original, ...a.fields } as StoreProduct);
   let wasOut = false, nowIn = false;
 
-  await runTransaction(db, async tx => {
+  await runTransaction(opsDb, async tx => {
     const cur = a.id ? ((await tx.get(ref)).data() as StoreProduct | undefined) : undefined;
     const moves: Omit<StockMove, 'id'>[] = [];
     const mv = (variant: StoreProductVariant | undefined, before: number, after: number, reason: StockReason) => {
@@ -118,10 +118,10 @@ export interface AdjustArgs {
 
 /** Transactionally adjust one product/variant's count + write the ledger. Returns the new on-hand. */
 export async function adjustStock(a: AdjustArgs): Promise<number> {
-  const ref = doc(db, 'storeProducts', a.product.id);
+  const ref = doc(opsDb, 'storeProducts', a.product.id);
   const by = auth.currentUser?.uid;
   let before = 0, after = 0;
-  await runTransaction(db, async tx => {
+  await runTransaction(opsDb, async tx => {
     const p = { id: ref.id, ...((await tx.get(ref)).data() as any) } as StoreProduct;
     const upd: any = { updatedAt: Date.now() };
     let variant: StoreProductVariant | undefined;
@@ -154,7 +154,7 @@ export async function adjustStock(a: AdjustArgs): Promise<number> {
 }
 
 export async function fetchStockMoves(sellerId: string, max = 150): Promise<StockMove[]> {
-  const col = collection(db, 'stockMoves');
+  const col = collection(opsDb, 'stockMoves');
   try {
     const snap = await getDocs(query(col, where('sellerId', '==', sellerId), orderBy('at', 'desc'), qlimit(max)));
     return snap.docs.map(d => ({ ...(d.data() as any), id: d.id } as StockMove));
@@ -173,23 +173,23 @@ const chunk = <T,>(xs: T[], n: number) => Array.from({ length: Math.ceil(xs.leng
 
 export async function bulkPatch(ids: string[], patch: Partial<StoreProduct>): Promise<void> {
   for (const part of chunk(ids, 400)) {
-    const b = writeBatch(db);
-    for (const id of part) b.update(doc(db, 'storeProducts', id), strip({ ...patch, updatedAt: Date.now() }));
+    const b = writeBatch(opsDb);
+    for (const id of part) b.update(doc(opsDb, 'storeProducts', id), strip({ ...patch, updatedAt: Date.now() }));
     await b.commit();
   }
 }
 export async function bulkPriceChange(products: StoreProduct[], percent: number): Promise<void> {
   const f = 1 + percent / 100;
   for (const part of chunk(products, 400)) {
-    const b = writeBatch(db);
-    for (const p of part) b.update(doc(db, 'storeProducts', p.id), { price: Math.max(0.5, Math.round((p.price || 0) * f * 100) / 100), updatedAt: Date.now() });
+    const b = writeBatch(opsDb);
+    for (const p of part) b.update(doc(opsDb, 'storeProducts', p.id), { price: Math.max(0.5, Math.round((p.price || 0) * f * 100) / 100), updatedAt: Date.now() });
     await b.commit();
   }
 }
 export async function bulkDelete(ids: string[]): Promise<void> {
   for (const part of chunk(ids, 400)) {
-    const b = writeBatch(db);
-    for (const id of part) b.delete(doc(db, 'storeProducts', id));
+    const b = writeBatch(opsDb);
+    for (const id of part) b.delete(doc(opsDb, 'storeProducts', id));
     await b.commit();
   }
 }
@@ -204,9 +204,9 @@ export async function importDrafts(
   const now = Date.now();
   let done = 0;
   for (const part of chunk(drafts, 200)) {
-    const b = writeBatch(db);
+    const b = writeBatch(opsDb);
     part.forEach((d, i) => {
-      const ref = doc(collection(db, 'storeProducts'));
+      const ref = doc(collection(opsDb, 'storeProducts'));
       const variants = d.variants?.length ? d.variants : undefined;
       b.set(ref, strip({
         id: ref.id, sellerId: who.sellerId, sellerName: who.sellerName, sellerType: who.sellerType,
@@ -238,9 +238,9 @@ export async function upgradeLegacyMerch(
   const now = Date.now();
   let n = 0;
   for (const part of chunk(legacy, 200)) {
-    const b = writeBatch(db);
+    const b = writeBatch(opsDb);
     part.forEach((p, i) => {
-      const ref = doc(collection(db, 'storeProducts'));
+      const ref = doc(collection(opsDb, 'storeProducts'));
       b.set(ref, strip({
         ...p, id: ref.id, sellerId: who.sellerId, sellerName: who.sellerName, sellerType: who.sellerType,
         legacyMerchId: p.legacyMerchId, isActive: true, lowStockThreshold: p.lowStockThreshold ?? 5,
@@ -317,7 +317,7 @@ export interface SellerPulse { sales: SalesSummary; toFulfil: number; oversold: 
 /** One read of the seller's orders → sales velocity (restock math) + what needs action right now. */
 export async function fetchSellerPulse(sellerId: string, days = 30): Promise<SellerPulse> {
   try {
-    const snap = await getDocs(query(collection(db, 'storeOrders'), where('sellerId', '==', sellerId)));
+    const snap = await getDocs(query(collection(opsDb, 'storeOrders'), where('sellerId', '==', sellerId)));
     const docs = snap.docs.map(d => d.data() as any);
     return {
       sales: summarizeSales(docs.flatMap(d => saleLinesFromOrder(d)), days),
@@ -332,25 +332,25 @@ export async function fetchSellerPulse(sellerId: string, days = 30): Promise<Sel
 export async function joinWaitlist(productId: string): Promise<void> {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Sign in to get notified.');
-  await setDoc(doc(db, 'storeProducts', productId, 'waitlist', uid), { uid, at: Date.now() });
+  await setDoc(doc(opsDb, 'storeProducts', productId, 'waitlist', uid), { uid, at: Date.now() });
 }
 export async function leaveWaitlist(productId: string): Promise<void> {
   const uid = auth.currentUser?.uid;
-  if (uid) await deleteDoc(doc(db, 'storeProducts', productId, 'waitlist', uid)).catch(() => {});
+  if (uid) await deleteDoc(doc(opsDb, 'storeProducts', productId, 'waitlist', uid)).catch(() => {});
 }
 export async function isOnWaitlist(productId: string): Promise<boolean> {
   const uid = auth.currentUser?.uid;
   if (!uid) return false;
-  try { return (await getDoc(doc(db, 'storeProducts', productId, 'waitlist', uid))).exists(); } catch { return false; }
+  try { return (await getDoc(doc(opsDb, 'storeProducts', productId, 'waitlist', uid))).exists(); } catch { return false; }
 }
 /** Seller-side: how many people are waiting for this item. */
 export async function waitlistCount(productId: string): Promise<number> {
-  try { return (await getDocs(collection(db, 'storeProducts', productId, 'waitlist'))).size; } catch { return 0; }
+  try { return (await getDocs(collection(opsDb, 'storeProducts', productId, 'waitlist'))).size; } catch { return 0; }
 }
 
 /** Notify everyone waiting, then clear the list. Seller-initiated (called after a restock). */
 export async function notifyRestocked(product: StoreProduct): Promise<number> {
-  const snap = await getDocs(collection(db, 'storeProducts', product.id, 'waitlist'));
+  const snap = await getDocs(collection(opsDb, 'storeProducts', product.id, 'waitlist'));
   if (snap.empty) return 0;
   const { createNotification } = await import('./backendService');
   let n = 0;

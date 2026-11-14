@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, deleteField, query, where, orderBy, limit, addDoc, runTransaction } from 'firebase/firestore';
 import { onSnapshot } from './safeSnapshot';
 import { db, opsDb, auth } from './firebase';
+import { withSeats } from './businessStaffService';
 import {
   BusinessPage, BusinessOrder, BusinessReward, DigitalSignageSlide,
   SeedRaiserCampaign, SeedRaiserPledge, SeedRaiserReward, CrmContact
@@ -21,9 +22,8 @@ export async function fetchMyBusinessPages(): Promise<BusinessPage[]> {
   // Sort client-side instead.
   const q = query(collection(db, 'businessPages'), where('ownerId', '==', uid));
   const snap = await getDocs(q);
-  return snap.docs
-    .map(d => ({ id: d.id, ...d.data() } as BusinessPage))
-    .sort((a, b) => (Number((b as any).createdAt) || 0) - (Number((a as any).createdAt) || 0));
+  const pages = await Promise.all(snap.docs.map(d => withSeats({ id: d.id, ...d.data() } as BusinessPage)));
+  return pages.sort((a, b) => (Number((b as any).createdAt) || 0) - (Number((a as any).createdAt) || 0));
 }
 
 export async function fetchAllBusinessPages(): Promise<BusinessPage[]> {
@@ -45,6 +45,7 @@ export async function saveBusinessPage(page: Partial<BusinessPage>): Promise<Bus
     // Staff seats are server-owned (routes/businessStaff.ts); a stale copy must never be written back.
     delete updates.staffUids;
     delete updates.staffSeats;
+    delete updates.stripeAccountId;
     Object.keys(updates).forEach(k => { if (updates[k] === undefined) delete updates[k]; });
     await updateDoc(ref, updates);
     return { ...page, ownerId: uid, updatedAt: now } as BusinessPage;
@@ -70,6 +71,7 @@ export async function saveBusinessPage(page: Partial<BusinessPage>): Promise<Bus
     createdAt: page.createdAt || now,
     updatedAt: now,
   };
+  delete (newPage as any).staffUids; delete (newPage as any).staffSeats; delete (newPage as any).stripeAccountId;
   // Firestore rejects undefined field values — strip any the caller left undefined.
   Object.keys(newPage).forEach(k => { if ((newPage as any)[k] === undefined) delete (newPage as any)[k]; });
   await setDoc(ref, newPage);
@@ -216,7 +218,7 @@ export async function addRewardPoints(
 export async function fetchSignageSlides(businessId: string): Promise<DigitalSignageSlide[]> {
   // Equality-only + client sort: where(businessId)+orderBy(order) needs a composite index, and a missing
   // index made this read fail (a blank signage TV). Live displays use commerceBus.subscribeSignage.
-  const q = query(collection(db, 'signageSlides'), where('businessId', '==', businessId));
+  const q = query(collection(opsDb, 'signageSlides'), where('businessId', '==', businessId));
   const snap = await getDocs(q);
   return snap.docs
     .map(d => ({ id: d.id, ...d.data() } as DigitalSignageSlide))
@@ -226,7 +228,7 @@ export async function fetchSignageSlides(businessId: string): Promise<DigitalSig
 export async function saveSignageSlide(slide: Partial<DigitalSignageSlide>): Promise<DigitalSignageSlide> {
   const now = Date.now();
   if (slide.id) {
-    const ref = doc(db, 'signageSlides', slide.id);
+    const ref = doc(opsDb, 'signageSlides', slide.id);
     // Firestore rejects undefined values: a field cleared in the editor (undefined) is deleted instead.
     const patch: Record<string, any> = { updatedAt: now };
     for (const [k, v] of Object.entries(slide)) {
@@ -236,7 +238,7 @@ export async function saveSignageSlide(slide: Partial<DigitalSignageSlide>): Pro
     await updateDoc(ref, patch);
     return slide as DigitalSignageSlide;
   }
-  const ref = doc(collection(db, 'signageSlides'));
+  const ref = doc(collection(opsDb, 'signageSlides'));
   const { id: _drop, ...rest } = slide;
   const newSlide: DigitalSignageSlide = JSON.parse(JSON.stringify({
     type: 'TEXT',
@@ -254,7 +256,7 @@ export async function saveSignageSlide(slide: Partial<DigitalSignageSlide>): Pro
 }
 
 export async function deleteSignageSlide(id: string): Promise<void> {
-  await deleteDoc(doc(db, 'signageSlides', id));
+  await deleteDoc(doc(opsDb, 'signageSlides', id));
 }
 
 // ── SeedRaiser Campaigns ──────────────────────────────────────────────────────

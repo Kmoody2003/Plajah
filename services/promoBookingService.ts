@@ -4,7 +4,8 @@
 // accept is a fast-follow via the existing Stripe live-tip/destination-charge rail.)
 
 import { collection, query, where, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore';
-import { db, auth, updateUserProfile, searchUserProfiles } from './backendService';
+import { auth, updateUserProfile, searchUserProfiles } from './backendService';
+import { opsDb } from './firebase';
 import type { PromoBooking, UserProfile } from '../types';
 
 export type PromoKind = PromoBooking['kind'];
@@ -65,7 +66,7 @@ export async function requestPromoBooking(
     kind, rate, message: (message || '').slice(0, 500),
     status: 'PENDING', createdAt: Date.now(),
   };
-  const ref = await addDoc(collection(db, 'promoBookings'), rec);
+  const ref = await addDoc(collection(opsDb, 'promoBookings'), rec);
   return ref.id;
 }
 
@@ -76,7 +77,7 @@ export async function fetchCreatorPromoRequests(): Promise<PromoBooking[]> {
   const uid = auth.currentUser?.uid;
   if (!uid) return [];
   try {
-    const snap = await getDocs(query(collection(db, 'promoBookings'), where('creatorUid', '==', uid)));
+    const snap = await getDocs(query(collection(opsDb, 'promoBookings'), where('creatorUid', '==', uid)));
     return snap.docs.map(d => mapBooking(d.id, d.data())).sort((a, b) => b.createdAt - a.createdAt);
   } catch { return []; }
 }
@@ -84,12 +85,12 @@ export async function fetchCreatorPromoRequests(): Promise<PromoBooking[]> {
 /** Business: my sent promo requests. */
 export async function fetchBusinessPromoRequests(businessUid: string): Promise<PromoBooking[]> {
   try {
-    const snap = await getDocs(query(collection(db, 'promoBookings'), where('businessUid', '==', businessUid)));
+    const snap = await getDocs(query(collection(opsDb, 'promoBookings'), where('businessUid', '==', businessUid)));
     return snap.docs.map(d => mapBooking(d.id, d.data())).sort((a, b) => b.createdAt - a.createdAt);
   } catch { return []; }
 }
 
 /** Creator: accept or decline a request. */
 export async function respondToPromoBooking(id: string, status: 'ACCEPTED' | 'DECLINED'): Promise<void> {
-  await updateDoc(doc(db, 'promoBookings', id), { status, respondedAt: Date.now() });
+  await updateDoc(doc(opsDb, 'promoBookings', id), { status, respondedAt: Date.now() });
 }

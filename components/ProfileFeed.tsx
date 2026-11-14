@@ -439,62 +439,25 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
     setIsLoadingThirdParty(true);
     setThirdPartyError(null);
     try {
-      let bridgeInstance = (mastodonInstance || 'mastodon.social').replace(/^https?:\/\//, '').replace(/\/$/, '');
-      if (bridgeInstance.includes('@')) {
-        const parts = bridgeInstance.split('@');
-        bridgeInstance = parts[parts.length - 1];
-      }
-      
-      const rawHandle = threadsHandle.trim();
-      const cleanHandle = rawHandle.startsWith('@') ? rawHandle.substring(1) : rawHandle;
-      const targetAcct = cleanHandle.includes('@') ? cleanHandle : `${cleanHandle}@threads.net`;
-      
-      // Use proxy for search with resolve=true
-      const searchPath = `/api/v2/search?q=${encodeURIComponent(targetAcct)}&resolve=true&type=accounts&limit=1`;
-      let searchUrl = `/api/social/fediverse/proxy?instance=${bridgeInstance}&path=${encodeURIComponent(searchPath)}`;
-      if (mastodonAuth?.token) {
-        searchUrl += `&token=${mastodonAuth.token}`;
-      }
-
-      const searchRes = await fetch(searchUrl);
-      if (!searchRes.ok) {
-        if (searchRes.status === 401 || searchRes.status === 403) {
-           throw new Error('Fediverse search restricted - Mastodon connection required');
-        }
-        throw new Error(`Fediverse search failed: ${searchRes.status}`);
-      }
-      
-      const searchContentType = searchRes.headers.get('content-type');
-      if (!searchContentType || !searchContentType.includes('application/json')) {
-         throw new Error('Fediverse search returned invalid data format');
-      }
-      
-      const searchData = await searchRes.json();
-      const matchedAccount = searchData.accounts?.[0];
-
-      if (!matchedAccount) throw new Error('Threads Fediverse account not found');
-      
-      // Use proxy for statuses
-      const statusesPath = `/api/v1/accounts/${matchedAccount.id}/statuses?exclude_replies=true`;
-      const statusesUrl = `/api/social/fediverse/proxy?instance=${bridgeInstance}&path=${encodeURIComponent(statusesPath)}`;
-      
-      const statusesRes = await fetch(statusesUrl);
-      if (!statusesRes.ok) throw new Error('Could not fetch Threads statuses from bridge');
-      
-      const stContentType = statusesRes.headers.get('content-type');
-      if (!stContentType || !stContentType.includes('application/json')) {
-         throw new Error('Threads statuses returned invalid data format');
-      }
-      
-      const statusesData = await statusesRes.json();
-      setThreadsPosts(statusesData);
+      // No account needed: the server reads the profile's public posts over the fediverse bridge (Threads accounts
+      // with "Fediverse sharing" on federate over ActivityPub) and caches them.
+      const username = threadsHandle.trim().replace(/^@/, '').replace(/@threads\.(net|com)$/i, '');
+      const res = await fetch(`/api/fediverse/threads/c/public/profile?username=${encodeURIComponent(username)}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Threads is unreachable right now');
+      if (!data.federated) throw new Error(`@${username} hasn't turned on fediverse sharing in Threads, so their posts can't be shown here yet.`);
+      // Same shape the list below renders.
+      setThreadsPosts((data.posts || []).map((p: any) => ({
+        id: p.id, content: p.content, url: p.url, created_at: new Date(p.createdAt).toISOString(),
+        media_attachments: (p.media || []).filter((m: any) => m.type === 'image').map((m: any, i: number) => ({ id: `${p.id}-${i}`, url: m.url })),
+      })));
     } catch (err: any) {
       console.error('Threads fetch error:', err);
       setThirdPartyError(err.message);
     } finally {
       setIsLoadingThirdParty(false);
     }
-  }, [threadsHandle, mastodonInstance, mastodonAuth]);
+  }, [threadsHandle]);
 
   useEffect(() => {
     if (feedType === 'MASTODON') fetchMastodon();
@@ -901,20 +864,6 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
               <p className="text-[10px] font-black uppercase tracking-widest text-white/30">
                 @{threadsHandle}
               </p>
-              {!mastodonAuth && (
-                <div className="text-center">
-                  <p className="text-[8px] font-black uppercase tracking-widest text-white/20 mb-3">
-                    Connect Mastodon to load Threads via Fediverse bridge
-                  </p>
-                  <button
-                    onClick={connectMastodon}
-                    className="px-4 py-2 bg-[#563acc] text-white rounded-xl text-[8px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center gap-2 mx-auto"
-                  >
-                    <AtSign size={10} />
-                    Connect Mastodon Bridge
-                  </button>
-                </div>
-              )}
             </div>
 
             {isLoadingThirdParty ? (
@@ -925,15 +874,11 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
             ) : thirdPartyError ? (
               <div className="py-20 flex flex-col items-center gap-4 text-center">
                 <MessageSquare size={40} className="text-white/20 mb-2" />
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-red-500/60">{thirdPartyError}</p>
-                {!mastodonAuth && (
-                  <button
-                    onClick={connectMastodon}
-                    className="mt-4 px-6 py-3 bg-[#563acc] text-white rounded-xl text-[8px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-xl"
-                  >
-                    Connect Mastodon Bridge
-                  </button>
-                )}
+                <p className="text-[11px] text-white/45 max-w-sm">{thirdPartyError}</p>
+                <a href={`https://www.threads.com/@${(threadsHandle || '').replace(/^@/, '')}`} target="_blank" rel="noopener noreferrer"
+                  className="mt-4 px-6 py-3 bg-white text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all">
+                  Open on Threads
+                </a>
               </div>
             ) : threadsPosts.length > 0 ? (
               <div className="space-y-6">

@@ -13,14 +13,16 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ShoppingBag, ExternalLink, Loader2, Power, Package } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import type { Organization, StoreCartItem, StoreProduct, StoreSettings } from '../../types';
+import type { Ministry, Organization, StoreCartItem, StoreProduct, StoreSettings } from '../../types';
 import { db } from '../../services/firebase';
 import { auth } from '../../services/backendService';
 import { updateOrganization } from '../../services/organizationService';
 import { subscribeCatalog, onCommerce, applySaleLocally, boardPrice } from '../../services/commerceBus';
 import { availableFor, storefrontBadge } from '../../services/inventoryCore';
 import StoreProductManager from '../StoreProductManager';
-import { ProductDetailModal, CartSidebar } from '../StorePageView';
+import { CartSidebar } from '../StorePageView';
+import ProductPage, { useProductRoute } from '../store/ProductPage';
+import { startStoreCheckout } from '../../services/storeService';
 
 export const orgStoreOwnerUid = (org: Pick<Organization, 'accountUid' | 'creatorId'>) => org.accountUid || org.creatorId;
 
@@ -35,6 +37,10 @@ export interface OrgStoreSectionProps {
   accent?: string;
   onVisitUser?: (uid: string) => void;
   onOrgChange?: (o: Organization) => void;
+  /** Department shop: only products tagged with this ministry (StoreProduct.ministryId). Same owner account and checkout. */
+  ministry?: Ministry;
+  /** Leaders' preview: also show unpublished drafts (isActive === false), badged "Draft" and not buyable. */
+  previewDrafts?: boolean;
 }
 
 const DISPLAY = "'Bricolage Grotesque', Inter, system-ui, sans-serif";
@@ -42,13 +48,13 @@ const ORANGE = '#FF8C00';
 const keyOf = (i: { product: StoreProduct; variantId?: string }) => `${i.product.id}|${i.variantId || ''}`;
 const pretty = (s: string) => s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, ' ');
 
-const OrgStoreSection: React.FC<OrgStoreSectionProps> = ({ org, ownerUid: ownerProp, canManage, mode = 'public', accent = ORANGE, onVisitUser, onOrgChange }) => {
+const OrgStoreSection: React.FC<OrgStoreSectionProps> = ({ org, ownerUid: ownerProp, canManage, mode = 'public', accent = ORANGE, onVisitUser, onOrgChange, ministry, previewDrafts }) => {
   const ownerUid = ownerProp || orgStoreOwnerUid(org);
   const [all, setAll] = useState<StoreProduct[] | null>(null);
   const [settings, setSettings] = useState<StoreSettings | undefined>();
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [cat, setCat] = useState<string>('ALL');
-  const [open, setOpen] = useState<StoreProduct | null>(null);
+  const [dept, setDept] = useState<string>('ALL');
   const [cart, setCart] = useState<StoreCartItem[]>([]);
   const [showCart, setShowCart] = useState(false);
   const [busySeller, setBusySeller] = useState<string | null>(null);
@@ -74,13 +80,35 @@ const OrgStoreSection: React.FC<OrgStoreSectionProps> = ({ org, ownerUid: ownerP
     return () => { alive = false; };
   }, [ownerUid]);
 
-  const products = useMemo(() => (all || []).filter(p => p.isActive !== false), [all]);
+  const showDrafts = !!previewDrafts || mode === 'manage';
+  const products = useMemo(() => (all || []).filter(p =>
+    (showDrafts || p.isActive !== false) && (ministry ? p.ministryId === ministry.id : true)), [all, showDrafts, ministry]);
+  // Main (org) shop: departments that have their own shelf → "Shop by department" chips.
+  const deptName = (id?: string) => (id && org.ministries?.find(m => m.id === id)?.name) || '';
+  const depts = useMemo(() => {
+    if (ministry) return [] as [string, number][];
+    const m = new Map<string, number>();
+    products.forEach(p => { if (p.ministryId && deptName(p.ministryId)) m.set(p.ministryId, (m.get(p.ministryId) || 0) + 1); });
+    return Array.from(m.entries());
+  }, [products, ministry, org.ministries]);
+  const inDept = dept === 'ALL' ? products : dept === 'MAIN' ? products.filter(p => !p.ministryId) : products.filter(p => p.ministryId === dept);
   const cats = useMemo(() => {
     const m = new Map<string, number>();
-    products.forEach(p => m.set(p.category || 'OTHER', (m.get(p.category || 'OTHER') || 0) + 1));
+    inDept.forEach(p => m.set(p.category || 'OTHER', (m.get(p.category || 'OTHER') || 0) + 1));
     return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
-  }, [products]);
-  const shown = cat === 'ALL' ? products : products.filter(p => (p.category || 'OTHER') === cat);
+  }, [inDept]);
+  const shown = cat === 'ALL' ? inDept : inDept.filter(p => (p.category || 'OTHER') === cat);
+
+  // The product page: a full page with its own URL (?product=<id>), not a popup over the shop.
+  const route = useProductRoute(all ? products.map(p => p.id) : null);
+  const openProduct = (p: StoreProduct) => route.open(p.id);
+  const current = route.openId ? products.find(p => p.id === route.openId) || null : null;
+  const related = useMemo(() => {
+    if (!current) return [];
+    const score = (p: StoreProduct) => (p.ministryId === current.ministryId ? 2 : 0) + (p.category === current.category ? 1 : 0);
+    return products.filter(p => p.id !== current.id && (showDrafts || p.isActive !== false)).sort((a, b) => score(b) - score(a));
+  }, [current, products, showDrafts]);
+  const draftCount = products.filter(p => p.isActive === false).length;
 
   // Keep cart lines pointed at the live product and clamped to what's on the shelf.
   useEffect(() => {
@@ -110,8 +138,9 @@ const OrgStoreSection: React.FC<OrgStoreSectionProps> = ({ org, ownerUid: ownerP
     finally { setToggling(false); }
   };
 
-  const addToCart = (product: StoreProduct, variantId?: string, quantity = 1) => {
-    if (product.variants?.length && !variantId) { setOpen(product); return; }
+  const addToCart = (product: StoreProduct, variantId?: string, quantity = 1, openCart = true) => {
+    if (product.isActive === false) return; // drafts are previews, not for sale
+    if (product.variants?.length && !variantId) { openProduct(product); return; }
     const avail = availableFor(product, variantId);
     if (avail <= 0) return;
     const variantName = product.variants?.find(v => v.id === variantId)?.name;
@@ -121,7 +150,7 @@ const OrgStoreSection: React.FC<OrgStoreSectionProps> = ({ org, ownerUid: ownerP
       if (ex) return prev.map(i => (keyOf(i) === k ? { ...i, quantity: Math.min(avail, i.quantity + quantity) } : i));
       return [...prev, { product, variantId, variantName, quantity: Math.min(avail, quantity) }];
     });
-    setOpen(null); setCheckoutError(''); setShowCart(true);
+    setCheckoutError(''); if (openCart) setShowCart(true);
   };
 
   // Same order spine as StorePageView: the server re-prices + stock-checks, then Stripe Checkout (funds → the shop).
@@ -157,7 +186,7 @@ const OrgStoreSection: React.FC<OrgStoreSectionProps> = ({ org, ownerUid: ownerP
     <section className="mt-10" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <h2 className="text-[22px] font-extrabold tracking-tight text-white flex items-center gap-2" style={{ fontFamily: DISPLAY }}>
-          <ShoppingBag size={18} style={{ color: accent }} /> {org.name} shop
+          <ShoppingBag size={18} style={{ color: accent }} /> {ministry ? ministry.name : org.name} shop
         </h2>
         <div className="flex items-center gap-2">
           {cartCount > 0 && (
@@ -171,9 +200,30 @@ const OrgStoreSection: React.FC<OrgStoreSectionProps> = ({ org, ownerUid: ownerP
         </div>
       </div>
 
+      {draftCount > 0 && (
+        <p className="mb-3 text-[12px] text-white/55 rounded-xl px-3 py-2 bg-white/[0.04] border border-white/10">
+          <span className="tabular-nums">{draftCount}</span> draft{draftCount === 1 ? '' : 's'} — only leaders see these until each one gets a price and is published.
+        </p>
+      )}
+
+      {depts.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-2 -mx-1 px-1" aria-label="Shop by department">
+          {([['ALL', 'Everything'], ['MAIN', org.name], ...depts.map(([id]) => [id, deptName(id)])] as [string, string][]).map(([id, label]) => {
+            const on = dept === id;
+            return (
+              <button key={id} onClick={() => { setDept(id); setCat('ALL'); }} aria-pressed={on}
+                className="h-10 px-4 rounded-full text-[13px] font-bold whitespace-nowrap transition"
+                style={{ background: on ? accent : 'rgba(255,255,255,.06)', color: on ? '#1A0E00' : 'rgba(255,255,255,.75)' }}>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {cats.length > 1 && (
         <div className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-1 px-1" role="tablist" aria-label="Categories">
-          {[['ALL', products.length] as [string, number], ...cats].map(([c, n]) => {
+          {[['ALL', inDept.length] as [string, number], ...cats].map(([c, n]) => {
             const on = cat === c;
             return (
               <button key={c} role="tab" aria-selected={on} onClick={() => setCat(c)}
@@ -188,11 +238,12 @@ const OrgStoreSection: React.FC<OrgStoreSectionProps> = ({ org, ownerUid: ownerP
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {shown.map(p => {
-          const badge = storefrontBadge(p);
+          const draft = p.isActive === false;
+          const badge = draft ? { label: 'Draft', soldOut: false } : storefrontBadge(p);
           const options = !!p.variants?.length;
           return (
             <div key={p.id} className={`rounded-2xl overflow-hidden bg-white/[0.04] border border-white/10 flex flex-col ${badge.soldOut ? 'opacity-60' : ''}`}>
-              <button onClick={() => setOpen(p)} className="text-left">
+              <button onClick={() => openProduct(p)} className="text-left">
                 <div className="aspect-square bg-black/40 relative">
                   {p.images?.[0] ? <img src={p.images[0]} alt="" className="w-full h-full object-cover" loading="lazy" /> : <Package size={28} className="absolute inset-0 m-auto text-white/15" />}
                   {badge.label && (
@@ -202,17 +253,19 @@ const OrgStoreSection: React.FC<OrgStoreSectionProps> = ({ org, ownerUid: ownerP
                 </div>
                 <div className="px-3 pt-3">
                   <p className="text-[14px] font-semibold text-white truncate">{p.title}</p>
+                  {!ministry && deptName(p.ministryId) && <p className="text-[11px] text-white/45 truncate">{deptName(p.ministryId)}</p>}
                   <p className="mt-0.5 flex items-baseline gap-1.5">
-                    <span className="text-[18px] font-extrabold tabular-nums text-white" style={{ fontFamily: DISPLAY }}>{boardPrice(p.price)}{options ? '+' : ''}</span>
+                    <span className="text-[18px] font-extrabold tabular-nums text-white" style={{ fontFamily: DISPLAY }}>{draft && !p.price ? 'Price TBD' : <>{boardPrice(p.price)}{options ? '+' : ''}</>}</span>
                     {p.compareAtPrice && p.compareAtPrice > p.price && <span className="text-[12px] text-white/40 line-through tabular-nums">{boardPrice(p.compareAtPrice)}</span>}
+                    {!draft && p.price >= 1 && <span className="text-[11px] font-bold text-amber-300/90 tabular-nums" title="Loyalty points you earn at this shop">+{Math.floor(p.price)} pts</span>}
                   </p>
                 </div>
               </button>
               <div className="p-3 pt-2 mt-auto">
-                <button onClick={() => (options ? setOpen(p) : addToCart(p))} disabled={badge.soldOut}
+                <button onClick={() => (options || draft ? openProduct(p) : addToCart(p))} disabled={badge.soldOut}
                   className="w-full h-11 rounded-xl text-[13px] font-bold text-[#1A0E00] disabled:opacity-40 disabled:bg-white/10 disabled:text-white"
                   style={badge.soldOut ? undefined : { background: accent }}>
-                  {badge.soldOut ? 'Sold out' : options ? 'Choose options' : 'Add to cart'}
+                  {badge.soldOut ? 'Sold out' : draft ? 'View product' : options ? 'Choose options' : 'Add to cart'}
                 </button>
               </div>
             </div>
@@ -220,7 +273,15 @@ const OrgStoreSection: React.FC<OrgStoreSectionProps> = ({ org, ownerUid: ownerP
         })}
       </div>
 
-      {open && <ProductDetailModal product={(all || []).find(p => p.id === open.id) || open} onClose={() => setOpen(null)} onAddToCart={addToCart} />}
+      {current && (
+        <ProductPage product={current} related={related} accent={accent}
+          shopName={org.name} deptName={deptName(current.ministryId) || undefined}
+          backLabel={`${ministry ? ministry.name : org.name} shop`}
+          cartCount={cartCount} onOpenCart={() => setShowCart(true)}
+          onAddToCart={(p, v, q) => addToCart(p, v, q, false)}
+          onBuyNow={(p, v, q) => startStoreCheckout(p.sellerId, [{ product: p, variantId: v, quantity: q || 1 }])}
+          onOpenProduct={openProduct} onBack={route.close} />
+      )}
       <AnimatePresence>
         {showCart && (
           <CartSidebar items={cart}
@@ -235,7 +296,8 @@ const OrgStoreSection: React.FC<OrgStoreSectionProps> = ({ org, ownerUid: ownerP
   if (all === null || !settingsLoaded) return <div className="flex justify-center py-10"><Loader2 className="animate-spin text-white/30" size={20} /></div>;
 
   if (!manage) {
-    if (!enabled || products.length === 0) return null;
+    if (products.length === 0) return null;
+    if (!enabled && !(previewDrafts && draftCount > 0)) return null;
     return shop;
   }
 
@@ -254,7 +316,8 @@ const OrgStoreSection: React.FC<OrgStoreSectionProps> = ({ org, ownerUid: ownerP
         )}
       </div>
       {isStoreOwner ? (
-        <StoreProductManager ownerId={ownerUid} sellerName={org.name} sellerType="ORG" settings={settings} onSettingsUpdate={setSettings} />
+        <StoreProductManager ownerId={ownerUid} sellerName={org.name} sellerType="ORG" settings={settings} onSettingsUpdate={setSettings}
+          departments={(org.ministries || []).filter(m => !m.isInternal).map(m => ({ id: m.id, name: m.name }))} ministryId={ministry?.id} />
       ) : (
         <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 text-[13px] text-white/55">
           This store belongs to the organization's {org.accountUid ? 'linked account' : 'owner account'}. Sign in as that account to add or edit products or turn the store on — here's what visitors see:

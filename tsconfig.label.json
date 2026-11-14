@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": [
+    "services/label/*.ts", "routes/labels.ts", "labs/label/*.ts",
+    "components/chora/LabelDesk.tsx", "components/ChoraArtistManager.tsx", "components/melos/MelosWorkspace.tsx",
+    "label-lab.tsx", "tests/labels.test.ts"
+  ]
+}

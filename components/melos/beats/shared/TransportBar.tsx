@@ -7,7 +7,7 @@ import type { GrooveDoc, SongKey } from '../../../../services/melos/beats/groove
 import { BeatsEngine } from '../../../../services/melos/beats/engine/BeatsEngine';
 import { songTime } from '../../../../services/melos/beats/tempoMap';
 import { docKey, keyLabel } from '../../../../services/melos/beats/songKey';
-import { NOTE_NAMES_SHARP, SCALES } from '../../../../services/melos/theory';
+import { NOTE_NAMES_SHARP, SCALES, SCALE_FAMILIES, scaleFamily } from '../../../../services/melos/theory';
 import { useContextMenu } from '../../../ui/ContextMenu';
 
 const TIME_SIGS: [number, number][] = [
@@ -97,10 +97,10 @@ export const TransportBar: React.FC<TransportBarProps> = (p) => {
       })),
     },
     {
-      id: 'scale', label: 'Scale', submenu: SCALES.map((s) => ({
+      id: 'scale', label: 'Scale', submenu: SCALE_FAMILIES.flatMap((f) => [{ kind: 'header' as const, label: f.name }, ...SCALES.filter((s) => scaleFamily(s) === f.id).map((s) => ({
         id: s.id, label: s.name, checked: (key?.scale ?? '') === s.id, keepOpen: true,
         onSelect: () => p.onSetKey?.({ tonic: key?.tonic ?? 0, scale: s.id }),
-      })),
+      }))]),
     },
     { kind: 'separator' },
     { id: 'clear', label: 'Clear key', disabled: !key, onSelect: () => p.onSetKey?.(null) },

@@ -153,7 +153,7 @@ export const KeraPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
           <span className="font-black text-[13px] tracking-[0.06em]" style={{ color: PLAYHEAD }}>KERA</span>
           <span className="text-[11px] text-white/55">{program?.name || 'No sound loaded'}</span>
           <span className="flex-1" />
-          {!embedded && (
+          {!embedded && !track.padOwned && (
             <button
               onClick={() => onMutate((d) => {
                 const on = !track.armed;

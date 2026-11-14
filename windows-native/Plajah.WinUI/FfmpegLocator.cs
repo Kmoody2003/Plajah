@@ -43,6 +43,47 @@ internal static class FfmpegLocator
         }
     }
 
+    /// <summary>Any working ffmpeg, SRT or not. Crossover's file conversion doesn't need libsrt.</summary>
+    public sealed record AnyProbe(string? Path, string? Version, IReadOnlyList<string> Encoders);
+    private static AnyProbe? _any;
+    private static long _anyAt;
+
+    public static AnyProbe Any
+    {
+        get
+        {
+            lock (Gate)
+            {
+                if (_any != null && (_any.Path != null || Environment.TickCount64 - _anyAt < 30000)) return _any;
+                _any = FindAny();
+                _anyAt = Environment.TickCount64;
+                return _any;
+            }
+        }
+    }
+
+    /// <summary>Look again after an install, rather than waiting for the 30 second retry.</summary>
+    public static void Forget() { lock (Gate) { _any = null; _cached = null; } }
+
+    private static AnyProbe FindAny()
+    {
+        foreach (var c in Candidates())
+        {
+            try
+            {
+                if (!File.Exists(c)) continue;
+                var version = Capture(c, "-hide_banner -version").Split('\n').FirstOrDefault()?.Trim();
+                var enc = Capture(c, "-hide_banner -encoders");
+                // Lines read " V....D h264_nvenc  NVIDIA NVENC ...": the second column is the name.
+                var names = enc.Split('\n').Select(l => l.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                    .Where(p => p.Length > 1 && p[0].Length == 6).Select(p => p[1]).ToList();
+                return new AnyProbe(c, version, names);
+            }
+            catch { /* try the next one */ }
+        }
+        return new AnyProbe(null, null, Array.Empty<string>());
+    }
+
     public static bool SrtAvailable => Current.Srt;
     public static string SrtReason => Current.Reason ?? "";
 

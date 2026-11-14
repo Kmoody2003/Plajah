@@ -190,7 +190,7 @@ export const AuraEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-3 [&>*]:shrink-0">
         {/* Vintage Hardware Wave Bank & Voice Architecture Strip */}
         <section
           className="rounded-[14px] border border-[#E59A38]/20 p-3 flex flex-wrap items-center gap-4"

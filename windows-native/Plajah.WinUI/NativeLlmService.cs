@@ -81,7 +81,7 @@ public static class NativeLlmService
             var path = FindModel(m);
             return new ModelStatus(m.Key, m.Label, path != null, path, m.Url != null, _loadedKey == m.Key);
         }).ToList();
-        return new { models, backend = _backend, gpu = GpuName(), modelDir = AppModelDir, ready = models.Any(m => m.present) };
+        return new { models, backend = _backend, gpu = GpuName(), modelDir = AppModelDir, ready = models.Any(m => m.present), vision = FindVisionModel() != null, visionDownloadBytes = VisionDownloadBytes };
     }
 
     // ── the resident model ────────────────────────────────────────────────────
@@ -128,7 +128,7 @@ public static class NativeLlmService
             if (name == "cpu-avx" && !System.Runtime.Intrinsics.X86.Avx.IsSupported) continue;
             try
             {
-                foreach (var dll in new[] { "ggml-base.dll", "ggml-cpu.dll", "ggml-vulkan.dll", "ggml.dll", "llama.dll" })
+                foreach (var dll in new[] { "ggml-base.dll", "ggml-cpu.dll", "ggml-vulkan.dll", "ggml.dll", "llama.dll", "mtmd.dll" })
                 {
                     var path = Path.Combine(dir, dll);
                     // The Vulkan build ships without ggml-cpu.dll (llama.cpp always keeps a CPU backend
@@ -190,6 +190,8 @@ public static class NativeLlmService
 
     private static void Unload()
     {
+        _vision?.Dispose();
+        _vision = null;
         _context?.Dispose();
         _context = null;
         _weights?.Dispose();
@@ -279,24 +281,165 @@ public static class NativeLlmService
         }
     }
 
+    // ── seeing: one picture and a question ────────────────────────────────────
+
+    private static MtmdWeights? _vision;
+    private const string VisionKey = "gemma-4-vision";
+    /// <summary>Image tokens per picture. Gemma 4 offers 70 to 1120; small parts need the most.</summary>
+    private const int ImageTokens = 1120;
+
+    /// <summary>
+    /// A Gemma 4 GGUF with its vision projector (mmproj) beside it, at the top of a model folder or in a
+    /// gemma-4* folder inside one. Text-only Gemma files are skipped: without a projector it can't see.
+    /// </summary>
+    public static (string model, string projector)? FindVisionModel()
+    {
+        foreach (var dir in SearchDirs())
+        {
+            if (!Directory.Exists(dir)) continue;
+            var places = new[] { dir }.Concat(Directory.EnumerateDirectories(dir, "gemma-4*")).Concat(Directory.EnumerateDirectories(dir, "gemma4*"));
+            foreach (var place in places)
+            {
+                var projector = Directory.EnumerateFiles(place, "mmproj*gemma*4*.gguf").FirstOrDefault();
+                if (projector == null) continue;
+                var model = Directory.EnumerateFiles(place, "*gemma*4*.gguf")
+                    .FirstOrDefault(f => !Path.GetFileName(f).StartsWith("mmproj", StringComparison.OrdinalIgnoreCase) && new FileInfo(f).Length >= 1_000_000_000);
+                if (model != null) return (model, projector);
+            }
+        }
+        return null;
+    }
+
+    public sealed record LookResult(bool success, string text, string model, string backend, double seconds, double loadSeconds, string? error);
+
+    /// <summary>
+    /// Shows the vision model one picture and asks about it. It takes the one resident slot, so the text
+    /// model is unloaded first. `unloadAfter` hands the memory straight back (about 7 GB of RAM and 4 GB of
+    /// VRAM) for work that follows, such as the 3D generator; the price is a 40 to 50 s load next time.
+    /// </summary>
+    public static async Task<LookResult> LookAsync(byte[] image, string prompt, string prefill, int maxTokens, bool unloadAfter, CancellationToken ct)
+    {
+        await Gate.WaitAsync(ct);
+        var started = DateTime.UtcNow;
+        try
+        {
+            var found = FindVisionModel();
+            if (found == null) return new LookResult(false, "", "", _backend, 0, 0, "No Gemma 4 vision model is installed on this PC yet");
+            await Task.Run(() =>
+            {
+                if (_loadedKey == VisionKey && _weights != null && _vision != null) return;
+                Unload();
+                ConfigureBackend();
+                _params = new ModelParams(found.Value.model) { ContextSize = 4096, GpuLayerCount = 999 };
+                _weights = LLamaWeights.LoadFromFile(_params);
+                _context = _weights.CreateContext(_params);
+                var mp = LLama.Native.MtmdContextParams.Default();
+                mp.UseGpu = true;
+                mp.Warmup = false;
+                mp.ImageMinTokens = ImageTokens;
+                mp.ImageMaxTokens = ImageTokens;
+                _vision = MtmdWeights.LoadFromFile(found.Value.projector, _weights, mp);
+                _loadedKey = VisionKey;
+            }, ct);
+            var loadSeconds = (DateTime.UtcNow - started).TotalSeconds;
+
+            _context!.NativeHandle.MemoryClear(true);
+            var executor = new InteractiveExecutor(_context, _vision!);
+            executor.Embeds.Add(_vision!.LoadMedia(image));
+            var marker = LLama.Native.NativeApi.MtmdDefaultMarker() ?? "<__media__>";
+            // Gemma 4's turns, written out: llama.cpp's built-in templates predate them. The answer is started
+            // for the model when asked, which keeps it from opening empty or with a chain of thought.
+            var text = new StringBuilder();
+            var inference = new InferenceParams
+            {
+                MaxTokens = Math.Clamp(maxTokens, 1, 2048),
+                AntiPrompts = new[] { "<turn|>" },
+                SamplingPipeline = new DefaultSamplingPipeline { Temperature = 0f },
+            };
+            await foreach (var piece in executor.InferAsync($"<|turn>user\n{marker}\n{prompt}<turn|>\n<|turn>model\n{prefill}", inference, ct)) text.Append(piece);
+            var answer = (prefill + text).Replace("<turn|>", "").Trim();
+            return new LookResult(true, answer, "Gemma 4 E4B", _backend, (DateTime.UtcNow - started).TotalSeconds, loadSeconds, null);
+        }
+        catch (OperationCanceledException)
+        {
+            return new LookResult(false, "", VisionKey, _backend, (DateTime.UtcNow - started).TotalSeconds, 0, "cancelled");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[NativeLlm] look: {ex}");
+            Unload();
+            return new LookResult(false, "", VisionKey, _backend, (DateTime.UtcNow - started).TotalSeconds, 0, ex.Message);
+        }
+        finally
+        {
+            if (unloadAfter) Unload();
+            else TouchIdle();
+            Gate.Release();
+        }
+    }
+
     // ── downloads ─────────────────────────────────────────────────────────────
 
     private static readonly HttpClient Http = new() { Timeout = Timeout.InfiniteTimeSpan };
 
+    // Gemma 4 E4B instruct, Q4_K_M, and its f16 vision projector (Apache 2.0). Both are needed to see.
+    private const string VisionRepo = "https://huggingface.co/bartowski/google_gemma-4-E4B-it-GGUF/resolve/main/";
+    private static readonly (string file, long bytes)[] VisionFiles =
+    {
+        ("mmproj-google_gemma-4-E4B-it-f16.gguf", 990_372_352),
+        ("google_gemma-4-E4B-it-Q4_K_M.gguf", 5_405_170_144),
+    };
+    public static long VisionDownloadBytes => VisionFiles.Sum(f => f.bytes);
+    private static long Have(string path) => File.Exists(path) ? new FileInfo(path).Length : File.Exists(path + ".part") ? new FileInfo(path + ".part").Length : 0;
+
     /// <summary>Download a catalog model into the app's model folder (resumable via a .part file).</summary>
     public static async Task<(bool ok, string? path, string? error)> DownloadAsync(string key, Action<long, long> progress, CancellationToken ct)
     {
+        if (key == VisionKey)
+        {
+            if (FindVisionModel() is { } there) return (true, there.model, null);
+            // 6.4 GB: into the studio's model folder when this PC has one (it's where the big models live), else the app's.
+            var home = SearchDirs().FirstOrDefault(d => d != AppModelDir && Directory.Exists(d)) ?? AppModelDir;
+            var dir = Path.Combine(home, "gemma-4-e4b");
+            Directory.CreateDirectory(dir);
+            long before = 0, total = VisionDownloadBytes;
+            long still = VisionFiles.Sum(f => Math.Max(0, f.bytes - Have(Path.Combine(dir, f.file))));
+            var free = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(dir))!).AvailableFreeSpace;
+            if (free < still + (2L << 30)) return (false, null, $"Needs {(still + (2L << 30)) / 1e9:F1} GB free on {Path.GetPathRoot(dir)}, and there's {free / 1e9:F1} GB");
+            foreach (var (file, bytes) in VisionFiles)
+            {
+                var target = Path.Combine(dir, file);
+                // A .part that already has every byte only needs its name.
+                if (!File.Exists(target) && File.Exists(target + ".part") && new FileInfo(target + ".part").Length == bytes) File.Move(target + ".part", target);
+                if (!File.Exists(target) || new FileInfo(target).Length < bytes)
+                {
+                    var offset = before;
+                    var error = await FetchAsync(VisionRepo + file, target, bytes, (done, _) => progress(offset + done, total), ct);
+                    if (error != null) return (false, null, error);
+                }
+                before += bytes;
+            }
+            progress(total, total);
+            return FindVisionModel() is { } got ? (true, got.model, null) : (false, null, "The files arrived but the model wasn't found");
+        }
         var spec = Catalog.FirstOrDefault(m => m.Key == key);
         if (spec?.Url == null) return (false, null, "This model can't be downloaded from here");
         var existing = FindModel(spec);
         if (existing != null) return (true, existing, null);
         Directory.CreateDirectory(AppModelDir);
         var final = Path.Combine(AppModelDir, spec.Files[0]);
+        var failed = await FetchAsync(spec.Url, final, spec.MinBytes, progress, ct);
+        return failed == null ? (true, final, null) : (false, null, failed);
+    }
+
+    /// <summary>One file to its place, resuming a .part file. Null when it arrived whole, otherwise why not.</summary>
+    private static async Task<string?> FetchAsync(string url, string final, long minBytes, Action<long, long> progress, CancellationToken ct)
+    {
         var part = final + ".part";
         try
         {
             long have = File.Exists(part) ? new FileInfo(part).Length : 0;
-            using var req = new HttpRequestMessage(HttpMethod.Get, spec.Url);
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
             if (have > 0) req.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(have, null);
             using var res = await Http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
             res.EnsureSuccessStatusCode();
@@ -316,11 +459,11 @@ public static class NativeLlmService
                 }
                 progress(done, total);
             }
-            if (new FileInfo(part).Length < spec.MinBytes) return (false, null, "The download was incomplete — try again to resume it");
+            if (new FileInfo(part).Length < minBytes) return "The download was incomplete — try again to resume it";
             File.Move(part, final, true);
-            return (true, final, null);
+            return null;
         }
-        catch (OperationCanceledException) { return (false, null, "cancelled"); }
-        catch (Exception ex) { return (false, null, ex.Message); }
+        catch (OperationCanceledException) { return "cancelled"; }
+        catch (Exception ex) { return ex.Message; }
     }
 }

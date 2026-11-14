@@ -1,3 +1,4 @@
+import { classSeatCount } from '../services/classRoster';
 import React, { useState, useEffect, Suspense } from 'react';
 import PageHeader from './PageHeader';
 import {
@@ -33,11 +34,11 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Classroom, Lesson, Assignment, Submission, ProgressReport, ClassroomModule, LiveClassSession, StudentGrade } from '../types';
-import { fetchClassrooms, enrollInClassroom, createClassroom, auth, fetchClassroomModules, createClassroomModule, deleteClassroomModule, submitAssignment, gradeSubmission } from '../services/backendService';
+import { fetchClassrooms, enrollInClassroom, fetchClassJoinCode, joinClassWithCode, createClassroom, auth, fetchClassroomModules, createClassroomModule, deleteClassroomModule, submitAssignment, gradeSubmission } from '../services/backendService';
 import { collection, addDoc, getDocs, getDoc, query, where, orderBy, updateDoc, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { scheduleClassroomMeeting, joinClassroomMeeting, endClassroomMeeting } from '../services/classroomMeetings';
 import { useCall } from '../contexts/CallContext';
-import { db } from '../services/firebase';
+import { db, opsDb } from '../services/firebase';
 import SolarSystemModule from './SolarSystemModule';
 import PlantBiologyModule from './PlantBiologyModule';
 import HumanBodyExperience from './HumanBodyExperience';
@@ -47,6 +48,7 @@ import TeacherStudentsPanel from './TeacherStudentsPanel';
 import LessonPlayer from './academia/creator/LessonPlayer';
 import CourseCertificate from './academia/creator/CourseCertificate';
 import { completion } from '../services/creatorCourses';
+import { loadClassroomCoursework, saveClassroomCoursework, courseworkPreview, lessonCountOf, assignmentCountOf, type ClassroomCoursework } from '../services/classroomCoursework';
 import { TYPE } from '../src/lib/designSystem';
 import { lazy } from 'react';
 // The Living Forest wing — lazy: it pulls three.js, and the museum should
@@ -114,9 +116,15 @@ Loudness, limiting, export formats. Distribute your track on Plajah.`,
       { id: 'a3', title: 'Full Track Draft', description: 'Submit a 1-minute draft of an original track using everything from weeks 1–4.', dueDate: now + 28 * 86400000, maxPoints: 150 },
     ],
     enrolledStudents: [],
+    enrollment: 'open',
     liveSessionUrl: 'https://meet.google.com/demo',
   };
-  await setDoc(doc(db, 'classrooms', DEMO_CLASS_ID), demo);
+  // The public doc is world-readable: publish only the outline, keep the coursework private.
+  const { enrolledStudents: _roster, ...demoPublic } = demo;
+  await setDoc(doc(db, 'classrooms', DEMO_CLASS_ID), {
+    ...demoPublic, lessons: [], assignments: [], ...courseworkPreview(demo.lessons, demo.assignments),
+  });
+  await saveClassroomCoursework(DEMO_CLASS_ID, { lessons: demo.lessons, assignments: demo.assignments });
   return demo;
 };
 
@@ -173,6 +181,7 @@ const CreateClassModal: React.FC<CreateClassModalProps> = ({ user, track = 'CREA
         description: form.description.trim(),
         category: form.category,
         track,
+        enrollment: academic ? 'closed' : 'open',
         price: academic ? 0 : form.price,
         thumbnailUrl: form.thumbnailUrl.trim() || `https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?q=80&w=800&auto=format&fit=crop`,
         syllabus: form.syllabus.trim(),
@@ -598,6 +607,8 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
 
   const handleEnroll = async (classId: string) => {
     if (!user) return alert('Please sign in to enroll');
+    const target = classrooms.find(c => c.id === classId);
+    if (target && target.enrollment !== 'open' && target.ownerId !== user.uid) return;
     await enrollInClassroom(classId);
     loadClassrooms();
   };
@@ -1159,11 +1170,11 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-1.5">
                         <BookOpen size={14} className="text-white/20" />
-                        <span className="text-[10px] font-black text-white/40">{cls.lessons.length} Lessons</span>
+                        <span className="text-[10px] font-black text-white/40">{lessonCountOf(cls)} Lessons</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Users size={14} className="text-white/20" />
-                        <span className="text-[10px] font-black text-white/40">{cls.enrolledStudents.length} Students</span>
+                        <span className="text-[10px] font-black text-white/40">{classSeatCount(cls)} Students</span>
                       </div>
                     </div>
                     <ChevronRight size={18} className="text-white/20 group-hover:translate-x-1 transition-transform" />
@@ -1312,6 +1323,58 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
   const [isEnrolled, setIsEnrolled] = useState(classroom.enrolledStudents.includes(user?.uid || ''));
   const [isOwner] = useState(classroom.ownerId === user?.uid);
 
+  // Coursework lives in classrooms/{id}/private/coursework — only the owner and enrolled students can
+  // read it. Everyone else sees the public titles-only outline. Re-loads once a visitor enrolls; the
+  // owner's first load also migrates a pre-split class's embedded coursework.
+  const [coursework, setCoursework] = useState<ClassroomCoursework | null>(null);
+  const [courseworkLoading, setCourseworkLoading] = useState(false);
+  useEffect(() => {
+    if (!user?.uid || (!isOwner && !isEnrolled)) { setCoursework(null); return; }
+    let alive = true;
+    setCourseworkLoading(true);
+    const viewer = isEnrolled && !classroom.enrolledStudents.includes(user.uid)
+      ? { ...classroom, enrolledStudents: [...classroom.enrolledStudents, user.uid] }
+      : classroom;
+    loadClassroomCoursework(viewer, user.uid)
+      .then(cw => { if (alive) setCoursework(cw); })
+      .catch(e => console.warn('[classroom] coursework load failed', e))
+      .finally(() => { if (alive) setCourseworkLoading(false); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classroom.id, user?.uid, isOwner, isEnrolled]);
+  const lessons: Lesson[] = coursework?.lessons ?? [];
+  const assignments: Assignment[] = coursework?.assignments ?? [];
+  const hasAccess = isOwner || isEnrolled;
+  const lessonCount = coursework ? lessons.length : lessonCountOf(classroom);
+  const assignmentCount = coursework ? assignments.length : assignmentCountOf(classroom);
+  const [enrolling, setEnrolling] = useState(false);
+  // A closed class is joined with the teacher's code; the owner shows it from here.
+  const closedClass = classroom.enrollment !== 'open' && !(classroom.price > 0);
+  const [codeInput, setCodeInput] = useState('');
+  const [codeError, setCodeError] = useState('');
+  const [teacherCode, setTeacherCode] = useState('');
+  const handleJoinWithCode = async () => {
+    if (!user?.uid || !codeInput.trim()) return;
+    setEnrolling(true); setCodeError('');
+    try {
+      const joined = await joinClassWithCode(codeInput.trim());
+      if (joined === classroom.id) setIsEnrolled(true);
+      else setCodeError('That code is for a different class.');
+    } catch (e: any) { setCodeError(e?.message || 'That code did not work.'); }
+    finally { setEnrolling(false); }
+  };
+  const showTeacherCode = async () => {
+    setCodeError('');
+    try { setTeacherCode(await fetchClassJoinCode(classroom.id)); }
+    catch (e: any) { setCodeError(e?.message || 'Could not get the code.'); }
+  };
+  const handleEnrollHere = async () => {
+    if (!user?.uid) return alert('Please sign in to enroll');
+    setEnrolling(true);
+    try { await enrollInClassroom(classroom.id); setIsEnrolled(true); }
+    finally { setEnrolling(false); }
+  };
+
   // Assignments + submissions state
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
@@ -1330,13 +1393,13 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
   const [savingProgress, setSavingProgress] = useState(false);
   const [showCert, setShowCert] = useState(false);
   const progressId = `${user?.uid}_${classroom.id}`;
-  const sortedLessons = [...classroom.lessons].sort((a, b) => a.order - b.order);
+  const sortedLessons = [...lessons].sort((a, b) => a.order - b.order);
   const progress = completion(sortedLessons.map(l => l.id), doneLessons);
 
   useEffect(() => {
     if (!user?.uid || isOwner || !isEnrolled) return;
     let alive = true;
-    getDoc(doc(db, 'progress_reports', progressId)).then(snap => {
+    getDoc(doc(opsDb, 'progress_reports', progressId)).then(snap => {
       if (!alive || !snap.exists()) return;
       const d: any = snap.data();
       setDoneLessons(Array.isArray(d.completedLessons) ? d.completedLessons : []);
@@ -1354,7 +1417,7 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
     setSavingProgress(true);
     try {
       const at = nowDone ? (completedAt || Date.now()) : 0;
-      await setDoc(doc(db, 'progress_reports', progressId), {
+      await setDoc(doc(opsDb, 'progress_reports', progressId), {
         id: progressId, classId: classroom.id, studentId: user.uid,
         overallGrade: 0, completedLessons: next, lastAccessed: Date.now(),
         ...(at ? { completedAt: at } : {}),
@@ -1464,7 +1527,7 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
         studentName: gradingSubmission.studentName,
         assignmentId: gradingSubmission.assignmentId,
         grade: g,
-        maxPoints: classroom.assignments.find(a => a.id === gradingSubmission.assignmentId)?.maxPoints ?? 100,
+        maxPoints: assignments.find(a => a.id === gradingSubmission.assignmentId)?.maxPoints ?? 100,
         feedback: feedbackInput,
         gradedBy: user?.uid,
         gradedAt: Date.now(),
@@ -1524,10 +1587,29 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
                 <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">{classroom.title}</h1>
                 <p className="text-sm lg:text-base text-white/40 uppercase tracking-widest leading-relaxed">{classroom.description}</p>
               </div>
-              {!isEnrolled && !isOwner && (
+              {isOwner && closedClass && (
+                <div className="flex flex-col gap-2 items-start">
+                  {teacherCode
+                    ? <p className="text-sm font-black tracking-widest text-white">Join code: {teacherCode}</p>
+                    : <button onClick={showTeacherCode} className="min-h-[44px] px-6 py-3 bg-white/10 text-white rounded-2xl text-xs font-black uppercase tracking-widest">Show join code</button>}
+                  {codeError && <p role="alert" className="text-xs text-red-300">{codeError}</p>}
+                </div>
+              )}
+              {!isEnrolled && !isOwner && closedClass && (
+                <form className="flex flex-col gap-2 items-start" onSubmit={e => { e.preventDefault(); void handleJoinWithCode(); }}>
+                  <label htmlFor="class-join-code" className="text-xs text-white/60">Ask your teacher for the class code</label>
+                  <div className="flex gap-2">
+                    <input id="class-join-code" value={codeInput} onChange={e => setCodeInput(e.target.value)} autoComplete="off" className="min-h-[44px] px-4 rounded-2xl bg-white/10 text-white uppercase tracking-widest outline-none" />
+                    <button type="submit" disabled={enrolling || !codeInput.trim()} className="min-h-[44px] px-6 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-widest disabled:opacity-60">Join</button>
+                  </div>
+                  {codeError && <p role="alert" className="text-xs text-red-300">{codeError}</p>}
+                </form>
+              )}
+              {!isEnrolled && !isOwner && !closedClass && (
                 <button
-                  onClick={() => enrollInClassroom(classroom.id)}
-                  className="px-12 py-6 bg-white text-black rounded-[2rem] text-sm font-black uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_50px_rgba(255,255,255,0.2)]"
+                  onClick={handleEnrollHere}
+                  disabled={enrolling}
+                  className="px-12 py-6 bg-white text-black rounded-[2rem] text-sm font-black uppercase tracking-widest hover:scale-105 transition-all shadow-[0_0_50px_rgba(255,255,255,0.2)] disabled:opacity-60"
                 >
                   Enroll Now {classroom.price > 0 ? `- $${classroom.price}` : '(Free)'}
                 </button>
@@ -1583,9 +1665,9 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
                   {/* Stats */}
                   <div className="grid grid-cols-3 gap-4 mt-10">
                     {[
-                      { label: 'Lessons', value: classroom.lessons.length, icon: PlayCircle },
-                      { label: 'Assignments', value: classroom.assignments.length, icon: BookOpen },
-                      { label: 'Students', value: classroom.enrolledStudents.length, icon: Users },
+                      { label: 'Lessons', value: lessonCount, icon: PlayCircle },
+                      { label: 'Assignments', value: assignmentCount, icon: BookOpen },
+                      { label: 'Students', value: classSeatCount(classroom), icon: Users },
                     ].map(s => (
                       <div key={s.label} className="bg-white/5 rounded-2xl p-4 text-center border border-white/5">
                         <s.icon size={20} className="mx-auto mb-2 text-white/20" />
@@ -1594,6 +1676,24 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
                       </div>
                     ))}
                   </div>
+                  {/* Locked preview for visitors: lesson titles only, from the public outline. */}
+                  {!hasAccess && !!classroom.lessonOutline?.length && (
+                    <div className="mt-10">
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-4">What's inside · enroll to unlock</h3>
+                      <ol className="space-y-2">
+                        {classroom.lessonOutline.map((l, i) => (
+                          <li key={l.id} className="flex items-center gap-4 p-4 bg-white/5 border border-white/5 rounded-2xl">
+                            <span className="w-8 h-8 shrink-0 rounded-xl bg-white/5 flex items-center justify-center text-[10px] font-black text-white/30">{i + 1}</span>
+                            <span className="flex-1 min-w-0 truncate text-xs font-black uppercase tracking-widest text-white/60">{l.title}</span>
+                            <Lock size={14} className="text-white/25 shrink-0" />
+                          </li>
+                        ))}
+                      </ol>
+                      {assignmentCount > 0 && (
+                        <p className="mt-4 text-[10px] uppercase tracking-widest text-white/30">+ {assignmentCount} assignment{assignmentCount !== 1 ? 's' : ''}</p>
+                      )}
+                    </div>
+                  )}
                 </motion.div>
               )}
 
@@ -1612,10 +1712,10 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
                       )}
                     </div>
                   )}
-                  {classroom.lessons.length === 0 ? (
+                  {lessons.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-white/5 border border-white/10 rounded-[3rem] text-center">
                       <PlayCircle size={40} className="text-white/10 mb-4" />
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white/30">No lessons published yet.</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-white/30">{courseworkLoading ? 'Loading lessons…' : 'No lessons published yet.'}</p>
                     </div>
                   ) : sortedLessons.map((lesson, i) => {
                     const done = doneLessons.includes(lesson.id);
@@ -1667,7 +1767,7 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
                           )}
                           <div>
                             <label className="text-[10px] font-black uppercase tracking-widest text-white/40 block mb-2">
-                              Grade / {classroom.assignments.find(a => a.id === gradingSubmission.assignmentId)?.maxPoints ?? 100} pts
+                              Grade / {assignments.find(a => a.id === gradingSubmission.assignmentId)?.maxPoints ?? 100} pts
                             </label>
                             <input type="number" value={gradeInput} onChange={e => setGradeInput(e.target.value)} placeholder="e.g. 85"
                               className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none" />
@@ -1689,12 +1789,12 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
                     )}
                   </AnimatePresence>
 
-                  {classroom.assignments.length === 0 ? (
+                  {assignments.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-white/5 border border-white/10 rounded-[3rem] text-center">
                       <BookOpen size={40} className="text-white/10 mb-4" />
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white/30">No assignments yet.</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-white/30">{courseworkLoading ? 'Loading assignments…' : 'No assignments yet.'}</p>
                     </div>
-                  ) : classroom.assignments.map(assignment => {
+                  ) : assignments.map(assignment => {
                     const mySubmission = submissions.find(s => s.assignmentId === assignment.id && (!isOwner || true));
                     const submissionsForThis = isOwner ? submissions.filter(s => s.assignmentId === assignment.id) : [];
                     const isPastDue = assignment.dueDate < Date.now();
@@ -1972,7 +2072,7 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
                       {isOwner && <p className="text-[10px] font-black uppercase tracking-widest text-white/30">All Student Grades</p>}
                       {grades.map(g => {
                         const pct = Math.round((g.grade / g.maxPoints) * 100);
-                        const assignment = classroom.assignments.find(a => a.id === g.assignmentId);
+                        const assignment = assignments.find(a => a.id === g.assignmentId);
                         return (
                           <div key={g.id} className="bg-white/5 border border-white/10 rounded-3xl p-5">
                             <div className="flex items-center justify-between mb-3">
@@ -2001,7 +2101,7 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
                   <div className="bg-white/5 border border-white/10 rounded-[3rem] p-8">
                     <h3 className="text-sm font-black uppercase tracking-widest mb-6">Lesson Progress</h3>
                     <div className="space-y-3">
-                      {classroom.lessons.map((lesson, i) => (
+                      {sortedLessons.map((lesson, i) => (
                         <div key={lesson.id} className="flex items-center gap-4">
                           <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center text-[9px] font-black text-white/20 flex-shrink-0">{i + 1}</div>
                           <div className="flex-1">
@@ -2010,7 +2110,7 @@ export const ClassroomDetail: React.FC<{ classroom: Classroom; onBack: () => voi
                           <div className={`w-3 h-3 rounded-full flex-shrink-0 ${doneLessons.includes(lesson.id) ? 'bg-emerald-400' : 'bg-white/10'}`} />
                         </div>
                       ))}
-                      {classroom.lessons.length === 0 && (
+                      {lessons.length === 0 && (
                         <p className="text-[10px] text-white/20 uppercase tracking-widest">No lessons yet.</p>
                       )}
                     </div>

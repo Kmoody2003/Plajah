@@ -1,4 +1,4 @@
-// The Halloween collection inside Ravencrest: lit roadside billboards on the Cinema Mile
+// The Plajah Horror Classics collection inside Ravencrest: lit roadside billboards on the Cinema Mile
 // (the approach road behind the art's frame) and gilt-framed posters in the Grand Hall.
 // Every one is interactive — walk up, press E (or tap) for the film card, "Watch" hands the
 // film id to the host Plajah page (RavencrestGameFrame), which opens it in the Cinema player.
@@ -95,7 +95,7 @@ function billboardFace(f: Film, img: HTMLImageElement | null): THREE.CanvasTextu
   const x = pw + 56, maxW = W - x - 56;
   g.fillStyle = f.hero ? '#ff8a2a' : '#e8b26a';
   g.font = '600 26px Georgia, serif';
-  g.fillText(f.hero ? 'PLAJAH CINEMA  ·  WORLD PREMIERE' : 'PLAJAH CINEMA  ·  HALLOWEEN COLLECTION', x, 92);
+  g.fillText(f.hero ? 'PLAJAH CINEMA  ·  WORLD PREMIERE' : 'PLAJAH CINEMA  ·  HORROR CLASSICS', x, 92);
   g.fillStyle = '#f4ead8';
   g.font = `bold ${f.title.length > 22 ? 72 : 92}px Georgia, serif`;
   wrap(g, f.title.toUpperCase(), x, 200, maxW, f.title.length > 22 ? 80 : 98, 2);
@@ -280,7 +280,7 @@ export class FilmCard {
     const q = <T extends Element>(s: string) => this.el.querySelector(s) as T;
     q<HTMLImageElement>('.fc-poster').src = f.poster;
     q<HTMLImageElement>('.fc-poster').onerror = function (this: HTMLImageElement) { if (f.posterFallback && this.src !== location.origin + f.posterFallback) this.src = f.posterFallback; };
-    q<HTMLElement>('.fc-kicker').textContent = f.hero ? 'Plajah Cinema · World premiere' : 'Plajah Cinema · Halloween collection';
+    q<HTMLElement>('.fc-kicker').textContent = f.hero ? 'Plajah Cinema · World premiere' : 'Plajah Horror Classics';
     q<HTMLElement>('.fc-title').textContent = f.title;
     q<HTMLElement>('.fc-meta').textContent = [f.year, f.director, f.runtime].filter(Boolean).join(' · ');
     q<HTMLElement>('.fc-tag').textContent = f.tagline;

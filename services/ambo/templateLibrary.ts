@@ -12,7 +12,8 @@
 import {
   collection, doc, getDocs, limit, query, setDoc, deleteDoc, where, updateDoc, increment,
 } from 'firebase/firestore';
-import { db, auth } from '../backendService';
+import { auth } from '../backendService';
+import { opsDb } from '../firebase';
 import type { ThemeOverrides } from './slideTemplates/types';
 
 export type TemplateKind = 'ambo-slide' | 'scripture-look' | 'tela-motion';
@@ -95,7 +96,7 @@ export async function saveTemplate(t: Omit<SavedTemplate, 'ownerUid' | 'createdA
   if (!user) keepLocal(false);
   else {
     try {
-      await setDoc(doc(db, COL, rec.id), rec);
+      await setDoc(doc(opsDb, COL, rec.id), rec);
       localWrite(localAll().filter(x => x.id !== rec.id)); // the cloud copy is now the copy
     } catch (e: any) {
       if (e?.code === 'permission-denied' || e?.code === 'unavailable' || e?.code === 'failed-precondition') keepLocal(true);
@@ -112,7 +113,7 @@ async function syncPending(uid: string): Promise<void> {
   for (const t of pending) {
     try {
       const { pendingSync: _p, ...rec } = t as any;
-      await setDoc(doc(db, COL, rec.id), clean({ ...rec, ownerUid: uid }));
+      await setDoc(doc(opsDb, COL, rec.id), clean({ ...rec, ownerUid: uid }));
       localWrite(localAll().filter(x => x.id !== t.id));
     } catch { return; } // still refused — try again next time
   }
@@ -121,7 +122,7 @@ async function syncPending(uid: string): Promise<void> {
 export async function deleteTemplate(id: string): Promise<void> {
   const local = localAll();
   if (local.some(x => x.id === id)) localWrite(local.filter(x => x.id !== id));
-  if (auth.currentUser) { try { await deleteDoc(doc(db, COL, id)); } catch (e: any) { if (!local.some(x => x.id === id)) throw e; } }
+  if (auth.currentUser) { try { await deleteDoc(doc(opsDb, COL, id)); } catch (e: any) { if (!local.some(x => x.id === id)) throw e; } }
   emit();
 }
 
@@ -139,7 +140,7 @@ export async function listMyTemplates(kind?: TemplateKind): Promise<SavedTemplat
   if (!user) return local.filter(t => !kind || t.kind === kind);
   let cloud: SavedTemplate[] = [];
   try {
-    cloud = rows(await getDocs(query(collection(db, COL), where('ownerUid', '==', user.uid), limit(200))));
+    cloud = rows(await getDocs(query(collection(opsDb, COL), where('ownerUid', '==', user.uid), limit(200))));
     void syncPending(user.uid);
   } catch { /* cloud unavailable: this device's templates still list */ }
   const ids = new Set(cloud.map(t => t.id));
@@ -150,20 +151,20 @@ export async function listMyTemplates(kind?: TemplateKind): Promise<SavedTemplat
 export async function listSharedWithMe(kind?: TemplateKind): Promise<SavedTemplate[]> {
   const user = auth.currentUser;
   if (!user) return [];
-  const snap = await getDocs(query(collection(db, COL), where('sharedWith', 'array-contains', user.uid), limit(200)));
+  const snap = await getDocs(query(collection(opsDb, COL), where('sharedWith', 'array-contains', user.uid), limit(200)));
   return rows(snap).filter(t => !kind || t.kind === kind).sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 /** Community: public templates, most used first (client-sorted so no composite index is needed). */
 export async function listCommunityTemplates(kind?: TemplateKind): Promise<SavedTemplate[]> {
-  const snap = await getDocs(query(collection(db, COL), where('visibility', '==', 'public'), limit(300)));
+  const snap = await getDocs(query(collection(opsDb, COL), where('visibility', '==', 'public'), limit(300)));
   return rows(snap).filter(t => !kind || t.kind === kind).sort((a, b) => (b.uses || 0) - (a.uses || 0) || b.updatedAt - a.updatedAt);
 }
 
 /** Count a use (insert into a show). Best-effort; never throws. */
 export async function noteTemplateUse(t: SavedTemplate): Promise<void> {
   if (!auth.currentUser || t.ownerUid === 'local') return;
-  try { await updateDoc(doc(db, COL, t.id), { uses: increment(1) }); } catch { /* not allowed / offline */ }
+  try { await updateDoc(doc(opsDb, COL, t.id), { uses: increment(1) }); } catch { /* not allowed / offline */ }
 }
 
 /** Find people to share with (display name / username / handle). */

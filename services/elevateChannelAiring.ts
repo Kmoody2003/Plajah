@@ -1,0 +1,157 @@
+// elevateChannelAiring — what actually aired on an org's Live Hub TV channel
+// during an Event Intelligence window.
+//
+// A TV-channel run (sourceKind FAST_CHANNEL, the N.2 sub-channel) has no live
+// stream recording: the channel plays videos from its schedule. So instead of
+// looking for a stream archive, we replay the channel's own playout resolver
+// (services/fastChannelTimeline.playoutPosition — the same one the player and
+// the guide use) across the window and add up how long each programme was on
+// screen. The programme with the most airtime is the service we transcribe.
+//
+// Pure: no Firestore here, so it runs in tests and on the server alike.
+
+import type { FastChannelSchedule, FastChannelSlot } from '../types';
+import { playoutPosition, resolveSlotMedia } from './fastChannelTimeline';
+
+export interface AiredProgram {
+  /** Stable key for the media (Mux playback id or url). */
+  key: string;
+  kind: 'MEDIA' | 'LIVE';
+  title: string;
+  muxPlaybackId?: string;
+  /** Non-Mux media url (mp4 / HLS). */
+  url?: string;
+  /** Seconds this programme was on air inside the window. */
+  airedSec: number;
+  /** Full length of the asset per the schedule (0 when unknown). */
+  durationSec: number;
+  /** Wall-clock ms the programme was first seen inside the window. */
+  firstSeenMs: number;
+  /** LIVE slots: where the live picture came from. */
+  liveSourceKind?: FastChannelSlot['liveSourceKind'];
+  liveSourceId?: string;
+}
+
+/** Programmes shorter than this inside the window are filler, not the service. */
+export const MIN_SERVICE_AIRTIME_SEC = 5 * 60;
+
+/**
+ * Sample the channel every `stepSec` across [windowStart, windowEnd) and total
+ * the airtime of each programme. Ads, bumpers, FM blocks and generative filler
+ * are ignored. Sorted by airtime, longest first.
+ */
+export function airedProgramsInWindow(
+  schedule: Pick<FastChannelSchedule, 'slots' | 'weeklySlots' | 'midnightAnchored' | 'timezone'> | null | undefined,
+  windowStart: number,
+  windowEnd: number,
+  stepSec = 30,
+): AiredProgram[] {
+  if (!schedule || !(windowEnd > windowStart)) return [];
+  const byKey = new Map<string, AiredProgram>();
+  const stepMs = Math.max(1, stepSec) * 1000;
+  for (let t = windowStart; t < windowEnd; t += stepMs) {
+    const pos = playoutPosition(schedule, t) as { slots: FastChannelSlot[]; offAir: boolean; index?: number };
+    if (pos.offAir) continue;
+    const slot = pos.slots[pos.index || 0];
+    if (!slot) continue;
+    const media = resolveSlotMedia(slot);
+    const add = Math.min(stepMs, windowEnd - t) / 1000;
+
+    if (media.kind === 'LIVE') {
+      const key = `live:${slot.liveSourceKind || ''}:${slot.liveSourceId || slot.liveSourceUrl || slot.id || 'live'}`;
+      const prev = byKey.get(key);
+      if (prev) { prev.airedSec += add; continue; }
+      byKey.set(key, {
+        key, kind: 'LIVE', title: media.title, url: slot.liveSourceUrl || undefined,
+        airedSec: add, durationSec: media.durationSec, firstSeenMs: t,
+        liveSourceKind: slot.liveSourceKind, liveSourceId: slot.liveSourceId,
+      });
+      continue;
+    }
+    if (media.kind !== 'MEDIA' || media.isAd || media.isBumper) continue;
+    const key = media.muxPlaybackId ? `mux:${media.muxPlaybackId}` : media.url ? `url:${media.url}` : '';
+    if (!key) continue;
+    const prev = byKey.get(key);
+    if (prev) { prev.airedSec += add; continue; }
+    byKey.set(key, {
+      key, kind: 'MEDIA', title: media.title,
+      muxPlaybackId: media.muxPlaybackId, url: media.url,
+      airedSec: add, durationSec: media.durationSec, firstSeenMs: t,
+    });
+  }
+  return [...byKey.values()].sort((a, b) => b.airedSec - a.airedSec || a.firstSeenMs - b.firstSeenMs);
+}
+
+/** The service: the longest-airing programme, if it ran long enough to be one. */
+export function pickServiceProgram(aired: AiredProgram[], minSec = MIN_SERVICE_AIRTIME_SEC): AiredProgram | null {
+  const top = aired[0];
+  return top && top.airedSec >= minSec ? top : null;
+}
+
+/** The url the captions route should fetch for a picked programme. */
+export function programMediaUrl(p: AiredProgram): string {
+  return p.muxPlaybackId ? `https://stream.mux.com/${p.muxPlaybackId}.m3u8` : (p.url || '');
+}
+
+// ─── Run resolution (data access injected: browser SDK or server REST) ──────
+
+export interface RunWindow { windowStart: number; windowEnd: number; channelOwnerId?: string }
+export interface OrgRef { id: string; name: string; creatorId?: string; admins?: string[] }
+/** The fields of a stream archive this module reads or builds. */
+export interface ArchiveRef { id: string; title?: string; ownerId?: string; ownerName?: string; muxPlaybackId?: string; durationMs?: number; startedAt?: number }
+
+export interface ChannelAiringDeps {
+  fetchSchedule: (uid: string) => Promise<FastChannelSchedule | null>;
+  /** The stream recording of a live break-in, for these owner ids. */
+  findArchive: (ownerIds: string[]) => Promise<ArchiveRef | null>;
+}
+
+/** The archive that started inside the run's window (15 min early allowed), earliest first. */
+export function pickArchiveForWindow<T extends ArchiveRef>(archives: T[], run: RunWindow, ownerIds: string[]): T | null {
+  const from = run.windowStart - 15 * 60 * 1000;
+  const hits = archives
+    .filter(a => (a.startedAt || 0) >= from && (a.startedAt || 0) <= run.windowEnd)
+    .filter(a => !ownerIds.length || ownerIds.includes(a.ownerId || ''));
+  hits.sort((a, b) => (a.startedAt || 0) - (b.startedAt || 0));
+  return hits[0] || null;
+}
+
+/**
+ * A TV-channel run: find the org's channel schedule, work out which programme
+ * aired longest inside the window, and present it to the pipeline in the same
+ * shape as a stream archive. A LIVE break-in on the channel falls back to the
+ * stream recording of that live show.
+ */
+export async function resolveChannelAiring<A = ArchiveRef>(run: RunWindow, org: OrgRef, deps: ChannelAiringDeps): Promise<{ archive: A; mediaUrl: string }> {
+  const candidates = [run.channelOwnerId, org.id, org.creatorId, ...(org.admins || [])]
+    .filter((v, i, a): v is string => !!v && a.indexOf(v) === i);
+  let ownerId = '';
+  let schedule: FastChannelSchedule | null = null;
+  for (const uid of candidates) {
+    const s = await deps.fetchSchedule(uid).catch(() => null);
+    if (s && ((s.slots && s.slots.length) || (s.weeklySlots && Object.keys(s.weeklySlots).length))) { ownerId = uid; schedule = s; break; }
+  }
+  if (!schedule) throw new Error('channel-schedule-not-found');
+
+  const program = pickServiceProgram(airedProgramsInWindow(schedule, run.windowStart, run.windowEnd));
+  if (!program) throw new Error('channel-nothing-aired');
+
+  if (program.kind === 'LIVE') {
+    const archive = await deps.findArchive([ownerId, org.id]);
+    if (!archive || !archive.muxPlaybackId) throw new Error('channel-live-recording-not-found');
+    return { archive: archive as unknown as A, mediaUrl: `https://stream.mux.com/${archive.muxPlaybackId}.m3u8` };
+  }
+
+  const mediaUrl = programMediaUrl(program);
+  if (!mediaUrl) throw new Error('channel-program-no-media');
+  const archive: ArchiveRef = {
+    id: `channel_${ownerId}_${program.muxPlaybackId || run.windowStart}`,
+    title: program.title,
+    ownerId,
+    ownerName: org.name,
+    muxPlaybackId: program.muxPlaybackId,
+    durationMs: program.durationSec ? program.durationSec * 1000 : undefined,
+    startedAt: program.firstSeenMs,
+  };
+  return { archive: archive as unknown as A, mediaUrl };
+}

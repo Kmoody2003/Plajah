@@ -21,6 +21,7 @@ import { SubtitleTracks, usableSubtitles } from './reello/CaptionTracks';
 import ReelloUniversalVideoPlayer from './reello/ReelloUniversalVideoPlayer';
 import ReelloLivePremierePlayer from './reello/ReelloLivePremierePlayer';
 import ReelloPremiereSchedulerModal from './reello/ReelloPremiereSchedulerModal';
+import { isShortForm } from '../services/reello/shortForm';
 
 /**
  * Vertical-first: a creator may supply a pre-rendered 9:16 master. It isn't on the `Video`
@@ -82,8 +83,9 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
         if (cancelled) return;
       }
 
-      const CINEMA_GENRES = ['Movie', 'TV Series', 'Feature Film'];
-      const isRelloVideo = (v: Video) => v.isRello === true || (v.isRello == null && !v.isLiveRecording && !(v.genre && CINEMA_GENRES.includes(v.genre)));
+      // The vertical feed shows Shorts only (services/reello/shortForm). `isRello` alone just means "on Reello",
+      // so treating it as "short" put every full-length upload in this feed.
+      const isRelloVideo = (v: Video) => isShortForm(v);
       // Scheduled ("Release later") videos stay hidden from everyone but their owner until releaseDate (services/releases/visibility.ts).
       const safe = (vs: Video[]) => filterForViewer(filterReleasedVideos(vs, currentUser?.uid), viewer);
 
@@ -191,11 +193,13 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
     // landscape original — it needs no cropping and is already framed for this feed.
     const vertical = verticalUrlOf(current);
     const pid = vertical ? undefined : ((current as any).muxPlaybackId as string | undefined);
+    // A Story Intelligence quote clip is a Mux instant clip: an HLS url over the source asset's range.
+    const clipStream = !vertical && (current as any).muxClip && /\.m3u8/.test(current.url || '') ? current.url : '';
     const direct = vertical || current.url;
     (async () => {
       try {
-        if (pid) {
-          const streamUrl = `https://stream.mux.com/${pid}.m3u8`;
+        if (pid || clipStream) {
+          const streamUrl = clipStream || `https://stream.mux.com/${pid}.m3u8`;
           if (v.canPlayType('application/vnd.apple.mpegurl')) {
             v.src = streamUrl;
             v.play?.().catch(() => {

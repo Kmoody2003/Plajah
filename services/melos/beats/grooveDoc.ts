@@ -16,13 +16,23 @@ export interface SampleRef {
   lockerUrl?: string;   // durable copy in the private locker — re-hydrates an OPFS miss
 }
 
+import type { NoteFxDevice } from './noteFx';
+import type { ChordAssist } from './chordAssist';
+import type { Modulator } from './modulators';
+
 export interface PadConfig {
   id: string;
+  /** One-shot pads' note FX (noteFx.ts). An instrument pad's live on its instrument. */
+  arp?: Record<string, unknown>;
+  noteFx?: NoteFxDevice[];
   name: string;
   color: string;
   source: 'sample' | 'synth' | 'instrument';
   sample: SampleRef | null;
   synthVoice?: SynthVoiceId;
+  /** source 'synth' — a parametric Drum Synth patch (drumSynth.ts). Absent = the legacy
+   *  `synthVoice` starter voice, which becomes a patch the first time it's edited. */
+  drumSynth?: DrumSynthPatch;
   // source 'instrument' — the pad plays a full ONDA/KERA instrument instead of a one-shot. It
   // references a `padOwned` ArrangeTrack (so every instrument surface — the editor panels, the
   // arp, patch persistence, offline render — is reused verbatim rather than forked onto the pad).
@@ -97,6 +107,8 @@ export interface MeloNote {
   semi: number;   // -24..24 relative to the pad's base pitch
   v: number;      // 1–127
   len: number;    // in 16th steps, >= 1
+  /** -0.5..0.5 of a step — where a played note sits against the grid (human feel, flams, triplets). */
+  micro?: number;
 }
 
 export interface Pattern {
@@ -364,6 +376,19 @@ export function evaluateNoteMpeAtProgress(
   };
 }
 
+/** How an audio clip entered the project, and from what. Written once, when the clip is made. */
+export interface AudioOrigin {
+  how: 'recorded' | 'imported' | 'generated' | 'bounced';
+  /** Account that brought it in. */
+  byUid?: string;
+  /** Input it was captured from ("StudioLive 32SX · in 7", a mic label). */
+  input?: string;
+  /** Original file name, for imports. */
+  file?: string;
+  engine?: string;
+  at?: number;
+}
+
 export interface TimelineClip {
   id: string;
   startBeats: number;
@@ -401,14 +426,16 @@ export interface TimelineClip {
             peaks?: number[]; detectedBpm?: number;
             /** Optional generative model provenance for ACE-Step 2.5 / YuE2 / HeartMuLa stems */
             generativeEngine?: string;
-            stemPrompt?: string };
+            stemPrompt?: string;
+            /** Where this audio came from — read by the contribution ledger (services/chora/contrib). */
+            origin?: AudioOrigin };
 }
 
 
 /** The meditation suite (vela/cantus/ison/pneuma) shares one engine and one editor; they are
  *  separate types because they are separate instruments — different purpose, different preset
  *  bank, different thing you reach for. See instruments/vela/suite.ts. */
-export type InstrumentType = 'onda' | 'kera' | 'vela' | 'cantus' | 'ison' | 'pneuma' | 'bajo' | 'aura' | 'soma';
+export type InstrumentType = 'onda' | 'kera' | 'vela' | 'cantus' | 'ison' | 'pneuma' | 'bajo' | 'aura' | 'soma' | 'lyra';
 
 export interface TrackInstrument {
   type: InstrumentType;
@@ -417,6 +444,8 @@ export interface TrackInstrument {
   presetName?: string;
   /** Serialized ArpPatch. Loosely typed for the same reason as `patch`. */
   arp?: Record<string, unknown>;
+  /** The rest of the note-FX chain (noteFx.ts) — runs on drawn notes, steps and played notes. */
+  noteFx?: NoteFxDevice[];
   /** type 'kera' — a SerializedKeraProgram: zones + amp + sample refs (PCM lives in the owner's
    *  OPFS/locker, not in this doc). Loosely typed so grooveDoc stays engine-agnostic. */
   kera?: Record<string, unknown>;
@@ -463,9 +492,16 @@ export interface ArrangeTrack {
   songGroup?: number;
   /** Optional generative model badge for hybrid AI + synth tracks (e.g. 'ace-step-2.5', 'yue2', 'qwen-score') */
   generativeEngine?: string;
+  /** kind 'audio' — hardware input this track records from (mixerLink/types.ts). */
+  input?: TrackInput;
+  /** Live jam (shared projects): the input this track monitors/records, `${uid}:${inputId}` — on
+   *  this device when uid is yours, else streamed from that collaborator (services/coedit/rig.ts). */
+  jamInput?: string;
 }
 
+import type { DrumSynthPatch } from './drumSynth';
 import type { FxInstance } from './fx/devices';
+import type { MixerLinkSession, TrackInput } from './mixerLink/types';
 import type { MeterChange, TempoPoint } from './tempoMap';
 
 /** A MEKA scene: which pattern each Group plays (missing / null = the Group is silent). */
@@ -530,6 +566,16 @@ export function defaultSendBuses(): SendBusConfig[] {
   return [{ name: 'FX 1', gainDb: 0 }, { name: 'FX 2', gainDb: 0 }];
 }
 
+/** A Maschine Group slot's label. Absent fields fall back to "Group A" and the bank's default tint. */
+export interface GroupMeta {
+  name?: string;
+  color?: string;
+  /** The kit file this Group was loaded from (Maschine group, MPC program, Drum Rack…). */
+  source?: { format: string; kit: string };
+  /** Group macro knobs (controlPages.ts) — relative offsets already applied to the Group's pads. */
+  offsets?: { tune?: number; level?: number; decay?: number; cutoff?: number };
+}
+
 export interface GrooveDoc {
   id: string;
   name: string;
@@ -542,10 +588,16 @@ export interface GrooveDoc {
   meter?: MeterChange[];
   /** The project key — read by the piano roll, hum transcription, generators and the council. */
   key?: SongKey;
+  /** Auto-chord: one note drawn or played becomes a chord in the key (chordAssist.ts). */
+  chordAssist?: ChordAssist;
+  /** Parameter animation: every modulator in the song, each attached to its target (modulators.ts). */
+  modulators?: Modulator[];
   /** MEKA scenes: one pattern per Group, launched together (Maschine scenes / MPC sequences). */
   scenes?: Scene[];
   /** The song as scene sections in order (Maschine Song view). They write the Group tracks. */
   sections?: SongSection[];
+  /** MEKA Group slots (index = bank of 16): name, color and where an imported kit came from. */
+  groupMeta?: GroupMeta[];
   // Song-mode loop/cycle region (beats). Optional for back-compat with docs saved before it
   // existed — consumers default it off. Pattern mode loops the pattern itself, independently.
   loop?: { on: boolean; startBeats: number; endBeats: number };
@@ -553,6 +605,10 @@ export interface GrooveDoc {
   patterns: Pattern[];
   arrangement: ArrangeTrack[];
   mixer: MixerState;
+  /** Hardware console linked to this session (channel names, snapshots, soundcheck state). */
+  mixerLink?: MixerLinkSession;
+  /** Session band (band/): the genre it last played, the chart, and each player's seat track. */
+  band?: { genre: string; chart?: string; seats: Record<string, string>; takes?: number };
   /** Film cue section markers across the arrangement timeline (Overture, Theme A, Theme B, Development, Climax, Coda) */
   sectionMarkers?: FilmScoreSectionMarker[];
   /** The song's words, line by line, each on the (0-based) bar where it is sung. Read by the

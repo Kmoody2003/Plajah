@@ -1,0 +1,28 @@
+#!/bin/sh
+# Stops a push to master that rewrites its history or would undo shipped work.
+# Install once per clone: node scripts/hooks/install.mjs
+zero=0000000000000000000000000000000000000000
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ "$remote_ref" = "refs/heads/master" ] || continue
+  if [ "$local_sha" = "$zero" ]; then
+    echo "Refusing to delete master." >&2
+    exit 1
+  fi
+  if [ "$remote_sha" != "$zero" ] && ! git merge-base --is-ancestor "$remote_sha" "$local_sha"; then
+    echo "Refusing to push: this commit doesn't contain what's on master, so it would erase shipped work. Merge origin/master first." >&2
+    exit 1
+  fi
+  guard=$(mktemp)
+  if ! git show "$local_sha:scripts/checkShippedWork.mjs" > "$guard" 2>/dev/null; then
+    rm -f "$guard"
+    echo "Refusing to push: this commit has no scripts/checkShippedWork.mjs. Merge origin/master first." >&2
+    exit 1
+  fi
+  cp "$guard" "$guard.mjs"
+  rm -f "$guard"
+  node "$guard.mjs" "$local_sha"
+  status=$?
+  rm -f "$guard.mjs"
+  [ "$status" -eq 0 ] || exit 1
+done
+exit 0

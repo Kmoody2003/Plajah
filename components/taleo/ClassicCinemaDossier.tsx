@@ -1577,7 +1577,7 @@ export const CharactersAndActorsSection: React.FC<{
   );
 };
 
-// ── Halloween Curation Story Intelligence, Character & Actor Hub ─────────────
+// ── Plajah Horror Classics Story Intelligence, Character & Actor Hub ─────────────
 export const HalloweenCurationStoryIntelSection: React.FC<{
   onPlayFilm?: (filmId: string) => void;
   onOpenFilmStoryIntel?: (filmId: string) => void;
@@ -1621,10 +1621,10 @@ export const HalloweenCurationStoryIntelSection: React.FC<{
             Story Intelligence Engine • Full Curation Coverage ({bundles.length} Films)
           </div>
           <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">
-            Halloween Curation: Story Intelligence, Characters & The Actors Behind Them
+            Plajah Horror Classics: Story Intelligence, Characters & The Actors Behind Them
           </h2>
           <p className="text-xs md:text-sm text-zinc-400 max-w-3xl mt-1">
-            Every film in the Halloween Curation has been analyzed by Cinema Story Intelligence — unlocking 3-act structural breakdowns, timestamped scenes, key MacGuffins, character psychological arcs, and the biographies & filmographies of the actors and directors behind them.
+            Every film in Plajah Horror Classics has been analyzed by Cinema Story Intelligence — unlocking 3-act structural breakdowns, timestamped scenes, key MacGuffins, character psychological arcs, and the biographies & filmographies of the actors and directors behind them.
           </p>
         </div>
       </div>

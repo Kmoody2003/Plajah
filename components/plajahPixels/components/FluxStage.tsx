@@ -8,6 +8,8 @@ import React, { useEffect, useRef } from 'react';
 import { VisualizationConfig, MODE_TO_FLUX_SCENE } from '../types';
 import { renderFluxLatest } from '../engine/core/flux';
 import { FluxMusicSampler } from '../../../services/fabula/fluxMusic';
+import { getOrComputeAnalysis } from '../../../services/djAnalysis';
+import type { SongMap } from '../../../services/fabula/songMap';
 import { AdaptiveScale, quantizePx } from '../engine/core/adaptiveScale';
 
 // Render tier, per device: 'ultra' opts the scenes that have one (Deco Morph) into their photoreal
@@ -27,9 +29,21 @@ interface Props {
   config: VisualizationConfig;
   isPlaying: boolean;
   id?: string;
+  /** The song playing on the global player. Its saved song map (Music Intelligence, part of the track's
+   *  data) lets directed scenes see drops coming; read only, never computed here. */
+  songTrack?: { id: string; url?: string } | null;
 }
 
-const FluxStage: React.FC<Props> = ({ analyser, config, isPlaying, id }) => {
+const FluxStage: React.FC<Props> = ({ analyser, config, isPlaying, id, songTrack }) => {
+  const songRef = useRef<SongMap | null>(null);
+  useEffect(() => {
+    songRef.current = null;
+    if (!songTrack?.id) return;
+    let alive = true;
+    getOrComputeAnalysis({ id: songTrack.id, url: songTrack.url || '' } as any, { computeIfMissing: false })
+      .then(a => { if (alive) songRef.current = a?.songMap ?? null; }).catch(() => {});
+    return () => { alive = false; };
+  }, [songTrack?.id]);
   const vizRef = useRef<HTMLCanvasElement>(null);
   const cfgRef = useRef(config); cfgRef.current = config;
   const analyserRef = useRef(analyser); analyserRef.current = analyser;
@@ -112,6 +126,10 @@ const FluxStage: React.FC<Props> = ({ analyser, config, isPlaying, id }) => {
         };
       }
       const t = (now - start) / 1000;
+      if (songRef.current) {
+        const el = document.getElementById('__plajah_audio__') as HTMLAudioElement | null;
+        if (el && !el.paused) (bands as any).song = { map: songRef.current, t: el.currentTime };
+      }
       const src = renderFluxLatest(
         { scene: scene as any, sensitivity: cfg.sensitivity, exposure: 1, bloom: Math.max(0.4, Math.min(2, (cfg.glowIntensity || 15) / 15)), quality },
         cv.width, cv.height, t, bands,

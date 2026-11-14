@@ -146,7 +146,7 @@ export const VelaPanel: React.FC<Props> = ({ track, onMutate, onClose, embedded 
         )}
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 [&>*]:shrink-0">
         {/* The hero control: the actual partial layout, not a decoration. */}
         <PartialDisplay
           partials={p(M.PARTIALS, 0.5)}

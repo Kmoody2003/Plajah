@@ -14,9 +14,8 @@ import React, { useState, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { X, Music2, ExternalLink, Loader2, Check, AlertCircle, LogIn, Disc3 } from 'lucide-react';
 import { Album } from '../types';
-import { publishAlbumToAudius } from '../services/audiusService';
+import { runAudiusPublishForAlbum, type AudiusTrackProgress } from '../services/audiusService';
 import { loginWithAudius, logoutAudius, getAudiusSession } from '../services/audiusAuth';
-import { publishToCloud } from '../services/backendService';
 
 interface AudiusCreds { bearerToken: string; userId: string; handle: string }
 
@@ -40,7 +39,7 @@ interface TrackResult { title: string; trackId: string | null; permalink: string
 export default function AudiusPublishModal({ album, onClose, onPublished }: Props) {
   const [creds, setCreds] = useState<AudiusCreds | null>(() => loadCreds());
   const [step, setStep] = useState<Step>('idle');
-  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [progress, setProgress] = useState<{ done: number; total: number; current?: AudiusTrackProgress }>({ done: 0, total: 0 });
   const [results, setResults] = useState<TrackResult[]>([]);
   const [albumPermalink, setAlbumPermalink] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -59,54 +58,35 @@ export default function AudiusPublishModal({ album, onClose, onPublished }: Prop
     }
   };
 
-  const runPublish = useCallback(async (c: AudiusCreds) => {
+  const runPublish = useCallback(async (_c: AudiusCreds) => {
     setStep('publishing');
+    setError('');
     const tracks = album.tracks ?? [];
     setProgress({ done: 0, total: tracks.length });
-    const trackResults: TrackResult[] = [];
-
     try {
-      const res = await publishAlbumToAudius(
-        album,
-        c.bearerToken,
-        c.userId,
-        (done, total) => {
-          setProgress({ done, total });
-          if (done > 0 && tracks[done - 1]) {
-            trackResults.push({ title: tracks[done - 1].title, trackId: null, permalink: null });
-            setResults([...trackResults]);
-          }
-        },
-        c.handle,
-      );
-
-      if (res.published.length === 0 && res.failed.length > 0) {
-        throw new Error(`Could not upload tracks to Audius (${res.failed.join(', ')})`);
+      // The shared job: fresh token, skips tracks already sent, saves status + links on the album.
+      const res = await runAudiusPublishForAlbum(album, (done, total, current) => setProgress({ done, total, current }));
+      if (res.published.length === 0 || res.failed.length || res.error) {
+        throw new Error(res.error || res.failed[0] || 'Could not upload to Audius.');
       }
-
-      const finalPermalink = res.albumPermalink || `https://audius.co/${c.handle}`;
+      const finalPermalink = res.albumUrl || res.albumPermalink || `https://audius.co/${_c.handle}`;
       setAlbumPermalink(finalPermalink);
-      setResults(
-        tracks.map((t, idx) => ({
-          title: t.title,
-          trackId: res.published[idx]?.trackId ?? 'published',
-          permalink: res.published[idx]?.permalink ?? finalPermalink,
-        }))
-      );
-
+      const bySource = new Map(res.published.map(p => [p.sourceTrackId, p]));
+      setResults(tracks.map(t => {
+        const p = bySource.get(t.id);
+        return { title: t.title, trackId: p?.trackId ?? null, permalink: p?.permalink ?? null };
+      }));
       const updated: Album = {
         ...album,
         publishToAudius: true,
         audiusPublishStatus: 'published',
         audiusUrl: finalPermalink,
+        audiusPermalinks: res.published.map(p => p.permalink),
       } as Album;
-      try {
-        await publishToCloud(updated);
-      } catch { /* best-effort cloud status sync */ }
       onPublished?.(updated);
       setStep('done');
     } catch (err: any) {
-      setError(err.message ?? 'Publish failed');
+      setError(err?.message ?? 'Publish failed');
       setStep('error');
     }
   }, [album, onPublished]);
@@ -121,7 +101,7 @@ export default function AudiusPublishModal({ album, onClose, onPublished }: Prop
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-6"
-      onClick={onClose}>
+      onClick={() => { if (step !== 'publishing') onClose(); }}>
       <motion.div
         initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
         transition={{ duration: 0.15 }}
@@ -183,13 +163,14 @@ export default function AudiusPublishModal({ album, onClose, onPublished }: Prop
             <div className="flex items-center gap-2 text-sm text-white/60">
               <Loader2 size={14} className="animate-spin text-purple-400"/>
               {progress.done < progress.total
-                ? `Uploading track ${progress.done + 1} of ${progress.total}…`
+                ? `${progress.current?.phase === 'processing' ? 'Audius is processing' : 'Uploading'} track ${progress.done + 1} of ${progress.total}${progress.current ? ` · ${Math.round(progress.current.fraction * 100)}%` : ''}…`
                 : 'Bundling tracks into Audius Album…'}
             </div>
             <div className="w-full bg-white/5 rounded-full h-1.5">
               <div className="bg-purple-500 h-1.5 rounded-full transition-all"
-                style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }}/>
+                style={{ width: `${progress.total ? ((progress.done + (progress.done < progress.total && progress.current ? (progress.current.phase === 'processing' ? 0.5 : 0) + progress.current.fraction / 2 : 0)) / progress.total) * 100 : 0}%` }}/>
             </div>
+            <p className="text-xs text-white/30">Keep this tab open until it finishes. Each song uploads, then Audius processes it.</p>
             {tracks.slice(0, progress.done).map((t, i) => (
               <div key={i} className="flex items-center gap-2 text-xs text-white/40">
                 <Check size={11} className="text-green-400"/> {t.title}
@@ -236,6 +217,12 @@ export default function AudiusPublishModal({ album, onClose, onPublished }: Prop
               className="w-full py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white/60 hover:bg-white/10 transition-colors">
               Try again
             </button>
+            {/Reconnect Audius|Connect your Audius/.test(error) && (
+              <button onClick={() => { void startOAuth(); }}
+                className="w-full py-2.5 bg-purple-500 text-white font-bold rounded-xl hover:bg-purple-400 transition-colors flex items-center justify-center gap-2">
+                <LogIn size={14}/> Reconnect Audius
+              </button>
+            )}
           </div>
         )}
       </motion.div>

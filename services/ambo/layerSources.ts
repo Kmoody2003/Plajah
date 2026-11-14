@@ -809,6 +809,14 @@ export class GeneratorSource implements LayerSource {
     this.liveIn = null;
   }
 
+  /** A host outside Stage (e.g. a Tela document) supplies its own analyser — the Plajah player's,
+   *  or null for gentle idle motion. Replaces whatever audio source was set. */
+  useAnalyser(node: AnalyserNode | null): void {
+    this.releaseLiveIn();
+    this.audioSrc = 'external';
+    this.analyserNode = node;
+  }
+
   setAudioSource(source: 'ambo-playback' | 'live-input' | 'none'): void {
     this.audioSrc = source;
     this.releaseLiveIn();
@@ -988,8 +996,16 @@ export class GeneratorSource implements LayerSource {
 
       if (this.path === 'flux' && this.flux && this.ctx2d) {
         const t = fluxClock();
-        const fluxAudio=this.analyserNode?this.fluxMusic.sample(readLive(this.analyserNode,t).freq,t,this.analyserNode.context?.sampleRate||48000):SILENT_AUDIO;
-        const src = this.flux.render({ scene: this.fluxScene }, this.w, this.h, t, fluxAudio);
+        let fluxAudio = SILENT_AUDIO;
+        const an = this.analyserNode;
+        if (an) {
+          readLive(an, t);   // fills rawFreq with the analyser's first min(1024, bins) bins
+          const nb = Math.min(1024, an.frequencyBinCount);
+          // those bins span only nb/bins of the spectrum: scale the rate so Flux's bands land on the right Hz
+          fluxAudio = this.fluxMusic.sample(rawFreq.subarray(0, nb), t, (an.context?.sampleRate || 48000) * nb / Math.max(1, an.frequencyBinCount));
+        }
+        const fp = this.content.params ?? {};
+        const src = this.flux.render({ scene: this.fluxScene, morph: numParam(fp, 'morph', 1) >= 0.5, director: numParam(fp, 'director', 1) >= 0.5 } as any, this.w, this.h, t, fluxAudio);
         if (src) {
           this.ctx2d.drawImage(src, 0, 0, this.w, this.h);
           this.fluxDrawn = true;
@@ -1097,6 +1113,9 @@ export class ShaderSource implements LayerSource {
   bornAt = Date.now();
   pendingCanvas: HTMLCanvasElement | null = null;
 
+  /** Set by hosts outside Stage: their analyser (or null = idle). Undefined = the Stage mix. */
+  externalAnalyser: AnalyserNode | null | undefined = undefined;
+
   constructor(private content: Extract<LayerContent, { kind: 'SHADER' }>, public w = 1280, public h = 720) {
     this.canvas = off(w, h);
     void this.init();
@@ -1168,7 +1187,8 @@ export class ShaderSource implements LayerSource {
       if (this.path === 'shadertoy' && this.gl && this.renderer && this.prog) {
         const gl = this.gl;
         if (gl.isContextLost()) { this.toFallback('Graphics context lost'); return this.frame(timeSec); }
-        const analyser: AnalyserNode | null = (typeof window !== 'undefined' ? (window as any).getAmboMasterAnalyser?.() : null) ?? null;
+        const analyser: AnalyserNode | null = this.externalAnalyser !== undefined ? this.externalAnalyser
+          : (typeof window !== 'undefined' ? (window as any).getAmboMasterAnalyser?.() : null) ?? null;
         feedAudioTexture(this.audio, analyser, timeSec);
         const p = this.content.params ?? {};
         const num = (k: string, d: number) => (typeof p[k] === 'number' ? (p[k] as number) : d);

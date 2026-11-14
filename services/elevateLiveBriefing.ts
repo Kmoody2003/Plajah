@@ -1,6 +1,6 @@
 // elevateLiveBriefing — Plajah Elevate, supercharged.
 //
-// What this adds on top of the existing Ministry Content Synergy Engine
+// What this adds on top of the existing Event Intelligence pipeline
 // (services/ministryRepurpose.ts, Phase 1: transcript -> ONE article draft):
 //
 //   1. SCHEDULED / AUTO runs — an org turns the feature ON per source (a live
@@ -463,6 +463,12 @@ export interface RunPipelineInput {
   outputs: ElevateLiveConfig['outputs'];
 }
 
+export interface ElevatePipelineMedia {
+  transcribe?: (url: string, title: string, speaker: string) => Promise<StreamTranscript>;
+  createClip?: typeof createClip;
+  publishClip?: typeof publishClipAsShort;
+}
+
 export interface RunPipelineResult {
   briefing: ServiceBriefing;
   articleId: string | null;
@@ -485,12 +491,19 @@ export async function runElevateLivePipeline(
     /** Auto-publish the briefing as a feed document post. Returns post id. */
     publishBriefing?: (org: Organization, b: ServiceBriefing, blocks: ElevateArticleBlock[]) => Promise<string | null>;
   },
+  /** Media steps that need a signed-in browser by default. The server job
+   *  (services/elevateLiveServer.ts) passes its own: server-side captions and
+   *  clip/short writes owned by the church's account. */
+  ai: ElevatePipelineMedia = {},
 ): Promise<RunPipelineResult> {
+  const transcribe = ai.transcribe || transcribeAudioUrl;
+  const makeClip = ai.createClip || createClip;
+  const publishClip = ai.publishClip || publishClipAsShort;
   const costItems: CostLineItem[] = [];
   const playbackId = (input.archive as any).muxPlaybackId as string | undefined;
 
   // 1. Transcribe (server route /api/ai/captions under the hood).
-  const transcript = await transcribeAudioUrl(input.mediaUrl, input.archive.title || '', input.org.name);
+  const transcript = await transcribe(input.mediaUrl, input.archive.title || '', input.org.name);
   const audioSeconds = (input.archive as any).durationMs ? (input.archive as any).durationMs / 1000 : transcript.segments.at(-1)?.time || 0;
   costItems.push({
     stage: 'transcription', detail: '/api/ai/captions (Gemini audio)',
@@ -526,10 +539,10 @@ export async function runElevateLivePipeline(
   if (input.outputs.clips) {
     for (const h of intel.highlights.slice(0, 5)) {
       const range = normalizeRange(h.clipStartSec, h.clipEndSec, audioSeconds || undefined);
-      const clip = await createClip({ archive: input.archive, startSec: range.startSec, endSec: range.endSec, title: h.title });
+      const clip = await makeClip({ archive: input.archive, startSec: range.startSec, endSec: range.endSec, title: h.title });
       if (clip) {
         clipIds.push(clip.id);
-        const videoId = await publishClipAsShort(clip);
+        const videoId = await publishClip(clip);
         if (videoId) clipVideoIds.push(videoId);
         clipBlocks.push({ highlight: h, videoId: videoId || undefined, playbackId });
       }

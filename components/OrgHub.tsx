@@ -4,6 +4,7 @@
 // create form, and a public org profile. Brand accounts are Organizations
 // (orgType 'BRAND'); the same page will serve churches (orgType 'CHURCH') in Part 3.
 
+import { orgCanReceiveGiving } from '../services/orgFinanceCore';
 import React, { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import CreateEventButton from './events/CreateEventButton';
 import { motion } from 'motion/react';
@@ -12,7 +13,7 @@ import {
   Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail, HardDrive, Briefcase, Megaphone,
   KeyRound, UserCheck, Home, Image as ImageIcon, Calendar, Play, HandHeart, BookOpen,
   Heart, MessageSquare, Ticket, ExternalLink, Radio, NotebookPen, ArrowRight, ChevronLeft,
-  ShoppingBag,
+  ShoppingBag, GraduationCap,
 } from 'lucide-react';
 import type { Organization, OrgMembership, OrgType, OrgRole, UserProfile } from '../types';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
@@ -25,6 +26,7 @@ import {
 import { uploadFile, searchUserProfiles, auth } from '../services/backendService';
 import { connectStripe } from '../services/stripeService';
 import ApplyModal from './business/ApplyModal';
+import FrontDeskAsk from './crew/FrontDeskAsk';
 import CareersView from './business/CareersView';
 import { fetchOrgPostings } from '../services/hiringService';
 import { orgCan } from '../services/orgPermissions';
@@ -53,6 +55,7 @@ import OrgStoreSection from './elevate/OrgStoreSection';
 import HostEventsPublic from './events/HostEventsPublic';
 import OrgThread from './elevate/OrgThread';
 import OrgMediaShelves from './elevate/OrgMediaShelves';
+import ReelloDeptChannelsRow from './reello/ReelloDeptChannelsRow';
 import RelloChurchViewer from './elevate/RelloChurchViewer';
 // Operations side + public rosters + Church Member Hub (lazy so the public page never blocks on them).
 const ElevateOps = lazy(() => import('./elevate/ElevateOps'));
@@ -324,7 +327,7 @@ const ImagePick: React.FC<{ label: string; file: File | null; onPick: (f: File) 
   </label>
 );
 
-type ElevateOrgTab = 'HOME' | 'MINISTRIES' | 'MOBILIZE' | 'PHOTOS' | 'EVENTS' | 'WATCH' | 'PRAYER' | 'LIBRARY' | 'STAFF' | 'GIVE' | 'SHOP';
+type ElevateOrgTab = 'HOME' | 'MINISTRIES' | 'CHRISTIAN_ED' | 'MOBILIZE' | 'PHOTOS' | 'EVENTS' | 'WATCH' | 'PRAYER' | 'LIBRARY' | 'STAFF' | 'GIVE' | 'SHOP';
 
 function getElevateOrgTabs(orgType?: OrgType): { k: ElevateOrgTab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] {
   const faith = isFaithOrg(orgType);
@@ -332,6 +335,7 @@ function getElevateOrgTabs(orgType?: OrgType): { k: ElevateOrgTab; label: string
     return [
       { k: 'HOME',       label: 'Home',             icon: Home },
       { k: 'MINISTRIES', label: 'Ministries',       icon: Users },
+      { k: 'CHRISTIAN_ED', label: 'Christian Education', icon: GraduationCap },
       { k: 'MOBILIZE',   label: 'Serve & Action',   icon: Sparkles },
       { k: 'PHOTOS',     label: 'Photos',           icon: ImageIcon },
       { k: 'EVENTS',     label: 'Events',           icon: Calendar },
@@ -582,20 +586,22 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             <Gift size={14} /> {orgTabs.find(t => t.k === 'GIVE')?.label || 'Give'}
           </button>
           {org.socialLinks?.website && <a href={org.socialLinks.website} target="_blank" rel="noopener noreferrer" className="ev-btn" style={{ color: EV.violetText, paddingLeft: 6, paddingRight: 6, fontWeight: 500 }}><Globe size={14} /> Website</a>}
+          {!demo && <FrontDeskAsk orgId={org.id} orgName={org.name} />}
         </>}
       />
 
       {/* ── Sticky section tabs (names tailored to org type) ── */}
       <EvTabs tabs={orgTabs.map(t => ({ k: t.k, label: t.label }))} value={ministryOpen ? null : tab} onChange={k => { setTab(k as ElevateOrgTab); setOpenMinistry(null); }} top={52} />
 
-      {/* ── Main Content Container with Persistent Live Stream Carousel Under the Tabs ── */}
       <div className="max-w-[1240px] mx-auto px-4 sm:px-8 py-10 space-y-8">
-        {/* PERSISTENT LIVE STREAM THUMBNAIL CAROUSEL (Always mounted under the tabs so users can hop in and watch from anywhere on the org page without interrupting playback) */}
-        {/* Always-on window: a live stream or the org's TV Live Hub+ channel plays here, muted. */}
+        {/* Reello player: full on Home, a floating mini player on every other tab so playback carries on.
+            Org-owned sources only (see services/orgMedia). */}
         <RelloChurchViewer
           org={org}
           defaultPlayerExpanded={true}
           viewerIsOrgMember={myMembership?.status === 'ACTIVE'}
+          compact={tab !== 'HOME' || !!ministryOpen}
+          onExpand={() => { setOpenMinistry(null); setTab('HOME'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
           onOpenOnAir={item => {
             if (item.feed) {
               if (onOpenLive) onOpenLive(item.feed);
@@ -750,6 +756,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
             {tab === 'PHOTOS' && (
               <div className="space-y-8">
                 <OrgMediaShelves org={org} isOwner={isOwner} canManage={can('MANAGE_CONTENT')} onOrgChange={setOrg} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} />
+                <ReelloDeptChannelsRow orgId={org.id} className="mt-8" />
                 {demo && <EvGallery albums={DEMO_CHURCH_ALBUMS} perAlbum={9} />}
               </div>
             )}
@@ -807,6 +814,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                   </button>
                 )}
                 <OrgMediaShelves org={org} isOwner={isOwner} canManage={can('MANAGE_CONTENT')} onOrgChange={setOrg} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} />
+                <ReelloDeptChannelsRow orgId={org.id} className="mt-8" />
                 {demo && <AdaptiveGrid phone={1} tablet={2} desktop={2} gap="1rem">
                   {DEMO_CHURCH_VIDEOS.map(v => (
                     <div key={v.id} className="text-left group">
@@ -829,6 +837,11 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
               <div className="max-w-3xl space-y-6">
                 <ChurchPrayerWall orgId={org.id} isOwner={isOwner} canSeePrivate={can('VIEW_PRAYER')} canManage={can('MANAGE_PRAYER')} />
               </div>
+            )}
+
+            {/* ── CHRISTIAN EDUCATION (faith orgs) ── */}
+            {tab === 'CHRISTIAN_ED' && faith && (
+              <ChurchEducation church={org} membership={myMembership} canEdit={can('MANAGE_CONTENT')} />
             )}
 
             {/* ── TAB 7: LIBRARY / RESOURCES ── */}
@@ -855,13 +868,6 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                       </button>
                     ))}
                   </div>
-                )}
-
-                {faith && (
-                  <section aria-label="Classes and studies">
-                    <h2 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/50 mb-3">Classes and studies</h2>
-                    <ChurchEducation church={org} canEdit={can('MANAGE_CONTENT')} />
-                  </section>
                 )}
 
                 {demo && <div>
@@ -1086,11 +1092,11 @@ const OrgManage: React.FC<{ org: Organization; staff: OrgMembership[]; onClose: 
               className="px-4 rounded-2xl bg-white/10 text-white text-[10px] font-black uppercase tracking-widest hover:bg-white/20 shrink-0">Add</button>
           </div>
           <div className="flex items-center gap-2 mb-3">
-            <p className="flex-1 text-[11px] text-white/50">{org.stripeAccountId ? 'Stripe is connected. Payout details are managed in Stripe.' : 'Connect Stripe to accept card and bank gifts. Stripe verifies the account; nobody types an account number here.'}</p>
+            <p className="flex-1 text-[11px] text-white/50">{orgCanReceiveGiving(org) ? 'Stripe is connected. Payout details are managed in Stripe.' : 'Connect Stripe to accept card and bank gifts. Stripe verifies the account; nobody types an account number here.'}</p>
             <button type="button" onClick={async () => { const t = await auth.currentUser?.getIdToken(); if (t) connectStripe({ orgId: org.id, userIdToken: t }).catch(e => alert(e?.message || 'Could not start Stripe onboarding')); }}
               className="px-4 py-3 rounded-2xl bg-[#635bff] text-white text-[10px] font-black uppercase tracking-widest hover:brightness-110 shrink-0 whitespace-nowrap">Connect Stripe</button>
           </div>
-          {org.stripeAccountId && <p className="text-[9px] font-black uppercase tracking-widest text-green-400 mb-3 flex items-center gap-1.5"><Check size={11} /> Payouts connected — giving routes to this account</p>}
+          {orgCanReceiveGiving(org) && <p className="text-[9px] font-black uppercase tracking-widest text-green-400 mb-3 flex items-center gap-1.5"><Check size={11} /> Payouts connected — giving routes to this account</p>}
           <input value={givingUrl} onChange={e => setGivingUrl(e.target.value)} placeholder="External giving link (optional — overrides native Stripe giving)" className={`${field} mb-5`} />
 
           <p className="text-[9px] font-black uppercase tracking-widest text-white/40 mb-2 flex items-center gap-2"><Church size={11} /> Ministries</p>

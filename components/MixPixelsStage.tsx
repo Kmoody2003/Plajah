@@ -3,10 +3,11 @@
 // Two modes (per Album.mixMeta.visualMode):
 //  • AUTO (default): the intelligent, ENERGY-AWARE auto-show. It listens through the shared
 //    analyser and advances ONE visual at a time — never composited — switching on the music.
-//    It draws from the WHOLE Plajah Pixels library: the canvas GENERATORS, the full Signature
-//    shader library (every SHADER), and MILKDROP presets, weighted by the section's energy: calm
-//    passages lean on the gentler generators, the mids bring in shaders, drops punch in shaders/
-//    milkdrops. A real drop forces an immediate high-impact hit.
+//    It draws from EVERY visualizer engine on the platform: the canvas GENERATORS, the full
+//    Signature shader library (every SHADER), MILKDROP presets, the FLUX 3D scenes (Flux Canvas
+//    included), TYPO, KAIJU and LOOKS — weighted by the section's energy: calm passages lean on the
+//    gentler generators and looks, the mids bring in shaders and Flux, drops punch in Flux worlds,
+//    shaders and milkdrops. A real drop forces an immediate high-impact hit.
 //  • AUTHORED: the artist attached a saved Plajah Pixels project (mixMeta.pixelsProjectId).
 //    We load that cloud project and play back its full layer matrix via LayerStack. Any load
 //    failure falls back to the auto-show so the canvas is never dead.
@@ -48,12 +49,24 @@ interface MixPixelsStageProps {
   pixelsProjectId?: string;
   ownerId?: string;
   onGeneratorChange?: (info: MixPixelsInfo) => void;
-  /** Restrict the auto-show to these engines (default: all three). */
+  /** Restrict the auto-show to these engines (default: every engine). */
   engines?: FxEngine[];
   className?: string;
 }
 
-const engLabel = (e: FxEngine) => (e === 'GENERATOR' ? 'Gen' : e === 'SHADER' ? 'Shader' : 'MilkDrop');
+const ENGINE_LABEL: Record<FxEngine, string> = { GENERATOR: 'Gen', SHADER: 'Shader', MILKDROP: 'MilkDrop', FLUX: 'Flux', TYPO: 'Typo', KAIJU: 'Kaiju', LOOKS: 'Looks' };
+const engLabel = (e: FxEngine) => ENGINE_LABEL[e] ?? e;
+const ALL_ENGINES: FxEngine[] = ['GENERATOR', 'SHADER', 'MILKDROP', 'FLUX', 'TYPO', 'KAIJU', 'LOOKS'];
+/** How much each engine is wanted at section energy e (0 = calm … 1 = the drop). */
+const ENERGY_WEIGHT: Record<FxEngine, (e: number) => number> = {
+  GENERATOR: e => 1 - 0.55 * e,
+  SHADER: e => 0.45 + 0.6 * e,
+  MILKDROP: e => e * e * 1.4,          // ~e², so milkdrops read as drop hits
+  FLUX: e => 0.35 + 0.8 * e,           // the 3D worlds carry the big moments
+  LOOKS: e => 0.15 + 0.15 * (1 - e),
+  TYPO: e => 0.08 + 0.1 * (1 - e),
+  KAIJU: e => 0.06 + 0.1 * e,
+};
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 /** Never cut faster than this — each WebGL switch costs a context; a strobe of them helps no one. */
 const MIN_HOLD_MS = 5000;
@@ -64,8 +77,8 @@ const MixPixelsStage: React.FC<MixPixelsStageProps> = ({
   const [visual, setVisual] = useState<Visual>(() => ({ engine: 'GENERATOR', index: Math.floor(Math.random() * GEN_COUNT) }));
   const infoCb = useRef(onGeneratorChange);
   infoCb.current = onGeneratorChange;
-  const allow = useRef<Set<FxEngine>>(new Set(engines ?? ['GENERATOR', 'SHADER', 'MILKDROP']));
-  allow.current = new Set(engines ?? ['GENERATOR', 'SHADER', 'MILKDROP']);
+  const allow = useRef<Set<FxEngine>>(new Set(engines ?? ALL_ENGINES));
+  allow.current = new Set(engines ?? ALL_ENGINES);
 
   const [mdNames, setMdNames] = useState<string[]>([]);
   const mdNamesRef = useRef<string[]>([]);
@@ -84,48 +97,36 @@ const MixPixelsStage: React.FC<MixPixelsStageProps> = ({
   const broken = useRef<Set<string>>(new Set());
   const keyOf = (v: Visual) => `${v.engine}:${v.index}`;
 
-  // Shuffled per-engine cursors so every generator and every shader gets its turn over a set.
-  const genOrder = useRef<number[]>([]);
-  const genCur = useRef(0);
-  const shaderOrder = useRef<number[]>([]);
-  const shaderCur = useRef(0);
+  // Shuffled per-engine cursors so every visual in every engine gets its turn over a set.
+  const orders = useRef(new Map<FxEngine, { order: number[]; cur: number }>());
   const shuffled = (n: number) => {
     const o = Array.from({ length: n }, (_, i) => i);
     for (let k = o.length - 1; k > 0; k--) { const j = Math.floor(Math.random() * (k + 1)); [o[k], o[j]] = [o[j], o[k]]; }
     return o;
   };
-  const nextGen = (): Visual => {
-    for (let tries = 0; tries < GEN_COUNT * 2; tries++) {
-      if (genCur.current >= genOrder.current.length) { genOrder.current = shuffled(GEN_COUNT); genCur.current = 0; }
-      const v: Visual = { engine: 'GENERATOR', index: genOrder.current[genCur.current++] };
-      if (!broken.current.has(keyOf(v))) return v;
-    }
-    return { engine: 'GENERATOR', index: 0 };
-  };
-  const nextShader = (): Visual | null => {
-    const n = shaderNamesRef.current.length;
-    if (!n || !allow.current.has('SHADER')) return null;
-    for (let tries = 0; tries < n; tries++) {
-      if (shaderOrder.current.length !== n || shaderCur.current >= n) { shaderOrder.current = shuffled(n); shaderCur.current = 0; }
-      const v: Visual = { engine: 'SHADER', index: shaderOrder.current[shaderCur.current++] };
+  /** How many visuals an engine has right now (shaders and milkdrops arrive async). */
+  const countOf = (engine: FxEngine) => engine === 'SHADER' ? shaderNamesRef.current.length
+    : engine === 'MILKDROP' ? mdNamesRef.current.length
+    : (FX_ENGINE_PRESETS[engine]?.length ?? 0);
+  const nextOf = (engine: FxEngine): Visual | null => {
+    const n = countOf(engine);
+    if (!n || !allow.current.has(engine)) return null;
+    if (engine === 'MILKDROP') return broken.current.has('MILKDROP:*') ? null : { engine, index: Math.floor(Math.random() * n) };
+    let slot = orders.current.get(engine);
+    for (let tries = 0; tries < n * 2; tries++) {
+      if (!slot || slot.order.length !== n || slot.cur >= n) { slot = { order: shuffled(n), cur: 0 }; orders.current.set(engine, slot); }
+      const v: Visual = { engine, index: slot.order[slot.cur++] };
       if (!broken.current.has(keyOf(v))) return v;
     }
     return null;
   };
-  const nextMilkdrop = (): Visual | null => {
-    const n = mdNamesRef.current.length;
-    if (!n || !allow.current.has('MILKDROP') || broken.current.has('MILKDROP:*')) return null;
-    return { engine: 'MILKDROP', index: Math.floor(Math.random() * n) };
-  };
-  // Energy e (0..1): low = mostly generators, high = shaders + milkdrops (milkdrops ~e², so they read as drop hits).
+  const nextGen = (): Visual => nextOf('GENERATOR') ?? { engine: 'GENERATOR', index: 0 };
   const pickByEnergy = (e: number): Visual => {
-    const genW = allow.current.has('GENERATOR') ? 1 - 0.55 * e : 0;
-    const shaderW = shaderNamesRef.current.length && allow.current.has('SHADER') ? 0.45 + 0.6 * e : 0;
-    const mdW = mdNamesRef.current.length && allow.current.has('MILKDROP') ? e * e * 1.4 : 0;
-    let r = Math.random() * (genW + shaderW + mdW || 1);
-    if ((r -= genW) < 0) return nextGen();
-    if ((r -= shaderW) < 0) return nextShader() ?? nextGen();
-    return nextMilkdrop() ?? nextShader() ?? nextGen();
+    const pool = ALL_ENGINES.filter(en => allow.current.has(en) && countOf(en) > 0).map(en => ({ en, w: Math.max(0, ENERGY_WEIGHT[en](e)) }));
+    const total = pool.reduce((t, p) => t + p.w, 0);
+    let r = Math.random() * (total || 1);
+    for (const p of pool) { if ((r -= p.w) < 0) return nextOf(p.en) ?? nextGen(); }
+    return nextGen();
   };
   const applyVisual = (v: Visual) => setVisual(prev => (prev.engine === v.engine && prev.index === v.index ? prev : v));
   const pickRef = useRef(pickByEnergy);
@@ -138,6 +139,7 @@ const MixPixelsStage: React.FC<MixPixelsStageProps> = ({
       broken.current.add(keyOf(cur));
       if (cur.engine === 'MILKDROP' && /webgl|context/i.test(why)) broken.current.add('MILKDROP:*');
       if (cur.engine === 'SHADER' && /webgl2 unavailable/i.test(why)) allow.current.delete('SHADER');
+      if ((cur.engine === 'FLUX' || cur.engine === 'LOOKS') && /webgl2? unavailable|webgpu/i.test(why)) allow.current.delete(cur.engine);
       lastSwitchRef.current = performance.now();
       const next = pickRef.current(0.5);
       return next.engine === cur.engine && next.index === cur.index ? nextGen() : next;

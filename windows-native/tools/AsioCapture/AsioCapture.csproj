@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Headless check for Chora's ASIO multitrack capture: compiles the WinUI app's real recorder,
+       lists/probes this PC's ASIO drivers, records a short take and verifies the WAVs. Run:
+         dotnet run -c Release                      (list + probe every driver)
+         dotnet run -c Release rec "<driver>" 0,1 3   (record inputs 1-2 for 3 s) -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <BaseOutputPath>bin\</BaseOutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\Plajah.WinUI\AsioMultitrackRecorder.cs" Link="Shared\AsioMultitrackRecorder.cs" />
+    <PackageReference Include="NAudio.Asio" Version="2.2.1" />
+  </ItemGroup>
+</Project>

@@ -619,9 +619,6 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [myStatus, setMyStatus]             = useState('');
 
-  // Tracks a just-created DM so we auto-open it when the listener fires
-  const pendingDmUidRef = useRef<string | null>(null);
-
   // Room context menu (delete / leave / rename)
   const [roomMenu, setRoomMenu]             = useState<string | null>(null); // roomId
   const [deletingRoom, setDeletingRoom]     = useState<string | null>(null);
@@ -647,20 +644,6 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
       // Keep the open conversation in sync with its latest doc so shared changes
       // (intimate background/theme/pet name, from either partner) reflect live.
       setActiveRoom(prev => (prev ? (items.find(r => r.id === prev.id) || prev) : prev));
-
-      // Auto-open a DM room that was just created via handleStartDM
-      if (pendingDmUidRef.current) {
-        const myUid = auth.currentUser?.uid;
-        const pendingRoom = items.find(r =>
-          r.type === 'PRIVATE' &&
-          r.participants.includes(myUid ?? '') &&
-          r.participants.includes(pendingDmUidRef.current!),
-        );
-        if (pendingRoom) {
-          setActiveRoom(pendingRoom);
-          pendingDmUidRef.current = null;
-        }
-      }
 
       const allUids = Array.from(new Set(items.flatMap(r => r.participants)));
       setProfiles(prev => {
@@ -752,9 +735,20 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
     if (existing) {
       setActiveRoom(existing);
     } else {
-      pendingDmUidRef.current = user.uid;
-      await createChatRoom([uid, user.uid], 'PRIVATE').catch(() => {});
+      try {
+        const roomId = await createChatRoom([uid, user.uid], 'PRIVATE');
+        // Open it now: an older room outside the live list never fires the listener, and a brand-new
+        // one may not have arrived yet. The listener swaps this stand-in for the real doc.
+        setActiveRoom(prev => prev?.id === roomId ? prev : { id: roomId, participants: [uid, user.uid], type: 'PRIVATE', updatedAt: Date.now() });
+      } catch (e) {
+        const message = e instanceof Error ? e.message : '';
+        alert(!message || /permission|network|offline|unavailable/i.test(message)
+          ? `Couldn't start a conversation with ${user.displayName || 'this person'}. They may not be accepting messages, or your connection dropped.`
+          : message);
+        return;
+      }
     }
+    setActiveCollabId(null);
     setShowUserSearch(false);
     setUserSearchTerm('');
     setFoundUsers([]);

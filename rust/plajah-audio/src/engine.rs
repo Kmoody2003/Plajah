@@ -3,6 +3,7 @@
 use crate::aura::AuraRack;
 use crate::diffuser::{Diffuser, VeilSpec};
 use crate::bajo::BajoRack;
+use crate::lyra::LyraRack;
 use crate::lfo::Lfo;
 use crate::modmatrix::{ModMatrix, ModSource, ModValues, Route};
 use crate::osc::Rng;
@@ -33,6 +34,13 @@ struct ScheduledEvent {
     note: f32,
     velocity: f32,
     voice_id: u32,
+    /// KERA: the sample slot to play (-1 = a synth note), its zone detune and play-start frame.
+    slot: i32,
+    detune_cents: f32,
+    start_frame: f64,
+    /// SOMA deep skin (`note_on_deep`): layer level and the cloud's new floor; 0 top = not deep.
+    deep_gain: f32,
+    deep_top: f32,
 }
 
 pub struct Engine {
@@ -66,9 +74,16 @@ pub struct Engine {
     /// 15 IPS magnetic tape saturation & head bump → 60Hz mains hum & oxide crackle.
     aura: AuraRack,
 
+    /// LYRA's amp stages: electric guitar amp + cab, tine piano preamp + stereo tremolo.
+    lyra: LyraRack,
+
     events: Vec<ScheduledEvent>,
     events_dirty: bool,
+    /// `soma_excitation` output.
+    excite: Vec<f32>,
     frame_counter: u64,
+    /// Frames of continuous silence with no voice sounding (see `render`'s idle skip).
+    idle_frames: u64,
 
     pub layout: Layout,
     pub position: Position,
@@ -101,6 +116,7 @@ impl Engine {
             veil: Diffuser::new(sr_real),
             bajo: BajoRack::new(sr_real),
             aura: AuraRack::new(sr_real),
+            lyra: LyraRack::new(sr_real),
             voices,
             lfos: [Lfo::default(); NUM_LFO],
             tables,
@@ -111,7 +127,9 @@ impl Engine {
             upload: vec![0.0; 64 * 2048],
             events: Vec::with_capacity(1024),
             events_dirty: false,
+            excite: Vec::new(),
             frame_counter: 0,
+            idle_frames: 0,
             layout: Layout::Stereo,
             position: Position::default(),
             iamf_role: IamfRole::Object,
@@ -185,6 +203,34 @@ impl Engine {
         }
     }
 
+    /// SOMA deep skin: a SOMA strike plus its GPU-rendered upper membrane from `slot` at `gain`;
+    /// the voice's noise cloud stops below `top_ratio` (× base pitch), where the real modes are.
+    pub fn note_on_deep(&mut self, note: f32, vel: f32, voice_id: u32, frame_offset: u32, slot: i32, gain: f32, top_ratio: f32) {
+        self.note_on(note, vel, voice_id, frame_offset);
+        if let Some(v) = self.voices.iter_mut().filter(|v| v.active && v.voice_id == voice_id).max_by_key(|v| v.age) {
+            v.set_soma_deep(slot, gain, top_ratio);
+        }
+    }
+
+    /// A SOMA strike on this engine's parameters, as the GPU deep skin needs it: the force the
+    /// voice feeds its membrane modes (`frames` samples — what drives the thousands of GPU modes, so
+    /// they hear the same contact, slap and rim wave as the 16 the CPU steps), then the noise
+    /// cloud's output for the same strike (`frames` more — the level the deep skin is matched to).
+    /// Main-thread use only: it allocates.
+    pub fn soma_excitation(&mut self, note: f32, vel: f32, seed: u32, frames: usize) -> &[f32] {
+        let mut voice = crate::soma::SomaVoice::new(self.sr);
+        let mut rng = Rng(seed | 1);
+        voice.trigger(crate::voice::midi_to_hz(note), vel.clamp(0.0, 1.0), &self.params, &mut rng);
+        self.excite.clear();
+        self.excite.resize(frames * 2, 0.0);
+        for i in 0..frames {
+            voice.render_sample(&self.params, 1.0, 0.0, &mut rng);
+            self.excite[i] = voice.last_exciter_force;
+            self.excite[frames + i] = voice.last_cloud;
+        }
+        &self.excite
+    }
+
     pub fn set_route(&mut self, index: usize, source: u32, dest: u32, depth: f32, via: u32) {
         if index >= crate::modmatrix::MAX_ROUTES {
             return;
@@ -238,6 +284,7 @@ impl Engine {
                     v.note = note;
                     v.velocity = vel.clamp(0.0, 1.0);
                     v.voice_id = voice_id;
+                    v.lyra_slur(note, vel, &self.params);
                     return;
                 }
                 let sr = self.sr;
@@ -245,6 +292,23 @@ impl Engine {
                 v.note_on(note, vel, voice_id, p, Some(from), frame_offset, sr);
                 v.age = self.age_counter;
                 return;
+            }
+        }
+
+        // LYRA's own legato for bowed/blown models in poly mode: a note that arrives while exactly
+        // one note has been sounding for a while is a slur into it; notes that start together
+        // (a chord, a double stop, a section pad) stay separate voices.
+        if self.params.get(LYRA_BASE + LY_ENABLE) > 0.5 && self.params.get(LYRA_BASE + LY_LEGATO) > 0.5 {
+            let min_age = (self.sr * 0.06) as u32;
+            let mut held = self.voices.iter_mut().filter_map(|v| v.lyra_held().map(|t| (t, v)));
+            if let (Some((t, v)), None) = (held.next(), held.next()) {
+                if t > min_age {
+                    v.note = note;
+                    v.velocity = vel.clamp(0.0, 1.0);
+                    v.voice_id = voice_id;
+                    v.lyra_slur(note, vel, &self.params);
+                    return;
+                }
             }
         }
 
@@ -322,7 +386,28 @@ impl Engine {
         if self.events.len() >= MAX_EVENTS || !frame.is_finite() {
             return;
         }
-        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: true, note, velocity, voice_id });
+        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: true, note, velocity, voice_id, slot: -1, detune_cents: 0.0, start_frame: 0.0, deep_gain: 0.0, deep_top: 0.0 });
+        self.events_dirty = true;
+    }
+
+    /// The KERA twin of `schedule_note_on`: a sampled voice queued at an absolute frame, so a
+    /// sampler track bounces offline exactly as it plays live.
+    #[allow(clippy::too_many_arguments)]
+    pub fn schedule_note_on_sampled(&mut self, note: f32, velocity: f32, voice_id: u32, frame: f64, slot: i32, detune_cents: f32, start_frame: f64) {
+        if self.events.len() >= MAX_EVENTS || !frame.is_finite() {
+            return;
+        }
+        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: true, note, velocity, voice_id, slot, detune_cents, start_frame, deep_gain: 0.0, deep_top: 0.0 });
+        self.events_dirty = true;
+    }
+
+    /// The SOMA deep twin of `schedule_note_on` (offline bounces).
+    #[allow(clippy::too_many_arguments)]
+    pub fn schedule_note_on_deep(&mut self, note: f32, velocity: f32, voice_id: u32, frame: f64, slot: i32, gain: f32, top_ratio: f32) {
+        if self.events.len() >= MAX_EVENTS || !frame.is_finite() {
+            return;
+        }
+        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: true, note, velocity, voice_id, slot, detune_cents: 0.0, start_frame: 0.0, deep_gain: gain, deep_top: top_ratio.max(1e-3) });
         self.events_dirty = true;
     }
 
@@ -330,7 +415,7 @@ impl Engine {
         if self.events.len() >= MAX_EVENTS || !frame.is_finite() {
             return;
         }
-        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: false, note: 0.0, velocity: 0.0, voice_id });
+        self.events.push(ScheduledEvent { frame: frame.max(0.0) as u64, on: false, note: 0.0, velocity: 0.0, voice_id, slot: -1, detune_cents: 0.0, start_frame: 0.0, deep_gain: 0.0, deep_top: 0.0 });
         self.events_dirty = true;
     }
 
@@ -366,7 +451,11 @@ impl Engine {
             }
             // Anything already in the past fires immediately rather than being dropped.
             let offset = ev.frame.saturating_sub(start) as u32;
-            if ev.on {
+            if ev.on && ev.slot >= 0 && ev.deep_top > 0.0 {
+                self.note_on_deep(ev.note, ev.velocity, ev.voice_id, offset, ev.slot, ev.deep_gain, ev.deep_top);
+            } else if ev.on && ev.slot >= 0 {
+                self.note_on_sampled(ev.note, ev.velocity, ev.voice_id, offset, ev.slot, ev.detune_cents, ev.start_frame);
+            } else if ev.on {
                 self.note_on(ev.note, ev.velocity, ev.voice_id, offset);
             } else {
                 self.note_off(ev.voice_id);
@@ -389,6 +478,17 @@ impl Engine {
         let nch = self.layout.channels();
         for c in 0..nch {
             self.scratch[c][..frames].fill(0.0);
+        }
+
+        // Idle skip. With no voice sounding and the output silent for half a second, every tail
+        // (Veil, delay, ensemble, tape) has died away — running the racks over silence is pure
+        // cost, and a song with a dozen pad instruments paid it for every one, every block. A
+        // frozen Veil keeps sounding, so it never goes quiet enough to be skipped. The next note
+        // wakes the engine (drain_events above activates its voice before this check).
+        let any_voice = self.voices.iter().any(|v| v.active);
+        if !any_voice && self.idle_frames >= (self.sr * 0.5) as u64 {
+            self.frame_counter += frames as u64;
+            return;
         }
 
         // Global (non-per-voice) modulation sources, refreshed once per block.
@@ -424,13 +524,17 @@ impl Engine {
         // Split the borrow: voices render into scratch while reading shared state immutably.
         // `veil`, `bajo` and `aura` come out in the same destructure because all three need
         // `scratch` and a second `let Engine { .. } = self` would be a double mutable borrow.
-        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, veil, bajo, aura, .. } = self;
+        let Engine { voices, scratch, params, matrix, tables, samples, sr, layout, position, veil, bajo, aura, lyra, .. } = self;
         let mut active_cnt = 0u32;
         for v in voices.iter_mut() {
             if v.active {
                 active_cnt += 1;
                 v.render(scratch, frames, params, matrix, &globals, tables, samples, *sr, *layout, *position, &wf);
             }
+        }
+
+        if LyraRack::active(params) {
+            lyra.process(scratch, frames, nch, params);
         }
 
         // AURA's vintage rack (VCA/LPG Gate → Phaser → BBD String Ensemble → 15 IPS Tape & Mains Floor).
@@ -473,6 +577,13 @@ impl Engine {
                 scratch[c][s] = crate::filter::tanh_fast(x * 0.85);
             }
         }
+        let mut peak = 0.0f32;
+        for c in 0..nch {
+            for s in 0..frames {
+                peak = peak.max(scratch[c][s].abs());
+            }
+        }
+        if any_voice || peak > 1.0e-5 { self.idle_frames = 0; } else { self.idle_frames += frames as u64; }
         self.frame_counter += frames as u64;
         let _ = MAX_UNISON;
     }

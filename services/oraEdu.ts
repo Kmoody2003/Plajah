@@ -7,7 +7,7 @@
 //   2. "I need a hand" — the student presses a button. The grown-up learns that a student asked for a
 //      talk or a break and nothing else (no mood, no note, no history).
 // Not a clinical tool. It does not diagnose, score or monitor.
-import { db, auth } from './firebase';
+import { db, opsDb, auth } from './firebase';
 import { doc, getDoc, setDoc, collection, addDoc, getDocs, query, where, limit, runTransaction, updateDoc } from 'firebase/firestore';
 import { today } from './oraService';
 
@@ -64,17 +64,17 @@ export async function askForHand(opts: { studentName: string; kind: HandKind; to
   const toUids = [...new Set(opts.toUids.filter(u => u && u !== uid))];
   const payload: Omit<HandRequest, 'id'> = { studentUid: uid, studentName: opts.studentName, toUids, kind: opts.kind, createdAt: Date.now(), seenBy: [] };
   if (opts.classId) payload.classId = opts.classId;
-  const r = await addDoc(collection(db, 'wellbeingRequests'), payload);
+  const r = await addDoc(collection(opsDb, 'wellbeingRequests'), payload);
   return r.id;
 }
 export async function listHandRequests(max = 30): Promise<HandRequest[]> {
   const uid = auth.currentUser?.uid; if (!uid) return [];
-  const snap = await getDocs(query(collection(db, 'wellbeingRequests'), where('toUids', 'array-contains', uid), limit(max)));
+  const snap = await getDocs(query(collection(opsDb, 'wellbeingRequests'), where('toUids', 'array-contains', uid), limit(max)));
   return snap.docs.map(d => ({ ...(d.data() as Omit<HandRequest, 'id'>), id: d.id })).sort((a, b) => b.createdAt - a.createdAt);
 }
 export async function markSeen(id: string): Promise<void> {
   const uid = auth.currentUser?.uid; if (!uid) return;
-  const ref = doc(db, 'wellbeingRequests', id); const s = await getDoc(ref); if (!s.exists()) return;
+  const ref = doc(opsDb, 'wellbeingRequests', id); const s = await getDoc(ref); if (!s.exists()) return;
   const seen: string[] = s.data().seenBy || []; if (!seen.includes(uid)) await updateDoc(ref, { seenBy: [...seen, uid] });
 }
 

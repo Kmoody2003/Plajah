@@ -79,7 +79,7 @@ export function PresetGallery<T extends GalleryItem>({ presets, engineLabel, cur
                   </div>
                   <div className="p-3 flex flex-col gap-1.5">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-[13px] font-semibold text-white truncate flex-1">{p.name}</span>
+                      <span className="text-[13px] font-semibold text-white leading-tight line-clamp-2 flex-1" title={p.name}>{p.name}</span>
                       {active && <span className="text-[8px] font-mono px-1 rounded" style={{ background: `${SELECT}33`, color: '#FF9CC4' }}>loaded</span>}
                     </div>
                     <span className="font-mono text-[9px] text-white/30 -mt-1">{p.author || 'Melos'}</span>

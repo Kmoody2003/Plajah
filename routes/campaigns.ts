@@ -26,11 +26,13 @@
 //   POST   /api/campaigns/suppression          — manual suppression
 //   GET    /api/campaigns/unsubscribe          — human-facing confirmation page (no auth)
 //   POST   /api/campaigns/unsubscribe          — RFC 8058 one-click (no auth)
-//   POST   /api/campaigns/webhook/resend       — bounces + complaints → auto-suppress (no auth)
+//   POST   /api/campaigns/webhook/resend       — bounces + complaints → auto-suppress (Svix-signed)
 
 import { Router, Request, Response } from 'express';
 import * as nodeCrypto from 'crypto';
-import { verifyIdToken, fsGet, fsSet, fsPatch, fsCreate, adminConfig } from '../services/firebaseAdminRest';
+import { verifyIdToken, verifyIdTokenDetailed, fsGet, fsSet, fsPatch, fsCreate, adminConfig } from '../services/firebaseAdminRest';
+import { markInviteBounced } from './elevateInvites';
+import { verifySvixSignature, resendStopReason } from '../services/notify/resendWebhookCore';
 
 export const campaignsRouter = Router();
 
@@ -46,12 +48,15 @@ const FS_BASE = `https://firestore.googleapis.com/v1/projects/${adminConfig.PROJ
 function resendKey(): string { return process.env.RESEND_API_KEY || ''; }
 function isConfigured(): boolean { return !!resendKey(); }
 
-/** Secret for unsubscribe HMACs. Falls back to the service-account material so a
- *  missing env var cannot silently produce forgeable tokens. */
-function unsubSecret(): string {
-  const s = process.env.CAMPAIGN_UNSUB_SECRET || process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '';
-  if (!s) throw new Error('No secret available for unsubscribe tokens');
-  return s;
+/** New unsubscribe links are signed ONLY with the dedicated secret; no secret, no send. */
+function unsubSigningSecret(): string { return process.env.CAMPAIGN_UNSUB_SECRET || ''; }
+/**
+ * Links in email already delivered must keep working for good (CAN-SPAM). Older ones were signed with the
+ * service-account JSON, so that stays verify-only. Set CAMPAIGN_UNSUB_LEGACY_SECRET to its old value before rotating
+ * the service account, or those older links stop working.
+ */
+function unsubVerifySecrets(): string[] {
+  return [unsubSigningSecret(), process.env.CAMPAIGN_UNSUB_LEGACY_SECRET || '', process.env.GOOGLE_SERVICE_ACCOUNT_JSON || ''].filter(Boolean);
 }
 
 function baseUrl(req: Request): string {
@@ -134,7 +139,9 @@ const unb64u = (s: string) => Buffer.from(s, 'base64url').toString('utf8');
 
 function signUnsub(ownerId: string, email: string): string {
   const payload = b64u(JSON.stringify({ o: ownerId, e: email.toLowerCase() }));
-  const sig = nodeCrypto.createHmac('sha256', unsubSecret()).update(payload).digest('base64url');
+  const secret = unsubSigningSecret();
+  if (!secret) throw new Error('CAMPAIGN_UNSUB_SECRET is not set');
+  const sig = nodeCrypto.createHmac('sha256', secret).update(payload).digest('base64url');
   return `${payload}.${sig}`;
 }
 
@@ -142,11 +149,13 @@ function verifyUnsub(token: string): { ownerId: string; email: string } | null {
   try {
     const [payload, sig] = String(token || '').split('.');
     if (!payload || !sig) return null;
-    const expected = nodeCrypto.createHmac('sha256', unsubSecret()).update(payload).digest('base64url');
     // Constant-time compare — a token check that leaks timing is a token check that leaks.
     const a = Buffer.from(sig);
-    const b = Buffer.from(expected);
-    if (a.length !== b.length || !nodeCrypto.timingSafeEqual(a, b)) return null;
+    const valid = unsubVerifySecrets().some(secret => {
+      const b = Buffer.from(nodeCrypto.createHmac('sha256', secret).update(payload).digest('base64url'));
+      return a.length === b.length && nodeCrypto.timingSafeEqual(a, b);
+    });
+    if (!valid) return null;
     const { o, e } = JSON.parse(unb64u(payload));
     if (!o || !e) return null;
     return { ownerId: String(o), email: String(e).toLowerCase() };
@@ -341,7 +350,7 @@ campaignsRouter.post('/send', async (req: Request, res: Response) => {
       });
     }
 
-    if (!isConfigured()) {
+    if (!isConfigured() || !unsubSigningSecret()) {
       return res.status(503).json({ error: 'Email sending is not configured on this server.', configured: false });
     }
 
@@ -353,8 +362,11 @@ campaignsRouter.post('/send', async (req: Request, res: Response) => {
     // 2 — a test send goes only to the caller, and skips the audience entirely.
     let recipients: Recipient[];
     if (testTo) {
-      const addr = String(testTo).trim().toLowerCase();
-      if (!addr.includes('@')) return res.status(400).json({ error: 'That test address is not valid.' });
+      // Whatever address the client named, a test goes to the caller's own verified email: this is not a free relay.
+      const bearer = req.headers.authorization || '';
+      const who = await verifyIdTokenDetailed(bearer.slice(7));
+      if (!who?.email || !who.emailVerified) return res.status(403).json({ error: 'Verify your email address to send yourself a test.', code: 'EMAIL_UNVERIFIED' });
+      const addr = who.email.trim().toLowerCase();
       recipients = [{ email: addr, name: 'Test', consentSource: 'this is a test send to yourself', consentAt: '' }];
     } else {
       // 3 — audience is derived here, never taken from the request.
@@ -522,48 +534,44 @@ campaignsRouter.get('/unsubscribe', async (req: Request, res: Response) => {
 /* ── Provider webhook: bounces and complaints must suppress automatically ───── */
 
 campaignsRouter.post('/webhook/resend', async (req: Request, res: Response) => {
+  const secret = process.env.RESEND_WEBHOOK_SECRET;
+  if (!secret) {
+    console.error('[campaigns] RESEND_WEBHOOK_SECRET is not configured');
+    return res.status(503).json({ error: 'Webhook unavailable' });
+  }
+  // server.ts hands this route the raw bytes: the signature covers them exactly.
+  const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+  const signed = verifySvixSignature(raw, {
+    id: String(req.headers['svix-id'] || ''),
+    timestamp: String(req.headers['svix-timestamp'] || ''),
+    signature: String(req.headers['svix-signature'] || ''),
+  }, secret, Date.now());
+  if (!signed) return res.status(401).json({ error: 'Invalid signature' });
+
+  let event: any;
+  try { event = JSON.parse(raw.toString('utf8')); } catch { return res.status(400).json({ error: 'Bad payload' }); }
+
+  // A hard bounce or a spam complaint is permanent. Continuing to send to either is exactly
+  // what destroys a sending reputation, so this is not a soft signal.
+  const reason = resendStopReason(event);
+  const recipients: string[] = (Array.isArray(event?.data?.to) ? event.data.to : [event?.data?.to])
+    .map((e: unknown) => String(e || '').trim().toLowerCase()).filter((e: string) => e.includes('@'));
+  if (!reason || !recipients.length) return res.status(200).json({ ok: true });
+
+  // Finish before answering: Cloud Run throttles the CPU once a response is sent, so work left running
+  // afterwards can stall. A failure answers 500 and Resend retries; both writes are safe to repeat.
   try {
-    // Always 200 — a provider that gets errors here will retry and eventually stop sending events.
-    const secret = process.env.RESEND_WEBHOOK_SECRET;
-    if (!secret) {
-      console.error('[campaigns] RESEND_WEBHOOK_SECRET is not configured');
-      return res.status(503).json({ error: 'Webhook unavailable' });
+    for (const email of recipients) {
+      // The event does not name the sender, so suppress this address for every sender that has it.
+      const owners = await fsQuery('mailing_lists', 'subscriberEmail', email, 500);
+      const ids = new Set(owners.map(o => String(o.data.artistId || '')).filter(Boolean));
+      for (const ownerId of ids) await suppress(ownerId, email, reason, 'provider');
+      // Elevate claim invitations share the sender: stop re-inviting a dead address.
+      await markInviteBounced(email);
     }
-    const supplied = String(req.headers['x-plajah-webhook-secret'] || '');
-    const expectedBuf = Buffer.from(secret);
-    const suppliedBuf = Buffer.from(supplied);
-    if (expectedBuf.length !== suppliedBuf.length || !nodeCrypto.timingSafeEqual(expectedBuf, suppliedBuf)) {
-      return res.status(401).json({ error: 'Invalid signature' });
-    }
-
-    const type = String(req.body?.type || '');
-    const email = String(req.body?.data?.to?.[0] || req.body?.data?.email || '').toLowerCase();
-
-    // A hard bounce or a spam complaint is permanent. Continuing to send to either is exactly
-    // what destroys a sending reputation, so this is not a soft signal.
-    const reason =
-      type.includes('bounced') ? 'Hard bounce' :
-      type.includes('complained') ? 'Marked as spam' : '';
-
-    // Acknowledge BEFORE doing any work. Providers time out in a few seconds and retry on a slow
-    // response, which would mean processing the same bounce repeatedly; the lookup below touches
-    // Firestore and is far too slow to keep them waiting on.
-    res.status(200).json({ ok: true });
-
-    if (!reason || !email.includes('@')) return;
-
-    // The event does not name the sender, so suppress this address for every sender that has it.
-    void (async () => {
-      try {
-        const owners = await fsQuery('mailing_lists', 'subscriberEmail', email, 500);
-        const ids = new Set(owners.map(o => String(o.data.artistId || '')).filter(Boolean));
-        for (const ownerId of ids) await suppress(ownerId, email, reason, 'provider');
-      } catch (err) {
-        console.error('[campaigns] webhook suppression failed:', err);
-      }
-    })();
-  } catch (e) {
-    console.error('[campaigns] webhook failed:', e);
-    if (!res.headersSent) res.status(200).json({ ok: true });
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error('[campaigns] webhook suppression failed:', err);
+    return res.status(500).json({ error: 'Retry later' });
   }
 });

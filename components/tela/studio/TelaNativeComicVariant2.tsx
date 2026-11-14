@@ -36,6 +36,7 @@ import {
   Volume2,
   Zap,
 } from 'lucide-react';
+import type { TelaRailItem } from '../TelaToolRail';
 import {
   computeSafeBalloonPlacement,
   LAYER_ANIMATION_PRESETS,
@@ -1194,94 +1195,33 @@ export function useTelaComicVariant2Controller(extraDocWords = 0, active = true)
 }
 
 // ============================================================================
-// 1. LEFT RAIL COMIC TOOL CLUSTER (Exact Tela railBtn(active) 38x38 styling)
+// 1. LEFT RAIL COMIC TOOLS (items for the Comics section of TelaToolRail)
 // ============================================================================
-export const TelaComicLeftRailCluster: React.FC<{
-  ctrl: TelaComicVariant2Controller;
-  comicModeActive: boolean;
-  onEnableComicMode: () => void;
-}> = ({ ctrl, comicModeActive, onEnableComicMode }) => {
-  const railBtn = (active: boolean): React.CSSProperties => ({
-    display: 'grid',
-    placeItems: 'center',
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    border: 'none',
-    cursor: 'pointer',
-    color: active ? '#fff' : 'rgba(255,255,255,0.5)',
-    background: active
-      ? 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))'
-      : 'transparent',
-  });
-
-  const tools: {
-    id: ComicActiveToolId;
-    icon: React.ReactNode;
-    label: string;
-  }[] = [
-    {
-      id: 'select',
-      icon: <LayoutGrid size={17} color={comicModeActive && ctrl.activeTool === 'select' ? '#fff' : '#D0BCFF'} />,
-      label: 'Comic Panel Select & Grid Layout (V)',
-    },
-    {
-      id: 'knife',
-      icon: <Scissors size={17} color={comicModeActive && ctrl.activeTool === 'knife' ? '#fff' : '#FF8C00'} />,
-      label: 'Panel Gutter Knife Split (K)',
-    },
-    {
-      id: 'gpen',
-      icon: <PenTool size={17} color={comicModeActive && ctrl.activeTool === 'gpen' ? '#fff' : '#f472b6'} />,
-      label: 'Mangaka G-Pen & Maru-Pen Inker (B)',
-    },
-    {
-      id: 'balloon',
-      icon: <MessageSquarePlus size={17} color={comicModeActive && ctrl.activeTool === 'balloon' ? '#fff' : '#00DAF3'} />,
-      label: 'Safe-Zone Speech Balloon & Tail (T)',
-    },
-    {
-      id: 'sfx',
-      icon: <Zap size={17} color={comicModeActive && ctrl.activeTool === 'sfx' ? '#fff' : '#f59e0b'} />,
-      label: 'Kanji & Action SFX Vector Stamp (S)',
-    },
-    {
-      id: 'screentone',
-      icon: <Grid3X3 size={17} color={comicModeActive && ctrl.activeTool === 'screentone' ? '#fff' : '#a78bfa'} />,
-      label: '60 LPI Manga Screentone Shader (H)',
-    },
-    {
-      id: 'motion',
-      icon: <Film size={17} color={comicModeActive && (ctrl.activeTool === 'motion' || ctrl.timelineExpanded) ? '#fff' : '#06D6A0'} />,
-      label: 'Panel Motion Timeline & Cinemagraph FX (M)',
-    },
+export const comicRailItems = (
+  ctrl: TelaComicVariant2Controller,
+  comicModeActive: boolean,
+  onEnableComicMode: () => void,
+): TelaRailItem[] => {
+  const tools: { id: ComicActiveToolId; icon: React.ReactNode; label: string; desc: string }[] = [
+    { id: 'select', icon: <LayoutGrid size={16} />, label: 'Panels', desc: 'Select comic panels and arrange the page grid.' },
+    { id: 'knife', icon: <Scissors size={16} />, label: 'Split panel', desc: 'Cut a panel in two along a gutter.' },
+    { id: 'gpen', icon: <PenTool size={16} />, label: 'Inking pen', desc: 'Ink with manga G-pen and Maru-pen strokes.' },
+    { id: 'balloon', icon: <MessageSquarePlus size={16} />, label: 'Speech balloon', desc: 'Add a speech balloon with a tail that stays inside the safe zone.' },
+    { id: 'sfx', icon: <Zap size={16} />, label: 'Sound effects', desc: 'Stamp kanji and action sound-effect lettering.' },
+    { id: 'screentone', icon: <Grid3X3 size={16} />, label: 'Screentone', desc: 'Shade with a 60 LPI manga screentone.' },
+    { id: 'motion', icon: <Film size={16} />, label: 'Panel motion', desc: 'Open the timeline to animate a panel or make a cinemagraph.' },
   ];
-
-  return (
-    <>
-      {tools.map((t) => {
-        const isActive =
-          comicModeActive &&
-          (ctrl.activeTool === t.id || (t.id === 'motion' && ctrl.timelineExpanded));
-        return (
-          <button
-            key={t.id}
-            title={t.label}
-            style={railBtn(isActive)}
-            onClick={() => {
-              if (!comicModeActive) onEnableComicMode();
-              if (t.id === 'motion') {
-                ctrl.setTimelineExpanded((v) => !v);
-              }
-              ctrl.setActiveTool(t.id);
-            }}
-          >
-            {t.icon}
-          </button>
-        );
-      })}
-    </>
-  );
+  return tools.map((t) => ({
+    ...t,
+    active: comicModeActive && (ctrl.activeTool === t.id || (t.id === 'motion' && ctrl.timelineExpanded)),
+    onClick: () => {
+      if (!comicModeActive) onEnableComicMode();
+      if (t.id === 'motion') {
+        ctrl.setTimelineExpanded((v) => !v);
+      }
+      ctrl.setActiveTool(t.id);
+    },
+  }));
 };
 
 // ============================================================================

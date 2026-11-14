@@ -21,6 +21,8 @@ import type { BillingEntityKind, BillingEntityRef, BillingFlagKey, InvoiceStatus
 import { dbIdFor } from '../services/opsCollections';
 
 export interface BillingDeps {
+  /** Bind a Stripe account to an org: private doc, public flag and webhook index together. */
+  saveOrgStripeAccount: (orgId: string, acct: string) => Promise<boolean>;
   getStripe: () => any;
   authMiddleware: any;
   requireRegisteredUser: any;
@@ -86,6 +88,8 @@ export function computeTotals(lines: Array<{ quantity: number; unitAmount: numbe
   } else taxC = Math.max(0, d2c(tax || 0));
   return { subtotalC, discountC, taxC, totalC: subtotalC - discountC + taxC };
 }
+
+export const choraLicenseId = (uid: string, songId: string) => `${uid}_${songId.replace(/[^A-Za-z0-9_-]/g, '_')}`;
 
 const COLL: Record<BillingEntityKind, string> = { USER: 'users', ORG: 'organizations', BUSINESS: 'businesses', PRODUCTION: 'productions' };
 const ACCT_FIELD = (k: BillingEntityKind) => (k === 'USER' ? 'stripeConnectAccountId' : 'stripeAccountId');
@@ -155,12 +159,16 @@ export function createBilling(deps: BillingDeps) {
     }
     if (!doc) return null;
     if (ref.kind === 'USER') return { kind: 'USER', id: ref.id, entityKey, name: doc.displayName || doc.name || doc.username || 'Plajah creator', ownerUid: ref.id, stripeAccountId: doc.stripeConnectAccountId || undefined, doc };
-    if (ref.kind === 'ORG') return { kind: 'ORG', id: ref.id, entityKey, name: doc.name || 'Organization', ownerUid: doc.creatorId || '', stripeAccountId: doc.stripeAccountId || undefined, doc };
+    if (ref.kind === 'ORG') {
+      // The Stripe account lives on the private doc; an unmigrated public copy still counts.
+      const fin = await deps.read(`organizations/${ref.id}/private`, 'finance').catch(() => null);
+      return { kind: 'ORG', id: ref.id, entityKey, name: doc.name || 'Organization', ownerUid: doc.creatorId || '', stripeAccountId: fin?.stripeAccountId || doc.stripeAccountId || undefined, doc };
+    }
     return { kind: 'PRODUCTION', id: ref.id, entityKey, name: doc.title || 'Production', ownerUid: doc.ownerUid || '', stripeAccountId: doc.stripeAccountId || undefined, doc };
   }
   const orgStaff = (org: Record<string, any>, uid: string) => {
     const inList = (k: string) => Array.isArray(org[k]) && org[k].includes(uid);
-    return org.creatorId === uid || inList('admins') || inList('financeUids') || inList('accountingUids') || inList('pastorUids');
+    return org.creatorId === uid || inList('itAdminUids') || inList('seniorPastorUids') || inList('financeUids') || inList('accountingUids');
   };
   function canAdminister(uid: string, e: Ent): boolean {
     switch (e.kind) {
@@ -213,7 +221,8 @@ export function createBilling(deps: BillingDeps) {
       requirementsDue: [...new Set<string>([...(account.requirements?.currently_due || []), ...(account.requirements?.past_due || [])])],
       checkedAt: Date.now(),
     });
-    await deps.patch(COLL[ent.kind], ent.id, { billingConnection: conn });
+    if (ent.kind === 'ORG') await deps.patch(`organizations/${ent.id}/private`, 'finance', { billingConnection: conn });
+    else await deps.patch(COLL[ent.kind], ent.id, { billingConnection: conn });
     return { entity: { kind: ent.kind, id: ent.id }, ...conn };
   }
 
@@ -697,6 +706,11 @@ export function createBilling(deps: BillingDeps) {
         const pl = rows[0]; if (!pl) return false;
         if (obj.payment_status === 'paid' && await once(`pl_${obj.id}`)) {
           const cur = await deps.read('billingPaymentLinks', pl.id);
+        // A Chora song link: the checkout carries the buyer's uid, and this paid event is the only thing that mints their licence.
+        if (cur?.choraSongId && obj.client_reference_id && /^[A-Za-z0-9_-]{6,128}$/.test(String(obj.client_reference_id))) {
+          const buyer = String(obj.client_reference_id);
+          await deps.patch('choraLicenses', choraLicenseId(buyer, String(cur.choraSongId)), { uid: buyer, songId: String(cur.choraSongId), kind: String(cur.choraLicenseKind || 'chora_song_pack'), paymentLinkId: pl.id, sessionId: String(obj.id || ''), amountCents: Number(obj.amount_total) || 0, grantedAt: Date.now() });
+        }
           await deps.patch('billingPaymentLinks', pl.id, { paidCount: (cur?.paidCount || 0) + 1, paidTotal: c2d(d2c(cur?.paidTotal || 0) + (obj.amount_total || 0)), lastPaidAt: Date.now() });
           const ent = await loadEntity(pl.data.entity);
           if (ent) await notifyUser(ent.ownerUid, `Payment received - ${pl.data.title}`, `${c2d(obj.amount_total || 0).toFixed(2)} ${String(obj.currency || 'usd').toUpperCase()}${obj.customer_details?.name ? ' from ' + obj.customer_details.name : ''}`, pl.id, 'Plajah Billing');
@@ -778,7 +792,7 @@ export function createBilling(deps: BillingDeps) {
           metadata: { entityKey: ent.entityKey, ownerUid: ent.ownerUid, startedBy: req.uid, uid: ent.ownerUid, plajah: 'billing' },
         }));
         acct = account.id as string;
-        const ok = await deps.patch(COLL[ent.kind], ent.id, { [ACCT_FIELD(ent.kind)]: acct, updatedAt: Date.now() });
+        const ok = ent.kind === 'ORG' ? await deps.saveOrgStripeAccount(ent.id, acct) : await deps.patch(COLL[ent.kind], ent.id, { [ACCT_FIELD(ent.kind)]: acct, updatedAt: Date.now() });
         if (!ok) fail(500, 'Could not store the Stripe account', 'SAVE_FAILED');
         ent.stripeAccountId = acct;
         memo.set(`acct:${ent.entityKey}:${acct}`, { v: account, exp: Date.now() + 60_000 });
@@ -1060,54 +1074,9 @@ export function createBilling(deps: BillingDeps) {
     }));
 
     // ---- Chora Sovereign Song & Stem License Immediate Verification ----
-    app.post('/api/billing/chora-license/verify', ...pre(), wrap(async (req, res) => {
-      const songId = str(req.body?.songId, 120);
-      const songTitle = str(req.body?.songTitle, 200) || 'Chora Worship Song';
-      const creatorUid = str(req.body?.creatorUid, 120) || req.uid;
-      const licensedOrgId = str(req.body?.licensedOrgId, 120);
-      const licensedOrgName = str(req.body?.licensedOrgName, 200);
-      const priceCents = Math.max(0, d2c(Number(req.body?.amountUsd || 0)));
-      const paymentLinkId = str(req.body?.paymentLinkId, 120);
-      if (!songId) fail(400, 'songId is required', 'BAD_SONG_ID');
-
-      let paymentRef = str(req.body?.paymentRef, 120) || `stripe_direct_${Date.now().toString(36)}`;
-      if (paymentLinkId) {
-        const pl = await deps.read('billingPaymentLinks', paymentLinkId);
-        if (pl?.stripePaymentLinkId) {
-          paymentRef = pl.stripePaymentLinkId;
-        }
-      }
-
-      const licId = `chora_song_pack_${safeId(songId)}`;
-      const issuedAt = Date.now();
-      const licenseDoc = clean({
-        id: licId,
-        kind: 'chora_song_pack',
-        contentId: songId,
-        title: songTitle,
-        buyerUid: req.uid,
-        issuerDid: `plajah:${creatorUid}`,
-        subjectDid: `plajah:${req.uid}`,
-        grant: 'PURCHASE',
-        delivery: 'DOWNLOAD_OPEN',
-        priceCents,
-        currency: 'USD',
-        paymentRef,
-        issuedAt,
-        watermarkTag: `PLJ-${nodeCrypto.createHash('sha1').update(`${req.uid}:${songId}`).digest('hex').slice(0, 7).toUpperCase()}`,
-        choraRights: {
-          licensedOrgId: licensedOrgId || undefined,
-          licensedOrgName: licensedOrgName || undefined,
-          coversStageProjection: true,
-          coversLivestream: true,
-          coversStemsAndScores: true,
-          coWriterSplits: Array.isArray(req.body?.coWriterSplits) ? req.body.coWriterSplits : [],
-        },
-        proof: null,
-        placeholder: true,
-      });
-
-      res.json({ ok: true, license: licenseDoc });
+    // Used to take the buyer's word for payment and return a PURCHASE license. No caller uses it; off until it checks Stripe.
+    app.post('/api/billing/chora-license/verify', ...pre(), wrap(async () => {
+      fail(501, 'License verification is not available yet.', 'NOT_IMPLEMENTED');
     }));
 
     app.post('/api/billing/payment-links/deactivate', ...pre(), wrap(async (req, res) => {

@@ -41,6 +41,8 @@ import ProductionChatWorkspace from './film/ProductionChatWorkspace';
 import { ProductionFinance } from './film/ProductionFinance';
 import { listWritingProjects, type WritingProject, type WritingChapter } from '../services/loreaProjectsService';
 import { MusicReleasesTab } from './music/MusicReleasesTab';
+import { LabelDesk } from './chora/LabelDesk';
+import { BackShowDesk } from './chora/BackThisShow';
 import {
   fetchMyProductions, fetchSongs, IS_ON_RECORD,
   PRODUCTION_STATUSES as MELOS_STATUSES, stateMeta, commitmentMeta,
@@ -3819,7 +3821,7 @@ const WriterPressTab: React.FC = () => (
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export type PMTab =
-  | 'overview' | 'releases' | 'productions' | 'import' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
+  | 'overview' | 'releases' | 'label' | 'backshow' | 'productions' | 'import' | 'payroll' | 'contracts' | 'invoices' | 'tasks' | 'vendors' | 'venues' | 'events' | 'boards' | 'promote'
   | 'film_overview' | 'film_script' | 'film_breakdown' | 'film_budget' | 'film_crew' | 'film_locations' | 'film_schedule' | 'film_distro'
   | 'film_hub' | 'film_chat' | 'film_callsheets' | 'film_staffing' | 'film_roster' | 'film_brief' | 'film_craft' | 'film_reports' | 'film_clearances' | 'film_edit' | 'film_continuity' | 'film_deliverables' | 'film_finance'
   | 'writer_overview' | 'writer_projects' | 'writer_manuscripts' | 'writer_research' | 'writer_submissions' | 'writer_events' | 'writer_press';
@@ -3833,6 +3835,8 @@ interface Props {
 export const PM_TABS: { id: PMTab; label: string; icon: React.ReactNode; color: string }[] = [
   { id: 'overview',   label: 'Overview',    icon: <Briefcase size={13} />,  color: '#FF8C00' },
   { id: 'releases',   label: 'Releases',    icon: <Music2 size={13} />,     color: '#FF8C00' },
+  { id: 'label',      label: 'Label',       icon: <Building2 size={13} />,  color: '#FF8C00' },
+  { id: 'backshow',   label: 'Sponsor This Show', icon: <Mic size={13} />,     color: '#FF8C00' },
   { id: 'productions',label: 'Productions', icon: <Disc3 size={13} />,      color: '#D40055' },
   { id: 'import',     label: 'Import Work', icon: <Download size={13} />,   color: '#6B0099' },
   { id: 'events',     label: 'Events',      icon: <Mic size={13} />,        color: '#FF8C00' },
@@ -3941,6 +3945,8 @@ export const ArtistProjectManager: React.FC<Props> = ({ currentUser }) => {
       case 'tasks':               return <TasksTab />;
       case 'vendors':             return <VendorsTab />;
       case 'venues':              return <VenuesTab />;
+      case 'label':               return <LabelDesk />;
+      case 'backshow':            return <BackShowDesk />;
       case 'film_overview':       return <FilmOverviewTab />;
       case 'film_hub':            return <ProductionHubTab />;
       case 'film_chat':           return <ProductionChatWorkspace />;

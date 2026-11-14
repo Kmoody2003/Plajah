@@ -138,6 +138,51 @@ export function orgTargetToPostFields(target: OrgPostTarget): Partial<Post> {
   };
 }
 
+/**
+ * The post documents to write for a target. Rules can only check ONE department per post
+ * (orgAudience 'DEPARTMENT' + orgDepartmentId, against orgMemberIndex.ministryIds), so a post aimed at
+ * several departments / ministry groups / department rooms becomes one DEPARTMENT post per department,
+ * tied together by a shared orgPostGroupId. Roster and channel targets have no rule-side membership
+ * list, so those ride on one org-wide INTERNAL post (members only, narrowed client-side).
+ */
+export function orgTargetToPostFieldsList(target: OrgPostTarget, org?: Organization | null): Partial<Post>[] {
+  if (target.mode === 'PUBLIC' || target.mode === 'MEMBERS' || target.mode === 'INTERNAL') return [orgTargetToPostFields(target)];
+  const ministries = org?.ministries || [];
+  const deptIds = new Set<string>(target.departmentIds);
+  const rooms = new Map<string, string>();
+  const rest: string[] = [];
+  for (const g of target.groupIds) {
+    if (g.startsWith('room:')) {
+      const [, deptId, roomId] = g.split(':');
+      if (deptId) { deptIds.add(deptId); if (roomId) rooms.set(deptId, roomId); }
+    } else if (g.startsWith('roster:') || g.startsWith('channel:')) rest.push(g);
+    else if (ministries.some(m => m.id === g)) deptIds.add(g);
+  }
+  const groupId = `opg_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+  const out: Partial<Post>[] = [...deptIds].map(id => {
+    const m = ministries.find(x => x.id === id);
+    return {
+      isPublic: false,
+      orgAudience: 'DEPARTMENT',
+      orgDepartmentId: id,
+      ...(rooms.get(id) ? { orgRoomId: rooms.get(id) } : {}),
+      orgTargetLabels: [m?.name || 'Department'],
+      orgPostGroupId: groupId,
+    };
+  });
+  if (rest.length || target.rosterGroups.length || !out.length) {
+    out.push({
+      isPublic: false,
+      orgAudience: 'INTERNAL',
+      ...(rest.length ? { orgGroupIds: rest } : {}),
+      ...(target.rosterGroups.length ? { orgRosterGroups: target.rosterGroups } : {}),
+      orgTargetLabels: target.targetLabels.length ? target.targetLabels : ['Members Only'],
+      orgPostGroupId: groupId,
+    });
+  }
+  return out;
+}
+
 /** Extract all selectable Departments and Sub-Groups from an Organization. */
 export function extractOrgDepartmentsAndGroups(org?: Organization | null): {
   departments: Ministry[];
@@ -237,10 +282,11 @@ export function isOrgFeedAdminOrLeader(
   const uid = viewerUid || membership?.userId;
   if (!uid) return false;
   if (
-    org.ownerId === uid ||
+    org.creatorId === uid ||
     org.accountUid === uid ||
-    org.adminUids?.includes(uid) ||
-    org.pastorUids?.includes(uid)
+    org.admins?.includes(uid) ||
+    org.pastorUids?.includes(uid) ||
+    org.leaderUids?.includes(uid)
   ) {
     return true;
   }
@@ -386,9 +432,9 @@ const OrgAudienceToggle: React.FC<OrgAudienceToggleProps> = ({
     const uid = auth.currentUser?.uid;
     if (!uid || !org) return false;
     return (
-      org.ownerId === uid ||
+      org.creatorId === uid ||
       org.accountUid === uid ||
-      !!org.adminUids?.includes(uid) ||
+      !!org.admins?.includes(uid) ||
       !!org.pastorUids?.includes(uid)
     );
   }, [org]);

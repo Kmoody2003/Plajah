@@ -3,7 +3,8 @@ import { Radio, Play, Pause, SkipForward, Heart, Plus, HeartHandshake, Volume2, 
 import PageHeader from './PageHeader';
 import { motion, AnimatePresence } from 'motion/react';
 import { Track, UserProfile, Album } from '../types';
-import { fetchRadioTracks, likeTrack, addToLibrary, auth, processDonation, fetchUserProfile, fetchRadioSchedule } from '../services/backendService';
+import { fetchRadioTracks, likeTrack, addToLibrary, auth, processDonation, fetchUserProfile, fetchRadioSchedule, fetchUserAlbums } from '../services/backendService';
+import { canAirTrack } from '../services/rights/trackClearance';
 import { activeDaySlots, slotDurationSec } from '../services/fastChannelTimeline';
 import { getSatellitePosition, getRecentlyPlayed, type RecentlyPlayed } from '../services/radioEngine';
 import DonationModal from './DonationModal';
@@ -108,9 +109,13 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId }) => {
           let queue = mixed;
           if (schedule) {
             const byId = new Map(mixed.map(t => [t.id, t]));
+            // A saved slot keeps its own URL, so a song held after it was scheduled must be skipped here.
+            const stationAlbums = await fetchUserAlbums(activeStationId).catch(() => []);
+            const heldIds = new Set(stationAlbums.flatMap(a => (a.tracks || []).filter(t => !canAirTrack(t)).map(t => t.id)));
             const scheduled: Track[] = [];
             for (const s of activeDaySlots(schedule, Date.now())) {
               if (s.type === 'AD_BREAK' || s.type === 'LIVE_INTERRUPT') continue;
+              if (s.videoId && heldIds.has(s.videoId)) continue;
               const real = s.videoId ? byId.get(s.videoId) : undefined;
               if (real) { scheduled.push(real); continue; }
               const url = s.type === 'BUMPER' ? s.bumperUrl : s.videoUrl;

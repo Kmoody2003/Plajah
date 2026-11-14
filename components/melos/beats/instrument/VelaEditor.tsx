@@ -91,7 +91,7 @@ export const VelaEditor: React.FC<Props> = ({ track, onMutate, onClose }) => {
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-4 [&>*]:shrink-0">
         <PartialDisplay
           partials={val(M.PARTIALS, 0.5)}
           inharm={val(M.INHARM, 0.04)}

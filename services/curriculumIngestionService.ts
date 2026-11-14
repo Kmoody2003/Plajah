@@ -2,6 +2,7 @@
 // Universal Curriculum, Lesson, Google Docs / Google Forms / Word / PDF & Answer-Key Ingestion Engine
 // Powered by Tela (TelaWriterDevice + TelaFormDevice + TelaBaseDevice) and the Plajah Mastery Graph.
 
+import { activeScopeUid, adoptOwnedRows, scopedKey, userScopedKey } from './userScope';
 import type {
   TelaDoc,
   TelaWriterDevice,
@@ -15,7 +16,7 @@ import type {
   WorksheetFieldType,
 } from './worksheetDigitizer';
 import { worksheetToTelaDoc } from './worksheetTelaAdapter';
-import { saveTelaDoc } from './telaStore';
+import { saveTelaDoc, loadTelaDoc } from './telaStore';
 import { digitizeWorksheetOnDevice } from './worksheetLocalVision';
 import { parseRef, formatRef, refId } from './scriptureRef';
 import { recordSet, loadMastery, type SkillLevel } from './mastery';
@@ -27,14 +28,14 @@ import {
   resolveDocumentClassFolder,
   isStandaloneTeacherScopeId,
   getStandaloneTeacherScopeId,
-  GREAT_FAITH_MINISTRIES_DEFAULT_ID,
-  GREAT_FAITH_MINISTRIES_NAME,
+  listHqAssetsDetailed,
 } from './orgAssets';
 import {
   matchSacredLibrarySupplementsForLesson,
   type SacredLibrarySupplement,
 } from './sacredLibraryCurriculumBridge';
 import { getDefaultLivingTemplateForUnit } from './council/livingDocumentTemplates';
+import { pushLibraryUnit, removeLibraryUnit, libraryActorIsAdmin, libraryActorUid, fetchLibraryUnits } from './lessonLibraryStore';
 
 export type CurriculumSourceKind =
   | 'GOOGLE_FORM'
@@ -47,7 +48,17 @@ export type CurriculumSourceKind =
 
 export interface IngestedQuestion {
   id: string;
+  /** The question's printed number. Parts (7a, 7b …) share their question's number. */
   number: number;
+  /** As printed when it isn't just the number: '7a', '9c'. */
+  label?: string;
+  /** For a part: its question's own text ("Fill in the Blanks:"), shown once above the parts. */
+  group?: string;
+  /** A row of a choice grid (a Google Forms grid, a table of answer columns): every row of the grid shares
+   *  the id and columns, and is answered by picking one column. */
+  grid?: { id: string; columns: string[] };
+  /** The part's letter was given by the importer, not printed on the original (shown only where needed). */
+  labelGenerated?: boolean;
   prompt: string;
   type: 'multiple-choice' | 'true-false' | 'numeric' | 'short-answer' | 'essay' | 'scripture-reflection';
   options?: string[];
@@ -57,6 +68,11 @@ export interface IngestedQuestion {
   skillId: string;
   skillTitle: string;
   scripturePassage?: string;
+}
+
+/** Questions as the paper numbers them: 7a–7f count as question 7. */
+export function countQuestions(qs: Array<Pick<IngestedQuestion, 'number'>>): number {
+  return new Set(qs.map(q => q.number)).size;
 }
 
 export interface IngestedMasterySkill {
@@ -78,6 +94,8 @@ export type LessonLibraryCategory =
   | 'ANSWER_KEY';
 
 export interface IngestedCurriculumUnit {
+  /** Set on a student's copy: the answer keys stayed with the teacher (services/christianEdSync), so key-graded questions wait for review. */
+  answerKeyWithheld?: boolean;
   id: string;
   orgId: string;
   programId?: string;
@@ -116,6 +134,24 @@ export interface IngestedCurriculumUnit {
   rawAnswerKeyText?: string;
   sacredLibrarySupplements?: SacredLibrarySupplement[];
   livingTemplateId?: string;
+  /** Header lines the student fills in (Name, Date, Counselor …). Not questions: never graded or counted. */
+  detailFields?: string[];
+  /** The original gives points (or marks). Points only show when it does; otherwise they're a grading setting. */
+  pointsAssigned?: boolean;
+  /** A PDF's pages as the original lays them out (services/documentLayout), so a reading shows as it was printed. */
+  layoutPages?: import('./documentLayout').LayoutPage[];
+  /** The original is a scan; its text was read from the page images on the importing device. */
+  readByOcr?: boolean;
+  /** Bumped when the importer's reading of a source changes, so older imports are read again. */
+  importVersion?: number;
+  /** Who put it in the library (services/lessonLibraryStore): 'admin' lessons are locked for teachers. */
+  provisioned?: 'admin' | 'teacher';
+  ownerUid?: string;
+  /** Set on a teacher's copy of another lesson. */
+  copiedFromId?: string;
+  /** Set on lessons read from the shared library ('platform' = shared with everyone). */
+  tier?: 'org' | 'user' | 'platform';
+  remoteUpdatedAt?: number;
   createdAt: number;
 }
 
@@ -127,7 +163,8 @@ export interface StudentUnitSubmission {
   studentUid: string;
   studentName: string;
   answers: Record<string, string>;
-  questionScores: Record<string, { correct: boolean; earnedPoints: number; maxPoints: number; expected?: string }>;
+  /** `pending`: graded by the teacher with a key the student's device never had. */
+  questionScores: Record<string, { correct: boolean; earnedPoints: number; maxPoints: number; expected?: string; pending?: boolean }>;
   earnedPoints: number;
   totalPoints: number;
   percentage: number;
@@ -139,16 +176,38 @@ function normalizeToGreatFaithOrgId(orgId: string): string {
   if (isStandaloneTeacherScopeId(orgId)) {
     return getStandaloneTeacherScopeId(orgId);
   }
-  if (!orgId || orgId === 'demo-grace-chapel' || orgId.startsWith('demo-')) {
-    return GREAT_FAITH_MINISTRIES_DEFAULT_ID;
-  }
-  return orgId;
+  // Every org keeps its own library. A demo org or a missing id never shares Great Faith's storage
+  // (it used to, which put Great Faith's real course in the Grace Chapel demo).
+  return orgId || 'unscoped';
 }
 
-const STORAGE_UNITS_KEY = (orgId: string) =>
-  `plajah_ingested_curriculum_units_v1_${normalizeToGreatFaithOrgId(orgId)}`;
-const STORAGE_SUBMISSIONS_KEY = (orgId: string) =>
-  `plajah_ingested_curriculum_subs_v1_${normalizeToGreatFaithOrgId(orgId)}`;
+const UNITS_PREFIX = 'plajah_ingested_curriculum_units_v1_';
+const SUBS_PREFIX = 'plajah_ingested_curriculum_subs_v1_';
+
+/** This account's lessons on this device. Old shared lists give up the rows with this account's uid on them. */
+const STORAGE_UNITS_KEY = (orgId: string) => {
+  const name = `${UNITS_PREFIX}${normalizeToGreatFaithOrgId(orgId)}`;
+  const uid = activeScopeUid();
+  if (uid) adoptOwnedRows<IngestedCurriculumUnit>(name, userScopedKey(uid, name), u => u?.ownerUid === uid);
+  return userScopedKey(uid, name);
+};
+const STORAGE_SUBMISSIONS_KEY = (orgId: string) => {
+  const name = `${SUBS_PREFIX}${normalizeToGreatFaithOrgId(orgId)}`;
+  const uid = activeScopeUid();
+  if (uid) adoptOwnedRows<StudentUnitSubmission>(name, userScopedKey(uid, name), s => s?.studentUid === uid);
+  return userScopedKey(uid, name);
+};
+
+// What the shared library (the cloud) holds for each scope, kept in this page's memory. The library is
+// shown from here first, so it never depends on this browser having room to keep a copy: a full
+// localStorage used to empty the whole library. The local copy is only for working offline.
+const cloudUnits = new Map<string, Map<string, IngestedCurriculumUnit>>();
+const cloudFor = (orgId: string) => {
+  const k = normalizeToGreatFaithOrgId(orgId);
+  let m = cloudUnits.get(k);
+  if (!m) cloudUnits.set(k, (m = new Map()));
+  return m;
+};
 
 function inferLessonLibraryCategory(
   title: string,
@@ -180,7 +239,6 @@ function readRawStoredUnitsForKey(key: string): IngestedCurriculumUnit[] {
   }
 }
 
-let isSeedingDefaultsSync = false;
 
 export function listIngestedUnits(
   orgId: string,
@@ -190,21 +248,24 @@ export function listIngestedUnits(
   try {
     const isStandaloneTeacher = isStandaloneTeacherScopeId(orgId);
     const safeOrgId = normalizeToGreatFaithOrgId(orgId);
-    const resolvedOrgName = orgName || GREAT_FAITH_MINISTRIES_NAME;
+    const resolvedOrgName = orgName || '';
     const orgEduFolder = getOrgEducationFolderName(resolvedOrgName);
 
-    const primaryList = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId));
-    const secondaryList = isStandaloneTeacher
-      ? safeOrgId !== 'teacher-personal-hq'
-        ? readRawStoredUnitsForKey(STORAGE_UNITS_KEY('teacher-personal-hq'))
-        : []
-      : safeOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID
-        ? readRawStoredUnitsForKey(STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID))
-        : [];
-
+    const cloud = cloudUnits.get(safeOrgId);
+    const localList = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId));
+    // Cloud copies first (they win the dedupe below), then lessons only on this device.
+    const ownList = cloud?.size ? [...cloud.values(), ...localList.filter(u => !cloud.has(u.id))] : localList;
+    // Older builds copied every org's lessons into Great Faith's library; those copies also sit in their
+    // own org's storage on this device, so leave them out of Great Faith's.
+    const primaryList = safeOrgId === GREAT_FAITH_OLD_LOCAL_ID ? withoutOtherOrgsCopies(ownList) : ownList;
+    // The Revelation 2 sample course is demo content. Older builds seeded it into every org's library;
+    // a real org shows only what its own people added.
+    const demoOrg = !isStandaloneTeacher && isRevelationCourseOrg(safeOrgId);
     const byKey = new Map<string, IngestedCurriculumUnit>();
-    for (const u of [...primaryList, ...secondaryList]) {
+    for (const u of primaryList) {
       if (!u || !u.title) continue;
+      if (isFabricatedSampleUnit(u)) continue;
+      if (!demoOrg && isSampleCourseUnit(u)) continue;
       const dedupeKey = (u.sourceUrl || u.title).trim().toLowerCase();
       if (!byKey.has(dedupeKey)) {
         const isKeyOnly =
@@ -232,86 +293,19 @@ export function listIngestedUnits(
           departmentFolder: resolvedFolder,
           documentClassFolder: docClass,
           scopeKind: isStandaloneTeacher ? 'user' : 'org',
+          // Only the demo org's items came from the sample course hub; real items keep their own source.
           extractedFromHubTitle:
             u.extractedFromHubTitle ||
-            (isStandaloneTeacher ? undefined : 'Revelation 2: Course Connection (Master Google Doc)'),
+            (demoOrg ? 'Revelation 2: Course Connection (Master Google Doc)' : undefined),
           extractedFromHubUrl:
             u.extractedFromHubUrl ||
-            (isStandaloneTeacher
-              ? undefined
-              : 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?pli=1&tab=t.qo6bykb5zkh7'),
+            (demoOrg ? REVELATION_2_COURSE_CONNECTION_PRESET.hubUrl : undefined),
         });
       }
     }
 
-    // For organization scopes, seed the preset documents synchronously if not yet seeded so the
-    // organization's Lesson Library & `<Org Name> Education` folder is never empty on mount!
-    if (
-      !isStandaloneTeacher &&
-      !isSeedingDefaultsSync &&
-      typeof REVELATION_2_COURSE_CONNECTION_PRESET !== 'undefined' &&
-      byKey.size < REVELATION_2_COURSE_CONNECTION_PRESET.links.length
-    ) {
-      isSeedingDefaultsSync = true;
-      try {
-        for (const item of REVELATION_2_COURSE_CONNECTION_PRESET.links) {
-          const dedupeKey = (item.url || item.label).trim().toLowerCase();
-          if (byKey.has(dedupeKey)) continue;
-          const resolvedKind: IngestedCurriculumUnit['kind'] =
-            item.category === 'GOOGLE_FORM' || /\bquiz\b/i.test(item.label)
-              ? 'QUIZ'
-              : /\b(test|exam|examination|benchmark)\b/i.test(item.label)
-                ? 'TEST'
-                : /\b(syllabus|course\s*connection)\b/i.test(item.label)
-                  ? 'CURRICULUM_MODULE'
-                  : 'INTERACTIVE_LESSON';
-          const { unit, telaDoc } = parseCurriculumAndBuildUnit({
-            orgId: safeOrgId,
-            programId,
-            title: item.label,
-            rawCurriculumText: item.fallbackCurriculumText || `# ${item.label}`,
-            rawAnswerKeyText: item.fallbackAnswerKeyText || '',
-            sourceKind:
-              item.category === 'ANSWER_KEY'
-                ? 'GOOGLE_DOC'
-                : (item.category as CurriculumSourceKind),
-            sourceLabel: item.label,
-            sourceUrl: item.url,
-            answerKeySourceLabel: item.pairedAnswerKeyLabel,
-            unitKind: resolvedKind,
-          });
-          const libCat = inferLessonLibraryCategory(item.label, resolvedKind, item.isAnswerKey);
-          unit.departmentFolder = orgEduFolder;
-          unit.documentClassFolder = resolveDocumentClassFolder({
-            unitTitle: item.label,
-            unitKind: resolvedKind,
-            libraryCategory: libCat,
-            isAnswerKey: item.isAnswerKey,
-          });
-          unit.scopeKind = 'org';
-          unit.rawCurriculumText = item.fallbackCurriculumText || `# ${item.label}`;
-          unit.rawAnswerKeyText = item.fallbackAnswerKeyText || '';
-          unit.isAnswerKeyOnly = Boolean(item.isAnswerKey);
-          unit.libraryCategory = libCat;
-          unit.createdByName = `${resolvedOrgName} Education`;
-          unit.uploadedByRole = 'INSTRUCTOR';
-          unit.extractedFromHubTitle = REVELATION_2_COURSE_CONNECTION_PRESET.hubTitle;
-          unit.extractedFromHubUrl = REVELATION_2_COURSE_CONNECTION_PRESET.hubUrl;
-          void saveTelaDoc(telaDoc).catch(() => {});
-          byKey.set(dedupeKey, unit);
-        }
-        const seededArray = Array.from(byKey.values()).sort((a, b) => b.createdAt - a.createdAt);
-        localStorage.setItem(STORAGE_UNITS_KEY(safeOrgId), JSON.stringify(seededArray));
-        if (safeOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID) {
-          localStorage.setItem(
-            STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID),
-            JSON.stringify(seededArray.map(u => ({ ...u, orgId: GREAT_FAITH_MINISTRIES_DEFAULT_ID })))
-          );
-        }
-      } finally {
-        isSeedingDefaultsSync = false;
-      }
-    }
+    // The Revelation 2 course is imported for real by ensureAllDetectedLinksOnboarded (each link downloaded
+    // and read); nothing is seeded here from built-in text.
 
     const list = Array.from(byKey.values());
     const filtered = programId ? list.filter(u => !u.programId || u.programId === programId) : list;
@@ -319,6 +313,53 @@ export function listIngestedUnits(
   } catch {
     return [];
   }
+}
+
+/** Great Faith's old browser-only id, from before it had a real org. No account is ever sent here. */
+const GREAT_FAITH_OLD_LOCAL_ID = 'great-faith-ministries';
+
+function withoutOtherOrgsCopies(list: IngestedCurriculumUnit[]): IngestedCurriculumUnit[] {
+  const elsewhere = new Set<string>();
+  try {
+    const gfKey = STORAGE_UNITS_KEY(GREAT_FAITH_OLD_LOCAL_ID);
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || key === gfKey || !key.startsWith(scopedKey(UNITS_PREFIX))) continue;
+      for (const u of readRawStoredUnitsForKey(key)) if (u?.id) elsewhere.add(u.id);
+    }
+  } catch {
+    return list;
+  }
+  return list.filter(u => !elsewhere.has(u.id));
+}
+
+/**
+ * The orgs the Revelation 2 course belongs to, by exact org id. It is Great Faith Ministries' own
+ * curriculum and no other org gets it, whatever it's called:
+ *   • ssmj9GnjxGnE7lJoPmWH — "Great Faith Ministries International" (@greatfaithministries), the live org;
+ *   • 'great-faith-ministries' — the same org's pre-Firestore local scope.
+ * (A second, near-empty "Great Faith Ministries Int'L" org, n7FDgEg1m3JDAsYuY19o, is deliberately not listed.)
+ */
+export const REVELATION_2_COURSE_ORG_IDS: ReadonlySet<string> = new Set(['ssmj9GnjxGnE7lJoPmWH', GREAT_FAITH_OLD_LOCAL_ID]);
+function isRevelationCourseOrg(safeOrgId: string): boolean {
+  return REVELATION_2_COURSE_ORG_IDS.has(safeOrgId);
+}
+
+/**
+ * Items older builds made up for the Revelation 2 course: built-in text under invented links (the course
+ * doc's id with suffixes like `_ephesus_pdf`, and form ids such as `…ScRev2EphesusSmyrnaQuiz`). Hidden
+ * everywhere; the real course is re-imported from its actual links.
+ */
+function isFabricatedSampleUnit(u: IngestedCurriculumUnit): boolean {
+  const src = u.sourceUrl || '';
+  return src.includes('1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE') || /1FAIpQLScRev2/.test(src);
+}
+
+/** A unit imported from the Revelation 2 course links (Great Faith's own course). */
+function isSampleCourseUnit(u: IngestedCurriculumUnit): boolean {
+  const p = REVELATION_2_COURSE_CONNECTION_PRESET;
+  // By its own source link only: older builds also stamped the hub onto real items' provenance.
+  return !!u.sourceUrl && (u.sourceUrl === p.hubUrl || p.links.some(l => l.url === u.sourceUrl || l.pairedAnswerKeyUrl === u.sourceUrl));
 }
 
 export function saveIngestedUnit(unit: IngestedCurriculumUnit): void {
@@ -349,31 +390,29 @@ export function saveIngestedUnit(unit: IngestedCurriculumUnit): void {
         ? isKeyOnly
           ? 'Answer Keys & Rubrics'
           : docClass
-        : unit.departmentFolder || getOrgEducationFolderName(GREAT_FAITH_MINISTRIES_NAME),
+        : unit.departmentFolder || getOrgEducationFolderName(),
     };
-    const existing = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId)).filter(
-      u => u.id !== unit.id && u.title.toLowerCase() !== unit.title.toLowerCase()
-    );
-    localStorage.setItem(STORAGE_UNITS_KEY(safeOrgId), JSON.stringify([normalizedUnit, ...existing]));
-    if (isStandaloneTeacher) {
-      if (safeOrgId !== 'teacher-personal-hq') {
-        const personalExisting = readRawStoredUnitsForKey(STORAGE_UNITS_KEY('teacher-personal-hq')).filter(
-          u => u.id !== unit.id && u.title.toLowerCase() !== unit.title.toLowerCase()
-        );
-        localStorage.setItem(
-          STORAGE_UNITS_KEY('teacher-personal-hq'),
-          JSON.stringify([{ ...normalizedUnit, orgId: 'teacher-personal-hq' }, ...personalExisting])
-        );
+    // The org's own course imports are the org's (admin) lessons, whoever's browser read them in.
+    if (!normalizedUnit.provisioned) normalizedUnit.provisioned = isStandaloneTeacher ? 'teacher' : isSampleCourseUnit(unit) || libraryActorIsAdmin(safeOrgId) ? 'admin' : 'teacher';
+    if (!normalizedUnit.ownerUid) normalizedUnit.ownerUid = libraryActorUid() || undefined;
+    // The shared library first, so the org's teachers (or the teacher's other devices) have it, and this
+    // page shows it, even when this browser has no room left for its own copy.
+    if (normalizedUnit.tier !== 'platform') {
+      const uid = libraryActorUid();
+      if (uid) {
+        const cloud = cloudFor(safeOrgId);
+        for (const [id, x] of cloud) if (id !== unit.id && x.title.toLowerCase() === unit.title.toLowerCase()) cloud.delete(id);
+        cloud.set(normalizedUnit.id, normalizedUnit);
+        void pushLibraryUnit(normalizedUnit, isStandaloneTeacher ? 'user' : 'org', isStandaloneTeacher ? uid : safeOrgId);
       }
-    } else if (safeOrgId !== GREAT_FAITH_MINISTRIES_DEFAULT_ID) {
-      const gfExisting = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID)).filter(
+    }
+    try {
+      const existing = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId)).filter(
         u => u.id !== unit.id && u.title.toLowerCase() !== unit.title.toLowerCase()
       );
-      localStorage.setItem(
-        STORAGE_UNITS_KEY(GREAT_FAITH_MINISTRIES_DEFAULT_ID),
-        JSON.stringify([{ ...normalizedUnit, orgId: GREAT_FAITH_MINISTRIES_DEFAULT_ID }, ...gfExisting])
-      );
-    }
+      localStorage.setItem(STORAGE_UNITS_KEY(safeOrgId), JSON.stringify([normalizedUnit, ...existing]));
+    } catch { /* storage full: the cloud copy above is the lesson */ }
+    // An org's lessons stay in that org's library only (older builds also copied every one into Great Faith's).
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('plajah:lessonLibraryUpdated', { detail: { orgId: safeOrgId } }));
     }
@@ -382,12 +421,37 @@ export function saveIngestedUnit(unit: IngestedCurriculumUnit): void {
   }
 }
 
-export function deleteIngestedUnit(orgId: string, unitId: string): void {
+export function deleteIngestedUnit(orgId: string, unitId: string, opts: { shared?: boolean } = {}): void {
   try {
-    const existing = listIngestedUnits(orgId).filter(u => u.id !== unitId);
+    cloudUnits.get(normalizeToGreatFaithOrgId(orgId))?.delete(unitId);
+    if (opts.shared) void removeLibraryUnit(unitId);
+    const existing = readRawStoredUnitsForKey(STORAGE_UNITS_KEY(orgId)).filter(u => u.id !== unitId);
     localStorage.setItem(STORAGE_UNITS_KEY(orgId), JSON.stringify(existing));
   } catch {
     // ignore
+  }
+}
+
+/**
+ * Brings lessons from the shared library into this device's copy of a scope's library. A shared lesson
+ * replaces the local one with the same id; lessons only on this device stay (they upload on next save).
+ */
+export function mergeSharedUnits(orgId: string, shared: IngestedCurriculumUnit[]): void {
+  if (!shared.length) return;
+  const cloud = cloudFor(orgId);
+  for (const u of shared) cloud.set(u.id, { ...cloud.get(u.id), ...u });
+  try {
+    const key = STORAGE_UNITS_KEY(orgId);
+    const byId = new Map(readRawStoredUnitsForKey(key).map(u => [u.id, u] as const));
+    for (const u of shared) {
+      const mine = byId.get(u.id);
+      // Same lesson imported on two devices (different ids, same link): keep the shared one.
+      if (!mine && u.sourceUrl) for (const [id, x] of byId) if (x.sourceUrl === u.sourceUrl && !x.remoteUpdatedAt) byId.delete(id);
+      byId.set(u.id, { ...mine, ...u });
+    }
+    localStorage.setItem(key, JSON.stringify(Array.from(byId.values())));
+  } catch {
+    /* storage full: the shared copy is still read next time */
   }
 }
 
@@ -398,6 +462,8 @@ export function updateUnitLivingTemplate(
 ): void {
   try {
     const safeOrgId = normalizeToGreatFaithOrgId(orgId);
+    const cached = cloudUnits.get(safeOrgId)?.get(unitId);
+    if (cached) cached.livingTemplateId = livingTemplateId;
     const existing = listIngestedUnits(safeOrgId);
     const updated = existing.map(u =>
       u.id === unitId ? { ...u, livingTemplateId } : u
@@ -478,12 +544,38 @@ function isGoogleLoginWallHtml(text: string): boolean {
   );
 }
 
+/**
+ * Reads a Google Drive / Docs / Forms link through our own server (routes/curriculumFetch.ts) — browsers
+ * can't read those hosts directly, and org documents must not be relayed through public CORS proxies.
+ * Returns null when the server refuses or can't be reached; throws PRIVATE_LINK for files that
+ * aren't shared by link.
+ */
+export async function fetchCurriculumLink(url: string): Promise<Response | null> {
+  const { auth } = await import('./firebase');
+  const user = auth.currentUser;
+  try {
+    // Signed out, the server answers 401 and the caller falls back (the dev lab's stand-in server answers).
+    const resp = await fetch('/api/curriculum/fetch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(user ? { Authorization: `Bearer ${await user.getIdToken()}` } : {}) },
+      body: JSON.stringify({ url }),
+    });
+    if (resp.status === 403) throw new Error('PRIVATE_LINK: That file is private. Share it as “Anyone with the link → Viewer”, then import again.');
+    return resp.ok ? resp : null;
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith('PRIVATE_LINK')) throw e;
+    return null;
+  }
+}
+
 async function fetchTextWithCorsFallback(targetUrl: string): Promise<string> {
-  const attempts = [
-    targetUrl,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
-    `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-  ];
+  const viaServer = await fetchCurriculumLink(targetUrl);
+  if (viaServer) {
+    const text = await viaServer.text();
+    if (text && text.trim().length > 15 && !isGoogleLoginWallHtml(text)) return text;
+  }
+  // Signed out / offline: a direct read only works for hosts that allow it. No third-party relays.
+  const attempts = [targetUrl];
   let sawAuthWall = false;
   for (const candidate of attempts) {
     try {
@@ -518,18 +610,39 @@ async function fetchTextWithCorsFallback(targetUrl: string): Promise<string> {
  * Extracts structured questions, options, descriptions, and quiz points from a Google Form URL or HTML source.
  * Parses Google Forms' embedded `FB_PUBLIC_LOAD_DATA_` schema when available, plus HTML/text fallback.
  */
+/** A question read from a structured source (a Google Form), numbered as the source prints it. */
+export interface StructuredQuestion {
+  prompt: string;
+  type: IngestedQuestion['type'];
+  options?: string[];
+  points?: number;
+  correctAnswer?: string;
+  explanation?: string;
+  number?: number;
+  label?: string;
+  group?: string;
+  grid?: { id: string; columns: string[] };
+  labelGenerated?: boolean;
+}
+
+/** Version of the importer's reading of sources; units imported by an older one are read again. */
+export const IMPORT_VERSION = 8;
+
+/** Header fields on a test or worksheet — who and when, not questions. */
+const DETAIL_FIELD = /^(?:student'?s?\s+)?(?:full\s+)?(name|first\s+name|last\s+name|counsel(?:l)?or|teacher|instructor|date|class|course|section|period|grade|email|e-mail|phone|id|student\s+id|church|campus|mentor|group|cohort|semester|term)\s*[:#.\-]?\s*_*\s*$/i;
+export const isDetailField = (label: string) => DETAIL_FIELD.test(label.trim());
+
+const NUMBERED = /^\s*(?:Q(?:uestion)?\s*#?\s*)?(\d{1,3})\s*[.):]\s*(.*)$/is;
+const LETTERED = /^\s*\(?([a-z])\s*[.)]\s+(.*)$/is;
+
 export async function extractGoogleForm(urlOrHtml: string): Promise<{
   title: string;
   description: string;
   rawText: string;
-  structuredQuestions: Array<{
-    prompt: string;
-    type: IngestedQuestion['type'];
-    options?: string[];
-    points?: number;
-    correctAnswer?: string;
-    explanation?: string;
-  }>;
+  /** Only the form's own reading text (description, section text), without its questions. */
+  readingText: string;
+  detailFields: string[];
+  structuredQuestions: StructuredQuestion[];
 }> {
   let html = urlOrHtml.trim();
   if (/^https?:\/\//i.test(html)) {
@@ -546,73 +659,130 @@ export async function extractGoogleForm(urlOrHtml: string): Promise<{
       const formDesc = String(formMeta?.[0] || '').trim();
       const items: any[] = Array.isArray(formMeta?.[1]) ? formMeta[1] : [];
 
-      const structuredQuestions: Array<{
-        prompt: string;
-        type: IngestedQuestion['type'];
-        options?: string[];
-        points?: number;
-        correctAnswer?: string;
-        explanation?: string;
-      }> = [];
+      // The form is read the way it is printed: its own numbers ("1." … "9."), lettered parts ("a." …)
+      // under the numbered question before them, a grid's rows as parts of its question, and the
+      // who/when header (NAME, DATE, COUNSELOR) as detail fields rather than questions.
+      const structuredQuestions: StructuredQuestion[] = [];
+      const detailFields: string[] = [];
       const textLines: string[] = [`# ${formTitle}`];
-      if (formDesc) textLines.push(formDesc, '');
+      // The title is the page's heading already; the reading is only the form's own description and sections.
+      const readingLines: string[] = [];
+      if (formDesc) { textLines.push(formDesc, ''); readingLines.push(formDesc, ''); }
+      // `stem`: a numbered heading whose parts follow as their own items ("5. Fill in the blanks" then
+      // "1." … "10."); `sub`: the last part number seen under it, while its own list counts up.
+      let current: { number: number; text: string; parts: number; stem?: boolean; sub?: number } | null = null;
+      let unnumbered = 0;
+      const letter = (n: number) => String.fromCharCode(97 + (n % 26));
+      const typeFor = (code: number, options: string[]): IngestedQuestion['type'] =>
+        code === 2 || code === 3 || code === 4 || code === 7 || options.length >= 2
+          ? options.length === 2 && options.every(o => /^(true|false|yes|no)$/i.test(o.trim())) ? 'true-false' : 'multiple-choice'
+          : code === 1 ? 'essay' : 'short-answer';
+      const addPart = (prompt: string, type: IngestedQuestion['type'], options: string[], printed?: string, grid?: StructuredQuestion['grid']) => {
+        if (!current) return false;
+        const l = printed || letter(current.parts);
+        current.parts++;
+        // Lettered parts print as 7a; a numbered list inside a question as 5.1, 5.2 …
+        const label = /^\d+$/.test(l) ? `${current.number}.${l}` : `${current.number}${l}`;
+        structuredQuestions.push({ prompt, type, options: options.length ? options : undefined, points: 1, number: current.number, label, group: current.text || undefined, ...(grid ? { grid } : {}), ...(printed ? {} : { labelGenerated: true }) });
+        textLines.push(`   ${l}. ${prompt}`);
+        options.forEach((o, k) => textLines.push(`      ${String.fromCharCode(65 + k)}) ${o}`));
+        return true;
+      };
 
       for (const item of items) {
         const itemTitle = String(item?.[1] || '').trim();
         const itemDesc = String(item?.[2] || '').trim();
         const itemType = Number(item?.[3]);
-        const questionData = item?.[4]?.[0];
+        const rows: any[] = Array.isArray(item?.[4]) ? item[4] : [];
+        const questionData = rows[0];
 
-        // Section header / lesson reading block (type 8)
-        if (!questionData || itemType === 8 || itemType === 6) {
-          if (itemTitle) textLines.push(`## ${itemTitle}`);
-          if (itemDesc) textLines.push(itemDesc, '');
+        // Section header / text block / image / video (8, 6, 11, 12): reading text, unless it is a numbered
+        // question's stem ("7. Fill in the Blanks:"), whose parts follow as their own items.
+        if (!questionData || itemType === 8 || itemType === 6 || itemType === 11 || itemType === 12) {
+          const n = itemTitle.match(NUMBERED);
+          if (n) {
+            // The stem's own text (e.g. the A–I definitions a matching question uses) stays with it.
+            current = { number: Number(n[1]), text: itemDesc ? `${n[2].trim()}\n\n${itemDesc}` : n[2].trim(), parts: 0, stem: true };
+            textLines.push(`${n[1]}. ${n[2].trim()}`);
+            if (itemDesc) textLines.push(itemDesc);
+          } else {
+            if (itemTitle) { textLines.push(`## ${itemTitle}`); readingLines.push(`## ${itemTitle}`); }
+            if (itemDesc) { textLines.push(itemDesc, ''); readingLines.push(itemDesc, ''); }
+          }
           continue;
         }
 
-        const rawChoices: any[] = Array.isArray(questionData?.[1]) ? questionData[1] : [];
-        const options = rawChoices
-          .map(c => String(c?.[0] || '').trim())
-          .filter(Boolean);
-
-        // Determine question type from Google Form type code
-        // 0 = Short answer, 1 = Paragraph, 2 = Multiple choice, 3 = Dropdown, 4 = Checkboxes, 5 = Scale
-        let qType: IngestedQuestion['type'] = 'short-answer';
-        if (itemType === 2 || itemType === 3 || itemType === 4 || options.length >= 2) {
-          if (
-            options.length === 2 &&
-            options.every(o => /^(true|false|yes|no)$/i.test(o.trim()))
-          ) {
-            qType = 'true-false';
-          } else {
-            qType = 'multiple-choice';
-          }
-        } else if (itemType === 1) {
-          qType = 'essay';
+        // Date / time pickers and who-is-this fields are the header, not questions.
+        if (itemType === 9 || itemType === 10 || isDetailField(itemTitle)) {
+          detailFields.push(itemTitle.replace(/[:\s_]+$/, ''));
+          textLines.push(`${itemTitle} ____`);
+          continue;
         }
 
-        const qNum = structuredQuestions.length + 1;
-        const promptText = itemDesc ? `${itemTitle} (${itemDesc})` : itemTitle;
-        textLines.push(`${qNum}. ${promptText}`);
-        options.forEach((opt, idx) => {
-          const letter = String.fromCharCode(65 + idx);
-          textLines.push(`   ${letter}) ${opt}`);
-        });
-        textLines.push('');
+        const options = (Array.isArray(questionData?.[1]) ? questionData[1] : []).map((c: any) => String(c?.[0] || '').trim()).filter(Boolean);
+        const qType = typeFor(itemType, options);
+        const promptOf = (t: string) => (itemDesc ? `${t} (${itemDesc})` : t);
+        const numbered = itemTitle.match(NUMBERED);
+        const lettered = itemTitle.match(LETTERED);
 
-        structuredQuestions.push({
-          prompt: promptText,
-          type: qType,
-          options: options.length > 0 ? options : undefined,
-          points: 1,
-        });
+        const gridRows = () => {
+          // One grid: the rows share its columns (Google lists them on every row; the first row's are the grid's).
+          const columns = (Array.isArray(rows[0]?.[1]) ? rows[0][1] : []).map((c: any) => String(c?.[0] || '').trim()).filter(Boolean);
+          const grid = columns.length ? { id: `g${item?.[0] ?? structuredQuestions.length}`, columns } : undefined;
+          for (const row of rows) {
+            const rowText = String(row?.[3]?.[0] || '').trim();
+            const rowOpts = (Array.isArray(row?.[1]) ? row[1] : []).map((c: any) => String(c?.[0] || '').trim()).filter(Boolean);
+            // A row keeps its own printed mark: "a. …" → 7a, "1) …" → 1.1; unmarked rows are lettered.
+            const lm = rowText.match(LETTERED);
+            const nm = lm ? null : rowText.match(NUMBERED);
+            addPart(lm ? lm[2].trim() : nm ? nm[2].trim() : rowText || itemTitle, typeFor(7, rowOpts), rowOpts.length ? rowOpts : options, lm ? lm[1].toLowerCase() : nm ? nm[1] : undefined, grid);
+          }
+        };
+
+        // A numbered list inside a stem ("5. Fill in the blanks" → "1." … "10."): parts 5.1 … 5.10,
+        // for as long as the list counts up from 1.
+        if (numbered && current?.stem && (current.sub === undefined ? Number(numbered[1]) === 1 && current.parts === 0 : Number(numbered[1]) === current.sub + 1)) {
+          current.sub = Number(numbered[1]);
+          if (itemType === 7) gridRows();
+          else addPart(promptOf(numbered[2].trim()), qType, options, numbered[1]);
+          continue;
+        }
+        // An unnumbered item straight under a stem ("1. Choose the definition…" → "Match the gift…") is that question's part.
+        if (!numbered && !lettered && current?.stem && current.sub === undefined) {
+          if (itemType === 7) gridRows();
+          else addPart(promptOf(itemTitle), qType, options);
+          continue;
+        }
+
+        if (numbered) {
+          const number = Number(numbered[1]);
+          const text = numbered[2].trim();
+          current = { number, text, parts: 0 };
+          textLines.push(`${number}. ${promptOf(text)}`);
+          // A grid (multiple-choice / checkbox grid, code 7): each row is its own part of the question.
+          if (itemType === 7) { gridRows(); continue; }
+          structuredQuestions.push({ prompt: promptOf(text), type: qType, options: options.length ? options : undefined, points: 1, number });
+          options.forEach((o, k) => textLines.push(`   ${String.fromCharCode(65 + k)}) ${o}`));
+          continue;
+        }
+        if (lettered && current && addPart(promptOf(lettered[2].trim()), qType, options, lettered[1].toLowerCase())) continue;
+
+        // An unnumbered question (some forms don't number theirs): number it after the last one.
+        unnumbered++;
+        const number = (current?.number || structuredQuestions.reduce((m, q) => Math.max(m, q.number || 0), 0)) + 1;
+        current = { number, text: itemTitle, parts: 0 };
+        textLines.push(`${number}. ${promptOf(itemTitle)}`);
+        structuredQuestions.push({ prompt: promptOf(itemTitle), type: qType, options: options.length ? options : undefined, points: 1, number });
       }
+      void unnumbered;
 
       if (structuredQuestions.length > 0) {
         return {
           title: formTitle,
           description: formDesc,
           rawText: textLines.join('\n'),
+          readingText: readingLines.join('\n'),
+          detailFields,
           structuredQuestions,
         };
       }
@@ -638,6 +808,8 @@ export async function extractGoogleForm(urlOrHtml: string): Promise<{
     title: 'Google Form Interactive Lesson',
     description: 'Extracted from Google Forms into Tela',
     rawText: stripped,
+    readingText: stripped,
+    detailFields: [],
     structuredQuestions: [],
   };
 }
@@ -646,13 +818,34 @@ export async function extractGoogleForm(urlOrHtml: string): Promise<{
  * Extracts text from a Google Doc link (`/document/d/{ID}/...`, including specific `?tab=t.xxx` tabs)
  * or Google Drive file link (`/file/d/{ID}/...`) or published Google Doc URL.
  */
-export async function extractGoogleDocText(url: string): Promise<{ title: string; text: string }> {
+/** A scanned PDF (no text layer) read with on-device OCR, or '' when it still has no readable text. */
+async function ocrScannedPdf(file: File): Promise<string> {
+  try {
+    const { ocrPdfFile } = await import('./documentImport');
+    const text = await ocrPdfFile(file);
+    return text.replace(/\s/g, '').length >= 20 ? text : '';
+  } catch {
+    return '';
+  }
+}
+
+export async function extractGoogleDocText(url: string): Promise<{ title: string; text: string; ocr?: boolean; pages?: import('./documentLayout').LayoutPage[] }> {
   const docId = extractGoogleDocId(url);
   const tabId = extractGoogleDocTabId(url);
   if (docId) {
     const tabParam = tabId ? `&tab=${encodeURIComponent(tabId)}` : '';
     const exportTxtUrl = `https://docs.google.com/document/d/${docId}/export?format=txt${tabParam}`;
-    const text = await fetchTextWithCorsFallback(exportTxtUrl);
+    // The Doc's layout: its HTML keeps tables, so an answer table becomes a grid question. Plain text otherwise.
+    let text = '';
+    try {
+      const html = await fetchTextWithCorsFallback(`https://docs.google.com/document/d/${docId}/export?format=html${tabParam}`);
+      const { docsHtmlToLayoutText } = await import('./documentLayout');
+      const laid = docsHtmlToLayoutText(html);
+      if (laid.includes('@@GRID')) text = laid;
+    } catch {
+      /* HTML export unavailable: plain text */
+    }
+    if (!text) text = await fetchTextWithCorsFallback(exportTxtUrl);
     const firstNonEmpty = text
       .split(/\r?\n/)
       .map(l => l.trim())
@@ -667,18 +860,26 @@ export async function extractGoogleDocText(url: string): Promise<{ title: string
   if (driveFileId) {
     const downloadUrl = `https://drive.google.com/uc?export=download&id=${driveFileId}`;
     try {
-      const resp = await fetch(downloadUrl);
+      const resp = (await fetchCurriculumLink(downloadUrl)) || (await fetch(downloadUrl));
       if (resp.ok) {
         const buf = await resp.arrayBuffer();
         const pdfFile = new File([buf], `drive_${driveFileId}.pdf`, { type: 'application/pdf' });
-        const pdfText = await extractTextFromPdfFile(pdfFile);
+        const { text: pdfText, pages } = await extractPdfWithLayout(pdfFile);
+        // A scanned PDF has no text layer: read the page images on this device, and say so if even that fails.
+        if (pdfText.replace(/\s/g, '').length < 20) {
+          const ocrText = await ocrScannedPdf(pdfFile);
+          if (!ocrText) throw new Error('SCANNED_PDF: This PDF is a scan and its pages couldn’t be read. Open the original, or upload a text PDF / Word copy.');
+          return { title: `Google Drive PDF (${driveFileId.slice(0, 8)})`, text: ocrText, ocr: true };
+        }
         return {
           title: `Google Drive PDF (${driveFileId.slice(0, 8)})`,
           text: pdfText,
+          pages,
         };
       }
-    } catch {
-      // fall through to text fetch
+    } catch (e) {
+      if (e instanceof Error && /^(SCANNED_PDF|PRIVATE_LINK)/.test(e.message)) throw e;
+      // otherwise fall through to a text fetch
     }
   }
 
@@ -1038,7 +1239,40 @@ export async function extractTextFromDocxFile(file: File): Promise<string> {
  * Extracts text & questions from a PDF file (.pdf).
  * Supports embedded PDF text streams, DecompressionStream FlateDecode streams, and scanned PDF fallback.
  */
+/** A PDF's text for the importer plus its pages as laid out (empty pages for a scan or when pdf.js can't read it). */
+export async function extractPdfWithLayout(file: File): Promise<{ text: string; pages: import('./documentLayout').LayoutPage[] }> {
+  let pages: import('./documentLayout').LayoutPage[] = [];
+  let laidText = '';
+  try {
+    const { pdfLayout } = await import('./documentLayout');
+    const r = await pdfLayout(file);
+    pages = r.pages;
+    laidText = r.text;
+  } catch {
+    /* layout unreadable */
+  }
+  const text = laidText.includes('@@GRID') ? laidText : await extractTextFromPdfFile(file);
+  return { text, pages };
+}
+
 export async function extractTextFromPdfFile(file: File): Promise<string> {
+  // pdf.js reads real-world PDFs (Google/Word exports, embedded CID fonts); the quick parser below is the
+  // fallback for environments without it.
+  try {
+    // The page layout first: a table of answer columns (True / False, A–D) becomes a grid question.
+    const { pdfLayoutText } = await import('./documentLayout');
+    const laid = await pdfLayoutText(file);
+    if (laid.includes('@@GRID')) return laid;
+  } catch {
+    /* layout unreadable: plain text below */
+  }
+  try {
+    const { extractDocument } = await import('./documentImport');
+    const doc = await extractDocument(file);
+    if (doc.plainText.replace(/\s/g, '').length >= 20) return doc.plainText;
+  } catch {
+    /* pdf.js unavailable: try the quick parser */
+  }
   const buf = await file.arrayBuffer();
   const bytes = new Uint8Array(buf);
   const rawLatin = new TextDecoder('latin1').decode(bytes);
@@ -1110,25 +1344,9 @@ export async function extractTextFromPdfFile(file: File): Promise<string> {
     return combined;
   }
 
-  // Fallback if PDF is a scanned image PDF or custom-encoded font: generate structured template from filename
-  const cleanName = file.name.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ');
-  return [
-    `# ${cleanName}`,
-    `Interactive PDF Worksheet & Study Guide imported from ${file.name}.`,
-    ``,
-    `1. What is the central theme, thesis, or key Scripture passage in ${cleanName}?`,
-    `Answer: Core theme and primary textual evidence`,
-    ``,
-    `2. Summarize the three main takeaways or observations from this document.`,
-    `Answer: Observation, interpretation, and application`,
-    ``,
-    `3. Multiple Choice: Which statement best reflects the conclusion of ${cleanName}?`,
-    `A) The primary argument is supported by historical and textual context`,
-    `B) The passage has no practical application`,
-    `C) The context is unrelated to the unit syllabus`,
-    `D) None of the above`,
-    `Answer: A`,
-  ].join('\n');
+  // Nothing readable (a scan, or fonts the quick parser can't decode). Return nothing rather than
+  // inventing questions from the file name: callers treat empty text as "couldn't read this".
+  return '';
 }
 
 // ── 3. Answer-Key Parser & Merger ─────────────────────────────────────────────
@@ -1198,6 +1416,8 @@ export function parseAnswerKeyText(rawKeyText: string): ParsedAnswerKey {
 
 // ── 4. Curriculum Body Parser (Lessons, Syllabus Weeks, Questions & Skills) ───
 
+/** Openers that make a numbered line a prompt to answer rather than a list item. */
+const QUESTION_PROMPT = /^(who|what|when|where|why|how|which|whom|whose|explain|describe|discuss|list|name|identify|define|compare|contrast|summari[sz]e|write|give|state|tell|fill|complete|circle|match|choose|select|read\s+.+\s+and|true\s+or\s+false|t\s*\/\s*f)\b/i;
 const SCRIPTURE_REGEX =
   /\b((?:[1-3]\s+)?(?:Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Samuel|Kings|Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song of Songs|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|Corinthians|Galatians|Ephesians|Philippians|Colossians|Thessalonians|Timothy|Titus|Philemon|Hebrews|James|Peter|Jude|Revelation)\s+\d+(?::\d+(?:-\d+)?)?)\b/i;
 
@@ -1212,14 +1432,13 @@ export function parseCurriculumAndBuildUnit(params: {
   sourceUrl?: string;
   answerKeySourceLabel?: string;
   unitKind?: IngestedCurriculumUnit['kind'];
-  preParsedQuestions?: Array<{
-    prompt: string;
-    type: IngestedQuestion['type'];
-    options?: string[];
-    points?: number;
-    correctAnswer?: string;
-    explanation?: string;
-  }>;
+  preParsedQuestions?: StructuredQuestion[];
+  /** The text to read the lesson from when it differs from the original (a form: its text without its questions). */
+  readingText?: string;
+  detailFields?: string[];
+  pointsAssigned?: boolean;
+  /** A fixed id for a link that is imported again later (a course link), so it replaces its earlier copy. */
+  unitId?: string;
 }): { unit: IngestedCurriculumUnit; telaDoc: TelaDoc } {
   const {
     orgId,
@@ -1235,7 +1454,10 @@ export function parseCurriculumAndBuildUnit(params: {
   } = params;
 
   const parsedKey = parseAnswerKeyText(rawAnswerKeyText || '');
-  const lines = rawCurriculumText
+  const detailFields: string[] = [...(params.detailFields || [])];
+  // Points show only when the original gives them ("[5 pts]", "(2 points)", a quiz form's point values).
+  let pointsAssigned = !!params.pointsAssigned;
+  const lines = (params.readingText ?? rawCurriculumText)
     .split(/\r?\n/)
     .map(l => l.trim());
 
@@ -1243,6 +1465,14 @@ export function parseCurriculumAndBuildUnit(params: {
   const lessonBlocks: IngestedCurriculumUnit['lessonBlocks'] = [];
   const syllabusWeeks: PlanWeek[] = [];
   const questions: IngestedQuestion[] = [];
+
+  // A test numbers its questions once through (1, 2, 3 …). Lists that start over at 1 in each section
+  // (a study-method guide, an outline, class rules) are the document's text, so they stay reading.
+  let inGridBlock = false;
+  const printedNumbers = lines
+    .filter(l => { if (l.startsWith('@@GRID')) inGridBlock = true; else if (l === '@@END') { inGridBlock = false; return false; } return !inGridBlock; })
+    .map(l => l.match(/^(?:Q(?:uestion)?\s*#?)?(\d{1,3})\s*[.):]\s+/i)?.[1]).filter(Boolean).map(Number);
+  const numberedAreQuestions = printedNumbers.every((n, k) => k === 0 || n > printedNumbers[k - 1]);
 
   let currentSkillTitle = 'Core Concept & Textual Mastery';
   let currentSkillId = 'skill_1';
@@ -1272,6 +1502,8 @@ export function parseCurriculumAndBuildUnit(params: {
   // Detect embedded "Answer Key" section at the bottom of the same document
   let inEmbeddedAnswerKey = false;
   const embeddedKeyLines: string[] = [];
+  // Where the last numbered question was pushed, so a grid that follows straight after can claim it as its question.
+  let lastQuestionMark: { index: number; blocks: number } | null = null;
 
   let i = 0;
   while (i < lines.length) {
@@ -1290,6 +1522,54 @@ export function parseCurriculumAndBuildUnit(params: {
     if (inEmbeddedAnswerKey) {
       embeddedKeyLines.push(line);
       i++;
+      continue;
+    }
+
+    // A choice grid read from the original's layout (services/documentLayout): `@@GRID A | B | C`, then one
+    // row per line, then `@@END`. Each row is answered by picking one column, like a Google Forms grid.
+    if (line.startsWith('@@GRID')) {
+      const columns = line.slice(6).split('|').map(c => c.trim()).filter(Boolean);
+      const rowLines: string[] = [];
+      let j = i + 1;
+      while (j < lines.length && lines[j] !== '@@END') { if (lines[j]) rowLines.push(lines[j]); j++; }
+      i = j + 1;
+      if (columns.length < 2 || rowLines.length === 0) continue;
+      // The grid's question is the numbered line right before the table, when that line had no answers of its own.
+      const prev = questions[questions.length - 1];
+      const stem = prev && lastQuestionMark && lastQuestionMark.blocks === lessonBlocks.length && lastQuestionMark.index === questions.length - 1 && !prev.options?.length && !prev.label ? prev : null;
+      if (stem) {
+        questions.pop();
+        skillsMap.forEach(sk => { sk.questionIds = sk.questionIds.filter(x => x !== stem.id); sk.targetQuestions = sk.questionIds.length; });
+      }
+      // …or a numbered heading read as text ("6. TRUE/FALSE" isn't phrased as a question).
+      const headLine = !stem ? lessonBlocks[lessonBlocks.length - 1]?.text.match(/^(\d{1,3})\s*[.):]\s+(.+)$/) : null;
+      const headIsLast = headLine && (!lastQuestionMark || lastQuestionMark.blocks < lessonBlocks.length);
+      if (headIsLast) lessonBlocks.pop();
+      const stemText = stem?.prompt || (headIsLast ? headLine![2].trim() : undefined);
+      const number = stem ? stem.number : headIsLast ? Number(headLine![1]) : questions.reduce((m, q) => Math.max(m, q.number), 0) + 1;
+      const grid = { id: `g${number}_${i}`, columns };
+      const skill = ensureSkill(currentSkillId, currentSkillTitle);
+      const tf = columns.length === 2 && columns.every(c => /^(true|false|t|f|yes|no)$/i.test(c));
+      rowLines.forEach((row, k) => {
+        const lm = row.match(/^\s*\(?([a-z])\s*[.)]\s+(.*)$/is);
+        const nm = lm ? null : row.match(/^\s*(\d{1,2})\s*[.)]\s+(.*)$/s);
+        const mark = lm ? lm[1].toLowerCase() : nm ? nm[1] : String.fromCharCode(97 + (k % 26));
+        const label = nm ? `${number}.${mark}` : `${number}${mark}`;
+        const id = `q_${label}`;
+        skill.questionIds.push(id);
+        questions.push({
+          id, number, label, group: stemText, grid,
+          ...(lm || nm ? {} : { labelGenerated: true }),
+          prompt: (lm ? lm[2] : nm ? nm[2] : row).trim(),
+          type: tf ? 'true-false' : 'multiple-choice',
+          options: columns,
+          points: 1,
+          skillId: skill.id,
+          skillTitle: skill.title,
+        });
+      });
+      skill.targetQuestions = skill.questionIds.length;
+      lastQuestionMark = null;
       continue;
     }
 
@@ -1358,11 +1638,12 @@ export function parseCurriculumAndBuildUnit(params: {
 
     // 4. Check for Numbered Question (`1. ...`, `Q1: ...`, `Question 1: ...`)
     const qMatch = line.match(/^(?:Q(?:uestion)?\s*#?)?(\d{1,3})\s*[.):]\s+(.+)$/i);
-    if (qMatch && preParsedQuestions.length === 0) {
-      const qNum = questions.length + 1;
+    if (qMatch && preParsedQuestions.length === 0 && numberedAreQuestions) {
+      const qNum = Number(qMatch[1]) || questions.length + 1;
       let prompt = qMatch[2].trim();
       let points = 1;
       const ptMatch = prompt.match(/\[(\d+)\s*(?:pts?|points?)\]/i) || prompt.match(/\((\d+)\s*(?:pts?|points?)\)/i);
+      if (ptMatch) pointsAssigned = true;
       if (ptMatch) {
         points = Number(ptMatch[1]);
         prompt = prompt.replace(ptMatch[0], '').trim();
@@ -1409,6 +1690,21 @@ export function parseCurriculumAndBuildUnit(params: {
         break;
       }
 
+      // A numbered line is a question only when it reads like one. Numbered class rules, memory verses
+      // and outlines stay reading text (they were being turned into "questions" before).
+      const questionLike =
+        /\?\s*$/.test(prompt) ||
+        QUESTION_PROMPT.test(prompt) ||
+        options.length >= 2 ||
+        Boolean(inlineAnswer) ||
+        Boolean(ptMatch) ||
+        /_{3,}|\(\s*\)/.test(prompt);
+      if (!questionLike) {
+        lessonBlocks.push({ id: `lblk_${lessonBlocks.length + 1}`, kind: 'p', text: line, scripturePassage: prompt.match(SCRIPTURE_REGEX)?.[1] });
+        i++;
+        continue;
+      }
+
       const scMatch = prompt.match(SCRIPTURE_REGEX);
       const passage = scMatch ? scMatch[1] : undefined;
       const skill = ensureSkill(currentSkillId, currentSkillTitle, passage);
@@ -1416,9 +1712,8 @@ export function parseCurriculumAndBuildUnit(params: {
       let qType: IngestedQuestion['type'] = 'short-answer';
       if (options.length >= 2) {
         qType = 'multiple-choice';
-      } else if (/^(true\s+or\s+false|t\s*\/\s*f)\b/i.test(prompt) || /\b(true\s+or\s+false)\b/i.test(prompt)) {
-        qType = 'true-false';
-        options.push('True', 'False');
+      // Choices come only from the original (its printed options, or a True / False column it lays out);
+      // the importer never adds a True / False field a document doesn't have.
       } else if (passage) {
         qType = 'scripture-reflection';
       } else if (/^(calculate|solve|evaluate|find\s+the\s+value|how\s+many)\b/i.test(prompt)) {
@@ -1442,6 +1737,7 @@ export function parseCurriculumAndBuildUnit(params: {
         skillTitle: skill.title,
         scripturePassage: passage,
       });
+      lastQuestionMark = { index: questions.length - 1, blocks: lessonBlocks.length };
 
       i = j;
       continue;
@@ -1451,7 +1747,8 @@ export function parseCurriculumAndBuildUnit(params: {
     const scMatch = line.match(SCRIPTURE_REGEX);
     lessonBlocks.push({
       id: `lblk_${lessonBlocks.length + 1}`,
-      kind: scMatch ? 'callout' : 'p',
+      // As written: a line that cites scripture stays a paragraph (the reference is kept as data).
+      kind: 'p',
       text: line,
       scripturePassage: scMatch ? scMatch[1] : undefined,
     });
@@ -1462,14 +1759,19 @@ export function parseCurriculumAndBuildUnit(params: {
   if (preParsedQuestions.length > 0 && questions.length === 0) {
     const skill = ensureSkill(currentSkillId, currentSkillTitle);
     preParsedQuestions.forEach((pq, idx) => {
-      const qNum = idx + 1;
-      const qId = `q_${qNum}`;
+      // The source's own numbering; parts keep their question's number and a letter.
+      const qNum = pq.number ?? idx + 1;
+      const qId = `q_${pq.label || qNum}${preParsedQuestions.some((o, k) => k < idx && (o.label || o.number) === (pq.label || pq.number)) ? `_${idx}` : ''}`;
       skill.questionIds.push(qId);
       skill.targetQuestions = skill.questionIds.length;
       const scMatch = pq.prompt.match(SCRIPTURE_REGEX);
       questions.push({
         id: qId,
         number: qNum,
+        ...(pq.label ? { label: pq.label } : {}),
+        ...(pq.group ? { group: pq.group } : {}),
+        ...(pq.grid ? { grid: pq.grid } : {}),
+        ...(pq.labelGenerated ? { labelGenerated: true } : {}),
         prompt: pq.prompt,
         type: pq.type,
         options: pq.options,
@@ -1483,65 +1785,14 @@ export function parseCurriculumAndBuildUnit(params: {
     });
   }
 
-  // If no explicit numbered questions were found in a prose lesson doc, synthesize interactive checks from lesson blocks
-  if (questions.length === 0) {
-    const skill = ensureSkill(currentSkillId, detectedTitle || 'Lesson Comprehension & Mastery');
-    const scBlocks = lessonBlocks.filter(b => b.scripturePassage);
-    const firstPassage = scBlocks[0]?.scripturePassage;
-
-    const synth: Array<Omit<IngestedQuestion, 'id' | 'number' | 'skillId' | 'skillTitle'>> = [
-      {
-        prompt: firstPassage
-          ? `According to ${firstPassage} in this lesson, what is the primary truth or teaching revealed in the passage?`
-          : `What is the central thesis and key takeaway of "${detectedTitle || sourceLabel}"?`,
-        type: firstPassage ? 'scripture-reflection' : 'short-answer',
-        correctAnswer: firstPassage || 'Central lesson takeaway',
-        explanation: 'Synthesized from the primary lesson reading.',
-        points: 2,
-        scripturePassage: firstPassage,
-      },
-      {
-        prompt: `Which statement best summarizes the core objective of "${detectedTitle || sourceLabel}"?`,
-        type: 'multiple-choice',
-        options: [
-          'A) Applying the primary textual and conceptual principles in daily practice',
-          'B) Ignoring the historical and textual context of the lesson',
-          'C) Skipping the mastery reflection prompts',
-          'D) None of the above',
-        ],
-        correctAnswer: 'A',
-        explanation: 'Option A aligns with the curriculum objective.',
-        points: 1,
-      },
-      {
-        prompt: 'True or False: I have read the lesson passage and completed the key observation notes.',
-        type: 'true-false',
-        options: ['True', 'False'],
-        correctAnswer: 'True',
-        points: 1,
-      },
-    ];
-
-    synth.forEach((sq, idx) => {
-      const qNum = idx + 1;
-      const qId = `q_${qNum}`;
-      skill.questionIds.push(qId);
-      skill.targetQuestions = skill.questionIds.length;
-      questions.push({
-        ...sq,
-        id: qId,
-        number: qNum,
-        skillId: skill.id,
-        skillTitle: skill.title,
-      });
-    });
-  }
+  // A document with no questions in it (a handout, syllabus, reading) stays a reading: no questions are
+  // invented for it. Teachers add their own in Tela Classwork.
 
   // Merge embedded Answer Key + separate Answer Key doc into questions
   const embeddedKey = parseAnswerKeyText(embeddedKeyLines.join('\n'));
   for (const q of questions) {
-    const fromSeparate = parsedKey.byNumber[q.number];
-    const fromEmbedded = embeddedKey.byNumber[q.number];
+    const fromSeparate = q.label ? undefined : parsedKey.byNumber[q.number];
+    const fromEmbedded = q.label ? undefined : embeddedKey.byNumber[q.number];
     const matched = fromSeparate || fromEmbedded;
     if (matched) {
       q.correctAnswer = matched.answer;
@@ -1570,12 +1821,12 @@ export function parseCurriculumAndBuildUnit(params: {
       passage: parsedRef ? formatRef(parsedRef) : firstPassage,
       ...(parsedRef ? { refId: refId(parsedRef) } : {}),
       note: lessonBlocks.find(b => b.kind === 'p')?.text || `Interactive Tela unit imported from ${sourceLabel}.`,
-      worksheetPrompt: `Complete the ${questions.length}-question interactive Tela check.`,
+      worksheetPrompt: `Complete the ${countQuestions(questions)}-question interactive Tela check.`,
     });
   }
 
   const finalTitle = detectedTitle || sourceLabel.replace(/\.[a-z0-9]+$/i, '');
-  const unitId = `cur_${orgId}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+  const unitId = params.unitId || `cur_${orgId}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 
   // Build DigitalWorksheet compatible with `worksheetToTelaDoc` & `<WorksheetFillable />`
   const wsFields: WorksheetField[] = questions.map((q, idx) => {
@@ -1592,24 +1843,35 @@ export function parseCurriculumAndBuildUnit(params: {
     return {
       id: q.id,
       type: fieldType,
-      prompt: `${q.number}. ${q.prompt}`,
+      prompt: `${q.label || q.number}. ${q.prompt}`,
+      // Worksheets show one label per field: the first part of a question carries the question's own
+      // text above it ("7. Fill in the Blanks:" then "a. …"), as the paper does.
       options: q.options,
       correctAnswer: q.correctAnswer,
       points: q.points,
       bbox: [0.06, Math.min(0.92, 0.12 + idx * 0.09), 0.94, Math.min(0.98, 0.19 + idx * 0.09)],
+      // Current WorksheetField shape (percent of page) — worksheetToTelaDoc and WorksheetFillable read these.
+      label: q.group && questions[idx - 1]?.group !== q.group ? `${q.number}. ${q.group}
+${q.prompt}` : q.prompt,
+      ordinal: q.label || String(q.number),
+      choices: q.options,
+      box: { x: 6, y: Math.min(92, 12 + idx * 9), width: 88, height: 7 },
+      needsManualGrade: !q.correctAnswer,
     };
   });
 
   const wsSegments: WorksheetSegment[] = [
     ...lessonBlocks.slice(0, 8).map((b, idx) => ({
       id: `seg_lesson_${idx + 1}`,
-      kind: (b.kind === 'h1' || b.kind === 'h2' ? 'heading' : 'Passage') as WorksheetSegment['kind'],
+      kind: (b.kind === 'h1' || b.kind === 'h2' ? 'heading' : 'instructions') as WorksheetSegment['kind'],
       text: b.text,
+      box: { x: 6, y: Math.min(10, 2 + idx), width: 88, height: 1 },
+      confidence: 1,
     })),
     ...questions.map(q => ({
       id: `seg_${q.id}`,
       kind: 'question' as const,
-      questionNumber: String(q.number),
+      questionNumber: q.label || String(q.number),
       text: q.prompt,
       fieldType: (
         q.type === 'multiple-choice'
@@ -1623,6 +1885,8 @@ export function parseCurriculumAndBuildUnit(params: {
       options: q.options,
       answerKey: q.correctAnswer,
       points: q.points,
+      box: { x: 6, y: Math.min(91, 11 + q.number * 9), width: 88, height: 2 },
+      confidence: 1,
     })),
   ];
 
@@ -1633,7 +1897,7 @@ export function parseCurriculumAndBuildUnit(params: {
     title: finalTitle,
     subject: 'Curriculum & Mastery',
     gradeBand: 'All Ages',
-    instructions: `Complete the lesson reading and answer all ${questions.length} interactive items. Powered by Tela.`,
+    instructions: '',
     sourceImageUrl: '',
     fields: wsFields,
     segments: wsSegments,
@@ -1664,44 +1928,18 @@ export function parseCurriculumAndBuildUnit(params: {
   // Enhance TelaDoc with a dedicated Frame 1 Interactive Lesson Reader (`TelaWriterDevice`)
   // alongside the Interactive Student Response Form & Auto-Grading Base Table
   const lessonWriterId = `dev_lesson_writer_${unitId}`;
+  // The reading page reproduces the original's own text and nothing else: no source/point summaries, no
+  // added study material (Sacred Library supplements stay on the unit and show beside it as "Dig deeper"),
+  // no repeat of the questions (they live on the worksheet pages) and never the answer key.
   const writerBlocks: TelaWriterBlock[] = [
     { id: `${lessonWriterId}_h1`, kind: 'h1', text: finalTitle },
-    {
-      id: `${lessonWriterId}_meta`,
-      kind: 'callout',
-      text: `Source: ${sourceLabel}${answerKeySourceLabel ? ` · Answer Key: ${answerKeySourceLabel}` : ''} · Living Design: ${livingTemplate.name} · ${questions.length} Interactive Items · ${questions.reduce((s, q) => s + q.points, 0)} Total Points`,
-    },
-    ...lessonBlocks.map((b, idx) => ({
+    ...lessonBlocks.filter(b => !(b.kind === 'h1' && b.text.trim() === finalTitle.trim())).map((b, idx) => ({
       id: `${lessonWriterId}_b_${idx}`,
       kind: (b.kind === 'h1' || b.kind === 'h2' || b.kind === 'quote' || b.kind === 'callout' ? b.kind : 'p') as TelaWriterBlock['kind'],
-      text: b.scripturePassage ? `${b.text} [${b.scripturePassage}]` : b.text,
-    })),
-    ...(sacredLibrarySupplements.length > 0
-      ? [
-          {
-            id: `${lessonWriterId}_sacred_hdr`,
-            kind: 'h2' as const,
-            text: `Lorea Sacred Library · Supplemental Primary Sources & Artifacts (${sacredLibrarySupplements.length})`,
-          },
-          ...sacredLibrarySupplements.map((sup, sIdx) => ({
-            id: `${lessonWriterId}_sacred_${sIdx}`,
-            kind: 'callout' as const,
-            text: `[${sup.categoryBadge} · ${sup.era}] ${sup.title} — ${sup.summary} | Lesson Connection: ${sup.connectionToLesson}${sup.primaryExcerpt ? ` | Excerpt: ${sup.primaryExcerpt}` : ''}`,
-          })),
-        ]
-      : []),
-    {
-      id: `${lessonWriterId}_q_hdr`,
-      kind: 'h2',
-      text: 'Interactive Assessment & Answer Key Check',
-    },
-    ...questions.map(q => ({
-      id: `${lessonWriterId}_q_${q.id}`,
-      kind: 'check' as const,
-      text: `${q.number}. ${q.prompt}${q.options ? ` (${q.options.join(' / ')})` : ''}${q.correctAnswer ? ` [Key: ${q.correctAnswer}]` : ''}`,
-      checked: false,
+      text: b.text,
     })),
   ];
+  const hasReading = writerBlocks.length > 1;
 
   const lessonWriterDevice: TelaWriterDevice = {
     id: lessonWriterId,
@@ -1720,18 +1958,16 @@ export function parseCurriculumAndBuildUnit(params: {
     w: 816,
     h: 1056,
     deviceIds: [lessonWriterId],
-    label: `${finalTitle} · Lesson & Answer Guide`,
+    label: finalTitle,
   };
 
   const telaDoc: TelaDoc = {
     ...baseTelaDoc,
     id: `tela_${unitId}`,
-    title: `${finalTitle} (Interactive Tela)`,
-    frames: [lessonFrame, ...baseTelaDoc.frames],
-    devices: {
-      ...baseTelaDoc.devices,
-      [lessonWriterId]: lessonWriterDevice,
-    },
+    title: finalTitle,
+    // A reading page only when the original has reading text of its own (a form/test is just its questions).
+    frames: hasReading || questions.length === 0 ? [lessonFrame, ...baseTelaDoc.frames] : baseTelaDoc.frames,
+    devices: hasReading || questions.length === 0 ? { ...baseTelaDoc.devices, [lessonWriterId]: lessonWriterDevice } : baseTelaDoc.devices,
   };
 
   const masterySkills = Array.from(skillsMap.values());
@@ -1742,7 +1978,7 @@ export function parseCurriculumAndBuildUnit(params: {
     orgId,
     programId,
     title: finalTitle,
-    subtitle: `${sourceKind.replace('_', ' ')} · ${questions.length} Interactive Questions · ${sacredLibrarySupplements.length} Sacred Library Supplements`,
+    subtitle: `${sourceKind.replace('_', ' ')} · ${questions.length ? `${countQuestions(questions)} questions` : 'Reading'}${sacredLibrarySupplements.length ? ` · ${sacredLibrarySupplements.length} Sacred Library supplements` : ''}`,
     sourceKind,
     sourceLabel,
     sourceUrl,
@@ -1757,6 +1993,9 @@ export function parseCurriculumAndBuildUnit(params: {
     totalPoints,
     sacredLibrarySupplements,
     livingTemplateId: livingTemplate.id,
+    ...(detailFields.length ? { detailFields } : {}),
+    ...(pointsAssigned ? { pointsAssigned: true } : {}),
+    importVersion: IMPORT_VERSION,
     createdAt: now,
   };
 
@@ -1788,18 +2027,18 @@ export async function ingestCurriculumToTela(params: {
   answerKeyFile?: File | null;
   answerKeyUrl?: string;
   answerKeyText?: string;
+  /** See parseCurriculumAndBuildUnit: a re-imported link keeps its id, so its Content HQ files are replaced, not added. */
+  unitId?: string;
 }): Promise<{ unit: IngestedCurriculumUnit; telaDoc: TelaDoc }> {
   let rawCurriculumText = params.lessonText?.trim() || '';
   let sourceKind: CurriculumSourceKind = 'TEXT_MARKDOWN';
   let sourceLabel = params.title?.trim() || 'Interactive Lesson';
-  let preParsedQuestions: Array<{
-    prompt: string;
-    type: IngestedQuestion['type'];
-    options?: string[];
-    points?: number;
-    correctAnswer?: string;
-    explanation?: string;
-  }> = [];
+  let preParsedQuestions: StructuredQuestion[] = [];
+  let formTitle: string | undefined;
+  let readByOcr = false;
+  let layoutPages: import('./documentLayout').LayoutPage[] = [];
+  let readingText: string | undefined;
+  let detailFields: string[] = [];
 
   // 1. Extract Lesson Source
   if (params.lessonFile) {
@@ -1808,7 +2047,14 @@ export async function ingestCurriculumToTela(params: {
     const lower = f.name.toLowerCase();
     if (lower.endsWith('.pdf')) {
       sourceKind = 'PDF_DOCUMENT';
-      rawCurriculumText = await extractTextFromPdfFile(f);
+      const laid = await extractPdfWithLayout(f);
+      rawCurriculumText = laid.text;
+      layoutPages = laid.pages;
+      if (!rawCurriculumText.trim()) {
+        rawCurriculumText = await ocrScannedPdf(f);
+        readByOcr = !!rawCurriculumText;
+      }
+      if (!rawCurriculumText.trim()) throw new Error(`SCANNED_PDF: “${f.name}” is a scan and its pages couldn’t be read. Upload a text PDF or Word copy, or a photo of each page.`);
     } else if (lower.endsWith('.docx') || lower.endsWith('.doc')) {
       sourceKind = 'WORD_DOCX';
       rawCurriculumText = await extractTextFromDocxFile(f);
@@ -1841,8 +2087,15 @@ export async function ingestCurriculumToTela(params: {
         if (!params.title && formRes.title) sourceLabel = formRes.title;
         rawCurriculumText = [rawCurriculumText, formRes.rawText].filter(Boolean).join('\n\n');
         preParsedQuestions = formRes.structuredQuestions;
+        // The form's questions become the page's questions; only its own text is reading.
+        if (preParsedQuestions.length) readingText = formRes.readingText;
+        detailFields = formRes.detailFields;
+        // The form's own title, as its students see it.
+        if (formRes.title && formRes.structuredQuestions.length) formTitle = formRes.title;
       } else {
         const docRes = await extractGoogleDocText(url);
+        readByOcr = !!docRes.ocr;
+        layoutPages = docRes.pages || [];
         if (!params.title && docRes.title) sourceLabel = docRes.title;
         rawCurriculumText = [rawCurriculumText, docRes.text].filter(Boolean).join('\n\n');
       }
@@ -1882,7 +2135,7 @@ export async function ingestCurriculumToTela(params: {
   const { unit, telaDoc } = parseCurriculumAndBuildUnit({
     orgId: safeOrgId,
     programId: params.programId,
-    title: params.title,
+    title: formTitle || params.title,
     rawCurriculumText,
     rawAnswerKeyText,
     sourceKind,
@@ -1891,8 +2144,15 @@ export async function ingestCurriculumToTela(params: {
     answerKeySourceLabel,
     unitKind: params.unitKind,
     preParsedQuestions,
+    readingText,
+    detailFields,
+    unitId: params.unitId,
   });
 
+  // An org's lesson stays tied to the org, so sharing it as a public template follows the org's policy.
+  if (params.scopeKind !== 'user' && !isStandaloneTeacherScopeId(params.orgId)) telaDoc.orgOrigin = { orgId: safeOrgId, orgName: params.orgName };
+  if (readByOcr) unit.readByOcr = true;
+  if (layoutPages.length) unit.layoutPages = layoutPages;
   await saveTelaDoc(telaDoc);
 
   const resolvedLibraryCategory =
@@ -1908,11 +2168,11 @@ export async function ingestCurriculumToTela(params: {
   // - For organizations (`scopeKind === 'org'`): into the organization's Content HQ under `<Organization Name> Education`.
   const assetCopy = await copyCurriculumPairToOrgAssets({
     orgId: safeOrgId,
-    orgName: params.orgName || (isStandaloneTeacher ? 'Teacher Content HQ' : GREAT_FAITH_MINISTRIES_NAME),
+    orgName: params.orgName || (isStandaloneTeacher ? 'Teacher Content HQ' : ''),
     scopeKind: isStandaloneTeacher ? 'user' : 'org',
     departmentFolder: isStandaloneTeacher
       ? undefined
-      : getOrgEducationFolderName(params.orgName || GREAT_FAITH_MINISTRIES_NAME),
+      : getOrgEducationFolderName(params.orgName),
     unitTitle: unit.title,
     unitKind: unit.kind,
     libraryCategory: resolvedLibraryCategory,
@@ -1964,6 +2224,38 @@ function normalizeAnswerToken(raw: string): string {
  * updates the Khan-style Mastery Graph (`services/mastery.ts`) for both the student and classroom course,
  * and saves the submission record for the Teacher Gradebook & Assess Work studio.
  */
+/** Does a student's answer match the key? Questions with no key get completion credit (two or more characters). */
+export function isAnswerCorrect(q: IngestedQuestion, answer: string): boolean {
+  const rawStudent = (answer || '').trim();
+  const rawExpected = (q.correctAnswer || '').trim();
+  let isCorrect = false;
+  if (!rawExpected) {
+    // Open reflection / completion credit when non-empty
+    isCorrect = rawStudent.length >= 2;
+  } else if (q.type === 'multiple-choice') {
+    const studentLetter = rawStudent.match(/^([A-F])\b/i)?.[1]?.toUpperCase();
+    const expectedLetter = rawExpected.match(/^([A-F])\b/i)?.[1]?.toUpperCase();
+    if (studentLetter && expectedLetter) {
+      isCorrect = studentLetter === expectedLetter;
+    } else {
+      isCorrect = normalizeAnswerToken(rawStudent) === normalizeAnswerToken(rawExpected);
+    }
+  } else if (q.type === 'true-false') {
+    isCorrect = rawStudent.toLowerCase().startsWith(rawExpected.toLowerCase()[0]);
+  } else if (q.type === 'numeric') {
+    const nStudent = Number(rawStudent.replace(/[^0-9.-]/g, ''));
+    const nExpected = Number(rawExpected.replace(/[^0-9.-]/g, ''));
+    isCorrect = Number.isFinite(nStudent) && Number.isFinite(nExpected) && Math.abs(nStudent - nExpected) <= 0.01;
+  } else {
+    const normS = normalizeAnswerToken(rawStudent);
+    const normE = normalizeAnswerToken(rawExpected);
+    isCorrect =
+      normS.length > 0 &&
+      (normS === normE || normS.includes(normE) || (normS.length >= 4 && normE.includes(normS)));
+  }
+  return isCorrect;
+}
+
 export function gradeAndRecordUnitSubmission(params: {
   unit: IngestedCurriculumUnit;
   studentUid: string;
@@ -1983,31 +2275,12 @@ export function gradeAndRecordUnitSubmission(params: {
     const rawStudent = (answers[q.id] || '').trim();
     const rawExpected = (q.correctAnswer || '').trim();
 
-    let isCorrect = false;
-    if (!rawExpected) {
-      // Open reflection / completion credit when non-empty
-      isCorrect = rawStudent.length >= 2;
-    } else if (q.type === 'multiple-choice') {
-      const studentLetter = rawStudent.match(/^([A-F])\b/i)?.[1]?.toUpperCase();
-      const expectedLetter = rawExpected.match(/^([A-F])\b/i)?.[1]?.toUpperCase();
-      if (studentLetter && expectedLetter) {
-        isCorrect = studentLetter === expectedLetter;
-      } else {
-        isCorrect = normalizeAnswerToken(rawStudent) === normalizeAnswerToken(rawExpected);
-      }
-    } else if (q.type === 'true-false') {
-      isCorrect = rawStudent.toLowerCase().startsWith(rawExpected.toLowerCase()[0]);
-    } else if (q.type === 'numeric') {
-      const nStudent = Number(rawStudent.replace(/[^0-9.-]/g, ''));
-      const nExpected = Number(rawExpected.replace(/[^0-9.-]/g, ''));
-      isCorrect = Number.isFinite(nStudent) && Number.isFinite(nExpected) && Math.abs(nStudent - nExpected) <= 0.01;
-    } else {
-      const normS = normalizeAnswerToken(rawStudent);
-      const normE = normalizeAnswerToken(rawExpected);
-      isCorrect =
-        normS.length > 0 &&
-        (normS === normE || normS.includes(normE) || (normS.length >= 4 && normE.includes(normS)));
+    if (!rawExpected && unit.answerKeyWithheld) {
+      questionScores[q.id] = { correct: false, earnedPoints: 0, maxPoints: maxPts, pending: true };
+      continue;
     }
+
+    const isCorrect = isAnswerCorrect(q, rawStudent);
 
     const pts = isCorrect ? maxPts : 0;
     earnedPoints += pts;
@@ -2162,6 +2435,10 @@ export async function batchIngestExtractedLinksToTela(params: {
   links: ExtractedCourseResourceLink[];
   includeAnswerKeyDocs?: boolean;
   onProgress?: (current: number, total: number, label: string) => void;
+  /** A link that couldn't be read (private, scanned, offline). It is skipped, not filled in. */
+  onFailed?: (link: ExtractedCourseResourceLink, reason: string) => void;
+  /** Give each link a fixed id from its own (so importing the course again replaces its files instead of adding more). */
+  stableIds?: boolean;
 }): Promise<Array<{ unit: IngestedCurriculumUnit; telaDoc: TelaDoc }>> {
   const results: Array<{ unit: IngestedCurriculumUnit; telaDoc: TelaDoc }> = [];
   const actionable = params.includeAnswerKeyDocs
@@ -2192,25 +2469,12 @@ export async function batchIngestExtractedLinksToTela(params: {
         answerKeyUrl: item.pairedAnswerKeyUrl,
         answerKeyText: item.fallbackAnswerKeyText,
         unitKind: resolvedKind,
+        unitId: params.stableIds ? courseLinkUnitId(params.orgId, item) : undefined,
       });
       results.push(built);
-    } catch {
-      const fallbackText =
-        item.fallbackCurriculumText ||
-        `# ${item.label}\nSource Link: ${item.url}\n\n1. Key takeaway and biblical/course analysis from ${item.label}:\n2. Explain the primary Scripture passage and doctrine covered in ${item.label}:`;
-      const built = await ingestCurriculumToTela({
-        orgId: params.orgId,
-        orgName: params.orgName,
-        scopeKind: params.scopeKind,
-        programId: params.programId,
-        title: item.label,
-        isAnswerKeyOnly: item.isAnswerKey,
-        lessonUrl: item.url,
-        lessonText: fallbackText,
-        answerKeyText: item.fallbackAnswerKeyText,
-        unitKind: resolvedKind,
-      });
-      results.push(built);
+    } catch (e) {
+      // Nothing is invented for a link we couldn't read: report it and move on.
+      params.onFailed?.(item, e instanceof Error ? e.message.replace(/^[A-Z_]+:\s*/, '') : 'Couldn’t read this link.');
     }
   }
 
@@ -2222,6 +2486,50 @@ export async function batchIngestExtractedLinksToTela(params: {
  * `<Org Name> Education` for organization accounts (and repairs any earlier cached unit that had 0 questions
  * or was missing Sacred Library supplements). Standalone teachers outside an organization are not seeded with church presets.
  */
+export interface CourseImportReport {
+  hubTitle: string;
+  at: number;
+  total: number;
+  imported: Array<{ label: string; url: string; title: string; questions: number; words: number }>;
+  failed: Array<{ label: string; url: string; reason: string }>;
+}
+/** A course link's lesson id in an org: the same on every device and every re-import, so its files are replaced in place. */
+function courseLinkUnitId(orgId: string, link: ExtractedCourseResourceLink): string {
+  return `cur_${normalizeToGreatFaithOrgId(orgId)}_${link.id}`.replace(/[^A-Za-z0-9_-]/g, '_');
+}
+
+/** The links of the course an org imports (empty for every other org). */
+export function courseLinkUrls(orgId: string): Set<string> {
+  return new Set(isRevelationCourseOrg(normalizeToGreatFaithOrgId(orgId)) ? REVELATION_2_COURSE_CONNECTION_PRESET.links.map(l => l.url) : []);
+}
+
+/** The Content HQ files the org's current lessons point at (the copies to keep when removing duplicates). */
+export function currentLessonAssetIds(orgId: string, orgName?: string): Set<string> {
+  const ids = new Set<string>();
+  for (const u of listIngestedUnits(orgId, undefined, orgName)) {
+    for (const id of [u.originalAssetId, u.telaAssetId, u.answerKeyAssetId]) if (id) ids.add(id);
+    if (u.telaDocId) for (const p of ['hq_orig_', 'hq_tela_', 'hq_key_']) ids.add(p + u.telaDocId);
+  }
+  return ids;
+}
+const IMPORT_REPORT_KEY = (orgId: string) => `plajah_course_import_report_v1_${orgId}`;
+let importing: Promise<IngestedCurriculumUnit[]> | null = null;
+
+/** What the last Revelation 2 import read, and what it couldn't (shown in the Lesson Library). */
+export function getCourseImportReport(orgId: string): CourseImportReport | null {
+  try {
+    const raw = localStorage.getItem(IMPORT_REPORT_KEY(normalizeToGreatFaithOrgId(orgId)));
+    return raw ? (JSON.parse(raw) as CourseImportReport) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Great Faith's Revelation 2 course: downloads and reads every link in the course doc that isn't in the
+ * library yet, one separate item (and Tela document) per link. Links that fail are reported and retried
+ * on a later visit; nothing is filled in for them. Other orgs: just lists their library.
+ */
 export async function ensureAllDetectedLinksOnboarded(
   orgId: string,
   programId?: string,
@@ -2231,421 +2539,89 @@ export async function ensureAllDetectedLinksOnboarded(
     return listIngestedUnits(orgId, programId, orgName);
   }
   const safeOrgId = normalizeToGreatFaithOrgId(orgId);
-  const existing = listIngestedUnits(safeOrgId, undefined, orgName);
-
-  const missingLinks = REVELATION_2_COURSE_CONNECTION_PRESET.links.filter(link => {
-    const match = existing.find(
-      u => u.sourceUrl === link.url || u.title.toLowerCase() === link.label.toLowerCase()
-    );
-    if (!match) return true;
-    // Upgrade if an older cached unit had 0 questions or lacked Sacred Library supplements
-    if (!match.questions || match.questions.length === 0 || !match.sacredLibrarySupplements) {
-      return true;
+  // Only that org's own admins bring its course in. Anyone else just sees their own library.
+  if (!isRevelationCourseOrg(safeOrgId) || !libraryActorIsAdmin(safeOrgId)) return listIngestedUnits(orgId, programId, orgName);
+  if (importing) return importing;
+  importing = (async () => {
+    // Drop the made-up items older builds stored, so only real imports remain.
+    for (const u of readRawStoredUnitsForKey(STORAGE_UNITS_KEY(safeOrgId))) if (u && isFabricatedSampleUnit(u)) deleteIngestedUnit(safeOrgId, u.id);
+    // What another admin or device already imported counts as here: this browser's own list may be empty
+    // (new device, another admin, cleared storage), and judging by it alone imported the whole course again.
+    mergeSharedUnits(safeOrgId, await fetchLibraryUnits('org', safeOrgId));
+    // The uploaded files are the reference. A link whose files are already in the org's Content HQ is
+    // never imported again (that is what kept adding copies); this browser's own copy is only for offline.
+    // When the server can't be asked (offline, refused), nothing is imported.
+    const { assets: uploaded, status } = await listHqAssetsDetailed({ kind: 'org', id: safeOrgId, label: orgName }, true);
+    if (status !== 'ok') return listIngestedUnits(safeOrgId, programId, orgName);
+    const existing = listIngestedUnits(safeOrgId, undefined, orgName);
+    const present = new Set<string>([
+      ...uploaded.map(a => a.sourceUrl || ''),
+      ...existing.map(u => u.sourceUrl || ''),
+    ]);
+    const missing = REVELATION_2_COURSE_CONNECTION_PRESET.links.filter(link => !present.has(link.url));
+    if (missing.length) {
+      const failed: CourseImportReport['failed'] = [];
+      const built = await batchIngestExtractedLinksToTela({
+        orgId: safeOrgId,
+        orgName,
+        scopeKind: 'org',
+        programId,
+        links: missing,
+        includeAnswerKeyDocs: true,
+        stableIds: true,
+        onFailed: (link, reason) => failed.push({ label: link.label, url: link.url, reason }),
+      });
+      const prior = getCourseImportReport(safeOrgId);
+      const imported = [
+        ...(prior?.imported || []).filter(x => existing.some(u => u.sourceUrl === x.url)),
+        ...built.map(b => ({ label: b.unit.sourceLabel, url: b.unit.sourceUrl || '', title: b.unit.title, questions: countQuestions(b.unit.questions), words: (b.unit.rawCurriculumText || '').split(/\s+/).filter(Boolean).length })),
+      ];
+      const report: CourseImportReport = { hubTitle: REVELATION_2_COURSE_CONNECTION_PRESET.hubTitle, at: Date.now(), total: REVELATION_2_COURSE_CONNECTION_PRESET.links.length, imported, failed };
+      try { localStorage.setItem(IMPORT_REPORT_KEY(safeOrgId), JSON.stringify(report)); } catch { /* storage full */ }
+      try { window.dispatchEvent(new CustomEvent('plajah:lessonLibraryUpdated')); } catch { /* not a browser */ }
     }
-    return false;
-  });
-
-  if (missingLinks.length > 0) {
-    // Remove stale versions of those links first so we don't duplicate
-    for (const link of missingLinks) {
-      const stale = listIngestedUnits(safeOrgId, undefined, orgName).find(
-        u => u.sourceUrl === link.url || u.title.toLowerCase() === link.label.toLowerCase()
-      );
-      if (stale) deleteIngestedUnit(safeOrgId, stale.id);
-    }
-    await batchIngestExtractedLinksToTela({
-      orgId: safeOrgId,
-      orgName,
-      scopeKind: 'org',
-      programId,
-      links: missingLinks,
-      includeAnswerKeyDocs: true,
-    });
-  }
-
-  return listIngestedUnits(safeOrgId, programId, orgName);
+    return listIngestedUnits(safeOrgId, programId, orgName);
+  })().finally(() => { importing = null; });
+  return importing;
 }
 
 /**
- * Preset for `Revelation 2: Course Connection` (`1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE`, tab `t.qo6bykb5zkh7`)
- * Contains all 9 detected documents from the Course Connection hub (4 Church Study Packets/Docs +
- * 1 Sacred Library & Archaeological Dossier PDF + 2 Google Form Quizzes + 1 Comprehensive Mastery Exam +
- * 1 Master Teacher Answer Key & Rubric Compendium).
+ * Great Faith Ministries' Revelation 2 course, as listed in its "Revelation 2: Course Connection" Google Doc
+ * (read from the doc's Word export, 2026-10-29): 9 course handouts on Google Drive (PDF) and 8 exams as
+ * Google Forms. The doc's "Tests Responses" sheets hold students' answers and are deliberately left out.
+ * Nothing here carries text: each link is downloaded and read by the importer (routes/curriculumFetch.ts),
+ * and a link that can't be read is reported, never filled in.
  */
+const REVELATION_2_LINKS: ExtractedCourseResourceLink[] = [
+  { id: 'rev2_requirements', label: 'Revelation 2 Course Requirements', url: 'https://drive.google.com/file/d/11EYZuvQ74v_NMPNsdxcP0VWv0zHnTFjv/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_syllabus', label: 'Syllabus 2026/27', url: 'https://drive.google.com/file/d/1_QA5CWUNP8vIMK5v1yyLq9NLlDxBGwlP/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_exam_schedule', label: 'Revelation 2 Exam Schedule', url: 'https://drive.google.com/file/d/1KTFlIlthhdyw6isgxfJZAKHjxJ0BxdlZ/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_grading_scale', label: 'Inductive Bible Study Grading Scale', url: 'https://drive.google.com/file/d/1q-d8CHjcHAKx8rEAdUlrcOHnrW6OOv03/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_what_we_believe', label: 'What We Believe', url: 'https://drive.google.com/file/d/13Ns05pTgVBQjVPPKA8zV7YsPyqbBx5NH/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_memory_work', label: 'Memory Work', url: 'https://drive.google.com/file/d/1mNxmj8RJBWauOU6ZyZGiV2oRw2y_WgX6/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_study_outline', label: 'Bible Study Outline', url: 'https://drive.google.com/file/d/1QCE0muikXb9MGRllC8VBRX_Bvzu-Vuqt/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_reference_books', label: 'How To Study Bible Reference Books', url: 'https://drive.google.com/file/d/1PO3w5PxSqdWR9PpM4mEYrXNPTPPkPBxm/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_essay_format', label: 'Essay Paper Format', url: 'https://drive.google.com/file/d/1WHWBFLqcEJ0sCsrRrJ-XahkUIHCHbIzw/view?usp=sharing', category: 'PDF_DOCUMENT', sectionHeading: 'Links', isAnswerKey: false },
+  { id: 'rev2_exam_1', label: 'Revelation 2 · Exam 1', url: 'https://docs.google.com/forms/d/e/1FAIpQLScAs2Gkj1Vv_rDmvGp0TQm-s10PZkaqPsBoEW3ClDgLHdDSMA/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+  { id: 'rev2_exam_2', label: 'Revelation 2 · Exam 2', url: 'https://docs.google.com/forms/d/e/1FAIpQLScWcqUZi-bGBFpC3VgbOAhHVcJWQYjzE7TFIZ6qd9Re0Npeng/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+  { id: 'rev2_exam_3', label: 'Revelation 2 · Exam 3', url: 'https://docs.google.com/forms/d/e/1FAIpQLSdHiaKnZrl05dDzgjeHt5fwcSY4y132w4xAXz3E8Ah5mHrH5Q/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+  { id: 'rev2_exam_4', label: 'Revelation 2 · Exam 4', url: 'https://docs.google.com/forms/d/e/1FAIpQLSdECArsYanmhXUDLZEE6PdrDVb9xxaj0qS_fbCHZTYZtK5crA/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+  { id: 'rev2_exam_5', label: 'Revelation 2 · Exam 5', url: 'https://docs.google.com/forms/d/e/1FAIpQLSe9KRP9kP3e710gh3yxkMeRkIhw5ibhzxCkE8C5lna4Jtn81g/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+  { id: 'rev2_exam_6', label: 'Revelation 2 · Exam 6', url: 'https://docs.google.com/forms/d/e/1FAIpQLSe03FMQBb-icsX-FqrVQH41duVUHYgba15qizUZKdpY_b6EMg/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+  { id: 'rev2_exam_7', label: 'Revelation 2 · Exam 7', url: 'https://docs.google.com/forms/d/e/1FAIpQLSdTYzE6J--UIzhTtVjCOB22pxebCT4vrvUDb5YNAxkyYW-p8A/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+  { id: 'rev2_final_exam', label: 'Revelation 2 · Final Exam', url: 'https://docs.google.com/forms/d/e/1FAIpQLScvHHBTa4DE6yfq1mdM-cd6Gwst7ejhTD5EC4djhbT_B-jaDg/viewform', category: 'GOOGLE_FORM', sectionHeading: 'Tests', isAnswerKey: false },
+];
+
 export const REVELATION_2_COURSE_CONNECTION_PRESET: CourseHubLinkExtractionResult = {
-  hubTitle: 'Revelation 2: Course Connection (Letters to Ephesus, Smyrna, Pergamum & Thyatira + Sacred Library Dossier)',
+  hubTitle: 'Revelation 2: Course Connection',
   hubUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?pli=1&tab=t.qo6bykb5zkh7',
   docId: '1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE',
   tabId: 't.qo6bykb5zkh7',
-  rawPlainTextSummary:
-    'Revelation 2: Course Connection — Complete 9-Document Syllabus covering Ephesus (Rev 2:1–7), Smyrna (Rev 2:8–11), Pergamum (Rev 2:12–17), Thyatira (Rev 2:18–29), Sacred Library Manuscripts & Archaeology, Formative Google Form Quizzes, Summative Mastery Exam, and Teacher Answer Keys.',
-  links: [
-    {
-      id: 'rev2_doc_0_master_hub_syllabus',
-      label: '0. Revelation 2: Course Connection — Master Syllabus & Extracted Source Document (Google Doc)',
-      url: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?pli=1&tab=t.qo6bykb5zkh7',
-      directDownloadUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/export?format=txt&tab=t.qo6bykb5zkh7',
-      category: 'GOOGLE_DOC',
-      docId: '1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE',
-      tabId: 't.qo6bykb5zkh7',
-      sectionHeading: 'Master Course Connection Source Document & Syllabus Hub',
-      isAnswerKey: false,
-      pairedAnswerKeyUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_master_key/edit',
-      pairedAnswerKeyLabel: 'Revelation 2 Master Teacher Answer Key & Rubric Compendium',
-      fallbackCurriculumText: `# Revelation 2: Course Connection — Master Syllabus & Source Hub Document
-## Source Document Extracted into Great Faith Ministries · Christian Education
-Original Google Doc Source: https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?pli=1&tab=t.qo6bykb5zkh7 (Tab: t.qo6bykb5zkh7)
-
-## Module Overview & Extracted Course Resources
-1. Week 1 — Ephesus (Revelation 2:1–7): Returning to Our First Love & Tree of Life Reading Packet
-2. Week 2 — Smyrna (Revelation 2:8–11): Faithfulness Unto the Crown of Life Study Guide
-3. Week 3 — Pergamum (Revelation 2:12–17): Holding Fast Christ's Name & Hidden Manna Packet
-4. Week 4 — Thyatira (Revelation 2:18–29): Discernment, Service & the Morning Star Worksheet
-5. Sacred Library Supplemental Dossier: Codex Sinaiticus, Papyrus P47, St. Polycarp & Asia Minor Archaeology
-6. Formative Check Quizzes (Google Forms) & Summative Unit Mastery Examination
-
-1. Which four churches of Asia Minor are addressed in the Revelation 2 Course Connection syllabus (Revelation 2:1–29)? [2 pts]
-A) Ephesus, Smyrna, Pergamum, and Thyatira
-B) Sardis, Philadelphia, Laodicea, and Colosse
-C) Rome, Corinth, Galatia, and Philippi
-D) Jerusalem, Antioch, Alexandria, and Caesarea
-
-2. What recurring sevenfold pattern structures each of Christ's letters in Revelation 2? [2 pts]
-A) Address to the Angel/Church, Christological Title, Commendation ("I know your works"), Rebuke/Charge, Exhortation to Repent/Be Faithful, Call to Hear ("He who has an ear"), and Overcomer Promise
-B) Greeting, Genealogy, Parable, Miracle, Travel Log, Benediction, and Postscript
-C) Civil Census, Tax Decree, Military Roster, Temple Inventory, Feast Calendar, and Seal
-D) Only a single proverb without promises`,
-      fallbackAnswerKeyText: `1. A - Revelation 2 addresses Ephesus (2:1–7), Smyrna (2:8–11), Pergamum (2:12–17), and Thyatira (2:18–29). [2 pts]
-2. A - Each letter in Revelation 2 follows the covenantal prophetic structure: Address, Christological Title, "I know" Commendation, Charge/Warning, Exhortation, Spirit's Call to Hear, and Overcomer Promise. [2 pts]`,
-    },
-    {
-      id: 'rev2_doc_1_ephesus',
-      label: '1. Revelation 2:1–7 — Ephesus: Returning to Our First Love (Reading Packet PDF)',
-      url: 'https://drive.google.com/file/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_ephesus_pdf/view',
-      directDownloadUrl: 'https://drive.google.com/uc?export=download&id=1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_ephesus_pdf',
-      category: 'PDF_DOCUMENT',
-      sectionHeading: 'Module 1: The Church at Ephesus (Revelation 2:1–7)',
-      isAnswerKey: false,
-      pairedAnswerKeyUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_master_key/edit#ephesus',
-      pairedAnswerKeyLabel: 'Ephesus Teacher Answer Key (Rev 2:1–7)',
-      fallbackCurriculumText: `# Revelation 2:1–7 — The Church at Ephesus: Returning to Our First Love
-## Section 1: Christ Among the Seven Golden Lampstands (Revelation 2:1–3)
-To the angel of the church in Ephesus, Christ introduces Himself as "Him who holds the seven stars in His right hand, who walks among the seven golden lampstands" (Revelation 2:1). He commends their works, toil, patient endurance, and discernment in testing those who falsely claim to be apostles (Revelation 2:2–3).
-
-## Section 2: Remembering, Repenting & Doing the First Works (Revelation 2:4–7)
-Yet Christ brings a solemn heart-charge: "You have abandoned the love you had at first" (Revelation 2:4). He calls Ephesus to a three-step restoration—Remember, Repent, and Do the works they did at first—promising the overcomer permission to eat of the tree of life in the paradise of God (Revelation 2:7).
-
-1. According to Revelation 2:1, how does Christ describe Himself to the church in Ephesus? [2 pts]
-A) The First and the Last who died and came to life
-B) Him who holds the seven stars in His right hand and walks among the seven golden lampstands
-C) The Son of God who has eyes like a flame of fire
-D) He who has the sharp two-edged sword
-
-2. What primary indictment does Christ bring against the church at Ephesus in Revelation 2:4 despite their doctrinal discernment? [2 pts]
-A) They tolerated the teaching of Balaam
-B) They had abandoned the love they had at first
-C) They denied His name during persecution
-D) They grew lukewarm in their material wealth
-
-3. In Revelation 2:5, what three-part command does Christ give Ephesus to restore their first love? [2 pts]
-A) Fast, mourn, and rebuild the city walls
-B) Remember from where you have fallen, repent, and do the works you did at first
-C) Sell all possessions, leave the province, and wait in the desert
-D) Appoint new elders, write a creed, and close the gates
-
-4. What promise is given to the one who conquers in the letter to Ephesus (Revelation 2:7)? [2 pts]
-A) Authority over the nations
-B) Hidden manna and a white stone
-C) Permission to eat of the tree of life, which is in the paradise of God
-D) The morning star`,
-      fallbackAnswerKeyText: `1. B - Revelation 2:1 describes Christ holding the seven stars in His right hand and walking among the seven golden lampstands. [2 pts]
-2. B - Revelation 2:4 states: "But I have this against you, that you have abandoned the love you had at first." [2 pts]
-3. B - Revelation 2:5 commands: "Remember therefore from where you have fallen; repent, and do the works you did at first." [2 pts]
-4. C - Revelation 2:7 promises the overcomer permission to eat of the tree of life in the paradise of God. [2 pts]`,
-    },
-    {
-      id: 'rev2_doc_2_smyrna',
-      label: '2. Revelation 2:8–11 — Smyrna: Faithfulness Unto the Crown of Life (Study Guide Google Doc)',
-      url: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?tab=t.qo6bykb5zkh7#smyrna',
-      directDownloadUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/export?format=txt&tab=t.qo6bykb5zkh7',
-      category: 'GOOGLE_DOC',
-      docId: '1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE',
-      tabId: 't.qo6bykb5zkh7',
-      sectionHeading: 'Module 2: The Church at Smyrna (Revelation 2:8–11)',
-      isAnswerKey: false,
-      pairedAnswerKeyUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_master_key/edit#smyrna',
-      pairedAnswerKeyLabel: 'Smyrna Teacher Answer Key (Rev 2:8–11)',
-      fallbackCurriculumText: `# Revelation 2:8–11 — The Church at Smyrna: Faithfulness Unto the Crown of Life
-## Section 1: The First and the Last Who Came to Life (Revelation 2:8–9)
-Addressing the suffering congregation in Smyrna as "the First and the Last, who died and came to life" (Revelation 2:8), Christ comforts them: "I know your tribulation and your poverty (but you are rich)" (Revelation 2:9). Smyrna is one of only two churches in Revelation that receives no rebuke.
-
-## Section 2: Fear Not & The Crown of Life (Revelation 2:10–11)
-Christ prepares the believers in Smyrna for a season of testing ("ten days") and exhorts them: "Be faithful unto death, and I will give you the crown of life" (Revelation 2:10). The one who conquers will not be hurt by the second death (Revelation 2:11).
-
-1. Why is Christ's title in Revelation 2:8 ("the first and the last, who died and came to life") uniquely suited to comfort the church in Smyrna? [2 pts]
-A) Because Smyrna was wealthy and needed no endurance
-B) Because Smyrna faced persecution unto death, and Christ Himself triumphed over death
-C) Because Smyrna had forgotten the doctrine of creation
-D) Because Smyrna was debating the calendar of feasts
-
-2. In Revelation 2:9, what paradox does Christ declare about the believers' condition in Smyrna? [2 pts]
-A) They are outwardly rich, but spiritually poor and blind
-B) They experience tribulation and material poverty, "(but you are rich)" spiritually
-C) They have a reputation for being alive, but are dead
-D) They have great political power, but little faith
-
-3. What two promises are given to the faithful believers in Smyrna in Revelation 2:10–11? [2 pts]
-A) The crown of life and immunity from the second death
-B) Hidden manna and a bronze pillar
-C) The morning star and a rod of iron
-D) The keys of David and a new temple`,
-      fallbackAnswerKeyText: `1. B - Christ's resurrection victory over death directly comforts believers called to remain faithful even unto martyrdom (Revelation 2:8, 10). [2 pts]
-2. B - In Revelation 2:9, Christ tells Smyrna: "I know your tribulation and your poverty (but you are rich)"—contrasting earthly deprivation with heavenly wealth. [2 pts]
-3. A - Revelation 2:10-11 promises the "crown of life" and that the overcomer "will not be hurt by the second death." [2 pts]`,
-    },
-    {
-      id: 'rev2_doc_3_pergamum',
-      label: '3. Revelation 2:12–17 — Pergamum: Holding Fast Christ’s Name & Hidden Manna (PDF Packet)',
-      url: 'https://drive.google.com/file/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_pergamum_pdf/view',
-      directDownloadUrl: 'https://drive.google.com/uc?export=download&id=1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_pergamum_pdf',
-      category: 'PDF_DOCUMENT',
-      sectionHeading: 'Module 3: The Church at Pergamum (Revelation 2:12–17)',
-      isAnswerKey: false,
-      pairedAnswerKeyUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_master_key/edit#pergamum',
-      pairedAnswerKeyLabel: 'Pergamum Teacher Answer Key (Rev 2:12–17)',
-      fallbackCurriculumText: `# Revelation 2:12–17 — The Church at Pergamum: Holding Fast the Name of Christ
-## Section 1: Faithful Witness Where Satan's Throne Is (Revelation 2:12–13)
-Christ addresses Pergamum as "He who has the sharp two-edged sword" (Revelation 2:12). Though Pergamum was the seat of imperial cult temples ("where Satan's throne is"), the church held fast to Christ's name and did not deny His faith even in the days of Antipas, Christ's faithful witness (Revelation 2:13).
-
-## Section 2: Refusing Compromise & Receiving the Hidden Manna (Revelation 2:14–17)
-Christ warns Pergamum against those who hold the teaching of Balaam and the Nicolaitans—accommodating idol feasts and immorality (Revelation 2:14–15). To the one who conquers, Christ promises "some of the hidden manna" and "a white stone, with a new name written on the stone" (Revelation 2:17).
-
-1. Who is honored by name in Revelation 2:13 as Christ's "faithful witness, who was killed among you" in Pergamum? [2 pts]
-A) Polycarp
-B) Antipas
-C) Ignatius
-D) Stephanas
-
-2. What error of Balaam and the Nicolaitans did some in Pergamum tolerate (Revelation 2:14–15)? [2 pts]
-A) Refusing to read the Old Testament prophets
-B) Compromising with pagan idol feasts and sexual immorality
-C) Practicing extreme asceticism in the wilderness
-D) Denying the physical humanity of Christ
-
-3. Which two gifts are promised to the overcomer in Pergamum in Revelation 2:17? [2 pts]
-A) The tree of life and the crown of life
-B) Some of the hidden manna and a white stone with a new name written on it
-C) Authority over the nations and the morning star
-D) White garments and the book of life`,
-      fallbackAnswerKeyText: `1. B - Antipas is named in Revelation 2:13 as "my faithful witness, who was killed among you, where Satan dwells." [2 pts]
-2. B - Revelation 2:14-15 rebukes the accommodation of eating food sacrificed to idols and practicing sexual immorality. [2 pts]
-3. B - Revelation 2:17 promises the overcomer "some of the hidden manna" and "a white stone, with a new name written on the stone." [2 pts]`,
-    },
-    {
-      id: 'rev2_doc_4_thyatira',
-      label: '4. Revelation 2:18–29 — Thyatira: Discernment, Service & the Morning Star (Worksheet Google Doc)',
-      url: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/edit?tab=t.qo6bykb5zkh7#thyatira',
-      directDownloadUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE/export?format=txt&tab=t.qo6bykb5zkh7',
-      category: 'GOOGLE_DOC',
-      docId: '1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE',
-      tabId: 't.qo6bykb5zkh7',
-      sectionHeading: 'Module 4: The Church at Thyatira (Revelation 2:18–29)',
-      isAnswerKey: false,
-      pairedAnswerKeyUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_master_key/edit#thyatira',
-      pairedAnswerKeyLabel: 'Thyatira Teacher Answer Key (Rev 2:18–29)',
-      fallbackCurriculumText: `# Revelation 2:18–29 — The Church at Thyatira: Service, Discernment & the Morning Star
-## Section 1: The Son of God Who Searches Mind and Heart (Revelation 2:18–23)
-Revelation 2:18 introduces Christ with the explicit title "the Son of God, who has eyes like a flame of fire, and whose feet are like burnished bronze." He commends Thyatira's love, faith, service, and patient endurance, noting that "your latter works exceed the first" (Revelation 2:19), while calling them to reject the false teaching of Jezebel (Revelation 2:20–23).
-
-## Section 2: Holding Fast Until He Comes & The Morning Star (Revelation 2:24–29)
-To the faithful remnant who hold fast until He comes, Christ promises authority over the nations (citing Psalm 2:8–9) and declares: "And I will give him the morning star" (Revelation 2:28).
-
-1. How does Revelation 2:19 commend the spiritual trajectory of the believers in Thyatira? [2 pts]
-A) Their latter works exceed the first
-B) They were the wealthiest congregation in Asia
-C) They faced zero opposition from the trade guilds
-D) They built seven synagogues
-
-2. According to Revelation 2:23, what does the Son of God search so that all the churches will know Him? [2 pts]
-A) Only outward ritual observance
-B) Mind and heart ("I am he who searches mind and heart")
-C) Roman provincial tax rolls
-D) Genealogical records alone
-
-3. What two promises are given in Revelation 2:26–28 to the one in Thyatira who conquers and keeps Christ's works until the end? [2 pts]
-A) Authority over the nations and the morning star
-B) The tree of life and the crown of life
-C) Hidden manna and a white stone
-D) A pillar in the temple and a new scroll`,
-      fallbackAnswerKeyText: `1. A - Revelation 2:19 commends Thyatira's love, faith, service, and endurance, declaring "your latter works exceed the first." [2 pts]
-2. B - Revelation 2:23 proclaims: "And all the churches will know that I am he who searches mind and heart." [2 pts]
-3. A - Revelation 2:26-28 promises authority over the nations (Psalm 2) and "I will give him the morning star." [2 pts]`,
-    },
-    {
-      id: 'rev2_doc_5_sacred_library_atlas',
-      label: '5. Sacred Library Supplemental Dossier (PDF) — Manuscripts, Patristic Witnesses & Asia Minor Archaeology',
-      url: 'https://drive.google.com/file/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_sacred_library_dossier/view',
-      directDownloadUrl: 'https://drive.google.com/uc?export=download&id=1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_sacred_library_dossier',
-      category: 'PDF_DOCUMENT',
-      sectionHeading: 'Module 5: Lorea Sacred Library Supplemental Primary Sources',
-      isAnswerKey: false,
-      pairedAnswerKeyLabel: 'Sacred Library Dossier Answer Key',
-      fallbackCurriculumText: `# Revelation 2 Sacred Library Supplemental Dossier: Manuscripts, Fathers & Archaeology
-## Primary Source 1: Codex Sinaiticus (4th c. AD) & Chester Beatty Papyrus P47 (3rd c. AD)
-The Book of Revelation is preserved in ancient Greek witnesses housed in the Lorea Sacred Library, including Papyrus 47 (c. 250 AD), Codex Sinaiticus (c. 330–360 AD), and Codex Alexandrinus (5th c. AD).
-
-## Primary Source 2: The Apostolic Fathers — St. Ignatius to the Ephesians & St. Polycarp of Smyrna
-Within a generation of the Apostle John, Ignatius of Antioch wrote to the church at Ephesus commending their order and love, while Polycarp—personally taught by John—served as Bishop of Smyrna and fulfilled Revelation 2:10 ("Be faithful unto death") in his martyrdom.
-
-## Primary Source 3: Sacred Artifacts — The Seven-Branched Lampstand (Menorah) & The Ark's Hidden Manna
-The golden lampstands of Revelation 2:1 and the "hidden manna" of Revelation 2:17 draw directly upon the sanctuary furnishings of the Tabernacle and Temple.
-
-1. Which early Christian bishop of Smyrna, personally discipled by the Apostle John, exemplified Revelation 2:10 ("Be faithful unto death") in his martyrdom? [2 pts]
-A) St. Polycarp of Smyrna
-B) Tertullian of Carthage
-C) Eusebius of Caesarea
-D) Venantius Fortunatus
-
-2. Which 4th-century Greek manuscript in the Sacred Library is the oldest complete surviving New Testament containing the Book of Revelation? [2 pts]
-A) The Mesha Stele
-B) Codex Sinaiticus
-C) The Cyrus Cylinder
-D) The Taylor Prism
-
-3. In Sacred Library sanctuary typology, where was the golden jar of manna ("hidden manna", Revelation 2:17) kept? [2 pts]
-A) On the porch of Herod's palace
-B) Inside the Ark of the Covenant in the Most Holy Place (Exodus 16:33; Hebrews 9:4)
-C) In the Roman forum at Pergamum
-D) Inside the city gates of Thyatira`,
-      fallbackAnswerKeyText: `1. A - St. Polycarp of Smyrna (c. 69–155 AD), disciple of the Apostle John and Bishop of Smyrna, embodied Revelation 2:10. [2 pts]
-2. B - Codex Sinaiticus (c. 330–360 AD) preserves the oldest complete Greek New Testament including the Apocalypse. [2 pts]
-3. B - The golden urn of manna was placed inside the Ark of the Covenant in the Most Holy Place (Exodus 16:33; Hebrews 9:4), illuminating Revelation 2:17. [2 pts]`,
-    },
-    {
-      id: 'rev2_form_6_quiz_ephesus_smyrna',
-      label: '6. Revelation 2:1–11 Formative Check Quiz — Ephesus & Smyrna (Google Form)',
-      url: 'https://docs.google.com/forms/d/e/1FAIpQLScRev2EphesusSmyrnaQuiz/viewform',
-      category: 'GOOGLE_FORM',
-      sectionHeading: 'Assessments & Interactive Quizzes',
-      isAnswerKey: false,
-      pairedAnswerKeyLabel: 'Auto-Graded Google Form Key (Ephesus & Smyrna)',
-      fallbackCurriculumText: `# Revelation 2:1–11 Formative Check Quiz — Ephesus & Smyrna (Google Form)
-## Rapid Retrieval & Scripture Mastery Check (Revelation 2:1–11)
-Test your mastery of the letters to Ephesus and Smyrna.
-
-1. Which group's works did both Christ and the church at Ephesus hate (Revelation 2:6)? [2 pts]
-A) The Nicolaitans
-B) The Essenes
-C) The Bereans
-D) The Rechabites
-
-2. Which church in Revelation 2 receives NO rebuke or correction from Christ, only commendation and comfort? [2 pts]
-A) Ephesus
-B) Smyrna
-C) Pergamum
-D) Thyatira
-
-3. True or False: In Revelation 2:11, Christ promises that the one who conquers in Smyrna will not be hurt by the second death. [1 pt]`,
-      fallbackAnswerKeyText: `1. A - Revelation 2:6 commends Ephesus: "Yet this you have: you hate the works of the Nicolaitans, which I also hate." [2 pts]
-2. B - Smyrna (Revelation 2:8–11) receives no rebuke from Christ, only comfort and encouragement to remain faithful. [2 pts]
-3. True - Revelation 2:11 states: "The one who conquers will not be hurt by the second death." [1 pt]`,
-    },
-    {
-      id: 'rev2_form_7_quiz_pergamum_thyatira',
-      label: '7. Revelation 2:12–29 Formative Check Quiz — Pergamum & Thyatira (Google Form)',
-      url: 'https://docs.google.com/forms/d/e/1FAIpQLScRev2PergamumThyatiraQuiz/viewform',
-      category: 'GOOGLE_FORM',
-      sectionHeading: 'Assessments & Interactive Quizzes',
-      isAnswerKey: false,
-      pairedAnswerKeyLabel: 'Auto-Graded Google Form Key (Pergamum & Thyatira)',
-      fallbackCurriculumText: `# Revelation 2:12–29 Formative Check Quiz — Pergamum & Thyatira (Google Form)
-## Rapid Retrieval & Scripture Mastery Check (Revelation 2:12–29)
-Test your mastery of the letters to Pergamum and Thyatira.
-
-1. Match the Christological title "The words of him who has the sharp two-edged sword" (Revelation 2:12) to its recipient church: [2 pts]
-A) Ephesus
-B) Smyrna
-C) Pergamum
-D) Thyatira
-
-2. In which verse of Revelation 2 does the exact title "the Son of God" appear? [2 pts]
-A) Revelation 2:1 (Ephesus)
-B) Revelation 2:8 (Smyrna)
-C) Revelation 2:12 (Pergamum)
-D) Revelation 2:18 (Thyatira)
-
-3. True or False: Every letter in Revelation 2 concludes with the Spirit's call, "He who has an ear, let him hear what the Spirit says to the churches." [1 pt]`,
-      fallbackAnswerKeyText: `1. C - Revelation 2:12 addresses Pergamum with "The words of him who has the sharp two-edged sword." [2 pts]
-2. D - Revelation 2:18 (to Thyatira) is the sole occurrence of the exact title "the Son of God" in Revelation. [2 pts]
-3. True - Revelation 2:7, 2:11, 2:17, and 2:29 all sound the Spirit's call to hear. [1 pt]`,
-    },
-    {
-      id: 'rev2_doc_8_mastery_exam',
-      label: '8. Revelation 2: Course Connection — Comprehensive Unit Mastery Examination (Summative Test Doc)',
-      url: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_unit_exam/edit',
-      category: 'GOOGLE_DOC',
-      sectionHeading: 'Summative Mastery Examination',
-      isAnswerKey: false,
-      pairedAnswerKeyUrl: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_master_key/edit',
-      pairedAnswerKeyLabel: 'Revelation 2 Master Teacher Answer Key & Rubric',
-      fallbackCurriculumText: `# Revelation 2: Course Connection — Comprehensive Unit Mastery Examination
-## Summative Synthesis Across Ephesus, Smyrna, Pergamum & Thyatira (Revelation 2:1–29)
-Complete all items below to certify unit mastery in Great Faith Ministries · Christian Education.
-
-1. Across the four churches of Revelation 2, how do the temptations of Ephesus (doctrinal vigilance without first love) and Thyatira (growing love and service while tolerating false teaching) serve as mirror warnings to the Church today? [3 pts]
-A) Both show that Christ calls His Church to unite truth and love—holding fast sound doctrine while abounding in fervent love and holiness
-B) Both show that doctrine does not matter so long as a church is active
-C) Both show that love is unnecessary if a church tests false apostles
-D) Both apply only to 1st-century civic guilds
-
-2. Which overcomer promise in Revelation 2 reaches back to Genesis 2–3 and forward to Revelation 22:2? [2 pts]
-A) The tree of life in the paradise of God (promised to Ephesus in Revelation 2:7)
-B) The ten days of tribulation (Revelation 2:10)
-C) The throne of Pergamum (Revelation 2:13)
-D) The bronze guild of Thyatira (Revelation 2:18)
-
-3. Which Old Testament royal psalm is quoted in Christ's promise to the overcomer at Thyatira in Revelation 2:26–27 ("he will rule them with a rod of iron")? [2 pts]
-A) Psalm 2:8–9
-B) Psalm 23:1–2
-C) Psalm 51:10
-D) Psalm 119:105
-
-4. Short Synthesis Reflection: Choose one of the four churches in Revelation 2 (Ephesus, Smyrna, Pergamum, or Thyatira) and explain how Christ's self-description at the opening of that letter directly answers the crisis that congregation faced. [3 pts]`,
-      fallbackAnswerKeyText: `1. A - Ephesus had doctrinal discernment without first love (2:2–4), while Thyatira had growing love and service but lacked doctrinal/moral discernment against Jezebel (2:19–20); Christ calls His Church to unite truth and love. [3 pts]
-2. A - The "tree of life, which is in the paradise of God" (Revelation 2:7) forms a canonical arc from Eden (Genesis 2–3) to the New Jerusalem (Revelation 22:2). [2 pts]
-3. A - Revelation 2:26–27 quotes Psalm 2:8–9, sharing Messianic authority with the faithful overcomer. [2 pts]
-4. Faithfulness / Christological synthesis — e.g. To Smyrna facing death, Christ is the one who died and came to life (2:8); to Pergamum compromising with idols, Christ wields the sharp two-edged sword of truth (2:12). [3 pts]`,
-    },
-    {
-      id: 'rev2_doc_9_master_answer_key',
-      label: '9. Revelation 2: Course Connection — Master Teacher Answer Key & Rubric Compendium (Google Doc)',
-      url: 'https://docs.google.com/document/d/1xYj7W8eXhHrOijZOlv55sywrjvB3iSg70NAG9fBu3VE_master_key/edit',
-      category: 'ANSWER_KEY',
-      sectionHeading: 'Teacher Answer Keys & Grading Rubrics',
-      isAnswerKey: true,
-      pairedAnswerKeyLabel: 'Master Answer Key & Rubric Verified',
-      fallbackCurriculumText: `# Revelation 2: Course Connection — Master Teacher Answer Key & Grading Rubric Compendium
-## Complete Instructor Reference for Modules 1–8 (Great Faith Ministries · Christian Education)
-This Master Teacher Answer Key & Rubric document pairs with all Ephesus, Smyrna, Pergamum, Thyatira, and Sacred Library worksheets and assessments.
-
-1. Instructor Rubric Verification — In Revelation 2:1–7 (Ephesus), what are the three restoration steps required for full rubric credit on Question 3? [2 pts]
-A) Remember from where you have fallen, Repent, and Do the works you did at first (Revelation 2:5)
-B) Fast, tithe, and travel to Jerusalem
-C) Debate, write, and archive
-D) Silence, solitude, and retreat
-
-2. Instructor Rubric Verification — Which four overcomer promises correspond to Ephesus (2:7), Smyrna (2:10–11), Pergamum (2:17), and Thyatira (2:26–28)? [2 pts]
-A) Tree of Life (Ephesus) · Crown of Life / No Second Death (Smyrna) · Hidden Manna & White Stone (Pergamum) · Authority over Nations & Morning Star (Thyatira)
-B) Seven seals · Seven trumpets · Seven bowls · Seven thunders
-C) Gold, frankincense, myrrh, and alabaster
-D) Only earthly prosperity`,
-      fallbackAnswerKeyText: `1. A - Full credit requires naming Remember, Repent, and Do the first works (Revelation 2:5). [2 pts]
-2. A - Ephesus: Tree of Life (2:7); Smyrna: Crown of Life / Second Death (2:10–11); Pergamum: Hidden Manna & White Stone (2:17); Thyatira: Authority over Nations & Morning Star (2:26–28). [2 pts]`,
-    },
-  ],
-  pdfLinks: [],
+  rawPlainTextSummary: 'Revelation 2 course: requirements, 2026/27 syllabus, exam schedule, grading scale, statement of belief, memory work, study outline, reference-book guide, essay format, Exams 1–7 and the Final Exam.',
+  links: REVELATION_2_LINKS,
+  pdfLinks: REVELATION_2_LINKS.filter(l => l.category === 'PDF_DOCUMENT'),
   googleDocLinks: [],
-  googleFormLinks: [],
+  googleFormLinks: REVELATION_2_LINKS.filter(l => l.category === 'GOOGLE_FORM'),
   answerKeyLinks: [],
 };
 REVELATION_2_COURSE_CONNECTION_PRESET.pdfLinks = REVELATION_2_COURSE_CONNECTION_PRESET.links.filter(l => l.category === 'PDF_DOCUMENT');
@@ -2654,3 +2630,19 @@ REVELATION_2_COURSE_CONNECTION_PRESET.googleFormLinks = REVELATION_2_COURSE_CONN
 REVELATION_2_COURSE_CONNECTION_PRESET.answerKeyLinks = REVELATION_2_COURSE_CONNECTION_PRESET.links.filter(l => l.isAnswerKey);
 
 
+
+/**
+ * Makes sure this device has the lesson's Tela document (a lesson shared from another device arrives
+ * without one), then opens it in Tela. `fromTelaDocId` seeds a copy from the original's page.
+ */
+export async function openUnitInTela(unit: IngestedCurriculumUnit, opts: { fromTelaDocId?: string; ownerUid?: string } = {}): Promise<void> {
+  let have: TelaDoc | null = null;
+  try { have = await loadTelaDoc(unit.telaDocId); } catch { have = null; }
+  if (!have) {
+    let base: TelaDoc | null = null;
+    if (opts.fromTelaDocId) { try { base = await loadTelaDoc(opts.fromTelaDocId); } catch { base = null; } }
+    const doc = base || worksheetToTelaDoc(unit.worksheet, opts.ownerUid || unit.ownerUid || '');
+    await saveTelaDoc({ ...doc, id: unit.telaDocId, title: `${unit.title} (Interactive Tela)`, ownerId: opts.ownerUid || doc.ownerId, editedBy: undefined });
+  }
+  window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId: unit.telaDocId, returnTo: { label: 'Lesson Library' } } }));
+}

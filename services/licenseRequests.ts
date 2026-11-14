@@ -3,7 +3,7 @@
 // track's owner responds APPROVED (they set a price → the track becomes licensable
 // at that fee) or DENIED. Collection: `licenseRequests`.
 import { collection, doc, setDoc, updateDoc, getDocs, query, where } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { opsDb, auth } from './firebase';
 import { fetchAlbumById, updateAlbum, createNotification } from './backendService';
 import type { SyncLicenseRequest } from '../types';
 import type { MusicBinTrack } from './fabulaMusic';
@@ -18,7 +18,7 @@ export async function createLicenseRequest(opts: {
   if (!u) throw new Error('Sign in to request a license.');
   const { track, editId, editTitle, description } = opts;
   if (!track.rightsOwnerId || !track.albumId) throw new Error('This track can’t be requested (missing owner/album).');
-  const ref = doc(collection(db, 'licenseRequests'));
+  const ref = doc(collection(opsDb, 'licenseRequests'));
   const req: SyncLicenseRequest = {
     id: ref.id,
     requesterUid: u.uid,
@@ -42,7 +42,7 @@ export async function createLicenseRequest(opts: {
 export async function listMyLicenseRequests(requesterUid: string): Promise<SyncLicenseRequest[]> {
   if (!requesterUid) return [];
   try {
-    const snap = await getDocs(query(collection(db, 'licenseRequests'), where('requesterUid', '==', requesterUid)));
+    const snap = await getDocs(query(collection(opsDb, 'licenseRequests'), where('requesterUid', '==', requesterUid)));
     return snap.docs.map(d => d.data() as SyncLicenseRequest).sort((a, b) => b.createdAt - a.createdAt);
   } catch { return []; }
 }
@@ -51,7 +51,7 @@ export async function listMyLicenseRequests(requesterUid: string): Promise<SyncL
 export async function listIncomingLicenseRequests(ownerUid: string): Promise<SyncLicenseRequest[]> {
   if (!ownerUid) return [];
   try {
-    const snap = await getDocs(query(collection(db, 'licenseRequests'), where('ownerUid', '==', ownerUid)));
+    const snap = await getDocs(query(collection(opsDb, 'licenseRequests'), where('ownerUid', '==', ownerUid)));
     return snap.docs.map(d => d.data() as SyncLicenseRequest).sort((a, b) => b.createdAt - a.createdAt);
   } catch { return []; }
 }
@@ -83,7 +83,7 @@ export async function respondToLicenseRequest(
     } catch (e) { console.warn('[licenseRequests] could not set track fee', e); }
   }
 
-  await updateDoc(doc(db, 'licenseRequests', req.id), clean({
+  await updateDoc(doc(opsDb, 'licenseRequests', req.id), clean({
     status: decision,
     priceUsd: decision === 'APPROVED' ? Math.max(0, Number(opts.priceUsd || 0)) : undefined,
     ownerNote: opts.note || undefined,

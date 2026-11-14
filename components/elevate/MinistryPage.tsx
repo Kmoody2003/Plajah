@@ -1,8 +1,9 @@
 // MinistryPage — public page for one ministry/department: about, meeting time, Follow, specialized workspace (Christian Education / Music Department), and its thread.
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Clock, UserPlus, Check } from 'lucide-react';
+import { ArrowLeft, Clock, UserPlus, Check, Store, Eye } from 'lucide-react';
 import type { Organization, OrgMembership, Ministry } from '../../types';
 import OrgThread from './OrgThread';
+import OrgStoreSection from './OrgStoreSection';
 import { followMinistry, unfollowMinistry, listenFollowedState } from '../../services/orgFollowService';
 import { auth } from '../../services/backendService';
 import { isEducationMinistry, isMusicDepartmentMinistry } from '../../services/elevateTemplates';
@@ -16,9 +17,14 @@ const MinistryPage: React.FC<{
   onBack: () => void;
   onVisitUser?: (uid: string) => void;
   onOrgChange?: (o: Organization) => void;
-}> = ({ org, ministry, myMembership, onBack, onVisitUser, onOrgChange }) => {
+  /** Christian Ed: open this class first. */
+  initialClassId?: string;
+  /** Inside the member home: no page padding (the home already has it). */
+  embedded?: boolean;
+}> = ({ org, ministry, myMembership, onBack, onVisitUser, onOrgChange, initialClassId, embedded = false }) => {
   const [following, setFollowing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [manageShop, setManageShop] = useState(false);
   useEffect(
     () => listenFollowedState(org.id, s => setFollowing(s.ministries.includes(ministry.id))),
     [org.id, ministry.id]
@@ -45,7 +51,9 @@ const MinistryPage: React.FC<{
       myMembership.roleKey === 'SENIOR_PASTOR' ||
       myMembership.roleKey === 'PASTOR' ||
       myMembership.roleKey === 'DEPARTMENT_HEAD' ||
-      (live.headUids || []).includes(myMembership.userId));
+      (live.headUids || []).includes(myMembership.userId) ||
+      // Heads/admins of this department hold it as a ministry role.
+      (myMembership.ministryRoles || []).some(r => r.ministryId === live.id && /HEAD|ADMIN|DIRECTOR|LEAD/i.test(r.roleKey)));
 
   const toggle = async () => {
     if (!auth.currentUser) {
@@ -62,7 +70,7 @@ const MinistryPage: React.FC<{
 
   return (
     <div
-      className={`min-h-full p-4 sm:p-6 lg:p-12 mx-auto ${
+      className={`min-h-full ${embedded ? '' : 'p-4 sm:p-6 lg:p-12'} mx-auto ${
         isEdu || isMusic ? 'max-w-6xl' : 'max-w-3xl'
       }`}
     >
@@ -118,7 +126,9 @@ const MinistryPage: React.FC<{
 
       {isEdu && (
         <div className="mb-8">
-          <ChurchEducation church={org} canEdit={canEdit || true} />
+          {/* Only staff and this department's heads run Christian Ed for everyone; teachers get their own
+              classes through the class roster, and students see just theirs. */}
+          <ChurchEducation church={org} canEdit={canEdit} membership={myMembership} initialClassId={initialClassId} />
         </div>
       )}
 
@@ -131,6 +141,21 @@ const MinistryPage: React.FC<{
           />
         </div>
       )}
+
+      {/* Department shop — same store + inventory as the org (sold by the org account), shelved by StoreProduct.ministryId. */}
+      {canEdit && (
+        <div className="flex justify-end mb-2">
+          <button onClick={() => setManageShop(v => !v)}
+            className="h-10 px-4 rounded-full text-[12px] font-bold flex items-center gap-1.5 bg-white/[0.06] hover:bg-white/10 text-white/80">
+            {manageShop ? <><Eye size={14} /> See the shop</> : <><Store size={14} /> Manage shop</>}
+          </button>
+        </div>
+      )}
+      <div className="mb-10">
+        {manageShop && canEdit
+          ? <OrgStoreSection org={org} ministry={live} mode="manage" canManage onVisitUser={onVisitUser} onOrgChange={onOrgChange} />
+          : <OrgStoreSection org={org} ministry={live} mode="public" previewDrafts={canEdit} onVisitUser={onVisitUser} onOrgChange={onOrgChange} />}
+      </div>
 
       <h2 className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-3">
         Department Thread

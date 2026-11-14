@@ -2,8 +2,8 @@
 // A program is a week-by-week plan whose weeks point at Verse passages and Sacred Library readings,
 // plus Academia courses, a dedicated Classroom Chat Room, and an Academia Classroom (roster, assignments,
 // paper worksheet scanner, and Tela lesson builder).
-import { opsDb, auth } from './firebase';
-import { doc, collection, setDoc, getDocs, query, where, deleteDoc } from 'firebase/firestore';
+import { db, opsDb, auth } from './firebase';
+import { doc, collection, getDoc, setDoc, getDocs, query, where, deleteDoc } from 'firebase/firestore';
 import { parseRef, refId, formatRef } from './scriptureRef';
 import { createChurchClass } from './churchConsoleService';
 import { classChatRoomId } from './orgChatService';
@@ -19,6 +19,8 @@ export interface PlanWeek {
   note: string;
   library?: string;
   worksheetPrompt?: string;
+  /** Lessons/worksheets (IngestedCurriculumUnit ids) added to this week from the class Lessons channel. */
+  unitIds?: string[];
 }
 
 export interface ClassChatMessage {
@@ -39,15 +41,38 @@ export interface ChurchProgram {
   description: string;
   meetingSchedule?: string;
   leadInstructor?: string;
+  /** The department (Organization.ministries id) that runs this class. Its members see and edit it. */
+  departmentId?: string;
   /** Multi-role Christian Education team: Non-Credentialed Instructors, Department Heads, Department Admins & Volunteers. */
   assignedTeam?: Array<{ uid?: string; personId?: string; name: string; roleKey: 'INSTRUCTOR' | 'DEPARTMENT_HEAD' | 'DEPARTMENT_ADMIN' | 'DEPARTMENT_VOLUNTEER' }>;
   courseIds: string[];
   weeks: PlanWeek[];
+  /** Enrolled students. Kids without a Plajah account are listed by name (personId from ChMS) and do paper work. */
+  students?: ClassRosterStudent[];
+  /** Denormalised for security rules: uids that can see class work / that can teach this class. */
+  studentUids?: string[];
+  teacherUids?: string[];
+  /** Short code a student types to ask to join (teacher approves). */
+  joinCode?: string;
+  /** Week the class is on right now (index into weeks). */
+  currentWeek?: number;
+  coverHue?: string;
   classroomId?: string;
   chatRoomId: string;
   chatMessages?: ClassChatMessage[];
   createdBy: string;
   createdAt: number;
+}
+
+export interface ClassRosterStudent {
+  id: string;
+  uid?: string;
+  personId?: string;
+  name: string;
+  avatar?: string;
+  guardianName?: string;
+  guardianUid?: string;
+  addedAt: number;
 }
 
 export const KIND_LABEL: Record<ProgramKind, string> = {
@@ -305,10 +330,29 @@ function writeLocalPrograms(orgId: string, list: ChurchProgram[]): void {
 const col = () => collection(opsDb, 'churchPrograms');
 
 export async function listPrograms(orgId: string): Promise<ChurchProgram[]> {
-  const local = readLocalPrograms(orgId);
+  let local = readLocalPrograms(orgId);
   try {
-    const snap = await getDocs(query(col(), where('orgId', '==', orgId)));
-    const remote = snap.docs.map(d => d.data() as ChurchProgram);
+    let remote: ChurchProgram[];
+    try {
+      // Church people staff may list every class.
+      const snap = await getDocs(query(col(), where('orgId', '==', orgId)));
+      remote = snap.docs.map(d => d.data() as ChurchProgram);
+    } catch {
+      // Everyone else sees only the classes they teach or are enrolled in (rules refuse the rest).
+      const uid = auth.currentUser?.uid;
+      if (!uid) throw new Error('signed out');
+      const [taught, enrolled] = await Promise.all(['teacherUids', 'studentUids'].map(f =>
+        getDocs(query(col(), where('orgId', '==', orgId), where(f, 'array-contains', uid))).catch(() => null)));
+      // Plus the classes of the departments this person belongs to.
+      const org = (await getDoc(doc(db, 'organizations', orgId)).catch(() => null))?.data();
+      const deptIds = Object.entries((org?.departmentUids || {}) as Record<string, string[]>).filter(([, uids]) => uids.includes(uid)).map(([id]) => id);
+      const byDept = await Promise.all(deptIds.map(d => getDocs(query(col(), where('orgId', '==', orgId), where('departmentId', '==', d))).catch(() => null)));
+      if (!taught && !enrolled && !byDept.some(Boolean)) throw new Error('no access');
+      remote = [...(taught?.docs || []), ...(enrolled?.docs || []), ...byDept.flatMap(s => s?.docs || [])].map(d => d.data() as ChurchProgram);
+      // Drop classes an earlier session cached on this device that this person is not part of.
+      const mine = (p: ChurchProgram) => !!(p.teacherUids?.includes(uid) || p.studentUids?.includes(uid) || p.createdBy === uid || remote.some(r => r.id === p.id));
+      local = local.filter(mine);
+    }
     const byId = new Map<string, ChurchProgram>();
     for (const p of local) byId.set(p.id, p);
     for (const p of remote) byId.set(p.id, p);
@@ -327,14 +371,23 @@ export async function saveProgram(p: ChurchProgram): Promise<void> {
     if (r.refId) o.refId = r.refId;
     if (w.library) o.library = w.library;
     if (w.worksheetPrompt) o.worksheetPrompt = w.worksheetPrompt;
+    if (w.unitIds?.length) o.unitIds = w.unitIds;
     return o;
   });
+  // A class belongs to the org's Christian Education department unless it says otherwise.
+  const org = p.departmentId ? null : (await getDoc(doc(db, 'organizations', p.orgId)).catch(() => null))?.data();
+  const departmentId = p.departmentId || (org?.ministries as Array<{ id: string; name: string }> | undefined)?.find(m => /christian\s*ed|education|sunday\s*school|discipleship/i.test(m.name))?.id;
   const normalized: ChurchProgram = {
     ...p,
+    ...(departmentId ? { departmentId } : {}),
     chatRoomId: p.chatRoomId || classChatRoomId(p.orgId, p.id),
     weeks,
     courseIds: p.courseIds || [],
     chatMessages: p.chatMessages || [],
+    studentUids: Array.from(new Set((p.students || []).map(x => x.uid).filter((u): u is string => !!u))),
+    teacherUids: Array.from(
+      new Set([p.createdBy, ...(p.assignedTeam || []).map(t => t.uid)].filter((u): u is string => !!u))
+    ),
   };
 
   // Persist locally first so UI is immediate and resilient
@@ -342,7 +395,9 @@ export async function saveProgram(p: ChurchProgram): Promise<void> {
   writeLocalPrograms(p.orgId, [...current, normalized]);
 
   try {
-    await setDoc(doc(opsDb, 'churchPrograms', normalized.id), normalized);
+    await setDoc(doc(opsDb, 'churchPrograms', normalized.id), JSON.parse(JSON.stringify(normalized)));
+    // Students on the roster hold the Enrolled Student role for this class (services/enrollmentCore.ts).
+    void import('./enrollments').then(m => m.syncProgramEnrollments(normalized.id, normalized.studentUids || [])).catch(() => {});
   } catch {
     // Offline or demo org fallback already saved in localStorage
   }
@@ -355,6 +410,7 @@ export async function deleteProgram(id: string, orgId?: string): Promise<void> {
   }
   try {
     await deleteDoc(doc(opsDb, 'churchPrograms', id));
+    void import('./enrollments').then(m => m.endProgramEnrollments(id)).catch(() => {});
   } catch {
     // ignore
   }

@@ -10,6 +10,7 @@
 // follows the program stream when programBus replaces it (canvas resize → new captureStream).
 
 import type { FeedFormat, FrameFeeder } from './networkOutputs';
+import { feedSizeForBus } from './busFormat';
 import { getProgramBusStream } from './programBus';
 import { amboAudio } from './amboAudioEngine';
 
@@ -139,7 +140,19 @@ export class ProgramFrameFeeder implements FrameFeeder {
 
   private async send(frame: any) {
     const wv = webview(), fmt = this.fmt;
-    if (!wv || !fmt || !this.buffer || this.gen < 0) return;
+    if (!wv || !fmt) return;
+    if (fmt.followBus) {
+      // Follow the bus: a new shared buffer at its size, and frames resume when that arrives.
+      const s = feedSizeForBus(frame.displayWidth, frame.displayHeight);
+      if (s.w !== fmt.width || s.h !== fmt.height) {
+        fmt.width = this.stats.width = s.w; fmt.height = this.stats.height = s.h;
+        void invoke('program_out_buffer', { width: s.w, height: s.h }).then(r => {
+          if (r && r.success === false) this.stats.lastError = r.error;
+        });
+        return;
+      }
+    }
+    if (!this.buffer || this.gen < 0) return;
     const { width: W, height: H } = fmt;
     if (this.slotBytes !== W * H * 4) return; // buffer for an older size is still in flight
     const slot = nextSlot(this.frameNo);

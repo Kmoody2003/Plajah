@@ -2,6 +2,7 @@
 // Daily Sanctuary Devotional System, 365-Day "Read the Bible in a Year" Canonical Plan,
 // and Schedule + GPS In-Service Lectio Auto-Engage Engine.
 
+import { scopedKey } from './userScope';
 import type { Organization } from '../types';
 import type { ScriptureRef } from './scriptureRef';
 
@@ -191,15 +192,8 @@ const DEVO_JOURNAL_KEY = 'plajah_sanctuary_devo_journal_v1';
 
 export function getCompletedBibleYearDays(orgId = 'global'): number[] {
   try {
-    const raw = JSON.parse(localStorage.getItem(`${BIBLE_YEAR_PROGRESS_KEY}_${orgId}`) || 'null');
-    if (Array.isArray(raw)) return raw;
-    // Seed a realistic streak leading up to today so the member sees live progress immediately
-    const today = getDayOfYear();
-    const seeded: number[] = [];
-    for (let d = Math.max(1, today - 14); d < today; d++) {
-      seeded.push(d);
-    }
-    return seeded;
+    const raw = JSON.parse(localStorage.getItem(scopedKey(`${BIBLE_YEAR_PROGRESS_KEY}_${orgId}`)) || 'null');
+    return Array.isArray(raw) ? raw : [];
   } catch {
     return [];
   }
@@ -211,7 +205,7 @@ export function toggleBibleYearDayCompletion(dayNumber: number, orgId = 'global'
   else current.add(dayNumber);
   const next = Array.from(current).sort((a, b) => a - b);
   try {
-    localStorage.setItem(`${BIBLE_YEAR_PROGRESS_KEY}_${orgId}`, JSON.stringify(next));
+    localStorage.setItem(scopedKey(`${BIBLE_YEAR_PROGRESS_KEY}_${orgId}`), JSON.stringify(next));
   } catch {
     // ignore storage quota
   }
@@ -220,7 +214,7 @@ export function toggleBibleYearDayCompletion(dayNumber: number, orgId = 'global'
 
 export function getDevotionalReflectionNote(devoId: string): string {
   try {
-    const map = JSON.parse(localStorage.getItem(DEVO_JOURNAL_KEY) || '{}');
+    const map = JSON.parse(localStorage.getItem(scopedKey(DEVO_JOURNAL_KEY)) || '{}');
     return map[devoId] || '';
   } catch {
     return '';
@@ -229,9 +223,9 @@ export function getDevotionalReflectionNote(devoId: string): string {
 
 export function saveDevotionalReflectionNote(devoId: string, text: string): void {
   try {
-    const map = JSON.parse(localStorage.getItem(DEVO_JOURNAL_KEY) || '{}');
+    const map = JSON.parse(localStorage.getItem(scopedKey(DEVO_JOURNAL_KEY)) || '{}');
     map[devoId] = text;
-    localStorage.setItem(DEVO_JOURNAL_KEY, JSON.stringify(map));
+    localStorage.setItem(scopedKey(DEVO_JOURNAL_KEY), JSON.stringify(map));
   } catch {
     // ignore
   }

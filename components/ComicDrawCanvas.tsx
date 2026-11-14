@@ -4,6 +4,8 @@ import {
 } from 'lucide-react';
 import { TELA_BRUSH_PRESETS } from '../services/telaCreativeEngine';
 import { useWindowsInk, type InkPoint } from '../hooks/useWindowsInk';
+import { brushTipCanvas, getActiveImportedBrush, loadPresetLibrary, setActiveImportedBrush } from '../services/tela/import/presetLibrary';
+import type { ImportedBrush } from '../services/tela/import/presets';
 
 // A real layered paint canvas — the drawing-engine foundation. Pressure-aware brush
 // (PointerEvent.pressure), eraser, per-layer opacity/visibility/blend mode, undo, and
@@ -37,6 +39,16 @@ const ComicDrawCanvas: React.FC<{
   const [opacity, setOpacity] = useState(1);
   const [saving, setSaving] = useState(false);
   const preset = TELA_BRUSH_PRESETS.find(item => item.id === presetId) || TELA_BRUSH_PRESETS[0];
+  // Brushes imported from Photoshop (.abr), picked in the Library or the Preset list.
+  const [importedBrushes, setImportedBrushes] = useState<ImportedBrush[]>([]);
+  const [importedBrush, setImportedBrush] = useState<ImportedBrush | null>(() => getActiveImportedBrush());
+  const tipRef = useRef<{ key: string; canvas: HTMLCanvasElement } | null>(null);
+  const stampCarry = useRef(0);
+  useEffect(() => {
+    const start = getActiveImportedBrush();
+    if (start) { setSize(Math.min(80, Math.max(1, Math.round(start.size)))); setOpacity(start.opacity); setActiveImportedBrush(null); }
+    void loadPresetLibrary().then(l => setImportedBrushes(l.brushes)).catch(() => { /* no library on this device */ });
+  }, []);
 
   const mkLayer = (name: string): Layer => {
     const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
@@ -72,10 +84,39 @@ const ComicDrawCanvas: React.FC<{
 
   const activeLayer = () => layersRef.current.find(l => l.id === activeRef.current) || layersRef.current[layersRef.current.length - 1];
 
+  // Imported Photoshop brush: stamps its tip along the stroke at its own spacing, angle and scatter.
+  const stampImportedBrush = (ctx: CanvasRenderingContext2D, brush: ImportedBrush, pt: InkPoint, isErase: boolean) => {
+    const key = `${brush.id}|${color}`;
+    if (tipRef.current?.key !== key) tipRef.current = { key, canvas: brushTipCanvas(brush, color, 64) };
+    const tip = tipRef.current.canvas, p = pt.pressure;
+    const lp = last.current || { x: pt.x, y: pt.y };
+    const dist = Math.hypot(pt.x - lp.x, pt.y - lp.y), step = Math.max(1, size * Math.max(.01, brush.spacing));
+    const aspect = tip.height / Math.max(1, tip.width);
+    ctx.globalCompositeOperation = isErase ? 'destination-out' : 'source-over';
+    ctx.globalAlpha = Math.max(.02, opacity * brush.flow * (1 - brush.opacityPressure + brush.opacityPressure * p));
+    const dynSize = size * (1 - brush.sizePressure + brush.sizePressure * p);
+    for (stampCarry.current += dist; stampCarry.current >= step || dist === 0; stampCarry.current -= step) {
+      const t = dist ? 1 - (stampCarry.current - step) / Math.max(dist, 1e-6) : 1;
+      const jitter = brush.sizeJitter ? 1 - Math.random() * brush.sizeJitter : 1;
+      const d = Math.max(1, dynSize * jitter), x = lp.x + (pt.x - lp.x) * Math.min(1, Math.max(0, t)), y = lp.y + (pt.y - lp.y) * Math.min(1, Math.max(0, t));
+      const sc = brush.scatter ? (Math.random() - .5) * brush.scatter * size : 0;
+      ctx.save();
+      ctx.translate(x + sc, y + (brush.scatter ? (Math.random() - .5) * brush.scatter * size : 0));
+      ctx.rotate(((brush.angle + (brush.angleJitter ? (Math.random() - .5) * 360 * brush.angleJitter : 0)) * Math.PI) / -180);
+      ctx.scale(1, brush.roundness);
+      ctx.drawImage(tip, -d / 2, -d * aspect / 2, d, d * aspect);
+      ctx.restore();
+      if (dist === 0) { stampCarry.current = 0; break; }
+    }
+    last.current = { x: pt.x, y: pt.y };
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  };
+
   const drawInkPoint = (pt: InkPoint) => {
     const l = activeLayer(); if (!l) return;
     const ctx = l.canvas.getContext('2d')!;
     const isErase = tool === 'eraser' || pt.isEraser;
+    if (importedBrush) { stampImportedBrush(ctx, importedBrush, pt, isErase); return; }
     ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.globalCompositeOperation = isErase ? 'destination-out' : 'source-over';
 
@@ -192,7 +233,7 @@ const ComicDrawCanvas: React.FC<{
         {/* Canvas */}
         <div className="flex-1 min-w-0 flex flex-col">
           <div className="flex items-center gap-4 px-4 py-2 border-b border-white/8 text-white/50 text-[10px]">
-            <label className="flex items-center gap-2">Preset<select value={presetId} onChange={e => { const next = TELA_BRUSH_PRESETS.find(item => item.id === e.target.value); if (!next) return; setPresetId(next.id); setSize(next.size); setOpacity(next.opacity); setTool(next.family === 'ERASER' ? 'eraser' : next.family === 'PENCIL' ? 'pencil' : next.family === 'MARKER' ? 'marker' : next.id === 'air-soft' ? 'airbrush' : 'brush'); }} className="h-7 rounded-lg bg-black/40 border border-white/10 px-2 text-[10px] text-white/70">{TELA_BRUSH_PRESETS.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+            <label className="flex items-center gap-2">Preset<select value={importedBrush ? `imported:${importedBrush.id}` : presetId} onChange={e => { const imp = importedBrushes.find(item => `imported:${item.id}` === e.target.value); if (imp) { setImportedBrush(imp); setSize(Math.min(80, Math.max(1, Math.round(imp.size)))); setOpacity(imp.opacity); setTool('brush'); return; } const next = TELA_BRUSH_PRESETS.find(item => item.id === e.target.value); if (!next) return; setImportedBrush(null); setPresetId(next.id); setSize(next.size); setOpacity(next.opacity); setTool(next.family === 'ERASER' ? 'eraser' : next.family === 'PENCIL' ? 'pencil' : next.family === 'MARKER' ? 'marker' : next.id === 'air-soft' ? 'airbrush' : 'brush'); }} className="h-7 rounded-lg bg-black/40 border border-white/10 px-2 text-[10px] text-white/70">{TELA_BRUSH_PRESETS.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}{(importedBrushes.length > 0 || importedBrush) && <optgroup label="Imported">{(importedBrushes.length ? importedBrushes : [importedBrush!]).map(item => <option key={item.id} value={`imported:${item.id}`}>{item.name}</option>)}</optgroup>}</select></label>
             <label className="flex items-center gap-2"><Brush size={11} /> Size<input type="range" min={1} max={80} value={size} onChange={e => setSize(+e.target.value)} className="w-24 accent-orange-500" /><span className="w-6 tabular-nums">{size}</span></label>
             <label className="flex items-center gap-2"><Droplet size={11} /> Opacity<input type="range" min={0.05} max={1} step={0.05} value={opacity} onChange={e => setOpacity(+e.target.value)} className="w-24 accent-orange-500" /><span className="w-8 tabular-nums">{Math.round(opacity * 100)}%</span></label>
             <span className="ml-auto text-white/25">Pressure-sensitive · pen or mouse</span>

@@ -114,6 +114,8 @@ export interface TelaStudioDeviceExt {
   brushes?: StudioBrush[];
   guides?: { x: number[]; y: number[] };
   grid?: { size: number; show?: boolean; snap?: boolean; subdivisions?: number };
+  /** The Photoshop / Illustrator file this artboard came from, and how the import went. */
+  imported?: { fileName: string; format: string; at: number; report?: unknown };
 }
 
 export const studioOf = (o: { studio?: TelaStudioObjectExt }): TelaStudioObjectExt => o.studio ?? { v: 1 };

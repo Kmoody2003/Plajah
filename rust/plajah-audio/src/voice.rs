@@ -17,6 +17,7 @@ use crate::string::StringVoice;
 use crate::sample::{SampleBank, SampleVoice};
 use crate::shaper::{ShapeMode, Shaper};
 use crate::soma::SomaVoice;
+use crate::lyra::LyraVoice;
 use crate::spatial::{pan_gains, Layout, Position, MAX_CHANNELS};
 use crate::tables::WaveTable;
 
@@ -25,7 +26,7 @@ pub const MAX_UNISON: usize = 16;
 const NUM_OSC: usize = 3;
 
 #[inline]
-fn midi_to_hz(note: f32) -> f32 {
+pub(crate) fn midi_to_hz(note: f32) -> f32 {
     440.0 * (2.0f32).powf((note - 69.0) / 12.0)
 }
 
@@ -110,6 +111,12 @@ pub struct Voice {
     soma: SomaVoice,
     soma_rng: Rng,
     soma_active: bool,
+    /// Level of the GPU deep-skin layer this SOMA note plays from `sample` (0 = none).
+    soma_deep_gain: f32,
+    /// LYRA physical models (guitar, piano, violin, sax, trumpet, tine piano).
+    lyra: LyraVoice,
+    lyra_rng: Rng,
+    lyra_active: bool,
 }
 
 impl Voice {
@@ -135,6 +142,10 @@ impl Voice {
             soma: SomaVoice::new(48000.0),
             soma_rng: Rng((seed ^ 0x504D_4131) | 1),
             soma_active: false,
+            soma_deep_gain: 0.0,
+            lyra: LyraVoice::new(48000.0),
+            lyra_rng: Rng((seed ^ 0x4C59_5241) | 1),
+            lyra_active: false,
             active: false,
             note: 60.0,
             velocity: 0.8,
@@ -181,11 +192,25 @@ impl Voice {
     pub fn init_sr(&mut self, sr: f32, seed: u32) {
         self.string = StringVoice::new(sr, seed ^ 0x5F35_63AD);
         self.soma.set_sample_rate(sr);
+        self.lyra.set_sample_rate(sr);
     }
 
     pub fn set_sample(&mut self, slot: i32, start_frame: f64, detune_cents: f32) {
         self.sample.start(slot, start_frame);
         self.sample_detune = detune_cents;
+    }
+
+    /// SOMA deep skin: this strike also plays the GPU-rendered upper membrane in `slot` (stereo,
+    /// at `gain`), and the noise cloud stops standing in for the modes it covers (< `top_ratio`).
+    /// Returns false when this isn't a SOMA voice.
+    pub fn set_soma_deep(&mut self, slot: i32, gain: f32, top_ratio: f32) -> bool {
+        if !self.soma_active || slot < 0 {
+            return false;
+        }
+        self.sample.start(slot, 0.0);
+        self.soma_deep_gain = gain.max(0.0);
+        self.soma.gate_cloud_below(top_ratio);
+        true
     }
 
     pub fn note_on(&mut self, note: f32, vel: f32, id: u32, p: &Params, glide_from: Option<f32>, delay: u32, sr_hint: f32) {
@@ -204,6 +229,7 @@ impl Voice {
         self.expr = Expression::default();
         self.glide_note = glide_from.unwrap_or(note);
         self.sample.clear(); // synth mode by default; a KERA note-on calls set_sample after
+        self.soma_deep_gain = 0.0;
 
         let free_phase = p.get(osc_param(0, O_PHASE)) >= 0.999;
         for o in 0..NUM_OSC {
@@ -256,6 +282,12 @@ impl Voice {
         if self.soma_active {
             self.soma.set_sample_rate(sr_hint);
             self.soma.trigger(midi_to_hz(note), self.velocity, p, &mut self.soma_rng);
+            self.soma.deep_in = [0.0; 2];
+        }
+        self.lyra_active = !self.soma_active && p.get(LYRA_BASE + LY_ENABLE) > 0.5;
+        if self.lyra_active {
+            self.lyra.set_sample_rate(sr_hint);
+            self.lyra.trigger(midi_to_hz(note), self.velocity, p, &mut self.lyra_rng);
         }
 
         if self.modal_active {
@@ -293,12 +325,16 @@ impl Voice {
         }
         self.string.reset();
         self.soma.reset();
+        self.lyra.reset();
     }
 
     #[inline]
     pub fn is_finished(&self) -> bool {
         if self.soma_active {
-            return self.soma.is_quiet();
+            return self.soma.is_quiet() && !self.sample.is_active();
+        }
+        if self.lyra_active {
+            return self.lyra.is_quiet();
         }
 
         if self.modal_active {
@@ -339,10 +375,17 @@ impl Voice {
         globals: &ModValues,
         layout: Layout,
         base_pos: Position,
+        bank: &SampleBank,
+        sr: f32,
     ) {
         let nch = layout.channels();
         let mut gains = [0.0f32; MAX_CHANNELS];
         pan_gains(base_pos, layout, 0.0, &mut gains);
+        let deep_rate = if self.sample.slot >= 0 {
+            bank.get(self.sample.slot as usize).map(|s| s.sample_rate as f64 / sr as f64).unwrap_or(1.0)
+        } else {
+            1.0
+        };
 
         let bend_range = (p.get(P_BEND_RANGE) * 24.0).max(2.0);
         let total_bend = (globals.pitch_bend + self.expr.pitch_bend).clamp(-1.0, 1.0);
@@ -354,6 +397,10 @@ impl Voice {
             if self.start_delay > 0 {
                 self.start_delay -= 1;
                 continue;
+            }
+            if self.soma_deep_gain > 0.0 {
+                let (dl, dr) = self.sample.next(bank, deep_rate, false);
+                self.soma.deep_in = [dl * self.soma_deep_gain, dr * self.soma_deep_gain];
             }
             let (yl, yr) = self.soma.render_sample(p, pitch_bend_ratio, mod_wheel, &mut self.soma_rng);
             if !yl.is_finite() || !yr.is_finite() {
@@ -370,6 +417,67 @@ impl Voice {
             }
         }
 
+        self.age += frames as u64;
+        if self.is_finished() {
+            self.active = false;
+        }
+    }
+
+    /// Legato into a LYRA voice: a bowed/blown model glides to the new note without a new
+    /// attack. Returns false when this isn't a LYRA voice (the caller keeps its own behaviour).
+    pub fn lyra_slur(&mut self, note: f32, vel: f32, p: &Params) -> bool {
+        if !self.lyra_active {
+            return false;
+        }
+        self.lyra.slur(midi_to_hz(note), vel.clamp(0.0, 1.0), p, &mut self.lyra_rng);
+        true
+    }
+
+    /// A held, sounding bowed/blown LYRA voice and how long it has sounded (samples).
+    pub fn lyra_held(&self) -> Option<u32> {
+        (self.active && !self.released && self.lyra_active && self.lyra.is_sustained()).then(|| self.lyra.samples())
+    }
+
+    /// The LYRA render path: like SOMA, the model's own physics is the envelope.
+    fn render_lyra(
+        &mut self,
+        out: &mut [[f32; crate::engine::MAX_BLOCK]; MAX_CHANNELS],
+        frames: usize,
+        p: &Params,
+        globals: &ModValues,
+        layout: Layout,
+        base_pos: Position,
+    ) {
+        let nch = layout.channels();
+        let mut gains = [0.0f32; MAX_CHANNELS];
+        pan_gains(base_pos, layout, 0.0, &mut gains);
+        if self.released {
+            self.lyra.release(p);
+        }
+        let bend_range = (p.get(P_BEND_RANGE) * 24.0).max(2.0);
+        let total_bend = (globals.pitch_bend + self.expr.pitch_bend).clamp(-1.0, 1.0);
+        let bend = (2.0f32).powf((total_bend * bend_range) / 12.0);
+        let mod_wheel = (globals.mod_wheel + self.expr.pressure + self.expr.timbre * 0.5).clamp(0.0, 1.0);
+        let level = p.get(P_MASTER_GAIN).max(0.0);
+        for f in 0..frames {
+            if self.start_delay > 0 {
+                self.start_delay -= 1;
+                continue;
+            }
+            let (yl, yr) = self.lyra.render_sample(bend, mod_wheel, &mut self.lyra_rng);
+            if !yl.is_finite() || !yr.is_finite() {
+                continue;
+            }
+            if nch >= 2 {
+                out[0][f] += yl * level * gains[0] * 1.4142;
+                out[1][f] += yr * level * gains[1] * 1.4142;
+                for c in 2..nch {
+                    out[c][f] += 0.5 * (yl + yr) * level * gains[c];
+                }
+            } else if nch == 1 {
+                out[0][f] += 0.5 * (yl + yr) * level;
+            }
+        }
         self.age += frames as u64;
         if self.is_finished() {
             self.active = false;
@@ -451,7 +559,11 @@ impl Voice {
             return;
         }
         if self.soma_active {
-            self.render_soma(out, frames, p, globals, layout, base_pos);
+            self.render_soma(out, frames, p, globals, layout, base_pos, bank, sr);
+            return;
+        }
+        if self.lyra_active {
+            self.render_lyra(out, frames, p, globals, layout, base_pos);
             return;
         }
         if !self.active {

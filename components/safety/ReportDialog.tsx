@@ -21,7 +21,7 @@ export interface ReportDialogProps {
   targetName?: string;
 }
 
-const NOUN: Record<ReportTargetType, string> = { post: 'post', comment: 'comment', profile: 'profile', live: 'live stream' };
+const NOUN: Record<ReportTargetType, string> = { post: 'post', comment: 'comment', profile: 'profile', live: 'live stream', message: 'message' };
 
 const ReportDialog: React.FC<ReportDialogProps> = ({ open, onClose, targetType, targetId, targetUid, parentId, snapshot, targetName }) => {
   const [reason, setReason] = useState<SocialReportReason | null>(null);

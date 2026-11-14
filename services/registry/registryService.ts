@@ -27,7 +27,7 @@
  *   · no where()+orderBy() queries here, so no composite index is required yet
  */
 
-import { db, auth } from '../firebase';
+import { db, opsDb, auth } from '../firebase';
 import { doc, getDoc, getDocs, setDoc, updateDoc, collection, query, where, serverTimestamp } from 'firebase/firestore';
 import type {
   ExternalId, IdScheme, IdSource,
@@ -172,13 +172,13 @@ function arkIdentifier(shoulder: 'w' | 'm' | 'p'): ExternalId[] {
 
 /** Load the triple for a subject, or null when the owner has never opened the panel. */
 export async function loadRegistryRecord(subject: RegistrySubject): Promise<RegistryRecord | null> {
-  const refSnap = await getDoc(doc(db, REFS, subjectKey(subject)));
+  const refSnap = await getDoc(doc(opsDb, REFS, subjectKey(subject)));
   if (!refSnap.exists()) return null;
   const ref = refSnap.data() as { workId: string; manifestationId: string; productId: string };
   const [w, m, p] = await Promise.all([
-    getDoc(doc(db, WORKS, ref.workId)),
-    getDoc(doc(db, MANIFESTATIONS, ref.manifestationId)),
-    getDoc(doc(db, PRODUCTS, ref.productId)),
+    getDoc(doc(opsDb, WORKS, ref.workId)),
+    getDoc(doc(opsDb, MANIFESTATIONS, ref.manifestationId)),
+    getDoc(doc(opsDb, PRODUCTS, ref.productId)),
   ]);
   if (!w.exists() || !m.exists() || !p.exists()) return null;
   return {
@@ -258,11 +258,11 @@ export async function ensureRegistryRecord(subject: RegistrySubject): Promise<Re
   });
 
   await Promise.all([
-    setDoc(doc(db, WORKS, work.id), clean({ ...work, ownerUid: user.uid })),
-    setDoc(doc(db, MANIFESTATIONS, manifestation.id), clean({ ...manifestation, ownerUid: user.uid })),
-    setDoc(doc(db, PRODUCTS, product.id), clean({ ...product, ownerUid: user.uid })),
+    setDoc(doc(opsDb, WORKS, work.id), clean({ ...work, ownerUid: user.uid })),
+    setDoc(doc(opsDb, MANIFESTATIONS, manifestation.id), clean({ ...manifestation, ownerUid: user.uid })),
+    setDoc(doc(opsDb, PRODUCTS, product.id), clean({ ...product, ownerUid: user.uid })),
   ]);
-  await setDoc(doc(db, REFS, subjectKey(subject)), clean({
+  await setDoc(doc(opsDb, REFS, subjectKey(subject)), clean({
     ownerUid: user.uid,
     subjectKind: subject.kind,
     subjectId: subject.id,
@@ -322,7 +322,7 @@ export async function setIdentifier(
   });
 
   const identifiers = [...(entity.identifiers || []).filter(i => i.scheme !== scheme), next];
-  await updateDoc(doc(db, COLLECTION_FOR[layer], entity.id), { identifiers: clean({ identifiers }).identifiers, updatedAt: now });
+  await updateDoc(doc(opsDb, COLLECTION_FOR[layer], entity.id), { identifiers: clean({ identifiers }).identifiers, updatedAt: now });
   entity.identifiers = identifiers;
   return { ok: true, identifiers };
 }
@@ -336,7 +336,7 @@ export async function removeIdentifier(
   if (scheme === 'ARK') return { ok: false, reason: 'An ARK is permanent once minted.' };
   const entity = entityFor(record, layer);
   const identifiers = (entity.identifiers || []).filter(i => i.scheme !== scheme);
-  await updateDoc(doc(db, COLLECTION_FOR[layer], entity.id), { identifiers, updatedAt: Date.now() });
+  await updateDoc(doc(opsDb, COLLECTION_FOR[layer], entity.id), { identifiers, updatedAt: Date.now() });
   entity.identifiers = identifiers;
   return { ok: true, identifiers };
 }
@@ -355,7 +355,7 @@ export async function backfillArk(record: RegistryRecord, layer: RegistryLayer):
   const minted = arkIdentifier(shoulder);
   if (!minted.length) return null;
   const identifiers = [...(entity.identifiers || []), ...minted];
-  await updateDoc(doc(db, COLLECTION_FOR[layer], entity.id), { identifiers, updatedAt: Date.now() });
+  await updateDoc(doc(opsDb, COLLECTION_FOR[layer], entity.id), { identifiers, updatedAt: Date.now() });
   entity.identifiers = identifiers;
   return minted[0].value;
 }
@@ -377,7 +377,7 @@ export async function setContentHash(
   technical?: Partial<RegistryManifestation['technical']>,
 ): Promise<void> {
   const merged = clean({ ...(record.manifestation.technical || {}), ...(technical || {}), sha256 });
-  await updateDoc(doc(db, MANIFESTATIONS, record.manifestation.id), {
+  await updateDoc(doc(opsDb, MANIFESTATIONS, record.manifestation.id), {
     technical: merged, updatedAt: Date.now(),
   });
   record.manifestation.technical = merged as RegistryManifestation['technical'];
@@ -401,7 +401,7 @@ export async function setContributors(record: RegistryRecord, contributors: Work
   const warning = perf !== 100 || mech !== 100
     ? `Shares total ${perf}% performance / ${mech}% mechanical — both must be 100% before this can be registered.`
     : '';
-  await updateDoc(doc(db, WORKS, record.work.id), clean({
+  await updateDoc(doc(opsDb, WORKS, record.work.id), clean({
     contributors: contributors.map(c => clean(c)),
     shareWarning: warning,
     updatedAt: Date.now(),
@@ -429,7 +429,7 @@ export interface RegistryRefRow {
 export async function listRegistryRefs(uid?: string): Promise<RegistryRefRow[]> {
   const id = uid || auth.currentUser?.uid;
   if (!id) return [];
-  const snap = await getDocs(query(collection(db, REFS), where('ownerUid', '==', id)));
+  const snap = await getDocs(query(collection(opsDb, REFS), where('ownerUid', '==', id)));
   return snap.docs
     .map(d => d.data() as RegistryRefRow)
     .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -441,13 +441,13 @@ export async function syncTitle(record: RegistryRecord, title: string): Promise<
   if (!t || t === record.product.title) return;
   const now = Date.now();
   await Promise.all([
-    updateDoc(doc(db, REFS, subjectKey(record.subject)), { subjectTitle: t, updatedAt: now }),
-    updateDoc(doc(db, WORKS, record.work.id), {
+    updateDoc(doc(opsDb, REFS, subjectKey(record.subject)), { subjectTitle: t, updatedAt: now }),
+    updateDoc(doc(opsDb, WORKS, record.work.id), {
       titles: [{ value: t, kind: 'ORIGINAL' }, ...(record.work.titles || []).filter(x => x.kind !== 'ORIGINAL')],
       updatedAt: now,
     }),
-    updateDoc(doc(db, MANIFESTATIONS, record.manifestation.id), { title: t, updatedAt: now }),
-    updateDoc(doc(db, PRODUCTS, record.product.id), { title: t, updatedAt: now }),
+    updateDoc(doc(opsDb, MANIFESTATIONS, record.manifestation.id), { title: t, updatedAt: now }),
+    updateDoc(doc(opsDb, PRODUCTS, record.product.id), { title: t, updatedAt: now }),
   ]);
   record.product.title = t;
   record.manifestation.title = t;

@@ -60,12 +60,14 @@ async function writeChild(opts: { username: string; password: string; displayNam
   const childUid = childUidFor(opts.username);
   const now = Date.now();
   await fsSet(`users/${childUid}`, {
-    uid: childUid, displayName: opts.displayName, photoURL: '', email: '',
+    uid: childUid, displayName: opts.displayName, photoURL: '',
     isChild: true, accountType: 'CHILD', username: opts.username.toLowerCase(),
     childState: opts.asTeacher ? 'SCHOOL_PROVISIONED' : 'PARENT_OWNED',
     role: 'user', tier: 'FREE', followerCount: 0, followingCount: 0, createdAt: now,
-    parentalControls: CHILD_CONTROLS,
     ...(opts.birthYear ? { birthYear: opts.birthYear } : {}),
+  });
+  await fsSet(`users/${childUid}/private/profile`, {
+    parentalControls: CHILD_CONTROLS,
     ...(opts.asTeacher ? { provisionedByTeacherUid: opts.ownerUid } : { guardianUid: opts.ownerUid }),
   });
   await fsSet(`learnerCredentials/${opts.username.toLowerCase()}`, {
@@ -85,7 +87,7 @@ async function writeChild(opts: { username: string; password: string; displayNam
   const teacherUid = await getOrCreateAuthUser(teacherEmail, PASS);
   if (!teacherUid) { console.error('✗ could not create demo teacher'); process.exit(1); }
   await fsSet(`users/${teacherUid}`, {
-    uid: teacherUid, displayName: 'Ms. Rivera (Demo Teacher)', photoURL: '', email: teacherEmail,
+    uid: teacherUid, displayName: 'Ms. Rivera (Demo Teacher)', photoURL: '', listable: true,
     accountType: 'TEACHER', isTeacher: true, teacherVerification: 'ADMIN_APPROVED',
     role: 'user', tier: 'FREE', followerCount: 0, followingCount: 0, createdAt: Date.now(),
   });
@@ -104,7 +106,7 @@ async function writeChild(opts: { username: string; password: string; displayNam
   const mayaUid = await writeChild({ username: 'maya.demo', password: KID_PASS, displayName: 'Maya (Demo)', birthYear: 2016, ownerUid: parentUid, asTeacher: false });
   const liamUid = await writeChild({ username: 'liam.demo', password: KID_PASS, displayName: 'Liam (Demo)', birthYear: 2017, ownerUid: parentUid, asTeacher: false });
   await fsSet(`users/${parentUid}`, {
-    uid: parentUid, displayName: 'Demo Parent', photoURL: '', email: parentEmail,
+    uid: parentUid, displayName: 'Demo Parent', photoURL: '', listable: true,
     accountType: 'PARENT', childUids: [mayaUid, liamUid],
     role: 'user', tier: 'FREE', followerCount: 0, followingCount: 0, createdAt: Date.now(),
   });

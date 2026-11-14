@@ -7,7 +7,7 @@ import {
     Save, FolderOpen, CheckCircle, Grid3x3, Piano, Gauge, Activity, Box,
     Monitor, Maximize2, EyeOff, Eye, Circle, Tv, ArrowRight,
     Download, Send, Loader2, SkipBack, SkipForward, Film, LayoutGrid,
-    Repeat, Shuffle, Grid,
+    Repeat, Shuffle, Grid, Users,
 } from 'lucide-react';
 import { AmboLedWallCanvas } from '../scripture/AmboLedWallCanvas';
 import PixelsWatchFolderLoopDeck from './components/PixelsWatchFolderLoopDeck';
@@ -62,6 +62,9 @@ import { getSilentAnalyser } from './engine/silentAnalyser';
 import { VisualizationConfig, VisualizerMode, AudioState, BackgroundMedia, BlendMode, isStudioMode, isFluxMode } from './types';
 import { generateThemeFromMood, generateVideoLoop, LiveLyricsSession } from './services/geminiService';
 import { saveProject, loadProject, saveProjectToCloud, listCloudProjects, loadCloudProject, deleteCloudProject } from './services/projectService';
+import { usePixelsProject } from './usePixelsProject';
+import { PIXELS_COEDIT_KIND, type PixelsLook, type PixelsProjectDoc } from './pixelsProjectDoc';
+import { CollabDock } from '../collab/CollabDock';
 
 const DEFAULT_CONFIG: VisualizationConfig = {
     name: "Midnight Neon",
@@ -1002,6 +1005,8 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     const [isLiveLyricsActive, setIsLiveLyricsActive] = useState(false);
     const [audioFileName, setAudioFileName] = useState<string | undefined>(undefined);
     const audioBlobUrlRef = useRef<string | undefined>(undefined); // current audio blob URL for project save
+    // Mirrors audioBlobUrlRef as state so the project doc notices a new audio source.
+    const [audioSrcUrl, setAudioSrcUrl] = useState<string | undefined>(undefined);
 
     // Export the current Pixels session (scenes + live cut-list + the loaded audio) to Fabula.
     const exportToFabula = useCallback(async () => {
@@ -1063,10 +1068,12 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
         // Auto-populate text from audio filename only
         const trackName = file.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').trim();
         if (trackName) setConfig(prev => ({ ...prev, textContent: trackName }));
+        if (trackName) pixelsProject.nameProject(trackName);
         ensureAudioContext();
         if (audioBlobUrlRef.current?.startsWith('blob:')) URL.revokeObjectURL(audioBlobUrlRef.current);
         const blobUrl = URL.createObjectURL(file);
         audioBlobUrlRef.current = blobUrl;
+        setAudioSrcUrl(blobUrl);
         audioElRef.current!.src = blobUrl;
         audioElRef.current!.play();
         setAudioState(s => ({ ...s, isPlaying: true, duration: audioElRef.current?.duration || 0 }));
@@ -1078,6 +1085,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
         if (audioBlobUrlRef.current?.startsWith('blob:') && audioBlobUrlRef.current !== url)
             URL.revokeObjectURL(audioBlobUrlRef.current);
         audioBlobUrlRef.current = url;
+        setAudioSrcUrl(url);
         audioElRef.current!.src = url;
         audioElRef.current!.pause();
         setAudioState(s => ({ ...s, isPlaying: false }));
@@ -1289,6 +1297,36 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
         }
     };
 
+    // ─── Project document: autosave (IndexedDB + creative cloud) + live co-editing ─────
+    const pixelsLook = useMemo<PixelsLook>(() => ({
+        shaderSrc, shaderParams, libraryGeneratorMode: libraryGeneratorMode ?? null, milkdrop, milkdropIdx, midiNotes, three3d,
+    }), [shaderSrc, shaderParams, libraryGeneratorMode, milkdrop, milkdropIdx, midiNotes, three3d]);
+    const pixelsAudio = useMemo(() => ({ name: audioFileName, url: audioSrcUrl }), [audioFileName, audioSrcUrl]);
+    const pixelsProject = usePixelsProject({
+        enabled: !isProgramOut,
+        fresh: !!initialMode,
+        platformMode: !!platform,
+        live: { config, bgMedia1, bgMedia2, layers: liveLayers, look: pixelsLook, audio: pixelsAudio },
+        target: {
+            setConfig,
+            setBgMedia1,
+            setBgMedia2,
+            importLayers: (layers) => { setImportLayers(layers); setImportToken(t => t + 1); },
+            setLook: (patch) => {
+                if ('shaderSrc' in patch) { setShaderSrc(patch.shaderSrc ?? null); setShaderStart(performance.now()); }
+                if (patch.shaderParams) setShaderParams(patch.shaderParams);
+                if ('libraryGeneratorMode' in patch) setLibraryGeneratorMode(patch.libraryGeneratorMode as VisualizerMode);
+                if (patch.milkdrop !== undefined) setMilkdrop(patch.milkdrop);
+                if (patch.milkdropIdx !== undefined) setMilkdropIdx(patch.milkdropIdx);
+                if (patch.midiNotes !== undefined) setMidiNotes(patch.midiNotes);
+                if ('three3d' in patch) setThree3d(patch.three3d ?? null);
+            },
+            loadAudio: ({ url, name }) => loadAudioFromUrl(url, name),
+            setAudioName: setAudioFileName,
+        },
+    });
+    const [collabOpen, setCollabOpen] = useState(false);
+
     // ─── Project Save / Load ──────────────────────────────────────────────────
     const handleSaveProject = async () => {
         setIsSaving(true);
@@ -1337,6 +1375,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
         if (!uid) return;
         try {
             const loaded = await loadCloudProject(uid, projectId);
+            pixelsProject.startNewProject(loaded.projectName);
             setConfig(loaded.config);
             setBgMedia1(loaded.bgMedia1);
             setBgMedia2(loaded.bgMedia2);
@@ -1365,6 +1404,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
         if (!e.target.files?.[0]) return;
         try {
             const loaded = await loadProject(e.target.files[0]);
+            pixelsProject.startNewProject(loaded.projectName);
             setConfig(loaded.config);
             setBgMedia1(loaded.bgMedia1);
             setBgMedia2(loaded.bgMedia2);
@@ -2160,6 +2200,20 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                     <FolderOpen className="w-4 h-4 text-white/70" />
                     <input type="file" accept=".plajah" onChange={handleLoadProject} className="hidden" />
                 </label>
+
+                {/* Collaborate — people, chat, call, shared + private history (CollabDock) */}
+                {pixelsProject.doc && (
+                    <button
+                        onClick={() => setCollabOpen(v => !v)}
+                        title={pixelsProject.co.isShared ? 'Collaborating live — people, chat, history' : 'Collaborate & version history'}
+                        className={`relative w-9 h-9 backdrop-blur-xl border rounded-full flex items-center justify-center transition-all shadow-lg ${collabOpen ? 'bg-violet-600/40 border-violet-400/50' : 'bg-black/40 border-white/10 hover:bg-violet-600/30'}`}
+                    >
+                        <Users className="w-4 h-4 text-white/80" />
+                        {pixelsProject.co.isShared && (
+                            <span className="absolute top-1 right-1 min-w-[8px] h-2 rounded-full bg-emerald-400" />
+                        )}
+                    </button>
+                )}
 
                 {/* Cloud Projects — only shown when signed in */}
                 {auth.currentUser && (
@@ -4063,6 +4117,23 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
 
         {/* ── End outer flex wrapper */}
         </div>
+
+        {/* Live collaboration + version history for the open Pixels project */}
+        {pixelsProject.doc && !uiHidden && (
+            <CollabDock<PixelsProjectDoc>
+                co={pixelsProject.co}
+                kind={PIXELS_COEDIT_KIND}
+                title={pixelsProject.title}
+                doc={pixelsProject.doc}
+                localId={pixelsProject.projectId}
+                serialize={(d) => JSON.stringify(d)}
+                restoreSolo={(json) => pixelsProject.restoreJson(json)}
+                top={50}
+                pill="none"
+                open={collabOpen}
+                onOpenChange={setCollabOpen}
+            />
+        )}
 
         {/* LED Wall Mapping, Samsung SSSP MDC & Digital Signage Studio Modal */}
         {isLedWallModalOpen && (

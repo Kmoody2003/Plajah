@@ -9,10 +9,12 @@ function downloadBlob(blob: Blob, filename: string) {
 }
 
 export function downloadTelaBoard(doc: TelaDoc) {
+  void import('./coedit/audit').then(a => a.logTelaExport(doc, 'Whole board (.tela)'));
   downloadBlob(new Blob([JSON.stringify({ format: 'plajah-tela', version: 1, document: doc }, null, 2)], { type: 'application/vnd.plajah.tela+json' }), `${safeName(doc.title)}.tela`);
 }
 
 export function downloadTelaPage(doc: TelaDoc, frame: TelaFrame) {
+  void import('./coedit/audit').then(a => a.logTelaExport(doc, 'Page data (JSON)'));
   const devices = Object.fromEntries(frame.deviceIds.map(id => [id, doc.devices[id]]).filter(([, device]) => !!device));
   downloadBlob(new Blob([JSON.stringify({ format: 'plajah-tela-page', version: 1, title: doc.title, frame, devices }, null, 2)], { type: 'application/vnd.plajah.tela-page+json' }), `${safeName(frame.label || doc.title)}.tela-page.json`);
 }

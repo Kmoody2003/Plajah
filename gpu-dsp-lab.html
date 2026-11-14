@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GPU DSP Lab</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 16px; background: #0B0710; color: #eee; font: 14px/1.45 system-ui, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .sub { color: #aaa; margin-bottom: 12px; }
+  table { border-collapse: collapse; width: 100%; max-width: 980px; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid #2a2233; font-variant-numeric: tabular-nums; }
+  th { color: #c9b8ff; font-weight: 600; }
+  pre { color: #9fd; white-space: pre-wrap; }
+  .wrap { overflow-x: auto; }
+</style></head>
+<body>
+  <h1>Chora GPU DSP — browser WebGPU</h1>
+  <div class="sub">Same WGSL as <code>rust/plajah-gpu-dsp</code>. Adapter: <span id="adapter">…</span> · <code>?power=low-power</code> for the integrated GPU</div>
+  <div class="wrap"><table>
+    <thead><tr><th>Render-ahead block (8192 samples)</th><th>audio ms</th><th>JS CPU ref ms (% RT)</th><th>GPU median ms (% RT)</th><th>GPU worst ms</th><th>speed-up</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table></div>
+  <pre id="log"></pre>
+  <script type="module" src="/labs/gpu-dsp/gpuDspLab.ts"></script>
+</body></html>

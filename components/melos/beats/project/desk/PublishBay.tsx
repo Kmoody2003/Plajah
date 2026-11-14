@@ -11,6 +11,7 @@ import { checkPhysical, presetById, isValidIsrc } from '../../../../../services/
 import type { Album } from '../../../../../types';
 import { buildShareUrl } from '../../../../../services/deepLinkService';
 import { deskOf } from '../../../../../services/melos/beats/releaseDesk';
+import { clearanceOf } from '../../../../../services/rights/trackClearance';
 import { Panel, btnCls, inputCls, SERIF, type BayProps } from './ui';
 
 const AudiusPublishModal = React.lazy(() => import('../../../../AudiusPublishModal'));
@@ -38,6 +39,9 @@ export const PublishBay: React.FC<BayProps & {
   const physical = desk.physical ? checkPhysical(project, layout.tracks, presetById(desk.physical.presetId)) : [];
   const physErrors = physical.filter((c) => c.level === 'error').length;
   const n = project.tracks.length;
+  const rightsStatuses = project.tracks.map((t) => clearanceOf(t.meta?.rights));
+  const rightsOk = rightsStatuses.filter((s) => s === 'cleared' || s === 'declared').length;
+  const rightsAnswered = rightsStatuses.filter((s) => s !== 'unanswered').length;
 
   const items: Item[] = [
     { label: 'Songs on the proof sheet', state: n ? 'done' : 'todo', note: n ? `${n} · ${Math.round(layout.totalSec / 60)} min` : undefined, bay: 'pressing' },
@@ -47,6 +51,7 @@ export const PublishBay: React.FC<BayProps & {
     { label: 'ISRCs', state: isrcOk === n && n ? 'done' : isrcOk ? 'warn' : 'todo', note: `${isrcOk}/${n} valid`, bay: 'credits' },
     { label: 'Lyrics synced', state: synced === withLyrics && withLyrics ? 'done' : synced ? 'warn' : 'todo', note: `${synced}/${withLyrics || n} with lyrics`, bay: 'pressing' },
     { label: 'Rights confirmed', state: desk.release?.rightsConfirmed ? 'done' : 'todo', bay: 'release' },
+    { label: 'Rights per song', state: rightsOk === n && n ? 'done' : rightsAnswered ? 'warn' : 'todo', note: `${rightsOk}/${n} clear`, bay: 'credits' },
     ...(desk.physical ? [{ label: `Physical · ${presetById(desk.physical.presetId).label}`, state: (physErrors ? 'warn' : 'done') as Item['state'], note: physErrors ? `${physErrors} to fix` : 'ready', bay: 'physical' }] : []),
   ];
 

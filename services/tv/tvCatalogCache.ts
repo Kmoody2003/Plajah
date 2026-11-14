@@ -106,7 +106,7 @@ export const getTvVideos = (): Promise<Video[]> =>
 export const getTvArtists = (): Promise<UserProfile[]> =>
   cachedResource(TV_KEYS.artists, async () => {
     try {
-      const snap = await getDocs(query(collection(db, 'users'), where('isArtist', '==', true), limit(TV_ARTIST_CAP)));
+      const snap = await getDocs(query(collection(db, 'users'), where('listable', '==', true), where('isArtist', '==', true), limit(TV_ARTIST_CAP)));
       return snap.docs.map(d => ({ uid: d.id, ...(d.data() as any) } as UserProfile));
     } catch {
       return [] as UserProfile[];

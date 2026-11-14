@@ -37,11 +37,20 @@
     <PackageReference Include="LLamaSharp" Version="0.30.0" />
     <PackageReference Include="LLamaSharp.Backend.Vulkan.Windows" Version="0.30.0" />
     <PackageReference Include="LLamaSharp.Backend.Cpu" Version="0.30.0" />
+    <!-- ASIO driver host for Chora multitrack capture (AsioMultitrackRecorder). MIT. -->
+    <PackageReference Include="NAudio.Asio" Version="2.2.1" />
+    <!-- DirectX Shader Compiler for Chora's GPU audio DSP (rust/plajah-gpu-dsp) on D3D12: wgpu's
+         default FXC compiler never finishes its kernels. Official Microsoft build; only the two DLLs
+         for this platform are copied next to Plajah.WinUI.exe, where gpu::dxc_dir() finds them. -->
+    <PackageReference Include="Microsoft.Direct3D.DXC" Version="1.9.2609.5" GeneratePathProperty="true" ExcludeAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
     <Content Include="Assets\**" />
     <Manifest Include="$(ApplicationManifest)" />
+    <Content Include="..\..\rust\target\release\plajah_audio_host.dll" Link="plajah_audio_host.dll" Condition="Exists('..\..\rust\target\release\plajah_audio_host.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Processing.NDI.Lib.x64.dll" Condition="Exists('Processing.NDI.Lib.x64.dll')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -60,11 +69,79 @@
     </Content>
   </ItemGroup>
 
+  <!-- DXC for the D3D12 GPU audio path: dxcompiler.dll + dxil.dll for this build's platform, next to
+       the exe, plus the package's licence texts (dxil.dll is Microsoft distributable code). -->
+  <PropertyGroup>
+    <DxcArch Condition="'$(RuntimeIdentifier)' == 'win-arm64'">arm64</DxcArch>
+    <DxcArch Condition="'$(RuntimeIdentifier)' == 'win-x86'">x86</DxcArch>
+    <DxcArch Condition="'$(DxcArch)' == ''">x64</DxcArch>
+    <DxcBin>$(PkgMicrosoft_Direct3D_DXC)\build\native\bin\$(DxcArch)</DxcBin>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(PkgMicrosoft_Direct3D_DXC)' != ''">
+    <Content Include="$(DxcBin)\dxcompiler.dll;$(DxcBin)\dxil.dll">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="$(PkgMicrosoft_Direct3D_DXC)\LICENSE-MS.txt;$(PkgMicrosoft_Direct3D_DXC)\LICENSE-LLVM.txt;$(PkgMicrosoft_Direct3D_DXC)\LICENCE-MIT.txt">
+      <Link>licenses\dxc\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <!-- SRT in/out runs through an ffmpeg child built with libsrt (see FfmpegLocator.cs). Optional:
        drop an SRT-capable ffmpeg.exe into third_party\ffmpeg\win-x64 and it ships in <app>\ffmpeg\. -->
+  <ItemGroup>
+    <Content Include="..\..\engines\argilla-npu\argilla_npu.py">
+      <Link>engines\argilla-npu\argilla_npu.py</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\engines\argilla-npu\object_phrases.json">
+      <Link>engines\argilla-npu\object_phrases.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\engines\argilla-npu\part_phrases.json">
+      <Link>engines\argilla-npu\part_phrases.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\engines\argilla-npu\material_phrases.json">
+      <Link>engines\argilla-npu\material_phrases.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\engines\argilla-npu\kind_part_phrases.json">
+      <Link>engines\argilla-npu\kind_part_phrases.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\engines\argilla-npu\kind_phrases.json">
+      <Link>engines\argilla-npu\kind_phrases.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\..\engines\argilla-npu\codex_phrases.json">
+      <Link>engines\argilla-npu\codex_phrases.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\third_party\uv\win-x64\uv.exe" Condition="Exists('..\third_party\uv\win-x64\uv.exe')">
+      <Link>uv.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
   <ItemGroup Condition="Exists('..\third_party\ffmpeg\win-x64\ffmpeg.exe')">
     <Content Include="..\third_party\ffmpeg\win-x64\ffmpeg.exe">
       <Link>ffmpeg\ffmpeg.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\third_party\ffmpeg\win-x64\ffprobe.exe" Condition="Exists('..\third_party\ffmpeg\win-x64\ffprobe.exe')">
+      <Link>ffmpeg\ffprobe.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\third_party\ffmpeg\win-x64\FFMPEG-LICENSE.txt" Condition="Exists('..\third_party\ffmpeg\win-x64\FFMPEG-LICENSE.txt')">
+      <Link>ffmpeg\FFMPEG-LICENSE.txt</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="..\third_party\FFMPEG-NOTICE.txt">
+      <Link>ffmpeg\FFMPEG-NOTICE.txt</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

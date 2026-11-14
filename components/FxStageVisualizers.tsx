@@ -7,7 +7,7 @@
 // engine components are lazy-loaded so they never weigh down the player bundle.
 
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
-import { VisualizerMode, type VisualizationConfig, isStudioMode } from './plajahPixels/types';
+import { VisualizerMode, type VisualizationConfig, isStudioMode, isFluxMode } from './plajahPixels/types';
 import { FLUX_PLATFORM_MODES } from './plajahPixels/engine/fluxPlatformCatalog';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { getLookLibrary, onLooksChanged } from '../services/shaders/looksLibrary';
@@ -287,6 +287,8 @@ export default function FxStageVisualizers({
           milkNames.length ? <ButterchurnLayer analyser={analyser} presetIndex={Math.max(0, milkNames.indexOf(v.slice(9)))} fpsCap={fps} renderScale={renderScale} /> : <Loading />
         ) : v.startsWith('TYPO:') ? (
           <TypoStage preset={v.slice(5) as import('./ChoraTypoVisualizer').TypoVolumePreset} analyser={analyser} isPlaying={isPlaying} fpsCap={fps} renderScale={renderScale} />
+        ) : isFluxMode(artistGen.mode) ? (
+          <FluxStage analyser={analyser} config={artistGen} isPlaying={isPlaying} songTrack={gp.currentTrack} />
         ) : isStudioMode(artistGen.mode) ? (
           <StudioStage analyser={analyser} config={artistGen} isPlaying={isPlaying} />
         ) : (
@@ -308,7 +310,7 @@ export default function FxStageVisualizers({
           : <AudioVisualizer analyser={analyser} config={genConfig} isPlaying={isPlaying} hasBackground={false} renderScale={renderScale} />
       )}
       {engine === 'FLUX' && (
-        <FluxStage analyser={analyser} config={fluxConfig} isPlaying={isPlaying} />
+        <FluxStage analyser={analyser} config={fluxConfig} isPlaying={isPlaying} songTrack={gp.currentTrack} />
       )}
       {engine === 'TYPO' && (
         <TypoStage

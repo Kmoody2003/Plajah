@@ -2,24 +2,36 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FolderOpen, FileText, Image as ImageIcon, Film, Music, File as FileIcon, Upload,
   Trash2, RotateCcw, Search, Loader2, HardDrive, Library, ArrowLeft, Lock, ShieldAlert,
-  Sparkles, Eye, Layers, KeyRound, ExternalLink,
+  Sparkles, Eye, Layers, KeyRound, ExternalLink, LayoutTemplate, BookOpen, Send,
+  MoreHorizontal, ShoppingBag, PackagePlus, Newspaper, Download,
 } from 'lucide-react';
+import { HqThumb, HqActionMenu, HqAddToProductSheet, resolveHqSeller, hqPhotoToProductUrl, hqAssetFile, isHqImage, type HqMenuItem, type HqSeller } from './hq/HqAssetActions';
+import type { StoreProduct } from '../types';
+const ProductEditor = React.lazy(() => import('./inventory/ProductEditor'));
+import { auth } from '../services/firebase';
+import HqTemplatesTab from './templates/HqTemplatesTab';
 import ContentAssetManager from './ContentAssetManager';
 import { Album } from '../types';
+import { useIdentityFollowsScope } from '../contexts/ActiveIdentityContext';
 import {
-  listHqAssets, addHqAsset, deleteHqAsset, humanFileSize,
+  listHqAssets, listHqAssetsDetailed, listHqSharedWithMe, listHqSharedWithOrg, fetchHqScopeCapGb, addHqAsset, deleteHqAsset, getHqAssetText, humanFileSize,
   getOrgDepartmentFolders, getOrgEducationFolderName, isOrgEducationFolderName,
-  TEACHER_DOCUMENT_CLASS_FOLDERS, resolveDocumentClassFolder, isStandaloneTeacherScopeId,
-  GREAT_FAITH_MINISTRIES_NAME, GREAT_FAITH_MINISTRIES_DEFAULT_ID,
-  type OrgAsset, type OwnerScope,
+  TEACHER_DOCUMENT_CLASS_FOLDERS, resolveDocumentClassFolder, isStandaloneTeacherScopeId, findDuplicateImportCopies,
+  type HqListStatus, type OrgAsset, type OwnerScope,
 } from '../services/orgAssets';
-import { ensureAllDetectedLinksOnboarded } from '../services/curriculumIngestionService';
+import { listIngestedUnits, courseLinkUrls, currentLessonAssetIds, mergeSharedUnits, type IngestedCurriculumUnit } from '../services/curriculumIngestionService';
+import { fetchLibraryUnits } from '../services/lessonLibraryStore';
 import { restoreHqAsset, trashHqAsset } from '../services/hqCollaboration';
 import HqReviewPanel from './HqReviewPanel';
+import HqSecurityAlerts from './HqSecurityAlerts';
+import { fetchHqAlerts } from '../services/hqSecurityClient';
 import { fetchMySubscription } from '../services/subscriptionService';
 import { resolveContentHqEntitlements } from '../services/contentHqEntitlements';
 import type { ContentHqEntitlements } from '../services/contentHqEntitlements';
 import { TelaDocumentPreviewModal } from './church/TelaDocumentPreviewModal';
+import { openLessonLibrary } from '../services/lessonLibraryNav';
+import SendToClassSheet, { type SendItem } from './church/library/SendToClassSheet';
+import { ED_CSS } from './church/christianEd/edStyles';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Content HQ — an admin surface for an org OR a single account: a private
@@ -41,6 +53,7 @@ interface Props {
 
 const ORANGE = '#FF8C00';
 const TEAL = '#34e0d0';
+const SHARED_WITH_ME = '__shared_with_me__';
 
 // Deep-link bridge: a `content-hq:<assetId>` notification (see hqCollaboration.requestHqReview)
 // navigates to the right Content HQ surface, then calls openHqAsset() to focus that asset's
@@ -61,8 +74,21 @@ function assetIcon(kind: OrgAsset['kind'], cls = 'w-5 h-5') {
 }
 
 const ContentHQ: React.FC<Props> = ({ scope, canEdit, canViewAnswerKey, mediaOwnerUid, onEditAlbum, onClose }) => {
-  const [tab, setTab] = useState<'FILES' | 'MEDIA'>('FILES');
+  const [tab, setTab] = useState<'FILES' | 'MEDIA' | 'TEMPLATES' | 'SECURITY'>('FILES');
   const allowAnswerKeys = canViewAnswerKey ?? canEdit;
+  // The server decides who this tab is for. Everyone else never sees it, and a badge means something is new.
+  const [securityAccess, setSecurityAccess] = useState(false);
+  const [newAlerts, setNewAlerts] = useState(0);
+  useEffect(() => {
+    let live = true;
+    setSecurityAccess(false); setNewAlerts(0);
+    if (scope.kind === 'user') return;
+    fetchHqAlerts(scope).then(r => { if (live && r) { setSecurityAccess(true); setNewAlerts(r.newCount); } });
+    return () => { live = false; };
+  }, [scope.kind, scope.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // That tab is one person's own library, drafts and private items included. It never appears in an org's HQ.
+  const showPersonalMedia = scope.kind === 'user' && mediaOwnerUid === auth.currentUser?.uid;
+  const isBusiness = scope.kind === 'business';
 
   return (
     <div className="flex flex-col h-full min-h-0 text-white">
@@ -75,11 +101,19 @@ const ContentHQ: React.FC<Props> = ({ scope, canEdit, canViewAnswerKey, mediaOwn
         </div>
         <div>
           <div className="text-lg font-black tracking-tight leading-none">Content HQ</div>
-          <div className="text-[11px] text-white/40 mt-0.5">{scope.label || (scope.kind === 'org' ? GREAT_FAITH_MINISTRIES_NAME : 'Account')} · private</div>
+          <div className="text-[11px] text-white/40 mt-0.5">{scope.label || (scope.kind === 'org' ? 'Organization' : 'My account')} · private</div>
         </div>
         {!canEdit && <span className="ml-2 flex items-center gap-1 text-[10px] text-white/40"><Lock className="w-3 h-3" /> Read-only</span>}
-        <div className="ml-auto flex gap-1.5">
-          {([['FILES', 'Files & Docs', FolderOpen], ['MEDIA', 'Media Library', Library]] as const).map(([id, label, Icon]) => (
+        <div className="ml-auto flex gap-1.5 flex-wrap justify-end">
+          {!isBusiness && <button
+            type="button"
+            onClick={() => openLessonLibrary(scope.kind === 'org' && !isStandaloneTeacherScopeId(scope.id) ? { orgId: scope.id, orgName: scope.label } : { mine: true })}
+            className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest bg-[#34e0d0]/15 text-[#34e0d0] border border-[#34e0d0]/40 hover:bg-[#34e0d0]/25"
+            title="Lessons, assignments and exams as Tela pages: preview, copy, assign and schedule"
+          >
+            <BookOpen className="w-3.5 h-3.5" /> Lesson Library
+          </button>}
+          {([['FILES', 'Files & Docs', FolderOpen], ...(showPersonalMedia ? [['MEDIA', 'Media Library', Library]] as const : []), ...(isBusiness ? [] : [['TEMPLATES', 'Templates', LayoutTemplate]] as const)] as const).map(([id, label, Icon]) => (
             <button key={id} onClick={() => setTab(id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-colors ${
                 tab === id ? 'bg-white text-black' : 'bg-white/5 text-white/50 hover:text-white'
@@ -87,13 +121,26 @@ const ContentHQ: React.FC<Props> = ({ scope, canEdit, canViewAnswerKey, mediaOwn
               <Icon className="w-3.5 h-3.5" /> {label}
             </button>
           ))}
+          {securityAccess && (
+            <button onClick={() => setTab('SECURITY')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-colors ${
+                tab === 'SECURITY' ? 'bg-white text-black' : 'bg-white/5 text-white/50 hover:text-white'
+              }`}>
+              <ShieldAlert className="w-3.5 h-3.5" /> Security
+              {newAlerts > 0 && <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-red-500 text-white">{newAlerts}</span>}
+            </button>
+          )}
         </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-hidden px-6 lg:px-8 pb-6">
-        {tab === 'FILES'
+        {tab === 'SECURITY'
+          ? <HqSecurityAlerts scope={scope} onSeen={() => setNewAlerts(0)} onOpenFile={id => { setTab('FILES'); openHqAsset(id); }} />
+          : tab === 'FILES'
           ? <HqFilesTab scope={scope} canEdit={canEdit} canViewAnswerKey={allowAnswerKeys} />
-          : <ContentAssetManager uid={mediaOwnerUid} onEditAlbum={onEditAlbum || (() => {})} />}
+          : tab === 'TEMPLATES'
+            ? <HqTemplatesTab scope={{ kind: scope.kind === 'org' && !isStandaloneTeacherScopeId(scope.id) ? 'org' : 'user', id: scope.id, label: scope.label }} canEdit={canEdit} viewer={{ uid: auth.currentUser?.uid || 'local', name: auth.currentUser?.displayName || 'You' }} />
+            : showPersonalMedia ? <ContentAssetManager uid={mediaOwnerUid} onEditAlbum={onEditAlbum || (() => {})} /> : null}
       </div>
     </div>
   );
@@ -108,7 +155,11 @@ export const HqFilesTab: React.FC<{
 }> = ({ scope, canEdit, canViewAnswerKey, defaultFolder }) => {
   const allowAnswerKeyAccess = canViewAnswerKey ?? canEdit;
   const isUserScope = scope.kind === 'user' || isStandaloneTeacherScopeId(scope.id);
-  const resolvedOrgName = scope.label || GREAT_FAITH_MINISTRIES_NAME;
+  const isTeacherScope = isStandaloneTeacherScopeId(scope.id);
+  const isOrgScope = scope.kind === 'org' && !isTeacherScope;
+  // A business isn't an org account. Its files open from its own dashboard, which is the identity that matters there.
+  useIdentityFollowsScope(isOrgScope ? scope.id : null);
+  const resolvedOrgName = scope.label || (isUserScope ? 'My files' : 'Organization');
   const orgEducationFolderName = getOrgEducationFolderName(resolvedOrgName);
 
   const normalizedInitialFolder = useMemo(() => {
@@ -135,20 +186,42 @@ export const HqFilesTab: React.FC<{
   const [entitlements, setEntitlements] = useState<ContentHqEntitlements>(() =>
     resolveContentHqEntitlements(scope.kind === 'org' ? { organization: { id: scope.id } as any } : {}));
   const [notice, setNotice] = useState('');
+  const [listStatus, setListStatus] = useState<HqListStatus>('ok');
+  const [sharedWithMe, setSharedWithMe] = useState<OrgAsset[]>([]);
+  const viewingShared = folder === SHARED_WITH_ME;
+  // Extra copies an older course importer left behind (each re-import added another set of files).
+  const duplicateCopies = useMemo(
+    () => (isOrgScope && canEdit ? findDuplicateImportCopies(assets, courseLinkUrls(scope.id), currentLessonAssetIds(scope.id, resolvedOrgName)) : []),
+    [assets, isOrgScope, canEdit, scope.id, resolvedOrgName],
+  );
+  const [reviewDupes, setReviewDupes] = useState(false);
+  const [removingDupes, setRemovingDupes] = useState(false);
+  const removeDuplicateCopies = async () => {
+    setRemovingDupes(true);
+    let moved = 0;
+    for (const a of duplicateCopies) {
+      try { await trashHqAsset(a); moved++; } catch { /* left in place; shown again next time */ }
+    }
+    setRemovingDupes(false);
+    setReviewDupes(false);
+    setNotice(`Moved ${moved} duplicate cop${moved === 1 ? 'y' : 'ies'} to Trash${moved < duplicateCopies.length ? ` (${duplicateCopies.length - moved} couldn’t be moved)` : ''}. They can be restored from Trash for 30 days.`);
+    await load();
+  };
   const fileInput = useRef<HTMLInputElement>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      if (!isUserScope) {
-        await ensureAllDetectedLinksOnboarded(
-          scope.id || GREAT_FAITH_MINISTRIES_DEFAULT_ID,
-          undefined,
-          resolvedOrgName
-        ).catch(() => {});
-      }
-      setAssets(await listHqAssets(scope));
-    } catch { /* rules / offline */ }
+      // Content HQ only lists the uploaded files; opening it never imports anything.
+      // The org's saved lessons (from the shared library) say which copy of each course file is in use.
+      if (isOrgScope && scope.id && canEdit) mergeSharedUnits(scope.id, await fetchLibraryUnits('org', scope.id));
+      const { assets: rows, status } = await listHqAssetsDetailed(scope);
+      setAssets(rows);
+      setListStatus(status);
+      // A person's list and an org's list never mix: a file shared with an org doesn't reach anyone's personal account.
+      if (isUserScope) setSharedWithMe(await listHqSharedWithMe());
+      else if (isOrgScope) setSharedWithMe(await listHqSharedWithOrg(scope.id));
+    } catch { setListStatus('offline'); }
     setLoading(false);
   };
   const loadTrash = async () => {
@@ -170,15 +243,25 @@ export const HqFilesTab: React.FC<{
     if (pendingHqAssetId) { setPendingId(pendingHqAssetId); pendingHqAssetId = null; }
     return () => window.removeEventListener('plajah:openHqAsset', onOpen);
   }, []);
+  // Keep the open panel on the latest copy, so a finished scan or a new status shows without reopening.
+  useEffect(() => {
+    setDetail(d => (d ? [...assets, ...sharedWithMe].find(a => a.id === d.id) || d : d));
+  }, [assets, sharedWithMe]);
   useEffect(() => {
     if (!pendingId) return;
-    const found = assets.find(a => a.id === pendingId);
+    const found = [...assets, ...sharedWithMe].find(a => a.id === pendingId);
     if (found) { setShowTrash(false); setDetail(found); setPendingId(null); }
-  }, [pendingId, assets]);
+  }, [pendingId, assets, sharedWithMe]);
   useEffect(() => {
     if (scope.kind === 'org') {
       const next = resolveContentHqEntitlements({ organization: { id: scope.id } as any });
       setEntitlements(next); setProEnabled(true); return;
+    }
+    if (scope.kind === 'business') {
+      // Storage comes from the owner's plan, which only the server can read for a staff member.
+      setProEnabled(true);
+      fetchHqScopeCapGb(scope).then(gb => setEntitlements(e => ({ ...e, storageLimitGb: gb }))).catch(() => {});
+      return;
     }
     fetchMySubscription().then(subscription => {
       const next = resolveContentHqEntitlements({ subscription });
@@ -186,11 +269,10 @@ export const HqFilesTab: React.FC<{
     }).catch(() => setProEnabled(false));
   }, [scope.kind, scope.id]);
 
-  // Folder scopes:
-  // - For standalone teachers (`isUserScope`): the 5 Document Class Folders (`Lessons & Course Resources`, `Assignments & Worksheets`, `Quizzes & Assessments`, `Syllabi & Master Source Docs`, `Answer Keys & Rubrics`)
-  // - For organizations (`!isUserScope`): `<Organization Name> Education` + organization departments
+  // A teacher's library is filed by document class, an org's by its own departments.
+  // A personal account starts with no folders at all.
   const departmentFolders = useMemo(() => {
-    if (isUserScope) {
+    if (isTeacherScope) {
       return TEACHER_DOCUMENT_CLASS_FOLDERS
         .filter((f) => allowAnswerKeyAccess || !f.isAnswerKeyFolder)
         .map((f) => ({
@@ -200,8 +282,9 @@ export const HqFilesTab: React.FC<{
           isChristianEd: true,
         }));
     }
-    return getOrgDepartmentFolders(undefined, resolvedOrgName);
-  }, [isUserScope, allowAnswerKeyAccess, resolvedOrgName]);
+    if (scope.kind !== 'org') return [];
+    return getOrgDepartmentFolders(scope.departments, scope.label);
+  }, [isTeacherScope, allowAnswerKeyAccess, scope]);
 
   const folders = useMemo(() => {
     const set = new Set<string>();
@@ -213,6 +296,16 @@ export const HqFilesTab: React.FC<{
     ];
     return ['ALL', ...ordered];
   }, [assets, departmentFolders]);
+
+  // Its department folders, then any other folder its files are in.
+  const folderChips = useMemo(() => [
+    ...departmentFolders,
+    ...folders
+      .filter((f) => f !== 'ALL' && !departmentFolders.some((d) => d.folderName === f))
+      .map((f) => ({ id: f, folderName: f, iconEmoji: '📁', isChristianEd: false })),
+  ], [departmentFolders, folders]);
+  const folderLabel = (f: string) => (f === SHARED_WITH_ME ? 'Shared with me' : f);
+  const hasEducationDocs = useMemo(() => assets.some((a) => a.assetVariant), [assets]);
 
   const visibleAssets = useMemo(
     () => (allowAnswerKeyAccess ? assets : assets.filter((a) => a.assetVariant !== 'ANSWER_KEY' && a.folder !== 'Answer Keys & Rubrics')),
@@ -244,7 +337,8 @@ export const HqFilesTab: React.FC<{
     return counts;
   }, [visibleAssets, folder]);
 
-  const shown = useMemo(() => visibleAssets.filter((a) => {
+  const shown = useMemo(() => (viewingShared ? sharedWithMe : visibleAssets).filter((a) => {
+    if (viewingShared) return !search || a.name.toLowerCase().includes(search.toLowerCase());
     const matchesFolder = folder === 'ALL' || a.folder === folder;
     if (!matchesFolder) return false;
     if (!isUserScope && docClassFilter !== 'ALL') {
@@ -259,24 +353,115 @@ export const HqFilesTab: React.FC<{
     if (variantFilter !== 'ALL' && a.assetVariant !== variantFilter) return false;
     if (search && !a.name.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
-  }), [visibleAssets, folder, isUserScope, docClassFilter, variantFilter, search]);
+  }), [viewingShared, sharedWithMe, visibleAssets, folder, isUserScope, docClassFilter, variantFilter, search]);
+
+  // The library lesson an asset belongs to (its Original, Tela document or key), for "Assign to class".
+  const lessonUnits = useMemo(() => (scope.kind === 'business' ? [] : listIngestedUnits(scope.id, undefined, scope.label)), [scope.kind, scope.id, scope.label, assets]);
+  const lessonFor = (a: OrgAsset): IngestedCurriculumUnit | undefined => {
+    if (a.assetVariant === 'ANSWER_KEY') return undefined;
+    return lessonUnits.find(u => u.originalAssetId === a.id || u.telaAssetId === a.id || (!!a.telaDocId && u.telaDocId === a.telaDocId));
+  };
+
+  const [sendItems, setSendItems] = useState<SendItem[] | null>(null);
+
+  // ⋯ / right-click actions. Photos can go to the store (an existing listing or a new one) or an article.
+  const [menu, setMenu] = useState<{ asset: OrgAsset; x: number; y: number } | null>(null);
+  const [seller, setSeller] = useState<HqSeller | null>(null);
+  useEffect(() => {
+    let live = true; setSeller(null);
+    if (canEdit) resolveHqSeller(scope).then(s => { if (live) setSeller(s); }).catch(() => {});
+    return () => { live = false; };
+  }, [scope.kind, scope.id, canEdit]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [addToProduct, setAddToProduct] = useState<OrgAsset | null>(null);
+  const [newListing, setNewListing] = useState<StoreProduct | null>(null);
+  const [working, setWorking] = useState('');
+  const openMenu = (a: OrgAsset, e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); setMenu({ asset: a, x: e.clientX, y: e.clientY }); };
+  const baseName = (a: OrgAsset) => a.name.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').replace(/\s+\d+$/, '').trim();
+
+  async function createListingFrom(a: OrgAsset) {
+    setWorking('Copying the photo into your shop…'); setNotice('');
+    try {
+      const url = await hqPhotoToProductUrl(a);
+      const title = baseName(a);
+      setNewListing({ id: '', title: title.charAt(0).toUpperCase() + title.slice(1), description: '', price: 0, images: [url], category: 'OTHER',
+        ...(a.departmentId ? { ministryId: a.departmentId } : {}) } as unknown as StoreProduct);
+    } catch (e: any) { setNotice(e?.message || 'Could not copy that photo.'); } finally { setWorking(''); }
+  }
+
+  async function startArticleWith(a: OrgAsset) {
+    setWorking('Preparing the article…'); setNotice('');
+    try {
+      const uid = auth.currentUser?.uid;
+      if (!uid) throw new Error('Sign in to write an article.');
+      const { uploadImageWithDerivatives } = await import('../services/backendService');
+      const up = await uploadImageWithDerivatives(`users/${uid}/articles/${Date.now()}`, await hqAssetFile(a));
+      window.dispatchEvent(new CustomEvent('plajah:openArticleEditor', { detail: { article: {
+        id: '', title: '', coverImage: up.display, status: 'DRAFT', isPublic: false,
+        blocks: [{ id: 'cover', type: 'IMAGE', content: up.display, layout: 'FULL', caption: '' }, { id: 'initial', type: 'TEXT', content: '', layout: 'FULL' }],
+      } } }));
+    } catch (e: any) { setNotice(e?.message || 'Could not start the article.'); } finally { setWorking(''); }
+  }
+
+  async function downloadAsset(a: OrgAsset) {
+    try {
+      const f = await hqAssetFile(a);
+      const u = URL.createObjectURL(f); const el = document.createElement('a'); el.href = u; el.download = a.name; el.click(); setTimeout(() => URL.revokeObjectURL(u), 1000);
+    } catch (e: any) { setNotice(e?.message || 'Download failed.'); }
+  }
+
+  const menuItemsFor = (a: OrgAsset): HqMenuItem[] => {
+    const editable = canEdit && !viewingShared;
+    const photo = isHqImage(a) && a.scanStatus !== 'QUARANTINED';
+    const items: HqMenuItem[] = [{ id: 'open', label: 'Open', icon: <Eye className="w-3.5 h-3.5" />, onClick: () => setDetail(a), group: 'open' }];
+    if (a.scanStatus !== 'QUARANTINED' && a.scanStatus !== 'PENDING') items.push({ id: 'dl', label: 'Download', icon: <Download className="w-3.5 h-3.5" />, onClick: () => downloadAsset(a), group: 'open' });
+    if (editable && photo && seller) {
+      items.push({ id: 'to-product', label: 'Add to a product listing…', icon: <ShoppingBag className="w-3.5 h-3.5" />, onClick: () => setAddToProduct(a), group: 'use', hint: `Adds this photo to a product in the ${seller.sellerName} shop` });
+      items.push({ id: 'new-product', label: 'Create a product listing', icon: <PackagePlus className="w-3.5 h-3.5" />, onClick: () => createListingFrom(a), group: 'use', hint: 'Starts a new hidden draft with this photo' });
+    }
+    if (editable && photo) items.push({ id: 'article', label: 'Start an article with it', icon: <Newspaper className="w-3.5 h-3.5" />, onClick: () => startArticleWith(a), group: 'use' });
+    if (editable && isOrgScope && a.assetVariant !== 'ANSWER_KEY' && !(lessonFor(a) && lessonFor(a)!.questions.length > 0)) {
+      items.push({ id: 'class', label: 'Send to a class…', icon: <Send className="w-3.5 h-3.5" />, onClick: () => setSendItems([sendItemFor(a)]), group: 'share', hint: "Post it in a class's Discussion or Media Gallery" });
+    }
+    if (editable) items.push({ id: 'trash', label: 'Move to Trash', icon: <Trash2 className="w-3.5 h-3.5" />, danger: true, group: 'trash',
+      onClick: async () => { if (confirm('Move this file to Trash? It stays recoverable for 30 days, then is permanently deleted.')) { await trashHqAsset(a); await load(); } } });
+    return items;
+  };
+  const sendItemFor = (a: OrgAsset): SendItem => {
+    const u = lessonFor(a);
+    if (u) return { title: u.title, unit: u };
+    const kind = a.kind === 'image' ? 'photo' : a.kind === 'video' ? 'video' : a.kind === 'audio' ? 'audio' : 'document';
+    return { title: a.name.replace(/\.[a-z0-9]+$/i, ''), url: a.url, kind };
+  };
 
   // Resolve paired asset when previewing a curriculum item as a Tela Document
-  const resolveTelaPreviewProps = (asset: OrgAsset) => {
+  const [previewText, setPreviewText] = useState<{ original?: string; key?: string }>({});
+  useEffect(() => {
+    if (!telaPreviewAsset) { setPreviewText({}); return; }
+    let live = true;
+    const { originalAsset, answerKeyAsset } = telaPreviewSources(telaPreviewAsset);
+    Promise.all([getHqAssetText(originalAsset), answerKeyAsset ? getHqAssetText(answerKeyAsset) : Promise.resolve('')])
+      .then(([original, key]) => { if (live) setPreviewText({ original, key }); });
+    return () => { live = false; };
+  }, [telaPreviewAsset?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const telaPreviewSources = (asset: OrgAsset) => {
     const paired = asset.pairedAssetId ? assets.find((x) => x.id === asset.pairedAssetId) : undefined;
     const telaDocId = asset.telaDocId || paired?.telaDocId;
     const originalAsset = asset.assetVariant === 'ORIGINAL_SOURCE' ? asset : (paired?.assetVariant === 'ORIGINAL_SOURCE' ? paired : asset);
     const answerKeyAsset = allowAnswerKeyAccess
-      ? assets.find(
-          (x) => x.assetVariant === 'ANSWER_KEY' && (x.telaDocId === telaDocId || x.pairedAssetId === asset.id)
-        )
+      ? assets.find((x) => x.assetVariant === 'ANSWER_KEY' && (x.telaDocId === telaDocId || x.pairedAssetId === asset.id))
       : undefined;
+    return { telaDocId, originalAsset, answerKeyAsset };
+  };
+
+  const resolveTelaPreviewProps = (asset: OrgAsset) => {
+    const { telaDocId, originalAsset } = telaPreviewSources(asset);
     return {
       title: asset.name.replace(/\s*\((Original Source|Original Document|Interactive Tela Document|Teacher Answer Key)\)\s*$/i, ''),
       telaDocId,
       originalUrl: originalAsset?.sourceUrl || asset.sourceUrl || (asset as any).downloadUrl,
-      originalText: originalAsset?.rawContentText || asset.rawContentText,
-      answerKeyText: allowAnswerKeyAccess ? answerKeyAsset?.rawContentText : undefined,
+      originalText: previewText.original || undefined,
+      answerKeyText: allowAnswerKeyAccess ? previewText.key || undefined : undefined,
       canViewAnswerKey: allowAnswerKeyAccess,
       orgName: resolvedOrgName,
       departmentFolder: asset.folder || (isUserScope ? 'Lessons & Course Resources' : orgEducationFolderName),
@@ -295,55 +480,45 @@ export const HqFilesTab: React.FC<{
     }
     setNotice('');
     setUploading(files.map((f) => ({ name: f.name, pct: 0 })));
+    const failed: string[] = [];
+    let capMessage = '';
     for (const f of files) {
       const targetFolder =
         folder !== 'ALL'
           ? folder
-          : isUserScope
+          : isTeacherScope
             ? resolveDocumentClassFolder({ unitTitle: f.name })
-            : orgEducationFolderName;
+            : undefined;
       try {
         await addHqAsset(scope, f, targetFolder, (pct) =>
           setUploading((prev) => prev.map((u) => (u.name === f.name ? { ...u, pct } : u))));
       } catch (e: any) {
+        failed.push(f.name);
         setUploading((prev) => prev.map((u) => (u.name === f.name ? { ...u, pct: -1 } : u)));
         if (String(e?.message || '').startsWith('STORAGE_CAP_EXCEEDED')) {
           const cap = String(e.message).split(':')[1] || `${entitlements.storageLimitGb} GB`;
-          setNotice(`Upload rejected — your Content HQ storage allowance (${cap}) is full.`);
+          capMessage = `Upload rejected: your Content HQ storage allowance (${cap}) is full.`;
         }
       }
     }
     setUploading([]);
+    if (capMessage) setNotice(capMessage);
+    else if (failed.length) setNotice(`Couldn't upload ${failed.join(', ')}. Nothing was saved for ${failed.length === 1 ? 'that file' : 'those files'}, so please try again.`);
     load();
   }
 
   return (
     <div className="h-full min-h-0 flex flex-col">
-      {/* Folder Scope Bar:
-          - Standalone Teachers (`isUserScope`): Folders for each Document Class (Lessons & Course Resources, Assignments & Worksheets, Quizzes & Assessments, Syllabi & Master Source Docs, Answer Keys & Rubrics)
-          - Organizations (`!isUserScope`): `<Organization Name> Education` + Organization Departments */}
-      {departmentFolders.length > 0 && (
+      {(folderChips.length > 0 || hasEducationDocs || sharedWithMe.length > 0) && (
         <div className="mb-3 p-3 rounded-2xl bg-white/[0.03] border border-white/10 space-y-2.5">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-black uppercase tracking-widest text-[#FF8C00]">
-                {isUserScope
-                  ? `${resolvedOrgName} · Document Class Folders`
-                  : `${resolvedOrgName} · Department Folder Scopes`}
-              </span>
-              <span className="text-[10px] text-white/40">
-                {isUserScope
-                  ? 'Every uploaded or extracted lesson, assignment, quiz, syllabus, or answer key is organized into its document class folder'
-                  : `Select a department folder scope (e.g. ${orgEducationFolderName}) to manage Original Source, Interactive Tela & Answer Keys`}
-              </span>
-            </div>
+          {hasEducationDocs && (
             <div className="flex items-center gap-1 flex-wrap">
               {(
                 [
-                  ['ALL', 'All Variants'],
+                  ['ALL', 'All'],
                   ['ORIGINAL_SOURCE', 'Original Docs'],
                   ['TELA_DOCUMENT', 'Tela Documents'],
-                  ...(allowAnswerKeyAccess ? ([['ANSWER_KEY', 'Answer Keys (Teachers & Admins)']] as const) : []),
+                  ...(allowAnswerKeyAccess ? ([['ANSWER_KEY', 'Answer Keys']] as const) : []),
                 ] as const
               ).map(([vId, vLabel]) => (
                 <button
@@ -359,8 +534,8 @@ export const HqFilesTab: React.FC<{
                 </button>
               ))}
             </div>
-          </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-1">
+          )}
+          {(folderChips.length > 0 || sharedWithMe.length > 0) && <div className="flex gap-1.5 overflow-x-auto pb-1">
             <button
               onClick={() => {
                 setFolder('ALL');
@@ -372,15 +547,28 @@ export const HqFilesTab: React.FC<{
                   : 'bg-white/5 text-white/60 hover:text-white hover:bg-white/10'
               }`}
             >
-              <span>{isUserScope ? 'All Document Classes' : 'All Departments'}</span>
+              <span>All files</span>
               <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-black/20">
                 {folderCounts.ALL || 0}
               </span>
             </button>
-            {departmentFolders.map((dept) => {
+            {sharedWithMe.length > 0 && (
+              <button
+                onClick={() => setFolder(SHARED_WITH_ME)}
+                className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border ${
+                  viewingShared
+                    ? 'bg-white/20 text-white border-white/30'
+                    : 'bg-white/5 text-white/55 border-transparent hover:text-white hover:bg-white/10'
+                }`}
+              >
+                <span>🤝</span>
+                <span>Shared with me</span>
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-black/30 text-white font-black">{sharedWithMe.length}</span>
+              </button>
+            )}
+            {folderChips.map((dept) => {
               const count = folderCounts[dept.folderName] || 0;
               const active = folder === dept.folderName;
-              const isEducationFolder = dept.isChristianEd || dept.folderName === orgEducationFolderName;
               return (
                 <button
                   key={dept.id}
@@ -390,11 +578,7 @@ export const HqFilesTab: React.FC<{
                   }}
                   className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors border ${
                     active
-                      ? isEducationFolder
-                        ? 'bg-emerald-500/25 text-emerald-200 border-emerald-400/50'
-                        : 'bg-white/20 text-white border-white/30'
-                      : isEducationFolder
-                      ? 'bg-emerald-500/10 text-emerald-300/90 border-emerald-500/25 hover:bg-emerald-500/20'
+                      ? 'bg-white/20 text-white border-white/30'
                       : 'bg-white/5 text-white/55 border-transparent hover:text-white hover:bg-white/10'
                   }`}
                 >
@@ -406,14 +590,10 @@ export const HqFilesTab: React.FC<{
                 </button>
               );
             })}
-          </div>
+          </div>}
 
-          {/* Document Class Sub-Folders inside `<Organization Name> Education` */}
-          {!isUserScope && (folder === 'ALL' || folder === orgEducationFolderName) && (
+          {isOrgScope && folder === orgEducationFolderName && (
             <div className="pt-2 border-t border-white/10 flex items-center gap-1.5 overflow-x-auto">
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300 shrink-0 mr-1">
-                {orgEducationFolderName} · Document Classes:
-              </span>
               <button
                 type="button"
                 onClick={() => setDocClassFilter('ALL')}
@@ -423,7 +603,7 @@ export const HqFilesTab: React.FC<{
                     : 'bg-white/5 text-white/60 hover:text-white'
                 }`}
               >
-                All Classes ({docClassCounts.ALL || 0})
+                All ({docClassCounts.ALL || 0})
               </button>
               {TEACHER_DOCUMENT_CLASS_FOLDERS.filter(
                 (f) => allowAnswerKeyAccess || !f.isAnswerKeyFolder
@@ -448,17 +628,41 @@ export const HqFilesTab: React.FC<{
         </div>
       )}
 
+      {duplicateCopies.length > 0 && !viewingShared && (
+        <div className="mb-4 p-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 text-xs text-amber-100">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="flex-1 min-w-[200px]">
+              <strong>{duplicateCopies.length} duplicate copies</strong> of imported course files. Each time the course was imported again, an older version added another set instead of replacing it. The copy each lesson uses is kept.
+            </span>
+            <button type="button" onClick={() => setReviewDupes(v => !v)} className="px-3 py-1.5 rounded-lg bg-white/10 font-bold hover:bg-white/15">
+              {reviewDupes ? 'Hide list' : 'Review'}
+            </button>
+            <button type="button" disabled={removingDupes} onClick={removeDuplicateCopies}
+              className="px-3 py-1.5 rounded-lg bg-amber-400 text-black font-black disabled:opacity-50 inline-flex items-center gap-1.5">
+              {removingDupes ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />} Move {duplicateCopies.length} to Trash
+            </button>
+          </div>
+          {reviewDupes && (
+            <ul className="mt-3 max-h-60 overflow-y-auto space-y-1 text-[11px] text-amber-50/80">
+              {duplicateCopies.map(a => (
+                <li key={a.id} className="flex justify-between gap-3"><span className="truncate">{a.name}</span><span className="shrink-0 opacity-60">{a.uploadedAt ? new Date(a.uploadedAt).toLocaleDateString() : ''}</span></li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* toolbar */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 flex-1 min-w-[180px]">
           <Search className="w-4 h-4 text-white/40" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={folder === 'ALL' ? (isUserScope ? 'Search across all document class folders...' : 'Search files across all departments...') : `Search files in ${folder}...`}
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={folder === 'ALL' ? 'Search by file name...' : `Search file names in ${folderLabel(folder)}...`}
             className="bg-transparent text-sm outline-none flex-1 text-white placeholder:text-white/30" />
         </div>
-        {canEdit && (
+        {canEdit && !viewingShared && (
           <button onClick={() => fileInput.current?.click()}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF8C00] text-black text-xs font-black uppercase tracking-widest">
-            <Upload className="w-4 h-4" /> Upload{folder !== 'ALL' ? ` to ${folder}` : ''}
+            <Upload className="w-4 h-4" /> Upload{folder !== 'ALL' ? ` to ${folderLabel(folder)}` : ''}
           </button>
         )}
         <button onClick={() => { const next = !showTrash; setShowTrash(next); if (next) loadTrash(); }}
@@ -470,14 +674,18 @@ export const HqFilesTab: React.FC<{
         <input ref={fileInput} type="file" multiple className="hidden"
           onChange={(e) => { onFiles(e.target.files); e.currentTarget.value = ''; }} />
       </div>
-      <div className="flex items-center justify-between text-[10px] text-white/35 mb-3 px-1">
-        <span>
-          {isUserScope
-            ? `${resolvedOrgName} · Active Document Class Folder: ${folder === 'ALL' ? 'All Document Classes' : folder}`
-            : `${resolvedOrgName} · Active Folder Scope: ${folder === 'ALL' ? 'All Departments' : folder}`}
-        </span>
+      <div className="flex items-center justify-end text-[10px] text-white/35 mb-3 px-1">
         <span>{humanFileSize(assets.reduce((n, a) => n + Number(a.sizeBytes || 0), 0))} / {entitlements.storageLimitGb} GB</span>
       </div>
+      {listStatus === 'offline' && (
+        <div className="mb-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 flex items-center gap-3">
+          <span className="flex-1">Couldn't reach Content HQ, so this may be out of date. Showing what this device last saved for you.</span>
+          <button onClick={load} className="font-black uppercase tracking-widest text-[10px]">Retry</button>
+        </div>
+      )}
+      {listStatus === 'denied' && (
+        <div className="mb-3 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-200">You don't have access to these files.</div>
+      )}
       {notice && <div className="mb-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200">{notice}</div>}
 
       {/* upload progress */}
@@ -533,9 +741,7 @@ export const HqFilesTab: React.FC<{
         ) : shown.length === 0 ? (
           <div className="grid place-items-center h-48 text-center text-white/30 text-sm px-8">
             {canEdit
-              ? isUserScope
-                ? `No files in ${folder === 'ALL' ? 'your Teacher Content HQ' : `"${folder}"`} yet. Upload or extract lessons, assignments, quizzes, syllabi, or answer keys from links/PDFs in Teacher Tools to automatically populate your Document Class folders.`
-                : `No files in ${folder === 'ALL' ? 'this organization' : folder} yet. Upload brand specs, documents, or ingest ${orgEducationFolderName} curriculum to automatically populate both Original & Tela Document versions.`
+              ? `No files${folder === 'ALL' ? '' : ` in ${folder}`} yet. Upload to get started.`
               : 'No files.'}
           </div>
         ) : (
@@ -545,19 +751,20 @@ export const HqFilesTab: React.FC<{
               const isOriginalVariant = a.assetVariant === 'ORIGINAL_SOURCE';
               const isAnswerKeyVariant = a.assetVariant === 'ANSWER_KEY';
               const canPreviewAsTela = Boolean(
-                a.telaDocId || a.assetVariant || a.rawContentText || isOrgEducationFolderName(a.folder, resolvedOrgName)
+                a.telaDocId || a.assetVariant || a.rawContentText || a.hasText || isOrgEducationFolderName(a.folder, resolvedOrgName)
               );
               return (
-                <div key={a.id} onClick={() => setDetail(a)}
-                  className="relative text-left p-4 rounded-2xl bg-white/[0.03] border border-white/8 hover:bg-white/[0.06] transition-colors cursor-pointer flex flex-col justify-between">
+                <div key={a.id} onClick={() => setDetail(a)} onContextMenu={(e) => openMenu(a, e)}
+                  className="relative text-left p-4 rounded-2xl bg-white/[0.03] border border-white/8 hover:bg-white/[0.06] transition-colors cursor-pointer flex flex-col justify-between overflow-hidden">
                   <div>
+                    <HqThumb asset={a} fallback={assetIcon(a.kind, 'w-8 h-8')} />
                     {a.scanStatus === 'QUARANTINED' && (
-                      <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/15 text-red-300 text-[9px] font-black uppercase tracking-wider"><ShieldAlert className="w-3 h-3" /> Blocked</span>
+                      <span className="absolute z-10 top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/15 text-red-300 text-[9px] font-black uppercase tracking-wider"><ShieldAlert className="w-3 h-3" /> Blocked</span>
                     )}
                     {a.scanStatus === 'PENDING' && (
-                      <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-200 text-[9px] font-black uppercase tracking-wider"><Loader2 className="w-3 h-3 animate-spin" /> Scanning</span>
+                      <span className="absolute z-10 top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-200 text-[9px] font-black uppercase tracking-wider"><Loader2 className="w-3 h-3 animate-spin" /> Scanning</span>
                     )}
-                    <div className="flex items-start justify-between gap-2 mb-3">
+                    {!(isHqImage(a) && a.scanStatus !== 'QUARANTINED' && a.scanStatus !== 'PENDING') && <div className="flex items-start justify-between gap-2 mb-3">
                       <div className="w-10 h-10 rounded-xl grid place-items-center shrink-0" style={{
                         background: isTelaVariant ? 'rgba(16,185,129,0.16)' : isOriginalVariant ? 'rgba(56,189,248,0.16)' : `${TEAL}18`,
                         color: isTelaVariant ? '#34d399' : isOriginalVariant ? '#38bdf8' : TEAL,
@@ -575,7 +782,7 @@ export const HqFilesTab: React.FC<{
                           {isTelaVariant ? 'Interactive Tela Doc' : isOriginalVariant ? 'Original Document' : 'Answer Key'}
                         </span>
                       )}
-                    </div>
+                    </div>}
                     <div className="text-[13px] font-semibold line-clamp-2 leading-snug">{a.name}</div>
                     <div className="text-[11px] text-white/40 mt-1">{a.kind} · {humanFileSize(a.sizeBytes)}</div>
                     <div className="flex items-center gap-1.5 flex-wrap mt-2">
@@ -601,7 +808,22 @@ export const HqFilesTab: React.FC<{
 
                   {/* Action bar for Tela Document Preview + Source Link + Trash */}
                   <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between gap-1.5">
-                    {canPreviewAsTela ? (
+                    {canEdit && !viewingShared && scope.kind !== 'business' && lessonFor(a) && (lessonFor(a)!.questions.length > 0 || isUserScope) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const u = lessonFor(a)!;
+                          openLessonLibrary(isUserScope ? { mine: true, assignUnitIds: [u.id] } : { orgId: scope.id, orgName: scope.label, assignUnitIds: [u.id] });
+                        }}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#34e0d0]/15 hover:bg-[#34e0d0]/25 border border-[#34e0d0]/35 text-[#34e0d0] text-[10px] font-black uppercase tracking-wider transition-colors"
+                        title="Assign this lesson to a class and schedule it"
+                      >
+                        <BookOpen className="w-3.5 h-3.5" /> Assign to class
+                      </button>
+                    )}
+                    {/* Send to a class, add to a product, start an article, download, trash: the ⋯ menu (also right-click). */}
+                    {canPreviewAsTela && !isHqImage(a) ? (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -625,13 +847,11 @@ export const HqFilesTab: React.FC<{
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
                     )}
-                    {canEdit && (
-                      <button onClick={async (e) => { e.stopPropagation(); if (confirm('Move this file to Trash? It stays recoverable for 30 days, then is permanently deleted.')) { await trashHqAsset(a); await load(); } }}
-                        className="p-1.5 rounded-lg bg-white/5 text-white/40 hover:text-red-300 hover:bg-red-500/10 transition-colors"
-                        title="Move to Trash">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <button type="button" onClick={(e) => openMenu(a, e)}
+                      className="p-1.5 rounded-lg bg-white/5 text-white/55 hover:text-white hover:bg-white/10 transition-colors"
+                      title="More actions (or right-click the file)" aria-label={`More actions for ${a.name}`} aria-haspopup="menu">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               );
@@ -641,10 +861,32 @@ export const HqFilesTab: React.FC<{
       </div>
 
       {detail && (
-        <HqReviewPanel asset={detail} canEdit={canEdit} proEnabled={proEnabled}
+        <HqReviewPanel asset={detail} canEdit={canEdit && detail.scopeId !== undefined && !sharedWithMe.some(s => s.id === detail.id)} orgCopy={isOrgScope && sharedWithMe.some(s => s.id === detail.id)} proEnabled={proEnabled}
           onClose={() => setDetail(null)} onChanged={() => { load(); loadTrash(); }} />
       )}
 
+      {menu && <HqActionMenu at={{ x: menu.x, y: menu.y }} title={menu.asset.name} items={menuItemsFor(menu.asset)} onClose={() => setMenu(null)} />}
+      {addToProduct && seller && (
+        <HqAddToProductSheet asset={addToProduct} seller={seller} onClose={() => setAddToProduct(null)} onDone={msg => { setAddToProduct(null); setNotice(msg); }} />
+      )}
+      {newListing && seller && (
+        <React.Suspense fallback={null}>
+          <ProductEditor who={{ sellerId: seller.sellerId, sellerName: seller.sellerName, sellerType: seller.sellerType, departments: seller.departments, defaultMinistryId: newListing.ministryId }}
+            product={newListing} onClose={() => setNewListing(null)}
+            onSaved={() => { setNewListing(null); setNotice('Product listing saved. Find it in the shop manager to set price and stock.'); }} />
+        </React.Suspense>
+      )}
+      {working && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[395] flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#17141f] border border-white/12 text-xs text-white/80 shadow-xl">
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#FF8C00]" /> {working}
+        </div>
+      )}
+      {sendItems && (
+        <div className="ce" style={{ display: 'contents' }}>
+          <style>{ED_CSS}</style>
+          <SendToClassSheet items={sendItems} orgId={scope.id} onClose={() => setSendItems(null)} onDone={msg => { setSendItems(null); setNotice(msg); }} />
+        </div>
+      )}
       {telaPreviewAsset && (
         <TelaDocumentPreviewModal
           isOpen={Boolean(telaPreviewAsset)}

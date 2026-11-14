@@ -19,7 +19,7 @@ const parentUpdate = parentBlock.match(/allow update: if isAuthenticated\(\) && 
 const parentCreate = parentBlock.match(/allow create: if isAuthenticated\(\) && isValidChatRoom[\s\S]*?\n\s*\);/)?.[0];
 if (!parentUpdate) throw new Error('Parent room update rule missing');
 // Unrelated production/schema helpers are stubbed only for the parent ownership boundary tests.
-const classHelpers = ['classroomMeetingReader', 'classroomMeetingActive', 'validClassroomMeetingRoom', 'classroomMeetingRoomUpdate', 'validLiveClassSession'].map(name => grab(new RegExp(`function ${name}\\(`))).join('\n');
+const classHelpers = ['classMember', 'classroomMeetingReader', 'classroomMeetingActive', 'validClassroomMeetingRoom', 'classroomMeetingRoomUpdate', 'validLiveClassSession'].map(name => grab(new RegExp(`function ${name}\\(`))).join('\n');
 const source = "rules_version = '2';\nservice cloud.firestore { match /databases/{database}/documents {\n" + grab(/function isAuthenticated\(\)/) + '\nfunction isAdmin() { return false; }\nfunction isValidChatRoom(data) { return true; }\nfunction canManageProductionChatById(id) { return false; }\nfunction dmPairAllowed(ids) { return true; }\nfunction isBlockedPair(a, b) { return false; }\n' + classHelpers + '\n' + grab(/match \/liveClassSessions\/\{sessionId\}/) + '\nmatch /chat_rooms/{roomId} {\n' + parentUpdate + '\n' + parentCreate + '\n' + helpers.map(name => grab(new RegExp(`function ${name}\\(`))).join('\n') + '\n' + grab(/match \/meetings\/\{controlId\}/) + '\n' + grab(/match \/meeting_rtc\/\{scope\}/) + '\n}}}';
 const root = '/databases/(default)/documents/chat_rooms/test';
 const parent = { ownerId: 'host', participants: ['host', 'mod', 'guest', 'removed'] };
@@ -66,7 +66,8 @@ test('member cannot change legacy moderator roles', 'DENY', 'guest', 'update', '
 test('host can update legacy moderator roles', 'ALLOW', 'host', 'update', '', { ...parent, meetingModeratorIds: ['mod'] }, parent);
 test('member can still update ordinary room settings', 'ALLOW', 'guest', 'update', '', { ...parent, name: 'Design' }, parent);
 const database = '/databases/(default)/documents';
-const school = { ownerId: 'host', enrolledStudents: ['guest', 'mod'] };
+const school = { ownerId: 'host' };
+const roster = { enrolledStudents: ['guest', 'mod'] };
 const classSession = { classroomId: 'school', hostId: 'host', title: 'Biology', scheduledAt: 1, durationMinutes: 60, status: 'LIVE', attendeeIds: [], createdAt: 1 };
 const classRoom = { ownerId: 'host', participants: ['host', 'guest', 'mod'], type: 'GROUP', workspaceType: 'CLASSROOM_MEETING', classroomId: 'school', liveClassSessionId: 'study', nibblesEnabled: false };
 function classTest(...args) { test(...args); cases.at(-1).parent = classRoom; cases.at(-1).session = classSession; }
@@ -78,6 +79,8 @@ classTest('teacher starts session', 'ALLOW', 'host', 'update', database + '/live
 classTest('student cannot start session', 'DENY', 'guest', 'update', database + '/liveClassSessions/study', classSession, { ...classSession, status: 'SCHEDULED' });
 classTest('host cannot revive ended session', 'DENY', 'host', 'update', database + '/liveClassSessions/study', classSession, { ...classSession, status: 'ENDED' });
 classTest('teacher creates native room with exact roster', 'ALLOW', 'host', 'create', database + '/chat_rooms/class_meeting_study', classRoom);
+classTest('teacher creates native room for a class with no students yet', 'ALLOW', 'host', 'create', database + '/chat_rooms/class_meeting_study', { ...classRoom, participants: ['host'] });
+cases.at(-1).noRoster = true;
 classTest('teacher cannot add outsider to classroom meeting', 'DENY', 'host', 'create', database + '/chat_rooms/class_meeting_study', { ...classRoom, participants: [...classRoom.participants, 'outsider'] });
 classTest('student cannot forge classroom room', 'DENY', 'guest', 'create', database + '/chat_rooms/class_meeting_study', { ...classRoom, ownerId: 'guest' });
 classTest('student cannot drop classroom scope', 'DENY', 'guest', 'update', '', { ...classRoom, workspaceType: 'ORGANIZATION' }, classRoom);
@@ -98,6 +101,10 @@ const testCases = cases.map(c => {
   const result = { expectation: c.expect, request, functionMocks: [
     { function: 'get', args: [{ exactValue: root }], result: { value: { data: c.parent || parent } } },
     { function: 'get', args: [{ exactValue: database + '/classrooms/school' }], result: { value: { data: school } } },
+    { function: 'get', args: [{ exactValue: database + '/classrooms/school/private/roster' }], result: { value: { data: roster } } },
+    { function: 'exists', args: [{ exactValue: database + '/classrooms/school/private/roster' }], result: { value: !c.noRoster } },
+    ...['guest', 'mod'].map(u => ({ function: 'exists', args: [{ exactValue: database + '/classMembers/school_' + u }], result: { value: true } })),
+    { function: 'exists', args: [{ anyValue: {} }], result: { value: false } },
     { function: 'get', args: [{ exactValue: database + '/liveClassSessions/study' }], result: { value: { data: c.session || classSession } } },
     { function: 'getAfter', args: [{ exactValue: database + '/liveClassSessions/study' }], result: { value: { data: c.session || classSession } } },
     { function: 'exists', args: [{ exactValue: root + '/meetings/control' }], result: { value: !!c.state } },

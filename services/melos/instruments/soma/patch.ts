@@ -9,6 +9,7 @@ import {
   SM,
   SP,
   RV,
+  veilDecayForHall,
   SOMA_DISCRETE_IDS,
   somaDefault,
 } from './params';
@@ -20,6 +21,8 @@ import {
   type SomaPreset,
 } from './presets';
 import type { Instrument } from '../../beats/engine/InstrumentHost';
+import { defaultHandConfig, somaHandStrike, type SomaHandConfig } from './handMap';
+import { liveBus, now as liveNow } from '../../beats/band/live/events';
 
 export type SomaArpMode = 'up' | 'down' | 'upDown' | 'octave' | 'random' | 'seq';
 export type SomaArpRate = '1/4' | '1/8' | '1/8T' | '1/16' | '1/16T';
@@ -74,6 +77,8 @@ export interface SomaPatch {
   /** Normalized 2D strike coordinate [x, y] in [-1..1, -1..1] on the circular drumhead. */
   strikePad: [number, number];
   arp: SomaArpConfig;
+  /** Pads and keys as hand strokes (handMap.ts). Absent = the drum's default (hand drums on, pitched drums off). */
+  hand?: SomaHandConfig;
   version: 1;
 }
 
@@ -175,6 +180,7 @@ export function serializeSomaPatch(p: SomaPatch): Record<string, unknown> {
   if (p.origin !== undefined) out.origin = p.origin;
   if (p.acoustics !== undefined) out.acoustics = p.acoustics;
   if (p.description !== undefined) out.description = p.description;
+  if (p.hand) out.hand = { enabled: !!p.hand.enabled, layout: p.hand.layout === 'pads' ? 'pads' : 'keys' };
   return out;
 }
 
@@ -228,8 +234,16 @@ export function deserializeSomaPatch(raw: Record<string, unknown> | undefined): 
       Number.isFinite(Number(src.strikePad?.[1])) ? Number(src.strikePad?.[1]) : defaultPad[1],
     ],
     arp,
+    ...(src.hand && typeof src.hand === 'object'
+      ? { hand: { enabled: !!(src.hand as SomaHandConfig).enabled, layout: (src.hand as SomaHandConfig).layout === 'pads' ? 'pads' as const : 'keys' as const } }
+      : {}),
     version: 1,
   };
+}
+
+/** A SOMA value as the engine wants it. Only the hall decay differs: see `veilDecayForHall`. */
+export function somaEngineValue(id: number, v: number): number {
+  return id === RV.DECAY ? veilDecayForHall(v) : v;
 }
 
 export function somaEngineParams(patch: SomaPatch): Array<[number, number]> {
@@ -238,16 +252,36 @@ export function somaEngineParams(patch: SomaPatch): Array<[number, number]> {
   for (const [k, v] of Object.entries(expanded)) {
     const id = Number(k);
     if (Number.isFinite(id) && Number.isFinite(v)) {
-      out.push([id, v]);
+      out.push([id, somaEngineValue(id, v)]);
     }
   }
   return out;
+}
+
+/** The hand map in effect for a patch: its own setting, else its drum's default. */
+export function somaHandConfig(patch: SomaPatch): SomaHandConfig {
+  return patch.hand ?? defaultHandConfig(SOMA_PRESETS.find((p) => p.id === patch.presetId)?.category);
 }
 
 export function applySomaPatch(inst: Instrument, patch: SomaPatch): void {
   const entries = somaEngineParams(patch);
   inst.setParams(entries);
   for (let i = 0; i < 32; i++) inst.setRoute(i, 0, 0, 0, 0);
+  const hand = somaHandConfig(patch);
+  const base = Object.fromEntries(entries) as Record<number, number>;
+  const home = patch.defaultNote || 48;
+  // Live playing from keys, pads or a controller is what the band's percussionist listens to.
+  const heard = (note: number, velocity: number, pos?: number, striker?: number) =>
+    liveBus.emit({ kind: 'strike', instrument: 'soma', trackId: '', at: liveNow(), note, velocity, pos, striker });
+  inst.setNoteMapper((key, velocity, mod, live) => {
+    if (!hand.enabled) {
+      if (live) heard(key, velocity, base[SM.STRIKE_POS], base[SM.STRIKER_TYPE]);
+      return null;
+    }
+    const s = somaHandStrike(key, velocity, mod, hand, home, base);
+    if (live) heard(s.note, s.velocity, s.params.find(([id]) => id === SM.STRIKE_POS)?.[1], s.params.find(([id]) => id === SM.STRIKER_TYPE)?.[1]);
+    return { note: s.note, velocity: s.velocity, params: s.params };
+  });
 }
 
 /**

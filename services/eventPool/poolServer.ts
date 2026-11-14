@@ -388,6 +388,7 @@ export function registerPoolRoutes(d: PoolDeps) {
     const ownsStream = !!s && s.ownerUid === req.uid;
     if (attach) {
       if (!s) return res.status(404).json({ error: 'That live stream doesn’t exist.' });
+      if (!ownsStream && s.isPrivate) return res.status(404).json({ error: 'That live stream doesn’t exist.' });
       if (!host) {
         if (!ownsStream) return res.status(403).json({ error: 'You can only add your own live stream.' });
         const refusal = canContribute(meta, req.uid, !!(await loadCheckin(meta.poolId, req.uid)), now());

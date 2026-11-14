@@ -6,7 +6,7 @@
 //   2. Audio-Only Lecture Mode (repurposed Live Talk stage): speaker podium + listener rows + raise hand to unmute & answer.
 //   3. Both Video & Audio modes include live Screen Sharing (getDisplayMedia) and an Interactive Digital Whiteboard.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   MessagesSquare,
   Image as ImageIcon,
@@ -36,19 +36,40 @@ import {
   ExternalLink,
   Maximize2,
   Minimize2,
+  BookOpen,
 } from 'lucide-react';
-import UniversalPostComposer, { type ComposerSubmitData } from '../UniversalPostComposer';
+import { useRtcSession } from '../../hooks/useRtcSession';
+import { classLectureSessionId } from '../../hooks/useClassLiveNow';
+import { createNotification } from '../../services/backendService';
+import { useLiveFx } from '../../hooks/useLiveFx';
+import { LevelMeter } from '../live/LevelMeter';
+import LectureLessonStage from './LectureLessonStage';
+import { useLiveDocSource } from '../../hooks/useLiveDocSource';
+import { LiveDocPicker } from '../live/LiveDocDock';
+import { lessonAssembler, lessonChunks, type LessonChunk } from '../../services/lectureLesson';
+import type { IngestedCurriculumUnit } from '../../services/curriculumIngestionService';
+import UniversalPostComposer, { type ComposerPostData } from '../UniversalPostComposer';
 import { resolveComposerMedia } from '../FeedView';
-import { uploadFile, auth } from '../../services/backendService';
+import { auth } from '../../services/backendService';
 import {
-  loadClassroomPosts,
+  watchClassroomPosts,
   addClassroomPost,
-  toggleClassroomPostLike,
-  toggleClassroomPostPin,
+  setClassroomPostLike,
+  setClassroomPostPin,
   addClassroomPostComment,
-  loadClassroomPhotos,
-  addClassroomPhoto,
+  deleteClassroomPost,
+  watchClassroomPhotos,
+  shareClassMedia,
+  classMediaObjectUrl,
+  ClassMediaGoneError,
+  editClassroomPhotoCaption,
+  editClassroomPost,
+  deleteClassroomPhoto,
+  migrateLocalClassroomFeed,
+  type ClassClubHome,
+  type ClubMediaKind,
   loadLectureSession,
+  blankLectureSession,
   saveLectureSession,
   type ClassroomContextKind,
   type ClassroomSocialPost,
@@ -73,10 +94,163 @@ export interface SharedClassroomClubHubProps {
   currentUserName?: string;
   currentUserAvatar?: string;
   rosterStudents?: Array<{ id: string; name: string; avatar?: string; roleLabel?: string }>;
+  /** The class record the feed and photos are shared under (its roster decides who sees them).
+   *  Omitted for a sample class: there is no one to share with, so posting is off. */
+  club?: ClassClubHome | null;
   initialSection?: 'SOCIAL_FEED' | 'PHOTOS' | 'LIVE_LECTURE' | 'ROSTER';
+  /** Rendered inside a parent club (Christian Ed class): the parent owns the cover and channel pills,
+   *  so the banner and section tabs are hidden and `initialSection` drives the section. */
+  embedded?: boolean;
+  /** The class's lessons the teacher can put on the stage. */
+  lessons?: IngestedCurriculumUnit[];
+  /** Everyone who may teach this class (co-teachers, department heads). Any of them can run the lecture. */
+  teacherUids?: string[];
 }
 
 const WHITEBOARD_COLORS = ['#FFFFFF', '#FF8C00', '#00DAF3', '#06D6A0', '#D40055', '#FFD24A', '#A78BFA'];
+const LiveMediaSheet = lazy(() => import('../live/LiveMediaSheet'));
+const LiveDocStage = lazy(() => import('../live/LiveDocStage'));
+
+/** Plays a remote participant's audio (video tiles stay muted so audio is never doubled). */
+const RemoteAudio: React.FC<{ stream: MediaStream }> = ({ stream }) => {
+  const ref = useRef<HTMLAudioElement>(null);
+  useEffect(() => { if (ref.current && ref.current.srcObject !== stream) ref.current.srcObject = stream; }, [stream]);
+  return <audio ref={ref} autoPlay playsInline style={{ display: 'none' }} />;
+};
+
+/** Student -> teacher requests over the lecture session's data channel. The teacher's copy of the
+ *  lecture is the source of truth and is re-broadcast to everyone after each change. */
+type LectureOp =
+  | { k: 'hand'; entry: RaisedHandEntry | null }
+  | { k: 'chat'; msg: LectureSessionState['lectureChat'][number] }
+  | { k: 'stroke'; stroke: WhiteboardStroke }
+  | { k: 'unstroke'; ids: string[] }
+  | { k: 'leaveStage' }
+  | { k: 'react'; label: string }
+  | { k: 'lessonAnswer'; qid: string; value: string };
+// SCTP messages over ~256 KB are dropped; keep the broadcast state well under that.
+const MAX_STATE_BYTES = 200_000;
+
+// Scoped, not Tailwind: the class pages sit under several shells with their own layers.
+const LECTURE_HALL_CSS = `
+.lh{--ink:#f4f1f7;--dim:rgba(244,241,247,.72);--bd:rgba(255,255,255,.13);color:var(--ink);font-family:Inter,system-ui,sans-serif;display:grid;gap:14px}
+.lh button{font:inherit;cursor:pointer}
+.lh-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.lh-head h2{margin:0;font:700 1.35rem/1.15 Outfit,sans-serif}
+.lh-sub{font-size:.88rem;color:var(--dim);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lh-live{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 12px;border-radius:99px;background:linear-gradient(135deg,#6B0099,#D40055);font:700 .74rem/1 Outfit,sans-serif;letter-spacing:.06em}
+.lh-live i{width:7px;height:7px;border-radius:50%;background:#fff}
+.lh-seg{display:inline-flex;flex-wrap:wrap;gap:2px;padding:3px;border-radius:99px;border:1px solid var(--bd);background:rgba(255,255,255,.04)}
+.lh-seg button{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 13px;border:0;border-radius:99px;background:transparent;color:var(--dim);font-size:.8rem;font-weight:500}
+.lh-seg button:hover{color:var(--ink)}
+.lh-seg button[aria-pressed="true"]{background:var(--ink);color:#160a24;font-weight:600}
+.lh-go{display:inline-flex;align-items:center;gap:7px;height:42px;padding:0 18px;border:0;border-radius:99px;background:linear-gradient(120deg,#6B0099,#D40055 55%,#FF8C00);color:#fff;font:700 .86rem/1 Outfit,sans-serif}
+.lh-go.end{background:var(--ink);color:#160a24}
+.lh-pick{position:absolute;z-index:40;top:44px;left:0;width:300px;max-height:320px;overflow-y:auto;padding:6px;border-radius:14px;background:#1b1029;border:1px solid var(--bd);box-shadow:0 18px 44px rgba(0,0,0,.55);display:grid;gap:2px}
+.lh-pick p{margin:0;padding:10px;font-size:.82rem;color:var(--dim)}
+.lh .lh-pick button{display:block;width:100%;height:auto;min-height:40px;padding:9px 11px;border-radius:9px;text-align:left;color:var(--ink);white-space:normal;line-height:1.3}
+.lh .lh-pick button:hover,.lh .lh-pick button[aria-current="true"]{background:rgba(255,255,255,.1)}
+.lh-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:stretch}
+.lh.wide .lh-grid{grid-template-columns:minmax(0,1fr)}
+.lh-main{min-width:0;display:flex;flex-direction:column;gap:12px}
+.lh-stage{position:relative;flex:none;height:clamp(460px,calc(100vh - 300px),860px);display:flex;flex-direction:column;border-radius:18px;background:#0d0814;border:1px solid var(--bd);overflow:auto}
+.lh-lesson{position:relative;flex:1;min-height:0;display:flex}
+.lh-paper{flex:1;min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:24px;background:#f7f2ea;color:#22162e;outline:none}
+.lh-lesson{flex-direction:column}
+.lh-note{margin:0;padding:8px 16px;background:#22162e;color:#f7f2ea;font-size:.8rem}
+.lh-paper-wait{margin:40px 0;text-align:center;font:400 1.05rem/1.5 'Source Serif 4',Georgia,serif;color:rgba(34,22,46,.7)}
+.lh-pips{position:absolute;top:14px;right:22px;display:grid;gap:10px;width:220px;pointer-events:none}
+.lh-pip{position:relative;height:138px;border-radius:14px;overflow:hidden;background:#2a1440;box-shadow:0 10px 26px rgba(20,8,30,.35);pointer-events:auto;display:grid;place-items:center}
+.lh-pip.on{outline:3px solid #ffb066}
+.lh-pip video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
+.lh-pip .mono{width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,#6B0099,#D40055);display:grid;place-items:center;font:700 1.15rem/1 Outfit,sans-serif;color:#fff}
+.lh-pip .who{position:absolute;z-index:2;left:8px;bottom:8px;padding:4px 8px;border-radius:7px;background:rgba(10,6,16,.72);font:600 .74rem/1 Outfit,sans-serif;color:#fff}
+.lh-pip button{position:absolute;z-index:2;top:7px;right:7px;width:30px;height:30px;border:0;border-radius:50%;background:rgba(10,6,16,.72);color:#fff;display:grid;place-items:center}
+.lh-back{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 15px;border:0;border-radius:99px;background:#22162e;color:#f7f2ea;font-size:.82rem;font-weight:600;box-shadow:0 8px 22px rgba(20,8,30,.4)}
+.lh-floor{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.lh-seats{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;min-height:64px}
+.lh-seat{width:54px;display:grid;justify-items:center;gap:4px;transition:transform .25s}
+.lh-seat span{width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.1);display:grid;place-items:center;font:600 .76rem/1 Outfit,sans-serif}
+.lh-seat em{font-style:normal;font-size:.7rem;color:var(--dim);max-width:54px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lh-seat.up{transform:translateY(-8px)}
+.lh-seat.up span{background:#ffb066;color:#2a1400}
+.lh-empty{font-size:.84rem;color:var(--dim);margin:0}
+.lh-ctl{display:flex;flex-wrap:wrap;gap:8px}
+.lh-ctl button{display:inline-flex;align-items:center;gap:7px;height:44px;min-width:44px;justify-content:center;padding:0 15px;border:0;border-radius:99px;background:rgba(255,255,255,.1);color:var(--ink);font-size:.82rem;font-weight:500}
+.lh-ctl button:hover{background:rgba(255,255,255,.16)}
+.lh-ctl button.off{background:#f4f1f7;color:#160a24}
+.lh-ctl button.hand{background:#ffb066;color:#2a1400;font-weight:600}
+.lh-side{min-width:0;height:100%;max-height:calc(clamp(460px,calc(100vh - 300px),860px) + 90px);display:flex;flex-direction:column;border-radius:18px;background:#1b1029;border:1px solid var(--bd);overflow:hidden}
+.lh-side-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:16px 16px 12px}
+.lh-side-h h3{margin:0;font:600 1rem/1 Outfit,sans-serif}
+.lh-side-h span{font-size:.75rem;color:var(--dim)}
+.lh-hands{display:grid;gap:6px;margin:0 10px;max-height:40%;overflow-y:auto}
+.lh-hand{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.07)}
+.lh-hand strong{display:block;font-size:.82rem;font-weight:600;line-height:1.3}
+.lh-hand p{margin:3px 0 0;font-size:.78rem;color:var(--dim)}
+.lh-hand button{flex:none;height:36px;padding:0 12px;border:1px solid rgba(255,255,255,.25);border-radius:99px;background:transparent;color:var(--ink);font-size:.78rem;font-weight:600}
+.lh-hand.first{background:#f7f2ea;color:#22162e}
+.lh-hand.first p{color:rgba(34,22,46,.72)}
+.lh-hand.first button{border:0;background:#22162e;color:#f7f2ea}
+.lh-askhow{display:grid;gap:6px;margin:0 12px}
+.lh-askhow input,.lh-askhow select{height:38px;border-radius:10px;padding:0 10px;background:rgba(255,255,255,.07);border:1px solid var(--bd);color:var(--ink);font-size:.8rem;outline:none}
+.lh-askhow option{color:#160a24}
+.lh-chat{flex:1;min-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:12px}
+.lh-chat>:first-child{margin-top:auto}
+.lh-msg{align-self:flex-start;max-width:88%;padding:8px 11px;border-radius:13px;background:rgba(255,255,255,.08)}
+.lh-msg.me{align-self:flex-end;background:#6B0099}
+.lh-msg b{display:block;font-size:.72rem;font-weight:600;color:rgba(255,255,255,.82)}
+.lh-msg p{margin:2px 0 0;font-size:.86rem;line-height:1.4;overflow-wrap:anywhere}
+.lh-reacts{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 8px}
+.lh-reacts button{height:34px;padding:0 11px;border:1px solid rgba(255,255,255,.2);border-radius:99px;background:transparent;color:var(--ink);font-size:.76rem}
+.lh-send{display:flex;gap:6px;padding:0 12px 12px}
+.lh-send input{flex:1;min-width:0;height:44px;padding:0 15px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid var(--bd);color:var(--ink);font-size:.86rem;outline:none}
+.lh-send button{width:44px;height:44px;flex:none;border:0;border-radius:50%;background:linear-gradient(135deg,#6B0099,#D40055);color:#fff;display:grid;place-items:center}
+.lh-float{position:absolute;bottom:64px;padding:6px 11px;border-radius:99px;background:rgba(20,10,30,.86);color:#fff;font-size:.8rem;font-weight:600;animation:lhRise 2.2s ease-out forwards}
+@keyframes lhRise{from{opacity:0;transform:translateY(12px)}15%{opacity:1}to{opacity:0;transform:translateY(-70px)}}
+@media (prefers-reduced-motion:reduce){.lh-float{animation:none}}
+@media (max-width:1023px){.lh-grid{grid-template-columns:minmax(0,1fr)}.lh-side{height:440px;max-height:none}.lh-stage{height:62vh}}
+@media (max-width:640px){.lh-pips{width:120px;right:12px;top:10px}.lh-pip{height:84px}.lh-pip .mono{width:38px;height:38px}.lh-paper{padding:14px}.lh-pick{position:fixed;left:16px;right:16px;top:auto;width:auto}}
+`;
+
+/** A class copy's private file, fetched with the viewer's sign-in so class membership is checked. */
+const ClubMedia: React.FC<{ home: ClassClubHome; photoId: string; kind: ClubMediaKind; alt: string; className?: string }> = ({ home, photoId, kind, alt, className }) => {
+  const [src, setSrc] = useState('');
+  const [state, setState] = useState<'loading' | 'gone' | 'error' | 'ready'>('loading');
+  useEffect(() => {
+    let live = true;
+    setState('loading');
+    classMediaObjectUrl(home, photoId).then(
+      url => { if (live) { setSrc(url); setState('ready'); } },
+      e => { if (live) setState(e instanceof ClassMediaGoneError ? 'gone' : 'error'); }
+    );
+    return () => { live = false; };
+  }, [home.kind, home.id, photoId]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (state !== 'ready') {
+    return (
+      <div data-club-media={state} className={`${className || ''} flex items-center justify-center min-h-24 bg-white/[0.04] text-[11px] text-white/45 p-3 text-center`}>
+        {state === 'gone' ? 'The owner removed this file.' : state === 'error' ? 'This file could not load.' : 'Loading…'}
+      </div>
+    );
+  }
+  if (kind === 'video') return <video src={src} controls className={className} />;
+  if (kind === 'audio') return <audio src={src} controls className="w-full" />;
+  return <img src={src} alt={alt} data-club-media="ready" className={className} />;
+};
+
+const CopyEditor: React.FC<{ value: string; multiline?: boolean; onChange: (v: string) => void; onSave: () => void; onCancel: () => void }> = ({ value, multiline, onChange, onSave, onCancel }) => (
+  <div className="space-y-1.5">
+    {multiline ? (
+      <textarea value={value} onChange={e => onChange(e.target.value)} rows={3} className="w-full rounded-xl bg-black/30 border border-white/15 p-2 text-sm text-white" />
+    ) : (
+      <input value={value} onChange={e => onChange(e.target.value)} className="w-full rounded-lg bg-black/30 border border-white/15 px-2 py-1 text-xs text-white" />
+    )}
+    <div className="flex gap-1.5">
+      <button type="button" onClick={onSave} disabled={!value.trim()} className="px-2.5 py-1 rounded-lg bg-amber-400 text-black text-[10px] font-black disabled:opacity-40">Save</button>
+      <button type="button" onClick={onCancel} className="px-2.5 py-1 rounded-lg bg-white/10 text-white/70 text-[10px] font-bold">Cancel</button>
+    </div>
+  </div>
+);
 
 export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   classId,
@@ -90,7 +264,11 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   currentUserName,
   currentUserAvatar,
   rosterStudents = [],
+  club = null,
   initialSection = 'LIVE_LECTURE',
+  embedded = false,
+  lessons,
+  teacherUids,
 }) => {
   const viewerUid = currentUserUid || auth.currentUser?.uid || (isTeacher ? teacherUid : 'student_local');
   const viewerName =
@@ -99,25 +277,28 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
     (isTeacher ? teacherName : 'Class Student');
 
   const [section, setSection] = useState<'SOCIAL_FEED' | 'PHOTOS' | 'LIVE_LECTURE' | 'ROSTER'>(initialSection);
+  useEffect(() => {
+    if (embedded) setSection(initialSection);
+  }, [embedded, initialSection]);
 
   // ── 1. Classroom Social Feed State ──
-  const [posts, setPosts] = useState<ClassroomSocialPost[]>(() =>
-    loadClassroomPosts(classId, { teacherName, className, contextKind })
-  );
+  const [posts, setPosts] = useState<ClassroomSocialPost[]>([]);
+  const [feedError, setFeedError] = useState('');
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
 
   // ── 2. Classroom Photos Gallery State ──
-  const [photos, setPhotos] = useState<ClassroomPhotoItem[]>(() =>
-    loadClassroomPhotos(classId, teacherName)
-  );
+  const [photos, setPhotos] = useState<ClassroomPhotoItem[]>([]);
   const [photoCaption, setPhotoCaption] = useState('');
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [lightboxPhoto, setLightboxPhoto] = useState<ClassroomPhotoItem | null>(null);
+  const [editing, setEditing] = useState<{ id: string; draft: string } | null>(null);
+  const galleryPhotos = photos.filter(ph => !ph.attachedToPost);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   // ── 3. Special Lecture Live Stream / Audio Live Talk / Screen Share / Whiteboard State ──
+  const lectureDefaults = { title: className, hostUid: teacherUid, hostName: teacherName };
   const [lecture, setLecture] = useState<LectureSessionState>(() =>
-    loadLectureSession(classId, { title: className, hostUid: teacherUid, hostName: teacherName })
+    isTeacher ? loadLectureSession(classId, lectureDefaults) : blankLectureSession(classId, lectureDefaults)
   );
   const [micMuted, setMicMuted] = useState(false);
   const [camEnabled, setCamEnabled] = useState(true);
@@ -130,10 +311,9 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
 
   // Media streams for Teacher Camera, Student Answer Camera, and Screen Share
   const teacherVideoRef = useRef<HTMLVideoElement | null>(null);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const studentVideoRef = useRef<HTMLVideoElement | null>(null);
   const screenShareVideoRef = useRef<HTMLVideoElement | null>(null);
-  const localCameraStreamRef = useRef<MediaStream | null>(null);
-  const screenStreamRef = useRef<MediaStream | null>(null);
 
   // Digital Whiteboard Canvas State
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -144,97 +324,359 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   const isDrawingRef = useRef(false);
   const currentStrokeRef = useRef<WhiteboardStroke | null>(null);
 
+  // Feed + photos are live from the class's shared record, so everyone in the class sees the same thing.
+  const clubKey = club ? `${club.kind}:${club.id}` : '';
   useEffect(() => {
-    setPosts(loadClassroomPosts(classId, { teacherName, className, contextKind }));
-    setPhotos(loadClassroomPhotos(classId, teacherName));
-    setLecture(loadLectureSession(classId, { title: className, hostUid: teacherUid, hostName: teacherName }));
+    setPosts([]);
+    setPhotos([]);
+    setFeedError('');
+    if (!club) return;
+    const fail = (e: Error) => {
+      console.warn('[classroomClub] feed unavailable', e);
+      setFeedError('The class feed could not load. You may not be on this class roster yet.');
+    };
+    const offPosts = watchClassroomPosts(club, setPosts, fail);
+    const offPhotos = watchClassroomPhotos(club, setPhotos, fail);
+    const uid = auth.currentUser?.uid;
+    if (uid) void migrateLocalClassroomFeed(classId, club, uid);
+    return () => { offPosts(); offPhotos(); };
+  }, [clubKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const feedAction = (work: Promise<unknown>) =>
+    work.catch((e: unknown) => {
+      console.warn('[classroomClub] write failed', e);
+      setFeedError("That didn't save. Check your connection and that you are on this class roster.");
+    });
+
+  useEffect(() => {
+    setLecture(isTeacher ? loadLectureSession(classId, lectureDefaults) : blankLectureSession(classId, lectureDefaults));
+  }, [classId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const lectureRef = useRef(lecture);
+  lectureRef.current = lecture;
+  const sendOpRef = useRef<(op: LectureOp) => void>(() => {});
+
+  /** Teacher: apply + persist (the broadcast follows). Student: send the parts a student may change
+   *  to the teacher and show them right away; the teacher's next broadcast settles it. */
+  const updateLecture = (patch: Partial<LectureSessionState>) => {
+    if (isTeacher) {
+      setLecture(prev => {
+        const next = { ...prev, ...patch };
+        saveLectureSession(classId, next);
+        return next;
+      });
+      return;
+    }
+    const prev = lectureRef.current;
+    const local: Partial<LectureSessionState> = {};
+    if (patch.raisedHands) {
+      const mine = patch.raisedHands.find(h => h.uid === viewerUid) || null;
+      sendOpRef.current({ k: 'hand', entry: mine });
+      local.raisedHands = patch.raisedHands;
+    }
+    if (patch.lectureChat) {
+      const known = new Set(prev.lectureChat.map(m => m.id));
+      patch.lectureChat.filter(m => !known.has(m.id) && m.senderUid === viewerUid).forEach(msg => sendOpRef.current({ k: 'chat', msg }));
+      local.lectureChat = patch.lectureChat;
+    }
+    if (patch.whiteboardStrokes && prev.allowStudentWhiteboard) {
+      const before = new Map(prev.whiteboardStrokes.map(st => [st.id, st]));
+      const after = new Set(patch.whiteboardStrokes.map(st => st.id));
+      patch.whiteboardStrokes.forEach(st => { if (before.get(st.id) !== st) sendOpRef.current({ k: 'stroke', stroke: st }); });
+      const gone = [...before.keys()].filter(id => !after.has(id));
+      if (gone.length) sendOpRef.current({ k: 'unstroke', ids: gone });
+      local.whiteboardStrokes = patch.whiteboardStrokes;
+    }
+    if ('activeStudentOnStage' in patch && patch.activeStudentOnStage === null && prev.activeStudentOnStage?.uid === viewerUid) {
+      sendOpRef.current({ k: 'leaveStage' });
+      local.activeStudentOnStage = null;
+    }
+    if (Object.keys(local).length) setLecture(p => ({ ...p, ...local }));
+  };
+
+  // Teacher side: apply a student's request, checked against who sent it (rtc peer id = their uid).
+  const applyStudentOp = useCallback((peerId: string, op: LectureOp) => {
+    setLecture(prev => {
+      let next = prev;
+      if (op.k === 'hand') {
+        const others = prev.raisedHands.filter(h => h.uid !== peerId);
+        next = { ...prev, raisedHands: op.entry && op.entry.uid === peerId ? [...others, { ...op.entry, status: 'WAITING' }] : others };
+        if (!op.entry && prev.activeStudentOnStage?.uid === peerId) next.activeStudentOnStage = null;
+      } else if (op.k === 'chat' && op.msg?.senderUid === peerId && typeof op.msg.text === 'string') {
+        next = { ...prev, lectureChat: [...prev.lectureChat, { ...op.msg, senderRole: 'STUDENT' as const, text: op.msg.text.slice(0, 1000) }].slice(-200) };
+      } else if (op.k === 'stroke' && prev.allowStudentWhiteboard && op.stroke?.id) {
+        const i = prev.whiteboardStrokes.findIndex(st => st.id === op.stroke.id);
+        const strokes = [...prev.whiteboardStrokes];
+        if (i >= 0) strokes[i] = op.stroke; else strokes.push(op.stroke);
+        next = { ...prev, whiteboardStrokes: strokes };
+      } else if (op.k === 'unstroke' && prev.allowStudentWhiteboard) {
+        const ids = new Set(op.ids);
+        next = { ...prev, whiteboardStrokes: prev.whiteboardStrokes.filter(st => !ids.has(st.id)) };
+      } else if (op.k === 'lessonAnswer' && prev.lessonSource?.interaction === 'TOGETHER' && typeof op.value === 'string') {
+        next = { ...prev, lessonShared: { ...(prev.lessonShared || {}), [String(op.qid)]: op.value.slice(0, 5000) } };
+      } else if (op.k === 'leaveStage' && prev.activeStudentOnStage?.uid === peerId) {
+        next = { ...prev, activeStudentOnStage: null, raisedHands: prev.raisedHands.filter(h => h.uid !== peerId) };
+      }
+      if (next !== prev) saveLectureSession(classId, next);
+      return next;
+    });
   }, [classId]);
 
-  const updateLecture = (patch: Partial<LectureSessionState>) => {
-    setLecture(prev => {
-      const next = { ...prev, ...patch };
-      saveLectureSession(classId, next);
+  // ── The lecture session (rtcCore 'stage'): the teacher publishes, students watch, and the student
+  // the teacher calls on publishes back. Students join while the lecture tab is open, so they see
+  // the lecture the moment it starts. With a roster, media only goes to people on it.
+  const onStageMe = !isTeacher && lecture.activeStudentOnStage?.uid === viewerUid;
+  const inLectureTab = section === 'LIVE_LECTURE';
+  const lectureSessionId = classLectureSessionId(classId);
+  // Whoever is teaching joins as the host. That is often not the class's creator (an assigned teacher,
+  // a department head), so students follow the host seat in the session rather than a fixed uid.
+  const teacherIds = useMemo(() => Array.from(new Set([teacherUid, ...(teacherUids || [])].filter(Boolean))), [teacherUid, teacherUids]);
+  const allowedPeerIds = useMemo(
+    () => (isTeacher && rosterStudents.length ? [...rosterStudents.map(r => r.id), ...teacherIds] : undefined),
+    [isTeacher, rosterStudents, teacherIds],
+  );
+  const hostPeerRef = useRef<string>(teacherUid);
+  const broadcastRef = useRef<() => void>(() => {});
+  const sendLessonRef = useRef<() => void>(() => {});
+  const assembleLessonRef = useRef(lessonAssembler());
+  const scrollSendRef = useRef(0);
+  const showReactionRef = useRef<(label: string) => void>(() => {});
+  const rtcSendRef = useRef<(type: string, payload?: unknown) => void>(() => {});
+  const gotStateRef = useRef(false);
+  const rtc = useRtcSession(
+    inLectureTab && (isTeacher ? lecture.isLive : true)
+      ? {
+          sessionId: lectureSessionId,
+          topology: 'stage',
+          role: isTeacher ? 'host' : onStageMe ? 'participant' : 'viewer',
+          media: isTeacher
+            ? { audio: true, video: true }
+            : onStageMe
+              ? { audio: true, video: lecture.mode === 'VIDEO_LECTURE' && lecture.activeStudentOnStage?.requestedMode === 'CAMERA' }
+              : { audio: false, video: false },
+          displayName: viewerName,
+          // Heartbeats: a teacher whose tab closed stops counting as live (and the class's live badge clears).
+          liveness: true,
+        }
+      : null,
+    {
+      autoJoin: true,
+      allowedPeerIds,
+      onData: (peerId, msg) => {
+        if (isTeacher) {
+          if (msg.type === 'lecture:op' && msg.payload) {
+            const op = msg.payload as LectureOp;
+            if (op.k === 'react') {
+              // Students only reach the teacher, so the teacher passes a reaction on.
+              const label = String(op.label || '').slice(0, 24);
+              showReactionRef.current(label);
+              rtcSendRef.current('lecture:react', { label });
+            } else applyStudentOp(peerId, op);
+          }
+          if (msg.type === 'lecture:hello') broadcastRef.current();
+          if (msg.type === 'lecture:needLesson') sendLessonRef.current();
+        } else if (msg.type === 'lecture:state' && msg.payload && peerId === hostPeerRef.current) {
+          gotStateRef.current = true;
+          setLecture(msg.payload as LectureSessionState);
+        } else if (peerId === hostPeerRef.current && msg.type === 'lecture:lesson') {
+          const unit = assembleLessonRef.current(msg.payload as LessonChunk);
+          if (unit) setReceivedLesson(unit);
+        } else if (peerId === hostPeerRef.current && msg.type === 'lecture:follow') {
+          setFollowY(Number((msg.payload as { y?: number })?.y) || 0);
+        } else if (peerId === hostPeerRef.current && msg.type === 'lecture:react') {
+          showReactionRef.current(String((msg.payload as { label?: string })?.label || '').slice(0, 24));
+        }
+      },
+    },
+  );
+  // The host seat, falling back to the class creator before anyone has joined.
+  const hostPeerId = useMemo(
+    () => (isTeacher ? viewerUid : rtc.participants.find(p => p.role === 'host')?.id || teacherUid),
+    [isTeacher, viewerUid, rtc.participants, teacherUid],
+  );
+  hostPeerRef.current = hostPeerId;
+  const fx = useLiveFx(rtc);
+  const [mediaSheet, setMediaSheet] = useState(false);
+
+  // The lesson on the stage is the document itself. Students get a key-free copy in small pieces and
+  // draw it themselves; after that only the teacher's place in it travels.
+  const [lessonPicker, setLessonPicker] = useState(false);
+  // Who's called on in class is who can interact with the document.
+  const calledOnUid = lecture.activeStudentOnStage?.uid;
+  const [telaPicker, setTelaPicker] = useState(false);
+  // A real Tela document goes through the platform's shared source, with its videos, sims and models intact.
+  const liveDocMembers = useMemo(() => (rosterStudents.length ? [...rosterStudents.map(r => r.id), ...teacherIds] : undefined), [rosterStudents, teacherIds]);
+  const liveDoc = useLiveDocSource(inLectureTab ? `class_lecture_${classId}` : null, { hostName: viewerName, audience: liveDocMembers ? 'members' : 'signedIn', memberUids: liveDocMembers });
+  const [receivedLesson, setReceivedLesson] = useState<IngestedCurriculumUnit | null>(null);
+  const [followY, setFollowY] = useState<number | null>(null);
+  const stageLessons = useMemo(() => (lessons || []).filter(u => !u.isAnswerKeyOnly && u.libraryCategory !== 'ANSWER_KEY'), [lessons]);
+  const lessonId = lecture.lessonSource?.unitId;
+  const lessonUnit = !lessonId ? null : (receivedLesson?.id === lessonId ? receivedLesson : stageLessons.find(u => u.id === lessonId) || null);
+  const lessonUnitRef = useRef(lessonUnit);
+  lessonUnitRef.current = lessonUnit;
+  const teacherPlaceRef = useRef(0);
+  const lastLessonSendRef = useRef(0);
+  sendLessonRef.current = () => {
+    const unit = lessonUnitRef.current;
+    if (!unit || Date.now() - lastLessonSendRef.current < 1500) return;
+    lastLessonSendRef.current = Date.now();
+    lessonChunks(unit).forEach(c => rtc.sendData('lecture:lesson', c));
+  };
+  useEffect(() => {
+    if (isTeacher && lessonId) { lastLessonSendRef.current = 0; sendLessonRef.current(); }
+  }, [isTeacher, lessonId, rtc.participants.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    // Student: keep asking until the lesson is here (a piece can be dropped).
+    if (isTeacher || !lessonId || lessonUnit) return;
+    rtc.sendData('lecture:needLesson');
+    const t = window.setInterval(() => rtc.sendData('lecture:needLesson'), 2000);
+    return () => window.clearInterval(t);
+  }, [isTeacher, lessonId, !!lessonUnit]); // eslint-disable-line react-hooks/exhaustive-deps
+  const handleTeacherScroll = useCallback((y: number) => {
+    teacherPlaceRef.current = y;
+    if (scrollSendRef.current) return;
+    scrollSendRef.current = window.setTimeout(() => {
+      scrollSendRef.current = 0;
+      rtc.sendData('lecture:follow', { y: teacherPlaceRef.current });
+    }, 150);
+  }, [rtc.sendData]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    // A student who joins mid-lesson still lands on the teacher's place.
+    if (!isTeacher || !lessonId) return;
+    const t = window.setInterval(() => rtc.sendData('lecture:follow', { y: teacherPlaceRef.current }), 3000);
+    return () => window.clearInterval(t);
+  }, [isTeacher, lessonId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (isTeacher && liveDoc.isHost && liveDoc.active) liveDoc.setInvited(calledOnUid ? [calledOnUid] : []);
+  }, [isTeacher, liveDoc.isHost, liveDoc.active, calledOnUid]); // eslint-disable-line react-hooks/exhaustive-deps
+  // How the class uses it: read along, a private copy each, or one copy everyone writes on.
+  const interaction = lecture.lessonSource?.interaction || 'FOLLOW';
+  const ownKey = lessonId ? `plajah_live_lesson_${classId}_${lessonId}_${viewerUid}` : '';
+  const [ownAnswers, setOwnAnswers] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!ownKey || !lessonId) return;
+    let saved: Record<string, string> = {};
+    try { saved = JSON.parse(localStorage.getItem(ownKey) || '{}'); } catch {}
+    setOwnAnswers(saved);
+  }, [ownKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const handleOwnAnswer = (qid: string, value: string) => {
+    setOwnAnswers(prev => {
+      const next = { ...prev, [qid]: value };
+      try { localStorage.setItem(ownKey, JSON.stringify(next)); } catch {}
       return next;
     });
   };
+  // A shared answer being typed here wins over a broadcast that hasn't caught up with it yet.
+  const [typingShared, setTypingShared] = useState<Record<string, { value: string; at: number }>>({});
+  const handleSharedAnswer = (qid: string, value: string) => {
+    setTypingShared(prev => ({ ...prev, [qid]: { value, at: Date.now() } }));
+    if (isTeacher) updateLecture({ lessonShared: { ...(lecture.lessonShared || {}), [qid]: value } });
+    else sendOpRef.current({ k: 'lessonAnswer', qid, value });
+  };
+  const sharedAnswers = { ...(lecture.lessonShared || {}) };
+  Object.entries(typingShared).forEach(([qid, t]) => { if (Date.now() - t.at < 2000) sharedAnswers[qid] = t.value; });
+  const handlePutLessonOnStage = (u: IngestedCurriculumUnit) => {
+    if (screenSharing) { rtc.toggleScreenShare(); setScreenSharing(false); }
+    teacherPlaceRef.current = 0;
+    setLessonPicker(false);
+    updateLecture({ stageSurface: 'LESSON', lessonSource: { unitId: u.id, title: u.title, interaction }, lessonShared: {} });
+  };
+  sendOpRef.current = op => rtc.sendData('lecture:op', op);
+  rtcSendRef.current = rtc.sendData;
 
-  // Start / Stop Camera when Live Video Lecture is active
+  // Teacher: re-broadcast the lecture after every change and whenever someone joins.
+  broadcastRef.current = () => {
+    let state: LectureSessionState = lectureRef.current;
+    if (JSON.stringify(state).length > MAX_STATE_BYTES) state = { ...state, whiteboardStrokes: state.whiteboardStrokes.slice(-60) };
+    rtc.sendData('lecture:state', state);
+  };
   useEffect(() => {
-    const needsCamera =
-      lecture.isLive &&
-      lecture.mode === 'VIDEO_LECTURE' &&
-      camEnabled &&
-      (isTeacher || lecture.activeStudentOnStage?.uid === viewerUid);
-
-    if (!needsCamera) {
-      if (localCameraStreamRef.current) {
-        localCameraStreamRef.current.getTracks().forEach(t => t.stop());
-        localCameraStreamRef.current = null;
-      }
-      return;
+    if (!isTeacher || !rtc.localStream) return;
+    const t = window.setTimeout(() => broadcastRef.current(), 120);
+    return () => window.clearTimeout(t);
+  }, [isTeacher, lecture, rtc.localStream, rtc.participants.length]);
+  // A data channel opens a moment after its media, so an early broadcast can miss a new student;
+  // a slow heartbeat covers that (and any dropped message).
+  useEffect(() => {
+    if (!isTeacher || !rtc.localStream) return;
+    const t = window.setInterval(() => broadcastRef.current(), 4000);
+    return () => window.clearInterval(t);
+  }, [isTeacher, rtc.localStream]);
+  // Students: ask for the current state once connected; back to "not live" once the teacher has left.
+  const hostStream = !isTeacher ? (rtc.remoteStreams.get(hostPeerId) ?? null) : null;
+  useEffect(() => {
+    if (isTeacher) return;
+    if (hostStream) {
+      // Ask until the teacher's state arrives (it also comes on the teacher's heartbeat).
+      gotStateRef.current = false;
+      const t = window.setInterval(() => { if (!gotStateRef.current) rtc.sendData('lecture:hello'); }, 700);
+      return () => window.clearInterval(t);
     }
+    // The teacher's feed also blips while a student re-joins as a speaker: only call the lecture
+    // over if it stays gone.
+    const t = window.setTimeout(() => setLecture(p => (p.isLive ? { ...p, isLive: false, activeStudentOnStage: null } : p)), 10_000);
+    return () => window.clearTimeout(t);
+  }, [isTeacher, hostStream]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    let cancelled = false;
-    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getUserMedia) {
-      navigator.mediaDevices
-        .getUserMedia({ video: true, audio: !micMuted })
-        .then(stream => {
-          if (cancelled) {
-            stream.getTracks().forEach(t => t.stop());
-            return;
-          }
-          localCameraStreamRef.current = stream;
-          if (isTeacher && teacherVideoRef.current) {
-            teacherVideoRef.current.srcObject = stream;
-          } else if (studentVideoRef.current) {
-            studentVideoRef.current.srcObject = stream;
-          }
-        })
-        .catch(() => {
-          // Camera unavailable or permission declined; UI falls back to simulated studio feed
-        });
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [lecture.isLive, lecture.mode, camEnabled, isTeacher, lecture.activeStudentOnStage?.uid, viewerUid, micMuted]);
+  // Mic / camera switches drive the published tracks.
+  useEffect(() => { rtc.setAudio(!micMuted); }, [micMuted, rtc.localStream]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    rtc.setVideo(camEnabled && lecture.mode === 'VIDEO_LECTURE');
+  }, [camEnabled, lecture.mode, rtc.localStream]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Toggle Screen Share (`getDisplayMedia`)
+  // Stage tiles: the teacher sees their own feed and students see the teacher's. The called-on
+  // student sees themself; everyone else sees that student's published feed.
+  const onStageUid = lecture.activeStudentOnStage?.uid;
+  const teacherFeed = isTeacher ? rtc.localStream : hostStream;
+  const studentFeed = onStageMe ? rtc.localStream : onStageUid ? (rtc.remoteStreams.get(onStageUid) ?? null) : null;
+  const screenFeed = isTeacher ? rtc.screenStream : hostStream;
+  useEffect(() => { if (teacherVideoRef.current && teacherVideoRef.current.srcObject !== teacherFeed) teacherVideoRef.current.srcObject = teacherFeed; });
+  useEffect(() => { if (studentVideoRef.current && studentVideoRef.current.srcObject !== studentFeed) studentVideoRef.current.srcObject = studentFeed; });
+  useEffect(() => { if (screenShareVideoRef.current && screenShareVideoRef.current.srcObject !== screenFeed) screenShareVideoRef.current.srcObject = screenFeed; });
+  const screenSharingLive = isTeacher ? rtc.sharingScreen : !!hostStream && lecture.stageSurface === 'SCREEN_SHARE';
+  useEffect(() => {
+    // The browser's own "Stop sharing" ends the share: fall back to the camera stage.
+    if (isTeacher && screenSharing && !rtc.sharingScreen) { setScreenSharing(false); updateLecture({ stageSurface: 'CAMERA' }); }
+  }, [rtc.sharingScreen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Going live tells the class: each student on the roster gets a notification to come watch.
+  const announcedRef = useRef<number>(0);
+  const announceLive = () => {
+    const me = auth.currentUser?.uid;
+    if (!me || Date.now() - announcedRef.current < 10 * 60_000) return;
+    announcedRef.current = Date.now();
+    const to = Array.from(new Set(rosterStudents.map(r => r.id).filter(id => id && id !== me)));
+    to.forEach(userId => {
+      createNotification({
+        userId,
+        senderId: me,
+        senderName: viewerName,
+        senderPhoto: currentUserAvatar || auth.currentUser?.photoURL || '',
+        type: 'SYSTEM',
+        title: `${className} is live now`,
+        message: `${viewerName} started class. Open the class and choose Live to watch.`,
+        targetId: classId,
+      } as any).catch(() => {});
+    });
+  };
+  const toggleLive = () => {
+    const goingLive = !lecture.isLive;
+    updateLecture({ isLive: goingLive, startedAt: Date.now() });
+    if (goingLive) announceLive();
+  };
+
+  // Screen share goes out on the lecture session (hot track swap), so students see it.
   const handleToggleScreenShare = async () => {
-    if (screenSharing && screenStreamRef.current) {
-      screenStreamRef.current.getTracks().forEach(t => t.stop());
-      screenStreamRef.current = null;
+    if (!isTeacher) return;
+    if (screenSharing) {
+      rtc.toggleScreenShare();
       setScreenSharing(false);
       updateLecture({ stageSurface: 'CAMERA' });
       return;
     }
-
-    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getDisplayMedia) {
-      try {
-        const displayStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true,
-        });
-        screenStreamRef.current = displayStream;
-        setScreenSharing(true);
-        updateLecture({ stageSurface: 'SCREEN_SHARE', isLive: true });
-        setTimeout(() => {
-          if (screenShareVideoRef.current) {
-            screenShareVideoRef.current.srcObject = displayStream;
-          }
-        }, 80);
-        displayStream.getVideoTracks()[0]?.addEventListener('ended', () => {
-          setScreenSharing(false);
-          screenStreamRef.current = null;
-          updateLecture({ stageSurface: 'CAMERA' });
-        });
-      } catch {
-        // User cancelled native screen picker; still switch to screen-share preview surface
-        updateLecture({ stageSurface: 'SCREEN_SHARE' });
-      }
-    } else {
-      updateLecture({ stageSurface: 'SCREEN_SHARE' });
-    }
+    if (!lecture.isLive) { updateLecture({ isLive: true, startedAt: Date.now() }); announceLive(); }
+    updateLecture({ stageSurface: 'SCREEN_SHARE' });
+    // The session only exists once the lecture is live, so give it a moment to start.
+    window.setTimeout(() => { rtc.toggleScreenShare(); setScreenSharing(true); }, lecture.isLive ? 0 : 900);
   };
 
   // Render Digital Whiteboard Canvas whenever strokes or background change
@@ -395,17 +837,24 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   const handleSaveWhiteboardToPhotos = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const dataUrl = canvas.toDataURL('image/png');
-    const nextPhotos = addClassroomPhoto(classId, {
-      url: dataUrl,
-      caption: `Lecture Whiteboard Snapshot · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-      uploadedByUid: viewerUid,
-      uploadedByName: viewerName,
-      uploadedByRole: isTeacher ? 'TEACHER' : 'STUDENT',
-      isWhiteboardSnapshot: true,
-    });
-    setPhotos(nextPhotos);
-    alert('Saved whiteboard snapshot to Classroom Photos!');
+    if (!club) {
+      alert('Whiteboard snapshots are saved to a real class. Create a class first.');
+      return;
+    }
+    const home = club;
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      void feedAction((async () => {
+        await shareClassMedia(home, new File([blob], `whiteboard_${Date.now()}.png`, { type: 'image/png' }), {
+          caption: `Lecture Whiteboard Snapshot · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+          uploadedByUid: viewerUid,
+          uploadedByName: viewerName,
+          uploadedByRole: isTeacher ? 'TEACHER' : 'STUDENT',
+          isWhiteboardSnapshot: true,
+        });
+        alert('Saved whiteboard snapshot to Classroom Photos!');
+      })());
+    }, 'image/png');
   };
 
   // Raise Hand / Call Student to Camera or Audio Mic Stage
@@ -458,76 +907,90 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
     });
   };
 
-  const handleTriggerReaction = (emoji: string) => {
+  showReactionRef.current = (label: string) => {
+    if (!label) return;
     const id = Date.now() + Math.random();
-    setFloatingReactions(prev => [...prev, { id, emoji, left: 15 + Math.random() * 70 }]);
+    setFloatingReactions(prev => [...prev, { id, emoji: label, left: 15 + Math.random() * 60 }]);
     setTimeout(() => {
       setFloatingReactions(prev => prev.filter(r => r.id !== id));
     }, 2200);
   };
+  const handleSendReaction = (label: string) => {
+    showReactionRef.current(label);
+    sendOpRef.current({ k: 'react', label });
+  };
+
+  const sendLectureChat = () => {
+    const text = lectureChatDraft.trim();
+    if (!text) return;
+    updateLecture({
+      lectureChat: [
+        ...lecture.lectureChat,
+        { id: `lchat_${Date.now()}`, senderUid: viewerUid, senderName: viewerName, senderRole: isTeacher ? 'TEACHER' : 'STUDENT', text, createdAt: Date.now() },
+      ],
+    });
+    setLectureChatDraft('');
+  };
+  useEffect(() => {
+    const el = chatScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [lecture.lectureChat.length, section]);
 
   // Social Feed Composer Submit
-  const handleCreateSocialPost = async (data: ComposerSubmitData) => {
+  const handleCreateSocialPost = async (data: ComposerPostData) => {
+    if (!club) return;
     const text = (data.text || '').trim();
-    const resolvedMedia = await resolveComposerMedia(data.attachments || [], viewerUid).catch(() => []);
+    await feedAction((async () => {
+    // Files stay private to their owner and this class; only links and GIFs keep their own URL.
+    const attachments = data.attachments || [];
+    const files = attachments.filter((a: any) => a.file);
+    const resolvedMedia = await resolveComposerMedia(attachments.filter((a: any) => !a.file), viewerUid).catch(() => []);
     const mediaUrls = resolvedMedia.map(m => m.url).filter(Boolean);
-    const next = addClassroomPost(classId, {
+    const shared = await Promise.all(files.map((a: any) => shareClassMedia(club, a.file, {
+      caption: text.slice(0, 200) || a.file.name,
+      uploadedByUid: viewerUid,
+      uploadedByName: viewerName,
+      uploadedByRole: isTeacher ? 'TEACHER' : 'STUDENT',
+      attachedToPost: true,
+    })));
+    await addClassroomPost(club, {
       authorUid: viewerUid,
       authorName: viewerName,
       authorRole: isTeacher ? 'TEACHER' : 'STUDENT',
       authorAvatar: currentUserAvatar,
       text,
       mediaUrls: mediaUrls.length > 0 ? mediaUrls : undefined,
-      telaDocId: data.assetEmbed?.kind === 'TELA_DOC' ? data.assetEmbed.id : undefined,
-      telaTitle: data.assetEmbed?.kind === 'TELA_DOC' ? data.assetEmbed.title : undefined,
+      mediaItems: shared.length > 0 ? shared.map(s => ({ photoId: s.id, kind: s.kind })) : undefined,
       pinned: false,
     });
-    setPosts(next);
+    })());
   };
 
   // Upload Photo to Classroom Gallery
   const handleUploadClassroomPhoto = async (file: File) => {
+    if (!club) return;
     setUploadingPhoto(true);
     try {
-      let url = '';
-      try {
-        url = await uploadFile(`uploads/organizations/${classId}/gallery_${Date.now()}_${file.name}`, file);
-      } catch {
-        url = await new Promise<string>((resolve, reject) => {
-          const r = new FileReader();
-          r.onload = () => resolve(String(r.result || ''));
-          r.onerror = () => reject(new Error('Could not read image'));
-          r.readAsDataURL(file);
+      await feedAction((async () => {
+        await shareClassMedia(club, file, {
+          caption: photoCaption.trim() || file.name.replace(/\.[a-z0-9]+$/i, ''),
+          uploadedByUid: viewerUid,
+          uploadedByName: viewerName,
+          uploadedByRole: isTeacher ? 'TEACHER' : 'STUDENT',
         });
-      }
-      const next = addClassroomPhoto(classId, {
-        url,
-        caption: photoCaption.trim() || file.name.replace(/\.[a-z0-9]+$/i, ''),
-        uploadedByUid: viewerUid,
-        uploadedByName: viewerName,
-        uploadedByRole: isTeacher ? 'TEACHER' : 'STUDENT',
-      });
-      setPhotos(next);
-      setPhotoCaption('');
+        setPhotoCaption('');
+      })());
     } finally {
       setUploadingPhoto(false);
     }
   };
 
-  const effectiveRoster =
-    rosterStudents.length > 0
-      ? rosterStudents
-      : [
-          { id: 'stu_1', name: 'Naomi Vance', roleLabel: 'Student' },
-          { id: 'stu_2', name: 'Micah Sterling', roleLabel: 'Student' },
-          { id: 'stu_3', name: 'Maya Lin', roleLabel: 'Student' },
-          { id: 'stu_4', name: 'Jordan Brooks', roleLabel: 'Student' },
-        ];
+  const effectiveRoster = rosterStudents;
 
   return (
     <div className="space-y-5 text-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       {/* Club-Model Classroom Header Banner */}
-      <div className="rounded-3xl border border-white/12 bg-gradient-to-r from-[#17092b] via-[#120b24] to-[#0b0614] p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl">
+      <div style={embedded ? { display: 'none' } : undefined} className="rounded-3xl border border-white/12 bg-gradient-to-r from-[#17092b] via-[#120b24] to-[#0b0614] p-5 flex flex-wrap items-center justify-between gap-4 shadow-xl">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="px-2.5 py-0.5 rounded-full bg-amber-400/20 border border-amber-400/40 text-amber-200 text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1">
@@ -591,7 +1054,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                 : 'bg-white/5 text-white/70 hover:text-white hover:bg-white/10'
             }`}
           >
-            <ImageIcon size={13} /> Classroom Photos ({photos.length})
+            <ImageIcon size={13} /> Classroom Photos ({galleryPhotos.length})
           </button>
 
           <button
@@ -612,107 +1075,62 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
           TAB 1: SPECIAL INTERACTIVE LECTURE LIVE STREAM (VIDEO LECTURE + AUDIO LIVE TALK + SCREEN SHARE + DIGITAL WHITEBOARD)
           ═══════════════════════════════════════════════════════════════════════════ */}
       {section === 'LIVE_LECTURE' && (
-        <div className="space-y-4">
-          {/* Top Lecture Control Bar: Video Lecture vs Audio Live Talk + Stage Surface Switcher */}
-          <div className="rounded-3xl border border-white/12 bg-white/[0.03] p-4 flex flex-wrap items-center justify-between gap-3">
-            {/* Broadcast Mode Switcher (Video Lecture vs Audio Live Talk) */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10px] font-black uppercase tracking-widest text-white/45 mr-1">
-                Lecture Mode:
-              </span>
-              <button
-                type="button"
-                onClick={() => isTeacher && updateLecture({ mode: 'VIDEO_LECTURE' })}
-                className={`px-3.5 py-2 rounded-xl text-xs font-black inline-flex items-center gap-1.5 transition ${
-                  lecture.mode === 'VIDEO_LECTURE'
-                    ? 'bg-[#D40055] text-white shadow'
-                    : 'bg-white/5 text-white/65 hover:text-white'
-                }`}
-              >
-                <Video size={13} /> Video Lecture (On-Camera Student Answers)
-              </button>
-              <button
-                type="button"
-                onClick={() => isTeacher && updateLecture({ mode: 'AUDIO_LIVE_TALK' })}
-                className={`px-3.5 py-2 rounded-xl text-xs font-black inline-flex items-center gap-1.5 transition ${
-                  lecture.mode === 'AUDIO_LIVE_TALK'
-                    ? 'bg-[#8B5CF6] text-white shadow'
-                    : 'bg-white/5 text-white/65 hover:text-white'
-                }`}
-              >
-                <Volume2 size={13} /> Audio Live Talk Lecture (Interactive Podium)
-              </button>
-            </div>
-
-            {/* Stage Surface Switcher (Camera/Podium · Screen Share · Digital Whiteboard) */}
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => updateLecture({ stageSurface: 'CAMERA' })}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 border ${
-                  lecture.stageSurface === 'CAMERA'
-                    ? 'bg-white text-black border-white'
-                    : 'bg-white/5 border-white/15 text-white/75 hover:text-white'
-                }`}
-              >
-                {lecture.mode === 'AUDIO_LIVE_TALK' ? <Mic size={13} /> : <Camera size={13} />}
-                {lecture.mode === 'AUDIO_LIVE_TALK' ? 'Audio Podium' : 'Camera Stage'}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleToggleScreenShare}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 border ${
-                  lecture.stageSurface === 'SCREEN_SHARE'
-                    ? 'bg-cyan-400 text-black border-cyan-300 font-black'
-                    : 'bg-white/5 border-white/15 text-white/75 hover:text-white'
-                }`}
-              >
-                <MonitorUp size={13} /> {screenSharing ? 'Stop Screen Share' : 'Share Screen'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => updateLecture({ stageSurface: 'WHITEBOARD' })}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 border ${
-                  lecture.stageSurface === 'WHITEBOARD'
-                    ? 'bg-amber-400 text-black border-amber-300 font-black'
-                    : 'bg-white/5 border-white/15 text-white/75 hover:text-white'
-                }`}
-              >
-                <PenTool size={13} /> Digital Whiteboard
-              </button>
-
-              {isTeacher && (
-                <button
-                  type="button"
-                  onClick={() => updateLecture({ isLive: !lecture.isLive, startedAt: Date.now() })}
-                  className={`px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider inline-flex items-center gap-1.5 shadow ${
-                    lecture.isLive
-                      ? 'bg-rose-600 hover:bg-rose-500 text-white'
-                      : 'bg-emerald-400 hover:bg-emerald-300 text-black'
-                  }`}
-                >
-                  <Radio size={13} /> {lecture.isLive ? 'End Lecture' : 'Go Live Now'}
+        <div className={`lh${stageFullscreen ? ' wide' : ''}`}>
+          <style>{LECTURE_HALL_CSS}</style>
+          {telaPicker && <LiveDocPicker src={liveDoc} onClose={() => setTelaPicker(false)} onStarted={() => { if (screenSharing) { rtc.toggleScreenShare(); setScreenSharing(false); } updateLecture({ stageSurface: 'TELA_DOC', lessonSource: null }); }} />}
+          <header className="lh-head">
+            {lecture.isLive && <span className="lh-live"><i aria-hidden="true" />LIVE</span>}
+            <h2>{className}</h2>
+            {lecture.stageSurface === 'LESSON' && lecture.lessonSource && <span className="lh-sub">{lecture.lessonSource.title}</span>}
+            <span style={{ flex: 1 }} />
+            {isTeacher && (
+              <>
+                <div className="lh-seg" role="group" aria-label="Lecture type">
+                  <button type="button" aria-pressed={lecture.mode === 'VIDEO_LECTURE'} onClick={() => updateLecture({ mode: 'VIDEO_LECTURE' })}><Video size={14} /> Video</button>
+                  <button type="button" aria-pressed={lecture.mode === 'AUDIO_LIVE_TALK'} onClick={() => updateLecture({ mode: 'AUDIO_LIVE_TALK' })}><Volume2 size={14} /> Audio</button>
+                </div>
+                <div className="lh-seg" role="group" aria-label="What the class sees">
+                  <span style={{ position: 'relative', display: 'inline-flex' }}>
+                    <button type="button" aria-pressed={lecture.stageSurface === 'LESSON' || lecture.stageSurface === 'TELA_DOC'} aria-expanded={lessonPicker} onClick={() => setLessonPicker(v => !v)}><BookOpen size={14} /> Lesson</button>
+                    {lessonPicker && (
+                      <div className="lh-pick" role="menu" aria-label="Choose a lesson">
+                        <button type="button" role="menuitem" onClick={() => { setLessonPicker(false); setTelaPicker(true); }}><strong>Present a Tela document…</strong></button>
+                        {stageLessons.length === 0 && <p>This class has no lessons yet. Add one from the Lesson Library.</p>}
+                        {stageLessons.map(u => (
+                          <button key={u.id} type="button" role="menuitem" aria-current={lecture.lessonSource?.unitId === u.id} onClick={() => handlePutLessonOnStage(u)}>{u.title}</button>
+                        ))}
+                      </div>
+                    )}
+                  </span>
+                  <button type="button" aria-pressed={lecture.stageSurface === 'CAMERA'} onClick={() => { if (screenSharing) void handleToggleScreenShare(); updateLecture({ stageSurface: 'CAMERA' }); }}>
+                    {lecture.mode === 'AUDIO_LIVE_TALK' ? <Mic size={14} /> : <Camera size={14} />} {lecture.mode === 'AUDIO_LIVE_TALK' ? 'Podium' : 'Camera'}
+                  </button>
+                  <button type="button" aria-pressed={lecture.stageSurface === 'WHITEBOARD'} onClick={() => updateLecture({ stageSurface: 'WHITEBOARD' })}><PenTool size={14} /> Whiteboard</button>
+                  <button type="button" aria-pressed={lecture.stageSurface === 'SCREEN_SHARE'} onClick={handleToggleScreenShare}><MonitorUp size={14} /> {screenSharing ? 'Stop sharing' : 'Screen'}</button>
+                </div>
+                {lecture.stageSurface === 'LESSON' && lecture.lessonSource && !!lessonUnit?.questions.length && (
+                  <div className="lh-seg" role="group" aria-label="How the class uses this document">
+                    {([['FOLLOW', 'Follow me'], ['OWN_COPY', 'Own copy'], ['TOGETHER', 'Together']] as const).map(([k, label]) => (
+                      <button key={k} type="button" aria-pressed={interaction === k} onClick={() => updateLecture({ lessonSource: { ...lecture.lessonSource!, interaction: k } })}>{label}</button>
+                    ))}
+                  </div>
+                )}
+                <button type="button" className={`lh-go${lecture.isLive ? ' end' : ''}`} onClick={toggleLive}>
+                  <Radio size={14} /> {lecture.isLive ? 'End class' : 'Go live'}
                 </button>
-              )}
-            </div>
-          </div>
+              </>
+            )}
+          </header>
 
-          {/* Main Lecture Grid: Stage (8 cols) + Raise Hand Queue & Live Lecture Chat (4 cols) */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            {/* LEFT 8 COLS: PRIMARY LECTURE STAGE */}
-            <div
-              className={`${
-                stageFullscreen ? ' lg:col-span-12' : 'lg:col-span-8'
-              } rounded-3xl border border-white/15 bg-[#090412] overflow-hidden shadow-2xl relative`}
-            >
+          <div className="lh-grid">
+            <div className="lh-main">
+            <div className="lh-stage">
               {/* Floating Classroom Reactions */}
               <div className="pointer-events-none absolute inset-0 overflow-hidden z-30">
                 {floatingReactions.map(r => (
                   <div
                     key={r.id}
-                    className="absolute bottom-16 text-2xl animate-bounce"
+                    className="lh-float"
                     style={{ left: `${r.left}%` }}
                   >
                     {r.emoji}
@@ -721,7 +1139,63 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
               </div>
 
               {/* STAGE SURFACE A: DIGITAL WHITEBOARD (Available in both Video & Audio modes!) */}
-              {lecture.stageSurface === 'WHITEBOARD' ? (
+              {lecture.stageSurface === 'TELA_DOC' && liveDoc.active ? (
+                <Suspense fallback={null}><LiveDocStage src={liveDoc} ownHandQueue>
+                  <div className="lh-pip">
+                    <video ref={teacherVideoRef} autoPlay playsInline muted style={{ opacity: lecture.isLive && lecture.mode === 'VIDEO_LECTURE' && teacherFeed && (isTeacher ? camEnabled : true) ? 1 : 0 }} />
+                    <span className="mono" aria-hidden="true">{teacherName.slice(0, 2).toUpperCase()}</span>
+                    <span className="who">{teacherName}</span>
+                  </div>
+                  {lecture.activeStudentOnStage && (
+                    <div className="lh-pip on">
+                      <video ref={studentVideoRef} autoPlay playsInline muted style={{ opacity: studentFeed?.getVideoTracks().some(t => t.readyState === 'live') && (!onStageMe || camEnabled) ? 1 : 0 }} />
+                      <span className="mono" aria-hidden="true">{lecture.activeStudentOnStage.name.slice(0, 2).toUpperCase()}</span>
+                      <span className="who">{lecture.activeStudentOnStage.name}</span>
+                      {(isTeacher || onStageMe) && (
+                        <button type="button" aria-label="Return to seat" title="Return to seat" onClick={() => handleDismissStudentFromStage(lecture.activeStudentOnStage!.uid)}><X size={13} /></button>
+                      )}
+                    </div>
+                  )}
+                </LiveDocStage></Suspense>
+              ) : lecture.stageSurface === 'LESSON' ? (
+                <LectureLessonStage
+                  unit={lessonUnit}
+                  followY={!isTeacher && interaction === 'FOLLOW' ? followY : undefined}
+                  onScrollY={isTeacher ? handleTeacherScroll : undefined}
+                  answers={interaction === 'TOGETHER' ? sharedAnswers : interaction === 'OWN_COPY' && !isTeacher ? ownAnswers : undefined}
+                  onAnswer={interaction === 'TOGETHER' ? handleSharedAnswer : interaction === 'OWN_COPY' && !isTeacher ? handleOwnAnswer : undefined}
+                  note={!lessonUnit?.questions.length ? undefined : interaction === 'TOGETHER' ? 'One copy for the whole class. Everyone sees what you write.'
+                    : interaction === 'OWN_COPY' ? (isTeacher ? 'Each student is writing on their own private copy.' : 'Your own copy. Only you can see what you write here.') : undefined}
+                >
+                  <div className="lh-pip">
+                    <video
+                      ref={teacherVideoRef}
+                      autoPlay
+                      playsInline
+                      muted
+                      style={{ opacity: lecture.isLive && lecture.mode === 'VIDEO_LECTURE' && teacherFeed && (isTeacher ? camEnabled : true) ? 1 : 0 }}
+                    />
+                    <span className="mono" aria-hidden="true">{teacherName.slice(0, 2).toUpperCase()}</span>
+                    <span className="who">{teacherName}</span>
+                  </div>
+                  {lecture.activeStudentOnStage && (
+                    <div className="lh-pip on">
+                      <video
+                        ref={studentVideoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        style={{ opacity: studentFeed?.getVideoTracks().some(t => t.readyState === 'live') && (!onStageMe || camEnabled) ? 1 : 0 }}
+                      />
+                      <span className="mono" aria-hidden="true">{lecture.activeStudentOnStage.name.slice(0, 2).toUpperCase()}</span>
+                      <span className="who">{lecture.activeStudentOnStage.name}</span>
+                      {(isTeacher || onStageMe) && (
+                        <button type="button" aria-label="Return to seat" title="Return to seat" onClick={() => handleDismissStudentFromStage(lecture.activeStudentOnStage!.uid)}><X size={13} /></button>
+                      )}
+                    </div>
+                  )}
+                </LectureLessonStage>
+              ) : lecture.stageSurface === 'WHITEBOARD' ? (
                 <div className="p-4 space-y-3">
                   {/* Whiteboard Toolbar */}
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-black/60 border border-white/10 p-2.5">
@@ -853,7 +1327,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                 /* STAGE SURFACE B: LIVE SCREEN SHARE */
                 <div className="p-4 space-y-3">
                   <div className="relative rounded-2xl overflow-hidden border border-cyan-400/30 bg-black min-h-[380px] flex flex-col items-center justify-center">
-                    {screenSharing ? (
+                    {screenSharingLive ? (
                       <video
                         ref={screenShareVideoRef}
                         autoPlay
@@ -870,15 +1344,17 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                           Classroom Screen Share &amp; Tela Presentation Stage
                         </h4>
                         <p className="text-xs text-white/60 leading-relaxed">
-                          Share your desktop window, slide deck, or interactive Tela document with the entire classroom. Students who raise their hand can also be invited on camera/mic while you share your screen.
+                          {isTeacher
+                            ? 'Share your desktop window, slide deck, or interactive Tela document with the entire classroom. Students who raise their hand can also be invited on camera/mic while you share your screen.'
+                            : "Your teacher's shared screen appears here when they start sharing."}
                         </p>
-                        <button
+                        {isTeacher && <button
                           type="button"
                           onClick={handleToggleScreenShare}
                           className="px-5 py-2.5 rounded-full bg-cyan-400 text-black text-xs font-black inline-flex items-center gap-1.5"
                         >
                           <MonitorUp size={14} /> Start Live Screen Share
-                        </button>
+                        </button>}
                       </div>
                     )}
                   </div>
@@ -899,7 +1375,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                         playsInline
                         muted
                         className={`absolute inset-0 w-full h-full object-cover ${
-                          lecture.isLive && camEnabled ? 'opacity-90' : 'opacity-0 pointer-events-none'
+                          lecture.isLive && teacherFeed && (isTeacher ? camEnabled : true) ? 'opacity-90' : 'opacity-0 pointer-events-none'
                         }`}
                       />
                       <div className="relative z-10 flex items-center justify-between">
@@ -911,7 +1387,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                         </span>
                       </div>
 
-                      {(!lecture.isLive || !camEnabled) && (
+                      {(!lecture.isLive || !teacherFeed || (isTeacher && !camEnabled)) && (
                         <div className="relative z-10 my-auto text-center space-y-2 py-8">
                           <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] mx-auto grid place-items-center text-2xl font-black text-white shadow-2xl">
                             {teacherName.slice(0, 2).toUpperCase()}
@@ -919,8 +1395,8 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                           <p className="text-sm font-black text-white">{teacherName}</p>
                           <p className="text-xs text-white/55">
                             {lecture.isLive
-                              ? 'Camera connected · Students can raise hand to join on camera'
-                              : 'Click "Go Live Now" above to start the interactive video lecture'}
+                              ? isTeacher ? 'Camera off · students still hear you' : 'Connecting to the lecture…'
+                              : isTeacher ? 'Press "Go live" above to start the lecture for your class' : 'Waiting for your teacher to start the lecture'}
                           </p>
                         </div>
                       )}
@@ -942,9 +1418,9 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                           ref={studentVideoRef}
                           autoPlay
                           playsInline
-                          muted={lecture.activeStudentOnStage.uid === viewerUid}
+                          muted
                           className={`absolute inset-0 w-full h-full object-cover ${
-                            lecture.activeStudentOnStage.uid === viewerUid && camEnabled
+                            studentFeed?.getVideoTracks().some(t => t.readyState === 'live') && (!onStageMe || camEnabled)
                               ? 'opacity-90'
                               : 'opacity-0 pointer-events-none'
                           }`}
@@ -980,7 +1456,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                           <span>Live Mic &amp; Camera Active</span>
                           <button
                             type="button"
-                            onClick={() => updateLecture({ stageSurface: 'WHITEBOARD' })}
+                            onClick={() => isTeacher && updateLecture({ stageSurface: 'WHITEBOARD' })}
                             className="text-amber-300 font-bold hover:underline"
                           >
                             Open Whiteboard Together →
@@ -1069,303 +1545,154 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                     </div>
                   </div>
 
-                  {/* Classroom Listener Rows */}
-                  <div className="space-y-2 pt-2 border-t border-white/10">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-white/45">
-                      🎧 Classroom Listeners ({effectiveRoster.length})
-                    </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                      {effectiveRoster.map(stu => {
-                        const hand = lecture.raisedHands.find(
-                          h => h.name.toLowerCase() === stu.name.toLowerCase() && h.status === 'WAITING'
-                        );
-                        return (
-                          <div
-                            key={stu.id}
-                            className={`rounded-2xl border p-2.5 flex items-center gap-2.5 ${
-                              hand
-                                ? 'border-amber-400/60 bg-amber-500/10'
-                                : 'border-white/10 bg-black/35'
-                            }`}
-                          >
-                            <div className="w-8 h-8 rounded-xl bg-white/10 grid place-items-center text-xs font-bold text-white shrink-0">
-                              {stu.name.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="text-xs font-bold text-white truncate">{stu.name}</p>
-                              <p className="text-[10px] text-white/45">
-                                {hand ? '✋ Hand Raised' : 'Listening'}
-                              </p>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
                 </div>
               )}
 
-              {/* Bottom Stage Controls Bar (Mic, Cam, Raise Hand, Reactions, Fullscreen) */}
-              <div className="border-t border-white/10 bg-black/80 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setMicMuted(m => !m)}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 ${
-                      micMuted ? 'bg-rose-500/20 text-rose-300 border border-rose-400/30' : 'bg-white/10 text-white'
-                    }`}
-                  >
-                    {micMuted ? <MicOff size={14} /> : <Mic size={14} />}
-                    {micMuted ? 'Mic Muted' : 'Mic On'}
-                  </button>
-
-                  {lecture.mode === 'VIDEO_LECTURE' && (
-                    <button
-                      type="button"
-                      onClick={() => setCamEnabled(c => !c)}
-                      className={`px-3 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 ${
-                        !camEnabled ? 'bg-rose-500/20 text-rose-300 border border-rose-400/30' : 'bg-white/10 text-white'
-                      }`}
-                    >
-                      {camEnabled ? <Video size={14} /> : <VideoOff size={14} />}
-                      {camEnabled ? 'Camera On' : 'Camera Off'}
-                    </button>
-                  )}
-
-                  {/* Quick Classroom Reactions */}
-                  <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl px-2 py-1">
-                    {['✋', '💡', '👏', '📖', '✅'].map(emo => (
-                      <button
-                        key={emo}
-                        type="button"
-                        onClick={() => handleTriggerReaction(emo)}
-                        className="hover:scale-125 transition px-1 text-sm"
-                        title={`React ${emo}`}
-                      >
-                        {emo}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {/* Raise Hand Button for Students (or Demo Test) */}
-                  <button
-                    type="button"
-                    onClick={handleToggleRaiseHand}
-                    className={`px-4 py-2 rounded-xl text-xs font-black inline-flex items-center gap-1.5 transition shadow ${
-                      myRaisedHand
-                        ? 'bg-amber-400 text-black'
-                        : 'bg-amber-500/20 border border-amber-400/50 text-amber-200 hover:bg-amber-400 hover:text-black'
-                    }`}
-                  >
-                    <Hand size={14} />
-                    {myRaisedHand ? '✋ Hand Raised (Lower)' : '✋ Raise Hand to Answer'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setStageFullscreen(f => !f)}
-                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white"
-                    title="Toggle wide stage"
-                  >
-                    {stageFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                  </button>
-                </div>
-              </div>
+              {[...rtc.remoteStreams.entries()].map(([id, st]) => <RemoteAudio key={id} stream={st} />)}
             </div>
 
-            {/* RIGHT 4 COLS: RAISE-HAND QUEUE (CALL ON CAMERA / MIC) + LIVE LECTURE Q&A CHAT */}
-            <div className="lg:col-span-4 space-y-4">
-              {/* Raise Hand Queue Card */}
-              <div className="rounded-3xl border border-amber-400/30 bg-amber-500/[0.05] p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black uppercase tracking-widest text-amber-300 flex items-center gap-1.5">
-                    <Hand size={14} /> Raised Hands Queue ({lecture.raisedHands.filter(h => h.status === 'WAITING').length})
-                  </span>
-                  {isTeacher && (
-                    <label className="inline-flex items-center gap-1.5 text-[10px] text-white/70 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={lecture.allowStudentWhiteboard}
-                        onChange={e => updateLecture({ allowStudentWhiteboard: e.target.checked })}
-                        className="rounded accent-amber-400"
-                      />
-                      Student Whiteboard
-                    </label>
+            <div className="lh-floor">
+              <div className="lh-seats" aria-label="Class seats">
+                {effectiveRoster.length === 0 && <span className="lh-empty">No students on the roster yet.</span>}
+                {effectiveRoster.slice(0, 12).map(stu => {
+                  const up = lecture.raisedHands.some(h => h.status === 'WAITING' && (h.uid === stu.id || h.name.toLowerCase() === stu.name.toLowerCase()));
+                  return (
+                    <div key={stu.id} className={`lh-seat${up ? ' up' : ''}`} title={up ? `${stu.name} has a hand up` : stu.name}>
+                      <span>{stu.name.slice(0, 2).toUpperCase()}</span>
+                      <em>{stu.name.split(' ')[0]}</em>
+                    </div>
+                  );
+                })}
+                {effectiveRoster.length > 12 && <div className="lh-seat"><span>+{effectiveRoster.length - 12}</span><em>More</em></div>}
+              </div>
+              <nav className="lh-ctl" aria-label="Session controls">
+                {(isTeacher || onStageMe) && (
+                  <button type="button" className={micMuted ? 'off' : ''} aria-pressed={!micMuted} onClick={() => setMicMuted(m => !m)}>
+                    {micMuted ? <MicOff size={16} /> : <Mic size={16} />} {micMuted ? 'Muted' : 'Mic on'}
+                  </button>
+                )}
+                {(isTeacher || onStageMe) && lecture.mode === 'VIDEO_LECTURE' && (
+                  <button type="button" className={camEnabled ? '' : 'off'} aria-pressed={camEnabled} onClick={() => setCamEnabled(c => !c)}>
+                    {camEnabled ? <Video size={16} /> : <VideoOff size={16} />} {camEnabled ? 'Camera on' : 'Camera off'}
+                  </button>
+                )}
+                {!isTeacher && (
+                  <button type="button" className={myRaisedHand ? 'hand' : ''} aria-pressed={!!myRaisedHand} onClick={handleToggleRaiseHand}>
+                    <Hand size={16} /> {myRaisedHand ? 'Lower hand' : 'Raise hand'}
+                  </button>
+                )}
+                <button type="button" aria-label={stageFullscreen ? 'Show the chat' : 'Hide the chat'} title={stageFullscreen ? 'Show the chat' : 'Hide the chat'} onClick={() => setStageFullscreen(f => !f)}>
+                  {stageFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+              </nav>
+            </div>
+
+              {(isTeacher || onStageMe) && rtc.localStream && (
+                <div className="border-t border-white/10 bg-black/70 px-4 py-2 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <LevelMeter source={rtc.localAudioTrack} label="Your mic" muted={micMuted} className="flex-1" />
+                    <button type="button" onClick={() => setMediaSheet(v => !v)}
+                      className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 ${mediaSheet || fx.active ? 'bg-orange-500 text-black' : 'bg-white/10 text-white'}`}>
+                      <Sparkles size={13} /> Camera, mic &amp; effects
+                    </button>
+                  </div>
+                  {mediaSheet && (
+                    <Suspense fallback={null}>
+                      <LiveMediaSheet rtc={rtc} fx={fx} onClose={() => setMediaSheet(false)} micMuted={micMuted}
+                        video={lecture.mode === 'VIDEO_LECTURE'} className="!w-full" />
+                    </Suspense>
                   )}
                 </div>
+              )}
+              {rtc.error && (isTeacher || onStageMe) && (
+                <p className="px-4 py-2 text-[11px] font-bold text-rose-300 bg-rose-500/10 border-t border-rose-400/20">{rtc.error}</p>
+              )}
+              {!isTeacher && rosterStudents.length > 0 && !rosterStudents.some(r => r.id === viewerUid) && (
+                <p className="px-4 py-2 text-[11px] text-amber-200 bg-amber-500/10 border-t border-amber-400/20">
+                  You aren&apos;t on this class&apos;s roster, so the lecture won&apos;t reach you. Ask the teacher to add you.
+                </p>
+              )}
+              {isTeacher && lecture.isLive && rosterStudents.length === 0 && (
+                <p className="px-4 py-2 text-[11px] text-amber-200 bg-amber-500/10 border-t border-amber-400/20">
+                  This class has no roster yet, so anyone who opens this class can watch. Add students to keep the lecture to your class.
+                </p>
+              )}
+            </div>
 
-                {/* Student Raise Hand Topic Input */}
-                {!myRaisedHand && (
-                  <div className="space-y-2 rounded-2xl bg-black/40 border border-white/10 p-2.5">
-                    <input
-                      value={handPromptDraft}
-                      onChange={e => setHandPromptDraft(e.target.value)}
-                      placeholder="Optional note: e.g. 'I have the answer to #3'..."
-                      className="w-full bg-black/50 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white outline-none focus:border-amber-400"
-                    />
-                    <div className="flex items-center justify-between gap-1.5">
-                      <select
-                        aria-label="How to answer"
-                        value={handRequestMode}
-                        onChange={e => setHandRequestMode(e.target.value as any)}
-                        className="bg-black/60 border border-white/15 rounded-lg px-2 py-1 text-[11px] text-white"
-                      >
-                        <option value="CAMERA">📹 Come on Camera</option>
-                        <option value="AUDIO_MIC">🎙️ Audio Mic Only</option>
-                        <option value="WHITEBOARD">✏️ Solve on Whiteboard</option>
-                      </select>
-                      <button
-                        type="button"
-                        onClick={handleToggleRaiseHand}
-                        className="px-3 py-1 rounded-lg bg-amber-400 text-black text-[11px] font-black inline-flex items-center gap-1"
-                      >
-                        <Hand size={11} /> Raise Hand
-                      </button>
-                    </div>
+            {!stageFullscreen && (
+              <aside className="lh-side" aria-label="Class conversation">
+                <div className="lh-side-h">
+                  <h3>Class conversation</h3>
+                  <span>{effectiveRoster.length} in class</span>
+                </div>
+
+                {isTeacher && lecture.raisedHands.length > 0 && (
+                  <div className="lh-hands" aria-label="Raised hands">
+                    {lecture.raisedHands.map((h, i) => {
+                      const isOnStage = lecture.activeStudentOnStage?.uid === h.uid;
+                      const how = h.requestedMode === 'CAMERA' ? 'on camera' : h.requestedMode === 'WHITEBOARD' ? 'on the whiteboard' : 'by mic';
+                      return (
+                        <div key={h.uid} className={`lh-hand${i === 0 ? ' first' : ''}`}>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <strong>{isOnStage ? `${h.name} is answering` : `${h.name} wants to answer ${how}`}</strong>
+                            {h.promptNote && <p>{h.promptNote}</p>}
+                          </div>
+                          {isOnStage ? (
+                            <button type="button" onClick={() => handleDismissStudentFromStage(h.uid)}>Return to seat</button>
+                          ) : (
+                            <button type="button" onClick={() => handleCallStudentToStage(h)}>Call on</button>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
-                {/* Waiting Hands List */}
-                <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                  {lecture.raisedHands.length === 0 && (
-                    <p className="text-xs text-white/45 py-2">
-                      No hands raised right now. Students can tap <strong>✋ Raise Hand</strong> to answer on camera, audio mic, or whiteboard.
-                    </p>
-                  )}
-                  {lecture.raisedHands.map(h => {
-                    const isOnStage = lecture.activeStudentOnStage?.uid === h.uid;
-                    return (
-                      <div
-                        key={h.uid}
-                        className={`rounded-2xl border p-3 space-y-2 ${
-                          isOnStage
-                            ? 'border-emerald-400/60 bg-emerald-500/15'
-                            : 'border-white/10 bg-black/40'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm">✋</span>
-                            <span className="text-xs font-black text-white truncate">{h.name}</span>
-                          </div>
-                          <span className="px-2 py-0.5 rounded-full bg-white/10 text-[9px] font-black uppercase text-amber-200">
-                            {h.requestedMode === 'CAMERA'
-                              ? '📹 Video'
-                              : h.requestedMode === 'WHITEBOARD'
-                              ? '✏️ Board'
-                              : '🎙️ Audio'}
-                          </span>
-                        </div>
-                        {h.promptNote && (
-                          <p className="text-[11px] text-white/70 leading-snug">{h.promptNote}</p>
-                        )}
-                        {isTeacher && (
-                          <div className="flex items-center gap-1.5 pt-1">
-                            {!isOnStage ? (
-                              <button
-                                type="button"
-                                onClick={() => handleCallStudentToStage(h)}
-                                className="flex-1 py-1.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-black text-[11px] font-black inline-flex items-center justify-center gap-1"
-                              >
-                                {lecture.mode === 'VIDEO_LECTURE' ? (
-                                  <>
-                                    <Video size={12} /> Bring on Camera to Answer
-                                  </>
-                                ) : (
-                                  <>
-                                    <Mic size={12} /> Call On &amp; Unmute Mic
-                                  </>
-                                )}
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => handleDismissStudentFromStage(h.uid)}
-                                className="flex-1 py-1.5 rounded-xl bg-rose-500/25 border border-rose-400/40 text-rose-200 text-[11px] font-black"
-                              >
-                                Return to Seat
-                              </button>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                {!isTeacher && !myRaisedHand && (
+                  <div className="lh-askhow">
+                    <input
+                      value={handPromptDraft}
+                      onChange={e => setHandPromptDraft(e.target.value)}
+                      aria-label="What you want to say"
+                      placeholder="I have the answer to number 3"
+                    />
+                    <select aria-label="How to answer" value={handRequestMode} onChange={e => setHandRequestMode(e.target.value as any)}>
+                      <option value="CAMERA">Answer on camera</option>
+                      <option value="AUDIO_MIC">Answer by mic</option>
+                      <option value="WHITEBOARD">Answer on the whiteboard</option>
+                    </select>
+                  </div>
+                )}
 
-              {/* Live Lecture Q&A Chat */}
-              <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4 space-y-3">
-                <h4 className="text-xs font-black uppercase tracking-widest text-white/60 flex items-center gap-1.5">
-                  <MessagesSquare size={13} /> Live Lecture Backchannel
-                </h4>
-                <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                <div className="lh-chat" ref={chatScrollRef}>
+                  {lecture.lectureChat.length === 0 && <p className="lh-empty">Questions and answers from the class show up here.</p>}
                   {lecture.lectureChat.map(m => (
-                    <div key={m.id} className="rounded-xl bg-black/35 border border-white/10 p-2.5 text-xs">
-                      <div className="flex items-center justify-between text-[10px] mb-0.5">
-                        <span className="font-black text-white">
-                          {m.senderName}{' '}
-                          <span className="text-amber-300 font-bold">({m.senderRole})</span>
-                        </span>
-                      </div>
-                      <p className="text-white/80 leading-snug">{m.text}</p>
+                    <div key={m.id} className={`lh-msg${m.senderUid === viewerUid ? ' me' : ''}`}>
+                      <b>{m.senderName}{m.senderRole === 'TEACHER' ? ' · Teacher' : ''}</b>
+                      <p>{m.text}</p>
                     </div>
                   ))}
                 </div>
-                <div className="flex gap-1.5">
+
+                {!isTeacher && (
+                  <div className="lh-reacts" role="group" aria-label="Quick reactions">
+                    {['Got it', 'Slow down', ...(contextKind === 'CHRISTIAN_EDUCATION' ? ['Amen'] : ['Question'])].map(label => (
+                      <button key={label} type="button" onClick={() => handleSendReaction(label)}>{label}</button>
+                    ))}
+                  </div>
+                )}
+
+                <form className="lh-send" onSubmit={e => { e.preventDefault(); sendLectureChat(); }}>
                   <input
                     value={lectureChatDraft}
                     onChange={e => setLectureChatDraft(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter' && lectureChatDraft.trim()) {
-                        e.preventDefault();
-                        updateLecture({
-                          lectureChat: [
-                            ...lecture.lectureChat,
-                            {
-                              id: `lchat_${Date.now()}`,
-                              senderUid: viewerUid,
-                              senderName: viewerName,
-                              senderRole: isTeacher ? 'TEACHER' : 'STUDENT',
-                              text: lectureChatDraft.trim(),
-                              createdAt: Date.now(),
-                            },
-                          ],
-                        });
-                        setLectureChatDraft('');
-                      }
-                    }}
-                    placeholder="Type an answer or question in lecture chat..."
-                    className="flex-1 bg-black/50 border border-white/15 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-400"
+                    aria-label="Message the class"
+                    placeholder="Message the class"
                   />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!lectureChatDraft.trim()) return;
-                      updateLecture({
-                        lectureChat: [
-                          ...lecture.lectureChat,
-                          {
-                            id: `lchat_${Date.now()}`,
-                            senderUid: viewerUid,
-                            senderName: viewerName,
-                            senderRole: isTeacher ? 'TEACHER' : 'STUDENT',
-                            text: lectureChatDraft.trim(),
-                            createdAt: Date.now(),
-                          },
-                        ],
-                      });
-                      setLectureChatDraft('');
-                    }}
-                    className="px-3 py-2 rounded-xl bg-amber-400 text-black text-xs font-black"
-                  >
-                    <Send size={12} />
-                  </button>
-                </div>
-              </div>
-            </div>
+                  <button type="submit" aria-label="Send"><Send size={15} /></button>
+                </form>
+              </aside>
+            )}
           </div>
         </div>
       )}
@@ -1384,16 +1711,30 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                 Visible only to {className} teacher &amp; enrolled students
               </span>
             </div>
-            <UniversalPostComposer
-              currentUser={auth.currentUser}
-              compact
-              placeholder={`Post an announcement, question, study note, or Tela assignment to ${className}...`}
-              submitLabel="Post to Class"
-              onPost={handleCreateSocialPost}
-            />
+            {club ? (
+              <UniversalPostComposer
+                currentUser={auth.currentUser}
+                compact
+                placeholder={`Post an announcement, question, study note, or Tela assignment to ${className}...`}
+                postLabel="Post to Class"
+                onPost={handleCreateSocialPost}
+              />
+            ) : (
+              <p className="text-xs text-white/55">This is a sample class. Create a class with students to post to its feed.</p>
+            )}
+            {feedError && <p data-club-feed-error className="text-xs text-rose-300">{feedError}</p>}
           </div>
 
           <div className="space-y-3">
+            {posts.length === 0 && (
+              <div className="rounded-3xl border border-dashed border-white/15 p-8 text-center">
+                <MessagesSquare size={22} className="mx-auto text-white/25 mb-2" />
+                <p className="text-sm font-bold text-white/70">No posts yet</p>
+                <p className="text-xs text-white/45 mt-1">
+                  {isTeacher ? 'Post an announcement or a question to start the class feed.' : 'When your teacher or classmates post, it shows up here.'}
+                </p>
+              </div>
+            )}
             {[...posts]
               .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.createdAt - a.createdAt)
               .map(post => {
@@ -1441,18 +1782,57 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                         </div>
                       </div>
 
-                      {isTeacher && (
-                        <button
-                          type="button"
-                          onClick={() => setPosts(toggleClassroomPostPin(classId, post.id))}
-                          className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-[10px] font-bold text-white/70"
-                        >
-                          {post.pinned ? 'Unpin' : 'Pin Post'}
-                        </button>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {isTeacher && club && (
+                          <button
+                            type="button"
+                            onClick={() => feedAction(setClassroomPostPin(club, post.id, !post.pinned))}
+                            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-[10px] font-bold text-white/70"
+                          >
+                            {post.pinned ? 'Unpin' : 'Pin Post'}
+                          </button>
+                        )}
+                        {club && (isTeacher || post.authorUid === viewerUid) && (
+                          <button
+                            type="button"
+                            onClick={() => setEditing({ id: post.id, draft: post.text })}
+                            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-[10px] font-bold text-white/60"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {club && (isTeacher || post.authorUid === viewerUid) && (
+                          <button
+                            type="button"
+                            onClick={() => { if (confirm('Delete this post for everyone in the class?')) feedAction(deleteClassroomPost(club, post)); }}
+                            className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-rose-500/25 text-[10px] font-bold text-white/60"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    <p className="text-sm text-white/90 leading-relaxed whitespace-pre-wrap">{post.text}</p>
+                    {editing?.id === post.id && club ? (
+                      <CopyEditor
+                        value={editing.draft}
+                        multiline
+                        onChange={draft => setEditing({ id: post.id, draft })}
+                        onCancel={() => setEditing(null)}
+                        onSave={() => { feedAction(editClassroomPost(club, post.id, editing.draft.trim(), viewerUid)); setEditing(null); }}
+                      />
+                    ) : (
+                      <p className="text-sm text-white/90 leading-relaxed whitespace-pre-wrap">{post.text}</p>
+                    )}
+                    {post.editedAt && <p className="text-[10px] text-white/40">Edited{post.editedByUid !== post.authorUid ? ' by the teacher' : ''}</p>}
+
+                    {club && post.mediaItems && post.mediaItems.length > 0 && (
+                      <div className="grid sm:grid-cols-2 gap-2">
+                        {post.mediaItems.map(m => (
+                          <ClubMedia key={m.photoId} home={club} photoId={m.photoId} kind={m.kind} alt="" className="rounded-2xl max-h-64 w-full object-cover border border-white/10" />
+                        ))}
+                      </div>
+                    )}
 
                     {post.mediaUrls && post.mediaUrls.length > 0 && (
                       <div className="grid sm:grid-cols-2 gap-2">
@@ -1493,7 +1873,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                     <div className="flex items-center gap-4 pt-2 border-t border-white/10 text-xs">
                       <button
                         type="button"
-                        onClick={() => setPosts(toggleClassroomPostLike(classId, post.id, viewerUid))}
+                        onClick={() => club && feedAction(setClassroomPostLike(club, post.id, viewerUid, !liked))}
                         className={`inline-flex items-center gap-1.5 font-bold ${
                           liked ? 'text-rose-400' : 'text-white/60 hover:text-white'
                         }`}
@@ -1525,15 +1905,14 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                           setCommentDrafts(prev => ({ ...prev, [post.id]: e.target.value }))
                         }
                         onKeyDown={e => {
-                          if (e.key === 'Enter' && (commentDrafts[post.id] || '').trim()) {
+                          if (e.key === 'Enter' && club && (commentDrafts[post.id] || '').trim()) {
                             e.preventDefault();
-                            const next = addClassroomPostComment(classId, post.id, {
+                            feedAction(addClassroomPostComment(club, post.id, {
                               authorUid: viewerUid,
                               authorName: viewerName,
                               authorRole: isTeacher ? 'TEACHER' : 'STUDENT',
                               text: commentDrafts[post.id].trim(),
-                            });
-                            setPosts(next);
+                            }));
                             setCommentDrafts(prev => ({ ...prev, [post.id]: '' }));
                           }
                         }}
@@ -1544,14 +1923,13 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                         type="button"
                         onClick={() => {
                           const txt = (commentDrafts[post.id] || '').trim();
-                          if (!txt) return;
-                          const next = addClassroomPostComment(classId, post.id, {
+                          if (!txt || !club) return;
+                          feedAction(addClassroomPostComment(club, post.id, {
                             authorUid: viewerUid,
                             authorName: viewerName,
                             authorRole: isTeacher ? 'TEACHER' : 'STUDENT',
                             text: txt,
-                          });
-                          setPosts(next);
+                          }));
                           setCommentDrafts(prev => ({ ...prev, [post.id]: '' }));
                         }}
                         className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white"
@@ -1600,7 +1978,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
               />
               <button
                 type="button"
-                disabled={uploadingPhoto}
+                disabled={uploadingPhoto || !club}
                 onClick={() => photoInputRef.current?.click()}
                 className="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black text-xs font-black inline-flex items-center gap-1.5"
               >
@@ -1609,19 +1987,23 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
             </div>
           </div>
 
+          {feedError && <p data-club-feed-error className="text-xs text-rose-300">{feedError}</p>}
+          {galleryPhotos.length === 0 && (
+            <div className="rounded-3xl border border-dashed border-white/15 p-8 text-center">
+              <ImageIcon size={22} className="mx-auto text-white/25 mb-2" />
+              <p className="text-sm font-bold text-white/70">No photos yet</p>
+              <p className="text-xs text-white/45 mt-1">Upload a class photo, or save a lecture whiteboard to keep it here.</p>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {photos.map(ph => (
+            {galleryPhotos.map(ph => (
               <div
                 key={ph.id}
                 onClick={() => setLightboxPhoto(ph)}
                 className="group rounded-3xl border border-white/10 bg-white/[0.03] overflow-hidden cursor-pointer hover:border-amber-400/50 transition"
               >
                 <div className="h-48 bg-black overflow-hidden relative">
-                  <img
-                    src={ph.url}
-                    alt={ph.caption}
-                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                  />
+                  {club && <ClubMedia home={club} photoId={ph.id} kind={ph.kind} alt={ph.caption} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />}
                   {ph.isWhiteboardSnapshot && (
                     <span className="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full bg-amber-400 text-black text-[9px] font-black uppercase">
                       Whiteboard Snapshot
@@ -1629,10 +2011,47 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                   )}
                 </div>
                 <div className="p-3.5 space-y-1">
-                  <p className="text-xs font-bold text-white truncate">{ph.caption}</p>
-                  <p className="text-[10px] text-white/45">
-                    Uploaded by {ph.uploadedByName} ({ph.uploadedByRole})
-                  </p>
+                  {editing?.id === ph.id && club ? (
+                    <div onClick={e => e.stopPropagation()}>
+                      <CopyEditor
+                        value={editing.draft}
+                        onChange={draft => setEditing({ id: ph.id, draft })}
+                        onCancel={() => setEditing(null)}
+                        onSave={() => { feedAction(editClassroomPhotoCaption(club, ph.id, editing.draft.trim(), viewerUid)); setEditing(null); }}
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-xs font-bold text-white truncate">{ph.caption}</p>
+                  )}
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[10px] text-white/45">
+                      Uploaded by {ph.uploadedByName} ({ph.uploadedByRole})
+                    </p>
+                    {club && (isTeacher || ph.uploadedByUid === viewerUid) && (
+                      <span className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={e => { e.stopPropagation(); setEditing({ id: ph.id, draft: ph.caption }); }}
+                          className="text-[10px] font-bold text-white/50 hover:text-white"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={e => {
+                            e.stopPropagation();
+                            const msg = ph.uploadedByUid === viewerUid
+                              ? 'Remove this from the class? Your original stays in your files.'
+                              : `Remove the class's copy? The original stays with ${ph.uploadedByName || 'its owner'}.`;
+                            if (confirm(msg)) feedAction(deleteClassroomPhoto(club, ph.id));
+                          }}
+                          className="text-[10px] font-bold text-white/50 hover:text-rose-300"
+                        >
+                          Remove
+                        </button>
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -1657,11 +2076,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                     <X size={15} />
                   </button>
                 </div>
-                <img
-                  src={lightboxPhoto.url}
-                  alt={lightboxPhoto.caption}
-                  className="w-full max-h-[70vh] object-contain rounded-2xl bg-black"
-                />
+                {club && <ClubMedia home={club} photoId={lightboxPhoto.id} kind={lightboxPhoto.kind} alt={lightboxPhoto.caption} className="w-full max-h-[70vh] object-contain rounded-2xl bg-black" />}
               </div>
             </div>
           )}

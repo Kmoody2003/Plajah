@@ -1,5 +1,5 @@
 // Plajah Horror Classics — Plajah's own FAST channel (8.2 on LiveHub TV+), programmed from the
-// Halloween curation and run by the platform: admins control it, nobody's account owns it. The
+// Halloween film collection and run by the platform: admins control it, nobody's account owns it. The
 // server lays out a different day for each day of the week and opens a fan vote for the 9 PM ET
 // slot every night (services/fast/voteSchedule.ts, routes/fastVote.ts).
 //

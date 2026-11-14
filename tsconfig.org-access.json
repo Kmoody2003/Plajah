@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": ["components/elevate/OrgThread.tsx", "components/elevate/OrgAudienceToggle.tsx", "services/organizationService.ts", "services/churchEducationService.ts", "routes/elevateAccounts.ts", "components/FeedView.tsx", "components/ClassroomAnalyticsView.tsx", "components/academia/creator/CreatorCoursesHub.tsx", "services/classroomCoursework.ts", "components/ClassroomsView.tsx"]
+}

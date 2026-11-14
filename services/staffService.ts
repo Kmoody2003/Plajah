@@ -4,13 +4,13 @@
 // the same timesheet rows to each provider's import/API). Stored under businesses/{uid}/{staff,shifts,timeOff}.
 
 import { collection, doc, addDoc, updateDoc, getDocs } from 'firebase/firestore';
-import { db } from './backendService';
+import { opsDb } from './firebase';
 import type { StaffMember, Shift, TimeOffRequest } from '../types';
 import { authedFetch, setStaffPin } from './registerService';
 
-const staffCol = (b: string) => collection(db, 'businesses', b, 'staff');
-const shiftCol = (b: string) => collection(db, 'businesses', b, 'shifts');
-const ptoCol = (b: string) => collection(db, 'businesses', b, 'timeOff');
+const staffCol = (b: string) => collection(opsDb, 'businesses', b, 'staff');
+const shiftCol = (b: string) => collection(opsDb, 'businesses', b, 'shifts');
+const ptoCol = (b: string) => collection(opsDb, 'businesses', b, 'timeOff');
 
 // ── Roster / HR ──────────────────────────────────────────────────────────────
 export async function fetchStaff(businessUid: string): Promise<StaffMember[]> {
@@ -25,7 +25,7 @@ export async function addStaff(businessUid: string, m: Omit<StaffMember, 'id' | 
   return ref.id;
 }
 export async function updateStaff(businessUid: string, id: string, patch: Partial<StaffMember>): Promise<void> {
-  await updateDoc(doc(db, 'businesses', businessUid, 'staff', id), patch as any);
+  await updateDoc(doc(opsDb, 'businesses', businessUid, 'staff', id), patch as any);
 }
 
 // ── Time clock ───────────────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ export async function requestTimeOff(businessUid: string, req: Omit<TimeOffReque
   return ref.id;
 }
 export async function respondTimeOff(businessUid: string, id: string, status: 'APPROVED' | 'DENIED'): Promise<void> {
-  await updateDoc(doc(db, 'businesses', businessUid, 'timeOff', id), { status, respondedAt: Date.now() });
+  await updateDoc(doc(opsDb, 'businesses', businessUid, 'timeOff', id), { status, respondedAt: Date.now() });
 }
 
 // ── Demo seed ─────────────────────────────────────────────────────────────────

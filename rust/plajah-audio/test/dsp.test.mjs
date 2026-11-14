@@ -110,7 +110,7 @@ function magAt(sig, freq, sr) {
 
 test('ABI version matches the host contract', async () => {
   const { x } = await boot();
-  assert.equal(x.pa_abi_version(), 12);
+  assert.equal(x.pa_abi_version(), 16);
 });
 
 /** Stage a mono sample into the upload buffer and load it into a slot. Returns the frame count. */
@@ -289,6 +289,23 @@ test('a note produces sound, and silence when idle', async () => {
   const peak = sound.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
   assert.ok(peak > 0.05, `note should be audible, peak was ${peak}`);
   assert.ok(sound.every(Number.isFinite), 'output must contain no NaN/Inf');
+});
+
+test('idle skip: an engine silent long enough to stop rendering wakes on the next note', async () => {
+  const ctx = await boot();
+  const { x, eng } = ctx;
+  // A note that ends, then well over the half-second idle window of silence.
+  x.pa_note_on(eng, 60, 1.0, 1, 0);
+  renderMono(ctx, 4096);
+  x.pa_note_off(eng, 1);
+  renderMono(ctx, SR * 2);
+  const idle = renderMono(ctx, 2048);
+  assert.ok(idle.every((v) => v === 0), 'an idle engine outputs exact silence');
+  // Now a new note must sound straight away, and the tail must render after note-off.
+  x.pa_note_on(eng, 64, 1.0, 2, 0);
+  const sound = renderMono(ctx, 4096);
+  assert.ok(sound.reduce((m, v) => Math.max(m, Math.abs(v)), 0) > 0.05, 'the first note after idle is audible');
+  assert.ok(sound.slice(0, 256).some((v) => v !== 0), 'it starts in the first block, not a block late');
 });
 
 test('GATE: sawtooth is band-limited — no aliasing folded below the fundamental', async () => {
@@ -1408,3 +1425,58 @@ test('AURA: Pulse Gate Chopper (A_GATE_ON) and Analog Flux Randomness (A_FLUX_ON
 });
 
 
+
+test('SOMA deep skin: strike export, deep note-on plays its slot and gates the cloud', async () => {
+  const setup = async () => {
+    const ctx = await boot();
+    const { x, eng } = ctx;
+    x.pa_set_param(eng, 1800, 1);   // SOMA on
+    x.pa_set_param(eng, 1801, 4);   // bachi / stick: a sharp contact that lights up the cloud
+    x.pa_set_param(eng, 1804, 0.6); // strike position
+    x.pa_set_param(eng, 1207, 0);   // Veil dry
+    return ctx;
+  };
+
+  // pa_soma_excitation: the force that drives the membrane, then the cloud — repeatable per seed.
+  {
+    const { x, eng, view } = await setup();
+    const F = 4096;
+    const v = view(x.pa_soma_excitation(eng, 60, 0.9, 7, F), 2 * F).slice();
+    const drive = v.subarray(0, F), cloud = v.subarray(F);
+    assert.ok(v.every(Number.isFinite), 'strike export must be finite');
+    assert.ok(Math.max(...drive.map(Math.abs)) > 0.01, 'a strike must push on the membrane');
+    assert.ok(rmsOf(cloud) > 0, 'the cloud must sound for a stick strike');
+    const again = view(x.pa_soma_excitation(eng, 60, 0.9, 7, F), F).slice();
+    assert.deepEqual(Array.from(again.subarray(0, 256)), Array.from(drive.subarray(0, 256)), 'same seed, same strike');
+  }
+
+  // A deep note-on plays the slot inside the voice and silences the cloud below its top ratio.
+  const strike = async (layer) => {
+    const ctx = await setup();
+    const { x, eng, view } = ctx;
+    if (layer === null) {
+      x.pa_note_on(eng, 60, 0.9, 1, 0);
+    } else {
+      const frames = 4800;
+      const data = new Float32Array(frames * 2);
+      for (let i = 0; i < frames; i++) data[i] = data[frames + i] = layer * Math.sin((2 * Math.PI * 2000 * i) / SR) * Math.exp(-i / 1200);
+      x.pa_sample_begin(eng, 0, frames, 2, SR, 60, 0, 0, 0);
+      const cap = x.pa_upload_capacity(eng), ptr = x.pa_upload_ptr(eng);
+      for (let off = 0; off < data.length; off += cap) {
+        const n = Math.min(cap, data.length - off);
+        view(ptr, n).set(data.subarray(off, off + n));
+        x.pa_sample_chunk(eng, 0, off, n);
+      }
+      x.pa_sample_end(eng, 0);
+      x.pa_note_on_deep(eng, 60, 0.9, 1, 0, 0, 1.0, 1e6);
+    }
+    return renderMono(ctx, 4800);
+  };
+  const plain = await strike(null);
+  const withLayer = await strike(0.5);
+  const gatedOnly = await strike(0);
+  assert.ok(withLayer.every(Number.isFinite) && gatedOnly.every(Number.isFinite));
+  assert.ok(magAt(withLayer, 2000, SR) > 3 * magAt(plain, 2000, SR), 'the deep layer must be heard through the voice');
+  const hf = (s) => { let e = 0; for (let i = 1; i < 2400; i++) e += (s[i] - s[i - 1]) ** 2; return e; };
+  assert.ok(hf(gatedOnly) < 0.9 * hf(plain), `gating the cloud must remove its HF noise (gated ${hf(gatedOnly).toFixed(4)} vs plain ${hf(plain).toFixed(4)})`);
+});

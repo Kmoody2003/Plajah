@@ -1,24 +1,20 @@
 // services/universalStudentDeskService.ts
 // Universal Platform-Wide Student Desk & Digital Classroom Assignment Workflow (Powered by Tela)
-// Shared across Academia (K-12, Higher Ed, Homeschool), Christian Education (Great Faith Ministries),
+// Shared across Academia (K-12, Higher Ed, Homeschool), Christian Education,
 // and Plajah Elevate Organizational Training.
 
 import {
-  listIngestedUnits,
-  ensureAllDetectedLinksOnboarded,
   gradeAndRecordUnitSubmission,
   type IngestedCurriculumUnit,
   type StudentUnitSubmission,
 } from './curriculumIngestionService';
-import {
-  getDefaultLivingTemplateForUnit,
-  getLivingTemplateById,
-} from './council/livingDocumentTemplates';
-import {
-  GREAT_FAITH_MINISTRIES_DEFAULT_ID,
-  GREAT_FAITH_MINISTRIES_NAME,
-} from './orgAssets';
+import { getDefaultLivingTemplateForUnit } from './council/livingDocumentTemplates';
+import { auth } from './firebase';
+import { adoptFromSharedDesk, deskAssignmentsKey } from './hqScopeWall';
 import { appendRecord } from './learningLedgerService';
+import { mirrorAssignment, mirrorDraft, mirrorTurnIn, type EduSubmissionRecord } from './christianEdSync';
+import { afterDueOf, canTurnIn, isLate, turnInState, type AfterDue, type ExtensionLike } from './edu/assignmentPolicy';
+import { logEduEvent, type LedgerEvent } from './edu/eduLedger';
 
 export type DeskContextDomain = 'CHRISTIAN_EDUCATION' | 'ACADEMIA' | 'ORG_TRAINING';
 
@@ -56,6 +52,14 @@ export interface UniversalDeskAssignment {
   assignedAt: number;
   dueAt: number;
   dueLabel: string;
+  /** Scheduled ahead: students see it from this time (the class's teachers always do). Absent = straight away. */
+  opensAt?: number;
+  /** Last time its dates were moved; the newer of this and assignedAt wins when copies disagree. */
+  rescheduledAt?: number;
+  /** The class date it belongs to (the calendar shows it here); absent = the due date. */
+  scheduledFor?: number;
+  /** After the due date: 'lock' (default — only with a granted extension) or 'accept_late' (marked late). */
+  afterDue?: AfterDue;
   totalPoints: number;
   questionCount: number;
   toolsConfig: DeskAssignmentToolsConfig;
@@ -85,18 +89,34 @@ export interface StudentDeskWorkspaceState {
   /** Populated once turned in and auto-graded */
   submission?: StudentUnitSubmission;
   teacherFeedbackNote?: string;
+  /** Turned in after the due date (an accept-late assignment). */
+  late?: boolean;
 }
 
-const DESK_ASSIGNMENTS_KEY = 'plajah_universal_desk_assignments_v1';
+/** The old desk every account on a browser shared. Read once to move each person's own work out of it. */
+const SHARED_DESK_KEY = 'plajah_universal_desk_assignments_v1';
 const DESK_WORKSPACE_KEY = (studentUid: string) =>
   `plajah_universal_desk_workspace_v1_${studentUid || 'default_student'}`;
 
+function readJsonList<T>(key: string): T[] | null {
+  const raw = localStorage.getItem(key);
+  if (raw === null) return null;
+  const parsed = JSON.parse(raw);
+  return Array.isArray(parsed) ? parsed : [];
+}
+
 function readStoredAssignments(): UniversalDeskAssignment[] {
   try {
-    const raw = localStorage.getItem(DESK_ASSIGNMENTS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const uid = auth.currentUser?.uid;
+    const key = deskAssignmentsKey(uid);
+    const own = readJsonList<UniversalDeskAssignment>(key);
+    if (own) return own;
+    if (!uid) return [];
+    const { mine, rest } = adoptFromSharedDesk(readJsonList<UniversalDeskAssignment>(SHARED_DESK_KEY) || [], uid, new Set(Object.keys(readWorkspaceMap(uid))));
+    localStorage.setItem(key, JSON.stringify(mine));
+    if (rest.length) localStorage.setItem(SHARED_DESK_KEY, JSON.stringify(rest));
+    else localStorage.removeItem(SHARED_DESK_KEY);
+    return mine;
   } catch {
     return [];
   }
@@ -104,7 +124,7 @@ function readStoredAssignments(): UniversalDeskAssignment[] {
 
 function writeStoredAssignments(list: UniversalDeskAssignment[]): void {
   try {
-    localStorage.setItem(DESK_ASSIGNMENTS_KEY, JSON.stringify(list));
+    localStorage.setItem(deskAssignmentsKey(auth.currentUser?.uid), JSON.stringify(list));
     window.dispatchEvent(new CustomEvent('plajah:deskUpdated'));
   } catch {
     // Non-fatal
@@ -134,300 +154,18 @@ function writeWorkspaceMap(
   }
 }
 
-/**
- * Builds starter Academia units so the Universal Student Desk showcases both
- * Christian Education (Great Faith Ministries) AND Academia (STEM / ELA / History) out of the box.
- */
-function buildStarterAcademiaUnits(): IngestedCurriculumUnit[] {
-  const now = Date.now();
-  return [
-    {
-      id: 'acad_unit_ela_odyssey',
-      orgId: 'academia-campus',
-      programId: 'class-ela-honors',
-      departmentFolder: 'Academia · Humanities & ELA',
-      title: 'ELA Reading Quest: The Odyssey & Heroic Perseverance Worksheet',
-      subtitle: 'Interactive Tela Literary Analysis · 3 Questions · 6 Pts · Paired with Lorea Classic Reader',
-      kind: 'ASSIGNMENT',
-      sourceKind: 'GOOGLE_DOC',
-      sourceLabel: 'The Odyssey Book IX Analytical Worksheet (Google Doc)',
-      answerKeySourceLabel: 'ELA Department Master Rubric',
-      livingTemplateId: 'std-ws-kinfolk-editorial',
-      telaDocId: 'tela_acad_ela_odyssey',
-      lessonBlocks: [
-        {
-          id: 'b1',
-          kind: 'h1',
-          text: 'Homer’s Odyssey: Ingenuity, Hubris & Homecoming',
-        },
-        {
-          id: 'b2',
-          kind: 'p',
-          text: 'In Book IX of the Odyssey, Odysseus recounts his encounter with the Cyclops Polyphemus. Homer contrasts brute force with metis (wise resourcefulness and strategic patience), while warning how prideful boasting endangers the entire crew.',
-        },
-      ],
-      questions: [
-        {
-          id: 'acad_ela_q1',
-          number: 1,
-          prompt: 'How does Odysseus use strategic foresight (metis) rather than sheer physical strength to escape Polyphemus’ cave?',
-          type: 'multiple_choice',
-          options: [
-            'A) By concealing his identity as "Nobody" (Outis) and binding his men beneath the wool of the giant rams',
-            'B) By summoning an Athenian fleet to storm the island',
-            'C) By bribing Polyphemus with golden shields',
-            'D) By waiting for winter snows to freeze the Aegean Sea',
-          ],
-          correctAnswer: 'A) By concealing his identity as "Nobody" (Outis) and binding his men beneath the wool of the giant rams',
-          explanation: 'Odysseus’ "Outis" ("Nobody") wordplay prevents the other Cyclopes from intervening, and hiding beneath the rams allows his crew to pass undetected.',
-          points: 2,
-          skillId: 'skill_ela_textual_evidence',
-        },
-        {
-          id: 'acad_ela_q2',
-          number: 2,
-          prompt: 'What critical error of hubris (excessive pride) does Odysseus commit as his ship pulls away from the shore?',
-          type: 'multiple_choice',
-          options: [
-            'A) He shouts his true name and lineage back to Polyphemus, enabling the Cyclops to call upon Poseidon’s wrath',
-            'B) He abandons his rudder in the cave',
-            'C) He refuses to share food with his oarsmen',
-            'D) He sails directly into Charybdis',
-          ],
-          correctAnswer: 'A) He shouts his true name and lineage back to Polyphemus, enabling the Cyclops to call upon Poseidon’s wrath',
-          explanation: 'By boasting his real name and father’s name (Laertes of Ithaca), Odysseus turns a clean escape into a ten-year curse from Poseidon.',
-          points: 2,
-          skillId: 'skill_ela_character_arc',
-        },
-        {
-          id: 'acad_ela_q3',
-          number: 3,
-          prompt: 'Short Reflection: Compare ancient Greek metis (strategic wisdom) with biblical wisdom in Proverbs 16:18 ("Pride goes before destruction"). How do both texts warn leaders about pride?',
-          type: 'short_answer',
-          correctAnswer: 'humility',
-          explanation: 'Look for synthesis comparing Odysseus’ boastful hubris with the proverb that humility and restraint protect a leader’s household and mission.',
-          points: 2,
-          skillId: 'skill_ela_comparative_synthesis',
-        },
-      ],
-      masterySkills: [
-        { id: 'skill_ela_textual_evidence', title: 'ELA · Textual Evidence & Close Reading' },
-        { id: 'skill_ela_character_arc', title: 'ELA · Character Motivation & Hubris' },
-        { id: 'skill_ela_comparative_synthesis', title: 'ELA · Comparative Literary Synthesis' },
-      ],
-      sacredLibrarySupplements: [],
-      totalPoints: 6,
-      createdAt: now - 86400_000,
-    },
-    {
-      id: 'acad_unit_stem_astrolabe',
-      orgId: 'academia-campus',
-      programId: 'class-stem-lab',
-      departmentFolder: 'Academia · STEM & Quantitative Lab',
-      title: 'STEM & Astronomy: Celestial Coordinates, Ratios & Proportional Reasoning',
-      subtitle: 'Interactive Tela Lab Check · 3 Questions · 6 Pts · Celestial Astrolabe Template',
-      kind: 'QUIZ',
-      sourceKind: 'GOOGLE_FORM',
-      sourceLabel: 'STEM Celestial Navigation Formative Check (Google Form)',
-      answerKeySourceLabel: 'STEM Lab Auto-Grading Key',
-      livingTemplateId: 'ws-celestial-astrolabe',
-      telaDocId: 'tela_acad_stem_astrolabe',
-      lessonBlocks: [
-        {
-          id: 's1',
-          kind: 'h1',
-          text: 'Angular Altitude, Ratios & Celestial Navigation',
-        },
-        {
-          id: 's2',
-          kind: 'p',
-          text: 'Mariners and astronomers used brass astrolabes to measure the altitude angle of Polaris (the North Star) above the horizon. Because Earth is spherical, the altitude angle of Polaris in degrees equals the observer’s latitude in the Northern Hemisphere.',
-        },
-      ],
-      questions: [
-        {
-          id: 'acad_stem_q1',
-          number: 1,
-          prompt: 'If an astronomer in Ephesus measures Polaris at an altitude angle of 38° above the northern horizon, what is the approximate latitude of Ephesus?',
-          type: 'multiple_choice',
-          options: [
-            'A) 38° North Latitude',
-            'B) 52° South Latitude',
-            'C) 0° Equator',
-            'D) 90° North Pole',
-          ],
-          correctAnswer: 'A) 38° North Latitude',
-          explanation: 'The altitude of the celestial pole above the horizon equals the observer’s latitude (Ephesus is at ~37.9° N).',
-          points: 2,
-          skillId: 'skill_stem_angular_geometry',
-        },
-        {
-          id: 'acad_stem_q2',
-          number: 2,
-          prompt: 'A full circle on an astrolabe rim is divided into 360°. If 8 equal star-sector arcs span 240° in total, how many degrees does each individual sector arc measure?',
-          type: 'multiple_choice',
-          options: [
-            'A) 30° per sector arc',
-            'B) 45° per sector arc',
-            'C) 15° per sector arc',
-            'D) 60° per sector arc',
-          ],
-          correctAnswer: 'A) 30° per sector arc',
-          explanation: '240° ÷ 8 equal sectors = 30° per sector.',
-          points: 2,
-          skillId: 'skill_stem_proportional_ratios',
-        },
-        {
-          id: 'acad_stem_q3',
-          number: 3,
-          prompt: 'True or False: As a traveler journeys northward from Alexandria (31° N) toward Smyrna (38.4° N), the altitude of Polaris above the northern horizon increases.',
-          type: 'true_false',
-          options: ['True', 'False'],
-          correctAnswer: 'True',
-          explanation: 'Moving northward increases latitude, which directly raises the altitude angle of Polaris above the horizon.',
-          points: 2,
-          skillId: 'skill_stem_angular_geometry',
-        },
-      ],
-      masterySkills: [
-        { id: 'skill_stem_angular_geometry', title: 'STEM · Angular Geometry & Latitude' },
-        { id: 'skill_stem_proportional_ratios', title: 'STEM · Proportional Ratios & Rates' },
-      ],
-      sacredLibrarySupplements: [],
-      totalPoints: 6,
-      createdAt: now - 43200_000,
-    },
-  ];
-}
-
-/**
- * Ensures the Universal Student Desk has default digital assignments across both
- * Great Faith Ministries (Christian Education) and Academia so the student desk is
- * immediately populated and ready to test.
- */
-export async function ensureUniversalStudentDeskSeeded(
-  orgId: string = GREAT_FAITH_MINISTRIES_DEFAULT_ID
-): Promise<UniversalDeskAssignment[]> {
-  const cleanOrgId =
-    !orgId || orgId === 'demo-grace-chapel' || orgId.startsWith('demo-')
-      ? GREAT_FAITH_MINISTRIES_DEFAULT_ID
-      : orgId;
-
-  // Ensure all 9 Revelation 2: Course Connection documents are onboarded first
-  const churchUnits = await ensureAllDetectedLinksOnboarded(cleanOrgId);
-  const existing = readStoredAssignments();
-
-  const existingUnitIds = new Set(existing.map(a => a.unitId));
-  const additions: UniversalDeskAssignment[] = [];
-  const now = Date.now();
-
-  // Seed the Revelation 2 units into Great Faith Ministries Christian Education classrooms
-  const classroomRotation = [
-    { id: 'prog-adult-bible-study', name: 'Wednesday Sanctuary Bible Study (Rev 2)' },
-    { id: 'prog-sunday-school', name: 'Sunday Morning Christian Education' },
-    { id: 'prog-theology-track', name: 'Great Faith Leadership & Theology Track' },
-  ];
-
-  churchUnits.forEach((unit, idx) => {
-    if (existingUnitIds.has(unit.id)) return;
-    const targetClass = classroomRotation[idx % classroomRotation.length];
-    const tpl = unit.livingTemplateId
-      ? getLivingTemplateById(unit.livingTemplateId)
-      : getDefaultLivingTemplateForUnit(unit.kind, unit.title);
-
-    additions.push({
-      id: `desk_assign_${unit.id}`,
-      unitId: unit.id,
-      telaDocId: unit.telaDocId,
-      domain: 'CHRISTIAN_EDUCATION',
-      orgId: cleanOrgId,
-      orgName: GREAT_FAITH_MINISTRIES_NAME,
-      classroomId: targetClass.id,
-      classroomName: targetClass.name,
-      departmentFolder: unit.departmentFolder || 'Christian Education',
-      title: unit.title,
-      subtitle: unit.subtitle,
-      instructions:
-        unit.kind === 'QUIZ' || unit.kind === 'TEST'
-          ? 'Complete all assessment prompts on your Tela Desk, review your Sacred Library primary sources, and click Turn In to auto-grade and update your Mastery Graph.'
-          : 'Read the Frame 1 Scripture & Lesson guide, inspect the attached Lorea Sacred Library primary sources in your Desk Reference Drawer, fill out each worksheet prompt, and Turn In to your instructor.',
-      unitKind: unit.kind,
-      livingTemplateId: tpl.id,
-      assignedByUid: 'instructor_great_faith',
-      assignedByName: 'Pastor & Christian Education Faculty',
-      assignedAt: now - (9 - idx) * 3600_000,
-      dueAt: now + ((idx % 4) + 1) * 86400_000,
-      dueLabel:
-        idx === 0
-          ? 'Due Today · Sunday 9:15 AM'
-          : idx === 1
-          ? 'Due Tomorrow · 11:59 PM'
-          : `Due in ${(idx % 5) + 2} Days`,
-      totalPoints: unit.totalPoints,
-      questionCount: unit.questions.length,
-      toolsConfig: {
-        allowSacredLibraryAndReferences: true,
-        allowSelfCheckBeforeTurnIn: true,
-        allowScratchpadNotes: true,
-        allowHandRaiseQuestion: true,
-      },
-      unitSnapshot: unit,
-    });
-  });
-
-  // Also seed the 2 Academia units so Academia & Universal views have STEM & ELA work ready
-  const acadUnits = buildStarterAcademiaUnits();
-  acadUnits.forEach((unit, idx) => {
-    if (existingUnitIds.has(unit.id)) return;
-    additions.push({
-      id: `desk_assign_${unit.id}`,
-      unitId: unit.id,
-      telaDocId: unit.telaDocId,
-      domain: 'ACADEMIA',
-      orgId: 'academia-campus',
-      orgName: 'Plajah Academia',
-      classroomId: unit.programId || 'class-academia',
-      classroomName: idx === 0 ? 'Honors Humanities & Literature' : 'STEM Quantitative & Astronomy Lab',
-      departmentFolder: unit.departmentFolder || 'Academia',
-      title: unit.title,
-      subtitle: unit.subtitle,
-      instructions:
-        'Complete the interactive Tela worksheet on your Student Desk. Use the Self-Check tool to verify your answers before turning in.',
-      unitKind: unit.kind,
-      livingTemplateId: unit.livingTemplateId || 'ws-celestial-astrolabe',
-      assignedByUid: 'teacher_academia',
-      assignedByName: 'Prof. Elena Vance · Academia Faculty',
-      assignedAt: now - 14400_000,
-      dueAt: now + (idx + 1) * 86400_000,
-      dueLabel: idx === 0 ? 'Due Tomorrow · 3:30 PM' : 'Due Friday · 5:00 PM',
-      totalPoints: unit.totalPoints,
-      questionCount: unit.questions.length,
-      toolsConfig: {
-        allowSacredLibraryAndReferences: true,
-        allowSelfCheckBeforeTurnIn: true,
-        allowScratchpadNotes: true,
-        allowHandRaiseQuestion: true,
-      },
-      unitSnapshot: unit,
-    });
-  });
-
-  if (additions.length > 0) {
-    const merged = [...additions, ...existing];
-    writeStoredAssignments(merged);
-    return merged;
-  }
-
-  return existing;
-}
-
 export function listDeskAssignments(filter?: {
   domain?: DeskContextDomain | 'ALL';
   orgId?: string;
   classroomId?: string;
+  /** A student's view: hides work scheduled to open later (unless they assigned it). */
+  studentUid?: string;
 }): UniversalDeskAssignment[] {
   const all = readStoredAssignments();
   return all.filter(item => {
+    if (filter?.studentUid && !isOpenFor(item, filter.studentUid)) {
+      return false;
+    }
     if (filter?.domain && filter.domain !== 'ALL' && item.domain !== filter.domain) {
       return false;
     }
@@ -453,6 +191,11 @@ export function assignUnitToClassroomDesk(params: {
   classroomName: string;
   dueLabel: string;
   dueAt?: number;
+  opensAt?: number;
+  scheduledFor?: number;
+  afterDue?: AfterDue;
+  /** What the class ledger calls it (the auto-scheduler records 'auto_scheduled'). */
+  ledgerEvent?: LedgerEvent;
   instructions?: string;
   livingTemplateId?: string;
   assignedByUid?: string;
@@ -465,8 +208,10 @@ export function assignUnitToClassroomDesk(params: {
     params.unit.livingTemplateId ||
     getDefaultLivingTemplateForUnit(params.unit.kind, params.unit.title).id;
 
+  // The class gets its own copy of the lesson as it is now: editing (or deleting) the library original later
+  // never changes work already handed out.
   const updatedUnit: IngestedCurriculumUnit = {
-    ...params.unit,
+    ...(JSON.parse(JSON.stringify(params.unit)) as IngestedCurriculumUnit),
     livingTemplateId: tplId,
   };
 
@@ -482,16 +227,18 @@ export function assignUnitToClassroomDesk(params: {
     departmentFolder: params.unit.departmentFolder || 'Christian Education',
     title: params.unit.title,
     subtitle: params.unit.subtitle,
-    instructions:
-      params.instructions?.trim() ||
-      'Read the lesson materials and Sacred Library primary sources, fill out each prompt on your Tela Student Desk, and click Turn In when finished.',
+    // Only what the teacher wrote; the assignment itself is the original's content.
+    instructions: params.instructions?.trim() || '',
     unitKind: params.unit.kind,
     livingTemplateId: tplId,
-    assignedByUid: params.assignedByUid || 'instructor_great_faith',
+    assignedByUid: params.assignedByUid || auth.currentUser?.uid || 'class_instructor',
     assignedByName: params.assignedByName || 'Class Instructor',
     assignedAt: Date.now(),
     dueAt: params.dueAt || Date.now() + 2 * 86400_000,
     dueLabel: params.dueLabel || 'Due This Week',
+    ...(params.opensAt && params.opensAt > Date.now() ? { opensAt: params.opensAt } : {}),
+    ...(params.scheduledFor ? { scheduledFor: params.scheduledFor } : {}),
+    afterDue: params.afterDue || 'lock',
     totalPoints: params.unit.totalPoints,
     questionCount: params.unit.questions.length,
     toolsConfig: {
@@ -506,7 +253,70 @@ export function assignUnitToClassroomDesk(params: {
 
   const next = [assignment, ...all.filter(a => a.id !== assignment.id)];
   writeStoredAssignments(next);
+  void mirrorAssignment(assignment);
+  if (assignment.domain === 'CHRISTIAN_EDUCATION') void logEduEvent({
+    orgId: assignment.orgId, programId: assignment.classroomId, assignmentId: assignment.id, assignmentTitle: assignment.title,
+    event: params.ledgerEvent || 'assigned', actorName: assignment.assignedByName,
+    detail: ledgerDates(assignment),
+  });
   return assignment;
+}
+
+const ledgerDates = (a: Pick<UniversalDeskAssignment, 'opensAt' | 'scheduledFor' | 'dueAt' | 'afterDue'>) => ({
+  opensAt: a.opensAt || null, scheduledFor: a.scheduledFor || null, dueAt: a.dueAt, afterDue: afterDueOf(a),
+});
+
+/** Takes an assignment off this device's desk (the teacher unassigned it). */
+export function removeDeskAssignment(id: string): void {
+  writeStoredAssignments(readStoredAssignments().filter(a => a.id !== id));
+}
+
+/** A class's work on this device, trimmed to what the class still has (unassigned work disappears). */
+export function pruneClassAssignments(classroomId: string, keepIds: Set<string>): void {
+  const all = readStoredAssignments();
+  const next = all.filter(a => a.classroomId !== classroomId || keepIds.has(a.id));
+  if (next.length !== all.length) writeStoredAssignments(next);
+}
+
+/** Which copy of an assignment is newest (assigned, or later moved on the calendar). */
+export const deskStamp = (a: Pick<UniversalDeskAssignment, 'assignedAt' | 'rescheduledAt'>) => Math.max(a.assignedAt || 0, a.rescheduledAt || 0);
+
+/** Students see scheduled work from its open time; whoever assigned it always sees it. */
+export function isOpenFor(a: Pick<UniversalDeskAssignment, 'opensAt' | 'assignedByUid'>, uid: string, now = Date.now()): boolean {
+  return !a.opensAt || a.opensAt <= now || a.assignedByUid === uid;
+}
+
+/** Moves an assigned item to new dates (calendar drag or edit). Returns the updated assignment, or null if it isn't on this device. */
+export function rescheduleDeskAssignment(id: string, at: { dueAt: number; dueLabel: string; opensAt?: number | null; scheduledFor?: number | null; afterDue?: AfterDue }): UniversalDeskAssignment | null {
+  const all = readStoredAssignments();
+  const cur = all.find(a => a.id === id);
+  if (!cur) return null;
+  const { opensAt: _old, scheduledFor: _sf, ...rest } = cur;
+  const scheduledFor = at.scheduledFor === undefined ? cur.scheduledFor : at.scheduledFor || undefined;
+  const next: UniversalDeskAssignment = {
+    ...rest, dueAt: at.dueAt, dueLabel: at.dueLabel, rescheduledAt: Date.now(),
+    ...(at.opensAt && at.opensAt > Date.now() ? { opensAt: at.opensAt } : {}),
+    ...(scheduledFor ? { scheduledFor } : {}),
+    afterDue: at.afterDue || afterDueOf(cur),
+  };
+  writeStoredAssignments(all.map(a => (a.id === id ? next : a)));
+  void mirrorAssignment(next);
+  if (next.domain === 'CHRISTIAN_EDUCATION') {
+    const policyOnly = next.dueAt === cur.dueAt && (next.opensAt || 0) === (cur.opensAt || 0) && (next.scheduledFor || 0) === (cur.scheduledFor || 0);
+    void logEduEvent({
+      orgId: next.orgId, programId: next.classroomId, assignmentId: next.id, assignmentTitle: next.title,
+      event: policyOnly ? 'policy_changed' : 'rescheduled',
+      detail: { ...ledgerDates(next), previousDueAt: cur.dueAt, previousOpensAt: cur.opensAt || null, previousAfterDue: afterDueOf(cur) },
+    });
+  }
+  return next;
+}
+
+/** Why a turn-in was refused: past due on a locked assignment without a granted extension, or not open yet. */
+export class TurnInLockedError extends Error {
+  constructor(public readonly reason: 'past_due' | 'not_open') {
+    super(reason === 'past_due' ? 'This was due already. Ask your teacher for an extension to turn it in.' : 'This is not open yet.');
+  }
 }
 
 /**
@@ -596,7 +406,35 @@ export function saveStudentDeskDraft(params: {
 
   map[params.assignment.id] = updated;
   writeWorkspaceMap(params.studentUid, map);
+  mirrorDraft(params.assignment, updated);
   return updated;
+}
+
+/**
+ * The student's own saved work from their account onto this device: drafts saved on another device
+ * (newer than this one's) and work already turned in there.
+ */
+export function applyMyDrafts(studentUid: string, recs: EduSubmissionRecord[]): void {
+  const map = readWorkspaceMap(studentUid);
+  let changed = false;
+  for (const r of recs) {
+    if (r.studentUid !== studentUid || r.status === 'RETURNED_WITH_FEEDBACK') continue;
+    const prev = map[r.assignmentId];
+    if (prev && (prev.lastSavedAt || 0) >= (r.updatedAt || 0)) continue;
+    if (prev?.status === 'TURNED_IN' || prev?.status === 'RETURNED_WITH_FEEDBACK') continue;
+    map[r.assignmentId] = {
+      ...(prev || { scratchpadNotes: '', flaggedQuestionIds: [], selfCheckCount: 0 }),
+      assignmentId: r.assignmentId,
+      studentUid,
+      studentName: r.studentName,
+      status: r.status,
+      answers: { ...r.answers },
+      lastSavedAt: r.updatedAt || Date.now(),
+      ...(r.turnedInAt ? { turnedInAt: r.turnedInAt } : {}),
+    } as StudentDeskWorkspaceState;
+    changed = true;
+  }
+  if (changed) writeWorkspaceMap(studentUid, map);
 }
 
 /**
@@ -613,10 +451,24 @@ export function turnInStudentDeskAssignment(params: {
   answers: Record<string, string>;
   scratchpadNotes?: string;
   deskLivingTemplateId?: string;
+  /** This student's extension request, if any: a granted one moves the deadline. */
+  extension?: ExtensionLike | null;
 }): {
   workspace: StudentDeskWorkspaceState;
   submission: StudentUnitSubmission;
 } {
+  // 0. The due date and after-due rule (the database rules check the same thing on the server copy).
+  const a = params.assignment;
+  const state = turnInState(a, params.extension);
+  if (!canTurnIn(state)) {
+    if (a.domain === 'CHRISTIAN_EDUCATION' && state.kind === 'locked') void logEduEvent({
+      orgId: a.orgId, programId: a.classroomId, assignmentId: a.id, assignmentTitle: a.title, studentUid: params.studentUid,
+      event: 'turn_in_refused', actorName: params.studentName, detail: { dueAt: state.dueAt, extension: state.extension || null },
+    });
+    throw new TurnInLockedError(state.kind === 'not_open' ? 'not_open' : 'past_due');
+  }
+  const late = isLate(a, params.extension, Date.now());
+
   // 1. Grade and update Mastery Graph via curriculumIngestionService
   const submission = gradeAndRecordUnitSubmission({
     unit: params.assignment.unitSnapshot,
@@ -663,12 +515,66 @@ export function turnInStudentDeskAssignment(params: {
     lastSavedAt: now,
     turnedInAt: now,
     submission,
+    ...(late ? { late: true } : {}),
   };
 
   map[params.assignment.id] = workspace;
   writeWorkspaceMap(params.studentUid, map);
+  void mirrorTurnIn(params.assignment, workspace);
+  if (a.domain === 'CHRISTIAN_EDUCATION') void logEduEvent({
+    orgId: a.orgId, programId: a.classroomId, assignmentId: a.id, assignmentTitle: a.title, studentUid: params.studentUid,
+    event: late ? 'turned_in_late' : 'turned_in', actorName: params.studentName,
+    detail: { dueAt: a.dueAt, turnedInAt: now, extended: state.kind === 'extended', percentage: submission.percentage },
+  });
 
   return { workspace, submission };
+}
+
+/** Merge assignments fetched from the Christian Ed mirror into this device's desk. */
+export function mergeRemoteDeskAssignments(remote: UniversalDeskAssignment[]): void {
+  if (remote.length === 0) return;
+  const all = readStoredAssignments();
+  const byId = new Map(all.map(a => [a.id, a]));
+  let changed = false;
+  for (const r of remote) {
+    const local = byId.get(r.id);
+    if (!local || deskStamp(local) < deskStamp(r)) {
+      byId.set(r.id, { ...local, ...r, unitSnapshot: { ...(local?.unitSnapshot || {}), ...r.unitSnapshot } });
+      changed = true;
+    }
+  }
+  if (changed) writeStoredAssignments(Array.from(byId.values()).sort((a, b) => b.assignedAt - a.assignedAt));
+}
+
+/** Bring teacher feedback from the mirror onto the student's local desk. */
+export function applyReturnedSubmissions(studentUid: string, recs: EduSubmissionRecord[]): void {
+  const returned = recs.filter(r => r.status === 'RETURNED_WITH_FEEDBACK');
+  if (returned.length === 0) return;
+  const map = readWorkspaceMap(studentUid);
+  let changed = false;
+  for (const r of returned) {
+    const prev = map[r.assignmentId];
+    if (prev?.status === 'RETURNED_WITH_FEEDBACK' && prev.teacherFeedbackNote === (r.teacherFeedbackNote || '') && prev.submission?.percentage === r.percentage) continue;
+    map[r.assignmentId] = {
+      ...(prev || {
+        assignmentId: r.assignmentId,
+        studentUid,
+        studentName: r.studentName,
+        answers: r.answers,
+        scratchpadNotes: '',
+        flaggedQuestionIds: [],
+        selfCheckCount: 0,
+        lastSavedAt: Date.now(),
+      }),
+      status: 'RETURNED_WITH_FEEDBACK',
+      teacherFeedbackNote: r.teacherFeedbackNote || '',
+      turnedInAt: r.turnedInAt,
+      // The teacher's scores (and, now that it's returned, the expected answers) replace the desk's waiting ones.
+      ...(prev?.submission ? { submission: { ...prev.submission, questionScores: { ...prev.submission.questionScores, ...r.questionScores }, earnedPoints: r.earnedPoints, percentage: r.percentage } } : {}),
+    };
+    changed = true;
+  }
+  if (changed) writeWorkspaceMap(studentUid, map);
 }
 
 /**

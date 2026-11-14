@@ -11,6 +11,7 @@ import { auth } from '../firebase';
 import { saveBusinessPage, fetchSignageSlides, saveSignageSlide } from '../businessService';
 import { createProduct, fetchProductsBySeller, deleteProduct } from '../storeService';
 import { fetchOffers, saveOffer } from '../offersService';
+import { billingApi } from '../billingService';
 import { planApply, stripUndefined, isSampleProduct, type ApplyPlan } from './plan';
 import { computeChecklist, type BusinessSnapshot, type ChecklistProgress } from './checklist';
 import type { VerticalPack } from './types';
@@ -116,10 +117,11 @@ export async function loadSnapshot(
   extra: { orderCount: number; contactCount: number; slideCount: number },
 ): Promise<BusinessSnapshot> {
   const uid = auth.currentUser?.uid;
-  const [products, offers, staffCount] = await Promise.all([
+  const [products, offers, staffCount, connection] = await Promise.all([
     uid ? fetchProductsBySeller(uid).catch(() => []) : Promise.resolve([]),
     uid ? fetchOffers(uid).catch(() => []) : Promise.resolve([]),
     countStaff(uid).catch(() => 0),
+    uid ? billingApi.status({ kind: 'BUSINESS', id: uid }).catch(() => null) : Promise.resolve(null),
   ]);
   const samples = products.filter(p => isSampleProduct(p as any));
   return {
@@ -132,6 +134,7 @@ export async function loadSnapshot(
     contactCount: extra.contactCount,
     slideCount: extra.slideCount,
     staffCount,
+    stripeConnected: !!connection?.stripeAccountId,
   };
 }
 

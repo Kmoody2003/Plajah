@@ -231,6 +231,11 @@ export function parseSf2(bytes: Uint8Array): Sf2File | null {
       const instGen = pGens.get(GEN.instrument);
       if (!instGen) continue; // a global preset zone; its gens would offset everything, rare — skip
       const instIndex = instGen.amount;
+      // A preset zone can split instruments across the keyboard/velocity (layered presets):
+      // its ranges clip the instrument zones it points at.
+      const pKey = pGens.get(GEN.keyRange), pVel = pGens.get(GEN.velRange);
+      const pLoKey = pKey ? pKey.amount & 0xff : 0, pHiKey = pKey ? (pKey.amount >> 8) & 0xff : 127;
+      const pLoVel = pVel ? pVel.amount & 0xff : 0, pHiVel = pVel ? (pVel.amount >> 8) & 0xff : 127;
       const ins = inst[instIndex];
       const nextIns = inst[instIndex + 1];
       if (!ins) continue;
@@ -253,10 +258,11 @@ export function parseSf2(bytes: Uint8Array): Sf2File | null {
 
         const keyR = g(GEN.keyRange);
         const velR = g(GEN.velRange);
-        const loKey = keyR ? keyR.amount & 0xff : 0;
-        const hiKey = keyR ? (keyR.amount >> 8) & 0xff : 127;
-        const loVel = velR ? velR.amount & 0xff : 1;
-        const hiVel = velR ? (velR.amount >> 8) & 0xff : 127;
+        const loKey = Math.max(pLoKey, keyR ? keyR.amount & 0xff : 0);
+        const hiKey = Math.min(pHiKey, keyR ? (keyR.amount >> 8) & 0xff : 127);
+        const loVel = Math.max(pLoVel, velR ? velR.amount & 0xff : 1);
+        const hiVel = Math.min(pHiVel, velR ? (velR.amount >> 8) & 0xff : 127);
+        if (loKey > hiKey || loVel > hiVel) continue;
         const rootOverride = g(GEN.overridingRootKey);
         const attn = g(GEN.initialAttenuation);
         const pan = g(GEN.pan);
@@ -272,13 +278,16 @@ export function parseSf2(bytes: Uint8Array): Sf2File | null {
         const envAttack = g(GEN.attackVolEnv);
         if (envAttack) prog.amp.attack = Math.max(prog.amp.attack, timecentsToSec(envAttack.sAmount));
 
-        if ((g(GEN.sampleModes)?.amount ?? 0) & 1) sample.loopMode = 'forward';
+        // sampleModes 1 = loop continuously, 3 = loop while held then play out the tail.
+        const modes = (g(GEN.sampleModes)?.amount ?? 0) & 3;
+        if (modes === 1) sample.loopMode = 'forward';
+        else if (modes === 3) sample.loopMode = 'sustain';
 
         const zone: KeraZone = {
           sampleId,
           loKey, hiKey, loVel, hiVel,
           rrGroup: 0, rrIndex: 0,
-          tuneSemis: (g(GEN.coarseTune)?.sAmount ?? 0) + (effectiveRoot - sample.rootNote),
+          tuneSemis: (g(GEN.coarseTune)?.sAmount ?? 0) + (sample.rootNote - effectiveRoot),
           tuneCents: g(GEN.fineTune)?.sAmount ?? 0,
           gainDb: attn ? -(attn.amount / 10) : 0, // initialAttenuation is in centibels of ATTEN
           pan: pan ? pan.sAmount / 500 : 0, // SF2 pan is -500..500 → -1..1

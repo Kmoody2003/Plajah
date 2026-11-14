@@ -8,6 +8,8 @@ members = [
     "plajah-color",
     "plajah-core",
     "plajah-text",
+    "plajah-airwindows",
+    "plajah-audio-host",
 ]
 
 [workspace.package]

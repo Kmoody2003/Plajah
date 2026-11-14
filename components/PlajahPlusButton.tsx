@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Zap, Check, Crown, X, Settings, Users, RefreshCw, Star } from 'lucide-react';
-import { PlajahPlusSubscription, CreatorSplit, CreatorSplitEntry, SubscriptionTier } from '../types';
+import { PlajahPlusSubscription, SplitRecipient } from '../types';
 import {
   listenToMySubscription,
   listenToCreatorSubscriberCount,
-  fetchCreatorSplit,
-  saveCreatorSplit,
 } from '../services/subscriptionService';
+import { fetchCreatorSplitConfig, saveCreatorSplitConfig } from '../services/backendService';
 import { startSubscriptionCheckout, openBillingPortal, TIER_META } from '../services/stripeService';
 import { auth } from '../services/firebase';
 import PlajahPlusLanding from './PlajahPlusLanding';
@@ -24,27 +23,29 @@ interface PlajahPlusButtonProps {
 // ── Split Manager (creator view) ──────────────────────────────────────────────
 
 const SplitManager: React.FC<{
-  creatorId: string;
-  tier: SubscriptionTier;
   onClose: () => void;
-}> = ({ creatorId, tier, onClose }) => {
-  const [splits, setSplits] = useState<CreatorSplitEntry[]>([]);
+}> = ({ onClose }) => {
+  const [splits, setSplits] = useState<SplitRecipient[]>([]);
+  const [appliesTo, setAppliesTo] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    fetchCreatorSplit(creatorId).then(s => { if (s) setSplits(s.splits); });
-  }, [creatorId]);
+    fetchCreatorSplitConfig().then(cfg => {
+      setSplits(cfg.recipients || []);
+      setAppliesTo(cfg.appliesTo || []);
+    });
+  }, []);
 
   const addSplit = () => {
     if (splits.length >= 3) return;
-    setSplits(prev => [...prev, { targetId: '', targetType: 'USER', targetName: '', percentage: 0 }]);
+    setSplits(prev => [...prev, { creatorUid: '', displayName: '', percentage: 0 }]);
   };
 
   const removeSplit = (i: number) => setSplits(prev => prev.filter((_, idx) => idx !== i));
 
-  const updateSplit = (i: number, field: keyof CreatorSplitEntry, value: any) => {
+  const updateSplit = (i: number, field: keyof SplitRecipient, value: any) => {
     setSplits(prev => prev.map((s, idx) => idx === i ? { ...s, [field]: value } : s));
   };
 
@@ -52,7 +53,8 @@ const SplitManager: React.FC<{
     setSaving(true);
     setError(null);
     try {
-      await saveCreatorSplit(splits, tier);
+      // Same config as the Payments dashboard: this screen adds Plajah+ and leaves other categories as they are.
+      await saveCreatorSplitConfig(splits, appliesTo.includes('plajahplus') ? appliesTo : [...appliesTo, 'plajahplus']);
       setSuccess(true);
       setTimeout(() => { setSuccess(false); onClose(); }, 1500);
     } catch (e: any) {
@@ -64,8 +66,6 @@ const SplitManager: React.FC<{
 
   const totalPct = splits.reduce((acc, s) => acc + (Number(s.percentage) || 0), 0);
   const creatorRetains = 100 - totalPct;
-  const creatorShareMap: Record<SubscriptionTier, number> = { 1: 3.00, 2: 7.00, 3: 11.00 };
-  const creatorRetainsDollars = (creatorShareMap[tier] * creatorRetains / 100).toFixed(2);
 
   return (
     <div className="space-y-5">
@@ -77,10 +77,6 @@ const SplitManager: React.FC<{
       <div className="p-4 bg-white/5 border border-white/10 rounded-2xl">
         <p className="text-[10px] text-white/40 mb-1">Creator retains</p>
         <p className="text-2xl font-black text-white">{creatorRetains.toFixed(1)}%</p>
-        <p className="text-xs text-white/50">${creatorRetainsDollars}/subscriber/month</p>
-        {creatorRetainsDollars < '1.00' && (
-          <p className="text-[10px] text-red-400 mt-1">Must retain at least $1.00</p>
-        )}
       </div>
 
       <div className="space-y-3">
@@ -91,27 +87,18 @@ const SplitManager: React.FC<{
               <button onClick={() => removeSplit(i)}><X size={12} className="text-white/30 hover:text-white" /></button>
             </div>
             <input
-              value={split.targetName}
-              onChange={e => updateSplit(i, 'targetName', e.target.value)}
-              placeholder="Creator / Charity / Club name..."
+              value={split.displayName}
+              onChange={e => updateSplit(i, 'displayName', e.target.value)}
+              placeholder="Creator name..."
               className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/20 outline-none"
             />
             <input
-              value={split.targetId}
-              onChange={e => updateSplit(i, 'targetId', e.target.value)}
-              placeholder="User ID or club ID..."
+              value={split.creatorUid}
+              onChange={e => updateSplit(i, 'creatorUid', e.target.value.trim())}
+              placeholder="User ID..."
               className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/20 outline-none"
             />
             <div className="flex items-center gap-2">
-              <select
-                value={split.targetType}
-                onChange={e => updateSplit(i, 'targetType', e.target.value)}
-                className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none"
-              >
-                <option value="USER">Artist/User</option>
-                <option value="CHARITY">Charity</option>
-                <option value="CLUB">Club</option>
-              </select>
               <div className="flex-1 flex items-center gap-2">
                 <input
                   type="number"
@@ -141,7 +128,7 @@ const SplitManager: React.FC<{
 
       <button
         onClick={handleSave}
-        disabled={saving || parseFloat(creatorRetainsDollars) < 1.00}
+        disabled={saving || creatorRetains <= 0}
         className="w-full py-3 bg-white text-black rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-[1.02] transition-all disabled:opacity-40"
       >
         {success ? '✓ Saved' : saving ? 'Saving…' : 'Save Split'}
@@ -267,25 +254,7 @@ const PlajahPlusButton: React.FC<PlajahPlusButtonProps> = ({
               exit={{ y: 60, opacity: 0 }}
               className="w-full max-w-md bg-[#0a0a0a] border border-white/10 rounded-3xl p-6"
             >
-              {sub ? (
-                <SplitManager
-                  creatorId={creatorId}
-                  tier={sub.tier}
-                  onClose={() => setShowModal(false)}
-                />
-              ) : (
-                <div className="text-center space-y-4">
-                  <Zap size={32} className="text-[#FF8C00] mx-auto" />
-                  <h3 className="text-sm font-black text-white">No Active Subscription</h3>
-                  <p className="text-xs text-white/40">You don't have a Plajah+ subscription yet. Subscribe to manage creator splits.</p>
-                  <button
-                    onClick={() => { setShowModal(false); handleOpenLanding(); }}
-                    className="w-full py-3 bg-gradient-to-r from-[#D40055] to-[#FF8C00] rounded-2xl text-xs font-black uppercase tracking-widest text-white"
-                  >
-                    View Plans
-                  </button>
-                </div>
-              )}
+              <SplitManager onClose={() => setShowModal(false)} />
             </motion.div>
           </motion.div>
         )}

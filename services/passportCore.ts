@@ -44,6 +44,18 @@ export const visibleToShop = (entries: PassportEntry[], shopUid: string, shareOk
 
 // ── Claim code (printed on the invoice / handed over by the shop when the customer has no Plajah link) ──
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+/**
+ * Who owns a passport once a shop publishes to it. Adding a vehicle yourself (selfClaimed) proves nothing, so it can't
+ * collect service history: the shop's customer takes over, or a claim code takes its place. Otherwise a stranger could
+ * add a neighbour's VIN and wait for their records to arrive.
+ */
+export function ownerAfterPublish(cur: { ownerUid?: string; selfClaimed?: boolean }, customerUid: string | undefined, newCode: () => string): { ownerUid: string; selfClaimed: boolean; claimCode?: string } {
+  const owner = String(cur.ownerUid || '');
+  if (!cur.selfClaimed) return { ownerUid: owner, selfClaimed: false };
+  if (customerUid) return { ownerUid: customerUid, selfClaimed: false, claimCode: '' };
+  return { ownerUid: '', selfClaimed: false, claimCode: newCode() };
+}
+
 export function makeClaimCode(bytes: ArrayLike<number>): string { let s = ''; for (let i = 0; i < 8; i++) s += CODE_ALPHABET[(bytes[i] ?? 0) % CODE_ALPHABET.length]; return `${s.slice(0, 4)}-${s.slice(4)}`; }
 export const normalizeClaimCode = (raw: string): string => String(raw ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
 

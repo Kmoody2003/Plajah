@@ -1,9 +1,12 @@
-import { collection, getDocs, limit, query, where } from 'firebase/firestore';
+import { myClassIds } from './classRoster';
+import { collection, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
 import { auth, db } from './backendService';
 import { assembleRhythm } from './oraRhythm';
 import { assembleWorkbench, loose } from './oraWorkbench';
 import { getCheckin, getProfile, listGoals, listRituals, today } from './oraService';
 import { currentJournalDaypart, getNudgePrompt, hasWrittenToday } from './oraJournalNudge';
+import { loadClassroomCoursework } from './classroomCoursework';
+import type { Classroom } from '../types';
 
 export type PulseBriefKind = 'SCHEDULE' | 'ASSIGNMENT' | 'TASK' | 'PROJECT' | 'WELLNESS' | 'INSIGHT';
 
@@ -59,10 +62,17 @@ export async function assemblePlatformPulseBrief(accountType?: string): Promise<
   // Academic Pulse is deliberately restricted to classrooms this user is enrolled in.
   if (uid && ['STUDENT', 'ACADEMIA'].includes(String(accountType || '').toUpperCase())) {
     try {
-      const snap = await getDocs(query(collection(db, 'classrooms'), where('enrolledStudents', 'array-contains', uid), limit(20)));
-      for (const row of snap.docs) {
-        const classroom = row.data() as any;
-        for (const assignment of (classroom.assignments || [])) {
+      const ids = [...(await myClassIds(uid))].slice(0, 20);
+      const rows = await Promise.all(ids.map(id => getDoc(doc(db, 'classrooms', id))));
+      const snap = { docs: rows.filter(r => r.exists()) };
+      // Assignments live in each class's private coursework doc, not the public classroom doc.
+      const classes = await Promise.all(snap.docs.map(async (row) => {
+        const classroom = { ...(row.data() as Classroom), id: row.id, enrolledStudents: [uid] };
+        const cw = await loadClassroomCoursework(classroom, uid).catch(() => { partial = true; return null; });
+        return { row, classroom, assignments: cw?.assignments || [] };
+      }));
+      for (const { row, classroom, assignments } of classes) {
+        for (const assignment of assignments) {
           const due = Number(assignment.dueDate) || 0;
           if (due >= startOfDay() && due < now + 7 * 86_400_000) {
             items.push({

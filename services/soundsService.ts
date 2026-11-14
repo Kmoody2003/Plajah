@@ -239,6 +239,7 @@ export async function getVideosUsingSound(trackId: string, max = 60): Promise<Vi
   try {
     const snap = await getDocs(query(
       collection(db, 'videos'),
+      where('isPrivate', '==', false),
       where('soundTrackId', '==', trackId),
       qlimit(max),
     ));

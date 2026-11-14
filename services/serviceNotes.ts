@@ -195,7 +195,7 @@ export async function pushSession(uid: string, sessionId: string): Promise<void>
   const notes = serviceNotesForSession(sessionId);
   if (!uid || !notes.length) return;
   try {
-    const { db } = await import('./firebase');
+    const { opsDb: db } = await import('./firebase');
     const { doc, setDoc } = await import('firebase/firestore');
     const payload: SessionDoc = {
       uid,
@@ -215,7 +215,7 @@ export async function pushSession(uid: string, sessionId: string): Promise<void>
 export async function syncServiceNotes(uid: string): Promise<number> {
   if (!uid) return 0;
   try {
-    const { db } = await import('./firebase');
+    const { opsDb: db } = await import('./firebase');
     const { collection, getDocs, query, where } = await import('firebase/firestore');
     const snap = await getDocs(query(collection(db, CLOUD_COL), where('uid', '==', uid)));
 

@@ -8,7 +8,7 @@ import QRCode from 'qrcode';
 import { Check, Copy, Link2, Loader2, Mail, Search, UserPlus, QrCode } from 'lucide-react';
 import type { ChmsPerson, Organization, OrgMembership, UserProfile } from '../../../types';
 import { ELEVATE_ROLES, canAssignRole, getElevateRole } from '../../../services/elevateRoles';
-import { provisionAccount, linkPersonToUser, claimUrl, updateProvisionedSeat, importRoleToKey, canProvision } from '../../../services/elevateAccounts';
+import { provisionAccount, linkPersonToUser, claimUrl, updateProvisionedSeat, importRoleToKey, canProvision, sendClaimInvites, describeInviteResult, inviteStatusLabel, claimInvitesConfigured } from '../../../services/elevateAccounts';
 import { searchUserProfiles } from '../../../services/backendService';
 import { btn, btnPrimary, field, label } from './PeopleUI';
 
@@ -35,6 +35,8 @@ const PersonAccountCard: React.FC<Props> = ({ org, myMembership, person, members
   const [msg, setMsg] = useState('');
   const [qr, setQr] = useState('');
   const [copied, setCopied] = useState(false);
+  const [mailReady, setMailReady] = useState<boolean | null>(null);
+  useEffect(() => { if (seat && allowed) claimInvitesConfigured().then(setMailReady); }, [seat, allowed]);
 
   const link = useMemo(() => claimUrl(org, person.memberNumber || seat?.memberNumber), [org, person.memberNumber, seat?.memberNumber]);
   useEffect(() => { if (seat) QRCode.toDataURL(link, { width: 360, margin: 2 }).then(setQr).catch(() => setQr('')); }, [seat, link]);
@@ -47,6 +49,13 @@ const PersonAccountCard: React.FC<Props> = ({ org, myMembership, person, members
   const run = async (fn: () => Promise<unknown>, ok: string) => {
     setBusy(true); setMsg('');
     try { await fn(); await onChanged(); setMsg(ok); setMode('idle'); } catch (e: any) { setMsg(e?.message || 'Something went wrong.'); }
+    setBusy(false);
+  };
+  const sendInvite = async () => {
+    if (!seat) return;
+    setBusy(true); setMsg('');
+    try { const r = await sendClaimInvites(org.id, { seatIds: [seat.id] }); await onChanged(); setMsg(r.sent ? `Invitation sent to ${seat.claimEmailLower || person.email}.` : describeInviteResult(r)); }
+    catch (e: any) { setMsg(e?.message || 'Could not send the invitation.'); }
     setBusy(false);
   };
   const copy = async () => { try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1600); } catch { /* */ } };
@@ -84,8 +93,14 @@ const PersonAccountCard: React.FC<Props> = ({ org, myMembership, person, members
             <p className="break-all select-all text-white/40">{link}</p>
             <div className="flex flex-wrap gap-2">
               <button className={btn} onClick={copy}>{copied ? <Check size={12} /> : <Copy size={12} />} {copied ? 'Copied' : 'Copy claim link'}</button>
-              {person.email && <a className={btn} href={`mailto:${person.email}?subject=${encodeURIComponent(`Your ${org.name} account on Plajah is ready`)}&body=${encodeURIComponent(`Hi ${person.preferredName || person.firstName},\n\n${org.name} has set up your Plajah account. Claim it here:\n${link}\n\nYour member ID is ${seat.memberNumber || person.memberNumber}.`)}`}><Mail size={12} /> Email it</a>}
+              {person.email && allowed && mailReady && (
+                <button className={btnPrimary} disabled={busy || seat.claimInviteStatus === 'OPTED_OUT'} onClick={sendInvite}>
+                  {busy ? <Loader2 size={12} className="animate-spin" /> : <Mail size={12} />} {seat.claimInviteStatus ? 'Resend invite' : 'Send invite email'}
+                </button>
+              )}
+              {person.email && mailReady === false && <a className={btn} href={`mailto:${person.email}?subject=${encodeURIComponent(`Your ${org.name} account on Plajah is ready`)}&body=${encodeURIComponent(`Hi ${person.preferredName || person.firstName},\n\n${org.name} has set up your Plajah account. Claim it here:\n${link}\n\nYour member ID is ${seat.memberNumber || person.memberNumber}.`)}`}><Mail size={12} /> Email it from my mail app</a>}
             </div>
+            {inviteStatusLabel(seat) && <p className={seat.claimInviteStatus === 'BOUNCED' || seat.claimInviteStatus === 'FAILED' ? 'text-amber-300' : 'text-white/40'}>{inviteStatusLabel(seat)}</p>}
           </div>
         </div>
         {allowed && (

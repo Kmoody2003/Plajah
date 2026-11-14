@@ -773,7 +773,7 @@ const GlobalArchiveHero: React.FC<GlobalArchiveHeroProps> = ({ albums, liveCount
   );
 };
 
-/* ── Premiere rails — Special Halloween Curation Carousel + per-service new-release strips ── */
+/* ── Premiere rails — Plajah Horror Classics Carousel + per-service new-release strips ── */
 export const ArchiveRails: React.FC<{
   albums: Album[];
   onSelectItem: (album: Album) => void;
@@ -823,13 +823,13 @@ export const ArchiveRails: React.FC<{
       if (!auth.currentUser) throw new Error('Sign in required');
     }
     await createPost({
-      text: `🎃 Exploring the Halloween Curation — headlined by Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics on Cinema!`,
+      text: `🎃 Exploring Plajah Horror Classics — headlined by Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics on Cinema!`,
       isPublic: true,
       tags: ['HalloweenCuration', 'Taleo', 'PumpkinPatch', 'HorrorCinema'],
       assetEmbed: {
         type: 'TALEO_COLLECTION',
         id: 'halloween',
-        title: `🎃 Halloween Curation — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`,
+        title: `🎃 Plajah Horror Classics — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`,
         subtitle: 'Headlined by Brian James Gage’s Pumpkin Patch · Korean Gothic · Midnight Horror',
         imageUrl: halloweenShareImage,
       },
@@ -838,7 +838,7 @@ export const ArchiveRails: React.FC<{
             {
               type: 'PHOTO' as any,
               url: halloweenShareImage,
-              title: `🎃 Halloween Curation — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`,
+              title: `🎃 Plajah Horror Classics — Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`,
             },
           ]
         : undefined,
@@ -863,7 +863,7 @@ export const ArchiveRails: React.FC<{
 
   return (
     <div className="mb-12 space-y-8">
-      {/* ── Special Halloween Curation Carousel Row (directly underneath the main header images carousel) ── */}
+      {/* ── Plajah Horror Classics Carousel Row (directly underneath the main header images carousel) ── */}
       <div
         className="relative rounded-[1.75rem] border border-orange-500/25 p-5 sm:p-6 overflow-hidden shadow-[0_24px_60px_-20px_rgba(255,106,0,0.22)]"
         style={{
@@ -883,7 +883,7 @@ export const ArchiveRails: React.FC<{
             </div>
             <div className="flex flex-wrap items-baseline gap-3">
               <h3 className="text-xl sm:text-2xl font-black italic uppercase tracking-tight text-white">
-                🎃 Halloween Curation
+                🎃 Plajah Horror Classics
               </h3>
               <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-orange-200/60">
                 Headlined by Pumpkin Patch · Korean Gothic · Midnight Classics
@@ -893,14 +893,14 @@ export const ArchiveRails: React.FC<{
 
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
             <ShareButton
-              title={`Halloween Curation · Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`}
+              title={`Plajah Horror Classics · Pumpkin Patch & ${CURATED_HALLOWEEN_FILMS.length} Classics`}
               artist="Headlined by Brian James Gage"
-              text={`Stream Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics in the Halloween Curation`}
+              text={`Stream Brian James Gage’s "Pumpkin Patch" alongside ${CURATED_HALLOWEEN_FILMS.length} restored horror, Korean gothic & silent classics in Plajah Horror Classics`}
               url={halloweenShareUrl}
               imageUrl={halloweenShareImage}
               contentType="movie"
-              ctaText="🎃 EXPLORE HALLOWEEN CURATION"
-              plajahLabel="Share Halloween Curation"
+              ctaText="🎃 EXPLORE PLAJAH HORROR CLASSICS"
+              plajahLabel="Share Plajah Horror Classics"
               onPostToPlajah={handlePostHalloweenCurationToPlajah}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/8 hover:bg-white/15 border border-white/15 text-[9px] font-black uppercase tracking-[0.18em] text-white transition-all cursor-pointer"
             >

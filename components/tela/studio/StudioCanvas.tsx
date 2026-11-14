@@ -1084,7 +1084,8 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({ onObjectContextMenu,
   const grid = prefs.showGrid && prefs.gridSize > 0;
 
   return (
-    <div style={{ position: 'relative', width: SW, height: SH }}>
+    // The artboard sits on the stage box and rulers; the pasteboard hangs around it.
+    <div style={{ position: 'absolute', left: -PAD * zoom, top: -PAD * zoom, width: SW, height: SH }}>
       <svg ref={svgRef} width={SW} height={SH} viewBox={`${-PAD} ${-PAD} ${W + PAD * 2} ${H + PAD * 2}`}
         style={{ display: 'block', touchAction: 'none', cursor: cursorCss, outline: 'none' }}
         className={prefs.outline ? 'tela-studio-outline' : undefined}

@@ -17,59 +17,19 @@ import { isFeedLive } from './liveFeedLiveness';
 import { updateOrganization } from './organizationService';
 import type { Album, ChannelSource, FastChannel, FastChannelSchedule, LiveFeed, Organization, Video } from '../types';
 
-// ── Owners & Organization Identity Matching ──────────────────────────────────────
+// ── Owners ───────────────────────────────────────────────────────────────────────
+// Ownership is by account id only — never by name, so a look-alike name can't surface on an org page,
+// and never the creator's or admins' personal accounts.
 export const orgMediaUids = (
-  org?: Pick<Organization, 'id' | 'accountUid' | 'creatorId' | 'contentUids' | 'admins'> | null
+  org?: Pick<Organization, 'id' | 'accountUid' | 'contentUids'> | null
 ): string[] => {
   if (!org) return [];
   return Array.from(
     new Set(
-      [
-        org.accountUid,
-        org.creatorId,
-        org.id,
-        ...(org.contentUids || []),
-        ...(org.admins || []),
-      ].filter((u): u is string => !!u && typeof u === 'string')
+      [org.accountUid, org.id, ...(org.contentUids || [])].filter((u): u is string => !!u && typeof u === 'string')
     )
   );
 };
-
-const normalizeName = (s?: string | null): string =>
-  String(s || '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-
-const coreOrgName = (name?: string | null): string => {
-  const norm = normalizeName(name);
-  if (!norm) return '';
-  const stripped = norm
-    .replace(/\b(ministries|ministry|church|chapel|cathedral|temple|fellowship|international|inc|org)\b/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return stripped.length >= 4 ? stripped : norm;
-};
-
-/** True when a Live Hub feed or FAST channel name/ownerName matches this organization (e.g. "Great Faith" <-> "Great Faith Ministries"). */
-export function matchesOrgIdentity(
-  org?: Pick<Organization, 'id' | 'name' | 'slug'> | null,
-  ...candidates: Array<string | undefined | null>
-): boolean {
-  if (!org?.name) return false;
-  const full = normalizeName(org.name);
-  const core = coreOrgName(org.name);
-  const slug = normalizeName(org.slug);
-  if (!full && !core) return false;
-  for (const raw of candidates) {
-    const c = normalizeName(raw);
-    if (!c) continue;
-    if (full && (c === full || c.includes(full) || full.includes(c))) return true;
-    if (core && core.length >= 4 && (c === core || c.includes(core))) return true;
-    if (slug && slug.length >= 4 && c.replace(/\s+/g, '') === slug.replace(/\s+/g, '')) return true;
-  }
-  return false;
-}
 
 /** Stable key so effects only re-run when the owner set actually changes. */
 const uidsKey = (uids: string[]) => uids.slice().sort().join('|');
@@ -118,13 +78,13 @@ function useMemberGate(ownerUids: string[], needed: boolean, viewerIsOrgMember: 
 }
 
 // ── Live now (Org-scoped + LiveHub TV Plus discovery) ────────────────────────────
-/** Realtime: LIVE streams and permanent LiveHub TV+ feeds (live_feeds) by the org's media accounts
- *  or matching the org's identity (e.g. Great Faith on Live TV Hub). Uses single-collection snapshot
+/** Realtime: LIVE streams and permanent LiveHub TV+ feeds (live_feeds) owned by the org's media accounts
+ *  or stamped with the org's id. Uses single-collection snapshot
  *  (zero composite index required) so feeds never silently drop. */
 export function useOrgLive(org: Organization | null | undefined, viewerIsOrgMember = false): LiveFeed[] {
   const uids = useMemo(
     () => orgMediaUids(org),
-    [org?.id, org?.accountUid, org?.creatorId, (org?.contentUids || []).join('|'), (org?.admins || []).join('|')]
+    [org?.id, org?.accountUid, (org?.contentUids || []).join('|')]
   );
   const uidSet = useMemo(() => new Set(uids), [uids]);
   const [raw, setRaw] = useState<LiveFeed[]>([]);
@@ -166,8 +126,7 @@ export function useOrgLive(org: Organization | null | undefined, viewerIsOrgMemb
       if (!active) return false;
       const byUid = !!(f.ownerId && uidSet.has(f.ownerId));
       const byOrgId = anyF.brandId === org.id || anyF.orgId === org.id;
-      const byName = matchesOrgIdentity(org, f.ownerName, f.title, anyF.channelName);
-      return byUid || byOrgId || byName;
+      return byUid || byOrgId;
     });
   }, [raw, org, uidSet]);
 
@@ -221,64 +180,15 @@ export interface OrgChannel {
 interface OwnerChannelData { meta: FastChannel | null; sources: ChannelSource[]; schedule: FastChannelSchedule | null }
 
 /** The org's published TV channels that are on air now: its FAST channel (published + a playable
- *  programme) and any active EXTERNAL_LIVE / REELLO_LIVE source. Also discovers FAST channels
- *  matching the organization's identity (e.g. Great Faith in Live TV Hub+). */
+ *  programme) and any active EXTERNAL_LIVE / REELLO_LIVE source, from the org's own accounts only. */
 export function useOrgChannels(org: Organization | null | undefined, viewerIsOrgMember = false): OrgChannel[] {
-  const baseUids = useMemo(
+  const uids = useMemo(
     () => orgMediaUids(org),
-    [org?.id, org?.accountUid, org?.creatorId, (org?.contentUids || []).join('|'), (org?.admins || []).join('|')]
+    [org?.id, org?.accountUid, (org?.contentUids || []).join('|')]
   );
-  const [discoveredUids, setDiscoveredUids] = useState<string[]>([]);
-  const uids = useMemo(() => Array.from(new Set([...baseUids, ...discoveredUids])), [baseUids, discoveredUids]);
   const key = uidsKey(uids);
   const [data, setData] = useState<Record<string, OwnerChannelData>>({});
   const [tick, setTick] = useState(0);
-
-  // Discover any fast_channels / live_feeds ownerIds whose channel name or ownerName matches this org (e.g. "Great Faith")
-  useEffect(() => {
-    if (!org?.name) {
-      setDiscoveredUids([]);
-      return;
-    }
-    let alive = true;
-    (async () => {
-      const found = new Set<string>();
-      try {
-        const [fastSnap, feedsSnap, srcSnap] = await Promise.all([
-          getDocs(query(collection(db, 'fast_channels'), limit(200))).catch(() => null),
-          getDocs(query(collection(db, 'live_feeds'), limit(200))).catch(() => null),
-          getDocs(query(collection(db, 'channel_sources'), limit(200))).catch(() => null),
-        ]);
-        fastSnap?.docs.forEach(d => {
-          const fc = d.data() as FastChannel;
-          const uid = fc.ownerId || d.id;
-          if (uid && matchesOrgIdentity(org, fc.name, fc.tagline)) {
-            found.add(uid);
-          }
-        });
-        feedsSnap?.docs.forEach(d => {
-          const f = d.data() as LiveFeed & { brandId?: string; orgId?: string; channelName?: string };
-          if (f.ownerId && (f.brandId === org.id || f.orgId === org.id || matchesOrgIdentity(org, f.ownerName, f.title, f.channelName))) {
-            found.add(f.ownerId);
-          }
-        });
-        srcSnap?.docs.forEach(d => {
-          const data = d.data() as { ownerId?: string; sources?: ChannelSource[] };
-          const uid = data?.ownerId || d.id;
-          const sources = Array.isArray(data?.sources) ? data.sources : [];
-          if (uid && sources.some(s => matchesOrgIdentity(org, s.name))) {
-            found.add(uid);
-          }
-        });
-      } catch {
-        /* ignore */
-      }
-      if (alive) setDiscoveredUids(Array.from(found));
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [org?.id, org?.name, org?.slug]);
 
   useEffect(() => {
     if (!uids.length) { setData({}); return; }
@@ -354,133 +264,14 @@ export interface LiveHubTvSourceItem {
 }
 
 /**
- * Discovers all active LiveHub TV Plus feeds (`live_feeds` + `fast_channels` + `channel_sources`)
- * so the Reello player + Verse Mini-Bible on the main page can automatically tune to the
- * organization's Live TV Hub broadcast AND let viewers switch between any LiveHub TV+ feed.
+ * The org's own LiveHub TV+ feeds and channels (from useOrgLive + useOrgChannels, so ownership is by
+ * account id only) for the Reello player + Verse Mini-Bible source switcher.
  */
 export function useLiveHubTvPlusSources(
   org: Organization | null | undefined,
   orgLiveFeeds: LiveFeed[],
   orgChannels: OrgChannel[]
 ): LiveHubTvSourceItem[] {
-  const [globalFeeds, setGlobalFeeds] = useState<LiveFeed[]>([]);
-  const [globalFastChannels, setGlobalFastChannels] = useState<OrgChannel[]>([]);
-
-  useEffect(() => {
-    try {
-      const q = query(collection(db, 'live_feeds'));
-      const unsub = onSnapshot(
-        q,
-        snap => {
-          const rows = snap.docs
-            .map(d => ({ id: d.id, ...(d.data() as any) } as LiveFeed))
-            .filter(f => {
-              const anyF = f as any;
-              if (anyF.status === 'ENDED' || anyF.status === 'OFFLINE') return false;
-              if (f.isPublic === false || f.sanctuaryOnly) return false;
-              return isChannelFeed(f) || isFeedLive(f) || anyF.status === 'LIVE';
-            })
-            .sort((a, b) => toMs(b.timestamp) - toMs(a.timestamp));
-          setGlobalFeeds(rows);
-        },
-        () => setGlobalFeeds([])
-      );
-      return () => {
-        try {
-          unsub();
-        } catch {
-          /* */
-        }
-      };
-    } catch {
-      setGlobalFeeds([]);
-      return () => {};
-    }
-  }, []);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const [fastSnap, schedSnap, srcSnap] = await Promise.all([
-          getDocs(query(collection(db, 'fast_channels'), limit(100))).catch(() => null),
-          getDocs(query(collection(db, 'fast_channel_schedules'), limit(100))).catch(() => null),
-          getDocs(query(collection(db, 'channel_sources'), limit(120))).catch(() => null),
-        ]);
-        if (!alive) return;
-        const fastByUid = new Map<string, FastChannel>();
-        fastSnap?.docs.forEach(d => {
-          const fc = d.data() as FastChannel;
-          fastByUid.set(fc.ownerId || d.id, fc);
-        });
-        const schedByUid = new Map<string, FastChannelSchedule>();
-        schedSnap?.docs.forEach(d => schedByUid.set(d.id, d.data() as FastChannelSchedule));
-        const now = Date.now();
-        const resolved: OrgChannel[] = [];
-        fastSnap?.docs.forEach(d => {
-          const fc = d.data() as FastChannel;
-          const uid = fc.ownerId || d.id;
-          if (fc.isPublished === false) return;
-          const sched = schedByUid.get(uid);
-          if (!sched) return;
-          const slots = activeDaySlots(sched, now).filter(slotIsPlayable);
-          if (!slots.length || !hasPlayableProgramme(slots)) return;
-          const { index, offsetSec } = dayAnchoredPosition(slots, now, (sched as any).timezone);
-          try {
-            const media = resolveSlotMedia(slots[index]);
-            if (!media || media.generative) return;
-            const pb = playbackFor(media.url, media.muxPlaybackId, offsetSec);
-            if (!pb) return;
-            if (media.thumbnail) pb.poster = media.thumbnail;
-            resolved.push({
-              key: `fast:${uid}`,
-              ownerId: uid,
-              kind: 'FAST',
-              name: fc.name || 'Live TV+ Channel',
-              number: fc.number,
-              logoUrl: fc.logoUrl,
-              nowPlaying: media.title || undefined,
-              playback: pb,
-              isOrgOwned: !!(org && (uid === org.id || uid === org.accountUid || uid === org.creatorId || matchesOrgIdentity(org, fc.name))),
-            });
-          } catch {
-            /* */
-          }
-        });
-        srcSnap?.docs.forEach(d => {
-          const data = d.data() as { ownerId?: string; sources?: ChannelSource[] };
-          const uid = data?.ownerId || d.id;
-          const fc = fastByUid.get(uid);
-          const sources = Array.isArray(data?.sources) ? data.sources : [];
-          sources.forEach(s => {
-            if (!s.isActive || (s.type !== 'EXTERNAL_LIVE' && s.type !== 'REELLO_LIVE')) return;
-            if (s.membersOnly) return;
-            const pb = playbackFor(s.url, s.muxPlaybackId);
-            if (!pb) return;
-            resolved.push({
-              key: `src:${uid}:${s.id}`,
-              ownerId: uid,
-              kind: s.type,
-              name: s.name || fc?.name || 'Live TV+ Channel',
-              number: fc?.number,
-              logoUrl: s.logoUrl || fc?.logoUrl,
-              sourceId: s.id,
-              playback: pb,
-              isOrgOwned: !!(org && (uid === org.id || uid === org.accountUid || uid === org.creatorId || matchesOrgIdentity(org, s.name, fc?.name))),
-            });
-          });
-        });
-        resolved.sort((a, b) => (a.number ?? 9999) - (b.number ?? 9999));
-        if (alive) setGlobalFastChannels(resolved);
-      } catch {
-        /* ignore */
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [org?.id, org?.name]);
-
   return useMemo(() => {
     const out: LiveHubTvSourceItem[] = [];
     const seenUrls = new Set<string>();
@@ -531,57 +322,8 @@ export function useLiveHubTvPlusSources(
       });
     });
 
-    // 3. Other LiveHub TV+ live feeds across the platform (for switching sources inside the viewer)
-    globalFeeds.forEach(f => {
-      const anyF = f as any;
-      const pb = playbackFor(f.url || anyF.streamUrl || anyF.videoUrl, f.muxPlaybackId);
-      if (!pb) return;
-      const isOrg = !!(
-        org &&
-        (f.ownerId === org.id ||
-          f.ownerId === org.accountUid ||
-          f.ownerId === org.creatorId ||
-          anyF.brandId === org.id ||
-          anyF.orgId === org.id ||
-          matchesOrgIdentity(org, f.ownerName, f.title, anyF.channelName))
-      );
-      if (seenIds.has(`org-live-${f.id}`)) return;
-      pushItem({
-        id: isOrg ? `org-live-${f.id}` : `livehub-feed-${f.id}`,
-        title: f.title || f.ownerName || 'LiveHub TV+ Stream',
-        channelName: f.ownerName ? `${f.ownerName} · LiveHub TV+` : 'LiveHub TV+ Feed',
-        speaker: f.ownerName || 'LiveHub TV+',
-        number: typeof anyF.channelNumber === 'number' ? anyF.channelNumber : undefined,
-        badgeText: isOrg ? 'ORG LIVE · TV+' : 'LIVEHUB TV+ FEED',
-        isOrgOwned: isOrg,
-        kind: isOrg ? 'LIVE_SANCTUARY' : 'MINISTRY_TV_CHANNEL',
-        playback: pb,
-        feed: f,
-        viewerCount: typeof anyF.viewerCount === 'number' ? anyF.viewerCount : undefined,
-      });
-    });
-
-    // 4. Other LiveHub TV+ FAST channels across the platform
-    globalFastChannels.forEach(ch => {
-      if (!ch.playback) return;
-      if (seenIds.has(`org-ch-${ch.key}`)) return;
-      pushItem({
-        id: ch.isOrgOwned ? `org-ch-${ch.key}` : `livehub-fast-${ch.key}`,
-        title: ch.nowPlaying ? `${ch.name} · ${ch.nowPlaying}` : ch.name,
-        channelName: typeof ch.number === 'number' ? `Ch ${ch.number} · ${ch.name}` : `${ch.name} · LiveHub TV+`,
-        speaker: ch.name,
-        number: ch.number,
-        badgeText: typeof ch.number === 'number' ? `CH ${ch.number} · LIVEHUB TV+` : 'LIVEHUB TV+ FAST',
-        isOrgOwned: !!ch.isOrgOwned,
-        kind: 'MINISTRY_TV_CHANNEL',
-        playback: ch.playback,
-        channel: ch,
-      });
-    });
-
-    // Sort so org-owned broadcasts are always first!
-    return out.sort((a, b) => (a.isOrgOwned === b.isOrgOwned ? 0 : a.isOrgOwned ? -1 : 1));
-  }, [org, orgLiveFeeds, orgChannels, globalFeeds, globalFastChannels]);
+    return out;
+  }, [org, orgLiveFeeds, orgChannels]);
 }
 
 /** One thing on air for the org page's inline player: a live stream first, then its TV channels. */

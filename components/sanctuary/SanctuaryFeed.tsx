@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Heart, Lock, Send, Trash2, Globe, Gem, DollarSign, ImagePlus, X } from 'lucide-react';
 import { SanctuaryPost, SanctuaryMembership, SanctuaryTier, SanctuaryAccessType } from '../../types';
 import {
-  listenToSanctuaryPosts, createSanctuaryPost, likeSanctuaryPost, deleteSanctuaryPost,
+  listenToSanctuaryPosts, uploadGatedSanctuaryFile, createSanctuaryPost, likeSanctuaryPost, deleteSanctuaryPost,
   hasAccess,
 } from '../../services/sanctuaryService';
 import { purchaseSanctuaryUnlock } from '../../services/stripeService';
-import { uploadFile } from '../../services/backendService';
+import { useGatedMedia } from './useGatedMedia';
 import { auth } from '../../services/firebase';
 import { SANCTUARY_THEME, SanctuaryLockChip, SanctuaryPriceTag } from './SanctuaryIdentity';
 
@@ -21,6 +21,14 @@ interface Props {
 
 const ACCESS_LABEL: Record<SanctuaryAccessType, string> = { FREE: 'Everyone', TIER: 'Members', ONE_TIME: 'Paid' };
 
+const PostAttachment: React.FC<{ postId: string; attachment: { type: string; url: string; title?: string } }> = ({ postId, attachment: a }) => {
+  const url = useGatedMedia('sanctuaryPosts', postId, a.url);
+  if (!url) return null;
+  return a.type === 'VIDEO'
+    ? <video src={url} controls playsInline className="w-full max-h-[420px] object-contain bg-black" />
+    : <img src={url} className="w-full max-h-[420px] object-cover" alt={a.title || ''} loading="lazy" />;
+};
+
 const SanctuaryFeed: React.FC<Props> = ({ sanctuaryId, isOwner, membership, purchasedIds, onPurchased }) => {
   const [posts, setPosts] = useState<SanctuaryPost[]>([]);
   const [text, setText] = useState('');
@@ -28,7 +36,7 @@ const SanctuaryFeed: React.FC<Props> = ({ sanctuaryId, isOwner, membership, purc
   const [price, setPrice] = useState(3);
   const [posting, setPosting] = useState(false);
   const [unlocking, setUnlocking] = useState('');
-  const [media, setMedia] = useState<{ url: string; type: string } | null>(null);
+  const [media, setMedia] = useState<{ url: string; preview: string; type: string } | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const uid = auth.currentUser?.uid;
@@ -50,8 +58,8 @@ const SanctuaryFeed: React.FC<Props> = ({ sanctuaryId, isOwner, membership, purc
           if (opt.file) uploadPayload = opt.file;
         } catch { /* fallback */ }
       }
-      const url = await uploadFile(`sanctuaries/${sanctuaryId}/posts/${Date.now()}_${uploadPayload.name}`, uploadPayload);
-      setMedia({ url, type: file.type.startsWith('video') ? 'VIDEO' : 'PHOTO' });
+      const url = await uploadGatedSanctuaryFile(sanctuaryId, 'posts', uploadPayload, uploadPayload.name);
+      setMedia({ url, preview: URL.createObjectURL(uploadPayload), type: file.type.startsWith('video') ? 'VIDEO' : 'PHOTO' });
     } finally { setUploading(false); if (fileRef.current) fileRef.current.value = ''; }
   };
 
@@ -90,8 +98,8 @@ const SanctuaryFeed: React.FC<Props> = ({ sanctuaryId, isOwner, membership, purc
           {media && (
             <div className="relative inline-block mt-1 rounded-xl overflow-hidden border border-white/10">
               {media.type === 'VIDEO'
-                ? <video src={media.url} className="h-24 w-auto object-cover" muted />
-                : <img src={media.url} className="h-24 w-auto object-cover" alt="" />}
+                ? <video src={media.preview} className="h-24 w-auto object-cover" muted />
+                : <img src={media.preview} className="h-24 w-auto object-cover" alt="" />}
               <button onClick={() => setMedia(null)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center"><X size={10} /></button>
             </div>
           )}
@@ -159,9 +167,7 @@ const SanctuaryFeed: React.FC<Props> = ({ sanctuaryId, isOwner, membership, purc
                 {p.content && <p className="text-sm text-white/85 leading-relaxed whitespace-pre-wrap">{p.content}</p>}
                 {p.attachments?.map((a, i) => (
                   <div key={i} className="mt-2 rounded-xl overflow-hidden border border-white/10">
-                    {a.type === 'VIDEO'
-                      ? <video src={a.url} controls playsInline className="w-full max-h-[420px] object-contain bg-black" />
-                      : <img src={a.url} className="w-full max-h-[420px] object-cover" alt={a.title || ''} loading="lazy" />}
+                    <PostAttachment postId={p.id} attachment={a} />
                   </div>
                 ))}
               </>

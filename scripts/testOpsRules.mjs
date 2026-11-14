@@ -31,7 +31,50 @@ const mocks = [
 ];
 
 const cases = [];
-const t = (name, expect, who, method, path, { data, existing } = {}) => cases.push({ name, expect, who, method, path, data, existing });
+const t = (name, expect, who, method, path, { data, existing, time } = {}) => cases.push({ name, expect, who, method, path, data, existing, time });
+
+// A document's paper trail and revocations (services/coedit/audit.ts, project.ts).
+const AUD = `${DB}/docAudit/p1/events/e1`, SOLO = `${DB}/docAudit/tela__solo/events/e1`, AT = '2026-10-31T00:00:00Z';
+const CO3 = `${DB}/coedit/p3`, coFull = { ownerId: 'owner', kind: 'tela', title: 'F', members: { owner: 'owner', member: 'editor', books: 'editor' }, memberIds: ['owner', 'member', 'books'], names: {}, expires: { member: 1, books: 9e15 } };
+mocks.push(
+  { function: 'exists', args: [{ exactValue: `${DB}/coedit/p1` }], result: { value: true } },
+  { function: 'exists', args: [{ exactValue: `${DB}/coedit/tela__solo` }], result: { value: false } },
+  { function: 'get', args: [{ exactValue: CO3 }], result: { value: { data: coFull } } },
+);
+const ev = (by, extra = {}) => ({ pid: 'p1', action: 'opened', by, byName: 'N', at: AT, detail: '', ownerId: 'owner', ...extra });
+t('audit: only the server adds to a shared document\'s trail', 'DENY', 'member', 'create', AUD, { data: ev('member'), time: AT });
+t('audit: nobody writes in someone else\'s name', 'DENY', 'member', 'create', AUD, { data: ev('owner'), time: AT });
+t('audit: a revoked or outside person cannot add', 'DENY', 'other', 'create', AUD, { data: ev('other'), time: AT });
+t('audit: a time other than the server\'s is refused', 'DENY', 'member', 'create', AUD, { data: ev('member', { at: 1 }), time: AT });
+t('audit: only the server adds to an unshared document\'s trail', 'DENY', 'owner', 'create', SOLO, { data: ev('owner', { pid: 'tela__solo' }), time: AT });
+t('audit: a stranger cannot add to an unshared document', 'DENY', 'other', 'create', SOLO, { data: ev('other', { pid: 'tela__solo' }), time: AT });
+t('audit: the owner reads the trail', 'ALLOW', 'owner', 'get', AUD, { existing: ev('member') });
+t('audit: a member cannot read the trail', 'DENY', 'member', 'get', AUD, { existing: ev('member') });
+t('audit: an org IT Admin reads an org document\'s trail', 'ALLOW', 'itadmin', 'get', AUD, { existing: ev('member', { ownerId: 'someone', orgId: 'o1' }) });
+t('audit: an org admin cannot read it', 'DENY', 'coadmin', 'get', AUD, { existing: ev('member', { ownerId: 'someone', orgId: 'o1' }) });
+t('audit: even the owner cannot edit an entry', 'DENY', 'owner', 'update', AUD, { existing: ev('member'), data: ev('member', { detail: 'x' }) });
+t('audit: even the owner cannot delete an entry', 'DENY', 'owner', 'delete', AUD, { existing: ev('member') });
+t('revoke: only the server records a revocation', 'DENY', 'owner', 'create', `${CO3}/revocations/member`, { data: { reason: 'x' } });
+t('revoke: an editor cannot', 'DENY', 'books', 'create', `${CO3}/revocations/member`, { data: { reason: 'x' } });
+t('revoke: the revoked person reads why, after losing the project', 'ALLOW', 'gone', 'get', `${CO3}/revocations/gone`, { existing: { reason: 'x' } });
+t('revoke: nobody else reads it', 'DENY', 'other', 'get', `${CO3}/revocations/gone`, { existing: { reason: 'x' } });
+t('expiry: access past its end date cannot read the document', 'DENY', 'member', 'get', `${CO3}/ops/b1`, { existing: { u: 'owner', ops: '[]' }, time: AT });
+t('expiry: access before its end date still reads it', 'ALLOW', 'books', 'get', `${CO3}/ops/b1`, { existing: { u: 'owner', ops: '[]' }, time: AT });
+t('expiry: the owner is unaffected', 'ALLOW', 'owner', 'get', `${CO3}/ops/b1`, { existing: { u: 'owner', ops: '[]' }, time: AT });
+
+const COADMIN = 'coadmin', ITA = 'itadmin', SENIOR = 'senior', FIND = 'findir', VIEWER = 'finviewer';
+Object.assign(ORG, { itAdminUids: [OWNER, ITA], seniorPastorUids: [SENIOR], financeUids: [FIND], givingViewUids: [VIEWER] });
+ORG.admins = [OWNER, COADMIN]; ORG.accountingViewUids = [BOOKS, VIEWER]; ORG.pastorUids = [PASTOR, SENIOR];
+const JR = `${DB}/acctJournals/j1`, jr = { orgId: 'o1', memo: 'x' };
+t('finance: the owner reads the books', 'ALLOW', OWNER, 'get', JR, { existing: jr });
+t('finance: an IT Admin reads the books', 'ALLOW', ITA, 'get', JR, { existing: jr });
+t('finance: a Senior Pastor reads the books', 'ALLOW', SENIOR, 'get', JR, { existing: jr });
+t('finance: a Finance Director reads the books', 'ALLOW', FIND, 'get', JR, { existing: jr });
+t('finance: a granted viewer reads the books', 'ALLOW', VIEWER, 'get', JR, { existing: jr });
+t('finance: an org admin cannot read the books', 'DENY', COADMIN, 'get', JR, { existing: jr });
+t('finance: a regular pastor cannot read the books', 'DENY', PASTOR, 'get', JR, { existing: jr });
+t('finance: a granted viewer cannot write the books', 'DENY', VIEWER, 'update', JR, { existing: jr, data: { ...jr, memo: 'y' } });
+t('master: an IT Admin reads a ChMS person', 'ALLOW', ITA, 'get', `${DB}/chmsPeople/p1`, { existing: { orgId: 'o1', firstName: 'Ann' } });
 
 const P = `${DB}/chmsPeople/p1`;
 const person = { orgId: 'o1', firstName: 'Ann', linkedUid: MEMBER };
@@ -76,6 +119,180 @@ t('mirror: org owner cannot rewrite the ops copy (would self-grant)', 'DENY', OW
 t('mirror: no one can mint a platform admin', 'DENY', OTHER, 'create', `${DB}/admins/${OTHER}`, { data: {} });
 t('mirror: business owner cannot rewrite the ops copy of a page', 'DENY', SHOP, 'update', `${DB}/businessPages/b1`, { existing: PAGE, data: { ownerId: OTHER } });
 
+// Live co-editing (services/coedit): membership on coedit/{pid}; viewers read only; owner manages people.
+const CO = `${DB}/coedit/p1`;
+const coProject = { ownerId: OWNER, kind: 'tela', title: 'Flyer', members: { [OWNER]: 'owner', [MEMBER]: 'editor', [BOOKS]: 'viewer' }, memberIds: [OWNER, MEMBER, BOOKS], names: {}, createdAt: 1, updatedAt: 1 };
+mocks.push({ function: 'get', args: [{ exactValue: CO }], result: { value: { data: coProject } } });
+t('co-edit: editor reads the project', 'ALLOW', MEMBER, 'get', CO, { existing: coProject });
+t('co-edit: outsider cannot read the project', 'DENY', OTHER, 'get', CO, { existing: coProject });
+t('co-edit: only the server makes a project', 'DENY', OWNER, 'create', `${DB}/coedit/tela__abc`, { data: { ...coProject, members: { [OWNER]: 'owner' }, memberIds: [OWNER] } });
+t('co-edit: cannot create a project in someone else\'s name', 'DENY', OTHER, 'create', `${DB}/coedit/tela__abc`, { data: { ...coProject, members: { [OWNER]: 'owner' }, memberIds: [OWNER] } });
+t('co-edit: only the server adds someone', 'DENY', OWNER, 'update', CO, { existing: coProject, data: { ...coProject, members: { ...coProject.members, [PASTOR]: 'editor' }, memberIds: [...coProject.memberIds, PASTOR] } });
+t('co-edit: editor cannot invite', 'DENY', MEMBER, 'update', CO, { existing: coProject, data: { ...coProject, members: { ...coProject.members, [OTHER]: 'editor' }, memberIds: [...coProject.memberIds, OTHER] } });
+t('co-edit: editor cannot make themselves owner', 'DENY', MEMBER, 'update', CO, { existing: coProject, data: { ...coProject, members: { ...coProject.members, [MEMBER]: 'owner' } } });
+t('co-edit: editor renames', 'ALLOW', MEMBER, 'update', CO, { existing: coProject, data: { ...coProject, title: 'Flyer v2', updatedAt: 2 } });
+t('co-edit: leaving goes through the server', 'DENY', BOOKS, 'update', CO, { existing: coProject, data: { ...coProject, members: { [OWNER]: 'owner', [MEMBER]: 'editor' }, memberIds: [OWNER, MEMBER], updatedAt: 2 } });
+t('co-edit: viewer cannot remove someone else', 'DENY', BOOKS, 'update', CO, { existing: coProject, data: { ...coProject, members: { [OWNER]: 'owner', [BOOKS]: 'viewer' }, memberIds: [OWNER, BOOKS] } });
+t('co-edit: editor writes a snapshot', 'ALLOW', MEMBER, 'update', `${CO}/snap/head`, { existing: { gen: 'a' }, data: { gen: 'b', chunks: 1 } });
+t('co-edit: viewer cannot write a snapshot', 'DENY', BOOKS, 'update', `${CO}/snap/head`, { existing: { gen: 'a' }, data: { gen: 'b', chunks: 1 } });
+t('co-edit: viewer cannot send edits', 'DENY', BOOKS, 'create', `${CO}/ops/b1`, { data: { u: BOOKS, ops: '[]', n: 0 } });
+t('co-edit: editor cannot send edits as someone else', 'DENY', MEMBER, 'create', `${CO}/ops/b1`, { data: { u: OWNER, ops: '[]', n: 0 } });
+t('co-edit: viewer reads the live log', 'ALLOW', BOOKS, 'get', `${CO}/ops/b1`, { existing: { u: MEMBER, ops: '[]' } });
+t('co-edit: shared version readable by members', 'ALLOW', BOOKS, 'get', `${CO}/versions/v1`, { existing: { by: MEMBER, private: false } });
+t('co-edit: someone else\'s private copy is hidden', 'DENY', BOOKS, 'get', `${CO}/versions/v2`, { existing: { by: MEMBER, private: true } });
+t('co-edit: viewer saves a private copy', 'ALLOW', BOOKS, 'create', `${CO}/versions/v3`, { data: { by: BOOKS, private: true, reason: 'personal' } });
+t('co-edit: viewer cannot save a shared version', 'DENY', BOOKS, 'create', `${CO}/versions/v3`, { data: { by: BOOKS, private: false, reason: 'named' } });
+t('co-edit: presence for yourself', 'ALLOW', MEMBER, 'create', `${CO}/presence/${MEMBER}_tab1`, { data: { uid: MEMBER, name: 'M' } });
+t('co-edit: no presence for others', 'DENY', MEMBER, 'create', `${CO}/presence/${OWNER}_tab1`, { data: { uid: OWNER, name: 'O' } });
+t('co-edit: drafts are private', 'DENY', OWNER, 'get', `${CO}/drafts/${MEMBER}`, { existing: { ops: '[]' } });
+t('co-edit: your own draft', 'ALLOW', MEMBER, 'get', `${CO}/drafts/${MEMBER}`, { existing: { ops: '[]' } });
+t('co-edit: editor contributes a take', 'ALLOW', MEMBER, 'create', `${CO}/assets/a1`, { data: { id: 'a1', owner: MEMBER, kind: 'take', status: 'local', tiers: {} } });
+t('co-edit: viewer cannot contribute media', 'DENY', BOOKS, 'create', `${CO}/assets/a1`, { data: { id: 'a1', owner: BOOKS, kind: 'take' } });
+t('co-edit: no contributing in someone else’s name', 'DENY', MEMBER, 'create', `${CO}/assets/a1`, { data: { id: 'a1', owner: OWNER, kind: 'take' } });
+t('co-edit: contributor upgrades proxy → master', 'ALLOW', MEMBER, 'update', `${CO}/assets/a1`, { existing: { id: 'a1', owner: MEMBER, status: 'proxy' }, data: { id: 'a1', owner: MEMBER, status: 'master' } });
+t('co-edit: others cannot rewrite your asset', 'DENY', OWNER, 'update', `${CO}/assets/a1`, { existing: { id: 'a1', owner: MEMBER, status: 'proxy' }, data: { id: 'a1', owner: MEMBER, status: 'master' } });
+t('co-edit: viewer reads the media ledger', 'ALLOW', BOOKS, 'get', `${CO}/assets/a1`, { existing: { id: 'a1', owner: MEMBER } });
+t('co-edit: publish your own rig', 'ALLOW', MEMBER, 'create', `${CO}/rigs/${MEMBER}_t1`, { data: { uid: MEMBER, shares: {} } });
+t('co-edit: no rig for others', 'DENY', MEMBER, 'create', `${CO}/rigs/${OWNER}_t1`, { data: { uid: OWNER } });
+t('co-edit: ask for a preset', 'ALLOW', MEMBER, 'create', `${CO}/requests/r1`, { data: { from: MEMBER, to: OWNER, status: 'pending' } });
+t('co-edit: only the person asked answers', 'DENY', MEMBER, 'update', `${CO}/requests/r1`, { existing: { from: MEMBER, to: OWNER, status: 'pending' }, data: { from: MEMBER, to: OWNER, status: 'fulfilled' } });
+t('co-edit: asked person fulfils', 'ALLOW', OWNER, 'update', `${CO}/requests/r1`, { existing: { from: MEMBER, to: OWNER, status: 'pending' }, data: { from: MEMBER, to: OWNER, status: 'fulfilled', assetId: 'a1' } });
+t('co-edit: outsiders cannot read requests', 'DENY', OTHER, 'get', `${CO}/requests/r1`, { existing: { from: MEMBER, to: OWNER } });
+
+// Lesson Library (services/lessonLibraryStore): admin lessons are locked for teachers; teachers copy them.
+const TEACH = 'teach';
+ORG.eduTeacherUids = [TEACH];
+const LL = `${DB}/lessonLibrary/u1`;
+const lesson = (o) => ({ id: 'u1', tier: 'org', scopeId: 'o1', orgId: 'o1', ownerUid: OWNER, ownerName: 'O', provisioned: 'admin', copiedFromId: '', title: 'Exam 1', unitJson: '{}', createdAt: 1, updatedAt: 1, ...o });
+t('library: org teacher reads an admin lesson', 'ALLOW', TEACH, 'get', LL, { existing: lesson() });
+t('library: org member who is not a teacher cannot read', 'DENY', MEMBER, 'get', LL, { existing: lesson() });
+t('library: admin provisions a lesson', 'ALLOW', OWNER, 'create', LL, { data: lesson() });
+t('library: teacher cannot provision an admin lesson', 'DENY', TEACH, 'create', LL, { data: lesson({ ownerUid: TEACH }) });
+t('library: teacher cannot edit an admin lesson', 'DENY', TEACH, 'update', LL, { existing: lesson(), data: lesson({ title: 'Mine now' }) });
+t('library: teacher cannot delete an admin lesson', 'DENY', TEACH, 'delete', LL, { existing: lesson() });
+t('library: teacher cannot unlock an admin lesson', 'DENY', TEACH, 'update', LL, { existing: lesson(), data: lesson({ provisioned: 'teacher', ownerUid: TEACH }) });
+t('library: teacher saves their own copy', 'ALLOW', TEACH, 'create', LL, { data: lesson({ provisioned: 'teacher', ownerUid: TEACH, copiedFromId: 'u0' }) });
+t('library: teacher edits their own copy', 'ALLOW', TEACH, 'update', LL, { existing: lesson({ provisioned: 'teacher', ownerUid: TEACH }), data: lesson({ provisioned: 'teacher', ownerUid: TEACH, title: 'v2' }) });
+t('library: teacher deletes their own copy', 'ALLOW', TEACH, 'delete', LL, { existing: lesson({ provisioned: 'teacher', ownerUid: TEACH }) });
+t('library: teacher cannot save a copy in someone else’s name', 'DENY', TEACH, 'create', LL, { data: lesson({ provisioned: 'teacher', ownerUid: OTHER }) });
+t('library: stranger cannot add to an org library', 'DENY', OTHER, 'create', LL, { data: lesson({ provisioned: 'teacher', ownerUid: OTHER }) });
+t('library: pastor edits an admin lesson', 'ALLOW', PASTOR, 'update', LL, { existing: lesson(), data: lesson({ title: 'Exam 1 (rev)' }) });
+t('library: own lessons stay private', 'DENY', OTHER, 'get', LL, { existing: lesson({ tier: 'user', scopeId: TEACH, orgId: '', ownerUid: TEACH, provisioned: 'teacher' }) });
+t('library: a teacher with no org saves their own', 'ALLOW', OTHER, 'create', LL, { data: lesson({ tier: 'user', scopeId: OTHER, orgId: '', ownerUid: OTHER, provisioned: 'teacher' }) });
+t('library: anyone signed in reads a platform lesson', 'ALLOW', OTHER, 'get', LL, { existing: lesson({ tier: 'platform', scopeId: 'platform', orgId: '', ownerUid: TEACH, provisioned: 'teacher' }) });
+t('library: cannot share to the platform as someone else', 'DENY', OTHER, 'create', LL, { data: lesson({ tier: 'platform', scopeId: 'platform', orgId: '', ownerUid: TEACH, provisioned: 'teacher' }) });
+
+// Enrolled Student role (services/enrollmentCore): server-written; the student and the org's staff read it.
+const EN = `${DB}/enrollments/christian_ed_c1_${MEMBER}`;
+const enr = (o) => ({ id: 'x', uid: MEMBER, kind: 'christian_ed', courseId: 'c1', courseTitle: 'Rev', orgId: 'o1', role: 'ENROLLED_STUDENT', status: 'active', source: 'class_roster', enrolledAt: 1, endedAt: 0, updatedAt: 1, ...o });
+t('enrollment: the student reads their own', 'ALLOW', MEMBER, 'get', EN, { existing: enr() });
+t('enrollment: an org teacher reads it', 'ALLOW', TEACH, 'get', EN, { existing: enr() });
+t('enrollment: the org owner reads it', 'ALLOW', OWNER, 'get', EN, { existing: enr() });
+t('enrollment: a stranger cannot read it', 'DENY', OTHER, 'get', EN, { existing: enr() });
+t('enrollment: a student cannot enroll themself', 'DENY', MEMBER, 'create', EN, { data: enr() });
+t('enrollment: a teacher cannot write one from the browser', 'DENY', TEACH, 'create', EN, { data: enr() });
+t('enrollment: a student cannot end someone else’s', 'DENY', MEMBER, 'update', EN, { existing: enr({ uid: OTHER }), data: enr({ uid: OTHER, status: 'ended' }) });
+
+// Class discussion board (services/classForum): class members only; your own vote; teachers moderate.
+const DEPT = 'deptmember';
+const PROG = { orgId: 'o1', departmentId: 'd1', createdBy: OWNER, teacherUids: [TEACH], studentUids: [MEMBER] };
+mocks.push({ function: 'get', args: [{ exactValue: `${DB}/churchPrograms/c1` }], result: { value: { data: PROG } } });
+const TH = `${DB}/classThreads/t1`;
+const thread = (o) => ({ id: 't1', orgId: 'o1', programId: 'c1', kind: 'discussion', title: 'Q', body: 'b', authorUid: MEMBER, authorName: 'M', attachments: [], upvoterUids: [], replyCount: 0, createdAt: 1, lastActivityAt: 1, ...o });
+mocks.push({ function: 'get', args: [{ exactValue: TH }], result: { value: { data: thread() } } });
+t('forum: student reads a class thread', 'ALLOW', MEMBER, 'get', TH, { existing: thread() });
+t('forum: outsider cannot read', 'DENY', OTHER, 'get', TH, { existing: thread() });
+t('forum: student starts a discussion', 'ALLOW', MEMBER, 'create', TH, { data: thread() });
+t('forum: student cannot open a lesson thread', 'DENY', MEMBER, 'create', TH, { data: thread({ kind: 'lesson' }) });
+t('forum: teacher opens a lesson thread', 'ALLOW', TEACH, 'create', TH, { data: thread({ kind: 'lesson', authorUid: TEACH }) });
+t('forum: cannot post as someone else', 'DENY', MEMBER, 'create', TH, { data: thread({ authorUid: TEACH }) });
+t('forum: student votes', 'ALLOW', MEMBER, 'update', TH, { existing: thread({ authorUid: TEACH }), data: thread({ authorUid: TEACH, upvoterUids: [MEMBER] }) });
+t('forum: cannot vote for someone else', 'DENY', MEMBER, 'update', TH, { existing: thread({ authorUid: TEACH }), data: thread({ authorUid: TEACH, upvoterUids: [OTHER] }) });
+t('forum: student cannot edit the teacher’s post', 'DENY', MEMBER, 'update', TH, { existing: thread({ authorUid: TEACH }), data: thread({ authorUid: TEACH, title: 'mine' }) });
+t('forum: student cannot pin', 'DENY', MEMBER, 'update', TH, { existing: thread(), data: thread({ pinned: true }) });
+t('forum: teacher pins', 'ALLOW', TEACH, 'update', TH, { existing: thread(), data: thread({ pinned: true }) });
+t('forum: teacher removes a post', 'ALLOW', TEACH, 'delete', TH, { existing: thread() });
+const ORGT = 'orgteach'; ORG.eduTeacherUids = [TEACH, ORGT]; ORG.departmentUids = { d1: [DEPT] };
+t('forum: a department member reads their class board', 'ALLOW', DEPT, 'get', TH, { existing: thread() });
+t('forum: a teacher from another department cannot', 'DENY', ORGT, 'get', TH, { existing: thread() });
+t('class: a department member reads their class', 'ALLOW', DEPT, 'get', `${DB}/churchPrograms/c1`, { existing: PROG });
+t('class: another department cannot read it', 'DENY', ORGT, 'get', `${DB}/churchPrograms/c1`, { existing: PROG });
+t('class: a department member edits the class', 'ALLOW', DEPT, 'update', `${DB}/churchPrograms/c1`, { existing: PROG, data: { ...PROG, description: 'new' } });
+t('class: a department member cannot move it to another department', 'DENY', DEPT, 'update', `${DB}/churchPrograms/c1`, { existing: PROG, data: { ...PROG, departmentId: 'd2' } });
+t('forum: a department member posts a resource', 'ALLOW', DEPT, 'create', TH, { data: thread({ kind: 'resource', authorUid: DEPT }) });
+t('forum: another department cannot post', 'DENY', ORGT, 'create', TH, { data: thread({ kind: 'resource', authorUid: ORGT }) });
+t('forum: a department member moderates', 'ALLOW', DEPT, 'update', TH, { existing: thread(), data: thread({ pinned: true }) });
+t('forum: an ordinary org member still cannot read', 'DENY', BOOKS, 'get', TH, { existing: thread() });
+t('class: a department member cannot read answer keys', 'DENY', DEPT, 'get', `${DB}/churchEduAnswerKeys/a1`, { existing: { programId: 'c1', assignmentId: 'a1' } });
+t('class: a department member cannot read a turn-in', 'DENY', DEPT, 'get', `${DB}/churchEduSubmissions/s1`, { existing: { programId: 'c1', studentUid: MEMBER } });
+const RP = `${TH}/replies/r1`;
+const reply = (o) => ({ id: 'r1', threadId: 't1', programId: 'c1', body: 'hi', authorUid: MEMBER, authorName: 'M', upvoterUids: [], createdAt: 1, ...o });
+t('forum: student replies', 'ALLOW', MEMBER, 'create', RP, { data: reply() });
+t('forum: outsider cannot reply', 'DENY', OTHER, 'create', RP, { data: reply({ authorUid: OTHER }) });
+t('forum: cannot edit someone else’s reply', 'DENY', TEACH, 'update', RP, { existing: reply(), data: reply({ body: 'changed' }) });
+
+const MD = `${DB}/classMedia/m1`;
+const media = (o) => ({ id: 'm1', orgId: 'o1', programId: 'c1', kind: 'photo', title: 'Pageant', url: 'https://x/y.jpg', authorUid: TEACH, authorName: 'T', createdAt: 1, ...o });
+t('media: student sees the class gallery', 'ALLOW', MEMBER, 'get', MD, { existing: media() });
+t('media: outsider cannot', 'DENY', OTHER, 'get', MD, { existing: media() });
+t('media: teacher adds a photo', 'ALLOW', TEACH, 'create', MD, { data: media() });
+t('media: student cannot add', 'DENY', MEMBER, 'create', MD, { data: media({ authorUid: MEMBER }) });
+t('media: teacher files it under a lesson', 'ALLOW', TEACH, 'update', MD, { existing: media(), data: media({ lessonId: 'u1', lessonTitle: 'Exam 1' }) });
+t('media: no swapping the file', 'DENY', TEACH, 'update', MD, { existing: media(), data: media({ url: 'https://evil/z.jpg' }) });
+
+t('media: a department member adds a photo', 'ALLOW', DEPT, 'create', MD, { data: media({ authorUid: DEPT }) });
+t('media: another department cannot', 'DENY', ORGT, 'create', MD, { data: media({ authorUid: ORGT }) });
+
+const LS = `${DB}/liveSources/s1`;
+const live = (o) => ({ id: 's1', hostUid: TEACH, hostName: 'T', title: 'Doc', docId: 'd1', active: true, mode: 'FOLLOW', audience: 'members', memberUids: [MEMBER], rev: 1, chunks: 1, updatedAt: 1, invitedUids: [], ...o });
+mocks.push({ function: 'get', args: [{ exactValue: LS }], result: { value: { data: live() } } });
+// A missing source reading as empty cannot be simulated: :test has no way to send a null resource.
+t('live doc: a member reads a members-only source', 'ALLOW', MEMBER, 'get', LS, { existing: live() });
+t('live doc: an outsider cannot', 'DENY', OTHER, 'get', LS, { existing: live() });
+t('live doc: anyone reads a public stream source, signed out too', 'ALLOW', null, 'get', LS, { existing: live({ audience: 'public' }) });
+t('live doc: presenter starts', 'ALLOW', TEACH, 'create', LS, { data: live({ active: false }) });
+t('live doc: no presenting as someone else', 'DENY', OTHER, 'create', LS, { data: live() });
+t('live doc: nobody takes over a running source', 'DENY', OTHER, 'update', LS, { existing: live(), data: live({ hostUid: OTHER }) });
+t('live doc: the next presenter claims a finished one', 'ALLOW', OTHER, 'update', LS, { existing: live({ active: false }), data: live({ hostUid: OTHER, active: false }) });
+t('live doc: audience cannot change the mode', 'DENY', MEMBER, 'update', LS, { existing: live(), data: live({ mode: 'TOGETHER' }) });
+
+t('live doc: a watcher cannot move the simulations', 'DENY', MEMBER, 'update', LS, { existing: live(), data: live({ figure: { values: {} } }) });
+t('live doc: someone brought on can', 'ALLOW', MEMBER, 'update', LS, { existing: live({ invitedUids: [MEMBER] }), data: live({ invitedUids: [MEMBER], figure: { values: {} } }) });
+t('live doc: someone brought on cannot change the mode', 'DENY', MEMBER, 'update', LS, { existing: live({ invitedUids: [MEMBER] }), data: live({ invitedUids: [MEMBER], mode: 'TOGETHER' }) });
+t('live doc: nobody invites themselves', 'DENY', MEMBER, 'update', LS, { existing: live(), data: live({ invitedUids: [MEMBER] }) });
+const HD = `${LS}/hands/${MEMBER}`;
+t('live doc: a member raises a hand', 'ALLOW', MEMBER, 'create', HD, { data: { uid: MEMBER, name: 'M', rev: 1, at: 1 } });
+t('live doc: not for someone else', 'DENY', OTHER, 'create', HD, { data: { uid: MEMBER, name: 'M', rev: 1, at: 1 } });
+t('live doc: signed out cannot raise a hand', 'DENY', null, 'create', HD, { data: { uid: MEMBER, name: 'M', rev: 1, at: 1 } });
+t('live doc: the presenter clears a hand', 'ALLOW', TEACH, 'delete', HD, { existing: { uid: MEMBER, rev: 1 } });
+
+const SP = `${DB}/scheduled_posts/sp1`;
+const sched = (o) => ({ authorId: MEMBER, publishAt: 1, status: 'PENDING', post: { text: 'hi' }, ...o });
+t('scheduled post: the author schedules one', 'ALLOW', MEMBER, 'create', SP, { data: sched() });
+t('scheduled post: not as someone else', 'DENY', OTHER, 'create', SP, { data: sched() });
+t('scheduled post: signed out cannot', 'DENY', null, 'create', SP, { data: sched() });
+t('scheduled post: the author reads it', 'ALLOW', MEMBER, 'get', SP, { existing: sched() });
+t('scheduled post: nobody else reads it', 'DENY', OTHER, 'get', SP, { existing: sched() });
+
+const AS = `${DB}/orgAssets/a1`, asset = (x = {}) => ({ scopeKind: 'org', scopeId: 'o1', uploadedByUid: MEMBER, name: 'f', ...x });
+const LOCKED = { access: 'restricted', accessUids: [DEPT], accessSpec: { departments: ['d1'] } };
+const HQS = 'hqstaff'; ORG.staffUids = [HQS];
+t('hq: staff read an open file through the server, not directly', 'DENY', HQS, 'get', AS, { existing: asset() });
+t('hq: staff cannot open a restricted file', 'DENY', HQS, 'get', AS, { existing: asset(LOCKED) });
+t('hq: an org admin cannot open a restricted file', 'DENY', COADMIN, 'get', AS, { existing: asset(LOCKED) });
+t('hq: a resolved department member opens it', 'ALLOW', DEPT, 'get', AS, { existing: asset(LOCKED) });
+t('hq: the author opens it', 'ALLOW', MEMBER, 'get', AS, { existing: asset(LOCKED) });
+t('hq: an IT Admin opens it', 'ALLOW', ITA, 'get', AS, { existing: asset(LOCKED) });
+t('hq: the owner opens it', 'ALLOW', OWNER, 'get', AS, { existing: asset(LOCKED) });
+t('hq: a revoked file is closed to its department', 'DENY', DEPT, 'get', AS, { existing: asset({ access: 'revoked' }) });
+t('hq: a revoked file stays open to its author', 'ALLOW', MEMBER, 'get', AS, { existing: asset({ access: 'revoked' }) });
+t('hq: a member of a restricted file cannot edit it', 'DENY', DEPT, 'update', AS, { existing: asset(LOCKED), data: asset({ ...LOCKED, name: 'g' }) });
+t('hq: nobody widens access from the client', 'DENY', DEPT, 'update', AS, { existing: asset(LOCKED), data: asset({ ...LOCKED, accessUids: [DEPT, OTHER] }) });
+t('hq: the author cannot lift a revoke from the client', 'DENY', MEMBER, 'update', AS, { existing: asset({ access: 'revoked' }), data: asset({ access: 'open' }) });
+t('hq: an upload cannot arrive with access fields', 'DENY', HQS, 'create', AS, { data: asset({ uploadedByUid: HQS, access: 'restricted' }) });
+t('hq: staff upload a plain file', 'ALLOW', HQS, 'create', AS, { data: asset({ uploadedByUid: HQS, storagePath: `protected-hq/org/${asset().scopeId}/a/a.pdf` }) });
+t('hq: staff cannot list directly', 'DENY', HQS, 'list', `${DB}/orgAssets`, {});
+
 const body = {
   source: { files: [{ name: 'firestore.rules', content: src }] },
   testSuite: {
@@ -83,6 +300,7 @@ const body = {
       const req = { method: c.method, path: c.path };
       if (c.who) req.auth = { uid: c.who, token: { firebase: { sign_in_provider: 'google.com' } } };
       if (c.data) req.resource = { data: c.data };
+      if (c.time) req.time = c.time;
       const tc = { expectation: c.expect, request: req, functionMocks: mocks };
       if (c.existing) tc.resource = { data: c.existing };
       return tc;

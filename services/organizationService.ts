@@ -13,6 +13,8 @@ import {
 import { onSnapshot } from './safeSnapshot';
 import { db, opsDb, auth } from './firebase';
 import { permissionsForMember } from './orgPermissions';
+import { memberRoleKeys } from './elevateRoles';
+import { splitOrgPatch } from './orgFinanceCore';
 import type { ChurchPrayer, UserProfile } from '../types';
 import type { Organization, OrgMembership, OrgMembershipOnboarding, OrgRole, OrgType, Ministry, ServiceTime, GivingFund, RosterGroup } from '../types';
 
@@ -130,7 +132,6 @@ export async function createOrganization(data: Partial<Organization> & { orgType
     location: data.location,
     hours: data.hours,
     isVerified: false,
-    stripeAccountId: data.stripeAccountId,
     followerCount: 0,
     memberCount: 1,
     isPublic: data.isPublic ?? true,
@@ -172,7 +173,11 @@ export async function fetchOrganization(orgId: string): Promise<Organization | n
 }
 
 export async function updateOrganization(orgId: string, updates: Partial<Organization>): Promise<void> {
-  await updateDoc(doc(db, 'organizations', orgId), { ...stripUndefined(updates), updatedAt: Date.now() });
+  const { publicPatch, financePatch } = splitOrgPatch(stripUndefined(updates));
+  const now = Date.now();
+  // mergeFields replaces each named field whole, so a removed key inside financeSettings really goes.
+  if (Object.keys(financePatch).length) await setDoc(doc(db, 'organizations', orgId, 'private', 'finance'), { ...financePatch, updatedAt: now }, { mergeFields: [...Object.keys(financePatch), 'updatedAt'] });
+  await updateDoc(doc(db, 'organizations', orgId), { ...publicPatch, updatedAt: now });
   await refreshOpsMirror(orgId);
 }
 
@@ -209,8 +214,18 @@ export async function fetchUserOrganizations(uid: string): Promise<Organization[
 }
 
 export async function fetchOrgMembers(orgId: string): Promise<OrgMembership[]> {
-  const snap = await getDocs(query(collection(db, 'orgMemberships'), where('orgId', '==', orgId)));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as OrgMembership));
+  try {
+    const snap = await getDocs(query(collection(db, 'orgMemberships'), where('orgId', '==', orgId)));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as OrgMembership));
+  } catch (e: any) {
+    if (e?.code !== 'permission-denied') throw e;
+  }
+  // Outside the org: public leadership only, plus the caller's own row if they have one.
+  const uid = auth.currentUser?.uid;
+  const mine = uid ? (await getDocs(query(collection(db, 'orgMemberships'), where('orgId', '==', orgId), where('userId', '==', uid))).catch(() => null))?.docs.map(d => ({ id: d.id, ...d.data() } as OrgMembership)) || [] : [];
+  const res = await fetch(`/api/elevate/access/public-roster?orgId=${encodeURIComponent(orgId)}`).catch(() => null);
+  const pub: OrgMembership[] = res?.ok ? (await res.json()).members || [] : [];
+  return [...mine, ...pub.filter(m => !mine.some(x => x.id === m.id))];
 }
 
 /**
@@ -227,7 +242,33 @@ export async function recomputeOrgStaffUids(orgId: string): Promise<void> {
     const staffUids = Array.from(new Set(
       members.filter(m => m.status === 'ACTIVE' && permissionsForMember(m).has('MANAGE_CONTENT')).map(m => m.userId),
     ));
-    await updateDoc(doc(db, 'organizations', orgId), { staffUids, updatedAt: Date.now() });
+    // Teachers the Lesson Library rules let in (services/lessonLibraryStore): instructors, department
+    // heads/admins and pastors by role, plus every class's listed teachers.
+    const TEACHING = new Set(['INSTRUCTOR', 'DEPARTMENT_HEAD', 'DEPARTMENT_ADMIN', 'SENIOR_PASTOR', 'PASTOR']);
+    let classTeachers: string[] = [];
+    try {
+      const progs = await getDocs(query(collection(opsDb, 'churchPrograms'), where('orgId', '==', orgId)));
+      classTeachers = progs.docs.flatMap(d => (d.data().teacherUids as string[] | undefined) || []);
+    } catch { /* classes unreadable: role-based teachers only */ }
+    // Everyone in the org's Christian Education department (any role) works with its lessons too.
+    // Heads and volunteers alike: membership in the department is what counts, plus its named heads.
+    let eduDeptIds = new Set<string>();
+    let eduDeptHeads: string[] = [];
+    try {
+      const orgSnap = await getDoc(doc(db, 'organizations', orgId));
+      const ministries = ((orgSnap.data()?.ministries || []) as Array<{ id?: string; name?: string; headUids?: string[] }>);
+      const eduDepts = ministries.filter(d => d.id && /education$/i.test(String(d.name || '').trim()));
+      eduDeptIds = new Set(eduDepts.map(d => d.id as string));
+      eduDeptHeads = eduDepts.flatMap(d => d.headUids || []);
+    } catch { /* org unreadable: roles and classes only */ }
+    const inEduDept = (m: OrgMembership) => (m.ministryIds || []).some(id => eduDeptIds.has(id))
+      || ((m as { ministryRoles?: Array<{ ministryId?: string }> }).ministryRoles || []).some(r => !!r.ministryId && eduDeptIds.has(r.ministryId));
+    const eduTeacherUids = Array.from(new Set([
+      ...members.filter(m => m.status === 'ACTIVE' && (m.role === 'ADMIN' || memberRoleKeys(m).some(k => TEACHING.has(k)) || inEduDept(m))).map(m => m.userId),
+      ...classTeachers,
+      ...eduDeptHeads,
+    ].filter(Boolean)));
+    await updateDoc(doc(db, 'organizations', orgId), { staffUids, eduTeacherUids, updatedAt: Date.now() });
     await refreshOpsMirror(orgId);
   } catch { /* non-fatal: HQ access falls back to owners/admins until the next staff change */ }
 }
@@ -237,8 +278,22 @@ export async function recomputeOrgStaffUids(orgId: string): Promise<void> {
  * memberships by random id, so thread-comment rules key on this marker (ACTIVE members only, plus
  * the ministry ids they belong to for DEPARTMENT threads). Derived from orgMemberships — best-effort.
  * Call after ANY membership create/accept/remove/role-or-ministry change (exported for elevateService).
+ * The server rebuilds it (routes/elevateAccounts.ts /sync-index) — rules refuse a member writing their own
+ * marker, since that would let anyone grant themselves members-only and department access. The client write
+ * below is the fallback for org admins/pastors when the API is unreachable.
  */
 export async function syncMemberIndex(orgId: string, uid: string): Promise<void> {
+  try {
+    const token = await auth.currentUser?.getIdToken().catch(() => null);
+    if (token) {
+      const r = await fetch('/api/elevate/claim/sync-index', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ orgId, uid }),
+      });
+      if (r.ok) return;
+    }
+  } catch { /* API unreachable — try the direct write */ }
   try {
     const snap = await getDocs(query(collection(db, 'orgMemberships'), where('orgId', '==', orgId), where('userId', '==', uid)));
     const active = snap.docs.map(d => d.data() as OrgMembership).filter(m => m.status === 'ACTIVE');
@@ -560,7 +615,7 @@ export async function createManagedEmployee(
     uid: employeeUid,
     displayName: data.displayName || 'Employee',
     photoURL: data.photoURL || '',
-    email: '',
+    listable: true,
     accountType: 'EMPLOYEE',
     isEmployee: true,
     employerOrgId: orgId,
@@ -813,8 +868,9 @@ export async function declineOrgMember(membershipId: string): Promise<void> {
  * links the work identity in; it never merges the two accounts.
  */
 export async function claimEmployeeProfile(employeeUid: string, personalUid: string): Promise<void> {
-  await updateDoc(doc(db, 'users', employeeUid), { claimedByUid: personalUid });
-  const snap = await getDocs(query(collection(db, 'orgMemberships'), where('employeeProfileUid', '==', employeeUid)));
+  const employee = await getDoc(doc(db, 'users', employeeUid));
+  await updateDoc(employee.ref, { claimedByUid: personalUid });
+  const snap = await getDocs(query(collection(db, 'orgMemberships'), where('orgId', '==', employee.data()?.employerOrgId || ''), where('employeeProfileUid', '==', employeeUid)));
   await Promise.all(snap.docs.map(d => updateDoc(d.ref, { userId: personalUid })));
 }
 

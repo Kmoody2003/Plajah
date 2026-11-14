@@ -12,6 +12,7 @@ import {
   Maximize2, Minimize2, Send, Wifi, WifiOff, Sliders, Eye, Activity,
   Clock, Trash2, Ban, Type,
 } from 'lucide-react';
+import { LevelMeter } from './live/LevelMeter';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -79,37 +80,6 @@ function useElapsed(startTime: number) {
   const m = Math.floor((elapsed % 3600000) / 60000).toString().padStart(2, '0');
   const s = Math.floor((elapsed % 60000) / 1000).toString().padStart(2, '0');
   return `${h}:${m}:${s}`;
-}
-
-function AudioMeter({ stream }: { stream: MediaStream | null }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rafRef = useRef<number>(0);
-  useEffect(() => {
-    if (!stream) return;
-    const ctx = new AudioContext();
-    const analyser = ctx.createAnalyser();
-    analyser.fftSize = 32;
-    ctx.createMediaStreamSource(stream).connect(analyser);
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    const cv = canvasRef.current;
-    if (!cv) return;
-    const c2 = cv.getContext('2d')!;
-    const draw = () => {
-      analyser.getByteFrequencyData(data);
-      c2.clearRect(0, 0, cv.width, cv.height);
-      const bw = cv.width / data.length;
-      data.forEach((v, i) => {
-        const pct = v / 255;
-        const h = pct * cv.height;
-        c2.fillStyle = pct > 0.8 ? '#ef4444' : pct > 0.5 ? '#f59e0b' : '#22c55e';
-        c2.fillRect(i * bw, cv.height - h, bw - 1, h);
-      });
-      rafRef.current = requestAnimationFrame(draw);
-    };
-    draw();
-    return () => { cancelAnimationFrame(rafRef.current); ctx.close(); };
-  }, [stream]);
-  return <canvas ref={canvasRef} width={120} height={20} className="rounded bg-black/40" />;
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -279,8 +249,8 @@ const LiveBroadcastControlPanel: React.FC<LiveBroadcastControlPanelProps> = ({
             </div>
           )}
           {/* Audio meter overlay */}
-          <div className="absolute bottom-2 left-2">
-            <AudioMeter stream={audioEnabled ? localStream : null} />
+          <div className="absolute bottom-2 left-2 right-2 rounded-lg bg-black/55 backdrop-blur px-2 py-1">
+            <LevelMeter source={localStream} size="sm" label="Mic" muted={!audioEnabled} />
           </div>
           {/* Screen share badge */}
           {screenSharing && (

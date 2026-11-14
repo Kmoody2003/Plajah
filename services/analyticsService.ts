@@ -1,3 +1,4 @@
+import { videosOwnedBy } from './videoQuery';
 import { collection, doc, getDoc, getDocs, query, where, orderBy, limit, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import type { FilmVideoAnalytics } from '../types';
@@ -204,7 +205,7 @@ export async function fetchAdminAnalytics(): Promise<AdminAnalytics> {
   ] = await Promise.all([
     safe('users', getDocs(collection(db, 'users'))),
     safe('albums', getDocs(query(collection(db, 'albums'), orderBy('playCount', 'desc'), limit(200)))),
-    safe('videos', getDocs(query(collection(db, 'videos'), orderBy('playCount', 'desc'), limit(200)))),
+    safe('videos', getDocs(query(collection(db, 'videos'), where('isPrivate', '==', false), orderBy('playCount', 'desc'), limit(200)))),
     safe('posts', getDocs(query(collection(db, 'posts'), orderBy('likesCount', 'desc'), limit(200)))),
     safe('articles', getDocs(query(collection(db, 'articles'), orderBy('likesCount', 'desc'), limit(200)))),
     safe('games', getDocs(query(collection(db, 'games'), limit(100)))),
@@ -324,7 +325,7 @@ export async function fetchAdminAnalytics(): Promise<AdminAnalytics> {
 export async function fetchUserAnalytics(uid: string, userProfile: any): Promise<UserAnalytics> {
   const [albumsSnap, videosSnap, postsSnap, articlesSnap, gamesSnap, worldsSnap] = await Promise.all([
     getDocs(query(collection(db, 'albums'), where('ownerId', '==', uid))),
-    getDocs(query(collection(db, 'videos'), where('ownerId', '==', uid))),
+    getDocs(query(collection(db, 'videos'), ...videosOwnedBy(uid))),
     getDocs(query(collection(db, 'posts'), where('authorId', '==', uid), orderBy('timestamp', 'desc'), limit(50))),
     getDocs(query(collection(db, 'articles'), where('authorId', '==', uid), orderBy('timestamp', 'desc'), limit(50))),
     getDocs(query(collection(db, 'games'), where('ownerId', '==', uid))),
@@ -439,7 +440,7 @@ export async function fetchUserAnalytics(uid: string, userProfile: any): Promise
 
 export async function fetchFilmAnalytics(uid: string): Promise<FilmVideoAnalytics[]> {
   const videosSnap = await getDocs(
-    query(collection(db, 'videos'), where('ownerId', '==', uid))
+    query(collection(db, 'videos'), ...videosOwnedBy(uid))
   );
   const albumsSnap = await getDocs(
     query(collection(db, 'albums'), where('ownerId', '==', uid), where('type', '==', 'VIDEO'))

@@ -2,7 +2,7 @@
  * Client side of business staff seats (see services/businessStaffCore.ts for the model).
  * Seats are created and changed only through the server (routes/businessStaff.ts); the client lists them.
  */
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import type { BusinessPage } from '../types';
 import type { BizPerm, StaffInviteSummary, StaffSeatRole } from './businessStaffCore';
@@ -32,10 +32,24 @@ export const listStaffInvites = (pageId: string) =>
   call<{ invites: { id: string; role: StaffSeatRole; roleLabel?: string; perms: BizPerm[]; expiresAt: number; createdAt: number }[] }>(`/invites?pageId=${encodeURIComponent(pageId)}`, undefined, 'GET');
 export const revokeStaffInvite = (inviteId: string) => call<{ ok: true }>('/revoke', { inviteId });
 
+/** A page plus its seats, for its owner and seated staff (rules deny anyone else the seats). */
+export async function fetchPageWithSeats(pageId: string): Promise<BusinessPage | null> {
+  const snap = await getDoc(doc(db, 'businessPages', pageId));
+  if (!snap.exists()) return null;
+  return withSeats({ id: snap.id, ...snap.data() } as BusinessPage);
+}
+export async function withSeats(page: BusinessPage): Promise<BusinessPage> {
+  const seats = await getDoc(doc(db, 'businessPages', page.id, 'private', 'staff')).catch(() => null);
+  const s = seats?.exists() ? seats.data() : null;
+  return s ? { ...page, staffUids: s.staffUids, staffSeats: s.staffSeats } : page;
+}
+
 /** Business pages the user works at (seated staff), not counting ones they own. */
 export async function fetchStaffBusinessPages(uid: string): Promise<BusinessPage[]> {
-  const snap = await getDocs(query(collection(db, 'businessPages'), where('staffUids', 'array-contains', uid)));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as BusinessPage)).filter(p => p.ownerId !== uid);
+  const index = await getDoc(doc(db, 'staffPageIndex', uid));
+  const ids: string[] = index.exists() ? (index.data().pageIds || []) : [];
+  const pages = await Promise.all(ids.map(id => fetchPageWithSeats(id).catch(() => null)));
+  return pages.filter((p): p is BusinessPage => !!p && p.ownerId !== uid);
 }
 
 // ── Opening a business workspace from anywhere (switcher, join flow, notifications) ──

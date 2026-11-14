@@ -2,6 +2,7 @@
 // double-click resets. Rendered as a conic-gradient ring like the approved mockups.
 
 import React, { useCallback, useRef } from 'react';
+import { knobBridge } from '../../../../services/melos/beats/modulators';
 
 /** One Motion reaching this knob — drawn as a coloured arc from the current value. */
 export interface ModArc {
@@ -102,6 +103,12 @@ export const Knob: React.FC<KnobProps> = ({
       <div
         role="slider"
         aria-label={label}
+        onContextMenu={(e) => {
+          // Right-click: make this control move by itself (assist/ModulatorHost).
+          if (!knobBridge.request) return;
+          e.preventDefault();
+          knobBridge.request({ label, value, min, max, set: onChange });
+        }}
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={Math.round(value * 100) / 100}

@@ -1,4 +1,4 @@
-import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
+import { thumb, onThumbError, THUMB, coverGridSrc } from '../src/lib/imageThumb';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
@@ -44,7 +44,7 @@ const DISTRIBUTION_TIERS = [
     id: 'DIRECT',
     label: 'Direct Sales',
     subtitle: 'Rent · Buy · PPV',
-    desc: 'Set your own rental window and purchase price. 100% of revenue goes to you through Stripe — no rev share with a distributor.',
+    desc: 'Set your own rental window and purchase price. Paid straight to you through Stripe. Plajah keeps 5% (0% with Plajah+), with no distributor taking a share.',
     icon: <ShoppingBag size={22} />,
     color: '#818cf8',
     metrics: ['Rental (24 / 48 / 72h)', 'Permanent digital purchase', 'PPV ticketed premiere'],

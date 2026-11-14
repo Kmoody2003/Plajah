@@ -13,6 +13,7 @@
 // (before a restore). Otherwise it is deleted. Versions are pointers, so history costs no extra
 // uploads; old autosave checkpoints are thinned by versionsToPrune.
 
+import { scopedKey } from '../userScope';
 import {
   collection,
   deleteDoc,
@@ -36,6 +37,9 @@ import {
   type VersionStub,
 } from './history';
 import { noteCloudBytes, quotaAllowsSave } from './usage';
+import { del as idbDel, get as idbGet, keys as idbKeys, set as idbSet } from 'idb-keyval';
+import { merge3Json } from '../coedit/crdt';
+import { onBeforeSignOut, userScopedKey } from '../userScope';
 
 const COL = 'creativeProjects';
 
@@ -79,6 +83,12 @@ export interface SyncResult {
   rev?: number;
   /** True when another device had saved since this device last synced (its edits are kept as a version). */
   savedOverOtherDevice?: boolean;
+  /** When both devices had edits, the merged project that was uploaded (apply it to the open editor). */
+  mergedJson?: string;
+  /** This device's copy as it was handed to the sync, before merging (rebase base for the editor). */
+  preMergeJson?: string;
+  /** Places both devices changed; this device's change won (the other device's copy is in history). */
+  conflicts?: number;
 }
 
 export const cloudProjectId = (kind: string, localId: string) => `${kind}__${localId}`.replace(/\//g, '_');
@@ -108,7 +118,7 @@ export function thisDevice(): { id: string; label: string } {
 /** The head revision this device last saved or opened, per project. */
 function knownRev(projectId: string): number | null {
   try {
-    const v = localStorage.getItem(`plajah.creative.rev.${projectId}`);
+    const v = localStorage.getItem(scopedKey(`creative.rev.${projectId}`)) ?? localStorage.getItem(`plajah.creative.rev.${projectId}`);
     return v == null ? null : Number(v);
   } catch {
     return null;
@@ -116,7 +126,8 @@ function knownRev(projectId: string): number | null {
 }
 function setKnownRev(projectId: string, rev: number) {
   try {
-    localStorage.setItem(`plajah.creative.rev.${projectId}`, String(rev));
+    localStorage.setItem(scopedKey(`creative.rev.${projectId}`), String(rev));
+    localStorage.removeItem(`plajah.creative.rev.${projectId}`);
   } catch {
     /* storage blocked: conflict detection falls back to device id */
   }
@@ -159,6 +170,15 @@ export async function syncCreativeProject(input: SyncInput): Promise<SyncResult>
 
   const id = cloudProjectId(input.kind, input.localId);
   const device = thisDevice();
+  // Another device saved since this one last synced: merge both sets of edits instead of picking one.
+  let merge: { json: string; conflicts: number; pre: string } | null = null;
+  const head0 = await getDoc(doc(db, COL, id)).catch(() => null);
+  const known = knownRev(id);
+  if (head0?.exists() && known != null && Number(head0.data().rev) !== known && head0.data().updatedByDevice !== device.id) {
+    const m = await mergeWithCloud(id, head0.data() as CloudHead, input.json);
+    merge = m ? { ...m, pre: input.json } : null;
+    if (merge) input = { ...input, json: merge.json, versionReason: input.versionReason ?? 'other-device' };
+  }
   const { bytes, gz } = await gzip(input.json);
   if (!(await quotaAllowsSave(input.kind, bytes.byteLength))) return { state: 'over-quota' };
 
@@ -241,6 +261,7 @@ export async function syncCreativeProject(input: SyncInput): Promise<SyncResult>
   }
 
   setKnownRev(id, rev);
+  void idbSet(baseKey(id), input.json).catch(() => {});
   const prev = replaced as CloudHead | null;
   let freed = 0;
   if (prev && !versionedAs && !prev.headPinned) {
@@ -253,7 +274,36 @@ export async function syncCreativeProject(input: SyncInput): Promise<SyncResult>
   noteCloudBytes(input.kind, bytes.byteLength - freed);
   if (versionedAs === 'checkpoint') void pruneHistory(input.kind, input.localId);
 
-  return { state: 'synced', rev, savedOverOtherDevice: versionedAs === 'other-device' };
+  return {
+    state: 'synced',
+    rev,
+    savedOverOtherDevice: versionedAs === 'other-device',
+    ...(merge ? { mergedJson: merge.json, preMergeJson: merge.pre, conflicts: merge.conflicts } : {}),
+  };
+}
+
+// ── Cross-device merge ───────────────────────────────────────────────────────
+
+/** The JSON this device last synced or opened, per project: the common ancestor for merges. */
+const legacyBaseKey = (id: string) => `creative-base:${id}`;
+const baseKey = (id: string) => userScopedKey(auth.currentUser?.uid, legacyBaseKey(id));
+
+async function mergeWithCloud(id: string, head: CloudHead, mineJson: string): Promise<{ json: string; conflicts: number } | null> {
+  try {
+    // An old shared base counts only once the cloud says this project is this account's.
+    const readBase = async () => (await idbGet<string>(baseKey(id))) ?? (head.ownerId === auth.currentUser?.uid ? await idbGet<string>(legacyBaseKey(id)) : undefined);
+    const [baseJson, theirsJson] = await Promise.all([readBase(), getBytes(ref(storage, head.headPath)).then(gunzipToText)]);
+    if (!baseJson || theirsJson === mineJson) return null;
+    const base = JSON.parse(baseJson);
+    const mine = JSON.parse(mineJson);
+    const theirs = JSON.parse(theirsJson);
+    if (!base || typeof base !== 'object' || typeof mine !== 'object' || typeof theirs !== 'object') return null;
+    const { merged, conflicts } = merge3Json(base, mine, theirs);
+    return { json: JSON.stringify(merged), conflicts: conflicts.length };
+  } catch (err) {
+    console.warn('[creativeCloud] merge skipped; the other device’s copy is kept in history', err);
+    return null;
+  }
 }
 
 /** Thins old autosave checkpoints (pinned versions are never touched). */
@@ -276,14 +326,25 @@ async function pruneHistory(kind: string, localId: string) {
 // ── Throttled background sync (what tools call on every local save) ────────
 
 const SYNC_THROTTLE_MS = 5000;
-const pending = new Map<string, { input: SyncInput; timer: ReturnType<typeof setTimeout> | null; running: boolean }>();
+const pending = new Map<string, { uid: string; input: SyncInput; timer: ReturnType<typeof setTimeout> | null; running: boolean }>();
 export const CREATIVE_SYNC_EVENT = 'creative-cloud:sync';
 export interface CreativeSyncDetail {
   kind: string;
   localId: string;
   state: SyncState;
   savedOverOtherDevice?: boolean;
+  /** Present when edits from another device were merged in: the editor should load this,
+   *  rebasing anything typed since `preMergeJson` was handed to the sync. */
+  mergedJson?: string;
+  preMergeJson?: string;
+  conflicts?: number;
 }
+
+// Saves that haven't reached the cloud yet survive offline spells, closed tabs and restarts:
+// each pending sync is mirrored to IndexedDB and replayed when the network (or the app) returns.
+const OUTBOX = 'creative-outbox:';
+const outboxKey = (uid: string, key: string) => userScopedKey(uid, OUTBOX + key);
+const RETRY_MS = 30_000;
 
 function emit(detail: CreativeSyncDetail) {
   try {
@@ -300,9 +361,12 @@ export function scheduleCreativeSync(input: SyncInput) {
     return;
   }
   const key = cloudProjectId(input.kind, input.localId);
-  const entry = pending.get(key) ?? { input, timer: null, running: false };
+  const uid = auth.currentUser.uid;
+  const known = pending.get(key);
+  const entry = known?.uid === uid ? known : { uid, input, timer: null, running: false };
   entry.input = input;
   pending.set(key, entry);
+  void idbSet(outboxKey(uid, key), { uid, input }).catch(() => {});
   if (entry.timer || entry.running) return;
   emit({ kind: input.kind, localId: input.localId, state: 'syncing' });
   entry.timer = setTimeout(() => void runPending(key), SYNC_THROTTLE_MS);
@@ -311,17 +375,44 @@ export function scheduleCreativeSync(input: SyncInput) {
 async function runPending(key: string) {
   const entry = pending.get(key);
   if (!entry) return;
+  // Queued by an account that has since left: it stays in that account's outbox for its return.
+  if (entry.uid !== auth.currentUser?.uid) { pending.delete(key); return; }
   entry.timer = null;
   entry.running = true;
   const input = entry.input;
-  const result = await syncCreativeProject(input).catch(() => ({ state: 'error' as const }));
+  const result: SyncResult = await syncCreativeProject(input).catch(() => ({ state: 'error' as const }));
   entry.running = false;
-  emit({ kind: input.kind, localId: input.localId, state: result.state, savedOverOtherDevice: 'savedOverOtherDevice' in result ? result.savedOverOtherDevice : undefined });
+  emit({
+    kind: input.kind,
+    localId: input.localId,
+    state: result.state,
+    savedOverOtherDevice: result.savedOverOtherDevice,
+    ...(result.mergedJson ? { mergedJson: result.mergedJson, preMergeJson: result.preMergeJson, conflicts: result.conflicts } : {}),
+  });
   if (entry.input !== input) {
     // Edited again while uploading: go again.
     entry.timer = setTimeout(() => void runPending(key), SYNC_THROTTLE_MS);
+  } else if (result.state === 'offline' || result.state === 'error') {
+    // Keep it queued (and in IndexedDB); 'online' or the retry timer sends it.
+    entry.timer = setTimeout(() => void runPending(key), RETRY_MS);
   } else {
     pending.delete(key);
+    if (result.state === 'synced' || result.state === 'over-quota') {
+      void idbDel(outboxKey(entry.uid, key)).catch(() => {});
+      void idbDel(OUTBOX + key).catch(() => {}); // the entry an older build may have left
+    }
+  }
+}
+
+/** Re-queues saves left in IndexedDB by an earlier session (called once auth is known). */
+export async function resumeCreativeOutbox() {
+  if (!auth.currentUser) return;
+  const all = await idbKeys().catch(() => [] as IDBValidKey[]);
+  for (const k of all) {
+    if (typeof k !== 'string' || !(k.startsWith(OUTBOX) || k.startsWith(userScopedKey(auth.currentUser.uid, OUTBOX)))) continue;
+    const entry = await idbGet<{ uid: string; input: SyncInput }>(k).catch(() => undefined);
+    // Only the account that made the edit may upload it.
+    if (entry?.uid === auth.currentUser.uid && entry.input && !pending.has(cloudProjectId(entry.input.kind, entry.input.localId))) scheduleCreativeSync(entry.input);
   }
 }
 
@@ -338,6 +429,18 @@ if (typeof window !== 'undefined') {
   window.addEventListener('pagehide', flushCreativeSyncs);
   document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && flushCreativeSyncs());
   window.addEventListener('online', flushCreativeSyncs);
+  auth.onAuthStateChanged((u) => u && void resumeCreativeOutbox());
+  // What can't land before sign-out stays in this account's outbox and goes when they return.
+  onBeforeSignOut(async () => {
+    flushCreativeSyncs();
+    await Promise.race([
+      new Promise<void>((done) => {
+        const check = () => ([...pending.values()].some((e) => e.running) ? setTimeout(check, 100) : done());
+        check();
+      }),
+      new Promise<void>((done) => setTimeout(done, 2000)),
+    ]);
+  });
 }
 
 // ── Open anywhere ────────────────────────────────────────────────────────────
@@ -359,6 +462,7 @@ export async function loadCloudProject(kind: string, localId: string): Promise<{
   try {
     const json = await gunzipToText(await getBytes(ref(storage, head.headPath)));
     setKnownRev(head.id, head.rev);
+    void idbSet(baseKey(head.id), json).catch(() => {});
     return { json, head };
   } catch (err) {
     console.warn('[creativeCloud] download failed', err);

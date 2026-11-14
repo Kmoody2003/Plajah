@@ -1,7 +1,7 @@
 """
 Download one Tela 3D backend's weights into D:\\Plajah Models — on purpose, one at a time (the runtime never downloads).
 
-  python engines/tela-3d/fetch_weights.py sf3d | triposr | hunyuan_mini | rembg
+  python engines/tela-3d/fetch_weights.py sf3d | triposr | hunyuan_mini | rembg | sam2
 
 sf3d is gated on Hugging Face: accept the license at https://huggingface.co/stabilityai/stable-fast-3d with the account
 whose token is in HF_HOME first.
@@ -48,7 +48,15 @@ def fetch_rembg():
                                os.path.join(dst, "u2net.onnx"))
 
 
-FETCHERS = {"sf3d": fetch_sf3d, "triposr": fetch_triposr, "hunyuan_mini": fetch_hunyuan_mini, "rembg": fetch_rembg}
+def fetch_sam2():
+    """SAM 2.1 small (Apache 2.0). Its code goes in tela3d-src\\sam2, and it needs hydra-core and iopath in the env."""
+    dst = os.path.join(MODELS_ROOT, "sam2")
+    os.makedirs(dst, exist_ok=True)
+    urllib.request.urlretrieve("https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_small.pt",
+                               os.path.join(dst, "sam2.1_hiera_small.pt"))
+
+
+FETCHERS = {"sf3d": fetch_sf3d, "triposr": fetch_triposr, "hunyuan_mini": fetch_hunyuan_mini, "rembg": fetch_rembg, "sam2": fetch_sam2}
 
 if __name__ == "__main__":
     if len(sys.argv) != 2 or sys.argv[1] not in FETCHERS:

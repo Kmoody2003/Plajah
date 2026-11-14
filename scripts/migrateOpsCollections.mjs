@@ -35,11 +35,12 @@ async function req(method, url, body) {
   throw new Error(`${method} ${url} kept failing`);
 }
 
-/** All docs (full) directly under `parent` ('' = root) in collection `col`. */
+/** All docs (full) directly under `parent` ('' = root) in collection `col`, plus "missing" docs (no fields,
+ *  no createTime) that exist only as the parent of a subcollection, e.g. districtPersona/{uid}/rosters. */
 async function listDocs(db, parent, col) {
   const out = []; let page = '';
   do {
-    const r = await req('GET', `${docs(db)}${parent ? '/' + parent : ''}/${col}?pageSize=300${page ? '&pageToken=' + encodeURIComponent(page) : ''}`);
+    const r = await req('GET', `${docs(db)}${parent ? '/' + parent : ''}/${col}?pageSize=300&showMissing=true${page ? '&pageToken=' + encodeURIComponent(page) : ''}`);
     if (r.status === 404) return out;
     if (!r.ok) throw new Error(`list ${db} ${parent}/${col}: HTTP ${r.status} ${(await r.text()).slice(0, 200)}`);
     const j = await r.json();
@@ -61,8 +62,12 @@ const tally = { scanned: 0, copied: 0, upToDate: 0, errors: 0 };
 async function copyTree(parent, col, depth = 0, withSubs = true) {
   const srcDocs = await listDocs(SRC, parent, col);
   for (const d of srcDocs) {
-    tally.scanned++;
     const path = rel(d.name);
+    if (!d.createTime) {   // missing parent: nothing to copy itself, but its subcollections are real data
+      if (withSubs && depth < 4) for (const sub of await subcollections(SRC, path)) await copyTree(path, sub, depth + 1);
+      continue;
+    }
+    tally.scanned++;
     const dst = await req('GET', `${docs(DST)}/${path}?mask.fieldPaths=__name__`);
     const dstTime = dst.ok ? (await dst.json()).updateTime : null;
     if (dstTime && dstTime >= d.updateTime) tally.upToDate++;

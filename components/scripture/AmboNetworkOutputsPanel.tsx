@@ -37,7 +37,11 @@ export const AmboNetworkOutputsPanel: React.FC<{ compact?: boolean }> = ({ compa
 
       <div className={`flex flex-wrap items-center gap-1.5 text-[10px] text-white/50 ${compact ? '' : 'pb-1'}`}>
         <span>Format</span>
-        <select value={`${fmt.width}x${fmt.height}`} onChange={e => { const [w, h] = e.target.value.split('x').map(Number); mgr.setFormat({ width: w, height: h }); }} className={field}>
+        <select value={fmt.followBus ? 'bus' : `${fmt.width}x${fmt.height}`} onChange={e => {
+          if (e.target.value === 'bus') { mgr.setFormat({ followBus: true }); return; }
+          const [w, h] = e.target.value.split('x').map(Number); mgr.setFormat({ width: w, height: h });
+        }} className={field} title="Match Program sends the bus at its own size and aspect ratio">
+          <option value="bus" className="bg-[#120d1c]">Match Program</option>
           {SIZES.map(([w, h]) => <option key={w} value={`${w}x${h}`} className="bg-[#120d1c]">{w}×{h}</option>)}
         </select>
         <select value={fmt.fps} onChange={e => mgr.setFormat({ fps: Number(e.target.value) })} className={field}>

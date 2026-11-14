@@ -14,6 +14,7 @@ class InstrumentProcessor extends AudioWorkletProcessor {
     const opts = (options && options.processorOptions) || {};
     this.ready = false;
     this.eng = 0;
+    this.paramQ = [];
     this.channels = 2;
     this.outPtrs = [];
     this.views = [];
@@ -63,6 +64,13 @@ class InstrumentProcessor extends AudioWorkletProcessor {
         // frameOffset makes an async message land on an exact sample.
         x.pa_note_on(this.eng, msg.note, msg.velocity, msg.voiceId, msg.frameOffset | 0);
         break;
+      // SOMA deep skin (ABI 16): the strike plus its GPU-rendered upper membrane from a slot.
+      case 'noteOnDeep':
+        x.pa_note_on_deep(this.eng, msg.note, msg.velocity, msg.voiceId, msg.frameOffset | 0, msg.slot, msg.gain, msg.top);
+        break;
+      case 'scheduleOnDeep':
+        x.pa_schedule_note_on_deep(this.eng, msg.note, msg.velocity, msg.voiceId, msg.frame, msg.slot, msg.gain, msg.top);
+        break;
       case 'noteOff':
         x.pa_note_off(this.eng, msg.voiceId);
         break;
@@ -72,6 +80,9 @@ class InstrumentProcessor extends AudioWorkletProcessor {
       // Absolute-frame scheduling — the offline render path.
       case 'scheduleOn':
         x.pa_schedule_note_on(this.eng, msg.note, msg.velocity, msg.voiceId, msg.frame);
+        break;
+      case 'scheduleOnSampled':
+        x.pa_schedule_note_on_sampled(this.eng, msg.note, msg.velocity, msg.voiceId, msg.frame, msg.slot, msg.detune || 0, msg.startFrame || 0);
         break;
       case 'scheduleOff':
         x.pa_schedule_note_off(this.eng, msg.voiceId, msg.frame);
@@ -87,6 +98,12 @@ class InstrumentProcessor extends AudioWorkletProcessor {
         break;
       case 'params':
         for (let i = 0; i < msg.ids.length; i++) x.pa_set_param(this.eng, msg.ids[i], msg.values[i]);
+        break;
+      // Parameters for one note (e.g. where a SOMA hand-map key lands on the head), applied at the
+      // start of the render block that contains `frame` — so a note scheduled ahead, or every note
+      // of an offline bounce, strikes with its own settings.
+      case 'paramsAt':
+        this.paramQ.push(msg);
         break;
       case 'macro':
         x.pa_set_macro(this.eng, msg.index, msg.value);
@@ -183,6 +200,17 @@ class InstrumentProcessor extends AudioWorkletProcessor {
     const out = outputs[0];
     if (!out || out.length === 0) return true;
     const frames = out[0].length;
+
+    if (this.paramQ.length) {
+      const end = currentFrame + frames;
+      this.paramQ.sort((a, b) => a.frame - b.frame);
+      let n = 0;
+      while (n < this.paramQ.length && this.paramQ[n].frame < end) {
+        const m = this.paramQ[n++];
+        for (let i = 0; i < m.ids.length; i++) this.x.pa_set_param(this.eng, m.ids[i], m.values[i]);
+      }
+      if (n) this.paramQ.splice(0, n);
+    }
 
     this.x.pa_render(this.eng, frames);
 

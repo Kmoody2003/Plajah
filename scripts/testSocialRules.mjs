@@ -5,7 +5,9 @@
 import fs from 'node:fs';
 import os from 'node:os';
 const PROJECT = 'gen-lang-client-0665118474';
-const tok = JSON.parse(fs.readFileSync(os.homedir() + '/.config/configstore/firebase-tools.json', 'utf8')).tokens;
+const tok = process.env.RULES_ACCESS_TOKEN
+  ? { access_token: process.env.RULES_ACCESS_TOKEN, expires_at: Date.now() + 3600000 }
+  : JSON.parse(fs.readFileSync(os.homedir() + '/.config/configstore/firebase-tools.json', 'utf8')).tokens;
 if (!tok?.access_token || tok.expires_at < Date.now() + 60000) { console.error('Token expired — run `npx firebase-tools projects:list` once, then retry.'); process.exit(2); }
 const file = process.argv[2] || new URL('../firestore.rules.min', import.meta.url);
 const src = fs.readFileSync(file, 'utf8');
@@ -20,7 +22,8 @@ function mocks() {
   for (const u of users) m.push({ function: 'exists', args: [{ exactValue: `${DB}/admins/${u}` }], result: { value: false } });
   m.push({ function: 'get', args: [{ exactValue: `${DB}/posts/p1` }], result: { value: { data: post } } });
   m.push({ function: 'exists', args: [{ exactValue: `${DB}/clubPosts/cp1` }], result: { value: true } });
-  m.push({ function: 'get', args: [{ exactValue: `${DB}/clubPosts/cp1` }], result: { value: { data: { authorId: AUTHOR } } } });
+  m.push({ function: 'exists', args: [{ exactValue: `${DB}/clubs/club1` }], result: { value: false } });
+  m.push({ function: 'get', args: [{ exactValue: `${DB}/clubPosts/cp1` }], result: { value: { data: { authorId: AUTHOR, clubId: 'club1' } } } });
   m.push({ function: 'exists', args: [{ exactValue: `${DB}/chat_rooms/r1` }], result: { value: true } });
   m.push({ function: 'get', args: [{ exactValue: `${DB}/chat_rooms/r1` }], result: { value: { data: room } } });
   m.push({ function: 'get', args: [{ exactValue: `${DB}/live_streams/ls1` }], result: { value: { data: { ownerId: AUTHOR } } } });
@@ -33,6 +36,15 @@ function mocks() {
   m.push({ function: 'get', args: [{ exactValue: `${DB}/circle_posts/cp1` }], result: { value: { data: { authorId: ME, audience: 'FAMILY', audienceUids: [OTHER] } } } });
   m.push({ function: 'get', args: [{ exactValue: `${DB}/stories/s1` }], result: { value: { data: { ownerId: ME, audience: 'PUBLIC' } } } });
   m.push({ function: 'get', args: [{ exactValue: `${DB}/stories/s2` }], result: { value: { data: { ownerId: ME, audience: 'FOLLOWERS', audienceUids: [OTHER] } } } });
+  // Meeting links: pm1 admits guests (OTHER admitted, PRIV still waiting); pm2 is members-only.
+  m.push({ function: 'get', args: [{ exactValue: `${DB}/public_meetings/pm1` }], result: { value: { data: { roomId: 'r1', hostUid: ME, guestsAllowed: true } } } });
+  m.push({ function: 'get', args: [{ exactValue: `${DB}/public_meetings/pm2` }], result: { value: { data: { roomId: 'r1', hostUid: ME, guestsAllowed: false } } } });
+  for (const [u, status] of [[OTHER, 'ADMITTED'], [PRIV, 'WAITING']]) {
+    m.push({ function: 'exists', args: [{ exactValue: `${DB}/public_meetings/pm1/lobby/${u}` }], result: { value: true } });
+    m.push({ function: 'get', args: [{ exactValue: `${DB}/public_meetings/pm1/lobby/${u}` }], result: { value: { data: { name: 'G', status } } } });
+  }
+  for (const u of [ME, AUTHOR]) m.push({ function: 'exists', args: [{ exactValue: `${DB}/public_meetings/pm1/lobby/${u}` }], result: { value: false } });
+  m.push({ function: 'exists', args: [{ exactValue: `${DB}/chat_rooms/r1/meetings/control` }], result: { value: false } });
   return m;
 }
 const tokenFor = (uid, anon) => ({ uid, token: { email: `${uid}@example.test`, email_verified: true, firebase: { sign_in_provider: anon ? 'anonymous' : 'google.com' } } });
@@ -96,6 +108,102 @@ t('react in my room', 'ALLOW', ME, 'update', M, { existing: msg, data: { ...msg,
 t('pin in my room', 'ALLOW', ME, 'update', M, { existing: msg, data: { ...msg, isPinned: true } });
 t('react in a room I left', 'DENY', OTHER, 'update', M, { existing: msg, data: { ...msg, reactions: { '🔥': [OTHER] } } });
 t('edit text via reaction path', 'DENY', ME, 'update', M, { existing: msg, data: { ...msg, text: 'changed' } });
+
+// chat basics: edit, delete-for-everyone tombstone, link card, attachments, prefs, quiet hours
+const mine = { senderId: ME, senderName: 'Me', text: 'hey', timestamp: now, type: 'TEXT', storagePath: 'chat/r1/files/a.pdf', attachment: { url: 'https://f/a.pdf', name: 'a.pdf', size: 10, mime: 'application/pdf', kind: 'pdf' } };
+t('edit my text', 'ALLOW', ME, 'update', M, { existing: mine, data: { ...mine, text: 'fixed', editedAt: now } });
+t('edit someone else', 'DENY', ME, 'update', M, { existing: msg, data: { ...msg, text: 'fixed', editedAt: now } });
+t('edit without editedAt', 'DENY', ME, 'update', M, { existing: mine, data: { ...mine, text: 'sneaky' } });
+t('edit also swaps sender name', 'DENY', ME, 'update', M, { existing: mine, data: { ...mine, text: 'x', editedAt: now, senderName: 'Pastor' } });
+t('edit a voice note', 'DENY', ME, 'update', M, { existing: { ...mine, type: 'VOICE' }, data: { ...mine, type: 'VOICE', text: 'x', editedAt: now } });
+const { text: _t, attachment: _a, storagePath: _s, ...bare } = mine;
+t('tombstone my message', 'ALLOW', ME, 'update', M, { existing: mine, data: { ...bare, deletedAt: now } });
+t('tombstone keeps text', 'DENY', ME, 'update', M, { existing: mine, data: { ...mine, deletedAt: now, attachment: undefined, storagePath: undefined } });
+t('tombstone someone else', 'DENY', ME, 'update', M, { existing: msg, data: { senderId: AUTHOR, senderName: 'A', timestamp: now, type: 'TEXT', deletedAt: now } });
+t('edit a tombstone', 'DENY', ME, 'update', M, { existing: { ...bare, deletedAt: now }, data: { ...bare, deletedAt: now, text: 'back', editedAt: now } });
+t('add link card once', 'ALLOW', ME, 'update', M, { existing: mine, data: { ...mine, linkPreview: { url: 'https://x.org', title: 'X', siteName: 'x.org' } } });
+t('link card on someone else', 'DENY', ME, 'update', M, { existing: msg, data: { ...msg, linkPreview: { url: 'https://x.org', title: 'X', siteName: 'x.org' } } });
+const newMsg = { senderId: ME, senderName: 'Me', senderPhoto: '', timestamp: now, type: 'TEXT' };
+t('send a file', 'ALLOW', ME, 'create', `${DB}/chat_rooms/r1/messages/m2`, { data: { ...newMsg, attachment: mine.attachment } });
+t('send a 60 MB file', 'DENY', ME, 'create', `${DB}/chat_rooms/r1/messages/m2`, { data: { ...newMsg, attachment: { ...mine.attachment, size: 60 * 1024 * 1024 } } });
+t('send pre-deleted', 'DENY', ME, 'create', `${DB}/chat_rooms/r1/messages/m2`, { data: { ...newMsg, text: 'x', deletedAt: now } });
+t('send forwarded', 'ALLOW', ME, 'create', `${DB}/chat_rooms/r1/messages/m2`, { data: { ...newMsg, text: 'x', forwardedFrom: 'Author' } });
+t('mute my room', 'ALLOW', ME, 'update', `${DB}/users/${ME}/chat_prefs/r1`, { existing: { lastReadAt: 1 }, data: { lastReadAt: 1, mutedUntil: -1, updatedAt: now } });
+t('read cursor', 'ALLOW', ME, 'create', `${DB}/users/${ME}/chat_prefs/r1`, { data: { lastReadAt: now, updatedAt: now } });
+t('mute for someone else', 'DENY', ME, 'create', `${DB}/users/${OTHER}/chat_prefs/r1`, { data: { mutedUntil: -1, updatedAt: now } });
+t('read someone else prefs', 'DENY', ME, 'get', `${DB}/users/${OTHER}/chat_prefs/r1`, {});
+t('prefs extra field', 'DENY', ME, 'create', `${DB}/users/${ME}/chat_prefs/r1`, { data: { lastReadAt: now, isAdmin: true } });
+const qh = { enabled: true, start: '22:00', end: '07:00', tz: 'America/New_York', updatedAt: now };
+t('quiet hours', 'ALLOW', ME, 'create', `${DB}/users/${ME}/chat_settings/quiet_hours`, { data: qh });
+t('quiet hours bad time', 'DENY', ME, 'create', `${DB}/users/${ME}/chat_settings/quiet_hours`, { data: { ...qh, start: '25:00' } });
+t('chat_settings other doc', 'DENY', ME, 'create', `${DB}/users/${ME}/chat_settings/anything`, { data: qh });
+
+// meeting recordings + captions + recap card
+const REC = `${DB}/chat_rooms/r1/recordings/rec1`;
+const rec = { hostUid: ME, hostName: 'Me', title: 'Team call', mode: 'CLOUD', kind: 'AUDIO', status: 'RECORDING', startedAt: now, expiresAt: null };
+t('start recording', 'ALLOW', ME, 'create', REC, { data: rec });
+t('start recording as someone else', 'DENY', ME, 'create', REC, { data: { ...rec, hostUid: AUTHOR } });
+t('start recording in a room I left', 'DENY', OTHER, 'create', REC, { data: { ...rec, hostUid: OTHER } });
+t('start already-ended recording', 'DENY', ME, 'create', REC, { data: { ...rec, status: 'ENDED' } });
+t('member reads recording', 'ALLOW', AUTHOR, 'get', REC, { existing: rec });
+t('outsider reads recording', 'DENY', OTHER, 'get', REC, { existing: rec });
+const ended = { ...rec, status: 'ENDED', endedAt: now + 60000, durationSec: 60, sizeBytes: 900000, segmentUrls: ['https://x/a'], segmentPaths: ['meetings/r1/rec1/seg_00000.webm'] };
+t('host ends recording', 'ALLOW', ME, 'update', REC, { existing: rec, data: ended });
+t('member edits host recording', 'DENY', AUTHOR, 'update', REC, { existing: rec, data: ended });
+t('host steals hostUid', 'DENY', ME, 'update', REC, { existing: rec, data: { ...ended, hostUid: AUTHOR } });
+t('host adds recap', 'ALLOW', ME, 'update', REC, { existing: ended, data: { ...ended, recap: { summary: 'We met.', actionItems: [], decisions: [], lane: 'rules', createdAt: now } } });
+t('recording extra field', 'DENY', ME, 'create', REC, { data: { ...rec, isAdmin: true } });
+const CAP = `${REC}/captions/c1`;
+t('member adds own caption', 'ALLOW', AUTHOR, 'create', CAP, { data: { uid: AUTHOR, name: 'A', text: 'Hello all', at: 1200 } });
+t('caption as someone else', 'DENY', AUTHOR, 'create', CAP, { data: { uid: ME, name: 'Me', text: 'I quit', at: 1200 } });
+t('outsider adds caption', 'DENY', OTHER, 'create', CAP, { data: { uid: OTHER, name: 'O', text: 'hi', at: 1 } });
+t('edit a caption', 'DENY', AUTHOR, 'update', CAP, { existing: { uid: AUTHOR, name: 'A', text: 'Hello', at: 1 }, data: { uid: AUTHOR, name: 'A', text: 'Changed', at: 1 } });
+t('post recap card', 'ALLOW', ME, 'create', `${DB}/chat_rooms/r1/messages/m3`, { data: { ...newMsg, type: 'ACTION', text: 'x', meetingRecap: { recordingId: 'rec1', title: 'Team call', durationSec: 60, mode: 'CLOUD', hostName: 'Me', speakers: ['Me'], actionCount: 0 } } });
+t('recap card without id', 'DENY', ME, 'create', `${DB}/chat_rooms/r1/messages/m3`, { data: { ...newMsg, type: 'ACTION', text: 'x', meetingRecap: { title: 'Team call' } } });
+
+// huddle presence heartbeats on the room call
+const RP = `${DB}/chat_rooms/r1/meeting_rtc/main/participants`;
+t('join room call with heartbeat', 'ALLOW', ME, 'create', `${RP}/${ME}`, { data: { role: 'participant', name: 'Me', joinedAt: now, nonce: 'n1', lastSeen: now } });
+t('room call presence extra key', 'DENY', ME, 'create', `${RP}/${ME}`, { data: { role: 'participant', name: 'Me', joinedAt: now, admin: true } });
+t('member sees who is in the huddle', 'ALLOW', AUTHOR, 'list', `${RP}/x`, {});
+t('outsider sees the huddle', 'DENY', OTHER, 'list', `${RP}/x`, {});
+
+// scheduled meetings
+const SM = `${DB}/chat_rooms/r1/scheduled_meetings/s1`;
+const sched = { roomId: 'r1', title: 'Board', startsAt: now + 86_400_000, durationMin: 60, guestsAllowed: true, createdBy: ME, createdByName: 'Me', createdAt: now };
+t('schedule a meeting', 'ALLOW', ME, 'create', SM, { data: sched });
+t('schedule for someone else', 'DENY', ME, 'create', SM, { data: { ...sched, createdBy: AUTHOR } });
+t('schedule in a room I left', 'DENY', OTHER, 'create', SM, { data: { ...sched, createdBy: OTHER } });
+t('schedule into another room id', 'DENY', ME, 'create', SM, { data: { ...sched, roomId: 'r9' } });
+t('guest schedules', 'DENY', 'anon:' + ME, 'create', SM, { data: sched });
+t('creator cancels', 'ALLOW', ME, 'update', SM, { existing: sched, data: { ...sched, canceledAt: now } });
+t('member cancels someone else\'s', 'DENY', AUTHOR, 'update', SM, { existing: sched, data: { ...sched, canceledAt: now } });
+t('member reads schedule', 'ALLOW', AUTHOR, 'get', SM, { existing: sched });
+t('post invite card', 'ALLOW', ME, 'create', `${DB}/chat_rooms/r1/messages/m4`, { data: { ...newMsg, type: 'ACTION', text: 'x', isPinned: true, meetingInvite: { meetingId: 'pm1', title: 'Board', startsAt: now, durationMin: 60, guestsAllowed: true } } });
+
+// meeting link, waiting room, guest call
+const PM = `${DB}/public_meetings/pm1`;
+const stub = { roomId: 'r1', title: 'Board', startsAt: now, durationMin: 60, hostUid: ME, hostName: 'Me', guestsAllowed: true };
+t('member publishes link stub', 'ALLOW', ME, 'create', `${DB}/public_meetings/pmX`, { data: stub });
+t('outsider publishes stub for a room', 'DENY', OTHER, 'create', `${DB}/public_meetings/pmX`, { data: { ...stub, hostUid: OTHER } });
+t('guest reads link stub', 'ALLOW', 'anon:g1', 'get', PM, { existing: stub });
+t('host renames stub host', 'DENY', ME, 'update', PM, { existing: stub, data: { ...stub, hostUid: AUTHOR } });
+t('guest knocks', 'ALLOW', 'anon:g1', 'create', `${PM}/lobby/g1`, { data: { name: 'Pat Lee', status: 'WAITING', requestedAt: now } });
+t('guest lets themself in', 'DENY', 'anon:g1', 'create', `${PM}/lobby/g1`, { data: { name: 'Pat Lee', status: 'ADMITTED', requestedAt: now } });
+t('guest knocks as someone else', 'DENY', 'anon:g1', 'create', `${PM}/lobby/g2`, { data: { name: 'Pat Lee', status: 'WAITING', requestedAt: now } });
+t('knock on members-only meeting', 'DENY', 'anon:g1', 'create', `${DB}/public_meetings/pm2/lobby/g1`, { data: { name: 'Pat Lee', status: 'WAITING', requestedAt: now } });
+t('member admits guest', 'ALLOW', AUTHOR, 'update', `${PM}/lobby/g1`, { existing: { name: 'Pat', status: 'WAITING', requestedAt: now }, data: { name: 'Pat', status: 'ADMITTED', requestedAt: now, decidedBy: AUTHOR, decidedAt: now } });
+t('guest admits guest', 'DENY', OTHER, 'update', `${PM}/lobby/g1`, { existing: { name: 'Pat', status: 'WAITING', requestedAt: now }, data: { name: 'Pat', status: 'ADMITTED', requestedAt: now, decidedBy: OTHER, decidedAt: now } });
+t('member sees waiting room', 'ALLOW', AUTHOR, 'list', `${PM}/lobby/x`, {});
+t('guest sees waiting room', 'DENY', PRIV, 'list', `${PM}/lobby/x`, {});
+const GP = `${PM}/rtc/main/participants`;
+const pres = (name) => ({ role: 'participant', name, joinedAt: now, nonce: 'n', lastSeen: now });
+t('admitted guest joins call', 'ALLOW', OTHER, 'create', `${GP}/${OTHER}`, { data: pres('Guest') });
+t('waiting guest joins call', 'DENY', PRIV, 'create', `${GP}/${PRIV}`, { data: pres('Guest') });
+t('member joins guest call', 'ALLOW', ME, 'create', `${GP}/${ME}`, { data: pres('Me') });
+t('admitted guest signals member', 'ALLOW', OTHER, 'create', `${PM}/rtc/main/signals/${OTHER}__${ME}`, { data: { description: { type: 'offer', sdp: 'x' } } });
+t('waiting guest signals member', 'DENY', PRIV, 'create', `${PM}/rtc/main/signals/${PRIV}__${ME}`, { data: { description: { type: 'offer', sdp: 'x' } } });
+t('admitted guest signals a waiting one', 'DENY', OTHER, 'create', `${PM}/rtc/main/signals/${OTHER}__${PRIV}`, { data: { description: { type: 'offer', sdp: 'x' } } });
 
 // match fan room
 const mm = (o = {}) => ({ uid: ME, displayName: 'Me', photoURL: null, text: 'goal?', side: 'home', at: now, ...o });
