@@ -94,6 +94,10 @@ export function questSfx(e: QuestEvent) {
   case 'bossVolley': tone(880, .18, 'sine', .07, 440); break;
   case 'bossTell': tone(e.data === 'slam' ? 110 : 330, .4, 'triangle', .08, e.data === 'slam' ? 220 : 660); break;
   case 'bossSlam': tone(60, .5, 'sine', .4, 30); hiss(.4, 300, .3, 'lowpass', 80); break;
+  case 'bossBlink': tone(640, .24, 'sine', .11, 1320); hiss(.18, 3600, .09, 'highpass', 1200); break;
+  case 'beetleCharge': tone(140, .18, 'sawtooth', .08, 280); hiss(.14, 900, .1, 'bandpass', 2400); break;
+  case 'wispCast': tone(740, .18, 'sine', .07, 1180); break;
+  case 'briarSnap': hiss(.12, 1600, .14, 'bandpass', 600); tone(260, .1, 'square', .08, 120); break;
   case 'bossDown': hiss(2.4, 1600, .2, 'bandpass', 120); break;
   case 'bossDead': [0, 4, 7, 11, 12, 16, 19].forEach((n, i) => tone(392 * Math.pow(2, n / 12), .5, 'triangle', .1, 0, i * .1)); break;
   case 'clear': break; // the score plays its own music-box cadence

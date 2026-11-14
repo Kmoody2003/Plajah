@@ -15,7 +15,7 @@ type Manifest = Record<string, Entry>;
 declare global { var __kithQuestMusic: {manifest: Manifest; urls: Record<string, string>} | undefined }
 
 const BASE = '/kith-party/quest-music/';
-const STAGES = ['glowmoss', 'cascade', 'keep'];
+const STAGES = ['glowmoss', 'cascade', 'keep', 'cascade', 'keep'];
 const LEVEL = .9;
 
 let manifestP: Promise<Manifest | null> | null = null;
@@ -59,7 +59,7 @@ class QuestMusic {
 
  /** The title theme ("The Lantern Road") for the stage select. Chora only: the synth score has no title cue. */
  title() { void this.begin(0, 'title', false); }
- start(stage: number) { this.stage = Math.max(0, Math.min(2, stage)); void this.begin(this.stage, `calm-${STAGES[this.stage]}`, true); }
+ start(stage: number) { this.stage = Math.max(0, Math.min(STAGES.length - 1, stage)); void this.begin(this.stage, `calm-${STAGES[this.stage]}`, true); }
 
  setMood(mood: QuestMood, intensity = 0) {
   if (this.mode === 'synth') return questScore.setMood(mood, intensity);
@@ -94,7 +94,7 @@ class QuestMusic {
   this.muted = gameAudio.isMuted; this.level(0);
   this.timer = setInterval(() => { if (gameAudio.isMuted !== this.muted) { this.muted = gameAudio.isMuted; this.level(.3); } }, 250);
   // warm this stage's other cues so mood changes land quickly
-  const warm = cue === 'title' ? ['title'] : [cue, `energy-${STAGES[stage]}`, 'danger', 'fear', 'clear', 'gameover', ...(stage === 2 ? ['battle'] : [])];
+  const warm = cue === 'title' ? ['title'] : [cue, `energy-${STAGES[stage]}`, 'danger', 'fear', 'clear', 'gameover', ...(stage >= 2 ? ['battle'] : [])];
   for (const id of warm) void bufferFor(ctx, id, m);
   this.play(cue, 2);
  }

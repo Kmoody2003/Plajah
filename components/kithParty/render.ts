@@ -156,15 +156,38 @@ export function render(c:CanvasRenderingContext2D,s:State,images:Map<string,HTML
   // Render Bottom-Court Players (in front of the net: y >= 278)
   s.players.filter(p=>p.y>=278).sort((a,b2)=>a.y-b2.y).forEach(drawCourtPlayer);
  } else {
-  c.fillStyle='#230e30';c.fillRect(0,0,960,560);
-  for(let i=0;i<12;i++)flower(c,25+(i*173)%920,30+(i*131)%510,18,'#662b58');
+  const bpm=s.rhythmBpm||124;
+  const accent=s.rhythmAccent||'#ffb35a';
+  const pulse=Math.max(0,Math.sin(Math.max(0,s.time)*(bpm/60)*Math.PI));
+  const bg=c.createLinearGradient(0,0,0,560);bg.addColorStop(0,'#170926');bg.addColorStop(.55,'#261138');bg.addColorStop(1,'#140b24');
+  c.fillStyle=bg;c.fillRect(0,0,960,560);
+  // Subtle Chora BPM resonance rings behind the Beat Garden
+  c.save();c.strokeStyle=`rgba(255,214,140,${0.08+pulse*0.09})`;c.lineWidth=2;
+  for(let r=1;r<=4;r++){c.beginPath();c.arc(480,275,90+r*68+pulse*12,0,TAU);c.stroke();}
+  c.restore();
+  for(let i=0;i<14;i++)flower(c,25+(i*173)%920,30+(i*131)%510,16+pulse*3,'rgba(125,52,108,0.45)');
+  text(c,(s.rhythmSongTitle||'CHORA BEAT GARDEN').toUpperCase()+`  ·  ${bpm} BPM  ·  ${(s.rhythmDifficulty||'groove').toUpperCase()}`,480,24,13,accent);
   const humans=s.players.filter(p=>p.human);
-  humans.forEach((p,pi)=>{const left=humans.length===1?290:pi*470+64;const width=humans.length===1?380:360;const laneW=width/4;
-   c.fillStyle='#3b194b';c.beginPath();c.roundRect(left-12,35,width+24,470,25);c.fill();
-   for(let lane=0;lane<4;lane++){const x=left+laneW*(lane+.5);c.strokeStyle='#633764';c.lineWidth=2;c.beginPath();c.moveTo(x,62);c.lineTo(x,463);c.stroke();circle(c,x,448,25,pressed[pi]?.[lane]?'#ff8c00':'#6a3767');c.strokeStyle='#c76fa2';c.lineWidth=2;c.beginPath();c.arc(x,448,25,0,TAU);c.stroke();text(c,(pi===0?['1','2','3','4']:['7','8','9','0'])[lane],x,455,22,'#f8e6fb');}
-   s.notes.filter(n=>!n.judged[pi]&&n.time-s.time<2.5&&n.time-s.time>-.2).forEach(n=>flower(c,left+laneW*(n.lane+.5),448-(n.time-s.time)*160,20,['#b286bd','#dea061','#7daf93','#749bb6'][n.lane]));
-   text(c,`${p.combo} COMBO`,left+width/2,535,21,'#ddadf0');if(p.feedbackTime>0)text(c,p.feedback,left+width/2,310,28,'#ffb35a');
-   if(humans.length===1){avatar(c,images,p.character,155,345,165);text(c,'FIND YOUR FLOW',155,388,13,'#a2765e');avatar(c,images,'chora',802,345+Math.sin(s.time*11)*5,175);}
+  const laneCols=['#b286bd','#dea061','#7daf93','#749bb6'];
+  humans.forEach((p,pi)=>{const left=humans.length===1?290:pi*470+64;const width=humans.length===1?380:360;const laneW=width/4;const fever=p.combo>=12;
+   c.fillStyle=fever?'#441c56':'#351646';c.beginPath();c.roundRect(left-12,35,width+24,470,25);c.fill();
+   if(fever){c.strokeStyle=`rgba(255,205,96,${0.35+pulse*0.35})`;c.lineWidth=3;c.beginPath();c.roundRect(left-12,35,width+24,470,25);c.stroke();}
+   for(let lane=0;lane<4;lane++){const x=left+laneW*(lane+.5),down=!!pressed[pi]?.[lane];
+    if(down){const beam=c.createLinearGradient(0,65,0,455);beam.addColorStop(0,'rgba(255,200,90,0)');beam.addColorStop(1,'rgba(255,200,90,0.28)');c.fillStyle=beam;c.fillRect(x-laneW*.42,65,laneW*.84,390);}
+    c.strokeStyle='#633764';c.lineWidth=2;c.beginPath();c.moveTo(x,62);c.lineTo(x,463);c.stroke();
+    if(down)flower(c,x,448,30,'rgba(255,180,80,0.45)');
+    circle(c,x,448,25,down?'#ff8c00':'#6a3767');c.strokeStyle=down?'#ffe8a3':laneCols[lane];c.lineWidth=2.5;c.beginPath();c.arc(x,448,25,0,TAU);c.stroke();text(c,(pi===0?['1','2','3','4']:['7','8','9','0'])[lane],x,455,22,'#f8e6fb');
+   }
+   c.strokeStyle='rgba(255,235,190,0.28)';c.lineWidth=1.5;c.beginPath();c.moveTo(left,448);c.lineTo(left+width,448);c.stroke();
+   s.notes.filter(n=>!n.judged[pi]&&n.time-s.time<2.4&&n.time-s.time>-.2).forEach(n=>{
+    const nx=left+laneW*(n.lane+.5),ny=448-(n.time-s.time)*168;
+    if(n.accent){flower(c,nx,ny,26,'rgba(255,215,90,0.42)');flower(c,nx,ny,20,'#ffd24d');text(c,'★',nx,ny+5,14,'#4d2200');}
+    else flower(c,nx,ny,20,laneCols[n.lane]);
+   });
+   const mult=p.combo>=24?' ×2':p.combo>=12?' ×1.5':'';
+   text(c,`${p.combo} COMBO${mult}`,left+width/2,535,21,fever?'#ffd24d':'#ddadf0');
+   if(p.feedbackTime>0)text(c,p.feedback,left+width/2,300,28,p.feedback.includes('STAR')?'#ffe566':p.feedback==='PERFECT'?'#7effc6':'#ffb35a');
+   if(humans.length===1){avatar(c,images,p.character,155,345,165);text(c,fever?'CHORA FEVER!':'FIND YOUR FLOW',155,388,13,fever?'#ffd24d':'#a2765e');avatar(c,images,'chora',802,345+Math.sin(s.time*(bpm/15))*6,175);text(c,'CHORA STUDIO',802,388,12,'#d99eff');}
   });
  }
  if(s.time<0) {c.fillStyle='#252a3d55';c.fillRect(0,0,960,560);circle(c,480,280,67,'#fff4dc');text(c,String(Math.ceil(-s.time)),480,300,61,'#28352c');}

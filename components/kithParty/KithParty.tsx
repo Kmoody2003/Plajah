@@ -8,6 +8,7 @@ import {VENUES,FORMATS,tennisSpecialFor,type TennisFormat,type Difficulty} from 
 import {ITEMS,kithKart} from './abilities';
 import './kith-racing.css';
 import {createState,emptyInput,standings,step,CIRCUIT_INTRO,type Input,type State} from './engine';
+import { CHORA_RHYTHM_SONGS, type ChoraDifficulty } from './choraRhythm';
 import {loadPortraits,render} from './render';
 import './kith-party.css';
 import './plajah-layout.css';
@@ -33,13 +34,14 @@ function GameIllustration({id}:{id:GameId}) {
 }
 
 /** `profile` / `uid` (optional, from the Plajah app): Voca reading level, review words and child speech consent. */
-export default function KithParty({onBack,profile,uid}:{onBack?:()=>void;profile?:any;uid?:string|null}) {
- const [screen,setScreen]=useState<'gallery'|'setup'|'play'>('gallery');
- const [game,setGame]=useState<GameId>('circuit');const [course,setCourse]=useState<CourseId>('crestfall-gardens');const [players,setPlayers]=useState(1);const [chosen,setChosen]=useState(['rello','chora']);const [slot,setSlot]=useState(0);
+export default function KithParty({onBack,profile,uid,initialGame}:{onBack?:()=>void;profile?:any;uid?:string|null;initialGame?:GameId}) {
+ const [screen,setScreen]=useState<'gallery'|'setup'|'play'>(initialGame?'setup':'gallery');
+ const [game,setGame]=useState<GameId>(initialGame??'circuit');const [course,setCourse]=useState<CourseId>('crestfall-gardens');const [players,setPlayers]=useState(1);const [chosen,setChosen]=useState(['rello','chora']);const [slot,setSlot]=useState(0);
  const [filter,setFilter]=useState('All games');const [scores,setScores]=useState<Scores>(readScores);const [cup,setCup]=useState(false);const [round,setRound]=useState(0);const [totals,setTotals]=useState([0,0]);const [run,setRun]=useState(0);const [help,setHelp]=useState(false);
  const info=ALL_GAMES.find(g=>g.id===game)!;
  const activeCourseDef=courseById(course);
  const [venue,setVenue]=useState<CourseId>('crestfall-gardens');const [doubles,setDoubles]=useState(false);const [tFormat,setTFormat]=useState<TennisFormat>('quick');const [tLevel,setTLevel]=useState<Difficulty>('pro');
+ const [rhythmSong,setRhythmSong]=useState<string>(CHORA_RHYTHM_SONGS[0].id);const [rhythmDiff,setRhythmDiff]=useState<ChoraDifficulty>('groove');
  // Audio: unlock on first gesture, then menu music on gallery/setup screens.
  const screenRef=useRef(screen);screenRef.current=screen;
  const audioReady=useRef(false);
@@ -90,18 +92,30 @@ export default function KithParty({onBack,profile,uid}:{onBack?:()=>void;profile
    </div>
    <p className="kp-fair-play">{doubles?(players===2?'Player 1 + a bot partner vs Player 2 + a bot partner.':'You and a bot partner vs two bots.'):(players===2?'Player 1 on the near court, Player 2 on the far court.':'You vs one bot.')} {FORMATS[tFormat].detail}. Your Kith Special: <b>{tennisSpecialFor(chosen[slot]).icon} {tennisSpecialFor(chosen[slot]).name}</b> · {tennisSpecialFor(chosen[slot]).description}</p>
   </div>}
+  {game==='rhythm'&&!cup&&<div className="kp-course-selector kt-setup" aria-label="Chora Beat Garden song selection">
+   <span className="kp-eyebrow">SELECT CHORA SONG · REAL CHORA STUDIO PROJECTS &amp; AUDIO</span>
+   <div className="kp-course-grid">
+    {CHORA_RHYTHM_SONGS.map(song=><button key={song.id} type="button" className={`kp-course-card ${rhythmSong===song.id?'selected':''}`} aria-pressed={rhythmSong===song.id} onClick={()=>{gameAudio.uiClick();setRhythmSong(song.id);}} style={{'--course-accent':song.accent} as React.CSSProperties}>
+     <div className="kp-course-card-top"><small>{song.project==='kith-quest'?'KITH QUEST':'ERA CLASH'} · {song.bpm} BPM</small><b>♫</b></div>
+     <b>{song.title}</b><span>{song.subtitle}</span>
+    </button>)}
+   </div>
+   <div className="kt-setup-row">
+    <div className="kp-mode"><span>DIFFICULTY</span><div>{(['chill','groove','encore'] as ChoraDifficulty[]).map(d=><button key={d} aria-pressed={rhythmDiff===d} className={rhythmDiff===d?'active':''} onClick={()=>setRhythmDiff(d)}>{d[0].toUpperCase()+d.slice(1)}</button>)}</div></div>
+   </div>
+  </div>}
   <div className="kp-setup-layout"><section><div className="kp-player-tabs">{Array.from({length:players},(_,i)=><button key={i} className={slot===i?'active':''} onClick={()=>setSlot(i)}>PLAYER {i+1} <b>{characterById(chosen[i]).name}</b>{slot===i&&<Check size={16}/>}</button>)}</div><div className="kp-roster-grid">{CHARACTERS.map(c=><button key={c.id} className={chosen[slot]===c.id?'selected':''} aria-pressed={chosen[slot]===c.id} onClick={()=>{setChosen(old=>{const next=[...old];if(next[1-slot]===c.id)next[1-slot]=old[slot];next[slot]=c.id;return next;});}}><Art id={c.id}/><span>{c.name}</span><small className="kp-type-badge">{SPECIES[c.id].icon} {SPECIES[c.id].type}</small><em>{SPECIES[c.id].species}</em>{chosen[slot]===c.id&&<span className="kp-selected-check"><Check size={13}/></span>}</button>)}</div><p className="kp-fair-play">10 Kith. 10 types. Each type tunes its kart and brings its own Type Special.</p></section><aside className="kp-launch-panel"><GameIllustration id={game}/><div className="kp-launch-content"><span className="kp-eyebrow">{cup?'PARTY CUP · ONE CHAMPION':game==='circuit'?`${info.category} · ${activeCourseDef.layoutName}`:info.category}</span><h2>{cup?'The Party Cup':game==='circuit'?`${info.name}: ${activeCourseDef.name}`:info.name}</h2><p>{cup?'Race the circuit, scramble for crystals, hit the rhythm, and rally on the court. Earn 10 / 7 / 4 / 2 points for each round’s placement.':game==='circuit'?activeCourseDef.description:info.goal}</p><div className="kp-picked"><Art id={chosen[slot]}/><div><b>{characterById(chosen[slot]).name} <span className="kp-type-badge">{SPECIES[chosen[slot]].type}</span></b><p>{SPECIES[chosen[slot]].description}</p><p className="kp-picked-special" style={{'--sp-color':kithKart(chosen[slot]).special.color} as React.CSSProperties}><b>{kithKart(chosen[slot]).special.icon} {kithKart(chosen[slot]).special.name}</b> · {kithKart(chosen[slot]).special.description} <small>{kithKart(chosen[slot]).kartName} · SPD {kithKart(chosen[slot]).stats.speed} · ACC {kithKart(chosen[slot]).stats.accel} · HDL {kithKart(chosen[slot]).stats.handling} · WGT {kithKart(chosen[slot]).stats.weight}</small></p><p>{characterById(chosen[slot]).bio}</p></div></div><button className="kp-button kp-primary" onClick={()=>{setRun(r=>r+1);setScreen('play');}}>Let’s play <Play size={17} fill="currentColor"/></button><p className="kp-no-account">No account needed · progress saved on this device</p></div></aside></div></main>}
   {screen==='play'&&game==='kombat'&&<KombatSession key={`kombat-${run}`} characters={chosen.slice(0,players)} onExit={()=>setScreen('gallery')} onAgain={()=>setRun(r=>r+1)}/>}
   {screen==='play'&&game==='quest'&&<QuestSession key={`quest-${run}`} characters={chosen.slice(0,1)} onExit={()=>setScreen('gallery')}/>}
   {screen==='play'&&game==='tennis'&&<TennisSession key={`tennis-${venue}-${run}`} characters={chosen.slice(0,players)} venue={cup?'crestfall-gardens':venue} doubles={cup?false:doubles} format={tFormat} difficulty={tLevel} cup={cup} round={round} totals={totals} onComplete={record} onExit={()=>setScreen('gallery')} onAgain={()=>setRun(r=>r+1)} onNext={()=>{setGame(GAMES[round+1].id);setRound(r=>r+1);setRun(r=>r+1);}}/>}
-  {screen==='play'&&game!=='kombat'&&game!=='quest'&&game!=='tennis'&&<GameSession key={`${game}-${course}-${run}`} game={game} course={course} onChangeCourse={c=>{setCourse(c);gameAudio.setCourse(c);setRun(r=>r+1);}} characters={chosen.slice(0,players)} cup={cup} round={round} totals={totals} onComplete={record} onExit={()=>setScreen('gallery')} onAgain={()=>setRun(r=>r+1)} onNext={()=>{setGame(GAMES[round+1].id);setRound(r=>r+1);setRun(r=>r+1);}} profile={profile} uid={uid}/>}
+  {screen==='play'&&game!=='kombat'&&game!=='quest'&&game!=='tennis'&&<GameSession key={`${game}-${course}-${rhythmSong}-${rhythmDiff}-${run}`} game={game} course={course} rhythmSong={rhythmSong} rhythmDiff={rhythmDiff} onChangeCourse={c=>{setCourse(c);gameAudio.setCourse(c);setRun(r=>r+1);}} characters={chosen.slice(0,players)} cup={cup} round={round} totals={totals} onComplete={record} onExit={()=>setScreen('gallery')} onAgain={()=>setRun(r=>r+1)} onNext={()=>{setGame(GAMES[round+1].id);setRound(r=>r+1);setRun(r=>r+1);}} profile={profile} uid={uid}/>}
   {help&&<div className="kp-modal-backdrop"><section className="kp-modal" role="dialog" aria-modal="true" aria-label="How to play"><button autoFocus className="kp-icon kp-modal-close" onClick={()=>setHelp(false)} aria-label="Close instructions"><X/></button><div className="kp-eyebrow">EVERYONE’S INVITED</div><h2>A little friendly competition.</h2><p>Pick a game or play all four in the Party Cup. Choose your Kith and course, then play solo against bots or share a device with a friend.</p><dl><dt>Player 1</dt><dd>Arrow keys to move · Space to hop-drift, power smash, or dash</dd><dt>Player 2</dt><dd>W A S D to move · F to hop-drift, power smash, or dash</dd><dt>Rhythm</dt><dd>Player 1: 1 2 3 4 · Player 2: 7 8 9 0</dd><dt>Controllers &amp; touch</dt><dd>Use a controller stick or D-pad to move, A to drift/smash/dash. Rhythm uses the D-pad. On-screen controls work on touch devices.</dd><dt>Pause</dt><dd>Escape, the pause button, or controller Start. Switching tabs pauses the game.</dd></dl><p>Local play works without an account. Online rooms are not part of this first collection.</p><button className="kp-button kp-primary" onClick={()=>setHelp(false)}>Got it <Check size={18}/></button></section></div>}
  </div>;
 }
 
-function GameSession({game,course,onChangeCourse,characters,cup,round,totals,onComplete,onExit,onAgain,onNext,profile,uid}:{profile?:any;uid?:string|null;game:GameId;course:CourseId;onChangeCourse:(c:CourseId)=>void;characters:string[];cup:boolean;round:number;totals:number[];onComplete:(s:State)=>void;onExit:()=>void;onAgain:()=>void;onNext:()=>void}) {
+function GameSession({game,course,onChangeCourse,characters,cup,round,totals,rhythmSong,rhythmDiff,onComplete,onExit,onAgain,onNext,profile,uid}:{profile?:any;uid?:string|null;game:GameId;course:CourseId;onChangeCourse:(c:CourseId)=>void;characters:string[];cup:boolean;round:number;totals:number[];rhythmSong?:string;rhythmDiff?:ChoraDifficulty;onComplete:(s:State)=>void;onExit:()=>void;onAgain:()=>void;onNext:()=>void}) {
  const canvas=useRef<HTMLCanvasElement>(null),frame=useRef(0),keys=useRef(new Set<string>()),touch=useRef<Input[]>([emptyInput(),emptyInput()]);
- const state=useRef((()=>{const s0=createState(game,characters,421,course);if(game==='circuit')s0.time=-3-CIRCUIT_INTRO;return s0;})());const [hud,setHud]=useState(()=>({...state.current}));const [paused,setPaused]=useState(false);const pauseRef=useRef(false);const [ready,setReady]=useState(false);const [camMode,setCamMode]=useState<'hero'|'wide'>('hero');const circuitRef=useRef<ReturnType<typeof createCircuit3D>|null>(null);const [sound,setSound]=useState(true);const soundRef=useRef(true);const [lyriaStatus,setLyriaStatus]=useState<LyriaStatus>(()=>lyriaMusic.getStatus());const lastFeedback=useRef<string[]>([]);const lastFeedbackT=useRef<number[]>([]);const lastBoost=useRef<number[]>([]);const lastCountdown=useRef(0);const [result,setResult]=useState<State|null>(null);const [renderError,setRenderError]=useState('');const container=useRef<HTMLDivElement>(null);const completeRef=useRef(onComplete);completeRef.current=onComplete;
+ const state=useRef((()=>{const s0=createState(game,characters,421,course,game==='rhythm'?{songId:rhythmSong,difficulty:rhythmDiff}:undefined);if(game==='circuit')s0.time=-3-CIRCUIT_INTRO;return s0;})());const choraAudio=useRef<HTMLAudioElement|null>(null);const [hud,setHud]=useState(()=>({...state.current}));const [paused,setPaused]=useState(false);const pauseRef=useRef(false);const [ready,setReady]=useState(false);const [camMode,setCamMode]=useState<'hero'|'wide'>('hero');const circuitRef=useRef<ReturnType<typeof createCircuit3D>|null>(null);const [sound,setSound]=useState(true);const soundRef=useRef(true);const [lyriaStatus,setLyriaStatus]=useState<LyriaStatus>(()=>lyriaMusic.getStatus());const lastFeedback=useRef<string[]>([]);const lastFeedbackT=useRef<number[]>([]);const lastBoost=useRef<number[]>([]);const lastCountdown=useRef(0);const [result,setResult]=useState<State|null>(null);const [renderError,setRenderError]=useState('');const container=useRef<HTMLDivElement>(null);const completeRef=useRef(onComplete);completeRef.current=onComplete;
  const info=ALL_GAMES.find(g=>g.id===game)!;
  // playtest/screenshot hook: ?kithdebug exposes the live race state (never on by default)
  useEffect(()=>{try{if(new URLSearchParams(location.search).has('kithdebug'))(window as any).__kith={state:()=>state.current};}catch{/* */}},[]);
@@ -152,7 +166,7 @@ function GameSession({game,course,onChangeCourse,characters,cup,round,totals,onC
     if(game==='circuit'&&!challenge.current){const vi=s.players.findIndex(p=>p.human&&(p.vocaCue??-1)>=0);if(vi>=0)startVoca(vi);}
     s.players.forEach((p,i)=>{if(!p.human)return;const prevFb=lastFeedback.current[i]??'';const prevT=lastFeedbackT.current[i]??0;
      if(p.feedbackTime>0&&(p.feedback!==prevFb||p.feedbackTime>prevT)){
-      if(s.game==='rhythm'){if(p.feedback==='PERFECT')gameAudio.rhythmHit(true);else if(p.feedback==='NICE')gameAudio.rhythmHit(false);else gameAudio.rhythmMiss();}
+      if(s.game==='rhythm'){if(p.feedback==='CHORA STAR!'||p.feedback==='PERFECT')gameAudio.rhythmHit(true);else if(p.feedback==='NICE')gameAudio.rhythmHit(false);else gameAudio.rhythmMiss();}
       else if(s.game==='crystals'){if(p.feedback==='+1')gameAudio.crystalCollect();else if(p.feedback==='−2')gameAudio.collisionThud();}
       else if(s.game==='tennis'){if(p.feedback.includes('WINNER'))gameAudio.tennisPoint();else gameAudio.tennisHit(p.feedback.includes('SMASH'));}
       else if(p.feedback.startsWith('LAP')||p.feedback.startsWith('FINAL LAP'))gameAudio.lapChime(p.feedback.startsWith('FINAL'));
@@ -162,12 +176,22 @@ function GameSession({game,course,onChangeCourse,characters,cup,round,totals,onC
     });
     if(s.time<0&&s.time>=-3){const cd=Math.ceil(-s.time);if(cd!==lastCountdown.current){lastCountdown.current=cd;if(cd>0)gameAudio.countdownBeep(cd);}}
     else if(lastCountdown.current!==0){lastCountdown.current=0;gameAudio.goBeep();}
-    if(s.phase==='finished'){complete=true;const copy={...s,players:s.players.map(p=>({...p}))};setResult(copy);completeRef.current(copy);gameAudio.stopMusic();gameAudio.finishFanfare();}
+    const ca=choraAudio.current;
+    if(ca){
+     ca.muted=!soundRef.current;
+     const targetT=s.time+(s.rhythmLeadIn??0.3);
+     if(pauseRef.current||s.phase==='finished'){if(!ca.paused)ca.pause();}
+     else if(targetT>=0){
+      if(ca.paused&&ca.readyState>=2){ca.currentTime=Math.max(0,targetT);void ca.play().catch(()=>{});}
+      else if(!ca.paused&&Math.abs(ca.currentTime-targetT)>0.14){ca.currentTime=Math.max(0,targetT);}
+     }
+    }
+    if(s.phase==='finished'){complete=true;if(choraAudio.current)choraAudio.current.pause();const copy={...s,players:s.players.map(p=>({...p}))};setResult(copy);completeRef.current(copy);gameAudio.stopMusic();gameAudio.finishFanfare();}
    }
    if(circuit)circuit.render(s,pauseRef.current?0:elapsed,gameAudio.context,soundRef.current);else if(ctx)render(ctx,s,images,inputs.map(i=>i.lanes));const sk=s.players.map(p=>p.stunt&&p.launched?`${p.stunt.idx}${p.stunt.state}`:'').join('|');if(now-lastHud>90||sk!==stuntKey.current){stuntKey.current=sk;setHud({...s,players:s.players.map(p=>({...p}))});lastHud=now;}frame.current=requestAnimationFrame(tick);
-  };frame.current=requestAnimationFrame(tick);return()=>{cancelAnimationFrame(frame.current);field.removeEventListener('webglcontextlost',lost);circuit?.dispose();circuitRef.current=null;gameAudio.stopMusic();};
+  };frame.current=requestAnimationFrame(tick);return()=>{cancelAnimationFrame(frame.current);field.removeEventListener('webglcontextlost',lost);circuit?.dispose();circuitRef.current=null;gameAudio.stopMusic();if(choraAudio.current){choraAudio.current.pause();choraAudio.current.src='';choraAudio.current=null;}};
  },[ready]);
- const begin=()=>{if(game==='circuit'){state.current.vocaWords=vocaOn&&!vocaBlock;if(state.current.vocaWords){void primeMic().then(ok=>{if(!ok)state.current.vocaWords=false;});if(wordSource==='lexicon')void lexiconPool(uid).then(p=>{lexPool.current=p;});}}gameAudio.unlock();gameAudio.uiClick();gameAudio.playTrack(game==='circuit'?'race':'groove',course);setReady(true);setPause(false);canvas.current?.focus();};
+ const begin=()=>{if(game==='circuit'){state.current.vocaWords=vocaOn&&!vocaBlock;if(state.current.vocaWords){void primeMic().then(ok=>{if(!ok)state.current.vocaWords=false;});if(wordSource==='lexicon')void lexiconPool(uid).then(p=>{lexPool.current=p;});}}gameAudio.unlock();gameAudio.uiClick();if(choraAudio.current){choraAudio.current.pause();choraAudio.current.src='';choraAudio.current=null;}if(game==='rhythm'&&state.current.rhythmAudioUrl){gameAudio.stopMusic();const au=new Audio(state.current.rhythmAudioUrl);au.preload='auto';au.muted=!soundRef.current;au.onerror=()=>{if(choraAudio.current===au){choraAudio.current=null;gameAudio.playTrack('groove',course);}};choraAudio.current=au;au.load();}else{gameAudio.playTrack(game==='circuit'?'race':'groove',course);}setReady(true);setPause(false);canvas.current?.focus();};
  const toggleSound=()=>{gameAudio.unlock();const on=!soundRef.current;setSound(on);gameAudio.setMuted(!on);};
  const ranked=result?standings(result):[];
  const liveRanked=standings(hud);

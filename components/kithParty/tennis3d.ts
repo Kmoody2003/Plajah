@@ -534,7 +534,11 @@ export function createTennis3D(canvas: HTMLCanvasElement, initial: TennisState) 
      excitement = Math.min(1.4, excitement + (strong ? .12 : .03));
      break;
     }
-    case 'perfect': flash.position.copy(pos); flashT = 0; fx.emit('spark', pos, up.clone().multiplyScalar(4), 26, '#ffe27a', 1); break;
+    case 'perfect':
+     flash.position.copy(pos); flashT = 0;
+     fx.emit('spark', pos, up.clone().multiplyScalar(4.4), e.data === 'sweetspot' ? 38 : 26, e.data === 'sweetspot' ? '#fff48f' : '#ffe27a', e.data === 'sweetspot' ? 1.25 : 1);
+     if (e.data === 'sweetspot') { shock.position.set(pos.x, .06, pos.z); (shock.material as T.MeshBasicMaterial).color.set('#ffe45e'); shockT = 0; shake = Math.max(shake, .11); excitement = Math.min(1.5, excitement + .14); }
+     break;
     case 'bounce': { const [, kind, imp] = e.data.split('|'); bounceFx(e.x, e.z, Number(imp), kind); break; }
     case 'net': case 'netcord': netShake = e.type === 'net' ? 1 : .5; netShakeX = e.x; fx.emit('spark', pos, up.clone().multiplyScalar(2), 8, '#ffffff', .5); break;
     case 'point': {

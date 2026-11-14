@@ -522,6 +522,11 @@ export class GameAudio {
   this.switchToken++;
   this.trackName = null;
   if (this.timer !== null) { window.clearInterval(this.timer); this.timer = null; }
+  if (this.ctx && this.musicBus) {
+   const t = this.ctx.currentTime;
+   this.musicBus.gain.cancelScheduledValues(t);
+   this.musicBus.gain.setTargetAtTime(0.0001, t, 0.02);
+  }
  }
 
  /* ------------------------- Sequencer Internals ------------------------ */

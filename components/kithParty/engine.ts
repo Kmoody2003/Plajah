@@ -2,6 +2,7 @@ import { type GameId } from './catalog';
 import { type CourseId, courseMinimapPoint, getActiveCourse, gridProgress, setActiveCourse } from './course3d';
 import type {ItemId} from './abilities';
 import {createRaceExtras, racerDefaults, raceCountdown, stepRace, type RaceExtras} from './race';
+import { buildChoraRhythmChart, type ChoraDifficulty } from './choraRhythm';
 
 /** y < 0 accelerate, y > 0 brake / reverse. `item` fires the held item, `special` the Kith Type Special. */
 export interface Input { x:number; y:number; action:boolean; lanes:boolean[]; item:boolean; special:boolean;  /** Arrow presses since the last frame, in order (0 ← 1 ↓ 2 ↑ 3 →) — key-down events, so a quick tap is never lost. */
@@ -47,7 +48,7 @@ export interface Player {
  glide?:number;
 }
 
-export interface Note { time:number; lane:number; judged:boolean[]; }
+export interface Note { time:number; lane:number; judged:boolean[]; accent?:boolean; }
 
 export interface TennisBall {
  x:number; y:number; z:number;
@@ -83,6 +84,13 @@ export interface State {
  seed:number;
  /** projectiles, traps, item boxes and race events — circuit only */
  race?:RaceExtras;
+ rhythmSongId?:string;
+ rhythmSongTitle?:string;
+ rhythmDifficulty?:ChoraDifficulty;
+ rhythmBpm?:number;
+ rhythmAudioUrl?:string;
+ rhythmLeadIn?:number;
+ rhythmAccent?:string;
 }
 
 export const TAU=Math.PI*2;
@@ -94,18 +102,26 @@ export function trackPoint(t:number,lane=0,course:CourseId=getActiveCourse()):{x
  return {x:480+(mp.x-60)*7.2,y:280+(mp.y-42)*5.8};
 }
 
-export function createState(game:GameId,characters:string[],seed=421,course:CourseId='crestfall-gardens'):State {
+export function createState(game:GameId,characters:string[],seed=421,course:CourseId='crestfall-gardens',rhythm?:{songId?:string;difficulty?:ChoraDifficulty}):State {
  const ids=[...characters,...['moki','zippi','nori','pippa'].filter(c=>!characters.includes(c))].slice(0,4);
+ const chart=game==='rhythm'?buildChoraRhythmChart(rhythm?.songId,rhythm?.difficulty??'groove'):null;
  const s:State={
   game,
   course,
   time:-3,
-  duration:game==='circuit'?240:game==='crystals'||game==='tennis'?60:45,
+  duration:game==='circuit'?240:game==='crystals'||game==='tennis'?60:chart?chart.song.durationSec:45,
   autoAccelerate:false, // the player governs speed: ↑ / RT is the gas
   phase:'countdown',
   seed,
   crystals:[],
   notes:[],
+  rhythmSongId:chart?.song.id,
+  rhythmSongTitle:chart?.song.title,
+  rhythmDifficulty:chart?.difficulty,
+  rhythmBpm:chart?.song.bpm,
+  rhythmAudioUrl:chart?.song.audioUrl,
+  rhythmLeadIn:chart?.song.audioLeadInSec,
+  rhythmAccent:chart?.song.accent,
   tennis:{
    x:480,y:420,z:28,
    vx:45,vy:-275,vz:175,
@@ -135,7 +151,11 @@ export function createState(game:GameId,characters:string[],seed=421,course:Cour
  };
  if(game==='circuit'){setActiveCourse(course);s.race=createRaceExtras(course);}
  for(let i=0;i<18;i++) s.crystals.push({x:100+random(s)*760,y:100+random(s)*350,active:true,respawn:0});
- for(let i=0;i<78;i++) s.notes.push({time:2+i*.54,lane:Math.floor(random(s)*4),judged:[false,false]});
+ if(chart&&chart.notes.length){
+  for(const n of chart.notes) s.notes.push({time:n.time,lane:n.lane,accent:!!n.accent,judged:[false,false]});
+ } else {
+  for(let i=0;i<78;i++) s.notes.push({time:2+i*.54,lane:Math.floor(random(s)*4),judged:[false,false]});
+ }
  return s;
 }
 
@@ -240,8 +260,13 @@ export function step(s:State,inputs:Input[],dt:number) {
     if(pressed&&!p.lastLanes[lane]) {
      const note=s.notes.filter(n=>!n.judged[i]&&n.lane===lane).sort((a,b)=>Math.abs(a.time-s.time)-Math.abs(b.time-s.time))[0];
      const error=note?Math.abs(note.time-s.time):Infinity;
-     if(note&&error<=.19){note.judged[i]=true;p.combo++;p.bestCombo=Math.max(p.bestCombo,p.combo);p.score+=(error<.075?100:60)+Math.min(50,p.combo*2);feedback(p,error<.075?'PERFECT':'NICE');}
-     else {p.combo=0;feedback(p,'EARLY / LATE');}
+     if(note&&error<=.19){
+      note.judged[i]=true;p.combo++;p.bestCombo=Math.max(p.bestCombo,p.combo);
+      const mult=p.combo>=24?2:p.combo>=12?1.5:1;
+      const base=(error<.075?100:60)+(note.accent?45:0)+Math.min(50,p.combo*2);
+      p.score+=Math.round(base*mult);
+      feedback(p,note.accent&&error<.085?'CHORA STAR!':error<.075?'PERFECT':'NICE');
+     } else {p.combo=0;feedback(p,'EARLY / LATE');}
     }
    });
    s.notes.forEach(n=>{if(!n.judged[i]&&s.time-n.time>.19){n.judged[i]=true;p.combo=0;feedback(p,'MISS');}});

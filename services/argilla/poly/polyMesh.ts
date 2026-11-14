@@ -496,3 +496,164 @@ export function toTriangles(m: PolyMesh, flat = false) {
 export function eulerCharacteristic(m: PolyMesh) {
   return m.verts.length - edgeFaces(m).size + m.faces.length;
 }
+
+/** Average smooth vertex normals across incident faces (falls back to +Y if degenerate). */
+export function smoothVertexNormals(m: PolyMesh): V3[] {
+  const acc: V3[] = m.verts.map(() => [0, 0, 0]);
+  for (const face of m.faces) {
+    const n = faceNormal(m, face);
+    for (const v of face) {
+      acc[v][0] += n[0];
+      acc[v][1] += n[1];
+      acc[v][2] += n[2];
+    }
+  }
+  return acc.map((n) => (len(n) > 1e-8 ? norm(n) : [0, 1, 0]));
+}
+
+/**
+ * Gives an open sheet or armor shell real physical wall thickness and watertight rim walls.
+ * Keeps `offset` centered (`0`), pushed outward (`+1`), or inward (`-1`).
+ */
+export function solidifyMesh(m: PolyMesh, thickness = 0.02, offset = 0): PolyMesh {
+  if (!m.verts.length || !m.faces.length) return clone(m);
+  const vNorms = smoothVertexNormals(m);
+  const outerDist = thickness * 0.5 * (1 + offset);
+  const innerDist = -thickness * 0.5 * (1 - offset);
+  const n = m.verts.length;
+  const verts: V3[] = new Array(n * 2);
+  for (let i = 0; i < n; i++) {
+    verts[i] = add(m.verts[i], mul(vNorms[i], outerDist));
+    verts[i + n] = add(m.verts[i], mul(vNorms[i], innerDist));
+  }
+  const faces: number[][] = [];
+  // Outer skin keeps original winding; inner skin is flipped so normals face outward.
+  for (const f of m.faces) faces.push([...f]);
+  for (const f of m.faces) faces.push([...f].reverse().map((v) => v + n));
+
+  // Bridge boundary edges (directed edge a->b with single incident face) into watertight side quads.
+  const ef = edgeFaces(m);
+  for (const f of m.faces) {
+    for (let i = 0; i < f.length; i++) {
+      const a = f[i], b = f[(i + 1) % f.length];
+      if ((ef.get(edgeKey(a, b))?.length ?? 0) === 1) {
+        faces.push([b, a, a + n, b + n]);
+      }
+    }
+  }
+  return compact({ verts, faces });
+}
+
+/**
+ * Topology-preserving edge bevel/chamfer on closed manifold meshes (`ratio` in 0..0.45 pulls face corners inward),
+ * turning razor-sharp hard CG corners into specular catchlights for console rendering.
+ */
+export function bevelMeshEdges(m: PolyMesh, ratio = 0.18): PolyMesh {
+  const t = Math.max(0.02, Math.min(0.45, ratio));
+  const verts: V3[] = [];
+  const faces: number[][] = [];
+  const cornerVert = new Map<string, number>(); // `${f}_${v}` -> new vert index
+  const vertFaces = new Map<number, number[]>();
+  const directedHalfEdge = new Map<string, { f: number; prev: number; next: number }>();
+
+  m.faces.forEach((face, f) => {
+    const centre = faceCentre(m, face);
+    const insetFace: number[] = [];
+    for (let i = 0; i < face.length; i++) {
+      const v = face[i];
+      const prev = face[(i + face.length - 1) % face.length];
+      const next = face[(i + 1) % face.length];
+      directedHalfEdge.set(`${v}_${next}`, { f, prev, next });
+      (vertFaces.get(v) ?? vertFaces.set(v, []).get(v)!).push(f);
+      const id = verts.length;
+      verts.push(lerp(m.verts[v], centre, t));
+      cornerVert.set(`${f}_${v}`, id);
+      insetFace.push(id);
+    }
+    faces.push(insetFace);
+  });
+
+  // Edge bevel quads for every manifold interior edge shared by two oppositely oriented half-edges.
+  const seenEdges = new Set<EdgeKey>();
+  m.faces.forEach((face, fA) => {
+    for (let i = 0; i < face.length; i++) {
+      const a = face[i], b = face[(i + 1) % face.length];
+      const ek = edgeKey(a, b);
+      if (seenEdges.has(ek)) continue;
+      seenEdges.add(ek);
+      const opp = directedHalfEdge.get(`${b}_${a}`);
+      if (!opp) continue;
+      const ca = cornerVert.get(`${fA}_${a}`), cb = cornerVert.get(`${fA}_${b}`);
+      const oa = cornerVert.get(`${opp.f}_${a}`), ob = cornerVert.get(`${opp.f}_${b}`);
+      if (ca !== undefined && cb !== undefined && oa !== undefined && ob !== undefined) {
+        faces.push([cb, ca, oa, ob]);
+      }
+    }
+  });
+
+  // Vertex corner faces by walking half-edges clockwise around each interior vertex.
+  for (const [v, flist] of vertFaces.entries()) {
+    if (flist.length < 3) continue;
+    const fStart = flist[0];
+    const face0 = m.faces[fStart];
+    const idx0 = face0.indexOf(v);
+    let curF = fStart;
+    let curNext = face0[(idx0 + 1) % face0.length];
+    const loop: number[] = [];
+    let guard = 0;
+    let closed = false;
+    while (guard++ <= flist.length) {
+      const cv = cornerVert.get(`${curF}_${v}`);
+      if (cv === undefined) break;
+      loop.push(cv);
+      const twin = directedHalfEdge.get(`${curNext}_${v}`);
+      if (!twin) break;
+      if (twin.f === fStart) { closed = true; break; }
+      curF = twin.f;
+      const tf = m.faces[curF];
+      const ti = tf.indexOf(v);
+      curNext = tf[(ti + 1) % tf.length];
+    }
+    if (closed && loop.length === flist.length) {
+      faces.push(loop.reverse());
+    }
+  }
+  return compact({ verts, faces });
+}
+
+/** Welds near-coincident vertices and strips degenerate or zero-area polygons. */
+export function cleanManifold(m: PolyMesh, weldTol = 1e-5, areaTol = 1e-10): PolyMesh {
+  const welded = weld(m, weldTol);
+  const faces = welded.faces.filter((f) => {
+    if (f.length < 3 || new Set(f).size < 3) return false;
+    const a = welded.verts[f[0]], b = welded.verts[f[1]], c = welded.verts[f[2]];
+    const ab = sub(b, a), ac = sub(c, a);
+    const cx = ab[1] * ac[2] - ab[2] * ac[1];
+    const cy = ab[2] * ac[0] - ab[0] * ac[2];
+    const cz = ab[0] * ac[1] - ab[1] * ac[0];
+    return cx * cx + cy * cy + cz * cz > areaTol;
+  });
+  return compact({ verts: welded.verts, faces });
+}
+
+/** Generates seam-aware triplanar box UVs per vertex (`Float32Array` length = verts * 2) for procedural meshes. */
+export function computeBoxUVs(m: PolyMesh, scale = 1): Float32Array {
+  const uvs = new Float32Array(m.verts.length * 2);
+  const norms = smoothVertexNormals(m);
+  for (let i = 0; i < m.verts.length; i++) {
+    const [x, y, z] = m.verts[i];
+    const [nx, ny, nz] = norms[i];
+    const ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
+    if (ax >= ay && ax >= az) {
+      uvs[i * 2] = z * scale;
+      uvs[i * 2 + 1] = y * scale;
+    } else if (ay >= ax && ay >= az) {
+      uvs[i * 2] = x * scale;
+      uvs[i * 2 + 1] = z * scale;
+    } else {
+      uvs[i * 2] = x * scale;
+      uvs[i * 2 + 1] = y * scale;
+    }
+  }
+  return uvs;
+}

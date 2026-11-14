@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createQuestState,stepQuest,emptyQuestInput,floorRow,MOVE,MAX_HP,type QuestState,type QuestInput} from '../components/kithParty/quest/sim';
-import {LEVELS,TILE,T} from '../components/kithParty/quest/level';
+import {LEVELS,LEVEL_INFO,TILE,T} from '../components/kithParty/quest/level';
 import {runBot} from './kithQuestBot';
 
 const DT=1/120;
@@ -10,9 +10,10 @@ const run=(s:QuestState,sec:number,inp:(i:number)=>Partial<QuestInput>)=>{for(le
 /** Flat test pad: strip enemies so mechanics are measured in isolation. */
 const pad=(lv=0)=>{const s=createQuestState('rello',lv);s.ents=s.ents.filter(e=>e.kind==='mote'||e.kind==='sign');settle(s);return s;};
 
-test('three stages with a start, a goal (or boss) and three Star Seeds each',()=>{
- assert.equal(LEVELS.length,3);
- for(let i=0;i<3;i++){
+test('five stages with a start, a goal (or boss) and three Star Seeds each',()=>{
+ assert.equal(LEVELS.length,5);
+ assert.equal(LEVEL_INFO.length,5);
+ for(let i=0;i<LEVELS.length;i++){
   const L=LEVELS[i]();
   const seeds=L.ents.filter(e=>e.kind==='seed').length+Object.values(L.boxes).filter(p=>p==='seed').length;
   assert.equal(seeds,3,`${L.name} seeds`);
@@ -132,6 +133,100 @@ test('the Hollow Warden: phases, defeat, Lantern Gate and stage clear',()=>{
  assert.equal(s.phase,'clear');
 });
 
+test('new enemy archetypes: beetle armor/roll crack, wisp bolt, briar snap, sentinel crystal fan & spark drop',()=>{
+ const s3=createQuestState('rello',3),s4=createQuestState('rello',4);
+ // 1. Mossback Beetle resists stomp (1 dmg + bonk) and shatters under Roll
+ {
+  const s=pad();const p=s.player;const x0=p.x,y0=p.y;
+  const tpl=s3.ents.find(e=>e.kind==='beetle')!;
+  const b={...tpl,id:901,x:x0,y:y0+p.h-tpl.h,vx:0,vy:0,alive:true,hp:2};
+  s.ents.push(b);
+  p.y-=60;p.vy=300;p.onGround=false;p.invuln=10;
+  const evs:string[]=[];
+  for(let i=0;i<30;i++){stepQuest(s,emptyQuestInput(),DT);evs.push(...s.events.map(e=>e.type));}
+  const ent=s.ents.find(e=>e.id===901)!;
+  assert.equal(ent.alive,true,'beetle survives armored stomp');
+  assert.equal(ent.hp,1,'beetle takes 1 stomp damage');
+  assert.ok(evs.includes('bonk'),'stomp emits metallic bonk');
+  // Now spin up momentum on the spot and roll cleanly through it
+  settle(s,.5);
+  p.x=x0-20;p.y=y0;p.vx=320;p.onGround=true;
+  ent.x=x0+42;ent.y=y0+p.h-ent.h;ent.vx=0;
+  for(let i=0;i<35&&ent.alive;i++)stepQuest(s,{...emptyQuestInput(),x:1,y:1},DT);
+  assert.equal(p.rolling,true);
+  assert.equal(ent.alive,false,'roll cracks beetle shell');
+ }
+ // 2. Lantern Wisp floats and casts wispCast projectiles
+ {
+  const s=pad();const p=s.player;
+  const tpl=s3.ents.find(e=>e.kind==='wisp')!;
+  const w={...tpl,id:902,x:p.x+160,ox:p.x+160,y:p.y-24,oy:p.y-24,vx:0,vy:0,alive:true,stateT:2.0};
+  s.ents.push(w);
+  const evs:string[]=[];
+  let sawShot=false;
+  for(let i=0;i<180;i++){p.invuln=10;stepQuest(s,emptyQuestInput(),DT);evs.push(...s.events.map(e=>e.type));if(s.shots.some(sh=>!sh.friendly))sawShot=true;}
+  assert.ok(evs.includes('wispCast'),'wisp casts projectile');
+  assert.equal(sawShot,true,'wisp fires active shot');
+ }
+ // 3. Briar Mimic ambushes and snaps when player approaches
+ {
+  const s=pad();const p=s.player;
+  const tpl=s3.ents.find(e=>e.kind==='briar')!;
+  const br={...tpl,id:903,x:p.x+72,ox:p.x+72,y:p.y+p.h-tpl.h,oy:p.y+p.h-tpl.h,vx:0,vy:0,alive:true,state:'idle' as const,stateT:0};
+  s.ents.push(br);
+  const evs:string[]=[];
+  for(let i=0;i<120;i++){p.invuln=10;stepQuest(s,emptyQuestInput(),DT);evs.push(...s.events.map(e=>e.type));}
+  assert.ok(evs.includes('briarSnap'),'briar snaps out of ambush');
+ }
+ // 4. Astral Sentinel fires crystal fan and drops a Spark on defeat
+ {
+  const s=pad();const p=s.player;
+  const tpl=s4.ents.find(e=>e.kind==='sentinel')!;
+  const sn={...tpl,id:904,x:p.x+56,ox:p.x+56,y:p.y-10,oy:p.y-10,vx:0,vy:0,alive:true,hp:4,stateT:2.0};
+  s.ents.push(sn);
+  let sawEnemyShots=false;
+  for(let i=0;i<300&&sn.alive;i++){
+   p.invuln=10;p.hp=MAX_HP;p.sparks=9;
+   const dx=sn.x-p.x;
+   stepQuest(s,{...emptyQuestInput(),x:Math.abs(dx)>44?Math.sign(dx):0,attack:i%14===0,special:i%35===0},DT);
+   if(s.shots.some(sh=>!sh.friendly))sawEnemyShots=true;
+  }
+  assert.equal(sawEnemyShots,true,'sentinel fires crystal bolts');
+  assert.equal(sn.alive,false,'sentinel can be defeated');
+  assert.ok(s.ents.some(e=>e.kind==='spark'&&e.alive),'sentinel drops a spark');
+ }
+});
+
+test('new bosses: Gale Sovereign (Stage 4) and Umbra Weaver (Stage 5) phases, blink, and clear',()=>{
+ for(const [lv,wantKind,wantName] of [[3,'sovereign','THE GALE SOVEREIGN'],[4,'weaver','THE UMBRA WEAVER']] as const){
+  const s=createQuestState('rello',lv);settle(s);
+  const A=s.level.arena!;const p=s.player;
+  p.x=(A.c0+8)*TILE;p.y=floorRow(s,A.c0+8)*TILE-p.h;p.vy=0;
+  for(let i=0;i<2;i++)stepQuest(s,emptyQuestInput(),DT);
+  assert.equal(s.arenaLocked,true,`${wantName} locks arena`);
+  assert.equal(s.boss!.kind,wantKind);
+  assert.equal(s.boss!.name,wantName);
+  assert.equal(s.boss!.state,'intro');
+  const phases=new Set<number>();
+  let sawBlink=false;
+  for(let i=0;i<120*140&&(s.boss!.state as string)!=='dead';i++){
+   p.invuln=10;p.hp=MAX_HP;
+   const B=s.boss!;const bx=B.x+B.w/2;
+   const waitBlink=wantKind==='weaver'&&!sawBlink&&i<120*22;
+   stepQuest(s,waitBlink?emptyQuestInput():{...emptyQuestInput(),x:Math.abs(bx-(p.x+p.w/2))>20?Math.sign(bx-(p.x+p.w/2)):0,y:-1,jump:i%40<20,attack:i%16===0,special:i%60===0},DT);
+   if(s.events.some(e=>e.type==='bossBlink')||B.state==='blink')sawBlink=true;
+   phases.add(B.phase);p.sparks=9;
+  }
+  if(wantKind==='weaver')assert.equal(sawBlink,true,'Umbra Weaver uses blink teleport');
+  assert.equal(s.boss!.state,'dead',`${wantName} defeated`);
+  assert.deepEqual([...phases].sort(),[0,1,2],`${wantName} cycles all 3 phases`);
+  assert.equal(s.arenaLocked,false);
+  const gate=s.ents.find(e=>e.kind==='goal'&&e.alive)!;assert.ok(gate,`${wantName} spawns goal`);
+  p.invuln=0;p.x=gate.x;p.y=gate.y+gate.h-p.h;stepQuest(s,emptyQuestInput(),DT);
+  assert.equal(s.phase,'clear');
+ }
+});
+
 test('lullaby score: three original 16-bar themes in 3/4 whose melodies fill every bar',async()=>{
  const {QUEST_THEMES}=await import('../components/kithParty/quest/score');
  assert.equal(QUEST_THEMES.length,3);
@@ -145,7 +240,7 @@ test('lullaby score: three original 16-bar themes in 3/4 whose melodies fill eve
 test('adaptive score: every stage has energy and danger zones; danger + battle pieces are well-formed',async()=>{
  const {moodAt}=await import('../components/kithParty/quest/level');
  const {QUEST_DANGER,QUEST_BATTLE}=await import('../components/kithParty/quest/score');
- for(let i=0;i<3;i++){
+ for(let i=0;i<LEVELS.length;i++){
   const L=LEVELS[i]();const kinds=new Set(L.moods.map(m=>m.mood));
   assert.ok(kinds.has('energy')&&kinds.has('danger')&&kinds.has('calm'),`${L.name} moods ${[...kinds]}`);
   assert.equal(moodAt(L,L.start.x),'calm',`${L.name} starts calm`);

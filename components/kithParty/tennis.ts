@@ -414,10 +414,11 @@ function launch(s: TennisState, hitterIdx: number, kind: ShotKind, quality: numb
  let depth: number; // metres from the net on the far side
  let speed: number;  // ground speed m/s
  let spin = 0, curve = 0, margin = .28;
- const power = st.power * (1 + charge * .32) * (quality > .85 ? 1.08 : 1);
+ const power = st.power * (1 + charge * .34) * (quality > .9 ? 1.15 : quality > .85 ? 1.08 : 1) * (1 + Math.min(.22, s.match.rally * .014));
+ const isSweetSpot = p.human && quality > .9 && !special && kind !== 'block' && kind !== 'dive' && kind !== 'serve';
  switch (kind) {
-  case 'topspin': depth = lerp(8.4, 10.9, (aimDepth + 1) / 2) - (Math.abs(aimX) > .7 ? .9 : 0); speed = 21.5 * power; spin = 1 + charge * .5; margin = .32; break;
-  case 'slice': depth = lerp(6.8, 10.2, (aimDepth + 1) / 2); speed = 17 * power; spin = -.55; margin = .22; break;
+  case 'topspin': depth = lerp(8.4, 10.9, (aimDepth + 1) / 2) - (Math.abs(aimX) > .7 ? .9 : 0); speed = 21.5 * power; spin = 1 + charge * .5 + (isSweetSpot ? .35 : 0); margin = .32; break;
+  case 'slice': depth = lerp(6.8, 10.2, (aimDepth + 1) / 2); speed = 17.5 * power; spin = -.55 - (isSweetSpot ? .25 : 0); margin = .22; break;
   case 'lob': depth = lerp(9.6, 11.2, (aimDepth + 1) / 2); speed = 9.5 * (1 + charge * .2); spin = .35; margin = 2.5; break;
   case 'drop': depth = lerp(1.6, 3.8, (aimDepth + 1) / 2); speed = 8.5; spin = -1.1; margin = .18; break;
   case 'smash': depth = lerp(7.5, 10.4, (aimDepth + 1) / 2); speed = 30 * power; spin = .3; margin = .1; tx = clamp(aimX, -1, 1) * aimW * 1.02; break;
@@ -491,8 +492,9 @@ function launch(s: TennisState, hitterIdx: number, kind: ShotKind, quality: numb
  p.swingKind = kind; p.anim = kind === 'smash' ? 'smash' : kind === 'dive' ? 'dive' : 'swing'; p.animT = 0;
  p.swingSide = (b.x - p.x) * (p.team === 0 ? 1 : -1) >= 0 ? 1 : -1;
  // meter
- p.meter = clamp(p.meter + (special ? -1 : quality > .85 ? .14 : .06) + charge * .06, 0, 1);
- if (quality > .85 && !special && kind !== 'block' && kind !== 'dive') { p.stats2.perfects++; p.score += 4; emit(s, 'perfect', hitterIdx, b.x, b.y, b.z, kind); say(p, 'PERFECT'); }
+ p.meter = clamp(p.meter + (special ? -1 : isSweetSpot ? .18 : quality > .85 ? .14 : .06) + charge * .06, 0, 1);
+ if (isSweetSpot) { p.stats2.perfects++; p.score += 6; emit(s, 'perfect', hitterIdx, b.x, b.y, b.z, 'sweetspot'); say(p, s.match.rally >= 8 ? `SWEET SPOT ×${s.match.rally}!` : 'SWEET SPOT!'); }
+ else if (quality > .85 && !special && kind !== 'block' && kind !== 'dive') { p.stats2.perfects++; p.score += 4; emit(s, 'perfect', hitterIdx, b.x, b.y, b.z, kind); say(p, 'PERFECT'); }
  if (special) { p.stats2.specials++; p.score += 8; emit(s, 'special', hitterIdx, b.x, b.y, b.z, special); say(p, tennisSpecialFor(p.character).name.toUpperCase()); }
  emit(s, 'hit', hitterIdx, b.x, b.y, b.z, `${b.kind}|${Math.round(charge * 100)}|${quality.toFixed(2)}`);
 }

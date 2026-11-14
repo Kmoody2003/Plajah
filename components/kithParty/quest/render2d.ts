@@ -13,23 +13,45 @@ const VIEW_W = 960;
 interface Palette {
  sky: [string, string, string]; far: string; mid: string; near: string; fog: string;
  earthTop: string; earth: string; earthDeep: string; rim: string; lip: string; lipHi: string; blade: string;
- ledge: string; ledgeHi: string; accent: string; light: string; ambient: 'fireflies' | 'mist' | 'embers';
+ ledge: string; ledgeHi: string; accent: string; light: string;
+ ray: string; cloudHi: string; cloudLo: string; bloom: string; water: string;
+ ambient: 'fireflies' | 'mist' | 'embers' | 'pollen' | 'starlight';
 }
 const PAL: Record<Biome, Palette> = {
  moss: {
-  sky: ['#0d2340', '#2a4f6e', '#e9a77a'], far: '#33577a', mid: '#1d3a52', near: '#0d1f2e', fog: 'rgba(160,220,230,.10)',
+  sky: ['#0d2340', '#2a4f6e', '#e9a77a'], far: '#33577a', mid: '#1d3a52', near: '#0d1f2e', fog: 'rgba(160,220,230,.12)',
   earthTop: '#5b3d52', earth: '#3a2740', earthDeep: '#1b1424', rim: '#140e1c', lip: '#3fae7a', lipHi: '#a8f0a0', blade: '#62d38e',
-  ledge: '#6d4a3a', ledgeHi: '#c99a6a', accent: '#8ff7d0', light: '#fff1c4', ambient: 'fireflies',
+  ledge: '#6d4a3a', ledgeHi: '#c99a6a', accent: '#8ff7d0', light: '#fff1c4',
+  ray: 'rgba(255,232,175,.11)', cloudHi: 'rgba(255,236,210,.26)', cloudLo: 'rgba(65,98,132,.32)', bloom: '#ffd08a', water: 'rgba(80,210,190,.28)',
+  ambient: 'fireflies',
  },
  falls: {
-  sky: ['#5fb6d8', '#a9def0', '#fbe1c0'], far: '#8bb7cf', mid: '#5f8fae', near: '#2c5068', fog: 'rgba(255,255,255,.16)',
+  sky: ['#4ea9cf', '#9cdbf2', '#fde3c2'], far: '#7cb0cc', mid: '#5285a6', near: '#244862', fog: 'rgba(255,255,255,.18)',
   earthTop: '#6c7f96', earth: '#4b5c74', earthDeep: '#26324a', rim: '#1d2638', lip: '#59c3a0', lipHi: '#c9f7d8', blade: '#7fe0b2',
-  ledge: '#7b6a5a', ledgeHi: '#e4caa2', accent: '#d8fbff', light: '#ffffff', ambient: 'mist',
+  ledge: '#7b6a5a', ledgeHi: '#e4caa2', accent: '#d8fbff', light: '#ffffff',
+  ray: 'rgba(255,250,230,.16)', cloudHi: 'rgba(255,255,255,.55)', cloudLo: 'rgba(130,175,210,.35)', bloom: '#d8fbff', water: 'rgba(130,235,255,.34)',
+  ambient: 'mist',
  },
  keep: {
-  sky: ['#0b0820', '#2b1846', '#7a3a5e'], far: '#3a2752', mid: '#22183a', near: '#110b1f', fog: 'rgba(255,170,120,.07)',
+  sky: ['#0b0820', '#2b1846', '#7a3a5e'], far: '#3a2752', mid: '#22183a', near: '#110b1f', fog: 'rgba(255,170,120,.09)',
   earthTop: '#5a4a6a', earth: '#3b3049', earthDeep: '#1b1526', rim: '#0e0a16', lip: '#8b7aa0', lipHi: '#d8c8ee', blade: '#7d6c92',
-  ledge: '#5c4436', ledgeHi: '#b48a62', accent: '#ffb46b', light: '#ffd28a', ambient: 'embers',
+  ledge: '#5c4436', ledgeHi: '#b48a62', accent: '#ffb46b', light: '#ffd28a',
+  ray: 'rgba(255,180,115,.10)', cloudHi: 'rgba(205,155,215,.18)', cloudLo: 'rgba(30,18,52,.36)', bloom: '#ffb46b', water: 'rgba(165,115,210,.24)',
+  ambient: 'embers',
+ },
+ sunbloom: {
+  sky: ['#1b6278', '#68be9a', '#fde29b'], far: '#4d9288', mid: '#2f6b64', near: '#173b3a', fog: 'rgba(255,244,196,.15)',
+  earthTop: '#6d503a', earth: '#4b3328', earthDeep: '#261816', rim: '#190e0e', lip: '#54bd62', lipHi: '#d8fa98', blade: '#7ae272',
+  ledge: '#7d563c', ledgeHi: '#f0c482', accent: '#ffe680', light: '#fff8d4',
+  ray: 'rgba(255,240,165,.18)', cloudHi: 'rgba(255,252,235,.64)', cloudLo: 'rgba(105,165,175,.32)', bloom: '#ff9ec4', water: 'rgba(110,235,210,.30)',
+  ambient: 'pollen',
+ },
+ starwell: {
+  sky: ['#061024', '#143359', '#2b6782'], far: '#1c4469', mid: '#112a46', near: '#091829', fog: 'rgba(120,235,245,.11)',
+  earthTop: '#3e4e6e', earth: '#273452', earthDeep: '#121a2e', rim: '#090e1b', lip: '#3ec7b0', lipHi: '#a6fff0', blade: '#5de2c8',
+  ledge: '#4d4c72', ledgeHi: '#a8b8f0', accent: '#80f4ff', light: '#d4fbff',
+  ray: 'rgba(120,235,255,.14)', cloudHi: 'rgba(165,235,255,.22)', cloudLo: 'rgba(18,45,82,.38)', bloom: '#9fd8ff', water: 'rgba(85,220,245,.36)',
+  ambient: 'starlight',
  },
 };
 
@@ -118,16 +140,17 @@ export function createQuestRenderer(canvas: HTMLCanvasElement, s0: QuestState): 
     const gr = g.createLinearGradient(0, y, 0, y + TILE); gr.addColorStop(0, shade(d)); gr.addColorStop(1, shade(d + 1));
     g.fillStyle = gr;
     g.fillRect(x - .5, y - .5, TILE + 1, TILE + 1);
-    if (level.biome === 'keep') {
-     g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = 1.5;
+    if (level.biome === 'keep' || level.biome === 'starwell') {
+     g.strokeStyle = level.biome === 'starwell' ? 'rgba(90,235,245,.22)' : 'rgba(0,0,0,.28)'; g.lineWidth = 1.5;
      const off = (r % 2) * 16;
      g.beginPath(); g.moveTo(x, y + .75); g.lineTo(x + TILE, y + .75); g.moveTo(x + off + .5, y); g.lineTo(x + off + .5, y + TILE); g.moveTo(x + off + 16.5, y + 16); g.lineTo(x + off + 16.5, y + TILE); g.moveTo(x, y + 16.5); g.lineTo(x + TILE, y + 16.5); g.stroke();
-     g.fillStyle = 'rgba(255,255,255,.035)'; g.fillRect(x + 2, y + 2, 12, 5);
+     g.fillStyle = level.biome === 'starwell' ? 'rgba(130,245,255,.06)' : 'rgba(255,255,255,.035)'; g.fillRect(x + 2, y + 2, 12, 5);
+     if (level.biome === 'starwell' && hash(c, r, 11) > .85) { g.fillStyle = 'rgba(143,247,208,.28)'; g.fillRect(x + 12, y + 8, 8, 3); }
     } else {
      const n = 2 + Math.floor(hash(c, r) * 3);
      for (let i = 0; i < n; i++) {
       const hx = hash(c, r, i + 1), hy = hash(r, c, i + 7), hs = hash(c + i, r - i);
-      g.fillStyle = `rgba(${level.biome === 'moss' ? '255,220,255' : '220,240,255'},${.03 + hs * .05})`;
+      g.fillStyle = `rgba(${level.biome === 'sunbloom' ? '255,232,175' : level.biome === 'moss' ? '255,220,255' : '220,240,255'},${.04 + hs * .06})`;
       g.beginPath(); g.ellipse(x + hx * TILE, y + hy * TILE, 3 + hs * 6, 2 + hs * 4, hs * 3, 0, Math.PI * 2); g.fill();
      }
      if (d > 1 && hash(c * 3, r) > .86) { g.fillStyle = 'rgba(0,0,0,.18)'; g.beginPath(); g.ellipse(x + 16, y + 16, 9, 6, hash(c, r) * 3, 0, Math.PI * 2); g.fill(); g.fillStyle = 'rgba(255,255,255,.06)'; g.beginPath(); g.ellipse(x + 14, y + 13, 6, 3, 0, 0, Math.PI * 2); g.fill(); }
@@ -147,7 +170,13 @@ export function createQuestRenderer(canvas: HTMLCanvasElement, s0: QuestState): 
    g.fillStyle = pal.rim;
    if (openAbove(baseTile(c - 1, r)) && baseTile(c - 1, r) !== T.SLOPE_DOWN) { g.fillRect(x, y, 5, TILE); g.fillStyle = 'rgba(255,255,255,.07)'; g.fillRect(x + 5, y, 2, TILE); g.fillStyle = pal.rim; }
    if (openAbove(baseTile(c + 1, r)) && baseTile(c + 1, r) !== T.SLOPE_UP) { g.fillRect(x + TILE - 5, y, 5, TILE); }
-   if (openAbove(baseTile(c, r + 1)) && r + 1 < level.h) { g.fillRect(x, y + TILE - 6, TILE, 6); }
+   if (openAbove(baseTile(c, r + 1)) && r + 1 < level.h) {
+    g.fillRect(x, y + TILE - 6, TILE, 6);
+    if (level.biome !== 'keep' && hash(c, r, 41) > .45) {
+     g.strokeStyle = pal.lip; g.lineWidth = 2;
+     g.beginPath(); g.moveTo(x + 10, y + TILE); g.quadraticCurveTo(x + 14, y + TILE + 9, x + 9, y + TILE + 15); g.stroke();
+    }
+   }
   }
   // pass 3: grass / moss / cap stones on top surfaces and slopes
   for (let c = c0; c <= c1; c++) for (let r = r0; r <= r1; r++) {
@@ -170,23 +199,29 @@ export function createQuestRenderer(canvas: HTMLCanvasElement, s0: QuestState): 
 
  function lip(g: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number, c: number, r: number) {
   const len = Math.hypot(x1 - x0, y1 - y0), nx = (y0 - y1) / len, ny = (x1 - x0) / len; // normal pointing down-ish
-  const steps = 6, thick = level.biome === 'keep' ? 7 : 9;
+  const steps = 6, thick = level.biome === 'keep' ? 7 : 10;
   g.fillStyle = pal.lip;
   g.beginPath();
   g.moveTo(x0 - 1, y0 - 2);
   for (let i = 0; i <= steps; i++) { const t = i / steps, bump = Math.sin((c * 7 + r * 3 + i) * 1.7) * 1.8; g.lineTo(lerp(x0, x1, t), lerp(y0, y1, t) - 2 + bump * .4); }
-  for (let i = steps; i >= 0; i--) { const t = i / steps, sag = thick + Math.sin((c * 5 + i * 2.3)) * 3 + (level.biome === 'keep' ? 0 : hash(c, i) * 3); g.lineTo(lerp(x0, x1, t) + nx * sag, lerp(y0, y1, t) + ny * sag); }
+  for (let i = steps; i >= 0; i--) { const t = i / steps, sag = thick + Math.sin((c * 5 + i * 2.3)) * 3 + (level.biome === 'keep' ? 0 : hash(c, i) * 3.5); g.lineTo(lerp(x0, x1, t) + nx * sag, lerp(y0, y1, t) + ny * sag); }
   g.closePath(); g.fill();
-  g.strokeStyle = pal.lipHi; g.lineWidth = 2; g.globalAlpha = .7;
+  g.strokeStyle = pal.lipHi; g.lineWidth = 2.2; g.globalAlpha = .78;
   g.beginPath(); g.moveTo(x0, y0 - 1.5); g.lineTo(x1, y1 - 1.5); g.stroke(); g.globalAlpha = 1;
   if (level.biome !== 'keep') {
-   g.strokeStyle = pal.blade; g.lineWidth = 1.6; g.lineCap = 'round';
+   g.strokeStyle = pal.blade; g.lineWidth = 1.7; g.lineCap = 'round';
    for (let i = 0; i < 5; i++) {
-    const t = hash(c, r, i), bx = lerp(x0, x1, t), by = lerp(y0, y1, t) - 1, h = 4 + hash(r, c, i) * 8, lean = (hash(i, c) - .5) * 6;
+    const t = hash(c, r, i), bx = lerp(x0, x1, t), by = lerp(y0, y1, t) - 1, h = 5 + hash(r, c, i) * 9, lean = (hash(i, c) - .5) * 7;
     g.beginPath(); g.moveTo(bx, by); g.quadraticCurveTo(bx + lean * .3, by - h * .6, bx + lean, by - h); g.stroke();
    }
+   // studio ghibli wildflower / glow-bud tufts
+   if (hash(c, r, 71) > .58) {
+    const bt = .25 + hash(r, c, 71) * .5, bx = lerp(x0, x1, bt), by = lerp(y0, y1, bt) - 6;
+    g.fillStyle = pal.bloom; g.beginPath(); g.arc(bx, by, 2.6, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#fff9d8'; g.beginPath(); g.arc(bx, by, 1.1, 0, Math.PI * 2); g.fill();
+   }
    // moss drips down exposed faces
-   if (hash(c, r, 99) > .6) { g.fillStyle = pal.lip; const dx = x0 + hash(c, r, 5) * 24 + 4, dh = 6 + hash(r, c, 3) * 14; g.beginPath(); g.ellipse(dx, lerp(y0, y1, .5) + thick + dh * .4, 2.2, dh * .5, 0, 0, Math.PI * 2); g.fill(); }
+   if (hash(c, r, 99) > .55) { g.fillStyle = pal.lip; const dx = x0 + hash(c, r, 5) * 24 + 4, dh = 7 + hash(r, c, 3) * 14; g.beginPath(); g.ellipse(dx, lerp(y0, y1, .5) + thick + dh * .4, 2.3, dh * .5, 0, 0, Math.PI * 2); g.fill(); }
   } else {
    g.fillStyle = 'rgba(0,0,0,.25)'; for (let i = 0; i < 2; i++) g.fillRect(lerp(x0, x1, i * .5) + 15, lerp(y0, y1, i * .5) - 1, 1.5, thick);
   }
@@ -330,14 +365,56 @@ export function createQuestRenderer(canvas: HTMLCanvasElement, s0: QuestState): 
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, pal.sky[0]); g.addColorStop(.6, pal.sky[1]); g.addColorStop(1, pal.sky[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  // celestial body
-  const mx = W * .72 - cam.x * .02 * scale, my = H * (level.biome === 'falls' ? .2 : .22) - cam.y * .02 * scale, mr = (level.biome === 'falls' ? 60 : 46) * scale;
+  // twilight stars / aurora ribbons for night & sanctuary biomes
+  if (level.biome === 'keep' || level.biome === 'starwell' || level.biome === 'moss') {
+   ctx.fillStyle = level.biome === 'starwell' ? '#c8fcff' : '#fff5d8';
+   for (let i = 0; i < 36; i++) {
+    const sx = (hash(i, 1) * W * 1.2 - cam.x * .01 * scale) % W;
+    const sy = hash(i, 2) * H * .52;
+    const tw = .25 + .6 * (.5 + .5 * Math.sin(time * (1.2 + hash(i, 3) * 2) + i));
+    ctx.globalAlpha = tw * (level.biome === 'moss' ? .55 : .85);
+    ctx.beginPath(); ctx.arc(sx < 0 ? sx + W : sx, sy, (1 + hash(i, 4) * 1.4) * scale, 0, Math.PI * 2); ctx.fill();
+   }
+   ctx.globalAlpha = 1;
+   if (level.biome === 'starwell') {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (let b = 0; b < 2; b++) {
+     ctx.beginPath(); ctx.moveTo(0, H * (.2 + b * .09));
+     for (let x = 0; x <= W; x += 60 * scale) {
+      ctx.lineTo(x, H * (.22 + b * .09) + Math.sin(x * .005 + time * .4 + b * 2) * 24 * scale);
+     }
+     ctx.strokeStyle = b ? 'rgba(130,245,255,.16)' : 'rgba(180,140,255,.14)';
+     ctx.lineWidth = (28 + b * 14) * scale; ctx.stroke();
+    }
+    ctx.restore();
+   }
+  }
+  // celestial body + Ghibli cumulus cloud banks
+  const mx = W * (level.biome === 'sunbloom' ? .28 : .72) - cam.x * .02 * scale;
+  const my = H * (level.biome === 'falls' || level.biome === 'sunbloom' ? .2 : .22) - cam.y * .02 * scale;
+  const mr = (level.biome === 'falls' || level.biome === 'sunbloom' ? 58 : 46) * scale;
   ctx.globalCompositeOperation = 'lighter';
-  ctx.drawImage(level.biome === 'keep' ? glow.violet : glow.warm, mx - mr * 4, my - mr * 4, mr * 8, mr * 8);
+  ctx.drawImage(level.biome === 'keep' ? glow.violet : level.biome === 'starwell' ? glow.cool : glow.warm, mx - mr * 4.5, my - mr * 4.5, mr * 9, mr * 9);
   ctx.globalCompositeOperation = 'source-over';
-  ctx.fillStyle = level.biome === 'keep' ? '#f4e9ff' : level.biome === 'falls' ? '#fff8e6' : '#ffe9c4';
+  ctx.fillStyle = level.biome === 'keep' ? '#f4e9ff' : level.biome === 'starwell' ? '#cffaff' : level.biome === 'falls' ? '#fff8e6' : '#ffe9c4';
   ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
   if (level.biome === 'keep') { ctx.fillStyle = pal.sky[1]; ctx.beginPath(); ctx.arc(mx + mr * .45, my - mr * .2, mr * .9, 0, Math.PI * 2); ctx.fill(); }
+  // painted Studio Ghibli towering cloud clusters
+  const clouds = level.biome === 'keep' ? 3 : 6;
+  for (let i = 0; i < clouds; i++) {
+   const cw = (170 + hash(i, 9) * 160) * scale;
+   const ch = (36 + hash(i, 12) * 32) * scale;
+   const span = W + cw * 2;
+   const cx0 = ((hash(i, 7) * span - cam.x * .045 * scale + time * (6 + i * 2) * scale) % span + span) % span - cw;
+   const cy0 = H * (.16 + hash(i, 8) * .28);
+   ctx.fillStyle = pal.cloudLo;
+   ctx.beginPath(); ctx.ellipse(cx0 + cw * .5, cy0 + ch * .24, cw * .48, ch * .52, 0, 0, Math.PI * 2); ctx.fill();
+   ctx.fillStyle = pal.cloudHi;
+   for (let k = 0; k < 4; k++) {
+    const ox = (k - 1.5) * cw * .22, oy = Math.abs(k - 1.5) * 6 * scale - ch * .15;
+    ctx.beginPath(); ctx.arc(cx0 + cw * .5 + ox, cy0 + oy, ch * (.52 - Math.abs(k - 1.5) * .08), 0, Math.PI * 2); ctx.fill();
+   }
+  }
   // parallax layers
   const layerFactors = [.12, .28, .5];
   layers.forEach((L, i) => {
@@ -348,24 +425,25 @@ export function createQuestRenderer(canvas: HTMLCanvasElement, s0: QuestState): 
    for (let x = ox; x < W; x += w) ctx.drawImage(L, x, oy, w + 1, h);
    if (i === 0 || i === 1) { const fy = oy + h * .45, fg = ctx.createLinearGradient(0, fy, 0, fy + h * .3); fg.addColorStop(0, 'rgba(0,0,0,0)'); fg.addColorStop(1, pal.fog); ctx.fillStyle = fg; ctx.fillRect(0, fy, W, H - fy); }
   });
-  // animated waterfalls / god rays
-  if (level.biome === 'falls') {
-   for (let i = 0; i < 4; i++) {
+  // animated waterfalls / sunbeam pools
+  if (level.biome === 'falls' || level.biome === 'sunbloom') {
+   const nFalls = level.biome === 'falls' ? 4 : 2;
+   for (let i = 0; i < nFalls; i++) {
     const w = (40 + i * 14) * scale, x = ((i * 520 + 200 - cam.x * .5) * scale) % (W + 600) - 100;
-    const grd = ctx.createLinearGradient(x, 0, x + w, 0); grd.addColorStop(0, 'rgba(255,255,255,0)'); grd.addColorStop(.5, 'rgba(235,250,255,.45)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
+    const grd = ctx.createLinearGradient(x, 0, x + w, 0); grd.addColorStop(0, 'rgba(255,255,255,0)'); grd.addColorStop(.5, 'rgba(235,250,255,.42)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = grd; ctx.fillRect(x, H * .18, w, H);
     ctx.fillStyle = 'rgba(255,255,255,.35)';
     for (let k = 0; k < 8; k++) { const yy = ((time * 260 + k * 97 + i * 40) % (H * .9)) + H * .18; ctx.fillRect(x + w * (.3 + .4 * hash(k, i)), yy, 2 * scale, 22 * scale); }
    }
   }
   ctx.globalCompositeOperation = 'lighter';
-  const rays = level.biome === 'keep' ? 2 : 4;
+  const rays = level.biome === 'keep' ? 3 : 5;
   for (let i = 0; i < rays; i++) {
-   const x = ((i * 420 + 140 - cam.x * .3) * scale) % (W + 500) - 200;
-   ctx.save(); ctx.translate(x, -20); ctx.rotate(.38);
-   const gr = ctx.createLinearGradient(0, 0, 0, H * 1.2);
-   gr.addColorStop(0, level.biome === 'keep' ? 'rgba(255,180,120,.08)' : 'rgba(255,240,200,.13)'); gr.addColorStop(1, 'rgba(255,240,200,0)');
-   ctx.fillStyle = gr; ctx.fillRect(0, 0, (60 + i * 30) * scale * (.7 + .3 * Math.sin(time * .5 + i)), H * 1.2);
+   const x = ((i * 380 + 120 - cam.x * .28) * scale) % (W + 520) - 220;
+   ctx.save(); ctx.translate(x, -20); ctx.rotate(level.biome === 'sunbloom' ? .44 : .36);
+   const gr = ctx.createLinearGradient(0, 0, 0, H * 1.25);
+   gr.addColorStop(0, pal.ray); gr.addColorStop(1, 'rgba(255,240,200,0)');
+   ctx.fillStyle = gr; ctx.fillRect(0, 0, (66 + i * 28) * scale * (.72 + .28 * Math.sin(time * .48 + i)), H * 1.25);
    ctx.restore();
   }
   ctx.globalCompositeOperation = 'source-over';
@@ -576,42 +654,138 @@ export function createQuestRenderer(canvas: HTMLCanvasElement, s0: QuestState): 
     ctx.fillStyle = '#ffd25a'; ctx.beginPath(); ctx.arc(-20, -10, 2.2, 0, Math.PI * 2); ctx.fill();
     break;
    }
+   case 'beetle': { // Mossback Shellback (armored charger)
+    ctx.translate(cx, by); ctx.scale(-e.dir || 1, 1);
+    const wind = e.state === 'windup', rush = e.state === 'charge';
+    const step = Math.sin(t * (rush ? 28 : 11));
+    ctx.strokeStyle = '#1b2820'; ctx.lineWidth = 2.6; ctx.lineCap = 'round';
+    for (let i = 0; i < 3; i++) { const lx = -10 + i * 10; ctx.beginPath(); ctx.moveTo(lx, -7); ctx.lineTo(lx + (i % 2 ? step : -step) * 3.5, 0); ctx.stroke(); }
+    ctx.fillStyle = wind ? '#7a5a26' : '#2e5e48';
+    ctx.beginPath(); ctx.ellipse(0, -14, 19, 13, 0, Math.PI, 0); ctx.lineTo(19, -6); ctx.lineTo(-19, -6); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#62b884'; ctx.beginPath(); ctx.ellipse(-2, -19, 11, 5, -.15, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#d9b45a'; ctx.lineWidth = 2.5;
+    for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.moveTo(-6 + i * 7, -23); ctx.lineTo(-4 + i * 7, -14); ctx.stroke(); }
+    ctx.fillStyle = wind || rush ? '#ff9d3b' : '#ffe47a';
+    ctx.beginPath(); ctx.moveTo(-16, -12); ctx.quadraticCurveTo(-27, -18, -24, -27); ctx.quadraticCurveTo(-19, -20, -14, -15); ctx.fill();
+    ctx.fillStyle = wind ? '#ff5a6e' : '#ffd25a'; ctx.beginPath(); ctx.arc(-13, -12, 2.6, 0, Math.PI * 2); ctx.fill();
+    if (rush) { ctx.strokeStyle = 'rgba(255,220,120,.65)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(16, -16); ctx.lineTo(30, -16); ctx.moveTo(14, -10); ctx.lineTo(26, -10); ctx.stroke(); }
+    break;
+   }
+   case 'wisp': { // Cinder Wisp (floating caster)
+    const cy = e.y + e.h / 2;
+    ctx.translate(cx, cy);
+    const sway = Math.sin(t * 4 + e.id);
+    ctx.fillStyle = level.biome === 'starwell' ? '#4de0c4' : '#ff9f4d';
+    ctx.globalAlpha = .32; ctx.beginPath(); ctx.arc(0, 0, 22 + Math.sin(t * 6) * 2, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.fillStyle = '#241a38';
+    ctx.beginPath(); ctx.moveTo(-12, -2); ctx.quadraticCurveTo(0, -24, 12, -2); ctx.lineTo(9, 12 + sway * 2); ctx.lineTo(3, 8); ctx.lineTo(-2, 14 - sway * 2); ctx.lineTo(-9, 10); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = level.biome === 'starwell' ? '#9cf7ff' : '#ffd87a';
+    ctx.beginPath(); ctx.ellipse(-4 + e.dir * 2, -3, 2.6, 3.2, 0, 0, Math.PI * 2); ctx.ellipse(4 + e.dir * 2, -3, 2.6, 3.2, 0, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 3; i++) { const a = t * 2.5 + i * Math.PI * 2 / 3; ctx.fillStyle = pal.accent; ctx.beginPath(); ctx.arc(Math.cos(a) * 18, Math.sin(a) * 10 - 2, 2.2, 0, Math.PI * 2); ctx.fill(); }
+    break;
+   }
+   case 'briar': { // Snapbriar Pod (ambush carnivorous bud)
+    const cy = e.y + e.h / 2, open = e.state === 'snap' ? 1 : e.state === 'tell' ? .5 : 0;
+    const stemDrop = Math.max(0, e.oy - e.y);
+    ctx.strokeStyle = '#2d6840'; ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(cx, by); ctx.quadraticCurveTo(cx + Math.sin(t * 5) * 4, by + stemDrop * .5, cx, by + stemDrop + 4); ctx.stroke();
+    ctx.translate(cx, cy);
+    ctx.fillStyle = '#38854e'; ctx.beginPath(); ctx.ellipse(0, 10, 14, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = e.state === 'tell' ? '#ff6a88' : '#b83c66';
+    for (const sd of [-1, 1]) {
+     ctx.save(); ctx.rotate(sd * (.22 + open * .55));
+     ctx.beginPath(); ctx.ellipse(sd * 5, -4, 9, 15, sd * .15, 0, Math.PI * 2); ctx.fill();
+     ctx.fillStyle = '#fff5d8'; ctx.beginPath(); ctx.moveTo(sd * 2, -13); ctx.lineTo(sd * 6, -7); ctx.lineTo(sd * 2, -3); ctx.fill();
+     ctx.restore();
+     ctx.fillStyle = e.state === 'tell' ? '#ff6a88' : '#b83c66';
+    }
+    ctx.fillStyle = '#ffe57a'; ctx.beginPath(); ctx.arc(0, -4, 4 + open * 2.5, 0, Math.PI * 2); ctx.fill();
+    break;
+   }
+   case 'sentinel': { // Astral Construct (ancient crystal guard)
+    const cy = e.y + e.h / 2;
+    ctx.translate(cx, cy);
+    ctx.strokeStyle = 'rgba(130,235,255,.55)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(0, 0, 24, 9, Math.sin(t * .9) * .3, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = '#2c3858';
+    ctx.beginPath(); ctx.moveTo(0, -21); ctx.lineTo(15, -4); ctx.lineTo(11, 18); ctx.lineTo(0, 22); ctx.lineTo(-11, 18); ctx.lineTo(-15, -4); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#6078a8';
+    ctx.beginPath(); ctx.moveTo(0, -21); ctx.lineTo(15, -4); ctx.lineTo(0, -9); ctx.lineTo(-15, -4); ctx.closePath(); ctx.fill();
+    const charge = clamp(e.stateT / 2.35, 0, 1);
+    ctx.fillStyle = charge > .75 ? '#ff7096' : '#80f4ff';
+    ctx.beginPath(); ctx.arc(e.dir * 2, -1, 5 + charge * 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#ffd878';
+    for (let i = 0; i < 2; i++) { const a = t * 2 + i * Math.PI; ctx.fillRect(Math.cos(a) * 20 - 3, Math.sin(a) * 10 - 3, 6, 6); }
+    break;
+   }
   }
   ctx.restore();
  }
 
  function drawBoss(s: QuestState) {
-  const B = s.boss; if (!B || B.state === 'dead') return;
+  const B = s.boss; if (!B || B.state === 'dead' || B.state === 'blink') return;
   const cx = B.x + B.w / 2, cy = B.y + B.h / 2, t = time;
   ctx.save();
   if (B.state === 'dormant') ctx.globalAlpha = .55;
   if (B.hurt > 0 && Math.floor(B.hurt * 30) % 2 === 0) ctx.filter = 'brightness(2.2)';
   if (B.state === 'dying') { ctx.globalAlpha = Math.max(0, 1 - B.stateT / 2.6); ctx.translate((Math.random() - .5) * 8, (Math.random() - .5) * 8); }
-  // tattered cloak
-  ctx.fillStyle = '#1a1028';
-  ctx.beginPath(); ctx.moveTo(cx - 38, cy - 30);
-  for (let i = 0; i <= 8; i++) { const x = cx - 46 + i * 11.5, y = B.y + B.h + Math.sin(t * 4 + i) * 6 + (i % 2) * 10; ctx.lineTo(x, y); }
-  ctx.lineTo(cx + 38, cy - 30); ctx.closePath(); ctx.fill();
-  // armour shell
-  ctx.fillStyle = '#4a3a62'; ctx.beginPath(); ctx.roundRect(cx - 34, cy - 40, 68, 66, 18); ctx.fill();
-  ctx.fillStyle = '#6a5a88'; ctx.beginPath(); ctx.roundRect(cx - 34, cy - 40, 68, 14, [18, 18, 4, 4]); ctx.fill();
-  // lantern heart cage
-  ctx.strokeStyle = '#2a2040'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.ellipse(cx, cy - 6, 15, 19, 0, 0, Math.PI * 2); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(cx, cy - 25); ctx.lineTo(cx, cy + 13); ctx.moveTo(cx - 15, cy - 6); ctx.lineTo(cx + 15, cy - 6); ctx.stroke();
   const tell = (B.state === 'swoop' && B.stateT < .7) || B.state === 'rise';
-  ctx.fillStyle = tell ? '#ff5a6e' : B.phase === 2 ? '#ff8a5a' : '#ffd28a';
-  ctx.beginPath(); ctx.ellipse(cx, cy - 6, 8 + Math.sin(t * 6) * 1.5, 11, 0, 0, Math.PI * 2); ctx.fill();
-  // hood + eyes
-  ctx.fillStyle = '#2a1f3a'; ctx.beginPath(); ctx.moveTo(cx - 26, cy - 40); ctx.quadraticCurveTo(cx, cy - 86, cx + 26, cy - 40); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = '#0c0814'; ctx.beginPath(); ctx.ellipse(cx, cy - 50, 15, 11, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = tell ? '#ff5a6e' : '#c79bff'; ctx.beginPath(); ctx.ellipse(cx - 6 + B.dir * 2, cy - 51, 3, 2, 0, 0, Math.PI * 2); ctx.ellipse(cx + 6 + B.dir * 2, cy - 51, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
-  // floating gauntlets
-  for (const sd of [-1, 1]) {
-   const hx = cx + sd * (52 + Math.sin(t * 2 + sd) * 6), hy = cy + Math.cos(t * 2.2 + sd) * 10 + (B.state === 'volley' ? -16 : 0);
-   ctx.fillStyle = '#5a4a78'; ctx.beginPath(); ctx.roundRect(hx - 11, hy - 12, 22, 24, 7); ctx.fill();
-   ctx.fillStyle = '#7a6a98'; ctx.fillRect(hx - 11, hy - 12, 22, 5);
-   ctx.fillStyle = '#ffd28a'; ctx.beginPath(); ctx.arc(hx, hy + 3, 3, 0, Math.PI * 2); ctx.fill();
+  if (B.kind === 'sovereign') {
+   // Gale Sovereign — radiant sky-petal spirit with crescent blades
+   for (const sd of [-1, 1]) {
+    const fl = Math.sin(t * 7) * 8;
+    ctx.fillStyle = 'rgba(255,220,120,.78)';
+    ctx.beginPath(); ctx.moveTo(cx, cy - 10); ctx.quadraticCurveTo(cx + sd * 56, cy - 48 + fl, cx + sd * 68, cy - 10 + fl); ctx.quadraticCurveTo(cx + sd * 44, cy + 12, cx, cy + 6); ctx.fill();
+   }
+   ctx.fillStyle = '#1f5a52';
+   ctx.beginPath(); ctx.moveTo(cx - 32, cy - 26); for (let i = 0; i <= 6; i++) ctx.lineTo(cx - 38 + i * 12.6, B.y + B.h + Math.sin(t * 6 + i) * 7); ctx.lineTo(cx + 32, cy - 26); ctx.closePath(); ctx.fill();
+   ctx.fillStyle = '#3d8f72'; ctx.beginPath(); ctx.roundRect(cx - 28, cy - 36, 56, 58, 16); ctx.fill();
+   ctx.strokeStyle = '#ffe588'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(cx, cy - 52, 24, 0, Math.PI * 2); ctx.stroke();
+   ctx.fillStyle = tell ? '#ff5a6e' : '#fff6c4'; ctx.beginPath(); ctx.arc(cx, cy - 8, 11 + Math.sin(t * 7) * 2, 0, Math.PI * 2); ctx.fill();
+   ctx.fillStyle = '#133a36'; ctx.beginPath(); ctx.ellipse(cx, cy - 46, 15, 13, 0, 0, Math.PI * 2); ctx.fill();
+   ctx.fillStyle = tell ? '#ff5a6e' : '#ffe46b'; ctx.beginPath(); ctx.arc(cx - 5 + B.dir * 2, cy - 47, 3, 0, Math.PI * 2); ctx.arc(cx + 5 + B.dir * 2, cy - 47, 3, 0, Math.PI * 2); ctx.fill();
+   for (const sd of [-1, 1]) {
+    const hx = cx + sd * (54 + Math.cos(t * 3 + sd) * 8), hy = cy + Math.sin(t * 3 + sd) * 14 + (B.state === 'volley' ? -16 : 0);
+    ctx.fillStyle = '#ffd878'; ctx.beginPath(); ctx.moveTo(hx, hy - 18); ctx.lineTo(hx + sd * 14, hy); ctx.lineTo(hx, hy + 18); ctx.lineTo(hx - sd * 6, hy); ctx.closePath(); ctx.fill();
+   }
+  } else if (B.kind === 'weaver') {
+   // Umbra Weaver — astral oracle with rotating astrolabe rings & star cloak
+   ctx.strokeStyle = tell ? '#ff7096' : 'rgba(130,240,255,.72)'; ctx.lineWidth = 2.5;
+   ctx.beginPath(); ctx.ellipse(cx, cy - 8, 52, 18, Math.sin(t * 1.1) * .45, 0, Math.PI * 2); ctx.stroke();
+   ctx.beginPath(); ctx.ellipse(cx, cy - 8, 18, 52, Math.cos(t * 1.1) * .45, 0, Math.PI * 2); ctx.stroke();
+   ctx.fillStyle = '#0f1632';
+   ctx.beginPath(); ctx.moveTo(cx - 38, cy - 28); for (let i = 0; i <= 8; i++) ctx.lineTo(cx - 46 + i * 11.5, B.y + B.h + Math.cos(t * 4 + i) * 6 + (i % 2) * 8); ctx.lineTo(cx + 38, cy - 28); ctx.closePath(); ctx.fill();
+   ctx.fillStyle = '#253966'; ctx.beginPath(); ctx.roundRect(cx - 30, cy - 38, 60, 62, 18); ctx.fill();
+   ctx.fillStyle = tell ? '#ff5a6e' : '#80f4ff'; ctx.beginPath(); ctx.arc(cx, cy - 8, 10 + Math.sin(t * 8) * 1.8, 0, Math.PI * 2); ctx.fill();
+   ctx.fillStyle = '#182448'; ctx.beginPath(); ctx.moveTo(cx - 24, cy - 38); ctx.lineTo(cx - 12, cy - 80); ctx.lineTo(cx, cy - 64); ctx.lineTo(cx + 12, cy - 80); ctx.lineTo(cx + 24, cy - 38); ctx.closePath(); ctx.fill();
+   ctx.fillStyle = tell ? '#ff5a6e' : '#c8fcff'; ctx.beginPath(); ctx.arc(cx - 6 + B.dir * 2, cy - 48, 3.2, 0, Math.PI * 2); ctx.arc(cx + 6 + B.dir * 2, cy - 48, 3.2, 0, Math.PI * 2); ctx.fill();
+   for (const sd of [-1, 1]) {
+    const hx = cx + sd * (50 + Math.sin(t * 2.5 + sd) * 7), hy = cy + Math.cos(t * 2.5 + sd) * 12;
+    ctx.fillStyle = '#3f5a98'; ctx.beginPath(); ctx.arc(hx, hy, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#8ff7d0'; ctx.beginPath(); ctx.arc(hx, hy, 5, 0, Math.PI * 2); ctx.fill();
+   }
+  } else {
+   // Hollow Warden
+   ctx.fillStyle = '#1a1028';
+   ctx.beginPath(); ctx.moveTo(cx - 38, cy - 30);
+   for (let i = 0; i <= 8; i++) { const x = cx - 46 + i * 11.5, y = B.y + B.h + Math.sin(t * 4 + i) * 6 + (i % 2) * 10; ctx.lineTo(x, y); }
+   ctx.lineTo(cx + 38, cy - 30); ctx.closePath(); ctx.fill();
+   ctx.fillStyle = '#4a3a62'; ctx.beginPath(); ctx.roundRect(cx - 34, cy - 40, 68, 66, 18); ctx.fill();
+   ctx.fillStyle = '#6a5a88'; ctx.beginPath(); ctx.roundRect(cx - 34, cy - 40, 68, 14, [18, 18, 4, 4]); ctx.fill();
+   ctx.strokeStyle = '#2a2040'; ctx.lineWidth = 3;
+   ctx.beginPath(); ctx.ellipse(cx, cy - 6, 15, 19, 0, 0, Math.PI * 2); ctx.stroke();
+   ctx.beginPath(); ctx.moveTo(cx, cy - 25); ctx.lineTo(cx, cy + 13); ctx.moveTo(cx - 15, cy - 6); ctx.lineTo(cx + 15, cy - 6); ctx.stroke();
+   ctx.fillStyle = tell ? '#ff5a6e' : B.phase === 2 ? '#ff8a5a' : '#ffd28a';
+   ctx.beginPath(); ctx.ellipse(cx, cy - 6, 8 + Math.sin(t * 6) * 1.5, 11, 0, 0, Math.PI * 2); ctx.fill();
+   ctx.fillStyle = '#2a1f3a'; ctx.beginPath(); ctx.moveTo(cx - 26, cy - 40); ctx.quadraticCurveTo(cx, cy - 86, cx + 26, cy - 40); ctx.closePath(); ctx.fill();
+   ctx.fillStyle = '#0c0814'; ctx.beginPath(); ctx.ellipse(cx, cy - 50, 15, 11, 0, 0, Math.PI * 2); ctx.fill();
+   ctx.fillStyle = tell ? '#ff5a6e' : '#c79bff'; ctx.beginPath(); ctx.ellipse(cx - 6 + B.dir * 2, cy - 51, 3, 2, 0, 0, Math.PI * 2); ctx.ellipse(cx + 6 + B.dir * 2, cy - 51, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
+   for (const sd of [-1, 1]) {
+    const hx = cx + sd * (52 + Math.sin(t * 2 + sd) * 6), hy = cy + Math.cos(t * 2.2 + sd) * 10 + (B.state === 'volley' ? -16 : 0);
+    ctx.fillStyle = '#5a4a78'; ctx.beginPath(); ctx.roundRect(hx - 11, hy - 12, 22, 24, 7); ctx.fill();
+    ctx.fillStyle = '#7a6a98'; ctx.fillRect(hx - 11, hy - 12, 22, 5);
+    ctx.fillStyle = '#ffd28a'; ctx.beginPath(); ctx.arc(hx, hy + 3, 3, 0, Math.PI * 2); ctx.fill();
+   }
   }
   ctx.restore();
   // slam telegraph
@@ -690,9 +864,16 @@ export function createQuestRenderer(canvas: HTMLCanvasElement, s0: QuestState): 
     ctx.strokeStyle = traits.glow; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, 8); ctx.lineTo(0, -10); ctx.moveTo(0, -2); ctx.lineTo(-14, -2); ctx.moveTo(0, -2); ctx.lineTo(14, -2); ctx.stroke();
     ctx.restore();
    }
-   // shadow
+   // shadow + Ori spirit rim aura
    const gy = feet;
    ctx.fillStyle = 'rgba(0,0,0,.22)'; if (p.onGround) { ctx.beginPath(); ctx.ellipse(cx, gy, 16 * Math.abs(sx), 4, 0, 0, Math.PI * 2); ctx.fill(); }
+   ctx.save();
+   ctx.globalCompositeOperation = 'lighter';
+   ctx.globalAlpha = .26;
+   const aura = ctx.createRadialGradient(cx, feet - H * .44 + bob, 4, cx, feet - H * .44 + bob, 36);
+   aura.addColorStop(0, traits.glow); aura.addColorStop(1, 'rgba(255,255,255,0)');
+   ctx.fillStyle = aura; ctx.beginPath(); ctx.arc(cx, feet - H * .44 + bob, 36, 0, Math.PI * 2); ctx.fill();
+   ctx.restore();
    drawBody(cx, feet + bob, sx, sy, rot, 1);
    if (p.hurtT > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; drawBody(cx, feet + bob, sx, sy, rot, p.hurtT * 2); ctx.restore(); }
    // wall slide sparks
@@ -786,19 +967,50 @@ export function createQuestRenderer(canvas: HTMLCanvasElement, s0: QuestState): 
   }
  }
 
- // ambient motes in screen space (fireflies / mist / embers)
- const ambient = Array.from({ length: 40 }, (_, i) => ({ x: Math.random(), y: Math.random(), z: .3 + Math.random() * .9, ph: Math.random() * 6, i }));
+ // ambient motes in screen space (fireflies / mist / embers / pollen / starlight)
+ const ambient = Array.from({ length: 48 }, (_, i) => ({ x: Math.random(), y: Math.random(), z: .3 + Math.random() * .9, ph: Math.random() * 6, i }));
  function drawAmbient() {
   const W = canvas.width, H = canvas.height;
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   for (const a of ambient) {
-   let x = (a.x * W - cam.x * a.z * scale * .6) % W; if (x < 0) x += W;
-   let y = (a.y * H - cam.y * a.z * scale * .3 + (pal.ambient === 'embers' ? -time * 30 * a.z * scale : pal.ambient === 'mist' ? time * 8 * scale : 0)) % H; if (y < 0) y += H;
-   const tw = .5 + .5 * Math.sin(time * 2 + a.ph);
-   const r = (pal.ambient === 'mist' ? 26 : 10) * a.z * scale;
-   ctx.globalAlpha = (pal.ambient === 'mist' ? .08 : .55) * tw;
-   ctx.drawImage(pal.ambient === 'embers' ? glow.warm : pal.ambient === 'mist' ? glow.white : glow.cool, x + Math.sin(time + a.ph) * 10 * scale - r, y - r, r * 2, r * 2);
+   const driftX = pal.ambient === 'pollen' ? time * 14 * a.z * scale : 0;
+   const driftY = pal.ambient === 'embers' ? -time * 30 * a.z * scale : pal.ambient === 'mist' || pal.ambient === 'pollen' ? time * 9 * scale : pal.ambient === 'starlight' ? Math.sin(time * .8 + a.ph) * 14 * scale : 0;
+   let x = (a.x * W - cam.x * a.z * scale * .6 + driftX) % W; if (x < 0) x += W;
+   let y = (a.y * H - cam.y * a.z * scale * .3 + driftY) % H; if (y < 0) y += H;
+   const tw = .5 + .5 * Math.sin(time * 2.2 + a.ph);
+   const r = (pal.ambient === 'mist' ? 26 : pal.ambient === 'starlight' ? 11 : 10) * a.z * scale;
+   ctx.globalAlpha = (pal.ambient === 'mist' ? .08 : .58) * tw;
+   const spr = pal.ambient === 'embers' || pal.ambient === 'pollen' ? glow.warm : pal.ambient === 'mist' ? glow.white : glow.cool;
+   ctx.drawImage(spr, x + Math.sin(time + a.ph) * 10 * scale - r, y - r, r * 2, r * 2);
   }
+  if (pal.ambient === 'pollen') {
+   ctx.globalCompositeOperation = 'source-over';
+   for (let i = 0; i < 10; i++) {
+    const px = ((hash(i, 31) * W * 1.4 - cam.x * .85 * scale + time * 42 * scale) % W + W) % W;
+    const py = ((hash(i, 37) * H + time * (22 + i * 3) * scale) % H + H) % H;
+    ctx.save(); ctx.translate(px, py); ctx.rotate(time * 2.4 + i);
+    ctx.globalAlpha = .72; ctx.fillStyle = i % 2 ? '#ffd4e6' : '#ffe89a';
+    ctx.beginPath(); ctx.ellipse(0, 0, 5 * scale, 2.4 * scale, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+   }
+  }
+  ctx.restore();
+ }
+ function drawWaterBasin() {
+  const wy = (level.h - 1.15) * TILE;
+  if (wy > cam.y + vh + 24 || wy < cam.y - 60) return;
+  const x0 = Math.max(0, cam.x - 32), x1 = cam.x + vw + 32;
+  ctx.save();
+  const wg = ctx.createLinearGradient(0, wy, 0, level.h * TILE + 60);
+  wg.addColorStop(0, pal.water); wg.addColorStop(1, 'rgba(6,16,32,.82)');
+  ctx.fillStyle = wg; ctx.fillRect(x0, wy, x1 - x0, level.h * TILE + 60 - wy);
+  ctx.strokeStyle = pal.accent; ctx.globalAlpha = .55; ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let x = x0; x <= x1; x += 24) {
+   const yy = wy + Math.sin(x * .04 + time * 3.2) * 2.5 + Math.cos(x * .02 - time * 2) * 1.5;
+   if (x === x0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+  }
+  ctx.stroke();
   ctx.restore();
  }
  // foreground silhouettes (parallax > 1) for depth
@@ -814,7 +1026,8 @@ export function createQuestRenderer(canvas: HTMLCanvasElement, s0: QuestState): 
  function vignette() {
   const W = canvas.width, H = canvas.height;
   const g = ctx.createRadialGradient(W / 2, H * .55, H * .35, W / 2, H * .55, H * .95);
-  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, level.biome === 'falls' ? 'rgba(10,30,50,.35)' : 'rgba(5,0,15,.55)');
+  const edge = level.biome === 'falls' ? 'rgba(10,30,50,.32)' : level.biome === 'sunbloom' ? 'rgba(20,38,24,.26)' : level.biome === 'starwell' ? 'rgba(4,12,28,.48)' : 'rgba(5,0,15,.55)';
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, edge);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
  }
 
@@ -831,6 +1044,7 @@ export function createQuestRenderer(canvas: HTMLCanvasElement, s0: QuestState): 
    // back-layer ents (platforms, signs, checkpoints, goal) then terrain, then actors
    for (const e of s.ents) if (e.alive && (e.kind === 'goal' || e.kind === 'checkpoint' || e.kind === 'sign' || e.kind === 'lantern') && e.x > cam.x - 120 && e.x < cam.x + vw + 120) drawEnt(s, e);
    drawTerrain(s);
+   drawWaterBasin();
    for (const e of s.ents) if (e.alive && !(e.kind === 'goal' || e.kind === 'checkpoint' || e.kind === 'sign' || e.kind === 'lantern') && e.x > cam.x - 120 && e.x < cam.x + vw + 120) drawEnt(s, e);
    drawBoss(s);
    for (const sh of s.shots) drawShot(sh);
@@ -850,7 +1064,8 @@ export function createQuestRenderer(canvas: HTMLCanvasElement, s0: QuestState): 
 
 /* ------------------------- procedural layers ------------------------- */
 function buildLayers(biome: Biome, pal: Palette, W: number, H: number): HTMLCanvasElement[] {
- const rnd = mulberry(biome === 'moss' ? 11 : biome === 'falls' ? 23 : 37);
+ const seed = biome === 'moss' ? 11 : biome === 'falls' ? 23 : biome === 'sunbloom' ? 41 : biome === 'starwell' ? 53 : 37;
+ const rnd = mulberry(seed);
  const mk = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; return c; };
  const out: HTMLCanvasElement[] = [];
  // far
@@ -863,6 +1078,35 @@ function buildLayers(biome: Biome, pal: Palette, W: number, H: number): HTMLCanv
    g.lineTo(W, H); g.fill();
    for (const tx of [180, 620, 1100, 1420]) { const tw = 60 + rnd() * 50, th = 260 + rnd() * 160; g.fillRect(tx, H - th - 120, tw, th + 120); g.beginPath(); g.moveTo(tx - 10, H - th - 120); g.lineTo(tx + tw / 2, H - th - 220 - rnd() * 60); g.lineTo(tx + tw + 10, H - th - 120); g.fill();
     g.fillStyle = '#ffd28a'; for (let k = 0; k < 4; k++) if (rnd() > .3) g.fillRect(tx + tw * (.3 + rnd() * .4), H - th - 80 + k * 50, 6, 10); g.fillStyle = pal.far; }
+  } else if (biome === 'sunbloom') {
+   // Ghibli floating sky islands + trailing roots & mist waterfalls + distant ridge
+   g.beginPath(); g.moveTo(0, H);
+   for (let x = 0; x <= W; x += 48) g.lineTo(x, H * .72 + Math.sin(x * .009) * 28 + Math.cos(x * .023) * 14);
+   g.lineTo(W, H); g.closePath(); g.fill();
+   for (const ix of [170, 560, 980, 1360]) {
+    const iy = H * (.2 + rnd() * .24), iw = 130 + rnd() * 90, ih = 56 + rnd() * 34;
+    g.fillStyle = pal.far;
+    g.beginPath(); g.moveTo(ix - iw * .55, iy); g.quadraticCurveTo(ix, iy - 22, ix + iw * .55, iy); g.lineTo(ix + iw * .28, iy + ih); g.quadraticCurveTo(ix, iy + ih * 1.38, ix - iw * .24, iy + ih); g.closePath(); g.fill();
+    // Sunlit crown rim
+    g.fillStyle = 'rgba(255,244,186,.35)'; g.beginPath(); g.ellipse(ix, iy - 4, iw * .48, 10, 0, Math.PI, 0); g.fill();
+    // Hanging mist ribbon + trailing island root
+    g.strokeStyle = 'rgba(220,255,245,.26)'; g.lineWidth = 4; g.beginPath(); g.moveTo(ix + iw * .12, iy + 6); g.quadraticCurveTo(ix + iw * .18, iy + ih + 90, ix + iw * .1, iy + ih + 170); g.stroke();
+    g.strokeStyle = pal.far; g.lineWidth = 3; g.beginPath(); g.moveTo(ix - iw * .1, iy + ih); g.quadraticCurveTo(ix - iw * .16, iy + ih + 50, ix - iw * .05, iy + ih + 95); g.stroke();
+   }
+  } else if (biome === 'starwell') {
+   // Sunken crystal sanctuary spires with luminous rune veins
+   g.beginPath(); g.moveTo(0, H);
+   const peaks = 8;
+   for (let i = 0; i <= peaks; i++) {
+    const x = i / peaks * W, top = H * (.16 + rnd() * .34);
+    g.lineTo(x - 36, H * .72); g.lineTo(x - 14, top + 28); g.lineTo(x, top); g.lineTo(x + 16, top + 34); g.lineTo(x + 40, H * .72);
+   }
+   g.lineTo(W, H); g.closePath(); g.fill();
+   g.strokeStyle = 'rgba(116,247,255,.28)'; g.lineWidth = 2;
+   for (let i = 0; i < 6; i++) {
+    const sx = 120 + i * 260 + rnd() * 50, sy = H * (.32 + rnd() * .2);
+    g.beginPath(); g.moveTo(sx, sy); g.lineTo(sx - 8, sy + 70); g.lineTo(sx + 6, sy + 135); g.stroke();
+   }
   } else {
    g.beginPath(); g.moveTo(0, H);
    const peaks = biome === 'falls' ? 9 : 6;
@@ -872,6 +1116,8 @@ function buildLayers(biome: Biome, pal: Palette, W: number, H: number): HTMLCanv
     else g.quadraticCurveTo(x - W / peaks / 2, top, x, H * (.5 + rnd() * .15));
    }
    g.lineTo(W, H); g.closePath(); g.fill();
+   // Soft Ori atmospheric horizon sheen
+   g.strokeStyle = 'rgba(255,255,255,.09)'; g.lineWidth = 2; g.stroke();
   }
   out.push(c);
  }
@@ -893,7 +1139,48 @@ function buildLayers(biome: Biome, pal: Palette, W: number, H: number): HTMLCanv
   } else if (biome === 'falls') {
    for (let i = 0; i < 7; i++) { const x = i / 7 * W + rnd() * 100, w = 50 + rnd() * 70, top = H * (.2 + rnd() * .35); g.beginPath(); g.moveTo(x - w, H); g.lineTo(x - w * .5, top + 40); g.lineTo(x - w * .2, top); g.lineTo(x + w * .3, top + 20); g.lineTo(x + w * .6, top + 70); g.lineTo(x + w, H); g.fill();
     g.fillStyle = '#5fbf98'; g.beginPath(); g.ellipse(x, top + 6, w * .5, 12, 0, Math.PI, 0); g.fill(); g.fillStyle = pal.mid; }
+   g.strokeStyle = 'rgba(190,255,245,.18)'; g.lineWidth = 5;
+   for (const fx of [280, 860, 1290]) { g.beginPath(); g.moveTo(fx, H * .34); g.lineTo(fx - 6, H * .82); g.stroke(); }
    g.fillRect(0, H * .8, W, H * .2);
+  } else if (biome === 'sunbloom') {
+   // Spirit canopy trees + golden blossom boughs + warm torii shrine silhouette
+   for (let i = 0; i < 8; i++) {
+    const x = i / 8 * W + rnd() * 70, w = 34 + rnd() * 34;
+    g.fillStyle = pal.mid;
+    g.beginPath(); g.moveTo(x - w * .85, H); g.quadraticCurveTo(x - w * .35, H * .52, x - w * .2, 0); g.lineTo(x + w * .2, 0); g.quadraticCurveTo(x + w * .35, H * .52, x + w * .85, H); g.fill();
+    // sweeping sunlit boughs
+    for (let k = 0; k < 3; k++) {
+     const by = H * (.12 + k * .16), d = k % 2 ? 1 : -1;
+     g.beginPath(); g.moveTo(x, by + 16); g.quadraticCurveTo(x + d * 68, by - 10, x + d * 124, by - 26); g.lineTo(x + d * 124, by - 14); g.quadraticCurveTo(x + d * 56, by + 10, x, by + 30); g.fill();
+    }
+    // golden-blossom foliage clusters
+    g.fillStyle = 'rgba(255,222,135,.46)';
+    for (let k = 0; k < 5; k++) { g.beginPath(); g.arc(x + (rnd() - .5) * 200, H * (.06 + rnd() * .26), 28 + rnd() * 36, 0, Math.PI * 2); g.fill(); }
+   }
+   // Ghibli shrine arch on hillside
+   const sx = W * .48;
+   g.fillStyle = pal.mid;
+   g.fillRect(sx - 56, H * .54, 14, H * .34); g.fillRect(sx + 42, H * .54, 14, H * .34);
+   g.beginPath(); g.moveTo(sx - 78, H * .54); g.quadraticCurveTo(sx, H * .5, sx + 78, H * .54); g.lineTo(sx + 70, H * .565); g.quadraticCurveTo(sx, H * .53, sx - 70, H * .565); g.closePath(); g.fill();
+   g.fillRect(sx - 58, H * .59, 116, 8);
+   g.fillStyle = 'rgba(255,232,140,.45)';
+   g.beginPath(); g.arc(sx - 30, H * .63, 4.5, 0, Math.PI * 2); g.arc(sx + 30, H * .63, 4.5, 0, Math.PI * 2); g.fill();
+   g.fillStyle = pal.mid;
+   g.fillRect(0, H * .85, W, H * .15);
+  } else if (biome === 'starwell') {
+   // Gothic star-cathedral arches + faceted crystal monoliths + hanging luminescent teardrops
+   for (let i = 0; i < 6; i++) {
+    const x = i / 6 * W + 34;
+    g.fillStyle = pal.mid;
+    g.fillRect(x, H * .26, 28, H * .74); g.fillRect(x + 158, H * .26, 28, H * .74);
+    g.beginPath(); g.moveTo(x, H * .28); g.quadraticCurveTo(x + 93, H * .03, x + 186, H * .28); g.lineTo(x + 168, H * .28); g.quadraticCurveTo(x + 93, H * .11, x + 28, H * .28); g.fill();
+    // Hanging glow teardrop lantern
+    g.strokeStyle = 'rgba(130,245,255,.28)'; g.lineWidth = 1.6;
+    g.beginPath(); g.moveTo(x + 93, H * .16); g.lineTo(x + 93, H * .44); g.stroke();
+    g.fillStyle = 'rgba(130,245,255,.42)';
+    g.beginPath(); g.moveTo(x + 93, H * .42); g.lineTo(x + 99, H * .47); g.lineTo(x + 93, H * .52); g.lineTo(x + 87, H * .47); g.closePath(); g.fill();
+   }
+   g.fillStyle = pal.mid; g.fillRect(0, H * .83, W, H * .17);
   } else {
    for (let i = 0; i < 6; i++) { const x = i / 6 * W + 40; g.fillRect(x, H * .3, 36, H * .7); g.fillRect(x + 160, H * .3, 36, H * .7); g.beginPath(); g.moveTo(x, H * .32); g.quadraticCurveTo(x + 98, H * .05, x + 196, H * .32); g.lineTo(x + 176, H * .32); g.quadraticCurveTo(x + 98, H * .14, x + 36, H * .32); g.fill(); }
    g.fillRect(0, H * .82, W, H * .18);
@@ -908,10 +1195,24 @@ function buildLayers(biome: Biome, pal: Palette, W: number, H: number): HTMLCanv
   g.beginPath(); g.moveTo(0, H);
   for (let x = 0; x <= W; x += 20) g.lineTo(x, H * .8 + Math.sin(x * .013) * 22 + Math.sin(x * .041) * 10);
   g.lineTo(W, H); g.fill();
-  if (biome !== 'keep') {
-   for (let i = 0; i < 14; i++) { const x = rnd() * W, h = 60 + rnd() * 120; g.beginPath(); g.moveTo(x - 8, H); g.quadraticCurveTo(x - 30, H - h * .6, x - 4, H - h); g.quadraticCurveTo(x + 20, H - h * .5, x + 8, H); g.fill(); }
-  } else {
+  if (biome === 'keep') {
    for (let i = 0; i < 10; i++) { const x = rnd() * W; g.fillRect(x, H * .7, 10, H * .3); g.beginPath(); g.moveTo(x - 6, H * .7); g.lineTo(x + 5, H * .64); g.lineTo(x + 16, H * .7); g.fill(); }
+  } else if (biome === 'starwell') {
+   for (let i = 0; i < 12; i++) {
+    const x = rnd() * W, h = 56 + rnd() * 110;
+    g.fillStyle = pal.near;
+    g.beginPath(); g.moveTo(x - 10, H); g.lineTo(x - 4, H - h); g.lineTo(x + 6, H - h - 12); g.lineTo(x + 12, H); g.closePath(); g.fill();
+    g.strokeStyle = 'rgba(130,245,255,.32)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x + 2, H - h + 6); g.lineTo(x + 2, H - h * .3); g.stroke();
+   }
+  } else {
+   for (let i = 0; i < 14; i++) {
+    const x = rnd() * W, h = 60 + rnd() * 120;
+    g.fillStyle = pal.near;
+    g.beginPath(); g.moveTo(x - 8, H); g.quadraticCurveTo(x - 30, H - h * .6, x - 4, H - h); g.quadraticCurveTo(x + 20, H - h * .5, x + 8, H); g.fill();
+    if (biome === 'sunbloom' && i % 2 === 0) {
+     g.fillStyle = 'rgba(255,214,132,.6)'; g.beginPath(); g.arc(x - 4, H - h + 4, 4, 0, Math.PI * 2); g.fill();
+    }
+   }
   }
   out.push(c);
  }
@@ -921,10 +1222,26 @@ function buildLayers(biome: Biome, pal: Palette, W: number, H: number): HTMLCanv
 function buildForeground(biome: Biome, pal: Palette) {
  const c = document.createElement('canvas'); c.width = 600; c.height = 500;
  const g = c.getContext('2d')!, rnd = mulberry(99);
- g.fillStyle = biome === 'falls' ? 'rgba(20,50,60,.85)' : 'rgba(6,4,12,.92)';
+ g.fillStyle = biome === 'falls' ? 'rgba(20,50,60,.85)' : biome === 'sunbloom' ? 'rgba(16,44,46,.82)' : biome === 'starwell' ? 'rgba(10,12,32,.9)' : 'rgba(6,4,12,.92)';
  if (biome === 'keep') {
   g.fillRect(40, 0, 46, 500); g.fillRect(20, 0, 86, 30); g.beginPath(); g.moveTo(86, 30); g.quadraticCurveTo(220, 40, 300, 0); g.lineTo(86, 0); g.fill();
   g.strokeStyle = 'rgba(6,4,12,.9)'; g.lineWidth = 3; g.beginPath(); g.moveTo(180, 0); g.lineTo(180, 120); g.stroke(); g.beginPath(); g.arc(180, 130, 10, 0, Math.PI * 2); g.stroke();
+ } else if (biome === 'sunbloom') {
+  // Framing sunlit overhead canopy bough + foreground blossom reeds
+  g.beginPath(); g.moveTo(0, 0); g.lineTo(260, 0); g.quadraticCurveTo(160, 74, 40, 118); g.quadraticCurveTo(18, 70, 0, 140); g.closePath(); g.fill();
+  for (let i = 0; i < 6; i++) {
+   const x = 24 + rnd() * 170, h = 150 + rnd() * 200;
+   g.beginPath(); g.moveTo(x - 12, 500); g.quadraticCurveTo(x - 46, 500 - h * .6, x - 8 + rnd() * 18, 500 - h); g.quadraticCurveTo(x + 36, 500 - h * .5, x + 12, 500); g.fill();
+  }
+  g.beginPath(); g.ellipse(96, 500, 136, 54, 0, Math.PI, 0); g.fill();
+  g.fillStyle = 'rgba(255,220,136,.32)'; g.beginPath(); g.arc(118, 42, 5, 0, Math.PI * 2); g.arc(74, 68, 4, 0, Math.PI * 2); g.fill();
+ } else if (biome === 'starwell') {
+  // Crystal frame overhang + hanging teardrop + sharp rune reeds with aqua rim
+  g.beginPath(); g.moveTo(0, 0); g.lineTo(180, 0); g.lineTo(132, 86); g.lineTo(94, 44); g.lineTo(52, 128); g.lineTo(0, 90); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(116,247,255,.32)'; g.lineWidth = 2; g.beginPath(); g.moveTo(156, 0); g.lineTo(156, 108); g.stroke();
+  g.fillStyle = 'rgba(116,247,255,.45)'; g.beginPath(); g.moveTo(156, 106); g.lineTo(164, 122); g.lineTo(156, 138); g.lineTo(148, 122); g.closePath(); g.fill();
+  g.fillStyle = 'rgba(10,12,32,.9)';
+  for (let i = 0; i < 6; i++) { const x = 26 + rnd() * 150, h = 150 + rnd() * 190; g.beginPath(); g.moveTo(x - 12, 500); g.lineTo(x - 4, 500 - h); g.lineTo(x + 12, 500); g.closePath(); g.fill(); }
  } else {
   for (let i = 0; i < 7; i++) { const x = 20 + rnd() * 160, h = 180 + rnd() * 220; g.beginPath(); g.moveTo(x - 14, 500); g.quadraticCurveTo(x - 50, 500 - h * .6, x - 10 + rnd() * 20, 500 - h); g.quadraticCurveTo(x + 40, 500 - h * .5, x + 14, 500); g.fill(); }
   g.beginPath(); g.ellipse(100, 500, 140, 60, 0, Math.PI, 0); g.fill();

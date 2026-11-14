@@ -4,7 +4,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const root=path.resolve(process.argv[2]||path.dirname(fileURLToPath(import.meta.url)));
-const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.glb':'model/gltf-binary'};
+const types={'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.glb':'model/gltf-binary','.mp3':'audio/mpeg','.json':'application/json','.woff2':'font/woff2'};
 
 function readGeminiKey(){
  if(process.env.GEMINI_API_KEY) return process.env.GEMINI_API_KEY.trim();

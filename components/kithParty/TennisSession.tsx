@@ -97,6 +97,7 @@ export function TennisSession({characters,venue,doubles,format,difficulty,cup,ro
     else if(e.type==='net')gameAudio.tennisNet();
     else if(e.type==='netcord'){gameAudio.tennisNet();gameAudio.crowdOoh();}
     else if(e.type==='point'){const how=e.data.split('|')[1];gameAudio.tennisPoint();gameAudio.crowdCheer(how==='ACE'||how==='WINNER'?1:.55);}
+    else if(e.type==='perfect'&&e.data==='sweetspot'){gameAudio.rhythmHit(true);}
     else if(e.type==='fault'){gameAudio.rhythmMiss();if(e.data!=='NET')gameAudio.crowdOoh();}
     else if(e.type==='game')gameAudio.lapChime(false);
     else if(e.type==='match')gameAudio.lapChime(true);

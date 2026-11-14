@@ -18,7 +18,7 @@ const SAVE_KEY = 'kith-quest-v1';
 interface Save { unlocked: number; best: Record<string, {score: number; time: number; seeds: number}>; }
 /** Playtest builds (phone test page) set this so every stage is open. */
 const playtest = () => !!(globalThis as {__kithQuestPlaytest?: boolean}).__kithQuestPlaytest;
-function readSave(): Save { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'); return {unlocked: playtest() ? 3 : Math.max(1, Math.min(3, s.unlocked || 1)), best: s.best || {}}; } catch { return {unlocked: playtest() ? 3 : 1, best: {}}; } }
+function readSave(): Save { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY) || '{}'); return {unlocked: playtest() ? LEVEL_INFO.length : Math.max(1, Math.min(LEVEL_INFO.length, s.unlocked || 1)), best: s.best || {}}; } catch { return {unlocked: playtest() ? LEVEL_INFO.length : 1, best: {}}; } }
 /** Tutorial signs name keyboard keys; on phones, name the on-screen controls instead. */
 function touchSign(t: string) {
  return t.replace('← → to run. Press Jump (Space / Z / Ⓐ) — hold it to jump higher.', 'Drag the left stick to run. Tap JUMP — hold it to jump higher.')
@@ -40,12 +40,12 @@ const HERO_KEY = 'kith-quest-hero';
 
 interface Hud {
  phase: QuestState['phase']; time: number; hp: number; lives: number; motes: number; sparks: number; seeds: boolean[]; score: number;
- sign: string | null; boss: {hp: number; max: number; phase: number} | null; progress: number; result: QuestState['result']; intro: boolean;
+ sign: string | null; boss: {hp: number; max: number; phase: number; name?: string} | null; progress: number; result: QuestState['result']; intro: boolean;
 }
 const snap = (s: QuestState): Hud => ({
  phase: s.phase, time: s.time, hp: s.player.hp, lives: s.player.lives, motes: s.player.motes, sparks: s.player.sparks, seeds: [...s.player.seeds], score: s.player.score,
  sign: s.signT > 0 && s.sign >= 0 ? s.level.signs[s.sign] : null,
- boss: s.arenaLocked && s.boss && s.boss.state !== 'dead' ? {hp: s.boss.hp, max: s.boss.maxHp, phase: s.boss.phase} : null,
+ boss: s.arenaLocked && s.boss && s.boss.state !== 'dead' ? {hp: s.boss.hp, max: s.boss.maxHp, phase: s.boss.phase, name: s.boss.name} : null,
  progress: levelProgress(s), result: s.result, intro: s.phase === 'intro',
 });
 const fmt = (t: number) => { const s = Math.max(0, t); return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`; };
@@ -68,14 +68,14 @@ export function QuestSession({characters, onExit}: {characters: string[]; onExit
   const id = s.level.id, r = s.result!;
   setSave(prev => {
    const old = prev.best[id];
-   const next: Save = {unlocked: Math.max(prev.unlocked, Math.min(3, s.levelIndex + 2)), best: {...prev.best, [id]: {score: Math.max(old?.score || 0, r.score), time: old ? Math.min(old.time, r.time) : r.time, seeds: Math.max(old?.seeds || 0, r.seeds)}}};
+   const next: Save = {unlocked: Math.max(prev.unlocked, Math.min(LEVEL_INFO.length, s.levelIndex + 2)), best: {...prev.best, [id]: {score: Math.max(old?.score || 0, r.score), time: old ? Math.min(old.time, r.time) : r.time, seeds: Math.max(old?.seeds || 0, r.seeds)}}};
    writeSave(next); return next;
   });
   carry.current = {lives: s.player.lives, motes: s.player.motes, score: s.player.score, sparks: s.player.sparks};
  };
  if (stage === null) return <StageSelect hero={hero} setHero={setHero} save={save} onStart={i => start(i)} onExit={onExit}/>;
  return <QuestPlay key={`${stage}-${run}`} mobile={touchDevice} hero={hero} stage={stage} carry={carry.current} onClear={onClear}
-  onNext={() => { if (stage < 2) start(stage + 1, false); else { setStage(null); } }}
+  onNext={() => { if (stage < LEVEL_INFO.length - 1) start(stage + 1, false); else { setStage(null); } }}
   onRetry={() => start(stage, true)} onStages={() => setStage(null)} onExit={onExit}/>;
 }
 
@@ -86,13 +86,13 @@ function StageSelect({hero, setHero, save, onStart, onExit}: {hero: string; setH
  return <main className="kp-session kq-session">
   <div className="kp-session-title">
    <button className="kp-text-link" onClick={onExit}><ArrowLeft size={17}/> Playground</button>
-   <div><span className="kp-eyebrow">2D PLATFORM ADVENTURE · 3 STAGES + BOSS</span><h2>Kith Quest: The Lantern Road</h2></div>
+   <div><span className="kp-eyebrow">2D PLATFORM ADVENTURE · {LEVEL_INFO.length} STAGES + BOSSES</span><h2>Kith Quest: The Lantern Road</h2></div>
    <span/>
   </div>
   <section className="kq-brief">
    <div className="kq-brief-hero"><Art id={hero}/><div><span className="kp-eyebrow">YOUR KITH</span><b>{c.name}</b><small>{SUB_NAMES[tr.sub]} sub-weapon{tr.airJumps > 1 ? ' · triple jump' : ''}{tr.glideMul > 1.2 ? ' · long glide' : ''}{tr.runMul > 1 ? ' · fast feet' : ''}{tr.heavy ? ' · heavy stomp' : ''}</small></div></div>
    <div className="kq-pick" role="radiogroup" aria-label="Choose your Kith">{CHARACTERS.map(k => <button key={k.id} role="radio" aria-checked={k.id === hero} className={k.id === hero ? 'on' : ''} onClick={() => { gameAudio.uiClick(); setHero(k.id); }}><Art id={k.id}/><small>{k.name}</small></button>)}</div>
-   <p>The lanterns of the Kithlands are going dark. Run, roll and glide through three stages, lash lanterns for sparks, bash off anything that glows, and face the Hollow Warden at the top of Lanternkeep. Find all three Star Seeds in every stage.</p>
+   <p>The lanterns of the Kithlands are going dark. Run, roll and glide across five enchanted realms, lash lanterns for sparks, bash off glowing anchors, battle armored beetles, wisps and guardians, and triumph in multi-phase boss showdowns. Find all three Star Seeds in every stage.</p>
   </section>
   <div className="kq-stages">
    {LEVEL_INFO.map((L, i) => {
@@ -194,7 +194,7 @@ function QuestPlay({mobile, hero, stage, carry, onClear, onNext, onRetry, onStag
  return <main className={`kp-session kq-session ${mobile ? 'kq-mobile' : ''}`} ref={container}>
   <div className="kp-session-title">
    <button className="kp-text-link" onClick={onExit}><ArrowLeft size={17}/> Playground</button>
-   <div><span className="kp-eyebrow">KITH QUEST · STAGE {stage + 1} OF 3</span><h2>{L.name}</h2></div>
+   <div><span className="kp-eyebrow">KITH QUEST · STAGE {stage + 1} OF {LEVEL_INFO.length}</span><h2>{L.name}</h2></div>
    <div className="kp-session-tools">
     <button className="kp-icon" onClick={() => { const m = gameAudio.toggleMute(); setSound(!m); }} aria-label={sound ? 'Mute' : 'Unmute'}>{sound ? <Volume2 size={19}/> : <VolumeX size={19}/>}</button>
     <button className="kp-icon" onClick={() => { if (document.fullscreenElement) document.exitFullscreen(); else container.current?.requestFullscreen?.(); }} aria-label="Fullscreen"><Maximize size={19}/></button>
@@ -220,7 +220,7 @@ function QuestPlay({mobile, hero, stage, carry, onClear, onNext, onRetry, onStag
    </div>
    {mobile && hud.phase === 'play' && !paused && <TouchControls input={touch} sparks={hud.sparks} subLabel={SUB_NAMES[tr.sub].split(' ')[0].toUpperCase()}/>}
    {mobile && !portraitOk && <div className="kq-rotate"><div><span>⟲</span><b>Turn your phone sideways</b><small>Kith Quest plays in landscape.</small><button className="kp-button" onClick={() => setPortraitOk(true)}>Play anyway</button></div></div>}
-   {hud.boss && <div className="kq-bossbar"><span>THE HOLLOW WARDEN{hud.boss.phase ? ` · PHASE ${hud.boss.phase + 1}` : ''}</span><div><i style={{width: `${hud.boss.hp / hud.boss.max * 100}%`}}/></div></div>}
+   {hud.boss && <div className="kq-bossbar"><span>{hud.boss.name || 'THE HOLLOW WARDEN'}{hud.boss.phase ? ` · PHASE ${hud.boss.phase + 1}` : ''}</span><div><i style={{width: `${hud.boss.hp / hud.boss.max * 100}%`}}/></div></div>}
    {hud.sign && hud.phase === 'play' && <div className="kq-sign">{mobile ? touchSign(hud.sign) : hud.sign}</div>}
    {hud.intro && <div className="kq-titlecard"><small>STAGE {stage + 1}</small><b>{L.name}</b><span>{L.subtitle}</span></div>}
    {err && <div className="kp-game-overlay"><div className="kp-ready" role="alert"><h2>Graphics unavailable</h2><p>{err}</p><button className="kp-button kp-primary" onClick={onRetry}>Try again</button></div></div>}
@@ -229,10 +229,10 @@ function QuestPlay({mobile, hero, stage, carry, onClear, onNext, onRetry, onStag
     <button className="kp-text-link" onClick={onStages}>Stage select</button>
     {mobile && <div className="kp-actions"><button className="kp-button" onClick={() => { const m = gameAudio.toggleMute(); setSound(!m); }}>{sound ? <><Volume2 size={16}/> Sound on</> : <><VolumeX size={16}/> Sound off</>}</button><button className="kp-button" onClick={onExit}><ArrowLeft size={16}/> Leave</button></div>}</div></div>}
    {hud.phase === 'clear' && r && <div className="kp-game-overlay kq-delay"><div className="kp-ready kp-results" role="status"><Trophy size={30}/>
-    <span className="kp-eyebrow">{stage === 2 ? 'THE LANTERN ROAD IS LIT' : 'STAGE CLEAR'}</span>
-    <h2>{stage === 2 ? `${c.name} saved the last flame!` : `${L.name} cleared!`}</h2>
+    <span className="kp-eyebrow">{stage >= LEVEL_INFO.length - 1 ? 'THE LANTERN ROAD IS LIT' : 'STAGE CLEAR'}</span>
+    <h2>{stage >= LEVEL_INFO.length - 1 ? `${c.name} rekindled the final star!` : `${L.name} cleared!`}</h2>
     <div className="kq-tally"><div><small>TIME</small><b>{fmt(r.time)}</b></div><div><small>MOTES</small><b>{r.motes}</b></div><div><small>STAR SEEDS</small><b>{r.seeds} / 3</b></div><div><small>SCORE</small><b>{r.score.toLocaleString()}</b></div></div>
-    <div className="kp-actions">{stage < 2 ? <button className="kp-button kp-primary" onClick={onNext}>Next stage <Play size={16}/></button> : <button className="kp-button kp-primary" onClick={onStages}>Stage select</button>}<button className="kp-button" onClick={onRetry}><RotateCcw size={16}/> Replay</button></div>
+    <div className="kp-actions">{stage < LEVEL_INFO.length - 1 ? <button className="kp-button kp-primary" onClick={onNext}>Next stage <Play size={16}/></button> : <button className="kp-button kp-primary" onClick={onStages}>Stage select</button>}<button className="kp-button" onClick={onRetry}><RotateCcw size={16}/> Replay</button></div>
     <button className="kp-text-link" onClick={onExit}>Back to the playground</button></div></div>}
    {hud.phase === 'over' && <div className="kp-game-overlay kq-delay"><div className="kp-ready"><span className="kp-eyebrow">OUT OF LIVES</span><h2>The lanterns flicker…</h2><p>Every stage restarts with three fresh lives. Checkpoints and Star Seeds you found stay counted in your best run.</p>
     <div className="kp-actions"><button className="kp-button kp-primary" onClick={onRetry}><RotateCcw size={16}/> Try again</button><button className="kp-button" onClick={onStages}>Stage select</button></div></div></div>}

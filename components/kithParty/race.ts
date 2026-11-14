@@ -479,7 +479,11 @@ export function stepRace(s:State,inputs:Input[],dt:number){
     p.hopY=ground;
     if(impact>1.2){
      p.jounceVel=-Math.min(3,impact*.32);
-     if(p.launched){event(s,'land',i,-1,impact.toFixed(1));if(p.trick&&!p.stunt){giveBoost(p,1.05,'TRICK BOOST!');}}
+     if(p.launched){
+      event(s,'land',i,-1,impact.toFixed(1));
+      if(p.trick&&!p.stunt){giveBoost(p,1.15,'TRICK BOOST!');p.special=Math.min(1,p.special+.08);}
+      else if(impact>2.4&&!p.stunt&&(p.glide??0)<.15){giveBoost(p,.75,'APEX LANDING!');p.special=Math.min(1,p.special+.05);}
+     }
     }
     if(p.launched&&p.stunt)landStunt(s,i);
     if((p.glide??0)>.3&&p.launched&&p.human&&!p.stunt)say(p,'SMOOTH GLIDE!',.7);
@@ -593,11 +597,17 @@ export function stepRace(s:State,inputs:Input[],dt:number){
    s.players.forEach((o,oi)=>{if(oi!==i&&Math.abs(distM(s,p,o))<3.6&&Math.abs(o.lane-p.lane)<12){if(hitKart(s,oi,i,'FLATTENED','spin'))o.lane=clamp(o.lane+(o.lane>=p.lane?1:-1)*22,-ROAD_HALF_LANES,ROAD_HALF_LANES);}});
   }
 
-  // ---- slipstream ----
-  if(p.human&&s.time>1.2&&!onCut&&p.boost===0&&p.cooldown===0&&p.mps>phys.topSpeed*.8){
-   const leader=s.players.find((o,oi)=>oi!==i&&(()=>{const d=distM(s,p,o);return d>2&&d<20;})()&&Math.abs(o.lane-p.lane)<12);
-   if(leader){p.slipTime=(p.slipTime||0)+dt;if(p.slipTime>1.2){giveBoost(p,.9,'SLIPSTREAM!');p.cooldown=2.4;p.slipTime=0;}}else p.slipTime=0;
-  }
+  // ---- slipstream: continuous aerodynamic pull while tucked behind a rival + burst at completion ----
+  if(p.human&&s.time>1.2&&!onCut&&p.boost===0&&p.cooldown===0&&p.mps>phys.topSpeed*.74){
+   const leader=s.players.find((o,oi)=>oi!==i&&(()=>{const d=distM(s,p,o);return d>1.8&&d<24;})()&&Math.abs(o.lane-p.lane)<14);
+   if(leader){
+    p.slipTime=(p.slipTime||0)+dt;
+    const pull=Math.min(1,p.slipTime/.85);
+    p.mps=Math.min(phys.topSpeed*1.16,p.mps+dt*5.4*pull);
+    p.special=Math.min(1,p.special+dt*.085);
+    if(p.slipTime>1.05){giveBoost(p,1.15,'SLIPSTREAM!');p.special=Math.min(1,p.special+.12);p.cooldown=2.0;p.slipTime=0;}
+   } else p.slipTime=Math.max(0,(p.slipTime||0)-dt*2);
+  } else if(p.slipTime) p.slipTime=0;
 
   // ---- laps / finish ----
   if(p.progress>=finishAt){p.finish=s.time;p.score=10000-Math.round(s.time*50);say(p,'FINISH!',2);if((p.vocaCue??-1)>=0)vocaAnswer(s,i,false);}

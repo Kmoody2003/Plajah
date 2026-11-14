@@ -602,13 +602,14 @@
               <tr><td>Stage Crash</td><td colspan="2">Throw or launch a foe hard into the arena's edge</td><td>They smash through and the fight moves to another part of the arena</td></tr>
               <tr><td>Weather</td><td colspan="2">Wind and storms roll in</td><td>Wind pushes anyone in the air. Rain or snow makes the floor slick: blows slide further and low strikes sweep the legs.</td></tr>
               <tr><td>Short hop / Run</td><td colspan="2">Let go of jump early · keep holding after a dash</td><td>A lower jump · a running charge</td></tr>
-              <tr><td>Flurry Jab</td><td>P1: Num 4</td><td>P2: ;</td><td>Fast multi-feel hand strike. Touch: FLUR · Pad: LB</td></tr>
-              <tr><td>Haymaker</td><td>P1: Num 5</td><td>P2: '</td><td>Slow, huge knockback power punch. Touch: HAYM · Pad: LT</td></tr>
-              <tr><td>Roundhouse</td><td>P1: Num 6</td><td>P2: [</td><td>Long-reach spinning kick. Touch: RNDH · Pad: RB</td></tr>
-              <tr><td>Axe Kick</td><td>P1: Num 8</td><td>P2: ]</td><td>Overhead heel drop — launches foes. Touch: AXEK · Pad: RT</td></tr>
-              <tr><td>Rising Uppercut</td><td>P1: Num 7</td><td>P2: P</td><td>Leaping anti-air uppercut — launches and floors. Touch: UPC · Pad: L3</td></tr>
-              <tr><td>Low Sweep / Throw</td><td>P1: Num 9</td><td>P2: O</td><td>Tripping sweep — point-blank it becomes an unblockable throw. Touch: SWP · Pad: R3</td></tr>
-              <tr><td>Dash</td><td>P1: Num Enter or double-tap A/D</td><td>P2: I or double-tap ←/→</td><td>Quick burst of movement. Touch: DASH · Pad: View</td></tr>
+              <tr><td>Signature Art I</td><td>P1: Num 4 / R</td><td>P2: ; / U</td><td>Fast signature style strike or dash art (varies by warrior). Touch: FLUR · Pad: LB</td></tr>
+              <tr><td>Signature Art II</td><td>P1: Num 5 / T</td><td>P2: ' / I</td><td>Heavy signature power art or ranged projection (varies by warrior). Touch: HAYM · Pad: LT</td></tr>
+              <tr><td>Signature Kick I</td><td>P1: Num 6 / C</td><td>P2: [ / N</td><td>Agile style kick, pounce, or whirlwind (varies by warrior). Touch: RNDH · Pad: RB</td></tr>
+              <tr><td>Signature Kick II</td><td>P1: Num 8 / V</td><td>P2: ] / M</td><td>Crushing overhead drop, stomp, or launcher (varies by warrior). Touch: AXEK · Pad: RT</td></tr>
+              <tr><td>EX Overdrive (50% Meter)</td><td colspan="2">Punch + Kick together (or Super key) at 50%+ meter</td><td>Instant Level-1+ Signature EX Burst with super-armor &amp; shockwave! At Level 4 &amp; 100% triggers Cinematic Super.</td></tr>
+              <tr><td>Rising Uppercut</td><td>P1: Num 7 / Q</td><td>P2: P</td><td>Leaping anti-air uppercut — launches and floors. Touch: UPC · Pad: L3</td></tr>
+              <tr><td>Low Sweep / Throw</td><td>P1: Num 9 / X</td><td>P2: O</td><td>Tripping sweep — point-blank it becomes an unblockable throw. Touch: SWP · Pad: R3</td></tr>
+              <tr><td>Dash / Dash-Attack</td><td>P1: E / Num Enter or double-tap A/D</td><td>P2: double-tap ←/→</td><td>Quick burst of movement; press Attack mid-dash for a rushing strike. Touch: DASH · Pad: View</td></tr>
             </table>
             <p class="mp-note">Player 1 attacks live on the number pad (Num 1 punch · Num 2 kick · Num 3 weapon · Num 0 super). No number pad? The right half of the keyboard does the same job outside Local Versus — , punch · . kick · / weapon · Right Shift super — and the old F/G/H/J keys still work too. Weapons join at Level 2 and Supers at Level 4 with a full meter. Taps are buffered — press the next move a beat early and it fires the instant you're free.</p>
           </div>
@@ -3959,10 +3960,14 @@
         card.classList.toggle("picked2", sel.p2 === id);
       });
     }
+    function styleSummaryLine(id){
+      var s = typeof SIG_STYLES !== "undefined" && SIG_STYLES[id];
+      return s ? (" [" + s.styleName + " · " + s.passiveDesc + "]") : "";
+    }
     function pickChar(id){
       if (game.mode === "online"){
         sel.p1 = id; refreshSelCards();
-        $("selHint").textContent = fighterById(id).name + " — " + fighterById(id).title + ". " + fighterById(id).desc;
+        $("selHint").textContent = fighterById(id).name + " — " + fighterById(id).title + "." + styleSummaryLine(id);
         $("selFight").style.display = "inline-block"; $("selFight").textContent = "Continue →";
         return;
       }
@@ -3976,7 +3981,7 @@
         } else {
           sel.step = 2;
           $("selTitle").textContent = "Player 2 — Choose Your Warrior";
-          $("selHint").textContent = "Now Player 2 picks.";
+          $("selHint").textContent = fighterById(id).name + styleSummaryLine(id) + " — Now Player 2 picks.";
         }
       } else if (sel.step === 2){
         sel.p2 = id; sel.stage = fighterById(id).stage || fighterById(sel.p1).stage || STAGES[(Math.random() * STAGES.length) | 0].id;
@@ -3987,9 +3992,9 @@
     function afterPicks(){
       sel.step = 3;
       $("selTitle").textContent = fighterById(sel.p1).name + " vs " + fighterById(sel.p2).name;
-      $("selHint").textContent = fighterById(sel.p1).desc + " — Arena: " + stageById(sel.stage).name + ". Tap an arena to change it.";
+      $("selHint").textContent = fighterById(sel.p1).name + styleSummaryLine(sel.p1) + " · Arena: " + stageById(sel.stage).name + " (tap arena to change)";
       var row = $("stageRow"); row.style.display = "flex";
-      var rebuildStages = function(id){ sel.stage = id; buildStageRow(row, id, rebuildStages); $("selHint").textContent = "Arena: " + stageById(id).name + "."; };
+      var rebuildStages = function(id){ sel.stage = id; buildStageRow(row, id, rebuildStages); $("selHint").textContent = "Arena: " + stageById(id).name + "." + styleSummaryLine(sel.p1); };
       buildStageRow(row, sel.stage, rebuildStages);
       $("selFight").style.display = "inline-block"; $("selFight").textContent = "To Battle →";
     }
@@ -4110,6 +4115,382 @@
       if (game.p2.superFx > 0) game.p2.superFx -= dt * 1.4;
       updateHud();
     }
+
+    /* ============================== SIGNATURE STYLES, EX OVERDRIVE & COMBAT JUICE ============================== */
+    var SIG_STYLES = {
+      samurai:    { styleName: "Kenjutsu · Moon Iaido", passiveDesc: "Blade counter-parry + fast draw lunges", color: "#ffd878", alt: "#ff6b6b", exName: "Eclipse Flash",
+        slots: {
+          spPunch1: { id: "sigIaido", base: "hook", name: "Iaido Flash", dmg: 14, startup: 0.08, active: 0.14, recovery: 0.18, range: 138, kb: 340, up: -140, stun: 0.28, lunge: 480 },
+          spKick2:  { id: "sigPommel", base: "axeKick", name: "Crescent Split", dmg: 17, startup: 0.14, active: 0.15, recovery: 0.22, range: 122, kb: 300, up: -380, stun: 0.34, lunge: 210, knockdown: true, isKick: true }
+        } },
+      viking:     { styleName: "Berserker · Stormwall", passiveDesc: "Hyper-armored smashes + heavy shield-chip", color: "#7cc8ff", alt: "#eef7ff", exName: "Ragnarok Cleave",
+        slots: {
+          spPunch2: { id: "sigCleave", base: "haymaker", name: "Seismic Cleave", dmg: 20, startup: 0.18, active: 0.16, recovery: 0.26, range: 132, kb: 520, up: -280, stun: 0.38, lunge: 240, armor: true, guardBreak: true, knockdown: true },
+          spPunch1: { id: "sigBarge", base: "hook", name: "Fjord Shoulder", dmg: 14, startup: 0.10, active: 0.16, recovery: 0.20, range: 118, kb: 410, up: -120, stun: 0.30, lunge: 430, armor: true }
+        } },
+      knight:     { styleName: "Chivalry · Iron Bastion", passiveDesc: "Armored shield bash + towering overheads", color: "#f6d365", alt: "#d4e6ff", exName: "Bastion Judgement",
+        slots: {
+          spPunch1: { id: "sigBastion", base: "haymaker", name: "Shield Ram", dmg: 15, startup: 0.11, active: 0.17, recovery: 0.21, range: 124, kb: 480, up: -150, stun: 0.35, lunge: 420, armor: true, guardBreak: true },
+          spKick2:  { id: "sigJudgement", base: "axeKick", name: "Sun Judgement", dmg: 19, startup: 0.16, active: 0.15, recovery: 0.24, range: 130, kb: 340, up: -360, stun: 0.36, lunge: 190, knockdown: true, isKick: true }
+        } },
+      jaguar:     { styleName: "Ocelotl · Obsidian Claw", passiveDesc: "Relentless blitz dashes + leaping pounces", color: "#ff9b42", alt: "#ff4838", exName: "Solar Frenzy",
+        slots: {
+          spPunch1: { id: "sigTwinRend", base: "flurry", name: "Obsidian Rend", dmg: 13, startup: 0.06, active: 0.16, recovery: 0.14, range: 118, kb: 230, up: -110, stun: 0.26, lunge: 410 },
+          spKick1:  { id: "sigPounce", base: "flyKick", name: "Predator Pounce", dmg: 16, startup: 0.09, active: 0.18, recovery: 0.18, range: 126, kb: 360, up: -340, stun: 0.30, lunge: 470, evade: true, isKick: true }
+        } },
+      monk:       { styleName: "Shaolin · Seven-Star Qi", passiveDesc: "Ranged Qi spheres + sweeping lotus kicks", color: "#6df7c1", alt: "#fff4b8", exName: "Seven-Star Lotus",
+        slots: {
+          spPunch2: { id: "sigChiPalm", base: "haymaker", name: "Qi Palm Blast", dmg: 14, startup: 0.12, active: 0.14, recovery: 0.22, range: 112, kb: 360, up: -160, stun: 0.30, lunge: 140, cd: 1.05, proj: { kind: "qi", vx: 640, vy: 0, dmg: 13, life: 1.25 } },
+          spKick1:  { id: "sigLotus", base: "roundhouse", name: "Lotus Hurricane", dmg: 15, startup: 0.08, active: 0.18, recovery: 0.17, range: 134, kb: 330, up: -260, stun: 0.28, lunge: 320, isKick: true }
+        } },
+      gladiator:  { styleName: "Murmillo · Crowdbreaker", passiveDesc: "Roar momentum + colosseum shockwaves", color: "#ff6e4a", alt: "#ffd166", exName: "Caesar's Roar",
+        slots: {
+          spPunch2: { id: "sigLariat", base: "haymaker", name: "Arena Lariat", dmg: 18, startup: 0.13, active: 0.16, recovery: 0.21, range: 134, kb: 470, up: -210, stun: 0.34, lunge: 390, armor: true },
+          spKick2:  { id: "sigStomp", base: "sweep", name: "Colosseum Stomp", dmg: 16, startup: 0.12, active: 0.15, recovery: 0.22, range: 148, kb: 310, up: -390, stun: 0.35, lunge: 200, knockdown: true, guardBreak: true, isKick: true }
+        } },
+      shaka:      { styleName: "Impi · Bull-Horn Spear", passiveDesc: "Long-lunge shield-piercing iklwa thrusts", color: "#ff5c45", alt: "#ffe39f", exName: "Impale the Horizon",
+        slots: {
+          spPunch1: { id: "sigIklwa", base: "hook", name: "Iklwa Piercer", dmg: 16, startup: 0.09, active: 0.15, recovery: 0.19, range: 150, kb: 430, up: -180, stun: 0.32, lunge: 470, guardBreak: true },
+          spKick1:  { id: "sigImpiRush", base: "roundhouse", name: "Bull-Horn Sweep", dmg: 15, startup: 0.10, active: 0.16, recovery: 0.19, range: 136, kb: 380, up: -250, stun: 0.30, lunge: 390, isKick: true }
+        } },
+      nzinga:     { styleName: "Ngola · Serpent Dance", passiveDesc: "Evasive feints + rapid high-low arcs", color: "#d580ff", alt: "#ffd166", exName: "Queen's Mirage",
+        slots: {
+          spPunch1: { id: "sigNeedle", base: "flurry", name: "Serpent Barrage", dmg: 14, startup: 0.07, active: 0.15, recovery: 0.16, range: 124, kb: 270, up: -180, stun: 0.28, lunge: 390, evade: true },
+          spKick1:  { id: "sigSerpent", base: "highKick", name: "Matamba Crescent", dmg: 16, startup: 0.09, active: 0.16, recovery: 0.18, range: 132, kb: 350, up: -330, stun: 0.30, lunge: 310, evade: true, isKick: true }
+        } },
+      amanirenas: { styleName: "Kushite · Solar Volley", passiveDesc: "Twin fan sun-arrows + desert heel kicks", color: "#ffbf47", alt: "#fff3c4", exName: "Kandake Eclipse",
+        slots: {
+          spPunch2: { id: "sigSolarVolley", base: "arrowShot", name: "Solar Twin-Volley", dmg: 12, startup: 0.11, active: 0.13, recovery: 0.22, range: 110, kb: 290, up: -140, stun: 0.26, lunge: -60, cd: 1.05, proj: { kind: "sunArrow", count: 2, vx: 760, dmg: 11, life: 1.25 } },
+          spKick2:  { id: "sigDuneHeel", base: "axeKick", name: "Nubian Dune Drop", dmg: 17, startup: 0.13, active: 0.15, recovery: 0.21, range: 132, kb: 360, up: -350, stun: 0.32, lunge: 270, knockdown: true, isKick: true }
+        } },
+      lapulapu:   { styleName: "Kali · Mactan Tide", passiveDesc: "Weaving tide steps + twin-arc X slashes", color: "#5ce1e6", alt: "#fff6cf", exName: "Kampilan Tempest",
+        slots: {
+          spPunch1: { id: "sigKaliCut", base: "hook", name: "Sundang X-Cut", dmg: 15, startup: 0.08, active: 0.16, recovery: 0.18, range: 136, kb: 360, up: -210, stun: 0.30, lunge: 400 },
+          spKick1:  { id: "sigTideStep", base: "roundhouse", name: "Tide-Weave Kick", dmg: 15, startup: 0.08, active: 0.16, recovery: 0.18, range: 132, kb: 390, up: -280, stun: 0.30, lunge: 430, evade: true, isKick: true }
+        } },
+      hangtuah:   { styleName: "Silat · Phantom Keris", passiveDesc: "Shadow-step zigzags + tiger ambush drops", color: "#a499ff", alt: "#6ef7e4", exName: "Taming Sari",
+        slots: {
+          spPunch1: { id: "sigKeris", base: "hook", name: "Phantom Keris", dmg: 15, startup: 0.07, active: 0.15, recovery: 0.18, range: 134, kb: 330, up: -190, stun: 0.30, lunge: 510, evade: true },
+          spKick2:  { id: "sigHarimau", base: "sweep", name: "Harimau Drop", dmg: 17, startup: 0.11, active: 0.16, recovery: 0.20, range: 134, kb: 340, up: -360, stun: 0.34, lunge: 350, knockdown: true, isKick: true }
+        } },
+      naresuan:   { styleName: "Muay Boran · Eight Limbs", passiveDesc: "Devastating clinch elbows + soaring knees", color: "#ffd25a", alt: "#ff6e40", exName: "Royal Chang-Sook",
+        slots: {
+          spPunch2: { id: "sigSok", base: "uppercut", name: "Royal Sok Elbow", dmg: 18, startup: 0.11, active: 0.14, recovery: 0.21, range: 118, kb: 360, up: -370, stun: 0.42, lunge: 270, guardBreak: true, knockdown: true },
+          spKick1:  { id: "sigKnee", base: "risingKick", name: "Flying Tusker Knee", dmg: 17, startup: 0.09, active: 0.17, recovery: 0.20, range: 128, kb: 390, up: -430, stun: 0.34, lunge: 430, knockdown: true, isKick: true }
+        } },
+      tecumseh:   { styleName: "Shawnee · Woodland Gale", passiveDesc: "Throwing tomahawk arcs + ghost ambush sweeps", color: "#76e5a8", alt: "#ff9b54", exName: "Prophet's Storm",
+        slots: {
+          spPunch2: { id: "sigHatchet", base: "haymaker", name: "War Hatchet Toss", dmg: 14, startup: 0.11, active: 0.14, recovery: 0.22, range: 118, kb: 350, up: -210, stun: 0.30, lunge: 120, cd: 1.10, proj: { kind: "hatchet", vx: 610, vy: -150, grav: 470, dmg: 14, life: 1.35 } },
+          spKick1:  { id: "sigAmbush", base: "roundhouse", name: "Woodland Gale", dmg: 15, startup: 0.08, active: 0.16, recovery: 0.18, range: 136, kb: 370, up: -250, stun: 0.30, lunge: 470, evade: true, isKick: true }
+        } },
+      lautaro:    { styleName: "Mapuche · Malon Cavalry", passiveDesc: "Thundering spear charges + weighted bolas", color: "#68c7ff", alt: "#ffb84d", exName: "Andean Stampede",
+        slots: {
+          spPunch1: { id: "sigMalon", base: "hook", name: "Malon Lance Rush", dmg: 16, startup: 0.09, active: 0.17, recovery: 0.20, range: 146, kb: 470, up: -220, stun: 0.33, lunge: 540 },
+          spKick2:  { id: "sigBola", base: "sweep", name: "Andean Bola Throw", dmg: 15, startup: 0.11, active: 0.15, recovery: 0.22, range: 132, kb: 300, up: -320, stun: 0.38, lunge: 190, cd: 1.25, knockdown: true, isKick: true, proj: { kind: "bola", vx: 650, vy: -55, grav: 160, dmg: 13, stun: 0.48, life: 1.15 } }
+        } },
+      zumbi:      { styleName: "Capoeira · Quilombo Ginga", passiveDesc: "Ducking spins + acrobatic cartwheel launchers", color: "#79f260", alt: "#ffe14d", exName: "Palmares Cyclone",
+        slots: {
+          spPunch1: { id: "sigGinga", base: "flurry", name: "Meia-Lua Blitz", dmg: 14, startup: 0.07, active: 0.17, recovery: 0.16, range: 130, kb: 320, up: -210, stun: 0.29, lunge: 430, evade: true },
+          spKick1:  { id: "sigArmada", base: "risingKick", name: "Au Batido Launch", dmg: 17, startup: 0.09, active: 0.17, recovery: 0.19, range: 134, kb: 350, up: -440, stun: 0.34, lunge: 390, evade: true, knockdown: true, isKick: true }
+        } }
+    };
+
+    /* Register all signature moves directly into MOVES / KNOCKDOWN / KICK_MOVES so frame math stays 100% consistent */
+    Object.keys(SIG_STYLES).forEach(function(cid){
+      var st = SIG_STYLES[cid];
+      Object.keys(st.slots).forEach(function(slotKey){
+        var sp = st.slots[slotKey], base = MOVES[sp.base] || MOVES.hook || MOVES.punch;
+        MOVES[sp.id] = Object.assign({}, base, {
+          name: sp.name, startup: sp.startup, active: sp.active, recovery: sp.recovery,
+          dmg: sp.dmg, range: sp.range, kb: sp.kb, up: sp.up, stun: sp.stun,
+          chip: sp.guardBreak ? Math.max(4, (base.chip || 2) + 3) : (base.chip || 2),
+          _sig: sp, _sigStyle: st
+        });
+        if (sp.knockdown) KNOCKDOWN[sp.id] = 1;
+        if (sp.isKick) KICK_MOVES[sp.id] = 1;
+        if (!st.exMove || slotKey === "spPunch2" || slotKey === "spKick2") st.exMove = sp.id;
+      });
+      var exKey = "sigEx_" + cid, exSrc = MOVES[st.exMove] || MOVES.uppercut;
+      MOVES[exKey] = Object.assign({}, exSrc, {
+        name: "EX " + st.exName,
+        startup: Math.max(0.06, (exSrc.startup || 0.1) * 0.72),
+        active: (exSrc.active || 0.15) + 0.05,
+        recovery: Math.max(0.14, (exSrc.recovery || 0.2) * 0.8),
+        dmg: Math.round((exSrc.dmg || 16) * 1.38),
+        range: (exSrc.range || 124) + 28,
+        kb: Math.round((exSrc.kb || 360) * 1.25),
+        up: Math.min(-340, exSrc.up || -300),
+        stun: Math.max(0.38, (exSrc.stun || 0.3) + 0.1),
+        chip: 6,
+        _sig: Object.assign({}, exSrc._sig || { base: "uppercut", lunge: 480 }, { armor: true, guardBreak: true, knockdown: true, isEx: true, lunge: Math.max(420, (exSrc._sig && exSrc._sig.lunge) || 440) }),
+        _sigStyle: st
+      });
+      KNOCKDOWN[exKey] = 1;
+      st.exId = exKey;
+    });
+
+    function sigOf(f){ return (f && f.char && SIG_STYLES[f.char.id]) || SIG_STYLES.samurai; }
+
+    function spawnSigProj(f, spec){
+      if (!spec || !spec.proj) return;
+      game.sigProjectiles = game.sigProjectiles || [];
+      var P = spec.proj, cnt = P.count || 1;
+      for (var i = 0; i < cnt; i++){
+        var dyVy = cnt > 1 ? (i === 0 ? -75 : 55) : (P.vy || 0);
+        game.sigProjectiles.push({
+          x: f.x + f.facing * 44, y: f.y - 98 + (i * 14),
+          vx: f.facing * (P.vx || 650), vy: dyVy, grav: P.grav || 0,
+          owner: f, kind: P.kind, dmg: P.dmg || 12, stun: P.stun || 0.28,
+          life: P.life || 1.2, t: 0, move: spec.id, rot: 0, color: sigOf(f).color
+        });
+      }
+      sfx("swingHeavy", f.x, { rate: 1.25, gain: 0.55 });
+    }
+
+    var _baseStartRound = startRound;
+    startRound = function(){
+      _baseStartRound();
+      game.sigProjectiles = []; game.lastClashAt = -9;
+      [game.p1, game.p2].forEach(function(f){ if (f){ f.exT = 0; f.sigCd = {}; f._pendingProj = null; f._wasAttack = false; } });
+    };
+
+    var _baseTryAttack = tryAttack;
+    tryAttack = function(f, key, foe, fromChain){
+      if (!f || f.dead) return;
+      var st = sigOf(f);
+      /* EX Overdrive: works from Level 1 at 50%+ meter when pressing Punch+Kick or Super below Level 4 / <100 meter! */
+      if (key === "super" && (f.meter || 0) >= 50 && (!canSuper() || f.meter < 100)){
+        var freeForEx = (f.state === "idle" || f.state === "walk" || f.state === "dash" || f.state === "jump" || f.state === "fall" || fromChain);
+        if (freeForEx && !f.stun && !(f.exT > 0.35)){
+          f.meter = Math.max(0, f.meter - 50);
+          f.exT = 0.85;
+          var exKey = st.exId;
+          _baseTryAttack(f, exKey, foe, true);
+          if (f.state === "attack"){
+            f.vx = f.facing * (MOVES[exKey]._sig.lunge || 460);
+            popText(f, "EX " + st.exName.toUpperCase() + "!", st.color);
+            sfx("super", f.x, { rate: 1.22, gain: 0.72 });
+            camKick(0.11, -f.facing * 0.014);
+            game.hype = Math.min(1, (game.hype || 0) + 0.24);
+            game.hitFlashes.push({ x: f.x, y: f.y - 88, t: 0, life: 0.32, size: 78, color: st.color, ring: true });
+            spawnStreaks(f.x, f.y - 90, f.facing, [st.color, "#ffffff", st.alt], 14);
+            var spEx = MOVES[exKey]._sig;
+            if (spEx && spEx.proj) f._pendingProj = spEx;
+          }
+          return;
+        }
+      }
+      /* Dash + Attack rushes automatically into forward momentum! */
+      var wasDash = f.state === "dash";
+      var mapped = key;
+      var sigSlot = st.slots[key];
+      if (sigSlot){
+        var cd = sigSlot.cd || 0;
+        f.sigCd = f.sigCd || {};
+        if (!cd || (game.time - (f.sigCd[sigSlot.id] || -9)) >= cd){
+          mapped = sigSlot.id;
+        }
+      }
+      _baseTryAttack(f, mapped, foe, fromChain);
+      if (f.state === "attack" && f.move === mapped && sigSlot && mapped === sigSlot.id){
+        if (sigSlot.cd){ f.sigCd = f.sigCd || {}; f.sigCd[sigSlot.id] = game.time; }
+        f.vx = f.facing * ((sigSlot.lunge || 240) + (wasDash ? 140 : 0));
+        if (sigSlot.evade && f.onGround) f.vy = Math.min(f.vy, -120);
+        if (sigSlot.proj) f._pendingProj = sigSlot;
+        else spawnStreaks(f.x + f.facing * 20, f.y - 92, f.facing, [st.color, st.alt], 6);
+      } else if (wasDash && f.state === "attack"){
+        f.vx = f.facing * Math.max(Math.abs(f.vx || 0), 340);
+      }
+    };
+
+    var _baseApplyHit = applyHit;
+    applyHit = function(att, def, moveKey){
+      if (!att || !def) return;
+      var mv = MOVES[moveKey] || {};
+      var sig = mv._sig, st = mv._sigStyle || sigOf(att);
+      var wasBlocking = def.state === "block";
+      var wasAttacking = def.state === "attack";
+      /* Hyper-armor during EX or Heavy Berserker/Bastion startup absorbs one light poke */
+      if (def.state === "attack" && ((def.exT || 0) > 0 || (MOVES[def.move] && MOVES[def.move]._sig && MOVES[def.move]._sig.armor)) && moveKey !== "super" && moveKey !== "throw" && !(sig && sig.isEx)){
+        def.hp = Math.max(1, def.hp - Math.round((mv.dmg || 8) * 0.45));
+        def.hurtFlash = 0.6;
+        game.hitFlashes.push({ x: def.x, y: def.y - 95, t: 0, life: 0.25, size: 54, color: sigOf(def).color, ring: true });
+        popText(def, "ARMOR!", "#d8ecff");
+        sfx("block", def.x, { rate: 0.85, gain: 0.85 });
+        return;
+      }
+      _baseApplyHit(att, def, moveKey);
+      if (wasAttacking && def.state === "hit"){
+        var extra = Math.max(2, Math.round((mv.dmg || 10) * 0.22));
+        def.hp = Math.max(0, def.hp - extra);
+        if (def.hp <= 0) def.dead = true;
+        att.meter = Math.min(100, (att.meter || 0) + 8);
+        popText(def, "COUNTER!", "#ffbe55");
+        camKick(0.08, att.facing * 0.012);
+        game.hype = Math.min(1, (game.hype || 0) + 0.16);
+      }
+      if (wasBlocking && (sig && (sig.guardBreak || sig.isEx))){
+        def.hp = Math.max(0, def.hp - 5);
+        if (def.hp <= 0) def.dead = true;
+        popText(def, "GUARD CRUSH!", "#ff6e4a");
+        sfx("brutal", def.x, { rate: 1.15, gain: 0.55 });
+        game.hitFlashes.push({ x: def.x, y: def.y - 92, t: 0, life: 0.34, size: 68, color: st.color, ring: true });
+        def.vx = att.facing * 360;
+      } else if ((sig || (att.exT || 0) > 0) && def.state === "hit"){
+        game.hitstop = Math.min(0.11, (game.hitstop || 0) + (sig && sig.isEx ? 0.035 : 0.018));
+        game.hype = Math.min(1, (game.hype || 0) + (sig && sig.isEx ? 0.22 : 0.1));
+        spawnStreaks(def.x, def.y - 95, att.facing, [st.color, "#ffffff", st.alt], sig && sig.isEx ? 14 : 7);
+        if (sig && sig.isEx) game.impactFlash = Math.max(game.impactFlash || 0, 0.055);
+      }
+    };
+
+    var _baseFighterUpdate = fighterUpdate;
+    fighterUpdate = function(f, foe, dt){
+      if (f.exT > 0) f.exT = Math.max(0, f.exT - dt);
+      var hadAttack = f.state === "attack";
+      _baseFighterUpdate(f, foe, dt);
+      if (f._pendingProj && f.state === "attack"){
+        var M = MOVES[f.move];
+        if (f.stateT >= ((M && M.startup) || 0.08)){
+          spawnSigProj(f, f._pendingProj);
+          f._pendingProj = null;
+        }
+      } else if (hadAttack && f.state !== "attack"){
+        f._pendingProj = null;
+      }
+      /* Simultaneous Blade/Strike Clash */
+      if (foe && f === game.p1 && f.state === "attack" && foe.state === "attack" && !f.hasHit && !foe.hasHit && (game.time - (game.lastClashAt || -9)) > 0.45){
+        var M1 = MOVES[f.move], M2 = MOVES[foe.move];
+        if (M1 && M2 && f.stateT >= M1.startup * 0.7 && foe.stateT >= M2.startup * 0.7 && Math.abs(f.x - foe.x) < 138 && Math.abs((f.z || 0) - (foe.z || 0)) < 38){
+          game.lastClashAt = game.time;
+          f.hasHit = true; foe.hasHit = true;
+          f.vx = -f.facing * 320; foe.vx = -foe.facing * 320;
+          f.meter = Math.min(100, (f.meter || 0) + 14);
+          foe.meter = Math.min(100, (foe.meter || 0) + 14);
+          var midX = (f.x + foe.x) / 2, midY = Math.min(f.y, foe.y) - 96;
+          game.hitstop = 0.09; game.impactFlash = 0.06; game.shake = Math.max(game.shake || 0, 11);
+          game.hype = Math.min(1, (game.hype || 0) + 0.3);
+          camKick(0.14, 0);
+          sfx("parry", midX, { rate: 0.92, gain: 0.95 });
+          game.hitFlashes.push({ x: midX, y: midY, t: 0, life: 0.38, size: 84, color: "#ffe58f", ring: true });
+          spawnParticles(midX, midY, ["#ffffff", "#ffd878", "#ff7a45"], 20, 360);
+          popText({ x: midX, y: midY - 22 }, "CLASH!!", "#ffe58f");
+        }
+      }
+    };
+
+    var _baseProjectileUpdate = projectileUpdate;
+    projectileUpdate = function(dt){
+      _baseProjectileUpdate(dt);
+      var arr = game.sigProjectiles; if (!arr || !arr.length) return;
+      for (var i = arr.length - 1; i >= 0; i--){
+        var p = arr[i];
+        p.t += dt; p.life -= dt;
+        p.vy = (p.vy || 0) + (p.grav || 0) * dt;
+        p.x += p.vx * dt; p.y += p.vy * dt; p.rot += (p.vx > 0 ? 1 : -1) * dt * 16;
+        if (Math.random() < dt * 36 && game.particles.length < 260){
+          game.particles.push({ x: p.x, y: p.y, vx: -p.vx * 0.12, vy: (Math.random() - 0.5) * 40, t: 0, life: 0.25, size: p.kind === "qi" ? 4.5 : 2.5, color: p.color });
+        }
+        var foe = p.owner === game.p1 ? game.p2 : game.p1;
+        if (foe && !foe.dead && p.life > 0 && Math.abs(p.x - foe.x) < 42 && p.y > foe.y - 165 && p.y < foe.y + 12){
+          applyHit(p.owner, foe, p.move || "arrowShot");
+          spawnParticles(p.x, p.y, [p.color, "#ffffff"], 12, 240);
+          game.hitFlashes.push({ x: p.x, y: p.y, t: 0, life: 0.25, size: 48, color: p.color, ring: true });
+          arr.splice(i, 1); continue;
+        }
+        if (p.life <= 0 || p.x < -80 || p.x > WORLD_W + 80 || p.y > GROUND + 20) arr.splice(i, 1);
+      }
+    };
+
+    var _baseDrawFighter = drawFighter;
+    drawFighter = function(f){
+      if (!f) return;
+      var st = sigOf(f), M = MOVES[f.move], sig = M && M._sig;
+      if ((f.exT || 0) > 0 || (f.comboN || 0) >= 4 || (f.meter || 0) >= 100){
+        ctx.save(); ctx.globalCompositeOperation = "lighter";
+        var x = f.x - game.camX, y = f.y - 84, r = (f.exT || 0) > 0 ? 95 : 68;
+        var g = ctx.createRadialGradient(x, y, 8, x, y, r);
+        g.addColorStop(0, (f.exT || 0) > 0 ? "rgba(255,235,150,0.34)" : "rgba(255,210,120,0.16)");
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, r * 0.72, r * 1.1, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      }
+      var origMove = f.move;
+      if (sig && sig.base && f.state === "attack") f.move = sig.base;
+      _baseDrawFighter(f);
+      f.move = origMove;
+      /* Signature weapon slash ribbon on active frames */
+      if (sig && M && f.state === "attack" && f.stateT >= M.startup * 0.85 && f.stateT <= M.startup + M.active + 0.05){
+        var cx = f.x - game.camX + f.facing * 26, cy = f.y - 96;
+        ctx.save(); ctx.globalCompositeOperation = "lighter";
+        ctx.strokeStyle = st.color; ctx.lineWidth = sig.isEx ? 9 : 6; ctx.lineCap = "round";
+        ctx.beginPath();
+        if (sig.isKick) ctx.arc(cx, cy + 16, 62, f.facing > 0 ? -0.9 : Math.PI - 0.8, f.facing > 0 ? 0.8 : Math.PI + 0.9);
+        else ctx.arc(cx, cy - 4, 68, f.facing > 0 ? -1.15 : Math.PI - 0.55, f.facing > 0 ? 0.55 : Math.PI + 1.15);
+        ctx.stroke();
+        ctx.strokeStyle = "#ffffff"; ctx.lineWidth = sig.isEx ? 3.5 : 2;
+        ctx.stroke();
+        ctx.restore();
+      }
+    };
+
+    function drawSigProjectiles(){
+      var arr = game.sigProjectiles; if (!arr || !arr.length) return;
+      ctx.save();
+      arr.forEach(function(p){
+        var px = p.x - game.camX, py = p.y;
+        ctx.save(); ctx.translate(px, py);
+        if (p.kind === "qi"){
+          ctx.globalCompositeOperation = "lighter";
+          var g = ctx.createRadialGradient(0, 0, 2, 0, 0, 28);
+          g.addColorStop(0, "#ffffff"); g.addColorStop(0.35, p.color); g.addColorStop(1, "rgba(0,0,0,0)");
+          ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI * 2); ctx.fill();
+        } else if (p.kind === "hatchet"){
+          ctx.rotate(p.rot);
+          ctx.strokeStyle = "#8a5a32"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(14, 0); ctx.stroke();
+          ctx.fillStyle = "#e6eef8"; ctx.beginPath(); ctx.moveTo(6, -12); ctx.lineTo(18, -6); ctx.lineTo(16, 10); ctx.lineTo(4, 3); ctx.closePath(); ctx.fill();
+        } else if (p.kind === "bola"){
+          ctx.rotate(p.rot * 1.4);
+          ctx.strokeStyle = p.color; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-14, -8); ctx.lineTo(14, 8); ctx.moveTo(0, -14); ctx.lineTo(0, 14); ctx.stroke();
+          ctx.fillStyle = "#fff3d6";
+          [[-14, -8], [14, 8], [0, 14]].forEach(function(pt){ ctx.beginPath(); ctx.arc(pt[0], pt[1], 4.5, 0, Math.PI * 2); ctx.fill(); });
+        } else {
+          ctx.rotate(Math.atan2(p.vy, p.vx));
+          ctx.strokeStyle = p.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-18, 0); ctx.lineTo(18, 0); ctx.stroke();
+          ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.moveTo(22, 0); ctx.lineTo(12, -4); ctx.lineTo(12, 4); ctx.closePath(); ctx.fill();
+        }
+        ctx.restore();
+      });
+      ctx.restore();
+    }
+
+    var _baseRender2d = render;
+    render = function(){
+      _baseRender2d();
+      if (game.screen === "fight"){
+        ctx.save();
+        if (game.cam) applyCam();
+        drawSigProjectiles();
+        ctx.restore();
+        /* High-energy perimeter speed lines when hype >= 0.55 or EX Burst active */
+        var hy = game.hype || 0, exOn = (game.p1 && game.p1.exT > 0) || (game.p2 && game.p2.exT > 0);
+        if (hy > 0.55 || exOn){
+          var a = exOn ? 0.34 : clamp((hy - 0.55) / 0.45, 0, 1) * 0.24;
+          ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.strokeStyle = "rgba(255,244,208," + a.toFixed(3) + ")";
+          for (var i = 0; i < 18; i++){
+            var ang = (i / 18) * Math.PI * 2 + Math.sin(game.time * 14 + i) * 0.08;
+            var r0 = VIEW_W * (0.38 + ((i * 7) % 5) * 0.03), r1 = VIEW_W * 0.65;
+            ctx.lineWidth = exOn ? 2.2 : 1.4;
+            ctx.beginPath();
+            ctx.moveTo(VIEW_W / 2 + Math.cos(ang) * r0, VIEW_H / 2 + Math.sin(ang) * r0 * 0.62);
+            ctx.lineTo(VIEW_W / 2 + Math.cos(ang) * r1, VIEW_H / 2 + Math.sin(ang) * r1 * 0.62);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      }
+    };
+
     function loop(ts){
       requestAnimationFrame(loop);
       pollGamepads();

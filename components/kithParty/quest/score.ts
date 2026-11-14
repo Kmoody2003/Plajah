@@ -140,7 +140,8 @@ class LullabyScore {
   return off.startRendering();
  }
  private build(ctx: AudioContext, stage: number) {
-  this.ctx = ctx; this.stage = Math.max(0, Math.min(2, stage)); this.theme = THEMES[this.stage]; this.bar = 0; this.mood = this.pending = 'calm'; this.intensity = 0; this.paused = false;
+  const mapped = [0, 1, 2, 1, 2][Math.max(0, Math.min(4, stage))] ?? 0;
+  this.ctx = ctx; this.stage = mapped; this.theme = THEMES[this.stage]; this.bar = 0; this.mood = this.pending = 'calm'; this.intensity = 0; this.paused = false;
   this.master = ctx.createGain(); this.master.gain.value = 0;
   const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -18; comp.ratio.value = 2.5; comp.attack.value = .05; comp.release.value = .4;
   this.master.connect(comp); comp.connect(ctx.destination);

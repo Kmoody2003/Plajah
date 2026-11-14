@@ -991,6 +991,11 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
     if(showItem&&p.human){const ids=Object.keys(ITEMS);const shown=p.itemRoll>0?ids[Math.floor(s.time*14)%ids.length]:p.item!;const sm=kart.itemHeld.material as T.SpriteMaterial;const tex=itemTexture(shown);if(sm.map!==tex){sm.map=tex;sm.needsUpdate=true;}}
     if(p.stun>0&&Math.random()<.4)fx.emit('electric',kart.root.position.clone().addScaledVector(frame.normal,1),frame.normal,2,'#fff58a',.8);
     if(p.specialTime>0&&special==='moon-warp'&&Math.random()<.6)fx.emit('electric',kart.root.position,frame.normal,2,'#b8a6ff',1);
+    if((p.slipTime||0)>.2&&Math.random()<.65){
+     const side=Math.random()<.5?-1.1:1.1;
+     const sp=kart.root.position.clone().addScaledVector(frame.right,side).addScaledVector(frame.normal,.75);
+     fx.emit('spark',sp,tmpV2.copy(frame.tangent).multiplyScalar(-8),1,'#96f5ff',.55);
+    }
     // invulnerability blink after being hit (not during protective specials)
     kart.body.visible=!(p.invincible>0&&p.spin<=0&&p.specialTime<=0&&!rescuing&&p.invincible<1.6&&Math.floor(s.time*16)%2===0);
    });
@@ -1081,10 +1086,13 @@ export function createCircuit3D(canvas:HTMLCanvasElement,initial:State) {
     const bottom=humans.length>1?(1-i)*vh:0;
     camera.aspect=w/vh;
     const baseFov=isHero?56:62;
-    const targetFov=p.boost>0?baseFov+(p.superBoost?22:16):baseFov+Math.max(0,p.speedNorm||0)*9;
-    if(cine)camera.fov=cine.fov;else camera.fov+=((targetFov+(48-targetFov)*bulletMix[i])-camera.fov)*Math.min(1,dt*8);
+    const slipFov=(p.slipTime||0)>0.2?Math.min(8,(p.slipTime||0)*6.5):0;
+    const driftFov=(p.driftStage||0)>0?(p.driftStage||0)*2.5:0;
+    const targetFov=(p.boost>0?baseFov+(p.superBoost?23:16):baseFov+Math.max(0,p.speedNorm||0)*10)+slipFov+driftFov;
+    if(cine)camera.fov=cine.fov;else camera.fov+=((targetFov+(48-targetFov)*bulletMix[i])-camera.fov)*Math.min(1,dt*10);
     camera.updateProjectionMatrix();
-    views.push({camera,x:0,y:bottom,w,h:vh,speedBlur:(1-bulletMix[i])*(p.boost>0?(p.superBoost?.95:.7):Math.max(0,((p.speedNorm||0)-.9)*1.2)),boostTint:p.boost>0?(p.superBoost?1:.55):0});
+    const slipBlur=(p.slipTime||0)>0.2?0.26:0;
+    views.push({camera,x:0,y:bottom,w,h:vh,speedBlur:(1-bulletMix[i])*Math.min(1,(p.boost>0?(p.superBoost?.95:.72):Math.max(0,((p.speedNorm||0)-.86)*1.25))+slipBlur),boostTint:p.boost>0?(p.superBoost?1:.55):((p.slipTime||0)>0.25?0.22:0)});
    });
    // shader/texture warm-up, spread over the intro flyover so nothing stalls mid-race the first time it's seen:
    // the visible scene compiles in the background (parallel compile), hidden props (shields, ice, drone…) one

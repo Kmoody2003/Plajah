@@ -77,8 +77,9 @@ export interface Ent {
 export interface Shot { id: number; x: number; y: number; vx: number; vy: number; r: number; friendly: boolean; kind: 'spore' | SubKind | 'shock' | 'warden'; t: number; alive: boolean; dmg: number; bounced?: boolean; }
 
 export interface Boss {
+ kind: 'warden' | 'sovereign' | 'weaver'; name: string;
  x: number; y: number; vx: number; vy: number; w: number; h: number; hp: number; maxHp: number;
- state: 'dormant' | 'intro' | 'hover' | 'volley' | 'swoop' | 'rise' | 'slam' | 'stun' | 'dying' | 'dead';
+ state: 'dormant' | 'intro' | 'hover' | 'volley' | 'swoop' | 'rise' | 'slam' | 'stun' | 'blink' | 'dying' | 'dead';
  stateT: number; phase: number; hurt: number; dir: number; tx: number; ty: number; volleys: number; next: number;
 }
 
@@ -107,10 +108,11 @@ function emit(s: QuestState, type: string, x: number, y: number, data?: string) 
 
 const ENT_SIZE: Partial<Record<EntKind, [number, number]>> = {
  mote: [18, 18], seed: [26, 26], petal: [22, 22], spark: [18, 18], checkpoint: [24, 64], goal: [48, 96], spring: [30, 16], boostR: [48, 10], boostL: [48, 10], sign: [26, 34],
- walker: [30, 24], hopper: [28, 28], flyer: [34, 24], turret: [32, 34], thornback: [40, 30], lantern: [18, 30], bashNode: [28, 28], platH: [96, 16], platV: [96, 16], boss: [80, 110],
+ walker: [30, 24], hopper: [28, 28], flyer: [34, 24], turret: [32, 34], thornback: [40, 30], beetle: [38, 28], wisp: [30, 32], briar: [32, 34], sentinel: [36, 40],
+ lantern: [18, 30], bashNode: [28, 28], platH: [96, 16], platV: [96, 16], boss: [80, 110],
 };
-const ENT_HP: Partial<Record<EntKind, number>> = { walker: 1, hopper: 1, flyer: 1, turret: 2, thornback: 3, lantern: 1 };
-export const isEnemy = (k: EntKind) => k === 'walker' || k === 'hopper' || k === 'flyer' || k === 'turret' || k === 'thornback';
+const ENT_HP: Partial<Record<EntKind, number>> = { walker: 1, hopper: 1, flyer: 1, turret: 2, thornback: 3, beetle: 2, wisp: 2, briar: 2, sentinel: 4, lantern: 1 };
+export const isEnemy = (k: EntKind) => k === 'walker' || k === 'hopper' || k === 'flyer' || k === 'turret' || k === 'thornback' || k === 'beetle' || k === 'wisp' || k === 'briar' || k === 'sentinel';
 
 /* --------------------------- tile physics ----------------------------- */
 function tileOf(s: QuestState, c: number, r: number): number {
@@ -243,7 +245,9 @@ export function createQuestState(character: string, levelIndex = 0, carry?: Part
  let seedIdx = 0;
  for (const d of level.ents) {
   if (d.kind === 'boss') {
-   s.boss = { x: d.x - 40, y: d.y - 110, vx: 0, vy: 0, w: 80, h: 110, hp: 30, maxHp: 30, state: 'dormant', stateT: 0, phase: 0, hurt: 0, dir: -1, tx: 0, ty: 0, volleys: 0, next: 0 };
+   const kind = level.bossKind ?? 'warden';
+   const maxHp = kind === 'weaver' ? 36 : kind === 'sovereign' ? 34 : 30;
+   s.boss = { kind, name: level.bossName ?? 'THE HOLLOW WARDEN', x: d.x - 40, y: d.y - 110, vx: 0, vy: 0, w: 80, h: 110, hp: maxHp, maxHp, state: 'dormant', stateT: 0, phase: 0, hurt: 0, dir: -1, tx: 0, ty: 0, volleys: 0, next: 0 };
    continue;
   }
   const e = spawn(s, d.kind, d.x, d.y, d.data ?? 0);
@@ -258,10 +262,10 @@ function spawn(s: QuestState, kind: EntKind, x: number, y: number, data = 0): En
  const [w, h] = ENT_SIZE[kind] || [24, 24];
  const e: Ent = { id: s.nextId++, kind, x: x - w / 2, y: y - h, w, h, vx: 0, vy: 0, alive: true, hp: ENT_HP[kind] ?? 1, t: 0, dir: -1, data, onGround: false, ox: x - w / 2, oy: y - h, hurt: 0, state: 'idle', stateT: 0 };
  if (kind === 'mote' || kind === 'seed' || kind === 'petal' || kind === 'spark') { e.x = x - w / 2; e.y = y - h - 6; e.oy = e.y; }
- if (kind === 'flyer') { e.y = y - h; e.oy = e.y; }
+ if (kind === 'flyer' || kind === 'wisp' || kind === 'sentinel') { e.y = y - h; e.oy = e.y; }
  if (kind === 'bashNode') { e.y = y - h / 2; e.oy = e.y; }
  if (kind === 'platH' || kind === 'platV') { e.y = y; e.oy = y; }
- if (kind === 'walker' || kind === 'thornback') e.vx = kind === 'walker' ? -60 : -40;
+ if (kind === 'walker' || kind === 'thornback' || kind === 'beetle') e.vx = kind === 'walker' ? -60 : kind === 'beetle' ? -52 : -40;
  s.ents.push(e);
  return e;
 }
@@ -292,7 +296,9 @@ function respawn(s: QuestState, at: { x: number; y: number }, full: boolean) {
 function damageEnt(s: QuestState, e: Ent, dmg: number, fromX: number, how: string) {
  if (!e.alive || e.hurt > 0) return false;
  e.hp -= dmg; e.hurt = .22;
- if (e.kind !== 'turret' && e.kind !== 'lantern') { e.vx = (e.x + e.w / 2 < fromX ? -1 : 1) * 180; e.vy = -220; }
+ if (e.kind !== 'turret' && e.kind !== 'lantern' && e.kind !== 'briar' && e.kind !== 'sentinel') {
+  e.vx = (e.x + e.w / 2 < fromX ? -1 : 1) * 180; e.vy = -220;
+ }
  if (e.hp <= 0) {
   e.alive = false;
   const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
@@ -301,8 +307,9 @@ function damageEnt(s: QuestState, e: Ent, dmg: number, fromX: number, how: strin
    drop(s, e.data === 1 ? 'petal' : 'spark', cx, cy);
   } else {
    emit(s, 'pop', cx, cy, e.kind);
-   s.player.score += e.kind === 'thornback' ? 500 : e.kind === 'turret' ? 300 : 200;
-   if (rand(s) < .5) drop(s, 'mote', cx, cy);
+   s.player.score += e.kind === 'sentinel' ? 600 : e.kind === 'thornback' ? 500 : e.kind === 'beetle' ? 400 : e.kind === 'turret' || e.kind === 'wisp' || e.kind === 'briar' ? 300 : 200;
+   if (e.kind === 'sentinel') drop(s, 'spark', cx, cy);
+   else if (rand(s) < .5) drop(s, 'mote', cx, cy);
   }
  } else emit(s, 'hit', e.x + e.w / 2, e.y + e.h / 2, how);
  return true;
@@ -321,12 +328,12 @@ function seedSlotFree(s: QuestState) {
 
 function damageBoss(s: QuestState, dmg: number, how: string) {
  const B = s.boss;
- if (!B || B.hurt > 0 || B.state === 'dormant' || B.state === 'intro' || B.state === 'dying' || B.state === 'dead') return false;
+ if (!B || B.hurt > 0 || B.state === 'dormant' || B.state === 'intro' || B.state === 'dying' || B.state === 'dead' || B.state === 'blink') return false;
  B.hp -= dmg; B.hurt = .45;
  emit(s, 'bossHit', B.x + B.w / 2, B.y + B.h / 2, how);
  if (B.hp <= 0) { B.hp = 0; B.state = 'dying'; B.stateT = 0; s.shots.forEach(sh => { if (!sh.friendly) sh.alive = false; }); emit(s, 'bossDown', B.x + B.w / 2, B.y + B.h / 2); s.player.score += 5000; }
- else if (B.hp <= 20 && B.phase === 0) { B.phase = 1; emit(s, 'bossPhase', B.x + B.w / 2, B.y + B.h / 2, '2'); }
- else if (B.hp <= 10 && B.phase === 1) { B.phase = 2; emit(s, 'bossPhase', B.x + B.w / 2, B.y + B.h / 2, '3'); }
+ else if (B.hp <= B.maxHp * .67 && B.phase === 0) { B.phase = 1; emit(s, 'bossPhase', B.x + B.w / 2, B.y + B.h / 2, '2'); }
+ else if (B.hp <= B.maxHp * .34 && B.phase === 1) { B.phase = 2; emit(s, 'bossPhase', B.x + B.w / 2, B.y + B.h / 2, '3'); }
  return true;
 }
 
@@ -701,7 +708,9 @@ function playerVsWorld(s: QuestState, prevBottom: number) {
       if (!p.onGround) { p.vy = -MOVE.STOMP * .8; }
       else if (e.alive) { p.vx = -p.vx * .5; setRoll(s, false); }
      } else if (stomp && e.kind !== 'thornback') {
-      damageEnt(s, e, 9, pc, 'stomp');
+      const dmg = e.kind === 'beetle' || e.kind === 'sentinel' ? 1 : 9;
+      damageEnt(s, e, dmg, pc, 'stomp');
+      if (e.kind === 'beetle' && e.alive) emit(s, 'bonk', pc, e.y);
       p.vy = -(p.jumpHeld ? MOVE.STOMP_HELD : MOVE.STOMP); p.airJumps = p.traits.airJumps; p.canDash = true; p.glideT = MOVE.GLIDE_TIME * p.traits.glideMul;
       p.y = e.y - p.h;
       emit(s, 'stomp', pc, e.y);
@@ -711,7 +720,7 @@ function playerVsWorld(s: QuestState, prevBottom: number) {
  }
  // boss body
  const B = s.boss;
- if (B && B.state !== 'dormant' && B.state !== 'dying' && B.state !== 'dead' && overlap(p, B)) {
+ if (B && B.state !== 'dormant' && B.state !== 'dying' && B.state !== 'dead' && B.state !== 'blink' && overlap(p, B)) {
   const stomp = p.vy > 60 && prevBottom <= B.y + 24;
   if (stomp) { damageBoss(s, 2, 'stomp'); p.vy = -MOVE.STOMP_HELD; p.airJumps = p.traits.airJumps; p.canDash = true; emit(s, 'stomp', pc, B.y); }
   else if (p.rolling) { damageBoss(s, 1, 'roll'); p.vx = -p.vx * .6; p.vy = -400; }
@@ -753,7 +762,7 @@ function stepEnts(s: QuestState, dt: number) {
     e.vx = (nx - e.x) / dt; e.vy = (ny - e.y) / dt; e.x = nx; e.y = ny;
     break;
    }
-   case 'walker': case 'thornback': case 'hopper': case 'flyer': case 'turret':
+   case 'walker': case 'thornback': case 'hopper': case 'flyer': case 'turret': case 'beetle': case 'wisp': case 'briar': case 'sentinel':
     stepEnemy(s, e, dt, px, py);
     break;
   }
@@ -821,6 +830,87 @@ function stepEnemy(s: QuestState, e: Ent, dt: number, px: number, py: number) {
    }
    break;
   }
+  case 'beetle': {
+   e.vy = Math.min(900, e.vy + 1800 * dt);
+   const cx = e.x + e.w / 2, cy = e.y + e.h / 2;
+   if (e.state === 'idle') {
+    if (e.hurt <= 0) e.vx = approach(e.vx, sign(e.vx || e.dir) * 52, 500 * dt);
+    if (Math.abs(px - cx) < 250 && Math.abs(py - cy) < 68 && e.stateT > .9) {
+     e.state = 'windup'; e.stateT = 0; e.vx = 0; e.dir = px < cx ? -1 : 1;
+     emit(s, 'beetleCharge', cx, cy);
+    }
+   } else if (e.state === 'windup') {
+    e.vx = 0;
+    if (e.stateT > .42) { e.state = 'charge'; e.stateT = 0; e.vx = e.dir * 265; }
+   } else if (e.state === 'charge') {
+    e.vx = e.dir * 265;
+    const ahead = e.vx > 0 ? e.x + e.w + 4 : e.x - 4;
+    if (e.stateT > .85 || groundBelow(s, ahead, e.y + e.h - 4) > e.y + e.h + 20) {
+     e.state = 'rest'; e.stateT = 0; e.vx = 0;
+    }
+   } else {
+    e.vx = approach(e.vx, 0, 900 * dt);
+    if (e.stateT > .75) { e.state = 'idle'; e.stateT = 0; e.vx = e.dir * 52; }
+   }
+   const w = moveX(s, e, e.vx * dt, 0);
+   const r = moveY(s, e, e.vy * dt, e.onGround, false);
+   e.onGround = r.landed;
+   if (w) { e.vx = -w * 52; if (e.state === 'charge') { e.state = 'rest'; e.stateT = 0; emit(s, 'bonk', cx, cy); } }
+   if (e.state === 'idle' && e.onGround && e.hurt <= 0) {
+    const ahead = e.vx > 0 ? e.x + e.w + 2 : e.x - 2;
+    if (groundBelow(s, ahead, e.y + e.h - 4) > e.y + e.h + 20) e.vx = -e.vx;
+   }
+   if (e.state !== 'windup') e.dir = sign(e.vx) || e.dir;
+   break;
+  }
+  case 'wisp': {
+   const tx = e.ox + Math.sin(e.t * 1.8 + e.id) * 44;
+   const ty = e.oy + Math.sin(e.t * 3.6 + e.id) * 16;
+   e.vx = (tx - e.x) / Math.max(.004, dt); e.vy = (ty - e.y) / Math.max(.004, dt);
+   e.x = tx; e.y = ty;
+   e.dir = px < e.x + e.w / 2 ? -1 : 1;
+   if (e.stateT > 2.5 && Math.abs(px - e.x) < 540 && Math.abs(py - e.y) < 360) {
+    e.stateT = 0;
+    const cx = e.x + e.w / 2, cy = e.y + e.h / 2, base = Math.atan2(py - cy, px - cx);
+    for (const off of [-0.14, 0.14]) {
+     s.shots.push({ id: s.nextId++, x: cx, y: cy, vx: Math.cos(base + off) * 205, vy: Math.sin(base + off) * 205, r: 9, friendly: false, kind: 'spore', t: 0, alive: true, dmg: 1 });
+    }
+    emit(s, 'wispCast', cx, cy);
+   }
+   break;
+  }
+  case 'briar': {
+   const cx = e.x + e.w / 2;
+   e.dir = px < cx ? -1 : 1;
+   if (e.state === 'idle') {
+    e.y = e.oy; e.vy = 0;
+    if (e.stateT > .7 && Math.abs(px - cx) < 145 && Math.abs(py - e.oy) < 120) {
+     e.state = 'tell'; e.stateT = 0;
+     emit(s, 'briarSnap', cx, e.oy);
+    }
+   } else if (e.state === 'tell') {
+    if (e.stateT > .28) { e.state = 'snap'; e.stateT = 0; e.vy = -490; }
+   } else {
+    e.vy += 1550 * dt; e.y += e.vy * dt;
+    if (e.y >= e.oy) { e.y = e.oy; e.vy = 0; e.state = 'idle'; e.stateT = 0; }
+   }
+   break;
+  }
+  case 'sentinel': {
+   const drift = Math.abs(px - e.ox) < 460 ? clamp((px - e.ox) * .25, -48, 48) : 0;
+   e.x += (e.ox + drift - e.x) * Math.min(1, 2.2 * dt);
+   e.y = e.oy + Math.sin(e.t * 2.1 + e.id) * 18;
+   e.dir = px < e.x + e.w / 2 ? -1 : 1;
+   if (e.stateT > 2.35 && Math.abs(px - e.x) < 540 && Math.abs(py - e.y) < 380) {
+    e.stateT = 0;
+    const cx = e.x + e.w / 2, cy = e.y + e.h * .45, base = Math.atan2(py - cy, px - cx);
+    for (const off of [-0.22, 0, 0.22]) {
+     s.shots.push({ id: s.nextId++, x: cx, y: cy, vx: Math.cos(base + off) * 220, vy: Math.sin(base + off) * 220, r: 9, friendly: false, kind: 'warden', t: 0, alive: true, dmg: 1 });
+    }
+    emit(s, 'bossVolley', cx, cy);
+   }
+   break;
+  }
  }
  if (e.y > s.level.h * TILE + 100) e.alive = false;
 }
@@ -871,7 +961,8 @@ function stepBoss(s: QuestState, dt: number) {
  const ax0 = (A.c0 + 2) * TILE, ax1 = (A.c1 - 1) * TILE;
  const floor = floorRow(s, A.c0 + 2) * TILE;
  const homeY = floor - 300;
- const speed = 1 + B.phase * .22;
+ const kindMul = B.kind === 'sovereign' ? 1.15 : B.kind === 'weaver' ? 1.1 : 1;
+ const speed = (1 + B.phase * .22) * kindMul;
  const go = (st: Boss['state']) => { B.state = st; B.stateT = 0; };
  switch (B.state) {
   case 'intro':
@@ -884,27 +975,59 @@ function stepBoss(s: QuestState, dt: number) {
    B.dir = px < B.x + B.w / 2 ? -1 : 1;
    if (B.stateT > 1.5 / speed) {
     const pick = B.next++ % (B.phase >= 1 ? 4 : 3);
-    go(pick === 0 ? 'volley' : pick === 1 ? 'swoop' : pick === 2 ? 'rise' : 'volley');
+    if (B.kind === 'weaver' && pick === 2) {
+     go('blink');
+     emit(s, 'bossBlink', B.x + B.w / 2, B.y + B.h / 2);
+    } else go(pick === 0 ? 'volley' : pick === 1 ? 'swoop' : pick === 2 ? 'rise' : 'volley');
     B.volleys = 0; B.tx = px; B.ty = p.y;
+   }
+   break;
+  }
+  case 'blink': {
+   if (B.stateT > .38) {
+    const center = (ax0 + ax1) / 2;
+    const nx = px < center ? ax1 - B.w - 48 : ax0 + 48;
+    B.x = nx; B.y = homeY - 16;
+    B.dir = px < B.x + B.w / 2 ? -1 : 1;
+    emit(s, 'bossBlink', B.x + B.w / 2, B.y + B.h / 2);
+    B.volleys = 0;
+    go('volley');
    }
    break;
   }
   case 'volley': {
    const every = .55 / speed;
-   if (B.stateT > .45 + B.volleys * every && B.volleys < 2 + B.phase) {
+   const maxVolleys = B.kind === 'sovereign' ? 3 + B.phase : 2 + B.phase;
+   if (B.stateT > .45 + B.volleys * every && B.volleys < maxVolleys) {
     B.volleys++;
-    const n = 3 + B.phase * 2, cx = B.x + B.w / 2, cy = B.y + B.h * .45;
+    const cx = B.x + B.w / 2, cy = B.y + B.h * .45;
     const base = Math.atan2(p.y + p.h / 2 - cy, px - cx);
-    for (let i = 0; i < n; i++) { const a = base + (i - (n - 1) / 2) * .26; s.shots.push({ id: s.nextId++, x: cx, y: cy, vx: Math.cos(a) * 240 * speed, vy: Math.sin(a) * 240 * speed, r: 11, friendly: false, kind: 'warden', t: 0, alive: true, dmg: 1 }); }
+    const n = (B.kind === 'weaver' ? 4 : 3) + B.phase * 2;
+    const arcStep = B.kind === 'sovereign' ? .21 : .26;
+    const shotKind = B.kind === 'sovereign' && B.volleys % 2 === 1 ? 'spore' : 'warden';
+    const spd = (B.kind === 'sovereign' ? 265 : 245) * speed;
+    for (let i = 0; i < n; i++) {
+     const twist = B.kind === 'weaver' && B.volleys % 2 === 0 ? .12 : 0;
+     const a = base + (i - (n - 1) / 2) * arcStep + twist;
+     s.shots.push({ id: s.nextId++, x: cx, y: cy, vx: Math.cos(a) * spd, vy: Math.sin(a) * spd, r: shotKind === 'spore' ? 10 : 11, friendly: false, kind: shotKind, t: 0, alive: true, dmg: 1 });
+    }
     emit(s, 'bossVolley', cx, cy);
    }
-   if (B.stateT > .6 + (2 + B.phase) * every + .4) go('hover');
+   if (B.stateT > .6 + maxVolleys * every + .4) go('hover');
    break;
   }
   case 'swoop': {
    if (B.stateT < .7) { B.y += (homeY - 40 - B.y) * Math.min(1, 3 * dt); if (B.stateT < dt * 1.5) emit(s, 'bossTell', B.x + B.w / 2, B.y + B.h / 2, 'swoop'); }
    else {
-    if (B.vx === 0) { const d = B.tx > B.x + B.w / 2 ? 1 : -1; B.vx = d * 640 * speed; B.vy = 520; B.dir = d; }
+    if (B.vx === 0) {
+     const d = B.tx > B.x + B.w / 2 ? 1 : -1;
+     B.vx = d * (B.kind === 'sovereign' ? 740 : 640) * speed;
+     B.vy = 520; B.dir = d;
+     if (B.kind === 'sovereign') {
+      const cx = B.x + B.w / 2, cy = B.y + B.h * .5;
+      s.shots.push({ id: s.nextId++, x: cx, y: cy, vx: 0, vy: 180, r: 10, friendly: false, kind: 'spore', t: 0, alive: true, dmg: 1 });
+     }
+    }
     B.x += B.vx * dt; B.y += B.vy * dt; B.vy -= 820 * dt;
     if (B.y + B.h > floor - 6) { B.y = floor - 6 - B.h; }
     if (B.x < ax0 || B.x + B.w > ax1 || B.stateT > 2.2) { B.x = clamp(B.x, ax0, ax1 - B.w); B.vx = 0; B.vy = 0; go('hover'); }
@@ -923,9 +1046,14 @@ function stepBoss(s: QuestState, dt: number) {
    if (B.y + B.h >= floor) {
     B.y = floor - B.h; B.vy = 0;
     const cx = B.x + B.w / 2;
-    for (const d of [-1, 1]) s.shots.push({ id: s.nextId++, x: cx + d * 40, y: floor - 12, vx: d * 380 * speed, vy: 0, r: 14, friendly: false, kind: 'shock', t: 0, alive: true, dmg: 1 });
+    const shockSpd = (B.kind === 'sovereign' ? 430 : 380) * speed;
+    for (const d of [-1, 1]) s.shots.push({ id: s.nextId++, x: cx + d * 40, y: floor - 12, vx: d * shockSpd, vy: 0, r: 14, friendly: false, kind: 'shock', t: 0, alive: true, dmg: 1 });
     emit(s, 'bossSlam', cx, floor);
-    if (B.phase >= 2) for (let i = 0; i < 2; i++) { const f = spawn(s, 'flyer', cx + (i ? 260 : -260), floor - 220); f.ox = f.x; f.oy = f.y; }
+    const activeEscorts = s.ents.filter(e => e.alive && (e.kind === 'flyer' || e.kind === 'wisp') && e.x >= ax0 - 60 && e.x <= ax1 + 60).length;
+    if (B.phase >= 2 && activeEscorts === 0) {
+     const spawnKind = B.kind === 'weaver' ? 'wisp' : 'flyer';
+     for (let i = 0; i < 2; i++) { const f = spawn(s, spawnKind, cx + (i ? 240 : -240), floor - 220); f.ox = f.x; f.oy = f.y; }
+    }
     go('stun');
    }
    break;

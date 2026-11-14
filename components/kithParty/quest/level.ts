@@ -12,12 +12,14 @@ export const T = {
 } as const;
 export type TileCode = typeof T[keyof typeof T];
 
-export type Biome = 'moss' | 'falls' | 'keep';
+export type Biome = 'moss' | 'falls' | 'keep' | 'sunbloom' | 'starwell';
 export type ZoneMood = 'calm' | 'energy' | 'danger';
+export type BossKind = 'warden' | 'sovereign' | 'weaver';
 
 export type EntKind =
  | 'mote' | 'seed' | 'petal' | 'spark' | 'checkpoint' | 'goal' | 'spring' | 'boostR' | 'boostL' | 'sign'
- | 'walker' | 'hopper' | 'flyer' | 'turret' | 'thornback' | 'lantern' | 'bashNode' | 'platH' | 'platV' | 'boss';
+ | 'walker' | 'hopper' | 'flyer' | 'turret' | 'thornback' | 'beetle' | 'wisp' | 'briar' | 'sentinel'
+ | 'lantern' | 'bashNode' | 'platH' | 'platV' | 'boss';
 
 export interface EntDef { kind: EntKind; x: number; y: number; data?: number; }
 
@@ -30,8 +32,10 @@ export interface LevelDef {
  ents: EntDef[]; signs: string[];
  boxes: Record<number, BoxPrize>;
  start: { x: number; y: number };
- /** Boss arena (tile columns) for stages with a boss. */
+ /** Boss arena (tile columns) and identity for stages with a boss. */
  arena?: { c0: number; c1: number };
+ bossKind?: BossKind;
+ bossName?: string;
  /** Music zones: from column c onward the score plays this mood (see quest/score.ts). */
  moods: { c: number; mood: ZoneMood }[];
  par: number;
@@ -258,15 +262,114 @@ function lanternkeep(): LevelDef {
  return {
   id: 'lanternkeep', name: 'Lanternkeep', subtitle: 'A candlelit fortress where the Hollow Warden keeps the last flame.', biome: 'keep',
   w: b.w, h: b.h, tiles: b.t, ents: b.ents, signs: b.signs, boxes: b.boxes, start: b.start,
-  arena: { c0, c1 }, moods: b.moods, par: 240,
+  arena: { c0, c1 }, bossKind: 'warden', bossName: 'THE HOLLOW WARDEN', moods: b.moods, par: 240,
  };
 }
 
-export const LEVELS: (() => LevelDef)[] = [glowmoss, cascade, lanternkeep];
+/* ------------------------------------------------------------------ */
+/* Stage 4 — Sunbloom Canopy: golden updrafts, beetles, Gale Sovereign.*/
+/* ------------------------------------------------------------------ */
+function sunbloom(): LevelDef {
+ const b = new Builder(280, 34, 28);
+ b.fill(0, 0, 0, 33, T.SOLID);
+ b.x = 1;
+ b.begin(3).flat(18);
+ b.sign(-15, 'Mossback Beetles wear stone-hard shells. Roll (↓) or Lash (X) to crack them open!');
+ b.motes(-11, 1, 5).ent('beetle', -3);
+ b.up(3).flat(12).ent('briar', -6).box(-4, 4, 'motes5').plat(-9, 4, 4).motes(-9, 5, 3);
+ b.mood('energy').gap(4).flat(8).ent('wisp', -3, 5).ent('hopper', -5);
+ // sunlit bash gorge with Seed 1 hovering in the updraft canopy
+ const cy = b.g;
+ b.gap(20);
+ b.entAt('bashNode', b.x - 16, cy - 3).entAt('bashNode', b.x - 10, cy - 6).entAt('bashNode', b.x - 4, cy - 4);
+ b.motes(-14, 6, 4).entAt('seed', b.x - 10, cy - 10);
+ b.flat(12).ent('checkpoint', -9).ent('beetle', -4).ent('lantern', -7, 2, 1);
+ // rolling flower hill + spring launch to Seed 2
+ b.mood('calm').down(5).flat(4).ent('boostR', -3).flat(18).motes(-16, 1, 10).ent('walker', -6).ent('briar', -3);
+ b.up(4).flat(10).ent('spring', -6).plat(-7, 8, 5).ent('seed', -5, 8);
+ b.mood('danger').gap(5).flat(10).ent('wisp', -4, 5).ent('flyer', -7, 4).ent('checkpoint', -8);
+ b.fill(b.x, b.x + 1, b.g - 4, b.g - 1, T.BRICK);
+ b.flat(10).ent('sentinel', -4, 4).ent('lantern', -7, 2, 0);
+ // wind gorge with moving raft & crumble bridge over thorns
+ const wy = b.g;
+ b.gap(16);
+ for (let c = b.x - 16; c < b.x; c++) { b.set(c, wy + 2, T.SPIKES); b.col(c, wy + 3); }
+ b.entAt('platH', b.x - 14, wy - 1, 3).platAt(b.x - 7, wy - 2, 3, T.CRUMBLE);
+ b.motes(-13, 3, 3).motes(-7, 4, 3).boxAt(b.x - 6, wy - 6, 'spark');
+ b.flat(10).ent('briar', -6).ent('beetle', -3).plat(-7, 4, 4).plat(-2, 8, 4).ent('seed', 0, 8);
+ b.mood('energy').rise(3).flat(8).ent('checkpoint', -5).ent('lantern', -3, 2, 1).ent('lantern', -1, 2, 0).sign(-6, 'The wind gathers at the high shrine. Ready your bash!');
+ const c0 = b.x;
+ b.flat(36);
+ const c1 = b.x - 1;
+ b.platAt(c0 + 6, b.g - 4, 4).platAt(c1 - 9, b.g - 4, 4).platAt(c0 + 15, b.g - 7, 6);
+ b.ent('boss', -18, 6).ent('bashNode', -31, 5).ent('bashNode', -5, 5);
+ b.close();
+ b.fill(c0 - 1, c0 - 1, 0, b.g - 6, T.SOLID);
+ return {
+  id: 'sunbloom', name: 'Sunbloom Canopy', subtitle: 'Gilded sky terraces where the Gale Sovereign rides the summer thermal.', biome: 'sunbloom',
+  w: b.w, h: b.h, tiles: b.t, ents: b.ents, signs: b.signs, boxes: b.boxes, start: b.start,
+  arena: { c0, c1 }, bossKind: 'sovereign', bossName: 'THE GALE SOVEREIGN', moods: b.moods, par: 245,
+ };
+}
+
+/* ------------------------------------------------------------------ */
+/* Stage 5 — Starwell Sanctuary: crystal depths, sentinels, Umbra Weaver. */
+/* ------------------------------------------------------------------ */
+function starwell(): LevelDef {
+ const b = new Builder(285, 36, 30);
+ b.fill(0, 0, 0, 35, T.SOLID);
+ b.x = 1;
+ b.begin(3).flat(14);
+ b.sign(-11, 'Starwell Sanctuary — Bash crystal bolts back at Astral Sentinels and the Umbra Weaver.');
+ b.motes(-9, 1, 5).ent('wisp', -3, 5);
+ b.flat(8).ent('briar', -5).ent('sentinel', -2, 4);
+ // wall-jump crystal chimney up to Seed 1
+ const pillar = b.x + 2;
+ b.flat(7);
+ b.fill(pillar, pillar + 1, b.g - 13, b.g - 4, T.SOLID);
+ b.motes(1, 4, 1).motes(1, 7, 1).motes(1, 10, 1);
+ b.rise(12).flat(10).ent('checkpoint', -7);
+ b.platAt(pillar - 4, b.g - 4, 3).entAt('seed', pillar - 3, b.g - 4);
+ b.mood('energy').down(4).flat(6).ent('boostR', -5).flat(16).motes(-14, 1, 10).ent('beetle', -6).ent('thornback', -2);
+ // crystal basin bash cascade
+ const cy = b.g;
+ b.gap(22);
+ for (let c = b.x - 22; c < b.x; c++) { b.set(c, cy + 2, T.SPIKES); b.col(c, cy + 3); }
+ b.entAt('bashNode', b.x - 18, cy - 4).entAt('bashNode', b.x - 11, cy - 6).entAt('bashNode', b.x - 4, cy - 4);
+ b.platAt(b.x - 13, cy - 2, 4).motes(-12, 5, 4);
+ b.flat(10).ent('checkpoint', -7).ent('lantern', -4, 2, 1).ent('wisp', -2, 5);
+ b.mood('danger').gap(5).flat(6).ent('briar', -3).box(-3, 5, 'seed');
+ b.down(3).flat(10).ent('sentinel', -3, 4).ent('beetle', -7).plat(-8, 4, 4).motes(-8, 5, 4);
+ b.fill(b.x, b.x + 1, b.g - 4, b.g - 1, T.BRICK);
+ b.flat(10).ent('hopper', -6).ent('turret', -2).box(-5, 4, 'spark').box(-4, 4, 'petal');
+ // moving sanctuary lifts + Seed 3 above
+ const sy = b.g;
+ b.gap(16);
+ b.entAt('platH', b.x - 13, sy - 1, 3).entAt('platV', b.x - 6, sy - 2, 3);
+ b.platAt(b.x - 7, sy - 9, 4).entAt('seed', b.x - 5, sy - 9);
+ b.mood('calm').flat(10).ent('checkpoint', -7).ent('lantern', -5, 2, 0).ent('lantern', -3, 2, 1).ent('lantern', -1, 2, 0).sign(-6, 'Beyond this threshold waits the Umbra Weaver. Rekindle the final star!');
+ b.mood('danger');
+ const c0 = b.x;
+ b.flat(38);
+ const c1 = b.x - 1;
+ b.platAt(c0 + 6, b.g - 4, 4).platAt(c1 - 9, b.g - 4, 4).platAt(c0 + 16, b.g - 8, 6);
+ b.ent('boss', -19, 6).ent('lantern', -34, 2, 1).ent('lantern', -4, 2, 0).ent('bashNode', -19, 10);
+ b.close();
+ b.fill(c0 - 1, c0 - 1, 0, b.g - 6, T.SOLID);
+ return {
+  id: 'starwell', name: 'Starwell Sanctuary', subtitle: 'A sunken crystal abbey where the Umbra Weaver guards the sleeping stars.', biome: 'starwell',
+  w: b.w, h: b.h, tiles: b.t, ents: b.ents, signs: b.signs, boxes: b.boxes, start: b.start,
+  arena: { c0, c1 }, bossKind: 'weaver', bossName: 'THE UMBRA WEAVER', moods: b.moods, par: 255,
+ };
+}
+
+export const LEVELS: (() => LevelDef)[] = [glowmoss, cascade, lanternkeep, sunbloom, starwell];
 export const LEVEL_INFO = [
  { id: 'glowmoss', name: 'Glowmoss Hollow', subtitle: 'Run, jump, roll and glide through a lantern-lit wood.', biome: 'moss' as Biome },
  { id: 'cascade', name: 'Cascade Spires', subtitle: 'Wall jumps, dashes and bash lanterns over the falls.', biome: 'falls' as Biome },
  { id: 'lanternkeep', name: 'Lanternkeep', subtitle: 'A candlelit fortress and the Hollow Warden.', biome: 'keep' as Biome },
+ { id: 'sunbloom', name: 'Sunbloom Canopy', subtitle: 'Gilded sky terraces, wind gorges and the Gale Sovereign.', biome: 'sunbloom' as Biome },
+ { id: 'starwell', name: 'Starwell Sanctuary', subtitle: 'Crystal depths, astral guardians and the Umbra Weaver.', biome: 'starwell' as Biome },
 ];
 export const buildLevel = (i: number) => LEVELS[Math.max(0, Math.min(LEVELS.length - 1, i))]();
 
