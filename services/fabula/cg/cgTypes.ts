@@ -17,6 +17,8 @@
 // the same Canvas2D renderer (cgRender.ts). No React, no DOM in this file.
 import type { FontKey } from '../../tela/telaFonts';
 import type { TitleAnim } from '../titleAnimators';
+import type { LiveBinding } from '../../liveData/binding';
+import type { VisualPaint } from '../../visualFill/visualFill';
 
 /** Design space: every graphic is authored on a 1920×1080 frame and scaled to the output. */
 export const CG_W = 1920, CG_H = 1080;
@@ -24,7 +26,7 @@ export const CG_W = 1920, CG_H = 1080;
 export type CgCategory =
   | 'lower-third' | 'full-page' | 'transition' | 'bug' | 'ticker' | 'title'
   | 'opener' | 'end-card' | 'scoreboard' | 'clock' | 'countdown' | 'social'
-  | 'quote' | 'callout' | 'locator' | 'data' | 'frame';
+  | 'quote' | 'callout' | 'locator' | 'data' | 'frame' | 'weather' | 'visual';
 
 export const CG_CATEGORIES: { id: CgCategory; label: string; hint: string }[] = [
   { id: 'lower-third', label: 'Lower Thirds', hint: 'Name supers, straps, two-liners, kickers' },
@@ -40,7 +42,9 @@ export const CG_CATEGORIES: { id: CgCategory; label: string; hint: string }[] = 
   { id: 'countdown', label: 'Countdowns', hint: 'Starting-soon and break timers' },
   { id: 'social', label: 'Social', hint: 'Handles, comments and chat callouts' },
   { id: 'quote', label: 'Quotes', hint: 'Pull quotes and scripture/verse cards' },
-  { id: 'callout', label: 'Callouts', hint: 'Pointers, labels and annotation tags' },
+  { id: 'callout', label: 'Callouts', hint: 'Pointers, labels and annotation tags — and tags that follow tracked people' },
+  { id: 'weather', label: 'Weather', hint: 'Live current conditions and forecast boards' },
+  { id: 'visual', label: 'Visual', hint: 'Visualizer-driven backdrops and plates' },
   { id: 'locator', label: 'Locators', hint: 'Location, dateline and weather tags' },
   { id: 'data', label: 'Data', hint: 'Stat cards, polls and result bars' },
   { id: 'frame', label: 'Frames', hint: 'Picture-in-picture and guest frames' },
@@ -83,7 +87,11 @@ export interface CgGradient { type: 'linear' | 'radial'; angle?: number; stops: 
 
 export type CgBlend = 'normal' | 'screen' | 'multiply' | 'overlay' | 'lighter' | 'difference' | 'soft-light' | 'color-dodge';
 
-export type CgLayerKind = 'rect' | 'ellipse' | 'line' | 'path' | 'text' | 'image' | 'ticker' | 'clock' | 'glow' | 'grid' | 'particles' | 'bars';
+export type CgLayerKind = 'rect' | 'ellipse' | 'line' | 'path' | 'text' | 'image' | 'ticker' | 'clock' | 'glow' | 'grid' | 'particles' | 'bars'
+  /** A live visual (visualizer, simulator, live video, 3D avatar) as an element or background — see `paint`. */
+  | 'visual'
+  /** A weather glyph; `text` names the icon or a {field} holding it (sun, partly, cloud, fog, rain, sleet, snow, storm, night). */
+  | 'weather';
 
 export interface CgTextStyle {
   font: FontKey | (string & {});
@@ -141,6 +149,9 @@ export interface CgLayer {
   clock?: { mode: 'time' | 'time24' | 'countdown' | 'countup' | 'date'; field?: string };
   /** Glow / particles / grid / bars decoration parameters. */
   deco?: { count?: number; size?: number; seed?: number; spacing?: number; values?: string };
+  /** Paint with a live visual instead of (or through) the flat fill: fill · texture · mask · gradient-map.
+   *  Works on rect / ellipse / path / text and is the whole content of a 'visual' layer. */
+  paint?: VisualPaint;
   /** Clip this layer to another layer's box (track matte). */
   matte?: string;
   in?: CgMove;
@@ -195,6 +206,9 @@ export interface CgGraphic {
   /** Keyed region used by the switcher to decide DSK vs full-frame. */
   coverage: 'region' | 'full';
   credit?: CgCredit;
+  /** Suggested live-data mappings (fieldKey → binding expression) for the kind of feed this
+   *  graphic is built for — e.g. weather graphics map `temp` → "temp" and `d3hi` → "@2:high". */
+  dataHints?: Record<string, string>;
   /** User-authored (saved from the designer) vs library. */
   custom?: boolean;
   version?: number;
@@ -211,6 +225,24 @@ export interface CgGraphicRef {
   offset?: { x: number; y: number; scale?: number };
   /** A fully custom graphic embedded inline (designer output not yet saved to the library). */
   inline?: CgGraphic;
+  /** Live data: fields filled from a live source row (Tela sheet, CSV, weather, simulator…). */
+  data?: LiveBinding;
+  /** Follow a live tracker: the graphic's origin sits on a tracked point (face, body, clicked point). */
+  anchor?: CgAnchor;
+}
+
+export interface CgAnchor {
+  trackerId: string;
+  /** Anchor name published by the tracker ('face', 'faceTop', 'chest', 'wristR', 'point'…). */
+  point: string;
+  /** Point of the graphic (design px) placed on the tracked point. Default: centre-top of the graphic's bounds. */
+  origin?: { x: number; y: number };
+  /** Extra offset in design px (e.g. sit a name tag 40 px below the chin). */
+  dx?: number; dy?: number;
+  /** Scale with the subject's distance from camera. */
+  scaleWithSubject?: boolean;
+  /** Hide the graphic while the subject is lost. */
+  hideWhenLost?: boolean;
 }
 
 /** Drag-and-drop payload shared by Fabula, the switcher and Stage. */

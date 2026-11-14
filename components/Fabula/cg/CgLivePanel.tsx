@@ -10,6 +10,7 @@ import { sharedPlayout, CG_SLOTS, defaultSlotFor, type CgPlayoutState, type CgSl
 import { createCgOverlayCanvas } from '../../../services/fabula/cg/cgOutput';
 import { findCgGraphic, isCgDrag, readCgDragData, setCgDragData } from '../../../services/fabula/cg/cgLibrary';
 import { ensureCgFonts } from '../../../services/fabula/cg/cgRender';
+import { liveFields } from '../../../services/fabula/cg/cgLive';
 import { CG_DRAG_MIME, type CgGraphicRef } from '../../../services/fabula/cg/cgTypes';
 import { CgThumb } from './CgThumb';
 import { openCgOutputWindow } from './cgOutputWindow';
@@ -125,16 +126,21 @@ export const CgLivePanel: React.FC<{ ping?: (m: string) => void; compact?: boole
           <div style={{ border: '1px solid #2a2d36', borderRadius: 6, padding: 8 }}>
             <div className="lbl">CUED FIELDS · {previewG.name}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 6, marginTop: 4 }}>
-              {previewG.fields.map(f => (
-                <label key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <span className="dim small">{f.label}</span>
-                  <input className="in" value={preview.ref.fields?.[f.key] ?? f.default} onChange={(e) => setPreviewField(f.key, e.target.value)} />
-                </label>
-              ))}
+              {previewG.fields.map(f => {
+                const live = preview.ref.data?.map[f.key] ? liveFields(preview.ref)[f.key] : undefined;
+                return (
+                  <label key={f.key} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span className="dim small">{f.label}{live !== undefined ? <span style={{ color: '#9fd4ff' }}> · live ← {preview.ref.data!.map[f.key]}</span> : null}</span>
+                    {live !== undefined
+                      ? <input className="in" value={live} readOnly title="Comes from the live data source — edit the source to change it" style={{ borderColor: 'rgba(0,163,255,.4)' }} />
+                      : <input className="in" value={preview.ref.fields?.[f.key] ?? f.default} onChange={(e) => setPreviewField(f.key, e.target.value)} />}
+                  </label>
+                );
+              })}
             </div>
             <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-              <button className="minibtn blue" disabled={!state.onAir.some(a => a.ref.graphicId === preview.ref.graphicId && a.outAt == null)}
-                onClick={() => playout.updateFields(preview.ref.graphicId, preview.ref.fields || {})} title="Push these values to the copy already on air (score, ticker, name fixes) without re-taking">UPDATE ON AIR</button>
+              <button className="minibtn blue" disabled={!state.onAir.some(a => a.outAt == null && (a.itemUid ? a.itemUid === preview.uid : a.ref.graphicId === preview.ref.graphicId))}
+                onClick={() => playout.updateFields(state.onAir.some(a => a.itemUid === preview.uid) ? preview.uid : preview.ref.graphicId, preview.ref.fields || {})} title="Push these values to the copy already on air (score, ticker, name fixes) without re-taking">UPDATE ON AIR</button>
               <select className="sel xs" value={preview.slot || defaultSlotFor(previewG)} onChange={(e) => playout.updateRundownItem(preview.uid, { slot: e.target.value as CgSlotId })}>
                 {CG_SLOTS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
@@ -147,11 +153,21 @@ export const CgLivePanel: React.FC<{ ping?: (m: string) => void; compact?: boole
       <div onDragOver={(e) => { if (isCgDrag(e.dataTransfer)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; setDropOver(true); } }} onDragLeave={() => setDropOver(false)} onDrop={(e) => onDrop(e)}
         style={{ flex: compact ? '1 1 auto' : '0 0 34%', minWidth: 220, display: 'flex', flexDirection: 'column', border: `1px dashed ${dropOver ? '#7aa7ff' : '#2a2d36'}`, borderRadius: 8, padding: 8, minHeight: 160, overflow: 'hidden' }}>
         <div className="lbl">RUNDOWN · {state.rundown.length}</div>
+        {!!state.follows?.length && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+            {state.follows.map(f => (
+              <span key={f.id} title="New rows in this source append to the rundown automatically" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 10, padding: '3px 8px', borderRadius: 999, background: 'rgba(0,163,255,.14)', border: '1px solid rgba(0,163,255,.4)', color: '#9fd4ff' }}>
+                ● FOLLOWING · {f.seen} rows
+                <button aria-label="Stop following" onClick={() => playout.removeFollow(f.id)} style={{ background: 'none', border: 0, color: '#9fd4ff', cursor: 'pointer', padding: 0 }}>✕</button>
+              </span>
+            ))}
+          </div>
+        )}
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
           {!state.rundown.length && <div className="dim small" style={{ padding: 16, textAlign: 'center' }}>Drag graphics here from the library, the Fabula timeline or the Graphics designer.</div>}
           {state.rundown.map((r, i) => {
             const g = findCgGraphic(r.ref);
-            const live = state.onAir.some(a => a.ref.graphicId === r.ref.graphicId && a.outAt == null);
+            const live = state.onAir.some(a => a.outAt == null && (a.itemUid ? a.itemUid === r.uid : a.ref.graphicId === r.ref.graphicId));
             return (
               <div key={r.uid} draggable onDragStart={(e) => { if (g) setCgDragData(e.dataTransfer, g, r.ref); e.dataTransfer.setData('application/x-fabula-cg-rundown', r.uid); }}
                 onDrop={(e) => { const moved = e.dataTransfer.getData('application/x-fabula-cg-rundown'); if (moved) { e.preventDefault(); e.stopPropagation(); playout.moveRundownItem(moved, i); } else onDrop(e, i); }}
@@ -162,9 +178,9 @@ export const CgLivePanel: React.FC<{ ping?: (m: string) => void; compact?: boole
                 <div style={{ width: 72, flex: '0 0 72px' }}>{g ? <CgThumb graphic={g} refOverride={r.ref} width={144} height={81} /> : null}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.label}</div>
-                  <div className="dim small">{(r.slot || (g ? defaultSlotFor(g) : 'L1'))}{live ? ' · ON AIR' : ''}</div>
+                  <div className="dim small">{(r.slot || (g ? defaultSlotFor(g) : 'L1'))}{live ? ' · ON AIR' : ''}{r.ref.data ? ' · LIVE DATA' : ''}{r.ref.anchor ? ' · TRACKED' : ''}</div>
                 </div>
-                <button className="minibtn" title="Take now" onClick={(e) => { e.stopPropagation(); playout.take(r.ref, { slot: r.slot, label: r.label }); }}>▶</button>
+                <button className="minibtn" title="Take now" onClick={(e) => { e.stopPropagation(); playout.take(r.ref, { slot: r.slot, label: r.label, itemUid: r.uid }); }}>▶</button>
                 <button className="minibtn danger" title="Remove" onClick={(e) => { e.stopPropagation(); playout.removeFromRundown(r.uid); }}>✕</button>
               </div>
             );

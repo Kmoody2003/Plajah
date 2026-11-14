@@ -30,6 +30,7 @@ import { strokeInBox, pathData, type InkStyle } from '../../services/inkMath';
 import { TelaLottieCanvas, TelaLottieInspector } from './TelaLottie';
 import { TelaMotionTemplateCanvas, TelaMotionTemplateInspector } from './TelaMotionTemplate';
 import { objectToSvg } from '../../services/tela/geometry/serialize';
+import { TelaVisualFillLayer, TelaVisualFillPicker } from './TelaVisualFill';
 
 export type VectorTool = 'select' | 'direct' | 'marquee' | 'rect' | 'ellipse' | 'line' | 'pen' | 'text' | 'ink';
 
@@ -318,6 +319,13 @@ export const ObjectEl: React.FC<{
     style: { cursor: interactive ? 'move' : 'default', pointerEvents: 'auto', ...blendStyle },
     strokeLinecap: 'round', strokeLinejoin: 'round', ...finish,
   };
+  if ((o.kind === 'RECT' || o.kind === 'ELLIPSE') && o.visualFill) {
+    // Live visual fill: the visual inside the shape, the shape on top carrying stroke + hit area.
+    const shapeProps = { ...common, fill: o.visualFill.mode === 'mask' ? 'none' : 'transparent' };
+    return decorate(<><TelaVisualFillLayer o={o} paint={o.visualFill} staticRender={staticRender} />{o.kind === 'RECT'
+      ? <rect x={o.x} y={o.y} width={Math.max(0, o.w)} height={Math.max(0, o.h)} rx={o.rx ?? 2} {...shapeProps} />
+      : <ellipse cx={o.x + o.w / 2} cy={o.y + o.h / 2} rx={Math.max(0, o.w / 2)} ry={Math.max(0, o.h / 2)} {...shapeProps} />}</>);
+  }
   if (o.kind === 'RECT') return decorate(<rect x={o.x} y={o.y} width={Math.max(0, o.w)} height={Math.max(0, o.h)} rx={o.rx ?? 2} {...common} />);
   if (o.kind === 'ELLIPSE') return decorate(<ellipse cx={o.x + o.w / 2} cy={o.y + o.h / 2} rx={Math.max(0, o.w / 2)} ry={Math.max(0, o.h / 2)} {...common} />);
   if (o.kind === 'LINE' && o.points) return <line x1={o.points[0]} y1={o.points[1]} x2={o.points[2]} y2={o.points[3]} {...common} />;
@@ -1195,6 +1203,10 @@ export const TelaVectorObjectProps: React.FC<{
           </div>
           {o.gradient && <><div className="flex items-center gap-2 mt-2"><select value={o.gradient.kind} onChange={e => onUpdate({ gradient: { ...o.gradient!, kind: e.target.value as 'LINEAR' | 'RADIAL' } })} style={{ ...numStyle, width: 84 }}><option value="LINEAR">Linear</option><option value="RADIAL">Radial</option></select>{o.gradient.kind === 'LINEAR' && <input title="Gradient angle" type="number" value={o.gradient.angle || 0} onChange={e => onUpdate({ gradient: { ...o.gradient!, angle: +e.target.value } })} style={numStyle}/>}<input type="color" value={o.gradient.stops[0]?.color || '#6B0099'} onChange={e => onUpdate({ gradient: { ...o.gradient!, stops: [{ ...(o.gradient!.stops[0] || { offset: 0 }), color: e.target.value }, ...(o.gradient!.stops.slice(1))] } })} style={swatch}/><input type="color" value={o.gradient.stops.at(-1)?.color || '#FF8A00'} onChange={e => { const stops = [...o.gradient!.stops]; stops[stops.length - 1] = { ...(stops.at(-1) || { offset: 1 }), color: e.target.value }; onUpdate({ gradient: { ...o.gradient!, stops } }); }} style={swatch}/></div></>}
         </div>
+      )}
+
+      {(o.kind === 'RECT' || o.kind === 'ELLIPSE') && (
+        <TelaVisualFillPicker value={o.visualFill} onChange={v => onUpdate({ visualFill: v })} labelStyle={lbl} inputStyle={numStyle} />
       )}
 
       {!isText && !isImage && (

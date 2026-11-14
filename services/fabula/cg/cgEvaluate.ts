@@ -206,6 +206,12 @@ export function evaluateCg(g: CgGraphic, t: number, D: number, ref?: CgGraphicRe
     } else if (l.kind === 'clock' && l.clock) {
       r.text = clockText(l.clock.mode, l.clock.field ? fields[l.clock.field] : undefined, t, ctx.now ?? 0);
       animating = true;
+    } else if (l.kind === 'weather') {
+      r.text = fillTemplate(l.text || 'sun', fields).trim().toLowerCase() || 'sun';
+      animating = true; // glyphs drift gently (rain falls, sun rays turn)
+    } else if (l.kind === 'visual' || l.paint) {
+      animating = true; // live visuals change every frame
+      if (l.kind === 'image') { const s = l.src ? (fields[l.src] ?? l.src) : ''; if (s) r.src = s; }
     } else if (l.kind === 'image') {
       const s = l.src ? (fields[l.src] ?? l.src) : '';
       if (!s) continue;

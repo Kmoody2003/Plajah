@@ -12,6 +12,8 @@
 import { fontCss, ensureFontsLoaded, fontKeysInStacks } from '../../tela/telaFonts';
 import { CG_W, CG_H, type CgGraphic, type CgGraphicRef, type CgGradient, type CgPalette } from './cgTypes';
 import { evaluateCg, resolveCgColor, type CgFrame, type CgResolvedLayer, type CgEvalContext } from './cgEvaluate';
+import { visualFrame, drawFitted, texturePattern, lumaPass, gradientLut } from '../../visualFill/visualFill';
+import { resolveLiveRef } from './cgLive';
 
 export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -260,6 +262,96 @@ function drawDeco(ctx: Ctx2D, r: CgResolvedLayer, pal: CgPalette) {
   }
 }
 
+/** Trace the layer's outline as the current path (for clipping paints). */
+function shapePath(ctx: Ctx2D, r: CgResolvedLayer) {
+  const l = r.layer;
+  if (l.kind === 'ellipse') { ctx.beginPath(); ctx.ellipse(r.x + r.w / 2, r.y + r.h / 2, Math.abs(r.w / 2), Math.abs(r.h / 2), 0, 0, Math.PI * 2); return; }
+  roundRect(ctx, r.x, r.y, r.w, r.h, l.radius || 0, l.skew || 0);
+}
+
+/**
+ * Paint a live visual into the layer. Returns true when it drew (so the flat fill is skipped
+ * for 'fill'/'texture'/'gradient-map'; 'mask' draws the flat colour revealed by the visual).
+ * Paths clip with their own Path2D; text layers composite the visual into the glyphs.
+ */
+function drawPaint(ctx: Ctx2D, r: CgResolvedLayer, pal: CgPalette, t: number): boolean {
+  const p = r.layer.paint; if (!p) return false;
+  const img = visualFrame(p.source, Math.max(64, r.w), Math.max(64, r.h));
+  if (!img) return false;
+  ctx.save();
+  if (p.opacity != null) ctx.globalAlpha *= p.opacity;
+  const l = r.layer;
+  if (l.kind === 'path' && l.path) {
+    const path = cachedPath(l.path); if (!path) { ctx.restore(); return false; }
+    ctx.translate(r.x, r.y); ctx.scale(r.w / 100, r.h / 100); ctx.clip(path); ctx.scale(100 / r.w, 100 / r.h); ctx.translate(-r.x, -r.y);
+  } else if (l.kind !== 'visual' || l.radius || l.skew) { shapePath(ctx, r); ctx.clip(); }
+  switch (p.mode) {
+    case 'texture': {
+      const pat = texturePattern(ctx, img, p.scale ?? 1, r.x, r.y);
+      if (pat) { ctx.fillStyle = pat; ctx.fillRect(r.x, r.y, r.w, r.h); }
+      break;
+    }
+    case 'mask': {
+      const fill = resolveCgColor(l.fill || 'accent', pal);
+      const m = lumaPass(img, r.w, r.h, 'mask', { invert: p.invert, fill: /^#[0-9a-f]{6}$/i.test(fill) ? fill : '#ffffff' });
+      if (m) ctx.drawImage(m, r.x, r.y, r.w, r.h);
+      break;
+    }
+    case 'gradient-map': {
+      const stops = (l.gradient?.stops || [[0, 'shade'], [1, 'accent']]).map(([o, c]) => [o, resolveCgColor(c, pal)] as [number, string]);
+      const m = lumaPass(img, r.w, r.h, 'gradient-map', { lut: gradientLut(stops), invert: p.invert });
+      if (m) ctx.drawImage(m, r.x, r.y, r.w, r.h);
+      break;
+    }
+    default: drawFitted(ctx, img, r.x, r.y, r.w, r.h, p.fit || 'cover');
+  }
+  ctx.restore();
+  void t;
+  return true;
+}
+
+/** Weather glyphs, drawn (no icon font): sun, partly, cloud, fog, rain, sleet, snow, storm, night. */
+function drawWeather(ctx: Ctx2D, r: CgResolvedLayer, pal: CgPalette) {
+  const icon = r.text || 'sun';
+  const s = Math.min(r.w, r.h), cx = r.x + r.w / 2, cy = r.y + r.h / 2, T = r.loopTime;
+  const sun = resolveCgColor('highlight', pal), cloud = resolveCgColor(r.layer.fill || 'ink', pal), wet = resolveCgColor('accent', pal);
+  const drawSun = (x: number, y: number, rad: number) => {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(T * 0.25);
+    ctx.strokeStyle = sun; ctx.lineWidth = rad * 0.16; ctx.lineCap = 'round';
+    for (let i = 0; i < 8; i++) { ctx.rotate(Math.PI / 4); ctx.beginPath(); ctx.moveTo(rad * 1.3, 0); ctx.lineTo(rad * 1.7, 0); ctx.stroke(); }
+    ctx.restore();
+    ctx.fillStyle = sun; ctx.beginPath(); ctx.arc(x, y, rad, 0, Math.PI * 2); ctx.fill();
+  };
+  const drawCloud = (x: number, y: number, w: number, col = cloud) => {
+    ctx.fillStyle = col; ctx.beginPath();
+    ctx.arc(x - w * 0.22, y + w * 0.05, w * 0.2, 0, Math.PI * 2); ctx.arc(x + w * 0.02, y - w * 0.08, w * 0.27, 0, Math.PI * 2); ctx.arc(x + w * 0.27, y + w * 0.06, w * 0.18, 0, Math.PI * 2);
+    ctx.rect(x - w * 0.42, y + w * 0.05, w * 0.86, w * 0.2); ctx.fill();
+  };
+  const drops = (kind: 'rain' | 'snow' | 'sleet') => {
+    for (let i = 0; i < 5; i++) {
+      const x = cx - s * 0.3 + i * s * 0.15, y = cy + s * 0.22 + (((T * 0.9 + i * 0.37) % 1) * s * 0.25);
+      ctx.globalAlpha = 1 - ((T * 0.9 + i * 0.37) % 1) * 0.8;
+      if (kind === 'snow' || (kind === 'sleet' && i % 2)) { ctx.fillStyle = cloud; ctx.beginPath(); ctx.arc(x, y, s * 0.03, 0, Math.PI * 2); ctx.fill(); }
+      else { ctx.strokeStyle = wet; ctx.lineWidth = s * 0.03; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - s * 0.03, y + s * 0.08); ctx.stroke(); }
+    }
+    ctx.globalAlpha = 1;
+  };
+  switch (icon) {
+    case 'sun': drawSun(cx, cy, s * 0.24); break;
+    case 'night': { ctx.fillStyle = sun; ctx.beginPath(); ctx.arc(cx, cy, s * 0.28, 0, Math.PI * 2); ctx.fill(); ctx.globalCompositeOperation = 'destination-out'; ctx.beginPath(); ctx.arc(cx + s * 0.13, cy - s * 0.1, s * 0.24, 0, Math.PI * 2); ctx.fill(); ctx.globalCompositeOperation = 'source-over'; break; }
+    case 'partly': drawSun(cx - s * 0.14, cy - s * 0.12, s * 0.17); drawCloud(cx + s * 0.06, cy + s * 0.06, s * 0.62); break;
+    case 'fog': for (let i = 0; i < 4; i++) { ctx.fillStyle = cloud; ctx.globalAlpha = 0.5 + 0.12 * i; roundRect(ctx, cx - s * 0.36 + Math.sin(T + i) * s * 0.03, cy - s * 0.2 + i * s * 0.13, s * 0.72, s * 0.07, s * 0.035); ctx.fill(); } ctx.globalAlpha = 1; break;
+    case 'rain': case 'snow': case 'sleet': drawCloud(cx, cy - s * 0.1, s * 0.7); drops(icon); break;
+    case 'storm': {
+      drawCloud(cx, cy - s * 0.12, s * 0.72);
+      ctx.fillStyle = sun; ctx.globalAlpha = (T % 2.2) < 0.12 ? 1 : 0.85; ctx.beginPath();
+      ctx.moveTo(cx + s * 0.02, cy + s * 0.05); ctx.lineTo(cx - s * 0.1, cy + s * 0.25); ctx.lineTo(cx, cy + s * 0.25); ctx.lineTo(cx - s * 0.06, cy + s * 0.42); ctx.lineTo(cx + s * 0.12, cy + s * 0.18); ctx.lineTo(cx + s * 0.02, cy + s * 0.18); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+      break;
+    }
+    default: drawCloud(cx, cy, s * 0.72);
+  }
+}
+
 function drawLayer(ctx: Ctx2D, r: CgResolvedLayer, pal: CgPalette) {
   const l = r.layer;
   ctx.save();
@@ -282,15 +374,20 @@ function drawLayer(ctx: Ctx2D, r: CgResolvedLayer, pal: CgPalette) {
   if (l.shadow && l.kind !== 'text') { ctx.shadowColor = resolveCgColor(l.shadow.color, pal); ctx.shadowBlur = l.shadow.blur; ctx.shadowOffsetX = l.shadow.x || 0; ctx.shadowOffsetY = l.shadow.y ?? 4; }
 
   switch (l.kind) {
+    case 'visual': drawPaint(ctx, r, pal, r.loopTime); break;
+    case 'weather': drawWeather(ctx, r, pal); break;
     case 'rect': {
+      const painted = l.paint && l.paint.mode !== 'mask' ? drawPaint(ctx, r, pal, r.loopTime) : false;
       roundRect(ctx, r.x, r.y, r.w, r.h, l.radius || 0, l.skew || 0);
-      if (l.fill || l.gradient) { drawShapeFill(ctx, r, pal); ctx.fill(); }
+      if (!painted && l.paint?.mode === 'mask') { if (drawPaint(ctx, r, pal, r.loopTime)) { roundRect(ctx, r.x, r.y, r.w, r.h, l.radius || 0, l.skew || 0); } else if (l.fill || l.gradient) { drawShapeFill(ctx, r, pal); ctx.fill(); } }
+      else if (!painted && (l.fill || l.gradient)) { drawShapeFill(ctx, r, pal); ctx.fill(); }
       if (l.stroke) { ctx.shadowColor = 'transparent'; ctx.strokeStyle = resolveCgColor(l.stroke, pal); ctx.lineWidth = l.strokeWidth || 2; if (l.dash) ctx.setLineDash(l.dash); ctx.stroke(); }
       break;
     }
     case 'ellipse': {
+      const painted = l.paint ? drawPaint(ctx, r, pal, r.loopTime) : false;
       ctx.beginPath(); ctx.ellipse(r.x + r.w / 2, r.y + r.h / 2, Math.abs(r.w / 2), Math.abs(r.h / 2), 0, 0, Math.PI * 2);
-      if (l.fill || l.gradient) { drawShapeFill(ctx, r, pal); ctx.fill(); }
+      if (!painted && (l.fill || l.gradient)) { drawShapeFill(ctx, r, pal); ctx.fill(); }
       if (l.stroke) { ctx.strokeStyle = resolveCgColor(l.stroke, pal); ctx.lineWidth = l.strokeWidth || 2; if (l.dash) ctx.setLineDash(l.dash); ctx.stroke(); }
       break;
     }
@@ -303,12 +400,27 @@ function drawLayer(ctx: Ctx2D, r: CgResolvedLayer, pal: CgPalette) {
     }
     case 'path': {
       const p = l.path ? cachedPath(l.path) : null; if (!p) break;
+      if (l.paint && drawPaint(ctx, r, pal, r.loopTime)) { if (!l.stroke) break; ctx.translate(r.x, r.y); ctx.scale(r.w / 100, r.h / 100); ctx.strokeStyle = resolveCgColor(l.stroke, pal); ctx.lineWidth = (l.strokeWidth || 2) * 100 / Math.max(1, r.w); ctx.stroke(p); break; }
       ctx.translate(r.x, r.y); ctx.scale(r.w / 100, r.h / 100);
       if (l.fill || l.gradient) { ctx.fillStyle = l.gradient ? makeGradient(ctx, l.gradient, pal, 0, 0, 100, 100) : resolveCgColor(l.fill!, pal); ctx.fill(p); }
       if (l.stroke) { ctx.strokeStyle = resolveCgColor(l.stroke, pal); ctx.lineWidth = (l.strokeWidth || 2) * 100 / Math.max(1, r.w); ctx.stroke(p); }
       break;
     }
-    case 'text': drawText(ctx, r, pal); break;
+    case 'text': {
+      if (l.paint) {
+        // Visual-filled type: draw the glyphs, then paint the visual only where they are.
+        const img = visualFrame(l.paint.source, Math.max(64, r.w), Math.max(64, r.h));
+        if (img) {
+          drawText(ctx, r, pal);
+          ctx.save(); ctx.globalCompositeOperation = 'source-atop';
+          ctx.beginPath(); ctx.rect(r.x - 4, r.y - r.h * 0.2, r.w + 8, r.h * 1.4); ctx.clip();
+          drawFitted(ctx, img, r.x, r.y - r.h * 0.2, r.w, r.h * 1.4, l.paint.fit || 'cover');
+          ctx.restore();
+          break;
+        }
+      }
+      drawText(ctx, r, pal); break;
+    }
     case 'clock': drawText(ctx, r, pal); break;
     case 'ticker': drawTicker(ctx, r, pal); break;
     case 'image': {
@@ -362,8 +474,11 @@ export function drawCgFrameData(ctx: Ctx2D, frame: CgFrame, W: number, H: number
 }
 
 /** Evaluate + draw in one call. t, D in seconds (D = Infinity holds). */
-export function drawCgGraphic(ctx: Ctx2D, g: CgGraphic, t: number, D: number, W: number, H: number, ref?: CgGraphicRef | null, opts: CgEvalContext & { place?: { x: number; y: number; w: number; h: number } } = {}): CgFrame {
-  const frame = evaluateCg(g, t, D, ref, opts);
+export function drawCgGraphic(ctx: Ctx2D, g: CgGraphic, t: number, D: number, W: number, H: number, ref?: CgGraphicRef | null, opts: CgEvalContext & { place?: { x: number; y: number; w: number; h: number }; tracking?: boolean } = {}): CgFrame {
+  // Live data + tracking anchors (timeline export passes tracking:false for determinism).
+  const live = resolveLiveRef(g, ref, { tracking: opts.tracking !== false });
+  const frame = evaluateCg(g, t, D, live === null ? ref : live, opts);
+  if (live === null) return { ...frame, layers: [] };
   drawCgFrameData(ctx, frame, W, H, opts.place);
   return frame;
 }

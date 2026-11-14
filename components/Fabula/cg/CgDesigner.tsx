@@ -10,6 +10,7 @@ import { drawCgGraphic, ensureCgFonts, setCgImageReadyListener } from '../../../
 import { measureTiming, cgDefaultDuration, cgSafeAreaViolations, evaluateCg } from '../../../services/fabula/cg/cgEvaluate';
 import { saveUserGraphic, setCgDragData } from '../../../services/fabula/cg/cgLibrary';
 import { cgCreditLine } from '../../../services/fabula/cg/cgCouncil';
+import type { VisualSource, VisualPaintMode } from '../../../services/visualFill/visualFill';
 import { CG_CATEGORIES, CG_W, CG_H, type CgGraphic, type CgLayer, type CgLayerKind, type CgMove, type CgMoveType, type CgEase, type CgLoopType, type CgColor, type CgPalette } from '../../../services/fabula/cg/cgTypes';
 
 const MOVES: CgMoveType[] = ['none', 'fade', 'slideL', 'slideR', 'slideU', 'slideD', 'wipeL', 'wipeR', 'wipeU', 'wipeD', 'wipeCenterX', 'wipeCenterY', 'iris', 'growX', 'growY', 'pop', 'zoom', 'spin', 'drop', 'blur', 'flipX', 'flipY', 'skew'];
@@ -33,6 +34,8 @@ function blankLayer(kind: CgLayerKind, g: CgGraphic): CgLayer {
     case 'clock': return { ...base, w: 240, h: 70, clock: { mode: 'time' }, style: { font: g.fonts.utility || g.fonts.text, weight: 600, size: 36, color: 'ink', align: 'center' } };
     case 'particles': return { ...base, x: 0, y: 0, w: 1920, h: 1080, fill: 'highlight', deco: { count: 50, size: 3, seed: 3 }, loop: { type: 'drift', period: 10, amount: 0 } };
     case 'glow': return { ...base, fill: 'highlight', opacity: .5, blend: 'screen' };
+    case 'visual': return { ...base, x: 0, y: 0, w: CG_W, h: CG_H, paint: { source: { engine: 'worship', value: 'calm-02-galilee-dawn-waters', audio: 'master' }, mode: 'fill', fit: 'cover' } };
+    case 'weather': return { ...base, w: 160, h: 160, text: 'partly', fill: 'ink' };
     default: return { ...base, fill: 'paper' };
   }
 }
@@ -93,7 +96,9 @@ export const CgDesigner: React.FC<{
   onTakeLive?: (g: CgGraphic) => void;
   onOpenInTela?: (g: CgGraphic) => void;
   ping?: (m: string) => void;
-}> = ({ graphic, onChange, onSendToTimeline, onAddToRundown, onTakeLive, onOpenInTela, ping }) => {
+  /** Sources room → "use as fill": applied to the selected layer when the nonce changes. */
+  applyPaint?: { source: VisualSource; mode: VisualPaintMode; nonce: number } | null;
+}> = ({ graphic, onChange, onSendToTimeline, onAddToRundown, onTakeLive, onOpenInTela, ping, applyPaint }) => {
   const [g, setG] = useState<CgGraphic>(() => clone(graphic));
   const [sel, setSel] = useState<string | null>(g.layers[0]?.id || null);
   const [t, setT] = useState(() => g.timing.in + .5);
@@ -107,6 +112,17 @@ export const CgDesigner: React.FC<{
   useEffect(() => { setG(clone(graphic)); setSel(graphic.layers[0]?.id || null); setT(graphic.timing.in + .5); }, [graphic]);
   useEffect(() => { onChange?.(g); }, [g]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { let alive = true; ensureCgFonts(g).then(() => alive && setFontsTick(n => n + 1)); setCgImageReadyListener(() => setFontsTick(n => n + 1)); return () => { alive = false; }; }, [g.fonts.display, g.fonts.text, g.fonts.utility, g.layers.map(l => l.style?.font).join()]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!applyPaint) return;
+    setG(prev => {
+      const n = clone(prev);
+      let i = n.layers.findIndex(l => l.id === sel);
+      if (i < 0) { n.layers.push({ id: newId('visual'), name: 'Visual', kind: 'visual', x: 0, y: 0, w: CG_W, h: CG_H, in: { type: 'fade', dur: .6 }, out: { type: 'fade', dur: .4 } }); i = n.layers.length - 1; }
+      n.layers[i] = { ...n.layers[i], paint: { source: applyPaint.source, mode: applyPaint.mode, fit: 'cover' } };
+      return n;
+    });
+  }, [applyPaint?.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const D = g.live === 'transition' ? g.timing.in + g.timing.out : g.timing.in + g.timing.hold + g.timing.out;
   const layer = g.layers.find(l => l.id === sel) || null;
@@ -174,7 +190,7 @@ export const CgDesigner: React.FC<{
       <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0, border: '1px solid #2a2d36', borderRadius: 8, padding: 8 }}>
         <div className="lbl">LAYERS</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, margin: '4px 0 6px' }}>
-          {(['rect', 'ellipse', 'text', 'image', 'line', 'ticker', 'clock', 'glow', 'particles'] as CgLayerKind[]).map(k => (
+          {(['rect', 'ellipse', 'text', 'image', 'line', 'ticker', 'clock', 'glow', 'particles', 'visual', 'weather'] as CgLayerKind[]).map(k => (
             <button key={k} className="minibtn" style={{ fontSize: 9 }} onClick={() => { const l = blankLayer(k, g); update(n => { n.layers.push(l); if (k === 'ticker' && !n.fields.some(f => f.key === 'items')) n.fields.push({ key: 'items', label: 'Ticker items', type: 'list', default: 'First item | Second item | Third item' }); }); setSel(l.id); }}>+{k}</button>
           ))}
         </div>
@@ -303,6 +319,20 @@ export const CgDesigner: React.FC<{
                 {layer.kind === 'text' && <Row label="Type anim"><select className="sel xs" value={layer.style.anim?.type || 'none'} onChange={(e) => patchLayer({ style: { ...layer.style!, anim: { duration: .7, delay: (layer.in?.delay || 0) + .2, out: .3, stagger: .5, ...(layer.style!.anim || {}), type: e.target.value as any } } })} style={{ flex: 1 }}>{TITLE_ANIMS.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}</select></Row>}
               </>
             )}
+            {(layer.paint || ['rect', 'ellipse', 'path', 'text', 'visual'].includes(layer.kind)) && (
+              <div style={{ marginTop: 6, padding: 6, border: '1px solid rgba(255,255,255,.1)', borderRadius: 6 }}>
+                <div className="dim small">LIVE PAINT {layer.paint ? `· ${layer.paint.source.engine} · ${layer.paint.source.value.split('|')[0].split('/').pop()}` : ''}</div>
+                {layer.paint ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginTop: 4 }}>
+                    <select className="sel xs" value={layer.paint.mode} onChange={(e) => patchLayer({ paint: { ...layer.paint!, mode: e.target.value as VisualPaintMode } })}>{['fill', 'texture', 'mask', 'gradient-map'].map(m => <option key={m}>{m}</option>)}</select>
+                    <select className="sel xs" value={layer.paint.source.audio || 'master'} onChange={(e) => patchLayer({ paint: { ...layer.paint!, source: { ...layer.paint!.source, audio: e.target.value as any } } })}><option value="master">audio: master</option><option value="live-input">audio: live in</option><option value="none">audio: none</option></select>
+                    <input className="in" type="number" step={.05} min={0} max={1} title="Opacity" value={layer.paint.opacity ?? 1} onChange={(e) => patchLayer({ paint: { ...layer.paint!, opacity: Number(e.target.value) } })} />
+                    <button className="minibtn danger" onClick={() => patchLayer({ paint: undefined })}>REMOVE</button>
+                  </div>
+                ) : <div className="dim small" style={{ marginTop: 2 }}>Pick a visualizer, live feed or avatar in SOURCES → VISUALIZERS → Apply.</div>}
+              </div>
+            )}
+            {layer.kind === 'weather' && <Row label="Icon"><input className="in" value={layer.text || ''} placeholder="{icon} or sun/rain/storm…" onChange={(e) => patchLayer({ text: e.target.value })} style={{ flex: 1 }} /></Row>}
             <MoveEditor label="IN  (move · ease · dur · delay)" m={layer.in} on={(m) => patchLayer({ in: m })} />
             <MoveEditor label="OUT (move · ease · dur · lead)" m={layer.out} on={(m) => patchLayer({ out: m })} />
             <div style={{ marginTop: 6 }}>

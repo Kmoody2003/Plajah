@@ -422,7 +422,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
             if (!cnv) { cnv = document.createElement('canvas'); motionCanvases.set(layer.id, cnv); }
             if (cnv.width !== width || cnv.height !== height) { cnv.width = width; cnv.height = height; }
             const cctx = cnv.getContext('2d');
-            if (cctx) { cctx.clearRect(0, 0, width, height); drawCgGraphic(cctx, g, layer.time ?? 0, tc.tDur ?? Infinity, width, height, tc.cGraphic, { now: Date.now() }); inputs.push({ element: cnv, opacity, blendMode: 'normal', transform: layer.transform, homography: (layer as any).homography }); }
+            if (cctx) { cctx.clearRect(0, 0, width, height); drawCgGraphic(cctx, g, layer.time ?? 0, tc.tDur ?? Infinity, width, height, tc.cGraphic, { now: Date.now(), tracking: false }); inputs.push({ element: cnv, opacity, blendMode: 'normal', transform: layer.transform, homography: (layer as any).homography }); }
           }
         } else if (clip.type === 'title' && (clip as any).mGraphic) {
           // Ambo motion template (Tela MOTION_TEMPLATE spec) — same renderer as Fabula's

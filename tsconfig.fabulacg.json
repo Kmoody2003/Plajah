@@ -1,6 +1,8 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "noEmit": true },
+  "compilerOptions": {
+    "noEmit": true
+  },
   "include": [
     "services/fabula/cg/*.ts",
     "services/fabula/fxCouncilPresets.ts",
@@ -9,6 +11,11 @@
     "components/Fabula/cg/*.ts",
     "components/production/FabulaCGSwitcherPanel.tsx",
     "tests/fabulaCg.test.ts",
-    "tests/fxCouncilPresets.test.ts"
+    "tests/fxCouncilPresets.test.ts",
+    "services/liveData/*.ts",
+    "services/visualFill/*.ts",
+    "services/liveTracking/*.ts",
+    "components/tela/TelaVisualFill.tsx",
+    "tests/liveData.test.ts"
   ]
 }

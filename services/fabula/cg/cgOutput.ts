@@ -9,6 +9,8 @@
 import { drawCgFrameData, setCgImageReadyListener, ensureCgFonts, type Ctx2D } from './cgRender';
 import { evaluateCg } from './cgEvaluate';
 import { drawListAt, type CgPlayout, type CgPlayoutState } from './cgPlayout';
+import { onAnyLiveData } from '../../liveData/liveDataHub';
+import { onTrackerState } from '../../liveTracking/trackerHub';
 
 export type CgOutputMode = 'fill' | 'key' | 'preview';
 
@@ -18,7 +20,7 @@ export function drawPlayout(ctx: Ctx2D, state: CgPlayoutState, W: number, H: num
   for (const d of drawListAt(state, now)) {
     const frame = evaluateCg(d.graphic, d.t, d.D, d.ref, { now });
     drawCgFrameData(ctx, frame, W, H);
-    if (frame.animating || frame.phase !== 'hold') animating = true;
+    if (frame.animating || frame.phase !== 'hold' || d.ref.anchor) animating = true;
   }
   return animating;
 }
@@ -63,11 +65,14 @@ export function createCgOverlayCanvas(playout: CgPlayout, opts: { width?: number
     for (const a of playout.state.onAir) { const g = a.ref.inline; if (g) void ensureCgFonts(g); }
   });
   setCgImageReadyListener(() => { dirty = true; });
+  // Live data rows and tracked subjects change without a playout commit — redraw on those too.
+  const offData = onAnyLiveData(() => { dirty = true; });
+  const offTrack = onTrackerState(() => { if (playout.state.onAir.some(a => a.ref.anchor)) dirty = true; });
   raf = requestAnimationFrame(loop);
   return {
     canvas,
     invalidate: () => { dirty = true; },
-    stop: () => { alive = false; cancelAnimationFrame(raf); unsub(); },
+    stop: () => { alive = false; cancelAnimationFrame(raf); unsub(); offData(); offTrack(); },
   };
 }
 

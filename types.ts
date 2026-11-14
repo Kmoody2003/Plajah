@@ -7983,6 +7983,9 @@ export interface TelaVectorObject {
   points?: number[];
   fill: string;        // css color or 'none'
   gradient?: TelaGradientPaint;
+  /** A live visual (visualizer, Chora visual, live video, 3D avatar) painting the shape:
+   *  fill / texture / mask / gradient-map (gradient-map uses `gradient`). RECT and ELLIPSE. */
+  visualFill?: import('./services/visualFill/visualFill').VisualPaint;
   stroke: string;      // css color or 'none'
   strokeWidth: number;
   rotation: number;    // degrees, about the object's own centre

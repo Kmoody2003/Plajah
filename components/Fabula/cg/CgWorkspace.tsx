@@ -17,8 +17,11 @@ import { cgDefaultDuration } from '../../../services/fabula/cg/cgEvaluate';
 import { CgThumb } from './CgThumb';
 import { CgDesigner, blankGraphic } from './CgDesigner';
 import { CgLivePanel } from './CgLivePanel';
+import { CgSourcesRoom } from './CgSourcesRoom';
+import { useCgLiveRuntime } from './useCgLiveRuntime';
+import type { VisualSource, VisualPaintMode } from '../../../services/visualFill/visualFill';
 
-type Room = 'library' | 'designer' | 'live';
+type Room = 'library' | 'designer' | 'live' | 'sources';
 const PAGE = 48;
 
 export interface CgWorkspaceProps {
@@ -44,6 +47,8 @@ export const CgWorkspace: React.FC<CgWorkspaceProps> = ({ onSendToTimeline, onOp
   const [userTick, setUserTick] = useState(0);
   const [designing, setDesigning] = useState<CgGraphic>(() => openGraphic || blankGraphic());
   const playout = useMemo(() => sharedPlayout({ master: true }), []);
+  useCgLiveRuntime(playout);
+  const [applyPaint, setApplyPaint] = useState<{ source: VisualSource; mode: VisualPaintMode; nonce: number } | null>(null);
 
   useEffect(() => onUserGraphicsChange(() => setUserTick(n => n + 1)), []);
   useEffect(() => { if (openGraphic) { setDesigning(openGraphic); setRoom('designer'); } }, [openGraphic]);
@@ -67,7 +72,7 @@ export const CgWorkspace: React.FC<CgWorkspaceProps> = ({ onSendToTimeline, onOp
         <div style={{ fontWeight: 800, letterSpacing: '.14em', fontSize: 12 }}>FABULA CG</div>
         <div className="dim small">motion graphics &amp; titles · powered by Tela</div>
         <span style={{ flex: 1 }} />
-        {(['library', 'designer', 'live'] as Room[]).map(r => (
+        {(['library', 'designer', 'live', 'sources'] as Room[]).map(r => (
           <button key={r} className={`minibtn ${room === r ? 'on' : ''}`} onClick={() => setRoom(r)} style={{ minWidth: 76, fontWeight: 700 }}>
             {r === 'live' ? '● LIVE' : r.toUpperCase()}
           </button>
@@ -132,7 +137,13 @@ export const CgWorkspace: React.FC<CgWorkspaceProps> = ({ onSendToTimeline, onOp
             onSendToTimeline={onSendToTimeline ? (g) => send({ ...g, custom: true }) : undefined}
             onAddToRundown={(g) => addRundown({ ...g, custom: true })}
             onTakeLive={(g) => takeLive({ ...g, custom: true })}
-            onOpenInTela={onOpenInTela} />
+            onOpenInTela={onOpenInTela} applyPaint={applyPaint} />
+        </div>
+      )}
+
+      {room === 'sources' && (
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <CgSourcesRoom ping={ping} onUseAsFill={(source, mode) => { setApplyPaint({ source, mode, nonce: Date.now() }); setRoom('designer'); ping?.(`Applied as ${mode} to the Designer's selected layer`); }} />
         </div>
       )}
 

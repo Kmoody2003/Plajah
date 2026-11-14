@@ -12,6 +12,7 @@
 // State is plain JSON and mirrored over a BroadcastChannel (CgBus).
 import { findCgGraphic } from './cgLibrary';
 import { cgDefaultDuration } from './cgEvaluate';
+import { resolveLiveRef, type CgFollow } from './cgLive';
 import type { CgCategory, CgGraphic, CgGraphicRef } from './cgTypes';
 
 export type CgSlotId = 'L1' | 'L2' | 'TICKER' | 'BUG' | 'FULL' | 'STINGER';
@@ -37,6 +38,8 @@ export function defaultSlotFor(g: Pick<CgGraphic, 'category' | 'coverage' | 'liv
 export interface CgRundownItem { uid: string; ref: CgGraphicRef; label: string; slot?: CgSlotId; notes?: string }
 export interface CgOnAir {
   uid: string; ref: CgGraphicRef; slot: CgSlotId; label: string;
+  /** Rundown item this was taken from (several items can share one graphic). */
+  itemUid?: string;
   /** ms epoch the IN started. */
   takenAt: number;
   /** ms epoch the OUT starts (null = holding). */
@@ -50,6 +53,8 @@ export interface CgPlayoutState {
   onAir: CgOnAir[];          // includes items animating out
   /** Program output resolution for keyed outputs. */
   format: { w: number; h: number };
+  /** Rundowns that follow a live source: one item per row, new rows append. */
+  follows?: CgFollow[];
   rev: number;
 }
 
@@ -68,7 +73,10 @@ export function drawListAt(state: CgPlayoutState, now: number): CgDrawItem[] {
     if (t < 0) continue;
     const D = a.outAt == null ? Infinity : (a.outAt - a.takenAt) / 1000 + a.outDur;
     if (t >= D) continue;
-    out.push({ graphic: g, ref: a.ref, t, D, z: SLOT_Z[a.slot] ?? 10, uid: a.uid, slot: a.slot });
+    // Live data fields + tracker anchors resolve here, so every output sees the same values.
+    const ref = resolveLiveRef(g, a.ref);
+    if (ref === null) continue; // anchored graphic hidden while its subject is lost
+    out.push({ graphic: g, ref: ref || a.ref, t, D, z: SLOT_Z[a.slot] ?? 10, uid: a.uid, slot: a.slot });
   }
   return out.sort((x, y) => x.z - y.z);
 }
@@ -131,13 +139,13 @@ export class CgPlayout {
   }
 
   /** Put a graphic on air. Returns null if the graphic can't be resolved. */
-  take(ref: CgGraphicRef, opts: { slot?: CgSlotId; label?: string } = {}): CgTakeResult | null {
+  take(ref: CgGraphicRef, opts: { slot?: CgSlotId; label?: string; itemUid?: string } = {}): CgTakeResult | null {
     const g = findCgGraphic(ref); if (!g) return null;
     const now = this.clock();
     const slot = opts.slot || defaultSlotFor(g);
     // Whatever holds this slot animates out now (overlapping with the new IN).
     let onAir = this.prune(now).map(a => (a.slot === slot && a.outAt == null ? { ...a, outAt: now } : a));
-    const item: CgOnAir = { uid: uid(), ref, slot, label: opts.label || g.name, takenAt: now, outAt: null, outDur: g.timing.out };
+    const item: CgOnAir = { uid: uid(), ref, slot, label: opts.label || g.name, itemUid: opts.itemUid, takenAt: now, outAt: null, outDur: g.timing.out };
     if (g.live === 'transition') item.outAt = now + (g.timing.cutPoint ?? g.timing.in) * 1000;
     else if (g.live === 'auto') item.outAt = now + (cgDefaultDuration(g) - g.timing.out) * 1000;
     onAir = [...onAir, item];
@@ -155,7 +163,7 @@ export class CgPlayout {
   /** TAKE the previewed rundown item and advance the cursor. */
   takePreview(): CgTakeResult | null {
     const it = this.preview; if (!it) return null;
-    const r = this.take(it.ref, { slot: it.slot, label: it.label });
+    const r = this.take(it.ref, { slot: it.slot, label: it.label, itemUid: it.uid });
     if (r && this.state.cursor < this.state.rundown.length - 1) this.commit({ cursor: this.state.cursor + 1 });
     return r;
   }
@@ -180,8 +188,17 @@ export class CgPlayout {
 
   /** Live field update on an on-air item (or every on-air item showing graphicId). */
   updateFields(target: string, fields: Record<string, string>) {
-    this.commit({ onAir: this.state.onAir.map(a => (a.uid === target || a.slot === target || a.ref.graphicId === target) ? { ...a, ref: { ...a.ref, fields: { ...(a.ref.fields || {}), ...fields } } } : a) });
+    this.commit({ onAir: this.state.onAir.map(a => (a.uid === target || a.itemUid === target || a.slot === target || a.ref.graphicId === target) ? { ...a, ref: { ...a.ref, fields: { ...(a.ref.fields || {}), ...fields } } } : a) });
   }
+
+  setFollows(follows: CgFollow[]) { this.commit({ follows }); }
+  /** Make the rundown follow a live source: every row (now and future) becomes an item. */
+  addFollow(f: Omit<CgFollow, 'id' | 'seen'>): CgFollow {
+    const follow: CgFollow = { ...f, id: uid(), seen: 0 };
+    this.commit({ follows: [...(this.state.follows || []), follow] });
+    return follow;
+  }
+  removeFollow(id: string) { this.commit({ follows: (this.state.follows || []).filter(f => f.id !== id) }); }
 
   isOnAir(slot: CgSlotId): boolean { return this.state.onAir.some(a => a.slot === slot && a.outAt == null); }
   setFormat(w: number, h: number) { this.commit({ format: { w, h } }); }
@@ -219,6 +236,7 @@ export function sharedPlayout(opts: { master?: boolean } = {}): CgPlayout {
     shared = new CgPlayout();
     if (typeof BroadcastChannel !== 'undefined') {
       channel = new BroadcastChannel(BUS);
+      (channel as unknown as { unref?: () => void }).unref?.();
       channel.onmessage = (e: MessageEvent<BusMsg>) => {
         const m = e.data; if (!m || m.from === selfId) return;
         if (m.type === 'STATE') { masterSeen = true; if (!isMaster) shared!.replace(m.state); }

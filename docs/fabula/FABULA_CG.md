@@ -75,3 +75,84 @@ The presets show up in:
 - **Performance**: the real-time evaluation budget.
 - **Playout**: slot routing, take/replace/out overlap, rundown with live field updates, stinger auto-out and cut callback.
 - **Presets**: ranges, drivers, determinism and id collisions.
+
+## Live sources: the SOURCES room
+
+The **SOURCES** room sits next to LIVE. It handles everything live that graphics can be fed by or painted with.
+
+### Live data (`services/liveData/`)
+
+- **`liveDataHub.ts`**:
+  - A persisted source registry, shared by every window on the same origin.
+  - One poller or watcher per source, no matter how many graphics use it.
+  - Subscribers are notified only when the content actually changes (a signature of the content is compared).
+  - Snapshots are mirrored over the BroadcastChannel `plajah-live-data-v1`.
+  - Apps can push rows into a `table` source with `pushRows`.
+- **Adapters** (`liveDataHub.ts`, `liveDataAdapters.ts`):
+
+  | Adapter | What it reads |
+  |---|---|
+  | `tela-sheet` | A Tela Sheet or Base (row 1 is the header). It re-reads on every Tela save and every few seconds, so names added to the sheet show up in graphics. |
+  | `csv-url`, `json-url` | Published Google Sheets, APIs and similar. |
+  | `csv-text` | Pasted CSV. |
+  | `csv-file` | A local CSV or JSON file, re-read while open. |
+  | `table` | Rows typed by hand or pushed by other apps. |
+  | `math` | The Tela Sheet formula engine, the platform's MATLAB-style array maths (SEQUENCE, MMULT, MINVERSE, LINEST, LAMBDA…), with live `t` and `n`. |
+  | `simulator` | Registered simulators: the machine-atlas brake simulator plus a signal generator. Live playback or the full series. |
+  | `weather` | Open-Meteo current conditions plus a 7-day forecast. No API key. |
+
+- **`binding.ts`**: maps a table onto a graphic's fields. A mapping can be:
+  - a column name
+  - a `{A} {B}` template
+  - an aggregate: `#count`, `#sum:`, `#avg:`, `#min:`, `#max:`, `#pct:`, `#index`
+  - an absolute row: `@2:col`, `@last:col` (used by multi-row boards)
+  - a literal: `=text`
+
+  Rows are chosen as first, newest, index, match, or `row-of-item`. `autoMap` guesses the mappings from column names.
+- **Follow rundowns** (`cgLive.ts`): every row becomes a rundown item, and new rows append on their own.
+
+### Visual paint (`services/visualFill/`)
+
+Any visual can be a **fill, texture, mask or gradient-map** instead of only a colour, gradient or image. The sources are:
+
+- every Stage visualizer: Pixels GLSL generators, Flux 3D, Studio GL, Milkdrop, Chora kinetic type and the shader library
+- the 72 Chora worship visualizers
+- live video: camera, TV Studio program, Stage outputs
+- live face-tracked 3D avatars (VRM)
+
+How it works:
+
+- Frames are pooled by (visual, size), so ten shapes using one visual share a single GPU context. Unused instances are disposed after 8 s.
+- In CG, set `CgLayer.paint` on a rect, ellipse, path or text layer, or use the new `visual` layer kind.
+- In Tela, set `TelaVectorObject.visualFill` on rect and ellipse shapes. The Tela inspector has a picker.
+- Mask and gradient-map run a luminance pass on a ≤320 px scratch canvas, so they stay real-time.
+
+### Tracking (`services/liveTracking/trackerHub.ts`)
+
+Trackers run on a live feed and publish smoothed anchors:
+
+| Tracker | Anchors | Engine |
+|---|---|---|
+| Face | `face`, `faceTop`, `faceBottom`, `faceLeft`, `faceRight` | MediaPipe (model loaded from a CDN) |
+| Pose | named body points plus `head`, `chest`, `hips` | MediaPipe (model loaded from a CDN) |
+| Point | `point` (click to pick) | Offline patch tracker |
+
+- A graphic with `ref.anchor` is pinned to a tracked point every frame. It can scale with the subject and hide while the subject is lost.
+- External tracking systems can feed anchors with `pushTrackerState`.
+- Offline exports never use tracking, so renders stay deterministic.
+
+### New library elements (44 per package, 1,056 graphics in total)
+
+- Weather Now
+- 5-Day Forecast (binds rows 0–4 through `dataHints`)
+- Visualizer Backdrop
+- Visualizer Strap (a gradient-mapped, on-brand visual plate)
+- Tracked Name Tag
+
+There is also a drawn `weather` glyph layer: sun, partly, cloud, fog, rain, sleet, snow, storm, night.
+
+### Limits
+
+- Face and pose tracking need network access to load the MediaPipe models. Hand tracking does not exist in the codebase.
+- The avatar module drives the face and head only.
+- "Plajah Build" files: no project or file API under that name exists in this repo yet. CSV/JSON files and Tela documents are supported instead.

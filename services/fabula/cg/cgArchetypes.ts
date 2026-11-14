@@ -132,6 +132,8 @@ export interface CgArchetype {
   id: string; name: string; category: CgCategory; live: CgLiveMode; coverage: 'region' | 'full';
   hold: number; tags: string[]; fields: CgField[];
   build(pk: CgPackage): CgLayer[];
+  /** Suggested live-data mappings copied onto the graphic (see CgGraphic.dataHints). */
+  dataHints?: Record<string, string>;
   /** Transition cut point (seconds) when live === 'transition'. */
   cut?(pk: CgPackage): number;
 }
@@ -640,6 +642,86 @@ export const CG_ARCHETYPES: CgArchetype[] = [
       text(pk, 'Name', { x: 1116, y: 565, w: 330, h: 60 }, '{name}', 'sub', onColor(pk, pk.palette.paper), D(pk, .6), { size: 26, upper: true, tracking: .08 }),
     ],
   },
+  // ─── LIVE: WEATHER, VISUALS, TRACKED TAGS ───
+  {
+    id: 'wx-current', name: 'Weather Now', category: 'weather', live: 'hold', coverage: 'region', hold: 8, tags: ['weather', 'current', 'temperature', 'live data'],
+    fields: [F('place', 'Place', 'Atlanta, GA'), F('icon', 'Icon', 'partly'), F('temp', 'Temperature', '72'), F('unit', 'Unit', '°F'), F('condition', 'Condition', 'Partly cloudy'), F('high', 'High', '78'), F('low', 'Low', '61')],
+    dataHints: { place: 'place', icon: 'icon', temp: 'temp', unit: 'unit', condition: 'condition', high: 'high', low: 'low' },
+    build: pk => {
+      const b = { x: LX, y: LY - 20, w: 780, h: 150 };
+      return [
+        ...plate(pk, 'Plate', b, 0, { noSkew: true }),
+        { id: lid('ic'), name: 'Weather icon', kind: 'weather', x: b.x + 20, y: b.y + 15, w: 120, h: 120, text: '{icon}', fill: 'ink', in: mv('pop', D(pk, .8), D(pk, .3), 'back'), out: mv('pop', .3), loop: { type: 'none', period: 4 } },
+        text(pk, 'Temperature', { x: b.x + 150, y: b.y + 12, w: 220, h: 126 }, '{temp}{unit}', 'big', onColor(pk, pk.palette.paper), D(pk, .45), { size: 104, maxLines: 1, upper: false }),
+        text(pk, 'Place', { x: b.x + 390, y: b.y + 20, w: 370, h: 52 }, '{place}', 'title', onColor(pk, pk.palette.paper), D(pk, .55), { size: 40 }),
+        text(pk, 'Condition', { x: b.x + 390, y: b.y + 72, w: 370, h: 34 }, '{condition}', 'sub', pk.shape.plate === 'none' ? 'secondary' : onColor(pk, pk.palette.paper), D(pk, .7), { size: 26 }),
+        text(pk, 'High / low', { x: b.x + 390, y: b.y + 106, w: 370, h: 30 }, 'H {high}°  ·  L {low}°', 'mono', 'accent', D(pk, .85), { size: 22, upper: false }),
+      ];
+    },
+  },
+  {
+    id: 'wx-5day', name: '5-Day Forecast', category: 'weather', live: 'hold', coverage: 'full', hold: 10, tags: ['weather', 'forecast', 'week', 'live data'],
+    fields: [F('place', 'Place', 'Atlanta, GA'), ...[0, 1, 2, 3, 4].flatMap(i => [F(`d${i}`, `Day ${i + 1}`, ['Today', 'Tue', 'Wed', 'Thu', 'Fri'][i]), F(`i${i}`, `Icon ${i + 1}`, ['partly', 'sun', 'rain', 'storm', 'cloud'][i]), F(`h${i}`, `High ${i + 1}`, String(78 - i)), F(`l${i}`, `Low ${i + 1}`, String(61 - i))])],
+    dataHints: { place: '@0:place', ...Object.fromEntries([0, 1, 2, 3, 4].flatMap(i => [[`d${i}`, `@${i}:day`], [`i${i}`, `@${i}:icon`], [`h${i}`, `@${i}:high`], [`l${i}`, `@${i}:low`]])) },
+    build: pk => {
+      const L: CgLayer[] = [
+        { id: lid('bg'), name: 'Background', kind: 'rect', x: 0, y: 0, w: 1920, h: 1080, gradient: { type: 'linear', angle: 170, stops: [[0, 'paper'], [1, 'shade']] }, in: mv('fade', D(pk), 0, 'inOut'), out: mv('fade', D(pk, .7)) },
+        ...ornament(pk, { x: 0, y: 0, w: 1920, h: 1080 }, .1),
+        text(pk, 'Place', { x: 160, y: 120, w: 1600, h: 120 }, '{place}', 'big', onColor(pk, pk.palette.paper), D(pk, .5), { size: 96, maxLines: 1 }),
+        text(pk, 'Kicker', { x: 160, y: 240, w: 900, h: 44 }, '5-day forecast', 'mono', 'accent', D(pk, .7)),
+      ];
+      for (let i = 0; i < 5; i++) {
+        const x = 160 + i * 328, dl = D(pk, .9) + i * .12;
+        L.push(...plate(pk, `Day card ${i + 1}`, { x, y: 330, w: 300, h: 560 }, dl, { noSkew: true, loop: false, fill: i === 0 ? 'accent' : undefined }));
+        const ink = i === 0 ? onColor(pk, pk.palette.accent) : onColor(pk, pk.palette.paper);
+        L.push(text(pk, `Day ${i + 1}`, { x: x + 20, y: 360, w: 260, h: 60 }, `{d${i}}`, 'title', ink, dl + .1, { align: 'center', size: 44 }));
+        L.push({ id: lid('ic'), name: `Icon ${i + 1}`, kind: 'weather', x: x + 60, y: 450, w: 180, h: 180, text: `{i${i}}`, fill: i === 0 ? ink : 'ink', in: mv('pop', .5, dl + .15, 'back'), out: mv('fade', .3) });
+        L.push(text(pk, `High ${i + 1}`, { x: x + 20, y: 660, w: 260, h: 110 }, `{h${i}}°`, 'big', ink, dl + .2, { align: 'center', size: 96, upper: false }));
+        L.push(text(pk, `Low ${i + 1}`, { x: x + 20, y: 780, w: 260, h: 60 }, `{l${i}}°`, 'sub', i === 0 ? ink : 'secondary', dl + .25, { align: 'center', size: 40 }));
+      }
+      return L;
+    },
+  },
+  {
+    id: 'vis-backdrop', name: 'Visualizer Backdrop', category: 'visual', live: 'hold', coverage: 'full', hold: 10, tags: ['visualizer', 'background', 'audio reactive', 'chora'],
+    fields: [F('title', 'Title', 'Night of Worship'), F('sub', 'Subtitle', 'Live from the sanctuary')],
+    build: pk => [
+      { id: lid('vis'), name: 'Visualizer', kind: 'visual', x: 0, y: 0, w: 1920, h: 1080, paint: { source: { engine: 'worship', value: 'calm-02-galilee-dawn-waters', audio: 'master' }, mode: 'fill', fit: 'cover' }, in: mv('fade', 1.2, 0, 'inOut'), out: mv('fade', D(pk, .8)) },
+      { id: lid('tint'), name: 'Brand tint', kind: 'rect', x: 0, y: 0, w: 1920, h: 1080, gradient: { type: 'linear', angle: 180, stops: [[0, 'rgba(0,0,0,0)'], [1, 'shade']] }, opacity: .75, in: mv('fade', 1, .2), out: mv('fade', .6) },
+      text(pk, 'Title', { x: 160, y: 700, w: 1600, h: 150 }, '{title}', 'big', '#ffffff', D(pk, .8), { size: 120, maxLines: 1, shadow: { color: 'rgba(0,0,0,.5)', blur: 20 } }),
+      text(pk, 'Subtitle', { x: 160, y: 860, w: 1600, h: 60 }, '{sub}', 'sub', 'accent', D(pk, 1.1), { size: 38 }),
+    ],
+  },
+  {
+    id: 'vis-strap', name: 'Visualizer Strap', category: 'visual', live: 'hold', coverage: 'region', hold: 6, tags: ['visualizer', 'lower third', 'gradient map', 'audio reactive'],
+    fields: [F('name', 'Name', 'Worship Team'), F('title', 'Title', 'Now playing · Way Maker')],
+    build: pk => {
+      const b = { x: LX, y: LY, w: 820, h: 130 };
+      return [
+        // The plate is a live visualizer gradient-mapped through the package palette, so it stays on brand.
+        { id: lid('plate'), name: 'Visual plate', kind: 'rect', ...b, radius: pk.shape.radius, skew: pk.shape.skew, gradient: { type: 'linear', angle: 90, stops: [[0, 'shade'], [.55, 'paper'], [1, 'accent']] }, paint: { source: { engine: 'worship', value: 'calm-06-rose-window-caustics', audio: 'master' }, mode: 'gradient-map' }, in: mv(pk.motion.plateIn, D(pk), 0, pk.motion.ease), out: mv(pk.motion.plateOut, D(pk, .7), 0, 'inOut') },
+        ...accent(pk, b, D(pk, .2)),
+        text(pk, 'Name', { x: b.x + 34, y: b.y + 10, w: b.w - 68, h: 70 }, '{name}', 'title', '#ffffff', D(pk, .4), { size: 58, shadow: { color: 'rgba(0,0,0,.55)', blur: 10 } }),
+        text(pk, 'Title', { x: b.x + 34, y: b.y + 80, w: b.w - 68, h: 40 }, '{title}', 'sub', '#ffffffdd', D(pk, .65), { size: 28, shadow: { color: 'rgba(0,0,0,.55)', blur: 8 } }),
+      ];
+    },
+  },
+  {
+    id: 'tag-follow', name: 'Tracked Name Tag', category: 'callout', live: 'hold', coverage: 'region', hold: 10, tags: ['tracking', 'follow', 'name tag', 'ar', 'live video'],
+    fields: [F('name', 'Name', 'Coach Reyes'), F('title', 'Title', 'Atlanta FC')],
+    build: pk => {
+      // Built around (960, 300): the anchor origin defaults to the top-centre of the bounds,
+      // so with anchor point 'faceBottom' the stem's tip sits under the subject's chin.
+      const tag = { x: 790, y: 340, w: 340, h: 92 };
+      return [
+        { id: lid('stem'), name: 'Stem', kind: 'line', x: 960, y: 300, w: 0, h: 40, stroke: 'accent', strokeWidth: 3, in: mv('wipeD', .25, 0), out: mv('fade', .2) },
+        { id: lid('dot'), name: 'Pin', kind: 'ellipse', x: 952, y: 292, w: 16, h: 16, fill: 'accent', in: mv('pop', .3, 0, 'back'), out: mv('pop', .2), loop: { type: 'pulse', period: 1.6, amount: .2 } },
+        ...plate(pk, 'Tag', tag, .15, { loop: false }),
+        text(pk, 'Name', { x: tag.x + 18, y: tag.y + 6, w: tag.w - 36, h: 48 }, '{name}', 'title', onColor(pk, pk.palette.paper), .3, { size: 34, align: 'center' }),
+        text(pk, 'Title', { x: tag.x + 18, y: tag.y + 52, w: tag.w - 36, h: 30 }, '{title}', 'sub', pk.shape.plate === 'none' ? 'secondary' : onColor(pk, pk.palette.paper), .45, { size: 20, align: 'center' }),
+      ];
+    },
+  },
 ];
 
 /** Build the graphic for (package, archetype). Deterministic ids: `${pkg}.${archetype}`. */
@@ -672,6 +754,7 @@ export function buildGraphic(pk: CgPackage, a: CgArchetype): CgGraphic {
     live: a.live,
     coverage: a.coverage,
     credit: { council: 'roster', member: pk.hand },
+    ...(a.dataHints ? { dataHints: { ...a.dataHints } } : {}),
     version: 1,
   };
   const t = measureTiming(g);
