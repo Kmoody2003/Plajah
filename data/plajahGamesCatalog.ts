@@ -597,7 +597,6 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   // ── PARLOR, BOARD & WORD GAMES (5 GAMES) ──────────────────────────────────
   {
     id: 'cyber-ttt',
-    capturePending: true,
     coverGlyph: '✕ ◯',
     title: 'Cyber Tic Tac Toe',
     subtitle: 'Neon Parlor & Board Strategy · Ranked ELO & Verified Ledger',
@@ -609,8 +608,11 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
     duration: '1–3 Min Matches',
     accentGradient: 'from-cyan-500/25 via-fuchsia-600/20 to-slate-950',
     accentColor: '#22d3ee',
-    thumbnailUrl: '/games/era-clash/assets/stage-china.webp',
-    screenshots: [],
+    thumbnailUrl: '/games/screens/cyber-ttt-win.jpg',
+    screenshots: [
+      { url: '/games/screens/cyber-ttt-win.jpg', caption: 'Three in a row on the neon grid · the CPU takes the round' },
+      { url: '/games/screens/cyber-ttt-draw.jpg', caption: 'Grid locked · scoreboard tracks wins, draws and losses' },
+    ],
     description: 'Classic parlor board strategy supercharged with neon aesthetics, smart CPU AI, same-device 2P, and server-refereed online ranked matches.',
     longDescription: 'Cyber Tic Tac Toe is the flagship parlor board game on Plajah’s decentralized Gamer Network. Every online match is refereed server-side and recorded onto your cryptographic Gamer Ledger, moving your ELO rating and unlocking Plajah Achievements.',
     features: [
@@ -650,7 +652,6 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   },
   {
     id: 'sketch-rush',
-    capturePending: true,
     coverGlyph: '✎',
     title: 'Sketch Rush',
     subtitle: 'Live Drawing & Word-Guessing Party · Streamed to Your Feed',
@@ -662,8 +663,11 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
     duration: '5–10 Min Rooms',
     accentGradient: 'from-pink-500/25 via-violet-700/25 to-slate-950',
     accentColor: '#ec4899',
-    thumbnailUrl: '/kith-party/characters/pippa.svg',
-    screenshots: [],
+    thumbnailUrl: '/games/screens/sketch-rush-guess.jpg',
+    screenshots: [
+      { url: '/games/screens/sketch-rush-guess.jpg', caption: 'Live drawing streams to every phone · guesses roll in' },
+      { url: '/games/screens/sketch-rush-draw.jpg', caption: 'Hints reveal letters as the clock runs down' },
+    ],
     description: 'Go live and draw! Your audience guesses the secret word from the stream or right inside their Plajah feed for Gamer Score.',
     longDescription: 'Sketch Rush turns your live stream into an interactive parlor party. Draw on the studio canvas while viewers type guesses in real time—faster guesses earn more points on the Plajah Gamer Ledger.',
     features: [
@@ -695,7 +699,6 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   },
   {
     id: 'brain-rush',
-    capturePending: true,
     coverGlyph: '?',
     title: 'Brain Rush',
     subtitle: 'Rapid-Fire Live Trivia Parlor · Speed & Accuracy Win',
@@ -707,8 +710,11 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
     duration: '5–20 Rounds',
     accentGradient: 'from-sky-500/25 via-indigo-800/25 to-slate-950',
     accentColor: '#0ea5e9',
-    thumbnailUrl: '/kith-party/characters/tavi.svg',
-    screenshots: [],
+    thumbnailUrl: '/games/screens/brain-rush-question.jpg',
+    screenshots: [
+      { url: '/games/screens/brain-rush-question.jpg', caption: 'Rapid-fire trivia played right from the feed' },
+      { url: '/games/screens/brain-rush-reveal.jpg', caption: 'Ten questions a round · right and fast wins' },
+    ],
     description: 'Rapid-fire trivia for your stream or friend group. Right and fast wins the round and climbs the live room leaderboard.',
     longDescription: 'Host a trivia night in seconds. Pick a question pack, set round timers (8–20s), post to your feed or go live on video, and watch scores update live.',
     features: [
@@ -739,7 +745,6 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   },
   {
     id: 'crowd-says',
-    capturePending: true,
     coverGlyph: '#1',
     title: 'Crowd Says',
     subtitle: 'Word & Survey Party · The Room Makes the Board',
@@ -751,8 +756,11 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
     duration: '3–10 Rounds',
     accentGradient: 'from-amber-500/25 via-orange-800/25 to-slate-950',
     accentColor: '#f59e0b',
-    thumbnailUrl: '/kith-party/characters/bram.svg',
-    screenshots: [],
+    thumbnailUrl: '/games/screens/crowd-says-board.jpg',
+    screenshots: [
+      { url: '/games/screens/crowd-says-board.jpg', caption: 'The crowd’s top answers, ranked live' },
+      { url: '/games/screens/crowd-says-answer.jpg', caption: 'Lock in what you think most people said' },
+    ],
     description: 'Answer like the crowd! Every player submits a word or phrase—the room’s own answers build the scoring board.',
     longDescription: 'A modern parlor word game where the audience IS the survey. Type the answer you think everyone else will say; matching answers cluster together for massive points.',
     features: [
@@ -783,7 +791,6 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   },
   {
     id: 'impostor-night',
-    capturePending: true,
     coverGlyph: '◐',
     title: 'Impostor Night',
     subtitle: 'Social Deduction Word Game · Clue, Bluff, Vote',
@@ -795,8 +802,11 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
     duration: '2–8 Rounds',
     accentGradient: 'from-emerald-500/25 via-teal-900/25 to-slate-950',
     accentColor: '#10b981',
-    thumbnailUrl: '/kith-party/characters/luma.svg',
-    screenshots: [],
+    thumbnailUrl: '/games/screens/impostor-night-clues.jpg',
+    screenshots: [
+      { url: '/games/screens/impostor-night-clues.jpg', caption: 'Everyone gets the secret word except the impostor' },
+      { url: '/games/screens/impostor-night-vote.jpg', caption: 'One-word clues, then the vote' },
+    ],
     description: 'Everyone knows the secret word except the Impostor. Drop a subtle clue, spot the bluff, and vote them out.',
     longDescription: 'A razor-sharp parlor word deduction game. Crew members give one-word clues without giving away the secret word; the Impostor has to blend in or guess the word before getting voted out.',
     features: [
