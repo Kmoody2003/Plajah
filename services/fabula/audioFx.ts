@@ -14,7 +14,17 @@ export {
   newInstance,
 } from '../melos/beats/fx/devices';
 export type { FxInstance, FxDescriptor } from '../melos/beats/fx/devices';
-export { presetsForFx } from '../melos/beats/fx/presets';
+import { presetsForFx as melosPresetsForFx } from '../melos/beats/fx/presets';
+import { deviceByType as melosDeviceByType } from '../melos/beats/fx/devices';
+import { councilPresetsForAudioDevice } from './fxCouncilPresets';
+/** Melos's signature presets followed by the Music Council bank (Producer, Mix, Master,
+ *  Virtuoso, Composer, Lighting Director). Melos itself keeps its own list unchanged. */
+export function presetsForFx(type: string): ReturnType<typeof melosPresetsForFx> {
+  const base = melosPresetsForFx(type);
+  const device = melosDeviceByType(type);
+  if (!device) return base;
+  return [...base, ...councilPresetsForAudioDevice(device as never)] as ReturnType<typeof melosPresetsForFx>;
+}
 // Master soft-clip brickwall curve — Melos's memoryless limiter that leaves layers
 // untouched instead of pumping/ducking the sum (graph.ts is import-type-only at
 // runtime, so this tree-shakes to just the function).

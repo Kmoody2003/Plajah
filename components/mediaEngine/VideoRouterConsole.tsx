@@ -11,6 +11,8 @@ import { unavailableReason } from '../../services/mediaEngine/capabilities';
 import { SourceKind, KIND_LABEL, NATIVE_ONLY, TransitionType, MasterClock, PROGRAM_SOURCE_ID } from '../../services/mediaEngine/types';
 import { NativeSourceInfo, getNdiStatus } from '../../services/mediaEngine/bridge';
 import { SwitcherRouterReceiver } from './SwitcherRouterReceiver';
+import { sharedPlayout } from '../../services/fabula/cg/cgPlayout';
+import { cgProgramLayer } from '../../services/fabula/cg/cgOutput';
 import { BlackmagicPanel } from './BlackmagicPanel';
 import TvSendTargets from '../tv/TvSendTargets';
 
@@ -225,6 +227,16 @@ const VideoRouterConsole: React.FC<Props> = ({ onBack, engine: externalEngine, c
   useEffect(() => () => { if (ownsEngine) engine.dispose(); }, [engine, ownsEngine]);
   // The program monitor shows the real composited output (same pixels that record / go live).
   useEffect(() => { engine.enableProgramOutput(); }, [engine]);
+  // Fabula CG composites over program on the router too (the same playout as Fabula, TV Studio
+  // and Stage), and a stinger taken anywhere cuts this switcher at its covered frame.
+  useEffect(() => {
+    const playout = sharedPlayout({ master: true });
+    const out = engine.enableProgramOutput();
+    const layer = cgProgramLayer(playout, 60);
+    out.addLayer(layer);
+    const offCut = playout.onCut(() => engine.cut());
+    return () => { out.removeLayer(layer.id); offCut(); };
+  }, [engine]);
 
   // Smart Director's decision engine, pointed at this switcher (OFF / ASSIST / AUTO). An
   // embedding surface (Sports Director) may already have one attached — reuse it.

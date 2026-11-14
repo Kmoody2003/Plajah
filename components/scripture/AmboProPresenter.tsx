@@ -125,6 +125,7 @@ import { applySavedLook } from '../../services/ambo/scriptureLook';
 import { noteTemplateUse, slideFieldsFor, type SavedTemplate } from '../../services/ambo/templateLibrary';
 import { importFilesIntoTarget, filesFromDataTransfer, moveBefore, insertionIndexFor, dirOf, dropRelPath } from '../../services/ambo/mediaFolders';
 import type { ProgramTake } from '../../services/ambo/outputRouter';
+import { readCgDragData } from '../../services/fabula/cg/cgLibrary';
 import { applyMediaToSlide, slideFromMedia, sourceToDropMedia, playlistItemFromMedia, nativeDropDir, type DropMedia } from '../../services/ambo/mediaDrop';
 
 /** Stamp the operator's scripture look onto the verse as it goes to the outputs (mesh devices have no shared storage). */
@@ -1465,6 +1466,21 @@ useEffect(() => {
     setIsDraggingOverDeck(false);
     setInsertAt(null);
     if (draggingSlideRef.current !== null) { const from = draggingSlideRef.current; draggingSlideRef.current = null; reorderSlide(from, slides.length); return; } // card dropped past the last one: move to end
+    // Fabula CG graphic → a new slide carrying it (overlay slot for keyed elements, slide slot for full pages).
+    const cg = readCgDragData(e.dataTransfer);
+    if (cg && cg.ref.graphicId === 'cg:live') {
+      // The whole live CG program as a persistent overlay slide (what Fabula / TV Studio take shows on Stage outputs).
+      const slide: Slide = { id: newId('slide'), label: 'Fabula CG · Live program', layers: [{ id: newId('ly_cglive'), slot: 'overlay', content: { kind: 'FABULA_CG_LIVE' } }] };
+      setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : { ...sh, slides: [...sh.slides, slide] })));
+      setSelected(slides.length);
+      return;
+    }
+    if (cg) {
+      const slide: Slide = { id: newId('slide'), label: cg.name, layers: [{ id: newId('ly_cg'), slot: cg.category === 'full-page' || cg.category === 'opener' || cg.category === 'end-card' || cg.category === 'countdown' ? 'slide' : 'overlay', content: { kind: 'FABULA_GRAPHIC', ref: cg.ref, label: cg.name } }] };
+      setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : { ...sh, slides: [...sh.slides, slide] })));
+      setSelected(slides.length);
+      return;
+    }
     try {
       const dataStr = e.dataTransfer.getData('application/json');
       if (dataStr) {
@@ -1519,6 +1535,17 @@ useEffect(() => {
         return;
       }
       if (!targetSlide) return;
+
+      // Fabula CG graphic dropped on a slide: it rides in the overlay slot (replacing a previous CG there).
+      const cg = readCgDragData(e.dataTransfer);
+      if (cg) {
+        const layer: SlideLayer = cg.ref.graphicId === 'cg:live'
+          ? { id: newId('ly_cglive'), slot: 'overlay', content: { kind: 'FABULA_CG_LIVE' } }
+          : { id: newId('ly_cg'), slot: 'overlay', content: { kind: 'FABULA_GRAPHIC', ref: cg.ref, label: cg.name } };
+        const nextLayers = [...targetSlide.layers.filter(l => !(l.slot === 'overlay' && (l.content.kind === 'FABULA_GRAPHIC' || l.content.kind === 'FABULA_CG_LIVE'))), layer];
+        setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : { ...sh, slides: sh.slides.map((sl, i) => (i === slideIndex ? { ...sl, layers: nextLayers } : sl)) })));
+        return;
+      }
 
       const dataStr = e.dataTransfer.getData('application/json');
       if (dataStr) {

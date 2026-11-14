@@ -1,5 +1,6 @@
 import { PHASE3_TRANSITIONS } from '../../components/plajahPixels/engine/fx/phase3Transitions';
 import type { TelaChartStyle } from '../../types';
+import { allPresetsForTransition } from './fxCouncilPresets';
 
 export interface ForgeTransition {
   id: string;
@@ -82,7 +83,13 @@ export const FORGE_TRANSITIONS: ForgeTransition[] = [
 export function createForgeTransition(id: string, presetId?: string, dur = 1) {
   const transition = FORGE_TRANSITIONS.find((candidate) => candidate.id === id);
   if (!transition) throw new Error(`Unknown Forge transition: ${id}`);
-  const preset = presetId ? transition.presets.find((candidate) => candidate.id === presetId) : undefined;
+  const preset = presetId ? transitionPresets(transition).find((candidate) => candidate.id === presetId) : undefined;
   if (presetId && !preset) throw new Error(`Unknown preset ${presetId} for ${id}`);
   return { type: 'forge', forgeId: id, presetId: preset?.id, dur, params: { ...transition.defaults, ...(preset?.params || {}) } };
+}
+
+/** Hand-authored presets followed by the council bank (ranges from the phase-3 registry when declared). */
+export function transitionPresets(transition: ForgeTransition): Array<{ id: string; name: string; params: Record<string, number>; description?: string }> {
+  const ranges = PHASE3_TRANSITIONS.find((t) => t.id === transition.id)?.params;
+  return allPresetsForTransition(transition, ranges);
 }

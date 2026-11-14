@@ -143,6 +143,10 @@ export type LayerContent =
   | { kind: 'LYRICS'; lines: Array<{ time: number; text: string; adlib?: boolean }>; styleId: string;
       title?: string; artist?: string; trackId?: string; bpm?: number; firstBeat?: number;
       clock: LyricClock }
+  /** Fabula CG graphic (services/fabula/cg) — one broadcast element as a slide layer. */
+  | { kind: 'FABULA_GRAPHIC'; ref: import('../fabula/cg/cgTypes').CgGraphicRef; label?: string }
+  /** The live Fabula CG program (shared playout) mirrored onto Stage outputs. */
+  | { kind: 'FABULA_CG_LIVE' }
   | { kind: 'CLEAR' };
 
 /** Song position = playing ? anchorPos + (Date.now() − anchorMs)/1000 × rate : anchorPos */

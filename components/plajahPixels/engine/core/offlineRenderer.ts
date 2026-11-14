@@ -34,6 +34,8 @@ import { getTextCanvas } from './textLayer';
 import { getTitleCanvas } from './titleLayer';
 import { getLowerThirdCanvas } from './lowerThirdLayer';
 import { getBroadcastGraphicCanvas, ensureBroadcastGraphic } from './broadcastGraphicLayer';
+import { findCgGraphic } from '../../../../services/fabula/cg/cgLibrary';
+import { drawCgGraphic, ensureCgFonts, preloadCgImages } from '../../../../services/fabula/cg/cgRender';
 import { renderMotionClipFrame, ensureMotionTemplateFonts } from '../../../../services/tela/telaMotionTemplate';
 import { findLowerThird } from '../../../../services/fabula/lowerThirdRegistry';
 import { materialShaderSource } from '../presets/materialShaders';
@@ -98,6 +100,8 @@ async function pickVideoCodec(width: number, height: number, bitrate: number, fp
 const presented = new WeakMap<HTMLVideoElement, { mediaTime: number; frameDur: number; samples: number }>();
 /** One reusable canvas per motion-template layer (Ambo slide / scripture clips). */
 const motionCanvases = new Map<string, HTMLCanvasElement>();
+/** CG graphics whose fonts/images are already loaded for this session. */
+const cgPrepared = new Set<string>();
 
 function seekVideo(v: HTMLVideoElement, t: number, timeoutMs = 2500): Promise<void> {
   // ALWAYS RESOLVES — never rejects. A paused seek presents exactly ONE frame (the nearest
@@ -407,6 +411,19 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
             inputs.push({ texture: tex, opacity: opacity * fusion.opacity, blendMode: fusion.blend, transform: layer.transform, homography: (layer as any).homography });
           }
           inputs.push({ element: getLowerThirdCanvas({ spec, ref: tc.tGraphic, title: tc.rawText ?? clip.text ?? '', subtitle: clip.subtitle, tag: tc.tag, t: layer.time ?? 0, duration: tc.tDur ?? Infinity, origin: tc.tx != null && tc.ty != null ? { x: tc.tx, y: tc.ty } : undefined, width, height }), opacity, blendMode: 'normal', transform: layer.transform, homography: (layer as any).homography });
+        } else if (clip.type === 'title' && (clip as any).cGraphic) {
+          // Fabula CG graphic — the same evaluator + Canvas2D renderer as the monitor, the
+          // switcher and Stage; t = clip-local time, D = clip duration (handles retime the OUT).
+          const tc = clip as any;
+          const g = findCgGraphic(tc.cGraphic);
+          if (g) {
+            if (!cgPrepared.has(g.id)) { cgPrepared.add(g.id); await ensureCgFonts(g); await preloadCgImages(g, tc.cGraphic); }
+            let cnv = motionCanvases.get(layer.id);
+            if (!cnv) { cnv = document.createElement('canvas'); motionCanvases.set(layer.id, cnv); }
+            if (cnv.width !== width || cnv.height !== height) { cnv.width = width; cnv.height = height; }
+            const cctx = cnv.getContext('2d');
+            if (cctx) { cctx.clearRect(0, 0, width, height); drawCgGraphic(cctx, g, layer.time ?? 0, tc.tDur ?? Infinity, width, height, tc.cGraphic, { now: Date.now() }); inputs.push({ element: cnv, opacity, blendMode: 'normal', transform: layer.transform, homography: (layer as any).homography }); }
+          }
         } else if (clip.type === 'title' && (clip as any).mGraphic) {
           // Ambo motion template (Tela MOTION_TEMPLATE spec) — same renderer as Fabula's
           // monitor; the clip duration drives entrance/exit.

@@ -17,6 +17,8 @@ import { useEffect, useRef, useState } from "react";
 import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
 import FxPreviewTile, { GenPreviewTile, TransPreviewTile, LookPreviewTile, FilterPreviewTile, LottiePreviewTile } from "./FxPreviewTile";
 import { FORGE_TRANSITIONS } from "../../services/fabula/forgeTransitions";
+import { councilPresetsForEffect, councilPresetsForTransition } from "../../services/fabula/fxCouncilPresets";
+import { PHASE3_TRANSITIONS } from "../plajahPixels/engine/fx/phase3Transitions";
 import { FORGE_LOOKS, LOOK_CATEGORIES, allLooks, deleteUserLook } from "../../services/fabula/forgeLooks";
 import { FABULA_LOTTIE_LIBRARY, fabulaLottieAsMediaAsset } from "../../services/fabulaLottieLibrary";
 import { FLUX_PLATFORM_MODES } from '../plajahPixels/engine/fluxPlatformCatalog';
@@ -79,13 +81,13 @@ export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onApplyLook, on
           <>
             <div className="dim small" style={{ padding: "2px 2px 8px" }}>{selClipId ? "A look is a whole effect stack. One click builds it on the clip; every step stays editable in the Inspector." : "Select a video clip to apply a look."}</div>
             <div className="btnrow" style={{ gap: 4, flexWrap: "wrap", padding: "0 2px 6px" }}>
-              {[["all", "ALL"], ...LOOK_CATEGORIES.map((c) => [c.id, c.label])].map(([id, lbl]) => (
+              {[["all", "ALL"], ...LOOK_CATEGORIES.map((c) => [c.id, c.label]), ["council", "COUNCIL"]].map(([id, lbl]) => (
                 <button key={id} className={`minibtn ${lookCat === id ? "on" : ""}`} onClick={() => setLookCat(id)}>{lbl}</button>
               ))}
-              <span className="dim small mono">{looks.filter((l) => lookCat === "all" || l.category === lookCat).length}/{looks.length}</span>
+              <span className="dim small mono">{looks.filter((l) => lookVisible(l, lookCat)).length}/{looks.length}</span>
             </div>
             <div className="fxgrid">
-              {looks.filter((look) => lookCat === "all" || look.category === lookCat).map((look) => (
+              {looks.filter((look) => lookVisible(look, lookCat)).map((look) => (
                 <div key={look.id} style={{ position: "relative" }}>
                   <button className="fxcard" disabled={!selClipId} onClick={() => onApplyLook(look)} title={`${look.name} — ${look.description}`}>
                     <LookPreviewTile look={look} className="fxthumb" />
@@ -111,6 +113,9 @@ export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onApplyLook, on
                 <button className="fxrowbtn" disabled={!selClipId} onClick={() => onAddForge(effect.id)} title={effect.summary || `Add ${effect.name}`}>
                   <span className="fxdot">✦</span><span className="fxrowname">{effect.name}</span><span className="dim small">ADD</span>
                 </button>
+                <CouncilPresetRow effectName={effect.name} presets={councilPresetsForEffect(effect)} disabled={!selClipId}
+                  renderTile={(preset) => <FxPreviewTile effect={effect} preset={preset} className="fxthumb" />}
+                  onPick={(preset) => onAddForge(effect.id, preset.id)} />
                 {!!effect.presets?.length ? (
                   <div className="fxgrid" style={{ marginTop: 5 }}>
                     {effect.presets.map((preset) => (
@@ -146,6 +151,9 @@ export function FxLibraryPanel({ prod, selClipId, onApplyFilter, onApplyLook, on
                     </button>
                   ))}
                 </div>
+                <CouncilPresetRow effectName={transition.name} presets={councilPresetsForTransition(transition, PHASE3_TRANSITIONS.find((t) => t.id === transition.id)?.params)} disabled={!selClipId}
+                  renderTile={(preset) => <TransPreviewTile transId={transition.id} transParams={preset.params} className="fxthumb" />}
+                  onPick={(preset) => onAddTransition(transition.id, preset.id)} />
               </div>
             ))}
           </>
@@ -591,4 +599,37 @@ export function PerformCapture({ onTake, ping }) {
       </div>
     </div>
   );
+}
+
+/* Council preset bank — twelve director lenses per effect/transition (services/fabula/fxCouncilPresets).
+   Collapsed by default so a long effect list doesn't spin up hundreds of preview tiles at once. */
+function CouncilPresetRow({ effectName, presets, disabled, renderTile, onPick }) {
+  const [open, setOpen] = useState(false);
+  if (!presets?.length) return null;
+  return (
+    <div style={{ marginTop: 4 }}>
+      <button className={`minibtn ${open ? "on" : ""}`} style={{ fontSize: 9 }} onClick={() => setOpen((v) => !v)} title={`Presets for ${effectName} from the Art and Motion councils`}>
+        {open ? "▾" : "▸"} COUNCIL PRESETS · {presets.length}
+      </button>
+      {open && (
+        <div className="fxgrid" style={{ marginTop: 5 }}>
+          {presets.map((preset) => (
+            <button key={preset.id} className="fxcard" disabled={disabled} onClick={() => onPick(preset)} title={preset.description}>
+              {renderTile(preset)}
+              <span className="fxname">{preset.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* "ALL" keeps to the signature + saved looks; the 72 council looks show under COUNCIL or inside
+   their own category, so the default grid stays light. */
+function lookVisible(look, cat) {
+  const council = look.id.startsWith("council-");
+  if (cat === "council") return council;
+  if (cat === "all") return !council;
+  return look.category === cat;
 }

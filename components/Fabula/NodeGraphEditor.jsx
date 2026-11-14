@@ -12,6 +12,7 @@ import { useMemo, useRef, useState } from "react";
 import SceneView from "../plajahPixels/components/SceneView";
 import PanelDivider from "./PanelDivider";
 import { FX_EFFECTS } from "../plajahPixels/engine/fx/effects";
+import { allPresetsForEffect } from "../../services/fabula/fxCouncilPresets";
 
 const uid = () => Math.random().toString(36).slice(2, 8);
 const GEN_MODES = ["WAVEFORM", "SPECTRUM", "TUNNEL", "VORTEX", "NEBULA", "COSMIC", "RETROGRID", "KALEIDOSCOPE", "STAGE", "LIQUID", "PARTICLES", "STORM", "LUMINANCE"];
@@ -235,11 +236,11 @@ export default function NodeGraphEditor({ onAddToPool, ping, palette }) {
                         {FX_EFFECTS.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                       </select>
                       {fx?.summary && <div className="dim small">{fx.summary}</div>}
-                      {!!fx?.presets?.length && (
+                      {!!fx && !!allPresetsForEffect(fx).length && (
                         <>
                           <span className="lbl">BEAUTIFUL STARTS</span>
                           <select className="sel xs" value={selNode.fxPresetId || ""} onChange={(e) => {
-                            const preset = fx.presets.find((candidate) => candidate.id === e.target.value);
+                            const preset = allPresetsForEffect(fx).find((candidate) => candidate.id === e.target.value);
                             if (!preset) return;
                             update(selNode.id, {
                               fxPresetId: preset.id,
@@ -247,10 +248,10 @@ export default function NodeGraphEditor({ onAddToPool, ping, palette }) {
                             });
                           }}>
                             <option value="" disabled>Choose a curated look…</option>
-                            {fx.presets.map((preset) => <option key={preset.id} value={preset.id}>{preset.name}</option>)}
+                            {allPresetsForEffect(fx).map((preset) => <option key={preset.id} value={preset.id}>{preset.id.startsWith("council-") ? `Council · ${preset.name}` : preset.name}</option>)}
                           </select>
-                          {fx.presets.find((preset) => preset.id === selNode.fxPresetId)?.description && (
-                            <div className="dim small">{fx.presets.find((preset) => preset.id === selNode.fxPresetId).description}</div>
+                          {allPresetsForEffect(fx).find((preset) => preset.id === selNode.fxPresetId)?.description && (
+                            <div className="dim small">{allPresetsForEffect(fx).find((preset) => preset.id === selNode.fxPresetId).description}</div>
                           )}
                         </>
                       )}

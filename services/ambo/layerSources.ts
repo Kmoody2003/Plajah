@@ -37,6 +37,8 @@ import {
   type TextBoundingBox, type AutoFitConfig,
 } from '../tela/textAutoFit';
 
+import { FabulaGraphicSource, FabulaCgLiveSource } from './fabulaCgSource';
+
 export interface LayerSource {
   readonly kind: string;
   /** Current frame, or null when not ready yet. */
@@ -1519,6 +1521,8 @@ export function createSource(
       const viz = scaleVisualizerSize(frame.w, frame.h);
       return new ShaderSource(content, viz.w, viz.h);
     }
+    case 'FABULA_GRAPHIC': return new FabulaGraphicSource(content, frame.w, frame.h);
+    case 'FABULA_CG_LIVE': return new FabulaCgLiveSource(frame.w, frame.h);
     case 'CLOCK': return new ClockSource(() => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     case 'TIMER': return new ClockSource(() => {
       const s = Math.max(0, Math.floor(timers?.[content.timerId] ?? 0));
@@ -1543,6 +1547,9 @@ export function canUpdateInPlace(a: LayerContent, b: LayerContent): boolean {
   if (a.kind === 'GENERATOR' && b.kind === 'GENERATOR') return a.mode === b.mode;
   if (a.kind === 'SHADER' && b.kind === 'SHADER') return a.src === b.src;
   if (a.kind === 'LOTTIE' && b.kind === 'LOTTIE') return a.src === b.src;
+  // Same CG graphic = a field edit (score, name) — repaint without replaying the IN.
+  if (a.kind === 'FABULA_GRAPHIC' && b.kind === 'FABULA_GRAPHIC') return a.ref.graphicId === b.ref.graphicId;
+  if (a.kind === 'FABULA_CG_LIVE' && b.kind === 'FABULA_CG_LIVE') return true;
   // Same track = a volume/loop change, not a restart from the top.
   if (a.kind === 'AUDIO' && b.kind === 'AUDIO') return a.src === b.src;
   return a.kind === 'CLOCK' || a.kind === 'TIMER';
