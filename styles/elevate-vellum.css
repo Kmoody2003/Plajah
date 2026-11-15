@@ -155,6 +155,8 @@
   .ev-scope a[href]:not([class*="absolute"]) { min-height: 40px; display: inline-flex; align-items: center; }
   .ev-scope a[href]:has(img), .ev-scope a[href]:has(svg:only-child) { display: inline-block; }
   .ev-scope .ev-tab { min-width: 44px; padding-left: 4px; padding-right: 4px; }
+  /* Page-view strip (Public page · Member home · Manage & Studio): one row across the top, tighter than desktop. */
+  .ev-mode-tab { padding-top: 12px; padding-bottom: 11px; font-size: 13.5px; }
   /* 16px stops iOS zooming the page when a field is focused. */
   .ev-scope input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), .ev-scope select, .ev-scope textarea { font-size: 16px; }
   .ev-scope img, .ev-scope video, .ev-scope canvas { max-width: 100%; }
@@ -163,3 +165,7 @@
   /* Sticky/bottom bars clear the home indicator. */
   .ev-scope [class*="bottom-0"][class*="fixed"], .ev-scope [class*="bottom-0"][class*="sticky"] { padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px); }
 }
+
+/* Page-view strip scrolls sideways on narrow phones without showing a scrollbar. */
+nav[aria-label="Page view"] { scrollbar-width: none; }
+nav[aria-label="Page view"]::-webkit-scrollbar { display: none; }

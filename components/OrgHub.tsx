@@ -13,7 +13,7 @@ import {
   Church, Clock, Gift, Trash2, Sparkles, MonitorPlay, Mail, HardDrive, Briefcase, Megaphone,
   KeyRound, UserCheck, Home, Image as ImageIcon, Calendar, Play, HandHeart, BookOpen,
   Heart, MessageSquare, Ticket, ExternalLink, Radio, NotebookPen, ArrowRight, ChevronLeft,
-  ShoppingBag, GraduationCap,
+  ShoppingBag, GraduationCap, Clapperboard,
 } from 'lucide-react';
 import type { Organization, OrgMembership, OrgType, OrgRole, UserProfile } from '../types';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
@@ -56,6 +56,7 @@ import HostEventsPublic from './events/HostEventsPublic';
 import OrgThread from './elevate/OrgThread';
 import OrgMediaShelves from './elevate/OrgMediaShelves';
 import ReelloDeptChannelsRow from './reello/ReelloDeptChannelsRow';
+import OrgMediaShelf from './orgPublish/OrgMediaShelf';
 import RelloChurchViewer from './elevate/RelloChurchViewer';
 // Operations side + public rosters + Church Member Hub (lazy so the public page never blocks on them).
 const ElevateOps = lazy(() => import('./elevate/ElevateOps'));
@@ -327,7 +328,7 @@ const ImagePick: React.FC<{ label: string; file: File | null; onPick: (f: File) 
   </label>
 );
 
-type ElevateOrgTab = 'HOME' | 'MINISTRIES' | 'CHRISTIAN_ED' | 'MOBILIZE' | 'PHOTOS' | 'EVENTS' | 'WATCH' | 'PRAYER' | 'LIBRARY' | 'STAFF' | 'GIVE' | 'SHOP';
+type ElevateOrgTab = 'HOME' | 'MINISTRIES' | 'CHRISTIAN_ED' | 'MOBILIZE' | 'PHOTOS' | 'REELLO' | 'EVENTS' | 'WATCH' | 'PRAYER' | 'LIBRARY' | 'STAFF' | 'GIVE' | 'SHOP';
 
 function getElevateOrgTabs(orgType?: OrgType): { k: ElevateOrgTab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] {
   const faith = isFaithOrg(orgType);
@@ -338,6 +339,7 @@ function getElevateOrgTabs(orgType?: OrgType): { k: ElevateOrgTab; label: string
       { k: 'CHRISTIAN_ED', label: 'Christian Education', icon: GraduationCap },
       { k: 'MOBILIZE',   label: 'Serve & Action',   icon: Sparkles },
       { k: 'PHOTOS',     label: 'Photos',           icon: ImageIcon },
+      { k: 'REELLO',     label: 'Reello',            icon: Clapperboard },
       { k: 'EVENTS',     label: 'Events',           icon: Calendar },
       { k: 'WATCH',      label: 'Watch',            icon: Play },
       { k: 'PRAYER',     label: 'Prayer',           icon: HandHeart },
@@ -353,6 +355,7 @@ function getElevateOrgTabs(orgType?: OrgType): { k: ElevateOrgTab; label: string
       { k: 'MINISTRIES', label: 'Programs',           icon: Users },
       { k: 'MOBILIZE',   label: 'Take Action',        icon: Sparkles },
       { k: 'PHOTOS',     label: 'Photos',             icon: ImageIcon },
+      { k: 'REELLO',     label: 'Reello',            icon: Clapperboard },
       { k: 'EVENTS',     label: 'Events',             icon: Calendar },
       { k: 'WATCH',      label: 'Watch',              icon: Play },
       { k: 'PRAYER',     label: 'Community Wall',     icon: HandHeart },
@@ -368,6 +371,7 @@ function getElevateOrgTabs(orgType?: OrgType): { k: ElevateOrgTab; label: string
       { k: 'MINISTRIES', label: 'Exhibits & Programs', icon: Users },
       { k: 'MOBILIZE',   label: 'Docents & Action',    icon: Sparkles },
       { k: 'PHOTOS',     label: 'Gallery',             icon: ImageIcon },
+      { k: 'REELLO',     label: 'Reello',            icon: Clapperboard },
       { k: 'EVENTS',     label: 'Events',              icon: Calendar },
       { k: 'WATCH',      label: 'Watch',               icon: Play },
       { k: 'PRAYER',     label: 'Patron Wall',         icon: HandHeart },
@@ -382,6 +386,7 @@ function getElevateOrgTabs(orgType?: OrgType): { k: ElevateOrgTab; label: string
     { k: 'MINISTRIES', label: 'Departments',       icon: Users },
     { k: 'MOBILIZE',   label: 'Action & Shifts',   icon: Sparkles },
     { k: 'PHOTOS',     label: 'Photos',            icon: ImageIcon },
+    { k: 'REELLO',     label: 'Reello',            icon: Clapperboard },
     { k: 'EVENTS',     label: 'Events',            icon: Calendar },
     { k: 'WATCH',      label: 'Watch',             icon: Play },
     { k: 'PRAYER',     label: 'Community',         icon: HandHeart },
@@ -760,6 +765,35 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                 {demo && <EvGallery albums={DEMO_CHURCH_ALBUMS} perAlbum={9} />}
               </div>
             )}
+
+            {/* ── TAB 3B: REELLO — the org's channel, its playlists and department channels ── */}
+            {tab === 'REELLO' && (() => {
+              const reelloUid = org.accountUid || org.contentUids?.[0];
+              return (
+                <div className="space-y-8">
+                  <div className="rounded-2xl p-5 bg-white/[0.03] border border-white/10 flex flex-wrap items-center gap-4">
+                    <div className="w-11 h-11 rounded-xl grid place-items-center shrink-0" style={{ background: 'rgba(122, 31, 192,0.18)' }}>
+                      <Clapperboard size={20} style={{ color: VIOLET_SOFT }} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-base font-black text-white m-0">{org.name} on Reello</p>
+                      <p className="type-body-sm text-white/45 m-0">
+                        {reelloUid ? 'Videos, playlists and department channels from this organization.'
+                          : isOwner ? 'Link a channel below so your Reello videos show here.' : 'No Reello channel linked yet.'}
+                      </p>
+                    </div>
+                    {reelloUid && onVisitUser && (
+                      <button onClick={() => onVisitUser(reelloUid)} className="ev-btn ev-btn-light shrink-0">
+                        Open channel <ArrowRight size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <OrgMediaShelves org={org} isOwner={isOwner} canManage={can('MANAGE_CONTENT')} onOrgChange={setOrg} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} />
+                  {!demo && <OrgMediaShelf orgId={org.id} app="reello" title="Playlists" hideWhenEmpty canManage={can('MANAGE_CONTENT')} />}
+                  <ReelloDeptChannelsRow orgId={org.id} />
+                </div>
+              );
+            })()}
 
             {/* ── TAB 4: EVENTS ── */}
             {tab === 'EVENTS' && (

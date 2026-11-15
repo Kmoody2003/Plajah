@@ -168,22 +168,26 @@ export const EvModeBar: React.FC<{
 }> = ({ modes, value, onChange, onBack, trailing }) => (
   <div className="sticky top-0 z-40 border-b" style={{ background: 'rgba(14,12,19,0.92)', borderColor: EV.line, backdropFilter: 'blur(16px)' }}>
     <div className="ev-brand-rule" />
-    <div className="max-w-[1240px] mx-auto px-4 sm:px-8 flex flex-wrap items-center gap-x-6 gap-y-1">
+    {/* Phones: two rows (back · brand · actions, then the experiences as one horizontal tab strip). sm+: one row. */}
+    <div className="max-w-[1240px] mx-auto px-4 sm:px-8 flex flex-wrap sm:flex-nowrap items-center gap-x-4 sm:gap-x-6">
       {onBack && (
-        <button onClick={onBack} aria-label="Back" className="flex items-center py-3 text-[#A49CB2] hover:text-white transition-colors">
+        <button onClick={onBack} aria-label="Back" className="flex items-center justify-center -ml-2 w-10 h-10 sm:w-auto sm:h-auto sm:ml-0 sm:py-3 text-[#A49CB2] hover:text-white transition-colors touch-manipulation">
           <ChevronLeft size={18} />
         </button>
       )}
       <EvPlajahMark />
-      <span aria-hidden="true" className="h-4 w-px" style={{ background: EV.line }} />
-      <nav aria-label="Page view" className="flex flex-wrap gap-x-6 flex-1 min-w-0">
+      <span aria-hidden="true" className="hidden sm:block h-4 w-px" style={{ background: EV.line }} />
+      <nav aria-label="Page view"
+        className="order-last sm:order-none basis-full sm:basis-auto flex flex-nowrap justify-between sm:justify-start gap-x-5 sm:gap-x-6 sm:flex-1 min-w-0 overflow-x-auto scrollbar-hide overscroll-x-contain -mx-4 px-4 sm:mx-0 sm:px-0"
+        style={{ scrollSnapType: 'x proximity' }}>
         {modes.map(m => (
-          <button key={m.k} onClick={() => onChange(m.k)} className="ev-tab" aria-current={value === m.k ? 'page' : undefined}>
+          <button key={m.k} onClick={() => onChange(m.k)} className="ev-tab ev-mode-tab shrink-0 touch-manipulation" style={{ scrollSnapAlign: 'start' }}
+            aria-current={value === m.k ? 'page' : undefined}>
             {m.label}
           </button>
         ))}
       </nav>
-      {trailing && <div className="flex items-center gap-2 py-2">{trailing}</div>}
+      {trailing && <div className="ml-auto sm:ml-0 flex items-center gap-2 py-1.5 sm:py-2 min-w-0">{trailing}</div>}
     </div>
   </div>
 );
