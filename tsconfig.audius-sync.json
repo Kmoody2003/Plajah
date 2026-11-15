@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": ["routes/audiusSession.ts", "services/audiusAuth.ts", "services/fediverse/instanceUrl.ts", "components/FediverseSettings.tsx", "services/fediverse/auth.ts"]
+}

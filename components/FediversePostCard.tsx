@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Heart, Repeat2, MessageCircle, ExternalLink, ChevronDown, ChevronUp, Play } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { useFediverse } from '../contexts/FediverseContext';
+import { useKeyboardInset, isTouchFirst } from '../hooks/useKeyboardInset';
 import type { FediversePost, FediverseProtocol } from '../services/fediverse/types';
 import { TYPE } from '../src/lib/designSystem';
 
@@ -77,74 +79,171 @@ export function stripHtml(html: string): string {
     .trim();
 }
 
-// ─── Reply sheet (inline) ─────────────────────────────────────────────────────
+// ─── Reply sheet (inline on desktop, docked above the keyboard on touch) ─────────────────────────────────────────────────────
 
-export function ReplySheet({ post, onClose }: { post: FediversePost; onClose: () => void }) {
-  const { crossPost, accounts } = useFediverse();
+export function ReplySheet({ post, onClose, onSent }: { post: FediversePost; onClose: () => void; onSent?: () => void }) {
+  const { crossPost } = useFediverse();
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Touch devices get a composer docked on top of the keyboard; desktop keeps the inline box under the post.
+  const [docked] = useState(() => isTouchFirst());
+  const kb = useKeyboardInset(docked);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
-  const account = accounts.find(a => a.id === post.accountId && a.protocol === post.protocol);
   const limit = post.protocol === 'bluesky' ? 300 : 500;
+  const proto = PROTOCOL[post.protocol] ?? PROTOCOL.bluesky;
+
+  // Grow with the text (up to ~6 lines) so long replies stay visible without an inner scrollbar fight.
+  useEffect(() => {
+    const ta = taRef.current; if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = `${Math.min(ta.scrollHeight, docked ? 148 : 180)}px`;
+  }, [text, docked]);
+
+  // Docked: focus as soon as the sheet mounts (still inside the tap, so iOS raises the keyboard), and stop the page
+  // behind from scrolling while the sheet is up — that scroll is what used to leave the big empty gap.
+  useEffect(() => {
+    if (!docked) return;
+    taRef.current?.focus({ preventScroll: true });
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current(); };
+    window.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener('keydown', onKey); };
+  }, [docked]);
 
   const handleSend = async () => {
-    if (!text.trim()) return;
+    const body = text.trim();
+    if (!body || sending) return;
     setSending(true);
+    setError(null);
     try {
-      await crossPost(text.trim(), {
+      await crossPost(body, {
         inReplyToId: post.id,
         inReplyToUri: post.uri,
         // Bluesky replies are record refs: the parent's cid plus the thread root (the parent itself when it IS the root).
-        ...(post.protocol === 'bluesky' ? { inReplyToCid: post.id, inReplyToRootUri: post.rootUri ?? post.uri, inReplyToRootCid: post.rootCid ?? post.id } : {}),
+        ...(post.protocol === 'bluesky' ? { inReplyToCid: post.cid ?? post.id, inReplyToRootUri: post.rootUri ?? post.uri, inReplyToRootCid: post.rootCid ?? post.cid ?? post.id } : {}),
       }, [post.accountId]);
       setText('');
+      onSent?.();
       onClose();
     } catch (err) {
       console.error('Reply failed:', err);
+      const msg = err instanceof Error ? err.message : '';
+      setError(/not found/i.test(msg) ? `Reconnect your ${proto.label} account in Settings → Networks to reply.`
+        : /expired|revoked|reconnect/i.test(msg) ? msg
+        : `Couldn't send your reply${msg ? ` (${msg})` : ''}. Try again.`);
     } finally {
       setSending(false);
     }
   };
 
-  const proto = PROTOCOL[post.protocol];
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Desktop: Enter sends, Shift+Enter breaks the line. Touch keyboards keep Enter as a newline.
+    if (!docked && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void handleSend(); }
+  };
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -4 }}
-      className="mt-3 rounded-2xl overflow-hidden"
-      style={{ background: `${proto.tint}`, border: `1px solid ${proto.border}` }}
+  const over = text.length > limit;
+  const canSend = Boolean(text.trim()) && !sending && !over;
+  const counter = (
+    <span className="text-[11px] tabular-nums" style={{ color: over ? '#f87171' : text.length > limit * 0.8 ? proto.accent : 'rgba(255,255,255,0.3)' }}>
+      {limit - text.length}
+    </span>
+  );
+  const sendBtn = (
+    <button
+      type="button"
+      onPointerDown={e => e.preventDefault() /* keep the keyboard up while tapping Send */}
+      onClick={handleSend}
+      disabled={!canSend}
+      className="tap shrink-0 min-h-[40px] px-4 rounded-full text-[13px] font-bold transition-all disabled:opacity-40 flex items-center gap-1.5 active:scale-95"
+      style={{ background: proto.accent, color: '#fff' }}
     >
-      <div className="p-3">
-        <textarea
-          value={text}
-          onChange={e => setText(e.target.value)}
-          placeholder={`Reply on ${proto.label}…`}
-          maxLength={limit}
-          rows={3}
-          className="w-full bg-transparent text-white text-sm resize-none outline-none placeholder-white/25 leading-relaxed"
-          autoFocus
-        />
-        <div className="flex items-center justify-between mt-2">
-          <span className="text-[10px]" style={{ color: text.length > limit * 0.8 ? proto.accent : 'rgba(255,255,255,0.2)' }}>
-            {text.length} / {limit}
-          </span>
-          <div className="flex gap-2">
-            <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-[10px] font-bold text-white/40 hover:text-white transition-colors">Cancel</button>
-            <button
-              onClick={handleSend}
-              disabled={!text.trim() || sending || text.length > limit}
-              className="px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-40 flex items-center gap-1.5"
-              style={{ background: proto.accent, color: '#fff' }}
-            >
-              {sending ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
-              Reply
-            </button>
+      {sending ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+      Reply
+    </button>
+  );
+  const textarea = (
+    <textarea
+      ref={taRef}
+      value={text}
+      onChange={e => { setText(e.target.value); if (error) setError(null); }}
+      onKeyDown={onKeyDown}
+      placeholder={`Reply to ${post.authorDisplayName || post.authorHandle}…`}
+      rows={docked ? 1 : 3}
+      enterKeyHint="enter"
+      autoCapitalize="sentences"
+      autoFocus={!docked}
+      className={`w-full bg-transparent text-white resize-none outline-none placeholder-white/30 leading-relaxed ${docked ? 'text-[16px] py-2' : 'text-sm'}`}
+    />
+  );
+
+  if (!docked) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -4 }}
+        className="mt-3 rounded-2xl overflow-hidden"
+        style={{ background: `${proto.tint}`, border: `1px solid ${proto.border}` }}
+      >
+        <div className="p-3">
+          {textarea}
+          {error && <p className="mt-1 text-[12px] text-red-400" role="alert">{error}</p>}
+          <div className="flex items-center justify-between mt-2">
+            {counter}
+            <div className="flex gap-2">
+              <button type="button" onClick={onClose} className="tap min-h-[36px] px-3 rounded-full text-[12px] font-semibold text-white/50 hover:text-white transition-colors">Cancel</button>
+              {sendBtn}
+            </div>
           </div>
         </div>
+      </motion.div>
+    );
+  }
+
+  // Docked sheet, portalled so the feed's transformed wrappers can't re-anchor `position: fixed`.
+  const snippet = stripHtml(post.content || post.contentText || '');
+  const visibleH = typeof window !== 'undefined' && window.visualViewport ? Math.round(window.visualViewport.height) : null;
+  return createPortal(
+    <div className="fixed inset-0 z-[9500]" role="dialog" aria-modal="true" aria-label={`Reply to ${post.authorDisplayName || post.authorHandle}`}>
+      <div className="absolute inset-0 bg-black/55" onClick={onClose} />
+      <div
+        className="absolute inset-x-0 flex flex-col rounded-t-2xl border-t border-white/10 bg-[#111317] shadow-[0_-12px_40px_rgba(0,0,0,0.5)]"
+        style={{
+          bottom: kb,
+          // Never taller than what's visible above the keyboard; the post preview scrolls/shrinks first.
+          maxHeight: visibleH ? visibleH - 12 : 'calc(100dvh - 12px)',
+          paddingBottom: kb > 0 ? 8 : 'max(8px, env(safe-area-inset-bottom))',
+          transition: 'bottom 120ms ease-out',
+        }}
+      >
+        <div className="flex items-center justify-between px-4 pt-2 pb-1">
+          <button type="button" onClick={onClose} className="tap min-h-[40px] -ml-2 px-2 text-[14px] text-white/60 active:text-white">Cancel</button>
+          <span className="w-9 h-1 rounded-full bg-white/15" aria-hidden />
+          <span className="flex items-center gap-1 text-[12px] font-semibold" style={{ color: proto.accent }}>{proto.logo}{proto.label}</span>
+        </div>
+        {/* What you're replying to sits directly above the input, no gap. */}
+        <div className="flex gap-2.5 px-4 pb-2 min-h-0 overflow-y-auto overscroll-contain">
+          {post.authorAvatarUrl
+            ? <img src={post.authorAvatarUrl} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+            : <div className="w-8 h-8 rounded-full bg-white/10 shrink-0" />}
+          <div className="min-w-0">
+            <p className="text-[13px] text-white/90 font-semibold truncate">{post.authorDisplayName || post.authorHandle} <span className="font-normal text-white/40">{post.authorHandle}</span></p>
+            {snippet && <p className="text-[13px] text-white/60 leading-snug line-clamp-4 whitespace-pre-line">{snippet}</p>}
+          </div>
+        </div>
+        <div className="mx-3 flex items-end gap-2 rounded-2xl px-3 py-1" style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${proto.border}` }}>
+          <div className="flex-1 min-w-0">{textarea}</div>
+          <div className="flex items-center gap-2 pb-1">{counter}{sendBtn}</div>
+        </div>
+        {error && <p className="px-4 pt-1.5 text-[12px] text-red-400" role="alert">{error}</p>}
       </div>
-    </motion.div>
+    </div>,
+    document.body,
   );
 }
 

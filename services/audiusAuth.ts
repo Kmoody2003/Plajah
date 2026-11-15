@@ -79,6 +79,60 @@ function setAudiusSession(s: AudiusSession | null) {
   window.dispatchEvent(new CustomEvent(AUDIUS_SESSION_EVENT, { detail: s }));
 }
 
+// ─── Account sync ─────────────────────────────────────────────────────────────
+// The connection belongs to the Plajah account, not the device: connect once (web, Windows app or Android app)
+// and every other place you're signed in picks it up. The server keeps it encrypted at users/{uid}/private/audius.
+
+const CLOUD_PATH = '/api/audius/session';
+
+async function cloudFetch(method: 'GET' | 'PUT' | 'DELETE', body?: unknown): Promise<Response | null> {
+  const u = auth.currentUser;
+  if (!u || u.isAnonymous) return null;
+  try {
+    const token = await u.getIdToken();
+    return await fetch(CLOUD_PATH, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch { return null; }
+}
+
+/** Save the connection (including refreshed tokens) to the account. */
+async function pushToCloud(s: AudiusSession | null): Promise<void> {
+  const res = await cloudFetch(s ? 'PUT' : 'DELETE', s ? { session: s } : undefined);
+  if (res && !res.ok) console.warn('[Audius] could not sync the connection to your account:', res.status);
+}
+
+/** The account's copy. `ok:false` = couldn't reach it (change nothing); `disconnectedAt` = disconnected on some device. */
+async function readCloud(): Promise<{ ok: boolean; session: AudiusSession | null; disconnectedAt?: number }> {
+  const res = await cloudFetch('GET');
+  if (!res?.ok) return { ok: false, session: null };
+  try {
+    const { session, disconnectedAt } = await res.json() as { session: AudiusSession | null; disconnectedAt?: number };
+    return { ok: true, session: session?.userId && session.accessToken ? session : null, disconnectedAt };
+  } catch { return { ok: false, session: null }; }
+}
+
+async function pullFromCloud(): Promise<AudiusSession | null> {
+  return (await readCloud()).session;
+}
+
+/** On sign-in: a device with no Audius connection of its own takes the account's. A device that has one and the
+ *  account has none (connected before sync existed) uploads it, so the next device gets it too. */
+async function syncWithCloud(uid: string): Promise<void> {
+  const local = getAudiusSession();
+  const { ok, session: cloud, disconnectedAt } = await readCloud();
+  if (!ok || auth.currentUser?.uid !== uid) return;   // offline, or signed out / switched while we waited
+  if (cloud && (!local || local.userId !== cloud.userId || (cloud.accessExpiresAt ?? 0) > (local.accessExpiresAt ?? 0))) {
+    setAudiusSession(cloud);
+  } else if (local && !cloud) {
+    // Disconnected on another device after this one connected → disconnect here too. Otherwise share it.
+    if (disconnectedAt && disconnectedAt > local.connectedAt) setAudiusSession(null);
+    else void pushToCloud(local);
+  }
+}
+
 /** The old unscoped connection goes to the account whose profile names that same Audius user. */
 async function adoptLegacyAudiusSession(uid: string) {
   try {
@@ -93,11 +147,13 @@ async function adoptLegacyAudiusSession(uid: string) {
   } catch { /* stays unread; signing out clears it */ }
 }
 if (typeof window !== 'undefined' && typeof auth?.onAuthStateChanged === 'function') {
-  auth.onAuthStateChanged((u) => { if (u && !u.isAnonymous) void adoptLegacyAudiusSession(u.uid); });
+  auth.onAuthStateChanged((u) => {
+    if (u && !u.isAnonymous) void adoptLegacyAudiusSession(u.uid).then(() => syncWithCloud(u.uid));
+  });
 }
 
-/** Mirror the connection onto the Plajah profile so it survives a new device / reinstall.
- *  Tokens stay device-local (localStorage) — only the public identity is persisted. */
+/** Mirror the public identity onto the Plajah profile (artist pages, badges). The tokens themselves sync through
+ *  /api/audius/session (pushToCloud), encrypted — never onto the profile. */
 async function persistToProfile(s: AudiusSession | null) {
   const uid = auth.currentUser?.uid;
   if (!uid) return;
@@ -296,6 +352,7 @@ export async function loginWithAudius(opts: { scope?: AudiusScope } = {}): Promi
         const session = sessionFromTokens(tokens, me, scope);
         setAudiusSession(session);
         void persistToProfile(session);
+        void pushToCloud(session);
         finish(() => resolve(session));
       } catch (err: any) {
         finish(() => reject(err instanceof Error ? err : new Error('Audius login failed.')));
@@ -344,6 +401,7 @@ export async function completeAudiusRedirect(): Promise<AudiusSession | null> {
     const session = sessionFromTokens(tokens, me, scope ?? 'read');
     setAudiusSession(session);
     void persistToProfile(session);
+    void pushToCloud(session);
     return session;
   } catch (err) {
     console.error('[Audius] redirect login failed:', err);
@@ -377,8 +435,20 @@ async function refreshAudiusToken(session: AudiusSession): Promise<AudiusSession
       refreshExpiresAt: tokens.refresh_expires_in ? now + tokens.refresh_expires_in * 1000 : undefined,
     };
     setAudiusSession(next);
+    void pushToCloud(next);
     return next;
   } catch { return null; }
+}
+
+/** Refresh failed here. If another signed-in device already refreshed (and rotated the refresh token), the account
+ *  holds the newer session — adopt it instead of making the person reconnect. */
+async function recoverFromCloud(stale: AudiusSession): Promise<AudiusSession | null> {
+  const cloud = await pullFromCloud();
+  if (!cloud || cloud.userId !== stale.userId) return null;
+  if (cloud.accessToken === stale.accessToken && cloud.refreshToken === stale.refreshToken) return null;
+  setAudiusSession(cloud);
+  if (!cloud.accessExpiresAt || Date.now() < cloud.accessExpiresAt - 30_000) return cloud;
+  return cloud.refreshToken !== stale.refreshToken ? refreshAudiusToken(cloud) : null;
 }
 
 /** A usable access token, refreshing silently when the current one has expired. */
@@ -386,7 +456,7 @@ export async function getAudiusAccessToken(): Promise<string | null> {
   const session = getAudiusSession();
   if (!session) return null;
   if (session.accessExpiresAt && Date.now() >= session.accessExpiresAt - 30_000) {
-    const refreshed = await refreshAudiusToken(session);
+    const refreshed = (await refreshAudiusToken(session)) ?? (await recoverFromCloud(session));
     return refreshed?.accessToken ?? null;
   }
   return session.accessToken;
@@ -407,4 +477,5 @@ export async function logoutAudius(): Promise<void> {
   clearPkce();
   setAudiusSession(null);
   void persistToProfile(null);
+  void pushToCloud(null);   // disconnecting anywhere disconnects everywhere
 }

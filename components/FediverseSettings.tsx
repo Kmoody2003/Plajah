@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useFediverse } from '../contexts/FediverseContext';
 import type { FediverseProtocol, FediverseAccount } from '../services/fediverse/types';
+import { parseMastodonInstance } from '../services/fediverse/instanceUrl';
 
 // ─── Protocol metadata ─────────────────────────────────────────────────────────
 
@@ -160,8 +161,12 @@ function MastodonForm({ onSuccess }: { onSuccess: () => void }) {
   const [status, setStatus] = useState<ConnectStatus>('idle');
   const [errMsg, setErrMsg] = useState('');
 
-  const normalizeInstance = (val: string) =>
-    val.trim().startsWith('http') ? val.trim() : `https://${val.trim()}`;
+  // Accepts mastodon.social, you@mastodon.social, @you@mastodon.social or a profile link.
+  const normalizeInstance = (val: string) => {
+    const base = parseMastodonInstance(val);
+    if (!base) throw new Error('Enter your Mastodon server (like mastodon.social) or your handle (you@mastodon.social).');
+    return base;
+  };
 
   const handleOAuth = async (e: React.FormEvent) => {
     e.preventDefault();

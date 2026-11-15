@@ -7,6 +7,7 @@
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'node:crypto';
 import { bskyCreateSession, bskyRefreshSession, bskyRefreshIfNeeded } from './bluesky.js';
 import { mastodonAdapter } from './mastodon.js';
+import { parseMastodonInstance } from './instanceUrl.js';
 import type {
   FediverseCredentials, FediverseAccount, FediverseAccountDoc, FediverseProtocol,
 } from './types.js';
@@ -473,8 +474,9 @@ export class DecentralizedAuthService {
   // ── Helpers ─────────────────────────────────────────────────────────────────
 
   private normalizeInstance(url: string): string {
-    const trimmed = url.trim().replace(/\/$/, '');
-    return trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+    const base = parseMastodonInstance(url);
+    if (!base) throw new Error('Enter your Mastodon server (like mastodon.social) or your handle (you@mastodon.social).');
+    return base;
   }
 
   private safeDecrypt(raw: unknown): FediverseCredentials | null {

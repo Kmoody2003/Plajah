@@ -67,8 +67,8 @@ interface FediverseContextValue {
 
   crossPost: (content: string, options?: CreatePostOptions, targetAccountIds?: string[]) => Promise<CrossPostResult>;
   broadcast: (payload: BroadcastPayload, targetAccountIds?: string[]) => Promise<BroadcastResult>;
-  toggleLike: (post: FediversePost) => Promise<void>;
-  toggleRepost: (post: FediversePost) => Promise<void>;
+  toggleLike: (post: FediversePost) => Promise<Partial<FediversePost> | undefined>;
+  toggleRepost: (post: FediversePost) => Promise<Partial<FediversePost> | undefined>;
 
   accountsByProtocol: (protocol: FediverseProtocol) => FediverseAccount[];
   hasProtocol: (protocol: FediverseProtocol) => boolean;
@@ -450,6 +450,7 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
       // Keep the record URI the server returned — Bluesky needs it to undo the like.
       if (res.update) setFeed(prev => prev.map(p => p.id === post.id && p.protocol === post.protocol ? { ...p, ...res.update } : p));
+      return res.update;
     } catch (err) {
       setFeed(prev => prev.map(p => p.id === post.id && p.protocol === post.protocol ? post : p));
       throw err;
@@ -473,6 +474,7 @@ export const FediverseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }),
       });
       if (res.update) setFeed(prev => prev.map(p => p.id === post.id && p.protocol === post.protocol ? { ...p, ...res.update } : p));
+      return res.update;
     } catch (err) {
       setFeed(prev => prev.map(p => p.id === post.id && p.protocol === post.protocol ? post : p));
       throw err;

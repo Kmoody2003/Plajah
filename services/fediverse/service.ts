@@ -186,7 +186,10 @@ export async function getUnifiedTimeline(
   for (let i = 0; i < results.length; i++) {
     const r = results[i];
     if (r.status === 'fulfilled') {
-      posts.push(...r.value);
+      // Stamp the STORED account id: adapters label posts with the network identity (a Bluesky DID), but likes,
+      // reposts and replies look the account up by its stored id — a DID there is "Account not found" (404).
+      const id = active[i].id;
+      for (const p of r.value) posts.push(p.accountId === id ? p : { ...p, accountId: id });
     } else {
       errors.push({
         accountId: active[i].id,

@@ -72,6 +72,8 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
   const [localLiked, setLocalLiked] = useState<boolean | null>(null);
   const [localReposted, setLocalReposted] = useState<boolean | null>(null);
   const [localBookmarked, setLocalBookmarked] = useState<boolean | null>(null);
+  const [localLikeUri, setLocalLikeUri] = useState<string | undefined>(undefined);
+  const [localRepostUri, setLocalRepostUri] = useState<string | undefined>(undefined);
   const net = NET[post.protocol] ?? NET.bluesky;
   const isAudius = (post.protocol as string) === 'audius';
   const [addedComments, setAddedComments] = useState(0);
@@ -143,8 +145,25 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
         }
         return;
       }
-      await (kind === 'like' ? toggleLike(post) : toggleRepost(post));
-    } catch { /* the context rolls the optimistic update back */ } finally { setActing(null); }
+      // Optimistic here too: posts on the in-app Bluesky screens aren't in the shared feed the context updates.
+      // Hand the context the state as the user SEES it (incl. a like/repost record made this session) so it picks
+      // like vs unlike correctly and can undo with the record URI.
+      if (kind === 'like') {
+        const next = !isLiked;
+        setLocalLiked(next);
+        try {
+          const upd = await toggleLike({ ...post, isLiked: !next, likeCount, likeUri: localLikeUri ?? post.likeUri });
+          setLocalLikeUri(next ? (upd?.likeUri ?? localLikeUri) : undefined);
+        } catch { setLocalLiked(!next); }
+      } else {
+        const next = !isReposted;
+        setLocalReposted(next);
+        try {
+          const upd = await toggleRepost({ ...post, isReposted: !next, repostCount, repostUri: localRepostUri ?? post.repostUri });
+          setLocalRepostUri(next ? (upd?.repostUri ?? localRepostUri) : undefined);
+        } catch { setLocalReposted(!next); }
+      }
+    } catch { /* Audius path rolls back itself */ } finally { setActing(null); }
   };
 
   const toggleBookmark = async () => {
@@ -303,39 +322,39 @@ const ExternalPostCard: React.FC<ExternalPostCardProps> = ({ post, onOpenProfile
             <div className="flex items-center gap-1 mt-3 -ml-1.5">
               <motion.button whileTap={{ scale: 0.85 }} onClick={() => (isPublicBsky ? connectBluesky() : setReplying(r => !r))}
                 title={isAudius ? 'Comments on Audius' : 'Reply'}
-                className={`tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all ${replying ? 'text-sky-400 bg-sky-400/10' : 'text-white/40 hover:text-sky-400 hover:bg-sky-400/10'}`}>
+                className={`tap flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-h-[40px] min-w-[40px] touch-manipulation select-none rounded-full text-[13px] transition-all ${replying ? 'text-sky-400 bg-sky-400/10' : 'text-white/40 hover:text-sky-400 hover:bg-sky-400/10'}`}>
                 <MessageSquare size={16} strokeWidth={1.5} />{replyCount > 0 && <span className="text-[12px]">{replyCount}</span>}
               </motion.button>
 
               {!musicTrack && <motion.button whileTap={{ scale: 0.85 }} onClick={() => act('like')} disabled={acting === 'like' || post.protocol === 'threads'} title={post.protocol === 'threads' ? 'Like it on Threads — Meta’s API doesn’t allow likes from other apps' : undefined}
-                className={`tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all disabled:opacity-50 ${isLiked ? 'text-red-400 bg-red-400/10' : 'text-white/40 hover:text-red-400 hover:bg-red-400/10'}`}>
+                className={`tap flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-h-[40px] min-w-[40px] touch-manipulation select-none rounded-full text-[13px] transition-all disabled:opacity-50 ${isLiked ? 'text-red-400 bg-red-400/10' : 'text-white/40 hover:text-red-400 hover:bg-red-400/10'}`}>
                 <Heart size={16} strokeWidth={1.5} fill={isLiked ? 'currentColor' : 'none'} />{likeCount > 0 && <span className="text-[12px]">{likeCount}</span>}
               </motion.button>}
 
               {/* Threads: repost works through the API; undoing one only on Threads itself. */}
               {(post.protocol !== 'threads' || !isReposted) && (
                 <motion.button whileTap={{ scale: 0.85 }} onClick={() => act('repost')} disabled={acting === 'repost'}
-                  className={`tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all disabled:opacity-50 ${isReposted ? 'text-emerald-400 bg-emerald-400/10' : 'text-white/40 hover:text-emerald-400 hover:bg-emerald-400/10'}`}>
+                  className={`tap flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-h-[40px] min-w-[40px] touch-manipulation select-none rounded-full text-[13px] transition-all disabled:opacity-50 ${isReposted ? 'text-emerald-400 bg-emerald-400/10' : 'text-white/40 hover:text-emerald-400 hover:bg-emerald-400/10'}`}>
                   <Repeat2 size={17} strokeWidth={1.5} />{repostCount > 0 && <span className="text-[12px]">{repostCount}</span>}
                 </motion.button>
               )}
 
               {post.protocol === 'bluesky' && post.uri && post.cid && (
                 <motion.button whileTap={{ scale: 0.85 }} onClick={toggleBookmark} disabled={acting === 'bookmark'} title={isBookmarked ? 'Remove Bluesky bookmark' : 'Bookmark on Bluesky'}
-                  className={`tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all disabled:opacity-50 ${isBookmarked ? 'text-amber-400 bg-amber-400/10' : 'text-white/40 hover:text-amber-400 hover:bg-amber-400/10'}`}>
+                  className={`tap flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-h-[40px] min-w-[40px] touch-manipulation select-none rounded-full text-[13px] transition-all disabled:opacity-50 ${isBookmarked ? 'text-amber-400 bg-amber-400/10' : 'text-white/40 hover:text-amber-400 hover:bg-amber-400/10'}`}>
                   <Bookmark size={15} strokeWidth={1.5} fill={isBookmarked ? 'currentColor' : 'none'} />
                 </motion.button>
               )}
 
               <motion.button whileTap={{ scale: 0.85 }} onClick={share} title={copied ? 'Link copied' : 'Copy link'}
-                className="tap flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[13px] transition-all text-white/40 hover:text-white hover:bg-white/10">
+                className="tap flex items-center justify-center gap-1.5 px-2.5 py-1.5 min-h-[40px] min-w-[40px] touch-manipulation select-none rounded-full text-[13px] transition-all text-white/40 hover:text-white hover:bg-white/10">
                 <Share2 size={15} strokeWidth={1.5} />{copied && <span className="text-[11px]">Copied</span>}
               </motion.button>
             </div>
 
             {replying && (isAudius
               ? <AudiusComments trackId={post.id} trackNumericId={(post as any).audiusTrackNumericId} disabled={(post as any).audiusCommentsDisabled} onPosted={() => setAddedComments(n => n + 1)} />
-              : <ReplySheet post={post} onClose={() => setReplying(false)} />)}
+              : <ReplySheet post={post} onClose={() => setReplying(false)} onSent={() => setAddedComments(n => n + 1)} />)}
           </div>
         </div>
       </div>

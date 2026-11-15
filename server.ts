@@ -81,6 +81,7 @@ import './routes/socialEngage'; // adds inbox + approval routes to socialConnect
 import { blueskyOAuthRouter } from './routes/blueskyOAuth';
 import { fediverseNativeRouter } from './routes/fediverseNative';
 import { blueskyClientRouter } from './routes/blueskyClient';
+import { audiusSessionRouter } from './routes/audiusSession';
 import { threadsOAuthRouter } from './routes/threadsOAuth';
 import { createPodcast20Router } from './routes/podcast20';
 import { createActivityPubRouter, createActivityPubOwnerRouter } from './routes/activitypub';
@@ -7079,6 +7080,18 @@ async function startServer() {
     const { decentralizedAuth } = await import('./services/fediverse/auth.js');
     return decentralizedAuth;
   };
+  /** A post's account by stored id — or, for posts labelled with the network identity (a Bluesky DID / handle,
+   *  as the in-app Bluesky screens do), the linked account that identity belongs to. */
+  const resolveFediverseAccount = async (uid: string, accountId: string, firebaseToken: string, protocol?: string) => {
+    const auth = await getFediverseAuth();
+    const direct = /^[\w-]{1,128}$/.test(accountId) ? await auth.loadAccount(uid, accountId, firebaseToken) : null;
+    if (direct) return direct;
+    const all = await auth.loadAccounts(uid, firebaseToken);
+    const want = accountId.toLowerCase();
+    return all.find(a => (!protocol || a.protocol === protocol) && a.isActive !== false
+      && (a.credentials?.did === accountId || a.handle?.toLowerCase() === want))
+      ?? (protocol ? all.filter(a => a.protocol === protocol && a.isActive !== false) : []).at(0) ?? null;
+  };
   const getBroadcast = async () => {
     const { broadcastToDecentralizedWeb } = await import('./services/fediverse/broadcast.js');
     return broadcastToDecentralizedWeb;
@@ -8347,9 +8360,8 @@ async function startServer() {
     };
     if (!replyOptions.inReplyToId && !replyOptions.inReplyToUri) return res.status(400).json({ error: 'Nothing to reply to' });
     try {
-      const auth = await getFediverseAuth();
       const firebaseToken = (req.headers.authorization as string).slice(7);
-      const account = await auth.loadAccount(req.uid, accountId, firebaseToken);
+      const account = await resolveFediverseAccount(req.uid, accountId, firebaseToken, replyOptions.inReplyToUri?.startsWith('at://') ? 'bluesky' : undefined);
       if (!account) return res.status(404).json({ error: 'Account not found' });
       const { ADAPTERS_MAP } = await import('./services/fediverse/service.js');
       const post = await ADAPTERS_MAP[account.protocol].createPost(account.credentials, text.trim(), replyOptions);
@@ -8434,9 +8446,8 @@ async function startServer() {
     }
 
     try {
-      const auth = await getFediverseAuth();
       const firebaseToken = (req.headers.authorization as string).slice(7);
-      const account = await auth.loadAccount(req.uid, accountId, firebaseToken);
+      const account = await resolveFediverseAccount(req.uid, accountId, firebaseToken, post.protocol);
       if (!account) return res.status(404).json({ error: 'Account not found' });
 
       const { ADAPTERS_MAP } = await import('./services/fediverse/service.js');
@@ -15278,6 +15289,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use('/api/fediverse/crosspost-native', express.json({ limit: '64kb' }), fediverseNativeRouter);
   // In-app Bluesky client screens: profiles, threads, search, follow graph, custom feeds, mute/block, quote.
   app.use('/api/fediverse/bluesky/c', express.json({ limit: '32kb' }), blueskyClientRouter);
+  // The Audius connection follows the account to every device (web, Windows app, Android app).
+  app.use('/api/audius/session', express.json({ limit: '16kb' }), audiusSessionRouter);
   app.use('/api/fediverse/threads/oauth', threadsOAuthRouter);
   app.use('/api/fediverse/threads/c', express.json({ limit: '16kb' }), threadsClientRouter);
   // Open networks: Nostr (opt-in, zaps paid creator-direct), PeerTube/Funkwhale publish, Mobilizon/Lemmy/BookWyrm/Owncast/Matrix.
