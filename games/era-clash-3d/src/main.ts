@@ -38,6 +38,8 @@ import { seasonU } from './core/seasonLook';
 import { groundWeather, puddleAt } from './ground';
 import { Particles } from './core/vfx';
 import { wind } from './core/wind';
+import { mountTouch } from './touch';
+import { mountMenuNav } from './menuNav';
 
 const params = new URLSearchParams(location.search);
 const $ = (id: string) => document.getElementById(id)!;
@@ -53,14 +55,17 @@ const adapterInfo = await navigator.gpu?.requestAdapter({ powerPreference: 'high
 const integrated = !adapterInfo || /intel|qualcomm|apple|arm/i.test(adapterInfo.vendor ?? '') || /xe-|gen-|integrated/i.test(adapterInfo.architecture ?? '');
 const inDesktopApp = (() => { const has = (w: Window | null) => { try { return !!(w as unknown as { chrome?: { webview?: unknown } })?.chrome?.webview; } catch { return false; } }; return has(window) || has(window.top); })();
 const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches);
-const quality = (params.get('q') ?? (isMobile ? 'low' : inDesktopApp ? 'ultra' : integrated ? 'medium' : 'high')) as 'low' | 'medium' | 'high' | 'ultra';
+// Television (Android TV, Fire TV, Tizen, Chromecast): ?tv=1 from the Plajah TV app, or the platform's own user-agent tokens.
+const isTv = params.get('tv') === '1' || /Android TV|AFTM|AFTB|AFTS|AFTT|BRAVIA|SmartTV|Smart-TV|Tizen|CrKey|GoogleTV|HbbTV/i.test(navigator.userAgent);
+document.documentElement.classList.toggle('tv', isTv);
+const quality = (params.get('q') ?? (isMobile || isTv ? 'low' : inDesktopApp ? 'ultra' : integrated ? 'medium' : 'high')) as 'low' | 'medium' | 'high' | 'ultra';
 const Q = {
   low:    { pr: 1.0, res: 540, resMin: 380, shadow: 0 },
   medium: { pr: 1.0, res: 720, resMin: 480, shadow: 1536 },   // long golden-hour shadows are the look; a tight frustum round Haru
   high:   { pr: Math.min(devicePixelRatio, 1.5), res: 1080, resMin: 720, shadow: 2048 },
   ultra:  { pr: Math.min(devicePixelRatio, 2), res: 2160, resMin: 900, shadow: 4096 },
 }[quality];
-const frameTarget = isMobile ? 33.3 : 16.7;
+const frameTarget = isMobile || isTv ? 33.3 : 16.7;
 setTextureTier(quality === 'high' || quality === 'ultra' ? '2k' : '1k');
 console.info(`[eraclash3d] GPU ${adapterInfo?.vendor ?? '?'} ${adapterInfo?.architecture ?? ''} → ${quality}`);
 
@@ -850,6 +855,12 @@ function press(a: Action) {
   }
 }
 function release(a: Action) { if (a === 'block') hero.block = false; }
+// Phones and tablets: on-screen joystick, look-drag and buttons (touch.ts). Menus answer to the D-pad, arrows or a pad (menuNav.ts).
+const touch = mountTouch({
+  stick: player.stick, setRun: (on) => { player.stickRun = on; }, look: (y, p) => player.look(y, p),
+  press, release, pause: () => { if (mode === 'play') setPaused(true); },
+});
+mountMenuNav();
 const inUi = (t: EventTarget | null) => !!(t as HTMLElement | null)?.closest?.('#story, #end, #pause, #binds, #gear');
 addEventListener('keydown', (e) => {
   if (e.code === 'Escape') { if (editor?.listening) return; if (mode === 'play') setPaused(!paused); return; }
@@ -892,7 +903,10 @@ function pollPad() {
 }
 
 // ── HUD ─────────────────────────────────────────────────────────────────────────────────────────────
+/** worldMap is created later in this module; a frame that lands before then just reports it closed. */
+const mapOpen = () => { try { return worldMap.open; } catch { return false; } };
 function hud() {
+  touch.sync(mode === 'play' && !paused && !mapOpen(), hero.meter >= 100);
   ($('hpFill') as HTMLElement).style.width = `${(hero.hp / hero.maxHp) * 100}%`;
   ($('mtFill') as HTMLElement).style.width = `${hero.meter}%`;
   $('mt').classList.toggle('full', hero.meter >= 100);

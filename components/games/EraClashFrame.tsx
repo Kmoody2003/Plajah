@@ -1,3 +1,4 @@
+import { getPlatformInfo } from '../../hooks/usePlatform';
 import React, { useEffect, useRef } from 'react';
 import { auth } from '../../services/firebase';
 import { BASE_ACHIEVEMENTS, unlockAchievementByTrigger } from '../../services/achievementService';
@@ -74,7 +75,7 @@ export default function EraClashFrame({ onExit }: { onExit: () => void }) {
       <iframe
         ref={frame}
         title="Era Clash"
-        src="/games/era-clash/index.html"
+        src={"/games/era-clash/index.html" + (getPlatformInfo().isTV ? "?tv=1" : "")}
         className="absolute inset-0 w-full h-full border-0"
         allow="fullscreen; autoplay; gamepad; clipboard-read; clipboard-write"
         allowFullScreen

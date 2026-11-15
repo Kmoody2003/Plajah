@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { getPlatformInfo } from '../../hooks/usePlatform';
 
 /**
  * Era Clash: Tales of the Ages (3D Campaign) — standalone WebGPU / Three.js campaign
@@ -28,7 +29,7 @@ export default function EraClash3DFrame({ onExit }: { onExit: () => void }) {
       <iframe
         ref={frame}
         title="Era Clash 3D Campaign"
-        src="/games/era-clash/3d/play/index.html"
+        src={"/games/era-clash/3d/play/index.html" + (getPlatformInfo().isTV ? "?tv=1" : "")}
         className="absolute inset-0 w-full h-full border-0"
         allow="fullscreen; autoplay; gamepad; clipboard-read; clipboard-write"
         allowFullScreen

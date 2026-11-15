@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+  <meta name="theme-color" content="#0c0806" />
   <title>Era Clash · Tales of the Ages 3D</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800;900&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet" />
@@ -15,19 +16,25 @@
     #loading.done { opacity: 0; pointer-events: none; }
     #loading .cz { font-size: 13px; color: #c9a46a; }
     /* story card */
-    #story { position: fixed; inset: 0; display: none; place-items: center; background: radial-gradient(ellipse at center, #1a120acc, #050302ee); z-index: 30; }
+    #story { position: fixed; inset: 0; display: none; place-items: center; background: radial-gradient(ellipse at center, #1a120acc, #050302ee); z-index: 30;
+      padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); box-sizing: border-box; }
     #story.on { display: grid; }
-    .st-panel { width: min(640px, 92vw); max-height: 84vh; display: flex; flex-direction: column; background: #120c07ee; border: 1px solid #6b4d2a; box-shadow: 0 20px 60px #000; padding: 22px 26px; }
+    /* The panel never outgrows the screen: header and the action row keep their size, only the tale scrolls (by touch,
+       wheel, arrow keys or the D-pad), so "To Battle" is always on screen. */
+    .st-panel { width: min(640px, 100%); max-height: 100%; min-height: 0; display: flex; flex-direction: column; background: #120c07ee; border: 1px solid #6b4d2a; box-shadow: 0 20px 60px #000; padding: 22px 26px; box-sizing: border-box; }
+    .st-panel > * { flex: none; }
     #stKicker { font-size: 11px; color: #c9973f; }
     #stTitle { font-size: 24px; margin: 8px 0 4px; color: #f4e6c8; }
     #stPlace { font-size: 11px; color: #9a8a6a; margin-bottom: 12px; }
-    #stBody { overflow-y: auto; font-size: 19px; line-height: 1.55; padding-right: 8px; }
+    #stBody { flex: 1 1 auto; min-height: 5.5em; overflow-y: auto; font-size: 19px; line-height: 1.55; padding-right: 8px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; touch-action: pan-y; outline: none; scrollbar-width: thin; scrollbar-color: #6b4d2a transparent; }
+    #stBody:focus-visible { box-shadow: inset 0 0 0 2px #c9973f55; }
     #stBody p { margin: 0 0 14px; }
     #stCheck { font-style: italic; color: #c9a46a; min-height: 1.2em; margin-top: 8px; font-size: 15px; }
-    .btn { font-family: Cinzel, serif; letter-spacing: .1em; font-size: 13px; padding: 10px 18px; border: 1px solid #c9973f; background: #2a1c10; color: #f4e6c8; cursor: pointer; }
+    .btn { font-family: Cinzel, serif; letter-spacing: .1em; font-size: 13px; padding: 10px 18px; min-height: 44px; border: 1px solid #c9973f; background: #2a1c10; color: #f4e6c8; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+    .btn:focus-visible, .bd-chip:focus-visible, .bd-add:focus-visible { outline: 3px solid #f0c46a; outline-offset: 2px; }
     .btn:disabled { opacity: .4; cursor: default; }
     .btn.primary { background: #8a2a14; border-color: #e8a24a; }
-    .st-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+    .st-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; margin-top: 14px; }
     .hint { font-size: 13px; color: #8a7a5c; margin-top: 10px; line-height: 1.4; }
     /* HUD */
     #hud { position: fixed; left: 18px; top: 16px; width: 260px; pointer-events: none; text-shadow: 0 1px 2px #000; }
@@ -79,7 +86,7 @@
     .bd-add.on { border-color: #f0c46a; color: #fff3d6; background: #4a2a10; animation: pulse .6s infinite alternate; }
     .bd-foot { display: flex; justify-content: space-between; margin-top: 14px; }
     .bd-tip { font-size: 13px; color: #8a7a5c; margin-top: 10px; }
-    #gear { position: fixed; right: 14px; bottom: 30px; z-index: 20; font-size: 18px; background: #120c07cc; color: #e8d8b0; border: 1px solid #6b4d2a; width: 34px; height: 34px; cursor: pointer; }
+    #gear { position: fixed; right: max(14px, env(safe-area-inset-right)); bottom: 30px; z-index: 20; font-size: 18px; background: #120c07cc; color: #e8d8b0; border: 1px solid #6b4d2a; width: 40px; height: 40px; cursor: pointer; touch-action: manipulation; }
     #stance { font-size: 12px; color: #f0c46a; margin-top: 4px; }
     /* quests: the objective (under Haru's bars), a marker in the world, the compass, the action hint, the log */
     #qObj { position: fixed; left: 18px; top: 96px; max-width: 340px; pointer-events: none; text-shadow: 0 1px 3px #000; font-family: Cinzel, serif; }
@@ -99,8 +106,48 @@
     #qLog .qlt { font-family: Cinzel, serif; color: #f0c46a; margin-top: 8px; }
     #qLog ul { margin: 4px 0 0 18px; padding: 0; } #qLog li.dn { color: #8a7a62; text-decoration: line-through; }
     #qLog .ql.done .qlt { color: #8fbf7a; } #qLog .qn { color: #b8a27e; margin-top: 10px; }
+
+    /* ── Phones, small windows and televisions ─────────────────────────────────────────────────────────── */
+    /* short or narrow screens: a compact story card (landscape phones are ~360 px tall) */
+    @media (max-height: 560px), (max-width: 640px) {
+      .st-panel { padding: 12px 14px; }
+      #stKicker { font-size: 10px; } #stTitle { font-size: 18px; margin: 4px 0 2px; } #stPlace { font-size: 10px; margin-bottom: 6px; }
+      #stBody { font-size: 16.5px; line-height: 1.45; min-height: 4.5em; } #stBody p { margin: 0 0 10px; }
+      #stCheck { font-size: 13px; margin-top: 4px; }
+      .st-panel .hint { display: none; }
+      .st-actions { margin-top: 8px; flex-wrap: nowrap; } .st-actions .btn { flex: 1 1 auto; padding: 10px 8px; }
+      #stCont { white-space: normal; }
+      #pause .panel, #end .panel { padding: 14px 16px; min-width: 0; width: min(92vw, 360px); max-height: 100%; overflow-y: auto; box-sizing: border-box; }
+      #pause .panel .btn, #end .panel .btn { width: 100%; }
+      #endT { font-size: 22px; } #endS { font-size: 15px; margin: 8px 0 12px; }
+      .bd-panel { padding: 12px 14px; } .bd-row { font-size: 15px; } .bd-chip, .bd-add { padding: 8px 10px; }
+    }
+    @media (max-width: 700px), (max-height: 520px) {
+      #hud { left: max(10px, env(safe-area-inset-left)); top: max(8px, env(safe-area-inset-top)); width: 150px; }
+      #hud .name { font-size: 12px; margin-bottom: 4px; white-space: nowrap; } #hud .name span { display: none; } .bar { height: 8px; margin-bottom: 4px; }
+      #allyBars { font-size: 10px; } #allyBars span { width: 40px; }
+      #hudR { right: max(10px, env(safe-area-inset-right)); top: max(8px, env(safe-area-inset-top)); } #hudWave, #foes, #stance { font-size: 10px; }
+      #qObj { left: max(10px, env(safe-area-inset-left)); top: 104px; max-width: 190px; } #qObj .qt { font-size: 11px; } #qObj .qs { font-size: 12px; } #qObj .qn { font-size: 10px; }
+      #qCompass { width: min(260px, 40vw); margin-left: calc(min(260px, 40vw) / -2); top: 6px; }
+      #combo { font-size: 26px; right: 12px; } #cardT { font-size: 24px; } #go { right: 16px; font-size: 28px; }
+      #qHint { bottom: 18vh; font-size: 13px; max-width: 80vw; text-align: center; }
+      #keys { display: none; } #fps { display: none; }
+    }
+    /* touch-first devices: the on-screen controls replace the keyboard hint, and the cog is a thumb-sized button */
+    html.touch #keys { display: none; }
+    html.touch #gear { top: max(8px, env(safe-area-inset-top)); bottom: auto; right: max(10px, env(safe-area-inset-right)); width: 44px; height: 44px; }
+    html.touch #hudR { top: 62px; }
+    /* television (Android TV / Fire TV / Tizen): everything is viewed from across a room, steered with a D-pad */
+    html.tv #story .st-panel { width: min(1100px, 92%); padding: 36px 48px; }
+    html.tv #stBody { font-size: 30px; line-height: 1.5; } html.tv #stTitle { font-size: 44px; } html.tv #stKicker, html.tv #stPlace { font-size: 18px; }
+    html.tv .btn { font-size: 24px; padding: 14px 30px; min-height: 64px; }
+    html.tv #pause .panel, html.tv #end .panel { min-width: 480px; padding: 36px 44px; gap: 16px; } html.tv #endT { font-size: 48px; } html.tv #endS { font-size: 28px; }
+    html.tv #hud { width: 380px; } html.tv #hud .name { font-size: 22px; } html.tv .bar { height: 14px; }
+    html.tv #hudWave, html.tv #foes, html.tv #stance { font-size: 18px; } html.tv #qObj .qs { font-size: 22px; } html.tv #qObj .qt { font-size: 18px; } html.tv #qObj { max-width: 520px; top: 130px; }
+    html.tv #keys, html.tv #fps, html.tv #gear { display: none; }
+    html.tv .bd-row { font-size: 24px; } html.tv .bd-chip, html.tv .bd-add { font-size: 16px; padding: 10px 14px; }
   </style>
-  <script type="module" crossorigin src="/games/era-clash/3d/play/assets/index-Co1qt6AI.js"></script>
+  <script type="module" crossorigin src="/games/era-clash/3d/play/assets/index-DEZGDtw2.js"></script>
 </head>
 <body>
   <div id="view"></div>
@@ -121,7 +168,7 @@
   <div id="binds"></div>
   <div id="story"><div class="st-panel">
     <div id="stKicker" class="cz"></div><div id="stTitle" class="cz"></div><div id="stPlace" class="cz"></div>
-    <div id="stBody"></div><div id="stCheck"></div>
+    <div id="stBody" tabindex="0"></div><div id="stCheck"></div>
     <div class="hint">Tales of the Ages in 3D (preview): The Falling Petal, Chapter I. Fiction woven over real history.</div>
     <div class="st-actions"><button class="btn" onclick="location.href='/games/era-clash/index.html'">Back</button><button id="stCont" class="btn" style="display:none">Continue saved day</button><button id="stGo" class="btn primary">To Battle →</button></div>
   </div></div>

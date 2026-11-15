@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTvShellFocus } from '../../hooks/useTvShellFocus';
-import { Film, Music2, Video, User, Play, Pause, Search, Radio, Speaker, LayoutGrid } from 'lucide-react';
+import { Film, Music2, Video, User, Play, Pause, Search, Radio, Speaker, LayoutGrid, Gamepad2 } from 'lucide-react';
 import { TV_NAV_VIEWS } from '../../services/tvCapabilities';
 import { isTvOverlayOpen } from '../../hooks/useTvOverlay';
 import { useGlobalPlayer } from '../../contexts/GlobalPlayerContext';
@@ -62,6 +62,7 @@ export const LINEUP_ROWS: LineupRow[] = [
   { num: '1', name: 'Cinema', view: 'MOVIES_TV', group: 'apps' },
   { num: '2', name: 'Chora', view: 'MUSIC', group: 'apps' },
   { num: '3', name: 'Reello', view: 'VIDEOS', group: 'apps' },
+  { num: '4', name: 'Games', view: 'GAMES', group: 'apps' },
   { num: '90', name: 'Settings', view: 'USER_PROFILE', group: 'system' },
 ];
 
@@ -75,6 +76,7 @@ const ROW_ICON: Record<string, React.ComponentType<{ size?: number; className?: 
   MOVIES_TV: Film,
   MUSIC: Music2,
   VIDEOS: Video,
+  GAMES: Gamepad2,
   LIVE_HUB: Radio,
   USER_PROFILE: User,
 };

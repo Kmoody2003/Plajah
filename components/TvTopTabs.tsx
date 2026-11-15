@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Film, Music2, Video, User, Play, Pause, Search, Radio, Speaker, LayoutGrid } from 'lucide-react';
+import { Film, Music2, Video, User, Play, Pause, Search, Radio, Speaker, LayoutGrid, Gamepad2 } from 'lucide-react';
 import { TV_NAV_VIEWS } from '../services/tvCapabilities';
 import { isTvOverlayOpen } from '../hooks/useTvOverlay';
 import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
@@ -18,6 +18,7 @@ const TAB_META: Record<string, { label: string; icon: React.ComponentType<{ size
   MOVIES_TV:    { label: 'Cinema',   icon: Film },
   MUSIC:        { label: 'Chora',   icon: Music2 },
   VIDEOS:       { label: 'Reello',  icon: Video },
+  GAMES:        { label: 'Games',   icon: Gamepad2 },
   LIVE_HUB:     { label: 'Live TV+', icon: Radio },
   USER_PROFILE: { label: 'Profile', icon: User },
 };

@@ -1,5 +1,5 @@
 // Games lab entry: ?view=hub shows the gamer card + leaderboards, ?view=concourse the Games home + game pages
-// (Concourse layout, ?game=<catalog id> opens a page), otherwise Cyber Tic Tac Toe.
+// (Concourse layout, ?game=<catalog id> opens a page), ?view=tv the television screen, otherwise Cyber Tic Tac Toe.
 //   npx vite --config games-lab.vite.config.mjs  ->  http://127.0.0.1:3234/?as=alice
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -11,6 +11,7 @@ import GameDetailPage from '../../components/games/GameDetailPage';
 import { useConcourseFont, logPlay } from '../../components/games/concourse/shared';
 import { getPlajahGameById, type PlajahGameEntry } from '../../data/plajahGamesCatalog';
 import { gamer, failed, type GamerProfile } from '../../services/gamerNet/client';
+import GamesTvView from '../../components/tv/GamesTvView';
 
 function ConcourseLab() {
   useConcourseFont();
@@ -33,6 +34,7 @@ function ConcourseLab() {
 function Lab() {
   const v = new URLSearchParams(location.search).get('view');
   const [view, setView] = useState(v === 'hub' ? 'hub' : v === 'concourse' ? 'concourse' : 'game');
+  if (new URLSearchParams(location.search).get('view') === 'tv') return <GamesTvView userProfile={null} />;   // the television screen (?tv=1 forces TV mode)
   if (view === 'concourse') return <ConcourseLab />;
   if (view === 'hub') return <div style={{ padding: 16 }}><button onClick={() => setView('game')} style={{ marginBottom: 12 }}>← Game</button><GamerHub /></div>;
   return <CyberTicTacToe onExit={() => setView('hub')} onOpenLeaderboard={() => setView('hub')} />;
