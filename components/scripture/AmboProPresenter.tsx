@@ -59,7 +59,9 @@ import {
   saveProjectAs,
   getActiveProjectId,
   setActiveProjectId,
+  listLocalProjects,
 } from '../../services/ambo/amboStorageService';
+import { whenAuthKnown } from '../../services/userScope';
 import { exportProjectJson, exportProjectBundle, downloadFile } from '../../services/ambo/amboBundleService';
 import AmboStageDisplay from './AmboStageDisplay';
 import AmboSlideEditor from './AmboSlideEditor';
@@ -345,6 +347,11 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
   const [cleanFeedOpen, setCleanFeedOpen] = useState(false);
   const [deckGroupingMode, setDeckGroupingMode] = useState<'sequential' | 'grouped'>('sequential');
   const [deckTypeFilter, setDeckTypeFilter] = useState<'all' | 'lyrics' | 'scripture' | 'media' | 'audio'>('all');
+  // Slide name / file name caption under every card, and the slideshow timeline strip (both remembered).
+  const [showSlideNames, setShowSlideNames] = useState<boolean>(() => { try { return localStorage.getItem('ambo.deck.names') !== '0'; } catch { return true; } });
+  const [showTimeline, setShowTimeline] = useState<boolean>(() => { try { return localStorage.getItem('ambo.deck.timeline') !== '0'; } catch { return true; } });
+  useEffect(() => { try { localStorage.setItem('ambo.deck.names', showSlideNames ? '1' : '0'); } catch { /* */ } }, [showSlideNames]);
+  useEffect(() => { try { localStorage.setItem('ambo.deck.timeline', showTimeline ? '1' : '0'); } catch { /* */ } }, [showTimeline]);
 
   // Physical Display & Resolution Auto-Detection
   const [screens, setScreens] = useState<DetectedScreenInfo[]>([]);
@@ -516,26 +523,70 @@ useEffect(() => {
   };
 
   // Load active project on mount
+  // Presentations must survive app updates and reloads. Wait for the signed-in account to be known first
+  // (the saved project is stored under that account's key), fall back to the most recently saved project when
+  // the "active" pointer is missing, and don't let auto-save run until the restore attempt is over (it would
+  // overwrite the saved shows with the demo ones).
+  const restoredRef = useRef(false);
   useEffect(() => {
-    const activeId = getActiveProjectId();
-    if (activeId) {
-      loadProject(activeId).then(prj => {
-        if (prj) {
-          handleSelectProject(prj);
-        }
-      });
-    }
+    let dead = false;
+    (async () => {
+      try {
+        await whenAuthKnown();
+        let id = getActiveProjectId();
+        if (!id) id = (await listLocalProjects())[0]?.id ?? null;
+        if (!id) return;
+        const prj = await loadProject(id);
+        if (prj && !dead) handleSelectProject(prj);
+      } catch { /* keep the starter project */ }
+      finally { restoredRef.current = true; }
+    })();
+    return () => { dead = true; };
   }, []);
 
   // Debounced auto-save hook
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isInitialMount = useRef(true);
 
+  // Latest project snapshot, so a page close / update restart can write the last edits before the debounce fires.
+  const snapshotRef = useRef<() => AmboProject>(() => currentProject);
+  const dirtyRef = useRef(false);
+  useEffect(() => {
+    const flush = () => {
+      if (!dirtyRef.current || !restoredRef.current) return;
+      dirtyRef.current = false;
+      void saveProject(snapshotRef.current());
+    };
+    const onVis = () => { if (document.visibilityState === 'hidden') flush(); };
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', flush);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      flush();
+      window.removeEventListener('pagehide', flush);
+      window.removeEventListener('beforeunload', flush);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, []);
+
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
     }
+    if (!restoredRef.current) return;   // restore still running: its own state change re-triggers this effect
+    dirtyRef.current = true;
+    snapshotRef.current = () => ({
+      ...currentProject,
+      shows: library,
+      playlist,
+      activeShowId,
+      outputs,
+      targetDisplayIndex,
+      savedAssets: currentProject.savedAssets,
+      settings: { ...currentProject.settings, outputs, targetDisplayIndex, outputPlacement: placement, isBlackout, isMasterProgramOn },
+      updatedAt: Date.now(),
+    });
 
     setAutoSaveStatus('saving');
     if (autoSaveTimerRef.current) {
@@ -562,10 +613,12 @@ useEffect(() => {
         updatedAt: Date.now(),
       };
       setCurrentProject(updatedProject);
+      dirtyRef.current = false;
       const res = await saveProject(updatedProject);
       if (res.success) {
         setAutoSaveStatus(res.cloudSynced ? 'saved' : 'offline');
       } else {
+        dirtyRef.current = true;
         setAutoSaveStatus('error');
       }
     }, 800);
@@ -1473,6 +1526,47 @@ useEffect(() => {
     if (at >= 0) setSelected(at);
   };
 
+  /** Mouse-driven reorder from a visible grip (the browser's own drag is unreliable inside the Windows app's web view). */
+  const startGripDrag = (e: React.MouseEvent, from: number) => {
+    if (e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    let at: number | null = null;
+    const find = (x: number, y: number): number | null => {
+      const el = document.elementFromPoint(x, y) as HTMLElement | null;
+      const c = el?.closest('[data-ambo-slide],[data-tl-slide]') as HTMLElement | null;
+      if (!c) return null;
+      const idx = +(c.getAttribute('data-ambo-slide') ?? c.getAttribute('data-tl-slide') ?? '-1');
+      if (idx < 0) return null;
+      const r = c.getBoundingClientRect();
+      return insertionIndexFor(idx, x - r.left, r.width);
+    };
+    const mv = (ev: MouseEvent) => { const v = find(ev.clientX, ev.clientY); if (v !== null) { at = v; setInsertAt(v); } };
+    const up = () => {
+      window.removeEventListener('mousemove', mv); window.removeEventListener('mouseup', up);
+      document.body.style.cursor = '';
+      setInsertAt(null);
+      if (at !== null) reorderSlide(from, at);
+    };
+    document.body.style.cursor = 'grabbing';
+    window.addEventListener('mousemove', mv); window.addEventListener('mouseup', up);
+  };
+  const nudgeSlide = (i: number, delta: -1 | 1) => { if (delta < 0 ? i > 0 : i < slides.length - 1) reorderSlide(i, delta < 0 ? i - 1 : i + 2); };
+  const gripBar = (i: number, cls: string) => (
+    <span className={`inline-flex items-center rounded bg-black/70 border border-white/25 text-white/85 text-[11px] leading-none select-none ${cls}`} onClick={e => e.stopPropagation()} onDoubleClick={e => e.stopPropagation()}>
+      <span role="button" title="Move earlier" onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); nudgeSlide(i, -1); }} className="px-1.5 py-0.5 hover:bg-white/20 cursor-pointer">‹</span>
+      <span role="button" title="Drag to move this slide" onMouseDown={e => startGripDrag(e, i)} className="px-1.5 py-0.5 border-x border-white/20 hover:bg-white/20 cursor-grab">⠿</span>
+      <span role="button" title="Move later" onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); nudgeSlide(i, 1); }} className="px-1.5 py-0.5 hover:bg-white/20 cursor-pointer">›</span>
+    </span>
+  );
+
+  /** A whole slide dragged out of the library (template, verse): fresh ids so the same one can be dropped twice. */
+  const freshSlide = (raw: Slide): Slide => ({ ...raw, id: newId('slide'), layers: (raw.layers || []).map(l => ({ ...l, id: newId('ly') })) });
+  /** A card-reorder ref left over from a drag that never reported its end must not swallow a library drop. */
+  const dropIsSlideReorder = (e: React.DragEvent) => {
+    if (draggingSlideRef.current !== null && !Array.from(e.dataTransfer.types).includes('application/x-ambo-slide')) draggingSlideRef.current = null;
+    return draggingSlideRef.current !== null;
+  };
+
   const [isDraggingOverDeck, setIsDraggingOverDeck] = useState(false);
   /** When the page itself last received OS files — the Windows shell's copy of the same drop is then ignored. */
   const webFileDropAt = useRef(0);
@@ -1481,7 +1575,7 @@ useEffect(() => {
     e.preventDefault();
     setIsDraggingOverDeck(false);
     setInsertAt(null);
-    if (draggingSlideRef.current !== null) { const from = draggingSlideRef.current; draggingSlideRef.current = null; reorderSlide(from, slides.length); return; } // card dropped past the last one: move to end
+    if (dropIsSlideReorder(e)) { const from = draggingSlideRef.current!; draggingSlideRef.current = null; reorderSlide(from, slides.length); return; } // card dropped past the last one: move to end
     // Fabula CG graphic → a new slide carrying it (overlay slot for keyed elements, slide slot for full pages).
     const cg = readCgDragData(e.dataTransfer);
     if (cg && cg.ref.graphicId === 'cg:live') {
@@ -1501,6 +1595,12 @@ useEffect(() => {
       const dataStr = e.dataTransfer.getData('application/json');
       if (dataStr) {
         const parsed = JSON.parse(dataStr);
+        if (parsed.type === 'ambo-slide' && parsed.slide) {
+          const s = freshSlide(parsed.slide);
+          setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : { ...sh, slides: [...sh.slides, s] })));
+          setSelected(slides.length);
+          return;
+        }
         if (parsed.type === 'ambo-audio' && parsed.track) {
           handleCreateAudioSlide(parsed.track);
           return;
@@ -1543,7 +1643,7 @@ useEffect(() => {
     const targetSlide = slides[slideIndex];
     try {
       // Reordering one of our own cards.
-      const from = draggingSlideRef.current;
+      const from = dropIsSlideReorder(e) ? draggingSlideRef.current : null;
       if (from !== null) {
         draggingSlideRef.current = null;
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -1566,6 +1666,16 @@ useEffect(() => {
       const dataStr = e.dataTransfer.getData('application/json');
       if (dataStr) {
         const parsed = JSON.parse(dataStr);
+        if (parsed.type === 'ambo-slide' && parsed.slide) {
+          insertSlidesAfter(slideIndex, [freshSlide(parsed.slide)]);
+          setSelected(slideIndex + 1);
+          return;
+        }
+        if (parsed.type === 'ambo-folder' && Array.isArray(parsed.items)) {
+          const newSlides = folderPayloadMedia(parsed).map(slideFromMedia).filter((x): x is Slide => !!x);
+          if (newSlides.length) insertSlidesAfter(slideIndex, newSlides);
+          return;
+        }
         if (parsed.type === 'ambo-audio' && parsed.track) {
           const track: AmboDJTrack = parsed.track;
           const audioLayer: SlideLayer = {
@@ -4141,6 +4251,18 @@ useEffect(() => {
                     <span>Group by Type</span>
                   </button>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSlideNames(v => !v)}
+                  className={`px-2.5 py-1 rounded-md border text-[10px] font-bold transition-all ${showSlideNames ? 'bg-[#00DAF3]/20 border-[#00DAF3]/50 text-[#00DAF3]' : 'border-white/10 text-white/50 hover:text-white'}`}
+                  title="Show each slide's name / file name under its card"
+                >Names</button>
+                <button
+                  type="button"
+                  onClick={() => setShowTimeline(v => !v)}
+                  className={`px-2.5 py-1 rounded-md border text-[10px] font-bold transition-all ${showTimeline ? 'bg-[#FF8C00]/20 border-[#FF8C00]/50 text-[#FF8C00]' : 'border-white/10 text-white/50 hover:text-white'}`}
+                  title="Slideshow timeline: slide order, how long each shows, total runtime"
+                >Timeline</button>
               </div>
 
               {/* Type Filter Pills */}
@@ -4180,6 +4302,76 @@ useEffect(() => {
                 })}
               </div>
             </div>
+
+            {/* Slideshow timeline: drag blocks to reorder, set how long each slide shows (seconds; 0 = manual advance) */}
+            {showTimeline && slides.length > 0 && (() => {
+              const durOf = (sl: Slide) => sl.advanceAfterSec || 0;
+              const total = slides.reduce((a, sl) => a + durOf(sl), 0);
+              const fmt = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.round(sec % 60)).padStart(2, '0')}`;
+              const setDur = (id: string, sec: number | undefined) =>
+                setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : { ...sh, slides: sh.slides.map(sl => (sl.id === id ? { ...sl, advanceAfterSec: sec } : sl)) })));
+              const nameOf = (sl: Slide, i: number) => sl.label || `Slide ${i + 1}`;
+              return (
+                <div className="mb-3 rounded-lg border border-white/10 bg-black/30 px-2 pt-1.5 pb-2" onDragOver={e => { if (draggingSlideRef.current !== null) { e.preventDefault(); e.stopPropagation(); } }}
+                  onDrop={e => { if (draggingSlideRef.current !== null) { e.preventDefault(); e.stopPropagation(); const from = draggingSlideRef.current; draggingSlideRef.current = null; setInsertAt(null); reorderSlide(from, slides.length); } }}>
+                  <div className="flex items-center justify-between mb-1.5 text-[9px] font-bold uppercase tracking-[0.12em] text-white/40">
+                    <span>Timeline · drag to reorder</span>
+                    <span className="font-mono normal-case tracking-normal text-white/60">{slides.length} slides · {total > 0 ? `${fmt(total)} timed` : 'manual advance'}</span>
+                  </div>
+                  <div className="flex gap-1 overflow-x-auto custom-scrollbar pb-1">
+                    {slides.map((s, i) => {
+                      const d = durOf(s);
+                      const isLive = s.id === liveSlideId;
+                      const isSel = i === selected;
+                      return (
+                        <div key={s.id}
+                          draggable
+                          onDragStart={e => { draggingSlideRef.current = i; e.dataTransfer.setData('application/x-ambo-slide', String(i)); e.dataTransfer.effectAllowed = 'move'; }}
+                          onDragEnd={() => { draggingSlideRef.current = null; setInsertAt(null); }}
+                          onDragOver={e => {
+                            if (draggingSlideRef.current === null) return;
+                            e.preventDefault(); e.stopPropagation();
+                            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                            setInsertAt(insertionIndexFor(i, e.clientX - r.left, r.width));
+                          }}
+                          onDrop={e => {
+                            if (draggingSlideRef.current === null) return;
+                            e.preventDefault(); e.stopPropagation();
+                            const from = draggingSlideRef.current; draggingSlideRef.current = null;
+                            const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                            setInsertAt(null);
+                            reorderSlide(from, insertionIndexFor(i, e.clientX - r.left, r.width));
+                          }}
+                          data-tl-slide={i}
+                          onClick={() => selectSlide(i)}
+                          onDoubleClick={() => take(s)}
+                          title={`${i + 1}. ${nameOf(s, i)} — click to preview, double-click to take live`}
+                          className="relative flex-none rounded-md border cursor-grab active:cursor-grabbing select-none overflow-hidden"
+                          style={{
+                            width: Math.max(72, Math.min(260, d * 10 || 72)),
+                            borderColor: isLive ? ORANGE : isSel ? CYAN : 'rgba(255,255,255,0.14)',
+                            background: isLive ? 'rgba(255,140,0,0.16)' : isSel ? 'rgba(0,218,243,0.12)' : 'rgba(255,255,255,0.04)',
+                            boxShadow: insertAt === i ? `inset 3px 0 0 ${CYAN}` : insertAt === slides.length && i === slides.length - 1 ? `inset -3px 0 0 ${CYAN}` : undefined,
+                          }}>
+                          <div className="px-1.5 pt-1 text-[9px] font-mono font-black text-white/80 truncate">{i + 1}{isLive ? ' · LIVE' : ''}</div>
+                          <div className="px-1.5 text-[9px] text-white/60 truncate">{nameOf(s, i)}</div>
+                          <div className="px-1 pt-0.5">{gripBar(i, '')}</div>
+                          <div className="px-1 pb-1 pt-0.5 flex items-center gap-0.5" onClick={e => e.stopPropagation()} onDoubleClick={e => e.stopPropagation()}>
+                            <input
+                              type="number" min={0} max={3600} value={d || ''} placeholder="0"
+                              onChange={e => setDur(s.id, +e.target.value > 0 ? Math.min(3600, +e.target.value) : undefined)}
+                              className="w-9 bg-black/40 border border-white/10 rounded px-1 text-[9px] font-mono text-white/80"
+                              title="Seconds this slide stays up before advancing (0 = manual)"
+                            />
+                            <span className="text-[8px] text-white/35">sec</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))' }}>
               {slides.map((s, i) => {
@@ -4271,6 +4463,7 @@ useEffect(() => {
                       <span className="absolute top-1.5 left-1.5 z-[4] px-1.5 py-0.5 rounded text-[9px] font-mono font-black text-white/90 bg-black/70 backdrop-blur-sm border border-white/20 shadow-md">
                         {i + 1}
                       </span>
+                      {gripBar(i, 'absolute bottom-1.5 left-1.5 z-[6]')}
                       {insertAt === i && <span className="absolute top-0 bottom-0 left-0 w-[4px] z-[8] pointer-events-none" style={{ background: CYAN, boxShadow: '0 0 10px rgba(0,218,243,0.9)' }} />}
                       {insertAt === slides.length && i === slides.length - 1 && <span className="absolute top-0 bottom-0 right-0 w-[4px] z-[8] pointer-events-none" style={{ background: CYAN, boxShadow: '0 0 10px rgba(0,218,243,0.9)' }} />}
                       {!isLive && !isSel && s.groupColor && deckGroupingMode === 'grouped' && <span className="absolute top-0 left-0 right-0 h-[3px] z-[3]" style={{ background: s.groupColor }} />}
@@ -4341,6 +4534,11 @@ useEffect(() => {
                           </button>
                         </div>
                       </div>
+                      {showSlideNames && (
+                        <div className="px-2 py-1 text-[10px] font-semibold text-white/75 truncate bg-black/55 border-t border-white/10" title={s.label || `Slide ${i + 1}`}>
+                          {s.label || `Slide ${i + 1}`}
+                        </div>
+                      )}
                     </button>
                   </React.Fragment>
                 );

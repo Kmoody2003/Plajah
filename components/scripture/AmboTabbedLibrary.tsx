@@ -2261,6 +2261,20 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                           else verseItemRefs.current.delete(v.verse);
                         }}
                         {...verseMenu.bind(v)}
+                        draggable
+                        onDragStart={e => {
+                          // Build the same slide "Add as slide" makes, so a dragged verse lands in the show.
+                          const bookName = activeBook?.name || 'Scripture';
+                          const slide: Slide = {
+                            id: newId('scr_slide'), label: `${bookName} ${selectedChapter}:${v.verse}`, group: 'Scripture Reading', groupColor: GOLD,
+                            layers: [
+                              { id: newId('ly_bg'), slot: 'background', content: { kind: 'GENERATOR', mode: 'STUDIO_AURORA' } },
+                              { id: newId('ly_scr'), slot: 'scripture', content: { kind: 'SCRIPTURE', refId: `${bookName.toLowerCase()}.${selectedChapter}.${v.verse}`, reference: `${bookName} ${selectedChapter}:${v.verse}`, translation: translationSlug.toUpperCase(), lines: [v.text] } },
+                            ],
+                          };
+                          e.dataTransfer.setData('application/json', JSON.stringify({ type: 'ambo-slide', slide }));
+                          e.dataTransfer.effectAllowed = 'copy';
+                        }}
                         onClick={() => handleVerseClick(v)}
                         onDoubleClick={() => handleVerseDoubleClick(v)}
                         className={`group relative rounded-xl p-3 border transition-all cursor-pointer ${
@@ -3210,6 +3224,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                     {FABULA_LOTTIE_PRESETS.map(lot => (
                       <div
                         key={lot.id}
+                        draggable
+                        onDragStart={e => handleDragStart(e, { id: `lottie_${lot.id}`, name: lot.title, kind: 'LOTTIE', src: `/fabula/lottie/${lot.file}` })}
                         onMouseEnter={() => setHoverVizId(lot.id)}
                         onMouseLeave={() => setHoverVizId(h => (h === lot.id ? null : h))}
                         className="rounded-xl overflow-hidden border border-white/10 hover:border-white/30 bg-white/[0.02] hover:bg-white/[0.05] cursor-pointer transition-all"
@@ -3239,29 +3255,32 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                     <AmboSlideTemplateEntry onInsert={onInsertTemplateSlide} activeShowTitle={shows.find(sh => sh.id === activeShowId)?.title} />
                   </div>
                   <div style={squareGridStyle(130, 10)}>
-                    {TELA_DESIGN_TEMPLATES.map(t => (
+                    {TELA_DESIGN_TEMPLATES.map(t => {
+                      const mkSlide = (): Slide => {
+                        const base = templateById(t.id) || templateById('song-title') || SLIDE_TEMPLATES[0];
+                        return {
+                          id: newId('sl_tela'),
+                          label: t.title,
+                          group: 'Templates',
+                          groupColor: '#D0BCFF',
+                          layers: [{
+                            id: newId('ly_tela'),
+                            slot: 'slide',
+                            content: {
+                              kind: 'TELA_TEMPLATE',
+                              templateId: base.id,
+                              fields: defaultFields(base),
+                              theme: DEFAULT_THEME_ID,
+                            }
+                          }]
+                        };
+                      };
+                      return (
                       <div
                         key={t.id}
-                        onClick={() => {
-                          const base = templateById(t.id) || templateById('song-title') || SLIDE_TEMPLATES[0];
-                          const slide: Slide = {
-                            id: newId('sl_tela'),
-                            label: t.title,
-                            group: 'Templates',
-                            groupColor: '#D0BCFF',
-                            layers: [{
-                              id: newId('ly_tela'),
-                              slot: 'slide',
-                              content: {
-                                kind: 'TELA_TEMPLATE',
-                                templateId: base.id,
-                                fields: defaultFields(base),
-                                theme: DEFAULT_THEME_ID,
-                              }
-                            }]
-                          };
-                          if (onInsertTemplateSlide) onInsertTemplateSlide(slide);
-                        }}
+                        draggable
+                        onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'ambo-slide', slide: mkSlide() })); e.dataTransfer.effectAllowed = 'copy'; }}
+                        onClick={() => { if (onInsertTemplateSlide) onInsertTemplateSlide(mkSlide()); }}
                         className="rounded-xl overflow-hidden border border-white/10 hover:border-[#D0BCFF]/50 bg-white/[0.02] hover:bg-white/[0.06] cursor-pointer transition-all active:scale-95"
                         title={`Click to insert “${t.title}” into the active show`}
                       >
@@ -3274,7 +3293,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                           <div className="text-[9.5px] text-white/40 truncate">{t.sub}</div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
