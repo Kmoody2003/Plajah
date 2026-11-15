@@ -69,7 +69,6 @@ export const NAV_SECTIONS: NavSection[] = [
     { id: 'RADIO', label: 'Radio', icon: Radio },
     { id: 'GAMES', label: 'Games', icon: Gamepad2 },
     { id: 'GLOBAL_PHOTOS', label: 'Photos', icon: Camera },
-    { id: 'PLAJAH_DRIVE', label: 'Files & Drive', icon: HardDrive },
     { id: 'BOOKS', label: 'Lorea', icon: BookOpen },
     { id: 'LIVE_HUB', label: 'Live Hub', icon: Sparkles },
     { id: 'PPV_EVENTS', label: 'Live Events', icon: Ticket },
@@ -140,7 +139,11 @@ export const NAV_SECTIONS: NavSection[] = [
 
 const PINNED_IDS: ViewId[] = ['DASHBOARD', 'FEED', 'MUSIC', 'VIDEOS', 'PLAJAH_SPORTS', 'CHAT'];
 
-const ALL_DESTS: NavDest[] = NAV_SECTIONS.flatMap(s => s.items).filter((d, i, all) => all.findIndex(x => x.id === d.id) === i);
+// Utility destinations live as icons at the foot of the rail (not inside a category), but
+// stay searchable from the Ctrl K launcher.
+const FILES_DEST: NavDest = { id: 'PLAJAH_DRIVE', label: 'Files & Drive', icon: HardDrive };
+
+const ALL_DESTS: NavDest[] = [...NAV_SECTIONS.flatMap(s => s.items), FILES_DEST].filter((d, i, all) => all.findIndex(x => x.id === d.id) === i);
 const destById = (id: ViewId) => ALL_DESTS.find(d => d.id === id);
 const sectionIndexOf = (id: ViewId) => NAV_SECTIONS.findIndex(s => s.items.some(i => i.id === id));
 
@@ -330,6 +333,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
             </button>
             <IconBtn title="Go Live" onClick={onGoLive}><Radio size={18} style={plajahIconStroke} /></IconBtn>
             <IconBtn title="Notifications" onClick={onOpenNotifications} badge={notificationCount}><Bell size={18} style={plajahIconStroke} /></IconBtn>
+            <IconBtn title="Files & Drive" onClick={() => go('PLAJAH_DRIVE')} active={view === 'PLAJAH_DRIVE'}><HardDrive size={18} style={view === 'PLAJAH_DRIVE' ? undefined : plajahIconStroke} /></IconBtn>
             <IconBtn title="Settings" onClick={() => go('CREATOR')}><SettingsIcon size={18} style={plajahIconStroke} /></IconBtn>
             {hasUser && <IconBtn title="Sign out" onClick={onSignOut}><LogOut size={18} style={plajahIconStroke} /></IconBtn>}
             {onExitNew && (
