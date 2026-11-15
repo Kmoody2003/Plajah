@@ -446,6 +446,35 @@ public sealed partial class MainWindow : Window
             System.Diagnostics.Debug.WriteLine($"[AddWebResourceRequestedFilter] Error: {ex.Message}");
         }
 
+        // Server calls in local-shell mode. The bundled site is mapped onto the "plajah.com" virtual host (so the page
+        // keeps the real origin for Firebase auth + CORS), and WebView2 answers EVERY request to a mapped host from the
+        // folder — so /api/* never reached the backend: linked Bluesky/Threads/Mastodon/Audius showed "Not connected",
+        // and anything else server-side failed quietly. Forward those requests to the live server ourselves.
+        try
+        {
+            core.AddWebResourceRequestedFilter("https://plajah.com/api/*", CoreWebView2WebResourceContext.All);
+            core.WebResourceRequested += (sender, args) =>
+            {
+                if (!_localShellAvailable) return;   // live-site mode: the network already serves plajah.com
+                try
+                {
+                    var uri = new Uri(args.Request.Uri);
+                    if (!uri.Host.Equals("plajah.com", StringComparison.OrdinalIgnoreCase) ||
+                        !uri.AbsolutePath.StartsWith("/api/", StringComparison.OrdinalIgnoreCase)) return;
+                    var deferral = args.GetDeferral();
+                    _ = ProxyApiRequestAsync(core, args, uri, deferral);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ApiProxy] {ex.Message}");
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ApiProxy filter] {ex.Message}");
+        }
+
         await core.AddScriptToExecuteOnDocumentCreatedAsync(
             "window.__PLAJAH_WINUI__ = true; window.__PLAJAH_PLATFORM__ = 'windows';" +
             "if ('serviceWorker' in navigator) { navigator.serviceWorker.getRegistrations().then(function(rs) { for (var r of rs) { r.unregister(); } }); }if ('caches' in window) { caches.keys().then(function(ks) { for (var k of ks) { caches.delete(k); } }); }" +
@@ -2780,6 +2809,79 @@ public sealed partial class MainWindow : Window
         {
             System.Diagnostics.Debug.WriteLine($"[Thumb] {ex.Message}");
             try { args.Response = core.Environment.CreateWebResourceResponse(null, 500, "Thumbnail Failed", "Access-Control-Allow-Origin: *"); } catch { }
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+    }
+
+    // One client for every forwarded /api call. No auto-redirects (the page must see them) and no cookie jar of its
+    // own: the page's Cookie header is passed through as-is, Set-Cookie comes back in the response headers.
+    private static readonly System.Net.Http.HttpClient s_apiProxy = new(new System.Net.Http.HttpClientHandler
+    {
+        AllowAutoRedirect = false,
+        UseCookies = false,
+        AutomaticDecompression = System.Net.DecompressionMethods.All,
+    }) { Timeout = TimeSpan.FromMinutes(10) };
+
+    private static readonly HashSet<string> s_hopHeaders = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Host", "Connection", "Keep-Alive", "Transfer-Encoding", "Upgrade", "Proxy-Connection", "TE", "Trailer",
+        "Content-Length", "Content-Encoding", "Accept-Encoding",
+    };
+
+    /// <summary>Send a page's /api request to the live server (outside the WebView, so the virtual-host mapping
+    /// doesn't swallow it) and hand the answer back. Runs on the UI thread's context — WebView2 objects require it.</summary>
+    private async System.Threading.Tasks.Task ProxyApiRequestAsync(
+        CoreWebView2 core, CoreWebView2WebResourceRequestedEventArgs args, Uri uri, Windows.Foundation.Deferral deferral)
+    {
+        try
+        {
+            var req = args.Request;
+            var msg = new System.Net.Http.HttpRequestMessage(new System.Net.Http.HttpMethod(req.Method), uri);
+            var contentHeaders = new List<KeyValuePair<string, string>>();
+            foreach (var h in req.Headers)
+            {
+                if (s_hopHeaders.Contains(h.Key)) continue;
+                if (h.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase)) { contentHeaders.Add(h); continue; }
+                msg.Headers.TryAddWithoutValidation(h.Key, h.Value);
+            }
+            if (req.Content != null && !req.Method.Equals("GET", StringComparison.OrdinalIgnoreCase)
+                && !req.Method.Equals("HEAD", StringComparison.OrdinalIgnoreCase))
+            {
+                var body = new MemoryStream();
+                await req.Content.AsStreamForRead().CopyToAsync(body);
+                body.Position = 0;
+                msg.Content = new System.Net.Http.StreamContent(body);
+                foreach (var h in contentHeaders) msg.Content.Headers.TryAddWithoutValidation(h.Key, h.Value);
+            }
+
+            using var res = await s_apiProxy.SendAsync(msg, System.Net.Http.HttpCompletionOption.ResponseHeadersRead);
+            // Buffered: CreateWebResourceResponse needs a seekable stream. Streaming endpoints still work, the
+            // chunks just arrive together when the server finishes.
+            var buf = new MemoryStream();
+            await res.Content.CopyToAsync(buf);
+            buf.Position = 0;
+
+            var sb = new System.Text.StringBuilder();
+            void add(string k, IEnumerable<string> vs)
+            {
+                if (s_hopHeaders.Contains(k)) return;
+                foreach (var v in vs) sb.Append(k).Append(": ").Append(v).Append("\r\n");
+            }
+            foreach (var h in res.Headers) add(h.Key, h.Value);
+            foreach (var h in res.Content.Headers) add(h.Key, h.Value);
+            sb.Append("Content-Length: ").Append(buf.Length);
+
+            args.Response = core.Environment.CreateWebResourceResponse(
+                buf.AsRandomAccessStream(), (int)res.StatusCode, res.ReasonPhrase ?? "", sb.ToString());
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[ApiProxy] {uri.AbsolutePath}: {ex.Message}");
+            args.Response = core.Environment.CreateWebResourceResponse(
+                null, 502, "Bad Gateway", "Content-Type: application/json\r\nCache-Control: no-store");
         }
         finally
         {
