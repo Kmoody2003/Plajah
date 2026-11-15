@@ -70,6 +70,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   // ── ERA CLASH: 2D FIGHTING MODE ───────────────────────────────────────────
   {
     id: 'era-clash-2d',
+    commercialVideoUrl: '/games/commercials/era-clash-2d.mp4',
     title: 'Era Clash: 2D Arcade Fighter',
     subtitle: 'Six warriors across six historical ages · Frame-tight 2D combat',
     category: 'ERA_CLASH',
@@ -146,6 +147,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   // ── ERA CLASH: 3D CAMPAIGN MODE ───────────────────────────────────────────
   {
     id: 'era-clash-3d',
+    commercialVideoUrl: '/games/commercials/era-clash-3d.mp4',
     title: 'Era Clash: Tales of the Ages (3D)',
     subtitle: 'Full 3D Action-Adventure Campaign · WebGPU / Three.js',
     category: 'ERA_CLASH',
@@ -222,6 +224,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   // ── RAVENCREST (CURRENT LIVE BUILD) ───────────────────────────────────────
   {
     id: 'ravencrest',
+    commercialVideoUrl: '/games/commercials/ravencrest.mp4',
     title: 'Ravencrest',
     subtitle: 'Gothic 3D Horror-Adventure · Current Live Build',
     category: 'ADVENTURE_3D',
@@ -297,6 +300,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   // ── KITH PARTY GAMES (6 GAMES) ────────────────────────────────────────────
   {
     id: 'kith-circuit',
+    commercialVideoUrl: '/games/commercials/kith-circuit.mp4',
     title: 'Kith Racing',
     subtitle: '3D Kart Racing across 6 wild worlds · Drift boosts & Kith Specials',
     category: 'KITH_PARTY',
@@ -352,6 +356,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   },
   {
     id: 'kith-tennis',
+    commercialVideoUrl: '/games/commercials/kith-tennis.mp4',
     title: 'Kith Tennis',
     subtitle: '3D Singles & Doubles on 6 scenic courts',
     category: 'KITH_PARTY',
@@ -405,6 +410,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   },
   {
     id: 'kith-kombat',
+    commercialVideoUrl: '/games/commercials/kith-kombat.mp4',
     title: 'Kart Kombat',
     subtitle: '8-Kart Battle Royale inside a closing storm',
     category: 'KITH_PARTY',
@@ -458,6 +464,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   },
   {
     id: 'kith-crystals',
+    commercialVideoUrl: '/games/commercials/kith-crystals.mp4',
     title: 'Crystal Scramble',
     subtitle: '60-second arena dash for sparkling crystals',
     category: 'KITH_PARTY',
@@ -503,6 +510,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   },
   {
     id: 'kith-rhythm',
+    commercialVideoUrl: '/games/commercials/kith-rhythm.mp4',
     title: 'Chora’s Beat Garden',
     subtitle: '4-lane flower rhythm party powered by Chora tracks',
     category: 'KITH_PARTY',
@@ -549,6 +557,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   },
   {
     id: 'kith-quest',
+    commercialVideoUrl: '/games/commercials/kith-quest.mp4',
     title: 'Kith Quest',
     subtitle: 'Hand-built 2D Action Platformer · 3 Stages + Hollow Warden Boss',
     category: 'KITH_PARTY',
@@ -597,6 +606,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   // ── PARLOR, BOARD & WORD GAMES (5 GAMES) ──────────────────────────────────
   {
     id: 'cyber-ttt',
+    commercialVideoUrl: '/games/commercials/cyber-ttt.mp4',
     coverGlyph: '✕ ◯',
     title: 'Cyber Tic Tac Toe',
     subtitle: 'Neon Parlor & Board Strategy · Ranked ELO & Verified Ledger',
@@ -652,6 +662,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   },
   {
     id: 'sketch-rush',
+    commercialVideoUrl: '/games/commercials/sketch-rush.mp4',
     coverGlyph: '✎',
     title: 'Sketch Rush',
     subtitle: 'Live Drawing & Word-Guessing Party · Streamed to Your Feed',
@@ -699,6 +710,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   },
   {
     id: 'brain-rush',
+    commercialVideoUrl: '/games/commercials/brain-rush.mp4',
     coverGlyph: '?',
     title: 'Brain Rush',
     subtitle: 'Rapid-Fire Live Trivia Parlor · Speed & Accuracy Win',
@@ -745,6 +757,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   },
   {
     id: 'crowd-says',
+    commercialVideoUrl: '/games/commercials/crowd-says.mp4',
     coverGlyph: '#1',
     title: 'Crowd Says',
     subtitle: 'Word & Survey Party · The Room Makes the Board',
@@ -791,6 +804,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   },
   {
     id: 'impostor-night',
+    commercialVideoUrl: '/games/commercials/impostor-night.mp4',
     coverGlyph: '◐',
     title: 'Impostor Night',
     subtitle: 'Social Deduction Word Game · Clue, Bluff, Vote',
