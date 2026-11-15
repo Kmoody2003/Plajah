@@ -71,3 +71,28 @@ export function songFactsFromTrack(t: TrackLike | null | undefined): SongFacts |
     isPersonaArtist: persona,
   };
 }
+
+/** One stretch of the station day: a host's show, or music-only hours (host null). */
+export interface LineupBlock { host: PersonaSheet | null; start: number; end: number; onAir: boolean }
+
+/**
+ * Today's Plajah FM day in station time, hour 0–24, grouped into blocks — including a show that
+ * started last night and runs past midnight, and the unhosted (music-only) stretches.
+ */
+export function todaysLineup(now: number = Date.now()): LineupBlock[] {
+  const { dayIndex, hour } = stationClock(now);
+  const blocks: LineupBlock[] = [];
+  for (let h = 0; h < 24; h++) {
+    const host = hostOnAir(dayIndex, h);
+    const last = blocks[blocks.length - 1];
+    if (last && (last.host?.id ?? null) === (host?.id ?? null)) last.end = h + 1;
+    else blocks.push({ host, start: h, end: h + 1, onAir: false });
+  }
+  for (const b of blocks) b.onAir = hour >= b.start && hour < b.end;
+  return blocks;
+}
+
+/** "6am–10am" for a lineup block (station time). */
+export function blockHoursLabel(b: { start: number; end: number }): string {
+  return `${hr12(b.start)}–${hr12(b.end)}`;
+}

@@ -15212,7 +15212,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       upload: (p, bytes, contentType, token) => gcsUploadWithDownloadToken(p, Buffer.from(bytes), contentType, token),
     })
     : null;
-  app.use('/api/onair', apiLimiter, express.json({ limit: '16kb' }), createOnAirRouter({ voicer: onAirVoicer }));
+  app.use('/api/onair', apiLimiter, express.json({ limit: '128kb' }), createOnAirRouter({ voicer: onAirVoicer }));
   // Lorea Lexicon — dictionary, thesaurus, etymology, slang, multilingual (services/lexicon, docs/LOREA_LEXICON.md).
   app.use('/api/lexicon', apiLimiter, express.json({ limit: '16kb' }), createLexiconRouter());
   app.use('/api/cora', express.json({ limit: '1mb' }), coraRouter);

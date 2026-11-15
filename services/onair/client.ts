@@ -76,3 +76,22 @@ export function playHostClip(url: string, o: { muted?: boolean; duck?: () => voi
   });
   return { stop: () => { try { a.pause(); a.src = ''; } catch { /* */ } restore(); }, done };
 }
+
+/**
+ * Real song lengths for the station clock (server reads each file's header once and caches it).
+ * `pending` > 0 means a cold cache is still reading some files — ask again shortly.
+ */
+export async function fetchStationLengths(tracks: { id: string; url?: string }[]): Promise<{ durations: Record<string, number | null>; pending: number }> {
+  try {
+    const res = await fetch('/api/onair/durations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tracks: tracks.filter(t => t.url).map(t => ({ id: t.id, url: t.url })) }),
+    });
+    if (!res.ok) throw new Error(String(res.status));
+    const d = await res.json();
+    return { durations: d.durations || {}, pending: Number(d.pending) || 0 };
+  } catch {
+    return { durations: {}, pending: 0 };
+  }
+}

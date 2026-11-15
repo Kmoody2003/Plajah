@@ -188,6 +188,8 @@ interface GlobalPlayerContextType {
   isAudiobook: boolean;
 }
 
+import { isStationAlbum, nextInRotation } from '../services/radioEngine';
+
 const GlobalPlayerContext = createContext<GlobalPlayerContextType | undefined>(undefined);
 const GlobalPlayerProgressContext = createContext<GlobalPlayerProgressContextType | undefined>(undefined);
 
@@ -283,6 +285,9 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [audioSource, setAudioSource] = useState<'LIBRARY' | 'RADIO' | 'VIDEO' | null>(null);
+  // A tuned-in Plajah station: finite songs in a rotation (unlike a live internet radio stream, which
+  // also plays as 'RADIO' but has no end). Station songs get the same end-of-track safety nets as music.
+  const stationPlay = audioSource === 'RADIO' && isStationAlbum(currentAlbum);
   const [repeatMode, setRepeatMode] = useState<'OFF' | 'ONE' | 'ALL'>('OFF');
   const [isShuffle, setIsShuffle] = useState(false);
   const [isFxActive, setIsFxActive] = useState(false);   // DJ FX (filter) currently coloring the stream
@@ -824,7 +829,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   //      blocked / platform-HLS source, or a context the OS keeps suspended) -> resume the
   //      context, and if still flat, swap to a fresh un-routed element and never route again.
   useEffect(() => {
-    if (!isPlaying || audioSource === 'VIDEO' || audioSource === 'RADIO') return;
+    if (!isPlaying || audioSource === 'VIDEO' || (audioSource === 'RADIO' && !stationPlay)) return;
     const w = silenceWatch.current;
     // Recoveries are PER TRACK. They used to live across the whole session, so four unrelated
     // hiccups hours apart ended in a spurious "giving up on this track, advancing" mid-song.
@@ -920,7 +925,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       fresh.play().catch(() => {});
     }, 2000);
     return () => clearInterval(id);
-  }, [isPlaying, audioSource, currentTrack?.id]);
+  }, [isPlaying, audioSource, stationPlay, currentTrack?.id]);
 
   useEffect(() => {
     stateRef.current = { repeatMode, isShuffle, currentAlbum, currentTrack, currentVideo, isPlaying, audioSource, currentTime, ytPlayer: ytPlayerRef.current };
@@ -1766,6 +1771,15 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const next = React.useCallback(() => {
     if (stateRef.current.audioSource === 'VIDEO') return;
     const album = stateRef.current.currentAlbum;
+    // A tuned-in station (Plajah FM or an artist station) is a broadcast, not a playlist: the next
+    // song stays a RADIO play (so the station page keeps following it), the rotation wraps at the end
+    // like a 24/7 loop, and it never wanders off into the cross-catalog "up next".
+    if (album && stateRef.current.currentTrack && stateRef.current.audioSource === 'RADIO' && isStationAlbum(album)) {
+      const t = nextInRotation(album.tracks, stateRef.current.currentTrack.id);
+      if (t) { playTrack(t, album, 'RADIO', undefined, t.id === stateRef.current.currentTrack.id); return; }
+      pause();
+      return;
+    }
     if (album && stateRef.current.currentTrack) {
       const nid = pickNextId();                       // shuffle / repeat aware
       const t = nid ? album.tracks.find(x => x.id === nid) : null;
@@ -1937,7 +1951,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // scrubber progressing continuously. (Video/Radio use the YouTube poll above.)
   const stallRef = useRef({ lastT: -1, since: 0 });
   useEffect(() => {
-    if (!isPlaying || audioSource === 'VIDEO' || audioSource === 'RADIO') return;
+    if (!isPlaying || audioSource === 'VIDEO' || (audioSource === 'RADIO' && !stationPlay)) return;
     let raf = 0;
     let lastUpdate = 0;
     stallRef.current = { lastT: -1, since: 0 };
@@ -1984,7 +1998,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [isPlaying, audioSource]);
+  }, [isPlaying, audioSource, stationPlay]);
 
   // Visibility-safe end-of-track fallback. The `ended` event is the primary signal, and the rAF
   // watchdog above is a foreground-only safety net (rAF is suspended when the screen is off). If the
@@ -1997,7 +2011,7 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const audio = audioRef.current;
       const st = stateRef.current;
       if (!audio || !intendedPlayingRef.current || !st.currentTrack) return;
-      if (st.audioSource === 'VIDEO' || st.audioSource === 'RADIO' || usingDecodeFallbackRef.current) return;
+      if (st.audioSource === 'VIDEO' || (st.audioSource === 'RADIO' && !isStationAlbum(st.currentAlbum)) || usingDecodeFallbackRef.current) return;
       if (!audio.ended || audio.loop) return;
       // The element can still report the PREVIOUS track as ended for a moment after playTrack() while
       // the new source is attached — only trust `ended` once this track has had time to load, and

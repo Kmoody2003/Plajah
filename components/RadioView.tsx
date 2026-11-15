@@ -6,14 +6,19 @@ import { Track, UserProfile, Album } from '../types';
 import { fetchRadioTracks, likeTrack, addToLibrary, auth, processDonation, fetchUserProfile, fetchRadioSchedule, fetchUserAlbums } from '../services/backendService';
 import { canAirTrack } from '../services/rights/trackClearance';
 import { activeDaySlots, slotDurationSec } from '../services/fastChannelTimeline';
-import { getSatellitePosition, getRecentlyPlayed, type RecentlyPlayed } from '../services/radioEngine';
+import { getSatellitePosition, getRecentlyPlayed, buildRotation, tuneInPoint, stationAlbumId, nextInRotation, type RecentlyPlayed } from '../services/radioEngine';
 import DonationModal from './DonationModal';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import LiveRadioBrowser from './radio/LiveRadioBrowser';
 import { getRadioPresets, toggleRadioPreset, subscribeRadioPresets, isRadioPreset, type RadioPreset } from '../services/radioPresetsService';
-import { OnAirHostCard, useOnAirHost, useHostLine } from './radio/OnAirHost';
+import { OnAirHostCard, TodayLineup, useOnAirHost, useHostLine } from './radio/OnAirHost';
 import { songFactsFromTrack } from '../services/onair/station';
-import { playHostClip } from '../services/onair/client';
+import { playHostClip, fetchStationLengths } from '../services/onair/client';
+
+/** Real song lengths onto a queue (uploads never stored them; the station clock needs them). */
+const withLengths = (queue: Track[], lengths: Record<string, number | null>): Track[] =>
+  queue.map(t => (typeof lengths[t.id] === 'number' && lengths[t.id]! > 0 ? { ...t, duration: lengths[t.id]! } : t))
+    .filter(t => lengths[t.id] !== 0); // an empty file can never play — it would freeze the station
 
 // ── Satellite radio engine ─────────────────────────────────────────────────────
 // The continuous 24/7 positioning lives in services/radioEngine.ts now — the SAME reusable engine
@@ -36,6 +41,7 @@ interface RadioViewProps {
 const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm }) => {
   const {
     currentTrack: globalTrack,
+    currentAlbum: globalAlbum,
     isPlaying: globalIsPlaying,
     playTrack,
     pause,
@@ -67,10 +73,15 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
   const [presets, setPresets] = useState<RadioPreset[]>(() => getRadioPresets());
   // Plajah FM's virtual host for this hour (station time). Artist stations have no host.
   const onAir = useOnAirHost();
+  // Tuned in = the global player is playing THIS station's rotation (Plajah FM and every artist
+  // station hand the player an album with a station id). Then the page follows the song actually on
+  // air; before you tune in, it follows the station clock (see the satellite tick below).
+  const thisStationAlbumId = stationAlbumId(activeStationId);
+  const tunedIn = audioSource === 'RADIO' && globalAlbum?.id === thisStationAlbumId && !!globalTrack;
+  const onAirTrack = tunedIn ? globalTrack : currentTrack;
+  const upNextTrack = tracks.length > 1 ? nextInRotation(tracks, onAirTrack?.id) : null;
   // The host's link into the song on air: back-announce the one before it in the rotation, then this
   // one. Written by the server from the tracks' stored facts (title, artist, real play count).
-  // Once tuned in, the station's own player moves through the rotation; follow the song actually on air.
-  const onAirTrack = audioSource === 'RADIO' && globalTrack && tracks.some(t => t.id === globalTrack.id) ? globalTrack : currentTrack;
   const linkBody = useMemo(() => {
     if (activeStationId || !onAirTrack) return null;
     const i = tracks.findIndex(t => t.id === onAirTrack.id);
@@ -91,7 +102,7 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
     const before = volumeRef.current;
     clipRef.current = playHostClip(url, { duck: () => setVolume(before * 0.3), restore: () => setVolume(before) });
   }, [hostLine?.audioUrl, setVolume]);
-  const radioLive = audioSource === 'RADIO' && globalIsPlaying && !activeStationId;
+  const radioLive = tunedIn && globalIsPlaying && !activeStationId;
   useEffect(() => {
     const url = hostLine?.audioUrl;
     if (!radioLive || !url || spokenRef.current === url) return;
@@ -174,6 +185,7 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
             }
             if (scheduled.length) queue = scheduled;
           }
+          queue = withLengths(queue, (await fetchStationLengths(queue)).durations);
           setTracks(queue);
 
           // Satellite mode: join mid-song based on wall-clock position
@@ -182,14 +194,25 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
           setSatelliteOffset(pos.offsetSeconds);
           setRecentlyPlayed(getRecentlyPlayed(queue));
         } else {
+          // Plajah FM: today's rotation (shuffled once a day, the same for every listener, albums
+          // spread out), timed with each song's REAL length so the clock matches what's playing.
           const allTracks = await fetchRadioTracks();
-          setTracks(allTracks);
-          const pos = getSatellitePosition(allTracks);
-          setCurrentTrack(allTracks[pos.trackIndex] ?? null);
+          const { durations, pending } = await fetchStationLengths(allTracks);
+          const rotation = buildRotation(allTracks, durations);
+          setTracks(rotation);
+          const pos = getSatellitePosition(rotation);
+          setCurrentTrack(rotation[pos.trackIndex] ?? null);
           setSatelliteOffset(pos.offsetSeconds);
-          setRecentlyPlayed(getRecentlyPlayed(allTracks));
+          setRecentlyPlayed(getRecentlyPlayed(rotation));
           setArtistProfile(null);
           setExclusiveTracks([]);
+          // A cold server is still reading some files: pick up the rest shortly (same order, better clock).
+          if (pending > 0) {
+            setTimeout(async () => {
+              const again = await fetchStationLengths(allTracks);
+              if (!stale) setTracks(buildRotation(allTracks, again.durations));
+            }, 8000);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -210,54 +233,78 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
       }
     };
 
+    let stale = false;
     loadRadioContent();
     loadDirectory();
+    return () => { stale = true; };
   }, [activeStationId]);
 
-  const handlePlayPause = () => {
-    if (!currentTrack) return;
+  // The station clock keeps running before you tune in: the page shows what's on air right now and
+  // moves to the next song when it changes, like a radio dial.
+  useEffect(() => {
+    if (tunedIn || !tracks.length) return;
+    const tick = () => {
+      const pos = getSatellitePosition(tracks);
+      const t = tracks[pos.trackIndex] ?? null;
+      setCurrentTrack(prev => (prev?.id === t?.id ? prev : t));
+      setSatelliteOffset(pos.offsetSeconds);
+      setRecentlyPlayed(getRecentlyPlayed(tracks));
+    };
+    tick();
+    const iv = setInterval(tick, 5000);
+    return () => clearInterval(iv);
+  }, [tunedIn, tracks]);
 
-    if (globalTrack?.id === currentTrack.id && audioSource === 'RADIO') {
-      // Already tuned in — just pause/resume
-      if (globalIsPlaying) pause();
-      else resume();
-      return;
-    }
+  // Tuned in: what really played on this station goes into "Recently played" as each song hands off.
+  const lastOnAirRef = useRef<Track | null>(null);
+  useEffect(() => {
+    const prev = lastOnAirRef.current;
+    lastOnAirRef.current = tunedIn ? globalTrack : null;
+    if (!tunedIn || !globalTrack || !prev || prev.id === globalTrack.id) return;
+    setRecentlyPlayed(list => [{ track: prev, playedAt: new Date() }, ...list.filter(r => r.track.id !== prev.id)].slice(0, 8));
+  }, [tunedIn, globalTrack?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // A radio has no "resume where I left off": after a short pause you're back on the live broadcast.
+  const pausedAtRef = useRef<number | null>(null);
+  useEffect(() => { if (tunedIn && !globalIsPlaying) pausedAtRef.current ??= Date.now(); else if (globalIsPlaying) pausedAtRef.current = null; }, [tunedIn, globalIsPlaying]);
+
+  const tuneIn = () => {
+    if (!tracks.length) return;
+    // Join the broadcast where it is RIGHT NOW (computed at the moment you press play, never a stale
+    // offset), except in a song's last seconds — then the next song from the top.
+    const pos = tuneInPoint(tracks);
+    const track = tracks[pos.trackIndex];
+    if (!track) return;
     const radioAlbum: Album = {
-      id: activeStationId ? `artist_radio_${activeStationId}` : 'radio_station',
-      title: artistProfile?.radioSettings?.stationName || (activeStationId ? `${artistProfile?.displayName}'s Radio` : 'Global Radio'),
-      artist: artistProfile?.displayName || 'Public Station',
-      coverImage: currentTrack.albumCover || 'https://images.unsplash.com/photo-1548502669-e09bd2363ee0?auto=format&fit=crop&q=80',
-      tracks: tracks,
-      description: activeStationId ? `Personalized broadcast for ${artistProfile?.displayName}` : 'Global Radio Station stream',
-      themeColor: artistProfile?.radioSettings?.enabled ? '#00DAF3' : '#ff8c00',
+      id: thisStationAlbumId,
+      title: artistProfile?.radioSettings?.stationName || (activeStationId ? `${artistProfile?.displayName}'s Radio` : 'Plajah FM'),
+      artist: artistProfile?.displayName || 'Plajah FM',
+      coverImage: track.albumCover || 'https://images.unsplash.com/photo-1548502669-e09bd2363ee0?auto=format&fit=crop&q=80',
+      tracks,
+      description: activeStationId ? `Personalized broadcast for ${artistProfile?.displayName}` : 'Plajah FM — live site-wide broadcast',
+      themeColor: activeStationId ? '#00DAF3' : '#ff8c00',
       createdAt: Date.now(),
     };
+    setCurrentTrack(track);
+    setSatelliteOffset(pos.offsetSeconds);
+    playTrack(track, radioAlbum, 'RADIO', pos.offsetSeconds > 1 ? pos.offsetSeconds : undefined, true);
+  };
 
-    // Start the track, then seek to satellite position after audio loads
-    seekScheduledRef.current = false;
-    playTrack(currentTrack, radioAlbum, 'RADIO');
-
-    // Seek to satellite offset once audio is ready
-    // We retry a few times to handle async audio load
-    if (satelliteOffset > 0) {
-      let attempts = 0;
-      const trySeek = () => {
-        if (seekScheduledRef.current) return;
-        attempts++;
-        seek(satelliteOffset);
-        if (attempts < 5) setTimeout(trySeek, 200);
-        else seekScheduledRef.current = true;
-      };
-      setTimeout(trySeek, 300);
+  const handlePlayPause = () => {
+    if (tunedIn) {
+      if (globalIsPlaying) { pause(); return; }
+      // Paused for more than a minute → rejoin live, like turning a radio back on.
+      if (pausedAtRef.current && Date.now() - pausedAtRef.current > 60_000) { pausedAtRef.current = null; tuneIn(); return; }
+      resume();
+      return;
     }
+    tuneIn();
   };
 
   const handleLike = async () => {
-    if (currentTrack) {
+    if (onAirTrack) {
       try {
-        await likeTrack(currentTrack.albumId || 'radio_station', currentTrack.id);
+        await likeTrack(onAirTrack.albumId || 'radio_station', onAirTrack.id);
         alert('Added to your likes!');
       } catch (err) {
         console.error(err);
@@ -266,9 +313,9 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
   };
 
   const handleAddToLibrary = async () => {
-    if (currentTrack) {
+    if (onAirTrack) {
       try {
-        await addToLibrary(currentTrack.id);
+        await addToLibrary(onAirTrack.id);
         alert('Track added to your library!');
       } catch (err) {
         console.error(err);
@@ -313,7 +360,6 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
     );
   }
 
-  const isCurrentTrackRadio = audioSource === 'RADIO' && globalTrack?.id === currentTrack?.id;
 
   return (
     <div className="h-full bg-transparent text-white overflow-hidden flex flex-col lg:flex-row">
@@ -330,9 +376,16 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
             </div>
             <div className="text-left">
               <p className="text-xs font-black uppercase tracking-tight">Plajah FM</p>
-              <p className={`text-[8px] font-bold uppercase tracking-widest ${!activeStationId ? 'text-black/60' : 'text-white/40'}`}>Global Stream</p>
+              <p className={`text-[8px] font-bold uppercase tracking-widest ${!activeStationId ? 'text-black/60' : 'text-white/40'}`}>{onAir.host ? `Live · ${onAir.host.stageName}` : 'Global Stream'}</p>
             </div>
           </button>
+
+          {!activeStationId && (
+            <div className="hidden lg:block mt-4">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-2 px-1">Today on Plajah FM</h4>
+              <TodayLineup compact />
+            </div>
+          )}
 
           {/* Real-world broadcast radio, alongside Plajah's own stations. */}
           <button
@@ -451,12 +504,12 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
         <div className="flex-1 flex flex-col items-center justify-center p-6 lg:p-12 relative overflow-y-auto">
           <div className={`absolute inset-0 bg-gradient-to-b ${activeStationId ? 'from-[#00DAF3]/5' : 'from-small-orange/5'} to-transparent pointer-events-none`} />
           
-          {!activeStationId && <OnAirHostCard host={onAir.host} next={onAir.next} line={hostLine} onHear={hearHost} />}
+          {!activeStationId && <OnAirHostCard host={onAir.host} next={onAir.next} line={hostLine} onHear={hearHost} live={radioLive} />}
 
           <AnimatePresence mode="wait">
-            {currentTrack && (
+            {onAirTrack && (
               <motion.div 
-                key={currentTrack.id}
+                key={onAirTrack.id}
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 1.1 }}
@@ -466,11 +519,11 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
                   <div className={`absolute -inset-4 rounded-[3rem] blur-2xl opacity-0 group-hover:opacity-100 transition-all duration-700 ${activeStationId ? 'bg-[#00DAF3]/20' : 'bg-small-orange/20'}`} />
                     <div className="w-48 h-48 sm:w-64 sm:h-64 lg:w-80 lg:h-80 rounded-[3rem] overflow-hidden border-4 border-white/10 shadow-3xl relative">
                     <img 
-                      src={currentTrack.albumCover || currentTrack.images?.[0] || 'https://picsum.photos/seed/radio/800/800'} 
-                      alt={currentTrack.title}
+                      src={onAirTrack.albumCover || onAirTrack.images?.[0] || 'https://picsum.photos/seed/radio/800/800'} 
+                      alt={onAirTrack.title}
                       className="w-full h-full object-cover"
                     />
-                    {globalIsPlaying && isCurrentTrackRadio && (
+                    {globalIsPlaying && tunedIn && (
                       <div className="absolute inset-0 bg-theme-card/60 flex items-center justify-center backdrop-blur-sm">
                         <div className="flex gap-1 items-end h-12">
                           {[1,2,3,4,5].map(i => (
@@ -488,10 +541,10 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
                 </div>
 
                 <h3 className="text-3xl sm:text-4xl lg:text-6xl font-black uppercase tracking-tightest mb-4 leading-none break-words w-full">
-                  {currentTrack.title}
+                  {onAirTrack.title}
                 </h3>
                 <p className={`text-lg sm:text-xl font-bold uppercase tracking-widest mb-8 lg:mb-12 ${activeStationId ? 'text-[#00DAF3]' : 'text-small-orange'}`}>
-                  {currentTrack.artist}
+                  {onAirTrack.artist}
                 </p>
 
                 <div className="flex items-center gap-6 lg:gap-8">
@@ -506,7 +559,7 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
                     onClick={handlePlayPause}
                     className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-2xl ${activeStationId ? 'bg-[#00DAF3] text-black' : 'bg-white text-black'}`}
                   >
-                    {globalIsPlaying && isCurrentTrackRadio ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-2" />}
+                    {globalIsPlaying && tunedIn ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-2" />}
                   </button>
 
                   <button 
@@ -529,6 +582,22 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
                     <Bookmark size={24} fill={isCurrentStationPreset ? 'currentColor' : 'none'} />
                   </button>
                 </div>
+
+                <p className="mt-6 text-[10px] font-bold uppercase tracking-widest text-white/35">
+                  {tunedIn ? (globalIsPlaying ? 'Live — you are tuned in' : 'Paused — press play to rejoin live') : 'On air now — press play to tune in'}
+                </p>
+                {upNextTrack && upNextTrack.id !== onAirTrack.id && (
+                  <div className="mt-4 flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white/[0.04] border border-white/10 max-w-md w-full text-left">
+                    {upNextTrack.albumCover
+                      ? <img src={upNextTrack.albumCover} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                      : <div className="w-10 h-10 rounded-lg bg-white/5 shrink-0" />}
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-black uppercase tracking-[0.25em] text-white/40">Up next</p>
+                      <p className="text-xs font-bold truncate">{upNextTrack.title}</p>
+                      <p className="text-[10px] text-white/40 truncate">{upNextTrack.artist}</p>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -573,20 +642,9 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
         {/* Radio Footer / Interaction Bar */}
         <div className="p-8 bg-white/[0.02] border-t border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <div className="flex -space-x-3">
-              {[1,2,3,4].map(i => (
-                <img 
-                  key={i} 
-                  src={`https://picsum.photos/seed/user${i}/100/100`} 
-                  className="w-10 h-10 rounded-full border-2 border-theme" 
-                  alt="Listener"
-                />
-              ))}
-              <div className="w-10 h-10 rounded-full bg-white/5 border-2 border-theme flex items-center justify-center text-[10px] font-black">
-                +42
-              </div>
-            </div>
-            <span className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Listening Now</span>
+            <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+              {activeStationId ? 'Artist station' : onAir.host ? `${onAir.host.show?.name} with ${onAir.host.stageName} (AI host)` : 'Plajah FM — music around the clock'}
+            </span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -644,12 +702,12 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
         </aside>
       )}
 
-      {currentTrack && currentTrack.artistId && (
+      {onAirTrack && onAirTrack.artistId && (
         <DonationModal 
           isOpen={isDonationModalOpen}
           onClose={() => setIsDonationModalOpen(false)}
-          toId={currentTrack.artistId}
-          toName={currentTrack.artist}
+          toId={onAirTrack.artistId}
+          toName={onAirTrack.artist}
         />
       )}
     </div>

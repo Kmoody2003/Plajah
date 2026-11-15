@@ -5,6 +5,7 @@
 //   GET  /schedule   the weekly show grid
 //   POST /link       {kind, prev?, next?, channelName?} → the host's line for this moment (+ audioUrl when voiced)
 //   GET  /voice      which personas have a voice and this month's render spend
+//   POST /durations  {tracks:[{id,url}]} → real song lengths for the station clock (read once, cached)
 //
 // Why server-side: every listener must hear the same host say the same line at the same moment, the
 // model key never reaches a browser, and each line is written ONCE per song change (cached), not once
@@ -13,7 +14,7 @@
 // The live mind (Gemini) is off unless ONAIR_MIND=1; without it every line is a grounded template.
 // A model line only airs if policy.checkLine passes with the facts given (see services/onair/segments).
 //
-// Mounted in server.ts as: app.use('/api/onair', apiLimiter, express.json({ limit: '16kb' }), createOnAirRouter())
+// Mounted in server.ts as: app.use('/api/onair', apiLimiter, express.json({ limit: '128kb' }), createOnAirRouter())  (128kb: /durations carries the rotation's URLs)
 
 import { Router, type Request, type Response } from 'express';
 import { createHash } from 'node:crypto';
@@ -25,6 +26,7 @@ import { onAirNow, nextOnAir, stationClock, showHoursLabel, STATION_TZ } from '.
 import type { PersonaSheet } from '../services/onair/types';
 import { createGeminiLane, geminiConfigured, laneModel, type LaneFn } from '../services/ai/geminiLane';
 import type { Voicer } from '../services/onair/voice';
+import { probeDuration } from '../services/onair/audioDuration';
 
 /** The public card for a persona: what the radio page and the side pillar show. No prompts, no voice ids. */
 export function publicCard(p: PersonaSheet) {
@@ -71,12 +73,23 @@ class LineCache<V> {
   set(k: string, v: V) { this.m.set(k, v); if (this.m.size > this.max) this.m.delete(this.m.keys().next().value as string); }
 }
 
+/** Only the station's own storage is probed — this endpoint must never become a URL fetcher. */
+export function isStationMediaUrl(u: string): boolean {
+  try {
+    const x = new URL(u);
+    if (x.protocol !== 'https:') return false;
+    return x.hostname === 'firebasestorage.googleapis.com' || x.hostname === 'storage.googleapis.com' || x.hostname.endsWith('.firebasestorage.app');
+  } catch { return false; }
+}
+
 export interface OnAirDeps {
   now?: () => number;
   /** The model lane for live lines. Omit (or ONAIR_MIND unset) for templates only. */
   mind?: LaneFn | null;
   /** Renders lines in the persona's ElevenLabs voice (services/onair/voice). Omit for captions only. */
   voicer?: Voicer | null;
+  /** Reads a song's length (tests stub it). */
+  probe?: (url: string) => Promise<number | null>;
 }
 
 export function createOnAirRouter(deps: OnAirDeps = {}): Router {
@@ -118,6 +131,46 @@ export function createOnAirRouter(deps: OnAirDeps = {}): Router {
   r.get('/schedule', (_req, res) => {
     res.set('Cache-Control', 'public, max-age=3600');
     res.json({ tz: STATION_TZ, grid: weeklyGrid(), shows: HOSTS.map(publicCard) });
+  });
+
+  // ── Station clock: real song lengths ───────────────────────────────────────────────────────────
+  // Uploads never stored a duration, so the satellite clock guessed 3 minutes for every song and
+  // drifted off what was really playing. Each file's header is read ONCE (a small range request) and
+  // cached for every listener; the browser builds the same clock from the same numbers.
+  const probe = deps.probe ?? probeDuration;
+  const lengths = new Map<string, number | null>();          // url → seconds (0 = empty file, null = unreadable)
+  const probing = new Map<string, Promise<void>>();
+  let active = 0; const waiting: (() => void)[] = [];
+  const slot = async <T,>(fn: () => Promise<T>): Promise<T> => {
+    if (active >= 6) await new Promise<void>(r => waiting.push(r));
+    active++;
+    try { return await fn(); } finally { active--; waiting.shift()?.(); }
+  };
+  const measure = (url: string) => {
+    let p = probing.get(url);
+    if (!p) {
+      p = slot(() => probe(url)).then(sec => { lengths.set(url, sec == null ? null : Math.round(sec * 10) / 10); }, () => { lengths.set(url, null); })
+        .finally(() => probing.delete(url));
+      probing.set(url, p);
+    }
+    return p;
+  };
+
+  r.post('/durations', async (req: Request, res: Response) => {
+    const list = Array.isArray(req.body?.tracks) ? req.body.tracks.slice(0, 400) : [];
+    const items = list
+      .map((t: any) => ({ id: str(t?.id, 80), url: typeof t?.url === 'string' ? t.url.slice(0, 2000) : '' }))
+      .filter((t: { id: string; url: string }) => t.id && isStationMediaUrl(t.url));
+    const todo = items.filter((t: { url: string }) => !lengths.has(t.url)).map((t: { url: string }) => measure(t.url));
+    // Wait a little for a cold cache; whatever isn't read yet comes back as pending (ask again).
+    if (todo.length) await Promise.race([Promise.allSettled(todo), new Promise(r => setTimeout(r, 6000))]);
+    const durations: Record<string, number | null> = {};
+    let pending = 0;
+    for (const t of items) {
+      if (lengths.has(t.url)) durations[t.id] = lengths.get(t.url)!;
+      else pending++;
+    }
+    res.json({ durations, pending });
   });
 
   r.post('/link', async (req: Request, res: Response) => {
