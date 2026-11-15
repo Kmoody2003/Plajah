@@ -162,6 +162,7 @@ import { createMusicIntelRouter } from './routes/musicIntel';
 import { createReelloIntelRouter, sweepWaiting as reelloIntelSweep } from './routes/reelloIntel';
 import { createStoryIntelRouter } from './routes/storyIntelSources';
 import { reelloOrgChannelsRouter } from './routes/reelloOrgChannels';
+import { createOrgMediaRouter } from './routes/orgMedia';
 import { authMethodsRouter } from './routes/authMethods';
 // Anti-bot layer (docs/ANTI_BOT_PLAYBOOK.md): App Check monitor, signup-check, shared limits.
 import { antiAbuseRouter } from './routes/antiAbuse';
@@ -6516,6 +6517,33 @@ async function startServer() {
       res.status(500).json({ error: error.message || 'Failed to create Mux upload URL' });
     }
   });
+
+  // Org media: orgs publish to PUBLIC / ORG / DEPARTMENT / CLASS audiences; internal items use signed
+  // Mux playback and are checked on every play (routes/orgMedia.ts).
+  app.use('/api/org-media', apiLimiter, express.json({ limit: '8kb' }), createOrgMediaRouter({
+    corsOrigin: req => trustedRequestOrigin(req),
+    mux: {
+      async createUpload({ signed, passthrough, corsOrigin }) {
+        const mux = await getMux();
+        const upload = await mux.video.uploads.create({
+          new_asset_settings: { ...MUX_ASSET_SETTINGS, playback_policy: [signed ? 'signed' : 'public'] as any, passthrough },
+          cors_origin: corsOrigin,
+          timeout: 86400,
+        });
+        return { id: upload.id, url: upload.url };
+      },
+      async getUpload(id) {
+        const mux = await getMux();
+        const u = await mux.video.uploads.retrieve(id);
+        return { status: u.status, assetId: u.asset_id || undefined };
+      },
+      async getAsset(id) {
+        const mux = await getMux();
+        const a = await mux.video.assets.retrieve(id);
+        return { status: a.status, playbackId: a.playback_ids?.[0]?.id, durationSec: a.duration || undefined };
+      },
+    },
+  }));
 
   // GET /api/mux/asset — poll upload status until asset_id is present
   app.get('/api/mux/asset', authMiddleware, async (req, res) => {

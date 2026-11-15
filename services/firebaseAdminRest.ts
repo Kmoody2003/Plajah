@@ -15,7 +15,7 @@ const DB_ID = process.env.FIREBASE_DB_ID || 'plajah-prod';
 // The org back office lives in plajah-ops (services/opsCollections.ts); everything else in DB_ID.
 // Born in plajah-ops (never in plajah-prod, so nothing to copy): routed there without joining OPS_COLLECTIONS,
 // whose changes trigger the CI prod→ops copy.
-const OPS_NATIVE = new Set(['churchOpenClasses', 'churchClassAttendance']);
+const OPS_NATIVE = new Set(['churchOpenClasses', 'churchClassAttendance', 'orgMedia']);
 const docRootFor = (pathOrCollection: string) => {
   const first = pathOrCollection.split('/')[0];
   return `projects/${PROJECT_ID}/databases/${OPS_COLLECTIONS.has(first) || OPS_NATIVE.has(first) ? OPS_DATABASE_ID : DB_ID}/documents`;

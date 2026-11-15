@@ -162,6 +162,7 @@ function Surface() {
         isTeacher={who === 'a'} currentUserUid={auth.currentUser.uid} currentUserName={auth.currentUser.displayName}
         rosterStudents={qs.get('outsider') === '1' ? [{ id: 'someone-else', name: 'Someone Else' }] : [{ id: 'lab-viewer', name: 'Lab Viewer' }]}
         openLive={qs.get('open') === '1'} onLiveJoined={() => { (window as any).__liveJoined = Date.now(); }}
+        onLectureRecorded={(blob, info) => { (window as any).__lectureRec = { size: blob.size, type: blob.type, ...info }; }}
         club={{ kind: 'classroom', id: 'lab-class' }} lessons={[LAB_LESSON]}
         initialSection={(new URLSearchParams(location.search).get('section') as any) || 'LIVE_LECTURE'} />
     </div>

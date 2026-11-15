@@ -5,6 +5,8 @@ import { openUnitInTela, type IngestedCurriculumUnit } from '../../../services/c
 import { getAllStudentDeskWorkspaces, removeDeskAssignment, type UniversalDeskAssignment } from '../../../services/universalStudentDeskService';
 import { unmirrorAssignment, type EduSubmissionRecord } from '../../../services/christianEdSync';
 import SharedClassroomClubHub from '../../classroom/SharedClassroomClubHub';
+import OrgMediaShelf from '../../orgPublish/OrgMediaShelf';
+import { publishOrgMedia } from '../../../services/orgPublish';
 import DeskView from '../../desk/DeskView';
 import EdAssignSheet from './EdAssignSheet';
 import EdPeople from './EdPeople';
@@ -74,6 +76,20 @@ const EdClassClub: React.FC<Props> = props => {
   const watchingColleague = isTeacher && !!props.liveHostUid && props.liveHostUid !== viewer.uid;
   const hubIsTeacher = isTeacher && !watchingColleague;
   const [checkedIn, setCheckedIn] = useState(false);
+  // Live lectures save themselves to the class's private playlist (named after the class).
+  const [recSave, setRecSave] = useState<{ pct: number; state: 'uploading' | 'processing' | 'done' | 'failed'; msg?: string } | null>(null);
+  const [recTick, setRecTick] = useState(0);
+  const saveLecture = (blob: Blob, info: { startedAt: number; durationSec: number }) => {
+    if (info.durationSec < 20) return; // a false start, not a lesson
+    const when = new Date(info.startedAt).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+    setRecSave({ pct: 0, state: 'uploading' });
+    publishOrgMedia(blob, {
+      orgId, audience: 'CLASS', classId: p.id, departmentId: p.departmentId, app: 'reello',
+      title: `${p.name} · ${when}`, playlist: p.name, source: 'class-live',
+    }, pct => setRecSave(s => (s && s.state === 'uploading' ? { ...s, pct } : s)))
+      .then(r => { setRecSave({ pct: 100, state: r.status === 'READY' ? 'done' : 'processing' }); setRecTick(n => n + 1); })
+      .catch(e => setRecSave({ pct: 0, state: 'failed', msg: e?.code === 'NO_SIGNING_KEY' ? 'Private playback isn’t set up yet, so the recording wasn’t saved. Ask an admin to add the Mux signing key.' : e?.message || 'Upload failed' }));
+  };
   // Teachers: who checked in to today's live class (enrolled students are checked in when they tune in).
   const [checkIns, setCheckIns] = useState<LiveCheckIn[]>([]);
   useEffect(() => {
@@ -469,10 +485,25 @@ const EdClassClub: React.FC<Props> = props => {
             openLive={isOpenToOrg(p)}
             extraWatcherUids={props.staffWatchers}
             onLiveJoined={enrolledHere ? () => void checkInLiveClass(p, viewer).then(ok => setCheckedIn(ok)) : undefined}
+            onLectureRecorded={hubIsTeacher ? saveLecture : undefined}
           />
+          {chan === 'live' && recSave && (
+            <div className={recSave.state === 'failed' ? 'err' : 'okmsg'} role="status">
+              {recSave.state === 'uploading' ? `Saving this lesson to the “${p.name}” playlist… ${recSave.pct}% (keep this tab open)`
+                : recSave.state === 'processing' ? `Lesson saved. It’s still processing and will appear in “${p.name}” shortly.`
+                : recSave.state === 'done' ? `Lesson saved to the “${p.name}” playlist. Only this class can watch it.`
+                : recSave.msg}
+            </div>
+          )}
           {chan === 'live' && watchingColleague && <div className="small">Another teacher is live in this class. You've joined their stream as a viewer.</div>}
           {chan === 'live' && checkedIn && <div className="okmsg" role="status">You're checked in for today's class.</div>}
           {chan === 'live' && visitor && <div className="small">You're watching this open class. Ask the teacher to enroll you to join in, turn in work and be counted present.</div>}
+          {chan === 'live' && !visitor && (
+            <div className="card">
+              <OrgMediaShelf orgId={orgId} classId={p.id} title="Class recordings" canManage={isTeacher} refreshKey={recTick}
+                emptyText={isTeacher ? 'Lessons you teach live are saved here automatically. Only this class, its teachers and the department can watch them.' : 'Recorded lessons from this class will show up here.'} />
+            </div>
+          )}
           {chan === 'live' && isTeacher && (
             <div className="card">
               <div className="t">Checked in today · {checkIns.length}</div>

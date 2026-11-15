@@ -111,6 +111,9 @@ export interface SharedClassroomClubHubProps {
   onLiveJoined?: () => void;
   /** Also allowed to receive the lecture when it's roster-gated: department staff, volunteers, leaders. */
   extraWatcherUids?: string[];
+  /** Teacher side: record every live lecture (camera, screen and anyone called on stage) and hand the
+   *  recording over when the lecture ends — Christian Ed saves it to the class's private playlist. */
+  onLectureRecorded?: (blob: Blob, info: { startedAt: number; durationSec: number }) => void;
 }
 
 const WHITEBOARD_COLORS = ['#FFFFFF', '#FF8C00', '#00DAF3', '#06D6A0', '#D40055', '#FFD24A', '#A78BFA'];
@@ -278,6 +281,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   openLive = false,
   onLiveJoined,
   extraWatcherUids,
+  onLectureRecorded,
 }) => {
   const viewerUid = currentUserUid || auth.currentUser?.uid || (isTeacher ? teacherUid : 'student_local');
   const viewerName =
@@ -444,6 +448,9 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
     [isTeacher, openLive, rosterStudents, teacherIds, extraWatcherUids],
   );
   const hostPeerRef = useRef<string>(teacherUid);
+  const recStartRef = useRef(0);
+  const onLectureRecordedRef = useRef(onLectureRecorded);
+  onLectureRecordedRef.current = onLectureRecorded;
   const broadcastRef = useRef<() => void>(() => {});
   const sendLessonRef = useRef<() => void>(() => {});
   const assembleLessonRef = useRef(lessonAssembler());
@@ -470,6 +477,12 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
     {
       autoJoin: true,
       allowedPeerIds,
+      // Leaving the session (lecture ended, tab closed, navigated away) stops the recorder and hands us the file.
+      onRecordingStopped: blob => {
+        const startedAt = recStartRef.current;
+        recStartRef.current = 0;
+        if (startedAt && blob.size > 0) onLectureRecordedRef.current?.(blob, { startedAt, durationSec: Math.round((Date.now() - startedAt) / 1000) });
+      },
       onData: (peerId, msg) => {
         if (isTeacher) {
           if (msg.type === 'lecture:op' && msg.payload) {
@@ -612,6 +625,11 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   }, [isTeacher, rtc.localStream]);
   // Students: ask for the current state once connected; back to "not live" once the teacher has left.
   const hostStream = !isTeacher ? (rtc.remoteStreams.get(hostPeerId) ?? null) : null;
+  // Auto-record: the teacher's lecture records from the moment its camera is publishing.
+  useEffect(() => {
+    if (!isTeacher || !onLectureRecordedRef.current || !lecture.isLive || !rtc.localStream || recStartRef.current) return;
+    if (rtc.startRecording()) recStartRef.current = Date.now();
+  }, [isTeacher, lecture.isLive, rtc.localStream]); // eslint-disable-line react-hooks/exhaustive-deps
   // Tuned in: tell the parent once (Christian Ed checks an enrolled student in for attendance).
   const joinedRef = useRef(false);
   const onLiveJoinedRef = useRef(onLiveJoined);

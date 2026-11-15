@@ -5,6 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Play, Radio, Loader2, Building2, ChevronLeft } from 'lucide-react';
 import { fetchDeptChannel, fetchOrgDeptChannels, openDeptChannel, type DeptChannel, type DeptChannelCard } from '../../services/reello/orgChannels';
+import OrgMediaShelf from '../orgPublish/OrgMediaShelf';
 
 const BRAND = 'linear-gradient(115deg,#6B0099 0%,#B4008C 42%,#D40055 66%,#FF8C00 100%)';
 const fmtDur = (s: number) => { if (!s) return ''; const m = Math.floor(s / 60), x = Math.floor(s % 60); return `${m}:${String(x).padStart(2, '0')}`; };
@@ -111,6 +112,11 @@ const ReelloDeptChannelPage: React.FC<{ orgId: string; departmentId: string; onC
               </div>
             )}
           </section>
+
+          {/* Members-only: class recordings and internal videos for this department (server-checked; outsiders see nothing). */}
+          <div className="mt-10">
+            <OrgMediaShelf orgId={orgId} departmentId={departmentId} app="reello" title="Members only · playlists" hideWhenEmpty />
+          </div>
 
           {/* Other departments of the same org */}
           {siblings.length > 0 && (
