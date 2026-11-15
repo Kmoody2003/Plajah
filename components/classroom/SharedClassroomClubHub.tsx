@@ -109,6 +109,8 @@ export interface SharedClassroomClubHubProps {
   openLive?: boolean;
   /** Fired once per visit when the teacher's live feed first reaches this (non-teacher) viewer. */
   onLiveJoined?: () => void;
+  /** Also allowed to receive the lecture when it's roster-gated: department staff, volunteers, leaders. */
+  extraWatcherUids?: string[];
 }
 
 const WHITEBOARD_COLORS = ['#FFFFFF', '#FF8C00', '#00DAF3', '#06D6A0', '#D40055', '#FFD24A', '#A78BFA'];
@@ -275,6 +277,7 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   teacherUids,
   openLive = false,
   onLiveJoined,
+  extraWatcherUids,
 }) => {
   const viewerUid = currentUserUid || auth.currentUser?.uid || (isTeacher ? teacherUid : 'student_local');
   const viewerName =
@@ -437,8 +440,8 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   // a department head), so students follow the host seat in the session rather than a fixed uid.
   const teacherIds = useMemo(() => Array.from(new Set([teacherUid, ...(teacherUids || [])].filter(Boolean))), [teacherUid, teacherUids]);
   const allowedPeerIds = useMemo(
-    () => (isTeacher && !openLive && rosterStudents.length ? [...rosterStudents.map(r => r.id), ...teacherIds] : undefined),
-    [isTeacher, openLive, rosterStudents, teacherIds],
+    () => (isTeacher && !openLive && rosterStudents.length ? [...rosterStudents.map(r => r.id), ...teacherIds, ...(extraWatcherUids || [])] : undefined),
+    [isTeacher, openLive, rosterStudents, teacherIds, extraWatcherUids],
   );
   const hostPeerRef = useRef<string>(teacherUid);
   const broadcastRef = useRef<() => void>(() => {});

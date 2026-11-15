@@ -13,7 +13,13 @@ import { OPS_COLLECTIONS, OPS_DATABASE_ID } from './opsCollections';
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0665118474';
 const DB_ID = process.env.FIREBASE_DB_ID || 'plajah-prod';
 // The org back office lives in plajah-ops (services/opsCollections.ts); everything else in DB_ID.
-const docRootFor = (pathOrCollection: string) => `projects/${PROJECT_ID}/databases/${OPS_COLLECTIONS.has(pathOrCollection.split('/')[0]) ? OPS_DATABASE_ID : DB_ID}/documents`;
+// Born in plajah-ops (never in plajah-prod, so nothing to copy): routed there without joining OPS_COLLECTIONS,
+// whose changes trigger the CI prod→ops copy.
+const OPS_NATIVE = new Set(['churchOpenClasses', 'churchClassAttendance']);
+const docRootFor = (pathOrCollection: string) => {
+  const first = pathOrCollection.split('/')[0];
+  return `projects/${PROJECT_ID}/databases/${OPS_COLLECTIONS.has(first) || OPS_NATIVE.has(first) ? OPS_DATABASE_ID : DB_ID}/documents`;
+};
 const baseFor = (pathOrCollection: string) => `https://firestore.googleapis.com/v1/${docRootFor(pathOrCollection)}`;
 
 function serviceAccount(): { client_email: string; private_key: string } | null {

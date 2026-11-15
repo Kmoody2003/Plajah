@@ -696,10 +696,10 @@ service cloud.firestore {
     }
     // ── Christian Ed desk mirror (services/christianEdSync.ts) ───────────────────
     function eduProgram(pid) { return get(/databases/$(database)/documents/churchPrograms/$(pid)).data; }
-    // Open classes: a roster-free public card (services/churchEducationService openClassCard) so anyone
-    // signed in can find the class and tune in to its live session. Only the class's teachers publish it.
+    // Open classes: a roster-free card (services/churchEducationService openClassCard) so the org's members can
+    // find the class and tune in. Internal to the org: clients can't read it; GET /api/elevate/access/open-classes
+    // checks org membership (orgMemberIndex is in plajah-prod) and hands the cards out. Teachers publish it.
     match /churchOpenClasses/{pid} {
-      allow read: if isAuthenticated();
       allow create, update: if eduTeacher(pid) && request.resource.data.id == pid
         && request.resource.data.orgId == eduProgram(pid).orgId && request.resource.data.openClass == true
         && request.resource.data.keys().hasOnly(['id', 'orgId', 'name', 'kind', 'ageBand', 'description', 'meetingSchedule', 'leadInstructor', 'coverHue', 'teacherUids', 'createdBy', 'createdAt', 'openClass']);

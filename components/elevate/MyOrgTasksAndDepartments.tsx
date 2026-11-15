@@ -103,10 +103,13 @@ export const MyOrgTasksAndDepartments: React.FC<MyOrgTasksAndDepartmentsProps> =
   const { teaching, enrolled } = useMemo(() => myClassRoles(programs || [], uid), [programs, uid]);
   const myClasses = useMemo(() => {
     if (!programs) return [];
-    if (seesAllClasses) return programs;
+    // Watch-only open-class cards aren't "my" classes (the Christian Ed page lists those under Open classes).
+    if (seesAllClasses) return programs.filter(p => !p.publicCard);
     return programs.filter(p => teaching.includes(p) || enrolled.includes(p));
   }, [programs, seesAllClasses, teaching, enrolled]);
   const live = useClassLiveNow(useMemo(() => myClasses.map(p => p.id), [myClasses]));
+  // Live now: classes this person is on (enrolled, teaching, or staff over every class) with a teacher on air.
+  const liveClasses = myClasses.filter(p => live[p.id]);
 
   const panel = 'rounded-2xl border border-white/10 bg-white/[0.03] p-4 space-y-3 min-w-0';
   const heading = 'text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5';
@@ -117,6 +120,26 @@ export const MyOrgTasksAndDepartments: React.FC<MyOrgTasksAndDepartmentsProps> =
       aria-label="My work in this organization"
       className="rounded-3xl border border-white/12 bg-gradient-to-br from-[#160a28]/95 via-[#10071e]/95 to-[#0b0214]/95 p-4 sm:p-5 shadow-2xl space-y-4 text-white"
     >
+      {liveClasses.map(p => (
+        <button
+          key={`live-${p.id}`}
+          type="button"
+          onClick={() => onOpenClass?.(`${p.id}#live`)}
+          aria-label={`Live now: ${p.name}. Tune in`}
+          className="w-full text-left rounded-2xl border border-rose-400/40 bg-rose-500/10 hover:bg-rose-500/20 px-4 py-3 flex items-center gap-3"
+        >
+          <span className="relative flex w-3 h-3 shrink-0" aria-hidden="true">
+            <span className="absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75 animate-ping" />
+            <span className="relative inline-flex rounded-full w-3 h-3 bg-rose-500" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[10px] font-black uppercase tracking-widest text-rose-300">Live now · class</span>
+            <span className="block text-[15px] font-black text-white truncate">{p.name}</span>
+            <span className="block text-[11px] text-white/60 truncate">{live[p.id]?.hostName ? `${live[p.id]!.hostName} is teaching` : 'Your teacher is on air'}</span>
+          </span>
+          <span className="px-3 py-1.5 rounded-full bg-rose-500 text-white text-[12px] font-black shrink-0">Tune in</span>
+        </button>
+      ))}
       <div className="flex flex-wrap items-center gap-3">
         <div className="w-10 h-10 rounded-2xl grid place-items-center text-white shrink-0" style={{ background: 'linear-gradient(135deg, #6B0099 0%, #D40055 55%, #FF8C00 100%)' }}>
           <ClipboardList size={18} />

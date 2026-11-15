@@ -351,14 +351,29 @@ function fromOpenCard(c: ReturnType<typeof openClassCard>): ChurchProgram {
   } as ChurchProgram;
 }
 
-/** Open classes of an org (public cards). Empty when the org has none or the read fails. */
+/** Open classes of an org (watch-only cards). Internal: the server hands them only to the org's members,
+ *  staff and leaders (GET /api/elevate/access/open-classes). Empty for anyone else or when offline. */
 export async function listOpenClasses(orgId: string): Promise<ChurchProgram[]> {
   try {
-    const snap = await getDocs(query(collection(opsDb, 'churchOpenClasses'), where('orgId', '==', orgId)));
-    return snap.docs.map(d => fromOpenCard(d.data() as ReturnType<typeof openClassCard>));
+    const token = await auth.currentUser?.getIdToken?.();
+    if (!token) return [];
+    const res = await fetch(`/api/elevate/access/open-classes?orgId=${encodeURIComponent(orgId)}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) return [];
+    const data = await res.json() as { classes?: Array<ReturnType<typeof openClassCard>> };
+    return (data.classes || []).map(fromOpenCard);
   } catch {
     return [];
   }
+}
+
+/** Is this class open to the org right now? Explicitly open, or still being set up (no students yet). */
+export const isOpenToOrg = (p: Pick<ChurchProgram, 'openClass' | 'students'>) => !!p.openClass || (p.students || []).length === 0;
+
+/** Publish or withdraw the class's org card so it matches isOpenToOrg. Teachers only (rules); errors are ignored. */
+export async function syncOpenClassCard(p: ChurchProgram): Promise<void> {
+  if (p.publicCard) return;
+  const card = doc(opsDb, 'churchOpenClasses', p.id);
+  await (isOpenToOrg(p) ? setDoc(card, JSON.parse(JSON.stringify(openClassCard(p)))) : deleteDoc(card)).catch(() => {});
 }
 
 /** Auto check-in: an enrolled student who tuned in to the live class is marked present for today.
@@ -466,9 +481,8 @@ export async function saveProgram(p: ChurchProgram): Promise<void> {
 
   try {
     await setDoc(doc(opsDb, 'churchPrograms', normalized.id), JSON.parse(JSON.stringify(normalized)));
-    // Open classes publish a roster-free card anyone on the church page can read; closing removes it.
-    const card = doc(opsDb, 'churchOpenClasses', normalized.id);
-    void (normalized.openClass ? setDoc(card, JSON.parse(JSON.stringify(openClassCard(normalized)))) : deleteDoc(card)).catch(() => {});
+    // Open (or still empty) classes publish a roster-free card the org's members can find; closing removes it.
+    void syncOpenClassCard(normalized);
     // Students on the roster hold the Enrolled Student role for this class (services/enrollmentCore.ts).
     void import('./enrollments').then(m => m.syncProgramEnrollments(normalized.id, normalized.studentUids || [])).catch(() => {});
   } catch {

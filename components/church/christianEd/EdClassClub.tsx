@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { ChurchProgram, PlanWeek } from '../../../services/churchEducationService';
-import { KIND_LABEL, checkInLiveClass, listLiveCheckIns, type LiveCheckIn } from '../../../services/churchEducationService';
+import { KIND_LABEL, isOpenToOrg, checkInLiveClass, listLiveCheckIns, type LiveCheckIn } from '../../../services/churchEducationService';
 import { openUnitInTela, type IngestedCurriculumUnit } from '../../../services/curriculumIngestionService';
 import { getAllStudentDeskWorkspaces, removeDeskAssignment, type UniversalDeskAssignment } from '../../../services/universalStudentDeskService';
 import { unmirrorAssignment, type EduSubmissionRecord } from '../../../services/christianEdSync';
@@ -43,6 +43,10 @@ interface Props {
   liveNow?: boolean;
   /** Not on this open class: watch the live session only (no work, roster or discussion). */
   visitor?: boolean;
+  /** Who is hosting the live lecture right now (from the class's live beacon). */
+  liveHostUid?: string;
+  /** Department staff / volunteers / leaders allowed to watch on top of the roster and teachers. */
+  staffWatchers?: string[];
 }
 
 const statusTag = (s?: string) => {
@@ -65,6 +69,10 @@ const EdClassClub: React.FC<Props> = props => {
   const visitor = !!props.visitor;
   const [chan, setChan] = useState<ClassChannel>(visitor ? 'live' : props.initialChannel || 'work');
   const enrolledHere = !isTeacher && !visitor && isStudentOf(p, viewer.uid);
+  // Co-teachers, department staff and admins can teach too — but when someone ELSE is already live they
+  // join that stream as viewers instead of getting an empty studio of their own.
+  const watchingColleague = isTeacher && !!props.liveHostUid && props.liveHostUid !== viewer.uid;
+  const hubIsTeacher = isTeacher && !watchingColleague;
   const [checkedIn, setCheckedIn] = useState(false);
   // Teachers: who checked in to today's live class (enrolled students are checked in when they tune in).
   const [checkIns, setCheckIns] = useState<LiveCheckIn[]>([]);
@@ -442,6 +450,7 @@ const EdClassClub: React.FC<Props> = props => {
             </div>
           )}
           <SharedClassroomClubHub
+            key={hubIsTeacher ? 'host' : 'watch'}
             embedded
             classId={p.id}
             className={p.name}
@@ -449,7 +458,7 @@ const EdClassClub: React.FC<Props> = props => {
             teacherUid={p.createdBy}
             teacherUids={[...(p.teacherUids || []), ...(p.assignedTeam || []).map(t => t.uid).filter((u): u is string => !!u)]}
             teacherName={p.leadInstructor || 'Teacher'}
-            isTeacher={isTeacher}
+            isTeacher={hubIsTeacher}
             currentUserUid={viewer.uid}
             currentUserName={viewer.name}
             currentUserAvatar={viewer.photoUrl}
@@ -457,16 +466,20 @@ const EdClassClub: React.FC<Props> = props => {
             club={{ kind: 'churchProgram', id: p.id }}
             lessons={isTeacher ? visibleUnits : studentUnits}
             initialSection={chan === 'live' ? 'LIVE_LECTURE' : feedSection}
-            openLive={!!p.openClass}
+            openLive={isOpenToOrg(p)}
+            extraWatcherUids={props.staffWatchers}
             onLiveJoined={enrolledHere ? () => void checkInLiveClass(p, viewer).then(ok => setCheckedIn(ok)) : undefined}
           />
+          {chan === 'live' && watchingColleague && <div className="small">Another teacher is live in this class. You've joined their stream as a viewer.</div>}
           {chan === 'live' && checkedIn && <div className="okmsg" role="status">You're checked in for today's class.</div>}
           {chan === 'live' && visitor && <div className="small">You're watching this open class. Ask the teacher to enroll you to join in, turn in work and be counted present.</div>}
           {chan === 'live' && isTeacher && (
             <div className="card">
               <div className="t">Checked in today · {checkIns.length}</div>
               <div className="small">{checkIns.length ? checkIns.map(c => c.name).join(', ') : 'Enrolled students are checked in automatically when they tune in.'}</div>
-              <div className="small">{p.openClass ? 'Open class: anyone on the church page can watch live.' : 'Only enrolled students can watch. Turn on Open class in Edit class to let anyone tune in.'}</div>
+              <div className="small">{isOpenToOrg(p)
+                ? `Open to ${orgName}: anyone in the church can tune in${p.openClass ? '' : ' while the class has no students'}.`
+                : 'Enrolled students, teachers and department staff join automatically. Turn on Open class in Edit class to let the whole church tune in.'}</div>
             </div>
           )}
         </div>
@@ -639,7 +652,7 @@ const EdClassClub: React.FC<Props> = props => {
           </label>
           <label className="lbl" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input type="checkbox" checked={!!draft.openClass} onChange={e => setDraft({ ...draft, openClass: e.target.checked })} />
-            Open class: anyone on the church page can tune in to the live session (students' names stay private)
+            Open class: anyone in the church can tune in to the live session (stays inside your org; students' names stay private). Classes with no students yet are open automatically.
           </label>
           <button type="button" className="btn p" style={{ justifySelf: 'start' }} onClick={async () => { await save(draft); setEditingClass(false); }}>
             Save

@@ -110,6 +110,24 @@ elevateAccessRouter.post('/sync', async (req: Request, res: Response) => {
   return res.json({ ok: true });
 });
 
+// Christian Ed open classes (plajah-ops churchOpenClasses) are internal to the org: only its members, staff and
+// leaders get the cards. Rules can't check org membership from plajah-ops (orgMemberIndex lives in plajah-prod),
+// so clients have no read on the collection and come through here.
+elevateAccessRouter.get('/open-classes', async (req: Request, res: Response) => {
+  const t = await caller(req);
+  if (!t) return res.status(401).json({ error: 'Sign in first.' });
+  const orgId = String(req.query.orgId || '').trim();
+  if (badId(orgId)) return res.status(400).json({ error: 'Bad request.' });
+  const [org, member] = await Promise.all([fsGet(`organizations/${orgId}`), fsGet(`orgMemberIndex/${orgId}_${t.uid}`)]);
+  if (!org) return res.json({ classes: [] });
+  const insider = !!member || org.creatorId === t.uid
+    || ['admins', 'staffUids', 'pastorUids', 'leaderUids'].some(k => Array.isArray(org[k]) && org[k].includes(t.uid))
+    || Object.values((org.departmentUids || {}) as Record<string, string[]>).some(u => Array.isArray(u) && u.includes(t.uid));
+  if (!insider) return res.json({ classes: [] });
+  const rows = await fsQuery('churchOpenClasses', [{ field: 'orgId', value: orgId }], 200);
+  return res.json({ classes: rows.map(r => r.data) });
+});
+
 // What an org shows the public: its public-role leaders and department heads, never the roster.
 elevateAccessRouter.get('/public-roster', async (req: Request, res: Response) => {
   const orgId = String(req.query.orgId || '').trim();

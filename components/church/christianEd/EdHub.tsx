@@ -1,6 +1,6 @@
-import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import type { Organization } from '../../../types';
-import { KIND_LABEL, STARTERS, fromStarter, newProgram, type ChurchProgram, type ProgramKind } from '../../../services/churchEducationService';
+import { KIND_LABEL, STARTERS, fromStarter, newProgram, syncOpenClassCard, type ChurchProgram, type ProgramKind } from '../../../services/churchEducationService';
 import type { IngestedCurriculumUnit } from '../../../services/curriculumIngestionService';
 import { getAllStudentDeskWorkspaces } from '../../../services/universalStudentDeskService';
 import { requestToJoin } from '../../../services/christianEdSync';
@@ -47,7 +47,12 @@ const KINDS = Object.keys(KIND_LABEL) as ProgramKind[];
  * students land on My Desk (Due / Turned in / Back to me) with their classes underneath.
  */
 const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, units, onSaveProgram, onReload, onOpenTool, initialClassId }) => {
-  const [view, setView] = useState<View>(initialClassId ? { kind: 'class', id: initialClassId } : { kind: 'hub' });
+  // "classId#live" opens straight onto the class's Live tab (the Live now card links there).
+  const [view, setView] = useState<View>(() => {
+    if (!initialClassId) return { kind: 'hub' };
+    const [id, chan] = initialClassId.split('#');
+    return chan === 'live' ? { kind: 'class', id, chan: 'live' } : { kind: 'class', id };
+  });
   const [newClass, setNewClass] = useState<null | { name: string; kind: ProgramKind; ageBand: string; schedule: string }>(null);
   const [deskTab, setDeskTab] = useState<'due' | 'in' | 'back'>('due');
   const [joinCode, setJoinCode] = useState('');
@@ -74,6 +79,23 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
   );
   const otherClasses = useMemo(() => (seesAll ? all.filter(p => !teaching.includes(p) && !enrolled.includes(p)) : []), [seesAll, all, teaching, enrolled]);
   const liveNow = useClassLiveNow(useMemo(() => tabClasses.map(p => p.id), [tabClasses]));
+  // Keep each class's org card in step with its roster (open while empty) — covers classes saved before cards existed.
+  const syncedCards = useRef(new Set<string>());
+  useEffect(() => {
+    teaching.forEach(p => {
+      if (syncedCards.current.has(p.id) || p.publicCard) return;
+      syncedCards.current.add(p.id);
+      void syncOpenClassCard(p);
+    });
+  }, [teaching]);
+  // Department staff, volunteers and leaders who may watch any class's live stream (on top of its roster + teachers).
+  const staffWatchers = useMemo(() => {
+    const o = church as unknown as { admins?: string[]; creatorId?: string; pastorUids?: string[]; staffUids?: string[]; leaderUids?: string[]; departmentUids?: Record<string, string[]> };
+    return (deptId?: string) => Array.from(new Set([
+      ...(o.admins || []), o.creatorId || '', ...(o.pastorUids || []), ...(o.staffUids || []), ...(o.leaderUids || []),
+      ...((deptId && o.departmentUids?.[deptId]) || []),
+    ].filter(Boolean)));
+  }, [church]);
   // Org-wide posts reach everyone on a Christian Ed roster (members) or anyone (public); teachers also post to one class.
   const hubAudiences = useMemo<AudienceOption[]>(() => {
     const everyone = [...new Set(all.flatMap(p => [...(p.studentUids || []), ...(p.students || []).map(s => s.uid), ...(p.teacherUids || []), p.createdBy]).filter(Boolean))] as string[];
@@ -306,6 +328,8 @@ const EdHub: React.FC<Props> = ({ church, canEdit, canSeeKey, viewer, programs, 
         <EdClassClub
           key={`${p.id}:${view.chan || ''}`}
           liveNow={!!liveNow[p.id]}
+          liveHostUid={liveNow[p.id]?.hostUid}
+          staffWatchers={staffWatchers(p.departmentId)}
           orgId={church.id}
           orgName={church.name}
           program={p}
