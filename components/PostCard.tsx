@@ -19,6 +19,8 @@ import { db } from '../services/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { Trash2, Zap } from 'lucide-react';
 import CommentSection from './CommentSection';
+import MobileCommentSheet from './feed/MobileCommentSheet';
+import { isTouchFirst } from '../hooks/useKeyboardInset';
 import MediaWaterfallView, { WaterfallMediaItem } from './MediaWaterfallView';
 import PostMediaCarousel from './PostMediaCarousel';
 import LearnChip from './LearnChip';
@@ -1348,9 +1350,22 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
         </Suspense>
       </div>
 
-      {/* Comment section */}
+      {/* Comment section. Phones / tablets / foldables: a bottom sheet with the composer riding on the keyboard. */}
+      {showComments && isTouchFirst() && (
+        <MobileCommentSheet onClose={() => setShowComments(false)}>
+          <CommentSection
+            postId={post.id}
+            postAuthorId={post.authorId}
+            readOnly={replyRestricted}
+            postCollection={postCol}
+            onVisitUser={onVisitUser}
+            layout="panel"
+            onClose={() => setShowComments(false)}
+          />
+        </MobileCommentSheet>
+      )}
       <AnimatePresence>
-        {showComments && (
+        {showComments && !isTouchFirst() && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
