@@ -309,7 +309,8 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   // ── 3. Special Lecture Live Stream / Audio Live Talk / Screen Share / Whiteboard State ──
-  const lectureDefaults = { title: className, hostUid: teacherUid, hostName: teacherName };
+  // Whoever runs the lecture hosts it under their own name (not the class's listed lead teacher).
+  const lectureDefaults = { title: className, hostUid: isTeacher ? viewerUid : teacherUid, hostName: isTeacher ? viewerName : teacherName };
   const [lecture, setLecture] = useState<LectureSessionState>(() =>
     isTeacher ? loadLectureSession(classId, lectureDefaults) : blankLectureSession(classId, lectureDefaults)
   );
@@ -516,6 +517,10 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
     [isTeacher, viewerUid, rtc.participants, teacherUid],
   );
   hostPeerRef.current = hostPeerId;
+  // The person actually on air: you when you host; otherwise the session's host seat (name from their account).
+  const hostDisplayName = isTeacher ? viewerName : (rtc.participants.find(p => p.role === 'host')?.name || teacherName);
+  // Who is really receiving the broadcast right now (connected peers, not the roster).
+  const receivingCount = [...rtc.peerStates.values()].filter(st => st === 'connected').length;
   const fx = useLiveFx(rtc);
   const [mediaSheet, setMediaSheet] = useState(false);
 
@@ -1416,19 +1421,21 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                       />
                       <div className="relative z-10 flex items-center justify-between">
                         <span className="px-3 py-1 rounded-full bg-black/70 backdrop-blur-md border border-white/15 text-xs font-black text-white inline-flex items-center gap-1.5">
-                          🎓 {teacherName} · Lecture Host
+                          🎓 {hostDisplayName} · {isTeacher ? 'You’re hosting' : 'Hosting'}
                         </span>
-                        <span className="px-2.5 py-0.5 rounded-full bg-rose-600/90 text-[10px] font-black uppercase text-white">
-                          {lecture.isLive ? 'LIVE VIDEO' : 'STUDIO PREVIEW'}
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase text-white ${lecture.isLive ? 'bg-rose-600/90' : 'bg-white/15'}`}>
+                          {lecture.isLive
+                            ? isTeacher ? `● LIVE · ${receivingCount} watching` : '● LIVE'
+                            : isTeacher ? 'Not live · only you see this' : 'Not live yet'}
                         </span>
                       </div>
 
                       {(!lecture.isLive || !teacherFeed || (isTeacher && !camEnabled)) && (
                         <div className="relative z-10 my-auto text-center space-y-2 py-8">
                           <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] mx-auto grid place-items-center text-2xl font-black text-white shadow-2xl">
-                            {teacherName.slice(0, 2).toUpperCase()}
+                            {hostDisplayName.slice(0, 2).toUpperCase()}
                           </div>
-                          <p className="text-sm font-black text-white">{teacherName}</p>
+                          <p className="text-sm font-black text-white">{hostDisplayName}</p>
                           <p className="text-xs text-white/55">
                             {lecture.isLive
                               ? isTeacher ? 'Camera off · students still hear you' : 'Connecting to the lecture…'
@@ -1515,7 +1522,9 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                       </h4>
                     </div>
                     <span className="px-3 py-1 rounded-full bg-purple-500/20 border border-purple-400/40 text-purple-200 text-xs font-bold">
-                      {1 + (lecture.activeStudentOnStage ? 1 : 0)} on Stage · {effectiveRoster.length} Listening
+                      {lecture.isLive
+                        ? isTeacher ? `● LIVE · ${1 + (lecture.activeStudentOnStage ? 1 : 0)} on stage · ${receivingCount} listening` : `● LIVE · ${hostDisplayName} is speaking`
+                        : isTeacher ? 'Not live · press Go live to broadcast' : 'Not live yet'}
                     </span>
                   </div>
 
@@ -1528,17 +1537,17 @@ export const SharedClassroomClubHub: React.FC<SharedClassroomClubHubProps> = ({
                       {/* Teacher Tile */}
                       <div className="flex items-center gap-3 rounded-2xl border border-purple-400/40 bg-purple-500/10 p-3.5 min-w-[230px]">
                         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] grid place-items-center text-white font-black text-sm shadow-[0_0_0_3px_rgba(212,0,85,0.45)]">
-                          {teacherName.slice(0, 2).toUpperCase()}
+                          {hostDisplayName.slice(0, 2).toUpperCase()}
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-black text-white truncate">{teacherName}</span>
+                            <span className="text-xs font-black text-white truncate">{hostDisplayName}</span>
                             <span className="px-1.5 py-0.5 rounded bg-amber-400 text-black text-[8px] font-black uppercase">
-                              Teacher Host
+                              Host
                             </span>
                           </div>
-                          <p className="text-[11px] text-emerald-300 flex items-center gap-1 mt-0.5">
-                            <Mic size={11} /> Speaking · Live Audio
+                          <p className={`text-[11px] flex items-center gap-1 mt-0.5 ${lecture.isLive ? 'text-emerald-300' : 'text-white/50'}`}>
+                            <Mic size={11} /> {lecture.isLive ? (isTeacher && micMuted ? 'Live · your mic is muted' : 'Speaking · live audio') : isTeacher ? 'Not live yet · press Go live' : 'Waiting to start'}
                           </p>
                         </div>
                       </div>
