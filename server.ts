@@ -3867,7 +3867,9 @@ async function startServer() {
     // Elevate: a chunk of contribution-statement PDFs (base64) to email.
     '/api/elevate/statements/email',
     // Tela PDF reader: Ask-this-PDF sends page text; Smart Fill sends a form's questions.
-    '/api/tela/pdf/ask', '/api/tela/pdf/map', '/api/tela/pdf/profile']);
+    '/api/tela/pdf/ask', '/api/tela/pdf/map', '/api/tela/pdf/profile',
+    // Plajah FM station clock: the rotation's song URLs (~25kb for 89 songs; the route caps at 128kb).
+    '/api/onair/durations']);
   // Signed webhooks registered further down verify an HMAC over the exact bytes, so their
   // own express.raw must see the untouched body — parsing it here broke every signature.
   const RAW_BODY_ROUTES = new Set(['/api/merch/stripe-webhook', '/api/mux/webhook', '/api/campaigns/webhook/resend', '/api/meetings/sfu/webhook']);
