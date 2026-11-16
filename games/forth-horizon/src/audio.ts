@@ -1,19 +1,10 @@
-import { onAirNow, nextOnAir } from '../../../services/onair/station';
-import { HOSTS } from '../../../services/onair/hosts';
 import type { PersonaSheet } from '../../../services/onair/types';
+import { HOSTS } from '../../../services/onair/hosts';
 import type { CarSpec } from './manufacturers';
 import type { CarState } from './physics';
+import { ChoraRadioManager, type RadioPreset } from './choraRadio';
 
-export interface StationInfo {
-  id: string;
-  name: string;
-  hostName: string;
-  tagline: string;
-  accent: string;
-  bpm: number;
-  kind: 'plajah-fm' | 'chora-techno' | 'chora-synth';
-  persona: PersonaSheet | null;
-}
+export type StationInfo = RadioPreset;
 
 /** engine / tyre / gravel / brake loops cut from reference-video soundtracks: off until real engine source material exists */
 const USE_VIDEO_SAMPLES = false;
@@ -53,55 +44,28 @@ export class GameAudio {
   private stationIdx = 0;
   private nextStepTime = 0;
   private stepCount = 0;
-  private stations: StationInfo[] = [];
+  private radio = new ChoraRadioManager();
 
   constructor() {
     this.refreshStations();
   }
 
   private refreshStations() {
-    const liveHost = onAirNow() ?? HOSTS[0];
-    const upcoming = nextOnAir();
-    const showName = liveHost.show?.name ?? 'Overnight Auto-Mix';
-    const accent = liveHost.look.palette[0] ?? '#ff6b2b';
-    const nextHint = upcoming ? ` · Next: ${upcoming.host.stageName} in ${upcoming.inHours}h` : '';
-
-    this.stations = [
-      {
-        id: 'plajah-fm',
-        name: `Plajah FM · ${showName}`,
-        hostName: `${liveHost.stageName} (Virtual DJ)`,
-        tagline: `${liveHost.backstory.tagline}${nextHint}`,
-        accent,
-        bpm: 120,
-        kind: 'plajah-fm',
-        persona: liveHost,
-      },
-      {
-        id: 'chora-techno',
-        name: 'Chora · Ironport Underground',
-        hostName: 'Chora Direct · Detroit Techno (128 BPM)',
-        tagline: 'Procedural 909 kick, acid bassline & warehouse hats.',
-        accent: '#2ec4b6',
-        bpm: 128,
-        kind: 'chora-techno',
-        persona: null,
-      },
-      {
-        id: 'chora-synth',
-        name: 'Chora · Great Lakes Horizon',
-        hostName: 'Chora Direct · Sunset Synthwave (112 BPM)',
-        tagline: 'Warm analog arps & coastal cruise chords.',
-        accent: '#ffd166',
-        bpm: 112,
-        kind: 'chora-synth',
-        persona: null,
-      },
-    ];
+    this.radio.rebuildPresets();
   }
 
   get currentStation(): StationInfo {
-    return this.stations[this.stationIdx];
+    return this.radio.current;
+  }
+
+  get allStations(): readonly StationInfo[] {
+    return this.radio.presets;
+  }
+
+  selectStationById(id: string): StationInfo {
+    const p = this.radio.selectById(id);
+    this.stationIdx = Math.max(0, this.radio.presets.indexOf(p));
+    return p;
   }
 
   get isMuted(): boolean {
@@ -375,8 +339,10 @@ export class GameAudio {
   }
 
   cycleStation(dir: 1 | -1): StationInfo {
-    this.stationIdx = (this.stationIdx + dir + this.stations.length) % this.stations.length;
-    return this.currentStation;
+    const p = this.radio.cycle(dir);
+    this.stationIdx = Math.max(0, this.radio.presets.indexOf(p));
+    this.radio.setPausedOrMuted(this.muted || this.paused || !this.musicOn);
+    return p;
   }
 
   getHostCallout(event: 'start' | 'lap' | 'speed'): string {

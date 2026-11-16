@@ -9,6 +9,9 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { makeSovereign } from './car';
 import { garage, cloud, activeSpec, hasCar, RunTracker, PathProgress, refParSec, showBanner, showCard, DeliveryGame, makeSpots, TIER_LIST } from './garageGame';
 import { medalFor } from './garage/progress';
+import { smoothClosedPath } from './circuitSmooth';
+import { PhotoMode } from './photo';
+import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { loadSovereignScan } from './scancar';
 import { Replay } from './broadcastReplay';
 import { createCarState, stepCarPhysics, type CarState, type CarInput } from './physics';
@@ -20,6 +23,12 @@ import { DriveInput } from './inputs';
 import { TrackKit } from './trackkit';
 import { buildPinewoodRallyCircuit } from './circuits/pinewoodRally';
 import { buildCliffRacewayCircuit } from './circuits/cliffRaceway';
+import { buildRuralOpenWorldDetail } from './ruralDetail';
+import { buildCityExpansion } from './cityExpansion';
+import { buildHeroBridge } from './heroBridge';
+import { CompetitionEngine } from './racingAI';
+import { TrafficManager, OpenWorldChallengeManager } from './openWorldEvents';
+import { CARS } from './manufacturers';
 import { harborDetail } from './harborDetail';
 import { duneDetail } from './duneDetail';
 import { injectRoadPbr, roadUniforms, loadRoadPbr } from './roadpbr';
@@ -34,6 +43,14 @@ import { RacingLine, ChevronLine } from './racingline';
 import { CSM } from 'three/addons/csm/CSM.js';
 import { GradePass, GAME_LENSES, GAME_LUTS, type GameLens } from './grade';
 import { WeatherRig, WEATHERS, worstOf, forecastText } from './weather';
+import { LensRain, LENS_RAIN_GLSL } from './lensRain';
+import { RacingHud } from './racingHud';
+import { WetRoad, waterContact } from './wetRoad';
+import { FrameProfiler, gpuPreference } from './performance';
+import { InstanceVisibility, CityVisibility } from './instanceVisibility';
+const cityVisibility = new CityVisibility();
+const lensRain = new LensRain();
+const roadWater = new WetRoad();
 import type { SurfaceType } from './world';
 
 const BASE = '/games/forth-horizon/region/';
@@ -51,7 +68,9 @@ const view = document.getElementById('view') as HTMLElement;
 const hud = document.getElementById('hud') as HTMLElement;
 const msg = document.getElementById('msg') as HTMLElement;
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+let requestedGpu: WebGLPowerPreference = 'default';
+try { requestedGpu = gpuPreference(new URLSearchParams(location.search).get('gpu') ?? localStorage.getItem('apex.gpu')); } catch { /* use browser default */ }
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: requestedGpu });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -59,6 +78,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 view.appendChild(renderer.domElement);
+const frameProfiler = new FrameProfiler(renderer);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x9bb7d4);
@@ -81,6 +101,14 @@ const sunDir = new THREE.Vector3(-0.5, 0.7, -0.4).normalize();
 // Settings > Graphics > Shadows: "cascaded" (default) or "basic" (the earlier single shadow map, lighter on weak GPUs); changing it reloads the page.
 // The cascaded option is experimental and OFF by default: with it the cascade lights stack on the ground and the streets wash out to a flat beige (the street textures
 // "glitched" and the streets off the circuit looked untextured). Basic is the default until the cascade masking is fixed.
+// Building textures: v3 is the photoreal delivery of 2026-11-16 (36 hero facades + 24 shared materials, tools/pack_ironport_v3.py); v1 is the earlier packed set with our Flow
+// replacements. ?tex=v1 or v3, or Settings. Hero sheets listed in V3_HOLD keep v1 because their v3 layout does not fit the model (checked building by building).
+let TEXSET: 'v1' | 'v3' = 'v3';
+try { const q = new URLSearchParams(location.search).get('tex') ?? localStorage.getItem('apex.tex'); if (q === 'v1' || q === 'v3') TEXSET = q; } catch { /* storage blocked */ }
+const V3_HOLD = new Set<string>([]);
+// Building models: v3 is the detail pass (real doors, framed windows, trim; the same 86 buildings with identical footprints), v1 the earlier models. ?models=v1 or v3, or Settings.
+let MODELSET: 'v1' | 'v3' = 'v3';
+try { const q = new URLSearchParams(location.search).get('models') ?? localStorage.getItem('apex.models'); if (q === 'v1' || q === 'v3') MODELSET = q; } catch { /* storage blocked */ }
 let SHADOWS = 'basic';
 try { SHADOWS = localStorage.getItem('apex.shadows') === 'cascaded' ? 'cascaded' : 'basic'; } catch { /* storage blocked */ }
 const csm = SHADOWS === 'cascaded' ? new CSM({ maxFar: 700, cascades: 2, mode: 'practical', parent: scene, shadowMapSize: 2048, lightDirection: sunDir.clone().negate(), camera, lightIntensity: 2.4, shadowBias: -0.0004 }) : null;
@@ -126,7 +154,7 @@ let prewarmCar: THREE.Group | null = null;
 async function warmShaders(): Promise<void> {
   if (warmed) return;
   warmed = true;
-  csmSweep();
+  csmSweep(true);
   const groups = [forestGroup, scapeGroup, furnitureGroup, streetGroup, cityGroup];
   const was = groups.map((g) => g.visible);
   groups.forEach((g) => { g.visible = true; });
@@ -135,7 +163,7 @@ async function warmShaders(): Promise<void> {
   try {
     const car = makeCar(); car.position.set(0, -4000, 0); scene.add(car); prewarmCar = car;
     for (let i = 0; i < 100 && !car.userData.panels; i++) await new Promise((r) => setTimeout(r, 250));
-    csmSweep();
+    csmSweep(true);
     await (renderer as unknown as { compileAsync(s: THREE.Scene, c: THREE.Camera): Promise<void> }).compileAsync(scene, camera);
     scene.remove(car);
   } catch (e) { console.warn('car warm-up failed', e); prewarmCar = null; }
@@ -152,8 +180,8 @@ async function warmShaders(): Promise<void> {
 const warmTimer = setInterval(() => { if ((window as unknown as { cityCount?: number }).cityCount && treeFields.length >= 3 && grassField && !warmed) { clearInterval(warmTimer); void warmShaders(); } }, 600);
 let csmTick = 0;
 /** every lit material in the scene must use the cascades, or it is lit three times over: sweep for new ones a few times a second */
-function csmSweep(): void {
-  if (!csm) return;
+function csmSweep(force = false): void {
+  if (!csm || (!force && csmTick++ % 30 !== 0)) return;
   const chk = (m: THREE.Material): void => { const x = m as unknown as Record<string, boolean>; if (!csmDone.has(m) && (x.isMeshStandardMaterial || x.isMeshPhysicalMaterial || x.isMeshLambertMaterial || x.isMeshPhongMaterial)) csmSetup(m); };
   scene.traverse((o) => { const m = (o as THREE.Mesh).material; if (m) { if (Array.isArray(m)) m.forEach(chk); else chk(m); } });
 }
@@ -336,6 +364,7 @@ try {
     fragmentShader: `
       uniform sampler2D tDiffuse; uniform float uSpeed, uShaft, uTime, uVig, uAspect; uniform vec2 uSun; uniform vec3 uSunCol;
       varying vec2 vUv;
+      ${LENS_RAIN_GLSL}
       float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
       void main() {
         vec2 c = vec2(0.5, 0.42);
@@ -344,15 +373,20 @@ try {
         // speed blur: samples pulled toward the vanishing point, none in the middle so the car and road ahead stay sharp
         float amt = uSpeed * 0.06 * smoothstep(0.10, 0.75, rd);
         vec3 col = vec3(0.0);
-        const int N = 9;
-        for (int i = 0; i < N; i++) {
-          float t = float(i) / float(N - 1);
-          vec2 uv = vUv - d * amt * t;
-          // lens fringing grows with distance from the centre and with speed
-          float ca = (0.0007 + uSpeed * 0.0012) * rd;
-          col += vec3(texture2D(tDiffuse, uv + d * ca).r, texture2D(tDiffuse, uv).g, texture2D(tDiffuse, uv - d * ca).b);
+        // At zero blur every tap is identical. Keep exactly the same channel
+        // offsets, but fetch each channel once rather than nine times.
+        float ca = (0.0007 + uSpeed * 0.0012) * rd;
+        if (uSpeed == 0.0) {
+          col = vec3(texture2D(tDiffuse, vUv + d * ca).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - d * ca).b);
+        } else {
+          const int N = 9;
+          for (int i = 0; i < N; i++) {
+            float t = float(i) / float(N - 1);
+            vec2 uv = vUv - d * amt * t;
+            col += vec3(texture2D(tDiffuse, uv + d * ca).r, texture2D(tDiffuse, uv).g, texture2D(tDiffuse, uv - d * ca).b);
+          }
+          col /= float(N);
         }
-        col /= float(N);
         // light shafts: march from here toward the sun, gathering bright sky; blocked where trees and buildings cover it
         if (uShaft > 0.01) {
           vec2 ds = (uSun - vUv) / 22.0;
@@ -369,12 +403,16 @@ try {
           float toward = 1.0 - clamp(length(uSun - vUv) * 0.9, 0.0, 1.0);
           col += acc / 22.0 * uSunCol * uShaft * (0.25 + 0.75 * toward);
         }
+        float lensMask, lensShade, lensSparkle;
+        vec2 refractedUv = lensRainUv(vUv, lensMask, lensShade, lensSparkle);
+        if (lensMask > 0.001) col = mix(col, texture2D(tDiffuse, refractedUv).rgb * lensShade + vec3(lensSparkle), lensMask);
         // vignette and grain
         col *= 1.0 - uVig * smoothstep(0.35, 1.05, rd);
         col += (hash(vUv * 1000.0 + uTime) - 0.5) * 0.012;
         gl_FragColor = vec4(col, 1.0);
       }`,
   });
+  Object.assign(cinePass.uniforms, lensRain.uniforms);
   composer.addPass(cinePass);
   composer.addPass(new OutputPass());
   // colour grade (the platform's cinematic LUTs) and film/tape lenses, after tone mapping; options in Settings > Graphics
@@ -1337,7 +1375,7 @@ interface CityItem { kind: 'hero' | 'generic'; slug: string; x: number; z: numbe
 const cityGroup = new THREE.Group();
 scene.add(cityGroup);
 let cityItems: CityItem[] = [];
-const IRON = '/games/forth-horizon/ironport/models/';
+const IRON = MODELSET === 'v3' ? '/games/forth-horizon/ironport/models-v3/' : '/games/forth-horizon/ironport/models/';
 
 function groundMin(it: CityItem): number {
   const cx = it.bx ?? it.x, cz = it.bz ?? it.z, c = Math.cos(it.rotY), s = Math.sin(it.rotY);
@@ -1548,19 +1586,30 @@ async function buildCity(): Promise<void> {
     'tex-shared-02-weathered-brick', 'tex-shared-03-orange-brick', 'tex-shared-06-granite', 'tex-shared-08-glass-curtain-cerulean', 'tex-shared-09-glass-curtain-bronze', 'tex-shared-10-terracotta', 'tex-shared-12-bronze-metal', 'tex-shared-13-copper-roof', 'tex-shared-23-slate-roof', 'tex-shared-24-stone-rubble', 'tex-hero-31-city-hall']);
   // the glTFs point at ../../textures/<set>/<name>_<map>.png: photographic sets come from tex/bld, everything else from the packed copy (tools/pack_ironport.py)
   manager.setURLModifier((u) => {
-    const fm = u.match(/\/textures\/(shared|hero-facades)\/(tex-(?:shared|hero)-[a-z0-9-]+)_(base|nrm|rgh)\.png/);
-    if (!fm) return u;
+    const fm0 = u.match(/(tex-(?:shared|hero)-[a-z0-9-]+)_(base|nrm|rgh)\.png/);
+    if (!fm0) return u;
+    const fm = [fm0[0], fm0[1].startsWith('tex-hero') ? 'hero-facades' : 'shared', fm0[1], fm0[2]];
     if (LOW && fm[3] !== 'base') return TINY;
+    if (TEXSET === 'v3' && !V3_HOLD.has(fm[2])) return `/games/forth-horizon/ironport/textures-v3/${fm[1]}/${fm[2]}_${fm[3]}.jpg`;
     if (FLOW.has(fm[2])) return `/games/forth-horizon/tex/bld/${fm[2]}_${fm[3]}.jpg`;
     return `/games/forth-horizon/ironport/textures/${fm[1]}/${fm[2]}_${fm[3]}.jpg`;
   });
   const loader = new GLTFLoader(manager);
+  // All 86 models used to load at once, and every one asks for its own copy of each texture: with the detailed v3 models that is thousands of requests in flight and the browser
+  // refuses some (net::ERR_INSUFFICIENT_RESOURCES), which left buildings out. So: a few models at a time, and the cache answers a texture a second model asks for again.
+  THREE.Cache.enabled = true;
+  let loadSlots = 4;
+  const loadWaiters: (() => void)[] = [];
+  const limited = async <T,>(f: () => Promise<T>): Promise<T> => {
+    if (loadSlots > 0) loadSlots--; else await new Promise<void>((r) => loadWaiters.push(r));
+    try { return await f(); } finally { const w = loadWaiters.shift(); if (w) w(); else loadSlots++; }
+  };
   const texCache = new Map<string, THREE.Texture>();
   const protos = new Map<string, Promise<THREE.Object3D | null>>();
   const load = (kind: string, slug: string): Promise<THREE.Object3D | null> => {
     const key = kind + '/' + slug;
     if (!protos.has(key)) {
-      protos.set(key, loader.loadAsync(`${IRON}${kind}/${slug}_lod0.gltf`).then((g) => {
+      protos.set(key, limited(() => loader.loadAsync(`${IRON}${kind}/${slug}_lod0.gltf`)).then((g) => {
         const json = g.parser.json as { textures?: { source: number }[]; images?: { uri?: string }[] };
         g.scene.traverse((o) => {
           const m = o as THREE.Mesh;
@@ -1599,6 +1648,7 @@ async function buildCity(): Promise<void> {
     groups.get(key)!.push(it);
   }
   cityGroup.clear();
+  cityVisibility.batches = [];
   let done = 0;
   await Promise.all([...groups.entries()].map(async ([key, items]) => {
     const [kind, slug] = key.split('/');
@@ -1607,21 +1657,18 @@ async function buildCity(): Promise<void> {
     proto.updateMatrixWorld(true);
     const meshes: THREE.Mesh[] = [];
     proto.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
-    const place = new THREE.Matrix4(), rotM = new THREE.Matrix4(), inst = new THREE.Matrix4(), scM = new THREE.Matrix4();
+    const place = new THREE.Matrix4(), rotM = new THREE.Matrix4(), scM = new THREE.Matrix4();
+    // Grounding and placement are shared by every mesh part of this building.
+    const placements = items.map((it) => {
+      const gy = groundMin(it) - 0.35;
+      rotM.makeRotationY(it.rotY);
+      return place.makeTranslation(it.x, gy * exag, it.z).multiply(rotM).multiply(scM.makeScale(it.sx ?? 1, it.sy ?? 1, it.sz ?? 1)).clone();
+    });
     for (const m of meshes) {
-      const im = new THREE.InstancedMesh(m.geometry, m.material, items.length);
-      im.castShadow = true;
-      im.receiveShadow = true;
-      items.forEach((it, i) => {
-        const gy = groundMin(it) - 0.35;
-        rotM.makeRotationY(it.rotY);
-        place.makeTranslation(it.x, gy * exag, it.z).multiply(rotM).multiply(scM.makeScale(it.sx ?? 1, it.sy ?? 1, it.sz ?? 1));
-        inst.copy(place).multiply(m.matrixWorld);
-        im.setMatrixAt(i, inst);
-      });
-      im.instanceMatrix.needsUpdate = true;
-      im.frustumCulled = false;
-      cityGroup.add(im);
+      const transforms = placements.map((placement) => placement.clone().multiply(m.matrixWorld));
+      const batch = new InstanceVisibility(m.geometry, m.material, transforms);
+      cityVisibility.batches.push(batch);
+      cityGroup.add(batch.mesh);
     }
     done += items.length;
   }));
@@ -1702,6 +1749,9 @@ let wxGripSpec: typeof CARS.kestrel | null = null;       // the car's spec with 
 function stepWeather(dt: number): void {
   wx.step(dt, camera.position, mapMode, driving ? Math.abs(driving.ps.speedMps) : 0, false);
   const w = wx.cur, t = TOD[todKey];
+  roadWater.pooling = poolLevel;
+  roadWater.update(dt, w.rain, w.sun, w.wind);
+  w.wet = roadWater.wetness;
   if (!t) return;
   const f = wx.flash;
   sun.intensity = t.sunInt * w.sun * (1 + f * 2.5);
@@ -1755,7 +1805,7 @@ function stepWeather(dt: number): void {
     });
   }
   // water collects while it rains and drains away slowly after
-  poolLevel = Math.min(1, Math.max(0, poolLevel + (w.rain > 0.12 ? w.rain * dt / 70 : -dt / 220)));
+  poolLevel = roadWater.pooling;
   poolU.value = poolLevel;
   { const nk = NIGHT_K[todKey] ?? 0; nightU.value = Math.min(1, nk + w.cloudDark * 0.45 * (1 - nk)); }
   roadUniforms.uRainR.value = w.rain; roadUniforms.uTimeR.value += dt;
@@ -1786,7 +1836,7 @@ function stepWeather(dt: number): void {
       mm.needsUpdate = true;
     }
   }
-  const g = SOV_SPEC.corneringGrip * w.grip * (1 - 0.82 * hydro);
+  const g = SOV_SPEC.corneringGrip * (1 - 0.24 * (SOV_SPEC.wetSensitivity ?? 1) * roadWater.wetness) * (1 - 0.82 * hydro);
   if (!wxGripSpec || Math.abs(wxGripSpec.corneringGrip - g) > 0.004 || wxGripSpec.suspension !== SOV_SPEC.suspension) wxGripSpec = { ...SOV_SPEC, corneringGrip: g };
   // the race's plan: step through its weather as the clock runs
   if (driving && wxPlan && wxOverride === 'auto' && driving.lock <= 0) {
@@ -2077,29 +2127,6 @@ const countEl = document.createElement('div');
 countEl.style.cssText = 'position:fixed;left:0;right:0;top:30%;text-align:center;font:800 130px Outfit,sans-serif;color:#fff;text-shadow:0 0 50px rgba(212,0,85,.9),0 0 90px rgba(255,140,0,.5);display:none;pointer-events:none;letter-spacing:.04em';
 document.body.appendChild(countEl);
 function hideBrief(): void { briefEl.style.display = 'none'; }
-function openBrief(id: string): void {
-  const b = BRIEFS[id];
-  if (wxOverride === 'auto') wx.setWeather(worstOf(WEATHER_PLAN[id]), false, true);      // the map shows the race's worst weather as the forecast
-  preset(b.view, true);       // stays on the map screen: dark backdrop, faded edges, no sky
-  const cc = id === 'free' ? new THREE.Vector3(-4600, 0, 1800) : centroid(meta.circuits[b.drive]);
-  const hh = id === 'city' ? 1500 : id === 'cliff' ? 5200 : id === 'rally' ? 6200 : 6800;
-  look(new THREE.Vector3(cc.x - hh * 0.3, hh, cc.z + hh * 0.62), cc);   // steep, so no horizon shows
-  briefEl.style.borderColor = b.color + '88';
-  briefEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:${b.color};box-shadow:0 0 10px ${b.color}"></span><span style="font:600 10px Outfit,sans-serif;letter-spacing:.28em;color:${b.color}">${b.tag}</span></div>
-    <div style="font:800 26px Outfit,sans-serif;margin:4px 0 12px">${b.name}</div>
-    ${b.lines.map((l) => `<div style="font:400 13px Inter,sans-serif;color:rgba(255,255,255,.78);margin:4px 0">${l}</div>`).join('')}
-    <div style="font:400 12px Inter,sans-serif;color:rgba(208,188,255,.8);margin:14px 0 18px">${b.blurb}</div>
-    <div style="display:flex;gap:10px"><button id="briefGo" style="height:50px;padding:0 32px;background:#FF8C00;color:#14001c;border:0;border-radius:999px;font:800 14px Outfit,sans-serif;letter-spacing:.2em;cursor:pointer;box-shadow:0 0 24px rgba(255,140,0,.45)">START</button>
-    <button id="briefBack" style="height:50px;padding:0 24px;background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:999px;font:600 12px Outfit,sans-serif;letter-spacing:.18em;cursor:pointer">BACK</button></div>`;
-  briefEl.style.display = 'block';
-  (document.getElementById('briefGo') as HTMLElement).onclick = () => { hideBrief(); startDrive(b.drive); };
-  (document.getElementById('briefBack') as HTMLElement).onclick = () => { if (wxOverride === 'auto') wx.setWeather('partly', false, true); preset('overview'); };
-}
-
-// ---------- camera presets ----------
-function centroid(c: CircuitDef): THREE.Vector3 {
-  let x = 0, z = 0;
-  for (const p of c.xz) { x += p[0]; z += p[1]; }
 
 // ---------- garage and courier cards on the map screen ----------
 const walletEl = document.createElement('div');
@@ -2139,6 +2166,29 @@ function openCourierBrief(): void {
 }
 addMenuCard('COURIER MODE', 'Delivery shift', 'Passengers · food · packages · beat the clock, chain the drops', '#00f5d4', openCourierBrief);
 addMenuCard('GARAGE', 'Cars, parts and tuning', 'Showroom · upgrades · tuning · objectives', '#ffd166', () => { location.href = 'showroom.html'; });
+function openBrief(id: string): void {
+  const b = BRIEFS[id];
+  if (wxOverride === 'auto') wx.setWeather(worstOf(WEATHER_PLAN[id]), false, true);      // the map shows the race's worst weather as the forecast
+  preset(b.view, true);       // stays on the map screen: dark backdrop, faded edges, no sky
+  const cc = id === 'free' ? new THREE.Vector3(-4600, 0, 1800) : centroid(meta.circuits[b.drive]);
+  const hh = id === 'city' ? 1500 : id === 'cliff' ? 5200 : id === 'rally' ? 6200 : 6800;
+  look(new THREE.Vector3(cc.x - hh * 0.3, hh, cc.z + hh * 0.62), cc);   // steep, so no horizon shows
+  briefEl.style.borderColor = b.color + '88';
+  briefEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:${b.color};box-shadow:0 0 10px ${b.color}"></span><span style="font:600 10px Outfit,sans-serif;letter-spacing:.28em;color:${b.color}">${b.tag}</span></div>
+    <div style="font:800 26px Outfit,sans-serif;margin:4px 0 12px">${b.name}</div>
+    ${b.lines.map((l) => `<div style="font:400 13px Inter,sans-serif;color:rgba(255,255,255,.78);margin:4px 0">${l}</div>`).join('')}
+    <div style="font:400 12px Inter,sans-serif;color:rgba(208,188,255,.8);margin:14px 0 18px">${b.blurb}</div>
+    <div style="display:flex;gap:10px"><button id="briefGo" style="height:50px;padding:0 32px;background:#FF8C00;color:#14001c;border:0;border-radius:999px;font:800 14px Outfit,sans-serif;letter-spacing:.2em;cursor:pointer;box-shadow:0 0 24px rgba(255,140,0,.45)">START</button>
+    <button id="briefBack" style="height:50px;padding:0 24px;background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:999px;font:600 12px Outfit,sans-serif;letter-spacing:.18em;cursor:pointer">BACK</button></div>`;
+  briefEl.style.display = 'block';
+  (document.getElementById('briefGo') as HTMLElement).onclick = () => { hideBrief(); startDrive(b.drive); };
+  (document.getElementById('briefBack') as HTMLElement).onclick = () => { if (wxOverride === 'auto') wx.setWeather('partly', false, true); preset('overview'); };
+}
+
+// ---------- camera presets ----------
+function centroid(c: CircuitDef): THREE.Vector3 {
+  let x = 0, z = 0;
+  for (const p of c.xz) { x += p[0]; z += p[1]; }
   return new THREE.Vector3(x / c.xz.length, 0, z / c.xz.length);
 }
 let tween: { p0: THREE.Vector3; t0: THREE.Vector3; p1: THREE.Vector3; t1: THREE.Vector3; t: number; dur: number } | null = null;
@@ -2235,7 +2285,9 @@ function buildFurniture(): void {
   const c = meta.circuits.ironport_grand_circuit;
   if (!c) return;
   // the route starts at a corner; the start line sits 90 m down the Riverside straight so cars leave the grid on a straight
-  let P = densify(c, 6);
+  // the circuit's own points are 22 m apart with a sharp vertex at every corner; round the corners and space the points evenly, so the road, barriers, kerbs and racing line have a curve to follow
+  const sm = smoothClosedPath(c.xz, c.y, 12, 6);
+  let P = densify({ ...c, xz: sm.xz, y: c.y ? sm.y : undefined } as CircuitDef, 6);
   P = [...P.slice(15), ...P.slice(0, 15)];
   cityPath = P;
   const n = P.length;
@@ -2334,12 +2386,12 @@ function buildFurniture(): void {
   gantry.position.set(g0.x, gy, g0.z);
   gantry.rotation.y = Math.atan2(gx, gz);
   furnitureGroup.add(gantry);
-  const chk = new THREE.InstancedMesh(new THREE.BoxGeometry(1.1, 0.06, 1.1), stdMat(0xffffff, 0.6), 2 * Math.floor(2 * HALF / 1.1));
+  const chk = new THREE.InstancedMesh(new THREE.BoxGeometry(1.1, 0.02, 1.1), stdMat(0xffffff, 0.6), 2 * Math.floor(2 * HALF / 1.1));
   let ci = 0;
   for (let a = 0; a < Math.floor(2 * HALF / 1.1); a++) for (let b = 0; b < 2; b++) {
     const lx = (a - Math.floor(HALF / 1.1)) * 1.1, lz = b * 1.1;
     const x = g0.x + (-gz) * lx + gx * lz, z = g0.z + gx * lx + gz * lz;
-    m4.makeTranslation(x, hAt(x, z) * exag + 0.14, z);
+    m4.makeTranslation(x, hAt(x, z) * exag + RIBBON_LIFT + 0.012, z);
     chk.setMatrixAt(ci, m4);
     chk.setColorAt(ci, col.setHex((a + b) & 1 ? 0x101010 : 0xf2f2f2));
     ci++;
@@ -2359,7 +2411,7 @@ function buildFurniture(): void {
   gridQuad.rotation.order = 'YXZ';
   gridQuad.rotation.x = -Math.PI / 2;
   gridQuad.rotation.y = -Math.atan2(gz, gx);
-  gridQuad.position.set(g0.x - gx * 15, hAt(g0.x - gx * 15, g0.z - gz * 15) * exag + 0.4, g0.z - gz * 15);
+  gridQuad.position.set(g0.x - gx * 15, hAt(g0.x - gx * 15, g0.z - gz * 15) * exag + RIBBON_LIFT + 0.012, g0.z - gz * 15);      // on the road surface: 40 cm up it buried the car
   furnitureGroup.add(gridQuad);
   furnitureGroup.add(ribbon(pit, null, 0.4, 0xf2f2f2, 0.42));
   // sector markers at one third and two thirds of the lap
@@ -2398,7 +2450,35 @@ function buildFurniture(): void {
     });
     furnitureGroup.add(builtCliff.group);
   }
+
+  // Rural Horizon open-world architecture & Festival Outpost
+  const ruralGroup = buildRuralOpenWorldDetail({
+    ground: (x, z) => hAt(x, z) * exag,
+    clearCheck: (x, z) => surfaceAtXZ(x, z) === 'grass' && !insideBuilding(x, z, 28),
+  });
+  furnitureGroup.add(ruralGroup);
+
+  // Suburbs, Industrial Zone, Coastline & Cross-River City District
+  const cityExpGroup = buildCityExpansion({
+    ground: (x, z) => hAt(x, z) * exag,
+    clearCheck: (x, z) => !insideBuilding(x, z, 24),
+  });
+  furnitureGroup.add(cityExpGroup);
+
+  // Hero Gordie-Howe-style LED Cable-Stayed River Bridge
+  const bridgeStartY = hAt(6450, 220) * exag + 8;
+  const bridgeEndY = hAt(7350, 220) * exag + 8;
+  const heroBridge = buildHeroBridge({
+    start: new THREE.Vector3(6450, bridgeStartY, 220),
+    end: new THREE.Vector3(7350, bridgeEndY, 220),
+    deckWidth: 22,
+    towerHeight: 88,
+  });
+  furnitureGroup.add(heroBridge.group);
+  heroBridgeUpdate = heroBridge.updateLed;
 }
+
+let heroBridgeUpdate: ((elapsed: number, nightFactor: number) => void) | null = null;
 
 // ---------- lap timing ----------
 interface Lap { idx: number; started: boolean; t0: number; s1: boolean; s2: boolean; splits: number[]; last: number | null; best: number | null; laps: number; off: boolean }
@@ -2460,6 +2540,36 @@ function saveAssist(): void { try { localStorage.setItem('apex.assist', JSON.str
 const driveHud = document.createElement('div');
 driveHud.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);padding:10px 22px;background:rgba(26,0,38,.72);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.14);border-radius:20px;font:700 15px JetBrains Mono,monospace;color:#fff;display:none;text-align:center;pointer-events:none';
 document.body.appendChild(driveHud);
+const racingHud = new RacingHud(driveHud);
+
+// ---------- photo mode: freeze the car, take the camera, open the doors, shoot (src/photo.ts) ----------
+let bokeh: BokehPass | null = null;
+const photo = new PhotoMode({
+  rig: { renderer, camera, composer, render: () => { if (composer && fxOn) composer.render(); else renderer.render(scene, camera); } },
+  scene, controls,
+  subject: () => driving?.car ?? null,
+  panels: () => (driving?.car.userData.panels as import('./car').CarRig['panels'] | undefined),
+  grade: () => gradePass,
+  title: () => { const a = garage.active; return a ? `${garage.def(a.uid)!.make} ${a.nickname ?? garage.def(a.uid)!.name}` : 'Kestrel Sovereign GT-R'; },
+  rows: () => [
+    { label: 'Time of day', options: [['golden', 'Golden hour'], ['clear', 'Clear day'], ['sunset', 'Sunset'], ['dusk', 'Dusk'], ['night', 'Night'], ['sunrise', 'Sunrise']], get: () => todKey, set: (v) => setTimeOfDay(v) },
+    { label: 'Weather', options: [['clear', 'Clear'], ['partly', 'Partly cloudy'], ['overcast', 'Overcast'], ['fog', 'Fog'], ['rain', 'Rain'], ['storm', 'Storm']], get: () => wx.name, set: (v) => wx.setWeather(v, false, true) },
+  ],
+  dof: {
+    set: (on, aperture, focus) => {
+      if (!composer) return;
+      if (on && !bokeh) { bokeh = new BokehPass(scene, camera, { focus, aperture: 0.0001, maxblur: 0.012 }); composer.insertPass(bokeh, 2); }
+      if (bokeh) { bokeh.enabled = on; if (on) { const u = bokeh.uniforms as Record<string, { value: number }>; u.focus.value = focus; u.aperture.value = aperture * 0.00012; } }
+    },
+  },
+  onEnter: () => { replay.active || (driveHud.style.display = 'none'); },
+  onExit: () => { if (driving) { controls.enabled = false; driveHud.style.display = 'block'; } },
+});
+const photoBtn = document.createElement('button');
+photoBtn.textContent = 'PHOTO (K)';
+photoBtn.style.cssText = 'position:fixed;right:76px;top:66px;height:38px;padding:0 16px;background:rgba(26,0,38,.62);color:#fff;border:1px solid rgba(255,255,255,.14);border-radius:999px;backdrop-filter:blur(12px);font:600 11px Outfit,sans-serif;letter-spacing:.16em;cursor:pointer;display:none;z-index:30';
+photoBtn.onclick = () => { if (driving && !replay.active) photo.enter(); };
+document.body.appendChild(photoBtn);
 
 // ---------- the Sovereign's vehicle spec and the ground it drives on ----------
 // The car is the active car in the garage: its parts and tune decide the physics spec (power, mass, grip, springs, brakes, downforce).
@@ -2634,9 +2744,23 @@ function collide(s: DriveState): boolean {
   return hit;
 }
 
-// The barriers stand 6.9 m from the centre line (inner face about 6.6 m). The car is about 1 m half-width plus a margin.
-const BARRIER_LIMIT = 5.45;
+// The barriers stand 6.9 m from the centre line (inner face about 6.6 m). The whole car is held inside them, not just its middle: a car turning into a wall has its front
+// corner out ahead of the centre, and testing only the centre let that corner through the barrier.
+const BARRIER_FACE = 6.45;                                   // how far from the centre line any point of the car may get (the inner face is 6.6, with a hand's width spare)
+const CAR_HW = 1.0, CAR_HL = 2.35;                           // half width and half length of the Sovereign's body
 let barrierIdx = 0;
+function corridorAt(P: { x: number; z: number }[], n: number, bi: number, x: number, z: number): { d: number; nx: number; nz: number } {
+  let nd = 1e18, nx = 0, nz = 0;
+  for (let j = bi - 4; j <= bi + 3; j++) {
+    const a = P[(j + n) % n], b = P[(j + 1 + n) % n];
+    const tx = b.x - a.x, tz = b.z - a.z, L2 = tx * tx + tz * tz || 1;
+    const t = Math.max(0, Math.min(1, ((x - a.x) * tx + (z - a.z) * tz) / L2));
+    const qx = a.x + tx * t, qz = a.z + tz * t;
+    const d = Math.hypot(x - qx, z - qz);
+    if (d < nd) { nd = d; nx = x - qx; nz = z - qz; }
+  }
+  return { d: nd, nx, nz };
+}
 function barrierCollide(s: DriveState): boolean {
   const P = cityPath, n = P.length;
   if (!n) return false;
@@ -2652,20 +2776,18 @@ function barrierCollide(s: DriveState): boolean {
   scan(-20, 20);
   if (best > 60 * 60) { best = 1e18; for (let i = 0; i < n; i++) { const d = (P[i].x - s.pos.x) ** 2 + (P[i].z - s.pos.z) ** 2; if (d < best) { best = d; bi = i; } } }
   barrierIdx = bi;
-  // distance to the centre line (clamped to each segment, so outside corners are held by the vertex): the barrier is a fixed corridor
-  let nd = 1e18, nx = 0, nz = 0;
-  for (let j = bi - 3; j <= bi + 2; j++) {
-    const a = P[(j + n) % n], b = P[(j + 1 + n) % n];
-    const tx = b.x - a.x, tz = b.z - a.z, L2 = tx * tx + tz * tz || 1;
-    const t = Math.max(0, Math.min(1, ((s.pos.x - a.x) * tx + (s.pos.z - a.z) * tz) / L2));
-    const qx = a.x + tx * t, qz = a.z + tz * t;
-    const d = Math.hypot(s.pos.x - qx, s.pos.z - qz);
-    if (d < nd) { nd = d; nx = s.pos.x - qx; nz = s.pos.z - qz; }
+  // the four corners of the car: the one furthest past the barrier face decides how far the car is pushed back
+  const sy = Math.sin(s.yaw), cy = Math.cos(s.yaw);
+  let worst = 0, ux = 0, uz = 0;
+  for (const [lx, lz] of [[CAR_HW, CAR_HL], [-CAR_HW, CAR_HL], [CAR_HW, -CAR_HL], [-CAR_HW, -CAR_HL]]) {
+    const x = s.pos.x + cy * lx + sy * lz, z = s.pos.z - sy * lx + cy * lz;
+    const c = corridorAt(P, n, bi, x, z);
+    const over = c.d - BARRIER_FACE;
+    if (over > worst && c.d < 60) { worst = over; ux = c.nx / c.d; uz = c.nz / c.d; }
   }
-  if (nd > BARRIER_LIMIT && nd < 40) {
-    const ux = nx / nd, uz = nz / nd;
-    s.pos.x -= ux * (nd - BARRIER_LIMIT);
-    s.pos.z -= uz * (nd - BARRIER_LIMIT);
+  if (worst > 0) {
+    s.pos.x -= ux * worst;
+    s.pos.z -= uz * worst;
     // A wall takes away the speed going INTO it and keeps the speed ALONG it, and it turns the car's nose toward the wall's direction: the car scrapes along and out of the
     // corner. (It used to cut the car's speed by a third of the way to a stop on every frame in contact and kick the sideways speed back, so a car that hit a corner nose-on
     // stayed pinned there with its wheels pointed at the wall.)
@@ -2695,19 +2817,82 @@ function deliverySpots(): ReturnType<typeof makeSpots> {
   if (!courierSpots) courierSpots = makeSpots([meta.coastal_highway.xz.map((p) => ({ x: p[0], z: p[1] })), ...streetRuns.map((r) => r.p.map((p) => ({ x: p[0], z: p[1] })))]);
   return courierSpots;
 }
+let competition: CompetitionEngine | null = null;
+let trafficMgr: TrafficManager | null = null;
+let challengeMgr: OpenWorldChallengeManager | null = null;
+const aiGroup = new THREE.Group();
+const trafficGroup = new THREE.Group();
+scene.add(aiGroup, trafficGroup);
+let aiMeshes: THREE.Group[] = [];
+let trafficMeshes: THREE.Group[] = [];
+
+function makeTrafficOrAiCarMesh(paintHex: number): THREE.Group {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(1.9, 0.72, 4.45),
+    new THREE.MeshStandardMaterial({ color: paintHex, metalness: 0.65, roughness: 0.24 })
+  );
+  body.position.y = 0.66;
+  body.castShadow = true;
+  g.add(body);
+  const cabin = new THREE.Mesh(
+    new THREE.BoxGeometry(1.56, 0.50, 2.05),
+    new THREE.MeshStandardMaterial({ color: 0x0b1220, metalness: 0.15, roughness: 0.1 })
+  );
+  cabin.position.set(0, 1.18, -0.2);
+  g.add(cabin);
+  const wGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.24, 14);
+  wGeo.rotateZ(Math.PI * 0.5);
+  const wMat = new THREE.MeshStandardMaterial({ color: 0x15171c, roughness: 0.85 });
+  for (const [wx, wz] of [[-0.86, 1.36], [0.86, 1.36], [-0.86, -1.36], [0.86, -1.36]]) {
+    const w = new THREE.Mesh(wGeo, wMat);
+    w.position.set(wx, 0.34, wz);
+    g.add(w);
+  }
+  return g;
+}
+
 function teardownRun(): void {
   if (delivery) { const d = delivery; delivery = null; d.quit(); d.dispose(); }
   runTracker = null; stagePath = null; stageFinished = false;
+  competition = null; trafficMgr = null; challengeMgr = null;
+  aiGroup.clear(); trafficGroup.clear();
+  aiMeshes = []; trafficMeshes = [];
 }
 function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend'): void {
   teardownRun();
   lastLapCount = lap?.laps ?? 0;
   if (courier) { delivery = new DeliveryGame(courier, deliverySpots(), scene, groundH, () => preset('overview')); return; }
-  if (id === 'free') return;
+  if (id === 'free') {
+    const hwPts = meta.coastal_highway.xz.map((p) => new THREE.Vector3(p[0], hAt(p[0], p[1]) * exag, p[1]));
+    const subPts = streetRuns.slice(0, 12).flatMap((r) => r.p.map((p) => new THREE.Vector3(p[0], hAt(p[0], p[1]) * exag, p[1])));
+    trafficMgr = new TrafficManager({ i196Samples: hwPts, suburbSamples: subPts });
+    trafficMgr.init(18, groundH);
+    for (const tv of trafficMgr.vehicles) {
+      const m = makeTrafficOrAiCarMesh(tv.paintHex);
+      m.position.copy(tv.pos);
+      m.rotation.y = tv.yaw;
+      trafficGroup.add(m);
+      trafficMeshes.push(m);
+    }
+    challengeMgr = new OpenWorldChallengeManager();
+    return;
+  }
   const city = id === 'ironport_grand_circuit';
   const pts = city ? cityPath : meta.circuits[id] ? densify(meta.circuits[id], 6) : [];
   if (pts.length < 8) return;
   runTracker = new RunTracker(id, refParSec(pts, city, city ? 5.4 : 4.2));
+  const vecPts = pts.map((p) => new THREE.Vector3(p.x, p.y, p.z));
+  competition = new CompetitionEngine();
+  competition.createGrid(vecPts, [CARS.kestrel, CARS.aurelia], groundH, { includePlayer: true, totalCars: 12 });
+  for (const r of competition.racers) {
+    if (r.isPlayer) continue;
+    const m = makeTrafficOrAiCarMesh(r.paintHex);
+    m.position.copy(r.state.pos);
+    m.rotation.y = r.state.yaw;
+    aiGroup.add(m);
+    aiMeshes.push(m);
+  }
   stagePath = city ? null : new PathProgress(pts);
 }
 function finishRun(timeSec: number): void {
@@ -2762,15 +2947,24 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend'): void {
   camera.near = 1.0; camera.far = 22000; camera.updateProjectionMatrix();      // the map view uses a 5 m near plane, which cut the back of the car off at chase distance
   lapReset();
   buildRacingLine(id);
+  setupRun(id, courier);
   replay.clear(); driveClock = 0; camYawOff = 0; camPitchOff = 0; camZoom = 1;
   controls.enabled = false;
   circuitGroup.visible = false;      // the review ribbons are drawn wider than the road
+  const route = city && cityPath.length ? cityPath.map((p) => ({ x: p.x, z: p.z })) : (c?.xz ?? []).map((p) => ({ x: p[0], z: p[1] }));
+  racingHud.configure(free ? 'Free roam' : c?.name ?? 'Ironport Grand Circuit', route, [meta.coastal_highway.xz.map((p) => ({ x: p[0], z: p[1] })), ...streetRuns.map((r) => r.p.map((p) => ({ x: p[0], z: p[1] })))]);
+  labelGroup.visible = false;
+  furnitureGroup.traverse((object) => { if (object instanceof THREE.Sprite) object.visible = false; });
+  hud.style.display = 'none';
   driveHud.style.display = 'block';
+  photoBtn.style.display = 'block';
 }
 function stopDrive(): void {
   if (!driving) return;
   if (lineMesh) { scene.remove(lineMesh); lineMesh.geometry.dispose(); lineMesh = null; }
   racingLine = null;
+  photo.exit(); photoBtn.style.display = 'none';
+  teardownRun();
   scene.remove(driving.car);
   driving = null;
   gameAudio.setPaused(true); setMusicDuck(1); wx.setPaused(true); wxPlan = null; if (wxOverride === 'auto') wx.setWeather('partly', false, true);
@@ -2778,6 +2972,9 @@ function stopDrive(): void {
   controls.enabled = true;
   circuitGroup.visible = (document.getElementById('tCirc') as HTMLInputElement).checked;
   driveHud.style.display = 'none';
+  hud.style.display = '';
+  labelGroup.visible = (document.getElementById('tLab') as HTMLInputElement).checked;
+  furnitureGroup.traverse((object) => { if (object instanceof THREE.Sprite) object.visible = true; });
   countEl.style.display = 'none';
 }
 function stepDrive(dt: number): void {
@@ -2793,7 +2990,6 @@ function stepDrive(dt: number): void {
     if (s.lock <= 0) countEl.style.display = 'none';
   }
   const pad = driveInput.axes;                                  // controller + touch, analog
-  setupRun(id, courier);
   const kUp = !locked && (keys.has('KeyW') || keys.has('ArrowUp')), kDown = !locked && (keys.has('KeyS') || keys.has('ArrowDown'));
   const up = kUp || (!locked && pad.throttle > 0.05), down = kDown || (!locked && pad.brake > 0.05);
   const left = keys.has('KeyA') || keys.has('ArrowLeft'), right = keys.has('KeyD') || keys.has('ArrowRight');
@@ -2808,42 +3004,77 @@ function stepDrive(dt: number): void {
   // pedals ease in like a foot would: throttle takes about a third of a second to go to the floor, the brake about half, and both lift faster
   // driving assists, as in Forza: brake help ahead of corners the car is too fast for, and a nudge toward the racing line (both off in the Settings, along with the line itself)
   let assistBrake = 0, assistSteer = 0;
-  teardownRun();
   if (racingLine && !locked) {
     const li = racingLine.nearest(s.pos.x, s.pos.z), off = racingLine.offsets(li, s.pos.x, s.pos.z, s.yaw), v = Math.max(0, s.ps.forwardSpeed);
-    const gripNow = Math.max(0.3, wx.cur.grip * (1 - 0.82 * hydro));
+    const gripNow = Math.max(0.3, (1 - 0.24 * roadWater.wetness) * (1 - 0.82 * hydro));
     if (Math.abs(off.lat) < 9) {
       if (assist.brake && v > 9) { const need = racingLine.demand(li, v, gripNow), cap = 9.0 * gripNow; assistBrake = Math.min(1, Math.max(0, (need - cap * 0.5) / (cap * 0.4))) * 0.9; }
       if (assist.steer && v > 6) assistSteer = Math.max(-0.6, Math.min(0.6, off.head * 1.3 - off.lat * 0.06)) * 0.65;
     }
   }
   assistBrakeShown = assistBrake;
-  if (racingLine && chevrons && lineMesh?.visible) chevrons.update(racingLine.nearest(s.pos.x, s.pos.z), Math.max(0, s.ps.forwardSpeed), Math.max(0.3, wx.cur.grip * (1 - 0.82 * hydro)));
+  if (racingLine && chevrons && lineMesh?.visible) chevrons.update(racingLine.nearest(s.pos.x, s.pos.z), Math.max(0, s.ps.forwardSpeed), Math.max(0.3, (1 - 0.24 * roadWater.wetness) * (1 - 0.82 * hydro)));
   const thrWant = locked ? 0 : Math.max(kUp ? 1 : 0, pad.throttle) * (1 - assistBrake), brkWant = locked ? 1 : Math.max(kDown ? 1 : 0, pad.brake, assistBrake);
   pedalT += (thrWant - pedalT) * Math.min(1, dt * (thrWant > pedalT ? 3.4 : 8));
   pedalB += (brkWant - pedalB) * Math.min(1, dt * (brkWant > pedalB ? 2.6 : 9));
   const input: CarInput = { throttle: locked ? 0 : pedalT, brake: locked ? 1 : pedalB, steer: (() => { const p = Math.abs(pad.steer) > Math.abs(kSteer) ? pad.steer : kSteer; return Math.max(-1, Math.min(1, p + assistSteer * (1 - Math.abs(p)))); })(), handbrake: hand };
-  // standing water under the wheels: deep puddles at speed lift the tyres off the tarmac (aquaplaning): grip collapses until the car slows or leaves the water
-  let pudAvg = 0;
-  {
-    const sy0 = Math.sin(ps.yaw), cy0 = Math.cos(ps.yaw);
-    for (const [ox, oz] of [[0.81, 1.48], [-0.81, 1.48], [0.81, -1.48], [-0.81, -1.48]]) pudAvg += puddleDepth(ps.pos.x + cy0 * ox + sy0 * oz, ps.pos.z - sy0 * ox + cy0 * oz, poolLevel) / 4;
-    if (surfaceAtXZ(ps.pos.x, ps.pos.z) !== 'asphalt') pudAvg = 0;
+  // Every tyre samples the puddles drawn by the shader. The unloaded side
+  // loses contact earlier, and one-sided water drag produces a modest yaw moment.
+  let contactGrip = 0, hydroTarget = 0, waterDrag = 0, splitDrag = 0;
+  const sy0 = Math.sin(ps.yaw), cy0 = Math.cos(ps.yaw);
+  const contacts = [[SOV_SPEC.trackWidth / 2, SOV_SPEC.wheelbase / 2], [-SOV_SPEC.trackWidth / 2, SOV_SPEC.wheelbase / 2], [SOV_SPEC.trackWidth / 2, -SOV_SPEC.wheelbase / 2], [-SOV_SPEC.trackWidth / 2, -SOV_SPEC.wheelbase / 2]];
+  contacts.forEach(([ox, oz], i) => {
+    const x = ps.pos.x + cy0 * ox + sy0 * oz, z = ps.pos.z - sy0 * ox + cy0 * oz;
+    const road = surfaceAtXZ(x, z) === 'asphalt';
+    const depth = road ? puddleDepth(x, z, poolLevel) : 0;
+    const load = ps.wheelLoadN[i] / Math.max(1, SOV_SPEC.massKg * 9.81 / 4);
+    const contact = waterContact(ps.speedMps, roadWater.wetness, depth * poolLevel * 7, load);
+    contactGrip += contact.grip / 4;
+    hydroTarget += (ps.isAirborne ? 0 : contact.hydro) / 4;
+    waterDrag += contact.drag / 4; splitDrag += contact.drag * Math.sign(ox) / 4;
+  });
+  hydro += (hydroTarget - hydro) * (1 - Math.exp(-dt * (hydroTarget > hydro ? 6 : 3.5)));
+  const grip = SOV_SPEC.corneringGrip * Math.min(contactGrip, (1 - 0.24 * (SOV_SPEC.wetSensitivity ?? 1) * roadWater.wetness) * (1 - 0.82 * hydro));
+  if (!wxGripSpec || Math.abs(wxGripSpec.corneringGrip - grip) > 0.001 || wxGripSpec.suspension !== SOV_SPEC.suspension) wxGripSpec = { ...SOV_SPEC, corneringGrip: grip };
+  if (hydro > 0.3) driveInput.rumble(0, Math.min(0.4, hydro * 0.4), 60);
+  stepCarPhysics(ps, wxGripSpec, input, dt, groundH, surfaceAtXZ, []);
+  if (!ps.isAirborne) {
+    ps.vel.multiplyScalar(Math.exp(-waterDrag * dt));
+    ps.angularVel += Math.max(-0.2, Math.min(0.2, splitDrag * ps.forwardSpeed * 0.1)) * dt;
   }
-  {
-    const spdA = Math.abs(ps.forwardSpeed);
-    const target = pudAvg > 0.25 && poolLevel > 0.08 ? Math.min(1, Math.max(0, (spdA - (31 - 13 * pudAvg)) / 9)) * Math.min(1, pudAvg * 1.3) : 0;
-    hydro += (target - hydro) * Math.min(1, dt * (target > hydro ? 5 : 2.2));
-    if (hydro > 0.3) driveInput.rumble(0, 0.35, 60);
-  }
-  stepCarPhysics(ps, wxGripSpec ?? SOV_SPEC, input, dt, groundH, surfaceAtXZ, []);
-  if (pudAvg > 0.3) { const k = 1 - dt * 0.3 * pudAvg * Math.min(1, Math.abs(ps.forwardSpeed) / 25); ps.vel.x *= k; ps.vel.z *= k; }       // the water drags at the car
   // reverse: hold brake at a standstill and the car backs out right away (Forza style), with a sensible top speed in reverse
   if (down && !up && !locked) {
     if (ps.forwardSpeed < 1.5 && ps.forwardSpeed > -13) { const a = 5.2 * dt; ps.vel.x -= Math.sin(ps.yaw) * a; ps.vel.z -= Math.cos(ps.yaw) * a; }
     if (ps.forwardSpeed < -13) { const k = 13 / -ps.forwardSpeed; ps.vel.multiplyScalar(k); }
   }
   gameAudio.update(ps, SOV_SPEC, input.throttle);          // buildings and barriers are handled below on the real footprints
+  if (competition) {
+    competition.step(dt, driveClock, groundH, surfaceAtXZ, [], ps);
+    let aiIdx = 0;
+    for (const r of competition.racers) {
+      if (r.isPlayer) continue;
+      const m = aiMeshes[aiIdx++];
+      if (m) {
+        m.position.copy(r.state.pos);
+        m.rotation.y = r.state.yaw;
+      }
+    }
+  }
+  if (trafficMgr) {
+    trafficMgr.step(dt, ps, groundH);
+    for (let i = 0; i < trafficMgr.vehicles.length && i < trafficMeshes.length; i++) {
+      const tv = trafficMgr.vehicles[i];
+      trafficMeshes[i].position.copy(tv.pos);
+      trafficMeshes[i].rotation.y = tv.yaw;
+    }
+  }
+  if (challengeMgr) {
+    const events = challengeMgr.step(ps, dt);
+    if (events.length) {
+      const ev = events[events.length - 1];
+      msg.textContent = `${ev.title} · ${ev.detail}`;
+    }
+  }
   s.pos.set(ps.pos.x, ps.pos.y, ps.pos.z);
   s.yaw = ps.yaw;
   s.sp = ps.forwardSpeed; s.lat = ps.lateralSpeed; s.steer = ps.steerInputSmoothed;
@@ -2852,6 +3083,7 @@ function stepDrive(dt: number): void {
   if (s.circuitId === 'ironport_grand_circuit' && barrierCollide(s)) { s.hit = 0.4; bumped = true; }
   if (bumped) driveInput.rumble(0.9, 0.7, 220);
   else if (ps.isDrifting) driveInput.rumble(0.0, 0.25, 60);
+  garageStep(dt, s, bumped);
   s.hit = Math.max(0, s.hit - dt);
   const lim = meta.width * meta.mpp / 2 - 80, limz = meta.height * meta.mpp / 2 - 80;
   s.pos.x = Math.max(-lim, Math.min(lim, s.pos.x));
@@ -2900,7 +3132,6 @@ function stepDrive(dt: number): void {
   if (lookBack) camYawOff += (Math.PI - camYawOff) * Math.min(1, dt * 8);
   else if (!dragging) { camYawOff += (Math.round(camYawOff / (Math.PI * 2)) * Math.PI * 2 - camYawOff) * Math.min(1, dt * 2.5); camPitchOff += (0 - camPitchOff) * Math.min(1, dt * 2.5); }
   // Forza-style views: 0 near chase, 1 far chase, 2 hood, 3 dash, 4 first person (the driver's eyes). Chase views sit at a fixed length behind the car;
-  garageStep(dt, s, bumped);
   // the others are fixed to the car body and look along it, with mouse free-look on top.
   const view = s.camView;
   // depth precision: the road ribbon sits 7 cm above the painted road under it, and that only holds apart if the near plane is as far out as it can be (1 m in the chase views; the
@@ -2937,9 +3168,10 @@ function stepDrive(dt: number): void {
     if (Math.abs(camera.fov - fovWant) > 0.05) { camera.fov += (fovWant - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); }
   }
   const lapTxt = s.circuitId === 'ironport_grand_circuit' ? lapStep(s.pos.x, s.pos.z, performance.now() / 1000) + '<br>' : '';
-  driveHud.innerHTML = lapTxt + `${Math.round(ps.speedMps * 3.6)} km/h &nbsp;·&nbsp; ${ps.gear < 0 ? 'R' : ps.gear === 0 ? 'N' : ps.gear} &nbsp;·&nbsp; ${Math.round(ps.rpm)} rpm` + (ps.isDrifting ? ' &nbsp;·&nbsp; <span style="color:#FF8C00">drift</span>' : '') + (hydro > 0.3 ? ' &nbsp;·&nbsp; <span style="color:#00DAF3">aquaplaning</span>' : '') + (assistBrakeShown > 0.25 ? ' &nbsp;·&nbsp; <span style="color:#FF8C00">brake assist</span>' : '') + (performance.now() - driveViewShown < 1800 ? ` &nbsp;·&nbsp; <span style="color:#00DAF3">${VIEW_NAMES[s.camView]}</span>` : '') + (s.hit > 0 ? ' &nbsp;·&nbsp; <span style="color:#D40055">crash</span>' : '') + '<br><span style="font:500 11px Inter,sans-serif;opacity:.7;letter-spacing:.04em">' + (driveInput.touchMode ? 'drag the wheel to steer · drag the view to look around' : driveInput.axes.active ? 'RT throttle · LT brake · stick steer · A handbrake · Y camera · X replay · Back reset · Start exit' : 'W/S throttle and brake · A/D steer · Space handbrake · drag mouse to look around · B look back · C or 1-5 camera (chase, far, hood, dash, driver) · P replay · R reset · Esc exit') + '</span>';
+  racingHud.update(dt, { speed: ps.forwardSpeed, rpm: ps.rpm, redline: SOV_SPEC.engine.redlineRpm, gear: ps.forwardSpeed < -0.5 ? -1 : ps.gear, gears: SOV_SPEC.gearRatios.length, shift: ps.shiftTimer > 0, x: ps.pos.x, z: ps.pos.z, yaw: ps.yaw, throttle: input.throttle, brake: input.brake, rain: wx.cur.rain, wetness: roadWater.wetness, hydro, drift: ps.isDrifting, collision: s.hit > 0, assist: assistBrakeShown > 0.25, lapHtml: lapTxt, mode: VIEW_NAMES[s.camView], touch: driveInput.touchMode });
 }
 addEventListener('keydown', (e) => {
+  if (e.code === 'KeyK' && driving && !replay.active) { e.preventDefault(); photo.toggle(); return; }
   if (replay.active) { if (replay.key(e.code)) { e.preventDefault(); if (!replay.active && driving) { driveHud.style.display = 'block'; s2cam(); gameAudio.setPaused(false); } } return; }
   if (!driving) return;
   if (e.code === 'KeyP') { if (replay.start()) { driveHud.style.display = 'none'; countEl.style.display = 'none'; gameAudio.setPaused(true); } return; }
@@ -2993,6 +3225,12 @@ document.getElementById('stop')!.addEventListener('click', () => { stopFly(); st
 document.getElementById('drivecity')!.addEventListener('click', () => startDrive('ironport_grand_circuit'));
 document.getElementById('drivecliff')!.addEventListener('click', () => startDrive('great_lakes_cliff_raceway'));
 document.getElementById('driverally')!.addEventListener('click', () => startDrive('pinewood_rally_stage'));
+{
+  const toggle = document.getElementById('tLensRain') as HTMLInputElement;
+  try { lensRain.enabled = localStorage.getItem('apex.lensRain') !== 'off'; } catch { /* storage unavailable */ }
+  toggle.checked = lensRain.enabled;
+  toggle.addEventListener('change', () => { lensRain.enabled = toggle.checked; try { localStorage.setItem('apex.lensRain', toggle.checked ? 'on' : 'off'); } catch { /* storage unavailable */ } });
+}
 (document.getElementById('tCirc') as HTMLInputElement).addEventListener('change', (e) => { circuitGroup.visible = (e.target as HTMLInputElement).checked; });
 (document.getElementById('tHar') as HTMLInputElement).addEventListener('change', (e) => { harborGroup.visible = (e.target as HTMLInputElement).checked; });
 (document.getElementById('tod') as HTMLSelectElement).addEventListener('change', (e) => setTimeOfDay((e.target as HTMLSelectElement).value));
@@ -3011,8 +3249,18 @@ document.getElementById('driverally')!.addEventListener('click', () => startDriv
     cb.checked = assist[key];
     cb.addEventListener('change', () => { assist[key] = cb.checked; saveAssist(); });
   }
+  const gpuSelect = document.getElementById('gpuPreference') as HTMLSelectElement;
+  gpuSelect.value = requestedGpu;
+  gpuSelect.addEventListener('change', () => {
+    try { localStorage.setItem('apex.gpu', gpuSelect.value); } catch { /* storage unavailable */ }
+    const url = new URL(location.href); url.searchParams.set('gpu', gpuSelect.value); location.assign(url.href);
+  });
   const shSel = document.getElementById('shadowSel') as HTMLSelectElement;
   shSel.value = SHADOWS;
+  const modSel = document.getElementById('modSel') as HTMLSelectElement | null;
+  if (modSel) { modSel.value = MODELSET; modSel.addEventListener('change', () => { try { localStorage.setItem('apex.models', modSel.value); } catch { /* storage blocked */ } location.reload(); }); }
+  const texSel = document.getElementById('texSel') as HTMLSelectElement | null;
+  if (texSel) { texSel.value = TEXSET; texSel.addEventListener('change', () => { try { localStorage.setItem('apex.tex', texSel.value); } catch { /* storage blocked */ } location.reload(); }); }
   shSel.addEventListener('change', () => { try { localStorage.setItem('apex.shadows', shSel.value); } catch { /* storage blocked */ } location.reload(); });
   // colour grade and lens options (the platform's LUT library and film/tape lenses)
   const lutSel = document.getElementById('lutSel') as HTMLSelectElement, lutAmt = document.getElementById('lutAmt') as HTMLInputElement, lensSel = document.getElementById('lensSel') as HTMLSelectElement;
@@ -3040,6 +3288,19 @@ document.getElementById('driverally')!.addEventListener('click', () => startDriv
   (document.getElementById('exagv') as HTMLElement).textContent = exag.toFixed(1);
   buildTerrain(); buildOverlays(); buildFurniture(); buildStreets().catch(() => undefined); buildHarbor();
 });
+const radioLabelEl = document.getElementById('radioLabel');
+const syncRadioLabel = () => {
+  if (!radioLabelEl) return;
+  const st = gameAudio.currentStation;
+  radioLabelEl.textContent = `${st.name} · ${st.artist}`;
+};
+syncRadioLabel();
+document.getElementById('radioPrev')?.addEventListener('click', () => { gameAudio.cycleStation(-1); syncRadioLabel(); });
+document.getElementById('radioNext')?.addEventListener('click', () => { gameAudio.cycleStation(1); syncRadioLabel(); });
+addEventListener('keydown', (e) => {
+  if (e.key === '[') { gameAudio.cycleStation(-1); syncRadioLabel(); }
+  if (e.key === ']') { gameAudio.cycleStation(1); syncRadioLabel(); }
+});
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; applyMapOffset();
   renderer.setSize(innerWidth, innerHeight);
@@ -3048,6 +3309,7 @@ addEventListener('resize', () => {
 
 let last = performance.now();
 function frame(now: number): void {
+  frameProfiler.begin(now);
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
   driveInput.tick();
@@ -3056,8 +3318,10 @@ function frame(now: number): void {
   stepFly(dt);
   stepTween(dt);
   stepWeather(dt);
+  heroBridgeUpdate?.(now * 0.001, Math.max(0, Math.min(1, 1 - (sunDir.y + 0.05) * 4)));
   for (const l of cloudLayers) { l.tex.offset.x += l.vx * dt; l.tex.offset.y += l.vz * dt; }
-  if (replay.active) replay.step(dt); else stepDrive(dt);
+  if (replay.active) replay.step(dt); else if (!photo.active) stepDrive(dt);
+  photo.update();
   updateProbe(dt);
   if (!fly && !driving) controls.update();
   {
@@ -3092,7 +3356,13 @@ function frame(now: number): void {
     u.uShaft.value += (vis * clear * (1 - nk) * (mapMode ? 0 : 0.55) - u.uShaft.value) * Math.min(1, dt * 3);
     (u.uSunCol.value as THREE.Color).copy(sun.color);
   }
+  lensRain.update(dt, wx.cur.rain, driving ? Math.abs(driving.ps.speedMps) : 0, !mapMode && !!driving && !replay.active && driving.camView < 3, innerWidth / innerHeight);
+  if (gradePass) gradePass.enabled = gradePass.active;
+  cityVisibility.update(camera, csm ? csm.lights : [sun]);
+  frameProfiler.context = { mode: mapMode ? 'map' : driving ? 'drive' : 'review', weather: wx.name, camera: camera.position.toArray().map((v) => Math.round(v)) };
+  frameProfiler.beginRender();
   if (composer && fxOn) composer.render(); else renderer.render(scene, camera);
+  frameProfiler.end();
   if (meta) {
     const e = hAt(camera.position.x, camera.position.z);
     hud.innerHTML = `camera ${Math.round(camera.position.x)}, ${Math.round(camera.position.z)}<br>alt over ground ${Math.round(camera.position.y - e * exag)} m<br>ground ${e.toFixed(0)} m above lake`;

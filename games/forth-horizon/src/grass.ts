@@ -3,23 +3,31 @@
 // lawn is green), grow only where the satellite says green and the road checks say clear, shrink out toward the edge of the radius, and sway in the wind.
 import * as THREE from 'three';
 
-const R_NEAR = 64;       // grass radius (m)
-const CELL = 1.35;       // one tuft per cell
+const R_NEAR = 68;       // grass radius (m)
+const CELL = 0.82;       // dense near-camera hair-like grass tufts
 
 function bladeTexture(): THREE.CanvasTexture {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+  const c = document.createElement('canvas'); c.width = 512; c.height = 512;
   const g = c.getContext('2d')!;
   let s = 4242; const r = (): number => (s = (s * 16807) % 2147483647) / 2147483647;
-  g.clearRect(0, 0, 256, 256);
-  for (let i = 0; i < 64; i++) {
-    const bx = 8 + r() * 240, h = 120 + r() * 130, bend = (r() - 0.5) * 70, w = 3.5 + r() * 4.5;
-    const grad = g.createLinearGradient(0, 256, 0, 256 - h);
-    grad.addColorStop(0, '#4a5a30'); grad.addColorStop(0.45, `rgb(${150 + r() * 40},${180 + r() * 40},${96 + r() * 30})`); grad.addColorStop(1, `rgb(${215 + r() * 30},${235 + r() * 20},${150 + r() * 30})`);
+  g.clearRect(0, 0, 512, 512);
+  // Dense fine hair-like blades + dry straw stalks + root-to-tip AO
+  for (let i = 0; i < 190; i++) {
+    const bx = 10 + r() * 492;
+    const h = 180 + r() * 310;
+    const bend = (r() - 0.5) * 130;
+    const w = 2.2 + r() * 4.2;
+    const isDry = r() < 0.22;
+    const grad = g.createLinearGradient(0, 512, 0, 512 - h);
+    grad.addColorStop(0, '#1e2512'); // deep root AO
+    grad.addColorStop(0.28, isDry ? '#5e5630' : `rgb(${68 + r() * 36},${92 + r() * 36},${38 + r() * 24})`);
+    grad.addColorStop(0.72, isDry ? '#9e8e4c' : `rgb(${118 + r() * 45},${148 + r() * 45},${66 + r() * 28})`);
+    grad.addColorStop(1, isDry ? '#cfc07a' : `rgb(${175 + r() * 45},${198 + r() * 32},${112 + r() * 30})`);
     g.fillStyle = grad;
     g.beginPath();
-    g.moveTo(bx - w, 256);
-    g.quadraticCurveTo(bx - w * 0.5 + bend * 0.25, 256 - h * 0.55, bx + bend, 256 - h);
-    g.quadraticCurveTo(bx + w * 0.5 + bend * 0.25, 256 - h * 0.55, bx + w, 256);
+    g.moveTo(bx - w, 512);
+    g.quadraticCurveTo(bx - w * 0.4 + bend * 0.3, 512 - h * 0.55, bx + bend, 512 - h);
+    g.quadraticCurveTo(bx + w * 0.4 + bend * 0.3, 512 - h * 0.55, bx + w, 512);
     g.closePath(); g.fill();
   }
   const t = new THREE.CanvasTexture(c);
@@ -27,12 +35,12 @@ function bladeTexture(): THREE.CanvasTexture {
   return t;
 }
 
-/** three crossed quads, normals straight up so the lighting is soft */
+/** four crossed tapered quads for fuller near-camera volume */
 function tuftGeo(): THREE.BufferGeometry {
   const pos: number[] = [], uv: number[] = [], nor: number[] = [], idx: number[] = [];
-  for (let k = 0; k < 3; k++) {
-    const a = (k * Math.PI) / 3, c = Math.cos(a), sn = Math.sin(a), b = pos.length / 3;
-    for (const [x, y, u, v] of [[-0.5, 0, 0, 0], [0.5, 0, 1, 0], [0.5, 1, 1, 1], [-0.5, 1, 0, 1]]) { pos.push(x * c, y, x * sn); uv.push(u, v); nor.push(0, 1, 0); }
+  for (let k = 0; k < 4; k++) {
+    const a = (k * Math.PI) / 4, c = Math.cos(a), sn = Math.sin(a), b = pos.length / 3;
+    for (const [x, y, u, v] of [[-0.55, 0, 0, 0], [0.55, 0, 1, 0], [0.46, 1, 1, 1], [-0.46, 1, 0, 1]]) { pos.push(x * c, y, x * sn); uv.push(u, v); nor.push(0, 1, 0); }
     idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
   }
   const g = new THREE.BufferGeometry();
@@ -56,7 +64,7 @@ export class GrassField {
   private albedo: { d: Uint8ClampedArray; w: number; h: number } | null = null;
   private uTime = { value: 0 };
   private uWind = { value: 0.3 };
-  private cap = 14000;
+  private cap = 22000;
   private last = new THREE.Vector2(1e9, 1e9);
   private accT = 0;
   private mat: THREE.MeshStandardMaterial;

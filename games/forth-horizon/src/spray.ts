@@ -25,8 +25,9 @@ const VERT = `
   attribute float aSize; attribute float aAlpha;
   varying float vA; varying float vS;
   void main() {
-    vA = aAlpha;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    // Near-camera splash points must not turn into opaque circles on the lens.
+    vA = aAlpha * smoothstep(0.8, 3.5, -mv.z);
     gl_PointSize = clamp(aSize * 520.0 / max(-mv.z, 0.5), 1.0, 220.0);
     vS = gl_PointSize;
     gl_Position = projectionMatrix * mv;
@@ -38,7 +39,8 @@ const FRAG = `
     vec2 c = gl_PointCoord - 0.5;
     float d = length(c) * 2.0;
     // small points (droplets) are crisp, big ones (mist) are soft
-    float a = smoothstep(1.0, mix(0.8, 0.05, clamp(vS / 45.0, 0.0, 1.0)), d) * vA;
+    float a = (1.0 - smoothstep(mix(0.55, 0.05, clamp(vS / 45.0, 0.0, 1.0)), 1.0, d)) * vA;
+    a *= mix(0.38, 1.0, smoothstep(5.0, 28.0, vS));
     if (a < 0.004) discard;
     gl_FragColor = vec4(uTint, a);
   }`;

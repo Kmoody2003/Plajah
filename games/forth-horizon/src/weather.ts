@@ -53,6 +53,9 @@ export class WeatherRig {
   private rainGain: GainNode | null = null;
   private noise: AudioBuffer | null = null;
   private level = 0.5;
+  private lastCamera = new THREE.Vector3();
+  private cameraVelocity = new THREE.Vector3();
+  private rainInitialized = false;
 
   constructor(scene: THREE.Scene) {
     this.off = new Float32Array(this.N * 3);
@@ -64,10 +67,18 @@ export class WeatherRig {
     g.setAttribute('aA', new THREE.BufferAttribute(al, 1));
     // hair-thin streaks; none right at the lens (those read as cartoon lines), thinning out with distance
     this.rain = new THREE.LineSegments(g, new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false, fog: false,
-      uniforms: { uOp: { value: 0 }, uCol: { value: new THREE.Color(0xdfe8f4) } },
-      vertexShader: 'attribute float aA; varying float vA; void main() { vec4 wp = modelMatrix * vec4(position, 1.0); float d = length(cameraPosition - wp.xyz); vA = aA * smoothstep(3.0, 9.0, d) * (1.0 - smoothstep(28.0, 62.0, d)); gl_Position = projectionMatrix * viewMatrix * wp; }',
-      fragmentShader: 'uniform float uOp; uniform vec3 uCol; varying float vA; void main() { gl_FragColor = vec4(uCol, vA * uOp); }',
+      transparent: true, depthWrite: false, fog: true,
+      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uOp: { value: 0 }, uCol: { value: new THREE.Color(0xaabccc) } }]),
+      vertexShader: `attribute float aA; varying float vA;
+        #include <fog_pars_vertex>
+        void main() { vec4 wp = modelMatrix * vec4(position, 1.0); float d = length(cameraPosition - wp.xyz); vA = aA * smoothstep(2.5, 7.0, d) * (1.0 - smoothstep(28.0, 55.0, d)); vec4 mvPosition = viewMatrix * wp; gl_Position = projectionMatrix * mvPosition;
+        #include <fog_vertex>
+        }`,
+      fragmentShader: `uniform float uOp; uniform vec3 uCol; varying float vA;
+        #include <fog_pars_fragment>
+        void main() { gl_FragColor = vec4(uCol, vA * uOp);
+        #include <fog_fragment>
+        }`,
     }));
     this.rain.frustumCulled = false;
     this.rain.renderOrder = 9;
@@ -124,6 +135,7 @@ export class WeatherRig {
   setPaused(p: boolean): void { if (this.rainGain && this.actx) this.rainGain.gain.setTargetAtTime(p ? 0 : this.cur.rain * 0.07 * this.level, this.actx.currentTime, 0.2); }
 
   step(dt: number, cam: THREE.Vector3, mapMode: boolean, carSpeed = 0, muted = false): void {
+    dt = Math.max(0, Math.min(dt, 0.05));
     this.t += dt;
     const k = 1 - Math.exp(-dt / (this.fast ? 0.9 : 7));
     const c = this.cur as unknown as Record<string, number>, tg = this.target as unknown as Record<string, number>;
@@ -142,20 +154,32 @@ export class WeatherRig {
     // 3D rain around the camera (in the race)
     const rain = this.cur.rain;
     this.rain.visible = !mapMode && rain > 0.03;
+    const teleported = !this.rainInitialized || cam.distanceToSquared(this.lastCamera) > 120 * 120;
+    if (!teleported && dt > 0.0001) this.cameraVelocity.copy(cam).sub(this.lastCamera).divideScalar(dt).clampLength(0, 120);
+    else this.cameraVelocity.set(0, 0, 0);
+    this.lastCamera.copy(cam);
     if (this.rain.visible) {
-      (this.rain.material as THREE.ShaderMaterial).uniforms.uOp.value = Math.min(0.5, 0.12 + rain * 0.38);
-      const fall = 26 + rain * 14, wind = this.cur.wind * 9;
-      for (let i = 0; i < this.N; i++) {
-        let oy = this.off[i * 3 + 1] - fall * dt;
-        let ox = this.off[i * 3] + wind * dt - carSpeed * 0.0 * dt;
-        if (oy < -3) { oy += 48; ox = (Math.random() - 0.5) * 70; this.off[i * 3 + 2] = (Math.random() - 0.5) * 70; }
-        if (ox > 35) ox -= 70;
-        this.off[i * 3] = ox; this.off[i * 3 + 1] = oy;
-        const x = cam.x + ox, y = cam.y + oy - 6, z = cam.z + this.off[i * 3 + 2];
-        const j = i * 6, len = 0.32 + rain * 0.3;
+      const material = this.rain.material as THREE.ShaderMaterial;
+      material.uniforms.uOp.value = 0.10 + rain * 0.17;
+      (material.uniforms.uCol.value as THREE.Color).setScalar(0.48 + this.flash * 1.5);
+      const wind = this.cur.wind * (3.5 + Math.sin(this.t * 0.6) * 1.2), windZ = this.cur.wind * Math.sin(this.t * 0.27) * 2;
+      const count = Math.floor(this.N * rain);
+      this.rain.geometry.setDrawRange(0, count * 2);
+      for (let i = 0; i < count; i++) {
+        const fall = 9 + (i % 17) / 17 * 5;
+        let x = this.off[i * 3] + wind * dt, y = this.off[i * 3 + 1] - fall * dt, z = this.off[i * 3 + 2] + windZ * dt;
+        if (teleported || Math.abs(x - cam.x) > 40 || Math.abs(z - cam.z) > 40 || y < cam.y - 8 || y > cam.y + 42) {
+          x = cam.x + (Math.random() - 0.5) * 80; z = cam.z + (Math.random() - 0.5) * 80;
+          y = cam.y + (teleported ? Math.random() * 48 - 6 : 32 + Math.random() * 8);
+        }
+        this.off[i * 3] = x; this.off[i * 3 + 1] = y; this.off[i * 3 + 2] = z;
+        const j = i * 6, shutter = 0.012 + (i % 7) * 0.001;
         this.rainPos[j] = x; this.rainPos[j + 1] = y; this.rainPos[j + 2] = z;
-        this.rainPos[j + 3] = x - wind * 0.018 * len; this.rainPos[j + 4] = y + len; this.rainPos[j + 5] = z;
+        this.rainPos[j + 3] = x - (wind - this.cameraVelocity.x) * shutter;
+        this.rainPos[j + 4] = y + (fall + this.cameraVelocity.y) * shutter;
+        this.rainPos[j + 5] = z - (windZ - this.cameraVelocity.z) * shutter;
       }
+      this.rainInitialized = true;
       (this.rain.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
     }
     if (this.rainGain && this.actx) this.rainGain.gain.setTargetAtTime(muted ? 0 : rain * 0.07 * this.level, this.actx.currentTime, 0.3);
