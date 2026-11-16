@@ -1584,10 +1584,17 @@ const MAP_BG = 0x070b12;
 const vignette = document.createElement('div');
 vignette.style.cssText = 'position:fixed;inset:0;pointer-events:none;display:none;background:radial-gradient(ellipse at 60% 50%,rgba(0,0,0,0) 40%,rgba(10,0,16,.6) 100%),linear-gradient(90deg,rgba(26,0,38,.82) 0%,rgba(26,0,38,0) 36%)';
 document.body.appendChild(vignette);
+// a small tag that stays on screen the whole time: this build is a pre-alpha
+{
+  const tag = document.createElement('div');
+  tag.textContent = 'PRE-ALPHA';
+  tag.style.cssText = 'position:fixed;left:12px;bottom:10px;z-index:40;pointer-events:none;font:700 10px Outfit,Inter,sans-serif;letter-spacing:.24em;color:rgba(255,255,255,.78);padding:3px 9px;border:1px solid rgba(255,140,0,.55);border-radius:999px;background:rgba(10,12,24,.55)';
+  document.body.appendChild(tag);
+}
 const menuEl = document.createElement('div');
 menuEl.style.cssText = 'position:fixed;left:44px;top:50%;transform:translateY(-50%);width:360px;display:none;font-family:Inter,Manrope,sans-serif;color:#fff;user-select:none';
 menuEl.innerHTML = `
-  <div style="font:600 11px Outfit,sans-serif;letter-spacing:.28em;text-transform:uppercase;color:#FF8C00;margin-bottom:8px">Legends of Elohim</div>
+  <div style="font:600 11px Outfit,sans-serif;letter-spacing:.28em;text-transform:uppercase;color:#FF8C00;margin-bottom:8px">Legends of Elohim <span style="margin-left:8px;padding:2px 8px;border:1px solid rgba(255,140,0,.7);border-radius:999px;letter-spacing:.16em;color:#fff;background:rgba(212,0,85,.35)">Pre-alpha</span></div>
   <div style="font:800 44px/1 Outfit,sans-serif;letter-spacing:.02em;margin-bottom:6px;background:linear-gradient(135deg,#D40055,#FF8C00);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent">APEX ELOHIM</div>
   <div style="font:500 12px 'JetBrains Mono',monospace;color:rgba(208,188,255,.75);margin-bottom:26px">Ironport &middot; Lake Michigan coast &middot; 150 km&sup2;</div>
   <div id="mapCards"></div>

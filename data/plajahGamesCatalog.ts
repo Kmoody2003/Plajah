@@ -302,10 +302,10 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
   {
     id: 'apex-elohim',
     title: 'Apex Elohim',
-    subtitle: 'Open-world racing · Ironport streets, the Great Lakes coast, dynamic weather',
+    subtitle: 'Pre-alpha · Open-world racing · Ironport streets, the Great Lakes coast, dynamic weather',
     category: 'ADVENTURE_3D',
-    categoryLabel: 'Racing · Open World',
-    badge: 'Plajah Original · Racing',
+    categoryLabel: 'Racing · Open World · Pre-alpha',
+    badge: 'PRE-ALPHA · Plajah Original · Racing',
     engine: 'Three.js · own vehicle physics · dynamic weather',
     playersLabel: '1 Player',
     duration: 'Circuits, free roam & replays',
@@ -327,6 +327,8 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
       'Near and far chase, hood, dash and first-person cockpit cameras',
     ],
     controls: [
+      'Pre-alpha: expect rough edges, missing art and performance changes between builds',
+      'Controller: sticks and triggers · Touch: on-screen wheel, gas and brake',
       'Throttle / Brake & Reverse: W / S · Steer: A / D · Handbrake: Space',
       'Camera: C or 1–5 · Look: drag the mouse · Look back: B',
       'Replay: P · Reset: R · Menu: Esc',
