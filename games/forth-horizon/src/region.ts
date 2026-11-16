@@ -75,8 +75,10 @@ const sunDir = new THREE.Vector3(-0.5, 0.7, -0.4).normalize();
 // The sun's shadows are cascaded: three shadow maps over 0 to 900 m (sharp around the car, softer across the street, soft over the district). `sun` stays as the
 // holder of the sun's colour and strength (the weather writes to it); the cascade lights copy it every frame and do the lighting and shadowing.
 // Settings > Graphics > Shadows: "cascaded" (default) or "basic" (the earlier single shadow map, lighter on weak GPUs); changing it reloads the page.
-let SHADOWS = 'cascaded';
-try { SHADOWS = localStorage.getItem('apex.shadows') === 'basic' ? 'basic' : 'cascaded'; } catch { /* storage blocked */ }
+// The cascaded option is experimental and OFF by default: with it the cascade lights stack on the ground and the streets wash out to a flat beige (the street textures
+// "glitched" and the streets off the circuit looked untextured). Basic is the default until the cascade masking is fixed.
+let SHADOWS = 'basic';
+try { SHADOWS = localStorage.getItem('apex.shadows') === 'cascaded' ? 'cascaded' : 'basic'; } catch { /* storage blocked */ }
 const csm = SHADOWS === 'cascaded' ? new CSM({ maxFar: 700, cascades: 2, mode: 'practical', parent: scene, shadowMapSize: 2048, lightDirection: sunDir.clone().negate(), camera, lightIntensity: 2.4, shadowBias: -0.0004 }) : null;
 if (csm) {
   sun.visible = false; sun.castShadow = false;
@@ -276,12 +278,19 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
         float road = smoothstep(0.42, 0.58, mk.r);
         float walk = smoothstep(0.42, 0.58, mk.g) * (1.0 - road);
         float kerb = (1.0 - road) * smoothstep(0.08, 0.38, mk.r) * walk;
-        vec3 asph = texture2D(tAsph, vWPos.xz / 4.0).rgb;
-        vec3 pave = texture2D(tPave, vWPos.xz / 1.7).rgb;
+        // streets: the asphalt tile twice at unrelated scales so it never repeats visibly, darker than before (it read as pale beige in the sun), with repair patches, wear and
+        // oil in broad low-frequency variation, and sidewalk slabs that vary slab to slab
+        vec2 sp = vWPos.xz;
+        vec3 a1 = texture2D(tAsph, sp / 4.0).rgb, a2 = texture2D(tAsph, sp / 13.7 + 0.37).rgb;
+        float cellN = fract(sin(dot(floor(sp / 6.0), vec2(12.9898, 78.233))) * 43758.5453);
+        float cellM = fract(sin(dot(floor(sp / 23.0), vec2(39.3468, 11.135))) * 24634.6345);
+        vec3 asph = a1 * (0.5 + a2 * 1.0) * (0.82 + 0.22 * cellN) * (0.86 + 0.2 * cellM);
+        asph *= 1.0 - 0.28 * smoothstep(0.78, 0.98, cellN) * smoothstep(0.3, 0.9, a2.r);                      // darker repair patches
+        vec3 pave = texture2D(tPave, sp / 1.7).rgb * (0.86 + 0.18 * fract(sin(dot(floor(sp / 1.7), vec2(12.9898, 78.233))) * 43758.5453));
         vec3 col = diffuseColor.rgb;
         col = mix(col, pave * 0.95, walk);
         col = mix(col, vec3(0.5, 0.5, 0.48), kerb);
-        col = mix(col, asph * 1.7, road);
+        col = mix(col, asph * 1.15, road);
         gWet = uWet * max(road, walk * 0.7);
         gRoad = road;
         gPud = puddleAt(vWPos.xz, uPool) * road * (1.0 - smoothstep(600.0, 1400.0, camD));
@@ -804,6 +813,63 @@ async function buildStreets(): Promise<void> {
   // the carriageways and sidewalks are painted by the terrain shader from the baked street mask (city_mask.png); the curbs are real geometry on top of that
   void aS; void aH; void walk; void W;
   buildCurbs().catch((e) => console.warn('curbs failed', e));
+  buildStreetMarks();
+}
+// Lane markings for the streets off the race circuit: the carriageways are painted from the street mask (which has no lines), so the centre lines go on as dashes laid
+// along each street, broken wherever another street crosses (so there is nothing at an intersection to overlap or flicker) and left off the circuit, which has its own.
+function buildStreetMarks(): void {
+  const ROAD: Record<string, number> = { street: 9, arterial: 15, freeway: 24, ramp: 8 };
+  const CELLS = 40, grid = new Map<number, { x0: number; z0: number; x1: number; z1: number; run: number; half: number }[]>();
+  streetRuns.forEach((r, ri) => {
+    const half = (ROAD[r.c] ?? 9) / 2;
+    for (let i = 0; i < r.p.length - 1; i++) {
+      const a = r.p[i], b = r.p[i + 1];
+      const seg = { x0: a[0], z0: a[1], x1: b[0], z1: b[1], run: ri, half };
+      const gx0 = Math.floor((Math.min(a[0], b[0]) - half - 4) / CELLS), gx1 = Math.floor((Math.max(a[0], b[0]) + half + 4) / CELLS), gz0 = Math.floor((Math.min(a[1], b[1]) - half - 4) / CELLS), gz1 = Math.floor((Math.max(a[1], b[1]) + half + 4) / CELLS);
+      for (let gx = gx0; gx <= gx1; gx++) for (let gz = gz0; gz <= gz1; gz++) { const k = gx * 8192 + gz; let l = grid.get(k); if (!l) { l = []; grid.set(k, l); } l.push(seg); }
+    }
+  });
+  const crossing = (x: number, z: number, run: number): boolean => {
+    const l = grid.get(Math.floor(x / CELLS) * 8192 + Math.floor(z / CELLS)); if (!l) return false;
+    for (const s of l) {
+      if (s.run === run) continue;
+      const dx = s.x1 - s.x0, dz = s.z1 - s.z0, L2 = dx * dx + dz * dz || 1;
+      const t = Math.max(0, Math.min(1, ((x - s.x0) * dx + (z - s.z0) * dz) / L2));
+      if (Math.hypot(x - (s.x0 + dx * t), z - (s.z0 + dz * t)) < s.half + 2.2) return true;
+    }
+    return false;
+  };
+  const white: THREE.Matrix4[] = [], yellow: THREE.Matrix4[] = [];
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  streetRuns.forEach((r, ri) => {
+    if (r.c !== 'street' && r.c !== 'arterial') return;
+    const PERIOD = r.c === 'arterial' ? 12 : 9, DASH = r.c === 'arterial' ? 5 : 3.2;
+    let travelled = 0, next = PERIOD / 2;
+    for (let i = 0; i < r.p.length - 1; i++) {
+      const a = r.p[i], b = r.p[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz);
+      if (L < 0.5) continue;
+      const ux = dx / L, uz = dz / L;
+      while (next <= travelled + L) {
+        const s = next - travelled, x = a[0] + ux * s, z = a[1] + uz * s;
+        next += PERIOD;
+        if (roadDist(x, z) < 8 || crossing(x, z, ri) || hAt(x, z) < 1.2) continue;
+        q.setFromAxisAngle(up, Math.atan2(ux, uz));
+        const y = meshH(x, z) + 0.05;
+        if (r.c === 'arterial') for (const o of [-0.2, 0.2]) { m4.compose(new THREE.Vector3(x - uz * o, y, z + ux * o), q, new THREE.Vector3(1, 1, DASH / 3.2)); yellow.push(m4.clone()); }
+        else { m4.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(1, 1, DASH / 3.2)); white.push(m4.clone()); }
+      }
+      travelled += L;
+    }
+  });
+  const geo = new THREE.PlaneGeometry(0.16, 3.2); geo.rotateX(-Math.PI / 2);
+  for (const [list, color] of [[white, 0xe6e6df], [yellow, 0xe0b73a]] as [THREE.Matrix4[], number][]) {
+    if (!list.length) continue;
+    const im = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.62, metalness: 0, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 }), list.length);
+    list.forEach((m, i) => im.setMatrixAt(i, m));
+    im.receiveShadow = true; im.frustumCulled = false;
+    streetGroup.add(im);
+  }
+  console.log('street marks', white.length, yellow.length);
 }
 // Curb stones and a raised sidewalk along every street edge that has one (lines traced from the mask by tools/build_curbs.py): a 17 cm vertical stone face, a rounded
 // top, and the sidewalk slab 17 cm above the carriageway, so the street no longer melts into the pavement. Not along the race circuit, whose barriers and racing
@@ -2440,7 +2506,7 @@ function startDrive(id: string): void {
     wxPlan = WEATHER_PLAN[key]; wxPlanT = 0; wxPlanI = 0;
     wx.setWeather(wxOverride === 'auto' ? wxPlan[0].w : wxOverride, false, true);
   }
-  camera.near = 0.35; camera.far = 30000; camera.updateProjectionMatrix();      // the map view uses a 5 m near plane, which cut the back of the car off at chase distance
+  camera.near = 1.0; camera.far = 22000; camera.updateProjectionMatrix();      // the map view uses a 5 m near plane, which cut the back of the car off at chase distance
   lapReset();
   buildRacingLine(id);
   replay.clear(); driveClock = 0; camYawOff = 0; camPitchOff = 0; camZoom = 1;
@@ -2580,7 +2646,9 @@ function stepDrive(dt: number): void {
   // Forza-style views: 0 near chase, 1 far chase, 2 hood, 3 dash, 4 first person (the driver's eyes). Chase views sit at a fixed length behind the car;
   // the others are fixed to the car body and look along it, with mouse free-look on top.
   const view = s.camView;
-  const nearWant = view >= 2 ? 0.05 : 0.35;
+  // depth precision: the road ribbon sits 7 cm above the painted road under it, and that only holds apart if the near plane is as far out as it can be (1 m in the chase views; the
+  // car is never that close), with the far plane no further than the horizon needs. A 0.35 m near and 30 km far made road, kerb and ground flicker into each other past about 500 m.
+  const nearWant = view >= 2 ? 0.05 : 1.0;
   if (camera.near !== nearWant) { camera.near = nearWant; camera.updateProjectionMatrix(); }
   const driverObj = s.car.getObjectByName('driver');
   if (driverObj) driverObj.visible = view !== 4;                 // no helmet in front of the driver's own eyes
