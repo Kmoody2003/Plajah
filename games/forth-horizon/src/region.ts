@@ -1270,6 +1270,64 @@ function addRoofDetails(items: CityItem[]): void {
   make(new THREE.SphereGeometry(0.45, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }), lamps, false);
   console.log('roof details', { cornice: cornice.length, plant: plant.length, pent: pent.length, tanks: tanks.length, masts: masts.length });
   (window as any).roofCount = [cornice.length, plant.length, tanks.length, masts.length];
+  addTowerGeometry(items);
+}
+
+// Tower geometry. The generic towers are plain boxes; real ones have a podium, a profile that steps in toward the top, a crown, and piers that cast shadow lines down the
+// face. Added here around each tall generic building: a stone podium (the base block), four corner piers, one or two setback tiers in curtain-wall glass with a stone parapet
+// at each step, so the skyline has a silhouette. Stone is mapped by world position (triplanar) so it never stretches however the box is scaled.
+function stoneMaterial(): THREE.MeshStandardMaterial {
+  const t = new THREE.TextureLoader().load('/games/forth-horizon/tex/bld/tex-shared-06-granite_base.jpg');
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.78, metalness: 0, color: 0xd8d4cc });
+  m.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vTP; varying vec3 vTN;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 tpw = vec4(position, 1.0);\nmat3 tnm = mat3(modelMatrix);\n#ifdef USE_INSTANCING\ntpw = instanceMatrix * tpw;\ntnm = tnm * mat3(instanceMatrix);\n#endif\nvTP = (modelMatrix * tpw).xyz;\nvTN = tnm * normal;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vTP; varying vec3 vTN;')
+      .replace('#include <map_fragment>', `
+        vec3 tw = pow(abs(normalize(vTN)), vec3(6.0)); tw /= (tw.x + tw.y + tw.z);
+        vec4 tsm = texture2D(map, vTP.zy / 3.6) * tw.x + texture2D(map, vTP.xz / 3.6) * tw.y + texture2D(map, vTP.xy / 3.6) * tw.z;
+        diffuseColor *= tsm;`);
+  };
+  m.customProgramCacheKey = () => 'tower-stone-1';
+  return m;
+}
+function addTowerGeometry(items: CityItem[]): void {
+  type T = { x: number; y: number; z: number; sx: number; sy: number; sz: number; ry: number };
+  const glass: T[] = [], stone: T[] = [];
+  for (const it of items) {
+    if (it.kind !== 'generic' || it.h < 48 || it.w < 12 || /house|bungalow|duplex|townhouse|barn|silo|tower-rural|windmill/.test(it.slug)) continue;
+    const cx = it.bx ?? it.x, cz = it.bz ?? it.z, phi = it.rotY, c = Math.cos(phi), sn = Math.sin(phi);
+    const gy = groundMin(it) - 0.35, top = gy + it.h;
+    const at = (u: number, v: number): [number, number] => [cx + u * c + v * sn, cz - u * sn + v * c];
+    // podium: the base block, a little proud of the tower
+    if (it.h > 60) stone.push({ x: cx, y: gy + 4.4, z: cz, sx: it.w + 1.4, sy: 8.8, sz: it.d + 1.4, ry: phi });
+    // corner piers up the whole face
+    if (it.h > 55) for (const [u, v] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const [x, z] = at(u * (it.w / 2), v * (it.d / 2)); stone.push({ x, y: gy + it.h * 0.49, z, sx: 1.1, sy: it.h * 0.98, sz: 1.1, ry: phi }); }
+    // setback tiers in glass, each with a stone parapet
+    const t1 = Math.max(7, Math.min(16, it.h * 0.13));
+    glass.push({ x: cx, y: top + t1 / 2, z: cz, sx: it.w * 0.8, sy: t1, sz: it.d * 0.8, ry: phi });
+    stone.push({ x: cx, y: top + t1 + 0.4, z: cz, sx: it.w * 0.8 + 0.7, sy: 0.8, sz: it.d * 0.8 + 0.7, ry: phi });
+    if (it.h > 85) {
+      const t2 = 8 + (it.h > 110 ? 4 : 0);
+      glass.push({ x: cx, y: top + t1 + 0.8 + t2 / 2, z: cz, sx: it.w * 0.52, sy: t2, sz: it.d * 0.52, ry: phi });
+      stone.push({ x: cx, y: top + t1 + 0.8 + t2 + 0.4, z: cz, sx: it.w * 0.52 + 0.6, sy: 0.8, sz: it.d * 0.52 + 0.6, ry: phi });
+    }
+  }
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  const make = (list: T[], mat: THREE.Material): void => {
+    if (!list.length) return;
+    const im = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mat, list.length);
+    list.forEach((t, i) => { q.setFromAxisAngle(up, t.ry); m4.compose(new THREE.Vector3(t.x, t.y, t.z), q, new THREE.Vector3(t.sx, t.sy, t.sz)); im.setMatrixAt(i, m4); });
+    im.castShadow = true; im.receiveShadow = true; im.frustumCulled = false;
+    roofGroup.add(im);
+  };
+  const gm = new THREE.MeshStandardMaterial({ color: 0x25384a, roughness: 0.4, metalness: 0.6 });
+  gm.name = 'tex-shared-07-glass-curtain-blue_mat';
+  patchGlass(gm);
+  make(glass, gm);
+  make(stone, stoneMaterial());
+  console.log('tower geometry', { glassTiers: glass.length, stone: stone.length });
 }
 
 // ---------- city buildings ----------
