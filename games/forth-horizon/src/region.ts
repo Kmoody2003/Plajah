@@ -36,6 +36,7 @@ import { harborDetail } from './harborDetail';
 import { duneDetail } from './duneDetail';
 import { Vegetation } from './vegetation';
 import { buildIndustrialCircuit } from './industrialCircuit';
+import { buildPortDistrict, carvePlatform, inPort, type PortData } from './portDistrict';
 import { injectRoadPbr, roadUniforms, loadRoadPbr } from './roadpbr';
 loadRoadPbr();
 import { SprayFx, DustFx, puddleDepth, PUDDLE_GLSL } from './spray';
@@ -1071,6 +1072,7 @@ let grassField: GrassField | null = null;
 const IND = 'ironworks_industrial_circuit';                // the short street course through the port's industrial yards
 let industrialPath: { x: number; z: number }[] = [];
 let indNear: ((x: number, z: number, r: number) => boolean) | null = null;
+let portData: PortData | null = null;               // the Ironworks port district: graded platform, quay, piers, containers, tank farm (tools/plan_port_district.py)
 let vegetation: Vegetation | null = null;            // the streamed grass, shrub and rock system (src/vegetation.ts); ?veg=old brings back the previous grass
 /** the Ravencrest/Era Clash trees (ez-tree skeletons, bark scans, painted leaves); the simple procedural trees only if those fail to build */
 function mkTrees(pts: number[][], h: (x: number, z: number) => number, ex: () => number): TreeLayer {
@@ -1122,6 +1124,7 @@ function vegOk(x: number, z: number, extra = 0): boolean {
   if (countryScenes && (countryScenes.pavedNear(x, z, 1.6 + extra) || countryScenes.dirtNear(x, z, 0.9 + extra))) return false;
   if (bridgeNear && bridgeNear(x, z, 13 + extra)) return false;
   if (indNear && indNear(x, z, 10 + extra)) return false;
+  if (portData && inPort(portData, x, z, 14 + extra)) return false;
   return true;
 }
 const forestGroup = new THREE.Group();
@@ -2762,6 +2765,11 @@ function buildFurniture(): void {
     indNear = makeCorridor(ic.path);
   }
 
+  if (portData) {
+    const wy = waterMesh ? waterMesh.position.y : 0;
+    furnitureGroup.add(buildPortDistrict(portData, { waterY: wy }).group);
+  }
+
   // Rural Horizon open-world architecture & Festival Outpost
   const ruralGroup = buildRuralOpenWorldDetail({
     ground: (x, z) => hAt(x, z) * exag,
@@ -2985,6 +2993,7 @@ function surfaceAtXZ(x: number, z: number): SurfaceType {
   if (rallyNear && rallyNear(x, z, 5.2)) return 'gravel';
   if (bridgeNear && bridgeNear(x, z, 10)) return 'asphalt';
   if (indNear && indNear(x, z, 7.2)) return 'asphalt';
+  if (portData && inPort(portData, x, z)) return 'asphalt';
   if (countryScenes) { if (countryScenes.pavedNear(x, z, 0.8)) return 'asphalt'; if (countryScenes.dirtNear(x, z, 0.8)) return 'gravel'; }
   return hAt(x, z) < 3 ? 'sand' : 'grass';
 }
@@ -3592,6 +3601,8 @@ async function boot(): Promise<void> {
     const ind = await fetch(BASE + 'industrial_circuit.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { name: string; kind: string; xz: number[][] } | null;
     if (ind && ind.xz.length > 6) { const sm = smoothClosedPath(ind.xz, undefined, 26, 6); meta.circuits[IND] = { name: ind.name, kind: 'road_course', xz: sm.xz } as typeof meta.circuits[string]; }
   }
+  portData = await fetch(BASE + 'port_district.json').then((x) => (x.ok ? x.json() : null)).catch(() => null);
+  { const ps = await fetch(BASE + 'port_streets.json').then((x) => (x.ok ? x.json() : null)).catch(() => null); if (ps) { if (!countryNet) countryNet = { roads: [] }; countryNet.roads.push(...ps.roads); } }
   shoreHw = await fetch(BASE + 'shoreline_highway.json').then((x) => (x.ok ? x.json() : null)).catch(() => null);
   heights = new Float32Array(buf);
   if (!location.search.includes('hires=0')) {
@@ -3604,6 +3615,7 @@ async function boot(): Promise<void> {
     }
   }
   if (shoreHw) carveShoreline(heights, meta.width, meta.height, meta.mpp, shoreHw);
+  if (portData) carvePlatform(heights, meta.width, meta.height, meta.mpp, portData);
   carveCreek(heights, meta.width, meta.height, meta.mpp);
   buildTerrain();
   buildOverlays();
