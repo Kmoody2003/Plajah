@@ -108,10 +108,43 @@ function csmSetup(m: THREE.Material): void {
   csm.shaders.set(mm, null);
   mm.needsUpdate = true;
 }
+// ---------- shader warm-up ----------
+// Three compiles a material the first frame it is drawn, and several hundred materials come into view the moment a race starts (trees, grass, buildings with the cascade
+// patch). Do that work during the menu instead: once the city, forest and grass exist, compile everything with the drive-mode groups switched on, then upload the textures
+// one per frame. The cascade setup runs first so no material compiles twice.
+let warmed = false;
+let prewarmCar: THREE.Group | null = null;
+async function warmShaders(): Promise<void> {
+  if (warmed) return;
+  warmed = true;
+  csmSweep();
+  const groups = [forestGroup, scapeGroup, furnitureGroup, streetGroup, cityGroup];
+  const was = groups.map((g) => g.visible);
+  groups.forEach((g) => { g.visible = true; });
+  try { await (renderer as unknown as { compileAsync(s: THREE.Scene, c: THREE.Camera): Promise<void> }).compileAsync(scene, camera); } catch { renderer.compile(scene, camera); }
+  // the car is the heaviest set of shaders and loads a 14 MB scan: build it now, compile it, and hand it to the first race
+  try {
+    const car = makeCar(); car.position.set(0, -4000, 0); scene.add(car); prewarmCar = car;
+    for (let i = 0; i < 100 && !car.userData.panels; i++) await new Promise((r) => setTimeout(r, 250));
+    csmSweep();
+    await (renderer as unknown as { compileAsync(s: THREE.Scene, c: THREE.Camera): Promise<void> }).compileAsync(scene, camera);
+    scene.remove(car);
+  } catch (e) { console.warn('car warm-up failed', e); prewarmCar = null; }
+  groups.forEach((g, i) => { g.visible = was[i]; });
+  const tex = new Set<THREE.Texture>();
+  scene.traverse((o) => {
+    const ms = (o as THREE.Mesh).material; if (!ms) return;
+    for (const m of Array.isArray(ms) ? ms : [ms]) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap'] as const) { const t = (m as unknown as Record<string, THREE.Texture | null>)[k]; if (t && (t as THREE.Texture).isTexture && (t as THREE.Texture).image) tex.add(t); }
+  });
+  const q = [...tex];
+  const step = (): void => { const t = q.pop(); if (!t) { console.log('warm-up done'); return; } try { renderer.initTexture(t); } catch { /* not ready */ } requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+const warmTimer = setInterval(() => { if ((window as unknown as { cityCount?: number }).cityCount && treeFields.length >= 3 && grassField && !warmed) { clearInterval(warmTimer); void warmShaders(); } }, 600);
 let csmTick = 0;
 /** every lit material in the scene must use the cascades, or it is lit three times over: sweep for new ones a few times a second */
 function csmSweep(): void {
-  if (!csm || csmTick++ % 5) return;
+  if (!csm) return;
   const chk = (m: THREE.Material): void => { const x = m as unknown as Record<string, boolean>; if (!csmDone.has(m) && (x.isMeshStandardMaterial || x.isMeshPhysicalMaterial || x.isMeshLambertMaterial || x.isMeshPhongMaterial)) csmSetup(m); };
   scene.traverse((o) => { const m = (o as THREE.Mesh).material; if (m) { if (Array.isArray(m)) m.forEach(chk); else chk(m); } });
 }
@@ -1799,7 +1832,7 @@ function setMapMode(on: boolean): void {
     mapBackdrop = mapBackdrop ?? makeMapBackdrop();
     scene.background = mapBackdrop;
     forestGroup.visible = false; scapeGroup.visible = false;
-    scene.fog = null;
+    scene.fog = new THREE.Fog(0x000000, 1e6, 2e6);          // never null: adding or removing fog recompiles every shader in the scene
     circuitGroup.visible = true;
   } else {
     forestGroup.visible = true; scapeGroup.visible = (document.getElementById('tScape') as HTMLInputElement).checked;
@@ -2355,7 +2388,9 @@ function startDrive(id: string): void {
   if (free) { p = hw[hw.length - 22]; q = hw[hw.length - 26]; }
   else { p = city && cn > 8 ? [cp[cn - 8].x, cp[cn - 8].z] : c!.xz[0]; q = city && cn > 8 ? [cp[cn - 7].x, cp[cn - 7].z] : c!.xz[4]; }
   const yaw = Math.atan2(q[0] - p[0], q[1] - p[1]);
-  const car = driving?.car ?? makeCar();
+  const car = driving?.car ?? prewarmCar ?? makeCar();
+  prewarmCar = null;
+  car.position.set(0, 0, 0);
   if (!car.parent) scene.add(car);
   const y = (free ? hAt(p[0], p[1]) : city && cn > 8 ? cp[cn - 8].y : c!.y ? c!.y[0] : hAt(p[0], p[1])) * exag;
   driving = { lock: 3.6, camDist: 5.8, camH: 1.6, camView: 0, circuitId: id, pos: new THREE.Vector3(p[0], y, p[1]), yaw, sp: 0, lat: 0, steer: 0, car, startPos: new THREE.Vector3(p[0], y, p[1]), startYaw: yaw, camPos: new THREE.Vector3(p[0] - Math.sin(yaw) * 10, y + 4, p[1] - Math.cos(yaw) * 10), hit: 0, ps: createCarState(p[0], y, p[1], yaw) };
@@ -2566,7 +2601,7 @@ async function boot(): Promise<void> {
   buildForest().catch((e) => console.error('forest failed', e));
   loadHarbor().catch((e) => console.error('harbor failed', e));
   buildCity().catch((e) => console.error('city failed', e));
-  (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, csm, cam: (x?: number, y?: number, z?: number, tx?: number, ty?: number, tz?: number) => { dbgCam = x === undefined ? null : { pos: new THREE.Vector3(x, y!, z!), at: new THREE.Vector3(tx!, ty!, tz!) }; }, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, keys, drive: () => driving };
+  (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, csm, renderer, warmShaders, cam: (x?: number, y?: number, z?: number, tx?: number, ty?: number, tz?: number) => { dbgCam = x === undefined ? null : { pos: new THREE.Vector3(x, y!, z!), at: new THREE.Vector3(tx!, ty!, tz!) }; }, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, keys, drive: () => driving };
 }
 
 document.querySelectorAll<HTMLButtonElement>('button[data-cam]').forEach((b) => b.addEventListener('click', () => preset(b.dataset.cam!)));
@@ -2648,7 +2683,7 @@ function frame(now: number): void {
       camera.updateMatrixWorld();
       csm.lightDirection.copy(sunDir).negate();
       csm.update();
-      for (let i = 0; i < csm.lights.length; i++) { const l = csm.lights[i]; l.intensity = sun.intensity; l.color.copy(sun.color); l.castShadow = sun.intensity > 0.08 && csmCast[i]; }
+      for (let i = 0; i < csm.lights.length; i++) { const l = csm.lights[i]; l.intensity = sun.intensity; l.color.copy(sun.color); l.castShadow = csmCast[i]; }        // constant: flipping it recompiles every shader
       csmSweep();
     } else {
       sun.castShadow = camera.position.distanceTo(ft) < 900;
