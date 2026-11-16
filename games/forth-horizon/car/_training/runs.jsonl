@@ -1,0 +1,6 @@
+{"car":"sovereign","step":"wheels","date":"2026-11-16","predicted":{"frontZ":1.53,"rearZ":-1.25},"measured":{"frontZ":1.37,"rearZ":-1.59,"frontZFrac":0.2866,"rearZFrac":-0.3326},"note":"predicted from the stand-in car; measured from the scan's own baked wheels via nodisc view. Rule: measure from the scan, never from a stand-in."}
+{"car":"sovereign","step":"paint","date":"2026-11-16","note":"baked image over paint read as a decal. Rule: solid clearcoat colour; texture only used to find glass and old spokes."}
+{"car":"sovereign","step":"panels","date":"2026-11-16","note":"hood box reaching past the fender line produced black fins from one-sided scan sheets. Rule: keep panel boxes inside the panel; discard back faces on the nose."}
+{"car":"sovereign","step":"lamps","date":"2026-11-16","note":"shader-painted lamps read as flat slabs. Rule: real housing + lens + projector + LED geometry, ray cast onto the surface."}
+{"car":"sovereign","step":"exhaust","date":"2026-11-16","predicted":{"z":-2.4},"measured":{"z":-2.27},"note":"tips at the bbox edge floated outside the bumper. Rule: tips flush in the bumper, diffuser tucked under."}
+{"car":"sovereign","step":"score","date":"2026-11-16","score":{"side":79.1,"rear_vs_34_ref":89.8},"note":"gate 95 not met; single-image mesh. Next: multi-view mesh."}

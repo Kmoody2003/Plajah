@@ -11,6 +11,7 @@ export type PlajahLaunchAction =
   | { type: 'era-clash-2d' }
   | { type: 'era-clash-3d' }
   | { type: 'ravencrest' }
+  | { type: 'iframe'; url: string; title: string }
   | { type: 'kith-party'; gameId: KithGameId }
   | { type: 'cyber-ttt' }
   | { type: 'live-game'; kind: AnyLiveKind };
@@ -295,6 +296,57 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
     },
     launch: { type: 'ravencrest' },
     directUrl: '/games/ravencrest/play/index.html',
+  },
+
+  // ── APEX ELOHIM: RACING (Forza-style, open world) ─────────────────────────
+  {
+    id: 'apex-elohim',
+    title: 'Apex Elohim',
+    subtitle: 'Pre-alpha · Open-world racing · Ironport streets, the Great Lakes coast, dynamic weather',
+    category: 'ADVENTURE_3D',
+    categoryLabel: 'Racing · Open World · Pre-alpha',
+    badge: 'PRE-ALPHA · Plajah Original · Racing',
+    engine: 'Three.js · own vehicle physics · dynamic weather',
+    playersLabel: '1 Player',
+    duration: 'Circuits, free roam & replays',
+    accentGradient: 'from-orange-600/35 via-fuchsia-800/30 to-black',
+    accentColor: '#FF8C00',
+    thumbnailUrl: '/games/forth-horizon/screenshots/rain-chase.jpg',
+    screenshots: [
+      { url: '/games/forth-horizon/screenshots/rain-chase.jpg', caption: 'Ironport Grand Circuit · wet streets in a storm' },
+      { url: '/games/forth-horizon/screenshots/map-forecast.jpg', caption: 'The map previews the race forecast' },
+      { url: '/games/forth-horizon/screenshots/driver-view.jpg', caption: 'First-person cockpit, helmeted driver' },
+    ],
+    description: 'Race the Kestrel Sovereign GT-R through downtown Ironport and out along the Great Lakes coast, with weather that changes during the race.',
+    longDescription: 'Apex Elohim is Plajah’s open-world racing game. A city street circuit on real Detroit streets, a lakeside road course and a rally stage sit in a 150 km² region. The Sovereign has a full vehicle model: gears, supercharger, weight transfer and four-corner suspension with Comfort, Sport, Track and Rally tunes. The sky is dynamic: each race has a weather plan (overcast to rain to thunderstorm), and the map shows the forecast before you start. After the race, a broadcast-style replay cuts between aerial, trackside, kerb and chase cameras.',
+    features: [
+      'Ironport Grand Circuit on real city streets, Great Lakes Cliff Raceway, Pinewood Rally Stage and free roam',
+      'Dynamic weather: clear to fog, rain and thunderstorm, with wet roads and lower grip',
+      'Race forecasts on the map screen that foreshadow the weather',
+      'Broadcast replay with a camera director and TV overlays',
+      'Near and far chase, hood, dash and first-person cockpit cameras',
+    ],
+    controls: [
+      'Pre-alpha: expect rough edges, missing art and performance changes between builds',
+      'Controller: sticks and triggers · Touch: on-screen wheel, gas and brake',
+      'Throttle / Brake & Reverse: W / S · Steer: A / D · Handbrake: Space',
+      'Camera: C or 1–5 · Look: drag the mouse · Look back: B',
+      'Replay: P · Reset: R · Menu: Esc',
+    ],
+    commercial: {
+      tagline: 'THE STREETS OF IRONPORT. THE STORM HAS OTHER PLANS.',
+      durationSec: 12,
+      musicVibe: 'Detroit techno & synth-driven racing',
+      scenes: [
+        { headline: 'RACE IN THE RAIN', subline: 'Wet streets, thunderstorms and real grip loss', callout: 'DYNAMIC WEATHER', imageUrl: '/games/forth-horizon/screenshots/rain-chase.jpg', accentColor: '#FF8C00' },
+        { headline: 'READ THE FORECAST', subline: 'The map shows what the race will bring', callout: 'RACE FORECAST', imageUrl: '/games/forth-horizon/screenshots/map-forecast.jpg', accentColor: '#D40055' },
+        { headline: 'GET IN THE COCKPIT', subline: 'First-person view with the driver at the wheel', callout: 'PLAY APEX ELOHIM', imageUrl: '/games/forth-horizon/screenshots/driver-view.jpg', accentColor: '#00DAF3' },
+      ],
+    },
+    achievementTriggers: [],
+    synergy: { inviteFriend: true, liveStream: true, postToFeed: true },
+    launch: { type: 'iframe', url: '/games/forth-horizon/play/region.html', title: 'Apex Elohim' },
+    directUrl: '/games/forth-horizon/play/region.html',
   },
 
   // ── KITH PARTY GAMES (6 GAMES) ────────────────────────────────────────────

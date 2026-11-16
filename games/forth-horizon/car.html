@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sovereign GT-R · car review</title>
+  <style>
+    html, body { margin:0; height:100%; background:#0b0e14; overflow:hidden; font-family:'Segoe UI',system-ui,sans-serif; color:#eef3fa; }
+    #view { position:fixed; inset:0; }
+    #view canvas { display:block; width:100%; height:100%; }
+    #panel { position:fixed; top:12px; left:12px; padding:10px; background:rgba(10,14,22,.82); border:1px solid rgba(255,255,255,.14); border-radius:10px; font-size:12px; max-width:300px; }
+    button { background:#18202e; color:#eef3fa; border:1px solid rgba(255,255,255,.14); border-radius:6px; padding:4px 8px; cursor:pointer; font-size:12px; margin:2px; }
+    #score { margin-top:6px; white-space:pre-wrap; }
+  </style>
+</head>
+<body>
+  <div id="view"></div>
+  <div id="panel">
+    <b>SOVEREIGN GT-R</b><br />
+    <button data-v="front34">front 3/4</button><button data-v="side">side</button><button data-v="rear">rear</button><button data-v="rear34">rear 3/4</button><button data-v="top">top</button><button data-v="wheel">wheel</button>
+    <div><button id="spin">spin wheels</button><button id="score-btn">score vs reference</button></div>
+    <div id="score"></div>
+  </div>
+  <script type="module" src="/src/carview.ts"></script>
+</body>
+</html>

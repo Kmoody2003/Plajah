@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Apex Elohim · 360° Car Showroom</title>
+  <style>
+    :root {
+      --accent: #ff6b2b;
+      --accent2: #2ec4b6;
+      --bg: #07090e;
+      --panel: rgba(12, 16, 24, 0.84);
+      --border: rgba(255, 255, 255, 0.12);
+    }
+    * { box-sizing: border-box; user-select: none; }
+    html, body {
+      margin: 0; height: 100%; background: var(--bg); overflow: hidden;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #eef3fa;
+    }
+    #view { position: fixed; inset: 0; }
+    #view canvas { display: block; width: 100%; height: 100%; }
+
+    #topBar {
+      position: fixed; top: 14px; left: 16px; right: 16px;
+      display: flex; justify-content: space-between; align-items: center; z-index: 10;
+      pointer-events: none;
+    }
+    .pill {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--panel); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); border-radius: 10px; padding: 6px 12px;
+      pointer-events: auto;
+    }
+    .brand { font-weight: 800; letter-spacing: .12em; font-size: 12px; text-transform: uppercase; }
+    .brand span { color: var(--accent); }
+    .btn {
+      font: inherit; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      background: rgba(255,255,255,0.06); color: #d5e1f0; border: 1px solid var(--border);
+      border-radius: 6px; padding: 5px 10px; cursor: pointer; text-decoration: none;
+    }
+    .btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
+    .btn.active { background: var(--accent); color: #fff; border-color: transparent; }
+
+    #roster {
+      position: fixed; left: 16px; top: 68px; bottom: 16px; width: 280px;
+      background: var(--panel); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); border-radius: 14px; padding: 12px;
+      display: flex; flex-direction: column; gap: 8px; overflow-y: auto; z-index: 10;
+    }
+    .r-head { font-size: 10px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: #8da0b8; }
+    .car-card {
+      text-align: left; padding: 9px 10px; border-radius: 10px;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border); color: #eef3fa;
+      cursor: pointer; transition: all .15s;
+    }
+    .car-card:hover { background: rgba(255,255,255,0.08); }
+    .car-card.active { border-color: var(--accent); background: rgba(255,107,43,0.14); }
+    .cc-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+    .cc-name { font-size: 12px; font-weight: 800; }
+    .cc-tag {
+      font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+      padding: 2px 6px; border-radius: 4px; background: rgba(46,196,182,0.18); color: var(--accent2);
+    }
+    .cc-tag.sheet { background: rgba(255,255,255,0.08); color: #8da0b8; }
+    .cc-sub { font-size: 10px; color: #8da0b8; margin-top: 3px; }
+
+    #inspector {
+      position: fixed; right: 16px; top: 68px; width: 320px;
+      background: var(--panel); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); border-radius: 14px; padding: 14px;
+      display: flex; flex-direction: column; gap: 10px; z-index: 10;
+    }
+    #sheetImg {
+      width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 8px;
+      border: 1px solid var(--border); background: #0b0f17;
+    }
+    .spec-title { font-size: 16px; font-weight: 800; }
+    .spec-sub { font-size: 11px; color: #9fb0c7; line-height: 1.4; }
+    .spec-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+      font-size: 11px; border-top: 1px solid var(--border); padding-top: 8px;
+    }
+    .sg-item { background: rgba(255,255,255,0.03); padding: 6px 8px; border-radius: 6px; }
+    .sg-lbl { font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: #8da0b8; }
+    .sg-val { font-weight: 700; margin-top: 2px; }
+    #glbStatus { font-size: 10px; color: #ffd166; }
+  </style>
+</head>
+<body>
+  <div id="view"></div>
+
+  <div id="topBar">
+    <div class="pill">
+      <div class="brand">Apex <span>Elohim</span> · Showroom</div>
+      <a class="btn" href="/">Back to Track</a>
+    </div>
+    <div class="pill">
+      <button class="btn active" id="btnSpin">Auto Turntable</button>
+      <button class="btn" id="btnLights">Brake Glow Test</button>
+    </div>
+  </div>
+
+  <div id="roster">
+    <div class="r-head">Ironport Garage · 12-Car Roster</div>
+  </div>
+
+  <div id="inspector">
+    <div class="r-head">Design Sheet vs. Live 3D</div>
+    <img id="sheetImg" alt="Car design sheet" />
+    <div class="spec-title" id="specTitle">Kestrel Sovereign GT-R</div>
+    <div class="spec-sub" id="specSub"></div>
+    <div class="spec-grid" id="specGrid"></div>
+    <div id="glbStatus"></div>
+  </div>
+
+  <script type="module" src="/src/showroom.ts"></script>
+</body>
+</html>
