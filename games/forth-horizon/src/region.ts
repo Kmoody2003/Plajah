@@ -1069,11 +1069,41 @@ function groundMin(it: CityItem): number {
 }
 // Facade depth: steep parallax mapping driven by the base-colour luminance (dark = recessed: windows, mortar, joints),
 // plus the relief normals. Faded out beyond about 200 m.
+// Weathering on top of the texture, in world space so it is continuous across the building: ground-level grime, rain streaks running down the wall, fine
+// grain at close range so the colour map is never a flat painted surface, and a wet darkening and gloss in the rain.
+const FACADE_WEATHER = `
+float fh3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+float fvn(vec3 p) {
+  vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(fh3(i), fh3(i + vec3(1, 0, 0)), f.x), mix(fh3(i + vec3(0, 1, 0)), fh3(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(fh3(i + vec3(0, 0, 1)), fh3(i + vec3(1, 0, 1)), f.x), mix(fh3(i + vec3(0, 1, 1)), fh3(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}
+vec3 facadeWeather(vec3 col, vec3 fw, float dist, float wet) {
+  float nearK = 1.0 - smoothstep(25.0, 110.0, dist);
+  float low = fvn(fw * vec3(0.3, 0.1, 0.3));
+  float ground = 1.0 - smoothstep(0.0, 8.0, fw.y);
+  float streak = fvn(vec3((fw.x + fw.z) * 1.9, fw.y * 0.07, 3.0));
+  float dirt = clamp(ground * (0.4 + 0.6 * low) + smoothstep(0.55, 0.9, streak) * 0.32 * smoothstep(3.0, 20.0, fw.y), 0.0, 1.0);
+  // a photograph is less saturated and has more contrast than a painted colour map: pull the colour toward grey a little and open up the midtones
+  float lum = dot(col, vec3(0.299, 0.587, 0.114));
+  col = mix(vec3(lum), col, 0.82);
+  col = mix(vec3(lum), col, 1.0) * (0.88 + 0.28 * smoothstep(0.05, 0.6, lum));
+  col *= 1.0 - 0.58 * dirt;
+  col = mix(col, col * vec3(0.8, 0.78, 0.74), dirt * 0.5);
+  float micro = fvn(fw * 11.0) * 0.5 + fvn(fw * 37.0) * 0.5;
+  col *= 1.0 + (micro - 0.5) * 0.55 * nearK;
+  col *= 1.0 - 0.26 * wet * (0.6 + 0.4 * low);
+  return col;
+}`;
 function patchParallax(mat: THREE.MeshStandardMaterial): void {
   mat.onBeforeCompile = (sh) => {
+    sh.uniforms.uWetF = wetU;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vFW;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 fwp = vec4(position, 1.0);\n#ifdef USE_INSTANCING\nfwp = instanceMatrix * fwp;\n#endif\nvFW = (modelMatrix * fwp).xyz;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <map_fragment>', THREE.ShaderChunk.map_fragment.replace(/vMapUv/g, 'pUv'))
-      .replace('#include <roughnessmap_fragment>', THREE.ShaderChunk.roughnessmap_fragment.replace(/vRoughnessMapUv/g, 'pUv'))
+      .replace('#include <common>', '#include <common>\nvarying vec3 vFW;\nuniform float uWetF;\n' + FACADE_WEATHER)
+      .replace('#include <map_fragment>', THREE.ShaderChunk.map_fragment.replace(/vMapUv/g, 'pUv') + '\ndiffuseColor.rgb = facadeWeather(diffuseColor.rgb, vFW, length(vViewPosition), uWetF);')
+      .replace('#include <roughnessmap_fragment>', THREE.ShaderChunk.roughnessmap_fragment.replace(/vRoughnessMapUv/g, 'pUv') + '\nroughnessFactor = mix(roughnessFactor, roughnessFactor * 0.5, uWetF);')
       .replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps.replace(/vNormalMapUv/g, 'pUv'))
       .replace('#include <logdepthbuf_fragment>', `#include <logdepthbuf_fragment>
       vec2 pUv = vMapUv;
@@ -1144,8 +1174,11 @@ async function buildCity(): Promise<void> {
   // `?lowtex` falls back to the earlier base-colour-only budget.
   const LOW = location.search.includes('lowtex');
   const TINY = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+  const nearHeroes = [...new Set(cityItems.filter((it) => it.kind === 'hero' && roadDist(it.x, it.z) < 130).map((it) => it.slug))].slice(0, 9);
   manager.setURLModifier((u) => {
     if (LOW) return /_(nrm|rgh)\.png/.test(u) ? TINY : u.replace('/ironport-assets/textures/', '/ironport-assets/textures-quest/');
+    // hero buildings within reach of the course keep their full 1600 px colour map (the rest, and every normal and roughness map, come from the 1024 tier to stay inside the GPU budget)
+    if (/_base\.png/.test(u) && nearHeroes.some((s) => u.includes(s))) return u;
     return u.replace('/ironport-assets/textures/hero-facades/', '/ironport-assets/textures-quest/hero-facades/');
   });
   const loader = new GLTFLoader(manager);
