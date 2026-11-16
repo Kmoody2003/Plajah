@@ -81,7 +81,7 @@ Each task lists what "done" means. Do them in this order, one at a time, each it
 ### A. Lighting and atmosphere
 
 1. **Verify and tune ambient occlusion** (`src/ao.ts`). Done when: corners, car undersides and tree bases are visibly darker, there are no dark halos around leaves, fences or silhouettes, no visible noise when moving, and the cost is under 2 ms. Add an on/off row in Settings.
-2. **Cascaded sun shadows.** Today there is one shadow map with a short range. Add cascades (near, mid, far) so shadows are sharp around the car and soft in the distance. Done when long shadows from buildings and trees appear at golden hour and sunset and do not shimmer.
+2. **Cascaded sun shadows (DONE, tune only).** Implemented with three CSM (2 cascades, 700 m) in region.ts; Settings > Shadows switches to the old single map. Add cascades (near, mid, far) so shadows are sharp around the car and soft in the distance. Done when long shadows from buildings and trees appear at golden hour and sunset and do not shimmer.
 3. **Aerial perspective.** Distant buildings should fade toward the sky colour, take the sun's tint, and lose contrast. Replace or augment the linear fog in `region.ts` (`stepWeather`). Done when far towers no longer look cut out against the sky at any time of day.
 4. **Colour grading defaults.** Verify `grade.ts`, then pick a sensible default grade per time of day and per weather (warm for golden hour, cool for storm). Keep the player's LUT choice as an override.
 5. **Ground and valley fog.** Low mist over the lake, river and low ground in the morning, lit by the sun. Done when the lake edge in the morning has visible mist and it respects the weather system.

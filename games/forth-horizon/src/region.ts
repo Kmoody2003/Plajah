@@ -24,6 +24,7 @@ import { EzTreeField } from './ezforest';
 import { GrassField } from './grass';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { AoPass } from './ao';
+import { CSM } from 'three/addons/csm/CSM.js';
 import { GradePass, GAME_LENSES, GAME_LUTS, type GameLens } from './grade';
 import { WeatherRig, WEATHERS, worstOf, forecastText } from './weather';
 import type { SurfaceType } from './world';
@@ -68,12 +69,52 @@ sun.position.set(-9000, 12000, -6000);
 scene.add(sun);
 scene.add(sun.target);
 const sunDir = new THREE.Vector3(-0.5, 0.7, -0.4).normalize();
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.left = -380; sun.shadow.camera.right = 380; sun.shadow.camera.top = 380; sun.shadow.camera.bottom = -380;
-sun.shadow.camera.near = 50; sun.shadow.camera.far = 6000;
-sun.shadow.bias = -0.0025;
-sun.shadow.normalBias = 2.5;
+// The sun's shadows are cascaded: three shadow maps over 0 to 900 m (sharp around the car, softer across the street, soft over the district). `sun` stays as the
+// holder of the sun's colour and strength (the weather writes to it); the cascade lights copy it every frame and do the lighting and shadowing.
+// Settings > Graphics > Shadows: "cascaded" (default) or "basic" (the earlier single shadow map, lighter on weak GPUs); changing it reloads the page.
+let SHADOWS = 'cascaded';
+try { SHADOWS = localStorage.getItem('apex.shadows') === 'basic' ? 'basic' : 'cascaded'; } catch { /* storage blocked */ }
+const csm = SHADOWS === 'cascaded' ? new CSM({ maxFar: 700, cascades: 2, mode: 'practical', parent: scene, shadowMapSize: 2048, lightDirection: sunDir.clone().negate(), camera, lightIntensity: 2.4, shadowBias: -0.0004 }) : null;
+if (csm) {
+  sun.visible = false; sun.castShadow = false;
+  csm.fade = true;
+  csm.lights.forEach((l, i) => { l.shadow.normalBias = [0.1, 0.9][i] ?? 1; });
+} else {
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = -380; sun.shadow.camera.right = 380; sun.shadow.camera.top = 380; sun.shadow.camera.bottom = -380;
+  sun.shadow.camera.near = 50; sun.shadow.camera.far = 6000;
+  sun.shadow.bias = -0.0025; sun.shadow.normalBias = 2.5;
+}
+const csmCast = [true, true, true];                 // which cascades draw a shadow map (debug / quality switch)
+(window as unknown as { csmCast: boolean[] }).csmCast = csmCast;
+const csmDone = new WeakSet<THREE.Material>();
+/** make a lit material use the cascades; chains whatever shader patch it already has (the stock CSM setup would replace it) */
+function csmSetup(m: THREE.Material): void {
+  if (!csm || csmDone.has(m)) return;
+  csmDone.add(m);
+  const mm = m as THREE.MeshStandardMaterial;
+  mm.defines = mm.defines || {};
+  mm.defines.USE_CSM = 1; mm.defines.CSM_CASCADES = csm.cascades; if (csm.fade) mm.defines.CSM_FADE = '';
+  const prev = mm.onBeforeCompile;
+  const breaks: THREE.Vector2[] = [];
+  mm.onBeforeCompile = (shader, r) => {
+    prev?.call(mm, shader, r);
+    const far = Math.min(camera.far, csm.maxFar);
+    (csm as unknown as { _getExtendedBreaks(b: THREE.Vector2[]): void })._getExtendedBreaks(breaks);
+    shader.uniforms.CSM_cascades = { value: breaks }; shader.uniforms.cameraNear = { value: camera.near }; shader.uniforms.shadowFar = { value: far };
+    csm.shaders.set(mm, shader);
+  };
+  csm.shaders.set(mm, null);
+  mm.needsUpdate = true;
+}
+let csmTick = 0;
+/** every lit material in the scene must use the cascades, or it is lit three times over: sweep for new ones a few times a second */
+function csmSweep(): void {
+  if (!csm || csmTick++ % 5) return;
+  const chk = (m: THREE.Material): void => { const x = m as unknown as Record<string, boolean>; if (!csmDone.has(m) && (x.isMeshStandardMaterial || x.isMeshPhysicalMaterial || x.isMeshLambertMaterial || x.isMeshPhongMaterial)) csmSetup(m); };
+  scene.traverse((o) => { const m = (o as THREE.Mesh).material; if (m) { if (Array.isArray(m)) m.forEach(chk); else chk(m); } });
+}
 
 const TEXBASE = '/games/forth-horizon/tex/';
 const texLoader = new THREE.TextureLoader();
@@ -2525,7 +2566,7 @@ async function boot(): Promise<void> {
   buildForest().catch((e) => console.error('forest failed', e));
   loadHarbor().catch((e) => console.error('harbor failed', e));
   buildCity().catch((e) => console.error('city failed', e));
-  (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, cam: (x?: number, y?: number, z?: number, tx?: number, ty?: number, tz?: number) => { dbgCam = x === undefined ? null : { pos: new THREE.Vector3(x, y!, z!), at: new THREE.Vector3(tx!, ty!, tz!) }; }, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, keys, drive: () => driving };
+  (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, csm, cam: (x?: number, y?: number, z?: number, tx?: number, ty?: number, tz?: number) => { dbgCam = x === undefined ? null : { pos: new THREE.Vector3(x, y!, z!), at: new THREE.Vector3(tx!, ty!, tz!) }; }, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, keys, drive: () => driving };
 }
 
 document.querySelectorAll<HTMLButtonElement>('button[data-cam]').forEach((b) => b.addEventListener('click', () => preset(b.dataset.cam!)));
@@ -2548,6 +2589,9 @@ document.getElementById('driverally')!.addEventListener('click', () => startDriv
   wx.setWeather(wxOverride === 'auto' ? (wxPlan ? wxPlan[Math.max(0, wxPlanI)].w : 'partly') : wxOverride, false, true);
 });
 {
+  const shSel = document.getElementById('shadowSel') as HTMLSelectElement;
+  shSel.value = SHADOWS;
+  shSel.addEventListener('change', () => { try { localStorage.setItem('apex.shadows', shSel.value); } catch { /* storage blocked */ } location.reload(); });
   // colour grade and lens options (the platform's LUT library and film/tape lenses)
   const lutSel = document.getElementById('lutSel') as HTMLSelectElement, lutAmt = document.getElementById('lutAmt') as HTMLInputElement, lensSel = document.getElementById('lensSel') as HTMLSelectElement;
   for (const l of GAME_LUTS) { const o = document.createElement('option'); o.value = l.id; o.textContent = l.label; lutSel.appendChild(o); }
@@ -2600,7 +2644,15 @@ function frame(now: number): void {
     const ft = driving ? driving.pos : controls.target;
     sun.target.position.set(ft.x, ft.y, ft.z);
     sun.position.set(ft.x + sunDir.x * 3000, ft.y + sunDir.y * 3000, ft.z + sunDir.z * 3000);
-    sun.castShadow = camera.position.distanceTo(ft) < 900;
+    if (csm) {
+      camera.updateMatrixWorld();
+      csm.lightDirection.copy(sunDir).negate();
+      csm.update();
+      for (let i = 0; i < csm.lights.length; i++) { const l = csm.lights[i]; l.intensity = sun.intensity; l.color.copy(sun.color); l.castShadow = sun.intensity > 0.08 && csmCast[i]; }
+      csmSweep();
+    } else {
+      sun.castShadow = camera.position.distanceTo(ft) < 900;
+    }
   }
   const sh = terrainMat?.userData.shader;
   if (sh) sh.uniforms.uCam.value.copy(camera.position);
