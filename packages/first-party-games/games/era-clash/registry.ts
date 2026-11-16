@@ -63,4 +63,8 @@ export const FIRST_PARTY_BRIDGE_CONFIGS: Record<string, IframeGameBridgeConfig> 
     achievementPrefix: 'ERACLASH_',
     dailyXpCap: 500,
   },
+  'rift-realm': {
+    achievementPrefix: 'rift_realm_',
+    dailyXpCap: 500,
+  },
 };
