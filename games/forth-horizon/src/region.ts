@@ -2491,11 +2491,22 @@ function barrierCollide(s: DriveState): boolean {
     const ux = nx / nd, uz = nz / nd;
     s.pos.x -= ux * (nd - BARRIER_LIMIT);
     s.pos.z -= uz * (nd - BARRIER_LIMIT);
-    const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw);
-    const vx = fx * s.sp + Math.cos(s.yaw) * s.lat, vz = fz * s.sp - Math.sin(s.yaw) * s.lat;
-    const into = Math.max(0, vx * ux + vz * uz);       // speed towards the wall
-    s.sp *= Math.max(0.45, 1 - into * 0.035);
-    s.lat *= -0.2;
+    // A wall takes away the speed going INTO it and keeps the speed ALONG it, and it turns the car's nose toward the wall's direction: the car scrapes along and out of the
+    // corner. (It used to cut the car's speed by a third of the way to a stop on every frame in contact and kick the sideways speed back, so a car that hit a corner nose-on
+    // stayed pinned there with its wheels pointed at the wall.)
+    const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw), rx = Math.cos(s.yaw), rz = -Math.sin(s.yaw);
+    let vx = fx * s.sp + rx * s.lat, vz = fz * s.sp + rz * s.lat;
+    const into = vx * ux + vz * uz;                     // speed towards the wall (positive: going into it)
+    if (into > 0) { vx -= (1 + 0.12) * into * ux; vz -= (1 + 0.12) * into * uz; }
+    vx *= 0.985; vz *= 0.985;                           // scrape friction along the wall
+    // turn the nose toward the wall's direction (whichever way along it the car was already going)
+    let tx = -uz, tz = ux; if (tx * fx + tz * fz < 0) { tx = -tx; tz = -tz; }
+    if (fx * ux + fz * uz > 0.15) {                     // the nose points into the wall
+      const want = Math.atan2(tx, tz); let d = want - s.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+      s.yaw += d * 0.14;
+    }
+    const nfx = Math.sin(s.yaw), nfz = Math.cos(s.yaw);
+    s.sp = vx * nfx + vz * nfz; s.lat = vx * Math.cos(s.yaw) - vz * Math.sin(s.yaw);
     return true;
   }
   return false;
@@ -2616,7 +2627,7 @@ function stepDrive(dt: number): void {
   s.yaw = ps.yaw;
   s.sp = ps.forwardSpeed; s.lat = ps.lateralSpeed; s.steer = ps.steerInputSmoothed;
   let bumped = false;
-  if (collide(s)) { s.sp *= 0.55; s.lat *= 0.5; s.hit = 0.4; bumped = true; }
+  if (collide(s)) { s.sp *= 0.86; s.lat *= 0.7; s.hit = 0.4; bumped = true; }
   if (s.circuitId === 'ironport_grand_circuit' && barrierCollide(s)) { s.hit = 0.4; bumped = true; }
   if (bumped) driveInput.rumble(0.9, 0.7, 220);
   else if (ps.isDrifting) driveInput.rumble(0.0, 0.25, 60);
