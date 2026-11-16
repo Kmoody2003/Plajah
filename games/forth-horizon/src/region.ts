@@ -16,6 +16,8 @@ import { Sky } from './sky';
 import { WaterSurface } from './water';
 import { DriveInput } from './inputs';
 import { TrackKit } from './trackkit';
+import { harborDetail } from './harborDetail';
+import { duneDetail } from './duneDetail';
 import { injectRoadPbr, roadUniforms, loadRoadPbr } from './roadpbr';
 loadRoadPbr();
 import { SprayFx, puddleDepth, PUDDLE_GLSL } from './spray';
@@ -24,6 +26,7 @@ import { EzTreeField } from './ezforest';
 import { GrassField } from './grass';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { AoPass } from './ao';
+import { RacingLine } from './racingline';
 import { CSM } from 'three/addons/csm/CSM.js';
 import { GradePass, GAME_LENSES, GAME_LUTS, type GameLens } from './grade';
 import { WeatherRig, WEATHERS, worstOf, forecastText } from './weather';
@@ -696,6 +699,7 @@ function buildHarbor(): void {
     g.rotation.y = phi;
     harborGroup.add(g);
   }
+  harborGroup.add(harborDetail(h, (x, z) => Math.max(hAt(x, z), 1.6) * exag));
   // rail yard
   for (const r of h.rail) {
     const pts: number[][] = [];
@@ -1018,6 +1022,7 @@ async function buildForest(): Promise<void> {
   // real grass around the camera, on green ground only, never on roads, pavement or the course
   grassField = new GrassField({ rw: meta.width * meta.mpp, rh: meta.height * meta.mpp, albedoUrl: BASE + 'albedo.jpg', ground: meshH, ok: (x, z) => growable(x, z, 6.5, 2.5, true) });
   forestGroup.add(grassField.group);
+  duneDetail({ width: meta.width * meta.mpp, depth: meta.height * meta.mpp, albedo: BASE + 'albedo.jpg', ground: meshH, clear: (x, z) => growable(x, z, 13, 5, true) }).then((group) => forestGroup.add(group)).catch((e) => console.warn('dune detail failed', e));
 }
 
 // ---------- streetscape: street trees and street lights ----------
@@ -2004,15 +2009,31 @@ function buildFurniture(): void {
   const variants = [['barrier_grey', 0], ['barrier_hazard', 0], ['barrier_red', 0]] as [string, number][];
   const slots: THREE.Matrix4[][] = [[], [], []];
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
-  for (let i = 0; i < n; i++) {
-    const [tx, tz] = tan(i);
-    for (const side of [-1, 1]) for (const along of [-1.5, 1.5]) {
-      const off = HALF + 1.4;
-      const x = P[i].x + -tz * off * side + tx * along, z = P[i].z + tx * off * side + tz * along;
-      const y = hAt(x, z) * exag;
-      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(tx, tz));
-      m4.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(1, 1, 1));
-      slots[(i % 9 === 4 && side > 0) ? 2 : (i % 13 === 6 && side < 0) ? 1 : 0].push(m4.clone());
+  // barriers are laid end to end along the offset edge of the road by arc length, each turned to the edge's own direction: round a corner they follow the curve with no
+  // gaps on the outside and no overlap or fanning on the inside (the old version placed them along the centre line's tangent at fixed samples)
+  const BL = 3.05;
+  for (const side of [-1, 1]) {
+    const off = HALF + 1.4;
+    const edge: [number, number][] = [];
+    for (let i = 0; i < n; i++) { const [tx, tz] = tan(i); edge.push([P[i].x - tz * off * side, P[i].z + tx * off * side]); }
+    let travelled = 0, next = BL / 2, count = 0;
+    for (let i = 0; i < n; i++) {
+      const a = edge[i], b = edge[(i + 1) % n];
+      const dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz);
+      if (L < 1e-3) continue;
+      const ux = dx / L, uz = dz / L, [tx, tz] = tan(i);
+      const folded = ux * tx + uz * tz < 0.3;                                 // the inside edge of a tight corner folds back on itself: nothing stands there
+      while (next <= travelled + L) {
+        if (!folded) {
+          const s = next - travelled, x = a[0] + ux * s, z = a[1] + uz * s, y = hAt(x, z) * exag;
+          q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(ux, uz));
+          m4.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(1, 1, 1));
+          slots[(count % 9 === 4 && side > 0) ? 2 : (count % 13 === 6 && side < 0) ? 1 : 0].push(m4.clone());
+          count++;
+        }
+        next += BL;
+      }
+      travelled += L;
     }
   }
   variants.forEach(([k], vi) => {
@@ -2036,7 +2057,7 @@ function buildFurniture(): void {
       const [tx, tz] = tan(i);
       kp.push([P[i].x + -tz * (HALF - 0.6) * inside, P[i].z + tx * (HALF - 0.6) * inside]);
     }
-    addRibbonUV(kAcc, kp, 1.9, 0.5, 3.4);
+    addRibbonUV(kAcc, kp, 1.9, RIBBON_LIFT + 0.02, 3.4);      // painted flush with the road: a 50 cm kerb was a ramp the car climbed and rolled on
   }
   { const km = accMeshTex(kAcc, gameTex('kerb'), 0.8, -5); furnitureGroup.add(km); driveSurfaces.push(km); }
   // racing surface over the street, the reference asphalt with its lane marks
@@ -2141,6 +2162,24 @@ function lapStep(x: number, z: number, now: number): string {
 const keys = new Set<string>();
 interface DriveState { lock: number; camDist: number; camH: number; camView: number; circuitId: string; pos: THREE.Vector3; yaw: number; sp: number; lat: number; steer: number; car: THREE.Group; startPos: THREE.Vector3; startYaw: number; camPos: THREE.Vector3; hit: number; ps: CarState }
 let driving: DriveState | null = null;
+// racing line and assists (Settings > Driving)
+const assist = { line: true, brake: true, steer: true };
+try { const a = JSON.parse(localStorage.getItem('apex.assist') ?? 'null'); if (a) Object.assign(assist, a); } catch { /* storage blocked */ }
+let racingLine: RacingLine | null = null, lineMesh: THREE.Mesh | null = null, assistBrakeShown = 0;
+function buildRacingLine(id: string): void {
+  if (lineMesh) { scene.remove(lineMesh); lineMesh.geometry.dispose(); lineMesh = null; }
+  racingLine = null;
+  if (id === 'free') return;
+  const city = id === 'ironport_grand_circuit';
+  const pts = city ? cityPath : meta.circuits[id] ? densify(meta.circuits[id], 6) : [];
+  if (pts.length < 8) return;
+  const cg = SOV_SPEC.corneringGrip * 1.18 * 9.81;
+  racingLine = new RacingLine(pts, city, { aLat: cg * 0.66, aBrake: 1.1 * SOV_SPEC.corneringGrip * 9.81 * 0.6, vmax: 80 });
+  lineMesh = racingLine.mesh((x, z) => groundH(x, z) + 0.06);
+  lineMesh.visible = assist.line;
+  scene.add(lineMesh);
+}
+function saveAssist(): void { try { localStorage.setItem('apex.assist', JSON.stringify(assist)); } catch { /* storage blocked */ } if (lineMesh) lineMesh.visible = assist.line; }
 const driveHud = document.createElement('div');
 driveHud.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);padding:10px 22px;background:rgba(26,0,38,.72);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.14);border-radius:20px;font:700 15px JetBrains Mono,monospace;color:#fff;display:none;text-align:center;pointer-events:none';
 document.body.appendChild(driveHud);
@@ -2403,6 +2442,7 @@ function startDrive(id: string): void {
   }
   camera.near = 0.35; camera.far = 30000; camera.updateProjectionMatrix();      // the map view uses a 5 m near plane, which cut the back of the car off at chase distance
   lapReset();
+  buildRacingLine(id);
   replay.clear(); driveClock = 0; camYawOff = 0; camPitchOff = 0; camZoom = 1;
   controls.enabled = false;
   circuitGroup.visible = false;      // the review ribbons are drawn wider than the road
@@ -2410,6 +2450,8 @@ function startDrive(id: string): void {
 }
 function stopDrive(): void {
   if (!driving) return;
+  if (lineMesh) { scene.remove(lineMesh); lineMesh.geometry.dispose(); lineMesh = null; }
+  racingLine = null;
   scene.remove(driving.car);
   driving = null;
   gameAudio.setPaused(true); setMusicDuck(1); wx.setPaused(true); wxPlan = null; if (wxOverride === 'auto') wx.setWeather('partly', false, true);
@@ -2444,10 +2486,21 @@ function stepDrive(dt: number): void {
   const ps = s.ps;
   if (locked) { ps.vel.set(0, 0, 0); ps.angularVel = 0; }
   // pedals ease in like a foot would: throttle takes about a third of a second to go to the floor, the brake about half, and both lift faster
-  const thrWant = locked ? 0 : Math.max(kUp ? 1 : 0, pad.throttle), brkWant = locked ? 1 : Math.max(kDown ? 1 : 0, pad.brake);
+  // driving assists, as in Forza: brake help ahead of corners the car is too fast for, and a nudge toward the racing line (both off in the Settings, along with the line itself)
+  let assistBrake = 0, assistSteer = 0;
+  if (racingLine && !locked) {
+    const li = racingLine.nearest(s.pos.x, s.pos.z), off = racingLine.offsets(li, s.pos.x, s.pos.z, s.yaw), v = Math.max(0, s.ps.forwardSpeed);
+    const gripNow = Math.max(0.3, wx.cur.grip * (1 - 0.82 * hydro));
+    if (Math.abs(off.lat) < 9) {
+      if (assist.brake && v > 9) { const need = racingLine.demand(li, v, gripNow), cap = 9.0 * gripNow; assistBrake = Math.min(1, Math.max(0, (need - cap * 0.5) / (cap * 0.4))) * 0.9; }
+      if (assist.steer && v > 6) assistSteer = Math.max(-0.6, Math.min(0.6, off.head * 1.3 - off.lat * 0.06)) * 0.65;
+    }
+  }
+  assistBrakeShown = assistBrake;
+  const thrWant = locked ? 0 : Math.max(kUp ? 1 : 0, pad.throttle) * (1 - assistBrake), brkWant = locked ? 1 : Math.max(kDown ? 1 : 0, pad.brake, assistBrake);
   pedalT += (thrWant - pedalT) * Math.min(1, dt * (thrWant > pedalT ? 3.4 : 8));
   pedalB += (brkWant - pedalB) * Math.min(1, dt * (brkWant > pedalB ? 2.6 : 9));
-  const input: CarInput = { throttle: locked ? 0 : pedalT, brake: locked ? 1 : pedalB, steer: Math.abs(pad.steer) > Math.abs(kSteer) ? pad.steer : kSteer, handbrake: hand };
+  const input: CarInput = { throttle: locked ? 0 : pedalT, brake: locked ? 1 : pedalB, steer: (() => { const p = Math.abs(pad.steer) > Math.abs(kSteer) ? pad.steer : kSteer; return Math.max(-1, Math.min(1, p + assistSteer * (1 - Math.abs(p)))); })(), handbrake: hand };
   // standing water under the wheels: deep puddles at speed lift the tyres off the tarmac (aquaplaning): grip collapses until the car slows or leaves the water
   let pudAvg = 0;
   {
@@ -2559,13 +2612,14 @@ function stepDrive(dt: number): void {
     if (Math.abs(camera.fov - fovWant) > 0.05) { camera.fov += (fovWant - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); }
   }
   const lapTxt = s.circuitId === 'ironport_grand_circuit' ? lapStep(s.pos.x, s.pos.z, performance.now() / 1000) + '<br>' : '';
-  driveHud.innerHTML = lapTxt + `${Math.round(ps.speedMps * 3.6)} km/h &nbsp;·&nbsp; ${ps.gear < 0 ? 'R' : ps.gear === 0 ? 'N' : ps.gear} &nbsp;·&nbsp; ${Math.round(ps.rpm)} rpm` + (ps.isDrifting ? ' &nbsp;·&nbsp; <span style="color:#FF8C00">drift</span>' : '') + (hydro > 0.3 ? ' &nbsp;·&nbsp; <span style="color:#00DAF3">aquaplaning</span>' : '') + (performance.now() - driveViewShown < 1800 ? ` &nbsp;·&nbsp; <span style="color:#00DAF3">${VIEW_NAMES[s.camView]}</span>` : '') + (s.hit > 0 ? ' &nbsp;·&nbsp; <span style="color:#D40055">crash</span>' : '') + '<br><span style="font:500 11px Inter,sans-serif;opacity:.7;letter-spacing:.04em">' + (driveInput.touchMode ? 'drag the wheel to steer · drag the view to look around' : driveInput.axes.active ? 'RT throttle · LT brake · stick steer · A handbrake · Y camera · X replay · Back reset · Start exit' : 'W/S throttle and brake · A/D steer · Space handbrake · drag mouse to look around · B look back · C or 1-5 camera (chase, far, hood, dash, driver) · P replay · R reset · Esc exit') + '</span>';
+  driveHud.innerHTML = lapTxt + `${Math.round(ps.speedMps * 3.6)} km/h &nbsp;·&nbsp; ${ps.gear < 0 ? 'R' : ps.gear === 0 ? 'N' : ps.gear} &nbsp;·&nbsp; ${Math.round(ps.rpm)} rpm` + (ps.isDrifting ? ' &nbsp;·&nbsp; <span style="color:#FF8C00">drift</span>' : '') + (hydro > 0.3 ? ' &nbsp;·&nbsp; <span style="color:#00DAF3">aquaplaning</span>' : '') + (assistBrakeShown > 0.25 ? ' &nbsp;·&nbsp; <span style="color:#FF8C00">brake assist</span>' : '') + (performance.now() - driveViewShown < 1800 ? ` &nbsp;·&nbsp; <span style="color:#00DAF3">${VIEW_NAMES[s.camView]}</span>` : '') + (s.hit > 0 ? ' &nbsp;·&nbsp; <span style="color:#D40055">crash</span>' : '') + '<br><span style="font:500 11px Inter,sans-serif;opacity:.7;letter-spacing:.04em">' + (driveInput.touchMode ? 'drag the wheel to steer · drag the view to look around' : driveInput.axes.active ? 'RT throttle · LT brake · stick steer · A handbrake · Y camera · X replay · Back reset · Start exit' : 'W/S throttle and brake · A/D steer · Space handbrake · drag mouse to look around · B look back · C or 1-5 camera (chase, far, hood, dash, driver) · P replay · R reset · Esc exit') + '</span>';
 }
 addEventListener('keydown', (e) => {
   if (replay.active) { if (replay.key(e.code)) { e.preventDefault(); if (!replay.active && driving) { driveHud.style.display = 'block'; s2cam(); gameAudio.setPaused(false); } } return; }
   if (!driving) return;
   if (e.code === 'KeyP') { if (replay.start()) { driveHud.style.display = 'none'; countEl.style.display = 'none'; gameAudio.setPaused(true); } return; }
   if (e.code === 'KeyB') { lookBack = true; return; }
+  if (e.code === 'KeyL') { assist.line = !assist.line; saveAssist(); const cb = document.getElementById('tLine') as HTMLInputElement | null; if (cb) cb.checked = assist.line; return; }
   if (e.code === 'Escape') { preset('overview'); return; }
   if (e.code === 'KeyR') { driving.pos.copy(driving.startPos); driving.yaw = driving.startYaw; driving.sp = 0; driving.lat = 0; driving.ps = createCarState(driving.startPos.x, driving.startPos.y, driving.startPos.z, driving.startYaw); lapReset(); return; }
   if (e.code === 'KeyC' || /^Digit[1-5]$/.test(e.code)) {
@@ -2624,6 +2678,11 @@ document.getElementById('driverally')!.addEventListener('click', () => startDriv
   wx.setWeather(wxOverride === 'auto' ? (wxPlan ? wxPlan[Math.max(0, wxPlanI)].w : 'partly') : wxOverride, false, true);
 });
 {
+  for (const [id, key] of [['tLine', 'line'], ['tBrkAssist', 'brake'], ['tStrAssist', 'steer']] as const) {
+    const cb = document.getElementById(id) as HTMLInputElement;
+    cb.checked = assist[key];
+    cb.addEventListener('change', () => { assist[key] = cb.checked; saveAssist(); });
+  }
   const shSel = document.getElementById('shadowSel') as HTMLSelectElement;
   shSel.value = SHADOWS;
   shSel.addEventListener('change', () => { try { localStorage.setItem('apex.shadows', shSel.value); } catch { /* storage blocked */ } location.reload(); });
