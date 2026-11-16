@@ -708,7 +708,66 @@ async function buildStreets(): Promise<void> {
   streetGroup.clear();
   const aS: Acc = { pos: [], idx: [], uv: [] }, aH: Acc = { pos: [], idx: [], uv: [] }, walk: Acc = { pos: [], idx: [], uv: [] };
   const W: Record<string, number> = { freeway: 22, ramp: 9, arterial: 16, street: 10 };
-  // the carriageways, sidewalks and kerbs are painted by the terrain shader from the baked street mask (city_mask.png)
+  // the carriageways and sidewalks are painted by the terrain shader from the baked street mask (city_mask.png); the curbs are real geometry on top of that
+  void aS; void aH; void walk; void W;
+  buildCurbs().catch((e) => console.warn('curbs failed', e));
+}
+// Curb stones and a raised sidewalk along every street edge that has one (lines traced from the mask by tools/build_curbs.py): a 17 cm vertical stone face, a rounded
+// top, and the sidewalk slab 17 cm above the carriageway, so the street no longer melts into the pavement. Not along the race circuit, whose barriers and racing
+// surface own those edges.
+async function buildCurbs(): Promise<void> {
+  const res = await fetch(BASE + 'city_curbs.json');
+  if (!res.ok) return;
+  const lines = (await res.json()) as number[][];
+  const H = 0.17, TOP = 0.24, SLAB = 3.7;
+  const pos: number[] = [], uv: number[] = [], col: number[] = [], idx: number[] = [];
+  const tint = (c: number): number[] => [((c >> 16) & 255) / 255, ((c >> 8) & 255) / 255, (c & 255) / 255];
+  const cFace = tint(0xb4b2ab), cTop = tint(0xc6c4bd), cSlab = tint(0xd2d0c9);
+  const quad = (a: number[], b: number[], c: number[], d: number[], color: number[]): void => {
+    const base = pos.length / 3;
+    for (const p of [a, b, c, d]) { pos.push(p[0], p[1], p[2]); uv.push(p[0] / 1.7, p[2] / 1.7); col.push(color[0], color[1], color[2]); }
+    idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  };
+  for (const ln of lines) {
+    for (let i = 0; i + 7 < ln.length; i += 4) {
+      const px = ln[i], pz = ln[i + 1], qx = ln[i + 4], qz = ln[i + 5], nx = ln[i + 6], nz = ln[i + 7];
+      if (Math.hypot(qx - px, qz - pz) > 40) continue;
+      const mx = (px + qx) / 2, mz = (pz + qz) / 2;
+      let shift = 0;
+      const dRoad = roadDist(mx, mz);
+      if (dRoad < 7.8) {
+        // along the race circuit the racing surface and the barriers cover the street's own edge: start the curb behind the barriers instead, and skip the cross streets
+        let best = 1e18, bi = -1;
+        for (let k = 0; k < cityPath.length; k++) { const d2 = (cityPath[k].x - mx) ** 2 + (cityPath[k].z - mz) ** 2; if (d2 < best) { best = d2; bi = k; } }
+        if (bi < 0) continue;
+        const a = cityPath[bi], b = cityPath[(bi + 1) % cityPath.length];
+        const tl = Math.hypot(b.x - a.x, b.z - a.z) || 1, sl = Math.hypot(qx - px, qz - pz) || 1;
+        const par = Math.abs(((b.x - a.x) * (qx - px) + (b.z - a.z) * (qz - pz)) / (tl * sl));
+        if (par < 0.85) continue;
+        shift = Math.max(0, 7.8 - Math.sqrt(best));
+      }
+      const sx = nx * shift, sz = nz * shift;
+      const y0p = meshH(px + sx, pz + sz) + 0.01, y0q = meshH(qx + sx, qz + sz) + 0.01;
+      const A0 = [px + sx, y0p, pz + sz], B0 = [qx + sx, y0q, qz + sz], A1 = [px + sx, y0p + H, pz + sz], B1 = [qx + sx, y0q + H, qz + sz];
+      const C1 = [px + sx + nx * TOP, y0p + H, pz + sz + nz * TOP], D1 = [qx + sx + nx * TOP, y0q + H, qz + sz + nz * TOP];
+      const E1 = [px + sx + nx * SLAB, y0p + H, pz + sz + nz * SLAB], F1 = [qx + sx + nx * SLAB, y0q + H, qz + sz + nz * SLAB];
+      quad(A0, B0, B1, A1, cFace);
+      quad(A1, B1, D1, C1, cTop);
+      quad(C1, D1, F1, E1, cSlab);
+    }
+  }
+  if (!pos.length) return;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  const t = gameTex('paver_plain');
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: t, vertexColors: true, roughness: 0.9, metalness: 0, side: THREE.DoubleSide }));
+  m.receiveShadow = true; m.castShadow = false; m.frustumCulled = false;
+  streetGroup.add(m);
+  console.log('curbs', lines.length, 'lines', pos.length / 12, 'quads');
 }
 
 // ---------- tree sprites (cross cards) ----------
@@ -1425,8 +1484,11 @@ function stepWeather(dt: number): void {
 // reflect it: puddles show the buildings, lights and sky, wet asphalt a blurred version, with the roughness deciding the blur.
 let probeRT: THREE.WebGLRenderTarget | null = null, probeT = 0, probeOn = false;
 const probeMats = (): THREE.MeshStandardMaterial[] => [terrainMat, ...(driveSurfaces.map((m) => m.material) as THREE.MeshStandardMaterial[])].filter(Boolean);
+// Off: the snapshot is re-taken from a new spot every few tenths of a second, so the reflections popped and jumped around on the wet asphalt like a moving light.
+// Wet roads and puddles reflect the (stable) scene environment instead.
+const DYNAMIC_PROBE = false;
 function updateProbe(dt: number): void {
-  const need = !!driving && !mapMode && !replay.active && (wx.cur.wet > 0.25 || poolLevel > 0.1);
+  const need = DYNAMIC_PROBE && !!driving && !mapMode && !replay.active && (wx.cur.wet > 0.25 || poolLevel > 0.1);
   if (!need) {
     if (probeOn) { probeOn = false; for (const m of probeMats()) { m.envMap = null; m.needsUpdate = true; } probeRT?.dispose(); probeRT = null; }
     return;
