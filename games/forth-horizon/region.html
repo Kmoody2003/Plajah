@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Apex Elohim · Region Terrain</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    /* Plajah design tokens (styles/plajah-ds.css): brand is theme-invariant */
+    :root {
+      --pj-purple:#6B0099; --pj-magenta:#D40055; --pj-orange:#FF8C00; --pj-cyan:#00DAF3; --pj-lilac:#D0BCFF;
+      --pj-glass:rgba(26,0,38,.62); --pj-hair:rgba(255,255,255,.10);
+      --font-display:'Outfit','Space Grotesk',sans-serif; --font-body:'Inter','Manrope',sans-serif; --font-mono:'JetBrains Mono',monospace;
+      --bg:#1a0026; --panel:var(--pj-glass); --border:var(--pj-hair); --accent:var(--pj-orange);
+    }
+    * { box-sizing:border-box; }
+    html, body { margin:0; height:100%; background:var(--bg); overflow:hidden; font-family:var(--font-body); color:#fff; }
+    #view { position:fixed; inset:0; }
+    #view canvas { display:block; width:100%; height:100%; }
+    #panel { position:fixed; top:68px; right:18px; width:330px; max-height:calc(100vh - 100px); overflow:auto; padding:18px 20px; background:rgba(26,0,38,.86); border:1px solid var(--border); border-radius:28px; backdrop-filter:blur(16px); box-shadow:0 24px 60px rgba(0,0,0,.55); font:400 13px var(--font-body); display:none; z-index:20; }
+    #panel .sh-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+    #panel .sh-title { font:800 14px var(--font-display); letter-spacing:.28em; text-transform:uppercase; color:var(--pj-orange); }
+    #panel .sh-x { width:32px; height:32px; padding:0; font-size:20px; line-height:1; border-radius:50%; }
+    #panel .sh-group { font:600 10px var(--font-display); letter-spacing:.28em; text-transform:uppercase; color:var(--pj-lilac); opacity:.8; margin:16px 0 4px; }
+    #panel .sh-row { display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0; padding:9px 2px; border-bottom:1px solid rgba(255,255,255,.06); color:rgba(255,255,255,.88); }
+    #panel .sh-row input[type=checkbox] { width:18px; height:18px; }
+    #panel .sh-dev { margin-top:18px; border-top:1px solid var(--border); padding-top:10px; }
+    #panel .sh-dev summary { cursor:pointer; font:600 10px var(--font-display); letter-spacing:.28em; text-transform:uppercase; color:rgba(255,255,255,.55); padding:6px 0; }
+    #panel .row { display:flex; flex-wrap:wrap; gap:6px; margin:8px 0; }
+    button { background:rgba(255,255,255,.06); color:#fff; border:1px solid var(--border); border-radius:999px; padding:6px 12px; cursor:pointer; font:600 11px var(--font-display); letter-spacing:.08em; transition:background .2s cubic-bezier(.2,0,0,1),border-color .2s; }
+    button:hover { background:rgba(212,0,85,.18); border-color:var(--pj-magenta); }
+    button:focus-visible { outline:2px solid var(--pj-cyan); outline-offset:2px; }
+    label { display:flex; align-items:center; gap:6px; margin:4px 0; accent-color:var(--pj-magenta); }
+    select { background:rgba(255,255,255,.08); color:#fff; border:1px solid var(--border); border-radius:999px; padding:3px 8px; font:600 11px var(--font-display); }
+    input[type=range] { flex:1; }
+    #hud { position:fixed; right:14px; bottom:14px; padding:10px 14px; background:var(--panel); border:1px solid var(--border); border-radius:16px; backdrop-filter:blur(12px); font:500 11px var(--font-mono); line-height:1.6; min-width:200px; }
+    #msg { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); font:600 15px var(--font-display); letter-spacing:.2em; opacity:.9; }
+  </style>
+</head>
+<body>
+  <div id="view"></div>
+  <div id="panel">
+    <div class="sh-head"><span class="sh-title">Settings</span><button id="shClose" class="sh-x" aria-label="Close settings">&times;</button></div>
+    <div class="sh-group">Audio</div>
+    <label class="sh-row"><span>Music volume</span><input type="range" id="musicVol" min="0" max="1" step="0.05" value="0.6" /></label>
+    <label class="sh-row"><span>Engine and tyre volume</span><input type="range" id="engVol" min="0" max="1.5" step="0.05" value="1.0" /></label>
+    <div class="sh-group">Driving</div>
+    <label class="sh-row"><span>Suspension tune</span><select id="susp"><option value="comfort">Comfort</option><option value="sport" selected>Sport</option><option value="track">Track</option><option value="rally">Rally</option></select></label>
+    <div class="sh-group">Graphics</div>
+    <label class="sh-row"><span>Time of day</span><select id="tod"><option value="golden">Golden hour</option><option value="clear">Clear day</option><option value="sunset">Sunset</option><option value="dusk">Dusk</option><option value="night">Night</option><option value="sunrise">Sunrise</option></select></label>
+    <label class="sh-row"><span>Bloom</span><input type="checkbox" id="tFx" checked /></label>
+    <div class="sh-group">World</div>
+    <label class="sh-row"><span>Harbor</span><input type="checkbox" id="tHar" checked /></label>
+    <label class="sh-row"><span>Streets and sidewalks</span><input type="checkbox" id="tStr" checked /></label>
+    <label class="sh-row"><span>City buildings</span><input type="checkbox" id="tBld" checked /></label>
+    <label class="sh-row"><span>Trees and street lights</span><input type="checkbox" id="tScape" checked /></label>
+    <label class="sh-row"><span>Map labels</span><input type="checkbox" id="tLab" checked /></label>
+    <details class="sh-dev"><summary>Developer tools</summary>
+      <div class="row">
+        <button data-cam="overview">Map</button><button data-cam="city">City circuit</button><button data-cam="downtown">Skyline</button><button data-cam="harbor">Harbor</button>
+        <button data-cam="street">Street level</button><button data-cam="rally">Rally stage</button><button data-cam="cliff">Cliff raceway</button><button data-cam="tunnel">Tunnel exit</button><button data-cam="dunes">Dune coast</button>
+      </div>
+      <div class="row"><button id="fly">Fly cliff lap</button><button id="flycity">Fly city lap</button><button id="stop">Stop</button></div>
+      <div class="row"><button id="drivecity">Drive city</button><button id="drivecliff">Drive cliff</button><button id="driverally">Drive rally</button></div>
+      <label class="sh-row"><span>Circuit line (review)</span><input type="checkbox" id="tCirc" /></label>
+      <label class="sh-row"><span>X-ray terrain</span><input type="checkbox" id="tXray" /></label>
+      <label class="sh-row"><span>Height <b id="exagv">1.0</b>&times;</span><input type="range" id="exag" min="1" max="4" step="0.1" value="1" /></label>
+    </details>
+  </div>
+  <div id="hud">loading…</div>
+  <div id="msg">loading terrain…</div>
+  <script type="module" src="/src/region.ts"></script>
+</body>
+</html>

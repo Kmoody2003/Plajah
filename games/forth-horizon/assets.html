@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Apex Elohim · asset review</title>
+  <style>
+    html, body { margin:0; height:100%; background:#14081c; overflow:hidden; font-family:Inter,sans-serif; color:#fff; }
+    canvas { display:block; }
+    #bar { position:fixed; top:10px; left:10px; display:flex; gap:6px; flex-wrap:wrap; max-width:90vw; }
+    button { background:rgba(255,255,255,.08); color:#fff; border:1px solid rgba(255,255,255,.2); border-radius:999px; padding:5px 12px; cursor:pointer; font:600 11px Outfit,sans-serif; letter-spacing:.08em; }
+    #info { position:fixed; bottom:10px; left:10px; font:500 11px 'JetBrains Mono',monospace; opacity:.8; max-width:90vw; white-space:pre-wrap; }
+  </style>
+</head>
+<body>
+  <div id="bar"></div>
+  <div id="info">loading</div>
+  <script type="module" src="/src/assetview.ts"></script>
+</body>
+</html>
