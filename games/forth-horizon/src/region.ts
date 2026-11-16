@@ -1361,27 +1361,115 @@ function patchParallax(mat: THREE.MeshStandardMaterial): void {
 // Curtain-wall glass: a dark tinted mirror that reflects the sky and the sun with a sharp highlight, a little different from pane to pane, and at night (or under a
 // storm) a share of the panes light up warm. The facade texture still supplies the mullions, tint and relief.
 const nightU = { value: 0 };
+const curtainU = { value: 1 };                         // 1: procedural curtain wall on the glass towers; 0: the texture only (debug A/B: window.apexTowers.set(0 | 1))
+(window as unknown as { apexTowers: unknown }).apexTowers = { set: (v: number) => { curtainU.value = v; } };
 function patchGlass(mat: THREE.MeshStandardMaterial): void {
-  mat.metalness = 0.62; mat.roughness = 0.5; mat.envMapIntensity = 3.0;
+  mat.metalness = 0.62; mat.roughness = 0.5; mat.envMapIntensity = 3.4;
   mat.color.multiplyScalar(0.72);
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = (sh, r) => {
     prev?.call(mat, sh, r);
-    sh.uniforms.uNightG = nightU;
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 gwp = vec4(position, 1.0);\n#ifdef USE_INSTANCING\ngwp = instanceMatrix * gwp;\n#endif\nvGW = (modelMatrix * gwp).xyz;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW;\nuniform float uNightG;')
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp(roughnessFactor * 0.16, 0.035, 0.3);')
+    sh.uniforms.uNightG = nightU; sh.uniforms.uCurtain = curtainU;
+    // glass tint by material: blue-green by default, cerulean, bronze
+    const tint = /bronze/i.test(mat.name) ? 'vec3(0.2, 0.14, 0.09)' : /cerulean/i.test(mat.name) ? 'vec3(0.09, 0.22, 0.32)' : 'vec3(0.11, 0.2, 0.27)';
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW; varying vec3 vGN;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 gwp = vec4(position, 1.0);\nmat3 gnm = mat3(modelMatrix);\n#ifdef USE_INSTANCING\ngwp = instanceMatrix * gwp;\ngnm = gnm * mat3(instanceMatrix);\n#endif\nvGW = (modelMatrix * gwp).xyz;\nvGN = gnm * normal;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+varying vec3 vGW; varying vec3 vGN;
+uniform float uNightG, uCurtain;
+float cwh(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+// a real curtain wall instead of a texture of one: floors 3.9 m, bays 1.5 m, slim aluminium mullions and transoms, a spandrel panel at every floor slab, and a pane of dark
+// tinted glass in between. Built from where the point is on the wall (world position along the wall and height), so it is exact at any distance and continuous across
+// the building. The glass is a near mirror: it reflects the sky and the street, and each pane is a little different.
+void cwall(out vec3 col, out float glass, out float rough, out float metal, out float wall, out vec2 id) {
+  vec3 gn = normalize(vGN);
+  wall = 1.0 - smoothstep(0.35, 0.6, abs(gn.y));
+  vec2 td = normalize(vec2(-gn.z, gn.x) + vec2(1e-4));
+  vec2 uv = vec2(dot(vGW.xz, td) / 1.5, vGW.y / 3.9);
+  vec2 f = fract(uv); id = floor(uv);
+  float px = 1.0 / max(1.0, length(cameraPosition - vGW) * 0.9);                 // keep the thin bars from shimmering at a distance
+  float mw = clamp(0.045 + px * 0.2, 0.0, 0.5);
+  float mull = step(f.x, mw) + step(1.0 - mw, f.x);
+  float trans = step(0.9, f.y) * 1.0;
+  float slab = step(f.y, 0.24);
+  float rn = cwh(id);
+  vec3 glassC = TINT * (0.75 + 0.55 * rn) * (0.8 + 0.4 * cwh(id + 7.0));
+  vec3 spand = vec3(0.19, 0.2, 0.21) * (0.85 + 0.3 * cwh(id + 3.0));
+  vec3 alu = vec3(0.34, 0.35, 0.37);
+  float bars = clamp(mull + trans, 0.0, 1.0);
+  col = mix(glassC, spand, slab); col = mix(col, alu, bars * (1.0 - slab * 0.0));
+  glass = (1.0 - slab) * (1.0 - bars);
+  rough = mix(mix(0.07, 0.5, slab), 0.34, bars);
+  metal = mix(mix(0.92, 0.22, slab), 0.85, bars);
+}`.replace('TINT', tint))
+      .replace('#include <color_fragment>', `#include <color_fragment>
+      vec3 cwCol; float cwGlass, cwRough, cwMetal, cwWall; vec2 cwId;
+      cwall(cwCol, cwGlass, cwRough, cwMetal, cwWall, cwId);
+      float cwK = cwWall * uCurtain;
+      diffuseColor.rgb = mix(diffuseColor.rgb, cwCol, cwK);`)
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, cwMetal, cwK);')
+      // the facade texture's relief normals make a pane of glass glitter; a pane is flat
+      .replace('#include <clearcoat_normal_fragment_begin>', 'normal = normalize(mix(normal, nonPerturbedNormal, cwK * (cwGlass * 0.97 + 0.5 * (1.0 - cwGlass))));\n#include <clearcoat_normal_fragment_begin>')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(clamp(roughnessFactor * 0.16, 0.035, 0.3), cwRough, cwK);')
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
       {
         vec2 gc = floor(vec2(vGW.x + vGW.z, vGW.y) / vec2(3.2, 3.4));
         float gh = fract(sin(dot(gc, vec2(12.9898, 78.233))) * 43758.5453);
         float gl = step(1.0 - uNightG * 0.42, gh);
-        totalEmissiveRadiance += vec3(1.0, 0.82, 0.55) * gl * uNightG * (0.5 + 0.9 * fract(gh * 7.3)) * 0.85;
-        diffuseColor.rgb *= 0.86 + 0.28 * fract(gh * 13.7);
+        // at night a share of the panes are lit, whole panes (not blocks): the lit ones are found per pane of the curtain wall
+        float paneLit = step(1.0 - uNightG * 0.4, cwh(cwId + 21.0)) * cwGlass * cwK;
+        totalEmissiveRadiance += vec3(1.0, 0.82, 0.55) * mix(gl * uNightG, paneLit * uNightG * 1.4, cwK) * (0.5 + 0.9 * fract(gh * 7.3)) * 0.85;
+        diffuseColor.rgb *= mix(0.86 + 0.28 * fract(gh * 13.7), 1.0, cwK);
       }`);
   };
-  mat.customProgramCacheKey = () => 'glass-1';
+  mat.customProgramCacheKey = () => 'glass-2-' + mat.name;
+}
+// Stone and concrete towers: the models have only a few window openings, so most of a tower's face is bare stone and it reads as a cartoon block. Above the podium (11.5 m)
+// the wall gets a grid of punched windows by world position: floors 3.9 m, bays 3.4 m, a reveal that is shaded at the top, a lighter sill and lintel, dark reflective
+// glass (a share of the windows have blinds drawn) and at night a share of them lit. Low buildings are not touched.
+function patchPunched(mat: THREE.MeshStandardMaterial): void {
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    prev?.call(mat, sh, r);
+    sh.uniforms.uNightG = nightU; sh.uniforms.uCurtain = curtainU;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vPW; varying vec3 vPN;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 pwp = vec4(position, 1.0);\nmat3 pnm = mat3(modelMatrix);\n#ifdef USE_INSTANCING\npwp = instanceMatrix * pwp;\npnm = pnm * mat3(instanceMatrix);\n#endif\nvPW = (modelMatrix * pwp).xyz;\nvPN = pnm * normal;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+varying vec3 vPW; varying vec3 vPN;
+uniform float uNightG, uCurtain;
+float pwh(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+void punched(out float win, out vec3 wcol, out float wrough, out float wmetal, out float lit, out float frame) {
+  vec3 gn = normalize(vPN);
+  float wall = (1.0 - smoothstep(0.35, 0.6, abs(gn.y))) * smoothstep(11.0, 12.5, vPW.y);
+  vec2 td = normalize(vec2(-gn.z, gn.x) + vec2(1e-4));
+  vec2 uv = vec2(dot(vPW.xz, td) / 3.4, vPW.y / 3.9);
+  vec2 f = fract(uv), id = floor(uv);
+  float edge = 0.03 + 0.4 / max(1.0, length(cameraPosition - vPW) * 0.5);
+  vec2 lo = vec2(0.16, 0.2), hi = vec2(0.84, 0.8);
+  float inx = smoothstep(lo.x - edge, lo.x, f.x) * (1.0 - smoothstep(hi.x, hi.x + edge, f.x));
+  float iny = smoothstep(lo.y - edge, lo.y, f.y) * (1.0 - smoothstep(hi.y, hi.y + edge, f.y));
+  win = inx * iny * wall;
+  frame = wall * (1.0 - win) * (smoothstep(0.1, lo.x, f.x) * (1.0 - smoothstep(hi.x, 0.9, f.x)) * smoothstep(0.14, lo.y, f.y) * (1.0 - smoothstep(hi.y, 0.86, f.y)));
+  float r = pwh(id);
+  float blind = step(0.88, pwh(id + 5.0));
+  vec3 glass = vec3(0.1, 0.17, 0.23) * (0.7 + 0.7 * r);
+  float top = smoothstep(0.0, 0.18, hi.y - f.y);                        // the reveal shades the top of the opening
+  wcol = mix(glass * (0.55 + 0.45 * top), vec3(0.42, 0.38, 0.3) * (0.5 + 0.5 * top), blind);
+  wrough = mix(0.08, 0.8, blind); wmetal = mix(0.9, 0.0, blind);
+  lit = step(1.0 - uNightG * 0.4, pwh(id + 21.0)) * win * (1.0 - blind * 0.5);
+}`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+      float pwWin, pwWr, pwWm, pwLit, pwFrame; vec3 pwCol;
+      punched(pwWin, pwCol, pwWr, pwWm, pwLit, pwFrame);
+      float pwK = pwWin * uCurtain;
+      diffuseColor.rgb = mix(diffuseColor.rgb, pwCol, pwK);
+      diffuseColor.rgb *= 1.0 - 0.3 * pwFrame * uCurtain;                 // a darker band of reveal around the opening`)
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, pwWm, pwK);')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, pwWr, pwK);')
+      .replace('#include <clearcoat_normal_fragment_begin>', 'normal = normalize(mix(normal, nonPerturbedNormal, pwK));\n#include <clearcoat_normal_fragment_begin>')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.82, 0.55) * pwLit * uNightG * 1.3 * uCurtain;');
+  };
+  mat.customProgramCacheKey = () => 'punched-1-' + mat.name;
 }
 async function buildCity(): Promise<void> {
   const res = await fetch(BASE + 'city.json');
@@ -1434,6 +1522,7 @@ async function buildCity(): Promise<void> {
             if (/hero/i.test(mat.name)) mat.normalScale.set(1.4, 1.4);     // the sheet-derived normals are gentle: push the relief
             mat.envMapIntensity = 0.7;
             if (/glass/i.test(mat.name)) patchGlass(mat);
+            else if (/06-granite|04-limestone|16-concrete|15-concrete/.test(mat.name) && mat.map) patchPunched(mat);
             mat.needsUpdate = true;
           }
         });
