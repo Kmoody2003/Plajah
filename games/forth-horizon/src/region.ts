@@ -221,6 +221,7 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
 
 let composer: EffectComposer | null = null;
 let cinePass: ShaderPass | null = null;
+let dbgCam: { pos: THREE.Vector3; at: THREE.Vector3 } | null = null;     // review tool: window.regionViewer.cam(x,y,z, tx,ty,tz) holds the camera still; cam() releases it
 let fxOn = true;
 try {
   composer = new EffectComposer(renderer);
@@ -1141,8 +1142,8 @@ vec3 facadeWeather(vec3 col, vec3 fw, float dist, float wet) {
   float nearK = 1.0 - smoothstep(25.0, 110.0, dist);
   float low = fvn(fw * vec3(0.3, 0.1, 0.3));
   float ground = 1.0 - smoothstep(0.0, 8.0, fw.y);
-  float streak = fvn(vec3((fw.x + fw.z) * 1.9, fw.y * 0.07, 3.0));
-  float dirt = clamp(ground * (0.4 + 0.6 * low) + smoothstep(0.55, 0.9, streak) * 0.32 * smoothstep(3.0, 20.0, fw.y), 0.0, 1.0);
+  float streak = fvn(vec3((fw.x + fw.z) * 0.45, fw.y * 0.05, 3.0));
+  float dirt = clamp(ground * (0.4 + 0.6 * low) + smoothstep(0.58, 0.92, streak) * 0.2 * smoothstep(3.0, 20.0, fw.y), 0.0, 1.0);
   // a photograph is less saturated and has more contrast than a painted colour map: pull the colour toward grey a little and open up the midtones
   float lum = dot(col, vec3(0.299, 0.587, 0.114));
   col = mix(vec3(lum), col, 0.82);
@@ -2504,7 +2505,7 @@ async function boot(): Promise<void> {
   buildForest().catch((e) => console.error('forest failed', e));
   loadHarbor().catch((e) => console.error('harbor failed', e));
   buildCity().catch((e) => console.error('city failed', e));
-  (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, keys, drive: () => driving };
+  (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, cam: (x?: number, y?: number, z?: number, tx?: number, ty?: number, tz?: number) => { dbgCam = x === undefined ? null : { pos: new THREE.Vector3(x, y!, z!), at: new THREE.Vector3(tx!, ty!, tz!) }; }, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, keys, drive: () => driving };
 }
 
 document.querySelectorAll<HTMLButtonElement>('button[data-cam]').forEach((b) => b.addEventListener('click', () => preset(b.dataset.cam!)));
@@ -2571,6 +2572,7 @@ function frame(now: number): void {
   }
   const sh = terrainMat?.userData.shader;
   if (sh) sh.uniforms.uCam.value.copy(camera.position);
+  if (dbgCam) { camera.position.copy(dbgCam.pos); camera.lookAt(dbgCam.at); camera.updateMatrixWorld(); }
   if (cinePass) {
     const u = cinePass.uniforms;
     u.uTime.value = (u.uTime.value + dt) % 100;
