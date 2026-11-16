@@ -29,6 +29,22 @@ are real pieces on the scan body.
 3. **Mesh.** `gen_hunyuan.mjs [frame]` calls the local Tela 3D runtime (Hunyuan3D-2mini, port 51124) for one frame. `orient.py` rotates it
    (nose +Z, ground at y = 0, 4.78 m) to `sov_base.glb`; the painted copy goes to `public/games/forth-horizon/car/`.
    Single-image meshes are guessed on the far side. Prefer a multi-view mesh when one is available.
+
+   **Which Plajah workflow:** the shape generator is **Tela 3D**, also used by Argilla's generated-geometry route
+   (`services/tela/tela3dService.ts`, `services/argilla/understand/`). The desktop starts it through
+   `TELA3D_ENSURE`; the dev server starts it with `POST /api/local-ai/tela3d/ensure` (`routes/localAi.ts`).
+   A failed health request does not prove the engine is missing: `connect EACCES` means the caller cannot
+   access that local socket. Do not substitute Argilla's procedural car block-outs or the old asset-sheet
+   meshes for the measured shell-and-parts assembly described here.
+
+   For a file-based job without the HTTP service, use the installed Tela Python:
+   `"D:\Plajah Runtime\tela3d-py\Scripts\python.exe" -u games/forth-horizon/car/run_tela_shell.py --car corsair --frame 0`.
+   This imports the existing `engines/tela-3d/tela3d_runtime.py` and calls its own `cut_out` and `image_to_mesh`
+   functions. It uses the Sovereign settings (Hunyuan-mini, 380 octree, 5 steps, 60k faces, 0.92 foreground),
+   existing offline weights, and the engine's temperature guard. `--check` reports installed backend and GPU
+   readiness. The runner refuses to overwrite a shell and records the engine's metrics. Generation is only
+   the shell step; orientation, each car's own measurements, panel surgery and visual review still follow.
+
 4. **Measure the scan.** Open `car.html?scan=1&nodisc=1` (shows the baked wheels without the replacements). From the side view read the baked
    wheel centres and the px/metre (car length / pixels), and write `wheels` into `spec.json`.
 5. **Spec.** `spec.json` holds: `glb`, `paint`, `wheels` (z, x, scale, discard radius), `panels` (door/hood/trunk boxes, hinge, axis, open angle),

@@ -198,15 +198,24 @@ def main():
     POOLS = {
         "CBD": [g for g in ("midtown-office-tower", "midtown-office-tower", "apartment-tower", "downtown-hotel", "civic-office-annex", "tech-campus", "brick-office-block", "parking-deck") if g in GEN],
         "MID": [g for g in ("brick-office-block", "mixed-use-block", "apartment-tower", "modern-loft-office", "downtown-hotel", "civic-office-annex", "corner-office", "parking-deck") if g in GEN],
-        "STRIP": [g for g in ("strip-mall", "mixed-use-block", "corner-grocery", "neighborhood-pharmacy", "neighborhood-diner", "auto-repair-shop", "gas-station", "barber-shop") if g in GEN],
+        "STRIP": [g for g in ("strip-mall", "mixed-use-block", "corner-grocery", "neighborhood-pharmacy", "neighborhood-diner", "auto-repair-shop", "gas-station", "barber-shop", "coffee-shop") if g in GEN],
         "INDUSTRIAL": [g for g in ("auto-repair-shop", "modern-loft-office", "strip-mall", "gas-station") if g in GEN],
     }
     # retail mix for STRIP blocks: mostly strip malls and mixed-use frontage, single-tenant buildings are rare and capped per block
-    STRIP_W = {"strip-mall": 5.0, "mixed-use-block": 5.0, "auto-repair-shop": 1.2, "corner-grocery": 1.0, "neighborhood-pharmacy": 0.8, "neighborhood-diner": 0.8, "gas-station": 0.25, "barber-shop": 0.15}
-    STRIP_CAP = {"strip-mall": 99, "mixed-use-block": 99, "auto-repair-shop": 2, "corner-grocery": 1, "neighborhood-pharmacy": 1, "neighborhood-diner": 1, "gas-station": 1, "barber-shop": 1}
+    STRIP_W = {"strip-mall": 5.0, "mixed-use-block": 5.0, "auto-repair-shop": 1.2, "corner-grocery": 1.0, "neighborhood-pharmacy": 0.8, "neighborhood-diner": 0.8, "gas-station": 0.25, "barber-shop": 0.15, "coffee-shop": 0.9}
+    STRIP_CAP = {"strip-mall": 99, "mixed-use-block": 99, "auto-repair-shop": 2, "corner-grocery": 1, "neighborhood-pharmacy": 1, "neighborhood-diner": 1, "gas-station": 1, "barber-shop": 1, "coffee-shop": 1}
     block_type_count = {}
     DENSE_RES = [g for g in ("townhouse-row", "duplex", "craftsman-bungalow", "tudor-house") if g in GEN]
     OUTER_RES = [g for g in ("ranch-house", "colonial-house", "split-level-house", "craftsman-bungalow", "tudor-house") if g in GEN]
+
+    # Neighbourhood civic buildings sit in residential blocks: rare, at most one per block, and a fixed number across the city so they stay landmarks.
+    # (Downtown zones are unchanged: new downtown models are on their way.)
+    CIVIC = [g for g in ("suburban-church", "elementary-school", "library-branch", "fire-station") if g in GEN]
+    n_res = max(zone_count.get("RESIDENTIAL", 0), 1)
+    civic_quota = {"suburban-church": max(2, n_res // 9), "elementary-school": max(2, n_res // 13), "library-branch": max(1, n_res // 28), "fire-station": max(1, n_res // 20)}
+    civic_left = {g: civic_quota.get(g, 1) for g in CIVIC}
+    civic_block = set()
+    recent = {}                                             # block -> the last few models placed there, so one block does not read as one house copied
 
     new = []
 
@@ -275,7 +284,13 @@ def main():
         else:
             pool = DENSE_RES if cmd < 1900 else OUTER_RES
             est = base_h[L]
-            opts = sorted(pool, key=lambda g: rng.random())[:3]
+            last = recent.get(L, [])
+            opts = sorted(pool, key=lambda g: rng.random() + 1.6 * last[-4:].count(g))[:3]      # a model used in the last four placements goes to the back
+            if CIVIC and L not in civic_block and rng.random() < 0.22:
+                open_ = [g for g in CIVIC if civic_left[g] > 0]
+                if open_:
+                    pick = open_[int(rng.integers(len(open_)))]
+                    opts = [pick] + opts
             scales = (1.0, 0.8, 0.62)
         done = False
         for sg in opts:
@@ -283,10 +298,14 @@ def main():
                 if try_place(sg, scale, x, z, di, k, sx_, sz_, nrm, phi, e1, e2, est, tall_zone, tall_zone):
                     done = True
                     block_type_count[(L, sg)] = block_type_count.get((L, sg), 0) + 1
+                    recent.setdefault(L, []).append(sg)
+                    if sg in civic_left:
+                        civic_left[sg] -= 1
+                        civic_block.add(L)
                     break
             if done:
                 break
-    print("infill buildings", len(new))
+    print("infill buildings", len(new), "civic placed", {g: civic_quota[g] - civic_left[g] for g in civic_quota})
     data["items"] = items + new
     data["notes"]["infill"] = len(new)
     json.dump(data, open(os.path.join(OUT, "city.json"), "w"))
