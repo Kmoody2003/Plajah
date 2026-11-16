@@ -1147,10 +1147,10 @@ vec3 facadeWeather(vec3 col, vec3 fw, float dist, float wet) {
   float lum = dot(col, vec3(0.299, 0.587, 0.114));
   col = mix(vec3(lum), col, 0.82);
   col = mix(vec3(lum), col, 1.0) * (0.88 + 0.28 * smoothstep(0.05, 0.6, lum));
-  col *= 1.0 - 0.58 * dirt;
+  col *= 1.0 - 0.45 * dirt;
   col = mix(col, col * vec3(0.8, 0.78, 0.74), dirt * 0.5);
-  float micro = fvn(fw * 11.0) * 0.5 + fvn(fw * 37.0) * 0.5;
-  col *= 1.0 + (micro - 0.5) * 0.55 * nearK;
+  float micro = fvn(fw * 5.0) * 0.6 + fvn(fw * 17.0) * 0.4;
+  col *= 1.0 + (micro - 0.5) * 0.26 * nearK;
   col *= 1.0 - 0.26 * wet * (0.6 + 0.4 * low);
   return col;
 }`;
@@ -1200,8 +1200,8 @@ function patchParallax(mat: THREE.MeshStandardMaterial): void {
 // storm) a share of the panes light up warm. The facade texture still supplies the mullions, tint and relief.
 const nightU = { value: 0 };
 function patchGlass(mat: THREE.MeshStandardMaterial): void {
-  mat.metalness = 0.86; mat.roughness = 0.5; mat.envMapIntensity = 2.6;
-  mat.color.multiplyScalar(0.34);
+  mat.metalness = 0.62; mat.roughness = 0.5; mat.envMapIntensity = 3.0;
+  mat.color.multiplyScalar(0.72);
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = (sh, r) => {
     prev?.call(mat, sh, r);

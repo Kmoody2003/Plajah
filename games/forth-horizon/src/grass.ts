@@ -122,14 +122,14 @@ export class GrassField {
       // grass where the satellite is green or straw-yellow and not dark (water, asphalt, roofs) or pale (sand, concrete)
       if (!(green > 0.015 || (c[0] > c[2] * 1.18 && c[1] > c[2] * 1.1 && lum > 0.2 && lum < 0.6)) || lum < 0.12 || lum > 0.72) continue;
       if (!this.o.ok(x, z)) continue;
-      const h = (0.34 + hash(i, j, 4) * 0.5 + Math.max(0, green) * 1.6) * fade;
+      const h = Math.min(0.62, 0.2 + hash(i, j, 4) * 0.3 + Math.max(0, green) * 0.6) * fade;
       const w = h * (1.15 + hash(i, j, 5) * 0.8) + 0.2;
       q.setFromAxisAngle(up, hash(i, j, 6) * 6.283);
       pos.set(x, this.o.ground(x, z) - 0.03, z); sc.set(w, h, w);
       m4.compose(pos, q, sc);
       this.im.setMatrixAt(n, m4);
       // tint from the ground under it, lifted toward a blade green so the satellite's shadows do not turn it black
-      col.setRGB(Math.min(1, c[0] * 1.5 + 0.1), Math.min(1, c[1] * 1.55 + 0.12), Math.min(1, c[2] * 1.2 + 0.04)).multiplyScalar(0.8 + hash(i, j, 7) * 0.45);
+      col.setRGB(Math.min(1, c[0] * 1.1 + 0.05), Math.min(1, c[1] * 1.15 + 0.07), Math.min(1, c[2] * 1.0 + 0.03)).multiplyScalar(0.62 + hash(i, j, 7) * 0.4);
       this.im.setColorAt(n, col);
       n++;
     }

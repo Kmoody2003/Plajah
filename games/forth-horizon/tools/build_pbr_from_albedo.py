@@ -44,8 +44,8 @@ def tileable(im, size):
 
 # material -> (flow file prefix, base roughness, relief strength, tiled)
 MATERIALS = {
-    "tex-shared-02-weathered-brick": ("Weathered_brick_wall_texture_9484", 0.88, 2.4, True),
-    "tex-shared-03-orange-brick": ("Red_brick_wall_texture", 0.86, 2.4, True),
+    "tex-shared-02-weathered-brick": ("Weathered_brick_wall_texture_9484", 0.88, 1.3, True),
+    "tex-shared-03-orange-brick": ("Red_brick_wall_texture", 0.86, 1.5, True),
     "tex-shared-06-granite": ("Grey_granite_blocks_texture_02ab", 0.62, 1.4, True),
     "tex-shared-08-glass-curtain-cerulean": ("Modern_glass_curtain_wall_texture", 0.14, 0.9, True),
     "tex-shared-09-glass-curtain-bronze": ("Skyscraper_curtain_wall_facade", 0.14, 0.9, True),
@@ -53,7 +53,7 @@ MATERIALS = {
     "tex-shared-12-bronze-metal": ("Corten_steel_panel_facade", 0.45, 1.3, True),
     "tex-shared-13-copper-roof": ("Brushed_copper_panel_cladding", 0.38, 1.0, True),
     "tex-shared-23-slate-roof": ("Dark_slate_stone_floor_tiles", 0.55, 1.8, True),
-    "tex-shared-24-stone-rubble": ("Stone_rubble_wall_texture", 0.9, 3.0, True),
+    "tex-shared-24-stone-rubble": ("Stone_rubble_wall_texture", 0.9, 1.8, True),
     "tex-hero-31-city-hall": ("Neoclassical_bank_building_facade", 0.78, 1.8, False),
 }
 # ground colour maps replaced in place (the terrain and road shaders read these)
