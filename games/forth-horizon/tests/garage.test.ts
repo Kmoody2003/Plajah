@@ -295,3 +295,54 @@ test('delivery: a full shift flows into the garage', () => {
   const o = g.recordDelivery(s);
   assert.ok(o.credits >= s.earnings && g.save.stats.deliveries === s.deliveries);
 });
+
+
+// ---------- where the garage stands ----------
+import { findCitySite, findFarmSite, exitPoint, wallBoxes, GARAGE_D, type SiteCtx } from '../src/garage/sites';
+
+const flatCtx = (over: Partial<SiteCtx> = {}): SiteCtx => ({
+  ground: () => 12, road: (x, z, pad) => Math.abs(z) < 6 + pad, blocked: () => false,
+  runs: [Array.from({ length: 60 }, (_, i) => ({ x: -300 + i * 10, z: 0 }))], center: { x: 0, z: 0 },
+  bounds: { minX: -9000, maxX: 9000, minZ: -9000, maxZ: 9000 }, ...over,
+});
+
+test('home: a new garage is in the city and the choice is saved', () => {
+  const g = new Garage(mem());
+  assert.equal(g.home, 'city');
+  g.setHome('farm'); assert.equal(g.home, 'farm');
+  // @ts-expect-error not a home
+  g.setHome('moon'); assert.equal(g.home, 'farm');
+});
+
+test('city site: beside the street, clear of the road, bay door facing it, and the car exits onto the street side', () => {
+  const site = findCitySite(flatCtx())!;
+  assert.ok(site, 'a plot was found');
+  assert.ok(Math.abs(site.z) > 14 && Math.abs(site.z) < 40, 'a lot back from the street, not on it');
+  const door = exitPoint(site, 0);                         // the front of the building
+  assert.ok(Math.abs(door.z) < Math.abs(site.z), 'the door is the side nearer the street');
+  assert.ok(Math.abs(site.padY - 12) < 0.01);
+  const none = findCitySite(flatCtx({ blocked: () => true }));
+  assert.equal(none, null, 'no plot when everything is built over');
+  const hilly = findCitySite(flatCtx({ ground: (x, z) => 12 + z * 0.4 }));
+  assert.equal(hilly, null, 'no plot on a steep slope');
+});
+
+test('farm site: out in the country, level, with a road within reach and trees kept off', () => {
+  const ctx = flatCtx({ road: (x, z, pad) => Math.abs(x - 5200) < 5 + pad, tree: (x, z) => Math.hypot(x - 5000, z) < 300 });
+  const site = findFarmSite(ctx)!;
+  assert.ok(site);
+  assert.ok(Math.hypot(site.x, site.z) >= 3000, 'well away from downtown');
+  assert.ok(Math.hypot(site.roadX - site.x, site.roadZ - site.z) <= 230);
+  assert.ok(Math.hypot(site.x - 5000, site.z) >= 300, 'not among the trees');
+  assert.equal(findFarmSite(flatCtx({ road: () => false })), null, 'a farm with no road is no use');
+});
+
+test('garage walls leave the door open for the car', () => {
+  const site = { home: 'city' as const, x: 100, z: 50, yaw: 0.6, padY: 10, roadX: 0, roadZ: 0 };
+  const boxes = wallBoxes(site);
+  assert.equal(boxes.length, 5);
+  const dx = Math.sin(site.yaw) * (GARAGE_D / 2), dz = Math.cos(site.yaw) * (GARAGE_D / 2);   // the middle of the door
+  const inBox = (b: { x: number; z: number; rotY: number; w: number; d: number }, x: number, z: number): boolean => { const c = Math.cos(b.rotY), s = Math.sin(b.rotY), ex = x - b.x, ez = z - b.z; return Math.abs(ex * c - ez * s) < b.w / 2 && Math.abs(ex * s + ez * c) < b.d / 2; };
+  assert.ok(!boxes.some((b) => inBox(b, site.x + dx, site.z + dz)), 'nothing blocks the middle of the door');
+  assert.ok(boxes.some((b) => inBox(b, site.x - dx * 0.97, site.z - dz * 0.97)), 'the back wall is solid');
+});

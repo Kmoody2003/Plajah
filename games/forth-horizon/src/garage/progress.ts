@@ -5,6 +5,7 @@ import { CAR_BY_ID, CAR_DEFS, classFor, stockSpec, type CarDef } from './catalog
 import { ACHIEVEMENTS, EVENT_IDS, EVENT_NAMES, OBJECTIVES, OBJECTIVE_BY_ID, medalAtLeast, statValue, type Objective, type Reward } from './objectives';
 import { MEDALS, PARTS, PART_BY_ID, SLOTS, partsFor, slotAvailable, stockPart, type Medal, type PartDef, type SlotId, type Unlock } from './parts';
 import { TUNE_PRESETS, clampTune, defaultTune, type Tune } from './tuning';
+import type { Home } from './sites';
 import { emptySave, emptyStats, levelOf, levelUpCredits, xpToReach, type GarageSave } from './types';
 
 export const SAVE_KEY = 'apex.garage.v1';
@@ -210,6 +211,8 @@ export class Garage {
     this.afterChange();
     return { ok: true, credits };
   }
+  get home(): Home { return this.save.home === 'farm' ? 'farm' : 'city'; }
+  setHome(h: Home): void { if (h === 'city' || h === 'farm') { this.save.home = h; this.persist(); } }
   setActive(uid: string): Result { if (!this.car(uid)) return fail('You do not own that car.'); this.save.activeUid = uid; this.persist(); return { ok: true }; }
   rename(uid: string, name: string): void { const c = this.car(uid); if (c) { c.nickname = name.slice(0, 24) || undefined; this.persist(); } }
   setPaint(uid: string, css: string): void { const c = this.car(uid); if (c) { c.paint = css; this.persist(); } }

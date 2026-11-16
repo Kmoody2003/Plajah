@@ -1,5 +1,6 @@
 import type { OwnedCar } from './build';
 import type { Medal } from './parts';
+import type { Home } from './sites';
 
 export interface Stats {
   runs: number; laps: number; cleanRuns: number; rainRuns: number;
@@ -18,6 +19,7 @@ export interface GarageSave {
   activeUid: string | null;
   nextUid: number;
   starterClaimed: boolean;
+  home: Home;                                 // where the player's garage stands: a city shop unit or a farm barn
   inventory: Record<string, number>;          // spare parts by id
   completed: string[];                        // finished objective ids (their rewards are paid)
   achievements: string[];
@@ -34,7 +36,7 @@ export const emptyStats = (): Stats => ({
 });
 
 export const emptySave = (): GarageSave => ({
-  v: 1, credits: 5000, xp: 0, cars: [], activeUid: null, nextUid: 1, starterClaimed: false, inventory: {}, completed: [], achievements: [], medals: {}, bestTimes: {}, seenUnlocks: [], stats: emptyStats(), log: [],
+  v: 1, credits: 5000, xp: 0, cars: [], activeUid: null, nextUid: 1, starterClaimed: false, home: 'city', inventory: {}, completed: [], achievements: [], medals: {}, bestTimes: {}, seenUnlocks: [], stats: emptyStats(), log: [],
 });
 
 /** level n needs this much XP in total */
