@@ -32,6 +32,14 @@ BARNS = [g for g in ("classic-red-barn", "dairy-barn", "hay-barn", "horse-stable
 OUTB = {g: w for g, w in (("equipment-shed", 3.0), ("tractor-shed", 2.5), ("farm-workshop", 1.5), ("corn-crib", 1.5), ("chicken-coop", 1.2), ("greenhouse", 0.9), ("farm-stand", 0.5)) if g in GEN}
 TALL = {g: p for g, p in (("grain-silo-twin", 0.55), ("water-tower-rural", 0.2), ("windmill", 0.28)) if g in GEN}
 HAMLET_CORE = [g for g in ("country-church", "rural-general-store", "one-room-schoolhouse", "cider-mill", "farm-stand") if g in GEN]
+# the new country buildings (N45-N60), by what they are
+_NEW = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "new_generics_roster.json")))
+_ok = lambda *names: [n for n in names if n in GEN]
+HOUSES += _ok("victorian-farmhouse", "victorian-farmhouse", "tenant-cottage")
+BARNS += _ok("tobacco-barn", "hog-barn", "sheep-barn")
+OUTB.update({g: w for g, w in (("windbreak-shed", 1.4), ("pump-house", 0.9), ("root-cellar", 0.7), ("maple-sugar-shack", 0.5), ("honey-house-apiary", 0.6), ("orchard-packing-shed", 1.1)) if g in GEN})
+TALL.update({g: p for g, p in (("farm-silo-single", 0.6), ("otter-creek-grain-elevator", 0.16)) if g in GEN})
+HAMLET_CORE += _ok("crossroads-diner", "otter-creek-feed-store", "otter-creek-fire-barn")
 HAMLET_HOMES = [g for g in ("colonial-house", "craftsman-bungalow", "farmhouse", "ranch-house", "tudor-house") if g in GEN]
 
 
@@ -77,6 +85,12 @@ def main():
     for key, wpx in (("coastal_highway", 3), ("freeway", 4)):                                  # a 36 to 48 m corridor: buildings keep off the carriageway
         p = np.array([cell(*q) for q in reg[key]["xz"]], np.float32).astype(np.int32)
         cv2.polylines(occ, [p], False, 1, wpx * 2)
+    # the country roads traced from the map texture (tools/trace_roads.py): kept clear, and farms and hamlets face them
+    cr_path = os.path.join(OUT, "country_roads.json")
+    if os.path.exists(cr_path):
+        for r in json.load(open(cr_path))["roads"]:
+            roads.append(np.array(r["xz"], np.float32))
+            cv2.polylines(occ, [np.array([cell(*q) for q in r["xz"]], np.float32).astype(np.int32)], False, 1, 4 if r["kind"] == "paved" else 3)
     for cn, c in reg["circuits"].items():
         p = np.array([cell(*q) for q in c["xz"]], np.float32).astype(np.int32)
         cv2.polylines(occ, [p], False, 1, 28)                                                               # 80 m either side
@@ -144,7 +158,7 @@ def main():
 
     # ---------------- farmsteads ----------------
     clear = ndi.distance_transform_edt(occ == 0) * CELL                                     # metres to the nearest blocked cell
-    free_idx = np.argwhere(clear > 30.0)
+    free_idx = np.argwhere(clear > 22.0)
     rng.shuffle(free_idx)
     farms = []
     for cj, ci in free_idx:
@@ -152,7 +166,7 @@ def main():
         if any((x - fx) ** 2 + (z - fz) ** 2 < 520.0 ** 2 for fx, fz in farms):
             continue
         dr, k = rtree.query([x, z])
-        if dr > 1400.0:
+        if dr > 170.0 or dr < 26.0:                                                         # a farm sits beside a road, set back from it
             continue
         front = rp[k] - np.array([x, z])
         front = front / (np.hypot(*front) or 1.0)

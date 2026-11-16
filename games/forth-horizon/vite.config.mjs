@@ -45,8 +45,31 @@ function mountStaticDir(prefix, rootDir) {
   };
 }
 
+// dev only: the map editor (src/mapEditor.ts) saves the roads and zones the developer draws to region/user_map.json
+function userMapSave() {
+  return {
+    name: 'user-map-save',
+    configureServer(server) {
+      server.middlewares.use('/__dev/user-map', (req, res) => {
+        if (req.method !== 'POST') { res.statusCode = 405; res.end('POST only'); return; }
+        let body = '';
+        req.on('data', (c) => { body += c; if (body.length > 8e6) req.destroy(); });
+        req.on('end', () => {
+          try {
+            const j = JSON.parse(body);
+            if (!j || !Array.isArray(j.features)) throw new Error('features missing');
+            fs.writeFileSync(path.resolve(here, '../../public/games/forth-horizon/region/user_map.json'), JSON.stringify(j));
+            res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ ok: true, features: j.features.length }));
+          } catch (e) { res.statusCode = 400; res.end(String(e)); }
+        });
+      });
+    },
+  };
+}
+
 export default defineConfig(({ command }) => ({
   plugins: [
+    userMapSave(),
     mountStaticDir('/ironport-assets', IRONPORT_DIR),
     mountStaticDir('/racer-refs', RACER_REFS_DIR),
     mountStaticDir('/cars', CARS_DIR),

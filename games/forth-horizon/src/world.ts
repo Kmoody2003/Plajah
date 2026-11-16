@@ -7,7 +7,7 @@ import {
   type FastTravelPoint,
 } from './worldMap';
 
-export type SurfaceType = 'asphalt' | 'sand' | 'grass';
+export type SurfaceType = 'asphalt' | 'sand' | 'grass' | 'gravel';
 
 export interface BoxCollider {
   minX: number;

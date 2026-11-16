@@ -6,7 +6,7 @@ import * as THREE from 'three';
 const R_NEAR = 68;       // grass radius (m)
 const CELL = 0.82;       // dense near-camera hair-like grass tufts
 
-function bladeTexture(): THREE.CanvasTexture {
+export function bladeTexture(): THREE.CanvasTexture {
   const c = document.createElement('canvas'); c.width = 512; c.height = 512;
   const g = c.getContext('2d')!;
   let s = 4242; const r = (): number => (s = (s * 16807) % 2147483647) / 2147483647;
@@ -36,7 +36,7 @@ function bladeTexture(): THREE.CanvasTexture {
 }
 
 /** four crossed tapered quads for fuller near-camera volume */
-function tuftGeo(): THREE.BufferGeometry {
+export function tuftGeo(): THREE.BufferGeometry {
   const pos: number[] = [], uv: number[] = [], nor: number[] = [], idx: number[] = [];
   for (let k = 0; k < 4; k++) {
     const a = (k * Math.PI) / 4, c = Math.cos(a), sn = Math.sin(a), b = pos.length / 3;

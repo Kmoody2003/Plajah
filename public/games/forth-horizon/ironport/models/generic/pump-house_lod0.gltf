@@ -1,0 +1,1341 @@
+{
+ "asset": {
+  "generator": "Khronos glTF Blender I/O v4.0.44",
+  "version": "2.0"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "name": "Scene",
+   "nodes": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0,
+   "name": "pump-house_walls"
+  },
+  {
+   "mesh": 1,
+   "name": "pump-house_gable_ends"
+  },
+  {
+   "mesh": 2,
+   "name": "pump-house_roof"
+  },
+  {
+   "mesh": 3,
+   "name": "pump-house_fen_04-limestone_0"
+  },
+  {
+   "mesh": 4,
+   "name": "pump-house_fen_18-timber-siding_1"
+  },
+  {
+   "mesh": 5,
+   "name": "pump-house_fen_18-timber-siding_2_t"
+  },
+  {
+   "mesh": 6,
+   "name": "pump-house_fen_12-bronze-metal_3"
+  },
+  {
+   "mesh": 7,
+   "name": "pump-house_fen_06-granite_4"
+  },
+  {
+   "mesh": 8,
+   "name": "pump-house_fen_07-glass-curtain-blue_5_t"
+  },
+  {
+   "mesh": 9,
+   "name": "pump-house_fen_14-steel-panel_6"
+  },
+  {
+   "mesh": 10,
+   "name": "pump-house__door"
+  },
+  {
+   "mesh": 11,
+   "name": "pump-house__wellhead_pipe"
+  },
+  {
+   "mesh": 12,
+   "name": "pump-house__plinth"
+  }
+ ],
+ "materials": [
+  {
+   "doubleSided": true,
+   "name": "tex-shared-24-stone-rubble_mat",
+   "normalTexture": {
+    "index": 0
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 1
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 2
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-23-slate-roof_mat",
+   "normalTexture": {
+    "index": 3
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 4
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 5
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-04-limestone_mat",
+   "normalTexture": {
+    "index": 6
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 7
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 8
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-18-timber-siding_mat",
+   "normalTexture": {
+    "index": 9
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 10
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 11
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-18-timber-siding_mat.001",
+   "normalTexture": {
+    "index": 12
+   },
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.7200000286102295,
+     0.7200000286102295,
+     0.7200000286102295,
+     1
+    ],
+    "baseColorTexture": {
+     "index": 13
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 14
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-12-bronze-metal_mat",
+   "normalTexture": {
+    "index": 15
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 16
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 17
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-06-granite_mat",
+   "normalTexture": {
+    "index": 18
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 19
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 20
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-07-glass-curtain-blue_mat",
+   "normalTexture": {
+    "index": 21
+   },
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.15000000596046448,
+     0.15000000596046448,
+     0.18000000715255737,
+     1
+    ],
+    "baseColorTexture": {
+     "index": 22
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 23
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-14-steel-panel_mat",
+   "normalTexture": {
+    "index": 24
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 25
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 26
+    }
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "name": "pump-house_walls",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  },
+  {
+   "name": "pump-house_gable_ends",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 4,
+      "NORMAL": 5,
+      "TEXCOORD_0": 6
+     },
+     "indices": 7,
+     "material": 0
+    }
+   ]
+  },
+  {
+   "name": "pump-house_roof",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 8,
+      "NORMAL": 9,
+      "TEXCOORD_0": 10
+     },
+     "indices": 11,
+     "material": 1
+    }
+   ]
+  },
+  {
+   "name": "pump-house_fen_04-limestone_0",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 12,
+      "NORMAL": 13,
+      "TEXCOORD_0": 14
+     },
+     "indices": 15,
+     "material": 2
+    }
+   ]
+  },
+  {
+   "name": "pump-house_fen_18-timber-siding_1",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 16,
+      "NORMAL": 17,
+      "TEXCOORD_0": 18
+     },
+     "indices": 19,
+     "material": 3
+    }
+   ]
+  },
+  {
+   "name": "pump-house_fen_18-timber-siding_2_t",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 20,
+      "NORMAL": 21,
+      "TEXCOORD_0": 22
+     },
+     "indices": 23,
+     "material": 4
+    }
+   ]
+  },
+  {
+   "name": "pump-house_fen_12-bronze-metal_3",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 24,
+      "NORMAL": 25,
+      "TEXCOORD_0": 26
+     },
+     "indices": 19,
+     "material": 5
+    }
+   ]
+  },
+  {
+   "name": "pump-house_fen_06-granite_4",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 27,
+      "NORMAL": 28,
+      "TEXCOORD_0": 29
+     },
+     "indices": 19,
+     "material": 6
+    }
+   ]
+  },
+  {
+   "name": "pump-house_fen_07-glass-curtain-blue_5_t",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 30,
+      "NORMAL": 31,
+      "TEXCOORD_0": 32
+     },
+     "indices": 33,
+     "material": 7
+    }
+   ]
+  },
+  {
+   "name": "pump-house_fen_14-steel-panel_6",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 34,
+      "NORMAL": 35,
+      "TEXCOORD_0": 36
+     },
+     "indices": 23,
+     "material": 8
+    }
+   ]
+  },
+  {
+   "name": "pump-house__door",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 37,
+      "NORMAL": 38,
+      "TEXCOORD_0": 39
+     },
+     "indices": 19,
+     "material": 3
+    }
+   ]
+  },
+  {
+   "name": "pump-house__wellhead_pipe",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 40,
+      "NORMAL": 41,
+      "TEXCOORD_0": 42
+     },
+     "indices": 43,
+     "material": 8
+    }
+   ]
+  },
+  {
+   "name": "pump-house__plinth",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 44,
+      "NORMAL": 45,
+      "TEXCOORD_0": 46
+     },
+     "indices": 19,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "textures": [
+  {
+   "sampler": 0,
+   "source": 0
+  },
+  {
+   "sampler": 0,
+   "source": 1
+  },
+  {
+   "sampler": 0,
+   "source": 2
+  },
+  {
+   "sampler": 0,
+   "source": 3
+  },
+  {
+   "sampler": 0,
+   "source": 4
+  },
+  {
+   "sampler": 0,
+   "source": 5
+  },
+  {
+   "sampler": 0,
+   "source": 6
+  },
+  {
+   "sampler": 0,
+   "source": 7
+  },
+  {
+   "sampler": 0,
+   "source": 8
+  },
+  {
+   "sampler": 0,
+   "source": 9
+  },
+  {
+   "sampler": 0,
+   "source": 10
+  },
+  {
+   "sampler": 0,
+   "source": 11
+  },
+  {
+   "sampler": 0,
+   "source": 9
+  },
+  {
+   "sampler": 0,
+   "source": 10
+  },
+  {
+   "sampler": 0,
+   "source": 11
+  },
+  {
+   "sampler": 0,
+   "source": 12
+  },
+  {
+   "sampler": 0,
+   "source": 13
+  },
+  {
+   "sampler": 0,
+   "source": 14
+  },
+  {
+   "sampler": 0,
+   "source": 15
+  },
+  {
+   "sampler": 0,
+   "source": 16
+  },
+  {
+   "sampler": 0,
+   "source": 17
+  },
+  {
+   "sampler": 0,
+   "source": 18
+  },
+  {
+   "sampler": 0,
+   "source": 19
+  },
+  {
+   "sampler": 0,
+   "source": 20
+  },
+  {
+   "sampler": 0,
+   "source": 21
+  },
+  {
+   "sampler": 0,
+   "source": 22
+  },
+  {
+   "sampler": 0,
+   "source": 23
+  }
+ ],
+ "images": [
+  {
+   "name": "tex-shared-24-stone-rubble_nrm",
+   "uri": "../../textures/shared/tex-shared-24-stone-rubble_nrm.png"
+  },
+  {
+   "name": "tex-shared-24-stone-rubble_base",
+   "uri": "../../textures/shared/tex-shared-24-stone-rubble_base.png"
+  },
+  {
+   "name": "tex-shared-24-stone-rubble_rgh",
+   "uri": "../../textures/shared/tex-shared-24-stone-rubble_rgh.png"
+  },
+  {
+   "name": "tex-shared-23-slate-roof_nrm",
+   "uri": "../../textures/shared/tex-shared-23-slate-roof_nrm.png"
+  },
+  {
+   "name": "tex-shared-23-slate-roof_base",
+   "uri": "../../textures/shared/tex-shared-23-slate-roof_base.png"
+  },
+  {
+   "name": "tex-shared-23-slate-roof_rgh",
+   "uri": "../../textures/shared/tex-shared-23-slate-roof_rgh.png"
+  },
+  {
+   "name": "tex-shared-04-limestone_nrm",
+   "uri": "../../textures/shared/tex-shared-04-limestone_nrm.png"
+  },
+  {
+   "name": "tex-shared-04-limestone_base",
+   "uri": "../../textures/shared/tex-shared-04-limestone_base.png"
+  },
+  {
+   "name": "tex-shared-04-limestone_rgh",
+   "uri": "../../textures/shared/tex-shared-04-limestone_rgh.png"
+  },
+  {
+   "name": "tex-shared-18-timber-siding_nrm",
+   "uri": "../../textures/shared/tex-shared-18-timber-siding_nrm.png"
+  },
+  {
+   "name": "tex-shared-18-timber-siding_base",
+   "uri": "../../textures/shared/tex-shared-18-timber-siding_base.png"
+  },
+  {
+   "name": "tex-shared-18-timber-siding_rgh",
+   "uri": "../../textures/shared/tex-shared-18-timber-siding_rgh.png"
+  },
+  {
+   "name": "tex-shared-12-bronze-metal_nrm",
+   "uri": "../../textures/shared/tex-shared-12-bronze-metal_nrm.png"
+  },
+  {
+   "name": "tex-shared-12-bronze-metal_base",
+   "uri": "../../textures/shared/tex-shared-12-bronze-metal_base.png"
+  },
+  {
+   "name": "tex-shared-12-bronze-metal_rgh",
+   "uri": "../../textures/shared/tex-shared-12-bronze-metal_rgh.png"
+  },
+  {
+   "name": "tex-shared-06-granite_nrm",
+   "uri": "../../textures/shared/tex-shared-06-granite_nrm.png"
+  },
+  {
+   "name": "tex-shared-06-granite_base",
+   "uri": "../../textures/shared/tex-shared-06-granite_base.png"
+  },
+  {
+   "name": "tex-shared-06-granite_rgh",
+   "uri": "../../textures/shared/tex-shared-06-granite_rgh.png"
+  },
+  {
+   "name": "tex-shared-07-glass-curtain-blue_nrm",
+   "uri": "../../textures/shared/tex-shared-07-glass-curtain-blue_nrm.png"
+  },
+  {
+   "name": "tex-shared-07-glass-curtain-blue_base",
+   "uri": "../../textures/shared/tex-shared-07-glass-curtain-blue_base.png"
+  },
+  {
+   "name": "tex-shared-07-glass-curtain-blue_rgh",
+   "uri": "../../textures/shared/tex-shared-07-glass-curtain-blue_rgh.png"
+  },
+  {
+   "name": "tex-shared-14-steel-panel_nrm",
+   "uri": "../../textures/shared/tex-shared-14-steel-panel_nrm.png"
+  },
+  {
+   "name": "tex-shared-14-steel-panel_base",
+   "uri": "../../textures/shared/tex-shared-14-steel-panel_base.png"
+  },
+  {
+   "name": "tex-shared-14-steel-panel_rgh",
+   "uri": "../../textures/shared/tex-shared-14-steel-panel_rgh.png"
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 16,
+   "max": [
+    2.5,
+    2.799999952316284,
+    2
+   ],
+   "min": [
+    -2.5,
+    0,
+    -2
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 16,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 16,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5123,
+   "count": 24,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 4,
+   "componentType": 5126,
+   "count": 6,
+   "max": [
+    2.5,
+    4,
+    2
+   ],
+   "min": [
+    -2.5,
+    2.799999952316284,
+    -2
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 5,
+   "componentType": 5126,
+   "count": 6,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 6,
+   "componentType": 5126,
+   "count": 6,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 7,
+   "componentType": 5123,
+   "count": 6,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 8,
+   "componentType": 5126,
+   "count": 8,
+   "max": [
+    2.5,
+    4,
+    2
+   ],
+   "min": [
+    -2.5,
+    2.799999952316284,
+    -2
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 9,
+   "componentType": 5126,
+   "count": 8,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 10,
+   "componentType": 5126,
+   "count": 8,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 11,
+   "componentType": 5123,
+   "count": 12,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 12,
+   "componentType": 5126,
+   "count": 660,
+   "max": [
+    2.7750000953674316,
+    2.6500000953674316,
+    2.2750000953674316
+   ],
+   "min": [
+    -2.7750000953674316,
+    0,
+    -2.2750000953674316
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 13,
+   "componentType": 5126,
+   "count": 660,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 14,
+   "componentType": 5126,
+   "count": 660,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 15,
+   "componentType": 5123,
+   "count": 990,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 16,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    0.6200000047683716,
+    2.2200000286102295,
+    2.1449999809265137
+   ],
+   "min": [
+    -0.6200000047683716,
+    0,
+    1.8949999809265137
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 17,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 18,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 19,
+   "componentType": 5123,
+   "count": 30,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 20,
+   "componentType": 5126,
+   "count": 40,
+   "max": [
+    0.3720000088214874,
+    1.8919999599456787,
+    2.1700000762939453
+   ],
+   "min": [
+    -0.3720000088214874,
+    0.2199999988079071,
+    2.069999933242798
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 21,
+   "componentType": 5126,
+   "count": 40,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 22,
+   "componentType": 5126,
+   "count": 40,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 23,
+   "componentType": 5123,
+   "count": 60,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 24,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    0.45500001311302185,
+    1.2000000476837158,
+    2.2100000381469727
+   ],
+   "min": [
+    0.38499999046325684,
+    0.949999988079071,
+    2.0899999141693115
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 25,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 26,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 27,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    0.8999999761581421,
+    0.15000000596046448,
+    2.4000000953674316
+   ],
+   "min": [
+    -0.8999999761581421,
+    0,
+    1.899999976158142
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 28,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 29,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 30,
+   "componentType": 5126,
+   "count": 100,
+   "max": [
+    2.6449999809265137,
+    2.5199999809265137,
+    2.1449999809265137
+   ],
+   "min": [
+    -2.6449999809265137,
+    1.4800000190734863,
+    -2.1449999809265137
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 31,
+   "componentType": 5126,
+   "count": 100,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 32,
+   "componentType": 5126,
+   "count": 100,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 33,
+   "componentType": 5123,
+   "count": 150,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 34,
+   "componentType": 5126,
+   "count": 40,
+   "max": [
+    2.049999952316284,
+    2.200000047683716,
+    -1.9500000476837158
+   ],
+   "min": [
+    1.5499999523162842,
+    1,
+    -2.3499999046325684
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 35,
+   "componentType": 5126,
+   "count": 40,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 36,
+   "componentType": 5126,
+   "count": 40,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 37,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    0.6000000238418579,
+    2.200000047683716,
+    2.125
+   ],
+   "min": [
+    -0.6000000238418579,
+    0,
+    1.975000023841858
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 38,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 39,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 40,
+   "componentType": 5126,
+   "count": 56,
+   "max": [
+    3.1500000953674316,
+    1.5,
+    2.6500000953674316
+   ],
+   "min": [
+    2.8499999046325684,
+    0,
+    2.3499999046325684
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 41,
+   "componentType": 5126,
+   "count": 56,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 42,
+   "componentType": 5126,
+   "count": 56,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 43,
+   "componentType": 5123,
+   "count": 72,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 44,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    2.799999952316284,
+    0.20000000298023224,
+    2.299999952316284
+   ],
+   "min": [
+    -2.799999952316284,
+    0,
+    -2.299999952316284
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 45,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 46,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteLength": 192,
+   "byteOffset": 0,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 192,
+   "byteOffset": 192,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 128,
+   "byteOffset": 384,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 48,
+   "byteOffset": 512,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 72,
+   "byteOffset": 560,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 72,
+   "byteOffset": 632,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 48,
+   "byteOffset": 704,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 12,
+   "byteOffset": 752,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 96,
+   "byteOffset": 764,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 96,
+   "byteOffset": 860,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 64,
+   "byteOffset": 956,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 24,
+   "byteOffset": 1020,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 7920,
+   "byteOffset": 1044,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 7920,
+   "byteOffset": 8964,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 5280,
+   "byteOffset": 16884,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 1980,
+   "byteOffset": 22164,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 24144,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 24384,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 24624,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 60,
+   "byteOffset": 24784,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 480,
+   "byteOffset": 24844,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 480,
+   "byteOffset": 25324,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 320,
+   "byteOffset": 25804,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 120,
+   "byteOffset": 26124,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 26244,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 26484,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 26724,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 26884,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 27124,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 27364,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 1200,
+   "byteOffset": 27524,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 1200,
+   "byteOffset": 28724,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 800,
+   "byteOffset": 29924,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 300,
+   "byteOffset": 30724,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 480,
+   "byteOffset": 31024,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 480,
+   "byteOffset": 31504,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 320,
+   "byteOffset": 31984,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 32304,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 32544,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 32784,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 672,
+   "byteOffset": 32944,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 672,
+   "byteOffset": 33616,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 448,
+   "byteOffset": 34288,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 144,
+   "byteOffset": 34736,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 34880,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 35120,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 35360,
+   "target": 34962
+  }
+ ],
+ "samplers": [
+  {
+   "magFilter": 9729,
+   "minFilter": 9987
+  }
+ ],
+ "buffers": [
+  {
+   "byteLength": 35520,
+   "uri": "pump-house_lod0.bin"
+  }
+ ]
+}

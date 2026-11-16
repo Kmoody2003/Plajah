@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { wheel, type CarRig } from './car';
 import { buildBodyGeometry } from './sovbody';
-import { toTris, toGeometry, clipRegion, splitUnion, boxRegion, sideRegion, toMesh, thicken, plane, type Tri, type Region } from './scanparts';
+import { type Vtx, toTris, toGeometry, clipRegion, splitUnion, boxRegion, sideRegion, toMesh, thicken, plane, type Tri, type Region } from './scanparts';
 import sovSpec from '../car/sovereign/spec.json';
 
 export interface ScanSpec {

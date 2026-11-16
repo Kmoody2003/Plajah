@@ -114,9 +114,11 @@ export function stepCarPhysics(
       ? 1.0
       : state.surface === 'grass'
       ? 0.72 + offroadBonus * 0.5
+      : state.surface === 'gravel'
+      ? 0.8 + offroadBonus * 0.55                    // a packed rally road: loose, but a lot more grip than sand, and a rally car makes more of it
       : 0.62 + offroadBonus;
   const surfaceDrag =
-    state.surface === 'asphalt' ? 0.0 : state.surface === 'grass' ? 0.42 : 0.68 - offroadBonus;
+    state.surface === 'asphalt' ? 0.0 : state.surface === 'grass' ? 0.42 : state.surface === 'gravel' ? Math.max(0.06, 0.2 - offroadBonus * 0.5) : 0.68 - offroadBonus;
 
   const sinY = Math.sin(state.yaw);
   const cosY = Math.cos(state.yaw);

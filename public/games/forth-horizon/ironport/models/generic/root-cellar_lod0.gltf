@@ -1,0 +1,1108 @@
+{
+ "asset": {
+  "generator": "Khronos glTF Blender I/O v4.0.44",
+  "version": "2.0"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "name": "Scene",
+   "nodes": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0,
+   "name": "root-cellar_main"
+  },
+  {
+   "mesh": 1,
+   "name": "root-cellar_fen_04-limestone_0"
+  },
+  {
+   "mesh": 2,
+   "name": "root-cellar_fen_18-timber-siding_1"
+  },
+  {
+   "mesh": 3,
+   "name": "root-cellar_fen_18-timber-siding_2_t"
+  },
+  {
+   "mesh": 4,
+   "name": "root-cellar_fen_12-bronze-metal_3"
+  },
+  {
+   "mesh": 5,
+   "name": "root-cellar_fen_07-glass-curtain-blue_4_t"
+  },
+  {
+   "mesh": 6,
+   "name": "root-cellar__berm_cap"
+  },
+  {
+   "mesh": 7,
+   "name": "root-cellar__door"
+  },
+  {
+   "mesh": 8,
+   "name": "root-cellar__step_a"
+  },
+  {
+   "mesh": 9,
+   "name": "root-cellar__step_b"
+  },
+  {
+   "mesh": 10,
+   "name": "root-cellar__barrel_a"
+  },
+  {
+   "mesh": 11,
+   "name": "root-cellar__barrel_b"
+  }
+ ],
+ "materials": [
+  {
+   "doubleSided": true,
+   "name": "tex-shared-24-stone-rubble_mat",
+   "normalTexture": {
+    "index": 0
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 1
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 2
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-04-limestone_mat",
+   "normalTexture": {
+    "index": 3
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 4
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 5
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-18-timber-siding_mat",
+   "normalTexture": {
+    "index": 6
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 7
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 8
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-18-timber-siding_mat.001",
+   "normalTexture": {
+    "index": 9
+   },
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.7200000286102295,
+     0.7200000286102295,
+     0.7200000286102295,
+     1
+    ],
+    "baseColorTexture": {
+     "index": 10
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 11
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-12-bronze-metal_mat",
+   "normalTexture": {
+    "index": 12
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 13
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 14
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-07-glass-curtain-blue_mat",
+   "normalTexture": {
+    "index": 15
+   },
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.15000000596046448,
+     0.15000000596046448,
+     0.18000000715255737,
+     1
+    ],
+    "baseColorTexture": {
+     "index": 16
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 17
+    }
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "name": "root-cellar_main",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  },
+  {
+   "name": "root-cellar_fen_04-limestone_0",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 4,
+      "NORMAL": 5,
+      "TEXCOORD_0": 6
+     },
+     "indices": 7,
+     "material": 1
+    }
+   ]
+  },
+  {
+   "name": "root-cellar_fen_18-timber-siding_1",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 8,
+      "NORMAL": 9,
+      "TEXCOORD_0": 10
+     },
+     "indices": 3,
+     "material": 2
+    }
+   ]
+  },
+  {
+   "name": "root-cellar_fen_18-timber-siding_2_t",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 11,
+      "NORMAL": 12,
+      "TEXCOORD_0": 13
+     },
+     "indices": 14,
+     "material": 3
+    }
+   ]
+  },
+  {
+   "name": "root-cellar_fen_12-bronze-metal_3",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 15,
+      "NORMAL": 16,
+      "TEXCOORD_0": 17
+     },
+     "indices": 3,
+     "material": 4
+    }
+   ]
+  },
+  {
+   "name": "root-cellar_fen_07-glass-curtain-blue_4_t",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 18,
+      "NORMAL": 19,
+      "TEXCOORD_0": 20
+     },
+     "indices": 3,
+     "material": 5
+    }
+   ]
+  },
+  {
+   "name": "root-cellar__berm_cap",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 21,
+      "NORMAL": 22,
+      "TEXCOORD_0": 23
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  },
+  {
+   "name": "root-cellar__door",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 24,
+      "NORMAL": 25,
+      "TEXCOORD_0": 26
+     },
+     "indices": 3,
+     "material": 2
+    }
+   ]
+  },
+  {
+   "name": "root-cellar__step_a",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 27,
+      "NORMAL": 28,
+      "TEXCOORD_0": 29
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  },
+  {
+   "name": "root-cellar__step_b",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 30,
+      "NORMAL": 31,
+      "TEXCOORD_0": 32
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  },
+  {
+   "name": "root-cellar__barrel_a",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 33,
+      "NORMAL": 34,
+      "TEXCOORD_0": 35
+     },
+     "indices": 36,
+     "material": 2
+    }
+   ]
+  },
+  {
+   "name": "root-cellar__barrel_b",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 37,
+      "NORMAL": 38,
+      "TEXCOORD_0": 39
+     },
+     "indices": 36,
+     "material": 2
+    }
+   ]
+  }
+ ],
+ "textures": [
+  {
+   "sampler": 0,
+   "source": 0
+  },
+  {
+   "sampler": 0,
+   "source": 1
+  },
+  {
+   "sampler": 0,
+   "source": 2
+  },
+  {
+   "sampler": 0,
+   "source": 3
+  },
+  {
+   "sampler": 0,
+   "source": 4
+  },
+  {
+   "sampler": 0,
+   "source": 5
+  },
+  {
+   "sampler": 0,
+   "source": 6
+  },
+  {
+   "sampler": 0,
+   "source": 7
+  },
+  {
+   "sampler": 0,
+   "source": 8
+  },
+  {
+   "sampler": 0,
+   "source": 6
+  },
+  {
+   "sampler": 0,
+   "source": 7
+  },
+  {
+   "sampler": 0,
+   "source": 8
+  },
+  {
+   "sampler": 0,
+   "source": 9
+  },
+  {
+   "sampler": 0,
+   "source": 10
+  },
+  {
+   "sampler": 0,
+   "source": 11
+  },
+  {
+   "sampler": 0,
+   "source": 12
+  },
+  {
+   "sampler": 0,
+   "source": 13
+  },
+  {
+   "sampler": 0,
+   "source": 14
+  }
+ ],
+ "images": [
+  {
+   "name": "tex-shared-24-stone-rubble_nrm",
+   "uri": "../../textures/shared/tex-shared-24-stone-rubble_nrm.png"
+  },
+  {
+   "name": "tex-shared-24-stone-rubble_base",
+   "uri": "../../textures/shared/tex-shared-24-stone-rubble_base.png"
+  },
+  {
+   "name": "tex-shared-24-stone-rubble_rgh",
+   "uri": "../../textures/shared/tex-shared-24-stone-rubble_rgh.png"
+  },
+  {
+   "name": "tex-shared-04-limestone_nrm",
+   "uri": "../../textures/shared/tex-shared-04-limestone_nrm.png"
+  },
+  {
+   "name": "tex-shared-04-limestone_base",
+   "uri": "../../textures/shared/tex-shared-04-limestone_base.png"
+  },
+  {
+   "name": "tex-shared-04-limestone_rgh",
+   "uri": "../../textures/shared/tex-shared-04-limestone_rgh.png"
+  },
+  {
+   "name": "tex-shared-18-timber-siding_nrm",
+   "uri": "../../textures/shared/tex-shared-18-timber-siding_nrm.png"
+  },
+  {
+   "name": "tex-shared-18-timber-siding_base",
+   "uri": "../../textures/shared/tex-shared-18-timber-siding_base.png"
+  },
+  {
+   "name": "tex-shared-18-timber-siding_rgh",
+   "uri": "../../textures/shared/tex-shared-18-timber-siding_rgh.png"
+  },
+  {
+   "name": "tex-shared-12-bronze-metal_nrm",
+   "uri": "../../textures/shared/tex-shared-12-bronze-metal_nrm.png"
+  },
+  {
+   "name": "tex-shared-12-bronze-metal_base",
+   "uri": "../../textures/shared/tex-shared-12-bronze-metal_base.png"
+  },
+  {
+   "name": "tex-shared-12-bronze-metal_rgh",
+   "uri": "../../textures/shared/tex-shared-12-bronze-metal_rgh.png"
+  },
+  {
+   "name": "tex-shared-07-glass-curtain-blue_nrm",
+   "uri": "../../textures/shared/tex-shared-07-glass-curtain-blue_nrm.png"
+  },
+  {
+   "name": "tex-shared-07-glass-curtain-blue_base",
+   "uri": "../../textures/shared/tex-shared-07-glass-curtain-blue_base.png"
+  },
+  {
+   "name": "tex-shared-07-glass-curtain-blue_rgh",
+   "uri": "../../textures/shared/tex-shared-07-glass-curtain-blue_rgh.png"
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    4,
+    2.5999999046325684,
+    2.5
+   ],
+   "min": [
+    -4,
+    0,
+    -2.5
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5123,
+   "count": 30,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 4,
+   "componentType": 5126,
+   "count": 180,
+   "max": [
+    3.25,
+    2.1500000953674316,
+    2.7750000953674316
+   ],
+   "min": [
+    -0.8500000238418579,
+    0,
+    2.424999952316284
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 5,
+   "componentType": 5126,
+   "count": 180,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 6,
+   "componentType": 5126,
+   "count": 180,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 7,
+   "componentType": 5123,
+   "count": 270,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 8,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    0.7200000286102295,
+    2.0199999809265137,
+    2.6449999809265137
+   ],
+   "min": [
+    -0.7200000286102295,
+    0,
+    2.3949999809265137
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 9,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 10,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 11,
+   "componentType": 5126,
+   "count": 40,
+   "max": [
+    0.4339999854564667,
+    1.7200000286102295,
+    2.6700000762939453
+   ],
+   "min": [
+    -0.4339999854564667,
+    0.20000000298023224,
+    2.569999933242798
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 12,
+   "componentType": 5126,
+   "count": 40,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 13,
+   "componentType": 5126,
+   "count": 40,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 14,
+   "componentType": 5123,
+   "count": 60,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 15,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    0.5550000071525574,
+    1.2000000476837158,
+    2.7100000381469727
+   ],
+   "min": [
+    0.48500001430511475,
+    0.949999988079071,
+    2.5899999141693115
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 16,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 17,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 18,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    3.0199999809265137,
+    2.0199999809265137,
+    2.6449999809265137
+   ],
+   "min": [
+    1.9800000190734863,
+    1.1799999475479126,
+    2.3949999809265137
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 19,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 20,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 21,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    3.799999952316284,
+    3,
+    2.299999952316284
+   ],
+   "min": [
+    -3.799999952316284,
+    2.5999999046325684,
+    -2.299999952316284
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 22,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 23,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 24,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    0.699999988079071,
+    2,
+    2.625
+   ],
+   "min": [
+    -0.699999988079071,
+    0,
+    2.4749999046325684
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 25,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 26,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 27,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    1,
+    0.25,
+    3.5
+   ],
+   "min": [
+    -1,
+    0,
+    2.5
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 28,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 29,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 30,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    1,
+    0.5,
+    3.0999999046325684
+   ],
+   "min": [
+    -1,
+    0,
+    2.5
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 31,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 32,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 33,
+   "componentType": 5126,
+   "count": 56,
+   "max": [
+    -2.5999999046325684,
+    0.8999999761581421,
+    3.9000000953674316
+   ],
+   "min": [
+    -3.4000000953674316,
+    0,
+    3.0999999046325684
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 34,
+   "componentType": 5126,
+   "count": 56,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 35,
+   "componentType": 5126,
+   "count": 56,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 36,
+   "componentType": 5123,
+   "count": 72,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 37,
+   "componentType": 5126,
+   "count": 56,
+   "max": [
+    3.4000000953674316,
+    0.8999999761581421,
+    3.9000000953674316
+   ],
+   "min": [
+    2.5999999046325684,
+    0,
+    3.0999999046325684
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 38,
+   "componentType": 5126,
+   "count": 56,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 39,
+   "componentType": 5126,
+   "count": 56,
+   "type": "VEC2"
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 0,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 240,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 480,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 60,
+   "byteOffset": 640,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 2160,
+   "byteOffset": 700,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 2160,
+   "byteOffset": 2860,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 1440,
+   "byteOffset": 5020,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 540,
+   "byteOffset": 6460,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 7000,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 7240,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 7480,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 480,
+   "byteOffset": 7640,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 480,
+   "byteOffset": 8120,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 320,
+   "byteOffset": 8600,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 120,
+   "byteOffset": 8920,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 9040,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 9280,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 9520,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 9680,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 9920,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 10160,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 10320,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 10560,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 10800,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 10960,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 11200,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 11440,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 11600,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 11840,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 12080,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 12240,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 12480,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 12720,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 672,
+   "byteOffset": 12880,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 672,
+   "byteOffset": 13552,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 448,
+   "byteOffset": 14224,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 144,
+   "byteOffset": 14672,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 672,
+   "byteOffset": 14816,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 672,
+   "byteOffset": 15488,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 448,
+   "byteOffset": 16160,
+   "target": 34962
+  }
+ ],
+ "samplers": [
+  {
+   "magFilter": 9729,
+   "minFilter": 9987
+  }
+ ],
+ "buffers": [
+  {
+   "byteLength": 16608,
+   "uri": "root-cellar_lod0.bin"
+  }
+ ]
+}

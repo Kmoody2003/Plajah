@@ -23,17 +23,22 @@ import { DriveInput } from './inputs';
 import { TrackKit } from './trackkit';
 import { buildPinewoodRallyCircuit } from './circuits/pinewoodRally';
 import { buildCliffRacewayCircuit } from './circuits/cliffRaceway';
+import { buildCountryScenes, carveCreek, type CountryScenes, type RoadNetwork, type Shoreline, carveShoreline } from './countryScenes';
 import { buildRuralOpenWorldDetail } from './ruralDetail';
 import { buildCityExpansion } from './cityExpansion';
-import { buildHeroBridge } from './heroBridge';
+import { buildRiverBridges } from './riverBridges';
+import { createMapEditor, ROAD_STYLE, type RoadKind, type UserMap } from './mapEditor';
 import { CompetitionEngine } from './racingAI';
 import { TrafficManager, OpenWorldChallengeManager } from './openWorldEvents';
-import { CARS } from './manufacturers';
+import { CopsAndRobbersMode, type PursuitRoleChoice } from './copsAndRobbers';
+import { OnlineSessionManager } from './onlineMultiplayer';
 import { harborDetail } from './harborDetail';
 import { duneDetail } from './duneDetail';
+import { Vegetation } from './vegetation';
+import { buildIndustrialCircuit } from './industrialCircuit';
 import { injectRoadPbr, roadUniforms, loadRoadPbr } from './roadpbr';
 loadRoadPbr();
-import { SprayFx, puddleDepth, PUDDLE_GLSL } from './spray';
+import { SprayFx, DustFx, puddleDepth, PUDDLE_GLSL } from './spray';
 import { TreeField, cardLod } from './trees';
 import { EzTreeField } from './ezforest';
 import { GrassField } from './grass';
@@ -140,9 +145,9 @@ function csmSetup(m: THREE.Material): void {
     const far = Math.min(camera.far, csm.maxFar);
     (csm as unknown as { _getExtendedBreaks(b: THREE.Vector2[]): void })._getExtendedBreaks(breaks);
     shader.uniforms.CSM_cascades = { value: breaks }; shader.uniforms.cameraNear = { value: camera.near }; shader.uniforms.shadowFar = { value: far };
-    csm.shaders.set(mm, shader);
+    (csm.shaders as unknown as Map<THREE.Material, unknown>).set(mm, shader);
   };
-  csm.shaders.set(mm, null);
+  (csm.shaders as unknown as Map<THREE.Material, unknown>).set(mm, null);
   mm.needsUpdate = true;
 }
 // ---------- shader warm-up ----------
@@ -177,7 +182,7 @@ async function warmShaders(): Promise<void> {
   const step = (): void => { const t = q.pop(); if (!t) { console.log('warm-up done'); return; } try { renderer.initTexture(t); } catch { /* not ready */ } requestAnimationFrame(step); };
   requestAnimationFrame(step);
 }
-const warmTimer = setInterval(() => { if ((window as unknown as { cityCount?: number }).cityCount && treeFields.length >= 3 && grassField && !warmed) { clearInterval(warmTimer); void warmShaders(); } }, 600);
+const warmTimer = setInterval(() => { if ((window as unknown as { cityCount?: number }).cityCount && treeFields.length >= 3 && (grassField || vegetation) && !warmed) { clearInterval(warmTimer); void warmShaders(); } }, 600);
 let csmTick = 0;
 /** every lit material in the scene must use the cascades, or it is lit three times over: sweep for new ones a few times a second */
 function csmSweep(force = false): void {
@@ -257,6 +262,9 @@ fetch('/games/forth-horizon/region/city_mask.json').then((r) => r.json()).then((
   });
 }).catch(() => undefined);
 // terrain detail: close up, high-frequency grass, sand, forest floor and gravel from the reference textures ride on the satellite colour
+const terrV = { value: new THREE.Vector2(16512, 9216) };                  // world size of the height grid, for sampling the land class map
+const classTex = new THREE.TextureLoader().load('/games/forth-horizon/region/landclass.png');
+classTex.colorSpace = THREE.NoColorSpace; classTex.minFilter = THREE.LinearFilter; classTex.generateMipmaps = false;
 function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
   m.onBeforeCompile = (sh) => {
     sh.uniforms.tGrass = { value: gameTex('grass') };
@@ -269,6 +277,8 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
     sh.uniforms.tAsph = { value: gameTex('asphalt_plain') };
     sh.uniforms.tPave = { value: gameTex('paver_plain') };
     sh.uniforms.tMask = { value: maskTex };
+    sh.uniforms.tClass = { value: classTex };
+    sh.uniforms.uTerr = terrV;
     sh.uniforms.uMask = { value: maskVec };
     sh.uniforms.uWet = wetU;
     sh.uniforms.uPool = poolU;
@@ -276,7 +286,7 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
       .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPos = (modelMatrix * vec4(position, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nuniform sampler2D tGrass;\nuniform sampler2D tSand;\nuniform sampler2D tForest;\nuniform sampler2D tGravel;\nuniform sampler2D tMask;\nuniform sampler2D tAsph;\nuniform sampler2D tPave;\nuniform vec4 uMask;\nuniform float uWet;\nuniform float uPool;\nuniform float uMapFade;\nuniform vec2 uEdge;\nuniform vec3 uCam;\n' + PUDDLE_GLSL)
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nuniform sampler2D tGrass;\nuniform sampler2D tSand;\nuniform sampler2D tForest;\nuniform sampler2D tGravel;\nuniform sampler2D tMask;\nuniform sampler2D tAsph;\nuniform sampler2D tPave;\nuniform vec4 uMask;\nuniform float uWet;\nuniform float uPool;\nuniform float uMapFade;\nuniform vec2 uEdge;\nuniform vec3 uCam;\nuniform sampler2D tClass;\nuniform vec2 uTerr;\nfloat tHash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\nfloat tNoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(tHash(i), tHash(i + vec2(1.0, 0.0)), f.x), mix(tHash(i + vec2(0.0, 1.0)), tHash(i + vec2(1.0, 1.0)), f.x), f.y); }\n' + PUDDLE_GLSL)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
       gl_FragColor.a *= mix(1.0, smoothstep(0.0, 1300.0, min(uEdge.x - abs(vWPos.x), uEdge.y - abs(vWPos.z))), uMapFade);`)
       .replace('#include <map_fragment>', `#include <map_fragment>
@@ -291,18 +301,40 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
         float greenness = clamp((b.g - max(b.r, b.b)) * 7.0, 0.0, 1.0);
         float sandy = clamp((b.r - b.b) * 5.0 - 0.15, 0.0, 1.0) * (1.0 - greenness) * smoothstep(0.28, 0.5, lum);
         float dark = 1.0 - smoothstep(0.12, 0.3, lum);
+        // the baked land class (tools/build_terrain_hi.py): sand only on the lake shore and dunes, forest, open field
+        vec3 cls = texture2D(tClass, vec2(vWPos.x / uTerr.x + 0.5, 1.0 - (vWPos.z / uTerr.y + 0.5))).rgb;
+        sandy = cls.r;
+        float forestK = max(cls.g, dark * greenness);
         vec2 uv1 = vWPos.xz / 9.0;
-        vec3 gr = texture2D(tGrass, uv1).rgb;
-        vec3 sa = texture2D(tSand, uv1 * 0.8).rgb;
-        vec3 fo = texture2D(tForest, uv1 * 0.9).rgb;
-        vec3 gv = texture2D(tGravel, uv1 * 1.3).rgb;
-        vec3 det = mix(gr, fo, dark * greenness);
+        // close to the camera the ground gets two finer scales of the same textures (2.4 m and 0.6 m), so it holds up from the road and the car
+        float nearK = 1.0 - smoothstep(25.0, 220.0, camD);
+        vec2 uv2 = vWPos.xz / 2.4;
+        vec2 uv3 = vWPos.xz / 0.6 + 0.31;
+        vec3 gr = mix(texture2D(tGrass, uv1).rgb, texture2D(tGrass, uv2).rgb, nearK);
+        vec3 sa = mix(texture2D(tSand, uv1 * 0.8).rgb, texture2D(tSand, uv2 * 0.8).rgb, nearK);
+        vec3 fo = mix(texture2D(tForest, uv1 * 0.9).rgb, texture2D(tForest, uv2 * 0.9).rgb, nearK);
+        vec3 gv = mix(texture2D(tGravel, uv1 * 1.3).rgb, texture2D(tGravel, uv2 * 1.3).rgb, nearK);
+        float micro = dot(texture2D(tGrass, uv3).rgb, vec3(0.299, 0.587, 0.114));
+        float microK = nearK * (1.0 - sandy * 0.6);
+        vec3 det = mix(gr, fo, forestK);
         det = mix(det, sa, sandy);
         det = mix(det, gv, (1.0 - greenness) * (1.0 - sandy) * 0.4);
         float dl = max(dot(det, vec3(0.299, 0.587, 0.114)), 0.05);
         vec3 shaded = b * (0.5 + 1.0 * dl);
         vec3 retint = det * (lum / dl);
-        diffuseColor.rgb = mix(b, mix(shaded, retint, 0.4), fade * 0.9);
+        diffuseColor.rgb = mix(b, mix(shaded, retint, mix(0.4, 0.82, nearK)), fade * 0.95);
+        diffuseColor.rgb *= 1.0 + microK * (micro - 0.45) * 0.9;
+        // open fields: broad patchiness so no field is a flat colour, and crop rows that run square with the section roads (each 160 m field picks its direction and tint)
+        float fieldK = cls.b * (1.0 - forestK) * smoothstep(0.2, 0.34, lum);
+        float macro = tNoise(vWPos.xz / 55.0) * 0.6 + tNoise(vWPos.xz / 17.0) * 0.4;
+        diffuseColor.rgb *= 1.0 + (macro - 0.5) * 0.34 * fade;
+        vec2 fcell = floor(vWPos.xz / 160.0);
+        float fh = tHash(fcell);
+        float fcoord = fh > 0.5 ? vWPos.z : vWPos.x;
+        float rowsK = 0.5 + 0.5 * sin(fcoord * 8.2688 + fh * 40.0);
+        float rowFade = 1.0 - smoothstep(14.0, 130.0, camD);
+        diffuseColor.rgb *= 1.0 - fieldK * rowFade * (0.07 + 0.14 * rowsK) * 1.0;
+        diffuseColor.rgb *= 1.0 + fieldK * (fh - 0.5) * 0.16;
       }
       vec2 muv = (vWPos.xz - uMask.xy) / uMask.zw;
       if (muv.x > 0.0 && muv.x < 1.0 && muv.y > 0.0 && muv.y < 1.0) {
@@ -423,6 +455,7 @@ try {
 
 let meta: RegionMeta;
 let heights: Float32Array;
+let hiRes = false;                                   // the 6 m height grid and 4 m ground texture (tools/build_terrain_hi.py); ?hires=0 turns it off
 let terrain: THREE.Mesh;
 let terrainMat: THREE.MeshStandardMaterial;
 const circuitGroup = new THREE.Group();
@@ -488,9 +521,10 @@ function buildTerrain(): void {
   g.setIndex(new THREE.BufferAttribute(idx, 1));
   g.computeVertexNormals();
   if (terrain) { terrain.geometry.dispose(); terrain.geometry = g; return; }
-  const tex = new THREE.TextureLoader().load(BASE + 'albedo.jpg');
+  terrV.value.set(meta.width * meta.mpp, meta.height * meta.mpp);
+  const tex = new THREE.TextureLoader().load(BASE + (hiRes ? 'albedo_hi.jpg' : 'albedo.jpg'));
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 8;
+  tex.anisotropy = 16;
   terrainMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, metalness: 0, transparent: false });
   applyTerrainDetail(terrainMat);
   terrain = new THREE.Mesh(g, terrainMat);
@@ -579,8 +613,7 @@ function buildOverlays(): void {
     }
   }
   const road = (p: PolyXZ, color: number, w: number) => circuitGroup.add(ribbon(p.xz, null, w, color, 0.3));
-  road(meta.coastal_highway, 0xdddddd, 12);
-  road(meta.freeway, 0xcccccc, 18);
+  // the coastal highway and the freeway are real asphalt in the world now (countryScenes); no flat grey review ribbons for them
   road(meta.river, 0x2f86c4, 0.01);
   for (const p of meta.places) labelGroup.add(label(p.name, p.xz[0], hAt(p.xz[0], p.xz[1]) * exag + 260, p.xz[1], '#ffe9a0', 0.8));
 }
@@ -1035,6 +1068,10 @@ function addTreeCards(parent: THREE.Object3D, list: { x: number; z: number; def:
 interface TreeLayer { group: THREE.Group; setWind(w: number): void; update(dt: number, cam: THREE.Vector3): void }
 const treeFields: TreeLayer[] = [];
 let grassField: GrassField | null = null;
+const IND = 'ironworks_industrial_circuit';                // the short street course through the port's industrial yards
+let industrialPath: { x: number; z: number }[] = [];
+let indNear: ((x: number, z: number, r: number) => boolean) | null = null;
+let vegetation: Vegetation | null = null;            // the streamed grass, shrub and rock system (src/vegetation.ts); ?veg=old brings back the previous grass
 /** the Ravencrest/Era Clash trees (ez-tree skeletons, bark scans, painted leaves); the simple procedural trees only if those fail to build */
 function mkTrees(pts: number[][], h: (x: number, z: number) => number, ex: () => number): TreeLayer {
   try { return new EzTreeField(pts, h, ex); } catch (e) { console.warn('high-quality trees unavailable, using simple trees', e); return new TreeField(pts, h, ex); }
@@ -1079,13 +1116,21 @@ function paintedRoad(x: number, z: number, pad: number, walk = false): boolean {
 function growable(x: number, z: number, clear: number, pad: number, walk = true): boolean {
   return hAt(x, z) > 1.2 && roadDist(x, z) > clear && !paintedRoad(x, z, pad, walk);
 }
+/** may anything grow here: not on or beside any road we draw (the old street mask, the country roads, zone streets, highways, the shoreline highway, the bridges, the industrial circuit) */
+function vegOk(x: number, z: number, extra = 0): boolean {
+  if (extra === 0 && !growable(x, z, 6.5, 2.5, true)) return false;
+  if (countryScenes && (countryScenes.pavedNear(x, z, 1.6 + extra) || countryScenes.dirtNear(x, z, 0.9 + extra))) return false;
+  if (bridgeNear && bridgeNear(x, z, 13 + extra)) return false;
+  if (indNear && indNear(x, z, 10 + extra)) return false;
+  return true;
+}
 const forestGroup = new THREE.Group();
 scene.add(forestGroup);
 async function buildForest(): Promise<void> {
   const res = await fetch(BASE + 'forest.json');
   if (!res.ok) return;
   for (let i = 0; i < 40 && !roadMask; i++) await new Promise((r) => setTimeout(r, 100));    // the road mask decides where trees may stand
-  const pts = ((await res.json()) as number[][]).filter((p) => growable(p[0], p[1], 12, 6, true));
+  const pts = ((await res.json()) as number[][]).filter((p) => growable(p[0], p[1], 12, 6, true) && vegOk(p[0], p[1], 5));
   const sp = await loadSprites();
   forestGroup.clear();
   const list: { x: number; z: number; def: SpriteDef; h: number }[] = [];
@@ -1113,7 +1158,7 @@ async function buildForest(): Promise<void> {
         if (rr() > (rally ? 0.7 : 0.38)) continue;
         const off = (rally ? 10 : 12) + rr() * (rally ? 20 : 24), al = (rr() - 0.5) * 9;
         const x = a.x + nx * off * side + (dx / l) * al, z = a.z + nz * off * side + (dz / l) * al;
-        if (!growable(x, z, 9, 6, true) || surfaceAtXZ(x, z) !== 'grass') continue;
+        if (!growable(x, z, 9, 6, true) || !vegOk(x, z, 4) || surfaceAtXZ(x, z) !== 'grass') continue;
         const conifer = rally ? rr() < 0.8 : rr() < 0.45;
         verge.push([x, z, conifer ? 1 : 0, rr(), 0.8 + rr() * 0.5]);
       }
@@ -1128,9 +1173,14 @@ async function buildForest(): Promise<void> {
   forestGroup.add(vf.group); treeFields.push(vf);
   console.log('verge trees', verge.length);
   // real grass around the camera, on green ground only, never on roads, pavement or the course
+  if (!location.search.includes('veg=old')) {
+    vegetation = new Vegetation({ rw: meta.width * meta.mpp, rh: meta.height * meta.mpp, classUrl: BASE + 'landclass.png', albedoUrl: BASE + 'albedo.jpg', ground: meshH, ok: (x, z) => vegOk(x, z) });
+    forestGroup.add(vegetation.group);
+  } else {
   grassField = new GrassField({ rw: meta.width * meta.mpp, rh: meta.height * meta.mpp, albedoUrl: BASE + 'albedo.jpg', ground: meshH, ok: (x, z) => growable(x, z, 6.5, 2.5, true) });
   forestGroup.add(grassField.group);
   duneDetail({ width: meta.width * meta.mpp, depth: meta.height * meta.mpp, albedo: BASE + 'albedo.jpg', ground: meshH, clear: (x, z) => growable(x, z, 13, 5, true) }).then((group) => forestGroup.add(group)).catch((e) => console.warn('dune detail failed', e));
+  }
 }
 
 // ---------- streetscape: street trees and street lights ----------
@@ -1605,6 +1655,15 @@ async function buildCity(): Promise<void> {
     try { return await f(); } finally { const w = loadWaiters.shift(); if (w) w(); else loadSlots++; }
   };
   const texCache = new Map<string, THREE.Texture>();
+  const finishMat = (mat: THREE.MeshStandardMaterial): void => {
+    if (mat.normalMap) mat.normalScale.set(2.2, 2.2);
+    if (mat.map && mat.normalMap && !LOW) patchParallax(mat);
+    if (/hero/i.test(mat.name)) mat.normalScale.set(1.4, 1.4);     // the sheet-derived normals are gentle: push the relief
+    mat.envMapIntensity = 0.7;
+    if (/glass/i.test(mat.name)) patchGlass(mat);
+    else if (/06-granite|04-limestone|16-concrete|15-concrete/.test(mat.name) && mat.map) patchPunched(mat);
+    mat.needsUpdate = true;
+  };
   const protos = new Map<string, Promise<THREE.Object3D | null>>();
   const load = (kind: string, slug: string): Promise<THREE.Object3D | null> => {
     const key = kind + '/' + slug;
@@ -1626,13 +1685,7 @@ async function buildCity(): Promise<void> {
               const have = texCache.get(uri);
               if (have && have !== tx) { tx.dispose(); (mat as any)[k] = have; } else texCache.set(uri, tx);
             }
-            if (mat.normalMap) mat.normalScale.set(2.2, 2.2);
-            if (mat.map && mat.normalMap && !LOW) patchParallax(mat);
-            if (/hero/i.test(mat.name)) mat.normalScale.set(1.4, 1.4);     // the sheet-derived normals are gentle: push the relief
-            mat.envMapIntensity = 0.7;
-            if (/glass/i.test(mat.name)) patchGlass(mat);
-            else if (/06-granite|04-limestone|16-concrete|15-concrete/.test(mat.name) && mat.map) patchPunched(mat);
-            mat.needsUpdate = true;
+            finishMat(mat);
           }
         });
         return g.scene;
@@ -1640,10 +1693,71 @@ async function buildCity(): Promise<void> {
     }
     return protos.get(key)!;
   };
+  // Variants. generic_variants.json gives every generic building six material schemes (facade, trim, roof): the same form in brick or limestone, blue or bronze glass.
+  // Each placed building takes one by a hash of where it stands (the first, the original, most often), so a street of one design no longer looks copied.
+  interface Scheme { facade: string; trim: string; roof: string }
+  let variantTypes: Record<string, { schemes: Scheme[] }> = {};
+  try { variantTypes = ((await (await fetch(BASE + 'generic_variants.json')).json()) as { types: typeof variantTypes }).types; } catch { /* no variants: every building keeps its own materials */ }
+  const variantOf = (it: CityItem): number => {
+    if (location.search.includes('variants=0') || it.kind !== 'generic' || !variantTypes[it.slug]?.schemes?.length) return 0;     // ?variants=0: every building keeps its own materials
+    const n = variantTypes[it.slug].schemes.length;
+    const t = Math.sin(it.x * 12.9898 + it.z * 78.233 + it.rotY * 3.1) * 43758.5453;
+    const u = t - Math.floor(t);
+    return u < 0.34 ? 0 : 1 + Math.min(n - 2, Math.floor(((u - 0.34) / 0.66) * (n - 1)));
+  };
+  const swapLoader = new THREE.TextureLoader(manager);
+  const swapTex = new Map<string, Promise<THREE.Texture>>();
+  const loadSwap = (name: string, suffix: 'base' | 'nrm' | 'rgh'): Promise<THREE.Texture> => {
+    const url = `${name}_${suffix}.png`;                          // the URL modifier above points it at the packed jpg of whichever texture set is on
+    if (!swapTex.has(url)) swapTex.set(url, swapLoader.loadAsync(url));
+    return swapTex.get(url)!;
+  };
+  const vprotos = new Map<string, Promise<THREE.Object3D | null>>();
+  const variantProto = (kind: string, slug: string, v: number): Promise<THREE.Object3D | null> => {
+    if (v === 0) return load(kind, slug);
+    const key = `${kind}/${slug}#${v}`;
+    if (!vprotos.has(key)) vprotos.set(key, (async () => {
+      const base = await load(kind, slug);
+      if (!base) return null;
+      const schemes = variantTypes[slug].schemes, d = schemes[0], t = schemes[v];
+      const map = new Map<string, string>();
+      for (const role of ['facade', 'trim', 'roof'] as const) if (d[role] && t[role] && d[role] !== t[role] && !map.has(d[role])) map.set(d[role], t[role]);
+      const clone = base.clone(true);
+      const made = new Map<THREE.Material, THREE.Material>();
+      const jobs: Promise<void>[] = [];
+      clone.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        const swap = (mat: THREE.MeshStandardMaterial): THREE.Material => {
+          const stem = mat.name.replace(/_mat.*$/, '');
+          const to = map.get(stem);
+          if (!to) return mat;
+          if (made.has(mat)) return made.get(mat)!;
+          const nm = mat.clone();
+          nm.name = to + '_mat';
+          made.set(mat, nm);
+          const set = async (k: 'map' | 'normalMap' | 'roughnessMap', suffix: 'base' | 'nrm' | 'rgh'): Promise<void> => {
+            const old = mat[k] as THREE.Texture | null;
+            if (!old) return;
+            const tx = (await loadSwap(to, suffix)).clone();
+            tx.flipY = old.flipY; tx.wrapS = old.wrapS; tx.wrapT = old.wrapT; tx.repeat.copy(old.repeat); tx.offset.copy(old.offset); tx.rotation = old.rotation; tx.center.copy(old.center);
+            tx.colorSpace = old.colorSpace; tx.anisotropy = old.anisotropy; tx.needsUpdate = true;
+            nm[k] = tx;
+          };
+          jobs.push((async () => { await Promise.all([set('map', 'base'), set('normalMap', 'nrm'), set('roughnessMap', 'rgh')]); finishMat(nm as THREE.MeshStandardMaterial); })());
+          return nm;
+        };
+        m.material = Array.isArray(m.material) ? m.material.map((x) => swap(x as THREE.MeshStandardMaterial)) : swap(m.material as THREE.MeshStandardMaterial);
+      });
+      await Promise.all(jobs);
+      return clone;
+    })().catch((e) => { console.warn('variant failed', key, e); return load(kind, slug); }));
+    return vprotos.get(key)!;
+  };
   // One InstancedMesh per mesh node of each model: thousands of buildings in a few hundred draw calls.
   const groups = new Map<string, CityItem[]>();
   for (const it of cityItems) {
-    const key = it.kind + '/' + it.slug;
+    const key = it.kind + '/' + it.slug + '#' + variantOf(it);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(it);
   }
@@ -1651,8 +1765,9 @@ async function buildCity(): Promise<void> {
   cityVisibility.batches = [];
   let done = 0;
   await Promise.all([...groups.entries()].map(async ([key, items]) => {
-    const [kind, slug] = key.split('/');
-    const proto = await load(kind, slug);
+    const [kind, rest] = key.split('/');
+    const [slug, vs] = rest.split('#');
+    const proto = await variantProto(kind, slug, Number(vs));
     if (!proto) return;
     proto.updateMatrixWorld(true);
     const meshes: THREE.Mesh[] = [];
@@ -1676,6 +1791,63 @@ async function buildCity(): Promise<void> {
   (window as any).cityCount = done;
   addRoofDetails(cityItems);
   buildStreetscape().catch((e) => console.error('streetscape failed', e));
+  buildZones().catch((e) => console.error('zones failed', e));
+}
+
+// ---------- industrial yards and waterfront rows (region/zones.json, made by tools/infill_waterfront.py) ----------
+// Each zone has its outline and is paved: concrete yards under the industrial buildings, a lighter quay strip under the waterfront rows. They sit on the drawn terrain, and they
+// are named on the map. The far bank has them too, so there is something over the river.
+const zoneGroup = new THREE.Group();
+scene.add(zoneGroup);
+async function buildZones(): Promise<void> {
+  const res = await fetch(BASE + 'zones.json');
+  if (!res.ok) return;
+  const zones = ((await res.json()) as { zones: { id: string; name: string; kind: 'industrial' | 'waterfront'; bank: string; center: number[]; hull: number[][] }[] }).zones;
+  const tex = new THREE.TextureLoader().load('/games/forth-horizon/ironport/textures-v3/shared/tex-shared-16-concrete-weathered_base.jpg');
+  tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8;
+  const mats = {
+    industrial: new THREE.MeshStandardMaterial({ map: tex, color: 0x8b8a86, roughness: 0.93, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+    waterfront: new THREE.MeshStandardMaterial({ map: tex, color: 0xb9b2a2, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+  };
+  zoneGroup.clear();
+  for (const z of zones) {
+    const hull = z.hull;
+    if (hull.length < 3) continue;
+    const cx = hull.reduce((a, q) => a + q[0], 0) / hull.length, cz = hull.reduce((a, q) => a + q[1], 0) / hull.length;
+    // the outline as a radius for each of 28 directions from the centre (the hull is convex), then 8 rings out to it: close-set points, so the pad lies on the ground between them
+    const N = 28, RN = 8;
+    const radius = (ang: number): number => {
+      const dx = Math.cos(ang), dz = Math.sin(ang);
+      let best = 0;
+      for (let i = 0; i < hull.length; i++) {
+        const a1 = hull[i], b1 = hull[(i + 1) % hull.length];
+        const ex = b1[0] - a1[0], ez = b1[1] - a1[1], den = dx * ez - dz * ex;
+        if (Math.abs(den) < 1e-9) continue;
+        const t = ((a1[0] - cx) * ez - (a1[1] - cz) * ex) / den, u = ((a1[0] - cx) * dz - (a1[1] - cz) * dx) / den;
+        if (t > 0 && u >= 0 && u <= 1 && t > best) best = t;
+      }
+      return best;
+    };
+    const rs: number[] = []; for (let i = 0; i < N; i++) rs.push(radius((i / N) * Math.PI * 2));
+    const pos: number[] = [], uv: number[] = [], idx: number[] = [];
+    const at = (x: number, zz: number): void => { pos.push(x, meshH(x, zz) + 0.3, zz); uv.push(x / 9, zz / 9); };
+    at(cx, cz);
+    for (let r = 1; r <= RN; r++) for (let i = 0; i < N; i++) { const ang = (i / N) * Math.PI * 2, rr = rs[i] * (r / RN); at(cx + Math.cos(ang) * rr, cz + Math.sin(ang) * rr); }
+    for (let i = 0; i < N; i++) idx.push(0, 1 + i, 1 + ((i + 1) % N));
+    for (let r = 1; r < RN; r++) for (let i = 0; i < N; i++) {
+      const a = 1 + (r - 1) * N + i, b = 1 + (r - 1) * N + ((i + 1) % N), c = a + N, d = b + N;
+      idx.push(a, c, b, b, c, d);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    const m = new THREE.Mesh(g, mats[z.kind]);
+    m.receiveShadow = true; m.name = z.id;
+    zoneGroup.add(m);
+    labelGroup.add(label(z.name, z.center[0], meshH(z.center[0], z.center[1]) + (z.kind === 'industrial' ? 180 : 140), z.center[1], z.kind === 'industrial' ? '#ffb870' : '#9fe6ff', 0.5));
+  }
 }
 
 // ---------- cloud cover ----------
@@ -1729,6 +1901,7 @@ for (const [alt, size, rep, seed, vx, vz, op] of [[2900, 44000, 2.4, 7, 0.0075, 
 const wx = new WeatherRig(scene);
 const sky = new Sky(scene);
 const spray = new SprayFx(scene);
+const dust = new DustFx(scene);          // dirt and dust off loose surfaces: the rally stage above all
 const wDir = new THREE.Vector3(), wSun = new THREE.Vector3(0, 0.4, 1), tmpSun = new THREE.Vector3();
 sky.loadWeatherSkies();
 const NIGHT_K: Record<string, number> = { clear: 0, golden: 0, sunrise: 0.15, sunset: 0.1, dusk: 0.55, night: 1 };
@@ -1738,6 +1911,7 @@ const WEATHER_PLAN: Record<string, { t: number; w: string }[]> = {
   city: [{ t: 0, w: 'overcast' }, { t: 70, w: 'rain' }, { t: 200, w: 'storm' }],
   cliff: [{ t: 0, w: 'fog' }, { t: 140, w: 'overcast' }, { t: 320, w: 'partly' }],
   rally: [{ t: 0, w: 'partly' }, { t: 60, w: 'overcast' }, { t: 150, w: 'rain' }],
+  ind: [{ t: 0, w: 'overcast' }, { t: 90, w: 'rain' }, { t: 240, w: 'overcast' }],
   free: [{ t: 0, w: 'clear' }, { t: 240, w: 'partly' }, { t: 540, w: 'overcast' }, { t: 840, w: 'rain' }],
 };
 let wxOverride = 'auto';
@@ -1818,6 +1992,13 @@ function stepWeather(dt: number): void {
     }
   }
   spray.update(dt);
+  {
+    // the dust is the ground's ochre, lit by the day: bright in sun, a grey brown under cloud and in the evening
+    const lum = skyFog.r * 0.3 + skyFog.g * 0.59 + skyFog.b * 0.11;
+    dust.setTint(new THREE.Color(0.62, 0.42, 0.22).multiplyScalar(0.34 + 0.62 * Math.min(1, lum * 1.3)));
+    dust.wind.set(Math.sin(wx.cur.wind * 2.0) * (0.4 + wx.cur.wind * 4), Math.cos(wx.cur.wind * 2.0) * (0.3 + wx.cur.wind * 3));
+    dust.update(dt);
+  }
   for (const m of driveSurfaces) {
     const mm = m.material as THREE.MeshStandardMaterial;
     mm.roughness = 0.8 - 0.62 * w.wet; mm.color.setScalar(1 - 0.36 * w.wet);
@@ -1862,7 +2043,7 @@ function updateProbe(dt: number): void {
   if (probeT > 0 && probeRT) return;
   probeT = 0.8;
   const s = driving!;
-  const hide: THREE.Object3D[] = [s.car, spray.points, forestGroup, scapeGroup];
+  const hide: THREE.Object3D[] = [s.car, spray.points, dust.points, forestGroup, scapeGroup];
   const was = hide.map((o) => o.visible);
   hide.forEach((o) => { o.visible = false; });
   const next = pmrem.fromScene(scene, 0, 1, 14000, { size: 96, position: new THREE.Vector3(s.pos.x, s.car.position.y + 2.5, s.pos.z) });
@@ -1941,7 +2122,7 @@ addEventListener('keydown', unlockMusic);
 // ---------- map screen (game menu feel) ----------
 const MAP_BG = 0x070b12;
 const vignette = document.createElement('div');
-vignette.style.cssText = 'position:fixed;inset:0;pointer-events:none;display:none;background:radial-gradient(ellipse at 60% 50%,rgba(0,0,0,0) 40%,rgba(10,0,16,.6) 100%),linear-gradient(90deg,rgba(26,0,38,.82) 0%,rgba(26,0,38,0) 36%)';
+vignette.style.cssText = 'position:fixed;inset:0;pointer-events:none;display:none;background:radial-gradient(ellipse at 60% 50%,rgba(0,0,0,0) 40%,rgba(10,0,16,.6) 100%),linear-gradient(0deg,rgba(26,0,38,.88) 0%,rgba(26,0,38,0) 38%),linear-gradient(180deg,rgba(26,0,38,.7) 0%,rgba(26,0,38,0) 24%)';
 document.body.appendChild(vignette);
 // a small tag that stays on screen the whole time: this build is a pre-alpha
 {
@@ -1951,27 +2132,50 @@ document.body.appendChild(vignette);
   document.body.appendChild(tag);
 }
 const menuEl = document.createElement('div');
-menuEl.style.cssText = 'position:fixed;left:44px;top:50%;transform:translateY(-50%);width:360px;display:none;font-family:Inter,Manrope,sans-serif;color:#fff;user-select:none';
+menuEl.style.cssText = 'position:fixed;inset:0;display:none;pointer-events:none;font-family:Inter,Manrope,sans-serif;color:#fff;user-select:none';
 menuEl.innerHTML = `
-  <div style="font:600 11px Outfit,sans-serif;letter-spacing:.28em;text-transform:uppercase;color:#FF8C00;margin-bottom:8px">Legends of Elohim <span style="margin-left:8px;padding:2px 8px;border:1px solid rgba(255,140,0,.7);border-radius:999px;letter-spacing:.16em;color:#fff;background:rgba(212,0,85,.35)">Pre-alpha</span></div>
-  <div style="font:800 44px/1 Outfit,sans-serif;letter-spacing:.02em;margin-bottom:6px;background:linear-gradient(135deg,#D40055,#FF8C00);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent">APEX ELOHIM</div>
-  <div style="font:500 12px 'JetBrains Mono',monospace;color:rgba(208,188,255,.75);margin-bottom:26px">Ironport &middot; Lake Michigan coast &middot; 150 km&sup2;</div>
-  <div id="mapCards"></div>
-  <div style="margin-top:22px;font:600 10px Outfit,sans-serif;opacity:.55;letter-spacing:.28em;text-transform:uppercase">DRAG TO ORBIT &nbsp;&middot;&nbsp; SCROLL TO ZOOM</div>`;
+  <div id="menuTitle" style="position:absolute;left:44px;top:26px;width:440px">
+    <div style="font:600 11px Outfit,sans-serif;letter-spacing:.28em;text-transform:uppercase;color:#FF8C00;margin-bottom:8px">Legends of Elohim <span style="margin-left:8px;padding:2px 8px;border:1px solid rgba(255,140,0,.7);border-radius:999px;letter-spacing:.16em;color:#fff;background:rgba(212,0,85,.35)">Pre-alpha</span></div>
+    <div style="font:800 46px/1 Outfit,sans-serif;letter-spacing:.02em;margin-bottom:6px;background:linear-gradient(135deg,#D40055,#FF8C00);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent">APEX ELOHIM</div>
+    <div style="font:500 12px 'JetBrains Mono',monospace;color:rgba(208,188,255,.75)">Ironport &middot; Lake Michigan coast &middot; 150 km&sup2;</div>
+  </div>
+  <div id="mapCardsWrap" style="position:absolute;left:0;right:0;bottom:40px;pointer-events:auto;transition:opacity .9s">
+    <button id="mcPrev" aria-label="Previous" style="position:absolute;left:14px;top:50%;transform:translateY(-62%);z-index:2;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(26,0,38,.7);color:#fff;font:700 22px Outfit,sans-serif;cursor:pointer">&lsaquo;</button>
+    <div id="mapCards" style="display:flex;gap:14px;align-items:stretch;overflow-x:auto;overflow-y:hidden;scroll-behavior:smooth;scroll-snap-type:x proximity;padding:20px 16vw 24px;scrollbar-width:none;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 15%,#000 85%,transparent 100%);mask-image:linear-gradient(90deg,transparent 0,#000 15%,#000 85%,transparent 100%)"></div>
+    <button id="mcNext" aria-label="Next" style="position:absolute;right:14px;top:50%;transform:translateY(-62%);z-index:2;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(26,0,38,.7);color:#fff;font:700 22px Outfit,sans-serif;cursor:pointer">&rsaquo;</button>
+    <div style="text-align:center;font:600 10px Outfit,sans-serif;opacity:.55;letter-spacing:.28em;text-transform:uppercase;margin-top:2px">SCROLL OR DRAG THE CARDS &nbsp;&middot;&nbsp; DRAG THE MAP TO ORBIT</div>
+  </div>`;
 document.body.appendChild(menuEl);
+{
+  const track = menuEl.querySelector('#mapCards') as HTMLElement, wrap = menuEl.querySelector('#mapCardsWrap') as HTMLElement;
+  track.style.setProperty('-ms-overflow-style', 'none');
+  const style = document.createElement('style'); style.textContent = '#mapCards::-webkit-scrollbar{display:none}'; document.head.appendChild(style);
+  const by = (d: number): void => { track.scrollBy({ left: d * 320, behavior: 'smooth' }); };
+  (menuEl.querySelector('#mcPrev') as HTMLElement).onclick = () => by(-1);
+  (menuEl.querySelector('#mcNext') as HTMLElement).onclick = () => by(1);
+  wrap.addEventListener('wheel', (e) => { e.preventDefault(); track.style.scrollBehavior = 'auto'; track.scrollLeft += (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY); track.style.scrollBehavior = ''; }, { passive: false });
+  addEventListener('keydown', (e) => { if (menuEl.style.display === 'none' || cineOn) return; if (e.key === 'ArrowRight') by(1); else if (e.key === 'ArrowLeft') by(-1); });
+  // drag the strip with the mouse; a drag is not a click on a card
+  let dx0 = 0, sl0 = 0, dragging = false, moved = 0;
+  track.addEventListener('pointerdown', (e) => { dragging = true; moved = 0; dx0 = e.clientX; sl0 = track.scrollLeft; });
+  addEventListener('pointermove', (e) => { if (!dragging) return; moved = Math.max(moved, Math.abs(e.clientX - dx0)); track.style.scrollBehavior = 'auto'; track.scrollLeft = sl0 - (e.clientX - dx0); });
+  addEventListener('pointerup', () => { dragging = false; track.style.scrollBehavior = ''; });
+  track.addEventListener('click', (e) => { if (moved > 6) { e.stopPropagation(); e.preventDefault(); moved = 0; } }, true);
+}
 const MAP_EVENTS: { id: string; tag: string; name: string; sub: string; color: string; act: () => void }[] = [
   { id: 'city', tag: 'CITY CIRCUIT', name: 'Ironport Grand Circuit', sub: '4.2 km · 13 corners · downtown streets', color: '#FF8C00', act: () => openBrief('city') },
   { id: 'cliff', tag: 'ROAD COURSE', name: 'Great Lakes Cliff Raceway', sub: '9.8 km · tunnel · 135 m lake-view climb', color: '#00DAF3', act: () => openBrief('cliff') },
   { id: 'rally', tag: 'RALLY STAGE', name: 'Pinewood Rally Stage', sub: '11 km · gravel · forest trail', color: '#D40055', act: () => openBrief('rally') },
+  { id: 'ind', tag: 'STREET COURSE', name: 'Ironworks Industrial Circuit', sub: '2.2 km · concrete walls · port yards', color: '#9bb0c8', act: () => openBrief('ind') },
   { id: 'free', tag: 'FREE ROAM', name: 'Explore the region', sub: 'Port Halcyon · dunes · harbor · freeway', color: '#D0BCFF', act: () => openBrief('free') },
 ];
 const cardsEl = menuEl.querySelector('#mapCards') as HTMLElement;
 for (const ev of MAP_EVENTS) {
   const b = document.createElement('div');
-  b.style.cssText = `padding:14px 18px;margin-bottom:10px;border-radius:24px;border:1px solid rgba(255,255,255,.10);background:rgba(26,0,38,.62);backdrop-filter:blur(14px);cursor:pointer;transition:transform .2s cubic-bezier(.2,0,0,1),border-color .2s,box-shadow .2s;box-shadow:0 10px 30px rgba(0,0,0,.35)`;
+  b.style.cssText = `flex:0 0 288px;scroll-snap-align:center;padding:14px 18px;border-radius:24px;border:1px solid rgba(255,255,255,.10);background:rgba(26,0,38,.62);backdrop-filter:blur(14px);cursor:pointer;transition:transform .2s cubic-bezier(.2,0,0,1),border-color .2s,box-shadow .2s;box-shadow:0 10px 30px rgba(0,0,0,.35)`;
   const plan = WEATHER_PLAN[ev.id], worst = WEATHERS[worstOf(plan)];
   b.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:${ev.color};box-shadow:0 0 10px ${ev.color}"></span><span style="font:600 10px Outfit,sans-serif;letter-spacing:.28em;color:${ev.color}">${ev.tag}</span><span style="margin-left:auto;font:600 11px Outfit,sans-serif;letter-spacing:.08em;color:#D0BCFF">${worst.icon} ${worst.temp}&deg;C</span></div><div style="font:600 19px Outfit,sans-serif;margin:5px 0 3px">${ev.name}</div><div style="font:400 12px Inter,sans-serif;color:rgba(255,255,255,.62)">${ev.sub}</div><div style="font:500 11px Inter,sans-serif;color:rgba(208,188,255,.85);margin-top:6px;letter-spacing:.03em">Forecast: ${forecastText(plan)}</div>`;
-  b.onmouseenter = () => { if (wxOverride === 'auto') wx.setWeather(worstOf(WEATHER_PLAN[ev.id]), false, true); b.style.transform = 'translateX(8px)'; b.style.borderColor = ev.color; b.style.boxShadow = `0 10px 34px rgba(0,0,0,.45),0 0 22px ${ev.color}55`; };
+  b.onmouseenter = () => { if (wxOverride === 'auto') wx.setWeather(worstOf(WEATHER_PLAN[ev.id]), false, true); b.style.transform = 'translateY(-8px)'; b.style.borderColor = ev.color; b.style.boxShadow = `0 10px 34px rgba(0,0,0,.45),0 0 22px ${ev.color}55`; };
   b.onmouseleave = () => { if (wxOverride === 'auto' && briefEl.style.display === 'none') wx.setWeather('partly', false, true); b.style.transform = ''; b.style.borderColor = 'rgba(255,255,255,.10)'; b.style.boxShadow = '0 10px 30px rgba(0,0,0,.35)'; };
   b.onclick = ev.act;
   cardsEl.appendChild(b);
@@ -2080,14 +2284,92 @@ document.body.appendChild(gearBtn);
 const settingsEl = document.getElementById('panel') as HTMLElement;
 const toggleSettings = (open?: boolean): void => { settingsEl.style.display = (open ?? settingsEl.style.display !== 'block') ? 'block' : 'none'; };
 gearBtn.onclick = () => toggleSettings();
+// developer tools, on the local dev server only: draw roads and zones (F2)
+if (/^(127\.0\.0\.1|localhost)$/.test(location.hostname)) {
+  const editBtn = document.createElement('button');
+  editBtn.textContent = 'MAP EDIT';
+  editBtn.style.cssText = 'position:fixed;right:18px;top:66px;height:34px;padding:0 14px;background:rgba(26,0,38,.62);color:#FF8C00;border:1px solid rgba(255,140,0,.5);border-radius:999px;backdrop-filter:blur(12px);font:700 11px Outfit,sans-serif;letter-spacing:.16em;cursor:pointer;z-index:21';
+  editBtn.onclick = () => mapEditor?.toggle();
+  document.body.appendChild(editBtn);
+}
 (document.getElementById('shClose') as HTMLElement).onclick = () => toggleSettings(false);
 const devBox = document.querySelector('.sh-dev') as HTMLDetailsElement;
 hud.style.display = 'none';
 devBox.addEventListener('toggle', () => { hud.style.display = devBox.open ? 'block' : 'none'; });
 function applyMapOffset(): void {
-  if (mapMode) camera.setViewOffset(innerWidth, innerHeight, -innerWidth * 0.12, 0, innerWidth, innerHeight); else camera.clearViewOffset();
+  if (mapMode) camera.setViewOffset(innerWidth, innerHeight, 0, innerHeight * 0.07, innerWidth, innerHeight); else camera.clearViewOffset();
   camera.updateProjectionMatrix();
 }
+
+// ---------- idle beauty shots: after 10 s with the map menu untouched the camera goes cruising over the region; any input brings the menu back ----------
+const cineFade = document.createElement('div');
+cineFade.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:15;transition:opacity .9s';
+document.body.appendChild(cineFade);
+let cineOn = false, cineIdx = 0, cineT = 0, cineShots: { from: THREE.Vector3; to: THREE.Vector3; at: THREE.Vector3; dur: number }[] = [];
+let lastInput = performance.now();
+function buildCineShots(): typeof cineShots {
+  const out: typeof cineShots = [];
+  const V = (x: number, y: number, z: number): THREE.Vector3 => new THREE.Vector3(x, y, z);
+  const add = (from: THREE.Vector3, to: THREE.Vector3, at: THREE.Vector3, dur = 9): void => { out.push({ from, to, at, dur }); };
+  const g = (x: number, z: number): number => meshH(x, z);
+  const city = meta.circuits.ironport_grand_circuit, cliff = meta.circuits.great_lakes_cliff_raceway, rally = meta.circuits.pinewood_rally_stage;
+  const cc = centroid(city), cl = centroid(cliff), rc = centroid(rally);
+  add(V(3900, 240, 520), V(4350, 190, 700), V(5700, 70, 860));                                          // downtown from the river
+  add(V(cc.x - 900, 700, cc.z + 1100), V(cc.x - 450, 520, cc.z + 800), V(cc.x, 30, cc.z));            // the city circuit from above
+  add(V(2900, g(2900, 3250) + 45, 3250), V(3300, g(3300, 3150) + 70, 3150), V(3800, 46, 2770));      // Halcyon Gateway Bridge
+  add(V(5600, g(5600, -3500) + 70, -3500), V(5780, g(5780, -3560) + 80, -3560), V(6280, 46, -3888)); // Northgate Bridge
+  add(V(cl.x - 1800, 900, cl.z + 1500), V(cl.x - 1300, 700, cl.z + 1300), V(cl.x, 60, cl.z));          // the cliff raceway
+  add(V(rc.x - 1200, 900, rc.z + 1700), V(rc.x - 800, 700, rc.z + 1400), V(rc.x, 20, rc.z));          // the rally stage
+  add(V(-6500, 330, 1500), V(-6350, 300, 1150), V(-5400, 40, 500));                                     // dunes and the lake shore
+  if (shoreHw) {                                                                                         // the open gallery on the shoreline highway
+    const i = Math.floor((shoreHw.gallery.from + shoreHw.gallery.to) / 2), q = shoreHw.xz[i], y = shoreHw.y[i];
+    add(V(q[0] - 260, y + 55, q[1] - 260), V(q[0] - 190, y + 40, q[1] - 120), V(q[0], y + 4, q[1] + 60));
+  }
+  if (countryScenes) for (const k of [0, 2, 3]) { const sh = countryScenes.shots[k]; if (sh) add(V(...sh.cam), V(sh.cam[0] + 8, sh.cam[1] + 3, sh.cam[2] - 8), V(...sh.at), 8); }
+  return out;
+}
+function startCine(): void {
+  if (cineOn) return;
+  cineShots = buildCineShots();
+  if (!cineShots.length) return;
+  cineOn = true; cineT = 0; cineIdx = Math.floor(Math.random() * cineShots.length);
+  setMapMode(false);                                                   // the real world, in its golden light, not the map backdrop
+  setTimeOfDay('golden'); wx.setWeather('partly', false, true);
+  menuEl.style.display = 'block'; backBtn.style.display = 'none';
+  (menuEl.querySelector('#mapCardsWrap') as HTMLElement).style.opacity = '0';
+  (menuEl.querySelector('#mapCardsWrap') as HTMLElement).style.pointerEvents = 'none';
+  controls.autoRotate = false; controls.enabled = false; tween = null;
+  labelGroup.visible = false;                                          // no map labels in a beauty shot
+}
+function endCine(): void {
+  if (!cineOn) return;
+  cineOn = false; cineFade.style.opacity = '0';
+  controls.enabled = true; labelGroup.visible = (document.getElementById('tLab') as HTMLInputElement).checked;
+  const w = menuEl.querySelector('#mapCardsWrap') as HTMLElement; w.style.opacity = '1'; w.style.pointerEvents = 'auto';
+  preset('overview');
+}
+function stepCine(dt: number, now: number): void {
+  if (!cineOn) {
+    if (mapMode && menuEl.style.display === 'block' && briefEl.style.display === 'none' && settingsEl.style.display !== 'block' && !mapEditor?.isOpen() && !driving && now - lastInput > 10000) startCine();
+    return;
+  }
+  const s = cineShots[cineIdx];
+  cineT += dt;
+  const k = Math.min(1, cineT / s.dur), e = k * k * (3 - 2 * k) * 0.5 + k * 0.5;      // a slow glide, eased only a little
+  camera.position.lerpVectors(s.from, s.to, e);
+  controls.target.copy(s.at);
+  camera.lookAt(s.at);
+  cineFade.style.opacity = cineT < 0.9 || cineT > s.dur - 0.9 ? '1' : '0';
+  if (cineT >= s.dur) { cineIdx = (cineIdx + 1) % cineShots.length; cineT = 0; }
+}
+for (const ev of ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart'] as const) {
+  addEventListener(ev, (e) => {
+    if (ev === 'pointermove' && Math.abs((e as PointerEvent).movementX) + Math.abs((e as PointerEvent).movementY) < 2) return;
+    lastInput = performance.now();
+    if (cineOn) endCine();
+  }, { passive: true });
+}
+
 function setMapMode(on: boolean): void {
   if (mapMode === on) return;
   mapMode = on;
@@ -2118,6 +2400,7 @@ const BRIEFS: Record<string, { view: string; drive: string; tag: string; name: s
   city: { view: 'city', drive: 'ironport_grand_circuit', tag: 'CITY CIRCUIT', name: 'Ironport Grand Circuit', color: '#FF8C00', lines: ['4.2 km  ·  13 corners  ·  clockwise', 'Riverside straight into the RenCen hairpin', 'Climb to the Campus Martius crest, 43 m above the lake'], blurb: 'Walls everywhere, no run-off. Brake late at T1 and keep it clean through the downtown hill.' },
   cliff: { view: 'cliff', drive: 'great_lakes_cliff_raceway', tag: 'ROAD COURSE', name: 'Great Lakes Cliff Raceway', color: '#00DAF3', lines: ['9.8 km  ·  switchback climb  ·  tunnel', 'Starts on the beach, finishes 135 m above the lake', 'Coastal run out of the tunnel with open lake views'], blurb: 'A traditional race course on the western bluff. Hold the line through the climb.' },
   rally: { view: 'rally', drive: 'pinewood_rally_stage', tag: 'RALLY STAGE', name: 'Pinewood Rally Stage', color: '#D40055', lines: ['11 km  ·  gravel and forest trail', 'Service park at Otter Creek', 'Creek ford, lighthouse point and a cut forest trail'], blurb: 'Loose surface through the pines. Short on grip, long on speed.' },
+  ind: { view: 'industrial', drive: IND, tag: 'STREET COURSE', name: 'Ironworks Industrial Circuit', color: '#9bb0c8', lines: ['2.2 km  ·  walls and tyre stacks', 'Cut through the port yards between the tank farm and the docks', 'Wide straights, tight service-road corners'], blurb: 'Short and unforgiving: concrete either side, containers and cranes behind it. Smooth hands win.' },
   free: { view: 'downtown', drive: 'free', tag: 'FREE ROAM', name: 'Explore the region', color: '#D0BCFF', lines: ['150 km² open region', 'Port Halcyon, the dune coast, the harbor and the freeway', 'Drive anywhere'], blurb: 'Start on the coastal highway and go wherever the roads lead.' },
 };
 const briefEl = document.createElement('div');
@@ -2130,8 +2413,8 @@ function hideBrief(): void { briefEl.style.display = 'none'; }
 
 // ---------- garage and courier cards on the map screen ----------
 const walletEl = document.createElement('div');
-walletEl.style.cssText = 'margin:-14px 0 16px;padding:8px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.1);background:rgba(26,0,38,.55);font:600 12px Outfit,sans-serif;letter-spacing:.06em;color:#D0BCFF;display:flex;gap:12px;align-items:center';
-(menuEl.querySelector('#mapCards') as HTMLElement).before(walletEl);
+walletEl.style.cssText = 'margin:16px 0 0;width:330px;padding:8px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.1);background:rgba(26,0,38,.55);font:600 12px Outfit,sans-serif;letter-spacing:.06em;color:#D0BCFF;display:flex;gap:12px;align-items:center';
+(menuEl.querySelector('#menuTitle') as HTMLElement).appendChild(walletEl);
 function refreshWallet(): void {
   const lp = garage.levelProgress(), a = garage.active;
   walletEl.innerHTML = `<span style="color:#FF8C00">LV ${lp.level}</span><span style="flex:1;height:5px;border-radius:9px;background:rgba(255,255,255,.12);overflow:hidden"><i style="display:block;height:100%;width:${Math.round(lp.frac * 100)}%;background:linear-gradient(90deg,#D40055,#FF8C00)"></i></span><span style="color:#ffd166;font-family:'JetBrains Mono',monospace">${garage.credits.toLocaleString()} cr</span>`
@@ -2144,9 +2427,9 @@ const esc = (t: string): string => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;',
 refreshWallet(); garage.subscribe(refreshWallet); cloud.onStatus = refreshWallet;
 function addMenuCard(tag: string, name: string, sub: string, color: string, act: () => void): void {
   const b = document.createElement('div');
-  b.style.cssText = 'padding:14px 18px;margin-bottom:10px;border-radius:24px;border:1px solid rgba(255,255,255,.10);background:rgba(26,0,38,.62);backdrop-filter:blur(14px);cursor:pointer;transition:transform .2s cubic-bezier(.2,0,0,1),border-color .2s,box-shadow .2s;box-shadow:0 10px 30px rgba(0,0,0,.35)';
+  b.style.cssText = 'flex:0 0 288px;scroll-snap-align:center;padding:14px 18px;border-radius:24px;border:1px solid rgba(255,255,255,.10);background:rgba(26,0,38,.62);backdrop-filter:blur(14px);cursor:pointer;transition:transform .2s cubic-bezier(.2,0,0,1),border-color .2s,box-shadow .2s;box-shadow:0 10px 30px rgba(0,0,0,.35)';
   b.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:${color};box-shadow:0 0 10px ${color}"></span><span style="font:600 10px Outfit,sans-serif;letter-spacing:.28em;color:${color}">${tag}</span></div><div style="font:600 19px Outfit,sans-serif;margin:5px 0 3px">${name}</div><div style="font:400 12px Inter,sans-serif;color:rgba(255,255,255,.62)">${sub}</div>`;
-  b.onmouseenter = () => { b.style.transform = 'translateX(8px)'; b.style.borderColor = color; b.style.boxShadow = `0 10px 34px rgba(0,0,0,.45),0 0 22px ${color}55`; };
+  b.onmouseenter = () => { b.style.transform = 'translateY(-8px)'; b.style.borderColor = color; b.style.boxShadow = `0 10px 34px rgba(0,0,0,.45),0 0 22px ${color}55`; };
   b.onmouseleave = () => { b.style.transform = ''; b.style.borderColor = 'rgba(255,255,255,.10)'; b.style.boxShadow = '0 10px 30px rgba(0,0,0,.35)'; };
   b.onclick = act;
   (menuEl.querySelector('#mapCards') as HTMLElement).appendChild(b);
@@ -2171,7 +2454,7 @@ function openBrief(id: string): void {
   if (wxOverride === 'auto') wx.setWeather(worstOf(WEATHER_PLAN[id]), false, true);      // the map shows the race's worst weather as the forecast
   preset(b.view, true);       // stays on the map screen: dark backdrop, faded edges, no sky
   const cc = id === 'free' ? new THREE.Vector3(-4600, 0, 1800) : centroid(meta.circuits[b.drive]);
-  const hh = id === 'city' ? 1500 : id === 'cliff' ? 5200 : id === 'rally' ? 6200 : 6800;
+  const hh = id === 'city' ? 1500 : id === 'ind' ? 1300 : id === 'cliff' ? 5200 : id === 'rally' ? 6200 : 6800;
   look(new THREE.Vector3(cc.x - hh * 0.3, hh, cc.z + hh * 0.62), cc);   // steep, so no horizon shows
   briefEl.style.borderColor = b.color + '88';
   briefEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:${b.color};box-shadow:0 0 10px ${b.color}"></span><span style="font:600 10px Outfit,sans-serif;letter-spacing:.28em;color:${b.color}">${b.tag}</span></div>
@@ -2230,6 +2513,7 @@ function preset(name: string, keepMap = false): void {
   if (name === 'downtown') { const c = centroid(city); look(new THREE.Vector3(c.x - 1500, 420, c.z + 1500), new THREE.Vector3(c.x + 100, 60, c.z - 100)); }
   if (name === 'street' && city.y) { const k = 20, p = city.xz[k], q = city.xz[k + 4]; look(new THREE.Vector3(p[0], city.y[k] + 9, p[1]), new THREE.Vector3(q[0], city.y[k] + 25, q[1])); }
   if (name === 'harbor' && harbor) { const t = harbor.terminals[0]; look(new THREE.Vector3(t.c[0] - 700, 260, t.c[1] - 500), new THREE.Vector3(t.c[0], 8, t.c[1] + 120)); }
+  if (name === 'industrial' && meta.circuits[IND]) { const c = centroid(meta.circuits[IND]); look(new THREE.Vector3(c.x - 600, 900, c.z + 900), new THREE.Vector3(c.x, 10, c.z)); }
   if (name === 'dunes') look(new THREE.Vector3(-6500, 1500, 1500), new THREE.Vector3(-5200, 10, 400));
 }
 
@@ -2264,6 +2548,7 @@ let trackKit: TrackKit | null = null;
 let goClock = 99;
 const furnitureGroup = new THREE.Group();
 scene.add(furnitureGroup);
+let cityRoadMat: THREE.Material | null = null;                  // the city circuit's asphalt (lane markings, wet-road shading), shared with the cliff raceway
 let cityPath: { x: number; y: number; z: number }[] = [];       // dense path (about 6 m) for timing and barriers
 function densify(c: CircuitDef, step: number): { x: number; y: number; z: number }[] {
   const out: { x: number; y: number; z: number }[] = [];
@@ -2371,7 +2656,7 @@ function buildFurniture(): void {
   // racing surface over the street, the reference asphalt with its lane marks
   const roadAcc: Acc = { pos: [], idx: [], uv: [] };
   addRibbonUV(roadAcc, P.map((p) => [p.x, p.z]), 11, RIBBON_LIFT, 6.2);
-  { const rm = accMeshTex(roadAcc, gameTex('asphalt_highway'), 0.8, -3); furnitureGroup.add(rm); driveSurfaces.push(rm); }
+  { const rm = accMeshTex(roadAcc, gameTex('asphalt_highway'), 0.8, -3); furnitureGroup.add(rm); driveSurfaces.push(rm); cityRoadMat = rm.material as THREE.Material; }
   // start and finish gantry with a chequered line
   const [gx, gz] = tan(0);
   const g0 = P[0];
@@ -2434,6 +2719,7 @@ function buildFurniture(): void {
   // Other two race circuits: Pinewood Rally Stage & Great Lakes Cliff Raceway
   const rallyCircuit = meta.circuits.pinewood_rally_stage;
   if (rallyCircuit) {
+    rallyNear = makeCorridor(densify(rallyCircuit, 6));
     const builtRally = buildPinewoodRallyCircuit({
       circuit: rallyCircuit,
       ground: (x, z) => hAt(x, z) * exag,
@@ -2443,12 +2729,37 @@ function buildFurniture(): void {
   }
   const cliffCircuit = meta.circuits.great_lakes_cliff_raceway;
   if (cliffCircuit) {
+    // the road is laid on the terrain mesh that is drawn (hAt is a smoother surface and let the grass through), in the same asphalt as the city circuit, and the car rides on it
     const builtCliff = buildCliffRacewayCircuit({
       circuit: cliffCircuit,
-      ground: (x, z) => hAt(x, z) * exag,
+      ground: (x, z) => meshH(x, z),
       exag,
+      roadMaterial: cityRoadMat ?? undefined,
     });
     furnitureGroup.add(builtCliff.group);
+    driveSurfaces.push(builtCliff.road);
+    surfGrid = null;
+    cliffNear = makeCorridor(builtCliff.path);
+    cliffTunnelNear = builtCliff.tunnelPath.length ? makeCorridor(builtCliff.tunnelPath) : null;
+  }
+
+  // countryside set pieces for the reference shots: creek, covered bridge, paved and dirt lanes, barn
+  {
+    if (countryScenes) { furnitureGroup.remove(countryScenes.group); for (const r of countryScenes.roads) { const i = driveSurfaces.indexOf(r); if (i >= 0) driveSurfaces.splice(i, 1); } }
+    countryScenes = buildCountryScenes({ ground: (x, z) => meshH(x, z), roadMaterial: cityRoadMat ?? undefined, network: countryNet ?? undefined, shoreline: shoreHw ?? undefined });
+    furnitureGroup.add(countryScenes.group);
+    driveSurfaces.push(...countryScenes.roads);
+    surfGrid = null;
+    (window as any).countryShots = countryScenes.shots;
+  }
+
+  if (meta.circuits[IND]) {
+    const ic = buildIndustrialCircuit({ path: meta.circuits[IND].xz.map((q) => ({ x: q[0], z: q[1] })), ground: (x, z) => meshH(x, z), roadMaterial: cityRoadMat ?? undefined });
+    furnitureGroup.add(ic.group);
+    driveSurfaces.push(ic.road);
+    surfGrid = null;
+    industrialPath = ic.path;
+    indNear = makeCorridor(ic.path);
   }
 
   // Rural Horizon open-world architecture & Festival Outpost
@@ -2465,17 +2776,15 @@ function buildFurniture(): void {
   });
   furnitureGroup.add(cityExpGroup);
 
-  // Hero Gordie-Howe-style LED Cable-Stayed River Bridge
-  const bridgeStartY = hAt(6450, 220) * exag + 8;
-  const bridgeEndY = hAt(7350, 220) * exag + 8;
-  const heroBridge = buildHeroBridge({
-    start: new THREE.Vector3(6450, bridgeStartY, 220),
-    end: new THREE.Vector3(7350, bridgeEndY, 220),
-    deckWidth: 22,
-    towerHeight: 88,
-  });
-  furnitureGroup.add(heroBridge.group);
-  heroBridgeUpdate = heroBridge.updateLed;
+  // the two high-level river bridges (deck 46 m over the water, so the ships pass beneath): Halcyon Gateway in the south, Northgate at the head of the waterway
+  {
+    const rb = buildRiverBridges({ ground: (x, z) => meshH(x, z), roadMaterial: cityRoadMat ?? undefined });
+    furnitureGroup.add(rb.group);
+    driveSurfaces.push(...rb.decks);
+    surfGrid = null;
+    bridgeNear = makeCorridor(rb.path);
+    heroBridgeUpdate = rb.updateLed;
+  }
 }
 
 let heroBridgeUpdate: ((elapsed: number, nightFactor: number) => void) | null = null;
@@ -2626,9 +2935,33 @@ function surfaceTop(x: number, z: number): number {
   return top;
 }
 function groundH(x: number, z: number): number {
-  return Math.max(meshH(x, z), surfaceTop(x, z));
+  const top = surfaceTop(x, z);
+  if (top > -1e8 && cliffTunnelNear && cliffTunnelNear(x, z, 10)) return top;       // in the tunnel the road is the ground; the terrain is the mountain over it
+  return Math.max(meshH(x, z), top);
 }
 let surfIdx = 0;
+/** a fast "is this point within r metres of the line" test: the line's points in a hash of 24 m cells */
+function makeCorridor(pts: { x: number; z: number }[]): (x: number, z: number, r: number) => boolean {
+  const C = 24, h = new Map<number, number[]>();
+  for (const p of pts) { const k = Math.floor(p.x / C) * 8192 + Math.floor(p.z / C); let a = h.get(k); if (!a) { a = []; h.set(k, a); } a.push(p.x, p.z); }
+  return (x, z, r) => {
+    const cx = Math.floor(x / C), cz = Math.floor(z / C), r2 = r * r;
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+      const a = h.get((cx + i) * 8192 + cz + j); if (!a) continue;
+      for (let k = 0; k < a.length; k += 2) { const dx = a[k] - x, dz = a[k + 1] - z; if (dx * dx + dz * dz < r2) return true; }
+    }
+    return false;
+  };
+}
+let cliffNear: ((x: number, z: number, r: number) => boolean) | null = null;         // the cliff raceway's tarmac
+let cliffTunnelNear: ((x: number, z: number, r: number) => boolean) | null = null;   // inside its tunnel, where the mountain overhead must not hold the car up
+let mapEditor: ReturnType<typeof createMapEditor> | null = null;
+let userMap: UserMap | null = null;                                                    // roads and zones drawn in the map editor (F2)
+let shoreHw: Shoreline | null = null;                                                  // the shoreline highway and its open gallery
+let countryNet: RoadNetwork | null = null;                                             // country roads traced from the map texture
+let bridgeNear: ((x: number, z: number, r: number) => boolean) | null = null;         // the river bridges' roadway
+let countryScenes: CountryScenes | null = null;                                        // Millbrook Creek, its covered bridge, Millbrook Road and Hollow Lane
+let rallyNear: ((x: number, z: number, r: number) => boolean) | null = null;         // the rally stage's gravel road
 function surfaceAtXZ(x: number, z: number): SurfaceType {
   // roads and pavement from the baked street mask, the coastal highway and the city circuit corridor, beach sand near the water, grass elsewhere
   if (roadMask) {
@@ -2648,6 +2981,11 @@ function surfaceAtXZ(x: number, z: number): SurfaceType {
     for (let k = -12; k <= 12; k++) { const j = ((surfIdx + k) % n + n) % n; const d = (P[j].x - x) ** 2 + (P[j].z - z) ** 2; if (d < best) { best = d; surfIdx = j; } }
     if (best < 80) return 'asphalt';
   }
+  if (cliffNear && cliffNear(x, z, 6.6)) return 'asphalt';
+  if (rallyNear && rallyNear(x, z, 5.2)) return 'gravel';
+  if (bridgeNear && bridgeNear(x, z, 10)) return 'asphalt';
+  if (indNear && indNear(x, z, 7.2)) return 'asphalt';
+  if (countryScenes) { if (countryScenes.pavedNear(x, z, 0.8)) return 'asphalt'; if (countryScenes.dirtNear(x, z, 0.8)) return 'gravel'; }
   return hAt(x, z) < 3 ? 'sand' : 'grass';
 }
 
@@ -2762,7 +3100,7 @@ function corridorAt(P: { x: number; z: number }[], n: number, bi: number, x: num
   return { d: nd, nx, nz };
 }
 function barrierCollide(s: DriveState): boolean {
-  const P = cityPath, n = P.length;
+  const P = s.circuitId === IND ? industrialPath : cityPath, n = P.length;
   if (!n) return false;
   // nearest path point near the last one (the path is a closed loop; search a window, fall back to a full scan)
   let best = 1e18, bi = barrierIdx;
@@ -2811,7 +3149,7 @@ function barrierCollide(s: DriveState): boolean {
 
 // ---------- garage: run tracking, medals, payouts and the courier mode ----------
 let runTracker: RunTracker | null = null, stagePath: PathProgress | null = null, stageFinished = false, lastLapCount = 0, delivery: DeliveryGame | null = null;
-const RUN_NAMES: Record<string, string> = { ironport_grand_circuit: 'Ironport Grand Circuit', great_lakes_cliff_raceway: 'Great Lakes Cliff Raceway', pinewood_rally_stage: 'Pinewood Rally Stage' };
+const RUN_NAMES: Record<string, string> = { ironport_grand_circuit: 'Ironport Grand Circuit', great_lakes_cliff_raceway: 'Great Lakes Cliff Raceway', pinewood_rally_stage: 'Pinewood Rally Stage', ironworks_industrial_circuit: 'Ironworks Industrial Circuit' };
 let courierSpots: ReturnType<typeof makeSpots> | null = null;
 function deliverySpots(): ReturnType<typeof makeSpots> {
   if (!courierSpots) courierSpots = makeSpots([meta.coastal_highway.xz.map((p) => ({ x: p[0], z: p[1] })), ...streetRuns.map((r) => r.p.map((p) => ({ x: p[0], z: p[1] })))]);
@@ -2820,13 +3158,17 @@ function deliverySpots(): ReturnType<typeof makeSpots> {
 let competition: CompetitionEngine | null = null;
 let trafficMgr: TrafficManager | null = null;
 let challengeMgr: OpenWorldChallengeManager | null = null;
+let pursuitMode: CopsAndRobbersMode | null = null;
+const onlineSession = new OnlineSessionManager((text) => { msg.textContent = text; });
+const remoteGroup = new THREE.Group();
+scene.add(remoteGroup);
 const aiGroup = new THREE.Group();
 const trafficGroup = new THREE.Group();
 scene.add(aiGroup, trafficGroup);
 let aiMeshes: THREE.Group[] = [];
 let trafficMeshes: THREE.Group[] = [];
 
-function makeTrafficOrAiCarMesh(paintHex: number): THREE.Group {
+function makeTrafficOrAiCarMesh(paintHex: number | string): THREE.Group {
   const g = new THREE.Group();
   const body = new THREE.Mesh(
     new THREE.BoxGeometry(1.9, 0.72, 4.45),
@@ -2854,22 +3196,28 @@ function makeTrafficOrAiCarMesh(paintHex: number): THREE.Group {
 
 function teardownRun(): void {
   if (delivery) { const d = delivery; delivery = null; d.quit(); d.dispose(); }
+  if (pursuitMode) { scene.remove(pursuitMode.group); pursuitMode = null; }
   runTracker = null; stagePath = null; stageFinished = false;
   competition = null; trafficMgr = null; challengeMgr = null;
   aiGroup.clear(); trafficGroup.clear();
   aiMeshes = []; trafficMeshes = [];
 }
-function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend'): void {
+function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole?: PursuitRoleChoice): void {
   teardownRun();
   lastLapCount = lap?.laps ?? 0;
+  if (pursuitRole && driving) {
+    pursuitMode = new CopsAndRobbersMode(pursuitRole, driving.pos, driving.yaw, groundH);
+    scene.add(pursuitMode.group);
+    msg.textContent = `${pursuitMode.statusText} · [F] BAIL OUT / ON FOOT`;
+    return;
+  }
   if (courier) { delivery = new DeliveryGame(courier, deliverySpots(), scene, groundH, () => preset('overview')); return; }
   if (id === 'free') {
     const hwPts = meta.coastal_highway.xz.map((p) => new THREE.Vector3(p[0], hAt(p[0], p[1]) * exag, p[1]));
     const subPts = streetRuns.slice(0, 12).flatMap((r) => r.p.map((p) => new THREE.Vector3(p[0], hAt(p[0], p[1]) * exag, p[1])));
-    trafficMgr = new TrafficManager({ i196Samples: hwPts, suburbSamples: subPts });
-    trafficMgr.init(18, groundH);
+    trafficMgr = new TrafficManager({ i196Samples: hwPts, suburbSamples: subPts, terrainHeight: groundH }, 18);
     for (const tv of trafficMgr.vehicles) {
-      const m = makeTrafficOrAiCarMesh(tv.paintHex);
+      const m = makeTrafficOrAiCarMesh(new THREE.Color(tv.paintHex).getHex());
       m.position.copy(tv.pos);
       m.rotation.y = tv.yaw;
       trafficGroup.add(m);
@@ -2884,7 +3232,7 @@ function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend'): void {
   runTracker = new RunTracker(id, refParSec(pts, city, city ? 5.4 : 4.2));
   const vecPts = pts.map((p) => new THREE.Vector3(p.x, p.y, p.z));
   competition = new CompetitionEngine();
-  competition.createGrid(vecPts, [CARS.kestrel, CARS.aurelia], groundH, { includePlayer: true, totalCars: 12 });
+  competition.createGrid(vecPts, [CARS.kestrel, CARS.aurelia], groundH, { includePlayer: true });
   for (const r of competition.racers) {
     if (r.isPlayer) continue;
     const m = makeTrafficOrAiCarMesh(r.paintHex);
@@ -2915,7 +3263,7 @@ function garageStep(dt: number, s: DriveState, bumped: boolean): void {
     if (stagePath.done && !stageFinished) { stageFinished = true; finishRun(performance.now() / 1000 - stagePath.t0); }
   }
 }
-function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend'): void {
+function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole?: PursuitRoleChoice): void {
   applyActiveCar();
   setMapMode(false);
   playMusic('drive');
@@ -2940,14 +3288,14 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend'): void {
   carY = -1e9; carPitch = carRoll = slopePS = slopeRS = 0; setMusicDuck(0.4); gameAudio.ensureStarted(); gameAudio.setPaused(false);
   wx.ensureAudio(); wx.setAudioLevel(engVol); wx.setPaused(false);
   {
-    const key = id === 'ironport_grand_circuit' ? 'city' : id === 'great_lakes_cliff_raceway' ? 'cliff' : id === 'pinewood_rally_stage' ? 'rally' : 'free';
+    const key = id === 'ironport_grand_circuit' ? 'city' : id === 'great_lakes_cliff_raceway' ? 'cliff' : id === 'pinewood_rally_stage' ? 'rally' : id === IND ? 'ind' : 'free';
     wxPlan = WEATHER_PLAN[key]; wxPlanT = 0; wxPlanI = 0;
     wx.setWeather(wxOverride === 'auto' ? wxPlan[0].w : wxOverride, false, true);
   }
   camera.near = 1.0; camera.far = 22000; camera.updateProjectionMatrix();      // the map view uses a 5 m near plane, which cut the back of the car off at chase distance
   lapReset();
   buildRacingLine(id);
-  setupRun(id, courier);
+  setupRun(id, courier, pursuitRole);
   replay.clear(); driveClock = 0; camYawOff = 0; camPitchOff = 0; camZoom = 1;
   controls.enabled = false;
   circuitGroup.visible = false;      // the review ribbons are drawn wider than the road
@@ -3061,7 +3409,7 @@ function stepDrive(dt: number): void {
     }
   }
   if (trafficMgr) {
-    trafficMgr.step(dt, ps, groundH);
+    trafficMgr.update(dt, ps);
     for (let i = 0; i < trafficMgr.vehicles.length && i < trafficMeshes.length; i++) {
       const tv = trafficMgr.vehicles[i];
       trafficMeshes[i].position.copy(tv.pos);
@@ -3072,7 +3420,33 @@ function stepDrive(dt: number): void {
     const events = challengeMgr.step(ps, dt);
     if (events.length) {
       const ev = events[events.length - 1];
-      msg.textContent = `${ev.title} · ${ev.detail}`;
+      msg.textContent = `${ev.title} · ${ev.subtitle}`;
+    }
+  }
+  if (pursuitMode) {
+    pursuitMode.step(dt, ps, input, groundH, surfaceAtXZ);
+    msg.textContent = pursuitMode.statusText;
+    if (pursuitMode.playerOnFoot.active) {
+      s.pos.copy(pursuitMode.playerOnFoot.pos);
+      s.yaw = pursuitMode.playerOnFoot.yaw;
+      s.sp = pursuitMode.playerOnFoot.speed;
+    }
+  }
+  if (onlineSession.mode !== 'offline') {
+    onlineSession.step(dt, ps, {
+      carId: 'kestrel',
+      paintHex: 0xc24d12,
+      onFoot: pursuitMode?.playerOnFoot.active,
+      pursuitRole: pursuitMode?.role,
+      lap: (lap?.laps ?? 0) + 1,
+    });
+    for (const r of onlineSession.remotes.values()) {
+      if (!r.mesh) {
+        r.mesh = makeTrafficOrAiCarMesh(r.paintHex);
+        remoteGroup.add(r.mesh);
+      }
+      r.mesh.position.copy(r.pos);
+      r.mesh.rotation.y = r.yaw;
     }
   }
   s.pos.set(ps.pos.x, ps.pos.y, ps.pos.z);
@@ -3080,7 +3454,7 @@ function stepDrive(dt: number): void {
   s.sp = ps.forwardSpeed; s.lat = ps.lateralSpeed; s.steer = ps.steerInputSmoothed;
   let bumped = false;
   if (collide(s)) { s.sp *= 0.86; s.lat *= 0.7; s.hit = 0.4; bumped = true; }
-  if (s.circuitId === 'ironport_grand_circuit' && barrierCollide(s)) { s.hit = 0.4; bumped = true; }
+  if ((s.circuitId === 'ironport_grand_circuit' || s.circuitId === IND) && barrierCollide(s)) { s.hit = 0.4; bumped = true; }
   if (bumped) driveInput.rumble(0.9, 0.7, 220);
   else if (ps.isDrifting) driveInput.rumble(0.0, 0.25, 60);
   garageStep(dt, s, bumped);
@@ -3122,6 +3496,9 @@ function stepDrive(dt: number): void {
       const x = s.pos.x + cy1 * ox + sy1 * oz, z = s.pos.z - sy1 * ox + cy1 * oz;
       const pd = road ? puddleDepth(x, z, poolLevel) : 0;
       spray.wheel(dt, x, groundH(x, z), z, ps.vel.x, ps.vel.z, spdH, Math.max(wetBase, pd), Math.min(1.4, pd + bigK * (pd > 0.1 ? 1 : 0.4)));
+      // dust and clods off anything loose: a rally road throws the most, sand and grass less, and wet ground turns to mud that stays down
+      const sf = surfaceAtXZ(x, z), loose = sf === 'gravel' ? 1 : sf === 'sand' ? 0.6 : sf === 'grass' ? 0.35 : 0;
+      if (loose > 0) dust.wheel(dt, x, groundH(x, z), z, ps.vel.x, ps.vel.z, spdH, loose * (1 - 0.65 * wx.cur.wet), Math.abs(ps.lateralSpeed) / Math.max(spdH, 4) + (ps.isDrifting ? 0.5 : 0), bigK + 0.4);
     }
   }
   // chase camera
@@ -3148,7 +3525,7 @@ function stepDrive(dt: number): void {
     s.camPos.y += (want.y - s.camPos.y) * Math.min(1, dt * 10);
     const fovWant = 54 + 16 * Math.min(1, Math.abs(ps.speedMps) / 70);
     if (Math.abs(camera.fov - fovWant) > 0.05) { camera.fov += (fovWant - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); }
-    const ch = meshH(s.camPos.x, s.camPos.z) + 0.9;
+    const ch = groundH(s.camPos.x, s.camPos.z) + 0.9;
     if (s.camPos.y < ch) s.camPos.y = ch;
     camera.position.copy(s.camPos);
     const ahead = 9 * Math.max(0, 1 - Math.abs(camYawOff) / 0.5);
@@ -3203,7 +3580,31 @@ async function boot(): Promise<void> {
     fetch(BASE + 'height.f32').then((r) => r.arrayBuffer()),
   ]);
   meta = m;
+  countryNet = await fetch(BASE + 'country_roads.json').then((x) => (x.ok ? x.json() : null)).catch(() => null);
+  for (const f of ['farbank_streets.json', 'user_streets.json']) { const fb = await fetch(BASE + f).then((x) => (x.ok ? x.json() : null)).catch(() => null); if (fb && countryNet) countryNet.roads.push(...fb.roads); else if (fb) countryNet = fb; }
+  { if (!countryNet) countryNet = { roads: [] }; countryNet.roads.push({ kind: 'paved', xz: meta.coastal_highway.xz, half: 6.4 }, { kind: 'paved', xz: meta.freeway.xz, half: 10 }); }
+  userMap = await fetch(BASE + 'user_map.json?t=' + Date.now()).then((x) => (x.ok ? x.json() : null)).catch(() => null);
+  if (userMap) {
+    const roads = userMap.features.filter((f) => f.type === 'road' && f.kind !== 'creek' && f.pts.length >= 2).map((f) => ({ kind: (f.kind === 'dirt' ? 'dirt' : 'paved') as 'paved' | 'dirt', xz: f.pts, half: ROAD_STYLE[f.kind as RoadKind].half }));
+    if (roads.length) { if (!countryNet) countryNet = { roads: [] }; countryNet.roads.push(...roads); }
+  }
+  {
+    const ind = await fetch(BASE + 'industrial_circuit.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { name: string; kind: string; xz: number[][] } | null;
+    if (ind && ind.xz.length > 6) { const sm = smoothClosedPath(ind.xz, undefined, 26, 6); meta.circuits[IND] = { name: ind.name, kind: 'road_course', xz: sm.xz } as typeof meta.circuits[string]; }
+  }
+  shoreHw = await fetch(BASE + 'shoreline_highway.json').then((x) => (x.ok ? x.json() : null)).catch(() => null);
   heights = new Float32Array(buf);
+  if (!location.search.includes('hires=0')) {
+    const h2 = await fetch(BASE + 'height2.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { w: number; h: number; mpp: number; min: number; max: number } | null;
+    const raw = h2 ? await fetch(BASE + 'height2.u16').then((x) => (x.ok ? x.arrayBuffer() : null)).catch(() => null) : null;
+    if (h2 && raw && raw.byteLength === h2.w * h2.h * 2) {
+      const u = new Uint16Array(raw), f = new Float32Array(u.length), k = (h2.max - h2.min) / 65535;
+      for (let i = 0; i < u.length; i++) f[i] = h2.min + u[i] * k;
+      heights = f; meta.width = h2.w; meta.height = h2.h; meta.mpp = h2.mpp; hiRes = true;
+    }
+  }
+  if (shoreHw) carveShoreline(heights, meta.width, meta.height, meta.mpp, shoreHw);
+  carveCreek(heights, meta.width, meta.height, meta.mpp);
   buildTerrain();
   buildOverlays();
   buildFurniture();
@@ -3215,6 +3616,13 @@ async function boot(): Promise<void> {
   buildForest().catch((e) => console.error('forest failed', e));
   loadHarbor().catch((e) => console.error('harbor failed', e));
   buildCity().catch((e) => console.error('city failed', e));
+  mapEditor = createMapEditor({
+    scene, camera, dom: renderer.domElement, terrain: () => terrain, ground: (x, z) => meshH(x, z),
+    topView: () => { const t = controls.target; look(new THREE.Vector3(t.x, Math.max(2500, camera.position.distanceTo(t)), t.z + 1), t.clone()); },
+  });
+  mapEditor.load(userMap ?? { version: 1, features: [] });
+  (window as any).cineJump = (i: number) => { if (!cineOn) startCine(); cineIdx = i % cineShots.length; cineT = 1.2; };
+  (window as any).vegStats = () => vegetation?.stats;
   (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, csm, renderer, warmShaders, audio: gameAudio, cam: (x?: number, y?: number, z?: number, tx?: number, ty?: number, tz?: number) => { dbgCam = x === undefined ? null : { pos: new THREE.Vector3(x, y!, z!), at: new THREE.Vector3(tx!, ty!, tz!) }; }, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, keys, drive: () => driving, delivery: () => delivery, garage };
 }
 
@@ -3300,6 +3708,21 @@ document.getElementById('radioNext')?.addEventListener('click', () => { gameAudi
 addEventListener('keydown', (e) => {
   if (e.key === '[') { gameAudio.cycleStation(-1); syncRadioLabel(); }
   if (e.key === ']') { gameAudio.cycleStation(1); syncRadioLabel(); }
+  if (e.code === 'KeyF' && pursuitMode && driving) {
+    const onFoot = pursuitMode.togglePlayerOnFoot(driving.ps, groundH);
+    msg.textContent = onFoot ? `${pursuitMode.statusText} (ON FOOT)` : pursuitMode.statusText;
+  }
+});
+document.getElementById('playPursuitAuto')?.addEventListener('click', () => startDrive('free', undefined, 'auto'));
+document.getElementById('playCop')?.addEventListener('click', () => startDrive('free', undefined, 'cop'));
+document.getElementById('playRobber')?.addEventListener('click', () => startDrive('free', undefined, 'robber'));
+document.getElementById('playOnlineWorld')?.addEventListener('click', () => {
+  onlineSession.connectPersistentWorld();
+  startDrive('free');
+});
+document.getElementById('playOnlineRace')?.addEventListener('click', () => {
+  onlineSession.joinOnlineRace('ironport_grand_circuit');
+  startDrive('ironport_grand_circuit');
 });
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; applyMapOffset();
@@ -3313,10 +3736,12 @@ function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
   driveInput.tick();
+  if (vegetation) { if (mapMode) vegetation.setEnabled(false); else { vegetation.setEnabled(true); vegetation.setWind(0.3 + wx.cur.wind * 0.9 + wx.cur.rain * 0.3); vegetation.setWet(wx.cur.wet); vegetation.update(dt, camera.position); } }
   if (grassField && !mapMode) { grassField.setWind(0.3 + wx.cur.wind * 0.9 + wx.cur.rain * 0.3); grassField.setWet(wx.cur.wet); grassField.update(dt, camera.position); }
   if (treeFields.length && !mapMode) for (const tf of treeFields) { tf.setWind(0.25 + wx.cur.rain * 0.5 + wx.cur.cloudDark * 0.4); tf.update(dt, camera.position); }
   stepFly(dt);
   stepTween(dt);
+  stepCine(dt, now);
   stepWeather(dt);
   heroBridgeUpdate?.(now * 0.001, Math.max(0, Math.min(1, 1 - (sunDir.y + 0.05) * 4)));
   for (const l of cloudLayers) { l.tex.offset.x += l.vx * dt; l.tex.offset.y += l.vz * dt; }
@@ -3363,7 +3788,7 @@ function frame(now: number): void {
   frameProfiler.beginRender();
   if (composer && fxOn) composer.render(); else renderer.render(scene, camera);
   frameProfiler.end();
-  if (meta) {
+  if (meta && heights) {
     const e = hAt(camera.position.x, camera.position.z);
     hud.innerHTML = `camera ${Math.round(camera.position.x)}, ${Math.round(camera.position.z)}<br>alt over ground ${Math.round(camera.position.y - e * exag)} m<br>ground ${e.toFixed(0)} m above lake`;
   }
