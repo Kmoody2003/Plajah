@@ -28,7 +28,7 @@ import { EzTreeField } from './ezforest';
 import { GrassField } from './grass';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { AoPass } from './ao';
-import { RacingLine } from './racingline';
+import { RacingLine, ChevronLine } from './racingline';
 import { CSM } from 'three/addons/csm/CSM.js';
 import { GradePass, GAME_LENSES, GAME_LUTS, type GameLens } from './grade';
 import { WeatherRig, WEATHERS, worstOf, forecastText } from './weather';
@@ -2253,7 +2253,7 @@ let driving: DriveState | null = null;
 // racing line and assists (Settings > Driving)
 const assist = { line: true, brake: true, steer: true };
 try { const a = JSON.parse(localStorage.getItem('apex.assist') ?? 'null'); if (a) Object.assign(assist, a); } catch { /* storage blocked */ }
-let racingLine: RacingLine | null = null, lineMesh: THREE.Mesh | null = null, assistBrakeShown = 0;
+let racingLine: RacingLine | null = null, chevrons: ChevronLine | null = null, lineMesh: THREE.Mesh | null = null, assistBrakeShown = 0;
 function buildRacingLine(id: string): void {
   if (lineMesh) { scene.remove(lineMesh); lineMesh.geometry.dispose(); lineMesh = null; }
   racingLine = null;
@@ -2263,7 +2263,8 @@ function buildRacingLine(id: string): void {
   if (pts.length < 8) return;
   const cg = SOV_SPEC.corneringGrip * 1.18 * 9.81;
   racingLine = new RacingLine(pts, city, { aLat: cg * 0.66, aBrake: 1.1 * SOV_SPEC.corneringGrip * 9.81 * 0.6, vmax: 80, halfWidth: city ? 5.4 : 4.2 });
-  lineMesh = racingLine.mesh((x, z) => groundH(x, z) + 0.06);
+  chevrons = new ChevronLine(racingLine, (x, z) => groundH(x, z) + 0.07);
+  lineMesh = chevrons.mesh;
   lineMesh.visible = assist.line;
   scene.add(lineMesh);
 }
@@ -2585,6 +2586,7 @@ function stepDrive(dt: number): void {
     }
   }
   assistBrakeShown = assistBrake;
+  if (racingLine && chevrons && lineMesh?.visible) chevrons.update(racingLine.nearest(s.pos.x, s.pos.z), Math.max(0, s.ps.forwardSpeed), Math.max(0.3, wx.cur.grip * (1 - 0.82 * hydro)));
   const thrWant = locked ? 0 : Math.max(kUp ? 1 : 0, pad.throttle) * (1 - assistBrake), brkWant = locked ? 1 : Math.max(kDown ? 1 : 0, pad.brake, assistBrake);
   pedalT += (thrWant - pedalT) * Math.min(1, dt * (thrWant > pedalT ? 3.4 : 8));
   pedalB += (brkWant - pedalB) * Math.min(1, dt * (brkWant > pedalB ? 2.6 : 9));

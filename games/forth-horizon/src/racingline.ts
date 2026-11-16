@@ -12,7 +12,7 @@ export class RacingLine {
   readonly ds: number;
   private hint = 0;
 
-  constructor(private P: LinePt[], private closed: boolean, opt: { aLat: number; aBrake: number; vmax: number; halfWidth?: number }) {
+  constructor(private P: LinePt[], readonly closed: boolean, opt: { aLat: number; aBrake: number; vmax: number; halfWidth?: number }) {
     const n = (this.n = P.length);
     this.ds = n > 1 ? Math.hypot(P[1].x - P[0].x, P[1].z - P[0].z) : 6;
     this.speed = new Float32Array(n); this.kind = new Uint8Array(n); this.yaw = new Float32Array(n);
@@ -61,6 +61,8 @@ export class RacingLine {
       if (lim < this.speed[i]) { this.speed[i] = lim; this.kind[i] = 1; }
     }
   }
+
+  at(i: number): LinePt { return this.P[this.closed ? ((i % this.n) + this.n) % this.n : Math.max(0, Math.min(this.n - 1, i))]; }
 
   /** nearest line point to x,z, searching near where the car was (the line is a loop or a long open path) */
   nearest(x: number, z: number): number {
@@ -129,5 +131,62 @@ export class RacingLine {
     const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8, fog: false }));
     m.frustumCulled = false; m.renderOrder = 3;
     return m;
+  }
+}
+
+/**
+ * The line as it is drawn in the game, Forza style: not a painted ribbon but a string of thin chevrons on the road ahead of the car, pointing the way to go. They start
+ * just in front of the car and run as far ahead as it needs to see (further the faster it goes), fade out with distance, and take their colour from what the car is
+ * doing against the line: white-green to carry on, amber to lift, red to brake.
+ */
+export class ChevronLine {
+  readonly mesh: THREE.InstancedMesh;
+  private count = 0;
+  private readonly MAX = 40;
+  private readonly STEP = 7;                 // metres between chevrons
+  private m = new THREE.Matrix4(); private q = new THREE.Quaternion(); private c = new THREE.Color();
+  private up = new THREE.Vector3(0, 1, 0); private p = new THREE.Vector3(); private s = new THREE.Vector3(1.55, 1, 1.55);
+
+  constructor(private line: RacingLine, private lift: (x: number, z: number) => number) {
+    // a chevron pointing along +z: tip, two back corners, and the inner notch
+    const T = [0, 0.62], L1 = [-0.95, -0.28], L2 = [-0.95, -0.66], I = [0, -0.08], R2 = [0.95, -0.66], R1 = [0.95, -0.28];
+    const tri = [T, L1, I, L1, L2, I, T, I, R1, I, R2, R1];
+    const pos: number[] = [];
+    for (const [x, z] of tri) pos.push(x, 0, z);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    this.mesh = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8, fog: false }), this.MAX);
+    this.mesh.count = 0; this.mesh.frustumCulled = false; this.mesh.renderOrder = 3;
+    this.mesh.setColorAt(0, this.c.setRGB(0, 0, 0));
+  }
+
+  /** i0: nearest line point to the car; v: its speed (m/s); grip: current tyre grip (weather, aquaplaning) */
+  update(i0: number, v: number, grip: number): void {
+    const L = this.line, n = L.n, ds = L.ds;
+    const sg = Math.sqrt(Math.max(0.3, grip)), cap = 9.0 * Math.max(0.3, grip);
+    const look = Math.min(this.STEP * this.MAX - 2, Math.max(70, 55 + v * 3.2));      // see further the faster you go
+    const per = Math.max(1, Math.round(this.STEP / ds));
+    let k = 0;
+    for (let a = 1; k < this.MAX; a += per) {
+      const d = a * ds;
+      if (d > look) break;
+      const j = L.closed ? (i0 + a) % n : i0 + a;
+      if (j >= n) break;
+      const pt = L.at(j), vt = L.speed[j] * sg, yaw = L.yaw[j];
+      const need = v > vt ? (v * v - vt * vt) / (2 * Math.max(d, 4)) : 0;
+      let r = 0.55, g = 1.0, b = 0.78;                                              // carry on
+      if (need > cap * 0.5) { r = 1.0; g = 0.16; b = 0.12; }                       // brake
+      else if (need > cap * 0.14 || v > vt * 1.05) { r = 1.0; g = 0.74; b = 0.12; }  // lift
+      const fade = Math.pow(1 - d / (look + 8), 0.8) * Math.min(1, d / 10);
+      this.c.setRGB(r * fade * 0.95, g * fade * 0.95, b * fade * 0.95);
+      this.q.setFromAxisAngle(this.up, yaw);
+      this.p.set(pt.x, this.lift(pt.x, pt.z), pt.z);
+      this.m.compose(this.p, this.q, this.s);
+      this.mesh.setMatrixAt(k, this.m); this.mesh.setColorAt(k, this.c);
+      k++;
+    }
+    this.mesh.count = k; this.count = k;
+    this.mesh.instanceMatrix.needsUpdate = true;
+    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
   }
 }
