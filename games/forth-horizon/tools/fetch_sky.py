@@ -29,5 +29,11 @@ for name, url in SRC.items():
     h, w = img.shape[:2]
     W = 4096
     out = cv2.resize(img, (W, round(h * W / w)), interpolation=cv2.INTER_AREA)
+    # the panorama's left and right edges do not match, which shows as a vertical seam in the dome: cross-fade the last B columns into the first B and drop them
+    B = 200
+    f = out.astype(np.float32)
+    wt = (np.arange(B, dtype=np.float32) / B)[None, :, None]; wt = wt * wt * (3 - 2 * wt)
+    f2 = f[:, :W - B].copy(); f2[:, :B] = f[:, :B] * wt + f[:, W - B:] * (1 - wt)
+    out = np.clip(f2, 0, 255).astype(np.uint8)
     cv2.imwrite(os.path.join(OUT, name + ".jpg"), out, [cv2.IMWRITE_JPEG_QUALITY, 88])
     print(name, (w, h), "->", out.shape[1::-1], os.path.getsize(os.path.join(OUT, name + ".jpg")) // 1024, "KB")

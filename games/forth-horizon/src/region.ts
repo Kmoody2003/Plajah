@@ -21,6 +21,8 @@ loadRoadPbr();
 import { SprayFx, puddleDepth, PUDDLE_GLSL } from './spray';
 import { TreeField, cardLod } from './trees';
 import { EzTreeField } from './ezforest';
+import { GrassField } from './grass';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { WeatherRig, WEATHERS, worstOf, forecastText } from './weather';
 import type { SurfaceType } from './world';
 
@@ -218,12 +220,61 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
 }
 
 let composer: EffectComposer | null = null;
+let cinePass: ShaderPass | null = null;
 let fxOn = true;
 try {
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
   const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.42, 0.55, 0.82);
   composer.addPass(bloom);
+  // cinematic pass (linear HDR, before tone mapping): speed blur toward the screen edges, sun light shafts through the sky and cloud, a hint of lens fringing,
+  // a soft vignette and fine grain
+  cinePass = new ShaderPass({
+    uniforms: { tDiffuse: { value: null }, uSpeed: { value: 0 }, uSun: { value: new THREE.Vector2(0.5, 0.8) }, uShaft: { value: 0 }, uTime: { value: 0 }, uVig: { value: 0.28 }, uAspect: { value: 1.6 }, uSunCol: { value: new THREE.Color(1, 0.9, 0.7) } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `
+      uniform sampler2D tDiffuse; uniform float uSpeed, uShaft, uTime, uVig, uAspect; uniform vec2 uSun; uniform vec3 uSunCol;
+      varying vec2 vUv;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+      void main() {
+        vec2 c = vec2(0.5, 0.42);
+        vec2 d = vUv - c;
+        float rd = length(d * vec2(uAspect, 1.0));
+        // speed blur: samples pulled toward the vanishing point, none in the middle so the car and road ahead stay sharp
+        float amt = uSpeed * 0.06 * smoothstep(0.10, 0.75, rd);
+        vec3 col = vec3(0.0);
+        const int N = 9;
+        for (int i = 0; i < N; i++) {
+          float t = float(i) / float(N - 1);
+          vec2 uv = vUv - d * amt * t;
+          // lens fringing grows with distance from the centre and with speed
+          float ca = (0.0007 + uSpeed * 0.0012) * rd;
+          col += vec3(texture2D(tDiffuse, uv + d * ca).r, texture2D(tDiffuse, uv).g, texture2D(tDiffuse, uv - d * ca).b);
+        }
+        col /= float(N);
+        // light shafts: march from here toward the sun, gathering bright sky; blocked where trees and buildings cover it
+        if (uShaft > 0.01) {
+          vec2 ds = (uSun - vUv) / 22.0;
+          vec2 p = vUv;
+          vec3 acc = vec3(0.0);
+          float w = 1.0;
+          for (int i = 0; i < 22; i++) {
+            p += ds;
+            vec3 s = texture2D(tDiffuse, p).rgb;
+            float l = dot(s, vec3(0.3, 0.59, 0.11));
+            acc += s * smoothstep(1.2, 2.6, l) * w;
+            w *= 0.93;
+          }
+          float toward = 1.0 - clamp(length(uSun - vUv) * 0.9, 0.0, 1.0);
+          col += acc / 22.0 * uSunCol * uShaft * (0.25 + 0.75 * toward);
+        }
+        // vignette and grain
+        col *= 1.0 - uVig * smoothstep(0.35, 1.05, rd);
+        col += (hash(vUv * 1000.0 + uTime) - 0.5) * 0.012;
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+  });
+  composer.addPass(cinePass);
   composer.addPass(new OutputPass());
 } catch (e) { console.warn('post effects unavailable', e); composer = null; }
 
@@ -723,16 +774,58 @@ function addTreeCards(parent: THREE.Object3D, list: { x: number; z: number; def:
 }
 interface TreeLayer { group: THREE.Group; setWind(w: number): void; update(dt: number, cam: THREE.Vector3): void }
 const treeFields: TreeLayer[] = [];
+let grassField: GrassField | null = null;
 /** the Ravencrest/Era Clash trees (ez-tree skeletons, bark scans, painted leaves); the simple procedural trees only if those fail to build */
 function mkTrees(pts: number[][], h: (x: number, z: number) => number, ex: () => number): TreeLayer {
   try { return new EzTreeField(pts, h, ex); } catch (e) { console.warn('high-quality trees unavailable, using simple trees', e); return new TreeField(pts, h, ex); }
+}
+// ---------- keep trees and grass off the roads ----------
+// Every circuit's centreline, the coastal highway and the painted road mask are checked: nothing grows on tarmac, pavement or the course.
+let roadHash: Map<number, number[]> | null = null;
+const RH = 24;
+function ensureRoadHash(): Map<number, number[]> {
+  if (roadHash) return roadHash;
+  const h = new Map<number, number[]>();
+  const add = (x: number, z: number): void => { const k = Math.floor(x / RH) * 8192 + Math.floor(z / RH); let a = h.get(k); if (!a) { a = []; h.set(k, a); } a.push(x, z); };
+  for (const c of Object.values(meta.circuits)) for (const p of densify(c, 8)) add(p.x, p.z);
+  const hw = meta.coastal_highway?.xz ?? [];
+  for (let i = 0; i < hw.length; i++) add(hw[i][0], hw[i][1]);
+  roadHash = h;
+  return h;
+}
+/** distance (m) from x,z to the nearest course centreline or highway, capped at 2*RH */
+function roadDist(x: number, z: number): number {
+  const h = ensureRoadHash();
+  let best = 1e9;
+  const cx = Math.floor(x / RH), cz = Math.floor(z / RH);
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+    const a = h.get((cx + i) * 8192 + cz + j); if (!a) continue;
+    for (let k = 0; k < a.length; k += 2) { const d = Math.hypot(a[k] - x, a[k + 1] - z); if (d < best) best = d; }
+  }
+  return best;
+}
+/** painted road (the street mask's road channel) at x,z or within `pad` m of it; `walk` also counts pavements */
+function paintedRoad(x: number, z: number, pad: number, walk = false): boolean {
+  if (!roadMask) return false;
+  for (const [ox, oz] of [[0, 0], [pad, 0], [-pad, 0], [0, pad], [0, -pad]]) {
+    const u = (x + ox - maskVec.x) / maskVec.z, v = (z + oz - maskVec.y) / maskVec.w;
+    if (u < 0 || u >= 1 || v < 0 || v >= 1) continue;
+    const i = ((Math.floor(v * roadMask.h) * roadMask.w) + Math.floor(u * roadMask.w)) * 4;
+    if (roadMask.data[i] > 90 || (walk && roadMask.data[i + 1] > 90)) return true;
+  }
+  return false;
+}
+/** may a tree or grass stand here? `clear`: metres kept from any course centreline */
+function growable(x: number, z: number, clear: number, pad: number, walk = true): boolean {
+  return hAt(x, z) > 1.2 && roadDist(x, z) > clear && !paintedRoad(x, z, pad, walk);
 }
 const forestGroup = new THREE.Group();
 scene.add(forestGroup);
 async function buildForest(): Promise<void> {
   const res = await fetch(BASE + 'forest.json');
   if (!res.ok) return;
-  const pts = (await res.json()) as number[][];
+  for (let i = 0; i < 40 && !roadMask; i++) await new Promise((r) => setTimeout(r, 100));    // the road mask decides where trees may stand
+  const pts = ((await res.json()) as number[][]).filter((p) => growable(p[0], p[1], 12, 6, true));
   const sp = await loadSprites();
   forestGroup.clear();
   const list: { x: number; z: number; def: SpriteDef; h: number }[] = [];
@@ -758,9 +851,9 @@ async function buildForest(): Promise<void> {
       const dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l;
       for (const side of [-1, 1]) {
         if (rr() > (rally ? 0.7 : 0.38)) continue;
-        const off = (rally ? 7 : 11) + rr() * (rally ? 20 : 24), al = (rr() - 0.5) * 9;
+        const off = (rally ? 10 : 12) + rr() * (rally ? 20 : 24), al = (rr() - 0.5) * 9;
         const x = a.x + nx * off * side + (dx / l) * al, z = a.z + nz * off * side + (dz / l) * al;
-        if (hAt(x, z) < 1.6 || surfaceAtXZ(x, z) !== 'grass') continue;
+        if (!growable(x, z, 9, 6, true) || surfaceAtXZ(x, z) !== 'grass') continue;
         const conifer = rally ? rr() < 0.8 : rr() < 0.45;
         verge.push([x, z, conifer ? 1 : 0, rr(), 0.8 + rr() * 0.5]);
       }
@@ -774,6 +867,9 @@ async function buildForest(): Promise<void> {
   const vf = mkTrees(verge, hAt, () => exag);
   forestGroup.add(vf.group); treeFields.push(vf);
   console.log('verge trees', verge.length);
+  // real grass around the camera, on green ground only, never on roads, pavement or the course
+  grassField = new GrassField({ rw: meta.width * meta.mpp, rh: meta.height * meta.mpp, albedoUrl: BASE + 'albedo.jpg', ground: meshH, ok: (x, z) => growable(x, z, 6.5, 2.5, true) });
+  forestGroup.add(grassField.group);
 }
 
 // ---------- streetscape: street trees and street lights ----------
@@ -865,9 +961,11 @@ async function buildStreetscape(): Promise<void> {
     const list = r < 0.14 ? sp.autumn : sp.urban;
     return list[Math.floor((r * 977) % 1 * list.length)];
   };
-  addTreeCards(scapeGroup, trees.map((t) => ({ x: t[0], z: t[1], def: pickStreet(t[3]), h: (8 + t[3] * 5) * t[2] / 1.2 })), true);
-  // up close the street trees are real 3D trees (the cards take over beyond ~230 m)
-  { const tf = mkTrees(trees.map((t) => [t[0], t[1], 0, t[3], 0.62 * t[2] + 0.2]), hAt, () => exag); scapeGroup.add(tf.group); treeFields.push(tf); }
+  for (let i = 0; i < 40 && !roadMask; i++) await new Promise((r) => setTimeout(r, 100));
+  const okTrees = trees.filter((t) => roadDist(t[0], t[1]) > 8.5 && !paintedRoad(t[0], t[1], 1.6, false));      // sidewalk trees, never in the carriageway or the course
+  addTreeCards(scapeGroup, okTrees.map((t) => ({ x: t[0], z: t[1], def: pickStreet(t[3]), h: (8 + t[3] * 5) * t[2] / 1.2 })), true);
+  // up close the street trees are real 3D trees (the cards take over beyond ~150 m)
+  { const tf = mkTrees(okTrees.map((t) => [t[0], t[1], 0, t[3], 0.62 * t[2] + 0.2]), hAt, () => exag); scapeGroup.add(tf.group); treeFields.push(tf); }
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
   // street lights: pole, arm, emissive lamp head
   const ln = lights.length;
@@ -1177,7 +1275,7 @@ for (const [alt, size, rep, seed, vx, vz, op] of [[2900, 44000, 2.4, 7, 0.0075, 
 const wx = new WeatherRig(scene);
 const sky = new Sky(scene);
 const spray = new SprayFx(scene);
-const wDir = new THREE.Vector3(), wSun = new THREE.Vector3(0, 0.4, 1);
+const wDir = new THREE.Vector3(), wSun = new THREE.Vector3(0, 0.4, 1), tmpSun = new THREE.Vector3();
 sky.loadWeatherSkies();
 const NIGHT_K: Record<string, number> = { clear: 0, golden: 0, sunrise: 0.15, sunset: 0.1, dusk: 0.55, night: 1 };
 const skyFog = new THREE.Color();
@@ -2356,6 +2454,7 @@ function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
   driveInput.tick();
+  if (grassField && !mapMode) { grassField.setWind(0.3 + wx.cur.wind * 0.9 + wx.cur.rain * 0.3); grassField.setWet(wx.cur.wet); grassField.update(dt, camera.position); }
   if (treeFields.length && !mapMode) for (const tf of treeFields) { tf.setWind(0.25 + wx.cur.rain * 0.5 + wx.cur.cloudDark * 0.4); tf.update(dt, camera.position); }
   stepFly(dt);
   stepTween(dt);
@@ -2372,6 +2471,21 @@ function frame(now: number): void {
   }
   const sh = terrainMat?.userData.shader;
   if (sh) sh.uniforms.uCam.value.copy(camera.position);
+  if (cinePass) {
+    const u = cinePass.uniforms;
+    u.uTime.value = (u.uTime.value + dt) % 100;
+    u.uAspect.value = innerWidth / innerHeight;
+    const kmh = driving && !replay.active ? Math.abs(driving.ps.speedMps) : 0;
+    u.uSpeed.value += (Math.min(1, Math.max(0, (kmh - 18) / 62)) - u.uSpeed.value) * Math.min(1, dt * 4);
+    // where the sun is on screen, and how much of it is there to shine through (a low sun in a clear sky; none under overcast or at night)
+    const sv = tmpSun.copy(camera.position).addScaledVector(sunDir, 20000).project(camera);
+    const w = wx.cur, nk = NIGHT_K[todKey] ?? 0;
+    const vis = sv.z < 1 ? 1 : 0;
+    const clear = Math.max(0, 1 - w.cloudDark * 1.4) * Math.max(0, 1 - w.fogGrey * 0.8);
+    u.uSun.value.set(sv.x * 0.5 + 0.5, sv.y * 0.5 + 0.5);
+    u.uShaft.value += (vis * clear * (1 - nk) * (mapMode ? 0 : 0.55) - u.uShaft.value) * Math.min(1, dt * 3);
+    (u.uSunCol.value as THREE.Color).copy(sun.color);
+  }
   if (composer && fxOn) composer.render(); else renderer.render(scene, camera);
   if (meta) {
     const e = hAt(camera.position.x, camera.position.z);
