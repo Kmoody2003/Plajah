@@ -107,7 +107,7 @@ export function stepCarPhysics(
   state.suspensionImpact = Math.max(0, state.suspensionImpact - safeDt * 4.5);
 
   const isOffroadSpec = spec.suspension.travelM >= 0.22 || spec.vehicleClass === 'buggy' || spec.vehicleClass === 'rally' || spec.vehicleClass === 'truck';
-  const offroadBonus = isOffroadSpec ? 0.16 : 0;
+  const offroadBonus = (isOffroadSpec ? 0.16 : 0) + (spec.offroadGrip ?? 0);
 
   const surfaceGrip =
     state.surface === 'asphalt'

@@ -7,6 +7,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { makeSovereign } from './car';
+import { garage, activeSpec, hasCar, RunTracker, PathProgress, refParSec, showBanner, showCard, DeliveryGame, makeSpots, TIER_LIST } from './garageGame';
+import { medalFor } from './garage/progress';
 import { loadSovereignScan } from './scancar';
 import { Replay } from './broadcastReplay';
 import { createCarState, stepCarPhysics, type CarState, type CarInput } from './physics';
@@ -2098,6 +2100,43 @@ function openBrief(id: string): void {
 function centroid(c: CircuitDef): THREE.Vector3 {
   let x = 0, z = 0;
   for (const p of c.xz) { x += p[0]; z += p[1]; }
+
+// ---------- garage and courier cards on the map screen ----------
+const walletEl = document.createElement('div');
+walletEl.style.cssText = 'margin:-14px 0 16px;padding:8px 14px;border-radius:16px;border:1px solid rgba(255,255,255,.1);background:rgba(26,0,38,.55);font:600 12px Outfit,sans-serif;letter-spacing:.06em;color:#D0BCFF;display:flex;gap:12px;align-items:center';
+(menuEl.querySelector('#mapCards') as HTMLElement).before(walletEl);
+function refreshWallet(): void {
+  const lp = garage.levelProgress(), a = garage.active;
+  walletEl.innerHTML = `<span style="color:#FF8C00">LV ${lp.level}</span><span style="flex:1;height:5px;border-radius:9px;background:rgba(255,255,255,.12);overflow:hidden"><i style="display:block;height:100%;width:${Math.round(lp.frac * 100)}%;background:linear-gradient(90deg,#D40055,#FF8C00)"></i></span><span style="color:#ffd166;font-family:'JetBrains Mono',monospace">${garage.credits.toLocaleString()} cr</span>`
+    + `<span style="width:100%;flex-basis:100%;font:500 11px Inter,sans-serif;color:rgba(255,255,255,.6)">${a ? `Driving: ${garage.def(a.uid)!.make} ${esc(a.nickname ?? garage.def(a.uid)!.name)}` : 'No car yet: pick your first car in the garage'}</span>`;
+  walletEl.style.flexWrap = 'wrap';
+}
+const esc = (t: string): string => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+refreshWallet(); garage.subscribe(refreshWallet);
+function addMenuCard(tag: string, name: string, sub: string, color: string, act: () => void): void {
+  const b = document.createElement('div');
+  b.style.cssText = 'padding:14px 18px;margin-bottom:10px;border-radius:24px;border:1px solid rgba(255,255,255,.10);background:rgba(26,0,38,.62);backdrop-filter:blur(14px);cursor:pointer;transition:transform .2s cubic-bezier(.2,0,0,1),border-color .2s,box-shadow .2s;box-shadow:0 10px 30px rgba(0,0,0,.35)';
+  b.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:${color};box-shadow:0 0 10px ${color}"></span><span style="font:600 10px Outfit,sans-serif;letter-spacing:.28em;color:${color}">${tag}</span></div><div style="font:600 19px Outfit,sans-serif;margin:5px 0 3px">${name}</div><div style="font:400 12px Inter,sans-serif;color:rgba(255,255,255,.62)">${sub}</div>`;
+  b.onmouseenter = () => { b.style.transform = 'translateX(8px)'; b.style.borderColor = color; b.style.boxShadow = `0 10px 34px rgba(0,0,0,.45),0 0 22px ${color}55`; };
+  b.onmouseleave = () => { b.style.transform = ''; b.style.borderColor = 'rgba(255,255,255,.10)'; b.style.boxShadow = '0 10px 30px rgba(0,0,0,.35)'; };
+  b.onclick = act;
+  (menuEl.querySelector('#mapCards') as HTMLElement).appendChild(b);
+}
+function openCourierBrief(): void {
+  preset('downtown', true);
+  const lvl = garage.level;
+  briefEl.style.borderColor = '#00f5d488';
+  briefEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:#00f5d4;box-shadow:0 0 10px #00f5d4"></span><span style="font:600 10px Outfit,sans-serif;letter-spacing:.28em;color:#00f5d4">COURIER MODE</span></div>
+    <div style="font:800 26px Outfit,sans-serif;margin:4px 0 6px">Delivery shift</div>
+    <div style="font:400 12px Inter,sans-serif;color:rgba(255,255,255,.7);margin-bottom:12px">Passengers, food and packages appear around the map. Drive into a beam and slow down to pick up, then reach the drop before its timer runs out. Every on-time drop adds time to your shift and builds a chain multiplier. Carry several orders at once and plan the route.</div>
+    ${TIER_LIST.map((t) => { const ok = lvl >= t.level; return `<button class="ct" data-t="${t.id}" ${ok ? '' : 'disabled'} style="display:block;width:100%;text-align:left;margin:6px 0;padding:10px 16px;border-radius:18px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#fff;cursor:${ok ? 'pointer' : 'not-allowed'};opacity:${ok ? 1 : 0.5}"><b style="font:700 14px Outfit,sans-serif">${t.name}</b> <span style="font:500 11px Inter,sans-serif;color:#D0BCFF">${ok ? `${Math.floor(t.shiftSec / 60)} min · carry ${t.capacity} · fares ×${t.fareMult}` : `unlocks at level ${t.level}`}</span><div style="font:400 11px Inter,sans-serif;color:rgba(255,255,255,.6)">${t.blurb}</div></button>`; }).join('')}
+    <button id="briefBack" style="margin-top:8px;height:42px;padding:0 24px;background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:999px;font:600 12px Outfit,sans-serif;letter-spacing:.18em;cursor:pointer">BACK</button>`;
+  briefEl.style.display = 'block';
+  briefEl.querySelectorAll<HTMLButtonElement>('.ct').forEach((b) => { b.onclick = () => { hideBrief(); startDrive('free', b.dataset.t as 'rookie' | 'pro' | 'legend'); }; });
+  (document.getElementById('briefBack') as HTMLElement).onclick = () => preset('overview');
+}
+addMenuCard('COURIER MODE', 'Delivery shift', 'Passengers · food · packages · beat the clock, chain the drops', '#00f5d4', openCourierBrief);
+addMenuCard('GARAGE', 'Cars, parts and tuning', 'Showroom · upgrades · tuning · objectives', '#ffd166', () => { location.href = 'showroom.html'; });
   return new THREE.Vector3(x / c.xz.length, 0, z / c.xz.length);
 }
 let tween: { p0: THREE.Vector3; t0: THREE.Vector3; p1: THREE.Vector3; t1: THREE.Vector3; t: number; dur: number } | null = null;
@@ -2421,22 +2460,9 @@ driveHud.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translat
 document.body.appendChild(driveHud);
 
 // ---------- the Sovereign's vehicle spec and the ground it drives on ----------
-// suspension tunes: spring rate (N/m), damper (N·s/m), anti-roll, travel (m). Damping ratio is 0.7 to 0.95 so the body settles and does not ring.
-const SUSPENSION_TUNES: Record<string, { springRateNm: number; damperNsM: number; antiRollFactor: number; travelM: number; rideHeightM: number }> = {
-  comfort: { springRateNm: 52000, damperNsM: 6600, antiRollFactor: 0.6, travelM: 0.16, rideHeightM: 0.14 },
-  sport: { springRateNm: 68000, damperNsM: 8600, antiRollFactor: 0.85, travelM: 0.13, rideHeightM: 0.12 },
-  track: { springRateNm: 92000, damperNsM: 11800, antiRollFactor: 1.0, travelM: 0.09, rideHeightM: 0.09 },
-  rally: { springRateNm: 40000, damperNsM: 5800, antiRollFactor: 0.5, travelM: 0.24, rideHeightM: 0.2 },
-};
-let suspTune = 'sport';
-try { const t = localStorage.getItem('apex.susp'); if (t && SUSPENSION_TUNES[t]) suspTune = t; } catch { /* storage blocked */ }
-let SOV_SPEC = CARS.kestrel;
-function applySuspension(name: string): void {
-  suspTune = name;
-  SOV_SPEC = { ...CARS.kestrel, suspension: { ...CARS.kestrel.suspension, ...SUSPENSION_TUNES[name] } };
-  try { localStorage.setItem('apex.susp', name); } catch { /* storage blocked */ }
-}
-applySuspension(suspTune);
+// The car is the active car in the garage: its parts and tune decide the physics spec (power, mass, grip, springs, brakes, downforce).
+let SOV_SPEC = activeSpec();
+function applyActiveCar(): void { SOV_SPEC = activeSpec(); }
 const gameAudio = new GameAudio();      // engine, supercharger, tyres, brakes, backfire and suspension thumps driven by the physics state
 gameAudio.setMusic(false);              // the region game plays its own tracks
 let engVol = 1.0;
@@ -2560,7 +2586,7 @@ function makeCar(): THREE.Group {
   holder.add(rig.group);
   holder.userData.update = rig.update;
   // swap in the scanned Sovereign (Hunyuan mesh painted from the turntable) once it has loaded; the stand-in covers the wait
-  loadSovereignScan().then((r) => { rig.group.visible = false; holder.add(r.group); holder.userData.update = r.update; holder.userData.panels = r.panels; }).catch((e) => console.warn('scan car failed', e));
+  loadSovereignScan().then((r) => { rig.group.visible = false; holder.add(r.group); holder.userData.update = r.update; holder.userData.panels = r.panels; { const pc = garage.active?.paint; if (pc) r.paint?.set({ color: new THREE.Color(pc).getHex() }); } }).catch((e) => console.warn('scan car failed', e));
   return holder;
 }
 
@@ -2659,7 +2685,51 @@ function barrierCollide(s: DriveState): boolean {
   return false;
 }
 
-function startDrive(id: string): void {
+// ---------- garage: run tracking, medals, payouts and the courier mode ----------
+let runTracker: RunTracker | null = null, stagePath: PathProgress | null = null, stageFinished = false, lastLapCount = 0, delivery: DeliveryGame | null = null;
+const RUN_NAMES: Record<string, string> = { ironport_grand_circuit: 'Ironport Grand Circuit', great_lakes_cliff_raceway: 'Great Lakes Cliff Raceway', pinewood_rally_stage: 'Pinewood Rally Stage' };
+let courierSpots: ReturnType<typeof makeSpots> | null = null;
+function deliverySpots(): ReturnType<typeof makeSpots> {
+  if (!courierSpots) courierSpots = makeSpots([meta.coastal_highway.xz.map((p) => ({ x: p[0], z: p[1] })), ...streetRuns.map((r) => r.p.map((p) => ({ x: p[0], z: p[1] })))]);
+  return courierSpots;
+}
+function teardownRun(): void {
+  if (delivery) { const d = delivery; delivery = null; d.quit(); d.dispose(); }
+  runTracker = null; stagePath = null; stageFinished = false;
+}
+function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend'): void {
+  teardownRun();
+  lastLapCount = lap?.laps ?? 0;
+  if (courier) { delivery = new DeliveryGame(courier, deliverySpots(), scene, groundH, () => preset('overview')); return; }
+  if (id === 'free') return;
+  const city = id === 'ironport_grand_circuit';
+  const pts = city ? cityPath : meta.circuits[id] ? densify(meta.circuits[id], 6) : [];
+  if (pts.length < 8) return;
+  runTracker = new RunTracker(id, refParSec(pts, city, city ? 5.4 : 4.2));
+  stagePath = city ? null : new PathProgress(pts);
+}
+function finishRun(timeSec: number): void {
+  if (!runTracker) return;
+  const r = runTracker.take(timeSec, 1, { ...assist });
+  const o = garage.recordRun(r);
+  const m = o.medal ? `${o.medal} medal` : 'no medal';
+  showCard(RUN_NAMES[r.eventId] ?? r.eventId, `${fmtT(timeSec)} · ${m} · ideal line ${fmtT(r.parSec)}`, o);
+}
+function garageStep(dt: number, s: DriveState, bumped: boolean): void {
+  if (s.lock > 0) return;
+  const ps = s.ps;
+  if (delivery) { delivery.update(dt, { x: s.pos.x, z: s.pos.z, speedMps: Math.abs(ps.forwardSpeed), hit: bumped }, s.yaw); return; }
+  if (!runTracker) return;
+  runTracker.sample(dt, { x: s.pos.x, z: s.pos.z, speedMps: ps.speedMps, drifting: ps.isDrifting, hit: bumped, wet: wx.cur.wet });
+  if (s.circuitId === 'ironport_grand_circuit') {
+    if (lap && lap.laps > lastLapCount) { lastLapCount = lap.laps; if (lap.last) finishRun(lap.last); }
+  } else if (stagePath) {
+    stagePath.update(s.pos.x, s.pos.z, performance.now() / 1000);
+    if (stagePath.done && !stageFinished) { stageFinished = true; finishRun(performance.now() / 1000 - stagePath.t0); }
+  }
+}
+function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend'): void {
+  applyActiveCar();
   setMapMode(false);
   playMusic('drive');
   stopFly();
@@ -2721,6 +2791,7 @@ function stepDrive(dt: number): void {
     if (s.lock <= 0) countEl.style.display = 'none';
   }
   const pad = driveInput.axes;                                  // controller + touch, analog
+  setupRun(id, courier);
   const kUp = !locked && (keys.has('KeyW') || keys.has('ArrowUp')), kDown = !locked && (keys.has('KeyS') || keys.has('ArrowDown'));
   const up = kUp || (!locked && pad.throttle > 0.05), down = kDown || (!locked && pad.brake > 0.05);
   const left = keys.has('KeyA') || keys.has('ArrowLeft'), right = keys.has('KeyD') || keys.has('ArrowRight');
@@ -2735,6 +2806,7 @@ function stepDrive(dt: number): void {
   // pedals ease in like a foot would: throttle takes about a third of a second to go to the floor, the brake about half, and both lift faster
   // driving assists, as in Forza: brake help ahead of corners the car is too fast for, and a nudge toward the racing line (both off in the Settings, along with the line itself)
   let assistBrake = 0, assistSteer = 0;
+  teardownRun();
   if (racingLine && !locked) {
     const li = racingLine.nearest(s.pos.x, s.pos.z), off = racingLine.offsets(li, s.pos.x, s.pos.z, s.yaw), v = Math.max(0, s.ps.forwardSpeed);
     const gripNow = Math.max(0.3, wx.cur.grip * (1 - 0.82 * hydro));
@@ -2826,6 +2898,7 @@ function stepDrive(dt: number): void {
   if (lookBack) camYawOff += (Math.PI - camYawOff) * Math.min(1, dt * 8);
   else if (!dragging) { camYawOff += (Math.round(camYawOff / (Math.PI * 2)) * Math.PI * 2 - camYawOff) * Math.min(1, dt * 2.5); camPitchOff += (0 - camPitchOff) * Math.min(1, dt * 2.5); }
   // Forza-style views: 0 near chase, 1 far chase, 2 hood, 3 dash, 4 first person (the driver's eyes). Chase views sit at a fixed length behind the car;
+  garageStep(dt, s, bumped);
   // the others are fixed to the car body and look along it, with mouse free-look on top.
   const view = s.camView;
   // depth precision: the road ribbon sits 7 cm above the painted road under it, and that only holds apart if the near plane is as far out as it can be (1 m in the chase views; the
@@ -2908,7 +2981,7 @@ async function boot(): Promise<void> {
   buildForest().catch((e) => console.error('forest failed', e));
   loadHarbor().catch((e) => console.error('harbor failed', e));
   buildCity().catch((e) => console.error('city failed', e));
-  (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, csm, renderer, warmShaders, audio: gameAudio, cam: (x?: number, y?: number, z?: number, tx?: number, ty?: number, tz?: number) => { dbgCam = x === undefined ? null : { pos: new THREE.Vector3(x, y!, z!), at: new THREE.Vector3(tx!, ty!, tz!) }; }, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, keys, drive: () => driving };
+  (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, csm, renderer, warmShaders, audio: gameAudio, cam: (x?: number, y?: number, z?: number, tx?: number, ty?: number, tz?: number) => { dbgCam = x === undefined ? null : { pos: new THREE.Vector3(x, y!, z!), at: new THREE.Vector3(tx!, ty!, tz!) }; }, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, keys, drive: () => driving, delivery: () => delivery, garage };
 }
 
 document.querySelectorAll<HTMLButtonElement>('button[data-cam]').forEach((b) => b.addEventListener('click', () => preset(b.dataset.cam!)));
@@ -2950,8 +3023,6 @@ document.getElementById('driverally')!.addEventListener('click', () => startDriv
   lensSel.addEventListener('change', () => { if (gradePass) gradePass.lens = lensSel.value as GameLens; save('apex.lens', lensSel.value); });
   (window as unknown as { apexGrade: unknown }).apexGrade = { set: (lut: string, lens: string, amt = 1) => { if (gradePass) { gradePass.lut = lut; gradePass.lens = lens as GameLens; gradePass.lutAmount = amt; } } };
 }
-(document.getElementById('susp') as HTMLSelectElement).value = suspTune;
-(document.getElementById('susp') as HTMLSelectElement).addEventListener('change', (e) => applySuspension((e.target as HTMLSelectElement).value));
 (document.getElementById('musicVol') as HTMLInputElement).value = String(musicVol);
 (document.getElementById('musicVol') as HTMLInputElement).addEventListener('input', (e) => setMusicVolume(parseFloat((e.target as HTMLInputElement).value)));
 (document.getElementById('tStr') as HTMLInputElement).addEventListener('change', (e) => { streetGroup.visible = (e.target as HTMLInputElement).checked; });

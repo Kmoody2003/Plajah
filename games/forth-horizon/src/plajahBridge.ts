@@ -4,13 +4,19 @@ export type ForthAchievementTrigger =
   | 'forth_first_lap'
   | 'forth_race_win'
   | 'forth_150_mph'
-  | 'forth_coastal_explorer';
+  | 'forth_coastal_explorer'
+  | 'forth_first_delivery'
+  | 'forth_courier_streak'
+  | 'forth_full_garage';
 
 const ACHIEVEMENT_LABELS: Record<ForthAchievementTrigger, string> = {
   forth_first_lap: 'Ironport Circuit: First Lap',
   forth_race_win: 'King of the Great Lakes',
   forth_150_mph: '150 MPH Club',
   forth_coastal_explorer: 'West Coast Explorer',
+  forth_first_delivery: 'First Drop',
+  forth_courier_streak: 'Hot Streak',
+  forth_full_garage: 'Collector',
 };
 
 export class PlajahGamesBridge {
