@@ -67,8 +67,23 @@ function userMapSave() {
   };
 }
 
+// dev only: the page at the server's root used to be the old engine test scene (index.html). Opening the server now always opens the current game, and the old scene cannot be reached.
+function currentVersionOnly() {
+  return {
+    name: 'current-version-only',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const path = (req.url || '/').split('?')[0];
+        if (path === '/' || path === '/index.html') { res.statusCode = 302; res.setHeader('Location', '/region.html'); res.end(); return; }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig(({ command }) => ({
   plugins: [
+    currentVersionOnly(),
     userMapSave(),
     mountStaticDir('/ironport-assets', IRONPORT_DIR),
     mountStaticDir('/racer-refs', RACER_REFS_DIR),

@@ -207,7 +207,7 @@ def main():
         if water[z0:z1, x0:x1][mk].mean() > 0.2:
             stats["water"] += 1; continue
         sl = slope[z0:z1, x0:x1][mk]; hh = hg[z0:z1, x0:x1][mk]
-        if sl.max() > 0.20 or (hh.max() - hh.min()) > 3.2:
+        if sl.max() > 0.26 or (hh.max() - hh.min()) > 5.5:
             stats["slope"] += 1; continue
         if occ_fixed[z0:z1, x0:x1][mk].any() or occ_gen[z0:z1, x0:x1][mk].any():
             stats["overlap"] += 1; continue

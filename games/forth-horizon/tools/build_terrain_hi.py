@@ -131,6 +131,26 @@ out = np.where(base >= 2.6, np.maximum(out, 2.6), out)                          
 out = np.where(water0, base, out)
 print("detail range m", float(detail.min()), float(detail.max()), "dunes where sand >0.5:", int((sandy > 0.5).sum()), "protected %", round(float(protect.mean()) * 100, 1))
 
+# ---------- grade the built zones: a town sits on gentle ground, not on the raw hillside ----------
+# Inside every residential, dense, commercial, industrial, civic and waterfront zone the height is blended toward a heavily smoothed copy of itself (84 m radius), feathered over 60 m at the edge,
+# so streets can run at sensible grades and buildings stand on ground that is close to level. Broad shape (the bluff, the valley) stays; water and the land next to it do not move.
+if os.path.exists(um):
+    zmask = np.zeros((H, W), np.uint8)
+    for f in json.load(open(um))["features"]:
+        if f["type"] == "zone" and f["kind"] in ("residential", "dense", "commercial", "industrial", "civic", "waterfront"):
+            cv2.fillPoly(zmask, [np.array([px(*p) for p in f["pts"]], np.int32)], 1)
+    zd = ndi.distance_transform_edt(zmask > 0) * MPP                       # metres inside the zone
+    wz = np.clip(zd / 60.0, 0, 1); wz = wz * wz * (3 - 2 * wz)
+    smooth = ndi.gaussian_filter(out, 14.0)
+    smooth = ndi.gaussian_filter(smooth, 8.0)
+    graded = out + (smooth - out) * wz
+    graded = np.where(water0, out, graded)
+    graded = np.where(out >= 2.6, np.maximum(graded, 2.6), graded)
+    gy_, gx_ = np.gradient(out); gy2, gx2 = np.gradient(graded)
+    sl0 = float((np.hypot(gx_, gy_)[zmask > 0] / MPP).mean()); sl1 = float((np.hypot(gx2, gy2)[zmask > 0] / MPP).mean())
+    print("built zones graded: mean slope", round(sl0, 3), "->", round(sl1, 3))
+    out = graded
+
 # ---------- write heights as 16-bit ----------
 lo, hi = float(np.floor(out.min())), float(np.ceil(out.max()))
 u16 = np.clip((out - lo) / (hi - lo) * 65535.0 + 0.5, 0, 65535).astype("<u2")

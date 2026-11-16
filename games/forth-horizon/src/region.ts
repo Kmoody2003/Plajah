@@ -1167,6 +1167,11 @@ async function buildForest(): Promise<void> {
       }
     }
   }
+  // street trees, park and trail cover for the zones drawn in the editor (tools/detail_zones.py): the same layout as the verge trees, kept off roads and the port
+  {
+    const zt = await fetch(BASE + 'zone_trees.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as number[][] | null;
+    if (zt) for (const t of zt) if (vegOk(t[0], t[1], 1)) verge.push(t);
+  }
   const vlist = verge.map((p) => {
     const set = p[2] ? sp.conifer : sp.broad;
     return { x: p[0], z: p[1], def: set[Math.floor(rr() * set.length)], h: (p[2] ? 15 + p[3] * 9 : 13 + p[3] * 7) * p[4] };

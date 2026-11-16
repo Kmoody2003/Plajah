@@ -93,7 +93,7 @@ def main():
     print("removed", dropped, "old generated buildings")
 
     occ = np.zeros((NZ, NX), np.uint8)
-    occ[water | (slope > 0.14) | (dist_w < 14.0)] = 1
+    occ[water | (slope > 0.20) | (dist_w < 14.0)] = 1
 
     def fill_poly(grid, pts, v=1):
         cv2.fillPoly(grid, [np.array([cell(*p) for p in pts], np.float32).astype(np.int32)], v)
@@ -129,7 +129,7 @@ def main():
 
     def land_ok(x, z, kid):
         i, j = int((x - X0) / CELL), int((z - Z0) / CELL)
-        return 0 <= i < NX and 0 <= j < NZ and not water[j, i] and dist_w[j, i] >= 14.0 and slope[j, i] < 0.15 and (kid is None or mask[j, i] == kid)
+        return 0 <= i < NX and 0 <= j < NZ and not water[j, i] and dist_w[j, i] >= 14.0 and slope[j, i] < 0.22 and (kid is None or mask[j, i] == kid)
 
     streets = []
 
