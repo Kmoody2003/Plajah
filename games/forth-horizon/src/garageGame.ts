@@ -8,11 +8,14 @@ import { DeliveryShift, TIERS, TIER_LIST, addressFor, mulberry32, nextTarget, ty
 import { OUTCOME_CSS, cr, esc, outcomeHtml } from './garage/outcomeHtml';
 import { Garage, type Outcome, type RunResult } from './garage/progress';
 import { PlajahGamesBridge, type ForthAchievementTrigger } from './plajahBridge';
+import { attachCloud } from './garage/cloud';
 
 function safeStorage(): { getItem(k: string): string | null; setItem(k: string, v: string): void } | null {
   try { localStorage.setItem('apex.t', '1'); localStorage.removeItem('apex.t'); return localStorage; } catch { return null; }
 }
 export const garage = new Garage(safeStorage());
+/** progress follows the player across devices when the game runs inside Plajah and they are signed in; on its own it just saves on this device */
+export const cloud = attachCloud(garage);
 const bridge = new PlajahGamesBridge();
 garage.onAchievement = (id) => bridge.unlock(id as ForthAchievementTrigger);
 

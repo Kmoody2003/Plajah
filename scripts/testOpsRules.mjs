@@ -305,6 +305,21 @@ t('discussion: posting in another person’s name is refused', 'DENY', OTHER, 'c
 t('discussion: a vote moves the count by exactly one', 'ALLOW', OTHER, 'update', `${DB}/discussionPosts/d1`, { existing: dpost(MEMBER), data: { ...dpost(MEMBER), upvotes: 1 } });
 t('discussion: vote stuffing is refused', 'DENY', OTHER, 'update', `${DB}/discussionPosts/d1`, { existing: dpost(MEMBER), data: { ...dpost(MEMBER), upvotes: 5 } });
 
+// Cloud saves for first-party games (services/gameSaves.ts)
+const GT = '2026-11-16T12:00:00Z', GS = `${DB}/gameSaves/${MEMBER}_apex-elohim`, gsDoc = (rev, o = {}) => ({ uid: MEMBER, gameId: 'apex-elohim', rev, v: 1, device: 'web', data: '{"a":1}', updatedAt: Date.parse('2026-11-16T12:00:00Z'), ...o });
+t('gameSaves: the player creates their first save', 'ALLOW', MEMBER, 'create', GS, { data: gsDoc(1), time: GT });
+t('gameSaves: and reads it back', 'ALLOW', MEMBER, 'get', GS, { existing: gsDoc(1) });
+t('gameSaves: the next write is rev + 1', 'ALLOW', MEMBER, 'update', GS, { existing: gsDoc(1), data: gsDoc(2), time: GT });
+t('gameSaves: a stale device cannot rewrite the same rev', 'DENY', MEMBER, 'update', GS, { existing: gsDoc(2), data: gsDoc(2), time: GT });
+t('gameSaves: nor skip ahead', 'DENY', MEMBER, 'update', GS, { existing: gsDoc(2), data: gsDoc(9), time: GT });
+t('gameSaves: nobody reads another player’s save', 'DENY', OTHER, 'get', GS, { existing: gsDoc(1) });
+t('gameSaves: nobody writes into another player’s save', 'DENY', OTHER, 'create', GS, { data: gsDoc(1), time: GT });
+t('gameSaves: the doc id must match the player and game', 'DENY', MEMBER, 'create', `${DB}/gameSaves/${MEMBER}_other-game`, { data: gsDoc(1), time: GT });
+t('gameSaves: an oversized save is refused', 'DENY', MEMBER, 'create', GS, { data: gsDoc(1, { data: 'x'.repeat(262145) }), time: GT });
+t('gameSaves: no stray fields', 'DENY', MEMBER, 'create', GS, { data: gsDoc(1, { admin: true }), time: GT });
+t('gameSaves: the timestamp must be close to the server’s', 'DENY', MEMBER, 'create', GS, { data: gsDoc(1, { updatedAt: Date.parse('2020-01-01T00:00:00Z') }), time: GT });
+t('gameSaves: the list is closed', 'DENY', MEMBER, 'list', `${DB}/gameSaves`);
+
 const body = {
   source: { files: [{ name: 'firestore.rules', content: src }] },
   testSuite: {

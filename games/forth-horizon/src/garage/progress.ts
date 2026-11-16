@@ -71,6 +71,11 @@ export class Garage {
 
   constructor(private storage: StorageLike | null = null) {
     this.save = this.load();
+    // every new player begins in the Kestrel Sovereign GT-R, the car the game was built around
+    if (!this.save.cars.length && !this.save.starterClaimed) {
+      const first = CAR_DEFS.find((d) => d.starter);
+      if (first) { this.addCar(first.id); this.save.starterClaimed = true; this.log(`Your career starts in the ${first.make} ${first.name}.`); }
+    }
     if (!this.save.seenUnlocks.length) this.markSeenQuiet();     // what is open from the start is not news
   }
 

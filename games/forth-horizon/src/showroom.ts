@@ -7,7 +7,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { loadSovereignScan } from './scancar';
 import type { CarRig } from './car';
 import { GarageUi } from './garageUi';
-import { Garage } from './garage/progress';
+import { garage, cloud } from './garageGame';
 import type { OwnedCar } from './garage/build';
 import type { CarDef } from './garage/catalog';
 
@@ -116,8 +116,12 @@ async function boot(): Promise<void> {
     status.textContent = `${def.make} ${def.name}: 3D model in production`;
   }
 
-  const ui = new GarageUi(new Garage(safeStorage()), { show: (d, o) => { void show(d, o); } });
+  const ui = new GarageUi(garage, { show: (d, o) => { void show(d, o); } });
   (window as unknown as { garageUi: GarageUi }).garageUi = ui;
+  const cs = document.getElementById('cloudStatus');
+  const label = { idle: '', syncing: 'Saving…', synced: 'Saved to Plajah', offline: 'Saved on this device', conflict: 'Merging…', error: 'Cloud save failed' } as const;
+  const showCloud = (): void => { if (cs) cs.textContent = label[cloud.status]; };
+  cloud.onStatus = showCloud; showCloud();
   const cur = ui.current();
   void show(cur.def, cur.car);
 
@@ -144,10 +148,6 @@ async function boot(): Promise<void> {
     renderer.render(scene, camera);
   };
   requestAnimationFrame(frame);
-}
-
-function safeStorage(): { getItem(k: string): string | null; setItem(k: string, v: string): void } | null {
-  try { localStorage.setItem('apex.t', '1'); localStorage.removeItem('apex.t'); return localStorage; } catch { return null; }
 }
 
 void boot();

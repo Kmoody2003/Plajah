@@ -37,7 +37,6 @@ export class GarageUi {
     }
     g.subscribe(() => this.drain());
     this.render();
-    if (g.needsStarter()) this.starterModal();
     this.drain();
   }
 

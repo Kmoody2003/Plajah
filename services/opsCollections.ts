@@ -65,6 +65,8 @@ export const OPS_COLLECTIONS: ReadonlySet<string> = new Set([
   'photoCritiques', 'photoSalons', 'halloweenVaultRooms',
   // Live party games (routes/liveGames.ts): written only by the server; clients read all but liveGameSecrets.
   'liveGames', 'liveGameStrokes', 'liveGameFeed', 'liveGamePlayers', 'liveGameSecrets', 'liveGameAnswers',
+  // Cloud saves for first-party games (services/gameSaves.ts): one doc per player per game. New here, so it never had data in plajah-prod to copy.
+  'gameSaves',
 ]);
 
 /** plajah-prod collections copied read-only into plajah-ops, because ops rules authorize against them

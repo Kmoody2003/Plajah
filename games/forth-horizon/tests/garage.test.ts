@@ -82,21 +82,26 @@ test('tuning has sweet spots and cannot beat parts', () => {
   assert.equal(base.brakes.frontBias, 0.62);
 });
 
-test('the career: starter, buying, locks, paying for parts, the shelf and selling', () => {
+test('the career begins in the Sovereign; other cars are bought, with locks and a price', () => {
   const g = new Garage(mem());
-  assert.ok(g.needsStarter());
-  assert.equal(g.claimStarter('kestrel').ok, false, 'only starters may be picked');
-  const st = g.claimStarter('legacy_gtr'); assert.ok(st.ok);
-  assert.equal(g.claimStarter('continental').ok, false);
+  assert.equal(g.cars.length, 1);
+  assert.equal(g.active!.carId, 'kestrel');
+  assert.equal(g.needsStarter(), false);
+  assert.equal(g.save.credits, 5000);
   const uid = g.active!.uid;
-  assert.equal(g.buyCar('kestrel').ok, false, 'locked');
+  assert.equal(g.buyCar('kestrel').ok, false, 'already owned');
+  assert.equal(g.buyCar('legacy_gtr').ok, false, 'not enough credits');
+  assert.equal(g.buyCar('vanguard').ok, false, 'locked');
   assert.equal(g.install(uid, 'engine.3').ok, false, 'locked part');
-  const poor = g.install(uid, 'engine.1'); assert.equal(poor.ok, false, 'not enough credits for a 2400-credit part on 5000? checked below');
+  g.grant(40000);
+  const b = g.buyCar('legacy_gtr'); assert.ok(b.ok);
+  assert.equal(g.cars.length, 2);
+  assert.equal(g.active!.carId, 'kestrel', 'buying does not change the active car');
+  assert.ok(g.setActive(g.cars[1].uid).ok);
 });
 
 test('buying, fitting and the shelf', () => {
   const g = new Garage(mem());
-  g.claimStarter('continental');
   const uid = g.active!.uid;
   const credits0 = g.credits;
   const r = g.install(uid, 'tires.1'); assert.ok(r.ok);
@@ -125,7 +130,7 @@ test('buying, fitting and the shelf', () => {
   const v = g.sellValue(ev.uid); const c1 = g.credits;
   const sold = g.sellCar(ev.uid); assert.ok(sold.ok && g.credits === c1 + v);
   assert.equal(g.save.inventory['engine.1.ev'], 1);
-  const solo = new Garage(mem()); solo.claimStarter('continental');
+  const solo = new Garage(mem());
   assert.equal(solo.sellCar(solo.active!.uid).ok, false);
 });
 
@@ -136,7 +141,6 @@ test('medals are measured against the ideal-line time', () => {
 
 test('a run pays, levels, awards medals once, completes objectives and opens parts', () => {
   const g = new Garage(mem());
-  g.claimStarter('continental');
   const credits0 = g.credits;
   const o = g.recordRun(run({ timeSec: 112 }));
   assert.equal(o.medal, 'gold');
@@ -158,7 +162,6 @@ test('a run pays, levels, awards medals once, completes objectives and opens par
 
 test('assists off and clean wet driving pay more', () => {
   const a = new Garage(mem()), b = new Garage(mem());
-  a.claimStarter('continental'); b.claimStarter('continental');
   const p1 = a.recordRun(run({ timeSec: 140, collisions: 3 }));
   const p2 = b.recordRun(run({ timeSec: 140, collisions: 0, wetness: 0.8, assists: { line: false, brake: false, steer: false } }));
   const pay = (o: { lines: { label: string; credits: number }[] }): number => o.lines.filter((l) => !l.label.startsWith('Objective')).reduce((n, l) => n + l.credits, 0);
@@ -167,7 +170,6 @@ test('assists off and clean wet driving pay more', () => {
 
 test('delivery shifts pay, count towards objectives, and chain', () => {
   const g = new Garage(mem());
-  g.claimStarter('continental');
   const o = g.recordDelivery({ tier: 'rookie', deliveries: 6, onTime: 5, chainBest: 5, earnings: 4200, passengers: 2, food: 2, packages: 2, distanceKm: 9, topMph: 110, collisions: 1, durationSec: 600, shiftScore: 5000, medal: 'silver' });
   assert.ok(o.objectives.some((x) => x.id === 'obj_deliv_1') && o.objectives.some((x) => x.id === 'obj_deliv_chain_4'));
   assert.ok(o.achievements.some((x) => x.id === 'forth_first_delivery') && o.achievements.some((x) => x.id === 'forth_courier_streak'));
@@ -178,7 +180,7 @@ test('delivery shifts pay, count towards objectives, and chain', () => {
 
 test('levels rise with XP and level-ups pay credits', () => {
   assert.equal(levelOf(0), 1); assert.equal(levelOf(xpToReach(10)), 10); assert.equal(levelOf(xpToReach(10) - 1), 9);
-  const g = new Garage(mem()); g.claimStarter('continental');
+  const g = new Garage(mem());
   const c0 = g.credits;
   g.grant(0, xpToReach(5));
   assert.equal(g.level, 5);
@@ -188,14 +190,14 @@ test('levels rise with XP and level-ups pay credits', () => {
 test('saves round-trip through storage and survive corruption', () => {
   const st = mem();
   const g = new Garage(st);
-  g.claimStarter('legacy_gtr'); g.install(g.active!.uid, 'tires.1'); g.setTune(g.active!.uid, { downforce: 30, tirePsi: 99 });
+  g.install(g.active!.uid, 'tires.1'); g.setTune(g.active!.uid, { downforce: 30, tirePsi: 99 });
   const g2 = new Garage(st);
   assert.equal(g2.cars.length, 1);
   assert.equal(g2.fitted(g2.active!.uid, 'tires').id, 'tires.1');
   assert.equal(g2.active!.tune.downforce, 30);
   assert.ok(g2.active!.tune.tirePsi <= 42, 'tunes are clamped');
   st.d['apex.garage.v1'] = '{not json';
-  assert.equal(new Garage(st).cars.length, 0);
+  assert.equal(new Garage(st).cars.length, 1, 'a corrupt save starts fresh, in the Sovereign');
   assert.ok(g.importJson(g.exportJson()).ok);
   assert.equal(g.importJson('{}').ok, false);
 });
@@ -289,7 +291,7 @@ test('delivery: a full shift flows into the garage', () => {
   }
   const s = sh.summary();
   assert.ok(s.deliveries >= 3 && s.earnings > 0 && s.chainBest >= 3);
-  const g = new Garage(mem()); g.claimStarter('continental');
+  const g = new Garage(mem());
   const o = g.recordDelivery(s);
   assert.ok(o.credits >= s.earnings && g.save.stats.deliveries === s.deliveries);
 });

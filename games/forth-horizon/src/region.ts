@@ -7,7 +7,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { makeSovereign } from './car';
-import { garage, activeSpec, hasCar, RunTracker, PathProgress, refParSec, showBanner, showCard, DeliveryGame, makeSpots, TIER_LIST } from './garageGame';
+import { garage, cloud, activeSpec, hasCar, RunTracker, PathProgress, refParSec, showBanner, showCard, DeliveryGame, makeSpots, TIER_LIST } from './garageGame';
 import { medalFor } from './garage/progress';
 import { loadSovereignScan } from './scancar';
 import { Replay } from './broadcastReplay';
@@ -2110,9 +2110,11 @@ function refreshWallet(): void {
   walletEl.innerHTML = `<span style="color:#FF8C00">LV ${lp.level}</span><span style="flex:1;height:5px;border-radius:9px;background:rgba(255,255,255,.12);overflow:hidden"><i style="display:block;height:100%;width:${Math.round(lp.frac * 100)}%;background:linear-gradient(90deg,#D40055,#FF8C00)"></i></span><span style="color:#ffd166;font-family:'JetBrains Mono',monospace">${garage.credits.toLocaleString()} cr</span>`
     + `<span style="width:100%;flex-basis:100%;font:500 11px Inter,sans-serif;color:rgba(255,255,255,.6)">${a ? `Driving: ${garage.def(a.uid)!.make} ${esc(a.nickname ?? garage.def(a.uid)!.name)}` : 'No car yet: pick your first car in the garage'}</span>`;
   walletEl.style.flexWrap = 'wrap';
+  const cl = { idle: '', syncing: 'saving…', synced: 'saved to Plajah', offline: 'saved on this device', conflict: 'merging…', error: 'cloud save failed' }[cloud.status];
+  if (cl) walletEl.insertAdjacentHTML('beforeend', `<span style="width:100%;flex-basis:100%;font:500 10px Inter,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.45)">${cl}</span>`);
 }
 const esc = (t: string): string => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
-refreshWallet(); garage.subscribe(refreshWallet);
+refreshWallet(); garage.subscribe(refreshWallet); cloud.onStatus = refreshWallet;
 function addMenuCard(tag: string, name: string, sub: string, color: string, act: () => void): void {
   const b = document.createElement('div');
   b.style.cssText = 'padding:14px 18px;margin-bottom:10px;border-radius:24px;border:1px solid rgba(255,255,255,.10);background:rgba(26,0,38,.62);backdrop-filter:blur(14px);cursor:pointer;transition:transform .2s cubic-bezier(.2,0,0,1),border-color .2s,box-shadow .2s;box-shadow:0 10px 30px rgba(0,0,0,.35)';
