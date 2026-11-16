@@ -12,6 +12,16 @@ import { Replay } from './broadcastReplay';
 import { createCarState, stepCarPhysics, type CarState, type CarInput } from './physics';
 import { CARS } from './manufacturers';
 import { GameAudio } from './audio';
+import { Sky } from './sky';
+import { WaterSurface } from './water';
+import { DriveInput } from './inputs';
+import { TrackKit } from './trackkit';
+import { injectRoadPbr, roadUniforms, loadRoadPbr } from './roadpbr';
+loadRoadPbr();
+import { SprayFx, puddleDepth, PUDDLE_GLSL } from './spray';
+import { TreeField, cardLod } from './trees';
+import { EzTreeField } from './ezforest';
+import { WeatherRig, WEATHERS, worstOf, forecastText } from './weather';
 import type { SurfaceType } from './world';
 
 const BASE = '/games/forth-horizon/region/';
@@ -89,8 +99,12 @@ const TOD: Record<string, Tod> = {
 const pmrem = new THREE.PMREMGenerator(renderer);
 let skyTex: THREE.Texture | null = null;
 const mapFadeU = { value: 0 };
+const wetU = { value: 0 };
+const poolU = { value: 0 };                 // how much standing water has collected (0 dry .. 1 flooded)
+let poolLevel = 0, hydro = 0;
 const edgeU = { value: new THREE.Vector2(8256, 4608) };
 let waterMesh: THREE.Mesh | null = null;
+let waterSurface: WaterSurface | null = null;
 let mapMode = false;
 let todKey = 'golden';
 function setTimeOfDay(key: string): void {
@@ -103,10 +117,8 @@ function setTimeOfDay(key: string): void {
   if (!mapMode) { scene.fog = new THREE.Fog(t.fog, t.fogNear, t.fogFar); scene.background = new THREE.Color(t.fog); }
   renderer.toneMappingExposure = t.exposure;
   scene.environmentIntensity = t.env;
-  texLoader.load(TEXBASE + t.sky + '.jpg', (tx) => {
+  sky.setBase(t.sky.replace('sky_', 'sky2_'), (tx) => {
     tx.mapping = THREE.EquirectangularReflectionMapping;
-    tx.colorSpace = THREE.SRGBColorSpace;
-    if (!mapMode) scene.background = tx;
     skyTex = tx;
     scene.environment = pmrem.fromEquirectangular(tx).texture;
   });
@@ -143,14 +155,19 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
     sh.uniforms.tPave = { value: gameTex('paver_plain') };
     sh.uniforms.tMask = { value: maskTex };
     sh.uniforms.uMask = { value: maskVec };
+    sh.uniforms.uWet = wetU;
+    sh.uniforms.uPool = poolU;
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPos = (modelMatrix * vec4(position, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nuniform sampler2D tGrass;\nuniform sampler2D tSand;\nuniform sampler2D tForest;\nuniform sampler2D tGravel;\nuniform sampler2D tMask;\nuniform sampler2D tAsph;\nuniform sampler2D tPave;\nuniform vec4 uMask;\nuniform float uMapFade;\nuniform vec2 uEdge;\nuniform vec3 uCam;')
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nuniform sampler2D tGrass;\nuniform sampler2D tSand;\nuniform sampler2D tForest;\nuniform sampler2D tGravel;\nuniform sampler2D tMask;\nuniform sampler2D tAsph;\nuniform sampler2D tPave;\nuniform vec4 uMask;\nuniform float uWet;\nuniform float uPool;\nuniform float uMapFade;\nuniform vec2 uEdge;\nuniform vec3 uCam;\n' + PUDDLE_GLSL)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
       gl_FragColor.a *= mix(1.0, smoothstep(0.0, 1300.0, min(uEdge.x - abs(vWPos.x), uEdge.y - abs(vWPos.z))), uMapFade);`)
       .replace('#include <map_fragment>', `#include <map_fragment>
+      float gWet = 0.0;
+      float gPud = 0.0;
+      float gRoad = 0.0;
       float camD = distance(vWPos, uCam);
       float fade = 1.0 - smoothstep(250.0, 1500.0, camD);
       if (fade > 0.01) {
@@ -184,8 +201,18 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
         col = mix(col, pave * 0.95, walk);
         col = mix(col, vec3(0.5, 0.5, 0.48), kerb);
         col = mix(col, asph * 1.7, road);
+        gWet = uWet * max(road, walk * 0.7);
+        gRoad = road;
+        gPud = puddleAt(vWPos.xz, uPool) * road * (1.0 - smoothstep(600.0, 1400.0, camD));
+        col *= 1.0 - 0.42 * gWet;                       // wet pavement is darker and glossy
+        col *= 1.0 - 0.38 * gPud;                       // standing water: dark, and a mirror
         diffuseColor.rgb = col;
-      }`);
+      }
+      diffuseColor.rgb *= 1.0 - 0.16 * uWet;           // wet ground everywhere`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.16, gWet); roughnessFactor = mix(roughnessFactor, 0.015, gPud);')
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.6, gPud);');
+    sh.fragmentShader = injectRoadPbr(sh.fragmentShader, 'vWPos.xz');
+    Object.assign(sh.uniforms, roadUniforms);
     m.userData.shader = sh;
   };
 }
@@ -279,21 +306,9 @@ function buildTerrain(): void {
   const rw = meta.width * meta.mpp, rh = meta.height * meta.mpp, ext = 60000;
   const wGeo = new THREE.PlaneGeometry(rw + ext, rh);
   wGeo.rotateX(-Math.PI / 2);
-  const water = new THREE.Mesh(wGeo, new THREE.MeshPhysicalMaterial({ color: 0x1f7aa0, transparent: true, opacity: 0.5, roughness: 0.08, metalness: 0, depthWrite: false }));
-  water.position.set(-ext / 2, -0.3, 0);
-  waterMesh = water;
-  const wm = water.material as THREE.MeshPhysicalMaterial;
-  wm.onBeforeCompile = (sh) => {
-    sh.uniforms.uMapFade = mapFadeU; sh.uniforms.uEdge = edgeU;
-    sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vEW;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvEW = (modelMatrix * vec4(position, 1.0)).xyz;');
-    sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vEW;\nuniform float uMapFade;\nuniform vec2 uEdge;')
-      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.a *= mix(1.0, smoothstep(0.0, 1300.0, min(uEdge.x - abs(vEW.x), uEdge.y - abs(vEW.z))), uMapFade);');
-  };
-  wm.customProgramCacheKey = () => 'water-edge';
-  scene.add(water);
+  wGeo.dispose();
+  waterSurface = new WaterSurface(scene, rw, rh, ext, edgeU.value, -rw / 2, -rh / 2);
+  waterMesh = waterSurface.mesh;
 }
 
 function ribbon(pts: number[][], ys: number[] | null, width: number, color: number, lift: number): THREE.Mesh {
@@ -685,13 +700,15 @@ function loadSprites(): Promise<SpriteSet> {
   return spriteSet;
 }
 const spriteMats = new Map<string, THREE.MeshStandardMaterial>();
-function addTreeCards(parent: THREE.Object3D, list: { x: number; z: number; def: SpriteDef; h: number }[]): void {
+function addTreeCards(parent: THREE.Object3D, list: { x: number; z: number; def: SpriteDef; h: number }[], lod = false): void {
   const by = new Map<SpriteDef, typeof list>();
   for (const t of list) { if (!by.has(t.def)) by.set(t.def, []); by.get(t.def)!.push(t); }
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
   by.forEach((arr, def) => {
     let mat = spriteMats.get(def.file);
-    if (!mat) { mat = new THREE.MeshStandardMaterial({ map: def.tex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 1, metalness: 0 }); spriteMats.set(def.file, mat); }
+    const mkey = def.file + (lod ? ':lod' : '');
+    mat = spriteMats.get(mkey);
+    if (!mat) { mat = new THREE.MeshStandardMaterial({ map: def.tex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 1, metalness: 0 }); if (lod) cardLod(mat); spriteMats.set(mkey, mat); }
     const im = new THREE.InstancedMesh(crossGeo, mat, arr.length);
     arr.forEach((t, i) => {
       const hh = t.h, ww = hh * def.w / def.h;
@@ -703,6 +720,12 @@ function addTreeCards(parent: THREE.Object3D, list: { x: number; z: number; def:
     im.frustumCulled = false;
     parent.add(im);
   });
+}
+interface TreeLayer { group: THREE.Group; setWind(w: number): void; update(dt: number, cam: THREE.Vector3): void }
+const treeFields: TreeLayer[] = [];
+/** the Ravencrest/Era Clash trees (ez-tree skeletons, bark scans, painted leaves); the simple procedural trees only if those fail to build */
+function mkTrees(pts: number[][], h: (x: number, z: number) => number, ex: () => number): TreeLayer {
+  try { return new EzTreeField(pts, h, ex); } catch (e) { console.warn('high-quality trees unavailable, using simple trees', e); return new TreeField(pts, h, ex); }
 }
 const forestGroup = new THREE.Group();
 scene.add(forestGroup);
@@ -718,8 +741,39 @@ async function buildForest(): Promise<void> {
     const def = set[Math.floor(((p[0] * 31 + p[1] * 17) % 1 + 1) % 1 * set.length)];
     list.push({ x: p[0], z: p[1], def, h: (p[2] ? 15 + p[3] * 9 : 13 + p[3] * 7) });
   }
-  addTreeCards(forestGroup, list);
+  addTreeCards(forestGroup, list, true);
+  const tf = mkTrees(pts, hAt, () => exag);
+  forestGroup.add(tf.group); treeFields.push(tf);
   console.log('forest', list.length);
+  // trees along the cliff raceway and the rally trail: lining both verges, off the tarmac, away from the water
+  const verge: number[][] = [];
+  let seed = 91;
+  const rr = (): number => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (const [id, c] of Object.entries(meta.circuits)) {
+    if (id === 'ironport_grand_circuit') continue;
+    const rally = id.includes('rally');
+    const D = densify(c, 11);
+    for (let i = 0; i < D.length; i++) {
+      const a = D[i], b = D[(i + 1) % D.length];
+      const dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l;
+      for (const side of [-1, 1]) {
+        if (rr() > (rally ? 0.7 : 0.38)) continue;
+        const off = (rally ? 7 : 11) + rr() * (rally ? 20 : 24), al = (rr() - 0.5) * 9;
+        const x = a.x + nx * off * side + (dx / l) * al, z = a.z + nz * off * side + (dz / l) * al;
+        if (hAt(x, z) < 1.6 || surfaceAtXZ(x, z) !== 'grass') continue;
+        const conifer = rally ? rr() < 0.8 : rr() < 0.45;
+        verge.push([x, z, conifer ? 1 : 0, rr(), 0.8 + rr() * 0.5]);
+      }
+    }
+  }
+  const vlist = verge.map((p) => {
+    const set = p[2] ? sp.conifer : sp.broad;
+    return { x: p[0], z: p[1], def: set[Math.floor(rr() * set.length)], h: (p[2] ? 15 + p[3] * 9 : 13 + p[3] * 7) * p[4] };
+  });
+  addTreeCards(forestGroup, vlist, true);
+  const vf = mkTrees(verge, hAt, () => exag);
+  forestGroup.add(vf.group); treeFields.push(vf);
+  console.log('verge trees', verge.length);
 }
 
 // ---------- streetscape: street trees and street lights ----------
@@ -811,7 +865,9 @@ async function buildStreetscape(): Promise<void> {
     const list = r < 0.14 ? sp.autumn : sp.urban;
     return list[Math.floor((r * 977) % 1 * list.length)];
   };
-  addTreeCards(scapeGroup, trees.map((t) => ({ x: t[0], z: t[1], def: pickStreet(t[3]), h: (8 + t[3] * 5) * t[2] / 1.2 })));
+  addTreeCards(scapeGroup, trees.map((t) => ({ x: t[0], z: t[1], def: pickStreet(t[3]), h: (8 + t[3] * 5) * t[2] / 1.2 })), true);
+  // up close the street trees are real 3D trees (the cards take over beyond ~230 m)
+  { const tf = mkTrees(trees.map((t) => [t[0], t[1], 0, t[3], 0.62 * t[2] + 0.2]), hAt, () => exag); scapeGroup.add(tf.group); treeFields.push(tf); }
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
   // street lights: pole, arm, emissive lamp head
   const ln = lights.length;
@@ -953,6 +1009,31 @@ function patchParallax(mat: THREE.MeshStandardMaterial): void {
   };
   mat.customProgramCacheKey = () => 'facade-parallax-1';
 }
+// Curtain-wall glass: a dark tinted mirror that reflects the sky and the sun with a sharp highlight, a little different from pane to pane, and at night (or under a
+// storm) a share of the panes light up warm. The facade texture still supplies the mullions, tint and relief.
+const nightU = { value: 0 };
+function patchGlass(mat: THREE.MeshStandardMaterial): void {
+  mat.metalness = 0.86; mat.roughness = 0.5; mat.envMapIntensity = 2.6;
+  mat.color.multiplyScalar(0.34);
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    prev?.call(mat, sh, r);
+    sh.uniforms.uNightG = nightU;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 gwp = vec4(position, 1.0);\n#ifdef USE_INSTANCING\ngwp = instanceMatrix * gwp;\n#endif\nvGW = (modelMatrix * gwp).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW;\nuniform float uNightG;')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = clamp(roughnessFactor * 0.16, 0.035, 0.3);')
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+      {
+        vec2 gc = floor(vec2(vGW.x + vGW.z, vGW.y) / vec2(3.2, 3.4));
+        float gh = fract(sin(dot(gc, vec2(12.9898, 78.233))) * 43758.5453);
+        float gl = step(1.0 - uNightG * 0.42, gh);
+        totalEmissiveRadiance += vec3(1.0, 0.82, 0.55) * gl * uNightG * (0.5 + 0.9 * fract(gh * 7.3)) * 0.85;
+        diffuseColor.rgb *= 0.86 + 0.28 * fract(gh * 13.7);
+      }`);
+  };
+  mat.customProgramCacheKey = () => 'glass-1';
+}
 async function buildCity(): Promise<void> {
   const res = await fetch(BASE + 'city.json');
   if (!res.ok) return;
@@ -994,9 +1075,9 @@ async function buildCity(): Promise<void> {
             }
             if (mat.normalMap) mat.normalScale.set(2.2, 2.2);
             if (mat.map && mat.normalMap && !LOW) patchParallax(mat);
-            if (/glass/i.test(mat.name)) { mat.metalness = 0.55; mat.roughness = 0.14; mat.envMapIntensity = 1.9; }
             if (/hero/i.test(mat.name)) mat.normalScale.set(1.4, 1.4);     // the sheet-derived normals are gentle: push the relief
             mat.envMapIntensity = 0.7;
+            if (/glass/i.test(mat.name)) patchGlass(mat);
             mat.needsUpdate = true;
           }
         });
@@ -1092,6 +1173,148 @@ for (const [alt, size, rep, seed, vx, vz, op] of [[2900, 44000, 2.4, 7, 0.0075, 
   scene.add(mesh);
   cloudLayers.push({ mesh, tex, vx, vz });
 }
+// ---------- weather ----------
+const wx = new WeatherRig(scene);
+const sky = new Sky(scene);
+const spray = new SprayFx(scene);
+const wDir = new THREE.Vector3(), wSun = new THREE.Vector3(0, 0.4, 1);
+sky.loadWeatherSkies();
+const NIGHT_K: Record<string, number> = { clear: 0, golden: 0, sunrise: 0.15, sunset: 0.1, dusk: 0.55, night: 1 };
+const skyFog = new THREE.Color();
+// each race has a plan: what the sky does over the race (seconds from the green light). The map shows the worst of it as the forecast.
+const WEATHER_PLAN: Record<string, { t: number; w: string }[]> = {
+  city: [{ t: 0, w: 'overcast' }, { t: 70, w: 'rain' }, { t: 200, w: 'storm' }],
+  cliff: [{ t: 0, w: 'fog' }, { t: 140, w: 'overcast' }, { t: 320, w: 'partly' }],
+  rally: [{ t: 0, w: 'partly' }, { t: 60, w: 'overcast' }, { t: 150, w: 'rain' }],
+  free: [{ t: 0, w: 'clear' }, { t: 240, w: 'partly' }, { t: 540, w: 'overcast' }, { t: 840, w: 'rain' }],
+};
+let wxOverride = 'auto';
+try { const o = localStorage.getItem('apex.wx'); if (o && (o === 'auto' || WEATHERS[o])) wxOverride = o; } catch { /* storage blocked */ }
+let wxPlan: { t: number; w: string }[] | null = null, wxPlanT = 0, wxPlanI = -1;
+const cloudBase = new Map<THREE.Mesh, number>();
+const WX_GREY = new THREE.Color(0x7d8794), WX_TINT = new THREE.Color(0.52, 0.58, 0.68), tmpC = new THREE.Color();
+let wxGripSpec: typeof CARS.kestrel | null = null;       // the car's spec with the weather's grip folded in
+function stepWeather(dt: number): void {
+  wx.step(dt, camera.position, mapMode, driving ? Math.abs(driving.ps.speedMps) : 0, false);
+  const w = wx.cur, t = TOD[todKey];
+  if (!t) return;
+  const f = wx.flash;
+  sun.intensity = t.sunInt * w.sun * (1 + f * 2.5);
+  hemi.intensity = t.hemiInt * w.hemi * (1 + f * 1.6);
+  renderer.toneMappingExposure = t.exposure + w.exposure + f * 0.45;
+  scene.environmentIntensity = t.env * (0.45 + 0.55 * w.sun) * (1 + f);
+  wetU.value = w.wet;
+  for (const l of cloudLayers) {
+    const m = l.mesh.material as THREE.MeshBasicMaterial;
+    if (!cloudBase.has(l.mesh)) cloudBase.set(l.mesh, m.opacity);
+    m.opacity = Math.min(0.96, cloudBase.get(l.mesh)! * w.cloud);
+    m.color.set(0xffffff).lerp(tmpC.set(0x2a303c), w.cloudDark * 0.92);
+    if (f > 0.05) m.color.lerp(tmpC.set(0xdfe8ff), f * 0.6);
+  }
+  if (mapMode) {
+    if (terrainMat) terrainMat.color.set(0xffffff).lerp(WX_TINT, Math.min(1, w.fogGrey * 0.7 + w.rain * 0.25));
+  } else {
+    if (terrainMat) terrainMat.color.set(0xffffff);
+    if (scene.fog instanceof THREE.Fog) {
+      scene.fog.color.set(t.fog).lerp(WX_GREY, w.fogGrey).multiplyScalar(1 - w.cloudDark * 0.35 + f * 0.4);
+      scene.fog.near = t.fogNear * w.fogNear; scene.fog.far = t.fogFar * w.fogFar;
+    }
+    scene.backgroundIntensity = 1 - 0.62 * w.fogGrey * (1 - f * 0.7);
+  }
+  if (mapMode) scene.backgroundIntensity = 1;
+  // the sky dome: panorama + procedural detail, with the weather blending in a real overcast and storm sky
+  {
+    const night = NIGHT_K[todKey] ?? 0;
+    skyFog.set(t.fog).lerp(WX_GREY, w.fogGrey).multiplyScalar(1 - w.cloudDark * 0.35);
+    sky.setVisible(!mapMode);
+    sky.update(dt, camera, {
+      sunDir, sunCol: sun.color, sunAmt: (1 - night) * Math.min(1, w.sun * 1.3 + 0.1), night, fog: skyFog, fogAmt: w.fogGrey,
+      mixOver: Math.min(1, Math.max(0, (w.cloud - 0.9) / 0.6)), mixStorm: Math.min(1, Math.max(0, (w.cloudDark - 0.6) / 0.3)),
+      dark: w.cloudDark * 0.6, flash: f, birds: !mapMode && w.rain < 0.15 && night < 0.3 && w.fogGrey < 0.5,
+    });
+  }
+  if (waterSurface) {
+    const night = NIGHT_K[todKey] ?? 0;
+    waterSurface.setSky(sky.baseTexture());
+    // the menu's high view: put the sun low in the direction the camera faces (drifting a little) so a glitter path runs across the water toward the viewer
+    if (mapMode) {
+      camera.getWorldDirection(wDir); const az = Math.atan2(wDir.x, wDir.z) + Math.sin(performance.now() / 9000) * 0.35;
+      wSun.set(Math.sin(az) * 0.94, 0.34, Math.cos(az) * 0.94).normalize();
+    }
+    waterSurface.update(dt, {
+      glint: mapMode ? 1 : 0,
+      sunDir: mapMode ? wSun : sunDir, sunCol: sun.color, sunAmt: (1 - night) * Math.min(1, w.sun * 1.3 + 0.1), wind: Math.min(1, 0.12 + w.rain * 0.5 + w.cloudDark * 0.5), rain: w.rain,
+      storm: Math.min(1, Math.max(0, (w.cloudDark - 0.6) / 0.3)), fog: scene.fog instanceof THREE.Fog ? scene.fog.color : skyFog,
+      fogNear: scene.fog instanceof THREE.Fog ? scene.fog.near : 1e6, fogFar: scene.fog instanceof THREE.Fog ? scene.fog.far : 2e6,
+      skyDim: (1 - w.cloudDark * 0.5) * (1 - night * 0.85) + f * 0.6, mapFade: mapFadeU.value,
+    });
+  }
+  // water collects while it rains and drains away slowly after
+  poolLevel = Math.min(1, Math.max(0, poolLevel + (w.rain > 0.12 ? w.rain * dt / 70 : -dt / 220)));
+  poolU.value = poolLevel;
+  { const nk = NIGHT_K[todKey] ?? 0; nightU.value = Math.min(1, nk + w.cloudDark * 0.45 * (1 - nk)); }
+  roadUniforms.uRainR.value = w.rain; roadUniforms.uTimeR.value += dt;
+  spray.setTint(skyFog, 1.12);
+  if (driving && !mapMode && w.rain > 0.1) {                        // rain bouncing off the road around the camera
+    let n = w.rain * dt * 260; n = Math.floor(n) + (Math.random() < n % 1 ? 1 : 0);
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * 6.283, r = 2 + Math.random() * 17, x = camera.position.x + Math.cos(a) * r, z = camera.position.z + Math.sin(a) * r;
+      spray.emit(x, groundH(x, z) + 0.03, z, (Math.random() - 0.5) * 0.6, 0.9 + Math.random() * 1.5, (Math.random() - 0.5) * 0.6, 0.04, 0.2 + Math.random() * 0.15, 0.4, 14);
+    }
+  }
+  spray.update(dt);
+  for (const m of driveSurfaces) {
+    const mm = m.material as THREE.MeshStandardMaterial;
+    mm.roughness = 0.8 - 0.62 * w.wet; mm.color.setScalar(1 - 0.36 * w.wet);
+    if (!mm.userData.pud) {                      // the road meshes carry the same puddles as the terrain's painted roads
+      mm.userData.pud = true;
+      mm.onBeforeCompile = (sh) => {
+        sh.uniforms.uPool = poolU; sh.uniforms.uWet = wetU; Object.assign(sh.uniforms, roadUniforms);
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vRW;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvRW = (modelMatrix * vec4(position, 1.0)).xyz;');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vRW;\nuniform float uPool;\nuniform float uWet;\n' + PUDDLE_GLSL)
+          .replace('#include <map_fragment>', '#include <map_fragment>\nfloat gPud = puddleAt(vRW.xz, uPool);\nfloat gRoad = 1.0;\ndiffuseColor.rgb *= 1.0 - 0.38 * gPud;')
+          .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.015, gPud);')
+          .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.6, gPud);');
+        sh.fragmentShader = injectRoadPbr(sh.fragmentShader, 'vRW.xz');
+      };
+      mm.customProgramCacheKey = () => 'roadpud';
+      mm.needsUpdate = true;
+    }
+  }
+  const g = SOV_SPEC.corneringGrip * w.grip * (1 - 0.82 * hydro);
+  if (!wxGripSpec || Math.abs(wxGripSpec.corneringGrip - g) > 0.004 || wxGripSpec.suspension !== SOV_SPEC.suspension) wxGripSpec = { ...SOV_SPEC, corneringGrip: g };
+  // the race's plan: step through its weather as the clock runs
+  if (driving && wxPlan && wxOverride === 'auto' && driving.lock <= 0) {
+    wxPlanT += dt;
+    while (wxPlanI + 1 < wxPlan.length && wxPlanT >= wxPlan[wxPlanI + 1].t) { wxPlanI++; wx.setWeather(wxPlan[wxPlanI].w, false, false); }
+  }
+}
+// ---------- wet-road reflections ----------
+// While the road is wet or has puddles, the scene around the car is captured into a small environment map a couple of times a second, and the road materials
+// reflect it: puddles show the buildings, lights and sky, wet asphalt a blurred version, with the roughness deciding the blur.
+let probeRT: THREE.WebGLRenderTarget | null = null, probeT = 0, probeOn = false;
+const probeMats = (): THREE.MeshStandardMaterial[] => [terrainMat, ...(driveSurfaces.map((m) => m.material) as THREE.MeshStandardMaterial[])].filter(Boolean);
+function updateProbe(dt: number): void {
+  const need = !!driving && !mapMode && !replay.active && (wx.cur.wet > 0.25 || poolLevel > 0.1);
+  if (!need) {
+    if (probeOn) { probeOn = false; for (const m of probeMats()) { m.envMap = null; m.needsUpdate = true; } probeRT?.dispose(); probeRT = null; }
+    return;
+  }
+  probeT -= dt;
+  if (probeT > 0 && probeRT) return;
+  probeT = 0.8;
+  const s = driving!;
+  const hide: THREE.Object3D[] = [s.car, spray.points, forestGroup, scapeGroup];
+  const was = hide.map((o) => o.visible);
+  hide.forEach((o) => { o.visible = false; });
+  const next = pmrem.fromScene(scene, 0, 1, 14000, { size: 96, position: new THREE.Vector3(s.pos.x, s.car.position.y + 2.5, s.pos.z) });
+  hide.forEach((o, i) => { o.visible = was[i]; });
+  const old = probeRT; probeRT = next;
+  const strength = 0.55 + 0.9 * Math.max(wx.cur.wet, poolLevel);
+  for (const m of probeMats()) { m.envMap = next.texture; m.envMapIntensity = strength; if (!probeOn) m.needsUpdate = true; }
+  probeOn = true;
+  old?.dispose();
+}
 function tintClouds(sun: number, sky: number): void {
   const c = new THREE.Color(0xffffff).lerp(new THREE.Color(sun), 0.12).lerp(new THREE.Color(sky), 0.05);
   for (const l of cloudLayers) (l.mesh.material as THREE.MeshBasicMaterial).color.copy(c);
@@ -1181,9 +1404,10 @@ const cardsEl = menuEl.querySelector('#mapCards') as HTMLElement;
 for (const ev of MAP_EVENTS) {
   const b = document.createElement('div');
   b.style.cssText = `padding:14px 18px;margin-bottom:10px;border-radius:24px;border:1px solid rgba(255,255,255,.10);background:rgba(26,0,38,.62);backdrop-filter:blur(14px);cursor:pointer;transition:transform .2s cubic-bezier(.2,0,0,1),border-color .2s,box-shadow .2s;box-shadow:0 10px 30px rgba(0,0,0,.35)`;
-  b.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:${ev.color};box-shadow:0 0 10px ${ev.color}"></span><span style="font:600 10px Outfit,sans-serif;letter-spacing:.28em;color:${ev.color}">${ev.tag}</span></div><div style="font:600 19px Outfit,sans-serif;margin:5px 0 3px">${ev.name}</div><div style="font:400 12px Inter,sans-serif;color:rgba(255,255,255,.62)">${ev.sub}</div>`;
-  b.onmouseenter = () => { b.style.transform = 'translateX(8px)'; b.style.borderColor = ev.color; b.style.boxShadow = `0 10px 34px rgba(0,0,0,.45),0 0 22px ${ev.color}55`; };
-  b.onmouseleave = () => { b.style.transform = ''; b.style.borderColor = 'rgba(255,255,255,.10)'; b.style.boxShadow = '0 10px 30px rgba(0,0,0,.35)'; };
+  const plan = WEATHER_PLAN[ev.id], worst = WEATHERS[worstOf(plan)];
+  b.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:${ev.color};box-shadow:0 0 10px ${ev.color}"></span><span style="font:600 10px Outfit,sans-serif;letter-spacing:.28em;color:${ev.color}">${ev.tag}</span><span style="margin-left:auto;font:600 11px Outfit,sans-serif;letter-spacing:.08em;color:#D0BCFF">${worst.icon} ${worst.temp}&deg;C</span></div><div style="font:600 19px Outfit,sans-serif;margin:5px 0 3px">${ev.name}</div><div style="font:400 12px Inter,sans-serif;color:rgba(255,255,255,.62)">${ev.sub}</div><div style="font:500 11px Inter,sans-serif;color:rgba(208,188,255,.85);margin-top:6px;letter-spacing:.03em">Forecast: ${forecastText(plan)}</div>`;
+  b.onmouseenter = () => { if (wxOverride === 'auto') wx.setWeather(worstOf(WEATHER_PLAN[ev.id]), false, true); b.style.transform = 'translateX(8px)'; b.style.borderColor = ev.color; b.style.boxShadow = `0 10px 34px rgba(0,0,0,.45),0 0 22px ${ev.color}55`; };
+  b.onmouseleave = () => { if (wxOverride === 'auto' && briefEl.style.display === 'none') wx.setWeather('partly', false, true); b.style.transform = ''; b.style.borderColor = 'rgba(255,255,255,.10)'; b.style.boxShadow = '0 10px 30px rgba(0,0,0,.35)'; };
   b.onclick = ev.act;
   cardsEl.appendChild(b);
 }
@@ -1340,6 +1564,7 @@ document.body.appendChild(countEl);
 function hideBrief(): void { briefEl.style.display = 'none'; }
 function openBrief(id: string): void {
   const b = BRIEFS[id];
+  if (wxOverride === 'auto') wx.setWeather(worstOf(WEATHER_PLAN[id]), false, true);      // the map shows the race's worst weather as the forecast
   preset(b.view, true);       // stays on the map screen: dark backdrop, faded edges, no sky
   const cc = id === 'free' ? new THREE.Vector3(-4600, 0, 1800) : centroid(meta.circuits[b.drive]);
   const hh = id === 'city' ? 1500 : id === 'cliff' ? 5200 : id === 'rally' ? 6200 : 6800;
@@ -1353,7 +1578,7 @@ function openBrief(id: string): void {
     <button id="briefBack" style="height:50px;padding:0 24px;background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:999px;font:600 12px Outfit,sans-serif;letter-spacing:.18em;cursor:pointer">BACK</button></div>`;
   briefEl.style.display = 'block';
   (document.getElementById('briefGo') as HTMLElement).onclick = () => { hideBrief(); startDrive(b.drive); };
-  (document.getElementById('briefBack') as HTMLElement).onclick = () => preset('overview');
+  (document.getElementById('briefBack') as HTMLElement).onclick = () => { if (wxOverride === 'auto') wx.setWeather('partly', false, true); preset('overview'); };
 }
 
 // ---------- camera presets ----------
@@ -1431,6 +1656,8 @@ function stepFly(dt: number): void {
 }
 
 // ---------- city circuit furniture: barriers, kerbs, gantry, pit lane, sectors, corner names ----------
+let trackKit: TrackKit | null = null;
+let goClock = 99;
 const furnitureGroup = new THREE.Group();
 scene.add(furnitureGroup);
 let cityPath: { x: number; y: number; z: number }[] = [];       // dense path (about 6 m) for timing and barriers
@@ -1556,6 +1783,8 @@ function buildFurniture(): void {
   const pitAcc: Acc = { pos: [], idx: [], uv: [] };
   addRibbonUV(pitAcc, pit, 8, 0.33, 5);
   furnitureGroup.add(accMeshTex(pitAcc, gameTex('pit'), 0.9, -3));
+  trackKit = new TrackKit({ P, corners: corners as { x: number; z: number; turn: number }[], ground: (x, z) => hAt(x, z) * exag, HALF, pitFrom: 0, pitTo: 41, gantryAt: 0 });
+  furnitureGroup.add(trackKit.group);
   const gridQuad = new THREE.Mesh(new THREE.PlaneGeometry(26, 10.5), new THREE.MeshStandardMaterial({ map: gameTex('grid', false), roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }));
   gridQuad.rotation.order = 'YXZ';
   gridQuad.rotation.x = -Math.PI / 2;
@@ -1719,7 +1948,11 @@ function surfaceAtXZ(x: number, z: number): SurfaceType {
 // ---------- replay + free-look camera ----------
 let driveClock = 0;
 let driveViewShown = 0;
-const VIEW_NAMES = ['Chase', 'Far chase', 'Hood', 'Dash', 'Driver'];
+const driveInput = new DriveInput();
+driveInput.drivingOn = () => !!driving;
+driveInput.replayOn = () => replay.active;
+const VIEW_NAMES =['Chase', 'Far chase', 'Hood', 'Dash', 'Driver'];
+let pedalT = 0, pedalB = 0;
 let carY = -1e9, carPitch = 0, carRoll = 0, slopePS = 0, slopeRS = 0;
 let camYawOff = 0, camPitchOff = 0, camZoom = 1, camIdle = 0, lookBack = false;
 const replay = new Replay({
@@ -1867,6 +2100,12 @@ function startDrive(id: string): void {
   const y = (free ? hAt(p[0], p[1]) : city && cn > 8 ? cp[cn - 8].y : c!.y ? c!.y[0] : hAt(p[0], p[1])) * exag;
   driving = { lock: 3.6, camDist: 5.8, camH: 1.6, camView: 0, circuitId: id, pos: new THREE.Vector3(p[0], y, p[1]), yaw, sp: 0, lat: 0, steer: 0, car, startPos: new THREE.Vector3(p[0], y, p[1]), startYaw: yaw, camPos: new THREE.Vector3(p[0] - Math.sin(yaw) * 10, y + 4, p[1] - Math.cos(yaw) * 10), hit: 0, ps: createCarState(p[0], y, p[1], yaw) };
   carY = -1e9; carPitch = carRoll = slopePS = slopeRS = 0; setMusicDuck(0.4); gameAudio.ensureStarted(); gameAudio.setPaused(false);
+  wx.ensureAudio(); wx.setAudioLevel(engVol); wx.setPaused(false);
+  {
+    const key = id === 'ironport_grand_circuit' ? 'city' : id === 'great_lakes_cliff_raceway' ? 'cliff' : id === 'pinewood_rally_stage' ? 'rally' : 'free';
+    wxPlan = WEATHER_PLAN[key]; wxPlanT = 0; wxPlanI = 0;
+    wx.setWeather(wxOverride === 'auto' ? wxPlan[0].w : wxOverride, false, true);
+  }
   camera.near = 0.35; camera.far = 30000; camera.updateProjectionMatrix();      // the map view uses a 5 m near plane, which cut the back of the car off at chase distance
   lapReset();
   replay.clear(); driveClock = 0; camYawOff = 0; camPitchOff = 0; camZoom = 1;
@@ -1878,7 +2117,7 @@ function stopDrive(): void {
   if (!driving) return;
   scene.remove(driving.car);
   driving = null;
-  gameAudio.setPaused(true); setMusicDuck(1);
+  gameAudio.setPaused(true); setMusicDuck(1); wx.setPaused(true); wxPlan = null; if (wxOverride === 'auto') wx.setWeather('partly', false, true);
   camera.near = 5; camera.far = 80000; camera.updateProjectionMatrix();
   controls.enabled = true;
   circuitGroup.visible = (document.getElementById('tCirc') as HTMLInputElement).checked;
@@ -1889,6 +2128,7 @@ function stepDrive(dt: number): void {
   if (!driving) return;
   const s = driving;
   const locked = s.lock > 0;
+  if (trackKit) { if (locked) goClock = 0; else goClock += dt; trackKit.setLights(locked ? 'red' : goClock < 3.5 ? 'green' : 'off'); }
   if (locked) {
     s.lock -= dt;
     const n = Math.ceil(s.lock - 0.5);
@@ -1896,14 +2136,38 @@ function stepDrive(dt: number): void {
     countEl.textContent = n > 0 ? String(n) : s.lock > 0 ? 'GO' : '';
     if (s.lock <= 0) countEl.style.display = 'none';
   }
-  const up = !locked && (keys.has('KeyW') || keys.has('ArrowUp')), down = !locked && (keys.has('KeyS') || keys.has('ArrowDown'));
+  const pad = driveInput.axes;                                  // controller + touch, analog
+  const kUp = !locked && (keys.has('KeyW') || keys.has('ArrowUp')), kDown = !locked && (keys.has('KeyS') || keys.has('ArrowDown'));
+  const up = kUp || (!locked && pad.throttle > 0.05), down = kDown || (!locked && pad.brake > 0.05);
   const left = keys.has('KeyA') || keys.has('ArrowLeft'), right = keys.has('KeyD') || keys.has('ArrowRight');
-  const hand = keys.has('Space');
+  const hand = keys.has('Space') || pad.handbrake;
+  const kSteer = (left ? 1 : 0) - (right ? 1 : 0);
+  if (Math.abs(pad.lookX) + Math.abs(pad.lookY) > 0) {            // right stick: free-look
+    camYawOff -= pad.lookX * dt * 2.4; camPitchOff = Math.max(-0.12, Math.min(1.1, camPitchOff + pad.lookY * dt * 1.6)); camIdle = 0;
+  }
   // ---- the new vehicle model (physics.ts): gears and RPM, supercharger, weight transfer, 4-corner suspension, tyre grip, drift, brake heat ----
   const ps = s.ps;
   if (locked) { ps.vel.set(0, 0, 0); ps.angularVel = 0; }
-  const input: CarInput = { throttle: up ? 1 : 0, brake: locked ? 1 : down ? 1 : 0, steer: (left ? 1 : 0) - (right ? 1 : 0), handbrake: hand };
-  stepCarPhysics(ps, SOV_SPEC, input, dt, groundH, surfaceAtXZ, []);
+  // pedals ease in like a foot would: throttle takes about a third of a second to go to the floor, the brake about half, and both lift faster
+  const thrWant = locked ? 0 : Math.max(kUp ? 1 : 0, pad.throttle), brkWant = locked ? 1 : Math.max(kDown ? 1 : 0, pad.brake);
+  pedalT += (thrWant - pedalT) * Math.min(1, dt * (thrWant > pedalT ? 3.4 : 8));
+  pedalB += (brkWant - pedalB) * Math.min(1, dt * (brkWant > pedalB ? 2.6 : 9));
+  const input: CarInput = { throttle: locked ? 0 : pedalT, brake: locked ? 1 : pedalB, steer: Math.abs(pad.steer) > Math.abs(kSteer) ? pad.steer : kSteer, handbrake: hand };
+  // standing water under the wheels: deep puddles at speed lift the tyres off the tarmac (aquaplaning): grip collapses until the car slows or leaves the water
+  let pudAvg = 0;
+  {
+    const sy0 = Math.sin(ps.yaw), cy0 = Math.cos(ps.yaw);
+    for (const [ox, oz] of [[0.81, 1.48], [-0.81, 1.48], [0.81, -1.48], [-0.81, -1.48]]) pudAvg += puddleDepth(ps.pos.x + cy0 * ox + sy0 * oz, ps.pos.z - sy0 * ox + cy0 * oz, poolLevel) / 4;
+    if (surfaceAtXZ(ps.pos.x, ps.pos.z) !== 'asphalt') pudAvg = 0;
+  }
+  {
+    const spdA = Math.abs(ps.forwardSpeed);
+    const target = pudAvg > 0.25 && poolLevel > 0.08 ? Math.min(1, Math.max(0, (spdA - (31 - 13 * pudAvg)) / 9)) * Math.min(1, pudAvg * 1.3) : 0;
+    hydro += (target - hydro) * Math.min(1, dt * (target > hydro ? 5 : 2.2));
+    if (hydro > 0.3) driveInput.rumble(0, 0.35, 60);
+  }
+  stepCarPhysics(ps, wxGripSpec ?? SOV_SPEC, input, dt, groundH, surfaceAtXZ, []);
+  if (pudAvg > 0.3) { const k = 1 - dt * 0.3 * pudAvg * Math.min(1, Math.abs(ps.forwardSpeed) / 25); ps.vel.x *= k; ps.vel.z *= k; }       // the water drags at the car
   // reverse: hold brake at a standstill and the car backs out right away (Forza style), with a sensible top speed in reverse
   if (down && !up && !locked) {
     if (ps.forwardSpeed < 1.5 && ps.forwardSpeed > -13) { const a = 5.2 * dt; ps.vel.x -= Math.sin(ps.yaw) * a; ps.vel.z -= Math.cos(ps.yaw) * a; }
@@ -1916,6 +2180,8 @@ function stepDrive(dt: number): void {
   let bumped = false;
   if (collide(s)) { s.sp *= 0.55; s.lat *= 0.5; s.hit = 0.4; bumped = true; }
   if (s.circuitId === 'ironport_grand_circuit' && barrierCollide(s)) { s.hit = 0.4; bumped = true; }
+  if (bumped) driveInput.rumble(0.9, 0.7, 220);
+  else if (ps.isDrifting) driveInput.rumble(0.0, 0.25, 60);
   s.hit = Math.max(0, s.hit - dt);
   const lim = meta.width * meta.mpp / 2 - 80, limz = meta.height * meta.mpp / 2 - 80;
   s.pos.x = Math.max(-lim, Math.min(lim, s.pos.x));
@@ -1946,6 +2212,16 @@ function stepDrive(dt: number): void {
   s.car.rotation.x = -Math.atan(slopePS) + carPitch;
   s.car.rotation.z = Math.atan(slopeRS) + carRoll;
   (s.car.userData.update as ((sp: number, st: number, dt: number) => void) | undefined)?.(s.sp, ps.steerAngle, dt);
+  // spray and mist off the four tyres: more from deep water, more at speed, a little from any wet road
+  if (!ps.isAirborne && !locked) {
+    const sy1 = Math.sin(s.yaw), cy1 = Math.cos(s.yaw), spdH = Math.hypot(ps.vel.x, ps.vel.z), road = surfaceAtXZ(s.pos.x, s.pos.z) === 'asphalt';
+    const wetBase = road ? wx.cur.wet * 0.42 : wx.cur.wet * 0.12;
+    for (const [ox, oz, bigK] of [[0.81, 1.48, 0.0], [-0.81, 1.48, 0.0], [0.82, -1.59, 0.4], [-0.82, -1.59, 0.4]]) {
+      const x = s.pos.x + cy1 * ox + sy1 * oz, z = s.pos.z - sy1 * ox + cy1 * oz;
+      const pd = road ? puddleDepth(x, z, poolLevel) : 0;
+      spray.wheel(dt, x, groundH(x, z), z, ps.vel.x, ps.vel.z, spdH, Math.max(wetBase, pd), Math.min(1.4, pd + bigK * (pd > 0.1 ? 1 : 0.4)));
+    }
+  }
   // chase camera
   // free-look: drag with the mouse to orbit the car, wheel to zoom, hold B to look back; it eases home after a moment
   if (replay.n === 0 || !locked) replay.record(driveClock += dt, s.pos.x, s.car.position.y, s.pos.z, s.yaw, s.car.rotation.x, s.car.rotation.z, s.sp, s.steer, s.hit > 0 ? 1 : 0, s.lat);
@@ -1988,7 +2264,7 @@ function stepDrive(dt: number): void {
     if (Math.abs(camera.fov - fovWant) > 0.05) { camera.fov += (fovWant - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); }
   }
   const lapTxt = s.circuitId === 'ironport_grand_circuit' ? lapStep(s.pos.x, s.pos.z, performance.now() / 1000) + '<br>' : '';
-  driveHud.innerHTML = lapTxt + `${Math.round(ps.speedMps * 3.6)} km/h &nbsp;·&nbsp; ${ps.gear < 0 ? 'R' : ps.gear === 0 ? 'N' : ps.gear} &nbsp;·&nbsp; ${Math.round(ps.rpm)} rpm` + (ps.isDrifting ? ' &nbsp;·&nbsp; <span style="color:#FF8C00">drift</span>' : '') + (performance.now() - driveViewShown < 1800 ? ` &nbsp;·&nbsp; <span style="color:#00DAF3">${VIEW_NAMES[s.camView]}</span>` : '') + (s.hit > 0 ? ' &nbsp;·&nbsp; <span style="color:#D40055">crash</span>' : '') + '<br><span style="font:500 11px Inter,sans-serif;opacity:.7;letter-spacing:.04em">W/S throttle and brake · A/D steer · Space handbrake · drag mouse to look around · B look back · C or 1-5 camera (chase, far, hood, dash, driver) · P replay · R reset · Esc exit</span>';
+  driveHud.innerHTML = lapTxt + `${Math.round(ps.speedMps * 3.6)} km/h &nbsp;·&nbsp; ${ps.gear < 0 ? 'R' : ps.gear === 0 ? 'N' : ps.gear} &nbsp;·&nbsp; ${Math.round(ps.rpm)} rpm` + (ps.isDrifting ? ' &nbsp;·&nbsp; <span style="color:#FF8C00">drift</span>' : '') + (hydro > 0.3 ? ' &nbsp;·&nbsp; <span style="color:#00DAF3">aquaplaning</span>' : '') + (performance.now() - driveViewShown < 1800 ? ` &nbsp;·&nbsp; <span style="color:#00DAF3">${VIEW_NAMES[s.camView]}</span>` : '') + (s.hit > 0 ? ' &nbsp;·&nbsp; <span style="color:#D40055">crash</span>' : '') + '<br><span style="font:500 11px Inter,sans-serif;opacity:.7;letter-spacing:.04em">' + (driveInput.touchMode ? 'drag the wheel to steer · drag the view to look around' : driveInput.axes.active ? 'RT throttle · LT brake · stick steer · A handbrake · Y camera · X replay · Back reset · Start exit' : 'W/S throttle and brake · A/D steer · Space handbrake · drag mouse to look around · B look back · C or 1-5 camera (chase, far, hood, dash, driver) · P replay · R reset · Esc exit') + '</span>';
 }
 addEventListener('keydown', (e) => {
   if (replay.active) { if (replay.key(e.code)) { e.preventDefault(); if (!replay.active && driving) { driveHud.style.display = 'block'; s2cam(); gameAudio.setPaused(false); } } return; }
@@ -2030,7 +2306,7 @@ async function boot(): Promise<void> {
   buildForest().catch((e) => console.error('forest failed', e));
   loadHarbor().catch((e) => console.error('harbor failed', e));
   buildCity().catch((e) => console.error('city failed', e));
-  (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, startDrive, stopDrive, keys, drive: () => driving };
+  (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, keys, drive: () => driving };
 }
 
 document.querySelectorAll<HTMLButtonElement>('button[data-cam]').forEach((b) => b.addEventListener('click', () => preset(b.dataset.cam!)));
@@ -2046,6 +2322,12 @@ document.getElementById('driverally')!.addEventListener('click', () => startDriv
 (document.getElementById('tFx') as HTMLInputElement).addEventListener('change', (e) => { fxOn = (e.target as HTMLInputElement).checked; });
 (document.getElementById('engVol') as HTMLInputElement).value = String(engVol);
 (document.getElementById('engVol') as HTMLInputElement).addEventListener('input', (e) => { engVol = parseFloat((e.target as HTMLInputElement).value); gameAudio.setLevel(engVol); try { localStorage.setItem('apex.engVol', String(engVol)); } catch { /* storage blocked */ } });
+(document.getElementById('wxsel') as HTMLSelectElement).value = wxOverride;
+(document.getElementById('wxsel') as HTMLSelectElement).addEventListener('change', (e) => {
+  wxOverride = (e.target as HTMLSelectElement).value;
+  try { localStorage.setItem('apex.wx', wxOverride); } catch { /* storage blocked */ }
+  wx.setWeather(wxOverride === 'auto' ? (wxPlan ? wxPlan[Math.max(0, wxPlanI)].w : 'partly') : wxOverride, false, true);
+});
 (document.getElementById('susp') as HTMLSelectElement).value = suspTune;
 (document.getElementById('susp') as HTMLSelectElement).addEventListener('change', (e) => applySuspension((e.target as HTMLSelectElement).value));
 (document.getElementById('musicVol') as HTMLInputElement).value = String(musicVol);
@@ -2073,10 +2355,14 @@ let last = performance.now();
 function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
+  driveInput.tick();
+  if (treeFields.length && !mapMode) for (const tf of treeFields) { tf.setWind(0.25 + wx.cur.rain * 0.5 + wx.cur.cloudDark * 0.4); tf.update(dt, camera.position); }
   stepFly(dt);
   stepTween(dt);
+  stepWeather(dt);
   for (const l of cloudLayers) { l.tex.offset.x += l.vx * dt; l.tex.offset.y += l.vz * dt; }
   if (replay.active) replay.step(dt); else stepDrive(dt);
+  updateProbe(dt);
   if (!fly && !driving) controls.update();
   {
     const ft = driving ? driving.pos : controls.target;

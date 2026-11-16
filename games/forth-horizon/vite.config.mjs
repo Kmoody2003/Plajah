@@ -66,5 +66,8 @@ export default defineConfig(({ command }) => ({
     emptyOutDir: true,
     target: 'es2022',
     chunkSizeWarningLimit: 4000,
+    // the racing game page (region.html) is what the Plajah Games catalog launches. The engine test scene (index.html, main.ts) is left out of the build:
+    // it imports ./replay, which does not exist yet.
+    rollupOptions: { input: { region: path.resolve(here, 'region.html') } },
   },
 }));

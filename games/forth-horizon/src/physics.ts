@@ -178,7 +178,8 @@ export function stepCarPhysics(
   state.isBraking = false;
   let burnoutActive = false;
 
-  const maxBrakeForce = (spec.brakes.maxTorqueNm * 4) / spec.wheelRadius;
+  // the brakes can never pull harder than the tyres can grip: about 1.1 g for a road-legal sports car on dry asphalt, less when wet or loose
+  const maxBrakeForce = Math.min((spec.brakes.maxTorqueNm * 4) / spec.wheelRadius, spec.massKg * GRAVITY * spec.corneringGrip * surfaceGrip * 1.1);
   const isStandingBurnout =
     spec.drivetrain === 'RWD' && input.throttle > 0.65 && input.brake > 0.45 && state.speedMps < 10;
 
@@ -190,7 +191,11 @@ export function stepCarPhysics(
     if (input.throttle > 0.01 && vFwd < spec.topSpeedMps && !state.isAirborne) {
       const engineTorque = spec.engine.peakTorqueNm * sampleTorqueCurve(spec.engine.torqueCurve, rpmFrac);
       const shiftMult = state.shiftTimer > 0 ? 0.12 : 1.0;
-      const wheelForce = (engineTorque * gearRatio * spec.finalDrive * 0.90) / spec.wheelRadius;
+      let wheelForce = (engineTorque * gearRatio * spec.finalDrive * 0.90) / spec.wheelRadius;
+      // power and traction limits: the engine cannot deliver more than its peak power at speed, and the driven tyres cannot put down more than their grip
+      const powerCap = (spec.engine.peakHp * 745.7 * 0.8) / Math.max(vFwd, 4);
+      const tractionCap = spec.massKg * GRAVITY * spec.corneringGrip * surfaceGrip * (spec.drivetrain === 'AWD' ? 0.74 : 0.64);
+      wheelForce = Math.min(wheelForce, powerCap, tractionCap);
       const topTaper = 1 - Math.pow(THREE.MathUtils.clamp(vFwd / spec.topSpeedMps, 0, 1), 3.0);
       longForce += input.throttle * wheelForce * shiftMult * Math.max(0.08, topTaper);
     }
@@ -350,7 +355,7 @@ export function stepCarPhysics(
     state.pos.y = avgGround;
     if (state.verticalVel < 0) state.verticalVel = 0;
     state.isAirborne = false;
-  } else if (state.pos.y > avgGround + maxT * 0.85) {
+  } else if (state.pos.y > avgGround + Math.max(maxT * 0.85, 0.5)) {      // a crest or a drop-off is not a jump: stay planted so the car keeps steering and driving
     state.isAirborne = true;
   } else {
     state.pos.y = THREE.MathUtils.lerp(state.pos.y, avgGround, 1 - Math.exp(-26 * safeDt));

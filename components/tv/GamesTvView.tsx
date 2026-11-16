@@ -37,6 +37,7 @@ const launchOf = (g: PlajahGameEntry): Playing => {
     case 'era-clash-2d': return { kind: 'era2d' };
     case 'era-clash-3d': return { kind: 'era3d' };
     case 'ravencrest': return { kind: 'ravencrest' };
+    case 'iframe': return null;                       // keyboard racing games are not on the TV grid yet
     case 'cyber-ttt': return { kind: 'ttt' };
     case 'kith-party': return { kind: 'kith', gameId: g.launch.gameId };
     case 'live-game': return { kind: 'live', liveKind: g.launch.kind };
