@@ -1235,7 +1235,8 @@ async function buildCity(): Promise<void> {
   const TINY = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
   const nearHeroes = [...new Set(cityItems.filter((it) => it.kind === 'hero' && roadDist(it.x, it.z) < 130).map((it) => it.slug))].slice(0, 9);
   // photographic 2048 sets (colour with occlusion folded in, normal and roughness at 1024) for the most-used materials: tools/prep_flow_textures.py
-  const FLOW = new Set(['tex-shared-01-red-brick', 'tex-shared-04-limestone', 'tex-shared-05-white-marble', 'tex-shared-07-glass-curtain-blue', 'tex-shared-14-steel-panel', 'tex-shared-15-concrete-boardformed', 'tex-shared-16-concrete-weathered', 'tex-shared-17-white-stucco', 'tex-shared-18-timber-siding', 'tex-shared-21-corrugated-steel', 'tex-hero-01-ironport-towers']);
+  const FLOW = new Set(['tex-shared-01-red-brick', 'tex-shared-04-limestone', 'tex-shared-05-white-marble', 'tex-shared-07-glass-curtain-blue', 'tex-shared-14-steel-panel', 'tex-shared-15-concrete-boardformed', 'tex-shared-16-concrete-weathered', 'tex-shared-17-white-stucco', 'tex-shared-18-timber-siding', 'tex-shared-21-corrugated-steel', 'tex-hero-01-ironport-towers',
+    'tex-shared-02-weathered-brick', 'tex-shared-03-orange-brick', 'tex-shared-06-granite', 'tex-shared-08-glass-curtain-cerulean', 'tex-shared-09-glass-curtain-bronze', 'tex-shared-10-terracotta', 'tex-shared-12-bronze-metal', 'tex-shared-13-copper-roof', 'tex-shared-23-slate-roof', 'tex-shared-24-stone-rubble', 'tex-hero-31-city-hall']);
   manager.setURLModifier((u) => {
     const fm = u.match(/\/(tex-(?:shared|hero)-[a-z0-9-]+)_(base|nrm|rgh)\.png/);
     if (!LOW && fm && FLOW.has(fm[1])) return `/games/forth-horizon/tex/bld/${fm[1]}_${fm[2]}.jpg`;
