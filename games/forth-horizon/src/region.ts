@@ -1116,7 +1116,7 @@ interface CityItem { kind: 'hero' | 'generic'; slug: string; x: number; z: numbe
 const cityGroup = new THREE.Group();
 scene.add(cityGroup);
 let cityItems: CityItem[] = [];
-const IRON = '/ironport-assets/models/';
+const IRON = '/games/forth-horizon/ironport/models/';
 
 function groundMin(it: CityItem): number {
   const cx = it.bx ?? it.x, cz = it.bz ?? it.z, c = Math.cos(it.rotY), s = Math.sin(it.rotY);
@@ -1234,17 +1234,16 @@ async function buildCity(): Promise<void> {
   // `?lowtex` falls back to the earlier base-colour-only budget.
   const LOW = location.search.includes('lowtex');
   const TINY = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
-  const nearHeroes = [...new Set(cityItems.filter((it) => it.kind === 'hero' && roadDist(it.x, it.z) < 130).map((it) => it.slug))].slice(0, 9);
   // photographic 2048 sets (colour with occlusion folded in, normal and roughness at 1024) for the most-used materials: tools/prep_flow_textures.py
   const FLOW = new Set(['tex-shared-01-red-brick', 'tex-shared-04-limestone', 'tex-shared-05-white-marble', 'tex-shared-07-glass-curtain-blue', 'tex-shared-14-steel-panel', 'tex-shared-15-concrete-boardformed', 'tex-shared-16-concrete-weathered', 'tex-shared-17-white-stucco', 'tex-shared-18-timber-siding', 'tex-shared-21-corrugated-steel', 'tex-hero-01-ironport-towers',
     'tex-shared-02-weathered-brick', 'tex-shared-03-orange-brick', 'tex-shared-06-granite', 'tex-shared-08-glass-curtain-cerulean', 'tex-shared-09-glass-curtain-bronze', 'tex-shared-10-terracotta', 'tex-shared-12-bronze-metal', 'tex-shared-13-copper-roof', 'tex-shared-23-slate-roof', 'tex-shared-24-stone-rubble', 'tex-hero-31-city-hall']);
+  // the glTFs point at ../../textures/<set>/<name>_<map>.png: photographic sets come from tex/bld, everything else from the packed copy (tools/pack_ironport.py)
   manager.setURLModifier((u) => {
-    const fm = u.match(/\/(tex-(?:shared|hero)-[a-z0-9-]+)_(base|nrm|rgh)\.png/);
-    if (!LOW && fm && FLOW.has(fm[1])) return `/games/forth-horizon/tex/bld/${fm[1]}_${fm[2]}.jpg`;
-    if (LOW) return /_(nrm|rgh)\.png/.test(u) ? TINY : u.replace('/ironport-assets/textures/', '/ironport-assets/textures-quest/');
-    // hero buildings within reach of the course keep their full 1600 px colour map (the rest, and every normal and roughness map, come from the 1024 tier to stay inside the GPU budget)
-    if (/_base\.png/.test(u) && nearHeroes.some((s) => u.includes(s))) return u;
-    return u.replace('/ironport-assets/textures/hero-facades/', '/ironport-assets/textures-quest/hero-facades/');
+    const fm = u.match(/\/textures\/(shared|hero-facades)\/(tex-(?:shared|hero)-[a-z0-9-]+)_(base|nrm|rgh)\.png/);
+    if (!fm) return u;
+    if (LOW && fm[3] !== 'base') return TINY;
+    if (FLOW.has(fm[2])) return `/games/forth-horizon/tex/bld/${fm[2]}_${fm[3]}.jpg`;
+    return `/games/forth-horizon/ironport/textures/${fm[1]}/${fm[2]}_${fm[3]}.jpg`;
   });
   const loader = new GLTFLoader(manager);
   const texCache = new Map<string, THREE.Texture>();
