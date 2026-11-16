@@ -12,11 +12,34 @@ export class RacingLine {
   readonly ds: number;
   private hint = 0;
 
-  constructor(private P: LinePt[], private closed: boolean, opt: { aLat: number; aBrake: number; vmax: number }) {
+  constructor(private P: LinePt[], private closed: boolean, opt: { aLat: number; aBrake: number; vmax: number; halfWidth?: number }) {
     const n = (this.n = P.length);
     this.ds = n > 1 ? Math.hypot(P[1].x - P[0].x, P[1].z - P[0].z) : 6;
     this.speed = new Float32Array(n); this.kind = new Uint8Array(n); this.yaw = new Float32Array(n);
-    const at = (i: number): LinePt => P[closed ? ((i % n) + n) % n : Math.max(0, Math.min(n - 1, i))];
+    const idx = (i: number): number => (closed ? ((i % n) + n) % n : Math.max(0, Math.min(n - 1, i)));
+    // 1) the road's centre line is not the racing line: take it to the outside before a corner, the inside at the apex, the outside again on the way out. The signed
+    //    curvature of the centre line is smoothed twice (tight for the apex, wide for the entry and exit) and the difference is the sideways offset.
+    {
+      const yaw0 = new Float32Array(n), kap = new Float32Array(n);
+      for (let i = 0; i < n; i++) { const a = P[idx(i - 1)], b = P[idx(i + 1)]; yaw0[i] = Math.atan2(b.x - a.x, b.z - a.z); }
+      for (let i = 0; i < n; i++) { let d = yaw0[idx(i + 1)] - yaw0[idx(i - 1)]; d = Math.atan2(Math.sin(d), Math.cos(d)); kap[i] = d / (2 * this.ds); }
+      const blur = (src: Float32Array, sigma: number): Float32Array => {
+        const out = new Float32Array(n), R = Math.ceil(sigma * 2.5);
+        const w: number[] = []; let ws = 0;
+        for (let k = -R; k <= R; k++) { const g = Math.exp(-(k * k) / (2 * sigma * sigma)); w.push(g); ws += g; }
+        for (let i = 0; i < n; i++) { let s = 0; for (let k = -R; k <= R; k++) s += src[idx(i + k)] * w[k + R]; out[i] = s / ws; }
+        return out;
+      };
+      const apex = blur(kap, 5), wide = blur(kap, 16);
+      const lim = Math.max(1.5, (opt.halfWidth ?? 5.5) - 1.6);                    // keep a car's width off the edge
+      const off = new Float32Array(n);
+      for (let i = 0; i < n; i++) off[i] = Math.max(-lim, Math.min(lim, 110 * apex[i] - 170 * wide[i]));
+      const smooth = blur(off, 3);
+      const Pn: LinePt[] = [];
+      for (let i = 0; i < n; i++) { const p = P[i], y = yaw0[i]; Pn.push({ x: p.x + Math.cos(y) * smooth[i], y: p.y, z: p.z - Math.sin(y) * smooth[i] }); }
+      this.P = Pn; P = Pn;
+    }
+    const at = (i: number): LinePt => P[idx(i)];
     const corner = new Float32Array(n);
     for (let i = 0; i < n; i++) {
       const a = at(i - 2), b = at(i), c = at(i + 2);

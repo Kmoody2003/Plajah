@@ -16,6 +16,8 @@ import { Sky } from './sky';
 import { WaterSurface } from './water';
 import { DriveInput } from './inputs';
 import { TrackKit } from './trackkit';
+import { buildPinewoodRallyCircuit } from './circuits/pinewoodRally';
+import { buildCliffRacewayCircuit } from './circuits/cliffRaceway';
 import { harborDetail } from './harborDetail';
 import { duneDetail } from './duneDetail';
 import { injectRoadPbr, roadUniforms, loadRoadPbr } from './roadpbr';
@@ -2188,6 +2190,26 @@ function buildFurniture(): void {
   for (const cn of corners) {
     furnitureGroup.add(label(`T${(cn as any).n ?? ''} ${cn.name}`, cn.x, hAt(cn.x, cn.z) * exag + 34, cn.z, '#ffd9a0', 0.5));
   }
+
+  // Other two race circuits: Pinewood Rally Stage & Great Lakes Cliff Raceway
+  const rallyCircuit = meta.circuits.pinewood_rally_stage;
+  if (rallyCircuit) {
+    const builtRally = buildPinewoodRallyCircuit({
+      circuit: rallyCircuit,
+      ground: (x, z) => hAt(x, z) * exag,
+      exag,
+    });
+    furnitureGroup.add(builtRally.group);
+  }
+  const cliffCircuit = meta.circuits.great_lakes_cliff_raceway;
+  if (cliffCircuit) {
+    const builtCliff = buildCliffRacewayCircuit({
+      circuit: cliffCircuit,
+      ground: (x, z) => hAt(x, z) * exag,
+      exag,
+    });
+    furnitureGroup.add(builtCliff.group);
+  }
 }
 
 // ---------- lap timing ----------
@@ -2240,7 +2262,7 @@ function buildRacingLine(id: string): void {
   const pts = city ? cityPath : meta.circuits[id] ? densify(meta.circuits[id], 6) : [];
   if (pts.length < 8) return;
   const cg = SOV_SPEC.corneringGrip * 1.18 * 9.81;
-  racingLine = new RacingLine(pts, city, { aLat: cg * 0.66, aBrake: 1.1 * SOV_SPEC.corneringGrip * 9.81 * 0.6, vmax: 80 });
+  racingLine = new RacingLine(pts, city, { aLat: cg * 0.66, aBrake: 1.1 * SOV_SPEC.corneringGrip * 9.81 * 0.6, vmax: 80, halfWidth: city ? 5.4 : 4.2 });
   lineMesh = racingLine.mesh((x, z) => groundH(x, z) + 0.06);
   lineMesh.visible = assist.line;
   scene.add(lineMesh);
@@ -2701,6 +2723,9 @@ addEventListener('keydown', (e) => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
 });
 addEventListener('keyup', (e) => { keys.delete(e.code); if (e.code === 'KeyB') lookBack = false; });
+// a key still "held" when the window loses focus (alt-tab, a click elsewhere) would otherwise keep driving the car on its own
+addEventListener('blur', () => { keys.clear(); lookBack = false; });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { keys.clear(); lookBack = false; } });
 // after a replay the chase camera starts from wherever the replay left it; snap it behind the car
 function s2cam(): void { if (driving) driving.camPos.copy(camera.position); }
 
