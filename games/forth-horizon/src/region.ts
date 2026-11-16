@@ -23,6 +23,8 @@ import { TreeField, cardLod } from './trees';
 import { EzTreeField } from './ezforest';
 import { GrassField } from './grass';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { AoPass } from './ao';
+import { GradePass, GAME_LENSES, GAME_LUTS, type GameLens } from './grade';
 import { WeatherRig, WEATHERS, worstOf, forecastText } from './weather';
 import type { SurfaceType } from './world';
 
@@ -221,11 +223,19 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
 
 let composer: EffectComposer | null = null;
 let cinePass: ShaderPass | null = null;
+let aoPass: AoPass | null = null;
+let gradePass: GradePass | null = null;
 let dbgCam: { pos: THREE.Vector3; at: THREE.Vector3 } | null = null;     // review tool: window.regionViewer.cam(x,y,z, tx,ty,tz) holds the camera still; cam() releases it
 let fxOn = true;
 try {
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
+  // the scene is drawn into the composer's read buffer: give it a depth texture so the occlusion pass can read what was really drawn
+  composer.renderTarget2.depthTexture = new THREE.DepthTexture(innerWidth, innerHeight);
+  composer.renderTarget2.depthTexture.type = THREE.UnsignedIntType;
+  aoPass = new AoPass(camera, innerWidth, innerHeight);
+  composer.addPass(aoPass);
+  composer.setSize(innerWidth, innerHeight);
   const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.42, 0.55, 0.82);
   composer.addPass(bloom);
   // cinematic pass (linear HDR, before tone mapping): speed blur toward the screen edges, sun light shafts through the sky and cloud, a hint of lens fringing,
@@ -277,6 +287,10 @@ try {
   });
   composer.addPass(cinePass);
   composer.addPass(new OutputPass());
+  // colour grade (the platform's cinematic LUTs) and film/tape lenses, after tone mapping; options in Settings > Graphics
+  gradePass = new GradePass(innerWidth, innerHeight);
+  try { gradePass.lut = localStorage.getItem('apex.lut') ?? 'none'; gradePass.lens = (localStorage.getItem('apex.lens') as GameLens) ?? 'none'; const a = parseFloat(localStorage.getItem('apex.lutAmt') ?? ''); if (!Number.isNaN(a)) gradePass.lutAmount = a; } catch { /* storage blocked */ }
+  composer.addPass(gradePass);
 } catch (e) { console.warn('post effects unavailable', e); composer = null; }
 
 let meta: RegionMeta;
@@ -2533,6 +2547,18 @@ document.getElementById('driverally')!.addEventListener('click', () => startDriv
   try { localStorage.setItem('apex.wx', wxOverride); } catch { /* storage blocked */ }
   wx.setWeather(wxOverride === 'auto' ? (wxPlan ? wxPlan[Math.max(0, wxPlanI)].w : 'partly') : wxOverride, false, true);
 });
+{
+  // colour grade and lens options (the platform's LUT library and film/tape lenses)
+  const lutSel = document.getElementById('lutSel') as HTMLSelectElement, lutAmt = document.getElementById('lutAmt') as HTMLInputElement, lensSel = document.getElementById('lensSel') as HTMLSelectElement;
+  for (const l of GAME_LUTS) { const o = document.createElement('option'); o.value = l.id; o.textContent = l.label; lutSel.appendChild(o); }
+  for (const l of GAME_LENSES.filter((x) => x.id !== 'none')) { const o = document.createElement('option'); o.value = l.id; o.textContent = l.label; lensSel.appendChild(o); }
+  if (gradePass) { lutSel.value = gradePass.lut; lensSel.value = gradePass.lens; lutAmt.value = String(gradePass.lutAmount); }
+  const save = (k: string, v: string): void => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
+  lutSel.addEventListener('change', () => { if (gradePass) gradePass.lut = lutSel.value; save('apex.lut', lutSel.value); });
+  lutAmt.addEventListener('input', () => { if (gradePass) gradePass.lutAmount = parseFloat(lutAmt.value); save('apex.lutAmt', lutAmt.value); });
+  lensSel.addEventListener('change', () => { if (gradePass) gradePass.lens = lensSel.value as GameLens; save('apex.lens', lensSel.value); });
+  (window as unknown as { apexGrade: unknown }).apexGrade = { set: (lut: string, lens: string, amt = 1) => { if (gradePass) { gradePass.lut = lut; gradePass.lens = lens as GameLens; gradePass.lutAmount = amt; } } };
+}
 (document.getElementById('susp') as HTMLSelectElement).value = suspTune;
 (document.getElementById('susp') as HTMLSelectElement).addEventListener('change', (e) => applySuspension((e.target as HTMLSelectElement).value));
 (document.getElementById('musicVol') as HTMLInputElement).value = String(musicVol);
