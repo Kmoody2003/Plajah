@@ -2723,7 +2723,7 @@ async function boot(): Promise<void> {
   buildForest().catch((e) => console.error('forest failed', e));
   loadHarbor().catch((e) => console.error('harbor failed', e));
   buildCity().catch((e) => console.error('city failed', e));
-  (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, csm, renderer, warmShaders, cam: (x?: number, y?: number, z?: number, tx?: number, ty?: number, tz?: number) => { dbgCam = x === undefined ? null : { pos: new THREE.Vector3(x, y!, z!), at: new THREE.Vector3(tx!, ty!, tz!) }; }, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, keys, drive: () => driving };
+  (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, csm, renderer, warmShaders, audio: gameAudio, cam: (x?: number, y?: number, z?: number, tx?: number, ty?: number, tz?: number) => { dbgCam = x === undefined ? null : { pos: new THREE.Vector3(x, y!, z!), at: new THREE.Vector3(tx!, ty!, tz!) }; }, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, keys, drive: () => driving };
 }
 
 document.querySelectorAll<HTMLButtonElement>('button[data-cam]').forEach((b) => b.addEventListener('click', () => preset(b.dataset.cam!)));
