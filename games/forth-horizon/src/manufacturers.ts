@@ -37,7 +37,11 @@ export interface BrakeSpec {
 }
 
 export interface CarSpec {
-  id: CarId;
+  id: string;
+  /** extra grip off the tarmac (rally tyres, long-travel setups); the physics adds it to the off-road bonus */
+  offroadGrip?: number;
+  /** how much a wet road costs this tyre (1 = the usual 24%; slicks lose more, wet-weather rubber less) */
+  wetSensitivity?: number;
   manufacturer: string;
   model: string;
   origin: string;

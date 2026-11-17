@@ -2129,6 +2129,22 @@ service cloud.firestore {
                             && nowActiveValid(request.resource.data);
       allow delete: if isAuthenticated() && uid == request.auth.uid;
     }
+    // Cloud saves for first-party games (services/gameSaves.ts). One doc per player per game, id `<uid>_<gameId>`; the player reads and writes only their own.
+    // `data` is the game's own JSON string (capped); `rev` must go up by exactly one on every write, so a device holding an old save cannot overwrite a newer one
+    // (the host also checks this in a transaction and hands the game the newer save to merge).
+    match /gameSaves/{saveId} {
+      function saveOk(d) {
+        return d.keys().hasOnly(['uid', 'gameId', 'rev', 'v', 'device', 'data', 'updatedAt'])
+          && d.uid == request.auth.uid && d.gameId is string && d.gameId.matches('^[a-z0-9][a-z0-9-]{1,39}$')
+          && saveId == request.auth.uid + '_' + d.gameId
+          && d.rev is int && d.data is string && d.data.size() <= 262144 && d.device is string && d.device.size() <= 40
+          && d.updatedAt is int && math.abs(d.updatedAt - request.time.toMillis()) < 300000;
+      }
+      allow get: if isRegisteredUser() && saveId.matches(request.auth.uid + '_.*');
+      allow create: if isRegisteredUser() && saveOk(request.resource.data) && request.resource.data.rev == 1;
+      allow update: if isRegisteredUser() && resource.data.uid == request.auth.uid && saveOk(request.resource.data) && request.resource.data.rev == resource.data.rev + 1;
+      allow delete: if isRegisteredUser() && resource.data.uid == request.auth.uid;
+    }
     // Live party games (routes/liveGames.ts). Public read so anyone can watch and play from the feed; only the
     // server writes. liveGameSecrets (the word) has no rule, so no client can ever read it.
     match /liveGames/{id} { allow read: if true; }

@@ -57,7 +57,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
   const [showEraClash, setShowEraClash] = useState(false);
   const [showEraClash3d, setShowEraClash3d] = useState(false);
   const [showRavencrest, setShowRavencrest] = useState(false);
-  const [iframeGame, setIframeGame] = useState<{ url: string; title: string } | null>(null);
+  const [iframeGame, setIframeGame] = useState<{ url: string; title: string; id: string } | null>(null);
   const [showTtt, setShowTtt] = useState(false);
   const [liveGameKind, setLiveGameKind] = useState<null | 'pick' | 'sketch' | 'trivia' | 'crowd' | 'impostor'>(null);
   const [selectedDetailGame, setSelectedDetailGame] = useState<PlajahGameEntry | null>(null);
@@ -167,7 +167,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
       case 'era-clash-2d': setShowEraClash(true); break;
       case 'era-clash-3d': setShowEraClash3d(true); break;
       case 'ravencrest': setShowRavencrest(true); break;
-      case 'iframe': setIframeGame({ url: entry.launch.url, title: entry.launch.title }); break;
+      case 'iframe': setIframeGame({ url: entry.launch.url, title: entry.launch.title, id: entry.id }); break;
       case 'kith-party': setKithInitialGame(entry.launch.gameId); setShowKithParty(true); break;
       case 'cyber-ttt': setShowTtt(true); break;
       case 'live-game': setLiveGameKind(entry.launch.kind); break;
@@ -194,7 +194,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
   );
   if (liveGameKind) return <React.Suspense fallback={<div className="p-8">Loading live games…</div>}><LiveGamesStudio initialKind={liveGameKind === 'pick' ? undefined : liveGameKind} onExit={() => setLiveGameKind(null)} /></React.Suspense>;
   if (showEraClash) return <React.Suspense fallback={<div className="p-8">Loading Era Clash…</div>}><EraClashFrame onExit={() => setShowEraClash(false)} /></React.Suspense>;
-  if (iframeGame) return <React.Suspense fallback={<div className="p-8">Loading {iframeGame.title}…</div>}><IframeGameFrame src={iframeGame.url} title={iframeGame.title} onExit={() => setIframeGame(null)} /></React.Suspense>;
+  if (iframeGame) return <React.Suspense fallback={<div className="p-8">Loading {iframeGame.title}…</div>}><IframeGameFrame src={iframeGame.url} title={iframeGame.title} gameId={iframeGame.id} onExit={() => setIframeGame(null)} /></React.Suspense>;
   if (showEraClash3d) return <React.Suspense fallback={<div className="p-8">Loading Era Clash 3D Campaign…</div>}><EraClash3DFrame onExit={() => setShowEraClash3d(false)} /></React.Suspense>;
   if (showRavencrest) return (
     <React.Suspense fallback={<div className="p-8">Loading Ravencrest…</div>}>

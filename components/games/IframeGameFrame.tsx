@@ -1,11 +1,21 @@
 import React, { useEffect, useRef } from 'react';
+import { auth } from '../../services/backendService';
+import { attachGameSaveBridge } from '../../services/gameSaves';
 
 /**
  * A first-party game served from /games/<name>/play as its own page (for example Apex Elohim, the racing game).
  * Full-screen iframe with an exit button; the game can post { type: 'plajah.exit' } to leave.
  */
-export default function IframeGameFrame({ src, title, onExit }: { src: string; title: string; onExit: () => void }) {
+export default function IframeGameFrame({ src, title, onExit, gameId }: { src: string; title: string; onExit: () => void; gameId?: string }) {
   const frame = useRef<HTMLIFrameElement>(null);
+
+  // Cloud save: the game asks this page to load and store its progress (services/gameSaves.ts). Attached before the iframe loads so the game's first message is heard.
+  useEffect(() => {
+    if (!gameId) return;
+    let origin = window.location.origin;
+    try { origin = new URL(src, window.location.href).origin; } catch { /* keep the page origin */ }
+    return attachGameSaveBridge({ gameId, userId: auth.currentUser?.uid ?? null, gameOrigin: origin, frame: () => frame.current?.contentWindow ?? null });
+  }, [gameId, src]);
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {

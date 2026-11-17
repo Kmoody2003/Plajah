@@ -17,7 +17,7 @@ import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
-PKG = "D:/plajah game assets deign from promtps/racer/ironport-complete"
+PKG = os.environ.get("IRONPORT_PKG", "D:/plajah game assets deign from promtps/racer/ironport-complete")   # any folder with models/{hero,generic}/*_lod0.gltf, e.g. public/games/forth-horizon/ironport
 SRC = "D:/plajah game assets deign from promtps/racer/Nov 15 - 14_22/Satellite_map_of_fictional_Michigan_728a143c.jpg"
 OUT = os.path.join(REPO, "public", "games", "forth-horizon", "region")
 rng = np.random.default_rng(2026)

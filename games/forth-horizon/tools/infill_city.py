@@ -118,6 +118,18 @@ def main():
     print("free cells", free0)
 
     GEN = pc.GEN
+    # The 100 new generics (24 towers T01-T24, 76 population buildings N01-N76) and what each one is for come from their roster (tools/pack_new_generics.py).
+    NEW = json.load(open(os.path.join(HERE, "data", "new_generics_roster.json")))
+
+    def _ids(prefix, lo, hi):
+        return [s_ for s_, v in NEW.items() if v["id"][0] == prefix and lo <= int(v["id"][1:]) <= hi and s_ in GEN]
+    T_GLASS, T_BRICK, T_DECO, T_MIXED = _ids("T", 1, 6), _ids("T", 7, 12), _ids("T", 13, 18), _ids("T", 19, 24)
+    N_CITY, N_SUB, N_IND, N_WATER = _ids("N", 1, 20), _ids("N", 21, 44), _ids("N", 61, 68), _ids("N", 69, 76)
+    zone_of_ = lambda g: NEW[g].get("zone", "")
+    N_HOUSES = [g for g in N_SUB if zone_of_(g) == "Suburbs"]                                           # houses, a triplex, garden apartments, a daycare
+    N_SHOPS = [g for g in N_SUB if "strip" in zone_of_(g) or "corner" in zone_of_(g)]                   # neighbourhood retail and services
+    N_ARTERIAL = [g for g in N_SUB if "arterial" in zone_of_(g)]                                        # car wash, tyres, garden centre, storage
+    N_CIVIC = [g for g in N_SUB if "center" in zone_of_(g) or "transit" in zone_of_(g)]                 # post office, community centre, substation, depot
     CORE_SET = [g for g in pc.CORE + pc.MID if g in GEN]
     MID_SET = [g for g in pc.MID + ["townhouse-row", "mixed-use-block"] if g in GEN]
     EDGE_SET = [g for g in pc.EDGE if g in GEN]
@@ -185,6 +197,8 @@ def main():
             z_ = "CBD"; h_ = float(np.clip(125.0 - dcm_ * 0.045, 55.0, 125.0))
         elif dc_ < 420.0 or dcm_ < 1100.0:
             z_ = "MID"; h_ = float(np.clip(58.0 - dcm_ * 0.018, 20.0, 55.0))
+        elif dq_ < 170.0:
+            z_ = "WATERFRONT"; h_ = 9.0
         elif dq_ < 450.0:
             z_ = "INDUSTRIAL"; h_ = 9.0
         elif arterial and dcm_ < 2600.0:
@@ -198,15 +212,40 @@ def main():
     POOLS = {
         "CBD": [g for g in ("midtown-office-tower", "midtown-office-tower", "apartment-tower", "downtown-hotel", "civic-office-annex", "tech-campus", "brick-office-block", "parking-deck") if g in GEN],
         "MID": [g for g in ("brick-office-block", "mixed-use-block", "apartment-tower", "modern-loft-office", "downtown-hotel", "civic-office-annex", "corner-office", "parking-deck") if g in GEN],
-        "STRIP": [g for g in ("strip-mall", "mixed-use-block", "corner-grocery", "neighborhood-pharmacy", "neighborhood-diner", "auto-repair-shop", "gas-station", "barber-shop") if g in GEN],
+        "STRIP": [g for g in ("strip-mall", "mixed-use-block", "corner-grocery", "neighborhood-pharmacy", "neighborhood-diner", "auto-repair-shop", "gas-station", "barber-shop", "coffee-shop") if g in GEN],
         "INDUSTRIAL": [g for g in ("auto-repair-shop", "modern-loft-office", "strip-mall", "gas-station") if g in GEN],
     }
     # retail mix for STRIP blocks: mostly strip malls and mixed-use frontage, single-tenant buildings are rare and capped per block
-    STRIP_W = {"strip-mall": 5.0, "mixed-use-block": 5.0, "auto-repair-shop": 1.2, "corner-grocery": 1.0, "neighborhood-pharmacy": 0.8, "neighborhood-diner": 0.8, "gas-station": 0.25, "barber-shop": 0.15}
-    STRIP_CAP = {"strip-mall": 99, "mixed-use-block": 99, "auto-repair-shop": 2, "corner-grocery": 1, "neighborhood-pharmacy": 1, "neighborhood-diner": 1, "gas-station": 1, "barber-shop": 1}
+    STRIP_W = {"strip-mall": 5.0, "mixed-use-block": 5.0, "auto-repair-shop": 1.2, "corner-grocery": 1.0, "neighborhood-pharmacy": 0.8, "neighborhood-diner": 0.8, "gas-station": 0.25, "barber-shop": 0.15, "coffee-shop": 0.9}
+    STRIP_CAP = {"strip-mall": 99, "mixed-use-block": 99, "auto-repair-shop": 2, "corner-grocery": 1, "neighborhood-pharmacy": 1, "neighborhood-diner": 1, "gas-station": 1, "barber-shop": 1, "coffee-shop": 1}
+    # new buildings join the pools by what they are: towers and mid-rise downtown by height, shops on the strips, houses in the neighbourhoods, plants on the waterfront
+    POOLS["CBD"] += T_GLASS + T_DECO + T_MIXED[:3] + [g for g in N_CITY if NEW[g]["h"] >= 30]
+    POOLS["MID"] += T_BRICK + T_MIXED + T_DECO[3:] + [g for g in N_CITY if 18 <= NEW[g]["h"] < 45]
+    POOLS["INDUSTRIAL"] += N_IND
+    POOLS["WATERFRONT"] = N_WATER + N_IND[:3]
+    POOLS["STRIP"] += [g for g in N_CITY if NEW[g]["h"] < 18] + N_SHOPS + N_ARTERIAL
     block_type_count = {}
     DENSE_RES = [g for g in ("townhouse-row", "duplex", "craftsman-bungalow", "tudor-house") if g in GEN]
     OUTER_RES = [g for g in ("ranch-house", "colonial-house", "split-level-house", "craftsman-bungalow", "tudor-house") if g in GEN]
+
+    # Neighbourhood civic buildings sit in residential blocks: rare, at most one per block, and a fixed number across the city so they stay landmarks.
+    # (Downtown zones are unchanged: new downtown models are on their way.)
+    CIVIC = [g for g in ("suburban-church", "elementary-school", "library-branch", "fire-station") if g in GEN] + [g for g in N_CIVIC]
+    n_res = max(zone_count.get("RESIDENTIAL", 0), 1)
+    civic_quota = {"suburban-church": max(2, n_res // 9), "elementary-school": max(2, n_res // 13), "library-branch": max(1, n_res // 28), "fire-station": max(1, n_res // 20)}
+    for g in N_CIVIC:
+        civic_quota[g] = max(1, n_res // 24)
+    civic_left = {g: civic_quota.get(g, 1) for g in CIVIC}
+    civic_block = set()
+    recent = {}                                             # block -> the last few models placed there, so one block does not read as one house copied
+
+    for g in POOLS["STRIP"]:
+        if g not in STRIP_W:
+            STRIP_W[g] = 1.1 if g in N_SHOPS else 0.7; STRIP_CAP[g] = 1 if g in N_SHOPS or g in N_ARTERIAL else 2
+    DENSE_RES += [g for g in N_HOUSES if NEW[g]["h"] <= 12 and NEW[g]["w"] <= 20]
+    OUTER_RES += [g for g in N_HOUSES if NEW[g]["h"] <= 12 and NEW[g]["w"] <= 20]
+    RES_BIG = [g for g in N_HOUSES if NEW[g]["w"] > 20 or g not in DENSE_RES]                         # garden apartments and the like: rare, one per block
+    CIVIC_NEW = N_CIVIC
 
     new = []
 
@@ -257,7 +296,7 @@ def main():
         e2 = (math.sin(phi), math.cos(phi))
         tall_zone = zone in ("CBD", "MID")
         if tall_zone:
-            pool = POOLS[zone]
+            pool = [g for g in POOLS[zone] if block_type_count.get((L, g), 0) < 2] or POOLS[zone]
             est = base_h[L] * float(rng.uniform(0.85, 1.15))
             opts = sorted(pool, key=lambda g: abs(GEN[g]["h"] * (1.5 if zone == "CBD" else 1.2) - est) + rng.random() * 8)[:5]
             scales = (1.0, 0.8, 0.62, 0.5)
@@ -267,15 +306,24 @@ def main():
             # weighted draw without replacement: key = random ** (1 / weight)
             opts = sorted(avail, key=lambda g: -(rng.random() ** (1.0 / STRIP_W[g])))[:4]
             scales = (1.0, 0.8, 0.62)
-        elif zone == "INDUSTRIAL":
+        elif zone in ("INDUSTRIAL", "WATERFRONT"):
             pool = POOLS[zone]
             est = base_h[L]
-            opts = sorted(pool, key=lambda g: rng.random())[:4]
+            last = recent.get(L, [])
+            opts = sorted(pool, key=lambda g: rng.random() + 1.6 * last[-4:].count(g))[:4]
             scales = (1.0, 0.8, 0.62)
         else:
             pool = DENSE_RES if cmd < 1900 else OUTER_RES
             est = base_h[L]
-            opts = sorted(pool, key=lambda g: rng.random())[:3]
+            last = recent.get(L, [])
+            if RES_BIG and rng.random() < 0.06 and block_type_count.get((L, "_big"), 0) < 1:
+                pool = pool + [rng.choice(RES_BIG)]
+            opts = sorted(pool, key=lambda g: rng.random() + 1.6 * last[-4:].count(g))[:3]      # a model used in the last four placements goes to the back
+            if CIVIC and L not in civic_block and rng.random() < 0.22:
+                open_ = [g for g in CIVIC if civic_left[g] > 0]
+                if open_:
+                    pick = open_[int(rng.integers(len(open_)))]
+                    opts = [pick] + opts
             scales = (1.0, 0.8, 0.62)
         done = False
         for sg in opts:
@@ -283,10 +331,14 @@ def main():
                 if try_place(sg, scale, x, z, di, k, sx_, sz_, nrm, phi, e1, e2, est, tall_zone, tall_zone):
                     done = True
                     block_type_count[(L, sg)] = block_type_count.get((L, sg), 0) + 1
+                    recent.setdefault(L, []).append(sg)
+                    if sg in civic_left:
+                        civic_left[sg] -= 1
+                        civic_block.add(L)
                     break
             if done:
                 break
-    print("infill buildings", len(new))
+    print("infill buildings", len(new), "civic placed", {g: civic_quota[g] - civic_left[g] for g in civic_quota})
     data["items"] = items + new
     data["notes"]["infill"] = len(new)
     json.dump(data, open(os.path.join(OUT, "city.json"), "w"))

@@ -1,6 +1,8 @@
 // Trackside kit for the city circuit: tyre walls on the outside of corners, catch fencing, grandstands with crowds, pit-lane garages, marshal posts with flags,
 // light towers and the five-lamp start gantry lights. Everything is placed from the circuit's dense path (`P`, about 6 m a sample) and sits on the terrain.
 import * as THREE from 'three';
+import { catchFence } from './catchFence';
+import { detailedStand, pitGarage } from './trackArchitecture';
 
 export interface KitInput {
   P: { x: number; y: number; z: number }[];
@@ -20,7 +22,46 @@ function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext2D) => 
   return t;
 }
 const rnd = (seed: number): (() => number) => { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; };
-const mat = (color: number, rough = 0.8, metal = 0): THREE.MeshStandardMaterial => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
+const texLoader = new THREE.TextureLoader();
+const pbrTex = (file: string, srgb: boolean, rep = 2): THREE.Texture => {
+  const t = texLoader.load('/games/forth-horizon/tex/' + file);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rep, rep);
+  t.anisotropy = 8;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+};
+let steelMatCache: THREE.MeshStandardMaterial | null = null;
+let concreteMatCache: THREE.MeshStandardMaterial | null = null;
+const mat = (color: number, rough = 0.8, metal = 0): THREE.MeshStandardMaterial => {
+  if (metal >= 0.5) {
+    if (!steelMatCache) {
+      steelMatCache = new THREE.MeshStandardMaterial({
+        color: 0xcfd6de,
+        map: pbrTex('tex-shared-14-steel-panel_base.png', true, 2),
+        normalMap: pbrTex('tex-shared-14-steel-panel_normal.png', false, 2),
+        roughnessMap: pbrTex('tex-shared-14-steel-panel_roughness.png', false, 2),
+        roughness: 0.42,
+        metalness: 0.86,
+      });
+    }
+    return steelMatCache;
+  }
+  if (rough >= 0.78 && color > 0x606060) {
+    if (!concreteMatCache) {
+      concreteMatCache = new THREE.MeshStandardMaterial({
+        color: 0xd8d6d0,
+        map: pbrTex('tex-shared-16-concrete-weathered_base.png', true, 2),
+        normalMap: pbrTex('tex-shared-16-concrete-weathered_normal.png', false, 2),
+        roughnessMap: pbrTex('tex-shared-16-concrete-weathered_roughness.png', false, 2),
+        roughness: 0.88,
+        metalness: 0.04,
+      });
+    }
+    return concreteMatCache;
+  }
+  return new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
+};
 
 export class TrackKit {
   readonly group = new THREE.Group();
@@ -48,93 +89,109 @@ export class TrackKit {
   // ---------- tyre walls: stacked tyres, red/white/black, on the outside of every corner ----------
   private tyreWalls(): void {
     const { P, corners, HALF } = this.k, n = P.length;
-    const geo = new THREE.TorusGeometry(0.34, 0.17, 8, 18); geo.rotateX(Math.PI / 2);
-    const cols = [0xd8d8d8, 0xb81818, 0x1b1b1b, 0xb81818];
-    const list: THREE.Matrix4[] = [], colr: number[] = [];
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), r = rnd(7);
+    // One real tyre, lying flat as in a tyre barrier: a revolved profile with the rounded sidewall, the shoulder, the flat tread and the open bead (not a doughnut). 0.69 m
+    // across, 0.23 m tall. The look comes from the textures: tread blocks and sidewall rings and lettering in the colour map and the same picture as a bump map.
+    const profile: THREE.Vector2[] = [
+      [0.205, -0.105], [0.245, -0.118], [0.295, -0.112], [0.333, -0.082], [0.345, -0.045], [0.347, 0.045], [0.333, 0.082], [0.295, 0.112], [0.245, 0.118], [0.205, 0.105], [0.197, 0.0], [0.205, -0.105],
+    ].map(([x, y]) => new THREE.Vector2(x, y));
+    const geo = new THREE.LatheGeometry(profile, 12);
+    const rubberTex = (paint: string | null): THREE.CanvasTexture => canvasTex(512, 256, (g) => {
+      const R = rnd(paint ? (paint === '#d8d8d2' ? 5 : 9) : 3);
+      g.fillStyle = '#15161a'; g.fillRect(0, 0, 512, 256);
+      // v runs along the profile: the tread is the band in the middle, the two sidewalls on either side
+      for (let y = 0; y < 256; y++) { const sw = y < 72 || y > 184; g.fillStyle = sw ? `rgb(${24 + (R() * 8) | 0},${25 + (R() * 8) | 0},${28 + (R() * 8) | 0})` : `rgb(${18 + (R() * 7) | 0},${19 + (R() * 7) | 0},${21 + (R() * 7) | 0})`; g.fillRect(0, y, 512, 1); }
+      g.fillStyle = '#0a0a0c';
+      for (let x = 0; x < 512; x += 16) { g.fillRect(x, 92, 3, 72); if ((x / 16) % 2) g.fillRect(x + 8, 92, 3, 34); else g.fillRect(x + 8, 130, 3, 34); }       // tread blocks and sipes
+      g.fillRect(0, 126, 512, 4);                                                                                                                         // centre groove
+      g.strokeStyle = 'rgba(70,72,78,0.55)'; g.lineWidth = 2;
+      for (const y of [22, 40, 60, 196, 216, 234]) { g.beginPath(); g.moveTo(0, y); g.lineTo(512, y); g.stroke(); }                                          // sidewall rings
+      g.fillStyle = 'rgba(150,152,158,0.55)'; g.font = '700 15px Arial'; g.textBaseline = 'middle';
+      for (let x = 18; x < 512; x += 170) { g.fillText('TUBELESS RADIAL', x, 30); g.fillText('M+S  205/55 R16', x + 70, 224); }
+      // dust, scuffs, a few cuts
+      for (let i = 0; i < 360; i++) { g.fillStyle = `rgba(${150 + (R() * 60) | 0},${140 + (R() * 50) | 0},${120 + (R() * 40) | 0},${0.02 + R() * 0.07})`; g.fillRect(R() * 512, R() * 256, 2 + R() * 20, 1 + R() * 5); }
+      if (paint) {
+        // paint rolled on the sidewall and tread: thick, then chipped and scuffed away so the rubber shows through, more where tyres have knocked together
+        g.globalAlpha = 0.97; g.fillStyle = paint; g.fillRect(0, 0, 512, 256); g.globalAlpha = 1;
+        for (let i = 0; i < 620; i++) { g.fillStyle = `rgba(${20 + (R() * 30) | 0},${20 + (R() * 30) | 0},${24 + (R() * 30) | 0},${0.35 + R() * 0.6})`; g.beginPath(); g.ellipse(R() * 512, R() * 256, 1 + R() * 14, 1 + R() * 6, R() * 3, 0, 7); g.fill(); }
+        for (let i = 0; i < 260; i++) { g.fillStyle = `rgba(120,104,86,${0.04 + R() * 0.1})`; g.fillRect(R() * 512, R() * 256, 5 + R() * 40, 2 + R() * 10); }
+        g.globalCompositeOperation = 'source-over';
+      }
+    }, [2, 1]);
+    const mk = (paint: string | null): THREE.MeshStandardMaterial => {
+      const t = rubberTex(paint);
+      return new THREE.MeshStandardMaterial({ map: t, bumpMap: t, bumpScale: paint ? 1.6 : 2.6, roughness: paint ? 0.78 : 0.93, metalness: 0, color: paint ? 0xffffff : 0xb8b8bc });
+    };
+    const mats = [mk(null), mk('#d8d8d2'), mk('#b01e1e')];
+    const slots: THREE.Matrix4[][] = [[], [], []];
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), r = rnd(7);
+    const TYRE_H = 0.22, SPACING = 0.64;
     for (const cn of corners) {
       let bi = 0, best = 1e18;
       for (let i = 0; i < n; i++) { const d = (P[i].x - cn.x) ** 2 + (P[i].z - cn.z) ** 2; if (d < best) { best = d; bi = i; } }
       const outside = cn.turn > 0 ? -1 : 1;
-      for (let k = -5; k <= 5; k++) {
+      const K = 4;
+      for (let k = -K; k <= K; k++) {
         const i = bi + k; if (this.inPit(((i % n) + n) % n)) continue;
-        for (let a = -2; a <= 2; a++) for (let row = 0; row < 2; row++) {
-          const p = this.at(i, HALF + 2.5 + row * 0.62, outside, a * 1.15);
-          for (let layer = 0; layer < 3; layer++) {
-            q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), r() * 6.28);
-            m4.compose(new THREE.Vector3(p.x + (r() - 0.5) * 0.06, p.y + 0.17 + layer * 0.34, p.z + (r() - 0.5) * 0.06), q, new THREE.Vector3(1, 1, 1));
-            list.push(m4.clone()); colr.push(cols[(Math.floor(k / 2) + layer + row) & 3]);
+        // a barrier is built like a pyramid at its ends: four tyres high in the middle, three, then two
+        const layers = Math.abs(k) <= 3 ? 4 : Math.abs(k) === 4 ? 3 : 2;
+        for (let row = 0; row < 2; row++) for (let a = -4; a <= 4; a += 1) {
+          // the rows are staggered, as are the layers: each tyre rests in the gap of the ones below, like brickwork
+          const stagger = (row % 2) * 0.5;
+          const p = this.at(i, HALF + 2.5 + row * 0.6, outside, (a + stagger) * SPACING);
+          const along = Math.atan2(p.tx, p.tz);
+          for (let layer = 0; layer < layers; layer++) {
+            const lift = layer * (TYRE_H * 0.93);
+            const lx = (layer % 2) * 0.32;
+            const px = p.x + p.tx * lx + (r() - 0.5) * 0.05, pz = p.z + p.tz * lx + (r() - 0.5) * 0.05;
+            e.set((r() - 0.5) * 0.07, along + r() * 6.28, (r() - 0.5) * 0.07);
+            q.setFromEuler(e);
+            m4.compose(new THREE.Vector3(px, p.y + 0.11 + lift, pz), q, new THREE.Vector3(1 + (r() - 0.5) * 0.04, 0.93, 1 + (r() - 0.5) * 0.04));
+            // the row facing the road is painted, alternating white and red along the barrier, the rest left black
+            const painted = row === 0 && layer < 3 && ((Math.floor((k * 10 + a + 50) / 3) + layer) & 1) === 0;
+            const which = !painted ? 0 : (Math.floor((k * 10 + a + 50) / 6) & 1) ? 2 : 1;
+            slots[which].push(m4.clone());
           }
         }
       }
     }
-    const im = new THREE.InstancedMesh(geo, mat(0xffffff, 0.95), Math.max(1, list.length));
-    const c = new THREE.Color();
-    list.forEach((m, i) => { im.setMatrixAt(i, m); im.setColorAt(i, c.setHex(colr[i])); });
-    im.count = list.length; im.frustumCulled = false; im.castShadow = true;
-    this.group.add(im);
+    slots.forEach((list, vi) => {
+      if (!list.length) return;
+      const im = new THREE.InstancedMesh(geo, mats[vi], list.length);
+      list.forEach((m, i) => im.setMatrixAt(i, m));
+      im.frustumCulled = false; im.castShadow = true; im.receiveShadow = true;
+      this.group.add(im);
+    });
   }
 
   // ---------- catch fencing: posts and a diamond-mesh panel along both sides, leaning in at the top ----------
   private fencing(): void {
-    const { P, HALF } = this.k, n = P.length;
-    const tex = canvasTex(128, 128, (g) => {
-      g.clearRect(0, 0, 128, 128); g.strokeStyle = 'rgba(205,210,215,0.95)'; g.lineWidth = 3;
-      for (let k = -128; k < 256; k += 32) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k + 128, 128); g.stroke(); g.beginPath(); g.moveTo(k + 128, 0); g.lineTo(k, 128); g.stroke(); }
-    }, [1, 1]);
+    const { P, HALF } = this.k, runs: { x: number; y: number; z: number }[][] = [];
+    // 4.6 m off the road edge: clear of the tyre walls on the outside of corners (they reach about 9.2 m from the centre line, the fence used to stand at 9.0 and cut through them)
+    const FENCE_OFF = HALF + 4.6;
     for (const side of [-1, 1]) {
-      const pos: number[] = [], uv: number[] = [], idx: number[] = [];
-      let dist = 0, prev: { x: number; z: number } | null = null, strips = 0;
-      const posts: THREE.Matrix4[] = [];
-      for (let i = 0; i < n; i++) {
-        if (side < 0 && this.inPit(i)) { prev = null; continue; }
-        const p = this.at(i, HALF + 3.5, side), top = this.at(i, HALF + 3.5 - 0.45, side);
-        if (prev) dist += Math.hypot(p.x - prev.x, p.z - prev.z);
-        if (!prev && pos.length) { strips = 0; }
-        prev = p;
-        const b = pos.length / 3;
-        pos.push(p.x, p.y + 0.5, p.z, top.x, p.y + 4.6, top.z);
-        uv.push(dist / 3.2, 0, dist / 3.2, 1.3);
-        if (strips > 0) idx.push(b - 2, b, b - 1, b - 1, b, b + 1);
-        strips++;
-        if (i % 2 === 0) { const m = new THREE.Matrix4().makeTranslation(p.x, p.y + 2.4, p.z); posts.push(m); }
+      let run: { x: number; y: number; z: number }[] = [];
+      const flush = (): void => { if (run.length > 1) runs.push(side < 0 ? run.reverse() : run); run = []; };
+      for (let i = 0; i <= P.length; i++) {
+        const sample = i % P.length;
+        if (side < 0 && this.inPit(sample)) { flush(); continue; }
+        // on the inside of a tight corner the offset line folds back across itself: that is where the fence used to tangle. Stop the run there and start again after it.
+        const here = this.at(sample, FENCE_OFF, side), nxt = this.at(sample + 1, FENCE_OFF, side), [tx, tz] = this.tan(sample);
+        const el = Math.hypot(nxt.x - here.x, nxt.z - here.z) || 1;
+        if (((nxt.x - here.x) * tx + (nxt.z - here.z) * tz) / el < 0.3) { flush(); continue; }
+        const p = here, last = run[run.length - 1];
+        if (last) { const steps = Math.ceil(Math.hypot(p.x - last.x, p.z - last.z) / 3); for (let k = 1; k < steps; k++) { const x = last.x + (p.x - last.x) * k / steps, z = last.z + (p.z - last.z) * k / steps; run.push({ x, y: this.k.ground(x, z), z }); } }
+        run.push(p);
       }
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx);
-      const t = tex.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: t, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide, roughness: 0.6, metalness: 0.5 }));
-      m.frustumCulled = false; this.group.add(m);
-      const pi = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.07, 0.09, 4.6, 6), mat(0x4b5057, 0.5, 0.6), Math.max(1, posts.length));
-      posts.forEach((mm, i) => pi.setMatrixAt(i, mm)); pi.count = posts.length; pi.frustumCulled = false; this.group.add(pi);
+      flush();
     }
+    this.group.add(catchFence(runs));
   }
 
   // ---------- grandstands ----------
   private makeStand(len: number, rows: number): THREE.Group {
-    const g = new THREE.Group();
-    const crowd = canvasTex(256, 64, (c) => {
-      const r = rnd(3); c.fillStyle = '#2a2d36'; c.fillRect(0, 0, 256, 64);
-      const pal = ['#d8352a', '#f0f0f0', '#1d6fd1', '#f2c230', '#2aa05a', '#222', '#e87ab0', '#ff8c00'];
-      for (let y = 6; y < 64; y += 9) for (let x = 3; x < 256; x += 6) { c.fillStyle = pal[Math.floor(r() * pal.length)]; c.beginPath(); c.arc(x + r() * 2, y, 2.4, 0, 7); c.fill(); c.fillStyle = '#c99a78'; c.fillRect(x - 1, y - 6, 2, 2); }
-    }, [Math.max(1, len / 12), 1]);
-    const concrete = mat(0x9b9ea3, 0.9), seat = new THREE.MeshStandardMaterial({ map: crowd, roughness: 0.9 });
-    for (let r = 0; r < rows; r++) {
-      const h = 0.7 + r * 0.78;
-      const step = new THREE.Mesh(new THREE.BoxGeometry(len, h, 1.05), concrete); step.position.set(0, h / 2, 0.6 + r * 1.05); g.add(step);
-      const row = new THREE.Mesh(new THREE.BoxGeometry(len - 0.4, 0.9, 0.5), seat); row.position.set(0, h + 0.45, 0.35 + r * 1.05); g.add(row);
-    }
-    const back = new THREE.Mesh(new THREE.BoxGeometry(len, 0.7 + rows * 0.78 + 0.6, 0.4), mat(0x6f737a, 0.9)); back.position.set(0, (0.7 + rows * 0.78 + 0.6) / 2, 0.6 + rows * 1.05 + 0.2); g.add(back);
-    const roofH = 0.7 + rows * 0.78 + 3.6, roofZ = 0.6 + rows * 0.5;
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(len + 1, 0.32, rows * 1.05 + 1.5), mat(0xe8eaee, 0.5, 0.2)); roof.position.set(0, roofH, roofZ + 0.6); roof.rotation.x = -0.06; g.add(roof);
-    const banner = new THREE.Mesh(new THREE.BoxGeometry(len + 1, 1.3, 0.12), new THREE.MeshStandardMaterial({
-      map: canvasTex(1024, 96, (c) => { c.fillStyle = '#10131c'; c.fillRect(0, 0, 1024, 96); c.fillStyle = '#ff8c00'; c.font = '800 54px Inter, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('APEX ELOHIM  ·  IRONPORT GRAND CIRCUIT', 512, 50); }),
-      emissive: 0x331c00, roughness: 0.6,
-    }));
-    banner.position.set(0, roofH - 0.8, roofZ - rows * 0.5 - 0.25); g.add(banner);
-    for (let x = -len / 2 + 1; x <= len / 2; x += len / 5) for (const z of [0.5, 0.6 + rows * 1.05]) { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, roofH, 6), mat(0x50555c, 0.5, 0.6)); p.position.set(x, roofH / 2, z); g.add(p); }
-    g.traverse((o) => { if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-    return g;
+    return detailedStand(len, rows);
   }
+
   private stands(): void {
     const { P, HALF, gantryAt } = this.k, n = P.length;
     const spots: [number, number, number, number][] = [[gantryAt + 4, 1, 54, 8], [gantryAt + 4, -1, 0, 0], [Math.floor(n * 0.42), 1, 36, 6], [Math.floor(n * 0.7), 1, 36, 6], [Math.floor(n * 0.2), -1, 30, 5]];
@@ -152,35 +209,13 @@ export class TrackKit {
 
   // ---------- pit garages ----------
   private pits(): void {
-    const { HALF, pitFrom, pitTo } = this.k;
-    const door = canvasTex(256, 128, (c) => {
-      c.fillStyle = '#d9dbe0'; c.fillRect(0, 0, 256, 128);
-      c.fillStyle = '#3a3f4a'; c.fillRect(20, 40, 216, 74);
-      c.strokeStyle = '#5b6170'; c.lineWidth = 2; for (let y = 46; y < 114; y += 8) { c.beginPath(); c.moveTo(20, y); c.lineTo(236, y); c.stroke(); }
-      c.fillStyle = '#ff8c00'; c.fillRect(0, 0, 256, 18);
-    });
-    const geo = new THREE.BoxGeometry(6.1, 4.2, 8);
-    const list: THREE.Matrix4[] = [];
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
+    const { pitFrom, pitTo } = this.k;
     for (let i = pitFrom; i <= pitTo; i++) {
-      const p = this.at(i, 15.5 + 9, -1);
-      // box long side (x) along the track tangent; the pit is on side -1, so turn it half way round to put the doors (+z) toward the lane
-      q.setFromEuler(new THREE.Euler(0, Math.atan2(-p.tz, p.tx) + Math.PI, 0));
-      m4.compose(new THREE.Vector3(p.x, p.y + 2.1, p.z), q, new THREE.Vector3(1, 1, 1));
-      list.push(m4.clone());
+      const p = this.at(i, 24.5, -1), garage = pitGarage(i - pitFrom);
+      garage.position.set(p.x, p.y, p.z);
+      garage.rotation.y = Math.atan2(-p.tz, p.tx) + Math.PI;
+      this.group.add(garage);
     }
-    void HALF;
-    const mats = [mat(0xc9ccd2), mat(0xc9ccd2), mat(0xaeb2ba), mat(0xaeb2ba), new THREE.MeshStandardMaterial({ map: door, roughness: 0.7 }), mat(0xaeb2ba)];
-    const im = new THREE.InstancedMesh(geo, mats as unknown as THREE.Material, Math.max(1, list.length));
-    list.forEach((mm, i) => im.setMatrixAt(i, mm)); im.count = list.length; im.frustumCulled = false; im.castShadow = true; im.receiveShadow = true;
-    this.group.add(im);
-    // flat roof slab and a long canopy over the lane
-    const first = this.at(pitFrom, 15.5 + 9, -1), last = this.at(pitTo, 15.5 + 9, -1);
-    const len = Math.hypot(last.x - first.x, last.z - first.z) + 6;
-    const mid = this.at(Math.floor((pitFrom + pitTo) / 2), 15.5 + 4.6, -1);
-    const canopy = new THREE.Mesh(new THREE.BoxGeometry(len, 0.25, 5), mat(0xe8eaee, 0.5, 0.2));
-    canopy.position.set(mid.x, mid.y + 4.9, mid.z); canopy.rotation.y = Math.atan2(-(last.z - first.z), last.x - first.x); canopy.castShadow = true;
-    this.group.add(canopy);
   }
 
   // ---------- marshal posts with flags, one on the outside of every corner ----------

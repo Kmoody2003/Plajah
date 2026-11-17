@@ -18,6 +18,10 @@ const MIME = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
+  '.mp4': 'video/mp4',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg',
   '.json': 'application/json',
 };
 
@@ -41,8 +45,46 @@ function mountStaticDir(prefix, rootDir) {
   };
 }
 
+// dev only: the map editor (src/mapEditor.ts) saves the roads and zones the developer draws to region/user_map.json
+function userMapSave() {
+  return {
+    name: 'user-map-save',
+    configureServer(server) {
+      server.middlewares.use('/__dev/user-map', (req, res) => {
+        if (req.method !== 'POST') { res.statusCode = 405; res.end('POST only'); return; }
+        let body = '';
+        req.on('data', (c) => { body += c; if (body.length > 8e6) req.destroy(); });
+        req.on('end', () => {
+          try {
+            const j = JSON.parse(body);
+            if (!j || !Array.isArray(j.features)) throw new Error('features missing');
+            fs.writeFileSync(path.resolve(here, '../../public/games/forth-horizon/region/user_map.json'), JSON.stringify(j));
+            res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ ok: true, features: j.features.length }));
+          } catch (e) { res.statusCode = 400; res.end(String(e)); }
+        });
+      });
+    },
+  };
+}
+
+// dev only: the page at the server's root used to be the old engine test scene (index.html). Opening the server now always opens the current game, and the old scene cannot be reached.
+function currentVersionOnly() {
+  return {
+    name: 'current-version-only',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const path = (req.url || '/').split('?')[0];
+        if (path === '/' || path === '/index.html') { res.statusCode = 302; res.setHeader('Location', '/region.html'); res.end(); return; }
+        next();
+      });
+    },
+  };
+}
+
 export default defineConfig(({ command }) => ({
   plugins: [
+    currentVersionOnly(),
+    userMapSave(),
     mountStaticDir('/ironport-assets', IRONPORT_DIR),
     mountStaticDir('/racer-refs', RACER_REFS_DIR),
     mountStaticDir('/cars', CARS_DIR),
@@ -68,6 +110,6 @@ export default defineConfig(({ command }) => ({
     chunkSizeWarningLimit: 4000,
     // the racing game page (region.html) is what the Plajah Games catalog launches. The engine test scene (index.html, main.ts) is left out of the build:
     // it imports ./replay, which does not exist yet.
-    rollupOptions: { input: { region: path.resolve(here, 'region.html') } },
+    rollupOptions: { input: { region: path.resolve(here, 'region.html'), garage: path.resolve(here, 'showroom.html') } },
   },
 }));

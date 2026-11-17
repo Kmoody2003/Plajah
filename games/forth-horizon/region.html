@@ -6,6 +6,7 @@
   <title>Apex Elohim · Pre-alpha</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/racingHud.css" />
   <style>
     /* Plajah design tokens (styles/plajah-ds.css): brand is theme-invariant */
     :root {
@@ -45,18 +46,30 @@
     <div class="sh-group">Audio</div>
     <label class="sh-row"><span>Music volume</span><input type="range" id="musicVol" min="0" max="1" step="0.05" value="0.6" /></label>
     <label class="sh-row"><span>Engine and tyre volume</span><input type="range" id="engVol" min="0" max="1.5" step="0.05" value="1.0" /></label>
+    <label class="sh-row"><span>Chora Radio ( [ / ] )</span><span style="display:flex;gap:6px;align-items:center"><button id="radioPrev" type="button">&lsaquo;</button><b id="radioLabel" style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Plajah FM</b><button id="radioNext" type="button">&rsaquo;</button></span></label>
     <div class="sh-group">Driving</div>
     <label class="sh-row"><span>Weather</span><select id="wxsel"><option value="auto" selected>Dynamic (race forecast)</option><option value="clear">Clear</option><option value="partly">Partly</option><option value="overcast">Overcast</option><option value="fog">Fog</option><option value="rain">Rain</option><option value="storm">Storm</option></select></label>
-    <label class="sh-row"><span>Suspension tune</span><select id="susp"><option value="comfort">Comfort</option><option value="sport" selected>Sport</option><option value="track">Track</option><option value="rally">Rally</option></select></label>
+    <label class="sh-row"><span>Car, parts and tuning</span><a href="showroom.html" style="color:#FF8C00;font:700 11px Outfit,sans-serif;letter-spacing:.14em;text-decoration:none">OPEN GARAGE</a></label>
+    <label class="sh-row"><span>Racing line (L)</span><input type="checkbox" id="tLine" checked /></label>
+    <label class="sh-row"><span>Braking assist</span><input type="checkbox" id="tBrkAssist" checked /></label>
+    <label class="sh-row"><span>Steering assist</span><input type="checkbox" id="tStrAssist" checked /></label>
     <div class="sh-group">Graphics</div>
     <label class="sh-row"><span>Time of day</span><select id="tod"><option value="golden">Golden hour</option><option value="clear">Clear day</option><option value="sunset">Sunset</option><option value="dusk">Dusk</option><option value="night">Night</option><option value="sunrise">Sunrise</option></select></label>
+    <label class="sh-row"><span>GPU preference</span><select id="gpuPreference" title="Requests a GPU after reload. The browser and OS choose the adapter; Performance shows the GPU actually in use."><option value="default">System default</option><option value="low-power">Power-saving GPU</option><option value="high-performance">High-performance GPU</option></select></label>
+    <label class="sh-row"><span>Shadows</span><select id="shadowSel"><option value="basic">Basic (default)</option><option value="cascaded">Cascaded (experimental, washes out the ground)</option></select></label>
+    <label class="sh-row"><span>Building models</span><select id="modSel"><option value="v3">v3 detailed</option><option value="v1">v1 (previous)</option></select></label>
+    <label class="sh-row"><span>Building textures</span><select id="texSel"><option value="v3">v3 photoreal</option><option value="v1">v1 (previous)</option></select></label>
     <label class="sh-row"><span>Bloom</span><input type="checkbox" id="tFx" checked /></label>
+    <label class="sh-row"><span>Colour grade (LUT)</span><select id="lutSel"><option value="none">Off</option></select></label>
+    <label class="sh-row"><span>Grade strength</span><input type="range" id="lutAmt" min="0" max="1" step="0.05" value="1" /></label>
+    <label class="sh-row"><span>Lens</span><select id="lensSel"><option value="none">Off</option></select></label>
     <div class="sh-group">World</div>
     <label class="sh-row"><span>Harbor</span><input type="checkbox" id="tHar" checked /></label>
     <label class="sh-row"><span>Streets and sidewalks</span><input type="checkbox" id="tStr" checked /></label>
     <label class="sh-row"><span>City buildings</span><input type="checkbox" id="tBld" checked /></label>
     <label class="sh-row"><span>Trees and street lights</span><input type="checkbox" id="tScape" checked /></label>
     <label class="sh-row"><span>Map labels</span><input type="checkbox" id="tLab" checked /></label>
+    <label class="sh-row"><span>Camera rain droplets</span><input type="checkbox" id="tLensRain" checked /></label>
     <details class="sh-dev"><summary>Developer tools</summary>
       <div class="row">
         <button data-cam="overview">Map</button><button data-cam="city">City circuit</button><button data-cam="downtown">Skyline</button><button data-cam="harbor">Harbor</button>
@@ -64,6 +77,8 @@
       </div>
       <div class="row"><button id="fly">Fly cliff lap</button><button id="flycity">Fly city lap</button><button id="stop">Stop</button></div>
       <div class="row"><button id="drivecity">Drive city</button><button id="drivecliff">Drive cliff</button><button id="driverally">Drive rally</button></div>
+      <div class="row"><button id="playPursuitAuto">Cops &amp; Robbers (Auto)</button><button id="playCop">Be Cop</button><button id="playRobber">Be Robber</button></div>
+      <div class="row"><button id="playOnlineWorld">Online Open World</button><button id="playOnlineRace">Online Circuit Race</button></div>
       <label class="sh-row"><span>Circuit line (review)</span><input type="checkbox" id="tCirc" /></label>
       <label class="sh-row"><span>X-ray terrain</span><input type="checkbox" id="tXray" /></label>
       <label class="sh-row"><span>Height <b id="exagv">1.0</b>&times;</span><input type="range" id="exag" min="1" max="4" step="0.1" value="1" /></label>

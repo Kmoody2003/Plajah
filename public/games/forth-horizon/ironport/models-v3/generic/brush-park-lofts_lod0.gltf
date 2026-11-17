@@ -1,0 +1,1874 @@
+{
+ "asset": {
+  "generator": "Khronos glTF Blender I/O v4.0.44",
+  "version": "2.0"
+ },
+ "scene": 0,
+ "scenes": [
+  {
+   "name": "Scene",
+   "nodes": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+   ]
+  }
+ ],
+ "nodes": [
+  {
+   "mesh": 0,
+   "name": "brush-park-lofts_main"
+  },
+  {
+   "mesh": 1,
+   "name": "brush-park-lofts_fen_07-glass-curtain-blue_0"
+  },
+  {
+   "mesh": 2,
+   "name": "brush-park-lofts_fen_14-steel-panel_1"
+  },
+  {
+   "mesh": 3,
+   "name": "brush-park-lofts_fen_07-glass-curtain-blue_2_t"
+  },
+  {
+   "mesh": 4,
+   "name": "brush-park-lofts_fen_12-bronze-metal_3"
+  },
+  {
+   "mesh": 5,
+   "name": "brush-park-lofts_fen_06-granite_4"
+  },
+  {
+   "mesh": 6,
+   "name": "brush-park-lofts_fen_15-concrete-boardformed_5"
+  },
+  {
+   "mesh": 7,
+   "name": "brush-park-lofts_fen_21-corrugated-steel_6"
+  },
+  {
+   "mesh": 8,
+   "name": "brush-park-lofts_fen_19-red-timber_7"
+  },
+  {
+   "mesh": 9,
+   "name": "brush-park-lofts_fen_19-red-timber_8_t"
+  },
+  {
+   "mesh": 10,
+   "name": "brush-park-lofts_fen_14-steel-panel_9_t"
+  },
+  {
+   "mesh": 11,
+   "name": "brush-park-lofts__steel_canopy"
+  },
+  {
+   "mesh": 12,
+   "name": "brush-park-lofts__skylights"
+  },
+  {
+   "mesh": 13,
+   "name": "brush-park-lofts__cornice"
+  },
+  {
+   "mesh": 14,
+   "name": "brush-park-lofts__string_course_1"
+  },
+  {
+   "mesh": 15,
+   "name": "brush-park-lofts__string_course_2"
+  },
+  {
+   "mesh": 16,
+   "name": "brush-park-lofts__parapet_front"
+  },
+  {
+   "mesh": 17,
+   "name": "brush-park-lofts__parapet_back"
+  },
+  {
+   "mesh": 18,
+   "name": "brush-park-lofts__parapet_left"
+  },
+  {
+   "mesh": 19,
+   "name": "brush-park-lofts__parapet_right"
+  }
+ ],
+ "materials": [
+  {
+   "doubleSided": true,
+   "name": "tex-shared-02-weathered-brick_mat",
+   "normalTexture": {
+    "index": 0
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 1
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 2
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-07-glass-curtain-blue_mat",
+   "normalTexture": {
+    "index": 3
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 4
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 5
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-14-steel-panel_mat",
+   "normalTexture": {
+    "index": 6
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 7
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 8
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-07-glass-curtain-blue_mat.001",
+   "normalTexture": {
+    "index": 9
+   },
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.15000000596046448,
+     0.15000000596046448,
+     0.18000000715255737,
+     1
+    ],
+    "baseColorTexture": {
+     "index": 10
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 11
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-12-bronze-metal_mat",
+   "normalTexture": {
+    "index": 12
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 13
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 14
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-06-granite_mat",
+   "normalTexture": {
+    "index": 15
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 16
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 17
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-15-concrete-boardformed_mat",
+   "normalTexture": {
+    "index": 18
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 19
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 20
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-21-corrugated-steel_mat",
+   "normalTexture": {
+    "index": 21
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 22
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 23
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-19-red-timber_mat",
+   "normalTexture": {
+    "index": 24
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 25
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 26
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-19-red-timber_mat.001",
+   "normalTexture": {
+    "index": 27
+   },
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.7200000286102295,
+     0.7200000286102295,
+     0.7200000286102295,
+     1
+    ],
+    "baseColorTexture": {
+     "index": 28
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 29
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-14-steel-panel_mat.001",
+   "normalTexture": {
+    "index": 30
+   },
+   "pbrMetallicRoughness": {
+    "baseColorFactor": [
+     0.25,
+     0.25,
+     0.2800000011920929,
+     1
+    ],
+    "baseColorTexture": {
+     "index": 31
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 32
+    }
+   }
+  },
+  {
+   "doubleSided": true,
+   "name": "tex-shared-04-limestone_mat",
+   "normalTexture": {
+    "index": 33
+   },
+   "pbrMetallicRoughness": {
+    "baseColorTexture": {
+     "index": 34
+    },
+    "metallicFactor": 0,
+    "metallicRoughnessTexture": {
+     "index": 35
+    }
+   }
+  }
+ ],
+ "meshes": [
+  {
+   "name": "brush-park-lofts_main",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 0,
+      "NORMAL": 1,
+      "TEXCOORD_0": 2
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts_fen_07-glass-curtain-blue_0",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 4,
+      "NORMAL": 5,
+      "TEXCOORD_0": 6
+     },
+     "indices": 7,
+     "material": 1
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts_fen_14-steel-panel_1",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 8,
+      "NORMAL": 9,
+      "TEXCOORD_0": 10
+     },
+     "indices": 11,
+     "material": 2
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts_fen_07-glass-curtain-blue_2_t",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 12,
+      "NORMAL": 13,
+      "TEXCOORD_0": 14
+     },
+     "indices": 15,
+     "material": 3
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts_fen_12-bronze-metal_3",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 16,
+      "NORMAL": 17,
+      "TEXCOORD_0": 18
+     },
+     "indices": 19,
+     "material": 4
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts_fen_06-granite_4",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 20,
+      "NORMAL": 21,
+      "TEXCOORD_0": 22
+     },
+     "indices": 19,
+     "material": 5
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts_fen_15-concrete-boardformed_5",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 23,
+      "NORMAL": 24,
+      "TEXCOORD_0": 25
+     },
+     "indices": 3,
+     "material": 6
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts_fen_21-corrugated-steel_6",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 26,
+      "NORMAL": 27,
+      "TEXCOORD_0": 28
+     },
+     "indices": 3,
+     "material": 7
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts_fen_19-red-timber_7",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 29,
+      "NORMAL": 30,
+      "TEXCOORD_0": 31
+     },
+     "indices": 3,
+     "material": 8
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts_fen_19-red-timber_8_t",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 32,
+      "NORMAL": 33,
+      "TEXCOORD_0": 34
+     },
+     "indices": 19,
+     "material": 9
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts_fen_14-steel-panel_9_t",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 35,
+      "NORMAL": 36,
+      "TEXCOORD_0": 37
+     },
+     "indices": 38,
+     "material": 10
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts__steel_canopy",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 39,
+      "NORMAL": 40,
+      "TEXCOORD_0": 41
+     },
+     "indices": 3,
+     "material": 2
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts__skylights",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 42,
+      "NORMAL": 43,
+      "TEXCOORD_0": 44
+     },
+     "indices": 3,
+     "material": 1
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts__cornice",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 45,
+      "NORMAL": 46,
+      "TEXCOORD_0": 47
+     },
+     "indices": 3,
+     "material": 11
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts__string_course_1",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 48,
+      "NORMAL": 49,
+      "TEXCOORD_0": 50
+     },
+     "indices": 3,
+     "material": 11
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts__string_course_2",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 51,
+      "NORMAL": 52,
+      "TEXCOORD_0": 53
+     },
+     "indices": 3,
+     "material": 11
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts__parapet_front",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 54,
+      "NORMAL": 55,
+      "TEXCOORD_0": 56
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts__parapet_back",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 57,
+      "NORMAL": 58,
+      "TEXCOORD_0": 59
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts__parapet_left",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 60,
+      "NORMAL": 61,
+      "TEXCOORD_0": 62
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  },
+  {
+   "name": "brush-park-lofts__parapet_right",
+   "primitives": [
+    {
+     "attributes": {
+      "POSITION": 63,
+      "NORMAL": 64,
+      "TEXCOORD_0": 65
+     },
+     "indices": 3,
+     "material": 0
+    }
+   ]
+  }
+ ],
+ "textures": [
+  {
+   "sampler": 0,
+   "source": 0
+  },
+  {
+   "sampler": 0,
+   "source": 1
+  },
+  {
+   "sampler": 0,
+   "source": 2
+  },
+  {
+   "sampler": 0,
+   "source": 3
+  },
+  {
+   "sampler": 0,
+   "source": 4
+  },
+  {
+   "sampler": 0,
+   "source": 5
+  },
+  {
+   "sampler": 0,
+   "source": 6
+  },
+  {
+   "sampler": 0,
+   "source": 7
+  },
+  {
+   "sampler": 0,
+   "source": 8
+  },
+  {
+   "sampler": 0,
+   "source": 3
+  },
+  {
+   "sampler": 0,
+   "source": 4
+  },
+  {
+   "sampler": 0,
+   "source": 5
+  },
+  {
+   "sampler": 0,
+   "source": 9
+  },
+  {
+   "sampler": 0,
+   "source": 10
+  },
+  {
+   "sampler": 0,
+   "source": 11
+  },
+  {
+   "sampler": 0,
+   "source": 12
+  },
+  {
+   "sampler": 0,
+   "source": 13
+  },
+  {
+   "sampler": 0,
+   "source": 14
+  },
+  {
+   "sampler": 0,
+   "source": 15
+  },
+  {
+   "sampler": 0,
+   "source": 16
+  },
+  {
+   "sampler": 0,
+   "source": 17
+  },
+  {
+   "sampler": 0,
+   "source": 18
+  },
+  {
+   "sampler": 0,
+   "source": 19
+  },
+  {
+   "sampler": 0,
+   "source": 20
+  },
+  {
+   "sampler": 0,
+   "source": 21
+  },
+  {
+   "sampler": 0,
+   "source": 22
+  },
+  {
+   "sampler": 0,
+   "source": 23
+  },
+  {
+   "sampler": 0,
+   "source": 21
+  },
+  {
+   "sampler": 0,
+   "source": 22
+  },
+  {
+   "sampler": 0,
+   "source": 23
+  },
+  {
+   "sampler": 0,
+   "source": 6
+  },
+  {
+   "sampler": 0,
+   "source": 7
+  },
+  {
+   "sampler": 0,
+   "source": 8
+  },
+  {
+   "sampler": 0,
+   "source": 24
+  },
+  {
+   "sampler": 0,
+   "source": 25
+  },
+  {
+   "sampler": 0,
+   "source": 26
+  }
+ ],
+ "images": [
+  {
+   "name": "tex-shared-02-weathered-brick_nrm",
+   "uri": "../../textures/shared/tex-shared-02-weathered-brick_nrm.png"
+  },
+  {
+   "name": "tex-shared-02-weathered-brick_base",
+   "uri": "../../textures/shared/tex-shared-02-weathered-brick_base.png"
+  },
+  {
+   "name": "tex-shared-02-weathered-brick_rgh",
+   "uri": "../../textures/shared/tex-shared-02-weathered-brick_rgh.png"
+  },
+  {
+   "name": "tex-shared-07-glass-curtain-blue_nrm",
+   "uri": "../../textures/shared/tex-shared-07-glass-curtain-blue_nrm.png"
+  },
+  {
+   "name": "tex-shared-07-glass-curtain-blue_base",
+   "uri": "../../textures/shared/tex-shared-07-glass-curtain-blue_base.png"
+  },
+  {
+   "name": "tex-shared-07-glass-curtain-blue_rgh",
+   "uri": "../../textures/shared/tex-shared-07-glass-curtain-blue_rgh.png"
+  },
+  {
+   "name": "tex-shared-14-steel-panel_nrm",
+   "uri": "../../textures/shared/tex-shared-14-steel-panel_nrm.png"
+  },
+  {
+   "name": "tex-shared-14-steel-panel_base",
+   "uri": "../../textures/shared/tex-shared-14-steel-panel_base.png"
+  },
+  {
+   "name": "tex-shared-14-steel-panel_rgh",
+   "uri": "../../textures/shared/tex-shared-14-steel-panel_rgh.png"
+  },
+  {
+   "name": "tex-shared-12-bronze-metal_nrm",
+   "uri": "../../textures/shared/tex-shared-12-bronze-metal_nrm.png"
+  },
+  {
+   "name": "tex-shared-12-bronze-metal_base",
+   "uri": "../../textures/shared/tex-shared-12-bronze-metal_base.png"
+  },
+  {
+   "name": "tex-shared-12-bronze-metal_rgh",
+   "uri": "../../textures/shared/tex-shared-12-bronze-metal_rgh.png"
+  },
+  {
+   "name": "tex-shared-06-granite_nrm",
+   "uri": "../../textures/shared/tex-shared-06-granite_nrm.png"
+  },
+  {
+   "name": "tex-shared-06-granite_base",
+   "uri": "../../textures/shared/tex-shared-06-granite_base.png"
+  },
+  {
+   "name": "tex-shared-06-granite_rgh",
+   "uri": "../../textures/shared/tex-shared-06-granite_rgh.png"
+  },
+  {
+   "name": "tex-shared-15-concrete-boardformed_nrm",
+   "uri": "../../textures/shared/tex-shared-15-concrete-boardformed_nrm.png"
+  },
+  {
+   "name": "tex-shared-15-concrete-boardformed_base",
+   "uri": "../../textures/shared/tex-shared-15-concrete-boardformed_base.png"
+  },
+  {
+   "name": "tex-shared-15-concrete-boardformed_rgh",
+   "uri": "../../textures/shared/tex-shared-15-concrete-boardformed_rgh.png"
+  },
+  {
+   "name": "tex-shared-21-corrugated-steel_nrm",
+   "uri": "../../textures/shared/tex-shared-21-corrugated-steel_nrm.png"
+  },
+  {
+   "name": "tex-shared-21-corrugated-steel_base",
+   "uri": "../../textures/shared/tex-shared-21-corrugated-steel_base.png"
+  },
+  {
+   "name": "tex-shared-21-corrugated-steel_rgh",
+   "uri": "../../textures/shared/tex-shared-21-corrugated-steel_rgh.png"
+  },
+  {
+   "name": "tex-shared-19-red-timber_nrm",
+   "uri": "../../textures/shared/tex-shared-19-red-timber_nrm.png"
+  },
+  {
+   "name": "tex-shared-19-red-timber_base",
+   "uri": "../../textures/shared/tex-shared-19-red-timber_base.png"
+  },
+  {
+   "name": "tex-shared-19-red-timber_rgh",
+   "uri": "../../textures/shared/tex-shared-19-red-timber_rgh.png"
+  },
+  {
+   "name": "tex-shared-04-limestone_nrm",
+   "uri": "../../textures/shared/tex-shared-04-limestone_nrm.png"
+  },
+  {
+   "name": "tex-shared-04-limestone_base",
+   "uri": "../../textures/shared/tex-shared-04-limestone_base.png"
+  },
+  {
+   "name": "tex-shared-04-limestone_rgh",
+   "uri": "../../textures/shared/tex-shared-04-limestone_rgh.png"
+  }
+ ],
+ "accessors": [
+  {
+   "bufferView": 0,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    14,
+    40,
+    10
+   ],
+   "min": [
+    -14,
+    0,
+    -10
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 1,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 2,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 3,
+   "componentType": 5123,
+   "count": 30,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 4,
+   "componentType": 5126,
+   "count": 640,
+   "max": [
+    14.199999809265137,
+    34.79999923706055,
+    10.199999809265137
+   ],
+   "min": [
+    -14.199999809265137,
+    5,
+    -10.199999809265137
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 5,
+   "componentType": 5126,
+   "count": 640,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 6,
+   "componentType": 5126,
+   "count": 640,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 7,
+   "componentType": 5123,
+   "count": 960,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 8,
+   "componentType": 5126,
+   "count": 1180,
+   "max": [
+    14.274999618530273,
+    4.150000095367432,
+    10.274999618530273
+   ],
+   "min": [
+    -14.350000381469727,
+    0,
+    -10.274999618530273
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 9,
+   "componentType": 5126,
+   "count": 1180,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 10,
+   "componentType": 5126,
+   "count": 1180,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 11,
+   "componentType": 5123,
+   "count": 1770,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 12,
+   "componentType": 5126,
+   "count": 180,
+   "max": [
+    14.145000457763672,
+    4.019999980926514,
+    10.145000457763672
+   ],
+   "min": [
+    -14.145000457763672,
+    0,
+    -10.145000457763672
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 13,
+   "componentType": 5126,
+   "count": 180,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 14,
+   "componentType": 5126,
+   "count": 180,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 15,
+   "componentType": 5123,
+   "count": 270,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 16,
+   "componentType": 5126,
+   "count": 40,
+   "max": [
+    6.15500020980835,
+    1.2000000476837158,
+    10.210000038146973
+   ],
+   "min": [
+    1.284999966621399,
+    0.949999988079071,
+    -10.210000038146973
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 17,
+   "componentType": 5126,
+   "count": 40,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 18,
+   "componentType": 5126,
+   "count": 40,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 19,
+   "componentType": 5123,
+   "count": 60,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 20,
+   "componentType": 5126,
+   "count": 40,
+   "max": [
+    6.599999904632568,
+    0.15000000596046448,
+    10.399999618530273
+   ],
+   "min": [
+    -1.7999999523162842,
+    0,
+    -10.399999618530273
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 21,
+   "componentType": 5126,
+   "count": 40,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 22,
+   "componentType": 5126,
+   "count": 40,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 23,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    -3.5999999046325684,
+    3.6500000953674316,
+    -9.944999694824219
+   ],
+   "min": [
+    -7.400000095367432,
+    0,
+    -10.095000267028809
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 24,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 25,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 26,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    -3.75,
+    3.5,
+    -9.949999809265137
+   ],
+   "min": [
+    -7.25,
+    0,
+    -10.199999809265137
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 27,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 28,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 29,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    6.320000171661377,
+    2.4200000762939453,
+    -9.895000457763672
+   ],
+   "min": [
+    4.679999828338623,
+    0,
+    -10.145000457763672
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 30,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 31,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 32,
+   "componentType": 5126,
+   "count": 40,
+   "max": [
+    5.995999813079834,
+    2.063999891281128,
+    -10.069999694824219
+   ],
+   "min": [
+    5.004000186920166,
+    0.23999999463558197,
+    -10.170000076293945
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 33,
+   "componentType": 5126,
+   "count": 40,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 34,
+   "componentType": 5126,
+   "count": 40,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 35,
+   "componentType": 5126,
+   "count": 60,
+   "max": [
+    0.75,
+    3.7899999618530273,
+    -10.069999694824219
+   ],
+   "min": [
+    -0.75,
+    3.2100000381469727,
+    -10.170000076293945
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 36,
+   "componentType": 5126,
+   "count": 60,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 37,
+   "componentType": 5126,
+   "count": 60,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 38,
+   "componentType": 5123,
+   "count": 90,
+   "type": "SCALAR"
+  },
+  {
+   "bufferView": 39,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    5,
+    4.699999809265137,
+    14
+   ],
+   "min": [
+    -5,
+    4.300000190734863,
+    10
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 40,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 41,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 42,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    10,
+    40.5,
+    3
+   ],
+   "min": [
+    2,
+    40,
+    -3
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 43,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 44,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 45,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    14.5,
+    39.29999923706055,
+    10.5
+   ],
+   "min": [
+    -14.5,
+    38.70000076293945,
+    -10.5
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 46,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 47,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 48,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    14.199999809265137,
+    13.449999809265137,
+    10.199999809265137
+   ],
+   "min": [
+    -14.199999809265137,
+    13.149999618530273,
+    -10.199999809265137
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 49,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 50,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 51,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    14.199999809265137,
+    26.850000381469727,
+    10.199999809265137
+   ],
+   "min": [
+    -14.199999809265137,
+    26.549999237060547,
+    -10.199999809265137
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 52,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 53,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 54,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    14,
+    41,
+    10
+   ],
+   "min": [
+    -14,
+    40,
+    9.699999809265137
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 55,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 56,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 57,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    14,
+    41,
+    -9.699999809265137
+   ],
+   "min": [
+    -14,
+    40,
+    -10
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 58,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 59,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 60,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    -13.699999809265137,
+    41,
+    9.699999809265137
+   ],
+   "min": [
+    -14,
+    40,
+    -9.699999809265137
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 61,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 62,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  },
+  {
+   "bufferView": 63,
+   "componentType": 5126,
+   "count": 20,
+   "max": [
+    14,
+    41,
+    9.699999809265137
+   ],
+   "min": [
+    13.699999809265137,
+    40,
+    -9.699999809265137
+   ],
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 64,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC3"
+  },
+  {
+   "bufferView": 65,
+   "componentType": 5126,
+   "count": 20,
+   "type": "VEC2"
+  }
+ ],
+ "bufferViews": [
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 0,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 240,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 480,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 60,
+   "byteOffset": 640,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 7680,
+   "byteOffset": 700,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 7680,
+   "byteOffset": 8380,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 5120,
+   "byteOffset": 16060,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 1920,
+   "byteOffset": 21180,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 14160,
+   "byteOffset": 23100,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 14160,
+   "byteOffset": 37260,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 9440,
+   "byteOffset": 51420,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 3540,
+   "byteOffset": 60860,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 2160,
+   "byteOffset": 64400,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 2160,
+   "byteOffset": 66560,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 1440,
+   "byteOffset": 68720,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 540,
+   "byteOffset": 70160,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 480,
+   "byteOffset": 70700,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 480,
+   "byteOffset": 71180,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 320,
+   "byteOffset": 71660,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 120,
+   "byteOffset": 71980,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 480,
+   "byteOffset": 72100,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 480,
+   "byteOffset": 72580,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 320,
+   "byteOffset": 73060,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 73380,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 73620,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 73860,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 74020,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 74260,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 74500,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 74660,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 74900,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 75140,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 480,
+   "byteOffset": 75300,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 480,
+   "byteOffset": 75780,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 320,
+   "byteOffset": 76260,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 720,
+   "byteOffset": 76580,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 720,
+   "byteOffset": 77300,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 480,
+   "byteOffset": 78020,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 180,
+   "byteOffset": 78500,
+   "target": 34963
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 78680,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 78920,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 79160,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 79320,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 79560,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 79800,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 79960,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 80200,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 80440,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 80600,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 80840,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 81080,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 81240,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 81480,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 81720,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 81880,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 82120,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 82360,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 82520,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 82760,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 83000,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 83160,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 83400,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 83640,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 83800,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 240,
+   "byteOffset": 84040,
+   "target": 34962
+  },
+  {
+   "buffer": 0,
+   "byteLength": 160,
+   "byteOffset": 84280,
+   "target": 34962
+  }
+ ],
+ "samplers": [
+  {
+   "magFilter": 9729,
+   "minFilter": 9987
+  }
+ ],
+ "buffers": [
+  {
+   "byteLength": 84440,
+   "uri": "brush-park-lofts_lod0.bin"
+  }
+ ]
+}
