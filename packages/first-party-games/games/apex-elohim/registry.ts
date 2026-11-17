@@ -11,7 +11,7 @@ export const APEX_ELOHIM_THUMBNAIL_URL = '/games/forth-horizon/screenshots/rain-
 export const APEX_ELOHIM_GAME: Game = {
   id: 'apex-elohim',
   ownerId: 'plajah',
-  title: 'Apex Elohim',
+  title: 'Plajah Motorsport: Apex',
   description:
     'Plajah Original. Open-world racing through downtown Ironport and along the Great Lakes coast, with dynamic weather, a full vehicle model and broadcast replays.',
   url: APEX_ELOHIM_URL,
@@ -25,7 +25,7 @@ export const APEX_ELOHIM_WEB_APP: WebApp = {
   id: 'apex-elohim',
   ownerId: 'plajah',
   developerName: 'Plajah',
-  title: 'Apex Elohim',
+  title: 'Plajah Motorsport: Apex',
   description: 'Plajah Original. Open-world racing with dynamic weather, a full vehicle model and broadcast replays.',
   url: APEX_ELOHIM_URL,
   thumbnailUrl: APEX_ELOHIM_THUMBNAIL_URL,

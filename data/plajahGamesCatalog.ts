@@ -298,11 +298,11 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
     directUrl: '/games/ravencrest/play/index.html',
   },
 
-  // ── APEX ELOHIM: RACING (Forza-style, open world) ─────────────────────────
+  // ── PLAJAH MOTORSPORT: APEX (open-world racing, Plajah first-party; id stays apex-elohim for saves and links) ─────────────────────────
   {
     id: 'apex-elohim',
-    title: 'Apex Elohim',
-    subtitle: 'Pre-alpha · Open-world racing · Ironport streets, the Great Lakes coast, dynamic weather',
+    title: 'Plajah Motorsport: Apex',
+    subtitle: 'Pre-alpha · Open-world racing · Ironport streets, the Great Lakes coast, dynamic weather · Plajah Music Festival coming',
     category: 'ADVENTURE_3D',
     categoryLabel: 'Racing · Open World · Pre-alpha',
     badge: 'PRE-ALPHA · Plajah Original · Racing',
@@ -318,7 +318,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
       { url: '/games/forth-horizon/screenshots/driver-view.jpg', caption: 'First-person cockpit, helmeted driver' },
     ],
     description: 'Race the Kestrel Sovereign GT-R through downtown Ironport and out along the Great Lakes coast, with weather that changes during the race.',
-    longDescription: 'Apex Elohim is Plajah’s open-world racing game. A city street circuit on real Detroit streets, a lakeside road course and a rally stage sit in a 150 km² region. The Sovereign has a full vehicle model: gears, supercharger, weight transfer and four-corner suspension with Comfort, Sport, Track and Rally tunes. The sky is dynamic: each race has a weather plan (overcast to rain to thunderstorm), and the map shows the forecast before you start. After the race, a broadcast-style replay cuts between aerial, trackside, kerb and chase cameras.',
+    longDescription: 'Plajah Motorsport: Apex is Plajah’s open-world racing game, set in a fictional Michigan in the world of Elohim. A city street circuit through Ironport, a lakeside road course and a rally stage sit in a 150 km² region. The Sovereign has a full vehicle model: gears, supercharger, weight transfer and four-corner suspension with Comfort, Sport, Track and Rally tunes. The sky is dynamic: each race has a weather plan (overcast to rain to thunderstorm), and the map shows the forecast before you start. After the race, a broadcast-style replay cuts between aerial, trackside, kerb and chase cameras.',
     features: [
       'Ironport Grand Circuit on real city streets, Great Lakes Cliff Raceway, Pinewood Rally Stage and free roam',
       'Dynamic weather: clear to fog, rain and thunderstorm, with wet roads and lower grip',
@@ -340,12 +340,12 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
       scenes: [
         { headline: 'RACE IN THE RAIN', subline: 'Wet streets, thunderstorms and real grip loss', callout: 'DYNAMIC WEATHER', imageUrl: '/games/forth-horizon/screenshots/rain-chase.jpg', accentColor: '#FF8C00' },
         { headline: 'READ THE FORECAST', subline: 'The map shows what the race will bring', callout: 'RACE FORECAST', imageUrl: '/games/forth-horizon/screenshots/map-forecast.jpg', accentColor: '#D40055' },
-        { headline: 'GET IN THE COCKPIT', subline: 'First-person view with the driver at the wheel', callout: 'PLAY APEX ELOHIM', imageUrl: '/games/forth-horizon/screenshots/driver-view.jpg', accentColor: '#00DAF3' },
+        { headline: 'GET IN THE COCKPIT', subline: 'First-person view with the driver at the wheel', callout: 'PLAY APEX', imageUrl: '/games/forth-horizon/screenshots/driver-view.jpg', accentColor: '#00DAF3' },
       ],
     },
     achievementTriggers: [],
     synergy: { inviteFriend: true, liveStream: true, postToFeed: true },
-    launch: { type: 'iframe', url: '/games/forth-horizon/play/region.html', title: 'Apex Elohim' },
+    launch: { type: 'iframe', url: '/games/forth-horizon/play/region.html', title: 'Plajah Motorsport: Apex' },
     directUrl: '/games/forth-horizon/play/region.html',
   },
 

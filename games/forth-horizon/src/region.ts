@@ -2166,9 +2166,8 @@ const menuEl = document.createElement('div');
 menuEl.style.cssText = 'position:fixed;inset:0;display:none;pointer-events:none;font-family:Inter,Manrope,sans-serif;color:#fff;user-select:none';
 menuEl.innerHTML = `
   <div id="menuTitle" style="position:absolute;left:44px;top:26px;width:440px">
-    <div style="font:600 11px Outfit,sans-serif;letter-spacing:.28em;text-transform:uppercase;color:#FF8C00;margin-bottom:8px">Legends of Elohim <span style="margin-left:8px;padding:2px 8px;border:1px solid rgba(255,140,0,.7);border-radius:999px;letter-spacing:.16em;color:#fff;background:rgba(212,0,85,.35)">Pre-alpha</span></div>
-    <div style="font:800 46px/1 Outfit,sans-serif;letter-spacing:.02em;margin-bottom:6px;background:linear-gradient(135deg,#D40055,#FF8C00);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent">APEX ELOHIM</div>
-    <div style="font:500 12px 'JetBrains Mono',monospace;color:rgba(208,188,255,.75)">Ironport &middot; Lake Michigan coast &middot; 150 km&sup2;</div>
+    <img src="/games/forth-horizon/brand/apex-logo.svg" alt="Plajah Motorsport: Apex" style="display:block;width:400px;max-width:60vw;height:auto;filter:drop-shadow(0 4px 18px rgba(0,0,0,.55))" />
+    <div style="margin-top:6px;display:flex;align-items:center;gap:10px"><span style="padding:2px 8px;border:1px solid rgba(255,140,0,.7);border-radius:999px;font:600 11px Outfit,sans-serif;letter-spacing:.16em;color:#fff;background:rgba(212,0,85,.35)">PRE-ALPHA</span><span style="font:500 12px 'JetBrains Mono',monospace;color:rgba(208,188,255,.75)">Ironport &middot; the Great Lakes coast &middot; 150 km&sup2;</span></div>
   </div>
   <div id="mapCardsWrap" style="position:absolute;left:0;right:0;bottom:40px;pointer-events:auto;transition:opacity .9s">
     <button id="mcPrev" aria-label="Previous" style="position:absolute;left:14px;top:50%;transform:translateY(-62%);z-index:2;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.18);background:rgba(26,0,38,.7);color:#fff;font:700 22px Outfit,sans-serif;cursor:pointer">&lsaquo;</button>

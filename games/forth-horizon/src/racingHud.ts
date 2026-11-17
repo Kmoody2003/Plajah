@@ -24,7 +24,7 @@ export class RacingHud {
   constructor(readonly root: HTMLElement) {
     root.className = 'race-hud';
     root.style.cssText = 'position:fixed;inset:0;pointer-events:none;display:none;z-index:12;color:#f2f6f8';
-    root.innerHTML = `<section class="race-map"><div class="race-eyebrow">APEX ELOHIM <span>LIVE</span></div><canvas class="race-map-canvas" width="420" height="420" aria-label="Heading-up route minimap"></canvas><div class="race-location"></div></section><div class="race-lap"></div><div class="race-status" role="status"></div><section class="race-instruments"><canvas width="680" height="520" aria-label="Speedometer, tachometer, gear and pedal gauges"></canvas></section><div class="race-hint"></div>`;
+    root.innerHTML = `<section class="race-map"><div class="race-eyebrow">APEX <span>LIVE</span></div><canvas class="race-map-canvas" width="420" height="420" aria-label="Heading-up route minimap"></canvas><div class="race-location"></div></section><div class="race-lap"></div><div class="race-status" role="status"></div><section class="race-instruments"><canvas width="680" height="520" aria-label="Speedometer, tachometer, gear and pedal gauges"></canvas></section><div class="race-hint"></div>`;
     this.map = root.querySelector('.race-map-canvas')!;
     this.dial = root.querySelector('.race-instruments canvas')!;
     this.status = root.querySelector('.race-status')!;

@@ -89,7 +89,7 @@ export async function share(blob: Blob, name: string, text: string): Promise<'sh
   try {
     const file = new File([blob], name, { type: blob.type });
     const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-    if (nav.share && nav.canShare?.({ files: [file] })) { await nav.share({ files: [file], title: 'Apex Elohim', text }); return 'shared'; }
+    if (nav.share && nav.canShare?.({ files: [file] })) { await nav.share({ files: [file], title: 'Plajah Motorsport: Apex', text }); return 'shared'; }
   } catch (e) { if ((e as DOMException).name === 'AbortError') return 'shared'; }
   download(blob, name);
   return 'downloaded';
@@ -211,7 +211,7 @@ export class PhotoMode {
     ui.forEach((e) => { e.style.visibility = 'hidden'; });
     try {
       await new Promise((r) => requestAnimationFrame(() => r(null)));
-      const r = await capture(this.h.rig, { aspect: this.aspect, maxPixels: 16e6, watermark: this.opts.watermark ? `Apex Elohim · ${this.h.title()}` : null, format: this.opts.format });
+      const r = await capture(this.h.rig, { aspect: this.aspect, maxPixels: 16e6, watermark: this.opts.watermark ? `Plajah Motorsport: Apex · ${this.h.title()}` : null, format: this.opts.format });
       this.flash.style.opacity = '.85'; setTimeout(() => { this.flash.style.opacity = '0'; }, 90);
       const name = fileName(this.h.title());
       await gallery.add(name, r.blob, r.width, r.height);
@@ -238,7 +238,7 @@ export class PhotoMode {
       const a = (e.target as HTMLElement).dataset.a;
       if (a === 'x' || e.target === o) o.remove();
       if (a === 'save') download(p.blob, p.name);
-      if (a === 'share') { const r = await share(p.blob, p.name, `${this.h.title()} in Apex Elohim`); this.toast(r === 'shared' ? 'Shared' : 'Saved to your device'); }
+      if (a === 'share') { const r = await share(p.blob, p.name, `${this.h.title()} in Plajah Motorsport: Apex`); this.toast(r === 'shared' ? 'Shared' : 'Saved to your device'); }
       if (a === 'del') { await gallery.remove(p.id); o.remove(); void this.refreshGallery(); }
     });
     document.body.appendChild(o);
