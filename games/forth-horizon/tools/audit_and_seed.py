@@ -70,7 +70,7 @@ def main():
         add_road(s["pts"], REQ[cpr.classify(s["name"])])
     add_road(reg["coastal_highway"]["xz"], 6.4); add_road(reg["freeway"]["xz"], 10)
     for c in reg["circuits"].values(): add_road(c["xz"], 7.5)
-    for fn, half in (("country_roads.json", 3.8), ("user_streets.json", 4.2), ("port_streets.json", 4.5)):
+    for fn, half in (("country_roads.json", 3.8), ("user_streets.json", 4.2), ("port_streets.json", 4.5), ("utility_streets.json", 5.0)):
         j = load(fn)
         if j:
             for r in j["roads"]: add_road(r["xz"], r.get("half", half))
@@ -146,6 +146,7 @@ def main():
         m = GEN[slug]
         # front: toward the nearest street within 120 m, else square to the shore (toward the water)
         d, k = stree.query([x, z])
+        if d > 110.0: continue                                           # a working site needs a road: nothing is seeded further than a short lane from one
         if d < 120.0:
             to = samples[k] - np.array([x, z]); face = to / (np.hypot(*to) or 1.0)
         else:

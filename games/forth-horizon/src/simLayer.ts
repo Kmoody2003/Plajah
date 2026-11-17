@@ -42,7 +42,7 @@ export class SimLayer {
   private cars: THREE.InstancedMesh;
   private t = 0;
 
-  constructor(private plan: SimPlan, private o: { ground: (x: number, z: number) => number; water: (x: number, z: number) => boolean }) {
+  constructor(private plan: SimPlan, private o: { ground: (x: number, z: number) => number; carGround?: (x: number, z: number) => number; water: (x: number, z: number) => boolean }) {
     this.group.name = 'sim-layer';
     this.world = new SimWorld({ roads: plan.data.roads, zones: plan.data.zones, services: plan.data.services, rail: plan.net, airport: plan.L, water: o.water, maxCars: 240 });
     this.rail = plan.net ? buildRailScenes({ net: plan.net, sim: this.world.trains, ground: o.ground }) : null;
@@ -59,6 +59,9 @@ export class SimLayer {
   near(x: number, z: number, r: number): boolean { return !!(this.rail?.near(x, z, r) || this.airport?.inside(x, z, r)); }
   get surfaces(): THREE.Mesh[] { return this.airport?.surfaces ?? []; }
 
+  /** public traffic is off on a closed circuit: the cars are hidden (the sim keeps running) while a race or time trial is on */
+  setPublicTraffic(on: boolean): void { this.cars.visible = on; }
+
   update(dt: number, cam: THREE.Vector3): void {
     this.t += dt;
     this.world.setFocus(cam.x, cam.z);
@@ -71,7 +74,7 @@ export class SimLayer {
       if (n >= 320) break;
       q.setFromAxisAngle(up, c.yaw);
       if (c.kind === 'truck') sc.set(1.25, 1.7, 1.9); else sc.set(1, 1, 1);
-      p.set(c.x, this.o.ground(c.x, c.z) + 0.12, c.z);
+      p.set(c.x, (this.o.carGround ?? this.o.ground)(c.x, c.z) + 0.05, c.z);       // on the road surface (the drive surfaces are in groundH), not the terrain under it
       this.cars.setMatrixAt(n, m4.compose(p, q, sc)); this.cars.setColorAt(n, col.setHex(c.color)); n++;
     }
     this.cars.count = n; this.cars.instanceMatrix.needsUpdate = true; if (this.cars.instanceColor) this.cars.instanceColor.needsUpdate = true;

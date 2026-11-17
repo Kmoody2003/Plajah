@@ -77,6 +77,8 @@ def main():
     keep_special = [r for r in us["roads"] if r.get("trail")]
     lines_s = [np.array(r["xz"], float) for r in streets]
     port_lines = [np.array(r["xz"], float) for r in (ps["roads"] if ps else [])]
+    ut = load("utility_streets.json")
+    port_lines += [np.array(r["xz"], float) for r in (ut["roads"] if ut else [])]
 
     def sample(lines, step=8.0):
         P, idx = [], []
@@ -160,11 +162,18 @@ def main():
         door = np.array([it["bx"], it["bz"]]) + front * (it["d"] / 2 + 1.0)
         d, k = rtree.query(door)
         if d <= 24.0: continue
-        if d <= 60.0:
+        farm = bool(it.get("rural"))                                       # a farmstead may stand well back from the road on its own farm lane
+        far_ok = 220.0 if farm else (140.0 if (it.get("shore") or it.get("seeded")) else 60.0)         # farms and riverside works stand back on their own lane
+        if d <= far_ok:
             tgt = roadP[k]
-            driveways.append({"kind": "paved", "xz": [[round(float(door[0]), 1), round(float(door[1]), 1)], [round(float(tgt[0]), 1), round(float(tgt[1]), 1)]], "half": 2.6, "driveway": True})
+            driveways.append({"kind": "dirt" if farm else "paved", "xz": [[round(float(door[0]), 1), round(float(door[1]), 1)], [round(float(tgt[0]), 1), round(float(tgt[1]), 1)]], "half": 2.6 if not farm else 2.2, "driveway": True})
             continue
         remove.add(i)
+    import collections
+    rc_ = collections.Counter()
+    for i in remove:
+        it = items[i]; rc_[",".join(sorted(f for f in ("infill", "rural", "shore", "userzone", "sprawl", "port", "densified", "anchor", "seeded") if it.get(f)))] += 1
+    print("removed by kind", dict(rc_))
     print("buildings: driveways", len(driveways), "unreachable removed", len(remove))
 
     # ---------- parking lots ----------

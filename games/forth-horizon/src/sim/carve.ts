@@ -41,6 +41,7 @@ export function carveRail(heights: Float32Array, W: number, H: number, mpp: numb
     pts.query(x - R, z - R, x + R, z + R, (p) => { const d = Math.hypot(p.x - x, p.z - z); if (d < best) { best = d; by = p.y; bflat = p.flat; } });
     if (best > bflat + RAIL_REACH) continue;
     const w = 1 - smooth((best - bflat) / RAIL_REACH), k = iz * W + ix;
+    if (heights[k] < 2.6) continue;                                           // never fill the river: a rail crossing water is a bridge or a tunnel, not a bank across it
     heights[k] = heights[k] * (1 - w) + (by - 0.25) * w; touched++;
   }
   return touched;

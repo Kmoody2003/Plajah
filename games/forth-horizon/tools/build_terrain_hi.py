@@ -209,6 +209,26 @@ if pw.any():
     base_ = np.clip(base_ * (0.85 + 0.3 * np.clip(lum_s / 0.45, 0.4, 1.4))[..., None], 0, 1)
     tex = tex * (1 - wsoft[..., None]) + base_ * wsoft[..., None]
     print("repainted built zones:", round(float((wsoft > 0.5).mean()) * 100, 1), "% of the map")
+# ---------- the satellite's bridges are painted on the river bed: take them out ----------
+# The map's real crossing shows as a pale strip on the bed, visible through the water, right under the bridge we build. Inside the river reaches we cut (src/riverBridges.ts RIVER_REACHES) the bed is repainted
+# with the river's own colour (the median of the clear water around it), with a feathered edge.
+REACHES = [([[3830, 2700], [3825, 2790], [3700, 2860], [3560, 2930], [3500, 3020]], 215.0, False), ([[3300, 2745], [3800, 2760], [4250, 2800]], 120.0, True)]
+water_px = np.zeros((th, tw), np.uint8)
+water_full = cv2.resize((h0 < 2.5).astype(np.uint8), (tw, th), interpolation=cv2.INTER_NEAREST) > 0
+reach = np.zeros((th, tw), np.uint8)
+for line, half, only_water in REACHES:
+    one = np.zeros((th, tw), np.uint8)
+    cv2.polylines(one, [np.array([tex_px(*q) for q in line], np.int32)], False, 1, int(2 * half / (MPP0 / T)))
+    if only_water: one &= water_full.astype(np.uint8)
+    reach |= one
+ref = tex[(reach == 0) & water_full & (cv2.dilate(reach, np.ones((60, 60), np.uint8)) > 0)]
+if len(ref):
+    col = np.median(ref, axis=0)
+    wsoft = cv2.GaussianBlur(reach.astype(np.float32), (0, 0), 7.0)
+    wsoft = np.clip(wsoft, 0, 1)[..., None]
+    nz = 1.0 + 0.05 * tn(6, 6, 31)[..., None]
+    tex = tex * (1 - wsoft) + np.clip(col[None, None, :] * nz, 0, 1) * wsoft
+    print("river reaches repainted with", np.round(col * 255).astype(int).tolist())
 cv2.imwrite(os.path.join(REG, "albedo_hi.jpg"), (tex * 255).astype(np.uint8), [cv2.IMWRITE_JPEG_QUALITY, 90])
 print("albedo_hi", tw, "x", th, "bytes", os.path.getsize(os.path.join(REG, "albedo_hi.jpg")))
 

@@ -33,7 +33,7 @@ export function buildRiverBridges(o: { ground: (x: number, z: number) => number;
 
   for (const br of RIVER_BRIDGES) {
     const dx = br.b.x - br.a.x, dz = br.b.z - br.a.z, L = Math.hypot(dx, dz), ux = dx / L, uz = dz / L, nx = -uz, nz = ux;
-    const hero = buildHeroBridge({ start: new THREE.Vector3(br.a.x, br.deck, br.a.z), end: new THREE.Vector3(br.b.x, br.deck, br.b.z), deckWidth: br.width, towerHeight: 118 });
+    const hero = buildHeroBridge({ start: new THREE.Vector3(br.a.x, br.deck, br.a.z), end: new THREE.Vector3(br.b.x, br.deck, br.b.z), deckWidth: br.width, towerHeight: 118, pierDepth: br.deck + 12, abutmentDepth: Math.max(12, br.deck - Math.min(o.ground(br.a.x, br.a.z), o.ground(br.b.x, br.b.z)) + 3) });
     group.add(hero.group); leds.push(hero.updateLed);
 
     // the road: approach A (climbing), the span (level), approach B (descending): one ribbon, with its own piers
@@ -84,4 +84,34 @@ export function buildRiverBridges(o: { ground: (x: number, z: number) => number;
     sc.set(1, 1, 1);
   }
   return { group, decks, path, updateLed: (t, n) => { for (const f of leds) f(t, n); } };
+}
+
+/**
+ * Reaches of the river that the satellite map has dammed with a bridge: the old crossing is baked into the height map as a strip of land, and we build the real bridge ourselves, so the strip has to go.
+ * The river is cut back to its bed along the centre line (half width, with a 70 m bank), lowering only, so the real shores stay where they are.
+ */
+export const RIVER_REACHES: { name: string; line: number[][]; half: number; bed: number }[] = [
+  { name: 'Halcyon crossing', line: [[3830, 2700], [3825, 2790], [3700, 2860], [3560, 2930], [3500, 3020]], half: 215, bed: -4 },
+];
+export function carveRiverReaches(heights: Float32Array, W: number, H: number, mpp: number): void {
+  for (const r of RIVER_REACHES) {
+    let mnx = 1e9, mxx = -1e9, mnz = 1e9, mxz = -1e9;
+    for (const p of r.line) { mnx = Math.min(mnx, p[0]); mxx = Math.max(mxx, p[0]); mnz = Math.min(mnz, p[1]); mxz = Math.max(mxz, p[1]); }
+    const R = r.half + 70;
+    const x0 = Math.max(0, Math.floor((mnx - R) / mpp + W / 2)), x1 = Math.min(W - 1, Math.ceil((mxx + R) / mpp + W / 2));
+    const z0 = Math.max(0, Math.floor((mnz - R) / mpp + H / 2)), z1 = Math.min(H - 1, Math.ceil((mxz + R) / mpp + H / 2));
+    for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) {
+      const x = (ix - W / 2) * mpp, z = (iz - H / 2) * mpp;
+      let d = 1e18;
+      for (let i = 0; i < r.line.length - 1; i++) {
+        const a = r.line[i], b = r.line[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1;
+        const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / l2));
+        d = Math.min(d, Math.hypot(a[0] + dx * t - x, a[1] + dz * t - z));
+      }
+      if (d > R) continue;
+      const k = iz * W + ix, t = Math.min(1, Math.max(0, (d - r.half) / 70)), w = 1 - t * t * (3 - 2 * t);
+      const target = heights[k] * (1 - w) + r.bed * w;
+      if (target < heights[k]) heights[k] = target;
+    }
+  }
 }

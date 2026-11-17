@@ -26,7 +26,7 @@ import { buildCliffRacewayCircuit } from './circuits/cliffRaceway';
 import { buildCountryScenes, carveCreek, type CountryScenes, type RoadNetwork, type Shoreline, carveShoreline } from './countryScenes';
 import { buildRuralOpenWorldDetail } from './ruralDetail';
 import { buildCityExpansion } from './cityExpansion';
-import { buildRiverBridges } from './riverBridges';
+import { buildRiverBridges, carveRiverReaches } from './riverBridges';
 import { createMapEditor, ROAD_STYLE, type RoadKind, type UserMap } from './mapEditor';
 import { CompetitionEngine } from './racingAI';
 import { TrafficManager, OpenWorldChallengeManager } from './openWorldEvents';
@@ -37,6 +37,7 @@ import { duneDetail } from './duneDetail';
 import { Vegetation } from './vegetation';
 import { buildIndustrialCircuit } from './industrialCircuit';
 import { buildParkingLots } from './parkingLots';
+import { buildUtilities, type UtilitiesData } from './utilities';
 import { SimLayer, carveSim, planSim, type SimPlan } from './simLayer';
 import type { UserMapData } from './sim/data';
 import { buildPortDistrict, carvePlatform, inPort, type PortData } from './portDistrict';
@@ -1079,6 +1080,7 @@ let simPlan: SimPlan | null = null;                 // road graph, rails and air
 let simLayer: SimLayer | null = null;
 let parkingLots: ReturnType<typeof buildParkingLots> | null = null;
 let parkingData: number[][] | null = null;
+let utilData: UtilitiesData | null = null;          // power plant, substations, pylons (tools/plan_utilities.py)
 let portData: PortData | null = null;               // the Ironworks port district: graded platform, quay, piers, containers, tank farm (tools/plan_port_district.py)
 let vegetation: Vegetation | null = null;            // the streamed grass, shrub and rock system (src/vegetation.ts); ?veg=old brings back the previous grass
 /** the Ravencrest/Era Clash trees (ez-tree skeletons, bark scans, painted leaves); the simple procedural trees only if those fail to build */
@@ -1143,6 +1145,7 @@ function vegOk(x: number, z: number, extra = 0): boolean {
   if (bridgeNear && bridgeNear(x, z, 13 + extra)) return false;
   if (indNear && indNear(x, z, 10 + extra)) return false;
   if (portData && inPort(portData, x, z, 14 + extra)) return false;
+  if (utilData && inPort({ platform: utilData.platform } as PortData, x, z, 14 + extra)) return false;
   if (simLayer && simLayer.near(x, z, 7 + extra)) return false;
   if (parkingLots && parkingLots.near(x, z, 3 + extra)) return false;
   return true;
@@ -2791,11 +2794,12 @@ function buildFurniture(): void {
   }
 
   if (simPlan && (simPlan.net || simPlan.L || simPlan.data.zones.length)) {
-    simLayer = new SimLayer(simPlan, { ground: (x, z) => meshH(x, z), water: (x, z) => hAt(x, z) < 2.5 });
+    simLayer = new SimLayer(simPlan, { ground: (x, z) => meshH(x, z), carGround: (x, z) => groundH(x, z), water: (x, z) => hAt(x, z) < 2.5 });
     furnitureGroup.add(simLayer.group);
     driveSurfaces.push(...simLayer.surfaces);
     surfGrid = null;
   }
+  if (utilData) furnitureGroup.add(buildUtilities(utilData, (x, z) => meshH(x, z)).group);
   if (parkingData && parkingData.length) { parkingLots = buildParkingLots(parkingData, (x, z) => meshH(x, z)); furnitureGroup.add(parkingLots.group); }
   if (portData) {
     const wy = waterMesh ? waterMesh.position.y : 0;
@@ -3636,6 +3640,8 @@ async function boot(): Promise<void> {
   portData = await fetch(BASE + 'port_district.json').then((x) => (x.ok ? x.json() : null)).catch(() => null);
   { const dw = await fetch(BASE + 'driveways.json').then((x) => (x.ok ? x.json() : null)).catch(() => null); if (dw) { if (!countryNet) countryNet = { roads: [] }; countryNet.roads.push(...dw.roads); } }
   parkingData = await fetch(BASE + 'parking_lots.json').then((x) => (x.ok ? x.json() : null)).catch(() => null);
+  utilData = await fetch(BASE + 'utilities.json').then((x) => (x.ok ? x.json() : null)).catch(() => null);
+  { const us2 = await fetch(BASE + 'utility_streets.json').then((x) => (x.ok ? x.json() : null)).catch(() => null); if (us2) { if (!countryNet) countryNet = { roads: [] }; countryNet.roads.push(...us2.roads); } }
   { const ps = await fetch(BASE + 'port_streets.json').then((x) => (x.ok ? x.json() : null)).catch(() => null); if (ps) { if (!countryNet) countryNet = { roads: [] }; countryNet.roads.push(...ps.roads); } }
   shoreHw = await fetch(BASE + 'shoreline_highway.json').then((x) => (x.ok ? x.json() : null)).catch(() => null);
   heights = new Float32Array(buf);
@@ -3649,7 +3655,9 @@ async function boot(): Promise<void> {
     }
   }
   if (shoreHw) carveShoreline(heights, meta.width, meta.height, meta.mpp, shoreHw);
+  carveRiverReaches(heights, meta.width, meta.height, meta.mpp);                // the satellite's baked bridge strips come out of the river
   if (portData) carvePlatform(heights, meta.width, meta.height, meta.mpp, portData);
+  if (utilData) carvePlatform(heights, meta.width, meta.height, meta.mpp, { platform: utilData.platform } as PortData);
   {
     // the simulation layer: plan the rails and the airfield on the ground as it is, then grade the ground for them
     const cityRuns = await fetch(BASE + 'city_streets.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { c: string; p: number[][] }[] | null;
@@ -3675,6 +3683,7 @@ async function boot(): Promise<void> {
   mapEditor.load(userMap ?? { version: 1, features: [] });
   (window as any).cineJump = (i: number) => { if (!cineOn) startCine(); cineIdx = i % cineShots.length; cineT = 1.2; };
   (window as any).vegStats = () => vegetation?.stats;
+  (window as any).simDebug = () => ({ cars: simLayer?.world.cars ?? [], surf: surfaceAtXZ, meshH, graph: simLayer?.world.graph });
   (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, csm, renderer, warmShaders, audio: gameAudio, cam: (x?: number, y?: number, z?: number, tx?: number, ty?: number, tz?: number) => { dbgCam = x === undefined ? null : { pos: new THREE.Vector3(x, y!, z!), at: new THREE.Vector3(tx!, ty!, tz!) }; }, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, keys, drive: () => driving, delivery: () => delivery, garage };
 }
 
@@ -3788,7 +3797,7 @@ function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
   driveInput.tick();
-  if (simLayer && !mapMode) simLayer.update(dt, camera.position);
+  if (simLayer && !mapMode) { simLayer.setPublicTraffic(!driving || driving.circuitId === 'free'); simLayer.update(dt, camera.position); }
   if (vegetation) { if (mapMode) vegetation.setEnabled(false); else { vegetation.setEnabled(true); vegetation.setWind(0.3 + wx.cur.wind * 0.9 + wx.cur.rain * 0.3); vegetation.setWet(wx.cur.wet); vegetation.update(dt, camera.position); } }
   if (grassField && !mapMode) { grassField.setWind(0.3 + wx.cur.wind * 0.9 + wx.cur.rain * 0.3); grassField.setWet(wx.cur.wet); grassField.update(dt, camera.position); }
   if (treeFields.length && !mapMode) for (const tf of treeFields) { tf.setWind(0.25 + wx.cur.rain * 0.5 + wx.cur.cloudDark * 0.4); tf.update(dt, camera.position); }

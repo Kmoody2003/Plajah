@@ -5,6 +5,10 @@ export interface HeroBridgeOptions {
   end: THREE.Vector3;
   deckWidth?: number;
   towerHeight?: number;
+  /** how far the tower foundations go down from the deck (default 22): a high deck needs them to reach the water bed */
+  pierDepth?: number;
+  /** height of the end abutments under the deck (default 12) */
+  abutmentDepth?: number;
 }
 
 export interface HeroBridgeHandle {
@@ -322,7 +326,7 @@ export function buildHeroBridge(opts: HeroBridgeOptions): HeroBridgeHandle {
   const towerZPositions = [-spanLen * 0.25, spanLen * 0.25];
   const legSpreadX = deckWidth * 0.5 + 2.6;
   const mergeY = towerHeight * 0.56;
-  const pierDepth = 22;
+  const pierDepth = opts.pierDepth ?? 22;
 
   for (let tIdx = 0; tIdx < towerZPositions.length; tIdx++) {
     const tz = towerZPositions[tIdx];
@@ -455,10 +459,10 @@ export function buildHeroBridge(opts: HeroBridgeOptions): HeroBridgeHandle {
   // Approach abutment piers at start & end
   for (const az of [-spanLen * 0.5 + 2.5, spanLen * 0.5 - 2.5]) {
     const abutment = new THREE.Mesh(
-      new THREE.BoxGeometry(deckWidth + 2.0, 12, 5.0),
+      new THREE.BoxGeometry(deckWidth + 2.0, opts.abutmentDepth ?? 12, 5.0),
       concreteMat,
     );
-    abutment.position.set(0, -7.2, az);
+    abutment.position.set(0, -((opts.abutmentDepth ?? 12) / 2 + 1.2), az);
     abutment.castShadow = true;
     abutment.receiveShadow = true;
     group.add(abutment);

@@ -106,7 +106,7 @@ export function carveShoreline(heights: Float32Array, W: number, H: number, mpp:
     for (let a = -3; a <= 3; a++) for (let b = -3; b <= 3; b++) { const l = hash.get((cx + a) * 8192 + cz + b); if (!l) continue; for (const i of l) { const d = Math.hypot(line[i].x - x, line[i].z - z); if (d < best) { best = d; bi = i; } } }
     // along the gallery the hill side is not cut back: the road is cut into the slope, so the ground rises from the road bed within a few metres and closes over the roof
     if (bi < 0) continue;
-    const into = line[bi].gal && x > line[bi].x, flat = into ? 7 : FLAT, reach = into ? 40 : R;
+    const into = line[bi].gal && x > line[bi].x, lakeFace = line[bi].gal && x < line[bi].x, flat = into ? 7 : lakeFace ? 8 : FLAT, reach = into ? 40 : lakeFace ? 36 : R;
     if (best > reach) continue;
     const t = Math.min(1, Math.max(0, (best - flat) / (reach - flat))), w = 1 - t * t * (3 - 2 * t);
     const k = iz * W + ix;
@@ -195,6 +195,7 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
 
   // ---- the country roads traced from the map texture (tools/trace_roads.py): section roads and lanes laid on the drawn ground ----
   const netPaved: (Pt & { h: number })[] = [], netDirt: (Pt & { h: number })[] = [];
+  const bridgeRuns: { line: Pt[]; i0: number; i1: number; half: number; ys: number[]; gy: number[] }[] = [];
   if (o.network) {
     const mk = (kind: 'paved' | 'dirt'): { pos: number[]; uv: number[]; idx: number[]; v: number } => ({ pos: [], uv: [], idx: [], v: 0 });
     const acc = { paved: mk('paved'), dirt: mk('dirt') };
@@ -204,7 +205,25 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
       const half = r.half ?? (r.kind === 'paved' ? 3.6 : 2.6), a = acc[r.kind];
       // heights: the drawn ground, held up over streams so the road crosses them as a causeway rather than dipping into the water
       const gy = line.map((p) => o.ground(p.x, p.z));
-      const ys = gy.map((_, i) => { let m = -1e9; for (let k = -4; k <= 4; k++) { const j = i + k; if (j >= 0 && j < gy.length) m = Math.max(m, gy[j]); } return Math.max(m * 0.5 + gy[i] * 0.5, 1.2) + 0.1; });
+      // heights: the road follows the ground; wherever the ground under it is water it becomes a bridge: a level deck from bank to bank, eased onto it over 48 m on each side
+      const ys = gy.map((g) => g + 0.1);
+      {
+        const WATER = 2.5, RAMP = 6;
+        let i = 0;
+        while (i < gy.length) {
+          if (gy[i] >= WATER) { i++; continue; }
+          let j = i; while (j + 1 < gy.length && gy[j + 1] < WATER) j++;
+          const lo = Math.max(0, i - 1), hi = Math.min(gy.length - 1, j + 1);
+          const deck = Math.max(gy[lo], gy[hi], 3.2) + 1.2;
+          for (let k = Math.max(0, i - RAMP); k <= Math.min(gy.length - 1, j + RAMP); k++) {
+            if (k >= i && k <= j) { ys[k] = deck + 0.1; continue; }
+            const t = k < i ? (k - (i - RAMP)) / RAMP : ((j + RAMP) - k) / RAMP, sm = t * t * (3 - 2 * t);
+            ys[k] = (deck > gy[k] ? gy[k] + (deck - gy[k]) * sm : gy[k]) + 0.1;
+          }
+          if ((j - i + 1) * 8 >= 10) bridgeRuns.push({ line, i0: Math.max(0, i - 1), i1: Math.min(gy.length - 1, j + 1), half, ys, gy });
+          i = j + 1 + RAMP;
+        }
+      }
       let dist = 0;
       const base = a.v;
       for (let i = 0; i < line.length; i++) {
@@ -223,6 +242,39 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(a.pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(a.uv, 2)); g.setIndex(a.idx); g.computeVertexNormals();
       const m = new THREE.Mesh(g, kind === 'paved' ? asphalt : dirtMat); m.receiveShadow = true; m.name = 'country-' + kind;
       group.add(m); roads.push(m);
+    }
+    // bridges wherever a road crosses water: concrete fascia and parapets along both edges, a soffit under the deck and piers down to the bed every 22 m
+    if (bridgeRuns.length) {
+      const conc = new THREE.MeshStandardMaterial({ color: 0xa29f98, roughness: 0.93, side: THREE.DoubleSide });
+      const pos: number[] = [], idx: number[] = [];
+      const wall = (ax: number, az: number, bx: number, bz: number, y0a: number, y0b: number, y1a: number, y1b: number): void => {
+        const b0 = pos.length / 3; pos.push(ax, y0a, az, bx, y0b, bz, bx, y1b, bz, ax, y1a, az); idx.push(b0, b0 + 1, b0 + 2, b0, b0 + 2, b0 + 3);
+      };
+      const piers: number[][] = [];
+      for (const br of bridgeRuns) {
+        let acc = 0;
+        for (let i = br.i0; i < br.i1; i++) {
+          const p = br.line[i], q = br.line[i + 1];
+          let dx = q.x - p.x, dz = q.z - p.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+          const nx = -dz, nz = dx;
+          for (const side of [-1, 1]) {
+            const e = br.half + 0.45;
+            wall(p.x + nx * side * e, p.z + nz * side * e, q.x + nx * side * e, q.z + nz * side * e, br.ys[i] - 0.9, br.ys[i + 1] - 0.9, br.ys[i] + 0.95, br.ys[i + 1] + 0.95);   // fascia + parapet in one
+          }
+          // soffit
+          const b0 = pos.length / 3, e2 = br.half + 0.45;
+          pos.push(p.x + nx * e2, br.ys[i] - 0.9, p.z + nz * e2, p.x - nx * e2, br.ys[i] - 0.9, p.z - nz * e2, q.x + nx * e2, br.ys[i + 1] - 0.9, q.z + nz * e2, q.x - nx * e2, br.ys[i + 1] - 0.9, q.z - nz * e2);
+          idx.push(b0, b0 + 2, b0 + 1, b0 + 1, b0 + 2, b0 + 3);
+          acc += l;
+          if (acc >= 22 && br.gy[i] < 2.5) { acc = 0; piers.push([p.x, p.z, br.ys[i] - 0.9, Math.atan2(dx, dz), br.half * 2 + 0.8, Math.min(br.gy[i], 0) - 1.5]); }
+        }
+      }
+      const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); bg.setIndex(idx); bg.computeVertexNormals();
+      const bm = new THREE.Mesh(bg, conc); bm.castShadow = bm.receiveShadow = true; bm.name = 'country-bridges'; group.add(bm);
+      const pm = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), conc, piers.length || 1);
+      const m4 = new THREE.Matrix4(), qq = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sc = new THREE.Vector3(), tp = new THREE.Vector3();
+      piers.forEach((pr, k) => { const h = pr[2] - pr[5]; qq.setFromAxisAngle(up, pr[3]); sc.set(pr[4], h, 1.6); tp.set(pr[0], pr[5] + h / 2, pr[1]); pm.setMatrixAt(k, m4.compose(tp, qq, sc)); });
+      pm.count = piers.length; pm.castShadow = true; group.add(pm);
     }
   }
 
@@ -264,31 +316,69 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
       im.castShadow = true; group.add(im);
       group.add(strip(0.18, lakeSign * 5.1, 0.7, new THREE.MeshStandardMaterial({ color: 0xb8bdc2, metalness: 0.7, roughness: 0.4, side: THREE.DoubleSide }), 8));
     }
-    // the gallery: concrete roof slab, a solid wall on the hill side, pillars with open arches on the lake side
+    // the gallery: a tunnel cut into the cliff. The rock stands over the road (a ceiling of rock, the hill above it, the cliff top grassed over), the hill side is the rock face,
+    // and the lake side is chiselled open: rock pillars with wide arched windows looking out over the lake. No built roof: the roof is the mountain.
     {
-      const conc = new THREE.MeshStandardMaterial({ map: noiseTex([128, 126, 120], 130, false, 6, 2), roughness: 0.95, side: THREE.DoubleSide });
+      const rockMap = noiseTex([104, 101, 96], 190, false, 5, 3);
+      const rock = new THREE.MeshStandardMaterial({ map: rockMap, roughness: 1, flatShading: true, side: THREE.DoubleSide });
+      const lining = new THREE.MeshStandardMaterial({ color: 0x4b4842, roughness: 1, flatShading: true, side: THREE.DoubleSide });
       const a = nodeStart[hw.gallery.from], b = Math.min(line.length - 1, nodeStart[hw.gallery.to]);
-      group.add(strip(7.0, 0, 6.3, conc, 9, a, b));
-      group.add(strip(7.0, 0, 5.4, new THREE.MeshStandardMaterial({ color: 0x4d4b47, roughness: 1, side: THREE.DoubleSide }), 9, a, b));
-      const cnt = Math.ceil((b - a) / 2) + 1;
-      const pil = new THREE.InstancedMesh(new THREE.BoxGeometry(1.5, 6.4, 1.5), conc, cnt), lamp = new THREE.InstancedMesh(new THREE.BoxGeometry(0.5, 0.15, 1.6), new THREE.MeshStandardMaterial({ color: 0xfff1c8, emissive: 0xffe2a0, emissiveIntensity: 2.2 }), cnt);
-      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s1 = new THREE.Vector3(1, 1, 1), tp = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0); let k = 0, kl = 0;
-      for (let i = a; i <= b; i += 2) {
-        const { nx, nz } = per(i);
-        q.setFromAxisAngle(up, Math.atan2(nx, nz));
-        tp.set(line[i].x + nx * lakeSign * 5.6, ly[i] + 3.1, line[i].z + nz * lakeSign * 5.6); pil.setMatrixAt(k++, m4.compose(tp, q, s1));
-        if (((i - a) / 2) % 2 === 0) { tp.set(line[i].x, ly[i] + 5.25, line[i].z); lamp.setMatrixAt(kl++, m4.compose(tp, q, s1)); }
+      const hash = (i: number, k: number): number => { const t = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return t - Math.floor(t); };
+      const at = (i: number, sLake: number): { x: number; z: number } => { const { nx, nz } = per(i); return { x: line[i].x + nx * lakeSign * sLake, z: line[i].z + nz * lakeSign * sLake }; };
+      // the outer surface of the rock: lateral samples from the lake lip (+5.6) inland to where it meets the hillside (-26)
+      const S = [5.6, 4.0, 1.5, -1.5, -5, -9, -13, -17, -21, -26];
+      const pos: number[] = [], idx: number[] = [], uv: number[] = [];
+      const ring = (i: number): number[] => {
+        const out: number[] = [];
+        for (let k = 0; k < S.length; k++) {
+          const p = at(i, S[k]), g = o.ground(p.x, p.z);
+          const lip = ly[i] + 7.3 + (S[k] > 3 ? 0 : 0.5);
+          const top = S[k] > 3 ? lip : Math.max(g + 0.25, ly[i] + 7.9);                  // the plateau over the road, then whatever the hill does
+          out.push(p.x, top + (hash(i, k) - 0.5) * 0.7, p.z);
+        }
+        return out;
+      };
+      let prev = ring(a);
+      for (let i = a + 1; i <= b; i++) {
+        const cur = ring(i), base = pos.length / 3;
+        for (let k = 0; k < S.length; k++) { pos.push(prev[k * 3], prev[k * 3 + 1], prev[k * 3 + 2]); uv.push(k / 3, (i - 1) * 0.3); }
+        for (let k = 0; k < S.length; k++) { pos.push(cur[k * 3], cur[k * 3 + 1], cur[k * 3 + 2]); uv.push(k / 3, i * 0.3); }
+        for (let k = 0; k < S.length - 1; k++) { const p0 = base + k, p1 = base + k + 1, c0 = base + S.length + k, c1 = base + S.length + k + 1; idx.push(p0, c0, p1, p1, c0, c1); }
+        prev = cur;
       }
-      pil.count = k; lamp.count = kl; pil.castShadow = pil.receiveShadow = true; group.add(pil, lamp);
-      // the hill-side wall: a continuous concrete face
-      const wallPos: number[] = [], wi: number[] = []; let v = 0;
-      for (let i = a; i < b; i++) {
-        const { nx, nz } = per(i), { nx: mx, nz: mz } = per(i + 1), ox = -lakeSign * 6.9;
-        wallPos.push(line[i].x + nx * ox, ly[i] - 0.5, line[i].z + nz * ox, line[i].x + nx * ox, ly[i] + 6.3, line[i].z + nz * ox, line[i + 1].x + mx * ox, ly[i + 1] - 0.5, line[i + 1].z + mz * ox, line[i + 1].x + mx * ox, ly[i + 1] + 6.3, line[i + 1].z + mz * ox);
-        wi.push(v, v + 1, v + 2, v + 1, v + 3, v + 2); v += 4;
+      const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); rg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); rg.setIndex(idx); rg.computeVertexNormals();
+      const rm = new THREE.Mesh(rg, rock); rm.castShadow = rm.receiveShadow = true; rm.name = 'gallery-rock'; group.add(rm);
+      // faces: the lintel (lake face, over the windows), the dark ceiling and the hill-side rock wall inside
+      const face = (sOff: number, y0: number, y1: number, mat: THREE.Material, jit = 0): THREE.Mesh => {
+        const fp: number[] = [], fi: number[] = [], fu: number[] = [];
+        for (let i = a; i <= b; i++) { const p = at(i, sOff), j = jit ? (hash(i, 5) - 0.5) * jit : 0; fp.push(p.x, ly[i] + y0, p.z, p.x, ly[i] + y1 + j, p.z); fu.push(0, i * 0.3, 1, i * 0.3); }
+        for (let i = 0; i < b - a; i++) { const q = i * 2; fi.push(q, q + 2, q + 1, q + 1, q + 2, q + 3); }
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(fp, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(fu, 2)); g.setIndex(fi); g.computeVertexNormals();
+        const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; group.add(m); return m;
+      };
+      face(5.6, 5.1, 7.3, rock, 0.6);                                                   // lintel over the windows
+      face(-5.4, -0.2, 5.2, lining, 0.4);                                              // the rock face on the hill side
+      const ceil = strip(5.4, 0, 5.2, lining, 9, a, b); ceil.name = 'gallery-ceiling'; group.add(ceil);
+      face(5.35, 0, 1.0, rock, 0.0);                                                    // a low rock parapet along the lake edge
+      // pillars between the windows: every ~15 m, rough boxes of rock
+      {
+        const pil = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), rock, 120), lamp = new THREE.InstancedMesh(new THREE.BoxGeometry(0.5, 0.15, 1.6), new THREE.MeshStandardMaterial({ color: 0xfff1c8, emissive: 0xffe2a0, emissiveIntensity: 2.2 }), 120);
+        const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sc = new THREE.Vector3(), tp = new THREE.Vector3(); let k = 0, kl = 0, since = 0;
+        for (let i = a; i <= b; i++) {
+          since += 5;
+          const { nx, nz } = per(i); q.setFromAxisAngle(up, Math.atan2(nx, nz));
+          if (since >= 15) { since = 0; const p = at(i, 5.3), w = 2.0 + hash(i, 1) * 1.4; sc.set(w, 5.4, 1.5 + hash(i, 2)); tp.set(p.x, ly[i] + 2.6, p.z); if (k < 120) pil.setMatrixAt(k++, m4.compose(tp, q, sc)); }
+          if (i % 4 === 0) { sc.set(1, 1, 1); tp.set(line[i].x, ly[i] + 5.0, line[i].z); if (kl < 120) lamp.setMatrixAt(kl++, m4.compose(tp, q, sc)); }
+        }
+        pil.count = k; lamp.count = kl; pil.castShadow = pil.receiveShadow = true; group.add(pil, lamp);
+        // portals: a rough rock frame at each end, the road running into the hill
+        for (const i of [a, b]) {
+          const { nx, nz } = per(i); const yaw = Math.atan2(nx, nz);
+          const mk = (w: number, h: number, d: number, sOff: number, y: number): void => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), rock); const p = at(i, sOff); m.position.set(p.x, ly[i] + y, p.z); m.rotation.y = yaw; m.castShadow = m.receiveShadow = true; group.add(m); };
+          mk(1.8, 6.6, 2.6, 5.6, 3.3); mk(1.8, 6.6, 2.6, -5.6, 3.3);                      // the two posts
+          mk(13.2, 2.8, 2.6, 0, 6.2);                                                      // the lintel across the mouth
+        }
       }
-      const wg = new THREE.BufferGeometry(); wg.setAttribute('position', new THREE.Float32BufferAttribute(wallPos, 3)); wg.setIndex(wi); wg.computeVertexNormals();
-      group.add(new THREE.Mesh(wg, conc));
     }
     for (const p of line) netShore.push({ x: p.x, z: p.z, h: 7.2 });
   }
