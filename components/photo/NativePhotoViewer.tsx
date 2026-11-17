@@ -1530,12 +1530,25 @@ export default function NativePhotoViewer({
                     <ImageIcon size={14} />
                   </div>
                   <img
-                    src={getMediaUrl(item)}
+                    // Windows' own small cached thumbnail, not the full-size photo: a folder of 24 MP shots
+                    // used to decode every image at full size just to fill this strip.
+                    src={item.fullPath
+                      ? `https://localmedia.plajah/__thumb?path=${encodeURIComponent(item.fullPath)}&size=160`
+                      : getMediaUrl(item)}
                     alt=""
                     className="w-full h-full object-cover relative z-10"
                     loading="lazy"
+                    decoding="async"
                     onError={(e) => {
-                      (e.currentTarget as HTMLElement).style.opacity = '0';
+                      const img = e.currentTarget;
+                      const full = getMediaUrl(item);
+                      // No shell thumbnail (e.g. no HEIC codec): fall back to the file itself once.
+                      if (item.fullPath && full && img.dataset.fellBack !== '1' && !isVideoFile(item.name)) {
+                        img.dataset.fellBack = '1';
+                        img.src = full;
+                        return;
+                      }
+                      img.style.opacity = '0';
                     }}
                   />
                   {isVideoFile(item.name) && (

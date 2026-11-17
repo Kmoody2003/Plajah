@@ -10,19 +10,28 @@ public sealed partial class MainWindow
 {
     private void PostBridgeResult(string responseType, string? requestId, object payload)
     {
-        var node = JsonSerializer.SerializeToNode(payload) as JsonObject ?? new JsonObject();
-        if (!string.IsNullOrEmpty(requestId))
+        // Folder listings can be 20k entries: build the JSON on the thread pool, post it on the UI thread.
+        Task.Run(() =>
         {
-            node["requestId"] = requestId;
-        }
-        if (DispatcherQueue.HasThreadAccess)
-        {
-            PostNativeMessage(responseType, node);
-        }
-        else
-        {
-            DispatcherQueue.TryEnqueue(() => PostNativeMessage(responseType, node));
-        }
+            string json;
+            try
+            {
+                var node = JsonSerializer.SerializeToNode(payload) as JsonObject ?? new JsonObject();
+                if (!string.IsNullOrEmpty(requestId)) node["requestId"] = requestId;
+                node["type"] = responseType;
+                json = node.ToJsonString();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PostBridgeResult] {responseType}: {ex.Message}");
+                return;
+            }
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                try { Web.CoreWebView2?.PostWebMessageAsString(json); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[PostBridgeResult] post {responseType}: {ex.Message}"); }
+            });
+        });
     }
 
     private static string GetStr(JsonElement el, string prop, string fallback = "") =>
@@ -73,7 +82,9 @@ public sealed partial class MainWindow
             {
                 case "FILES_GET_ROOTS":
                     _ = SyncEngine; // Warm up FileSystemWatcher listeners for configured sync pairs on Explorer open
-                    PostBridgeResult(responseType, reqId, new { success = true, roots = _fileExplorer.GetStorageRoots() });
+                    // DriveInfo.IsReady can block for seconds on a sleeping disk, card reader or dropped network drive.
+                    var roots = await Task.Run(() => _fileExplorer.GetStorageRoots());
+                    PostBridgeResult(responseType, reqId, new { success = true, roots });
                     return true;
 
                 case "FILES_LIST_DIR":

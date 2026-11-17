@@ -309,130 +309,9 @@ public sealed partial class MainWindow : Window
                             return;
                         }
 
-                        string? fullPath = null;
-
-                        // 1. Try ?path= query param
-                        var queryStr = reqUri.Query;
-                        if (!string.IsNullOrEmpty(queryStr))
-                        {
-                            var trimmed = queryStr.TrimStart('?');
-                            foreach (var part in trimmed.Split('&'))
-                            {
-                                var pair = part.Split('=', 2);
-                                if (pair.Length > 0 && pair[0].Equals("path", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    var extracted = pair.Length > 1 ? Uri.UnescapeDataString(pair[1]) : string.Empty;
-                                    if (!string.IsNullOrEmpty(extracted) && File.Exists(extracted))
-                                    {
-                                        fullPath = extracted;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-
-                        // 2. Try URL path relative to _pendingFolderMapping
-                        if (string.IsNullOrEmpty(fullPath))
-                        {
-                            var relPath = Uri.UnescapeDataString(reqUri.AbsolutePath.TrimStart('/'));
-                            if (!string.IsNullOrEmpty(_pendingFolderMapping))
-                            {
-                                var combined = Path.Combine(_pendingFolderMapping, relPath.Replace('/', Path.DirectorySeparatorChar));
-                                if (File.Exists(combined))
-                                {
-                                    fullPath = combined;
-                                }
-                            }
-
-                            // 3. Try URL path directly if it's an absolute path
-                            if (string.IsNullOrEmpty(fullPath) && File.Exists(relPath))
-                            {
-                                fullPath = relPath;
-                            }
-                        }
-
-                        if (!string.IsNullOrEmpty(fullPath) && File.Exists(fullPath))
-                        {
-                            var fi = new FileInfo(fullPath);
-                            var mime = WindowsFileExplorerService.GetMimeType(fi.Extension);
-
-                            var fileLength = fi.Length;
-                            string? rangeHeader = null;
-                            if (args.Request.Headers.Contains("Range"))
-                            {
-                                rangeHeader = args.Request.Headers.GetHeader("Range");
-                            }
-
-                            if (!string.IsNullOrEmpty(rangeHeader) && rangeHeader.StartsWith("bytes="))
-                            {
-                                var rangeStr = rangeHeader.Substring("bytes=".Length).Trim();
-                                var parts = rangeStr.Split('-');
-                                long start = 0;
-                                long end = fileLength - 1;
-
-                                if (long.TryParse(parts[0], out var s))
-                                {
-                                    start = s;
-                                }
-                                if (parts.Length > 1 && long.TryParse(parts[1], out var e))
-                                {
-                                    end = e;
-                                }
-
-                                if (start >= fileLength)
-                                {
-                                    args.Response = core.Environment.CreateWebResourceResponse(
-                                        null, 416, "Range Not Satisfiable",
-                                        $"Content-Range: bytes */{fileLength}\r\nAccess-Control-Allow-Origin: *"
-                                    );
-                                    return;
-                                }
-
-                                end = Math.Min(end, fileLength - 1);
-                                long length = end - start + 1;
-
-                                var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                                var rangeStream = new SlicedStream(fs, start, length);
-                                var response = core.Environment.CreateWebResourceResponse(
-                                    rangeStream.AsRandomAccessStream(),
-                                    206,
-                                    "Partial Content",
-                                    $"Content-Type: {mime}\r\n" +
-                                    $"Content-Range: bytes {start}-{end}/{fileLength}\r\n" +
-                                    $"Content-Length: {length}\r\n" +
-                                    $"Accept-Ranges: bytes\r\n" +
-                                    "Access-Control-Allow-Origin: *\r\n" +
-                                    "Access-Control-Allow-Methods: GET, HEAD, OPTIONS\r\n" +
-                                    "Access-Control-Allow-Headers: *\r\n" +
-                                    "Cache-Control: public, max-age=86400"
-                                );
-                                args.Response = response;
-                            }
-                            else
-                            {
-                                var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                                var response = core.Environment.CreateWebResourceResponse(
-                                    fs.AsRandomAccessStream(),
-                                    200,
-                                    "OK",
-                                    $"Content-Type: {mime}\r\n" +
-                                    $"Content-Length: {fileLength}\r\n" +
-                                    $"Accept-Ranges: bytes\r\n" +
-                                    "Access-Control-Allow-Origin: *\r\n" +
-                                    "Access-Control-Allow-Methods: GET, HEAD, OPTIONS\r\n" +
-                                    "Access-Control-Allow-Headers: *\r\n" +
-                                    "Cache-Control: public, max-age=86400"
-                                );
-                                args.Response = response;
-                            }
-                        }
-                        else
-                        {
-                            args.Response = core.Environment.CreateWebResourceResponse(
-                                null, 404, "Not Found",
-                                "Access-Control-Allow-Origin: *\r\nContent-Type: text/plain"
-                            );
-                        }
+                        // Off the UI thread: path checks, file opens and small-file reads all run on the
+                        // thread pool, so a grid of hundreds of photos never stalls window drag or clicks.
+                        ServeLocalMedia(core, args, reqUri);
                     }
                 }
                 catch (Exception ex)
@@ -1312,22 +1191,31 @@ public sealed partial class MainWindow : Window
             else if (type == "READ_FILE_BYTES")
             {
                 var path = root.TryGetProperty("path", out var pVal) ? pVal.GetString() : null;
-                if (!string.IsNullOrEmpty(path) && File.Exists(path) && new FileInfo(path).Length > 64L * 1024 * 1024)
+                // Read, base64 and JSON all happen on the thread pool: a 40 MB photo used to stall the window.
+                _ = System.Threading.Tasks.Task.Run(async () =>
                 {
-                    // Base64 of a multi-GB video through PostWebMessage would exhaust memory and hang
-                    // both processes. Large media must stream via https://localmedia.plajah instead.
-                    PostNativeMessage("READ_FILE_BYTES_RESULT", new { success = false, path, error = "File too large to read into memory (>64 MB); stream it via its localmedia URL" });
-                }
-                else if (!string.IsNullOrEmpty(path) && File.Exists(path))
-                {
-                    var bytes = await File.ReadAllBytesAsync(path);
-                    var base64 = Convert.ToBase64String(bytes);
-                    PostNativeMessage("READ_FILE_BYTES_RESULT", new { success = true, path, base64 });
-                }
-                else
-                {
-                    PostNativeMessage("READ_FILE_BYTES_RESULT", new { success = false, path, error = "File not found" });
-                }
+                    object result;
+                    try
+                    {
+                        if (!string.IsNullOrEmpty(path) && File.Exists(path) && new FileInfo(path).Length > 64L * 1024 * 1024)
+                        {
+                            // Base64 of a multi-GB video through PostWebMessage would exhaust memory and hang
+                            // both processes. Large media must stream via https://localmedia.plajah instead.
+                            result = new { success = false, path, error = "File too large to read into memory (>64 MB); stream it via its localmedia URL" };
+                        }
+                        else if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                        {
+                            var bytes = await File.ReadAllBytesAsync(path).ConfigureAwait(false);
+                            result = new { success = true, path, base64 = Convert.ToBase64String(bytes) };
+                        }
+                        else
+                        {
+                            result = new { success = false, path, error = "File not found" };
+                        }
+                    }
+                    catch (Exception readEx) { result = new { success = false, path, error = readEx.Message }; }
+                    PostNativeMessageOffThread("READ_FILE_BYTES_RESULT", result);
+                });
             }
             else if (type == "STUDIO_DISPLAYS_QUERY")
             {
@@ -2741,6 +2629,13 @@ public sealed partial class MainWindow : Window
     /// GET https://localmedia.plajah/__thumb?path=C:\...&amp;size=256 — Bounded-LRU shell thumbnail for a
     /// photo, video, or CBZ/comic archive cover, served cleanly without unbounded memory growth.
     /// </summary>
+    // Shell thumbnail extraction is disk- and codec-heavy; a folder of 500 photos would otherwise start 500 at once.
+    private static readonly System.Threading.SemaphoreSlim s_thumbGate = new(4, 4);
+
+    private readonly record struct ThumbResult(int Status, string Reason, byte[]? Bytes, string ContentType);
+
+    /// <summary>Serve a Windows shell thumbnail. Every file and shell call runs on the thread pool; only the
+    /// WebView2 response is built on the UI thread, so thumbnail storms can't freeze window drag or clicks.</summary>
     private async void ServeShellThumbnail(CoreWebView2 core, CoreWebView2WebResourceRequestedEventArgs args, Uri reqUri)
     {
         var deferral = args.GetDeferral();
@@ -2755,55 +2650,17 @@ public sealed partial class MainWindow : Window
                 if (kv[0].Equals("path", StringComparison.OrdinalIgnoreCase)) path = Uri.UnescapeDataString(kv[1]);
                 else if (kv[0].Equals("size", StringComparison.OrdinalIgnoreCase) && uint.TryParse(kv[1], out var sz)) size = Math.Clamp(sz, 64u, 1024u);
             }
-            if (string.IsNullOrEmpty(path) || !File.Exists(path))
-            {
-                args.Response = core.Environment.CreateWebResourceResponse(null, 404, "Not Found", "Access-Control-Allow-Origin: *");
-                return;
-            }
 
-            var cacheKey = $"{path}|{size}|{File.GetLastWriteTimeUtc(path).Ticks}";
-            if (TryGetCachedThumb(cacheKey, out var cached))
-            {
-                var cachedStream = new MemoryStream(cached.Bytes, writable: false).AsRandomAccessStream();
-                args.Response = core.Environment.CreateWebResourceResponse(cachedStream, 200, "OK",
-                    $"Content-Type: {cached.ContentType}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: max-age=86400");
-                return;
-            }
+            var result = await System.Threading.Tasks.Task.Run(() => ProduceThumbnailAsync(path, size));
 
-            if (TryExtractComicCover(path, out var comicBytes, out var comicMime) && comicBytes != null)
+            if (result.Bytes == null)
             {
-                PutCachedThumb(cacheKey, comicBytes, comicMime);
-                var comicStream = new MemoryStream(comicBytes, writable: false).AsRandomAccessStream();
-                args.Response = core.Environment.CreateWebResourceResponse(comicStream, 200, "OK",
-                    $"Content-Type: {comicMime}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: max-age=86400");
+                args.Response = core.Environment.CreateWebResourceResponse(null, result.Status, result.Reason, "Access-Control-Allow-Origin: *");
                 return;
             }
-
-            var file = await StorageFile.GetFileFromPathAsync(path);
-            var thumb = await file.GetThumbnailAsync(Windows.Storage.FileProperties.ThumbnailMode.SingleItem, size, Windows.Storage.FileProperties.ThumbnailOptions.ResizeThumbnail);
-            if (thumb == null || thumb.Size == 0)
-            {
-                args.Response = core.Environment.CreateWebResourceResponse(null, 404, "No Thumbnail", "Access-Control-Allow-Origin: *");
-                return;
-            }
-            var contentType = string.IsNullOrEmpty(thumb.ContentType) ? "image/jpeg" : thumb.ContentType;
-            if (thumb.Size <= MaxCachedThumbBytes)
-            {
-                using var ms = new MemoryStream((int)thumb.Size);
-                using (var netStream = thumb.AsStreamForRead())
-                {
-                    await netStream.CopyToAsync(ms);
-                }
-                var bytes = ms.ToArray();
-                PutCachedThumb(cacheKey, bytes, contentType);
-                var memStream = new MemoryStream(bytes, writable: false).AsRandomAccessStream();
-                thumb.Dispose();
-                args.Response = core.Environment.CreateWebResourceResponse(memStream, 200, "OK",
-                    $"Content-Type: {contentType}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: max-age=86400");
-                return;
-            }
-            args.Response = core.Environment.CreateWebResourceResponse(thumb, 200, "OK",
-                $"Content-Type: {contentType}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: max-age=86400");
+            args.Response = core.Environment.CreateWebResourceResponse(
+                new MemoryStream(result.Bytes, writable: false).AsRandomAccessStream(), 200, "OK",
+                $"Content-Type: {result.ContentType}\r\nContent-Length: {result.Bytes.Length}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: max-age=86400");
         }
         catch (Exception ex)
         {
@@ -2814,6 +2671,197 @@ public sealed partial class MainWindow : Window
         {
             deferral.Complete();
         }
+    }
+
+    /// <summary>Thread-pool half of <see cref="ServeShellThumbnail"/>: no WebView2 objects touched here.</summary>
+    private static async System.Threading.Tasks.Task<ThumbResult> ProduceThumbnailAsync(string? path, uint size)
+    {
+        if (string.IsNullOrEmpty(path) || !File.Exists(path)) return new ThumbResult(404, "Not Found", null, "");
+
+        var cacheKey = $"{path}|{size}|{File.GetLastWriteTimeUtc(path).Ticks}";
+        if (TryGetCachedThumb(cacheKey, out var cached)) return new ThumbResult(200, "OK", cached.Bytes, cached.ContentType);
+
+        if (TryExtractComicCover(path, out var comicBytes, out var comicMime) && comicBytes != null)
+        {
+            PutCachedThumb(cacheKey, comicBytes, comicMime);
+            return new ThumbResult(200, "OK", comicBytes, comicMime);
+        }
+
+        await s_thumbGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            // The page may have asked twice while this waited; a second cache check is cheap.
+            if (TryGetCachedThumb(cacheKey, out cached)) return new ThumbResult(200, "OK", cached.Bytes, cached.ContentType);
+
+            var file = await StorageFile.GetFileFromPathAsync(path).AsTask().ConfigureAwait(false);
+            using var thumb = await file.GetThumbnailAsync(Windows.Storage.FileProperties.ThumbnailMode.SingleItem, size,
+                Windows.Storage.FileProperties.ThumbnailOptions.ResizeThumbnail).AsTask().ConfigureAwait(false);
+            if (thumb == null || thumb.Size == 0) return new ThumbResult(404, "No Thumbnail", null, "");
+
+            var contentType = string.IsNullOrEmpty(thumb.ContentType) ? "image/jpeg" : thumb.ContentType;
+            using var ms = new MemoryStream((int)Math.Min(thumb.Size, int.MaxValue));
+            using (var netStream = thumb.AsStreamForRead())
+            {
+                await netStream.CopyToAsync(ms).ConfigureAwait(false);
+            }
+            var bytes = ms.ToArray();
+            if (bytes.Length <= MaxCachedThumbBytes) PutCachedThumb(cacheKey, bytes, contentType);
+            return new ThumbResult(200, "OK", bytes, contentType);
+        }
+        finally
+        {
+            s_thumbGate.Release();
+        }
+    }
+
+    // Whole files (or ranges) up to this size are read into memory on the thread pool, so WebView2 never pulls
+    // from a FileStream through the UI thread. Bigger reads (long video ranges) stream from disk.
+    private const long InMemoryMediaMaxBytes = 48L * 1024 * 1024;
+
+    private sealed class LocalMediaPlan
+    {
+        public int Status;
+        public string Reason = "";
+        public string Headers = "";
+        public Stream? Body;
+    }
+
+    /// <summary>Serve https://localmedia.plajah/... (local photos, video, audio) without blocking the UI thread.</summary>
+    private async void ServeLocalMedia(CoreWebView2 core, CoreWebView2WebResourceRequestedEventArgs args, Uri reqUri)
+    {
+        var deferral = args.GetDeferral();
+        try
+        {
+            // WebView2 objects stay on the UI thread: read what the worker needs first.
+            string? rangeHeader = args.Request.Headers.Contains("Range") ? args.Request.Headers.GetHeader("Range") : null;
+            var mapping = _pendingFolderMapping;
+
+            var plan = await System.Threading.Tasks.Task.Run(() => PlanLocalMedia(reqUri, mapping, rangeHeader));
+
+            args.Response = core.Environment.CreateWebResourceResponse(
+                plan.Body?.AsRandomAccessStream(), plan.Status, plan.Reason, plan.Headers);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[LocalMedia] {ex.Message}");
+            try { args.Response = core.Environment.CreateWebResourceResponse(null, 500, "Error", "Access-Control-Allow-Origin: *"); } catch { }
+        }
+        finally
+        {
+            deferral.Complete();
+        }
+    }
+
+    /// <summary>Thread-pool half of <see cref="ServeLocalMedia"/>: resolves the path, opens or reads the file and
+    /// builds headers. Touches no WebView2 object.</summary>
+    private static LocalMediaPlan PlanLocalMedia(Uri reqUri, string? folderMapping, string? rangeHeader)
+    {
+        const string cors = "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, HEAD, OPTIONS\r\nAccess-Control-Allow-Headers: *";
+        string? fullPath = null;
+
+        // 1. ?path= query param
+        var queryStr = reqUri.Query;
+        if (!string.IsNullOrEmpty(queryStr))
+        {
+            foreach (var part in queryStr.TrimStart('?').Split('&'))
+            {
+                var pair = part.Split('=', 2);
+                if (pair.Length > 0 && pair[0].Equals("path", StringComparison.OrdinalIgnoreCase))
+                {
+                    var extracted = pair.Length > 1 ? Uri.UnescapeDataString(pair[1]) : string.Empty;
+                    if (!string.IsNullOrEmpty(extracted) && File.Exists(extracted)) { fullPath = extracted; break; }
+                }
+            }
+        }
+
+        // 2. URL path relative to the activated folder, 3. URL path as an absolute path
+        if (string.IsNullOrEmpty(fullPath))
+        {
+            var relPath = Uri.UnescapeDataString(reqUri.AbsolutePath.TrimStart('/'));
+            if (!string.IsNullOrEmpty(folderMapping))
+            {
+                var combined = Path.Combine(folderMapping, relPath.Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(combined)) fullPath = combined;
+            }
+            if (string.IsNullOrEmpty(fullPath) && File.Exists(relPath)) fullPath = relPath;
+        }
+
+        if (string.IsNullOrEmpty(fullPath))
+            return new LocalMediaPlan { Status = 404, Reason = "Not Found", Headers = "Access-Control-Allow-Origin: *\r\nContent-Type: text/plain" };
+
+        var fi = new FileInfo(fullPath);
+        var mime = WindowsFileExplorerService.GetMimeType(fi.Extension);
+        var fileLength = fi.Length;
+
+        if (!string.IsNullOrEmpty(rangeHeader) && rangeHeader.StartsWith("bytes="))
+        {
+            var parts = rangeHeader.Substring("bytes=".Length).Trim().Split('-');
+            long start = 0, end = fileLength - 1;
+            if (long.TryParse(parts[0], out var s)) start = s;
+            if (parts.Length > 1 && long.TryParse(parts[1], out var e)) end = e;
+
+            if (start >= fileLength)
+                return new LocalMediaPlan { Status = 416, Reason = "Range Not Satisfiable", Headers = $"Content-Range: bytes */{fileLength}\r\nAccess-Control-Allow-Origin: *" };
+
+            end = Math.Min(end, fileLength - 1);
+            long length = end - start + 1;
+            Stream body;
+            if (length <= InMemoryMediaMaxBytes)
+            {
+                var buf = new byte[length];
+                using (var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16))
+                {
+                    fs.Seek(start, SeekOrigin.Begin);
+                    fs.ReadExactly(buf, 0, (int)length);
+                }
+                body = new MemoryStream(buf, writable: false);
+            }
+            else
+            {
+                var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16);
+                body = new SlicedStream(fs, start, length);
+            }
+            return new LocalMediaPlan
+            {
+                Status = 206, Reason = "Partial Content", Body = body,
+                Headers = $"Content-Type: {mime}\r\nContent-Range: bytes {start}-{end}/{fileLength}\r\nContent-Length: {length}\r\nAccept-Ranges: bytes\r\n{cors}\r\nCache-Control: public, max-age=86400",
+            };
+        }
+
+        Stream full = fileLength <= InMemoryMediaMaxBytes
+            ? new MemoryStream(File.ReadAllBytes(fullPath), writable: false)
+            : new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16);
+        return new LocalMediaPlan
+        {
+            Status = 200, Reason = "OK", Body = full,
+            Headers = $"Content-Type: {mime}\r\nContent-Length: {fileLength}\r\nAccept-Ranges: bytes\r\n{cors}\r\nCache-Control: public, max-age=86400",
+        };
+    }
+
+    /// <summary>Post a message to the page with the JSON work done on the thread pool. Use for big payloads
+    /// (folder listings, file bytes) so serialization never stalls the window.</summary>
+    private void PostNativeMessageOffThread(string type, object payload)
+    {
+        System.Threading.Tasks.Task.Run(() =>
+        {
+            string json;
+            try
+            {
+                var node = JsonSerializer.SerializeToNode(payload) as System.Text.Json.Nodes.JsonObject ?? new System.Text.Json.Nodes.JsonObject();
+                node["type"] = type;
+                json = node.ToJsonString();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PostNativeMessageOffThread] {type}: {ex.Message}");
+                return;
+            }
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                try { Web.CoreWebView2?.PostWebMessageAsString(json); }
+                catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[PostNativeMessageOffThread] post {type}: {ex.Message}"); }
+            });
+        });
     }
 
     // One client for every forwarded /api call. No auto-redirects (the page must see them) and no cookie jar of its
@@ -3329,43 +3377,51 @@ public sealed partial class MainWindow : Window
                 mediaKind = activeKind
             };
 
-            var siblingFiles = new List<object>();
-            var dirInfo = new DirectoryInfo(folder);
-            foreach (var fi in dirInfo.EnumerateFiles("*", SearchOption.TopDirectoryOnly))
+            object BuildPayload()
             {
-                var siblingKind = DetectMediaKind(fi.Extension);
-                if (siblingKind != "UNKNOWN")
+                var siblingFiles = new List<object>();
+                var dirInfo = new DirectoryInfo(folder);
+                foreach (var fi in dirInfo.EnumerateFiles("*", SearchOption.TopDirectoryOnly))
                 {
-                    var relPath = Path.GetRelativePath(folder, fi.FullName).Replace('\\', '/');
-                    siblingFiles.Add(new
+                    var siblingKind = DetectMediaKind(fi.Extension);
+                    if (siblingKind != "UNKNOWN")
                     {
-                        name = fi.Name,
-                        fullPath = fi.FullName,
-                        folderPath = folder,
-                        relativePath = relPath,
-                        size = fi.Length,
-                        lastModified = new DateTimeOffset(fi.LastWriteTimeUtc).ToUnixTimeMilliseconds(),
-                        url = $"https://localmedia.plajah/{Uri.EscapeDataString(relPath).Replace("%2F", "/")}?path={Uri.EscapeDataString(fi.FullName)}",
-                        mediaKind = siblingKind
-                    });
+                        var relPath = Path.GetRelativePath(folder, fi.FullName).Replace('\\', '/');
+                        siblingFiles.Add(new
+                        {
+                            name = fi.Name,
+                            fullPath = fi.FullName,
+                            folderPath = folder,
+                            relativePath = relPath,
+                            size = fi.Length,
+                            lastModified = new DateTimeOffset(fi.LastWriteTimeUtc).ToUnixTimeMilliseconds(),
+                            url = $"https://localmedia.plajah/{Uri.EscapeDataString(relPath).Replace("%2F", "/")}?path={Uri.EscapeDataString(fi.FullName)}",
+                            mediaKind = siblingKind
+                        });
+                    }
                 }
+                return new
+                {
+                    type = "OPEN_MEDIA_FILE",
+                    mediaKind = activeKind,
+                    activeFile = activeFileObj,
+                    folderFiles = siblingFiles
+                };
             }
-
-            var payload = new
-            {
-                type = "OPEN_MEDIA_FILE",
-                mediaKind = activeKind,
-                activeFile = activeFileObj,
-                folderFiles = siblingFiles
-            };
 
             if (Web.CoreWebView2 != null)
             {
-                PostNativeMessage("OPEN_MEDIA_FILE", payload);
+                // Live window: scan the folder (can be thousands of files, or a slow drive) off the UI thread.
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try { PostNativeMessageOffThread("OPEN_MEDIA_FILE", BuildPayload()); }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[Plajah ActivateMediaFile] scan: {ex.Message}"); }
+                });
             }
             else
             {
-                _pendingActivationJson = JsonSerializer.Serialize(payload);
+                // First launch: the page reads this before it loads, so it has to be ready now.
+                _pendingActivationJson = JsonSerializer.Serialize(BuildPayload());
                 _launchMediaJson = _pendingActivationJson;
             }
         }
