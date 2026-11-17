@@ -36,6 +36,7 @@ import { harborDetail } from './harborDetail';
 import { duneDetail } from './duneDetail';
 import { Vegetation } from './vegetation';
 import { buildIndustrialCircuit } from './industrialCircuit';
+import { glassSelects } from './glassSelect';
 import { buildParkingLots } from './parkingLots';
 import { buildUtilities, type UtilitiesData } from './utilities';
 import { SimLayer, carveSim, planSim, type SimPlan } from './simLayer';
@@ -2312,6 +2313,7 @@ gearBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none"
 gearBtn.style.cssText = 'position:fixed;right:18px;top:16px;width:42px;height:42px;padding:0;display:flex;align-items:center;justify-content:center;background:rgba(26,0,38,.62);color:#fff;border:1px solid rgba(255,255,255,.14);border-radius:50%;backdrop-filter:blur(12px);cursor:pointer;z-index:21';
 document.body.appendChild(gearBtn);
 const settingsEl = document.getElementById('panel') as HTMLElement;
+glassSelects(settingsEl);                          // frosted purple dropdowns with an orange highlight (the browser's own option list is white on white here)
 const toggleSettings = (open?: boolean): void => { settingsEl.style.display = (open ?? settingsEl.style.display !== 'block') ? 'block' : 'none'; };
 gearBtn.onclick = () => toggleSettings();
 // developer tools, on the local dev server only: draw roads and zones (F2)
