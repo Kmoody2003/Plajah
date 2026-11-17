@@ -100,7 +100,7 @@ export class Garage {
   importJson(json: string): Result {
     try {
       const s = JSON.parse(json) as GarageSave;
-      if (!s || s.v !== 1 || !Array.isArray(s.cars)) return fail('That is not an Apex Elohim garage save.');
+      if (!s || s.v !== 1 || !Array.isArray(s.cars)) return fail('That is not an Apex garage save.');
       this.save = { ...emptySave(), ...s, stats: { ...emptyStats(), ...s.stats } };
       this.persist();
       return { ok: true };

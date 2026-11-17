@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 250" role="img" aria-label="Plajah Motorsport: Apex">
+  <defs>
+    <linearGradient id="fire" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff8c00"/>
+      <stop offset="0.55" stop-color="#ff3d4a"/>
+      <stop offset="1" stop-color="#d40055"/>
+    </linearGradient>
+    <linearGradient id="trail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#d40055" stop-opacity="0"/>
+      <stop offset="0.35" stop-color="#d40055"/>
+      <stop offset="1" stop-color="#ff8c00"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#c9cdd6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- speed streaks behind the word -->
+  <g fill="url(#trail)">
+    <rect x="6" y="60" width="150" height="5" rx="2.5"/>
+    <rect x="0" y="82" width="190" height="5" rx="2.5" opacity="0.8"/>
+    <rect x="22" y="104" width="130" height="5" rx="2.5" opacity="0.6"/>
+  </g>
+
+  <!-- APEX, drawn as outlines so it needs no font; leaning forward -->
+  <g transform="translate(150 40) skewX(-12)" fill="url(#steel)" fill-rule="evenodd">
+    <!-- A -->
+    <path d="M0,100 L36,0 L60,0 L96,100 L71,100 L63,77 L33,77 L25,100 Z M40,57 L56,57 L48,32 Z"/>
+    <!-- P -->
+    <path transform="translate(112 0)" d="M0,0 H64 Q92,0 92,29 Q92,58 64,58 H25 V100 H0 Z M25,20 H59 Q67,20 67,29 Q67,38 59,38 H25 Z"/>
+    <!-- E -->
+    <path transform="translate(222 0)" d="M0,0 H88 V21 H25 V39 H76 V59 H25 V79 H88 V100 H0 Z"/>
+    <!-- X -->
+    <path transform="translate(326 0)" d="M0,0 H28 L48,37 L68,0 H96 L62,50 L98,100 H70 L48,63 L26,100 H-2 L34,50 Z"/>
+  </g>
+
+  <!-- the racing line: in wide, clip the apex, out wide; it cuts through the word like a lap -->
+  <path d="M110 206 C 250 206, 330 168, 396 160 S 590 158, 704 92" fill="none" stroke="url(#fire)" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="396" cy="160" r="9" fill="#fff" stroke="url(#fire)" stroke-width="5"/>
+
+  <!-- brand lines -->
+  <text x="150" y="30" font-family="Outfit, 'Segoe UI', Arial, sans-serif" font-weight="700" font-size="19" letter-spacing="9" fill="#ffffff">PLAJAH MOTORSPORT</text>
+  <text x="150" y="236" font-family="Outfit, 'Segoe UI', Arial, sans-serif" font-weight="600" font-size="15" letter-spacing="7" fill="url(#fire)">OPEN-WORLD RACING · MUSIC FESTIVAL</text>
+</svg>
