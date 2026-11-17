@@ -175,6 +175,40 @@ grain = 0.7 * tn(0.8, 0.8, 3) + 0.3 * tn(4.0, 4.0, 4)
 ripple = tn(2.2, 0.9, 5)
 mod = 1.0 + 0.16 * canopy * f_forest + 0.07 * grain * f_field + 0.05 * ripple * f_sand
 tex = np.clip(tex * mod[..., None], 0, 1)
+# ---------- the satellite is a guide, not the truth: inside the zones we model, the ground is repainted from land cover ----------
+# The map's houses, roads, tank ponds and forest shadows under a town we have laid out ourselves look wrong, so inside each built zone (and the port platform) the ground colour comes from the
+# kind of place: lawn and gardens, concrete, gravel yards. The satellite still shows everywhere else (fields, forest, dunes, water) and a little of it is kept for variety.
+def tex_px(x, z):
+    return int(round(x / (MPP0 / T) + tw / 2)), int(round(z / (MPP0 / T) + th / 2))
+ZONE_COL = {   # RGB
+    "residential": (0.30, 0.43, 0.22), "dense": (0.43, 0.42, 0.41), "industrial": (0.44, 0.42, 0.38), "waterfront": (0.50, 0.48, 0.44),
+    "commercial": (0.40, 0.41, 0.36), "civic": (0.36, 0.43, 0.28),
+}
+paint = np.zeros((th, tw, 3), np.float32); pw = np.zeros((th, tw), np.float32)
+umf = os.path.join(REG, "user_map.json")
+if os.path.exists(umf):
+    for f in json.load(open(umf))["features"]:
+        if f["type"] == "zone" and f["kind"] in ZONE_COL:
+            m = np.zeros((th, tw), np.uint8)
+            cv2.fillPoly(m, [np.array([tex_px(*q) for q in f["pts"]], np.int32)], 1)
+            r_, g_, b_ = ZONE_COL[f["kind"]]
+            sel = m > 0
+            paint[sel] = (b_, g_, r_); pw[sel] = 1.0                                           # later zones win where they overlap
+pdf = os.path.join(REG, "port_district.json")
+if os.path.exists(pdf):
+    pd = json.load(open(pdf))
+    m = np.zeros((th, tw), np.uint8); cv2.fillPoly(m, [np.array([tex_px(*q) for q in pd["platform"]["poly"]], np.int32)], 1)
+    paint[m > 0] = (0.45, 0.45, 0.47); pw[m > 0] = 1.0
+if pw.any():
+    wsoft = cv2.GaussianBlur(pw, (0, 0), 6.0)                                                      # a feathered edge (about 24 m)
+    macro = 1.0 + 0.10 * (tn(40, 40, 21) * 0.6 + tn(12, 12, 22) * 0.4)
+    micro = 1.0 + 0.06 * tn(1.0, 1.0, 23)
+    base_ = np.clip(paint * (macro * micro)[..., None], 0, 1)
+    # keep a hint of the satellite's own brightness so the repaint is not flat
+    lum_s = (0.114 * tex[..., 0] + 0.587 * tex[..., 1] + 0.299 * tex[..., 2])
+    base_ = np.clip(base_ * (0.85 + 0.3 * np.clip(lum_s / 0.45, 0.4, 1.4))[..., None], 0, 1)
+    tex = tex * (1 - wsoft[..., None]) + base_ * wsoft[..., None]
+    print("repainted built zones:", round(float((wsoft > 0.5).mean()) * 100, 1), "% of the map")
 cv2.imwrite(os.path.join(REG, "albedo_hi.jpg"), (tex * 255).astype(np.uint8), [cv2.IMWRITE_JPEG_QUALITY, 90])
 print("albedo_hi", tw, "x", th, "bytes", os.path.getsize(os.path.join(REG, "albedo_hi.jpg")))
 
@@ -188,6 +222,9 @@ sand_true = np.clip(sandy * near_shore * 1.2, 0, 1)
 forest_true = np.clip(forest * 1.1, 0, 1) * (1 - sand_true)
 field_true = np.clip(1.0 - forest_true - sand_true, 0, 1) * (~water0)
 cls = np.stack([sand_true, forest_true, field_true], axis=-1)
+if "zmask" in globals():                                                          # inside the zones we model the ground is lawn and yard, not the satellite's forest or sand
+    inz = zmask > 0
+    cls[inz] = (0.0, 0.0, 1.0)
 cls = cv2.GaussianBlur(cls.astype(np.float32), (0, 0), 1.2)
 cv2.imwrite(os.path.join(REG, "landclass.png"), cv2.cvtColor((np.clip(cls, 0, 1) * 255).astype(np.uint8), cv2.COLOR_RGB2BGR))
 print("landclass: sand", round(float(sand_true.mean()) * 100, 1), "% forest", round(float(forest_true.mean()) * 100, 1), "% field", round(float(field_true.mean()) * 100, 1), "%")
