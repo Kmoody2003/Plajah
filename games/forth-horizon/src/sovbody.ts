@@ -52,6 +52,9 @@ export function halfWidthAt(y: number, z: number): number {
   const door = smooth(1.05, 0.75, z) * smooth(-1.1, -0.8, z);
   w -= 0.032 * gauss(y, 0.5, 0.09) * door;
   w += 0.012 * gauss(y, 0.92, 0.04) * door;
+  // plan-view corner radius at nose and tail so the ends are rounded, not a flat slab
+  const e = Math.abs(z);
+  if (e > 2.2) w *= Math.max(0.8, Math.sqrt(Math.max(0, 1 - ((e - 2.2) / 0.19) ** 2)));
   return w;
 }
 /** x of the surface at height y on station z, including the crown over the top */
@@ -104,8 +107,15 @@ export function buildBodyGeometry(): THREE.BufferGeometry {
   // nose and tail caps: fan over the whole ring
   for (const idx of [0, zs.length - 1]) {
     const ring: THREE.Vector3[] = [];
-    for (let k = 0; k <= K; k++) ring.push(right[idx][k]);
-    for (let k = K - 1; k >= 0; k--) ring.push(mir(right[idx][k]));
+    // inset a hair so the flat end face keeps its own normals instead of smoothing into the side surface
+    const inset = (v: THREE.Vector3): THREE.Vector3 => new THREE.Vector3(v.x, v.y, v.z + (idx === 0 ? -0.002 : 0.002));
+    for (let k = 0; k <= K; k++) ring.push(inset(right[idx][k]));
+    for (let k = K - 1; k >= 0; k--) ring.push(inset(mir(right[idx][k])));
+    // close the 2 mm gap between the side ring and the inset end face
+    const orig: THREE.Vector3[] = [];
+    for (let k = 0; k <= K; k++) orig.push(right[idx][k]);
+    for (let k = K - 1; k >= 0; k--) orig.push(mir(right[idx][k]));
+    for (let i = 0; i < ring.length; i++) { const j = (i + 1) % ring.length; tri(orig[i], orig[j], ring[j]); tri(orig[i], ring[j], ring[i]); }
     const cen = ring.reduce((s, v) => s.add(v), new THREE.Vector3()).multiplyScalar(1 / ring.length);
     for (let i = 0; i < ring.length; i++) tri(cen, ring[i], ring[(i + 1) % ring.length]);
   }

@@ -3,6 +3,7 @@
 // downstream. Depth tints the colour, the sky panorama is reflected with a Fresnel term plus sun glints, banks get foam, fast water and wind add chop and
 // whitecaps, and rain adds ripple rings. Fog and the map-edge fade match the rest of the scene.
 import * as THREE from 'three';
+import type { Atmosphere } from './atmosphere';
 
 const FLOW_URL = '/games/forth-horizon/region/water_flow.png';
 
@@ -38,7 +39,7 @@ function normalTexture(size = 512): THREE.DataTexture {
   }
   const t = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true; t.anisotropy = 8;
+  t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true; t.anisotropy = 4;
   t.needsUpdate = true;
   return t;
 }
@@ -77,7 +78,9 @@ const FRAG = `
     float wgt = abs(ph0 * 2.0 - 1.0);
     vec2 a0 = wp / 9.0 - cur * ph0 * T / 9.0, a1 = wp / 9.0 - cur * ph1 * T / 9.0;
     vec2 b0 = wp / 2.6 - cur * 1.25 * ph0 * T / 2.6 + vec2(0.37, 0.11), b1 = wp / 2.6 - cur * 1.25 * ph1 * T / 2.6 + vec2(0.37, 0.11);
-    vec3 nA = mix(nrm(tNormal, a0), nrm(tNormal, a1), wgt);
+    vec4 ta0 = texture2D(tNormal, a0);
+    vec4 ta1 = texture2D(tNormal, a1);
+    vec3 nA = mix(ta0.xyz, ta1.xyz, wgt) * 2.0 - 1.0;
     vec3 nB = mix(nrm(tNormal, b0), nrm(tNormal, b1), wgt);
     float choppy = 0.30 + uWind * 1.1 + spd * 0.22 + uRain * 0.25;
     vec2 slope = (nA.xy * 0.9 + nB.xy * 0.6) * choppy;
@@ -110,13 +113,15 @@ const FRAG = `
     vec3 col = mix(body, sky, F);
     float rs = max(dot(R, uSunDir), 0.0);
     float sp = pow(rs, mix(900.0, 260.0, uGlint)) * mix(6.0, 3.0, uGlint) + pow(rs, 70.0) * 0.28 * (1.0 + uGlint * 0.4);
-    // glitter: tiny facets catching the sun, flickering as the ripples move (strongest from the menu's high view)
-    float tw = texture2D(tNormal, wp / 1.3 + cur * uTime * 0.12).a * texture2D(tNormal, wp / 0.7 - cur * uTime * 0.2 + 0.31).a;
-    sp += uGlint * pow(rs, 28.0) * smoothstep(0.3, 0.9, tw * 2.2) * 1.6;
+    // glitter: only sample when glint > 0 and sun highlight is active
+    if (uGlint > 0.005 && rs > 0.45) {
+      float tw = texture2D(tNormal, wp / 1.3 + cur * uTime * 0.12).a * texture2D(tNormal, wp / 0.7 - cur * uTime * 0.2 + 0.31).a;
+      sp += uGlint * pow(rs, 28.0) * smoothstep(0.3, 0.9, tw * 2.2) * 1.6;
+    }
     sp = min(sp, 2.4);
     col += uSunCol * sp * max(uSunAmt, uGlint * 0.7) * (1.0 - uStorm * 0.7);
-    // foam: banks, fast water, whitecaps in wind
-    float hh = mix(texture2D(tNormal, a0).a, texture2D(tNormal, a1).a, wgt);
+    // foam: reuse alpha channel already fetched from tNormal at a0 and a1
+    float hh = mix(ta0.a, ta1.a, wgt);
     float bank = smoothstep(0.62, 1.0, shore) * smoothstep(0.35, 0.8, hh + (1.0 - dep) * 0.1);
     float fast = smoothstep(1.05, 1.5, spd) * smoothstep(0.55, 0.85, hh) * 0.6;
     float caps = smoothstep(0.55, 1.0, uWind + uStorm * 0.4) * smoothstep(0.72, 0.9, hh) * 0.8;
@@ -140,7 +145,7 @@ export class WaterSurface {
   readonly mesh: THREE.Mesh;
   private mat: THREE.ShaderMaterial;
   private t = 0;
-  constructor(scene: THREE.Scene, rw: number, rh: number, ext: number, edge: THREE.Vector2, x0: number, z0: number) {
+  constructor(scene: THREE.Scene, rw: number, rh: number, ext: number, edge: THREE.Vector2, x0: number, z0: number, atmosphere?: Atmosphere | null) {
     const blank = new THREE.DataTexture(new Uint8Array([128, 128, 255, 0]), 1, 1); blank.needsUpdate = true;
     this.mat = new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false,
@@ -152,6 +157,7 @@ export class WaterSurface {
       },
     });
     const g = new THREE.PlaneGeometry(rw + ext, rh); g.rotateX(-Math.PI / 2);
+    atmosphere?.patchCustom(this.mat, 'water');
     this.mesh = new THREE.Mesh(g, this.mat);
     this.mesh.position.set(-ext / 2, -0.3, 0);
     this.mesh.renderOrder = 2;

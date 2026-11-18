@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { wheel, type CarRig } from './car';
+import { batchStatic } from './carBatch';
 import { buildBodyGeometry } from './sovbody';
 import { type Vtx, toTris, toGeometry, clipRegion, splitUnion, boxRegion, sideRegion, toMesh, thicken, plane, type Tri, type Region } from './scanparts';
 import sovSpec from '../car/sovereign/spec.json';
@@ -78,6 +79,8 @@ function buildAero(ex: NonNullable<ScanSpec['exhaust']>): THREE.Group {
   // rear diffuser: carbon strakes between and outside the tips
   for (let i = -3; i <= 3; i++) add(new THREE.BoxGeometry(0.012, 0.15, 0.36), carbon, i * 0.23, ex.y - 0.1, ex.z + 0.3);
   add(new THREE.BoxGeometry(1.7, 0.012, 0.34), carbon, 0, ex.y - 0.2, ex.z + 0.32);
+  // ducktail lip on the trunk edge (design sheet rear view)
+  add(new THREE.BoxGeometry(1.46, 0.022, 0.13), carbon, 0, 1.03, -2.27, 0.18, 0, 0);
   // front splitter, canards, brake ducts
   const zf = 2.02;
   add(new THREE.BoxGeometry(1.55, 0.02, 0.26), carbon, 0, 0.06, zf);
@@ -136,21 +139,19 @@ function buildLamps(shells: THREE.Mesh[], origin: THREE.Vector3): THREE.Group {
       }
       g.add(L);
     }
-    // ---- taillight: full-width-style LED bar, red lens, three light blades, reverse lamp ----
+    // ---- taillight: slim wrap-around LED bar with rounded ends (design sheet rear view), red lens over a glowing core, round reverse lamp ----
     {
-      const cx = sx * 0.3, cy = 0.74, zs = surf(sx * 0.55, 0.78, -1, -2.3);
+      const zs = surf(sx * 0.58, 0.8, -1, -2.3);
       const L = new THREE.Group();
-      L.position.set(cx, cy, zs + 0.04);
-      L.rotation.y = Math.PI - sx * 0.25;
-      const sh = lampShape(0.56, 0.1, 0.03, 0.8);
-      const flip = (m: THREE.Mesh): THREE.Mesh => { m.scale.x = -sx; return m; };
-      L.add(flip(ex(sh, 0.05, housing)));
-      const lensM = flip(ex(lampShape(0.54, 0.09, 0.03, 0.8), 0.012, lensR)); lensM.position.set(-sx * 0.008, 0.005, 0.06); L.add(lensM);
-      for (let i = 0; i < 3; i++) {
-        const blade = flip(new THREE.Mesh(new THREE.BoxGeometry(0.4 - i * 0.07, 0.01, 0.012), ledR));
-        blade.position.set(-sx * (0.22 - i * 0.02), 0.025 + i * 0.026, 0.062); blade.rotation.z = -sx * 0.05; L.add(blade);
-      }
-      const rev = new THREE.Mesh(new THREE.CircleGeometry(0.022, 20), ledW); rev.position.set(-sx * 0.07, 0.05, 0.066); L.add(rev);
+      L.position.set(sx * 0.56, 0.8, zs - 0.03);
+      L.rotation.y = Math.PI;
+      const bar = (len: number, r: number, m: THREE.Material, dz: number): THREE.Mesh => {
+        const me = new THREE.Mesh(new THREE.CapsuleGeometry(r, len, 4, 14), m);
+        me.rotation.z = Math.PI / 2; me.scale.set(0.6, 1, 0.7); me.position.set(0, 0, dz); return me;
+      };
+      L.add(bar(0.34, 0.046, housing, 0));
+      L.add(bar(0.33, 0.04, lensR, 0.012));
+      const core = bar(0.28, 0.014, ledR, 0.022); core.position.y = 0.006; L.add(core);
       g.add(L);
     }
   }
@@ -644,7 +645,7 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
       bool intake = uCut < 0.5 && nose && ax > 0.10 && ax < 0.74 && cp.y > 0.14 && cp.y < 0.31;
       float slat = 0.5 + 0.5 * sin(cp.y * 90.0);
       bool headL = nose && ax > 0.54 && ax < 0.88 && cp.y > 0.60 + (ax - 0.54) * 0.25 && cp.y < 0.70 + (ax - 0.54) * 0.25;
-      bool tailL = zN < -0.40 && ax > 0.30 && ax < 0.86 && cp.y > 0.70 && cp.y < 0.86;
+      bool tailL = zN < -0.40 && ax > 0.34 && ax < 0.78 && cp.y > 0.765 && cp.y < 0.835;
       // black trim: both bumpers, side skirts, arch lips
       bool bumper = (zN > 0.43 && cp.y < 0.58) || (zN < -0.43 && cp.y < 0.62);
       bool skirt = ax > 0.60 && cp.y < 0.30 && abs(zN) < 0.30;
@@ -653,7 +654,8 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
       {
         float fl = h31(floor(cp * 900.0));
         col = mix(col, uPearl, uPearlAmt * smoothstep(-0.8, 0.8, cp.x * sign(cp.z + 0.01) + cp.y * 0.4));
-        col *= 1.0 + uFlake * (fl - 0.5) * 0.7 * step(uFinish, 1.5);
+        float aaF = 1.0 - smoothstep(0.35, 1.0, length(fwidth(cp)) * 900.0);
+        col *= 1.0 + uFlake * (fl - 0.5) * 0.7 * step(uFinish, 1.5) * aaF;
         if (uFinish > 2.5) { gMetal = 1.0; gRough = 0.07; gBody = 0.0; }
         else if (uFinish > 1.5) { gMetal = 0.15; gRough = 0.82; gBody = 0.0; }
         else if (uFinish > 0.5) { gMetal = 0.4; gRough = 0.45; gBody = 0.35; }
@@ -706,7 +708,7 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
     .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += gLamp;')
     .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\nmaterial.clearcoat *= gBody;');
   };
-  mat.customProgramCacheKey = () => 'scan-car-v21';
+  mat.customProgramCacheKey = () => 'scan-car-v23';
 
   // ---- mesh surgery: cut the scan into separate real pieces with clean edges, gaps and thickness (see scanparts.ts) ----
   const g = new THREE.Group();
@@ -904,6 +906,7 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
     const box = (w: number, h: number, d: number, m: THREE.Material, p: THREE.Vector3, parent: THREE.Object3D): THREE.Mesh => { const me = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); me.position.copy(p); parent.add(me); return me; };
     const strut = (a: THREE.Vector3, parts: THREE.Object3D, bLocal: THREE.Vector3, r = 0.013): void => {
       const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 1, 10), blkm), rod = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.55, r * 0.55, 1, 8), chromeM);
+      body.userData.keep = rod.userData.keep = true;                             // moved one by one every frame: never batched
       g.add(body, rod);
       const up = new THREE.Vector3(0, 1, 0);
       struts.push({
@@ -974,6 +977,8 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
     if (!noDisc) g.add(w.root);
     WH.push({ spin: w.spin, steer: w.steer, front, left });
   }
+  // about 1,200 small meshes were 1,200 draw calls a frame: merge what cannot move relative to its parent (carBatch.ts); ?nobatch keeps the original for comparing
+  if (!location.search.includes('nobatch')) { const st = batchStatic(g, [...WH.flatMap((w) => [w.spin, w.steer]), ...Object.values(pivots).map((p) => p.pivot)]); console.log('car batched', st.before, '->', st.after, 'meshes'); (window as unknown as { carBatch: unknown }).carBatch = st; }
   let ang = 0;
   return {
     group: g,

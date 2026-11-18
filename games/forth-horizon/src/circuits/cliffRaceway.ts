@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { catchFence, type FencePoint } from '../catchFence';
 import { detailedStand, pitGarage } from '../trackArchitecture';
+import { TRACK_HALF, cliffSurface, indexTrack, type TrackDesign } from './cliffTrack';
 
 export interface CircuitCorner {
   n?: number;
@@ -21,10 +22,12 @@ export interface CircuitDef {
 
 export interface CliffRacewayOptions {
   circuit: CircuitDef;
-  ground: (x: number, z: number) => number;     // the height of the terrain MESH that is drawn (not the smoother map height), so the road lies on it
+  ground: (x: number, z: number) => number;     // the height of the terrain MESH that is drawn, for things beside the road
   exag: number;
   /** the asphalt the other circuits use (with its lane markings and wet-road shading); otherwise the raceway's own */
   roadMaterial?: THREE.Material;
+  /** the engineered road (cliffTrack.ts): smooth plan, profile and banking; the ground was graded to it before the terrain was meshed */
+  design: TrackDesign;
 }
 
 export interface CliffRacewayHandle {
@@ -38,6 +41,8 @@ export interface CliffRacewayHandle {
 }
 
 interface DensePoint {
+  bank?: number;
+  curv?: number;
   x: number;
   y: number;
   z: number;
@@ -45,7 +50,7 @@ interface DensePoint {
 }
 
 const TEX_BASE = '/games/forth-horizon/tex/';
-const ROAD_HALF = 5.5;
+const ROAD_HALF = TRACK_HALF;
 const ROAD_WIDTH = ROAD_HALF * 2;
 const ROAD_LIFT = 0.1;
 const KERB_LIFT = 0.125;
@@ -139,8 +144,32 @@ function densifyCircuit(
   return out;
 }
 
+
+/** A strip along the road between lateral offsets o1..o2 (metres, + toward the +normal side), on the banked profile; only where include(i) and include(i+1). `drop` hangs it down (a skirt). */
+function buildStrip(P: DensePoint[], o1: number, o2: number, lift: number, tile: number, include: (i: number) => boolean, drop = 0): THREE.BufferGeometry {
+  const n = P.length, pos: number[] = [], uv: number[] = [], idx: number[] = [];
+  let dist = 0, base = 0;
+  const vert = (i: number, o: number, dy: number, vv: number, u: number): void => {
+    const p = P[i % n], a = P[(i - 1 + n) % n], b = P[(i + 1) % n];
+    let tx = b.x - a.x, tz = b.z - a.z; const l = Math.hypot(tx, tz) || 1; tx /= l; tz /= l;
+    pos.push(p.x - tz * o, p.y + o * Math.sin(p.bank ?? 0) + lift + dy, p.z + tx * o); uv.push(u, vv);
+  };
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    dist += Math.hypot(P[j].x - P[i].x, P[j].z - P[i].z);
+    if (!include(i) || !include(j)) continue;
+    const d0 = dist - Math.hypot(P[j].x - P[i].x, P[j].z - P[i].z) , d1 = dist;
+    if (drop) { vert(i, o1, 0, d0 / tile, 0); vert(j, o1, 0, d1 / tile, 0); vert(i, o1, -drop, d0 / tile, 1); vert(j, o1, -drop, d1 / tile, 1); }
+    else { vert(i, o1, 0, d0 / tile, 0); vert(j, o1, 0, d1 / tile, 0); vert(i, o2, 0, d0 / tile, 1); vert(j, o2, 0, d1 / tile, 1); }
+    idx.push(base, base + 2, base + 1, base + 1, base + 2, base + 3); base += 4;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+  return g;
+}
+
 function buildRibbonGeometry(
-  pts: { x: number; z: number; y?: number }[],
+  pts: { x: number; z: number; y?: number; bank?: number }[],
   width: number,
   tileLength: number,
   ground: (x: number, z: number) => number,
@@ -178,13 +207,12 @@ function buildRibbonGeometry(
     const rx = curr.x - nx;
     const rz = curr.z - nz;
 
-    // five points across, each on the drawn terrain, so the road follows the ground's slope and its folds and nothing pokes through it between the edges; in the tunnel the
-    // terrain is the mountain overhead, so the road keeps its own height there
-    const flat = fixedHeight?.(i % n) && curr.y !== undefined;
+    // five points across on the engineered profile: the road's own height, crowned by its bank (the ground was graded to it, so nothing pokes through)
+    const bank = (curr as { bank?: number }).bank ?? 0, sb = Math.sin(bank);
     for (let c = 0; c < COLS; c++) {
       const f = (c / (COLS - 1)) * 2 - 1;                   // -1 (left edge) .. +1 (right edge)
       const x = curr.x + nx * f, z = curr.z + nz * f;
-      pos.push(x, (flat ? (curr.y as number) : ground(x, z)) + lift, z);
+      pos.push(x, (curr.y as number) + f * (width / 2) * sb + lift, z);
       uv.push((f + 1) / 2, dist / tileLength);
     }
 
@@ -210,12 +238,15 @@ function buildRibbonGeometry(
 }
 
 export function buildCliffRacewayCircuit(opts: CliffRacewayOptions): CliffRacewayHandle {
-  const { circuit, ground, exag } = opts;
+  const { circuit, exag } = opts;
+  const trackIx = indexTrack(opts.design);
+  // every object on or beside the road stands on the drawn road surface (crown, bank, grade), and on the graded ground beyond it
+  const ground = (x: number, z: number): number => { const sy = cliffSurface(trackIx, x, z); return Number.isNaN(sy) ? opts.ground(x, z) : sy * exag; };
   const emptyRoad = new THREE.Mesh();
   const group = new THREE.Group();
   group.name = 'cliffRacewayCircuit';
 
-  const P = densifyCircuit(circuit, ground, exag, 6);
+  const P: DensePoint[] = opts.design.pts.map((p) => ({ x: p.x, y: p.y * exag, z: p.z, srcIdx: p.src, bank: p.bank, curv: p.curv }));
   const n = P.length;
   if (n < 4) {
     return { group, setLights: () => {}, road: emptyRoad, path: [], tunnelPath: [] };
@@ -294,6 +325,20 @@ export function buildCliffRacewayCircuit(opts: CliffRacewayOptions): CliffRacewa
   asphaltMesh.receiveShadow = true;
   group.add(asphaltMesh);
 
+  // 1b. Edge lines, inside kerbs on every corner, and the road's side skirts (the bench under a banked road is lower than its outer edge: the skirt closes that gap)
+  {
+    const strip = (g: THREE.BufferGeometry, mat: THREE.Material, name: string): void => { if (!g.getAttribute('position') || g.getAttribute('position').count === 0) return; const m = new THREE.Mesh(g, mat); m.name = name; m.receiveShadow = true; group.add(m); };
+    const lineMat = new THREE.MeshStandardMaterial({ color: 0xf4f1e8, roughness: 0.55, roughnessMap: loadPbrTex('ground_asphalt_dry_roughness.png', false), normalMap: loadPbrTex('ground_asphalt_dry_normal.png', false), normalScale: new THREE.Vector2(0.6, 0.6), polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6, side: THREE.DoubleSide });
+    for (const sd of [-1, 1]) strip(buildStrip(P, sd * (ROAD_HALF - 0.62), sd * (ROAD_HALF - 0.4), ROAD_LIFT + 0.02, 6, () => true), lineMat, 'cliffEdgeLine');
+    const rumble = new THREE.MeshStandardMaterial({ map: loadPbrTex('ground_rumble_strip.png', true), normalMap: loadPbrTex('ground_rumble_strip_normal.png', false), roughnessMap: loadPbrTex('ground_rumble_strip_roughness.png', false), normalScale: new THREE.Vector2(1.4, 1.4), roughness: 0.85, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -7, polygonOffsetUnits: -7 });
+    for (const sd of [-1, 1]) {
+      const bend = (i: number): boolean => !inTunnel(i) && (sd > 0 ? (P[i].curv ?? 0) > 0.0042 : (P[i].curv ?? 0) < -0.0042);       // tighter than about a 240 m radius
+      strip(buildStrip(P, sd * (ROAD_HALF - 1.0), sd * (ROAD_HALF + 0.35), ROAD_LIFT + 0.03, 3.2, bend), rumble, 'cliffKerb');
+    }
+    const skirtMat = new THREE.MeshStandardMaterial({ color: 0x4a4c50, roughness: 0.9, side: THREE.DoubleSide });
+    for (const sd of [-1, 1]) strip(buildStrip(P, sd * ROAD_HALF, sd * ROAD_HALF, ROAD_LIFT - 0.02, 6, () => true, 1.6), skirtMat, 'cliffSkirt');
+  }
+
   // 2. Red-and-white rumble kerbs on apexes
   const corners = circuit.corners ?? [];
   if (corners.length > 0) {
@@ -320,11 +365,12 @@ export function buildCliffRacewayCircuit(opts: CliffRacewayOptions): CliffRacewa
         }
       }
       const inside = cn.turn > 0 ? 1 : -1;
-      const kerbPts: { x: number; z: number }[] = [];
+      const kerbPts: { x: number; z: number; y?: number; bank?: number }[] = [];
       for (let k = -8; k <= 8; k++) {
         const idx = (bi + k + n) % n;
         const [tx, tz] = tan(idx);
         kerbPts.push({
+          y: P[idx].y + (ROAD_HALF - 0.55) * inside * Math.sin(P[idx].bank ?? 0), bank: P[idx].bank,
           x: P[idx].x - tz * (ROAD_HALF - 0.55) * inside,
           z: P[idx].z + tx * (ROAD_HALF - 0.55) * inside,
         });
@@ -920,6 +966,7 @@ export function buildCliffRacewayCircuit(opts: CliffRacewayOptions): CliffRacewa
     shellMesh.receiveShadow = true;
     group.add(shellMesh);
   }
-  const tunnelPath = tunnelDenseFrom >= 0 ? P.slice(tunnelDenseFrom, tunnelDenseTo + 1).map((p) => ({ x: p.x, z: p.z })) : [];
+  // the tunnel corridor runs 40 m past each portal: the hillside is cut back to a rock face at the opening and the car must keep to the road surface through it
+  const tunnelPath = tunnelDenseFrom >= 0 ? P.slice(Math.max(0, tunnelDenseFrom - 7), Math.min(n, tunnelDenseTo + 8)).map((p) => ({ x: p.x, z: p.z })) : [];
   return { group, setLights, road: asphaltMesh, path: P.map((p) => ({ x: p.x, z: p.z })), tunnelPath };
 }

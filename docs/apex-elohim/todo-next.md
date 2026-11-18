@@ -50,6 +50,14 @@ python tools/detail_zones.py                # neighbourhood centres, downtown co
 python tools/densify_zones.py               # fill block interiors
 python tools/audit_and_seed.py              # riverside facilities, audit roads/slope/overlap
 python tools/access_and_parking.py          # connectivity, driveways, parking lots
+python tools/fix_driveways.py               # driveways house-to-curb only, concrete, never across a street or a house
+python tools/subdivide_blocks.py            # new local streets through oversized residential blocks (starts from city_streets.before_subdiv.json)
+python tools/relay_houses.py                # houses onto platted lots facing the street, empty street grids platted (starts from city.before_relay.json)
+python tools/civic/district_fix.py          # join dead-end streets, access drives / farm lanes, clear buildings off carriageways
+python tools/plan_trench.py                 # depressed downtown freeways: bed profile, ramps (region/trench.json)
+python tools/build_city_mask.py             # street widths (real-world, freeway lines are one carriageway each) + the trench cut (alpha)
+python tools/build_curbs.py
+python tools/civic/district_audit.py        # what is left: region/district_audit.json
 ```
 (all with `IRONPORT_PKG=public/games/forth-horizon/ironport`).
 

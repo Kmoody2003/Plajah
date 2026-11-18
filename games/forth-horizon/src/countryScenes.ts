@@ -93,24 +93,41 @@ export function carveShoreline(heights: Float32Array, W: number, H: number, mpp:
     const a = hw.xz[i], b = hw.xz[i + 1], n = Math.max(1, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / 6)), gal = i >= hw.gallery.from && i <= hw.gallery.to;
     for (let k = 0; k < n; k++) { const t = k / n; line.push({ x: a[0] + (b[0] - a[0]) * t, z: a[1] + (b[1] - a[1]) * t, y: hw.y[i] + (hw.y[i + 1] - hw.y[i]) * t, gal }); }
   }
+  // how far into the gallery each point is: 0 at the portals, 1 once 60 m inside, so the cliff grows out of the hillside at both ends
+  const fade = new Float32Array(line.length);
+  { let run = 0; for (let i = 0; i < line.length; i++) { run = line[i].gal ? run + 6 : 0; fade[i] = run; }
+    run = 0; for (let i = line.length - 1; i >= 0; i--) { run = line[i].gal ? run + 6 : 0; const t = Math.min(1, Math.min(fade[i], run) / 60); fade[i] = line[i].gal ? t * t * (3 - 2 * t) : 0; } }
   const cell = 24, hash = new Map<number, number[]>();
   line.forEach((p, i) => { const k = Math.floor(p.x / cell) * 8192 + Math.floor(p.z / cell); const a = hash.get(k) ?? []; a.push(i); hash.set(k, a); });
   const R = 84, FLAT = 26;   // the terrain mesh has a vertex every 24 m: the flat bed must reach past the next vertex on each side or a slope vertex lifts the road under the ground
+  const GR = 90;             // the gallery's cliff reaches this far each side
   let mnx = 1e9, mxx = -1e9, mnz = 1e9, mxz = -1e9;
   for (const p of line) { mnx = Math.min(mnx, p.x); mxx = Math.max(mxx, p.x); mnz = Math.min(mnz, p.z); mxz = Math.max(mxz, p.z); }
-  const x0 = Math.max(0, Math.floor((mnx - R) / mpp + W / 2)), x1 = Math.min(W - 1, Math.ceil((mxx + R) / mpp + W / 2));
-  const z0 = Math.max(0, Math.floor((mnz - R) / mpp + H / 2)), z1 = Math.min(H - 1, Math.ceil((mxz + R) / mpp + H / 2));
+  const x0 = Math.max(0, Math.floor((mnx - GR) / mpp + W / 2)), x1 = Math.min(W - 1, Math.ceil((mxx + GR) / mpp + W / 2));
+  const z0 = Math.max(0, Math.floor((mnz - GR) / mpp + H / 2)), z1 = Math.min(H - 1, Math.ceil((mxz + GR) / mpp + H / 2));
+  const ss = (a: number, b: number, v: number): number => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
   for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) {
     const x = (ix - W / 2) * mpp, z = (iz - H / 2) * mpp;
     let best = 1e9, bi = -1; const cx = Math.floor(x / cell), cz = Math.floor(z / cell);
-    for (let a = -3; a <= 3; a++) for (let b = -3; b <= 3; b++) { const l = hash.get((cx + a) * 8192 + cz + b); if (!l) continue; for (const i of l) { const d = Math.hypot(line[i].x - x, line[i].z - z); if (d < best) { best = d; bi = i; } } }
-    // along the gallery the hill side is not cut back: the road is cut into the slope, so the ground rises from the road bed within a few metres and closes over the roof
+    for (let a = -4; a <= 4; a++) for (let b = -4; b <= 4; b++) { const l = hash.get((cx + a) * 8192 + cz + b); if (!l) continue; for (const i of l) { const d = Math.hypot(line[i].x - x, line[i].z - z); if (d < best) { best = d; bi = i; } } }
     if (bi < 0) continue;
-    const into = line[bi].gal && x > line[bi].x, lakeFace = line[bi].gal && x < line[bi].x, flat = into ? 7 : lakeFace ? 8 : FLAT, reach = into ? 40 : lakeFace ? 36 : R;
-    if (best > reach) continue;
-    const t = Math.min(1, Math.max(0, (best - flat) / (reach - flat))), w = 1 - t * t * (3 - 2 * t);
-    const k = iz * W + ix;
-    heights[k] = heights[k] * (1 - w) + (line[bi].y - 0.25) * w;
+    const k = iz * W + ix, nat = heights[k], bed = line[bi].y - 0.25, f = fade[bi];
+    // the ordinary road: a flat bed, cut or filled to meet the hillside over R
+    let road = nat;
+    if (best <= R) { const w = 1 - ss(FLAT, R, best); road = nat * (1 - w) + bed * w; }
+    if (f <= 0) { heights[k] = road; continue; }
+    // the gallery: the road is a ledge cut into a cliff. Inland the rock rises straight up behind the gallery roof to ~26 m over the road and only then gives way to
+    // the hill; on the lake side the ledge stands on a steep rock face that drops ~22 m towards the beach.
+    let gal: number;
+    if (best > GR) gal = nat;
+    else if (x > line[bi].x) {                                                 // inland
+      const cliff = best <= 6 ? bed : Math.max(nat, bed + 34.25 * ss(6, 17, best));
+      gal = best <= 6 ? bed : cliff * (1 - ss(55, GR, best)) + nat * ss(55, GR, best);
+    } else {                                                                   // lake side
+      const face = best <= 8 ? bed : Math.min(nat, bed - 22 * ss(8, 20, best));
+      gal = best <= 8 ? bed : face * (1 - ss(46, GR, best)) + nat * ss(46, GR, best);
+    }
+    heights[k] = road * (1 - f) + gal * f;
   }
 }
 
@@ -136,7 +153,31 @@ function noiseTex(base: [number, number, number], speck: number, tracks: boolean
   g.fillStyle = `rgb(${base[0]},${base[1]},${base[2]})`; g.fillRect(0, 0, 256, 256);
   for (let i = 0; i < 5000; i++) { const v = (r() - 0.5) * speck; g.fillStyle = `rgba(${v > 0 ? 255 : 0},${v > 0 ? 240 : 0},${v > 0 ? 220 : 0},${Math.abs(v) / 255})`; g.fillRect(r() * 256, r() * 256, 1 + r() * 3, 1 + r() * 3); }
   if (tracks) { g.fillStyle = 'rgba(40,30,20,0.28)'; g.fillRect(70, 0, 22, 256); g.fillRect(164, 0, 22, 256); g.fillStyle = 'rgba(210,190,150,0.18)'; g.fillRect(118, 0, 20, 256); }
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repX, repY); t.anisotropy = 8; return t;
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repX, repY); t.anisotropy = 4; return t;
+}
+
+/** weathered cliff rock: level strata across u, joints across v, lichen speckle (bump: the same layout in grey) */
+function cliffRockTex(bump = false): THREE.CanvasTexture {
+  const N = 512, c = document.createElement('canvas'); c.width = c.height = N;
+  const g = c.getContext('2d')!, r = rng(31);
+  g.fillStyle = bump ? '#808080' : 'rgb(128,122,112)'; g.fillRect(0, 0, N, N);
+  // strata: bands of varying thickness and tone, each a little wavy
+  for (let x = 0; x < N;) {
+    const w = 6 + r() * 34, t = (r() - 0.5);
+    const col = bump ? `rgba(${t > 0 ? 255 : 0},${t > 0 ? 255 : 0},${t > 0 ? 255 : 0},${Math.abs(t) * 0.7})` : `rgba(${t > 0 ? 196 : 70},${t > 0 ? 184 : 66},${t > 0 ? 160 : 60},${Math.abs(t) * 0.75})`;
+    g.fillStyle = col; g.beginPath();
+    for (let y = 0; y <= N; y += 16) g.lineTo(x + Math.sin(y * 0.02 + x) * 3, y);
+    for (let y = N; y >= 0; y -= 16) g.lineTo(x + w + Math.sin(y * 0.02 + x + 1) * 3, y);
+    g.fill();
+    g.fillStyle = bump ? 'rgba(0,0,0,0.55)' : 'rgba(30,28,26,0.45)'; g.fillRect(x + w - 1.5, 0, 2, N);          // the bedding plane between two beds
+    x += w;
+  }
+  // joints: short dark cracks across the beds
+  for (let i = 0; i < 260; i++) { const x = r() * N, y = r() * N, l = 8 + r() * 40; g.fillStyle = bump ? 'rgba(0,0,0,0.6)' : 'rgba(25,24,22,0.5)'; g.fillRect(x, y, l, 1 + r() * 1.5); }
+  // speckle and lichen
+  for (let i = 0; i < 9000; i++) { const v = r() - 0.5; g.fillStyle = bump ? `rgba(${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${v > 0 ? 255 : 0},${Math.abs(v) * 0.5})` : `rgba(${v > 0 ? 230 : 20},${v > 0 ? 225 : 20},${v > 0 ? 210 : 18},${Math.abs(v) * 0.35})`; g.fillRect(r() * N, r() * N, 1 + r() * 2, 1 + r() * 2); }
+  if (!bump) for (let i = 0; i < 140; i++) { g.fillStyle = `rgba(${90 + r() * 40},${100 + r() * 30},${60 + r() * 20},${0.18 + r() * 0.2})`; g.beginPath(); g.arc(r() * N, r() * N, 2 + r() * 9, 0, 6.3); g.fill(); }
+  const t = new THREE.CanvasTexture(c); if (!bump) t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(0.6, 0.35); t.anisotropy = 8; return t;
 }
 
 export interface CountryScenes {
@@ -148,13 +189,27 @@ export interface CountryScenes {
   shots: { name: string; cam: [number, number, number]; at: [number, number, number] }[];
 }
 
-export interface RoadNetwork { roads: { kind: 'paved' | 'dirt'; xz: number[][]; half?: number }[] }
+/** a straight two-point run resampled every `step` metres (driveways: no spline overshoot) */
+function straight(xz: number[][], step: number): Pt[] {
+  const out: Pt[] = [];
+  for (let i = 0; i < xz.length - 1; i++) { const a = xz[i], b = xz[i + 1], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / step)); for (let k = 0; k < n; k++) out.push({ x: a[0] + (b[0] - a[0]) * k / n, z: a[1] + (b[1] - a[1]) * k / n }); }
+  const l = xz[xz.length - 1]; out.push({ x: l[0], z: l[1] });
+  return out;
+}
+
+export interface RoadNetwork { roads: { kind: 'paved' | 'dirt' | 'drive'; xz: number[][]; half?: number }[] }
 
 export function buildCountryScenes(o: { ground: (x: number, z: number) => number; roadMaterial?: THREE.Material; network?: RoadNetwork; shoreline?: Shoreline }): CountryScenes {
   const group = new THREE.Group(); group.name = 'country-scenes';
   const roads: THREE.Mesh[] = [];
   const asphalt = o.roadMaterial ?? new THREE.MeshStandardMaterial({ color: 0x2b2c2e, roughness: 0.85 });
   const dirtMat = new THREE.MeshStandardMaterial({ map: noiseTex([128, 104, 78], 90, true, 1, 1), roughness: 1 });
+  // driveways: brushed concrete, no markings, a touch below the street surface so the street wins where they meet at the curb
+  const driveMat = (() => {
+    const tl = new THREE.TextureLoader(), T = '/games/forth-horizon/tex/';
+    const t = (f: string, srgb: boolean): THREE.Texture => { const x = tl.load(T + f); x.wrapS = x.wrapT = THREE.RepeatWrapping; x.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; x.anisotropy = 4; return x; };
+    return new THREE.MeshStandardMaterial({ map: t('ground_concrete_sidewalk.png', true), normalMap: t('ground_concrete_sidewalk_normal.png', false), roughnessMap: t('ground_concrete_sidewalk_roughness.png', false), color: 0xd9d6cf, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  })();
   const edgeMat = new THREE.MeshStandardMaterial({ map: noiseTex([112, 100, 70], 70, false, 1, 1), roughness: 1 });
 
   // ---- road ribbon: crown-free strip with shoulders, following the drawn ground, with an optional causeway deck ----
@@ -197,16 +252,16 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
   const netPaved: (Pt & { h: number })[] = [], netDirt: (Pt & { h: number })[] = [];
   const bridgeRuns: { line: Pt[]; i0: number; i1: number; half: number; ys: number[]; gy: number[] }[] = [];
   if (o.network) {
-    const mk = (kind: 'paved' | 'dirt'): { pos: number[]; uv: number[]; idx: number[]; v: number } => ({ pos: [], uv: [], idx: [], v: 0 });
-    const acc = { paved: mk('paved'), dirt: mk('dirt') };
+    const mk = (kind: 'paved' | 'dirt' | 'drive'): { pos: number[]; uv: number[]; idx: number[]; v: number } => ({ pos: [], uv: [], idx: [], v: 0 });
+    const acc = { paved: mk('paved'), dirt: mk('dirt'), drive: mk('drive') };
     for (const r of o.network.roads) {
-      const line = catmull(r.xz.map(([x, z]) => ({ x, z })), 8);
+      const line = r.kind === 'drive' ? straight(r.xz, 3) : catmull(r.xz.map(([x, z]) => ({ x, z })), 8);
       if (line.length < 2) continue;
       const half = r.half ?? (r.kind === 'paved' ? 3.6 : 2.6), a = acc[r.kind];
       // heights: the drawn ground, held up over streams so the road crosses them as a causeway rather than dipping into the water
       const gy = line.map((p) => o.ground(p.x, p.z));
       // heights: the road follows the ground; wherever the ground under it is water it becomes a bridge: a level deck from bank to bank, eased onto it over 48 m on each side
-      const ys = gy.map((g) => g + 0.1);
+      const ys = gy.map((g) => g + (r.kind === 'drive' ? 0.07 : 0.1));
       {
         const WATER = 2.5, RAMP = 6;
         let i = 0;
@@ -231,16 +286,16 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
         let dx = pb.x - pa.x, dz = pb.z - pa.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
         if (i > 0) dist += Math.hypot(p.x - line[i - 1].x, p.z - line[i - 1].z);
         a.pos.push(p.x - dz * half, ys[i], p.z + dx * half, p.x + dz * half, ys[i], p.z - dx * half);
-        a.uv.push(0, dist / 8, 1, dist / 8);
-        (r.kind === 'paved' ? netPaved : netDirt).push({ x: p.x, z: p.z, h: half });
+        if (r.kind === 'drive') a.uv.push(0, dist / (half * 2), 1, dist / (half * 2)); else a.uv.push(0, dist / 8, 1, dist / 8);
+        (r.kind === 'dirt' ? netDirt : netPaved).push({ x: p.x, z: p.z, h: half });
       }
       for (let i = 0; i < line.length - 1; i++) { const q = base + i * 2; a.idx.push(q, q + 2, q + 1, q + 1, q + 2, q + 3); }
       a.v += line.length * 2;
     }
-    for (const kind of ['paved', 'dirt'] as const) {
+    for (const kind of ['paved', 'dirt', 'drive'] as const) {
       const a = acc[kind]; if (!a.pos.length) continue;
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(a.pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(a.uv, 2)); g.setIndex(a.idx); g.computeVertexNormals();
-      const m = new THREE.Mesh(g, kind === 'paved' ? asphalt : dirtMat); m.receiveShadow = true; m.name = 'country-' + kind;
+      const m = new THREE.Mesh(g, kind === 'paved' ? asphalt : kind === 'drive' ? driveMat : dirtMat); m.receiveShadow = true; m.name = 'country-' + kind;
       group.add(m); roads.push(m);
     }
     // bridges wherever a road crosses water: concrete fascia and parapets along both edges, a soffit under the deck and piers down to the bed every 22 m
@@ -319,21 +374,22 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
     // the gallery: a tunnel cut into the cliff. The rock stands over the road (a ceiling of rock, the hill above it, the cliff top grassed over), the hill side is the rock face,
     // and the lake side is chiselled open: rock pillars with wide arched windows looking out over the lake. No built roof: the roof is the mountain.
     {
-      const rockMap = noiseTex([104, 101, 96], 190, false, 5, 3);
-      const rock = new THREE.MeshStandardMaterial({ map: rockMap, roughness: 1, flatShading: true, side: THREE.DoubleSide });
+      // natural cliff rock: weathered grey-buff strata (the u axis runs up the face, so the bands run level along the cliff), dark joints and lichen speckle; the same
+      // canvas is the bump map. Painted here because the stock stone textures are all dressed masonry, which makes the cliff read as a built wall.
+      const rock = new THREE.MeshStandardMaterial({ map: cliffRockTex(), bumpMap: cliffRockTex(true), bumpScale: 2.2, roughness: 0.95, flatShading: true, side: THREE.DoubleSide });
       const lining = new THREE.MeshStandardMaterial({ color: 0x4b4842, roughness: 1, flatShading: true, side: THREE.DoubleSide });
       const a = nodeStart[hw.gallery.from], b = Math.min(line.length - 1, nodeStart[hw.gallery.to]);
       const hash = (i: number, k: number): number => { const t = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453; return t - Math.floor(t); };
       const at = (i: number, sLake: number): { x: number; z: number } => { const { nx, nz } = per(i); return { x: line[i].x + nx * lakeSign * sLake, z: line[i].z + nz * lakeSign * sLake }; };
-      // the outer surface of the rock: lateral samples from the lake lip (+5.6) inland to where it meets the hillside (-26)
-      const S = [5.6, 4.0, 1.5, -1.5, -5, -9, -13, -17, -21, -26];
+      // the outer surface of the rock: lateral samples from the lake lip (+5.6) inland, up the cliff behind the roof to where it meets the hill (-42)
+      const S = [5.6, 4.0, 1.5, -1.5, -5, -8, -10.5, -13, -15.5, -18, -22, -27, -34, -42, -50];
       const pos: number[] = [], idx: number[] = [], uv: number[] = [];
       const ring = (i: number): number[] => {
         const out: number[] = [];
         for (let k = 0; k < S.length; k++) {
           const p = at(i, S[k]), g = o.ground(p.x, p.z);
           const lip = ly[i] + 7.3 + (S[k] > 3 ? 0 : 0.5);
-          const top = S[k] > 3 ? lip : Math.max(g + 0.25, ly[i] + 7.9);                  // the plateau over the road, then whatever the hill does
+          const top = S[k] > 3 ? lip : k === S.length - 1 ? g - 0.6 : Math.max(g + 1.1, ly[i] + 7.9);           // over the ground by a metre: the terrain is coarser than the rock and would poke through                  // the plateau over the road, then whatever the hill does
           out.push(p.x, top + (hash(i, k) - 0.5) * 0.7, p.z);
         }
         return out;
@@ -348,6 +404,17 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
       }
       const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); rg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); rg.setIndex(idx); rg.computeVertexNormals();
       const rm = new THREE.Mesh(rg, rock); rm.castShadow = rm.receiveShadow = true; rm.name = 'gallery-rock'; group.add(rm);
+      // the rock face under the ledge on the lake side, from the road edge down to where the face meets the beach (the terrain is graded to a steep drop there)
+      {
+        const S2 = [6.0, 8.0, 10.5, 13, 16, 19.5, 23.5, 28, 34, 41], fp: number[] = [], fi: number[] = [], fu: number[] = [];
+        for (let i = a; i <= b; i++) for (let k = 0; k < S2.length; k++) {
+          const p = at(i, S2[k]), g = o.ground(p.x, p.z);
+          fp.push(p.x, (k === 0 ? ly[i] - 0.1 : k === S2.length - 1 ? g - 0.6 : g + 1.1) + (k && k < S2.length - 1 ? (hash(i, k + 20) - 0.5) * 0.9 : 0), p.z); fu.push(k / 3, i * 0.3);
+        }
+        for (let i = 0; i < b - a; i++) for (let k = 0; k < S2.length - 1; k++) { const p0 = i * S2.length + k, c0 = p0 + S2.length; fi.push(p0, p0 + 1, c0, p0 + 1, c0 + 1, c0); }
+        const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.Float32BufferAttribute(fp, 3)); fg.setAttribute('uv', new THREE.Float32BufferAttribute(fu, 2)); fg.setIndex(fi); fg.computeVertexNormals();
+        const fm = new THREE.Mesh(fg, rock); fm.castShadow = fm.receiveShadow = true; fm.name = 'gallery-face'; group.add(fm);
+      }
       // faces: the lintel (lake face, over the windows), the dark ceiling and the hill-side rock wall inside
       const face = (sOff: number, y0: number, y1: number, mat: THREE.Material, jit = 0): THREE.Mesh => {
         const fp: number[] = [], fi: number[] = [], fu: number[] = [];

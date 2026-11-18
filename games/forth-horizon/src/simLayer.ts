@@ -41,6 +41,13 @@ export class SimLayer {
   readonly airport: AirportScenes | null;
   private cars: THREE.InstancedMesh;
   private t = 0;
+  private _m4 = new THREE.Matrix4();
+  private _q = new THREE.Quaternion();
+  private _up = new THREE.Vector3(0, 1, 0);
+  private _sc = new THREE.Vector3();
+  private _p = new THREE.Vector3();
+  private _col = new THREE.Color();
+  private groundCache = new Float32Array(320 * 3); // [lastX, lastZ, cachedY] per slot
 
   constructor(private plan: SimPlan, private o: { ground: (x: number, z: number) => number; carGround?: (x: number, z: number) => number; water: (x: number, z: number) => boolean }) {
     this.group.name = 'sim-layer';
@@ -53,6 +60,7 @@ export class SimLayer {
     this.cars = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ roughness: 0.45, metalness: 0.45 }), 320);
     this.cars.frustumCulled = false; this.cars.count = 0; this.cars.castShadow = false;
     this.group.add(this.cars);
+    this.groundCache.fill(-1e9);
   }
 
   /** true within r metres of a rail line or the airfield: nothing grows or is built there */
@@ -68,13 +76,26 @@ export class SimLayer {
     this.world.step(dt);
     this.rail?.update(this.t, dt);
     this.airport?.update(this.t, dt);
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sc = new THREE.Vector3(), p = new THREE.Vector3(), col = new THREE.Color();
+    if (!this.cars.visible) return;
+
+    const m4 = this._m4, q = this._q, up = this._up, sc = this._sc, p = this._p, col = this._col;
+    const gc = this.groundCache;
+    const gFn = this.o.carGround ?? this.o.ground;
     let n = 0;
-    for (const c of this.world.cars) {
-      if (n >= 320) break;
+    const list = this.world.cars;
+    for (let i = 0; i < list.length && n < 320; i++) {
+      const c = list[i];
       q.setFromAxisAngle(up, c.yaw);
       if (c.kind === 'truck') sc.set(1.25, 1.7, 1.9); else sc.set(1, 1, 1);
-      p.set(c.x, (this.o.carGround ?? this.o.ground)(c.x, c.z) + 0.05, c.z);       // on the road surface (the drive surfaces are in groundH), not the terrain under it
+      const base = n * 3;
+      let gy = gc[base + 2];
+      if (gy < -1e8 || Math.abs(c.x - gc[base]) + Math.abs(c.z - gc[base + 1]) > 1.8) {
+        gy = gFn(c.x, c.z) + 0.05;
+        gc[base] = c.x;
+        gc[base + 1] = c.z;
+        gc[base + 2] = gy;
+      }
+      p.set(c.x, gy, c.z);
       this.cars.setMatrixAt(n, m4.compose(p, q, sc)); this.cars.setColorAt(n, col.setHex(c.color)); n++;
     }
     this.cars.count = n; this.cars.instanceMatrix.needsUpdate = true; if (this.cars.instanceColor) this.cars.instanceColor.needsUpdate = true;

@@ -75,6 +75,10 @@ export class CompetitionEngine {
   private samples: SplineSample[] = [];
   private completedLapsMap = new Map<string, number>();
   private finishOrderTime = new Map<string, number>();
+  private _ranked: RacerEntry[] = [];
+  private _sampleA: SplineSample = { t: 0, pos: new THREE.Vector3(), tanX: 0, tanZ: 1, rightX: 1, rightZ: 0, cumLen: 0 };
+  private _sampleB: SplineSample = { t: 0, pos: new THREE.Vector3(), tanX: 0, tanZ: 1, rightX: 1, rightZ: 0, cumLen: 0 };
+  private _proj = { t: 0, lateralOffset: 0, distSq: 0 };
 
   public createGrid(
     circuitPts: THREE.Vector3[],
@@ -342,7 +346,7 @@ export class CompetitionEngine {
     // ── B. Lookahead target steering ──
     const lookaheadM = THREE.MathUtils.clamp(12 + state.speedMps * 0.42, 12, 34);
     const targetT = wrap01(entry.splineT + lookaheadM / this.circuitLength);
-    const targetSample = this.sampleAtT(targetT);
+    const targetSample = this.sampleAtT(targetT, this._sampleA);
     const tx = targetSample.pos.x + targetSample.rightX * entry.targetLaneOffset;
     const tz = targetSample.pos.z + targetSample.rightZ * entry.targetLaneOffset;
 
@@ -391,8 +395,8 @@ export class CompetitionEngine {
     for (const distM of checkDistances) {
       const tA = wrap01(splineT + distM / this.circuitLength);
       const tB = wrap01(splineT + (distM + stepM) / this.circuitLength);
-      const sA = this.sampleAtT(tA);
-      const sB = this.sampleAtT(tB);
+      const sA = this.sampleAtT(tA, this._sampleA);
+      const sB = this.sampleAtT(tB, this._sampleB);
 
       const dot = THREE.MathUtils.clamp(sA.tanX * sB.tanX + sA.tanZ * sB.tanZ, -1, 1);
       const dTheta = Math.acos(dot);
@@ -442,7 +446,7 @@ export class CompetitionEngine {
     }
   }
 
-  private sampleAtT(t: number): SplineSample {
+  private sampleAtT(t: number, out?: SplineSample): SplineSample {
     const wt = wrap01(t);
     const f = wt * SPLINE_SAMPLES;
     const idx0 = Math.floor(f) % SPLINE_SAMPLES;
@@ -452,22 +456,18 @@ export class CompetitionEngine {
     const s0 = this.samples[idx0];
     const s1 = this.samples[idx1];
 
-    const pos = new THREE.Vector3().lerpVectors(s0.pos, s1.pos, alpha);
+    const dst = out ?? { t: 0, pos: new THREE.Vector3(), tanX: 0, tanZ: 1, rightX: 1, rightZ: 0, cumLen: 0 };
+    dst.t = wt;
+    dst.pos.lerpVectors(s0.pos, s1.pos, alpha);
     const tx = THREE.MathUtils.lerp(s0.tanX, s1.tanX, alpha);
     const tz = THREE.MathUtils.lerp(s0.tanZ, s1.tanZ, alpha);
     const tLen = Math.hypot(tx, tz) || 1;
-    const tanX = tx / tLen;
-    const tanZ = tz / tLen;
-
-    return {
-      t: wt,
-      pos,
-      tanX,
-      tanZ,
-      rightX: tanZ,
-      rightZ: -tanX,
-      cumLen: THREE.MathUtils.lerp(s0.cumLen, s1.cumLen, alpha),
-    };
+    dst.tanX = tx / tLen;
+    dst.tanZ = tz / tLen;
+    dst.rightX = dst.tanZ;
+    dst.rightZ = -dst.tanX;
+    dst.cumLen = THREE.MathUtils.lerp(s0.cumLen, s1.cumLen, alpha);
+    return dst;
   }
 
   private projectToSpline(
@@ -516,6 +516,9 @@ export class CompetitionEngine {
     const lateralOffset = dx * s.rightX + dz * s.rightZ;
     const t = wrap01(s.t + along / this.circuitLength);
 
-    return { t, lateralOffset, distSq: bestD2 };
+    this._proj.t = t;
+    this._proj.lateralOffset = lateralOffset;
+    this._proj.distSq = bestD2;
+    return this._proj;
   }
 }

@@ -1,0 +1,99 @@
+{
+ "pack": "us-midwest-lakeport",
+ "checks": [
+  {
+   "rule": "power.over_water_allowed=false",
+   "severity": "error",
+   "violations": 0,
+   "of": 114,
+   "examples": []
+  },
+  {
+   "rule": "power.transmission_span_max_m",
+   "severity": "warn",
+   "violations": 0,
+   "of": 114,
+   "examples": []
+  },
+  {
+   "rule": "power.min_clearance_to_building_m",
+   "severity": "warn",
+   "violations": 20,
+   "of": 122,
+   "examples": [
+    [
+     6,
+     -0.5
+    ],
+    [
+     20,
+     13.0
+    ],
+    [
+     21,
+     20.2
+    ],
+    [
+     34,
+     13.0
+    ],
+    [
+     35,
+     20.1
+    ]
+   ]
+  },
+  {
+   "rule": "civil.min_building_to_water_m",
+   "severity": "warn",
+   "violations": 11,
+   "of": 9467,
+   "examples": [
+    3070,
+    3445,
+    4621,
+    4842,
+    5717
+   ]
+  },
+  {
+   "rule": "civil.every_substation_powered",
+   "severity": "error",
+   "violations": 0,
+   "of": 6,
+   "examples": []
+  }
+ ],
+ "cables": [
+  {
+   "from": "plant",
+   "to": "downtown-south",
+   "xz": [
+    [
+     1714.0,
+     -498.0
+    ],
+    [
+     1474.0,
+     -378.0
+    ]
+   ],
+   "gap": 268
+  },
+  {
+   "from": "downtown-south",
+   "to": "east-city",
+   "xz": [
+    [
+     3354.0,
+     2762.0
+    ],
+    [
+     3934.0,
+     2902.0
+    ]
+   ],
+   "gap": 596
+  }
+ ]
+}

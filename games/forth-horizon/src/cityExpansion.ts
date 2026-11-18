@@ -22,7 +22,7 @@ function loadPbr(
   for (const t of [map, normalMap, roughnessMap]) {
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.repeat.set(repX, repY);
-    t.anisotropy = 8;
+    t.anisotropy = 4;
   }
   map.colorSpace = THREE.SRGBColorSpace;
   return new THREE.MeshStandardMaterial({ map, normalMap, roughnessMap, metalness, roughness });
@@ -73,7 +73,7 @@ export function buildCityExpansion(opts: CityExpansionOptions): THREE.Group {
     roughness: 0.3,
   });
 
-  // ── 1. SUBURBS (Suburban Loop x: 3250..5350, z: -2050..-350 & Outer Suburbs x: 2100..3200, z: -900..-150) ──
+  // ── 1. SUBURBS — Batched into InstancedMeshes (~5 draw calls for 160 homes instead of ~960!) ──
   const suburbsGroup = new THREE.Group();
   suburbsGroup.name = 'SuburbsExpansion';
   const randSub = makeRng(4011);
@@ -94,6 +94,32 @@ export function buildCityExpansion(opts: CityExpansionOptions): THREE.Group {
     }
   }
 
+  const unitBox = new THREE.BoxGeometry(1, 1, 1);
+  const matsWhiteWall: THREE.Matrix4[] = [];
+  const matsTimberWall: THREE.Matrix4[] = [];
+  const matsShingleRoof: THREE.Matrix4[] = [];
+  const matsSlateRoof: THREE.Matrix4[] = [];
+  const matsDoorTrim: THREE.Matrix4[] = [];
+
+  const lotM = new THREE.Matrix4();
+  const partM = new THREE.Matrix4();
+  const qRot = new THREE.Quaternion();
+  const eRot = new THREE.Euler();
+  const vPos = new THREE.Vector3();
+  const vScale = new THREE.Vector3();
+
+  const pushPart = (
+    list: THREE.Matrix4[],
+    lx: number, ly: number, lz: number,
+    rx: number, ry: number, rz: number,
+    sx: number, sy: number, sz: number
+  ) => {
+    eRot.set(rx, ry, rz);
+    qRot.setFromEuler(eRot);
+    partM.compose(vPos.set(lx, ly, lz), qRot, vScale.set(sx, sy, sz));
+    list.push(lotM.clone().multiply(partM));
+  };
+
   let houseCount = 0;
   for (const [hx, hz, rot] of houseCandidates) {
     if (houseCount >= 160) break;
@@ -101,63 +127,53 @@ export function buildCityExpansion(opts: CityExpansionOptions): THREE.Group {
     houseCount++;
 
     const hy = opts.ground(hx, hz);
-    const lot = new THREE.Group();
-    lot.position.set(hx, hy, hz);
-    lot.rotation.y = rot;
+    lotM.makeTranslation(hx, hy, hz).multiply(new THREE.Matrix4().makeRotationY(rot));
 
     const w = 10 + randSub() * 5;
     const d = 8.5 + randSub() * 4;
     const h = 4.2 + randSub() * 2.4;
-    const wallMat = randSub() > 0.38 ? whiteClapboardMat : timberSidingMat;
-    const roofMat = randSub() > 0.42 ? asphaltShingleMat : slateRoofMat;
+    const wallList = randSub() > 0.38 ? matsWhiteWall : matsTimberWall;
+    const roofList = randSub() > 0.42 ? matsShingleRoof : matsSlateRoof;
 
-    // Main house volume
-    const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
-    body.position.set(0, h * 0.5, 0);
-    body.castShadow = true;
-    body.receiveShadow = true;
-    lot.add(body);
-
-    // Pitched gable roof (two angled planes)
+    // Main house & garage volumes
+    pushPart(wallList, 0, h * 0.5, 0, 0, 0, 0, w, h, d);
     const slopeLen = (d * 0.5 + 0.7) / Math.cos(0.46);
-    const roofL = new THREE.Mesh(new THREE.BoxGeometry(w + 0.8, 0.3, slopeLen), roofMat);
-    roofL.position.set(0, h + Math.sin(0.46) * (slopeLen * 0.5) - 0.15, -d * 0.25 - 0.15);
-    roofL.rotation.x = -0.46;
-    roofL.castShadow = true;
-    lot.add(roofL);
+    const roofY = h + Math.sin(0.46) * (slopeLen * 0.5) - 0.15;
+    pushPart(roofList, 0, roofY, -d * 0.25 - 0.15, -0.46, 0, 0, w + 0.8, 0.3, slopeLen);
+    pushPart(roofList, 0, roofY, d * 0.25 + 0.15, 0.46, 0, 0, w + 0.8, 0.3, slopeLen);
 
-    const roofR = new THREE.Mesh(new THREE.BoxGeometry(w + 0.8, 0.3, slopeLen), roofMat);
-    roofR.position.set(0, h + Math.sin(0.46) * (slopeLen * 0.5) - 0.15, d * 0.25 + 0.15);
-    roofR.rotation.x = 0.46;
-    roofR.castShadow = true;
-    lot.add(roofR);
-
-    // Attached garage wing
-    const gw = 5.6;
-    const gd = 6.2;
-    const gh = 3.2;
-    const garage = new THREE.Mesh(new THREE.BoxGeometry(gw, gh, gd), wallMat);
-    garage.position.set(w * 0.5 + gw * 0.5 - 0.2, gh * 0.5, 0.6);
-    garage.castShadow = true;
-    garage.receiveShadow = true;
-    lot.add(garage);
-
-    const garageRoof = new THREE.Mesh(new THREE.BoxGeometry(gw + 0.6, 0.28, gd + 0.6), roofMat);
-    garageRoof.position.set(w * 0.5 + gw * 0.5 - 0.2, gh + 0.45, 0.6);
-    garageRoof.rotation.x = 0.18;
-    garageRoof.castShadow = true;
-    lot.add(garageRoof);
-
-    // Garage door panel
-    const gDoor = new THREE.Mesh(new THREE.BoxGeometry(gw * 0.74, gh * 0.72, 0.14), darkTrimMat);
-    gDoor.position.set(w * 0.5 + gw * 0.5 - 0.2, gh * 0.38, 0.6 + gd * 0.5 + 0.04);
-    lot.add(gDoor);
-
-    suburbsGroup.add(lot);
+    const gw = 5.6, gd = 6.2, gh = 3.2;
+    const gxOff = w * 0.5 + gw * 0.5 - 0.2;
+    pushPart(wallList, gxOff, gh * 0.5, 0.6, 0, 0, 0, gw, gh, gd);
+    pushPart(roofList, gxOff, gh + 0.45, 0.6, 0.18, 0, 0, gw + 0.6, 0.28, gd + 0.6);
+    pushPart(matsDoorTrim, gxOff, gh * 0.38, 0.6 + gd * 0.5 + 0.04, 0, 0, 0, gw * 0.74, gh * 0.72, 0.14);
   }
+
+  const emitBatch = (
+    targetGroup: THREE.Group,
+    geom: THREE.BufferGeometry,
+    matrices: THREE.Matrix4[],
+    mat: THREE.Material,
+    castShadow: boolean,
+    receiveShadow = true
+  ) => {
+    if (!matrices.length) return;
+    const im = new THREE.InstancedMesh(geom, mat, matrices.length);
+    for (let i = 0; i < matrices.length; i++) im.setMatrixAt(i, matrices[i]);
+    im.instanceMatrix.needsUpdate = true;
+    im.computeBoundingSphere();
+    im.castShadow = castShadow;
+    im.receiveShadow = receiveShadow;
+    targetGroup.add(im);
+  };
+  emitBatch(suburbsGroup, unitBox, matsWhiteWall, whiteClapboardMat, true);
+  emitBatch(suburbsGroup, unitBox, matsTimberWall, timberSidingMat, true);
+  emitBatch(suburbsGroup, unitBox, matsShingleRoof, asphaltShingleMat, true);
+  emitBatch(suburbsGroup, unitBox, matsSlateRoof, slateRoofMat, true);
+  emitBatch(suburbsGroup, unitBox, matsDoorTrim, darkTrimMat, false);
   root.add(suburbsGroup);
 
-  // ── 2. INDUSTRIAL ZONE (Ironport South / Foundry & Steelworks x: 5750..7850, z: 400..1450) ──
+  // ── 2. INDUSTRIAL ZONE (Batched into InstancedMeshes: ~10 draw calls instead of ~220!) ──
   const industrialGroup = new THREE.Group();
   industrialGroup.name = 'IndustrialZoneExpansion';
   const randInd = makeRng(7022);
@@ -175,45 +191,39 @@ export function buildCityExpansion(opts: CityExpansionOptions): THREE.Group {
     [7280, 520, 0.08],
   ];
 
+  const indConcretePads: THREE.Matrix4[] = [];
+  const indBrickWalls: THREE.Matrix4[] = [];
+  const indCorrWalls: THREE.Matrix4[] = [];
+  const indSteelBoxes: THREE.Matrix4[] = [];
+  const indDarkTrim: THREE.Matrix4[] = [];
+  const indTankSteel: THREE.Matrix4[] = [];
+  const indTankCorr: THREE.Matrix4[] = [];
+  const indTankCaps: THREE.Matrix4[] = [];
+  const indStackBrick: THREE.Matrix4[] = [];
+  const indStackConcrete: THREE.Matrix4[] = [];
+  const indBeacons: THREE.Matrix4[] = [];
+
   for (let i = 0; i < indSites.length; i++) {
     const [ix, iz, rot] = indSites[i];
     if (!opts.clearCheck(ix, iz)) continue;
 
     const iy = opts.ground(ix, iz);
-    const site = new THREE.Group();
-    site.position.set(ix, iy, iz);
-    site.rotation.y = rot;
+    lotM.makeTranslation(ix, iy, iz).multiply(partM.makeRotationY(rot));
 
     // Concrete yard pad
-    const pad = new THREE.Mesh(new THREE.BoxGeometry(58, 0.4, 44), concreteBoardMat);
-    pad.position.set(0, 0.2, 0);
-    pad.receiveShadow = true;
-    site.add(pad);
+    pushPart(indConcretePads, 0, 0.2, 0, 0, 0, 0, 58, 0.4, 44);
 
     // Sawtooth-roof warehouse (brick lower wall + corrugated upper cladding + 4 sawtooth bays)
     const whW = 36;
     const whD = 22;
-    const lowerWall = new THREE.Mesh(new THREE.BoxGeometry(whW, 4.2, whD), orangeBrickMat);
-    lowerWall.position.set(-8, 2.3, -6);
-    lowerWall.castShadow = true;
-    lowerWall.receiveShadow = true;
-    site.add(lowerWall);
-
-    const upperWall = new THREE.Mesh(new THREE.BoxGeometry(whW, 5.4, whD), corrugatedSteelMat);
-    upperWall.position.set(-8, 7.1, -6);
-    upperWall.castShadow = true;
-    upperWall.receiveShadow = true;
-    site.add(upperWall);
+    pushPart(indBrickWalls, -8, 2.3, -6, 0, 0, 0, whW, 4.2, whD);
+    pushPart(indCorrWalls, -8, 7.1, -6, 0, 0, 0, whW, 5.4, whD);
 
     const bayCount = 4;
     const bayW = whW / bayCount;
     for (let b = 0; b < bayCount; b++) {
       const bx = -8 - whW * 0.5 + (b + 0.5) * bayW;
-      const saw = new THREE.Mesh(new THREE.BoxGeometry(bayW + 0.4, 0.35, whD + 0.6), steelPanelMat);
-      saw.position.set(bx, 11.2, -6);
-      saw.rotation.z = -0.34;
-      saw.castShadow = true;
-      site.add(saw);
+      pushPart(indSteelBoxes, bx, 11.2, -6, 0, 0, -0.34, bayW + 0.4, 0.35, whD + 0.6);
     }
 
     // Cylindrical storage tanks on concrete containment pad
@@ -221,64 +231,57 @@ export function buildCityExpansion(opts: CityExpansionOptions): THREE.Group {
       const tx = 17 + t * 9.2;
       const tz = -8 + (t % 2) * 3;
       const tankH = 12 + randInd() * 4;
-      const tankR = 3.8;
-      const tank = new THREE.Mesh(
-        new THREE.CylinderGeometry(tankR, tankR, tankH, 20),
-        t % 2 === 0 ? steelPanelMat : corrugatedSteelMat
-      );
-      tank.position.set(tx, 0.4 + tankH * 0.5, tz);
-      tank.castShadow = true;
-      tank.receiveShadow = true;
-      site.add(tank);
-
-      const cap = new THREE.Mesh(new THREE.ConeGeometry(tankR + 0.15, 1.8, 20), steelPanelMat);
-      cap.position.set(tx, 0.4 + tankH + 0.9, tz);
-      site.add(cap);
+      pushPart(t % 2 === 0 ? indTankSteel : indTankCorr, tx, 0.4 + tankH * 0.5, tz, 0, 0, 0, 1, tankH, 1);
+      pushPart(indTankCaps, tx, 0.4 + tankH + 0.9, tz, 0, 0, 0, 1, 1, 1);
     }
 
     // Smokestack on every second site
     if (i % 2 === 0) {
       const stackH = 34 + randInd() * 10;
-      const stack = new THREE.Mesh(
-        new THREE.CylinderGeometry(1.3, 2.2, stackH, 16),
-        i % 4 === 0 ? orangeBrickMat : concreteBoardMat
-      );
-      stack.position.set(20, 0.4 + stackH * 0.5, 10);
-      stack.castShadow = true;
-      site.add(stack);
-
-      const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.45, 8, 8), beaconMat);
-      beacon.position.set(20, 0.4 + stackH + 0.3, 10);
-      site.add(beacon);
+      pushPart(i % 4 === 0 ? indStackBrick : indStackConcrete, 20, 0.4 + stackH * 0.5, 10, 0, 0, 0, 1, stackH, 1);
+      pushPart(indBeacons, 20, 0.4 + stackH + 0.3, 10, 0, 0, 0, 1, 1, 1);
     }
 
-    // Steel gantry frame spanning loading bay
-    const gantryGroup = new THREE.Group();
-    gantryGroup.position.set(-4, 0.4, 12);
+    // Steel gantry frame spanning loading bay (offset -4, 0.4, 12 in site space)
     for (const gx of [-12, 12]) {
       for (const gz of [-4, 4]) {
-        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.75, 11.5, 0.75), steelPanelMat);
-        leg.position.set(gx, 5.75, gz);
-        leg.castShadow = true;
-        gantryGroup.add(leg);
+        pushPart(indSteelBoxes, -4 + gx, 6.15, 12 + gz, 0, 0, 0, 0.75, 11.5, 0.75);
       }
-      const endBeam = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 9.2), darkTrimMat);
-      endBeam.position.set(gx, 11.5, 0);
-      gantryGroup.add(endBeam);
+      pushPart(indDarkTrim, -4 + gx, 11.9, 12, 0, 0, 0, 0.9, 0.9, 9.2);
     }
-    const bridgeGirder = new THREE.Mesh(new THREE.BoxGeometry(25.2, 1.1, 1.2), steelPanelMat);
-    bridgeGirder.position.set(0, 12.2, 0);
-    bridgeGirder.castShadow = true;
-    gantryGroup.add(bridgeGirder);
-    site.add(gantryGroup);
+    pushPart(indSteelBoxes, -4, 12.6, 12, 0, 0, 0, 25.2, 1.1, 1.2);
+  }
 
-    industrialGroup.add(site);
+  emitBatch(industrialGroup, unitBox, indConcretePads, concreteBoardMat, false, true);
+  emitBatch(industrialGroup, unitBox, indBrickWalls, orangeBrickMat, true, true);
+  emitBatch(industrialGroup, unitBox, indCorrWalls, corrugatedSteelMat, true, true);
+  emitBatch(industrialGroup, unitBox, indSteelBoxes, steelPanelMat, true, false);
+  emitBatch(industrialGroup, unitBox, indDarkTrim, darkTrimMat, false, false);
+  if (indTankSteel.length || indTankCorr.length) {
+    const unitTankCyl = new THREE.CylinderGeometry(3.8, 3.8, 1, 18);
+    emitBatch(industrialGroup, unitTankCyl, indTankSteel, steelPanelMat, true, true);
+    emitBatch(industrialGroup, unitTankCyl, indTankCorr, corrugatedSteelMat, true, true);
+    emitBatch(industrialGroup, new THREE.ConeGeometry(3.95, 1.8, 18), indTankCaps, steelPanelMat, false, false);
+  }
+  if (indStackBrick.length || indStackConcrete.length) {
+    const unitStackCyl = new THREE.CylinderGeometry(1.3, 2.2, 1, 14);
+    emitBatch(industrialGroup, unitStackCyl, indStackBrick, orangeBrickMat, true, false);
+    emitBatch(industrialGroup, unitStackCyl, indStackConcrete, concreteBoardMat, true, false);
+    emitBatch(industrialGroup, new THREE.SphereGeometry(0.45, 8, 8), indBeacons, beaconMat, false, false);
   }
   root.add(industrialGroup);
 
-  // ── 3. COASTLINE & CROSS-RIVER CITY DISTRICT ──
+  // ── 3. COASTLINE & CROSS-RIVER CITY DISTRICT (Batched into InstancedMeshes!) ──
   const coastCityGroup = new THREE.Group();
   coastCityGroup.name = 'CoastlineAndCrossRiverCity';
+
+  const coastSeawalls: THREE.Matrix4[] = [];
+  const coastRiverWalls: THREE.Matrix4[] = [];
+  const coastPaverBoxes: THREE.Matrix4[] = [];
+  const coastPierDecks: THREE.Matrix4[] = [];
+  const coastPierPilings: THREE.Matrix4[] = [];
+  const riverLimestone: THREE.Matrix4[] = [];
+  const riverGlassBatches: [THREE.Matrix4[], THREE.Matrix4[], THREE.Matrix4[]] = [[], [], []];
 
   // 3A. Lake Michigan Coastline Seawalls, Boardwalks & Piers (x: -7650..-6950, z: -3300..1500)
   const pierLocations: [number, number, number, number][] = [
@@ -290,39 +293,17 @@ export function buildCityExpansion(opts: CityExpansionOptions): THREE.Group {
 
   for (const [px, pz, len, wid] of pierLocations) {
     const py = Math.max(opts.ground(px, pz), 1.4);
-    const pier = new THREE.Group();
-    pier.position.set(px, py, pz);
+    lotM.makeTranslation(px, py, pz);
 
-    // Concrete seawall bulkhead
-    const seawall = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3.6, wid + 22), concreteBoardMat);
-    seawall.position.set(len * 0.5 - 2, -1.0, 0);
-    seawall.castShadow = true;
-    seawall.receiveShadow = true;
-    pier.add(seawall);
+    pushPart(coastSeawalls, len * 0.5 - 2, -1.0, 0, 0, 0, 0, 3.2, 3.6, wid + 22);
+    pushPart(coastPaverBoxes, len * 0.5 + 6, 0.25, 0, 0, 0, 0, 14, 0.45, wid + 24);
+    pushPart(coastPierDecks, 0, 0.65, 0, 0, 0, 0, len, 0.55, wid);
 
-    // Brick-paver waterfront promenade apron behind seawall
-    const apron = new THREE.Mesh(new THREE.BoxGeometry(14, 0.45, wid + 24), paverBrickMat);
-    apron.position.set(len * 0.5 + 6, 0.25, 0);
-    apron.receiveShadow = true;
-    pier.add(apron);
-
-    // Timber boardwalk deck extending west over the water
-    const deck = new THREE.Mesh(new THREE.BoxGeometry(len, 0.55, wid), timberSidingMat);
-    deck.position.set(0, 0.65, 0);
-    deck.castShadow = true;
-    deck.receiveShadow = true;
-    pier.add(deck);
-
-    // Timber pilings supporting the pier
     for (let x = -len * 0.45; x <= len * 0.45; x += 8) {
       for (const zOff of [-wid * 0.42, wid * 0.42]) {
-        const piling = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 5.2, 10), timberSidingMat);
-        piling.position.set(x, -1.6, zOff);
-        pier.add(piling);
+        pushPart(coastPierPilings, x, -1.6, zOff, 0, 0, 0, 1, 1, 1);
       }
     }
-
-    coastCityGroup.add(pier);
   }
 
   // 3B. Ironport Riverfront Seawalls & Brick-Paver Riverwalk (North & South banks at x: 6150..7750)
@@ -332,20 +313,10 @@ export function buildCityExpansion(opts: CityExpansionOptions): THREE.Group {
       const rz = 155 + side * 68;
       if (!opts.clearCheck(rx, rz)) continue;
       const ry = Math.max(opts.ground(rx, rz), 1.2);
-      const walk = new THREE.Group();
-      walk.position.set(rx, ry, rz);
+      lotM.makeTranslation(rx, ry, rz);
 
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(148, 3.2, 2.8), concreteBoardMat);
-      wall.position.set(0, -1.0, -side * 4.5);
-      wall.receiveShadow = true;
-      walk.add(wall);
-
-      const promenade = new THREE.Mesh(new THREE.BoxGeometry(148, 0.35, 9), paverBrickMat);
-      promenade.position.set(0, 0.2, 0);
-      promenade.receiveShadow = true;
-      walk.add(promenade);
-
-      coastCityGroup.add(walk);
+      pushPart(coastRiverWalls, 0, -1.0, -side * 4.5, 0, 0, 0, 148, 3.2, 2.8);
+      pushPart(coastPaverBoxes, 0, 0.2, 0, 0, 0, 0, 148, 0.35, 9);
     }
   }
 
@@ -380,39 +351,27 @@ export function buildCityExpansion(opts: CityExpansionOptions): THREE.Group {
     if (!opts.clearCheck(tx, tz)) continue;
 
     const ty = opts.ground(tx, tz);
-    const tower = new THREE.Group();
-    tower.position.set(tx, ty, tz);
+    lotM.makeTranslation(tx, ty, tz);
 
-    const glassMat = glassMats[i % glassMats.length];
-
-    // Limestone podium base
+    const glassBucket = riverGlassBatches[i % glassMats.length];
     const podiumH = 9 + randCity() * 4;
-    const podium = new THREE.Mesh(new THREE.BoxGeometry(tw + 4, podiumH, td + 4), limestoneMat);
-    podium.position.set(0, podiumH * 0.5, 0);
-    podium.castShadow = true;
-    podium.receiveShadow = true;
-    tower.add(podium);
-
-    // Main glass curtain-wall shaft
     const shaftH = th - podiumH;
-    const shaft = new THREE.Mesh(new THREE.BoxGeometry(tw, shaftH, td), glassMat);
-    shaft.position.set(0, podiumH + shaftH * 0.5, 0);
-    shaft.castShadow = true;
-    shaft.receiveShadow = true;
-    tower.add(shaft);
-
-    // Upper setback crown + rooftop mechanical penthouse
     const crownH = 8 + randCity() * 6;
-    const crown = new THREE.Mesh(new THREE.BoxGeometry(tw * 0.72, crownH, td * 0.72), glassMat);
-    crown.position.set(0, th + crownH * 0.5, 0);
-    crown.castShadow = true;
-    tower.add(crown);
 
-    const mech = new THREE.Mesh(new THREE.BoxGeometry(tw * 0.36, 3.2, td * 0.36), limestoneMat);
-    mech.position.set(0, th + crownH + 1.6, 0);
-    tower.add(mech);
+    pushPart(riverLimestone, 0, podiumH * 0.5, 0, 0, 0, 0, tw + 4, podiumH, td + 4);
+    pushPart(glassBucket, 0, podiumH + shaftH * 0.5, 0, 0, 0, 0, tw, shaftH, td);
+    pushPart(glassBucket, 0, th + crownH * 0.5, 0, 0, 0, 0, tw * 0.72, crownH, td * 0.72);
+    pushPart(riverLimestone, 0, th + crownH + 1.6, 0, 0, 0, 0, tw * 0.36, 3.2, td * 0.36);
+  }
 
-    coastCityGroup.add(tower);
+  emitBatch(coastCityGroup, unitBox, coastSeawalls, concreteBoardMat, true, true);
+  emitBatch(coastCityGroup, unitBox, coastRiverWalls, concreteBoardMat, false, true);
+  emitBatch(coastCityGroup, unitBox, coastPaverBoxes, paverBrickMat, false, true);
+  emitBatch(coastCityGroup, unitBox, coastPierDecks, timberSidingMat, true, true);
+  emitBatch(coastCityGroup, new THREE.CylinderGeometry(0.32, 0.36, 5.2, 10), coastPierPilings, timberSidingMat, false, false);
+  emitBatch(coastCityGroup, unitBox, riverLimestone, limestoneMat, true, true);
+  for (let g = 0; g < glassMats.length; g++) {
+    emitBatch(coastCityGroup, unitBox, riverGlassBatches[g], glassMats[g], true, true);
   }
 
   root.add(coastCityGroup);

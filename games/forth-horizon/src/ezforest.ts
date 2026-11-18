@@ -3,7 +3,7 @@
 // forest, the street trees, the course verges); beyond that the photographic cards take over.
 import * as THREE from 'three';
 import { Tree } from '@dgreenheck/ez-tree';
-import { NEAR_R } from './trees';
+import { NEAR_R, cardLodUniforms } from './trees';
 
 const TEX = '/games/ravencrest/assets/trees/';
 const tl = new THREE.TextureLoader();
@@ -12,7 +12,7 @@ function tex(name: string, srgb: boolean): THREE.Texture {
   let t = cache.get(name);
   if (!t) {
     t = tl.load(TEX + name);
-    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
     if (srgb) t.colorSpace = THREE.SRGBColorSpace;
     cache.set(name, t);
   }
@@ -73,6 +73,17 @@ export class EzTreeField {
   private uTime = { value: 0 };
   private uWind = { value: 0.3 };
   private cap = 500;
+  private effRadius = NEAR_R;
+  private effCap = 500;
+  private conIndices: number[] = [];
+  private broIndices: number[] = [];
+  private _fill: number[] = [];
+  private _m4 = new THREE.Matrix4();
+  private _q = new THREE.Quaternion();
+  private _up = new THREE.Vector3(0, 1, 0);
+  private _col = new THREE.Color();
+  private _pos = new THREE.Vector3();
+  private _sc = new THREE.Vector3();
 
   constructor(pts: number[][], private hAt: (x: number, z: number) => number, private exag: () => number) {
     const variants = makeVariants();
@@ -109,12 +120,26 @@ export class EzTreeField {
         sway(lm, 'leaf');
         mkim(v.leaves, lm);
       }
+      const si = this.sets.length;
+      if (v.conifer) this.conIndices.push(si); else this.broIndices.push(si);
       this.sets.push({ v, meshes });
     }
+    this._fill = this.sets.map(() => 0);
     this.group.frustumCulled = false;
   }
 
   setWind(w: number): void { this.uWind.value = w; }
+  setQuality(scale: number): void {
+    const s = Math.max(0.5, Math.min(1, scale));
+    const nr = NEAR_R * (0.68 + 0.32 * s);
+    const nc = Math.max(120, Math.floor(this.cap * (0.5 + 0.5 * s)));
+    cardLodUniforms.uNearR.value = nr - 12;
+    if (Math.abs(nr - this.effRadius) > 4 || Math.abs(nc - this.effCap) > 40) {
+      this.effRadius = nr;
+      this.effCap = nc;
+      this.last.set(1e9, 1e9);
+    }
+  }
 
   update(dt: number, cam: THREE.Vector3): void {
     this.uTime.value += dt;
@@ -122,22 +147,23 @@ export class EzTreeField {
     const moved = Math.hypot(cam.x - this.last.x, cam.z - this.last.y);
     if (this.accT < 0.25 || moved < 6) return;
     this.accT = 0; this.last.set(cam.x, cam.z);
-    const R = NEAR_R, c0 = Math.floor((cam.x - R) / this.cell), c1 = Math.floor((cam.x + R) / this.cell), d0 = Math.floor((cam.z - R) / this.cell), d1 = Math.floor((cam.z + R) / this.cell);
-    const con = this.sets.map((s, i) => [s, i] as const).filter(([s]) => s.v.conifer).map(([, i]) => i), bro = this.sets.map((s, i) => [s, i] as const).filter(([s]) => !s.v.conifer).map(([, i]) => i);
-    const fill = this.sets.map(() => 0);
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), col = new THREE.Color(), pos = new THREE.Vector3(), sc = new THREE.Vector3();
+    const R = this.effRadius, R2 = R * R, c0 = Math.floor((cam.x - R) / this.cell), c1 = Math.floor((cam.x + R) / this.cell), d0 = Math.floor((cam.z - R) / this.cell), d1 = Math.floor((cam.z + R) / this.cell);
+    const con = this.conIndices, bro = this.broIndices;
+    const fill = this._fill; fill.fill(0);
+    const maxCap = this.effCap;
+    const m4 = this._m4, q = this._q, up = this._up, col = this._col, pos = this._pos, sc = this._sc;
     const ex = this.exag();
     let total = 0;
     for (let cx = c0; cx <= c1; cx++) for (let cz = d0; cz <= d1; cz++) {
       const a = this.grid.get(cx * 4096 + cz); if (!a) continue;
       for (const t of a) {
         const dx = t.x - cam.x, dz = t.z - cam.z;
-        if (dx * dx + dz * dz > R * R) continue;
+        if (dx * dx + dz * dz > R2) continue;
         const pool = t.conifer ? con : bro;
         if (!pool.length) continue;
         const hash = ((t.x * 31 + t.z * 17) % 1 + 1) % 1;
         const si = pool[Math.floor(hash * pool.length) % pool.length];
-        if (fill[si] >= this.cap) continue;
+        if (fill[si] >= maxCap) continue;
         const h = (t.conifer ? 14 + t.k * 8 : 10 + t.k * 6) * t.s;
         q.setFromAxisAngle(up, (t.x * 7.3 + t.z * 3.1) % 6.283);
         pos.set(t.x, this.hAt(t.x, t.z) * ex - 0.1, t.z); sc.set(h, h, h);
@@ -147,7 +173,14 @@ export class EzTreeField {
         fill[si]++; total++;
       }
     }
-    this.sets.forEach((s, i) => s.meshes.forEach((im) => { im.count = fill[i]; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; }));
+    for (let i = 0; i < this.sets.length; i++) {
+      const c = fill[i];
+      for (const im of this.sets[i].meshes) {
+        im.count = c;
+        im.instanceMatrix.needsUpdate = true;
+        if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      }
+    }
     this.count = total;
   }
 }

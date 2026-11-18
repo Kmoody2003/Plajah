@@ -31,7 +31,7 @@ export function bladeTexture(): THREE.CanvasTexture {
     g.closePath(); g.fill();
   }
   const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.generateMipmaps = true;
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.generateMipmaps = true;
   return t;
 }
 
@@ -65,9 +65,21 @@ export class GrassField {
   private uTime = { value: 0 };
   private uWind = { value: 0.3 };
   private cap = 22000;
+  private effRadius = R_NEAR;
+  private effCap = 22000;
   private last = new THREE.Vector2(1e9, 1e9);
   private accT = 0;
   private mat: THREE.MeshStandardMaterial;
+  // Reusable scratch objects to prevent per-rebuild GC allocation spikes while driving
+  private _m4 = new THREE.Matrix4();
+  private _q = new THREE.Quaternion();
+  private _up = new THREE.Vector3(0, 1, 0);
+  private _pos = new THREE.Vector3();
+  private _sc = new THREE.Vector3();
+  private _col = new THREE.Color();
+  private _sr = 0;
+  private _sg = 0;
+  private _sb = 0;
   count = 0;
 
   constructor(private o: GrassOpts) {
@@ -100,13 +112,24 @@ export class GrassField {
 
   setWind(w: number): void { this.uWind.value = w; }
   setWet(w: number): void { this.mat.color.setScalar(1 - 0.32 * w); }
+  setQuality(scale: number): void {
+    const s = Math.max(0.5, Math.min(1, scale));
+    const nr = R_NEAR * (0.62 + 0.38 * s);
+    const nc = Math.floor(this.cap * (0.45 + 0.55 * s));
+    if (Math.abs(nr - this.effRadius) > 2 || Math.abs(nc - this.effCap) > 400) {
+      this.effRadius = nr;
+      this.effCap = nc;
+      this.last.set(1e9, 1e9);
+    }
+  }
 
-  private sample(x: number, z: number): [number, number, number] | null {
+  private sample(x: number, z: number): boolean {
     const a = this.albedo!;
     const u = (x + this.o.rw / 2) / this.o.rw, v = (z + this.o.rh / 2) / this.o.rh;
-    if (u < 0 || u >= 1 || v < 0 || v >= 1) return null;
+    if (u < 0 || u >= 1 || v < 0 || v >= 1) return false;
     const i = (Math.floor(v * a.h) * a.w + Math.floor(u * a.w)) * 4;
-    return [a.d[i] / 255, a.d[i + 1] / 255, a.d[i + 2] / 255];
+    this._sr = a.d[i] / 255; this._sg = a.d[i + 1] / 255; this._sb = a.d[i + 2] / 255;
+    return true;
   }
 
   update(dt: number, cam: THREE.Vector3): void {
@@ -114,21 +137,25 @@ export class GrassField {
     this.accT += dt;
     if (!this.albedo || this.accT < 0.2 || Math.hypot(cam.x - this.last.x, cam.z - this.last.y) < 5) return;
     this.accT = 0; this.last.set(cam.x, cam.z);
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), pos = new THREE.Vector3(), sc = new THREE.Vector3(), col = new THREE.Color();
-    const i0 = Math.floor((cam.x - R_NEAR) / CELL), i1 = Math.floor((cam.x + R_NEAR) / CELL), j0 = Math.floor((cam.z - R_NEAR) / CELL), j1 = Math.floor((cam.z + R_NEAR) / CELL);
+    const effR = this.effRadius, effR2 = effR * effR, maxCap = this.effCap;
+    const m4 = this._m4, q = this._q, up = this._up, pos = this._pos, sc = this._sc, col = this._col;
+    const i0 = Math.floor((cam.x - effR) / CELL), i1 = Math.floor((cam.x + effR) / CELL), j0 = Math.floor((cam.z - effR) / CELL), j1 = Math.floor((cam.z + effR) / CELL);
     let n = 0;
     const hash = (a: number, b: number, s: number): number => { const t = Math.sin(a * 127.1 + b * 311.7 + s * 74.7) * 43758.5453; return t - Math.floor(t); };
-    for (let i = i0; i <= i1 && n < this.cap; i++) for (let j = j0; j <= j1 && n < this.cap; j++) {
+    for (let i = i0; i <= i1 && n < maxCap; i++) for (let j = j0; j <= j1 && n < maxCap; j++) {
       const x = (i + hash(i, j, 1)) * CELL, z = (j + hash(i, j, 2)) * CELL;
-      const d = Math.hypot(x - cam.x, z - cam.z);
-      if (d > R_NEAR) continue;
-      const fade = 1 - Math.min(1, Math.max(0, (d - R_NEAR * 0.55) / (R_NEAR * 0.45)));
+      const dx = x - cam.x, dz = z - cam.z;
+      const d2 = dx * dx + dz * dz;
+      if (d2 > effR2) continue;
+      const d = Math.sqrt(d2);
+      const fade = 1 - Math.min(1, Math.max(0, (d - effR * 0.55) / (effR * 0.45)));
       if (fade <= 0.02 || hash(i, j, 3) > 0.35 + 0.65 * fade) continue;           // thin out toward the edge
-      const c = this.sample(x, z); if (!c) continue;
-      const green = c[1] - Math.max(c[0], c[2]);
-      const lum = c[0] * 0.3 + c[1] * 0.59 + c[2] * 0.11;
+      if (!this.sample(x, z)) continue;
+      const r0 = this._sr, g0 = this._sg, b0 = this._sb;
+      const green = g0 - Math.max(r0, b0);
+      const lum = r0 * 0.3 + g0 * 0.59 + b0 * 0.11;
       // grass where the satellite is green or straw-yellow and not dark (water, asphalt, roofs) or pale (sand, concrete)
-      if (!(green > 0.015 || (c[0] > c[2] * 1.18 && c[1] > c[2] * 1.1 && lum > 0.2 && lum < 0.6)) || lum < 0.12 || lum > 0.72) continue;
+      if (!(green > 0.015 || (r0 > b0 * 1.18 && g0 > b0 * 1.1 && lum > 0.2 && lum < 0.6)) || lum < 0.12 || lum > 0.72) continue;
       if (!this.o.ok(x, z)) continue;
       const h = Math.min(0.62, 0.2 + hash(i, j, 4) * 0.3 + Math.max(0, green) * 0.6) * fade;
       const w = h * (1.15 + hash(i, j, 5) * 0.8) + 0.2;
@@ -137,7 +164,7 @@ export class GrassField {
       m4.compose(pos, q, sc);
       this.im.setMatrixAt(n, m4);
       // tint from the ground under it, lifted toward a blade green so the satellite's shadows do not turn it black
-      col.setRGB(Math.min(1, c[0] * 1.1 + 0.05), Math.min(1, c[1] * 1.15 + 0.07), Math.min(1, c[2] * 1.0 + 0.03)).multiplyScalar(0.62 + hash(i, j, 7) * 0.4);
+      col.setRGB(Math.min(1, r0 * 1.1 + 0.05), Math.min(1, g0 * 1.15 + 0.07), Math.min(1, b0 * 1.0 + 0.03)).multiplyScalar(0.62 + hash(i, j, 7) * 0.4);
       this.im.setColorAt(n, col);
       n++;
     }

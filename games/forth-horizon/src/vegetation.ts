@@ -132,7 +132,7 @@ export class Vegetation {
     };
     // fine grass: dense tufts close to the camera
     const grassNear: Species = {
-      name: 'grass', geo: tuft, spacing: 0.62, radius: 34, fade: [-1, 0, 20, 33], cap: 70000, seed: 1, cells: new Map(), total: 0,
+      name: 'grass', geo: tuft, spacing: 0.62, radius: 28, fade: [-1, 0, 16, 27], cap: 40000, seed: 1, cells: new Map(), total: 0,
       mat: null as unknown as THREE.MeshStandardMaterial,
       rule: (x, z, i, j, s) => {
         const patch = vnoise(x / 9, z / 9, 11);                                                        // tall patches and bare patches
@@ -145,7 +145,7 @@ export class Vegetation {
     };
     // coarse grass: bigger, sparser clumps that carry the grass out to 110 m
     const grassMid: Species = {
-      name: 'grassMid', geo: tuft, spacing: 1.25, radius: 118, fade: [14, 24, 84, 116], cap: 42000, seed: 2, cells: new Map(), total: 0,
+      name: 'grassMid', geo: tuft, spacing: 1.25, radius: 92, fade: [12, 20, 64, 90], cap: 24000, seed: 2, cells: new Map(), total: 0,
       mat: null as unknown as THREE.MeshStandardMaterial,
       rule: (x, z, i, j, s) => {
         const patch = vnoise(x / 14, z / 14, 12);
@@ -255,7 +255,7 @@ export class Vegetation {
     const t0 = performance.now();
     const moved = Math.hypot(cam.x - this.lastCam.x, cam.z - this.lastCam.y);
     if (moved > 3) { this.lastCam.set(cam.x, cam.z); this.dirty = true; }
-    let budget = 3.2;
+    let budget = 1.6;
     for (const sp of this.species) {
       const r = sp.radius + CELL * 0.75;
       const ci0 = Math.floor((cam.x - r) / CELL), ci1 = Math.floor((cam.x + r) / CELL), cj0 = Math.floor((cam.z - r) / CELL), cj1 = Math.floor((cam.z + r) / CELL);

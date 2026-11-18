@@ -30,7 +30,7 @@ export interface SimData { roads: RoadInput[]; zones: ZoneInput[]; services: Ser
 
 export function featuresToSim(map: UserMapData | null, gen: GeneratedRoads = {}): SimData {
   const out: SimData = { roads: [], zones: [], services: [], rails: [], stations: [], airport: [] };
-  gen.country?.forEach((set, si) => set.roads.forEach((r, i) => { if (r.xz.length >= 2) out.roads.push({ id: `g${si}-${i}`, cls: r.kind === 'dirt' ? 'dirt' : si === 0 ? 'collector' : 'street', pts: p2(r.xz) }); }));
+  gen.country?.forEach((set, si) => set.roads.forEach((r, i) => { if (r.xz.length >= 2 && (r.kind as string) !== 'drive') out.roads.push({ id: `g${si}-${i}`, cls: r.kind === 'dirt' ? 'dirt' : si === 0 ? 'collector' : 'street', pts: p2(r.xz) }); }));
   gen.city?.forEach((r, i) => { if (r.p.length >= 2) out.roads.push({ id: `c${i}`, cls: CITY[r.c] ?? 'street', pts: p2(r.p) }); });
   if (gen.shoreline && gen.shoreline.xz.length >= 2) out.roads.push({ id: 'shoreline', cls: 'collector', speed: 20, pts: p2(gen.shoreline.xz) });
   for (const f of map?.features ?? []) {

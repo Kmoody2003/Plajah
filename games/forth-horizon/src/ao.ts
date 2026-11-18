@@ -30,11 +30,11 @@ const AO_FRAG = `
     vec3 dy = abs(pu.z - P.z) < abs(pd.z - P.z) ? pu - P : P - pd;
     vec3 N = normalize(cross(dx, dy));
     if (dot(N, -P) < 0.0) N = -N;
-    // screen radius of uRadius metres at this depth
-    float rpx = clamp(uRadius * uProj[1][1] * 0.5 * uRes.y / dist, 3.0, 70.0);
+    // screen radius of uRadius metres at this depth (uRes matches half-res aoRT)
+    float rpx = clamp(uRadius * uProj[1][1] * 0.5 * uRes.y / dist, 2.0, 36.0);
     float rot = ign(gl_FragCoord.xy) * 6.2831853;
     float occ = 0.0;
-    const int N_S = 14;
+    const int N_S = 8;
     for (int i = 0; i < N_S; i++) {
       float t = (float(i) + 0.5) / float(N_S);
       float a = rot + float(i) * 2.399963;
@@ -54,22 +54,71 @@ const AO_FRAG = `
 const APPLY_FRAG = `
   uniform sampler2D tDiffuse, tAO, tDepth;
   uniform vec2 uHalf; uniform float uStrength, uNear, uFar;
+  uniform vec4 uFog;                 // density at sea level (1/m), height falloff (1/m), max opacity, on
+  uniform vec3 uFogCol, uSunCol, uSunDir, uCamPos;
+  uniform mat4 uProjInv, uCamWorld, uPrevViewProj;
+  uniform float uBlur;               // motion blur shutter (0 off, 0.5 = half the frame's camera motion)
   varying vec2 vUv;
+  vec3 worldAt(float d) {
+    vec4 v = uProjInv * vec4(vUv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0); v /= v.w;
+    vec3 wp = (uCamWorld * vec4(v.xyz, 1.0)).xyz;
+    if (d >= 0.99999) wp = uCamPos + normalize(wp - uCamPos) * 26000.0;
+    return wp;
+  }
+  // Camera motion blur: where this pixel's world point was on screen last frame (depth + last frame's camera), smeared along that path. Weighted off close to the camera,
+  // so the car (which moves with the chase camera) stays sharp while the road and world streak past.
+  vec3 motionBlur(vec3 col, float d) {
+    if (uBlur < 0.001) return col;
+    vec3 wp = worldAt(d);
+    vec4 pc = uPrevViewProj * vec4(wp, 1.0);
+    if (pc.w <= 0.0) return col;
+    vec2 prev = pc.xy / pc.w * 0.5 + 0.5;
+    vec2 vel = (vUv - prev) * uBlur * smoothstep(9.0, 24.0, distance(wp, uCamPos));
+    float l = length(vel);
+    if (l < 0.0015) return col;
+    vel *= min(1.0, 0.03 / l);
+    vec3 acc = col; float n = 1.0;
+    for (int i = 1; i <= 6; i++) {
+      float t = float(i) / 6.0 - 0.5;
+      acc += texture2D(tDiffuse, vUv + vel * t).rgb; n += 1.0;
+    }
+    return acc / n;
+  }
+  // Height fog with sun in-scatter (aerial perspective): the air is densest low down and thins with height, so distance reads as depth and a valley holds haze while a
+  // view from the cliffs is clear; looking toward the sun the haze takes the sun's colour. Analytic integral of exp(-falloff * height) along the view ray.
+  vec3 atmosphere(vec3 col, float d) {
+    if (uFog.w < 0.5) return col;
+    vec3 wp = worldAt(d);                                              // the sky sits 26 km out: the haze along the horizon
+    vec3 ray = wp - uCamPos; float dist = length(ray); vec3 dir = ray / max(dist, 1e-3);
+    float b = uFog.y, dy = dir.y * dist;
+    float amt = uFog.x * exp(-b * max(uCamPos.y, 0.0)) * dist * (abs(b * dy) > 1e-4 ? (1.0 - exp(-b * dy)) / (b * dy) : 1.0);
+    float op = min(uFog.z, 1.0 - exp(-amt));
+    float sunAmt = pow(max(dot(dir, uSunDir), 0.0), 8.0);
+    vec3 fc = mix(uFogCol, uSunCol, sunAmt * 0.65);
+    return mix(col, fc, op);
+  }
   float lin(float d) { float z = d * 2.0 - 1.0; return 2.0 * uNear * uFar / (uFar + uNear - z * (uFar - uNear)); }
   void main() {
     vec4 col = texture2D(tDiffuse, vUv);
-    float d0 = lin(texture2D(tDepth, vUv).r);
-    float sum = 0.0, wsum = 0.0;
-    for (int x = -2; x <= 2; x++) for (int y = -2; y <= 2; y++) {
-      vec2 uv = vUv + vec2(float(x), float(y)) * uHalf;
-      float dz = abs(lin(texture2D(tDepth, uv).r) - d0);
-      float w = exp(-dz * dz / (0.04 * d0 * d0 + 0.01)) * (1.0 - 0.12 * length(vec2(float(x), float(y))));
+    float dRaw = texture2D(tDepth, vUv).r;
+    col.rgb = motionBlur(col.rgb, dRaw);
+    if (uStrength <= 0.001) { gl_FragColor = vec4(atmosphere(col.rgb, dRaw), col.a); return; }
+    float d0 = lin(dRaw);
+    float sum = texture2D(tAO, vUv).r * 1.6, wsum = 1.6;
+    float k = 1.0 / (0.04 * d0 * d0 + 0.01);
+    vec2 taps[4];
+    taps[0] = vec2(-uHalf.x, 0.0); taps[1] = vec2(uHalf.x, 0.0);
+    taps[2] = vec2(0.0, -uHalf.y); taps[3] = vec2(0.0, uHalf.y);
+    for (int i = 0; i < 4; i++) {
+      vec2 uv = vUv + taps[i];
+      float dz = lin(texture2D(tDepth, uv).r) - d0;
+      float w = exp(-dz * dz * k);
       sum += texture2D(tAO, uv).r * w; wsum += w;
     }
     float ao = sum / max(wsum, 1e-4);
     // occlusion darkens the ambient part of the light most; applied to the final colour it is slightly strong, so keep it soft and tinted warm-dark rather than grey
     vec3 occ = mix(vec3(1.0), vec3(ao) * vec3(0.96, 0.97, 1.0), uStrength);
-    gl_FragColor = vec4(col.rgb * occ, col.a);
+    gl_FragColor = vec4(atmosphere(col.rgb * occ, dRaw), col.a);
   }`;
 
 export class AoPass extends Pass {
@@ -78,41 +127,61 @@ export class AoPass extends Pass {
   private applyMat: THREE.ShaderMaterial;
   private quad: FullScreenQuad;
   strength = 0.85;
+  /** ambient occlusion on/off (the pass itself stays on: it also draws the atmosphere) */
+  aoOn = true;
+  /** camera motion blur shutter: 0 off, 0.5 typical */
+  blur = 0;
+  private prevVP = new THREE.Matrix4();
+  private prevPos = new THREE.Vector3();
+  private havePrev = false;
+  /** height fog + sun in-scatter; colours are linear */
+  fog = { on: true, density: 0.00012, falloff: 1 / 350, maxOpacity: 0.92, color: new THREE.Color(0.75, 0.8, 0.88), sunColor: new THREE.Color(1, 0.85, 0.6), sunDir: new THREE.Vector3(0, 1, 0) };
   constructor(private camera: THREE.PerspectiveCamera, w: number, h: number) {
     super();
     this.needsSwap = true;
-    this.aoRT = new THREE.WebGLRenderTarget(Math.max(2, w >> 1), Math.max(2, h >> 1), { type: THREE.UnsignedByteType, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });
+    const aw = Math.min(960, Math.max(2, w >> 1));
+    const ah = Math.min(540, Math.max(2, h >> 1));
+    this.aoRT = new THREE.WebGLRenderTarget(aw, ah, { type: THREE.UnsignedByteType, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });
     this.aoMat = new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: AO_FRAG, depthTest: false, depthWrite: false,
-      uniforms: { tDepth: { value: null }, uProjInv: { value: new THREE.Matrix4() }, uProj: { value: new THREE.Matrix4() }, uRes: { value: new THREE.Vector2(w, h) }, uRadius: { value: 1.6 }, uBias: { value: 0.08 }, uNear: { value: 0.1 }, uFar: { value: 1000 }, uTime: { value: 0 } },
+      uniforms: { tDepth: { value: null }, uProjInv: { value: new THREE.Matrix4() }, uProj: { value: new THREE.Matrix4() }, uRes: { value: new THREE.Vector2(aw, ah) }, uRadius: { value: 1.6 }, uBias: { value: 0.08 }, uNear: { value: 0.1 }, uFar: { value: 1000 }, uTime: { value: 0 } },
     });
     this.applyMat = new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: APPLY_FRAG, depthTest: false, depthWrite: false,
-      uniforms: { tDiffuse: { value: null }, tAO: { value: this.aoRT.texture }, tDepth: { value: null }, uHalf: { value: new THREE.Vector2(2 / w, 2 / h) }, uStrength: { value: this.strength }, uNear: { value: 0.1 }, uFar: { value: 1000 } },
+      uniforms: { uPrevViewProj: { value: new THREE.Matrix4() }, uBlur: { value: 0 }, uFog: { value: new THREE.Vector4(0, 0, 0, 0) }, uFogCol: { value: new THREE.Color() }, uSunCol: { value: new THREE.Color() }, uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uCamPos: { value: new THREE.Vector3() }, uProjInv: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() }, tDiffuse: { value: null }, tAO: { value: this.aoRT.texture }, tDepth: { value: null }, uHalf: { value: new THREE.Vector2(1 / aw, 1 / ah) }, uStrength: { value: this.strength }, uNear: { value: 0.1 }, uFar: { value: 1000 } },
     });
     this.quad = new FullScreenQuad(this.aoMat);
   }
   setSize(w: number, h: number): void {
-    this.aoRT.setSize(Math.max(2, w >> 1), Math.max(2, h >> 1));
-    this.aoMat.uniforms.uRes.value.set(w, h);
-    this.applyMat.uniforms.uHalf.value.set(2 / w, 2 / h);
+    const aw = Math.min(960, Math.max(2, w >> 1));
+    const ah = Math.min(540, Math.max(2, h >> 1));
+    this.aoRT.setSize(aw, ah);
+    this.aoMat.uniforms.uRes.value.set(aw, ah);
+    this.applyMat.uniforms.uHalf.value.set(1 / aw, 1 / ah);
   }
   render(renderer: THREE.WebGLRenderer, writeBuffer: THREE.WebGLRenderTarget, readBuffer: THREE.WebGLRenderTarget): void {
     const depth = readBuffer.depthTexture;
-    if (!depth || !this.enabled) { this.quad.material = this.applyMat; this.applyMat.uniforms.uStrength.value = 0; }
+    const aoOn = !!depth && this.aoOn;
     const cam = this.camera;
     cam.updateMatrixWorld();
     const u = this.aoMat.uniforms;
     u.tDepth.value = depth; u.uProj.value.copy(cam.projectionMatrix); u.uProjInv.value.copy(cam.projectionMatrixInverse); u.uNear.value = cam.near; u.uFar.value = cam.far;
     // 1) occlusion at half resolution from the depth the main pass wrote
-    if (depth && this.enabled) {
+    if (aoOn) {
       this.quad.material = this.aoMat;
       renderer.setRenderTarget(this.aoRT);
       this.quad.render(renderer);
     }
     // 2) depth-aware blur at full resolution, multiplied into the scene
     const a = this.applyMat.uniforms;
-    a.tDiffuse.value = readBuffer.texture; a.tDepth.value = depth; a.uNear.value = cam.near; a.uFar.value = cam.far; a.uStrength.value = depth && this.enabled ? this.strength : 0;
+    a.tDiffuse.value = readBuffer.texture; a.tDepth.value = depth; a.uNear.value = cam.near; a.uFar.value = cam.far; a.uStrength.value = aoOn ? this.strength : 0;
+    const f = this.fog;
+    a.uFog.value.set(f.density, f.falloff, f.maxOpacity, f.on && depth ? 1 : 0); a.uFogCol.value.copy(f.color); a.uSunCol.value.copy(f.sunColor); a.uSunDir.value.copy(f.sunDir).normalize();
+    a.uCamPos.value.setFromMatrixPosition(cam.matrixWorld); a.uProjInv.value.copy(cam.projectionMatrixInverse); a.uCamWorld.value.copy(cam.matrixWorld);
+    // last frame's camera; a cut (the camera jumping more than 40 m) is not motion, so no blur on that frame
+    const jump = !this.havePrev || this.prevPos.distanceTo(a.uCamPos.value) > 40;
+    a.uPrevViewProj.value.copy(this.prevVP); a.uBlur.value = jump || !depth ? 0 : this.blur;
+    this.prevVP.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); this.prevPos.copy(a.uCamPos.value); this.havePrev = true;
     this.quad.material = this.applyMat;
     renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
     this.quad.render(renderer);

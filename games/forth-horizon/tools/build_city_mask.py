@@ -14,8 +14,10 @@ REPO = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 OUT = os.path.join(REPO, "public", "games", "forth-horizon", "region")
 TEX = os.path.join(REPO, "public", "games", "forth-horizon", "tex")
 MPP = 1.5
-ROAD = {"street": 9.0, "arterial": 15.0, "freeway": 24.0, "ramp": 8.0}
-WALK = {"street": 4.2, "arterial": 4.8}        # sidewalk width each side
+# Real-world widths (curb to curb). The street data is OpenStreetMap-style: a freeway or ramp line is ONE carriageway in one direction, so a freeway is two 12.5 m lines
+# with a median between them (it was drawn 24 m per line, and the two lines merged into a 50-70 m slab of asphalt). Local street ~8.5 m (two lanes + parking), arterial ~14 m.
+ROAD = {"street": 8.5, "arterial": 14.0, "freeway": 12.5, "ramp": 5.5}
+WALK = {"street": 3.0, "arterial": 3.6}        # sidewalk width each side
 
 streets = json.load(open(os.path.join(OUT, "city_streets.json")))
 xs = [p[0] for s in streets for p in s["p"]]
@@ -41,8 +43,8 @@ for s in streets:
         stroke(1, s["p"], ROAD[s["c"]] + 2 * WALK[s["c"]])
 for s in streets:
     stroke(0, s["p"], ROAD[s["c"]])
-# rounded kerb returns at intersections: closing the carriageway fills each concave corner with a fillet (about 6 m radius)
-chan[0] = cv2.morphologyEx(chan[0], cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
+# rounded kerb returns at intersections: closing the carriageway fills each concave corner with a fillet
+chan[0] = cv2.morphologyEx(chan[0], cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5)))   # ~4 m corner fillets; a wider closing also filled the medians between carriageways
 # the sidewalk wraps the filleted corner: grow it from the new road edge
 chan[1] = np.maximum(chan[1], cv2.dilate(chan[0], cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))) * (chan[1] > 0))
 # centre line on arterials and freeways; a crossing street's carriageway breaks it
@@ -52,7 +54,16 @@ for s in streets:
         arr = np.array([px(p) for p in s["p"]], np.int32).reshape(-1, 1, 2)
         cv2.polylines(cross, [arr], False, 255, int(ROAD["street"] / MPP) + 2)
 chan[2] = np.where(cross > 0, 0, chan[2]).astype(np.uint8)
-mask = np.dstack(chan)
+# A = 0 where the depressed freeway trench is (tools/plan_trench.py): the terrain shader leaves a hole there and the game draws the trench bed, walls and overpasses
+alpha = np.full((H, W), 255, np.uint8)
+tp = os.path.join(OUT, "trench.json")
+if os.path.exists(tp):
+    for l in json.load(open(tp))["lines"]:
+        pts, dep, half = l["xz"], l["depth"], l["half"]
+        for a_, b_, da, db in zip(pts[:-1], pts[1:], dep[:-1], dep[1:]):
+            if min(da, db) > 1.0:
+                cv2.line(alpha, px(a_), px(b_), 0, max(1, int(2 * (half + 1.2) / MPP)), cv2.LINE_AA)      # anti-aliased: the shader cuts at alpha 0.5, so the edge of the cut is smooth, not stepped
+mask = np.dstack(chan + [alpha])
 Image.fromarray(mask).save(os.path.join(OUT, "city_mask.png"), compress_level=3)
 json.dump({"x0": x0, "z0": z0, "w": W * MPP, "h": H * MPP, "mpp": MPP, "asph": 4.0, "pave": 1.4}, open(os.path.join(OUT, "city_mask.json"), "w"))
 

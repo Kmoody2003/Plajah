@@ -1,0 +1,577 @@
+{
+ "totals": {
+  "no_frontage": 44,
+  "big_block": 13,
+  "dead_end": 86
+ },
+ "worst": [
+  {
+   "x": 3500.0,
+   "z": 500.0,
+   "n": 15,
+   "issues": {
+    "no_frontage": 2,
+    "dead_end": 13
+   },
+   "examples": [
+    [
+     "no_frontage",
+     3338,
+     641,
+     "auto-repair-shop"
+    ],
+    [
+     "no_frontage",
+     3431,
+     912,
+     "tractor-shed"
+    ],
+    [
+     "dead_end",
+     3531,
+     112,
+     "user"
+    ],
+    [
+     "dead_end",
+     3692,
+     520,
+     "user"
+    ],
+    [
+     "dead_end",
+     3575,
+     520,
+     "user"
+    ],
+    [
+     "dead_end",
+     3692,
+     760,
+     "user"
+    ]
+   ]
+  },
+  {
+   "x": 5500.0,
+   "z": 2500.0,
+   "n": 13,
+   "issues": {
+    "no_frontage": 8,
+    "dead_end": 3,
+    "big_block": 2
+   },
+   "examples": [
+    [
+     "no_frontage",
+     5049,
+     2595,
+     "monroe-residences"
+    ],
+    [
+     "no_frontage",
+     5200,
+     2160,
+     "sibley-apartments"
+    ],
+    [
+     "no_frontage",
+     5016,
+     2614,
+     "atwater-landing"
+    ],
+    [
+     "no_frontage",
+     5164,
+     2655,
+     "milwaukee-junction-lofts"
+    ],
+    [
+     "no_frontage",
+     5116,
+     2625,
+     "monroe-residences"
+    ],
+    [
+     "no_frontage",
+     5148,
+     2641,
+     "michigan-avenue-deco"
+    ]
+   ]
+  },
+  {
+   "x": 3500.0,
+   "z": -500.0,
+   "n": 8,
+   "issues": {
+    "no_frontage": 2,
+    "dead_end": 6
+   },
+   "examples": [
+    [
+     "no_frontage",
+     3356,
+     -766,
+     "splash-car-wash"
+    ],
+    [
+     "no_frontage",
+     3258,
+     -214,
+     "hay-barn"
+    ],
+    [
+     "dead_end",
+     3489,
+     -906,
+     "user"
+    ],
+    [
+     "dead_end",
+     3434,
+     -713,
+     "user"
+    ],
+    [
+     "dead_end",
+     3378,
+     -521,
+     "user"
+    ],
+    [
+     "dead_end",
+     3358,
+     -320,
+     "user"
+    ]
+   ]
+  },
+  {
+   "x": 500.0,
+   "z": 1500.0,
+   "n": 7,
+   "issues": {
+    "no_frontage": 7
+   },
+   "examples": [
+    [
+     "no_frontage",
+     530,
+     1769,
+     "equipment-shed"
+    ],
+    [
+     "no_frontage",
+     310,
+     1767,
+     "equipment-shed"
+    ],
+    [
+     "no_frontage",
+     126,
+     1686,
+     "splash-car-wash"
+    ],
+    [
+     "no_frontage",
+     778,
+     1997,
+     "cider-mill"
+    ],
+    [
+     "no_frontage",
+     437,
+     1826,
+     "hay-barn"
+    ],
+    [
+     "no_frontage",
+     685,
+     1866,
+     "tobacco-barn"
+    ]
+   ]
+  },
+  {
+   "x": 5500.0,
+   "z": 3500.0,
+   "n": 7,
+   "issues": {
+    "dead_end": 7
+   },
+   "examples": [
+    [
+     "dead_end",
+     5832,
+     3945,
+     "street"
+    ],
+    [
+     "dead_end",
+     5912,
+     3986,
+     "street"
+    ],
+    [
+     "dead_end",
+     5474,
+     3712,
+     "street"
+    ],
+    [
+     "dead_end",
+     5565,
+     3312,
+     "arterial"
+    ],
+    [
+     "dead_end",
+     5062,
+     3047,
+     "arterial"
+    ],
+    [
+     "dead_end",
+     5205,
+     3017,
+     "street"
+    ]
+   ]
+  },
+  {
+   "x": 4500.0,
+   "z": -3500.0,
+   "n": 6,
+   "issues": {
+    "no_frontage": 2,
+    "dead_end": 4
+   },
+   "examples": [
+    [
+     "no_frontage",
+     4720,
+     -3726,
+     "auto-repair-shop"
+    ],
+    [
+     "no_frontage",
+     4761,
+     -3733,
+     "splash-car-wash"
+    ],
+    [
+     "dead_end",
+     4392,
+     -3923,
+     "user"
+    ],
+    [
+     "dead_end",
+     4854,
+     -3077,
+     "user"
+    ],
+    [
+     "dead_end",
+     4258,
+     -3734,
+     "user"
+    ],
+    [
+     "dead_end",
+     4772,
+     -3001,
+     "user"
+    ]
+   ]
+  },
+  {
+   "x": 3500.0,
+   "z": -1500.0,
+   "n": 6,
+   "issues": {
+    "no_frontage": 2,
+    "dead_end": 4
+   },
+   "examples": [
+    [
+     "no_frontage",
+     3445,
+     -1225,
+     "splash-car-wash"
+    ],
+    [
+     "no_frontage",
+     3230,
+     -1990,
+     "marina-fuel-dock"
+    ],
+    [
+     "dead_end",
+     3612,
+     -1288,
+     "user"
+    ],
+    [
+     "dead_end",
+     3545,
+     -1098,
+     "user"
+    ],
+    [
+     "dead_end",
+     3300,
+     -1212,
+     "country"
+    ],
+    [
+     "dead_end",
+     3288,
+     -1224,
+     "country"
+    ]
+   ]
+  },
+  {
+   "x": 4500.0,
+   "z": -1500.0,
+   "n": 5,
+   "issues": {
+    "dead_end": 5
+   },
+   "examples": [
+    [
+     "dead_end",
+     4590,
+     -1478,
+     "user"
+    ],
+    [
+     "dead_end",
+     4398,
+     -1009,
+     "user"
+    ],
+    [
+     "dead_end",
+     4423,
+     -1803,
+     "user"
+    ],
+    [
+     "dead_end",
+     4290,
+     -1894,
+     "user"
+    ],
+    [
+     "dead_end",
+     4151,
+     -1962,
+     "user"
+    ]
+   ]
+  },
+  {
+   "x": 5500.0,
+   "z": -3500.0,
+   "n": 5,
+   "issues": {
+    "dead_end": 5
+   },
+   "examples": [
+    [
+     "dead_end",
+     5515,
+     -3682,
+     "user"
+    ],
+    [
+     "dead_end",
+     5350,
+     -3531,
+     "user"
+    ],
+    [
+     "dead_end",
+     5267,
+     -3455,
+     "user"
+    ],
+    [
+     "dead_end",
+     5185,
+     -3380,
+     "user"
+    ],
+    [
+     "dead_end",
+     5020,
+     -3228,
+     "user"
+    ]
+   ]
+  },
+  {
+   "x": 6500.0,
+   "z": 500.0,
+   "n": 4,
+   "issues": {
+    "no_frontage": 3,
+    "big_block": 1
+   },
+   "examples": [
+    [
+     "no_frontage",
+     6570,
+     455,
+     "beaubien-parking-garage"
+    ],
+    [
+     "no_frontage",
+     6098,
+     125,
+     "monroe-residences"
+    ],
+    [
+     "no_frontage",
+     6635,
+     822,
+     "trumbull-arms"
+    ],
+    [
+     "big_block",
+     6690,
+     795,
+     "7.2 ha, 57 buildings"
+    ]
+   ]
+  },
+  {
+   "x": -3500.0,
+   "z": 2500.0,
+   "n": 4,
+   "issues": {
+    "no_frontage": 3,
+    "big_block": 1
+   },
+   "examples": [
+    [
+     "no_frontage",
+     -3661,
+     2971,
+     "cider-mill"
+    ],
+    [
+     "no_frontage",
+     -3687,
+     2864,
+     "hay-barn"
+    ],
+    [
+     "no_frontage",
+     -3733,
+     2912,
+     "farm-stand"
+    ],
+    [
+     "big_block",
+     -3985,
+     2994,
+     "146.3 ha, 24 buildings"
+    ]
+   ]
+  },
+  {
+   "x": 1500.0,
+   "z": 2500.0,
+   "n": 2,
+   "issues": {
+    "no_frontage": 1,
+    "big_block": 1
+   },
+   "examples": [
+    [
+     "no_frontage",
+     1036,
+     2013,
+     "equipment-shed"
+    ],
+    [
+     "big_block",
+     1279,
+     2389,
+     "23.5 ha, 7 buildings"
+    ]
+   ]
+  },
+  {
+   "x": 500.0,
+   "z": 2500.0,
+   "n": 2,
+   "issues": {
+    "no_frontage": 2
+   },
+   "examples": [
+    [
+     "no_frontage",
+     847,
+     2038,
+     "tractor-shed"
+    ],
+    [
+     "no_frontage",
+     622,
+     2570,
+     "marina-fuel-dock"
+    ]
+   ]
+  },
+  {
+   "x": -2500.0,
+   "z": 2500.0,
+   "n": 2,
+   "issues": {
+    "no_frontage": 1,
+    "big_block": 1
+   },
+   "examples": [
+    [
+     "no_frontage",
+     -2277,
+     2036,
+     "tractor-shed"
+    ],
+    [
+     "big_block",
+     -2220,
+     2936,
+     "246.7 ha, 9 buildings"
+    ]
+   ]
+  },
+  {
+   "x": -4500.0,
+   "z": 3500.0,
+   "n": 2,
+   "issues": {
+    "no_frontage": 2
+   },
+   "examples": [
+    [
+     "no_frontage",
+     -4104,
+     3174,
+     "tobacco-barn"
+    ],
+    [
+     "no_frontage",
+     -4018,
+     3118,
+     "farm-stand"
+    ]
+   ]
+  }
+ ]
+}

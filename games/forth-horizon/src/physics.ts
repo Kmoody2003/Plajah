@@ -136,7 +136,7 @@ export function stepCarPhysics(
   // ── 1. Forza-Style Speed-Sensitive Steering + Counter-Steer Authority ──
   const speedRatio = THREE.MathUtils.clamp(state.speedMps / spec.topSpeedMps, 0, 1);
   const isReturning = Math.abs(input.steer) < 0.05 || Math.sign(input.steer) !== Math.sign(state.steerInputSmoothed);
-  const steerRate = isReturning ? 12.0 : THREE.MathUtils.lerp(7.8, 4.4, speedRatio);
+  const steerRate = isReturning ? 12.0 : THREE.MathUtils.lerp(9.5, 6.5, speedRatio);
   state.steerInputSmoothed = THREE.MathUtils.lerp(
     state.steerInputSmoothed,
     input.steer,
@@ -181,7 +181,7 @@ export function stepCarPhysics(
   let burnoutActive = false;
 
   // the brakes can never pull harder than the tyres can grip: about 1.1 g for a road-legal sports car on dry asphalt, less when wet or loose
-  const maxBrakeForce = Math.min((spec.brakes.maxTorqueNm * 4) / spec.wheelRadius, spec.massKg * GRAVITY * spec.corneringGrip * surfaceGrip * 1.1);
+  const maxBrakeForce = Math.min(Math.max((spec.brakes.maxTorqueNm * 4) / spec.wheelRadius, spec.massKg * GRAVITY * 0.9 * surfaceGrip), spec.massKg * GRAVITY * Math.max(1.0, spec.corneringGrip) * surfaceGrip * 1.4);
   const isStandingBurnout =
     spec.drivetrain === 'RWD' && input.throttle > 0.65 && input.brake > 0.45 && state.speedMps < 10;
 

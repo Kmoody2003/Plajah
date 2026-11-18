@@ -2,6 +2,7 @@
 // depth up close: procedural cloud structure, a sun disc and glow, stars and a moon at night, horizon haze, weather (a real overcast and storm panorama blended
 // in by the weather rig, darkening, lightning), a high cirrus layer and a flock of birds. region.ts feeds it every frame.
 import * as THREE from 'three';
+import type { Atmosphere } from './atmosphere';
 
 const TEX = '/games/forth-horizon/tex/';
 
@@ -102,7 +103,7 @@ export class Sky {
   private dummy = new THREE.Object3D();
   private tex: Record<string, THREE.Texture> = {};
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, atmosphere?: Atmosphere | null) {
     const placeholder = new THREE.DataTexture(new Uint8Array([120, 160, 220, 255]), 1, 1); placeholder.needsUpdate = true;
     this.mat = new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: FRAG, side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false, transparent: false,
@@ -113,6 +114,7 @@ export class Sky {
         uMoonDir: { value: new THREE.Vector3(0.45, 0.62, -0.64).normalize() },
       },
     });
+    atmosphere?.patchCustom(this.mat, 'sky');
     this.dome = new THREE.Mesh(new THREE.SphereGeometry(18000, 48, 32), this.mat);
     this.dome.renderOrder = -1000;
     this.dome.frustumCulled = false;

@@ -17,7 +17,7 @@ function canvasTex(w: number, h: number, draw: (g: CanvasRenderingContext2D) => 
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   draw(c.getContext('2d')!);
   const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
   if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); }
   return t;
 }
@@ -27,7 +27,7 @@ const pbrTex = (file: string, srgb: boolean, rep = 2): THREE.Texture => {
   const t = texLoader.load('/games/forth-horizon/tex/' + file);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(rep, rep);
-  t.anisotropy = 8;
+  t.anisotropy = 4;
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   return t;
 };
@@ -158,7 +158,9 @@ export class TrackKit {
       if (!list.length) return;
       const im = new THREE.InstancedMesh(geo, mats[vi], list.length);
       list.forEach((m, i) => im.setMatrixAt(i, m));
-      im.frustumCulled = false; im.castShadow = true; im.receiveShadow = true;
+      im.instanceMatrix.needsUpdate = true;
+      im.computeBoundingSphere();
+      im.frustumCulled = true; im.castShadow = true; im.receiveShadow = true;
       this.group.add(im);
     });
   }
@@ -235,7 +237,7 @@ export class TrackKit {
       m4.makeRotationY(Math.atan2(-p.tz, p.tx)); m4.setPosition(p.x + p.tx * 0.75, p.y + 3.6, p.z + p.tz * 0.75); flag.setMatrixAt(ci, m4);
       flag.setColorAt(ci, c.setHex(fc[ci % 3]));
     });
-    for (const m of [pole, booth, flag]) { m.count = corners.length; m.frustumCulled = false; this.group.add(m); }
+    for (const m of [pole, booth, flag]) { m.count = corners.length; m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere(); m.frustumCulled = true; this.group.add(m); }
   }
 
   // ---------- light towers ----------
@@ -254,7 +256,7 @@ export class TrackKit {
       const off = new THREE.Vector3(0, 0, 0.26).applyQuaternion(q);
       m4.compose(new THREE.Vector3(s.x + off.x, s.y + 24.4 + off.y, s.z + off.z), q, new THREE.Vector3(1, 1, 1)); lamp.setMatrixAt(i, m4);
     });
-    for (const m of [pole, head, lamp]) { m.count = spots.length; m.frustumCulled = false; this.group.add(m); }
+    for (const m of [pole, head, lamp]) { m.count = spots.length; m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere(); m.frustumCulled = true; this.group.add(m); }
   }
 
   // ---------- start gantry lights: five lamps that count down red, then go green ----------

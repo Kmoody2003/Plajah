@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { auth } from '../../services/backendService';
 import { attachGameSaveBridge } from '../../services/gameSaves';
 
@@ -30,10 +31,14 @@ export default function IframeGameFrame({ src, title, onExit, gameId }: { src: s
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = prev; };
+    // The whole Plajah app stays mounted under this overlay and fights the game for the one main thread and the compositor: take it out of layout and paint while the game runs.
+    const root = document.getElementById('root');
+    const prevDisplay = root?.style.display ?? '';
+    if (root) root.style.display = 'none';
+    return () => { document.body.style.overflow = prev; if (root) root.style.display = prevDisplay; };
   }, []);
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[10000] bg-black">
       <iframe
         ref={frame}
@@ -52,6 +57,7 @@ export default function IframeGameFrame({ src, title, onExit, gameId }: { src: s
       >
         Exit ✕
       </button>
-    </div>
+    </div>,
+    document.body
   );
 }

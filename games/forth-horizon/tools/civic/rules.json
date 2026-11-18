@@ -1,0 +1,34 @@
+{
+  "pack": "us-midwest-lakeport",
+  "version": 1,
+  "planning": {
+    "density_gradient": ["core", "midrise", "mixed", "residential", "sprawl", "rural"],
+    "highway_sprawl_depth_m": 400,
+    "min_green_share": 0.08
+  },
+  "zoning": {
+    "use_classes": ["residential", "commercial", "industrial", "civic", "park", "port", "rail", "utility"],
+    "setback_m": { "residential": 6, "commercial": 3, "industrial": 10, "civic": 8 },
+    "industrial_to_residential_buffer_m": 60,
+    "parking_per_1000sqm": { "commercial": 4, "industrial": 1.5, "civic": 3, "residential": 0 },
+    "every_building_has_access": true
+  },
+  "civil": {
+    "max_street_grade": 0.12,
+    "max_highway_grade": 0.06,
+    "water_crossing": "bridge_or_tunnel",
+    "min_building_to_water_m": 8,
+    "utilities": {
+      "power": {
+        "transmission_span_max_m": 260,
+        "over_water_allowed": false,
+        "water_crossing": "underground_cable",
+        "min_clearance_to_building_m": 25,
+        "min_clearance_to_road_m": 12,
+        "water_margin_m": 40,
+        "pylon_max_slope": 0.25
+      }
+    }
+  },
+  "severity": { "over_water_allowed": "error", "clearance": "warn", "span_length": "warn", "water_crossing": "error" }
+}

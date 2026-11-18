@@ -123,6 +123,15 @@ export class TreeField {
   private uTime = { value: 0 };
   private uWind = { value: 0.3 };
   private cap = 1800;
+  private effRadius = NEAR_R;
+  private effCap = 1800;
+  private _buckets: number[] = [];
+  private _m4 = new THREE.Matrix4();
+  private _q = new THREE.Quaternion();
+  private _up = new THREE.Vector3(0, 1, 0);
+  private _pos = new THREE.Vector3();
+  private _sc = new THREE.Vector3();
+  private _col = new THREE.Color();
   count = 0;
 
   constructor(pts: number[][], private hAt: (x: number, z: number) => number, private exag: () => number) {
@@ -164,10 +173,22 @@ export class TreeField {
     const bs = [broadGeo(5, new THREE.Color(0x3f6a2a)), broadGeo(9, new THREE.Color(0x4d7a2e)), broadGeo(14, new THREE.Color(0x8a6a2a))].map(mk);
     cs.forEach((m, i) => this.variants.push({ mesh: m, conifer: true, slot: i }));
     bs.forEach((m, i) => this.variants.push({ mesh: m, conifer: false, slot: i }));
+    this._buckets = this.variants.map(() => 0);
     this.group.frustumCulled = false;
   }
 
   setWind(w: number): void { this.uWind.value = w; }
+  setQuality(scale: number): void {
+    const s = Math.max(0.5, Math.min(1, scale));
+    const nr = NEAR_R * (0.68 + 0.32 * s);
+    const nc = Math.max(250, Math.floor(this.cap * (0.5 + 0.5 * s)));
+    cardLodUniforms.uNearR.value = nr - 12;
+    if (Math.abs(nr - this.effRadius) > 4 || Math.abs(nc - this.effCap) > 80) {
+      this.effRadius = nr;
+      this.effCap = nc;
+      this.last.set(1e9, 1e9);
+    }
+  }
 
   update(dt: number, cam: THREE.Vector3): void {
     this.uTime.value += dt;
@@ -175,25 +196,28 @@ export class TreeField {
     const moved = Math.hypot(cam.x - this.last.x, cam.z - this.last.y);
     if (this.accT < 0.25 || moved < 8) return;
     this.accT = 0; this.last.set(cam.x, cam.z);
-    const R = NEAR_R, c0 = Math.floor((cam.x - R) / this.cell), c1 = Math.floor((cam.x + R) / this.cell), d0 = Math.floor((cam.z - R) / this.cell), d1 = Math.floor((cam.z + R) / this.cell);
-    const buckets = this.variants.map(() => 0);
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), col = new THREE.Color();
+    const R = this.effRadius, R2 = R * R, c0 = Math.floor((cam.x - R) / this.cell), c1 = Math.floor((cam.x + R) / this.cell), d0 = Math.floor((cam.z - R) / this.cell), d1 = Math.floor((cam.z + R) / this.cell);
+    const buckets = this._buckets; buckets.fill(0);
+    const m4 = this._m4, q = this._q, up = this._up, pos = this._pos, sc = this._sc, col = this._col;
+    const maxCap = this.effCap;
     const ex = this.exag();
     let total = 0;
     for (let cx = c0; cx <= c1; cx++) for (let cz = d0; cz <= d1; cz++) {
       const a = this.grid.get(cx * 4096 + cz); if (!a) continue;
       for (const t of a) {
-        if (total >= this.cap * 2) break;
+        if (total >= maxCap * 2) break;
         const dx = t.x - cam.x, dz = t.z - cam.z;
-        if (dx * dx + dz * dz > R * R) continue;
+        if (dx * dx + dz * dz > R2) continue;
         const h = (t.conifer ? 13 + t.k * 7 : 11 + t.k * 5) / (t.conifer ? 18 : 14) * t.s;
         const pick = Math.floor(((t.x * 31 + t.z * 17) % 1 + 1) % 1 * 3);
         let vi = t.conifer ? pick : 3 + pick;
         if (!t.conifer && ((t.x * 7 + t.z * 3) % 1 + 1) % 1 < 0.15) vi = 5;
         const v = this.variants[vi];
-        if (buckets[vi] >= this.cap) continue;
+        if (buckets[vi] >= maxCap) continue;
         q.setFromAxisAngle(up, ((t.x * 7.3 + t.z * 3.1) % 6.283));
-        m4.compose(new THREE.Vector3(t.x, this.hAt(t.x, t.z) * ex - 0.15, t.z), q, new THREE.Vector3(h * 1.0, h, h * 1.0));
+        pos.set(t.x, this.hAt(t.x, t.z) * ex - 0.15, t.z);
+        sc.set(h, h, h);
+        m4.compose(pos, q, sc);
         v.mesh.setMatrixAt(buckets[vi], m4);
         v.mesh.setColorAt(buckets[vi], col.setScalar(0.78 + (((t.x * 13.1 + t.z * 5.7) % 1 + 1) % 1) * 0.4));
         buckets[vi]++; total++;

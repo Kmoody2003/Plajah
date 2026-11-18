@@ -2,10 +2,18 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GpuTextureLoader, initKTX2 } from './ktx2';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import { CarProbe } from './carProbe';
+import { carvePads, type Pad } from './pads';
+import { groundU, loadGroundArrays } from './groundArrays';
+import { buildYards } from './yards';
+import { buildTrench, type TrenchLine } from './trench';
+import { CityBatches, type CityPart } from './cityBatch';
 import { makeSovereign } from './car';
 import { garage, cloud, activeSpec, hasCar, RunTracker, PathProgress, refParSec, showBanner, showCard, DeliveryGame, makeSpots, TIER_LIST } from './garageGame';
 import { medalFor } from './garage/progress';
@@ -23,15 +31,17 @@ import { DriveInput } from './inputs';
 import { TrackKit } from './trackkit';
 import { buildPinewoodRallyCircuit } from './circuits/pinewoodRally';
 import { buildCliffRacewayCircuit } from './circuits/cliffRaceway';
+import { carveCliffRaceway, designCliffTrack, indexTrack, cliffSurface, type TrackDesign, type TrackIndex } from './circuits/cliffTrack';
 import { buildCountryScenes, carveCreek, type CountryScenes, type RoadNetwork, type Shoreline, carveShoreline } from './countryScenes';
 import { buildRuralOpenWorldDetail } from './ruralDetail';
 import { buildCityExpansion } from './cityExpansion';
-import { buildRiverBridges, carveRiverReaches } from './riverBridges';
+import { buildRiverBridges, carveRiverReaches, routeOverBridges, gradeFromFoot } from './riverBridges';
 import { createMapEditor, ROAD_STYLE, type RoadKind, type UserMap } from './mapEditor';
 import { CompetitionEngine } from './racingAI';
 import { TrafficManager, OpenWorldChallengeManager } from './openWorldEvents';
 import { CopsAndRobbersMode, type PursuitRoleChoice } from './copsAndRobbers';
 import { OnlineSessionManager } from './onlineMultiplayer';
+import { SpatialCuller, runWithConcurrency, populateTiledTerrain, detectInitialTier, TIER_CONFIGS, type PerfTier } from './enginePerf';
 import { harborDetail } from './harborDetail';
 import { duneDetail } from './duneDetail';
 import { Vegetation } from './vegetation';
@@ -59,6 +69,9 @@ import { RacingHud } from './racingHud';
 import { WetRoad, waterContact } from './wetRoad';
 import { FrameProfiler, gpuPreference } from './performance';
 import { InstanceVisibility, CityVisibility } from './instanceVisibility';
+import { Atmosphere } from './atmosphere';
+// Opt-in A/B experiment; default renderer and Gemini's performance controls are unchanged.
+const atmosphere = new URLSearchParams(location.search).get('atmosphere') === '1' ? new Atmosphere() : null;
 const cityVisibility = new CityVisibility();
 const lensRain = new LensRain();
 const roadWater = new WetRoad();
@@ -81,17 +94,24 @@ const msg = document.getElementById('msg') as HTMLElement;
 
 let requestedGpu: WebGLPowerPreference = 'default';
 try { requestedGpu = gpuPreference(new URLSearchParams(location.search).get('gpu') ?? localStorage.getItem('apex.gpu')); } catch { /* use browser default */ }
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: requestedGpu });
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: requestedGpu });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false;
+renderer.shadowMap.needsUpdate = true;
 view.appendChild(renderer.domElement);
 const frameProfiler = new FrameProfiler(renderer);
+const carProbe = new CarProbe(renderer);              // the hero car's own reflections (carProbe.ts)
+(window as unknown as { carProbe: CarProbe }).carProbe = carProbe;
+queueMicrotask(() => { (window as unknown as { setTod: (k: string) => void }).setTod = (k: string) => setTimeOfDay(k); });   // review hook: daylight for looking at materials
+initKTX2(renderer);
 
 const scene = new THREE.Scene();
+atmosphere?.prepare(scene);
 scene.background = new THREE.Color(0x9bb7d4);
 scene.fog = new THREE.Fog(0x9bb7d4, 12000, 42000);
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 5, 80000);
@@ -190,11 +210,17 @@ async function warmShaders(): Promise<void> {
 }
 const warmTimer = setInterval(() => { if ((window as unknown as { cityCount?: number }).cityCount && treeFields.length >= 3 && (grassField || vegetation) && !warmed) { clearInterval(warmTimer); void warmShaders(); } }, 600);
 let csmTick = 0;
-/** every lit material in the scene must use the cascades, or it is lit three times over: sweep for new ones a few times a second */
+const csmVisited = new WeakSet<THREE.Object3D>();
+/** every lit material in the scene must use the cascades, or it is lit three times over: scan only newly added nodes */
 function csmSweep(force = false): void {
-  if (!csm || (!force && csmTick++ % 30 !== 0)) return;
+  if (!csm || (!force && csmTick++ % 120 !== 0)) return;
   const chk = (m: THREE.Material): void => { const x = m as unknown as Record<string, boolean>; if (!csmDone.has(m) && (x.isMeshStandardMaterial || x.isMeshPhysicalMaterial || x.isMeshLambertMaterial || x.isMeshPhongMaterial)) csmSetup(m); };
-  scene.traverse((o) => { const m = (o as THREE.Mesh).material; if (m) { if (Array.isArray(m)) m.forEach(chk); else chk(m); } });
+  scene.traverse((o) => {
+    if (!force && csmVisited.has(o)) return;
+    csmVisited.add(o);
+    const m = (o as THREE.Mesh).material;
+    if (m) { if (Array.isArray(m)) m.forEach(chk); else chk(m); }
+  });
 }
 
 const TEXBASE = '/games/forth-horizon/tex/';
@@ -206,7 +232,7 @@ function gameTex(name: string, repeat = true): THREE.Texture {
   if (!t) {
     t = texLoader.load(TEXBASE + name + '.jpg');
     t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = 8;
+    t.anisotropy = 4;
     if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; }
     texCache.set(key, t);
   }
@@ -273,10 +299,7 @@ const classTex = new THREE.TextureLoader().load('/games/forth-horizon/region/lan
 classTex.colorSpace = THREE.NoColorSpace; classTex.minFilter = THREE.LinearFilter; classTex.generateMipmaps = false;
 function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
   m.onBeforeCompile = (sh) => {
-    sh.uniforms.tGrass = { value: gameTex('grass') };
-    sh.uniforms.tSand = { value: gameTex('sand') };
-    sh.uniforms.tForest = { value: gameTex('forest') };
-    sh.uniforms.tGravel = { value: gameTex('gravel') };
+    sh.uniforms.tGA = groundU.tGA; sh.uniforms.tGP = groundU.tGP; sh.uniforms.uGroundOn = groundU.uGroundOn; sh.uniforms.uGTune = groundU.uGTune;     // the ground's own PBR materials (groundArrays.ts)
     sh.uniforms.uCam = { value: new THREE.Vector3() };
     sh.uniforms.uMapFade = mapFadeU;
     sh.uniforms.uEdge = edgeU;
@@ -292,7 +315,7 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
       .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPos = (modelMatrix * vec4(position, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nuniform sampler2D tGrass;\nuniform sampler2D tSand;\nuniform sampler2D tForest;\nuniform sampler2D tGravel;\nuniform sampler2D tMask;\nuniform sampler2D tAsph;\nuniform sampler2D tPave;\nuniform vec4 uMask;\nuniform float uWet;\nuniform float uPool;\nuniform float uMapFade;\nuniform vec2 uEdge;\nuniform vec3 uCam;\nuniform sampler2D tClass;\nuniform vec2 uTerr;\nfloat tHash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\nfloat tNoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(tHash(i), tHash(i + vec2(1.0, 0.0)), f.x), mix(tHash(i + vec2(0.0, 1.0)), tHash(i + vec2(1.0, 1.0)), f.x), f.y); }\n' + PUDDLE_GLSL)
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nuniform highp sampler2DArray tGA;\nuniform highp sampler2DArray tGP;\nuniform float uGroundOn;\nuniform vec4 uGTune;\nuniform sampler2D tMask;\nuniform sampler2D tAsph;\nuniform sampler2D tPave;\nuniform vec4 uMask;\nuniform float uWet;\nuniform float uPool;\nuniform float uMapFade;\nuniform vec2 uEdge;\nuniform vec3 uCam;\nuniform sampler2D tClass;\nuniform vec2 uTerr;\nfloat tHash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\nfloat tNoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(tHash(i), tHash(i + vec2(1.0, 0.0)), f.x), mix(tHash(i + vec2(0.0, 1.0)), tHash(i + vec2(1.0, 1.0)), f.x), f.y); }\n' + PUDDLE_GLSL)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
       gl_FragColor.a *= mix(1.0, smoothstep(0.0, 1300.0, min(uEdge.x - abs(vWPos.x), uEdge.y - abs(vWPos.z))), uMapFade);`)
       .replace('#include <map_fragment>', `#include <map_fragment>
@@ -300,79 +323,116 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
       float gPud = 0.0;
       float gRoad = 0.0;
       float camD = distance(vWPos, uCam);
+      vec2 muv = (vWPos.xz - uMask.xy) / uMask.zw;
+      bool inMask = muv.x > 0.0 && muv.x < 1.0 && muv.y > 0.0 && muv.y < 1.0;
+      float road = 0.0, walk = 0.0, kerb = 0.0;
+      if (inMask) {
+        vec4 mk4 = texture2D(tMask, muv);
+        if (mk4.a < 0.5) discard;                    // the depressed freeway's cut in the ground (plan_trench.py): the trench itself is drawn below (trench.ts)
+        vec3 mk = mk4.rgb;
+        road = smoothstep(0.42, 0.58, mk.r);
+        walk = smoothstep(0.42, 0.58, mk.g) * (1.0 - road);
+        kerb = (1.0 - road) * smoothstep(0.08, 0.38, mk.r) * walk;
+      }
       float fade = 1.0 - smoothstep(250.0, 1500.0, camD);
-      if (fade > 0.01) {
-        vec3 b = diffuseColor.rgb;
+      vec2 gTN = vec2(0.0); float gTW = 0.0, gTR = 0.0;                // the ground material's normal (x,y), how much of it applies, its roughness
+      if (fade > 0.01 && road < 0.995 && (walk * (1.0 - kerb)) < 0.995) {
+        vec3 b = diffuseColor.rgb;                                       // the satellite colour
         float lum = dot(b, vec3(0.299, 0.587, 0.114));
         float greenness = clamp((b.g - max(b.r, b.b)) * 7.0, 0.0, 1.0);
-        float sandy = clamp((b.r - b.b) * 5.0 - 0.15, 0.0, 1.0) * (1.0 - greenness) * smoothstep(0.28, 0.5, lum);
         float dark = 1.0 - smoothstep(0.12, 0.3, lum);
-        // the baked land class (tools/build_terrain_hi.py): sand only on the lake shore and dunes, forest, open field
         vec3 cls = texture2D(tClass, vec2(vWPos.x / uTerr.x + 0.5, 1.0 - (vWPos.z / uTerr.y + 0.5))).rgb;
-        sandy = cls.r;
-        float forestK = max(cls.g, dark * greenness);
-        vec2 uv1 = vWPos.xz / 9.0;
-        // close to the camera the ground gets two finer scales of the same textures (2.4 m and 0.6 m), so it holds up from the road and the car
-        float nearK = 1.0 - smoothstep(25.0, 220.0, camD);
-        vec2 uv2 = vWPos.xz / 2.4;
-        vec2 uv3 = vWPos.xz / 0.6 + 0.31;
-        vec3 gr = mix(texture2D(tGrass, uv1).rgb, texture2D(tGrass, uv2).rgb, nearK);
-        vec3 sa = mix(texture2D(tSand, uv1 * 0.8).rgb, texture2D(tSand, uv2 * 0.8).rgb, nearK);
-        vec3 fo = mix(texture2D(tForest, uv1 * 0.9).rgb, texture2D(tForest, uv2 * 0.9).rgb, nearK);
-        vec3 gv = mix(texture2D(tGravel, uv1 * 1.3).rgb, texture2D(tGravel, uv2 * 1.3).rgb, nearK);
-        float micro = dot(texture2D(tGrass, uv3).rgb, vec3(0.299, 0.587, 0.114));
-        float microK = nearK * (1.0 - sandy * 0.6);
-        vec3 det = mix(gr, fo, forestK);
-        det = mix(det, sa, sandy);
-        det = mix(det, gv, (1.0 - greenness) * (1.0 - sandy) * 0.4);
-        float dl = max(dot(det, vec3(0.299, 0.587, 0.114)), 0.05);
-        vec3 shaded = b * (0.5 + 1.0 * dl);
-        vec3 retint = det * (lum / dl);
-        diffuseColor.rgb = mix(b, mix(shaded, retint, mix(0.4, 0.82, nearK)), fade * 0.95);
-        diffuseColor.rgb *= 1.0 + microK * (micro - 0.45) * 0.9;
-        // open fields: broad patchiness so no field is a flat colour, and crop rows that run square with the section roads (each 160 m field picks its direction and tint)
-        float fieldK = cls.b * (1.0 - forestK) * smoothstep(0.2, 0.34, lum);
+        float sandy = cls.r, forestK = max(cls.g, dark * greenness), fieldK = cls.b * (1.0 - forestK);
+        vec3 nW = normalize(cross(dFdx(vWPos), dFdy(vWPos))); if (nW.y < 0.0) nW = -nW;
+        float rockK = smoothstep(0.28, 0.5, 1.0 - nW.y);                  // steep ground shows rock
+        // field rows (farmland): alternating soil and crop
+        vec2 fcell = floor(vWPos.xz / 160.0); float fh = tHash(fcell);
+        float rowsK = 0.5 + 0.5 * sin((fh > 0.5 ? vWPos.z : vWPos.x) * 1.3 + fh * 40.0);
         float macro = tNoise(vWPos.xz / 55.0) * 0.6 + tNoise(vWPos.xz / 17.0) * 0.4;
-        diffuseColor.rgb *= 1.0 + (macro - 0.5) * 0.34 * fade;
-        vec2 fcell = floor(vWPos.xz / 160.0);
-        float fh = tHash(fcell);
-        float fcoord = fh > 0.5 ? vWPos.z : vWPos.x;
-        float rowsK = 0.5 + 0.5 * sin(fcoord * 8.2688 + fh * 40.0);
-        float rowFade = 1.0 - smoothstep(14.0, 130.0, camD);
-        diffuseColor.rgb *= 1.0 - fieldK * rowFade * (0.07 + 0.14 * rowsK) * 1.0;
-        diffuseColor.rgb *= 1.0 + fieldK * (fh - 0.5) * 0.16;
+        float wv[8];
+        float open = (1.0 - forestK) * (1.0 - sandy);
+        float gk = clamp((b.g - b.r * 0.92) * 5.0 + uGTune.y, 0.0, 1.0);          // Michigan is green: lean to meadow unless the photo is clearly brown
+        wv[0] = open * (0.3 + 0.7 * gk) * (1.0 - fieldK * 0.7) * (0.6 + 0.8 * macro);
+        wv[1] = open * (1.0 - gk) * 0.6 * (1.0 - fieldK * 0.5) * (1.4 - 0.8 * macro) + fieldK * rowsK * 0.8;
+        wv[2] = forestK * (1.0 - sandy);
+        wv[3] = fieldK * (1.0 - rowsK) * 0.9 + open * (1.0 - gk) * 0.05;
+        wv[4] = (1.0 - gk) * (1.0 - sandy) * (1.0 - forestK) * 0.06;
+        wv[5] = sandy;
+        wv[6] = fieldK * (1.0 - rowsK) * 0.25 * macro;
+        wv[7] = 0.0;
+        float tot = 0.0;
+        for (int i = 0; i < 7; i++) { wv[i] *= (1.0 - rockK); tot += wv[i]; }
+        wv[7] = rockK; tot += rockK;
+        float tile[8]; tile[0] = 3.6; tile[1] = 3.4; tile[2] = 4.2; tile[3] = 4.0; tile[4] = 3.0; tile[5] = 4.6; tile[6] = 3.6; tile[7] = 6.5;
+        vec3 alb = vec3(0.0); vec4 surf = vec4(0.0); float wsum = 0.0;
+        // a slow rotation of the second sample breaks the repeat of every tile
+        float ra = tNoise(vWPos.xz / 31.0) * 6.2831; mat2 rot = mat2(cos(ra), sin(ra), -sin(ra), cos(ra));
+        for (int i = 0; i < 8; i++) {
+          float wi = wv[i] / max(tot, 1e-4);
+          if (wi < 0.04 || uGroundOn < 0.5) continue;
+          vec2 uvA = vWPos.xz / (tile[i] * uGTune.w), uvB = rot * (vWPos.xz / (tile[i] * uGTune.w * 2.7)) + 0.37;
+          float m = smoothstep(0.35, 0.65, tNoise(vWPos.xz / 9.0 + float(i)));
+          alb += wi * mix(texture(tGA, vec3(uvA, float(i))).rgb, texture(tGA, vec3(uvB, float(i))).rgb, m * 0.5);
+          surf += wi * texture(tGP, vec3(uvA, float(i)));
+          wsum += wi;
+        }
+        if (wsum > 0.01) {
+          alb /= wsum; surf /= wsum;
+          float near = (1.0 - smoothstep(uGTune.z * 0.18, uGTune.z, camD)) * fade;
+          float al = max(dot(alb, vec3(0.299, 0.587, 0.114)), 0.04);
+          // keep the photo's large-scale light and shade (fields, clearings, worn patches) as a gentle tint, and the material's detail at full strength
+          vec3 ground = alb * mix(1.0, clamp(lum / al, 0.55, 1.6), uGTune.x) * (1.0 + (macro - 0.5) * 0.22);
+          ground *= mix(1.0, surf.a, 0.55);                              // occlusion in the cracks
+          diffuseColor.rgb = mix(b, ground, near);
+          gTN = surf.rg * 2.0 - 1.0; gTW = near; gTR = surf.b;
+        } else {
+          diffuseColor.rgb *= 1.0 + (macro - 0.5) * 0.34 * fade;
+        }
       }
-      vec2 muv = (vWPos.xz - uMask.xy) / uMask.zw;
-      if (muv.x > 0.0 && muv.x < 1.0 && muv.y > 0.0 && muv.y < 1.0) {
-        vec3 mk = texture2D(tMask, muv).rgb;
-        float road = smoothstep(0.42, 0.58, mk.r);
-        float walk = smoothstep(0.42, 0.58, mk.g) * (1.0 - road);
-        float kerb = (1.0 - road) * smoothstep(0.08, 0.38, mk.r) * walk;
-        // streets: the asphalt tile twice at unrelated scales so it never repeats visibly, darker than before (it read as pale beige in the sun), with repair patches, wear and
-        // oil in broad low-frequency variation, and sidewalk slabs that vary slab to slab
+      if (inMask && (road + walk + kerb) > 0.002) {
         vec2 sp = vWPos.xz;
-        vec3 a1 = texture2D(tAsph, sp / 4.0).rgb, a2 = texture2D(tAsph, sp / 13.7 + 0.37).rgb;
-        float cellN = fract(sin(dot(floor(sp / 6.0), vec2(12.9898, 78.233))) * 43758.5453);
-        float cellM = fract(sin(dot(floor(sp / 23.0), vec2(39.3468, 11.135))) * 24634.6345);
-        vec3 asph = a1 * (0.5 + a2 * 1.0) * (0.82 + 0.22 * cellN) * (0.86 + 0.2 * cellM);
-        asph *= 1.0 - 0.28 * smoothstep(0.78, 0.98, cellN) * smoothstep(0.3, 0.9, a2.r);                      // darker repair patches
-        vec3 pave = texture2D(tPave, sp / 1.7).rgb * (0.86 + 0.18 * fract(sin(dot(floor(sp / 1.7), vec2(12.9898, 78.233))) * 43758.5453));
         vec3 col = diffuseColor.rgb;
-        col = mix(col, pave * 0.95, walk);
+        if (walk > 0.005) {
+          vec3 pave = texture2D(tPave, sp / 1.7).rgb * (0.86 + 0.18 * fract(sin(dot(floor(sp / 1.7), vec2(12.9898, 78.233))) * 43758.5453));
+          col = mix(col, pave * 0.95, walk);
+        }
         col = mix(col, vec3(0.5, 0.5, 0.48), kerb);
-        col = mix(col, asph * 1.15, road);
+        if (road > 0.005) {
+          vec3 a1 = texture2D(tAsph, sp / 4.0).rgb, a2 = texture2D(tAsph, sp / 13.7 + 0.37).rgb;
+          float cellN = fract(sin(dot(floor(sp / 6.0), vec2(12.9898, 78.233))) * 43758.5453);
+          float cellM = fract(sin(dot(floor(sp / 23.0), vec2(39.3468, 11.135))) * 24634.6345);
+          vec3 asph = a1 * (0.5 + a2 * 1.0) * (0.82 + 0.22 * cellN) * (0.86 + 0.2 * cellM);
+          asph *= 1.0 - 0.28 * smoothstep(0.78, 0.98, cellN) * smoothstep(0.3, 0.9, a2.r);
+          col = mix(col, asph * 1.15, road);
+        }
         gWet = uWet * max(road, walk * 0.7);
         gRoad = road;
         gPud = puddleAt(vWPos.xz, uPool) * road * (1.0 - smoothstep(600.0, 1400.0, camD));
-        col *= 1.0 - 0.42 * gWet;                       // wet pavement is darker and glossy
-        col *= 1.0 - 0.38 * gPud;                       // standing water: dark, and a mirror
+        col *= 1.0 - 0.42 * gWet;
+        col *= 1.0 - 0.38 * gPud;
         diffuseColor.rgb = col;
       }
       diffuseColor.rgb *= 1.0 - 0.16 * uWet;           // wet ground everywhere`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.16, gWet); roughnessFactor = mix(roughnessFactor, 0.015, gPud);')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, mix(0.55, 1.0, gTR), gTW); roughnessFactor = mix(roughnessFactor, 0.16, gWet); roughnessFactor = mix(roughnessFactor, 0.015, gPud);')
       .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.6, gPud);');
     sh.fragmentShader = injectRoadPbr(sh.fragmentShader, 'vWPos.xz');
     Object.assign(sh.uniforms, roadUniforms);
+    // close-up relief: a detail normal map (grass, off the roads) bends the lighting within ~140 m of the camera, so the ground has texture you can see the sun catch,
+    // not a flat painted colour. Sampled at two scales so it does not tile. Left out with cascaded shadows: their extra shadow maps leave no free texture unit.
+    // The terrain shader already uses all 16 texture units the GPU allows, so the relief is a bump map from the grass detail texture it already samples (its brightness as height,
+    // screen-space derivatives for the slope): no new sampler.
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+      {
+        float dfade = gTW * (1.0 - road) * (1.0 - gPud);
+        if (dfade > 0.002) {
+          // the ground material's own normal map (from groundArrays.ts), tangent space laid flat along world x and z
+          vec3 nWv = inverseTransformDirection(normal, viewMatrix);
+          vec3 T = normalize(cross(vec3(0.0, 0.0, 1.0), nWv)), B = cross(nWv, T);
+          nWv = normalize(nWv + (T * gTN.x + B * gTN.y) * 0.9 * dfade);
+          normal = normalize((viewMatrix * vec4(nWv, 0.0)).xyz);
+        }
+      }`);
     m.userData.shader = sh;
   };
 }
@@ -380,6 +440,7 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
 let composer: EffectComposer | null = null;
 let cinePass: ShaderPass | null = null;
 let aoPass: AoPass | null = null;
+let bloomPass: UnrealBloomPass | null = null;
 let gradePass: GradePass | null = null;
 let dbgCam: { pos: THREE.Vector3; at: THREE.Vector3 } | null = null;     // review tool: window.regionViewer.cam(x,y,z, tx,ty,tz) holds the camera still; cam() releases it
 let fxOn = true;
@@ -389,11 +450,14 @@ try {
   // the scene is drawn into the composer's read buffer: give it a depth texture so the occlusion pass can read what was really drawn
   composer.renderTarget2.depthTexture = new THREE.DepthTexture(innerWidth, innerHeight);
   composer.renderTarget2.depthTexture.type = THREE.UnsignedIntType;
-  aoPass = new AoPass(camera, innerWidth, innerHeight);
+  aoPass = new AoPass(camera, Math.max(320, Math.floor(innerWidth * 0.5)), Math.max(180, Math.floor(innerHeight * 0.5)));
   composer.addPass(aoPass);
   composer.setSize(innerWidth, innerHeight);
-  const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.42, 0.55, 0.82);
-  composer.addPass(bloom);
+  bloomPass = new UnrealBloomPass(
+    new THREE.Vector2(Math.min(960, Math.max(240, Math.floor(innerWidth * 0.5))), Math.min(540, Math.max(135, Math.floor(innerHeight * 0.5)))),
+    0.42, 0.55, 0.82
+  );
+  composer.addPass(bloomPass);
   // cinematic pass (linear HDR, before tone mapping): speed blur toward the screen edges, sun light shafts through the sky and cloud, a hint of lens fringing,
   // a soft vignette and fine grain
   cinePass = new ShaderPass({
@@ -408,45 +472,49 @@ try {
         vec2 c = vec2(0.5, 0.42);
         vec2 d = vUv - c;
         float rd = length(d * vec2(uAspect, 1.0));
-        // speed blur: samples pulled toward the vanishing point, none in the middle so the car and road ahead stay sharp
+        // speed blur: samples pulled toward the vanishing point, none in the center so the car and road ahead stay sharp
         float amt = uSpeed * 0.06 * smoothstep(0.10, 0.75, rd);
         vec3 col = vec3(0.0);
-        // At zero blur every tap is identical. Keep exactly the same channel
-        // offsets, but fetch each channel once rather than nine times.
         float ca = (0.0007 + uSpeed * 0.0012) * rd;
-        if (uSpeed == 0.0) {
+        if (amt <= 0.0008) {
           col = vec3(texture2D(tDiffuse, vUv + d * ca).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - d * ca).b);
         } else {
-          const int N = 9;
-          for (int i = 0; i < N; i++) {
-            float t = float(i) / float(N - 1);
-            vec2 uv = vUv - d * amt * t;
-            col += vec3(texture2D(tDiffuse, uv + d * ca).r, texture2D(tDiffuse, uv).g, texture2D(tDiffuse, uv - d * ca).b);
-          }
-          col /= float(N);
-        }
-        // light shafts: march from here toward the sun, gathering bright sky; blocked where trees and buildings cover it
-        if (uShaft > 0.01) {
-          vec2 ds = (uSun - vUv) / 22.0;
-          vec2 p = vUv;
+          // 6 radial taps with 1 RGB sample each + CA endpoints -> ~3.5x faster than 27 split-channel taps
           vec3 acc = vec3(0.0);
+          for (int i = 0; i < 6; i++) {
+            float t = float(i) / 5.0;
+            acc += texture2D(tDiffuse, vUv - d * amt * t).rgb;
+          }
+          acc /= 6.0;
+          col = vec3(
+            mix(acc.r, texture2D(tDiffuse, vUv + d * ca).r, 0.45),
+            acc.g,
+            mix(acc.b, texture2D(tDiffuse, vUv - d * ca).b, 0.45)
+          );
+        }
+        float j = hash(vUv * 1000.0 + uTime);
+        // light shafts: 12 jittered march steps (~45% faster with smoother noise-broken gradients)
+        if (uShaft > 0.01) {
+          vec2 ds = (uSun - vUv) / 12.0;
+          vec2 p = vUv + ds * j;
+          vec3 accS = vec3(0.0);
           float w = 1.0;
-          for (int i = 0; i < 22; i++) {
-            p += ds;
+          for (int i = 0; i < 12; i++) {
             vec3 s = texture2D(tDiffuse, p).rgb;
             float l = dot(s, vec3(0.3, 0.59, 0.11));
-            acc += s * smoothstep(1.2, 2.6, l) * w;
-            w *= 0.93;
+            accS += s * smoothstep(1.2, 2.6, l) * w;
+            w *= 0.875;
+            p += ds;
           }
           float toward = 1.0 - clamp(length(uSun - vUv) * 0.9, 0.0, 1.0);
-          col += acc / 22.0 * uSunCol * uShaft * (0.25 + 0.75 * toward);
+          col += accS / 12.0 * uSunCol * uShaft * (0.25 + 0.75 * toward);
         }
         float lensMask, lensShade, lensSparkle;
         vec2 refractedUv = lensRainUv(vUv, lensMask, lensShade, lensSparkle);
         if (lensMask > 0.001) col = mix(col, texture2D(tDiffuse, refractedUv).rgb * lensShade + vec3(lensSparkle), lensMask);
         // vignette and grain
         col *= 1.0 - uVig * smoothstep(0.35, 1.05, rd);
-        col += (hash(vUv * 1000.0 + uTime) - 0.5) * 0.012;
+        col += (j - 0.5) * 0.012;
         gl_FragColor = vec4(col, 1.0);
       }`,
   });
@@ -457,12 +525,14 @@ try {
   gradePass = new GradePass(innerWidth, innerHeight);
   try { gradePass.lut = localStorage.getItem('apex.lut') ?? 'none'; gradePass.lens = (localStorage.getItem('apex.lens') as GameLens) ?? 'none'; const a = parseFloat(localStorage.getItem('apex.lutAmt') ?? ''); if (!Number.isNaN(a)) gradePass.lutAmount = a; } catch { /* storage blocked */ }
   composer.addPass(gradePass);
+  // edge anti-aliasing on the finished image: the post chain renders into plain targets, so the canvas's own multisampling never reached the screen (fences, wires and lane lines shimmered)
+  composer.addPass(new SMAAPass());
 } catch (e) { console.warn('post effects unavailable', e); composer = null; }
 
 let meta: RegionMeta;
 let heights: Float32Array;
 let hiRes = false;                                   // the 6 m height grid and 4 m ground texture (tools/build_terrain_hi.py); ?hires=0 turns it off
-let terrain: THREE.Mesh;
+let terrain: THREE.Group;
 let terrainMat: THREE.MeshStandardMaterial;
 const circuitGroup = new THREE.Group();
 const labelGroup = new THREE.Group();
@@ -521,27 +591,30 @@ function buildTerrain(): void {
       idx[t++] = b; idx[t++] = c; idx[t++] = d;
     }
   }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-  g.setIndex(new THREE.BufferAttribute(idx, 1));
-  g.computeVertexNormals();
-  if (terrain) { terrain.geometry.dispose(); terrain.geometry = g; return; }
+  const tmpGeo = new THREE.BufferGeometry();
+  tmpGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  tmpGeo.setIndex(new THREE.BufferAttribute(idx, 1));
+  tmpGeo.computeVertexNormals();
+  const nor = tmpGeo.getAttribute('normal').array as Float32Array;
+  tmpGeo.dispose();
+
+  if (terrain) {
+    populateTiledTerrain(terrain, terrainMat, nx, ny, pos, uv, nor, 8, 6);
+    return;
+  }
   terrV.value.set(meta.width * meta.mpp, meta.height * meta.mpp);
   const tex = new THREE.TextureLoader().load(BASE + (hiRes ? 'albedo_hi.jpg' : 'albedo.jpg'));
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 16;
+  tex.anisotropy = 4;
   terrainMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, metalness: 0, transparent: false });
   applyTerrainDetail(terrainMat);
-  terrain = new THREE.Mesh(g, terrainMat);
-  terrain.receiveShadow = true;
+  terrain = new THREE.Group();
+  terrain.name = 'terrain-tiles';
+  populateTiledTerrain(terrain, terrainMat, nx, ny, pos, uv, nor, 8, 6);
   scene.add(terrain);
   // water: region footprint, extended far to the west so the Great Lake runs to the horizon
   const rw = meta.width * meta.mpp, rh = meta.height * meta.mpp, ext = 60000;
-  const wGeo = new THREE.PlaneGeometry(rw + ext, rh);
-  wGeo.rotateX(-Math.PI / 2);
-  wGeo.dispose();
-  waterSurface = new WaterSurface(scene, rw, rh, ext, edgeU.value, -rw / 2, -rh / 2);
+  waterSurface = new WaterSurface(scene, rw, rh, ext, edgeU.value, -rw / 2, -rh / 2, atmosphere);
   waterMesh = waterSurface.mesh;
 }
 
@@ -899,7 +972,7 @@ async function buildStreets(): Promise<void> {
 // Lane markings for the streets off the race circuit: the carriageways are painted from the street mask (which has no lines), so the centre lines go on as dashes laid
 // along each street, broken wherever another street crosses (so there is nothing at an intersection to overlap or flicker) and left off the circuit, which has its own.
 function buildStreetMarks(): void {
-  const ROAD: Record<string, number> = { street: 9, arterial: 15, freeway: 24, ramp: 8 };
+  const ROAD: Record<string, number> = { street: 8.5, arterial: 14, freeway: 12.5, ramp: 5.5 };     // the same real-world widths as tools/build_city_mask.py (a freeway line is one carriageway)
   const CELLS = 40, grid = new Map<number, { x0: number; z0: number; x1: number; z1: number; run: number; half: number }[]>();
   streetRuns.forEach((r, ri) => {
     const half = (ROAD[r.c] ?? 9) / 2;
@@ -1071,7 +1144,7 @@ function addTreeCards(parent: THREE.Object3D, list: { x: number; z: number; def:
     parent.add(im);
   });
 }
-interface TreeLayer { group: THREE.Group; setWind(w: number): void; update(dt: number, cam: THREE.Vector3): void }
+interface TreeLayer { group: THREE.Group; setWind(w: number): void; setQuality(scale: number): void; update(dt: number, cam: THREE.Vector3): void }
 const treeFields: TreeLayer[] = [];
 let grassField: GrassField | null = null;
 const IND = 'ironworks_industrial_circuit';                // the short street course through the port's industrial yards
@@ -1195,6 +1268,9 @@ async function buildForest(): Promise<void> {
   {
     const zt = await fetch(BASE + 'zone_trees.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as number[][] | null;
     if (zt) for (const t of zt) if (vegOk(t[0], t[1], 1)) verge.push(t);
+    // back-yard trees behind the houses (tools/relay_houses.py)
+    const yt = await fetch(BASE + 'yard_trees.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as number[][] | null;
+    if (yt) for (const t of yt) verge.push(t);
   }
   const vlist = verge.map((p) => {
     const set = p[2] ? sp.conifer : sp.broad;
@@ -1384,7 +1460,7 @@ function addRoofDetails(items: CityItem[]): void {
   const stone = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, metalness: 0 });
   const metal = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.55 });
   make(unit, stone, cornice, true);
-  make(unit, metal, plant, true);
+  make(unit, metal, plant, false);
   make(unit, stone, pent, true);
   make(new THREE.CylinderGeometry(1.9, 1.9, 3.4, 14), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 }), tanks, false);
   make(new THREE.BoxGeometry(2.6, 2.4, 2.6), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.4, wireframe: true }), legs, false);
@@ -1393,6 +1469,7 @@ function addRoofDetails(items: CityItem[]): void {
   console.log('roof details', { cornice: cornice.length, plant: plant.length, pent: pent.length, tanks: tanks.length, masts: masts.length });
   (window as any).roofCount = [cornice.length, plant.length, tanks.length, masts.length];
   addTowerGeometry(items);
+  chunkInstanced(roofGroup);
 }
 
 // Tower geometry. The generic towers are plain boxes; real ones have a podium, a profile that steps in toward the top, a crown, and piers that cast shadow lines down the
@@ -1400,11 +1477,11 @@ function addRoofDetails(items: CityItem[]): void {
 // at each step, so the skyline has a silhouette. Stone is mapped by world position (triplanar) so it never stretches however the box is scaled.
 function stoneMaterial(): THREE.MeshStandardMaterial {
   const t = new THREE.TextureLoader().load('/games/forth-horizon/tex/bld/tex-shared-06-granite_base.jpg');
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
   const m = new THREE.MeshStandardMaterial({ map: t, roughness: 0.78, metalness: 0, color: 0xd8d4cc });
   m.onBeforeCompile = (sh) => {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vTP; varying vec3 vTN;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 tpw = vec4(position, 1.0);\nmat3 tnm = mat3(modelMatrix);\n#ifdef USE_INSTANCING\ntpw = instanceMatrix * tpw;\ntnm = tnm * mat3(instanceMatrix);\n#endif\nvTP = (modelMatrix * tpw).xyz;\nvTN = tnm * normal;');
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 tpw = vec4(position, 1.0);\nmat3 tnm = mat3(modelMatrix);\n#ifdef USE_INSTANCING\ntpw = instanceMatrix * tpw;\ntnm = tnm * mat3(instanceMatrix);\n#endif\n#ifdef USE_BATCHING\ntpw = batchingMatrix * tpw;\ntnm = tnm * mat3(batchingMatrix);\n#endif\nvTP = (modelMatrix * tpw).xyz;\nvTN = tnm * normal;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vTP; varying vec3 vTN;')
       .replace('#include <map_fragment>', `
         vec3 tw = pow(abs(normalize(vTN)), vec3(6.0)); tw /= (tw.x + tw.y + tw.z);
@@ -1454,6 +1531,8 @@ function addTowerGeometry(items: CityItem[]): void {
 
 // ---------- city buildings ----------
 interface CityItem { kind: 'hero' | 'generic'; slug: string; x: number; z: number; rotY: number; w: number; d: number; h: number; sx?: number; sy?: number; sz?: number; bx?: number; bz?: number }
+const CITY_BATCH = !location.search.includes('citybatch=0');      // ?citybatch=0: the old one-InstancedMesh-per-part city, for comparing
+let cityBatches: CityBatches | null = null;
 const cityGroup = new THREE.Group();
 scene.add(cityGroup);
 let cityItems: CityItem[] = [];
@@ -1480,7 +1559,7 @@ float fvn(vec3 p) {
              mix(mix(fh3(i + vec3(0, 0, 1)), fh3(i + vec3(1, 0, 1)), f.x), mix(fh3(i + vec3(0, 1, 1)), fh3(i + vec3(1, 1, 1)), f.x), f.y), f.z);
 }
 vec3 facadeWeather(vec3 col, vec3 fw, float dist, float wet) {
-  float nearK = 1.0 - smoothstep(25.0, 110.0, dist);
+  float nearK = 1.0 - smoothstep(25.0, 100.0, dist);
   float low = fvn(fw * vec3(0.3, 0.1, 0.3));
   float ground = 1.0 - smoothstep(0.0, 8.0, fw.y);
   float streak = fvn(vec3((fw.x + fw.z) * 0.45, fw.y * 0.05, 3.0));
@@ -1491,8 +1570,10 @@ vec3 facadeWeather(vec3 col, vec3 fw, float dist, float wet) {
   col = mix(vec3(lum), col, 1.0) * (0.88 + 0.28 * smoothstep(0.05, 0.6, lum));
   col *= 1.0 - 0.45 * dirt;
   col = mix(col, col * vec3(0.8, 0.78, 0.74), dirt * 0.5);
-  float micro = fvn(fw * 5.0) * 0.6 + fvn(fw * 17.0) * 0.4;
-  col *= 1.0 + (micro - 0.5) * 0.26 * nearK;
+  if (nearK > 0.01) {
+    float micro = fvn(fw * 5.0) * 0.6 + fvn(fw * 17.0) * 0.4;
+    col *= 1.0 + (micro - 0.5) * 0.26 * nearK;
+  }
   col *= 1.0 - 0.26 * wet * (0.6 + 0.4 * low);
   return col;
 }`;
@@ -1500,7 +1581,7 @@ function patchParallax(mat: THREE.MeshStandardMaterial): void {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uWetF = wetU;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vFW;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 fwp = vec4(position, 1.0);\n#ifdef USE_INSTANCING\nfwp = instanceMatrix * fwp;\n#endif\nvFW = (modelMatrix * fwp).xyz;');
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 fwp = vec4(position, 1.0);\n#ifdef USE_INSTANCING\nfwp = instanceMatrix * fwp;\n#endif\n#ifdef USE_BATCHING\nfwp = batchingMatrix * fwp;\n#endif\nvFW = (modelMatrix * fwp).xyz;');
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vFW;\nuniform float uWetF;\n' + FACADE_WEATHER)
       .replace('#include <map_fragment>', THREE.ShaderChunk.map_fragment.replace(/vMapUv/g, 'pUv') + '\ndiffuseColor.rgb = facadeWeather(diffuseColor.rgb, vFW, length(vViewPosition), uWetF);')
@@ -1510,7 +1591,7 @@ function patchParallax(mat: THREE.MeshStandardMaterial): void {
       vec2 pUv = vMapUv;
       {
         float pDist = length(vViewPosition);
-        float pFade = 1.0 - smoothstep(70.0, 220.0, pDist);
+        float pFade = 1.0 - smoothstep(45.0, 135.0, pDist);
         if (pFade > 0.02) {
           vec3 pN = normalize(vNormal);
           mat3 pT = getTangentFrame(-vViewPosition, pN, vMapUv);
@@ -1521,12 +1602,12 @@ function patchParallax(mat: THREE.MeshStandardMaterial): void {
           float pA = dot(dFdx(vViewPosition), dFdx(vViewPosition)) + dot(dFdy(vViewPosition), dFdy(vViewPosition));
           float upm = sqrt(uvA / max(pA, 1e-8));
           vec2 pDir = pt.xy / max(pt.z, 0.35) * (0.16 * upm) * pFade;
-          const float LAY = 8.0;
+          const float LAY = 5.0;
           vec2 pStep = pDir / LAY;
           float cur = 0.0;
           vec2 uvc = vMapUv;
           float hmap = 1.0 - smoothstep(0.08, 0.62, dot(texture2D(map, uvc).rgb, vec3(0.299, 0.587, 0.114)));
-          for (int i = 0; i < 8; i++) {
+          for (int i = 0; i < 5; i++) {
             if (cur >= hmap) break;
             uvc -= pStep;
             cur += 1.0 / LAY;
@@ -1553,7 +1634,7 @@ function patchGlass(mat: THREE.MeshStandardMaterial): void {
     // glass tint by material: blue-green by default, cerulean, bronze
     const tint = /bronze/i.test(mat.name) ? 'vec3(0.2, 0.14, 0.09)' : /cerulean/i.test(mat.name) ? 'vec3(0.09, 0.22, 0.32)' : 'vec3(0.11, 0.2, 0.27)';
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW; varying vec3 vGN;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 gwp = vec4(position, 1.0);\nmat3 gnm = mat3(modelMatrix);\n#ifdef USE_INSTANCING\ngwp = instanceMatrix * gwp;\ngnm = gnm * mat3(instanceMatrix);\n#endif\nvGW = (modelMatrix * gwp).xyz;\nvGN = gnm * normal;');
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 gwp = vec4(position, 1.0);\nmat3 gnm = mat3(modelMatrix);\n#ifdef USE_INSTANCING\ngwp = instanceMatrix * gwp;\ngnm = gnm * mat3(instanceMatrix);\n#endif\n#ifdef USE_BATCHING\ngwp = batchingMatrix * gwp;\ngnm = gnm * mat3(batchingMatrix);\n#endif\nvGW = (modelMatrix * gwp).xyz;\nvGN = gnm * normal;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
 varying vec3 vGW; varying vec3 vGN;
 uniform float uNightG, uCurtain;
@@ -1613,7 +1694,7 @@ function patchPunched(mat: THREE.MeshStandardMaterial): void {
     prev?.call(mat, sh, r);
     sh.uniforms.uNightG = nightU; sh.uniforms.uCurtain = curtainU;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vPW; varying vec3 vPN;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 pwp = vec4(position, 1.0);\nmat3 pnm = mat3(modelMatrix);\n#ifdef USE_INSTANCING\npwp = instanceMatrix * pwp;\npnm = pnm * mat3(instanceMatrix);\n#endif\nvPW = (modelMatrix * pwp).xyz;\nvPN = pnm * normal;');
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 pwp = vec4(position, 1.0);\nmat3 pnm = mat3(modelMatrix);\n#ifdef USE_INSTANCING\npwp = instanceMatrix * pwp;\npnm = pnm * mat3(instanceMatrix);\n#endif\n#ifdef USE_BATCHING\npwp = batchingMatrix * pwp;\npnm = pnm * mat3(batchingMatrix);\n#endif\nvPW = (modelMatrix * pwp).xyz;\nvPN = pnm * normal;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
 varying vec3 vPW; varying vec3 vPN;
 uniform float uNightG, uCurtain;
@@ -1676,6 +1757,7 @@ async function buildCity(): Promise<void> {
     if (FLOW.has(fm[2])) return `/games/forth-horizon/tex/bld/${fm[2]}_${fm[3]}.jpg`;
     return `/games/forth-horizon/ironport/textures/${fm[1]}/${fm[2]}_${fm[3]}.jpg`;
   });
+  manager.addHandler(/tex-(shared|hero)-[a-z0-9-]+_(base|nrm|rgh)\.png/, new GpuTextureLoader(manager) as unknown as THREE.Loader);
   const loader = new GLTFLoader(manager);
   // All 86 models used to load at once, and every one asks for its own copy of each texture: with the detailed v3 models that is thousands of requests in flight and the browser
   // refuses some (net::ERR_INSUFFICIENT_RESOURCES), which left buildings out. So: a few models at a time, and the cache answers a texture a second model asks for again.
@@ -1737,7 +1819,7 @@ async function buildCity(): Promise<void> {
     const u = t - Math.floor(t);
     return u < 0.34 ? 0 : 1 + Math.min(n - 2, Math.floor(((u - 0.34) / 0.66) * (n - 1)));
   };
-  const swapLoader = new THREE.TextureLoader(manager);
+  const swapLoader = new GpuTextureLoader(manager);
   const swapTex = new Map<string, Promise<THREE.Texture>>();
   const loadSwap = (name: string, suffix: 'base' | 'nrm' | 'rgh'): Promise<THREE.Texture> => {
     const url = `${name}_${suffix}.png`;                          // the URL modifier above points it at the packed jpg of whichever texture set is on
@@ -1773,7 +1855,7 @@ async function buildCity(): Promise<void> {
             if (!old) return;
             const tx = (await loadSwap(to, suffix)).clone();
             tx.flipY = old.flipY; tx.wrapS = old.wrapS; tx.wrapT = old.wrapT; tx.repeat.copy(old.repeat); tx.offset.copy(old.offset); tx.rotation = old.rotation; tx.center.copy(old.center);
-            tx.colorSpace = old.colorSpace; tx.anisotropy = old.anisotropy; tx.needsUpdate = true;
+            tx.colorSpace = old.colorSpace; tx.anisotropy = Math.min(4, old.anisotropy || 4); tx.needsUpdate = true;
             nm[k] = tx;
           };
           jobs.push((async () => { await Promise.all([set('map', 'base'), set('normalMap', 'nrm'), set('roughnessMap', 'rgh')]); finishMat(nm as THREE.MeshStandardMaterial); })());
@@ -1795,8 +1877,10 @@ async function buildCity(): Promise<void> {
   }
   cityGroup.clear();
   cityVisibility.batches = [];
+  cityBatches?.dispose(); cityBatches = null;
+  const cityParts: CityPart[] = [];
   let done = 0;
-  await Promise.all([...groups.entries()].map(async ([key, items]) => {
+  await runWithConcurrency([...groups.entries()], 6, async ([key, items]) => {
     const [kind, rest] = key.split('/');
     const [slug, vs] = rest.split('#');
     const proto = await variantProto(kind, slug, Number(vs));
@@ -1812,18 +1896,29 @@ async function buildCity(): Promise<void> {
       return place.makeTranslation(it.x, gy * exag, it.z).multiply(rotM).multiply(scM.makeScale(it.sx ?? 1, it.sy ?? 1, it.sz ?? 1)).clone();
     });
     for (const m of meshes) {
+      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
       const transforms = placements.map((placement) => placement.clone().multiply(m.matrixWorld));
+      const castShadow = (m.geometry.boundingSphere?.radius ?? 5) >= 2.8;
+      // hero landmarks keep their own meshes: one (Central Station) drew a stray roof slab when batched, and the ~90 heroes cost few draws
+      if (CITY_BATCH && kind !== 'hero') { cityParts.push({ geometry: m.geometry, material: m.material as THREE.Material, transforms, castShadow }); continue; }
       const batch = new InstanceVisibility(m.geometry, m.material, transforms);
+      if (!castShadow) batch.mesh.castShadow = false;
       cityVisibility.batches.push(batch);
       cityGroup.add(batch.mesh);
     }
     done += items.length;
-  }));
+  });
+  if (CITY_BATCH && cityParts.length) {
+    // every part sharing a material in one multi-draw (cityBatch.ts): ~100 draws for the whole city instead of thousands
+    cityBatches = new CityBatches(cityParts);
+    cityGroup.add(cityBatches.group);
+    console.log('city batched:', cityBatches.drawCalls, 'draws,', cityBatches.instances, 'instances');
+  }
   console.log('city buildings placed', done, 'of', cityItems.length);
   (window as any).cityCount = done;
   addRoofDetails(cityItems);
-  buildStreetscape().catch((e) => console.error('streetscape failed', e));
-  buildZones().catch((e) => console.error('zones failed', e));
+  buildStreetscape().then(() => spatialCuller.indexGroups([furnitureGroup, scapeGroup, zoneGroup])).catch((e) => console.error('streetscape failed', e));
+  buildZones().then(() => spatialCuller.indexGroups([furnitureGroup, scapeGroup, zoneGroup])).catch((e) => console.error('zones failed', e));
 }
 
 // ---------- industrial yards and waterfront rows (region/zones.json, made by tools/infill_waterfront.py) ----------
@@ -1836,7 +1931,7 @@ async function buildZones(): Promise<void> {
   if (!res.ok) return;
   const zones = ((await res.json()) as { zones: { id: string; name: string; kind: 'industrial' | 'waterfront'; bank: string; center: number[]; hull: number[][] }[] }).zones;
   const tex = new THREE.TextureLoader().load('/games/forth-horizon/ironport/textures-v3/shared/tex-shared-16-concrete-weathered_base.jpg');
-  tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8;
+  tex.colorSpace = THREE.SRGBColorSpace; tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 4;
   const mats = {
     industrial: new THREE.MeshStandardMaterial({ map: tex, color: 0x8b8a86, roughness: 0.93, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
     waterfront: new THREE.MeshStandardMaterial({ map: tex, color: 0xb9b2a2, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
@@ -1931,7 +2026,7 @@ for (const [alt, size, rep, seed, vx, vz, op] of [[2900, 44000, 2.4, 7, 0.0075, 
 }
 // ---------- weather ----------
 const wx = new WeatherRig(scene);
-const sky = new Sky(scene);
+const sky = new Sky(scene, atmosphere);
 const spray = new SprayFx(scene);
 const dust = new DustFx(scene);          // dirt and dust off loose surfaces: the rally stage above all
 const wDir = new THREE.Vector3(), wSun = new THREE.Vector3(0, 0.4, 1), tmpSun = new THREE.Vector3();
@@ -2479,7 +2574,21 @@ function openCourierBrief(): void {
   briefEl.querySelectorAll<HTMLButtonElement>('.ct').forEach((b) => { b.onclick = () => { hideBrief(); startDrive('free', b.dataset.t as 'rookie' | 'pro' | 'legend'); }; });
   (document.getElementById('briefBack') as HTMLElement).onclick = () => preset('overview');
 }
-addMenuCard('COURIER MODE', 'Delivery shift', 'Passengers · food · packages · beat the clock, chain the drops', '#00f5d4', openCourierBrief);
+function openPursuitBrief(): void {
+  preset('downtown', true);
+  briefEl.style.borderColor = '#4d8dff88';
+  const opt = (role: string, title: string, sub: string): string => `<button class="pr" data-r="${role}" style="display:block;width:100%;text-align:left;margin:6px 0;padding:10px 16px;border-radius:18px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#fff;cursor:pointer"><div style="font:700 14px Outfit,sans-serif">${title}</div><div style="font:400 11px Inter,sans-serif;color:rgba(255,255,255,.65)">${sub}</div></button>`;
+  briefEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:#4d8dff;box-shadow:0 0 10px #4d8dff"></span><span style="font:600 10px Outfit,sans-serif;letter-spacing:.28em;color:#4d8dff">PURSUIT MODE</span></div>
+    <div style="font:800 26px Outfit,sans-serif;margin:4px 0 6px">Cops &amp; Robbers</div>
+    <div style="font:400 12px Inter,sans-serif;color:rgba(255,255,255,.7);margin-bottom:12px">Pull off the bank job and lose the police at a hideout, or take the APB and run the getaway car down.</div>
+    ${opt('robber', 'Be the robber', 'Heist intro · getaway car · reach a hideout')}${opt('cop', 'Be the cop', 'Dispatch APB · backup cruisers · chase on foot if they bail')}${opt('auto', 'Random role', 'The game picks your side')}
+    <button id="briefBack" style="margin-top:8px;height:42px;padding:0 24px;background:rgba(255,255,255,.06);color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:999px;font:600 12px Outfit,sans-serif;letter-spacing:.18em;cursor:pointer">BACK</button>`;
+  briefEl.style.display = 'block';
+  briefEl.querySelectorAll<HTMLButtonElement>('.pr').forEach((b) => { b.onclick = () => { hideBrief(); startDrive('free', undefined, b.dataset.r as PursuitRoleChoice); }; });
+  (document.getElementById('briefBack') as HTMLElement).onclick = () => preset('overview');
+}
+addMenuCard('PURSUIT MODE', 'Cops & Robbers', 'Heist getaway or police chase · pick your side', '#4d8dff', openPursuitBrief);
+addMenuCard('COURIER MODE', 'Delivery shift','Passengers · food · packages · beat the clock, chain the drops', '#00f5d4', openCourierBrief);
 addMenuCard('GARAGE', 'Cars, parts and tuning', 'Showroom · upgrades · tuning · objectives', '#ffd166', () => { location.href = 'showroom.html'; });
 function openBrief(id: string): void {
   const b = BRIEFS[id];
@@ -2760,18 +2869,20 @@ function buildFurniture(): void {
     furnitureGroup.add(builtRally.group);
   }
   const cliffCircuit = meta.circuits.great_lakes_cliff_raceway;
-  if (cliffCircuit) {
+  if (cliffCircuit && cliffDesign) {
     // the road is laid on the terrain mesh that is drawn (hAt is a smoother surface and let the grass through), in the same asphalt as the city circuit, and the car rides on it
     const builtCliff = buildCliffRacewayCircuit({
       circuit: cliffCircuit,
       ground: (x, z) => meshH(x, z),
       exag,
       roadMaterial: cityRoadMat ?? undefined,
+      design: cliffDesign!,
     });
     furnitureGroup.add(builtCliff.group);
     driveSurfaces.push(builtCliff.road);
     surfGrid = null;
     cliffNear = makeCorridor(builtCliff.path);
+    cliffPathPts = builtCliff.path;
     cliffTunnelNear = builtCliff.tunnelPath.length ? makeCorridor(builtCliff.tunnelPath) : null;
   }
 
@@ -2830,8 +2941,25 @@ function buildFurniture(): void {
     bridgeNear = makeCorridor(rb.path);
     heroBridgeUpdate = rb.updateLed;
   }
+  spatialCuller.indexGroups([furnitureGroup, scapeGroup, zoneGroup]);
 }
 
+/** the depressed downtown freeways (trench.ts): bed, walls, medians and overpasses, once the street mask (which holds the cut) has loaded */
+async function buildTrenchLayer(): Promise<void> {
+  const td = await fetch(BASE + 'trench.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { lines: TrenchLine[] } | null;
+  if (!td || !td.lines.length) return;
+  const streets = await fetch(BASE + 'city_streets.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { c: string; p: number[][] }[] | null;
+  for (let i = 0; i < 200 && !roadMask; i++) await new Promise((r) => setTimeout(r, 100));
+  const W: Record<string, number> = { street: 8.5, arterial: 14 };
+  const t = buildTrench({
+    lines: td.lines, ground: (x, z) => meshH(x, z), hole: trenchHole, roadMaterial: cityRoadMat ?? undefined,
+    crossings: (streets ?? []).filter((r) => W[r.c]).map((r) => ({ half: W[r.c] / 2, p: r.p })),
+  });
+  furnitureGroup.add(t.group);
+  driveSurfaces.push(...t.surfaces);
+  surfGrid = null;
+  console.log('freeway trench:', td.lines.length, 'lines,', t.overpasses, 'overpasses');
+}
 let heroBridgeUpdate: ((elapsed: number, nightFactor: number) => void) | null = null;
 
 // ---------- lap timing ----------
@@ -2960,7 +3088,7 @@ function buildSurfGrid(): SurfGrid {
   }
   return { cell, map, tris: new Float32Array(flat) };
 }
-function surfaceTop(x: number, z: number): number {
+function surfaceTop(x: number, z: number, maxY = Infinity): number {
   if (!driveSurfaces.length) return -1e9;
   surfGrid ??= buildSurfGrid();
   const l = surfGrid.map.get(Math.floor(x / surfGrid.cell) + ',' + Math.floor(z / surfGrid.cell));
@@ -2975,14 +3103,38 @@ function surfaceTop(x: number, z: number): number {
     const l1 = ((bz - cz) * (x - cx) + (cx - bx) * (z - cz)) / den, l2 = ((cz - az) * (x - cx) + (ax - cx) * (z - cz)) / den, l3 = 1 - l1 - l2;
     if (l1 < -1e-4 || l2 < -1e-4 || l3 < -1e-4) continue;
     const y = l1 * T[o + 1] + l2 * T[o + 4] + l3 * T[o + 7];
-    if (y > top) top = y;
+    if (y > top && y <= maxY) top = y;
   }
   return top;
 }
+/** inside the depressed freeway's cut (the street mask's alpha) */
+function trenchHole(x: number, z: number): boolean {
+  if (!roadMask) return false;
+  const u = (x - maskVec.x) / maskVec.z, v = (z - maskVec.y) / maskVec.w;
+  if (u < 0 || u >= 1 || v < 0 || v >= 1) return false;
+  return roadMask.data[((Math.floor(v * roadMask.h) * roadMask.w) + Math.floor(u * roadMask.w)) * 4 + 3] < 128;
+}
+/** the height of whatever the car is on, for multi-level places (an overpass over the freeway): the highest surface no more than a step above this */
+let groundYHint: number | null = null;
 function groundH(x: number, z: number): number {
+  if (trenchHole(x, z)) {
+    // in the cut there is no ground at street level: the freeway bed below and the overpasses above; take the one the car is on (or, with no hint, the bed)
+    if (groundYHint !== null) { const t = surfaceTop(x, z, groundYHint + 2.2); if (t > -1e8) return t; }
+    return lowestSurface(x, z, meshH(x, z) - 7.5);
+  }
   const top = surfaceTop(x, z);
-  if (top > -1e8 && cliffTunnelNear && cliffTunnelNear(x, z, 10)) return top;       // in the tunnel the road is the ground; the terrain is the mountain over it
+  if (cliffTunnelNear && cliffTunnelNear(x, z, 15)) {
+    if (top > -1e8) return top;
+    const sy = cliffIx ? cliffSurface(cliffIx, x, z, 14) : NaN;                         // a wheel past the road edge inside the tunnel stands on the road's own plane, never on the mountain above
+    if (!Number.isNaN(sy)) return sy * exag;
+  }       // in the tunnel the road is the ground; the terrain is the mountain over it
   return Math.max(meshH(x, z), top);
+}
+/** the lowest drivable surface at x,z (the freeway bed under an overpass), or `fallback` */
+function lowestSurface(x: number, z: number, fallback: number): number {
+  let y = surfaceTop(x, z), best = y;
+  for (let k = 0; k < 4 && y > -1e8; k++) { y = surfaceTop(x, z, y - 0.5); if (y > -1e8) best = y; }
+  return best > -1e8 ? best : fallback;
 }
 let surfIdx = 0;
 /** a fast "is this point within r metres of the line" test: the line's points in a hash of 24 m cells */
@@ -2998,6 +3150,8 @@ function makeCorridor(pts: { x: number; z: number }[]): (x: number, z: number, r
     return false;
   };
 }
+let cliffPathPts: { x: number; z: number }[] = [];
+let cliffDesign: TrackDesign | null = null; let cliffIx: TrackIndex | null = null;
 let cliffNear: ((x: number, z: number, r: number) => boolean) | null = null;         // the cliff raceway's tarmac
 let cliffTunnelNear: ((x: number, z: number, r: number) => boolean) | null = null;   // inside its tunnel, where the mountain overhead must not hold the car up
 let mapEditor: ReturnType<typeof createMapEditor> | null = null;
@@ -3082,7 +3236,25 @@ function makeCar(): THREE.Group {
   holder.add(rig.group);
   holder.userData.update = rig.update;
   // swap in the scanned Sovereign (Hunyuan mesh painted from the turntable) once it has loaded; the stand-in covers the wait
-  loadSovereignScan().then((r) => { rig.group.visible = false; holder.add(r.group); holder.userData.update = r.update; holder.userData.panels = r.panels; { const pc = garage.active?.paint; if (pc) r.paint?.set({ color: new THREE.Color(pc).getHex() }); } }).catch((e) => console.warn('scan car failed', e));
+  loadSovereignScan().then(async (r) => {
+    { const pc = garage.active?.paint; if (pc) r.paint?.set({ color: new THREE.Color(pc).getHex() }); }
+    // compile the scan car's shaders before it is shown: the first render of its heavy paint / glass materials used to stall the frame the car appeared in. The compile starts with the car visible
+    // (it only sees visible objects) and the car is hidden again before anything is drawn; the stand-in covers the wait.
+    r.group.visible = true; holder.add(r.group);
+    let compiled: Promise<unknown> | null = null;
+    try { compiled = renderer.compileAsync(scene, camera); } catch { compiled = null; }
+    r.group.visible = false;
+    try { await compiled; } catch { /* compile errors surface on the first render, as before */ }
+    r.group.visible = true; holder.userData.update = r.update; holder.userData.panels = r.panels;
+    // the stand-in is finished: stop drawing it and free its geometry
+    // the scan car casts the sun's shadow (it never did), and keeps the stand-in's soft contact shadow under it so it sits on the road
+    r.group.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && !(m.material as THREE.Material).transparent) m.castShadow = true; });
+    let blob: THREE.Object3D | null = null;
+    rig.group.traverse((o) => { const m = o as THREE.Mesh; if (!blob && m.isMesh && (m.geometry as THREE.BufferGeometry).type === 'PlaneGeometry' && ((m.material as THREE.MeshBasicMaterial).map as THREE.CanvasTexture | null)?.isCanvasTexture) blob = m; });
+    if (blob) { const b = blob as THREE.Mesh; b.parent?.remove(b); holder.add(b); }
+    rig.group.visible = false; holder.remove(rig.group);
+    rig.group.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (Array.isArray(m.material) ? m.material : [m.material]).forEach((x) => x.dispose()); } });
+  }).catch((e) => console.warn('scan car failed', e));
   return holder;
 }
 
@@ -3146,7 +3318,8 @@ function corridorAt(P: { x: number; z: number }[], n: number, bi: number, x: num
   return { d: nd, nx, nz };
 }
 function barrierCollide(s: DriveState): boolean {
-  const P = s.circuitId === IND ? industrialPath : cityPath, n = P.length;
+  const cliff = s.circuitId === 'great_lakes_cliff_raceway';
+  const P = cliff ? cliffPathPts : s.circuitId === IND ? industrialPath : cityPath, n = P.length;
   if (!n) return false;
   // nearest path point near the last one (the path is a closed loop; search a window, fall back to a full scan)
   let best = 1e18, bi = barrierIdx;
@@ -3166,7 +3339,8 @@ function barrierCollide(s: DriveState): boolean {
   for (const [lx, lz] of [[CAR_HW, CAR_HL], [-CAR_HW, CAR_HL], [CAR_HW, -CAR_HL], [-CAR_HW, -CAR_HL]]) {
     const x = s.pos.x + cy * lx + sy * lz, z = s.pos.z - sy * lx + cy * lz;
     const c = corridorAt(P, n, bi, x, z);
-    const over = c.d - BARRIER_FACE;
+    const inTun = cliff && cliffTunnelNear ? cliffTunnelNear(x, z, 14) : false;
+    const over = c.d - (cliff ? (inTun ? 8.55 : 8.05) : BARRIER_FACE);       // cliff raceway: the Armco / Jersey face (the tunnel's wall inside the mountain)
     if (over > worst && c.d < 60) { worst = over; ux = c.nx / c.d; uz = c.nz / c.d; }
   }
   if (worst > 0) {
@@ -3208,6 +3382,7 @@ let pursuitMode: CopsAndRobbersMode | null = null;
 const onlineSession = new OnlineSessionManager((text) => { msg.textContent = text; });
 const remoteGroup = new THREE.Group();
 scene.add(remoteGroup);
+const spatialCuller = new SpatialCuller();
 const aiGroup = new THREE.Group();
 const trafficGroup = new THREE.Group();
 scene.add(aiGroup, trafficGroup);
@@ -3323,13 +3498,16 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
   const hw = meta.coastal_highway.xz;
   let p: number[], q: number[];
   if (free) { p = hw[hw.length - 22]; q = hw[hw.length - 26]; }
+  else if (id === 'great_lakes_cliff_raceway' && cliffDesign) { const d = cliffDesign.pts; p = [d[2].x, d[2].z]; q = [d[6].x, d[6].z]; }     // the engineered line, not the raw survey points (up to 14 m off it)
   else { p = city && cn > 8 ? [cp[cn - 8].x, cp[cn - 8].z] : c!.xz[0]; q = city && cn > 8 ? [cp[cn - 7].x, cp[cn - 7].z] : c!.xz[4]; }
   const yaw = Math.atan2(q[0] - p[0], q[1] - p[1]);
   const car = driving?.car ?? prewarmCar ?? makeCar();
   prewarmCar = null;
   car.position.set(0, 0, 0);
   if (!car.parent) scene.add(car);
-  const y = (free ? hAt(p[0], p[1]) : city && cn > 8 ? cp[cn - 8].y : c!.y ? c!.y[0] : hAt(p[0], p[1])) * exag;
+  // never spawn under the drawn road: the cliff raceway's road was raised above its survey heights, and the start countdown holds the car still, so a car started under the
+  // asphalt stayed stuck in it, nose down
+  const y = Math.max((free ? hAt(p[0], p[1]) : city && cn > 8 ? cp[cn - 8].y : c!.y ? c!.y[0] : hAt(p[0], p[1])) * exag, groundH(p[0], p[1]) + 0.05);
   driving = { lock: 3.6, camDist: 5.8, camH: 1.6, camView: 0, circuitId: id, pos: new THREE.Vector3(p[0], y, p[1]), yaw, sp: 0, lat: 0, steer: 0, car, startPos: new THREE.Vector3(p[0], y, p[1]), startYaw: yaw, camPos: new THREE.Vector3(p[0] - Math.sin(yaw) * 10, y + 4, p[1] - Math.cos(yaw) * 10), hit: 0, ps: createCarState(p[0], y, p[1], yaw) };
   carY = -1e9; carPitch = carRoll = slopePS = slopeRS = 0; setMusicDuck(0.4); gameAudio.ensureStarted(); gameAudio.setPaused(false);
   wx.ensureAudio(); wx.setAudioLevel(engVol); wx.setPaused(false);
@@ -3402,7 +3580,7 @@ function stepDrive(dt: number): void {
     const li = racingLine.nearest(s.pos.x, s.pos.z), off = racingLine.offsets(li, s.pos.x, s.pos.z, s.yaw), v = Math.max(0, s.ps.forwardSpeed);
     const gripNow = Math.max(0.3, (1 - 0.24 * roadWater.wetness) * (1 - 0.82 * hydro));
     if (Math.abs(off.lat) < 9) {
-      if (assist.brake && v > 9) { const need = racingLine.demand(li, v, gripNow), cap = 9.0 * gripNow; assistBrake = Math.min(1, Math.max(0, (need - cap * 0.5) / (cap * 0.4))) * 0.9; }
+      if (assist.brake && v > 9) { const need = racingLine.demand(li, v, gripNow), cap = 9.0 * gripNow; assistBrake = Math.min(1, Math.max(0, (need - cap * 0.78) / (cap * 0.5))) * 0.5; }
       if (assist.steer && v > 6) assistSteer = Math.max(-0.6, Math.min(0.6, off.head * 1.3 - off.lat * 0.06)) * 0.65;
     }
   }
@@ -3410,7 +3588,7 @@ function stepDrive(dt: number): void {
   if (racingLine && chevrons && lineMesh?.visible) chevrons.update(racingLine.nearest(s.pos.x, s.pos.z), Math.max(0, s.ps.forwardSpeed), Math.max(0.3, (1 - 0.24 * roadWater.wetness) * (1 - 0.82 * hydro)));
   const thrWant = locked ? 0 : Math.max(kUp ? 1 : 0, pad.throttle) * (1 - assistBrake), brkWant = locked ? 1 : Math.max(kDown ? 1 : 0, pad.brake, assistBrake);
   pedalT += (thrWant - pedalT) * Math.min(1, dt * (thrWant > pedalT ? 3.4 : 8));
-  pedalB += (brkWant - pedalB) * Math.min(1, dt * (brkWant > pedalB ? 2.6 : 9));
+  pedalB += (brkWant - pedalB) * Math.min(1, dt * (brkWant > pedalB ? (assistBrake > 0 && brkWant === assistBrake ? 2.6 : 14) : 10));
   const input: CarInput = { throttle: locked ? 0 : pedalT, brake: locked ? 1 : pedalB, steer: (() => { const p = Math.abs(pad.steer) > Math.abs(kSteer) ? pad.steer : kSteer; return Math.max(-1, Math.min(1, p + assistSteer * (1 - Math.abs(p)))); })(), handbrake: hand };
   // Every tyre samples the puddles drawn by the shader. The unloaded side
   // loses contact earlier, and one-sided water drag produces a modest yaw moment.
@@ -3431,7 +3609,18 @@ function stepDrive(dt: number): void {
   const grip = SOV_SPEC.corneringGrip * Math.min(contactGrip, (1 - 0.24 * (SOV_SPEC.wetSensitivity ?? 1) * roadWater.wetness) * (1 - 0.82 * hydro));
   if (!wxGripSpec || Math.abs(wxGripSpec.corneringGrip - grip) > 0.001 || wxGripSpec.suspension !== SOV_SPEC.suspension) wxGripSpec = { ...SOV_SPEC, corneringGrip: grip };
   if (hydro > 0.3) driveInput.rumble(0, Math.min(0.4, hydro * 0.4), 60);
-  stepCarPhysics(ps, wxGripSpec, input, dt, groundH, surfaceAtXZ, []);
+  {
+    // multi-level ground (the freeway trench under its overpasses): the car's own height picks the level it is on. And a step of more than ~1.8 m is a wall (the trench's
+    // retaining walls, the overpass parapets): the car is held back instead of being lifted onto the street above or dropped into the cut
+    const ox = ps.pos.x, oz = ps.pos.z, oy = ps.pos.y;
+    groundYHint = oy;
+    stepCarPhysics(ps, wxGripSpec, input, dt, groundH, surfaceAtXZ, []);
+    if (trenchHole(ps.pos.x, ps.pos.z) !== trenchHole(ox, oz)) {
+      const g = groundH(ps.pos.x, ps.pos.z);
+      if (Math.abs(g - oy) > 1.8) { ps.pos.x = ox; ps.pos.z = oz; ps.vel.x *= -0.25; ps.vel.z *= -0.25; s.hit = 0.4; }
+    }
+    groundYHint = null;
+  }
   if (!ps.isAirborne) {
     ps.vel.multiplyScalar(Math.exp(-waterDrag * dt));
     ps.angularVel += Math.max(-0.2, Math.min(0.2, splitDrag * ps.forwardSpeed * 0.1)) * dt;
@@ -3452,6 +3641,7 @@ function stepDrive(dt: number): void {
         m.position.copy(r.state.pos);
         m.rotation.y = r.state.yaw;
       }
+      if (!locked) { const hit = carHit(ps, r.state.pos, r.state.yaw, r.state.vel, 1); if (hit > 3) { r.state.vel.multiplyScalar(0.985); } }
     }
   }
   if (trafficMgr) {
@@ -3460,6 +3650,7 @@ function stepDrive(dt: number): void {
       const tv = trafficMgr.vehicles[i];
       trafficMeshes[i].position.copy(tv.pos);
       trafficMeshes[i].rotation.y = tv.yaw;
+      if (!locked) { const hit = carHit(ps, tv.pos, tv.yaw, tv.vel, 1.1); if (hit > 3) { tv.speedMps *= 0.9; } }
     }
   }
   if (challengeMgr) {
@@ -3500,7 +3691,7 @@ function stepDrive(dt: number): void {
   s.sp = ps.forwardSpeed; s.lat = ps.lateralSpeed; s.steer = ps.steerInputSmoothed;
   let bumped = false;
   if (collide(s)) { s.sp *= 0.86; s.lat *= 0.7; s.hit = 0.4; bumped = true; }
-  if ((s.circuitId === 'ironport_grand_circuit' || s.circuitId === IND) && barrierCollide(s)) { s.hit = 0.4; bumped = true; }
+  if ((s.circuitId === 'ironport_grand_circuit' || s.circuitId === IND || s.circuitId === 'great_lakes_cliff_raceway') && barrierCollide(s)) { s.hit = 0.4; bumped = true; }
   if (bumped) driveInput.rumble(0.9, 0.7, 220);
   else if (ps.isDrifting) driveInput.rumble(0.0, 0.25, 60);
   garageStep(dt, s, bumped);
@@ -3627,6 +3818,24 @@ async function boot(): Promise<void> {
   ]);
   meta = m;
   countryNet = await fetch(BASE + 'country_roads.json').then((x) => (x.ok ? x.json() : null)).catch(() => null);
+  {
+    // roads traced from the satellite that run through or beside the cliff raceway (long straight pieces that join nothing, with a bridge or two where they cross a creek) are not part of the
+    // modelled map: the raceway is a closed circuit with its own road and bridges, and nothing else should cut across it
+    const cc = meta.circuits.great_lakes_cliff_raceway;
+    if (cc && countryNet) {
+      const tr = cc.xz as number[][];
+      const near = (r: { xz: number[][] }): boolean => {
+        for (let i = 0; i < r.xz.length - 1; i++) {
+          const a = r.xz[i], b = r.xz[i + 1], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 50));
+          for (let k = 0; k <= n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, z = a[1] + (b[1] - a[1]) * k / n; for (let j = 0; j < tr.length; j += 3) if (Math.hypot(tr[j][0] - x, tr[j][1] - z) < 700) return true; }
+        }
+        return false;
+      };
+      const before = countryNet.roads.length;
+      countryNet.roads = countryNet.roads.filter((r) => !near(r));
+      console.log('country roads near the cliff raceway removed:', before - countryNet.roads.length);
+    }
+  }
   for (const f of ['farbank_streets.json', 'user_streets.json']) { const fb = await fetch(BASE + f).then((x) => (x.ok ? x.json() : null)).catch(() => null); if (fb && countryNet) countryNet.roads.push(...fb.roads); else if (fb) countryNet = fb; }
   { if (!countryNet) countryNet = { roads: [] }; countryNet.roads.push({ kind: 'paved', xz: meta.coastal_highway.xz, half: 6.4 }, { kind: 'paved', xz: meta.freeway.xz, half: 10 }); }
   userMap = await fetch(BASE + 'user_map.json?t=' + Date.now()).then((x) => (x.ok ? x.json() : null)).catch(() => null);
@@ -3657,6 +3866,14 @@ async function boot(): Promise<void> {
   }
   if (shoreHw) carveShoreline(heights, meta.width, meta.height, meta.mpp, shoreHw);
   carveRiverReaches(heights, meta.width, meta.height, meta.mpp);                // the satellite's baked bridge strips come out of the river
+  if (countryNet) {                                                                 // the freeway crosses the river on the Halcyon Gateway, not on a low deck of its own beside it
+    const fw = countryNet.roads.findIndex((r) => r.xz === meta.freeway.xz);
+    if (fw >= 0) { const r = countryNet.roads[fw]; const pcs = routeOverBridges(r.xz, (x, z) => hAt(x, z));
+      if (pcs.length > 1) for (let q = 0; q < pcs.length; q++) {                     // grade the joining curves like the approaches (5 %, cut and embankment)
+        if (q > 0) gradeFromFoot(heights, meta.width, meta.height, meta.mpp, pcs[q], r.half ?? 10);
+        if (q < pcs.length - 1) gradeFromFoot(heights, meta.width, meta.height, meta.mpp, [...pcs[q]].reverse(), r.half ?? 10);
+      } countryNet.roads.splice(fw, 1, ...pcs.map((xz) => ({ ...r, xz }))); }
+  }
   if (portData) carvePlatform(heights, meta.width, meta.height, meta.mpp, portData);
   if (utilData) carvePlatform(heights, meta.width, meta.height, meta.mpp, { platform: utilData.platform } as PortData);
   {
@@ -3666,6 +3883,18 @@ async function boot(): Promise<void> {
     carveSim(simPlan, heights, meta.width, meta.height, meta.mpp);
   }
   carveCreek(heights, meta.width, meta.height, meta.mpp);
+  {
+    // flat graded pads under every large building and parking lot (pads.ts); houses sit on their small lots as the ground lies
+    const cj = await fetch(BASE + 'city.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { items: CityItem[] } | null;
+    const pads: Pad[] = [];
+    for (const it of cj?.items ?? []) if (Math.max(it.w, it.d) >= 24) pads.push({ x: it.bx ?? it.x, z: it.bz ?? it.z, w: it.w, d: it.d, rot: it.rotY });   // w, d are the world footprint (as groundMin reads them)
+    for (const l of (parkingData ?? []) as number[][]) pads.push({ x: l[0], z: l[1], w: l[2], d: l[3], rot: l[4] });
+    console.log('graded pads', carvePads(heights, meta.width, meta.height, meta.mpp, pads));
+  }
+  {
+    const cc = meta.circuits.great_lakes_cliff_raceway;
+    if (cc) { cliffDesign = designCliffTrack(cc as { xz: number[][]; y?: number[]; tunnel?: { from: number; to: number } }); carveCliffRaceway(heights, meta.width, meta.height, meta.mpp, cliffDesign); cliffIx = indexTrack(cliffDesign); (window as unknown as { cliffDesign: unknown }).cliffDesign = cliffDesign; }
+  }
   buildTerrain();
   buildOverlays();
   buildFurniture();
@@ -3677,6 +3906,9 @@ async function boot(): Promise<void> {
   buildForest().catch((e) => console.error('forest failed', e));
   loadHarbor().catch((e) => console.error('harbor failed', e));
   buildCity().catch((e) => console.error('city failed', e));
+  buildTrenchLayer().catch((e) => console.error('trench failed', e));
+  loadGroundArrays().catch((e) => console.error('ground materials failed', e));
+  fetch(BASE + 'yards.json').then((x) => (x.ok ? x.json() : null)).then((y) => { if (y) furnitureGroup.add(buildYards(y, (x, z) => meshH(x, z))); }).catch(() => undefined);
   mapEditor = createMapEditor({
     scene, camera, dom: renderer.domElement, terrain: () => terrain, ground: (x, z) => meshH(x, z),
     topView: () => { const t = controls.target; look(new THREE.Vector3(t.x, Math.max(2500, camera.position.distanceTo(t)), t.z + 1), t.clone()); },
@@ -3788,20 +4020,159 @@ document.getElementById('playOnlineRace')?.addEventListener('click', () => {
 });
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; applyMapOffset();
-  renderer.setSize(innerWidth, innerHeight);
-  composer?.setSize(innerWidth, innerHeight);
+  applyRenderScale();
 });
 
+
+// ── Frame-rate governor & GPU Quality Tiers (`low` / `mid` / `high`). Target 60 fps (30 on TV / low-power with ?tv=1); dynamic resolution + tier stepping hold TARGET_MS. ──
+const TV_MODE = (() => { try { return new URLSearchParams(location.search).get('tv') === '1' || localStorage.getItem('apex.tv') === '1'; } catch { return false; } })();
+let perfTier: PerfTier = detectInitialTier(renderer, TV_MODE);
+let tierCfg = TIER_CONFIGS[perfTier];
+const TARGET_MS = TV_MODE ? 1000 / 30 : 1000 / 60;
+const BASE_PR = Math.min(devicePixelRatio, TV_MODE ? 1 : 2);
+let renderScale = TV_MODE ? 0.75 : perfTier === 'low' ? 0.8 : 1, govAcc = 0, govN = 0, govMax = 0, govLast = 0, govHold = 0, govPrev = 0, govFrom = 1, govDropped = false, govNoDrop = 0;
+function applyPerfTier(next: PerfTier): void {
+  perfTier = next;
+  tierCfg = TIER_CONFIGS[next];
+  if (aoPass) {
+    aoPass.aoOn = tierCfg.aoEnabled;                       // the pass stays on: it also draws the atmosphere
+    if (tierCfg.aoStrength > 0) aoPass.strength = tierCfg.aoStrength;
+  }
+  if (bloomPass) bloomPass.strength = next === 'low' ? 0.34 : 0.42;
+  (window as unknown as { perfTier?: PerfTier }).perfTier = next;
+}
+function applyRenderScale(): void {
+  const pr = Math.max(0.5, BASE_PR * renderScale);
+  renderer.setPixelRatio(pr);
+  renderer.setSize(innerWidth, innerHeight);
+  composer?.setPixelRatio?.(pr);
+  composer?.setSize(innerWidth, innerHeight);
+  // Keep UnrealBloomPass at half resolution (capped at 960x540) after composer.setSize resizes passes
+  bloomPass?.setSize(
+    Math.min(960, Math.max(240, Math.floor(innerWidth * pr * 0.5))),
+    Math.min(540, Math.max(135, Math.floor(innerHeight * pr * 0.5)))
+  );
+  grassField?.setQuality(renderScale * (perfTier === 'low' ? 0.75 : perfTier === 'mid' ? 0.88 : 1));
+  for (const tf of treeFields) tf.setQuality(renderScale * (perfTier === 'low' ? 0.75 : perfTier === 'mid' ? 0.88 : 1));
+}
+function governFrames(nowMs: number): void {
+  if (govLast) { const d = nowMs - govLast; if (d < 250) { govAcc += d; govN++; if (d > govMax) govMax = d; } }
+  govLast = nowMs;
+  if (govN < 45 || (window as unknown as { govOff?: boolean }).govOff) { if (govN >= 45) { govAcc = 0; govN = 0; } return; }
+  const avg = govAcc / govN; govAcc = 0; govN = 0; govMax = 0;
+  if (nowMs < 30000) return;                                         // the first seconds are texture / shader warm-up hitches, not a steady cost
+  if (govHold > 0) { govHold--; return; }
+  let ns = renderScale;
+  // A drop that bought less than 6% means the frame is CPU / vertex bound, not fill bound: put the resolution back and stop lowering it for a while (it only costs sharpness).
+  if (govPrev > 0 && govDropped) { govDropped = false; if (avg > govPrev * 0.94) { ns = govFrom; govNoDrop = 8; } }
+  else if (avg > TARGET_MS * 1.12 && govNoDrop <= 0) { ns = Math.max(0.5, renderScale - (avg > TARGET_MS * 1.5 ? 0.15 : 0.07)); govFrom = renderScale; govPrev = avg; govDropped = ns !== renderScale; }
+  else if (govNoDrop > 0) govNoDrop--;
+  else if (avg < TARGET_MS * 1.15 && renderScale < 1 && !govDropped) ns = Math.min(1, renderScale + 0.1);
+  // Step down tier cleanly if GPU remains over budget near minimum renderScale or CPU-bound
+  if (avg > TARGET_MS * 1.25 && (renderScale <= 0.65 || govNoDrop >= 6) && perfTier !== 'low') {
+    applyPerfTier(perfTier === 'high' ? 'mid' : 'low');
+    applyRenderScale();
+    govHold = 2;
+  } else if (Math.abs(ns - renderScale) > 1e-3) { renderScale = ns; applyRenderScale(); govHold = 1; }
+  (window as unknown as { govState?: unknown }).govState = { avgMs: +avg.toFixed(1), renderScale: +renderScale.toFixed(2), tv: TV_MODE, tier: perfTier };
+}
+let tvNext = 0;
+applyPerfTier(perfTier);
+if (TV_MODE || renderScale < 0.99) applyRenderScale();
+
+// Car-to-car contact: each car is three circles along its length; overlap pushes the player out and swaps momentum along the contact normal (the other car is heavier or lighter by `otherMass`).
+const CAR_CIRCLES = [-1.45, 0, 1.45], CAR_R = 1.0;
+function carHit(ps: DriveState['ps'], op: THREE.Vector3, oyaw: number, ovel: THREE.Vector3, otherMass: number): number {
+  const sy = Math.sin(ps.yaw), cy = Math.cos(ps.yaw), oy = Math.sin(oyaw), oc = Math.cos(oyaw);
+  if ((ps.pos.x - op.x) ** 2 + (ps.pos.z - op.z) ** 2 > 36) return 0;
+  let best = 0;
+  for (const a of CAR_CIRCLES) for (const b of CAR_CIRCLES) {
+    const ax = ps.pos.x + sy * a, az = ps.pos.z + cy * a, bx = op.x + oy * b, bz = op.z + oc * b;
+    let dx = ax - bx, dz = az - bz; const d = Math.hypot(dx, dz), min = CAR_R * 2;
+    if (d >= min) continue;
+    if (d < 1e-4) { dx = 1; dz = 0; } else { dx /= d; dz /= d; }
+    const push = (min - d) * 0.6;
+    ps.pos.x += dx * push; ps.pos.z += dz * push;
+    const rel = (ps.vel.x - ovel.x) * dx + (ps.vel.z - ovel.z) * dz;
+    if (rel < 0) {
+      const k = (1 + 0.25) * rel * (otherMass / (1 + otherMass));
+      ps.vel.x -= k * dx; ps.vel.z -= k * dz;
+      ps.angularVel += (dx * cy - dz * sy) * rel * 0.01 * (a > 0 ? 1 : -1);
+      ps.suspensionImpact = Math.max(ps.suspensionImpact, Math.min(1, -rel / 14));
+      best = Math.max(best, -rel);
+    }
+  }
+  return best;
+}
+
+// Whole-place culling: the race circuits are dense (rally stage 2.3M tris, cliff raceway 127k instances) and were drawn from anywhere on the map. Hide a named place when the camera is far from its footprint.
+const PLACE_FAR = new Set(['river-bridges', 'country-scenes', 'port-district', 'parking-lots', 'utilities']);
+const placeBoxes = new Map<THREE.Object3D, THREE.Box3>();
+let placeNext = 0, placeScan = 0; const placeList: THREE.Object3D[] = [];
+function cullPlaces(now: number): void {
+  if (now < placeNext) return;
+  placeNext = now + 400;
+  if (!placeList.length || now > placeScan) { placeScan = now + 15000; scene.traverse((g) => { if (g.name && (g.name.startsWith('circuit:') || g.name === 'cliffRacewayCircuit' || g.name === 'industrial-circuit' || PLACE_FAR.has(g.name)) && !placeList.includes(g)) placeList.push(g); }); }
+  for (const root of placeList) {
+    if (!root.userData.chunkDone) { root.userData.chunkDone = true; chunkInstanced(root.parent && root.parent.children.length < 400 ? root.parent : root); }
+    root.visible = true;
+    for (const g of root.children) {
+      let b = placeBoxes.get(g);
+      if (!b) { g.visible = true; g.updateMatrixWorld(true); b = new THREE.Box3(); g.traverse((o) => { const m = o as THREE.InstancedMesh; if (!m.isMesh) return; if (m.isInstancedMesh) { m.computeBoundingBox(); if (m.boundingBox) b!.union(m.boundingBox.clone().applyMatrix4(m.matrixWorld)); } else { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); b!.union(m.geometry.boundingBox!.clone().applyMatrix4(m.matrixWorld)); } }); placeBoxes.set(g, b); }
+      g.visible = mapMode || b.distanceToPoint(camera.position) < (PLACE_FAR.has(root.name) ? 1800 : 1200);
+    }
+  }
+  for (let i = 0; i < chunkList.length; i++) {
+    const c = chunkList[i];
+    const dist = Math.hypot(c.cx - camera.position.x, c.cz - camera.position.z) - c.r;
+    const vis = mapMode || dist < 1400;
+    c.m.visible = vis;
+    if (c.baseCastShadow) c.m.castShadow = vis && !mapMode && dist < 240;
+  }
+}
+
+// Big instanced sets (fences, barriers, grandstand seats: 100k+ instances in one draw) cannot be culled as one object. Split each into ~300 m chunks once; the renderer then frustum-culls the chunks and we hide far ones.
+const chunkList: { m: THREE.InstancedMesh; cx: number; cz: number; r: number; baseCastShadow: boolean }[] = [];
+function chunkInstanced(root: THREE.Object3D): void {
+  const big: THREE.InstancedMesh[] = [];
+  root.traverse((o) => { const m = o as THREE.InstancedMesh; if (m.isInstancedMesh && m.count > 1500 && !m.userData.chunked) big.push(m); });
+  const e = new THREE.Matrix4(), v = new THREE.Vector3(), col = new THREE.Color();
+  for (const m of big) {
+    m.userData.chunked = true; m.updateMatrixWorld(true);
+    const buckets = new Map<string, number[]>();
+    for (let i = 0; i < m.count; i++) { m.getMatrixAt(i, e); v.setFromMatrixPosition(e).applyMatrix4(m.matrixWorld); const k = Math.floor(v.x / 300) + ',' + Math.floor(v.z / 300); let a = buckets.get(k); if (!a) buckets.set(k, a = []); a.push(i); }
+    for (const idx of buckets.values()) {
+      const c = new THREE.InstancedMesh(m.geometry, m.material, idx.length);
+      c.castShadow = m.castShadow; c.receiveShadow = m.receiveShadow; c.userData.chunked = true; c.matrixAutoUpdate = false; c.matrix.copy(m.matrix); c.matrixWorld.copy(m.matrixWorld);
+      idx.forEach((src, j) => { m.getMatrixAt(src, e); c.setMatrixAt(j, e); if (m.instanceColor) { m.getColorAt(src, col); c.setColorAt(j, col); } });
+      c.instanceMatrix.needsUpdate = true; c.computeBoundingSphere();
+      const bs = c.boundingSphere!.clone().applyMatrix4(c.matrixWorld);
+      c.frustumCulled = true; m.parent!.add(c); chunkList.push({ m: c, cx: bs.center.x, cz: bs.center.z, r: bs.radius, baseCastShadow: m.castShadow });
+    }
+    m.parent!.remove(m);
+  }
+}
+
 let last = performance.now();
+let lastHudMs = 0;
+let frameNo = 0;
+const probePos = new THREE.Vector3();
 function frame(now: number): void {
+  frameNo++;
+  if (TV_MODE && now < tvNext) { requestAnimationFrame(frame); return; }
+  if (TV_MODE) tvNext = now + 1000 / 30 - 4;
+  governFrames(now);
+  cullPlaces(now);
   frameProfiler.begin(now);
   const dt = Math.min((now - last) / 1000, 0.1);
   last = now;
+  const __t0 = performance.now();
   driveInput.tick();
   if (simLayer && !mapMode) { simLayer.setPublicTraffic(!driving || driving.circuitId === 'free'); simLayer.update(dt, camera.position); }
   if (vegetation) { if (mapMode) vegetation.setEnabled(false); else { vegetation.setEnabled(true); vegetation.setWind(0.3 + wx.cur.wind * 0.9 + wx.cur.rain * 0.3); vegetation.setWet(wx.cur.wet); vegetation.update(dt, camera.position); } }
   if (grassField && !mapMode) { grassField.setWind(0.3 + wx.cur.wind * 0.9 + wx.cur.rain * 0.3); grassField.setWet(wx.cur.wet); grassField.update(dt, camera.position); }
   if (treeFields.length && !mapMode) for (const tf of treeFields) { tf.setWind(0.25 + wx.cur.rain * 0.5 + wx.cur.cloudDark * 0.4); tf.update(dt, camera.position); }
+  const __t1 = performance.now();
   stepFly(dt);
   stepTween(dt);
   stepCine(dt, now);
@@ -3812,10 +4183,12 @@ function frame(now: number): void {
   photo.update();
   updateProbe(dt);
   if (!fly && !driving) controls.update();
+  let shadowStride = tierCfg.shadowStride;
   {
     const ft = driving ? driving.pos : controls.target;
     sun.target.position.set(ft.x, ft.y, ft.z);
     sun.position.set(ft.x + sunDir.x * 3000, ft.y + sunDir.y * 3000, ft.z + sunDir.z * 3000);
+    if (camera.position.distanceToSquared(ft) >= 900 * 900) shadowStride = 4;
     if (csm) {
       camera.updateMatrixWorld();
       csm.lightDirection.copy(sunDir).negate();
@@ -3823,7 +4196,8 @@ function frame(now: number): void {
       for (let i = 0; i < csm.lights.length; i++) { const l = csm.lights[i]; l.intensity = sun.intensity; l.color.copy(sun.color); l.castShadow = csmCast[i]; }        // constant: flipping it recompiles every shader
       csmSweep();
     } else {
-      sun.castShadow = camera.position.distanceTo(ft) < 900;
+      { const sb = driving && !mapMode ? 170 : 380, sc = sun.shadow.camera; if (sc.right !== sb) { sc.left = -sb; sc.right = sb; sc.top = sb; sc.bottom = -sb; sc.updateProjectionMatrix(); } }   // driving: the 2048 map over 340 m, about 17 cm a texel, so the car and kerbs get crisp shadows
+      sun.castShadow = true;           // constant: toggling it with camera distance flickered the sun and recompiled shaders; shadow throttling stays in spatialCuller
     }
   }
   const sh = terrainMat?.userData.shader;
@@ -3844,14 +4218,36 @@ function frame(now: number): void {
     u.uShaft.value += (vis * clear * (1 - nk) * (mapMode ? 0 : 0.55) - u.uShaft.value) * Math.min(1, dt * 3);
     (u.uSunCol.value as THREE.Color).copy(sun.color);
   }
+  if (aoPass) {
+    // the atmosphere (ao.ts): haze thickens with fog and rain, takes the fog colour of the time of day, glows toward the sun; off on the map
+    const f = aoPass.fog, w = wx.cur;
+    f.on = !mapMode;
+    f.density = 0.00011 * (1 + w.fogGrey * 5 + w.rain * 1.5);
+    if (scene.fog instanceof THREE.Fog) f.color.copy(scene.fog.color);
+    f.sunColor.copy(sun.color).multiplyScalar(Math.min(1.6, 0.35 + sun.intensity * 0.45));
+    f.sunDir.copy(sunDir);
+    aoPass.blur = !mapMode && !photo.active && driving && !replay.active ? 0.5 : 0;             // camera motion blur while driving (ao.ts)
+  }
   lensRain.update(dt, wx.cur.rain, driving ? Math.abs(driving.ps.speedMps) : 0, !mapMode && !!driving && !replay.active && driving.camView < 3, innerWidth / innerHeight);
   if (gradePass) gradePass.enabled = gradePass.active;
-  cityVisibility.update(camera, csm ? csm.lights : [sun]);
+  const __t2 = performance.now();
+  if (driving && !mapMode && !replay.active && (frameNo & (TV_MODE ? 3 : 1)) === 0) {             // one cube face every other frame (every fourth on TV): a full refresh about 5 times a second
+    if (carProbe.step(renderer, scene, probePos.set(driving.pos.x, driving.car.position.y + 1.1, driving.pos.z), [driving.car, spray.points, dust.points, forestGroup, scapeGroup])) carProbe.apply(driving.car);
+  }
+  cityVisibility.viewDist = mapMode ? Infinity : tierCfg.cityViewDist;
+  cityVisibility.shadowDist = mapMode ? Infinity : tierCfg.cityShadowDist;
+  if (mapMode) cityVisibility.update(camera, csm ? csm.lights : [sun]); else cityVisibility.update(camera, csm ? csm.lights : [sun], frameNo % 3, 3);
+  if (cityBatches) { cityBatches.viewDist = cityVisibility.viewDist; cityBatches.shadowDist = cityVisibility.shadowDist; if (mapMode) cityBatches.update(camera.position); else cityBatches.update(camera.position, frameNo % 3, 3); }
+  spatialCuller.update(camera, renderer, mapMode, tierCfg.cullViewDist, tierCfg.cullShadowDist, shadowStride);
+  const __t3 = performance.now();
   frameProfiler.context = { mode: mapMode ? 'map' : driving ? 'drive' : 'review', weather: wx.name, camera: camera.position.toArray().map((v) => Math.round(v)) };
   frameProfiler.beginRender();
+  atmosphere?.update(scene, camera, sunDir, sun.color, wx.cur.fogGrey, wx.cur.sun, NIGHT_K[todKey] ?? 0, mapMode, now);
   if (composer && fxOn) composer.render(); else renderer.render(scene, camera);
   frameProfiler.end();
-  if (meta && heights) {
+  { const __t4 = performance.now(), q = ((window as any).__seg ??= { sim: [], mid: [], city: [], render: [] }); q.sim.push(__t1 - __t0); q.mid.push(__t2 - __t1); q.city.push(__t3 - __t2); q.render.push(__t4 - __t3); if (q.sim.length > 600) for (const k in q) q[k].shift(); }
+  if (meta && heights && now - lastHudMs > 100) {
+    lastHudMs = now;
     const e = hAt(camera.position.x, camera.position.z);
     hud.innerHTML = `camera ${Math.round(camera.position.x)}, ${Math.round(camera.position.z)}<br>alt over ground ${Math.round(camera.position.y - e * exag)} m<br>ground ${e.toFixed(0)} m above lake`;
   }

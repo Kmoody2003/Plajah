@@ -23,12 +23,14 @@ export function buildParkingLots(lots: number[][], ground: (x: number, z: number
     const b0 = pos.length / 3;
     for (const [a, b] of [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]]) { const [wx, wz] = to(a, b); pos.push(wx, y, wz); }
     idx.push(b0, b0 + 2, b0 + 1, b0, b0 + 3, b0 + 2);
-    // stall lines across the lot every 2.6 m, and the cars between them
-    const rows = d >= 15 ? 2 : 1, rowDepth = d / rows;
-    for (let row = 0; row < rows; row++) {
-      const bc = -d / 2 + rowDepth * (row + 0.5);
+    // a real lot: bays of 90-degree stalls 5.5 m deep either side of a 7 m drive aisle (an 18 m module across the depth); a shallow lot is one bay and its aisle
+    const bands: number[] = [];
+    if (d < 12) bands.push(-d / 2 + 2.75);
+    else { const mods = Math.max(1, Math.floor(d / 18)), m0 = -d / 2 + (d - mods * 18) / 2; for (let m = 0; m < mods; m++) bands.push(m0 + m * 18 + 2.75, m0 + m * 18 + 15.25); }
+    const rowDepth = 5.5;
+    for (const bc of bands) {
       for (let a = -w / 2 + 1.3; a < w / 2 - 1.0; a += 2.6) {
-        const [lx0, lz0] = to(a, bc - rowDepth * 0.42), [lx1, lz1] = to(a, bc + rowDepth * 0.42);
+        const [lx0, lz0] = to(a, bc - rowDepth * 0.45), [lx1, lz1] = to(a, bc + rowDepth * 0.45);
         const k0 = lpos.length / 3, nx = 0.06 * c, nz = -0.06 * sn;
         lpos.push(lx0 - nx, y + 0.02, lz0 - nz, lx0 + nx, y + 0.02, lz0 + nz, lx1 - nx, y + 0.02, lz1 - nz, lx1 + nx, y + 0.02, lz1 + nz);
         lidx.push(k0, k0 + 2, k0 + 1, k0 + 1, k0 + 2, k0 + 3);
