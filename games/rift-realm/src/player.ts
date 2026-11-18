@@ -36,6 +36,7 @@ export class PlayerController {
   firstPerson = false;
 
   private camDist = 3.6;
+  private thirdDist = 3.6;
   private boom = 3.6;                       // collision-limited boom length: snaps in, eases back out
   private follow = new THREE.Vector3();     // eased camera pivot (smooths stair steps and landings)
   private followInit = false;
@@ -95,6 +96,11 @@ export class PlayerController {
       this.yaw -= e.movementX * MOUSE_SENS * this.mouseSens;
       this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * MOUSE_SENS * this.mouseSens * 0.85, -1.25, 1.25);
     });
+    // mouse wheel sets the 3rd-person camera distance (Ravencrest: 1.6 to 7 m)
+    dom.addEventListener('wheel', (e) => {
+      if (!this.enabled || this.firstPerson) return;
+      this.thirdDist = THREE.MathUtils.clamp(this.thirdDist * (e.deltaY > 0 ? 1.12 : 1 / 1.12), 1.6, 7);
+    }, { passive: true });
     // - / = step the mouse sensitivity (saved), the shared scheme across the Plajah action games
     window.addEventListener('keydown', (e) => {
       if (e.code !== 'Minus' && e.code !== 'Equal') return;
@@ -105,7 +111,7 @@ export class PlayerController {
 
   toggleView() {
     this.firstPerson = !this.firstPerson;
-    this.camDist = this.boom = this.firstPerson ? 0 : 3.6; // cut straight to the new view, no dolly
+    this.camDist = this.boom = this.firstPerson ? 0 : this.thirdDist; // cut straight to the new view, no dolly
     this.vesselMesh.visible = !this.firstPerson;
     this.viewmodel.visible = this.firstPerson;
     this.onToggleView?.(this.firstPerson);
@@ -322,7 +328,7 @@ export class PlayerController {
       this.vesselMesh.position.y = Math.sin(performance.now() * 0.004) * 0.05 + pulse * 0.04;
     }
 
-    const targetDist = this.firstPerson ? 0 : 3.6;
+    const targetDist = this.firstPerson ? 0 : this.thirdDist;
     this.camDist = THREE.MathUtils.lerp(this.camDist, targetDist, Math.min(1, dt * 14));
 
     // speed feel: FOV opens with speed and kicks on a dash; a little lean into strafes; landing dip

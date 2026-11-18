@@ -36,6 +36,11 @@ export class UnifiedControls {
   private queuedCycleVessel = false;
 
   private prevPadButtons: boolean[] = [];
+  // hold to fire: while the left button / right trigger is held, a shot repeats on every eighth note of the
+  // 124 BPM pulse (the press itself fires the first one), so holding keeps you in rhythm
+  private fireHeld = false;
+  private fireRepeat = 0;
+  private static readonly REPEAT = 60 / 124 / 2;
   isTouchDevice = false;
 
   private stickBaseEl = document.getElementById('touchStickBase');
@@ -56,6 +61,7 @@ export class UnifiedControls {
   private bindMouseFallback() {
     let dragging = false, lastX = 0, lastY = 0;
     this.surface.addEventListener('mousedown', (e) => {
+      if (e.button === 0) { this.fireHeld = true; this.fireRepeat = UnifiedControls.REPEAT; }
       if (document.pointerLockElement) return; // pointer lock handles look + fire itself
       if (e.button === 0) this.queuedFire = true;
       if (e.button === 2) this.queuedSurge = true;
@@ -69,7 +75,8 @@ export class UnifiedControls {
       this.pendingLookY += (e.clientY - lastY) * 1.6;
       lastX = e.clientX; lastY = e.clientY;
     });
-    window.addEventListener('mouseup', () => { dragging = false; });
+    window.addEventListener('mouseup', (e) => { dragging = false; if (e.button === 0) this.fireHeld = false; });
+    window.addEventListener('blur', () => { this.fireHeld = false; dragging = false; });
   }
 
   private bindTouchSurface() {
@@ -200,6 +207,7 @@ export class UnifiedControls {
     this.queuedToggleView = false;
     this.queuedCycleVessel = false;
 
+    let held = this.fireHeld;
     // Poll standard Gamepad API
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     const pad = pads?.[0];
@@ -223,12 +231,18 @@ export class UnifiedControls {
       };
 
       if (edge(0)) jumpPressed = true;          // A / Cross
-      if (edge(7)) firePressed = true;          // RT
+      if (edge(7)) { firePressed = true; this.fireRepeat = UnifiedControls.REPEAT; } // RT
+      if ((pad.buttons[7]?.value ?? 0) > 0.45) held = true;
       if (edge(2)) strikePressed = true;        // X / Square (Melee Strike / Finisher)
       if (edge(1) || edge(4)) dashPressed = true; // B / Circle or LB
       if (edge(3) || edge(6)) surgePressed = true; // Y / Triangle or LT
       if (edge(5)) cycleVesselPressed = true;    // RB
       if (edge(8) || edge(11)) toggleViewPressed = true; // Select / R3
+    }
+
+    if (held) {
+      this.fireRepeat -= dt;
+      if (this.fireRepeat <= 0) { firePressed = true; this.fireRepeat += UnifiedControls.REPEAT; }
     }
 
     return {
