@@ -56,6 +56,16 @@ ROADS = [
             (-250, -9846), (-413, -9826), (-592, -9883), (-758, -9881), (-898, -9830), (-997, -9810), (-1124, -9841), (-1250, -9850), (-1376, -9876), (-1466, -9854),
             (-1596, -9799), (-1754, -9791), (-1861, -9739), (-1970, -9662), (-2036, -9652), (-2235, -9723), (-2446, -9700), (-2720, -9820), (-2879, -9789),
             (-2980, -9796), (-3081, -9842), (-3137, -9883), (-3168, -10014), (-3215, -10060), (-3330, -10070), (-3520, -10045), (-3700, -10000), (-3820, -9955), (-3858, -9990), (-3853, -10054)]},
+    # Escarpment Crest Road: from the top of the Stair (a T on the Escarpment Road) east along the back of the crest, a high viaduct over the stream notch
+    # above the finger lake head, down through the eastern notch (the escarpment's lowest gap, ~195 m) and across the foothills to the lake's east
+    # shore (a T on Finger Lake Loop). With the loop's lake-head bridge and the Stair it closes the Escarpment Circuit. The crest is laid by hand,
+    # the notch descent located with route_pass.py.
+    {"name": "Escarpment Crest Road", "surface": "paved", "half": 3.4, "speed": 60, "minR": 22.0, "grade": 0.085, "bank": 0.07, "cut": 12.0,
+     "startOn": "Escarpment Road", "endOn": "Finger Lake Loop",
+     "cp": [(660, -9200), (650, -9290), (760, -9330), (1000, -9310), (1300, -9310), (1450, -9300), (1750, -9300), (2000, -9330), (2304, -9342), (2394, -9356),
+            (2565, -9303), (2803, -9310), (2854, -9341), (2888, -9400), (2891, -9450), (2861, -9528), (2892, -9573), (2945, -9602), (3077, -9543), (3151, -9560),
+            (3216, -9619), (3277, -9602), (3313, -9552), (3439, -9327), (3434, -9234), (3363, -9076), (3385, -9015), (3471, -9027), (3441, -8934), (3229, -8823),
+            (3182, -8785), (3059, -8583), (2991, -8441), (2881, -8290), (2659, -8228), (2456, -8206), (2379, -8166), (2169, -8016), (2050, -7880), (1930, -7820)]},
 ]
 
 

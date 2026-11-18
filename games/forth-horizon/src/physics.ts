@@ -90,6 +90,10 @@ function sampleTorqueCurve(curve: readonly number[], rpmFrac: number): number {
   return THREE.MathUtils.lerp(curve[i], curve[i + 1], frac);
 }
 
+/** the drivable world's edges (default: the original 10-mile macro region). The region game sets them from its height grid, whose origin moves as the map grows. */
+const WORLD_BOUNDS = { minX: -8550, maxX: 8750, minZ: -5550, maxZ: 5550 };
+export function setWorldBounds(minX: number, maxX: number, minZ: number, maxZ: number): void { Object.assign(WORLD_BOUNDS, { minX, maxX, minZ, maxZ }); }
+
 export function stepCarPhysics(
   state: CarState,
   spec: CarSpec,
@@ -295,11 +299,12 @@ export function stepCarPhysics(
   state.pos.x += state.vel.x * safeDt;
   state.pos.z += state.vel.z * safeDt;
 
-  // World bounds (10-mile macro region)
-  if (state.pos.x < -8550) { state.pos.x = -8550; state.vel.x = Math.max(0, state.vel.x * -0.3); }
-  if (state.pos.x > 8750) { state.pos.x = 8750; state.vel.x = Math.min(0, state.vel.x * -0.3); }
-  if (state.pos.z < -5550) { state.pos.z = -5550; state.vel.z = Math.max(0, state.vel.z * -0.3); }
-  if (state.pos.z > 5550) { state.pos.z = 5550; state.vel.z = Math.min(0, state.vel.z * -0.3); }
+  // World bounds (the macro region; the open-world region sets its own from the height grid, which grew north)
+  const B = WORLD_BOUNDS;
+  if (state.pos.x < B.minX) { state.pos.x = B.minX; state.vel.x = Math.max(0, state.vel.x * -0.3); }
+  if (state.pos.x > B.maxX) { state.pos.x = B.maxX; state.vel.x = Math.min(0, state.vel.x * -0.3); }
+  if (state.pos.z < B.minZ) { state.pos.z = B.minZ; state.vel.z = Math.max(0, state.vel.z * -0.3); }
+  if (state.pos.z > B.maxZ) { state.pos.z = B.maxZ; state.vel.z = Math.min(0, state.vel.z * -0.3); }
 
   // Building / landmark AABB collisions
   const carRadius = 1.9;
