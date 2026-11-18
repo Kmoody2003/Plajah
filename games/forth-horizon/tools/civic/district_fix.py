@@ -42,7 +42,7 @@ def main():
     P = np.array(P); H = np.array(H); I = np.array(I); rt = cKDTree(P)
     hm = load("height2.json")
     hi = np.fromfile(os.path.join(R, "height2.u16"), dtype="<u2").reshape(hm["h"], hm["w"]).astype(np.float32) * (hm["max"] - hm["min"]) / 65535.0 + hm["min"]
-    hgt = lambda x, z: float(hi[min(max(int(z / hm["mpp"] + hm["h"] / 2), 0), hm["h"] - 1), min(max(int(x / hm["mpp"] + hm["w"] / 2), 0), hm["w"] - 1)])
+    hgt = lambda x, z: float(hi[min(max(int((z - hm.get("oz", 0)) / hm["mpp"] + hm["h"] / 2), 0), hm["h"] - 1), min(max(int((x - hm.get("ox", 0)) / hm["mpp"] + hm["w"] / 2), 0), hm["w"] - 1)])
     items = load("city.json"); B = np.array([[it["bx"], it["bz"], 0.5 * math.hypot(it["w"], it["d"])] for it in items["items"]]); bt = cKDTree(B[:, :2])
 
     def clear(a, b, skip_road, skip_b=-1, margin=1.0):

@@ -61,8 +61,8 @@ def main():
     # water
     hm = load("height2.json")
     hi = np.fromfile(os.path.join(R, "height2.u16"), dtype="<u2").reshape(hm["h"], hm["w"]).astype(np.float32) * (hm["max"] - hm["min"]) / 65535.0 + hm["min"]
-    gx = ((np.arange(W) * G + x0) / hm["mpp"] + hm["w"] / 2).astype(int).clip(0, hm["w"] - 1)
-    gz = ((np.arange(H) * G + z0) / hm["mpp"] + hm["h"] / 2).astype(int).clip(0, hm["h"] - 1)
+    gx = ((np.arange(W) * G + x0 - hm.get("ox", 0)) / hm["mpp"] + hm["w"] / 2).astype(int).clip(0, hm["w"] - 1)
+    gz = ((np.arange(H) * G + z0 - hm.get("oz", 0)) / hm["mpp"] + hm["h"] / 2).astype(int).clip(0, hm["h"] - 1)
     water = hi[np.ix_(gz, gx)] < 2.8
     land = ((road == 0) & ~water).astype(np.uint8)
     n, lab, stats, _ = cv2.connectedComponentsWithStats(land, connectivity=4)

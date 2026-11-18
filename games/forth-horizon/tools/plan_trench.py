@@ -27,7 +27,7 @@ def main():
     hm = json.load(open(os.path.join(R, "height2.json")))
     hi = np.fromfile(os.path.join(R, "height2.u16"), dtype="<u2").reshape(hm["h"], hm["w"]).astype(np.float32) * (hm["max"] - hm["min"]) / 65535.0 + hm["min"]
     sm = gaussian_filter(hi, 60.0 / hm["mpp"] / 2)
-    grade = lambda x, z: float(sm[min(max(int(round(z / hm["mpp"] + hm["h"] / 2)), 0), hm["h"] - 1), min(max(int(round(x / hm["mpp"] + hm["w"] / 2)), 0), hm["w"] - 1)])
+    grade = lambda x, z: float(sm[min(max(int(round((z - hm.get("oz", 0)) / hm["mpp"] + hm["h"] / 2)), 0), hm["h"] - 1), min(max(int(round((x - hm.get("ox", 0)) / hm["mpp"] + hm["w"] / 2)), 0), hm["w"] - 1)])
     src = os.path.join(R, "city_streets.before_subdiv.json")
     streets = json.load(open(src if os.path.exists(src) else os.path.join(R, "city_streets.json")))
     lines = []

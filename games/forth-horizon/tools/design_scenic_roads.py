@@ -52,10 +52,10 @@ def catmull(cp, step):
 
 
 def main():
-    hm = json.load(open(os.path.join(R, "height2.json"))); W, H, mpp = hm["w"], hm["h"], hm["mpp"]
+    hm = json.load(open(os.path.join(R, "height2.json"))); W, H, mpp = hm["w"], hm["h"], hm["mpp"]; OX, OZ = hm.get("ox", 0), hm.get("oz", 0)
     hi = np.fromfile(os.path.join(R, "height2.u16"), dtype="<u2").reshape(H, W).astype(np.float32) * (hm["max"] - hm["min"]) / 65535.0 + hm["min"]
     def gnd(x, z):
-        fx = min(W - 1.001, max(0, x / mpp + W / 2)); fz = min(H - 1.001, max(0, z / mpp + H / 2)); i, j = int(fx), int(fz); u, v = fx - i, fz - j
+        fx = min(W - 1.001, max(0, (x - OX) / mpp + W / 2)); fz = min(H - 1.001, max(0, (z - OZ) / mpp + H / 2)); i, j = int(fx), int(fz); u, v = fx - i, fz - j
         return float(hi[j, i] * (1 - u) * (1 - v) + hi[j, i + 1] * u * (1 - v) + hi[j + 1, i] * (1 - u) * v + hi[j + 1, i + 1] * u * v)
     items = json.load(open(os.path.join(R, "city.json")))["items"]
     B = np.array([[it["bx"], it["bz"], 0.5 * min(it["w"], it["d"])] for it in items])
@@ -104,20 +104,20 @@ def main():
                        "climb_m": round(float(y.max() - y.min()), 1)})
         out.append({"name": rd["name"], "surface": rd["surface"], "half": rd["half"], "speed": rd["speed"],
                     "xz": [[round(float(a), 2), round(float(b), 2)] for a, b in xz], "y": [round(float(a), 2) for a in y], "bank": [round(float(a), 4) for a in bank]})
-        draw(rd, xz, y, g, bank, hi, W, H, mpp)
+        draw(rd, xz, y, g, bank, hi, W, H, mpp, OX, OZ)
     json.dump({"roads": out}, open(os.path.join(R, "scenic_roads.json"), "w"), separators=(",", ":"))
     for r in report: print(json.dumps(r))
 
 
-def draw(rd, xz, y, g, bank, hi, W, H, mpp):
+def draw(rd, xz, y, g, bank, hi, W, H, mpp, OX, OZ):
     pad = 250
     X0, X1 = xz[:, 0].min() - pad, xz[:, 0].max() + pad; Z0, Z1 = xz[:, 1].min() - pad, xz[:, 1].max() + pad
-    i0, i1, j0, j1 = int(X0 / mpp + W / 2), int(X1 / mpp + W / 2), int(Z0 / mpp + H / 2), int(Z1 / mpp + H / 2)
+    i0, i1, j0, j1 = int((X0 - OX) / mpp + W / 2), int((X1 - OX) / mpp + W / 2), int((Z0 - OZ) / mpp + H / 2), int((Z1 - OZ) / mpp + H / 2)
     S = 3; sub = cv2.resize(hi[j0:j1, i0:i1], ((i1 - i0) * S, (j1 - j0) * S))
     t = np.clip(sub / 80, 0, 1); img = (np.dstack([0.3 + 0.3 * t, 0.5 + 0.35 * t, 0.3 + 0.5 * t]) * 255).astype(np.uint8); img[sub < 0.3] = (200, 120, 40)
     for lv in range(5, 160, 5):
         c, _ = cv2.findContours((sub >= lv).astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE); cv2.drawContours(img, c, -1, (30, 60, 30) if lv % 25 else (0, 0, 0), 1)
-    P = lambda x, z: (int(((x / mpp + W / 2) - i0) * S), int(((z / mpp + H / 2) - j0) * S))
+    P = lambda x, z: (int((((x - OX) / mpp + W / 2) - i0) * S), int((((z - OZ) / mpp + H / 2) - j0) * S))
     for a, b, bk in zip(xz[:-1], xz[1:], bank[:-1]):
         c = (0, 0, 255) if bk > 0.02 else (255, 0, 0) if bk < -0.02 else (20, 20, 20)
         cv2.line(img, P(*a), P(*b), c, 4, cv2.LINE_AA)

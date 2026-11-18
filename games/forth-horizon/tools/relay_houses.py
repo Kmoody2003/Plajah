@@ -64,7 +64,7 @@ def main():
     # ---- water ----
     hm = load("height2.json")
     hi = np.fromfile(os.path.join(R, "height2.u16"), dtype="<u2").reshape(hm["h"], hm["w"]).astype(np.float32) * (hm["max"] - hm["min"]) / 65535.0 + hm["min"]
-    wet = lambda x, z: hi[min(max(int(z / hm["mpp"] + hm["h"] / 2), 0), hm["h"] - 1), min(max(int(x / hm["mpp"] + hm["w"] / 2), 0), hm["w"] - 1)] < 2.8
+    wet = lambda x, z: hi[min(max(int((z - hm.get("oz", 0)) / hm["mpp"] + hm["h"] / 2), 0), hm["h"] - 1), min(max(int((x - hm.get("ox", 0)) / hm["mpp"] + hm["w"] / 2), 0), hm["w"] - 1)] < 2.8
 
     # ---- lots along the local streets ----
     slots = []                                                            # x, z (front line point), nx, nz (away from the street)
