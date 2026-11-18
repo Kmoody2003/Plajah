@@ -120,6 +120,11 @@ Each one is shot from the concept's camera and compared side by side: `docs/rift
 Still to do, by level:
 - **Volcanic:** the interiors are built. Still short of the art: the stone reads warmer than the art's grey, and the
   forge lacks the overhead steel mezzanine and smoke.
-- **Marsh:** the flooded shrine and the swamp docks. The canopy is still made of card clusters.
+- **Marsh:** the sunken shrine (N) and the swamp docks (NE) are built (`docs/rift-realm-marsh-shrine-docks.jpg`).
+  - **Shrine:** a stepped temple tower on a two-tier plinth, with a sanctum room and an orb altar, guardian statues,
+    steles, glowing mushrooms and cyan forecourt circuits. A causeway branch runs to it. It is the battleground buff shrine.
+  - **Docks:** a spine pier, a cross pier, rift wells, rune circles, lantern gallows, a crane and boats. They form the
+    low flank lane north of the village.
+  - The wells are decorative: the engine has no jump pads yet. The canopy is still made of card clusters.
 - **Celestial:** the lit cavern under the centre island needs real geometry. The nebula needs more structure.
 - **All:** the Void Sanctum hub and its three maps from `void-sanctum-complete`.
