@@ -87,9 +87,28 @@ Art: `Glacial_citadel_complex_shooter_map` (primary), `Glacial_Void_Shrine_templ
 - **Spawns:** the landing pad and battlement (A team, S) and the Void Shrine portal (B team, N). Each has 3 exits (W, centre and E stairs).
 - **Battleground extras:** a buff shrine in the ice cave's back chamber, and a forward spawn at the ruined hall.
 
-## Levels 3–5 (art ready, not built)
+## Levels 3–5 (built; art-match pass 2, 2026-11-18)
 
-- **Obsidian Volcanic Compound**: fortress map, lava rivers, forge hall, throne. Material set `volc-*` (rock, basalt runes, steel, ash, lava).
-- **Sunken Marshland Village**: stilt village, mangrove walkways, flooded shrine, swamp docks. Material set `marsh-*`.
-- **Celestial Void Citadel Ruins**: floating island citadel, crystal bridges, marble. Material set `celestial-*`.
-- Plus the Void Sanctum hub (floating obsidian octagon) and the three Void Sanctum maps from `void-sanctum-complete`.
+Each one is shot from the concept's camera and compared side by side: `docs/rift-realm-<level>-pass2.jpg` (art left, game right).
+
+- **Obsidian Volcanic Compound** (`src/volcanic.ts`): Team A overlook 10 m up (SW). Below it, the flagstone compound with three
+  lethal lava trenches (catwalks over two; the third is a dash gap). Then the gated two-level fortress block with a roof
+  bridge onto the castle's 8 m upper tier, and the great gothic keep (Team B) with a 56 m spire. East: the lava chasm
+  with grated bridges and the spiked laser-grid towers. The volcano sits right of frame with rivulets and an ash plume.
+  Three ways onto the upper tier: grand stair, roof bridge, west-lane flight.
+- **Sunken Marshland Village** (`src/marsh.ts`): the balustrade overlook faces north, as in the concept. The manor sits
+  left (three storeys, broken spire, 8 m grand stair into the water), green-lit causeways snake up the middle, with
+  fallen giants as mid-ground cover and bridges. The stilt village and rope bridges sit right, under a 46 m hero
+  cypress, with a treehouse platform at 13 m (sniper nest, one stair). Night is blue-grey, and the water is dark.
+- **Celestial Void Citadel** (`src/celestial.ts`): Team A ledge 10 m above the ruin court. The citadels are weathered
+  moss-grown stone, and the islands are deep inverted mountains. Hard-light bridges link six islands. The space has
+  lit moons, asteroids, a void beam and nebula.
+- Texture note: five material sheets (ash, lava, volcanic rock, swamp water, glacial ice) use their own panel
+  layouts. `tools/prepAssets.mjs` now carries measured boxes for them, and every normal map's edges are checked
+  for sheet-background bleed.
+
+Still to do, by level:
+- **Volcanic:** forge-hall interior and the throne.
+- **Marsh:** the flooded shrine and the swamp docks. The canopy is still made of card clusters.
+- **Celestial:** the lit cavern under the centre island needs real geometry. The nebula needs more structure.
+- **All:** the Void Sanctum hub and its three maps from `void-sanctum-complete`.
