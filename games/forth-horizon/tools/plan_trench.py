@@ -39,6 +39,17 @@ def main():
             L = float(np.hypot(*(b - a))); n = max(1, int(round(L / STEP)))
             for k in range(1, n + 1): out.append(a + (b - a) * k / n)
         lines.append({"c": s["c"], "xz": np.array(out)})
+    # the regional freeway (region.json) ends in the downtown interchange: its last 600 m is part of the depressed system, so it ramps down into the trench there
+    # instead of running across it at street level. Its end that meets the interchange takes full depth; the other end climbs to grade (the 350 m rule below).
+    rf = np.array(json.load(open(os.path.join(R, "region.json")))["freeway"]["xz"], float)
+    stub, acc = [rf[0]], 0.0
+    for a, b in zip(rf[:-1], rf[1:]):
+        L = float(np.hypot(*(b - a))); n = max(1, int(round(L / STEP)))
+        for k in range(1, n + 1):
+            stub.append(a + (b - a) * k / n); acc += L / n
+            if acc >= 600.0: break
+        if acc >= 600.0: break
+    lines.append({"c": "freeway", "xz": np.array(stub), "regional": True})
     fw_pts = np.concatenate([l["xz"] for l in lines if l["c"] == "freeway"])
     fw_owner = np.concatenate([[i] * len(l["xz"]) for i, l in enumerate(lines) if l["c"] == "freeway"])
     ftree = cKDTree(fw_pts)
@@ -74,7 +85,7 @@ def main():
         g = np.array([grade(x, z) for x, z in l["xz"]])
         y = g - l["depth"]
         if len(y) > 5: y = uniform_filter1d(y, 5, mode="nearest")
-        out.append({"c": l["c"], "half": HALF[l["c"]], "xz": [[round(float(x), 1), round(float(z), 1)] for x, z in l["xz"]],
+        out.append({"c": l["c"], "half": HALF[l["c"]], **({"regional": True} if l.get("regional") else {}), "xz": [[round(float(x), 1), round(float(z), 1)] for x, z in l["xz"]],
                     "y": [round(float(v), 2) for v in y], "depth": [round(float(v), 2) for v in l["depth"]]})
     json.dump({"lines": out}, open(os.path.join(R, "trench.json"), "w"), separators=(",", ":"))
     deep = sum(1 for l in out for d in l["depth"] if d > 1.0)
