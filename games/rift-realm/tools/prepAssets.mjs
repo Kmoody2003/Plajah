@@ -14,14 +14,11 @@ const PANELS = {
   roughness: [58, 424, 600, 292],
   ao:        [718, 424, 600, 292],
 };
+// only sheets that really use the 2x2 600-wide layout; the edge check (normal-map borders must be blue, not
+// sheet-grey) caught ash/lava/rock/water/ice using other layouts, so they are measured in SHEETS_CUSTOM below
 const SHEETS_STD = {
-  'marsh-water': 'Sunken Marshland Village Materials & HDRI/Swamp_water_texture_map_sheet_1e40687b.jpg',
   'marsh-wood': 'Sunken Marshland Village Materials & HDRI/Weathered_wood_plank_texture_map_c7b96ad0.jpg',
   'celestial-obsidian': 'Celestial Void Citadel Ruins Materials & HDRI/Obsidian_stone_texture_map_sheet_c43a7247.jpg',
-  'glacial-ice': 'Glacial Citadel Complex Materials & HDRI/Blue_glacial_ice_texture_map_dfc75903.jpg',
-  'volc-rock': 'Obsidian Volcanic Compound Materials & HDRI/Obsidian_volcanic_rock_texture_map_c3855ba0.jpg',
-  'volc-ash': 'Obsidian Volcanic Compound Materials & HDRI/Volcanic_ash_soil_texture_map_b2352fa0.jpg',
-  'volc-lava': 'Obsidian Volcanic Compound Materials & HDRI/Volcanic_lava_texture_map_sheet_3735b722.jpg',
 };
 fs.mkdirSync(OUT, { recursive: true });
 for (const [name, rel] of Object.entries(SHEETS_STD)) {
@@ -45,6 +42,11 @@ const SHEETS_CUSTOM = {
   'glacial-ground': { f: 'Glacial Citadel Complex Materials & HDRI/Arctic_ground_texture_map_sheet_5a3e431f.jpg', boxes: { albedo: [28, 49, 296, 135], normal: [361, 49, 296, 135], roughness: [28, 214, 296, 135] } },
   'glacial-brick': { f: 'Glacial Citadel Complex Materials & HDRI/Stone_brick_ice_texture_map_7a1c88ce.jpg', boxes: { albedo: [20, 42, 315, 148], normal: [353, 42, 315, 148], roughness: [20, 212, 315, 155], ao: [353, 212, 315, 155] } },
   'celestial-marble': { f: 'Celestial Void Citadel Ruins Materials & HDRI/White_marble_texture_map_sheet_7ea396da.jpg', boxes: { albedo: [45, 32, 150, 146], normal: [268, 32, 150, 146], roughness: [492, 32, 150, 146], metallic: [45, 205, 150, 146], emissive: [268, 205, 150, 146] } },
+  'volc-ash': { f: 'Obsidian Volcanic Compound Materials & HDRI/Volcanic_ash_soil_texture_map_b2352fa0.jpg', boxes: { albedo: [128, 53, 204, 138], normal: [356, 53, 204, 138], roughness: [128, 215, 204, 147], ao: [356, 215, 204, 147] } },
+  'volc-lava': { f: 'Obsidian Volcanic Compound Materials & HDRI/Volcanic_lava_texture_map_sheet_3735b722.jpg', boxes: { albedo: [48, 33, 157, 156], normal: [264, 33, 160, 156], roughness: [483, 33, 157, 156], height: [48, 209, 157, 151], emissive: [264, 209, 160, 151] } },
+  'volc-rock': { f: 'Obsidian Volcanic Compound Materials & HDRI/Obsidian_volcanic_rock_texture_map_c3855ba0.jpg', boxes: { albedo: [24, 26, 319, 152], normal: [345, 26, 319, 152], roughness: [24, 193, 319, 163], emissive: [345, 193, 319, 163] } },
+  'marsh-water': { f: D + 'Swamp_water_texture_map_sheet_1e40687b.jpg', boxes: { albedo: [32, 25, 193, 166], normal: [251, 25, 186, 166], roughness: [466, 25, 190, 166], emissive: [251, 206, 186, 165] } },
+  'glacial-ice': { f: 'Glacial Citadel Complex Materials & HDRI/Blue_glacial_ice_texture_map_dfc75903.jpg', boxes: { albedo: [48, 23, 169, 168], normal: [258, 23, 171, 168], roughness: [470, 23, 169, 168], emissive: [258, 205, 171, 166] } },
   'volc-basalt': { f: 'Obsidian Volcanic Compound Materials & HDRI/Scorched_basalt_stone_wall_texture_4b691ef8.jpg', boxes: { albedo: [47, 23, 161, 159], normal: [264, 23, 160, 159], roughness: [480, 23, 160, 159], height: [47, 202, 161, 160], ao: [264, 202, 160, 160], emissive: [480, 202, 160, 160] }, recolorEmberToCyan: true },
 };
 for (const [name, c] of Object.entries(SHEETS_CUSTOM)) {

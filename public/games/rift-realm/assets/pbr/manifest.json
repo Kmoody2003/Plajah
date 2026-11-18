@@ -26,6 +26,7 @@
  "glacial-ice": [
   "albedo",
   "ao",
+  "emissive",
   "normal",
   "roughness"
  ],
@@ -37,6 +38,7 @@
  "marsh-water": [
   "albedo",
   "ao",
+  "emissive",
   "normal",
   "roughness"
  ],
@@ -63,12 +65,15 @@
  "volc-lava": [
   "albedo",
   "ao",
+  "emissive",
+  "height",
   "normal",
   "roughness"
  ],
  "volc-rock": [
   "albedo",
   "ao",
+  "emissive",
   "normal",
   "roughness"
  ],

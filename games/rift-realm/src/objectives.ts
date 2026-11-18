@@ -27,13 +27,13 @@ export class Objectives {
       const y = groundAt(def.pos.x, def.pos.z, def.pos.y + 3) ?? def.pos.y;
       const tint = uniform(new THREE.Color(COL.none));
       const ringMat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-      ringMat.colorNode = tint.mul(1.6);
+      ringMat.colorNode = tint.mul(0.9);
       // a soft wall of light rising from the ring
-      ringMat.opacityNode = smoothstep(float(1.0), float(0.0), uv().y).mul(0.32);
+      ringMat.opacityNode = smoothstep(float(1.0), float(0.0), uv().y).mul(0.16); // readable, but under the bloom threshold so it never blows out to a white slab
       const ring = new THREE.Mesh(new THREE.CylinderGeometry(def.radius, def.radius, 3.2, 48, 1, true), ringMat);
       ring.position.set(def.pos.x, y + 1.6, def.pos.z);
       const baseMat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-      baseMat.colorNode = tint.mul(1.4);
+      baseMat.colorNode = tint.mul(1.0);
       baseMat.opacityNode = float(0.75);
       const base = new THREE.Mesh(new THREE.RingGeometry(def.radius - 0.18, def.radius, 64), baseMat);
       base.rotation.x = -Math.PI / 2; base.position.set(def.pos.x, y + 0.06, def.pos.z);
