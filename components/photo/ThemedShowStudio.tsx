@@ -9,7 +9,7 @@ import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useStat
 import {
   Play, Pause, ChevronLeft, ChevronRight, Maximize2, Film, Download, FolderOpen, Music, Trash2,
   RotateCw, ArrowUp, ArrowDown, Sparkles, Loader2, X, Clapperboard, Images, ImagePlus, Upload, Wand2, Eye,
-  SkipBack, SkipForward, Rewind, Type, EyeOff, Pencil, Crop,
+  SkipBack, SkipForward, Rewind, Type, EyeOff, Pencil, Crop, Save, HardDrive, FilePlus2, Clock3,
 } from 'lucide-react';
 import type { ShowPhoto, ShowSpec, ShowThemeId, ShowTrack, MusicMode, ClassicTransition } from '../../services/slideshow/types';
 import { preparePhoto, type PrepInput } from '../../services/slideshow/photoPrep';
@@ -24,6 +24,7 @@ import { isHeicFile, convertImageBlob } from '../../services/crossover/imageConv
 import { describeFileName, shownCaption } from '../../services/slideshow/fileNames';
 import { isFullFrame } from '../../services/slideshow/common';
 import { SHOW_TRANSITIONS, THEME_TRANSITIONS } from '../../services/slideshow/transitions';
+import { saveLocal, listLocal, openLocal, saveToDrive, openFromDrive, driveSupported, type ShowProjectSummary } from '../../services/slideshow/projectStore';
 import { adjustmentToCssFilter, type PhotoEditRecipe } from '../../services/photoEditingService';
 import type { Photo } from '../../types';
 // the platform photo editor (Photos → Develop), loaded only when a shot is edited
@@ -91,6 +92,10 @@ interface Props {
   onClose?: () => void;
   /** Start with these already chosen (e.g. an album). */
   initial?: ShowSourcePhoto[];
+  /** The signed-in account that owns new shows (saved into the project for cloud sync). */
+  owner?: { uid: string; handle?: string };
+  /** Open this saved show (local project id) on mount. */
+  openShowId?: string;
 }
 
 const THEMES: { id: ShowThemeId; name: string; blurb: string; tone: string }[] = [
@@ -104,7 +109,7 @@ const TRANSITIONS: (ClassicTransition | 'auto')[] = ['auto', 'crossfade', 'dip',
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-export default function ThemedShowStudio({ library = [], onClose, initial }: Props) {
+export default function ThemedShowStudio({ library = [], onClose, initial, owner, openShowId }: Props) {
   const [theme, setTheme] = useState<ShowThemeId>('backyard');
   const [title, setTitle] = useState('A life remembered');
   const [heading, setHeading] = useState('In loving memory of');
@@ -144,6 +149,10 @@ export default function ThemedShowStudio({ library = [], onClose, initial }: Pro
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [croppingId, setCroppingId] = useState<string | null>(null);
+  const [saved, setSaved] = useState<{ at: number; saving: boolean; error?: string } | null>(null);
+  const [recent, setRecent] = useState<ShowProjectSummary[]>([]);
+  const [openMenu, setOpenMenu] = useState(false);
+  const [hydrating, setHydrating] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
   const rtRef = useRef<ShowRuntime | null>(null);
@@ -182,6 +191,70 @@ export default function ThemedShowStudio({ library = [], onClose, initial }: Pro
   }), [theme, title, heading, name, dates, closing, showPhotos, directorOn, direction, style, musicMode, tracks, fitToMusic, pace, wideEvery, transition, xfSeconds, parallax]);
 
   const plan = useMemo(() => buildPlan(spec), [spec]);
+
+  // --- saving -------------------------------------------------------------------------
+  // What gets saved: the owner's own photo order (the director re-reads it on open), every
+  // setting, and the director switch — not the derived, directed order.
+  const saveSpec: ShowSpec = useMemo(() => ({ ...spec, photos, director: { enabled: directorOn, style } }), [spec, photos, directorOn, style]);
+
+  const hydrate = useCallback((s: ShowSpec) => {
+    showId.current = s.id;
+    createdAt.current = s.createdAt || Date.now();
+    setTheme(s.theme); setTitle(s.title);
+    setHeading(s.dedication.heading); setName(s.dedication.name); setDates(s.dedication.dates || ''); setClosing(s.dedication.closing);
+    setPhotos(s.photos);
+    setMusicMode(s.music.mode); setTracks(s.music.tracks); setFitToMusic(!!s.music.fitToMusic);
+    setPace(s.pace); setWideEvery(s.wideEvery);
+    setTransition(s.transition?.style || 'auto'); setXfSeconds(s.transition?.seconds ?? 1.4); setParallax(s.parallax ?? 0.6);
+    setDirectorTouched(true); setDirectorOn(!!s.director?.enabled); setStyle(s.director?.style || 'story');
+    setSelectedId(null); setVideo(null); setScrubT(3);
+  }, []);
+
+  const openSaved = async (id: string) => {
+    setOpenMenu(false);
+    setHydrating(true);
+    try { const { spec: s, file } = await openLocal(id); hydrate(s); setSaved({ at: file.savedAt, saving: false }); }
+    catch (e: any) { setMsg(e?.message || 'Could not open that show.'); }
+    finally { setHydrating(false); }
+  };
+  const openDrive = async () => {
+    setOpenMenu(false);
+    try { setHydrating(true); const { spec: s } = await openFromDrive(); hydrate(s); setMsg(`Opened "${s.title}" from your drive.`); }
+    catch (e: any) { if (e?.name !== 'AbortError') setMsg(e?.message || 'Could not open that folder.'); }
+    finally { setHydrating(false); }
+  };
+  const newShow = () => {
+    setOpenMenu(false);
+    showId.current = `show_${uid()}`; createdAt.current = Date.now();
+    setPhotos([]); setTracks([]); setMusicMode('none'); setTitle('A life remembered'); setName(''); setDates('');
+    setSaved(null); setSelectedId(null); setVideo(null);
+  };
+  const toDrive = async () => {
+    try {
+      setSaved((s) => ({ at: s?.at || 0, saving: true }));
+      const r = await saveToDrive(saveSpec, owner);
+      setSaved({ at: Date.now(), saving: false });
+      setMsg(`Saved to your drive as the folder "${r.folder}" (${r.files} files).`);
+    } catch (e: any) {
+      setSaved((s) => (s ? { ...s, saving: false } : null));
+      if (e?.name !== 'AbortError') setMsg(e?.message || 'Could not save to the drive.');
+    }
+  };
+
+  useEffect(() => { void listLocal().then(setRecent); }, [saved?.at]);
+  useEffect(() => { if (openShowId) void openSaved(openShowId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // autosave to this device a moment after any change (photos must be prepped first)
+  const saveKey = JSON.stringify({ ...saveSpec, updatedAt: 0 });
+  useEffect(() => {
+    if (!photos.length || prep || hydrating) return;
+    const t = setTimeout(async () => {
+      setSaved((s) => ({ at: s?.at || 0, saving: true }));
+      try { const at = await saveLocal(saveSpec, owner); setSaved({ at, saving: false }); }
+      catch (e: any) { setSaved((s) => ({ at: s?.at || 0, saving: false, error: e?.message || 'Autosave failed' })); }
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [saveKey, prep, hydrating]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- photo intake + smart prep ------------------------------------------------------
 
@@ -305,6 +378,12 @@ export default function ThemedShowStudio({ library = [], onClose, initial }: Pro
     setMsg('Crop and size applied.');
   };
   const toggleFraming = (id: string) => { const p = photos.find((q) => q.id === id); if (p) void reprep(p, { keepFraming: !p.keepFraming }); };
+  useEffect(() => {
+    if (!openMenu) return;
+    const close = () => setOpenMenu(false);
+    window.addEventListener('click', close);
+    return () => window.removeEventListener('click', close);
+  }, [openMenu]);
   useEffect(() => {
     if (!menu) return;
     const close = () => setMenu(null);
@@ -445,7 +524,33 @@ export default function ThemedShowStudio({ library = [], onClose, initial }: Pro
           <input value={title} onChange={(e) => setTitle(e.target.value)} className="bg-transparent text-2xl font-serif outline-none border-b border-transparent focus:border-white/20 mt-1" aria-label="Show title" />
           <div className="text-xs text-white/40 mt-1">{photos.length} photos · {fmt(plan.duration)} planned · {plan.fullPage.length ? `${(plan.fullPage.reduce((a, b) => a + b, 0) / plan.fullPage.length).toFixed(1)}s full page each on average` : 'add photos to begin'}</div>
         </div>
-        {onClose && <button onClick={onClose} className="p-2 rounded-full bg-white/5 hover:bg-white/10" aria-label="Close"><X size={16} /></button>}
+        <div className="flex items-center gap-2 flex-wrap">
+          {photos.length > 0 && (
+            <span className={`flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full ${saved?.error ? 'bg-red-500/15 text-red-200' : 'bg-white/5 text-white/55'}`}
+              title={owner ? `Owned by ${owner.handle || owner.uid}. Saved on this device; cloud sync to the account comes next.` : 'Saved on this device only (not signed in).'}>
+              <Save size={12} />
+              {saved?.error ? saved.error : saved?.saving ? 'Saving…' : saved?.at ? `Saved on this device · ${new Date(saved.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Not saved yet'}
+            </span>
+          )}
+          <div className="relative">
+            <button onClick={(e) => { e.stopPropagation(); setOpenMenu((v) => !v); void listLocal().then(setRecent); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-xs"><FolderOpen size={13} /> Open</button>
+            {openMenu && (
+              <div className="absolute right-0 mt-1 z-[310] w-72 max-h-80 overflow-y-auto py-1 rounded-xl bg-zinc-900 ring-1 ring-white/10 shadow-2xl text-xs" onClick={(e) => e.stopPropagation()}>
+                <button onClick={newShow} className="w-full text-left px-3 py-2 hover:bg-white/10 flex items-center gap-2"><FilePlus2 size={13} /> New show</button>
+                {driveSupported() && <button onClick={openDrive} className="w-full text-left px-3 py-2 hover:bg-white/10 flex items-center gap-2"><HardDrive size={13} /> Open a show folder from your drive…</button>}
+                {recent.length > 0 && <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-widest text-white/35">On this device</div>}
+                {recent.map((r) => (
+                  <button key={r.id} onClick={() => void openSaved(r.id)} className={`w-full text-left px-3 py-2 hover:bg-white/10 ${r.id === showId.current ? 'text-amber-100' : ''}`}>
+                    <div className="truncate">{r.title}</div>
+                    <div className="text-[10px] text-white/40 flex items-center gap-1"><Clock3 size={10} /> {new Date(r.savedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · {r.photos} photos · {r.theme}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {driveSupported() && <button onClick={toDrive} disabled={!photos.length} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 disabled:opacity-40 text-xs" title="Write the whole show (settings, photos, music) as a folder on your drive"><HardDrive size={13} /> Save to drive</button>}
+          {onClose && <button onClick={onClose} className="p-2 rounded-full bg-white/5 hover:bg-white/10" aria-label="Close"><X size={16} /></button>}
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-[1fr_340px] gap-5">
@@ -462,6 +567,14 @@ export default function ThemedShowStudio({ library = [], onClose, initial }: Pro
                   <ImportButtons onFiles={onFolder} />
                   {library.length > 0 && <button onClick={() => setPicker(true)} className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-xs"><Images size={14} /> From my Photos</button>}
                 </div>
+                {recent.length > 0 && (
+                  <div className="flex flex-col items-center gap-1.5 mt-1">
+                    <div className="text-[10px] uppercase tracking-widest text-white/35">Continue a show</div>
+                    <div className="flex flex-wrap justify-center gap-1.5">
+                      {recent.slice(0, 4).map((r) => <button key={r.id} onClick={() => void openSaved(r.id)} className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-xs">{r.title} · {r.photos}</button>)}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
             {(loading || prep) && (

@@ -478,6 +478,7 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
           <Suspense fallback={<div className="flex items-center gap-2 text-white/40 text-xs"><Loader2 size={14} className="animate-spin" /> Opening Themed Shows…</div>}>
             <ThemedShowStudio
               key={showSeed?.key ?? 0}
+              owner={{ uid: profile.uid, handle: (profile as any).username || profile.displayName }}
               library={(profile.photos || []).filter(p => p.mediaType !== 'VIDEO').map(toShowSource)}
               initial={showSeed?.photos.map(toShowSource)}
             />
