@@ -12,6 +12,9 @@ import { renderShowVideo } from '../../services/slideshow/renderVideo';
 import { buildShowProduction } from '../../services/slideshow/fabulaShow';
 import { ShowRuntime } from '../../services/slideshow/showRuntime';
 import type { ShowSpec } from '../../services/slideshow/types';
+import ShowStudioHost from '../../components/photo/ShowStudioHost';
+import ShowPlayer from '../../components/photo/show/ShowPlayer';
+import { openShowStudio } from '../../services/slideshow/showStudioBus';
 
 /** Debug: render exact frames of a spec into an <img> strip pinned over the page. */
 async function stills(spec: ShowSpec, times: number[], w = 960, h = 540) {
@@ -135,7 +138,36 @@ function Lab() {
   const real = (window as any).showLab.realCount || 0;
   // ?preset=N → first N painted samples; ?real → the real photos + the obituary cover
   const initial = new URLSearchParams(location.search).has('real') ? library.slice(0, real) : preset ? library.slice(real, real + (Number(preset) || 8)) : undefined;
+  if (new URLSearchParams(location.search).has('entry')) return <EntryLab library={library} />;
   return <ThemedShowStudio library={library} initial={initial} />;
+}
+
+/** ?entry — the shared openShowStudio() bus: callers open the studio over themselves and get the show back. */
+function EntryLab({ library }: { library: ShowSourcePhoto[] }) {
+  const [log, setLog] = useState<string[]>([]);
+  const [spec, setSpec] = useState<ShowSpec | null>(null);
+  const profile = { uid: 'lab', displayName: 'Lab', photos: library.map((p) => ({ id: p.id, url: p.url, title: p.title, timestamp: p.takenAt, mediaType: 'IMAGE' })) } as any;
+  const ask = async (source: string, doneLabel: string) => {
+    try {
+      const r = await openShowStudio({ source, returnLabel: source, doneLabel });
+      setLog((l) => [`${source}: ${r ? `got "${r.spec.title}" · ${r.spec.photos.length} photos${r.ref ? ` · ref ${r.ref.owner}/${r.ref.id}` : ''}` : 'closed (null)'}`, ...l]);
+      if (r) setSpec(r.spec);
+    } catch (e: any) { setLog((l) => [`${source}: error ${e?.message}`, ...l]); }
+  };
+  (window as any).showLab.entryLog = () => log;
+  return (
+    <div style={{ color: '#fff', padding: 24, display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 900 }}>
+      <h1 className="type-headline-sm">Show studio entry points</h1>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="pj-btn pj-btn--secondary pj-btn--sm" data-testid="entry-tela" onClick={() => void ask('Tela', 'Make Tela presentation')}>From Tela</button>
+        <button className="pj-btn pj-btn--secondary pj-btn--sm" data-testid="entry-fabula" onClick={() => void ask('Fabula', 'Send to Fabula timeline')}>From Fabula</button>
+        <button className="pj-btn pj-btn--secondary pj-btn--sm" data-testid="entry-comment" onClick={() => void ask('comments', 'Attach to comment')}>From a comment</button>
+      </div>
+      <ol data-testid="entry-log" className="type-body-sm">{log.map((l, i) => <li key={i}>{l}</li>)}</ol>
+      {spec && <ShowPlayer spec={spec} controls="full" />}
+      <ShowStudioHost profile={profile} />
+    </div>
+  );
 }
 
 (window as any).showLab = { planner, prep, renderShowVideo, buildShowProduction, synthPad, ShowRuntime, stills, closeStills: () => document.getElementById('stills')?.remove() };

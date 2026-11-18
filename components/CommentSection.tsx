@@ -4,8 +4,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Send, Heart, Reply, Trash2, Smile, X, ChevronDown,
   Loader2, MessageCircle, AtSign, LogIn, BarChart2, Plus, Check,
-  Clock, Users, Sparkles,
+  Clock, Users, Sparkles, Play, Film,
 } from 'lucide-react';
+import { openShowStudio } from '../services/slideshow/showStudioBus';
 import GifStickerPicker from './GifStickerPicker';
 import DebateChallengeButton from './DebateChallengeButton';
 import { collection, addDoc, getDocs, query, where, doc, updateDoc, arrayUnion, arrayRemove, orderBy } from 'firebase/firestore';
@@ -45,16 +46,45 @@ export interface PostComment {
   videoUrl?: string;
   audioUrl?: string;
   gifUrl?: string;
+  /** A published Themed Show that plays inline (imageUrl carries its cover for older surfaces). */
+  show?: CommentShow;
   /** Optional spot in the media this comment is pinned to (seconds). */
   mediaTimestamp?: number;
 }
+
+export interface CommentShow { owner: string; id: string; title?: string; cover?: string }
 
 export interface CommentMedia {
   imageUrl?: string;
   videoUrl?: string;
   audioUrl?: string;
   gifUrl?: string;
+  show?: CommentShow;
 }
+
+const ShowPlayer = React.lazy(() => import('./photo/show/ShowPlayer'));
+
+/** A Themed Show in a comment: the cover first, the live player on tap. */
+const CommentShowCard: React.FC<{ show: CommentShow; isDark: boolean }> = ({ show, isDark }) => {
+  const [playing, setPlaying] = useState(false);
+  return (
+    <div className="mt-2 rounded-2xl overflow-hidden border border-white/10 max-w-[420px]" data-testid="comment-show">
+      {playing ? (
+        <React.Suspense fallback={<div className="aspect-video grid place-items-center bg-black"><Loader2 size={16} className="animate-spin" /></div>}>
+          <ShowPlayer showRef={show} autoPlay controls="minimal" />
+        </React.Suspense>
+      ) : (
+        <button type="button" onClick={() => setPlaying(true)} className="relative block w-full aspect-video bg-black group" aria-label={`Play the photo show ${show.title || ''}`}>
+          {show.cover && <img src={show.cover} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" loading="lazy" />}
+          <span className="absolute inset-0 grid place-items-center"><span className="pj-btn pj-btn--accent pj-btn--icon"><Play size={18} /></span></span>
+          <span className={`absolute left-0 right-0 bottom-0 px-3 py-2 text-left text-[11px] font-bold bg-gradient-to-t from-black/80 to-transparent ${isDark ? 'text-white' : 'text-white'}`}>
+            <Film size={11} className="inline -mt-0.5 mr-1" />{show.title || 'Photo show'}
+          </span>
+        </button>
+      )}
+    </div>
+  );
+};
 
 interface CommentSectionProps {
   // Self-contained mode (for posts)
@@ -188,7 +218,9 @@ const CommentBubble: React.FC<BubbleProps> = ({
                 {renderMentions(comment.text, onVisitUser)}
               </div>
             )}
-            {comment.imageUrl && (
+            {comment.show?.owner && comment.show.id ? (
+              <CommentShowCard show={comment.show} isDark={isDark} />
+            ) : comment.imageUrl && (
               <div className="mt-2 rounded-2xl overflow-hidden border border-white/10 max-w-[280px]">
                 <img src={comment.imageUrl} alt="" loading="lazy" className="w-full h-auto max-h-[320px] object-cover" />
               </div>
@@ -849,6 +881,7 @@ const mapLegacyComment = (c: any): PostComment => ({
   ...(c.imageUrl ? { imageUrl: c.imageUrl } : {}),
   ...(c.videoUrl ? { videoUrl: c.videoUrl } : {}),
   ...(c.audioUrl ? { audioUrl: c.audioUrl } : {}),
+  ...(c.show?.owner && c.show?.id ? { show: { owner: String(c.show.owner), id: String(c.show.id), ...(c.show.title ? { title: String(c.show.title) } : {}), ...(c.show.cover ? { cover: String(c.show.cover) } : {}) } } : {}),
   ...(typeof c.mediaTimestamp === 'number' ? { mediaTimestamp: c.mediaTimestamp } : {}),
 });
 
@@ -900,6 +933,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const [showPollComposer, setShowPollComposer] = useState(false);
   const [pinTime, setPinTime] = useState(false);   // optional: pin the next comment to the current moment
   const [showGifPicker, setShowGifPicker] = useState(false);
+  // Attach → Make a photo show: the studio opens over the thread; the published show waits here.
+  const [pendingShow, setPendingShow] = useState<CommentShow | null>(null);
+  const [showBusy, setShowBusy] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Fetch polls for this post
@@ -1014,6 +1050,51 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const safePostId = postId || '';
   // Guest (anonymous) sessions can read but not post: rules require a registered account.
   const signedIn = !!auth.currentUser && !auth.currentUser.isAnonymous;
+
+  /** One comment per send (text and/or media, plus the waiting photo show). */
+  const sendComment = async (text: string, given: CommentMedia) => {
+    const user = auth.currentUser!;
+    const now = Date.now();
+    const show = pendingShow;
+    // the show's cover is the image older surfaces (and the comment rules' body check) see
+    const media: CommentMedia = { ...given, ...(show ? { show, ...(!given.imageUrl && show.cover ? { imageUrl: show.cover } : {}) } : {}) };
+    const { imageUrl, videoUrl, audioUrl, gifUrl } = media;
+    if (!text && !imageUrl && !videoUrl && !audioUrl && !gifUrl) throw new Error('Comments can carry text, photos, video, voice notes, GIFs and photo shows.');
+    const optimistic: PostComment = {
+      id: `pending-${now}`, text, authorId: user.uid, authorName: user.displayName || 'User', authorPhoto: user.photoURL || '',
+      timestamp: now, parentId: replyTo?.id ?? null, likedBy: [], likesCount: 0, ...media,
+    };
+    handleCommentPosted(optimistic);
+    const parentId = replyTo?.id;
+    const prevReplyTo = replyTo;
+    setReplyTo(null);
+    if (show) setPendingShow(null);
+    try {
+      if (isLegacy) {
+        const pinned = pinTime && typeof playbackTime === 'number' ? Math.floor(playbackTime) : undefined;
+        // One comment per send: a GIF-only send goes through onPostGif, everything else
+        // (text and/or media) through onPostComment with the media attached.
+        if (!text && gifUrl && !imageUrl && !videoUrl && !audioUrl && !show && onPostGif) await onPostGif(gifUrl, parentId);
+        else if (onPostComment) await onPostComment(text, parentId, pinned, media);
+        else throw new Error('Comments are unavailable here.');
+      } else {
+        await addPostComment(safePostId, text, parentId, videoUrl, audioUrl, gifUrl, imageUrl, postCollection, show ? { show } : undefined);
+      }
+    } catch (err) {
+      dropOptimistic(optimistic.id);
+      setReplyTo(prevReplyTo);
+      if (show) setPendingShow(show);
+      throw err;
+    }
+  };
+
+  const makePhotoShow = async () => {
+    setShowBusy(null);
+    try {
+      const r = await openShowStudio({ source: 'comment', returnLabel: 'the comments', publish: true, doneLabel: 'Attach to comment' });
+      if (r?.ref) setPendingShow({ owner: r.ref.owner, id: r.ref.id, ...(r.ref.title ? { title: r.ref.title } : {}), ...(r.ref.cover ? { cover: r.ref.cover } : {}) });
+    } catch (e: any) { setShowBusy(e?.message || 'The photo show studio could not open.'); }
+  };
 
   // ── Theme tokens ───────────────────────────────────────────────────────────
   const card = isDark
@@ -1149,6 +1230,19 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                 </motion.div>
               )}
             </AnimatePresence>
+            {pendingShow && (
+              <div className={`flex items-center gap-3 rounded-2xl p-2 pr-3 border ${isDark ? 'bg-white/5 border-white/10' : 'bg-black/5 border-black/10'}`} data-testid="comment-pending-show">
+                {pendingShow.cover ? <img src={pendingShow.cover} alt="" className="w-16 h-9 rounded-lg object-cover shrink-0" /> : <Film size={16} className="shrink-0" />}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] font-black uppercase tracking-widest text-small-orange">Photo show attached</p>
+                  <p className="text-xs font-bold truncate">{pendingShow.title || 'Photo show'}</p>
+                </div>
+                <button type="button" onClick={() => void sendComment('', {}).catch(e => setShowBusy(e?.message || 'Could not post the show.'))}
+                  className="text-[9px] font-black uppercase tracking-widest text-small-orange hover:opacity-70">Post show</button>
+                <button type="button" onClick={() => setPendingShow(null)} aria-label="Remove the photo show" className="hover:opacity-60"><X size={12} /></button>
+              </div>
+            )}
+            {showBusy && <p className="text-[10px] text-red-400 px-1" role="alert">{showBusy}</p>}
             {/* Rich composer — same as Plajah Social */}
             <UniversalPostComposer
               currentUser={auth.currentUser}
@@ -1179,6 +1273,8 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                     createdAt: now,
                   });
                 }
+                // A photo show waiting to go: it rides along with this comment's text.
+                if (pendingShow && data.attachments.length === 0) { await sendComment(text, {}); return; }
                 if (!text && data.attachments.length === 0) {
                   if (data.poll && postId && !isLegacy) return;
                   // Nothing a comment can carry (e.g. a data-viz or embed alone): say so rather
@@ -1210,45 +1306,12 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                 if (!text && !imageUrl && !videoUrl && !audioUrl && !gifUrl) {
                   throw new Error('Comments can carry text, photos, video, voice notes and GIFs.');
                 }
-                const media: CommentMedia = {
+                await sendComment(text, {
                   ...(imageUrl ? { imageUrl } : {}),
                   ...(videoUrl ? { videoUrl } : {}),
                   ...(audioUrl ? { audioUrl } : {}),
                   ...(gifUrl   ? { gifUrl   } : {}),
-                };
-
-                const optimistic: PostComment = {
-                  id: `pending-${now}`,
-                  text,
-                  authorId: user.uid,
-                  authorName: user.displayName || 'User',
-                  authorPhoto: user.photoURL || '',
-                  timestamp: now,
-                  parentId: replyTo?.id ?? null,
-                  likedBy: [],
-                  likesCount: 0,
-                  ...media,
-                };
-                handleCommentPosted(optimistic);
-                const parentId = replyTo?.id;
-                const prevReplyTo = replyTo;
-                setReplyTo(null);
-                try {
-                  if (isLegacy) {
-                    const pinned = pinTime && typeof playbackTime === 'number' ? Math.floor(playbackTime) : undefined;
-                    // One comment per send: a GIF-only send goes through onPostGif, everything else
-                    // (text and/or media) through onPostComment with the media attached.
-                    if (!text && gifUrl && !imageUrl && !videoUrl && !audioUrl && onPostGif) await onPostGif(gifUrl, parentId);
-                    else if (onPostComment) await onPostComment(text, parentId, pinned, media);
-                    else throw new Error('Comments are unavailable here.');
-                  } else {
-                    await addPostComment(safePostId, text, parentId, videoUrl, audioUrl, gifUrl, imageUrl, postCollection);
-                  }
-                } catch (err) {
-                  dropOptimistic(optimistic.id);
-                  setReplyTo(prevReplyTo);
-                  throw err;
-                }
+                });
               }}
             />
             <div className="flex items-center gap-4">
@@ -1273,6 +1336,16 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                   {showPollComposer ? 'Cancel poll' : 'Add poll'}
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => void makePhotoShow()}
+                data-testid="comment-make-photo-show"
+                title="Make a photo show (Themed Shows) and attach it; it plays right in the comment"
+                className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${pendingShow ? 'text-small-orange' : isDark ? 'text-white/20 hover:text-white' : 'text-black/20 hover:text-black'}`}
+              >
+                <Film size={11} />
+                Photo show
+              </button>
 
               {/* GIF / Sticker quick-send */}
               <div className="relative">

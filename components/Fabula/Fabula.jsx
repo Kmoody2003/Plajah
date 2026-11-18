@@ -1,5 +1,7 @@
 import { clipsToCues, cuesToClipFields, sendTo, subscribeHandoffs } from "../../services/crossover/handoff";
 import { readCaptions } from "../../services/crossover/captions";
+import { openShowStudio } from "../../services/slideshow/showStudioBus";
+import { openShowInFabula } from "../../services/slideshow/fabulaShow";
 import MediaRepair from './MediaRepair';
 import { reportMediaHealth } from '../../services/fabula/mediaHealth';
 import { buildEditingProxy, buildAudioProxy, buildPictureProxy } from '../../services/fabula/proxyBuilder';
@@ -6020,6 +6022,13 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                     </button>
                     <div style={{ display: poolImportOpen ? undefined : "none" }}>
                     <button className="minibtn full" onClick={importFilesDiskFirst} title="Import files — read straight off disk (like Resolve/Premiere). No copy, no cloud."><Upload size={12} /> IMPORT MEDIA</button>
+                    <button className="minibtn full" data-testid="fabula-photo-show" title="Make a Themed Show from photos; it lands on the timeline as editable live-scene clips (one per shot) with its music on A1."
+                      onClick={async () => {
+                        try {
+                          const r = await openShowStudio({ source: "fabula", returnLabel: "Fabula", doneLabel: "Send to Fabula timeline" });
+                          if (r?.spec) await openShowInFabula(r.spec);
+                        } catch (e) { console.warn("[fabula] photo show", e); }
+                      }}><Clapperboard size={12} /> PHOTO SHOW</button>
                     <input ref={fileRef} type="file" multiple accept={`${codecImportAccept()},.lottie,.json,.svg,.ai,.pdf`} style={{ display: "none" }} onChange={handleUpload} />
                     <input ref={relinkRef} type="file" accept="video/*,image/*,audio/*" style={{ display: "none" }}
                       onChange={(e) => {

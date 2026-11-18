@@ -51,7 +51,7 @@ export type TelaOp =
   | { type: 'WRITER_EDIT'; deviceId: string; ops: import('../../services/text/document/ops').WriterOp[]; label?: string; coalesce?: string | null }
   | { type: 'UPDATE_NOTES_DEVICE'; deviceId: string; patch: Partial<TelaNotesDevice> }
   /** A media file replaced in place (e.g. a PDF saved from the PDF reader with answers and marks). */
-  | { type: 'UPDATE_MEDIA_DEVICE'; deviceId: string; patch: Partial<Pick<TelaMediaDevice, 'src' | 'name' | 'size' | 'storagePath' | 'sessionOnly' | 'mimeType'>> }
+  | { type: 'UPDATE_MEDIA_DEVICE'; deviceId: string; patch: Partial<Pick<TelaMediaDevice, 'src' | 'name' | 'size' | 'storagePath' | 'sessionOnly' | 'mimeType' | 'show'>> }
   | { type: 'SET_GRID_CELL'; deviceId: string; key: string; value: string }
   // Grid workbook (sheet engine): the whole immutable workbook after one user
   // action (edit, paste, sort…). Workbooks share untouched rows, so this is a

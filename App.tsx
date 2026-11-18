@@ -137,6 +137,8 @@ import { startPresenceHeartbeat } from './services/liveTelemetryService';
 import ExperiencePicker from './components/ExperiencePicker';
 // Lazy: desktop/mobile floating player (never mounted on TV) — carries mux-player/media-chrome.
 const GlobalPlayer = retryLazy(() => import('./components/GlobalPlayer'));
+// Themed Shows studio for every surface (plajah:openShowStudio — services/slideshow/showStudioBus).
+const ShowStudioHost = retryLazy(() => import('./components/photo/ShowStudioHost'));
 import InAppBrowserPrompt from './components/InAppBrowserPrompt';
 import AutoPlayCountdown from './components/AutoPlayCountdown';
 import TVNavigationLayer from './components/TVNavigationLayer';
@@ -8698,6 +8700,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           {!activeChildProfile && isPlatformAdmin(user, userProfile) && (roleLens || ['ACADEMIA_HOME', 'STUDENT_HOME', 'ACADEMIA_DIRECTORY', 'CLASSROOMS', 'TEACHER_TOOLS'].includes(view as string)) && (
             <RoleLensBar lens={roleLens} onChange={(r) => { setRoleLensState(r); if (r) setView('ACADEMIA_HOME'); }} />
           )}
+          <Suspense fallback={null}><ShowStudioHost profile={userProfile} /></Suspense>
           {shellNext.enabled && !isMobile && !getPlatformInfo().isTV && currentTrack && !isNanoView ? (
             <div className="fixed inset-x-0 bottom-0 z-[240]">
               <CommandPlayer
