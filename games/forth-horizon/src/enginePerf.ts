@@ -309,6 +309,70 @@ export async function runWithConcurrency<T>(
   await Promise.all(workers);
 }
 
+/**
+ * Terrain with level of detail: the height grid is cut into tiles of `tileVerts` cells; each tile keeps ONE vertex buffer (plus a skirt ring) and gets
+ * one index buffer per level (every vertex, every 2nd, 4th, 8th), chosen by THREE.LOD from the camera distance. A skirt hangs `skirt` metres below every
+ * tile edge, so where two neighbours sit at different levels the T-junction gaps show the skirt (terrain-coloured) instead of the sky. Distant terrain
+ * drops to 1/16 and 1/64 of the triangles. The vertices near the camera are the full grid, so the surface under the car is unchanged.
+ */
+export function populateTerrainLOD(
+  target: THREE.Group, material: THREE.Material, nx: number, ny: number, pos: Float32Array, uv: Float32Array, nor: Float32Array,
+  tileVerts = 64, lodDist: number[] = [0, 1100, 2400, 4800], skirt = 16,
+): void {
+  for (const lod of target.children) for (const lvl of (lod as THREE.LOD).levels ?? []) (lvl.object as THREE.Mesh).geometry?.dispose();
+  target.clear();
+  const steps = [1, 2, 4, 8].slice(0, lodDist.length);
+  const tilesX = Math.ceil((nx - 1) / tileVerts), tilesY = Math.ceil((ny - 1) / tileVerts);
+  for (let ty = 0; ty < tilesY; ty++) for (let tx = 0; tx < tilesX; tx++) {
+    const x0 = tx * tileVerts, x1 = Math.min(nx - 1, x0 + tileVerts), y0 = ty * tileVerts, y1 = Math.min(ny - 1, y0 + tileVerts);
+    const tw = x1 - x0 + 1, th = y1 - y0 + 1;
+    // the perimeter, as a closed loop of (i, j)
+    const ring: number[][] = [];
+    for (let i = 0; i < tw; i++) ring.push([i, 0]);
+    for (let j = 1; j < th; j++) ring.push([tw - 1, j]);
+    for (let i = tw - 2; i >= 0; i--) ring.push([i, th - 1]);
+    for (let j = th - 2; j >= 1; j--) ring.push([0, j]);
+    const vCount = tw * th + ring.length;
+    const tPos = new Float32Array(vCount * 3), tNor = new Float32Array(vCount * 3), tUv = new Float32Array(vCount * 2);
+    // tile centre: positions are stored relative to it so THREE.LOD measures the distance from the tile, not from the world origin
+    const cs = ((y0 + (th >> 1)) * nx + x0 + (tw >> 1)) * 3, cx = pos[cs], cz = pos[cs + 2];
+    const put = (dst: number, src: number, drop: number): void => {
+      const s3 = src * 3, d3 = dst * 3, s2 = src * 2, d2 = dst * 2;
+      tPos[d3] = pos[s3] - cx; tPos[d3 + 1] = pos[s3 + 1] - drop; tPos[d3 + 2] = pos[s3 + 2] - cz;
+      tNor[d3] = nor[s3]; tNor[d3 + 1] = nor[s3 + 1]; tNor[d3 + 2] = nor[s3 + 2]; tUv[d2] = uv[s2]; tUv[d2 + 1] = uv[s2 + 1];
+    };
+    for (let j = 0; j < th; j++) for (let i = 0; i < tw; i++) put(j * tw + i, (y0 + j) * nx + x0 + i, 0);
+    const skirtOf = new Map<number, number>();
+    ring.forEach(([i, j], r) => { const dst = tw * th + r; put(dst, (y0 + j) * nx + x0 + i, skirt); skirtOf.set(j * tw + i, dst); });
+    const aPos = new THREE.BufferAttribute(tPos, 3), aNor = new THREE.BufferAttribute(tNor, 3), aUv = new THREE.BufferAttribute(tUv, 2);
+    const lod = new THREE.LOD(); lod.position.set(cx, 0, cz); lod.updateMatrix(); lod.matrixAutoUpdate = false;
+    steps.forEach((s, li) => {
+      const is: number[] = []; for (let i = 0; i < tw - 1; i += s) is.push(i); is.push(tw - 1);
+      const js: number[] = []; for (let j = 0; j < th - 1; j += s) js.push(j); js.push(th - 1);
+      const idx: number[] = [];
+      for (let b = 0; b < js.length - 1; b++) for (let a = 0; a < is.length - 1; a++) {
+        const p = js[b] * tw + is[a], q = js[b] * tw + is[a + 1], r = js[b + 1] * tw + is[a], t = js[b + 1] * tw + is[a + 1];
+        idx.push(p, r, q, q, r, t);
+      }
+      // skirts along the four edges at this level's spacing (both windings: they are seen from either side)
+      const edge = (pts: number[]): void => {
+        for (let k = 0; k < pts.length - 1; k++) {
+          const p = pts[k], q = pts[k + 1], sp = skirtOf.get(p)!, sq = skirtOf.get(q)!;
+          idx.push(p, sp, q, q, sp, sq, p, q, sp, q, sq, sp);
+        }
+      };
+      edge(is.map((i) => i)); edge(is.map((i) => (th - 1) * tw + i)); edge(js.map((j) => j * tw)); edge(js.map((j) => j * tw + tw - 1));
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', aPos); geo.setAttribute('normal', aNor); geo.setAttribute('uv', aUv);
+      geo.setIndex(vCount <= 65535 ? new THREE.Uint16BufferAttribute(idx, 1) : new THREE.Uint32BufferAttribute(idx, 1));
+      geo.computeBoundingBox(); geo.computeBoundingSphere();
+      const mesh = new THREE.Mesh(geo, material); mesh.receiveShadow = true; mesh.castShadow = false; mesh.matrixAutoUpdate = false;
+      lod.addLevel(mesh, lodDist[li], 0.1);
+    });
+    target.add(lod);
+  }
+}
+
 /** Split the full-map height grid into frustum-culled tiles sharing exact border vertices/normals. */
 export function populateTiledTerrain(
   target: THREE.Group,

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildHeroBridge } from './heroBridge';
+import { mergeByMaterial } from './carBatch';
 import { GRID } from './grid';
 
 /**
@@ -33,6 +34,7 @@ export function buildRiverBridges(o: { ground: (x: number, z: number) => number;
   for (const br of RIVER_BRIDGES) {
     const dx = br.b.x - br.a.x, dz = br.b.z - br.a.z, L = Math.hypot(dx, dz), ux = dx / L, uz = dz / L, nx = -uz, nz = ux;
     const hero = buildHeroBridge({ start: new THREE.Vector3(br.a.x, br.deck, br.a.z), end: new THREE.Vector3(br.b.x, br.deck, br.b.z), deckWidth: br.width, towerHeight: 118, pierDepth: br.deck + 12, abutmentDepth: Math.max(12, br.deck - Math.min(o.ground(br.a.x, br.a.z), o.ground(br.b.x, br.b.z)) + 3) });
+    const mb = mergeByMaterial(hero.group); console.log('hero bridge meshes', mb.before, '->', mb.after);   // ~800 static meshes into one draw per material
     group.add(hero.group); leds.push(hero.updateLed);
 
     // the road: approach A (climbing), the span (level), approach B (descending): one ribbon, with its own piers

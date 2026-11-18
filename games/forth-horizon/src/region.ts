@@ -43,7 +43,7 @@ import { CompetitionEngine } from './racingAI';
 import { TrafficManager, OpenWorldChallengeManager } from './openWorldEvents';
 import { CopsAndRobbersMode, type PursuitRoleChoice } from './copsAndRobbers';
 import { OnlineSessionManager } from './onlineMultiplayer';
-import { SpatialCuller, runWithConcurrency, populateTiledTerrain, detectInitialTier, TIER_CONFIGS, type PerfTier } from './enginePerf';
+import { SpatialCuller, runWithConcurrency, populateTiledTerrain, populateTerrainLOD, detectInitialTier, TIER_CONFIGS, type PerfTier } from './enginePerf';
 import { harborDetail } from './harborDetail';
 import { duneDetail } from './duneDetail';
 import { Vegetation } from './vegetation';
@@ -51,6 +51,7 @@ import { buildIndustrialCircuit } from './industrialCircuit';
 import { glassSelects } from './glassSelect';
 import { buildParkingLots } from './parkingLots';
 import { buildUtilities, type UtilitiesData } from './utilities';
+import { mergeByMaterial } from './carBatch';
 import { SimLayer, carveSim, planSim, type SimPlan } from './simLayer';
 import type { UserMapData } from './sim/data';
 import { buildPortDistrict, carvePlatform, inPort, type PortData } from './portDistrict';
@@ -568,6 +569,7 @@ function meshH(xw: number, zw: number): number {
   return u + v <= 1 ? a + (b - a) * u + (c - a) * v : d + (c - d) * (1 - u) + (b - d) * (1 - v);
 }
 
+const TERRAIN_LOD = !location.search.includes('terrainlod=0');               // distance LOD for the terrain tiles (enginePerf.populateTerrainLOD)
 function buildTerrain(): void {
   const stride = 2;
   const nx = Math.floor((meta.width - 1) / stride) + 1;
@@ -603,7 +605,7 @@ function buildTerrain(): void {
   tmpGeo.dispose();
 
   if (terrain) {
-    populateTiledTerrain(terrain, terrainMat, nx, ny, pos, uv, nor, 8, 6);
+    if (TERRAIN_LOD) populateTerrainLOD(terrain, terrainMat, nx, ny, pos, uv, nor); else populateTiledTerrain(terrain, terrainMat, nx, ny, pos, uv, nor, 8, 6);
     return;
   }
   terrV.value.set(meta.width * meta.mpp, meta.height * meta.mpp); terrO.value.set(GRID.ox, GRID.oz);
@@ -614,7 +616,7 @@ function buildTerrain(): void {
   applyTerrainDetail(terrainMat);
   terrain = new THREE.Group();
   terrain.name = 'terrain-tiles';
-  populateTiledTerrain(terrain, terrainMat, nx, ny, pos, uv, nor, 8, 6);
+  if (TERRAIN_LOD) populateTerrainLOD(terrain, terrainMat, nx, ny, pos, uv, nor); else populateTiledTerrain(terrain, terrainMat, nx, ny, pos, uv, nor, 8, 6);
   scene.add(terrain);
   // water: region footprint, extended far to the west so the Great Lake runs to the horizon
   const rw = meta.width * meta.mpp, rh = meta.height * meta.mpp, ext = 60000;
@@ -2916,7 +2918,7 @@ function buildFurniture(): void {
     driveSurfaces.push(...simLayer.surfaces);
     surfGrid = null;
   }
-  if (utilData) furnitureGroup.add(buildUtilities(utilData, (x, z) => meshH(x, z)).group);
+  if (utilData) { const ug = buildUtilities(utilData, (x, z) => meshH(x, z)).group; const mb = mergeByMaterial(ug, 600); console.log('utilities meshes', mb.before, '->', mb.after); furnitureGroup.add(ug); }   // pylons and yards: one draw per material per 600 m cell
   if (parkingData && parkingData.length) { parkingLots = buildParkingLots(parkingData, (x, z) => meshH(x, z)); furnitureGroup.add(parkingLots.group); }
   if (portData) {
     const wy = waterMesh ? waterMesh.position.y : 0;
@@ -4297,5 +4299,39 @@ function frame(now: number): void {
   }
   requestAnimationFrame(frame);
 }
+// dev benchmark: renders n frames from a fixed camera with the real per-frame culling and post chain, and forces the GPU to finish each one
+// (a 1-pixel read-back), so the times are true frame costs even when the page is in the background (no requestAnimationFrame). Returns ms stats.
+(window as unknown as { __bench: unknown }).__bench = (n: number, pos: number[], at: number[], plain = false) => {
+  camera.position.set(pos[0], pos[1], pos[2]); camera.lookAt(at[0], at[1], at[2]); camera.updateMatrixWorld(); camera.updateProjectionMatrix();
+  const gl = renderer.getContext(), px = new Uint8Array(4), t: number[] = [], cull: number[] = [], veg: number[] = [], rend: number[] = [];
+  const auto = renderer.info.autoReset; renderer.info.autoReset = false;
+  const wasMap = mapMode; if (wasMap) setMapMode(false);                       // measure the game as it is played, not the overview map (which shows everything)
+  let calls = 0, tris = 0;
+  const warm = 12;                                                               // let vegetation and streaming settle after the camera jump
+  for (let i = 0; i < n + warm; i++) {
+    renderer.info.reset();
+    const t0 = performance.now();
+    cullPlaces(performance.now() + i * 1000);
+    if (vegetation) vegetation.update(0.016, camera.position);
+    if (grassField) grassField.update(0.016, camera.position);
+    for (const tf of treeFields) tf.update(0.016, camera.position);
+    const t1 = performance.now();
+    cityVisibility.viewDist = tierCfg.cityViewDist; cityVisibility.shadowDist = tierCfg.cityShadowDist;
+    cityVisibility.update(camera, csm ? csm.lights : [sun], i % 3, 3);
+    if (cityBatches) { cityBatches.viewDist = cityVisibility.viewDist; cityBatches.shadowDist = cityVisibility.shadowDist; cityBatches.update(camera.position, i % 3, 3); }
+    spatialCuller.update(camera, renderer, false, tierCfg.cullViewDist, tierCfg.cullShadowDist, tierCfg.shadowStride);
+    if (csm) csm.update();
+    const t2 = performance.now();
+    if (composer && fxOn && !plain) composer.render(); else renderer.render(scene, camera);
+    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    const t3 = performance.now();
+    if (i >= warm) { t.push(t3 - t0); veg.push(t1 - t0); cull.push(t2 - t1); rend.push(t3 - t2); calls = renderer.info.render.calls; tris = renderer.info.render.triangles; }
+  }
+  renderer.info.autoReset = auto;
+  if (wasMap) setMapMode(true);
+  const med = (a: number[]): number => { const b = [...a].sort((x, y) => x - y); return +b[b.length >> 1].toFixed(1); };
+  const p90 = (a: number[]): number => { const b = [...a].sort((x, y) => x - y); return +b[Math.floor(b.length * 0.9)].toFixed(1); };
+  return { median: med(t), p90: p90(t), vegMs: med(veg), cullMs: med(cull), renderMs: med(rend), calls, tris, w: renderer.domElement.width, h: renderer.domElement.height };
+};
 boot().catch((e) => { msg.textContent = 'failed: ' + e; console.error(e); });
 requestAnimationFrame(frame);

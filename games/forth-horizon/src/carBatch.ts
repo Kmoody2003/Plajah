@@ -27,6 +27,53 @@ function matKey(mat: THREE.Material): string {
   return [m.type, c, m.roughness, m.metalness, e, m.emissiveIntensity, m.opacity, m.side, m.flatShading ? 1 : 0, m.envMapIntensity, m.clearcoat ?? 0, m.clearcoatRoughness ?? 0, m.ior ?? 0, tx(m.map), tx(m.normalMap), tx(m.roughnessMap), tx(m.metalnessMap), tx(m.emissiveMap), m.vertexColors ? 1 : 0, m.polygonOffset ? 1 : 0].join('|');
 }
 
+/**
+ * Static scenery (the hero bridge: ~800 meshes of cables, hangers, LED strips) into one draw per MATERIAL OBJECT. Unlike batchStatic's look-alike key this keeps
+ * every material instance apart, so materials animated in place (the bridge's LED waves change emissive per material) still animate exactly as before.
+ * Plain meshes only (instanced meshes, skinned meshes and anything with userData.keep stay as they are). Returns the mesh counts before and after.
+ */
+export function mergeByMaterial(root: THREE.Object3D, cell = 0): { before: number; after: number } {
+  const before = countMeshes(root);
+  root.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const buckets = new Map<string, THREE.Mesh[]>();
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || (m as unknown as THREE.InstancedMesh).isInstancedMesh || (m as unknown as THREE.SkinnedMesh).isSkinnedMesh || m.userData.keep || Array.isArray(m.material) || m.morphTargetInfluences) return;
+    let ck = '';
+    if (cell > 0) { const p = new THREE.Vector3().setFromMatrixPosition(m.matrixWorld); ck = `|${Math.floor(p.x / cell)},${Math.floor(p.z / cell)}`; }   // spread-out scenery: merge per cell so distance culling still works
+    const key = `${(m.material as THREE.Material).uuid}|${+m.castShadow}${+m.receiveShadow}|${m.renderOrder}|${m.visible}${ck}`;
+    let b = buckets.get(key); if (!b) buckets.set(key, b = []);
+    b.push(m);
+  });
+  for (const group of buckets.values()) {
+    if (group.length < 2) continue;
+    try {
+      const geos: THREE.BufferGeometry[] = [];
+      const keepExtra = Object.keys(group[0].geometry.attributes).filter((n) => !['position', 'normal', 'uv'].includes(n) && group.every((m) => !!m.geometry.getAttribute(n)));   // e.g. the bridge LEDs' ledPhase
+      for (const m of group) {
+        const g = m.geometry.clone();
+        g.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld));
+        for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'uv' && !keepExtra.includes(name)) g.deleteAttribute(name);
+        if (!g.getAttribute('normal')) g.computeVertexNormals();
+        if (!g.getAttribute('uv')) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.getAttribute('position').count * 2), 2));
+        g.clearGroups();
+        geos.push(g.index ? g.toNonIndexed() : g);
+      }
+      const merged = mergeGeometries(geos, false);
+      for (const g of geos) g.dispose();
+      if (!merged) continue;
+      merged.computeBoundingSphere(); merged.computeBoundingBox();
+      const first = group[0];
+      const mesh = new THREE.Mesh(merged, first.material);
+      mesh.name = 'merged'; mesh.castShadow = first.castShadow; mesh.receiveShadow = first.receiveShadow; mesh.renderOrder = first.renderOrder;
+      for (const m of group) { m.parent?.remove(m); m.geometry.dispose(); }
+      root.add(mesh);
+    } catch (e) { console.warn('mergeByMaterial: left a group unmerged', e); }
+  }
+  return { before, after: countMeshes(root) };
+}
+
 /** merge `list` (meshes under `into`) by material; `rel(mesh)` is the mesh's transform relative to `into` */
 function mergeInto(into: THREE.Object3D, list: THREE.Mesh[], rel: (m: THREE.Mesh) => THREE.Matrix4): number {
   const buckets = new Map<string, THREE.Mesh[]>();

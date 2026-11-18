@@ -159,28 +159,33 @@ export function buildHeroBridge(opts: HeroBridgeOptions): HeroBridgeHandle {
     metalness: 0.88,
   });
 
-  // Animated LED material collections
-  interface LedEntry {
-    mat: THREE.MeshStandardMaterial;
-    phase: number;
-    palette: 'tower' | 'fascia' | 'node';
+  // Animated LED materials: ONE material per palette (tower, fascia, cable nodes); each LED's phase in the wave rides on its vertices (attribute ledPhase)
+  // and the shader computes the colour and glow the CPU used to set per material. ~240 per-LED materials became 3, so the merged bridge is a few draws.
+  type Palette = 'tower' | 'fascia' | 'node';
+  const ledU = { uLedTime: { value: 0 }, uLedActive: { value: 0 } };
+  const PAL: Record<Palette, string> = {
+    tower: 'vec3 c = mix(vec3(0.161, 0.384, 1.0), vec3(0.0, 0.898, 1.0), wave); float k = 1.2 + 1.4 * wave;',
+    fascia: 'vec3 a = mix(vec3(0.0, 0.898, 1.0), vec3(0.616, 0.306, 0.867), pulse); vec3 c = mix(a, vec3(0.0, 1.0, 0.659), wave * 0.5); float k = 1.0 + 1.3 * wave;',
+    node: 'vec3 c = mix(vec3(0.0, 1.0, 0.659), vec3(0.0, 0.898, 1.0), wave); float k = 1.4 + 1.8 * wave;',
+  };
+  const ledMats = {} as Record<Palette, THREE.MeshStandardMaterial>;
+  for (const p of ['tower', 'fascia', 'node'] as Palette[]) {
+    const m = new THREE.MeshStandardMaterial({ color: 0x29b6f6, emissive: 0xffffff, roughness: 0.25, metalness: 0.1 });
+    m.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, ledU);
+      sh.vertexShader = 'attribute float ledPhase;\nvarying float vLedPhase;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvLedPhase = ledPhase;');
+      sh.fragmentShader = 'uniform float uLedTime;\nuniform float uLedActive;\nvarying float vLedPhase;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>',
+        '#include <emissivemap_fragment>\n{ float wave = 0.5 + 0.5 * sin(uLedTime * 1.45 - vLedPhase); float pulse = 0.5 + 0.5 * sin(uLedTime * 0.65 + vLedPhase * 0.5); ' + PAL[p] +
+        ' diffuseColor.rgb = c; totalEmissiveRadiance = c * (uLedActive > 0.001 ? uLedActive * k : 0.08); }');
+    };
+    m.customProgramCacheKey = () => 'heroLed-' + p;
+    ledMats[p] = m;
   }
-  const ledEntries: LedEntry[] = [];
-
-  const makeLedMat = (
-    baseColor: number,
-    phase: number,
-    palette: LedEntry['palette'],
-  ): THREE.MeshStandardMaterial => {
-    const m = new THREE.MeshStandardMaterial({
-      color: baseColor,
-      emissive: new THREE.Color(baseColor),
-      emissiveIntensity: 0.25,
-      roughness: 0.25,
-      metalness: 0.1,
-    });
-    ledEntries.push({ mat: m, phase, palette });
-    return m;
+  const ledPhaseOf = new Map<THREE.Material, { phase: number; palette: Palette }>();
+  const makeLedMat = (_baseColor: number, phase: number, palette: Palette): THREE.MeshStandardMaterial => {
+    const marker = new THREE.MeshStandardMaterial();                                         // a stand-in that tags the mesh; swapped for the palette material below
+    ledPhaseOf.set(marker, { phase, palette });
+    return marker;
   };
 
   const lampBulbMat = new THREE.MeshStandardMaterial({
@@ -531,48 +536,21 @@ export function buildHeroBridge(opts: HeroBridgeOptions): HeroBridgeHandle {
   // ---------------------------------------------------------------------------
   // 4. Smooth Dusk / Night LED Animation
   // ---------------------------------------------------------------------------
-  const tmpColorA = new THREE.Color();
-  const tmpColorB = new THREE.Color();
-  const cyan = new THREE.Color(0x00e5ff);
-  const royal = new THREE.Color(0x2962ff);
-  const teal = new THREE.Color(0x00ffa8);
-  const violet = new THREE.Color(0x9d4edd);
-
   const updateLed = (elapsed: number, nightFactor: number): void => {
     const nf = THREE.MathUtils.clamp(nightFactor, 0, 1);
     const active = THREE.MathUtils.smoothstep(nf, 0.05, 0.85);
 
     lampBulbMat.emissiveIntensity = THREE.MathUtils.lerp(0.15, 2.4, active);
 
-    for (let i = 0; i < ledEntries.length; i++) {
-      const entry = ledEntries[i];
-      if (active <= 0.001) {
-        entry.mat.emissiveIntensity = 0.08;
-        continue;
-      }
-
-      const wave = 0.5 + 0.5 * Math.sin(elapsed * 1.45 - entry.phase);
-      const pulse = 0.5 + 0.5 * Math.sin(elapsed * 0.65 + entry.phase * 0.5);
-
-      if (entry.palette === 'tower') {
-        tmpColorA.copy(royal).lerp(cyan, wave);
-        entry.mat.emissive.copy(tmpColorA);
-        entry.mat.color.copy(tmpColorA);
-        entry.mat.emissiveIntensity = active * (1.2 + 1.4 * wave);
-      } else if (entry.palette === 'fascia') {
-        tmpColorA.copy(cyan).lerp(violet, pulse);
-        tmpColorB.copy(tmpColorA).lerp(teal, wave * 0.5);
-        entry.mat.emissive.copy(tmpColorB);
-        entry.mat.color.copy(tmpColorB);
-        entry.mat.emissiveIntensity = active * (1.0 + 1.3 * wave);
-      } else {
-        tmpColorA.copy(teal).lerp(cyan, wave);
-        entry.mat.emissive.copy(tmpColorA);
-        entry.mat.color.copy(tmpColorA);
-        entry.mat.emissiveIntensity = active * (1.4 + 1.8 * wave);
-      }
-    }
+    ledU.uLedTime.value = elapsed; ledU.uLedActive.value = active;
   };
 
+  group.traverse((o) => {
+    const mesh = o as THREE.Mesh; if (!mesh.isMesh) return;
+    const tag = ledPhaseOf.get(mesh.material as THREE.Material); if (!tag) return;
+    const g = mesh.geometry.clone();
+    g.setAttribute('ledPhase', new THREE.BufferAttribute(new Float32Array(g.getAttribute('position').count).fill(tag.phase), 1));
+    mesh.geometry = g; (mesh.material as THREE.Material).dispose(); mesh.material = ledMats[tag.palette];
+  });
   return { group, updateLed };
 }
