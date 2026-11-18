@@ -22,6 +22,9 @@ const SHOTS = [
   ['kettle-pass', [1180, 95, 2600], [1450, 60, 2850]],
   ['coastal-gallery', [-6090, 40, 700], [-5990, 52, 800]],
   ['halcyon-gateway', [2250, 150, 2420], [2900, 40, 2740]],
+  ['festival-wine-stage', [450, 26, -6130], [380, 14, -6200]],
+  ['speed-trap', [-1116, 40, 3195], [-1116, 20, 3795]],
+  ['coast-highway', [-6900, 160, -10900], [-6550, 90, -10350]],
 ].filter(([n]) => !only?.length || only.includes(n));
 
 const gpu = args.includes('--swiftshader') ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'];

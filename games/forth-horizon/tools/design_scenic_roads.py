@@ -23,6 +23,11 @@ STEP = 4.0
 
 # name, surface, half width, design speed (km/h), grade limit, max bank, control points (x, z); the first and last points sit on the roads they join
 ROADS = [
+    {"name": "Superior Coast Highway", "surface": "paved", "half": 4.2, "speed": 90, "grade": 0.065, "bank": 0.06, "cut": 16.0,
+     "cp": [(624, -4488), (430, -4760), (-250, -5100), (-1150, -5480), (-2150, -5980), (-3150, -6580), (-4150, -7180), (-4850, -7880), (-5300, -8400),
+            (-5700, -8800), (-6000, -9000), (-6150, -9200), (-6250, -9400), (-6360, -9600), (-6370, -9800), (-6410, -10000), (-6480, -10200), (-6560, -10420),
+            (-6600, -10600), (-6620, -10800), (-6630, -11000), (-6660, -11200), (-6730, -11400), (-6730, -11600), (-6630, -11800), (-6510, -12000), (-6520, -12200),
+            (-6520, -12400), (-6530, -12600), (-6530, -12800), (-6500, -13000), (-6380, -13200), (-6300, -13450), (-6280, -13700), (-6260, -13900), (-6150, -14050)]},
     {"name": "Finger Lake Loop", "surface": "paved", "half": 3.6, "speed": 80, "grade": 0.07, "bank": 0.06,
      "cp": [(-24, -4600), (150, -5050), (400, -5550), (580, -6100), (680, -6700), (720, -7300), (780, -7800), (900, -8120), (1150, -8240),
             (1600, -8250), (1850, -8100), (1950, -7600), (2100, -7000), (2300, -6500), (2500, -6100), (2750, -5750), (3100, -5300), (3550, -4900), (3840, -4600)]},
@@ -70,6 +75,9 @@ def main():
         wet = g < 0.3
         # over water the road is a bridge: the ground there does not count, the profile spans bank to bank at least 4 m above the water
         g = g.copy()
+        span = wet.copy()                                                                      # a bridge spans rim to rim: extend 48 m past the water over the banks' walls
+        for k in range(1, 13): span[:-k] |= wet[k:]; span[k:] |= wet[:-k]
+        wet = span
         for i in np.where(wet)[0]:
             a = i
             while a >= 0 and wet[a]: a -= 1
@@ -83,7 +91,7 @@ def main():
         hiL = gs.copy(); hiL[0] = g[0]; hiL[-1] = g[-1]
         for i in range(1, n): hiL[i] = min(hiL[i], hiL[i - 1] + s)
         for i in range(n - 2, -1, -1): hiL[i] = min(hiL[i], hiL[i + 1] + s)
-        lo = gs - 7.0; lo[0] = g[0]; lo[-1] = g[-1]
+        lo = gs - rd.get("cut", 7.0); lo[0] = g[0]; lo[-1] = g[-1]          # how deep the road may cut (a cliff road is cut into the rock)
         for i in range(1, n): lo[i] = max(lo[i], lo[i - 1] - s)
         for i in range(n - 2, -1, -1): lo[i] = max(lo[i], lo[i + 1] - s)
         y = np.maximum(hiL, lo)

@@ -482,6 +482,15 @@ export interface DangerSignChallenge {
 
 export type ChallengeType = 'speed_trap' | 'drift_zone' | 'danger_sign';
 
+/** region/festival.json (tools/plan_festival.py) */
+export interface FestivalData {
+  sites: { id: string; name: string; kind: 'main' | 'outpost'; stage: string; x: number; z: number; y: number; pad?: boolean }[];
+  speedTraps: { id: string; name: string; x: number; z: number; dir: number[]; road: string; targetMph: number }[];
+  speedZones: { id: string; name: string; a: number[]; b: number[]; road: string; targetMph: number }[];
+  driftZones: { id: string; name: string; a: number[]; b: number[]; road: string; targetScore: number }[];
+  dangerSigns: { id: string; name: string; x: number; z: number; dir: number[]; road: string; targetM: number }[];
+}
+
 export interface ChallengeEvent {
   challengeId: string;
   type: ChallengeType;
@@ -519,14 +528,14 @@ function computeStars(value: number, target: number): 0 | 1 | 2 | 3 {
 }
 
 export class OpenWorldChallengeManager {
-  public readonly speedTraps: SpeedTrapChallenge[];
-  public readonly driftZones: DriftZoneChallenge[];
-  public readonly dangerSigns: DangerSignChallenge[];
+  public speedTraps: SpeedTrapChallenge[];
+  public driftZones: DriftZoneChallenge[];
+  public dangerSigns: DangerSignChallenge[];
 
   public activeDriftRun: ActiveDriftRun | null = null;
   public activeJumpRun: ActiveJumpRun | null = null;
 
-  constructor() {
+  constructor(festival?: FestivalData | null) {
     this.speedTraps = [
       {
         id: 'trap_i196_straight',
@@ -600,6 +609,13 @@ export class OpenWorldChallengeManager {
         personalBestAirtimeSec: 0,
       },
     ];
+    // the festival map (region/festival.json, tools/plan_festival.py): stunts placed on the real roads replace the built-in set
+    if (festival) {
+      const v = (x: number, z: number): THREE.Vector3 => new THREE.Vector3(x, 0, z);
+      if (festival.speedTraps?.length) this.speedTraps = festival.speedTraps.map((t) => ({ id: t.id, name: t.name, pos: v(t.x, t.z), radius: 24, targetMph: t.targetMph, personalBestMph: 0, cooldownSec: 0 }));
+      if (festival.driftZones?.length) this.driftZones = festival.driftZones.map((d) => ({ id: d.id, name: d.name, entryPos: v(d.a[0], d.a[1]), exitPos: v(d.b[0], d.b[1]), gateRadius: 22, corridorWidth: Math.hypot(d.b[0] - d.a[0], d.b[1] - d.a[1]) * 1.3, targetScore: d.targetScore, personalBestScore: 0 }));
+      if (festival.dangerSigns?.length) this.dangerSigns = festival.dangerSigns.map((j) => ({ id: j.id, name: j.name, pos: v(j.x, j.z), radius: 26, targetDistanceM: j.targetM, personalBestDistanceM: 0, personalBestAirtimeSec: 0 }));
+    }
   }
 
   public step(state: CarState, dt: number): ChallengeEvent[] {

@@ -40,7 +40,8 @@ import { gradeRoads, corridor, type GradeRoad, type GradeClass } from './roadGra
 import { carveScenicRoads, buildScenicRoads, scenicCorridors, type ScenicRoad } from './scenicRoads';
 import { createMapEditor, ROAD_STYLE, type RoadKind, type UserMap } from './mapEditor';
 import { CompetitionEngine } from './racingAI';
-import { TrafficManager, OpenWorldChallengeManager } from './openWorldEvents';
+import { TrafficManager, OpenWorldChallengeManager, type FestivalData } from './openWorldEvents';
+import { buildFestival } from './festival';
 import { CopsAndRobbersMode, type PursuitRoleChoice } from './copsAndRobbers';
 import { OnlineSessionManager } from './onlineMultiplayer';
 import { SpatialCuller, runWithConcurrency, populateTiledTerrain, populateTerrainLOD, detectInitialTier, TIER_CONFIGS, type PerfTier } from './enginePerf';
@@ -2963,6 +2964,7 @@ function buildFurniture(): void {
     surfGrid = null;
     bridgeNear = makeCorridor(rb.path);
     if (scenicData.length) { const sr = buildScenicRoads(scenicData, (x, z) => meshH(x, z), cityRoadMat ?? undefined); furnitureGroup.add(sr.group); driveSurfaces.push(...sr.decks); }
+    if (festivalData) furnitureGroup.add(buildFestival(festivalData, (x, z) => meshH(x, z)));                         // Chora Fest stages and stunt furniture
     heroBridgeUpdate = rb.updateLed;
   }
   spatialCuller.indexGroups([furnitureGroup, scapeGroup, zoneGroup]);
@@ -3180,6 +3182,7 @@ let cliffNear: ((x: number, z: number, r: number) => boolean) | null = null;    
 let cliffTunnelNear: ((x: number, z: number, r: number) => boolean) | null = null;   // inside its tunnel, where the mountain overhead must not hold the car up
 let mapEditor: ReturnType<typeof createMapEditor> | null = null;
 let userMap: UserMap | null = null;                                                    // roads and zones drawn in the map editor (F2)
+let festivalData: FestivalData | null = null;                                         // Chora Fest sites and PR stunts (region/festival.json)
 let scenicData: ScenicRoad[] = [];                                                    // the festival's designed roads (Kettle Pass, ...)
 let shoreHw: Shoreline | null = null;                                                  // the shoreline highway and its open gallery
 let countryNet: RoadNetwork | null = null;                                             // country roads traced from the map texture
@@ -3469,7 +3472,7 @@ function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole
       trafficGroup.add(m);
       trafficMeshes.push(m);
     }
-    challengeMgr = new OpenWorldChallengeManager();
+    challengeMgr = new OpenWorldChallengeManager(festivalData);
     return;
   }
   const city = id === 'ironport_grand_circuit';
@@ -3924,6 +3927,8 @@ async function boot(): Promise<void> {
     const pads: Pad[] = [];
     for (const it of cj?.items ?? []) if (Math.max(it.w, it.d) >= 24) pads.push({ x: it.bx ?? it.x, z: it.bz ?? it.z, w: it.w, d: it.d, rot: it.rotY });   // w, d are the world footprint (as groundMin reads them)
     for (const l of (parkingData ?? []) as number[][]) pads.push({ x: l[0], z: l[1], w: l[2], d: l[3], rot: l[4] });
+    festivalData = await fetch(BASE + 'festival.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as FestivalData | null;
+    for (const st of festivalData?.sites ?? []) { const k = st.kind === 'main' ? 1.6 : 1; pads.push({ x: st.x, z: st.z, w: 70 * k, d: 70 * k, rot: 0 }); }   // a graded pad under every festival stage and its crowd area
     console.log('graded pads', carvePads(heights, meta.width, meta.height, meta.mpp, pads));
   }
   scenicData = ((await fetch(BASE + 'scenic_roads.json').then((x) => (x.ok ? x.json() : null)).catch(() => null)) as { roads: ScenicRoad[] } | null)?.roads ?? [];

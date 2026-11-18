@@ -1,0 +1,427 @@
+{
+ "sites": [
+  {
+   "id": "main",
+   "name": "Halcyon Shores",
+   "kind": "main",
+   "stage": "Main Stage on the water",
+   "x": -6670.0,
+   "z": 2984.6,
+   "y": 2.6
+  },
+  {
+   "id": "dune",
+   "name": "Dune Sea",
+   "kind": "outpost",
+   "stage": "Sand-bowl stage",
+   "x": -5180.0,
+   "z": -600.0,
+   "y": 6.3,
+   "pad": true
+  },
+  {
+   "id": "kettle",
+   "name": "Kettle Hills",
+   "kind": "outpost",
+   "stage": "Lakeside amphitheatre",
+   "x": 1477.4,
+   "z": 2838.3,
+   "y": 53.8
+  },
+  {
+   "id": "pinewood",
+   "name": "Pinewood",
+   "kind": "outpost",
+   "stage": "Clearing stage in the pines",
+   "x": -2204.8,
+   "z": -3020.9,
+   "y": 95.2
+  },
+  {
+   "id": "otter",
+   "name": "Otter Creek",
+   "kind": "outpost",
+   "stage": "Barn stage",
+   "x": -1330.0,
+   "z": 1400.0,
+   "y": 39.9
+  },
+  {
+   "id": "ironport",
+   "name": "Ironport Nights",
+   "kind": "outpost",
+   "stage": "Under-bridge warehouse stage",
+   "x": 4123.8,
+   "z": 2686.7,
+   "y": 7.5
+  },
+  {
+   "id": "wine",
+   "name": "Wine Country",
+   "kind": "outpost",
+   "stage": "Vineyard terrace stage among the tulips",
+   "x": 380.0,
+   "z": -6200.0,
+   "y": 8.0
+  },
+  {
+   "id": "superior",
+   "name": "Superior Range",
+   "kind": "outpost",
+   "stage": "Giant-forest clearing stage below the range",
+   "x": -5244.5,
+   "z": -8405.0,
+   "y": 68.7
+  }
+ ],
+ "speedTraps": [
+  {
+   "id": "trap_0",
+   "name": "Pinewood Speed Trap",
+   "x": -1116.0,
+   "z": -4007.7,
+   "dir": [
+    0.0,
+    100.043
+   ],
+   "road": "paved",
+   "targetMph": 120
+  },
+  {
+   "id": "trap_1",
+   "name": "Pinewood East Speed Trap",
+   "x": -1116.0,
+   "z": -2507.1,
+   "dir": [
+    0.0,
+    100.043
+   ],
+   "road": "paved",
+   "targetMph": 130
+  },
+  {
+   "id": "trap_2",
+   "name": "Pinewood South Speed Trap",
+   "x": -1116.0,
+   "z": -1006.4,
+   "dir": [
+    0.0,
+    100.043
+   ],
+   "road": "paved",
+   "targetMph": 140
+  },
+  {
+   "id": "trap_3",
+   "name": "Otter Creek Speed Trap",
+   "x": -1116.0,
+   "z": 494.2,
+   "dir": [
+    0.0,
+    100.043
+   ],
+   "road": "paved",
+   "targetMph": 150
+  },
+  {
+   "id": "trap_4",
+   "name": "Otter Creek South Speed Trap",
+   "x": -1116.0,
+   "z": 1994.9,
+   "dir": [
+    0.0,
+    100.043
+   ],
+   "road": "paved",
+   "targetMph": 120
+  },
+  {
+   "id": "trap_5",
+   "name": "Kettle Hills Speed Trap",
+   "x": -1116.0,
+   "z": 3795.7,
+   "dir": [
+    0.0,
+    100.043
+   ],
+   "road": "paved",
+   "targetMph": 130
+  },
+  {
+   "id": "trap_6",
+   "name": "Harbor Speed Trap",
+   "x": 3300.0,
+   "z": -3792.0,
+   "dir": [
+    0.0,
+    100.0
+   ],
+   "road": "paved",
+   "targetMph": 140
+  },
+  {
+   "id": "trap_7",
+   "name": "Harbor West Speed Trap",
+   "x": 3300.0,
+   "z": -1542.0,
+   "dir": [
+    0.0,
+    100.0
+   ],
+   "road": "paved",
+   "targetMph": 150
+  },
+  {
+   "id": "trap_8",
+   "name": "Otter Creek West Speed Trap",
+   "x": -3312.0,
+   "z": 1752.7,
+   "dir": [
+    0.0,
+    100.116
+   ],
+   "road": "paved",
+   "targetMph": 120
+  },
+  {
+   "id": "trap_9",
+   "name": "Otter Creek West 2 Speed Trap",
+   "x": -3312.0,
+   "z": 3254.4,
+   "dir": [
+    0.0,
+    100.116
+   ],
+   "road": "paved",
+   "targetMph": 130
+  }
+ ],
+ "speedZones": [
+  {
+   "id": "zone_0",
+   "name": "Kettle Hills Speed Zone",
+   "a": [
+    1082.0,
+    2914.2
+   ],
+   "b": [
+    1232.7,
+    2735.3
+   ],
+   "road": "Kettle Pass",
+   "targetMph": 85
+  },
+  {
+   "id": "zone_1",
+   "name": "Otter Creek Speed Zone",
+   "a": [
+    -3202.1,
+    1391.7
+   ],
+   "b": [
+    -3560.7,
+    1913.1
+   ],
+   "road": "Coastal Highway",
+   "targetMph": 90
+  },
+  {
+   "id": "zone_2",
+   "name": "Southgate Speed Zone",
+   "a": [
+    3630.6,
+    2703.5
+   ],
+   "b": [
+    2991.1,
+    2545.3
+   ],
+   "road": "Freeway",
+   "targetMph": 95
+  },
+  {
+   "id": "zone_3",
+   "name": "Escarpment Speed Zone",
+   "a": [
+    1734.7,
+    -8199.3
+   ],
+   "b": [
+    1886.5,
+    -8022.0
+   ],
+   "road": "Finger Lake Loop",
+   "targetMph": 100
+  },
+  {
+   "id": "zone_4",
+   "name": "Superior Coast Speed Zone",
+   "a": [
+    -6582.7,
+    -11871.4
+   ],
+   "b": [
+    -6507.3,
+    -12090.8
+   ],
+   "road": "Superior Coast Highway",
+   "targetMph": 85
+  },
+  {
+   "id": "zone_5",
+   "name": "Giant Forest Speed Zone",
+   "a": [
+    -6347.3,
+    -9565.4
+   ],
+   "b": [
+    -6370.3,
+    -9802.2
+   ],
+   "road": "Superior Coast Highway",
+   "targetMph": 90
+  },
+  {
+   "id": "zone_6",
+   "name": "Halcyon Speed Zone",
+   "a": [
+    -4625.4,
+    2984.5
+   ],
+   "b": [
+    -5079.7,
+    3465.9
+   ],
+   "road": "Coastal Highway",
+   "targetMph": 95
+  },
+  {
+   "id": "zone_7",
+   "name": "Harbor Speed Zone",
+   "a": [
+    5349.8,
+    -3530.9
+   ],
+   "b": [
+    4858.8,
+    -4057.6
+   ],
+   "road": "paved",
+   "targetMph": 100
+  }
+ ],
+ "driftZones": [
+  {
+   "id": "drift_0",
+   "name": "Kettle Hills Drift Zone",
+   "a": [
+    1198.0,
+    2751.5
+   ],
+   "b": [
+    1331.2,
+    2790.8
+   ],
+   "road": "Kettle Pass",
+   "targetScore": 10000
+  }
+ ],
+ "dangerSigns": [
+  {
+   "id": "jump_0",
+   "name": "Superior Coast Danger Sign",
+   "x": -6571.7,
+   "z": -10462.4,
+   "dir": [
+    -2.01,
+    -7.75
+   ],
+   "road": "Superior Coast Highway",
+   "targetM": 50
+  },
+  {
+   "id": "jump_1",
+   "name": "Superior Coast North Danger Sign",
+   "x": -6520.4,
+   "z": -12262.0,
+   "dir": [
+    0.05,
+    -8.0
+   ],
+   "road": "Superior Coast Highway",
+   "targetM": 60
+  },
+  {
+   "id": "jump_2",
+   "name": "Superior Coast North 2 Danger Sign",
+   "x": -6283.7,
+   "z": -13642.9,
+   "dir": [
+    0.37,
+    -7.99
+   ],
+   "road": "Superior Coast Highway",
+   "targetM": 70
+  },
+  {
+   "id": "jump_3",
+   "name": "Escarpment Danger Sign",
+   "x": 1074.7,
+   "z": -8219.7,
+   "dir": [
+    7.64,
+    -2.38
+   ],
+   "road": "Finger Lake Loop",
+   "targetM": 80
+  },
+  {
+   "id": "jump_4",
+   "name": "Kettle Hills Danger Sign",
+   "x": 633.7,
+   "z": 2758.4,
+   "dir": [
+    -2.71,
+    7.53
+   ],
+   "road": "Kettle Pass",
+   "targetM": 50
+  },
+  {
+   "id": "jump_5",
+   "name": "Kettle Hills East Danger Sign",
+   "x": 1826.2,
+   "z": 3310.4,
+   "dir": [
+    5.82,
+    5.49
+   ],
+   "road": "Kettle Pass",
+   "targetM": 60
+  },
+  {
+   "id": "jump_6",
+   "name": "Pinewood Danger Sign",
+   "x": -2503.4,
+   "z": -2732.3,
+   "dir": [
+    20.308,
+    1.846
+   ],
+   "road": "dirt",
+   "targetM": 70
+  },
+  {
+   "id": "jump_7",
+   "name": "Lakeshore Danger Sign",
+   "x": -5211.3,
+   "z": 1649.5,
+   "dir": [
+    -17.455,
+    -10.909
+   ],
+   "road": "dirt",
+   "targetM": 80
+  }
+ ]
+}

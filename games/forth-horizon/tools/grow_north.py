@@ -166,6 +166,16 @@ def main():
         hw = half * (1 - 0.6 * rt)
         u = np.clip(1 - (rd / hw) ** 2, 0, 1) * (1 - ss(0.75, 1.0, rt))
         h = h * (1 - u) + (-4) * u
+    # the coastal terrace: a raised beach bench along the cliff top that the Superior Coast Highway runs on (Lake Superior's shores have old raised
+    # terraces); flat across ~90 m, cut into the mountain side and eased out over 140 m; the fjords stay open water (the highway bridges them)
+    terrace = [(-4850, -7880), (-5300, -8400), (-5700, -8800), (-6000, -9000), (-6150, -9200), (-6250, -9400), (-6360, -9600), (-6370, -9800), (-6410, -10000),
+               (-6480, -10200), (-6560, -10420), (-6600, -10600), (-6620, -10800), (-6630, -11000), (-6660, -11200), (-6730, -11400), (-6730, -11600), (-6630, -11800),
+               (-6510, -12000), (-6520, -12200), (-6520, -12400), (-6530, -12600), (-6530, -12800), (-6500, -13000), (-6380, -13200), (-6300, -13450), (-6280, -13700),
+               (-6260, -13900), (-6150, -14050)]
+    td, tt = poly_dist(px, pz, terrace)
+    ty = np.interp(tt, [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0], [45, 70, 92, 100, 96, 85, 70])
+    tw = 1 - ss(45, 185, td)
+    h = np.where(h > 0.3, h * (1 - tw) + ty * tw, h)
     # continue from the old edge: blend the first 900 m toward the old north row
     cont = 1 - ss(0, 450, depth)
     h = h * (1 - cont) + np.broadcast_to(edge, h.shape) * cont

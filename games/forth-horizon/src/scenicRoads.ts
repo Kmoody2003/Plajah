@@ -6,7 +6,7 @@ import { GRID } from './grid';
 
 export interface ScenicRoad { name: string; surface: 'paved' | 'gravel'; half: number; speed: number; xz: number[][]; y: number[]; bank: number[] }
 
-const SHOULDER = 1.6, BLEND = 14, MAX_FILL = 8, MAX_CUT = 14;
+const SHOULDER = 1.6, BLEND = 14, MAX_FILL = 8, MAX_CUT = 24;              // a cliff road is cut into the rock (the coast highway designs cuts up to ~20 m)
 
 /** left normal (the side the road turns to when the curvature is positive) */
 function frames(r: ScenicRoad): { nx: number[]; nz: number[] } {
