@@ -14,6 +14,7 @@ import { studioKey } from '../fabula/fabulaSync';
 import type { ShowSpec } from './types';
 import { buildPlan, musicCues } from './planner';
 import { ShowRuntime } from './showRuntime';
+import { shownCaption } from './fileNames';
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
@@ -82,7 +83,7 @@ export function buildShowProduction(spec: ShowSpec) {
     const label = s.kind === 'intro' ? 'Opening · dedication'
       : s.kind === 'outro' ? 'Closing · sky lanterns'
       : s.kind === 'wide' ? 'Wide · the garden'
-      : `Photo ${s.photoIndex! + 1}${p?.title ? ` · ${p.title}` : ''}`;
+      : `Photo ${s.photoIndex! + 1}${p && shownCaption(p) ? ` · ${shownCaption(p)}` : ''}`;
     clips.push({
       id: uid(), trackId: 'v1', start: s.start, duration: length, srcIn: s.start,
       kind: 'show', assetId: showItem.id, label, show: { segmentId: s.id, kind: s.kind, photoIndex: s.photoIndex ?? null },

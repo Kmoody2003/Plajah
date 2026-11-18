@@ -9,7 +9,7 @@
 //   • placed on a Fabula timeline as editable "interactive scene" clips that the
 //     Fabula preview re-renders at any time.
 
-export type ShowThemeId = 'lantern-garden' | 'classic';
+export type ShowThemeId = 'lantern-garden' | 'classic' | 'backyard';
 
 /** Classic transition styles (the planner picks per cut unless the owner pins one). */
 export type ClassicTransition = 'crossfade' | 'dip' | 'drift' | 'parallax-push' | 'soft-wipe';
@@ -23,10 +23,34 @@ export interface ShowPhoto {
   /** Where the pixels came from (storage URL or object URL for a local folder). */
   src: string;
   title?: string;
-  /** Free caption shown under the full-page photo and hand-written on the polaroid. */
+  /** The shot's description (story text). Shown only when showCaption is on (off by default). */
   caption?: string;
+  /** Looks like a graphic (poster, obituary cover, flyer, card, screenshot): never cropped into a print. */
+  graphic?: boolean;
+  /** 0..1 how graphic-like it scored (for the studio badge). */
+  graphicScore?: number;
+  /** Owner override: true = always its own full-screen shot (fit 16:9), false = treat as a photo. */
+  fullFrame?: boolean;
+  /** Auto-trim (0..1 of the upright image): black/white borders and phone-screenshot chrome removed. */
+  trim?: CropRect;
+  /** Why it was trimmed: 'borders' | 'screenshot'. */
+  trimReason?: 'borders' | 'screenshot' | 'manual';
+  /** Owner override: show the original framing (ignore the auto-trim). */
+  keepFraming?: boolean;
+  /** Owner's own crop of the picture (0..1 of the upright original) — replaces the auto-trim. */
+  manualCrop?: CropRect;
+  /** Owner's own polaroid window (0..1 of the cropped picture) — replaces the face-aware square. */
+  manualPolaroid?: CropRect;
+  /** Size of the photo when it goes full page (0.6..1, default 1 = as large as fits). */
+  fullScale?: number;
+  /** Show the description on this shot (under the full page, on the polaroid). Off by default. */
+  showCaption?: boolean;
+  /** Where the description came from: typed by the owner, a descriptive file name, or read from the picture. */
+  captionSource?: 'typed' | 'filename' | 'picture';
   /** Capture date (ms) when known — used for ordering and the polaroid's pen date. */
   takenAt?: number;
+  /** Where takenAt came from: EXIF is trusted by the director; a file date is only a hint. */
+  timeSource?: 'exif' | 'file' | 'user';
   /** Upright pixel size after orientation correction. */
   width: number;
   height: number;
@@ -44,6 +68,13 @@ export interface ShowPhoto {
   /** Owner overrides from the studio. */
   dwellOverride?: number;
   pinned?: boolean;
+  /** Vision understanding (occasion, setting, mood…) when the vision pass has run. */
+  context?: import('./director').VisionContext;
+  /** Set by the Show Director. */
+  event?: string;
+  eventLabel?: string;
+  role?: import('./director').DirectorRole;
+  directorWeight?: number;
 }
 
 export interface PhotoFix {
@@ -99,8 +130,11 @@ export interface ShowSpec {
   pace: number;
   /** Wide "breath" shot every N photos. */
   wideEvery: number;
-  /** Classic theme: transition length (s) and style ('auto' varies them gracefully). */
-  transition?: { style: ClassicTransition | 'auto'; seconds: number };
+  /** Transition length (s) and style: 'auto' picks from the theme's palette; otherwise a Classic
+   *  move or any Fabula library transition id ("exposure-blur" or "exposure-blur:bloom"). */
+  transition?: { style: ClassicTransition | 'auto' | string; seconds: number };
+  /** Show Director: event detection + emotional ordering. */
+  director?: { enabled: boolean; style: import('./director').DirectorStyle; notes?: string[] };
   /** Classic theme: depth parallax strength 0..1 (0 = flat Ken Burns only). */
   parallax?: number;
   createdAt: number;
@@ -123,8 +157,31 @@ export interface ShowSegment {
   photoIndex?: number;
   /** Visit timing (seconds, relative to segment start). */
   visit?: VisitTiming;
-  /** Classic: the transition into the NEXT segment (overlaps this one's tail). */
-  transition?: ClassicTransition;
+  /** Classic: the transition into the NEXT segment (overlaps this one's tail). A Classic move or a Fabula id. */
+  transition?: ClassicTransition | string;
+  /** Back Yard: the Fabula transition that brings this segment in (cuts between plates). */
+  transitionIn?: string;
+  /** Back Yard: which plate is on screen and which photo sits in each of its windows. */
+  plate?: PlateScene;
+  /** First visit of a new event: the chapter line shown as the camera arrives. */
+  chapter?: string;
+}
+
+export interface PlateScene {
+  /** Asset id in the Back Yard pack (still plate, loop, opening or closing shot). */
+  asset: string;
+  /** Photo index for each window id (−1 = leave as is). */
+  assign: number[];
+  /** Visit: the window the camera leans into. */
+  window?: number;
+  /** Visit: the previous segment shows the same plate (pan instead of dissolve). */
+  same?: boolean;
+  /** Bokeh loop behind the full-page photo. */
+  bokeh?: string;
+  /** Seconds into the loop this segment starts at (loops, bokeh). */
+  offset?: number;
+  /** A graphic shown whole, full screen over a soft lantern backdrop (no print, no crop). */
+  full?: boolean;
 }
 
 export interface VisitTiming {

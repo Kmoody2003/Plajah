@@ -6,11 +6,12 @@
 
 import * as THREE from 'three';
 import type { ClassicTransition, ShowPlan, ShowSegment, ShowSpec } from '../types';
-import { PhotoQuad, clamp01, ease, envelope, kenBurns, strHash } from '../common';
+import { PhotoQuad, clamp01, ease, envelope, isFullFrame, kenBurns, strHash } from '../common';
 import { Overlay, type ShowRenderer } from './base';
 import { segmentAt } from '../planner';
+import { TransitionPass, transitionById } from '../transitions';
 
-interface Layer { seg: ShowSegment; lt: number; role: 'in' | 'out' | 'solo'; p: number; tr: ClassicTransition }
+interface Layer { seg: ShowSegment; lt: number; role: 'in' | 'out' | 'solo'; p: number; tr: ClassicTransition | string }
 
 export class ClassicRenderer implements ShowRenderer {
   readonly plan: ShowPlan;
@@ -18,12 +19,14 @@ export class ClassicRenderer implements ShowRenderer {
   private extra: PhotoQuad[] = [new PhotoQuad(), new PhotoQuad(), new PhotoQuad(), new PhotoQuad()];
   private w = 1280; private h = 720;
   private xf: number;
+  private tx: TransitionPass;
 
   constructor(readonly spec: ShowSpec, plan: ShowPlan, private renderer: THREE.WebGLRenderer) {
     this.plan = plan;
     this.overlay = new Overlay(spec);
     for (const q of this.extra) this.overlay.scene.add(q.mesh);
     this.xf = Math.max(0.4, Math.min(4, spec.transition?.seconds ?? 1.6)) * Math.max(0.6, Math.min(1.8, spec.pace || 1));
+    this.tx = new TransitionPass(renderer, this.w, this.h);
   }
 
   async load(onProgress?: (k: number, label: string) => void) {
@@ -59,7 +62,22 @@ export class ClassicRenderer implements ShowRenderer {
     return [{ seg, lt, role: 'solo', p: 1, tr: 'crossfade' }];
   }
 
-  draw(t: number) { this.paint(this.layers(t)); }
+  draw(t: number) {
+    const L = this.layers(t);
+    const r = this.renderer;
+    if (L.length === 2 && transitionById(String(L[0].tr).split(':')[0])) {
+      // Fabula library transition: each side rendered whole, then blended by its shader
+      r.setRenderTarget(this.tx.outgoing);
+      this.paint([{ ...L[0], role: 'solo' }]);
+      r.setRenderTarget(this.tx.incoming);
+      this.paint([{ ...L[1], role: 'solo' }]);
+      r.setRenderTarget(null);
+      this.tx.blend(String(L[0].tr), ease(L[0].p));
+      return;
+    }
+    r.setRenderTarget(null);
+    this.paint(L);
+  }
 
   private paint(layers: Layer[]) {
     const O = this.overlay;
@@ -77,10 +95,12 @@ export class ClassicRenderer implements ShowRenderer {
         const p = this.spec.photos[s.photoIndex];
         if (!tex || !p || slot + 1 >= this.extra.length) continue;
         const ia = p.width / p.height, sa = this.w / this.h;
-        const fits = ia / sa > 0.78 && ia / sa < 1.3;
+        const graphic = isFullFrame(p);
+        const fs = Math.max(0.5, Math.min(1, p.fullScale ?? 1));
+        const fits = !graphic && fs >= 0.999 && ia / sa > 0.78 && ia / sa < 1.3;
         const k = L.lt / s.duration;
         const kb = kenBurns(p, k);
-        const par = this.spec.parallax ?? 0.6;
+        const par = graphic ? 0 : this.spec.parallax ?? 0.6;
         const seed = strHash(p.id);
         // slow orbit of the "camera" for depth parallax, plus the push direction in transitions
         const orbit = { x: Math.sin(L.lt * 0.35 + seed * 6) * 0.012 * par + dx * 0.06 * par, y: Math.cos(L.lt * 0.27 + seed * 4) * 0.008 * par };
@@ -93,7 +113,7 @@ export class ClassicRenderer implements ShowRenderer {
         }
         this.extra[slot++].apply({
           tex, opacity, zoom: kb.zoom * depthZoom * zoomBoost, pan: kb.pan, focus: p.focus, par: orbit, depth: par,
-          rect: fits ? { x: dx, y: 0, w: 1, h: 1 } : { x: 0.03 + dx, y: 0.04, w: 0.94, h: 0.92 }, fit: fits ? 'cover' : 'contain',
+          rect: fits ? { x: dx, y: 0, w: 1, h: 1 } : { x: (1 - 0.94 * fs) / 2 + dx, y: (1 - 0.92 * fs) / 2, w: 0.94 * fs, h: 0.92 * fs }, fit: fits ? 'cover' : 'contain',
           vignette: fits ? 0.35 : 0.1, blur, z: z++, wipe,
         }, sa);
         const ct = O.captionTex(s.photoIndex);
@@ -196,7 +216,11 @@ export class ClassicRenderer implements ShowRenderer {
     return { photoIndex: seg.photoIndex ?? null, fullPage: seg.kind === 'visit', viewed: this.live.viewed.size, total: this.spec.photos.length, paused: this.live.paused };
   }
 
-  resize(w: number, h: number) { this.w = w; this.h = h; this.overlay.setAspect(w / h); }
+  resize(w: number, h: number) {
+    this.w = w; this.h = h; this.overlay.setAspect(w / h);
+    const v = this.renderer.getDrawingBufferSize(new THREE.Vector2());
+    this.tx.setSize(Math.max(2, v.x), Math.max(2, v.y));
+  }
 
-  dispose() { for (const q of this.extra) q.dispose(); this.overlay.dispose(); }
+  dispose() { this.tx.dispose(); for (const q of this.extra) q.dispose(); this.overlay.dispose(); }
 }

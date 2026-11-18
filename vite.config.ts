@@ -159,6 +159,8 @@ export default defineConfig(({ mode }) => {
               // Ravencrest ships often and is big: precaching it pinned players to the old game until
               // they accepted the site update prompt. It loads from the network (HTTP cache) instead.
               'games/**',
+              // Themed-show photo plates + loops (~70 MB) load only when a show uses them.
+              'slideshow/**',
               // 500-odd single-effect wasms, about 15 MB in all; each loads when first added to a rack.
               'airwindows/**',
             ],

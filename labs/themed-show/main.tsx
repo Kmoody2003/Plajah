@@ -63,6 +63,28 @@ function paintSample(i: number): Promise<Blob> {
   return new Promise((res) => c.toBlob((bl) => res(bl!), 'image/jpeg', 0.9));
 }
 
+/** An obituary / celebration-of-life programme cover: flat colour, serif text, an inset portrait. */
+function paintObituary(): Promise<Blob> {
+  const w = 1275, h = 1650; // 8.5 x 11 at 150 dpi
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#f4efe6'; g.fillRect(0, 0, w, h);
+  g.strokeStyle = '#8a6d3b'; g.lineWidth = 6; g.strokeRect(60, 60, w - 120, h - 120);
+  g.fillStyle = '#2b2b2b'; g.textAlign = 'center';
+  g.font = 'italic 64px Georgia'; g.fillText('Celebrating the Life of', w / 2, 230);
+  g.font = 'bold 110px Georgia'; g.fillText('Grace Ellen Moore', w / 2, 380);
+  // inset portrait (a soft gradient + face shape, like a photo pasted on the cover)
+  const gr = g.createLinearGradient(0, 450, 0, 1150); gr.addColorStop(0, '#9fb4c8'); gr.addColorStop(1, '#5f6f5a');
+  g.fillStyle = gr; g.fillRect(337, 460, 600, 700);
+  g.fillStyle = '#e0ac69'; g.beginPath(); g.ellipse(637, 720, 120, 150, 0, 0, 7); g.fill();
+  g.fillStyle = '#3b4b6c'; g.fillRect(487, 870, 300, 290);
+  g.fillStyle = '#2b2b2b';
+  g.font = '60px Georgia'; g.fillText('April 3, 1941 – October 21, 2026', w / 2, 1270);
+  g.font = '44px Georgia';
+  ['Sunrise Baptist Church', "Saturday, November 1 · 11 o'clock", 'Detroit, Michigan'].forEach((t, k) => g.fillText(t, w / 2, 1380 + k * 62));
+  return new Promise((res) => c.toBlob((b) => res(b!), 'image/jpeg', 0.92));
+}
+
 /** A slow, soft major-seventh pad (~40s) as a WAV — stands in for a real song. */
 function synthPad(seconds = 40, sr = 44100): Blob {
   const n = seconds * sr;
@@ -93,9 +115,16 @@ function Lab() {
   useEffect(() => {
     (async () => {
       const out: ShowSourcePhoto[] = [];
+      // real photographs (the pack's photographic stills) + one obituary-style cover graphic
+      const real = ['open-crane', 'open-drone', 'open-high', 'soft-a', 'soft-b', 'soft-c', 'soft-d', 'soft-e', 'soft-f', 'close-sky-a', 'close-sky-b'];
+      real.forEach((id, i) => out.push({ id: `real_${id}`, url: `/slideshow/backyard/${id}.jpg`, title: ['IMG_4021', 'PXL_20230704_183512345', 'grandma_at_the_lake_1987', 'DSC01234', 'christmas-morning-1985', 'WhatsApp Image 2023-05-01 at 10.12.33', 'Uncle Ray fishing', 'IMG_4188', 'family reunion', 'a8f3kz91', 'Screenshot 2024-02-11 at 9.41.02 PM'][i], takenAt: Date.UTC(1980 + Math.floor(i / 3) * 9, 6, 4, 14, i * 7), timeSource: 'user' }));
+      out.push({ id: 'obituary_cover', url: URL.createObjectURL(await paintObituary()), title: 'Celebration of Life program', takenAt: Date.UTC(2026, 9, 30), timeSource: 'user' });
+      (window as any).showLab.realCount = out.length;
       for (let i = 0; i < 14; i++) {
         const blob = await paintSample(i);
-        out.push({ id: `sample_${i}`, url: URL.createObjectURL(blob), title: i % 4 === 1 ? `Summer ${1975 + i}` : undefined, takenAt: Date.UTC(1970 + i * 3, i % 12, 1) });
+        // samples come in little events: 2-4 shots from the same afternoon, years apart
+        const ev = [0, 0, 0, 1, 1, 2, 2, 2, 2, 3, 4, 4, 5, 5][i] ?? i;
+        out.push({ id: `sample_${i}`, url: URL.createObjectURL(blob), takenAt: Date.UTC(1972 + ev * 7, (ev * 5) % 12, 12, 15, i * 9), timeSource: 'user' });
       }
       setLibrary(out);
       (window as any).showLab.padUrl = URL.createObjectURL(synthPad());
@@ -103,7 +132,10 @@ function Lab() {
   }, []);
   if (!library) return <div style={{ color: '#fff' }}>Painting sample photos…</div>;
   const preset = new URLSearchParams(location.search).get('preset');
-  return <ThemedShowStudio library={library} initial={preset ? library.slice(0, Number(preset) || 8) : undefined} />;
+  const real = (window as any).showLab.realCount || 0;
+  // ?preset=N → first N painted samples; ?real → the real photos + the obituary cover
+  const initial = new URLSearchParams(location.search).has('real') ? library.slice(0, real) : preset ? library.slice(real, real + (Number(preset) || 8)) : undefined;
+  return <ThemedShowStudio library={library} initial={initial} />;
 }
 
 (window as any).showLab = { planner, prep, renderShowVideo, buildShowProduction, synthPad, ShowRuntime, stills, closeStills: () => document.getElementById('stills')?.remove() };

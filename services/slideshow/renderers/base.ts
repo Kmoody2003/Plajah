@@ -2,7 +2,8 @@
 
 import * as THREE from 'three';
 import type { ShowPlan, ShowSpec } from '../types';
-import { FlatQuad, PhotoQuad, TextureCache, canvasTexture, captionCanvas, ease, fullPhotoTexture, kenBurns, titleCardCanvas } from '../common';
+import { shownCaption } from '../fileNames';
+import { FlatQuad, PhotoQuad, TextureCache, canvasTexture, captionCanvas, chapterCanvas, ease, fullPhotoTexture, isFullFrame, kenBurns, titleCardCanvas } from '../common';
 
 export interface ShowRenderer {
   readonly spec: ShowSpec;
@@ -38,6 +39,8 @@ export class Overlay {
   caption = new FlatQuad();
   card = new FlatQuad();
   black = new FlatQuad(0x000000);
+  chapter = new FlatQuad();
+  private chapters = new Map<string, THREE.Texture>();
   aspect = 16 / 9;
   full: TextureCache = new TextureCache(6);
   private captions = new Map<number, THREE.Texture>();
@@ -45,7 +48,7 @@ export class Overlay {
   private cards: Record<'intro' | 'outro', THREE.Texture | null> = { intro: null, outro: null };
 
   constructor(private spec: ShowSpec) {
-    for (const q of [this.dim, this.backdrop, this.photo, this.caption, this.card, this.black]) this.scene.add(q.mesh);
+    for (const q of [this.dim, this.backdrop, this.photo, this.caption, this.card, this.black, this.chapter]) this.scene.add(q.mesh);
   }
 
   setAspect(a: number) {
@@ -87,7 +90,7 @@ export class Overlay {
 
   captionTex(i: number) {
     const p = this.spec.photos[i];
-    const text = p?.caption || p?.title;
+    const text = p ? shownCaption(p) : '';
     if (!text) return null;
     let t = this.captions.get(i);
     if (!t) { t = canvasTexture(captionCanvas(text)); this.captions.set(i, t); }
@@ -96,27 +99,29 @@ export class Overlay {
 
   /** Reset everything to hidden (call at the start of each frame). */
   clear() {
-    for (const q of [this.dim, this.caption, this.card, this.black]) q.mesh.visible = false;
+    for (const q of [this.dim, this.caption, this.card, this.black, this.chapter]) q.mesh.visible = false;
     this.backdrop.mesh.visible = false;
     this.photo.mesh.visible = false;
   }
 
   /** Lantern-style full page: dim + soft blurred backdrop + the whole photo, framed. */
-  drawFullPage(f: FullPageState) {
+  drawFullPage(f: FullPageState, opts: { backdrop?: boolean; dim?: number } = {}) {
     const tex = this.fullTex(f.index);
     const p = this.spec.photos[f.index];
     if (!tex || !p || f.amount <= 0.001) return;
     const a = this.aspect;
-    this.dim.set(null, 0.86 * f.amount, { x: 0, y: 0, w: 1, h: 1 }, a, 10);
-    this.backdrop.apply({
+    this.dim.set(null, (opts.dim ?? 0.86) * f.amount, { x: 0, y: 0, w: 1, h: 1 }, a, 10);
+    if (opts.backdrop !== false) this.backdrop.apply({
       tex: this.blurTex(tex), opacity: 0.45 * f.amount, zoom: 1.08, pan: { x: 0, y: 0 }, focus: p.focus, par: { x: 0, y: 0 }, depth: 0,
       rect: { x: 0, y: 0, w: 1, h: 1 }, fit: 'cover', vignette: 0.9, blur: 0, z: 11,
     }, a);
     const kb = kenBurns(p, f.k);
     const grow = 0.9 + 0.1 * ease(f.amount); // lifts off the polaroid into the frame
-    const margin = 0.06;
+    const margin = isFullFrame(p) ? 0.035 : 0.06;
     const capH = this.captionTex(f.index) ? 0.07 : 0;
-    const box = { x: margin / a * 1.0, y: margin, w: 1 - (2 * margin) / a, h: 1 - 2 * margin - capH };
+    const fs = Math.max(0.5, Math.min(1, p.fullScale ?? 1)); // the owner's full-page size
+    const bw = (1 - (2 * margin) / a) * fs, bh = (1 - 2 * margin - capH) * fs;
+    const box = { x: (1 - bw) / 2, y: margin + (1 - 2 * margin - capH - bh) / 2, w: bw, h: bh };
     const cx = box.x + box.w / 2, cy = box.y + box.h / 2;
     const rect = { x: cx - (box.w * grow) / 2, y: cy - (box.h * grow) / 2, w: box.w * grow, h: box.h * grow };
     this.photo.apply({
@@ -131,13 +136,21 @@ export class Overlay {
     this.card.set(this.cardTex(kind), opacity, { x: 0, y: 0, w: 1, h: 1 }, this.aspect, 20);
   }
 
+  drawChapter(text: string, opacity: number) {
+    let t = this.chapters.get(text);
+    if (!t) { t = canvasTexture(chapterCanvas(text)); this.chapters.set(text, t); }
+    const w = 0.42, h = w * (140 / 1400) * this.aspect;
+    this.chapter.set(t, opacity, { x: 0.05, y: 0.86 - h, w, h }, this.aspect, 18);
+  }
+
   drawBlack(opacity: number) { this.black.set(null, opacity, { x: 0, y: 0, w: 1, h: 1 }, this.aspect, 30); }
 
   dispose() {
     this.full.dispose();
     for (const t of this.captions.values()) t.dispose();
+    for (const t of this.chapters.values()) t.dispose();
     for (const t of this.blurred.values()) t.dispose();
     this.cards.intro?.dispose(); this.cards.outro?.dispose();
-    for (const q of [this.dim, this.backdrop, this.photo, this.caption, this.card, this.black]) q.dispose();
+    for (const q of [this.dim, this.backdrop, this.photo, this.caption, this.card, this.black, this.chapter]) q.dispose();
   }
 }

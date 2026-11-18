@@ -90,7 +90,11 @@ export async function renderShowVideo(spec: ShowSpec, o: RenderOptions = {}): Pr
 
     const target = new BufferTarget();
     const output = new Output({ format: format === 'webm' ? new WebMOutputFormat() : new Mp4OutputFormat({ fastStart: 'in-memory' }), target });
-    const video = new CanvasSource(canvas, { codec: vCodec, bitrate: QUALITY_HIGH, keyFrameInterval: 2 });
+    // High quality, hardware encode where the GPU offers it (falls back to software automatically).
+    // ~0.18 bits/pixel/frame: ~11 Mbps at 1080p30, ~5 Mbps at 720p30 — high quality (well above
+    // streaming rates) while a 7-minute memorial stays shareable (~600 MB at 1080p).
+    const bitrate = Math.round(W * H * fps * 0.18);
+    const video = new CanvasSource(canvas, { codec: vCodec, bitrate: Math.max(4_000_000, bitrate), keyFrameInterval: 2, latencyMode: 'quality', hardwareAcceleration: 'prefer-hardware', bitrateMode: 'variable' } as any);
     output.addVideoTrack(video, { frameRate: fps });
 
     let audio: any = null;
@@ -107,13 +111,19 @@ export async function renderShowVideo(spec: ShowSpec, o: RenderOptions = {}): Pr
 
     await output.start();
     const frames = Math.ceil(total * fps);
+    const started = performance.now();
     for (let f = 0; f < frames; f++) {
       if (o.signal?.aborted) throw new DOMException('Render cancelled', 'AbortError');
       const t = f / fps;
       await rt.frame(t);
       await video.add(t, 1 / fps);
-      if (f % 15 === 0) o.onProgress?.(0.1 + 0.88 * (f / frames), `Rendering ${fmt(t)} / ${fmt(total)}`);
+      if (f % 15 === 0) {
+        const secs = (performance.now() - started) / 1000;
+        const speed = secs > 0.5 ? t / secs : 0;
+        o.onProgress?.(0.1 + 0.88 * (f / frames), `Rendering ${fmt(t)} / ${fmt(total)}${speed ? ` · ${speed.toFixed(1)}× real time` : ''}`);
+      }
     }
+    lastRenderStats = { seconds: (performance.now() - started) / 1000, frames, showSeconds: total, width: W, height: H, codec: vCodec, bitrate };
     if (audio && bed) await audio.add(bed);
     o.onProgress?.(0.99, 'Finishing the file');
     await output.finalize();
@@ -123,5 +133,8 @@ export async function renderShowVideo(spec: ShowSpec, o: RenderOptions = {}): Pr
     rt.dispose();
   }
 }
+
+/** Timing of the last render (frames, wall seconds) — for the studio and the lab. */
+export let lastRenderStats: { seconds: number; frames: number; showSeconds: number; width: number; height: number; codec: string; bitrate: number } | null = null;
 
 function fmt(s: number) { const m = Math.floor(s / 60); return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`; }

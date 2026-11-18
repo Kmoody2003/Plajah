@@ -17,8 +17,16 @@ export interface PrepInput {
   src: string;
   title?: string;
   caption?: string;
+  captionSource?: 'typed' | 'filename' | 'picture';
   takenAt?: number;
+  timeSource?: 'exif' | 'file' | 'user';
   quarterTurns?: number;
+  /** Import hints for screenshot detection. */
+  hint?: { png?: boolean; name?: string };
+  keepFraming?: boolean;
+  /** The owner's crop (0..1 of the upright original): used instead of the auto-trim. */
+  manualCrop?: CropRect;
+  manualPolaroid?: CropRect;
 }
 
 const bitmapCache = new Map<string, Promise<ImageBitmap>>();
@@ -99,7 +107,10 @@ async function detectFaces(c: HTMLCanvasElement): Promise<FaceBox[] | null> {
 /** Full analysis of one photo. */
 export async function preparePhoto(input: PrepInput): Promise<ShowPhoto> {
   const bmp = await loadUpright(input.src);
-  const upright = drawTurned(bmp, input.quarterTurns || 0);
+  const full = drawTurned(bmp, input.quarterTurns || 0);
+  // auto-trim: black/white borders, phone-screenshot chrome (status bar, app bars, nav bar)
+  const tr = input.manualCrop ? { rect: input.manualCrop, reason: 'manual' as const } : detectTrim(full, { ...input.hint, exif: input.timeSource === 'exif' });
+  const upright = (input.manualCrop || !input.keepFraming) && tr ? cropCanvas(full, tr.rect) : full;
   const W = upright.width, H = upright.height;
 
   // 96px proxy for statistics + saliency.
@@ -114,6 +125,7 @@ export async function preparePhoto(input: PrepInput): Promise<ShowPhoto> {
 
   const fix = analyseTone(px);
   const sal = saliency(px, pw, ph);
+  const graphicScore = graphicLikeness(px, pw, ph);
 
   // Faces: real detector on a ~640px copy when available.
   let faces: FaceBox[] | null = null;
@@ -133,7 +145,7 @@ export async function preparePhoto(input: PrepInput): Promise<ShowPhoto> {
     focus = { x: ax / aw, y: ay / aw };
   }
 
-  const polaroidCrop = squareCrop(W, H, focus, faces || []);
+  const polaroidCrop = input.manualPolaroid ?? squareCrop(W, H, focus, faces || []);
   const faceCount = faces ? faces.length : sal.skinBlobs;
   const interest = Math.min(1, sal.detail * 0.55 + Math.min(faceCount, 4) * 0.12 + (H > W ? 0.08 : 0));
 
@@ -142,7 +154,10 @@ export async function preparePhoto(input: PrepInput): Promise<ShowPhoto> {
     src: input.src,
     title: input.title,
     caption: input.caption,
+    captionSource: input.caption ? input.captionSource : undefined,
+    showCaption: false,
     takenAt: input.takenAt,
+    timeSource: input.timeSource,
     quarterTurns: input.quarterTurns || 0,
     width: W,
     height: H,
@@ -150,8 +165,199 @@ export async function preparePhoto(input: PrepInput): Promise<ShowPhoto> {
     focus,
     faces: faceCount,
     interest,
-    fix,
+    // graphics keep their colours exactly as designed
+    fix: graphicScore >= GRAPHIC_AT ? { ...fix, strength: 0 } : fix,
+    graphic: graphicScore >= GRAPHIC_AT,
+    graphicScore: Math.round(graphicScore * 100) / 100,
+    trim: tr?.rect,
+    trimReason: tr?.reason,
+    keepFraming: input.manualCrop ? false : input.keepFraming,
+    manualCrop: input.manualCrop,
+    manualPolaroid: input.manualPolaroid,
   };
+}
+
+function cropCanvas(src: HTMLCanvasElement, r: CropRect): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  const sx = Math.round(r.x * src.width), sy = Math.round(r.y * src.height);
+  c.width = Math.max(1, Math.round(r.w * src.width)); c.height = Math.max(1, Math.round(r.h * src.height));
+  c.getContext('2d')!.drawImage(src, sx, sy, c.width, c.height, 0, 0, c.width, c.height);
+  return c;
+}
+
+/** The photo's upright, trimmed pixels (what every renderer should start from). */
+export async function uprightTrimmed(photo: ShowPhoto): Promise<HTMLCanvasElement> {
+  const bmp = await loadUpright(photo.src);
+  const full = drawTurned(bmp, photo.quarterTurns || 0);
+  return photo.trim && !photo.keepFraming ? cropCanvas(full, photo.trim) : full;
+}
+
+/**
+ * What to cut away so only the picture remains.
+ *  • borders: rows/columns from an edge that are flat black or flat white (scans, letterboxed
+ *    video stills, screenshots of photos shown on black)
+ *  • screenshot: a phone-shaped image with no camera date and a flat status bar on top. The
+ *    picture inside is the tallest run of "photographic" rows (many colours, real texture);
+ *    app bars, captions and buttons above and below it are dropped.
+ */
+export function detectTrim(src: HTMLCanvasElement, hint: { png?: boolean; name?: string; exif?: boolean } = {}): { rect: CropRect; reason: 'borders' | 'screenshot' } | null {
+  const S = 320;
+  const s = Math.min(1, S / Math.max(src.width, src.height));
+  const w = Math.max(8, Math.round(src.width * s)), h = Math.max(8, Math.round(src.height * s));
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d', { willReadFrequently: true })!;
+  g.drawImage(src, 0, 0, w, h);
+  const px = g.getImageData(0, 0, w, h).data;
+  const L = (x: number, y: number) => { const i = (y * w + x) * 4; return 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]; };
+  const lineStats = (horiz: boolean, k: number) => {
+    const n = horiz ? w : h;
+    let sum = 0, sq = 0;
+    const cols = new Set<number>();
+    for (let t = 0; t < n; t++) {
+      const x = horiz ? t : k, y = horiz ? k : t;
+      const v = L(x, y); sum += v; sq += v * v;
+      const i = (y * w + x) * 4;
+      cols.add(((px[i] >> 4) << 8) | ((px[i + 1] >> 4) << 4) | (px[i + 2] >> 4));
+    }
+    const mean = sum / n;
+    return { mean, std: Math.sqrt(Math.max(0, sq / n - mean * mean)), colours: cols.size / n };
+  };
+  const flatEdge = (st: { mean: number; std: number }) => st.std < 5 && (st.mean < 24 || st.mean > 236);
+
+  // 1. screenshot → the photographic run
+  const tall = h / w, wide = w / h;
+  const phoneShape = (tall > 1.95 && tall < 2.35) || (wide > 1.95 && wide < 2.35);
+  const named = !!hint.name && /screen ?shot|screenshot|captura|bildschirmfoto/i.test(hint.name);
+  let rect: CropRect = { x: 0, y: 0, w: 1, h: 1 };
+  let reason: 'borders' | 'screenshot' | null = null;
+  if ((phoneShape && !hint.exif && (hint.png || named || topBarFlat())) || named) {
+    // App chrome sits on one background colour (white, black, a dark-mode grey). Take it from the
+    // screen's top and bottom rows; a row is chrome when most of it is that colour (text, icons
+    // and buttons on the background included). The photo is everything else, however dark.
+    const bg = dominantEdgeColour();
+    const photoRow = Array.from({ length: h }, (_, y) => {
+      let onBg = 0;
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        if (Math.abs(px[i] - bg[0]) + Math.abs(px[i + 1] - bg[1]) + Math.abs(px[i + 2] - bg[2]) < 22) onBg++;
+      }
+      return onBg / w < 0.6;
+    });
+    let best = [0, -1], start = -1, gap = 0;
+    for (let y = 0; y <= h; y++) {
+      if (y < h && photoRow[y]) { if (start < 0) start = y; gap = 0; continue; }
+      if (start >= 0) {
+        gap++;
+        if (gap > h * 0.015 || y === h) {
+          const end = y - gap;
+          if (end - start > best[1] - best[0]) best = [start, end];
+          start = -1; gap = 0;
+        }
+      }
+    }
+    if (best[1] - best[0] >= h * 0.12) {
+      const y0 = best[0] / h, y1 = (best[1] + 1) / h;
+      rect = { x: 0, y: y0, w: 1, h: y1 - y0 };
+      reason = 'screenshot';
+    } else {
+      // no clear photo inside: at least drop the status bar and the nav / home bar
+      rect = tall > 1 ? { x: 0, y: 0.055, w: 1, h: 0.905 } : { x: 0.055, y: 0, w: 0.905, h: 1 };
+      reason = 'screenshot';
+    }
+  }
+
+  // 2. flat black / white borders (not after a screenshot crop: there the chrome test already
+  //    removed the app background, and a dark photo's own shadows must not be shaved off)
+  if (reason === 'screenshot') return { rect, reason };
+  const x0 = Math.round(rect.x * w), x1 = Math.round((rect.x + rect.w) * w) - 1;
+  const y0 = Math.round(rect.y * h), y1 = Math.round((rect.y + rect.h) * h) - 1;
+  let top = y0, bot = y1, left = x0, right = x1;
+  const maxCut = 0.35;
+  while (top < y0 + (y1 - y0) * maxCut && flatEdge(lineStatsRange(true, top, left, right))) top++;
+  while (bot > y1 - (y1 - y0) * maxCut && flatEdge(lineStatsRange(true, bot, left, right))) bot--;
+  while (left < x0 + (x1 - x0) * maxCut && flatEdge(lineStatsRange(false, left, top, bot))) left++;
+  while (right > x1 - (x1 - x0) * maxCut && flatEdge(lineStatsRange(false, right, top, bot))) right--;
+  const cut = (top - y0) + (y1 - bot) + (left - x0) + (x1 - right);
+  if (cut > Math.min(w, h) * 0.015) {
+    rect = { x: left / w, y: top / h, w: (right - left + 1) / w, h: (bot - top + 1) / h };
+    reason ??= 'borders';
+  }
+  return reason ? { rect, reason } : null;
+
+  function lineStatsRange(horiz: boolean, k: number, a: number, b: number) {
+    let sum = 0, sq = 0, n = 0;
+    for (let t = a; t <= b; t++) { const v = horiz ? L(t, k) : L(k, t); sum += v; sq += v * v; n++; }
+    const mean = sum / Math.max(1, n);
+    return { mean, std: Math.sqrt(Math.max(0, sq / Math.max(1, n) - mean * mean)) };
+  }
+  function dominantEdgeColour(): [number, number, number] {
+    // most common 4-bit colour on the top and bottom edges, returned as its pixels' true average
+    const counts = new Map<number, [number, number, number, number]>();
+    const band = Math.max(2, Math.round(h * 0.03));
+    for (const y of [...Array(band).keys(), ...Array.from({ length: band }, (_, k) => h - 1 - k)]) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        const k = ((px[i] >> 4) << 8) | ((px[i + 1] >> 4) << 4) | (px[i + 2] >> 4);
+        const e = counts.get(k) || [0, 0, 0, 0];
+        e[0]++; e[1] += px[i]; e[2] += px[i + 1]; e[3] += px[i + 2];
+        counts.set(k, e);
+      }
+    }
+    let best: [number, number, number, number] = [1, 255, 255, 255];
+    for (const e of counts.values()) if (e[0] > best[0]) best = e;
+    return [best[1] / best[0], best[2] / best[0], best[3] / best[0]];
+  }
+  function topBarFlat() {
+    // a status bar: the top ~4% is one flat colour apart from small crisp icons and the clock
+    const band = Math.max(2, Math.round(h * 0.04));
+    let flat = 0;
+    for (let y = 0; y < band; y++) { const st = lineStats(true, y); if (st.colours < 0.08) flat++; }
+    return flat / band > 0.7;
+  }
+}
+
+/** Score at which a picture is treated as a graphic. */
+export const GRAPHIC_AT = 0.45;
+
+/**
+ * 0..1: how much this looks like a designed graphic (poster, obituary/program cover, flyer,
+ * card, screenshot) rather than a photograph. Photos are full of smooth gradients and noise;
+ * graphics have flat fills, few colours, hard edges and lines of text.
+ */
+export function graphicLikeness(px: Uint8ClampedArray, w: number, h: number): number {
+  // Measured on real photos vs. an obituary cover (lab, 2026-11-18):
+  //   exactly-flat share of lit pixels   photos <= 0.02   cover 0.68
+  //   distinct colours per lit pixel     photos >= 0.17   cover 0.02
+  //   crisp share of edges               photos <= 0.36   cover 0.85
+  // Smooth dusk skies looked "flat" to a naive test; they are never *exactly* flat, and they
+  // carry hundreds of shades. Dark pixels are ignored (crushed shadows are flat in photos too).
+  const n = w * h;
+  const lum = new Float32Array(n);
+  for (let i = 0, j = 0; i < px.length; i += 4, j++) lum[j] = 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
+  let lit = 0, flat = 0, edges = 0, hard = 0;
+  const colours = new Set<number>();
+  for (let y = 1; y < h; y++) {
+    for (let x = 1; x < w; x++) {
+      const j = y * w + x;
+      const dx = Math.abs(lum[j] - lum[j - 1]), dy = Math.abs(lum[j] - lum[j - w]);
+      if (dx > 8) edges++;
+      if (dx > 60) hard++;
+      if (lum[j] > 60) {
+        lit++;
+        if (dx < 1 && dy < 1) flat++;
+        const i = j * 4;
+        colours.add(((px[i] >> 3) << 10) | ((px[i + 1] >> 3) << 5) | (px[i + 2] >> 3));
+      }
+    }
+  }
+  if (lit < n * 0.08) return 0; // mostly dark: can't tell, treat as a photo
+  const flatR = flat / lit;
+  const uniq = colours.size / lit;
+  const crisp = edges ? hard / edges : 0;
+  const a = w / h;
+  const paper = Math.abs(a - 0.773) < 0.06 || Math.abs(a - 0.667) < 0.05 ? 1 : 0;
+  const c01 = (v: number) => Math.max(0, Math.min(1, v));
+  return c01(0.45 * c01((flatR - 0.08) / 0.35) + 0.3 * c01((0.12 - uniq) / 0.1) + 0.2 * c01((crisp - 0.4) / 0.35) + 0.05 * paper);
 }
 
 /** Restrained auto-levels: 0.5th / 99.5th percentile per channel, mild gamma + sat. */
@@ -255,8 +461,7 @@ export function squareCrop(W: number, H: number, focus: { x: number; y: number }
 
 /** Draw the fixed photo (tone pass applied) into a canvas at up to maxSide. */
 export async function renderFixed(photo: ShowPhoto, maxSide: number, crop?: CropRect): Promise<HTMLCanvasElement> {
-  const bmp = await loadUpright(photo.src);
-  const upright = drawTurned(bmp, photo.quarterTurns || 0);
+  const upright = await uprightTrimmed(photo);
   const r = crop || { x: 0, y: 0, w: 1, h: 1 };
   const sx = r.x * upright.width, sy = r.y * upright.height, sw = r.w * upright.width, sh = r.h * upright.height;
   const s = Math.min(1, maxSide / Math.max(sw, sh));

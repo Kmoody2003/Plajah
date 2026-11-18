@@ -8,6 +8,7 @@ import { buildPlan, musicCues } from './planner';
 import type { ShowRenderer } from './renderers/base';
 import { LanternRenderer } from './renderers/lantern';
 import { ClassicRenderer } from './renderers/classic';
+import { BackyardRenderer } from './renderers/backyard';
 
 export interface RuntimeOptions {
   width: number;
@@ -36,7 +37,9 @@ export class ShowRuntime {
     this.plan = buildPlan(spec);
     this.impl = spec.theme === 'classic'
       ? new ClassicRenderer(spec, this.plan, this.renderer)
-      : new LanternRenderer(spec, this.plan, this.renderer);
+      : spec.theme === 'backyard'
+        ? new BackyardRenderer(spec, this.plan, this.renderer)
+        : new LanternRenderer(spec, this.plan, this.renderer);
     this.resize(opts.width, opts.height);
   }
 
@@ -57,6 +60,68 @@ export class ShowRuntime {
 
   /** Synchronous frame with whatever is resident (scrubbing previews). */
   frameNow(t: number) { this.impl.draw(t); void this.impl.ensure(t); }
+
+  // --- planned-show playback (the transport) ----------------------------------------
+  //
+  // Plays the deterministic plan in real time from any point, with the music bed following
+  // the same cues the render uses. Seek while playing; pause keeps the frame.
+
+  private planT = 0;
+  private planRaf = 0;
+  private planMusic: PlanMusic | null = null;
+  onPlanTime?: (t: number, playing: boolean) => void;
+
+  get planPlaying() { return this.planRaf !== 0; }
+  get planTime() { return this.planT; }
+
+  playPlan(from = this.planT, withMusic = true) {
+    this.stopLive();
+    this.pausePlan(false);
+    this.planT = Math.max(0, Math.min(this.duration - 0.01, from));
+    if (this.planT >= this.duration - 0.05) this.planT = 0;
+    if (withMusic && this.spec.music.mode !== 'none' && this.spec.music.tracks.length) {
+      this.planMusic = new PlanMusic(this.spec, this.duration);
+      this.planMusic.sync(this.planT, true);
+    }
+    let last = performance.now();
+    let told = 0;
+    const loop = (ts: number) => {
+      this.planRaf = requestAnimationFrame(loop);
+      this.planT += Math.min(0.1, (ts - last) / 1000);
+      last = ts;
+      if (this.planT >= this.duration) { this.planT = this.duration; this.frameNow(this.planT - 0.001); this.pausePlan(); return; }
+      this.frameNow(this.planT);
+      this.planMusic?.sync(this.planT, false);
+      if (ts - told > 100) { told = ts; this.onPlanTime?.(this.planT, true); }
+    };
+    this.planRaf = requestAnimationFrame(loop);
+    this.onPlanTime?.(this.planT, true);
+  }
+
+  pausePlan(notify = true) {
+    if (this.planRaf) cancelAnimationFrame(this.planRaf);
+    this.planRaf = 0;
+    this.planMusic?.stop();
+    this.planMusic = null;
+    if (notify) this.onPlanTime?.(this.planT, false);
+  }
+
+  /** Jump the playhead (keeps playing if it was). Draws the exact frame when paused. */
+  async seekPlan(t: number) {
+    this.planT = Math.max(0, Math.min(this.duration, t));
+    if (this.planRaf) { this.planMusic?.sync(this.planT, true); this.onPlanTime?.(this.planT, true); return; }
+    await this.frame(Math.min(this.planT, this.duration - 0.001));
+    this.onPlanTime?.(this.planT, false);
+  }
+
+  /** Previous / next shot boundary (segment start). */
+  stepPlan(dir: 1 | -1) {
+    const segs = this.plan.segments;
+    const t = this.planT;
+    let target = dir > 0 ? segs.find((s) => s.start > t + 0.05)?.start : [...segs].reverse().find((s) => s.start < t - 0.6)?.start;
+    if (target == null) target = dir > 0 ? this.duration - 0.01 : 0;
+    void this.seekPlan(target + 0.001);
+  }
 
   // --- live ---------------------------------------------------------------------------
 
@@ -129,6 +194,7 @@ export class ShowRuntime {
   }
 
   stopLive() {
+    if (this.planRaf) this.pausePlan(false);
     cancelAnimationFrame(this.raf);
     this.raf = 0;
     for (const off of this.listeners) off();
@@ -142,6 +208,37 @@ export class ShowRuntime {
     this.impl.dispose();
     this.renderer.dispose();
   }
+}
+
+/** Planned-show music: follows musicCues exactly like the render, re-syncing on seek/drift. */
+class PlanMusic {
+  private el = new Audio();
+  private cue = -1;
+  private stopped = false;
+  private cues: ReturnType<typeof musicCues>;
+  constructor(private spec: ShowSpec, private total: number) {
+    this.el.crossOrigin = 'anonymous';
+    this.cues = musicCues(spec, total);
+  }
+  sync(t: number, hard: boolean) {
+    if (this.stopped) return;
+    const k = this.cues.findIndex((c) => t >= c.at && t < c.at + c.length);
+    const vol = (this.spec.music.volume ?? 0.8) * Math.min(1, t / 3, Math.max(0, (this.total - t) / 5));
+    this.el.volume = Math.max(0, Math.min(1, vol));
+    if (k < 0) { if (!this.el.paused) this.el.pause(); this.cue = -1; return; }
+    const c = this.cues[k];
+    const want = c.offset + (t - c.at);
+    if (k !== this.cue) {
+      this.cue = k;
+      this.el.src = this.spec.music.tracks[c.trackIndex].src;
+      this.el.currentTime = want;
+      void this.el.play().catch(() => {});
+      return;
+    }
+    if (hard || Math.abs(this.el.currentTime - want) > 0.35) this.el.currentTime = want;
+    if (this.el.paused) void this.el.play().catch(() => {});
+  }
+  stop() { this.stopped = true; this.el.pause(); this.el.src = ''; }
 }
 
 /** Live-mode music: playlist in order (then again), or one track looping. Soft fades. */

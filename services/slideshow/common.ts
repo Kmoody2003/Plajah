@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import type { ShowDedication, ShowPhoto } from './types';
 import { renderFixed } from './photoPrep';
+import { shownCaption } from './fileNames';
 
 export const SERIF = "'Cormorant Garamond', 'Playfair Display', Georgia, 'Times New Roman', serif";
 export const HAND = "'Caveat', 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', cursive";
@@ -77,6 +78,9 @@ function penDate(p: ShowPhoto) {
   return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 }
 
+/** Owner override first, then the detector: is this shot shown whole, never cropped into a print? */
+export function isFullFrame(p: { fullFrame?: boolean; graphic?: boolean }) { return p.fullFrame ?? !!p.graphic; }
+
 /** White polaroid with the square crop and a hand-written line in the bottom margin. */
 export async function polaroidCanvas(p: ShowPhoto, W = 384): Promise<HTMLCanvasElement> {
   const H = Math.round(W * (0.366 / 0.3));
@@ -92,15 +96,26 @@ export async function polaroidCanvas(p: ShowPhoto, W = 384): Promise<HTMLCanvasE
   }
   const win = Math.round(W * (0.252 / 0.3));
   const left = Math.round((W - win) / 2), top = Math.round(W * (0.024 / 0.3));
-  const photo = await renderFixed(p, win * 2, p.polaroidCrop);
   g.fillStyle = '#1b1b1b';
   g.fillRect(left, top, win, win);
-  g.drawImage(photo, left, top, win, win);
+  if (isFullFrame(p)) {
+    // graphics are letterboxed inside the window, never cropped
+    const whole = await renderFixed(p, win * 2);
+    const s = Math.min(win / whole.width, win / whole.height);
+    const dw = whole.width * s, dh = whole.height * s;
+    g.fillStyle = '#f7f3ea';
+    g.fillRect(left, top, win, win);
+    g.drawImage(whole, left + (win - dw) / 2, top + (win - dh) / 2, dw, dh);
+  } else {
+    const photo = await renderFixed(p, win * 2, p.polaroidCrop);
+    g.drawImage(photo, left, top, win, win);
+  }
   // soft inner shade like a real print
   const sh = g.createLinearGradient(0, top, 0, top + win);
   sh.addColorStop(0, 'rgba(0,0,0,0.10)'); sh.addColorStop(0.15, 'rgba(0,0,0,0)'); sh.addColorStop(1, 'rgba(0,0,0,0.06)');
   g.fillStyle = sh; g.fillRect(left, top, win, win);
-  const line = (p.caption || p.title || penDate(p) || '').slice(0, 34);
+  // a file name never lands on the print: the description only when it's switched on, else the date
+  const line = (shownCaption(p) || penDate(p) || '').slice(0, 34);
   if (line) {
     g.fillStyle = '#2c3a66';
     g.font = `${Math.round(W * 0.07)}px ${HAND}`;
@@ -152,6 +167,21 @@ export function titleCardCanvas(kind: 'intro' | 'outro', d: ShowDedication, w = 
       g.fillText(d.name + (d.dates ? `  ·  ${d.dates}` : ''), w / 2, cy + h * 0.07, w * 0.9);
     }
   }
+  return c;
+}
+
+/** Chapter line for a new event: small caps date/occasion over a thin rule, bottom left. */
+export function chapterCanvas(text: string, w = 1400, h = 140): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d')!;
+  g.shadowColor = 'rgba(0,0,0,0.75)'; g.shadowBlur = 14;
+  g.fillStyle = 'rgba(255,240,215,0.95)';
+  g.font = `italic ${Math.round(h * 0.42)}px ${SERIF}`;
+  g.textBaseline = 'middle';
+  g.fillText(text, 8, h * 0.42, w - 16);
+  g.fillStyle = 'rgba(255,225,180,0.6)';
+  g.fillRect(8, h * 0.78, Math.min(w * 0.3, g.measureText(text).width * 0.6), Math.max(1, h * 0.012));
   return c;
 }
 
@@ -298,6 +328,8 @@ export class FlatQuad {
 
 /** Deterministic Ken Burns move for a photo: start/end zoom and pan drifting toward its subject. */
 export function kenBurns(p: ShowPhoto, k: number) {
+  // a graphic is shown whole: the faintest breath of scale, no crop, no pan
+  if (isFullFrame(p)) return { zoom: 1, pan: { x: 0, y: 0 } };
   const s = strHash(p.id + ':kb');
   const zoomIn = s > 0.35; // most moves push in; some pull back
   const z0 = zoomIn ? 1.0 : 1.12, z1 = zoomIn ? 1.1 + s * 0.04 : 1.02;
