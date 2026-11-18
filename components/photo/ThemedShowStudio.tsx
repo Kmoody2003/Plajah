@@ -10,10 +10,15 @@ import {
   Play, Pause, ChevronLeft, ChevronRight, Maximize2, Film, Download, FolderOpen, Music, Trash2,
   RotateCw, ArrowUp, ArrowDown, Sparkles, Loader2, X, Clapperboard, Images, ImagePlus, Upload, Wand2, Eye,
   SkipBack, SkipForward, Rewind, Type, EyeOff, Pencil, Crop, Save, HardDrive, FilePlus2, Clock3, ArrowLeftRight, CopyPlus,
+  Cloud, Share2, Link2, Tv,
 } from 'lucide-react';
 import { Button, IconButton, Surface, Eyebrow, Chip, Input, Actions, AnchoredPopover } from '../ui';
 import ShowTimeline, { type TimelineOps } from './show/ShowTimeline';
 import LookPicker from './show/LookPicker';
+import ShowPlayer from './show/ShowPlayer';
+import { saveShowToAccount, listAccountShows, openAccountShow, publishShow, showLink, signedInUid, type ShowRef } from '../../services/slideshow/cloudShows';
+import type { CloudHead } from '../../services/creativeCloud/cloudStore';
+import { needsBrandBug, BUG_FREE_FROM_USD } from '../../services/slideshow/brandBug';
 import type { ShowPhoto, ShowSpec, ShowThemeId, ShowTrack, MusicMode, ClassicTransition, ShowLook } from '../../services/slideshow/types';
 import { preparePhoto, type PrepInput } from '../../services/slideshow/photoPrep';
 import { buildPlan } from '../../services/slideshow/planner';
@@ -158,6 +163,13 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
   const [selection, setSelection] = useState<string[]>([]);
   const [clip, setClip] = useState<ShowPhoto[]>([]);
   const [look, setLook] = useState<ShowLook | undefined>(undefined);
+  const [cloud, setCloud] = useState<{ at: number; busy: boolean; error?: string } | null>(null);
+  const [accountShows, setAccountShows] = useState<CloudHead[]>([]);
+  const [shared, setShared] = useState<{ ref: ShowRef; link: string } | null>(null);
+  const [publishing, setPublishing] = useState<{ done: number; total: number } | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [bug, setBug] = useState<boolean | null>(null);
+  useEffect(() => { void needsBrandBug().then(setBug); }, []);
   const [hydrating, setHydrating] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -249,7 +261,23 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
     }
   };
 
-  useEffect(() => { void listLocal().then(setRecent); }, [saved?.at]);
+  useEffect(() => { void listLocal().then(setRecent); void listAccountShows().then(setAccountShows); }, [saved?.at]);
+  const openFromAccount = async (id: string) => {
+    setOpenAnchor(null);
+    setHydrating(true);
+    try { const got = await openAccountShow(id); if (got) { hydrate(got.spec); setCloud({ at: got.head.updatedAt, busy: false }); } }
+    catch (e: any) { setMsg(e?.message || 'Could not open that show.'); }
+    finally { setHydrating(false); }
+  };
+  const doPublish = async () => {
+    setPublishing({ done: 0, total: 1 });
+    try {
+      const r = await publishShow(saveSpec, (done, total) => setPublishing({ done, total }));
+      setShared({ ref: r, link: showLink(r) });
+      setMsg('Published. Anyone with the link (or the post) can play it.');
+    } catch (e: any) { setMsg(e?.code === 'SIGN_IN_REQUIRED' ? 'Sign in to share a show.' : e?.message || 'Could not publish the show.'); }
+    finally { setPublishing(null); }
+  };
   useEffect(() => { if (openShowId) void openSaved(openShowId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // autosave to this device a moment after any change (photos must be prepped first)
@@ -260,6 +288,12 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
       setSaved((s) => ({ at: s?.at || 0, saving: true }));
       try { const at = await saveLocal(saveSpec, owner); setSaved({ at, saving: false }); }
       catch (e: any) { setSaved((s) => ({ at: s?.at || 0, saving: false, error: e?.message || 'Autosave failed' })); }
+      // and to the account, when signed in (every device; the local copy is only a cache)
+      if (signedInUid()) {
+        setCloud((c) => ({ at: c?.at || 0, busy: true }));
+        try { await saveShowToAccount(saveSpec); setCloud({ at: Date.now(), busy: false }); }
+        catch (e: any) { setCloud((c) => ({ at: c?.at || 0, busy: false, error: e?.message || 'Account save failed' })); }
+      }
     }, 1500);
     return () => clearTimeout(t);
   }, [saveKey, prep, hydrating]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -480,8 +514,10 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
     setRender({ k: 0, label: 'Starting' });
     setVideo(null);
     try {
+      const brandBug = await needsBrandBug();
+      setBug(brandBug);
       const blob = await renderShowVideo(spec, {
-        width: res === 1080 ? 1920 : 1280, height: res === 1080 ? 1080 : 720, fps: 30, format, withMusic,
+        width: res === 1080 ? 1920 : 1280, height: res === 1080 ? 1080 : 720, fps: 30, format, withMusic, brandBug,
         signal: ac.signal, onProgress: (k, label) => setRender({ k, label }),
       });
       const fname = `${(title || 'show').replace(/[^\w-]+/g, '_')}.${format}`;
@@ -585,7 +621,9 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
             <Chip title={owner ? `Owned by ${owner.handle || owner.uid}. Saved on this device; cloud sync to the account comes next.` : 'Saved on this device only (not signed in).'}
               className={saved?.error ? '!text-[var(--pj-danger)]' : ''}>
               <Save size={12} className="inline mr-1.5 -mt-0.5" />
-              {saved?.error ? saved.error : saved?.saving ? 'Saving…' : saved?.at ? `Saved on this device · ${new Date(saved.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Not saved yet'}
+              {saved?.error ? saved.error : saved?.saving || cloud?.busy ? 'Saving…'
+                : cloud?.at ? `Saved to your account · ${new Date(cloud.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+                : saved?.at ? `Saved on this device${signedInUid() ? '' : ' (sign in to sync)'} · ${new Date(saved.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Not saved yet'}
             </Chip>
           )}
           <Button size="sm" variant="secondary" icon={<FolderOpen />} onClick={(e) => { const el = e.currentTarget as HTMLElement; setOpenAnchor((a) => (a ? null : el)); void listLocal().then(setRecent); }}>Open</Button>
@@ -597,6 +635,13 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
         <AnchoredPopover anchor={openAnchor} onClose={() => setOpenAnchor(null)} align="end" role="menu" className="pj-surface pj-surface--3 w-80 p-1.5">
           <Button size="sm" variant="ghost" fullWidth icon={<FilePlus2 />} className="!justify-start" onClick={() => { setOpenAnchor(null); newShow(); }}>New show</Button>
           {driveSupported() && <Button size="sm" variant="ghost" fullWidth icon={<HardDrive />} className="!justify-start" onClick={() => { setOpenAnchor(null); void openDrive(); }}>Open a show folder from your drive…</Button>}
+          {accountShows.length > 0 && <p className="pj-eyebrow px-3 pt-3 pb-1 flex items-center gap-1.5"><Cloud size={11} /> In your account</p>}
+          {accountShows.map((h) => (
+            <button key={h.id} type="button" onClick={() => void openFromAccount(h.localId)} className={`w-full text-left px-3 py-2 rounded-[var(--pj-radius-sm)] hover:bg-white/5 ${h.localId === showId.current ? 'text-brand-orange' : ''}`}>
+              <div className="type-title-sm truncate">{h.title}</div>
+              <div className="type-body-sm flex items-center gap-1" style={{ color: 'var(--on-surface-variant)' }}><Clock3 size={11} /> {new Date(h.updatedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}{h.updatedByDeviceLabel ? ` · ${h.updatedByDeviceLabel}` : ''}</div>
+            </button>
+          ))}
           {recent.length > 0 && <p className="pj-eyebrow px-3 pt-3 pb-1">On this device</p>}
           {recent.map((r) => (
             <button key={r.id} type="button" onClick={() => { setOpenAnchor(null); void openSaved(r.id); }} className={`w-full text-left px-3 py-2 rounded-[var(--pj-radius-sm)] hover:bg-white/5 ${r.id === showId.current ? 'text-brand-orange' : ''}`}>
@@ -885,6 +930,25 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
               <Button size="sm" variant="secondary" icon={<Film />} disabled={!photos.length || !!render} onClick={() => doRender(1080, false, 'mp4')}>No music</Button>
               <Button size="sm" variant="secondary" icon={<Clapperboard />} disabled={!photos.length} onClick={toFabula}>Open in Fabula</Button>
             </div>
+            <div className="border-t border-[var(--m3-border)] pt-2.5 flex flex-col gap-2">
+              <p className="type-body-sm" style={{ color: 'var(--on-surface-variant)' }}>Share without rendering: the show plays live in a post, in Stage or in a Tela document, as a timeline or interactively.</p>
+              <div className="flex flex-wrap gap-1.5">
+                <Button size="sm" variant="secondary" icon={<Tv />} disabled={!photos.length} onClick={() => setPreviewing(true)}>Preview player</Button>
+                <Button size="sm" variant="secondary" icon={<Share2 />} loading={!!publishing} disabled={!photos.length} onClick={doPublish}>{shared ? 'Update shared show' : 'Publish & get link'}</Button>
+              </div>
+              {publishing && <span className="type-body-sm">Uploading {publishing.done}/{publishing.total}…</span>}
+              {shared && (
+                <div className="flex items-center gap-1.5">
+                  <input readOnly className="pj-input !py-1 flex-1 font-mono !text-xs" value={shared.link} onFocus={(e) => e.currentTarget.select()} aria-label="Link to the shared show" />
+                  <IconButton size="sm" variant="ghost" aria-label="Copy link" onClick={() => { void navigator.clipboard?.writeText(shared.link); setMsg('Link copied.'); }}><Link2 /></IconButton>
+                </div>
+              )}
+            </div>
+            {bug && (
+              <p className="type-body-sm" style={{ color: 'var(--on-surface-variant)' }}>
+                On your plan, renders and shared shows carry a small plajah.com mark in the lower-right corner. Plajah+ from ${BUG_FREE_FROM_USD}/month (Glow and up) removes it.
+              </p>
+            )}
             {render && (
               <div className="flex flex-col gap-1 type-body-sm">
                 <div className="flex justify-between items-center"><span>{render.label}</span><Button size="xs" variant="ghost" onClick={() => abortRef.current?.abort()}>Cancel</Button></div>
@@ -901,6 +965,19 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
           {msg && <p role="status" className="type-body-sm px-1 text-brand-orange">{msg}</p>}
         </aside>
       </div>
+
+      {previewing && (
+        <div className="fixed inset-0 z-[330] bg-black/85 flex items-center justify-center p-4" onClick={() => setPreviewing(false)}>
+          <Surface level={5} shape="sheet" className="w-full max-w-5xl flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div><Eyebrow>Player preview</Eyebrow><div className="type-title-lg">{title}</div></div>
+              <IconButton size="sm" variant="ghost" aria-label="Close" onClick={() => setPreviewing(false)}><X /></IconButton>
+            </div>
+            <ShowPlayer spec={spec} mode="timeline" />
+            <p className="type-body-sm" style={{ color: 'var(--on-surface-variant)' }}>This is how the show plays in a post, in Stage and in Tela: no rendering, switchable between the timeline and interactive.</p>
+          </Surface>
+        </div>
+      )}
 
       {croppingId && (() => {
         const p = photos.find((q) => q.id === croppingId);

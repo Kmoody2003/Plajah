@@ -6,6 +6,7 @@
 import type { ShowSpec } from './types';
 import { ShowRuntime } from './showRuntime';
 import { musicCues } from './planner';
+import { loadBugTexture } from './brandBug';
 
 export interface RenderOptions {
   width?: number;
@@ -15,6 +16,8 @@ export interface RenderOptions {
   withMusic?: boolean;
   onProgress?: (k: number, label: string) => void;
   signal?: AbortSignal;
+  /** Burn in the plajah.com bug (Free / Spark plans). */
+  brandBug?: boolean;
 }
 
 export async function decodeTrack(src: string, ctx: BaseAudioContext): Promise<AudioBuffer> {
@@ -82,6 +85,8 @@ export async function renderShowVideo(spec: ShowSpec, o: RenderOptions = {}): Pr
 
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
+  if (o.brandBug != null) spec = { ...spec, brandBug: o.brandBug };
+  if (spec.brandBug) await loadBugTexture();
   const rt = new ShowRuntime(canvas, spec, { width: W, height: H, pixelRatio: 1 });
   try {
     o.onProgress?.(0, 'Building the scene');

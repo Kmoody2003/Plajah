@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import type { ShowPlan, ShowSpec } from '../types';
 import { shownCaption } from '../fileNames';
+import { loadBugTexture } from '../brandBug';
 import { FlatQuad, PhotoQuad, TextureCache, canvasTexture, captionCanvas, chapterCanvas, ease, fullPhotoTexture, isFullFrame, kenBurns, titleCardCanvas } from '../common';
 
 export interface ShowRenderer {
@@ -43,6 +44,9 @@ export class Overlay {
   card = new FlatQuad();
   black = new FlatQuad(0x000000);
   chapter = new FlatQuad();
+  /** plajah.com bug (Free / Spark renders and shares). */
+  bug = new FlatQuad();
+  private bugTex: THREE.Texture | null = null;
   private chapters = new Map<string, THREE.Texture>();
   aspect = 16 / 9;
   full: TextureCache = new TextureCache(6);
@@ -52,7 +56,8 @@ export class Overlay {
 
   constructor(private spec: ShowSpec) {
     for (const q of [this.dim, this.backdrop, this.photo]) this.scene.add(q.mesh);
-    for (const q of [this.caption, this.card, this.chapter, this.black]) this.textScene.add(q.mesh);
+    for (const q of [this.caption, this.card, this.chapter, this.black, this.bug]) this.textScene.add(q.mesh);
+    if (spec.brandBug) void loadBugTexture().then((t) => { this.bugTex = t; });
   }
 
   setAspect(a: number) {
@@ -148,7 +153,15 @@ export class Overlay {
   }
 
   /** Draw the text layer over whatever is on the canvas (after the finishing pass). */
+  /** The bug must be ready before an exact (render) frame. */
+  async prepareBug() { if (this.spec.brandBug) this.bugTex = await loadBugTexture(); }
+
   renderText(r: THREE.WebGLRenderer) {
+    // the bug sits above everything, small, lower-right (3:1 artwork, ~12% of the frame width)
+    if (this.spec.brandBug && this.bugTex) {
+      const w = 0.12, h = (w * this.aspect) / 3; // fractions of frame width / height
+      this.bug.set(this.bugTex, 0.9, { x: 1 - w - 0.022, y: 1 - h - 0.035, w, h }, this.aspect, 40);
+    } else this.bug.mesh.visible = false;
     const auto = r.autoClear;
     r.autoClear = false;
     r.clearDepth();
@@ -164,6 +177,6 @@ export class Overlay {
     for (const t of this.chapters.values()) t.dispose();
     for (const t of this.blurred.values()) t.dispose();
     this.cards.intro?.dispose(); this.cards.outro?.dispose();
-    for (const q of [this.dim, this.backdrop, this.photo, this.caption, this.card, this.black, this.chapter]) q.dispose();
+    for (const q of [this.dim, this.backdrop, this.photo, this.caption, this.card, this.black, this.chapter, this.bug]) q.dispose();
   }
 }

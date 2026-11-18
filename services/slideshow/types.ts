@@ -145,6 +145,8 @@ export interface ShowSpec {
   /** Transition length (s) and style: 'auto' picks from the theme's palette; otherwise a Classic
    *  move or any Fabula library transition id ("exposure-blur" or "exposure-blur:bloom"). */
   transition?: { style: ClassicTransition | 'auto' | string; seconds: number };
+  /** Burn the plajah.com bug into renders / shared playback (Free and Spark plans). Set by the system. */
+  brandBug?: boolean;
   /** The whole show's look (grade + lens); a photo's own look overrides it on its shots. */
   look?: ShowLook;
   /** Show Director: event detection + emotional ordering. */
