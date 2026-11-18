@@ -23,6 +23,10 @@ export interface Level {
   spawns: { a: { pos: THREE.Vector3; yaw: number }; b: { pos: THREE.Vector3; yaw: number } };
   /** Open ground points enemies may spawn at. */
   enemySpots: THREE.Vector3[];
+  /** Falling below this height (lava, abyss) hurts. */
+  hazardBelow?: number;
+  /** Control points for Team Arena / Battleground modes. */
+  controlPoints?: { id: string; name: string; pos: THREE.Vector3; radius: number }[];
   setBiome(index: number): { name: string; track: 'main' | 'combat' };
   update(dt: number, pulse: number, beatIndex: number): void;
   resolveDynamicGates(pos: THREE.Vector3, radius: number): void;
@@ -563,6 +567,7 @@ export function buildShrine(scene: THREE.Scene, tier: Tier = 'high'): Level {
       b: { pos: new THREE.Vector3(APO + 3.2, 0.15, 0), yaw: Math.PI / 2 },
     },
     enemySpots,
+    controlPoints: [{ id: 'B', name: 'Power Node', pos: new THREE.Vector3(0, PIT_Y, 0), radius: 3.0 }],
     setBiome() { return { name: info.name, track: info.track }; },
     update(dt, pulse) {
       elapsed += dt;

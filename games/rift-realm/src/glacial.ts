@@ -465,6 +465,12 @@ export function buildGlacial(scene: THREE.Scene, tier: Tier = 'high'): Level {
       b: { pos: new THREE.Vector3(0, 9.3, shrineZ + 14), yaw: Math.PI },
     },
     enemySpots,
+    hazardBelow: -20,
+    controlPoints: [
+      { id: 'A', name: 'Ice Cave', pos: new THREE.Vector3(-48, 0, 2), radius: 6 },
+      { id: 'B', name: 'Courtyard', pos: new THREE.Vector3(-4, 0, 16), radius: 7 },
+      { id: 'C', name: 'Hard-light Span', pos: new THREE.Vector3(37, 0.2, 24), radius: 5 },
+    ],
     setBiome() { return { name: info.name, track: info.track }; },
     update(dt, pulse) {
       elapsed += dt;

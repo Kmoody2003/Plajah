@@ -4,6 +4,8 @@ import { CollisionWorld } from './collision';
 import { RhythmEngine, type BeatQuality } from './rhythm';
 import { buildShrine, type Tier } from './shrine';
 import { buildGlacial } from './glacial';
+import { buildVolcanic } from './volcanic';
+import { Objectives } from './objectives';
 import { createPost } from './post';
 import { preloadCharacters } from './characters';
 import { initKTX2, preloadSets } from './textures';
@@ -72,8 +74,11 @@ async function boot() {
   initKTX2(renderer);
   await preloadSets(levelId === 'glacial'
     ? ['glacial-ground', 'glacial-brick', 'celestial-obsidian', 'glacial-ice', 'volc-steel']
-    : ['volc-basalt', 'glacial-brick', 'marsh-mud', 'volc-steel']);
-  const arena = levelId === 'glacial' ? buildGlacial(scene, tier) : buildShrine(scene, tier);
+    : levelId === 'volcanic'
+      ? ['volc-basalt', 'volc-rock', 'volc-ash', 'volc-steel', 'volc-lava']
+      : ['volc-basalt', 'glacial-brick', 'marsh-mud', 'volc-steel']);
+  const arena = levelId === 'glacial' ? buildGlacial(scene, tier) : levelId === 'volcanic' ? buildVolcanic(scene, tier) : buildShrine(scene, tier);
+  if (levelId === 'volcanic') { camera.far = 900; camera.updateProjectionMatrix(); renderer.toneMappingExposure = 1.25; }
   if (levelId === 'glacial') { camera.far = 700; camera.updateProjectionMatrix(); renderer.toneMappingExposure = 0.78; }
   document.querySelectorAll<HTMLButtonElement>('#levelPick .lvl').forEach((b) => {
     b.classList.toggle('on', b.dataset.level === levelId);
@@ -117,6 +122,9 @@ async function boot() {
   scene.add(player.object);
 
   const enemies = new EnemyManager(scene, collision, arena.enemySpots);
+  const objectives = new Objectives(scene, arena.controlPoints ?? [], (x, z, y) => collision.groundAt(x, z, y, 10));
+  objectives.onCapture = (def, owner) => showBeatFeedback(`${def.id} · ${def.name.toUpperCase()} ${owner === 'blue' ? 'CAPTURED' : 'LOST'}`, owner === 'blue' ? '#38bdf8' : '#fb923c');
+  let hazardCooldown = 0;
 
   let resonance = 1.0;
   let score = 0;
@@ -409,6 +417,15 @@ async function boot() {
     arena.resolveDynamicGates(player.object.position, 0.38);
 
     if (player.enabled) {
+      // lava / abyss hazard
+      hazardCooldown = Math.max(0, hazardCooldown - dt);
+      if (arena.hazardBelow !== undefined && player.object.position.y < arena.hazardBelow && hazardCooldown <= 0) {
+        hazardCooldown = 0.4;
+        player.hp = Math.max(0, player.hp - 20);
+        showBeatFeedback('BURNING! -20 HP', '#f97316');
+        if (player.hp === 0) { player.hp = player.maxHp; resonance = 1.0; score = Math.max(0, score - 150); player.spawnAt(arena.spawns.a.pos, arena.spawns.a.yaw); }
+      }
+      objectives.update(dt, player.object.position, enemies.enemies.map((e) => e.mesh.position));
       if (input.firePressed) fireShot();
       enemies.update(dt, rhythm.pulse, player.object.position, collision, (dmg) => {
         player.hp = Math.max(0, player.hp - dmg);
