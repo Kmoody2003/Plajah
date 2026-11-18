@@ -37,6 +37,7 @@ import { buildRuralOpenWorldDetail } from './ruralDetail';
 import { buildCityExpansion } from './cityExpansion';
 import { buildRiverBridges, carveRiverReaches, routeOverBridges, gradeFromFoot, bridgeCorridors } from './riverBridges';
 import { gradeRoads, corridor, type GradeRoad, type GradeClass } from './roadGrade';
+import { carveScenicRoads, buildScenicRoads, scenicCorridors, type ScenicRoad } from './scenicRoads';
 import { createMapEditor, ROAD_STYLE, type RoadKind, type UserMap } from './mapEditor';
 import { CompetitionEngine } from './racingAI';
 import { TrafficManager, OpenWorldChallengeManager } from './openWorldEvents';
@@ -2940,6 +2941,7 @@ function buildFurniture(): void {
     driveSurfaces.push(...rb.decks);
     surfGrid = null;
     bridgeNear = makeCorridor(rb.path);
+    if (scenicData.length) { const sr = buildScenicRoads(scenicData, (x, z) => meshH(x, z), cityRoadMat ?? undefined); furnitureGroup.add(sr.group); driveSurfaces.push(...sr.decks); }
     heroBridgeUpdate = rb.updateLed;
   }
   spatialCuller.indexGroups([furnitureGroup, scapeGroup, zoneGroup]);
@@ -3157,6 +3159,7 @@ let cliffNear: ((x: number, z: number, r: number) => boolean) | null = null;    
 let cliffTunnelNear: ((x: number, z: number, r: number) => boolean) | null = null;   // inside its tunnel, where the mountain overhead must not hold the car up
 let mapEditor: ReturnType<typeof createMapEditor> | null = null;
 let userMap: UserMap | null = null;                                                    // roads and zones drawn in the map editor (F2)
+let scenicData: ScenicRoad[] = [];                                                    // the festival's designed roads (Kettle Pass, ...)
 let shoreHw: Shoreline | null = null;                                                  // the shoreline highway and its open gallery
 let countryNet: RoadNetwork | null = null;                                             // country roads traced from the map texture
 let bridgeNear: ((x: number, z: number, r: number) => boolean) | null = null;         // the river bridges' roadway
@@ -3901,6 +3904,8 @@ async function boot(): Promise<void> {
     for (const l of (parkingData ?? []) as number[][]) pads.push({ x: l[0], z: l[1], w: l[2], d: l[3], rot: l[4] });
     console.log('graded pads', carvePads(heights, meta.width, meta.height, meta.mpp, pads));
   }
+  scenicData = ((await fetch(BASE + 'scenic_roads.json').then((x) => (x.ok ? x.json() : null)).catch(() => null)) as { roads: ScenicRoad[] } | null)?.roads ?? [];
+  carveScenicRoads(heights, meta.width, meta.height, meta.mpp, scenicData);     // the scenic roads are graded to their own banked design
   {
     // the road grade pass (roadGrade.ts): every highway and street gets a designed vertical profile (5 % freeways, 6 % highways and arterials, 8 % streets) and the
     // ground is cut or built up to it; the sunken freeway, the bridge approaches, the shoreline highway and the cliff raceway keep their own grading
@@ -3911,6 +3916,7 @@ async function boot(): Promise<void> {
       ...bridgeCorridors((x, z) => hAt(x, z)),
       ...(shoreHw ? [{ xz: shoreHw.xz, r: 30 }] : []),
       ...(cc?.xz ? [{ xz: cc.xz, r: 30 }] : []),
+      ...scenicCorridors(scenicData),
     ]);
     const roads: GradeRoad[] = [];
     const W8 = { street: 8.5, arterial: 14, freeway: 12.5, ramp: 5.5 } as Record<string, number>;
