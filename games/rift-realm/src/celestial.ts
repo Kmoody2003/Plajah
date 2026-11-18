@@ -4,7 +4,7 @@
 // the castle island with waterfalls (W), the twin-tower island (N), the gothic portal island (E, Team B), all linked by
 // curving hard-light bridges in cyan and violet, with asteroids, moons and a falling void beneath. Frame: +z = south, y up.
 import * as THREE from 'three/webgpu';
-import { color, float, fract, luminance, mix, positionWorld, sin, smoothstep, texture as tslTexture, time, uniform, uv, vec2, vec3 } from 'three/tsl';
+import { color, float, fract, luminance, mix, normalWorld, positionWorld, sin, smoothstep, texture as tslTexture, time, uniform, uv, vec2, vec3 } from 'three/tsl';
 import { StaticKit, boulder, fbm3, noise3, rng } from './geom';
 import { builders } from './structures';
 import { pbr, circuitTexture } from './textures';
@@ -12,12 +12,12 @@ import type { Level, LevelInfo, Tier } from './shrine';
 
 interface Island { x: number; y: number; z: number; r: number; depth: number; seed: number }
 const ISLANDS: Record<'ledge' | 'centre' | 'castle' | 'towers' | 'portal' | 'west2', Island> = {
-  ledge: { x: -30, y: 0, z: 46, r: 13, depth: 18, seed: 1 },
-  centre: { x: 0, y: 0, z: 0, r: 24, depth: 34, seed: 2 },
-  castle: { x: -52, y: 9, z: -26, r: 18, depth: 30, seed: 3 },
-  towers: { x: 14, y: 12, z: -56, r: 14, depth: 26, seed: 4 },
-  portal: { x: 54, y: 4, z: -8, r: 16, depth: 28, seed: 5 },
-  west2: { x: -24, y: 16, z: -60, r: 7, depth: 14, seed: 6 },
+  ledge: { x: -30, y: 10, z: 46, r: 13, depth: 34, seed: 1 },   // high: the concept looks down on the ruin court
+  centre: { x: 0, y: 0, z: 0, r: 26, depth: 64, seed: 2 },
+  castle: { x: -54, y: 9, z: -26, r: 22, depth: 58, seed: 3 },
+  towers: { x: 14, y: 12, z: -56, r: 15, depth: 44, seed: 4 },
+  portal: { x: 54, y: 4, z: -8, r: 19, depth: 56, seed: 5 },
+  west2: { x: -24, y: 16, z: -60, r: 8, depth: 24, seed: 6 },
 };
 
 export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
@@ -30,15 +30,23 @@ export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const cyan = color(0x3ff0ff), violet = color(0xb06bff);
 
   const desat = (m: THREE.MeshStandardNodeMaterial, keep: number) => { const c = tslTexture(m.map!, uv()).rgb; m.colorNode = mix(vec3(luminance(c)), c, keep).mul(color(m.color)); return m; };
-  // marble with gold inlay and violet void-cracks (the sheet's emissive map) — the citadel stone
-  const marble = pbr('celestial-marble', { maps: ['normal', 'roughness', 'metallic', 'emissive'], tint: 0xb8b2aa, normalScale: 1.1, emissive: 0xb06bff, emissiveIntensity: 1.3 });
   const ruin = desat(pbr('glacial-brick', { maps: ['normal', 'roughness', 'ao'], tint: 0x8c8a80, normalScale: 1.3 }), 0.08);
+  // the concept's castles are weathered grey stone with moss and ivy; violet/cyan live only in crystals, portal, bridges
+  const castleStone = desat(pbr('glacial-brick', { maps: ['normal', 'roughness', 'ao'], tint: 0x9a968c, normalScale: 1.3 }), 0.06);
+  {
+    const base = mix(vec3(luminance(tslTexture(castleStone.map!, uv()).rgb)), tslTexture(castleStone.map!, uv()).rgb, 0.06).mul(color(0x9a968c));
+    const up = smoothstep(float(0.35), float(0.8), normalWorld.y);
+    const patchy = smoothstep(float(0.45), float(0.8), luminance(tslTexture(castleStone.map!, positionWorld.xz.mul(0.031).add(positionWorld.y.mul(0.05))).rgb).mul(2.2)); // creeping moss patches
+    castleStone.colorNode = mix(base, vec3(0.13, 0.2, 0.08), up.mul(0.75).add(patchy.mul(0.35)).min(0.85));
+  }
   const rockSrc = pbr('celestial-obsidian', { maps: ['normal', 'roughness'], tint: 0x6a6070, normalScale: 1.5 });
   // island rock: obsidian sides, grass + moss on top faces
   const rock = new THREE.MeshStandardNodeMaterial({ map: rockSrc.map, normalMap: rockSrc.normalMap, roughnessMap: rockSrc.roughnessMap, roughness: 1 });
-  rock.colorNode = tslTexture(rock.map!, uv()).rgb.mul(color(0x6a6070));
+  // the obsidian albedo is near-black: lift its luminance into a weathered grey-brown crag, as in the concept
+  rock.colorNode = vec3(luminance(tslTexture(rock.map!, uv()).rgb).mul(2.2).add(0.2)).mul(color(0x9a8c88));
   const grassTop = new THREE.MeshStandardNodeMaterial({ map: rockSrc.map, normalMap: rockSrc.normalMap, roughness: 0.95 });
-  grassTop.colorNode = mix(vec3(0.07, 0.16, 0.05), vec3(0.22, 0.34, 0.1), luminance(tslTexture(rockSrc.map!, uv().mul(2.3)).rgb).mul(2.2));
+  // mossy flagstone and turf: stone shows through the grass like the concept's ruined courts
+  grassTop.colorNode = mix(mix(vec3(0.05, 0.09, 0.04), vec3(0.17, 0.24, 0.09), luminance(tslTexture(rockSrc.map!, uv().mul(2.3)).rgb).mul(2.2)), tslTexture(castleStone.map!, uv().mul(0.6)).rgb.mul(0.42), smoothstep(float(0.45), float(0.7), luminance(tslTexture(rockSrc.map!, uv().mul(0.35)).rgb).mul(1.8)));
   const crystal = new THREE.MeshStandardNodeMaterial({ color: 0x0a2a30, roughness: 0.1 });
   crystal.emissiveNode = mix(cyan, violet, sin(positionWorld.x.mul(0.3).add(time)).mul(0.5).add(0.5)).mul(float(1.4).add(uBeatPulse.mul(1.2)));
   const circuit = circuitTexture(9);
@@ -52,7 +60,7 @@ export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
   portalMat.opacityNode = smoothstep(float(0.0), float(0.2), uv().y).mul(0.7);
   const fallsMat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
   fallsMat.colorNode = vec3(0.8, 0.9, 1.0).mul(float(0.9).add(tslTexture(circuit, uv().mul(vec2(0.5, 0.15)).add(vec2(0, time.mul(0.8)))).r.mul(0.4)));
-  fallsMat.opacityNode = smoothstep(float(1.0), float(0.6), uv().y.oneMinus()).mul(smoothstep(float(0.0), float(0.15), uv().x)).mul(smoothstep(float(1.0), float(0.85), uv().x)).mul(0.7);
+  fallsMat.opacityNode = smoothstep(float(1.0), float(0.6), uv().y.oneMinus()).mul(smoothstep(float(0.0), float(0.15), uv().x)).mul(smoothstep(float(1.0), float(0.85), uv().x)).mul(0.32); // misty sheets, not white boards
 
   // ── islands: a grassy top disc over an inverted crag of floating rock ────────────────────────────────
   const islandTop = (i: Island) => {
@@ -82,9 +90,10 @@ export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
     kit.place(crag, i.x, i.y + 0.05, i.z);
     kit.add(rock, crag, { tpm: 0.12 });
     // a thick rim course so the edge reads as a cliff, not a paper disc
-    for (let k = 0; k < 18; k++) {
-      const a = (k / 18) * Math.PI * 2, b = boulder(i.r * 0.18, i.seed * 40 + k, 2);
-      kit.place(b, i.x + Math.cos(a) * i.r * 0.95, i.y - i.r * 0.06, i.z + Math.sin(a) * i.r * 0.95, R() * 6);
+    const nRim = lo ? 18 : 34;
+    for (let k = 0; k < nRim; k++) {
+      const a = (k / nRim) * Math.PI * 2 + R() * 0.1, b = boulder(i.r * (0.07 + R() * 0.06), i.seed * 40 + k, 2);
+      kit.place(b, i.x + Math.cos(a) * i.r * 0.97, i.y - i.r * 0.05, i.z + Math.sin(a) * i.r * 0.97, R() * 6, 0, 0, 1, 0.7, 1);
       kit.add(rock, b, { tpm: 0.3, shadow: false });
     }
   }
@@ -121,10 +130,14 @@ export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
   // ── castle island (W, point A): the big keep with waterfalls pouring off the rim ─────────────────────
   {
     const K = ISLANDS.castle;
-    B.tower(marble, K.x - 4, K.z - 4, 9, 26, K.y);
-    B.tower(marble, K.x + 7, K.z + 2, 6, 16, K.y);
-    B.gothicWall(marble, K.x + 2, K.z + 7, 0, 18, 12, 3, K.y, 1.4, 0.62);
-    B.curtain(marble, K.x - 10, K.z + 2, Math.PI / 2, 12, 8, K.y, 1.6);
+    // the concept's great keep: a tall gatehouse tower, a hall with arched windows, ruined side towers
+    B.tower(castleStone, K.x - 4, K.z - 4, 11, 38, K.y);
+    B.tower(castleStone, K.x + 9, K.z + 1, 7, 26, K.y);
+    B.tower(castleStone, K.x - 14, K.z + 4, 6, 22, K.y);
+    B.gothicWall(castleStone, K.x + 2, K.z + 8, 0, 22, 16, 3, K.y, 1.4, 0.62);
+    kit.box(castleStone, 20, 14, 10, K.x + 1, K.y + 7, K.z + 2, 0, { tpm: 0.4 });
+    B.gothicWall(castleStone, K.x + 13, K.z + 10, Math.PI / 2 + 0.3, 10, 9, 2, K.y, 1.0, 0.7); // broken arcade
+    B.curtain(castleStone, K.x - 12, K.z + 2, Math.PI / 2, 12, 8, K.y, 1.6);
     for (const [ox, oz] of [[-8, 14], [10, 12]]) {
       const f = new THREE.Mesh(new THREE.PlaneGeometry(5, 60), fallsMat);
       f.position.set(K.x + ox, K.y - 30, K.z + oz); f.rotation.y = 0.2; group.add(f);
@@ -133,15 +146,16 @@ export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
   // twin-tower island (N, point C)
   {
     const T = ISLANDS.towers;
-    B.tower(marble, T.x - 4, T.z, 6, 20, T.y);
-    B.tower(marble, T.x + 5, T.z - 2, 5, 15, T.y);
-    B.gothicWall(marble, T.x, T.z + 5, 0, 12, 7, 2, T.y, 1.2, 0.6);
+    B.tower(castleStone, T.x - 4, T.z, 7, 28, T.y);
+    B.tower(castleStone, T.x + 5, T.z - 2, 6, 20, T.y);
+    B.gothicWall(castleStone, T.x, T.z + 5, 0, 12, 7, 2, T.y, 1.2, 0.6);
   }
   // portal island (E, Team B spawn): gothic facade with a cyan neon portal
   {
     const P = ISLANDS.portal;
-    B.gothicWall(marble, P.x + 6, P.z, Math.PI / 2, 18, 16, 1, P.y, 2.2, 0.75);
-    B.tower(marble, P.x + 7, P.z - 10, 6, 22, P.y); B.tower(marble, P.x + 7, P.z + 10, 6, 22, P.y);
+    B.gothicWall(castleStone, P.x + 6, P.z, Math.PI / 2, 18, 16, 1, P.y, 2.2, 0.75);
+    B.tower(castleStone, P.x + 7, P.z - 10, 7, 30, P.y); B.tower(castleStone, P.x + 7, P.z + 10, 7, 30, P.y);
+    kit.box(castleStone, 8, 22, 34, P.x + 12, P.y + 11, P.z, 0, { tpm: 0.4 }); // the hall behind the portal facade
     const portal = new THREE.Mesh(new THREE.PlaneGeometry(6, 10), portalMat);
     portal.position.set(P.x + 4.7, P.y + 5, P.z); portal.rotation.y = -Math.PI / 2; group.add(portal);
     for (const s of [-1, 1]) kit.box(crystal, 0.3, 11, 0.3, P.x + 4.6, P.y + 5.5, P.z + s * 3.4, 0, { solid: false, tpm: 1 });
@@ -188,22 +202,31 @@ export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
     const c = document.createElement('canvas'); c.width = 2048; c.height = 1024;
     const g = c.getContext('2d')!;
     g.fillStyle = '#07040f'; g.fillRect(0, 0, 2048, 1024);
-    for (let i = 0; i < 260; i++) {
-      const x = Math.random() * 2048, y = 120 + Math.random() * 760, r = 60 + Math.random() * 220;
+    // sparse nebula: banks with dark space between them (dense blobs stacked into a flat purple wall)
+    for (let i = 0; i < 110; i++) {
+      const x = Math.random() * 2048, y = 200 + Math.random() * 560, r = 60 + Math.random() * 200;
       const hue = [270, 285, 300, 200, 25][Math.floor(Math.random() * 5)];
       const cg = g.createRadialGradient(x, y, 0, x, y, r);
-      cg.addColorStop(0, `hsla(${hue} 70% ${30 + Math.random() * 25}% / ${0.08 + Math.random() * 0.12})`); cg.addColorStop(1, 'hsla(270 60% 20% / 0)');
+      cg.addColorStop(0, `hsla(${hue} 70% ${30 + Math.random() * 25}% / ${0.03 + Math.random() * 0.06})`); cg.addColorStop(1, 'hsla(270 60% 20% / 0)');
       g.fillStyle = cg; g.fillRect(x - r, y - r, r * 2, r * 2);
     }
+    // the concept's vertical void beam, a hot orange nebula on the right, deep violet cloud banks
+    { const bx = 1180, bg = g.createLinearGradient(bx - 60, 0, bx + 60, 0); bg.addColorStop(0, 'rgba(200,190,255,0)'); bg.addColorStop(0.5, 'rgba(235,230,255,0.85)'); bg.addColorStop(1, 'rgba(200,190,255,0)'); g.fillStyle = bg; g.fillRect(bx - 60, 0, 120, 640);
+      const hg = g.createLinearGradient(bx - 220, 0, bx + 220, 0); hg.addColorStop(0, 'rgba(150,110,255,0)'); hg.addColorStop(0.5, 'rgba(170,130,255,0.25)'); hg.addColorStop(1, 'rgba(150,110,255,0)'); g.fillStyle = hg; g.fillRect(bx - 220, 0, 440, 700); }
+    for (let i = 0; i < 90; i++) { const x = 1380 + Math.random() * 420, y = 260 + Math.random() * 360, r = 80 + Math.random() * 200; const cg = g.createRadialGradient(x, y, 0, x, y, r); cg.addColorStop(0, `hsla(${18 + Math.random() * 20} 85% ${45 + Math.random() * 15}% / ${0.06 + Math.random() * 0.1})`); cg.addColorStop(1, 'hsla(20 80% 40% / 0)'); g.fillStyle = cg; g.fillRect(x - r, y - r, r * 2, r * 2); }
+    for (let i = 0; i < 50; i++) { const x = Math.random() * 2048, y = 220 + Math.random() * 420, r = 90 + Math.random() * 240; const cg = g.createRadialGradient(x, y, 0, x, y, r); cg.addColorStop(0, `hsla(${265 + Math.random() * 30} 70% ${38 + Math.random() * 20}% / ${0.06 + Math.random() * 0.1})`); cg.addColorStop(1, 'hsla(270 60% 30% / 0)'); g.fillStyle = cg; g.fillRect(x - r, y - r, r * 2, r * 2); }
     for (let i = 0; i < 2600; i++) { g.fillStyle = `rgba(230,225,255,${0.25 + Math.random() * 0.75})`; const s = Math.random() * 1.8 + 0.3; g.fillRect(Math.random() * 2048, Math.random() * 1024, s, s); }
     const sky = new THREE.CanvasTexture(c); sky.mapping = THREE.EquirectangularReflectionMapping; sky.colorSpace = THREE.SRGBColorSpace;
     scene.background = sky; scene.environment = sky; scene.environmentIntensity = 0.9;
   }
-  scene.fog = new THREE.FogExp2(0x1a1030, 0.0042);
-  const moonMat = new THREE.MeshStandardNodeMaterial({ map: rockSrc.map, color: 0xcfc6d6, roughness: 1 });
+  scene.fog = new THREE.FogExp2(0x2a1c48, 0.0022); // clear space: moons and asteroids stay readable
+  const moonMat = new THREE.MeshStandardNodeMaterial({ map: rockSrc.map, color: 0xe6e0ee, roughness: 1, fog: false });
+  moonMat.colorNode = vec3(luminance(tslTexture(rockSrc.map!, uv().mul(2)).rgb)).mul(1.6).add(0.25).mul(color(0xe6e0ee));
   for (const [x, y, z, r] of [[160, 110, -260, 26], [240, 150, -200, 14]] as const) { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 32, 24), moonMat); m.position.set(x, y, z); group.add(m); }
   const astGeo = boulder(1, 7, 1);
-  const asteroids = new THREE.InstancedMesh(astGeo, rock, lo ? 160 : 420);
+  const astMat = new THREE.MeshStandardNodeMaterial({ map: rockSrc.map, normalMap: rockSrc.normalMap, roughness: 1, fog: false });
+  astMat.colorNode = vec3(luminance(tslTexture(rockSrc.map!, uv()).rgb).mul(2.4).add(0.3)).mul(color(0x9c8f88));
+  const asteroids = new THREE.InstancedMesh(astGeo, astMat, lo ? 160 : 420);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
   for (let i = 0; i < asteroids.count; i++) {
     const a = R() * 6.28, rr = 70 + R() * 160, y = -30 + R() * 110;
@@ -216,16 +239,18 @@ export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
   key.position.set(80, 120, 60); key.castShadow = !lo; key.shadow.mapSize.set(2048, 2048);
   Object.assign(key.shadow.camera, { left: -90, right: 90, top: 90, bottom: -90, near: 1, far: 320 });
   key.shadow.bias = -0.0005; key.shadow.normalBias = 0.05;
-  const rim = new THREE.DirectionalLight(0xff9a60, 1.0); rim.position.set(-60, 40, -120);
-  group.add(key, key.target, rim, new THREE.HemisphereLight(0x8a7ab8, 0x1a1028, 1.1));
+  const rim = new THREE.DirectionalLight(0xff9a60, 1.6); rim.position.set(-60, 40, -120);
+  // fill from the viewer's side so the faces players see read as grey stone; nebula rim stays violet/orange
+  const fill = new THREE.DirectionalLight(0xb8b0ff, 1.2); fill.position.set(-90, 50, 120);
+  group.add(key, key.target, rim, fill, fill.target, new THREE.HemisphereLight(0xa898d8, 0x2a1838, 2.0));
   scene.add(group);
 
-  const enemySpots = [[0, -2, 0], [8, 6, 0], [-8, -8, 0], [10, -10, 0], [-6, 10, 0], [-52, -20, 9], [-44, -30, 9], [14, -50, 12], [50, -8, 4], [56, 2, 4], [-30, 44, 0]].map(([x, z, y]) => new THREE.Vector3(x, y + 1.6, z));
+  const enemySpots = [[0, -2, 0], [8, 6, 0], [-8, -8, 0], [10, -10, 0], [-6, 10, 0], [-52, -20, 9], [-44, -30, 9], [14, -50, 12], [50, -8, 4], [56, 2, 4], [-30, 44, 10]].map(([x, z, y]) => new THREE.Vector3(x, y + 1.6, z));
   const info: LevelInfo = { id: 'celestial-void', name: 'Celestial Void Citadel', track: 'main', accentHex: 0x3ff0ff };
   let elapsed = 0;
   return {
     group, uBeatPulse, gates: [], traps: [], biomeIndex: 0, info,
-    spawns: { a: { pos: new THREE.Vector3(-32, 0.6, 48), yaw: -0.5 }, b: { pos: new THREE.Vector3(50, 4.6, -8), yaw: Math.PI / 2 } },
+    spawns: { a: { pos: new THREE.Vector3(-32, 10.6, 48), yaw: -0.5 }, b: { pos: new THREE.Vector3(50, 4.6, -8), yaw: Math.PI / 2 } },
     enemySpots,
     hazardBelow: -25,
     controlPoints: [
