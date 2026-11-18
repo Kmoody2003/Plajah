@@ -38,12 +38,21 @@ export async function preloadCharacters() {
 
 export type Locomotion = 'idle' | 'run' | 'strafe_left' | 'strafe_right' | 'walk';
 
+const sstep = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+/**
+ * Blended locomotion (the Ravencrest / Era Clash scheme): idle, run and both strafes play all the time and their
+ * weights follow speed and direction, so starts, stops and turns flow instead of snapping between clips. Playback
+ * is speed-matched (no foot-sliding at sprint), strafes stay in step with the run, and backpedalling plays the run
+ * in reverse. One-shots (shoot / hit / attack) layer over the legs, lighter while moving so the run keeps going.
+ */
 export class CharacterRig {
   readonly root = new THREE.Group();
   private mixer: THREE.AnimationMixer;
   private actions = new Map<string, THREE.AnimationAction>();
-  private current: THREE.AnimationAction | null = null;
-  private oneShot = 0;
+  private loco: { name: string; act: THREE.AnimationAction; w: number }[] = [];
+  private shot: { act: THREE.AnimationAction; base: number; left: number; dur: number } | null = null;
+  private moving = 0;
 
   constructor(asset: CharacterAsset, height = 1.9) {
     const model = SkeletonUtils.clone(asset.scene);
@@ -53,38 +62,68 @@ export class CharacterRig {
     this.root.add(model);
     this.mixer = new THREE.AnimationMixer(model);
     for (const c of asset.clips) this.actions.set(c.name.toLowerCase(), this.mixer.clipAction(c));
-    this.loop(this.has('aim_idle') ? 'aim_idle' : 'idle');
+    const idle = this.has('aim_idle') ? 'aim_idle' : 'idle';
+    for (const name of [idle, 'run', 'strafe_left', 'strafe_right']) {
+      const act = this.actions.get(name);
+      if (!act) continue;
+      act.setLoop(THREE.LoopRepeat, Infinity).play();
+      act.setEffectiveWeight(name === idle ? 1 : 0);
+      this.loco.push({ name: name === idle ? 'idle' : name, act, w: name === idle ? 1 : 0 });
+    }
   }
 
   private has(n: string) { return this.actions.has(n); }
-
-  private loop(name: string, fade = 0.18) {
-    const next = this.actions.get(name) ?? this.actions.get('idle');
-    if (!next || next === this.current) return;
-    next.reset().setLoop(THREE.LoopRepeat, Infinity).fadeIn(fade).play();
-    this.current?.fadeOut(fade);
-    this.current = next;
-  }
 
   /** Play a one-shot (shoot/hit/attack) over the locomotion layer. */
   play(name: string, weight = 1) {
     const a = this.actions.get(name);
     if (!a) return;
+    if (this.shot && this.shot.act !== a) this.shot.act.fadeOut(0.06);
     a.reset().setLoop(THREE.LoopOnce, 1);
     a.clampWhenFinished = false;
-    a.setEffectiveWeight(weight).fadeIn(0.05).play();
-    this.oneShot = Math.max(this.oneShot, a.getClip().duration);
+    a.play();
+    const dur = a.getClip().duration;
+    this.shot = { act: a, base: weight, left: dur, dur };
   }
 
   /** speed in m/s; local = velocity in the character's own frame (x right, z forward). */
   update(dt: number, speed: number, localX = 0, localZ = 1) {
-    if (this.oneShot <= 0) {
-      if (speed < 0.4) this.loop(this.has('aim_idle') ? 'aim_idle' : 'idle');
-      else if (Math.abs(localX) > Math.abs(localZ) * 1.1 && this.has('strafe_left')) this.loop(localX > 0 ? 'strafe_left' : 'strafe_right');
-      else this.loop(speed > 5 || !this.has('walk') ? 'run' : 'walk');
+    const s = Math.max(1e-3, Math.hypot(localX, localZ));
+    const move = sstep(0.3, 1.6, speed);
+    this.moving = move;
+    const fwd = Math.max(0, localZ) / s, back = Math.max(0, -localZ) / s, side = Math.abs(localX) / s;
+    const hasStrafe = this.loco.some((l) => l.name === 'strafe_left');
+    const sideW = hasStrafe ? sstep(0.35, 0.8, side) : 0;
+    const target: Record<string, number> = {
+      idle: 1 - move,
+      run: move * (1 - sideW),
+      strafe_left: move * sideW * (localX > 0 ? 1 : 0),
+      strafe_right: move * sideW * (localX > 0 ? 0 : 1),
+    };
+    // one-shot layer: full weight standing, lighter on the run; fades out over its last 0.18 s
+    let ow = 0;
+    if (this.shot) {
+      this.shot.left -= dt;
+      if (this.shot.left <= 0) { this.shot.act.stop(); this.shot = null; }
+      else {
+        const fadeIn = Math.min(1, (this.shot.dur - this.shot.left) / 0.08), fadeOut = Math.min(1, this.shot.left / 0.18);
+        ow = this.shot.base * fadeIn * fadeOut * (1 - 0.5 * move);
+        this.shot.act.setEffectiveWeight(ow);
+      }
     }
-    this.oneShot -= dt;
-    const run = this.current?.getClip().name === 'run';
-    this.mixer.update(dt * (run ? Math.min(1.5, 0.6 + speed / 9) : 1));
+    const k = Math.min(1, dt * 12);
+    const rate = THREE.MathUtils.clamp(speed / 7, 0.8, 1.6); // run clip authored near 7 m/s
+    const run = this.loco.find((l) => l.name === 'run');
+    for (const l of this.loco) {
+      l.w += ((target[l.name] ?? 0) - l.w) * k;
+      l.act.setEffectiveWeight(l.w * (1 - ow));
+      if (l.name === 'run') l.act.timeScale = back > fwd + 0.2 ? -rate : rate;
+      else if (l.name.startsWith('strafe')) {
+        l.act.timeScale = rate;
+        // keep the strafe step in phase with the run so the blend doesn't double-step
+        if (run && l.w < 0.05) l.act.time = (run.act.time / run.act.getClip().duration) * l.act.getClip().duration;
+      }
+    }
+    this.mixer.update(dt);
   }
 }

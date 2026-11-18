@@ -36,6 +36,10 @@ export class PlayerController {
   firstPerson = false;
 
   private camDist = 3.6;
+  private boom = 3.6;                       // collision-limited boom length: snaps in, eases back out
+  private follow = new THREE.Vector3();     // eased camera pivot (smooths stair steps and landings)
+  private followInit = false;
+  mouseSens = (() => { try { return Number(localStorage.getItem('rift-realm-mouse-sens')) || 1; } catch { return 1; } })();
   private vel = new THREE.Vector3();
   private vy = 0;
   private onGround = true;
@@ -86,13 +90,22 @@ export class PlayerController {
 
     dom.addEventListener('mousemove', (e) => {
       if (!this.enabled || document.pointerLockElement !== dom) return;
-      this.yaw -= e.movementX * MOUSE_SENS;
-      this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * MOUSE_SENS, -1.25, 1.25);
+      // pointer-lock glitch spikes (a jump of 90+ px in one event) are dropped, as in Ravencrest
+      if (Math.abs(e.movementX) > 90 || Math.abs(e.movementY) > 90) return;
+      this.yaw -= e.movementX * MOUSE_SENS * this.mouseSens;
+      this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * MOUSE_SENS * this.mouseSens * 0.85, -1.25, 1.25);
+    });
+    // - / = step the mouse sensitivity (saved), the shared scheme across the Plajah action games
+    window.addEventListener('keydown', (e) => {
+      if (e.code !== 'Minus' && e.code !== 'Equal') return;
+      this.mouseSens = THREE.MathUtils.clamp(this.mouseSens * (e.code === 'Equal' ? 1.2 : 1 / 1.2), 0.3, 2.5);
+      try { localStorage.setItem('rift-realm-mouse-sens', String(this.mouseSens)); } catch { /* private mode */ }
     });
   }
 
   toggleView() {
     this.firstPerson = !this.firstPerson;
+    this.camDist = this.boom = this.firstPerson ? 0 : 3.6; // cut straight to the new view, no dolly
     this.vesselMesh.visible = !this.firstPerson;
     this.viewmodel.visible = this.firstPerson;
     this.onToggleView?.(this.firstPerson);
@@ -210,8 +223,8 @@ export class PlayerController {
     if (this.enabled) {
       if (input) {
         if (input.lookDeltaX || input.lookDeltaY) {
-          this.yaw -= input.lookDeltaX * MOUSE_SENS;
-          this.pitch = THREE.MathUtils.clamp(this.pitch - input.lookDeltaY * MOUSE_SENS, -1.25, 1.25);
+          this.yaw -= input.lookDeltaX * MOUSE_SENS * this.mouseSens;
+          this.pitch = THREE.MathUtils.clamp(this.pitch - input.lookDeltaY * MOUSE_SENS * this.mouseSens * 0.85, -1.25, 1.25);
         }
         if (input.toggleViewPressed) this.toggleView();
         if (input.cycleVesselPressed) this.cycleVessel();
@@ -323,7 +336,12 @@ export class PlayerController {
     this.lean = THREE.MathUtils.lerp(this.lean, -strafeSpeed * 0.006, Math.min(1, dt * 8));
     this.landKick = Math.max(0, this.landKick - dt * 5);
 
-    const eyePos = this.object.position.clone().add(new THREE.Vector3(0, 1.58 - this.landKick * 0.18, 0));
+    // the camera pivot eases after the body (Ravencrest: 1-exp(-dt*16), snaps if it falls 2.5 m behind),
+    // so stair steps and landings don't jolt the view; first person stays locked to the eyes
+    const rawEye = this.object.position.clone().add(new THREE.Vector3(0, 1.58 - this.landKick * 0.18, 0));
+    if (!this.followInit || this.follow.distanceTo(rawEye) > 2.5 || this.firstPerson) { this.follow.copy(rawEye); this.followInit = true; }
+    else this.follow.lerp(rawEye, 1 - Math.exp(-dt * 18));
+    const eyePos = this.firstPerson ? rawEye : this.follow.clone().setX(rawEye.x).setZ(rawEye.z); // ease height only: aim stays exact
     const lookDir = new THREE.Vector3(
       -Math.sin(this.yaw) * Math.cos(this.pitch),
       Math.sin(this.pitch),
@@ -337,8 +355,10 @@ export class PlayerController {
       const shoulderOffset = right.clone().multiplyScalar(0.52);
       const pivot = eyePos.clone().add(shoulderOffset);
       const backDir = lookDir.clone().negate();
-      const maxD = this.world ? this.world.rayDistance(pivot, backDir, this.camDist) - 0.15 : this.camDist;
-      this.camera.position.copy(pivot).addScaledVector(backDir, Math.max(0.3, maxD));
+      const maxD = this.world ? this.world.rayDistance(pivot, backDir, this.camDist) - 0.3 : this.camDist;
+      // a wall behind pulls the boom in at once; it eases back out (no popping)
+      this.boom = maxD < this.boom ? maxD : THREE.MathUtils.lerp(this.boom, maxD, Math.min(1, dt * 3));
+      this.camera.position.copy(pivot).addScaledVector(backDir, Math.max(0.3, this.boom));
       this.camera.lookAt(pivot.clone().addScaledVector(lookDir, 18));
     }
     this.camera.rotateZ(this.lean);

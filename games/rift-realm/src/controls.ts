@@ -42,11 +42,34 @@ export class UnifiedControls {
   private stickKnobEl = document.getElementById('touchStickKnob');
 
   constructor(private surface: HTMLElement) {
-    this.isTouchDevice =
-      'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    // Touch mode only when touch is the main pointer (phones, tablets). Windows reports maxTouchPoints = 10 on
+    // ordinary mouse-and-keyboard PCs, which used to drop desktop players into touch mode: no pointer lock,
+    // so the mouse could neither look nor fire. A real touch on the screen still switches to touch mode.
+    this.isTouchDevice = matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches;
 
     this.bindTouchSurface();
     this.bindTouchButtons();
+    this.bindMouseFallback();
+  }
+
+  /** Mouse without pointer lock (lock refused, or a touch laptop in touch mode): drag to look, click to fire. */
+  private bindMouseFallback() {
+    let dragging = false, lastX = 0, lastY = 0;
+    this.surface.addEventListener('mousedown', (e) => {
+      if (document.pointerLockElement) return; // pointer lock handles look + fire itself
+      if (e.button === 0) this.queuedFire = true;
+      if (e.button === 2) this.queuedSurge = true;
+      dragging = true; lastX = e.clientX; lastY = e.clientY;
+      // like Ravencrest / Era Clash: a click on the scene (re)takes the pointer lock for always-on mouse look
+      if (!this.isTouchDevice) (this.surface.requestPointerLock?.() as Promise<void> | undefined)?.catch?.(() => { /* refused: drag-look stays */ });
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (!dragging || document.pointerLockElement) return;
+      this.pendingLookX += (e.clientX - lastX) * 1.6;
+      this.pendingLookY += (e.clientY - lastY) * 1.6;
+      lastX = e.clientX; lastY = e.clientY;
+    });
+    window.addEventListener('mouseup', () => { dragging = false; });
   }
 
   private bindTouchSurface() {
