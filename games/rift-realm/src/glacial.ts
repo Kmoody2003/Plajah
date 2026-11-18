@@ -8,7 +8,6 @@ import * as THREE from 'three/webgpu';
 import {
   color, float, luminance, mix, normalWorld, vec3, floor, fract, dot, step, cameraPosition, normalView, positionViewDirection, pow, positionWorld, sin, smoothstep, texture as tslTexture, time, uniform, uv, vec2, length,
 } from 'three/tsl';
-import { mrt as tslMrt, output as tslOutput, vec4 as tslVec4 } from 'three/tsl';
 import { StaticKit, boulder, fbm3, noise3, rng } from './geom';
 import { circuitTexture, pbr } from './textures';
 import type { Level, LevelInfo, Tier } from './shrine';
@@ -437,8 +436,6 @@ export function buildGlacial(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const snowGeo = new THREE.BufferGeometry(); snowGeo.setAttribute('position', new THREE.BufferAttribute(snowPos, 3));
   const snowPts = new THREE.PointsNodeMaterial({ size: 0.07, sizeAttenuation: true, transparent: true, depthWrite: false });
   snowPts.colorNode = color(0xffffff);
-  // sprites have no surface normal; give the AO pass a flat one so the MRT pipeline compiles
-  (snowPts as any).mrtNode = tslMrt({ output: tslOutput, normal: tslVec4(0.5, 0.5, 1.0, 1.0) });
   snowPts.opacityNode = float(0.85);
   const snow = new THREE.Points(snowGeo, snowPts); snow.frustumCulled = false; group.add(snow);
   // chasm mist sheet

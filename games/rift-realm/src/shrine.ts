@@ -7,7 +7,6 @@ import * as THREE from 'three/webgpu';
 import {
   color, float, length, smoothstep, texture as tslTexture, time, uniform, uv, vec2, positionWorld, sin,
 } from 'three/tsl';
-import { mrt as tslMrt, output as tslOutput, vec4 as tslVec4 } from 'three/tsl';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { StaticKit, boulder, fbm3, octagon, polyPrism, rng, taperTube } from './geom';
 import { circuitTexture, fernTexture, grassTexture, leafTexture, mossTexture, pbr } from './textures';
@@ -495,8 +494,6 @@ export function buildShrine(scene: THREE.Scene, tier: Tier = 'high'): Level {
   ffGeo.setAttribute('position', new THREE.BufferAttribute(ffPos, 3));
   const ffMat = new THREE.PointsNodeMaterial({ size: 0.2, sizeAttenuation: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   ffMat.colorNode = color(0x8ffcff).mul(2.0);
-  // sprites have no surface normal; give the AO pass a flat one so the MRT pipeline compiles
-  (ffMat as any).mrtNode = tslMrt({ output: tslOutput, normal: tslVec4(0.5, 0.5, 1.0, 1.0) });
   ffMat.opacityNode = float(0.9);
   const fireflies = new THREE.Points(ffGeo, ffMat);
   fireflies.frustumCulled = false;

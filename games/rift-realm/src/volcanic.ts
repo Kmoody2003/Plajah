@@ -8,7 +8,6 @@ import * as THREE from 'three/webgpu';
 import {
   color, float, fract, luminance, max, mix, positionWorld, sin, smoothstep, texture as tslTexture, time, uniform, uv, vec2, vec3,
 } from 'three/tsl';
-import { mrt as tslMrt, output as tslOutput, vec4 as tslVec4 } from 'three/tsl';
 import { StaticKit, boulder, fbm3, noise3, rng } from './geom';
 import { builders } from './structures';
 import { pbr } from './textures';
@@ -280,7 +279,6 @@ export function buildVolcanic(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const eg = new THREE.BufferGeometry(); eg.setAttribute('position', new THREE.BufferAttribute(ep, 3));
   const em = new THREE.PointsNodeMaterial({ size: 0.12, sizeAttenuation: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
   em.colorNode = color(0xffa040).mul(2.5);
-  (em as any).mrtNode = tslMrt({ output: tslOutput, normal: tslVec4(0.5, 0.5, 1.0, 1.0) });
   em.opacityNode = float(0.9);
   const embers = new THREE.Points(eg, em); embers.frustumCulled = false; group.add(embers);
 
