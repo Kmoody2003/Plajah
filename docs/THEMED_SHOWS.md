@@ -190,3 +190,19 @@ The studio's first tab, **Show · timeline**, plays the planned show exactly as 
 - **Encoding:** mediabunny `CanvasSource` with hardware H.264 preferred, `latencyMode: 'quality'`, variable bitrate at ~0.18 bits per pixel per frame (~11 Mbps at 1080p30), and a key frame every 2s.
 - **Speed:** measured 2.6× faster than real time at 1080p (a 58.7s show in 22.5s).
 - **Progress:** the progress line shows the live speed.
+
+## Studio UI (Plajah Design Language)
+
+- **Primitives.** Built on `components/ui`: `Button`/`IconButton` (one `primary` = Render 1080p; `accent` = play), `Surface` sections with `Eyebrow` titles, `Chip` toggles, `Input`, `AnchoredPopover` for the Open menu, and `useContextMenu` for the timeline. Colours and radii come from the `--pj-*` tokens.
+- **Layout.** The left column (stage, transport, shot timeline) is pinned and sized to the viewport. The right options panel scrolls on its own, and the selected-shot inspector sits at its top.
+- **Timeline** (`components/photo/show/ShowTimeline.tsx`):
+  - **Select:** click, Ctrl/⌘-click, Shift-click a range, or drag a box over empty space.
+  - **Move:** drag a shot or the whole selection; Alt+←/→ nudges.
+  - **Edit:** Ctrl/⌘ D duplicate, C copy, X cut, V paste, A select all; Delete removes; swap two from the bar or the menu.
+  - **Hover:** edit, crop, remove and more.
+  - **Director:** a hand edit turns the director off (and says so).
+- **Look** (`finish.ts` + `components/photo/show/LookPicker.tsx`):
+  - **Pickers:** the platform cinematic LUT strip (`LutStrip`, `CINEMATIC_LUTS`) with a strength setting, and the lens picker (`LensPicker`, `LensEngine`).
+  - **Scope:** whole show, or per photo (a photo's look wins on its shots).
+  - **How it applies:** the LUT is a 17³ 3D texture on the GPU, and the lens runs on each rendered frame. Both apply after the picture and before the overlay's `textScene` (captions, cards, chapter lines, fades), so text is never graded.
+  - **Verified:** Bleach Bypass desaturates and Sepia 1890 warms; VHS renders.

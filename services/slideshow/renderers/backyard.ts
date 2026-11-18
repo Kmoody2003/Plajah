@@ -17,6 +17,7 @@ import { Overlay, type ShowRenderer } from './base';
 import { BACKYARD, byId, loadTracks, pointInQuad, quadCentre, quadToUnit, trackedQuad, type LoopTracks, type PackAsset } from '../themes/backyardPack';
 import { VideoFrameSource } from '../videoSource';
 import { TransitionPass } from '../transitions';
+import { FinishPass, lookFor } from '../finish';
 
 interface Cam { cx: number; cy: number; z: number }
 interface LayerState { asset: PackAsset; assign: number[]; cam: Cam; time: number }
@@ -30,6 +31,8 @@ interface Frame {
   chapter?: { text: string; opacity: number };
   /** Fabula transition used while B (outgoing) hands over to A (incoming); progress = mixA. */
   tx?: string;
+  /** The photo this shot is about (for its look). */
+  photo?: number;
 }
 
 const PLATE_VS = `varying vec2 vPos; void main(){ vPos = position.xy; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }`;
@@ -139,6 +142,7 @@ export class BackyardRenderer implements ShowRenderer {
   private w = 1280; private h = 720;
   private q8 = new Array(8).fill(0);
   private tx: TransitionPass;
+  private finish: FinishPass;
   /** Transition length, seconds. */
   private xf: number;
 
@@ -152,6 +156,7 @@ export class BackyardRenderer implements ShowRenderer {
     this.bokehQuad.frustumCulled = false;
     this.stage.add(this.bokehQuad);
     this.tx = new TransitionPass(renderer, this.w, this.h);
+    this.finish = new FinishPass(renderer);
     this.xf = Math.max(0.4, Math.min(4, spec.transition?.seconds ?? 1.4));
   }
 
@@ -219,7 +224,11 @@ export class BackyardRenderer implements ShowRenderer {
     } else await this.loadImage(L.asset);
   }
 
-  async ensure(t: number) { await this.prepFrame(this.frameAt(t), true); }
+  async ensure(t: number) {
+    const f = this.frameAt(t);
+    await Promise.all([this.prepFrame(f, true), this.finish.prepare(this.lookOf(f))]);
+  }
+  private lookOf(f: Frame) { return lookFor(this.spec, f.photo != null ? this.spec.photos[f.photo] : null); }
 
   private async prepFrame(f: Frame, exact: boolean) {
     const jobs: Promise<unknown>[] = [this.prepLayer(f.A, exact), this.prepLayer(f.B, exact)];
@@ -283,7 +292,7 @@ export class BackyardRenderer implements ShowRenderer {
     const seg = segmentAt(this.plan, t);
     const idx = this.plan.segments.indexOf(seg);
     const lt = Math.max(0, t - seg.start);
-    const f: Frame = { A: this.segState(seg, lt), B: null, mixA: 1, full: null, card: null, black: 0 };
+    const f: Frame = { A: this.segState(seg, lt), B: null, mixA: 1, full: null, card: null, black: 0, photo: seg.photoIndex };
     // dissolve in from the previous segment's last frame
     const prev = this.plan.segments[idx - 1];
     const dissolve = seg.kind === 'visit' ? (seg.plate?.same ? 0 : Math.min(this.xf, seg.visit!.travel)) : seg.kind === 'intro' ? 0 : this.xf;
@@ -357,19 +366,22 @@ export class BackyardRenderer implements ShowRenderer {
     const r = this.renderer;
     if (f.B && f.tx && f.mixA < 1) {
       // a real cut: render each side whole, then the Fabula transition hands one to the other
+      // pictures only into the targets; the grade and the words go on after the blend
       r.setRenderTarget(this.tx.outgoing);
-      this.paintScene({ A: f.B, B: null, mixA: 1, full: null, card: null, black: 0 });
+      this.paintScene({ A: f.B, B: null, mixA: 1, full: null, card: null, black: 0 }, false);
       r.setRenderTarget(this.tx.incoming);
-      this.paintScene({ ...f, B: null, mixA: 1 });
+      this.paintScene({ ...f, B: null, mixA: 1 }, false);
       r.setRenderTarget(null);
       this.tx.blend(f.tx, f.mixA);
+      this.finish.apply(this.lookOf(f), performance.now());
+      this.overlay.renderText(r);
       return;
     }
     r.setRenderTarget(null);
-    this.paintScene(f);
+    this.paintScene(f, true);
   }
 
-  private paintScene(f: Frame) {
+  private paintScene(f: Frame, final: boolean) {
     const aspect = this.w / this.h;
     // B under A for dissolves
     this.drawLayer(this.layers[0], f.B, f.B ? 1 : 0);
@@ -403,6 +415,10 @@ export class BackyardRenderer implements ShowRenderer {
     r.autoClear = false;
     r.render(O.scene, O.cam);
     r.autoClear = auto;
+    if (final) {
+      this.finish.apply(this.lookOf(f), performance.now());
+      O.renderText(r);
+    }
   }
 
   draw(t: number) { this.paint(this.frameAt(t)); }
@@ -453,7 +469,7 @@ export class BackyardRenderer implements ShowRenderer {
       if (U.lt < tIn) cam = this.lerpCam(U.base.cam, winCam, ease(U.lt / tIn));
       else if (U.lt < tIn + tFull + 0.2) { cam = winCam; amount = ease((U.lt - tIn) / 1.2); }
       else { const k = (U.lt - tIn - tFull - 0.2); amount = 1 - ease(k / 1.2); cam = this.lerpCam(winCam, U.base.cam, ease(k / tOut)); }
-      f = { A: { ...U.base, cam }, B: null, mixA: 1, full: amount > 0 ? { index: U.photo, amount, k: 0.5, bokeh: this.plan.segments.find((s) => s.plate?.bokeh)?.plate?.bokeh, bokehTime: U.lt } : null, card: null, black: 0 };
+      f = { photo: U.photo, A: { ...U.base, cam }, B: null, mixA: 1, full: amount > 0 ? { index: U.photo, amount, k: 0.5, bokeh: this.plan.segments.find((s) => s.plate?.bokeh)?.plate?.bokeh, bokehTime: U.lt } : null, card: null, black: 0 };
     } else {
       f = this.frameAt(L.t);
     }
@@ -534,6 +550,7 @@ export class BackyardRenderer implements ShowRenderer {
 
   dispose() {
     this.tx.dispose();
+    this.finish.dispose();
     for (const l of this.layers) l.dispose();
     this.bokehQuad.geometry.dispose(); this.bokehMat.dispose();
     this.images.dispose();

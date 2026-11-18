@@ -10,6 +10,7 @@ import { PhotoQuad, clamp01, ease, envelope, isFullFrame, kenBurns, strHash } fr
 import { Overlay, type ShowRenderer } from './base';
 import { segmentAt } from '../planner';
 import { TransitionPass, transitionById } from '../transitions';
+import { FinishPass, lookFor } from '../finish';
 
 interface Layer { seg: ShowSegment; lt: number; role: 'in' | 'out' | 'solo'; p: number; tr: ClassicTransition | string }
 
@@ -20,6 +21,7 @@ export class ClassicRenderer implements ShowRenderer {
   private w = 1280; private h = 720;
   private xf: number;
   private tx: TransitionPass;
+  private finish: FinishPass;
 
   constructor(readonly spec: ShowSpec, plan: ShowPlan, private renderer: THREE.WebGLRenderer) {
     this.plan = plan;
@@ -27,6 +29,7 @@ export class ClassicRenderer implements ShowRenderer {
     for (const q of this.extra) this.overlay.scene.add(q.mesh);
     this.xf = Math.max(0.4, Math.min(4, spec.transition?.seconds ?? 1.6)) * Math.max(0.6, Math.min(1.8, spec.pace || 1));
     this.tx = new TransitionPass(renderer, this.w, this.h);
+    this.finish = new FinishPass(renderer);
   }
 
   async load(onProgress?: (k: number, label: string) => void) {
@@ -43,7 +46,9 @@ export class ClassicRenderer implements ShowRenderer {
     for (const s of [this.plan.segments[idx - 1], seg, this.plan.segments[idx + 1]]) if (s?.photoIndex != null) want.add(s.photoIndex);
     if (seg.kind === 'intro' && this.spec.photos.length) want.add(0);
     await Promise.all([...want].map((i) => this.overlay.loadFull(i).catch(() => null)));
+    await this.finish.prepare(this.lookAt(t));
   }
+  private lookAt(t: number) { const L = this.layers(t); const s = L[L.length - 1].seg; return lookFor(this.spec, s.photoIndex != null ? this.spec.photos[s.photoIndex] : null); }
 
   /** Which segments are visible at t, and how far through the transition we are. */
   private layers(t: number): Layer[] {
@@ -73,10 +78,13 @@ export class ClassicRenderer implements ShowRenderer {
       this.paint([{ ...L[1], role: 'solo' }]);
       r.setRenderTarget(null);
       this.tx.blend(String(L[0].tr), ease(L[0].p));
-      return;
+    } else {
+      r.setRenderTarget(null);
+      this.paint(L);
     }
-    r.setRenderTarget(null);
-    this.paint(L);
+    // the grade + lens of the shot coming in, then the words on top
+    this.finish.apply(this.lookAt(t), performance.now());
+    this.overlay.renderText(r);
   }
 
   private paint(layers: Layer[]) {
@@ -222,5 +230,5 @@ export class ClassicRenderer implements ShowRenderer {
     this.tx.setSize(Math.max(2, v.x), Math.max(2, v.y));
   }
 
-  dispose() { this.tx.dispose(); for (const q of this.extra) q.dispose(); this.overlay.dispose(); }
+  dispose() { this.tx.dispose(); this.finish.dispose(); for (const q of this.extra) q.dispose(); this.overlay.dispose(); }
 }

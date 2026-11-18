@@ -15,6 +15,7 @@ import { buildLanternGarden, type Pose, type ThemeBuild } from '../themes/lanter
 import { canvasTexture, clamp01, ease, envelope, polaroidCanvas } from '../common';
 import { Overlay, type ShowRenderer } from './base';
 import { segmentAt } from '../planner';
+import { FinishPass, lookFor } from '../finish';
 
 interface Frame {
   pose: Pose;
@@ -50,10 +51,12 @@ export class LanternRenderer implements ShowRenderer {
   private tmpB = new THREE.Vector3();
   private raycaster = new THREE.Raycaster();
   private w = 1280; private h = 720;
+  private finish: FinishPass;
 
   constructor(readonly spec: ShowSpec, plan: ShowPlan, private renderer: THREE.WebGLRenderer) {
     this.plan = plan;
     this.overlay = new Overlay(spec);
+    this.finish = new FinishPass(renderer);
     this.composer = new EffectComposer(renderer);
     this.bloom = new UnrealBloomPass(new THREE.Vector2(640, 360), 0.4, 0.55, 0.88);
   }
@@ -213,6 +216,9 @@ export class LanternRenderer implements ShowRenderer {
     r.clearDepth();
     r.render(O.scene, O.cam);
     r.autoClear = auto;
+    const pi = f.full?.index ?? (f.focus.index >= 0 ? f.focus.index : null);
+    this.finish.apply(lookFor(this.spec, pi != null ? this.spec.photos[pi] : null), performance.now());
+    O.renderText(r);
   }
 
   private planRun(seg: ShowSegment, idx: number): RunSeg {
@@ -225,6 +231,7 @@ export class LanternRenderer implements ShowRenderer {
     const want: number[] = [];
     for (const s of [seg, this.plan.segments[idx + 1]]) if (s?.kind === 'visit') want.push(s.photoIndex!);
     await Promise.all(want.map((i) => this.overlay.loadFull(i)));
+    await this.finish.prepare(lookFor(this.spec, seg.photoIndex != null ? this.spec.photos[seg.photoIndex] : null));
   }
 
   draw(t: number) {
@@ -399,6 +406,7 @@ export class LanternRenderer implements ShowRenderer {
   }
 
   dispose() {
+    this.finish.dispose();
     this.theme?.dispose();
     this.overlay.dispose();
     this.composer.dispose();

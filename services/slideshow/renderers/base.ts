@@ -31,7 +31,10 @@ export interface FullPageState { index: number; amount: number; k: number; zoomF
 
 /** The overlay pass both themes draw on top: full-page photo, captions, cards, fades. */
 export class Overlay {
+  /** The picture: full-page photo, dim, backdrops (graded and lensed). */
   scene = new THREE.Scene();
+  /** The words and fades: captions, title cards, chapter lines, fade to black (never graded). */
+  textScene = new THREE.Scene();
   cam = new THREE.OrthographicCamera(-0.5, 0.5, 0.5, -0.5, -10, 10);
   dim = new FlatQuad(0x05040a);
   backdrop = new PhotoQuad();
@@ -48,7 +51,8 @@ export class Overlay {
   private cards: Record<'intro' | 'outro', THREE.Texture | null> = { intro: null, outro: null };
 
   constructor(private spec: ShowSpec) {
-    for (const q of [this.dim, this.backdrop, this.photo, this.caption, this.card, this.black, this.chapter]) this.scene.add(q.mesh);
+    for (const q of [this.dim, this.backdrop, this.photo]) this.scene.add(q.mesh);
+    for (const q of [this.caption, this.card, this.chapter, this.black]) this.textScene.add(q.mesh);
   }
 
   setAspect(a: number) {
@@ -141,6 +145,15 @@ export class Overlay {
     if (!t) { t = canvasTexture(chapterCanvas(text)); this.chapters.set(text, t); }
     const w = 0.42, h = w * (140 / 1400) * this.aspect;
     this.chapter.set(t, opacity, { x: 0.05, y: 0.86 - h, w, h }, this.aspect, 18);
+  }
+
+  /** Draw the text layer over whatever is on the canvas (after the finishing pass). */
+  renderText(r: THREE.WebGLRenderer) {
+    const auto = r.autoClear;
+    r.autoClear = false;
+    r.clearDepth();
+    r.render(this.textScene, this.cam);
+    r.autoClear = auto;
   }
 
   drawBlack(opacity: number) { this.black.set(null, opacity, { x: 0, y: 0, w: 1, h: 1 }, this.aspect, 30); }

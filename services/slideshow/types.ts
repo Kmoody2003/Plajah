@@ -14,6 +14,16 @@ export type ShowThemeId = 'lantern-garden' | 'classic' | 'backyard';
 /** Classic transition styles (the planner picks per cut unless the owner pins one). */
 export type ClassicTransition = 'crossfade' | 'dip' | 'drift' | 'parallax-push' | 'soft-wipe';
 
+/** A grade + lens: the platform's cinematic LUTs and lenses. Always drawn under the text. */
+export interface ShowLook {
+  /** CINEMATIC_LUTS id. */
+  lut?: string;
+  /** 0..1 (default 1). */
+  lutStrength?: number;
+  /** LENSES id ('none' = off). */
+  lens?: string;
+}
+
 /** Normalised crop rectangle in source pixels' 0..1 space. */
 export interface CropRect { x: number; y: number; w: number; h: number }
 
@@ -43,6 +53,8 @@ export interface ShowPhoto {
   manualPolaroid?: CropRect;
   /** Size of the photo when it goes full page (0.6..1, default 1 = as large as fits). */
   fullScale?: number;
+  /** This photo's own look while it is the shot on screen (overrides the show's). */
+  look?: ShowLook;
   /** Show the description on this shot (under the full page, on the polaroid). Off by default. */
   showCaption?: boolean;
   /** Where the description came from: typed by the owner, a descriptive file name, or read from the picture. */
@@ -133,6 +145,8 @@ export interface ShowSpec {
   /** Transition length (s) and style: 'auto' picks from the theme's palette; otherwise a Classic
    *  move or any Fabula library transition id ("exposure-blur" or "exposure-blur:bloom"). */
   transition?: { style: ClassicTransition | 'auto' | string; seconds: number };
+  /** The whole show's look (grade + lens); a photo's own look overrides it on its shots. */
+  look?: ShowLook;
   /** Show Director: event detection + emotional ordering. */
   director?: { enabled: boolean; style: import('./director').DirectorStyle; notes?: string[] };
   /** Classic theme: depth parallax strength 0..1 (0 = flat Ken Burns only). */

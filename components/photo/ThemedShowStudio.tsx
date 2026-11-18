@@ -9,9 +9,12 @@ import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useStat
 import {
   Play, Pause, ChevronLeft, ChevronRight, Maximize2, Film, Download, FolderOpen, Music, Trash2,
   RotateCw, ArrowUp, ArrowDown, Sparkles, Loader2, X, Clapperboard, Images, ImagePlus, Upload, Wand2, Eye,
-  SkipBack, SkipForward, Rewind, Type, EyeOff, Pencil, Crop, Save, HardDrive, FilePlus2, Clock3,
+  SkipBack, SkipForward, Rewind, Type, EyeOff, Pencil, Crop, Save, HardDrive, FilePlus2, Clock3, ArrowLeftRight, CopyPlus,
 } from 'lucide-react';
-import type { ShowPhoto, ShowSpec, ShowThemeId, ShowTrack, MusicMode, ClassicTransition } from '../../services/slideshow/types';
+import { Button, IconButton, Surface, Eyebrow, Chip, Input, Actions, AnchoredPopover } from '../ui';
+import ShowTimeline, { type TimelineOps } from './show/ShowTimeline';
+import LookPicker from './show/LookPicker';
+import type { ShowPhoto, ShowSpec, ShowThemeId, ShowTrack, MusicMode, ClassicTransition, ShowLook } from '../../services/slideshow/types';
 import { preparePhoto, type PrepInput } from '../../services/slideshow/photoPrep';
 import { buildPlan } from '../../services/slideshow/planner';
 import { ShowRuntime } from '../../services/slideshow/showRuntime';
@@ -151,7 +154,10 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
   const [croppingId, setCroppingId] = useState<string | null>(null);
   const [saved, setSaved] = useState<{ at: number; saving: boolean; error?: string } | null>(null);
   const [recent, setRecent] = useState<ShowProjectSummary[]>([]);
-  const [openMenu, setOpenMenu] = useState(false);
+  const [openAnchor, setOpenAnchor] = useState<HTMLElement | null>(null);
+  const [selection, setSelection] = useState<string[]>([]);
+  const [clip, setClip] = useState<ShowPhoto[]>([]);
+  const [look, setLook] = useState<ShowLook | undefined>(undefined);
   const [hydrating, setHydrating] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const hostRef = useRef<HTMLDivElement>(null);
@@ -183,12 +189,13 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
     dedication: { heading, name, dates, closing },
     photos: showPhotos,
     director: { enabled: directorOn && !!direction, style, notes: direction?.notes },
+    look,
     music: { mode: musicMode, tracks, fitToMusic, volume: 0.8 },
     pace, wideEvery,
     transition: { style: transition, seconds: xfSeconds },
     parallax,
     createdAt: createdAt.current, updatedAt: Date.now(),
-  }), [theme, title, heading, name, dates, closing, showPhotos, directorOn, direction, style, musicMode, tracks, fitToMusic, pace, wideEvery, transition, xfSeconds, parallax]);
+  }), [theme, title, heading, name, dates, closing, showPhotos, directorOn, direction, style, look, musicMode, tracks, fitToMusic, pace, wideEvery, transition, xfSeconds, parallax]);
 
   const plan = useMemo(() => buildPlan(spec), [spec]);
 
@@ -207,24 +214,25 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
     setPace(s.pace); setWideEvery(s.wideEvery);
     setTransition(s.transition?.style || 'auto'); setXfSeconds(s.transition?.seconds ?? 1.4); setParallax(s.parallax ?? 0.6);
     setDirectorTouched(true); setDirectorOn(!!s.director?.enabled); setStyle(s.director?.style || 'story');
+    setLook(s.look); setSelection([]);
     setSelectedId(null); setVideo(null); setScrubT(3);
   }, []);
 
   const openSaved = async (id: string) => {
-    setOpenMenu(false);
+    setOpenAnchor(null);
     setHydrating(true);
     try { const { spec: s, file } = await openLocal(id); hydrate(s); setSaved({ at: file.savedAt, saving: false }); }
     catch (e: any) { setMsg(e?.message || 'Could not open that show.'); }
     finally { setHydrating(false); }
   };
   const openDrive = async () => {
-    setOpenMenu(false);
+    setOpenAnchor(null);
     try { setHydrating(true); const { spec: s } = await openFromDrive(); hydrate(s); setMsg(`Opened "${s.title}" from your drive.`); }
     catch (e: any) { if (e?.name !== 'AbortError') setMsg(e?.message || 'Could not open that folder.'); }
     finally { setHydrating(false); }
   };
   const newShow = () => {
-    setOpenMenu(false);
+    setOpenAnchor(null);
     showId.current = `show_${uid()}`; createdAt.current = Date.now();
     setPhotos([]); setTracks([]); setMusicMode('none'); setTitle('A life remembered'); setName(''); setDates('');
     setSaved(null); setSelectedId(null); setVideo(null);
@@ -379,12 +387,6 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
   };
   const toggleFraming = (id: string) => { const p = photos.find((q) => q.id === id); if (p) void reprep(p, { keepFraming: !p.keepFraming }); };
   useEffect(() => {
-    if (!openMenu) return;
-    const close = () => setOpenMenu(false);
-    window.addEventListener('click', close);
-    return () => window.removeEventListener('click', close);
-  }, [openMenu]);
-  useEffect(() => {
     if (!menu) return;
     const close = () => setMenu(null);
     window.addEventListener('click', close);
@@ -505,143 +507,178 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
   const sel = selIndex >= 0 ? showPhotos[selIndex] : null;
   const est = visionEstimate(photos.filter((p) => !p.context).length);
 
+  // --- timeline editing ----------------------------------------------------------------
+  // Edits act on the order on screen. With the director on that is its order, so a hand edit
+  // takes the show over from the director (said plainly, one switch to give it back).
+  const takeOver = () => {
+    if (directorOn) { setDirectorTouched(true); setDirectorOn(false); setMsg('You arranged the shots by hand, so the director is off. Turn it on again to let it reorder.'); }
+  };
+  const byId = (id: string) => showPhotos.find((p) => p.id === id) || photos.find((p) => p.id === id);
+  const dupOf = (p: ShowPhoto): ShowPhoto => ({ ...p, id: `${p.id.split('~')[0]}~${uid()}` });
+  const ops: TimelineOps = {
+    reorder: (ids) => { takeOver(); setPhotos(ids.map(byId).filter(Boolean) as ShowPhoto[]); },
+    remove: (ids) => { const drop = new Set(ids); setPhotos((ps) => ps.filter((p) => !drop.has(p.id))); setSelection([]); setSelectedId(null); },
+    duplicate: (ids) => {
+      takeOver();
+      const order = showPhotos.map((p) => p.id);
+      const at = Math.max(...ids.map((id) => order.indexOf(id)));
+      const copies = ids.map((id) => dupOf(byId(id)!));
+      const list = showPhotos.slice();
+      list.splice(at + 1, 0, ...copies);
+      setPhotos(list);
+      setSelection(copies.map((c) => c.id)); setSelectedId(copies[copies.length - 1].id);
+    },
+    copy: (ids) => { setClip(ids.map((id) => byId(id)!).filter(Boolean)); setMsg(`${ids.length} shot${ids.length > 1 ? 's' : ''} copied.`); },
+    cut: (ids) => { setClip(ids.map((id) => byId(id)!).filter(Boolean)); ops.remove(ids); },
+    paste: (afterId) => {
+      if (!clip.length) return;
+      takeOver();
+      const list = showPhotos.slice();
+      const at = afterId ? list.findIndex((p) => p.id === afterId) + 1 : list.length;
+      const copies = clip.map(dupOf);
+      list.splice(at, 0, ...copies);
+      setPhotos(list);
+      setSelection(copies.map((c) => c.id)); setSelectedId(copies[copies.length - 1].id);
+    },
+    swap: (a, b) => {
+      takeOver();
+      const list = showPhotos.slice();
+      const i = list.findIndex((p) => p.id === a), j = list.findIndex((p) => p.id === b);
+      if (i < 0 || j < 0) return;
+      [list[i], list[j]] = [list[j], list[i]];
+      setPhotos(list);
+    },
+    edit: (id) => setEditingId(id),
+    crop: (id) => setCroppingId(id),
+    rotate: (id) => void rotate(id),
+    toggleFull: (id) => { const p = byId(id); if (p) updatePhoto(id, { fullFrame: !isFullFrame(p) }); },
+    toggleCaption: (id) => { const p = byId(id); if (p) updatePhoto(id, { showCaption: !p.showCaption }); },
+    canPaste: clip.length > 0,
+  };
+  const multi = selection.length > 1;
+
   return (
-    <div className="relative flex flex-col gap-5 text-white"
+    <div className="relative flex flex-col gap-4" style={{ color: 'var(--text-primary)' }}
       onDragOver={(e) => { if (Array.from(e.dataTransfer.types).includes('Files')) { e.preventDefault(); setDragOver(true); } }}
       onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOver(false); }}
       onDrop={onDrop}>
       {dragOver && (
-        <div className="absolute inset-0 z-50 rounded-3xl border-2 border-dashed border-amber-200/80 bg-black/70 flex flex-col items-center justify-center gap-2 pointer-events-none">
-          <Upload size={28} className="text-amber-200" />
-          <div className="font-serif text-xl">Drop photos or a whole folder</div>
-          <div className="text-xs text-white/60">Music files dropped here are added to the soundtrack.</div>
+        <div className="absolute inset-0 z-50 rounded-sheet border-2 border-dashed border-[var(--pj-orange)] bg-black/70 flex flex-col items-center justify-center gap-2 pointer-events-none">
+          <Upload size={28} className="text-brand-orange" />
+          <div className="type-headline-sm">Drop photos or a whole folder</div>
+          <div className="type-body-sm" style={{ color: 'var(--on-surface-variant)' }}>Music files dropped here are added to the soundtrack.</div>
         </div>
       )}
+
       {/* header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-amber-200/70"><Sparkles size={12} /> Themed Shows</div>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} className="bg-transparent text-2xl font-serif outline-none border-b border-transparent focus:border-white/20 mt-1" aria-label="Show title" />
-          <div className="text-xs text-white/40 mt-1">{photos.length} photos · {fmt(plan.duration)} planned · {plan.fullPage.length ? `${(plan.fullPage.reduce((a, b) => a + b, 0) / plan.fullPage.length).toFixed(1)}s full page each on average` : 'add photos to begin'}</div>
+      <Surface level={2} shape="card" padded={false} className="flex items-center justify-between gap-3 flex-wrap px-5 py-3">
+        <div className="min-w-0">
+          <Eyebrow className="flex items-center gap-2"><Sparkles size={12} /> Themed Shows</Eyebrow>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Show title"
+            className="type-headline-sm bg-transparent outline-none border-b border-transparent focus:border-[var(--m3-border-strong)] w-full max-w-[28rem]" />
+          <div className="type-body-sm" style={{ color: 'var(--on-surface-variant)' }}>
+            {photos.length} photos · {fmt(plan.duration)} planned{plan.fullPage.length ? ` · ${(plan.fullPage.reduce((a, b) => a + b, 0) / plan.fullPage.length).toFixed(1)}s full page on average` : ''}
+          </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {photos.length > 0 && (
-            <span className={`flex items-center gap-1.5 text-[11px] px-2.5 py-1 rounded-full ${saved?.error ? 'bg-red-500/15 text-red-200' : 'bg-white/5 text-white/55'}`}
-              title={owner ? `Owned by ${owner.handle || owner.uid}. Saved on this device; cloud sync to the account comes next.` : 'Saved on this device only (not signed in).'}>
-              <Save size={12} />
+            <Chip title={owner ? `Owned by ${owner.handle || owner.uid}. Saved on this device; cloud sync to the account comes next.` : 'Saved on this device only (not signed in).'}
+              className={saved?.error ? '!text-[var(--pj-danger)]' : ''}>
+              <Save size={12} className="inline mr-1.5 -mt-0.5" />
               {saved?.error ? saved.error : saved?.saving ? 'Saving…' : saved?.at ? `Saved on this device · ${new Date(saved.at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Not saved yet'}
-            </span>
+            </Chip>
           )}
-          <div className="relative">
-            <button onClick={(e) => { e.stopPropagation(); setOpenMenu((v) => !v); void listLocal().then(setRecent); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-xs"><FolderOpen size={13} /> Open</button>
-            {openMenu && (
-              <div className="absolute right-0 mt-1 z-[310] w-72 max-h-80 overflow-y-auto py-1 rounded-xl bg-zinc-900 ring-1 ring-white/10 shadow-2xl text-xs" onClick={(e) => e.stopPropagation()}>
-                <button onClick={newShow} className="w-full text-left px-3 py-2 hover:bg-white/10 flex items-center gap-2"><FilePlus2 size={13} /> New show</button>
-                {driveSupported() && <button onClick={openDrive} className="w-full text-left px-3 py-2 hover:bg-white/10 flex items-center gap-2"><HardDrive size={13} /> Open a show folder from your drive…</button>}
-                {recent.length > 0 && <div className="px-3 pt-2 pb-1 text-[10px] uppercase tracking-widest text-white/35">On this device</div>}
-                {recent.map((r) => (
-                  <button key={r.id} onClick={() => void openSaved(r.id)} className={`w-full text-left px-3 py-2 hover:bg-white/10 ${r.id === showId.current ? 'text-amber-100' : ''}`}>
-                    <div className="truncate">{r.title}</div>
-                    <div className="text-[10px] text-white/40 flex items-center gap-1"><Clock3 size={10} /> {new Date(r.savedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · {r.photos} photos · {r.theme}</div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          {driveSupported() && <button onClick={toDrive} disabled={!photos.length} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 disabled:opacity-40 text-xs" title="Write the whole show (settings, photos, music) as a folder on your drive"><HardDrive size={13} /> Save to drive</button>}
-          {onClose && <button onClick={onClose} className="p-2 rounded-full bg-white/5 hover:bg-white/10" aria-label="Close"><X size={16} /></button>}
+          <Button size="sm" variant="secondary" icon={<FolderOpen />} onClick={(e) => { const el = e.currentTarget as HTMLElement; setOpenAnchor((a) => (a ? null : el)); void listLocal().then(setRecent); }}>Open</Button>
+          {driveSupported() && <Button size="sm" variant="ghost" icon={<HardDrive />} disabled={!photos.length} onClick={toDrive} title="Write the whole show (settings, photos, music) as a folder on your drive">Save to drive</Button>}
+          {onClose && <IconButton size="sm" variant="ghost" aria-label="Close" onClick={onClose}><X /></IconButton>}
         </div>
-      </div>
+      </Surface>
+      {openAnchor && (
+        <AnchoredPopover anchor={openAnchor} onClose={() => setOpenAnchor(null)} align="end" role="menu" className="pj-surface pj-surface--3 w-80 p-1.5">
+          <Button size="sm" variant="ghost" fullWidth icon={<FilePlus2 />} className="!justify-start" onClick={() => { setOpenAnchor(null); newShow(); }}>New show</Button>
+          {driveSupported() && <Button size="sm" variant="ghost" fullWidth icon={<HardDrive />} className="!justify-start" onClick={() => { setOpenAnchor(null); void openDrive(); }}>Open a show folder from your drive…</Button>}
+          {recent.length > 0 && <p className="pj-eyebrow px-3 pt-3 pb-1">On this device</p>}
+          {recent.map((r) => (
+            <button key={r.id} type="button" onClick={() => { setOpenAnchor(null); void openSaved(r.id); }} className={`w-full text-left px-3 py-2 rounded-[var(--pj-radius-sm)] hover:bg-white/5 ${r.id === showId.current ? 'text-brand-orange' : ''}`}>
+              <div className="type-title-sm truncate">{r.title}</div>
+              <div className="type-body-sm flex items-center gap-1" style={{ color: 'var(--on-surface-variant)' }}><Clock3 size={11} /> {new Date(r.savedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} · {r.photos} photos · {r.theme}</div>
+            </button>
+          ))}
+        </AnchoredPopover>
+      )}
 
-      <div className="grid lg:grid-cols-[1fr_340px] gap-5">
-        {/* stage */}
-        <div className="flex flex-col gap-3 min-w-0">
-          <div ref={stageRef} className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden ring-1 ring-white/10">
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-4 items-start">
+        {/* left: the show + transport + timeline — pinned so they stay in view */}
+        <div className="flex flex-col gap-3 min-w-0 lg:sticky lg:top-3">
+          <div ref={stageRef} className="relative mx-auto aspect-video bg-black rounded-card overflow-hidden ring-1 ring-[var(--m3-border)]"
+            style={{ width: 'min(100%, calc((100dvh - 26rem) * 16 / 9))', minWidth: 'min(100%, 420px)' }}>
             <div ref={hostRef} className="absolute inset-0" />
             {!photos.length && !prep && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-sm p-6 text-center">
-                <ImagePlus size={30} className="text-amber-200/80" />
-                <div className="font-serif text-xl text-white/90">Bring the photos in</div>
-                <div className="text-white/50 text-xs max-w-sm">Drag photos or a whole folder here, or choose them below. Each photo is turned upright, its faces found and its tone gently fixed.</div>
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-6 text-center">
+                <ImagePlus size={30} className="text-brand-orange" />
+                <div className="type-headline-sm">Bring the photos in</div>
+                <div className="type-body-sm max-w-sm" style={{ color: 'var(--on-surface-variant)' }}>Drag photos or a whole folder here, or choose them below. Each photo is turned upright, its faces found and its tone gently fixed.</div>
                 <div className="flex flex-wrap justify-center gap-2">
                   <ImportButtons onFiles={onFolder} />
-                  {library.length > 0 && <button onClick={() => setPicker(true)} className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-xs"><Images size={14} /> From my Photos</button>}
+                  {library.length > 0 && <Button size="sm" variant="secondary" icon={<Images />} onClick={() => setPicker(true)}>From my Photos</Button>}
                 </div>
                 {recent.length > 0 && (
                   <div className="flex flex-col items-center gap-1.5 mt-1">
-                    <div className="text-[10px] uppercase tracking-widest text-white/35">Continue a show</div>
+                    <p className="pj-eyebrow">Continue a show</p>
                     <div className="flex flex-wrap justify-center gap-1.5">
-                      {recent.slice(0, 4).map((r) => <button key={r.id} onClick={() => void openSaved(r.id)} className="px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-xs">{r.title} · {r.photos}</button>)}
+                      {recent.slice(0, 4).map((r) => <Chip key={r.id} interactive onClick={() => void openSaved(r.id)}>{r.title} · {r.photos}</Chip>)}
                     </div>
                   </div>
                 )}
               </div>
             )}
-            {(loading || prep) && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 text-sm">
+            {(loading || prep || hydrating) && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/60 type-body-md">
                 <Loader2 className="animate-spin" size={20} />
-                <div>{prep ? `Preparing photos ${prep.done}/${prep.total} — orienting, finding faces, gentle tone fix` : loading?.label}</div>
-                {loading && <div className="w-48 h-1 bg-white/10 rounded"><div className="h-1 bg-amber-200/80 rounded" style={{ width: `${Math.round(loading.k * 100)}%` }} /></div>}
-              </div>
-            )}
-            {mode === 'live' && status && !loading && (
-              <div className="absolute left-3 bottom-3 flex items-center gap-2 text-[11px] bg-black/40 backdrop-blur rounded-full px-3 py-1.5 pointer-events-none">
-                <span className="text-amber-100/90">{status.viewed}/{status.total} seen full page</span>
-                {status.paused && <span className="text-white/60">· paused</span>}
-              </div>
-            )}
-            {photos.length > 0 && (
-              <div className="absolute right-3 bottom-3 flex items-center gap-1">
-                <StageBtn onClick={fullscreen} label="Full screen"><Maximize2 size={14} /></StageBtn>
+                <div>{prep ? `Preparing photos ${prep.done}/${prep.total}: turning upright, finding faces, a gentle tone fix` : hydrating ? 'Opening the show…' : loading?.label}</div>
+                {loading && <div className="w-48 h-1 bg-white/10 rounded-full"><div className="h-1 rounded-full bg-[var(--pj-orange)]" style={{ width: `${Math.round(loading.k * 100)}%` }} /></div>}
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex p-1 bg-white/5 rounded-full">
-              {(['scrub', 'live'] as const).map((m) => (
-                <button key={m} onClick={() => { rtRef.current?.stopLive(); setPlanPlaying(false); setMode(m); }} className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${mode === m ? 'bg-white text-black' : 'text-white/50 hover:text-white'}`}>
-                  {m === 'live' ? 'Live · interactive' : 'Show · timeline'}
-                </button>
-              ))}
-            </div>
-            <span className="text-[11px] text-white/40">{mode === 'live' ? `Tap or click any ${theme !== 'classic' ? 'polaroid' : 'side'} to bring it full screen · ← → · space pauses · Esc steps back` : 'The show exactly as it renders · space plays · ← → shot to shot'}</span>
-          </div>
-
-          {/* transport */}
-          <div className="flex flex-col gap-1.5 p-2.5 rounded-2xl bg-white/[0.04] ring-1 ring-white/5">
-            <div className="flex items-center gap-1.5">
+          {/* transport + segment timeline */}
+          <Surface level={2} padded={false} className="px-3 py-2.5 flex flex-col gap-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="flex gap-1 mr-1">
+                <Chip interactive selected={mode === 'scrub'} onClick={() => { rtRef.current?.stopLive(); setPlanPlaying(false); setMode('scrub'); }}>Show · timeline</Chip>
+                <Chip interactive selected={mode === 'live'} onClick={() => { rtRef.current?.stopLive(); setPlanPlaying(false); setMode('live'); }}>Live · interactive</Chip>
+              </div>
               {mode === 'scrub' ? (<>
-                <TransportBtn onClick={() => seek(0)} label="Back to start (Home)" disabled={!photos.length}><Rewind size={15} /></TransportBtn>
-                <TransportBtn onClick={() => rtRef.current?.stepPlan(-1)} label="Previous shot (←)" disabled={!photos.length}><SkipBack size={15} /></TransportBtn>
-                <button onClick={togglePlan} disabled={!photos.length || !!loading} aria-label={planPlaying ? 'Pause (space)' : 'Play (space)'} title={planPlaying ? 'Pause (space)' : 'Play (space)'}
-                  className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center disabled:opacity-40">{planPlaying ? <Pause size={16} /> : <Play size={16} className="ml-0.5" />}</button>
-                <TransportBtn onClick={() => rtRef.current?.stepPlan(1)} label="Next shot (→)" disabled={!photos.length}><SkipForward size={15} /></TransportBtn>
-                <span className="ml-2 font-mono text-xs tabular-nums text-white/80">{fmt(scrubT)} <span className="text-white/35">/ {fmt(plan.duration)}</span></span>
+                <IconButton size="sm" variant="ghost" aria-label="Back to start (Home)" title="Back to start (Home)" disabled={!photos.length} onClick={() => seek(0)}><Rewind /></IconButton>
+                <IconButton size="sm" variant="ghost" aria-label="Previous shot (←)" title="Previous shot (←)" disabled={!photos.length} onClick={() => rtRef.current?.stepPlan(-1)}><SkipBack /></IconButton>
+                <IconButton size="md" variant="accent" aria-label={planPlaying ? 'Pause (space)' : 'Play (space)'} title={planPlaying ? 'Pause (space)' : 'Play (space)'} disabled={!photos.length || !!loading} onClick={togglePlan}>{planPlaying ? <Pause /> : <Play />}</IconButton>
+                <IconButton size="sm" variant="ghost" aria-label="Next shot (→)" title="Next shot (→)" disabled={!photos.length} onClick={() => rtRef.current?.stepPlan(1)}><SkipForward /></IconButton>
+                <span className="ml-1 font-mono text-xs tabular-nums">{fmt(scrubT)} <span style={{ color: 'var(--on-surface-variant)' }}>/ {fmt(plan.duration)}</span></span>
                 {(() => { const seg = plan.segments.find((s, k) => scrubT >= s.start && (k === plan.segments.length - 1 || scrubT < plan.segments[k + 1].start)); const ph = seg?.photoIndex != null ? showPhotos[seg.photoIndex] : null;
-                  return <span className="ml-2 text-[11px] text-white/45 truncate">{seg ? (seg.kind === 'visit' ? `Photo ${seg.photoIndex! + 1} of ${showPhotos.length}${ph && shownCaption(ph) ? ` · ${shownCaption(ph)}` : ''}` : seg.kind === 'wide' ? 'Wide shot' : seg.kind === 'intro' ? 'Opening' : 'Closing') : ''}</span>; })()}
+                  return <span className="ml-1 type-body-sm truncate" style={{ color: 'var(--on-surface-variant)' }}>{seg ? (seg.kind === 'visit' ? `Photo ${seg.photoIndex! + 1} of ${showPhotos.length}${ph && shownCaption(ph) ? ` · ${shownCaption(ph)}` : ''}` : seg.kind === 'wide' ? 'Wide shot' : seg.kind === 'intro' ? 'Opening' : 'Closing') : ''}</span>; })()}
               </>) : (<>
-                <TransportBtn onClick={() => rtRef.current?.liveKey('prev')} label="Previous photo (←)" disabled={!photos.length}><SkipBack size={15} /></TransportBtn>
-                <button onClick={() => rtRef.current?.liveKey('pause')} disabled={!photos.length} aria-label="Pause or resume (space)" title="Pause or resume (space)"
-                  className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center disabled:opacity-40">{status?.paused ? <Play size={16} className="ml-0.5" /> : <Pause size={16} />}</button>
-                <TransportBtn onClick={() => rtRef.current?.liveKey('next')} label="Next photo (→)" disabled={!photos.length}><SkipForward size={15} /></TransportBtn>
-                <span className="ml-2 font-mono text-xs tabular-nums text-white/80">{fmt(status?.clock || 0)}</span>
-                {status && <span className="ml-2 text-[11px] text-amber-100/80">{status.viewed}/{status.total} seen full page</span>}
+                <IconButton size="sm" variant="ghost" aria-label="Previous photo (←)" disabled={!photos.length} onClick={() => rtRef.current?.liveKey('prev')}><SkipBack /></IconButton>
+                <IconButton size="md" variant="accent" aria-label="Pause or resume (space)" disabled={!photos.length} onClick={() => rtRef.current?.liveKey('pause')}>{status?.paused ? <Play /> : <Pause />}</IconButton>
+                <IconButton size="sm" variant="ghost" aria-label="Next photo (→)" disabled={!photos.length} onClick={() => rtRef.current?.liveKey('next')}><SkipForward /></IconButton>
+                <span className="ml-1 font-mono text-xs tabular-nums">{fmt(status?.clock || 0)}</span>
+                {status && <span className="ml-1 type-body-sm text-brand-orange">{status.viewed}/{status.total} seen full page</span>}
+                <span className="type-body-sm" style={{ color: 'var(--on-surface-variant)' }}>· tap any {theme !== 'classic' ? 'polaroid' : 'side'}</span>
               </>)}
               <span className="ml-auto" />
-              <TransportBtn onClick={fullscreen} label="Full screen"><Maximize2 size={15} /></TransportBtn>
+              <IconButton size="sm" variant="ghost" aria-label="Full screen" title="Full screen" onClick={fullscreen}><Maximize2 /></IconButton>
             </div>
             {mode === 'scrub' && (
-              <div className="relative h-8 select-none">
-                {/* segment timeline: opening, each photo, wide shots, closing */}
-                <div className="absolute inset-x-0 top-1 h-5 rounded overflow-hidden bg-black/30">
+              <div className="relative h-7 select-none">
+                <div className="absolute inset-x-0 top-1 h-5 rounded-[var(--pj-radius-xs)] overflow-hidden bg-black/35">
                   {plan.segments.map((s, k) => {
                     const next = plan.segments[k + 1];
                     const len = (next ? next.start : plan.duration) - s.start;
+                    const on = s.photoIndex != null && selection.includes(showPhotos[s.photoIndex]?.id);
                     return (
                       <div key={s.id} title={s.kind === 'visit' ? `Photo ${s.photoIndex! + 1}` : s.kind}
-                        className={`absolute top-0 h-full border-l border-black/60 ${s.kind === 'visit' ? (s.chapter ? 'bg-amber-200/55' : 'bg-amber-200/35') : s.kind === 'wide' ? 'bg-sky-300/45' : 'bg-white/25'}`}
-                        style={{ left: `${(s.start / plan.duration) * 100}%`, width: `${(len / plan.duration) * 100}%` }} />
+                        className="absolute top-0 h-full border-l border-black/60"
+                        style={{ left: `${(s.start / plan.duration) * 100}%`, width: `${(len / plan.duration) * 100}%`,
+                          background: on ? 'var(--pj-orange)' : s.kind === 'visit' ? (s.chapter ? 'rgba(255,140,0,0.55)' : 'rgba(255,140,0,0.32)') : s.kind === 'wide' ? 'rgba(0,218,243,0.4)' : 'rgba(255,255,255,0.22)' }} />
                     );
                   })}
                   <div className="absolute top-0 h-full w-0.5 bg-white shadow-[0_0_6px_rgba(255,255,255,0.8)] pointer-events-none" style={{ left: `${(Math.min(scrubT, plan.duration) / Math.max(0.01, plan.duration)) * 100}%` }} />
@@ -650,135 +687,124 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
                   className="absolute inset-x-0 top-0 h-7 w-full opacity-0 cursor-pointer" aria-label="Show timeline" />
               </div>
             )}
-          </div>
+          </Surface>
 
-          {/* photo strip */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <ImportButtons onFiles={onFolder} compact />
-            {library.length > 0 && <button onClick={() => setPicker(true)} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs"><Images size={14} /> From my Photos</button>}
-            <span className="text-[11px] text-white/30">or drag photos or a folder anywhere here</span>
-            {photos.length > 0 && <button onClick={() => { setPhotos([]); setSelectedId(null); }} className="text-xs text-white/40 hover:text-white ml-auto">Clear all</button>}
-          </div>
-          <div className="flex gap-2 overflow-x-auto pb-2 items-end">
-            {showPhotos.map((p, i) => {
-              const newEvent = directorOn && !!direction && !!p.event && p.event !== showPhotos[i - 1]?.event;
-              return (
-                <React.Fragment key={p.id}>
-                  {newEvent && i > 0 && <div className="shrink-0 self-stretch w-px bg-amber-200/30 mx-1" />}
-                  <div className="shrink-0 flex flex-col gap-1">
-                    {newEvent && p.eventLabel ? <div className="text-[9px] text-amber-100/70 whitespace-nowrap max-w-[10rem] truncate">{p.eventLabel}</div> : <div className="h-[13px]" />}
-                    <div className="relative group">
-                    <button onClick={() => setSelectedId(p.id)} onContextMenu={(e) => { e.preventDefault(); setSelectedId(p.id); setMenu({ id: p.id, x: e.clientX, y: e.clientY }); }}
-                      className={`relative w-20 h-20 rounded-lg overflow-hidden ring-2 ${selectedId === p.id ? 'ring-amber-200' : 'ring-transparent'}`} title={p.context?.caption || shownCaption(p) || `Photo ${i + 1} · right-click for options`}>
-                      <img src={p.src} alt="" className="w-full h-full object-cover" style={{ transform: `rotate(${(p.quarterTurns || 0) * 90}deg)` }} />
-                      {directorOn && p.role && p.role !== 'moment' && <span className="absolute top-0.5 left-0.5 text-[8px] uppercase tracking-wider bg-black/60 rounded px-1">{p.role}</span>}
-                      {p.showCaption && p.caption && <span className="absolute top-0.5 right-0.5 bg-amber-200 text-black rounded p-0.5" title={p.caption}><Type size={9} /></span>}
-                      {isFullFrame(p) && <span className="absolute bottom-4 left-0.5 text-[8px] uppercase tracking-wider bg-sky-300 text-black rounded px-1" title="Shown whole, full screen (never cropped into a print)">Full</span>}
-                      {p.trim && !p.keepFraming && <span className="absolute bottom-4 right-0.5 bg-black/70 rounded p-0.5" title={p.trimReason === 'screenshot' ? 'Screenshot: cropped to the photo inside' : 'Black/white borders trimmed'}><Crop size={9} /></span>}
-                      <span className="absolute bottom-0 inset-x-0 text-[9px] bg-black/60 text-center">{plan.fullPage[i]?.toFixed(1)}s{p.faces ? ` · ${p.faces}☺` : ''}</span>
-                    </button>
-                    <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                      <button onClick={(e) => { e.stopPropagation(); setEditingId(p.id); }} aria-label="Edit photo" title="Edit photo" className="p-1 rounded bg-black/75 hover:bg-black text-white"><Pencil size={11} /></button>
-                      <button onClick={(e) => { e.stopPropagation(); setCroppingId(p.id); }} aria-label="Crop and scale" title="Crop and scale" className="p-1 rounded bg-black/75 hover:bg-black text-white"><Crop size={11} /></button>
-                      <button onClick={(e) => { e.stopPropagation(); removePhoto(p.id); }} aria-label="Remove from show" title="Remove from show" className="p-1 rounded bg-black/75 hover:bg-red-600 text-white"><Trash2 size={11} /></button>
-                    </div>
-                    </div>
-                  </div>
-                </React.Fragment>
-              );
-            })}
-          </div>
-          {sel && selectedId && (
-            <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-white/5 text-xs">
-              <span className="text-white/50">Photo {selIndex + 1}{sel.eventLabel && directorOn ? ` · ${sel.eventLabel}` : ''}</span>
-              {sel.context?.caption && <span className="w-full text-white/40 italic">{sel.context.caption}</span>}
-              <div className="w-full flex flex-wrap items-center gap-2">
-                <label className="flex items-center gap-1.5 shrink-0" title="Show this description on the shot">
-                  <input type="checkbox" checked={!!sel.showCaption} disabled={!sel.caption?.trim()} onChange={(e) => updatePhoto(selectedId, { showCaption: e.target.checked })} />
-                  <Type size={12} /> Show description
-                </label>
-                <input placeholder={sel.context?.caption ? `e.g. ${sel.context.caption}` : 'Type a description for this shot'} value={sel.caption || ''}
-                  onChange={(e) => updatePhoto(selectedId, { caption: e.target.value, captionSource: 'typed', showCaption: e.target.value.trim() ? (sel.captionSource === 'typed' || !sel.caption ? true : sel.showCaption) : false })}
-                  className="flex-1 min-w-[180px] bg-black/30 rounded px-2 py-1.5 outline-none" />
-                {sel.caption && sel.captionSource && <span className="text-[10px] text-white/40 shrink-0">{sel.captionSource === 'filename' ? 'from the file name' : sel.captionSource === 'picture' ? 'from the picture' : 'typed'}</span>}
-                {sel.context?.caption && sel.caption !== sel.context.caption && <button onClick={() => updatePhoto(selectedId, { caption: sel.context!.caption, captionSource: 'picture' })} className="text-[10px] text-amber-100/80 hover:text-amber-100 shrink-0">Use what the picture shows</button>}
-              </div>
-              <label className="flex items-center gap-1">Full page
-                <input type="number" min={2} max={20} step={0.5} value={sel.dwellOverride ?? +(plan.fullPage[selIndex] || 5).toFixed(1)} onChange={(e) => updatePhoto(selectedId, { dwellOverride: +e.target.value })} className="w-14 bg-black/30 rounded px-1 py-1" />s
-              </label>
-              {sel.dwellOverride != null && <button onClick={() => updatePhoto(selectedId, { dwellOverride: undefined })} className="text-white/50 hover:text-white">auto</button>}
-              <IconBtn onClick={() => rotate(selectedId)} label="Rotate 90°"><RotateCw size={13} /></IconBtn>
-              <IconBtn onClick={() => setEditingId(selectedId)} label="Edit photo"><Pencil size={13} /></IconBtn>
-              <IconBtn onClick={() => setCroppingId(selectedId)} label="Crop and scale"><Crop size={13} /></IconBtn>
-              {(sel.trim || sel.keepFraming) && (
-                <label className="flex items-center gap-1.5" title={sel.trimReason === 'screenshot' ? 'A phone screenshot: cropped to the photo inside (status bar and app chrome removed)' : 'Black or white borders were trimmed'}>
-                  <input type="checkbox" checked={!sel.keepFraming} onChange={() => toggleFraming(selectedId)} />
-                  {sel.trimReason === 'screenshot' ? 'Crop screenshot' : 'Trim borders'}
-                </label>
-              )}
-              <label className="flex items-center gap-1.5" title="Graphics, posters and covers are shown whole, scaled to fit 16:9, never cropped into a polaroid">
-                <input type="checkbox" checked={isFullFrame(sel)} onChange={(e) => updatePhoto(selectedId, { fullFrame: e.target.checked })} />
-                Full screen{sel.graphic && sel.fullFrame == null ? ' (graphic detected)' : ''}
-              </label>
-              {directorOn
-                ? <button onClick={() => updatePhoto(selectedId, { pinned: !sel.pinned })} className={`px-2 py-1 rounded ${sel.pinned ? 'bg-amber-200 text-black' : 'bg-black/30'}`} title="The director closes the show on a pinned portrait">{sel.pinned ? 'Closing photo ✓' : 'Close on this'}</button>
-                : <>
-                  <IconBtn onClick={() => move(selectedId, -1)} label="Earlier"><ArrowUp size={13} /></IconBtn>
-                  <IconBtn onClick={() => move(selectedId, 1)} label="Later"><ArrowDown size={13} /></IconBtn>
-                </>}
-              <IconBtn onClick={() => { setPhotos((ps) => ps.filter((p) => p.id !== selectedId)); setSelectedId(null); }} label="Remove"><Trash2 size={13} /></IconBtn>
+          {/* shots: freely editable */}
+          <Surface level={1} padded={false} className="px-3 pt-2.5 pb-1.5 flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <ImportButtons onFiles={onFolder} compact />
+              {library.length > 0 && <Button size="xs" variant="ghost" icon={<Images />} onClick={() => setPicker(true)}>From my Photos</Button>}
+              <span className="type-body-sm hidden xl:inline" style={{ color: 'var(--on-surface-variant)' }}>Drag to reorder · box-select · right-click for more</span>
+              <span className="ml-auto" />
+              {multi && (<>
+                <span className="type-label-md text-brand-orange">{selection.length} selected</span>
+                {selection.length === 2 && <Button size="xs" variant="secondary" icon={<ArrowLeftRight />} onClick={() => ops.swap(selection[0], selection[1])}>Swap</Button>}
+                <Button size="xs" variant="secondary" icon={<CopyPlus />} onClick={() => ops.duplicate(selection)}>Duplicate</Button>
+                <Button size="xs" variant="danger-quiet" icon={<Trash2 />} onClick={() => ops.remove(selection)}>Remove</Button>
+              </>)}
+              {photos.length > 0 && !multi && <Button size="xs" variant="ghost" onClick={() => { setPhotos([]); setSelection([]); setSelectedId(null); }}>Clear all</Button>}
             </div>
-          )}
+            <ShowTimeline photos={showPhotos} seconds={plan.fullPage} selection={selection} director={directorOn && !!direction}
+              onSelection={(ids, focus) => { setSelection(ids); setSelectedId(focus); }} ops={ops} />
+          </Surface>
         </div>
 
-        {/* settings */}
-        <div className="flex flex-col gap-4">
+        {/* right: options — scrolls on its own */}
+        <aside className="flex flex-col gap-3 lg:sticky lg:top-3 lg:max-h-[calc(100dvh-1.5rem)] lg:overflow-y-auto lg:pr-1 [scrollbar-width:thin]">
+          {sel && selectedId && !multi && (
+            <Section title={`Shot ${selIndex + 1}${sel.eventLabel && directorOn ? ` · ${sel.eventLabel}` : ''}`} brand>
+              <div className="flex items-center gap-3">
+                <img src={sel.src} alt="" className="w-16 h-16 object-cover rounded-[var(--pj-radius-sm)]" style={{ transform: `rotate(${(sel.quarterTurns || 0) * 90}deg)` }} />
+                <div className="flex flex-wrap gap-1">
+                  <IconButton size="sm" variant="secondary" aria-label="Edit photo" title="Edit photo" onClick={() => setEditingId(selectedId)}><Pencil /></IconButton>
+                  <IconButton size="sm" variant="secondary" aria-label="Crop and scale" title="Crop and scale" onClick={() => setCroppingId(selectedId)}><Crop /></IconButton>
+                  <IconButton size="sm" variant="secondary" aria-label="Rotate 90°" title="Rotate 90°" onClick={() => rotate(selectedId)}><RotateCw /></IconButton>
+                  <IconButton size="sm" variant="secondary" aria-label="Duplicate" title="Duplicate" onClick={() => ops.duplicate([selectedId])}><CopyPlus /></IconButton>
+                  <IconButton size="sm" variant="danger-quiet" aria-label="Remove from show" title="Remove from show" onClick={() => ops.remove([selectedId])}><Trash2 /></IconButton>
+                </div>
+              </div>
+              {sel.context?.caption && <p className="type-body-sm italic" style={{ color: 'var(--on-surface-variant)' }}>{sel.context.caption}</p>}
+              <label className="flex items-center gap-2 type-label-md">
+                <input type="checkbox" checked={!!sel.showCaption} disabled={!sel.caption?.trim()} onChange={(e) => updatePhoto(selectedId, { showCaption: e.target.checked })} />
+                <Type size={13} /> Show description
+                {sel.caption && sel.captionSource && <span className="ml-auto type-body-sm" style={{ color: 'var(--on-surface-variant)' }}>{sel.captionSource === 'filename' ? 'from the file name' : sel.captionSource === 'picture' ? 'from the picture' : 'typed'}</span>}
+              </label>
+              <input className="pj-input" placeholder={sel.context?.caption ? `e.g. ${sel.context.caption}` : 'Type a description for this shot'} value={sel.caption || ''}
+                onChange={(e) => updatePhoto(selectedId, { caption: e.target.value, captionSource: 'typed', showCaption: e.target.value.trim() ? (sel.captionSource === 'typed' || !sel.caption ? true : sel.showCaption) : false })} />
+              {sel.context?.caption && sel.caption !== sel.context.caption && <Button size="xs" variant="ghost" onClick={() => updatePhoto(selectedId, { caption: sel.context!.caption, captionSource: 'picture' })}>Use what the picture shows</Button>}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 type-label-md">
+                <label className="flex items-center gap-1.5">Full page
+                  <input type="number" min={2} max={20} step={0.5} value={sel.dwellOverride ?? +(plan.fullPage[selIndex] || 5).toFixed(1)} onChange={(e) => updatePhoto(selectedId, { dwellOverride: +e.target.value })} className="pj-input !w-16 !py-1 !px-2" />s
+                  {sel.dwellOverride != null && <Button size="xs" variant="ghost" onClick={() => updatePhoto(selectedId, { dwellOverride: undefined })}>auto</Button>}
+                </label>
+                <label className="flex items-center gap-1.5" title="Graphics, posters and covers are shown whole, scaled to fit 16:9, never cropped into a print">
+                  <input type="checkbox" checked={isFullFrame(sel)} onChange={(e) => updatePhoto(selectedId, { fullFrame: e.target.checked })} />
+                  Full screen{sel.graphic && sel.fullFrame == null ? ' (graphic)' : ''}
+                </label>
+                {(sel.trim || sel.keepFraming) && sel.trimReason !== 'manual' && (
+                  <label className="flex items-center gap-1.5">
+                    <input type="checkbox" checked={!sel.keepFraming} onChange={() => toggleFraming(selectedId)} />
+                    {sel.trimReason === 'screenshot' ? 'Crop screenshot' : 'Trim borders'}
+                  </label>
+                )}
+                {directorOn && <label className="flex items-center gap-1.5" title="The director closes the show on a pinned portrait"><input type="checkbox" checked={!!sel.pinned} onChange={(e) => updatePhoto(selectedId, { pinned: e.target.checked })} /> Close on this</label>}
+              </div>
+              <div className="pt-1">
+                <p className="pj-eyebrow pb-1.5">This photo's look</p>
+                <LookPicker inherits look={sel.look} onChange={(l) => updatePhoto(selectedId, { look: l })} />
+              </div>
+            </Section>
+          )}
+
           <Section title="Theme">
             <div className="grid gap-2">
               {THEMES.map((t) => (
-                <button key={t.id} onClick={() => setTheme(t.id)} className={`text-left p-3 rounded-xl bg-gradient-to-br ${t.tone} ring-1 ${theme === t.id ? 'ring-amber-200' : 'ring-white/10 hover:ring-white/30'}`}>
-                  <div className="font-serif text-base">{t.name}</div>
-                  <div className="text-[11px] text-white/60 mt-1 leading-snug">{t.blurb}</div>
+                <button key={t.id} type="button" onClick={() => setTheme(t.id)}
+                  className={`pj-surface text-left p-3 bg-gradient-to-br ${t.tone} ${theme === t.id ? 'pj-surface--brand' : ''}`} style={{ padding: 'var(--pj-space-3)' }}>
+                  <div className="type-title-md">{t.name}</div>
+                  <div className="type-body-sm mt-1" style={{ color: 'var(--on-surface-variant)' }}>{t.blurb}</div>
                 </button>
               ))}
             </div>
           </Section>
 
+          <Section title="Look">
+            <p className="type-body-sm" style={{ color: 'var(--on-surface-variant)' }}>A grade and lens over the whole show. A photo's own look wins on its shots. Text is never graded.</p>
+            <LookPicker look={look} onChange={setLook} />
+          </Section>
+
           <Section title="Director">
-            <label className="flex items-center justify-between gap-2 text-sm">
-              <span className="flex items-center gap-2"><Wand2 size={14} className="text-amber-200" /> Film director</span>
+            <label className="flex items-center justify-between gap-2 type-title-sm">
+              <span className="flex items-center gap-2"><Wand2 size={14} className="text-brand-orange" /> Film director</span>
               <input type="checkbox" checked={directorOn} onChange={(e) => { setDirectorTouched(true); setDirectorOn(e.target.checked); }} aria-label="Film director" />
             </label>
-            <div className="text-[11px] text-white/45 leading-snug">
+            <p className="type-body-sm" style={{ color: 'var(--on-surface-variant)' }}>
               {directorOn
                 ? 'Finds the events in your photos, orders them for feeling, opens each scene wide, ends it on its strongest moment and closes the show on the best portrait.'
-                : theme === 'backyard' ? 'Off for Back Yard by default: photos play in the order you chose. Turn it on to let the director shape the show.' : 'Off: photos play in the order you chose.'}
-            </div>
+                : theme === 'backyard' ? 'Off for Back Yard by default: photos play in your order. Turn it on to let the director shape the show.' : 'Off: photos play in your order.'}
+            </p>
             {directorOn && (<>
-              <div className="flex p-1 bg-white/5 rounded-full text-[10px] font-black uppercase tracking-widest">
-                {(['story', 'feeling'] as DirectorStyle[]).map((s) => (
-                  <button key={s} onClick={() => setStyle(s)} className={`flex-1 py-1.5 rounded-full ${style === s ? 'bg-white text-black' : 'text-white/50'}`}>{s === 'story' ? 'Life story' : 'For feeling'}</button>
-                ))}
+              <div className="flex gap-1">
+                <Chip interactive selected={style === 'story'} onClick={() => setStyle('story')}>Life story</Chip>
+                <Chip interactive selected={style === 'feeling'} onClick={() => setStyle('feeling')}>For feeling</Chip>
               </div>
-              {directing && <div className="flex items-center gap-2 text-[11px] text-white/50"><Loader2 size={12} className="animate-spin" /> Reading the album…</div>}
+              {directing && <div className="flex items-center gap-2 type-body-sm"><Loader2 size={12} className="animate-spin" /> Reading the album…</div>}
               {direction && !directing && (
-                <div className="flex flex-col gap-1 text-[11px] text-white/60">
+                <div className="flex flex-col gap-1 type-body-sm" style={{ color: 'var(--on-surface-variant)' }}>
                   {direction.notes.map((n, k) => <div key={k}>· {n}</div>)}
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {direction.events.filter((e) => e.label).map((e) => <span key={e.id} className="px-2 py-0.5 rounded-full bg-amber-200/10 text-amber-100/80">{e.label} · {e.photos.length}</span>)}
-                  </div>
+                  <div className="flex flex-wrap gap-1 mt-1">{direction.events.filter((e) => e.label).map((e) => <Chip key={e.id}>{e.label} · {e.photos.length}</Chip>)}</div>
                 </div>
               )}
-              <div className="border-t border-white/5 pt-2 flex flex-col gap-1.5">
-                <div className="flex items-center gap-2 text-xs"><Eye size={13} className="text-white/50" /> Understand what is in each photo</div>
-                <div className="text-[11px] text-white/40 leading-snug">Dates, faces and look are read on this device. A vision model can also read occasions, places and mood, so the events and the order follow what is actually happening.</div>
-                {vision ? <div className="flex items-center gap-2 text-[11px]"><Loader2 size={12} className="animate-spin" /> Reading {vision.done}/{vision.total}…</div>
+              <div className="border-t border-[var(--m3-border)] pt-2 flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 type-title-sm"><Eye size={13} /> Understand what is in each photo</div>
+                <p className="type-body-sm" style={{ color: 'var(--on-surface-variant)' }}>Dates, faces and look are read on this device. A vision model can also read occasions, places and mood, so the events and order follow what is actually happening.</p>
+                {vision ? <div className="flex items-center gap-2 type-body-sm"><Loader2 size={12} className="animate-spin" /> Reading {vision.done}/{vision.total}…</div>
                   : askVision ? (
-                    <div className="flex flex-col gap-2 p-2 rounded-lg bg-black/30 text-[11px]">
+                    <Surface level={3} className="flex flex-col gap-2 type-body-sm" style={{ padding: 'var(--pj-space-3)' }}>
                       <div>Sends {photos.filter((p) => !p.context).length} small thumbnails (384 px) to Google Gemini through Plajah. About {est.usd != null ? `$${Math.max(0.001, est.usd).toFixed(3)}` : 'a fraction of a cent'} and ~{est.seconds}s. Nothing else leaves this device.</div>
-                      <div className="flex gap-2"><button onClick={runVision} className="px-3 py-1 rounded-full bg-white text-black font-bold">Read them</button><button onClick={() => setAskVision(false)} className="px-3 py-1 rounded-full bg-white/10">Not now</button></div>
-                    </div>
-                  ) : <button disabled={!photos.some((p) => !p.context)} onClick={() => setAskVision(true)} className="self-start px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 text-xs">{photos.length && !photos.some((p) => !p.context) ? 'All photos read ✓' : 'Read photos with a vision model…'}</button>}
+                      <Actions><Button size="sm" variant="ghost" onClick={() => setAskVision(false)}>Not now</Button><Button size="sm" variant="secondary" onClick={runVision}>Read them</Button></Actions>
+                    </Surface>
+                  ) : <Button size="sm" variant="secondary" className="self-start" disabled={!photos.some((p) => !p.context)} onClick={() => setAskVision(true)}>{photos.length && !photos.some((p) => !p.context) ? 'All photos read ✓' : 'Read photos with a vision model…'}</Button>}
               </div>
             </>)}
           </Section>
@@ -791,35 +817,32 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
               const typed = withText.length - fromName - fromPic;
               const shown = photos.filter((p) => shownCaption(p)).length;
               return (<>
-                <div className="text-[11px] text-white/45 leading-snug">Off on every shot unless you turn it on. File names never show. A description can be typed, taken from a descriptive file name, or read from the picture.</div>
-                <div className="text-[11px] text-white/60">{withText.length ? `${withText.length} of ${photos.length} have one (${[typed && `${typed} typed`, fromName && `${fromName} from file names`, fromPic && `${fromPic} from the picture`].filter(Boolean).join(', ')}) · ${shown} shown` : 'No descriptions yet. Select a shot to type one.'}</div>
+                <p className="type-body-sm" style={{ color: 'var(--on-surface-variant)' }}>Off on every shot unless you turn it on. File names never show. A description can be typed, taken from a descriptive file name, or read from the picture.</p>
+                <p className="type-body-sm">{withText.length ? `${withText.length} of ${photos.length} have one (${[typed && `${typed} typed`, fromName && `${fromName} from file names`, fromPic && `${fromPic} from the picture`].filter(Boolean).join(', ')}) · ${shown} shown` : 'No descriptions yet. Select a shot to type one.'}</p>
                 <div className="flex flex-wrap gap-1.5">
-                  <button onClick={() => setPhotos((ps) => ps.map((p) => (p.captionSource === 'filename' ? { ...p, caption: undefined, captionSource: undefined, showCaption: false } : p)))} disabled={!fromName}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 text-[11px]"><EyeOff size={12} /> Remove file-name captions</button>
-                  <button onClick={() => setPhotos((ps) => ps.map((p) => (p.caption?.trim() ? { ...p, showCaption: true } : p)))} disabled={!withText.length}
-                    className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 text-[11px]">Show all</button>
-                  <button onClick={() => setPhotos((ps) => ps.map((p) => ({ ...p, showCaption: false })))} disabled={!shown}
-                    className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 text-[11px]">Hide all</button>
+                  <Button size="xs" variant="secondary" icon={<EyeOff />} disabled={!fromName} onClick={() => setPhotos((ps) => ps.map((p) => (p.captionSource === 'filename' ? { ...p, caption: undefined, captionSource: undefined, showCaption: false } : p)))}>Remove file-name captions</Button>
+                  <Button size="xs" variant="ghost" disabled={!withText.length} onClick={() => setPhotos((ps) => ps.map((p) => (p.caption?.trim() ? { ...p, showCaption: true } : p)))}>Show all</Button>
+                  <Button size="xs" variant="ghost" disabled={!shown} onClick={() => setPhotos((ps) => ps.map((p) => ({ ...p, showCaption: false })))}>Hide all</Button>
                 </div>
               </>);
             })()}
           </Section>
 
           <Section title="Dedication">
-            <Field label="Opening line"><input value={heading} onChange={(e) => setHeading(e.target.value)} className={inputCls} /></Field>
-            <Field label="Name"><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Their name" className={inputCls} /></Field>
-            <Field label="Dates"><input value={dates} onChange={(e) => setDates(e.target.value)} placeholder="1948 – 2026" className={inputCls} /></Field>
-            <Field label="Closing line"><input value={closing} onChange={(e) => setClosing(e.target.value)} className={inputCls} /></Field>
+            <Input label="Opening line" value={heading} onChange={(e) => setHeading(e.target.value)} />
+            <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Their name" />
+            <Input label="Dates" value={dates} onChange={(e) => setDates(e.target.value)} placeholder="1948 – 2026" />
+            <Input label="Closing line" value={closing} onChange={(e) => setClosing(e.target.value)} />
           </Section>
 
-          <Section title="Pace">
-            <Field label={`Pace ${pace.toFixed(2)}× ${pace >= 1.15 ? '(unhurried)' : pace <= 0.9 ? '(brisk)' : ''}`}><input type="range" min={0.7} max={1.6} step={0.05} value={pace} onChange={(e) => setPace(+e.target.value)} className="w-full" /></Field>
+          <Section title="Pace & transitions">
+            <Field label={`Pace ${pace.toFixed(2)}×${pace >= 1.15 ? ' (unhurried)' : pace <= 0.9 ? ' (brisk)' : ''}`}><input type="range" min={0.7} max={1.6} step={0.05} value={pace} onChange={(e) => setPace(+e.target.value)} className="w-full accent-[var(--pj-orange)]" /></Field>
             {theme !== 'classic' && (
-              <Field label={`Wide shot every ${wideEvery} photos`}><input type="range" min={3} max={12} step={1} value={wideEvery} onChange={(e) => setWideEvery(+e.target.value)} className="w-full" /></Field>
+              <Field label={`Wide shot every ${wideEvery} photos`}><input type="range" min={3} max={12} step={1} value={wideEvery} onChange={(e) => setWideEvery(+e.target.value)} className="w-full accent-[var(--pj-orange)]" /></Field>
             )}
             {theme !== 'lantern-garden' && (<>
               <Field label="Transitions (Fabula library)">
-                <select value={transition} onChange={(e) => setTransition(e.target.value as any)} className={inputCls}>
+                <select value={transition} onChange={(e) => setTransition(e.target.value)} className="pj-input">
                   <option value="auto">Auto: matched to {THEMES.find((t) => t.id === theme)?.name} ({(THEME_TRANSITIONS[theme] || []).map(([id]) => SHOW_TRANSITIONS.find((x) => x.id === id)?.name).filter((v, k, a) => v && a.indexOf(v) === k).slice(0, 3).join(', ')})</option>
                   {theme === 'classic' && <optgroup label="Classic moves">{TRANSITIONS.filter((t) => t !== 'auto').map((t) => <option key={t} value={t}>{t.replace('-', ' ')}</option>)}</optgroup>}
                   {(['light', 'dissolve', 'motion', 'distort', 'graphic'] as const).map((fam) => (
@@ -829,76 +852,55 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
                   ))}
                 </select>
               </Field>
-              <Field label={`Transition length ${xfSeconds.toFixed(1)}s`}><input type="range" min={0.4} max={4} step={0.1} value={xfSeconds} onChange={(e) => setXfSeconds(+e.target.value)} className="w-full" /></Field>
+              <Field label={`Transition length ${xfSeconds.toFixed(1)}s`}><input type="range" min={0.4} max={4} step={0.1} value={xfSeconds} onChange={(e) => setXfSeconds(+e.target.value)} className="w-full accent-[var(--pj-orange)]" /></Field>
             </>)}
             {theme === 'classic' && (
-              <Field label={`Depth parallax ${Math.round(parallax * 100)}%`}><input type="range" min={0} max={1} step={0.05} value={parallax} onChange={(e) => setParallax(+e.target.value)} className="w-full" /></Field>
+              <Field label={`Depth parallax ${Math.round(parallax * 100)}%`}><input type="range" min={0} max={1} step={0.05} value={parallax} onChange={(e) => setParallax(+e.target.value)} className="w-full accent-[var(--pj-orange)]" /></Field>
             )}
           </Section>
 
           <Section title="Music">
-            <div className="flex p-1 bg-white/5 rounded-full text-[10px] font-black uppercase tracking-widest">
-              {(['none', 'playlist', 'loop'] as MusicMode[]).map((m) => (
-                <button key={m} onClick={() => setMusicMode(m)} className={`flex-1 py-1.5 rounded-full ${musicMode === m ? 'bg-white text-black' : 'text-white/50'}`}>{m}</button>
-              ))}
+            <div className="flex gap-1">
+              {(['none', 'playlist', 'loop'] as MusicMode[]).map((m) => <Chip key={m} interactive selected={musicMode === m} onClick={() => setMusicMode(m)}>{m === 'none' ? 'None' : m === 'playlist' ? 'Playlist' : 'Loop'}</Chip>)}
             </div>
-            <div className="text-[11px] text-white/40">{musicMode === 'loop' ? 'The first track repeats until every photo has had its time.' : musicMode === 'playlist' ? 'Tracks play in order, then start again if photos still need time.' : 'Silent — you can still add music later in Fabula.'}</div>
+            <p className="type-body-sm" style={{ color: 'var(--on-surface-variant)' }}>{musicMode === 'loop' ? 'The first track repeats until every photo has had its time.' : musicMode === 'playlist' ? 'Tracks play in order, then start again if photos still need time.' : 'Silent. You can still add music later in Fabula.'}</p>
             {musicMode !== 'none' && (<>
               {tracks.map((t, i) => (
-                <div key={t.id} className="flex items-center gap-2 text-xs bg-black/20 rounded px-2 py-1.5">
-                  <Music size={12} className="text-white/40" /><span className="flex-1 truncate">{t.title}</span><span className="text-white/40">{t.duration ? fmt(t.duration) : '…'}</span>
-                  <button onClick={() => setTracks((ts) => ts.filter((_, k) => k !== i))} aria-label="Remove track" className="text-white/40 hover:text-white"><X size={12} /></button>
+                <div key={t.id} className="flex items-center gap-2 type-body-sm px-2 py-1 rounded-[var(--pj-radius-sm)] bg-black/25">
+                  <Music size={12} /><span className="flex-1 truncate">{t.title}</span><span className="font-mono" style={{ color: 'var(--on-surface-variant)' }}>{t.duration ? fmt(t.duration) : '…'}</span>
+                  <IconButton size="xs" variant="ghost" aria-label="Remove track" onClick={() => setTracks((ts) => ts.filter((_, k) => k !== i))}><X /></IconButton>
                 </div>
               ))}
-              <label className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer text-xs">
-                <Music size={13} /> Add music
-                <input type="file" multiple accept="audio/*" className="hidden" onChange={(e) => onMusic(e.target.files)} />
+              <label className="pj-btn pj-btn--secondary pj-btn--sm tap cursor-pointer self-start"><Music size={14} /> Add music
+                <input type="file" multiple accept="audio/*" className="hidden" onChange={(e) => { onMusic(e.target.files); e.target.value = ''; }} />
               </label>
-              {musicMode === 'playlist' && <label className="flex items-center gap-2 text-xs"><input type="checkbox" checked={fitToMusic} onChange={(e) => setFitToMusic(e.target.checked)} /> Fit photo timing to the playlist</label>}
+              {musicMode === 'playlist' && <label className="flex items-center gap-2 type-label-md"><input type="checkbox" checked={fitToMusic} onChange={(e) => setFitToMusic(e.target.checked)} /> Fit photo timing to the playlist</label>}
             </>)}
           </Section>
 
           <Section title="Share">
             <div className="grid grid-cols-2 gap-2">
-              <ActBtn onClick={() => doRender(1080, true, 'mp4')} disabled={!photos.length || !!render}><Film size={14} /> Render 1080p</ActBtn>
-              <ActBtn onClick={() => doRender(720, true, 'mp4')} disabled={!photos.length || !!render}><Film size={14} /> Render 720p</ActBtn>
-              <ActBtn onClick={() => doRender(1080, false, 'mp4')} disabled={!photos.length || !!render}><Film size={14} /> No music</ActBtn>
-              <ActBtn onClick={toFabula} disabled={!photos.length}><Clapperboard size={14} /> Open in Fabula</ActBtn>
+              <Button size="sm" variant="primary" icon={<Film />} disabled={!photos.length || !!render} onClick={() => doRender(1080, true, 'mp4')}>Render 1080p</Button>
+              <Button size="sm" variant="secondary" icon={<Film />} disabled={!photos.length || !!render} onClick={() => doRender(720, true, 'mp4')}>Render 720p</Button>
+              <Button size="sm" variant="secondary" icon={<Film />} disabled={!photos.length || !!render} onClick={() => doRender(1080, false, 'mp4')}>No music</Button>
+              <Button size="sm" variant="secondary" icon={<Clapperboard />} disabled={!photos.length} onClick={toFabula}>Open in Fabula</Button>
             </div>
             {render && (
-              <div className="flex flex-col gap-1 text-xs">
-                <div className="flex justify-between"><span>{render.label}</span><button onClick={() => abortRef.current?.abort()} className="text-white/50 hover:text-white">Cancel</button></div>
-                <div className="h-1 bg-white/10 rounded"><div className="h-1 bg-amber-200 rounded" style={{ width: `${Math.round(render.k * 100)}%` }} /></div>
+              <div className="flex flex-col gap-1 type-body-sm">
+                <div className="flex justify-between items-center"><span>{render.label}</span><Button size="xs" variant="ghost" onClick={() => abortRef.current?.abort()}>Cancel</Button></div>
+                <div className="h-1 bg-white/10 rounded-full"><div className="h-1 rounded-full bg-[var(--pj-orange)]" style={{ width: `${Math.round(render.k * 100)}%` }} /></div>
               </div>
             )}
             {video && (
               <div className="flex flex-col gap-2">
-                <video src={video.url} controls className="w-full rounded-lg" />
-                <a href={video.url} download={video.name} className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white text-black text-xs font-bold"><Download size={14} /> Download {video.name}</a>
+                <video src={video.url} controls className="w-full rounded-[var(--pj-radius-md)]" />
+                <Button as="a" href={video.url} download={video.name} size="sm" variant="accent" icon={<Download />}>Download {video.name}</Button>
               </div>
             )}
-            {msg && <div className="text-[11px] text-amber-100/80">{msg}</div>}
           </Section>
-        </div>
+          {msg && <p role="status" className="type-body-sm px-1 text-brand-orange">{msg}</p>}
+        </aside>
       </div>
-
-      {menu && (() => {
-        const p = photos.find((q) => q.id === menu.id);
-        if (!p) return null;
-        const item = 'w-full text-left px-3 py-1.5 hover:bg-white/10 flex items-center gap-2';
-        return (
-          <div className="fixed z-[320] min-w-[200px] py-1 rounded-xl bg-zinc-900 ring-1 ring-white/10 shadow-2xl text-xs" style={{ left: Math.min(menu.x, window.innerWidth - 220), top: Math.min(menu.y, window.innerHeight - 260) }} onClick={(e) => e.stopPropagation()} role="menu">
-            <button role="menuitem" className={item} onClick={() => { setEditingId(p.id); setMenu(null); }}><Pencil size={12} /> Edit photo…</button>
-            <button role="menuitem" className={item} onClick={() => { setCroppingId(p.id); setMenu(null); }}><Crop size={12} /> Crop &amp; scale…</button>
-            <button role="menuitem" className={item} onClick={() => { void rotate(p.id); setMenu(null); }}><RotateCw size={12} /> Rotate 90°</button>
-            {(p.trim || p.keepFraming) && <button role="menuitem" className={item} onClick={() => { toggleFraming(p.id); setMenu(null); }}><Crop size={12} /> {p.keepFraming ? 'Trim again' : 'Keep original framing'}</button>}
-            <button role="menuitem" className={item} onClick={() => { updatePhoto(p.id, { fullFrame: !isFullFrame(p) }); setMenu(null); }}><Maximize2 size={12} /> {isFullFrame(p) ? 'Show as a print' : 'Full screen (no print)'}</button>
-            {p.caption?.trim() && <button role="menuitem" className={item} onClick={() => { updatePhoto(p.id, { showCaption: !p.showCaption }); setMenu(null); }}><Type size={12} /> {p.showCaption ? 'Hide description' : 'Show description'}</button>}
-            <div className="my-1 border-t border-white/10" />
-            <button role="menuitem" className={`${item} text-red-300`} onClick={() => removePhoto(p.id)}><Trash2 size={12} /> Remove from show</button>
-          </div>
-        );
-      })()}
 
       {croppingId && (() => {
         const p = photos.find((q) => q.id === croppingId);
@@ -930,17 +932,16 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
 }
 
 function ImportButtons({ onFiles, compact }: { onFiles: (f: FileList | null) => void; compact?: boolean }) {
-  const cls = compact ? 'flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 cursor-pointer text-xs' : 'flex items-center gap-2 px-4 py-2 rounded-full bg-white text-black font-bold cursor-pointer text-xs';
-  const cls2 = compact ? cls : 'flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 cursor-pointer text-xs';
   const pick = (e: React.ChangeEvent<HTMLInputElement>) => { onFiles(e.target.files); e.target.value = ''; };
+  const size = compact ? 'pj-btn--xs' : 'pj-btn--sm';
   return (<>
-    <label className={cls}><FolderOpen size={14} /> Choose a folder
+    <label className={`pj-btn ${compact ? 'pj-btn--ghost' : 'pj-btn--accent'} ${size} tap cursor-pointer`}><FolderOpen size={compact ? 12 : 14} /> Choose a folder
       <input type="file" multiple accept="image/*,.heic,.heif" className="hidden" {...({ webkitdirectory: '', directory: '' } as any)} onChange={pick} />
     </label>
-    <label className={cls2}><Images size={14} /> Select photos
+    <label className={`pj-btn ${compact ? 'pj-btn--ghost' : 'pj-btn--secondary'} ${size} tap cursor-pointer`}><Images size={compact ? 12 : 14} /> Select photos
       <input type="file" multiple accept="image/*,.heic,.heif" className="hidden" onChange={pick} />
     </label>
-    <label className={cls2}><ImagePlus size={14} /> One photo
+    <label className={`pj-btn ${compact ? 'pj-btn--ghost' : 'pj-btn--secondary'} ${size} tap cursor-pointer`}><ImagePlus size={compact ? 12 : 14} /> One photo
       <input type="file" accept="image/*,.heic,.heif" className="hidden" onChange={pick} />
     </label>
   </>);
@@ -949,51 +950,37 @@ function ImportButtons({ onFiles, compact }: { onFiles: (f: FileList | null) => 
 function LibraryPicker({ library, chosen, onDone }: { library: ShowSourcePhoto[]; chosen: Set<string>; onDone: (p: ShowSourcePhoto[]) => void }) {
   const [sel, setSel] = useState<Set<string>>(new Set());
   return (
-    <div className="bg-zinc-950 rounded-2xl p-4 w-full max-w-4xl max-h-[85vh] flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
+    <Surface level={5} shape="sheet" className="w-full max-w-4xl max-h-[85vh] flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center justify-between">
-        <div className="font-serif text-lg">Choose photos</div>
+        <div className="type-headline-sm">Choose photos</div>
         <div className="flex gap-2">
-          <button onClick={() => setSel(new Set(library.filter((p) => !chosen.has(p.id)).map((p) => p.id)))} className="text-xs text-white/60 hover:text-white">Select all</button>
-          <button onClick={() => onDone(library.filter((p) => sel.has(p.id)))} className="px-4 py-1.5 rounded-full bg-white text-black text-xs font-bold">Add {sel.size}</button>
+          <Button size="sm" variant="ghost" onClick={() => setSel(new Set(library.filter((p) => !chosen.has(p.id)).map((p) => p.id)))}>Select all</Button>
+          <Button size="sm" variant="primary" disabled={!sel.size} onClick={() => onDone(library.filter((p) => sel.has(p.id)))}>Add {sel.size}</Button>
         </div>
       </div>
       <div className="grid grid-cols-4 md:grid-cols-6 gap-2 overflow-y-auto">
         {library.map((p) => {
           const on = sel.has(p.id), had = chosen.has(p.id);
           return (
-            <button key={p.id} disabled={had} onClick={() => setSel((s) => { const n = new Set(s); if (n.has(p.id)) n.delete(p.id); else n.add(p.id); return n; })}
-              className={`relative aspect-square rounded-lg overflow-hidden ring-2 ${on ? 'ring-amber-200' : 'ring-transparent'} ${had ? 'opacity-30' : ''}`}>
+            <button key={p.id} type="button" disabled={had} onClick={() => setSel((s) => { const n = new Set(s); if (n.has(p.id)) n.delete(p.id); else n.add(p.id); return n; })}
+              className={`relative aspect-square rounded-[var(--pj-radius-sm)] overflow-hidden ring-2 ${on ? 'ring-[var(--pj-orange)]' : 'ring-transparent'} ${had ? 'opacity-30' : ''}`}>
               <img src={p.url} alt="" className="w-full h-full object-cover" loading="lazy" />
             </button>
           );
         })}
       </div>
-    </div>
+    </Surface>
   );
 }
 
-const inputCls = 'w-full bg-black/30 rounded-lg px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-white/20';
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, brand }: { title: string; children: React.ReactNode; brand?: boolean }) {
   return (
-    <div className="flex flex-col gap-2 p-3 rounded-2xl bg-white/[0.03] ring-1 ring-white/5">
-      <div className="text-[10px] font-black uppercase tracking-[0.25em] text-white/40">{title}</div>
+    <Surface level={1} brand={brand} className="flex flex-col gap-2.5" style={{ padding: 'var(--pj-space-4)' }}>
+      <Eyebrow>{title}</Eyebrow>
       {children}
-    </div>
+    </Surface>
   );
 }
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <label className="flex flex-col gap-1 text-[11px] text-white/60">{label}{children}</label>;
-}
-function TransportBtn({ onClick, label, disabled, children }: { onClick: () => void; label: string; disabled?: boolean; children: React.ReactNode }) {
-  return <button onClick={onClick} disabled={disabled} aria-label={label} title={label} className="w-8 h-8 rounded-full flex items-center justify-center text-white/80 hover:bg-white/10 disabled:opacity-30">{children}</button>;
-}
-function StageBtn({ onClick, label, children }: { onClick: () => void; label: string; children: React.ReactNode }) {
-  return <button onClick={onClick} aria-label={label} title={label} className="p-2 rounded-full bg-black/40 backdrop-blur hover:bg-black/60">{children}</button>;
-}
-function IconBtn({ onClick, label, children }: { onClick: () => void; label: string; children: React.ReactNode }) {
-  return <button onClick={onClick} aria-label={label} title={label} className="p-1.5 rounded bg-black/30 hover:bg-black/50">{children}</button>;
-}
-function ActBtn({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: React.ReactNode }) {
-  return <button onClick={onClick} disabled={disabled} className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 text-xs">{children}</button>;
+  return <label className="flex flex-col gap-1 type-label-md" style={{ color: 'var(--on-surface-variant)' }}>{label}{children}</label>;
 }
