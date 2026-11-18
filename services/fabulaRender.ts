@@ -71,6 +71,10 @@ function itemToSnapshot(item: any, label: string): SceneSnapshot {
   }
   // A Flux real-3D audio-reactive generator (Trapcode Form / Mir). No url: the source is a scene id +
   // spec. The per-clip spec is merged onto this clip in emitClip, like model3d.
+  // A Themed Show (Photos): the source is the show spec; srcIn maps the clip to show time.
+  if (item?.type === 'show' && item.show) {
+    return { name: item.name || label, layers: [{ id: 'v1', blendMode: 'normal', opacity: 1, clip: { type: 'show', show: item.show, opacity: 1 } as any }] };
+  }
   if (item?.type === 'flux' && (item.fluxScene || item.flux?.scene)) {
     return { name: item.name || label, layers: [{ id: 'v1', blendMode: 'normal', opacity: 1, clip: { type: 'flux', fluxScene: item.fluxScene || item.flux?.scene, flux: item.flux || {}, opacity: 1 } }] };
   }

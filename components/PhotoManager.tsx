@@ -1,5 +1,5 @@
 import FastImage from './ui/FastImage';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, Suspense, lazy } from 'react';
 import { gridSrc } from '../services/imageDerivatives';
 import { ImageConverter } from './photo/ImageConverter';
 import { convertImageBlob, isHeicFile } from '../services/crossover/imageConvert';
@@ -41,6 +41,10 @@ import { galleryFromAlbum, fetchUserGalleries, deleteGallery } from '../services
 import { PhotoGallery } from '../types';
 import { doc, updateDoc } from 'firebase/firestore';
 import PhotoEditPanel from './PhotoEditPanel';
+import type { ShowSourcePhoto } from './photo/ThemedShowStudio';
+// Themed Shows (Lantern Garden / Classic) pull in three.js — load only when opened.
+const ThemedShowStudio = lazy(() => import('./photo/ThemedShowStudio'));
+const toShowSource = (p: Photo): ShowSourcePhoto => ({ id: p.id, url: p.url, title: p.title, caption: p.description, takenAt: p.timestamp });
 import { PHOTO_IMPORT_SOURCES, PHOTOGRAPHER_PRO_FEATURES } from '../services/photoEditingService';
 
 interface PhotoManagerProps {
@@ -49,7 +53,10 @@ interface PhotoManagerProps {
 }
 
 const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'ALL' | 'ALBUMS' | 'IMPORT' | 'PRO'>('ALL');
+  const [activeTab, setActiveTab] = useState<'ALL' | 'ALBUMS' | 'SHOWS' | 'IMPORT' | 'PRO'>('ALL');
+  // Photos handed to a new Themed Show (from an album or a selection). Bumping the key remounts the studio.
+  const [showSeed, setShowSeed] = useState<{ key: number; photos: Photo[] } | null>(null);
+  const startShow = (photos: Photo[]) => { setShowSeed({ key: Date.now(), photos: photos.filter(p => p.mediaType !== 'VIDEO') }); setActiveTab('SHOWS'); };
   const [isUploading, setIsUploading] = useState(false);
   const [isCreateAlbumOpen, setIsCreateAlbumOpen] = useState(false);
   const [newAlbumTitle, setNewAlbumTitle] = useState('');
@@ -242,6 +249,7 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
         {[
           { id: 'ALL', label: 'All Media', icon: Grid },
           { id: 'ALBUMS', label: 'Albums', icon: FolderPlus },
+          { id: 'SHOWS', label: 'Shows', icon: Wand2 },
           { id: 'IMPORT', label: 'Cloud Import', icon: Cloud },
           { id: 'PRO', label: 'Pro Showcase', icon: Sparkles }
         ].map(tab => (
@@ -278,6 +286,14 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
                     className="px-4 py-2 bg-white text-black rounded-lg text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all"
                   >
                     Create Album ({selectedPhotos.length})
+                  </button>
+                )}
+                {isSelectionMode && selectedPhotos.length > 0 && (
+                  <button
+                    onClick={() => startShow(selectedPhotos.map(id => profile.photos?.find(p => p.id === id)).filter(Boolean) as Photo[])}
+                    className="flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all"
+                  >
+                    <Wand2 size={12} /> Make a Show ({selectedPhotos.length})
                   </button>
                 )}
               </div>
@@ -383,6 +399,18 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
                     >
                       <Play size={28} fill="black" />
                     </button>
+                    <button
+                      onClick={() => {
+                        const albumPhotos = (album.photoIds || [])
+                          .map(pid => profile.photos?.find(p => p.id === pid))
+                          .filter(Boolean) as Photo[];
+                        startShow(albumPhotos);
+                      }}
+                      title="Make a themed show"
+                      className="w-14 h-14 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all"
+                    >
+                      <Wand2 size={24} />
+                    </button>
                     <button className="w-14 h-14 bg-white/10 rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all">
                       <Settings size={24} />
                     </button>
@@ -444,6 +472,16 @@ const PhotoManager: React.FC<PhotoManagerProps> = ({ profile, onUpdate }) => {
               </div>
             </div>
           </div>
+        )}
+
+        {activeTab === 'SHOWS' && (
+          <Suspense fallback={<div className="flex items-center gap-2 text-white/40 text-xs"><Loader2 size={14} className="animate-spin" /> Opening Themed Shows…</div>}>
+            <ThemedShowStudio
+              key={showSeed?.key ?? 0}
+              library={(profile.photos || []).filter(p => p.mediaType !== 'VIDEO').map(toShowSource)}
+              initial={showSeed?.photos.map(toShowSource)}
+            />
+          </Suspense>
         )}
 
         {activeTab === 'PRO' && (

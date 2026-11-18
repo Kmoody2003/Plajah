@@ -18,6 +18,7 @@ import { segmentSubject } from '../../../../services/fabula/subjectMatte';
 import { estimateDepth, depthRangeCanvas } from '../../../../services/fabula/depthMatte';
 import { segmentSam } from '../../../../services/fabula/samMatte';
 import { renderModel3d } from './model3d';
+import { renderShowFrame } from '../../../../services/slideshow/fabulaShow';
 import { renderFlux } from './flux';
 import { SILENT_AUDIO } from '../../../../services/fabula/fluxNode';
 import { FluxMusicSampler } from '../../../../services/fabula/fluxMusic';
@@ -352,6 +353,12 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
         if (clip.type === 'generator' && clip.sceneMode && hasGenerator(clip.sceneMode)) {
           const tex = gen.render(layer.id, clip.sceneMode, width, height, { time: lt, audio: audioTex, colors: palette, params: clip.params || [], clock: t });   // beat tracking on media time
           inputs.push({ texture: tex, opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography });
+        } else if ((clip as any).type === 'show' && (clip as any).show) {
+          // A Themed Show segment (Photos → Lantern Garden / Classic): the show's own three.js
+          // runtime renders the exact frame at show time lt, uploaded like an image so Forge
+          // effects, grade and transitions apply on top — same frame the monitor shows.
+          const canvas = await renderShowFrame((clip as any).show, width, height, lt);
+          if (canvas) inputs.push({ element: canvas, opacity, blendMode: layer.blendMode, transform: layer.transform, homography: (layer as any).homography, grade: (layer as any).glGrade, grades: (layer as any).glGrades, effects: forgeEffects, time: layer.time, wipe: (layer as any).wipe, transition: (layer as any).forgeTransition });
         } else if (clip.type === 'model3d' && (clip.model3dUrl || (clip as any).model3d?.url)) {
           // A loaded mesh rendered by three.js to a canvas the compositor uploads like an image —
           // so Forge effects, grade and masks apply on top, and the model's own animation is driven

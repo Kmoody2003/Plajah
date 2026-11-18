@@ -64,6 +64,7 @@ import { resolveInstanceForFrame, maskOutlineAt, MASK_DEFAULT, BINDING_SOURCES }
 import { segmentSubjectLatest } from "../../services/fabula/subjectMatte";
 import { segmentSamLatest } from "../../services/fabula/samMatte";
 import { renderModel3dLatest } from "../plajahPixels/engine/core/model3d";
+import { renderShowFrameLatest } from "../../services/slideshow/fabulaShow";
 import { MODEL3D_DEFAULT } from "../../services/fabula/model3dNode";
 import { estimateDepthLatest, depthRangeCanvas } from "../../services/fabula/depthMatte";
 import { glyphStates, TITLE_ANIMS, TITLE_ANIM_DEFAULT } from "../../services/fabula/titleAnimators";
@@ -10659,8 +10660,45 @@ function Model3DLayer({ clip, prod, playhead, playing, active, z }) {
   );
 }
 
+// A Themed Show clip (Photos → Lantern Garden / Classic): the show's live three.js scene is
+// re-rendered at show time (srcIn + clip-local time) every frame, so trims, moves and spec
+// edits show immediately. The export renders the same frame through offlineRenderer.
+function ShowLayer({ clip, prod, playhead, z }) {
+  const canvasRef = useRef(null);
+  const fx = ensureFx(clip);
+  const asset = clip.assetId ? (prod?.mediaPool || []).find((a) => a.id === clip.assetId) : null;
+  const spec = asset?.show || null;
+  const playheadRef = useRef(playhead); playheadRef.current = playhead;
+  useEffect(() => {
+    let raf = 0; let alive = true;
+    const draw = () => {
+      if (!alive) return;
+      const cv = canvasRef.current;
+      if (cv && spec) {
+        const host = cv.parentElement;
+        // render at a modest internal size; the monitor scales it up
+        const w = Math.min(1280, Math.max(2, host?.clientWidth || 640)), h = Math.max(2, Math.round(w * ((host?.clientHeight || 360) / Math.max(1, host?.clientWidth || 640))));
+        if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+        const t = Math.max(0, playheadRef.current - clip.start) + (clip.srcIn || 0);
+        const src = renderShowFrameLatest(spec, w, h, t);
+        const ctx = cv.getContext("2d");
+        if (ctx && src) { ctx.drawImage(src, 0, 0, w, h); }
+      }
+      raf = requestAnimationFrame(draw);
+    };
+    raf = requestAnimationFrame(draw);
+    return () => { alive = false; cancelAnimationFrame(raf); };
+  }, [spec, clip.start, clip.srcIn]);
+  return (
+    <div style={{ position: "absolute", inset: 0, zIndex: z, opacity: fx.op ?? 1, transform: `translate(${(fx.x || 0) * 100}%, ${(fx.y || 0) * 100}%) scale(${fx.sc ?? 1}) rotate(${fx.rot || 0}deg)`, pointerEvents: "none" }}>
+      <canvas ref={canvasRef} style={{ width: "100%", height: "100%", display: "block", background: "#000" }} />
+    </div>
+  );
+}
+
 function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playing, top, z, videoRef, vol = 1, mute = false, active = true, gpuMode = false, gpuReg = null, pinSource = null, isScrubbing = false }) {
   if (clip.kind === "model3d") return <Model3DLayer clip={clip} prod={prod} playhead={playhead} playing={playing} active={active} z={z} />;
+  if (clip.kind === "show") return <ShowLayer clip={clip} prod={prod} playhead={playhead} z={z} />;
   const localRef = useRef(null);
   const wrapRef = useRef(null);
   // resolve media (multicam → active angle)
