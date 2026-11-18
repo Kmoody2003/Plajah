@@ -153,7 +153,7 @@ where our own bespoke game code goes, so it becomes reusable instead of locked i
 | **5. Open to creators** | Publish to Arcade, sharing, asset library sharing, tiers / Plajah+, co-edit | A non-team account builds and publishes a game |
 | **6. Move the other first-party games** | Era Clash, Apex, Kith games, Ravencrest become projects | Each game's bespoke code is now playkit modules or script behaviours |
 
-### Phase 0 as built (2026-11-17, uncommitted)
+### Phase 0 as built (2026-11-17, commit 0d78c49b)
 
 - **Spine:** `services/gamestudio/schema.ts` (Game Project v1: levels point at a level module; markers,
   zones, look, rules, instances on top; a marker kind the project leaves empty uses the module's own),
