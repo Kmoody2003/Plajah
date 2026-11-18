@@ -85,9 +85,9 @@ export class EnemyManager {
       coreMat,
       hp: maxHp,
       maxHp,
-      speed: 2.6 + Math.random() * 1.4,
+      speed: 5.2 + Math.random() * 1.8,
       strafeSign: Math.random() > 0.5 ? 1 : -1,
-      attackCooldown: 1.5 + Math.random(),
+      attackCooldown: 0.8 + Math.random() * 0.6,
       staggered: false,
       rig,
       lastPos: mesh.position.clone(),
@@ -141,13 +141,15 @@ export class EnemyManager {
       e.core.scale.setScalar(1 + pulse * 0.35);
 
       // Advance if far, strafe if in mid-range
+      // juke: flip strafe direction every ~1.5 s on average so they never orbit predictably
+      if (Math.random() < dt * 0.7) e.strafeSign *= -1;
       const strafe = new THREE.Vector3(-toPlayer.z, 0, toPlayer.x).multiplyScalar(e.strafeSign);
       if (dist > 6.5) {
         e.mesh.position.addScaledVector(toPlayer, e.speed * dt);
       } else if (dist < 4.0) {
         e.mesh.position.addScaledVector(toPlayer, -e.speed * 0.6 * dt);
       }
-      e.mesh.position.addScaledVector(strafe, e.speed * 0.45 * dt);
+      e.mesh.position.addScaledVector(strafe, e.speed * 0.6 * dt);
       // follow the terrain (stairs, ring, pit) and slide along walls
       const gy = world.groundAt(e.mesh.position.x, e.mesh.position.z, e.mesh.position.y + 1.2, 6);
       if (gy !== null) e.mesh.position.y += (gy - e.mesh.position.y) * Math.min(1, dt * 14);
@@ -162,7 +164,7 @@ export class EnemyManager {
       // Melee / Void-pulse attack when close
       e.attackCooldown -= dt;
       if (dist < 2.6 && e.attackCooldown <= 0) {
-        e.attackCooldown = 1.4;
+        e.attackCooldown = 0.9;
         e.rig?.play('attack_1');
         onPlayerHit(10);
       }

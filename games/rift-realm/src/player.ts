@@ -5,9 +5,20 @@ import type { InputState } from './controls';
 import { assets, CharacterRig } from './characters';
 import { VESSELS, VESSEL_ORDER, buildVesselMesh, type VesselId, type VesselSpec } from './vessels';
 
-const ACCEL = 28;
-const DECEL = 22;
-const JUMP_VEL = 9.2;
+// Feel: fast, nimble, upbeat. Snappy ground control, full air control at a lower rate,
+// double jump, coyote time + jump buffer, and dash charges so movement chains.
+const ACCEL = 62;          // ground: reach top speed in ~0.08 s
+const DECEL = 44;
+const AIR_ACCEL = 26;      // still steerable mid-air
+const JUMP_VEL = 10.8;
+const DOUBLE_JUMP_VEL = 9.6;
+const COYOTE = 0.12;       // can still jump this long after leaving a ledge
+const JUMP_BUFFER = 0.14;  // a jump pressed this early before landing still fires
+const DASH_TIME = 0.16;
+const DASH_CHARGES = 2;
+const DASH_RECHARGE = 0.9; // seconds per charge
+const DASH_CARRY = 0.55;   // fraction of dash speed kept as momentum afterwards
+const BASE_FOV = 72; // matches the camera main.ts creates
 const RADIUS = 0.38;
 const HEIGHT = 1.8;
 const MOUSE_SENS = 0.002;
@@ -30,6 +41,14 @@ export class PlayerController {
   private onGround = true;
   private dashTimer = 0;
   private dashDir = new THREE.Vector3();
+  private dashCharges = DASH_CHARGES;
+  private dashRecharge = 0;
+  private coyote = 0;
+  private jumpBuffer = 0;
+  private airJumps = 1;
+  private spaceHeld = false;
+  private lean = 0;
+  private landKick = 0;
   private keys = new Set<string>();
   private lastSafe = new THREE.Vector3(0, 0.2, 8);
   private muzzleFlash = 0;
@@ -144,8 +163,12 @@ export class PlayerController {
     this.rig?.play('shoot', 0.9);
   }
 
+  /** Dash charges left (0..2) and the refill progress of the next one (0..1), for the HUD. */
+  get dashState() { return { charges: this.dashCharges, max: DASH_CHARGES, refill: this.dashRecharge / DASH_RECHARGE }; }
+
   private triggerDash(moveX = 0, moveY = 0) {
-    if (this.dashTimer > 0) return;
+    if (this.dashTimer > 0 || this.dashCharges <= 0) return;
+    this.dashCharges--;
     const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     const dir = new THREE.Vector3();
@@ -158,7 +181,8 @@ export class PlayerController {
     }
     if (dir.lengthSq() < 0.01) dir.copy(forward);
     this.dashDir.copy(dir.normalize());
-    this.dashTimer = 0.18;
+    this.dashTimer = DASH_TIME;
+    if (this.vy < 0) this.vy = 0; // an air dash hangs instead of dropping
     this.onDash?.();
   }
 
@@ -203,29 +227,68 @@ export class PlayerController {
       if (this.keys.has('KeyA') || this.keys.has('ArrowLeft')) wish.sub(right);
       if (wish.lengthSq() > 1) wish.normalize();
 
-      if ((this.keys.has('Space') || input?.jumpPressed) && this.onGround) {
+      // edge-triggered jump (held Space doesn't bunny-hop by itself), buffered so early presses count
+      const space = this.keys.has('Space');
+      if ((space && !this.spaceHeld) || input?.jumpPressed) this.jumpBuffer = JUMP_BUFFER;
+      this.spaceHeld = space;
+    }
+
+    this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
+    this.coyote = this.onGround ? COYOTE : Math.max(0, this.coyote - dt);
+    if (this.jumpBuffer > 0) {
+      if (this.coyote > 0) {
         this.vy = JUMP_VEL;
+        this.coyote = 0;
+        this.jumpBuffer = 0;
         this.onGround = false;
+      } else if (this.airJumps > 0) {
+        this.vy = DOUBLE_JUMP_VEL;
+        this.airJumps--;
+        this.jumpBuffer = 0;
+        this.rig?.play('attack_2', 0.6); // flip-ish flourish on the double jump
       }
+    }
+
+    // dash charges refill one at a time
+    if (this.dashCharges < DASH_CHARGES) {
+      this.dashRecharge += dt;
+      if (this.dashRecharge >= DASH_RECHARGE) { this.dashRecharge = 0; this.dashCharges++; }
     }
 
     if (this.dashTimer > 0) {
       this.dashTimer -= dt;
       this.vel.copy(this.dashDir).multiplyScalar(this.vessel.dashSpeed);
+      if (this.dashTimer <= 0) this.vel.multiplyScalar(DASH_CARRY); // keep the momentum, don't stop dead
     } else {
       const target = wish.multiplyScalar(this.vessel.moveSpeed);
-      const rate = wish.lengthSq() > 0 ? ACCEL : DECEL;
+      const moving = wish.lengthSq() > 0;
+      const rate = this.onGround ? (moving ? ACCEL : DECEL) : (moving ? AIR_ACCEL : 2);
       this.vel.lerp(target, Math.min(1, rate * dt));
     }
 
-    this.vy -= this.vessel.gravity * dt;
-    this.object.position.addScaledVector(this.vel, dt);
-    this.object.position.y += this.vy * dt;
+    this.vy -= this.vessel.gravity * dt * (this.vy < 0 ? 1.35 : 1); // falls faster than it rises: snappy arcs
+    // sub-step so a 34 m/s dash can't tunnel through a thin wall (≤ 0.25 m per collision pass)
+    const travel = Math.hypot(this.vel.x * dt, this.vy * dt, this.vel.z * dt);
+    const steps = this.world ? Math.min(6, Math.max(1, Math.ceil(travel / 0.25))) : 1;
+    const wasAir = !this.onGround;
+    const fallVy = this.vy;
+    let grounded = false;
+    for (let s = 0; s < steps; s++) {
+      this.object.position.addScaledVector(this.vel, dt / steps);
+      this.object.position.y += (this.vy * dt) / steps;
+      if (this.world) {
+        const res = this.world.resolve(this.object.position, RADIUS, HEIGHT);
+        if (res.onGround && this.vy < 0) this.vy = 0;
+        grounded = res.onGround;
+      }
+    }
 
     if (this.world) {
-      const res = this.world.resolve(this.object.position, RADIUS, HEIGHT);
-      if (res.onGround && this.vy < 0) this.vy = 0;
-      this.onGround = res.onGround;
+      this.onGround = grounded;
+      if (this.onGround) {
+        this.airJumps = 1;
+        if (wasAir && fallVy < -6) this.landKick = Math.min(1, -fallVy / 22);
+      }
     }
 
     if (this.object.position.y < -12) {
@@ -249,7 +312,18 @@ export class PlayerController {
     const targetDist = this.firstPerson ? 0 : 3.6;
     this.camDist = THREE.MathUtils.lerp(this.camDist, targetDist, Math.min(1, dt * 14));
 
-    const eyePos = this.object.position.clone().add(new THREE.Vector3(0, 1.58, 0));
+    // speed feel: FOV opens with speed and kicks on a dash; a little lean into strafes; landing dip
+    const hsp = Math.hypot(this.vel.x, this.vel.z);
+    const fovTarget = BASE_FOV + Math.min(12, hsp * 0.55) + (this.dashTimer > 0 ? 6 : 0);
+    if (Math.abs(this.camera.fov - fovTarget) > 0.05) {
+      this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, fovTarget, Math.min(1, dt * 10));
+      this.camera.updateProjectionMatrix();
+    }
+    const strafeSpeed = this.vel.x * Math.cos(this.yaw) - this.vel.z * Math.sin(this.yaw);
+    this.lean = THREE.MathUtils.lerp(this.lean, -strafeSpeed * 0.006, Math.min(1, dt * 8));
+    this.landKick = Math.max(0, this.landKick - dt * 5);
+
+    const eyePos = this.object.position.clone().add(new THREE.Vector3(0, 1.58 - this.landKick * 0.18, 0));
     const lookDir = new THREE.Vector3(
       -Math.sin(this.yaw) * Math.cos(this.pitch),
       Math.sin(this.pitch),
@@ -267,6 +341,7 @@ export class PlayerController {
       this.camera.position.copy(pivot).addScaledVector(backDir, Math.max(0.3, maxD));
       this.camera.lookAt(pivot.clone().addScaledVector(lookDir, 18));
     }
+    this.camera.rotateZ(this.lean);
 
     this.muzzleFlash = Math.max(0, this.muzzleFlash - dt * 8);
     this.viewmodel.position.z = -0.45 + this.muzzleFlash * 0.07;

@@ -3,6 +3,19 @@
 Status: 2026-11-17. Level 1 (Cyber-Forest Shrine) built; Level 2 (Glacial Citadel) in build.
 Art source: `D:\plajah game assets deign from promtps\Shooter` (concept shots, blueprints, material sheets, flythrough videos).
 
+## The feel: fast, frantic, upbeat
+
+Kenne, 2026-11-18: Rift Realm is **fast-paced, frantic fun**. It moves fast and nimble and the tone is upbeat, not a slow
+tactical shooter. Every system serves that:
+
+- **Movement:** run speed 8.8–11.2 m/s depending on class, snappy acceleration (top speed in ~0.08 s), double jump,
+  coyote time + jump buffer, and 2 dash charges (0.9 s refill) that carry momentum. The camera FOV opens with speed and kicks on a dash.
+  Tuning lives in `src/player.ts` (top constants) and `src/vessels.ts`.
+- **Enemies:** quick and jukey (5–7 m/s, strafe flips, 0.9 s attack cadence), so fights keep moving.
+- **Levels:** the geometry has to reward speed. Wide lanes, jump-up ledges a double jump can clear (≈4 m), dash gaps,
+  short time-to-contact, and verticality everywhere. Avoid long walks with nothing in them and narrow corridors that stall movement.
+  The art still sets the look; the layout around it is tuned for flow.
+
 ## The rule: the art is the level
 
 Every map is built so that a camera placed where the concept artist "stood" reproduces the concept shot: the same
