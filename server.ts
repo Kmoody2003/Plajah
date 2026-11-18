@@ -162,6 +162,7 @@ import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/tal
 import { createMusicIntelRouter } from './routes/musicIntel';
 import { createReelloIntelRouter, sweepWaiting as reelloIntelSweep } from './routes/reelloIntel';
 import { createStoryIntelRouter } from './routes/storyIntelSources';
+import { createGameStoryRouter } from './routes/gameStory';
 import { reelloOrgChannelsRouter } from './routes/reelloOrgChannels';
 import { createOrgMediaRouter } from './routes/orgMedia';
 import { authMethodsRouter } from './routes/authMethods';
@@ -10471,6 +10472,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   app.use('/api/reello', apiLimiter, express.json({ limit: '64kb' }), createReelloIntelRouter());
   // Story Intelligence → Worlds (Tela workspace, Lorea shelf): videos, films and albums.
   app.use('/api/story-intel', apiLimiter, express.json({ limit: '64kb' }), createStoryIntelRouter());
+  app.use('/api/gamestudio', apiLimiter, express.json({ limit: '64kb' }), createGameStoryRouter());
 
   // ── Chora Music Intelligence ─────────────────────────────────────────────────
   // The music sibling of Taleo Story Intelligence (routes/musicIntel.ts). Every song is heard

@@ -1,5 +1,5 @@
 // Game Studio room (docs/game-studio-unified-plan.md Phases 0–1): the World room over a Game Project.
-// Left: the level outline (markers and placed props) or the Props palette. Centre: the game's own World
+// Left: the level outline (markers and placed props), the Props palette, or the Story (Story Intelligence). Centre: the game's own World
 // view in an iframe (Edit) or the game itself (Play). Right: inspector, look, history and versions.
 // Every change goes through services/gamestudio/ops (undo/redo, Aria-ready).
 //
@@ -8,10 +8,13 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { Copy, Crosshair, Download, Gamepad2, History as HistoryIcon, Move, Pencil, Play, Redo2, RotateCw, Trash2, Undo2, Upload, X } from 'lucide-react';
 import { applyOp, describeOp, History, markerLabel, OpError, type Op } from '../../services/gamestudio/ops';
-import { effectiveLook, effectiveMarkers, effectiveZones, ownsKind, type GameLevel, type GameProject, type Instance, type LevelDefaults, type Marker, type MarkerKind, type ParamValue } from '../../services/gamestudio/schema';
+import { effectiveLook, effectiveMarkers, effectiveZones, ownsKind, type GameLevel, type GameProject, type Instance, type LevelDefaults, type Marker, type MarkerKind, type ParamValue, type Vec3, type Zone } from '../../services/gamestudio/schema';
 import { validateProject } from '../../services/gamestudio/validate';
 import { isGameMessage, newProjectFor, RUNTIMES, withRuntimeLevels, runtimeLevel, runtimeUrl, STUDIO_SOURCE, takeOverOp, type StudioToGame } from '../../services/gamestudio/runtime';
 import { coerceParam, KITS, newInstance, prefabById, resolvedParams, type ParamSpec, type PrefabDef } from '../../services/gamestudio/prefabs';
+import { allLevels, goalSentence } from '../../services/gamestudio/story/schema';
+import { placeModules } from '../../services/gamestudio/story/build';
+import { BEAT_COLOR, RulesPanel, StoryPanel } from './StoryPanel';
 
 const CreativeSyncPill = React.lazy(() => import('../creative/CreativeCloudPanels').then(m => ({ default: m.CreativeSyncPill })));
 const CreativeVersionHistory = React.lazy(() => import('../creative/CreativeCloudPanels').then(m => ({ default: m.CreativeVersionHistory })));
@@ -34,6 +37,7 @@ const C = { bg: '#0d0c12', bar: '#0a0910', panel: '#15131d', line: 'rgba(255,255
 const KIND_TITLE: Record<MarkerKind, string> = { spawn: 'Spawns', enemySpot: 'Enemy spots', controlPoint: 'Control points', pickup: 'Pickups', camera: 'Cameras' };
 const KIND_DOT: Record<MarkerKind, string> = { spawn: '#38bdf8', enemySpot: '#ef4444', controlPoint: '#fbbf24', pickup: '#4ade80', camera: '#c084fc' };
 const PROP_DOT = '#a78bfa';
+const ZONE_DOT = '#4ade80';
 const LAST_KEY = 'plajah.gamestudio.last';
 const projKey = (id: string) => `plajah.gamestudio.project:${id}`;
 type Send = (msg: StudioToGame extends infer M ? (M extends StudioToGame ? Omit<M, 'source'> : never) : never) => void;
@@ -57,7 +61,9 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
   const project = useHistory(history);
   const [levelId, setLevelId] = useState(project.startLevel);
   const [mode, setMode] = useState<'edit' | 'play'>('edit');
-  const [left, setLeft] = useState<'outline' | 'props'>('outline');
+  const [left, setLeft] = useState<'outline' | 'props' | 'story'>('outline');
+  const [frameReady, setFrameReady] = useState(false);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [selected, setSelected] = useState<string | null>(null);
   const [armed, setArmed] = useState<string | null>(null);
   const [tool, setTool] = useState<'move' | 'turn'>('move');
@@ -79,6 +85,8 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
   const markers = effectiveMarkers(lvl, def);
   const selMarker = markers.find(m => m.id === selected) ?? null;
   const selInst = lvl.instances.find(i => i.id === selected) ?? null;
+  const goalZones = lvl.zones.filter(z => z.kind === 'trigger' && z.box);
+  const selZone = goalZones.find(z => z.id === selected) ?? null;
 
   // save: this device at once, the cloud (with versions) when signed in
   useEffect(() => {
@@ -95,7 +103,7 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
   }, []);
   // the running page always draws the project's copy of this level
   useEffect(() => { send({ type: 'level', level: lvl }); }, [lvl, send]);
-  useEffect(() => { setSelected(null); setArmed(null); setStats(null); setPlayHooked(null); }, [levelId, mode]);
+  useEffect(() => { setSelected(null); setArmed(null); setStats(null); setPlayHooked(null); setFrameReady(false); }, [levelId, mode]);
   useEffect(() => { send({ type: 'arm', prefab: armed }); }, [armed, send]);
   useEffect(() => { send({ type: 'tool', tool }); }, [tool, send]);
 
@@ -135,6 +143,7 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
   const remove = useCallback((id: string) => {
     const cur = history.project.levels.find(l => l.id === lvl.id)!;
     if (cur.instances.some(i => i.id === id)) { apply({ op: 'removeInstance', levelId: lvl.id, instanceId: id }); setSelected(null); return; }
+    if (cur.zones.some(z => z.id === id)) { apply({ op: 'removeZone', levelId: lvl.id, zoneId: id }); setSelected(null); return; }
     const m = effectiveMarkers(cur, def).find(x => x.id === id);
     if (!m || m.kind === 'spawn') return; // a game always needs its spawns
     const take = takeOverOp(cur, def, m.kind);
@@ -149,6 +158,7 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
       if (e.source !== frame.current?.contentWindow || !isGameMessage(e.data)) return;
       const msg = e.data;
       if (msg.type === 'ready') {
+        setFrameReady(true);
         setDefaults(d => ({ ...d, [lvl.id]: msg.defaults }));
         if (mode === 'play') setPlayHooked(true);
         send({ type: 'level', level: lvl });
@@ -158,6 +168,9 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
       else if (msg.type === 'move') {
         const m = effectiveMarkers(lvl, def).find(x => x.id === msg.markerId);
         if (m) editMarker(m, { pos: msg.pos });
+      } else if (msg.type === 'moveZone') {
+        const z = lvl.zones.find(x => x.id === msg.zoneId);
+        if (z?.box) apply({ op: 'putZone', levelId: lvl.id, zone: { ...z, box: { ...z.box, center: [msg.pos[0], msg.pos[1] + z.box.size[1] / 2, msg.pos[2]] } } });
       } else if (msg.type === 'placed') {
         const d = prefabById(msg.prefab);
         if (!d) return;
@@ -223,16 +236,29 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
   const look = effectiveLook(lvl, def);
   const hazard = effectiveZones(lvl, def).find(z => z.kind === 'hazardBelow');
   const categories = useMemo(() => [...new Set(kit.map(p => p.category))], [kit]);
+  // a level built from the story: which story level it plays, and whether its arena is a stand-in
+  const storyLevel = project.story && lvl.id.startsWith('st-') ? allLevels(project.story).find(l => `st-${l.id}` === lvl.id) ?? null : null;
+  const standIn = storyLevel && project.story ? placeModules(project.story, project.runtime.game).get(storyLevel.place)?.standIn : false;
+  const openLevel = useCallback((id: string) => { if (history.project.levels.some(l => l.id === id)) setLevelId(id); }, [history]);
+  const fresh = history.entries.length === 0 && !selected && !armed;
+  const gameLevels = project.levels.filter(l => !l.id.startsWith('st-'));
+  const storyLevels = project.levels.filter(l => l.id.startsWith('st-'));
 
   return <div className="fixed inset-0 flex flex-col" style={{ background: C.bg, color: C.text, fontFamily: 'Inter, system-ui, sans-serif' }} data-testid="game-studio">
     {/* top bar */}
     <div className="flex items-center gap-2 px-3 h-12 shrink-0" style={{ background: C.bar, borderBottom: `1px solid ${C.line}` }}>
       <Gamepad2 size={18} style={{ color: C.accent }}/>
       <input aria-label="Project name" value={project.name} onChange={e => { if (e.target.value.trim()) apply({ op: 'setProjectName', name: e.target.value }); }} className="bg-transparent text-[14px] font-bold outline-none w-[170px] px-1 rounded" data-testid="gs-name"/>
-      {cloud && <Suspense fallback={null}><CreativeSyncPill kind={GAME_CLOUD_KIND} localId={project.id}/></Suspense>}
-      <div className="flex gap-1 ml-2" role="tablist" aria-label="Levels">
-        {project.levels.map(l => <button key={l.id} role="tab" aria-selected={l.id === lvl.id} onClick={() => setLevelId(l.id)} className="h-8 px-3 rounded-lg text-[12.5px] font-semibold" style={{ background: l.id === lvl.id ? 'rgba(56,189,248,.16)' : 'transparent', border: `1px solid ${l.id === lvl.id ? C.accent : C.line}` }} data-testid={`gs-level-${l.id}`}>{l.name}</button>)}
-      </div>
+      {cloud && <div className="shrink-0 whitespace-nowrap"><Suspense fallback={null}><CreativeSyncPill kind={GAME_CLOUD_KIND} localId={project.id}/></Suspense></div>}
+      {project.levels.length <= 5 ? <div className="flex gap-1 ml-2 min-w-0 overflow-x-auto" role="tablist" aria-label="Levels">
+        {project.levels.map(l => <button key={l.id} role="tab" aria-selected={l.id === lvl.id} onClick={() => setLevelId(l.id)} className="h-8 px-3 rounded-lg text-[12.5px] font-semibold whitespace-nowrap" style={{ background: l.id === lvl.id ? 'rgba(56,189,248,.16)' : 'transparent', border: `1px solid ${l.id === lvl.id ? C.accent : C.line}` }} data-testid={`gs-level-${l.id}`}>{l.name}</button>)}
+      </div> : <label className="ml-2 flex items-center gap-2 text-[11.5px] min-w-0" style={{ color: C.dim }}>Level
+        <select value={lvl.id} onChange={e => setLevelId(e.target.value)} className="h-8 px-2 rounded-lg text-[12.5px] font-semibold outline-none max-w-[320px]" style={{ background: 'rgba(56,189,248,.12)', border: `1px solid ${C.accent}`, color: C.text }} data-testid="gs-level-picker">
+          <optgroup label="Game levels">{gameLevels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</optgroup>
+          {storyLevels.length > 0 && <optgroup label="From the story">{storyLevels.map((l, i) => <option key={l.id} value={l.id}>{i + 1}. {l.name}</option>)}</optgroup>}
+        </select>
+        <span className="whitespace-nowrap">{project.levels.length} levels</span>
+      </label>}
       <div className="flex-1"/>
       <IconBtn label="Undo (Ctrl+Z)" disabled={!history.canUndo} onClick={() => history.undo()} testid="gs-undo"><Undo2 size={15}/></IconBtn>
       <IconBtn label="Redo (Ctrl+Shift+Z)" disabled={!history.canRedo} onClick={() => history.redo()} testid="gs-redo"><Redo2 size={15}/></IconBtn>
@@ -252,15 +278,25 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
 
     <div className="flex-1 flex min-h-0">
       {/* outline / props palette */}
-      {mode === 'edit' && <aside className="w-[236px] shrink-0 flex flex-col min-h-0" style={{ background: C.panel, borderRight: `1px solid ${C.line}` }}>
+      {mode === 'edit' && <aside className="shrink-0 flex flex-col min-h-0" style={{ width: left === 'story' ? 312 : 236, background: C.panel, borderRight: `1px solid ${C.line}` }}>
         <div className="flex p-2 gap-1" role="tablist">
-          {(['outline', 'props'] as const).map(t => <button key={t} role="tab" aria-selected={left === t} onClick={() => setLeft(t)} className="flex-1 h-7 rounded-md text-[12px] font-bold" style={{ background: left === t ? 'rgba(255,255,255,.1)' : 'transparent' }} data-testid={`gs-tab-${t}`}>{t === 'outline' ? 'Level' : 'Props'}</button>)}
+          {(['outline', 'props', 'story'] as const).map(t => <button key={t} role="tab" aria-selected={left === t} onClick={() => setLeft(t)} className="flex-1 h-7 rounded-md text-[12px] font-bold" style={{ background: left === t ? 'rgba(255,255,255,.1)' : 'transparent' }} data-testid={`gs-tab-${t}`}>{t === 'outline' ? 'Level' : t === 'props' ? 'Props' : 'Story'}</button>)}
         </div>
-        {left === 'outline' ? <div className="flex-1 overflow-auto px-2 pb-2" data-testid="gs-outline">
+        {left === 'story' ? <div className="flex-1 overflow-auto"><StoryPanel project={project} apply={apply} onOpenLevel={openLevel}/></div>
+        : left === 'outline' ? <div className="flex-1 overflow-auto px-2 pb-2" data-testid="gs-outline">
           <div className="text-[11px] font-bold tracking-[.16em] uppercase px-1 pb-2" style={{ color: C.dim }}>{lvl.name}</div>
+          {storyLevel && project.story && <div className="mx-1 mb-3 p-2 rounded-lg text-[11.5px] leading-snug" style={{ background: 'rgba(255,255,255,.03)', border: `1px solid ${C.line}` }} data-testid="gs-story-context">
+            <span className="text-[10px] font-bold uppercase px-1.5 py-[1px] rounded mr-1" style={{ background: `${BEAT_COLOR[storyLevel.beat]}26`, color: BEAT_COLOR[storyLevel.beat] }}>{storyLevel.beat}</span>
+            <span style={{ color: C.text }}>{goalSentence(storyLevel, project.story)}</span>
+            {standIn && <div className="mt-1" style={{ color: C.warn }}>Stand-in arena: {project.story.places.find(p => p.id === storyLevel.place)?.name} is not built yet.</div>}
+          </div>}
           {lvl.instances.length > 0 && <section className="mb-3">
             <div className="flex items-center gap-2 px-1 text-[12px] font-bold"><span className="w-2 h-2 rounded-full" style={{ background: PROP_DOT }}/>Props<span style={{ color: C.dim }}>{lvl.instances.length}</span></div>
             <ul className="mt-1">{lvl.instances.map(i => <li key={i.id}><RowBtn on={i.id === selected} onClick={() => pick(i.id)} testid={`gs-item-${i.id}`}>{prefabById(i.prefab)?.name ?? i.prefab}</RowBtn></li>)}</ul>
+          </section>}
+          {goalZones.length > 0 && <section className="mb-3">
+            <div className="flex items-center gap-2 px-1 text-[12px] font-bold"><span className="w-2 h-2 rounded-sm" style={{ background: ZONE_DOT }}/>Goal areas<span style={{ color: C.dim }}>{goalZones.length}</span></div>
+            <ul className="mt-1">{goalZones.map(z => <li key={z.id}><RowBtn on={z.id === selected} onClick={() => pick(z.id)} testid={`gs-zone-${z.id}`}>{z.name ?? z.id}</RowBtn></li>)}</ul>
           </section>}
           {(['spawn', 'controlPoint', 'enemySpot', 'pickup'] as MarkerKind[]).map(kind => {
             const list = markers.filter(m => m.kind === kind);
@@ -272,10 +308,10 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
                 <span className="ml-auto text-[10.5px] font-semibold" style={{ color: owned ? C.accent : C.dim }} title={owned ? 'Edited in this project' : 'Placed by the level; edit one to take them over'}>{owned ? 'edited' : 'level'}</span>
               </div>
               {owned && pro && <button className="ml-1 mt-0.5 text-[10.5px] underline" style={{ color: C.dim }} onClick={() => apply({ op: 'setMarkersOfKind', levelId: lvl.id, kind, markers: [] })} data-testid={`gs-reset-${kind}`}>Use the level's own again</button>}
-              <ul className="mt-1">{list.map(m => <li key={m.id}><RowBtn on={m.id === selected} onClick={() => pick(m.id)} testid={`gs-marker-${m.id}`}>{markerLabel(m)}</RowBtn></li>)}</ul>
+              <ul className="mt-1">{(list.length > 6 && !expanded[kind] && !list.slice(4).some(m => m.id === selected) ? list.slice(0, 4) : list).map(m => <li key={m.id}><RowBtn on={m.id === selected} onClick={() => pick(m.id)} testid={`gs-marker-${m.id}`}>{markerLabel(m)}</RowBtn></li>)}</ul>
+              {list.length > 6 && <button className="ml-2 mt-0.5 text-[11px] underline" style={{ color: C.dim }} onClick={() => setExpanded(x => ({ ...x, [kind]: !x[kind] }))} data-testid={`gs-more-${kind}`}>{expanded[kind] ? 'Show fewer' : `Show all ${list.length}`}</button>}
             </section>;
           })}
-          {!def && <p className="px-1 text-[12px]" style={{ color: C.dim }}>Loading the level…</p>}
           {hazard && <div className="px-1 text-[12px]" style={{ color: C.dim }}>Hazard floor at {hazard.y} m</div>}
         </div> : <div className="flex-1 overflow-auto px-2 pb-2" data-testid="gs-palette">
           <p className="px-1 pb-2 text-[12px] leading-snug" style={{ color: C.dim }}>{armed ? 'Click in the view where it goes. Esc cancels.' : 'Pick a piece, then click in the view to place it.'}</p>
@@ -293,6 +329,13 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
       <main className="flex-1 relative min-w-0">
         {src ? <iframe key={src} ref={frame} src={src} title={mode === 'edit' ? 'World view' : 'Play'} className="absolute inset-0 w-full h-full" style={{ border: 0, background: '#04050a' }} allow="autoplay; fullscreen; gamepad" data-testid="gs-frame"/>
           : <div className="absolute inset-0 grid place-items-center" style={{ color: C.dim }}>No runtime for “{project.runtime.game}”.</div>}
+        {mode === 'edit' && src && !frameReady && <div className="absolute inset-0 grid place-items-center pointer-events-none" style={{ background: 'rgba(4,5,10,.72)' }} data-testid="gs-loading">
+          <div className="text-center px-6">
+            <div className="mx-auto w-7 h-7 rounded-full border-2 animate-spin" style={{ borderColor: `${C.accent} transparent ${C.accent} ${C.accent}` }}/>
+            <div className="mt-3 text-[13px] font-semibold">Building {rl?.name ?? lvl.name}…</div>
+            <div className="mt-1 text-[12px]" style={{ color: C.dim }}>The first open takes a little while; after that it is quick.</div>
+          </div>
+        </div>}
         {mode === 'play' && playHooked === false && <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-2 rounded-lg text-[12.5px] max-w-[560px] text-center" style={{ background: 'rgba(20,16,8,.92)', border: `1px solid ${C.warn}`, color: '#fde68a' }} data-testid="gs-play-unhooked">
           This build of {rt?.name} doesn't read project edits yet, so Play shows the level's own layout. Your edits are saved and will apply once the game is hooked to the Studio.
         </div>}
@@ -309,7 +352,21 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
         </section>}
 
         {selInst ? <PropPanel inst={selInst} pro={pro} tool={tool} onTool={setTool} onChange={patch => editInstance(selInst, patch)} onDuplicate={() => duplicate(selInst)} onDelete={() => remove(selInst.id)} onFrame={() => send({ type: 'frame', id: selInst.id })}/>
+          : selZone ? <ZonePanel z={selZone} pro={pro} onChange={zone => apply({ op: 'putZone', levelId: lvl.id, zone })} onDelete={() => remove(selZone.id)} onFrame={() => send({ type: 'frame', id: selZone.id })}/>
           : selMarker ? <MarkerPanel m={selMarker} pro={pro} owned={ownsKind(lvl, selMarker.kind)} onChange={patch => editMarker(selMarker, patch)} onFrame={() => send({ type: 'frame', id: selMarker.id })} onDelete={() => remove(selMarker.id)}/>
+          : fresh && !pro ? <section data-testid="gs-start">
+            <h3 className="text-[14px] font-bold">Start here</h3>
+            <p className="mt-1 text-[12px] leading-snug" style={{ color: C.dim }}>This is {lvl.name}, a level you can change. Try one:</p>
+            {[
+              { t: 'Add a wall or tower', d: 'Pick a piece, then click where it goes.', go: () => setLeft('props'), id: 'props' },
+              { t: 'Move where a team starts', d: 'Select a spawn and drag it in the view.', go: () => { setLeft('outline'); const sp = markers.find(m => m.kind === 'spawn'); if (sp) pick(sp.id); }, id: 'spawn' },
+              { t: 'Make a game from a story', d: 'Describe an idea; Story Intelligence lays out the levels.', go: () => setLeft('story'), id: 'story' },
+            ].map(x => <button key={x.id} onClick={x.go} className="mt-2 w-full text-left p-2 rounded-lg" style={{ background: 'rgba(255,255,255,.03)', border: `1px solid ${C.line}` }} data-testid={`gs-start-${x.id}`}>
+              <div className="text-[13px] font-semibold">{x.t}</div>
+              <div className="text-[11.5px] leading-snug" style={{ color: C.dim }}>{x.d}</div>
+            </button>)}
+            <p className="mt-2 text-[11px]" style={{ color: C.dim }}>Everything can be undone (Ctrl+Z).</p>
+          </section>
           : <p className="text-[12.5px]" style={{ color: C.dim }}>{pro ? 'Select a marker or prop in the outline or the view. W move, E turn, Ctrl+D duplicate, Del delete.' : 'Click something in the view to change it, or open Props to add walls, towers, stairs and cover. Everything you change can be undone.'}</p>}
 
         <section>
@@ -318,6 +375,8 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
           {pro && <Slider label="View distance" unit=" m" min={60} max={1500} step={10} value={look.far ?? 300} onChange={v => apply({ op: 'setLook', levelId: lvl.id, look: { far: v } })} testid="gs-far"/>}
           {(lvl.look.exposure !== undefined || lvl.look.far !== undefined) && <button className="text-[11px] underline" style={{ color: C.dim }} onClick={() => apply({ op: 'setLook', levelId: lvl.id, look: { exposure: undefined, far: undefined } })}>Use the level's own look</button>}
         </section>
+
+        <RulesPanel level={lvl} project={project} apply={apply} pro={pro}/>
 
         <section>
           <h3 className="text-[11px] font-bold tracking-[.16em] uppercase mb-2" style={{ color: C.dim }}>History</h3>
@@ -374,6 +433,26 @@ function ParamControl({ spec, value, onChange }: { spec: ParamSpec; value: Param
       </select>
     </label>;
   }
+}
+
+function ZonePanel({ z, pro, onChange, onDelete, onFrame }: { z: Zone; pro: boolean; onChange: (z: Zone) => void; onDelete: () => void; onFrame: () => void }) {
+  const box = z.box!;
+  const setSize = (i: number, v: number) => { const size = [...box.size] as Vec3; size[i] = v; const center = [...box.center] as Vec3; if (i === 1) center[1] = box.center[1] - box.size[1] / 2 + v / 2; onChange({ ...z, box: { center, size } }); };
+  return <section data-testid="gs-zone-panel">
+    <div className="flex items-center gap-2">
+      <span className="w-2.5 h-2.5 rounded-sm" style={{ background: ZONE_DOT }}/>
+      <h3 className="text-[14px] font-bold flex-1 truncate">{z.name ?? 'Area'}</h3>
+      <IconBtn label="Show in view" onClick={onFrame}><Crosshair size={14}/></IconBtn>
+      <IconBtn label="Delete" onClick={onDelete} testid="gs-delete"><Trash2 size={14}/></IconBtn>
+    </div>
+    <p className="mt-1 text-[11.5px] leading-snug" style={{ color: C.dim }}>Drag the green box in the view to where the player is heading. Reaching it does what the level's rules say.</p>
+    <label className="block mt-3 text-[11.5px]" style={{ color: C.dim }}>Name
+      <input value={z.name ?? ''} onChange={e => onChange({ ...z, name: e.target.value || undefined })} className="mt-1 w-full h-8 px-2 rounded-md text-[13px] outline-none" style={{ background: '#0d0c12', border: `1px solid ${C.line}`, color: C.text }} data-testid="gs-zone-name"/>
+    </label>
+    <Slider label="Width" unit=" m" min={1} max={40} step={0.5} value={box.size[0]} onChange={v => setSize(0, v)} testid="gs-zone-w"/>
+    <Slider label="Depth" unit=" m" min={1} max={40} step={0.5} value={box.size[2]} onChange={v => setSize(2, v)} testid="gs-zone-d"/>
+    {pro && <Slider label="Height" unit=" m" min={1} max={20} step={0.5} value={box.size[1]} onChange={v => setSize(1, v)} testid="gs-zone-h"/>}
+  </section>;
 }
 
 function MarkerPanel({ m, pro, owned, onChange, onDelete, onFrame }: { m: Marker; pro: boolean; owned: boolean; onChange: (p: Partial<Marker>) => void; onDelete: () => void; onFrame: () => void }) {

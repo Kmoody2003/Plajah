@@ -179,7 +179,7 @@ where our own bespoke game code goes, so it becomes reusable instead of locked i
   - not yet checked inside the full app (needs sign-in);
   - the shipped bundle isn't rebuilt.
 
-### Phase 1, first slice as built (2026-11-17, uncommitted)
+### Phase 1, first slice as built (2026-11-17, landed in 7a78b1b1)
 
 - **Props:** `services/gamestudio/prefabs.ts` is the kit as data: 8 parametric Rift Realm pieces (arched
   wall, battlement wall, tower, stone stairs, steel stairs, cover block, pillar, boulder), each with
@@ -203,13 +203,83 @@ where our own bespoke game code goes, so it becomes reusable instead of locked i
 - **Still in Phase 1:**
   - scatter, splines (roads/rivers), terrain paint, trigger zones;
   - the gate (re-lay the Shrine Arena by hand, then delete `shrine.ts`);
-  - a visual check of the handle while the app window is visible (screenshots were blocked: the window was minimized);
+  - ~~a visual check of the handle~~ done 2026-11-18 (move arrows, selection box, label all draw);
   - cloud save checked while signed in.
 
 **Why Rift Realm pilots it:** it's the newest game (one arena, uncommitted), its world is already built from
 parametric pieces (`StaticKit`, `geom.ts`), and arena-shooter logic is small. That makes it the cheapest game
 to prove the full loop on. Era Clash Chapter I (the earlier proposal) stays the pilot for picture → level and
 mocap in phase 3.
+
+## 7a. Story Intelligence as the game designer's partner
+
+Story Intelligence (SI) already reads films, videos and albums into a `StoryReport` (acts, sequences,
+scenes, characters, locations, MacGuffins, dialogue) and files the results into Worlds. The Studio's
+**Story room** points that same reading at a game. SI gets one new skill: knowing how games tell
+stories, and turning a story into a game the author can play and edit.
+
+**What SI learns (a game-story canon, as data, like the prefab kit):**
+- *Structure:* three-act and chapter arcs mapped onto a **level ladder** (teach → test → twist → master),
+  rising difficulty matched to rising stakes, a breather after every peak, boss = the act's turn.
+- *Telling through play:* environmental storytelling (the room tells it, not a cutscene), the player's
+  verb carries the theme, "show the goal before the path", ludonarrative fit (what you do matches
+  who you are), optional lore you find, not lore you sit through.
+- *Pacing:* minutes per beat by genre (arena shooter, platformer, racer, RPG, puzzle), cutscene budget,
+  how often to give a new mechanic, a new place, a reward.
+- *Choice:* when a branch is worth it (it changes a later level or ending) versus cosmetic.
+- Each pattern is written as a sentence with an example, so the reasoning SI shows is readable and the
+  author can turn any pattern off.
+
+**The pipeline (story → playable game):**
+1. *Read:* SI reads a story (a Lorea manuscript, a script, a Fabula film, a World, or a typed idea).
+2. *Break down:* a **Game Breakdown** document: chapters → levels, each level has a goal, a place (a World
+   location), who is there (World characters as enemies/allies/NPCs), the new mechanic, the beat it
+   carries, the item/MacGuffin, and the rules as sentences ("Reach the bell tower before the tide").
+3. *Pick a template:* arena shooter, platformer (Kith Quest), racer (Forth Horizon), fighter (Era Clash),
+   adventure. The breakdown says why ("the story is a chase, so the levels are races").
+4. *Build up:* the breakdown becomes **ops** on the Game Project (addLevel, markers, zones, rules,
+   props from the kit). It is the same op layer the editor uses, so every generated piece shows up in
+   History as a sentence and can be undone, moved or rewritten by hand.
+5. *Check:* SI plays it back against the canon: pacing per level, the difficulty curve, "this chapter has
+   no new verb", "the boss arrives before the player has learned to dodge". These are notes, not
+   automatic changes.
+
+**Where it lives:** a Story tab in the Studio's left rail (beside Level / Props) shows the breakdown as
+cards per level; clicking a card opens that level. The breakdown is its own document kind
+(`plajah.gamestory`), cloud-saved with the project and linked to the World it came from, so a rename in
+Worlds still matches.
+
+**Build order:** (a) breakdown schema + validator + tests, (b) the canon file, (c) story → breakdown via
+the Gemini lane (with a no-AI path: a hand-filled breakdown works the same), (d) breakdown → ops for
+the arena-shooter template, (e) the playback notes. The first test is Ravencrest: its campaign draft
+becomes a breakdown, and the Studio builds level 1 from it.
+
+### Story Intelligence, first slice as built (2026-11-18)
+
+- **Rules as sentences:** `services/gamestudio/rules.ts` is the event/action vocabulary and `ruleSentence`
+  ("When Dracula is defeated, win the level and go on to The Undercroft."). History shows rules this way.
+- **Game Story** (`services/gamestudio/story/schema.ts`, kind `plajah.gamestory`): chapters → levels with
+  beat, place, goal, story, new verb, cast, item, how it's told, minutes, intensity. Stored on the project
+  (`project.story`, op `setStory`), so it undoes, cloud-saves and versions with the game; a broken story
+  only warns.
+- **Canon** (`story/canon.ts`): 12 patterns (hook first, teach before test, something new often, breathe
+  after a peak, act builds to its peak, boss is the turn, let the room tell it, goal in sight, verb is
+  theme, pacing fits, ending lands, choices matter), pacing per template, `reviewStory` notes.
+- **Builder** (`story/build.ts`): one undoable batch of ordinary ops: a level per story level (`st-<id>`),
+  intro text, enemy waves, goal rule, item, lose rule, a goal area for reach/escape/explore, look by
+  intensity. Rebuilding skips built levels so hand edits survive. Places without a module get stand-in
+  arenas (spread across the game's levels) and say so.
+- **Idea → breakdown:** `story/prompt.ts` (prompt carries the canon; `parseBreakdown` repairs sloppy AI
+  JSON, then validates) and `POST /api/gamestudio/breakdown` (`routes/gameStory.ts`, signed-in, Gemini lane,
+  env `GAME_STORY_MODEL`). Not run against real Gemini yet.
+- **Example:** `story/samples/ravencrest.ts`, the campaign draft as 4 acts / 13 levels / 60 min.
+- **Studio:** Story tab (idea box, example, shape strip, notes, act cards with beat/intensity/time, Build),
+  "What happens here" rules panel with on/off, story context on built levels, goal areas drawn and dragged
+  in the World view with a size panel.
+- **Usability pass:** level picker past 5 levels (game levels / from the story), Start here card, a
+  loading state while the level builds, long marker lists collapse, the sync pill no longer squashes.
+- **Not yet:** rules don't run in the game (Phase 2 rule player); Ravencrest has no Studio runtime, so its
+  levels play in Rift Realm stand-ins; story edits beyond beat/intensity/time are by AI or file.
 
 ## 8. Decisions for Kenne
 

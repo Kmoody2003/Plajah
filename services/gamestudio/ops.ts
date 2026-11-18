@@ -5,7 +5,9 @@
 // applyOp is pure: it returns a new project and the op that undoes it. Nothing here touches the DOM.
 
 import type { GameLevel, GameProject, Instance, Look, Marker, MarkerKind, Rule, Zone } from './schema';
+import type { GameStory } from './story/schema';
 import { prefabById } from './prefabs';
+import { ruleSentence } from './rules';
 
 export type Op =
   | { op: 'setProjectName'; name: string }
@@ -25,6 +27,8 @@ export type Op =
   | { op: 'removeInstance'; levelId: string; instanceId: string }
   | { op: 'putRule'; levelId: string; rule: Rule }
   | { op: 'removeRule'; levelId: string; ruleId: string }
+  /** Attach, edit or clear the project's story breakdown. */
+  | { op: 'setStory'; story: GameStory | null; label?: string }
   /** Several ops undone as one step ("Aria laid out the arena"). */
   | { op: 'batch'; label: string; ops: Op[] };
 
@@ -160,6 +164,11 @@ export function applyOp(p: GameProject, o: Op): Applied {
       if (!r) throw new OpError(`No rule "${o.ruleId}".`);
       return { project: withLevel(p, o.levelId, x => ({ ...x, rules: x.rules.filter(y => y.id !== o.ruleId) })), inverse: { op: 'putRule', levelId: o.levelId, rule: r } };
     }
+    case 'setStory': {
+      const project = { ...p };
+      if (o.story) project.story = o.story; else delete project.story;
+      return { project, inverse: { op: 'setStory', story: p.story ?? null } };
+    }
     case 'batch': {
       let cur = p;
       const inverses: Op[] = [];
@@ -213,12 +222,18 @@ export function describeOp(p: GameProject, o: Op): string {
       const word = KIND_WORD[o.kind][1];
       return o.markers.length ? `Took over ${word}${where} (${o.markers.length})` : `Handed ${word}${where} back to the level's own`;
     }
-    case 'putZone': return o.zone.kind === 'hazardBelow' ? `Hazard${where} below ${fmt(o.zone.y ?? 0)} m` : `Set trigger ${o.zone.name ?? o.zone.id}${where}`;
+    case 'putZone': {
+      if (o.zone.kind === 'hazardBelow') return `Hazard${where} below ${fmt(o.zone.y ?? 0)} m`;
+      const had = lv?.zones.some(z => z.id === o.zone.id);
+      const at = o.zone.box ? ` at ${o.zone.box.center.map(fmt).join(', ')}` : '';
+      return had ? `${o.zone.name ?? 'Area'}${where}: moved or resized${at}` : `Added ${o.zone.name ?? 'an area'}${where}${at}`;
+    }
     case 'removeZone': return `Removed zone ${o.zoneId}${where}`;
     case 'putInstance': return describeInstance(lv?.instances.find(n => n.id === o.instance.id), o.instance, where);
     case 'removeInstance': { const n = lv?.instances.find(x => x.id === o.instanceId); return `Removed ${n ? prefabName(n.prefab) : o.instanceId}${where}`; }
-    case 'putRule': return `Set rule ${o.rule.id}${where}`;
+    case 'putRule': return `Rule${where}: ${ruleSentence(o.rule)}`;
     case 'removeRule': return `Removed rule ${o.ruleId}${where}`;
+    case 'setStory': return o.label ?? (o.story ? (p.story ? `Edited the story "${o.story.title}"` : `Attached the story "${o.story.title}"`) : 'Removed the story');
     case 'batch': return o.label;
   }
 }
@@ -308,6 +323,8 @@ function mergeKey(o: Op): string | null {
   if (o.op === 'batch') return o.ops.length ? mergeKey(o.ops[o.ops.length - 1]) : null;
   if (o.op === 'updateMarker') return `m:${o.levelId}:${o.markerId}:${Object.keys(o.patch).sort().join(',')}`;
   if (o.op === 'putInstance') return `i:${o.levelId}:${o.instance.id}`;
+  if (o.op === 'putZone') return `z:${o.levelId}:${o.zone.id}`;
   if (o.op === 'setLook') return `l:${o.levelId}:${Object.keys(o.look).sort().join(',')}`;
+  if (o.op === 'setStory' && o.story) return `story:${o.story.id}:${o.label ?? ''}`;
   return null;
 }

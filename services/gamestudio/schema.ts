@@ -8,6 +8,8 @@
 // kind, the project's list is the truth for that kind. Later phases add instances, terrain and splines
 // so the module itself becomes hand-editable pieces.
 
+import type { GameStory } from './story/schema';
+
 export const GAME_PROJECT_KIND = 'plajah.game';
 export const GAME_PROJECT_VERSION = 1;
 
@@ -110,6 +112,8 @@ export interface GameProject {
   assets: AssetRef[];
   /** Project-wide rules (per-level rules live on the level). */
   rules: Rule[];
+  /** The story this game is built from (Story Intelligence breakdown, plan §7a). Saved and versioned with the project. */
+  story?: GameStory;
   createdAt: number;
   updatedAt: number;
 }

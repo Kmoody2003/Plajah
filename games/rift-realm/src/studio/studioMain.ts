@@ -15,7 +15,7 @@ import { initKTX2, preloadSets } from '../textures';
 import type { Tier } from '../shrine';
 import { exportDefaults, moduleByParam } from './levelModules';
 import { instanceGroup } from './prefabs';
-import { effectiveLook, effectiveMarkers, effectiveZones, emptyLevel, type GameLevel, type LevelDefaults, type Marker } from '../../../../services/gamestudio/schema';
+import { effectiveLook, effectiveMarkers, effectiveZones, emptyLevel, type GameLevel, type LevelDefaults, type Marker, type Zone } from '../../../../services/gamestudio/schema';
 import { GAME_SOURCE, isStudioMessage, type GameToStudio } from '../../../../services/gamestudio/runtime';
 import { markerLabel } from '../../../../services/gamestudio/ops';
 import { prefabById } from '../../../../services/gamestudio/prefabs';
@@ -190,6 +190,24 @@ async function boot() {
     return g;
   }
 
+  /** Trigger zones (goal areas, story triggers): a see-through box, dragged like a marker. */
+  const unitBox = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
+  const unitEdges = new THREE.EdgesGeometry(unitBox);
+  function zoneGizmo(z: Zone): THREE.Group {
+    const g = new THREE.Group();
+    g.userData.markerId = z.id;
+    g.userData.zone = true;
+    const sel = z.id === selected;
+    const [w, h, d] = z.box!.size;
+    const fill = new THREE.Mesh(unitBox, mat(0x4ade80, sel ? 0.26 : 0.12)); fill.scale.set(w, h, d);
+    const edge = new THREE.LineSegments(unitEdges, new THREE.LineBasicMaterial({ color: sel ? 0xffffff : 0x4ade80, transparent: true, opacity: 0.9, depthTest: false })); edge.scale.set(w, h, d);
+    g.add(fill, edge, new THREE.Mesh(pole, mat(sel ? 0xffffff : 0x4ade80)));
+    g.position.set(z.box!.center[0], z.box!.center[1] - h / 2, z.box!.center[2]);
+    g.traverse(o => { o.renderOrder = sel ? 1001 : 1000; });
+    return g;
+  }
+  const triggers = () => effectiveZones(project, defaults).filter(z => z.kind === 'trigger' && z.box);
+
   // selection box around the selected prop
   const selBox = new THREE.Box3Helper(new THREE.Box3(), 0xfbbf24);
   (selBox.material as THREE.LineBasicMaterial).depthTest = false;
@@ -201,6 +219,7 @@ async function boot() {
   function redraw() {
     for (const c of gizmos.children.slice()) gizmos.remove(c);
     for (const m of effectiveMarkers(project, defaults)) gizmos.add(gizmoFor(m));
+    for (const z of triggers()) gizmos.add(zoneGizmo(z));
     if (hazard) { scene.remove(hazard); hazard = null; }
     const hz = effectiveZones(project, defaults).find(z => z.kind === 'hazardBelow');
     if (hz?.y !== undefined) {
@@ -264,8 +283,10 @@ async function boot() {
     setNdc(e);
     const id = pickMarker();
     if (!id) return;
-    const m = effectiveMarkers(project, defaults).find(x => x.id === id)!;
-    drag = { id, plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), -m.pos[1]), down: new THREE.Vector2(e.clientX, e.clientY), moved: false };
+    const m = effectiveMarkers(project, defaults).find(x => x.id === id);
+    const z = m ? null : triggers().find(x => x.id === id);
+    const y0 = m ? m.pos[1] : z ? z.box!.center[1] - z.box!.size[1] / 2 : 0;
+    drag = { id, plane: new THREE.Plane(new THREE.Vector3(0, 1, 0), -y0), down: new THREE.Vector2(e.clientX, e.clientY), moved: false };
     controls.enabled = false;
     renderer.domElement.setPointerCapture(e.pointerId);
     select(id);
@@ -279,8 +300,10 @@ async function boot() {
     // drop onto whatever surface is under the cursor (stairs, ring, gallery, a placed wall), else stay on the plane
     const y = collision.groundAt(tmp.x, tmp.z, tmp.y + 12, 40) ?? tmp.y;
     const pos: [number, number, number] = [round(tmp.x), round(y + 0.1), round(tmp.z)];
-    gizmos.children.find(c => c.userData.markerId === drag!.id)?.position.set(...pos);
-    post({ type: 'move', markerId: drag.id, pos });
+    const g = gizmos.children.find(c => c.userData.markerId === drag!.id);
+    g?.position.set(...pos);
+    if (g?.userData.zone) post({ type: 'moveZone', zoneId: drag.id, pos });
+    else post({ type: 'move', markerId: drag.id, pos });
   });
   const end = (e: PointerEvent) => {
     if (!drag) return;
@@ -317,7 +340,8 @@ async function boot() {
     else if (msg.type === 'frame') {
       const m = effectiveMarkers(project, defaults).find(x => x.id === msg.id);
       const inst = project.instances.find(i => i.id === msg.id);
-      const at = m?.pos ?? inst?.pos;
+      const zb = triggers().find(z => z.id === msg.id)?.box;
+      const at = m?.pos ?? inst?.pos ?? zb?.center;
       if (at) { selected = msg.id; redraw(); flyTo = new THREE.Vector3(...at); }
     }
     else if (msg.type === 'arm') { armed = msg.prefab && prefabById(msg.prefab) ? msg.prefab : null; redraw(); }

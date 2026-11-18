@@ -102,6 +102,8 @@ export type GameToStudio =
   | { source: typeof GAME_SOURCE; type: 'ready'; defaults: LevelDefaults }
   | { source: typeof GAME_SOURCE; type: 'select'; id: string | null }
   | { source: typeof GAME_SOURCE; type: 'move'; markerId: string; pos: [number, number, number] }
+  /** A trigger zone dragged in the view; `pos` is the point on the ground under its centre. */
+  | { source: typeof GAME_SOURCE; type: 'moveZone'; zoneId: string; pos: [number, number, number] }
   | { source: typeof GAME_SOURCE; type: 'placed'; prefab: string; pos: [number, number, number] }
   /** A drag of the transform handle: position and yaw (degrees). `done` marks the release. */
   | { source: typeof GAME_SOURCE; type: 'transform'; instanceId: string; pos: [number, number, number]; yaw: number; done: boolean }

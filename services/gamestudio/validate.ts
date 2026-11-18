@@ -2,6 +2,7 @@
 // Studio or a runtime opens it. Returns readable issues; `errors` block opening, `warnings` don't.
 
 import { GAME_PROJECT_KIND, GAME_PROJECT_VERSION, MARKER_KINDS, type GameProject, type Vec3 } from './schema';
+import { validateGameStory } from './story/schema';
 
 export interface Issue { level: 'error' | 'warning'; path: string; message: string }
 export interface Validation { ok: boolean; errors: Issue[]; warnings: Issue[] }
@@ -86,6 +87,8 @@ export function validateProject(input: unknown): Validation {
   else p.assets.forEach((a, i) => { if (!a?.url) err(`assets[${i}].url`, 'Asset needs a url.'); if (!a?.license) warn(`assets[${i}].license`, 'Asset has no licence recorded.'); });
   if (!Array.isArray(p.rules)) err('rules', 'rules must be a list.');
   else { const ids = new Set<string>(); p.rules.forEach((r, i) => checkRule(`rules[${i}]`, r, err, (path, id) => { if (typeof id !== 'string' || !id || ids.has(id)) err(path, 'Rule needs a unique id.'); else ids.add(id as string); })); }
+  // a broken story never blocks opening the game: it is reported and the Story tab offers to fix or clear it
+  if (p.story !== undefined) { const sc = validateGameStory(p.story); if (!sc.ok) warn(`story.${sc.errors[0].path}`, `Story: ${sc.errors[0].message}`); }
   return done(issues);
 }
 
