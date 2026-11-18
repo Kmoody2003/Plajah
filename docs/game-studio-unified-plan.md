@@ -281,6 +281,18 @@ becomes a breakdown, and the Studio builds level 1 from it.
 - **Not yet:** rules don't run in the game (Phase 2 rule player); Ravencrest has no Studio runtime, so its
   levels play in Rift Realm stand-ins; story edits beyond beat/intensity/time are by AI or file.
 
+## 7b. Photo → 3D: scan, look, fix, repeat (Props room)
+
+Full plan: [`docs/game-studio-photo-to-3d.md`](game-studio-photo-to-3d.md). A photo is scanned on the local
+GPU (Tela 3D runtime), the scan becomes Argilla clay, and a loop renders the model from the photo's aligned
+camera and other angles, scores it (silhouette, colour, materials, props), has a vision model list what is
+missing or wrong as a typed gap report, and has Aria's agent fix it with readable, undoable model ops (add or
+carve a part, extrude, sculpt, paint, material), one batch per round, until 99% or the gains flatten. A round
+that lowers the score is undone. The same doc stays hand-editable. It also writes down the runtime target
+for everything the Studio exports: WebGPU on native APIs (D3D12, Vulkan, Metal) with WebGL2 fallback, tiered
+bakes (LODs, KTX2, meshopt) for Windows, Android, iOS and Mac. First slice built 2026-11-18
+(`services/gamestudio/photo3d/*`, 19 tests, one real run on a conga photo).
+
 ## 8. Decisions for Kenne
 
 1. **Pilot game:** Rift Realm (recommended) or Era Clash Chapter I.
