@@ -99,6 +99,11 @@ export function bridgeFeet(ground: (x: number, z: number) => number): { name: st
   });
 }
 
+/** the bridges' road corridors (approach foot to approach foot), for passes that must leave them alone */
+export function bridgeCorridors(ground: (x: number, z: number) => number): { xz: number[][]; r: number }[] {
+  return bridgeFeet(ground).map((f, i) => ({ xz: [[f.a.x, f.a.z], [f.b.x, f.b.z]], r: RIVER_BRIDGES[i].width / 2 + 30 }));
+}
+
 // ---- approach design ----
 // Each approach gets a vertical profile like a highway engineer would draw it: it leaves the deck and meets the natural ground again without ever going steeper than
 // 5 %; over low ground it stays up on a viaduct, through high ground it cuts in (6 m at most) and fills the small dips. The profile is the higher of two slope-limited

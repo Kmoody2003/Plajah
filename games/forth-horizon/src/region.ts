@@ -35,7 +35,8 @@ import { carveCliffRaceway, designCliffTrack, indexTrack, cliffSurface, type Tra
 import { buildCountryScenes, carveCreek, type CountryScenes, type RoadNetwork, type Shoreline, carveShoreline } from './countryScenes';
 import { buildRuralOpenWorldDetail } from './ruralDetail';
 import { buildCityExpansion } from './cityExpansion';
-import { buildRiverBridges, carveRiverReaches, routeOverBridges, gradeFromFoot } from './riverBridges';
+import { buildRiverBridges, carveRiverReaches, routeOverBridges, gradeFromFoot, bridgeCorridors } from './riverBridges';
+import { gradeRoads, corridor, type GradeRoad } from './roadGrade';
 import { createMapEditor, ROAD_STYLE, type RoadKind, type UserMap } from './mapEditor';
 import { CompetitionEngine } from './racingAI';
 import { TrafficManager, OpenWorldChallengeManager } from './openWorldEvents';
@@ -3883,6 +3884,30 @@ async function boot(): Promise<void> {
     carveSim(simPlan, heights, meta.width, meta.height, meta.mpp);
   }
   carveCreek(heights, meta.width, meta.height, meta.mpp);
+  {
+    // the road grade pass (roadGrade.ts): every highway and street gets a designed vertical profile (5 % freeways, 6 % highways and arterials, 8 % streets) and the
+    // ground is cut or built up to it; the sunken freeway, the bridge approaches, the shoreline highway and the cliff raceway keep their own grading
+    const td = await fetch(BASE + 'trench.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { lines: { xz: number[][]; half: number }[] } | null;
+    const cc = meta.circuits.great_lakes_cliff_raceway as { xz?: number[][] } | undefined;
+    const locked = corridor([
+      ...(td?.lines ?? []).map((l) => ({ xz: l.xz, r: l.half + 8 })),
+      ...bridgeCorridors((x, z) => hAt(x, z)),
+      ...(shoreHw ? [{ xz: shoreHw.xz, r: 30 }] : []),
+      ...(cc?.xz ? [{ xz: cc.xz, r: 30 }] : []),
+    ]);
+    const roads: GradeRoad[] = [];
+    const W8 = { street: 8.5, arterial: 14, freeway: 12.5, ramp: 5.5 } as Record<string, number>;
+    const runs = await fetch(BASE + 'city_streets.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { c: string; p: number[][] }[] | null;
+    for (const r of runs ?? []) roads.push({ xz: r.p, half: (W8[r.c] ?? 8.5) / 2, cls: r.c === 'freeway' ? 'freeway' : r.c === 'street' ? 'street' : 'highway' });
+    for (const r of countryNet?.roads ?? []) {
+      const rr = r as { kind: string; xz: number[][]; half?: number; trail?: boolean; driveway?: boolean };
+      if (rr.kind !== 'paved' || rr.trail || rr.driveway) continue;
+      roads.push({ xz: rr.xz, half: rr.half ?? 3.6, cls: rr.half === 10 ? 'freeway' : rr.xz === meta.coastal_highway.xz ? 'highway' : 'street' });
+    }
+    const st = gradeRoads(heights, meta.width, meta.height, meta.mpp, roads, locked);
+    console.log('road grade pass', st);
+    (window as unknown as { roadGrade: unknown }).roadGrade = st;
+  }
   {
     // flat graded pads under every large building and parking lot (pads.ts); houses sit on their small lots as the ground lies
     const cj = await fetch(BASE + 'city.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { items: CityItem[] } | null;
