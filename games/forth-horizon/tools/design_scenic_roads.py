@@ -27,7 +27,11 @@ ROADS = [
      "cp": [(-1116, -4600), (-1220, -4880), (-1460, -5220), (-1780, -5580), (-2150, -5980)]},
     {"name": "Orchard Lane", "surface": "paved", "half": 3.4, "speed": 70, "grade": 0.08, "bank": 0.05,
      "cp": [(1068, -4600), (980, -4820), (820, -5020), (620, -5250), (430, -5500)]},
-    {"name": "Superior Coast Highway", "surface": "paved", "half": 4.2, "speed": 90, "grade": 0.065, "bank": 0.06, "cut": 16.0,
+    # located with tools/route_pass.py (grade-limited search): giant forest -> valley between the two glaciated peaks -> saddle 431 m -> north shore,
+    # where it meets the coast highway's end; with the highway it closes the Superior Range circuit
+    {"name": "Glacier Pass", "surface": "paved", "half": 3.4, "speed": 50, "minR": 20.0, "grade": 0.09, "bank": 0.07, "cut": 20.0,
+     "cp": [(-4850, -7872), (-5133, -8165), (-5361, -8629), (-5356, -8687), (-5283, -8816), (-5274, -8930), (-5202, -9014), (-5161, -9099), (-5160, -9243), (-5108, -9319), (-5052, -9339), (-4927, -9338), (-4831, -9304), (-4778, -9318), (-4618, -9451), (-4497, -9687), (-4463, -9727), (-4416, -9745), (-4312, -9746), (-4228, -9787), (-4187, -9831), (-4129, -9957), (-4070, -10015), (-3924, -10032), (-3481, -10219), (-3346, -10348), (-3184, -10432), (-3128, -10507), (-3065, -10655), (-3081, -10732), (-3154, -10787), (-3213, -10785), (-3149, -10674), (-3187, -10601), (-3288, -10569), (-3356, -10584), (-3432, -10667), (-3427, -10794), (-3493, -10933), (-3381, -10848), (-3329, -10874), (-3342, -11029), (-3269, -11111), (-3219, -11358), (-3056, -11592), (-3043, -11850), (-3076, -11908), (-3125, -11842), (-3265, -11779), (-3317, -11788), (-3387, -11824), (-3426, -11860), (-3439, -12000), (-3368, -12083), (-3460, -12089), (-3401, -12220), (-3376, -12331), (-3302, -12459), (-3280, -12555), (-3328, -12625), (-3414, -12644), (-3303, -12682), (-3392, -12845), (-3420, -13037), (-3484, -13106), (-3577, -13138), (-3677, -13141), (-3891, -13111), (-4007, -13050), (-3864, -13276), (-3688, -13221), (-3559, -13256), (-3433, -13189), (-3346, -13198), (-3269, -13188), (-3168, -13299), (-3095, -13361), (-3166, -13443), (-3228, -13521), (-3282, -13544), (-3333, -13537), (-3430, -13490), (-3532, -13483), (-3649, -13440), (-3732, -13446), (-3816, -13490), (-3908, -13584), (-4022, -13653), (-4170, -13664), (-4298, -13720), (-4415, -13752), (-4478, -13888), (-4530, -13916), (-4595, -13869), (-4653, -13628), (-4706, -13531), (-4764, -13481), (-4930, -13403), (-5083, -13442), (-5186, -13416), (-5329, -13402), (-5342, -13469), (-5203, -13567), (-5145, -13657), (-5148, -13712), (-5215, -13810), (-5170, -13873), (-5260, -13854), (-5285, -13736), (-5320, -13688), (-5379, -13651), (-5437, -13644), (-5505, -13684), (-5515, -13742), (-5387, -13814), (-5366, -13866), (-5407, -13931), (-5467, -13935), (-5566, -13812), (-5629, -13755), (-5644, -13684), (-5708, -13731), (-5732, -13857), (-5845, -13973), (-5902, -13928), (-5886, -13808), (-5967, -13767), (-6067, -13799), (-6094, -13842), (-6053, -13946), (-6059, -14054), (-6110, -14118), (-6183, -14133), (-6218, -14066), (-6154, -14050)]},
+    {"name": "Superior Coast Highway", "surface": "paved", "half": 4.2, "speed": 90, "grade": 0.065, "bank": 0.06, "cut": 16.0, "endFrom": "Glacier Pass",
      "cp": [(624, -4488), (430, -4760), (-250, -5100), (-1150, -5480), (-2150, -5980), (-3150, -6580), (-4150, -7180), (-4850, -7880), (-5300, -8400),
             (-5700, -8800), (-6000, -9000), (-6150, -9200), (-6250, -9400), (-6360, -9600), (-6370, -9800), (-6410, -10000), (-6480, -10200), (-6560, -10420),
             (-6600, -10600), (-6620, -10800), (-6630, -11000), (-6660, -11200), (-6730, -11400), (-6730, -11600), (-6630, -11800), (-6510, -12000), (-6520, -12200),
@@ -63,6 +67,22 @@ def catmull(cp, step):
     return np.c_[np.interp(si, s, D[:, 0]), np.interp(si, s, D[:, 1])]
 
 
+def relax_radius(xz, min_r, iters=1500, m=4):
+    """Open up any bend tighter than min_r: points where the curvature is too high are pulled toward their neighbours' midpoint (a local
+    Laplacian relaxation that leaves the rest of the alignment alone), then resampled to STEP again."""
+    P = xz.copy()
+    for _ in range(iters):
+        a, b, c = P[:-2 * m], P[m:-m], P[2 * m:]                                                # 3 points m samples apart (a 32 m chord)
+        ab = np.linalg.norm(b - a, axis=1); bc = np.linalg.norm(c - b, axis=1); ac = np.linalg.norm(c - a, axis=1)
+        cross = np.abs((b - a)[:, 0] * (c - a)[:, 1] - (b - a)[:, 1] * (c - a)[:, 0])
+        k = 2 * cross / np.maximum(1e-6, ab * bc * ac)                                          # curvature of the circle through 3 points
+        bad = gaussian_filter1d((k > 1.0 / min_r).astype(float), 2) > 0.01
+        if not bad.any(): break
+        P[m:-m][bad] += 0.2 * ((a + c) / 2 - b)[bad]
+    s = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))]); si = np.append(np.arange(0, s[-1], STEP), s[-1])
+    return np.c_[np.interp(si, s, P[:, 0]), np.interp(si, s, P[:, 1])]
+
+
 def main():
     hm = json.load(open(os.path.join(R, "height2.json"))); W, H, mpp = hm["w"], hm["h"], hm["mpp"]; OX, OZ = hm.get("ox", 0), hm.get("oz", 0)
     hi = np.fromfile(os.path.join(R, "height2.u16"), dtype="<u2").reshape(H, W).astype(np.float32) * (hm["max"] - hm["min"]) / 65535.0 + hm["min"]
@@ -73,8 +93,10 @@ def main():
     B = np.array([[it["bx"], it["bz"], 0.5 * min(it["w"], it["d"])] for it in items])
     out = []
     report = []
+    done = {}
     for rd in ROADS:
-        xz = catmull(rd["cp"], STEP); n = len(xz)
+        xz = catmull(rd["cp"], STEP)
+        xz = relax_radius(xz, rd.get("minR", 30.0)); n = len(xz)
         g = np.array([gnd(x, z) for x, z in xz])
         wet = g < 0.3
         # over water the road is a bridge: the ground there does not count, the profile spans bank to bank at least 4 m above the water
@@ -90,6 +112,7 @@ def main():
             ga = g[a] if a >= 0 else 4.0; gb = g[b] if b < n else 4.0
             g[i] = max(4.0, ga + (gb - ga) * (i - a) / max(1, b - a))
         gs = gaussian_filter1d(g, 3)
+        if "endFrom" in rd: g[-1] = done[rd["endFrom"]][-1]                                     # a junction: meet the other road at its height
         s = rd["grade"] * STEP
         # profile: highest line at or under the ground, lowest line no more than 7 m under it; ends pinned to the roads they join
         hiL = gs.copy(); hiL[0] = g[0]; hiL[-1] = g[-1]
@@ -102,8 +125,8 @@ def main():
         # vertical curves: round the crests and sags over ~60 m, then hold the grade limit again
         for _ in range(3):
             y = gaussian_filter1d(y, 7); y[0] = g[0]; y[-1] = g[-1]
-            for i in range(1, n): y[i] = min(max(y[i], y[i - 1] - s), y[i - 1] + s)
-            for i in range(n - 2, -1, -1): y[i] = min(max(y[i], y[i + 1] - s), y[i + 1] + s)
+            for i in range(1, n - 1): y[i] = min(max(y[i], y[i - 1] - s), y[i - 1] + s)       # the ends stay pinned to the roads they join
+            for i in range(n - 2, 0, -1): y[i] = min(max(y[i], y[i + 1] - s), y[i + 1] + s)
         # curvature and banking
         d1 = np.gradient(xz, axis=0) / STEP; d2 = np.gradient(d1, axis=0) / STEP
         k = (d1[:, 0] * d2[:, 1] - d1[:, 1] * d2[:, 0]) / np.maximum(1e-6, (d1 ** 2).sum(1) ** 1.5)
@@ -128,6 +151,7 @@ def main():
                        "climb_m": round(float(y.max() - y.min()), 1)})
         out.append({"name": rd["name"], "surface": rd["surface"], "half": rd["half"], "speed": rd["speed"],
                     "xz": [[round(float(a), 2), round(float(b), 2)] for a, b in xz], "y": [round(float(a), 2) for a in y], "bank": [round(float(a), 4) for a in bank]})
+        done[rd["name"]] = y
         draw(rd, xz, y, g, bank, hi, W, H, mpp, OX, OZ)
     json.dump({"roads": out}, open(os.path.join(R, "scenic_roads.json"), "w"), separators=(",", ":"))
     for r in report: print(json.dumps(r))

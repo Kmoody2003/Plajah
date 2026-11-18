@@ -2063,6 +2063,7 @@ const WEATHER_PLAN: Record<string, { t: number; w: string }[]> = {
   cliff: [{ t: 0, w: 'fog' }, { t: 140, w: 'overcast' }, { t: 320, w: 'partly' }],
   rally: [{ t: 0, w: 'partly' }, { t: 60, w: 'overcast' }, { t: 150, w: 'rain' }],
   ind: [{ t: 0, w: 'overcast' }, { t: 90, w: 'rain' }, { t: 240, w: 'overcast' }],
+  superior: [{ t: 0, w: 'clear' }, { t: 420, w: 'fog' }, { t: 720, w: 'partly' }],         // clear on the coast, cloud on the pass, sun again in the forest
   free: [{ t: 0, w: 'clear' }, { t: 240, w: 'partly' }, { t: 540, w: 'overcast' }, { t: 840, w: 'rain' }],
 };
 let wxOverride = 'auto';
@@ -2316,6 +2317,7 @@ const MAP_EVENTS: { id: string; tag: string; name: string; sub: string; color: s
   { id: 'city', tag: 'CITY CIRCUIT', name: 'Ironport Grand Circuit', sub: '4.2 km · 13 corners · downtown streets', color: '#FF8C00', act: () => openBrief('city') },
   { id: 'cliff', tag: 'ROAD COURSE', name: 'Great Lakes Cliff Raceway', sub: '9.8 km · tunnel · 135 m lake-view climb', color: '#00DAF3', act: () => openBrief('cliff') },
   { id: 'rally', tag: 'RALLY STAGE', name: 'Pinewood Rally Stage', sub: '11 km · gravel · forest trail', color: '#D40055', act: () => openBrief('rally') },
+  { id: 'superior', tag: 'MOUNTAIN CIRCUIT', name: 'Superior Range Circuit', sub: '23 km · cliff highway + Glacier Pass', color: '#7FD1FF', act: () => openBrief('superior') },
   { id: 'ind', tag: 'STREET COURSE', name: 'Ironworks Industrial Circuit', sub: '2.2 km · concrete walls · port yards', color: '#9bb0c8', act: () => openBrief('ind') },
   { id: 'free', tag: 'FREE ROAM', name: 'Explore the region', sub: 'Port Halcyon · dunes · harbor · freeway', color: '#D0BCFF', act: () => openBrief('free') },
 ];
@@ -2552,6 +2554,7 @@ const BRIEFS: Record<string, { view: string; drive: string; tag: string; name: s
   cliff: { view: 'cliff', drive: 'great_lakes_cliff_raceway', tag: 'ROAD COURSE', name: 'Great Lakes Cliff Raceway', color: '#00DAF3', lines: ['9.8 km  ·  switchback climb  ·  tunnel', 'Starts on the beach, finishes 135 m above the lake', 'Coastal run out of the tunnel with open lake views'], blurb: 'A traditional race course on the western bluff. Hold the line through the climb.' },
   rally: { view: 'rally', drive: 'pinewood_rally_stage', tag: 'RALLY STAGE', name: 'Pinewood Rally Stage', color: '#D40055', lines: ['11 km  ·  gravel and forest trail', 'Service park at Otter Creek', 'Creek ford, lighthouse point and a cut forest trail'], blurb: 'Loose surface through the pines. Short on grip, long on speed.' },
   ind: { view: 'industrial', drive: IND, tag: 'STREET COURSE', name: 'Ironworks Industrial Circuit', color: '#9bb0c8', lines: ['2.2 km  ·  walls and tyre stacks', 'Cut through the port yards between the tank farm and the docks', 'Wide straights, tight service-road corners'], blurb: 'Short and unforgiving: concrete either side, containers and cranes behind it. Smooth hands win.' },
+  superior: { view: 'superior', drive: 'superior_range_circuit', tag: 'MOUNTAIN CIRCUIT', name: 'Superior Range Circuit', color: '#7FD1FF', lines: ['23 km  ·  one lap  ·  clockwise', 'North along the cliff highway and over the three fjord bridges', 'Back over Glacier Pass: hairpins to 430 m between the glaciers, down through the giant forest'], blurb: 'Fast and open on the coast, tight and steep on the pass. Save the brakes for the descent.' },
   free: { view: 'downtown', drive: 'free', tag: 'FREE ROAM', name: 'Explore the region', color: '#D0BCFF', lines: ['150 km² open region', 'Port Halcyon, the dune coast, the harbor and the freeway', 'Drive anywhere'], blurb: 'Start on the coastal highway and go wherever the roads lead.' },
 };
 const briefEl = document.createElement('div');
@@ -2619,7 +2622,7 @@ function openBrief(id: string): void {
   if (wxOverride === 'auto') wx.setWeather(worstOf(WEATHER_PLAN[id]), false, true);      // the map shows the race's worst weather as the forecast
   preset(b.view, true);       // stays on the map screen: dark backdrop, faded edges, no sky
   const cc = id === 'free' ? new THREE.Vector3(-4600, 0, 1800) : centroid(meta.circuits[b.drive]);
-  const hh = id === 'city' ? 1500 : id === 'ind' ? 1300 : id === 'cliff' ? 5200 : id === 'rally' ? 6200 : 6800;
+  const hh = id === 'city' ? 1500 : id === 'ind' ? 1300 : id === 'cliff' ? 5200 : id === 'rally' ? 6200 : id === 'superior' ? 9000 : 6800;
   look(new THREE.Vector3(cc.x - hh * 0.3, hh, cc.z + hh * 0.62), cc);   // steep, so no horizon shows
   briefEl.style.borderColor = b.color + '88';
   briefEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:${b.color};box-shadow:0 0 10px ${b.color}"></span><span style="font:600 10px Outfit,sans-serif;letter-spacing:.28em;color:${b.color}">${b.tag}</span></div>
@@ -2679,6 +2682,7 @@ function preset(name: string, keepMap = false): void {
   if (name === 'street' && city.y) { const k = 20, p = city.xz[k], q = city.xz[k + 4]; look(new THREE.Vector3(p[0], city.y[k] + 9, p[1]), new THREE.Vector3(q[0], city.y[k] + 25, q[1])); }
   if (name === 'harbor' && harbor) { const t = harbor.terminals[0]; look(new THREE.Vector3(t.c[0] - 700, 260, t.c[1] - 500), new THREE.Vector3(t.c[0], 8, t.c[1] + 120)); }
   if (name === 'industrial' && meta.circuits[IND]) { const c = centroid(meta.circuits[IND]); look(new THREE.Vector3(c.x - 600, 900, c.z + 900), new THREE.Vector3(c.x, 10, c.z)); }
+  if (name === 'superior' && meta.circuits.superior_range_circuit) { const c = centroid(meta.circuits.superior_range_circuit); look(new THREE.Vector3(c.x + 4200, 3600, c.z + 5200), new THREE.Vector3(c.x - 200, 200, c.z)); }
   if (name === 'dunes') look(new THREE.Vector3(-6500, 1500, 1500), new THREE.Vector3(-5200, 10, 400));
 }
 
@@ -3397,7 +3401,7 @@ function barrierCollide(s: DriveState): boolean {
 
 // ---------- garage: run tracking, medals, payouts and the courier mode ----------
 let runTracker: RunTracker | null = null, stagePath: PathProgress | null = null, stageFinished = false, lastLapCount = 0, delivery: DeliveryGame | null = null;
-const RUN_NAMES: Record<string, string> = { ironport_grand_circuit: 'Ironport Grand Circuit', great_lakes_cliff_raceway: 'Great Lakes Cliff Raceway', pinewood_rally_stage: 'Pinewood Rally Stage', ironworks_industrial_circuit: 'Ironworks Industrial Circuit' };
+const RUN_NAMES: Record<string, string> = { ironport_grand_circuit: 'Ironport Grand Circuit', great_lakes_cliff_raceway: 'Great Lakes Cliff Raceway', pinewood_rally_stage: 'Pinewood Rally Stage', ironworks_industrial_circuit: 'Ironworks Industrial Circuit', superior_range_circuit: 'Superior Range Circuit' };
 let courierSpots: ReturnType<typeof makeSpots> | null = null;
 function deliverySpots(): ReturnType<typeof makeSpots> {
   if (!courierSpots) courierSpots = makeSpots([meta.coastal_highway.xz.map((p) => ({ x: p[0], z: p[1] })), ...streetRuns.map((r) => r.p.map((p) => ({ x: p[0], z: p[1] })))]);
@@ -3540,7 +3544,7 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
   carY = -1e9; carPitch = carRoll = slopePS = slopeRS = 0; setMusicDuck(0.4); gameAudio.ensureStarted(); gameAudio.setPaused(false);
   wx.ensureAudio(); wx.setAudioLevel(engVol); wx.setPaused(false);
   {
-    const key = id === 'ironport_grand_circuit' ? 'city' : id === 'great_lakes_cliff_raceway' ? 'cliff' : id === 'pinewood_rally_stage' ? 'rally' : id === IND ? 'ind' : 'free';
+    const key = id === 'ironport_grand_circuit' ? 'city' : id === 'great_lakes_cliff_raceway' ? 'cliff' : id === 'pinewood_rally_stage' ? 'rally' : id === IND ? 'ind' : id === 'superior_range_circuit' ? 'superior' : 'free';
     wxPlan = WEATHER_PLAN[key]; wxPlanT = 0; wxPlanI = 0;
     wx.setWeather(wxOverride === 'auto' ? wxPlan[0].w : wxOverride, false, true);
   }
@@ -3933,6 +3937,21 @@ async function boot(): Promise<void> {
   }
   scenicData = ((await fetch(BASE + 'scenic_roads.json').then((x) => (x.ok ? x.json() : null)).catch(() => null)) as { roads: ScenicRoad[] } | null)?.roads ?? [];
   carveScenicRoads(heights, meta.width, meta.height, meta.mpp, scenicData);     // the scenic roads are graded to their own banked design
+  {
+    // the Superior Range Circuit: a closed lap made of two designed roads. North on the Superior Coast Highway along the cliffs and over the fjord bridges, back
+    // south over Glacier Pass (the saddle between the glaciated peaks, 430 m), down through the giant forest to the junction. The grid sits on the highway 60 m
+    // north of the junction, so the lap ends after the forest descent.
+    const hw = scenicData.find((r) => r.name === 'Superior Coast Highway'), gp = scenicData.find((r) => r.name === 'Glacier Pass');
+    if (hw && gp) {
+      const j0 = gp.xz[0];
+      let j = 0, best = 1e18;
+      hw.xz.forEach((p, i) => { const d = (p[0] - j0[0]) ** 2 + (p[1] - j0[1]) ** 2; if (d < best) { best = d; j = i; } });
+      const g = Math.min(hw.xz.length - 1, j + 15);
+      const xz = [...hw.xz.slice(g), ...gp.xz.slice(0, -1).reverse(), ...hw.xz.slice(j, g + 1)];
+      const y = [...hw.y.slice(g), ...gp.y.slice(0, -1).reverse(), ...hw.y.slice(j, g + 1)];
+      meta.circuits.superior_range_circuit = { name: 'Superior Range Circuit', kind: 'road', xz, y };
+    }
+  }
   {
     // the road grade pass (roadGrade.ts): every highway and street gets a designed vertical profile (5 % freeways, 6 % highways and arterials, 8 % streets) and the
     // ground is cut or built up to it; the sunken freeway, the bridge approaches, the shoreline highway and the cliff raceway keep their own grading

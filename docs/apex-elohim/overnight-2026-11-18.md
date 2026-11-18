@@ -32,8 +32,14 @@ Measured with a new benchmark (`window.__bench`) and a headless GPU screenshot t
 ## Looks
 - Cliffs and steep ground now render as grey layered rock at every distance (no more stretched tan smears).
 
+## Morning: Glacier Pass and the Superior Range Circuit
+- **Glacier Pass** (15.9 km): from the coast highway in the giant forest, up the valley between the two glaciated peaks to a 430 m saddle, down the north side to the shore, where it meets the coast highway's end at exactly the same height. 9 % max (an Alpine-pass grade), hairpins no tighter than 23 m radius, rock cuts up to ~29 m through one ridge nose (the game's cut limit is now 30 m).
+- Located with a new tool, `tools/route_pass.py`: a grade-limited, heading-aware route search over the terrain (no bend tighter than ~25 m, steep side slopes and water cost extra), simplified into control points for the road designer. The designer now also relaxes any bend tighter than a road's minimum radius (Kettle Pass improved from 30 to 37 m) and keeps every road's ends pinned to the roads it joins.
+- **Superior Range Circuit** (22.9 km, one lap): a new race in the event menu, north on the coast highway along the cliffs and fjord bridges, back over Glacier Pass and down through the giant forest. Checked in the game: the race starts on the grid, the drivable surface matches the design within 5 cm on average (worst 29 cm, at the junction).
+
 ## Not done yet / known
-- **Glacier Pass** and the escarpment climb (the road over the range) are not laid yet; the coast highway currently ends at a north-shore lookout.
+- **The escarpment climb** (Finger Lake Loop up the escarpment to the range) is not laid yet.
+- **Material detail pass** (Kenne, 2026-11-18): after the road and street layout is right, a high-end detail pass on materials: real tulip flowers instead of coloured bands, rock-cut faces (they read as flat grey facets now), and the like.
 - The festival has no progression yet (Fest Points, Stage Passes, opening shows, radio hosts reacting); the design is in `chora-fest-design.md`.
 - Some speed-trap names repeat a place (Otter Creek West 2); vegetation on the steep range is sparse; distant tree density at altitude costs ~2 M triangles.
 - The game map screen does not yet show the festival sites or the new north as a designed map (the map-view upgrade from the concept art is still open).

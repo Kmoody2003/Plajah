@@ -25,6 +25,10 @@ const SHOTS = [
   ['festival-wine-stage', [450, 26, -6130], [380, 14, -6200]],
   ['speed-trap', [-1116, 40, 3195], [-1116, 20, 3795]],
   ['coast-highway', [-6900, 160, -10900], [-6550, 90, -10350]],
+  ['glacier-pass-saddle', [-3120, 470, -12320], [-3360, 425, -12760]],
+  ['glacier-pass-hairpins', [-3150, 560, -11850], [-3420, 370, -12080]],
+  ['glacier-pass-north', [-3650, 470, -12950], [-3850, 345, -13280]],
+  ['glacier-pass-forest', [-4150, 160, -8150], [-3950, 120, -8750]],
 ].filter(([n]) => !only?.length || only.includes(n));
 
 const gpu = args.includes('--swiftshader') ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'];
