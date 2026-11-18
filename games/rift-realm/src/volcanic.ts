@@ -23,6 +23,87 @@ const LEDGE = 10; // Team A overlook height: the concept is shot from well above
 const CHASM = { x0: 16, x1: 30, z0: -70, z1: 70 };
 const PIT_FLOOR = -9; // below the hazard line: the trenches are lethal, crossed by catwalks or a dash
 const PITS: [number, number, number, number][] = [[-10, -2, 8, 16], [-2, 8, -10, -2], [4, 10, 8, 18]];
+/** The forge hall's cavity under the castle tier (art: "Volcanic compound armory forge interior"). */
+const FORGE = { x0: -44, x1: -26, z0: -82, z1: -42 };
+const FORGE_FLOOR = -4; // walkway level; the deck at the arch is compound level (0)
+
+/** Circuit traces on a transparent canvas: the art's glowing rune-circuits (gold in the throne hall, cyan in the forge). */
+function circuitTexture(w: number, h: number, col: string, seed: number, traces: number, alongY: boolean) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d')!;
+  const r = rng(seed), S = 16;
+  g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 3; g.lineJoin = 'miter';
+  for (let i = 0; i < traces; i++) {
+    let x = alongY ? w * (0.2 + 0.6 * (i + 0.5) / traces) : Math.round(r() * w / S) * S;
+    let y = alongY ? h : Math.round(r() * h / S) * S;
+    g.beginPath(); g.moveTo(x, y);
+    const segs = alongY ? 40 : 3 + Math.floor(r() * 4);
+    for (let k = 0; k < segs; k++) {
+      const len = S * (1 + Math.floor(r() * (alongY ? 4 : 5)));
+      if (alongY) { // runs up the aisle, jogging sideways on 45° diagonals
+        const jog = r() < 0.35 ? (r() < 0.5 ? -1 : 1) * S * (1 + Math.floor(r() * 2)) : 0;
+        const nx = Math.min(w * 0.85, Math.max(w * 0.15, x + jog));
+        y -= Math.abs(nx - x) || 0; x = nx; g.lineTo(x, y);
+        y -= len; g.lineTo(x, y);
+        if (y < 0) break;
+      } else {
+        const d = Math.floor(r() * 8), dx = [1, 1, 0, -1, -1, -1, 0, 1][d], dy = [0, 1, 1, 1, 0, -1, -1, -1][d];
+        x = Math.min(w - 8, Math.max(8, x + dx * len)); y = Math.min(h - 8, Math.max(8, y + dy * len)); g.lineTo(x, y);
+      }
+    }
+    g.stroke();
+    g.beginPath(); g.arc(x, y, 5, 0, Math.PI * 2); g.fill();
+    if (!alongY) { g.beginPath(); g.arc(x, y, 9, 0, Math.PI * 2); g.stroke(); }
+  }
+  if (alongY) for (const ex of [6, w - 6]) { g.beginPath(); g.moveTo(ex, 0); g.lineTo(ex, h); g.stroke(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+  return t;
+}
+
+/** The throne hall's three lancet windows: leaded glass picturing the erupting volcano, as in the throne-room art. */
+function stainedGlassTexture() {
+  const W = 512, H = 768, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d')!;
+  const lancets: [number, number, number][] = [[40, 142, 170], [188, 324, 0], [370, 472, 170]]; // x0, x1, spring offset
+  const shape = (x0: number, x1: number, top: number) => {
+    const cx = (x0 + x1) / 2, spring = top + (x1 - x0) * 0.9;
+    g.moveTo(x0, H); g.lineTo(x0, spring);
+    g.quadraticCurveTo(x0, top + (spring - top) * 0.25, cx, top);
+    g.quadraticCurveTo(x1, top + (spring - top) * 0.25, x1, spring);
+    g.lineTo(x1, H); g.closePath();
+  };
+  g.save();
+  g.beginPath(); for (const [x0, x1, t] of lancets) { shape(x0, x1, t); } g.clip();
+  // the scene: ash sky over an erupting cone, lava running down its flanks
+  const sky = g.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, '#2b1d3a'); sky.addColorStop(0.35, '#6b3a4a'); sky.addColorStop(0.55, '#d0602a'); sky.addColorStop(1, '#3a1810');
+  g.fillStyle = sky; g.fillRect(0, 0, W, H);
+  const glow = g.createRadialGradient(256, 330, 10, 256, 330, 260);
+  glow.addColorStop(0, 'rgba(255,200,90,1)'); glow.addColorStop(0.3, 'rgba(255,110,30,0.7)'); glow.addColorStop(1, 'rgba(255,80,20,0)');
+  g.fillStyle = glow; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#2c1610'; g.beginPath(); g.moveTo(-20, H); g.lineTo(220, 340); g.lineTo(292, 340); g.lineTo(532, H); g.closePath(); g.fill();
+  const r = rng(77);
+  g.strokeStyle = '#ff7a22'; g.lineWidth = 7;
+  for (let i = 0; i < 9; i++) {
+    let x = 236 + r() * 40, y = 345; g.beginPath(); g.moveTo(x, y);
+    const drift = (i - 4) * 9;
+    while (y < H) { y += 30; x += drift + (r() - 0.5) * 26; g.lineTo(x, y); }
+    g.stroke();
+  }
+  g.fillStyle = 'rgba(255,170,70,0.9)'; g.beginPath(); g.ellipse(256, 340, 40, 12, 0, 0, Math.PI * 2); g.fill();
+  // lead cames: horizontal bars, diamond quarries, a roundel at the head of the centre light
+  g.strokeStyle = 'rgba(14,8,8,0.95)'; g.lineWidth = 3;
+  for (let y = 40; y < H; y += 46) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+  g.lineWidth = 2;
+  for (let d = -H; d < W + H; d += 38) { g.beginPath(); g.moveTo(d, 0); g.lineTo(d + H, H); g.stroke(); g.beginPath(); g.moveTo(d, 0); g.lineTo(d - H, H); g.stroke(); }
+  g.lineWidth = 6; g.beginPath(); g.arc(256, 150, 44, 0, Math.PI * 2); g.stroke();
+  for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; g.beginPath(); g.moveTo(256, 150); g.lineTo(256 + Math.cos(a) * 44, 150 + Math.sin(a) * 44); g.stroke(); }
+  g.restore();
+  g.strokeStyle = '#120a08'; g.lineWidth = 9;
+  for (const [x0, x1, t] of lancets) { g.beginPath(); shape(x0, x1, t); g.stroke(); g.beginPath(); g.moveTo((x0 + x1) / 2, t + 40); g.lineTo((x0 + x1) / 2, H); g.lineWidth = 5; g.stroke(); g.lineWidth = 9; }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
 
 export function volcanicHeight(x: number, z: number): number {
   let h = 0;
@@ -36,6 +117,10 @@ export function volcanicHeight(x: number, z: number): number {
   const ch = box(x, z, CHASM.x0, CHASM.x1, CHASM.z0, CHASM.z1, 2.5);
   h = h * (1 - ch) + ch * (LAVA_Y - 4);
   for (const [x0, x1, z0, z1] of PITS) { const p = box(x, z, x0, x1, z0, z1, 0.6); h = h * (1 - p) + p * PIT_FLOOR; }
+  // the forge under the castle tier: its arch is cut at compound level, and the hall floor is a lethal lava cavity
+  // (the walkways are solid boxes standing in it)
+  h *= 1 - box(x, z, -36.5, -31.5, -42.2, -36, 0.3);
+  { const f = box(x, z, FORGE.x0, FORGE.x1, FORGE.z0, FORGE.z1, 0.3); h = h * (1 - f) + f * PIT_FLOOR; }
   return h + (fbm3(x * 0.12, 5, z * 0.12) - 0.5) * 0.25 * (1 - ch);
 }
 
@@ -239,21 +324,45 @@ export function buildVolcanic(scene: THREE.Scene, tier: Tier = 'high'): Level {
   // with a tall central spire. Three ways up: the west grand stair, the fortress-roof bridge, the west-lane flight.
   {
     const tz0 = -38.4;
-    kit.box(darkStone, 68, TIER, 48, -16, TIER / 2, -62.4, 0, { tpm: 0.4 });           // upper tier
+    // upper tier (x -50..18, z -38.4..-86.4), built as a shell around the forge cavity
+    const TD = TIER - PIT_FLOOR, TY = (TIER + PIT_FLOOR) / 2; // shell blocks reach down to the pit floor
+    kit.box(darkStone, 44, TD, 48, -4, TY, -62.4, 0, { tpm: 0.4 });                    // east of the forge
+    kit.box(darkStone, 6, TD, 48, -47, TY, -62.4, 0, { tpm: 0.4 });                    // west of the forge
+    kit.box(darkStone, 18, TD, 4.4, -35, TY, -84.2, 0, { tpm: 0.4 });                  // north end
+    kit.box(darkStone, 7.5, TD, 3.6, -40.25, TY, -40.2, 0, { tpm: 0.4 });              // south face, either side of the arch
+    kit.box(darkStone, 5.5, TD, 3.6, -28.75, TY, -40.2, 0, { tpm: 0.4 });
+    kit.box(darkStone, 5, 3, 3.6, -34, 6.5, -40.2, 0, { tpm: 0.4 });                   // arch lintel
+    kit.box(paving, 5, 9, 3.6, -34, -4.5, -40.2, 0, { tpm: 0.35 });                    // arch floor
+    for (const sx of [-36.9, -31.1]) kit.box(runeStone, 0.8, 5.4, 0.8, sx, 2.7, -38.2, 0, { tpm: 0.6 }); // arch jambs
+    kit.box(runeStone, 6.6, 0.8, 0.8, -34, 5.4, -38.2, 0, { tpm: 0.6 });
+    // forge ceiling = tier top (y 6.8..8), with stairwells: H1 (west, up to the tier top) and H2 (east, up into the throne hall)
+    for (const [x0, x1, z0, z1] of [[-41.5, -29, -82, -42], [-44, -41.5, -47, -42], [-44, -41.5, -82, -57], [-29, -26, -60, -42], [-29, -26, -82, -70]] as const) {
+      kit.box(darkStone, x1 - x0, 1.2, z1 - z0, (x0 + x1) / 2, TIER - 0.6, (z0 + z1) / 2, 0, { tpm: 0.4 });
+    }
+    buildForge();
     // parapet along the tier edge, broken where the stairs and bridge arrive
     for (const [a, b] of [[-50, -43], [-37, -31.5], [-24.5, -10.5], [-1.5, 18]] as const) B.curtain(darkStone, (a + b) / 2, tz0, 0, b - a, 1.1, TIER, 0.8);
     B.flight(stone, -28, 0.05, tz0 + 12.8, Math.PI, TIER, 6);                         // grand stair (west of the fortress block)
     B.flight(stone, -40, 0.05, tz0 + 12.8, Math.PI, TIER, 5);                         // west-lane flight
     const kz = -72, ky = TIER;
     B.gothicWall(runeStone, -16, -52, 0, 34, 20, 3, ky, 2.4, 0.62);                   // gatehouse arcade facing the compound
-    kit.box(darkStone, 40, 34, 22, -16, ky + 17, kz + 6, 0, { tpm: 0.3 });              // keep body
-    for (const [x, z, w, h] of [[-36, -54, 10, 40], [4, -54, 10, 40], [-46, -72, 12, 50], [14, -74, 9, 38], [-16, -76, 9, 56]] as const) B.tower(darkStone, x, z, w, h, ky, false);
+    // keep body (x -36..4, z -55..-84, y 8..42): a hollow shell around the throne hall
+    for (const [x0, x1, z0, z1, y0, y1] of [
+      [-36, -19.5, -57, -55, ky, 42], [-12.5, 4, -57, -55, ky, 42], [-19.5, -12.5, -57, -55, ky + 9, 42], // front, great gate 7 x 9
+      [-36, 4, -84, -82, ky, 42],                                                                          // back (the windows)
+      [-36, -29, -74.5, -57, ky, 42], [-36, -29, -82, -77.5, ky, 42], [-36, -29, -77.5, -74.5, ky + 5, 42], // west, side door
+      [-3, 4, -62.5, -57, ky, 42], [-3, 4, -82, -65.5, ky, 42], [-3, 4, -65.5, -62.5, ky + 5, 42],         // east, side door
+      [-36, 4, -84, -55, 34, 42],                                                                          // roof
+    ] as const) kit.box(darkStone, x1 - x0, y1 - y0, z1 - z0, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, 0, { tpm: 0.3 });
+    for (const sx of [-20.1, -11.9]) kit.box(runeStone, 1.2, 9.6, 2.8, sx, ky + 4.8, -56, 0, { tpm: 0.6 }); // gate jambs
+    kit.box(runeStone, 9.4, 1.2, 2.8, -16, ky + 9.6, -56, 0, { tpm: 0.6 });
+    for (const [x, z, w, h] of [[-36, -54, 10, 40], [4, -54, 10, 40], [-46, -72, 12, 50], [14, -74, 9, 38], [-16, -89, 10, 56]] as const) B.tower(darkStone, x, z, w, h, ky, false);
     // gabled roof ridge over the keep body
-    { const g = new THREE.CylinderGeometry(0.4, 12, 9, 4, 1); g.rotateY(Math.PI / 4); g.scale(1.65, 1, 0.9); kit.place(g, -16, ky + 38.5, kz + 6); kit.add(darkStone, g, { tpm: 0.3, solid: false }); }
+    { const g = new THREE.CylinderGeometry(0.4, 12, 9, 4, 1); g.rotateY(Math.PI / 4); g.scale(1.65, 1, 1.2); kit.place(g, -16, ky + 38.5, -69.5); kit.add(darkStone, g, { tpm: 0.3, solid: false }); }
     // lit windows: keep body rows + tower slits
     for (let r = 0; r < 2; r++) for (let i = 0; i < 6; i++) kit.box(windowMat, 1.4, 3.6, 0.2, -31 + i * 6, ky + 15 + r * 9, kz + 17.1, 0, { solid: false, shadow: false, tpm: 1 });
-    for (const [x, z, w, h] of [[-36, -54, 10, 40], [4, -54, 10, 40], [-16, -76, 9, 56]] as const) for (let r = 0; r < 3; r++) kit.box(windowMat, 1.1, 3.2, 0.2, x, ky + h * (0.45 + r * 0.17), z + w / 2 + 0.11, 0, { solid: false, shadow: false, tpm: 1 });
-    kit.box(windowMat, 7, 9, 0.3, -16, ky + 4.5, kz + 17.2, 0, { solid: false, shadow: false, tpm: 1 }); // lit great gate
+    for (const [x, z, w, h] of [[-36, -54, 10, 40], [4, -54, 10, 40], [-16, -89, 10, 56]] as const) for (let r = 0; r < 3; r++) kit.box(windowMat, 1.1, 3.2, 0.2, x, ky + h * (0.45 + r * 0.17), z + w / 2 + 0.11, 0, { solid: false, shadow: false, tpm: 1 });
+    buildThroneHall();
     const keepLight = new THREE.PointLight(0xffa040, 60, 30, 2); keepLight.position.set(-16, ky + 5, -46); group.add(keepLight);
     B.curtain(darkStone, 34, kz + 22, 0.25, 30, 10, 0, 2.4);
   }
@@ -350,6 +459,185 @@ export function buildVolcanic(scene: THREE.Scene, tier: Tier = 'high'): Level {
     const l = new THREE.PointLight(0xff5a14, i, 38, 2); l.position.set(x, y, z); group.add(l); lavaLights.push(l);
   }
 
+  // ── UNDER THE TIER: the forge hall (art: "Volcanic compound armory forge interior") ─────────────────
+  // A lower lane from the compound to the throne hall. You enter through the arch at compound level onto a deck. Stairs drop to
+  // two walkways either side of a lethal lava channel, crossed by two stone bridges. Rune anvils, weapon racks and lava
+  // falls from wall spouts line the walkways; the forge reactor ring glows at the far end. Exits: the arch, a steel stair
+  // up to the tier top (west) and a steel stair from the east catwalk up into the throne hall.
+  function buildForge() {
+    const FL = FORGE_FLOOR, zA = -47, zB = FORGE.z0; // walkways run zA..zB
+    const len = zA - zB, zc = (zA + zB) / 2;
+    kit.box(paving, 18, 9, 5, -35, -4.5, -44.5, 0, { tpm: 0.35 });                       // arrival deck (y 0)
+    for (const x of [-40.5, -29.5]) kit.box(paving, 7, 5, len, x, FL - 2.5, zc, 0, { tpm: 0.35 }); // walkways
+    for (const x of [-37.25, -32.75]) kit.box(darkStone, 0.5, 0.5, len, x, FL + 0.25, zc, 0, { tpm: 0.6 }); // channel curbs
+    for (const z of [-58, -72]) kit.box(stone, 4.4, 0.7, 3, -35, FL - 0.35, z, 0, { tpm: 0.5 });   // bridges over the channel
+    const ch = new THREE.Mesh(new THREE.PlaneGeometry(4, len), lavaMat);
+    ch.rotation.x = -Math.PI / 2; ch.position.set(-35, -5.2, zc); group.add(ch);
+    B.flight(stone, -39.5, FL, zA - 6.4, 0, 0, 3);                                        // deck → west walkway
+    B.flight(stone, -30.5, FL, zA - 6.4, 0, 0, 3);                                        // deck → east walkway
+    // deck rail over the channel
+    kit.box(steel, 6, 0.08, 0.08, -35, 1.05, zA + 0.05, 0, { tpm: 1, shadow: false, solid: false });
+    kit.box(B.invisible, 6, 1.2, 0.1, -35, 0.6, zA + 0.05, 0, { shadow: false });
+    // east catwalk (y 0) along the wall to the throne-hall stair
+    kit.box(grate, 2, 0.2, 13, -27, -0.1, -53.5, 0, { tpm: 0.5 });
+    kit.box(steel, 0.08, 0.08, 13, -28.05, 1.05, -53.5, 0, { tpm: 1, shadow: false, solid: false });
+    kit.box(B.invisible, 0.1, 1.2, 13, -28.05, 0.6, -53.5, 0, { shadow: false });
+    for (const z of [-50, -54, -58]) kit.box(steel, 0.16, 4, 0.16, -27.9, -2, z, 0, { tpm: 1, shadow: false, solid: false });
+    B.steelStair(steel, -27.5, 0, -60, Math.PI, TIER, 1.8);                               // → throne hall (H2)
+    B.steelStair(steel, -42.75, 0, zA, Math.PI, TIER, 1.8);                               // → tier top (H1)
+    // stairwell rails where the stairs come up
+    for (const [w, d, x, z] of [[0.1, 10, -25.95, -65], [3, 0.1, -27.5, -59.95], [0.1, 10, -41.45, -52], [0.1, 10, -44.05, -52], [2.5, 0.1, -42.75, -46.95]] as const) {
+      kit.box(B.invisible, w, 1.2, d, x, TIER + 0.6, z, 0, { shadow: false });
+      kit.box(steel, Math.max(w, 0.08), 0.08, Math.max(d, 0.08), x, TIER + 1.05, z, 0, { tpm: 1, shadow: false, solid: false });
+    }
+    // overhead pipes and the steel mezzanine frames the art shows along the right wall
+    for (const [x, y, r] of [[-43.2, 5.6, 0.32], [-42.4, 6.1, 0.18], [-26.8, 5.6, 0.32], [-35, 6.2, 0.22]] as const) {
+      const g = new THREE.CylinderGeometry(r, r, len + 5, 8); g.rotateX(Math.PI / 2); kit.place(g, x, y, zc + 2.5); kit.add(steel, g, { tpm: 1, solid: false, shadow: false });
+    }
+    for (let z = zA - 4; z > zB + 2; z -= 6) kit.box(steel, 18, 0.35, 0.35, -35, 6.5, z, 0, { tpm: 1, solid: false, shadow: false });
+    // rune anvils on both walkways
+    const runeGlow = new THREE.MeshBasicNodeMaterial(); runeGlow.colorNode = ember.mul(float(2.2).add(uBeatPulse.mul(1.5)));
+    const anvil = (x: number, z: number, yaw: number) => {
+      kit.box(darkStone, 0.9, 0.55, 0.7, x, FL + 0.27, z, yaw, { tpm: 0.8 });
+      kit.box(steel, 0.42, 0.3, 0.45, x, FL + 0.7, z, yaw, { tpm: 1 });
+      kit.box(steel, 1.5, 0.36, 0.55, x, FL + 1.03, z, yaw, { tpm: 1 });
+      const horn = new THREE.ConeGeometry(0.24, 0.7, 6); horn.rotateZ(-Math.PI / 2); kit.place(horn, x + Math.cos(yaw) * 1.08, FL + 1.06, z - Math.sin(yaw) * 1.08, yaw); kit.add(steel, horn, { tpm: 1, solid: false });
+      kit.box(runeGlow, 1.0, 0.2, 0.02, x + Math.sin(yaw) * 0.29, FL + 1.03, z + Math.cos(yaw) * 0.29, yaw, { solid: false, shadow: false, tpm: 1 });
+    };
+    anvil(-41.5, -56, 0.2); anvil(-40, -68, -0.3); anvil(-29.5, -63, 0.4); anvil(-30.5, -78, 0); anvil(-41, -79, 0.1);
+    // weapon racks: steel frames with cyan-edged blades (the art's armory)
+    const cyan = new THREE.MeshBasicNodeMaterial(); cyan.colorNode = color(0x38e8ff).mul(float(1.6).add(uBeatPulse.mul(0.8)));
+    const rack = (x: number, z: number, face: number) => {
+      for (const o of [-1.2, 1.2]) kit.box(steel, 0.12, 2.2, 0.12, x, FL + 1.1, z + o, 0, { tpm: 1 });
+      kit.box(steel, 0.12, 0.12, 2.6, x, FL + 1.9, z, 0, { tpm: 1, solid: false });
+      kit.box(B.invisible, 0.5, 2.2, 2.6, x, FL + 1.1, z, 0, { shadow: false });
+      for (let k = 0; k < 4; k++) {
+        const bz = z - 0.9 + k * 0.6;
+        kit.box(steel, 0.05, 1.5, 0.14, x + face * 0.14, FL + 1.05, bz, 0, { tpm: 1, solid: false, rz: face * 0.12 });
+        kit.box(cyan, 0.02, 1.3, 0.03, x + face * 0.18, FL + 1.1, bz + 0.07, 0, { solid: false, shadow: false, tpm: 1, rz: face * 0.12 });
+      }
+    };
+    rack(-43.3, -61, 1); rack(-43.3, -73, 1); rack(-26.7, -74, -1);
+    // lava falls pouring from wall spouts into basins (two west, one east)
+    const fallMat = new THREE.MeshBasicNodeMaterial({ side: THREE.DoubleSide });
+    {
+      const c = tslTexture(lavaSrc.map!, uv().mul(vec2(0.6, 2.5)).add(vec2(0, time.mul(0.55)))).rgb;
+      fallMat.colorNode = c.mul(luminance(c).mul(5).add(1.2)).mul(vec3(1.6, 0.8, 0.35));
+    }
+    for (const [x, z, s] of [[-44, -64.5, 1], [-44, -76.5, 1], [-26, -79.5, -1]] as const) {
+      kit.box(darkStone, 1.4, 0.9, 1.4, x + s * 0.5, 3.6, z, 0, { tpm: 0.6, solid: false });
+      const f = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 7.2), fallMat);
+      f.rotation.y = Math.PI / 2; f.position.set(x + s * 1.0, FL + 3.6, z); group.add(f);
+      kit.box(stone, 2.6, 0.9, 2.6, x + s * 1.5, FL + 0.45, z, 0, { tpm: 0.6 });
+      const pool = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 2.0), lavaMat);
+      pool.rotation.x = -Math.PI / 2; pool.position.set(x + s * 1.5, FL + 0.92, z); group.add(pool);
+    }
+    // cyan circuit runes etched in the walls
+    const runeTex = circuitTexture(256, 256, '#7ff4ff', 5, 9, false);
+    const wallRune = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    wallRune.colorNode = tslTexture(runeTex, uv()).rgb.mul(color(0x38e8ff)).mul(float(0.75).add(uBeatPulse.mul(0.4)));
+    for (const [x, z, ry] of [[-43.96, -52, Math.PI / 2], [-43.96, -70.5, Math.PI / 2], [-26.04, -50, -Math.PI / 2], [-26.04, -72, -Math.PI / 2], [-38.5, -81.96, 0], [-31.5, -81.96, 0]] as const) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), wallRune); m.position.set(x, 1.2, z); m.rotation.y = ry; group.add(m);
+    }
+    // the forge reactor at the far end: an iron ring round a molten core, with cyan arcs
+    const core = new THREE.MeshBasicNodeMaterial(); core.colorNode = color(0xffa040).mul(float(2.4).add(uBeatPulse.mul(1.2)));
+    const ring = new THREE.TorusGeometry(3.0, 0.42, 8, 40); kit.place(ring, -35, 1.6, -81.5); kit.add(steel, ring, { tpm: 1, solid: false });
+    const inner = new THREE.TorusGeometry(2.1, 0.16, 6, 40); kit.place(inner, -35, 1.6, -81.4); kit.add(core, inner, { solid: false, shadow: false });
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4; kit.box(steel, 0.25, 1.0, 0.3, -35 + Math.cos(a) * 2.55, 1.6 + Math.sin(a) * 2.55, -81.45, 0, { tpm: 1, solid: false, rz: a + Math.PI / 2 }); }
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(1.5, 32), core); disc.position.set(-35, 1.6, -81.6); group.add(disc);
+    for (let k = 0; k < 3; k++) { const arc = new THREE.TorusGeometry(3.55 + k * 0.25, 0.04, 4, 24, 0.9); arc.rotateZ(0.6 + k * 2.1); kit.place(arc, -35, 1.6, -81.3); kit.add(cyan, arc, { solid: false, shadow: false }); }
+    for (const [x, y, z, i, d] of [[-35, -1, -56, 34, 20], [-35, -1, -72, 34, 20], [-35, 2, -78.5, 26, 14]] as const) {
+      if (lo && z !== -72) continue;
+      const l = new THREE.PointLight(0xff6a20, i, d, 2); l.position.set(x, y, z); group.add(l);
+    }
+  }
+
+  // ── INSIDE THE KEEP: the throne hall (art: "Obsidian volcanic compound throne room") ──────────────────
+  // A gothic nave: clustered piers in two rows, pointed arcades and ribs, a gold circuit runner down the aisle to a stepped
+  // dais with a spiked obsidian throne, and three tall lancets of leaded glass picturing the erupting volcano behind it.
+  // Entrances: the great gate (south), side doors east and west, and the forge stair coming up through the west aisle.
+  function buildThroneHall() {
+    const Y = TIER, hx0 = -29, hx1 = -3, hz0 = -82, hz1 = -57;
+    // floor flagstones (the stairwell from the forge stays open)
+    kit.box(paving, hx1 + 26, 0.1, hz1 - hz0, (hx1 - 26) / 2, Y + 0.05, (hz0 + hz1) / 2, 0, { tpm: 0.3, solid: false });
+    kit.box(paving, 3, 0.1, 3, -27.5, Y + 0.05, -58.5, 0, { tpm: 0.3, solid: false });
+    kit.box(paving, 3, 0.1, 12, -27.5, Y + 0.05, -76, 0, { tpm: 0.3, solid: false });
+    // the gold circuit runner
+    const runTex = circuitTexture(512, 2048, '#ffd27a', 12, 7, true);
+    const runMat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    runMat.colorNode = tslTexture(runTex, uv()).rgb.mul(color(0xffc864)).mul(float(1.0).add(uBeatPulse.mul(0.5)));
+    const runner = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 20), runMat);
+    runner.rotation.x = -Math.PI / 2; runner.position.set(-16, Y + 0.12, -67.2); group.add(runner);
+    // clustered piers
+    const pierZ = [-60, -65, -70, -75];
+    for (const px of [-21, -11]) for (const pz of pierZ) {
+      kit.prism(stone, 8, 1.75, 1.75, 1.2, px, Y, pz, Math.PI / 8, { tpm: 0.5 });
+      kit.prism(stone, 8, 1.15, 1.15, 18.4, px, Y + 1.2, pz, Math.PI / 8, { tpm: 0.4 });
+      for (const [ox, oz] of [[1.1, 0], [-1.1, 0], [0, 1.1], [0, -1.1]]) kit.prism(stone, 6, 0.36, 0.36, 18.4, px + ox, Y + 1.2, pz + oz, 0, { tpm: 0.5, solid: false });
+      kit.prism(stone, 8, 1.8, 1.2, 1.4, px, Y + 19.6, pz, Math.PI / 8, { tpm: 0.5, solid: false });
+    }
+    // pointed arcades between the piers, the clerestory wall above them, and transverse ribs across the nave
+    const arch = (cx: number, cz: number, span: number, rise: number, y0: number, alongZ: boolean, thick: number) => {
+      for (let j = 0; j < 9; j++) {
+        const ang = Math.PI * (j + 0.5) / 9, o = Math.cos(ang) * span / 2, oy = Math.pow(Math.sin(ang), 0.6) * rise;
+        if (alongZ) kit.box(stone, thick, 0.7, span / 9 + 0.35, cx, y0 + oy, cz + o, 0, { tpm: 0.5, solid: false, rx: Math.cos(ang) * 0.7 });
+        else kit.box(stone, span / 9 + 0.35, 0.7, thick, cx + o, y0 + oy, cz, 0, { tpm: 0.5, solid: false, rz: -Math.cos(ang) * 0.7 });
+      }
+    };
+    for (const px of [-21, -11]) {
+      for (let k = 0; k < pierZ.length - 1; k++) arch(px, (pierZ[k] + pierZ[k + 1]) / 2, 5, 3.4, Y + 21, true, 1.0);
+      kit.box(darkStone, 0.9, 34 - (Y + 24.4), 17, px, (34 + Y + 24.4) / 2, -67.5, 0, { tpm: 0.4, solid: false });
+    }
+    for (const pz of pierZ) arch(-16, pz, 10, 4.2, Y + 21, false, 0.8);
+    // aisle vault ribs between the piers and the side walls
+    for (const pz of pierZ) { arch(-25, pz, 8, 3.0, Y + 20, false, 0.5); arch(-7, pz, 8, 3.0, Y + 20, false, 0.5); }
+    // the dais and the obsidian throne
+    const obsidian = new THREE.MeshStandardNodeMaterial({ color: 0x1a181b, roughness: 0.5, metalness: 0.15 });
+    obsidian.emissiveNode = ember.mul(smoothstep(float(0.75), float(1), positionWorld.y.sub(Y).div(13)).mul(0.25)); // only the spike tips catch the fire
+    // the art's throne is the hall's landmark: a broad three-step dais and a throne twice a man's height, crowned in spikes
+    kit.box(stone, 14, 0.45, 5, -16, Y + 0.225, -79.5, 0, { tpm: 0.4 });
+    kit.box(stone, 11.5, 0.9, 4, -16, Y + 0.45, -80, 0, { tpm: 0.4 });
+    kit.box(stone, 9, 1.35, 3, -16, Y + 0.675, -80.5, 0, { tpm: 0.4 });
+    B.ramp(-16, Y, -76.9, -16, Y + 1.35, -79.4, 9);
+    const TY0 = Y + 1.35, tz = -79.6;
+    kit.box(obsidian, 3.6, 1.2, 2.4, -16, TY0 + 0.6, tz, 0, { tpm: 1 });
+    kit.box(obsidian, 2.8, 3.8, 0.7, -16, TY0 + 1.9, tz - 1.2, 0, { tpm: 1 });
+    for (const s of [-1, 1]) kit.box(obsidian, 0.7, 2.3, 2.4, -16 + s * 2.1, TY0 + 1.15, tz, 0, { tpm: 1 });
+    const TR = rng(404);
+    for (let i = 0; i < 31; i++) {
+      const a = -1.2 + 2.4 * i / 30, h = 3.2 + (1 - Math.abs(a)) * 6.5 + TR() * 2;
+      const g = new THREE.ConeGeometry(0.16 + TR() * 0.2, h, 5);
+      kit.place(g, -16 + Math.sin(a) * 2.3, TY0 + 2.2 + Math.cos(a) * 1.4 + h / 2 - 1.6, tz - 0.75 - TR() * 0.7, 0, -0.08 - TR() * 0.12, -a * 0.45);
+      kit.add(obsidian, g, { tpm: 1, solid: false });
+    }
+    for (const s of [-1, 1]) for (let i = 0; i < 5; i++) {
+      const g = new THREE.ConeGeometry(0.12, 1.3 + i * 0.35, 5); kit.place(g, -16 + s * 2.1, TY0 + 2.8, tz + 1.0 - i * 0.5, 0, 0.3, -s * 0.25); kit.add(obsidian, g, { tpm: 1, solid: false });
+    }
+    // the three lancets in the back wall (plus a tracery frame) and the light they throw down the nave
+    const glassTex = stainedGlassTexture();
+    const glass = new THREE.MeshBasicNodeMaterial({ transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
+    glass.colorNode = tslTexture(glassTex, uv()).rgb.mul(float(1.8).add(uBeatPulse.mul(0.3)));
+    glass.opacityNode = tslTexture(glassTex, uv()).a;
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(14, 21), glass); win.position.set(-16, Y + 12.5, -81.94); group.add(win);
+    for (const sx of [-23.3, -8.7]) kit.box(stone, 0.7, 22, 0.5, sx, Y + 12.5, -81.8, 0, { tpm: 0.6, solid: false });
+    kit.box(stone, 15.3, 0.7, 0.5, -16, Y + 1.9, -81.8, 0, { tpm: 0.6, solid: false });
+    // torches on the aisle walls
+    const flame = new THREE.MeshBasicNodeMaterial(); flame.colorNode = color(0xffb050).mul(float(3).add(sin(time.mul(13)).mul(0.4)));
+    for (const [x, s] of [[hx0 + 0.1, 1], [hx1 - 0.1, -1]] as const) for (const z of [-61, -71, -79]) {
+      kit.box(steel, 0.5, 0.12, 0.12, x + s * 0.25, Y + 4.6, z, 0, { tpm: 1, solid: false, shadow: false });
+      kit.box(steel, 0.22, 0.5, 0.22, x + s * 0.5, Y + 4.85, z, 0, { tpm: 1, solid: false, shadow: false });
+      const f = new THREE.ConeGeometry(0.13, 0.42, 6); kit.place(f, x + s * 0.5, Y + 5.3, z); kit.add(flame, f, { solid: false, shadow: false });
+    }
+    // rubble at the pier bases and along the walls, as in the art
+    for (let i = 0; i < (lo ? 12 : 30); i++) {
+      const x = TR() < 0.5 ? hx0 + 0.6 + TR() * 3 : hx1 - 0.6 - TR() * 3, z = hz0 + 3 + TR() * 22, g = boulder(0.15 + TR() * 0.35, 1200 + i, 1);
+      kit.place(g, x, Y + 0.1, z, TR() * 6); kit.add(stone, g, { tpm: 0.8, solid: false, shadow: false });
+    }
+    // the window's fire, a warm fill down the nave, and torch pools on the aisles
+    const lights: [number, number, number, number, number, number][] = [[-16, Y + 17, -81.2, 0xff7030, 160, 42], [-16, Y + 9, -65, 0xd8c0a8, 70, 30], [-27.4, Y + 5.6, -71, 0xffb070, 30, 16], [-4.6, Y + 5.6, -61, 0xffb070, 30, 16], [-4.6, Y + 5.6, -79, 0xffb070, 24, 14]];
+    for (const [x, y, z, c, i, d] of lo ? lights.slice(0, 2) : lights) { const l = new THREE.PointLight(c, i, d, 2); l.position.set(x, y, z); group.add(l); }
+  }
+
   kit.build(group);
 
   // embers rising from the lava
@@ -365,6 +653,8 @@ export function buildVolcanic(scene: THREE.Scene, tier: Tier = 'high'): Level {
   scene.add(group);
 
   const enemySpots = [[-12, 4], [0, 12], [-16, -10], [8, -4], [-2, 26], [10, 26], [-38, -6], [-36, 10], [44, -20], [46, 0], [23, 18], [-14, -50], [-30, -40]].map(([x, z]) => new THREE.Vector3(x, Math.max(0, volcanicHeight(x, z)) + 0.1, z));
+  // the forge walkways and the throne hall
+  enemySpots.push(new THREE.Vector3(-40.5, FORGE_FLOOR + 0.1, -66), new THREE.Vector3(-29.5, FORGE_FLOOR + 0.1, -75), new THREE.Vector3(-16, TIER + 0.1, -70));
   const info: LevelInfo = { id: 'obsidian-volcanic', name: 'Obsidian Volcanic Compound', track: 'combat', accentHex: 0xff6a1c };
   let elapsed = 0;
   return {

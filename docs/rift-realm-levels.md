@@ -96,6 +96,16 @@ Each one is shot from the concept's camera and compared side by side: `docs/rift
   bridge onto the castle's 8 m upper tier, and the great gothic keep (Team B) with a 56 m spire. East: the lava chasm
   with grated bridges and the spiked laser-grid towers. The volcano sits right of frame with rivulets and an ash plume.
   Three ways onto the upper tier: grand stair, roof bridge, west-lane flight.
+  **Interiors** (2026-11-18, `docs/rift-realm-volcanic-interiors.jpg`, art left):
+  - **Forge hall** under the castle tier: a lower lane that runs from the compound up to the throne. Enter through
+    the arch between the two tier stairs onto a deck. Stairs drop to walkways either side of a lethal lava channel,
+    which two bridges cross. The hall holds rune anvils, weapon racks with cyan blades, lava falls from wall spouts,
+    cyan wall circuits, and the forge reactor ring at the far end. Two steel stairs climb out: one to the tier top
+    (west), one up into the throne hall.
+  - **Throne hall** inside the keep: a gothic nave with clustered piers, pointed arcades and ribs, and a gold circuit
+    runner down to a three-step dais. The spiked obsidian throne sits against three leaded lancets that picture the
+    erupting volcano. Entrances: the great gate, side doors east and west, and the forge stair. The spire tower moved
+    behind the keep.
 - **Sunken Marshland Village** (`src/marsh.ts`): the balustrade overlook faces north, as in the concept. The manor sits
   left (three storeys, broken spire, 8 m grand stair into the water), green-lit causeways snake up the middle, with
   fallen giants as mid-ground cover and bridges. The stilt village and rope bridges sit right, under a 46 m hero
@@ -108,7 +118,8 @@ Each one is shot from the concept's camera and compared side by side: `docs/rift
   for sheet-background bleed.
 
 Still to do, by level:
-- **Volcanic:** forge-hall interior and the throne.
+- **Volcanic:** the interiors are built. Still short of the art: the stone reads warmer than the art's grey, and the
+  forge lacks the overhead steel mezzanine and smoke.
 - **Marsh:** the flooded shrine and the swamp docks. The canopy is still made of card clusters.
 - **Celestial:** the lit cavern under the centre island needs real geometry. The nebula needs more structure.
 - **All:** the Void Sanctum hub and its three maps from `void-sanctum-complete`.
