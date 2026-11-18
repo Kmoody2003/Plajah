@@ -101,9 +101,32 @@ export function composeDistance(base: DistanceFn | null, parts: ModelPart[], str
   for (const p of parts) { comp.push(compile(p)); if (p.mirrorX) comp.push(compile(mirrorOf(p))); }
   const strokeList: SculptStroke[] = [];
   for (const s of strokes) { strokeList.push(s); if (s.mirrorX) strokeList.push({ ...s, points: s.points.map(q => [-q[0], q[1], q[2]] as Vec3) }); }
+  // A coarse grid of which parts and strokes can matter where. A part left out of a cell is more than its
+  // blend plus a cell's width from every point in it, so near the surface (where meshing reads values) the
+  // result is exact; far away only the sign matters, and leaving a distant part out never flips it.
+  const G = 20, lo = -1.1, cell = 2.2 / G, diag = cell * Math.sqrt(3);
+  const cellsOf = (cx: number, cy: number, cz: number, r: number): number[] => {
+    const out: number[] = [];
+    const a = (v: number) => Math.max(0, Math.min(G - 1, Math.floor((v - r - lo) / cell))), b = (v: number) => Math.max(0, Math.min(G - 1, Math.floor((v + r - lo) / cell)));
+    for (let k = a(cz); k <= b(cz); k++) for (let j = a(cy); j <= b(cy); j++) for (let i = a(cx); i <= b(cx); i++) out.push(i + G * (j + G * k));
+    return out;
+  };
+  const partsIn: number[][] = Array.from({ length: G ** 3 }, () => []);
+  comp.forEach((c, n) => { for (const k of cellsOf(c.cx, c.cy, c.cz, c.bound + (c.p.blend ?? 0) + diag)) partsIn[k].push(n); });
+  const strokesIn: number[][] = Array.from({ length: G ** 3 }, () => []);
+  strokeList.forEach((st, n) => {
+    const mn = [0, 1, 2].map(k => Math.min(...st.points.map(q => q[k]))), mx = [0, 1, 2].map(k => Math.max(...st.points.map(q => q[k])));
+    const half = Math.max(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) / 2;
+    for (const k of cellsOf((mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2, half * Math.sqrt(3) + st.radius + diag)) strokesIn[k].push(n);
+  });
+  const all = comp.map((_, n) => n), allStrokes = strokeList.map((_, n) => n);
   return (x, y, z) => {
     let d = base ? base(x, y, z) : 1e3;
-    for (const c of comp) {
+    const i = Math.floor((x - lo) / cell), j = Math.floor((y - lo) / cell), k = Math.floor((z - lo) / cell);
+    const inside = i >= 0 && j >= 0 && k >= 0 && i < G && j < G && k < G;
+    const key = i + G * (j + G * k);
+    for (const n of inside ? partsIn[key] : all) {
+      const c = comp[n];
       // Far from the part, its distance cannot change the result (beyond the blend): skip the exact maths.
       const far = Math.hypot(x - c.cx, y - c.cy, z - c.cz) - c.bound;
       if (c.p.op === 'add' && far > d + (c.p.blend ?? 0)) continue;
@@ -111,8 +134,24 @@ export function composeDistance(base: DistanceFn | null, parts: ModelPart[], str
       const pd = partDistance(c, x, y, z);
       d = c.p.op === 'carve' ? ssub(d, pd, c.p.blend ?? 0) : smin(d, pd, c.p.blend ?? 0);
     }
-    for (const s of strokeList) d = applyStroke(s, d, x, y, z);
+    for (const n of inside ? strokesIn[key] : allStrokes) d = applyStroke(strokeList[n], d, x, y, z);
     return d;
+  };
+}
+
+/** partAt with the parts compiled once (colouring asks for every vertex). */
+export function partFinder(parts: ModelPart[], tol: number): (x: number, y: number, z: number) => ModelPart | null {
+  const list: { p: ModelPart; c: Compiled }[] = [];
+  for (const p of parts) if (p.op === 'add') for (const q of p.mirrorX ? [p, mirrorOf(p)] : [p]) list.push({ p, c: compile(q) });
+  if (!list.length) return () => null;
+  return (x, y, z) => {
+    let best: ModelPart | null = null, bestD = tol;
+    for (const { p, c } of list) {
+      if (Math.hypot(x - c.cx, y - c.cy, z - c.cz) - c.bound > bestD) continue;
+      const d = Math.abs(partDistance(c, x, y, z));
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    return best;
   };
 }
 

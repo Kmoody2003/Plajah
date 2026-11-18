@@ -18,8 +18,9 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import sharp from 'sharp';
 import { readGlb } from '../../services/gamestudio/photo3d/mesh';
-import { fitToClay, toClay, scanField, scanBase } from '../../services/gamestudio/photo3d/replay';
-import { alignToPhoto } from '../../services/gamestudio/photo3d/align';
+import { fitToClay, toClay, scanField, scanBase, encodeScanField, decodeScanField } from '../../services/gamestudio/photo3d/replay';
+import { ensureLocalLlm, localChat } from './localLlm';
+import { alignToPhoto, refineCamera } from '../../services/gamestudio/photo3d/align';
 import { ModelHistory } from '../../services/gamestudio/photo3d/modelOps';
 import { runFidelityLoop, type Lanes } from '../../services/gamestudio/photo3d/loop';
 import { gapPrompt } from '../../services/gamestudio/photo3d/gapReport';
@@ -33,7 +34,8 @@ const photoPath = args.find(a => !a.startsWith('--') && !args[args.indexOf(a) - 
 if (!photoPath) { console.error('usage: photo3dLoop.ts <photo> [--backend …] [--out dir]'); process.exit(1); }
 const backend = flag('backend', 'hunyuan_mini')!;
 const out = path.resolve(flag('out', path.join('D:/Plajah Runtime/photo3d', path.basename(photoPath, path.extname(photoPath))))!);
-const lane = flag('lane', 'gemini');
+/** 'local' (default): Gemma 4 on this GPU, Gemini only if the local lane fails. 'gemini': cloud only. 'rules': no models. */
+const lane = flag('lane', 'local');
 const maxRounds = Number(flag('rounds', '5'));
 fs.mkdirSync(out, { recursive: true });
 
@@ -79,8 +81,12 @@ const fit = fitToClay(scanRaw.positions);
 const scanMesh = toClay(scanRaw, fit);
 const textured = backend !== 'hunyuan_mini';
 log(`scan mesh ${scanMesh.indices.length / 3} tris, ${textured ? 'textured' : 'shape only'}`);
-const scan = await scanField(scanMesh, 24);
-log('scan voxelized into clay');
+// The clay field depends only on the scan: voxelize once, keep it next to the scan.
+const fieldPath = scanPath.replace(/\.glb$/, '.field24.bin');
+const cachedField = fs.existsSync(fieldPath) && fs.statSync(fieldPath).mtimeMs >= fs.statSync(scanPath).mtimeMs ? decodeScanField(new Uint8Array(fs.readFileSync(fieldPath))) : undefined;
+const scan = await scanField(scanMesh, 24, cachedField);
+if (!cachedField) fs.writeFileSync(fieldPath, encodeScanField(scan.field));
+log(cachedField ? 'scan clay field loaded from cache' : 'scan voxelized into clay (cached for next time)');
 
 // The photo at working size, with its mask.
 const H = 512;
@@ -88,8 +94,11 @@ const cut = await sharp(cutPath).resize({ height: H }).ensureAlpha().raw().toBuf
 const photo: Picture = { width: cut.info.width, height: cut.info.height, data: new Uint8Array(cut.data) };
 
 // 3. Align and set up the doc.
-const al = alignToPhoto(scanMesh, photo, { workHeight: 128 });
-log(`aligned: yaw ${al.camera.yawDeg.toFixed(1)}°, pitch ${al.camera.pitchDeg.toFixed(1)}°, IoU ${(al.iou * 100).toFixed(1)}% (${al.tried} tries)`);
+const tAlign = Date.now();
+const coarse = alignToPhoto(scanMesh, photo, { workHeight: 128 });
+log(`aligned (coarse): yaw ${coarse.camera.yawDeg.toFixed(1)}°, pitch ${coarse.camera.pitchDeg.toFixed(1)}°, IoU ${(coarse.iou * 100).toFixed(1)}% (${coarse.tried} tries)`);
+const al = args.includes('--no-refine') ? coarse : refineCamera(scanMesh, photo, coarse.camera);
+log(`aligned (refined): yaw ${al.camera.yawDeg.toFixed(1)}°, pitch ${al.camera.pitchDeg.toFixed(1)}°, roll ${(al.camera.rollDeg ?? 0).toFixed(1)}°, lens ${al.camera.fovDeg.toFixed(1)}°, IoU ${(al.iou * 100).toFixed(1)}% (${al.tried} tries, ${((Date.now() - tAlign) / 1000).toFixed(1)} s total)`);
 const doc = { ...emptyModelDoc(`photo3d-${path.basename(out)}`, path.basename(photoPath)), subject: flag('subject', '')!, references: [{ name: 'photo', url: cutPath }], base: scanBase(scanPath, backend, fit) };
 const history = new ModelHistory(doc);
 history.apply({ op: 'setCamera', view: 'photo', camera: al.camera }, 'aria');
@@ -114,10 +123,22 @@ async function patient<T>(fn: (model: string) => Promise<T>, model: string): Pro
   }
   throw new Error('Gemini stayed unavailable');
 }
+const localUp = lane === 'local' ? await ensureLocalLlm(log) : false;
+if (lane === 'local') log(localUp ? 'local lane: Gemma 4 E4B on the GPU (llama-server b12138)' : 'local lane unavailable: falling back to Gemini');
 const lanes: Lanes = {
   look: async (inp) => {
-    if (lane !== 'gemini' || !geminiConfigured()) return { raw: { items: [] }, source: 'none (no vision lane)' };
     const p = gapPrompt({ subject: inp.subject, renders: inp.renders.map(r => r.name), round: inp.round, openItems: inp.openItems });
+    if (localUp) {
+      try {
+        const parts: ({ text: string } | { png: Buffer })[] = [{ text: p.user }, { text: 'photo' }, { png: await png(inp.photo) }];
+        for (const r of inp.renders) parts.push({ text: r.name }, { png: await png(r.picture) });
+        const { text, usage: u } = await localChat({ system: p.system, parts, json: true, maxTokens: 2500 });
+        usage.push({ ...u, costUsd: 0 });
+        fs.writeFileSync(path.join(out, `eye_${inp.round}.json`), text);
+        return { raw: text, source: u.model };
+      } catch (e) { log(`  local eye failed (${(e as Error).message.slice(0, 120)}), asking Gemini`); }
+    }
+    if (lane === 'rules' || !geminiConfigured()) return { raw: { items: [] }, source: 'none (no vision lane)' };
     const parts: any[] = [{ text: p.user }, { inlineData: { mimeType: 'image/png', data: (await png(inp.photo)).toString('base64') } }];
     for (const r of inp.renders) parts.push({ text: r.name }, { inlineData: { mimeType: 'image/png', data: (await png(r.picture)).toString('base64') } });
     const { text, usage: u } = await patient(m => geminiGenerate({ model: m, system: p.system, contents: [{ role: 'user', parts }], json: true, maxTokens: 3000, temperature: 0.2, timeoutMs: 120_000 }), eyeModel);
@@ -125,8 +146,16 @@ const lanes: Lanes = {
     fs.writeFileSync(path.join(out, `eye_${inp.round}.json`), text);
     return { raw: text, source: u.model };
   },
-  ...(lane === 'gemini' ? {
+  ...(lane !== 'rules' ? {
     agent: async (p: { system: string; user: string }) => {
+      if (localUp) {
+        try {
+          const { text, usage: u } = await localChat({ system: p.system, parts: [{ text: p.user }], json: true, maxTokens: 4000 });
+          usage.push({ ...u, costUsd: 0 });
+          fs.writeFileSync(path.join(out, `agent_${p.user.match(/Round (\d+)\./)?.[1] ?? 'x'}.json`), text);
+          return text;
+        } catch (e) { log(`  local agent failed (${(e as Error).message.slice(0, 120)}), asking Gemini`); }
+      }
       const { text, usage: u } = await patient(m => geminiGenerate({ model: m, system: p.system, contents: p.user, json: true, maxTokens: 6000, temperature: 0.2, timeoutMs: 120_000 }), agentModel);
       fs.writeFileSync(path.join(out, `agent_${p.user.match(/Round (\d+)\./)?.[1] ?? 'x'}.json`), text);
       usage.push(u);
@@ -142,12 +171,14 @@ const rounds = await runFidelityLoop(history, {
     const strip = sideBySide([photo, rec.renders[0].picture, ...rec.renders.slice(1).map(r => ({ ...r.picture }))]);
     fs.writeFileSync(path.join(out, `round_${rec.round}.png`), await png(strip));
     const s = rec.score;
-    log(`round ${rec.round}: ${(s.overall * 100).toFixed(1)}%  [${Object.entries(s.axes).map(([k, v]) => `${k} ${(v * 100).toFixed(0)}`).join(', ')}]  IoU ${(s.pixel!.iou * 100).toFixed(1)}%, ΔE ${s.pixel!.deltaE.toFixed(1)}${s.visionScore !== undefined ? `, eye says ${s.visionScore}` : ''}  → ${rec.verdict.stop ? 'stop: ' : ''}${rec.verdict.why}`);
+    log(`round ${rec.round}: ${(s.overall * 100).toFixed(1)}%  [${Object.entries(s.axes).map(([k, v]) => `${k} ${(v * 100).toFixed(0)}`).join(', ')}]  IoU ${(s.pixel!.iou * 100).toFixed(1)}%, ΔE ${s.pixel!.deltaE.toFixed(1)}${s.visionScore !== undefined ? `, eye says ${s.visionScore}` : ''}, strict ${(rec.strictScore.overall * 100).toFixed(1)}%  → ${rec.verdict.stop ? 'stop: ' : ''}${rec.verdict.why}`);
     if (rec.rejected) log(`  ↩ undid the last round: it took the score from ${(rec.rejected.from * 100).toFixed(1)}% to ${(rec.rejected.to * 100).toFixed(1)}%`);
     log(`  eye (${rec.report.source}): ${rec.report.items.length} items${rec.warnings.length ? `, ${rec.warnings.length} warnings` : ''}`);
     for (const w of rec.warnings) log(`    ! ${w}`);
     for (const it of rec.report.items) log(`    ${it.id} [${it.axis}/${it.kind}/${it.severity}] ${it.description}`);
     log(`  ${rec.planner}: ${rec.applied.length} ops${rec.dropped.length ? `, ${rec.dropped.length} dropped` : ''}`);
+    const tm = rec.timings;
+    log(`  time: measure ${(tm.measure / 1000).toFixed(1)} s, eye ${(tm.eye / 1000).toFixed(1)} s, agent ${(tm.agent / 1000).toFixed(1)} s, ${tm.trialCount} edit trials ${(tm.trials / 1000).toFixed(1)} s, round ${(rec.ms / 1000).toFixed(1)} s`);
     for (const t of rec.trials) log(`    ~ ${t}`);
     for (const a of rec.applied) log(`    + ${a}`);
     for (const d of rec.dropped) log(`    - ${d}`);

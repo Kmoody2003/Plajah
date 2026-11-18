@@ -13,6 +13,7 @@ import { replay, scanField } from '../services/gamestudio/photo3d/replay';
 import { renderMesh } from '../services/gamestudio/photo3d/render';
 import { alignToPhoto, maskBox } from '../services/gamestudio/photo3d/align';
 import { runFidelityLoop, applicable, scaled, ground, steadyGaps } from '../services/gamestudio/photo3d/loop';
+import { outlineBlobs } from '../services/gamestudio/photo3d/outline';
 
 const near = (a: number, b: number, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 const part = (id: string, over: Partial<ModelPart> = {}): ModelPart => ({ id, name: id, op: 'add', shape: 'ellipsoid', center: [0, 0, 0], size: [0.2, 0.2, 0.2], rot: [0, 0, 0], ...over });
@@ -277,11 +278,12 @@ test('replay + align + loop: a scripted eye finds the missing band and the loop 
   assert.ok(h.doc.paints.some(l => l.projectPhoto === 'photo' && l.fillUnseen === 'mirror'));
   assert.ok(rounds[0].score.pixel!.colour > 0.85, `colour ${rounds[0].score.pixel!.colour}`);
   assert.equal(h.doc.subject, 'drum');
-  // The whole round is one undo step.
-  const before = h.entries.length;
-  h.undo();
-  assert.equal(h.entries.length, before - 1);
+  // Each round is one undo step: undoing Aria's round batches, newest first, takes the ring away again.
+  let undone = 0;
+  while (h.doc.parts.some(p => p.shape === 'torus') && h.entries[h.entries.length - 1]?.label.startsWith('Aria, round')) { h.undo(); undone++; }
+  assert.ok(undone >= 1 && undone < rounds.length + 1, `undid ${undone}`);
   assert.ok(!h.doc.parts.some(p => p.shape === 'torus'));
+  assert.ok(h.doc.references[0].camera, 'the camera alignment is untouched');
 });
 
 test('size guard: a part that would bury the scan is refused; a small one passes', () => {
@@ -386,4 +388,45 @@ test('an edit with no visible effect from any angle (buried in the body) is drop
   });
   assert.ok(!h.doc.parts.some(p => p.id === 'core'));
   assert.match(rounds[0].trials.join('\n'), /dropped Added Core.*no effect/);
+});
+
+test('outline blobs: where the model sticks out and where it falls short', () => {
+  const photo = disc(80, 80, 40, 40, 20, [200, 50, 50]);
+  const render = disc(80, 80, 44, 40, 20, [200, 50, 50]);
+  const blobs = outlineBlobs(photo, render);
+  assert.equal(blobs.length, 2);
+  const extra = blobs.find(b => b.kind === 'extra')!, missing = blobs.find(b => b.kind === 'missing')!;
+  assert.ok(extra.cx > 50 && missing.cx < 30, `${extra.cx} ${missing.cx}`);
+  assert.deepEqual(outlineBlobs(photo, photo), []);
+});
+
+test('outline fixes pull a model toward a photo with a band the scan lacks, and each fix is tried', { timeout: 120_000 }, async () => {
+  const truth = replay({ ...doc0(), parts: [BODY, RING] }, { scan: null, resolution: 64 }).mesh;
+  const { h, env } = await plainDrum();
+  const photo = renderMesh(truth, h.doc.references[0].camera!).picture;
+  // No eye items at all: only the measured outline drives the edits.
+  const rounds = await runFidelityLoop(h, { ...env, photo, pictures: { photo } }, { look: async () => ({ source: 'scripted', raw: { items: [] } }) });
+  const fixes = h.doc.parts.filter(p => p.why === 'outline');
+  assert.ok(fixes.length > 0, rounds.map(r => r.trials.join(' | ')).join(' ## '));
+  assert.ok(rounds[rounds.length - 1].score.pixel!.iou > rounds[0].score.pixel!.iou, rounds.map(r => r.score.pixel!.iou.toFixed(4)).join(' → '));
+  const kept = rounds.filter(r => !r.rejected).map(r => r.score.overall);
+  for (let i = 1; i < kept.length; i++) assert.ok(kept[i] >= kept[i - 1], kept.join(' → '));
+});
+
+test('an eye claim the photo keeps contradicting loses weight round by round', { timeout: 180_000 }, async () => {
+  const { h, env } = await plainDrum();
+  // The eye insists the photo-side middle needs a big lump; the photo shows a plain body, so every try is worse.
+  const claim = { id: 'lump-claim', axis: 'geometry', kind: 'missing', view: 'photo', region: [0.55, 0.4, 0.75, 0.6], description: 'A big lump is missing on the right', severity: 'high', confidence: 1 };
+  const rounds = await runFidelityLoop(h, { ...env, outlineFixes: false, policy: { ...env.policy, maxRounds: 4, patience: 3 } }, {
+    look: async () => ({ source: 'scripted', raw: { items: [claim] } }),
+    agent: async (p) => JSON.stringify({ ops: [{ op: 'addPart', part: { id: `lump-${p.user.match(/Round (\d+)/)?.[1]}`, name: 'Lump', op: 'add', shape: 'ellipsoid', center: [0.4, 0, 0.1], size: [0.3, 0.3, 0.3], rot: [0, 0, 0], why: 'lump-claim' } }] }),
+  });
+  const conf = rounds.map(r => r.report.items.find(i => i.id === 'lump-claim')?.confidence ?? 0);
+  assert.ok(conf[conf.length - 1] < conf[0], conf.join(' → '));
+  // The strict score keeps the claim at full weight, so it reads lower than the loop's own.
+  const last = rounds[rounds.length - 1];
+  assert.ok(last.strictScore.overall < last.score.overall, `${last.strictScore.overall} vs ${last.score.overall}`);
+  assert.ok(!h.doc.parts.some(p => p.id.startsWith('lump-')));
+  const s = rounds.map(r => r.score.overall);
+  assert.ok(s[s.length - 1] > s[0], s.join(' → '));
 });

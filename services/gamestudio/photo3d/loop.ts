@@ -11,6 +11,7 @@ import { parseGapReport, SEVERITIES, type GapItem, type GapReport } from './gapR
 import { applyModelOp, describeModelOp, rgbToHex, type ModelHistory, type ModelOp } from './modelOps';
 import { agentPrompt, anchorGaps, parseAgentOps, planFromGaps, type PlanContext } from './planner';
 import { renderMesh } from './render';
+import { outlineFixes } from './outline';
 import { replay, type ReplayInputs, type Replayed } from './replay';
 import { fidelity, loopVerdict, matchScore, scoreView, DEFAULT_POLICY, type FidelityScore, type LoopPolicy, type LoopVerdict, type Picture, type ViewScore } from './score';
 import type { ModelCamera, ModelDoc, PaintRegion, Vec3 } from './schema';
@@ -27,6 +28,8 @@ export interface RoundRecord {
   round: number;
   /** What this round measured (if the round was rejected, the worse model that got undone). */
   score: FidelityScore;
+  /** The same, with every eye claim at the confidence the eye gave it (no discount where the photo contradicted it). */
+  strictScore: FidelityScore;
   verdict: LoopVerdict;
   report: GapReport;
   warnings: string[];
@@ -34,6 +37,8 @@ export interface RoundRecord {
   rejected?: { from: number; to: number; ops: string[] };
   /** Each edit tried on its own against the photo: kept or dropped, at what strength, match before → after. */
   trials: string[];
+  /** Where the round's time went, ms: replay+render, eye, agent, edit trials. */
+  timings: { measure: number; eye: number; agent: number; trials: number; trialCount: number };
   /** Sentences of what was applied this round (empty on the last, measuring-only round). */
   applied: string[];
   dropped: string[];
@@ -48,6 +53,8 @@ export interface LoopEnv extends ReplayInputs {
   /** Size of the extra-angle renders. */
   viewSize?: number;
   policy?: LoopPolicy;
+  /** Measured outline fixes each round (outline.ts), tried like any edit. Default on. */
+  outlineFixes?: boolean;
   onRound?: (r: RoundRecord, replayed: Replayed) => void | Promise<void>;
 }
 
@@ -181,7 +188,7 @@ export function steadyGaps(items: GapItem[], before: GapItem[], touched: Set<str
   });
 }
 
-interface Measured { replayed: Replayed; photoRender: Picture; pixel: ViewScore; renders: { name: string; picture: Picture }[]; report: GapReport; warnings: string[]; score: FidelityScore }
+interface Measured { strict: FidelityScore; measureMs: number; eyeMs: number; replayed: Replayed; photoRender: Picture; pixel: ViewScore; renders: { name: string; picture: Picture }[]; report: GapReport; warnings: string[]; score: FidelityScore }
 
 export async function runFidelityLoop(history: ModelHistory, env: LoopEnv, lanes: Lanes): Promise<RoundRecord[]> {
   const policy = env.policy ?? DEFAULT_POLICY;
@@ -200,22 +207,36 @@ export async function runFidelityLoop(history: ModelHistory, env: LoopEnv, lanes
 
   const measure = async (round: number, open: GapItem[]): Promise<Measured> => {
     const doc = history.doc;
+    const tm = Date.now();
     const replayed = replay(doc, env);
     // Unlit from the photo's camera: projected photo colour already carries the photo's light, so shading it
     // again would read as a colour error. The other angles are shaded so the eye can read their shape.
     const photoRender = renderMesh(replayed.mesh, photoCam, { ambient: 1 }).picture;
     const pixel = scoreView(env.photo, photoRender);
     const renders = [{ name: 'render-photo', picture: photoRender }, ...Object.entries(cams).filter(([n]) => n.startsWith('render-') && n !== 'render-photo').map(([name, cam]) => ({ name, picture: renderMesh(replayed.mesh, cam).picture }))];
+    const measureMs = Date.now() - tm, te = Date.now();
     const look = await lanes.look({ photo: env.photo, renders, subject: doc.subject, round, openItems: open });
+    const eyeMs = Date.now() - te;
     const views = ['photo', ...renders.map(x => x.name)];
     const viewSize = Object.fromEntries([['photo', [env.photo.width, env.photo.height]], ...renders.map(x => [x.name, [x.picture.width, x.picture.height]])]);
     const { report, warnings } = parseGapReport(look.raw, { views, viewSize, source: look.source });
-    report.items = steadyGaps(report.items, open, touched);
-    return { replayed, photoRender, pixel, renders, report, warnings, score: fidelity(pixel, report.items, report.visionScore) };
+    const strictItems = steadyGaps(report.items, open, touched);
+    report.items = strictItems.map(i => {
+      const k = refuted.get(i.id) ?? 0;
+      return k && (i.view === 'photo' || i.view === 'render-photo') ? { ...i, confidence: +(i.confidence * 0.5 ** k).toFixed(3) } : i;
+    });
+    return { strict: fidelity(pixel, strictItems, report.visionScore), measureMs, eyeMs, replayed, photoRender, pixel, renders, report, warnings, score: fidelity(pixel, report.items, report.visionScore) };
   };
 
   /** Gap ids the last round's kept edits answered (their `why`). */
   let touched = new Set<string>();
+  /**
+   * Eye claims the photo contradicts: every edit aimed at them changed what the photo's camera sees and made
+   * the match worse. Each such round halves the claim's confidence (only for claims in the photo's own view;
+   * the photo can't speak for the back). Measurement beats opinion where there is measurement.
+   */
+  const refuted = new Map<string, number>();
+  let refutedNow = new Set<string>(), supported = new Set<string>();
   /** One edit tried on the current doc: the photo match it gives. */
   const tryDoc = (d: ModelDoc) => { const mesh = replay(d, env).mesh; const picture = renderMesh(mesh, photoCam, { ambient: 1 }).picture; return { m: matchScore(scoreView(env.photo, picture)), picture, mesh }; };
   /** The other angles, small: enough to tell whether an edit the photo can't see changes anything at all. */
@@ -240,12 +261,12 @@ export async function runFidelityLoop(history: ModelHistory, env: LoopEnv, lanes
     catch (e) {
       // The eye is a remote or local model; when it can't answer, stop with the best model kept, and say so.
       if (!accepted) throw e;
-      rounds.push({ round, score: accepted.score, verdict: { stop: true, why: 'eye unavailable' }, report: accepted.report, warnings: [`eye failed: ${(e as Error).message.slice(0, 200)}`], applied: [], dropped: [], planner: 'none', renders: accepted.renders, trials: [], ms: Date.now() - t0 });
+      rounds.push({ round, score: accepted.score, strictScore: accepted.strict, verdict: { stop: true, why: 'eye unavailable' }, report: accepted.report, warnings: [`eye failed: ${(e as Error).message.slice(0, 200)}`], applied: [], dropped: [], planner: 'none', renders: accepted.renders, trials: [], timings: { measure: 0, eye: 0, agent: 0, trials: 0, trialCount: 0 }, ms: Date.now() - t0 });
       if (lastRound?.applied.length) rounds[rounds.length - 1].warnings.push(`round ${lastRound.round}'s ops were kept without being measured`);
       break;
     }
     if (!history.doc.subject && m.report.subject) history.apply({ op: 'setSubject', subject: m.report.subject }, 'aria');
-    const rec: RoundRecord = { round, score: m.score, verdict: { stop: false, why: 'below target' }, report: m.report, warnings: m.warnings, trials: [], applied: [], dropped: [], planner: 'none', renders: m.renders, ms: 0 };
+    const rec: RoundRecord = { round, score: m.score, strictScore: m.strict, verdict: { stop: false, why: 'below target' }, report: m.report, warnings: m.warnings, trials: [], timings: { measure: m.measureMs, eye: m.eyeMs, agent: 0, trials: 0, trialCount: 0 }, applied: [], dropped: [], planner: 'none', renders: m.renders, ms: 0 };
     let base = m;
     if (accepted && lastRound?.applied.length && m.score.overall < accepted.score.overall - 1e-9) {
       // The last round made it worse: take it back and plan again from the better model, with the reason.
@@ -261,7 +282,10 @@ export async function runFidelityLoop(history: ModelHistory, env: LoopEnv, lanes
     rec.verdict = verdict;
     lastRound = null;
     touched = new Set();
-    if (!verdict.stop && base.report.items.length) {
+    refutedNow = new Set(); supported = new Set();
+    // The measured half of the eye: outline disagreements between the photo and the photo-camera render.
+    const outlineOps = verdict.stop || env.outlineFixes === false ? [] : outlineFixes(env.photo, base.photoRender, renderMesh(base.replayed.mesh, photoCam, { depthOnly: true }).depth, photoCam, round);
+    if (!verdict.stop && (base.report.items.length || outlineOps.length)) {
       const r = base.replayed;
       const ctx: PlanContext = {
         cameras: cams,
@@ -274,26 +298,41 @@ export async function runFidelityLoop(history: ModelHistory, env: LoopEnv, lanes
       rec.dropped.push(...skipped);
       const guard: ApplyGuard = { bounds: r.bounds };
       let ops: ModelOp[] = [];
-      if (lanes.agent) {
+      if (lanes.agent && anchors.length) {
         try {
+          const ta = Date.now();
           const ans = parseAgentOps(await lanes.agent(agentPrompt(history.doc, anchors, ctx, round, notes)));
+          rec.timings.agent = Date.now() - ta;
           ops = ans.ops; rec.dropped.push(...ans.dropped); rec.planner = 'agent';
         } catch (e) { rec.dropped.push(`agent lane failed: ${(e as Error).message}`); }
       }
-      ops = ops.map(o => ground(o, r.bounds));
+      ops = [...ops.map(o => ground(o, r.bounds)), ...outlineOps];
       let { ok, failed } = applicable(history.doc, ops, guard);
       rec.dropped.push(...failed);
-      ok = trialEdits(history.doc, ok, base.pixel, base.photoRender, rec);
-      if (!ok.length && !rec.rejected) {
-        // The rules are the fallback for a silent, unusable or unhelpful agent, not a second try after a rejected round.
-        ({ ok, failed } = applicable(history.doc, planFromGaps(history.doc, anchors, ctx, round).map(o => ground(o, r.bounds)), guard));
-        rec.dropped.push(...failed);
-        ok = trialEdits(history.doc, ok, base.pixel, base.photoRender, rec);
-        if (ok.length) rec.planner = 'rules';
+      const tt = Date.now();
+      ok = trialEdits(history.doc, ok, base.pixel, base.photoRender, rec, base.replayed.mesh);
+      rec.timings.trials = Date.now() - tt;
+      if (!ok.some(o => whyOf(o) !== 'outline') && !rec.rejected && anchors.length) {
+        // The rules are the fallback for a silent, unusable or unhelpful agent (not a second try after a rejected
+        // round). They are tried on top of whatever outline fixes were kept.
+        let after = history.doc;
+        for (const o of ok) after = applyModelOp(after, o).doc;
+        const fromRules = applicable(after, planFromGaps(after, anchors, ctx, round).map(o => ground(o, r.bounds)), guard);
+        rec.dropped.push(...fromRules.failed);
+        const tr = Date.now();
+        const afterPic = ok.length ? renderMesh(replay(after, env).mesh, photoCam, { ambient: 1 }).picture : base.photoRender;
+        const kept = trialEdits(after, fromRules.ok, ok.length ? scoreView(env.photo, afterPic) : base.pixel, afterPic, rec);
+        rec.timings.trials += Date.now() - tr;
+        if (kept.length) { ok = [...ok, ...kept]; rec.planner = 'rules'; }
       }
+      if (rec.planner === 'none' && ok.length) rec.planner = 'rules';
+      for (const why of refutedNow) refuted.set(why, (refuted.get(why) ?? 0) + 1);
       if (ok.length) {
         for (const o of ok) { const why = whyOf(o); if (why) touched.add(why); }
-        const label = `Aria, round ${round}: ${base.report.items.slice(0, 3).map(i => i.description.split(/[,.;]/)[0].toLowerCase()).join('; ')}${base.report.items.length > 3 ? '…' : ''}`;
+        const outlineKept = ok.filter(o => whyOf(o) === 'outline').length;
+        const said = base.report.items.slice(0, 3).map(i => i.description.split(/[,.;]/)[0].toLowerCase());
+        if (outlineKept) said.unshift(`${outlineKept} outline fix${outlineKept > 1 ? 'es' : ''}`);
+        const label = `Aria, round ${round}: ${said.join('; ')}${base.report.items.length > 3 ? '…' : ''}`;
         let cur = history.doc;
         for (const o of ok) { rec.applied.push(describeModelOp(cur, o)); cur = applyModelOp(cur, o).doc; }
         history.apply({ op: 'batch', label, ops: ok }, 'aria');
@@ -316,14 +355,16 @@ export async function runFidelityLoop(history: ModelHistory, env: LoopEnv, lanes
    * can't judge it, so it passes and the eye judges it next round (and the round guard can still undo it).
    * Materials ride along with the edits that use them.
    */
-  function trialEdits(start: ModelDoc, ops: ModelOp[], before: ViewScore, beforePic: Picture, rec: RoundRecord): ModelOp[] {
+  function trialEdits(start: ModelDoc, ops: ModelOp[], before: ViewScore, beforePic: Picture, rec: RoundRecord, startMesh?: Replayed['mesh']): ModelOp[] {
     let cur = start, curM = matchScore(before), curPic = beforePic;
     let curAngles: Picture[] | null = null; // the current doc's other angles, rendered when first needed
+    let curMesh: Replayed['mesh'] | undefined = startMesh;
     const kept: ModelOp[] = [];
     for (const o of ops) {
       if (o.op === 'putMaterial' || o.op === 'setSubject') { try { cur = applyModelOp(cur, o).doc; kept.push(o); } catch { /* reported by applicable */ } continue; }
       const label = describeModelOp(cur, o);
-      let best: { op: ModelOp; doc: ModelDoc; m: number; f: number; picture: Picture; seen: boolean; angles: Picture[] | null } | null = null;
+      let seenAny = false;
+      let best: { op: ModelOp; doc: ModelDoc; m: number; f: number; picture: Picture; seen: boolean; angles: Picture[] | null; mesh: Replayed['mesh'] } | null = null;
       const tried: string[] = [];
       for (const f of [1, 0.5, 0.25]) {
         const v = f === 1 ? o : scaled(cur, o, f);
@@ -331,25 +372,29 @@ export async function runFidelityLoop(history: ModelHistory, env: LoopEnv, lanes
         let d: ModelDoc;
         try { d = applyModelOp(cur, v).doc; } catch { break; }
         const { m, picture, mesh } = tryDoc(d);
+        rec.timings.trialCount++;
         const seen = changedPixels(curPic, picture) > 0;
         let angles: Picture[] | null = null, elsewhere = false;
+        if (seen) seenAny = true;
         if (!seen) {
           // Not visible from the photo: it has to change at least one other angle, or it does nothing at all
           // (a part buried inside the body, a paint under another paint) and is only clutter.
-          curAngles ??= anglePics(tryDoc(cur).mesh);
+          curAngles ??= anglePics(curMesh ?? tryDoc(cur).mesh);
           angles = anglePics(mesh);
           elsewhere = angles.some((a, i) => changedPixels(curAngles![i], a) > 0);
         }
         tried.push(`${f * 100}% ${(m * 100).toFixed(2)}${seen ? '' : elsewhere ? ' (unseen)' : ' (no effect)'}`);
         const passes = seen ? m > curM + 1e-4 : elsewhere && m >= curM - 1e-6;
-        if (passes && (!best || m > best.m)) best = { op: v, doc: d, m, f, picture, seen, angles };
+        if (passes && (!best || m > best.m)) best = { op: v, doc: d, m, f, picture, seen, angles, mesh };
         // Clearly better at full strength: no need to try it weaker.
         if (best && f === 1 && m > curM + 0.002) break;
       }
       if (best) {
         rec.trials.push(`kept ${label}${best.f < 1 ? ` at ${best.f * 100}%` : ''}: ${(curM * 100).toFixed(2)} → ${(best.m * 100).toFixed(2)}${best.seen ? '' : ' (not visible from the photo; the eye judges it)'}`);
-        cur = best.doc; curM = best.m; curPic = best.picture; curAngles = best.angles; kept.push(best.op);
+        cur = best.doc; curM = best.m; curPic = best.picture; curAngles = best.angles; curMesh = best.mesh; kept.push(best.op);
+        const why = whyOf(o); if (why) { supported.add(why); refutedNow.delete(why); }
       } else {
+        const why = whyOf(o); if (why && seenAny && !supported.has(why)) refutedNow.add(why);
         rec.trials.push(`dropped ${label}: no strength improved the photo match or changed another angle (${(curM * 100).toFixed(2)} → ${tried.join(', ')})`);
       }
     }

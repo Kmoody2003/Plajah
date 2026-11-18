@@ -291,6 +291,65 @@ lowered the match was caught by its own trial before it reached the model. What'
 - Earlier runs, before the guards, recorded what they're for: the agent replaced the scanned body with a
   plain cylinder (96% → 77%), and painted the whole drum one flat colour.
 
+### Local GPU pass (2026-11-18): no hosted services
+
+Kenne's direction: no hosted services. Make our own process good, on the local GPU alone. Changes, in the
+order they went in, each followed by a real conga run (`D:\Plajah Runtime\photo3d\conga\`: `v2-local\`,
+`v3-outline\`, `v4-speed\`, and the latest at the top level):
+
+1. **Local eye and hands.** llama.cpp's `llama-server` (official ggml-org release **b12138**, file
+   `llama-b12138-bin-win-cuda-12.4-x64.zip`, 288,913,238 bytes, SHA-256 matched GitHub's digest) in
+   `D:\Plajah Runtime\bin\llama-b12138\`, running Gemma 4 E4B Q4_K_M plus its f16 vision projector from
+   `D:\Plajah Models\llm\gemma-4-e4b\` on port 51127. The CUDA runtime DLLs come from the Tela 3D env's
+   torch install, which saved the separate 391 MB `cudart` download. Thinking is off: with it on, Gemma spent
+   whole token budgets before answering. `scripts/gamestudio/localLlm.ts` starts the server when it's needed.
+   Gemini is only the fallback (`--lane local|gemini|rules`).
+2. **Registration** (`refineCamera`): coordinate descent on turn, tilt, **roll**, **lens** and frame after
+   the coarse search. The coarse search had fixed a 30° lens and no roll. Photo-view silhouette IoU went
+   from 94.9% to **97.1%** (yaw 217.5° → 195°, lens 34.5°, roll 2.3°), in 12–27 s.
+3. **Unseen-side seams**: projected colour that lands off the photo's subject takes the nearest subject
+   colour (a breadth-first fill of the photo) instead of grey clay. The photo-camera colour axis went from
+   91 to 99 (the eye stopped flagging the seams).
+4. **Outline fixes** (`outline.ts`), the measured half of the eye. Each connected blob where the photo and
+   the photo-camera render disagree becomes a carve (the model sticks out) or an added lump (it falls short),
+   placed at the depth of the nearest surface the camera sees. Every fix goes through the same per-edit
+   trials and line search. 9 of 9 and 11 of 11 were kept in the two runs.
+5. **Photo beats opinion** (`refuted`): when every edit aimed at an eye claim on the photo's own view made
+   the photo match worse, that claim's confidence halves each round. Claims about unseen sides are untouched.
+   A **strict score** (`strictScore`), without this discount, is reported next to the loop's score every
+   round.
+6. **Speed**: the clay field is cached next to the scan (voxelize 17–90 s → 0); the replay keeps the scan's
+   lattice samples, uses a dense reused sample buffer instead of a `Map` (scan-only replay 2.1 s → 0.9 s),
+   and buckets parts and strokes in a coarse grid (full replay with 19 parts 4.5 s → 2.2 s); the
+   unseen-edit check reuses the current mesh instead of re-replaying it.
+
+| Run | Rounds (loop score) | Measured at the end | Time | Notes |
+|---|---|---|---|---|
+| before (Gemini flash-lite) | 94.8 → 94.9 | IoU 95.0%, colour 0.976 | ~10 min (Gemini 503 waits) | |
+| v2: 1–3 + cache | 96.0 → 96.3 | IoU 97.3% | 4.7 min, $0 | eye's vague "texture" claims cap geometry at 86–88 |
+| v3: + outline fixes + refutation | 95.3 → 96.2 → 98.0 → 98.3 → 98.5 | IoU 98.3%, colour 0.998 | 14 min | trials 75% of the time (2.8–6.4 s each) |
+| v4: + replay speed-ups | 95.3 → 97.2 → **99.0** (reached aim) | IoU 98.2%, colour 0.996 | 8 min | trials 2.1–3.0 s each; Resolve shared the GPU, so Gemma ran at 11–43 tok/s |
+
+Read the 99% carefully. The **measured** gains are real: silhouette IoU 97.1 → 98.2–98.3%, photo colour
+0.985 → 0.996–0.998. Most of the rest is the eye being out-voted: its photo-side geometry claims ("rim too
+thick", "central emblem missing") were down-weighted because every edit aimed at them made the photo match
+worse. With those claims at full weight, the final model scores about **96%**. The strict score now prints that
+number every round; it was added after v4, and the v5 run that would have shown it was stopped when the work
+was paused. Closing that gap needs an eye whose claims hold up, or edits that can fix them, or more
+reference photos.
+
+Where the time goes now, per round: measure ~2 s, eye 15–80 s (Gemma on a GPU it shares with whatever else
+is open; it writes 600–1,000 tokens per report, now asked to be terse), agent 20–55 s, edit trials 80–140 s
+(about 40 trials at 2–3 s each, almost all of it CPU meshing).
+
+**GPU rendering and batched trials (not built; this harness has no WebGPU).** Trials are ~70% of a round
+and are pure CPU replay: SDF → surface nets → software raster. In the app, the same doc replays through
+Argilla's WebGPU field. A trial doesn't need a mesh at all: the photo-camera view can be **ray-marched
+straight from the brick field plus the doc's parts**. All the variants of a round (each edit at 100/50/25%)
+can go as one batch, as array layers of one dispatch, scored by a compute pass (IoU and ΔE reductions), so a
+round's ~40 trials cost roughly one frame each instead of 2–3 s. That's the next speed step, and it belongs
+in the Props room on the desktop's GPU, not in this Node harness.
+
 ## 9. Next
 
 1. Desktop lanes: wire the eye to Gemma 4 E4B vision and the hands to the native LLM through the existing

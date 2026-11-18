@@ -31,6 +31,8 @@ export interface ModelCamera {
   height: number;
   /** After projection: pixel = centre + ndc * scale * height/2 + offset (pixels). */
   frame: { scale: number; dx: number; dy: number };
+  /** Camera roll around its view axis, degrees (a tilted phone). */
+  rollDeg?: number;
 }
 
 export interface ReferenceView {

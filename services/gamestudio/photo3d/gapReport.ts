@@ -187,7 +187,7 @@ export function gapCost(items: GapItem[]): Record<GapAxis, number> {
 export function gapPrompt(o: { subject?: string; renders: string[]; round: number; openItems?: GapItem[] }): { system: string; user: string } {
   const system = [
     'You are the eye of a 3D modelling loop. You compare renders of a 3D model with a reference photo and list what is missing or wrong, so a modelling agent can fix it.',
-    'Be concrete and spatial. Prefer few, high-value items (at most 12), the biggest visual differences first. Do not mention lighting, shadows, background or camera.',
+    'Be concrete and spatial. Prefer few, high-value items (at most 8), the biggest visual differences first, each description one short sentence (under 25 words). Be brief: no preamble. Do not mention lighting, shadows, background or camera.',
     'Answer only JSON.',
   ].join(' ');
   const user = [

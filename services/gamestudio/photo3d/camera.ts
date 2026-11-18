@@ -15,8 +15,14 @@ export function basis(c: ModelCamera): CameraBasis {
   const y = c.yawDeg * D, p = c.pitchDeg * D;
   const eye: Vec3 = [c.target[0] + c.distance * Math.sin(y) * Math.cos(p), c.target[1] + c.distance * Math.sin(p), c.target[2] + c.distance * Math.cos(y) * Math.cos(p)];
   const fwd = unit(sub(c.target, eye));
-  const right = unit(cross(fwd, [0, 1, 0]));
-  const up = cross(right, fwd);
+  let right = unit(cross(fwd, [0, 1, 0]));
+  let up = cross(right, fwd);
+  if (c.rollDeg) {
+    const r = c.rollDeg * D, cr = Math.cos(r), sr = Math.sin(r);
+    const r2: Vec3 = [right[0] * cr + up[0] * sr, right[1] * cr + up[1] * sr, right[2] * cr + up[2] * sr];
+    up = [up[0] * cr - right[0] * sr, up[1] * cr - right[1] * sr, up[2] * cr - right[2] * sr];
+    right = r2;
+  }
   return { eye, right, up, fwd, tanHalf: Math.tan((c.fovDeg * D) / 2) };
 }
 

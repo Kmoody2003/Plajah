@@ -80,3 +80,45 @@ export function alignToPhoto(mesh: TriMesh, photo: Picture, opts: { workHeight?:
   const camera: ModelCamera = { ...b.camera, yawDeg: ((b.camera.yawDeg % 360) + 360) % 360, width: photo.width, height: photo.height, frame: { scale: b.camera.frame.scale, dx: b.camera.frame.dx * k, dy: b.camera.frame.dy * k } };
   return { camera, iou: b.iou, tried };
 }
+
+/**
+ * Polish an aligned camera by coordinate descent on the outline match (IoU) at `workHeight`: turn, tilt,
+ * roll, lens (field of view; the distance follows so the model stays framed), zoom and shift. Each step size
+ * halves when no move helps. The coarse search fixes the lens at 30° with no roll, which a phone photo rarely
+ * matches; this is what removes that registration error.
+ */
+export function refineCamera(mesh: TriMesh, photo: Picture, start: ModelCamera, opts: { workHeight?: number; levels?: number } = {}): Alignment {
+  const small = shrink(photo, opts.workHeight ?? 256);
+  const k = photo.height / small.height;
+  const D = Math.PI / 180;
+  const toSmall = (c: ModelCamera): ModelCamera => ({ ...c, width: small.width, height: small.height, frame: { ...c.frame, dx: c.frame.dx / k, dy: c.frame.dy / k } });
+  const withFov = (c: ModelCamera, fov: number): ModelCamera => ({ ...c, fovDeg: fov, distance: (c.distance * Math.sin((c.fovDeg * D) / 2)) / Math.sin((fov * D) / 2) });
+  let cam = toSmall(start), tried = 0;
+  const iouOf = (c: ModelCamera) => { tried++; return maskIoU(renderMesh(mesh, c, { depthOnly: true }).picture, small); };
+  let best = iouOf(cam);
+  type Knob = { step: number; min: number; set: (c: ModelCamera, d: number) => ModelCamera };
+  const knobs: Knob[] = [
+    { step: 4, min: 0.25, set: (c, d) => ({ ...c, yawDeg: c.yawDeg + d }) },
+    { step: 4, min: 0.25, set: (c, d) => ({ ...c, pitchDeg: Math.max(-60, Math.min(80, c.pitchDeg + d)) }) },
+    { step: 2, min: 0.1, set: (c, d) => ({ ...c, rollDeg: (c.rollDeg ?? 0) + d }) },
+    { step: 8, min: 0.5, set: (c, d) => withFov(c, Math.max(5, Math.min(70, c.fovDeg + d))) },
+    { step: 0.03, min: 0.001, set: (c, d) => ({ ...c, frame: { ...c.frame, scale: c.frame.scale * (1 + d) } }) },
+    { step: 3, min: 0.2, set: (c, d) => ({ ...c, frame: { ...c.frame, dx: c.frame.dx + d } }) },
+    { step: 3, min: 0.2, set: (c, d) => ({ ...c, frame: { ...c.frame, dy: c.frame.dy + d } }) },
+  ];
+  for (let level = 0; level < (opts.levels ?? 6); level++) {
+    let moved = true;
+    while (moved) {
+      moved = false;
+      for (const kn of knobs) {
+        const s = Math.max(kn.min, kn.step / 2 ** level);
+        for (const d of [s, -s]) {
+          const c = kn.set(cam, d), v = iouOf(c);
+          if (v > best + 1e-5) { best = v; cam = c; moved = true; break; }
+        }
+      }
+    }
+  }
+  const camera: ModelCamera = { ...cam, yawDeg: ((cam.yawDeg % 360) + 360) % 360, width: photo.width, height: photo.height, frame: { ...cam.frame, dx: cam.frame.dx * k, dy: cam.frame.dy * k } };
+  return { camera, iou: best, tried };
+}
