@@ -17,6 +17,11 @@ export interface Enemy {
   staggered: boolean;
   rig: CharacterRig | null;
   lastPos: THREE.Vector3;
+  /** Rule player tags (Game Studio): the cast id it plays, the wave it came in (0 = the game's own), boss or not. */
+  who: string;
+  ruleWave: number;
+  boss: boolean;
+  hitDmg: number;
 }
 
 export class EnemyManager {
@@ -25,9 +30,31 @@ export class EnemyManager {
   private nextId = 1;
   wave = 1;
 
-  constructor(scene: THREE.Scene, private world: CollisionWorld, private spots: THREE.Vector3[]) {
+  /** Called when an enemy dies (the rule player listens). */
+  onKilled?: (e: Enemy) => void;
+
+  /** `auto` = the game's own endless trials; off when a level's rules decide who arrives. */
+  constructor(scene: THREE.Scene, private world: CollisionWorld, private spots: THREE.Vector3[], private auto = true) {
     scene.add(this.group);
-    this.spawnWave(3);
+    if (auto) this.spawnWave(3);
+  }
+
+  /** Rule player: `count` enemies tagged `who` from wave `ruleWave`. */
+  spawnTagged(count: number, who: string, ruleWave: number) {
+    const pool = [...this.spots].sort(() => Math.random() - 0.5);
+    for (let i = 0; i < count; i++) { const s = pool[i % pool.length]; this.spawnOne(s.x, s.z, s.y, { who, ruleWave }); }
+  }
+
+  /** Rule player: one big, tough enemy at the spot farthest from `from`. */
+  spawnBoss(who: string, ruleWave: number, from: THREE.Vector3) {
+    const s = [...this.spots].sort((a, b) => b.distanceToSquared(from) - a.distanceToSquared(from))[0] ?? new THREE.Vector3();
+    return this.spawnOne(s.x, s.z, s.y, { who, ruleWave, boss: true });
+  }
+
+  /** Remove everyone (the level ended). */
+  clear() {
+    for (const e of this.enemies) this.group.remove(e.mesh);
+    this.enemies.length = 0;
   }
 
   spawnWave(count: number) {
@@ -38,9 +65,10 @@ export class EnemyManager {
     }
   }
 
-  private spawnOne(x: number, z: number, y = 0) {
+  private spawnOne(x: number, z: number, y = 0, tag: { who?: string; ruleWave?: number; boss?: boolean } = {}): Enemy {
     const mesh = new THREE.Group();
     mesh.position.set(x, y, z);
+    if (tag.boss) mesh.scale.setScalar(1.6);
 
     const chassisMat = new THREE.MeshStandardNodeMaterial({
       color: 0x1e1b2e, roughness: 0.35, metalness: 0.8,
@@ -76,8 +104,8 @@ export class EnemyManager {
     }
     this.group.add(mesh);
 
-    const maxHp = 60 + (this.wave - 1) * 15;
-    this.enemies.push({
+    const maxHp = tag.boss ? 520 : 60 + (this.wave - 1) * 15;
+    const enemy: Enemy = {
       id: this.nextId++,
       mesh,
       hitTarget,
@@ -85,13 +113,19 @@ export class EnemyManager {
       coreMat,
       hp: maxHp,
       maxHp,
-      speed: 5.2 + Math.random() * 1.8,
+      speed: tag.boss ? 3.6 : 5.2 + Math.random() * 1.8,
       strafeSign: Math.random() > 0.5 ? 1 : -1,
       attackCooldown: 0.8 + Math.random() * 0.6,
       staggered: false,
       rig,
       lastPos: mesh.position.clone(),
-    });
+      who: tag.who ?? '',
+      ruleWave: tag.ruleWave ?? 0,
+      boss: !!tag.boss,
+      hitDmg: tag.boss ? 18 : 10,
+    };
+    this.enemies.push(enemy);
+    return enemy;
   }
 
   getHitMeshes(): THREE.Object3D[] {
@@ -104,7 +138,7 @@ export class EnemyManager {
     const e = this.enemies[idx];
     e.hp -= amount;
     if (e.hp > 0) e.rig?.play('hit', 0.8);
-    if (e.hp > 0 && e.hp <= e.maxHp * 0.35 && !e.staggered) {
+    if (e.hp > 0 && e.hp <= e.maxHp * (e.boss ? 0.12 : 0.35) && !e.staggered) {
       e.staggered = true;
       e.coreMat.color.setHex(0xfbbf24);
       e.coreMat.emissive.setHex(0xfef08a);
@@ -118,7 +152,8 @@ export class EnemyManager {
     if (e.hp <= 0) {
       this.group.remove(e.mesh);
       this.enemies.splice(idx, 1);
-      if (this.enemies.length === 0) {
+      this.onKilled?.(e);
+      if (this.auto && this.enemies.length === 0) {
         this.wave++;
         this.spawnWave(Math.min(8, 2 + this.wave));
       }
@@ -163,10 +198,10 @@ export class EnemyManager {
 
       // Melee / Void-pulse attack when close
       e.attackCooldown -= dt;
-      if (dist < 2.6 && e.attackCooldown <= 0) {
-        e.attackCooldown = 0.9;
+      if (dist < (e.boss ? 3.6 : 2.6) && e.attackCooldown <= 0) {
+        e.attackCooldown = e.boss ? 1.3 : 0.9;
         e.rig?.play('attack_1');
-        onPlayerHit(10);
+        onPlayerHit(e.hitDmg);
       }
     }
   }

@@ -16,6 +16,8 @@ export class Objectives {
   private hud: HTMLElement;
   private scoreEl: HTMLElement;
   private tick = 0;
+  /** Seconds the player's side has owned a point without a break (the rule player's "held for"). */
+  heldSeconds = 0;
 
   constructor(scene: THREE.Scene, defs: ControlPointDef[], groundAt: (x: number, z: number, y: number) => number | null) {
     this.hud = document.createElement('div');
@@ -66,6 +68,7 @@ export class Objectives {
       p.el.style.boxShadow = contested ? '0 0 12px #fbbf24' : 'none';
       if (prev !== p.owner && p.owner !== 'none') this.onCapture?.(p.def, p.owner);
     }
+    this.heldSeconds = this.points.some(p => p.owner === 'blue') ? this.heldSeconds + dt : 0;
     this.tick += dt;
     if (this.tick >= 2) {
       this.tick = 0;

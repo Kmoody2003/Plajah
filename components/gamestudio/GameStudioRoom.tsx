@@ -13,7 +13,8 @@ import { validateProject } from '../../services/gamestudio/validate';
 import { isGameMessage, newProjectFor, RUNTIMES, withRuntimeLevels, runtimeLevel, runtimeUrl, STUDIO_SOURCE, takeOverOp, type StudioToGame } from '../../services/gamestudio/runtime';
 import { coerceParam, KITS, newInstance, prefabById, resolvedParams, type ParamSpec, type PrefabDef } from '../../services/gamestudio/prefabs';
 import { allLevels, goalSentence } from '../../services/gamestudio/story/schema';
-import { placeModules } from '../../services/gamestudio/story/build';
+import { placeModules, storyNames } from '../../services/gamestudio/story/build';
+import { ruleNames } from '../../services/gamestudio/rulePlayer';
 import { BEAT_COLOR, RulesPanel, StoryPanel } from './StoryPanel';
 
 const CreativeSyncPill = React.lazy(() => import('../creative/CreativeCloudPanels').then(m => ({ default: m.CreativeSyncPill })));
@@ -70,6 +71,10 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
   const [defaults, setDefaults] = useState<Record<string, LevelDefaults>>({});
   const [stats, setStats] = useState<{ frameMs: number; draws: number; triangles: number } | null>(null);
   const [playHooked, setPlayHooked] = useState<boolean | null>(null);
+  /** Play: rules that fired, newest last, and how the level ended. `run` restarts the game page. */
+  const [playLog, setPlayLog] = useState<string[]>([]);
+  const [playEnd, setPlayEnd] = useState<{ result: 'won' | 'lost'; next?: string } | null>(null);
+  const [run, setRun] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const [showVersions, setShowVersions] = useState(false);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -102,8 +107,9 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
     frame.current?.contentWindow?.postMessage({ source: STUDIO_SOURCE, ...msg }, '*');
   }, []);
   // the running page always draws the project's copy of this level
-  useEffect(() => { send({ type: 'level', level: lvl }); }, [lvl, send]);
-  useEffect(() => { setSelected(null); setArmed(null); setStats(null); setPlayHooked(null); setFrameReady(false); }, [levelId, mode]);
+  const names = useMemo(() => ruleNames(lvl.rules, storyNames(project.story ?? null, project)), [lvl, project]);
+  useEffect(() => { send({ type: 'level', level: lvl, names }); }, [lvl, names, send]);
+  useEffect(() => { setSelected(null); setArmed(null); setStats(null); setPlayHooked(null); setFrameReady(false); setPlayLog([]); setPlayEnd(null); }, [levelId, mode, run]);
   useEffect(() => { send({ type: 'arm', prefab: armed }); }, [armed, send]);
   useEffect(() => { send({ type: 'tool', tool }); }, [tool, send]);
 
@@ -161,7 +167,7 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
         setFrameReady(true);
         setDefaults(d => ({ ...d, [lvl.id]: msg.defaults }));
         if (mode === 'play') setPlayHooked(true);
-        send({ type: 'level', level: lvl });
+        send({ type: 'level', level: lvl, names });
         send({ type: 'arm', prefab: armed });
         send({ type: 'tool', tool });
       } else if (msg.type === 'select') setSelected(msg.id);
@@ -180,10 +186,12 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
         const inst = lvl.instances.find(i => i.id === msg.instanceId);
         if (inst) editInstance(inst, { pos: msg.pos, rot: [inst.rot[0], msg.yaw, inst.rot[2]] });
       } else if (msg.type === 'stats') setStats({ frameMs: msg.frameMs, draws: msg.draws, triangles: msg.triangles });
+      else if (msg.type === 'rule') setPlayLog(l => [...l.slice(-5), msg.sentence]);
+      else if (msg.type === 'levelEnd') setPlayEnd({ result: msg.result, next: msg.next });
     };
     window.addEventListener('message', on);
     return () => window.removeEventListener('message', on);
-  }, [apply, armed, def, editInstance, editMarker, lvl, mode, send, takenIds, tool]);
+  }, [apply, armed, def, editInstance, editMarker, lvl, mode, names, send, takenIds, tool]);
 
   // Play: a game build without the project hook never says ready; say so instead of pretending.
   useEffect(() => {
@@ -327,7 +335,7 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
 
       {/* viewport */}
       <main className="flex-1 relative min-w-0">
-        {src ? <iframe key={src} ref={frame} src={src} title={mode === 'edit' ? 'World view' : 'Play'} className="absolute inset-0 w-full h-full" style={{ border: 0, background: '#04050a' }} allow="autoplay; fullscreen; gamepad" data-testid="gs-frame"/>
+        {src ? <iframe key={`${src}#${run}`} ref={frame} src={src} title={mode === 'edit' ? 'World view' : 'Play'} className="absolute inset-0 w-full h-full" style={{ border: 0, background: '#04050a' }} allow="autoplay; fullscreen; gamepad" data-testid="gs-frame"/>
           : <div className="absolute inset-0 grid place-items-center" style={{ color: C.dim }}>No runtime for “{project.runtime.game}”.</div>}
         {mode === 'edit' && src && !frameReady && <div className="absolute inset-0 grid place-items-center pointer-events-none" style={{ background: 'rgba(4,5,10,.72)' }} data-testid="gs-loading">
           <div className="text-center px-6">
@@ -338,6 +346,17 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
         </div>}
         {mode === 'play' && playHooked === false && <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-2 rounded-lg text-[12.5px] max-w-[560px] text-center" style={{ background: 'rgba(20,16,8,.92)', border: `1px solid ${C.warn}`, color: '#fde68a' }} data-testid="gs-play-unhooked">
           This build of {rt?.name} doesn't read project edits yet, so Play shows the level's own layout. Your edits are saved and will apply once the game is hooked to the Studio.
+        </div>}
+        {mode === 'play' && playLog.length > 0 && !playEnd && <div className="absolute left-3 bottom-3 max-w-[420px] px-3 py-2 rounded-lg pointer-events-none" style={{ background: 'rgba(10,9,16,.82)', border: `1px solid ${C.line}` }} data-testid="gs-play-log">
+          <div className="text-[10.5px] font-bold uppercase tracking-wider" style={{ color: C.dim }}>Rules that ran</div>
+          <ul className="mt-1 space-y-0.5">{playLog.map((s, i) => <li key={i} className="text-[12px] leading-snug" style={{ opacity: i === playLog.length - 1 ? 1 : 0.6 }}>{s}</li>)}</ul>
+        </div>}
+        {mode === 'play' && playEnd && <div className="absolute inset-x-0 bottom-6 flex justify-center" data-testid="gs-play-end">
+          <div className="px-4 py-3 rounded-xl flex items-center gap-3" style={{ background: 'rgba(10,9,16,.94)', border: `1px solid ${playEnd.result === 'won' ? '#4ade80' : '#ef4444'}` }}>
+            <span className="text-[13px] font-semibold">{playEnd.result === 'won' ? 'Level won.' : 'Level lost.'}</span>
+            <button onClick={() => setRun(r => r + 1)} className="h-8 px-3 rounded-lg text-[12.5px] font-semibold" style={{ border: `1px solid ${C.line}` }} data-testid="gs-play-again">Play again</button>
+            {playEnd.next && project.levels.some(l => l.id === playEnd.next) && <button onClick={() => setLevelId(playEnd.next!)} className="h-8 px-3 rounded-lg text-[12.5px] font-semibold" style={{ background: 'rgba(74,222,128,.18)', border: '1px solid #4ade80' }} data-testid="gs-play-next">Play next: {project.levels.find(l => l.id === playEnd.next)!.name}</button>}
+          </div>
         </div>}
         {stats && mode === 'edit' && pro && <div className="absolute right-2 top-2 px-2 py-1 rounded-md text-[11px] tabular-nums" style={{ background: 'rgba(10,9,16,.8)', border: `1px solid ${C.line}`, color: C.dim }} data-testid="gs-stats">{stats.frameMs.toFixed(1)} ms · {stats.draws} draws · {(stats.triangles / 1000).toFixed(0)}k tris</div>}
         {notice && <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-2 rounded-lg text-[12.5px]" style={{ background: 'rgba(40,10,10,.92)', border: '1px solid #ef4444' }} role="alert">{notice}</div>}

@@ -90,7 +90,8 @@ export const GAME_SOURCE = 'plajah-studio-game';
 
 /** Ids are unique across a level's markers and instances, so one `id` field selects either. */
 export type StudioToGame =
-  | { source: typeof STUDIO_SOURCE; type: 'level'; level: GameLevel }
+  /** `names` maps `kind:id` (cast, item, level, zone) to the names the game shows, e.g. `cast:dracula` → Dracula. */
+  | { source: typeof STUDIO_SOURCE; type: 'level'; level: GameLevel; names?: Record<string, string> }
   | { source: typeof STUDIO_SOURCE; type: 'select'; id: string | null }
   | { source: typeof STUDIO_SOURCE; type: 'frame'; id: string }
   /** Next click in the view drops this prefab (null cancels). */
@@ -107,7 +108,11 @@ export type GameToStudio =
   | { source: typeof GAME_SOURCE; type: 'placed'; prefab: string; pos: [number, number, number] }
   /** A drag of the transform handle: position and yaw (degrees). `done` marks the release. */
   | { source: typeof GAME_SOURCE; type: 'transform'; instanceId: string; pos: [number, number, number]; yaw: number; done: boolean }
-  | { source: typeof GAME_SOURCE; type: 'stats'; frameMs: number; draws: number; triangles: number };
+  | { source: typeof GAME_SOURCE; type: 'stats'; frameMs: number; draws: number; triangles: number }
+  /** Play: a level rule fired (the rule player's play log). */
+  | { source: typeof GAME_SOURCE; type: 'rule'; ruleId: string; sentence: string }
+  /** Play: the level's rules ended it. `next` is the level a win goes on to. */
+  | { source: typeof GAME_SOURCE; type: 'levelEnd'; result: 'won' | 'lost'; next?: string };
 
 export function isGameMessage(data: unknown): data is GameToStudio {
   return !!data && typeof data === 'object' && (data as any).source === GAME_SOURCE && typeof (data as any).type === 'string';

@@ -6,6 +6,7 @@ import type { Tier } from './shrine';
 import { moduleByParam } from './studio/levelModules';
 import { Objectives } from './objectives';
 import { applyStudioProject } from './studio/projectHook';
+import { createRules } from './studio/rulesHost';
 import { createPost } from './post';
 import { preloadCharacters } from './characters';
 import { initKTX2, preloadSets } from './textures';
@@ -121,10 +122,17 @@ async function boot() {
   player.spawnAt(arena.spawns.a.pos, arena.spawns.a.yaw);
   scene.add(player.object);
 
-  const enemies = new EnemyManager(scene, collision, arena.enemySpots);
+  // a Studio level with rules decides who arrives and how the level ends (studio/rulesHost.ts); else the endless trials run
+  const ruled = !!studioLook?.level.rules.some(r => r.enabled);
+  const enemies = new EnemyManager(scene, collision, arena.enemySpots, !ruled);
   const objectives = new Objectives(scene, arena.controlPoints ?? [], (x, z, y) => collision.groundAt(x, z, y, 10));
   objectives.onCapture = (def, owner) => showBeatFeedback(`${def.id} · ${def.name.toUpperCase()} ${owner === 'blue' ? 'CAPTURED' : 'LOST'}`, owner === 'blue' ? '#38bdf8' : '#fb923c');
   let hazardCooldown = 0;
+  const rules = ruled && studioLook ? createRules({
+    scene, enemies, player, level: studioLook.level, names: studioLook.names, fallbackSpots: arena.enemySpots,
+    groundAt: (x, z, y) => collision.groundAt(x, z, y, 10),
+    respawn: () => { player.hp = player.maxHp; player.spawnAt(arena.spawns.a.pos, arena.spawns.a.yaw); },
+  }) : null;
 
   let resonance = 1.0;
   let score = 0;
@@ -423,16 +431,18 @@ async function boot() {
         hazardCooldown = 0.4;
         player.hp = Math.max(0, player.hp - 20);
         showBeatFeedback('BURNING! -20 HP', '#f97316');
-        if (player.hp === 0) { player.hp = player.maxHp; resonance = 1.0; score = Math.max(0, score - 150); player.spawnAt(arena.spawns.a.pos, arena.spawns.a.yaw); }
+        if (player.hp === 0) { player.hp = player.maxHp; resonance = 1.0; score = Math.max(0, score - 150); player.spawnAt(arena.spawns.a.pos, arena.spawns.a.yaw); rules?.playerDowned(); }
       }
       objectives.update(dt, player.object.position, enemies.enemies.map((e) => e.mesh.position));
       if (input.firePressed) fireShot();
+      if (rules) { rules.start(); rules.update(dt, objectives.heldSeconds, score); }
       enemies.update(dt, rhythm.pulse, player.object.position, collision, (dmg) => {
         player.hp = Math.max(0, player.hp - dmg);
         if (player.hp === 0) {
           player.hp = player.maxHp;
           resonance = 1.0;
           score = Math.max(0, score - 150);
+          rules?.playerDowned();
         }
       });
     }
@@ -473,7 +483,7 @@ async function boot() {
       rhythm.setTrack(b.track);
       showBeatFeedback(`TRIAL ${enemies.wave} · ${b.name.toUpperCase()}`, '#fbbf24');
     }
-    waveText.textContent = `Trial ${enemies.wave} · ${currentBiomeName}`;
+    waveText.textContent = rules ? rules.title : `Trial ${enemies.wave} · ${currentBiomeName}`;
     surgeTag.textContent = resonance >= 2.0 ? 'SOUL SURGE READY [Q / RMB]' : 'SURGE AT 2.0x RESONANCE';
     surgeTag.style.color = resonance >= 2.0 ? '#fbbf24' : '#64748b';
 
