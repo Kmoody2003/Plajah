@@ -28,6 +28,8 @@ export const RUNTIMES: Record<string, Runtime> = {
       { module: 'rift-realm.shrine', param: 'shrine', name: 'Cyber-Forest Shrine' },
       { module: 'rift-realm.glacial', param: 'glacial', name: 'Glacial Citadel' },
       { module: 'rift-realm.volcanic', param: 'volcanic', name: 'Obsidian Volcanic Compound' },
+      { module: 'rift-realm.marsh', param: 'marsh', name: 'Sunken Marshland Village' },
+      { module: 'rift-realm.celestial', param: 'celestial', name: 'Celestial Void Citadel' },
     ],
     devOrigin: 'http://localhost:4332',
     prodBase: '/games/rift-realm/play/',
@@ -59,6 +61,16 @@ export function newProjectFor(runtimeId: string, name?: string, now = Date.now()
   };
 }
 
+/** A project opened after its game gained levels gets the new ones appended (empty, so nothing changes in play). */
+export function withRuntimeLevels(p: GameProject): GameProject {
+  const rt = RUNTIMES[p.runtime.game];
+  if (!rt) return p;
+  const have = new Set(p.levels.map(l => l.module.id));
+  const ids = new Set(p.levels.map(l => l.id));
+  const add = rt.levels.filter(l => !have.has(l.module)).map(l => emptyLevel(ids.has(l.param) ? `${l.param}-${p.levels.length}` : l.param, l.name, l.module));
+  return add.length ? { ...p, levels: [...p.levels, ...add] } : p;
+}
+
 /**
  * The op that makes the project own a marker kind, copying the level module's current markers of that
  * kind. The Studio sends it the first time the author edits a marker the module placed, so the edit has
@@ -76,15 +88,23 @@ export function takeOverOp(level: GameLevel, defaults: LevelDefaults | null | un
 export const STUDIO_SOURCE = 'plajah-studio';
 export const GAME_SOURCE = 'plajah-studio-game';
 
+/** Ids are unique across a level's markers and instances, so one `id` field selects either. */
 export type StudioToGame =
   | { source: typeof STUDIO_SOURCE; type: 'level'; level: GameLevel }
-  | { source: typeof STUDIO_SOURCE; type: 'select'; markerId: string | null }
-  | { source: typeof STUDIO_SOURCE; type: 'frame'; markerId: string };
+  | { source: typeof STUDIO_SOURCE; type: 'select'; id: string | null }
+  | { source: typeof STUDIO_SOURCE; type: 'frame'; id: string }
+  /** Next click in the view drops this prefab (null cancels). */
+  | { source: typeof STUDIO_SOURCE; type: 'arm'; prefab: string | null }
+  /** Transform handle mode for the selected instance. */
+  | { source: typeof STUDIO_SOURCE; type: 'tool'; tool: 'move' | 'turn' };
 
 export type GameToStudio =
   | { source: typeof GAME_SOURCE; type: 'ready'; defaults: LevelDefaults }
-  | { source: typeof GAME_SOURCE; type: 'select'; markerId: string | null }
+  | { source: typeof GAME_SOURCE; type: 'select'; id: string | null }
   | { source: typeof GAME_SOURCE; type: 'move'; markerId: string; pos: [number, number, number] }
+  | { source: typeof GAME_SOURCE; type: 'placed'; prefab: string; pos: [number, number, number] }
+  /** A drag of the transform handle: position and yaw (degrees). `done` marks the release. */
+  | { source: typeof GAME_SOURCE; type: 'transform'; instanceId: string; pos: [number, number, number]; yaw: number; done: boolean }
   | { source: typeof GAME_SOURCE; type: 'stats'; frameMs: number; draws: number; triangles: number };
 
 export function isGameMessage(data: unknown): data is GameToStudio {

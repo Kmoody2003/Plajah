@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GRID } from './grid';
 
 /** Marram/beach-grass clumps on sandy coastal ground. Does not change drivable heights. */
 export async function duneDetail(options: {
@@ -16,9 +17,9 @@ export async function duneDetail(options: {
   const placements: THREE.Matrix4[] = [], colors: THREE.Color[] = [];
   const q = new THREE.Quaternion();
   for (let i = 0; i < 90000 && placements.length < 12000; i++) {
-    const x = (random() - 0.5) * options.width, z = (random() - 0.5) * options.depth;
+    const x = GRID.ox + (random() - 0.5) * options.width, z = GRID.oz + (random() - 0.5) * options.depth;
     if (x > -2500) continue; // the western dune coast, never downtown or the harbor
-    const u = Math.floor((x / options.width + 0.5) * 511), v = Math.floor((z / options.depth + 0.5) * 511), index = (v * 512 + u) * 4;
+    const u = Math.floor(((x - GRID.ox) / options.width + 0.5) * 511), v = Math.floor(((z - GRID.oz) / options.depth + 0.5) * 511), index = (v * 512 + u) * 4;
     const r = pixels[index], g = pixels[index + 1], b = pixels[index + 2];
     if (r < 100 || r < g * 1.025 || g < b * 1.08 || r - b < 20) continue;
     const y = options.ground(x, z);

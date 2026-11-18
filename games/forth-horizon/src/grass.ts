@@ -2,6 +2,7 @@
 // Tufts sit on a jittered grid so they never flicker as the camera moves, take their colour from the satellite albedo under them (so a dry field is straw and a
 // lawn is green), grow only where the satellite says green and the road checks say clear, shrink out toward the edge of the radius, and sway in the wind.
 import * as THREE from 'three';
+import { GRID } from './grid';
 
 const R_NEAR = 68;       // grass radius (m)
 const CELL = 0.82;       // dense near-camera hair-like grass tufts
@@ -125,7 +126,7 @@ export class GrassField {
 
   private sample(x: number, z: number): boolean {
     const a = this.albedo!;
-    const u = (x + this.o.rw / 2) / this.o.rw, v = (z + this.o.rh / 2) / this.o.rh;
+    const u = (x - GRID.ox + this.o.rw / 2) / this.o.rw, v = (z - GRID.oz + this.o.rh / 2) / this.o.rh;
     if (u < 0 || u >= 1 || v < 0 || v >= 1) return false;
     const i = (Math.floor(v * a.h) * a.w + Math.floor(u * a.w)) * 4;
     this._sr = a.d[i] / 255; this._sg = a.d[i + 1] / 255; this._sb = a.d[i + 2] / 255;

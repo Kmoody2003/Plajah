@@ -78,6 +78,7 @@ const cityVisibility = new CityVisibility();
 const lensRain = new LensRain();
 const roadWater = new WetRoad();
 import type { SurfaceType } from './world';
+import { GRID } from './grid';
 
 const BASE = '/games/forth-horizon/region/';
 
@@ -296,6 +297,7 @@ fetch('/games/forth-horizon/region/city_mask.json').then((r) => r.json()).then((
   });
 }).catch(() => undefined);
 // terrain detail: close up, high-frequency grass, sand, forest floor and gravel from the reference textures ride on the satellite colour
+const terrO = { value: new THREE.Vector2(0, 0) };                         // world position of the grid centre (GRID.ox, GRID.oz)
 const terrV = { value: new THREE.Vector2(16512, 9216) };                  // world size of the height grid, for sampling the land class map
 const classTex = new THREE.TextureLoader().load('/games/forth-horizon/region/landclass.png');
 classTex.colorSpace = THREE.NoColorSpace; classTex.minFilter = THREE.LinearFilter; classTex.generateMipmaps = false;
@@ -309,7 +311,7 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
     sh.uniforms.tPave = { value: gameTex('paver_plain') };
     sh.uniforms.tMask = { value: maskTex };
     sh.uniforms.tClass = { value: classTex };
-    sh.uniforms.uTerr = terrV;
+    sh.uniforms.uTerr = terrV; sh.uniforms.uTerrO = terrO;
     sh.uniforms.uMask = { value: maskVec };
     sh.uniforms.uWet = wetU;
     sh.uniforms.uPool = poolU;
@@ -317,9 +319,9 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
       .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPos = (modelMatrix * vec4(position, 1.0)).xyz;');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nuniform highp sampler2DArray tGA;\nuniform highp sampler2DArray tGP;\nuniform float uGroundOn;\nuniform vec4 uGTune;\nuniform sampler2D tMask;\nuniform sampler2D tAsph;\nuniform sampler2D tPave;\nuniform vec4 uMask;\nuniform float uWet;\nuniform float uPool;\nuniform float uMapFade;\nuniform vec2 uEdge;\nuniform vec3 uCam;\nuniform sampler2D tClass;\nuniform vec2 uTerr;\nfloat tHash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\nfloat tNoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(tHash(i), tHash(i + vec2(1.0, 0.0)), f.x), mix(tHash(i + vec2(0.0, 1.0)), tHash(i + vec2(1.0, 1.0)), f.x), f.y); }\n' + PUDDLE_GLSL)
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nuniform highp sampler2DArray tGA;\nuniform highp sampler2DArray tGP;\nuniform float uGroundOn;\nuniform vec4 uGTune;\nuniform sampler2D tMask;\nuniform sampler2D tAsph;\nuniform sampler2D tPave;\nuniform vec4 uMask;\nuniform float uWet;\nuniform float uPool;\nuniform float uMapFade;\nuniform vec2 uEdge;\nuniform vec3 uCam;\nuniform sampler2D tClass;\nuniform vec2 uTerr;\nuniform vec2 uTerrO;\nfloat tHash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\nfloat tNoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(tHash(i), tHash(i + vec2(1.0, 0.0)), f.x), mix(tHash(i + vec2(0.0, 1.0)), tHash(i + vec2(1.0, 1.0)), f.x), f.y); }\n' + PUDDLE_GLSL)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
-      gl_FragColor.a *= mix(1.0, smoothstep(0.0, 1300.0, min(uEdge.x - abs(vWPos.x), uEdge.y - abs(vWPos.z))), uMapFade);`)
+      gl_FragColor.a *= mix(1.0, smoothstep(0.0, 1300.0, min(uEdge.x - abs(vWPos.x - uTerrO.x), uEdge.y - abs(vWPos.z - uTerrO.y))), uMapFade);`)
       .replace('#include <map_fragment>', `#include <map_fragment>
       float gWet = 0.0;
       float gPud = 0.0;
@@ -343,7 +345,7 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
         float lum = dot(b, vec3(0.299, 0.587, 0.114));
         float greenness = clamp((b.g - max(b.r, b.b)) * 7.0, 0.0, 1.0);
         float dark = 1.0 - smoothstep(0.12, 0.3, lum);
-        vec3 cls = texture2D(tClass, vec2(vWPos.x / uTerr.x + 0.5, 1.0 - (vWPos.z / uTerr.y + 0.5))).rgb;
+        vec3 cls = texture2D(tClass, vec2((vWPos.x - uTerrO.x) / uTerr.x + 0.5, 1.0 - ((vWPos.z - uTerrO.y) / uTerr.y + 0.5))).rgb;
         float sandy = cls.r, forestK = max(cls.g, dark * greenness), fieldK = cls.b * (1.0 - forestK);
         vec3 nW = normalize(cross(dFdx(vWPos), dFdy(vWPos))); if (nW.y < 0.0) nW = -nW;
         float rockK = smoothstep(0.28, 0.5, 1.0 - nW.y);                  // steep ground shows rock
@@ -543,8 +545,8 @@ circuitGroup.visible = false;      // the wide review ribbons; the street furnit
 let exag = 1;
 
 function hAt(xw: number, zw: number): number {
-  const px = xw / meta.mpp + meta.width / 2;
-  const py = zw / meta.mpp + meta.height / 2;
+  const px = (xw - GRID.ox) / meta.mpp + meta.width / 2;
+  const py = (zw - GRID.oz) / meta.mpp + meta.height / 2;
   const x0 = Math.max(0, Math.min(meta.width - 2, Math.floor(px)));
   const y0 = Math.max(0, Math.min(meta.height - 2, Math.floor(py)));
   const fx = px - x0, fy = py - y0, W = meta.width;
@@ -557,7 +559,7 @@ function hAt(xw: number, zw: number): number {
 // bilinear hAt(); the car has to sit on what is drawn, or its tyres sink into the road
 function meshH(xw: number, zw: number): number {
   const stride = 2, W = meta.width, H = meta.height;
-  const px = Math.max(0, Math.min(W - 1, xw / meta.mpp + W / 2)), py = Math.max(0, Math.min(H - 1, zw / meta.mpp + H / 2));
+  const px = Math.max(0, Math.min(W - 1, (xw - GRID.ox) / meta.mpp + W / 2)), py = Math.max(0, Math.min(H - 1, (zw - GRID.oz) / meta.mpp + H / 2));
   const nx = Math.floor((W - 1) / stride) + 1, ny = Math.floor((H - 1) / stride) + 1;
   const gi = Math.min(nx - 2, Math.floor(px / stride)), gj = Math.min(ny - 2, Math.floor(py / stride));
   const u = (px - gi * stride) / stride, v = (py - gj * stride) / stride;
@@ -577,9 +579,9 @@ function buildTerrain(): void {
       const px = Math.min(i * stride, meta.width - 1);
       const py = Math.min(j * stride, meta.height - 1);
       const k = j * nx + i;
-      pos[k * 3] = (px - meta.width / 2) * meta.mpp;
+      pos[k * 3] = (px - meta.width / 2) * meta.mpp + GRID.ox;
       pos[k * 3 + 1] = heights[py * meta.width + px] * exag;
-      pos[k * 3 + 2] = (py - meta.height / 2) * meta.mpp;
+      pos[k * 3 + 2] = (py - meta.height / 2) * meta.mpp + GRID.oz;
       uv[k * 2] = px / (meta.width - 1);
       uv[k * 2 + 1] = 1 - py / (meta.height - 1);
     }
@@ -604,7 +606,7 @@ function buildTerrain(): void {
     populateTiledTerrain(terrain, terrainMat, nx, ny, pos, uv, nor, 8, 6);
     return;
   }
-  terrV.value.set(meta.width * meta.mpp, meta.height * meta.mpp);
+  terrV.value.set(meta.width * meta.mpp, meta.height * meta.mpp); terrO.value.set(GRID.ox, GRID.oz);
   const tex = new THREE.TextureLoader().load(BASE + (hiRes ? 'albedo_hi.jpg' : 'albedo.jpg'));
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
@@ -616,7 +618,8 @@ function buildTerrain(): void {
   scene.add(terrain);
   // water: region footprint, extended far to the west so the Great Lake runs to the horizon
   const rw = meta.width * meta.mpp, rh = meta.height * meta.mpp, ext = 60000;
-  waterSurface = new WaterSurface(scene, rw, rh, ext, edgeU.value, -rw / 2, -rh / 2, atmosphere);
+  edgeU.value.set(rw / 2, rh / 2);                                               // half extents of the map, for the soft edge fade
+  waterSurface = new WaterSurface(scene, rw, rh, ext, edgeU.value, GRID.ox - rw / 2, GRID.oz - rh / 2, atmosphere);
   waterMesh = waterSurface.mesh;
 }
 
@@ -3701,8 +3704,8 @@ function stepDrive(dt: number): void {
   garageStep(dt, s, bumped);
   s.hit = Math.max(0, s.hit - dt);
   const lim = meta.width * meta.mpp / 2 - 80, limz = meta.height * meta.mpp / 2 - 80;
-  s.pos.x = Math.max(-lim, Math.min(lim, s.pos.x));
-  s.pos.z = Math.max(-limz, Math.min(limz, s.pos.z));
+  s.pos.x = Math.max(GRID.ox - lim, Math.min(GRID.ox + lim, s.pos.x));
+  s.pos.z = Math.max(GRID.oz - limz, Math.min(GRID.oz + limz, s.pos.z));
   if (hAt(s.pos.x, s.pos.z) < -1.5) { s.pos.copy(s.startPos); s.yaw = s.startYaw; s.sp = 0; s.lat = 0; bumped = true; }
   if (bumped) {                                  // hand the corrected position and speeds back to the physics state
     ps.pos.x = s.pos.x; ps.pos.z = s.pos.z; ps.yaw = s.yaw;
@@ -3860,12 +3863,13 @@ async function boot(): Promise<void> {
   shoreHw = await fetch(BASE + 'shoreline_highway.json').then((x) => (x.ok ? x.json() : null)).catch(() => null);
   heights = new Float32Array(buf);
   if (!location.search.includes('hires=0')) {
-    const h2 = await fetch(BASE + 'height2.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { w: number; h: number; mpp: number; min: number; max: number } | null;
+    const h2 = await fetch(BASE + 'height2.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { w: number; h: number; mpp: number; min: number; max: number; ox?: number; oz?: number } | null;
     const raw = h2 ? await fetch(BASE + 'height2.u16').then((x) => (x.ok ? x.arrayBuffer() : null)).catch(() => null) : null;
     if (h2 && raw && raw.byteLength === h2.w * h2.h * 2) {
       const u = new Uint16Array(raw), f = new Float32Array(u.length), k = (h2.max - h2.min) / 65535;
       for (let i = 0; i < u.length; i++) f[i] = h2.min + u[i] * k;
       heights = f; meta.width = h2.w; meta.height = h2.h; meta.mpp = h2.mpp; hiRes = true;
+      GRID.ox = h2.ox ?? 0; GRID.oz = h2.oz ?? 0;                                  // the grid's centre in the world (the map grew north: oz < 0)
     }
   }
   if (shoreHw) carveShoreline(heights, meta.width, meta.height, meta.mpp, shoreHw);

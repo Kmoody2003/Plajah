@@ -2,6 +2,7 @@
 // (every 4 m), its vertical profile and its banking. Here the ground is graded to the banked road surface, and the road is built: carriageway, gravel shoulders,
 // edge and centre lines, guardrails on the outside of tight bends and where the road stands on fill, and piers where it crosses a hollow on a viaduct.
 import * as THREE from 'three';
+import { GRID } from './grid';
 
 export interface ScenicRoad { name: string; surface: 'paved' | 'gravel'; half: number; speed: number; xz: number[][]; y: number[]; bank: number[] }
 
@@ -24,9 +25,9 @@ export function carveScenicRoads(heights: Float32Array, W: number, H: number, mp
   for (const r of roads) {
     const { nx, nz } = frames(r), full = r.half + SHOULDER + mpp * 1.2, reach = full + BLEND, rc = Math.ceil(reach / mpp), touched: number[] = [];
     for (let q = 0; q < r.xz.length; q++) {
-      const ci = Math.round(r.xz[q][0] / mpp + W / 2), cj = Math.round(r.xz[q][1] / mpp + H / 2);
+      const ci = Math.round((r.xz[q][0] - GRID.ox) / mpp + W / 2), cj = Math.round((r.xz[q][1] - GRID.oz) / mpp + H / 2);
       for (let j = Math.max(0, cj - rc); j <= Math.min(H - 1, cj + rc); j++) for (let i = Math.max(0, ci - rc); i <= Math.min(W - 1, ci + rc); i++) {
-        const k = j * W + i, dx = (i - W / 2) * mpp - r.xz[q][0], dz = (j - H / 2) * mpp - r.xz[q][1], d = Math.hypot(dx, dz);
+        const k = j * W + i, dx = (((i - W / 2) * mpp) + GRID.ox) - r.xz[q][0], dz = (((j - H / 2) * mpp) + GRID.oz) - r.xz[q][1], d = Math.hypot(dx, dz);
         if (d > reach) continue;
         if (bestD[k] === 0) touched.push(k);
         if (bestD[k] === 0 || d + 1 < bestD[k]) { bestD[k] = d + 1; bestI[k] = q; bestS[k] = dx * nx[q] + dz * nz[q]; }

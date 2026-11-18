@@ -1,6 +1,7 @@
 import { type P2, Grid, distToPoly } from './geom';
 import type { AirportLayout } from './airport';
 import type { RailProfile } from './railProfile';
+import { GRID } from '../grid';
 
 /**
  * Cut and fill: grade the height map (metres, 1 sample per `mpp`) for railway beds and the airfield before the terrain is meshed,
@@ -31,12 +32,12 @@ export function carveRail(heights: Float32Array, W: number, H: number, mpp: numb
     }
   }
   if (!n) return 0;
-  const R = 17 + RAIL_REACH, x0 = Math.max(0, Math.floor((mnx - R) / mpp + W / 2)), x1 = Math.min(W - 1, Math.ceil((mxx + R) / mpp + W / 2));
-  const z0 = Math.max(0, Math.floor((mnz - R) / mpp + H / 2)), z1 = Math.min(H - 1, Math.ceil((mxz + R) / mpp + H / 2));
+  const R = 17 + RAIL_REACH, x0 = Math.max(0, Math.floor(((mnx - R) - GRID.ox) / mpp + W / 2)), x1 = Math.min(W - 1, Math.ceil(((mxx + R) - GRID.ox) / mpp + W / 2));
+  const z0 = Math.max(0, Math.floor(((mnz - R) - GRID.oz) / mpp + H / 2)), z1 = Math.min(H - 1, Math.ceil(((mxz + R) - GRID.oz) / mpp + H / 2));
   let touched = 0;
   // process cell by cell, but only those near a line
   for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) {
-    const x = (ix - W / 2) * mpp, z = (iz - H / 2) * mpp;
+    const x = (((ix - W / 2) * mpp) + GRID.ox), z = (((iz - H / 2) * mpp) + GRID.oz);
     let best = 1e9, by = 0, bflat = 0;
     pts.query(x - R, z - R, x + R, z + R, (p) => { const d = Math.hypot(p.x - x, p.z - z); if (d < best) { best = d; by = p.y; bflat = p.flat; } });
     if (best > bflat + RAIL_REACH) continue;
@@ -66,18 +67,18 @@ export function carveAirport(heights: Float32Array, W: number, H: number, mpp: n
   let mnx = 1e9, mxx = -1e9, mnz = 1e9, mxz = -1e9;
   for (const p of allPts) { mnx = Math.min(mnx, p[0]); mxx = Math.max(mxx, p[0]); mnz = Math.min(mnz, p[1]); mxz = Math.max(mxz, p[1]); }
   const pad = reach + 300;
-  const x0 = Math.max(0, Math.floor((mnx - pad) / mpp + W / 2)), x1 = Math.min(W - 1, Math.ceil((mxx + pad) / mpp + W / 2));
-  const z0 = Math.max(0, Math.floor((mnz - pad) / mpp + H / 2)), z1 = Math.min(H - 1, Math.ceil((mxz + pad) / mpp + H / 2));
+  const x0 = Math.max(0, Math.floor(((mnx - pad) - GRID.ox) / mpp + W / 2)), x1 = Math.min(W - 1, Math.ceil(((mxx + pad) - GRID.ox) / mpp + W / 2));
+  const z0 = Math.max(0, Math.floor(((mnz - pad) - GRID.oz) / mpp + H / 2)), z1 = Math.min(H - 1, Math.ceil(((mxz + pad) - GRID.oz) / mpp + H / 2));
   const dist = (x: number, z: number): number => { let d = 1e9; for (const f of sh) d = Math.min(d, f(x, z)); return d; };
   // the level: the average of the ground under the footprint itself
   let sum = 0, cnt = 0;
   for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) {
-    const x = (ix - W / 2) * mpp, z = (iz - H / 2) * mpp;
+    const x = (((ix - W / 2) * mpp) + GRID.ox), z = (((iz - H / 2) * mpp) + GRID.oz);
     if (dist(x, z) <= 0) { sum += heights[iz * W + ix]; cnt++; }
   }
   const level = cnt ? sum / cnt : 0;
   for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) {
-    const x = (ix - W / 2) * mpp, z = (iz - H / 2) * mpp, d = dist(x, z);
+    const x = (((ix - W / 2) * mpp) + GRID.ox), z = (((iz - H / 2) * mpp) + GRID.oz), d = dist(x, z);
     if (d > reach) continue;
     const w = 1 - smooth(d / reach), k = iz * W + ix;
     heights[k] = heights[k] * (1 - w) + (level - 0.3) * w;

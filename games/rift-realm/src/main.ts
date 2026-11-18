@@ -2,9 +2,8 @@
 import * as THREE from 'three/webgpu';
 import { CollisionWorld } from './collision';
 import { RhythmEngine, type BeatQuality } from './rhythm';
-import { buildShrine, type Tier } from './shrine';
-import { buildGlacial } from './glacial';
-import { buildVolcanic } from './volcanic';
+import type { Tier } from './shrine';
+import { moduleByParam } from './studio/levelModules';
 import { Objectives } from './objectives';
 import { applyStudioProject } from './studio/projectHook';
 import { createPost } from './post';
@@ -73,15 +72,12 @@ async function boot() {
 
   const levelId = new URLSearchParams(location.search).get('level') ?? 'shrine';
   initKTX2(renderer);
-  await preloadSets(levelId === 'glacial'
-    ? ['glacial-ground', 'glacial-brick', 'celestial-obsidian', 'glacial-ice', 'volc-steel']
-    : levelId === 'volcanic'
-      ? ['volc-basalt', 'volc-rock', 'volc-ash', 'volc-steel', 'volc-lava']
-      : ['volc-basalt', 'glacial-brick', 'marsh-mud', 'volc-steel']);
-  const arena = levelId === 'glacial' ? buildGlacial(scene, tier) : levelId === 'volcanic' ? buildVolcanic(scene, tier) : buildShrine(scene, tier);
-  if (levelId === 'volcanic') { camera.far = 900; camera.updateProjectionMatrix(); renderer.toneMappingExposure = 1.25; }
-  if (levelId === 'glacial') { camera.far = 700; camera.updateProjectionMatrix(); renderer.toneMappingExposure = 0.78; }
-  // Game Studio Play view: the project's edits to this level (spawns, enemy spots, control points, look) apply before anyone spawns.
+  // one table of levels (studio/levelModules.ts), shared with the Game Studio
+  const levelModule = moduleByParam(levelId);
+  await preloadSets(levelModule.sets);
+  const arena = levelModule.build(scene, tier);
+  camera.far = levelModule.look.far; camera.updateProjectionMatrix(); renderer.toneMappingExposure = levelModule.look.exposure;
+  // Game Studio Play view: the project's edits to this level (spawns, enemy spots, control points, props, look) apply before anyone spawns.
   const studioLook = await applyStudioProject(levelId, arena);
   if (studioLook) { camera.far = studioLook.far; camera.updateProjectionMatrix(); renderer.toneMappingExposure = studioLook.exposure; }
   document.querySelectorAll<HTMLButtonElement>('#levelPick .lvl').forEach((b) => {

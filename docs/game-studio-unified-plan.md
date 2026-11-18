@@ -179,6 +179,33 @@ where our own bespoke game code goes, so it becomes reusable instead of locked i
   - not yet checked inside the full app (needs sign-in);
   - the shipped bundle isn't rebuilt.
 
+### Phase 1, first slice as built (2026-11-17, uncommitted)
+
+- **Props:** `services/gamestudio/prefabs.ts` is the kit as data: 8 parametric Rift Realm pieces (arched
+  wall, battlement wall, tower, stone stairs, steel stairs, cover block, pillar, boulder), each with
+  parameter specs, clamping (`coerceParam`), and readable sentences in the history.
+  `games/rift-realm/src/studio/prefabs.ts` builds them with the game's own builders in world space.
+  The World view builds one group per piece; the game merges all pieces into one kit, with collision.
+- **World room:** a Props palette (pick, then click to place), props in the outline, a move/turn handle
+  (W/E, snapped to 0.25 m and 15°), and a prop inspector showing every parameter (the Pro-only ones in
+  Pro). Also duplicate (Ctrl+D) and delete (Del).
+- **Cloud:** autosaves through `scheduleCreativeSync` (new creative kind `game`), with the sync indicator
+  and version history (restore goes through the validator).
+- **One level table:** `main.ts` boots from `LEVEL_MODULES`, so its old if-chain is gone. The Rift Realm
+  session added the marsh and celestial levels, and older projects gain new levels automatically
+  (`withRuntimeLevels`).
+- **Verified:**
+  - all 8 pieces build in the World view;
+  - placing a prop and editing its parameters produces the right history sentences;
+  - in the real game, props merge into one mesh per material and you can stand on them (2.25 m on a
+    2 m block, 6.85 m on a tower crown);
+  - 32 tests.
+- **Still in Phase 1:**
+  - scatter, splines (roads/rivers), terrain paint, trigger zones;
+  - the gate (re-lay the Shrine Arena by hand, then delete `shrine.ts`);
+  - a visual check of the handle while the app window is visible (screenshots were blocked: the window was minimized);
+  - cloud save checked while signed in.
+
 **Why Rift Realm pilots it:** it's the newest game (one arena, uncommitted), its world is already built from
 parametric pieces (`StaticKit`, `geom.ts`), and arena-shooter logic is small. That makes it the cheapest game
 to prove the full loop on. Era Clash Chapter I (the earlier proposal) stays the pilot for picture → level and

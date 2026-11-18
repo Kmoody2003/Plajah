@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { validateProject } from '../services/gamestudio/validate';
 import { applyOp, describeOp, History, OpError, type Op } from '../services/gamestudio/ops';
 import { effectiveLook, effectiveMarkers, ownsKind, type LevelDefaults } from '../services/gamestudio/schema';
-import { newProjectFor, runtimeUrl, RUNTIMES, takeOverOp, isGameMessage } from '../services/gamestudio/runtime';
+import { newProjectFor, runtimeUrl, RUNTIMES, takeOverOp, isGameMessage, withRuntimeLevels } from '../services/gamestudio/runtime';
+import { coerceParam, defaultParams, KITS, newInstance, prefabById, resolvedParams, RIFT_KIT } from '../services/gamestudio/prefabs';
 
 const fresh = () => newProjectFor('rift-realm', 'Test Arena', 1000);
 const defaults: LevelDefaults = {
@@ -22,7 +23,7 @@ test('new Rift Realm project validates, one level per arena', () => {
   const p = fresh();
   const v = validateProject(p);
   assert.ok(v.ok, JSON.stringify(v.errors));
-  assert.deepEqual(p.levels.map(l => l.module.id), ['rift-realm.shrine', 'rift-realm.glacial', 'rift-realm.volcanic']);
+  assert.deepEqual(p.levels.map(l => l.module.id), ['rift-realm.shrine', 'rift-realm.glacial', 'rift-realm.volcanic', 'rift-realm.marsh', 'rift-realm.celestial']);
   assert.equal(p.startLevel, 'shrine');
   assert.equal(p.template, 'arena-shooter');
 });
@@ -171,5 +172,69 @@ test('runtime urls and message guard', () => {
   assert.equal(runtimeUrl(rt, 'studio', rt.levels[1]), '/games/rift-realm/play/studio.html?level=glacial&studio=1');
   assert.equal(runtimeUrl(rt, 'play', rt.levels[0], { dev: true }), 'http://localhost:4332/index.html?level=shrine&studio=1');
   assert.ok(isGameMessage({ source: 'plajah-studio-game', type: 'ready' }));
+  assert.ok(isGameMessage({ source: 'plajah-studio-game', type: 'placed', prefab: 'rr.block', pos: [0, 0, 0] }));
   assert.ok(!isGameMessage({ source: 'other', type: 'ready' }));
+});
+
+test('prop kit: every piece has unique id, sane params and a size', () => {
+  const ids = new Set<string>();
+  for (const d of RIFT_KIT) {
+    assert.ok(!ids.has(d.id), d.id); ids.add(d.id);
+    const p = defaultParams(d);
+    for (const spec of d.params) {
+      if (spec.kind === 'number' || spec.kind === 'int') assert.ok(spec.min <= spec.default && spec.default <= spec.max, `${d.id}.${spec.key} default out of range`);
+      if (spec.kind === 'choice') assert.ok(spec.options.some(o => o.value === spec.default), `${d.id}.${spec.key} default not an option`);
+    }
+    assert.ok(d.size(p).every(n => n > 0), `${d.id} size`);
+  }
+  assert.equal(KITS['rift-realm'], RIFT_KIT);
+});
+
+test('prop params are clamped and repaired, never trusted raw', () => {
+  const wall = prefabById('rr.gothicWall')!;
+  const len = wall.params.find(s => s.key === 'len')!;
+  assert.equal(coerceParam(len, 999), 40);
+  assert.equal(coerceParam(len, 'x'), 14);
+  const bays = wall.params.find(s => s.key === 'bays')!;
+  assert.equal(coerceParam(bays, 2.6), 3);
+  const mat = wall.params.find(s => s.key === 'material')!;
+  assert.equal(coerceParam(mat, 'lava'), 'stone');
+  assert.deepEqual(resolvedParams(wall, { params: { len: -5, h: 9 } }), { len: 4, h: 9, bays: 3, thick: 1.2, material: 'stone' });
+});
+
+test('placing, editing and removing a prop: sentences, one-step drags, clean undo, valid file', () => {
+  let t = 0;
+  const h = new History(fresh(), () => t);
+  const tower = newInstance(prefabById('rr.tower')!, [4, 0, -2], 0, ['tower-x']);
+  assert.ok(!['tower-x'].includes(tower.id));
+  h.apply({ op: 'putInstance', levelId: 'shrine', instance: tower });
+  assert.equal(h.entries[0].label, 'Placed a Tower in Cyber-Forest Shrine at 4, 0, -2');
+  t = 1000;
+  for (let x = 5; x <= 9; x++) { h.apply({ op: 'putInstance', levelId: 'shrine', instance: { ...h.project.levels[0].instances[0], pos: [x, 0, -2] } }); t += 30; }
+  assert.equal(h.entries.length, 2, 'handle drag = one step');
+  assert.equal(h.entries[1].label, 'Tower in Cyber-Forest Shrine: moved to 9, 0, -2');
+  t = 5000;
+  const cur = h.project.levels[0].instances[0];
+  h.apply({ op: 'putInstance', levelId: 'shrine', instance: { ...cur, rot: [0, 90, 0], params: { ...cur.params, h: 14, spikes: true, material: 'basalt' } } });
+  assert.equal(h.entries[2].label, 'Tower in Cyber-Forest Shrine: turned to 90°, height 14 m, spiked crown on, material Basalt');
+  assert.ok(validateProject(h.project).ok);
+  t = 9000;
+  h.apply({ op: 'removeInstance', levelId: 'shrine', instanceId: tower.id });
+  assert.equal(h.entries[3].label, 'Removed Tower in Cyber-Forest Shrine');
+  h.undo(); h.undo();
+  assert.deepEqual(h.project.levels[0].instances[0].pos, [9, 0, -2]);
+  assert.equal(h.project.levels[0].instances[0].rot[1], 0);
+  h.undo(); h.undo();
+  assert.equal(h.project.levels[0].instances.length, 0);
+});
+
+test('an older project gains the levels its game added since, without touching its edits', () => {
+  const p = fresh();
+  const old = { ...p, levels: p.levels.slice(0, 3) };
+  old.levels[0] = { ...old.levels[0], look: { exposure: 0.7 } };
+  const up = withRuntimeLevels(old);
+  assert.deepEqual(up.levels.map(l => l.id), ['shrine', 'glacial', 'volcanic', 'marsh', 'celestial']);
+  assert.deepEqual(up.levels[0].look, { exposure: 0.7 });
+  assert.ok(validateProject(up).ok);
+  assert.equal(withRuntimeLevels(up), up, 'nothing to add = same object');
 });

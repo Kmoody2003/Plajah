@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GRID } from './grid';
 
 /**
  * Countryside set pieces for the reference shots (docs/apex-elohim/reference-scenes.md):
@@ -47,7 +48,7 @@ export const creekLine: { x: number; z: number; bed: number; water: number }[] =
 
 export function carveCreek(heights: Float32Array, W: number, H: number, mpp: number): void {
   const line = catmull(CREEK, 6);
-  const px = (x: number): number => x / mpp + W / 2, pz = (z: number): number => z / mpp + H / 2;
+  const px = (x: number): number => (x - GRID.ox) / mpp + W / 2, pz = (z: number): number => (z - GRID.oz) / mpp + H / 2;
   const raw = (x: number, z: number): number => {
     const ix = Math.max(0, Math.min(W - 1, Math.round(px(x)))), iz = Math.max(0, Math.min(H - 1, Math.round(pz(z))));
     return heights[iz * W + ix];
@@ -68,7 +69,7 @@ export function carveCreek(heights: Float32Array, W: number, H: number, mpp: num
   const x0 = Math.floor(px(Math.min(...creekLine.map((p) => p.x)) - CARVE_R * 1.5)), x1 = Math.ceil(px(Math.max(...creekLine.map((p) => p.x)) + CARVE_R * 1.5));
   const z0 = Math.floor(pz(Math.min(...creekLine.map((p) => p.z)) - CARVE_R * 1.5)), z1 = Math.ceil(pz(Math.max(...creekLine.map((p) => p.z)) + CARVE_R * 1.5));
   for (let iz = Math.max(0, z0); iz <= Math.min(H - 1, z1); iz++) for (let ix = Math.max(0, x0); ix <= Math.min(W - 1, x1); ix++) {
-    const x = (ix - W / 2) * mpp, z = (iz - H / 2) * mpp;
+    const x = (((ix - W / 2) * mpp) + GRID.ox), z = (((iz - H / 2) * mpp) + GRID.oz);
     let best = 1e9, bi = -1;
     const cx = Math.floor(x / cell), cz = Math.floor(z / cell);
     for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) {
@@ -103,11 +104,11 @@ export function carveShoreline(heights: Float32Array, W: number, H: number, mpp:
   const GR = 90;             // the gallery's cliff reaches this far each side
   let mnx = 1e9, mxx = -1e9, mnz = 1e9, mxz = -1e9;
   for (const p of line) { mnx = Math.min(mnx, p.x); mxx = Math.max(mxx, p.x); mnz = Math.min(mnz, p.z); mxz = Math.max(mxz, p.z); }
-  const x0 = Math.max(0, Math.floor((mnx - GR) / mpp + W / 2)), x1 = Math.min(W - 1, Math.ceil((mxx + GR) / mpp + W / 2));
-  const z0 = Math.max(0, Math.floor((mnz - GR) / mpp + H / 2)), z1 = Math.min(H - 1, Math.ceil((mxz + GR) / mpp + H / 2));
+  const x0 = Math.max(0, Math.floor(((mnx - GR) - GRID.ox) / mpp + W / 2)), x1 = Math.min(W - 1, Math.ceil(((mxx + GR) - GRID.ox) / mpp + W / 2));
+  const z0 = Math.max(0, Math.floor(((mnz - GR) - GRID.oz) / mpp + H / 2)), z1 = Math.min(H - 1, Math.ceil(((mxz + GR) - GRID.oz) / mpp + H / 2));
   const ss = (a: number, b: number, v: number): number => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
   for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) {
-    const x = (ix - W / 2) * mpp, z = (iz - H / 2) * mpp;
+    const x = (((ix - W / 2) * mpp) + GRID.ox), z = (((iz - H / 2) * mpp) + GRID.oz);
     let best = 1e9, bi = -1; const cx = Math.floor(x / cell), cz = Math.floor(z / cell);
     for (let a = -4; a <= 4; a++) for (let b = -4; b <= 4; b++) { const l = hash.get((cx + a) * 8192 + cz + b); if (!l) continue; for (const i of l) { const d = Math.hypot(line[i].x - x, line[i].z - z); if (d < best) { best = d; bi = i; } } }
     if (bi < 0) continue;

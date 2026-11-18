@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { bladeTexture, tuftGeo } from './grass';
+import { GRID } from './grid';
 
 /**
  * Vegetation for the whole map: grass, shrubs and rocks that cost the same wherever the camera is.
@@ -216,7 +217,7 @@ export class Vegetation {
   private sample(x: number, z: number, out: Sample): boolean {
     const c = this.cls, a = this.alb;
     if (!c || !a) return false;
-    const u = x / this.o.rw + 0.5, v = z / this.o.rh + 0.5;
+    const u = (x - GRID.ox) / this.o.rw + 0.5, v = (z - GRID.oz) / this.o.rh + 0.5;
     if (u < 0 || u >= 1 || v < 0 || v >= 1) return false;
     const ci = (Math.floor(v * c.h) * c.w + Math.floor(u * c.w)) * 4;
     out.sand = c.d[ci] / 255; out.forest = c.d[ci + 1] / 255; out.field = c.d[ci + 2] / 255;

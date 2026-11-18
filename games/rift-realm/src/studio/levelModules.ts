@@ -12,8 +12,11 @@ import * as THREE from 'three/webgpu';
 import { buildShrine, type Level, type Tier } from '../shrine';
 import { buildGlacial } from '../glacial';
 import { buildVolcanic } from '../volcanic';
+import { buildMarsh } from '../marsh';
+import { buildCelestial } from '../celestial';
 import type { GameLevel, LevelDefaults, Look, Marker, Zone } from '../../../../services/gamestudio/schema';
 import { effectiveLook, effectiveMarkers, effectiveZones } from '../../../../services/gamestudio/schema';
+import { buildInstances } from './prefabs';
 
 export interface LevelModule {
   id: string;
@@ -28,6 +31,8 @@ export const LEVEL_MODULES: LevelModule[] = [
   { id: 'rift-realm.shrine', param: 'shrine', build: buildShrine, sets: ['volc-basalt', 'glacial-brick', 'marsh-mud', 'volc-steel'], look: { exposure: 1.15, far: 260 } },
   { id: 'rift-realm.glacial', param: 'glacial', build: buildGlacial, sets: ['glacial-ground', 'glacial-brick', 'celestial-obsidian', 'glacial-ice', 'volc-steel'], look: { exposure: 0.78, far: 700 } },
   { id: 'rift-realm.volcanic', param: 'volcanic', build: buildVolcanic, sets: ['volc-basalt', 'volc-rock', 'volc-ash', 'volc-steel', 'volc-lava'], look: { exposure: 1.25, far: 900 } },
+  { id: 'rift-realm.marsh', param: 'marsh', build: buildMarsh, sets: ['marsh-mud', 'marsh-wood', 'marsh-water', 'glacial-brick'], look: { exposure: 1.1, far: 500 } },
+  { id: 'rift-realm.celestial', param: 'celestial', build: buildCelestial, sets: ['celestial-marble', 'celestial-obsidian', 'glacial-brick'], look: { exposure: 1.0, far: 900 } },
 ];
 
 export const moduleByParam = (param: string | null | undefined) => LEVEL_MODULES.find(m => m.param === param) ?? LEVEL_MODULES[0];
@@ -67,6 +72,8 @@ export function applyProjectLevel(mod: LevelModule, level: Level, project: GameL
   level.controlPoints = cps.length ? cps.map(m => ({ id: m.id.replace(/^cp-/, ''), name: m.name ?? m.id, pos: vec(m.pos), radius: m.radius ?? 4 })) : undefined;
   const hazard = effectiveZones(project, defaults).find(z => z.kind === 'hazardBelow');
   level.hazardBelow = hazard?.y;
+  // placed props join the level group before the game builds collision from it
+  buildInstances(level.group, project.instances);
   const look = effectiveLook(project, defaults);
   return { exposure: look.exposure ?? mod.look.exposure, far: look.far ?? mod.look.far };
 }

@@ -5,6 +5,7 @@
 // applyOp is pure: it returns a new project and the op that undoes it. Nothing here touches the DOM.
 
 import type { GameLevel, GameProject, Instance, Look, Marker, MarkerKind, Rule, Zone } from './schema';
+import { prefabById } from './prefabs';
 
 export type Op =
   | { op: 'setProjectName'; name: string }
@@ -214,12 +215,33 @@ export function describeOp(p: GameProject, o: Op): string {
     }
     case 'putZone': return o.zone.kind === 'hazardBelow' ? `Hazard${where} below ${fmt(o.zone.y ?? 0)} m` : `Set trigger ${o.zone.name ?? o.zone.id}${where}`;
     case 'removeZone': return `Removed zone ${o.zoneId}${where}`;
-    case 'putInstance': return `Placed ${o.instance.prefab}${where}`;
-    case 'removeInstance': return `Removed ${o.instanceId}${where}`;
+    case 'putInstance': return describeInstance(lv?.instances.find(n => n.id === o.instance.id), o.instance, where);
+    case 'removeInstance': { const n = lv?.instances.find(x => x.id === o.instanceId); return `Removed ${n ? prefabName(n.prefab) : o.instanceId}${where}`; }
     case 'putRule': return `Set rule ${o.rule.id}${where}`;
     case 'removeRule': return `Removed rule ${o.ruleId}${where}`;
     case 'batch': return o.label;
   }
+}
+
+const prefabName = (id: string) => prefabById(id)?.name ?? id;
+
+/** "Placed an Arched wall in … at 1, 0, 2" or "Arched wall in …: moved to …, length 18 m". */
+function describeInstance(before: Instance | undefined, after: Instance, where: string): string {
+  const name = prefabName(after.prefab);
+  if (!before) return `Placed ${/^[aeiou]/i.test(name) ? 'an' : 'a'} ${name}${where} at ${after.pos.map(fmt).join(', ')}`;
+  const bits: string[] = [];
+  if (after.pos.some((v, i) => v !== before.pos[i])) bits.push(`moved to ${after.pos.map(fmt).join(', ')}`);
+  if (after.rot[1] !== before.rot[1]) bits.push(`turned to ${fmt(after.rot[1])}°`);
+  const def = prefabById(after.prefab);
+  for (const [k, v] of Object.entries(after.params ?? {})) {
+    if (before.params?.[k] === v) continue;
+    const spec = def?.params.find(s => s.key === k);
+    const label = (spec?.label ?? k).toLowerCase();
+    if (spec?.kind === 'choice') bits.push(`${label} ${spec.options.find(o => o.value === v)?.label ?? v}`);
+    else if (spec?.kind === 'bool') bits.push(`${label} ${v ? 'on' : 'off'}`);
+    else bits.push(`${label} ${typeof v === 'number' ? fmt(v) : String(v)}${spec?.kind === 'number' && spec.unit ? spec.unit : ''}`);
+  }
+  return `${name}${where}: ${bits.join(', ') || 'changed'}`;
 }
 
 export interface HistoryEntry { op: Op; inverse: Op; label: string; at: number }
@@ -285,6 +307,7 @@ function mergeKey(o: Op): string | null {
   if (o.op === 'setProjectName') return 'name';
   if (o.op === 'batch') return o.ops.length ? mergeKey(o.ops[o.ops.length - 1]) : null;
   if (o.op === 'updateMarker') return `m:${o.levelId}:${o.markerId}:${Object.keys(o.patch).sort().join(',')}`;
+  if (o.op === 'putInstance') return `i:${o.levelId}:${o.instance.id}`;
   if (o.op === 'setLook') return `l:${o.levelId}:${Object.keys(o.look).sort().join(',')}`;
   return null;
 }

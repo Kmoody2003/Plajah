@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GRID } from './grid';
 
 /**
  * The Ironworks port district's ground and props (planned in tools/plan_port_district.py, data in region/port_district.json):
@@ -45,10 +46,10 @@ export function carvePlatform(heights: Float32Array, W: number, H: number, mpp: 
   let mnx = 1e9, mxx = -1e9, mnz = 1e9, mxz = -1e9;
   for (const q of poly) { mnx = Math.min(mnx, q[0]); mxx = Math.max(mxx, q[0]); mnz = Math.min(mnz, q[1]); mxz = Math.max(mxz, q[1]); }
   const R = 90;
-  const x0 = Math.max(0, Math.floor((mnx - R) / mpp + W / 2)), x1 = Math.min(W - 1, Math.ceil((mxx + R) / mpp + W / 2));
-  const z0 = Math.max(0, Math.floor((mnz - R) / mpp + H / 2)), z1 = Math.min(H - 1, Math.ceil((mxz + R) / mpp + H / 2));
+  const x0 = Math.max(0, Math.floor(((mnx - R) - GRID.ox) / mpp + W / 2)), x1 = Math.min(W - 1, Math.ceil(((mxx + R) - GRID.ox) / mpp + W / 2));
+  const z0 = Math.max(0, Math.floor(((mnz - R) - GRID.oz) / mpp + H / 2)), z1 = Math.min(H - 1, Math.ceil(((mxz + R) - GRID.oz) / mpp + H / 2));
   for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) {
-    const x = (ix - W / 2) * mpp, z = (iz - H / 2) * mpp, k = iz * W + ix, old = heights[k];
+    const x = (((ix - W / 2) * mpp) + GRID.ox), z = (((iz - H / 2) * mpp) + GRID.oz), k = iz * W + ix, old = heights[k];
     if (inPoly(poly, x, z)) { heights[k] = y; continue; }
     if (old <= y) continue;                                                    // lower ground outside (the water side) stays
     const d = distToPoly(poly, x, z), reach = Math.min(R, Math.max(12, (old - y) * 2.2));

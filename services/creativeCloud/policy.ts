@@ -35,6 +35,7 @@ export type CreativeKind =
   | 'beats'
   | 'argilla'
   | 'motion'
+  | 'game'
   | 'other';
 
 export type QuotaClass = 'counted' | 'exempt';
@@ -62,6 +63,8 @@ export const KIND_QUOTA_CLASS: Record<CreativeKind, QuotaClass> = {
   beats: 'counted',
   argilla: 'counted',
   motion: 'counted',
+  // Game Studio projects (components/gamestudio)
+  game: 'counted',
   other: 'counted',
 };
 

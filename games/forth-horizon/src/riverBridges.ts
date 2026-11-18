@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { buildHeroBridge } from './heroBridge';
+import { GRID } from './grid';
 
 /**
  * The two high-level river bridges. Shipping uses this river, so the deck clears the water by 46 m (the tallest ships need about 40): the main span is the cable-stayed hero bridge
@@ -146,7 +147,7 @@ const apY = (ys: number[], t: number): number => { const f = t / AP_STEP, i = Ma
  *  the ground) are left alone. Runs on the height map before the terrain is meshed, and fixes the designs for everything after. */
 function carveApproaches(heights: Float32Array, W: number, H: number, mpp: number): void {
   const sample = (x: number, z: number): number => {
-    const fx = Math.min(W - 1.001, Math.max(0, x / mpp + W / 2)), fz = Math.min(H - 1.001, Math.max(0, z / mpp + H / 2)), i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j;
+    const fx = Math.min(W - 1.001, Math.max(0, (x - GRID.ox) / mpp + W / 2)), fz = Math.min(H - 1.001, Math.max(0, (z - GRID.oz) / mpp + H / 2)), i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j;
     return heights[j * W + i] * (1 - u) * (1 - v) + heights[j * W + i + 1] * u * (1 - v) + heights[(j + 1) * W + i] * (1 - u) * v + heights[(j + 1) * W + i + 1] * u * v;
   };
   approachCache.clear();
@@ -156,10 +157,10 @@ function carveApproaches(heights: Float32Array, W: number, H: number, mpp: numbe
     for (const [ys, ox, oz, sx, sz] of [[ap.a, br.a.x, br.a.z, -ux, -uz], [ap.b, br.b.x, br.b.z, ux, uz]] as [number[], number, number, number, number][]) {
       const len = (ys.length - 1) * AP_STEP;
       const xs = [ox, ox + sx * len], zs = [oz, oz + sz * len], R = half + BL;
-      const i0 = Math.max(0, Math.floor((Math.min(...xs) - R) / mpp + W / 2)), i1 = Math.min(W - 1, Math.ceil((Math.max(...xs) + R) / mpp + W / 2));
-      const j0 = Math.max(0, Math.floor((Math.min(...zs) - R) / mpp + H / 2)), j1 = Math.min(H - 1, Math.ceil((Math.max(...zs) + R) / mpp + H / 2));
+      const i0 = Math.max(0, Math.floor(((Math.min(...xs) - R) - GRID.ox) / mpp + W / 2)), i1 = Math.min(W - 1, Math.ceil(((Math.max(...xs) + R) - GRID.ox) / mpp + W / 2));
+      const j0 = Math.max(0, Math.floor(((Math.min(...zs) - R) - GRID.oz) / mpp + H / 2)), j1 = Math.min(H - 1, Math.ceil(((Math.max(...zs) + R) - GRID.oz) / mpp + H / 2));
       for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-        const x = (i - W / 2) * mpp - ox, z = (j - H / 2) * mpp - oz;
+        const x = (((i - W / 2) * mpp) + GRID.ox) - ox, z = (((j - H / 2) * mpp) + GRID.oz) - oz;
         const t = x * sx + z * sz, d = Math.abs(-x * sz + z * sx);
         if (t < 0 || t > len || d > R) continue;
         const y = apY(ys, t) - 0.3, k = j * W + i, h = heights[k];
@@ -222,10 +223,10 @@ export function carveRiverReaches(heights: Float32Array, W: number, H: number, m
     let mnx = 1e9, mxx = -1e9, mnz = 1e9, mxz = -1e9;
     for (const p of r.line) { mnx = Math.min(mnx, p[0]); mxx = Math.max(mxx, p[0]); mnz = Math.min(mnz, p[1]); mxz = Math.max(mxz, p[1]); }
     const R = r.half + 70;
-    const x0 = Math.max(0, Math.floor((mnx - R) / mpp + W / 2)), x1 = Math.min(W - 1, Math.ceil((mxx + R) / mpp + W / 2));
-    const z0 = Math.max(0, Math.floor((mnz - R) / mpp + H / 2)), z1 = Math.min(H - 1, Math.ceil((mxz + R) / mpp + H / 2));
+    const x0 = Math.max(0, Math.floor(((mnx - R) - GRID.ox) / mpp + W / 2)), x1 = Math.min(W - 1, Math.ceil(((mxx + R) - GRID.ox) / mpp + W / 2));
+    const z0 = Math.max(0, Math.floor(((mnz - R) - GRID.oz) / mpp + H / 2)), z1 = Math.min(H - 1, Math.ceil(((mxz + R) - GRID.oz) / mpp + H / 2));
     for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) {
-      const x = (ix - W / 2) * mpp, z = (iz - H / 2) * mpp;
+      const x = (((ix - W / 2) * mpp) + GRID.ox), z = (((iz - H / 2) * mpp) + GRID.oz);
       let d = 1e18;
       for (let i = 0; i < r.line.length - 1; i++) {
         const a = r.line[i], b = r.line[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz || 1;
@@ -247,7 +248,7 @@ export function carveRiverReaches(heights: Float32Array, W: number, H: number, m
  */
 export function gradeFromFoot(heights: Float32Array, W: number, H: number, mpp: number, poly: number[][], half: number, maxLen = 1600): void {
   const sample = (x: number, z: number): number => {
-    const fx = Math.min(W - 1.001, Math.max(0, x / mpp + W / 2)), fz = Math.min(H - 1.001, Math.max(0, z / mpp + H / 2)), i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j;
+    const fx = Math.min(W - 1.001, Math.max(0, (x - GRID.ox) / mpp + W / 2)), fz = Math.min(H - 1.001, Math.max(0, (z - GRID.oz) / mpp + H / 2)), i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j;
     return heights[j * W + i] * (1 - u) * (1 - v) + heights[j * W + i + 1] * u * (1 - v) + heights[(j + 1) * W + i] * (1 - u) * v + heights[(j + 1) * W + i + 1] * u * v;
   };
   const S: number[][] = [];
@@ -263,11 +264,11 @@ export function gradeFromFoot(heights: Float32Array, W: number, H: number, mpp: 
   y.forEach((_, i) => { const k = Math.floor(S[i][0] / cell) * 8192 + Math.floor(S[i][1] / cell); const a = hash.get(k) ?? []; a.push(i); hash.set(k, a); });
   let mnx = 1e9, mxx = -1e9, mnz = 1e9, mxz = -1e9;
   for (let i = 0; i < y.length; i++) { mnx = Math.min(mnx, S[i][0]); mxx = Math.max(mxx, S[i][0]); mnz = Math.min(mnz, S[i][1]); mxz = Math.max(mxz, S[i][1]); }
-  const i0 = Math.max(0, Math.floor((mnx - R) / mpp + W / 2)), i1 = Math.min(W - 1, Math.ceil((mxx + R) / mpp + W / 2));
-  const j0 = Math.max(0, Math.floor((mnz - R) / mpp + H / 2)), j1 = Math.min(H - 1, Math.ceil((mxz + R) / mpp + H / 2));
+  const i0 = Math.max(0, Math.floor(((mnx - R) - GRID.ox) / mpp + W / 2)), i1 = Math.min(W - 1, Math.ceil(((mxx + R) - GRID.ox) / mpp + W / 2));
+  const j0 = Math.max(0, Math.floor(((mnz - R) - GRID.oz) / mpp + H / 2)), j1 = Math.min(H - 1, Math.ceil(((mxz + R) - GRID.oz) / mpp + H / 2));
   const len = y.length - 1;
   for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-    const x = (i - W / 2) * mpp, z = (j - H / 2) * mpp, cx = Math.floor(x / cell), cz = Math.floor(z / cell);
+    const x = (((i - W / 2) * mpp) + GRID.ox), z = (((j - H / 2) * mpp) + GRID.oz), cx = Math.floor(x / cell), cz = Math.floor(z / cell);
     let bd = 1e9, bi = -1;
     for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { const l = hash.get((cx + a) * 8192 + cz + b); if (l) for (const q of l) { const d = Math.hypot(S[q][0] - x, S[q][1] - z); if (d < bd) { bd = d; bi = q; } } }
     if (bi < 0 || bd > R) continue;

@@ -1,3 +1,4 @@
+import { GRID } from '../grid';
 // The Great Lakes Cliff Raceway as an engineered road, designed once and used by everything that touches it.
 //
 // A race track is not laid on whatever ground happens to be there: it is designed (a smooth plan line, a smooth long-wavelength profile, banking that follows the curvature), and the ground is
@@ -170,15 +171,15 @@ export function carveCliffRaceway(heights: Float32Array, W: number, H: number, m
   const R = 150;                                                              // widest reach of any cut or fill slope
   let mnx = 1e9, mxx = -1e9, mnz = 1e9, mxz = -1e9;
   for (const p of pts) { mnx = Math.min(mnx, p.x); mxx = Math.max(mxx, p.x); mnz = Math.min(mnz, p.z); mxz = Math.max(mxz, p.z); }
-  const x0 = Math.max(0, Math.floor((mnx - R) / mpp + W / 2)), x1 = Math.min(W - 1, Math.ceil((mxx + R) / mpp + W / 2));
-  const z0 = Math.max(0, Math.floor((mnz - R) / mpp + H / 2)), z1 = Math.min(H - 1, Math.ceil((mxz + R) / mpp + H / 2));
+  const x0 = Math.max(0, Math.floor(((mnx - R) - GRID.ox) / mpp + W / 2)), x1 = Math.min(W - 1, Math.ceil(((mxx + R) - GRID.ox) / mpp + W / 2));
+  const z0 = Math.max(0, Math.floor(((mnz - R) - GRID.oz) / mpp + H / 2)), z1 = Math.min(H - 1, Math.ceil(((mxz + R) - GRID.oz) / mpp + H / 2));
   // distance of each tunnel point from its nearest portal along the track, for the cover ramp
   const portalDist = (i: number): number => {
     if (!pts[i].tunnel) return -1;
     return Math.min(Math.abs(pts[i].s - pts[design.tunnelFrom].s), Math.abs(pts[design.tunnelTo].s - pts[i].s));
   };
   for (let iz = z0; iz <= z1; iz++) for (let iix = x0; iix <= x1; iix++) {
-    const x = (iix - W / 2) * mpp, z = (iz - H / 2) * mpp;
+    const x = (((iix - W / 2) * mpp) + GRID.ox), z = (((iz - H / 2) * mpp) + GRID.oz);
     const hit = ix.near(x, z, R);
     if (!hit) continue;
     const p = pts[hit.i], k = iz * W + iix, h0 = heights[k], d = Math.abs(hit.lat);

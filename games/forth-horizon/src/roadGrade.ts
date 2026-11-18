@@ -1,3 +1,4 @@
+import { GRID } from './grid';
 // Road grading: every road gets a vertical profile the way a highway department would design it, and the ground is cut or built up to it before the terrain is meshed.
 //
 //   class      max grade   cut   fill   shoulder   blend
@@ -32,9 +33,9 @@ export function gradeRoads(heights: Float32Array, W: number, H: number, mpp: num
   const bestD = new Float32Array(W * H), bestI = new Int32Array(W * H);          // per-road scratch: nearest sample distance (+1, 0 = untouched) and its index
   const order: Record<GradeClass, number> = { freeway: 0, highway: 1, street: 2, rural: 3, lane: 4, drive: 5 };
   const list = roads.filter((r) => r.xz.length > 1).sort((a, b) => order[a.cls] - order[b.cls]);
-  const idx = (x: number, z: number): number => { const i = Math.min(W - 1, Math.max(0, Math.round(x / mpp + W / 2))), j = Math.min(H - 1, Math.max(0, Math.round(z / mpp + H / 2))); return j * W + i; };
+  const idx = (x: number, z: number): number => { const i = Math.min(W - 1, Math.max(0, Math.round((x - GRID.ox) / mpp + W / 2))), j = Math.min(H - 1, Math.max(0, Math.round((z - GRID.oz) / mpp + H / 2))); return j * W + i; };
   const sample = (x: number, z: number): number => {
-    const fx = Math.min(W - 1.001, Math.max(0, x / mpp + W / 2)), fz = Math.min(H - 1.001, Math.max(0, z / mpp + H / 2)), i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j;
+    const fx = Math.min(W - 1.001, Math.max(0, (x - GRID.ox) / mpp + W / 2)), fz = Math.min(H - 1.001, Math.max(0, (z - GRID.oz) / mpp + H / 2)), i = Math.floor(fx), j = Math.floor(fz), u = fx - i, v = fz - j;
     return heights[j * W + i] * (1 - u) * (1 - v) + heights[j * W + i + 1] * u * (1 - v) + heights[(j + 1) * W + i] * (1 - u) * v + heights[(j + 1) * W + i + 1] * u * v;
   };
   const steepBefore: Record<string, number> = {}, steepAfter: Record<string, number> = {};
@@ -78,10 +79,10 @@ export function gradeRoads(heights: Float32Array, W: number, H: number, mpp: num
     const reach = r.half + R.sh + R.bl, rc = Math.ceil(reach / mpp), touched: number[] = [];
     for (let q = 0; q < n; q++) {
       if (skip[q] || wet[q]) continue;
-      const ci = Math.round(S[q][0] / mpp + W / 2), cj = Math.round(S[q][1] / mpp + H / 2);
+      const ci = Math.round((S[q][0] - GRID.ox) / mpp + W / 2), cj = Math.round((S[q][1] - GRID.oz) / mpp + H / 2);
       for (let j = Math.max(0, cj - rc); j <= Math.min(H - 1, cj + rc); j++) for (let i = Math.max(0, ci - rc); i <= Math.min(W - 1, ci + rc); i++) {
         const k = j * W + i; if (lock[k]) continue;
-        const d = Math.hypot((i - W / 2) * mpp - S[q][0], (j - H / 2) * mpp - S[q][1]); if (d > reach) continue;
+        const d = Math.hypot((((i - W / 2) * mpp) + GRID.ox) - S[q][0], (((j - H / 2) * mpp) + GRID.oz) - S[q][1]); if (d > reach) continue;
         if (bestD[k] === 0) { touched.push(k); bestD[k] = d + 1; bestI[k] = q; } else if (d + 1 < bestD[k]) { bestD[k] = d + 1; bestI[k] = q; }
       }
     }

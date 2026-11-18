@@ -133,7 +133,7 @@ const FRAG = `
     float fg = smoothstep(uFogNear, uFogFar, dist);
     col = mix(col, uFog, fg);
     alpha = mix(alpha, 1.0, fg * 0.0);
-    alpha *= mix(1.0, smoothstep(0.0, 1300.0, min(uEdge.x - abs(wp.x), uEdge.y - abs(wp.y))), uMapFade);
+    alpha *= mix(1.0, smoothstep(0.0, 1300.0, min(uEdge.x - abs(wp.x - (uRegion.x + uRegion.z * 0.5)), uEdge.y - abs(wp.y - (uRegion.y + uRegion.w * 0.5)))), uMapFade);
     gl_FragColor = vec4(col, alpha);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
