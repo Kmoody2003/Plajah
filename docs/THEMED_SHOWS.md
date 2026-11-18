@@ -206,3 +206,12 @@ The studio's first tab, **Show · timeline**, plays the planned show exactly as 
   - **Scope:** whole show, or per photo (a photo's look wins on its shots).
   - **How it applies:** the LUT is a 17³ 3D texture on the GPU, and the lens runs on each rendered frame. Both apply after the picture and before the overlay's `textScene` (captions, cards, chapter lines, fades), so text is never graded.
   - **Verified:** Bleach Bypass desaturates and Sepia 1890 warms; VHS renders.
+
+## Shows in social posts (no render)
+
+- **What a post stores.** Only a reference: `assetEmbed { type: 'THEMED_SHOW', id, owner, title, imageUrl }` (`services/slideshow/showPosts.ts`). The show itself is the published copy at `public-shows/<owner>/<id>/show.json` (`cloudShows.publishShow`). Posts, `private_posts` and `circle_posts` already accept `assetEmbed` through `isValidPost`, so there are **no new Firestore rules**.
+- **Posting.** Studio → Share → **Post to Plajah** re-publishes (so the post plays the latest cut), then calls `openShowComposer(ref)`. That dispatches `NAVIGATE FEED` plus `plajah:composePost` with a prefill (`{ text, assetEmbed }`, and also `window.__composePostPending` for a cold feed). FeedView remounts the main `UniversalPostComposer` with `initialAssetEmbed`, so the author's own audience, org, Today and fediverse controls apply as with any post.
+- **Feed card.** `components/photo/show/ShowPostCard.tsx`, lazy-loaded by PostCard. It shows the cover, the title and a play button. `ShowPlayer` (with three.js) loads only on tap, then plays the timeline. The viewer can switch to Interactive. **Open** goes to the link.
+- **Links.** `/?show=<owner>/<id>[&mode=live]` opens the full-page `ShowViewerPage`, with no app shell and no sign-in (App.tsx, before the shell). Only the `owner/id` form is caught; a release shared "in Show Mode" also uses `?show=<mode>` and still goes to the album route.
+- **Rendered video.** After a render, **Post video** opens the composer with the MP4 attached as an ordinary video. The plajah.com mark is already burned in on Free and Spark (`needsBrandBug()` at render time), so the posted file keeps it.
+- **Lab.** `node node_modules/vite/bin/vite.js --config show-posts-lab.vite.config.mjs` → http://127.0.0.1:3302/. It has the real studio, the composer, PostCard and the viewer. Publishing goes to the lab server's memory (`labs/show-posts/cloudShowsStub.ts`), not to Storage.

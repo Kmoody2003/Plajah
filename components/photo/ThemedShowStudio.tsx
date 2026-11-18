@@ -10,7 +10,7 @@ import {
   Play, Pause, ChevronLeft, ChevronRight, Maximize2, Film, Download, FolderOpen, Music, Trash2,
   RotateCw, ArrowUp, ArrowDown, Sparkles, Loader2, X, Clapperboard, Images, ImagePlus, Upload, Wand2, Eye,
   SkipBack, SkipForward, Rewind, Type, EyeOff, Pencil, Crop, Save, HardDrive, FilePlus2, Clock3, ArrowLeftRight, CopyPlus,
-  Cloud, Share2, Link2, Tv,
+  Cloud, Share2, Link2, Tv, Send,
 } from 'lucide-react';
 import { Button, IconButton, Surface, Eyebrow, Chip, Input, Actions, AnchoredPopover } from '../ui';
 import ShowTimeline, { type TimelineOps } from './show/ShowTimeline';
@@ -24,6 +24,7 @@ import { preparePhoto, type PrepInput } from '../../services/slideshow/photoPrep
 import { buildPlan } from '../../services/slideshow/planner';
 import { ShowRuntime } from '../../services/slideshow/showRuntime';
 import { renderShowVideo, probeTrackDurations } from '../../services/slideshow/renderVideo';
+import { openShowComposer, openRenderedVideoComposer } from '../../services/slideshow/showPosts';
 import { openShowInFabula } from '../../services/slideshow/fabulaShow';
 import { directShow, applyDirection, type DirectorResult, type DirectorStyle } from '../../services/slideshow/director';
 import { readPhotos, visionEstimate } from '../../services/slideshow/directorVision';
@@ -269,14 +270,21 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
     catch (e: any) { setMsg(e?.message || 'Could not open that show.'); }
     finally { setHydrating(false); }
   };
-  const doPublish = async () => {
+  const doPublish = async (): Promise<ShowRef | null> => {
     setPublishing({ done: 0, total: 1 });
     try {
       const r = await publishShow(saveSpec, (done, total) => setPublishing({ done, total }));
       setShared({ ref: r, link: showLink(r) });
       setMsg('Published. Anyone with the link (or the post) can play it.');
-    } catch (e: any) { setMsg(e?.code === 'SIGN_IN_REQUIRED' ? 'Sign in to share a show.' : e?.message || 'Could not publish the show.'); }
+      return r;
+    } catch (e: any) { setMsg(e?.code === 'SIGN_IN_REQUIRED' ? 'Sign in to share a show.' : e?.message || 'Could not publish the show.'); return null; }
     finally { setPublishing(null); }
+  };
+  // Post to Plajah: (re)publish so the post plays the latest cut, then open the feed composer with the show
+  // attached. The post stores only the ref; the author's audience controls apply in the composer.
+  const postToPlajah = async () => {
+    const r = await doPublish();
+    if (r) openShowComposer(r, title ? `${title}` : '');
   };
   useEffect(() => { if (openShowId) void openSaved(openShowId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -934,7 +942,8 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
               <p className="type-body-sm" style={{ color: 'var(--on-surface-variant)' }}>Share without rendering: the show plays live in a post, in Stage or in a Tela document, as a timeline or interactively.</p>
               <div className="flex flex-wrap gap-1.5">
                 <Button size="sm" variant="secondary" icon={<Tv />} disabled={!photos.length} onClick={() => setPreviewing(true)}>Preview player</Button>
-                <Button size="sm" variant="secondary" icon={<Share2 />} loading={!!publishing} disabled={!photos.length} onClick={doPublish}>{shared ? 'Update shared show' : 'Publish & get link'}</Button>
+                <Button size="sm" variant="accent" icon={<Send />} loading={!!publishing} disabled={!photos.length} onClick={postToPlajah}>Post to Plajah</Button>
+                <Button size="sm" variant="secondary" icon={<Share2 />} loading={!!publishing} disabled={!photos.length} onClick={() => void doPublish()}>{shared ? 'Update shared show' : 'Publish & get link'}</Button>
               </div>
               {publishing && <span className="type-body-sm">Uploading {publishing.done}/{publishing.total}…</span>}
               {shared && (
@@ -958,7 +967,11 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
             {video && (
               <div className="flex flex-col gap-2">
                 <video src={video.url} controls className="w-full rounded-[var(--pj-radius-md)]" />
-                <Button as="a" href={video.url} download={video.name} size="sm" variant="accent" icon={<Download />}>Download {video.name}</Button>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button as="a" href={video.url} download={video.name} size="sm" variant="accent" icon={<Download />}>Download {video.name}</Button>
+                  {/* the render already carries the plajah.com bug on Free/Spark (needsBrandBug at render time) */}
+                  <Button size="sm" variant="secondary" icon={<Send />} onClick={async () => { const b = await (await fetch(video.url)).blob(); openRenderedVideoComposer(b, video.name, title || ''); }}>Post video</Button>
+                </div>
               </div>
             )}
           </Section>

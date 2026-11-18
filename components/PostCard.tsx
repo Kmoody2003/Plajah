@@ -37,6 +37,7 @@ import { useGateAccess, SanctuaryGateLock } from './sanctuary/SanctuaryGate';
 const CommunityNoteBadge = lazy(() => import('./notes/CommunityNotes'));
 const GameEmbedCard = lazy(() => import('./games/social/GameEmbedCard'));
 const LiveGameCard = lazy(() => import('./liveGames/LiveGameCard'));
+const ShowPostCard = lazy(() => import('./photo/show/ShowPostCard'));
 import { TYPE } from '../src/lib/designSystem';
 import { isActiveToday, formatTodayCountdown, todayProgress } from '../services/todayPosts';
 import UserSafetyMenu from './safety/UserSafetyMenu';
@@ -1038,6 +1039,7 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser: onVisitUserProp,
             const ae = (post as any).assetEmbed as { type: string; id: string; trackId?: string; title?: string; imageUrl?: string; image?: string; url?: string; subtitle?: string; sourceId?: string; channelNumber?: string; shelf?: string };
             if (ae.type === 'LOREA_EXHIBIT') return <div className="mt-3"><LoreaExhibitEmbed embed={ae as any} /></div>;
             if (ae.type === 'TECHNO_EXHIBIT') return <div className="mt-3"><TechnoExhibitEmbed embed={ae as any} /></div>;
+            if (ae.type === 'THEMED_SHOW') return <Suspense fallback={<div className="mt-3 w-full aspect-video rounded-card bg-black/60" />}><ShowPostCard embed={ae as any} /></Suspense>;
             const linkFor: Record<string, string> = {
               VIDEO: 'video',
               ARTICLE: 'article',

@@ -47,12 +47,16 @@ export interface ComposerAttachment {
 }
 
 export interface AssetEmbed {
-  type: 'ALBUM' | 'VIDEO' | 'WORLD' | 'CHARACTER' | 'ARTICLE' | 'PLAYLIST' | 'MODULE' | 'TRACK';
+  type: 'ALBUM' | 'VIDEO' | 'WORLD' | 'CHARACTER' | 'ARTICLE' | 'PLAYLIST' | 'MODULE' | 'TRACK' | 'THEMED_SHOW';
   id: string;
   title: string;
   imageUrl?: string;
   subtitle?: string;
+  /** THEMED_SHOW: the publishing owner's uid (the show lives at public-shows/<owner>/<id>). */
+  owner?: string;
 }
+
+const EMBED_LABEL: Partial<Record<AssetEmbed['type'], string>> = { THEMED_SHOW: 'Themed Show' };
 
 export interface ComposerPoll {
   question: string;
@@ -169,6 +173,8 @@ interface UniversalPostComposerProps {
   initialText?: string;
   /** Prefill media (e.g. an embedded 3D scan or artifact image). */
   initialAttachments?: ComposerAttachment[];
+  /** Prefill an embedded platform asset (e.g. a published Themed Show). */
+  initialAssetEmbed?: AssetEmbed;
   /** Start expanded — used when the composer opens inside a share modal. */
   autoExpand?: boolean;
   /** Destination picker (discipline vs social feed, clubs) injected by the share flow. */
@@ -216,6 +222,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   compact = false,
   avatarUrl,
   initialText,
+  initialAssetEmbed,
   initialAttachments,
   autoExpand = false,
   destinationSlot,
@@ -230,7 +237,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   const [expanded, setExpanded]     = useState(autoExpand || !!quoteOf);
   const [text, setText]             = useState(initialText ?? '');
   const [attachments, setAttachments] = useState<ComposerAttachment[]>(initialAttachments ?? []);
-  const [assetEmbed, setAssetEmbed] = useState<AssetEmbed | undefined>(undefined);
+  const [assetEmbed, setAssetEmbed] = useState<AssetEmbed | undefined>(initialAssetEmbed);
   const [sanctuaryGate, setSanctuaryGate] = useState<import('../types').SanctuaryGate | undefined>(undefined);
   const [theme, setTheme]           = useState<ComposerPostData['theme']>('STANDARD');
   const [poll, setPoll]             = useState<ComposerPoll | null>(null);
@@ -336,7 +343,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
   // Offer to restore the autosaved draft once, on mount.
   useEffect(() => {
-    if (!postingPower || !uid || initialText || initialAttachments?.length) return;
+    if (!postingPower || !uid || initialText || initialAttachments?.length || initialAssetEmbed) return;
     let alive = true;
     getDraft(uid, AUTOSAVE_ID).then(d => { if (alive && d && isDraftMeaningful(d)) setRestorable(d); }).catch(() => {});
     return () => { alive = false; };
@@ -1164,7 +1171,7 @@ Post it anyway?`)) return;
         <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-3 ml-0 sm:ml-12">
           {assetEmbed.imageUrl && <img src={assetEmbed.imageUrl} className="w-12 h-12 rounded-xl object-cover shrink-0" alt="" />}
           <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-widest text-small-orange mb-0.5">{assetEmbed.type}</p>
+            <p className="text-[9px] font-black uppercase tracking-widest text-small-orange mb-0.5">{EMBED_LABEL[assetEmbed.type] || assetEmbed.type}</p>
             <p className="text-xs font-bold truncate">{assetEmbed.title}</p>
             {assetEmbed.subtitle && <p className="text-[9px] text-white/40 truncate">{assetEmbed.subtitle}</p>}
           </div>
