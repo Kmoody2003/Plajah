@@ -8,7 +8,7 @@
 // that box the containing block, so the room fills the area under the tab bar without changes.
 
 import React, { Suspense, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { ArrowLeft, Plus, X, Ruler, Trees, Sun, Cpu, Blocks, Scissors, Cog, Car, Bot, Rocket, Sigma, Telescope, Dna, LayoutGrid, Sparkles } from 'lucide-react';
+import { ArrowLeft, Plus, X, Ruler, Trees, Sun, Cpu, Blocks, Scissors, Cog, Car, Bot, Rocket, Sigma, Telescope, Dna, Gamepad2, LayoutGrid, Sparkles } from 'lucide-react';
 import { WORKSPACES, GROUPS, workspaceById, type Workspace } from '../../services/workspace/workspaces';
 import { getProfile, subscribe, updateProfile, connectAccount } from '../../services/workspace/profileStore';
 import { setLevel } from '../../services/workspace/skillProfile';
@@ -27,8 +27,9 @@ const ElecRoom = React.lazy(() => import('../elec/ElecRoom'));
 const PatternRoom = React.lazy(() => import('../soft/PatternRoom'));
 const BioRoom = React.lazy(() => import('../bio/BioRoom'));
 const BuildStudio = React.lazy(() => import('../build/studio/BuildStudio'));
+const GameStudioRoom = React.lazy(() => import('../gamestudio/GameStudioRoom'));
 
-const ICONS: Record<string, React.ComponentType<{ size?: number; style?: React.CSSProperties }>> = { Ruler, Trees, Sun, Cpu, Blocks, Scissors, Cog, Car, Bot, Rocket, Sigma, Telescope, Dna };
+const ICONS: Record<string, React.ComponentType<{ size?: number; style?: React.CSSProperties }>> = { Ruler, Trees, Sun, Cpu, Blocks, Scissors, Cog, Car, Bot, Rocket, Sigma, Telescope, Dna, Gamepad2 };
 const C = { bg: '#0d0c12', bar: '#0a0910', panel: '#15131d', line: 'rgba(255,255,255,.08)', text: 'rgba(255,255,255,.88)', dim: 'rgba(255,255,255,.52)' };
 /** Where to start today while a planned workspace is being built. */
 const START_TODAY: Record<string, string[]> = { landscape: ['architecture'], render: ['architecture'], automotive: ['mechanical', 'electronics'], robotics: ['studio', 'electronics', 'mechanical'], aerospace: ['mechanical', 'electronics'], compute: [], astronomy: [] };
@@ -192,6 +193,7 @@ function Room({ w, level, onLevel, launch, extra, getToken, onClose, onOpen }: {
     case 'sewing': return <PatternRoom initialTemplate={launch?.template} {...extra?.sewing} getToken={getToken} onClose={onClose} level={level}/>;
     case 'studio': return <BuildStudio getToken={getToken} onClose={onClose} starter={launch?.starter} lesson={launch?.lesson} level={level}/>;
     case 'biology': return <BioRoom {...extra?.biology} onClose={onClose} level={level}/>;
+    case 'game-studio': return <GameStudioRoom onClose={onClose} level={level} onLevel={onLevel}/>;
     default: return <Coming w={w} level={level} onOpen={onOpen}/>;
   }
 }

@@ -24,5 +24,7 @@ export default defineConfig(({ command }) => ({
     emptyOutDir: true,
     target: 'es2022',
     chunkSizeWarningLimit: 4000,
+    // studio.html = the Game Studio's World view of this game (docs/game-studio-unified-plan.md)
+    rollupOptions: { input: { main: path.resolve(here, 'index.html'), studio: path.resolve(here, 'studio.html') } },
   },
 }));

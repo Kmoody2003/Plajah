@@ -6,6 +6,7 @@ import { buildShrine, type Tier } from './shrine';
 import { buildGlacial } from './glacial';
 import { buildVolcanic } from './volcanic';
 import { Objectives } from './objectives';
+import { applyStudioProject } from './studio/projectHook';
 import { createPost } from './post';
 import { preloadCharacters } from './characters';
 import { initKTX2, preloadSets } from './textures';
@@ -80,6 +81,9 @@ async function boot() {
   const arena = levelId === 'glacial' ? buildGlacial(scene, tier) : levelId === 'volcanic' ? buildVolcanic(scene, tier) : buildShrine(scene, tier);
   if (levelId === 'volcanic') { camera.far = 900; camera.updateProjectionMatrix(); renderer.toneMappingExposure = 1.25; }
   if (levelId === 'glacial') { camera.far = 700; camera.updateProjectionMatrix(); renderer.toneMappingExposure = 0.78; }
+  // Game Studio Play view: the project's edits to this level (spawns, enemy spots, control points, look) apply before anyone spawns.
+  const studioLook = await applyStudioProject(levelId, arena);
+  if (studioLook) { camera.far = studioLook.far; camera.updateProjectionMatrix(); renderer.toneMappingExposure = studioLook.exposure; }
   document.querySelectorAll<HTMLButtonElement>('#levelPick .lvl').forEach((b) => {
     b.classList.toggle('on', b.dataset.level === levelId);
     b.addEventListener('click', (e) => {

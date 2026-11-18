@@ -4,9 +4,9 @@
 
 import type { Two, PlannedPath } from './guidePath';
 
-export type WorkspaceGroup = 'design' | 'make' | 'engineer' | 'science';
+export type WorkspaceGroup = 'design' | 'make' | 'engineer' | 'science' | 'play';
 /** A room the shell can open today (services/build/launch.ts Room ids). */
-export type RoomId = 'cad' | 'elec' | 'sew' | 'studio' | 'bio' | 'exchange';
+export type RoomId = 'cad' | 'elec' | 'sew' | 'studio' | 'bio' | 'exchange' | 'game';
 
 export interface Workspace {
   id: string;
@@ -26,7 +26,7 @@ export interface Workspace {
 }
 
 export const GROUPS: Array<{ id: WorkspaceGroup; name: string }> = [
-  { id: 'design', name: 'Design' }, { id: 'make', name: 'Make' }, { id: 'engineer', name: 'Engineer' }, { id: 'science', name: 'Science' },
+  { id: 'design', name: 'Design' }, { id: 'make', name: 'Make' }, { id: 'engineer', name: 'Engineer' }, { id: 'science', name: 'Science' }, { id: 'play', name: 'Play' },
 ];
 
 const p = (id: string, simple: string, pro: string, live = false) => ({ id, title: { simple, pro }, live });
@@ -71,6 +71,10 @@ export const WORKSPACES: Workspace[] = [
   { id: 'biology', group: 'science', name: 'Biology', icon: 'Dna', tone: '#5eead4', room: 'bio', status: 'live', focus: ['STRUCTURE', 'SBML'],
     door: { simple: 'Spin a real protein in 3D.', pro: 'PDB and AlphaFold structures, SBML models on our own solver.' },
     paths: [] },
+  // Game Studio (docs/game-studio-unified-plan.md): the one place games are made, ours and creators'.
+  { id: 'game-studio', group: 'play', name: 'Game Studio', icon: 'Gamepad2', tone: '#38bdf8', room: 'game', status: 'live', focus: ['GAME_PROJECT'],
+    door: { simple: 'Make a game: place where players start, move things around, then press Play.', pro: 'Game Project editor: level markers, zones, look, undoable ops, play-in-editor on the shipping runtime.' },
+    paths: [p('move-a-spawn', 'Move where players start', 'Edit spawns and control points', true), p('describe-a-game', 'Describe a game and get a playable start', 'Prompt to Game Project (Phase 4)')] },
 ];
 
 export const workspaceById = (id: string) => WORKSPACES.find(w => w.id === id);

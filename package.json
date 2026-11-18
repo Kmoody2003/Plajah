@@ -19,6 +19,7 @@
     "test:coedit": "npx tsx --test tests/coeditCrdt.test.ts tests/coeditJam.test.ts",
     "test:tela-security": "npx tsx --test tests/telaDocPolicy.test.ts && node scripts/testCoeditRules.mjs",
     "test:game-saves": "npx tsx --test tests/gameSaves.test.ts games/forth-horizon/tests/garage.test.ts",
+    "test:gamestudio": "npx tsx --test tests/gameStudio.test.ts",
     "test:band": "npx tsx --test tests/sessionBand.test.ts",
     "test:musicians": "tsx --test tests/musicianMindAndEar.test.ts",
     "test:direct": "tsx --test tests/choraDirect.test.ts",

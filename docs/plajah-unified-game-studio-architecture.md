@@ -1,5 +1,7 @@
 # Plajah Unified 3D Game, Argilla, CAD & Story Intelligence Architecture
 
+> **Superseded 2026-11-17 by [game-studio-unified-plan.md](game-studio-unified-plan.md).**
+
 ## 1. Where the Game Design Tools Live
 - **Primary Authoring Surface: Maker Studio (`cad-lab` + `argilla-lab` + new Game Builder rail)**
   - Maker already owns mechanical parts (`components/cad/MechPartsPanel.tsx`), workspaces (`services/workspace/`), and engineering sims.
