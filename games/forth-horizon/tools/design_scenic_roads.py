@@ -23,6 +23,10 @@ STEP = 4.0
 
 # name, surface, half width, design speed (km/h), grade limit, max bank, control points (x, z); the first and last points sit on the roads they join
 ROADS = [
+    {"name": "Mill Road", "surface": "paved", "half": 3.4, "speed": 70, "grade": 0.08, "bank": 0.05,
+     "cp": [(-1116, -4600), (-1220, -4880), (-1460, -5220), (-1780, -5580), (-2150, -5980)]},
+    {"name": "Orchard Lane", "surface": "paved", "half": 3.4, "speed": 70, "grade": 0.08, "bank": 0.05,
+     "cp": [(1068, -4600), (980, -4820), (820, -5020), (620, -5250), (430, -5500)]},
     {"name": "Superior Coast Highway", "surface": "paved", "half": 4.2, "speed": 90, "grade": 0.065, "bank": 0.06, "cut": 16.0,
      "cp": [(624, -4488), (430, -4760), (-250, -5100), (-1150, -5480), (-2150, -5980), (-3150, -6580), (-4150, -7180), (-4850, -7880), (-5300, -8400),
             (-5700, -8800), (-6000, -9000), (-6150, -9200), (-6250, -9400), (-6360, -9600), (-6370, -9800), (-6410, -10000), (-6480, -10200), (-6560, -10420),

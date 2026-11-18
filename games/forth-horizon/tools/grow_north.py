@@ -232,7 +232,7 @@ def main():
     shade = np.clip(0.75 + (gx - gy) * 1.2, 0.45, 1.15)
     albedo_new = np.clip(col * shade[..., None], 0, 255).astype(np.uint8)
     cls = np.zeros(px.shape + (3,), np.uint8)
-    cls[..., 0] = (beach * 255).astype(np.uint8); cls[..., 1] = ((forest | giant) * 255).astype(np.uint8); cls[..., 2] = ((vine | tulip_zone | meadow) * 160).astype(np.uint8)
+    cls[..., 0] = (beach * 255).astype(np.uint8); cls[..., 1] = ((forest | giant) * 255).astype(np.uint8); cls[..., 2] = ((vine | meadow) * 160).astype(np.uint8)   # tulip parcels: no class, so no shrubs or crops are planted over the flowers
     # ---- trees: points for the game's tree system ([x, z, conifer, size]; conifer height = 15 + 9 * size) ----
     rngt = np.random.default_rng(77); trees = []
     def scatter(mask, spacing, keep, conifer_p, size_lo, size_hi):
