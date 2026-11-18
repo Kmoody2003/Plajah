@@ -394,6 +394,21 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
           diffuseColor.rgb *= 1.0 + (macro - 0.5) * 0.34 * fade;
         }
       }
+      {
+        // cliffs and steep ground at every distance: grey rock with level bedding (strata), grain and weathering, keyed to world height and position so
+        // nothing stretches down the face (the albedo and the ground layers are projected from above and smear on steep ground); never on snow or ice
+        vec3 nR = normalize(cross(dFdx(vWPos), dFdy(vWPos))); if (nR.y < 0.0) nR = -nR;
+        float steep = smoothstep(0.30, 0.55, 1.0 - nR.y);
+        if (steep > 0.01) {
+          float strata = 0.5 + 0.5 * sin(vWPos.y * 0.85 + tNoise(vWPos.xz / 40.0) * 6.0);
+          float grain = tNoise(vec2(vWPos.x + vWPos.z, vWPos.y * 1.6) / 2.6);
+          float blot = tNoise(vec2(vWPos.x - vWPos.z, vWPos.y * 0.5) / 17.0);
+          vec3 rockC = mix(vec3(0.255, 0.262, 0.27), vec3(0.43, 0.43, 0.425), strata * 0.55 + grain * 0.45) * (0.74 + 0.4 * blot) * (0.8 + 0.2 * smoothstep(0.2, 0.6, grain));
+          float lumB = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+          rockC *= clamp(lumB / 0.36, 0.6, 1.08);
+          diffuseColor.rgb = mix(diffuseColor.rgb, rockC, steep * (1.0 - smoothstep(0.72, 0.92, lumB)) * (1.0 - road));
+        }
+      }
       if (inMask && (road + walk + kerb) > 0.002) {
         vec2 sp = vWPos.xz;
         vec3 col = diffuseColor.rgb;
@@ -1237,7 +1252,8 @@ async function buildForest(): Promise<void> {
   const res = await fetch(BASE + 'forest.json');
   if (!res.ok) return;
   for (let i = 0; i < 40 && !roadMask; i++) await new Promise((r) => setTimeout(r, 100));    // the road mask decides where trees may stand
-  const pts = ((await res.json()) as number[][]).filter((p) => growable(p[0], p[1], 12, 6, true) && vegOk(p[0], p[1], 5) && !inBuiltZone(p[0], p[1]));
+  const north = await fetch(BASE + 'north_trees.json').then((x) => (x.ok ? x.json() : [])).catch(() => []) as number[][];   // the grown north (tools/grow_north.py): woodlots, conifers, the giant forest
+  const pts = ((await res.json()) as number[][]).concat(north).filter((p) => growable(p[0], p[1], 12, 6, true) && vegOk(p[0], p[1], 5) && !inBuiltZone(p[0], p[1]));
   const sp = await loadSprites();
   forestGroup.clear();
   const list: { x: number; z: number; def: SpriteDef; h: number }[] = [];

@@ -110,8 +110,11 @@ def main():
     ez = np.interp(px, [p[0] for p in esc_line], [p[1] for p in esc_line])
     south_of = pz - ez                                                 # + south of the crest (toward the wine country)
     taper = ss(0.0, 0.22, et) * (1 - ss(0.78, 1.0, et))                                   # the ridge rises out of the hills and sinks back at its ends
-    crest = (300 + 50 * np.sin(et * math.pi * 3) ** 2) * taper
-    face = crest * np.exp(-(np.maximum(south_of, 0) / 210.0) ** 2)                        # sheer face to the south, over the head of the finger lake
+    notch = np.ones(px.shape, np.float32)
+    for nt in (0.31, 0.47, 0.66, 0.83): notch = np.minimum(notch, 1 - 0.45 * np.exp(-((et - nt) / 0.012) ** 2))   # stream notches cut through the crest
+    crest = (290 + 45 * np.sin(et * math.pi * 3) ** 2 + 40 * fbm(px.shape, 64, 3, 90)) * taper * notch
+    face_w = 210 * (0.7 + 0.6 * (fbm(px.shape, 65, 3, 60) * 0.5 + 0.5))                  # buttresses and bays along the face
+    face = crest * np.exp(-(np.maximum(south_of, 0) / face_w) ** 2)                        # sheer face to the south, over the head of the finger lake
     back = crest * np.exp(-(np.maximum(-south_of, 0) / 1500.0) ** 1.4) + 45 * fbm(px.shape, 5, 5, 35) * ss(0, 300, -south_of) * np.exp(-(np.maximum(-south_of, 0) / 1500.0))   # falls gently to the land around (no table)
     esc = np.where(south_of > 0, face, back)
     hills = 40 + 110 * ss(2300, 4800, dn) + 35 * fbm(px.shape, 3, 5, 45)
@@ -186,7 +189,7 @@ def main():
     TULIP = [(220, 30, 40), (250, 210, 30), (240, 120, 170), (150, 60, 170), (250, 250, 245), (245, 120, 30)]
     pr = ((uq * 2654435761) % 4294967296)[inv]                                               # a per-parcel random number
     tulip_zone = (wine_p > 0.7) & flat & dry & low & near_lake & (pr % 5 != 0) & ~wet
-    band_w = 9.0
+    band_w = 18.0                                                                          # wider than 2 cells of the 6 m grid, or the bands alias to one colour
     bands = ((np.floor(lz / band_w).astype(np.int64) % 2) * 3 + (pr // 7)) % 6                # each parcel alternates two of the six colours
     # vineyards: parcels ~180 x 240 m on south-facing slopes, rows running downhill
     VW, VL = 180.0, 240.0
@@ -213,13 +216,27 @@ def main():
     rows = (np.floor(np.mod(px + 9100, VW) / 3.0).astype(int) % 2 == 0)                    # vine rows (north-south, downhill) read as stripes from the air
     col[vine & rows] *= 0.8
     col[giant & (fbm(px.shape, 19, 2, 2) > 0.6)] = (70, 52, 38)                             # red-brown crowns and trunks breaking through
-    beach = (~wet) & (h < 2.2) & (wine + rng_w > 0) & (slope < 0.08)
+    beach = (~wet) & (h < 1.2) & (wine + rng_w > 0) & (slope < 0.08) & (distance_transform_edt(~wet) * mpp < 60)   # a strip at the water's edge, not whole lowlands
     paint(beach & ~tulip_zone, (190, 175, 140))
     col *= (0.88 + 0.24 * (fbm(px.shape, 15, 4, 8) * 0.5 + 0.5))[..., None]
     shade = np.clip(0.75 + (gx - gy) * 1.2, 0.45, 1.15)
     albedo_new = np.clip(col * shade[..., None], 0, 255).astype(np.uint8)
     cls = np.zeros(px.shape + (3,), np.uint8)
     cls[..., 0] = (beach * 255).astype(np.uint8); cls[..., 1] = ((forest | giant) * 255).astype(np.uint8); cls[..., 2] = ((vine | tulip_zone | meadow) * 160).astype(np.uint8)
+    # ---- trees: points for the game's tree system ([x, z, conifer, size]; conifer height = 15 + 9 * size) ----
+    rngt = np.random.default_rng(77); trees = []
+    def scatter(mask, spacing, keep, conifer_p, size_lo, size_hi):
+        step = max(1, int(round(spacing / mpp)))
+        js, is_ = np.mgrid[0:N:step, 0:W:step]
+        js = (js + rngt.integers(0, step, js.shape)).clip(0, N - 1); is_ = (is_ + rngt.integers(0, step, is_.shape)).clip(0, W - 1)
+        m = mask[js, is_] & (rngt.random(js.shape) < keep)
+        for j, i in zip(js[m], is_[m]):
+            cp = conifer_p if np.isscalar(conifer_p) else conifer_p[j, i]
+            trees.append([round(float(px[j, i] + rngt.uniform(-2, 2)), 1), round(float(pz[j, i] + rngt.uniform(-2, 2)), 1), int(rngt.random() < cp), round(float(rngt.uniform(size_lo, size_hi)), 2)])
+    alt_conifer = np.clip(0.25 + h / 260.0, 0.25, 0.97)                                    # broadleaf woodlots low in the wine country, conifers up the range
+    scatter(forest, 24, 0.75, alt_conifer, 0.7, 1.4)
+    scatter(giant, 30, 0.85, 1.0, 4.0, 6.6)                                                 # sequoia / redwood old growth: 51-74 m
+    scatter(giant, 22, 0.35, 0.6, 0.9, 1.6)                                                 # the understorey between the giants
     print("grow rows", N, "peak", round(float(h.max())), "glacier km2", round(float(glacier.sum() * mpp * mpp / 1e6), 2),
           "vineyard km2", round(float(vine.sum() * mpp * mpp / 1e6), 2), "tulip km2", round(float(tulip_zone.sum() * mpp * mpp / 1e6), 2),
           "forest km2", round(float(forest.sum() * mpp * mpp / 1e6), 1), "giant km2", round(float(giant.sum() * mpp * mpp / 1e6), 1), "water km2", round(float(wet.sum() * mpp * mpp / 1e6), 1))
@@ -254,6 +271,7 @@ def main():
     wf = cv2.imread(orig("water_flow.png"), cv2.IMREAD_UNCHANGED); still = np.zeros((1, 1, wf.shape[2]), np.uint8); still[..., :] = wf[0:1, 0:1, :] * 0 + 128
     if wf.shape[2] == 4: still[..., 3] = 0
     grow_img("water_flow.png", np.broadcast_to(still, (N // 2, W // 2, wf.shape[2])).copy() if wf.shape[2] == 3 else np.broadcast_to(still, (N // 2, W // 2, wf.shape[2]))[..., :3].copy())
+    json.dump(trees, open(os.path.join(R, "north_trees.json"), "w"), separators=(",", ":")); print("north trees", len(trees))
     lands = {"giantForestKm2": float(giant.sum() * mpp * mpp / 1e6), "vineyardKm2": float(vine.sum() * mpp * mpp / 1e6), "tulipKm2": float(tulip_zone.sum() * mpp * mpp / 1e6), "fingerLake": lake_line,
              "escarpment": esc_line, "canyons": canyons, "fjords": fjords, "peaks": peaks, "kettles": kettles, "tulipColours": TULIP,
              "glacierY": 470, "rows": N}

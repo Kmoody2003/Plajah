@@ -23,6 +23,9 @@ STEP = 4.0
 
 # name, surface, half width, design speed (km/h), grade limit, max bank, control points (x, z); the first and last points sit on the roads they join
 ROADS = [
+    {"name": "Finger Lake Loop", "surface": "paved", "half": 3.6, "speed": 80, "grade": 0.07, "bank": 0.06,
+     "cp": [(-24, -4600), (150, -5050), (400, -5550), (580, -6100), (680, -6700), (720, -7300), (780, -7800), (900, -8120), (1150, -8240),
+            (1600, -8250), (1850, -8100), (1950, -7600), (2100, -7000), (2300, -6500), (2500, -6100), (2750, -5750), (3100, -5300), (3550, -4900), (3840, -4600)]},
     {"name": "Kettle Pass", "surface": "paved", "half": 3.6, "speed": 60, "grade": 0.08, "bank": 0.06,
      "cp": [(655, 2545), (650, 2700), (600, 2870), (610, 3050), (720, 3190), (880, 3250), (1000, 3140), (1040, 2985), (1130, 2850),
             (1225, 2735), (1320, 2795), (1405, 2715), (1505, 2780), (1600, 2930), (1690, 3140), (1810, 3295), (1975, 3410), (2140, 3380), (2280, 3265)]},
@@ -65,6 +68,15 @@ def main():
         xz = catmull(rd["cp"], STEP); n = len(xz)
         g = np.array([gnd(x, z) for x, z in xz])
         wet = g < 0.3
+        # over water the road is a bridge: the ground there does not count, the profile spans bank to bank at least 4 m above the water
+        g = g.copy()
+        for i in np.where(wet)[0]:
+            a = i
+            while a >= 0 and wet[a]: a -= 1
+            b = i
+            while b < n and wet[b]: b += 1
+            ga = g[a] if a >= 0 else 4.0; gb = g[b] if b < n else 4.0
+            g[i] = max(4.0, ga + (gb - ga) * (i - a) / max(1, b - a))
         gs = gaussian_filter1d(g, 3)
         s = rd["grade"] * STEP
         # profile: highest line at or under the ground, lowest line no more than 7 m under it; ends pinned to the roads they join
