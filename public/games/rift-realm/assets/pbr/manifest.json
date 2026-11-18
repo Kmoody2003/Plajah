@@ -1,0 +1,78 @@
+{
+ "celestial-marble": [
+  "albedo",
+  "emissive",
+  "metallic",
+  "normal",
+  "roughness"
+ ],
+ "celestial-obsidian": [
+  "albedo",
+  "ao",
+  "normal",
+  "roughness"
+ ],
+ "glacial-brick": [
+  "albedo",
+  "ao",
+  "normal",
+  "roughness"
+ ],
+ "glacial-ground": [
+  "albedo",
+  "normal",
+  "roughness"
+ ],
+ "glacial-ice": [
+  "albedo",
+  "ao",
+  "normal",
+  "roughness"
+ ],
+ "marsh-mud": [
+  "albedo",
+  "normal",
+  "roughness"
+ ],
+ "marsh-water": [
+  "albedo",
+  "ao",
+  "normal",
+  "roughness"
+ ],
+ "marsh-wood": [
+  "albedo",
+  "ao",
+  "normal",
+  "roughness"
+ ],
+ "volc-ash": [
+  "albedo",
+  "ao",
+  "normal",
+  "roughness"
+ ],
+ "volc-basalt": [
+  "albedo",
+  "ao",
+  "emissive",
+  "height",
+  "normal",
+  "roughness"
+ ],
+ "volc-lava": [
+  "albedo",
+  "ao",
+  "normal",
+  "roughness"
+ ],
+ "volc-rock": [
+  "albedo",
+  "ao",
+  "normal",
+  "roughness"
+ ],
+ "volc-steel": [
+  "albedo"
+ ]
+}

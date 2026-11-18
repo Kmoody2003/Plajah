@@ -2,6 +2,7 @@
 import * as THREE from 'three/webgpu';
 import type { CollisionWorld } from './collision';
 import type { InputState } from './controls';
+import { assets, CharacterRig } from './characters';
 import { VESSELS, VESSEL_ORDER, buildVesselMesh, type VesselId, type VesselSpec } from './vessels';
 
 const ACCEL = 28;
@@ -14,6 +15,7 @@ const MOUSE_SENS = 0.002;
 export class PlayerController {
   readonly object = new THREE.Group();
   vesselMesh = new THREE.Group();
+  private rig: CharacterRig | null = null;
   readonly viewmodel = new THREE.Group();
   private viewmodelRail: THREE.Mesh | null = null;
 
@@ -91,7 +93,18 @@ export class PlayerController {
     this.hp = Math.max(1, Math.round(spec.maxHp * hpRatio));
 
     this.object.remove(this.vesselMesh);
-    this.vesselMesh = buildVesselMesh(spec);
+    if (assets.stalker) {
+      // the Void Stalker is the playable body for every vessel class; the class sets stats + weapon
+      if (!this.rig) {
+        this.rig = new CharacterRig(assets.stalker, 1.9);
+        const wrap = new THREE.Group();
+        this.rig.root.rotation.y = Math.PI; // rig faces +Z, the player's forward is -Z
+        wrap.add(this.rig.root);
+        this.vesselMesh = wrap;
+      }
+    } else {
+      this.vesselMesh = buildVesselMesh(spec);
+    }
     this.vesselMesh.visible = !this.firstPerson;
     this.object.add(this.vesselMesh);
 
@@ -117,8 +130,18 @@ export class PlayerController {
     this.viewmodel.position.set(0.26, -0.22, -0.45);
   }
 
+  /** Place the player at a spawn point facing `yaw`. */
+  spawnAt(pos: THREE.Vector3, yaw: number) {
+    this.object.position.copy(pos);
+    this.lastSafe.copy(pos);
+    this.yaw = yaw;
+    this.vel.set(0, 0, 0);
+    this.vy = 0;
+  }
+
   triggerMuzzleFlash() {
     this.muzzleFlash = 1;
+    this.rig?.play('shoot', 0.9);
   }
 
   private triggerDash(moveX = 0, moveY = 0) {
@@ -214,7 +237,14 @@ export class PlayerController {
     }
 
     this.object.rotation.y = this.yaw;
-    this.vesselMesh.position.y = Math.sin(performance.now() * 0.004) * 0.05 + pulse * 0.04;
+    if (this.rig) {
+      const sp = Math.hypot(this.vel.x, this.vel.z);
+      const lx = this.vel.x * Math.cos(this.yaw) - this.vel.z * Math.sin(this.yaw);
+      const lz = -(this.vel.x * Math.sin(this.yaw) + this.vel.z * Math.cos(this.yaw));
+      this.rig.update(dt, sp, lx, lz);
+    } else {
+      this.vesselMesh.position.y = Math.sin(performance.now() * 0.004) * 0.05 + pulse * 0.04;
+    }
 
     const targetDist = this.firstPerson ? 0 : 3.6;
     this.camDist = THREE.MathUtils.lerp(this.camDist, targetDist, Math.min(1, dt * 14));

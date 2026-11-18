@@ -1,5 +1,7 @@
 // Enemy Soul Vessels (Cyber-Golems & Void-Stalkers) that fight in the tournament arena.
 import * as THREE from 'three/webgpu';
+import type { CollisionWorld } from './collision';
+import { assets, CharacterRig } from './characters';
 
 export interface Enemy {
   id: number;
@@ -13,6 +15,8 @@ export interface Enemy {
   strafeSign: number;
   attackCooldown: number;
   staggered: boolean;
+  rig: CharacterRig | null;
+  lastPos: THREE.Vector3;
 }
 
 export class EnemyManager {
@@ -21,22 +25,22 @@ export class EnemyManager {
   private nextId = 1;
   wave = 1;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, private world: CollisionWorld, private spots: THREE.Vector3[]) {
     scene.add(this.group);
     this.spawnWave(3);
   }
 
   spawnWave(count: number) {
+    const pool = [...this.spots].sort(() => Math.random() - 0.5);
     for (let i = 0; i < count; i++) {
-      const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
-      const dist = 12 + Math.random() * 6;
-      this.spawnOne(Math.cos(angle) * dist, Math.sin(angle) * dist);
+      const s = pool[i % pool.length];
+      this.spawnOne(s.x, s.z, s.y);
     }
   }
 
-  private spawnOne(x: number, z: number) {
+  private spawnOne(x: number, z: number, y = 0) {
     const mesh = new THREE.Group();
-    mesh.position.set(x, 0, z);
+    mesh.position.set(x, y, z);
 
     const chassisMat = new THREE.MeshStandardNodeMaterial({
       color: 0x1e1b2e, roughness: 0.35, metalness: 0.8,
@@ -62,7 +66,14 @@ export class EnemyManager {
     hitTarget.position.y = 1.05;
     hitTarget.userData.enemyId = this.nextId;
 
-    mesh.add(body, core, head, hitTarget);
+    let rig: CharacterRig | null = null;
+    if (assets.paladin) {
+      rig = new CharacterRig(assets.paladin, 2.0);
+      mesh.add(rig.root, core, hitTarget);
+      core.visible = false; // the Paladin has its own glowing trim
+    } else {
+      mesh.add(body, core, head, hitTarget);
+    }
     this.group.add(mesh);
 
     const maxHp = 60 + (this.wave - 1) * 15;
@@ -78,6 +89,8 @@ export class EnemyManager {
       strafeSign: Math.random() > 0.5 ? 1 : -1,
       attackCooldown: 1.5 + Math.random(),
       staggered: false,
+      rig,
+      lastPos: mesh.position.clone(),
     });
   }
 
@@ -90,6 +103,7 @@ export class EnemyManager {
     if (idx === -1) return null;
     const e = this.enemies[idx];
     e.hp -= amount;
+    if (e.hp > 0) e.rig?.play('hit', 0.8);
     if (e.hp > 0 && e.hp <= e.maxHp * 0.35 && !e.staggered) {
       e.staggered = true;
       e.coreMat.color.setHex(0xfbbf24);
@@ -113,7 +127,7 @@ export class EnemyManager {
     return { killed: false, pos };
   }
 
-  update(dt: number, pulse: number, playerPos: THREE.Vector3, onPlayerHit: (dmg: number) => void) {
+  update(dt: number, pulse: number, playerPos: THREE.Vector3, world: CollisionWorld, onPlayerHit: (dmg: number) => void) {
     for (const e of this.enemies) {
       const toPlayer = new THREE.Vector3().subVectors(playerPos, e.mesh.position);
       toPlayer.y = 0;
@@ -134,11 +148,22 @@ export class EnemyManager {
         e.mesh.position.addScaledVector(toPlayer, -e.speed * 0.6 * dt);
       }
       e.mesh.position.addScaledVector(strafe, e.speed * 0.45 * dt);
+      // follow the terrain (stairs, ring, pit) and slide along walls
+      const gy = world.groundAt(e.mesh.position.x, e.mesh.position.z, e.mesh.position.y + 1.2, 6);
+      if (gy !== null) e.mesh.position.y += (gy - e.mesh.position.y) * Math.min(1, dt * 14);
+      world.resolve(e.mesh.position, 0.5, 2.0);
+      if (e.rig) {
+        const mv = e.mesh.position.distanceTo(e.lastPos) / Math.max(dt, 1e-3);
+        const dx = e.mesh.position.x - e.lastPos.x, dz = e.mesh.position.z - e.lastPos.z, ry = e.mesh.rotation.y;
+        e.rig.update(dt, mv, dx * Math.cos(ry) - dz * Math.sin(ry), dx * Math.sin(ry) + dz * Math.cos(ry));
+        e.lastPos.copy(e.mesh.position);
+      }
 
       // Melee / Void-pulse attack when close
       e.attackCooldown -= dt;
       if (dist < 2.6 && e.attackCooldown <= 0) {
         e.attackCooldown = 1.4;
+        e.rig?.play('attack_1');
         onPlayerHit(10);
       }
     }

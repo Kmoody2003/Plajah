@@ -51,6 +51,10 @@
       border: none; box-shadow: 0 0 24px #38bdf866;
     }
     #startBtn:hover { filter: brightness(1.1); }
+    .levels { display: flex; gap: 10px; justify-content: center; margin: 0 0 18px; flex-wrap: wrap; }
+    .lvl { min-width: 190px; padding: 10px 14px; cursor: pointer; color: #cfe8ff; background: #0b1424cc; border: 1px solid #38bdf855; font: 600 12.5px 'Segoe UI', sans-serif; letter-spacing: .06em; text-align: left; }
+    .lvl span { display: block; font-weight: 400; font-size: 11px; color: #8ba4c0; margin-top: 3px; }
+    .lvl.on { border-color: #fbbf24; box-shadow: 0 0 16px #fbbf2444; color: #fff; }
     .controls {
       margin-top: 18px; font-size: 11.5px; color: #8b9bb4; line-height: 1.7;
     }
@@ -253,6 +257,10 @@
         Banished between worlds with a fallen Archangel, disembodied souls inhabit arcane-forged vessels in a shifting dark-fantasy labyrinth.
         Fight COD/DOOM-fast on the <b>124 BPM</b> pulse, survive the living maze traps, and finish staggered foes with a <b>Soul-Rend Strike</b>.
       </p>
+      <div class="levels" id="levelPick">
+        <button class="lvl" data-level="shrine">Cyber-Forest Shrine<span>3v3 Skirmish</span></button>
+        <button class="lvl" data-level="glacial">Glacial Citadel<span>6v6 Arena � 12v12 Battleground</span></button>
+      </div>
       <button id="startBtn">Enter The Rift</button>
       <div class="controls">
         <b>WASD</b> Move · <b>LMB</b> Shoot on Beat · <b>F / E</b> Strike &amp; Soul-Rend Finisher · <b>Shift</b> Dash<br/>

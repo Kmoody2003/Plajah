@@ -2,7 +2,11 @@
 import * as THREE from 'three/webgpu';
 import { CollisionWorld } from './collision';
 import { RhythmEngine, type BeatQuality } from './rhythm';
-import { buildArena, BIOMES } from './arena';
+import { buildShrine, type Tier } from './shrine';
+import { buildGlacial } from './glacial';
+import { createPost } from './post';
+import { preloadCharacters } from './characters';
+import { initKTX2, preloadSets } from './textures';
 import { PlayerController } from './player';
 import { EnemyManager } from './enemies';
 import { VESSEL_ORDER, VESSELS, type VesselId } from './vessels';
@@ -46,19 +50,45 @@ async function boot() {
     renderer = new THREE.WebGPURenderer({ antialias: true, powerPreference: 'high-performance', forceWebGL: true });
     await renderer.init();
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // quality tier: Intel iGPUs (the baseline) get the light path; discrete GPUs get shadows, bloom and full foliage
+  const adapter = (renderer.backend as any)?.device?.adapterInfo ?? {};
+  const forced = new URLSearchParams(location.search).get('q');
+  const tier: Tier = forced === 'low' || forced === 'high' ? forced : adapter.vendor === 'intel' ? 'low' : 'high';
+  console.info('[rift-realm] tier', tier, adapter.vendor, adapter.architecture);
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  renderer.shadowMap.enabled = tier === 'high';
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  const pixelRatio = tier === 'low' ? 0.7 : Math.min(window.devicePixelRatio, 2);
+  renderer.setPixelRatio(pixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   view.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 200);
+  const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 260);
   scene.add(camera);
 
-  const arena = buildArena(scene);
+  const levelId = new URLSearchParams(location.search).get('level') ?? 'shrine';
+  initKTX2(renderer);
+  await preloadSets(levelId === 'glacial'
+    ? ['glacial-ground', 'glacial-brick', 'celestial-obsidian', 'glacial-ice', 'volc-steel']
+    : ['volc-basalt', 'glacial-brick', 'marsh-mud', 'volc-steel']);
+  const arena = levelId === 'glacial' ? buildGlacial(scene, tier) : buildShrine(scene, tier);
+  if (levelId === 'glacial') { camera.far = 700; camera.updateProjectionMatrix(); renderer.toneMappingExposure = 0.78; }
+  document.querySelectorAll<HTMLButtonElement>('#levelPick .lvl').forEach((b) => {
+    b.classList.toggle('on', b.dataset.level === levelId);
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (b.dataset.level === levelId) return;
+      const q = new URLSearchParams(location.search); q.set('level', b.dataset.level!);
+      location.search = q.toString();
+    });
+  });
   const collision = new CollisionWorld(arena.group);
   collision.rebuild();
+  const post = tier === 'high' ? createPost(renderer, scene, camera) : null;
 
-  let currentBiomeName = BIOMES[0].name;
+  let currentBiomeName = arena.info.name;
   let lastWave = 1;
   window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyB' && player.enabled) {
@@ -80,11 +110,13 @@ async function boot() {
     toastTimer = window.setTimeout(() => achToast.classList.remove('on'), 2800);
   });
 
+  await preloadCharacters();
   const player = new PlayerController(camera, renderer.domElement);
   player.world = collision;
+  player.spawnAt(arena.spawns.a.pos, arena.spawns.a.yaw);
   scene.add(player.object);
 
-  const enemies = new EnemyManager(scene);
+  const enemies = new EnemyManager(scene, collision, arena.enemySpots);
 
   let resonance = 1.0;
   let score = 0;
@@ -377,28 +409,8 @@ async function boot() {
     arena.resolveDynamicGates(player.object.position, 0.38);
 
     if (player.enabled) {
-      // Hunger-Games Void Hazard floor traps
-      if (trapDamageCooldown <= 0) {
-        for (const trap of arena.traps) {
-          if (!trap.active) continue;
-          const dx = player.object.position.x - trap.pos.x;
-          const dz = player.object.position.z - trap.pos.z;
-          if (dx * dx + dz * dz <= trap.radius * trap.radius && player.object.position.y < 1.2) {
-            trapDamageCooldown = 0.65;
-            player.hp = Math.max(0, player.hp - 12);
-            showBeatFeedback('VOID HAZARD! -12 HP', '#f43f5e');
-            if (player.hp === 0) {
-              player.hp = player.maxHp;
-              resonance = 1.0;
-              score = Math.max(0, score - 150);
-            }
-            break;
-          }
-        }
-      }
-
       if (input.firePressed) fireShot();
-      enemies.update(dt, rhythm.pulse, player.object.position, (dmg) => {
+      enemies.update(dt, rhythm.pulse, player.object.position, collision, (dmg) => {
         player.hp = Math.max(0, player.hp - dmg);
         if (player.hp === 0) {
           player.hp = player.maxHp;
@@ -448,10 +460,17 @@ async function boot() {
     surgeTag.textContent = resonance >= 2.0 ? 'SOUL SURGE READY [Q / RMB]' : 'SURGE AT 2.0x RESONANCE';
     surgeTag.style.color = resonance >= 2.0 ? '#fbbf24' : '#64748b';
 
-    renderer.render(scene, camera);
+    if (post) post.render(); else renderer.render(scene, camera);
     requestAnimationFrame(frame);
   }
 
+  if (new URLSearchParams(location.search).has('rrdebug')) {
+    (window as any).__rr = { player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier };
+    player.enabled = true;
+    overlay.classList.add('hidden');
+    // a hidden Browser pane freezes rAF; drive the loop from a timer in that case
+    if (document.hidden) (window as any).requestAnimationFrame = (cb: FrameRequestCallback) => window.setTimeout(() => cb(performance.now()), 16);
+  }
   requestAnimationFrame(frame);
 }
 
