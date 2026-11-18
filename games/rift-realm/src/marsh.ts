@@ -22,7 +22,7 @@ const PATHS: [number, number][][] = [
 export function marshHeight(x: number, z: number): number {
   let h = -0.75 + (fbm3(x * 0.06, 1, z * 0.06) - 0.5) * 0.9;                     // mud bottom under shallow water
   h = Math.max(h, 0.15 * smooth(0.7, 1, fbm3(x * 0.05 + 9, 0, z * 0.05)));       // mud hummocks breaking the surface
-  h = Math.max(h, 6 * smooth(-12, -16, x) * smooth(24, 28, z));                  // SW overlook terrace (Team A)
+  h = Math.max(h, 6 * smooth(2, -2, x) * smooth(-38, -34, x) * smooth(24, 28, z)); // S overlook terrace (Team A), faces north
   h = Math.max(h, 2.2 * smooth(-30, -34, x) * smooth(4, 0, z) * smooth(-34, -30, z)); // manor terrace (W)
   const edge = Math.max(smooth(66, 86, Math.abs(x)), smooth(64, 84, Math.abs(z + 5)));
   return Math.max(h, edge * (8 + fbm3(x * 0.04, 2, z * 0.04) * 10));
@@ -54,7 +54,7 @@ export function buildMarsh(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const bark = pbr('marsh-mud', { maps: ['normal', 'roughness'], tint: 0x4a4436, normalScale: 1.5 });
   const roofMat = pbr('marsh-wood', { maps: ['normal', 'roughness'], tint: 0x5a564c });
   const windowMat = new THREE.MeshStandardNodeMaterial({ color: 0x1a0d06, roughness: 0.4 });
-  windowMat.emissiveNode = color(0xffa448).mul(1.1);
+  windowMat.emissiveNode = color(0xffa448).mul(0.5); // warm candle-lit interiors, not flat light panels
   const rope = new THREE.MeshStandardNodeMaterial({ color: 0x6a5a40, roughness: 0.9 });
   // water: dark green, glossy, scrolling ripples from the swamp-water sheet's normals, algae mats
   const waterSrc = pbr('marsh-water', { maps: ['normal'] });
@@ -63,8 +63,8 @@ export function buildMarsh(scene: THREE.Scene, tier: Tier = 'high'): Level {
   {
     const algae = tslTexture(waterSrc.map!, positionWorld.xz.mul(0.05).add(vec2(time.mul(0.003), 0))).rgb;
     const patch = smoothstep(float(0.55), float(0.75), luminance(tslTexture(mud.map!, positionWorld.xz.mul(0.02)).rgb).add(0.25));
-    water.colorNode = mix(vec3(0.03, 0.07, 0.05), algae.mul(vec3(0.5, 0.8, 0.35)), patch.mul(0.7));
-    water.roughnessNode = mix(float(0.18), float(0.75), patch);
+    water.colorNode = mix(vec3(0.012, 0.03, 0.022), algae.mul(vec3(0.5, 0.8, 0.35)), patch.mul(0.7));
+    water.roughnessNode = mix(float(0.3), float(0.8), patch); // dark water: glints, not a sky mirror
   }
 
   // ── terrain + water ──────────────────────────────────────────────────────────────────────────────────
@@ -90,27 +90,31 @@ export function buildMarsh(scene: THREE.Scene, tier: Tier = 'high'): Level {
   // ── SW overlook: mossy gothic balustrade terrace (Team A) ───────────────────────────────────────────
   {
     const y = 6;
-    for (let i = 0; i < 16; i++) { // arcaded balustrade along the terrace lip
-      const x = -40 + i * 1.6, z = 24.6;
-      kit.prism(stone, 8, 0.16, 0.22, 1.0, x, y, z, 0, { tpm: 1 });
+    // arcaded balustrade along the terrace lip, open at the stair head (x -18..-14)
+    for (const [a, b] of [[-36, -18], [-14, 0]] as const) {
+      for (let x = a + 0.8; x < b; x += 1.6) kit.prism(stone, 8, 0.16, 0.22, 1.0, x, y, 24.6, 0, { tpm: 1 });
+      kit.box(stone, b - a, 0.35, 0.8, (a + b) / 2, y + 1.15, 24.6, 0, { tpm: 0.5 });
+      kit.box(stone, b - a, 0.3, 0.9, (a + b) / 2, y + 0.1, 24.6, 0, { tpm: 0.5 });
+      for (let x = a; x <= b; x += (b - a) / 3) kit.box(stone, 0.9, 1.6, 0.9, x, y + 0.8, 24.6, 0, { tpm: 0.6 }); // newel posts
     }
-    kit.box(stone, 26, 0.35, 0.8, -28, y + 1.15, 24.6, 0, { tpm: 0.5 });
-    kit.box(stone, 26, 0.3, 0.9, -28, y + 0.1, 24.6, 0, { tpm: 0.5 });
-    kit.box(stone, 0.8, 1.2, 12, -14.6, y + 0.6, 30.5, 0, { tpm: 0.5 });
     B.flight(stone, -16, -0.2, 18.6, 0, y, 4, 0.26, 0.42);
-    B.gothicWall(stone, -30, 40, 0, 30, 12, 4, y);
+    B.gothicWall(stone, -18, 40, 0, 36, 12, 4, y);
   }
 
   // ── W: the ruined manor on its terrace, twin stairs descending into the water ───────────────────────
   {
-    const mx = -46, mz = -16, y0 = 2.2;
-    B.gothicWall(stone, mx + 8, mz + 8, Math.PI / 2, 26, 14, 4, y0);
-    B.gothicWall(stone, mx - 2, mz - 6, 0, 22, 18, 3, y0);
+    const mx = -42, mz = -12, y0 = 2.2; // left third of the overlook view, as in the concept
+    B.gothicWall(stone, mx + 8, mz + 8, Math.PI / 2, 26, 18, 4, y0);
+    B.gothicWall(stone, mx - 2, mz - 6, 0, 22, 22, 3, y0);
+    B.gothicWall(stone, mx + 8, mz + 8, Math.PI / 2, 26, 7, 4, y0 + 18.6, 1.0, 0.7); // ruined upper storey
+    for (let i = 0; i < 4; i++) kit.box(windowMat, 3.0, 4.0, 0.2, mx + 8.6, y0 + 10.5, mz - 2 + i * 6, Math.PI / 2, { solid: false, shadow: false, tpm: 1 });
     B.gothicWall(stone, mx - 2, mz + 21, 0, 22, 10, 3, y0, 1.2, 0.55);
     kit.box(stone, 20, 0.5, 26, mx - 2, y0 + 7, mz + 7, 0, { tpm: 0.4 });
+    kit.box(stone, 20, 0.5, 26, mx - 2, y0 + 14, mz + 7, 0, { tpm: 0.4 });
     for (let i = 0; i < 4; i++) kit.box(windowMat, 3.2, 3.4, 0.2, mx + 8.7, y0 + 2.6, mz - 2 + i * 6, Math.PI / 2, { solid: false, shadow: false, tpm: 1 });
-    B.tower(stone, mx - 14, mz - 6, 7, 24, y0);
-    B.flight(stone, mx + 21, -0.3, mz + 2, -Math.PI / 2, y0, 5, 0.26, 0.42);
+    B.tower(stone, mx - 14, mz - 6, 8, 32, y0);
+    B.tower(stone, mx + 6, mz - 8, 6, 28, y0); // the broken gothic spire right of the hall
+    B.flight(stone, mx + 21, -0.3, mz + 2, -Math.PI / 2, y0, 8, 0.26, 0.42); // grand stair into the water
     B.flight(stone, mx + 13, y0 + 0.05, mz + 18, Math.PI, y0 + 7, 3, 0.26, 0.42);
     const l = new THREE.PointLight(0xffa448, 26, 20, 2); l.position.set(mx + 4, y0 + 3, mz + 6); group.add(l);
   }
@@ -128,13 +132,14 @@ export function buildMarsh(scene: THREE.Scene, tier: Tier = 'high'): Level {
     const len = Math.hypot(bx - ax, bz - az);
     kit.box(B.invisible, r * 1.4, r * 1.4, len, (ax + bx) / 2, 0.9 + r * 0.3, (az + bz) / 2, Math.atan2(bx - ax, bz - az), { shadow: false });
   };
-  fallen(6, 30, 22, 12, 1.7); fallen(-6, -18, 14, -22, 1.4); fallen(-24, 6, -10, 14, 1.1);
+  // the concept's fallen giants: one sprawling across the middle distance, root plate toward the village
+  fallen(14, 8, -4, 18, 2.8); fallen(-6, -18, 14, -22, 2.2); fallen(-24, 6, -10, 14, 1.6); fallen(4, -34, 22, -40, 2.0);
 
   // ── giant cypresses with Spanish moss ────────────────────────────────────────────────────────────────
-  const leafMat = new THREE.MeshStandardNodeMaterial({ map: leafTexture(), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, color: 0x9ab890 });
+  const leafMat = new THREE.MeshStandardNodeMaterial({ map: leafTexture(), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, color: 0x4c6248 }); // dark canopy, as in the night concept
   const mossMat = new THREE.MeshStandardNodeMaterial({ map: fernTexture(), alphaTest: 0.35, side: THREE.DoubleSide, roughness: 1, color: 0x8a9a78 });
-  const cards = new THREE.InstancedMesh(new THREE.PlaneGeometry(5, 5), leafMat, 900);
-  const moss = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.0, 4.2), mossMat, lo ? 300 : 800);
+  const cards = new THREE.InstancedMesh(new THREE.PlaneGeometry(3.6, 3.6), leafMat, lo ? 1600 : 4200);
+  const moss = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.2, 6.5), mossMat, lo ? 700 : 2200);
   let nc = 0, nm = 0;
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
   const cypress = (x: number, z: number, H: number, r: number) => {
@@ -143,15 +148,15 @@ export function buildMarsh(scene: THREE.Scene, tier: Tier = 'high'): Level {
       const a = (k / 7) * Math.PI * 2;
       treeGeos.push(taperTube(new THREE.CatmullRomCurve3([new THREE.Vector3(x, 3, z), new THREE.Vector3(x + Math.cos(a) * r * 1.4, 0.6, z + Math.sin(a) * r * 1.4), new THREE.Vector3(x + Math.cos(a) * r * 2.6, -0.8, z + Math.sin(a) * r * 2.6)]), r * 0.4, 0.15, 8, 6, 0.6));
     }
-    for (let b = 0; b < 6; b++) { // limbs + leaf cards + hanging moss
-      const a = R() * 6.28, hy = H * (0.55 + R() * 0.4), L = 5 + R() * 7;
+    for (let b = 0; b < 9; b++) { // spreading limbs + leaf cards + curtains of hanging moss
+      const a = R() * 6.28, hy = H * (0.45 + R() * 0.45), L = (6 + R() * 8) * (H / 34);
       const end = new THREE.Vector3(x + Math.cos(a) * L, hy + 2 + R() * 2, z + Math.sin(a) * L);
       treeGeos.push(taperTube(new THREE.CatmullRomCurve3([new THREE.Vector3(x, hy, z), new THREE.Vector3((x + end.x) / 2, hy + 1, (z + end.z) / 2), end]), r * 0.3, 0.12, 8, 6, 0.4));
-      for (let l = 0; l < 14 && nc < 900; l++, nc++) {
-        m4.compose(end.clone().add(new THREE.Vector3((R() - 0.5) * 6, (R() - 0.3) * 2.5, (R() - 0.5) * 6)), q.setFromEuler(e.set((R() - 0.5) * 1.4, R() * 6.28, (R() - 0.5) * 1.4)), new THREE.Vector3(1, 1, 1).multiplyScalar(0.6 + R() * 0.7));
+      for (let l = 0; l < 46 && nc < cards.count; l++, nc++) {
+        m4.compose(end.clone().add(new THREE.Vector3((R() - 0.5) * 9, (R() - 0.35) * 3.5, (R() - 0.5) * 9)), q.setFromEuler(e.set((R() - 0.5) * 1.4, R() * 6.28, (R() - 0.5) * 1.4)), new THREE.Vector3(1, 1, 1).multiplyScalar(0.6 + R() * 0.7));
         cards.setMatrixAt(nc, m4);
       }
-      for (let l = 0; l < 10 && nm < moss.count; l++, nm++) {
+      for (let l = 0; l < 24 && nm < moss.count; l++, nm++) {
         const t = R(), p = new THREE.Vector3(x + Math.cos(a) * L * t, hy + 1 + t * 2 - 2.2, z + Math.sin(a) * L * t);
         m4.compose(p, q.setFromEuler(e.set(0, R() * 6.28, 0)), new THREE.Vector3(1, 0.7 + R() * 0.9, 1));
         moss.setMatrixAt(nm, m4);
@@ -159,12 +164,13 @@ export function buildMarsh(scene: THREE.Scene, tier: Tier = 'high'): Level {
     }
     kit.prism(B.invisible, 8, r, r, H, x, -1, z, 0);
   };
-  for (const [x, z, H, r] of [[34, -4, 30, 2.6], [52, -30, 26, 2.2], [20, -44, 24, 2.0], [-6, -46, 22, 1.8], [56, 20, 24, 2.2], [-58, 26, 22, 2], [10, 46, 20, 1.6], [-30, -50, 26, 2.2]] as const) cypress(x, z, H, r);
+  // colossal swamp cypresses: the hero tree (village) and a framing giant at the right edge of the overlook view
+  for (const [x, z, H, r] of [[30, -19, 46, 3.6], [48, 14, 40, 3.6], [44, -34, 36, 3.2], [16, -46, 32, 2.8], [-8, -50, 30, 2.6], [-58, 26, 30, 2.8], [62, -12, 34, 3], [-30, -54, 34, 3], [10, 44, 24, 2]] as const) cypress(x, z, H, r);
   cards.count = nc; moss.count = nm; cards.frustumCulled = moss.frustumCulled = false;
   group.add(cards, moss);
 
   // ── E: the stilt village (Team B) — huts on stilts, decks, ladders, rope bridges, lanterns ──────────
-  const decks: [number, number, number, number, number][] = [[30, -12, 3.6, 10, 8], [42, -28, 3.6, 9, 8], [26, -28, 4.2, 7, 6], [44, -6, 4.8, 8, 7], [40, 12, 3.4, 8, 7], [56, -16, 6.2, 7, 6]];
+  const decks: [number, number, number, number, number][] = [[24, -12, 3.6, 10, 8], [36, -28, 3.6, 9, 8], [20, -28, 4.2, 7, 6], [38, -4, 4.8, 8, 7], [34, 12, 3.4, 8, 7], [50, -16, 6.2, 7, 6], [30, -19, 13, 14, 14]]; // last: the treehouse wrapped round the hero cypress
   const lanterns: THREE.PointLight[] = [];
   for (const [x, z, y, w, d] of decks) {
     kit.box(wood, w, 0.3, d, x, y, z, 0, { tpm: 0.5 });
@@ -205,9 +211,11 @@ export function buildMarsh(scene: THREE.Scene, tier: Tier = 'high'): Level {
     }
   };
   ropeBridge(0, 1); ropeBridge(0, 2); ropeBridge(0, 3); ropeBridge(3, 5); ropeBridge(1, 5); ropeBridge(3, 4);
+  // the treehouse high in the hero cypress, reached by a ladder-stair from the main deck
+  B.steelStair(darkWood, 34.6, 4.8, -1.8, Math.PI, 13, 1.1); // lands on the treehouse edge (z -12), clear of the hut
   // boardwalks from the causeways up onto the village (SE + N approaches)
-  B.flight(wood, 24, -0.2, -10, Math.PI / 2, 3.6, 2.4, 0.3, 0.42, false);
-  B.flight(wood, 28, -0.2, 14, Math.PI / 2, 3.4, 2.4, 0.3, 0.42, false);
+  B.flight(wood, 18, -0.2, -10, Math.PI / 2, 3.6, 2.4, 0.3, 0.42, false);
+  B.flight(wood, 22, -0.2, 14, Math.PI / 2, 3.4, 2.4, 0.3, 0.42, false);
 
   // reeds + debris
   for (let i = 0; i < (lo ? 30 : 80); i++) {
@@ -231,26 +239,26 @@ export function buildMarsh(scene: THREE.Scene, tier: Tier = 'high'): Level {
     const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
     const g = c.getContext('2d')!;
     const grad = g.createLinearGradient(0, 0, 0, 512);
-    grad.addColorStop(0, '#1c2530'); grad.addColorStop(0.45, '#45525a'); grad.addColorStop(0.52, '#5d6a64'); grad.addColorStop(1, '#141c18');
+    grad.addColorStop(0, '#0b1018'); grad.addColorStop(0.45, '#1e2731'); grad.addColorStop(0.52, '#26303a'); grad.addColorStop(1, '#080c0b');
     g.fillStyle = grad; g.fillRect(0, 0, 1024, 512);
-    for (let i = 0; i < 160; i++) { const x = Math.random() * 1024, y = 40 + Math.random() * 190, r = 40 + Math.random() * 100; const cg = g.createRadialGradient(x, y, 0, x, y, r); cg.addColorStop(0, `rgba(120,130,135,${0.15 + Math.random() * 0.15})`); cg.addColorStop(1, 'rgba(90,100,100,0)'); g.fillStyle = cg; g.fillRect(x - r, y - r, r * 2, r * 2); }
+    for (let i = 0; i < 160; i++) { const x = Math.random() * 1024, y = 40 + Math.random() * 190, r = 40 + Math.random() * 100; const cg = g.createRadialGradient(x, y, 0, x, y, r); cg.addColorStop(0, `rgba(70,82,92,${0.15 + Math.random() * 0.15})`); cg.addColorStop(1, 'rgba(50,60,66,0)'); g.fillStyle = cg; g.fillRect(x - r, y - r, r * 2, r * 2); }
     const sky = new THREE.CanvasTexture(c); sky.mapping = THREE.EquirectangularReflectionMapping; sky.colorSpace = THREE.SRGBColorSpace;
-    scene.background = sky; scene.environment = sky; scene.environmentIntensity = 0.45;
+    scene.background = sky; scene.environment = sky; scene.environmentIntensity = 0.25;
   }
-  scene.fog = new THREE.FogExp2(0x2c3a34, 0.016);
-  const moon = new THREE.DirectionalLight(0xb8c8d8, 1.8);
+  scene.fog = new THREE.FogExp2(0x1f2830, 0.02); // blue-grey night mist, layered depth
+  const moon = new THREE.DirectionalLight(0xa8bccf, 1.5);
   moon.position.set(-40, 60, 30); moon.castShadow = !lo; moon.shadow.mapSize.set(2048, 2048);
   Object.assign(moon.shadow.camera, { left: -70, right: 70, top: 70, bottom: -70, near: 1, far: 200 });
   moon.shadow.bias = -0.0005; moon.shadow.normalBias = 0.05;
-  group.add(moon, moon.target, new THREE.HemisphereLight(0x8a9aa0, 0x2a3424, 1.4));
+  group.add(moon, moon.target, new THREE.HemisphereLight(0x6f8090, 0x1c2418, 1.1));
   // low mist sheets hugging the water
   const mistMat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
-  mistMat.colorNode = color(0x9ab0a4);
+  mistMat.colorNode = color(0x6f8290);
   mistMat.opacityNode = smoothstep(float(0.8), float(0.2), tslTexture(mud.map!, uv().mul(2).add(vec2(time.mul(0.004), 0))).g).mul(0.06);
   for (let i = 0; i < (lo ? 1 : 2); i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), mistMat); m.rotation.x = -Math.PI / 2; m.position.set(0, 0.6 + i * 0.7, -5); group.add(m); }
   scene.add(group);
 
-  const enemySpots = [[-4, 10], [4, -6], [-12, -2], [14, -10], [8, 14], [-20, -6], [18, 18], [30, -12], [42, -28], [-30, -12], [6, -18], [14, -28]].map(([x, z]) => {
+  const enemySpots = [[-4, 10], [4, -6], [-12, -2], [14, -10], [8, 14], [-20, -6], [18, 18], [24, -12], [36, -28], [-30, -12], [6, -18], [14, -28]].map(([x, z]) => {
     const deck = decks.find(([dx, dz, , w, d]) => Math.abs(x - dx) < w / 2 && Math.abs(z - dz) < d / 2);
     return new THREE.Vector3(x, deck ? deck[2] + 0.2 : 0.3, z);
   });
@@ -258,12 +266,12 @@ export function buildMarsh(scene: THREE.Scene, tier: Tier = 'high'): Level {
   let elapsed = 0;
   return {
     group, uBeatPulse, gates: [], traps: [], biomeIndex: 0, info,
-    spawns: { a: { pos: new THREE.Vector3(-26, 6.3, 30), yaw: -0.65 }, b: { pos: new THREE.Vector3(44, 5.2, -6), yaw: Math.PI / 2 } },
+    spawns: { a: { pos: new THREE.Vector3(-16, 6.3, 32), yaw: -0.1 }, b: { pos: new THREE.Vector3(39, 5.2, -4), yaw: Math.PI / 2 } },
     enemySpots,
     controlPoints: [
       { id: 'A', name: 'Manor Stairs', pos: new THREE.Vector3(-22, 0.3, -14), radius: 6 },
       { id: 'B', name: 'Causeway Cross', pos: new THREE.Vector3(0, 0.3, 2), radius: 6 },
-      { id: 'C', name: 'Stilt Village', pos: new THREE.Vector3(30, 3.6, -12), radius: 5 },
+      { id: 'C', name: 'Stilt Village', pos: new THREE.Vector3(24, 3.6, -12), radius: 5 },
     ],
     setBiome() { return { name: info.name, track: info.track }; },
     update(dt, pulse) {
