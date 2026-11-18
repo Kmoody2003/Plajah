@@ -8,7 +8,7 @@ Dijkstra on a coarse grid (CELL m, 16 move directions; grade and side slope judg
 curvature is left to the smoothing here and the designer's radius check.
 Prints control points (the found path smoothed and simplified) ready to paste into design_scenic_roads.py ROADS, and draws
 docs/apex-elohim/route-<name>.png.
-    python games/forth-horizon/tools/route_pass.py name grade "x,z x,z x,z ..." [cell_m]
+    python games/forth-horizon/tools/route_pass.py name grade "x,z x,z x,z ..." [cell_m] [fine 0|1]
 """
 import json, math, os, sys
 import numpy as np
@@ -37,8 +37,11 @@ def main():
     wet = g < 0.5
     # 16 headings sorted by angle; a node is (cell, heading arrived with). A step may turn at most MAXTURN headings, so the tightest
     # possible bend is about one cell of radius and every hairpin is a deliberate run of turns, each paid for.
-    dirs = sorted([(dx, dz) for dx in range(-2, 3) for dz in range(-2, 3) if (dx, dz) != (0, 0) and math.gcd(abs(dx), abs(dz)) == 1], key=lambda d: math.atan2(d[1], d[0]))
-    MAXTURN = 2                                                                               # 45 deg per step: at 20 m cells no bend tighter than ~25 m radius
+    # FINE=1 (5th argument): 32 headings (3:1 and 3:2 moves too), so a road can traverse a steep slope at a shallow angle (a hairpin stack on
+    # a ~25 % talus: across it 16 headings only offer flat or ~11 %)
+    RD = 3 if len(sys.argv) > 5 and sys.argv[5] == "1" else 2
+    dirs = sorted([(dx, dz) for dx in range(-RD, RD + 1) for dz in range(-RD, RD + 1) if (dx, dz) != (0, 0) and math.gcd(abs(dx), abs(dz)) == 1], key=lambda d: math.atan2(d[1], d[0]))
+    MAXTURN = 2 if RD == 2 else 4                                                             # 45 deg per step: at 20 m cells no bend tighter than ~25 m radius
     ND = len(dirs); ang = [math.atan2(dz, dx) for dx, dz in dirs]
     from scipy.sparse import csr_matrix
     from scipy.sparse.csgraph import dijkstra

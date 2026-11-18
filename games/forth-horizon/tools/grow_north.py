@@ -130,6 +130,12 @@ def main():
     highland = np.maximum(highland, foothills * (1 - ss(5200, 6200, depth)))
     h = wine * moraine + foot * foothills + rng_w * highland
     h = np.maximum(h, esc + 25 * fbm(px.shape, 4, 4, 30) * (esc > 30))
+    # the Stair: a talus apron (old rock fall) leaning on the face above the head of the finger lake, from the foothills (130 m, its toe at ground
+    # level) to the crest (295 m), ~25 % over 655 m, ~340 m wide; the only place the sheer face can carry a road, so the Escarpment Road stacks
+    # its hairpins on it (the rest of the face stays sheer)
+    sd, st = poly_dist(px, pz, [(830, -8560), (800, -9215)])
+    ramp_y = 130 + 165 * st
+    h = h + (1 - ss(150, 230, sd)) * np.maximum(0, ramp_y - h)
     # canyons on the range's east side, floors falling east to the plateau
     canyons = [[(-2600, -12300), (-1400, -11900), (200, -11400), (1700, -11000), (3200, -10700)],
                [(-3300, -13300), (-1700, -13400), (0, -13100), (1800, -12900), (3600, -12700)],

@@ -42,6 +42,20 @@ ROADS = [
     {"name": "Kettle Pass", "surface": "paved", "half": 3.6, "speed": 60, "grade": 0.08, "bank": 0.06,
      "cp": [(655, 2545), (650, 2700), (600, 2870), (610, 3050), (720, 3190), (880, 3250), (1000, 3140), (1040, 2985), (1130, 2850),
             (1225, 2735), (1320, 2795), (1405, 2715), (1505, 2780), (1600, 2930), (1690, 3140), (1810, 3295), (1975, 3410), (2140, 3380), (2280, 3265)]},
+    # Escarpment Road: Finger Lake Loop (west shore, above the lake head) -> foothills -> the Stair (a talus apron on the sheer face, grow_north.py):
+    # six legs and five hairpins up its 25 % slope (each leg gains a little more than the slope under it, paying for the flat hairpins) -> the
+    # crest -> switchbacks down the back slope -> a viaduct across the stream notch -> west along the back to Glacier Pass. Approach and back-slope
+    # runs located with route_pass.py; the stack is laid by hand on the ramp's plane.
+    {"name": "Escarpment Road", "surface": "paved", "half": 3.4, "speed": 50, "minR": 20.0, "grade": 0.09, "bank": 0.07, "cut": 12.0,
+     "startOn": "Finger Lake Loop", "endOn": "Glacier Pass",
+     "cp": [(826, -7979), (742, -8039), (647, -8077), (569, -8080), (447, -8057), (402, -8122), (401, -8296), (448, -8458), (560, -8540),
+            (690, -8580), (940, -8630), (968, -8660), (940, -8690), (690, -8740), (662, -8770), (690, -8800), (940, -8850), (968, -8880), (940, -8910),
+            (690, -8960), (662, -8990), (690, -9020), (940, -9070), (968, -9100), (940, -9130), (720, -9180),
+            (519, -9224), (336, -9229), (278, -9256), (232, -9461), (255, -9631), (280, -9685), (329, -9717), (608, -9734), (720, -9642), (805, -9602), (871, -9609),
+            (827, -9750), (756, -9835), (658, -9881), (532, -9883), (333, -9847),
+            (-250, -9846), (-413, -9826), (-592, -9883), (-758, -9881), (-898, -9830), (-997, -9810), (-1124, -9841), (-1250, -9850), (-1376, -9876), (-1466, -9854),
+            (-1596, -9799), (-1754, -9791), (-1861, -9739), (-1970, -9662), (-2036, -9652), (-2235, -9723), (-2446, -9700), (-2720, -9820), (-2879, -9789),
+            (-2980, -9796), (-3081, -9842), (-3137, -9883), (-3168, -10014), (-3215, -10060), (-3330, -10070), (-3520, -10045), (-3700, -10000), (-3820, -9955), (-3858, -9990), (-3853, -10054)]},
 ]
 
 
@@ -94,8 +108,13 @@ def main():
     out = []
     report = []
     done = {}
+    def snap(other, p):                                                                         # nearest sample of an already designed road
+        oxz, oy = done[other]; k = int(np.argmin(np.hypot(oxz[:, 0] - p[0], oxz[:, 1] - p[1]))); return k, oxz[k], oy[k]
     for rd in ROADS:
-        xz = catmull(rd["cp"], STEP)
+        cp = list(rd["cp"]); pin0 = pin1 = None
+        if "startOn" in rd: _, p, pin0 = snap(rd["startOn"], cp[0]); cp[0] = (float(p[0]), float(p[1]))   # a T junction on another road's line
+        if "endOn" in rd: _, p, pin1 = snap(rd["endOn"], cp[-1]); cp[-1] = (float(p[0]), float(p[1]))
+        xz = catmull(cp, STEP)
         xz = relax_radius(xz, rd.get("minR", 30.0)); n = len(xz)
         g = np.array([gnd(x, z) for x, z in xz])
         wet = g < 0.3
@@ -112,7 +131,9 @@ def main():
             ga = g[a] if a >= 0 else 4.0; gb = g[b] if b < n else 4.0
             g[i] = max(4.0, ga + (gb - ga) * (i - a) / max(1, b - a))
         gs = gaussian_filter1d(g, 3)
-        if "endFrom" in rd: g[-1] = done[rd["endFrom"]][-1]                                     # a junction: meet the other road at its height
+        if "endFrom" in rd: g[-1] = done[rd["endFrom"]][1][-1]                                  # a junction: meet the other road at its height
+        if pin0 is not None: g[0] = pin0
+        if pin1 is not None: g[-1] = pin1
         s = rd["grade"] * STEP
         # profile: highest line at or under the ground, lowest line no more than 7 m under it; ends pinned to the roads they join
         hiL = gs.copy(); hiL[0] = g[0]; hiL[-1] = g[-1]
@@ -151,7 +172,7 @@ def main():
                        "climb_m": round(float(y.max() - y.min()), 1)})
         out.append({"name": rd["name"], "surface": rd["surface"], "half": rd["half"], "speed": rd["speed"],
                     "xz": [[round(float(a), 2), round(float(b), 2)] for a, b in xz], "y": [round(float(a), 2) for a in y], "bank": [round(float(a), 4) for a in bank]})
-        done[rd["name"]] = y
+        done[rd["name"]] = (xz, y)
         draw(rd, xz, y, g, bank, hi, W, H, mpp, OX, OZ)
     json.dump({"roads": out}, open(os.path.join(R, "scenic_roads.json"), "w"), separators=(",", ":"))
     for r in report: print(json.dumps(r))

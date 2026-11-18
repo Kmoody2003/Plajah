@@ -29,6 +29,9 @@ const SHOTS = [
   ['glacier-pass-hairpins', [-3150, 560, -11850], [-3420, 370, -12080]],
   ['glacier-pass-north', [-3650, 470, -12950], [-3850, 345, -13280]],
   ['glacier-pass-forest', [-4150, 160, -8150], [-3950, 120, -8750]],
+  ['escarpment-stair', [1300, 300, -8350], [810, 210, -8880]],
+  ['escarpment-stair-top', [880, 330, -9260], [820, 180, -8700]],
+  ['escarpment-viaduct', [220, 300, -9600], [40, 180, -9845]],
 ].filter(([n]) => !only?.length || only.includes(n));
 
 const gpu = args.includes('--swiftshader') ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'];
