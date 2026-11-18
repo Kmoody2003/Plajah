@@ -148,6 +148,7 @@ const rounds = await runFidelityLoop(history, {
     for (const w of rec.warnings) log(`    ! ${w}`);
     for (const it of rec.report.items) log(`    ${it.id} [${it.axis}/${it.kind}/${it.severity}] ${it.description}`);
     log(`  ${rec.planner}: ${rec.applied.length} ops${rec.dropped.length ? `, ${rec.dropped.length} dropped` : ''}`);
+    for (const t of rec.trials) log(`    ~ ${t}`);
     for (const a of rec.applied) log(`    + ${a}`);
     for (const d of rec.dropped) log(`    - ${d}`);
   },

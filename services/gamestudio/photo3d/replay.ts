@@ -162,9 +162,9 @@ function colourize(doc: ModelDoc, mesh: TriMesh, inp: ReplayInputs, tol: number)
         if (!pr) continue;
         const n: Vec3 = [N[i * 3], N[i * 3 + 1], N[i * 3 + 2]];
         lc = photoColour(pr, [x, y, z], n);
-        if (!lc && l.fillUnseen && l.fillUnseen !== 'none') lc = unseenColour(pr, [x, y, z], n, l.fillUnseen);
-        // Parts the agent added keep their material where the photo's colour would just repeat the old surface.
-        if (lc && part?.material && l.region.kind === 'all') lc = null;
+        // Where the photo sees an added part, the photo's own pixels win (photographed brass beats flat brass).
+        // Where it can't, a part keeps its material rather than borrowing a mirrored guess.
+        if (!lc && l.fillUnseen && l.fillUnseen !== 'none' && !part?.material) lc = unseenColour(pr, [x, y, z], n, l.fillUnseen);
       } else if (l.material) lc = mats.get(l.material) ?? null;
       else if (l.colour) lc = hexToRgb(l.colour);
       if (!lc) continue;

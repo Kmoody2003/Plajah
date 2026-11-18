@@ -18,7 +18,7 @@ same rules as the rest of the Studio:
 - **Local first.** Scan on the PC's GPU (Tela 3D runtime), eye and hands on the desktop's native models
   first, Gemini second, rules last. No Anthropic calls (AI lanes, 2026-10-25).
 
-Code: `services/gamestudio/photo3d/*`, tests `tests/photo3d.test.ts` (19), run script
+Code: `services/gamestudio/photo3d/*`, tests `tests/photo3d.test.ts` (24), run script
 `scripts/gamestudio/photo3dLoop.ts`.
 
 ## 1. The loop
@@ -153,10 +153,24 @@ The eye's own 0–100 guess is logged next to the score and never replaces it.
 **When to stop** (`loopVerdict`): aim 99%; stop at 99%, or once ≥ 95% and two rounds bring less than half a
 point; below 95% stop only on a stall or after 8 rounds, and report it as **not finished**.
 
-**Guards** (`loop.ts`):
+**Guards** (`loop.ts`), so a round only goes up:
 
-- A round that measures worse than the last accepted model is undone (one undo) and the agent is told what it
-  did and by how much it hurt, so it doesn't repeat it.
+- **Each edit is tried on its own before it is kept** (`trialEdits`). The model is replayed with the edit
+  and rendered from the photo's camera, and its photo match is compared with the model without it. A
+  **line search** tries each edit at 100%, 50% and 25% strength (`scaled`: parts shrink, a ring keeps its
+  inner edge on the body, strokes press lighter, paint goes thinner, a move goes part of the way). The edit is
+  kept at the best strength only if it raises the match. An edit that changes no pixel the photo's camera can
+  see (the back, a dent seen face-on) can't be judged by the photo, so it passes and the eye judges it next
+  round. The trial measure (`matchScore`) is continuous: colour counts even under ΔE 3, where the shown
+  colour axis is already "perfect". Each trial is logged ("kept Top rim at 50%: 95.21 → 95.40").
+- **Edits are grounded** (`ground`): a ring the agent centred on the surface point instead of the body's axis
+  is moved onto the axis at the same height.
+- **The eye can't undo good work by re-rating** (`steadyGaps`). A gap the eye reports again can't cost more
+  than last round, unless a kept edit this round targeted it. In the first real run, the eye re-rated two
+  unchanged gaps (medium → high, high → critical), and that alone undid both rounds.
+- A round that still measures worse than the last accepted model is undone (one undo) and the agent is told
+  what it did and by how much it hurt. Now that edits are tried, this guard catches only what the photo can't
+  see and the eye says got worse.
 - While the scan carries the body, an added part bigger than 20% of the model's box is refused (the first
   real run's agent replaced the scanned drum with a plain cylinder; the score fell from 96% to 77%).
 - While photo colours are on, a flat paint over more than half the model is refused (same run: "paint
@@ -209,7 +223,7 @@ prompt and parser), `mesh.ts` (GLB reader with vertex/texture colour, no three.j
 renderer), `replay.ts` (scan → clay field via Argilla's voxelize, doc → mesh via surface nets, colour layers
 with photo projection and unseen-side fill), `align.ts` (camera search), `loop.ts` (the loop and its guards).
 
-Tests (`node --import tsx --test tests/photo3d.test.ts`, 19 pass): every op undoes to the identical doc;
+Tests (`node --import tsx --test tests/photo3d.test.ts`, 24 pass): every op undoes to the identical doc;
 pinned paint follows its part; validation; sentences; gap parsing of real model habits; cost caps; pixel
 score; stop rules; SDF primitives and rotations; camera round trip; the rules planner places a band as a ring
 at the right height and repeats lugs round the body; size guard; a scripted end-to-end loop on a synthetic
@@ -244,6 +258,36 @@ What this run shows, honestly:
 - Gemini Flash (3.6 / 3.5) returned 503 "high demand" during the session, and 3.8-flash refused the shared
   lane's `thinkingLevel: minimal` (400). Only flash-lite answered. A stronger model for the hands is the
   first thing to try, and the desktop's local lanes are the planned default anyway.
+### Why the rounds went down, and the rerun after the fix (same photo, same flash-lite models)
+
+Diagnosis from `rounds.json` of the run above: the agent's edits didn't measurably change the shape
+(shape 0.945 in all three rounds). Almost all of the drop came from the **eye re-rating the same two
+gaps** (medium → high, high → critical), which raised their cost by 6.7 points. The edits did cost a little
+colour (ΔE 1.2 → 2.8), but the colour axis treats anything under ΔE 3 as perfect, so nothing measured it. The
+flat brass ring also replaced the photographed brass, and the second ring was centred on a surface point
+instead of the body's axis. Fixes: per-edit trials with a line search on a continuous match, `steadyGaps`,
+photo colour wins on added parts where the photo sees them, `ground` for rings, a strict round guard, and
+dropping edits that change nothing from any angle (§5).
+
+Final rerun (`D:\Plajah Runtime\photo3d\conga\run.log`; the earlier runs are in `before-fix\` and `fix-v1\`):
+
+| Round | Measured | Photo match (trial measure) | What happened |
+|---|---|---|---|
+| 1 | **94.8%** | 94.59 → 94.78 | kept "turn" fill, a 25% top ring (unseen; left for the eye), two tuning brackets; dropped a flat seam paint (worse at 100/50/25%) |
+| 2 | 94.1% → undone | — | the eye judged round 1 worse (geometry 91 → 87), so the round was undone. Then: dropped a seam paint and a rim ring (no gain at any strength); kept two brackets, 94.59 → 94.80 |
+| 3 | **94.9%** | — | stalled, stop |
+
+Kept scores: **94.8 → 94.9**. No kept round went down, and the photo match only went up. Every edit that
+lowered the match was caught by its own trial before it reached the model. What's still true:
+
+- It stalled at **94.9%, under the 95% target, so it is not finished**. The flash-lite agent's ideas are the
+  limit. Of 9 proposed edits, 5 were kept, each worth tenths of a point. The vision model also changes its
+  ratings between runs: the same round-1 model scored 96.1% in the first run and 94.8% here, so compare
+  rounds within a run, not across runs.
+- The kept brackets read as flat yellow blocks from the side (`round_3.png`). The photo barely sees them, so
+  only the eye can push back on how they look.
+- The grey seams on the unseen sides (mirror fill at the silhouette edge) are still there. Neither agent seam
+  paint survived its trial, because flat paint matched the photo worse than the seam it covered.
 - Earlier runs, before the guards, recorded what they're for: the agent replaced the scanned body with a
   plain cylinder (96% → 77%), and painted the whole drum one flat colour.
 

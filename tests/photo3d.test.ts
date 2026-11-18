@@ -12,7 +12,7 @@ import { anchorGaps, parseAgentOps, planFromGaps, agentPrompt } from '../service
 import { replay, scanField } from '../services/gamestudio/photo3d/replay';
 import { renderMesh } from '../services/gamestudio/photo3d/render';
 import { alignToPhoto, maskBox } from '../services/gamestudio/photo3d/align';
-import { runFidelityLoop, applicable } from '../services/gamestudio/photo3d/loop';
+import { runFidelityLoop, applicable, scaled, ground, steadyGaps } from '../services/gamestudio/photo3d/loop';
 
 const near = (a: number, b: number, eps = 1e-6) => assert.ok(Math.abs(a - b) <= eps, `${a} ≉ ${b}`);
 const part = (id: string, over: Partial<ModelPart> = {}): ModelPart => ({ id, name: id, op: 'add', shape: 'ellipsoid', center: [0, 0, 0], size: [0.2, 0.2, 0.2], rot: [0, 0, 0], ...over });
@@ -270,6 +270,9 @@ test('replay + align + loop: a scripted eye finds the missing band and the loop 
   assert.ok(rounds[0].applied.some(s => /ring/.test(s)), rounds[0].applied.join(' | '));
   const last = rounds[rounds.length - 1];
   assert.ok(last.score.overall > rounds[0].score.overall, `${rounds.map(r => r.score.overall.toFixed(3)).join(' → ')}`);
+  // Every round that was kept scores at least as well as the one before it.
+  const kept = rounds.filter(r => !r.rejected).map(r => r.score.overall);
+  for (let i = 1; i < kept.length; i++) assert.ok(kept[i] >= kept[i - 1], kept.join(" → "));
   // Photo colours went on as the setup step, before round 1 was measured.
   assert.ok(h.doc.paints.some(l => l.projectPhoto === 'photo' && l.fillUnseen === 'mirror'));
   assert.ok(rounds[0].score.pixel!.colour > 0.85, `colour ${rounds[0].score.pixel!.colour}`);
@@ -292,25 +295,95 @@ test('size guard: a part that would bury the scan is refused; a small one passes
   assert.equal(applicable({ ...d, useScan: false }, [big], { bounds }).ok.length, 1);
 });
 
-test('a round that lowers the score is undone, and the agent is told why', { timeout: 120_000 }, async () => {
+// ── rounds must not get worse ──────────────────────────────────────────────────────────────────────────────
+
+/** A drum body as the "photo", the same body as the scan, and a history with the photo camera set. */
+async function plainDrum() {
   const photoMesh = replay({ ...doc0(), parts: [BODY] }, { scan: null, resolution: 64 }).mesh;
   const cam = framingCamera({ yawDeg: 0, pitchDeg: 15, width: 120, height: 180, radius: 0.9 });
   const photo = renderMesh(photoMesh, cam).picture;
   const scan = await scanField(photoMesh, 10);
   const h = new ModelHistory({ ...doc0(), base: { kind: 'scan', glb: 's.glb', backend: 't', centre: [0, 0, 0], scale: 1 } });
   h.apply({ op: 'setCamera', view: 'photo', camera: cam }, 'aria');
+  const env = { scan, scanUntextured: true, photo, pictures: { photo }, resolution: 64, viewSize: 64, policy: { target: 0.95, aim: 0.999, minGain: 0.005, patience: 2, maxRounds: 3 } };
+  return { h, env };
+}
+const dent = { id: 'dent', axis: 'geometry', kind: 'wrong', view: 'photo', region: [0.3, 0.3, 0.7, 0.7], description: 'Middle looks off', severity: 'low', confidence: 0.5 };
+
+test('a harmful edit is tried on its own, found worse at every strength, and never reaches the model', { timeout: 120_000 }, async () => {
+  const { h, env } = await plainDrum();
+  const rounds = await runFidelityLoop(h, env, {
+    look: async () => ({ source: 'scripted', raw: { items: [dent] } }),
+    // A bad agent: a big cut through the bottom edge, which the photo sees at every strength.
+    agent: async () => JSON.stringify({ ops: [
+      { op: 'addPart', part: { id: 'hole', name: 'Hole', op: 'carve', shape: 'ellipsoid', center: [0.3, -0.7, 0.2], size: [0.5, 0.5, 0.5], rot: [0, 0, 0], why: 'dent' } },
+    ] }),
+  });
+  assert.ok(!h.doc.parts.some(p => p.id === 'hole'), rounds.map(r => r.trials.concat(r.dropped).join(' / ') + ' @' + r.score.overall).join(' ## '));
+  assert.match(rounds[0].trials.join('\n'), /dropped Carved Hole.*no strength improved/);
+  const s = rounds.map(r => r.score.overall);
+  for (let i = 1; i < s.length; i++) assert.ok(s[i] >= s[i - 1] - 1e-9, `round ${i + 1} went down: ${s.join(' → ')}`);
+});
+
+test('a too-strong edit is kept at the strength that helps (line search)', { timeout: 120_000 }, async () => {
+  // Photo: the body with a band. Scan: the body alone. The agent's band is three times too thick.
+  const truth = replay({ ...doc0(), parts: [BODY, RING] }, { scan: null, resolution: 64 }).mesh;
+  const { h, env } = await plainDrum();
+  const cam = h.doc.references[0].camera!;
+  const photo = renderMesh(truth, cam).picture;
+  const rounds = await runFidelityLoop(h, { ...env, photo, pictures: { photo } }, {
+    look: async () => ({ source: 'scripted', raw: { items: h.doc.parts.length ? [] : [{ ...dent, id: 'band', axis: 'prop', kind: 'missing', description: 'Band round the middle' }] } }),
+    agent: async () => JSON.stringify({ ops: [{ op: 'addPart', part: { ...RING, id: 'band', size: [0.9, 0.16, 0], why: 'band' } }] }),
+  });
+  const band = h.doc.parts.find(p => p.id === 'band');
+  assert.ok(band, rounds[0].trials.join('\n'));
+  assert.ok(band!.size[1] < 0.16, `kept at a lower strength: tube ${band!.size[1]} (${rounds[0].trials.join(' | ')})`);
+  assert.ok(rounds[rounds.length - 1].score.pixel!.iou >= rounds[0].score.pixel!.iou);
+});
+
+test('the round-level guard still undoes what the photo cannot see, when the eye says it got worse', { timeout: 120_000 }, async () => {
+  const { h, env } = await plainDrum();
   const prompts: string[] = [];
-  const rounds = await runFidelityLoop(h, {
-    scan, scanUntextured: true, photo, pictures: { photo }, resolution: 64, viewSize: 64,
-    policy: { target: 0.95, aim: 0.999, minGain: 0.005, patience: 2, maxRounds: 3 },
-  }, {
-    look: async () => ({ source: 'scripted', raw: { items: [{ id: 'dent', axis: 'geometry', kind: 'wrong', view: 'photo', region: [0.3, 0.3, 0.7, 0.7], description: 'Middle looks off', severity: 'low', confidence: 0.5 }] } }),
-    // A bad agent: cuts a big hole in the middle every time.
-    agent: async (p) => { prompts.push(p.user); return JSON.stringify({ ops: [{ op: 'addPart', part: { id: `hole-${prompts.length}`, name: 'Hole', op: 'carve', shape: 'ellipsoid', center: [0.35, 0, 0], size: [0.5, 0.5, 0.5], rot: [0, 0, 0], why: 'dent' } }] }); },
+  const rounds = await runFidelityLoop(h, env, {
+    // After the back lump goes on, the eye reports a new critical problem on the back.
+    look: async () => ({ source: 'scripted', raw: { items: h.doc.parts.some(p => p.id === 'lump-1')
+      ? [dent, { id: 'blob', axis: 'geometry', kind: 'extra', view: 'render-back', region: [0.3, 0.3, 0.7, 0.7], description: 'A blob on the back', severity: 'critical', confidence: 1 }]
+      : [dent] } }),
+    // Invisible from the photo: a lump on the back.
+    agent: async (p) => { prompts.push(p.user); return JSON.stringify({ ops: [{ op: 'addPart', part: { id: `lump-${prompts.length}`, name: 'Lump', op: 'add', shape: 'ellipsoid', center: [0, 0, -0.36], size: [0.15, 0.15, 0.1], rot: [0, 0, 0], why: 'dent' } }] }); },
   });
   assert.ok(rounds[1].rejected, 'round 2 found round 1 worse and undid it');
-  assert.ok(rounds[1].rejected!.to < rounds[1].rejected!.from);
   assert.match(prompts[1], /was undone because it lowered the score/);
-  // Whatever is left in the doc never scores below the first measurement.
-  assert.ok(!h.doc.parts.some(p => p.id === 'hole-1'));
+  assert.ok(!h.doc.parts.some(p => p.id === 'lump-1'));
+});
+
+test('steadyGaps: the eye cannot re-rate an untouched gap as worse; touched ones take the new rating', () => {
+  const g = (id: string, severity: 'low' | 'medium' | 'high' | 'critical', confidence = 0.9) => ({ id, axis: 'colour' as const, kind: 'wrong' as const, view: 'photo', region: { x0: 0, y0: 0, x1: 1, y1: 1 }, description: id, severity, confidence });
+  const out = steadyGaps([g('a', 'critical'), g('b', 'critical'), g('c', 'high'), g('d', 'low')], [g('a', 'medium', 0.7), g('b', 'medium'), g('d', 'high')], new Set(['b']));
+  assert.deepEqual(out.map(i => [i.id, i.severity]), [['a', 'medium'], ['b', 'critical'], ['c', 'high'], ['d', 'low']]);
+  near(out[0].confidence, 0.7);
+});
+
+test('scaled and ground: weaker versions of an edit, and rings moved onto the body axis', () => {
+  const d = { ...doc0(), parts: [part('p', { center: [0, 0, 0], size: [0.2, 0.2, 0.2] })] };
+  const half = scaled(d, { op: 'addPart', part: part('q', { shape: 'torus', size: [0.8, 0.1, 0] }) }, 0.5) as Extract<ModelOp, { op: 'addPart' }>;
+  assert.deepEqual(half.part.size, [0.7, 0.05, 0]); // inner edge (0.3) stays on the body
+  const moved = scaled(d, { op: 'updatePart', partId: 'p', patch: { center: [0.2, 0, 0] } }, 0.5) as Extract<ModelOp, { op: 'updatePart' }>;
+  assert.deepEqual(moved.patch.center, [0.1, 0, 0]);
+  assert.equal(scaled(d, { op: 'paint', layer: { id: 'x', name: 'x', region: { kind: 'all' }, projectPhoto: 'photo', opacity: 1 } }, 0.5), null);
+  const bounds = { min: [-0.35, -0.7, -0.35] as Vec3, max: [0.35, 0.7, 0.35] as Vec3 };
+  const off = ground({ op: 'addPart', part: part('r', { shape: 'torus', center: [-0.22, 0.64, -0.27], size: [0.72, 0.05, 0] }) }, bounds) as Extract<ModelOp, { op: 'addPart' }>;
+  assert.deepEqual(off.part.center, [0, 0.64, 0]);
+  const lug = { op: 'addPart' as const, part: part('l', { center: [0.3, 0.2, 0] }) };
+  assert.equal(ground(lug, bounds), lug);
+});
+
+test('an edit with no visible effect from any angle (buried in the body) is dropped as clutter', { timeout: 120_000 }, async () => {
+  const { h, env } = await plainDrum();
+  const rounds = await runFidelityLoop(h, env, {
+    look: async () => ({ source: 'scripted', raw: { items: [dent] } }),
+    agent: async () => JSON.stringify({ ops: [{ op: 'addPart', part: { id: 'core', name: 'Core', op: 'add', shape: 'ellipsoid', center: [0, 0, 0], size: [0.2, 0.2, 0.2], rot: [0, 0, 0], why: 'dent' } }] }),
+  });
+  assert.ok(!h.doc.parts.some(p => p.id === 'core'));
+  assert.match(rounds[0].trials.join('\n'), /dropped Added Core.*no effect/);
 });

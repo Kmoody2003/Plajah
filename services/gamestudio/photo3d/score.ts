@@ -126,6 +126,15 @@ export function scoreView(photo: Picture, render: Picture, opts: { block?: numbe
   return { iou, outline, deltaE, colourCover: cover, shape, colour };
 }
 
+/**
+ * The photo match as one continuous number, for trying edits: same 3:2 weighting as the silhouette and colour
+ * axes, but colour without the "ΔE under 3 is perfect" floor, so a small colour loss still shows. Trials use
+ * this; it is never shown as the fidelity score.
+ */
+export function matchScore(p: ViewScore): number {
+  return 0.6 * p.shape + 0.4 * p.colourCover * Math.max(0, 1 - p.deltaE / 40);
+}
+
 /** Combine the pixel view score and the open gap items into the five axes and the overall score. */
 export function fidelity(pixel: ViewScore | null, items: GapItem[], visionScore?: number): FidelityScore {
   const cost = gapCost(items);
