@@ -43,6 +43,9 @@ import { CompetitionEngine } from './racingAI';
 import { TrafficManager, OpenWorldChallengeManager, type FestivalData } from './openWorldEvents';
 import { buildFestival } from './festival';
 import { createFestProgress, type FestProgress } from './festProgress';
+import { createFestMap, type MapRoad } from './festMap';
+import { HOSTS } from '../../../services/onair/hosts';
+import { onAirNow } from '../../../services/onair/station';
 import { CopsAndRobbersMode, type PursuitRoleChoice } from './copsAndRobbers';
 import { OnlineSessionManager } from './onlineMultiplayer';
 import { SpatialCuller, runWithConcurrency, populateTiledTerrain, populateTerrainLOD, detectInitialTier, TIER_CONFIGS, type PerfTier } from './enginePerf';
@@ -1324,6 +1327,7 @@ let simPlan: SimPlan | null = null;                 // road graph, rails and air
 let simLayer: SimLayer | null = null;
 let townWalks: ReturnType<typeof buildTownSidewalks> | null = null;   // town street curbs and sidewalks (src/townStreets.ts)
 let festProg: FestProgress | null = null;                                             // Chora Fest progression
+let festMap: ReturnType<typeof createFestMap> | null = null;                         // the designed navigation map (src/festMap.ts)
 let freeSpawn: { p: number[]; q: number[] } | null = null;                             // where the next free roam starts (fast travel)
 let parkingLots: ReturnType<typeof buildParkingLots> | null = null;
 let parkingData: number[][] | null = null;
@@ -3155,7 +3159,41 @@ function buildFurniture(): void {
       brief: briefEl, hideBrief, back: () => preset('overview'),
       travel: (p, q) => { freeSpawn = { p, q }; startDrive('free'); },
       cars: () => simLayer?.world.cars ?? [],
+      radio: {
+        host: () => gameAudio.currentStation.persona ?? onAirNow() ?? HOSTS[0], station: () => gameAudio.currentStation.name.split(' · ')[0],
+        duck: (on) => { if (driving) setMusicDuck(on ? 0.15 : 0.4); }, voice: () => (document.getElementById('tHostVoice') as HTMLInputElement | null)?.checked ?? false,
+      },
     });
+    if (festivalData && festProg && !festMap) {
+      const fd = festivalData, fp = festProg, SC = ['#7ff7ff', '#ff7ab8', '#ffd166', '#b8ff6a', '#c9a0ff', '#ff9a4d', '#6ad7ff', '#ffe07a'];
+      const roads: MapRoad[] = [];
+      for (const r of countryNet?.roads ?? []) {
+        if (r.kind === 'drive' || r.xz.length < 2) continue;
+        const h = r.half ?? 3.6;
+        roads.push({ xz: r.xz, kind: r.kind === 'dirt' ? 'dirt' : h >= 9 ? 'freeway' : h >= 6 ? 'highway' : (r as { town?: boolean }).town && h < 4.6 ? 'street' : 'country' });
+      }
+      for (const r of streetRuns) roads.push({ xz: r.p, kind: r.c === 'freeway' || r.c === 'ramp' ? 'freeway' : r.c === 'arterial' ? 'country' : 'street' });
+      if (shoreHw) roads.push({ xz: shoreHw.xz, kind: 'highway' });
+      scenicData.forEach((r, i) => roads.push({ xz: r.xz, kind: 'scenic', name: r.name, color: SC[i % SC.length] }));
+      const W2 = meta.width * meta.mpp / 2, H2 = meta.height * meta.mpp / 2;
+      festMap = createFestMap({
+        bounds: { minX: GRID.ox - W2, maxX: GRID.ox + W2, minZ: GRID.oz - H2, maxZ: GRID.oz + H2 },
+        height: (x, z) => hAt(x, z), roads, buildings: () => cityItems.map((it) => [it.x, it.z] as [number, number]),
+        places: [...meta.places.map((p) => [p.name, p.xz[0], p.xz[1]] as [string, number, number]), ...NORTH_PLACES],
+        sites: () => fd.sites.map((st) => ({ id: st.id, name: st.name, kind: st.kind, x: st.x, z: st.z, open: fp.fest.isOpen(st.id), canOpen: fp.fest.passes.free > 0 })),
+        stunts: () => [
+          ...fd.speedTraps.map((t) => ({ kind: 'trap' as const, name: t.name, x: t.x, z: t.z, stars: fp.fest.save.stars[t.id] ?? 0 })),
+          ...fd.speedZones.map((t) => ({ kind: 'zone' as const, name: t.name, x: (t.a[0] + t.b[0]) / 2, z: (t.a[1] + t.b[1]) / 2, stars: fp.fest.save.stars[t.id] ?? 0 })),
+          ...fd.driftZones.map((t) => ({ kind: 'drift' as const, name: t.name, x: (t.a[0] + t.b[0]) / 2, z: (t.a[1] + t.b[1]) / 2, stars: fp.fest.save.stars[t.id] ?? 0 })),
+          ...fd.dangerSigns.map((t) => ({ kind: 'danger' as const, name: t.name, x: t.x, z: t.z, stars: fp.fest.save.stars[t.id] ?? 0 })),
+        ],
+        player: () => (driving ? { x: driving.ps.pos.x, z: driving.ps.pos.z, yaw: driving.ps.yaw } : null),
+        fp: () => `${fp.fest.fp.toLocaleString()} Fest Points · ${fp.fest.save.open.length} of ${fd.sites.length} sites open`,
+        travel: (id) => { hideBrief(); fp.travel(id); }, openSite: (id) => fp.openSite(id),
+      });
+      addMenuCard('WORLD MAP', 'Navigation map', 'Festival sites · stunts · fast travel (M)', '#9fe8c8', () => festMap?.open());
+      addEventListener('keydown', (e) => { if (e.code === 'KeyM' && !driving && !festMap?.isOpen() && !(e.target instanceof HTMLInputElement)) festMap?.open(); });
+    }
     heroBridgeUpdate = rb.updateLed;
   }
   spatialCuller.indexGroups([furnitureGroup, scapeGroup, zoneGroup]);
@@ -3776,7 +3814,7 @@ function stopDrive(): void {
   teardownRun();
   scene.remove(driving.car);
   driving = null;
-  gameAudio.setPaused(true); setMusicDuck(1); wx.setPaused(true); wxPlan = null; if (wxOverride === 'auto') wx.setWeather('partly', false, true);
+  festProg?.quiet(); gameAudio.setPaused(true); setMusicDuck(1); wx.setPaused(true); wxPlan = null; if (wxOverride === 'auto') wx.setWeather('partly', false, true);
   camera.near = 5; camera.far = 80000; camera.updateProjectionMatrix();
   controls.enabled = true;
   circuitGroup.visible = (document.getElementById('tCirc') as HTMLInputElement).checked;
@@ -4318,6 +4356,7 @@ const syncRadioLabel = () => {
   radioLabelEl.textContent = `${st.name} · ${st.artist}`;
 };
 syncRadioLabel();
+{ const hv = document.getElementById('tHostVoice') as HTMLInputElement | null; if (hv) { try { hv.checked = localStorage.getItem('apex_host_voice') === '1'; } catch { /* storage blocked */ } hv.addEventListener('change', () => { try { localStorage.setItem('apex_host_voice', hv.checked ? '1' : '0'); } catch { /* storage blocked */ } }); } }
 document.getElementById('radioPrev')?.addEventListener('click', () => { gameAudio.cycleStation(-1); syncRadioLabel(); });
 document.getElementById('radioNext')?.addEventListener('click', () => { gameAudio.cycleStation(1); syncRadioLabel(); });
 addEventListener('keydown', (e) => {

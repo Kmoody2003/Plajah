@@ -37,7 +37,9 @@ export const OPENING_ACTS = ['VYRA', 'Orsolya Wren', 'Remi Lux'];
 
 export function passesEarned(fp: number): number { let n = 0; while (n < PASS_FP.length && fp >= PASS_FP[n]) n++; return n; }
 
-export interface FestEvent { kind: 'fp' | 'pass' | 'opened' | 'opening' | 'discovered'; fp: number; text: string; site?: string }
+/** what an event is about, for the radio hosts: only these facts may be spoken */
+export interface FestAbout { what: 'stars' | 'pb' | 'site' | 'road' | 'chain' | 'opening' | 'pass' | 'opened'; name?: string; n?: number; act?: string }
+export interface FestEvent { kind: 'fp' | 'pass' | 'opened' | 'opening' | 'discovered'; fp: number; text: string; site?: string; about?: FestAbout }
 
 export class Fest {
   readonly sites: FestSite[];
@@ -57,13 +59,13 @@ export class Fest {
   closed(): FestSite[] { return this.sites.filter((x) => !this.isOpen(x.id)); }
 
   /** add FP; returns the events (the FP itself, and a pass if one was crossed) */
-  private add(fp: number, text: string): FestEvent[] {
+  private add(fp: number, text: string, about?: FestAbout): FestEvent[] {
     if (fp <= 0) return [];
     const before = passesEarned(this.s.fp);
     this.s.fp += Math.round(fp);
-    const out: FestEvent[] = [{ kind: 'fp', fp: Math.round(fp), text }];
+    const out: FestEvent[] = [{ kind: 'fp', fp: Math.round(fp), text, about }];
     const after = passesEarned(this.s.fp);
-    for (let k = before; k < after; k++) out.push({ kind: 'pass', fp: 0, text: `Stage Pass ${k + 1} earned: open an outpost on the map` });
+    for (let k = before; k < after; k++) out.push({ kind: 'pass', fp: 0, text: `Stage Pass ${k + 1} earned: open an outpost on the map`, about: { what: 'pass', n: k + 1 } });
     this.persist();
     return out;
   }
@@ -71,25 +73,25 @@ export class Fest {
   /** a PR stunt finished: pay new stars and a personal best */
   challenge(id: string, name: string, stars: number, value: number, higherIsBetter = true): FestEvent[] {
     const had = this.s.stars[id] ?? 0, out: FestEvent[] = [];
-    if (stars > had) { this.s.stars[id] = stars; out.push(...this.add((stars - had) * FP.star, `${name} ${'★'.repeat(stars)}`)); }
+    if (stars > had) { this.s.stars[id] = stars; out.push(...this.add((stars - had) * FP.star, `${name} ${'★'.repeat(stars)}`, { what: 'stars', name, n: stars })); }
     const prev = this.s.best[id];
     if (value > 0 && (prev === undefined || (higherIsBetter ? value > prev : value < prev))) {
       this.s.best[id] = value;
-      if (prev !== undefined) out.push(...this.add(FP.pb, `${name}: new personal best`));
+      if (prev !== undefined) out.push(...this.add(FP.pb, `${name}: new personal best`, { what: 'pb', name, n: value }));
       else this.persist();
     }
     return out;
   }
 
   /** a first visit to a site, or a scenic road driven end to end */
-  discover(id: string, text: string, fp: number): FestEvent[] {
+  discover(id: string, text: string, fp: number, about?: FestAbout): FestEvent[] {
     if (this.s.found.includes(id)) return [];
     this.s.found.push(id);
-    return [{ kind: 'discovered', fp: 0, text }, ...this.add(fp, text)];
+    return [{ kind: 'discovered', fp: 0, text, about }, ...this.add(fp, text)];
   }
 
   /** a banked skill chain */
-  skill(fp: number): FestEvent[] { if (fp > this.s.chainBest) this.s.chainBest = fp; return this.add(fp, 'Skill chain'); }
+  skill(fp: number): FestEvent[] { if (fp > this.s.chainBest) this.s.chainBest = fp; return this.add(fp, 'Skill chain', { what: 'chain', n: fp }); }
 
   /** spend a pass on an outpost */
   openOutpost(id: string): FestEvent[] {
@@ -97,7 +99,7 @@ export class Fest {
     if (!site || this.isOpen(id) || this.passes.free <= 0) return [];
     this.s.open.push(id); this.persist();
     const act = OPENING_ACTS[(this.s.open.length - 2 + OPENING_ACTS.length) % OPENING_ACTS.length];
-    return [{ kind: 'opened', fp: 0, site: id, text: `${site.name} is open. ${act} plays the opening set: drive to the stage` }];
+    return [{ kind: 'opened', fp: 0, site: id, text: `${site.name} is open. ${act} plays the opening set: drive to the stage`, about: { what: 'opened', name: site.name, act } }];
   }
 
   /** the act that opens (or opened) a site */
@@ -108,10 +110,10 @@ export class Fest {
     const out: FestEvent[] = [];
     for (const site of this.sites) {
       if (Math.hypot(site.x - x, site.z - z) > r) continue;
-      out.push(...this.discover('site:' + site.id, `Found ${site.name}`, FP.site));
+      out.push(...this.discover('site:' + site.id, `Found ${site.name}`, FP.site, { what: 'site', name: site.name }));
       if (site.kind === 'outpost' && this.isOpen(site.id) && !this.s.seen.includes(site.id)) {
         this.s.seen.push(site.id);
-        out.push({ kind: 'opening', fp: 0, site: site.id, text: `Opening set at ${site.name}: ${this.actFor(site.id)} live on the stage` }, ...this.add(FP.opening, `${site.name} opening set`));
+        out.push({ kind: 'opening', fp: 0, site: site.id, text: `Opening set at ${site.name}: ${this.actFor(site.id)} live on the stage`, about: { what: 'opening', name: site.name, act: this.actFor(site.id) } }, ...this.add(FP.opening, `${site.name} opening set`));
       }
     }
     return out;

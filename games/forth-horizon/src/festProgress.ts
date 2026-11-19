@@ -3,6 +3,7 @@
 import type { FestivalData, ChallengeEvent } from './openWorldEvents';
 import { Fest, SkillChain, emptyFest, PASS_FP, FP, type FestEvent, type FestSave, type FestSite } from './garage/fest';
 import { setSiteState } from './festival';
+import { RadioBreaks, festLine, idleLine, eventsForRadio, type HostLike } from './festRadio';
 
 interface Opts {
   festival: FestivalData;
@@ -17,9 +18,13 @@ interface Opts {
   travel: (p: [number, number], q: [number, number]) => void;
   /** other cars near the player, for near misses */
   cars: () => { x: number; z: number }[];
+  /** every festival event as it happens (the radio hosts react to them) */
+  onEvents?: (evs: FestEvent[]) => void;
+  /** the radio: who is on the air on the current station, its name, and the music duck while they talk */
+  radio?: { host: () => HostLike; station: () => string; duck: (on: boolean) => void; voice: () => boolean };
 }
 
-export interface FestProgress { fest: Fest; step(dt: number, ps: { pos: { x: number; z: number }; speedMps: number; isDrifting: boolean; isAirborne: boolean }): void; challenge(ev: ChallengeEvent): void; refresh(): void }
+export interface FestProgress { fest: Fest; /** a drive ended: clear the radio */ quiet(): void; /** fast travel to an open site */ travel(id: string): void; /** spend a pass on an outpost */ openSite(id: string): boolean; step(dt: number, ps: { pos: { x: number; z: number }; speedMps: number; isDrifting: boolean; isAirborne: boolean }): void; challenge(ev: ChallengeEvent): void; refresh(): void }
 
 export function createFestProgress(o: Opts): FestProgress {
   const sites: FestSite[] = o.festival.sites.map((s) => ({ id: s.id, name: s.name, kind: s.kind, x: s.x, z: s.z }));
@@ -27,13 +32,21 @@ export function createFestProgress(o: Opts): FestProgress {
   const chain = new SkillChain();
   let live: { id: string; t: number } | null = null;
   const cardSub = o.card(openPanel);
+  const breaks = o.radio ? new RadioBreaks(o.radio.duck) : null;
+  let seed = 0;
+  const onAir = (evs: FestEvent[]): void => {
+    if (!breaks || !o.radio || !active) return;
+    const host = o.radio.host(), st = o.radio.station();
+    for (const a of eventsForRadio(evs)) { const l = festLine(a, host, ++seed, st); if (l) breaks.say(host.stageName, l); }
+  };
+  let active = false;
   const show = (evs: FestEvent[]): void => {
     for (const e of evs) {
       if (e.kind === 'fp') o.banner(`+${e.fp} FP · ${e.text}`, 'gold');
       else if (e.kind === 'pass') o.banner(e.text, 'gold');
       else if (e.kind === 'opening' && e.site) { o.banner(e.text, 'gold'); setSiteState(e.site, 'live', fest.actFor(e.site)); live = { id: e.site, t: 0 }; }
     }
-    if (evs.length) refresh();
+    if (evs.length) { refresh(); o.onEvents?.(evs); onAir(evs); }
   };
   function refresh(): void {
     const p = fest.passes;
@@ -78,8 +91,23 @@ export function createFestProgress(o: Opts): FestProgress {
   return {
     fest,
     refresh,
+    quiet() { active = false; breaks?.hide(); },
+    travel(id) { const s = sites.find((x) => x.id === id); if (s && fest.isOpen(id)) { const [p0, q0] = spawn(s); o.travel(p0, q0); } },
+    openSite(id) { const ev = fest.openOutpost(id); show(ev); refresh(); return ev.length > 0; },
     challenge(ev) { if (ev.status === 'completed') show(fest.challenge(ev.challengeId, ev.title, ev.stars, ev.value)); },
     step(dt, ps) {
+      active = true;
+      if (breaks && o.radio) {
+        breaks.voice = o.radio.voice();
+        const st = o.radio.station();
+        breaks.step(dt, st);
+        if (breaks.quiet > 150) {                                                     // two and a half quiet minutes: a festival talk-up
+          const p = fest.passes, closed = fest.closed();
+          const near = closed.sort((a, b) => Math.hypot(a.x - ps.pos.x, a.z - ps.pos.z) - Math.hypot(b.x - ps.pos.x, b.z - ps.pos.z))[0];
+          const host = o.radio.host();
+          breaks.say(host.stageName, idleLine(host, { fp: fest.fp, open: fest.save.open.length, total: sites.length, nextPass: p.next, freePasses: p.free, closedNear: near?.name }, ++seed, st));
+        }
+      }
       // a sudden stop (more than 12 m/s lost in a quarter second) is a crash
       crashT += dt; let crashed = false;
       if (crashT >= 0.25) { crashed = lastSpeed - ps.speedMps > 12; lastSpeed = ps.speedMps; crashT = 0; }
@@ -94,7 +122,7 @@ export function createFestProgress(o: Opts): FestProgress {
         for (const r of roads) {
           if (fest.save.found.includes('road:' + r.name)) continue;
           for (let i = 0; i < r.cps.length; i++) if (!r.hit[i] && Math.hypot(r.cps[i][0] - ps.pos.x, r.cps[i][1] - ps.pos.z) < 25) { r.hit[i] = 1; r.n++; }
-          if (r.cps.length >= 4 && r.n >= r.cps.length - 1) show(fest.discover('road:' + r.name, `${r.name} driven end to end`, FP.road));
+          if (r.cps.length >= 4 && r.n >= r.cps.length - 1) show(fest.discover('road:' + r.name, `${r.name} driven end to end`, FP.road, { what: 'road', name: r.name }));
         }
       }
       if (live) { live.t += dt; if (live.t > 240) { setSiteState(live.id, 'open'); live = null; } }     // the opening set runs four minutes

@@ -48,3 +48,15 @@ test('skills: chains build a multiplier, bank after a pause, and a crash loses t
   assert.equal(c.step(1 / 20, { drifting: false, airborne: false, speed: 0, crashed: true }), 0);
   assert.equal(c.points, 0, 'lost on a crash');
 });
+
+test('radio: host lines use only the event facts and the host\'s own words', async () => {
+  const { festLine, idleLine } = await import('../src/festRadio');
+  const host = { stageName: 'Mari Vega', personality: { catchphrases: ['Hydrate and dominate.'] }, show: { name: 'The Wake-Up Call' } };
+  const l = festLine({ what: 'opened', name: 'Dune Sea', act: 'VYRA' }, host, 1, 'Plajah FM')!;
+  assert.ok(l.includes('Dune Sea') && l.includes('VYRA') && l.includes('Plajah FM'));
+  assert.equal(festLine({ what: 'stars', name: 'Trap', n: 1 }, host, 1), null, 'one star is not news');
+  assert.ok(festLine({ what: 'stars', name: 'Lakeshore Trap', n: 3 }, host, 2)!.includes('Lakeshore Trap'));
+  assert.equal(festLine({ what: 'chain', n: 20 }, host, 1), null, 'small chains are not news');
+  const idle = idleLine(host, { fp: 300, open: 1, total: 8, nextPass: 500, freePasses: 0 }, 1);
+  assert.ok(idle.length > 10 && !/undefined|NaN/.test(idle));
+});
