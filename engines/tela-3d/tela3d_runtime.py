@@ -360,6 +360,47 @@ def image_to_mesh(task):
     }
 
 
+def paint_views(task):
+    """Paint a mesh from several views of the art (a character / prop sheet, or frames of a motion video).
+    task: {mesh: glb base64, views: {"front": data URL, "back": ..., "left": ..., "right": ..., "yaw:<deg>": ...},
+           faces?, res?, minFacing?, recenter?} -> {glbBase64, painted}"""
+    import tempfile, io, contextlib
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import paint_from_views
+    t0 = time.time()
+    with tempfile.TemporaryDirectory() as tmp:
+        mesh_path = os.path.join(tmp, "in.glb")
+        with open(mesh_path, "wb") as f:
+            f.write(base64.b64decode(task["mesh"].split(",")[-1]))
+        views = {}
+        for name, data in (task.get("views") or {}).items():
+            path = os.path.join(tmp, name.replace(":", "_") + ".png")
+            decode_image(data).save(path)
+            views[name] = path
+        if not views:
+            raise ValueError("paint-views needs at least one view")
+        out = os.path.join(tmp, "out.glb")
+        log = io.StringIO()
+        with contextlib.redirect_stdout(log):
+            paint_from_views.paint(mesh_path, views, out, faces=int(task.get("faces") or 60000), res=int(task.get("res") or 2048),
+                                   recenter=task.get("recenter", True), min_facing=float(task.get("minFacing") or 0))
+        painted = next((l for l in log.getvalue().splitlines() if "painted" in l), "")
+        with open(out, "rb") as f:
+            glb = f.read()
+    return {"success": True, "glbBase64": base64.b64encode(glb).decode("ascii"), "painted": painted.strip(),
+            "executionTimeMs": int((time.time() - t0) * 1000)}
+
+
+def release(task):
+    """Let go of the resident model and its memory after a batch. With {exit: true} the engine also shuts down
+    (the app or the lab starts it again on demand): Windows keeps the commit of a big weights load until the process ends."""
+    _free()
+    if task.get("exit"):
+        import threading
+        threading.Timer(0.5, lambda: os._exit(0)).start()
+    return {"success": True, "released": True, "exiting": bool(task.get("exit"))}
+
+
 SAM_CHECKPOINT = os.path.join(MODELS_ROOT, "sam2", "sam2.1_hiera_small.pt")
 SAM_SRC = os.path.join(SRC_ROOT, "sam2")
 PART_MASK_SIDE = 512
@@ -460,7 +501,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(length) or b"{}")
-            routes = {"/tela3d/image-to-mesh": image_to_mesh, "/api/tela3d/image-to-mesh": image_to_mesh, "/tela3d/parts": find_parts}
+            routes = {"/tela3d/image-to-mesh": image_to_mesh, "/api/tela3d/image-to-mesh": image_to_mesh, "/tela3d/parts": find_parts,
+                      "/tela3d/paint-views": paint_views, "/tela3d/release": release}
             if self.path not in routes:
                 return self._send(404, {"error": "not found"})
             # One job at a time: a queue of GPU jobs is what overheated the laptop before.

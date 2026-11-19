@@ -135,6 +135,42 @@ export async function findRegions(image: Blob) {
   return data as { width: number; height: number; parts: { runs: number[]; score: number; stability: number }[]; seconds: number };
 }
 
+/** Which way a picture looked at the model: a named side, or a camera turned `yaw:<degrees>` about +Y from the front. */
+export type PaintViewName = 'front' | 'back' | 'left' | 'right' | `yaw:${number}`;
+
+/**
+ * Paint a mesh from several views of the art (a character or prop sheet, or frames of a motion video): each texel takes
+ * the view that sees it most squarely, the rest is filled across the surface. Cut-outs on transparency work best.
+ */
+export async function paintFromViews(mesh: Blob, views: Partial<Record<PaintViewName, Blob | string>>, options: { faces?: number; res?: number; minFacing?: number; recenter?: boolean } = {}) {
+  const status = await ensureTela3d();
+  if (!status.online) throw new Error(status.detail);
+  const t0 = performance.now();
+  const viewData: Record<string, string> = {};
+  for (const [name, v] of Object.entries(views)) if (v) viewData[name] = typeof v === 'string' ? v : await blobToDataUrl(v);
+  const res = await fetch(`${TELA3D_URL}/tela3d/paint-views`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task: { mesh: await blobToDataUrl(mesh), views: viewData, ...options } }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.glbBase64) throw new Error(data?.error || `Tela 3D answered ${res.status}`);
+  const bytes = Uint8Array.from(atob(data.glbBase64), (c) => c.charCodeAt(0));
+  const share = Number(/(\d+(?:\.\d+)?)%/.exec(String(data.painted ?? ''))?.[1] ?? NaN);
+  return { glb: new Blob([bytes], { type: 'model/gltf-binary' }), paintedShare: share / 100, ms: Math.round(performance.now() - t0) };
+}
+
+/**
+ * Let go of the resident model after a batch. `exit` also shuts the engine down: Windows keeps the commit of a big weights
+ * load (~12 GB) until the process ends, and ensureTela3d starts it again on the next job.
+ */
+export async function releaseTela3d(exit = false) {
+  const res = await fetch(`${TELA3D_URL}/tela3d/release`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task: { exit } }),
+  }).catch(() => null);
+  return !!res?.ok;
+}
+
 /** One image (ideally the object on a transparent or plain background) → a GLB. */
 export async function imageToModel(image: Blob | string, backend: Tela3dBackend = 'auto', options: Tela3dOptions = {}): Promise<Tela3dResult> {
   const status = await ensureTela3d();

@@ -126,8 +126,17 @@ def main():
     ap.add_argument("--no-recenter", action="store_true", help="keep the mesh where it is (a part of a larger model)")
     ap.add_argument("--min-facing", type=float, default=0.0,
                     help="ignore texels a view sees at a grazing angle (cos below this); the fill paints them instead")
-    a = ap.parse_args()
+    _paint(ap.parse_args())
 
+
+def paint(mesh, views, out, faces=60000, res=2048, recenter=True, min_facing=0.0):
+    """Library entry (the tela-3d runtime's /tela3d/paint-views): views = {"front": path, "yaw:30": path, ...}."""
+    import types
+    _paint(types.SimpleNamespace(mesh=mesh, out=out, view=[f"{k}={v}" for k, v in views.items()], faces=faces, res=res,
+                                 no_recenter=not recenter, min_facing=min_facing))
+
+
+def _paint(a):
     mesh = trimesh.load(a.mesh, force="mesh")
     mesh = decimate(trimesh.Trimesh(mesh.vertices, mesh.faces, process=True), a.faces)
     if not a.no_recenter:
