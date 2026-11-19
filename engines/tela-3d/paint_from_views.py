@@ -26,7 +26,7 @@ from PIL import Image
 
 from uv_raster import interp, rasterize_uv
 
-DIRS = {"front": (0, 0, 1), "back": (0, 0, -1), "right": (-1, 0, 0), "left": (1, 0, 0)}
+DIRS = {"front": (0, 0, 1), "back": (0, 0, -1), "right": (-1, 0, 0), "left": (1, 0, 0), "top": (0, 1, 0)}
 UP = np.array([0.0, 1.0, 0.0])
 VIEW_WEIGHT = {"front": 1.0, "back": 0.9, "right": 0.75, "left": 0.75}
 
@@ -41,9 +41,12 @@ def view_dir(name):
 
 
 def view_axes(name):
+    """(toward the camera, screen right, screen up). A top-down plan looks straight down with the model's back at the top."""
     d = np.array(view_dir(name), float)
+    if name == "top":
+        return d, np.array([1.0, 0.0, 0.0]), np.array([0.0, 0.0, -1.0])
     right = np.cross(-d, UP)
-    return d, right
+    return d, right, UP
 
 
 def decimate(mesh, faces):
@@ -57,10 +60,10 @@ def decimate(mesh, faces):
     return trimesh.Trimesh(m.vertex_matrix(), m.face_matrix(), process=True)
 
 
-def fit_view(pts, d, right, alpha):
+def fit_view(pts, d, right, alpha, up=UP):
     """Place the image over the mesh's projection: uniform scale from height, then the (scale, shift) that best
     overlaps the two silhouettes. Returns pixel coords (x, y) for any 3D points."""
-    u, v = pts @ right, pts @ UP
+    u, v = pts @ right, pts @ up
     ys, xs = np.nonzero(alpha > 127)
     top, bot = ys.min(), ys.max()
     s0 = (bot - top) / (v.max() - v.min())          # px per unit
@@ -87,7 +90,7 @@ def fit_view(pts, d, right, alpha):
     umed, vmax = np.median(u), v.max()
 
     def project(p):
-        return cx_img + shift + (p @ right - umed) * s, top + (vmax - p @ UP) * s
+        return cx_img + shift + (p @ right - umed) * s, top + (vmax - p @ up) * s
     return project, iou
 
 
@@ -168,8 +171,8 @@ def _paint(a):
     for spec in a.view:
         name, path = spec.split("=", 1)
         img = np.asarray(Image.open(path).convert("RGBA")).astype(np.float32)
-        d, right = view_axes(name)
-        project, iou = fit_view(mesh.vertices, d, right, img[:, :, 3])
+        d, right, up = view_axes(name)
+        project, iou = fit_view(mesh.vertices, d, right, img[:, :, 3], up)
         print(f"[paint] {name}: silhouette overlap {iou:.2f}", flush=True)
         h, w = img.shape[:2]
         sx, sy = project(samples)

@@ -38,6 +38,8 @@ export interface Tela3dOptions {
   octreeResolution?: number;
   faceLimit?: number;
   mcResolution?: number;
+  /** Keep only the biggest connected piece (sheet builds: stray bits of the background or the next view). */
+  keepLargest?: boolean;
 }
 
 export interface Tela3dResult {
@@ -135,8 +137,8 @@ export async function findRegions(image: Blob) {
   return data as { width: number; height: number; parts: { runs: number[]; score: number; stability: number }[]; seconds: number };
 }
 
-/** Which way a picture looked at the model: a named side, or a camera turned `yaw:<degrees>` about +Y from the front. */
-export type PaintViewName = 'front' | 'back' | 'left' | 'right' | `yaw:${number}`;
+/** Which way a picture looked at the model: a named side, the top-down plan, or a camera turned `yaw:<degrees>` about +Y. */
+export type PaintViewName = 'front' | 'back' | 'left' | 'right' | 'top' | `yaw:${number}`;
 
 /**
  * Paint a mesh from several views of the art (a character or prop sheet, or frames of a motion video): each texel takes
@@ -157,7 +159,9 @@ export async function paintFromViews(mesh: Blob, views: Partial<Record<PaintView
   if (!res.ok || !data?.glbBase64) throw new Error(data?.error || `Tela 3D answered ${res.status}`);
   const bytes = Uint8Array.from(atob(data.glbBase64), (c) => c.charCodeAt(0));
   const share = Number(/(\d+(?:\.\d+)?)%/.exec(String(data.painted ?? ''))?.[1] ?? NaN);
-  return { glb: new Blob([bytes], { type: 'model/gltf-binary' }), paintedShare: share / 100, ms: Math.round(performance.now() - t0) };
+  /** How well each view's outline matched the mesh (0–1); a low one means a wrong view or role. */
+  const overlap = (data.overlap ?? {}) as Record<string, number>;
+  return { glb: new Blob([bytes], { type: 'model/gltf-binary' }), paintedShare: share / 100, overlap, ms: Math.round(performance.now() - t0) };
 }
 
 /**

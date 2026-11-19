@@ -349,6 +349,10 @@ def image_to_mesh(task):
         mesh = mesh.dump(concatenate=True)
     if mesh.is_volume and mesh.volume < 0:
         mesh.invert()
+    if opts.get("keepLargest"):
+        pieces = mesh.split(only_watertight=False)
+        if len(pieces) > 1:
+            mesh = max(pieces, key=lambda m: len(m.faces))
     glb = mesh.export(file_type="glb")
     peak = torch.cuda.max_memory_allocated() // 2 ** 20 if DEVICE == "cuda" else 0
     return {
@@ -384,10 +388,16 @@ def paint_views(task):
         with contextlib.redirect_stdout(log):
             paint_from_views.paint(mesh_path, views, out, faces=int(task.get("faces") or 60000), res=int(task.get("res") or 2048),
                                    recenter=task.get("recenter", True), min_facing=float(task.get("minFacing") or 0))
-        painted = next((l for l in log.getvalue().splitlines() if "painted" in l), "")
+        lines = log.getvalue().splitlines()
+        painted = next((l for l in lines if "painted" in l), "")
+        overlap = {}
+        for l in lines:
+            if "silhouette overlap" in l:
+                name, val = l.replace("[paint]", "").split(": silhouette overlap")
+                overlap[name.strip()] = float(val)
         with open(out, "rb") as f:
             glb = f.read()
-    return {"success": True, "glbBase64": base64.b64encode(glb).decode("ascii"), "painted": painted.strip(),
+    return {"success": True, "glbBase64": base64.b64encode(glb).decode("ascii"), "painted": painted.strip(), "overlap": overlap,
             "executionTimeMs": int((time.time() - t0) * 1000)}
 
 
