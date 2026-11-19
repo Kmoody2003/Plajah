@@ -384,6 +384,63 @@ const ParcelMap: React.FC<{
   return <div ref={hostRef} className="w-full h-full" style={{ background: '#07080B' }} />;
 };
 
+// ─── Map key ─────────────────────────────────────────────────────────────────
+
+const KeyRow: React.FC<{ swatch: React.ReactNode; label: string; hint?: string }> = ({ swatch, label, hint }) => (
+  <div className="flex items-start gap-2 py-0.5">
+    <span className="w-8 shrink-0 flex items-center justify-center pt-1">{swatch}</span>
+    <span className="min-w-0">
+      <span className="block text-[10px] text-white/80 leading-tight">{label}</span>
+      {hint && <span className="block text-[9px] text-white/40 leading-tight">{hint}</span>}
+    </span>
+  </div>
+);
+const lineSwatch = (color: string, dashed = false, weight = 2.4) => (
+  <svg width="30" height="6" aria-hidden><line x1="1" y1="3" x2="29" y2="3" stroke={color} strokeWidth={weight} strokeDasharray={dashed ? '5 4' : undefined} /></svg>
+);
+
+/** What every line, chip and symbol on the map means. */
+const MapKey: React.FC<{ survey: ParcelSurvey | null; activeInfra: Set<InfraKind> }> = ({ survey, activeInfra }) => {
+  const [open, setOpen] = useState(true);
+  const infraOn = INFRA_LAYERS.filter(l => activeInfra.has(l.id));
+  return (
+    <div className="absolute left-3 bottom-8 z-[550] w-[250px] rounded-xl bg-[#0b0c10]/90 backdrop-blur border border-white/10 shadow-xl">
+      <button onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between px-3 py-2 text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white">
+        Map key <span className="text-white/30">{open ? 'Hide' : 'Show'}</span>
+      </button>
+      {open && (
+        <div className="px-3 pb-2.5 space-y-0.5 max-h-[46vh] overflow-y-auto custom-scrollbar">
+          {survey ? (
+            <>
+              <KeyRow swatch={lineSwatch(ACCENT)} label="Lot line, city parcel map" hint="City of Detroit GIS outline" />
+              {survey.fit
+                ? <KeyRow swatch={lineSwatch('#C9A6FF', true, 2)} label="Deed line, from the legal description" hint="The deed's bearings & distances, best-fit onto the map. Where it leaves the orange line, deed and map disagree." />
+                : <KeyRow swatch={<span className="text-[9px] text-white/30">none</span>} label="No deed line drawn" hint={survey.legal.hasMetesAndBounds ? 'The deed calls could not be run as a closed boundary.' : 'Platted lot: the deed names a lot on a recorded plat instead of giving bearings & distances.'} />}
+              <KeyRow swatch={<span className="text-[8px] font-mono font-bold px-1 rounded border border-[#FF8C00]/50 text-[#ffd9a8] bg-black/70 whitespace-nowrap">2·160′</span>} label="Side number · bearing · length" hint="Matches the Dimensions tab" />
+              <KeyRow swatch={<span className="text-[8px] font-mono font-bold px-1 rounded-full border border-white/25 text-white bg-black/70">90.3°</span>} label="Interior angle at the corner" />
+            </>
+          ) : (
+            <>
+              <KeyRow swatch={lineSwatch('rgba(255,236,214,0.66)', false, 1)} label="Parcel line, city parcel map" />
+              <KeyRow swatch={<span className="w-6 h-3 rounded-sm border-2" style={{ borderColor: ACCENT, background: `${ACCENT}4d` }} />} label="Selected parcel" hint="Open Survey for sides, angles and the deed line" />
+            </>
+          )}
+          <KeyRow swatch={lineSwatch('rgba(150,170,190,0.8)', false, 1.2)} label="Street centerline" hint="Orientation only, not the right-of-way line" />
+          {infraOn.map(l => (
+            <KeyRow key={l.id}
+              swatch={l.geom === 'point'
+                ? <span className="w-2.5 h-2.5 rounded-full border border-black" style={{ background: l.color }} />
+                : l.geom === 'line'
+                  ? lineSwatch(l.color, true, 3)
+                  : <span className="w-6 h-3 rounded-sm border border-dashed" style={{ borderColor: l.color, background: `${l.color}38` }} />}
+              label={l.label} hint={l.accuracy} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Inspector ───────────────────────────────────────────────────────────────
 
 const Row: React.FC<{ k: string; v: React.ReactNode }> = ({ k, v }) => (
@@ -1007,6 +1064,8 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
               <SearchPanel result={searchResult} busy={searchBusy} onPick={pickHit} onClose={() => setPanel('none')} />
             )}
             {panel === 'forsale' && <ForSalePanel onPick={pickHit} onClose={() => setPanel('none')} />}
+
+            <MapKey survey={surveyOpen ? survey : null} activeInfra={activeInfra} />
 
             {loading && (
               <div className="absolute top-3 left-1/2 -translate-x-1/2 z-[500] flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur border border-white/10 text-white/50 pointer-events-none">
