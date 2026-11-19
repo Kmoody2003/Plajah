@@ -167,6 +167,15 @@ def main():
                     c = a0 + int(np.argmin(dmin[a0:i])); pins[c] = float(oy[jmin[c]])
                     print(f"  {rd['name']}: crosses {oname} at {xz[c].round().tolist()}, pinned to {pins[c]:.2f} m (was ground {g[c]:.2f})")
                 i += 1
+        # T junctions: the joining road's samples inside the other road's footprint (its half-width + shoulder + 3 m) sit at that road's height, so
+        # the mouth is flush (only the end sample used to be pinned: the crest road ran up to 1 m under Finger Lake Loop's deck for its last 10 m)
+        halfs = {r["name"]: r["half"] for r in ROADS}
+        for key, ends in (("startOn", range(0, min(n, 8))), ("endOn", range(max(0, n - 8), n)), ("endFrom", range(max(0, n - 8), n))):
+            if key not in rd: continue
+            oxz, oy = done[rd[key]]; reach = halfs[rd[key]] + 1.6 + 3.0
+            for i in ends:
+                dd = np.hypot(oxz[:, 0] - xz[i, 0], oxz[:, 1] - xz[i, 1]); j = int(np.argmin(dd))
+                if dd[j] < reach: pins[i] = float(oy[j])
         pk = np.array(sorted(pins), int); pv = np.array([pins[k] for k in sorted(pins)])
         s = rd["grade"] * STEP
         # profile: highest line at or under the ground, lowest line no more than 7 m under it; ends pinned to the roads they join
