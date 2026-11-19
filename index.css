@@ -1767,6 +1767,26 @@ html.tv-nav body {
   text-shadow: 0 0 4px #07080B, 0 0 8px #07080B;
 }
 .leaflet-tooltip.terra-street-label::before { display: none; }
+/* Terra parcel survey: side dimensions + corner angles drawn on the map. */
+.leaflet-tooltip.terra-dim-label {
+  background: rgba(7, 8, 11, 0.82);
+  border: 1px solid rgba(255, 140, 0, 0.45);
+  border-radius: 4px;
+  box-shadow: none;
+  padding: 1px 4px;
+  color: #ffd9a8;
+  font: 700 9px/1.25 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+}
+.leaflet-tooltip.terra-dim-label::before { display: none; }
+.leaflet-tooltip.terra-dim-label.is-corner { border-color: rgba(255, 255, 255, 0.25); color: #fff; border-radius: 999px; padding: 0 4px; }
+.terra-infra-popup .leaflet-popup-content-wrapper,
+.terra-infra-popup .leaflet-popup-tip { background: #0b0c10; color: rgba(255, 255, 255, 0.8); border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5); }
+.terra-infra-popup .leaflet-popup-content { margin: 10px 12px; font-size: 11px; line-height: 1.45; }
+.terra-infra-pop b { display: block; font-size: 12px; margin-bottom: 2px; }
+.terra-infra-pop a { display: inline-block; margin-top: 4px; color: #4FC3D6; font-weight: 700; }
+.terra-infra-pop small { display: block; margin-top: 6px; color: rgba(255, 255, 255, 0.35); font-size: 9px; }
+.terra-infra-popup a.leaflet-popup-close-button { color: rgba(255, 255, 255, 0.5); }
 
 /* Settings pages: the shared SettingsPageHeader replaces each panel's own oversized heading. */
 .st-page > div > header:first-child,
