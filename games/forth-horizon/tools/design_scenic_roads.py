@@ -23,8 +23,6 @@ STEP = 4.0
 
 # name, surface, half width, design speed (km/h), grade limit, max bank, control points (x, z); the first and last points sit on the roads they join
 ROADS = [
-    {"name": "Mill Road", "surface": "paved", "half": 3.4, "speed": 70, "grade": 0.08, "bank": 0.05,
-     "cp": [(-1116, -4600), (-1220, -4880), (-1460, -5220), (-1780, -5580), (-2150, -5980)]},
     {"name": "Orchard Lane", "surface": "paved", "half": 3.4, "speed": 70, "grade": 0.08, "bank": 0.05,
      "cp": [(1068, -4600), (980, -4820), (820, -5020), (620, -5250), (430, -5500)]},
     # located with tools/route_pass.py (grade-limited search): giant forest -> valley between the two glaciated peaks -> saddle 431 m -> north shore,
@@ -36,6 +34,10 @@ ROADS = [
             (-5700, -8800), (-6000, -9000), (-6150, -9200), (-6250, -9400), (-6360, -9600), (-6370, -9800), (-6410, -10000), (-6480, -10200), (-6560, -10420),
             (-6600, -10600), (-6620, -10800), (-6630, -11000), (-6660, -11200), (-6730, -11400), (-6730, -11600), (-6630, -11800), (-6510, -12000), (-6520, -12200),
             (-6520, -12400), (-6530, -12600), (-6530, -12800), (-6500, -13000), (-6380, -13200), (-6300, -13450), (-6280, -13700), (-6260, -13900), (-6150, -14050)]},
+    # Mill Road used to run alongside the coast highway for its last ~80 m and end 2.5 m above it (a merge nobody pinned); it now turns north and meets the
+    # highway in a square T (~80 deg), pinned to its line and height. Listed after the highway so it can join it.
+    {"name": "Mill Road", "surface": "paved", "half": 3.4, "speed": 70, "grade": 0.08, "bank": 0.05, "endOn": "Superior Coast Highway",
+     "cp": [(-1116, -4600), (-1220, -4880), (-1460, -5220), (-1700, -5520), (-1790, -5640), (-1795, -5710), (-1770, -5780)]},
     {"name": "Finger Lake Loop", "surface": "paved", "half": 3.6, "speed": 80, "grade": 0.07, "bank": 0.06,
      "cp": [(-24, -4600), (150, -5050), (400, -5550), (580, -6100), (680, -6700), (720, -7300), (780, -7800), (900, -8120), (1150, -8240),
             (1600, -8250), (1850, -8100), (1950, -7600), (2100, -7000), (2300, -6500), (2500, -6100), (2750, -5750), (3100, -5300), (3550, -4900), (3840, -4600)]},
@@ -144,20 +146,39 @@ def main():
         if "endFrom" in rd: g[-1] = done[rd["endFrom"]][1][-1]                                  # a junction: meet the other road at its height
         if pin0 is not None: g[0] = pin0
         if pin1 is not None: g[-1] = pin1
+        # at-grade crossings: where this road crosses an already designed scenic road away from its own ends, it meets that road at its height
+        pins = {}
+        for oname, (oxz, oy) in done.items():
+            if oname in (rd.get("startOn"), rd.get("endOn"), rd.get("endFrom")): continue
+            dmin = np.full(n, 1e9); jmin = np.zeros(n, int)
+            for i in range(6, n - 6):
+                dd = np.hypot(oxz[:, 0] - xz[i, 0], oxz[:, 1] - xz[i, 1]); j = int(np.argmin(dd)); dmin[i] = dd[j]; jmin[i] = j
+            i = 6
+            while i < n - 6:
+                if dmin[i] < 2.5:
+                    a0 = i
+                    while i < n - 6 and dmin[i] < 2.5: i += 1
+                    c = a0 + int(np.argmin(dmin[a0:i])); pins[c] = float(oy[jmin[c]])
+                    print(f"  {rd['name']}: crosses {oname} at {xz[c].round().tolist()}, pinned to {pins[c]:.2f} m (was ground {g[c]:.2f})")
+                i += 1
+        pk = np.array(sorted(pins), int); pv = np.array([pins[k] for k in sorted(pins)])
         s = rd["grade"] * STEP
         # profile: highest line at or under the ground, lowest line no more than 7 m under it; ends pinned to the roads they join
-        hiL = gs.copy(); hiL[0] = g[0]; hiL[-1] = g[-1]
+        hiL = gs.copy(); hiL[0] = g[0]; hiL[-1] = g[-1]; hiL[pk] = pv
         for i in range(1, n): hiL[i] = min(hiL[i], hiL[i - 1] + s)
         for i in range(n - 2, -1, -1): hiL[i] = min(hiL[i], hiL[i + 1] + s)
-        lo = gs - rd.get("cut", 7.0); lo[0] = g[0]; lo[-1] = g[-1]          # how deep the road may cut (a cliff road is cut into the rock)
+        lo = gs - rd.get("cut", 7.0); lo[0] = g[0]; lo[-1] = g[-1]; lo[pk] = pv   # how deep the road may cut (a cliff road is cut into the rock)
         for i in range(1, n): lo[i] = max(lo[i], lo[i - 1] - s)
         for i in range(n - 2, -1, -1): lo[i] = max(lo[i], lo[i + 1] - s)
         y = np.maximum(hiL, lo)
         # vertical curves: round the crests and sags over ~60 m, then hold the grade limit again
         for _ in range(3):
-            y = gaussian_filter1d(y, 7); y[0] = g[0]; y[-1] = g[-1]
-            for i in range(1, n - 1): y[i] = min(max(y[i], y[i - 1] - s), y[i - 1] + s)       # the ends stay pinned to the roads they join
-            for i in range(n - 2, 0, -1): y[i] = min(max(y[i], y[i + 1] - s), y[i + 1] + s)
+            y = gaussian_filter1d(y, 7); y[0] = g[0]; y[-1] = g[-1]; y[pk] = pv
+            fixed = np.zeros(n, bool); fixed[pk] = True
+            for i in range(1, n - 1):
+                if not fixed[i]: y[i] = min(max(y[i], y[i - 1] - s), y[i - 1] + s)       # the ends (and crossings) stay pinned to the roads they meet
+            for i in range(n - 2, 0, -1):
+                if not fixed[i]: y[i] = min(max(y[i], y[i + 1] - s), y[i + 1] + s)
         # curvature and banking
         d1 = np.gradient(xz, axis=0) / STEP; d2 = np.gradient(d1, axis=0) / STEP
         k = (d1[:, 0] * d2[:, 1] - d1[:, 1] * d2[:, 0]) / np.maximum(1e-6, (d1 ** 2).sum(1) ** 1.5)
