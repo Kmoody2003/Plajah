@@ -250,7 +250,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
   const [isShuffle, setIsShuffle] = useState(false);
   const [repeatMode, setRepeatMode] = useState<'off' | 'all' | 'one'>('all');
 
-  const [showComments, setShowComments] = useState(activeContext !== 'TALEO');
+  const [showComments, setShowComments] = useState(false);
   const [commentsList, setCommentsList] = useState<any[]>([]);
   const [commentInput, setCommentInput] = useState('');
   const [isPostingComment, setIsPostingComment] = useState(false);
