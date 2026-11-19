@@ -10,7 +10,7 @@
  * main piece only → paint it from every view (tela-3d /tela3d/paint-views) → check each view's outline overlap.
  */
 
-import { imageToModel, paintFromViews, PaintViewName } from '../../tela/tela3dService';
+import { imageToModel, paintFromViews, reshapeFromViews, type PaintViewName, type ReshapeReport } from '../../tela/tela3dService';
 
 export type SheetRole = 'front' | 'left' | 'right' | 'back' | 'top' | 'profile' | 'detail';
 
@@ -197,11 +197,17 @@ export interface SheetBuildOptions {
   textureSize?: number;
   /** Views whose silhouette overlap falls below this are reported (and listed in `weak`). */
   minOverlap?: number;
+  /** Reshape the generated shape to every view's outline and depth (default on). */
+  shapeFromArt?: boolean;
   onStage?: (label: string) => void;
 }
 
 export interface SheetBuild {
   glb: Blob;
+  /** The generator's shape (front view only) and the body after geometry-from-the-art, both unpainted. */
+  shape: Blob;
+  body: Blob;
+  geometry?: ReshapeReport;
   figures: SheetFigure[];
   cutouts: Partial<Record<SheetRole, Blob>>;
   paintedShare: number;
@@ -225,12 +231,22 @@ export async function buildFromSheet(sheet: Blob, options: SheetBuildOptions = {
   for (const [role, r] of Object.entries(cut)) cutouts[role as SheetRole] = await rasterToPng(r!);
   stage('Generating the shape from the ' + from + ' view');
   const shape = await imageToModel(cutouts[from]!, 'hunyuan_mini', { quality: 'detail', octreeResolution: 380, steps: 5, faceLimit: 300000, keepLargest: true });
-  stage('Painting it from every view');
   const views: Partial<Record<PaintViewName, Blob>> = {};
   for (const role of ['front', 'back', 'left', 'right', 'top'] as const) if (cutouts[role]) views[role] = cutouts[role];
   // a sheet without a back: the mirrored front is the right outline and, for thin symmetric parts, the right paint
-  if (!views.back && cut.front) views.back = await rasterToPng(cut.front, true);
-  const paint = (v: typeof views) => paintFromViews(shape.glb, v, { faces: options.faces ?? 60000, res: options.textureSize ?? 2048 });
+  const mirroredBack = !views.back && !!cut.front;
+  if (mirroredBack) views.back = await rasterToPng(cut.front!, true);
+  // The generator only saw one view. Every other view is a measurement: reshape the shape to all of them.
+  let body = shape.glb;
+  let geometry: ReshapeReport | undefined;
+  if (options.shapeFromArt !== false) {
+    stage('Reading the geometry from every view (outlines + depth)');
+    const r = await reshapeFromViews(shape.glb, views, { outlineOnly: mirroredBack ? ['back'] : [], shapeFrom: from, minOverlap: options.minOverlap ?? 0.6, faces: 200000 });
+    body = r.glb;
+    geometry = r.report;
+  }
+  stage('Painting it from every view');
+  const paint = (v: typeof views) => paintFromViews(body, v, { faces: options.faces ?? 60000, res: options.textureSize ?? 2048 });
   let painted = await paint(views);
   const min = options.minOverlap ?? 0.6;
   const weakNames = Object.entries(painted.overlap).filter(([k, v]) => v < min && k !== from).map(([k]) => k);
@@ -244,5 +260,5 @@ export async function buildFromSheet(sheet: Blob, options: SheetBuildOptions = {
     painted = await paint(views);
     painted.overlap = { ...first, ...painted.overlap };
   }
-  return { glb: painted.glb, figures, cutouts, paintedShare: painted.paintedShare, overlap: painted.overlap, weak, seconds: (performance.now() - t0) / 1000 };
+  return { glb: painted.glb, shape: shape.glb, body, geometry, figures, cutouts, paintedShare: painted.paintedShare, overlap: painted.overlap, weak, seconds: (performance.now() - t0) / 1000 };
 }

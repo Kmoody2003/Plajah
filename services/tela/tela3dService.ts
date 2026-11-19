@@ -164,6 +164,48 @@ export async function paintFromViews(mesh: Blob, views: Partial<Record<PaintView
   return { glb: new Blob([bytes], { type: 'model/gltf-binary' }), paintedShare: share / 100, overlap, ms: Math.round(performance.now() - t0) };
 }
 
+export interface ReshapeReport {
+  views: Record<string, { overlapBefore: number; overlapAfter?: number; skipped?: boolean; filledToArt?: number; carved?: number; extruded?: number; reliefMm?: number }>;
+  /** Depth (Z) stretch measured from the side and plan views, and each view's own estimate. */
+  depthScale: number;
+  depthEstimates: Record<string, number>;
+  groups: Record<string, { views: string[]; cut: number; skipped?: boolean }>;
+  outlineCut: number;
+  grown: number;
+  /** Share of the final surface that is the generator's own (unchanged) surface. */
+  snapped: number;
+  volumeChange: number;
+  faces: number;
+  voxel: number;
+}
+
+/**
+ * Geometry from the art. The generator saw one view; every other view on the sheet is a measurement:
+ * - proportions: the depth the side and plan views measure (median of their estimates);
+ * - outlines, by vote: views along the same axis must agree before anything is cut (generated sheets aren't to one scale);
+ * - parts the outlines show but the shape dropped are grown in;
+ * - sunken areas are raised to the drawn surface (Depth Anything V2's broad relief at the shape's outer envelope);
+ * - each view's fine relief (logs, trims, recesses) from the same vision model is extruded / carved, except on the view
+ *   the shape came from (`shapeFrom`), whose detail the generator already has; the generator's surface is kept wherever
+ *   nothing changed. `outlineOnly` views shape the outline but not the relief (a mirrored front standing in for a back).
+ */
+export async function reshapeFromViews(mesh: Blob, views: Partial<Record<PaintViewName, Blob | string>>, options: { outlineOnly?: string[]; shapeFrom?: string; res?: number; faces?: number; grow?: number; relief?: number; fillToArt?: number; minOverlap?: number; depth?: boolean } = {}) {
+  const status = await ensureTela3d();
+  if (!status.online) throw new Error(status.detail);
+  const t0 = performance.now();
+  const viewData: Record<string, string> = {};
+  for (const [name, v] of Object.entries(views)) if (v) viewData[name] = typeof v === 'string' ? v : await blobToDataUrl(v);
+  const res = await fetch(`${TELA3D_URL}/tela3d/reshape-views`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task: { mesh: await blobToDataUrl(mesh), views: viewData, ...options } }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data?.glbBase64) throw new Error(data?.error || `Tela 3D answered ${res.status}`);
+  const bytes = Uint8Array.from(atob(data.glbBase64), (c) => c.charCodeAt(0));
+  return { glb: new Blob([bytes], { type: 'model/gltf-binary' }), report: data.report as ReshapeReport, log: (data.log ?? []) as string[], ms: Math.round(performance.now() - t0) };
+}
+
 /**
  * Let go of the resident model after a batch. `exit` also shuts the engine down: Windows keeps the commit of a big weights
  * load (~12 GB) until the process ends, and ensureTela3d starts it again on the next job.

@@ -401,6 +401,42 @@ def paint_views(task):
             "executionTimeMs": int((time.time() - t0) * 1000)}
 
 
+def reshape_views(task):
+    """Geometry from the art (art_geometry.py): depth re-proportioned from the side and plan views, carved to the
+    outlines by vote, grown into parts the outlines show, raised to the drawn surface where the generator left it sunken,
+    then carved / extruded by each view's relief as Depth Anything reads it; the generator's own surface is kept where
+    nothing changed. task: {mesh: glb base64, views: {front|back|left|right|top: data URL}, outlineOnly?: [names],
+    shapeFrom?, res?, faces?, grow?, relief?, fillToArt?, minOverlap?, depth?} -> {glbBase64, report}"""
+    import tempfile, io, contextlib
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import art_geometry
+    t0 = time.time()
+    with tempfile.TemporaryDirectory() as tmp:
+        mesh_path = os.path.join(tmp, "in.glb")
+        with open(mesh_path, "wb") as f:
+            f.write(base64.b64decode(task["mesh"].split(",")[-1]))
+        views = {}
+        for name, data in (task.get("views") or {}).items():
+            path = os.path.join(tmp, name.replace(":", "_") + ".png")
+            decode_image(data).save(path)
+            views[name] = path
+        if not views:
+            raise ValueError("reshape-views needs at least one view")
+        out = os.path.join(tmp, "out.glb")
+        log = io.StringIO()
+        with contextlib.redirect_stdout(log):
+            report = art_geometry.reshape(mesh_path, views, out, res=int(task.get("res") or 288), faces=int(task.get("faces") or 200000),
+                                          grow=float(task.get("grow", 0.04)), relief=float(task.get("relief", 0.02)),
+                                          fill_to_art=float(task.get("fillToArt", 0.3)), min_overlap=float(task.get("minOverlap", 0.6)),
+                                          use_depth=task.get("depth", True), outline_only=tuple(task.get("outlineOnly") or ()),
+                                          shape_from=str(task.get("shapeFrom") or "front"))
+        with open(out, "rb") as f:
+            glb = f.read()
+    print(log.getvalue(), flush=True)
+    return {"success": True, "glbBase64": base64.b64encode(glb).decode("ascii"), "report": report, "log": log.getvalue().splitlines(),
+            "executionTimeMs": int((time.time() - t0) * 1000)}
+
+
 def release(task):
     """Let go of the resident model and its memory after a batch. With {exit: true} the engine also shuts down
     (the app or the lab starts it again on demand): Windows keeps the commit of a big weights load until the process ends."""
@@ -512,7 +548,7 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length") or 0)
             body = json.loads(self.rfile.read(length) or b"{}")
             routes = {"/tela3d/image-to-mesh": image_to_mesh, "/api/tela3d/image-to-mesh": image_to_mesh, "/tela3d/parts": find_parts,
-                      "/tela3d/paint-views": paint_views, "/tela3d/release": release}
+                      "/tela3d/paint-views": paint_views, "/tela3d/reshape-views": reshape_views, "/tela3d/release": release}
             if self.path not in routes:
                 return self._send(404, {"error": "not found"})
             # One job at a time: a queue of GPU jobs is what overheated the laptop before.

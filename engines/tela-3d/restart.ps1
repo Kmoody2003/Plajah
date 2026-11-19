@@ -5,7 +5,7 @@ param([int]$Port = 51124)
 $root = 'D:\Plajah Runtime'
 $dst = "$root\engines\tela-3d"
 New-Item -ItemType Directory -Force $dst | Out-Null
-Copy-Item "$PSScriptRoot\tela3d_runtime.py", "$PSScriptRoot\fetch_weights.py", "$PSScriptRoot\uv_raster.py", "$PSScriptRoot\paint_from_views.py" $dst -Force
+Copy-Item "$PSScriptRoot\tela3d_runtime.py", "$PSScriptRoot\fetch_weights.py", "$PSScriptRoot\uv_raster.py", "$PSScriptRoot\paint_from_views.py", "$PSScriptRoot\art_geometry.py" $dst -Force
 Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'tela3d_runtime\.py' -and $_.Name -eq 'python.exe' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 $env:HF_HOME = "$root\cache\hf"; $env:TMP = "$root\tmp"; $env:TEMP = "$root\tmp"; $env:PYTHONUNBUFFERED = '1'; $env:PYTHONIOENCODING = 'utf-8'
 Start-Process -FilePath "$root\tela3d-py\Scripts\python.exe" -ArgumentList @('-u', '-W', 'ignore', "`"$dst\tela3d_runtime.py`"", '--port', $Port) -WorkingDirectory $dst -WindowStyle Hidden -RedirectStandardOutput "$root\tela3d_runtime.log" -RedirectStandardError "$root\tela3d_runtime.err.log"

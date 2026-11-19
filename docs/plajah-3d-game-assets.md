@@ -68,3 +68,21 @@ for enterable structures, and **21 tiling 2048² photo textures** (+ v3's normal
   `top` view, per-view overlap report, `keepLargest`. Proven on CF-03 Outpost Cabin in the lab: 193 s, front 0.86 / back
   0.74 / left 0.75 / right 0.81; the top slot was the floor-plan drawing (0.58) and was dropped automatically.
   Still solid: no interior yet (enterable structures take the Blender interior next).
+- **B2 geometry from the art** (Kenne: "an extra step that extrudes and models meshes from a vision model understanding
+  the geometry from the art, from depth and visual intelligence") — `engines/tela-3d/art_geometry.py`,
+  `/tela3d/reshape-views`, `reshapeFromViews`, on by default in `buildFromSheet` between generate and paint. The generator
+  saw one view; every other view is a measurement, applied in a voxel grid:
+  0. proportions: the depth the side views and the plan measure (median, clamped) — the cabin came out ×1.34 deeper,
+     the three estimates agreeing (1.30 / 1.40 / 1.34);
+  1. outlines by vote: front+back, left+right, plan each must agree before anything is cut, and a group that would cut
+     >22% is a different drawing and skipped (generated sheets are not to one scale: the cabin's back is drawn 12%
+     narrower than its front, its side views show the roof from above);
+  2. grow into outline the shape dropped;
+  3. Depth Anything V2 (local ONNX): broad relief at the shape's outer envelope raises what the generator left sunken
+     (the cabin's caved-in back), carrying the generator's own log grooves onto it; fine relief (±2% of depth) extruded /
+     carved from every view except the one the shape came from;
+  4. marching cubes, then every vertex near the generator's untouched surface snaps back to it (its crisp detail).
+  Hole-tolerant solid fill (three-axis span vote) because generated meshes aren't watertight.
+  Cabin: side outline match 0.72/0.74 → 0.84/0.92, back 0.85, front kept 0.93+, caved-in back filled.
+  Next in B2: SAM parts + Gemma naming so each part (roof plane, post, ladder, chimney) gets its own rule (planar roof,
+  cylinder logs, thin ladder rails) instead of one voxel treatment.
