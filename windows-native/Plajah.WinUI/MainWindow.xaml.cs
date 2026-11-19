@@ -309,6 +309,13 @@ public sealed partial class MainWindow : Window
                             return;
                         }
 
+                        // Wide-format playback: convert MKV/AVI/WMV/HEVC/AC-3/WMA… to a cached MP4/M4A.
+                        if (reqUri.AbsolutePath.Equals("/__playable", StringComparison.OrdinalIgnoreCase))
+                        {
+                            ServePlayableStatus(core, args, reqUri);
+                            return;
+                        }
+
                         // Off the UI thread: path checks, file opens and small-file reads all run on the
                         // thread pool, so a grid of hundreds of photos never stalls window drag or clicks.
                         ServeLocalMedia(core, args, reqUri);
@@ -2669,7 +2676,36 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
-            deferral.Complete();
+            try { deferral.Complete(); } catch { }
+        }
+    }
+
+    /// <summary>GET /__playable?path=… — start or report a wide-format conversion (see LocalPlayableService).</summary>
+    private async void ServePlayableStatus(CoreWebView2 core, CoreWebView2WebResourceRequestedEventArgs args, Uri reqUri)
+    {
+        var deferral = args.GetDeferral();
+        try
+        {
+            string? path = null;
+            foreach (var part in reqUri.Query.TrimStart('?').Split('&'))
+            {
+                var kv = part.Split('=', 2);
+                if (kv.Length == 2 && kv[0].Equals("path", StringComparison.OrdinalIgnoreCase)) path = Uri.UnescapeDataString(kv[1]);
+            }
+            var json = await System.Threading.Tasks.Task.Run(() => LocalPlayableService.StatusJson(path));
+            var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+            args.Response = core.Environment.CreateWebResourceResponse(
+                new MemoryStream(bytes, writable: false).AsRandomAccessStream(), 200, "OK",
+                $"Content-Type: application/json\r\nContent-Length: {bytes.Length}\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-store");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Playable] {ex.Message}");
+            try { args.Response = core.Environment.CreateWebResourceResponse(null, 500, "Playable Failed", "Access-Control-Allow-Origin: *"); } catch { }
+        }
+        finally
+        {
+            try { deferral.Complete(); } catch { }
         }
     }
 
@@ -2718,6 +2754,10 @@ public sealed partial class MainWindow : Window
     // from a FileStream through the UI thread. Bigger reads (long video ranges) stream from disk.
     private const long InMemoryMediaMaxBytes = 48L * 1024 * 1024;
 
+    // Largest single answer to a Range request. Small enough that a dozen in flight (grid hovers + the stage)
+    // stay well under 100 MB, big enough that 4K video needs only a few requests per second.
+    private const long MediaRangeChunkBytes = 8L * 1024 * 1024;
+
     private sealed class LocalMediaPlan
     {
         public int Status;
@@ -2748,7 +2788,9 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
-            deferral.Complete();
+            // The player cancels requests constantly while seeking; completing a cancelled request can throw,
+            // and this is an async void — an escape here closes the app.
+            try { deferral.Complete(); } catch { }
         }
     }
 
@@ -2793,34 +2835,47 @@ public sealed partial class MainWindow : Window
         var mime = WindowsFileExplorerService.GetMimeType(fi.Extension);
         var fileLength = fi.Length;
 
-        if (!string.IsNullOrEmpty(rangeHeader) && rangeHeader.StartsWith("bytes="))
+        if (!string.IsNullOrEmpty(rangeHeader) && rangeHeader.StartsWith("bytes=") && fileLength > 0)
         {
-            var parts = rangeHeader.Substring("bytes=".Length).Trim().Split('-');
+            // Only the first range of a multi-range request is honoured (media players never ask for more).
+            var spec = rangeHeader.Substring("bytes=".Length).Split(',')[0].Trim();
+            var parts = spec.Split('-', 2);
             long start = 0, end = fileLength - 1;
-            if (long.TryParse(parts[0], out var s)) start = s;
-            if (parts.Length > 1 && long.TryParse(parts[1], out var e)) end = e;
-
-            if (start >= fileLength)
-                return new LocalMediaPlan { Status = 416, Reason = "Range Not Satisfiable", Headers = $"Content-Range: bytes */{fileLength}\r\nAccess-Control-Allow-Origin: *" };
-
-            end = Math.Min(end, fileLength - 1);
-            long length = end - start + 1;
-            Stream body;
-            if (length <= InMemoryMediaMaxBytes)
+            if (parts[0].Length == 0)
             {
-                var buf = new byte[length];
-                using (var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16))
-                {
-                    fs.Seek(start, SeekOrigin.Begin);
-                    fs.ReadExactly(buf, 0, (int)length);
-                }
-                body = new MemoryStream(buf, writable: false);
+                // Suffix range "bytes=-N": the last N bytes (MP4 players use it to find a trailing moov atom).
+                if (parts.Length > 1 && long.TryParse(parts[1], out var suffix) && suffix > 0)
+                    start = Math.Max(0, fileLength - suffix);
             }
             else
             {
-                var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16);
-                body = new SlicedStream(fs, start, length);
+                if (long.TryParse(parts[0], out var s)) start = s;
+                if (parts.Length > 1 && long.TryParse(parts[1], out var e)) end = e;
             }
+
+            if (start >= fileLength || start < 0 || end < start)
+                return new LocalMediaPlan { Status = 416, Reason = "Range Not Satisfiable", Headers = $"Content-Range: bytes */{fileLength}\r\nAccess-Control-Allow-Origin: *" };
+
+            // A video player's first request is an open-ended "bytes=0-". Answering it with the whole file made
+            // WebView2 pull gigabytes through this process and die with 0xE0000008 (Chromium's out-of-memory
+            // code) — the "opened a video in Plajah Files and the app closed" crash. Serve at most one chunk;
+            // the Content-Range tells the player where it ends and it simply asks for the next one.
+            end = Math.Min(Math.Min(end, fileLength - 1), start + MediaRangeChunkBytes - 1);
+            long length = end - start + 1;
+            var buf = new byte[length];
+            using (var fs = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16))
+            {
+                fs.Seek(start, SeekOrigin.Begin);
+                var got = 0;
+                while (got < length)
+                {
+                    var n = fs.Read(buf, got, (int)(length - got));
+                    if (n <= 0) break; // file shrank while we read: send what exists
+                    got += n;
+                }
+                if (got < length) { length = got; end = start + got - 1; Array.Resize(ref buf, got); }
+            }
+            Stream body = new MemoryStream(buf, writable: false);
             return new LocalMediaPlan
             {
                 Status = 206, Reason = "Partial Content", Body = body,

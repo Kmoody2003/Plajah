@@ -30,7 +30,7 @@ import {
   Play, Clock, Store, ShoppingBag, Megaphone, DollarSign,
   ShieldCheck, Presentation, Compass, Check, FileText,
   UserCheck, Heart, Headphones, Share2, Mail, ExternalLink,
-  Briefcase, User, Camera, Home
+  Briefcase, User, Camera, Home, FolderOpen
 } from 'lucide-react';
 import type { UserProfile, Album, BusinessPage } from '../types';
 import { fetchUserAlbums } from '../services/backendService';
@@ -352,6 +352,16 @@ export const DesktopLauncherOverlay: React.FC<DesktopLauncherOverlayProps> = ({
             </div>
 
             <div className="flex items-center gap-2.5">
+              {/* PLAJAH FILES — one click to this PC's files, drives, cloud and HQ */}
+              <button
+                onClick={() => onNavigate('PLAJAH_DRIVE')}
+                className="flex items-center gap-2 text-xs font-black uppercase tracking-wider px-4 py-2 rounded-full backdrop-blur-md transition-all border shadow-lg bg-amber-500 hover:bg-amber-400 text-black border-amber-300/60 active:scale-[0.98]"
+                title="Open Plajah Files — this PC, drives, cloud and Content HQ"
+              >
+                <FolderOpen size={14} />
+                <span>Plajah Files</span>
+              </button>
+
               {/* DESKTOP SIGN IN / ACCOUNT BUTTON */}
               <button
                 onClick={() => setIsAuthModalOpen(true)}

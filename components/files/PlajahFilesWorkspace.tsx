@@ -283,6 +283,17 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
   }, [clearHoverTimers]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // blob: URLs minted for the browser (File System Access) listing; released when the folder changes.
+  // Only released on leaving the folder, so a refresh (rename, new folder) never breaks a file that is playing.
+  const webObjectUrlsRef = useRef<{ path: string; urls: string[] }>({ path: '', urls: [] });
+  const releaseWebObjectUrls = useCallback((keepForPath?: string) => {
+    if (keepForPath !== undefined && webObjectUrlsRef.current.path === keepForPath) return;
+    for (const u of webObjectUrlsRef.current.urls) {
+      try { URL.revokeObjectURL(u); } catch { /* ignore */ }
+    }
+    webObjectUrlsRef.current = { path: keepForPath ?? '', urls: [] };
+  }, []);
+  useEffect(() => () => releaseWebObjectUrls(), [releaseWebObjectUrls]);
 
   const flash = useCallback((msg: string) => {
     setTransferToast(msg);
@@ -396,7 +407,9 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
           // Web File System Access API fallback
           const handle = webDirHandles.get(active.path);
           if (handle) {
+            releaseWebObjectUrls(active.path);
             const list: UnifiedEntry[] = [];
+            const subDirs: Array<[string, any]> = [];
             for await (const [name, entry] of handle.entries()) {
               const p = `${active.path}/${name}`;
               const isDir = entry.kind === 'directory';
@@ -411,6 +424,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
                   lastModified = file.lastModified;
                   mimeType = file.type || undefined;
                   streamUrl = URL.createObjectURL(file);
+                  webObjectUrlsRef.current.urls.push(streamUrl);
                 } catch { /* ignore */ }
               }
               list.push({
@@ -427,10 +441,10 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
                 streamUrl,
                 downloadUrl: streamUrl,
               });
-              if (isDir) {
-                setWebDirHandles(m => new Map(m).set(p, entry));
-              }
+              if (isDir) subDirs.push([p, entry]);
             }
+            // One state update for all sub-folders instead of a new Map per folder.
+            if (subDirs.length) setWebDirHandles(m => { const n = new Map(m); for (const [p, h] of subDirs) n.set(p, h); return n; });
             setEntries(list);
           }
         }
@@ -478,7 +492,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
         setLoading(false);
       }
     }
-  }, [active, recursiveSearch, searchQuery, webDirHandles]);
+  }, [active, recursiveSearch, searchQuery, webDirHandles, releaseWebObjectUrls]);
 
   useEffect(() => {
     refreshCurrentDir();

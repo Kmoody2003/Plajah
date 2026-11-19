@@ -4,6 +4,7 @@
 // render instantaneously and can escalate to NativePhotoViewer or ReelloUniversalVideoPlayer on demand.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePlayableSource } from './usePlayableSource';
 import {
   Archive,
   ChevronLeft,
@@ -145,6 +146,32 @@ function fmtClock(sec: number): string {
     : `${m}:${String(s).padStart(2, '0')}`;
 }
 
+/** Progress / error card shown while the Windows app converts an unsupported format for playback. */
+function PlayableOverlay({ playable }: { playable: ReturnType<typeof usePlayableSource> }) {
+  if (!playable.converting && !playable.error) return null;
+  const pct = Math.round(playable.progress * 100);
+  return (
+    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <div className="pointer-events-auto max-w-sm w-[85%] rounded-2xl bg-black/80 border border-white/15 px-4 py-3 text-center shadow-2xl">
+        {playable.converting ? (
+          <>
+            <div className="text-xs font-semibold text-white">
+              {playable.mode === 'transcode' ? 'Converting this format for playback' : 'Preparing this format for playback'}
+              {pct > 0 ? ' · ' + pct + '%' : '…'}
+            </div>
+            <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div className="h-full bg-amber-400 transition-[width] duration-300" style={{ width: Math.max(4, pct) + '%' }} />
+            </div>
+            <div className="mt-1.5 text-[10px] text-white/50">Done once — the converted copy is cached on this PC.</div>
+          </>
+        ) : (
+          <div className="text-xs text-rose-200">{playable.error}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function resolveKind(item: StageMediaItem): UnifiedMediaKind {
   if (item.mediaKind && item.mediaKind !== 'UNKNOWN') {
     if (item.mediaKind === 'IMAGE' || item.mediaKind === 'VIDEO' || item.mediaKind === 'AUDIO' || item.mediaKind === 'DOC' || item.mediaKind === 'ARCHIVE' || item.mediaKind === 'OTHER') {
@@ -183,6 +210,8 @@ export const PlajahMediaStage: React.FC<PlajahMediaStageProps> = ({
   const current = items[currentIdx] || activeItem;
   const kind = useMemo(() => resolveKind(current), [current]);
   const ext = useMemo(() => extractExtension(current.name), [current.name]);
+  // Wide-format playback: unsupported containers/codecs are converted by the Windows app's ffmpeg.
+  const playable = usePlayableSource(current, kind === 'VIDEO' || kind === 'AUDIO');
 
   // Chrome toggles
   const [showPlaylist, setShowPlaylist] = useState(mode !== 'embedded' && items.length > 1);
@@ -297,10 +326,11 @@ export const PlajahMediaStage: React.FC<PlajahMediaStageProps> = ({
     } else {
       clearNowPlaying();
     }
-    return () => {
-      clearNowPlaying();
-    };
-  }, [kind, current.name, current.folderPath, playing, Math.floor(currentTime), Math.floor(duration)]);
+    // Position is pushed every 5 s, not every second, and Now Playing is cleared only when the stage
+    // closes (below) — clearing and re-setting it each tick hammered the native bridge during playback.
+  }, [kind, current.name, current.folderPath, playing, Math.floor(currentTime / 5), Math.floor(duration)]);
+
+  useEffect(() => () => { if (isWindowsApp()) clearNowPlaying(); }, []);
 
   // Load text/code or zip preview on DOC/ARCHIVE selection
   useEffect(() => {
@@ -786,12 +816,14 @@ export const PlajahMediaStage: React.FC<PlajahMediaStageProps> = ({
               <div className="flex-1 min-h-0 relative flex items-center justify-center overflow-hidden p-2">
                 <video
                   ref={el => { mediaRef.current = el; }}
-                  key={current.url}
-                  src={current.url}
+                  key={playable.src || current.url}
+                  src={playable.src || undefined}
                   autoPlay
+                  preload="auto"
                   loop={repeat}
                   muted={muted}
                   playsInline
+                  onError={playable.onMediaError}
                   style={{ filter: lookCss }}
                   onClick={togglePlay}
                   onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime)}
@@ -808,6 +840,7 @@ export const PlajahMediaStage: React.FC<PlajahMediaStageProps> = ({
                   }}
                   className="max-w-full max-h-full rounded-lg cursor-pointer"
                 />
+                <PlayableOverlay playable={playable} />
               </div>
 
               {/* Unified Video Transport Bar */}
@@ -935,13 +968,14 @@ export const PlajahMediaStage: React.FC<PlajahMediaStageProps> = ({
                     if (an && an !== audioAnalyser) setAudioAnalyser(an);
                   }
                 }}
-                key={current.url}
-                src={current.url}
+                key={playable.src || current.url}
+                src={playable.src || undefined}
+                onError={playable.onMediaError}
                 crossOrigin={
-                  current.url &&
-                  (current.url.startsWith('blob:') ||
-                    current.url.startsWith('https://localmedia.plajah') ||
-                    (typeof window !== 'undefined' && current.url.startsWith(window.location.origin)))
+                  playable.src &&
+                  (playable.src.startsWith('blob:') ||
+                    playable.src.startsWith('https://localmedia.plajah') ||
+                    (typeof window !== 'undefined' && playable.src.startsWith(window.location.origin)))
                     ? 'anonymous'
                     : undefined
                 }
@@ -989,6 +1023,9 @@ export const PlajahMediaStage: React.FC<PlajahMediaStageProps> = ({
                 />
               </div>
 
+              {(playable.converting || playable.error) && (
+                <div className="relative w-full max-w-lg h-24 mb-3"><PlayableOverlay playable={playable} /></div>
+              )}
               <h3 className="text-lg font-bold text-center max-w-md truncate">{current.name.replace(/\.[^/.]+$/, '')}</h3>
               <p className="text-xs text-orange-200/60 font-mono mb-4">
                 CHORA DECK · {ext.toUpperCase() || 'AUDIO'} {current.size ? `• ${formatBytes(current.size)}` : ''}
