@@ -3,6 +3,9 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { gridSrc } from '../services/imageDerivatives';
 import { Photo, UserProfile, PhotoGallery } from '../types';
 import { useContextMenu, type MenuNode } from './ui/ContextMenu';
+import ShowStudioHost from './photo/show/ShowStudioHost';
+import { sendToShowNode, useRecentShows } from './photo/show/sendToShowMenu';
+import { sendToShow, toSendItems } from '../services/slideshow/sendTo';
 import AnchoredPopover from './ui/AnchoredPopover';
 import PageHeader from './PageHeader';
 import { 
@@ -218,6 +221,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
   const [windowsLibraryLoading, setWindowsLibraryLoading] = useState(false);
   const [windowsFilterQuery, setWindowsFilterQuery] = useState('');
   const [windowsActiveSubfolder, setWindowsActiveSubfolder] = useState<string | null>(null);
+  const [recentShowsList] = useRecentShows();
 
   // Sync props if external file activation arrives
   useEffect(() => {
@@ -345,6 +349,14 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
     }));
   }, [filteredWindowsFiles]);
 
+  // Every image in a folder of the mirrored library (null = all) — "send folder to a slideshow"
+  const localFolderPhotos = useCallback((sub: string | null): Photo[] => {
+    const files = sub ? windowsLibraryFiles.filter(f => (f.relativePath || f.fullPath).toLowerCase().includes(sub.toLowerCase())) : windowsLibraryFiles;
+    return files
+      .filter(f => !/\.(mp4|mov|webm|mkv|m4v|avi|mp3|wav|flac|m4a)$/i.test(f.name))
+      .map((file, idx) => ({ id: file.fullPath || file.url || `local_media_${idx}`, url: file.url, title: file.name, description: file.fullPath || file.name, ownerId: 'local', timestamp: file.lastModified || Date.now(), mediaType: 'IMAGE', tags: [] } as Photo));
+  }, [windowsLibraryFiles]);
+
   useEffect(() => {
     const loadData = async () => {
       if (mode === 'WINDOWS_PHOTOS') { setIsLoading(false); return; }
@@ -466,6 +478,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
       { id: 'photog', label: 'View photographer', onSelect: (p) => openPhotographerRoom(p.ownerId, p) },
     ];
     if (photo.ownerId === uid) items.push({ kind: 'separator' }, { id: 'edit', label: 'Edit', onSelect: (p) => setEditingPhoto(p) });
+    if (photo.mediaType !== 'VIDEO') items.push({ kind: 'separator' }, sendToShowNode<Photo>(recentShowsList, 1, (t, p) => sendToShow(toSendItems([p]), t, 'photos-library')));
     return items;
   });
 
@@ -584,6 +597,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
       ) : (
         <PhotoCatalogWorkspace
           photos={localPhotos}
+          folderPhotos={localFolderPhotos}
           initialView="catalog"
           onEdit={(photo) => {
             const found = windowsLibraryFiles.find(f => (f.fullPath || f.url) === photo.id || f.url === photo.url);
@@ -632,6 +646,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
         ) : mode === 'CATALOG' || mode === 'SPATIAL' ? (
           <PhotoCatalogWorkspace
             photos={localPhotos.length > 0 && mode === 'CATALOG' ? localPhotos : photos}
+            folderPhotos={localPhotos.length > 0 && mode === 'CATALOG' ? localFolderPhotos : undefined}
             initialView={mode === 'SPATIAL' ? 'spatial' : 'catalog'}
             onEdit={setEditingPhoto}
             folderPath={windowsLibraryFolder}
@@ -1394,6 +1409,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
         {renderOverlays()}
         {renderGalleriesModal()}
         {renderImageConverter()}
+        <ShowStudioHost />
         {nativeViewerFile && (
           <NativePhotoViewer
             initialFile={nativeViewerFile}
@@ -1525,6 +1541,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
         ) : mode === 'CATALOG' || mode === 'SPATIAL' ? (
           <PhotoCatalogWorkspace
             photos={localPhotos.length > 0 && mode === 'CATALOG' ? localPhotos : photos}
+            folderPhotos={localPhotos.length > 0 && mode === 'CATALOG' ? localFolderPhotos : undefined}
             initialView={mode === 'SPATIAL' ? 'spatial' : 'catalog'}
             onEdit={setEditingPhoto}
             folderPath={windowsLibraryFolder}
@@ -2006,6 +2023,7 @@ const GlobalPhotosView: React.FC<GlobalPhotosViewProps> = ({
 
       {renderGalleriesModal()}
         {renderImageConverter()}
+        <ShowStudioHost />
       </>}
     </div>
   );

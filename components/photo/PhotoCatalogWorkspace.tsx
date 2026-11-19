@@ -28,6 +28,10 @@ import DepthAnalyzer from '../DepthAnalyzer';
 import { GaussianSplatFileViewer } from '../AlbumArt3DViewer';
 import { loadSpatialProjects, newSpatialProject, reconstructionManifest, saveSpatialProject, uploadSpatialSplat, type SpatialPhotoProject } from '../../services/spatialPhotoProjects';
 import { showInExplorer, isWindowsApp } from '../../services/windowsBridgeService';
+import { useContextMenu, Button, type MenuNode } from '../ui';
+import { sendToShowNode, useRecentShows } from './show/sendToShowMenu';
+import { sendToShow, toSendItems, type SendTarget } from '../../services/slideshow/sendTo';
+import { Clapperboard } from 'lucide-react';
 
 type WorkspaceView = 'catalog' | 'spatial';
 
@@ -42,7 +46,13 @@ export interface PhotoCatalogWorkspaceProps {
   onSelectSubfolder?: (sub: string | null) => void;
   onPickFolder?: () => void;
   onOpenViewer?: (photo: Photo) => void;
+  /** Every photo in a folder (null = the whole mirrored folder) — for "send folder to a slideshow". */
+  folderPhotos?: (subfolder: string | null) => Photo[];
+  /** Override where sends go (default: the Themed Shows studio via the send-to-show event). */
+  onSendToShow?: (photos: Photo[], target: SendTarget) => void;
 }
+
+type MenuCtx = { kind: 'photo'; photo: Photo } | { kind: 'folder'; sub: string | null; label: string } | { kind: 'selection' };
 
 export default function PhotoCatalogWorkspace({
   photos,
@@ -55,6 +65,8 @@ export default function PhotoCatalogWorkspace({
   onSelectSubfolder,
   onPickFolder,
   onOpenViewer,
+  folderPhotos,
+  onSendToShow,
 }: PhotoCatalogWorkspaceProps) {
   const [view, setView] = useState<WorkspaceView>(initialView);
   const [selected, setSelected] = useState<Photo | null>(photos[0] || null);
@@ -71,6 +83,10 @@ export default function PhotoCatalogWorkspace({
   const [error, setError] = useState<string | null>(null);
   const [captureFiles, setCaptureFiles] = useState<File[]>([]);
   const splatInput = useRef<HTMLInputElement>(null);
+  // multi-select (Ctrl/⌘-click toggles, Shift-click a range) — for "send to slideshow"
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [anchorId, setAnchorId] = useState<string | null>(null);
+  const [recent, refreshRecent] = useRecentShows();
   const captureInput = useRef<HTMLInputElement>(null);
 
   // Keep selected photo valid if photos change
@@ -88,6 +104,50 @@ export default function PhotoCatalogWorkspace({
       return matchQuery;
     });
   }, [photos, query]);
+
+  const pick = (e: React.MouseEvent, photo: Photo) => {
+    setSelected(photo);
+    if (e.shiftKey && anchorId) {
+      const ids = visible.map((p) => p.id);
+      const a = ids.indexOf(anchorId), b = ids.indexOf(photo.id);
+      const [lo, hi] = a < b ? [a, b] : [b, a];
+      setPicked(new Set([...(e.ctrlKey || e.metaKey ? picked : []), ...ids.slice(lo, hi + 1)]));
+      return;
+    }
+    if (e.ctrlKey || e.metaKey) {
+      const n = new Set(picked);
+      if (n.has(photo.id)) n.delete(photo.id); else n.add(photo.id);
+      setPicked(n);
+    } else setPicked(new Set([photo.id]));
+    setAnchorId(photo.id);
+  };
+  const pickedPhotos = () => visible.filter((p) => picked.has(p.id));
+  const send = (list: Photo[], target: SendTarget) => {
+    if (!list.length) return;
+    if (onSendToShow) onSendToShow(list, target); else sendToShow(toSendItems(list), target, 'photo-explorer');
+  };
+  const photosOfFolder = (sub: string | null) => (folderPhotos ? folderPhotos(sub) : sub === activeSubfolder || sub === null ? photos : []);
+  const menu = useContextMenu<MenuCtx>((ctx) => {
+    if (ctx.kind === 'folder') {
+      const list = photosOfFolder(ctx.sub).filter((p) => p.mediaType !== 'VIDEO');
+      return [
+        { kind: 'header', label: `📁 ${ctx.label}` },
+        { id: 'open', label: 'Open folder', onSelect: () => onSelectSubfolder?.(ctx.sub) },
+        sendToShowNode<MenuCtx>(recent, list.length, (t) => send(list, t), `Send folder to a slideshow (${list.length} photos)`),
+      ];
+    }
+    const list = ctx.kind === 'selection' || (ctx.kind === 'photo' && picked.has(ctx.photo.id) && picked.size > 1) ? pickedPhotos() : ctx.kind === 'photo' ? [ctx.photo] : [];
+    const nodes: MenuNode<MenuCtx>[] = [{ kind: 'header', label: list.length > 1 ? `${list.length} photos` : (list[0]?.title || 'Photo') }];
+    if (ctx.kind === 'photo' && list.length === 1) {
+      nodes.push(
+        ...(onOpenViewer ? [{ id: 'view', label: 'View', onSelect: () => onOpenViewer(ctx.photo) } as MenuNode<MenuCtx>] : []),
+        { id: 'edit', label: 'Edit', onSelect: () => onEdit(ctx.photo) },
+        { kind: 'separator' },
+      );
+    }
+    nodes.push(sendToShowNode<MenuCtx>(recent, list.length, (t) => send(list, t)));
+    return nodes;
+  });
 
   useEffect(() => {
     if (!selected) { setProject(null); return; }
@@ -141,12 +201,13 @@ export default function PhotoCatalogWorkspace({
     }
   };
 
-  return <div className="min-h-[calc(100dvh-8rem)] grid grid-cols-[240px_minmax(0,1fr)_310px] bg-[#090a0d] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
+  return <div className="min-h-[calc(100dvh-8rem)] grid grid-cols-[240px_minmax(0,1fr)_310px] bg-[#090a0d] border border-white/10 rounded-2xl overflow-hidden shadow-2xl" onContextMenuCapture={refreshRecent}>
+    {menu.node}
     {/* ── Left Aside: Library Navigation & Windows Mirrored Folder ── */}
     <aside className="border-r border-white/10 bg-[#0d0f13] p-3 flex flex-col gap-1 overflow-y-auto custom-scrollbar">
       {/* Windows Mirrored Folder Card */}
       {(folderPath || folderName || onPickFolder) && (
-        <div className="p-3 mb-2 rounded-xl bg-white/[0.03] border border-white/10">
+        <div className="p-3 mb-2 rounded-xl bg-white/[0.03] border border-white/10" {...menu.bind({ kind: 'folder', sub: null, label: folderName || 'This folder' })}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <FolderOpen size={14} className="text-[#FF8C00]" />
@@ -178,6 +239,7 @@ export default function PhotoCatalogWorkspace({
               <p className="text-[8px] font-black uppercase tracking-widest text-white/30 px-1">Subdirectories</p>
               <button
                 onClick={() => onSelectSubfolder?.(null)}
+                {...menu.bind({ kind: 'folder', sub: null, label: folderName || 'All items' })}
                 className={`w-full text-left px-2 py-1.5 rounded-lg text-[10px] font-bold truncate transition-colors ${
                   activeSubfolder === null ? 'bg-[#FF8C00]/20 text-[#FF8C00] border border-[#FF8C00]/30' : 'text-white/50 hover:text-white hover:bg-white/5'
                 }`}
@@ -188,6 +250,7 @@ export default function PhotoCatalogWorkspace({
                 <button
                   key={sub}
                   onClick={() => onSelectSubfolder?.(sub)}
+                  {...menu.bind({ kind: 'folder', sub, label: sub })}
                   className={`w-full text-left px-2 py-1.5 rounded-lg text-[10px] font-bold truncate transition-colors ${
                     activeSubfolder === sub ? 'bg-[#FF8C00]/20 text-[#FF8C00] border border-[#FF8C00]/30' : 'text-white/50 hover:text-white hover:bg-white/5'
                   }`}
@@ -303,6 +366,15 @@ export default function PhotoCatalogWorkspace({
               <p className="text-[10px] text-white/30">Originals, renditions, metadata and spatial readiness</p>
             </div>
             <div className="flex items-center gap-2">
+              {picked.size > 1 && (<>
+                <span className="text-[10px] font-bold text-[#FF8C00]">{picked.size} selected</span>
+                <Button size="xs" variant="ghost" onClick={() => setPicked(new Set())}>Clear</Button>
+              </>)}
+              <Button size="xs" variant="secondary" icon={<Clapperboard />} disabled={!visible.length}
+                title={picked.size > 1 ? 'Send the selected photos to a new or recent slideshow' : 'Send this folder to a new or recent slideshow'}
+                onClick={(e) => { refreshRecent(); menu.openFrom(e.currentTarget, picked.size > 1 ? { kind: 'selection' } : { kind: 'folder', sub: activeSubfolder, label: activeSubfolder || folderName || 'This folder' }); }}>
+                {picked.size > 1 ? 'Send to slideshow' : 'Make a show'}
+              </Button>
               {onPickFolder && (
                 <button
                   onClick={onPickFolder}
@@ -322,10 +394,12 @@ export default function PhotoCatalogWorkspace({
                 return (
                   <button
                     key={photo.id}
-                    onClick={() => setSelected(photo)}
+                    onClick={(e) => pick(e, photo)}
                     onDoubleClick={() => (onOpenViewer ? onOpenViewer(photo) : onEdit(photo))}
+                    {...menu.bind({ kind: 'photo', photo })}
+                    aria-selected={picked.has(photo.id)}
                     className={`group text-left rounded-xl overflow-hidden border bg-[#121419] transition-all relative ${
-                      isChosen ? 'border-[#FF8C00] ring-2 ring-[#FF8C00]/30 shadow-lg' : 'border-white/10 hover:border-white/30'
+                      picked.has(photo.id) && picked.size > 1 ? 'border-[#FF8C00] ring-2 ring-[#FF8C00]/50' : isChosen ? 'border-[#FF8C00] ring-2 ring-[#FF8C00]/30 shadow-lg' : 'border-white/10 hover:border-white/30'
                     }`}
                   >
                     <div className="aspect-[4/3] bg-black overflow-hidden relative">
@@ -364,10 +438,12 @@ export default function PhotoCatalogWorkspace({
                 return (
                   <button
                     key={photo.id}
-                    onClick={() => setSelected(photo)}
+                    onClick={(e) => pick(e, photo)}
                     onDoubleClick={() => (onOpenViewer ? onOpenViewer(photo) : onEdit(photo))}
+                    {...menu.bind({ kind: 'photo', photo })}
+                    aria-selected={picked.has(photo.id)}
                     className={`w-full grid grid-cols-[48px_1fr_120px_80px_60px] gap-3 items-center p-2 rounded-xl text-left transition-colors ${
-                      selected?.id === photo.id ? 'bg-[#FF8C00]/15 border border-[#FF8C00]/30' : 'hover:bg-white/5'
+                      picked.has(photo.id) || selected?.id === photo.id ? 'bg-[#FF8C00]/15 border border-[#FF8C00]/30' : 'hover:bg-white/5'
                     }`}
                   >
                     <span className="relative w-12 h-10 rounded-lg overflow-hidden shrink-0"><FastImage item={photo} width={128} /></span>

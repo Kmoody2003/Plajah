@@ -104,6 +104,8 @@ interface Props {
   owner?: { uid: string; handle?: string };
   /** Open this saved show (local project id) on mount. */
   openShowId?: string;
+  /** Open this show (this device or the account), then add `initial` to it. */
+  openShow?: { id: string; where: 'device' | 'account' };
 }
 
 const THEMES: { id: ShowThemeId; name: string; blurb: string; tone: string }[] = [
@@ -117,7 +119,7 @@ const TRANSITIONS: (ClassicTransition | 'auto')[] = ['auto', 'crossfade', 'dip',
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-export default function ThemedShowStudio({ library = [], onClose, initial, owner, openShowId }: Props) {
+export default function ThemedShowStudio({ library = [], onClose, initial, owner, openShowId, openShow }: Props) {
   const [theme, setTheme] = useState<ShowThemeId>('backyard');
   const [title, setTitle] = useState('A life remembered');
   const [heading, setHeading] = useState('In loving memory of');
@@ -125,6 +127,8 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
   const [dates, setDates] = useState('');
   const [closing, setClosing] = useState('Forever in our hearts');
   const [photos, setPhotos] = useState<ShowPhoto[]>([]);
+  const photosRef = useRef<ShowPhoto[]>(photos);
+  photosRef.current = photos;
   const [prep, setPrep] = useState<{ done: number; total: number } | null>(null);
   const [musicMode, setMusicMode] = useState<MusicMode>('none');
   const [tracks, setTracks] = useState<ShowTrack[]>([]);
@@ -230,11 +234,11 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
     setSelectedId(null); setVideo(null); setScrubT(3);
   }, []);
 
-  const openSaved = async (id: string) => {
+  const openSaved = async (id: string): Promise<boolean> => {
     setOpenAnchor(null);
     setHydrating(true);
-    try { const { spec: s, file } = await openLocal(id); hydrate(s); setSaved({ at: file.savedAt, saving: false }); }
-    catch (e: any) { setMsg(e?.message || 'Could not open that show.'); }
+    try { const { spec: s, file } = await openLocal(id); hydrate(s); setSaved({ at: file.savedAt, saving: false }); return true; }
+    catch (e: any) { setMsg(e?.message || 'Could not open that show.'); return false; }
     finally { setHydrating(false); }
   };
   const openDrive = async () => {
@@ -262,11 +266,11 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
   };
 
   useEffect(() => { void listLocal().then(setRecent); void listAccountShows().then(setAccountShows); }, [saved?.at]);
-  const openFromAccount = async (id: string) => {
+  const openFromAccount = async (id: string): Promise<boolean> => {
     setOpenAnchor(null);
     setHydrating(true);
-    try { const got = await openAccountShow(id); if (got) { hydrate(got.spec); setCloud({ at: got.head.updatedAt, busy: false }); } }
-    catch (e: any) { setMsg(e?.message || 'Could not open that show.'); }
+    try { const got = await openAccountShow(id); if (got) { hydrate(got.spec); setCloud({ at: got.head.updatedAt, busy: false }); return true; } return false; }
+    catch (e: any) { setMsg(e?.message || 'Could not open that show.'); return false; }
     finally { setHydrating(false); }
   };
   const doPublish = async () => {
@@ -278,7 +282,7 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
     } catch (e: any) { setMsg(e?.code === 'SIGN_IN_REQUIRED' ? 'Sign in to share a show.' : e?.message || 'Could not publish the show.'); }
     finally { setPublishing(null); }
   };
-  useEffect(() => { if (openShowId) void openSaved(openShowId); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   // autosave to this device a moment after any change (photos must be prepped first)
   const saveKey = JSON.stringify({ ...saveSpec, updatedAt: 0 });
@@ -300,9 +304,20 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
 
   // --- photo intake + smart prep ------------------------------------------------------
 
-  const addSources = useCallback(async (inputs: PrepInput[]) => {
-    if (!inputs.length) return;
+  /** Prepares and appends photos; resolves to how many were new to the show. */
+  const addSources = useCallback(async (inputs: PrepInput[]): Promise<number> => {
+    if (!inputs.length) return 0;
     setPrep({ done: 0, total: inputs.length });
+    // photos sent from the library / file explorer only carry a file date: read their EXIF capture date
+    await Promise.all(inputs.filter((x) => x.timeSource === 'file').map(async (x) => {
+      try {
+        const r = await fetch(x.src, { headers: /^https?:/.test(x.src) ? { Range: 'bytes=0-262143' } : undefined });
+        if (!r.ok && r.status !== 206) return;
+        const ex = parseExifFromBuffer(await r.arrayBuffer());
+        const m = ex?.dateTaken?.match(/(\d{4})[:-](\d{2})[:-](\d{2})[ T]?(\d{2})?:?(\d{2})?:?(\d{2})?/);
+        if (m && +m[1] > 1850) { x.takenAt = new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 12), +(m[5] || 0), +(m[6] || 0)).getTime(); x.timeSource = 'exif'; }
+      } catch { /* keep the file date */ }
+    }));
     const out: ShowPhoto[] = [];
     let done = 0;
     const queue = [...inputs];
@@ -326,12 +341,27 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
     // keep the order they were chosen in, then by capture date when known
     const order = new Map(inputs.map((x, i) => [x.id, i]));
     out.sort((a, b) => (a.takenAt && b.takenAt ? a.takenAt - b.takenAt : (order.get(a.id)! - order.get(b.id)!)));
-    setPhotos((prev) => [...prev, ...out.filter((p) => !prev.some((q) => q.id === p.id))]);
+    const fresh = out.filter((p) => !photosRef.current.some((q) => q.id === p.id));
+    setPhotos((prev) => [...prev, ...fresh.filter((p) => !prev.some((q) => q.id === p.id))]);
     setPrep(null);
+    return fresh.length;
   }, []);
 
+  // On open: a chosen show first (this device, else the account), then any photos sent along with it.
   useEffect(() => {
-    if (initial?.length) void addSources(initial.map((p) => ({ id: p.id, src: p.url, title: p.title, caption: p.caption, captionSource: 'typed' as const, takenAt: p.takenAt, timeSource: p.timeSource ?? ('file' as const) })));
+    void (async () => {
+      const target = openShow || (openShowId ? { id: openShowId, where: 'device' as const } : null);
+      if (target) {
+        const ok = target.where === 'account' ? await openFromAccount(target.id) || await openSaved(target.id)
+          : await openSaved(target.id) || await openFromAccount(target.id);
+        if (!ok) setMsg('That show could not be opened, so a new one was started.');
+      }
+      if (initial?.length) {
+        const added = await addSources(initial.map((p) => ({ id: p.id, src: p.url, title: p.title, caption: p.caption, captionSource: 'typed' as const, takenAt: p.takenAt, timeSource: p.timeSource ?? ('file' as const) })));
+        const already = initial.length - added;
+        if (target) setMsg(added ? `Added ${added} photo${added === 1 ? '' : 's'} to the show${already ? ` (${already} already in it)` : ''}.` : `${already === 1 ? 'That photo is' : `All ${already} photos are`} already in this show.`);
+      }
+    })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Folder, single, multi-select and drag-and-drop all land here. */
@@ -613,7 +643,7 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
           <input value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Show title"
             className="type-headline-sm bg-transparent outline-none border-b border-transparent focus:border-[var(--m3-border-strong)] w-full max-w-[28rem]" />
           <div className="type-body-sm" style={{ color: 'var(--on-surface-variant)' }}>
-            {photos.length} photos · {fmt(plan.duration)} planned{plan.fullPage.length ? ` · ${(plan.fullPage.reduce((a, b) => a + b, 0) / plan.fullPage.length).toFixed(1)}s full page on average` : ''}
+            {photos.length} photo{photos.length === 1 ? '' : 's'} · {fmt(plan.duration)} planned{plan.fullPage.length ? ` · ${(plan.fullPage.reduce((a, b) => a + b, 0) / plan.fullPage.length).toFixed(1)}s full page on average` : ''}
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">

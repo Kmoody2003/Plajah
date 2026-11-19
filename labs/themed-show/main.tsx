@@ -4,6 +4,8 @@
 // synthesized pad so live mode, render and Fabula hand-off can be tried with no uploads.
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import PhotoCatalogWorkspace from '../../components/photo/PhotoCatalogWorkspace';
+import ShowStudioHost from '../../components/photo/show/ShowStudioHost';
 import '../../index.css';
 import ThemedShowStudio, { type ShowSourcePhoto } from '../../components/photo/ThemedShowStudio';
 import * as planner from '../../services/slideshow/planner';
@@ -135,7 +137,21 @@ function Lab() {
   const real = (window as any).showLab.realCount || 0;
   // ?preset=N → first N painted samples; ?real → the real photos + the obituary cover
   const initial = new URLSearchParams(location.search).has('real') ? library.slice(0, real) : preset ? library.slice(real, real + (Number(preset) || 8)) : undefined;
+  if (new URLSearchParams(location.search).has('explorer')) {
+    // the Photos file explorer as Photos mounts it (mirrored folder + subfolders) + the studio host
+    const photos = library.map((p, i) => ({ id: p.id, url: p.url, title: `${p.title || p.id}.jpg`, description: `D:/Pictures/${i < real ? 'Family' : 'Samples'}/${p.title || p.id}.jpg`, ownerId: 'local', timestamp: p.takenAt || Date.now(), mediaType: 'IMAGE', tags: [] } as any));
+    const inSub = (sub: string | null) => (sub ? photos.filter((p) => p.description.includes(`/${sub}/`)) : photos);
+    return <ExplorerLab photos={photos} inSub={inSub} />;
+  }
   return <ThemedShowStudio library={library} initial={initial} />;
+}
+
+function ExplorerLab({ photos, inSub }: { photos: any[]; inSub: (s: string | null) => any[] }) {
+  const [sub, setSub] = useState<string | null>(null);
+  return <div style={{ padding: 12 }}>
+    <PhotoCatalogWorkspace photos={inSub(sub)} folderPhotos={inSub} onEdit={() => {}} folderPath="D:/Pictures" folderName="Pictures" subfolders={['Family', 'Samples']} activeSubfolder={sub} onSelectSubfolder={setSub} initialView="catalog" />
+    <ShowStudioHost />
+  </div>;
 }
 
 (window as any).showLab = { planner, prep, renderShowVideo, buildShowProduction, synthPad, ShowRuntime, stills, closeStills: () => document.getElementById('stills')?.remove() };
