@@ -8,13 +8,13 @@
 // crystal plants and resin stumps (tools/cutSheets.py → tools/exportCyberForest.py → assets/cyberforest/).
 import * as THREE from 'three/webgpu';
 import {
-  color, float, fract, max, mix, positionWorld, sin, smoothstep, texture as tslTexture, time, uniform, uv, vec2, vec3,
+  abs, color, float, fract, max, mix, normalView, positionViewDirection, positionWorld, sin, smoothstep, texture as tslTexture, time, uniform, uv, vec2, vec3,
 } from 'three/tsl';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { StaticKit, boulder, fbm3, rng } from './geom';
 import { builders } from './structures';
 import { pbr } from './textures';
-import { CreatureBody, CreatureKind, preloadCreatures } from './creatures';
+import { CreatureBody, CreatureKind, MothSwarm, preloadCreatures } from './creatures';
 import { enemyBodies } from './enemies';
 
 const ART = '/games/rift-realm/assets/cyberforest/';
@@ -673,19 +673,24 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
   //    black data cables that snake off them across the moss with light pulses running along ─────────────────────
   const podCore = (c: number, ph: number) => {
     const m = new THREE.MeshStandardNodeMaterial({ color: 0x101010, roughness: 0.3 });
-    m.emissiveNode = color(c).mul(float(1.0).add(sin(time.mul(2.4).add(ph)).mul(0.3)).add(uBeatPulse.mul(0.6)));
+    // a glowing column, not a slab: brightest facing you, darker at the silhouette, data bands rising through it
+    const facing = abs(normalView.dot(positionViewDirection));
+    const bands = smoothstep(float(0.7), float(0.95), fract(positionWorld.y.mul(2.2).sub(time.mul(0.8).add(ph))));
+    m.emissiveNode = color(c).mul(facing.mul(facing).mul(0.85).add(0.15)).mul(float(0.75).add(bands.mul(0.7)).add(sin(time.mul(2.4).add(ph)).mul(0.15)).add(uBeatPulse.mul(0.4)));
     return m;
   };
   const coreOrange = podCore(0xff5a10, 0), coreBlue = podCore(0x1c7cff, 1.7);
   const podGlass = new THREE.MeshStandardNodeMaterial({ color: 0x06202a, roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.28 });
-  podGlass.emissiveNode = cyan.mul(0.05);
+  podGlass.emissiveNode = cyan.mul(float(1).sub(abs(normalView.dot(positionViewDirection))).pow(2.5).mul(0.9)); // a fresnel rim so the glass reads
   const crystal = new THREE.MeshStandardNodeMaterial({ color: 0x08101c, roughness: 0.08, metalness: 0.35 });
   // deep blue at the claws to hot orange at the tip (the sheet's pulsing energy node), with a bright band climbing it
   const climb = smoothstep(float(0.9), float(1.0), fract(uv().y.mul(1.5).sub(time.mul(0.35))));
   crystal.emissiveNode = mix(color(0x1848ff), color(0xff6a10), smoothstep(float(0.3), float(0.95), uv().y))
     .mul(float(0.75).add(climb.mul(0.9)).add(sin(time.mul(1.6)).mul(0.12)).add(uBeatPulse.mul(0.5)));
+  const glowSpots: THREE.Vector3[] = []; // moths gather round these
   const dataPod = (x: number, z: number, coreMat: THREE.Material) => {
     const gy = H(x, z);
+    glowSpots.push(new THREE.Vector3(x, gy, z));
     kit.prism(hull, 8, 0.85, 1.05, 0.5, x, gy + 0.2, z, 0, { tpm: 0.8 });
     kit.prism(trim, 16, 0.7, 0.7, 0.05, x, gy + 0.47, z, 0, { solid: false });
     kit.prism(coreMat, 12, 0.42, 0.42, 1.5, x, gy + 1.25, z, 0, { solid: false });
@@ -697,6 +702,7 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
   };
   const crystalNode = (x: number, z: number) => {
     const gy = H(x, z);
+    glowSpots.push(new THREE.Vector3(x, gy + 1, z));
     kit.prism(hull, 4, 1.0, 1.7, 0.7, x, gy + 0.3, z, Math.PI / 4, { tpm: 0.8 });
     kit.prism(hull, 4, 0.6, 1.0, 0.5, x, gy + 0.9, z, Math.PI / 4, { tpm: 0.8 });
     for (let k = 0; k < 3; k++) { // three claws holding the crystal
@@ -775,7 +781,7 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
     crowns.push({ x: x + lean.x, y: gy + h * 0.92, z: z + lean.z, r: h * 0.36, kind });
   };
   const okForTree = (x: number, z: number) => !near(x, z, 7) && !inBuilding(x, z, 4) && !inRiver(x, z, 2) && !inCanyon(x, z, 1) &&
-    Math.hypot(x - TITAN.x, z - TITAN.z) > 18 && Math.hypot(x - OBJ.A.x, z - OBJ.A.z) > 12 && x > BOUND.x0 + 2 && x < BOUND.x1 - 2 && Math.abs(z) < BOUND.z1 - 2;
+    Math.hypot(x - TITAN.x, z - TITAN.z) > 18 && Math.hypot(x - OBJ.A.x, z - OBJ.A.z) > 12 && !glowSpots.some((g) => Math.hypot(g.x - x, g.z - z) < 6) && x > BOUND.x0 + 2 && x < BOUND.x1 - 2 && Math.abs(z) < BOUND.z1 - 2;
   const placeTrees = (n: number, x0: number, x1: number, z0: number, z1: number, kinds: number[], hMin: number, hMax: number) => {
     let made = 0;
     for (let i = 0; i < n * 8 && made < n; i++) {
@@ -796,7 +802,7 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
     const t = R(), k = Math.min(RIVER.length - 2, Math.floor(t * (RIVER.length - 1))), f = t * (RIVER.length - 1) - k;
     const [ax, az] = RIVER[k], [bx, bz] = RIVER[k + 1], nx = -(bz - az), nz = bx - ax, nl = Math.hypot(nx, nz), side = R() < 0.5 ? -1 : 1;
     const x = ax + (bx - ax) * f + nx / nl * side * (RIVER_HALF + 4 + R() * 4), z = az + (bz - az) * f + nz / nl * side * (RIVER_HALF + 4 + R() * 4);
-    if (near(x, z, 6) || inBuilding(x, z, 3) || Math.abs(z - BRIDGE_Z) < 8 || Math.abs(z - LOG_Z) < 7 || Math.hypot(x - FORD.x, z - FORD.z) < 10 || Math.abs(z) > 82) continue;
+    if (near(x, z, 6) || inBuilding(x, z, 3) || glowSpots.some((g) => Math.hypot(g.x - x, g.z - z) < 6) || Math.abs(z - BRIDGE_Z) < 8 || Math.abs(z - LOG_Z) < 7 || Math.hypot(x - FORD.x, z - FORD.z) < 10 || Math.abs(z) > 82) continue;
     const h = 12 + R() * 8;
     tree(x, z, h, 0.6 + h * 0.04, R() < 0.6 ? 6 : 7);
   }
@@ -992,10 +998,10 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
 
   // ── creatures (the level's turnarounds): the forest fights back with Electric Wolves, Venom Mantises and Plasma
   //    Wasps; a herd of Lumen Deer grazes the grove and bolts when you come close ───────────────────────────────
-  preloadCreatures(['wolf', 'mantis', 'wasp', 'deer']);
-  const MUL: Record<CreatureKind, [number, number]> = { wolf: [1.35, 0.8], mantis: [0.8, 1.5], wasp: [1.1, 0.6], deer: [1, 1] };
+  preloadCreatures(['wolf', 'mantis', 'wasp', 'deer', 'bat']);
+  const MUL: Record<CreatureKind, [number, number]> = { wolf: [1.35, 0.8], mantis: [0.8, 1.5], wasp: [1.1, 0.6], deer: [1, 1], bat: [1.2, 0.7] };
   enemyBodies.make = (id, boss) => {
-    const k: CreatureKind = boss ? 'mantis' : (['wolf', 'wasp', 'wolf', 'mantis', 'wolf', 'wasp'] as const)[id % 6];
+    const k: CreatureKind = boss ? 'mantis' : (['wolf', 'bat', 'wolf', 'mantis', 'wasp', 'bat'] as const)[id % 6];
     const b = new CreatureBody(k);
     return { root: b.root, hover: b.hover, height: b.height, speedMul: MUL[k][0], hpMul: MUL[k][1], update: (dt, sp) => b.update(dt, sp), attack: () => b.attack() };
   };
@@ -1040,6 +1046,11 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
     }
   };
 
+  // the titan's lamps, the objective beacons and the bridge draw moths too
+  glowSpots.push(new THREE.Vector3(TITAN.x + 8, H(TITAN.x, TITAN.z) + 7, TITAN.z), new THREE.Vector3(OBJ.A.x, H(OBJ.A.x, OBJ.A.z) + 1, OBJ.A.z),
+    new THREE.Vector3(OBJ.B.x, H(OBJ.B.x, OBJ.B.z) + 1, OBJ.B.z), new THREE.Vector3(-50, 1, BRIDGE_Z));
+  const moths = new MothSwarm(group, glowSpots, lo ? 20 : 40);
+
   void scene;
   let el = 0;
   return {
@@ -1047,6 +1058,7 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
     update(dt, pulse) {
       el += dt;
       updateHerd(dt);
+      moths.update(dt);
       for (const c of glitchCubes) {
         c.rotation.x += dt * c.userData.spin; c.rotation.y += dt * c.userData.spin * 0.7;
         c.position.y = c.userData.y0 + Math.sin(el * 0.8 + c.userData.ph) * 0.5;
