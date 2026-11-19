@@ -137,6 +137,18 @@
   },
   {
    "id": "trap_5",
+   "name": "Tulip Flats Speed Trap",
+   "x": 396.3,
+   "z": -5507.9,
+   "dir": [
+    -26.2,
+    -30.22
+   ],
+   "road": "Orchard Lane",
+   "targetMph": 130
+  },
+  {
+   "id": "trap_6",
    "name": "Giant Forest Speed Trap",
    "x": -4743.0,
    "z": -7763.3,
@@ -145,10 +157,10 @@
     -29.6
    ],
    "road": "Superior Coast Highway",
-   "targetMph": 130
+   "targetMph": 140
   },
   {
-   "id": "trap_6",
+   "id": "trap_7",
    "name": "Finger Lake Speed Trap",
    "x": 714.2,
    "z": -7229.1,
@@ -157,11 +169,11 @@
     -39.91
    ],
    "road": "Finger Lake Loop",
-   "targetMph": 140
+   "targetMph": 150
   },
   {
-   "id": "trap_7",
-   "name": "Tulip Flats Speed Trap",
+   "id": "trap_8",
+   "name": "Superior Coast Highway Speed Trap",
    "x": -2911.0,
    "z": -6434.4,
    "dir": [
@@ -169,10 +181,10 @@
     -20.99
    ],
    "road": "Superior Coast Highway",
-   "targetMph": 150
+   "targetMph": 120
   },
   {
-   "id": "trap_8",
+   "id": "trap_9",
    "name": "Escarpment Speed Trap",
    "x": -154.1,
    "z": -9848.1,
@@ -181,18 +193,6 @@
     -0.31
    ],
    "road": "Escarpment Road",
-   "targetMph": 120
-  },
-  {
-   "id": "trap_9",
-   "name": "Finger Lake Loop Speed Trap",
-   "x": 2339.2,
-   "z": -6413.2,
-   "dir": [
-    16.56,
-    36.41
-   ],
-   "road": "Finger Lake Loop",
    "targetMph": 130
   }
  ],
@@ -201,12 +201,12 @@
    "id": "zone_0",
    "name": "Kettle Hills Speed Zone",
    "a": [
-    1082.0,
-    2914.2
+    1383.2,
+    2728.1
    ],
    "b": [
-    1233.9,
-    2738.0
+    1559.1,
+    2854.5
    ],
    "road": "Kettle Pass",
    "targetMph": 85
@@ -315,12 +315,12 @@
    "id": "drift_0",
    "name": "Kettle Hills Drift Zone",
    "a": [
-    1198.0,
-    2751.5
+    1194.5,
+    2755.2
    ],
    "b": [
-    1335.0,
-    2784.9
+    1330.7,
+    2787.4
    ],
    "road": "Kettle Pass",
    "targetScore": 10000
@@ -386,11 +386,11 @@
   {
    "id": "jump_0",
    "name": "Kettle Hills Danger Sign",
-   "x": 633.7,
-   "z": 2758.4,
+   "x": 621.5,
+   "z": 2791.2,
    "dir": [
-    -2.71,
-    7.53
+    -2.77,
+    7.51
    ],
    "road": "Kettle Pass",
    "targetM": 50
@@ -398,11 +398,11 @@
   {
    "id": "jump_1",
    "name": "Kettle Pass Danger Sign",
-   "x": 1825.8,
-   "z": 3310.0,
+   "x": 1813.4,
+   "z": 3298.3,
    "dir": [
-    5.82,
-    5.48
+    5.8,
+    5.51
    ],
    "road": "Kettle Pass",
    "targetM": 60

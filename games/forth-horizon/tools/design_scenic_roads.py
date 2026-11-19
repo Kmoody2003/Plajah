@@ -23,8 +23,6 @@ STEP = 4.0
 
 # name, surface, half width, design speed (km/h), grade limit, max bank, control points (x, z); the first and last points sit on the roads they join
 ROADS = [
-    {"name": "Orchard Lane", "surface": "paved", "half": 3.4, "speed": 70, "grade": 0.08, "bank": 0.05,
-     "cp": [(1068, -4600), (980, -4820), (820, -5020), (620, -5250), (430, -5500)]},
     # located with tools/route_pass.py (grade-limited search): giant forest -> valley between the two glaciated peaks -> saddle 431 m -> north shore,
     # where it meets the coast highway's end; with the highway it closes the Superior Range circuit
     {"name": "Glacier Pass", "surface": "paved", "half": 3.4, "speed": 50, "minR": 20.0, "grade": 0.09, "bank": 0.07, "cut": 20.0,
@@ -41,9 +39,14 @@ ROADS = [
     {"name": "Finger Lake Loop", "surface": "paved", "half": 3.6, "speed": 80, "grade": 0.07, "bank": 0.06,
      "cp": [(-24, -4600), (150, -5050), (400, -5550), (580, -6100), (680, -6700), (720, -7300), (780, -7800), (900, -8120), (1150, -8240),
             (1600, -8250), (1850, -8100), (1950, -7600), (2100, -7000), (2300, -6500), (2500, -6100), (2750, -5750), (3100, -5300), (3550, -4900), (3840, -4600)]},
+    # Orchard Lane used to stop 47 m short of Finger Lake Loop; it now ends on it (a T pinned to its line and height). Listed after the loop.
+    {"name": "Orchard Lane", "surface": "paved", "half": 3.4, "speed": 70, "grade": 0.08, "bank": 0.05, "endOn": "Finger Lake Loop",
+     "cp": [(1068, -4600), (980, -4820), (820, -5020), (620, -5250), (430, -5500)]},
     {"name": "Kettle Pass", "surface": "paved", "half": 3.6, "speed": 60, "grade": 0.08, "bank": 0.06,
-     "cp": [(655, 2545), (650, 2700), (600, 2870), (610, 3050), (720, 3190), (880, 3250), (1000, 3140), (1040, 2985), (1130, 2850),
-            (1225, 2735), (1320, 2795), (1405, 2715), (1505, 2780), (1600, 2930), (1690, 3140), (1810, 3295), (1975, 3410), (2140, 3380), (2280, 3265)]},
+     # both ends used to stop in the grass (65 m and 53 m from dirt tracks): the pass now starts on the east-west country road at z 2340 (a square T)
+     # and ends where the two town streets meet at (2450, 3343)
+     "cp": [(655, 2340), (655, 2440), (655, 2545), (650, 2700), (600, 2870), (610, 3050), (720, 3190), (880, 3250), (1000, 3140), (1040, 2985), (1130, 2850),
+            (1225, 2735), (1320, 2795), (1405, 2715), (1505, 2780), (1600, 2930), (1690, 3140), (1810, 3295), (1975, 3410), (2140, 3380), (2280, 3265), (2400, 3250), (2440, 3300), (2450, 3343)]},
     # Escarpment Road: Finger Lake Loop (west shore, above the lake head) -> foothills -> the Stair (a talus apron on the sheer face, grow_north.py):
     # six legs and five hairpins up its 25 % slope (each leg gains a little more than the slope under it, paying for the flat hairpins) -> the
     # crest -> switchbacks down the back slope -> a viaduct across the stream notch -> west along the back to Glacier Pass. Approach and back-slope
