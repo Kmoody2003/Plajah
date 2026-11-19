@@ -1,7 +1,7 @@
 // Headless visual check for Plajah Motorsport: Apex: drives the running dev server (preview "forth-horizon", port 4332) in Playwright Chromium on the real GPU
 // (Direct3D 11 through ANGLE; --swiftshader falls back to software), puts the game's debug camera at each shot, lets streaming settle and screenshots it.
 // Also reports the frame time the page itself measures (requestAnimationFrame) at each shot.
-// usage: node scripts/apex-shots.mjs [outDir] [--swiftshader] [--only name,name] [--tod noon] [--w 1600 --h 900]
+// usage: node scripts/apex-shots.mjs [outDir] [--swiftshader] [--only name,name] [--tod noon] [--w 1600 --h 900] [--shots extra.json ([[name,[x,y,z],[ax,ay,az]],...])]
 import {chromium} from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -38,21 +38,23 @@ const SHOTS = [
   ['kettle-pass-north-end', [760, 90, 2250], [655, 45, 2460]],
   ['mill-road-junction', [-1700, 80, -5700], [-1780, 30, -5770]],
   ['mill-road-junction-top', [-1772, 420, -5760], [-1772, 30, -5761]],
-].filter(([n]) => !only?.length || only.includes(n));
+].concat(flag('--shots', '') ? JSON.parse(fs.readFileSync(flag('--shots', ''), 'utf8')) : []).filter(([n]) => !only?.length || only.includes(n));
 
 const gpu = args.includes('--swiftshader') ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'];
 const browser = await chromium.launch({args: gpu});
 const page = await browser.newPage({viewport: {width: W, height: H}});
-const errors = []; page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+const errors = []; page.on('pageerror', e => errors.push(String(e))); page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); else if (process.env.APEX_LOG && new RegExp(process.env.APEX_LOG).test(m.text())) console.log('[page]', m.text()); });
 await page.goto((process.env.APEX_URL || 'http://127.0.0.1:4332') + '/region.html', {timeout: 120000});
 await page.waitForFunction(() => window.regionViewer && window.countryShots, null, {timeout: 300000, polling: 1000});
 await page.evaluate((tod) => {
   document.querySelectorAll('#mapCards').forEach((e) => { const p = e.closest('div[id]'); if (p) p.style.display = 'none'; });
   window.setTod?.(tod); window.regionViewer.wx.setWeather('clear', false, true);
 }, tod);
+await page.waitForTimeout(+flag('--settle', 0) * 1000);                                    // optional: let the city and its batches finish loading first
 const report = [];
-for (const [name, pos, at] of SHOTS) {
-  await page.evaluate(([p, a]) => window.regionViewer.cam(p[0], p[1], p[2], a[0], a[1], a[2]), [pos, at]);
+for (const [name, pos, at, rel] of SHOTS) {
+  // a fourth entry 'rel': both heights are above the ground there
+  await page.evaluate(([p, a, rel]) => { const R = window.regionViewer, g = (x, z) => (rel ? R.groundH(x, z) : 0); R.cam(p[0], p[1] + g(p[0], p[2]), p[2], a[0], a[1] + g(a[0], a[2]), a[2]); }, [pos, at, rel === 'rel']);
   await page.waitForTimeout(6000);                                                        // streaming (vegetation cells, city batches) settles
   const ms = await page.evaluate(() => new Promise((res) => { const t = []; let last = performance.now(); const f = (now) => { t.push(now - last); last = now; if (t.length < 90) requestAnimationFrame(f); else { t.sort((a, b) => a - b); res(+t[t.length >> 1].toFixed(1)); } }; requestAnimationFrame(f); }));
   await page.screenshot({path: path.join(out, name + '.png'), timeout: 60000});

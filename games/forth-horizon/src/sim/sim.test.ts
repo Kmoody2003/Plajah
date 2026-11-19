@@ -7,6 +7,7 @@ import { layoutAirport, AirportSim } from './airport';
 import { ZoneSim, type ZoneInput } from './zones';
 import { SimWorld } from './world';
 import { featuresToSim } from './data';
+import { SignalSystem } from './signals';
 import type { P2 } from './geom';
 
 const line = (id: string, cls: RoadInput['cls'], pts: P2[], extra: Partial<RoadInput> = {}): RoadInput => ({ id, cls, pts, ...extra });
@@ -215,4 +216,70 @@ test('data: user_map features convert, old files without the new types still loa
   assert.equal(s.roads.length, 3); assert.equal(s.zones.length, 1); assert.equal(s.rails[0].kind, 'double');
   assert.equal(s.stations.length, 1); assert.equal(s.airport.length, 1); assert.equal(s.services.length, 1);
   assert.equal(featuresToSim(null).roads.length, 0);
+});
+
+test('signals: junction control follows the road hierarchy', () => {
+  const g = buildRoadGraph([
+    line('ave', 'avenue', [[0, 0], [2000, 0]]), line('col', 'collector', [[500, -500], [500, 500]]),        // avenue x collector: signal
+    line('st1', 'street', [[1000, -500], [1000, 500]]),                                                   // street across the avenue: stop on the street
+    line('s2', 'street', [[1500, 300], [2500, 300]]), line('s3', 'street', [[2000, 100], [2000, 500]]),  // two equal streets crossing: all-way stop
+    line('s4', 'street', [[1500, 700], [2500, 700]]), line('s5', 'street', [[2100, 700], [2100, 900]]),  // T of equal streets: the stem stops
+    line('hw', 'highway', [[3000, -500], [3000, 500]]), line('rmp', 'ramp', [[2000, 0], [3000, 200]]),
+  ]);
+  const sig = new SignalSystem(g);
+  const at = (x: number, z: number) => sig.junctions.find((j) => Math.hypot(j.x - x, j.z - z) < 3)!;
+  assert.equal(at(500, 0).control, 'signal');
+  const st = at(1000, 0); assert.equal(st.control, 'stop');
+  assert.ok(st.approaches.every((a) => a.stopSign === (a.cls === 'street')), 'only the street stops');
+  assert.equal(at(2000, 300).control, 'allStop');
+  const t = at(2100, 700); assert.equal(t.control, 'stop');
+  assert.equal(t.approaches.filter((a) => a.stopSign).length, 1, 'one stem');
+  assert.ok(Math.abs(t.approaches.find((a) => a.stopSign)!.dz) > 0.9, 'the stem is the side street');
+  const s = at(500, 0);
+  assert.ok(s.approaches.every((a) => a.stopS > 0 && a.setback > (a.cls === 'avenue' ? 4.3 : 5.2) + 4), 'stop lines clear the crossing road and the crosswalk');
+  assert.ok(new Set(s.approaches.map((a) => a.group)).size === 2);
+});
+
+test('signals: the lights cycle, cars stop on red and use green, and nobody deadlocks', () => {
+  const roads: RoadInput[] = [];
+  for (let i = 0; i <= 4; i++) { roads.push(line('ah' + i, 'avenue', [[0, i * 400], [1600, i * 400]])); roads.push(line('cv' + i, 'collector', [[i * 400, 0], [i * 400, 1600]])); }
+  for (let i = 0; i < 4; i++) { roads.push(line('sh' + i, 'street', [[0, i * 400 + 200], [1600, i * 400 + 200]])); }
+  const zones: ZoneInput[] = [
+    { id: 'homes', kind: 'residential', pts: rect(0, 0, 700, 700) }, { id: 'shops', kind: 'commercial', pts: rect(900, 900, 700, 700) },
+    { id: 'works', kind: 'industrial', pts: rect(900, 0, 700, 700) }, { id: 'flats', kind: 'dense', pts: rect(0, 900, 700, 700) },
+  ];
+  const w = new SimWorld({ roads, zones, services: [], seed: 5, maxCars: 160, dayLength: 600, startHour: 7.6 });
+  w.setFocus(800, 800);
+  const st = w.signals.stats();
+  assert.ok(st.signal >= 20, 'signals: ' + JSON.stringify(st));
+  assert.ok(st.stop >= 10, 'stop signs on the streets: ' + JSON.stringify(st));
+  const sig = w.signals.junctions.filter((j) => j.control === 'signal');
+  const phases = new Set<number>(); let redRun = 0, conflict = 0, stoppedAtRed = 0;
+  for (let i = 0; i < 20 * 600; i++) {
+    w.step(1 / 20);
+    for (const j of sig) phases.add(j.phase);
+    for (const c of w.cars) {
+      const hit = w.signals.byEdge.get(c.path[c.pi]); if (!hit) continue;
+      const j = w.signals.junctions[hit[0]], a = j.approaches[hit[1]]; if (j.control !== 'signal') continue;
+      const d = a.stopS - (c.s + c.len / 2), lamp = w.signals.lamp(j, a);
+      if (lamp === 'R' && d < 1.5 && d > -0.5 && c.v < 0.3) stoppedAtRed++;
+      if (lamp === 'R' && d < -1 && d > -4 && c.v > 3 && c.inJ === undefined) redRun++;
+    }
+    // cars from crossing groups may share a box while one clears it on all-red, but never come close to each other there
+    for (const j of sig) {
+      const inside = w.cars.filter((c) => c.inJ === j.id && c.inJEdge !== undefined);
+      for (let p = 0; p < inside.length; p++) for (let q = p + 1; q < inside.length; q++) {
+        const hp = w.signals.byEdge.get(inside[p].inJEdge!), hq = w.signals.byEdge.get(inside[q].inJEdge!);
+        if (hp && hq && j.approaches[hp[1]].group !== j.approaches[hq[1]].group && Math.hypot(inside[p].x - inside[q].x, inside[p].z - inside[q].z) < 3.5) conflict++;
+      }
+    }
+  }
+  assert.ok(phases.has(0) && phases.has(1) && phases.has(3) && phases.has(4), 'both groups got green and amber: ' + [...phases]);
+  assert.ok(stoppedAtRed > 100, 'cars wait at red lights: ' + stoppedAtRed);
+  assert.equal(redRun, 0, 'nobody drives through a red');
+  assert.ok(conflict < 40, 'crossing streams do not meet in the box: ' + conflict);
+  assert.ok(w.stats.arrived > 60, 'traffic keeps flowing (no deadlock): arrived ' + w.stats.arrived);
+  // nobody is stuck for long at a stop sign or a light
+  const slow = w.cars.filter((c) => c.v < 0.1).length;
+  assert.ok(slow < w.cars.length * 0.7, `not gridlocked: ${slow}/${w.cars.length} standing`);
 });

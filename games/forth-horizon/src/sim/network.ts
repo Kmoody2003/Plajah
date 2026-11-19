@@ -26,11 +26,13 @@ export function canJoin(a: RoadClass, b: RoadClass): boolean {
   return true;
 }
 
-export interface RoadInput { id: string; cls: RoadClass; pts: P2[]; oneway?: boolean; speed?: number; lanes?: number }
+export interface RoadInput { id: string; cls: RoadClass; pts: P2[]; oneway?: boolean; speed?: number; lanes?: number; /** half the paved width, m (the class default otherwise) */ half?: number }
 
 export interface GNode { id: number; x: number; z: number; out: number[] }
 export interface GEdge {
   id: number; a: number; b: number; pts: P2[]; cum: number[]; len: number; cls: RoadClass; speed: number; lanes: number;
+  /** half the paved width, m */
+  half: number;
   /** the road this piece came from */
   road: string;
   /** the opposite direction's edge, or -1 for one-way */
@@ -153,11 +155,12 @@ export function buildRoadGraph(inputs: RoadInput[]): RoadGraph {
   function addEdge(r: RoadInput, ri: number, a: number, b: number, pts: P2[], cum: number[], len: number): void {
     const meta = ROAD_CLASS[r.cls];
     const speed = r.speed ?? meta.speed, lanes = r.lanes ?? meta.lanes;
-    const e: GEdge = { id: edges.length, a, b, pts, cum, len, cls: r.cls, speed, lanes, road: r.id, twin: -1, main: false };
+    const half = r.half ?? meta.half;
+    const e: GEdge = { id: edges.length, a, b, pts, cum, len, cls: r.cls, speed, lanes, half, road: r.id, twin: -1, main: false };
     edges.push(e); nodes[a].out.push(e.id);
     if (!r.oneway) {
       const rp = pts.slice().reverse(), rc = cumLen(rp);
-      const t: GEdge = { id: edges.length, a: b, b: a, pts: rp, cum: rc, len, cls: r.cls, speed, lanes, road: r.id, twin: e.id, main: false };
+      const t: GEdge = { id: edges.length, a: b, b: a, pts: rp, cum: rc, len, cls: r.cls, speed, lanes, half, road: r.id, twin: e.id, main: false };
       e.twin = t.id; edges.push(t); nodes[b].out.push(t.id);
     }
     void ri;

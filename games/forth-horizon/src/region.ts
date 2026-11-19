@@ -42,6 +42,7 @@ import { createMapEditor, ROAD_STYLE, type RoadKind, type UserMap } from './mapE
 import { CompetitionEngine } from './racingAI';
 import { TrafficManager, OpenWorldChallengeManager, type FestivalData } from './openWorldEvents';
 import { buildFestival } from './festival';
+import { createFestProgress, type FestProgress } from './festProgress';
 import { CopsAndRobbersMode, type PursuitRoleChoice } from './copsAndRobbers';
 import { OnlineSessionManager } from './onlineMultiplayer';
 import { SpatialCuller, runWithConcurrency, populateTiledTerrain, populateTerrainLOD, detectInitialTier, TIER_CONFIGS, type PerfTier } from './enginePerf';
@@ -54,6 +55,7 @@ import { buildParkingLots } from './parkingLots';
 import { buildUtilities, type UtilitiesData } from './utilities';
 import { mergeByMaterial } from './carBatch';
 import { SimLayer, carveSim, planSim, type SimPlan } from './simLayer';
+import { buildTownSidewalks } from './townStreets';
 import type { UserMapData } from './sim/data';
 import { buildPortDistrict, carvePlatform, inPort, type PortData } from './portDistrict';
 import { injectRoadPbr, roadUniforms, loadRoadPbr } from './roadpbr';
@@ -1320,6 +1322,9 @@ let industrialPath: { x: number; z: number }[] = [];
 let indNear: ((x: number, z: number, r: number) => boolean) | null = null;
 let simPlan: SimPlan | null = null;                 // road graph, rails and airfield from the map editor (src/simLayer.ts)
 let simLayer: SimLayer | null = null;
+let townWalks: ReturnType<typeof buildTownSidewalks> | null = null;   // town street curbs and sidewalks (src/townStreets.ts)
+let festProg: FestProgress | null = null;                                             // Chora Fest progression
+let freeSpawn: { p: number[]; q: number[] } | null = null;                             // where the next free roam starts (fast travel)
 let parkingLots: ReturnType<typeof buildParkingLots> | null = null;
 let parkingData: number[][] | null = null;
 let utilData: UtilitiesData | null = null;          // power plant, substations, pylons (tools/plan_utilities.py)
@@ -1390,6 +1395,7 @@ function vegOk(x: number, z: number, extra = 0): boolean {
   if (portData && inPort(portData, x, z, 14 + extra)) return false;
   if (utilData && inPort({ platform: utilData.platform } as PortData, x, z, 14 + extra)) return false;
   if (simLayer && simLayer.near(x, z, 7 + extra)) return false;
+  if (townWalks && townWalks.near(x, z, extra)) return false;
   if (parkingLots && parkingLots.near(x, z, 3 + extra)) return false;
   return true;
 }
@@ -2740,7 +2746,8 @@ function refreshWallet(): void {
 }
 const esc = (t: string): string => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 refreshWallet(); garage.subscribe(refreshWallet); cloud.onStatus = refreshWallet;
-function addMenuCard(tag: string, name: string, sub: string, color: string, act: () => void): void {
+/** a card on the map screen; returns its subtitle line, for cards that keep it current */
+function addMenuCard(tag: string, name: string, sub: string, color: string, act: () => void): HTMLElement {
   const b = document.createElement('div');
   b.style.cssText = 'flex:0 0 288px;scroll-snap-align:center;padding:14px 18px;border-radius:24px;border:1px solid rgba(255,255,255,.10);background:rgba(26,0,38,.62);backdrop-filter:blur(14px);cursor:pointer;transition:transform .2s cubic-bezier(.2,0,0,1),border-color .2s,box-shadow .2s;box-shadow:0 10px 30px rgba(0,0,0,.35)';
   b.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:${color};box-shadow:0 0 10px ${color}"></span><span style="font:600 10px Outfit,sans-serif;letter-spacing:.28em;color:${color}">${tag}</span></div><div style="font:600 19px Outfit,sans-serif;margin:5px 0 3px">${name}</div><div style="font:400 12px Inter,sans-serif;color:rgba(255,255,255,.62)">${sub}</div>`;
@@ -2748,6 +2755,7 @@ function addMenuCard(tag: string, name: string, sub: string, color: string, act:
   b.onmouseleave = () => { b.style.transform = ''; b.style.borderColor = 'rgba(255,255,255,.10)'; b.style.boxShadow = '0 10px 30px rgba(0,0,0,.35)'; };
   b.onclick = act;
   (menuEl.querySelector('#mapCards') as HTMLElement).appendChild(b);
+  return b.lastElementChild as HTMLElement;
 }
 function openCourierBrief(): void {
   preset('downtown', true);
@@ -3084,6 +3092,10 @@ function buildFurniture(): void {
     driveSurfaces.push(...countryScenes.roads);
     surfGrid = null;
     (window as any).countryShots = countryScenes.shots;
+    // curbs, tree lawns and sidewalks along the town streets (src/townStreets.ts); downtown keeps the ones painted from the street mask
+    const CW: Record<string, number> = { street: 4.25, arterial: 7, freeway: 6.25, ramp: 2.75 };
+    townWalks = buildTownSidewalks(countryScenes, { ground: (x, z) => meshH(x, z), painted: (x, z) => paintedRoad(x, z, 0, true), water: (x, z) => hAt(x, z) < 2.5, extra: streetRuns.map((r) => ({ line: r.p.map(([x, z]) => ({ x, z })), half: CW[r.c] ?? 4.25 })) });
+    furnitureGroup.add(townWalks.group);
   }
 
   if (meta.circuits[IND]) {
@@ -3136,6 +3148,14 @@ function buildFurniture(): void {
       scenicRails = railIndex(sr.rails);
     }
     if (festivalData) furnitureGroup.add(buildFestival(festivalData, (x, z) => meshH(x, z)));                         // Chora Fest stages and stunt furniture
+    // Chora Fest progression: Fest Points, Stage Passes, outposts and their opening sets (src/festProgress.ts), saved with the garage
+    if (festivalData && !festProg) festProg = createFestProgress({
+      festival: festivalData, scenic: scenicData, save: garage.save, persist: () => garage.persist(), banner: (t, k) => showBanner(t, k),
+      card: (act) => addMenuCard('CHORA FEST', 'Festival progress', 'Fest Points · Stage Passes · outposts', '#ff2d9a', act),
+      brief: briefEl, hideBrief, back: () => preset('overview'),
+      travel: (p, q) => { freeSpawn = { p, q }; startDrive('free'); },
+      cars: () => simLayer?.world.cars ?? [],
+    });
     heroBridgeUpdate = rb.updateLed;
   }
   spatialCuller.indexGroups([furnitureGroup, scapeGroup, zoneGroup]);
@@ -3713,7 +3733,8 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
   const cp = cityPath, cn = cp.length;
   const hw = meta.coastal_highway.xz;
   let p: number[], q: number[];
-  if (free) { p = hw[hw.length - 22]; q = hw[hw.length - 26]; }
+  if (free && freeSpawn) { p = freeSpawn.p; q = freeSpawn.q; freeSpawn = null; }          // fast travel to a festival site
+  else if (free) { p = hw[hw.length - 22]; q = hw[hw.length - 26]; }
   else if (id === 'great_lakes_cliff_raceway' && cliffDesign) { const d = cliffDesign.pts; p = [d[2].x, d[2].z]; q = [d[6].x, d[6].z]; }     // the engineered line, not the raw survey points (up to 14 m off it)
   else { p = city && cn > 8 ? [cp[cn - 8].x, cp[cn - 8].z] : c!.xz[0]; q = city && cn > 8 ? [cp[cn - 7].x, cp[cn - 7].z] : c!.xz[4]; }
   const yaw = Math.atan2(q[0] - p[0], q[1] - p[1]);
@@ -3871,6 +3892,7 @@ function stepDrive(dt: number): void {
   }
   if (challengeMgr) {
     const events = challengeMgr.step(ps, dt);
+    if (festProg) { for (const ev of events) festProg.challenge(ev); festProg.step(dt, ps); }
     if (events.length) {
       const ev = events[events.length - 1];
       msg.textContent = `${ev.title} · ${ev.subtitle}`;
@@ -4111,7 +4133,8 @@ async function boot(): Promise<void> {
   {
     // the simulation layer: plan the rails and the airfield on the ground as it is, then grade the ground for them
     const cityRuns = await fetch(BASE + 'city_streets.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { c: string; p: number[][] }[] | null;
-    simPlan = planSim(userMap as unknown as UserMapData | null, { country: countryNet ? [countryNet] : [], city: cityRuns ?? [], shoreline: shoreHw }, (x, z) => hAt(x, z));
+    const tall = await fetch(BASE + 'city.json').then((x) => (x.ok ? x.json() : null)).then((d: { items: CityItem[] } | null) => (d?.items ?? []).filter((i) => i.h >= 30).map((i) => [i.x, i.z] as [number, number])).catch(() => [] as [number, number][]);   // downtown, for the junction control
+    simPlan = planSim(userMap as unknown as UserMapData | null, { country: countryNet ? [countryNet] : [], city: cityRuns ?? [], shoreline: shoreHw }, (x, z) => hAt(x, z), tall);
     carveSim(simPlan, heights, meta.width, meta.height, meta.mpp);
   }
   carveCreek(heights, meta.width, meta.height, meta.mpp);

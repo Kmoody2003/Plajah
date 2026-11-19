@@ -5,6 +5,8 @@ import { type RailNetwork, layoutRail } from './sim/rail';
 import { type AirportLayout, layoutAirport } from './sim/airport';
 import { carveAirport, carveRail } from './sim/carve';
 import { SimWorld } from './sim/world';
+import { denseArea } from './sim/signals';
+import { buildIntersections, type IntersectionLayer } from './intersections';
 import { buildRailScenes, type RailScenes } from './railScenes';
 import { buildAirportScenes, type AirportScenes } from './airportScenes';
 
@@ -13,9 +15,9 @@ import { buildAirportScenes, type AirportScenes } from './airportScenes';
  * and the field before it is meshed (planSim + carveSim, called from boot), then SimLayer draws them and runs the sim: cars and trucks commuting between the zones along the real roads,
  * trains on their timetables (gates close at level crossings, traffic waits), planes landing and taking off.
  */
-export interface SimPlan { data: SimData; net: RailNetwork | null; L: AirportLayout | null }
+export interface SimPlan { data: SimData; net: RailNetwork | null; L: AirportLayout | null; /** tall buildings (x, z): where they cluster is downtown */ tall?: [number, number][] }
 
-export function planSim(map: UserMapData | null, gen: GeneratedRoads, ground: (x: number, z: number) => number): SimPlan {
+export function planSim(map: UserMapData | null, gen: GeneratedRoads, ground: (x: number, z: number) => number, tall?: [number, number][]): SimPlan {
   const data = featuresToSim(map, gen);
   let net: RailNetwork | null = null, L: AirportLayout | null = null;
   try {
@@ -26,7 +28,7 @@ export function planSim(map: UserMapData | null, gen: GeneratedRoads, ground: (x
       L = layoutAirport(data.airport, Math.max(e, 4));
     }
   } catch (e) { console.warn('sim plan failed', e); }
-  return { data, net, L };
+  return { data, net, L, tall };
 }
 
 export function carveSim(plan: SimPlan, heights: Float32Array, W: number, H: number, mpp: number): void {
@@ -40,6 +42,8 @@ export class SimLayer {
   readonly rail: RailScenes | null;
   readonly airport: AirportScenes | null;
   private cars: THREE.InstancedMesh;
+  /** stop lines, crosswalks, signals and stop signs, from the sim's junction control */
+  readonly junctions: IntersectionLayer;
   private t = 0;
   private _m4 = new THREE.Matrix4();
   private _q = new THREE.Quaternion();
@@ -51,7 +55,9 @@ export class SimLayer {
 
   constructor(private plan: SimPlan, private o: { ground: (x: number, z: number) => number; carGround?: (x: number, z: number) => number; water: (x: number, z: number) => boolean }) {
     this.group.name = 'sim-layer';
-    this.world = new SimWorld({ roads: plan.data.roads, zones: plan.data.zones, services: plan.data.services, rail: plan.net, airport: plan.L, water: o.water, maxCars: 240 });
+    this.world = new SimWorld({ roads: plan.data.roads, zones: plan.data.zones, services: plan.data.services, rail: plan.net, airport: plan.L, water: o.water, maxCars: 240, downtown: plan.tall?.length ? denseArea(plan.tall) : undefined });
+    this.junctions = buildIntersections(this.world.signals, this.world.graph, o.carGround ?? o.ground);
+    this.group.add(this.junctions.group);
     this.rail = plan.net ? buildRailScenes({ net: plan.net, sim: this.world.trains, ground: o.ground }) : null;
     this.airport = plan.L ? buildAirportScenes({ L: plan.L, sim: this.world.air, ground: o.ground }) : null;
     if (this.rail) this.group.add(this.rail.group);
@@ -64,7 +70,7 @@ export class SimLayer {
   }
 
   /** true within r metres of a rail line or the airfield: nothing grows or is built there */
-  near(x: number, z: number, r: number): boolean { return !!(this.rail?.near(x, z, r) || this.airport?.inside(x, z, r)); }
+  near(x: number, z: number, r: number): boolean { return !!(this.rail?.near(x, z, r) || this.airport?.inside(x, z, r) || this.junctions.near(x, z, r)); }
   get surfaces(): THREE.Mesh[] { return this.airport?.surfaces ?? []; }
 
   /** public traffic is off on a closed circuit: the cars are hidden (the sim keeps running) while a race or time trial is on */
@@ -76,6 +82,7 @@ export class SimLayer {
     this.world.step(dt);
     this.rail?.update(this.t, dt);
     this.airport?.update(this.t, dt);
+    this.junctions.update();
     if (!this.cars.visible) return;
 
     const m4 = this._m4, q = this._q, up = this._up, sc = this._sc, p = this._p, col = this._col;

@@ -14,7 +14,7 @@ export interface UserMapData { version: 1; features: UserFeature[] }
 
 export interface GeneratedRoads {
   /** country_roads.json, user_streets.json: { roads: [{ kind: 'paved' | 'dirt', xz }] } */
-  country?: { roads: { kind: string; xz: number[][] }[] }[];
+  country?: { roads: { kind: string; xz: number[][]; half?: number }[] }[];
   /** the downtown street runs (city_streets.json): [{ c: street | arterial | freeway | ramp, p }] */
   city?: { c: string; p: number[][] }[];
   /** shoreline_highway.json */
@@ -23,6 +23,8 @@ export interface GeneratedRoads {
 
 const ROAD_KINDS: Record<string, RoadClass> = { street: 'street', avenue: 'avenue', highway: 'highway', dirt: 'dirt', collector: 'collector', service: 'service', ramp: 'ramp' };
 const CITY: Record<string, RoadClass> = { street: 'street', arterial: 'avenue', freeway: 'highway', ramp: 'ramp' };
+/** the downtown carriageway widths (tools/build_city_mask.py), halved */
+const CITY_HALF: Record<string, number> = { street: 4.25, arterial: 7, freeway: 6.25, ramp: 2.75 };
 
 const p2 = (a: number[][]): [number, number][] => a.map((p) => [p[0], p[1]]);
 
@@ -30,8 +32,15 @@ export interface SimData { roads: RoadInput[]; zones: ZoneInput[]; services: Ser
 
 export function featuresToSim(map: UserMapData | null, gen: GeneratedRoads = {}): SimData {
   const out: SimData = { roads: [], zones: [], services: [], rails: [], stations: [], airport: [] };
-  gen.country?.forEach((set, si) => set.roads.forEach((r, i) => { if (r.xz.length >= 2 && (r.kind as string) !== 'drive') out.roads.push({ id: `g${si}-${i}`, cls: r.kind === 'dirt' ? 'dirt' : si === 0 ? 'collector' : 'street', pts: p2(r.xz) }); }));
-  gen.city?.forEach((r, i) => { if (r.p.length >= 2) out.roads.push({ id: `c${i}`, cls: CITY[r.c] ?? 'street', pts: p2(r.p) }); });
+  // the generated road set mixes every kind; its width says what each one is: the freeway (half 10) is grade-separated, the coastal highway (6.4) a fast two-lane road,
+  // town connectors and main streets (5.0) collectors, subdivision streets (3.4) local streets, the country section roads (no width) collectors
+  gen.country?.forEach((set, si) => set.roads.forEach((r, i) => {
+    if (r.xz.length < 2 || (r.kind as string) === 'drive' || (r as { trail?: boolean }).trail) return;
+    const h = r.half ?? 3.6;
+    const cls: RoadClass = r.kind === 'dirt' ? 'dirt' : h >= 9 ? 'highway' : h >= 6 ? 'collector' : h >= 4.6 ? 'collector' : h <= 3.5 ? 'street' : si === 0 ? 'collector' : 'street';
+    out.roads.push({ id: `g${si}-${i}`, cls, pts: p2(r.xz), half: r.half, speed: h >= 6 && h < 9 ? 22 : undefined });
+  }));
+  gen.city?.forEach((r, i) => { if (r.p.length >= 2) out.roads.push({ id: `c${i}`, cls: CITY[r.c] ?? 'street', pts: p2(r.p), half: CITY_HALF[r.c] }); });
   if (gen.shoreline && gen.shoreline.xz.length >= 2) out.roads.push({ id: 'shoreline', cls: 'collector', speed: 20, pts: p2(gen.shoreline.xz) });
   for (const f of map?.features ?? []) {
     if (!f.pts || !f.pts.length) continue;

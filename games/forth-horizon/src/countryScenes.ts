@@ -188,6 +188,10 @@ export interface CountryScenes {
   dirtNear: (x: number, z: number, r: number) => boolean;
   /** world-space spots to photograph from: name, camera position, target */
   shots: { name: string; cam: [number, number, number]; at: [number, number, number] }[];
+  /** every paved road as drawn (the smoothed line, its surface height, half width), for the curbs and sidewalks (src/townStreets.ts) */
+  pavedRuns: { line: Pt[]; ys: number[]; half: number; town: boolean }[];
+  /** where each driveway meets its street */
+  driveMouths: Pt[];
 }
 
 /** a straight two-point run resampled every `step` metres (driveways: no spline overshoot) */
@@ -198,7 +202,7 @@ function straight(xz: number[][], step: number): Pt[] {
   return out;
 }
 
-export interface RoadNetwork { roads: { kind: 'paved' | 'dirt' | 'drive'; xz: number[][]; half?: number }[] }
+export interface RoadNetwork { roads: { kind: 'paved' | 'dirt' | 'drive'; xz: number[][]; half?: number; /** a town street (user_streets.json): it gets curbs and sidewalks */ town?: boolean }[] }
 
 export function buildCountryScenes(o: { ground: (x: number, z: number) => number; roadMaterial?: THREE.Material; network?: RoadNetwork; shoreline?: Shoreline }): CountryScenes {
   const group = new THREE.Group(); group.name = 'country-scenes';
@@ -252,6 +256,7 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
   // ---- the country roads traced from the map texture (tools/trace_roads.py): section roads and lanes laid on the drawn ground ----
   const netPaved: (Pt & { h: number })[] = [], netDirt: (Pt & { h: number })[] = [];
   const bridgeRuns: { line: Pt[]; i0: number; i1: number; half: number; ys: number[]; gy: number[] }[] = [];
+  const pavedRuns: CountryScenes['pavedRuns'] = [], driveMouths: Pt[] = [];
   if (o.network) {
     const mk = (kind: 'paved' | 'dirt' | 'drive'): { pos: number[]; uv: number[]; idx: number[]; v: number } => ({ pos: [], uv: [], idx: [], v: 0 });
     const acc = { paved: mk('paved'), dirt: mk('dirt'), drive: mk('drive') };
@@ -280,6 +285,8 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
           i = j + 1 + RAMP;
         }
       }
+      if (r.kind === 'paved') pavedRuns.push({ line, ys, half, town: !!r.town });
+      else if (r.kind === 'drive') driveMouths.push(line[0], line[line.length - 1]);
       let dist = 0;
       const base = a.v;
       for (let i = 0; i < line.length; i++) {
@@ -601,5 +608,5 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
     { name: 'Hollow barn and silo', cam: [BARN.x - 60, o.ground(BARN.x - 60, BARN.z + 45) + 5, BARN.z + 45], at: [BARN.x, o.ground(BARN.x, BARN.z) + 6, BARN.z] },
     { name: 'Millbrook hairpin from above', cam: [-380, o.ground(-380, -1440) + 120, -1250], at: [-450, o.ground(-450, -1450), -1450] },
   ];
-  return { group, roads, pavedNear: makeCorridor([...millLine.map((p) => ({ x: p.x, z: p.z, h: 5.8 })), ...netPaved, ...netShore]), dirtNear: makeCorridor([...hollowLine.map((p) => ({ x: p.x, z: p.z, h: 4.4 })), ...netDirt]), shots };
+  return { group, roads, pavedNear: makeCorridor([...millLine.map((p) => ({ x: p.x, z: p.z, h: 5.8 })), ...netPaved, ...netShore]), dirtNear: makeCorridor([...hollowLine.map((p) => ({ x: p.x, z: p.z, h: 4.4 })), ...netDirt]), shots, pavedRuns, driveMouths };
 }

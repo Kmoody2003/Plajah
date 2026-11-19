@@ -3,6 +3,7 @@ import { type GEdge, type RoadClass, type RoadGraph, type RoadInput, buildRoadGr
 import { type AirportLayout, AirportSim } from './airport';
 import { type RailNetwork, TrainSim } from './rail';
 import { type ServiceInput, type Zone, type ZoneInput, ZoneSim } from './zones';
+import { SignalSystem, type SignalCar } from './signals';
 
 /**
  * The whole sim: road graph, zones with demand, ambient cars and trucks that commute between them, trains and planes.
@@ -13,17 +14,23 @@ export interface SimInput {
   rail?: RailNetwork | null; airport?: AirportLayout | null;
   water?: (x: number, z: number) => boolean;
   seed?: number; maxCars?: number; dayLength?: number; startHour?: number;
+  /** inside downtown (every four-way junction there is signalised, and every junction gets crosswalks) */
+  downtown?: (x: number, z: number) => boolean;
 }
 
 export interface Car {
   id: number; kind: 'car' | 'truck'; path: number[]; pi: number; s: number; v: number; len: number; lane: number; color: number;
   x: number; z: number; yaw: number; dest: string; vFactor: number;
+  /** junction state, kept by SignalSystem: stopped at a stop sign / red, inside a junction box */
+  stoppedAt?: number; inJ?: number; inJEdge?: number;
 }
 
 const LANE0 = 1.7, LANE_W = 3.3;
 
 export class SimWorld {
   readonly graph: RoadGraph;
+  /** signals and stop signs at every junction */
+  readonly signals: SignalSystem;
   readonly zones: ZoneSim;
   readonly trains: TrainSim | null;
   readonly air: AirportSim | null;
@@ -47,6 +54,7 @@ export class SimWorld {
   constructor(input: SimInput) {
     this.rnd = rng(input.seed ?? 11);
     this.graph = buildRoadGraph(input.roads);
+    this.signals = new SignalSystem(this.graph, { downtown: input.downtown, seed: input.seed });
     const stations: P2[] = [];
     if (input.rail) for (const l of input.rail.lines) for (const st of l.stops) if (st.kind !== 'terminus') { const sm = sampleAt(l.profile.pts, l.profile.cum, st.s); stations.push([sm.x, sm.z]); }
     const ap = input.airport ? ([(input.airport.a[0] + input.airport.b[0]) / 2, (input.airport.a[1] + input.airport.b[1]) / 2] as P2) : null;
@@ -161,6 +169,9 @@ export class SimWorld {
     while (this.spawnAcc >= 1 && tries < 3) { this.spawnAcc -= 1; tries++; if (this.cars.length < target) this.spawn(); }
     if (this.spawnAcc > 3) this.spawnAcc = 3;
 
+    // the cars on an edge, all lanes, for the junction gap checks
+    const onEdge = (ei: number): SignalCar[] => { const out: Car[] = []; for (let l = 0; l < 4; l++) { const a = this.lanes.get(ei * 4 + l); if (a) out.push(...a); } return out; };
+    this.signals.beginStep();
     for (let i = this.cars.length - 1; i >= 0; i--) {
       const c = this.cars[i], e: GEdge = edges[c.path[c.pi]];
       const a = this.lanes.get(c.path[c.pi] * 4 + Math.min(3, c.lane)) ?? [];
@@ -186,6 +197,9 @@ export class SimWorld {
         const turn = Math.abs(Math.atan2((a2[0] - a1[0]) * (b2[1] - b1[1]) - (a2[1] - a1[1]) * (b2[0] - b1[0]), (a2[0] - a1[0]) * (b2[0] - b1[0]) + (a2[1] - a1[1]) * (b2[1] - b1[1])));
         if (turn > 0.6) vt = Math.min(vt, 6.5);
       }
+      // the junction ahead: a red light, a stop sign, a left turn waiting for oncoming traffic (the stop line counts as an obstacle 3 m past it, so the bumper stops at the line)
+      const lim = this.signals.limit(c, onEdge);
+      if (lim < Infinity) gap = Math.min(gap, lim + 3);
       if (gap < 1e8) vt = Math.min(vt, Math.max(0, (gap - 3.5) / 1.2));
       if (gap < 1.5) c.v = 0;
       c.v += Math.max(-7 * dt, Math.min(2.6 * dt, vt - c.v));
@@ -196,9 +210,11 @@ export class SimWorld {
         if (c.pi >= c.path.length) break;
         c.lane = Math.min(c.lane, edges[c.path[c.pi]].lanes - 1);
       }
-      if (c.pi >= c.path.length) { this.cars[i] = this.cars[this.cars.length - 1]; this.cars.pop(); this.stats.arrived++; continue; }
+      if (c.pi >= c.path.length) { this.signals.release(c); this.cars[i] = this.cars[this.cars.length - 1]; this.cars.pop(); this.stats.arrived++; continue; }
+      this.signals.moved(c);
       this.place(c);
     }
+    this.signals.step(dt);
     const k = Math.min(1, dt * 0.2);
     for (let i = 0; i < this.flow.length; i++) this.flow[i] += (this.load[i] - this.flow[i]) * k;
   }

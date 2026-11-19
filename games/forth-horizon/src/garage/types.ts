@@ -28,6 +28,8 @@ export interface GarageSave {
   seenUnlocks: string[];                      // part and car ids the player has already been told about
   stats: Stats;
   log: LogEntry[];
+  /** Chora Fest progression (src/garage/fest.ts); absent in saves from before it */
+  fest?: import('./fest').FestSave;
 }
 
 export const emptyStats = (): Stats => ({

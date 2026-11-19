@@ -19,6 +19,19 @@ function label(text: string, sub: string, w = 1024, h = 256, bg = '#14001c', fg 
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
 }
 
+/** each stage's LED wall, so the progression can show it closed, open or live */
+const siteWalls = new Map<string, { mat: THREE.MeshStandardMaterial; name: string; kind: string }>();
+export type SiteState = 'closed' | 'open' | 'live';
+/** what a stage's LED wall shows: OPENING SOON (dark) before its outpost opens, its name once open, the act during the opening set */
+export function setSiteState(id: string, state: SiteState, act = ''): void {
+  const w = siteWalls.get(id); if (!w) return;
+  const sub = state === 'closed' ? 'OPENING SOON  ·  EARN A STAGE PASS' : state === 'live' ? `LIVE NOW  ·  ${act.toUpperCase()}` : w.name.toUpperCase() + (w.kind === 'main' ? '  ·  MAIN STAGE' : '  ·  OUTPOST');
+  const old = w.mat.map;
+  const t = label(state === 'closed' ? 'CHORA FEST' : state === 'live' ? w.name.toUpperCase() : 'CHORA FEST', sub, 1024, 256, '#14001c', '#ffffff', state === 'live' ? CYAN : ORANGE);
+  w.mat.map = t; w.mat.emissiveMap = t; w.mat.emissiveIntensity = state === 'closed' ? 0.18 : state === 'live' ? 1.6 : 1.1; w.mat.needsUpdate = true;
+  old?.dispose();
+}
+
 export function buildFestival(d: FestivalData, ground: (x: number, z: number) => number): THREE.Group {
   const root = new THREE.Group(); root.name = 'festival';
   const steel = new THREE.MeshStandardMaterial({ color: 0x1e2430, metalness: 0.8, roughness: 0.35 });
@@ -53,6 +66,7 @@ export function buildFestival(d: FestivalData, ground: (x: number, z: number) =>
     const wall = new THREE.Mesh(new THREE.PlaneGeometry(26 * k, 6.5 * k), new THREE.MeshStandardMaterial({ map: label('CHORA FEST', s.name.toUpperCase() + (s.kind === 'main' ? '  ·  MAIN STAGE' : '  ·  OUTPOST')), emissive: 0xffffff, emissiveMap: null, emissiveIntensity: 0.0, roughness: 0.4 }));
     (wall.material as THREE.MeshStandardMaterial).emissiveMap = (wall.material as THREE.MeshStandardMaterial).map; (wall.material as THREE.MeshStandardMaterial).emissiveIntensity = 1.1;
     wall.position.set(0, 8.6 * k, -7.6 * k); g.add(wall);
+    siteWalls.set(s.id, { mat: wall.material as THREE.MeshStandardMaterial, name: s.name, kind: s.kind });
     mergeByMaterial(g);
     root.add(g);
   }
