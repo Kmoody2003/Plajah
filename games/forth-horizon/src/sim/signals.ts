@@ -1,4 +1,5 @@
 import type { GEdge, RoadClass, RoadGraph } from './network';
+import { sampleAt } from './geom';
 
 /**
  * Junction control for the road graph: every place three or more roads meet gets the control a real traffic engineer would give it, and the sim's cars obey it.
@@ -54,6 +55,12 @@ const RANK: Record<RoadClass, number> = { highway: 5, avenue: 4, ramp: 3.5, coll
 const AMBER = 3.5, ALL_RED = 1.5, CLUSTER = 12;
 /** phases: 0 = group 0 green, 1 amber, 2 all red, 3 = group 1 green, 4 amber, 5 all red */
 const PHASE_LEN = (j: Junction, p: number): number => (p === 1 || p === 4 ? AMBER : p === 2 || p === 5 ? ALL_RED : j.maxG[p === 0 ? 0 : 1]);
+
+/** a junction rule the player's car broke: through a red light, or past a stop sign without stopping */
+export interface PlayerCall { kind: 'red' | 'stop'; junction: number; x: number; z: number; speed: number }
+
+/** where the player's car is, as the junctions see it */
+interface PlayerAt { j: number; a: number; along: number; v: number }
 
 export class SignalSystem {
   readonly junctions: Junction[] = [];
@@ -165,6 +172,72 @@ export class SignalSystem {
     }
   }
 
+  // ---- the player's car: a road user like the others ----
+  private stopPts: ([number, number] | undefined)[][] = [];
+  /** the approach the player is on (within 45 m of its stop line), or null */
+  private pAt: PlayerAt | null = null;
+  /** the junction box the player is in, or -1 */
+  private pIn = -1;
+  /** slowest speed on the current approach, from 15 m out (a real stop is under 0.6 m/s) */
+  private pMinV = 1e9;
+  private stopPt(j: Junction, ai: number): [number, number] {
+    const row = this.stopPts[j.id] ?? (this.stopPts[j.id] = []);
+    let p = row[ai];
+    if (!p) { const a = j.approaches[ai], e = this.g.edges[a.edge], sm = sampleAt(e.pts, e.cum, a.stopS); p = row[ai] = [sm.x, sm.z]; }
+    return p;
+  }
+
+  /**
+   * The player's car, once per step after beginStep: it calls for a green like a sim car waiting at the line, holds the box and the gaps the sim cars wait for,
+   * and the call comes back when it went through a red light or past a stop sign without stopping. Null `at` = not driving.
+   */
+  player(at: { x: number; z: number; yaw: number; v: number } | null): PlayerCall | null {
+    if (!at) { this.pAt = null; this.pIn = -1; this.pMinV = 1e9; return null; }
+    const fx = Math.sin(at.yaw), fz = Math.cos(at.yaw);
+    let best: PlayerAt | null = null, inBox = -1;
+    for (const j of this.junctions) {
+      if (j.control === 'none') continue;
+      const dj = (j.x - at.x) ** 2 + (j.z - at.z) ** 2; if (dj > 70 * 70) continue;
+      let r = 0;
+      for (let ai = 0; ai < j.approaches.length; ai++) {
+        const a = j.approaches[ai]; r = Math.max(r, a.setback);
+        if (fx * a.dx + fz * a.dz < 0.7) continue;                                       // facing this way
+        const [px, pz] = this.stopPt(j, ai), rx = at.x - px, rz = at.z - pz;
+        const along = rx * a.dx + rz * a.dz, lat = rx * -a.dz + rz * a.dx;               // lat > 0: this approach's own lanes (right-hand traffic)
+        if (along < -45 || along > 4 || lat < -0.8 || lat > a.half + 1.2) continue;
+        if (!best || Math.abs(along) < Math.abs(best.along)) best = { j: j.id, a: ai, along, v: at.v };
+      }
+      if (dj < (r - 1) * (r - 1)) inBox = j.id;
+    }
+    this.pIn = inBox;
+    const prev = this.pAt;
+    let call: PlayerCall | null = null;
+    if (best && prev && best.j === prev.j && best.a === prev.a) {
+      if (best.along > -15) this.pMinV = Math.min(this.pMinV, at.v);
+      if (prev.along < 0 && best.along >= 0 && at.v > 1) {                              // over the stop line, moving
+        const j = this.junctions[best.j], a = j.approaches[best.a];
+        if (j.control === 'signal' && this.lamp(j, a) === 'R' && this.pMinV > 0.6) call = { kind: 'red', junction: j.id, x: at.x, z: at.z, speed: at.v };     // (a stop first, then out: right on red)
+        else if (a.stopSign && this.pMinV > 1.5) call = { kind: 'stop', junction: j.id, x: at.x, z: at.z, speed: this.pMinV };
+      }
+    } else this.pMinV = best && best.along > -15 ? at.v : 1e9;
+    this.pAt = best;
+    // the signal hears the player like any car: waiting at a red, or moving up to a green
+    if (best) {
+      const j = this.junctions[best.j], a = j.approaches[best.a];
+      if (j.control === 'signal' && a.group >= 0) {
+        const lamp = this.lamp(j, a);
+        if (lamp === 'G') { if (best.along > -70) j.busy[a.group] = true; } else if (best.along > -40) j.demand[a.group] = true;
+      }
+    }
+    return call;
+  }
+
+  /** the player is coming up to approach `b` of `j`, within `ahead` m (more when fast): the sim cars give way */
+  private playerOn(j: Junction, b: Approach, ahead: number): boolean {
+    const p = this.pAt; if (!p || p.j !== j.id || j.approaches[p.a] !== b) return false;
+    return p.along > -Math.max(ahead, p.v * 5) && p.along < 3;
+  }
+
   /** what an approach's signal shows */
   lamp(j: Junction, a: Approach): Lamp {
     if (j.control !== 'signal') return 'R';
@@ -259,11 +332,11 @@ export class SignalSystem {
       return d;
     }
     if (j.control === 'allStop') {
-      if (j.queue[0] === c.id && j.inside === 0) return Infinity;
+      if (j.queue[0] === c.id && j.inside === 0 && this.pIn !== j.id && !j.approaches.some((b) => b !== a && this.playerOn(j, b, 3))) return Infinity;
       return d;
     }
     // two-way stop: a gap in the major road's traffic and an empty box
-    if (j.inside === 0 && !this.crossTraffic(j, a, others, 5)) return Infinity;
+    if (j.inside === 0 && this.pIn !== j.id && !this.crossTraffic(j, a, others, 5)) return Infinity;
     return d;
   }
 
@@ -284,8 +357,9 @@ export class SignalSystem {
     for (const b of j.approaches) {
       if (b === a || b.group !== a.group || a.dx * b.dx + a.dz * b.dz > -0.7) continue;
       for (const o of others(b.edge)) { const d = b.stopS - (o.s + o.len * 0.5); if (d > -2 && d < 45 && (o.v > 1.5 || d < 6)) return true; }
+      if (this.pAt && this.playerOn(j, b, 45) && (this.pAt.v > 1.5 || this.pAt.along > -6)) return true;
     }
-    return false;
+    return this.pIn === j.id;
   }
 
   /** a car on a crossing (or, for stop signs, any priority) approach close enough in time that pulling out now is unsafe */
@@ -294,8 +368,9 @@ export class SignalSystem {
       if (b === a || b.stopSign) continue;
       if (j.control === 'signal' && b.group === a.group) continue;
       for (const o of others(b.edge)) { const d = b.stopS - (o.s + o.len * 0.5); if (d > -3 && d < Math.max(12, o.v * secs)) return true; }
+      if (this.playerOn(j, b, 12)) return true;
     }
-    return j.inside > 0;
+    return j.inside > 0 || this.pIn === j.id;
   }
 }
 

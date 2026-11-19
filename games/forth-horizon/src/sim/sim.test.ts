@@ -283,3 +283,55 @@ test('signals: the lights cycle, cars stop on red and use green, and nobody dead
   const slow = w.cars.filter((c) => c.v < 0.1).length;
   assert.ok(slow < w.cars.length * 0.7, `not gridlocked: ${slow}/${w.cars.length} standing`);
 });
+
+test('signals: the player calls for green, and running a red or a stop sign is caught (a real stop is not)', () => {
+  const g = buildRoadGraph([line('ave', 'avenue', [[0, 0], [2000, 0]]), line('col', 'collector', [[500, -500], [500, 500]]), line('st1', 'street', [[1000, -500], [1000, 500]])]);
+  const sig = new SignalSystem(g);
+  const J = sig.junctions.find((j) => Math.hypot(j.x - 500, j.z) < 3)!, A = J.approaches.find((a) => a.dz > 0.9)!;
+  const lane = (cx: number) => cx - 1.8;                              // northbound: the right-hand lane is at x < centre (three.js axes)
+  const drive = (cx: number, z0: number, z1: number, v: (z: number) => number, dt = 1 / 30) => {
+    const calls = []; let z = z0;
+    while (z < z1) { sig.beginStep(); const c = sig.player({ x: lane(cx), z, yaw: 0, v: v(z) }); if (c) calls.push(c); sig.step(dt); z += Math.max(0.05, v(z)) * dt; }
+    sig.player(null); return calls;
+  };
+  // waiting at the line: the light comes round for the player
+  J.phase = A.group === 0 ? 3 : 0; J.t = 0;
+  assert.equal(sig.lamp(J, A), 'R');
+  let t = 0; const stopZ = -A.setback - 3;
+  while (sig.lamp(J, A) !== 'G' && t < 90) { sig.beginStep(); sig.player({ x: lane(500), z: stopZ, yaw: 0, v: 0 }); sig.step(1 / 30); t += 1 / 30; }
+  assert.ok(t < 60, 'green after ' + t.toFixed(1) + ' s');
+  sig.player(null);
+  // straight through on red at 15 m/s
+  J.phase = A.group === 0 ? 3 : 0; J.t = 0;
+  const red = drive(500, -80, 0, () => 15);
+  assert.equal(red.length, 1); assert.equal(red[0].kind, 'red');
+  // on green: nothing
+  J.phase = A.group === 0 ? 0 : 3; J.t = 0;
+  assert.equal(drive(500, -80, 0, () => 15).length, 0);
+  // the stop sign on the street across the avenue: rolling it is caught, a full stop is fine
+  const S = sig.junctions.find((j) => Math.hypot(j.x - 1000, j.z) < 3)!, SA = S.approaches.find((a) => a.dz > 0.9)!;
+  assert.ok(SA.stopSign);
+  const roll = drive(1000, -60, 0, () => 6);
+  assert.equal(roll.length, 1); assert.equal(roll[0].kind, 'stop');
+  const line0 = -SA.setback;
+  assert.equal(drive(1000, -60, 0, (z) => (Math.abs(z - (line0 - 2.5)) < 0.4 ? 0.2 : 6)).length, 0, 'stopped first');
+});
+
+test('world: traffic stops behind the player car instead of driving through it', () => {
+  const roads: RoadInput[] = [line('ave', 'avenue', [[0, 0], [3000, 0]]), line('c1', 'collector', [[200, -600], [200, 600]]), line('c2', 'collector', [[2800, -600], [2800, 600]])];
+  const zones: ZoneInput[] = [{ id: 'homes', kind: 'residential', pts: rect(0, -500, 400, 1000) }, { id: 'shops', kind: 'commercial', pts: rect(2600, -500, 400, 1000) }];
+  const w = new SimWorld({ roads, zones, services: [], seed: 3, maxCars: 80, dayLength: 600, startHour: 7.8 });
+  w.setFocus(1500, 0);
+  w.player = { x: 1500, z: 1.7, yaw: Math.PI / 2, v: 0 };            // stopped in the eastbound kerb lane
+  let through = 0, queued = 0;
+  for (let i = 0; i < 20 * 240; i++) {
+    w.step(1 / 20);
+    for (const c of w.cars) {
+      if (Math.abs(c.z - 1.7) > 1) continue;
+      if (Math.abs(c.x - 1500) < 3.5) through++;
+      if (c.x < 1500 && c.x > 1400 && c.v < 0.2) queued++;
+    }
+  }
+  assert.equal(through, 0, 'no car overlaps the player');
+  assert.ok(queued > 50, 'cars queue behind it: ' + queued);
+});

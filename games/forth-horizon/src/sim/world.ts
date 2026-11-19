@@ -3,7 +3,7 @@ import { type GEdge, type RoadClass, type RoadGraph, type RoadInput, buildRoadGr
 import { type AirportLayout, AirportSim } from './airport';
 import { type RailNetwork, TrainSim } from './rail';
 import { type ServiceInput, type Zone, type ZoneInput, ZoneSim } from './zones';
-import { SignalSystem, type SignalCar } from './signals';
+import { SignalSystem, type SignalCar, type PlayerCall } from './signals';
 
 /**
  * The whole sim: road graph, zones with demand, ambient cars and trucks that commute between them, trains and planes.
@@ -49,6 +49,11 @@ export class SimWorld {
   private load: Int32Array;
   private crossByEdge = new Map<number, { s: number; c: number }[]>();
   private spawnAcc = 0;
+  /** the player's car (set each frame while driving, null otherwise): the sim cars stop behind it and give way to it, and the signals answer it */
+  player: { x: number; z: number; yaw: number; v: number } | null = null;
+  /** red lights and stop signs the player ran since the last `takePlayerCalls` */
+  private playerCalls: PlayerCall[] = [];
+  takePlayerCalls(): PlayerCall[] { const c = this.playerCalls; this.playerCalls = []; return c; }
   private simAcc = 0;
 
   constructor(input: SimInput) {
@@ -172,6 +177,9 @@ export class SimWorld {
     // the cars on an edge, all lanes, for the junction gap checks
     const onEdge = (ei: number): SignalCar[] => { const out: Car[] = []; for (let l = 0; l < 4; l++) { const a = this.lanes.get(ei * 4 + l); if (a) out.push(...a); } return out; };
     this.signals.beginStep();
+    const call = this.signals.player(this.player);
+    if (call) { this.playerCalls.push(call); if (this.playerCalls.length > 8) this.playerCalls.shift(); }
+    const P = this.player;
     for (let i = this.cars.length - 1; i >= 0; i--) {
       const c = this.cars[i], e: GEdge = edges[c.path[c.pi]];
       const a = this.lanes.get(c.path[c.pi] * 4 + Math.min(3, c.lane)) ?? [];
@@ -182,6 +190,11 @@ export class SimWorld {
       else if (c.pi + 1 < c.path.length) {
         const ne = c.path[c.pi + 1], b = this.lanes.get(ne * 4 + Math.min(3, c.lane, edges[ne].lanes - 1));
         if (b && b.length) gap = e.len - c.s + b[0].s - b[0].len * 0.5 - c.len * 0.5;
+      }
+      // the player's car ahead in this car's path: an obstacle like any car
+      if (P && Math.abs(P.x - c.x) + Math.abs(P.z - c.z) < 60) {
+        const hx = Math.sin(c.yaw), hz = Math.cos(c.yaw), rx = P.x - c.x, rz = P.z - c.z, ahead = rx * hx + rz * hz, lat = Math.abs(rx * hz - rz * hx);
+        if (ahead > 0 && ahead < 50 && lat < 2.4) gap = Math.min(gap, ahead - 2.3 - c.len * 0.5);
       }
       let vt = e.speed * c.vFactor;
       // a closed level crossing ahead is an obstacle

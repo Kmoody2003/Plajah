@@ -3837,6 +3837,7 @@ function stopDrive(): void {
   teardownRun();
   scene.remove(driving.car);
   driving = null;
+  if (simLayer) { simLayer.world.player = null; simLayer.world.takePlayerCalls(); }
   festProg?.quiet(); gameAudio.setPaused(true); setMusicDuck(1); wx.setPaused(true); wxPlan = null; if (wxOverride === 'auto') wx.setWeather('partly', false, true);
   camera.near = 5; camera.far = 80000; camera.updateProjectionMatrix();
   controls.enabled = true;
@@ -3943,6 +3944,23 @@ function stepDrive(dt: number): void {
     }
   }
   if (parked && !locked) for (const pc of parked.near(ps.pos.x, ps.pos.z, 7)) carHit(ps, PARKED_P.set(pc.x, ps.pos.y, pc.z), pc.yaw, PARKED_V, 3);   // parked cars are solid
+  // the town's traffic (src/sim): in free roam the player's car is a road user like the others. The sim cars are solid, stop behind it and give way to it,
+  // the lights change for it, and a red light or stop sign it runs is called out (Settings > Driving, on by default)
+  if (simLayer) {
+    const free = driving.circuitId === 'free';
+    simLayer.world.player = free ? { x: ps.pos.x, z: ps.pos.z, yaw: ps.yaw, v: Math.max(0, ps.forwardSpeed) } : null;
+    if (free && !locked) for (const c of simLayer.world.cars) {
+      if (Math.abs(c.x - ps.pos.x) > 7 || Math.abs(c.z - ps.pos.z) > 7) continue;
+      const hit = carHit(ps, PARKED_P.set(c.x, ps.pos.y, c.z), c.yaw, PARKED_V.set(Math.sin(c.yaw) * c.v, 0, Math.cos(c.yaw) * c.v), c.kind === 'truck' ? 4 : 1.1);
+      if (hit > 2) c.v *= 0.3;
+    }
+    for (const call of simLayer.world.takePlayerCalls()) {
+      trafficCalls[call.kind]++;
+      if (!(document.getElementById('tTrafficCalls') as HTMLInputElement | null)?.checked || driveClock - lastTrafficCall < 6) continue;
+      lastTrafficCall = driveClock;
+      showBanner(call.kind === 'red' ? `RAN A RED LIGHT · ${Math.round(call.speed * 2.237)} mph` : `ROLLED A STOP SIGN · ${Math.round(call.speed * 2.237)} mph`, 'bad', 2200);
+    }
+  }
   if (trafficMgr) {
     trafficMgr.update(dt, ps);
     for (let i = 0; i < trafficMgr.vehicles.length && i < trafficMeshes.length; i++) {
@@ -4299,7 +4317,7 @@ async function boot(): Promise<void> {
   mapEditor.load(userMap ?? { version: 1, features: [] });
   (window as any).cineJump = (i: number) => { if (!cineOn) startCine(); cineIdx = i % cineShots.length; cineT = 1.2; };
   (window as any).vegStats = () => vegetation?.stats;
-  (window as any).simDebug = () => ({ cars: simLayer?.world.cars ?? [], surf: surfaceAtXZ, meshH, graph: simLayer?.world.graph });
+  (window as any).simDebug = () => ({ cars: simLayer?.world.cars ?? [], trafficCalls, signals: simLayer?.world.signals, surf: surfaceAtXZ, meshH, graph: simLayer?.world.graph });
   (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, csm, renderer, warmShaders, audio: gameAudio, cam: (x?: number, y?: number, z?: number, tx?: number, ty?: number, tz?: number) => { dbgCam = x === undefined ? null : { pos: new THREE.Vector3(x, y!, z!), at: new THREE.Vector3(tx!, ty!, tz!) }; }, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, keys, drive: () => driving, delivery: () => delivery, garage };
 }
 
@@ -4380,6 +4398,7 @@ const syncRadioLabel = () => {
   radioLabelEl.textContent = `${st.name} · ${st.artist}`;
 };
 syncRadioLabel();
+{ const tc = document.getElementById('tTrafficCalls') as HTMLInputElement | null; if (tc) { try { tc.checked = localStorage.getItem('apex_traffic_calls') !== '0'; } catch { /* storage blocked */ } tc.addEventListener('change', () => { try { localStorage.setItem('apex_traffic_calls', tc.checked ? '1' : '0'); } catch { /* storage blocked */ } }); } }
 { const hv = document.getElementById('tHostVoice') as HTMLInputElement | null; if (hv) { try { hv.checked = localStorage.getItem('apex_host_voice') === '1'; } catch { /* storage blocked */ } hv.addEventListener('change', () => { try { localStorage.setItem('apex_host_voice', hv.checked ? '1' : '0'); } catch { /* storage blocked */ } }); } }
 document.getElementById('radioPrev')?.addEventListener('click', () => { gameAudio.cycleStation(-1); syncRadioLabel(); });
 document.getElementById('radioNext')?.addEventListener('click', () => { gameAudio.cycleStation(1); syncRadioLabel(); });
@@ -4471,6 +4490,9 @@ if (TV_MODE || renderScale < 0.99) applyRenderScale();
 // Car-to-car contact: each car is three circles along its length; overlap pushes the player out and swaps momentum along the contact normal (the other car is heavier or lighter by `otherMass`).
 const CAR_CIRCLES = [-1.45, 0, 1.45], CAR_R = 1.0;
 const PARKED_P = new THREE.Vector3(), PARKED_V = new THREE.Vector3();
+/** red lights and stop signs run this session (free roam), and when the last one was called out */
+const trafficCalls = { red: 0, stop: 0 };
+let lastTrafficCall = -1e9;
 function carHit(ps: DriveState['ps'], op: THREE.Vector3, oyaw: number, ovel: THREE.Vector3, otherMass: number): number {
   const sy = Math.sin(ps.yaw), cy = Math.cos(ps.yaw), oy = Math.sin(oyaw), oc = Math.cos(oyaw);
   if ((ps.pos.x - op.x) ** 2 + (ps.pos.z - op.z) ** 2 > 36) return 0;
