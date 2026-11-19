@@ -3,6 +3,21 @@ import * as THREE from 'three/webgpu';
 import type { CollisionWorld } from './collision';
 import { assets, CharacterRig } from './characters';
 
+/** A level can swap the robot for its own creatures (Cyber Forest: wolves, mantises, wasps). */
+export interface EnemyBody {
+  root: THREE.Object3D;
+  /** Flying height of the model above the ground the enemy walks on. */
+  hover: number;
+  height: number;
+  speedMul: number;
+  hpMul: number;
+  update(dt: number, speed: number): void;
+  attack(): void;
+}
+export const enemyBodies: { make: ((id: number, boss: boolean) => EnemyBody | null) | null; playerPos: THREE.Vector3 } = {
+  make: null, playerPos: new THREE.Vector3(),
+};
+
 export interface Enemy {
   id: number;
   mesh: THREE.Group;
@@ -16,6 +31,7 @@ export interface Enemy {
   attackCooldown: number;
   staggered: boolean;
   rig: CharacterRig | null;
+  body: EnemyBody | null;
   lastPos: THREE.Vector3;
   /** Rule player tags (Game Studio): the cast id it plays, the wave it came in (0 = the game's own), boss or not. */
   who: string;
@@ -95,7 +111,13 @@ export class EnemyManager {
     hitTarget.userData.enemyId = this.nextId;
 
     let rig: CharacterRig | null = null;
-    if (assets.paladin) {
+    const creature = enemyBodies.make?.(this.nextId, !!tag.boss) ?? null;
+    if (creature) {
+      mesh.add(creature.root, core, hitTarget);
+      core.visible = false;
+      hitTarget.scale.set(1, creature.height / 2.1, 1);
+      hitTarget.position.y = creature.hover + creature.height / 2;
+    } else if (assets.paladin) {
       rig = new CharacterRig(assets.paladin, 2.0);
       mesh.add(rig.root, core, hitTarget);
       core.visible = false; // the Paladin has its own glowing trim
@@ -104,7 +126,7 @@ export class EnemyManager {
     }
     this.group.add(mesh);
 
-    const maxHp = tag.boss ? 520 : 60 + (this.wave - 1) * 15;
+    const maxHp = Math.round((tag.boss ? 520 : 60 + (this.wave - 1) * 15) * (creature?.hpMul ?? 1));
     const enemy: Enemy = {
       id: this.nextId++,
       mesh,
@@ -113,11 +135,12 @@ export class EnemyManager {
       coreMat,
       hp: maxHp,
       maxHp,
-      speed: tag.boss ? 3.6 : 5.2 + Math.random() * 1.8,
+      speed: (tag.boss ? 3.6 : 5.2 + Math.random() * 1.8) * (creature?.speedMul ?? 1),
       strafeSign: Math.random() > 0.5 ? 1 : -1,
       attackCooldown: 0.8 + Math.random() * 0.6,
       staggered: false,
       rig,
+      body: creature,
       lastPos: mesh.position.clone(),
       who: tag.who ?? '',
       ruleWave: tag.ruleWave ?? 0,
@@ -163,6 +186,7 @@ export class EnemyManager {
   }
 
   update(dt: number, pulse: number, playerPos: THREE.Vector3, world: CollisionWorld, onPlayerHit: (dmg: number) => void) {
+    enemyBodies.playerPos.copy(playerPos);
     for (const e of this.enemies) {
       const toPlayer = new THREE.Vector3().subVectors(playerPos, e.mesh.position);
       toPlayer.y = 0;
@@ -189,7 +213,10 @@ export class EnemyManager {
       const gy = world.groundAt(e.mesh.position.x, e.mesh.position.z, e.mesh.position.y + 1.2, 6);
       if (gy !== null) e.mesh.position.y += (gy - e.mesh.position.y) * Math.min(1, dt * 14);
       world.resolve(e.mesh.position, 0.5, 2.0);
-      if (e.rig) {
+      if (e.body) {
+        e.body.update(dt, e.mesh.position.distanceTo(e.lastPos) / Math.max(dt, 1e-3));
+        e.lastPos.copy(e.mesh.position);
+      } else if (e.rig) {
         const mv = e.mesh.position.distanceTo(e.lastPos) / Math.max(dt, 1e-3);
         const dx = e.mesh.position.x - e.lastPos.x, dz = e.mesh.position.z - e.lastPos.z, ry = e.mesh.rotation.y;
         e.rig.update(dt, mv, dx * Math.cos(ry) - dz * Math.sin(ry), dx * Math.sin(ry) + dz * Math.cos(ry));
@@ -201,6 +228,7 @@ export class EnemyManager {
       if (dist < (e.boss ? 3.6 : 2.6) && e.attackCooldown <= 0) {
         e.attackCooldown = e.boss ? 1.3 : 0.9;
         e.rig?.play('attack_1');
+        e.body?.attack();
         onPlayerHit(e.hitDmg);
       }
     }

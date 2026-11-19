@@ -14,6 +14,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { StaticKit, boulder, fbm3, rng } from './geom';
 import { builders } from './structures';
 import { pbr } from './textures';
+import { CreatureBody, CreatureKind, preloadCreatures } from './creatures';
+import { enemyBodies } from './enemies';
 
 const ART = '/games/rift-realm/assets/cyberforest/';
 const loader = new THREE.TextureLoader();
@@ -174,7 +176,8 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
     const lum = a.dot(vec3(0.3, 0.5, 0.2));
     ground.colorNode = mix(base, a.mul(0.6), smoothstep(float(0.62), float(0.8), k).mul(smoothstep(float(0.6), float(0.2), lum))).mul(0.5);
     // glowing moss spots, faint (the art's floor sparkles, it does not light the scene)
-    ground.emissiveNode = g.mul(smoothstep(float(0.6), float(0.9), g.g)).mul(cyan).mul(float(0.28).add(uBeatPulse.mul(0.2)));
+    ground.emissiveNode = g.mul(smoothstep(float(0.6), float(0.9), g.g)).mul(cyan).mul(smoothstep(float(0.25), float(0.75), k).mul(0.8).add(0.2))
+      .mul(float(0.22).add(uBeatPulse.mul(0.16))); // patchy, so the spot pattern never reads as a repeat
   }
   const bark = new THREE.MeshStandardNodeMaterial({ map: art('bark_albedo.jpg', true, true), normalMap: art('bark_normal.jpg', false, true), roughness: 0.92, color: 0x8d8a84 });
   bark.normalScale.set(1.6, 1.6);
@@ -483,6 +486,29 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
     if (!lo) { group.add(l); spawnLights.push(l); }
   }
 
+  const cableGeos: THREE.BufferGeometry[] = [], amberCableGeos: THREE.BufferGeometry[] = [];
+  const cable = new THREE.MeshStandardNodeMaterial({ color: 0x0c1318, roughness: 0.45, metalness: 0.35 });
+  cable.emissiveNode = cyan.mul(smoothstep(float(0.93), float(0.99), fract(uv().x.mul(7).sub(time.mul(0.45))))).mul(1.6);
+  const amberCable = new THREE.MeshStandardNodeMaterial({ color: 0x8a5a14, roughness: 0.5, metalness: 0.2 });
+  amberCable.emissiveNode = amber.mul(0.12);
+  /** Black cable from (x,z) out along the ground for len metres, wandering, sinking into the moss at the end. */
+  const groundCable = (x: number, z: number, ang: number, len: number, r = 0.07, amberC = false) => {
+    const pts: THREE.Vector3[] = [];
+    let cx = x, cz = z, a = ang;
+    const n = Math.max(4, Math.round(len / 1.6));
+    for (let i = 0; i <= n; i++) {
+      pts.push(new THREE.Vector3(cx, H(cx, cz) + r + (i === 0 ? 0.25 : 0.02) - (i === n ? 0.25 : 0), cz));
+      a += (R() - 0.5) * 0.7; cx += Math.sin(a) * len / n; cz += Math.cos(a) * len / n;
+    }
+    (amberC ? amberCableGeos : cableGeos).push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), n * 4, r, 5, false));
+  };
+  /** A cable sagging between two points in the air (catenary-ish). */
+  const sagCable = (a: THREE.Vector3, b: THREE.Vector3, sag: number, r = 0.05, amberC = false) => {
+    const pts: THREE.Vector3[] = [];
+    for (let i = 0; i <= 8; i++) { const t = i / 8; pts.push(a.clone().lerp(b, t).add(new THREE.Vector3(0, -sag * 4 * t * (1 - t), 0))); }
+    (amberC ? amberCableGeos : cableGeos).push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 16, r, 4, false));
+  };
+
   // ── the Ancient Cyber-Forest Titan (hero tree over OBJ A): scaffold decks, stairs, crane, dish ────────
   {
     const T = TITAN, gy = H(T.x, T.z);
@@ -529,6 +555,76 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
     const dish = new THREE.SphereGeometry(1.6, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2.6);
     kit.place(dish, T.x - 6, decks[1] + 2.2, T.z - 4, 0.8, -1.0); kit.add(hull, dish, { solid: false });
     kit.box(hull, 0.2, 2.2, 0.2, T.x - 6, decks[1] + 1.1, T.z - 4, 0, { solid: false });
+    // the lattice tower on the north side (front view of the titan sheet): four legs, ring beams, X-braced bays,
+    // up past deck 2 to a lamp-and-antenna top; a short catwalk ties it to deck 2
+    {
+      const tx = T.x + 1, tz = T.z - 11, hw = 1.5, top = decks[1] + 9 - gy, bay = 3;
+      for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) kit.box(hull, 0.22, top, 0.22, tx + sx * hw, gy + top / 2, tz + sz * hw, 0);
+      for (let yb = 0; yb + bay <= top + 0.01; yb += bay) {
+        const y0 = gy + yb, y1 = y0 + bay, dl = Math.hypot(hw * 2, bay), rz = Math.atan2(hw * 2, bay);
+        for (const s of [-1, 1]) {
+          kit.box(hull, hw * 2, 0.14, 0.14, tx, y1, tz + s * hw, 0, { solid: false });
+          kit.box(hull, 0.14, 0.14, hw * 2, tx + s * hw, y1, tz, 0, { solid: false });
+          // X-braces on each face
+          kit.box(hull, 0.08, dl, 0.08, tx, (y0 + y1) / 2, tz + s * hw, 0, { solid: false, rz });
+          kit.box(hull, 0.08, dl, 0.08, tx, (y0 + y1) / 2, tz + s * hw, 0, { solid: false, rz: -rz });
+          kit.box(hull, 0.08, dl, 0.08, tx + s * hw, (y0 + y1) / 2, tz, Math.PI / 2, { solid: false, rz });
+          kit.box(hull, 0.08, dl, 0.08, tx + s * hw, (y0 + y1) / 2, tz, Math.PI / 2, { solid: false, rz: -rz });
+        }
+      }
+      kit.box(hull, 3.6, 0.2, 3.6, tx, gy + top, tz, 0);
+      kit.box(hazard, 3.6, 0.12, 0.12, tx, gy + top + 0.95, tz - 1.75, 0, { solid: false });
+      kit.box(hull, 0.12, 4, 0.12, tx + 1.2, gy + top + 2, tz + 1.2, 0, { solid: false });
+      kit.box(trim, 0.3, 0.3, 0.3, tx + 1.2, gy + top + 4.1, tz + 1.2, 0, { solid: false });
+      kit.box(hull, 1.4, 0.18, 2.6, tx, decks[1], tz + 2.6, 0); // catwalk to deck 2
+      kit.box(B.invisible, 4, 60, 4, tx, gy + 20, tz, 0, { shadow: false }); // no walking through the lattice
+      // a spiral stair column wound round a pole beside the tower (dressing: 3 turns of treads)
+      const sx0 = T.x - 3.2, sz0 = T.z - 11.8, sTop = decks[0] - gy;
+      kit.prism(hull, 8, 0.16, 0.16, sTop + 1, sx0, gy + sTop / 2, sz0, 0, { solid: false });
+      const treads = 36;
+      for (let k = 0; k < treads; k++) {
+        const a = k / treads * Math.PI * 6, y = gy + 0.3 + k / treads * sTop;
+        kit.box(hull, 1.3, 0.08, 0.45, sx0 + Math.sin(a) * 0.75, y, sz0 + Math.cos(a) * 0.75, a + Math.PI / 2, { solid: false });
+        if (k % 3 === 0) kit.box(hull, 0.05, 1.0, 0.05, sx0 + Math.sin(a) * 1.4, y + 0.5, sz0 + Math.cos(a) * 1.4, 0, { solid: false });
+      }
+      kit.box(B.invisible, 3, sTop + 1, 3, sx0, gy + sTop / 2, sz0, 0, { shadow: false });
+    }
+    // cables everywhere: sagging from the limbs to the deck rails, hanging out of the crown, wound down the trunk
+    for (let k = 0; k < 16; k++) {
+      const a = R() * 6.28, d = decks[k % 2], ro = 9.3 - (k % 2);
+      const from = new THREE.Vector3(T.x + Math.sin(a) * (3.5 + R() * 6), gy + 24 + R() * 10, T.z + Math.cos(a) * (3.5 + R() * 6));
+      const to = new THREE.Vector3(T.x + Math.sin(a + 0.4) * ro, d + 1.1, T.z + Math.cos(a + 0.4) * ro);
+      sagCable(from, to, 2 + R() * 3, 0.045 + R() * 0.03, k % 3 === 0);
+    }
+    for (let k = 0; k < 22; k++) { // straight drops out of the crown
+      const a = R() * 6.28, d = 4 + R() * 11, x = T.x + Math.sin(a) * d, z = T.z + Math.cos(a) * d, y0 = gy + 26 + R() * 8;
+      sagCable(new THREE.Vector3(x, y0, z), new THREE.Vector3(x + (R() - 0.5), y0 - 6 - R() * 10, z + (R() - 0.5)), 0.2, 0.03, R() < 0.3);
+    }
+    for (let k = 0; k < 3; k++) { // fat conduits spiralling down the trunk into the roots
+      const pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 30; i++) {
+        const t = i / 30, y = gy + 30 - t * 30, rr = 2.6 + 2.8 * t + 0.25, a = k * 2.1 + t * 3.2;
+        pts.push(new THREE.Vector3(T.x + Math.sin(a) * rr, y, T.z + Math.cos(a) * rr));
+      }
+      (k === 1 ? amberCableGeos : cableGeos).push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 90, 0.14, 6, false));
+    }
+    // glowing node studs over the bark (the sheet's cyan dots), and ivy up the trunk
+    {
+      const n = lo ? 110 : 220, g = new THREE.IcosahedronGeometry(0.13, 0);
+      const mat = new THREE.MeshBasicNodeMaterial({ color: 0x5ef4ff });
+      mat.colorNode = color(0x5ef4ff).mul(float(1.4).add(uBeatPulse.mul(1.2)));
+      const dots = new THREE.InstancedMesh(g, mat, n);
+      for (let i = 0; i < n; i++) {
+        const t = Math.pow(R(), 0.8), y = gy + 2 + t * 34, rr = 5.2 + (2.4 - 5.2) * Math.min(1, t * 1.1) + 0.15, a = R() * 6.28;
+        const sz = 0.6 + R() * 1.2;
+        m4.compose(v.set(T.x + Math.sin(a) * rr, y, T.z + Math.cos(a) * rr), q.identity(), s3.set(sz, sz, sz)); dots.setMatrixAt(i, m4);
+      }
+      dots.frustumCulled = false; group.add(dots);
+      for (let i = 0; i < (lo ? 24 : 48); i++) {
+        const t = R(), y = gy + 4 + t * 26, rr = 5.2 + (2.4 - 5.2) * Math.min(1, (y - gy) / 36) + 0.25, a = R() * 6.28;
+        vines.push([T.x + Math.sin(a) * rr, y, T.z + Math.cos(a) * rr, a]);
+      }
+    }
   }
 
   // ── the glitched canyon: broken voxel rock, floating glitch cubes, OBJ B on a scan plinth ─────────────
@@ -571,6 +667,81 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
       kit.box(trim, 0.08, h * 0.7, 0.82, x + Math.sin(a) * -0.52, H(x, z) + h * 0.45, z + Math.cos(a) * -0.52, a, { solid: false, shadow: false });
     }
     kit.prism(mats.stone, 10, 2.2, 2.6, 0.5, OBJ.A.x, ay - 0.2, OBJ.A.z, 0, { tpm: 0.5 });
+  }
+
+  // ── neon energy nodes (asset sheet "Neon Energy Nodes"): glass data pods, crystal pylons, power nodes, and the
+  //    black data cables that snake off them across the moss with light pulses running along ─────────────────────
+  const podCore = (c: number, ph: number) => {
+    const m = new THREE.MeshStandardNodeMaterial({ color: 0x101010, roughness: 0.3 });
+    m.emissiveNode = color(c).mul(float(1.0).add(sin(time.mul(2.4).add(ph)).mul(0.3)).add(uBeatPulse.mul(0.6)));
+    return m;
+  };
+  const coreOrange = podCore(0xff5a10, 0), coreBlue = podCore(0x1c7cff, 1.7);
+  const podGlass = new THREE.MeshStandardNodeMaterial({ color: 0x06202a, roughness: 0.05, metalness: 0.3, transparent: true, opacity: 0.28 });
+  podGlass.emissiveNode = cyan.mul(0.05);
+  const crystal = new THREE.MeshStandardNodeMaterial({ color: 0x08101c, roughness: 0.08, metalness: 0.35 });
+  // deep blue at the claws to hot orange at the tip (the sheet's pulsing energy node), with a bright band climbing it
+  const climb = smoothstep(float(0.9), float(1.0), fract(uv().y.mul(1.5).sub(time.mul(0.35))));
+  crystal.emissiveNode = mix(color(0x1848ff), color(0xff6a10), smoothstep(float(0.3), float(0.95), uv().y))
+    .mul(float(0.75).add(climb.mul(0.9)).add(sin(time.mul(1.6)).mul(0.12)).add(uBeatPulse.mul(0.5)));
+  const dataPod = (x: number, z: number, coreMat: THREE.Material) => {
+    const gy = H(x, z);
+    kit.prism(hull, 8, 0.85, 1.05, 0.5, x, gy + 0.2, z, 0, { tpm: 0.8 });
+    kit.prism(trim, 16, 0.7, 0.7, 0.05, x, gy + 0.47, z, 0, { solid: false });
+    kit.prism(coreMat, 12, 0.42, 0.42, 1.5, x, gy + 1.25, z, 0, { solid: false });
+    kit.prism(podGlass, 12, 0.62, 0.62, 1.6, x, gy + 1.25, z, 0, { solid: false });
+    for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4; kit.box(hull, 0.12, 1.7, 0.12, x + Math.sin(a) * 0.66, gy + 1.25, z + Math.cos(a) * 0.66, a, { solid: false }); }
+    kit.prism(hull, 8, 0.5, 0.8, 0.35, x, gy + 2.2, z, 0, { tpm: 0.8 });
+    kit.box(B.invisible, 1.7, 2.5, 1.7, x, gy + 1.2, z, 0, { shadow: false });
+    for (let k = 0; k < 3 + Math.floor(R() * 3); k++) groundCable(x, z, R() * 6.28, 4 + R() * 6, 0.06 + R() * 0.04);
+  };
+  const crystalNode = (x: number, z: number) => {
+    const gy = H(x, z);
+    kit.prism(hull, 4, 1.0, 1.7, 0.7, x, gy + 0.3, z, Math.PI / 4, { tpm: 0.8 });
+    kit.prism(hull, 4, 0.6, 1.0, 0.5, x, gy + 0.9, z, Math.PI / 4, { tpm: 0.8 });
+    for (let k = 0; k < 3; k++) { // three claws holding the crystal
+      const a = k / 3 * Math.PI * 2;
+      kit.box(hull, 0.22, 1.8, 0.3, x + Math.sin(a) * 0.55, gy + 1.8, z + Math.cos(a) * 0.55, a, { solid: false, rx: -0.35 });
+    }
+    const prof = [[0, 0], [0.32, 0.25], [0.48, 1.0], [0.42, 2.4], [0, 3.4]].map(([r, y]) => new THREE.Vector2(r, y));
+    const g = new THREE.LatheGeometry(prof, 6);
+    kit.place(g, x, gy + 1.0, z, R()); kit.add(crystal, g, { solid: false });
+    kit.box(B.invisible, 2.2, 4.4, 2.2, x, gy + 2.2, z, 0, { shadow: false });
+    for (let k = 0; k < 4; k++) groundCable(x, z, k * 1.57 + R() * 0.6, 5 + R() * 6, 0.08);
+  };
+  const powerNode = (x: number, z: number) => {
+    const gy = H(x, z);
+    kit.prism(hull, 12, 0.8, 1.0, 0.4, x, gy + 0.15, z, 0, { tpm: 0.8 });
+    kit.prism(coreOrange, 16, 0.5, 0.5, 0.08, x, gy + 0.38, z, 0, { solid: false });
+    kit.prism(hull, 12, 0.28, 0.32, 0.18, x, gy + 0.46, z, 0, { solid: false });
+    for (let k = 0; k < 4; k++) groundCable(x, z, k * 1.57 + R() * 0.5, 3 + R() * 5, 0.07);
+  };
+  {
+    // clusters at the objectives, the crossings, the grove trails and both spawns; never on a lane or in the river
+    const ok = (x: number, z: number) => !near(x, z, 3.5) && !inRiver(x, z, 1.5) && !inBuilding(x, z, 0.5) && Math.hypot(x - OBJ.A.x, z - OBJ.A.z) > 9.5;
+    const spots: [number, number, 'pod' | 'podB' | 'crystal' | 'power'][] = [
+      [-110, -12, 'crystal'], [-91, 8, 'pod'], [-112, 6, 'podB'], [-104, -14, 'power'],      // OBJ A
+      [-124, -16, 'pod'], [-120, 20, 'podB'], [-136, -46, 'crystal'], [-142, 22, 'power'],   // grove + attacker spawn
+      [-138, -12, 'podB'], [-138, 13, 'pod'],
+      [-70, -24, 'pod'], [-90, -6, 'power'], [-66, -8, 'crystal'],                          // titan base, east of it
+      [-62, -46, 'podB'], [-58, -30, 'power'], [-42, -50, 'crystal'],                        // the bridge's west end
+      [-64, 12, 'pod'], [-50, 14, 'power'],                                                   // the log crossing
+      [-82, 32, 'crystal'], [-66, 46, 'podB'], [-46, 28, 'power'],                           // canyon rims
+      [-26, 58, 'pod'], [-4, 52, 'crystal'],                                                  // the ford
+      [66, -22, 'crystal'], [66, 22, 'pod'], [80, -8, 'podB'], [78, 12, 'power'],             // defender spawn
+      [52, -40, 'pod'], [52, 44, 'crystal'], [-30, -16, 'power'], [-28, 24, 'podB'],
+    ];
+    for (const [x, z, kind] of spots) {
+      if (!ok(x, z)) continue;
+      if (kind === 'pod') dataPod(x, z, coreOrange); else if (kind === 'podB') dataPod(x, z, coreBlue);
+      else if (kind === 'crystal') crystalNode(x, z); else powerNode(x, z);
+    }
+    // loose cables through the grove and along the river banks
+    for (let i = 0; i < (lo ? 30 : 60); i++) {
+      const x = -150 + R() * 200, z = -80 + R() * 160;
+      if (near(x, z, 2) || inRiver(x, z, 1) || inBuilding(x, z, 1)) continue;
+      groundCable(x, z, R() * 6.28, 5 + R() * 9, 0.05 + R() * 0.05, R() < 0.2);
+    }
   }
 
   // ── forest trees: bark trunks with conduit veins + canopy card crowns cut from the tree turnarounds ───
@@ -785,6 +956,12 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
     kit.box(B.invisible, w, 60, d, cx, 20, cz, 0, { shadow: false });
   }
 
+  // all the cables: two merged meshes (no collision; they lie on the ground or hang in the air)
+  for (const [geos, mat] of [[cableGeos, cable], [amberCableGeos, amberCable]] as const) {
+    const g = geos.length ? mergeGeometries(geos.map((x) => x.index ? x.toNonIndexed() : x), false) : null;
+    if (g) { const m = new THREE.Mesh(g, mat); m.castShadow = !lo; m.receiveShadow = true; group.add(m); }
+  }
+
   // ── lights: few and coloured (objective beacons, the titan's lamps, server hall, bridge) ──────────────
   const pl = (x: number, y: number, z: number, c: number, i: number, d: number) => { const l = new THREE.PointLight(c, i, d, 2); l.position.set(x, y, z); group.add(l); return l; };
   const beacons: THREE.PointLight[] = [];
@@ -813,12 +990,63 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
     { id: 'C', name: 'Server Complex', pos: OBJ.C.clone(), radius: 5 },
   ];
 
+  // ── creatures (the level's turnarounds): the forest fights back with Electric Wolves, Venom Mantises and Plasma
+  //    Wasps; a herd of Lumen Deer grazes the grove and bolts when you come close ───────────────────────────────
+  preloadCreatures(['wolf', 'mantis', 'wasp', 'deer']);
+  const MUL: Record<CreatureKind, [number, number]> = { wolf: [1.35, 0.8], mantis: [0.8, 1.5], wasp: [1.1, 0.6], deer: [1, 1] };
+  enemyBodies.make = (id, boss) => {
+    const k: CreatureKind = boss ? 'mantis' : (['wolf', 'wasp', 'wolf', 'mantis', 'wolf', 'wasp'] as const)[id % 6];
+    const b = new CreatureBody(k);
+    return { root: b.root, hover: b.hover, height: b.height, speedMul: MUL[k][0], hpMul: MUL[k][1], update: (dt, sp) => b.update(dt, sp), attack: () => b.attack() };
+  };
+  type Deer = { b: CreatureBody; home: THREE.Vector3; tx: number; tz: number; wait: number; flee: number; speed: number };
+  const herd: Deer[] = [];
+  for (const [hx, hz] of [[-126, -34], [-118, 42], [-142, -64], [-76, -62], [-98, 62], [-130, 70]].slice(0, lo ? 3 : 6)) {
+    for (let k = 0; k < 2 + Math.floor(R() * 2); k++) {
+      const b = new CreatureBody('deer', 0.85 + R() * 0.3), x = hx + (R() - 0.5) * 8, z = hz + (R() - 0.5) * 8;
+      b.root.position.set(x, H(x, z), z); b.root.rotation.y = R() * 6.28;
+      group.add(b.root);
+      herd.push({ b, home: new THREE.Vector3(hx, 0, hz), tx: x, tz: z, wait: R() * 6, flee: 0, speed: 0 });
+    }
+  }
+  const deerOk = (x: number, z: number) => !inRiver(x, z, 2) && !inBuilding(x, z, 2) && !inCanyon(x, z, 0) && x > BOUND.x0 + 3 && x < BOUND.x1 - 3 && Math.abs(z) < BOUND.z1 - 3;
+  const updateHerd = (dt: number) => {
+    const pp = enemyBodies.playerPos;
+    for (const d of herd) {
+      const o = d.b.root.position;
+      const toP = Math.hypot(pp.x - o.x, pp.z - o.z);
+      if (toP < 13 && d.flee <= 0) { // bolt away from the player
+        const a = Math.atan2(o.x - pp.x, o.z - pp.z) + (R() - 0.5) * 0.8;
+        d.tx = o.x + Math.sin(a) * 22; d.tz = o.z + Math.cos(a) * 22; d.flee = 3 + R() * 1.5;
+      }
+      d.flee -= dt;
+      const dx = d.tx - o.x, dz = d.tz - o.z, dist = Math.hypot(dx, dz);
+      let want = 0;
+      if (dist > 0.6) want = d.flee > 0 ? 8.5 : 1.3;
+      else if ((d.wait -= dt) <= 0) { // graze, then amble somewhere new near home
+        const a = R() * 6.28, r = 3 + R() * 10;
+        d.tx = d.home.x + Math.sin(a) * r; d.tz = d.home.z + Math.cos(a) * r; d.wait = 3 + R() * 7;
+      }
+      d.speed += (want - d.speed) * Math.min(1, dt * (want > d.speed ? 3 : 4));
+      if (dist > 0.01 && d.speed > 0.05) {
+        const nx = o.x + dx / dist * d.speed * dt, nz = o.z + dz / dist * d.speed * dt;
+        if (deerOk(nx, nz)) { o.x = nx; o.z = nz; } else { d.tx = d.home.x; d.tz = d.home.z; }
+        const yaw = Math.atan2(dx, dz); let dy = yaw - d.b.root.rotation.y;
+        dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+        d.b.root.rotation.y += dy * Math.min(1, dt * 5);
+      }
+      o.y += (H(o.x, o.z) - o.y) * Math.min(1, dt * 10);
+      d.b.update(dt, d.speed);
+    }
+  };
+
   void scene;
   let el = 0;
   return {
     enemySpots, controlPoints,
     update(dt, pulse) {
       el += dt;
+      updateHerd(dt);
       for (const c of glitchCubes) {
         c.rotation.x += dt * c.userData.spin; c.rotation.y += dt * c.userData.spin * 0.7;
         c.position.y = c.userData.y0 + Math.sin(el * 0.8 + c.userData.ph) * 0.5;
