@@ -5,15 +5,25 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.graphics.drawable.GradientDrawable
+import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import com.plajah.app.ui.ShellPrefs
 import android.util.Log
+import android.util.TypedValue
 import android.view.KeyEvent
+import android.view.View
+import android.webkit.WebView
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
+import androidx.lifecycle.lifecycleScope
+import androidx.window.layout.FoldingFeature
+import androidx.window.layout.WindowInfoTracker
 import com.getcapacitor.BridgeActivity
 import com.getcapacitor.CapConfig
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -23,11 +33,6 @@ class MainActivity : BridgeActivity() {
     /** The intent this activity was created with — BridgeActivity.load() replays it through
      *  onNewIntent, and it has already been handled via the start path. */
     private var launchIntent: Intent? = null
-
-    // ── Launch targets ────────────────────────────────────────────────────────────────────────
-    // Experience icons are <activity-alias> entries (AndroidManifest.xml) carrying a slug in
-    // meta-data; "Open with" arrives as ACTION_VIEW on a content:// or file:// URI. Both become a
-    // start-path hint the web layer reads synchronously (src/lib/launchTarget.ts).
 
     private fun experienceFor(intent: Intent?): String? {
         val component = intent?.component ?: return null
@@ -68,8 +73,6 @@ class MainActivity : BridgeActivity() {
         } else {
             uri.path?.let { size = File(it).length() }
         }
-        // Served by Capacitor's local server (what Capacitor.convertFileSrc produces), relative to
-        // the page origin; the VIEW intent's read grant covers it.
         val url = if (uri.scheme == "content") "/_capacitor_content_" + uri.toString().removePrefix("content:/")
                   else "/_capacitor_file_" + (uri.path ?: "")
         val file = JSONObject()
@@ -100,21 +103,6 @@ class MainActivity : BridgeActivity() {
         null
     }
 
-    /**
-     * Tell the web layer, authoritatively, that this is a television.
-     *
-     * The WebView user-agent on Android TV and Fire TV is an ordinary Android UA — it contains
-     * "Android" and no dependable TV token — so JS-side sniffing was guessing, and guessing
-     * wrong: the app booted into the phone layout on a TV. Android itself knows the answer; it
-     * simply had no way to reach JavaScript.
-     *
-     * Two independent OS signals, either sufficient:
-     *   - UiModeManager UI_MODE_TYPE_TELEVISION — the running UI mode.
-     *   - FEATURE_LEANBACK / type.television — the device declares D-pad-only TV hardware.
-     *
-     * The verdict rides on the user-agent because that is readable synchronously on the first
-     * paint; a JS global injected after page load arrives after the layout has been chosen.
-     */
     private fun isTelevision(): Boolean {
         var uiMode = false
         var leanback = false
@@ -131,86 +119,50 @@ class MainActivity : BridgeActivity() {
         } catch (_: Exception) { /* leave false */ }
 
         val isTv = uiMode || leanback || tvFeature
-        // Logged because this verdict has been wrong on real hardware and there is no other way
-        // to see it on a TV: `adb logcat -s PlajahTV` gives ground truth in one line.
         Log.i(TAG, "TV detection: uiModeTelevision=$uiMode leanback=$leanback televisionFeature=$tvFeature -> isTV=$isTv")
         return isTv
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // NATIVE SHELL HANDOFF. If the user has toggled into the native Compose UI, hand off to
-        // NativeActivity before building the Capacitor bridge (phones/tablets/Android-laptop
-        // windows only — TV keeps the web leanback UI, which is D-pad-tuned). The web app is
-        // otherwise the default and stays fully intact; this is opt-in, like "Try New Nav" on web.
         val launchExperience = experienceFor(intent)
         val launchMedia = mediaPayloadFor(intent)
-        // A file or an experience icon always opens in the web shell — that's where the viewer
-        // and the experience routes live.
         if (launchExperience == null && launchMedia == null && !isTelevision() && ShellPrefs.isNativeEnabled(this)) {
             super.onCreate(savedInstanceState)
             startActivity(Intent(this, NativeActivity::class.java)
-                .putExtra("platformContentUrl",intent.getStringExtra("platformContentUrl")))
+                .putExtra("platformContentUrl", intent.getStringExtra("platformContentUrl")))
             finish()
             return
         }
 
-        // Capacitor requires custom plugins to be registered BEFORE super.onCreate builds the
-        // bridge — after that the registry is sealed and the JS `WatchNext` proxy resolves to
-        // nothing. It writes the TV home-screen "continue watching" row (Reello + Taleo); on a
-        // phone the plugin loads but every method reports unsupported, so this is harmless there.
         registerPlugin(WatchNextPlugin::class.java)
-        // PlajahCamera (Phase N1): native max-quality local recording + real per-lens enumeration.
-        // On a phone without CameraX wired it simply reports unavailable to JS (harmless).
         registerPlugin(PlajahCameraPlugin::class.java)
-        // PlajahShell: lets the web app's "Switch to Native" toggle hand off to the Compose shell.
         registerPlugin(PlajahShellPlugin::class.java)
-        // PlajahNativeAudio: connects web audio to native Media3 service for screen-off playback & car Bluetooth AVRCP
         registerPlugin(PlajahNativeAudioPlugin::class.java)
-        // PlajahSpeech: native (on-device first) speech recognition for Voca read-aloud — WebView has no Web Speech API
         registerPlugin(PlajahSpeechPlugin::class.java)
-        // PlajahLaunch: hands "Open with" files and experience-icon launches to the web layer.
         registerPlugin(PlajahLaunchPlugin::class.java)
         registerPlugin(PlajahFilesPlugin::class.java)
-        // PlajahSpeakers: "Play on" — native Google Cast discovery of speakers + multi-room
-        // groups (the Web Cast SDK does not run in a WebView). Reports unsupported without GMS.
         registerPlugin(PlajahSpeakersPlugin::class.java)
-        // PlajahMatter: Matter casting Content App bridge — forwards commands from the TV's Matter
-        // agent (MatterCommandReceiver) to the web layer and takes playback state back for
-        // attribute reads. Inert on TVs without a Matter agent.
         registerPlugin(PlajahMatterPlugin::class.java)
-        // PlajahDevice: signage autostart-on-boot flag (BootReceiver) + overlay-permission check.
         registerPlugin(PlajahDevicePlugin::class.java)
-        // PlajahHub: embedded Node.js smart-home hub (Matter controller) in the :hub process.
         registerPlugin(PlajahHubPlugin::class.java)
 
         PlajahLaunchPlugin.pendingMediaJson = launchMedia
         val startPath = when {
-            launchMedia != null -> "/?open=media"          // light LocalMediaLaunch viewer, not the full app
+            launchMedia != null -> "/?open=media"
             launchExperience != null -> "/?view=$launchExperience"
             else -> null
         }
         startPath?.let { launchConfig(it) }?.let { config = it }
         launchIntent = intent
 
-        // Hold the native splash until the web layer has something on screen, then hand over.
-        //
-        // installSplashScreen() with no condition dismisses on the WebView's FIRST drawn frame —
-        // which is the blank one, before the remote page has loaded. Because this APK is a thin
-        // shell over the live site (capacitor.config server.url), that gap is a whole network
-        // page load, and it showed as the white flash on launch. The ceiling matters as much as
-        // the condition: a splash that outlives a failed load would strand the app behind it, so
-        // this yields after SPLASH_MAX_MS regardless and lets the web layer's own boot splash
-        // (index.html #pj-boot, same mark and palette) carry on seamlessly from there.
         val splash = installSplashScreen()
         val splashStart = System.currentTimeMillis()
-        // The media viewer shell paints almost at once — an opened photo shouldn't wait out the
-        // full-app hold.
         val splashHold = if (launchMedia != null) MEDIA_SPLASH_HOLD_MS else SPLASH_HOLD_MS
         splash.setKeepOnScreenCondition {
             (System.currentTimeMillis() - splashStart) < splashHold
         }
         super.onCreate(savedInstanceState)
-        // Render edge-to-edge — Compose and the WebView both respect system bar insets
+
         intent.getStringExtra("platformContentUrl")?.let { requested ->
             val target = android.net.Uri.parse(requested)
             if (target.scheme == "https" && target.host == "plajah.com") {
@@ -219,19 +171,57 @@ class MainActivity : BridgeActivity() {
         }
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        // The WebView paints white by default, so a held splash could still hand over to a white
-        // rectangle. Paint it the same near-black as @color/plajah_splash_bg and index.html's
-        // #pj-boot, so nothing in the launch sequence is ever white.
         try {
             bridge?.webView?.setBackgroundColor(android.graphics.Color.parseColor("#04030A"))
-        } catch (_: Throwable) { /* pre-bridge or unavailable — the theme background still covers */ }
+        } catch (_: Throwable) { /* pre-bridge or unavailable */ }
 
         televisionMode = isTelevision()
-        if (!televisionMode && launchMedia != null) return  // no floating "Native UI" button over the viewer
+
+        // Performance & scalability tuning across phones, foldables, tablets, and TVs
+        try {
+            bridge?.webView?.apply {
+                setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
+                }
+                settings.useWideViewPort = true
+                settings.loadWithOverviewMode = true
+                settings.textZoom = 100
+                settings.setSupportZoom(false)
+                settings.builtInZoomControls = false
+                settings.displayZoomControls = false
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "WebView tuning failed: ${e.message}")
+        }
+
+        // Foldable posture observer (Samsung Z Fold, Pixel Fold, Z Flip):
+        // Streams hinge bounds + posture mode into the WebView via CSS vars + data-fold-mode.
         if (!televisionMode) {
-            // Keep the entry point in the APK: the remote web deployment may predate Compose.
-            val switch = android.widget.Button(this).apply {
-                text = "Native UI"
+            observeFoldablePosture()
+        }
+
+        if (!televisionMode && launchMedia != null) return
+        if (!televisionMode) {
+            // Compact, sleek Native UI pill so it NEVER collides with top header buttons or video controls.
+            val density = resources.displayMetrics.density
+            val pillBg = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 999f * density
+                setColor(android.graphics.Color.parseColor("#CC140A24"))
+                setStroke((1 * density).toInt().coerceAtLeast(1), android.graphics.Color.parseColor("#88FF8C00"))
+            }
+            val switch = android.widget.TextView(this).apply {
+                text = "✦ NATIVE UI"
+                setTextColor(android.graphics.Color.WHITE)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 10f)
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                letterSpacing = 0.08f
+                background = pillBg
+                setPadding((10 * density).toInt(), (5 * density).toInt(), (10 * density).toInt(), (5 * density).toInt())
+                elevation = 8f * density
+                isClickable = true
+                isFocusable = true
                 contentDescription = "Switch to the native Jetpack Compose interface"
                 setOnClickListener {
                     ShellPrefs.setNativeEnabled(this@MainActivity, true)
@@ -239,30 +229,23 @@ class MainActivity : BridgeActivity() {
                     finish()
                 }
             }
-            val density = resources.displayMetrics.density
             val params = android.widget.FrameLayout.LayoutParams(
                 android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
                 android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
                 android.view.Gravity.TOP or android.view.Gravity.END,
-            ).apply { topMargin = (48 * density).toInt(); rightMargin = (12 * density).toInt() }
+            ).apply {
+                topMargin = (34 * density).toInt()
+                rightMargin = (8 * density).toInt()
+            }
             addContentView(switch, params)
             return
         }
 
-        // Keep D-pad keys inside the WebView.
-        //
-        // Observed on the TCL: pressing Left at the leftmost element walked focus OUT of the app
-        // and into the system UI. The web layer already consumes arrow keys (preventDefault +
-        // stopImmediatePropagation in TVNavigationLayer), but that only runs if the WebView holds
-        // Android focus. When it doesn't, the framework routes the key to the Activity and then
-        // out of the app, and a viewer browsing Chora can fall out of Plajah entirely by pressing
-        // left one time too many.
+        // Keep D-pad keys inside the WebView on Android TV / Fire TV.
         try {
             bridge?.webView?.apply {
                 isFocusable = true
                 isFocusableInTouchMode = true
-                // The WebView is the only focusable thing here; taking focus explicitly stops the
-                // framework looking for a "next" view outside it.
                 requestFocus()
             }
         } catch (e: Exception) {
@@ -274,63 +257,110 @@ class MainActivity : BridgeActivity() {
                 Log.w(TAG, "TV detected but WebView unavailable — web layer falls back to heuristics")
                 return
             }
-            // Honour the page's viewport meta.
-            //
-            // Android WebView IGNORES `width=` in <meta name="viewport"> unless wide-viewport
-            // mode is on. Without this the WebView reports a 960px CSS viewport (1920 physical
-            // at density 320) no matter what the page asks for — which is why setting
-            // width=1280 and then 1600 changed nothing on the device, and why the UI kept
-            // rendering at roughly 2x. Verified over CDP: window.innerWidth was still 960.
             settings.useWideViewPort = true
             settings.loadWithOverviewMode = true
-            // Taleo's preroll is intentionally audible. TV playback is already initiated
-            // by the viewer's Watch action; allow the resulting media element to retain
-            // audio when React mounts it a frame later.
             settings.mediaPlaybackRequiresUserGesture = false
 
             val ua = settings.userAgentString
-            // Idempotent: onCreate runs again after a configuration change.
             if (ua != null && !ua.contains(TV_TOKEN)) {
                 settings.userAgentString = "$ua $TV_TOKEN"
                 Log.i(TAG, "UA tagged: ${settings.userAgentString}")
             }
         } catch (e: Exception) {
-            // Worst case the UA is untouched and the web layer falls back to its own heuristics.
             Log.w(TAG, "UA tagging failed: ${e.message}")
         }
+    }
+
+    private fun observeFoldablePosture() {
+        lifecycleScope.launch {
+            try {
+                WindowInfoTracker.getOrCreate(this@MainActivity)
+                    .windowLayoutInfo(this@MainActivity)
+                    .collectLatest { layoutInfo ->
+                        val feature = layoutInfo.displayFeatures
+                            .filterIsInstance<FoldingFeature>()
+                            .firstOrNull()
+                        pushFoldableStateToWeb(feature)
+                    }
+            } catch (e: Exception) {
+                Log.w(TAG, "Foldable posture observer unavailable: ${e.message}")
+            }
+        }
+    }
+
+    private fun pushFoldableStateToWeb(feature: FoldingFeature?) {
+        val wv = bridge?.webView ?: return
+        val density = resources.displayMetrics.density.coerceAtLeast(1f)
+        val widthDp = resources.configuration.screenWidthDp
+        val heightDp = resources.configuration.screenHeightDp.coerceAtLeast(1)
+        val aspect = widthDp.toFloat() / heightDp.toFloat()
+        val isSeparating = feature?.isSeparating == true || feature?.state == FoldingFeature.State.HALF_OPENED
+        val mode = when {
+            isSeparating && feature?.orientation == FoldingFeature.Orientation.HORIZONTAL -> "tabletop"
+            isSeparating && feature?.orientation == FoldingFeature.Orientation.VERTICAL -> "book"
+            widthDp < 440 && aspect < 0.56f -> "cover"
+            widthDp in 580..1050 && aspect in 0.68f..1.48f -> "inner"
+            else -> "standard"
+        }
+        val b = feature?.bounds
+        val hx = ((b?.left ?: 0) / density).toInt()
+        val hy = ((b?.top ?: 0) / density).toInt()
+        val hw = ((b?.width() ?: 0) / density).toInt()
+        val hh = ((b?.height() ?: 0) / density).toInt()
+        val js = "(function(){var r=document.documentElement;if(!r)return;" +
+            "r.setAttribute('data-fold-mode','$mode');" +
+            "r.style.setProperty('--fold-hinge-x','${hx}px');" +
+            "r.style.setProperty('--fold-hinge-y','${hy}px');" +
+            "r.style.setProperty('--fold-hinge-w','${hw}px');" +
+            "r.style.setProperty('--fold-hinge-h','${hh}px');" +
+            "window.dispatchEvent(new CustomEvent('plajah:foldable-change',{detail:{mode:'$mode',hinge:{x:$hx,y:$hy,w:$hw,h:$hh}}}));" +
+            "})();"
+        wv.post { wv.evaluateJavascript(js, null) }
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        if (!televisionMode) pushFoldableStateToWeb(null)
     }
 
     /** Warm re-entry (singleTask): a file opened, or an experience icon tapped, while running. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        if (intent === launchIntent) return  // the launch intent, replayed by BridgeActivity.load()
+        if (intent === launchIntent) return
         val plugin = bridge?.getPlugin("PlajahLaunch")?.instance as? PlajahLaunchPlugin ?: return
         mediaPayloadFor(intent)?.let { plugin.emitMedia(it); return }
         experienceFor(intent)?.let { plugin.emitExperience(it) }
     }
 
-    /** Normalize vendor D-pad delivery before Android focus search can swallow a direction. */
+    /**
+     * Ultra-low-latency TV remote & Bluetooth gamepad key dispatch.
+     * Uses a cached window.__pjKey dispatcher to avoid re-parsing a large IIFE on every key press.
+     */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (televisionMode && event.action == KeyEvent.ACTION_DOWN) {
-            // key → DOM key name + the legacy keyCode web handlers also match on.
             val mapped: Pair<String, Int>? = when (event.keyCode) {
                 KeyEvent.KEYCODE_DPAD_UP -> "ArrowUp" to 38
                 KeyEvent.KEYCODE_DPAD_DOWN -> "ArrowDown" to 40
                 KeyEvent.KEYCODE_DPAD_LEFT -> "ArrowLeft" to 37
                 KeyEvent.KEYCODE_DPAD_RIGHT -> "ArrowRight" to 39
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> "Enter" to 13
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_BUTTON_A -> "Enter" to 13
+                KeyEvent.KEYCODE_BUTTON_B -> "GoBack" to 4
                 KeyEvent.KEYCODE_CHANNEL_UP -> "ChannelUp" to 427
                 KeyEvent.KEYCODE_CHANNEL_DOWN -> "ChannelDown" to 428
+                KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> "MediaPlayPause" to 85
+                KeyEvent.KEYCODE_MEDIA_PLAY -> "MediaPlay" to 126
+                KeyEvent.KEYCODE_MEDIA_PAUSE -> "MediaPause" to 127
+                KeyEvent.KEYCODE_MEDIA_NEXT -> "MediaTrackNext" to 87
+                KeyEvent.KEYCODE_MEDIA_PREVIOUS -> "MediaTrackPrevious" to 88
+                KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> "MediaFastForward" to 90
+                KeyEvent.KEYCODE_MEDIA_REWIND -> "MediaRewind" to 89
                 else -> null
             }
             if (mapped != null) {
                 val (key, code) = mapped
-                // The KeyboardEvent constructor ignores keyCode/which (they'd read 0), so define
-                // them on the instance — JS can then match on e.key OR e.keyCode/e.which.
+                val rep = if (event.repeatCount > 0) "1" else "0"
                 bridge?.webView?.evaluateJavascript(
-                    "(function(){var e=new KeyboardEvent('keydown',{key:'$key',bubbles:true,cancelable:true,repeat:${event.repeatCount > 0}});" +
-                        "try{Object.defineProperty(e,'keyCode',{get:function(){return $code}});Object.defineProperty(e,'which',{get:function(){return $code}});}catch(_){}" +
-                        "window.dispatchEvent(e);})();",
+                    "(window.__pjKey||(window.__pjKey=function(k,c,r){var e=new KeyboardEvent('keydown',{key:k,bubbles:true,cancelable:true,repeat:!!r});try{Object.defineProperty(e,'keyCode',{value:c});Object.defineProperty(e,'which',{value:c});}catch(_){}window.dispatchEvent(e);}))('$key',$code,$rep);",
                     null
                 )
                 return true
@@ -342,18 +372,7 @@ class MainActivity : BridgeActivity() {
     companion object {
         private const val TAG = "PlajahTV"
         private const val TV_TOKEN = "PlajahTV/1"
-        /**
-         * How long to hold the native splash past the WebView's first frame.
-         *
-         * Bounded on purpose rather than waiting for a real "page ready" signal: detecting that
-         * from here means overriding the WebViewClient that Capacitor owns, and a splash gated on
-         * a signal that never arrives would strand the app behind it — a worse failure than the
-         * flash this fixes. It only has to cover the blank frame, because index.html paints its
-         * own splash (same mark, same palette) as soon as the HTML parses and carries on from
-         * there, so the handover is invisible even when the page is still loading.
-         */
         private const val SPLASH_HOLD_MS = 900L
-        /** Splash hold when opened on a local file — the viewer shell needs only the blank frame covered. */
         private const val MEDIA_SPLASH_HOLD_MS = 250L
         private const val EXPERIENCE_META = "com.plajah.app.EXPERIENCE"
         private val SLUG_RE = Regex("^[a-z_-]{1,32}$")

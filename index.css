@@ -590,19 +590,102 @@ body.theme-big-screen {
 body.theme-phone {
   font-size: 14px;
   -webkit-tap-highlight-color: transparent;
+  overflow-x: clip;
 }
 
-.theme-phone button, 
-.theme-phone [role="button"],
-.theme-phone input,
+/* Keep comfortable touch targets on form controls and explicit tap targets without
+   blowing up compact inline pills, icon buttons, badges, or track-row controls
+   (blanket min-height: 48px on every button caused mobile buttons & text to collide). */
+.theme-phone input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
 .theme-phone select {
-  min-height: 48px; /* Material Design recommendation for touch */
+  min-height: 42px;
   cursor: pointer;
+}
+
+.theme-phone button,
+.theme-phone [role="button"] {
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 .theme-phone .m3-card {
   padding: 1rem;
   border-radius: 24px;
+}
+
+/* ── Mobile Scalability, Aspect-Ratio Tuning & Foldables (Z Fold, Pixel Fold) ── */
+@media (max-width: 640px) {
+  html, body {
+    overflow-x: clip;
+  }
+  /* Guard flex text columns from crushing into 1-char vertical stacks beside action buttons */
+  header .min-w-0,
+  nav .min-w-0 {
+    min-width: 0;
+  }
+  /* Scale oversized display titles cleanly on narrow phones and Z Fold cover screens */
+  h1[style*="clamp"],
+  h2[style*="clamp"] {
+    word-break: normal;
+    overflow-wrap: break-word;
+  }
+}
+
+/* Ultra-narrow screens (Samsung Z Fold cover screen ~344–384px, compact phones) */
+@media (max-width: 390px), (max-width: 420px) and (max-aspect-ratio: 9 / 19) {
+  html {
+    font-size: 13.5px;
+  }
+  .pj-btn--md { --_h: 38px; --_px: 14px; }
+  .pj-btn--lg { --_h: 44px; --_px: 18px; }
+  .m3-card { padding: 0.75rem !important; border-radius: 18px !important; }
+}
+
+/* Landscape phone (short viewport height) — prevent fixed bars & modals from clipping */
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+  .mobile-bottom-nav {
+    padding-top: 2px !important;
+    padding-bottom: max(2px, env(safe-area-inset-bottom)) !important;
+  }
+}
+
+/* Foldables: Unfolded Inner Screen (Z Fold / Pixel Fold ~580–960px, near-square 3:4 to 4:3)
+   and native WindowManager posture attributes injected by MainActivity.kt */
+:root {
+  --fold-hinge-x: 0px;
+  --fold-hinge-y: 0px;
+  --fold-hinge-w: 0px;
+  --fold-hinge-h: 0px;
+}
+
+@media (horizontal-viewport-segments: 2) {
+  .pj-fold-dual-pane {
+    display: grid !important;
+    grid-template-columns: env(viewport-segment-width 0 0) env(viewport-segment-width 1 0);
+    column-gap: calc(env(viewport-segment-left 1 0) - env(viewport-segment-right 0 0));
+  }
+}
+
+@media (vertical-viewport-segments: 2) {
+  .pj-fold-tabletop {
+    display: grid !important;
+    grid-template-rows: env(viewport-segment-height 0 0) env(viewport-segment-height 0 1);
+    row-gap: calc(env(viewport-segment-top 0 1) - env(viewport-segment-bottom 0 0));
+  }
+}
+
+html[data-fold-mode="cover"] {
+  font-size: 13.5px;
+}
+html[data-fold-mode="inner"] body {
+  font-size: 14.5px;
+}
+@media (min-width: 580px) and (max-width: 960px) and (min-aspect-ratio: 3 / 4) and (max-aspect-ratio: 4 / 3) {
+  /* Comfortable two-column density on unfolded foldable inner screens */
+  body { font-size: 14.5px; }
+}
+html[data-fold-mode="book"] main {
+  padding-inline: max(12px, calc(var(--fold-hinge-w, 0px) * 0.5));
 }
 
 /* ── Dropdown menus (platform-wide) ─────────────────────────────────────────

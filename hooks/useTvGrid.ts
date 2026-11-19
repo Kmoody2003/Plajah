@@ -6,10 +6,11 @@ import { focusPlayerBar } from './useTvPlayerBar';
 /** Holding Down this long (a continuous run of repeat presses) lands on the player bar. */
 const HOLD_DOWN_TO_PLAYER_MS = 650;
 /** Presses further apart than this end a run (Android remote repeat is ~50ms). */
-const RUN_BREAK_MS = 180;
+const RUN_BREAK_MS = 160;
 
-/** Minimum gap between accepted arrow presses (ms) — see the held-key note in the handler. */
-const REPEAT_GAP_MS = 70;
+/** Minimum gap between accepted SAME-DIRECTION repeat presses (ms).
+ * Direction changes always execute at 0ms latency so tapping Right -> Down feels instantaneous. */
+const REPEAT_GAP_MS = 40;
 
 /**
  * Deterministic D-pad navigation for a TV screen.
@@ -91,6 +92,7 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
   const posRef = useRef(pos);
   posRef.current = pos;
   const lastMoveAtRef = useRef(0);
+  const lastDirRef = useRef<'up' | 'down' | 'left' | 'right' | null>(null);
   const downRunStartRef = useRef(0);
   const downRunLastRef = useRef(0);
 
@@ -199,7 +201,9 @@ export function useTvGrid({ rows, panelCount = 0, onSelect, onBack, onExitTop, e
         } else {
           downRunLastRef.current = 0;
         }
-        if (now - lastMoveAtRef.current < REPEAT_GAP_MS) return;
+        // Direction changes execute at 0ms latency; only throttle held repeats in the same direction.
+        if (dir === lastDirRef.current && now - lastMoveAtRef.current < REPEAT_GAP_MS) return;
+        lastDirRef.current = dir;
         lastMoveAtRef.current = now;
         move(dir);
         return;

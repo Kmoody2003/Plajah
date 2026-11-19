@@ -4,7 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.AutoStories
-import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Church
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Forum
 import androidx.compose.material.icons.rounded.Home
@@ -19,16 +19,10 @@ import androidx.compose.material.icons.rounded.SportsEsports
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
- * NATIVE DESTINATION MODEL — the Compose mirror of the web view-state router.
+ * NATIVE DESTINATION MODEL — the Jetpack Compose mirror of the web view-state router.
  *
- * The web app has no react-router: navigation is a string enum (`AppView` in
- * types.ts:2860) switched inside App.tsx, grouped by `NAV_SECTIONS` in
- * components/CommandSplitNav.tsx. We reproduce the branded top-level destinations
- * here. `webView` is the exact `AppView` string, so the native ⇄ Classic toggle
- * can hand off to the identical web screen (see ShellPrefs / NativeActivity).
- *
- * `primary` marks the phone bottom-bar set; on tablets/Android-laptop windows the
- * NavigationSuiteScaffold promotes to a rail then a full drawer showing every item.
+ * The 6 native-rebuilt flagship surfaces (behind the Native UI toggle):
+ *   Chora (100% website parity), Reello, Cinema, Lorea, Elevate, Academia.
  */
 data class Destination(
     val id: String,
@@ -39,31 +33,32 @@ data class Destination(
 )
 
 object Destinations {
+    // ── Primary 6 Native Jetpack Compose Flagship Surfaces ────────────────────
+    val Chora    = Destination("chora",    "Chora",    "MUSIC",          Icons.Rounded.LibraryMusic, primary = true)
+    val Reello   = Destination("reello",   "Reello",   "VIDEOS",         Icons.Rounded.Movie,        primary = true)
+    val Cinema   = Destination("cinema",   "Cinema",   "MOVIES_TV",      Icons.Rounded.LiveTv,       primary = true)
+    val Lorea    = Destination("lorea",    "Lorea",    "BOOKS",          Icons.Rounded.AutoStories,  primary = true)
+    val Elevate  = Destination("elevate",  "Elevate",  "PLAJAH_ELEVATE", Icons.Rounded.Church,       primary = true)
+    val Academia = Destination("academia", "Academia", "CLASSROOMS",     Icons.Rounded.School,       primary = true)
 
-    val Home    = Destination("home",    "Front Row", "DASHBOARD",     Icons.Rounded.Home,           primary = true)
-    val Chora   = Destination("chora",   "Chora",     "MUSIC",         Icons.Rounded.LibraryMusic,   primary = true)
-    val Reello  = Destination("reello",  "Reello",    "VIDEOS",        Icons.Rounded.Movie,          primary = true)
-    val Lorea   = Destination("lorea",   "Lorea",     "BOOKS",         Icons.Rounded.AutoStories,    primary = true)
-    val Feed    = Destination("feed",    "Feed",      "FEED",          Icons.Rounded.Bolt,           primary = true)
+    // ── Secondary / Classic-bridged Destinations ────────────────────────────
+    val Home     = Destination("home",     "Home",     "DASHBOARD",      Icons.Rounded.Home)
+    val Files    = Destination("files",    "Files",    "PLAJAH_DRIVE",   Icons.Rounded.FolderOpen)
+    val Radio    = Destination("radio",    "Radio",    "RADIO",          Icons.Rounded.Radio)
+    val Games    = Destination("games",    "Games",    "GAMES",          Icons.Rounded.SportsEsports)
+    val Photos   = Destination("photos",   "Photos",   "GLOBAL_PHOTOS",  Icons.Rounded.PhotoLibrary)
+    val Sports   = Destination("sports",   "Sports",   "PLAJAH_SPORTS",  Icons.Rounded.SportsBasketball)
+    val Chat     = Destination("chat",     "Chat",     "CHAT",           Icons.Rounded.Forum)
+    val Studio   = Destination("studio",   "Creator",  "CREATOR_HUB",    Icons.Rounded.AutoAwesome)
+    val Profile  = Destination("profile",  "You",      "USER_PROFILE",   Icons.Rounded.AccountCircle)
 
-    // Secondary — reachable from the rail/drawer and the ⌘K launcher.
-    val Taleo    = Destination("taleo",    "Taleo",    "MOVIES_TV",     Icons.Rounded.LiveTv)
-    val Radio    = Destination("radio",    "Radio",    "RADIO",         Icons.Rounded.Radio)
-    val Games    = Destination("games",    "Games",    "GAMES",         Icons.Rounded.SportsEsports)
-    val Photos   = Destination("photos",   "Photos",   "GLOBAL_PHOTOS", Icons.Rounded.PhotoLibrary)
-    val Sports   = Destination("sports",   "Sports",   "PLAJAH_SPORTS", Icons.Rounded.SportsBasketball)
-    val Academia = Destination("academia", "Academia", "CLASSROOMS",    Icons.Rounded.School)
-    val Chat     = Destination("chat",     "Chat",     "CHAT",          Icons.Rounded.Forum)
-    val Studio   = Destination("studio",   "Creator",  "CREATOR_HUB",   Icons.Rounded.AutoAwesome)
-    val Profile  = Destination("profile",  "You",      "USER_PROFILE",  Icons.Rounded.AccountCircle)
-    val Files    = Destination("files",    "Files",    "PLAJAH_DRIVE",  Icons.Rounded.FolderOpen)
+    /** Phone bottom bar (5 items for ultra-compact cover screens, all 6 on >= 390dp & rail/drawer). */
+    val primaryCompact: List<Destination> = listOf(Chora, Reello, Cinema, Lorea, Elevate)
+    val primary: List<Destination> = listOf(Chora, Reello, Cinema, Lorea, Elevate, Academia)
 
-    /** Phone bottom-bar order. */
-    val primary: List<Destination> = listOf(Home, Chora, Reello, Lorea, Feed)
-
-    /** Everything, in rail/drawer order (Android-laptop windows show the lot). */
+    /** Everything in rail/drawer order. */
     val all: List<Destination> = listOf(
-        Home, Chora, Reello, Lorea, Feed,
-        Taleo, Radio, Games, Photos, Files, Sports, Academia, Chat, Studio, Profile,
+        Chora, Reello, Cinema, Lorea, Elevate, Academia,
+        Home, Files, Games, Radio, Photos, Sports, Chat, Studio, Profile,
     )
 }

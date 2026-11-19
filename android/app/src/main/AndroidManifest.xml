@@ -48,15 +48,9 @@
     -->
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.gamepad" android:required="false" />
     <!-- Meta Horizon OS (Quest) spatial device compatibility -->
     <uses-feature android:name="android.hardware.vr.headtracking" android:required="false" />
-
-    <!-- Android 11+ package visibility: let SpeechRecognizer find the system speech service (Voca read-aloud) -->
-    <queries>
-        <intent>
-            <action android:name="android.speech.RecognitionService" />
-        </intent>
-    </queries>
 
     <!-- Android 11+ package visibility: let SpeechRecognizer find the system speech service (Voca read-aloud) -->
     <queries>
@@ -123,6 +117,12 @@
             <!-- Media button (headset buttons, Alexa media control) -->
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+
+            <!-- Android Auto / Google Assistant voice play search -->
+            <intent-filter>
+                <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
 
             <!-- "Open with Plajah" for local photos, videos and music (file managers, galleries,
@@ -279,10 +279,13 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- Android Auto descriptor -->
+        <!-- Android Auto descriptor + notification icon -->
         <meta-data
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
+        <meta-data
+            android:name="com.google.android.gms.car.notification.SmallIcon"
+            android:resource="@mipmap/ic_launcher" />
 
         <!-- Meta Horizon OS (Quest) spatial app compatibility -->
         <meta-data android:name="com.oculus.vr.focusaware" android:value="true" />

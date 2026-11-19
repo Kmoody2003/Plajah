@@ -1327,7 +1327,17 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ video: initialVideo, onB
           ref={videoWrapRef}
           className={`bg-black ${tvFullBleed ? 'fixed inset-0 z-[200]' : 'relative w-full shrink-0 aspect-video'}`}
           onMouseMove={handleMouseMove}
-          onClick={togglePlay}
+          onTouchStart={revealControls}
+          onClick={(e) => {
+            const isTouch = typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches;
+            if (isTouch && !controlsVisible) {
+              e.stopPropagation();
+              revealControls();
+              return;
+            }
+            revealControls();
+            togglePlay();
+          }}
         >
           <div className="absolute inset-0">{renderVideo()}</div>
           {canLens && lensId !== 'none' && (

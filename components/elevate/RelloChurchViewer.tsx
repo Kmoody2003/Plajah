@@ -511,13 +511,86 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
   if (isPhone) {
     if (!activeStream.playback) return nothingLive;
     if (!faith) {
-      // No scripture for this org: just the player.
+      // No scripture for this org: inline player with always-reachable transport + channel swipe & strip.
+      const activeIdx = Math.max(0, streamCatalog.findIndex(s => s.id === activeStream.id));
+      const stepSource = (delta: 1 | -1) => {
+        if (streamCatalog.length <= 1) return;
+        const next = streamCatalog[(activeIdx + delta + streamCatalog.length) % streamCatalog.length];
+        if (next) selectStreamSource(next.id);
+      };
       return (
-        <div className="relative rounded-[20px] overflow-hidden aspect-video bg-black" style={{ background: activeStream.thumbnailGradient }}>
-          {media}
-          <button onClick={() => setMuted(m => !m)} className="absolute right-3 bottom-3 z-10 h-9 px-3 rounded-full bg-black/70 text-white text-[12px] font-semibold flex items-center gap-1.5">
-            {muted ? <><VolumeX size={14} /> Unmute</> : <Volume2 size={14} />}
-          </button>
+        <div className="rounded-[20px] overflow-hidden bg-black border border-white/10">
+          <div
+            className="relative aspect-video bg-black"
+            style={{ background: activeStream.thumbnailGradient }}
+            onTouchStart={e => { (e.currentTarget as any).__sx = e.touches[0].clientX; (e.currentTarget as any).__sy = e.touches[0].clientY; }}
+            onTouchEnd={e => {
+              const sx = (e.currentTarget as any).__sx;
+              const sy = (e.currentTarget as any).__sy;
+              if (typeof sx !== 'number' || streamCatalog.length <= 1) return;
+              const dx = e.changedTouches[0].clientX - sx;
+              const dy = e.changedTouches[0].clientY - sy;
+              if (Math.abs(dx) > 54 && Math.abs(dy) < 48) stepSource(dx < 0 ? 1 : -1);
+            }}
+          >
+            {media}
+            <div className="absolute inset-x-0 top-0 z-10 p-2.5 flex items-center justify-between gap-2 pointer-events-none bg-gradient-to-b from-black/70 to-transparent">
+              <div className="min-w-0">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white/90">
+                  <span className={`w-2 h-2 rounded-full ${isLiveStream ? 'bg-[#FF8C00]' : 'bg-white/60'}`} />
+                  {isLiveStream ? 'Live' : 'Replay'}
+                  {streamCatalog.length > 1 && <span className="text-white/60">· Ch {activeIdx + 1}/{streamCatalog.length}</span>}
+                </span>
+                <div className="text-[13px] font-bold text-white truncate">{activeStream.title}</div>
+              </div>
+            </div>
+            <div className="absolute inset-x-0 bottom-0 z-10 p-2 flex items-center justify-between gap-1.5 bg-gradient-to-t from-black/80 to-transparent">
+              <div className="flex items-center gap-1.5">
+                {!isEmbed && (
+                  <button type="button" onClick={() => setPlaying(p => !p)} aria-label={playing ? 'Pause' : 'Play'} className="w-9 h-9 rounded-full bg-black/70 border border-white/15 flex items-center justify-center text-white">
+                    {playing ? <Pause size={15} /> : <Play size={15} />}
+                  </button>
+                )}
+                {streamCatalog.length > 1 && (
+                  <>
+                    <button type="button" onClick={() => stepSource(-1)} aria-label="Previous channel" className="w-9 h-9 rounded-full bg-black/70 border border-white/15 flex items-center justify-center text-white">
+                      <ChevronRight size={15} className="rotate-180" />
+                    </button>
+                    <button type="button" onClick={() => stepSource(1)} aria-label="Next channel" className="w-9 h-9 rounded-full bg-black/70 border border-white/15 flex items-center justify-center text-white">
+                      <ChevronRight size={15} />
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button type="button" onClick={() => setMuted(m => !m)} className="h-9 px-3 rounded-full bg-black/70 border border-white/15 text-white text-[12px] font-semibold flex items-center gap-1.5">
+                  {muted ? <><VolumeX size={14} /> Unmute</> : <Volume2 size={14} />}
+                </button>
+                {onOpenOnAir && activeStream.onAirItem && (
+                  <button type="button" onClick={() => onOpenOnAir(activeStream.onAirItem!)} aria-label="Open in Live TV+" className="w-9 h-9 rounded-full bg-black/70 border border-white/15 flex items-center justify-center text-white">
+                    <Maximize2 size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+          {streamCatalog.length > 1 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide px-2.5 py-2 bg-[#120E19] border-t border-white/10">
+              {streamCatalog.map((s, i) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => selectStreamSource(s.id)}
+                  aria-pressed={s.id === activeStream.id}
+                  className={`shrink-0 px-3 py-1.5 rounded-full text-[12px] font-semibold whitespace-nowrap transition-colors ${
+                    s.id === activeStream.id ? 'bg-gradient-to-r from-[#6B0099] to-[#D40055] text-white' : 'bg-white/[0.07] text-white/70'
+                  }`}
+                >
+                  {i + 1}. {s.title}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       );
     }
@@ -530,6 +603,8 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
         background={activeStream.thumbnailGradient}
         title={activeStream.title}
         isLive={isLiveStream}
+        playing={playing}
+        onTogglePlay={() => setPlaying(p => !p)}
         muted={muted}
         onToggleMute={() => setMuted(m => !m)}
         label={passage?.label || 'Nothing read yet'}

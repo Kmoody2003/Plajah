@@ -153,13 +153,12 @@ const canGoBackInApp = (): boolean => window.history.length > 1 && !!window.hist
 // a single tap is by far the most common input. 300ms on step one meant every deliberate press
 // waited a third of a second before it could be followed. The ramp still guards against
 // long-press overshoot — it just no longer taxes the taps.
-const repeatInterval = (run: number): number => (run < 2 ? 190 : run < 6 ? 120 : 80);
+// Zippy TV remote cadence: first tap is instant (0ms), held repeats ramp rapidly without overshoot.
+const repeatInterval = (run: number): number => (run < 2 ? 105 : run < 5 ? 64 : 44);
 
 // Two presses closer together than this are treated as one held run, even when the remote
-// reports repeat === false. Must stay comfortably above the fastest ramp step (80ms) so a
-// genuine held press is still throttled; lowered alongside the ramp so deliberate double-taps
-// are not swallowed into a "run" and dropped.
-const RUN_GAP_MS = 160;
+// reports repeat === false.
+const RUN_GAP_MS = 95;
 
 /**
  * Global D-pad / 10-foot navigation layer.

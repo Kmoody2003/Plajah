@@ -9,7 +9,7 @@
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, Plus, Type, Volume2, VolumeX, X } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Maximize2, Minimize2, Pause, Play, Plus, Tv, Type, Volume2, VolumeX, X } from 'lucide-react';
 import type { BibleVerse } from '../../services/bibleService';
 import { formatTC } from '../../services/serviceNotes';
 import { EV, EV_FONT } from './vellum';
@@ -50,6 +50,8 @@ interface LeafPlayerProps {
   background: string;
   title: string;
   isLive: boolean;
+  playing?: boolean;
+  onTogglePlay?: () => void;
   muted: boolean;
   onToggleMute: () => void;
   label: string;
@@ -101,6 +103,7 @@ const LeafPlayer: React.FC<LeafPlayerProps> = props => {
   const calledRef = useRef<HTMLParagraphElement>(null);
   const insetRef = useRef<HTMLDivElement>(null);
   const noteRef = useRef<HTMLInputElement>(null);
+  const channelRailRef = useRef<HTMLDivElement>(null);
 
   // One element that moves between the page and <body>. React never remounts what's inside, so
   // the video keeps playing. (A portal whose target changes would remount it.)
@@ -112,6 +115,19 @@ const LeafPlayer: React.FC<LeafPlayerProps> = props => {
 
   const shown: Frozen = frozen ?? props;
   const clampText = !open || (det === 'watch' && !dragging);
+  const [controlsBright, setControlsBright] = useState(true);
+  const hasMultipleSources = props.sources.length > 1;
+  const activeSourceIdx = Math.max(0, props.sources.findIndex(s => s.id === props.activeSourceId));
+  const stepSource = useCallback((delta: 1 | -1) => {
+    if (props.sources.length <= 1) return;
+    const nextIdx = (activeSourceIdx + delta + props.sources.length) % props.sources.length;
+    const target = props.sources[nextIdx];
+    if (target) {
+      setFrozen(null);
+      props.onPickSource(target.id);
+    }
+  }, [props, activeSourceIdx]);
+  const videoSwipeRef = useRef<{ x: number; y: number } | null>(null);
 
   const detents = useCallback(() => {
     const root = rootRef.current!;
@@ -145,6 +161,8 @@ const LeafPlayer: React.FC<LeafPlayerProps> = props => {
     head.style.paddingRight = `${lerp(128, 8, p)}px`;
   }, [detents]);
 
+  const channelRailH = !open && hasMultipleSources ? 48 : 0;
+
   const layout = useCallback(() => {
     const root = rootRef.current;
     const v = videoRef.current;
@@ -152,10 +170,12 @@ const LeafPlayer: React.FC<LeafPlayerProps> = props => {
     if (!root || !v) return;
     if (!open) {
       const vh = Math.round(root.clientWidth * 9 / 16);
-      root.style.height = `${vh + 92}px`;
-      if (slotRef.current) slotRef.current.style.minHeight = `${vh + 92}px`;
+      const totalH = vh + channelRailH + 96;
+      root.style.height = `${totalH}px`;
+      if (slotRef.current) slotRef.current.style.minHeight = `${totalH}px`;
       Object.assign(v.style, { left: '0', top: '0', width: '100%', height: `${vh}px`, borderRadius: '0' });
-      if (paper) paper.style.top = `${vh}px`;
+      if (channelRailRef.current) channelRailRef.current.style.top = `${vh}px`;
+      if (paper) paper.style.top = `${vh + channelRailH}px`;
       if (headRef.current) headRef.current.style.paddingRight = '8px';
       return;
     }
@@ -166,7 +186,7 @@ const LeafPlayer: React.FC<LeafPlayerProps> = props => {
       return;
     }
     place(detents()[det]);
-  }, [open, land, det, place, detents]);
+  }, [open, land, det, place, detents, channelRailH]);
 
   useLayoutEffect(layout, [layout]);
   useEffect(() => {
@@ -185,8 +205,7 @@ const LeafPlayer: React.FC<LeafPlayerProps> = props => {
     return () => { document.body.style.overflow = before; };
   }, [open]);
 
-  // Turning the phone on its side means watching.
-  useEffect(() => { if (land) setOpen(true); }, [land]);
+  // Never force automatic fullscreen on orientation or mount — fullscreen is strictly user-triggered.
 
   // ── Drag the paper ──
   const dragRef = useRef<null | { offset: number; lastY: number; lastT: number; vel: number; top: number }>(null);
@@ -267,14 +286,15 @@ const LeafPlayer: React.FC<LeafPlayerProps> = props => {
   }, [land, open, props.label]);
 
   const coverTap = () => {
-    if (!open) setOpen(true);
-    else if (det === 'read' && !land) snapTo('both');
+    setControlsBright(b => !b);
+    if (open && det === 'read' && !land) snapTo('both');
   };
 
   useEffect(() => { if (sheet === 'notes') noteRef.current?.focus({ preventScroll: true }); }, [sheet]);
 
   const calledText = shown.verses.find(v => v.verse === shown.verse)?.text || shown.excerpt;
-  const coverActive = !open || !mediaIsEmbed || (det === 'read' && !land);
+  const coverActive = !mediaIsEmbed || (det === 'read' && !land);
+  const inlineVideoH = rootRef.current ? Math.round(rootRef.current.clientWidth * 9 / 16) : 210;
 
   const ui = (
     <div
@@ -286,16 +306,99 @@ const LeafPlayer: React.FC<LeafPlayerProps> = props => {
     >
       <div ref={insetRef} className="ev-leaf-inset" aria-hidden="true" />
 
-      <div ref={videoRef} className="ev-leaf-video" style={{ background }}>
+      <div
+        ref={videoRef}
+        className="ev-leaf-video"
+        style={{ background }}
+        onTouchStart={e => {
+          const t = e.touches[0];
+          videoSwipeRef.current = { x: t.clientX, y: t.clientY };
+        }}
+        onTouchEnd={e => {
+          const s = videoSwipeRef.current;
+          videoSwipeRef.current = null;
+          if (!s || !hasMultipleSources) return;
+          const t = e.changedTouches[0];
+          const dx = t.clientX - s.x;
+          const dy = t.clientY - s.y;
+          if (Math.abs(dx) > 54 && Math.abs(dy) < 48) {
+            stepSource(dx < 0 ? 1 : -1);
+          }
+        }}
+      >
         {media}
         {coverActive && (
           <button
             type="button"
             className="ev-leaf-cover"
-            aria-label={!open ? 'Open the player' : det === 'read' && !land ? 'Make the video bigger' : 'Video'}
+            aria-label={det === 'read' && !land ? 'Make the video bigger' : 'Toggle player controls'}
             onClick={coverTap}
             onDoubleClick={() => { if (open) setFit(f => !f); }}
           />
+        )}
+
+        {/* Always-reachable bottom transport & channel controls — never disappears permanently */}
+        {!(open && det === 'read' && !land) && (
+          <div className={`ev-leaf-controls ${controlsBright ? '' : 'is-quiet'}`}>
+            <div className="ev-leaf-ctrl-group">
+              {!mediaIsEmbed && props.onTogglePlay && (
+                <button
+                  type="button"
+                  className="ev-leaf-round"
+                  aria-label={props.playing === false ? 'Play' : 'Pause'}
+                  onClick={e => { e.stopPropagation(); props.onTogglePlay?.(); }}
+                >
+                  {props.playing === false ? <Play size={16} /> : <Pause size={16} />}
+                </button>
+              )}
+              {hasMultipleSources && (
+                <>
+                  <button
+                    type="button"
+                    className="ev-leaf-round"
+                    aria-label="Previous channel"
+                    onClick={e => { e.stopPropagation(); stepSource(-1); }}
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <button
+                    type="button"
+                    className="ev-leaf-pill"
+                    aria-label="Choose channel"
+                    onClick={e => { e.stopPropagation(); setSheet('sources'); }}
+                  >
+                    <Tv size={12} /> Ch {activeSourceIdx + 1}/{props.sources.length}
+                  </button>
+                  <button
+                    type="button"
+                    className="ev-leaf-round"
+                    aria-label="Next channel"
+                    onClick={e => { e.stopPropagation(); stepSource(1); }}
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </>
+              )}
+            </div>
+            <div className="ev-leaf-ctrl-group">
+              <button
+                type="button"
+                className="ev-leaf-round"
+                aria-label={muted ? 'Unmute' : 'Mute'}
+                onClick={e => { e.stopPropagation(); onToggleMute(); }}
+              >
+                {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+              </button>
+              <button
+                type="button"
+                className="ev-leaf-round"
+                aria-label={open ? 'Exit full screen' : 'Expand player'}
+                onClick={e => { e.stopPropagation(); setOpen(o => !o); setSheet(null); }}
+              >
+                {open ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
@@ -303,24 +406,40 @@ const LeafPlayer: React.FC<LeafPlayerProps> = props => {
         <span className="ev-leaf-scrim" aria-hidden="true" />
         {open && (
           <button type="button" className="ev-leaf-round" aria-label="Close the player" onClick={() => { setOpen(false); setSheet(null); }}>
-            <ChevronDown size={20} />
+            <ChevronDown size={19} />
           </button>
         )}
         <button
           type="button"
           className="ev-leaf-title"
-          onClick={() => (open ? setSheet('sources') : setOpen(true))}
-          aria-label={open ? `${title}. See what else is on` : `Open ${title}`}
+          onClick={() => setSheet('sources')}
+          aria-label={`${title}. See all channels`}
         >
           <span className="ev-leaf-state" style={{ color: isLive ? EV.ember : EV.gold }}>
             {isLive && <span className="ev-live-dot" />}{isLive ? 'Live' : 'Replay'}
+            {hasMultipleSources && <span style={{ color: 'rgba(255,255,255,0.68)' }}>· Swipe or tap for {props.sources.length} ch</span>}
           </span>
           <span className="ev-leaf-name">{title}</span>
         </button>
-        <button type="button" className="ev-leaf-round" aria-label={muted ? 'Unmute' : 'Mute'} onClick={onToggleMute}>
-          {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-        </button>
       </div>
+
+      {/* Inline horizontal channel switcher rail right below the video when multiple channels exist */}
+      {!open && hasMultipleSources && (
+        <div ref={channelRailRef} className="ev-leaf-channels" style={{ position: 'absolute', left: 0, right: 0, top: `${inlineVideoH}px`, height: '48px' }}>
+          {props.sources.map((s, idx) => (
+            <button
+              key={s.id}
+              type="button"
+              className="ev-leaf-chchip"
+              aria-pressed={s.id === props.activeSourceId}
+              onClick={() => { setFrozen(null); props.onPickSource(s.id); }}
+            >
+              {s.live && <span className="ev-live-dot" />}
+              <span>{idx + 1}. {s.title}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {!land && (
         <div ref={paperRef} className="ev-leaf-paper" style={{ background: skin.bg, color: skin.ink }}>
@@ -403,8 +522,8 @@ const LeafPlayer: React.FC<LeafPlayerProps> = props => {
         )
       )}
 
-      {open && sheet && (
-        <div className="ev-leaf-sheetwrap">
+      {sheet && (
+        <div className="ev-leaf-sheetwrap" style={!open ? { position: 'fixed', zIndex: 1300 } : undefined}>
           <button type="button" className="ev-leaf-backdrop" aria-label="Close" onClick={() => setSheet(null)} />
           <div className="ev-leaf-sheet" role="dialog" aria-modal="true">
             <div className="ev-leaf-sheethead">

@@ -141,6 +141,7 @@ export const TV_NAV_VIEWS = ['LIVE_HUB', 'MOVIES_TV', 'MUSIC', 'VIDEOS', 'GAMES'
 const TV_REACHABLE_VIEWS = [
   'PLAYER', 'MOVIE_UX', 'PREVIEW', 'BOOK_READER', 'SEARCH',
   'GLOBAL_PHOTOS', 'ART_GALLERY', 'PODCAST_LISTEN', 'RADIO', 'LIVE_HUB', 'LIVE_TV',
+  'GAMES', 'GAME_PLAYER', 'PLAJAH_FSE',
   // TV-only screens the shell opens directly. They were missing here, so the setView choke point
   // silently rewrote them to the home screen — Search, Purchases and Plajah+ looked dead.
   'TV_SEARCH', 'CREATOR_PAYMENTS', 'SANCTUARY_HUB',
@@ -148,7 +149,7 @@ const TV_REACHABLE_VIEWS = [
 
 /** Where a television opens. Live Hub TV+ leads: the set is on and playing in one press, like
  *  turning on a TV — the streaming verticals are one rail away. */
-export type TvHomeView = 'LIVE_HUB' | 'MOVIES_TV' | 'MUSIC' | 'VIDEOS';
+export type TvHomeView = 'LIVE_HUB' | 'MOVIES_TV' | 'MUSIC' | 'VIDEOS' | 'GAMES';
 // v2: Live became the default home (2026-10-08). The old key held the Taleo-first default for every
 // set that ever opened Settings, so it is retired rather than migrated.
 const TV_HOME_KEY = 'plajah:tvHome:v2';

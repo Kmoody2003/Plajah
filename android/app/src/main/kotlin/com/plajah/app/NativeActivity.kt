@@ -1,25 +1,27 @@
 package com.plajah.app
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import com.plajah.app.ui.PlajahApp
 import com.plajah.app.ui.ShellPrefs
+import com.plajah.app.ui.nav.Destinations
 import com.plajah.app.ui.theme.PlajahTheme
 
 /**
- * Host for the NATIVE Jetpack Compose shell. The Capacitor WebView (MainActivity)
- * is left completely untouched; this is a parallel front-end the user toggles into.
+ * Host for the NATIVE Jetpack Compose shell (toggled on via Native UI pill or PlajahShellPlugin).
+ * Hosts the full 6-surface native rebuild: Chora (100% parity), Reello, Cinema, Lorea, Elevate, Academia.
  *
- * Reverse toggle (native → Classic) is pure native: flip the flag and relaunch
- * MainActivity. The forward toggle (web → native) is driven by PlajahShellPlugin.
+ * The Capacitor WebView (MainActivity) remains completely intact as Classic mode.
  */
 class NativeActivity : ComponentActivity() {
 
@@ -27,32 +29,61 @@ class NativeActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        val deepUrl = intent.getStringExtra("platformContentUrl")
+        val (initialDestId, initialAlbumId) = parseDeepTarget(deepUrl)
+
         setContent {
             var dynamicTint by remember { mutableStateOf(ShellPrefs.isDynamicTint(this)) }
 
             PlajahTheme(
                 darkTheme = true,
-                dynamicTint = false,
+                dynamicTint = dynamicTint,
             ) {
-                androidx.compose.material3.Surface(
-                    color=androidx.compose.ui.graphics.Color(0xFF04030A),
-                    contentColor=androidx.compose.ui.graphics.Color.White,
+                Surface(
+                    color = Color(0xFF04030A),
+                    contentColor = Color.White,
                 ) {
-                    com.plajah.app.ui.screens.ChoraScreen(
-                        initialAlbumId = intent.getStringExtra("platformContentUrl")?.let { url ->
-                            val uri=android.net.Uri.parse(url)
-                            if(uri.scheme=="https"&&uri.host=="plajah.com"&&uri.getQueryParameter("type")=="album")uri.getQueryParameter("id")else null
+                    PlajahApp(
+                        initialDestinationId = initialDestId,
+                        initialAlbumId = initialAlbumId,
+                        onOpenContent = { url -> returnToClassic(url) },
+                        onExitToClassic = { returnToClassic() },
+                        dynamicTint = dynamicTint,
+                        onDynamicTintChange = { enabled ->
+                            dynamicTint = enabled
+                            ShellPrefs.setDynamicTint(this@NativeActivity, enabled)
                         },
-                        onOpenPlatform = { url -> returnToClassic(url) },
-                        onExit = { returnToClassic() },
                     )
                 }
             }
         }
     }
 
+    private fun parseDeepTarget(url: String?): Pair<String, String?> {
+        if (url.isNullOrBlank()) return Destinations.Chora.id to null
+        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return Destinations.Chora.id to null
+        val type = uri.getQueryParameter("type")?.lowercase()
+        val id = uri.getQueryParameter("id")
+        if (type == "album" && !id.isNullOrBlank()) {
+            return Destinations.Chora.id to id
+        }
+        val view = uri.getQueryParameter("view")?.uppercase().orEmpty()
+        val destId = when (view) {
+            "MUSIC", "CHORA" -> Destinations.Chora.id
+            "VIDEOS", "REELLO", "SHORTS" -> Destinations.Reello.id
+            "MOVIES_TV", "CINEMA", "TALEO" -> Destinations.Cinema.id
+            "BOOKS", "LOREA" -> Destinations.Lorea.id
+            "PLAJAH_ELEVATE", "ELEVATE" -> Destinations.Elevate.id
+            "CLASSROOMS", "ACADEMIA", "ACADEMIA_HOME" -> Destinations.Academia.id
+            "FILES", "PLAJAH_DRIVE" -> Destinations.Files.id
+            "DASHBOARD", "HOME" -> Destinations.Home.id
+            else -> Destinations.Chora.id
+        }
+        return destId to null
+    }
+
     private fun returnToClassic(url: String? = null) {
-        stopService(Intent(this,PlajahMediaService::class.java))
+        stopService(Intent(this, PlajahMediaService::class.java))
         ShellPrefs.setNativeEnabled(this, false)
         startActivity(
             Intent(this, MainActivity::class.java)

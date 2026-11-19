@@ -1647,33 +1647,34 @@ const PlayerView: React.FC<PlayerViewProps> = ({
         </div>
 
         {/* Mobile Header */}
-        <header className="p-4 flex items-center justify-between bg-white/5 backdrop-blur-xl border-b border-white/5 z-50">
-          <button onClick={onBack} aria-label="Back to Chora" className="flex items-center gap-1.5 pr-2 text-white/70 hover:text-white transition-all shrink-0 active:scale-95">
-            <Logo size={22} flip />
-            <span className="text-[11px] font-black uppercase tracking-widest">Back</span>
+        <header className="px-3 py-2.5 sm:p-4 flex items-center justify-between gap-2 bg-white/5 backdrop-blur-xl border-b border-white/5 z-50 shrink-0">
+          <button onClick={onBack} aria-label="Back to Chora" className="flex items-center gap-1 pr-1.5 text-white/70 hover:text-white transition-all shrink-0 active:scale-95">
+            <Logo size={20} flip />
+            <span className="text-[11px] font-black uppercase tracking-wider whitespace-nowrap">Back</span>
           </button>
-          <div className="flex-1 text-center min-w-0 px-4">
-            <h1 className="text-xs font-black uppercase tracking-widest truncate">{album.title}</h1>
-            <p className="text-[8px] font-bold text-small-orange uppercase tracking-[0.3em] truncate">{album.artist}</p>
+          <div className="flex-1 text-center min-w-0 px-1.5">
+            <h1 className="text-xs font-black uppercase tracking-wider truncate whitespace-nowrap">{album.title}</h1>
+            <p className="text-[9px] font-bold text-small-orange uppercase tracking-[0.2em] truncate whitespace-nowrap">{album.artist}</p>
             {(album as any).source === 'AUDIUS' && (
-              <span className="inline-flex items-center gap-1 mt-0.5 text-[7px] font-black uppercase tracking-[0.2em]" style={{ color: '#C56BFF' }}>
-                <span className="w-1 h-1 rounded-full" style={{ background: '#C56BFF' }} /> via Audius
+              <span className="inline-flex items-center gap-1 mt-0.5 text-[8px] font-black uppercase tracking-[0.15em] whitespace-nowrap" style={{ color: '#C56BFF' }}>
+                <span className="w-1 h-1 rounded-full shrink-0" style={{ background: '#C56BFF' }} /> via Audius
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <ChoraQualityButton className="p-2" />
-            <button onClick={() => setShowShareModal(true)} title="Share" className="p-2 text-white/60 hover:text-white transition-all">
-              <Share2 size={18} />
+          <div className="flex items-center gap-1 shrink-0">
+            <ChoraQualityButton className="p-1.5" />
+            <button onClick={() => setShowShareModal(true)} title="Share" aria-label="Share album" className="p-1.5 text-white/60 hover:text-white transition-all">
+              <Share2 size={17} />
             </button>
             {isOwner && (
               <button
                 onClick={() => setShowPromoModal(true)}
                 title="Promote Project — Auto-Promo Cards, Built Promotions & Assets"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-gradient-to-r from-[#d40055] to-[#ff8c00] text-white text-[9px] font-black uppercase tracking-widest shadow-md active:scale-95 transition-all"
+                aria-label="Promote Project"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-full bg-gradient-to-r from-[#d40055] to-[#ff8c00] text-white text-[9px] font-black uppercase tracking-wider shadow-md active:scale-95 transition-all"
               >
                 <Megaphone size={12} />
-                <span>Promote</span>
+                <span className="hidden sm:inline">Promote</span>
               </button>
             )}
           </div>
@@ -1982,7 +1983,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     <p style={{ fontFamily: 'Newsreader, Georgia, serif', fontStyle: 'italic', fontSize: 15, color: '#FFB86B' }}>
                       {(album as any).source === 'AUDIUS' ? 'Streaming from Audius' : album.type === 'BOOK' ? 'An audiobook on Chora' : (album.tracks?.length || 0) === 1 ? 'A single on Chora' : 'An album on Chora'}
                     </p>
-                    <h2 className="mt-1 text-white uppercase drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]" style={{ fontFamily: "'Bricolage Grotesque', var(--font-display), sans-serif", fontWeight: 800, fontSize: 30, lineHeight: 0.95, letterSpacing: '-0.01em' }}>{album.title}</h2>
+                    <h2 className="mt-1 text-white uppercase drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)] line-clamp-2 break-normal" style={{ fontFamily: "'Bricolage Grotesque', var(--font-display), sans-serif", fontWeight: 800, fontSize: 'clamp(1.35rem, 6vw, 1.875rem)', lineHeight: 1.05, letterSpacing: '-0.01em' }}>{album.title}</h2>
                     <p className="mt-1.5 text-[13px] text-white/80">
                       <button type="button" className="font-bold text-white" onClick={(e) => { e.stopPropagation(); if (onVisitUser && album.ownerId) onVisitUser(album.ownerId); }}>{album.artist}</button>
                       {(album.releaseDate || album.createdAt) ? <span> · {new Date(album.releaseDate || album.createdAt).getFullYear()}</span> : null}
@@ -2282,7 +2283,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     <div
                       {...trackContextMenu.bind(t)}
                       onClick={selectMode ? (e) => trackSelection.handleSelect(t.id, e) : undefined}
-                      className={`relative flex items-center gap-3 px-4 py-3.5 ${isActive ? '' : 'hover:bg-white/[0.03]'} ${selectMode ? 'cursor-pointer' : ''}`}
+                      className={`relative flex items-center gap-2 px-3 sm:px-4 py-3 min-h-[56px] ${isActive ? '' : 'hover:bg-white/[0.03]'} ${selectMode ? 'cursor-pointer' : ''}`}
                     >
                       {selectMode ? (
                         <button
@@ -2305,29 +2306,29 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                       <button
                         type="button"
                         onClick={selectMode ? (e) => { e.stopPropagation(); trackSelection.handleSelect(t.id, e); } : () => { setCurrentTrackIndex(i); playTrack(t, album, 'LIBRARY'); }}
-                        className="flex items-center gap-3 text-left flex-1 min-w-0"
+                        className="flex items-center gap-2.5 text-left flex-1 min-w-0 overflow-hidden"
                       >
-                        <span className="text-[10px] font-display font-black text-small-orange w-4 shrink-0 self-start pt-0.5 tabular-nums">{i + 1}</span>
-                        <div className="min-w-0 flex-1">
-                          {/* Track-list titles stay a single line (the full title is the big header above) */}
-                          <p className="text-xs font-display font-black uppercase tracking-widest truncate">{t.title}</p>
-                          <p className="text-[8px] font-display font-bold text-white/20 uppercase tracking-widest break-words">{t.artist || album.artist}</p>
+                        <span className="text-[10px] font-display font-black text-small-orange w-5 shrink-0 text-center tabular-nums">{i + 1}</span>
+                        <div className="min-w-0 flex-1 overflow-hidden">
+                          {/* Always keep song title and artist horizontal on a single truncated line so narrow viewports never vertically stack letters */}
+                          <p className="text-xs font-display font-black uppercase tracking-wider truncate whitespace-nowrap leading-tight">{t.title}</p>
+                          <p className="text-[9px] font-display font-bold text-white/45 uppercase tracking-wider truncate whitespace-nowrap leading-tight mt-0.5">{t.artist || album.artist}</p>
                           {(t.isEclipsa || t.isAtmos) && <ImmersiveBadge isEclipsa={t.isEclipsa} isAtmos={t.isAtmos} size="sm" className="mt-1" />}
                         </div>
                       </button>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {/* Active track: countdown / total on the RIGHT, right-aligned */}
+                      <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                        {/* Active track: single-line compact countdown on narrow mobile, dual-line on wider */}
                         {isActive && isCurrentTrackGlobal && globalDuration > 0 && (
-                          <div className="flex flex-col items-end font-display tabular-nums text-[9px] font-black uppercase tracking-wider leading-tight self-center">
-                            <span className={isEndingSoon ? 'text-red-400' : 'text-white/70'}>-{formatTime(trackRemaining)}</span>
-                            <span className="text-white/35">{formatTime(globalDuration)}</span>
+                          <div className="flex flex-col items-end font-display tabular-nums text-[9px] font-black uppercase tracking-normal leading-tight self-center whitespace-nowrap">
+                            <span className={isEndingSoon ? 'text-red-400' : 'text-white/80'}>-{formatTime(trackRemaining)}</span>
+                            <span className="hidden sm:inline text-white/35">{formatTime(globalDuration)}</span>
                           </div>
                         )}
                         {isActive && globalIsPlaying && isCurrentTrackGlobal
                           ? <AmplitudeBar analyser={globalAnalyser} isPlaying={true} />
-                          : <Play size={14} className="text-white/20" fill="currentColor" />}
-                        {/* Like / love / dislike — tap like, double-tap love, hold for more */}
-                        <TrackReactionButton track={t} album={album} size={16} box={40} />
+                          : <Play size={13} className="text-white/25 shrink-0" fill="currentColor" />}
+                        {/* Like / love / dislike — compact box on phones so title keeps generous horizontal room */}
+                        <TrackReactionButton track={t} album={album} size={15} box={32} />
                         <button
                           onClick={(e) => { e.stopPropagation(); setPlaylistPickerTrack(t); }}
                           title="Add this song to a playlist"
@@ -2353,8 +2354,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                           <Sparkles size={11} />
                           <span>PP</span>
                         </button>
-                        {/* Share this individual track (Plajah feed + social) */}
-                        <div onClick={(e) => e.stopPropagation()}>
+                        {/* Share this individual track — hidden on ultra-narrow phones (reachable via More menu & drawer) so the track title never squishes */}
+                        <div className="hidden sm:block" onClick={(e) => e.stopPropagation()}>
                           <ShareButton
                             title={t.title}
                             artist={t.artist || album.artist}
@@ -2380,15 +2381,17 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             e.stopPropagation();
                             trackContextMenu.openFrom(e.currentTarget, t);
                           }}
-                          className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                          className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
                           title="Track options (right-click also available)"
+                          aria-label="Track options"
                         >
-                          <MoreHorizontal size={14} />
+                          <MoreHorizontal size={15} />
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); setExpandedTrackId(isExpanded ? null : t.id); }}
                           title="More"
-                          className={`${isOwner ? '' : 'sm:hidden'} p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-small-orange/20 text-small-orange' : 'text-white/20 hover:text-white'}`}
+                          aria-label="Expand track actions"
+                          className={`${isOwner ? '' : 'sm:hidden'} p-1.5 rounded-lg transition-all shrink-0 ${isExpanded ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white'}`}
                         >
                           <ChevronDown size={14} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                         </button>

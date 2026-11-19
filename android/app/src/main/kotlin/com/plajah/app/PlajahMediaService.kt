@@ -33,6 +33,7 @@ import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.SettableFuture
 import com.plajah.app.data.LocalMediaManager
 import com.plajah.app.data.PlatformCatalog
 import com.plajah.app.data.PlatformItem
@@ -204,13 +205,27 @@ class PlajahMediaService : MediaLibraryService() {
             .setId("PlajahChoraMediaSession")
             .build()
 
-        // Preload catalog for Android Auto
+        // Preload catalog for Android Auto & notify connected car head units once ready
         serviceScope.launch {
-            try {
-                cachedCatalog = PlatformCatalog.load("chora")
-            } catch (e: Exception) {
-                Log.w(TAG, "Catalog preload failed: ${e.message}")
+            ensureCatalogLoaded()
+        }
+    }
+
+    private suspend fun ensureCatalogLoaded(): List<PlatformItem> {
+        if (cachedCatalog.isNotEmpty()) return cachedCatalog
+        return try {
+            val loaded = PlatformCatalog.load("chora")
+            if (loaded.isNotEmpty()) {
+                cachedCatalog = loaded
+                mediaLibrarySession?.notifyChildrenChanged(ROOT_ID, 5, null)
+                mediaLibrarySession?.notifyChildrenChanged(CAT_FEATURED, loaded.size, null)
+                mediaLibrarySession?.notifyChildrenChanged(CAT_ALBUMS, loaded.size, null)
+                mediaLibrarySession?.notifyChildrenChanged(CAT_ARTISTS, loaded.groupBy { it.creator }.size, null)
             }
+            cachedCatalog
+        } catch (e: Exception) {
+            Log.w(TAG, "Catalog load failed: ${e.message}")
+            cachedCatalog
         }
     }
 
@@ -361,15 +376,125 @@ class PlajahMediaService : MediaLibraryService() {
     }
 
     /**
-     * Android Auto & Automotive Media Browse Tree Implementation
+     * Full Android Auto & Automotive OS MediaLibraryService implementation.
+     * Supports:
+     * - Grid/list content-style hints for car displays
+     * - Live async catalog hydration (Featured, Albums, Artists -> Artist Albums -> Tracks, Radio, Local)
+     * - onAddMediaItems / onSetMediaItems URI & queue resolution (required by Media3 for car playback!)
+     * - Voice search (onSearch + onGetSearchResult) for "Hey Google, play ... on Plajah"
+     * - Playback resumption (onPlaybackResumption) when reconnecting to a vehicle head unit
      */
+    @UnstableApi
     private inner class ChoraMediaLibrarySessionCallback : MediaLibrarySession.Callback {
+
+        private val radioStations = listOf(
+            Triple("radio:ambient", "Chora Ambient Flow", "https://plajah.com/audio/anthems/usa.mp3"),
+            Triple("radio:night", "Night Sky Celestial", "https://plajah.com/audio/anthems/france.mp3"),
+            Triple("radio:afro", "Plajah Afrobeat Club", "https://plajah.com/audio/anthems/ghana.mp3"),
+            Triple("radio:synth", "Tokyo Synthwave 2088", "https://plajah.com/audio/anthems/japan.mp3"),
+        )
+
+        private fun autoStyleExtras(gridBrowsable: Boolean): Bundle = Bundle().apply {
+            putBoolean("android.media.browse.CONTENT_STYLE_SUPPORTED", true)
+            putInt("android.media.browse.CONTENT_STYLE_BROWSABLE_HINT", if (gridBrowsable) 2 else 1)
+            putInt("android.media.browse.CONTENT_STYLE_PLAYABLE_HINT", 1)
+        }
+
+        private fun albumToMediaItem(album: PlatformItem): MediaItem =
+            MediaItem.Builder()
+                .setMediaId("album:${album.id}")
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle(album.title)
+                        .setArtist(album.creator)
+                        .setSubtitle(album.genre.ifBlank { "${album.tracks.size} tracks" })
+                        .setArtworkUri(if (album.image.isNotBlank()) Uri.parse(album.image) else null)
+                        .setIsBrowsable(true)
+                        .setIsPlayable(album.tracks.any { it.url.isNotBlank() })
+                        .setMediaType(MediaMetadata.MEDIA_TYPE_ALBUM)
+                        .build()
+                )
+                .build()
+
+        private fun trackToMediaItem(album: PlatformItem, track: com.plajah.app.data.PlatformTrack): MediaItem =
+            MediaItem.Builder()
+                .setMediaId("${album.id}:${track.id}")
+                .setUri(Uri.parse(track.url))
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle(track.title)
+                        .setArtist(track.artist.ifBlank { album.creator })
+                        .setAlbumTitle(album.title)
+                        .setArtworkUri(if (album.image.isNotBlank()) Uri.parse(album.image) else null)
+                        .setIsBrowsable(false)
+                        .setIsPlayable(true)
+                        .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                        .build()
+                )
+                .build()
+
+        private fun resolveMediaItem(mediaId: String): List<MediaItem> {
+            // 1. Radio station
+            radioStations.firstOrNull { it.first == mediaId }?.let { (id, title, url) ->
+                return listOf(createPlayableItem(id, title, "Plajah Live Radio", null, url))
+            }
+            // 2. Local MediaStore track
+            if (mediaId.startsWith("local:")) {
+                val localId = mediaId.removePrefix("local:").toLongOrNull()
+                val track = LocalMediaManager.queryAudio(applicationContext).firstOrNull { it.id == localId }
+                if (track != null) {
+                    return listOf(
+                        MediaItem.Builder()
+                            .setMediaId(mediaId)
+                            .setUri(track.contentUri)
+                            .setMediaMetadata(
+                                MediaMetadata.Builder()
+                                    .setTitle(track.title)
+                                    .setArtist(track.artist)
+                                    .setAlbumTitle(track.album)
+                                    .setArtworkUri(track.artworkUri)
+                                    .setIsBrowsable(false)
+                                    .setIsPlayable(true)
+                                    .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                                    .build()
+                            )
+                            .build()
+                    )
+                }
+            }
+            // 3. Whole album tapped for direct playback
+            if (mediaId.startsWith("album:")) {
+                val albumId = mediaId.removePrefix("album:")
+                val album = cachedCatalog.firstOrNull { it.id == albumId }
+                if (album != null) {
+                    return album.tracks.filter { it.url.isNotBlank() }.map { trackToMediaItem(album, it) }
+                }
+            }
+            // 4. Specific track "<albumId>:<trackId>"
+            if (mediaId.contains(":")) {
+                val albumId = mediaId.substringBefore(":")
+                val trackId = mediaId.substringAfter(":")
+                val album = cachedCatalog.firstOrNull { it.id == albumId }
+                val track = album?.tracks?.firstOrNull { it.id == trackId && it.url.isNotBlank() }
+                if (album != null && track != null) {
+                    return listOf(trackToMediaItem(album, track))
+                }
+            }
+            return emptyList()
+        }
 
         override fun onGetLibraryRoot(
             session: MediaLibrarySession,
             browser: MediaSession.ControllerInfo,
             params: LibraryParams?
         ): ListenableFuture<LibraryResult<MediaItem>> {
+            val rootExtras = autoStyleExtras(gridBrowsable = true)
+            val rootParams = LibraryParams.Builder()
+                .setExtras(rootExtras)
+                .setOffline(params?.isOffline == true)
+                .setRecent(params?.isRecent == true)
+                .setSuggested(params?.isSuggested == true)
+                .build()
             val rootItem = MediaItem.Builder()
                 .setMediaId(ROOT_ID)
                 .setMediaMetadata(
@@ -378,10 +503,11 @@ class PlajahMediaService : MediaLibraryService() {
                         .setIsBrowsable(true)
                         .setIsPlayable(false)
                         .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                        .setExtras(rootExtras)
                         .build()
                 )
                 .build()
-            return Futures.immediateFuture(LibraryResult.ofItem(rootItem, params))
+            return Futures.immediateFuture(LibraryResult.ofItem(rootItem, rootParams))
         }
 
         override fun onPlayerCommandRequest(
@@ -389,8 +515,6 @@ class PlajahMediaService : MediaLibraryService() {
             controller: MediaSession.ControllerInfo,
             playerCommand: Int
         ): Int {
-            // Web-mirrored session (metadata only, no real queue): forward to the WebView player and
-            // do NOT let ExoPlayer act on its empty placeholder item.
             val webMirror = session.player.currentMediaItem?.mediaId?.startsWith("web_sync:") == true
             when (playerCommand) {
                 Player.COMMAND_SEEK_TO_NEXT,
@@ -415,6 +539,90 @@ class PlajahMediaService : MediaLibraryService() {
             return super.onPlayerCommandRequest(session, controller, playerCommand)
         }
 
+        override fun onAddMediaItems(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: MutableList<MediaItem>
+        ): ListenableFuture<MutableList<MediaItem>> {
+            val future = SettableFuture.create<MutableList<MediaItem>>()
+            serviceScope.launch {
+                if (cachedCatalog.isEmpty()) ensureCatalogLoaded()
+                val resolved = mutableListOf<MediaItem>()
+                for (item in mediaItems) {
+                    if (item.localConfiguration?.uri != null) {
+                        resolved.add(item)
+                    } else {
+                        val found = resolveMediaItem(item.mediaId)
+                        if (found.isNotEmpty()) resolved.addAll(found) else resolved.add(item)
+                    }
+                }
+                future.set(resolved)
+            }
+            return future
+        }
+
+        override fun onSetMediaItems(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            mediaItems: MutableList<MediaItem>,
+            startIndex: Int,
+            startPositionMs: Long
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            val future = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
+            serviceScope.launch {
+                if (cachedCatalog.isEmpty()) ensureCatalogLoaded()
+                // When Android Auto selects a single track "<albumId>:<trackId>", load the full album queue
+                // starting at that track so Skip Next / Skip Previous work seamlessly from the steering wheel!
+                if (mediaItems.size == 1 && mediaItems[0].localConfiguration?.uri == null) {
+                    val id = mediaItems[0].mediaId
+                    if (id.contains(":") && !id.startsWith("album:") && !id.startsWith("radio:") && !id.startsWith("local:") && !id.startsWith("web_sync:")) {
+                        val albumId = id.substringBefore(":")
+                        val trackId = id.substringAfter(":")
+                        val album = cachedCatalog.firstOrNull { it.id == albumId }
+                        if (album != null) {
+                            val playable = album.tracks.filter { it.url.isNotBlank() }
+                            val queue = playable.map { trackToMediaItem(album, it) }
+                            val idx = playable.indexOfFirst { it.id == trackId }.coerceAtLeast(0)
+                            if (queue.isNotEmpty()) {
+                                future.set(MediaSession.MediaItemsWithStartPosition(queue, idx, startPositionMs))
+                                return@launch
+                            }
+                        }
+                    }
+                }
+                val resolved = mutableListOf<MediaItem>()
+                for (item in mediaItems) {
+                    if (item.localConfiguration?.uri != null) {
+                        resolved.add(item)
+                    } else {
+                        val found = resolveMediaItem(item.mediaId)
+                        if (found.isNotEmpty()) resolved.addAll(found) else resolved.add(item)
+                    }
+                }
+                val safeIndex = startIndex.coerceIn(0, (resolved.size - 1).coerceAtLeast(0))
+                future.set(MediaSession.MediaItemsWithStartPosition(resolved, safeIndex, startPositionMs))
+            }
+            return future
+        }
+
+        override fun onPlaybackResumption(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            val future = SettableFuture.create<MediaSession.MediaItemsWithStartPosition>()
+            serviceScope.launch {
+                val catalog = ensureCatalogLoaded()
+                val firstPlayable = catalog.firstOrNull { album -> album.tracks.any { it.url.isNotBlank() } }
+                val queue = if (firstPlayable != null) {
+                    firstPlayable.tracks.filter { it.url.isNotBlank() }.map { trackToMediaItem(firstPlayable, it) }
+                } else {
+                    radioStations.map { (id, title, url) -> createPlayableItem(id, title, "Plajah Live Radio", null, url) }
+                }
+                future.set(MediaSession.MediaItemsWithStartPosition(queue, 0, C.TIME_UNSET))
+            }
+            return future
+        }
+
         override fun onGetChildren(
             session: MediaLibrarySession,
             browser: MediaSession.ControllerInfo,
@@ -423,116 +631,81 @@ class PlajahMediaService : MediaLibraryService() {
             pageSize: Int,
             params: LibraryParams?
         ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-            return when (parentId) {
-                ROOT_ID -> {
-                    val categories = ImmutableList.of(
-                        createCategoryItem(CAT_FEATURED, "Featured & New Releases", MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS),
-                        createCategoryItem(CAT_ALBUMS, "Albums", MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS),
-                        createCategoryItem(CAT_ARTISTS, "Artists", MediaMetadata.MEDIA_TYPE_FOLDER_ARTISTS),
-                        createCategoryItem(CAT_RADIO, "Plajah Radio", MediaMetadata.MEDIA_TYPE_FOLDER_RADIO_STATIONS),
-                        createCategoryItem(CAT_LOCAL, "Local Music", MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
-                    )
-                    Futures.immediateFuture(LibraryResult.ofItemList(categories, params))
+            if (parentId == ROOT_ID) {
+                val categories = ImmutableList.of(
+                    createCategoryItem(CAT_FEATURED, "Featured & New", MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS, grid = true),
+                    createCategoryItem(CAT_ALBUMS, "Albums", MediaMetadata.MEDIA_TYPE_FOLDER_ALBUMS, grid = true),
+                    createCategoryItem(CAT_ARTISTS, "Artists", MediaMetadata.MEDIA_TYPE_FOLDER_ARTISTS, grid = false),
+                    createCategoryItem(CAT_RADIO, "Plajah Radio", MediaMetadata.MEDIA_TYPE_FOLDER_RADIO_STATIONS, grid = false),
+                    createCategoryItem(CAT_LOCAL, "Local Music", MediaMetadata.MEDIA_TYPE_FOLDER_MIXED, grid = false)
+                )
+                return Futures.immediateFuture(LibraryResult.ofItemList(categories, params))
+            }
+            if (parentId == CAT_RADIO) {
+                val items = radioStations.map { (id, title, url) ->
+                    createPlayableItem(id, title, "Plajah Live Radio", null, url)
                 }
-
-                CAT_FEATURED, CAT_ALBUMS -> {
-                    val items = cachedCatalog.map { album ->
-                        MediaItem.Builder()
-                            .setMediaId("album:${album.id}")
-                            .setMediaMetadata(
-                                MediaMetadata.Builder()
-                                    .setTitle(album.title)
-                                    .setArtist(album.creator)
-                                    .setArtworkUri(if (album.image.isNotBlank()) Uri.parse(album.image) else null)
-                                    .setIsBrowsable(true)
-                                    .setIsPlayable(album.tracks.isNotEmpty())
-                                    .setMediaType(MediaMetadata.MEDIA_TYPE_ALBUM)
-                                    .build()
-                            )
-                            .build()
-                    }
-                    Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(items), params))
+                return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(items), params))
+            }
+            if (parentId == CAT_LOCAL) {
+                val localTracks = LocalMediaManager.queryAudio(applicationContext)
+                val items = localTracks.map { track ->
+                    MediaItem.Builder()
+                        .setMediaId("local:${track.id}")
+                        .setUri(track.contentUri)
+                        .setMediaMetadata(
+                            MediaMetadata.Builder()
+                                .setTitle(track.title)
+                                .setArtist(track.artist)
+                                .setAlbumTitle(track.album)
+                                .setArtworkUri(track.artworkUri)
+                                .setIsBrowsable(false)
+                                .setIsPlayable(true)
+                                .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                                .build()
+                        )
+                        .build()
                 }
+                return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(items), params))
+            }
 
-                CAT_ARTISTS -> {
-                    val artists = cachedCatalog.groupBy { it.creator }
-                    val items = artists.map { (artistName, albums) ->
-                        MediaItem.Builder()
-                            .setMediaId("artist:$artistName")
-                            .setMediaMetadata(
-                                MediaMetadata.Builder()
-                                    .setTitle(artistName)
-                                    .setSubtitle("${albums.size} albums")
-                                    .setArtworkUri(albums.firstOrNull()?.image?.let { Uri.parse(it) })
-                                    .setIsBrowsable(true)
-                                    .setIsPlayable(false)
-                                    .setMediaType(MediaMetadata.MEDIA_TYPE_ARTIST)
-                                    .build()
-                            )
-                            .build()
-                    }
-                    Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(items), params))
-                }
-
-                CAT_RADIO -> {
-                    val radioStations = ImmutableList.of(
-                        createPlayableItem("radio:ambient", "Chora Ambient Flow", "Plajah Live Radio", null, "https://plajah.com/audio/anthems/usa.mp3"),
-                        createPlayableItem("radio:night", "Night Sky Celestial", "Plajah Curated", null, "https://plajah.com/audio/anthems/france.mp3")
-                    )
-                    Futures.immediateFuture(LibraryResult.ofItemList(radioStations, params))
-                }
-
-                CAT_LOCAL -> {
-                    // Local tracks from device MediaStore
-                    val localTracks = LocalMediaManager.queryAudio(applicationContext)
-                    val items = localTracks.map { track ->
-                        MediaItem.Builder()
-                            .setMediaId("local:${track.id}")
-                            .setUri(track.contentUri)
-                            .setMediaMetadata(
-                                MediaMetadata.Builder()
-                                    .setTitle(track.title)
-                                    .setArtist(track.artist)
-                                    .setAlbumTitle(track.album)
-                                    .setArtworkUri(track.artworkUri)
-                                    .setIsBrowsable(false)
-                                    .setIsPlayable(true)
-                                    .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
-                                    .build()
-                            )
-                            .build()
-                    }
-                    Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(items), params))
-                }
-
-                else -> {
-                    if (parentId.startsWith("album:")) {
-                        val albumId = parentId.removePrefix("album:")
-                        val album = cachedCatalog.firstOrNull { it.id == albumId }
-                        if (album != null) {
-                            val tracks = album.tracks.filter { it.url.isNotBlank() }.map { track ->
-                                MediaItem.Builder()
-                                    .setMediaId("${album.id}:${track.id}")
-                                    .setUri(Uri.parse(track.url))
-                                    .setMediaMetadata(
-                                        MediaMetadata.Builder()
-                                            .setTitle(track.title)
-                                            .setArtist(track.artist.ifBlank { album.creator })
-                                            .setAlbumTitle(album.title)
-                                            .setArtworkUri(if (album.image.isNotBlank()) Uri.parse(album.image) else null)
-                                            .setIsBrowsable(false)
-                                            .setIsPlayable(true)
-                                            .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
-                                            .build()
-                                    )
-                                    .build()
-                            }
-                            return Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.copyOf(tracks), params))
+            val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
+            serviceScope.launch {
+                val catalog = ensureCatalogLoaded()
+                val items: List<MediaItem> = when {
+                    parentId == CAT_FEATURED -> catalog.take(24).map { albumToMediaItem(it) }
+                    parentId == CAT_ALBUMS -> catalog.map { albumToMediaItem(it) }
+                    parentId == CAT_ARTISTS -> {
+                        catalog.groupBy { it.creator.ifBlank { "Plajah Artist" } }.map { (artistName, albums) ->
+                            MediaItem.Builder()
+                                .setMediaId("artist:$artistName")
+                                .setMediaMetadata(
+                                    MediaMetadata.Builder()
+                                        .setTitle(artistName)
+                                        .setSubtitle("${albums.size} release${if (albums.size == 1) "" else "s"}")
+                                        .setArtworkUri(albums.firstOrNull()?.image?.takeIf { it.isNotBlank() }?.let { Uri.parse(it) })
+                                        .setIsBrowsable(true)
+                                        .setIsPlayable(false)
+                                        .setMediaType(MediaMetadata.MEDIA_TYPE_ARTIST)
+                                        .build()
+                                )
+                                .build()
                         }
                     }
-                    Futures.immediateFuture(LibraryResult.ofItemList(ImmutableList.of(), params))
+                    parentId.startsWith("artist:") -> {
+                        val artistName = parentId.removePrefix("artist:")
+                        catalog.filter { it.creator.equals(artistName, ignoreCase = true) }.map { albumToMediaItem(it) }
+                    }
+                    parentId.startsWith("album:") -> {
+                        val albumId = parentId.removePrefix("album:")
+                        val album = catalog.firstOrNull { it.id == albumId }
+                        album?.tracks?.filter { it.url.isNotBlank() }?.map { trackToMediaItem(album, it) } ?: emptyList()
+                    }
+                    else -> emptyList()
                 }
+                future.set(LibraryResult.ofItemList(ImmutableList.copyOf(items), params))
             }
+            return future
         }
 
         override fun onGetItem(
@@ -540,12 +713,85 @@ class PlajahMediaService : MediaLibraryService() {
             browser: MediaSession.ControllerInfo,
             mediaId: String
         ): ListenableFuture<LibraryResult<MediaItem>> {
-            // Find in catalog or local
-            val item = MediaItem.Builder().setMediaId(mediaId).build()
-            return Futures.immediateFuture(LibraryResult.ofItem(item, null))
+            val future = SettableFuture.create<LibraryResult<MediaItem>>()
+            serviceScope.launch {
+                if (cachedCatalog.isEmpty()) ensureCatalogLoaded()
+                val found = resolveMediaItem(mediaId).firstOrNull()
+                if (found != null) {
+                    future.set(LibraryResult.ofItem(found, null))
+                } else {
+                    future.set(LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE))
+                }
+            }
+            return future
         }
 
-        private fun createCategoryItem(id: String, title: String, mediaType: @MediaMetadata.FolderType Int): MediaItem {
+        private fun searchCatalog(query: String): List<MediaItem> {
+            val q = query.trim()
+            if (q.isEmpty()) return cachedCatalog.take(12).map { albumToMediaItem(it) }
+            val results = mutableListOf<MediaItem>()
+            // Match tracks first so voice commands like "Play <song>" immediately match playable tracks
+            cachedCatalog.forEach { album ->
+                album.tracks.filter { it.url.isNotBlank() }.forEach { track ->
+                    if (track.title.contains(q, ignoreCase = true) ||
+                        track.artist.contains(q, ignoreCase = true) ||
+                        album.creator.contains(q, ignoreCase = true) ||
+                        album.title.contains(q, ignoreCase = true)
+                    ) {
+                        results.add(trackToMediaItem(album, track))
+                    }
+                }
+            }
+            // Match radio stations
+            radioStations.forEach { (id, title, url) ->
+                if (title.contains(q, ignoreCase = true) || q.contains("radio", ignoreCase = true)) {
+                    results.add(createPlayableItem(id, title, "Plajah Live Radio", null, url))
+                }
+            }
+            return results.take(30)
+        }
+
+        override fun onSearch(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            query: String,
+            params: LibraryParams?
+        ): ListenableFuture<LibraryResult<Void>> {
+            val future = SettableFuture.create<LibraryResult<Void>>()
+            serviceScope.launch {
+                ensureCatalogLoaded()
+                val count = searchCatalog(query).size
+                session.notifySearchResultChanged(browser, query, count, params)
+                future.set(LibraryResult.ofVoid(params))
+            }
+            return future
+        }
+
+        override fun onGetSearchResult(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            query: String,
+            page: Int,
+            pageSize: Int,
+            params: LibraryParams?
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+            val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
+            serviceScope.launch {
+                ensureCatalogLoaded()
+                val all = searchCatalog(query)
+                val from = (page * pageSize).coerceAtMost(all.size)
+                val to = (from + pageSize).coerceAtMost(all.size)
+                future.set(LibraryResult.ofItemList(ImmutableList.copyOf(all.subList(from, to)), params))
+            }
+            return future
+        }
+
+        private fun createCategoryItem(
+            id: String,
+            title: String,
+            mediaType: @MediaMetadata.MediaType Int,
+            grid: Boolean
+        ): MediaItem {
             return MediaItem.Builder()
                 .setMediaId(id)
                 .setMediaMetadata(
@@ -553,7 +799,8 @@ class PlajahMediaService : MediaLibraryService() {
                         .setTitle(title)
                         .setIsBrowsable(true)
                         .setIsPlayable(false)
-                        .setFolderType(mediaType)
+                        .setMediaType(mediaType)
+                        .setExtras(autoStyleExtras(gridBrowsable = grid))
                         .build()
                 )
                 .build()
