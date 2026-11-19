@@ -10,7 +10,7 @@ Kenne went to sleep with "work through and get issues resolved" on the map and w
   - **Orchard Lane** stopped 47 m short of Finger Lake Loop; it now ends on it (T junction).
   - **Kettle Pass** reached no road at either end (65 m and 53 m from dirt tracks): the only way on was across a field. **Decision:** it now starts with a 205 m straight north to a square T on the east-west country road at z 2340, and ends where the two town streets meet at (2450, 3343). It is 3.46 km now (was 3.02), still 8 % max.
 
-Surface check after all of this (drivable surface vs design, centre and ±70 % of the half-width): every scenic road within 0.65 m worst, except two sub-metre spots with no road crossing them (Kettle Pass 0.95 m, Glacier Pass 0.88 m), probably the 6 m terrain mesh at the edge of a cut. Left as minor.
+Surface check after all of this (drivable surface vs design, centre and ±70 % of the half-width): every scenic road within 0.65 m worst; the last two sub-metre spots were traced and fixed later in the night (see below).
 
 ## The 2.2 m spike on the Escarpment Circuit
 Traced: lap index 2057, on the crest road's descent through the eastern gap (3425, -9023), at only 9 m/s, with the car 2.2 m *below* the road. That stretch is a viaduct (the road stands ~9 m over the ground, just past the 8 m fill limit), and the autopilot ran wide: a wheel went over the deck edge and the car sagged before recovering.
@@ -23,9 +23,9 @@ Checked with the autopilot lap tool (`scripts/apex-lapdrive.mjs`): the Escarpmen
 
 | | Escarpment Circuit | Superior Range Circuit |
 |---|---|---|
-| Lap (autopilot) | 9:28 | 19:18 |
-| Car height vs road, average | 8.0 cm | 5.8 cm |
-| Worst | 0.42 m | 0.48 m (Glacier Pass / coast highway junction) |
+| Lap (autopilot) | 9:36 | 19:29 |
+| Car height vs road, average | 8.1 cm | 6.0 cm |
+| Worst | 0.35 m | 0.31 m |
 | Stalls, resets, page errors | none | none |
 
 The autopilot still runs wide in tight bends (up to 14-21 m off the line); that is its simple steering, and the rails now catch it.
@@ -38,6 +38,13 @@ The re-run lap found a 1.2 m dip on the crest road's viaduct zig-zag, a few metr
 
 ## Country roads that stopped short
 Of the paved section-line country roads that ended mid-map, three ended within 60 m of another road and now meet it: cr9's east end runs on 30 m to a town street, cr11 runs on 48 m to cr1, and cr2 gets a 17 m stub onto cr7. **Decision:** the others (87-624 m from the next road, mostly ending at farm driveways) are left as they are; joining them means laying new roads, which is better done with you looking at the map. Four more run to the map's south edge, which is right.
+
+## Late night: junction mouths, the ground under the roads, rail run-ins
+- **T junction mouths were stepped.** Only a joining road's end sample was pinned to the road it joins, so its last ~10 m (inside the other road's width) ran up to 1 m under that road's deck. Every sample inside the other road's footprint now sits at its height. Crest road worst 0.97 -> 0.38 m.
+- **The ground could bulge over a road in a cut.** The drivable terrain mesh is a 12 m grid, but the carve flattened only about one 6 m cell past the shoulder, so a mesh triangle could reach up the cut slope. **Decision:** the flat band is now one full mesh cell (12 m) past the shoulder. In a cut that reads as a wider verge (like a rockfall catch ditch).
+- **Later roads re-graded the ground under scenic roads.** The map-wide grade pass runs after the scenic carve and could reshape the ground under a scenic road from a track 30 m away (Kettle Pass: 0.93 m). The scenic roads' flat band is now locked for the grade pass. Kettle Pass worst 0.93 -> 0.35 m.
+- **Rails began right at the hazard.** A car already running wide on the verge reached a viaduct gully beside the rail's first post, not against its face. **Decision:** every rail run now starts ~16 m before its hazard and runs on ~16 m past it, as real guardrails do. A direct test (car aimed 30° at the drop at 20 m/s on the crest road's gully viaduct) stays on the deck on both sides, never more than 3.3 m from the centre.
+- Surface check after these: every scenic road within 0.65 m worst, most within 0.4 m (it was 6.7 m at the worst junction last night).
 
 ## Long roads disappeared
 While checking the Mill Road junction I found the coast highway missing from the picture. The spatial culler (`enginePerf.ts`) puts each mesh in a 420 m chunk by its centre and hides whole chunks more than ~2.6 km from the camera. A scenic road is one mesh: the 13.5 km coast highway's centre is far up the coast, so the whole highway vanished wherever you stood more than 2.6 km from that point (most of its length). Objects bigger than two chunks now get the per-object distance and frustum test every frame instead. Checked in the game: the highway is drawn at the Mill Road T junction; frame times unchanged.
@@ -68,6 +75,5 @@ The graphics session saves files every minute or so, and each save reloads the p
 - **Steep-range vegetation** (from yesterday's list): left alone on purpose. Real faces that steep are bare rock, and trees at altitude already cost ~2 M triangles far away.
 - **Festival progression** (Fest Points, Stage Passes, opening shows, radio hosts reacting) is not started; it is game structure rather than map, and it touches the same file the graphics work is in all night.
 - **Map screen**: labels only; the designed map view from the concept art is still open.
-- Sub-metre surface spots with no road crossing them: Kettle Pass 0.95 m at (653, 2676), Glacier Pass 0.88 m at (-3494, -13224); probably the terrain mesh at a cut edge.
 - Paved country roads that still end in a field 87-624 m from the next road (cr4, cr5, cr7, cr8, cr9 west, cr10), listed above.
 - The headless checks run on the working tree, so they include the graphics session's unsaved-to-git edits; a type error in `scancar.ts` comes from that work, not from mine.

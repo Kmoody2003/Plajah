@@ -3979,7 +3979,7 @@ async function boot(): Promise<void> {
   }
   scenicData = ((await fetch(BASE + 'scenic_roads.json').then((x) => (x.ok ? x.json() : null)).catch(() => null)) as { roads: ScenicRoad[] } | null)?.roads ?? [];
   roadHash = null;                                                                     // rebuilt with the scenic roads in it (tree and grass clearance)
-  carveScenicRoads(heights, meta.width, meta.height, meta.mpp, scenicData);     // the scenic roads are graded to their own banked design
+  const scenicFlat = carveScenicRoads(heights, meta.width, meta.height, meta.mpp, scenicData);     // the scenic roads are graded to their own banked design
   {
     // the car physics' world edges follow the height grid (it grew 10.2 km north; the old fixed bounds snapped every car north of z -5550 back onto the lake)
     const hx = meta.width * meta.mpp / 2 - 60, hz = meta.height * meta.mpp / 2 - 60;
@@ -4035,7 +4035,7 @@ async function boot(): Promise<void> {
       const cls: GradeClass = rr.kind === 'drive' ? 'drive' : rr.kind === 'dirt' || rr.trail ? 'lane' : rr.half === 10 ? 'freeway' : rr.xz === meta.coastal_highway.xz ? 'highway' : rr.town ? 'street' : 'rural';
       roads.push({ xz: rr.xz, half: rr.half ?? 3.6, cls });
     }
-    const st = gradeRoads(heights, meta.width, meta.height, meta.mpp, roads, locked);
+    const st = gradeRoads(heights, meta.width, meta.height, meta.mpp, roads, locked, scenicFlat);   // no later road reshapes the ground under a scenic road
     console.log('road grade pass', st);
     (window as unknown as { roadGrade: unknown }).roadGrade = st;
   }

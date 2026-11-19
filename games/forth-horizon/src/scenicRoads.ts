@@ -20,11 +20,15 @@ function frames(r: ScenicRoad): { nx: number[]; nz: number[] } {
 /** the road surface height at lateral offset s (along the left normal): the inside of a bend is low */
 const surf = (r: ScenicRoad, i: number, s: number): number => r.y[i] - s * Math.tan(r.bank[i]);
 
-export function carveScenicRoads(heights: Float32Array, W: number, H: number, mpp: number, roads: ScenicRoad[]): void {
+/** carve the scenic roads into the height grid; returns the cells of their flat band (carriageway, shoulder, one mesh cell): the passes after it
+ *  (the road grade pass) must leave those alone */
+export function carveScenicRoads(heights: Float32Array, W: number, H: number, mpp: number, roads: ScenicRoad[]): Uint8Array {
   // two passes: every grid cell within reach of a road is given to its NEAREST road (over all roads), then carved once to that road's surface.
   // (One pass per road let an earlier road's claim block a later road, so at every T junction the joining road's first ~35 m kept the uncut ground.)
   const bestD = new Float32Array(W * H), bestI = new Int32Array(W * H), bestS = new Float32Array(W * H), bestR = new Int16Array(W * H), touched: number[] = [];
-  const fr = roads.map((r) => frames(r)), full = roads.map((r) => r.half + SHOULDER + mpp * 1.2);
+  // flat to the road surface one terrain-MESH cell past the shoulder: the drivable terrain mesh is built at stride 2 (a 12 m grid), so a triangle
+  // spanning the road can reach a vertex up the cut slope and bulge over the deck when the flat band is only one 6 m height cell wide
+  const fr = roads.map((r) => frames(r)), full = roads.map((r) => r.half + SHOULDER + mpp * 2 * 1.05);
   // where the road itself is on a viaduct (its centre more than MAX_FILL over the uncarved ground) the hollow under it stays; anywhere else a gully
   // beside the road is filled as embankment (it used to stay a pit just past the shoulder, which a wheel dropped into)
   const viaduct = roads.map((r) => r.xz.map((p, q) => {
@@ -43,6 +47,7 @@ export function carveScenicRoads(heights: Float32Array, W: number, H: number, mp
       }
     }
   });
+  const flat = new Uint8Array(W * H);
   for (const k of touched) {
     const r = roads[bestR[k]], d = bestD[k] - 1, q = bestI[k], s = Math.max(-r.half - SHOULDER, Math.min(r.half + SHOULDER, bestS[k]));   // beyond the shoulder the ground holds the shoulder's height
     const h = heights[k], tgt = surf(r, q, s) - 0.12;
@@ -51,7 +56,9 @@ export function carveScenicRoads(heights: Float32Array, W: number, H: number, mp
     // flat to the road surface one grid cell past the shoulder: the terrain mesh (6 m grid) cannot bulge over the road
     const out = d - full[bestR[k]], w = out <= 0 ? 1 : 1 - (out / BLEND) ** 2 * (3 - 2 * out / BLEND);
     heights[k] = h + (t - h) * w;
+    if (out <= 0) flat[k] = 1;
   }
+  return flat;
 }
 
 /** a guardrail segment the car collides with: from a to b at height y; (ox, oz) points away from the road */
@@ -131,6 +138,18 @@ export function buildScenicRoads(roads: ScenicRoad[], ground: (x: number, z: num
         const drop = surf(r, i, s) - ground(x + nx[i] * side * 3, z + nz[i] * side * 3);
         const outside = R < 120 && Math.sign(cross) === -side;                            // the bend turns to the left normal when cross > 0: the outside is the other side
         if ((outside || drop > 2) && !nearOther(x, z, self)) rails.push({ i, side });
+      }
+    }
+    // a guardrail starts before the hazard and runs on past it (~16 m each way): a car already running wide on the verge must meet the rail's
+    // face, not arrive beside it (one that ran wide into a viaduct gully used to pass outside the rail's start)
+    {
+      const has = new Set(rails.map((q) => q.i * 2 + (q.side > 0 ? 1 : 0)));
+      for (const q of rails.slice()) for (let k = -4; k <= 4; k++) {
+        const i = q.i + k, key = i * 2 + (q.side > 0 ? 1 : 0);
+        if (i < 2 || i >= n - 2 || has.has(key)) continue;
+        const s = q.side * (r.half + SHOULDER - 0.4);
+        if (nearOther(r.xz[i][0] + nx[i] * s, r.xz[i][1] + nz[i] * s, self)) continue;
+        has.add(key); rails.push({ i, side: q.side });
       }
     }
     if (rails.length) {

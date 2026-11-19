@@ -27,9 +27,9 @@ const STEP = 6, WATER = 0.3;
 
 export interface GradeStats { roads: number; cells: number; steepBefore: Record<string, number>; steepAfter: Record<string, number>; ms: number }
 
-export function gradeRoads(heights: Float32Array, W: number, H: number, mpp: number, roads: GradeRoad[], locked: (x: number, z: number) => boolean): GradeStats {
+export function gradeRoads(heights: Float32Array, W: number, H: number, mpp: number, roads: GradeRoad[], locked: (x: number, z: number) => boolean, preLock?: Uint8Array): GradeStats {
   const t0 = performance.now();
-  const lock = new Uint8Array(W * H);                                          // 1 = an earlier road's carriageway: fixed
+  const lock = preLock ? preLock.slice() : new Uint8Array(W * H);              // 1 = fixed: an earlier road's carriageway, or (preLock) a scenic road's flat band
   const bestD = new Float32Array(W * H), bestI = new Int32Array(W * H);          // per-road scratch: nearest sample distance (+1, 0 = untouched) and its index
   const order: Record<GradeClass, number> = { freeway: 0, highway: 1, street: 2, rural: 3, lane: 4, drive: 5 };
   const list = roads.filter((r) => r.xz.length > 1).sort((a, b) => order[a.cls] - order[b.cls]);
