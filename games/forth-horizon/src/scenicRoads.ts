@@ -21,27 +21,30 @@ function frames(r: ScenicRoad): { nx: number[]; nz: number[] } {
 const surf = (r: ScenicRoad, i: number, s: number): number => r.y[i] - s * Math.tan(r.bank[i]);
 
 export function carveScenicRoads(heights: Float32Array, W: number, H: number, mpp: number, roads: ScenicRoad[]): void {
-  const bestD = new Float32Array(W * H), bestI = new Int32Array(W * H), bestS = new Float32Array(W * H);
-  for (const r of roads) {
-    const { nx, nz } = frames(r), full = r.half + SHOULDER + mpp * 1.2, reach = full + BLEND, rc = Math.ceil(reach / mpp), touched: number[] = [];
+  // two passes: every grid cell within reach of a road is given to its NEAREST road (over all roads), then carved once to that road's surface.
+  // (One pass per road let an earlier road's claim block a later road, so at every T junction the joining road's first ~35 m kept the uncut ground.)
+  const bestD = new Float32Array(W * H), bestI = new Int32Array(W * H), bestS = new Float32Array(W * H), bestR = new Int16Array(W * H), touched: number[] = [];
+  const fr = roads.map((r) => frames(r)), full = roads.map((r) => r.half + SHOULDER + mpp * 1.2);
+  roads.forEach((r, ri) => {
+    const { nx, nz } = fr[ri], reach = full[ri] + BLEND, rc = Math.ceil(reach / mpp);
     for (let q = 0; q < r.xz.length; q++) {
       const ci = Math.round((r.xz[q][0] - GRID.ox) / mpp + W / 2), cj = Math.round((r.xz[q][1] - GRID.oz) / mpp + H / 2);
       for (let j = Math.max(0, cj - rc); j <= Math.min(H - 1, cj + rc); j++) for (let i = Math.max(0, ci - rc); i <= Math.min(W - 1, ci + rc); i++) {
         const k = j * W + i, dx = (((i - W / 2) * mpp) + GRID.ox) - r.xz[q][0], dz = (((j - H / 2) * mpp) + GRID.oz) - r.xz[q][1], d = Math.hypot(dx, dz);
         if (d > reach) continue;
         if (bestD[k] === 0) touched.push(k);
-        if (bestD[k] === 0 || d + 1 < bestD[k]) { bestD[k] = d + 1; bestI[k] = q; bestS[k] = dx * nx[q] + dz * nz[q]; }
+        if (bestD[k] === 0 || d + 1 < bestD[k]) { bestD[k] = d + 1; bestI[k] = q; bestS[k] = dx * nx[q] + dz * nz[q]; bestR[k] = ri; }
       }
     }
-    for (const k of touched) {
-      const d = bestD[k] - 1, q = bestI[k], s = Math.max(-r.half - SHOULDER, Math.min(r.half + SHOULDER, bestS[k]));   // beyond the shoulder the ground holds the shoulder's height bestD[k] = 0;
-      const h = heights[k], tgt = surf(r, q, s) - 0.12;
-      if (tgt - h > MAX_FILL) continue;                                                 // a viaduct carries the road here: the hollow stays
-      const t = Math.min(h + MAX_FILL, Math.max(h - MAX_CUT, tgt));
-      // flat to the road surface one grid cell past the shoulder: the terrain mesh (6 m grid) cannot bulge over the road
-      const out = d - full, w = out <= 0 ? 1 : 1 - (out / BLEND) ** 2 * (3 - 2 * out / BLEND);
-      heights[k] = h + (t - h) * w;
-    }
+  });
+  for (const k of touched) {
+    const r = roads[bestR[k]], d = bestD[k] - 1, q = bestI[k], s = Math.max(-r.half - SHOULDER, Math.min(r.half + SHOULDER, bestS[k]));   // beyond the shoulder the ground holds the shoulder's height
+    const h = heights[k], tgt = surf(r, q, s) - 0.12;
+    if (tgt - h > MAX_FILL) continue;                                                   // a viaduct carries the road here: the hollow stays
+    const t = Math.min(h + MAX_FILL, Math.max(h - MAX_CUT, tgt));
+    // flat to the road surface one grid cell past the shoulder: the terrain mesh (6 m grid) cannot bulge over the road
+    const out = d - full[bestR[k]], w = out <= 0 ? 1 : 1 - (out / BLEND) ** 2 * (3 - 2 * out / BLEND);
+    heights[k] = h + (t - h) * w;
   }
 }
 
