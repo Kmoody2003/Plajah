@@ -125,6 +125,7 @@ import { activeRecipients, allocateSplits, checkSplitConfig, createCreatorPayout
 import { createCreativeStorageRouter } from './routes/creativeStorage';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { makerBuildRouter } from './routes/makerBuild';
+import { terraNoticeRouter } from './routes/terraNotice';
 import { telaPdfRouter } from './routes/telaPdf';
 import { createGamerRouter } from './routes/gamerNet';
 import { liveGamerStore } from './services/gamerNet/liveStore';
@@ -15378,6 +15379,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
   // Plajah Build: recalls, maker terms, part prices, maker exchange (routes/makerBuild.ts).
   app.use('/api/build', express.json({ limit: '64kb' }), makerBuildRouter);
+  // Terra data notice (not a survey / not for digging), accepted per account (routes/terraNotice.ts).
+  app.use('/api/terra/notice', express.json({ limit: '8kb' }), terraNoticeRouter);
   // Tela PDF reader: Smart Fill profile sync, Aria field mapping, Ask this PDF (routes/telaPdf.ts).
   app.use('/api/tela/pdf', express.json({ limit: '3mb' }), telaPdfRouter);
   // Games in the Social timeline: who's on the timeline now, feed matchmaking, challenges, live links (routes/gamerSocial.ts).

@@ -12,6 +12,14 @@ import { formatBearing, formatDms, bearingToAzimuth, type Pt } from '../../servi
 import type { SurveyCall } from '../../services/terra/survey/legalDescription';
 import type { SiteContext } from '../../services/terra/survey/siteContext';
 import { INFRA_BY_ID, type InfraKind } from '../../services/terra/infraLayers';
+import { TERRA_NOTICE_VERSION, TERRA_SHORT_NOTICE, creditsFor } from '../../services/terra/dataNotice';
+
+const EXPORT_CREDITS = creditsFor(['parcels', 'hydrants', 'mapillary', 'streetlights', 'gsi', 'row', 'footprints']);
+const EXPORT_NOTICE = [
+  `TERRA DATA NOTICE (v${TERRA_NOTICE_VERSION}): ${TERRA_SHORT_NOTICE}`,
+  'Provided as is, without warranty. Verify with a Michigan licensed professional surveyor before relying on any dimension, bearing, area or line.',
+  ...EXPORT_CREDITS.map(c => `Source: ${c}`),
+];
 
 const ACCENT = '#FF8C00';
 const MEASURE = '#4FC3D6';
@@ -57,6 +65,7 @@ export function buildSurveyDxf(parcel: TerraParcel, s: ParcelSurvey): string {
   if (s.fit) ents += dxfPolyline(s.fit.placed, 'PARCEL_RECORD');
   const [lng, lat] = s.toLngLat({ x: 0, y: 0 });
   ents += dxfText({ x: 0, y: -10 }, 2, `${parcel.address ?? ''} PIN ${parcel.parcelNumber} - origin ${lat.toFixed(7)}, ${lng.toFixed(7)} (WGS84), grid north, intl feet`, 'NOTES');
+  EXPORT_NOTICE.forEach((line, i) => { ents += dxfText({ x: 0, y: -14 - i * 2.4 }, 1.4, line, 'NOTES'); });
   return `0\nSECTION\n2\nHEADER\n9\n$INSUNITS\n70\n2\n0\nENDSEC\n0\nSECTION\n2\nENTITIES\n${ents}0\nENDSEC\n0\nEOF\n`;
 }
 
@@ -85,7 +94,8 @@ export const ParcelSurveyPanel: React.FC<{
   site?: SiteContext | null;
   onClose: () => void;
   onSelectParcel?: (id: string) => void;
-}> = ({ parcel, survey, site, onClose, onSelectParcel }) => {
+  onOpenSources?: () => void;
+}> = ({ parcel, survey, site, onClose, onSelectParcel, onOpenSources }) => {
   const rec = survey.record;
   const [tab, setTab] = useState<'dims' | 'legal' | 'site' | 'checks'>(rec ? 'legal' : 'dims');
   const m = survey.mapped;
@@ -96,7 +106,8 @@ export const ParcelSurveyPanel: React.FC<{
     m?.sides.forEach(s => rows.push(['map', String(s.index + 1), formatBearing(s.azimuth), s.length.toFixed(2), formatDms(s.interiorAngle),
       s.adjoiners.map(a => a.address ?? a.parcelId).join('; '), s.across ? s.across.distanceFt.toFixed(1) : '']));
     rec?.courses.forEach((c, i) => rows.push(['record', String(i + 1), formatBearing(c.azimuth), c.length.toFixed(2), formatDms(c.interiorAngle ?? 0), '', '']));
-    return rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n');
+    const body = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n');
+    return `${EXPORT_NOTICE.map(l => `"# ${l.replace(/"/g, '""')}"`).join('\n')}\n${body}`;
   }, [m, rec]);
 
   const tabs = [
@@ -141,6 +152,14 @@ export const ParcelSurveyPanel: React.FC<{
             <p className="text-[12px] font-bold text-white tabular-nums">{v}</p>
           </div>
         ))}
+      </div>
+
+      <div className="flex items-start gap-2 px-4 py-2 border-b border-white/[0.06] bg-[#E8B33D]/[0.06]">
+        <AlertTriangle size={11} className="text-[#E8B33D] mt-0.5 shrink-0" />
+        <p className="text-[10px] text-white/60 leading-relaxed flex-1">
+          {TERRA_SHORT_NOTICE}{' '}
+          {onOpenSources && <button onClick={onOpenSources} className="font-bold text-[#4FC3D6] hover:underline">Sources & terms</button>}
+        </p>
       </div>
 
       <div className="flex gap-1 px-3 pt-2">
