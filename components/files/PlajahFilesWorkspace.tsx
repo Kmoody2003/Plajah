@@ -39,6 +39,7 @@ import {
   Search,
   Send,
   Server,
+  Settings,
   Share2,
   Shield,
   Smartphone,
@@ -217,6 +218,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [sendInitialItems, setSendInitialItems] = useState<StageMediaItem[]>([]);
   const [connectorModalOpen, setConnectorModalOpen] = useState(false);
+  const [editingConnector, setEditingConnector] = useState<ConnectedLocationMeta | null>(null);
   const [transferToast, setTransferToast] = useState<string | null>(null);
   const [renameTarget, setRenameTarget] = useState<UnifiedEntry | null>(null);
   const [renameDraft, setRenameDraft] = useState('');
@@ -925,7 +927,10 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
             <div className="px-2 pb-1.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-white/45">
               <span>Locations</span>
               <button
-                onClick={() => setConnectorModalOpen(true)}
+                onClick={() => {
+                  setEditingConnector(null);
+                  setConnectorModalOpen(true);
+                }}
                 className="text-sky-400 hover:text-sky-300 cursor-pointer flex items-center gap-0.5"
               >
                 <Plus size={12} /> Add
@@ -935,7 +940,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
               {connectors.map(loc => {
                 const isAct = active.kind === 'connector' && active.location.id === loc.id;
                 return (
-                  <div key={loc.id} className="group flex items-center gap-1">
+                  <div key={loc.id} className="group flex items-center gap-0.5">
                     <button
                       onClick={() => navigateTo({ kind: 'connector', location: loc, path: loc.remoteDir || '/' })}
                       className={`flex-1 min-w-0 px-2.5 py-1.5 rounded-xl text-left text-xs flex items-center gap-2 cursor-pointer ${
@@ -945,16 +950,30 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
                       <Server size={13} className="text-sky-400 shrink-0" />
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium">{loc.name}</div>
-                        <div className="text-[9px] font-mono uppercase text-white/40">{loc.protocol} • {loc.host}</div>
+                        <div className="text-[9px] font-mono uppercase text-white/40 truncate">{loc.protocol} • {loc.host}</div>
                       </div>
                     </button>
                     <button
-                      onClick={async () => {
+                      onClick={e => {
+                        e.stopPropagation();
+                        setEditingConnector(loc);
+                        setConnectorModalOpen(true);
+                      }}
+                      className={`${
+                        isAct ? 'opacity-100' : 'opacity-70 sm:opacity-0 sm:group-hover:opacity-100 group-focus-within:opacity-100'
+                      } p-1 rounded hover:bg-sky-500/20 text-white/50 hover:text-sky-300 cursor-pointer transition`}
+                      title="Edit connection settings"
+                    >
+                      <Settings size={12} />
+                    </button>
+                    <button
+                      onClick={async e => {
+                        e.stopPropagation();
                         const updated = await removeConnectedLocation(loc.id);
                         setConnectors(updated);
                         if (isAct) navigateTo({ kind: 'drive' });
                       }}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-500/20 text-white/45 hover:text-red-300 cursor-pointer"
+                      className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 p-1 rounded hover:bg-red-500/20 text-white/45 hover:text-red-300 cursor-pointer transition"
                       title="Disconnect"
                     >
                       <Trash2 size={11} />
@@ -979,7 +998,14 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
         <section className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
           {active.kind === 'drive' && (
             <div className="flex-1 min-h-0 overflow-y-auto">
-              <PlajahDrive api={driveApi} orgs={orgs} onAddStorage={() => setConnectorModalOpen(true)} />
+              <PlajahDrive
+                api={driveApi}
+                orgs={orgs}
+                onAddStorage={() => {
+                  setEditingConnector(null);
+                  setConnectorModalOpen(true);
+                }}
+              />
             </div>
           )}
 
@@ -1247,6 +1273,19 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
                       <ExternalLink size={12} /> OS Explorer
                     </button>
                   )}
+
+                  {active.kind === 'connector' && (
+                    <button
+                      onClick={() => {
+                        setEditingConnector(active.location);
+                        setConnectorModalOpen(true);
+                      }}
+                      className="ml-auto px-2.5 py-1 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/30 text-sky-200 flex items-center gap-1 cursor-pointer"
+                      title="Edit connection settings for this location"
+                    >
+                      <Settings size={12} /> Connection Settings
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1287,7 +1326,28 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
               )}
 
               {dirError && (
-                <div className="m-3 p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-xs text-red-200">{dirError}</div>
+                <div className="m-3 p-3 rounded-xl bg-red-500/15 border border-red-500/30 text-xs text-red-200 flex items-center justify-between gap-3">
+                  <span>{dirError}</span>
+                  {active.kind === 'connector' && (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => {
+                          setEditingConnector(active.location);
+                          setConnectorModalOpen(true);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-white font-semibold cursor-pointer flex items-center gap-1"
+                      >
+                        <Settings size={11} /> Edit Settings
+                      </button>
+                      <button
+                        onClick={refreshCurrentDir}
+                        className="px-2.5 py-1 rounded-lg bg-red-500/25 hover:bg-red-500/35 text-red-100 font-semibold cursor-pointer"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* File Grid / Details Table */}
@@ -1641,11 +1701,27 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
 
       <ConnectedLocationModal
         open={connectorModalOpen}
-        onClose={() => setConnectorModalOpen(false)}
-        onSaved={created => {
+        initialLocation={editingConnector}
+        onClose={() => {
+          setConnectorModalOpen(false);
+          setEditingConnector(null);
+        }}
+        onSaved={(saved, opts) => {
+          const fresh = loadSavedConnectors();
+          setConnectors(fresh);
+          if (saved && opts?.connect !== false) {
+            navigateTo({ kind: 'connector', location: saved, path: saved.remoteDir || '/' });
+          } else if (active.kind === 'connector') {
+            const updatedActive = fresh.find(c => c.id === active.location.id);
+            if (updatedActive) {
+              setActive({ kind: 'connector', location: updatedActive, path: active.path });
+            }
+          }
+        }}
+        onDeleted={deletedId => {
           setConnectors(loadSavedConnectors());
-          if (created) {
-            navigateTo({ kind: 'connector', location: created, path: created.remoteDir || '/' });
+          if (active.kind === 'connector' && active.location.id === deletedId) {
+            navigateTo({ kind: 'drive' });
           }
         }}
       />

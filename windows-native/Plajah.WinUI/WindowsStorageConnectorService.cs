@@ -92,6 +92,21 @@ internal sealed class WindowsStorageConnectorService
         catch { /* none found */ }
     }
 
+    private static string SanitizeHost(string raw)
+    {
+        var h = (raw ?? string.Empty).Trim();
+        string[] prefixes = { "ftpes://", "ftps://", "ftp://", "sftp://", "webdavs://", "webdav://", "https://", "http://" };
+        foreach (var p in prefixes)
+        {
+            if (h.StartsWith(p, StringComparison.OrdinalIgnoreCase))
+            {
+                h = h[p.Length..];
+                break;
+            }
+        }
+        return h.TrimStart('\\').TrimEnd('/');
+    }
+
     public async Task<object> InvokeOpAsync(
         JsonElement location,
         string op,
@@ -102,9 +117,11 @@ internal sealed class WindowsStorageConnectorService
     {
         var id = location.TryGetProperty("id", out var idEl) ? idEl.GetString() ?? "" : "";
         var proto = (location.TryGetProperty("protocol", out var pEl) ? pEl.GetString() : "ftp")?.ToLowerInvariant() ?? "ftp";
-        var host = location.TryGetProperty("host", out var hEl) ? hEl.GetString() ?? "" : "";
+        if (proto == "ftp-insecure") proto = "ftp";
+        var host = SanitizeHost(location.TryGetProperty("host", out var hEl) ? hEl.GetString() ?? "" : "");
         var port = location.TryGetProperty("port", out var ptEl) && ptEl.TryGetInt32(out var pv) ? pv : 21;
         var user = location.TryGetProperty("user", out var uEl) ? uEl.GetString() ?? "" : "";
+        var passive = !location.TryGetProperty("passive", out var pasvEl) || pasvEl.ValueKind != JsonValueKind.False;
         var secret = !string.IsNullOrEmpty(secretOverride) ? secretOverride : GetSecret(id);
 
         if (string.IsNullOrWhiteSpace(host)) return new { success = false, error = "Host is required" };
@@ -115,10 +132,14 @@ internal sealed class WindowsStorageConnectorService
             {
                 "smb" => await HandleSmbAsync(host, remotePath, op, newName, localPath),
                 "webdav" or "webdavs" => await HandleWebDavAsync(proto == "webdavs", host, port, user, secret, remotePath, op, newName, localPath),
-                "ftp" or "ftps" or "ftpes" => await HandleFtpAsync(proto != "ftp", host, port, user, secret, remotePath, op, newName, localPath),
+                "ftp" or "ftps" or "ftpes" => await HandleFtpAsync(proto != "ftp", proto == "ftp", passive, host, port, user, secret, remotePath, op, newName, localPath),
                 "sftp" => await HandleSftpAsync(host, port, user, remotePath, op),
                 _ => new { success = false, error = $"Protocol '{proto}' is not supported natively yet." },
             };
+        }
+        catch (WebException wex) when (wex.Response is FtpWebResponse ftpResp && !string.IsNullOrWhiteSpace(ftpResp.StatusDescription))
+        {
+            return new { success = false, error = ftpResp.StatusDescription.Trim() };
         }
         catch (Exception ex)
         {
@@ -288,86 +309,122 @@ internal sealed class WindowsStorageConnectorService
     }
 
 #pragma warning disable SYSLIB0014 // FtpWebRequest remains built-in with zero NuGet deps for lightweight LAN/FTP bridges
+    private static string BuildFtpUri(string host, int port, string cleanPath)
+    {
+        var segments = cleanPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        var escapedPath = segments.Length == 0
+            ? "/"
+            : "/" + string.Join("/", segments.Select(Uri.EscapeDataString));
+        return $"ftp://{host}:{port}{escapedPath}";
+    }
+
+    private static bool IsTlsRequiredError(WebException ex)
+    {
+        var msg = ex.Message ?? string.Empty;
+        if (ex.Response is FtpWebResponse ftpResp && !string.IsNullOrWhiteSpace(ftpResp.StatusDescription))
+        {
+            msg = $"{msg} {ftpResp.StatusDescription}";
+        }
+        return msg.Contains("TLS", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("SSL", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("encrypt", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("cleartext", StringComparison.OrdinalIgnoreCase)
+            || msg.Contains("secure", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static async Task<object> HandleFtpAsync(
-        bool useSsl, string host, int port, string user, string? secret, string remotePath, string op, string? newName, string? localPath)
+        bool useSsl, bool allowTlsUpgrade, bool usePassive, string host, int port, string user, string? secret, string remotePath, string op, string? newName, string? localPath)
     {
         return await Task.Run<object>(() =>
         {
-            var clean = "/" + (remotePath ?? "/").TrimStart('/');
-            var uri = $"ftp://{host}:{port}{clean}";
-            var req = (FtpWebRequest)WebRequest.Create(uri);
-            req.EnableSsl = useSsl;
-            req.UsePassive = true;
-            if (!string.IsNullOrEmpty(user))
+            try
             {
-                req.Credentials = new NetworkCredential(user, secret ?? string.Empty);
+                return ExecuteFtpOp(useSsl, usePassive, host, port, user, secret, remotePath, op, newName, localPath);
             }
-
-            if (op == "download_to_local" && !string.IsNullOrWhiteSpace(localPath))
+            catch (WebException wex) when (!useSsl && allowTlsUpgrade && IsTlsRequiredError(wex))
             {
-                req.Method = WebRequestMethods.Ftp.DownloadFile;
-                using var dlRes = (FtpWebResponse)req.GetResponse();
-                var dir = Path.GetDirectoryName(localPath);
-                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                using var rs = dlRes.GetResponseStream() ?? Stream.Null;
-                using var fs = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.None);
-                rs.CopyTo(fs);
-                return new { success = true, localPath };
+                return ExecuteFtpOp(true, usePassive, host, port, user, secret, remotePath, op, newName, localPath);
             }
-            if (op == "upload_from_local" && !string.IsNullOrWhiteSpace(localPath) && File.Exists(localPath))
-            {
-                req.Method = WebRequestMethods.Ftp.UploadFile;
-                using var fs = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                using var reqStream = req.GetRequestStream();
-                fs.CopyTo(reqStream);
-                reqStream.Close();
-                using var _ = (FtpWebResponse)req.GetResponse();
-                return new { success = true };
-            }
-
-            if (op == "list")
-            {
-                req.Method = WebRequestMethods.Ftp.ListDirectoryDetails;
-                using var res = (FtpWebResponse)req.GetResponse();
-                using var reader = new StreamReader(res.GetResponseStream() ?? Stream.Null);
-                var entries = new List<object>();
-                while (reader.ReadLine() is { } line)
-                {
-                    var parsed = ParseFtpListLine(line, clean);
-                    if (parsed != null) entries.Add(parsed);
-                }
-                return new { success = true, entries };
-            }
-            if (op == "mkdir")
-            {
-                req.Method = WebRequestMethods.Ftp.MakeDirectory;
-                using var _ = (FtpWebResponse)req.GetResponse();
-                return new { success = true };
-            }
-            if (op == "rename" && !string.IsNullOrWhiteSpace(newName))
-            {
-                req.Method = WebRequestMethods.Ftp.Rename;
-                req.RenameTo = newName;
-                using var _ = (FtpWebResponse)req.GetResponse();
-                return new { success = true };
-            }
-            if (op == "delete")
-            {
-                req.Method = WebRequestMethods.Ftp.DeleteFile;
-                try { using var _ = (FtpWebResponse)req.GetResponse(); }
-                catch
-                {
-                    var reqDir = (FtpWebRequest)WebRequest.Create(uri);
-                    reqDir.EnableSsl = useSsl;
-                    reqDir.UsePassive = true;
-                    if (!string.IsNullOrEmpty(user)) reqDir.Credentials = new NetworkCredential(user, secret ?? string.Empty);
-                    reqDir.Method = WebRequestMethods.Ftp.RemoveDirectory;
-                    using var _2 = (FtpWebResponse)reqDir.GetResponse();
-                }
-                return new { success = true };
-            }
-            return new { success = false, error = $"Unsupported FTP op: {op}" };
         });
+    }
+
+    private static object ExecuteFtpOp(
+        bool useSsl, bool usePassive, string host, int port, string user, string? secret, string remotePath, string op, string? newName, string? localPath)
+    {
+        var clean = "/" + (remotePath ?? "/").TrimStart('/');
+        var uri = BuildFtpUri(host, port, clean);
+        var req = (FtpWebRequest)WebRequest.Create(uri);
+        req.EnableSsl = useSsl;
+        req.UsePassive = usePassive;
+        if (!string.IsNullOrEmpty(user))
+        {
+            req.Credentials = new NetworkCredential(user, secret ?? string.Empty);
+        }
+
+        if (op == "download_to_local" && !string.IsNullOrWhiteSpace(localPath))
+        {
+            req.Method = WebRequestMethods.Ftp.DownloadFile;
+            using var dlRes = (FtpWebResponse)req.GetResponse();
+            var dir = Path.GetDirectoryName(localPath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            using var rs = dlRes.GetResponseStream() ?? Stream.Null;
+            using var fs = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.None);
+            rs.CopyTo(fs);
+            return new { success = true, localPath };
+        }
+        if (op == "upload_from_local" && !string.IsNullOrWhiteSpace(localPath) && File.Exists(localPath))
+        {
+            req.Method = WebRequestMethods.Ftp.UploadFile;
+            using var fs = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var reqStream = req.GetRequestStream();
+            fs.CopyTo(reqStream);
+            reqStream.Close();
+            using var _ = (FtpWebResponse)req.GetResponse();
+            return new { success = true };
+        }
+
+        if (op == "list")
+        {
+            req.Method = WebRequestMethods.Ftp.ListDirectoryDetails;
+            using var res = (FtpWebResponse)req.GetResponse();
+            using var reader = new StreamReader(res.GetResponseStream() ?? Stream.Null);
+            var entries = new List<object>();
+            while (reader.ReadLine() is { } line)
+            {
+                var parsed = ParseFtpListLine(line, clean);
+                if (parsed != null) entries.Add(parsed);
+            }
+            return new { success = true, entries };
+        }
+        if (op == "mkdir")
+        {
+            req.Method = WebRequestMethods.Ftp.MakeDirectory;
+            using var _ = (FtpWebResponse)req.GetResponse();
+            return new { success = true };
+        }
+        if (op == "rename" && !string.IsNullOrWhiteSpace(newName))
+        {
+            req.Method = WebRequestMethods.Ftp.Rename;
+            req.RenameTo = newName;
+            using var _ = (FtpWebResponse)req.GetResponse();
+            return new { success = true };
+        }
+        if (op == "delete")
+        {
+            req.Method = WebRequestMethods.Ftp.DeleteFile;
+            try { using var _ = (FtpWebResponse)req.GetResponse(); }
+            catch
+            {
+                var reqDir = (FtpWebRequest)WebRequest.Create(uri);
+                reqDir.EnableSsl = useSsl;
+                reqDir.UsePassive = usePassive;
+                if (!string.IsNullOrEmpty(user)) reqDir.Credentials = new NetworkCredential(user, secret ?? string.Empty);
+                reqDir.Method = WebRequestMethods.Ftp.RemoveDirectory;
+                using var _2 = (FtpWebResponse)reqDir.GetResponse();
+            }
+            return new { success = true };
+        }
+        return new { success = false, error = $"Unsupported FTP op: {op}" };
     }
 #pragma warning restore SYSLIB0014
 

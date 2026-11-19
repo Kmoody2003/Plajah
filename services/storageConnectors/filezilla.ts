@@ -27,6 +27,7 @@ export interface ImportedSite {
   account?: string;
   remoteDir?: string;
   localDir?: string;
+  passive?: boolean;
   comments?: string;
   /** Not something we can connect to yet (HTTP, Storj…) — listed so the person sees nothing was dropped. */
   unsupported?: string;
@@ -55,7 +56,7 @@ const unescape = (s: string) => s
 export function parseXml(xml: string): Node {
   const root: Node = { tag: '#root', attrs: {}, children: [], text: '' };
   const stack: Node[] = [root];
-  const re = /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<!\[CDATA\[([\s\S]*?)\]\]>|<(\/?)([A-Za-z_][\w.-]*)((?:\s+[\w:.-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>|([^<]+)/g;
+  const re = /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<!\[CDATA\[([\s\S]*?)\]\]>|<(\/?)([A-Za-z_][\w:.-]*)((?:\s+[\w:.-]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>|([^<]+)/g;
   for (let m: RegExpExecArray | null; (m = re.exec(xml));) {
     const top = stack[stack.length - 1];
     if (m[1] !== undefined) { top.text += m[1]; continue; }
@@ -75,10 +76,15 @@ const child = (n: Node, tag: string) => n.children.find(c => c.tag === tag);
 const textOf = (n: Node, tag: string) => (child(n, tag)?.text ?? '').trim();
 
 function base64Decode(s: string): string | null {
+  const clean = s.replace(/\s+/g, '');
   try {
-    const bin = typeof atob === 'function' ? atob(s) : Buffer.from(s, 'base64').toString('binary');
+    const bin = typeof atob === 'function' ? atob(clean) : Buffer.from(clean, 'base64').toString('binary');
     const bytes = Uint8Array.from(bin, c => c.charCodeAt(0));
-    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    try {
+      return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch {
+      return bin;
+    }
   } catch { return null; }
 }
 
@@ -106,11 +112,28 @@ export function decodeRemoteDir(raw: string): string | undefined {
   return `${prefix}/${segs.join('/')}`;
 }
 
+const STRING_PROTOCOLS: Record<string, ConnectorProtocol> = {
+  ftp: 'ftp',
+  sftp: 'sftp',
+  http: 'http',
+  ftps: 'ftps',
+  ftpes: 'ftpes',
+  https: 'https',
+  'ftp-insecure': 'ftp-insecure',
+  s3: 's3',
+  webdav: 'webdav',
+  webdavs: 'webdavs',
+};
+
 function siteFrom(n: Node, folder: string[]): ImportedSite | null {
   const host = textOf(n, 'Host');
   if (!host) return null;
-  const protoNum = Number(textOf(n, 'Protocol') || 0);
-  const protocol = PROTOCOLS[protoNum] ?? 'unknown';
+  const protoText = textOf(n, 'Protocol');
+  const protoNum = Number(protoText || 0);
+  const protocol: ConnectorProtocol =
+    protoText && Number.isNaN(protoNum)
+      ? (STRING_PROTOCOLS[protoText.toLowerCase()] ?? 'unknown')
+      : (PROTOCOLS[protoNum] ?? 'unknown');
   const port = Number(textOf(n, 'Port')) || DEFAULT_PORT[protocol] || 21;
   const logon = LOGON[Number(textOf(n, 'Logontype') || 1)] ?? 'unknown';
   const passNode = child(n, 'Pass');
@@ -131,15 +154,19 @@ function siteFrom(n: Node, folder: string[]): ImportedSite | null {
   const account = textOf(n, 'Account'); if (account) site.account = account;
   const remote = decodeRemoteDir(textOf(n, 'RemoteDir')); if (remote) site.remoteDir = remote;
   const local = textOf(n, 'LocalDir'); if (local) site.localDir = local;
+  const pasvMode = textOf(n, 'PasvMode');
+  if (pasvMode === 'MODE_ACTIVE') site.passive = false;
+  else if (pasvMode === 'MODE_PASSIVE') site.passive = true;
   const comments = textOf(n, 'Comments'); if (comments) site.comments = comments.slice(0, 2000);
-  if (!SUPPORTED.has(protocol)) site.unsupported = protocol === 'unknown' ? `protocol ${protoNum}` : protocol.toUpperCase();
+  if (!SUPPORTED.has(protocol)) site.unsupported = protocol === 'unknown' ? `protocol ${protoText || protoNum}` : protocol.toUpperCase();
   return site;
 }
 
 /** Parse sitemanager.xml, a Site Manager export, or recentservers.xml. Never throws on odd input. */
 export function parseFileZilla(xml: string): FileZillaImport {
-  const root = parseXml(String(xml ?? '').slice(0, 20_000_000));
-  const fz = child(root, 'FileZilla3');
+  const cleaned = String(xml ?? '').replace(/^\uFEFF/, '').slice(0, 20_000_000);
+  const root = parseXml(cleaned);
+  const fz = child(root, 'FileZilla3') ?? child(root, 'FileZilla');
   const sites: ImportedSite[] = [];
   let skipped = 0;
   const walk = (n: Node, folder: string[]) => {
@@ -152,10 +179,20 @@ export function parseFileZilla(xml: string): FileZillaImport {
       }
     }
   };
-  if (!fz) return { sites, skipped, source: 'unknown' };
+  if (!fz) {
+    const bareServers = child(root, 'Servers');
+    const bareRecent = child(root, 'RecentServers');
+    if (bareServers) { walk(bareServers, []); return { sites, skipped, source: 'sitemanager' }; }
+    if (bareRecent) { walk(bareRecent, ['Recent']); return { sites, skipped, source: 'recentservers' }; }
+    return { sites, skipped, source: 'unknown' };
+  }
   const servers = child(fz, 'Servers');
   const recent = child(fz, 'RecentServers');
   if (servers) walk(servers, []);
   if (recent) walk(recent, ['Recent']);
+  if (!servers && !recent && fz.children.some(c => c.tag === 'Server' || c.tag === 'Folder')) {
+    walk(fz, []);
+    return { sites, skipped, source: 'sitemanager' };
+  }
   return { sites, skipped, source: servers ? 'sitemanager' : recent ? 'recentservers' : 'unknown' };
 }
