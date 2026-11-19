@@ -77,3 +77,13 @@ The graphics session saves files every minute or so, and each save reloads the p
 - **Map screen**: labels only; the designed map view from the concept art is still open.
 - Paved country roads that still end in a field 87-624 m from the next road (cr4, cr5, cr7, cr8, cr9 west, cr10), listed above.
 - The headless checks run on the working tree, so they include the graphics session's unsaved-to-git edits; a type error in `scancar.ts` comes from that work, not from mine.
+
+## Reference scenes (afternoon)
+- All 11 reference scenes now have a real place and a camera spot (`src/referenceScenes.ts`, table in `reference-scenes.md`). They also play in the idle cinematic tour.
+- **Decision:** scene 4 (the piered sea bridge) did not need a new road. The straight road at z -4380 already crosses the lake on a ~900 m low bridge on piers, so it got lamp posts instead.
+- **Added for the shots:**
+  - sand drifting onto the shoreline highway;
+  - hedgerows and wind turbines at the Millbrook farm;
+  - leaf piles, utility poles and wires, and a crowd on an Eastside suburban straight;
+  - brick smokestacks by the industrial circuit.
+- Wet roads, mist, smoke, dust and autumn tree colour belong to the graphics lane.

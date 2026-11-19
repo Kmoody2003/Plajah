@@ -58,6 +58,7 @@ import { buildParkingLots } from './parkingLots';
 import { buildUtilities, type UtilitiesData } from './utilities';
 import { mergeByMaterial } from './carBatch';
 import { SimLayer, carveSim, planSim, type SimPlan } from './simLayer';
+import { REF_SCENES, buildReferenceDressing, type RefDressing } from './referenceScenes';
 import { buildTownSidewalks } from './townStreets';
 import { buildParkedCars } from './parkedCars';
 import { denseArea } from './sim/signals';
@@ -1127,6 +1128,14 @@ function buildTownExtras(): void {
     });
     furnitureGroup.add(parked.group);
   }
+  if (!refDress) {
+    refDress = buildReferenceDressing({
+      ground: (x, z) => meshH(x, z), water: (x, z) => hAt(x, z) < 2.5, building: (x, z, m) => insideBuilding(x, z, m), roadDist: (x, z) => roadDist(x, z),
+      paved: countryScenes.pavedRuns, shore: shoreHw, industrial: meta.circuits[IND]?.xz.map((q) => ({ x: q[0], z: q[1] })), mouths: countryScenes.driveMouths,
+    });
+    furnitureGroup.add(refDress.group);
+    console.log('reference dressing', JSON.stringify(refDress.counts));
+  }
 }
 // Lane markings for the streets off the race circuit: the carriageways are painted from the street mask (which has no lines), so the centre lines go on as dashes laid
 // along each street, broken wherever another street crosses (so there is nothing at an intersection to overlap or flicker) and left off the circuit, which has its own.
@@ -1347,6 +1356,7 @@ let indNear: ((x: number, z: number, r: number) => boolean) | null = null;
 let simPlan: SimPlan | null = null;                 // road graph, rails and airfield from the map editor (src/simLayer.ts)
 let simLayer: SimLayer | null = null;
 let townWalks: ReturnType<typeof buildTownSidewalks> | null = null;   // town street curbs and sidewalks (src/townStreets.ts)
+let refDress: RefDressing | null = null;                                               // what the reference scenes' places were missing (src/referenceScenes.ts)
 let parked: ReturnType<typeof buildParkedCars> | null = null;                         // parked cars at the curbs and in driveways
 let festProg: FestProgress | null = null;                                             // Chora Fest progression
 let festMap: ReturnType<typeof createFestMap> | null = null;                         // the designed navigation map (src/festMap.ts)
@@ -2671,6 +2681,12 @@ function buildCineShots(): typeof cineShots {
     add(V(q[0] - 260, y + 55, q[1] - 260), V(q[0] - 190, y + 40, q[1] - 120), V(q[0], y + 4, q[1] + 60));
   }
   if (countryScenes) for (const k of [0, 2, 3]) { const sh = countryScenes.shots[k]; if (sh) add(V(...sh.cam), V(sh.cam[0] + 8, sh.cam[1] + 3, sh.cam[2] - 8), V(...sh.at), 8); }
+  // the reference scenes (docs/apex-elohim/reference-scenes.md) the covered bridge and barn shots above do not already cover: a slow push toward each
+  for (const r of REF_SCENES) {
+    if (r.n === 1 || r.n === 6) continue;
+    const gy = (x: number, z: number): number => (r.rel ? g(x, z) : 0), c = V(r.cam[0], r.cam[1] + gy(r.cam[0], r.cam[2]), r.cam[2]), a = V(r.at[0], r.at[1] + gy(r.at[0], r.at[2]), r.at[2]);
+    add(c, c.clone().lerp(a, 0.06), a, 8);
+  }
   return out;
 }
 function startCine(): void {
@@ -4315,6 +4331,7 @@ async function boot(): Promise<void> {
     topView: () => { const t = controls.target; look(new THREE.Vector3(t.x, Math.max(2500, camera.position.distanceTo(t)), t.z + 1), t.clone()); },
   });
   mapEditor.load(userMap ?? { version: 1, features: [] });
+  (window as any).refScenes = REF_SCENES;
   (window as any).cineJump = (i: number) => { if (!cineOn) startCine(); cineIdx = i % cineShots.length; cineT = 1.2; };
   (window as any).vegStats = () => vegetation?.stats;
   (window as any).simDebug = () => ({ cars: simLayer?.world.cars ?? [], trafficCalls, signals: simLayer?.world.signals, surf: surfaceAtXZ, meshH, graph: simLayer?.world.graph });
@@ -4592,6 +4609,7 @@ function frame(now: number): void {
   stepTween(dt);
   stepCine(dt, now);
   stepWeather(dt);
+  refDress?.update(now * 0.001);
   heroBridgeUpdate?.(now * 0.001, Math.max(0, Math.min(1, 1 - (sunDir.y + 0.05) * 4)));
   for (const l of cloudLayers) { l.tex.offset.x += l.vx * dt; l.tex.offset.y += l.vz * dt; }
   if (replay.active) replay.step(dt); else if (!photo.active && !festMap?.isOpen()) stepDrive(dt);      // photo mode and the navigation map pause the drive
