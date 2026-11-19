@@ -87,8 +87,9 @@ export class GrassField {
     this.mat = new THREE.MeshStandardMaterial({ map: bladeTexture(), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.95, metalness: 0 });
     this.mat.onBeforeCompile = (sh) => {
       sh.uniforms.uTime = this.uTime; sh.uniforms.uWind = this.uWind;
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime, uWind;')
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime, uWind;\nvarying float vGrassH;')
         .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vGrassH = clamp(position.y, 0.0, 1.0);
         #ifdef USE_INSTANCING
         float gh = position.y;
         vec3 ib = vec3(instanceMatrix[3].x, 0.0, instanceMatrix[3].z);
@@ -96,8 +97,19 @@ export class GrassField {
         transformed.x += sin(uTime * 2.1 + ib.x * 0.9 + ib.z * 0.6) * gw + sin(uTime * 5.3 + ib.x * 2.3) * gw * 0.25;
         transformed.z += cos(uTime * 1.7 + ib.z * 0.8 + ib.x * 0.4) * gw * 0.6;
         #endif`);
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying float vGrassH;')
+        .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        // Warm backlit blade translucency toward the sun + soft root-to-tip grounding AO
+        reflectedLight.indirectDiffuse *= 0.68 + 0.42 * vGrassH;
+        #if NUM_DIR_LIGHTS > 0
+        {
+          float back = pow(clamp(dot(normalize(vViewPosition), -directionalLights[0].direction), 0.0, 1.0), 3.0);
+          reflectedLight.directDiffuse += diffuseColor.rgb * vec3(1.15, 1.05, 0.75) * directionalLights[0].color * back * vGrassH * 0.48;
+        }
+        #endif`);
     };
-    this.mat.customProgramCacheKey = () => 'grassfield';
+    this.mat.customProgramCacheKey = () => 'grassfield-v2';
     this.im = new THREE.InstancedMesh(tuftGeo(), this.mat, this.cap);
     this.im.count = 0; this.im.frustumCulled = false; this.im.receiveShadow = false; this.im.castShadow = false;
     this.group.add(this.im);

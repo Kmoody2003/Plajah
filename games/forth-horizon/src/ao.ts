@@ -12,17 +12,20 @@ const AO_FRAG = `
   uniform vec2 uRes; uniform float uRadius, uBias, uNear, uFar, uTime;
   varying vec2 vUv;
   float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
+  vec3 viewPosFromDepth(vec2 uv, float d) {
+    vec3 ndc = vec3(uv * 2.0 - 1.0, d * 2.0 - 1.0);
+    float invW = 1.0 / (uProjInv[2][3] * ndc.z + uProjInv[3][3]);
+    return vec3(uProjInv[0][0] * ndc.x + uProjInv[3][0], uProjInv[1][1] * ndc.y + uProjInv[3][1], uProjInv[3][2]) * invW;
+  }
   vec3 viewPos(vec2 uv) {
-    float d = texture2D(tDepth, uv).r;
-    vec4 v = uProjInv * vec4(uv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0);
-    return v.xyz / v.w;
+    return viewPosFromDepth(uv, texture2D(tDepth, uv).r);
   }
   void main() {
     float d0 = texture2D(tDepth, vUv).r;
     if (d0 >= 0.99999) { gl_FragColor = vec4(1.0); return; }
-    vec3 P = viewPos(vUv);
+    vec3 P = viewPosFromDepth(vUv, d0);
     float dist = -P.z;
-    if (dist > 220.0) { gl_FragColor = vec4(1.0); return; }
+    if (dist > 165.0) { gl_FragColor = vec4(1.0); return; }
     vec2 px = 1.0 / uRes;
     // normal from the smaller depth step on each axis, so it does not smear across silhouettes
     vec3 pr = viewPos(vUv + vec2(px.x, 0.0)), pl = viewPos(vUv - vec2(px.x, 0.0)), pu = viewPos(vUv + vec2(0.0, px.y)), pd = viewPos(vUv - vec2(0.0, px.y));
@@ -31,7 +34,7 @@ const AO_FRAG = `
     vec3 N = normalize(cross(dx, dy));
     if (dot(N, -P) < 0.0) N = -N;
     // screen radius of uRadius metres at this depth (uRes matches half-res aoRT)
-    float rpx = clamp(uRadius * uProj[1][1] * 0.5 * uRes.y / dist, 2.0, 36.0);
+    float rpx = clamp(uRadius * uProj[1][1] * 0.5 * uRes.y / dist, 2.0, 32.0);
     float rot = ign(gl_FragCoord.xy) * 6.2831853;
     float occ = 0.0;
     const int N_S = 8;
@@ -39,15 +42,17 @@ const AO_FRAG = `
       float t = (float(i) + 0.5) / float(N_S);
       float a = rot + float(i) * 2.399963;
       vec2 off = vec2(cos(a), sin(a)) * (t * t * 0.9 + 0.1) * rpx * px;
-      vec3 Q = viewPos(vUv + off);
+      float dQ = texture2D(tDepth, vUv + off).r;
+      if (dQ >= 0.9999) continue;                                              // skip sky samples so tree crowns & car roofs never get black silhouette halos
+      vec3 Q = viewPosFromDepth(vUv + off, dQ);
       vec3 v = Q - P;
       float vv = dot(v, v);
       float ndv = dot(N, v) * inversesqrt(vv + 1e-5);
-      float range = 1.0 - smoothstep(uRadius * 0.6, uRadius * 1.6, sqrt(vv));      // ignore things far in front or behind: no halo around silhouettes
+      float range = 1.0 - smoothstep(uRadius * 0.55, uRadius * 1.45, sqrt(vv));
       occ += max(0.0, ndv - uBias) * range;
     }
-    float ao = 1.0 - clamp(occ / float(N_S) * 2.2, 0.0, 1.0);
-    ao = mix(ao, 1.0, smoothstep(120.0, 220.0, dist));
+    float ao = 1.0 - clamp(occ / float(N_S) * 2.0, 0.0, 0.92);
+    ao = mix(ao, 1.0, smoothstep(85.0, 155.0, dist));
     gl_FragColor = vec4(ao, ao, ao, 1.0);
   }`;
 
@@ -60,49 +65,57 @@ const APPLY_FRAG = `
   uniform float uBlur;               // motion blur shutter (0 off, 0.5 = half the frame's camera motion)
   varying vec2 vUv;
   vec3 worldAt(float d) {
-    vec4 v = uProjInv * vec4(vUv * 2.0 - 1.0, d * 2.0 - 1.0, 1.0); v /= v.w;
-    vec3 wp = (uCamWorld * vec4(v.xyz, 1.0)).xyz;
-    if (d >= 0.99999) wp = uCamPos + normalize(wp - uCamPos) * 26000.0;
-    return wp;
+    vec3 ndc = vec3(vUv * 2.0 - 1.0, d * 2.0 - 1.0);
+    float invW = 1.0 / (uProjInv[2][3] * ndc.z + uProjInv[3][3]);
+    vec3 vp = vec3(uProjInv[0][0] * ndc.x + uProjInv[3][0], uProjInv[1][1] * ndc.y + uProjInv[3][1], uProjInv[3][2]) * invW;
+    return (uCamWorld * vec4(vp, 1.0)).xyz;
   }
-  // Camera motion blur: where this pixel's world point was on screen last frame (depth + last frame's camera), smeared along that path. Weighted off close to the camera,
-  // so the car (which moves with the chase camera) stays sharp while the road and world streak past.
-  vec3 motionBlur(vec3 col, float d) {
-    if (uBlur < 0.001) return col;
-    vec3 wp = worldAt(d);
+  // Camera motion blur: where this pixel's world point was on screen last frame (depth + last frame's camera), smeared along that path.
+  vec3 motionBlur(vec3 col, vec3 wp, float camDist) {
+    if (uBlur < 0.001 || camDist < 9.0) return col;
     vec4 pc = uPrevViewProj * vec4(wp, 1.0);
     if (pc.w <= 0.0) return col;
     vec2 prev = pc.xy / pc.w * 0.5 + 0.5;
-    vec2 vel = (vUv - prev) * uBlur * smoothstep(9.0, 24.0, distance(wp, uCamPos));
+    vec2 vel = (vUv - prev) * uBlur * smoothstep(9.0, 24.0, camDist);
     float l = length(vel);
     if (l < 0.0015) return col;
     vel *= min(1.0, 0.03 / l);
-    vec3 acc = col; float n = 1.0;
+    vec3 acc = col;
     for (int i = 1; i <= 6; i++) {
       float t = float(i) / 6.0 - 0.5;
-      acc += texture2D(tDiffuse, vUv + vel * t).rgb; n += 1.0;
+      acc += texture2D(tDiffuse, vUv + vel * t).rgb;
     }
-    return acc / n;
+    return acc * (1.0 / 7.0);
   }
-  // Height fog with sun in-scatter (aerial perspective): the air is densest low down and thins with height, so distance reads as depth and a valley holds haze while a
-  // view from the cliffs is clear; looking toward the sun the haze takes the sun's colour. Analytic integral of exp(-falloff * height) along the view ray.
-  vec3 atmosphere(vec3 col, float d) {
+  // Dual-layer AAA aerial perspective: cool Rayleigh height-fog + low river/valley mist + golden Mie forward-scattering toward sun.
+  vec3 atmosphere(vec3 col, vec3 wp, vec3 ray, float dist) {
     if (uFog.w < 0.5) return col;
-    vec3 wp = worldAt(d);                                              // the sky sits 26 km out: the haze along the horizon
-    vec3 ray = wp - uCamPos; float dist = length(ray); vec3 dir = ray / max(dist, 1e-3);
+    vec3 dir = ray / max(dist, 1e-3);
     float b = uFog.y, dy = dir.y * dist;
-    float amt = uFog.x * exp(-b * max(uCamPos.y, 0.0)) * dist * (abs(b * dy) > 1e-4 ? (1.0 - exp(-b * dy)) / (b * dy) : 1.0);
-    float op = min(uFog.z, 1.0 - exp(-amt));
-    float sunAmt = pow(max(dot(dir, uSunDir), 0.0), 8.0);
-    vec3 fc = mix(uFogCol, uSunCol, sunAmt * 0.65);
+    float seg = abs(b * dy) > 1e-4 ? (1.0 - exp(-b * dy)) / (b * dy) : 1.0;
+    float amt = uFog.x * exp(-b * max(uCamPos.y, 0.0)) * dist * seg;
+    // Valley & river low-altitude mist hugs terrain below ~48m (covered bridge, Finger Lake, canyons)
+    float mb = 0.022;
+    float mSeg = abs(mb * dy) > 1e-4 ? (1.0 - exp(-mb * dy)) / (mb * dy) : 1.0;
+    float mist = uFog.x * 2.1 * exp(-mb * max(uCamPos.y, 0.0)) * dist * mSeg * smoothstep(90.0, 650.0, dist);
+    float op = min(uFog.z, 1.0 - exp(-(amt + mist * 0.55)));
+    float sd = max(dot(dir, uSunDir), 0.0);
+    float mie = pow(sd, 3.0) * 0.24 + pow(sd, 12.0) * 0.52;
+    vec3 fc = mix(uFogCol, uSunCol * 1.15, clamp(mie, 0.0, 0.78));
     return mix(col, fc, op);
   }
   float lin(float d) { float z = d * 2.0 - 1.0; return 2.0 * uNear * uFar / (uFar + uNear - z * (uFar - uNear)); }
   void main() {
     vec4 col = texture2D(tDiffuse, vUv);
     float dRaw = texture2D(tDepth, vUv).r;
-    col.rgb = motionBlur(col.rgb, dRaw);
-    if (uStrength <= 0.001) { gl_FragColor = vec4(atmosphere(col.rgb, dRaw), col.a); return; }
+    // Fast-exit sky pixels: sky dome already renders horizon scatter, saving inverse projections, blur & AO on ~35% of screen
+    if (dRaw >= 0.99999) { gl_FragColor = col; return; }
+    vec3 wp = worldAt(dRaw);
+    vec3 ray = wp - uCamPos;
+    float dist = length(ray);
+    col.rgb = motionBlur(col.rgb, wp, dist);
+    // Beyond 158m AO is faded to 1.0: skip 8 bilateral depth/AO fetches on distant mountains, water & far skyline
+    if (uStrength <= 0.001 || dist > 158.0) { gl_FragColor = vec4(atmosphere(col.rgb, wp, ray, dist), col.a); return; }
     float d0 = lin(dRaw);
     float sum = texture2D(tAO, vUv).r * 1.6, wsum = 1.6;
     float k = 1.0 / (0.04 * d0 * d0 + 0.01);
@@ -116,9 +129,10 @@ const APPLY_FRAG = `
       sum += texture2D(tAO, uv).r * w; wsum += w;
     }
     float ao = sum / max(wsum, 1e-4);
-    // occlusion darkens the ambient part of the light most; applied to the final colour it is slightly strong, so keep it soft and tinted warm-dark rather than grey
-    vec3 occ = mix(vec3(1.0), vec3(ao) * vec3(0.96, 0.97, 1.0), uStrength);
-    gl_FragColor = vec4(atmosphere(col.rgb * occ, dRaw), col.a);
+    // Physically bounced ambient tint in crevices (cool sky fill instead of muddy black crush)
+    vec3 bounceAO = mix(vec3(0.28, 0.34, 0.44), vec3(1.0), ao);
+    vec3 occ = mix(vec3(1.0), bounceAO, uStrength);
+    gl_FragColor = vec4(atmosphere(col.rgb * occ, wp, ray, dist), col.a);
   }`;
 
 export class AoPass extends Pass {

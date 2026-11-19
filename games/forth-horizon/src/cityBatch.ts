@@ -103,7 +103,7 @@ export class CityBatches {
           const dx = s[i * 4] - cam.x, dz = s[i * 4 + 2] - cam.z, r = s[i * 4 + 3];
           const dy = Math.max(0, Math.abs(s[i * 4 + 1] - cam.y) - r);
           const dd = Math.sqrt(dx * dx + dz * dz + dy * dy) - r;
-          const lim = Math.min(vd, Math.max(650, r * 40));
+          const lim = Math.min(vd, Math.max(380, r * 32));
           on = dd < lim || dd < sd ? 1 : 0;
         }
         if (on !== b.vis[i]) { b.vis[i] = on; b.mesh.setVisibleAt(b.ids[i], on === 1); }

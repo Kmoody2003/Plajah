@@ -7,7 +7,7 @@ import fit from '../car/sovereign/fit.json';
 
 export interface CarRig {
   group: THREE.Group;
-  update: (speed: number, steer: number, dt: number, lights?: boolean) => void;
+  update: (speed: number, steer: number, dt: number, lights?: boolean, brake?: number, wetNight?: number) => void;
   /** scan cars: live paint (colour, optional pearl shift colour + amount, metallic flake 0..1, finish 0 gloss / 1 satin / 2 matte / 3 chrome) */
   paint?: { set: (o: { color?: number; pearl?: number; pearlAmount?: number; flake?: number; finish?: number }) => void };
   /** scan cars: panels that open (doors, hood, trunk); toggle or set a target 0..1 */
@@ -84,7 +84,7 @@ function mat(color: number, rough: number, metal: number, extra: Partial<THREE.M
   return new THREE.MeshPhysicalMaterial({ color, roughness: rough, metalness: metal, ...extra });
 }
 
-export function wheel(front: boolean, left: boolean): { root: THREE.Group; steer: THREE.Group; spin: THREE.Group } {
+export function wheel(front: boolean, left: boolean): { root: THREE.Group; steer: THREE.Group; spin: THREE.Group; discMat: THREE.MeshPhysicalMaterial } {
   const R = front ? 0.352 : 0.358, W = front ? 0.285 : 0.315, RIM = 0.255;
   const root = new THREE.Group(), steer = new THREE.Group(), spin = new THREE.Group();
   root.add(steer);
@@ -145,7 +145,8 @@ export function wheel(front: boolean, left: boolean): { root: THREE.Group; steer
   }
   // brake disc: vented with cross-drilled holes, spins with the wheel; caliper stays on the knuckle
   const DR = front ? 0.2 : 0.19;
-  const disc = new THREE.Mesh(new THREE.CylinderGeometry(DR, DR, 0.032, 48), mat(0x8e9197, 0.38, 0.9));
+  const discMat = mat(0x8e9197, 0.34, 0.92, { emissive: 0xff3a00, emissiveIntensity: 0 });
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(DR, DR, 0.032, 48), discMat);
   disc.rotation.z = Math.PI / 2;
   disc.position.x = -outer * 0.06;
   spin.add(disc);
@@ -169,14 +170,14 @@ export function wheel(front: boolean, left: boolean): { root: THREE.Group; steer
   const calTop = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.03, 0.23), mat(0xb88224, 0.4, 0.6));
   calTop.position.set(-outer * 0.06, 0.17, front ? 0.12 : -0.12);
   steer.add(calTop);
-  return { root, steer, spin };
+  return { root, steer, spin, discMat };
 }
 
 export function makeSovereign(): CarRig {
   const g = new THREE.Group();
-  const paint = mat(0xb9531a, 0.26, 0.68, { clearcoat: 1, clearcoatRoughness: 0.06, envMapIntensity: 1.1 });
-  const carbon = mat(0x15171a, 0.45, 0.35, { clearcoat: 0.6, clearcoatRoughness: 0.3 });
-  const glass = mat(0x0b121a, 0.04, 0.2, { clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.5 });
+  const paint = mat(0xb9531a, 0.20, 0.72, { clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.95 });
+  const carbon = mat(0x15171a, 0.35, 0.35, { clearcoat: 0.8, clearcoatRoughness: 0.15, envMapIntensity: 1.4 });
+  const glass = mat(0x0b121a, 0.03, 0.15, { clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 2.3 });
   const black = mat(0x0d0e10, 0.7, 0.1);
 
   // ---- body tub ----
@@ -305,7 +306,7 @@ export function makeSovereign(): CarRig {
   g.add(blob);
 
   // ---- wheels ----
-  const W: { root: THREE.Group; steer: THREE.Group; spin: THREE.Group; front: boolean; left: boolean }[] = [];
+  const W: { root: THREE.Group; steer: THREE.Group; spin: THREE.Group; discMat: THREE.MeshPhysicalMaterial; front: boolean; left: boolean }[] = [];
   for (const [front, left, x, z] of [[true, true, 0.81, 1.43], [true, false, -0.81, 1.43], [false, true, 0.83, -1.35], [false, false, -0.83, -1.35]] as [boolean, boolean, number, number][]) {
     const w = wheel(front, left);
     w.root.position.set(x, front ? 0.352 : 0.358, z);
@@ -313,13 +314,18 @@ export function makeSovereign(): CarRig {
     W.push({ ...w, front, left });
   }
   let spinAng = 0;
+  let rotorHeat = 0;
   return {
     group: g,
-    update(speed: number, steer: number, dt: number) {
+    update(speed: number, steer: number, dt: number, _lights?: boolean, brake = 0) {
       spinAng += (speed / 0.355) * dt;
+      const heatTarget = brake > 0.15 && Math.abs(speed) > 8 ? Math.min(1, brake * Math.min(1, Math.abs(speed) / 42)) : 0;
+      rotorHeat += (heatTarget - rotorHeat) * Math.min(1, dt * (heatTarget > rotorHeat ? 2.4 : 0.65));
+      const glow = Math.max(0, (rotorHeat - 0.18) / 0.82) * 3.4;
       for (const w of W) {
         w.spin.rotation.x = w.left ? -spinAng : spinAng;
         w.steer.rotation.y = w.front ? steer : 0;
+        w.discMat.emissiveIntensity = w.front ? glow : glow * 0.72;
       }
     },
   };

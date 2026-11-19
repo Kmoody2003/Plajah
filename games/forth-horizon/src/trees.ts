@@ -10,12 +10,12 @@ export const cardLodUniforms = { uNearR: { value: NEAR_R - 12 } };
 export function cardLod(mat: THREE.MeshStandardMaterial): void {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uNearR = cardLodUniforms.uNearR;
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vTreeD;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\nvTreeD = distance(cameraPosition.xz, (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz);\n#else\nvTreeD = 1e5;\n#endif');
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uNearR;\nvarying float vTreeD;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\nvTreeD = distance(cameraPosition.xz, (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz);\nif (vTreeD < uNearR) transformed = vec3(0.0);\n#else\nvTreeD = 1e5;\n#endif');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vTreeD;\nuniform float uNearR;')
       .replace('void main() {', 'void main() {\n  if (vTreeD < uNearR) discard;');
   };
-  mat.customProgramCacheKey = () => 'cardlod';
+  mat.customProgramCacheKey = () => 'cardlod-v2';
 }
 
 function rng(seed: number): () => number { let s = seed % 2147483647; if (s <= 0) s += 2147483646; return () => (s = (s * 16807) % 2147483647) / 2147483647; }

@@ -61,13 +61,138 @@ function buildEngine(z: number): THREE.Group {
   return g;
 }
 
+let carbonTexCache: THREE.CanvasTexture | null = null;
+function carbonWeaveTex(): THREE.CanvasTexture {
+  if (carbonTexCache) return carbonTexCache;
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#0d0e11'; ctx.fillRect(0, 0, 64, 64);
+  for (let y = 0; y < 64; y += 8) {
+    for (let x = 0; x < 64; x += 8) {
+      const diag = ((x + y) >> 3) & 1;
+      ctx.fillStyle = diag ? '#202329' : '#14161b';
+      ctx.fillRect(x, y, 7, 3);
+      ctx.fillStyle = diag ? '#16181e' : '#262a32';
+      ctx.fillRect(x + 1, y + 4, 6, 3);
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(16, 16);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  carbonTexCache = t;
+  return t;
+}
+
+function buildContactShadow(origin: THREE.Vector3, W: ScanSpec['wheels']): THREE.Mesh {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 512;
+  const g = c.getContext('2d')!;
+  g.clearRect(0, 0, 256, 512);
+  // Soft outer chassis penumbra
+  const outer = g.createRadialGradient(128, 256, 36, 128, 256, 220);
+  outer.addColorStop(0, 'rgba(0,0,0,0.82)');
+  outer.addColorStop(0.55, 'rgba(0,0,0,0.48)');
+  outer.addColorStop(0.85, 'rgba(0,0,0,0.14)');
+  outer.addColorStop(1, 'rgba(0,0,0,0)');
+  g.save(); g.scale(0.54, 1); g.fillStyle = outer; g.fillRect(0, 0, 480, 512); g.restore();
+  // Deep grounded under-chassis core shadow
+  g.fillStyle = 'rgba(0,0,0,0.68)';
+  g.beginPath(); g.ellipse(128, 256, 62, 165, 0, 0, Math.PI * 2); g.fill();
+  // Tight dark contact pools directly under all four tyres
+  for (const [tx, ty] of [[68, 122], [188, 122], [68, 392], [188, 392]]) {
+    const tg = g.createRadialGradient(tx, ty, 4, tx, ty, 34);
+    tg.addColorStop(0, 'rgba(0,0,0,0.92)');
+    tg.addColorStop(0.6, 'rgba(0,0,0,0.45)');
+    tg.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = tg; g.beginPath(); g.ellipse(tx, ty, 28, 42, 0, 0, Math.PI * 2); g.fill();
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.anisotropy = 4;
+  const mat = new THREE.MeshBasicMaterial({
+    map: tex, transparent: true, depthWrite: false, opacity: 0.92,
+    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2,
+  });
+  const spanZ = Math.max(4.8, Math.abs(W.frontZ - W.rearZ) + 2.35);
+  const spanX = Math.max(2.35, Math.max(W.frontX, W.rearX) * 2 + 0.95);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(spanX, spanZ), mat);
+  m.rotation.x = -Math.PI / 2;
+  m.position.set(origin.x, origin.y + 0.025, origin.z + (W.frontZ + W.rearZ) * 0.5);
+  m.renderOrder = 3;
+  m.userData.keep = true;
+  return m;
+}
+
+function buildGroundLightPools(origin: THREE.Vector3): {
+  group: THREE.Group;
+  rearMat: THREE.MeshBasicMaterial;
+  frontMat: THREE.MeshBasicMaterial;
+} {
+  // Twin focused wet-asphalt taillight reflections aligned under left & right rear LED bars (never a giant airbrushed blob)
+  const makeRearTwin = (): THREE.CanvasTexture => {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+    const ctx = c.getContext('2d')!;
+    ctx.clearRect(0, 0, 256, 128);
+    for (const cx of [74, 182]) {
+      ctx.save();
+      ctx.translate(cx, 54);
+      ctx.scale(1.0, 1.45);
+      const gr = ctx.createRadialGradient(0, 0, 2, 0, 0, 46);
+      gr.addColorStop(0, 'rgba(255,28,16,0.72)');
+      gr.addColorStop(0.38, 'rgba(220,16,12,0.28)');
+      gr.addColorStop(1, 'rgba(180,8,8,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, 46, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    return new THREE.CanvasTexture(c);
+  };
+  const makeFrontBeams = (): THREE.CanvasTexture => {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+    const ctx = c.getContext('2d')!;
+    ctx.clearRect(0, 0, 256, 256);
+    for (const cx of [88, 168]) {
+      ctx.save();
+      ctx.translate(cx, 128);
+      ctx.scale(0.65, 1.5);
+      const gr = ctx.createRadialGradient(0, 0, 4, 0, 0, 80);
+      gr.addColorStop(0, 'rgba(225,240,255,0.62)');
+      gr.addColorStop(0.45, 'rgba(205,225,250,0.22)');
+      gr.addColorStop(1, 'rgba(190,215,245,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, 80, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    return new THREE.CanvasTexture(c);
+  };
+  const group = new THREE.Group();
+  const rearMat = new THREE.MeshBasicMaterial({
+    map: makeRearTwin(), transparent: true, opacity: 0.14, depthWrite: false,
+    blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+  });
+  const frontMat = new THREE.MeshBasicMaterial({
+    map: makeFrontBeams(), transparent: true, opacity: 0.12, depthWrite: false,
+    blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+  });
+  const rear = new THREE.Mesh(new THREE.PlaneGeometry(2.15, 2.65), rearMat);
+  rear.rotation.x = -Math.PI / 2;
+  rear.position.set(origin.x, origin.y + 0.032, origin.z - 3.15);
+  rear.renderOrder = 4; rear.userData.keep = true;
+  const front = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 9.0), frontMat);
+  front.rotation.x = -Math.PI / 2;
+  front.position.set(origin.x, origin.y + 0.032, origin.z + 6.2);
+  front.renderOrder = 4; front.userData.keep = true;
+  group.add(rear, front);
+  return { group, rearMat, frontMat };
+}
+
 // quad exhaust, diffuser fins, front splitter and canards: the fascia parts the scan only suggests
 function buildAero(ex: NonNullable<ScanSpec['exhaust']>): THREE.Group {
   const g = new THREE.Group();
   const add = mesher(g);
-  const ti = new THREE.MeshStandardMaterial({ color: 0x9d9486, roughness: 0.28, metalness: 1.0 });
-  const burnt = new THREE.MeshStandardMaterial({ color: 0x4a3f7a, roughness: 0.35, metalness: 0.95 });
-  const soot = std(0x050506, 0.9, 0.1), carbon = std(0x101114, 0.28, 0.5);
+  const ti = new THREE.MeshStandardMaterial({ color: 0x9d9486, roughness: 0.24, metalness: 1.0 });
+  const burnt = new THREE.MeshStandardMaterial({ color: 0x4a3f7a, roughness: 0.30, metalness: 0.96 });
+  const soot = std(0x050506, 0.9, 0.1);
+  // Deep satin-gloss weave carbon (darkened albedo so flat diffuser undertray never flashes bright white under open sky)
+  const carbon = new THREE.MeshPhysicalMaterial({ color: 0x363a42, map: carbonWeaveTex(), roughness: 0.32, metalness: 0.25, clearcoat: 0.45, clearcoatRoughness: 0.22, envMapIntensity: 0.85 });
   for (const x of ex.xs) {
     const outer = new THREE.CylinderGeometry(0.058, 0.052, 0.12, 32, 1, true);
     add(outer, ti, x, ex.y, ex.z, Math.PI / 2, 0, 0).material = new THREE.MeshStandardMaterial({ color: 0x9d9486, roughness: 0.28, metalness: 1.0, side: THREE.DoubleSide });
@@ -99,7 +224,11 @@ function lampShape(w: number, h: number, tilt: number, taper: number): THREE.Sha
   s.moveTo(0, 0); s.lineTo(w, tilt); s.lineTo(w, tilt + h * taper); s.quadraticCurveTo(w * 0.5, h * 1.15 + tilt * 0.5, 0, h); s.lineTo(0, 0);
   return s;
 }
-function buildLamps(shells: THREE.Mesh[], origin: THREE.Vector3): THREE.Group {
+function buildLamps(shells: THREE.Mesh[], origin: THREE.Vector3): {
+  group: THREE.Group;
+  ledR: THREE.MeshStandardMaterial;
+  ledW: THREE.MeshStandardMaterial;
+} {
   const g = new THREE.Group();
   const rc = new THREE.Raycaster();
   const surf = (x: number, y: number, dir: number, fallback: number): number => {
@@ -109,12 +238,12 @@ function buildLamps(shells: THREE.Mesh[], origin: THREE.Vector3): THREE.Group {
     return hit ? hit.point.z - origin.z : fallback;
   };
   const housing = new THREE.MeshStandardMaterial({ color: 0x07080b, roughness: 0.22, metalness: 0.85, side: THREE.DoubleSide });
-  const lens = new THREE.MeshPhysicalMaterial({ color: 0xdfeaff, roughness: 0.03, metalness: 0, transparent: true, opacity: 0.26, clearcoat: 1, envMapIntensity: 2.2, side: THREE.DoubleSide, depthWrite: false });
-  const chrome = new THREE.MeshStandardMaterial({ color: 0xc9ccd2, roughness: 0.12, metalness: 1 });
-  const ledW = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xdfeaff, emissiveIntensity: 2.4, roughness: 0.3 });
-  const ledA = new THREE.MeshStandardMaterial({ color: 0xffb03a, emissive: 0xff8a10, emissiveIntensity: 1.6, roughness: 0.4 });
-  const lensR = new THREE.MeshPhysicalMaterial({ color: 0xb0121a, roughness: 0.05, metalness: 0, transparent: true, opacity: 0.62, clearcoat: 1, envMapIntensity: 1.8, side: THREE.DoubleSide, depthWrite: false });
-  const ledR = new THREE.MeshStandardMaterial({ color: 0xff2a20, emissive: 0xff1208, emissiveIntensity: 2.6, roughness: 0.4 });
+  const lens = new THREE.MeshPhysicalMaterial({ color: 0xdfeaff, roughness: 0.03, metalness: 0, transparent: true, opacity: 0.26, clearcoat: 1, envMapIntensity: 2.4, side: THREE.DoubleSide, depthWrite: false });
+  const chrome = new THREE.MeshStandardMaterial({ color: 0xc9ccd2, roughness: 0.10, metalness: 1 });
+  const ledW = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xe6f2ff, emissiveIntensity: 4.4, roughness: 0.2 });
+  const ledA = new THREE.MeshStandardMaterial({ color: 0xffb03a, emissive: 0xff8a10, emissiveIntensity: 2.2, roughness: 0.35 });
+  const lensR = new THREE.MeshPhysicalMaterial({ color: 0xb0121a, roughness: 0.04, metalness: 0, transparent: true, opacity: 0.62, clearcoat: 1, envMapIntensity: 2.0, side: THREE.DoubleSide, depthWrite: false });
+  const ledR = new THREE.MeshStandardMaterial({ color: 0xff2a20, emissive: 0xff1608, emissiveIntensity: 3.8, roughness: 0.3 });
   const ex = (shape: THREE.Shape, depth: number, m: THREE.Material): THREE.Mesh => {
     const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelSize: 0.004, bevelThickness: 0.004, bevelSegments: 2 });
     return new THREE.Mesh(geo, m);
@@ -155,7 +284,7 @@ function buildLamps(shells: THREE.Mesh[], origin: THREE.Vector3): THREE.Group {
       g.add(L);
     }
   }
-  return g;
+  return { group: g, ledR, ledW };
 }
 
 // underbody: flat carbon undertray with stiffening ribs, transmission tunnel, gearbox, propshaft, exhaust runs with mufflers,
@@ -598,8 +727,8 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
   const noDisc = location.search.includes('nodisc');
 
   // paint is a live material the player can change: colour, metallic flake, finish (0 gloss, 1 satin, 2 matte, 3 chrome)
-  const uni = { uPaint: { value: new THREE.Vector3(paint.r, paint.g, paint.b) }, uFlake: { value: 0.35 }, uFinish: { value: 0 }, uPearl: { value: new THREE.Vector3(paint.r, paint.g, paint.b) }, uPearlAmt: { value: 0 } };
-  const mat = new THREE.MeshPhysicalMaterial({ metalness: 0.5, roughness: 0.28, clearcoat: 1, clearcoatRoughness: 0.04, envMapIntensity: 1.4, side: THREE.DoubleSide });
+  const uni = { uPaint: { value: new THREE.Vector3(paint.r, paint.g, paint.b) }, uFlake: { value: 0.42 }, uFinish: { value: 0 }, uPearl: { value: new THREE.Vector3(paint.r, paint.g, paint.b) }, uPearlAmt: { value: 0 } };
+  const mat = new THREE.MeshPhysicalMaterial({ metalness: 0.72, roughness: 0.20, clearcoat: 1, clearcoatRoughness: 0.025, envMapIntensity: 2.2, side: THREE.DoubleSide });
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uPaint = uni.uPaint; sh.uniforms.uFlake = uni.uFlake; sh.uniforms.uFinish = uni.uFinish; sh.uniforms.uPearl = uni.uPearl; sh.uniforms.uPearlAmt = uni.uPearlAmt;
     sh.uniforms.uOrg = { value: origin };
@@ -650,15 +779,19 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
       bool bumper = (zN > 0.43 && cp.y < 0.58) || (zN < -0.43 && cp.y < 0.62);
       bool skirt = ax > 0.60 && cp.y < 0.30 && abs(zN) < 0.30;
       bool archLip = ax > uWid * 0.30 && dw < uWr.x + 0.095;
-      vec3 col = uPaint; gBody = 1.0; gMetal = 0.5; gRough = 0.28; gLamp = vec3(0.0);
+      vec3 col = uPaint; gBody = 1.0; gMetal = 0.72; gRough = 0.20; gLamp = vec3(0.0);
       {
-        float fl = h31(floor(cp * 900.0));
+        float fl = h31(floor(cp * 950.0));
+        float ndv = clamp(abs(dot(normalize(vNormal), normalize(vViewPosition))), 0.0, 1.0);
+        // Authentic two-tone automotive metallic paint flop: deep rich flanks at grazing angles, luminous highlight facing sky/camera
+        float flop = mix(0.66, 1.18, pow(ndv, 0.62));
+        col *= mix(1.0, flop, step(uFinish, 0.5));
         col = mix(col, uPearl, uPearlAmt * smoothstep(-0.8, 0.8, cp.x * sign(cp.z + 0.01) + cp.y * 0.4));
-        float aaF = 1.0 - smoothstep(0.35, 1.0, length(fwidth(cp)) * 900.0);
-        col *= 1.0 + uFlake * (fl - 0.5) * 0.7 * step(uFinish, 1.5) * aaF;
-        if (uFinish > 2.5) { gMetal = 1.0; gRough = 0.07; gBody = 0.0; }
-        else if (uFinish > 1.5) { gMetal = 0.15; gRough = 0.82; gBody = 0.0; }
-        else if (uFinish > 0.5) { gMetal = 0.4; gRough = 0.45; gBody = 0.35; }
+        float aaF = 1.0 - smoothstep(0.35, 1.0, length(fwidth(cp)) * 950.0);
+        col *= 1.0 + uFlake * (fl - 0.5) * 0.85 * step(uFinish, 1.5) * aaF;
+        if (uFinish > 2.5) { gMetal = 1.0; gRough = 0.06; gBody = 0.0; }
+        else if (uFinish > 1.5) { gMetal = 0.15; gRough = 0.78; gBody = 0.0; }
+        else if (uFinish > 0.5) { gMetal = 0.48; gRough = 0.38; gBody = 0.40; }
       }
       if (tyre) { col = vec3(0.018, 0.018, 0.02); gBody = 0.0; gMetal = 0.0; gRough = 0.88; }
       else if (rim) { col = vec3(0.04); gBody = 0.0; gMetal = 1.0; gRough = 0.3; }
@@ -966,20 +1099,25 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
   carFrame.add(buildDriver());
   carFrame.add(buildTrunk());
   g.updateMatrixWorld(true);
-  carFrame.add(buildLamps(shells, origin));
+  const lamps = buildLamps(shells, origin);
+  carFrame.add(lamps.group);
   carFrame.add(buildFront(shells, origin, cuts ? spec.front.openings : []));
+  g.add(buildContactShadow(origin, W));
+  const lightPools = buildGroundLightPools(origin);
+  g.add(lightPools.group);
   const wl = [[true, true, W.frontX, W.frontZ], [true, false, -W.frontX, W.frontZ], [false, true, W.rearX, W.rearZ], [false, false, -W.rearX, W.rearZ]] as [boolean, boolean, number, number][];
-  const WH: { spin: THREE.Group; steer: THREE.Group; front: boolean; left: boolean }[] = [];
+  const WH: { spin: THREE.Group; steer: THREE.Group; discMat: THREE.MeshPhysicalMaterial; front: boolean; left: boolean }[] = [];
   for (const [front, left, x, z] of wl) {
     const w = wheel(front, left);
     w.root.position.set(origin.x + x, origin.y + (front ? 0.352 : 0.358) * W.scale, origin.z + z);
     w.root.scale.setScalar(W.scale);
     if (!noDisc) g.add(w.root);
-    WH.push({ spin: w.spin, steer: w.steer, front, left });
+    WH.push({ spin: w.spin, steer: w.steer, discMat: w.discMat, front, left });
   }
   // about 1,200 small meshes were 1,200 draw calls a frame: merge what cannot move relative to its parent (carBatch.ts); ?nobatch keeps the original for comparing
   if (!location.search.includes('nobatch')) { const st = batchStatic(g, [...WH.flatMap((w) => [w.spin, w.steer]), ...Object.values(pivots).map((p) => p.pivot)]); console.log('car batched', st.before, '->', st.after, 'meshes'); (window as unknown as { carBatch: unknown }).carBatch = st; }
   let ang = 0;
+  let rotorHeat = 0;
   return {
     group: g,
     paint: {
@@ -996,9 +1134,21 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
       toggle: (k) => { const p = pivots[k]; if (p) p.target = p.target > 0.5 ? 0 : 1; },
       set: (k, t) => { const p = pivots[k]; if (p) p.target = t; },
     },
-    update(speed: number, steer: number, dt: number) {
+    update(speed: number, steer: number, dt: number, _lights?: boolean, brake = 0, wetNight = 0) {
       ang += (speed / 0.355) * dt;
-      for (const w of WH) { w.spin.rotation.x = w.left ? -ang : ang; w.steer.rotation.y = w.front ? steer : 0; }
+      // Thermal brake rotor glow under heavy high-speed braking + HDR brake-light surge
+      const heatTarget = brake > 0.15 && Math.abs(speed) > 8 ? Math.min(1, brake * Math.min(1, Math.abs(speed) / 42)) : 0;
+      rotorHeat += (heatTarget - rotorHeat) * Math.min(1, dt * (heatTarget > rotorHeat ? 2.4 : 0.65));
+      const glow = Math.max(0, (rotorHeat - 0.18) / 0.82) * 3.8;
+      lamps.ledR.emissiveIntensity = 3.6 + brake * 5.4 + wetNight * 1.4;
+      lamps.ledW.emissiveIntensity = 4.2 + wetNight * 2.6;
+      lightPools.rearMat.opacity = Math.min(0.46, (0.08 + brake * 0.24) * (0.18 + wetNight * 1.1));
+      lightPools.frontMat.opacity = Math.min(0.42, 0.04 + wetNight * 0.36);
+      for (const w of WH) {
+        w.spin.rotation.x = w.left ? -ang : ang;
+        w.steer.rotation.y = w.front ? steer : 0;
+        w.discMat.emissiveIntensity = w.front ? glow : glow * 0.72;
+      }
       for (const k of pnames) {
         const p = pivots[k];
         p.t += (p.target - p.t) * Math.min(1, dt * 5);

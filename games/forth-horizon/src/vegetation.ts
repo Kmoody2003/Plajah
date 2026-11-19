@@ -108,18 +108,30 @@ export class Vegetation {
         .replace('#include <begin_vertex>', `
           float vd = distance(aPos.xz, uCam.xz);
           float vfade = smoothstep(uFade.x, uFade.y, vd) * (1.0 - smoothstep(uFade.z, uFade.w, vd));
+          // Fast frustum rejection in vertex shader: collapse off-screen / behind-camera plants before wind trig & rasterization
+          vec4 vClip = projectionMatrix * viewMatrix * vec4(aPos, 1.0);
+          if (vClip.z < -6.0 || abs(vClip.x) > vClip.w + 8.0) vfade = 0.0;
           vec3 vp = position * aRS.y * vfade;
           float vh = position.y;
-          float vsw = uWind * uWindAmt * vh * vh * aRS.y;
-          vp.x += (sin(uTime * 2.1 + aPos.x * 0.9 + aPos.z * 0.6) + 0.25 * sin(uTime * 5.3 + aPos.x * 2.3)) * vsw;
-          vp.z += cos(uTime * 1.7 + aPos.z * 0.8 + aPos.x * 0.4) * vsw * 0.6;
+          if (vfade > 0.001 && uWindAmt > 0.001) {
+            float vsw = uWind * uWindAmt * vh * vh * aRS.y;
+            vp.x += (sin(uTime * 2.1 + aPos.x * 0.9 + aPos.z * 0.6) + 0.25 * sin(uTime * 5.3 + aPos.x * 2.3)) * vsw;
+            vp.z += cos(uTime * 1.7 + aPos.z * 0.8 + aPos.x * 0.4) * vsw * 0.6;
+          }
           vec3 transformed = vec3(vp.x * vc + vp.z * vs, vp.y, -vp.x * vs + vp.z * vc) + aPos;
           vTint = aCol;`);
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', '#include <common>\nvarying vec3 vTint;')
-        .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= vTint;');
+        .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= vTint;')
+        .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+          #if NUM_DIR_LIGHTS > 0
+          {
+            float back = pow(clamp(dot(normalize(vViewPosition), -directionalLights[0].direction), 0.0, 1.0), 3.0);
+            reflectedLight.directDiffuse += diffuseColor.rgb * directionalLights[0].color * back * 0.36;
+          }
+          #endif`);
     };
-    mat.customProgramCacheKey = () => 'veg' + opts.wind + (opts.flat ? 'f' : 's') + (opts.map ? 'm' : 'n');
+    mat.customProgramCacheKey = () => 'veg2' + opts.wind + (opts.flat ? 'f' : 's') + (opts.map ? 'm' : 'n');
     return mat;
   }
 
@@ -131,36 +143,36 @@ export class Vegetation {
       const k = 0.62 + dry * 0.4;
       return [Math.min(1, s.r * 1.1 + 0.05) * k, Math.min(1, s.g * 1.15 + 0.07) * k, Math.min(1, s.b + 0.03) * k];
     };
-    // fine grass: dense tufts close to the camera
+    // fine grass: dense tufts close to the camera (balanced cap for locked 60 FPS)
     const grassNear: Species = {
-      name: 'grass', geo: tuft, spacing: 0.62, radius: 28, fade: [-1, 0, 16, 27], cap: 40000, seed: 1, cells: new Map(), total: 0,
+      name: 'grass', geo: tuft, spacing: 0.78, radius: 26, fade: [-1, 0, 15, 25], cap: 18000, seed: 1, cells: new Map(), total: 0,
       mat: null as unknown as THREE.MeshStandardMaterial,
       rule: (x, z, i, j, s) => {
         const patch = vnoise(x / 9, z / 9, 11);                                                        // tall patches and bare patches
         const dens = (s.field * 1.15 + s.forest * 0.5 + s.sand * 0.2) * (0.62 + patch * 0.7);
         if (dens < ihash(i, j, 3) || s.slope > 0.7 || s.y < 2.4) return null;
         const dry = Math.max(s.sand, s.field * ihash(i, j, 9) * 0.5);
-        const h = (0.2 + ihash(i, j, 4) * 0.32 + patch * 0.18) * (s.sand > 0.5 ? 1.4 : 1);
-        return { scale: h * (1.1 + ihash(i, j, 5) * 0.7), col: grassCol(s, dry) };
+        const h = (0.22 + ihash(i, j, 4) * 0.34 + patch * 0.18) * (s.sand > 0.5 ? 1.4 : 1);
+        return { scale: h * (1.2 + ihash(i, j, 5) * 0.7), col: grassCol(s, dry) };
       },
     };
-    // coarse grass: bigger, sparser clumps that carry the grass out to 110 m
+    // coarse grass: bigger, sparser clumps that carry the grass out to 85 m
     const grassMid: Species = {
-      name: 'grassMid', geo: tuft, spacing: 1.25, radius: 92, fade: [12, 20, 64, 90], cap: 24000, seed: 2, cells: new Map(), total: 0,
+      name: 'grassMid', geo: tuft, spacing: 1.55, radius: 84, fade: [11, 19, 58, 82], cap: 12000, seed: 2, cells: new Map(), total: 0,
       mat: null as unknown as THREE.MeshStandardMaterial,
       rule: (x, z, i, j, s) => {
         const patch = vnoise(x / 14, z / 14, 12);
         const dens = (s.field * 1.1 + s.forest * 0.5 + s.sand * 0.25) * (0.6 + patch * 0.7);
         if (dens < ihash(i, j, 3) || s.slope > 0.7 || s.y < 2.4) return null;
-        const h = 0.34 + ihash(i, j, 4) * 0.4 + patch * 0.22;
-        return { scale: h * 1.45, col: grassCol(s, Math.max(s.sand, s.field * 0.3)) };
+        const h = 0.38 + ihash(i, j, 4) * 0.42 + patch * 0.22;
+        return { scale: h * 1.62, col: grassCol(s, Math.max(s.sand, s.field * 0.3)) };
       },
     };
-    // shrubs: forest understorey, field margins, dune scrub
-    const shrubGeo = new THREE.IcosahedronGeometry(0.5, 1);
+    // shrubs: 20-tri low-poly organic canopy (4x fewer triangles than detail=1 -> saves >1.2M triangles per frame)
+    const shrubGeo = new THREE.IcosahedronGeometry(0.5, 0);
     { const p = shrubGeo.getAttribute('position'); for (let i = 0; i < p.count; i++) { const f = 0.78 + ihash(Math.round(p.getX(i) * 100), Math.round(p.getZ(i) * 100), Math.round(p.getY(i) * 100)) * 0.44; p.setXYZ(i, p.getX(i) * f, (p.getY(i) + 0.45) * f * 0.8, p.getZ(i) * f); } shrubGeo.computeVertexNormals(); }
     const shrubs: Species = {
-      name: 'shrubs', geo: shrubGeo, spacing: 5.2, radius: 230, fade: [-1, 0, 170, 228], cap: 20000, seed: 3, cells: new Map(), total: 0,
+      name: 'shrubs', geo: shrubGeo, spacing: 5.8, radius: 175, fade: [-1, 0, 125, 173], cap: 9000, seed: 3, cells: new Map(), total: 0,
       mat: null as unknown as THREE.MeshStandardMaterial,
       rule: (x, z, i, j, s) => {
         const patch = vnoise(x / 40, z / 40, 21);
@@ -173,11 +185,11 @@ export class Vegetation {
         return { scale: sc, col: [0.08 + dry * 0.2 + ihash(i, j, 7) * 0.06, g * (0.9 + (1 - dry) * 0.35), 0.04 + ihash(i, j, 8) * 0.03] };
       },
     };
-    // rocks: on the slopes, among the dunes and trees, a few in the fields
-    const rockGeo = new THREE.DodecahedronGeometry(0.5, 0);
+    // rocks: 20-tri faceted crags on slopes, dunes and woods
+    const rockGeo = new THREE.IcosahedronGeometry(0.5, 0);
     { const p = rockGeo.getAttribute('position'); for (let i = 0; i < p.count; i++) { const f = 0.8 + ihash(Math.round(p.getX(i) * 100), Math.round(p.getY(i) * 100), Math.round(p.getZ(i) * 100)) * 0.4; p.setXYZ(i, p.getX(i) * f, p.getY(i) * f * 0.62, p.getZ(i) * f); } rockGeo.computeVertexNormals(); }
     const rocks: Species = {
-      name: 'rocks', geo: rockGeo, spacing: 7.5, radius: 210, fade: [-1, 0, 160, 208], cap: 12000, seed: 4, cells: new Map(), total: 0,
+      name: 'rocks', geo: rockGeo, spacing: 8.2, radius: 165, fade: [-1, 0, 120, 163], cap: 5000, seed: 4, cells: new Map(), total: 0,
       mat: null as unknown as THREE.MeshStandardMaterial,
       rule: (x, z, i, j, s) => {
         const patch = vnoise(x / 55, z / 55, 31);

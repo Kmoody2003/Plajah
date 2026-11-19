@@ -105,7 +105,7 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.shadowMap.autoUpdate = false;
 renderer.shadowMap.needsUpdate = true;
 view.appendChild(renderer.domElement);
@@ -246,12 +246,12 @@ function gameTex(name: string, repeat = true): THREE.Texture {
 
 interface Tod { sky: string; sun: number; sunInt: number; sunPos: [number, number, number]; hemiSky: number; hemiGround: number; hemiInt: number; fog: number; fogNear: number; fogFar: number; exposure: number; env: number }
 const TOD: Record<string, Tod> = {
-  clear:   { sky: 'sky_clear',   sun: 0xfff2dc, sunInt: 3.0, sunPos: [-6000, 12000, -4000], hemiSky: 0xcfe3ff, hemiGround: 0x55503f, hemiInt: 1.2, fog: 0xb8cfe6, fogNear: 9000, fogFar: 42000, exposure: 1.0, env: 0.55 },
-  golden:  { sky: 'sky_golden',  sun: 0xffb870, sunInt: 3.4, sunPos: [-12000, 5200, -2000], hemiSky: 0xf0c8a0, hemiGround: 0x4a3a2a, hemiInt: 0.9, fog: 0xe0b88a, fogNear: 7000, fogFar: 38000, exposure: 1.05, env: 0.6 },
-  sunset:  { sky: 'sky_sunset',  sun: 0xff8a4a, sunInt: 2.6, sunPos: [-13000, 2500, -1500], hemiSky: 0xd89070, hemiGround: 0x302838, hemiInt: 0.7, fog: 0xc88060, fogNear: 6000, fogFar: 34000, exposure: 1.1, env: 0.6 },
-  dusk:    { sky: 'sky_dusk',    sun: 0x8a7ab0, sunInt: 0.9, sunPos: [-13000, 900, -1200], hemiSky: 0x6a6aa0, hemiGround: 0x1c1c28, hemiInt: 0.6, fog: 0x5a4a78, fogNear: 4000, fogFar: 30000, exposure: 1.25, env: 0.7 },
-  night:   { sky: 'sky_night',   sun: 0x7a90c8, sunInt: 0.25, sunPos: [-8000, 9000, -5000], hemiSky: 0x24304a, hemiGround: 0x10121a, hemiInt: 0.45, fog: 0x0a0e1c, fogNear: 2500, fogFar: 24000, exposure: 1.5, env: 0.9 },
-  sunrise: { sky: 'sky_sunrise', sun: 0xffc8a0, sunInt: 2.4, sunPos: [12000, 3500, 2000], hemiSky: 0xe8b8b0, hemiGround: 0x3a3438, hemiInt: 0.8, fog: 0xd8a8a0, fogNear: 6000, fogFar: 34000, exposure: 1.05, env: 0.6 },
+  clear:   { sky: 'sky_clear',   sun: 0xfff6e6, sunInt: 3.5, sunPos: [-6000, 12000, -4000], hemiSky: 0xaad2ff, hemiGround: 0x5c5b52, hemiInt: 1.45, fog: 0xb6d2ec, fogNear: 9000, fogFar: 42000, exposure: 1.05, env: 1.15 },
+  golden:  { sky: 'sky_golden',  sun: 0xffc884, sunInt: 3.7, sunPos: [-12000, 5200, -2000], hemiSky: 0x9ec6f7, hemiGround: 0x585348, hemiInt: 1.35, fog: 0xbcd0e2, fogNear: 7000, fogFar: 38000, exposure: 1.08, env: 1.15 },
+  sunset:  { sky: 'sky_sunset',  sun: 0xff8c48, sunInt: 3.1, sunPos: [-13000, 2500, -1500], hemiSky: 0x7c98cf, hemiGround: 0x3b3544, hemiInt: 1.1, fog: 0x9ea2bd, fogNear: 6000, fogFar: 34000, exposure: 1.12, env: 1.05 },
+  dusk:    { sky: 'sky_dusk',    sun: 0x9296cc, sunInt: 1.15, sunPos: [-13000, 900, -1200], hemiSky: 0x6278ba, hemiGround: 0x242836, hemiInt: 0.85, fog: 0x546390, fogNear: 4000, fogFar: 30000, exposure: 1.25, env: 0.95 },
+  night:   { sky: 'sky_night',   sun: 0x8aa8e0, sunInt: 0.35, sunPos: [-8000, 9000, -5000], hemiSky: 0x2a3d66, hemiGround: 0x151a26, hemiInt: 0.62, fog: 0x0e1628, fogNear: 2500, fogFar: 24000, exposure: 1.45, env: 1.0 },
+  sunrise: { sky: 'sky_sunrise', sun: 0xffc694, sunInt: 3.0, sunPos: [12000, 3500, 2000], hemiSky: 0xa4c4eb, hemiGround: 0x4c484c, hemiInt: 1.18, fog: 0xc2cfe0, fogNear: 6000, fogFar: 34000, exposure: 1.08, env: 1.08 },
 };
 const pmrem = new THREE.PMREMGenerator(renderer);
 let skyTex: THREE.Texture | null = null;
@@ -318,10 +318,10 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
     sh.uniforms.uWet = wetU;
     sh.uniforms.uPool = poolU;
     sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPos = (modelMatrix * vec4(position, 1.0)).xyz;');
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nvarying vec3 vWNorm;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPos = (modelMatrix * vec4(position, 1.0)).xyz;\nvWNorm = normalize(mat3(modelMatrix) * normal);');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nuniform highp sampler2DArray tGA;\nuniform highp sampler2DArray tGP;\nuniform float uGroundOn;\nuniform vec4 uGTune;\nuniform sampler2D tMask;\nuniform sampler2D tAsph;\nuniform sampler2D tPave;\nuniform vec4 uMask;\nuniform float uWet;\nuniform float uPool;\nuniform float uMapFade;\nuniform vec2 uEdge;\nuniform vec3 uCam;\nuniform sampler2D tClass;\nuniform vec2 uTerr;\nuniform vec2 uTerrO;\nfloat tHash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\nfloat tNoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(tHash(i), tHash(i + vec2(1.0, 0.0)), f.x), mix(tHash(i + vec2(0.0, 1.0)), tHash(i + vec2(1.0, 1.0)), f.x), f.y); }\n' + PUDDLE_GLSL)
+      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nvarying vec3 vWNorm;\nuniform highp sampler2DArray tGA;\nuniform highp sampler2DArray tGP;\nuniform float uGroundOn;\nuniform vec4 uGTune;\nuniform sampler2D tMask;\nuniform sampler2D tAsph;\nuniform sampler2D tPave;\nuniform vec4 uMask;\nuniform float uWet;\nuniform float uPool;\nuniform float uMapFade;\nuniform vec2 uEdge;\nuniform vec3 uCam;\nuniform sampler2D tClass;\nuniform vec2 uTerr;\nuniform vec2 uTerrO;\nfloat tHash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\nfloat tNoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(tHash(i), tHash(i + vec2(1.0, 0.0)), f.x), mix(tHash(i + vec2(0.0, 1.0)), tHash(i + vec2(1.0, 1.0)), f.x), f.y); }\n' + PUDDLE_GLSL)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
       gl_FragColor.a *= mix(1.0, smoothstep(0.0, 1300.0, min(uEdge.x - abs(vWPos.x - uTerrO.x), uEdge.y - abs(vWPos.z - uTerrO.y))), uMapFade);`)
       .replace('#include <map_fragment>', `#include <map_fragment>
@@ -341,7 +341,9 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
         kerb = (1.0 - road) * smoothstep(0.08, 0.38, mk.r) * walk;
       }
       float fade = 1.0 - smoothstep(250.0, 1500.0, camD);
+      vec3 smoothN = normalize(vWNorm); if (smoothN.y < 0.0) smoothN = -smoothN;
       vec2 gTN = vec2(0.0); float gTW = 0.0, gTR = 0.0;                // the ground material's normal (x,y), how much of it applies, its roughness
+      vec3 gRockN = vec3(0.0); float gRockW = 0.0, gRockR = 0.84;      // world-space cliff strata & snow crystalline normal relief
       if (fade > 0.01 && road < 0.995 && (walk * (1.0 - kerb)) < 0.995) {
         vec3 b = diffuseColor.rgb;                                       // the satellite colour
         float lum = dot(b, vec3(0.299, 0.587, 0.114));
@@ -349,8 +351,7 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
         float dark = 1.0 - smoothstep(0.12, 0.3, lum);
         vec3 cls = texture2D(tClass, vec2((vWPos.x - uTerrO.x) / uTerr.x + 0.5, 1.0 - ((vWPos.z - uTerrO.y) / uTerr.y + 0.5))).rgb;
         float sandy = cls.r, forestK = max(cls.g, dark * greenness), fieldK = cls.b * (1.0 - forestK);
-        vec3 nW = normalize(cross(dFdx(vWPos), dFdy(vWPos))); if (nW.y < 0.0) nW = -nW;
-        float rockK = smoothstep(0.28, 0.5, 1.0 - nW.y);                  // steep ground shows rock
+        float rockK = smoothstep(0.22, 0.48, 1.0 - smoothN.y);           // smooth per-pixel interpolated slope (no flat polygon facets!)
         // field rows (farmland): alternating soil and crop
         vec2 fcell = floor(vWPos.xz / 160.0); float fh = tHash(fcell);
         float rowsK = 0.5 + 0.5 * sin((fh > 0.5 ? vWPos.z : vWPos.x) * 1.3 + fh * 40.0);
@@ -371,15 +372,19 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
         wv[7] = rockK; tot += rockK;
         float tile[8]; tile[0] = 3.6; tile[1] = 3.4; tile[2] = 4.2; tile[3] = 4.0; tile[4] = 3.0; tile[5] = 4.6; tile[6] = 3.6; tile[7] = 6.5;
         vec3 alb = vec3(0.0); vec4 surf = vec4(0.0); float wsum = 0.0;
-        // a slow rotation of the second sample breaks the repeat of every tile
+        // a slow rotation of the second sample breaks the repeat of every tile; compute derivatives outside the loop so D3D11 never warns on divergent gradients (X3595)
         float ra = tNoise(vWPos.xz / 31.0) * 6.2831; mat2 rot = mat2(cos(ra), sin(ra), -sin(ra), cos(ra));
+        vec2 dPdx = dFdx(vWPos.xz), dPdy = dFdy(vWPos.xz);
         for (int i = 0; i < 8; i++) {
           float wi = wv[i] / max(tot, 1e-4);
           if (wi < 0.04 || uGroundOn < 0.5) continue;
-          vec2 uvA = vWPos.xz / (tile[i] * uGTune.w), uvB = rot * (vWPos.xz / (tile[i] * uGTune.w * 2.7)) + 0.37;
+          float scA = tile[i] * uGTune.w, scB = scA * 2.7;
+          vec2 uvA = vWPos.xz / scA, uvB = rot * (vWPos.xz / scB) + 0.37;
+          vec2 gxA = dPdx / scA, gyA = dPdy / scA;
+          vec2 gxB = rot * (dPdx / scB), gyB = rot * (dPdy / scB);
           float m = smoothstep(0.35, 0.65, tNoise(vWPos.xz / 9.0 + float(i)));
-          alb += wi * mix(texture(tGA, vec3(uvA, float(i))).rgb, texture(tGA, vec3(uvB, float(i))).rgb, m * 0.5);
-          surf += wi * texture(tGP, vec3(uvA, float(i)));
+          alb += wi * mix(textureGrad(tGA, vec3(uvA, float(i)), gxA, gyA).rgb, textureGrad(tGA, vec3(uvB, float(i)), gxB, gyB).rgb, m * 0.5);
+          surf += wi * textureGrad(tGP, vec3(uvA, float(i)), gxA, gyA);
           wsum += wi;
         }
         if (wsum > 0.01) {
@@ -394,20 +399,61 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
         } else {
           diffuseColor.rgb *= 1.0 + (macro - 0.5) * 0.34 * fade;
         }
+        // Wine-country tulip flower beds: rich sunlit petal clusters + dark green leaf furrows visible across the valley
+        float chroma = max(b.r, max(b.g, b.b)) - min(b.r, min(b.g, b.b));
+        if (vWPos.z < -4200.0 && vWPos.y < 140.0 && chroma > 0.18 && b.g < max(b.r, b.b) * 0.90) {
+          float tNear = (1.0 - smoothstep(120.0, 680.0, camD)) * smoothstep(0.18, 0.32, chroma);
+          float row = 0.5 + 0.5 * sin(vWPos.x * 5.2 + tNoise(vWPos.xz / 18.0) * 1.6);
+          float bloom = smoothstep(0.26, 0.72, tNoise(vWPos.xz * 3.1) * 0.65 + tNoise(vWPos.xz * 9.5) * 0.35);
+          float speck = tNoise(vWPos.xz * 12.0);
+          vec3 stemCol = vec3(0.05, 0.14, 0.04) * (0.7 + 0.5 * speck);
+          vec3 petalCol = b * (0.78 + 0.52 * speck);
+          vec3 tulip = mix(stemCol, petalCol, bloom * (0.28 + 0.72 * row));
+          diffuseColor.rgb = mix(diffuseColor.rgb, tulip, tNear * 0.92);
+          gTN = mix(gTN, vec2((speck - 0.5) * 1.6, (bloom - 0.5) * 1.6), tNear * 0.85);
+          gTW = max(gTW, tNear * 0.85);
+          gTR = mix(gTR, 0.74, tNear);
+        }
       }
       {
-        // cliffs and steep ground at every distance: grey rock with level bedding (strata), grain and weathering, keyed to world height and position so
-        // nothing stretches down the face (the albedo and the ground layers are projected from above and smear on steep ground); never on snow or ice
-        vec3 nR = normalize(cross(dFdx(vWPos), dFdy(vWPos))); if (nR.y < 0.0) nR = -nR;
-        float steep = smoothstep(0.30, 0.55, 1.0 - nR.y);
-        if (steep > 0.01) {
-          float strata = 0.5 + 0.5 * sin(vWPos.y * 0.85 + tNoise(vWPos.xz / 40.0) * 6.0);
-          float grain = tNoise(vec2(vWPos.x + vWPos.z, vWPos.y * 1.6) / 2.6);
-          float blot = tNoise(vec2(vWPos.x - vWPos.z, vWPos.y * 0.5) / 17.0);
-          vec3 rockC = mix(vec3(0.255, 0.262, 0.27), vec3(0.43, 0.43, 0.425), strata * 0.55 + grain * 0.45) * (0.74 + 0.4 * blot) * (0.8 + 0.2 * smoothstep(0.2, 0.6, grain));
-          float lumB = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-          rockC *= clamp(lumB / 0.36, 0.6, 1.08);
-          diffuseColor.rgb = mix(diffuseColor.rgb, rockC, steep * (1.0 - smoothstep(0.72, 0.92, lumB)) * (1.0 - road));
+        // Dramatic dark coastal basalt & granite cliffs: irregular domain-warped oblique strata, vertical crag fissures, crevice AO & mossy ledges (zero flat diamonds or tan Venetian blinds)
+        float warpLo = tNoise(vWPos.xz / 65.0) * 14.0 + tNoise(vWPos.xz / 19.0) * 4.2;
+        float slopeRaw = 1.0 - smoothN.y;
+        float steep = smoothstep(0.20, 0.46, slopeRaw + (tNoise(vWPos.xz / 24.0) - 0.5) * 0.10);
+        float lumB = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+        float snowMask = smoothstep(0.68, 0.88, lumB) * smoothstep(220.0, 340.0, vWPos.y);
+        float rockAmt = steep * (1.0 - snowMask) * (1.0 - road);
+        if (rockAmt > 0.01) {
+          float yStrata = vWPos.y * 0.34 + vWPos.x * 0.045 - vWPos.z * 0.035 + warpLo;
+          float strata = smoothstep(0.15, 0.85, tNoise(vec2(yStrata * 0.85, (vWPos.x - vWPos.z) / 55.0)));
+          vec2 rockUv = vec2(vWPos.x * 0.75 + vWPos.z * 0.66, vWPos.y * 0.95);
+          float crag = tNoise(rockUv / 11.0);
+          float vertCrack = tNoise(vec2(rockUv.x / 3.4, rockUv.y / 14.0 + crag * 2.4));
+          float microF = tNoise(rockUv / 2.2 + 4.1);
+          float fissure = smoothstep(0.20, 0.46, vertCrack * 0.62 + microF * 0.38);
+          float blot = tNoise(vec2(vWPos.x - vWPos.z, vWPos.y * 0.4) / 28.0);
+          // Rich dark Lake Superior basalt/granite with weathered iron-ochre veins (realistic dark linear albedo under bright sun)
+          vec3 darkBasalt = vec3(0.085, 0.092, 0.102);
+          vec3 slateGranite = vec3(0.21, 0.21, 0.215);
+          vec3 warmIron = vec3(0.27, 0.21, 0.16);
+          vec3 rockC = mix(darkBasalt, mix(slateGranite, warmIron, smoothstep(0.42, 0.82, blot)), strata * 0.48 + crag * 0.34 + microF * 0.18);
+          rockC *= (0.48 + 0.62 * fissure) * clamp(lumB / 0.32, 0.62, 1.05);
+          // Dark evergreen moss clinging to gentler upper cliff shelves below alpine snowline
+          float mossK = smoothstep(0.54, 0.78, smoothN.y + (crag - 0.5) * 0.22) * smoothstep(260.0, 130.0, vWPos.y) * (1.0 - smoothstep(10.0, 4.0, vWPos.y));
+          rockC = mix(rockC, vec3(0.07, 0.12, 0.055), mossK * 0.58);
+          diffuseColor.rgb = mix(diffuseColor.rgb, rockC, rockAmt);
+          // Analytical jagged crag + fracture normal relief (zero extra texture sampler)
+          float dFx = (tNoise((rockUv + vec2(0.9, 0.0)) / 3.8) - tNoise((rockUv - vec2(0.9, 0.0)) / 3.8)) * 2.6;
+          float dFy = (tNoise((rockUv + vec2(0.0, 0.9)) / 4.4) - tNoise((rockUv - vec2(0.0, 0.9)) / 4.4)) * 2.1;
+          gRockN = vec3(dFx * 0.85, dFy * 0.75 + (strata - 0.5) * 0.55, -dFx * 0.85);
+          gRockW = rockAmt * (1.0 - smoothstep(1400.0, 5200.0, camD) * 0.65);
+          gRockR = mix(0.94, 0.56, fissure * (0.35 + 0.65 * blot)) * (1.0 - 0.52 * uWet);
+        } else if (snowMask > 0.05) {
+          // Crystalline micro-normal & wind-scoured sastrugi snow sparkle on high alpine ridges
+          float s1 = tNoise(vWPos.xz / 14.0), s2 = tNoise(vWPos.xz / 3.2 + 5.7);
+          gRockN = vec3((s1 - 0.5) * 0.55 + (s2 - 0.5) * 0.35, 0.0, (s2 - 0.5) * 0.45);
+          gRockW = snowMask * (1.0 - smoothstep(800.0, 4000.0, camD) * 0.7);
+          gRockR = 0.38 + 0.22 * s1;
         }
       }
       if (inMask && (road + walk + kerb) > 0.002) {
@@ -434,23 +480,24 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
         diffuseColor.rgb = col;
       }
       diffuseColor.rgb *= 1.0 - 0.16 * uWet;           // wet ground everywhere`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, mix(0.55, 1.0, gTR), gTW); roughnessFactor = mix(roughnessFactor, 0.16, gWet); roughnessFactor = mix(roughnessFactor, 0.015, gPud);')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, mix(0.55, 1.0, gTR), gTW);\nroughnessFactor = mix(roughnessFactor, gRockR, gRockW);\nroughnessFactor = mix(roughnessFactor, 0.14, gWet);\nroughnessFactor = mix(roughnessFactor, 0.015, gPud);')
       .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.6, gPud);');
     sh.fragmentShader = injectRoadPbr(sh.fragmentShader, 'vWPos.xz');
     Object.assign(sh.uniforms, roadUniforms);
-    // close-up relief: a detail normal map (grass, off the roads) bends the lighting within ~140 m of the camera, so the ground has texture you can see the sun catch,
-    // not a flat painted colour. Sampled at two scales so it does not tile. Left out with cascaded shadows: their extra shadow maps leave no free texture unit.
-    // The terrain shader already uses all 16 texture units the GPU allows, so the relief is a bump map from the grass detail texture it already samples (its brightness as height,
-    // screen-space derivatives for the slope): no new sampler.
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
       {
         float dfade = gTW * (1.0 - road) * (1.0 - gPud);
-        if (dfade > 0.002) {
-          // the ground material's own normal map (from groundArrays.ts), tangent space laid flat along world x and z
+        if (dfade > 0.002 || gRockW > 0.002) {
           vec3 nWv = inverseTransformDirection(normal, viewMatrix);
-          vec3 T = normalize(cross(vec3(0.0, 0.0, 1.0), nWv)), B = cross(nWv, T);
-          nWv = normalize(nWv + (T * gTN.x + B * gTN.y) * 0.9 * dfade);
+          if (dfade > 0.002) {
+            vec3 refA = abs(nWv.z) > 0.9 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 0.0, 1.0);
+            vec3 T = normalize(cross(refA, nWv)), B = cross(nWv, T);
+            nWv = normalize(nWv + (T * gTN.x + B * gTN.y) * 0.9 * dfade);
+          }
+          if (gRockW > 0.002) {
+            nWv = normalize(nWv + gRockN * 0.55 * gRockW);
+          }
           normal = normalize((viewMatrix * vec4(nWv, 0.0)).xyz);
         }
       }`);
@@ -462,7 +509,10 @@ let composer: EffectComposer | null = null;
 let cinePass: ShaderPass | null = null;
 let aoPass: AoPass | null = null;
 let bloomPass: UnrealBloomPass | null = null;
+let outputPass: OutputPass | null = null;
 let gradePass: GradePass | null = null;
+let aaPass: ShaderPass | SMAAPass | null = null;
+const USE_SMAA = (() => { try { return new URLSearchParams(location.search).get('aa') === 'smaa'; } catch { return false; } })();
 let dbgCam: { pos: THREE.Vector3; at: THREE.Vector3 } | null = null;     // review tool: window.regionViewer.cam(x,y,z, tx,ty,tz) holds the camera still; cam() releases it
 let fxOn = true;
 try {
@@ -474,21 +524,33 @@ try {
   aoPass = new AoPass(camera, Math.max(320, Math.floor(innerWidth * 0.5)), Math.max(180, Math.floor(innerHeight * 0.5)));
   composer.addPass(aoPass);
   composer.setSize(innerWidth, innerHeight);
+  // Quarter-res bloom (capped at 480x270): visually identical wide glow at ~4x lower GPU fill & bandwidth across 11 blur passes
   bloomPass = new UnrealBloomPass(
-    new THREE.Vector2(Math.min(960, Math.max(240, Math.floor(innerWidth * 0.5))), Math.min(540, Math.max(135, Math.floor(innerHeight * 0.5)))),
+    new THREE.Vector2(Math.min(480, Math.max(160, Math.floor(innerWidth * 0.25))), Math.min(270, Math.max(90, Math.floor(innerHeight * 0.25)))),
     0.42, 0.55, 0.82
   );
   composer.addPass(bloomPass);
-  // cinematic pass (linear HDR, before tone mapping): speed blur toward the screen edges, sun light shafts through the sky and cloud, a hint of lens fringing,
-  // a soft vignette and fine grain
+  // cinematic pass: speed blur toward screen edges, 8-tap jittered sun shafts, lens rain, vibrance, vignette, grain,
+  // plus fused ACESFilmic tone mapping + sRGB encode when GradePass is inactive (saves an entire full-res HalfFloat pass)
   cinePass = new ShaderPass({
-    uniforms: { tDiffuse: { value: null }, uSpeed: { value: 0 }, uSun: { value: new THREE.Vector2(0.5, 0.8) }, uShaft: { value: 0 }, uTime: { value: 0 }, uVig: { value: 0.28 }, uAspect: { value: 1.6 }, uSunCol: { value: new THREE.Color(1, 0.9, 0.7) } },
+    uniforms: {
+      tDiffuse: { value: null }, uSpeed: { value: 0 }, uSun: { value: new THREE.Vector2(0.5, 0.8) }, uShaft: { value: 0 },
+      uTime: { value: 0 }, uVig: { value: 0.28 }, uAspect: { value: 1.6 }, uSunCol: { value: new THREE.Color(1, 0.9, 0.7) },
+      uToneMap: { value: 1 }, uExposure: { value: 1.08 },
+    },
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: `
-      uniform sampler2D tDiffuse; uniform float uSpeed, uShaft, uTime, uVig, uAspect; uniform vec2 uSun; uniform vec3 uSunCol;
+      uniform sampler2D tDiffuse; uniform float uSpeed, uShaft, uTime, uVig, uAspect, uToneMap, uExposure; uniform vec2 uSun; uniform vec3 uSunCol;
       varying vec2 vUv;
       ${LENS_RAIN_GLSL}
       float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+      vec3 rrtOdt(vec3 v) { return (v * (v + 0.0245786) - 0.000090537) / (v * (0.983729 * v + 0.4329510) + 0.238081); }
+      vec3 acesFilmic(vec3 c, float expVal) {
+        const mat3 inM = mat3(vec3(0.59719, 0.07600, 0.02840), vec3(0.35458, 0.90834, 0.13383), vec3(0.04823, 0.01566, 0.83777));
+        const mat3 outM = mat3(vec3(1.60475, -0.10208, -0.00327), vec3(-0.53108, 1.10813, -0.07276), vec3(-0.07367, -0.00605, 1.07602));
+        return clamp(outM * rrtOdt(inM * (max(c, vec3(0.0)) * (expVal / 0.6))), 0.0, 1.0);
+      }
+      vec3 linToSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(max(c, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c)); }
       void main() {
         vec2 c = vec2(0.5, 0.42);
         vec2 d = vUv - c;
@@ -500,7 +562,6 @@ try {
         if (amt <= 0.0008) {
           col = vec3(texture2D(tDiffuse, vUv + d * ca).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - d * ca).b);
         } else {
-          // 6 radial taps with 1 RGB sample each + CA endpoints -> ~3.5x faster than 27 split-channel taps
           vec3 acc = vec3(0.0);
           for (int i = 0; i < 6; i++) {
             float t = float(i) / 5.0;
@@ -514,40 +575,77 @@ try {
           );
         }
         float j = hash(vUv * 1000.0 + uTime);
-        // light shafts: 12 jittered march steps (~45% faster with smoother noise-broken gradients)
-        if (uShaft > 0.01) {
-          vec2 ds = (uSun - vUv) / 12.0;
+        // light shafts: 8 jittered march steps, skipped completely when sun is outside screen
+        float sunDist = length(uSun - vUv);
+        if (uShaft > 0.01 && sunDist < 1.15) {
+          vec2 ds = (uSun - vUv) / 8.0;
           vec2 p = vUv + ds * j;
           vec3 accS = vec3(0.0);
           float w = 1.0;
-          for (int i = 0; i < 12; i++) {
+          for (int i = 0; i < 8; i++) {
             vec3 s = texture2D(tDiffuse, p).rgb;
             float l = dot(s, vec3(0.3, 0.59, 0.11));
-            accS += s * smoothstep(1.2, 2.6, l) * w;
-            w *= 0.875;
+            accS += s * smoothstep(1.15, 2.5, l) * w;
+            w *= 0.84;
             p += ds;
           }
-          float toward = 1.0 - clamp(length(uSun - vUv) * 0.9, 0.0, 1.0);
-          col += accS / 12.0 * uSunCol * uShaft * (0.25 + 0.75 * toward);
+          float toward = 1.0 - clamp(sunDist * 0.88, 0.0, 1.0);
+          col += accS * 0.125 * uSunCol * uShaft * (0.25 + 0.75 * toward);
         }
         float lensMask, lensShade, lensSparkle;
         vec2 refractedUv = lensRainUv(vUv, lensMask, lensShade, lensSparkle);
         if (lensMask > 0.001) col = mix(col, texture2D(tDiffuse, refractedUv).rgb * lensShade + vec3(lensSparkle), lensMask);
-        // vignette and grain
-        col *= 1.0 - uVig * smoothstep(0.35, 1.05, rd);
-        col += (j - 0.5) * 0.012;
+        // Subtle AAA photographic clarity: clean vibrance without muddying skies or crushing shadow detail
+        float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
+        float sat = max(col.r, max(col.g, col.b)) - min(col.r, min(col.g, col.b));
+        col = mix(vec3(luma), col, 1.0 + 0.12 * (1.0 - clamp(sat * 1.4, 0.0, 1.0)));
+        // vignette and fine film grain
+        col *= 1.0 - uVig * smoothstep(0.38, 1.08, rd);
+        col += (j - 0.5) * 0.009;
+        if (uToneMap > 0.5) col = linToSRGB(acesFilmic(col, uExposure));
         gl_FragColor = vec4(col, 1.0);
       }`,
   });
   Object.assign(cinePass.uniforms, lensRain.uniforms);
   composer.addPass(cinePass);
-  composer.addPass(new OutputPass());
+  outputPass = new OutputPass();
+  outputPass.enabled = false;
+  composer.addPass(outputPass);
   // colour grade (the platform's cinematic LUTs) and film/tape lenses, after tone mapping; options in Settings > Graphics
   gradePass = new GradePass(innerWidth, innerHeight);
   try { gradePass.lut = localStorage.getItem('apex.lut') ?? 'none'; gradePass.lens = (localStorage.getItem('apex.lens') as GameLens) ?? 'none'; const a = parseFloat(localStorage.getItem('apex.lutAmt') ?? ''); if (!Number.isNaN(a)) gradePass.lutAmount = a; } catch { /* storage blocked */ }
   composer.addPass(gradePass);
-  // edge anti-aliasing on the finished image: the post chain renders into plain targets, so the canvas's own multisampling never reached the screen (fences, wires and lane lines shimmered)
-  composer.addPass(new SMAAPass());
+  // Single-pass Luma FXAA (replaces 3 full-res SMAA passes & 2 full-res buffers for ~3x faster edge AA; ?aa=smaa restores SMAA)
+  if (USE_SMAA) {
+    aaPass = new SMAAPass();
+  } else {
+    aaPass = new ShaderPass({
+      uniforms: { tDiffuse: { value: null }, uInvRes: { value: new THREE.Vector2(1 / innerWidth, 1 / innerHeight) } },
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `
+        uniform sampler2D tDiffuse; uniform vec2 uInvRes; varying vec2 vUv;
+        float lumaOf(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+        void main() {
+          vec3 rgbM = texture2D(tDiffuse, vUv).rgb;
+          vec3 rgbNW = texture2D(tDiffuse, vUv + vec2(-1.0, -1.0) * uInvRes).rgb;
+          vec3 rgbNE = texture2D(tDiffuse, vUv + vec2( 1.0, -1.0) * uInvRes).rgb;
+          vec3 rgbSW = texture2D(tDiffuse, vUv + vec2(-1.0,  1.0) * uInvRes).rgb;
+          vec3 rgbSE = texture2D(tDiffuse, vUv + vec2( 1.0,  1.0) * uInvRes).rgb;
+          float lumaM = lumaOf(rgbM), lumaNW = lumaOf(rgbNW), lumaNE = lumaOf(rgbNE), lumaSW = lumaOf(rgbSW), lumaSE = lumaOf(rgbSE);
+          float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));
+          float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));
+          if (lumaMax - lumaMin < max(0.045, lumaMax * 0.115)) { gl_FragColor = vec4(rgbM, 1.0); return; }
+          vec2 dir = vec2(-((lumaNW + lumaNE) - (lumaSW + lumaSE)), ((lumaNW + lumaSW) - (lumaNE + lumaSE)));
+          float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) * 0.03125, 0.0078125);
+          dir = clamp(dir / (min(abs(dir.x), abs(dir.y)) + dirReduce), vec2(-8.0), vec2(8.0)) * uInvRes;
+          vec3 rgbA = 0.5 * (texture2D(tDiffuse, vUv + dir * (1.0 / 3.0 - 0.5)).rgb + texture2D(tDiffuse, vUv + dir * (2.0 / 3.0 - 0.5)).rgb);
+          vec3 rgbB = rgbA * 0.5 + 0.25 * (texture2D(tDiffuse, vUv - dir * 0.5).rgb + texture2D(tDiffuse, vUv + dir * 0.5).rgb);
+          float lumaB = lumaOf(rgbB);
+          gl_FragColor = vec4((lumaB < lumaMin || lumaB > lumaMax) ? rgbA : rgbB, 1.0);
+        }`,
+    });
+  }
+  composer.addPass(aaPass);
 } catch (e) { console.warn('post effects unavailable', e); composer = null; }
 
 let meta: RegionMeta;
@@ -743,6 +841,7 @@ interface HarborPlan {
   rail: number[][][];
 }
 const harborGroup = new THREE.Group();
+harborGroup.name = 'harbor-group';
 scene.add(harborGroup);
 let harbor: HarborPlan | null = null;
 
@@ -1157,15 +1256,50 @@ function loadSprites(): Promise<SpriteSet> {
   return spriteSet;
 }
 const spriteMats = new Map<string, THREE.MeshStandardMaterial>();
+function patchTreeCard(mat: THREE.MeshStandardMaterial, lod: boolean): void {
+  const prev = mat.onBeforeCompile;
+  mat.onBeforeCompile = (sh, r) => {
+    prev?.call(mat, sh, r);
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying float vCardH;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCardH = clamp(uv.y, 0.0, 1.0);');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vCardH;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
+        // Counter dark matte edge bleed + match distant sprite foliage hue & depth to close 3D EzTreeField conifers
+        if (diffuseColor.a < 0.96) diffuseColor.rgb = min(vec3(1.0), diffuseColor.rgb / max(diffuseColor.a, 0.78));
+        float fLum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+        diffuseColor.rgb = mix(vec3(fLum), diffuseColor.rgb, 1.48) * vec3(0.46, 0.62, 0.40) * mix(0.68, 1.04, vCardH);`)
+      .replace('#include <normal_fragment_begin>', `#include <normal_fragment_begin>
+        // Never let DoubleSide flip tree canopy normal into the ground; bias smoothly toward sky for soft volumetric canopy lighting
+        vec3 upView = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+        if (dot(normal, upView) < 0.0) normal = -normal;
+        normal = normalize(mix(normal, upView, 0.72));`)
+      .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        // Sunlit backlit leaf subsurface scattering (SSS) for photographic forest glow
+        #if NUM_DIR_LIGHTS > 0
+        {
+          float back = pow(clamp(dot(normalize(vViewPosition), -directionalLights[0].direction), 0.0, 1.0), 3.0);
+          reflectedLight.directDiffuse += diffuseColor.rgb * directionalLights[0].color * back * (0.35 + 0.65 * vCardH) * 0.42;
+        }
+        #endif`);
+  };
+  mat.customProgramCacheKey = () => (lod ? 'treecard-lod-v2' : 'treecard-v2');
+}
 function addTreeCards(parent: THREE.Object3D, list: { x: number; z: number; def: SpriteDef; h: number }[], lod = false): void {
   const by = new Map<SpriteDef, typeof list>();
   for (const t of list) { if (!by.has(t.def)) by.set(t.def, []); by.get(t.def)!.push(t); }
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
   by.forEach((arr, def) => {
-    let mat = spriteMats.get(def.file);
     const mkey = def.file + (lod ? ':lod' : '');
-    mat = spriteMats.get(mkey);
-    if (!mat) { mat = new THREE.MeshStandardMaterial({ map: def.tex, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 1, metalness: 0 }); if (lod) cardLod(mat); spriteMats.set(mkey, mat); }
+    let mat = spriteMats.get(mkey);
+    if (!mat) {
+      // Higher alphaTest (0.76) cuts out the dark semi-transparent matte halo baked into sprite PNG edges
+      mat = new THREE.MeshStandardMaterial({ map: def.tex, alphaTest: 0.76, side: THREE.DoubleSide, roughness: 0.94, metalness: 0 });
+      if (lod) cardLod(mat);
+      patchTreeCard(mat, lod);
+      spriteMats.set(mkey, mat);
+    }
     const im = new THREE.InstancedMesh(crossGeo, mat, arr.length);
     arr.forEach((t, i) => {
       const hh = t.h, ww = hh * def.w / def.h;
@@ -1447,6 +1581,7 @@ async function buildStreetscape(): Promise<void> {
 
 // ---------- building detail: cornices, rooftop plant, tanks, masts ----------
 const roofGroup = new THREE.Group();
+roofGroup.name = 'roof-group';
 scene.add(roofGroup);
 function addRoofDetails(items: CityItem[]): void {
   roofGroup.clear();
@@ -2049,13 +2184,24 @@ function makeCloudTexture(seed: number): THREE.CanvasTexture {
   return t;
 }
 const cloudLayers: { mesh: THREE.Mesh; tex: THREE.Texture; vx: number; vz: number }[] = [];
-for (const [alt, size, rep, seed, vx, vz, op] of [[2900, 44000, 2.4, 7, 0.0075, 0.0028, 0.62], [3900, 52000, 1.7, 19, -0.0042, 0.0062, 0.42]] as [number, number, number, number, number, number, number][]) {
+for (const [alt, size, rep, seed, vx, vz, op] of [[2900, 62000, 2.8, 7, 0.0075, 0.0028, 0.62], [3900, 72000, 2.0, 19, -0.0042, 0.0062, 0.42]] as [number, number, number, number, number, number, number][]) {
   const tex = makeCloudTexture(seed);
   tex.repeat.set(rep, rep);
   const geo = new THREE.PlaneGeometry(size, size);
   geo.rotateX(-Math.PI / 2);
-  const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: op, depthWrite: false, fog: false, side: THREE.DoubleSide }));
-  mesh.position.set(1200, alt, 100);
+  const cmat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: op, depthWrite: false, fog: false, side: THREE.DoubleSide });
+  // Smooth circular edge fade so square cloud plane boundaries never cut a hard line across the sky
+  cmat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vCloudUv;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCloudUv = uv;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vCloudUv;')
+      .replace('#include <dithering_fragment>', 'gl_FragColor.a *= smoothstep(1.0, 0.25, length(vCloudUv * 2.0 - 1.0));\n#include <dithering_fragment>');
+  };
+  cmat.customProgramCacheKey = () => 'cloud-radial-fade';
+  const mesh = new THREE.Mesh(geo, cmat);
+  mesh.position.set(0, alt, -4500);
   mesh.renderOrder = 5;
   scene.add(mesh);
   cloudLayers.push({ mesh, tex, vx, vz });
@@ -3796,7 +3942,11 @@ function stepDrive(dt: number): void {
   carPitch += (ps.pitch * 0.7 - carPitch) * Math.min(1, dt * 7); carRoll += (ps.roll * 0.5 - carRoll) * Math.min(1, dt * 7);
   s.car.rotation.x = -Math.atan(slopePS) + carPitch;
   s.car.rotation.z = Math.atan(slopeRS) + carRoll;
-  (s.car.userData.update as ((sp: number, st: number, dt: number) => void) | undefined)?.(s.sp, ps.steerAngle, dt);
+  const brakeAmt = Math.max(input.brake, hand ? 0.85 : 0);
+  const wetNightAmt = Math.min(1, wx.cur.wet * 0.85 + (NIGHT_K[todKey] ?? 0) * 1.15);
+  (s.car.userData.update as ((sp: number, st: number, dt: number, lights?: boolean, brake?: number, wetNight?: number) => void) | undefined)?.(
+    s.sp, ps.steerAngle, dt, wetNightAmt > 0.25, brakeAmt, wetNightAmt
+  );
   // spray and mist off the four tyres: more from deep water, more at speed, a little from any wet road
   if (!ps.isAirborne && !locked) {
     const sy1 = Math.sin(s.yaw), cy1 = Math.cos(s.yaw), spdH = Math.hypot(ps.vel.x, ps.vel.z), road = surfaceAtXZ(s.pos.x, s.pos.z) === 'asphalt';
@@ -4186,6 +4336,7 @@ function applyPerfTier(next: PerfTier): void {
     aoPass.aoOn = tierCfg.aoEnabled;                       // the pass stays on: it also draws the atmosphere
     if (tierCfg.aoStrength > 0) aoPass.strength = tierCfg.aoStrength;
   }
+  if (aaPass) aaPass.enabled = next !== 'low';             // single-pass FXAA on mid/high, bypassed on low/TV
   if (bloomPass) bloomPass.strength = next === 'low' ? 0.34 : 0.42;
   (window as unknown as { perfTier?: PerfTier }).perfTier = next;
 }
@@ -4195,11 +4346,14 @@ function applyRenderScale(): void {
   renderer.setSize(innerWidth, innerHeight);
   composer?.setPixelRatio?.(pr);
   composer?.setSize(innerWidth, innerHeight);
-  // Keep UnrealBloomPass at half resolution (capped at 960x540) after composer.setSize resizes passes
+  // Keep UnrealBloomPass at quarter resolution (capped at 480x270) after composer.setSize resizes passes
   bloomPass?.setSize(
-    Math.min(960, Math.max(240, Math.floor(innerWidth * pr * 0.5))),
-    Math.min(540, Math.max(135, Math.floor(innerHeight * pr * 0.5)))
+    Math.min(480, Math.max(160, Math.floor(innerWidth * pr * 0.25))),
+    Math.min(270, Math.max(90, Math.floor(innerHeight * pr * 0.25)))
   );
+  if (aaPass && 'uniforms' in aaPass && aaPass.uniforms?.uInvRes) {
+    aaPass.uniforms.uInvRes.value.set(1 / Math.max(1, innerWidth * pr), 1 / Math.max(1, innerHeight * pr));
+  }
   grassField?.setQuality(renderScale * (perfTier === 'low' ? 0.75 : perfTier === 'mid' ? 0.88 : 1));
   for (const tf of treeFields) tf.setQuality(renderScale * (perfTier === 'low' ? 0.75 : perfTier === 'mid' ? 0.88 : 1));
 }
@@ -4253,8 +4407,11 @@ function carHit(ps: DriveState['ps'], op: THREE.Vector3, oyaw: number, ovel: THR
   return best;
 }
 
-// Whole-place culling: the race circuits are dense (rally stage 2.3M tris, cliff raceway 127k instances) and were drawn from anywhere on the map. Hide a named place when the camera is far from its footprint.
-const PLACE_FAR = new Set(['river-bridges', 'country-scenes', 'port-district', 'parking-lots', 'utilities']);
+// Whole-place culling: dense circuits & Ironport hardware (harbor, catch fencing, grandstands, yards, roof details) are hidden when far and split into ~300 m frustum-cullable chunks.
+const PLACE_FAR = new Set([
+  'river-bridges', 'country-scenes', 'port-district', 'parking-lots', 'utilities',
+  'Ironport harbor hardware', 'Ironport bolted catch fencing', 'Ironport grandstand', 'yards', 'IronportCityExpansion', 'roof-group', 'harbor-group',
+]);
 const placeBoxes = new Map<THREE.Object3D, THREE.Box3>();
 let placeNext = 0, placeScan = 0; const placeList: THREE.Object3D[] = [];
 function cullPlaces(now: number): void {
@@ -4262,9 +4419,10 @@ function cullPlaces(now: number): void {
   placeNext = now + 400;
   if (!placeList.length || now > placeScan) { placeScan = now + 15000; scene.traverse((g) => { if (g.name && (g.name.startsWith('circuit:') || g.name === 'cliffRacewayCircuit' || g.name === 'industrial-circuit' || PLACE_FAR.has(g.name)) && !placeList.includes(g)) placeList.push(g); }); }
   for (const root of placeList) {
-    if (!root.userData.chunkDone) { root.userData.chunkDone = true; chunkInstanced(root.parent && root.parent.children.length < 400 ? root.parent : root); }
+    if (!root.userData.chunkDone) { root.userData.chunkDone = true; chunkInstanced(root.parent && root.parent !== scene && root.parent.children.length < 400 ? root.parent : root); }
     root.visible = true;
     for (const g of root.children) {
+      if ((g as THREE.InstancedMesh).userData?.chunked) continue;                  // chunks are distance/shadow managed by chunkList below
       let b = placeBoxes.get(g);
       if (!b) { g.visible = true; g.updateMatrixWorld(true); b = new THREE.Box3(); g.traverse((o) => { const m = o as THREE.InstancedMesh; if (!m.isMesh) return; if (m.isInstancedMesh) { m.computeBoundingBox(); if (m.boundingBox) b!.union(m.boundingBox.clone().applyMatrix4(m.matrixWorld)); } else { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); b!.union(m.geometry.boundingBox!.clone().applyMatrix4(m.matrixWorld)); } }); placeBoxes.set(g, b); }
       g.visible = mapMode || b.distanceToPoint(camera.position) < (PLACE_FAR.has(root.name) ? 1800 : 1200);
@@ -4273,17 +4431,17 @@ function cullPlaces(now: number): void {
   for (let i = 0; i < chunkList.length; i++) {
     const c = chunkList[i];
     const dist = Math.hypot(c.cx - camera.position.x, c.cz - camera.position.z) - c.r;
-    const vis = mapMode || dist < 1400;
+    const vis = mapMode || dist < 1300;
     c.m.visible = vis;
-    if (c.baseCastShadow) c.m.castShadow = vis && !mapMode && dist < 240;
+    if (c.baseCastShadow) c.m.castShadow = vis && !mapMode && dist < tierCfg.cullShadowDist;
   }
 }
 
-// Big instanced sets (fences, barriers, grandstand seats: 100k+ instances in one draw) cannot be culled as one object. Split each into ~300 m chunks once; the renderer then frustum-culls the chunks and we hide far ones.
+// Big instanced sets (fences, barriers, harbor hardware, yards, grandstand seats) cannot be culled as one object. Split each into ~300 m chunks once; the renderer then frustum-culls the chunks and we hide far ones.
 const chunkList: { m: THREE.InstancedMesh; cx: number; cz: number; r: number; baseCastShadow: boolean }[] = [];
 function chunkInstanced(root: THREE.Object3D): void {
   const big: THREE.InstancedMesh[] = [];
-  root.traverse((o) => { const m = o as THREE.InstancedMesh; if (m.isInstancedMesh && m.count > 1500 && !m.userData.chunked) big.push(m); });
+  root.traverse((o) => { const m = o as THREE.InstancedMesh; if (m.isInstancedMesh && m.count > 600 && !m.userData.chunked) big.push(m); });
   const e = new THREE.Matrix4(), v = new THREE.Vector3(), col = new THREE.Color();
   for (const m of big) {
     m.userData.chunked = true; m.updateMatrixWorld(true);
@@ -4367,19 +4525,31 @@ function frame(now: number): void {
     (u.uSunCol.value as THREE.Color).copy(sun.color);
   }
   if (aoPass) {
-    // the atmosphere (ao.ts): haze thickens with fog and rain, takes the fog colour of the time of day, glows toward the sun; off on the map
+    // the atmosphere (ao.ts): dual-layer Rayleigh aerial perspective + low-altitude valley mist + warm Mie sun scatter; off on the map
     const f = aoPass.fog, w = wx.cur;
     f.on = !mapMode;
-    f.density = 0.00011 * (1 + w.fogGrey * 5 + w.rain * 1.5);
+    f.density = 0.000155 * (1 + w.fogGrey * 4.5 + w.rain * 1.4);
+    f.falloff = 1 / 420;
     if (scene.fog instanceof THREE.Fog) f.color.copy(scene.fog.color);
-    f.sunColor.copy(sun.color).multiplyScalar(Math.min(1.6, 0.35 + sun.intensity * 0.45));
+    f.sunColor.copy(sun.color).multiplyScalar(Math.min(1.65, 0.35 + sun.intensity * 0.48));
     f.sunDir.copy(sunDir);
     aoPass.blur = !mapMode && !photo.active && driving && !replay.active ? 0.5 : 0;             // camera motion blur while driving (ao.ts)
   }
   lensRain.update(dt, wx.cur.rain, driving ? Math.abs(driving.ps.speedMps) : 0, !mapMode && !!driving && !replay.active && driving.camView < 3, innerWidth / innerHeight);
-  if (gradePass) gradePass.enabled = gradePass.active;
+  const gradeActive = !!gradePass?.active;
+  if (gradePass) gradePass.enabled = gradeActive;
+  if (outputPass) outputPass.enabled = gradeActive;
+  if (cinePass) {
+    cinePass.uniforms.uToneMap.value = gradeActive ? 0 : 1;
+    cinePass.uniforms.uExposure.value = renderer.toneMappingExposure;
+  }
+  if (aaPass && 'uniforms' in aaPass && aaPass.uniforms?.uInvRes) {
+    const pr = renderer.getPixelRatio();
+    aaPass.uniforms.uInvRes.value.set(1 / Math.max(1, innerWidth * pr), 1 / Math.max(1, innerHeight * pr));
+  }
   const __t2 = performance.now();
-  if (driving && !mapMode && !replay.active && (frameNo & (TV_MODE ? 3 : 1)) === 0) {             // one cube face every other frame (every fourth on TV): a full refresh about 5 times a second
+  const probeMask = (TV_MODE || perfTier === 'low') ? 3 : 1;
+  if (driving && !mapMode && !replay.active && (frameNo & probeMask) === 0) {                  // one cube face every other frame (every fourth on TV/low): a full refresh about 5 times a second
     if (carProbe.step(renderer, scene, probePos.set(driving.pos.x, driving.car.position.y + 1.1, driving.pos.z), [driving.car, spray.points, dust.points, forestGroup, scapeGroup])) carProbe.apply(driving.car);
   }
   cityVisibility.viewDist = mapMode ? Infinity : tierCfg.cityViewDist;

@@ -41,9 +41,12 @@ function makeVariants(): Variant[] {
       t.loadPreset(preset);
       t.options.seed = seed;
       const o = t.options as unknown as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-      for (const k of Object.keys(o.branch.sections)) o.branch.sections[k] = Math.max(3, Math.round(o.branch.sections[k] * 0.7));
-      for (const k of Object.keys(o.branch.segments)) o.branch.segments[k] = Math.max(3, Math.round(o.branch.segments[k] * 0.7));
-      if (o.leaves) o.leaves.count = Math.round(o.leaves.count * 0.7);
+      for (const k of Object.keys(o.branch.sections)) o.branch.sections[k] = Math.max(3, Math.round(o.branch.sections[k] * 0.58));
+      for (const k of Object.keys(o.branch.segments)) o.branch.segments[k] = Math.max(3, Math.round(o.branch.segments[k] * 0.55));
+      if (o.leaves) {
+        o.leaves.count = Math.round(o.leaves.count * 0.58);
+        if (typeof o.leaves.size === 'number') o.leaves.size *= 1.18;
+      }
       t.generate();
       const bark = copyGeo(t.branchesMesh.geometry as unknown as Src);
       const hasLeaves = (t.leavesMesh.geometry as THREE.BufferGeometry).attributes.position?.count > 0;
@@ -72,9 +75,9 @@ export class EzTreeField {
   private accT = 0;
   private uTime = { value: 0 };
   private uWind = { value: 0.3 };
-  private cap = 500;
+  private cap = 320;
   private effRadius = NEAR_R;
-  private effCap = 500;
+  private effCap = 320;
   private conIndices: number[] = [];
   private broIndices: number[] = [];
   private _fill: number[] = [];
@@ -96,18 +99,34 @@ export class EzTreeField {
     const sway = (m: THREE.Material, key: string): void => {
       m.onBeforeCompile = (sh) => {
         sh.uniforms.uTime = this.uTime; sh.uniforms.uWind = this.uWind;
-        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime, uWind;')
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime, uWind;' + (key === 'leaf' ? '\nvarying float vLeafH;' : ''))
           .replace('#include <begin_vertex>', `#include <begin_vertex>
           #ifdef USE_INSTANCING
           vec3 ib = vec3(instanceMatrix[3].x, 0.0, instanceMatrix[3].z);
           float sc = length(instanceMatrix[1].xyz);
           float h01 = clamp(position.y, 0.0, 1.2);
+          ${key === 'leaf' ? 'vLeafH = clamp(position.y, 0.0, 1.0);' : ''}
           float sw = uWind * h01 * h01 * 0.045 * sc;
           transformed.x += (sin(uTime * 1.4 + ib.x * 0.07 + position.y * 3.0) * sw + sin(uTime * 3.3 + position.z * 40.0 + ib.z * 0.11) * sw * 0.3 * ${key === 'leaf' ? '1.0' : '0.0'}) / sc;
           transformed.z += cos(uTime * 1.15 + ib.z * 0.06) * sw * 0.7 / sc;
           #endif`);
+        if (key === 'leaf') {
+          sh.fragmentShader = sh.fragmentShader
+            .replace('#include <common>', '#include <common>\nvarying float vLeafH;')
+            .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+            // Warm backlit leaf subsurface translucency & subtle crown sky-fill lift
+            #if NUM_DIR_LIGHTS > 0
+            {
+              vec3 lDir = directionalLights[0].direction;
+              float back = pow(clamp(dot(normalize(vViewPosition), -lDir), 0.0, 1.0), 3.0);
+              float topMask = 0.45 + 0.55 * vLeafH;
+              reflectedLight.directDiffuse += diffuseColor.rgb * directionalLights[0].color * back * topMask * 0.42;
+              reflectedLight.indirectDiffuse *= 0.85 + 0.30 * vLeafH;
+            }
+            #endif`);
+        }
       };
-      m.customProgramCacheKey = () => 'ezsway-' + key;
+      m.customProgramCacheKey = () => 'ezsway-' + key + '-v2';
     };
     for (const v of variants) {
       const bm = new THREE.MeshStandardMaterial({ map: tex(`${v.barkType}_color_1k.jpg`, true), normalMap: tex(`${v.barkType}_normal_1k.jpg`, false), roughnessMap: tex(`${v.barkType}_roughness_1k.jpg`, false), roughness: 0.95, metalness: 0, color: 0x9a958c });

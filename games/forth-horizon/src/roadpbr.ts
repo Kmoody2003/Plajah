@@ -9,7 +9,7 @@ const cache: Record<string, THREE.Texture> = {};
 function tex(name: string, srgb: boolean): THREE.Texture {
   if (!cache[name]) {
     const t = new THREE.TextureLoader().load(BASE + name);
-    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     cache[name] = t;
   }
   return cache[name];
@@ -28,13 +28,20 @@ export function loadRoadPbr(): void {
 const DECL = `
 uniform sampler2D tRN, tRR, tRA;
 uniform float uRainR, uTimeR;
+vec2 rainLayer(vec2 p, float t, float amt, float seed) {
+  vec2 id = floor(p), f = fract(p) - 0.5;
+  vec2 h2 = fract(sin(vec2(dot(id, vec2(127.1, 311.7)) + seed, dot(id, vec2(269.5, 183.3)) + seed * 1.7)) * 43758.5453);
+  vec2 d = f - (h2 - 0.5) * 0.54;
+  float h = fract(h2.x * 13.7 + h2.y * 7.3);
+  float ph = fract(t * (0.85 + 0.35 * h2.y) + h);
+  float r = length(d);
+  float rad = ph * (0.22 + 0.14 * h2.x);
+  float ring = smoothstep(0.036, 0.0, abs(r - rad)) * (1.0 - ph) * (1.0 - ph) * step(h, amt * 0.85);
+  return normalize(d + 1e-4) * ring;
+}
 vec2 rainRings(vec2 p, float t, float amt) {
-  vec2 g = p * 2.3, id = floor(g), f = fract(g) - 0.5;
-  float h = fract(sin(dot(id, vec2(12.9898, 78.233))) * 43758.5453);
-  float ph = fract(t * 0.95 + h);
-  float r = length(f);
-  float ring = smoothstep(0.07, 0.0, abs(r - ph * 0.5)) * (1.0 - ph) * step(h, amt);
-  return normalize(f + 1e-4) * ring;
+  vec2 p2 = mat2(0.8, -0.6, 0.6, 0.8) * p;
+  return rainLayer(p * 3.6, t, amt, 1.0) * 0.58 + rainLayer(p2 * 6.4 + 3.7, t * 1.15, amt, 19.3) * 0.42;
 }`;
 
 /**
@@ -45,25 +52,31 @@ export function injectRoadPbr(fs: string, wpExpr: string): string {
   return fs
     .replace('#include <common>', '#include <common>\n' + DECL + (fs.includes('puddleAt') ? '' : PUDDLE_GLSL))
     .replace('#include <color_fragment>', `#include <color_fragment>
-      float rpFade = 1.0 - smoothstep(30.0, 110.0, length(vViewPosition));
+      float rpFade = 0.0;
       vec2 rwp = ${wpExpr};
-      float rpAO = mix(1.0, texture2D(tRA, rwp / 2.4).r * 0.6 + texture2D(tRA, rwp / 0.62 + 0.21).r * 0.4, rpFade);
-      float rpMacro = texture2D(tRA, rwp / 19.0).r;
-      diffuseColor.rgb *= mix(1.0, (0.62 + 0.55 * rpAO) * (0.9 + 0.2 * rpMacro), gRoad);`)
+      if (gRoad > 0.005) {
+        rpFade = 1.0 - smoothstep(30.0, 120.0, length(vViewPosition));
+        float rpAO = mix(1.0, texture2D(tRA, rwp / 2.4).r * 0.6 + texture2D(tRA, rwp / 0.62 + 0.21).r * 0.4, rpFade);
+        float rpMacro = texture2D(tRA, rwp / 19.0).r;
+        diffuseColor.rgb *= mix(1.0, (0.64 + 0.52 * rpAO) * (0.9 + 0.2 * rpMacro), gRoad);
+      }`)
     .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-      {
+      if (gRoad > 0.005) {
         float rr = mix(texture2D(tRR, rwp / 2.4).r, texture2D(tRR, rwp / 0.62 + 0.21).r, 0.45 * rpFade);
         float rr2 = texture2D(tRR, rwp / 9.0).r;                        // oil, rubber and damp patches at a larger scale
-        float dryRough = clamp(0.55 + 0.5 * mix(rr2, rr, 0.5), 0.5, 0.98);
-        float wetRough = 0.1 + 0.34 * rr2;
-        roughnessFactor = mix(roughnessFactor, mix(dryRough, wetRough, clamp(uWet * 1.15, 0.0, 1.0)), gRoad);
+        float dryRough = clamp(0.52 + 0.48 * mix(rr2, rr, 0.5), 0.48, 0.96);
+        float wetRough = 0.055 + 0.24 * rr2;
+        roughnessFactor = mix(roughnessFactor, mix(dryRough, wetRough, clamp(uWet * 1.2, 0.0, 1.0)), gRoad);
       }`)
     .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
-      {
+      if (gRoad > 0.005 && rpFade > 0.005) {
         vec3 rn1 = texture2D(tRN, rwp / 2.4).xyz * 2.0 - 1.0, rn2 = texture2D(tRN, rwp / 0.62 + 0.21).xyz * 2.0 - 1.0;
-        float pores = 1.0 - clamp(uWet * 0.85, 0.0, 1.0);
-        vec2 sl = (rn1.xy * 0.95 + rn2.xy * 0.75) * gRoad * rpFade * mix(1.0, pores, 0.9) * (1.0 - gPud);
-        if (uRainR > 0.02) sl += rainRings(rwp, uTimeR, uRainR) * gPud * 0.8;
+        float pores = 1.0 - clamp(uWet * 0.88, 0.0, 1.0);
+        vec2 sl = (rn1.xy * 0.95 + rn2.xy * 0.75) * gRoad * rpFade * mix(1.0, pores, 0.92) * (1.0 - gPud);
+        if (uRainR > 0.02) {
+          float rDist = 1.0 - smoothstep(8.0, 32.0, length(vViewPosition));
+          if (rDist > 0.01) sl += rainRings(rwp, uTimeR, uRainR) * gPud * 0.34 * rDist;
+        }
         normal = normalize(normal + (viewMatrix * vec4(sl.x, 0.0, sl.y, 0.0)).xyz);
       }`);
 }

@@ -156,10 +156,11 @@ export class WaterSurface {
         uRegion: { value: new THREE.Vector4(x0, z0, rw, rh) }, uEdge: { value: edge }, uWindDir: { value: new THREE.Vector2(0.8, 0.25).normalize() },
       },
     });
-    const g = new THREE.PlaneGeometry(rw + ext, rh); g.rotateX(-Math.PI / 2);
+    // Cover the entire region plus a wide ocean apron west, north and south so coastal highways never see a straight water cutoff seam
+    const g = new THREE.PlaneGeometry(rw + ext * 1.6, rh + ext * 1.6); g.rotateX(-Math.PI / 2);
     atmosphere?.patchCustom(this.mat, 'water');
     this.mesh = new THREE.Mesh(g, this.mat);
-    this.mesh.position.set(-ext / 2, -0.3, 0);
+    this.mesh.position.set(x0 + rw * 0.5 - ext * 0.35, -0.3, z0 + rh * 0.5 - ext * 0.25);
     this.mesh.renderOrder = 2;
     scene.add(this.mesh);
     new THREE.TextureLoader().load(FLOW_URL, (t) => {

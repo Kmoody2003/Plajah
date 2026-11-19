@@ -25,29 +25,36 @@ const FRAG = `
     return mix(mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x), mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y),
                mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x), mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
   }
-  float fbm(vec3 p) { float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++) { s += a * noise(p); p = p * 2.03 + 11.7; a *= 0.5; } return s; }
+  float fbm3(vec3 p) { float a = 0.52, s = 0.0; for (int i = 0; i < 3; i++) { s += a * noise(p); p = p * 2.04 + 11.7; a *= 0.5; } return s; }
+  float fbm2(vec3 p) { return 0.65 * noise(p) + 0.35 * noise(p * 2.07 + 7.3); }
   void main() {
     vec3 dir = normalize(vDir);
     float u = atan(dir.z, dir.x) * 0.15915494 + 0.5;
     float v = asin(clamp(dir.y, -1.0, 1.0)) * 0.31830989 + 0.5;
     vec2 uv = vec2(u, v);
     vec3 col = texture2D(tBase, uv).rgb;
-    col = mix(col, texture2D(tOver, uv).rgb, uMixOver);
-    col = mix(col, texture2D(tStorm, uv).rgb, uMixStorm);
+    if (uMixOver > 0.005) col = mix(col, texture2D(tOver, uv).rgb, uMixOver);
+    if (uMixStorm > 0.005) col = mix(col, texture2D(tStorm, uv).rgb, uMixStorm);
     float lum = dot(col, vec3(0.299, 0.587, 0.114));
-    // cloud structure: project the direction onto a plane (clouds foreshorten toward the horizon) and add layered noise where the panorama is cloud
+    // cloud structure: 2x faster 3+2 octave projection with sunlit silver-lining scatter
     float up = max(dir.y, 0.0);
-    vec3 cp = vec3(dir.xz / (up + 0.18), 0.0) * 1.7 + vec3(uTime * 0.012, 0.0, uTime * 0.006);
-    float n1 = fbm(cp), n2 = fbm(cp * 3.1 + 4.0);
-    float cloudy = smoothstep(0.30, 0.78, lum + (1.0 - uSunAmt) * 0.15);
-    col *= 1.0 + uDetail * ((n1 - 0.5) * 0.9 + (n2 - 0.5) * 0.55) * (0.25 + cloudy);
-    col = mix(col, col * (0.85 + 0.45 * smoothstep(0.35, 0.65, n1)), uDetail * 0.5 * cloudy);
-    // sun
+    float cloudy = smoothstep(0.28, 0.76, lum + (1.0 - uSunAmt) * 0.14);
     float sd = max(dot(dir, uSunDir), 0.0);
+    if (dir.y > -0.04 && uDetail > 0.01) {
+      vec3 cp = vec3(dir.xz / (up + 0.18), 0.0) * 1.7 + vec3(uTime * 0.012, 0.0, uTime * 0.006);
+      float n1 = fbm3(cp), n2 = fbm2(cp * 3.1 + 4.0);
+      float detailMask = smoothstep(-0.02, 0.16, dir.y);
+      col *= 1.0 + uDetail * detailMask * ((n1 - 0.5) * 0.85 + (n2 - 0.5) * 0.5) * (0.22 + cloudy);
+      col = mix(col, col * (0.86 + 0.42 * smoothstep(0.35, 0.65, n1)), uDetail * detailMask * 0.45 * cloudy);
+      // Warm sunlit cloud rim / silver-lining scattering around the sun
+      float silver = pow(sd, 6.0) * (0.35 + 0.65 * smoothstep(0.4, 0.8, n1)) * cloudy * detailMask;
+      col += uSunCol * silver * 0.48 * uSunAmt * (1.0 - uNight) * (1.0 - 0.75 * uMixOver);
+    }
+    // sun
     float disc = smoothstep(0.99935, 0.99975, sd);
-    float glow = pow(sd, 120.0) * 0.55 + pow(sd, 10.0) * 0.16 + pow(sd, 3.0) * 0.05;
-    float vis = uSunAmt * (1.0 - 0.9 * uMixOver);
-    col += uSunCol * (disc * 9.0 + glow * 2.2) * vis * (1.0 - uNight);
+    float glow = pow(sd, 120.0) * 0.62 + pow(sd, 12.0) * 0.19 + pow(sd, 3.0) * 0.06;
+    float vis = uSunAmt * (1.0 - 0.88 * uMixOver);
+    col += uSunCol * (disc * 9.5 + glow * 2.4) * vis * (1.0 - uNight);
     // night: stars and a moon
     if (uNight > 0.02 && dir.y > -0.05) {
       vec3 g = floor(dir * 260.0);
@@ -61,10 +68,11 @@ const FRAG = `
     // weather: darker, lightning lit from inside
     col *= 1.0 - uDark * 0.32;
     col += vec3(0.62, 0.72, 1.0) * uFlash * (0.25 + cloudy * 0.9);
-    // horizon haze, and the sea level fog below it
-    float hz = pow(1.0 - clamp(dir.y, 0.0, 1.0), 4.0);
-    col = mix(col, uFog, clamp(hz * (0.18 + uFogAmt * 0.82), 0.0, 1.0));
-    if (dir.y < 0.0) col = mix(col, uFog, smoothstep(0.0, -0.12, dir.y));
+    // clean horizon atmospheric scatter matching AoPass aerial perspective
+    float hz = pow(1.0 - clamp(dir.y, 0.0, 1.0), 4.5);
+    vec3 hzCol = mix(uFog, uSunCol * 1.15, pow(sd, 5.0) * 0.45 * vis * (1.0 - uNight));
+    col = mix(col, hzCol, clamp(hz * (0.26 + uFogAmt * 0.74), 0.0, 1.0));
+    if (dir.y < 0.0) col = mix(col, hzCol, smoothstep(0.0, -0.10, dir.y));
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
@@ -75,11 +83,14 @@ function cirrusTexture(): THREE.CanvasTexture {
   const g = c.getContext('2d')!;
   g.clearRect(0, 0, 1024, 1024);
   let s = 12345; const r = (): number => { s = (s * 16807) % 2147483647; return s / 2147483647; };
-  for (let i = 0; i < 520; i++) {
-    const x = r() * 1024, y = r() * 1024, len = 90 + r() * 260, th = 3 + r() * 9, a = 0.05 + r() * 0.09, rot = (r() - 0.5) * 0.35;
+  // Soft wide wispy cloud puffs (avoid thin parallel needle streaks at grazing coastal angles)
+  for (let i = 0; i < 240; i++) {
+    const x = r() * 1024, y = r() * 1024, len = 70 + r() * 170, th = 22 + r() * 44, a = 0.028 + r() * 0.055, rot = (r() - 0.5) * 0.95;
     g.save(); g.translate(x, y); g.rotate(rot);
     const grd = g.createRadialGradient(0, 0, 0, 0, 0, len);
-    grd.addColorStop(0, `rgba(255,255,255,${a})`); grd.addColorStop(1, 'rgba(255,255,255,0)');
+    grd.addColorStop(0, `rgba(255,255,255,${a})`);
+    grd.addColorStop(0.55, `rgba(255,255,255,${a * 0.38})`);
+    grd.addColorStop(1, 'rgba(255,255,255,0)');
     g.scale(1, th / len); g.fillStyle = grd; g.beginPath(); g.arc(0, 0, len, 0, Math.PI * 2); g.fill(); g.restore();
   }
   const t = new THREE.CanvasTexture(c);
@@ -119,10 +130,20 @@ export class Sky {
     this.dome.renderOrder = -1000;
     this.dome.frustumCulled = false;
     scene.add(this.dome);
-    // high cirrus streaks, a flat layer above the cumulus
+    // high cirrus streaks with smooth radial horizon fade so square edges never seam across the sky
     const ct = cirrusTexture(); ct.repeat.set(3, 3);
     const cg = new THREE.PlaneGeometry(60000, 60000); cg.rotateX(-Math.PI / 2);
-    this.cirrus = new THREE.Mesh(cg, new THREE.MeshBasicMaterial({ map: ct, transparent: true, opacity: 0.3, depthWrite: false, fog: false, side: THREE.DoubleSide }));
+    const cm = new THREE.MeshBasicMaterial({ map: ct, transparent: true, opacity: 0.14, depthWrite: false, fog: false, side: THREE.DoubleSide });
+    cm.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec2 vCirUv;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCirUv = uv;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying vec2 vCirUv;')
+        .replace('#include <dithering_fragment>', 'gl_FragColor.a *= smoothstep(1.0, 0.25, length(vCirUv * 2.0 - 1.0));\n#include <dithering_fragment>');
+    };
+    cm.customProgramCacheKey = () => 'cirrus-radial-fade';
+    this.cirrus = new THREE.Mesh(cg, cm);
     this.cirrus.position.y = 7200; this.cirrus.renderOrder = 4;
     scene.add(this.cirrus);
     // birds: two wing quads per bird, flapping, circling over the lake shore and the city
@@ -153,7 +174,7 @@ export class Sky {
     if (this.tex[name]) { cb(this.tex[name]); return; }
     this.loader.load(TEX + name + '.jpg', (t) => {
       t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.wrapT = THREE.ClampToEdgeWrapping;
-      t.minFilter = THREE.LinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = false; t.anisotropy = 8;
+      t.minFilter = THREE.LinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = false; t.anisotropy = 4;
       this.tex[name] = t; cb(t);
     });
   }
