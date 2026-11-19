@@ -69,9 +69,9 @@
    "name": "Superior Range",
    "kind": "outpost",
    "stage": "Giant-forest clearing stage below the range",
-   "x": -5244.5,
-   "z": -8405.0,
-   "y": 68.7
+   "x": -5344.6,
+   "z": -8408.5,
+   "y": 70.7
   }
  ],
  "speedTraps": [
@@ -89,7 +89,7 @@
   },
   {
    "id": "trap_1",
-   "name": "Pinewood East Speed Trap",
+   "name": "Farmland Speed Trap",
    "x": -1116.0,
    "z": -2507.1,
    "dir": [
@@ -101,7 +101,7 @@
   },
   {
    "id": "trap_2",
-   "name": "Pinewood South Speed Trap",
+   "name": "Otter Creek Speed Trap",
    "x": -1116.0,
    "z": -1006.4,
    "dir": [
@@ -113,7 +113,7 @@
   },
   {
    "id": "trap_3",
-   "name": "Otter Creek Speed Trap",
+   "name": "Otter Creek North Speed Trap",
    "x": -1116.0,
    "z": 494.2,
    "dir": [
@@ -125,7 +125,7 @@
   },
   {
    "id": "trap_4",
-   "name": "Otter Creek South Speed Trap",
+   "name": "Kettle Hills Speed Trap",
    "x": -1116.0,
    "z": 1994.9,
    "dir": [
@@ -137,62 +137,62 @@
   },
   {
    "id": "trap_5",
-   "name": "Kettle Hills Speed Trap",
-   "x": -1116.0,
-   "z": 3795.7,
+   "name": "Giant Forest Speed Trap",
+   "x": -4743.0,
+   "z": -7763.3,
    "dir": [
-    0.0,
-    100.043
+    -26.91,
+    -29.6
    ],
-   "road": "paved",
+   "road": "Superior Coast Highway",
    "targetMph": 130
   },
   {
    "id": "trap_6",
-   "name": "Harbor Speed Trap",
-   "x": 3300.0,
-   "z": -3792.0,
+   "name": "Finger Lake Speed Trap",
+   "x": 714.2,
+   "z": -7229.1,
    "dir": [
-    0.0,
-    100.0
+    2.64,
+    -39.91
    ],
-   "road": "paved",
+   "road": "Finger Lake Loop",
    "targetMph": 140
   },
   {
    "id": "trap_7",
-   "name": "Harbor West Speed Trap",
-   "x": 3300.0,
-   "z": -1542.0,
+   "name": "Tulip Flats Speed Trap",
+   "x": -2911.0,
+   "z": -6434.4,
    "dir": [
-    0.0,
-    100.0
+    -34.06,
+    -20.99
    ],
-   "road": "paved",
+   "road": "Superior Coast Highway",
    "targetMph": 150
   },
   {
    "id": "trap_8",
-   "name": "Otter Creek West Speed Trap",
-   "x": -3312.0,
-   "z": 1752.7,
+   "name": "Escarpment Speed Trap",
+   "x": -154.1,
+   "z": -9848.1,
    "dir": [
-    0.0,
-    100.116
+    -40.0,
+    -0.31
    ],
-   "road": "paved",
+   "road": "Escarpment Road",
    "targetMph": 120
   },
   {
    "id": "trap_9",
-   "name": "Otter Creek West 2 Speed Trap",
-   "x": -3312.0,
-   "z": 3254.4,
+   "name": "Finger Lake Loop Speed Trap",
+   "x": 2339.2,
+   "z": -6413.2,
    "dir": [
-    0.0,
-    100.116
+    16.56,
+    36.41
    ],
-   "road": "paved",
+   "road": "Finger Lake Loop",
    "targetMph": 130
   }
  ],
@@ -205,8 +205,8 @@
     2914.2
    ],
    "b": [
-    1232.7,
-    2735.3
+    1233.9,
+    2738.0
    ],
    "road": "Kettle Pass",
    "targetMph": 85
@@ -241,48 +241,6 @@
   },
   {
    "id": "zone_3",
-   "name": "Escarpment Speed Zone",
-   "a": [
-    1734.7,
-    -8199.3
-   ],
-   "b": [
-    1886.5,
-    -8022.0
-   ],
-   "road": "Finger Lake Loop",
-   "targetMph": 100
-  },
-  {
-   "id": "zone_4",
-   "name": "Superior Coast Speed Zone",
-   "a": [
-    -6582.7,
-    -11871.4
-   ],
-   "b": [
-    -6507.3,
-    -12090.8
-   ],
-   "road": "Superior Coast Highway",
-   "targetMph": 85
-  },
-  {
-   "id": "zone_5",
-   "name": "Giant Forest Speed Zone",
-   "a": [
-    -6347.3,
-    -9565.4
-   ],
-   "b": [
-    -6370.3,
-    -9802.2
-   ],
-   "road": "Superior Coast Highway",
-   "targetMph": 90
-  },
-  {
-   "id": "zone_6",
    "name": "Halcyon Speed Zone",
    "a": [
     -4625.4,
@@ -293,20 +251,62 @@
     3465.9
    ],
    "road": "Coastal Highway",
+   "targetMph": 100
+  },
+  {
+   "id": "zone_4",
+   "name": "Superior Coast Speed Zone",
+   "a": [
+    -3597.2,
+    -13250.1
+   ],
+   "b": [
+    -3376.7,
+    -13194.0
+   ],
+   "road": "Glacier Pass",
+   "targetMph": 85
+  },
+  {
+   "id": "zone_5",
+   "name": "Giant Forest Speed Zone",
+   "a": [
+    -3152.8,
+    -10650.7
+   ],
+   "b": [
+    -3356.7,
+    -10584.4
+   ],
+   "road": "Glacier Pass",
+   "targetMph": 90
+  },
+  {
+   "id": "zone_6",
+   "name": "Glacier Pass Speed Zone",
+   "a": [
+    -6092.0,
+    -13831.8
+   ],
+   "b": [
+    -6061.9,
+    -14061.0
+   ],
+   "road": "Glacier Pass",
    "targetMph": 95
   },
   {
    "id": "zone_7",
-   "name": "Harbor Speed Zone",
+   "name": "Escarpment Speed Zone",
    "a": [
-    5349.8,
-    -3530.9
+    741.2,
+    -8814.3
    ],
    "b": [
-    4858.8,
-    -4057.6
+    964.0,
+    -8877.0
    ],
-   "road": "paved",
+   "road": "Escarpment Road",
    "targetMph": 100
   }
  ],
@@ -319,64 +319,72 @@
     2751.5
    ],
    "b": [
-    1331.2,
-    2790.8
+    1335.0,
+    2784.9
    ],
    "road": "Kettle Pass",
+   "targetScore": 10000
+  },
+  {
+   "id": "drift_1",
+   "name": "Superior Coast Drift Zone",
+   "a": [
+    -3414.0,
+    -12033.9
+   ],
+   "b": [
+    -3444.8,
+    -12139.0
+   ],
+   "road": "Glacier Pass",
+   "targetScore": 12000
+  },
+  {
+   "id": "drift_2",
+   "name": "Glacier Pass Drift Zone",
+   "a": [
+    -5213.2,
+    -13800.3
+   ],
+   "b": [
+    -5274.1,
+    -13815.8
+   ],
+   "road": "Glacier Pass",
+   "targetScore": 14000
+  },
+  {
+   "id": "drift_3",
+   "name": "Escarpment Drift Zone",
+   "a": [
+    3363.7,
+    -9058.8
+   ],
+   "b": [
+    3469.6,
+    -8990.4
+   ],
+   "road": "Escarpment Crest Road",
+   "targetScore": 16000
+  },
+  {
+   "id": "drift_4",
+   "name": "Escarpment Road Drift Zone",
+   "a": [
+    899.5,
+    -8837.7
+   ],
+   "b": [
+    905.3,
+    -8921.1
+   ],
+   "road": "Escarpment Road",
    "targetScore": 10000
   }
  ],
  "dangerSigns": [
   {
    "id": "jump_0",
-   "name": "Superior Coast Danger Sign",
-   "x": -6571.7,
-   "z": -10462.4,
-   "dir": [
-    -2.01,
-    -7.75
-   ],
-   "road": "Superior Coast Highway",
-   "targetM": 50
-  },
-  {
-   "id": "jump_1",
-   "name": "Superior Coast North Danger Sign",
-   "x": -6520.4,
-   "z": -12262.0,
-   "dir": [
-    0.05,
-    -8.0
-   ],
-   "road": "Superior Coast Highway",
-   "targetM": 60
-  },
-  {
-   "id": "jump_2",
-   "name": "Superior Coast North 2 Danger Sign",
-   "x": -6283.7,
-   "z": -13642.9,
-   "dir": [
-    0.37,
-    -7.99
-   ],
-   "road": "Superior Coast Highway",
-   "targetM": 70
-  },
-  {
-   "id": "jump_3",
-   "name": "Escarpment Danger Sign",
-   "x": 1074.7,
-   "z": -8219.7,
-   "dir": [
-    7.64,
-    -2.38
-   ],
-   "road": "Finger Lake Loop",
-   "targetM": 80
-  },
-  {
-   "id": "jump_4",
    "name": "Kettle Hills Danger Sign",
    "x": 633.7,
    "z": 2758.4,
@@ -388,19 +396,19 @@
    "targetM": 50
   },
   {
-   "id": "jump_5",
-   "name": "Kettle Hills East Danger Sign",
-   "x": 1826.2,
-   "z": 3310.4,
+   "id": "jump_1",
+   "name": "Kettle Pass Danger Sign",
+   "x": 1825.8,
+   "z": 3310.0,
    "dir": [
     5.82,
-    5.49
+    5.48
    ],
    "road": "Kettle Pass",
    "targetM": 60
   },
   {
-   "id": "jump_6",
+   "id": "jump_2",
    "name": "Pinewood Danger Sign",
    "x": -2503.4,
    "z": -2732.3,
@@ -412,7 +420,7 @@
    "targetM": 70
   },
   {
-   "id": "jump_7",
+   "id": "jump_3",
    "name": "Lakeshore Danger Sign",
    "x": -5211.3,
    "z": 1649.5,
@@ -421,6 +429,54 @@
     -10.909
    ],
    "road": "dirt",
+   "targetM": 80
+  },
+  {
+   "id": "jump_4",
+   "name": "Superior Coast Danger Sign",
+   "x": -6571.7,
+   "z": -10462.4,
+   "dir": [
+    -2.0,
+    -7.75
+   ],
+   "road": "Superior Coast Highway",
+   "targetM": 50
+  },
+  {
+   "id": "jump_5",
+   "name": "Superior Coast Highway Danger Sign",
+   "x": -6520.4,
+   "z": -12262.0,
+   "dir": [
+    0.05,
+    -8.0
+   ],
+   "road": "Superior Coast Highway",
+   "targetM": 60
+  },
+  {
+   "id": "jump_6",
+   "name": "Superior Coast North Danger Sign",
+   "x": -6283.7,
+   "z": -13642.9,
+   "dir": [
+    0.37,
+    -7.99
+   ],
+   "road": "Superior Coast Highway",
+   "targetM": 70
+  },
+  {
+   "id": "jump_7",
+   "name": "Escarpment Danger Sign",
+   "x": 1074.7,
+   "z": -8219.7,
+   "dir": [
+    7.63,
+    -2.38
+   ],
+   "road": "Finger Lake Loop",
    "targetM": 80
   }
  ]

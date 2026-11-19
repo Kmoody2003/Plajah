@@ -31,6 +31,9 @@ PLACES = [("Halcyon", -6600, 3000), ("Dune Sea", -5200, -400), ("Kettle Hills", 
           ("Escarpment", 1500, -9000), ("Giant Forest", -5000, -8200), ("Superior Coast", -6500, -11500), ("Farmland", 600, -1800), ("Harbor", 3800, -1300)]
 
 
+NORTH_EDGE = -4600                                                                             # z of the original map's north edge (the north lands lie beyond)
+
+
 def place_name(x, z):
     return min(PLACES, key=lambda p: math.hypot(p[1] - x, p[2] - z))[0]
 
@@ -87,11 +90,17 @@ def main():
                     jumps.append({"score": -vc[i], "pos": P[i + 1].tolist(), "dir": (P[i + 2] - P[i]).tolist(), "road": name or kind})
 
     def pick(lst, n, key, sep):
-        out = []
-        for c in sorted(lst, key=lambda c: -c["score"]):
-            p = c.get("pos") or c["a"]
-            if all(math.hypot(p[0] - (o.get("pos") or o["a"])[0], p[1] - (o.get("pos") or o["a"])[1]) > sep for o in out): out.append(c)
-            if len(out) >= n: break
+        # the best-scoring spots, spread out; half from the original map and half from the north lands (the mountain roads would otherwise take
+        # every slot), the other side filling any shortfall
+        P = lambda c: c.get("pos") or c["a"]
+        def take(cands, m, out):
+            for c in sorted(cands, key=lambda c: -c["score"]):
+                if len(out) >= m: break
+                p = P(c)
+                if all(math.hypot(p[0] - P(o)[0], p[1] - P(o)[1]) > sep for o in out): out.append(c)
+            return out
+        south = [c for c in lst if P(c)[1] > NORTH_EDGE]; north = [c for c in lst if P(c)[1] <= NORTH_EDGE]
+        out = take(south, n // 2, []); out = take(north, len(out) + (n - n // 2), out); out = take(lst, n, out)
         return out
     traps = pick(traps, 10, "score", 1500); zones = pick(zones, 8, "score", 2000); drifts = pick(drifts, 8, "score", 1500); jumps = pick(jumps, 8, "score", 1200)
 
@@ -118,9 +127,16 @@ def main():
 
     used = {}
     def named(c, kind):
+        # a spot takes its place's name; if that is taken, the named road it is on (Glacier Pass, Mill Road), then the nearest free place within 2.5 km,
+        # and only then a compass point (no more "Otter Creek West 2")
         p = c.get("pos") or c["a"]
         base = place_name(*p); pl = next(q for q in PLACES if q[0] == base)
         if (base, kind) not in used: used[(base, kind)] = 1; return base
+        rn = c.get("road")
+        if isinstance(rn, str) and rn not in ("paved", "dirt", "freeway", "scenic", "gravel") and (rn, kind) not in used: used[(rn, kind)] = 1; return rn
+        for q in sorted(PLACES, key=lambda q: math.hypot(q[1] - p[0], q[2] - p[1])):
+            if math.hypot(q[1] - p[0], q[2] - p[1]) > 2500: break
+            if (q[0], kind) not in used: used[(q[0], kind)] = 1; return q[0]
         dx, dz = p[0] - pl[1], p[1] - pl[2]
         comp = ("East" if dx > 0 else "West") if abs(dx) > abs(dz) else ("South" if dz > 0 else "North")
         k = (base, comp, kind); used[k] = used.get(k, 0) + 1
