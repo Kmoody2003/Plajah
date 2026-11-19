@@ -1,7 +1,7 @@
 // Cyber Forest creatures, modelled from the level's creature turnarounds (Cyber Forest Level Assets):
-// Electric Wolf, Poisonous Glowing Mantis, Bioluminescent Wasp (plasma stinger), the Alien Deer and the Shock Bat
-// (glowing-heart bat sheet; its folded wings were cropped off and rebuilt as flapping membrane wings), plus a swarm of
-// Bio-electrical Moths (instanced: painted wings + the sheet's feathered antennae).
+// Electric Wolf, Poisonous Glowing Mantis, Bioluminescent Wasp (plasma stinger), the Alien Deer, the Storm Bat
+// (shape from a spread-wing frame of "Bat creature flying motion study", painted from that frame) and a swarm of
+// Bio-electrical Moths (shape from the moth sheet's front view, painted from its front/side/back).
 // Pipeline: sheet side view → Hunyuan3D-2mini shape → painted from the sheet's front/side/back
 // (engines/tela-3d/paint_from_views.py) → scripts/riftrealm/cf_creature_export.py (glow map from the bio-light hues).
 // No skeleton: at load each mesh's vertices are sorted into regions (legs by quadrant and phase, head, tail, wings,
@@ -29,15 +29,11 @@ const SPECS: Record<CreatureKind, Spec> = {
   mantis: { file: 'venom_mantis.glb', height: 2.5, hip: 0.4, stride: 1.4, swing: 0.16, lift: 0.08, bob: 0.02, phases: 'tripod' },
   wasp: { file: 'plasma_wasp.glb', height: 1.8, hip: 0.32, stride: 1.0, swing: 0.05, lift: 0, bob: 0, phases: [0, 0.5, 0.25, 0.75], hover: 1.7 },
   deer: { file: 'lumen_deer.glb', height: 2.3, hip: 0.4, stride: 1.8, swing: 0.24, lift: 0.1, bob: 0.03, phases: [0, 0.5, 0.5, 0] },
-  bat: { file: 'shock_bat.glb', height: 1.7, hip: 0.36, stride: 1, swing: 0, lift: 0, bob: 0, phases: [0, 0.5, 0.5, 0], hover: 2.4 },
+  bat: { file: 'storm_bat.glb', height: 1.6, hip: 0.36, stride: 1, swing: 0, lift: 0, bob: 0, phases: [0, 0.5, 0.5, 0], hover: 2.4 },
 };
 const BASE = '/games/rift-realm/assets/creatures/';
 
-interface Template {
-  geo: THREE.BufferGeometry; mat: THREE.Material; scale: number; extra?: { geo: THREE.BufferGeometry; mat: THREE.Material };
-  /** Bat: the +X shoulder in model units, and the shared wing parts (metres, +X wing, hinge at the origin). */
-  shoulder?: THREE.Vector3; wing?: BatWing;
-}
+interface Template { geo: THREE.BufferGeometry; mat: THREE.Material; scale: number; extra?: { geo: THREE.BufferGeometry; mat: THREE.Material } }
 const templates = new Map<CreatureKind, Template>();
 const pending = new Map<CreatureKind, CreatureBody[]>();
 const loading = new Set<CreatureKind>();
@@ -97,17 +93,38 @@ function regions(kind: CreatureKind, g: THREE.BufferGeometry): { rgn: Float32Arr
     }
     rgn.set([kind === 'wasp' && wing[i] ? 0 : legW, ph, zc, wc], i * 4);
   }
-  // bat shoulders: the widest points of the upper torso band (where the cropped wings joined)
-  let shX = 0, shZ = 0;
-  if (kind === 'bat') {
-    let zs = 0, c = 0;
-    for (let i = 0; i < n; i++) {
-      const y = p.getY(i), ax = Math.abs(p.getX(i));
-      if (y > y0 + H * 0.6 && y < y0 + H * 0.72) { if (ax > shX) shX = ax; if (ax > shX * 0.85) { zs += p.getZ(i); c++; } }
-    }
-    shZ = c ? zs / c : 0;
+  const ww = wingMasks(kind, g, rgn);
+  return { rgn, info: { y0, H, z0, z1, L, hipY, wingRoot, ...ww } };
+
+}
+
+/** Bat / moth (generated with the wings spread): z = inner wing (from the shoulder), w = the hand (from the wrist),
+ *  x = legs under the body. Moth antennae (top, inside the span) stay still. */
+function wingMasks(kind: string, g: THREE.BufferGeometry, rgn: Float32Array): Record<string, number> {
+  if (kind !== 'bat' && kind !== 'moth') return {};
+  const p = g.attributes.position, bb = g.boundingBox!, y0 = bb.min.y, H = bb.max.y - y0, W = bb.max.x - bb.min.x;
+  const sm = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const shX = W * (kind === 'bat' ? 0.1 : 0.11), wX = W * 0.27, shY = y0 + H * (kind === 'bat' ? 0.7 : 0.55), legTop = y0 + H * 0.32;
+  for (let i = 0; i < p.count; i++) {
+    const ax = Math.abs(p.getX(i)), y = p.getY(i);
+    const ant = kind === 'moth' ? sm(y0 + H * 0.62, y0 + H * 0.7, y) * (ax < W * 0.3 ? 1 : 0) : 0;
+    const leg = ax < shX && y < legTop ? (legTop - y) / (legTop - y0) : 0;
+    rgn.set([leg, 0, sm(shX * 0.9, shX * 1.5, ax) * (1 - ant), sm(wX * 0.85, wX * 1.15, ax) * (1 - ant)], i * 4);
   }
-  return { rgn, info: { y0, H, z0, z1, L, hipY, wingRoot, shX, shY: y0 + H * 0.66, shZ } };
+  return { shX, wX, shY };
+}
+
+/** Wingbeat about the body's long axis: the hand turns at the wrist, then the whole wing at the shoulder. */
+function flap(P: THREE.Node<'vec3'>, inner: THREE.Node<'float'>, outer: THREE.Node<'float'>, info: Record<string, number>,
+  f: THREE.Node<'float'>, a1: number, a2: number, lift: number) {
+  const sx = sign(P.x);
+  const rot = (x: THREE.Node<'float'>, y: THREE.Node<'float'>, px: THREE.Node<'float'>, ang: THREE.Node<'float'>) => {
+    const dx = x.sub(px), dy = y.sub(info.shY);
+    return [px.add(dx.mul(cos(ang))).sub(dy.mul(sin(ang))), dy.mul(cos(ang)).add(dx.mul(sin(ang))).add(info.shY)] as const;
+  };
+  const [x1, y1] = rot(P.x, P.y, sx.mul(info.wX), sin(f.sub(0.9)).mul(a2).mul(outer).mul(sx));
+  const [x2, y2] = rot(x1, y1, sx.mul(info.shX), sin(f).mul(a1).add(lift).mul(inner).mul(sx));
+  return vec3(x2, y2, P.z);
 }
 
 /** Per-creature values reach the shared material through object uniforms (set from userData each frame). */
@@ -145,10 +162,12 @@ function motion(kind: CreatureKind, info: Record<string, number>) {
     return P.add(vec3(headX, liftY.add(bob).add(armY), swingZ.add(armZ)));
   }
   if (kind === 'bat') {
-    // legs dangle and trail back at speed, the tail lashes
-    const dangle = sin(time.mul(2.5).add(uSeed).add(P.x.mul(3))).mul(0.05).mul(legW);
-    const tailX = sin(time.mul(4).add(uSeed)).mul(0.1).mul(aux);
-    return P.add(vec3(tailX, legW.mul(run).mul(0.06), dangle.sub(legW.mul(run).mul(0.2))));
+    // the real spread wings beat (faster in a chase), the hands lag and fold; on an attack the wings sweep forward;
+    // the legs dangle and trail back at speed
+    const f = time.mul(Math.PI * 2).mul(run.mul(1.4).add(2.8)).add(uSeed);
+    const w = flap(P, head, aux, info, f, 0.62, 0.38, 0.12);
+    const dangle = sin(time.mul(2.5).add(uSeed).add(P.x.mul(3))).mul(0.04).mul(legW);
+    return w.add(vec3(0, legW.mul(run).mul(0.05), dangle.sub(legW.mul(run).mul(0.15)).add(head.mul(uAtk).mul(0.35))));
   }
   // wasp: wings buzz round the body's long axis at the wing root; legs dangle; the stinger curls under on an attack
   const ang = sin(time.mul(78).add(uSeed)).mul(0.55).add(0.15).mul(sign(P.x)).mul(head);
@@ -227,7 +246,6 @@ function load(kind: CreatureKind) {
     if (mat.emissiveMap) mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
     mat.positionNode = motion(kind, info);
     const t: Template = { geo, mat, scale: SPECS[kind].height / info.H };
-    if (kind === 'bat') { t.shoulder = new THREE.Vector3(info.shX * 0.92, info.shY, info.shZ - info.L * 0.08); t.wing = batWing(); }
     if (kind === 'deer') {
       const am = new THREE.MeshStandardNodeMaterial({ color: 0x1a3040, roughness: 0.4 });
       am.emissiveNode = mix(color(0x40c8ff), color(0xffc060), smoothstep(float(0.35), float(1.0), uv().x)).mul(1.6);
@@ -246,7 +264,6 @@ export class CreatureBody {
   /** The model's own offset group (flying height + bob for the wasp). */
   readonly body = new THREE.Group();
   private meshes: THREE.Mesh[] = [];
-  private wings: { root: THREE.Group; wrist: THREE.Group }[] = [];
   private phase = Math.random() * 10;
   private gait = 0;
   private atkT = 0;
@@ -271,19 +288,6 @@ export class CreatureBody {
       m.frustumCulled = false;
       this.body.add(m); this.meshes.push(m);
     }
-    if (t.wing && t.shoulder) {
-      for (const side of [1, -1]) {
-        const g = new THREE.Group();
-        g.position.copy(t.shoulder).multiplyScalar(t.scale * this.size); g.position.x *= side;
-        g.scale.set(side * this.size, this.size, this.size);
-        const root = new THREE.Group(), wrist = new THREE.Group();
-        wrist.position.copy(t.wing.wrist);
-        root.add(new THREE.Mesh(t.wing.inner, t.wing.membrane), new THREE.Mesh(t.wing.innerBones, t.wing.bone), wrist);
-        wrist.add(new THREE.Mesh(t.wing.outer, t.wing.membrane), new THREE.Mesh(t.wing.outerBones, t.wing.bone));
-        root.traverse((o) => { if ((o as THREE.Mesh).isMesh) { o.castShadow = true; o.frustumCulled = false; } });
-        g.add(root); this.body.add(g); this.wings.push({ root, wrist });
-      }
-    }
     this.write();
   }
   /** speed in m/s over the ground this frame. */
@@ -294,15 +298,7 @@ export class CreatureBody {
     // cadence: one full gait cycle per stride length travelled, with a floor so a creature on the spot still breathes
     this.phase += dt * Math.PI * 2 * Math.max(speed / (this.spec.stride * this.size), 0.2);
     this.atkT = Math.max(0, this.atkT - dt);
-    if (this.wings.length) {
-      // wingbeat: forward-and-down, back-and-up; the hand lags so the wing folds on the upstroke. The body leans into the flight.
-      const f = this.el * Math.PI * 2 * (3.0 + this.gait * 1.6) + this.seed, atk = this.atkT > 0 ? Math.sin(this.atkT / 0.4 * Math.PI) : 0;
-      for (const w of this.wings) {
-        w.root.rotation.set(0, -Math.sin(f) * 0.7, 0.12 + Math.cos(f) * 0.5 - atk * 0.6);
-        w.wrist.rotation.set(0, Math.sin(f - 0.8) * 0.4, Math.cos(f - 0.8) * 0.2 - atk * 0.5);
-      }
-      this.body.rotation.x = this.gait * 0.55 + atk * 0.5;
-    }
+    if (this.kind === 'bat') this.body.rotation.x = this.gait * 0.5 + (this.atkT > 0 ? Math.sin(this.atkT / 0.4 * Math.PI) * 0.5 : 0); // lean into the flight / the dive
     if (this.spec.hover) this.body.position.y = this.hover + Math.sin(this.el * 2.1 + this.seed) * 0.18 - (this.atkT > 0 ? Math.sin(this.atkT / 0.4 * Math.PI) * 0.7 : 0);
     this.write();
   }
@@ -317,147 +313,56 @@ export function preloadCreatures(kinds: CreatureKind[]) { for (const k of kinds)
 
 const lcg = (seed: number) => { let sd = seed; return () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; }; };
 
-// ── bat wings: membrane fans between the arm and the fingers, scalloped trailing edge ─────────────────────────────
-interface BatWing {
-  inner: THREE.BufferGeometry; outer: THREE.BufferGeometry; innerBones: THREE.BufferGeometry; outerBones: THREE.BufferGeometry;
-  wrist: THREE.Vector3; membrane: THREE.Material; bone: THREE.Material;
-}
-let batWingCache: BatWing | null = null;
-function membraneTexture(): THREE.Texture {
-  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d')!;
-  g.fillStyle = '#2c2428'; g.fillRect(0, 0, 256, 256);
-  const r = lcg(7);
-  for (let i = 0; i < 260; i++) { // leathery mottling
-    const x = r() * 256, y = r() * 256, R = 6 + r() * 26, gr = g.createRadialGradient(x, y, 0, x, y, R);
-    gr.addColorStop(0, `rgba(${70 + r() * 40},${46 + r() * 20},${54 + r() * 24},0.35)`); gr.addColorStop(1, 'rgba(0,0,0,0)');
-    g.fillStyle = gr; g.fillRect(x - R, y - R, R * 2, R * 2);
-  }
-  g.lineCap = 'round';
-  for (let i = 0; i < 70; i++) { // veins and wrinkles
-    let x = r() * 256, y = r() * 256;
-    g.strokeStyle = `rgba(${100 + r() * 40},${70 + r() * 30},${80 + r() * 30},${0.25 + r() * 0.3})`; g.lineWidth = 0.6 + r() * 1.4;
-    g.beginPath(); g.moveTo(x, y);
-    for (let k = 0; k < 6; k++) { x += (r() - 0.5) * 40; y += (r() - 0.3) * 30; g.lineTo(x, y); }
-    g.stroke();
-  }
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
-  return t;
-}
-function batWing(): BatWing {
-  if (batWingCache) return batWingCache;
-  const V = (x: number, y: number) => new THREE.Vector3(x, y, -0.12 * x * x); // the membrane cups backwards
-  const O = V(0, 0), W = V(0.75, 0.28), T = [V(1.95, 0.4), V(1.85, -0.3), V(1.35, -0.9), V(0.7, -1.0)], B = V(0.05, -0.62);
-  const scallop = (a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, k = 0.2) =>
-    [0.25, 0.5, 0.75].map((t) => a.clone().lerp(b, t).lerp(c, k * Math.sin(Math.PI * t)));
-  const fan = (center: THREE.Vector3, ring: THREE.Vector3[], off: THREE.Vector3) => {
-    const pos: number[] = [], uvs: number[] = [];
-    for (let i = 0; i < ring.length - 1; i++) for (const p of [center, ring[i], ring[i + 1]]) { pos.push(p.x - off.x, p.y - off.y, p.z - off.z); uvs.push(p.x * 0.7, p.y * 0.7); }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2)); g.computeVertexNormals();
-    return g;
-  };
-  // inner: shoulder → wrist → little finger tip, scalloped back to the body; outer (pivots at the wrist): the hand
-  const inner = fan(O, [W, T[3], ...scallop(T[3], B, O, 0.25), B], new THREE.Vector3());
-  const ring = [T[0]];
-  for (let i = 0; i < 3; i++) ring.push(...scallop(T[i], T[i + 1], W), T[i + 1]);
-  const outer = fan(W, ring, W);
-  const limb = (a: THREE.Vector3, b: THREE.Vector3, r0: number, r1: number, off: THREE.Vector3) => {
-    const d = b.clone().sub(a), g = new THREE.CylinderGeometry(r1, r0, d.length(), 5, 1);
-    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize()));
-    g.translate((a.x + b.x) / 2 - off.x, (a.y + b.y) / 2 - off.y, (a.z + b.z) / 2 - off.z);
-    return g;
-  };
-  const merge = (gs: THREE.BufferGeometry[]) => {
-    const pos: number[] = [], nor: number[] = [];
-    for (const g0 of gs) { const g = g0.index ? g0.toNonIndexed() : g0; pos.push(...(g.attributes.position.array as Float32Array)); nor.push(...(g.attributes.normal.array as Float32Array)); }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-    return g;
-  };
-  const innerBones = merge([limb(O, W, 0.06, 0.045, new THREE.Vector3())]);
-  const outerBones = merge([...T.map((t) => limb(W, t, 0.035, 0.012, W)), limb(W, W.clone().add(new THREE.Vector3(0.06, 0.16, 0.04)), 0.03, 0.008, W)]); // + thumb claw
-  const membrane = new THREE.MeshStandardNodeMaterial({ map: membraneTexture(), side: THREE.DoubleSide, roughness: 0.8, metalness: 0, color: 0xb8a8b0 });
-  const bone = new THREE.MeshStandardNodeMaterial({ color: 0x1f1b1f, roughness: 0.6 });
-  bone.emissiveNode = color(0x2ae6ff).mul(sin(time.mul(3)).mul(0.08).add(0.18)); // the Shock Bat's charge runs along its fingers
-  batWingCache = { inner, outer, innerBones, outerBones, wrist: W, membrane, bone };
-  return batWingCache;
-}
-
-// ── moths: an instanced swarm fluttering round the forest's glowing things ──────────────────────────────────────
-function mothWingTexture(): THREE.Texture {
-  const c = document.createElement('canvas'); c.width = 256; c.height = 256; const g = c.getContext('2d')!;
-  // hinge on the left edge at mid height; forewing up-and-out, hindwing down-and-out (the sheet's pale translucent wings)
-  const gr = g.createRadialGradient(0, 128, 10, 0, 128, 250);
-  gr.addColorStop(0, 'rgba(120,110,210,0.75)'); gr.addColorStop(0.6, 'rgba(150,175,235,0.42)'); gr.addColorStop(1, 'rgba(190,210,250,0.3)');
-  g.fillStyle = gr;
-  g.beginPath(); g.moveTo(0, 128); g.quadraticCurveTo(150, -10, 250, 30); g.quadraticCurveTo(270, 90, 200, 120); g.quadraticCurveTo(90, 140, 0, 128); g.fill();
-  g.beginPath(); g.moveTo(0, 128); g.quadraticCurveTo(60, 250, 170, 240); g.quadraticCurveTo(210, 190, 150, 140); g.quadraticCurveTo(60, 130, 0, 128); g.fill();
-  g.lineCap = 'round';
-  const vein = (x1: number, y1: number, cx: number, cy: number, col: string, w: number) => {
-    g.strokeStyle = col; g.lineWidth = w; g.beginPath(); g.moveTo(2, 128); g.quadraticCurveTo(cx, cy, x1, y1); g.stroke();
-  };
-  for (const [x, y, cx, cy] of [[240, 38, 120, 40], [228, 78, 130, 80], [205, 112, 110, 110], [160, 228, 70, 200], [150, 176, 80, 160], [120, 236, 40, 220]]) {
-    vein(x, y, cx, cy, 'rgba(90,230,255,0.95)', 2.2);
-    vein(x * 0.8, y * 0.8 + 25, cx * 0.9, cy * 0.9 + 10, 'rgba(255,200,110,0.8)', 1.2);
-  }
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-
+// ── moths: the generated Bio-electrical Moth, instanced, circling the forest's glowing things ──────────────────────
 export class MothSwarm {
-  private body: THREE.InstancedMesh; private wings: THREE.InstancedMesh; private ants: THREE.InstancedMesh;
+  private mesh: THREE.InstancedMesh | null = null;
   private m: { a: THREE.Vector3; r: number; h: number; w: number; ph: number; s: number }[] = [];
   private t = 0;
-  private M = new THREE.Matrix4(); private W = new THREE.Matrix4(); private F = new THREE.Matrix4().makeScale(-1, 1, 1);
-  private Q = new THREE.Quaternion(); private QA = new THREE.Quaternion(); private E = new THREE.Euler();
+  private M = new THREE.Matrix4(); private Q = new THREE.Quaternion(); private Q2 = new THREE.Quaternion(); private X = new THREE.Vector3(1, 0, 0);
   private P = new THREE.Vector3(); private P2 = new THREE.Vector3(); private S = new THREE.Vector3(); private Z = new THREE.Vector3(0, 0, 1);
-  private AP = new THREE.Vector3(); private AS = new THREE.Vector3();
-  constructor(parent: THREE.Object3D, anchors: THREE.Vector3[], n: number) {
+  constructor(parent: THREE.Object3D, anchors: THREE.Vector3[], n: number, wingspan = 0.75) {
     const R = lcg(99);
-    for (let i = 0; i < n; i++) this.m.push({ a: anchors[i % anchors.length], r: 1 + R() * 2.8, h: 1.2 + R() * 2.6, w: 0.5 + R() * 0.7, ph: R() * 6.28, s: 1.4 + R() * 0.9 });
-    // fuzzy purple body along +Z with a head; a faint violet glow
-    const prof = [[0, -0.14], [0.045, -0.11], [0.06, -0.02], [0.055, 0.06], [0.04, 0.1], [0.045, 0.13], [0, 0.17]].map(([x, y]) => new THREE.Vector2(x, y));
-    const bg = new THREE.LatheGeometry(prof, 8); bg.rotateX(Math.PI / 2);
-    const bm = new THREE.MeshStandardNodeMaterial({ color: 0x4a3590, roughness: 0.95 });
-    // fuzzy segments: violet and deep-blue bands down the abdomen, a little self-glow
-    const seg = smoothstep(float(0.35), float(0.65), fract(positionLocal.z.mul(28)));
-    bm.colorNode = mix(color(0x2a1f6a), color(0x6a4ac8), seg);
-    bm.emissiveNode = mix(color(0x3a20a0), color(0x4ab0ff), seg).mul(0.22);
-    this.body = new THREE.InstancedMesh(bg, bm, n);
-    const wt = mothWingTexture();
-    const wg = new THREE.PlaneGeometry(0.46, 0.46); wg.translate(0.23, 0, 0); wg.rotateX(-Math.PI / 2); // hinge on the body axis, wing out along +X
-    const wm = new THREE.MeshStandardNodeMaterial({ map: wt, transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.4 });
-    wm.emissiveMap = wt; wm.emissive.setHex(0xffffff); wm.emissiveIntensity = 1.3;
-    this.wings = new THREE.InstancedMesh(wg, wm, n * 2);
-    const at = new THREE.TextureLoader().load('/games/rift-realm/assets/cyberforest/moth_antenna.webp'); at.colorSpace = THREE.SRGBColorSpace;
-    const ag = new THREE.PlaneGeometry(0.16, 0.29); ag.translate(-0.08, 0.145, 0); // the feather's base at its lower-right corner
-    const am = new THREE.MeshStandardNodeMaterial({ map: at, alphaTest: 0.2, side: THREE.DoubleSide });
-    am.emissiveMap = at; am.emissive.setHex(0xffffff); am.emissiveIntensity = 1.1;
-    this.ants = new THREE.InstancedMesh(ag, am, n * 2);
-    for (const im of [this.body, this.wings, this.ants]) { im.frustumCulled = false; parent.add(im); }
-    this.update(0);
+    for (let i = 0; i < n; i++) this.m.push({ a: anchors[i % anchors.length], r: 1 + R() * 2.8, h: 1.2 + R() * 2.6, w: 0.5 + R() * 0.7, ph: R() * 6.28, s: 0.75 + R() * 0.5 });
+    loader.loadAsync(BASE + 'glow_moth.glb').then((gltf) => {
+      let src: THREE.Mesh | null = null;
+      gltf.scene.traverse((o) => { if (!src && (o as THREE.Mesh).isMesh) src = o as THREE.Mesh; });
+      if (!src) return;
+      const m0 = src as THREE.Mesh; m0.updateWorldMatrix(true, false);
+      const geo = m0.geometry.clone().applyMatrix4(m0.matrixWorld);
+      geo.computeBoundingBox();
+      const bb = geo.boundingBox!, k = wingspan / (bb.max.x - bb.min.x);
+      // centre it on the body (the model's feet sit at y = 0) so it turns about its middle
+      geo.translate(0, -(bb.min.y + bb.max.y) / 2, -(bb.min.z + bb.max.z) / 2); geo.scale(k, k, k); geo.computeBoundingBox();
+      const rgn = new Float32Array(geo.attributes.position.count * 4);
+      const info = wingMasks('moth', geo, rgn);
+      geo.setAttribute('rgn', new THREE.BufferAttribute(rgn, 4));
+      const ph = new Float32Array(n); for (let i = 0; i < n; i++) ph[i] = this.m[i].ph * 10;
+      geo.setAttribute('mph', new THREE.InstancedBufferAttribute(ph, 1));
+      const std = m0.material as THREE.MeshStandardMaterial;
+      const mat = new THREE.MeshStandardNodeMaterial({ map: std.map, normalMap: std.normalMap, emissiveMap: std.emissiveMap, emissive: 0xffffff,
+        emissiveIntensity: 1.8, roughness: 0.6, side: THREE.DoubleSide });
+      if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+      if (mat.emissiveMap) mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
+      const r = attribute<'vec4'>('rgn', 'vec4');
+      mat.positionNode = flap(positionLocal, r.z, r.w, info, time.mul(Math.PI * 2 * 2.4).add(attribute<'float'>('mph', 'float')), 0.75, 0.3, 0.2);
+      this.mesh = new THREE.InstancedMesh(geo, mat, n);
+      this.mesh.frustumCulled = false;
+      parent.add(this.mesh);
+      this.update(0);
+    }).catch((err) => console.warn('[rift] moth failed to load', err));
   }
   private pos(o: { a: THREE.Vector3; r: number; h: number; w: number; ph: number }, t: number, out: THREE.Vector3) {
     return out.set(o.a.x + Math.cos(t * o.w + o.ph) * o.r, o.a.y + o.h + Math.sin(t * o.w * 2.3 + o.ph) * 0.5, o.a.z + Math.sin(t * o.w * 1.3 + o.ph) * o.r * 0.8);
   }
   update(dt: number) {
     this.t += dt;
+    if (!this.mesh) return;
     this.m.forEach((o, i) => {
       this.pos(o, this.t, this.P); this.pos(o, this.t + 0.05, this.P2);
-      this.Q.setFromUnitVectors(this.Z, this.P2.sub(this.P).normalize());
-      this.M.compose(this.P, this.Q, this.S.setScalar(o.s));
-      this.body.setMatrixAt(i, this.M);
-      const flap = Math.sin(this.t * 18 / o.s + o.ph) * 0.85 + 0.25; // the big ones beat slower
-      for (const side of [1, -1]) {
-        const k = i * 2 + (side > 0 ? 0 : 1);
-        this.W.makeRotationZ(flap);
-        if (side < 0) this.W.premultiply(this.F);       // mirrored: the right wing
-        this.wings.setMatrixAt(k, this.W.premultiply(this.M));
-        this.QA.setFromEuler(this.E.set(-0.6, side * -0.35, side * -0.25));
-        this.W.compose(this.AP.set(side * 0.02, 0.03, 0.15), this.QA, this.AS.set(side, 1, 1));
-        this.ants.setMatrixAt(k, this.W.premultiply(this.M));
-      }
+      // face along the path, body pitched forward into flight (the model stands upright, as on the sheet)
+      this.Q.setFromUnitVectors(this.Z, this.P2.sub(this.P).setY(0).normalize()).multiply(this.Q2.setFromAxisAngle(this.X, 0.9));
+      this.mesh!.setMatrixAt(i, this.M.compose(this.P, this.Q, this.S.setScalar(o.s)));
     });
-    this.body.instanceMatrix.needsUpdate = this.wings.instanceMatrix.needsUpdate = this.ants.instanceMatrix.needsUpdate = true;
+    this.mesh.instanceMatrix.needsUpdate = true;
   }
 }
