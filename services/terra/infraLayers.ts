@@ -47,7 +47,7 @@ export const INFRA_LAYERS: InfraLayerSpec[] = [
     id: 'HYDRANT', label: 'Fire hydrants', color: '#FF5470', group: 'Utilities', geom: 'point', minZoom: 15,
     url: `${ORG}/City_of_Detroit_Fire_Hydrants/FeatureServer/0`,
     outFields: 'OBJECTID,LOCDESC,FACILITYID,DFDHYDRANTID,OWNERSHIP,HYDRANTTYP,MANUFACTURER,HYDMODEL,CASTINGYEAR,INSPECTDT',
-    source: 'DWSD distribution system hydrants', accuracy: 'Utility GIS — typically within a few feet',
+    source: 'DWSD / City of Detroit', accuracy: 'Utility GIS — typically within a few feet',
     summarize: p => ({
       title: `Hydrant ${clean(p.DFDHYDRANTID) ?? clean(p.FACILITYID) ?? ''}`.trim(),
       lines: [clean(p.LOCDESC), [clean(p.MANUFACTURER), clean(p.HYDMODEL)].filter(Boolean).join(' '), p.CASTINGYEAR ? `Cast ${p.CASTINGYEAR}` : undefined,
@@ -57,19 +57,19 @@ export const INFRA_LAYERS: InfraLayerSpec[] = [
   {
     id: 'MANHOLE', label: 'Manholes', color: '#A0A8B8', group: 'Utilities', geom: 'point', minZoom: 16,
     url: `${ORG}/Detroit_Street_View_Manholes/FeatureServer/0`, outFields: 'OBJECTID,first_seen_at,last_seen_at',
-    source: 'Detected in street-level imagery (Mapillary)', accuracy: 'Approximate — machine-detected, may duplicate or miss covers; utility not identified',
+    source: '© Mapillary, City of Detroit Enterprise GIS · CC BY-SA 4.0', accuracy: 'For location reference only — machine-detected, may duplicate or miss covers; utility not identified',
     summarize: p => ({ title: 'Manhole cover (detected)', lines: [yr(p.last_seen_at) ? `Last seen ${yr(p.last_seen_at)}` : '', 'Sewer, water or other utility — not identified'].filter(Boolean) }),
   },
   {
     id: 'CATCH_BASIN', label: 'Catch basins', color: '#4FC3D6', group: 'Utilities', geom: 'point', minZoom: 16,
     url: `${ORG}/Detroit_Street_View_Catch_Basins/FeatureServer/0`, outFields: 'OBJECTID,first_seen_at,last_seen_at',
-    source: 'Detected in street-level imagery (Mapillary)', accuracy: 'Approximate — machine-detected storm inlets',
+    source: '© Mapillary, City of Detroit Enterprise GIS · CC BY-SA 4.0', accuracy: 'For location reference only — machine-detected storm inlets',
     summarize: p => ({ title: 'Catch basin (detected)', lines: [yr(p.last_seen_at) ? `Last seen ${yr(p.last_seen_at)}` : '', 'Storm inlet to the combined/storm sewer'].filter(Boolean) }),
   },
   {
     id: 'STREETLIGHT', label: 'Streetlights', color: '#FFD45C', group: 'Utilities', geom: 'point', minZoom: 16,
     url: `${ORG}/streetlights/FeatureServer/0`, outFields: 'ObjectId,streetlight_id,pla_id,feed_type,asset_owner,pole_type,pole_owner,nearest_address',
-    source: 'Public Lighting Authority inventory', accuracy: 'Asset inventory position',
+    source: 'Public Lighting Authority of Detroit', accuracy: 'Asset inventory position',
     summarize: p => ({
       title: `Streetlight ${clean(p.pla_id) ?? clean(p.streetlight_id) ?? ''}`.trim(),
       lines: [clean(p.nearest_address), [clean(p.pole_type), 'pole', clean(p.pole_owner) ? `(${p.pole_owner})` : ''].filter(Boolean).join(' '),
@@ -80,7 +80,7 @@ export const INFRA_LAYERS: InfraLayerSpec[] = [
     id: 'GSI', label: 'Green stormwater', color: '#3DD68C', group: 'Utilities', geom: 'point', minZoom: 14,
     url: `${ORG}/Green_Stormwater_Infrastructure_Locations_OpenDataPortal/FeatureServer/0`,
     outFields: 'OBJECTID,PROJECT_NAME,PRACTICE_TYPE,ACRES_MANAGED,GALLONS_MANAGED_MG,CREDIT_RECEIVED,UNDERDRAIN,PIPE_DIAMETER,STORM_EVENT_SIZE,OWNER_TYPE',
-    source: 'DWSD green stormwater infrastructure', accuracy: 'Project location point',
+    source: 'DWSD', accuracy: 'Project location point',
     summarize: p => ({
       title: clean(p.PROJECT_NAME) ?? 'Green stormwater practice',
       lines: [clean(p.PRACTICE_TYPE), p.ACRES_MANAGED ? `${p.ACRES_MANAGED} ac managed` : undefined,
@@ -91,7 +91,7 @@ export const INFRA_LAYERS: InfraLayerSpec[] = [
   {
     id: 'WATER_WORK', label: 'Water main work', color: '#5C8DFF', group: 'Utilities', geom: 'line', minZoom: 14,
     url: `${ORG}/Priority_Water_Replacements/FeatureServer/0`, outFields: 'OBJECTID,JobName,JobReference,StartDate,EndDate,ACTIVITY,LOCATION,JOBSTATUS',
-    source: 'DWSD priority water replacement jobs (2018 layer)', accuracy: 'Job extent along the street — NOT the pipe alignment',
+    source: 'DWSD (2018 layer)', accuracy: 'Job extent along the street — NOT the pipe alignment',
     summarize: p => ({
       title: clean(p.JobName) ?? 'Water replacement job',
       lines: [clean(p.ACTIVITY), clean(p.LOCATION), clean(p.JOBSTATUS) ? `Status ${p.JOBSTATUS}` : undefined,
@@ -102,7 +102,7 @@ export const INFRA_LAYERS: InfraLayerSpec[] = [
     id: 'ROW_VACATION', label: 'Vacated streets & alleys', color: '#C9A6FF', group: 'Right of way', geom: 'polygon', minZoom: 14,
     url: `${ORG}/right_of_way_street_and_alley_vacations/FeatureServer/0`,
     outFields: 'ObjectId,vacation_type,right_of_way_type,right_of_way_name,jcc_page,jcc_date,jcc_url,street_alley_book,jurisdiction_description',
-    source: 'DPW Maps & Records — City Council vacations', accuracy: 'Compiled from council records',
+    source: 'City of Detroit DPW Maps & Records', accuracy: 'Compiled from council records',
     summarize: p => ({
       title: `${clean(p.vacation_type) ?? 'Vacation'} · ${clean(p.right_of_way_type) ?? 'ROW'}${clean(p.right_of_way_name) ? ` · ${p.right_of_way_name}` : ''}`,
       lines: [p.jcc_page ? `JCC page ${p.jcc_page}${clean(p.jcc_date) ? ` (${p.jcc_date})` : ''}` : undefined,
@@ -115,7 +115,7 @@ export const INFRA_LAYERS: InfraLayerSpec[] = [
     id: 'ROW_OPENING', label: 'Opened streets & alleys', color: '#E8B33D', group: 'Right of way', geom: 'polygon', minZoom: 14,
     url: `${ORG}/right_of_way_street_and_alley_openings/FeatureServer/0`,
     outFields: 'ObjectId,right_of_way_type,right_of_way_name,record_type,jcc_page,jcc_date,document_url',
-    source: 'DPW Maps & Records — openings / dedications', accuracy: 'Compiled from council records',
+    source: 'City of Detroit DPW Maps & Records', accuracy: 'Compiled from council records',
     summarize: p => ({
       title: `Opening · ${clean(p.right_of_way_type) ?? 'ROW'}${clean(p.right_of_way_name) ? ` · ${p.right_of_way_name}` : ''}`,
       lines: [clean(p.record_type), p.jcc_page ? `JCC page ${p.jcc_page}${clean(p.jcc_date) ? ` (${p.jcc_date})` : ''}` : undefined].filter(Boolean) as string[],
@@ -126,7 +126,7 @@ export const INFRA_LAYERS: InfraLayerSpec[] = [
     id: 'FOOTPRINT', label: 'Building footprints', color: '#FFFFFF', group: 'Buildings', geom: 'polygon', minZoom: 17,
     url: `${ORG}/Detroit_Building_Footprints_(Public_Safety)/FeatureServer/0`,
     outFields: 'OBJECTID,APN,parcelID,AKA,bldgType,STORIES,MEDIAN_HGT,YEAR_BUILT,RES_SQFT,NONRES_SQF,HOUSING_UN',
-    source: 'City / SEMCOG building footprints (2020)', accuracy: 'Roof-line outline from imagery — a few feet',
+    source: 'City of Detroit / SEMCOG (2020)', accuracy: 'Roof-line outline from imagery — a few feet',
     summarize: p => ({
       title: clean(p.AKA) ?? `${clean(p.bldgType) ?? 'Building'}`,
       lines: [p.STORIES ? `${p.STORIES} stories` : undefined, p.MEDIAN_HGT ? `~${p.MEDIAN_HGT} ft tall (median)` : undefined,

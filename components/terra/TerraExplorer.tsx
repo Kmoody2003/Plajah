@@ -36,6 +36,8 @@ import { formatBearing } from '../../services/terra/survey/cogo';
 import { ParcelSurveyPanel } from './ParcelSurveyPanel';
 import { INFRA_LAYERS, INFRA_BY_ID, fetchInfraLayer, type InfraFeature, type InfraKind } from '../../services/terra/infraLayers';
 import { siteContext } from '../../services/terra/survey/siteContext';
+import { TerraNoticeGate, TerraSourcesDialog, useTerraNoticeAccepted } from './TerraNotice';
+import { TERRA_SHORT_NOTICE } from '../../services/terra/dataNotice';
 
 const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
 function infraPopup(f: InfraFeature): string {
@@ -467,6 +469,7 @@ const ParcelInspector: React.FC<{ parcel: TerraParcel | null; survey?: ParcelSur
           <Row k="Sides" v={`${survey.mapped.sides.length}${survey.mapped.isRectangular ? ' · rectangular' : ''}`} />
           <Row k="Map area" v={`${fmtNum(survey.mapped.areaSqFt)} sqft · ${(survey.mapped.areaSqFt / 43560).toFixed(3)} ac`} />
           <Row k="Perimeter" v={`${survey.mapped.perimeter.toFixed(1)} ft`} />
+          <p className="text-[9px] text-white/30 leading-relaxed pt-1.5">From the city parcel map, not a survey.</p>
           <Row k="Legal desc." v={survey.record
             ? `metes & bounds · ${survey.record.misclosure < 0.005 ? 'closes' : `1:${Math.round(survey.record.precision).toLocaleString()}`}`
             : survey.legal.plat?.liber ? `platted · L${survey.legal.plat.liber} P${survey.legal.plat.page}` : survey.legal.raw ? 'lot description' : '—'} />
@@ -683,6 +686,15 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
   const [streets, setStreets] = useState<StreetSegment[]>([]);
   const [q, setQ] = useState('');
   const [surveyOpen, setSurveyOpen] = useState(false);
+  // Survey tools sit behind the data notice (not a survey / not for digging).
+  const [noticeAccepted, markNoticeAccepted] = useTerraNoticeAccepted();
+  const [noticeGate, setNoticeGate] = useState(false);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
+  const toggleSurvey = () => {
+    if (surveyOpen) { setSurveyOpen(false); return; }
+    if (!noticeAccepted) { setNoticeGate(true); return; }
+    setSurveyOpen(true);
+  };
   const [activeInfra, setActiveInfra] = useState<Set<InfraKind>>(new Set<InfraKind>(['HYDRANT', 'ROW_VACATION']));
   const [infraByKind, setInfraByKind] = useState<Partial<Record<InfraKind, InfraFeature[]>>>({});
   const [viewZoom, setViewZoom] = useState(15);
@@ -932,7 +944,7 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
                 className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] transition-colors ${
                   showBasemap ? 'text-white' : 'text-white/35 hover:text-white/60'}`}
                 style={showBasemap ? { background: 'rgba(255,255,255,0.07)' } : {}}
-                title="Street basemap — © OpenStreetMap contributors, © CARTO">
+                title="Street centerlines — City of Detroit">
                 <span className="w-2 h-2 rounded-sm shrink-0"
                       style={{ background: showBasemap ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.18)' }} />
                 <span className="truncate">Streets</span>
@@ -987,7 +999,7 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
             <ParcelMap parcels={visible} selectedId={selected?.id ?? null} onSelect={setSelected} onViewport={handleViewport} showBasemap={showBasemap} streets={streets} focus={focus} survey={surveyOpen ? survey : null} infra={infra} />
 
             {surveyOpen && selected && survey && (
-              <ParcelSurveyPanel parcel={selected} survey={survey} site={site} onClose={() => setSurveyOpen(false)}
+              <ParcelSurveyPanel parcel={selected} survey={survey} site={site} onClose={() => setSurveyOpen(false)} onOpenSources={() => setSourcesOpen(true)}
                 onSelectParcel={id => { const p = parcels.find(x => x.id === id); if (p) setSelected(p); }} />
             )}
 
@@ -1008,20 +1020,27 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
               </div>
             )}
 
-            {/* Scale / attribution strip */}
-            <div className="absolute bottom-2 left-3 right-3 z-[500] flex items-center justify-between pointer-events-none">
-              <span className="text-[9px] font-mono text-white/25 tracking-wider">
+            {/* Scale / attribution strip — every view credits its sources and says what it isn't. */}
+            <div className="absolute bottom-2 left-3 right-3 z-[500] flex items-center justify-between gap-3 pointer-events-none">
+              <span className="text-[9px] font-mono text-white/25 tracking-wider shrink-0">
                 {visible.length ? `${fmtNum(visible.length)} parcels in view` : ''}
               </span>
-              <span className="text-[9px] font-mono text-white/20 tracking-wider">
-                City of Detroit Open Data · as-is
-              </span>
+              <button onClick={() => setSourcesOpen(true)}
+                className="pointer-events-auto min-w-0 truncate text-[9px] font-mono text-white/40 hover:text-white/80 tracking-wider bg-black/50 rounded px-1.5 py-0.5"
+                title={TERRA_SHORT_NOTICE}>
+                Data: City of Detroit, DWSD, PLA, Mapillary (CC BY-SA) · Not a survey · Sources & terms
+              </button>
             </div>
+            {noticeGate && (
+              <TerraNoticeGate onClose={() => setNoticeGate(false)}
+                onAccepted={() => { markNoticeAccepted(); setNoticeGate(false); setSurveyOpen(true); }} />
+            )}
+            {sourcesOpen && <TerraSourcesDialog onClose={() => setSourcesOpen(false)} />}
           </div>
 
           {/* Inspector */}
           <div className="border-l border-white/[0.06] p-4 overflow-y-auto custom-scrollbar">
-            <ParcelInspector parcel={selected} survey={survey} surveyOpen={surveyOpen} onToggleSurvey={() => setSurveyOpen(v => !v)} onOpenPassport={onOpenPassport} onOpenStudio={onOpenStudio} onOpenLaws={onOpenLaws} />
+            <ParcelInspector parcel={selected} survey={survey} surveyOpen={surveyOpen} onToggleSurvey={toggleSurvey} onOpenPassport={onOpenPassport} onOpenStudio={onOpenStudio} onOpenLaws={onOpenLaws} />
           </div>
         </div>
       </div>
