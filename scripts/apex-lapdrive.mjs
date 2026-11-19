@@ -9,7 +9,7 @@ const gpu = process.argv.includes('--swiftshader') ? ['--use-angle=swiftshader',
 const browser = await chromium.launch({args: gpu});
 const page = await browser.newPage({viewport: {width: 960, height: 540}});
 const errors = []; page.on('pageerror', (e) => errors.push(String(e))); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-await page.goto('http://127.0.0.1:4332/region.html', {timeout: 120000});
+await page.goto((process.env.APEX_URL || 'http://127.0.0.1:4332') + '/region.html', {timeout: 120000});
 await page.waitForFunction(() => window.regionViewer, null, {timeout: 300000, polling: 1000});
 await page.waitForTimeout(12000);                                     // idle long enough for the map cinematic to start (the old bug)
 const cine = await page.evaluate(() => document.getElementById('mapCardsWrap')?.style.opacity === '0');

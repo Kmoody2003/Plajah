@@ -1206,6 +1206,7 @@ function ensureRoadHash(): Map<number, number[]> {
   for (const c of Object.values(meta.circuits)) for (const p of densify(c, 8)) add(p.x, p.z);
   const hw = meta.coastal_highway?.xz ?? [];
   for (let i = 0; i < hw.length; i++) add(hw[i][0], hw[i][1]);
+  for (const r of scenicData) for (let i = 0; i < r.xz.length; i += 2) add(r.xz[i][0], r.xz[i][1]);   // every scenic road (not only the ones a circuit uses): no tree on Kettle Pass
   roadHash = h;
   return h;
 }
@@ -3977,6 +3978,7 @@ async function boot(): Promise<void> {
     console.log('graded pads', carvePads(heights, meta.width, meta.height, meta.mpp, pads));
   }
   scenicData = ((await fetch(BASE + 'scenic_roads.json').then((x) => (x.ok ? x.json() : null)).catch(() => null)) as { roads: ScenicRoad[] } | null)?.roads ?? [];
+  roadHash = null;                                                                     // rebuilt with the scenic roads in it (tree and grass clearance)
   carveScenicRoads(heights, meta.width, meta.height, meta.mpp, scenicData);     // the scenic roads are graded to their own banked design
   {
     // the car physics' world edges follow the height grid (it grew 10.2 km north; the old fixed bounds snapped every car north of z -5550 back onto the lake)

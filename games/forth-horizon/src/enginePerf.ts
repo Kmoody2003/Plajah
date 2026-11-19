@@ -162,6 +162,7 @@ interface ChunkBucket {
 export class SpatialCuller {
   private entries: CullEntry[] = [];
   private buckets: ChunkBucket[] = [];
+  private big: CullEntry[] = [];
   private readonly chunkSize = 420;
   private frustum = new THREE.Frustum();
   private projScreenMatrix = new THREE.Matrix4();
@@ -172,6 +173,7 @@ export class SpatialCuller {
   indexGroups(groups: THREE.Object3D[]): void {
     this.entries.length = 0;
     this.buckets.length = 0;
+    this.big.length = 0;
     const map = new Map<string, ChunkBucket>();
     const box = new THREE.Box3();
     const sphere = new THREE.Sphere();
@@ -197,6 +199,9 @@ export class SpatialCuller {
             baseCastShadow: m.castShadow,
           };
           this.entries.push(entry);
+          // an object much bigger than a chunk (a 13 km scenic road, a long bridge) is not bucketed by its centre: from 2.6 km off its centre the whole
+          // chunk went dark, so the road vanished under the car. Big objects get the per-object distance + frustum test every frame instead.
+          if (entry.radius > this.chunkSize * 2) { this.big.push(entry); return; }
           const cx = Math.floor(entry.center.x / this.chunkSize);
           const cz = Math.floor(entry.center.z / this.chunkSize);
           const key = `${cx},${cz}`;
@@ -236,6 +241,15 @@ export class SpatialCuller {
           if (e.baseCastShadow) e.obj.castShadow = false;
         }
       } else {
+        for (let i = 0; i < this.big.length; i++) {
+          const e = this.big[i], dx = e.center.x - camPos.x, dy = e.center.y - camPos.y, dz = e.center.z - camPos.z;
+          const reach = Math.sqrt(maxD2) + e.radius;
+          if (dx * dx + dy * dy + dz * dz > reach * reach) { e.obj.visible = false; continue; }
+          this.tmpSphere.center.copy(e.center); this.tmpSphere.radius = e.radius;
+          const inFrustum = this.frustum.intersectsSphere(this.tmpSphere);
+          e.obj.visible = inFrustum;
+          if (e.baseCastShadow) e.obj.castShadow = inFrustum;
+        }
         const camCx = Math.floor(camPos.x / this.chunkSize);
         const camCz = Math.floor(camPos.z / this.chunkSize);
         const span = Math.ceil(maxViewDist / this.chunkSize) + 1;
