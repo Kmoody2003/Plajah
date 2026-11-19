@@ -10,7 +10,7 @@ export interface MapStunt { kind: 'trap' | 'zone' | 'drift' | 'danger'; name: st
 export interface FestMapOpts {
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   height: (x: number, z: number) => number;
-  roads: MapRoad[];
+  roads: () => MapRoad[];
   buildings: () => [number, number][];
   places: [string, number, number][];
   sites: () => (MapSite & { open: boolean; canOpen: boolean })[];
@@ -19,6 +19,8 @@ export interface FestMapOpts {
   fp: () => string;
   travel: (id: string) => void;
   openSite: (id: string) => boolean;
+  onOpen?: () => void;
+  onClose?: () => void;
 }
 
 const MPP = 8;              // base image resolution, metres per pixel
@@ -30,6 +32,7 @@ export function createFestMap(o: FestMapOpts): { open(): void; close(): void; to
   const toPx = (x: number, z: number): [number, number] => [(x - o.bounds.minX) / MPP, (z - o.bounds.minZ) / MPP];
 
   function buildBase(): HTMLCanvasElement {
+    const roads = o.roads();
     const c = document.createElement('canvas'); c.width = W; c.height = H;
     const g = c.getContext('2d')!;
     const img = g.createImageData(W, H), d = img.data;
@@ -68,7 +71,7 @@ export function createFestMap(o: FestMapOpts): { open(): void; close(): void; to
       highway: ['#f2a03a', 2.6, []], freeway: ['#ffb43c', 3.4, []], scenic: ['#ffffff', 2.4, []], circuit: ['#ffffff', 2.6, []],
     };
     for (const kind of ['dirt', 'street', 'country', 'highway', 'freeway', 'scenic', 'circuit'] as const) {
-      for (const r of o.roads) {
+      for (const r of roads) {
         if (r.kind !== kind || r.xz.length < 2) continue;
         const [col, wdt, dash] = style[kind];
         g.beginPath(); r.xz.forEach(([x, z], n) => { const [px, pz] = toPx(x, z); if (n) g.lineTo(px, pz); else g.moveTo(px, pz); });
@@ -83,7 +86,7 @@ export function createFestMap(o: FestMapOpts): { open(): void; close(): void; to
       const [px, pz] = toPx(x, z);
       g.font = '600 26px Outfit, Inter, sans-serif'; g.fillStyle = 'rgba(0,0,0,.55)'; g.fillText(name.toUpperCase(), px + 1.5, pz + 1.5); g.fillStyle = 'rgba(230,240,235,.85)'; g.fillText(name.toUpperCase(), px, pz);
     }
-    for (const r of o.roads) {
+    for (const r of roads) {
       if (!r.name || r.xz.length < 4) continue;
       const m = Math.floor(r.xz.length / 2), a = r.xz[m - 1], b2 = r.xz[m + 1], [px, pz] = toPx(r.xz[m][0], r.xz[m][1]);
       let ang = Math.atan2(b2[1] - a[1], b2[0] - a[0]); if (ang > Math.PI / 2) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI;
@@ -101,7 +104,7 @@ export function createFestMap(o: FestMapOpts): { open(): void; close(): void; to
     <div style="position:absolute;left:28px;top:22px;pointer-events:none"><div style="font:800 34px Outfit,sans-serif;letter-spacing:.02em">NAVIGATION MAP</div><div id="fmSub" style="font:500 13px Inter,sans-serif;letter-spacing:.16em;color:rgba(255,255,255,.65);text-transform:uppercase">Chora Fest · Ironport and the Great Lakes coast</div></div>
     <div id="fmLegend" style="position:absolute;right:24px;top:22px;padding:12px 14px;border-radius:18px;background:rgba(10,20,16,.82);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(8px);min-width:190px"><div style="font:600 11px Outfit,sans-serif;letter-spacing:.24em;color:#9fe8c8;margin-bottom:6px">MAP LEGEND</div></div>
     <div id="fmPop" style="position:absolute;display:none;padding:12px 14px;border-radius:16px;background:rgba(20,0,28,.9);border:1px solid #ff2d9a;min-width:200px"></div>
-    <div style="position:absolute;left:0;right:0;bottom:16px;text-align:center;font:600 11px Outfit,sans-serif;letter-spacing:.2em;color:rgba(255,255,255,.55);pointer-events:none">WHEEL ZOOM · DRAG PAN · CLICK A SITE TO TRAVEL · M OR ESC CLOSE</div>
+    <div style="position:absolute;left:0;right:0;bottom:16px;text-align:center;font:600 11px Outfit,sans-serif;letter-spacing:.2em;color:rgba(255,255,255,.55);pointer-events:none">WHEEL ZOOM · DRAG PAN · CLICK A SITE TO TRAVEL · M OR ESC CLOSE · THE DRIVE IS PAUSED WHILE THE MAP IS OPEN</div>
     <button id="fmClose" style="position:absolute;left:28px;bottom:16px;height:38px;padding:0 20px;border-radius:999px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#fff;font:600 11px Outfit,sans-serif;letter-spacing:.18em;cursor:pointer">CLOSE</button>`);
   document.body.appendChild(root);
   const legend = root.querySelector('#fmLegend') as HTMLElement, pop = root.querySelector('#fmPop') as HTMLElement;
@@ -205,7 +208,8 @@ export function createFestMap(o: FestMapOpts): { open(): void; close(): void; to
     cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; fit();
     const p = o.player(); if (p) { const [px, pz] = toPx(p.x, p.z); cx = px; cz = pz; sc = Math.max(sc, 1.2); }
     draw(); addEventListener('resize', resize);
+    o.onOpen?.();
   }
-  function close(): void { root.style.display = 'none'; removeEventListener('resize', resize); }
+  function close(): void { if (root.style.display === 'none') return; root.style.display = 'none'; removeEventListener('resize', resize); o.onClose?.(); }
   return { open, close, toggle: () => (root.style.display === 'none' ? open() : close()), isOpen: () => root.style.display !== 'none' };
 }

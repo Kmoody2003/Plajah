@@ -59,6 +59,8 @@ import { buildUtilities, type UtilitiesData } from './utilities';
 import { mergeByMaterial } from './carBatch';
 import { SimLayer, carveSim, planSim, type SimPlan } from './simLayer';
 import { buildTownSidewalks } from './townStreets';
+import { buildParkedCars } from './parkedCars';
+import { denseArea } from './sim/signals';
 import type { UserMapData } from './sim/data';
 import { buildPortDistrict, carvePlatform, inPort, type PortData } from './portDistrict';
 import { injectRoadPbr, roadUniforms, loadRoadPbr } from './roadpbr';
@@ -1106,6 +1108,25 @@ async function buildStreets(): Promise<void> {
   void aS; void aH; void walk; void W;
   buildCurbs().catch((e) => console.warn('curbs failed', e));
   buildStreetMarks();
+  buildTownExtras();
+}
+// Once the street runs are in: curbs and sidewalks along the town streets (src/townStreets.ts; downtown keeps the ones painted from the street mask), and parked cars
+// at the city curbs and in the driveways (src/parkedCars.ts). Built once.
+function buildTownExtras(): void {
+  if (!countryScenes) return;
+  if (!townWalks) {
+    const CW: Record<string, number> = { street: 4.25, arterial: 7, freeway: 6.25, ramp: 2.75 };
+    townWalks = buildTownSidewalks(countryScenes, { ground: (x, z) => meshH(x, z), painted: (x, z) => paintedRoad(x, z, 0, true), water: (x, z) => hAt(x, z) < 2.5, extra: streetRuns.map((r) => ({ line: r.p.map(([x, z]) => ({ x, z })), half: CW[r.c] ?? 4.25 })) });
+    furnitureGroup.add(townWalks.group);
+  }
+  if (!parked) {
+    const dense = simPlan?.tall?.length ? denseArea(simPlan.tall) : () => false;
+    parked = buildParkedCars({
+      streets: streetRuns, drives: countryNet?.roads ?? [], ground: (x, z) => meshH(x, z), downtown: dense, mouths: countryScenes.driveMouths,
+      skip: (x, z) => roadDist(x, z) < 9 || hAt(x, z) < 2.5 || insideBuilding(x, z, 0.8) || !!(simLayer?.junctions.near(x, z, 3)),
+    });
+    furnitureGroup.add(parked.group);
+  }
 }
 // Lane markings for the streets off the race circuit: the carriageways are painted from the street mask (which has no lines), so the centre lines go on as dashes laid
 // along each street, broken wherever another street crosses (so there is nothing at an intersection to overlap or flicker) and left off the circuit, which has its own.
@@ -1326,6 +1347,7 @@ let indNear: ((x: number, z: number, r: number) => boolean) | null = null;
 let simPlan: SimPlan | null = null;                 // road graph, rails and airfield from the map editor (src/simLayer.ts)
 let simLayer: SimLayer | null = null;
 let townWalks: ReturnType<typeof buildTownSidewalks> | null = null;   // town street curbs and sidewalks (src/townStreets.ts)
+let parked: ReturnType<typeof buildParkedCars> | null = null;                         // parked cars at the curbs and in driveways
 let festProg: FestProgress | null = null;                                             // Chora Fest progression
 let festMap: ReturnType<typeof createFestMap> | null = null;                         // the designed navigation map (src/festMap.ts)
 let freeSpawn: { p: number[]; q: number[] } | null = null;                             // where the next free roam starts (fast travel)
@@ -3096,10 +3118,6 @@ function buildFurniture(): void {
     driveSurfaces.push(...countryScenes.roads);
     surfGrid = null;
     (window as any).countryShots = countryScenes.shots;
-    // curbs, tree lawns and sidewalks along the town streets (src/townStreets.ts); downtown keeps the ones painted from the street mask
-    const CW: Record<string, number> = { street: 4.25, arterial: 7, freeway: 6.25, ramp: 2.75 };
-    townWalks = buildTownSidewalks(countryScenes, { ground: (x, z) => meshH(x, z), painted: (x, z) => paintedRoad(x, z, 0, true), water: (x, z) => hAt(x, z) < 2.5, extra: streetRuns.map((r) => ({ line: r.p.map(([x, z]) => ({ x, z })), half: CW[r.c] ?? 4.25 })) });
-    furnitureGroup.add(townWalks.group);
   }
 
   if (meta.circuits[IND]) {
@@ -3167,6 +3185,7 @@ function buildFurniture(): void {
     if (festivalData && festProg && !festMap) {
       const fd = festivalData, fp = festProg, SC = ['#7ff7ff', '#ff7ab8', '#ffd166', '#b8ff6a', '#c9a0ff', '#ff9a4d', '#6ad7ff', '#ffe07a'];
       const roads: MapRoad[] = [];
+      const collect = (): MapRoad[] => { if (roads.length) return roads;
       for (const r of countryNet?.roads ?? []) {
         if (r.kind === 'drive' || r.xz.length < 2) continue;
         const h = r.half ?? 3.6;
@@ -3175,10 +3194,11 @@ function buildFurniture(): void {
       for (const r of streetRuns) roads.push({ xz: r.p, kind: r.c === 'freeway' || r.c === 'ramp' ? 'freeway' : r.c === 'arterial' ? 'country' : 'street' });
       if (shoreHw) roads.push({ xz: shoreHw.xz, kind: 'highway' });
       scenicData.forEach((r, i) => roads.push({ xz: r.xz, kind: 'scenic', name: r.name, color: SC[i % SC.length] }));
+      return roads; };
       const W2 = meta.width * meta.mpp / 2, H2 = meta.height * meta.mpp / 2;
       festMap = createFestMap({
         bounds: { minX: GRID.ox - W2, maxX: GRID.ox + W2, minZ: GRID.oz - H2, maxZ: GRID.oz + H2 },
-        height: (x, z) => hAt(x, z), roads, buildings: () => cityItems.map((it) => [it.x, it.z] as [number, number]),
+        height: (x, z) => hAt(x, z), roads: collect, buildings: () => cityItems.map((it) => [it.x, it.z] as [number, number]),
         places: [...meta.places.map((p) => [p.name, p.xz[0], p.xz[1]] as [string, number, number]), ...NORTH_PLACES],
         sites: () => fd.sites.map((st) => ({ id: st.id, name: st.name, kind: st.kind, x: st.x, z: st.z, open: fp.fest.isOpen(st.id), canOpen: fp.fest.passes.free > 0 })),
         stunts: () => [
@@ -3190,9 +3210,12 @@ function buildFurniture(): void {
         player: () => (driving ? { x: driving.ps.pos.x, z: driving.ps.pos.z, yaw: driving.ps.yaw } : null),
         fp: () => `${fp.fest.fp.toLocaleString()} Fest Points · ${fp.fest.save.open.length} of ${fd.sites.length} sites open`,
         travel: (id) => { hideBrief(); fp.travel(id); }, openSite: (id) => fp.openSite(id),
+        // while driving, the map pauses the car, its sound and the weather
+        onOpen: () => { if (driving) { gameAudio.setPaused(true); wx.setPaused(true); driveHud.style.display = 'none'; } },
+        onClose: () => { if (driving) { gameAudio.setPaused(false); wx.setPaused(false); driveHud.style.display = 'block'; } },
       });
       addMenuCard('WORLD MAP', 'Navigation map', 'Festival sites · stunts · fast travel (M)', '#9fe8c8', () => festMap?.open());
-      addEventListener('keydown', (e) => { if (e.code === 'KeyM' && !driving && !festMap?.isOpen() && !(e.target instanceof HTMLInputElement)) festMap?.open(); });
+      addEventListener('keydown', (e) => { if (e.code === 'KeyM' && !festMap?.isOpen() && !replay.active && !photo.active && !(e.target instanceof HTMLInputElement)) { keys.clear(); festMap?.open(); } });
     }
     heroBridgeUpdate = rb.updateLed;
   }
@@ -3919,6 +3942,7 @@ function stepDrive(dt: number): void {
       if (!locked) { const hit = carHit(ps, r.state.pos, r.state.yaw, r.state.vel, 1); if (hit > 3) { r.state.vel.multiplyScalar(0.985); } }
     }
   }
+  if (parked && !locked) for (const pc of parked.near(ps.pos.x, ps.pos.z, 7)) carHit(ps, PARKED_P.set(pc.x, ps.pos.y, pc.z), pc.yaw, PARKED_V, 3);   // parked cars are solid
   if (trafficMgr) {
     trafficMgr.update(dt, ps);
     for (let i = 0; i < trafficMgr.vehicles.length && i < trafficMeshes.length; i++) {
@@ -4446,6 +4470,7 @@ if (TV_MODE || renderScale < 0.99) applyRenderScale();
 
 // Car-to-car contact: each car is three circles along its length; overlap pushes the player out and swaps momentum along the contact normal (the other car is heavier or lighter by `otherMass`).
 const CAR_CIRCLES = [-1.45, 0, 1.45], CAR_R = 1.0;
+const PARKED_P = new THREE.Vector3(), PARKED_V = new THREE.Vector3();
 function carHit(ps: DriveState['ps'], op: THREE.Vector3, oyaw: number, ovel: THREE.Vector3, otherMass: number): number {
   const sy = Math.sin(ps.yaw), cy = Math.cos(ps.yaw), oy = Math.sin(oyaw), oc = Math.cos(oyaw);
   if ((ps.pos.x - op.x) ** 2 + (ps.pos.z - op.z) ** 2 > 36) return 0;
@@ -4547,7 +4572,7 @@ function frame(now: number): void {
   stepWeather(dt);
   heroBridgeUpdate?.(now * 0.001, Math.max(0, Math.min(1, 1 - (sunDir.y + 0.05) * 4)));
   for (const l of cloudLayers) { l.tex.offset.x += l.vx * dt; l.tex.offset.y += l.vz * dt; }
-  if (replay.active) replay.step(dt); else if (!photo.active) stepDrive(dt);
+  if (replay.active) replay.step(dt); else if (!photo.active && !festMap?.isOpen()) stepDrive(dt);      // photo mode and the navigation map pause the drive
   photo.update();
   updateProbe(dt);
   if (!fly && !driving) controls.update();

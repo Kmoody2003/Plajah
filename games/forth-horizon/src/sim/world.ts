@@ -137,7 +137,7 @@ export class SimWorld {
   }
 
   private place(c: Car): void {
-    const e = this.graph.edges[c.path[c.pi]], sm = sampleAt(e.pts, e.cum, c.s), off = LANE0 + Math.min(c.lane, e.lanes - 1) * LANE_W;
+    const e = this.graph.edges[c.path[c.pi]], sm = sampleAt(e.pts, e.cum, c.s), off = (e.cls === 'street' ? 1.45 : LANE0) + Math.min(c.lane, e.lanes - 1) * LANE_W;     // local streets: a little in, clear of the parked cars
     c.x = sm.x - sm.dz * off; c.z = sm.z + sm.dx * off; c.yaw = Math.atan2(sm.dx, sm.dz);
   }
 

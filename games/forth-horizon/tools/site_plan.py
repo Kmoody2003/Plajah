@@ -343,6 +343,7 @@ def main():
                 end = pt if ok else p0 + (p1 - p0) * ((q - 1) / n_)
                 if np.linalg.norm(end - run) > 2.0: chain.append([round(float(run[0]), 2), round(float(run[1]), 2), round(float(end[0]), 2), round(float(end[1]), 2)])
                 run = None
+    unserved = []
     for _, k in cands:
         it = items[k]; w, d = sc(it); phi = it["rotY"]
         f = np.array([math.sin(phi), math.cos(phi)]); t = np.array([math.cos(phi), -math.sin(phi)])
@@ -393,6 +394,8 @@ def main():
             edge_pt = p + f * dep / 2 if kind == "front" else p + f * dep / 2
             if drive_to_road(edge_pt):
                 new_lots.append(lot); carve(rect(p[0], p[1], lw_, dep, phi, 1.0)); site.append(rect(p[0], p[1], lw_, dep, phi))
+            else: placed = None
+        if not placed: unserved.append(k)
         if ind:
             # truck apron on the side away from the lot (or behind), docks on the wall it faces
             ad = 24.0
@@ -436,6 +439,27 @@ def main():
             p = c - f * (d / 2 + 1.6) + t * (w / 2 - 2.5)
             if rect_free(rect(p[0], p[1], 2.2, 1.6, phi)): dumpsters.append([round(float(p[0]), 2), round(float(p[1]), 2), round(phi, 4)])
         poly(rect(c[0], c[1], w, d, phi, 1.5), BLDB)                       # the building is an obstacle again, where it now stands
+    # ---------- the businesses still without parking: a lot on free ground within 60 m (a shared lot behind the block), unless one already serves them ----------
+    second = 0
+    for k in unserved:
+        it = items[k]; w, d = sc(it); phi = it["rotY"]
+        c = np.array([it["bx"], it["bz"]]); f = np.array([math.sin(phi), math.cos(phi)]); t = np.array([math.cos(phi), -math.sin(phi)])
+        allp = np.array([[l[0], l[1]] for l in lots + new_lots]) if (lots or new_lots) else np.zeros((0, 2))
+        if len(allp) and np.min(np.hypot(*(allp - c).T)) < max(w, d) / 2 + 40: continue          # a lot nearby already serves it
+        lw = min(max(w, 16.0), 40.0); dep = 12.5 if w < 30 else 18.0
+        done = False
+        for rad in (10, 18, 26, 34, 42, 50, 60):
+            for ang in np.linspace(0, 2 * math.pi, max(8, int(rad / 2.5)), endpoint=False):
+                p = c + (t * math.cos(ang) + f * math.sin(ang)) * (rad + max(w, d) / 2)
+                for ph in (phi, phi + math.pi / 2):
+                    pts = rect(p[0], p[1], lw, dep, ph)
+                    if not (rect_free(rect(p[0], p[1], lw, dep, ph, -0.6)) and slope_ok(pts, 2.5)): continue
+                    if not drive_to_road(p): continue
+                    new_lots.append([round(float(p[0]), 1), round(float(p[1]), 1), round(lw, 1), round(dep, 1), round(ph, 4)]); carve(rect(p[0], p[1], lw, dep, ph, 1.0))
+                    second += 1; done = True; break
+                if done: break
+            if done: break
+    print(f"second pass: {len(unserved)} businesses without a lot, {second} lots on free ground nearby")
     # ---------- write ----------
     lots.extend(new_lots)
     drives["roads"].extend(new_drives)

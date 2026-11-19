@@ -10,7 +10,7 @@ import type { CountryScenes, Pt } from './countryScenes';
  * - Nothing is laid where the street mask already paints a downtown sidewalk, on bridge decks, or over water.
  * One mesh for the walks and one for the curbs, whatever the number of streets.
  */
-const CURB_H = 0.15, CURB_TOP = 0.2, WALK = 1.5, STEP = 2;
+const CURB_H = 0.15, CURB_TOP = 0.2, WALK = 1.5, STEP = 2, CORNER_R = 4.5;     // a residential corner: 4.5 m curb radius
 
 interface Run { line: Pt[]; ys: number[]; half: number; town: boolean; lawn: number; cum: number[] }
 
@@ -125,7 +125,7 @@ export function buildTownSidewalks(
         let curb = !deck && !(o.water?.(cx, cz)) && !(o.painted?.(cx, cz)) && !nearMouth(cx, cz, 2.4);
         if (curb) for (const [q, d] of others(cx, cz, ri, tmp)) {
           const R = runs[q];
-          if (d < R.half + 0.6) { curb = false; break; }                                                    // the mouth of another road
+          if (d < R.half + (R.town && r.town ? CORNER_R : 0.6)) { curb = false; break; }                  // the mouth of another road (or the start of the corner arc)
           if (R.lawn && owns(q, ri) && d > R.half + CURB_TOP + R.lawn - 0.3 && d < R.half + CURB_TOP + R.lawn + WALK + 0.3) { curb = false; break; }   // a ramp: the cross street's walk lands here
         }
         if (curb) {
@@ -144,6 +144,81 @@ export function buildTownSidewalks(
       }
     }
   });
+  // ---- corner arcs: between each pair of neighbouring arms of two town streets at a junction, a curb of radius CORNER_R tangent to both curb lines ----
+  let corners = 0;
+  /** nearest point on run k's centre line */
+  const proj = (k: number, pt: Pt): Pt => {
+    const L = runs[k].line; let best = pt, bd = 1e18;
+    for (let m = 0; m < L.length - 1; m++) {
+      const a = L[m], b = L[m + 1], dx = b.x - a.x, dz = b.z - a.z, l2 = dx * dx + dz * dz || 1, t = Math.max(0, Math.min(1, ((pt.x - a.x) * dx + (pt.z - a.z) * dz) / l2));
+      const x = a.x + dx * t, z = a.z + dz * t, dd = (x - pt.x) ** 2 + (z - pt.z) ** 2;
+      if (dd < bd) { bd = dd; best = { x, z }; }
+    }
+    return best;
+  };
+  {
+    const towns = runs.map((r, i) => (r.town ? i : -1)).filter((i) => i >= 0);
+    const seenJ: Pt[] = [];
+    const tmp2 = new Map<number, number>(), tmp3 = new Map<number, number>();
+    for (const ri of towns) {
+      const r = runs[ri];
+      for (let i = 0; i < r.line.length; i++) {
+        const p0 = r.line[i];
+        for (const [q, d] of [...others(p0.x, p0.z, ri, tmp2)]) {
+          const R = runs[q]; if (!R.town || d > 2.2) continue;           // this sample is near the other street's centre line: a junction
+          // the exact crossing: project back and forth between the two centre lines
+          let p = { x: p0.x, z: p0.z };
+          for (let it = 0; it < 4; it++) p = proj(ri, proj(q, p));
+          if (seenJ.some((J) => Math.hypot(J.x - p.x, J.z - p.z) < 10)) continue;
+          seenJ.push({ x: p.x, z: p.z });
+          // the arms: each street, both ways from the junction, 14 m out
+          const arms: { ux: number; uz: number; half: number; run: number }[] = [];
+          for (const k of [ri, q]) {
+            const L = runs[k].line;
+            let bi = 0, bd = 1e18; for (let m = 0; m < L.length; m++) { const dd = (L[m].x - p.x) ** 2 + (L[m].z - p.z) ** 2; if (dd < bd) { bd = dd; bi = m; } }
+            for (const dir of [-7, 7]) {
+              const m = bi + dir; if (m < 0 || m >= L.length) continue;
+              const dx = L[m].x - p.x, dz = L[m].z - p.z, l = Math.hypot(dx, dz); if (l < 8) continue;
+              arms.push({ ux: dx / l, uz: dz / l, half: runs[k].half, run: k });
+            }
+          }
+          if (arms.length < 2) continue;
+          arms.sort((a, b) => Math.atan2(a.uz, a.ux) - Math.atan2(b.uz, b.ux));
+          for (let a = 0; a < arms.length; a++) {
+            const A = arms[a], B = arms[(a + 1) % arms.length];
+            if (A.run === B.run) continue;
+            const cos = A.ux * B.ux + A.uz * B.uz, th = Math.acos(Math.max(-1, Math.min(1, cos)));
+            const cross = A.ux * B.uz - A.uz * B.ux;
+            if (cross <= 0 || th < 0.45 || th > 2.7) continue;            // B must be the next arm anticlockwise, and the wedge a real corner
+            const sn = Math.sin(th), ca = (B.half + CORNER_R) / sn, cb = (A.half + CORNER_R) / sn;      // the curb face is the road edge (half), CORNER_R from the centre
+            const cx = p.x + A.ux * ca + B.ux * cb, cz = p.z + A.uz * ca + B.uz * cb;     // the arc's centre, inside the wedge
+            // tangent points on each curb face line
+            const fa = (cx - p.x) * A.ux + (cz - p.z) * A.uz, fb = (cx - p.x) * B.ux + (cz - p.z) * B.uz;
+            const ta = { x: p.x + A.ux * fa, z: p.z + A.uz * fa }, tb = { x: p.x + B.ux * fb, z: p.z + B.uz * fb };
+            let a0 = Math.atan2(ta.z - cz, ta.x - cx), a1 = Math.atan2(tb.z - cz, tb.x - cx);
+            let da = a1 - a0; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+            const rr = CORNER_R, n = Math.max(3, Math.ceil(Math.abs(da) * rr / 0.8));
+            let prev: number[] | null = null;
+            for (let k = 0; k <= n; k++) {
+              const ang = a0 + (da * k) / n, ex = cx + Math.cos(ang) * rr, ez = cz + Math.sin(ang) * rr;     // the curb face, on the road side
+              const ox = Math.cos(ang), oz = Math.sin(ang);                   // pointing away from the centre = into the road; the top runs toward the centre
+              // the ramp: where either street's sidewalk lands on the arc, the curb is cut
+              let cut = false;
+              for (const [qq, dd] of others(ex, ez, -1, tmp3)) { const W = runs[qq]; if (W.lawn && (qq === A.run || qq === B.run) && dd > W.half + CURB_TOP + W.lawn - 0.3 && dd < W.half + CURB_TOP + W.lawn + WALK + 0.3) { cut = true; break; } }
+              if (cut || o.water?.(ex, ez)) { prev = null; continue; }
+              const y = o.ground(ex, ez) + 0.1;
+              const base = [ex, y, ez], top = [ex, y + CURB_H, ez], back = [ex - ox * CURB_TOP, y + CURB_H, ez - oz * CURB_TOP];
+              const foot = [ex - ox * CURB_TOP, Math.min(o.ground(ex - ox * (CURB_TOP + 0.05), ez - oz * (CURB_TOP + 0.05)) + 0.02, y + CURB_H - 0.02), ez - oz * CURB_TOP];
+              const cur = [...base, ...top, ...back, ...foot];
+              if (prev) { const P = (kk: number, arr: number[]): number[] => arr.slice(kk * 3, kk * 3 + 3); for (const [s0, s1] of [[0, 1], [1, 2], [2, 3]]) quadC(P(s0, prev), P(s0, cur), P(s1, cur), P(s1, prev)); }
+              prev = cur;
+            }
+            corners++;
+          }
+        }
+      }
+    }
+  }
   if (wPos.length) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(wPos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(wUv, 2)); g.setIndex(wIdx); g.computeVertexNormals();
@@ -158,7 +233,7 @@ export function buildTownSidewalks(
     const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xbdbab2, roughness: 0.85, side: THREE.DoubleSide }));
     m.receiveShadow = true; m.name = 'town-curbs'; group.add(m);
   }
-  console.log('town sidewalks', Math.round(walkM / 1000), 'km of walk,', Math.round(curbM / 1000), 'km of curb');
+  console.log('town sidewalks', Math.round(walkM / 1000), 'km of walk,', Math.round(curbM / 1000), 'km of curb,', corners, 'corner arcs');
   // keep street trees and props off the walks
   const WC = 16, wg = new Map<number, number[]>();
   for (let i = 0; i < walkPts.length; i += 2) { const k = Math.floor(walkPts[i] / WC) * 100003 + Math.floor(walkPts[i + 1] / WC); (wg.get(k) ?? (wg.set(k, []), wg.get(k)!)).push(walkPts[i], walkPts[i + 1]); }
