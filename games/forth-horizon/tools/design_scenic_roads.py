@@ -108,6 +108,9 @@ def relax_radius(xz, min_r, iters=1500, m=4):
         bad = gaussian_filter1d((k > 1.0 / min_r).astype(float), 2) > 0.01
         if not bad.any(): break
         P[m:-m][bad] += 0.2 * ((a + c) / 2 - b)[bad]
+    # the relaxation works on a 32 m chord and can leave (or make) wiggles at the 4 m sample scale (a 3.7 m-radius kink on the crest road's viaduct);
+    # a light pass over immediate neighbours irons them out and moves the alignment itself by centimetres; the ends stay where the junctions pin them
+    for _ in range(25): P[1:-1] += 0.3 * ((P[:-2] + P[2:]) / 2 - P[1:-1])
     s = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(P, axis=0), axis=1))]); si = np.append(np.arange(0, s[-1], STEP), s[-1])
     return np.c_[np.interp(si, s, P[:, 0]), np.interp(si, s, P[:, 1])]
 
