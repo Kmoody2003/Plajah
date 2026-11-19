@@ -48,7 +48,44 @@ export function carveScenicRoads(heights: Float32Array, W: number, H: number, mp
   }
 }
 
-export function buildScenicRoads(roads: ScenicRoad[], ground: (x: number, z: number) => number, roadMat?: THREE.Material): { group: THREE.Group; decks: THREE.Mesh[] } {
+/** a guardrail segment the car collides with: from a to b at height y; (ox, oz) points away from the road */
+export interface RailSeg { ax: number; az: number; bx: number; bz: number; y: number; ox: number; oz: number }
+const RAIL_CELL = 10;
+/** spatial hash of rail segments (10 m cells) */
+export function railIndex(segs: RailSeg[]): Map<number, RailSeg[]> {
+  const m = new Map<number, RailSeg[]>(), key = (i: number, j: number) => (i + 4096) * 8192 + (j + 4096);
+  for (const g of segs) {
+    const i0 = Math.floor(Math.min(g.ax, g.bx) / RAIL_CELL), i1 = Math.floor(Math.max(g.ax, g.bx) / RAIL_CELL), j0 = Math.floor(Math.min(g.az, g.bz) / RAIL_CELL), j1 = Math.floor(Math.max(g.az, g.bz) / RAIL_CELL);
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) { const k = key(i, j); const l = m.get(k); if (l) l.push(g); else m.set(k, [g]); }
+  }
+  return m;
+}
+/** how far the point (x, y, z) is past a guardrail (0 when it is not), and the rail's outward normal: a car corner on the deck side is free, one
+ *  up to 1.5 m past the rail line at the rail's height is pushed back (a car on the ground under a viaduct, or well beyond, is not caught) */
+export function railPenetration(idx: Map<number, RailSeg[]>, x: number, y: number, z: number): { d: number; ox: number; oz: number } {
+  const l = idx.get((Math.floor(x / RAIL_CELL) + 4096) * 8192 + (Math.floor(z / RAIL_CELL) + 4096));
+  let d = 0, ox = 0, oz = 0;
+  if (!l) return { d, ox, oz };
+  for (const g of l) {
+    if (Math.abs(y - g.y) > 2.2) continue;
+    const ex = g.bx - g.ax, ez = g.bz - g.az, L2 = ex * ex + ez * ez || 1, t = ((x - g.ax) * ex + (z - g.az) * ez) / L2;
+    if (t < -0.05 || t > 1.05) continue;
+    const lat = (x - g.ax) * g.ox + (z - g.az) * g.oz;                          // past the rail line, measured outward
+    if (lat > 0 && lat < 1.5 && lat > d) { d = lat; ox = g.ox; oz = g.oz; }
+  }
+  return { d, ox, oz };
+}
+
+export function buildScenicRoads(roads: ScenicRoad[], ground: (x: number, z: number) => number, roadMat?: THREE.Material, keepClear: number[][][] = []): { group: THREE.Group; decks: THREE.Mesh[]; rails: RailSeg[] } {
+  // no guardrail across another road's mouth: rails stay 10 m clear of every other road's centreline (junctions, crossings)
+  const clear = new Map<number, number[]>(), ck = (x: number, z: number) => (Math.floor(x / 10) + 4096) * 8192 + (Math.floor(z / 10) + 4096);
+  const addClear = (pts: number[][], id: number) => { for (let i = 0; i < pts.length; i++) { const a = pts[i], b = pts[Math.min(pts.length - 1, i + 1)], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 4)); for (let k = 0; k < n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, z = a[1] + (b[1] - a[1]) * k / n, key = ck(x, z); const l = clear.get(key); if (l) l.push(x, z, id); else clear.set(key, [x, z, id]); } } };
+  roads.forEach((r, k) => addClear(r.xz, k)); keepClear.forEach((p) => addClear(p, -1));
+  const nearOther = (x: number, z: number, self: number): boolean => {
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const l = clear.get(ck(x + i * 10, z + j * 10)); if (!l) continue; for (let q = 0; q < l.length; q += 3) if (l[q + 2] !== self && (l[q] - x) ** 2 + (l[q + 1] - z) ** 2 < 100) return true; }
+    return false;
+  };
+  const railSegs: RailSeg[] = [];
   const group = new THREE.Group(); group.name = 'scenic-roads';
   const decks: THREE.Mesh[] = [];
   const asphalt = roadMat ?? new THREE.MeshStandardMaterial({ color: 0x2c2d30, roughness: 0.88 });
@@ -57,7 +94,7 @@ export function buildScenicRoads(roads: ScenicRoad[], ground: (x: number, z: num
   const yellow = new THREE.MeshStandardMaterial({ color: 0xe0b020, roughness: 0.6, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   const steel = new THREE.MeshStandardMaterial({ color: 0xb4b9be, metalness: 0.6, roughness: 0.45 });
   const conc = new THREE.MeshStandardMaterial({ color: 0x9a9893, roughness: 0.92 });
-  for (const r of roads) {
+  roads.forEach((r, self) => {
     const { nx, nz } = frames(r), n = r.xz.length;
     // a strip between two lateral offsets, following the banked surface (lift above it in metres); dash = [on, off] in samples
     const strip = (s0: number, s1: number, lift: number, mat: THREE.Material, dash?: [number, number]): THREE.Mesh => {
@@ -87,7 +124,7 @@ export function buildScenicRoads(roads: ScenicRoad[], ground: (x: number, z: num
         const s = side * (r.half + SHOULDER - 0.4), x = b[0] + nx[i] * s, z = b[1] + nz[i] * s;
         const drop = surf(r, i, s) - ground(x + nx[i] * side * 3, z + nz[i] * side * 3);
         const outside = R < 120 && Math.sign(cross) === -side;                            // the bend turns to the left normal when cross > 0: the outside is the other side
-        if (outside || drop > 2) rails.push({ i, side });
+        if ((outside || drop > 2) && !nearOther(x, z, self)) rails.push({ i, side });
       }
     }
     if (rails.length) {
@@ -101,6 +138,11 @@ export function buildScenicRoads(roads: ScenicRoad[], ground: (x: number, z: num
         beam.setMatrixAt(k, m4.compose(p.set(x - nx[i] * side * 0.1, y + 0.6, z - nz[i] * side * 0.1), qt, one));
       });
       post.castShadow = beam.castShadow = true; group.add(post, beam);
+      for (const { i, side } of rails) {
+        if (i >= n - 1) continue;
+        const s0 = side * (r.half + SHOULDER - 0.5);
+        railSegs.push({ ax: r.xz[i][0] + nx[i] * s0, az: r.xz[i][1] + nz[i] * s0, bx: r.xz[i + 1][0] + nx[i + 1] * s0, bz: r.xz[i + 1][1] + nz[i + 1] * s0, y: surf(r, i, s0), ox: nx[i] * side, oz: nz[i] * side });
+      }
     }
     // piers where the road crosses a hollow on a viaduct (more than 4 m over the ground)
     const piers: number[][] = [];
@@ -116,8 +158,8 @@ export function buildScenicRoads(roads: ScenicRoad[], ground: (x: number, z: num
       // the deck's underside so the viaduct reads as a structure, not a floating ribbon
       const und = strip(-r.half - SHOULDER, r.half + SHOULDER, -0.9, conc); und.material = conc;
     }
-  }
-  return { group, decks };
+  });
+  return { group, decks, rails: railSegs };
 }
 
 /** corridor of every scenic road (for passes that must leave them alone) */

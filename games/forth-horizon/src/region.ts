@@ -37,7 +37,7 @@ import { buildRuralOpenWorldDetail } from './ruralDetail';
 import { buildCityExpansion } from './cityExpansion';
 import { buildRiverBridges, carveRiverReaches, routeOverBridges, gradeFromFoot, bridgeCorridors } from './riverBridges';
 import { gradeRoads, corridor, type GradeRoad, type GradeClass } from './roadGrade';
-import { carveScenicRoads, buildScenicRoads, scenicCorridors, type ScenicRoad } from './scenicRoads';
+import { carveScenicRoads, buildScenicRoads, scenicCorridors, railIndex, railPenetration, type ScenicRoad, type RailSeg } from './scenicRoads';
 import { createMapEditor, ROAD_STYLE, type RoadKind, type UserMap } from './mapEditor';
 import { CompetitionEngine } from './racingAI';
 import { TrafficManager, OpenWorldChallengeManager, type FestivalData } from './openWorldEvents';
@@ -671,6 +671,8 @@ function label(text: string, x: number, y: number, z: number, color = '#ffffff',
   c.width = 512; c.height = 96;
   const g = c.getContext('2d')!;
   g.font = '600 40px Outfit, sans-serif';
+  const tw = g.measureText(text).width;
+  if (tw > 470) g.font = `600 ${Math.floor(40 * 470 / tw)}px Outfit, sans-serif`;   // a long name shrinks to fit instead of running off the label
   g.fillStyle = 'rgba(26,0,38,0.78)';
   const w = Math.min(500, g.measureText(text).width + 24);
   g.fillRect(256 - w / 2, 18, w, 60);
@@ -718,7 +720,16 @@ function buildOverlays(): void {
   // the coastal highway and the freeway are real asphalt in the world now (countryScenes); no flat grey review ribbons for them
   road(meta.river, 0x2f86c4, 0.01);
   for (const p of meta.places) labelGroup.add(label(p.name, p.xz[0], hAt(p.xz[0], p.xz[1]) * exag + 260, p.xz[1], '#ffe9a0', 0.8));
+  // the north lands (tools/grow_north.py), the Chora Fest sites (region/festival.json) and the scenic roads, so the map reads as the festival's world
+  for (const [name, x, z] of NORTH_PLACES) labelGroup.add(label(name, x, hAt(x, z) * exag + 300, z, '#ffe9a0', 0.8));
+  for (const st of festivalData?.sites ?? []) labelGroup.add(label('CHORA FEST · ' + st.name.toUpperCase(), st.x, hAt(st.x, st.z) * exag + 380, st.z, '#ff6fb1', st.kind === 'main' ? 0.85 : 0.65));
+  for (const r of scenicData) { const m = r.xz[r.xz.length >> 1]; labelGroup.add(label(r.name, m[0], r.y[r.xz.length >> 1] * exag + 180, m[1], '#d6e4ea', 0.5)); }
 }
+/** names for the north lands on the map (positions from region/north_lands.json) */
+const NORTH_PLACES: [string, number, number][] = [
+  ['Wine Country', 3200, -6000], ['Tulip Flats', -300, -5900], ['Finger Lake', 1450, -6900], ['The Giant Forest', -5000, -8300], ['The Escarpment', 2600, -9250],
+  ['Superior Range', -3300, -12500], ['Glacier', -4400, -12100], ['Fjord Coast', -6700, -11400], ['Dry Canyons', 1000, -11300], ['North Shore', -2500, -14100],
+];
 
 // ---------- harbor ----------
 interface HarborPlan {
@@ -2971,7 +2982,12 @@ function buildFurniture(): void {
     driveSurfaces.push(...rb.decks);
     surfGrid = null;
     bridgeNear = makeCorridor(rb.path);
-    if (scenicData.length) { const sr = buildScenicRoads(scenicData, (x, z) => meshH(x, z), cityRoadMat ?? undefined); furnitureGroup.add(sr.group); driveSurfaces.push(...sr.decks); }
+    if (scenicData.length) {
+      // guardrails stay clear of every other road's mouth (country roads, driveways, city streets); they are solid (scenicRailHit)
+      const keep = [...(countryNet?.roads ?? []).map((r) => r.xz), ...streetRuns.map((r) => r.p)];
+      const sr = buildScenicRoads(scenicData, (x, z) => meshH(x, z), cityRoadMat ?? undefined, keep); furnitureGroup.add(sr.group); driveSurfaces.push(...sr.decks);
+      scenicRails = railIndex(sr.rails);
+    }
     if (festivalData) furnitureGroup.add(buildFestival(festivalData, (x, z) => meshH(x, z)));                         // Chora Fest stages and stunt furniture
     heroBridgeUpdate = rb.updateLed;
   }
@@ -3379,7 +3395,25 @@ function barrierCollide(s: DriveState): boolean {
     const over = c.d - (cliff ? (inTun ? 8.55 : 8.05) : BARRIER_FACE);       // cliff raceway: the Armco / Jersey face (the tunnel's wall inside the mountain)
     if (over > worst && c.d < 60) { worst = over; ux = c.nx / c.d; uz = c.nz / c.d; }
   }
-  if (worst > 0) {
+  if (worst > 0) { wallPush(s, ux, uz, worst); return true; }
+  return false;
+}
+/** the scenic roads' guardrails are solid on every drive (a car that runs wide on a viaduct or a mountain bend scrapes the rail instead of dropping off) */
+let scenicRails: Map<number, RailSeg[]> | null = null;
+function scenicRailHit(s: DriveState): boolean {
+  if (!scenicRails) return false;
+  const sy = Math.sin(s.yaw), cy = Math.cos(s.yaw);
+  let worst = 0, ux = 0, uz = 0;
+  for (const [lx, lz] of [[CAR_HW, CAR_HL], [-CAR_HW, CAR_HL], [CAR_HW, -CAR_HL], [-CAR_HW, -CAR_HL]]) {
+    const r = railPenetration(scenicRails, s.pos.x + cy * lx + sy * lz, s.ps.pos.y, s.pos.z - sy * lx + cy * lz);
+    if (r.d > worst) { worst = r.d; ux = r.ox; uz = r.oz; }
+  }
+  if (worst > 0) { wallPush(s, ux, uz, worst); return true; }
+  return false;
+}
+/** push the car back from a wall it is `worst` metres into ((ux, uz) points into the wall) and take away the speed going into it */
+function wallPush(s: DriveState, ux: number, uz: number, worst: number): void {
+  {
     s.pos.x -= ux * worst;
     s.pos.z -= uz * worst;
     // A wall takes away the speed going INTO it and keeps the speed ALONG it, and it turns the car's nose toward the wall's direction: the car scrapes along and out of the
@@ -3398,9 +3432,7 @@ function barrierCollide(s: DriveState): boolean {
     }
     const nfx = Math.sin(s.yaw), nfz = Math.cos(s.yaw);
     s.sp = vx * nfx + vz * nfz; s.lat = vx * Math.cos(s.yaw) - vz * Math.sin(s.yaw);
-    return true;
   }
-  return false;
 }
 
 // ---------- garage: run tracking, medals, payouts and the courier mode ----------
@@ -3729,6 +3761,7 @@ function stepDrive(dt: number): void {
   let bumped = false;
   if (collide(s)) { s.sp *= 0.86; s.lat *= 0.7; s.hit = 0.4; bumped = true; }
   if ((s.circuitId === 'ironport_grand_circuit' || s.circuitId === IND || s.circuitId === 'great_lakes_cliff_raceway') && barrierCollide(s)) { s.hit = 0.4; bumped = true; }
+  else if (scenicRailHit(s)) { s.hit = 0.4; bumped = true; }
   if (bumped) driveInput.rumble(0.9, 0.7, 220);
   else if (ps.isDrifting) driveInput.rumble(0.0, 0.25, 60);
   garageStep(dt, s, bumped);
