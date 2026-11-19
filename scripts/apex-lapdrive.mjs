@@ -49,9 +49,11 @@ await page.evaluate(() => {
     if (Math.abs(v) < 1) { st.slow += dt; if (st.slow > 6) { st.stalls++; st.slow = 0; st.log.push(['stall', i, Math.round(p.x), Math.round(p.z)]); } } else st.slow = 0;
   }, 16);
 });
+let reloaded = false; page.on('framenavigated', (f) => { if (f === page.mainFrame()) reloaded = true; });   // the dev server reloads the page when a game source file changes
 const t0 = Date.now();
 while (true) {
   await page.waitForTimeout(15000);
+  if (reloaded) { console.log('ABORTED: the page reloaded (a game source file changed during the run); run it again'); await browser.close(); process.exit(2); }
   const s = await page.evaluate(() => { const s = window.__lap, d = window.regionViewer.drive(); return {...s, n: d ? window.regionViewer.meta.circuits[d.circuitId]?.xz.length : -1, alive: !!d, v: d?.ps.forwardSpeed}; });
   console.log(`t=${Math.round((Date.now() - t0) / 1000)}s i=${s.i}/${s.n} v=${s.v?.toFixed(1)} maxOff=${s.maxOff.toFixed(1)} offRuns=${s.offRuns} maxDy=${s.maxDy.toFixed(2)} meanDy=${(s.sumDy / Math.max(1, s.cnt)).toFixed(3)} stalls=${s.stalls} sgn=${s.sgn} alive=${s.alive}`);
   if (s.done || !s.alive || (Date.now() - t0) / 1000 > maxS) { console.log('RESULT', JSON.stringify({done: s.done, lapS: s.t, maxOff: s.maxOff, offRuns: s.offRuns, maxDy: s.maxDy, meanDy: s.sumDy / Math.max(1, s.cnt), stalls: s.stalls, maxAt: s.maxAt, log: s.log.slice(0, 10)})); break; }

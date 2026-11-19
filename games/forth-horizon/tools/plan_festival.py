@@ -125,6 +125,38 @@ def main():
                 pt = next(((wx + r * math.cos(a), wz + r * math.sin(a)) for a in np.linspace(0, 2 * math.pi, 24, endpoint=False) if hat(wx + r * math.cos(a), wz + r * math.sin(a)) > 2), None)
                 if pt: sites.append({**{k: v for k, v in s.items() if k != "want"}, "x": round(pt[0], 1), "z": round(pt[1], 1), "y": round(hat(*pt), 1), "pad": True}); break
 
+    # access tracks: every stage gets a gravel track from the nearest road you may turn off (not a freeway or ramp), over dry ground, ending 25 m
+    # short of the stage; the game adds them to the country-road network (graded and drawn like any track)
+    acc_src = [p for n, k, p in roads if k not in ("freeway",)]
+    for f in ("utility_streets.json", "port_streets.json"):
+        fp = os.path.join(R, f)
+        if os.path.exists(fp): acc_src += [r["xz"] for r in json.load(open(fp))["roads"]]
+    cs = json.load(open(os.path.join(R, "city_streets.json")))
+    acc_src += [r["p"] for r in (cs["roads"] if isinstance(cs, dict) else cs) if r.get("c") not in ("freeway", "ramp")]
+    def seg_near(P, xz):
+        a = np.array(xz, float); e = a[1:] - a[:-1]; L = np.maximum(1e-9, (e ** 2).sum(1))
+        t = np.clip(((P[0] - a[:-1, 0]) * e[:, 0] + (P[1] - a[:-1, 1]) * e[:, 1]) / L, 0, 1)
+        c = a[:-1] + e * t[:, None]; d = np.hypot(c[:, 0] - P[0], c[:, 1] - P[1]); k = int(np.argmin(d))
+        return float(d[k]), c[k]
+    access = []
+    items = json.load(open(os.path.join(R, "city.json")))["items"]
+    BLD = np.array([[it["bx"], it["bz"], 0.5 * min(it["w"], it["d"])] for it in items])
+    clear_of_buildings = lambda q: float(np.min(np.hypot(BLD[:, 0] - q[0], BLD[:, 1] - q[1]) - BLD[:, 2])) > 3.0 + 4
+    for st in sites:
+        P = (st["x"], st["z"])
+        cands = sorted((seg_near(P, xz) for xz in acc_src if len(xz) >= 2), key=lambda c: c[0])[:6]
+        for d, c in cands:
+            if d < 35: break                                                                    # already beside a road
+            v = np.array(P) - c; L = float(np.linalg.norm(v)); u = v / L; end = np.array(P) - u * 25
+            n = max(2, int((L - 25) / 20) + 1)
+            pts = [c + (end - c) * k / n for k in range(n + 1)]
+            if all(hat(q[0], q[1]) > 1.2 for q in pts[1:]) and all(clear_of_buildings(q) for q in pts):
+                access.append({"site": st["id"], "kind": "dirt", "half": 3.0, "xz": [[round(float(q[0]), 1), round(float(q[1]), 1)] for q in pts]})
+                print(f"access track to {st['name']}: {L - 25:.0f} m from {c.round().tolist()}")
+                break
+        else:
+            if cands and cands[0][0] >= 35: print(f"NO dry access track to {st['name']}")
+
     used = {}
     def named(c, kind):
         # a spot takes its place's name; if that is taken, the named road it is on (Glacier Pass, Mill Road), then the nearest free place within 2.5 km,
@@ -143,6 +175,7 @@ def main():
         return f"{base} {comp}" if used[k] == 1 else f"{base} {comp} {used[k]}"
     out = {
         "sites": sites,
+        "access": access,
         "speedTraps": [{"id": f"trap_{i}", "name": f"{named(c, 't')} Speed Trap", "x": round(c["pos"][0], 1), "z": round(c["pos"][1], 1), "dir": [round(v, 3) for v in c["dir"]], "road": c["road"], "targetMph": 120 + 10 * (i % 4)} for i, c in enumerate(traps)],
         "speedZones": [{"id": f"zone_{i}", "name": f"{named(c, 'z')} Speed Zone", "a": [round(v, 1) for v in c["a"]], "b": [round(v, 1) for v in c["b"]], "road": c["road"], "targetMph": 85 + 5 * (i % 4)} for i, c in enumerate(zones)],
         "driftZones": [{"id": f"drift_{i}", "name": f"{named(c, 'd')} Drift Zone", "a": [round(v, 1) for v in c["a"]], "b": [round(v, 1) for v in c["b"]], "road": c["road"], "targetScore": 10000 + 2000 * (i % 4)} for i, c in enumerate(drifts)],

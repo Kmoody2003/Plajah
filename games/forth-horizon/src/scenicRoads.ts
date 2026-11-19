@@ -25,6 +25,12 @@ export function carveScenicRoads(heights: Float32Array, W: number, H: number, mp
   // (One pass per road let an earlier road's claim block a later road, so at every T junction the joining road's first ~35 m kept the uncut ground.)
   const bestD = new Float32Array(W * H), bestI = new Int32Array(W * H), bestS = new Float32Array(W * H), bestR = new Int16Array(W * H), touched: number[] = [];
   const fr = roads.map((r) => frames(r)), full = roads.map((r) => r.half + SHOULDER + mpp * 1.2);
+  // where the road itself is on a viaduct (its centre more than MAX_FILL over the uncarved ground) the hollow under it stays; anywhere else a gully
+  // beside the road is filled as embankment (it used to stay a pit just past the shoulder, which a wheel dropped into)
+  const viaduct = roads.map((r) => r.xz.map((p, q) => {
+    const i = Math.round((p[0] - GRID.ox) / mpp + W / 2), j = Math.round((p[1] - GRID.oz) / mpp + H / 2);
+    return i >= 0 && j >= 0 && i < W && j < H && surf(r, q, 0) - heights[j * W + i] > MAX_FILL;
+  }));
   roads.forEach((r, ri) => {
     const { nx, nz } = fr[ri], reach = full[ri] + BLEND, rc = Math.ceil(reach / mpp);
     for (let q = 0; q < r.xz.length; q++) {
@@ -40,7 +46,7 @@ export function carveScenicRoads(heights: Float32Array, W: number, H: number, mp
   for (const k of touched) {
     const r = roads[bestR[k]], d = bestD[k] - 1, q = bestI[k], s = Math.max(-r.half - SHOULDER, Math.min(r.half + SHOULDER, bestS[k]));   // beyond the shoulder the ground holds the shoulder's height
     const h = heights[k], tgt = surf(r, q, s) - 0.12;
-    if (tgt - h > MAX_FILL) continue;                                                   // a viaduct carries the road here: the hollow stays
+    if (viaduct[bestR[k]][q]) continue;                                                 // a viaduct carries the road here: the hollow stays
     const t = Math.min(h + MAX_FILL, Math.max(h - MAX_CUT, tgt));
     // flat to the road surface one grid cell past the shoulder: the terrain mesh (6 m grid) cannot bulge over the road
     const out = d - full[bestR[k]], w = out <= 0 ? 1 : 1 - (out / BLEND) ** 2 * (3 - 2 * out / BLEND);

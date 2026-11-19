@@ -3971,6 +3971,8 @@ async function boot(): Promise<void> {
     for (const it of cj?.items ?? []) if (Math.max(it.w, it.d) >= 24) pads.push({ x: it.bx ?? it.x, z: it.bz ?? it.z, w: it.w, d: it.d, rot: it.rotY });   // w, d are the world footprint (as groundMin reads them)
     for (const l of (parkingData ?? []) as number[][]) pads.push({ x: l[0], z: l[1], w: l[2], d: l[3], rot: l[4] });
     festivalData = await fetch(BASE + 'festival.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as FestivalData | null;
+    // every Chora Fest stage has a gravel access track from the nearest road (tools/plan_festival.py); they join the country-road network
+    if (festivalData?.access?.length) { if (!countryNet) countryNet = { roads: [] }; countryNet.roads.push(...festivalData.access.map((r) => ({ kind: 'dirt' as const, xz: r.xz, half: r.half }))); }
     for (const st of festivalData?.sites ?? []) { const k = st.kind === 'main' ? 1.6 : 1; pads.push({ x: st.x, z: st.z, w: 70 * k, d: 70 * k, rot: 0 }); }   // a graded pad under every festival stage and its crowd area
     console.log('graded pads', carvePads(heights, meta.width, meta.height, meta.mpp, pads));
   }

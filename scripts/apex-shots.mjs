@@ -32,6 +32,9 @@ const SHOTS = [
   ['escarpment-stair', [1300, 300, -8350], [810, 210, -8880]],
   ['escarpment-stair-top', [880, 330, -9260], [820, 180, -8700]],
   ['escarpment-viaduct', [220, 300, -9600], [40, 180, -9845]],
+  ['access-wine-country', [640, 70, -6080], [400, 8, -6200]],
+  ['access-ironport-nights', [4600, 110, 2380], [4150, 8, 2670]],
+  ['access-dune-sea', [-4300, 140, 1300], [-5100, 6, -500]],
 ].filter(([n]) => !only?.length || only.includes(n));
 
 const gpu = args.includes('--swiftshader') ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'];

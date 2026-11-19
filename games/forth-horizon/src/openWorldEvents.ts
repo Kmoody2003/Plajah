@@ -485,6 +485,7 @@ export type ChallengeType = 'speed_trap' | 'drift_zone' | 'danger_sign';
 /** region/festival.json (tools/plan_festival.py) */
 export interface FestivalData {
   sites: { id: string; name: string; kind: 'main' | 'outpost'; stage: string; x: number; z: number; y: number; pad?: boolean }[];
+  access?: { site: string; kind: string; half: number; xz: number[][] }[];   // gravel access tracks to the stages
   speedTraps: { id: string; name: string; x: number; z: number; dir: number[]; road: string; targetMph: number }[];
   speedZones: { id: string; name: string; a: number[]; b: number[]; road: string; targetMph: number }[];
   driftZones: { id: string; name: string; a: number[]; b: number[]; road: string; targetScore: number }[];
