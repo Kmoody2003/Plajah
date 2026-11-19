@@ -9,7 +9,8 @@ import {
 } from 'three/tsl';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { StaticKit, boulder, fbm3, octagon, polyPrism, rng, taperTube } from './geom';
-import { circuitTexture, fernTexture, grassTexture, leafTexture, mossTexture, pbr } from './textures';
+import { circuitTexture, fernTexture, grassTexture, mossTexture, pbr } from './textures';
+import { SPAWN_A, SPAWN_B, buildForestMap } from './cyberforest';
 
 export interface LevelInfo { id: string; name: string; track: 'main' | 'combat'; accentHex: number }
 export interface Level {
@@ -68,7 +69,7 @@ export function buildShrine(scene: THREE.Scene, tier: Tier = 'high'): Level {
 
   // ── ground: lower octagon, rim apron, forest floor ─────────────────────────────────────────────────────
   kit.prism(floorMat, 8, R_OUT, R_OUT, 1.5, 0, -1.5, 0, Math.PI / 8, { tpm: 0.42 });
-  kit.prism(mudMat, 48, 80, 80, 1.2, 0, -2.0, 0, 0, { tpm: 0.18, solid: true });
+  void mudMat; // the forest terrain (cyberforest.ts) now surrounds the arena
 
   // ── raised ring (blueprint "upper platform"): flagstone top, brick retaining walls ────────────────────
   const outer = octagon(toR(RING_OUT)), inner = octagon(toR(RING_IN));
@@ -253,7 +254,7 @@ export function buildShrine(scene: THREE.Scene, tier: Tier = 'high'): Level {
   // ── perimeter: ancient ruin walls with arched windows; W/E are the spawn gateways ─────────────────────
   for (let k = 0; k < 8; k++) {
     const a = k * Math.PI / 4; // flat centred at angle a (0 = +z)
-    if (k === 2 || k === 6) continue; // E / W spawn openings
+    if (![0, 1, 3].includes(k)) continue; // the clearing opens onto the river (W), the server complex (N) and the defender block (E)
     const sx = Math.sin(a), sz = Math.cos(a);
     const wx = sx * (APO + 0.55), wz = sz * (APO + 0.55);
     const yaw = a;
@@ -277,46 +278,7 @@ export function buildShrine(scene: THREE.Scene, tier: Tier = 'high'): Level {
     // upper cornice
     kit.box(stoneMat, L, 0.5, 1.7, wx, 6.9, wz, yaw, { tpm: 0.5, shadow: false });
   }
-  // invisible barrier round the arena, except through the spawn gateways
-  for (let k = 0; k < 8; k++) {
-    if (k === 2 || k === 6) continue;
-    const a = k * Math.PI / 4;
-    kit.box(rampMat, 17.2, 14, 0.6, Math.sin(a) * (APO + 0.6), 7, Math.cos(a) * (APO + 0.6), a, { shadow: false });
-  }
-
-  // ── spawn alcoves (blueprint: Team A west / Team B east) ──────────────────────────────────────────────
-  const makePortal = (hex: number) => {
-    const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-    m.colorNode = color(hex).mul(float(1.0).add(sin(uv().y.mul(18).sub(time.mul(2.5))).mul(0.25)));
-    m.opacityNode = smoothstep(float(0.0), float(0.18), uv().y).mul(0.55);
-    return m;
-  };
-  const portalA = makePortal(0x2f9dff), portalB = makePortal(0xff8a2b);
-  const padA = new THREE.MeshStandardNodeMaterial({ color: 0x021018, roughness: 0.3 }); padA.emissiveNode = color(0x2f9dff).mul(float(1.4).add(uBeatPulse.mul(1.5)));
-  const padB = new THREE.MeshStandardNodeMaterial({ color: 0x180a02, roughness: 0.3 }); padB.emissiveNode = color(0xff8a2b).mul(float(1.4).add(uBeatPulse.mul(1.5)));
-  const spawnLights: THREE.PointLight[] = [];
-  for (const [side, mat, pad, portal, col] of [[-1, floorMat, padA, portalA, 0x2f9dff], [1, floorMat, padB, portalB, 0xff8a2b]] as const) {
-    const ox = side * (APO + 0.5);
-    // floor pad extends out of the arena
-    kit.box(mat, 6.6, 1.5, 9.0, ox + side * 3.0, -0.75, 0, 0, { tpm: 0.42 });
-    kit.box(pad, 4.4, 0.04, 4.4, ox + side * 2.8, 0.02, 0, 0, { solid: false, shadow: false, tpm: 1 });
-    // side + back walls
-    kit.box(wallMat, 6.6, 6.2, 1.2, ox + side * 3.0, 3.1, 4.9, 0, { tpm: 0.5 });
-    kit.box(wallMat, 6.6, 6.2, 1.2, ox + side * 3.0, 3.1, -4.9, 0, { tpm: 0.5 });
-    kit.box(wallMat, 1.2, 6.2, 9.0, ox + side * 6.3, 3.1, 0, 0, { tpm: 0.5 });
-    // gateway frame onto the arena
-    kit.box(pillarMat, 1.3, 6.4, 1.3, ox, 3.2, 3.1, 0, { tpm: 0.6 });
-    kit.box(pillarMat, 1.3, 6.4, 1.3, ox, 3.2, -3.1, 0, { tpm: 0.6 });
-    kit.box(wallMat, 1.4, 1.0, 8.0, ox, 6.3, 0, 0, { tpm: 0.5 });
-    // portal sheet on the back wall
-    const sheet = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 5.2), portal);
-    sheet.position.set(ox + side * 5.65, 2.8, 0);
-    sheet.rotation.y = side * -Math.PI / 2;
-    group.add(sheet);
-    const l = new THREE.PointLight(col, 18, 16, 2);
-    l.position.set(ox + side * 3.0, 2.8, 0);
-    if (!lo) { group.add(l); spawnLights.push(l); }
-  }
+  const spawnLights: THREE.PointLight[] = []; // spawns moved out to the map's edges (cyberforest.ts)
 
   // ── elevated gallery (blueprint "high-ground bridge"): steel overlooks on the N + S walls ─────────────
   for (const side of [-1, 1]) {
@@ -339,6 +301,7 @@ export function buildShrine(scene: THREE.Scene, tier: Tier = 'high'): Level {
     }
   }
 
+  const map = buildForestMap(kit, group, scene, lo, uBeatPulse, { stone: stoneMat, wall: wallMat, steel: steelMat });
   kit.build(group);
 
   // ── moss ground decals (soft alpha patches that hide the tile repeat) ────────────────────────────────
@@ -407,69 +370,6 @@ export function buildShrine(scene: THREE.Scene, tier: Tier = 'high'): Level {
   foliage(fernTexture(), cross(1.2, 1.2), lo ? 60 : 180, edgeZone, 0.6, 1.1, 0xe0ffe8, 0x9fe0b8);
   foliage(grassTexture(), cross(0.9, 0.9), lo ? 160 : 520, ringZone, 0.7, 1.4, 0xe8ffc8, 0xa8d880);
 
-  // ── giant trees + roots outside the arena, canopy cards, hanging glow-cables ─────────────────────────
-  const leafMat = new THREE.MeshStandardNodeMaterial({ map: leafTexture(), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, color: 0xc8e8d0 });
-  const leafCards = new THREE.InstancedMesh(new THREE.PlaneGeometry(4.6, 4.6), leafMat, 900);
-  let leafN = 0;
-  const treeGeos: THREE.BufferGeometry[] = [], cableGeos: THREE.BufferGeometry[] = [];
-  const treeSpots = Array.from({ length: lo ? 8 : 14 }, (_, i) => {
-    const a = (i / 14) * Math.PI * 2 + (R() - 0.5) * 0.3, rr = 27 + R() * 13;
-    return new THREE.Vector3(Math.sin(a) * rr, 0, Math.cos(a) * rr);
-  });
-  for (const t of treeSpots) {
-    const H = 22 + R() * 10, lean = new THREE.Vector3((R() - 0.5) * 3, 0, (R() - 0.5) * 3);
-    const trunk = new THREE.CatmullRomCurve3([
-      new THREE.Vector3(t.x, -1, t.z), new THREE.Vector3(t.x + lean.x * 0.2, H * 0.3, t.z + lean.z * 0.2),
-      new THREE.Vector3(t.x + lean.x * 0.7, H * 0.65, t.z + lean.z * 0.7), new THREE.Vector3(t.x + lean.x, H, t.z + lean.z),
-    ]);
-    treeGeos.push(taperTube(trunk, 1.7 + R() * 0.5, 0.65, 18, 12, 0.5));
-    for (let r = 0; r < 6; r++) { // buttress roots flaring across the floor
-      const ra = (r / 6) * Math.PI * 2 + R();
-      const len = 5 + R() * 5;
-      const root = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(t.x + Math.sin(ra) * 0.5, 3.6 + R(), t.z + Math.cos(ra) * 0.5),
-        new THREE.Vector3(t.x + Math.sin(ra) * len * 0.4, 1.0, t.z + Math.cos(ra) * len * 0.4),
-        new THREE.Vector3(t.x + Math.sin(ra) * len, -0.4, t.z + Math.cos(ra) * len),
-      ]);
-      treeGeos.push(taperTube(root, 0.55 + R() * 0.3, 0.12, 10, 7, 0.6));
-    }
-    const c = new THREE.Vector3(t.x + lean.x, H, t.z + lean.z);
-    for (let l = 0; l < 64 && leafN < 900; l++, leafN++) {
-      const d = new THREE.Vector3(R() - 0.5, (R() - 0.5) * 0.5, R() - 0.5).normalize().multiplyScalar(2 + R() * 9);
-      const s = 0.7 + R() * 0.9;
-      m4.compose(c.clone().add(d), q.setFromEuler(e.set((R() - 0.5) * 1.6, R() * 6.28, (R() - 0.5) * 1.6)), new THREE.Vector3(s, s, s));
-      leafCards.setMatrixAt(leafN, m4);
-    }
-    // hanging cables with a cyan data-pulse
-    for (let k = 0; k < 7; k++) {
-      const hx = c.x + (R() - 0.5) * 9, hz = c.z + (R() - 0.5) * 9, hy = H * (0.55 + R() * 0.4);
-      const sag = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(hx, hy, hz), new THREE.Vector3(hx + (R() - 0.5) * 2, hy * 0.62, hz + (R() - 0.5) * 2),
-        new THREE.Vector3(hx + (R() - 0.5) * 3, hy * 0.28, hz + (R() - 0.5) * 3), new THREE.Vector3(hx + (R() - 0.5) * 3, 0.5 + R() * 2, hz + (R() - 0.5) * 3),
-      ]);
-      cableGeos.push(taperTube(sag, 0.05 + R() * 0.04, 0.03, 22, 5, 0));
-    }
-  }
-  leafCards.count = leafN; leafCards.frustumCulled = false;
-  group.add(leafCards);
-  const addMerged = (geos: THREE.BufferGeometry[], mat: THREE.Material, uvScale: number, tall = false) => {
-    const fixed = geos.map((g) => {
-      const n = g.index ? g.toNonIndexed() : g; n.computeVertexNormals();
-      const p = n.attributes.position, uvA = new Float32Array(p.count * 2);
-      for (let i = 0; i < p.count; i++) { uvA[i * 2] = (p.getX(i) + p.getZ(i)) * uvScale; uvA[i * 2 + 1] = p.getY(i) * (tall ? uvScale * 0.4 : uvScale); }
-      n.setAttribute('uv', new THREE.BufferAttribute(uvA, 2));
-      for (const name of Object.keys(n.attributes)) if (!['position', 'normal', 'uv'].includes(name)) n.deleteAttribute(name);
-      return n;
-    });
-    return fixed;
-  };
-  {
-    const tg = mergeGeometries(addMerged(treeGeos, barkMat, 0.35), false);
-    if (tg) { const m = new THREE.Mesh(tg, barkMat); m.castShadow = true; m.receiveShadow = true; group.add(m); }
-    const cg = mergeGeometries(addMerged(cableGeos, cableMat, 0.5, true), false);
-    if (cg) { const m = new THREE.Mesh(cg, cableMat); group.add(m); }
-  }
-
   // ── mushrooms (bioluminescent) ───────────────────────────────────────────────────────────────────────
   const shroomMat = new THREE.MeshStandardNodeMaterial({ color: 0x0a2a30, roughness: 0.4 });
   shroomMat.emissiveNode = color(0x2fd8c8).mul(float(0.55).add(uBeatPulse.mul(0.5)));
@@ -515,10 +415,10 @@ export function buildShrine(scene: THREE.Scene, tier: Tier = 'high'): Level {
   // ── lighting (moonlight with shadows + a small fixed pool of coloured lights) ─────────────────────────
   const hemi = new THREE.HemisphereLight(0x8fc8e0, 0x1a3028, 1.7);
   const moon = new THREE.DirectionalLight(0xb8d4ff, 3.4);
-  moon.position.set(-14, 34, 10);
+  moon.position.set(-60, 110, 40); moon.target.position.set(-38, 0, 0); group.add(moon.target);
   moon.castShadow = !lo;
-  moon.shadow.mapSize.set(2048, 2048);
-  Object.assign(moon.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 90 });
+  moon.shadow.mapSize.set(4096, 4096);
+  Object.assign(moon.shadow.camera, { left: -130, right: 130, top: 110, bottom: -110, near: 1, far: 260 });
   moon.shadow.bias = -0.0004; moon.shadow.normalBias = 0.04;
   const crystalLight = new THREE.PointLight(0x28e8ff, 120, 30, 2);
   crystalLight.position.set(0, PIT_Y + 4.5, 0);
@@ -544,30 +444,30 @@ export function buildShrine(scene: THREE.Scene, tier: Tier = 'high'): Level {
     scene.background = sky; scene.environment = sky;
     scene.environmentIntensity = 1.2;
   }
-  scene.fog = new THREE.FogExp2(0x123c44, 0.015);
+  scene.fog = new THREE.FogExp2(0x0f3440, 0.011);
   scene.add(group);
 
-  // enemy spots on open lower ground and ring
-  const enemySpots: THREE.Vector3[] = [];
+  // enemy spots: the arena's ring + the whole forest map
+  const enemySpots: THREE.Vector3[] = [...map.enemySpots];
   for (let k = 0; k < 8; k++) {
     const a = Math.PI / 4 * k + Math.PI / 8;
-    enemySpots.push(new THREE.Vector3(Math.sin(a) * 15.8, 0.1, Math.cos(a) * 15.8));
     enemySpots.push(new THREE.Vector3(Math.sin(a) * 11, RING_H + 0.1, Math.cos(a) * 11));
   }
 
-  const info: LevelInfo = { id: 'cyber-forest-shrine', name: 'Cyber-Forest Shrine', track: 'main', accentHex: 0x24e8ff };
+  const info: LevelInfo = { id: 'cyber-forest-shrine', name: 'Cyber Forest', track: 'main', accentHex: 0x24e8ff };
   let elapsed = 0;
   return {
     group, uBeatPulse, gates: [], traps: [], biomeIndex: 0, info,
     spawns: {
-      a: { pos: new THREE.Vector3(-(APO + 3.2), 0.15, 0), yaw: -Math.PI / 2 },
-      b: { pos: new THREE.Vector3(APO + 3.2, 0.15, 0), yaw: Math.PI / 2 },
+      a: { pos: SPAWN_A.clone().setY(0.3), yaw: -Math.PI / 2 },
+      b: { pos: SPAWN_B.clone().setY(0.3), yaw: Math.PI / 2 },
     },
     enemySpots,
-    controlPoints: [{ id: 'B', name: 'Power Node', pos: new THREE.Vector3(0, PIT_Y, 0), radius: 3.0 }],
+    controlPoints: [...map.controlPoints, { id: 'D', name: 'Anomaly Clearing', pos: new THREE.Vector3(0, PIT_Y, 0), radius: 3.0 }],
     setBiome() { return { name: info.name, track: info.track }; },
     update(dt, pulse) {
       elapsed += dt;
+      map.update(dt, pulse);
       uBeatPulse.value = pulse;
       mono.rotation.y += dt * 0.12;
       mono.position.y = PIT_Y + 0.85 + Math.sin(elapsed * 0.9) * 0.08;
