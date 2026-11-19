@@ -30,7 +30,20 @@ import 'leaflet/dist/leaflet.css';
 import type { TerraParcel, TerraCivicRecord, CivicRecordKind } from '../../services/terra/terraTypes';
 import { fetchParcelsInBounds, clearParcelCellCache, fetchCivicForParcel, fetchParcel } from '../../services/terra/terraService';
 import { searchTerra, browseForSale, type TerraSearchHit, type TerraSearchResult, type ForSaleResult, type ForSaleScope } from '../../services/terra/terraSearch';
-import { fetchDetroitStreets, type StreetSegment } from '../../services/terra/detroitAdapter';
+import { fetchDetroitStreets, fetchDetroitParcels, type StreetSegment } from '../../services/terra/detroitAdapter';
+import { surveyParcel, outerRing, type ParcelSurvey } from '../../services/terra/survey/parcelSurvey';
+import { formatBearing } from '../../services/terra/survey/cogo';
+import { ParcelSurveyPanel } from './ParcelSurveyPanel';
+import { INFRA_LAYERS, INFRA_BY_ID, fetchInfraLayer, type InfraFeature, type InfraKind } from '../../services/terra/infraLayers';
+import { siteContext } from '../../services/terra/survey/siteContext';
+
+const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+function infraPopup(f: InfraFeature): string {
+  const spec = INFRA_BY_ID[f.kind];
+  const s = spec.summarize(f.props);
+  const link = s.link && /^https:\/\//.test(s.link) ? `<a href="${esc(s.link)}" target="_blank" rel="noopener noreferrer">Council record (PDF)</a>` : '';
+  return `<div class="terra-infra-pop"><b style="color:${spec.color}">${esc(s.title)}</b>${s.lines.map(l => `<div>${esc(l)}</div>`).join('')}${link}<small>${esc(spec.source)} · ${esc(spec.accuracy)}</small></div>`;
+}
 
 /** Terra's accent: Plajah's primary orange, read here as a surveyor's flag. */
 const ACCENT = '#FF8C00';
@@ -88,12 +101,20 @@ const ParcelMap: React.FC<{
   streets?: StreetSegment[];
   /** Fly here when it changes — search results move the map, not just filter it. */
   focus?: { lat: number; lng: number; key: number } | null;
-}> = ({ parcels, selectedId, onSelect, onViewport, showBasemap = true, streets = [], focus = null }) => {
+  /** Survey overlay for the selected parcel: side dimensions + the record boundary. */
+  survey?: ParcelSurvey | null;
+  /** Public infrastructure overlays (hydrants, covers, lights, ROW records, footprints). */
+  infra?: InfraFeature[];
+}> = ({ parcels, selectedId, onSelect, onViewport, showBasemap = true, streets = [], focus = null, survey = null, infra = [] }) => {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const layerRef = useRef<any>(null);
   const tileRef = useRef<any>(null);
   const labelsRef = useRef<any[]>([]);
+  const surveyLayerRef = useRef<any>(null);
+  const surveyFitRef = useRef<string | null>(null);
+  const infraLayerRef = useRef<any>(null);
+  const infraRendererRef = useRef<any>(null);
   // Read inside the init effect, which must not re-run when the toggle flips.
   const basemapRef = useRef(showBasemap);
   basemapRef.current = showBasemap;
@@ -129,6 +150,13 @@ const ParcelMap: React.FC<{
       map.createPane('terraStreets');
       const streetPane = map.getPane('terraStreets');
       if (streetPane) streetPane.style.zIndex = '350';
+      // Infrastructure draws ABOVE the parcels in an SVG pane: SVG only catches
+      // clicks on its own shapes, so parcels underneath stay clickable (a second
+      // canvas on top would swallow every click).
+      map.createPane('terraInfra');
+      const infraPane = map.getPane('terraInfra');
+      if (infraPane) infraPane.style.zIndex = '450';
+      infraRendererRef.current = L.svg({ pane: 'terraInfra' });
       const report = () => {
         const b = map.getBounds();
         viewportRef.current?.({
@@ -251,6 +279,85 @@ const ParcelMap: React.FC<{
     return () => { cancelled = true; };
   }, [streets, showBasemap, mapReady]);
 
+  // Infrastructure overlays.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const L = await import('leaflet');
+      const map = mapRef.current;
+      if (cancelled || !map) return;
+      if (infraLayerRef.current) { map.removeLayer(infraLayerRef.current); infraLayerRef.current = null; }
+      if (!infra.length) return;
+      const renderer = infraRendererRef.current;
+      const group = L.layerGroup();
+      // Polygons first so points sit on top of them.
+      const order = (f: InfraFeature) => (INFRA_BY_ID[f.kind].geom === 'polygon' ? 0 : INFRA_BY_ID[f.kind].geom === 'line' ? 1 : 2);
+      for (const f of [...infra].sort((a, b) => order(a) - order(b))) {
+        const spec = INFRA_BY_ID[f.kind];
+        const g: any = f.geometry;
+        let lyr: any = null;
+        if (g.type === 'Point') {
+          lyr = L.circleMarker([g.coordinates[1], g.coordinates[0]], {
+            renderer, pane: 'terraInfra', radius: f.kind === 'HYDRANT' ? 4.5 : 3.5,
+            color: '#07080B', weight: 1, fillColor: spec.color, fillOpacity: 0.95,
+          });
+        } else if (f.kind === 'FOOTPRINT') {
+          lyr = L.geoJSON(g, { renderer, pane: 'terraInfra', interactive: false,
+            style: { color: 'rgba(255,255,255,0.7)', weight: 1, fillColor: '#FFFFFF', fillOpacity: 0.08 } } as any);
+        } else {
+          lyr = L.geoJSON(g, { renderer, pane: 'terraInfra',
+            style: spec.geom === 'line'
+              ? { color: spec.color, weight: 4, opacity: 0.85, dashArray: '2 6', lineCap: 'round' }
+              : { color: spec.color, weight: 1.2, fillColor: spec.color, fillOpacity: 0.22, dashArray: '4 3' } } as any);
+        }
+        if (f.kind !== 'FOOTPRINT') lyr.bindPopup(infraPopup(f), { className: 'terra-infra-popup', maxWidth: 260 });
+        lyr.addTo(group);
+      }
+      group.addTo(map);
+      infraLayerRef.current = group;
+    })();
+    return () => { cancelled = true; };
+  }, [infra, mapReady]);
+
+  // Survey overlay: bearing/distance on every side, the interior angle at every
+  // corner, and the record (legal description) boundary placed by best fit.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const L = await import('leaflet');
+      const map = mapRef.current;
+      if (cancelled || !map) return;
+      if (surveyLayerRef.current) { map.removeLayer(surveyLayerRef.current); surveyLayerRef.current = null; }
+      const m = survey?.mapped;
+      if (!survey || !m) { surveyFitRef.current = null; return; }
+      const ll = (p: { x: number; y: number }): [number, number] => { const [lng, lat] = survey.toLngLat(p); return [lat, lng]; };
+      const group = L.layerGroup();
+      if (survey.fit) {
+        L.polygon(survey.fit.placed.map(ll), { color: '#C9A6FF', weight: 2, dashArray: '6 5', fill: false, interactive: false }).addTo(group);
+      }
+      L.polygon(m.vertices.map(ll), { color: ACCENT, weight: 2.4, fill: false, interactive: false }).addTo(group);
+      m.sides.forEach(sd => {
+        const mid = { x: (sd.from.x + sd.to.x) / 2, y: (sd.from.y + sd.to.y) / 2 };
+        L.tooltip({ permanent: true, direction: 'center', className: 'terra-dim-label', opacity: 1 })
+          .setLatLng(ll(mid)).setContent(`${sd.index + 1} · ${formatBearing(sd.azimuth)} · ${sd.length.toFixed(2)}′`).addTo(group);
+        L.tooltip({ permanent: true, direction: 'center', className: 'terra-dim-label is-corner', opacity: 1 })
+          .setLatLng(ll(sd.from)).setContent(`${Math.round(sd.interiorAngle * 10) / 10}°`).addTo(group);
+      });
+      group.addTo(map);
+      surveyLayerRef.current = group;
+      // Frame the parcel once per selection, left of the survey panel (600px).
+      if (surveyFitRef.current !== survey.parcelId) {
+        surveyFitRef.current = survey.parcelId;
+        try {
+          const w = map.getSize().x;
+          const right = w > 900 ? 640 : 20;
+          map.fitBounds(L.latLngBounds(m.vertices.map(ll)), { paddingTopLeft: [60, 60], paddingBottomRight: [right, 60], maxZoom: 20 });
+        } catch { /* mid-teardown */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [survey, mapReady]);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !focus) return;
@@ -286,7 +393,7 @@ const Row: React.FC<{ k: string; v: React.ReactNode }> = ({ k, v }) => (
 
 type LawTarget = { query?: string; zoningDistrict?: string; parcelId?: string };
 
-const ParcelInspector: React.FC<{ parcel: TerraParcel | null; onOpenPassport?: (parcelId: string) => void; onOpenStudio?: (parcelId: string) => void; onOpenLaws?: (t: LawTarget) => void }> = ({ parcel, onOpenPassport, onOpenStudio, onOpenLaws }) => {
+const ParcelInspector: React.FC<{ parcel: TerraParcel | null; survey?: ParcelSurvey | null; surveyOpen?: boolean; onToggleSurvey?: () => void; onOpenPassport?: (parcelId: string) => void; onOpenStudio?: (parcelId: string) => void; onOpenLaws?: (t: LawTarget) => void }> = ({ parcel, survey, surveyOpen, onToggleSurvey, onOpenPassport, onOpenStudio, onOpenLaws }) => {
   const [civic, setCivic] = useState<TerraCivicRecord[]>([]);
   const [loadingCivic, setLoadingCivic] = useState(false);
 
@@ -353,6 +460,26 @@ const ParcelInspector: React.FC<{ parcel: TerraParcel | null; onOpenPassport?: (
         <Row k="Year built" v={parcel.yearBuilt ? String(parcel.yearBuilt) : '—'} />
         {parcel.floorAreaSqFt ? <Row k="Floor area" v={fmtNum(parcel.floorAreaSqFt, ' sqft')} /> : null}
       </div>
+
+      {survey?.mapped && (
+        <div className={`${card} p-3`}>
+          <p className={`${label} mb-1.5`}>Boundary</p>
+          <Row k="Sides" v={`${survey.mapped.sides.length}${survey.mapped.isRectangular ? ' · rectangular' : ''}`} />
+          <Row k="Map area" v={`${fmtNum(survey.mapped.areaSqFt)} sqft · ${(survey.mapped.areaSqFt / 43560).toFixed(3)} ac`} />
+          <Row k="Perimeter" v={`${survey.mapped.perimeter.toFixed(1)} ft`} />
+          <Row k="Legal desc." v={survey.record
+            ? `metes & bounds · ${survey.record.misclosure < 0.005 ? 'closes' : `1:${Math.round(survey.record.precision).toLocaleString()}`}`
+            : survey.legal.plat?.liber ? `platted · L${survey.legal.plat.liber} P${survey.legal.plat.page}` : survey.legal.raw ? 'lot description' : '—'} />
+          <button onClick={onToggleSurvey}
+            className="w-full mt-2 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors"
+            style={surveyOpen
+              ? { background: MEASURE, borderColor: MEASURE, color: '#000' }
+              : { background: `${MEASURE}14`, borderColor: `${MEASURE}55`, color: MEASURE }}>
+            <Ruler size={11} className="inline mr-1.5 -mt-0.5" />
+            {surveyOpen ? 'Hide survey' : 'Survey · sides & angles'}
+          </button>
+        </div>
+      )}
 
       {/* The vintage stamp — required, not decorative. */}
       <div className="flex items-start gap-2 px-1">
@@ -555,6 +682,72 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
   const [showBasemap, setShowBasemap] = useState(true);
   const [streets, setStreets] = useState<StreetSegment[]>([]);
   const [q, setQ] = useState('');
+  const [surveyOpen, setSurveyOpen] = useState(false);
+  const [activeInfra, setActiveInfra] = useState<Set<InfraKind>>(new Set<InfraKind>(['HYDRANT', 'ROW_VACATION']));
+  const [infraByKind, setInfraByKind] = useState<Partial<Record<InfraKind, InfraFeature[]>>>({});
+  const [viewZoom, setViewZoom] = useState(15);
+  const infraAbort = useRef<AbortController | null>(null);
+  const activeInfraRef = useRef(activeInfra);
+  activeInfraRef.current = activeInfra;
+  const loadInfra = useCallback((vp: { south: number; west: number; north: number; east: number; zoom: number }) => {
+    infraAbort.current?.abort();
+    const ctl = new AbortController();
+    infraAbort.current = ctl;
+    for (const spec of INFRA_LAYERS) {
+      if (!activeInfraRef.current.has(spec.id) || vp.zoom < spec.minZoom) {
+        setInfraByKind(prev => (prev[spec.id] ? { ...prev, [spec.id]: undefined } : prev));
+        continue;
+      }
+      fetchInfraLayer(spec.id, vp, { signal: ctl.signal })
+        .then(rows => { if (!ctl.signal.aborted) setInfraByKind(prev => ({ ...prev, [spec.id]: rows })); })
+        .catch(() => { /* context layer — a failure just leaves it empty */ });
+    }
+  }, []);
+  const infra = useMemo(() => Object.values(infraByKind).flat().filter(Boolean) as InfraFeature[], [infraByKind]);
+  // Everything around the surveyed lot, regardless of which layers are toggled on.
+  const [blockInfra, setBlockInfra] = useState<{ id: string; rows: InfraFeature[] } | null>(null);
+  // Adjoiners for the survey come straight from the city parcel layer around the
+  // selected lot (server-side spatial filter, ~160 ft out), so the check never
+  // depends on which viewport cells happen to be loaded or truncated.
+  const [blockParcels, setBlockParcels] = useState<{ id: string; rows: TerraParcel[] } | null>(null);
+  useEffect(() => {
+    if (!surveyOpen || !selected || blockParcels?.id === selected.id) return;
+    const ring = outerRing(selected.geometry);
+    if (!ring) return;
+    const ctl = new AbortController();
+    const xs = ring.map(c => c[0]), ys = ring.map(c => c[1]);
+    const pad = 0.0007;
+    fetchDetroitParcels({
+      envelope: { xmin: Math.min(...xs) - pad, ymin: Math.min(...ys) - pad, xmax: Math.max(...xs) + pad, ymax: Math.max(...ys) + pad },
+      maxRecords: 600, signal: ctl.signal,
+    }).then(rows => setBlockParcels({ id: selected.id, rows })).catch(() => { /* falls back to the viewport parcels */ });
+    return () => ctl.abort();
+  }, [surveyOpen, selected, blockParcels?.id]);
+  // Separate effect: sharing one with the adjoiner fetch let that fetch's
+  // completion abort this one.
+  useEffect(() => {
+    if (!surveyOpen || !selected || blockInfra?.id === selected.id) return;
+    const ring = outerRing(selected.geometry);
+    if (!ring) return;
+    const ctl = new AbortController();
+    const xs = ring.map(c => c[0]), ys = ring.map(c => c[1]);
+    const pad = 0.0007;
+    const box = { west: Math.min(...xs) - pad, south: Math.min(...ys) - pad, east: Math.max(...xs) + pad, north: Math.max(...ys) + pad };
+    Promise.all(INFRA_LAYERS.map(l => fetchInfraLayer(l.id, box, { signal: ctl.signal, maxRecords: 800 }).catch(() => [] as InfraFeature[])))
+      .then(all => { if (!ctl.signal.aborted) setBlockInfra({ id: selected.id, rows: all.flat() }); });
+    return () => ctl.abort();
+  }, [surveyOpen, selected, blockInfra?.id]);
+  const survey = useMemo(() => {
+    if (!selected) return null;
+    let nearby = parcels;
+    if (blockParcels?.id === selected.id) {
+      const seen = new Set(blockParcels.rows.map(p => p.id));
+      nearby = [...blockParcels.rows, ...parcels.filter(p => !seen.has(p.id))];
+    }
+    try { return surveyParcel(selected, nearby); } catch (e) { console.warn('[terra] survey failed', e); return null; }
+  }, [selected, parcels, blockParcels]);
+  const site = useMemo(() => (survey && selected && blockInfra?.id === selected.id
+    ? siteContext(survey, blockInfra.rows, selected.parcelNumber) : null), [survey, selected, blockInfra]);
 
   // Viewport-driven loading: the map reports every settled view; we debounce,
   // gate on zoom (a city-wide read would be ~378k docs), and fetch by geohash
@@ -568,6 +761,8 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
     viewportTimer.current = setTimeout(() => {
       const vp = lastViewport.current;
       if (!vp) return;
+      setViewZoom(vp.zoom);
+      loadInfra(vp);
       if (vp.zoom < MIN_PARCEL_ZOOM) { setZoomedOut(true); setLoading(false); return; }
       setZoomedOut(false);
       setLoading(true);
@@ -578,12 +773,20 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
       // independent of the parcel read so one slow source can't block the other.
       fetchDetroitStreets(vp).then(setStreets).catch(() => { /* context only */ });
     }, immediate ? 0 : 450);
-  }, []);
+  }, [loadInfra]);
 
   const handleViewport = useCallback((v: { south: number; west: number; north: number; east: number; zoom: number }) => {
     lastViewport.current = v;
     loadViewport();
   }, [loadViewport]);
+
+  // Re-read the overlays when a layer is switched on or off.
+  useEffect(() => { if (lastViewport.current) loadInfra(lastViewport.current); }, [activeInfra, loadInfra]);
+  const toggleInfra = (id: InfraKind) => setActiveInfra(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   const load = useCallback(() => {
     clearParcelCellCache();
@@ -736,6 +939,36 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
               </button>
             </div>
 
+            {/* Public infrastructure — what's published. Mains and service lines are not. */}
+            {(['Utilities', 'Right of way', 'Buildings'] as const).map(group => (
+              <div key={group} className="mt-4 pt-3 border-t border-white/[0.06]">
+                <p className={`${label} mb-2`}>{group}</p>
+                <div className="space-y-0.5">
+                  {INFRA_LAYERS.filter(l => l.group === group).map(l => {
+                    const on = activeInfra.has(l.id);
+                    const tooFar = on && viewZoom < l.minZoom;
+                    const n = infraByKind[l.id]?.length;
+                    return (
+                      <button key={l.id} onClick={() => toggleInfra(l.id)}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px] transition-colors ${on ? 'text-white' : 'text-white/35 hover:text-white/60'}`}
+                        style={on ? { background: `${l.color}18` } : {}}
+                        title={`${l.source}. ${l.accuracy}.${tooFar ? ` Zoom in to see it (level ${l.minZoom}+).` : ''}`}>
+                        <span className={`w-2 h-2 shrink-0 ${l.geom === 'point' ? 'rounded-full' : 'rounded-sm'}`}
+                              style={{ background: on ? l.color : 'rgba(255,255,255,0.18)' }} />
+                        <span className="truncate flex-1 text-left">{l.label}</span>
+                        {on && (tooFar
+                          ? <span className="text-[9px] text-white/30">zoom</span>
+                          : n !== undefined ? <span className="text-[9px] text-white/35 tabular-nums">{n >= 2500 ? '2.5k+' : n}</span> : null)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            <p className="mt-2 px-1 text-[9px] leading-relaxed text-white/25">
+              Water, sewer, gas and electric lines aren't published. Call MISS DIG 811 before digging.
+            </p>
+
             <div className="mt-5 pt-4 border-t border-white/[0.06]">
               <p className={`${label} mb-2`}>Offline</p>
               <div className={`${card} p-3`}>
@@ -751,7 +984,12 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
 
           {/* Map — always mounted: the viewport drives the parcel loading. */}
           <div className="relative min-h-[320px] bg-[#07080B]">
-            <ParcelMap parcels={visible} selectedId={selected?.id ?? null} onSelect={setSelected} onViewport={handleViewport} showBasemap={showBasemap} streets={streets} focus={focus} />
+            <ParcelMap parcels={visible} selectedId={selected?.id ?? null} onSelect={setSelected} onViewport={handleViewport} showBasemap={showBasemap} streets={streets} focus={focus} survey={surveyOpen ? survey : null} infra={infra} />
+
+            {surveyOpen && selected && survey && (
+              <ParcelSurveyPanel parcel={selected} survey={survey} site={site} onClose={() => setSurveyOpen(false)}
+                onSelectParcel={id => { const p = parcels.find(x => x.id === id); if (p) setSelected(p); }} />
+            )}
 
             {panel === 'search' && (
               <SearchPanel result={searchResult} busy={searchBusy} onPick={pickHit} onClose={() => setPanel('none')} />
@@ -783,7 +1021,7 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
 
           {/* Inspector */}
           <div className="border-l border-white/[0.06] p-4 overflow-y-auto custom-scrollbar">
-            <ParcelInspector parcel={selected} onOpenPassport={onOpenPassport} onOpenStudio={onOpenStudio} onOpenLaws={onOpenLaws} />
+            <ParcelInspector parcel={selected} survey={survey} surveyOpen={surveyOpen} onToggleSurvey={() => setSurveyOpen(v => !v)} onOpenPassport={onOpenPassport} onOpenStudio={onOpenStudio} onOpenLaws={onOpenLaws} />
           </div>
         </div>
       </div>
