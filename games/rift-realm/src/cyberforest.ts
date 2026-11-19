@@ -190,11 +190,16 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
   const panel = new THREE.MeshStandardNodeMaterial({ map: conduitTex, roughness: 0.45, metalness: 0.6, color: 0xb8c4cc });
   {
     const c = tslTexture(conduitTex, uv()).rgb;
-    panel.emissiveNode = c.mul(smoothstep(float(0.5), float(0.85), max(c.b, c.r))).mul(float(0.9).add(uBeatPulse.mul(0.6)));
+    panel.emissiveNode = c.mul(smoothstep(float(0.35), float(0.75), max(c.b, c.r))).mul(float(1.6).add(uBeatPulse.mul(0.8)));
   }
-  const hull = new THREE.MeshStandardNodeMaterial({ map: pbr('volc-steel', { maps: [] }).map, color: 0x4d5862, roughness: 0.55, metalness: 0.75 });
+  const steelSrc = pbr('volc-steel', { maps: [] });
+  const hull = new THREE.MeshStandardNodeMaterial({ map: steelSrc.map, color: 0xc4d0d8, roughness: 0.6, metalness: 0.12 }); // the steel sheet's normal map darkens every wall: leave it off
+  // the steel sheet is very dark (albedo ≈ 0.2): lift it so the buildings read as grey steel at night, not black holes
+  hull.colorNode = tslTexture(steelSrc.map!, uv()).rgb.mul(color(0x9aa8b4)).mul(2.3);
+  const core = new THREE.MeshStandardNodeMaterial({ color: 0x062530, roughness: 0.2, metalness: 0.1 });
+  core.emissiveNode = cyan.mul(float(0.35).add(sin(time.mul(2.2).sub(positionWorld.y.mul(1.4))).mul(0.15)).add(uBeatPulse.mul(0.4)));
   const trim = new THREE.MeshStandardNodeMaterial({ color: 0x03141a, roughness: 0.3 });
-  trim.emissiveNode = cyan.mul(float(1.4).add(uBeatPulse.mul(1.6)));
+  trim.emissiveNode = cyan.mul(float(0.75).add(uBeatPulse.mul(0.9)));
   const hazard = new THREE.MeshStandardNodeMaterial({ roughness: 0.6 });
   hazard.colorNode = mix(color(0x111111), color(0xff8a18), smoothstep(float(0.45), float(0.55), fract(positionWorld.x.add(positionWorld.y).add(positionWorld.z).mul(0.9))));
   hazard.emissiveNode = color(0xff7a10).mul(smoothstep(float(0.45), float(0.55), fract(positionWorld.x.add(positionWorld.y).add(positionWorld.z).mul(0.9)))).mul(0.35);
@@ -297,6 +302,7 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
   }
 
   // ── buildings: a small toolkit for steel blocks with doorways, conduit panels and glowing trim ────────
+  const vines: [number, number, number, number][] = []; // x, top y, z, facing yaw
   type Door = { side: 'n' | 's' | 'w' | 'e'; at: number; w: number; choke?: boolean };
   const block = (x0: number, x1: number, z0: number, z1: number, h: number, doors: Door[], o: { roof?: boolean; mat?: THREE.Material; thick?: number; trimY?: number } = {}) => {
     const mat = o.mat ?? hull, t = o.thick ?? 0.6, dh = 3.6;
@@ -310,17 +316,40 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
         const c = (s0 + s1) / 2, len = s1 - s0;
         if (horiz) kit.box(mat, len, hh, t, c, y0 + hh / 2, fixed, 0, { tpm: 0.4 });
         else kit.box(mat, t, hh, len, fixed, y0 + hh / 2, c, 0, { tpm: 0.4 });
+        if (y0 > 0) return;
+        // a mossy stone plinth along the foot of every solid stretch
+        if (horiz) kit.box(mats.stone, len, 1.1, t + 0.3, c, 0.5, fixed, 0, { tpm: 0.5 });
+        else kit.box(mats.stone, t + 0.3, 1.1, len, fixed, 0.5, c, 0, { tpm: 0.5 });
+        // pilasters with a light strip every ~6 m
+        const n = Math.floor(len / 6);
+        for (let k = 1; k <= n; k++) {
+          const pc = s0 + (k - 0.5) * (len / n);
+          if (horiz) { kit.box(mat, 0.7, hh + 0.4, t + 0.6, pc, hh / 2 + 0.2, fixed, 0, { tpm: 0.4 }); }
+          else { kit.box(mat, t + 0.6, hh + 0.4, 0.7, fixed, hh / 2 + 0.2, pc, 0, { tpm: 0.4 }); }
+          for (const sd of [-1, 1]) {
+            if (horiz) kit.box(trim, 0.08, hh * 0.55, 0.05, pc, hh * 0.6, fixed + sd * (t / 2 + 0.32), 0, { solid: false, shadow: false });
+            else kit.box(trim, 0.05, hh * 0.55, 0.08, fixed + sd * (t / 2 + 0.32), hh * 0.6, pc, 0, { solid: false, shadow: false });
+          }
+        }
+        // vines spilling over the wall top (both faces), now and then
+        for (let k = 0; k < len / 4; k++) if (R() < 0.45) {
+          const vc = s0 + R() * len, sd = R() < 0.5 ? -1 : 1;
+          vines.push(horiz ? [vc, hh + 0.2, fixed + sd * (t / 2 + 0.06), sd > 0 ? 0 : Math.PI] : [fixed + sd * (t / 2 + 0.06), hh + 0.2, vc, sd > 0 ? Math.PI / 2 : -Math.PI / 2]);
+        }
       };
       for (const d of ds) {
         seg(cur, d.at - d.w / 2, 0, h);
         seg(d.at - d.w / 2, d.at + d.w / 2, dh, h - dh); // lintel
         // door frame glow
         const fx = horiz ? d.at : fixed, fz = horiz ? fixed : d.at;
+        // a steel frame (hazard-striped on choke doors) with a thin light line on both faces
+        const fm = d.choke ? hazard : mat;
         for (const s of [-1, 1]) {
-          const px = horiz ? fx + s * d.w / 2 : fx, pz = horiz ? fz : fz + s * d.w / 2;
-          kit.box(d.choke ? hazard : trim, horiz ? 0.18 : t + 0.1, dh, horiz ? t + 0.1 : 0.18, px, dh / 2, pz, 0, { solid: false, shadow: false, tpm: 1 });
+          const px = horiz ? fx + s * (d.w / 2 + 0.2) : fx, pz = horiz ? fz : fz + s * (d.w / 2 + 0.2);
+          kit.box(fm, horiz ? 0.4 : t + 0.3, dh + 0.3, horiz ? t + 0.3 : 0.4, px, (dh + 0.3) / 2, pz, 0, { tpm: 1 });
+          for (const f of [-1, 1]) kit.box(trim, horiz ? 0.05 : 0.03, dh, horiz ? 0.03 : 0.05, horiz ? px - s * 0.21 : px + f * (t / 2 + 0.16), dh / 2, horiz ? pz + f * (t / 2 + 0.16) : pz - s * 0.21, 0, { solid: false, shadow: false });
         }
-        kit.box(d.choke ? hazard : trim, horiz ? d.w : t + 0.1, 0.18, horiz ? t + 0.1 : d.w, fx, dh, fz, 0, { solid: false, shadow: false, tpm: 1 });
+        kit.box(fm, horiz ? d.w + 0.8 : t + 0.3, 0.4, horiz ? t + 0.3 : d.w + 0.8, fx, dh + 0.2, fz, 0, { tpm: 1 });
         cur = d.at + d.w / 2;
       }
       seg(cur, a1, 0, h);
@@ -337,7 +366,24 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
       else kit.box(trim, 0.14, 0.14, len, fixed + out * (t / 2 + 0.07), h - 0.25, (a0 + a1) / 2, 0, { solid: false, shadow: false });
     };
     for (const s of ['n', 's', 'w', 'e'] as const) wall(s);
-    if (o.roof !== false) kit.box(mat, x1 - x0 + 0.8, 0.5, z1 - z0 + 0.8, (x0 + x1) / 2, h + 0.25, (z0 + z1) / 2, 0, { tpm: 0.3 });
+    // cornice
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    for (const [w, d, px, pz] of [[x1 - x0 + 1.2, t + 0.8, cx, z0], [x1 - x0 + 1.2, t + 0.8, cx, z1], [t + 0.8, z1 - z0 + 1.2, x0, cz], [t + 0.8, z1 - z0 + 1.2, x1, cz]] as const) {
+      kit.box(mat, w, 0.35, d, px, h + 0.05, pz, 0, { tpm: 0.4 });
+    }
+    if (o.roof !== false) {
+      kit.box(mat, x1 - x0 + 0.8, 0.5, z1 - z0 + 0.8, cx, h + 0.25, cz, 0, { tpm: 0.3 });
+      // roof gear: vents, AC units, an antenna, a skylight strip
+      const area = (x1 - x0) * (z1 - z0), units = Math.min(8, Math.round(area / 60));
+      for (let k = 0; k < units; k++) {
+        const ux = x0 + 2 + R() * (x1 - x0 - 4), uz = z0 + 2 + R() * (z1 - z0 - 4), uw = 1.2 + R() * 2, ud = 1.2 + R() * 2;
+        kit.box(mat, uw, 0.9 + R() * 0.8, ud, ux, h + 0.9, uz, 0, { tpm: 0.5, solid: false });
+        if (k % 2 === 0) { const g = new THREE.CylinderGeometry(0.45, 0.45, 0.3, 12); kit.place(g, ux, h + 1.75, uz); kit.add(trim, g, { solid: false, shadow: false }); }
+      }
+      kit.box(hull, 0.15, 5, 0.15, x1 - 1.5, h + 3, z0 + 1.5, 0, { solid: false, shadow: false });
+      kit.box(trim, 0.25, 0.25, 0.25, x1 - 1.5, h + 5.6, z0 + 1.5, 0, { solid: false, shadow: false });
+      if (x1 - x0 > 14) kit.box(glass, (x1 - x0) * 0.6, 0.1, 1.6, cx, h + 0.55, cz, 0, { solid: false, shadow: false, tpm: 1 });
+    }
   };
   const serverRack = (x: number, z: number, yaw: number, len = 5) => {
     kit.box(hull, 1.1, 2.4, len, x, 1.2, z, yaw, { tpm: 0.5 });
@@ -345,12 +391,12 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
       const dx = Math.cos(yaw) * s * 0.57, dz = -Math.sin(yaw) * s * 0.57;
       kit.box(panel, 0.04, 2.0, len - 0.4, x + dx, 1.2, z + dz, yaw, { solid: false, shadow: false, tpm: 0.5 });
     }
-    kit.box(trim, 1.15, 0.06, len, x, 2.43, z, yaw, { solid: false, shadow: false });
+    for (const s of [-1, 1]) kit.box(trim, 0.04, 0.04, len, x + Math.cos(yaw) * s * 0.56, 2.38, z - Math.sin(yaw) * s * 0.56, yaw, { solid: false, shadow: false });
   };
   const crate = (x: number, z: number, yaw: number, stack = 1) => {
     for (let k = 0; k < stack; k++) {
       kit.box(hull, 1.8, 1.1, 1.2, x, 0.55 + k * 1.1, z, yaw + k * 0.2, { tpm: 0.6 });
-      kit.box(trim, 1.82, 0.05, 1.22, x, 0.9 + k * 1.1, z, yaw + k * 0.2, { solid: false, shadow: false });
+      kit.box(trim, 1.82, 0.04, 0.04, x, 0.95 + k * 1.1, z + 0.6, yaw + k * 0.2, { solid: false, shadow: false });
     }
   };
 
@@ -375,7 +421,7 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
     kit.box(trim, hx1 - hx0 - 2, 0.06, 0.06, (hx0 + hx1) / 2, 5.35, hz0 + 3.5, 0, { solid: false, shadow: false });
     B.steelStair(hull, hx1 - 2.5, 0, hz0 + 8.5, Math.PI, 4.35, 1.6);
     // OBJ C core: a pulsing data pillar in a ring of consoles
-    kit.box(trim, 0.9, 6.8, 0.9, OBJ.C.x, 3.4, OBJ.C.z, Math.PI / 4, { solid: true });
+    kit.box(core, 0.9, 6.8, 0.9, OBJ.C.x, 3.4, OBJ.C.z, Math.PI / 4, { solid: true });
     for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; kit.box(hull, 1.4, 1.0, 0.7, OBJ.C.x + Math.sin(a) * 3.4, 0.5, OBJ.C.z + Math.cos(a) * 3.4, a, { tpm: 0.6 }); }
     // generator block + cooling stacks + a radio mast
     block(-26, -14, -70, -62, 5, [{ side: 's', at: -20, w: 3 }]);
@@ -411,7 +457,7 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
       { side: 'n', at: 37, w: 4 }, { side: 'n', at: 15, w: 5 }, { side: 'w', at: 48, w: 4, choke: true },
     ], { roof: false, thick: 0.9, trimY: 1.8 });
     block(18, 36, 50, 64, 6, [{ side: 'n', at: 27, w: 3.4 }, { side: 'w', at: 58, w: 3 }], { trimY: 4 });
-    kit.box(trim, 0.8, 2.6, 0.8, 27, 1.3, 58, Math.PI / 4, { solid: true }); // the vault core
+    kit.box(core, 0.8, 2.6, 0.8, 27, 1.3, 58, Math.PI / 4, { solid: true }); // the vault core
     for (const [x, z, st] of [[14, 36, 2], [22, 40, 1], [32, 38, 1], [38, 46, 2], [13, 56, 1], [39, 60, 1], [28, 44, 1]] as const) crate(x, z, R() * 0.5, st);
   }
 
@@ -420,7 +466,7 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
   for (const [sp, col, face] of [[SPAWN_A, 0x2f9dff, 1], [SPAWN_B, 0xff8a2b, -1]] as const) {
     const pad = new THREE.MeshStandardNodeMaterial({ color: 0x030a10, roughness: 0.3 });
     pad.emissiveNode = color(col).mul(float(0.35).add(uBeatPulse.mul(0.4)));
-    kit.box(mats.stone, 12, 0.4, 14, sp.x - face * 2, -0.05, sp.z, 0, { tpm: 0.4 });
+    kit.box(mats.stone, 12, 1.5, 14, sp.x - face * 2, -0.6, sp.z, 0, { tpm: 0.4 });
     kit.box(pad, 5, 0.05, 5, sp.x, 0.17, sp.z, 0, { solid: false, shadow: false, tpm: 1 });
     // back wall + portal frame
     const bx = sp.x - face * 7;
@@ -668,10 +714,10 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
     return inBuilding(x, z, 1) || Math.abs(z - BRIDGE_Z) < 4 || Math.abs(z) > 84 ? null : [x, z];
   };
   const k = lo ? 0.35 : 1;
-  scatter('grass_a', Math.round(700 * k), grove, 0.7, 1.3, 0.9);
-  scatter('grass_b', Math.round(500 * k), anywhere, 0.7, 1.4, 0.9);
-  scatter('grass_c', Math.round(400 * k), grove, 0.8, 1.5, 0.9);
-  scatter('grass_d', Math.round(300 * k), bank, 0.8, 1.5, 0.9);
+  scatter('grass_a', Math.round(700 * k), grove, 0.7, 1.3, 0.4);
+  scatter('grass_b', Math.round(500 * k), anywhere, 0.7, 1.4, 0.4);
+  scatter('grass_c', Math.round(400 * k), grove, 0.8, 1.5, 0.4);
+  scatter('grass_d', Math.round(300 * k), bank, 0.8, 1.5, 0.4);
   scatter('fern_a', Math.round(420 * k), byTrees, 1.2, 2.4, 0.5);
   scatter('fern_b', Math.round(260 * k), grove, 0.9, 1.8, 0.5);
   scatter('fern_c', Math.round(160 * k), byTrees, 0.9, 1.6, 0.7);
@@ -700,6 +746,14 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
       }
       mesh.frustumCulled = false; group.add(mesh);
     }
+  }
+
+  // vines over the building walls
+  {
+    const [w, h] = SPR.vine_a, g = new THREE.PlaneGeometry(w / h, 1); g.translate(0, -0.5, 0);
+    const mesh = new THREE.InstancedMesh(g, cardMat('vine_a.webp', 0.7), vines.length);
+    vines.forEach(([x, y, z, yaw], i) => { const sz = 2.2 + R() * 2.6; m4.compose(v.set(x, y, z), q.setFromEuler(e.set(0, yaw, 0)), s3.set(sz, sz, sz)); mesh.setMatrixAt(i, m4); });
+    mesh.frustumCulled = false; group.add(mesh);
   }
 
   // ── the forest wall: whole-tree cards on the edge hills, so the map sits inside a deep forest ─────────
