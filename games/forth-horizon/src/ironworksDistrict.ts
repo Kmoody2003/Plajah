@@ -59,6 +59,7 @@ export function buildIronworksDistrict(o: DistrictOpts): { group: THREE.Group; c
   // ---- container port and harbour: container blocks inland, quay cranes on the water's edge, the control tower and customs at the hairpin ----
   line('container_port', 27, (k) => containerBlock(400 + k, 4, 6, 4), 'container block', 1, true);
   line('harbour', 27, (k) => containerBlock(450 + k, 4, 6, 4), 'container block', 1, true);
+  line('container_yard', 27, (k) => containerBlock(480 + k, 5, 7, 5), 'container block', 1, true);
   {
     const s = [...(o.sectors.container_port ?? []), ...(o.sectors.harbour ?? [])];
     if (s.length) for (let i = Math.min(...s); i < Math.max(...s); i++) {

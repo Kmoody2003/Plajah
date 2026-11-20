@@ -19,8 +19,19 @@ Kenne's brief before bed: build the river districts from his asset folders (docs
 - **Cliff Raceway.** The car drives on the road where the dune laps over its edge at the start (the sand stays, as Kenne asked). The lap script's stall there was the script steering by the raw points; it now follows the line the circuit is built on.
 - My grandstand clearance fix in src/trackkit.ts (stands back off a curving track) went into the graphics session's commit 25ef7015 with their work.
 
+- **Harbor District Street Circuit.** Kenne's map traced and scaled to 5.42 km (tools/plan_harbor_circuit.py), on the east shore of the strait north of the river mouth: the north end of the east bank, clear of the civic riverfront. Its road never goes below 3.6 m, so where the course reaches out over the water it runs on a deck on piers. It has its own menu card, brief and weather (a missing weather plan had stopped the game loading), and barriers that hold in races and free roam. It is dressed with container blocks, quay cranes and warehouses from the library.
+- **Civic riverfront (first pass).** The east bank's shoreline is traced (tools/plan_civic_riverfront.py), and src/civicDistrict.ts dresses it from the new civic library (src/library/civic.ts):
+  - the whole bank: a stone promenade with an embankment, lamps, palms and benches;
+  - Opera & Marina: the opera hall, a marina of pontoons with yachts;
+  - Museum Plaza: the museum of science and art, the glass museum pavilions, the glasshouse, a plaza fountain, the ferry pier;
+  - the amphitheatre with its festival stage, the urban beach and its pier;
+  - Civic Parklands: the monument, flower beds, fountains and sculptures.
+
+  It is built after the city's buildings are known, so nothing lands on downtown. The old Ironport harbour's pieces in the civic stretch (container terminal, sheds, tank farm, berths, cranes, rail spurs) are left out; its quays on downtown's frontage stay.
+
 ## Next
 
 - Look at the Ironworks district in the game and fix what is wrong; lap and probe it.
-- Harbor District Street Circuit on the north end of the east bank (traced; placement search running).
-- The civic riverfront sectors and the Riverwalk circuit, then the hero-shot camera spots.
+- Civic riverfront: look again after the amphitheatre fix, the glasshouse site, and the bank's old satellite texture (containers still painted on the ground: the graphics lane's).
+- The Civic Riverfront Street Circuit, then the hero-shot camera spots.
+- Lap-drive both new circuits.
