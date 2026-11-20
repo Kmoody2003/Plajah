@@ -1,0 +1,238 @@
+{
+  "id": "sidewinder",
+  "name": "Kestrel Sidewinder",
+  "glb": "/games/forth-horizon/car/sidewinder_base.glb",
+  "paint": "0xd8a814",
+  "accent": "0x16181c",
+  "cuts": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (sidewinder_base.glb, L=4.64m W=2.04m H=1.44m).",
+  "wheels": {
+    "frontZ": 1.419,
+    "rearZ": -1.43,
+    "frontX": 0.826,
+    "rearX": 0.816,
+    "scale": 1.08,
+    "discardR": 0.398,
+    "centreY": 0.383,
+    "tyreR": 0.383,
+    "rimR": 0.268,
+    "style": "forged"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.92,
+        0.0,
+        0.768
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.92,
+        0.0,
+        0.768
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.081,
+        0.748
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    },
+    "trunk": {
+      "hinge": [
+        0.0,
+        1.101,
+        -1.878
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": 0.85
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.675,
+        0.841,
+        0.768
+      ],
+      [
+        0.675,
+        1.321,
+        2.141
+      ]
+    ],
+    "trunk": [
+      [
+        -0.593,
+        0.941,
+        -2.181
+      ],
+      [
+        0.593,
+        1.301,
+        -1.898
+      ]
+    ],
+    "roof": [
+      [
+        -0.643,
+        1.278,
+        -1.264
+      ],
+      [
+        0.643,
+        1.559,
+        0.268
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.081,
+    "roofEdge": 1.398,
+    "pillarBase": 0.728,
+    "pillarTop": 0.268,
+    "doorFront": 0.768,
+    "doorRear": -0.987,
+    "windBase": 0.728,
+    "windTop": 0.268,
+    "rearTop": -1.264,
+    "rearBase": -1.878,
+    "rearBase2": -1.848,
+    "windHalfW": 0.643,
+    "rearHalfW": 0.511,
+    "sideWindow": [
+      [
+        -0.927,
+        1.111
+      ],
+      [
+        0.708,
+        1.101
+      ],
+      [
+        0.668,
+        1.195
+      ],
+      [
+        0.518,
+        1.309
+      ],
+      [
+        0.268,
+        1.378
+      ],
+      [
+        -1.204,
+        1.378
+      ],
+      [
+        -1.424,
+        1.278
+      ],
+      [
+        -1.027,
+        1.141
+      ]
+    ],
+    "handle": [
+      -0.289,
+      0.941
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.372,
+    "layout": "front-v8",
+    "arch": "sports-v8",
+    "texUrl": "/games/forth-horizon/tex/engines/sports_car_gt.jpg"
+  },
+  "trunk": true,
+  "cabin": {
+    "yOffset": 0.059,
+    "zOffset": -0.249,
+    "cowlZ": 0.678,
+    "cowlY": 1.081
+  },
+  "exhaust": {
+    "z": -2.198,
+    "y": 0.24,
+    "xs": [
+      -0.48,
+      -0.35,
+      0.35,
+      0.48
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.281,
+    "splitterW": 0,
+    "splitterY": 0.11,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.552,
+      "y": 0.529,
+      "w": 0.286,
+      "h": 0.075,
+      "tilt": 0.025,
+      "style": "u-drl"
+    },
+    "tail": {
+      "x": 0.532,
+      "y": 0.612,
+      "len": 0.348,
+      "style": "double-u"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.36,
+    "bumperRearY": 0.38,
+    "skirtY": 0.2,
+    "archLipAdd": 0.045,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.289,
+    "grilleHiY": 0.569,
+    "grilleStyle": "sport"
+  }
+}

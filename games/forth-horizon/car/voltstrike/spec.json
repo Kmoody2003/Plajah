@@ -1,0 +1,233 @@
+{
+  "id": "voltstrike",
+  "name": "Halcyon Voltstrike S",
+  "glb": "/games/forth-horizon/car/voltstrike_base.glb",
+  "paint": "0xdbe0e8",
+  "accent": "0x12d8ff",
+  "cuts": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (voltstrike_base.glb, L=4.82m W=2.04m H=1.20m).",
+  "wheels": {
+    "frontZ": 1.301,
+    "rearZ": -1.569,
+    "frontX": 0.86,
+    "rearX": 0.845,
+    "scale": 0.96,
+    "discardR": 0.355,
+    "centreY": 0.341,
+    "tyreR": 0.341,
+    "rimR": 0.238,
+    "style": "forged"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.917,
+        0.0,
+        0.9
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.917,
+        0.0,
+        0.9
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        0.964,
+        0.937
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    },
+    "trunk": {
+      "hinge": [
+        0.0,
+        0.984,
+        -2.123
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": 0.85
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.673,
+        0.724,
+        0.957
+      ],
+      [
+        0.673,
+        1.204,
+        2.232
+      ]
+    ],
+    "trunk": [
+      [
+        -0.591,
+        0.824,
+        -2.272
+      ],
+      [
+        0.591,
+        1.184,
+        -2.143
+      ]
+    ],
+    "roof": [
+      [
+        -0.633,
+        1.044,
+        -1.395
+      ],
+      [
+        0.633,
+        1.324,
+        0.557
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 0.964,
+    "roofEdge": 1.164,
+    "pillarBase": 0.917,
+    "pillarTop": 0.557,
+    "doorFront": 0.9,
+    "doorRear": -1.168,
+    "windBase": 0.917,
+    "windTop": 0.557,
+    "rearTop": -1.395,
+    "rearBase": -2.123,
+    "rearBase2": -2.093,
+    "windHalfW": 0.633,
+    "rearHalfW": 0.714,
+    "sideWindow": [
+      [
+        -1.108,
+        0.994
+      ],
+      [
+        0.84,
+        0.984
+      ],
+      [
+        0.8,
+        1.036
+      ],
+      [
+        0.728,
+        1.108
+      ],
+      [
+        0.557,
+        1.144
+      ],
+      [
+        -1.335,
+        1.144
+      ],
+      [
+        -1.555,
+        1.088
+      ],
+      [
+        -1.208,
+        1.024
+      ]
+    ],
+    "handle": [
+      -0.314,
+      0.824
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.498,
+    "layout": "ev",
+    "arch": "ev",
+    "texUrl": "/games/forth-horizon/tex/engines/hybrid_i4.jpg"
+  },
+  "trunk": true,
+  "cabin": {
+    "yOffset": -0.14,
+    "zOffset": -0.21,
+    "cowlZ": 0.867,
+    "cowlY": 0.964
+  },
+  "exhaust": {
+    "z": -2.273,
+    "y": 0.22,
+    "xs": []
+  },
+  "aero": {
+    "splitterZ": 2.392,
+    "splitterW": 0,
+    "splitterY": 0.11,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.55,
+      "y": 0.48,
+      "w": 0.285,
+      "h": 0.075,
+      "tilt": 0.025,
+      "style": "u-drl"
+    },
+    "tail": {
+      "x": 0.53,
+      "y": 0.6,
+      "len": 0.285,
+      "style": "full-blade"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.36,
+    "bumperRearY": 0.38,
+    "skirtY": 0.2,
+    "archLipAdd": 0.045,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.24,
+    "grilleHiY": 0.52,
+    "grilleStyle": "ev"
+  }
+}

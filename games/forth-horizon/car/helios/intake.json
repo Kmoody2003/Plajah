@@ -1,0 +1,28 @@
+{
+  "id": "helios",
+  "status": "built (multi-view matched: winner=sheet_rear34, sideIoU=0.896, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\ironport-complete\\concept-art\\media-generation-halcyon-helios-x1-0-22e19dd0-6992-416a-813d-0154264e4df7.webp",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.8551,
+      "yawSymDeg": -1.0
+    },
+    {
+      "candidate": "sheet_rear34",
+      "sideIoU": 0.901,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "sheet_rear34",
+  "finalSideIoU": 0.8957,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 4.734,
+    "width": 2.04,
+    "height": 1.238
+  },
+  "faces": 60000,
+  "elapsedSec": 4.9
+}

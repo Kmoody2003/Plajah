@@ -1,0 +1,28 @@
+{
+  "id": "voltstrike",
+  "status": "built (multi-view matched: winner=sheet_front34, sideIoU=0.911, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\ironport-complete\\concept-art\\media-generation-halcyon-voltstrike-s-v2-0-8e97db1d-15a2-4c57-b3a0-782ed19051f8.webp",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.9072,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "sheet_rear34",
+      "sideIoU": 0.8902,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "sheet_front34",
+  "finalSideIoU": 0.9109,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 4.824,
+    "width": 2.039,
+    "height": 1.204
+  },
+  "faces": 60000,
+  "elapsedSec": 53.8
+}
