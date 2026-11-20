@@ -14,13 +14,15 @@ export class CarProbe {
   get texture(): THREE.Texture | null { return this.env ? this.env.texture : null; }
 
   constructor(renderer: THREE.WebGLRenderer, size = 128) {
-    this.rt = new THREE.WebGLCubeRenderTarget(size, { type: THREE.HalfFloatType, generateMipmaps: false });
+    // UnsignedByteType guarantees the cube capture can never contain NaN or Inf pixels that poison PMREM & bloom on D3D11 GPUs
+    this.rt = new THREE.WebGLCubeRenderTarget(size, { type: THREE.UnsignedByteType, generateMipmaps: false });
     this.cube = new THREE.CubeCamera(0.4, 900, this.rt);
     this.pmrem = new THREE.PMREMGenerator(renderer);
   }
 
   /** capture one face around `pos`; `hide` is drawn out of the capture (the car itself, grass, spray). Returns true when a new environment is ready. */
   step(renderer: THREE.WebGLRenderer, scene: THREE.Scene, pos: THREE.Vector3, hide: THREE.Object3D[]): boolean {
+    if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) return false;
     this.cube.position.copy(pos);
     this.cube.updateMatrixWorld(true);
     const cams = this.cube.children as THREE.PerspectiveCamera[];
@@ -29,14 +31,17 @@ export class CarProbe {
     hide.forEach((o) => { o.visible = false; });
     const prevTarget = renderer.getRenderTarget(), prevFace = renderer.getActiveCubeFace(), prevMip = renderer.getActiveMipmapLevel();
     const prevXr = renderer.xr.enabled; renderer.xr.enabled = false;
+    const prevShadowAuto = renderer.shadowMap.autoUpdate; renderer.shadowMap.autoUpdate = false;
     renderer.setRenderTarget(this.rt, this.face);
     renderer.render(scene, cams[this.face]);
     renderer.setRenderTarget(prevTarget, prevFace, prevMip);
+    renderer.shadowMap.autoUpdate = prevShadowAuto;
     renderer.xr.enabled = prevXr;
     hide.forEach((o, i) => { o.visible = was[i]; });
     this.face = (this.face + 1) % 6;
     if (this.face !== 0) return false;
     this.env = this.pmrem.fromCubemap(this.rt.texture, this.env ?? undefined);       // blur levels for every roughness, written into the same target each time
+    renderer.setRenderTarget(prevTarget, prevFace, prevMip);
     return true;
   }
 

@@ -550,6 +550,15 @@ let aaPass: ShaderPass | SMAAPass | null = null;
 const USE_SMAA = (() => { try { return new URLSearchParams(location.search).get('aa') === 'smaa'; } catch { return false; } })();
 let dbgCam: { pos: THREE.Vector3; at: THREE.Vector3 } | null = null;     // review tool: window.regionViewer.cam(x,y,z, tx,ty,tz) holds the camera still; cam() releases it
 let fxOn = true;
+let blackFrameStrikes = 0;
+renderer.domElement.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault();
+  console.warn('[apex] WebGL context lost — waiting for GPU restore');
+});
+renderer.domElement.addEventListener('webglcontextrestored', () => {
+  blackFrameStrikes = 0;
+  console.warn('[apex] WebGL context restored');
+});
 try {
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
@@ -4936,17 +4945,22 @@ function frame(now: number): void {
   if (dbgCam) { camera.position.copy(dbgCam.pos); camera.lookAt(dbgCam.at); camera.updateMatrixWorld(); }
   if (cinePass) {
     const u = cinePass.uniforms;
-    u.uTime.value = (u.uTime.value + dt) % 100;
-    u.uAspect.value = innerWidth / innerHeight;
-    const kmh = driving && !replay.active ? Math.abs(driving.ps.speedMps) : 0;
-    u.uSpeed.value += (Math.min(1, Math.max(0, (kmh - 18) / 62)) - u.uSpeed.value) * Math.min(1, dt * 4);
+    u.uTime.value = ((Number.isFinite(u.uTime.value) ? u.uTime.value : 0) + dt) % 100;
+    u.uAspect.value = Math.max(0.25, innerWidth / Math.max(1, innerHeight));
+    const kmh = driving && !replay.active && Number.isFinite(driving.ps.speedMps) ? Math.abs(driving.ps.speedMps) : 0;
+    const prevSpeed = Number.isFinite(u.uSpeed.value) ? u.uSpeed.value : 0;
+    u.uSpeed.value = prevSpeed + (Math.min(1, Math.max(0, (kmh - 18) / 62)) - prevSpeed) * Math.min(1, dt * 4);
     // where the sun is on screen, and how much of it is there to shine through (a low sun in a clear sky; none under overcast or at night)
     const sv = tmpSun.copy(camera.position).addScaledVector(sunDir, 20000).project(camera);
+    const svFinite = Number.isFinite(sv.x) && Number.isFinite(sv.y) && Number.isFinite(sv.z);
     const w = wx.cur, nk = NIGHT_K[todKey] ?? 0;
-    const vis = sv.z < 1 ? 1 : 0;
+    const vis = svFinite && sv.z < 1 ? 1 : 0;
     const clear = Math.max(0, 1 - w.cloudDark * 1.4) * Math.max(0, 1 - w.fogGrey * 0.8);
-    u.uSun.value.set(sv.x * 0.5 + 0.5, sv.y * 0.5 + 0.5);
-    u.uShaft.value += (vis * clear * (1 - nk) * (mapMode ? 0 : 0.68) - u.uShaft.value) * Math.min(1, dt * 3);
+    if (svFinite) u.uSun.value.set(Math.max(-2, Math.min(3, sv.x * 0.5 + 0.5)), Math.max(-2, Math.min(3, sv.y * 0.5 + 0.5)));
+    else u.uSun.value.set(0.5, 0.8);
+    const prevShaft = Number.isFinite(u.uShaft.value) ? u.uShaft.value : 0;
+    const targetShaft = vis * clear * (1 - nk) * (mapMode ? 0 : 0.68);
+    u.uShaft.value = Number.isFinite(targetShaft) ? prevShaft + (targetShaft - prevShaft) * Math.min(1, dt * 3) : 0;
     u.uHasSkyMask.value = aoPass?.aoOn ? 1 : 0;
     (u.uSunCol.value as THREE.Color).copy(sun.color);
   }
@@ -4967,6 +4981,7 @@ function frame(now: number): void {
   const gradeActive = !!gradePass?.active;
   if (gradePass) gradePass.enabled = gradeActive;
   if (outputPass) outputPass.enabled = gradeActive;
+  if (!Number.isFinite(renderer.toneMappingExposure) || renderer.toneMappingExposure <= 0.05) renderer.toneMappingExposure = 1.08;
   if (cinePass) {
     cinePass.uniforms.uToneMap.value = gradeActive ? 0 : 1;
     cinePass.uniforms.uExposure.value = renderer.toneMappingExposure;
@@ -4989,7 +5004,47 @@ function frame(now: number): void {
   frameProfiler.context = { mode: mapMode ? 'map' : driving ? 'drive' : 'review', weather: wx.name, camera: camera.position.toArray().map((v) => Math.round(v)) };
   frameProfiler.beginRender();
   atmosphere?.update(scene, camera, sunDir, sun.color, wx.cur.fogGrey, wx.cur.sun, NIGHT_K[todKey] ?? 0, mapMode, now);
-  if (composer && fxOn) composer.render(); else renderer.render(scene, camera);
+  if (composer && fxOn) {
+    // Always align ping-pong so RenderPass writes renderTarget2 (with depthTexture) even after tier/AA pass toggles
+    composer.readBuffer = composer.renderTarget2;
+    composer.writeBuffer = composer.renderTarget1;
+    composer.render();
+  } else {
+    renderer.render(scene, camera);
+  }
+  // Real-GPU black-frame watchdog (runs once every 90 frames; zero-cost unless all 4 spread pixels read pure 0,0,0 twice in a row)
+  if (composer && fxOn && !mapMode && (frameNo % 90) === 45 && sun.intensity > 0.05) {
+    const gl = renderer.getContext();
+    if (gl && !gl.isContextLost()) {
+      const cw = renderer.domElement.width, ch = renderer.domElement.height;
+      const px = new Uint8Array(4);
+      const pts: [number, number][] = [[cw >> 1, ch >> 1], [cw >> 1, (ch * 3) >> 2], [cw >> 2, ch >> 1], [(cw * 3) >> 2, ch >> 2]];
+      let allZero = true;
+      for (const [x, y] of pts) {
+        gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+        if (px[0] > 0 || px[1] > 0 || px[2] > 0) { allZero = false; break; }
+      }
+      if (allZero) {
+        blackFrameStrikes++;
+        console.warn('[apex-watchdog] black 3D frame detected', {
+          strikes: blackFrameStrikes,
+          glErr: gl.getError(),
+          exp: renderer.toneMappingExposure,
+          uSpeed: cinePass?.uniforms.uSpeed.value,
+          uShaft: cinePass?.uniforms.uShaft.value,
+          cam: camera.position.toArray().map((v) => +v.toFixed(1)),
+          weather: wx.name,
+        });
+        if (cinePass) { cinePass.uniforms.uSpeed.value = 0; cinePass.uniforms.uShaft.value = 0; }
+        if (blackFrameStrikes >= 2) {
+          fxOn = false;
+          console.warn('[apex-watchdog] disabling post composer fallback -> direct renderer.render()');
+        }
+      } else {
+        blackFrameStrikes = 0;
+      }
+    }
+  }
   frameProfiler.end();
   { const __t4 = performance.now(), q = ((window as any).__seg ??= { sim: [], mid: [], city: [], render: [] }); q.sim.push(__t1 - __t0); q.mid.push(__t2 - __t1); q.city.push(__t3 - __t2); q.render.push(__t4 - __t3); if (q.sim.length > 600) for (const k in q) q[k].shift(); }
   if (meta && heights && now - lastHudMs > 100) {
