@@ -57,6 +57,7 @@ import { Vegetation } from './vegetation';
 import { buildIndustrialCircuit, carveIndustrialCutting, industrialProfile, type GradeFeature } from './industrialCircuit';
 import { buildIronworksDistrict } from './ironworksDistrict';
 import { buildCivicRiverfront, type CivicPlan } from './civicDistrict';
+import { HERO_SCENES } from './heroScenes';
 import { glassSelects } from './glassSelect';
 import { buildParkingLots } from './parkingLots';
 import { buildUtilities, type UtilitiesData } from './utilities';
@@ -1167,7 +1168,8 @@ function buildTownExtras(): void {
     const dense = simPlan?.tall?.length ? denseArea(simPlan.tall) : () => false;
     parked = buildParkedCars({
       streets: streetRuns, drives: countryNet?.roads ?? [], ground: (x, z) => meshH(x, z), downtown: dense, mouths: countryScenes.driveMouths,
-      skip: (x, z) => roadDist(x, z) < 9 || hAt(x, z) < 2.5 || insideBuilding(x, z, 0.8) || !!(simLayer?.junctions.near(x, z, 3)),
+      // never on the new street circuits' courses (they run along town streets, and a parked car is solid): downtown's are as they were
+      skip: (x, z) => roadDist(x, z) < 9 || hAt(x, z) < 2.5 || insideBuilding(x, z, 0.8) || !!(simLayer?.junctions.near(x, z, 3)) || onCourse(x, z, 1, [IND, HARB]),
     });
     furnitureGroup.add(parked.group);
   }
@@ -1844,13 +1846,14 @@ const curtainU = { value: 1 };                         // 1: 3D interior mapping
 // ---------- the civic riverfront on the east bank (region/civic_riverfront.json, src/civicDistrict.ts) ----------
 // Built once the city's buildings are known, so nothing of it lands on downtown (downtown is not changed: its frontage only gets the promenade where free).
 let civicSpots: Record<string, [number, number, number]> = {};
+let civicShore: number[][] = [];
 async function buildCivic(): Promise<void> {
   const plan = await fetch(BASE + 'civic_riverfront.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as CivicPlan | null;
   if (!plan) return;
   const d = buildCivicRiverfront({ plan, ground: (x, z) => meshH(x, z), water: (x, z) => hAt(x, z) < 2.5, blocked: (x, z, r) => onCourse(x, z, r) || paintedRoad(x, z, r) || insideBuilding(x, z, r) });
   mergeByMaterial(d.group, 400);
   furnitureGroup.add(d.group);
-  civicSpots = d.spots;
+  civicSpots = d.spots; civicShore = plan.shore;
   (window as unknown as { civicSpots: unknown }).civicSpots = civicSpots;
   console.log('civic riverfront', JSON.stringify(d.counts));
 }
@@ -4504,6 +4507,22 @@ async function boot(): Promise<void> {
   });
   mapEditor.load(userMap ?? { version: 1, features: [] });
   (window as any).refScenes = REF_SCENES;
+  // Kenne's hero shots as camera spots in the world (src/heroScenes.ts): a point on a circuit's built line, or a landmark seen from the river
+  (window as any).heroScenes = () => HERO_SCENES.map((h) => {
+    const sp = h.spot;
+    if ('course' in sp) {
+      const paths = { ironport_grand_circuit: cityPath, great_lakes_cliff_raceway: cliffPathPts, ironworks_industrial_circuit: industrialPath, harbor_district_circuit: harborPath } as Record<string, { x: number; z: number }[]>;
+      const P = paths[sp.course]; if (!P?.length) return { id: h.id, files: h.files, what: h.what, cam: null, at: null };
+      let k = 0, bd = 1e18; P.forEach((q, i) => { const d = (q.x - sp.near[0]) ** 2 + (q.z - sp.near[1]) ** 2; if (d < bd) { bd = d; k = i; } });
+      const n = P.length, a = P[((k + sp.ahead) % n + n) % n], b = P[((k + sp.ahead + sp.look) % n + n) % n];
+      return { id: h.id, files: h.files, what: h.what, cam: [a.x, groundH(a.x, a.z) + sp.h, a.z], at: [b.x, groundH(b.x, b.z) + sp.h * 0.6, b.z] };
+    }
+    const L = civicSpots[sp.landmark]; if (!L || !civicShore.length) return { id: h.id, files: h.files, what: h.what, cam: null, at: null };
+    let s0 = civicShore[0], bd = 1e18; for (const q of civicShore) { const d = (q[0] - L[0]) ** 2 + (q[1] - L[2]) ** 2; if (d < bd) { bd = d; s0 = q; } }
+    const dl = Math.hypot(s0[0] - L[0], s0[1] - L[2]) || 1, ux = (s0[0] - L[0]) / dl, uz = (s0[1] - L[2]) / dl, side = sp.side ?? 0;
+    const cx = L[0] + ux * sp.back - uz * side, cz = L[2] + uz * sp.back + ux * side;
+    return { id: h.id, files: h.files, what: h.what, cam: [cx, Math.max(groundH(cx, cz), 1.5) + sp.h, cz], at: [L[0], L[1] + 8, L[2]] };
+  });
   (window as any).coursePaths = () => ({ ironport_grand_circuit: cityPath, great_lakes_cliff_raceway: cliffPathPts, ironworks_industrial_circuit: industrialPath, harbor_district_circuit: harborPath });   // the lines the circuits are built on (scripts/apex-probe-circuits.mjs)
   (window as any).cineJump = (i: number) => { if (!cineOn) startCine(); cineIdx = i % cineShots.length; cineT = 1.2; };
   (window as any).vegStats = () => vegetation?.stats;

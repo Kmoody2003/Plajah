@@ -48,7 +48,7 @@ await page.evaluate(() => {
     K.delete('KeyA'); K.delete('KeyD'); K.delete('KeyW'); K.delete('KeyS');
     if (err * st.sgn > 0.03) K.add('KeyD'); else if (err * st.sgn < -0.03) K.add('KeyA');
     if (v < vWant) K.add('KeyW'); else if (v > vWant + 3) K.add('KeyS');
-    if (Math.abs(v) < 1) { st.slow += dt; if (st.slow > 6) { st.stalls++; st.slow = 0; st.log.push(['stall', i, Math.round(p.x), Math.round(p.z)]); } } else st.slow = 0;
+    if (Math.abs(v) < 1) { st.slow += dt; if (st.slow > 6) { st.stalls++; st.slow = 0; st.log.push(['stall', i, Math.round(p.x), Math.round(p.z), +off.toFixed(1), +err.toFixed(2), +(d.hit ?? 0).toFixed(2), +p.y.toFixed(1), +R.groundH(p.x, p.z).toFixed(1)]); /* off the line, steering error, wall hit, car y, ground */ } } else st.slow = 0;
   }, 16);
 });
 let reloaded = false; page.on('framenavigated', (f) => { if (f === page.mainFrame()) reloaded = true; });   // the dev server reloads the page when a game source file changes

@@ -29,9 +29,13 @@ Kenne's brief before bed: build the river districts from his asset folders (docs
 
   It is built after the city's buildings are known, so nothing lands on downtown. The old Ironport harbour's pieces in the civic stretch (container terminal, sheds, tank farm, berths, cranes, rail spurs) are left out; its quays on downtown's frontage stay.
 
+- **Laps.** The new Ironworks: a full 5.3 km lap, no stalls, the car never more than 0.4 m off the road. The Harbor District circuit: a full 5.4 km lap, no stalls, 0.2 m. The harbour circuit's first placement ran past the world's east edge (x 8196: the map is 1376 x 12 m), where the car stopped dead; it is refitted at (7370, -2960), x 6866 to 7935. Parked cars are kept off both new courses (downtown's are as they were).
+- **Hero scenes (src/heroScenes.ts).** 19 camera spots covering about 50 of Kenne's shots: Ironworks (finish line, straight, bridge, into and out of the underpass, refinery, silos, warehouses, harbour), the harbour circuit (cranes, container canyon) and the civic riverfront (opera, marina, glass museum, fountain, amphitheatre, beach, promenade, parklands). A spot is written against what it shows (a point on a built line, or a placed landmark seen from the river), so it follows the world. `window.heroScenes()` resolves them, and scripts/apex-hero-shots.mjs shoots them. The civic race shots (boulevard, chicane, riverwalk) wait for the Civic Riverfront Street Circuit.
+- **Black frames.** Some shots come out black at random (a different scene each run). The underpass exit, the warehouse and the marina were black on the first run and fine on the second. It is the renderer, not a place in the world: the graphics lane's.
+
 ## Next
 
 - Look at the Ironworks district in the game and fix what is wrong; lap and probe it.
 - Civic riverfront: look again after the amphitheatre fix, the glasshouse site, and the bank's old satellite texture (containers still painted on the ground: the graphics lane's).
-- The Civic Riverfront Street Circuit, then the hero-shot camera spots.
-- Lap-drive both new circuits.
+- The Civic Riverfront Street Circuit (from Kenne's two circuit maps), then its race hero shots.
+- A finer opera hall: its white shells read edge-on from the river.
