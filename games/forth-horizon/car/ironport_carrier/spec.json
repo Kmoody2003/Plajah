@@ -1,0 +1,224 @@
+{
+  "id": "ironport_carrier",
+  "name": "Ironport Carrier SUV",
+  "glb": "/games/forth-horizon/car/ironport_carrier_base.glb",
+  "paint": "0x6e747c",
+  "accent": "0x1a1e24",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (ironport_carrier_base.glb, L=4.96m W=2.08m H=1.90m).",
+  "wheels": {
+    "frontZ": 1.473,
+    "rearZ": -1.439,
+    "frontX": 0.741,
+    "rearX": 0.732,
+    "scale": 1.13,
+    "discardR": 0.417,
+    "centreY": 0.401,
+    "tyreR": 0.401,
+    "rimR": 0.258,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.936,
+        0.0,
+        1.032
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.936,
+        0.0,
+        1.032
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.359,
+        1.045
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.707,
+        1.119,
+        1.065
+      ],
+      [
+        0.707,
+        1.599,
+        2.32
+      ]
+    ],
+    "trunk": [
+      [
+        -0.624,
+        1.199,
+        -2.36
+      ],
+      [
+        0.624,
+        1.579,
+        -2.401
+      ]
+    ],
+    "roof": [
+      [
+        -0.773,
+        1.684,
+        -2.174
+      ],
+      [
+        0.773,
+        2.039,
+        0.533
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.359,
+    "roofEdge": 1.824,
+    "pillarBase": 1.025,
+    "pillarTop": 0.533,
+    "doorFront": 1.032,
+    "doorRear": -0.318,
+    "windBase": 1.025,
+    "windTop": 0.533,
+    "rearTop": -2.174,
+    "rearBase": -2.381,
+    "rearBase2": -2.361,
+    "windHalfW": 0.773,
+    "rearHalfW": 0.586,
+    "sideWindow": [
+      [
+        -2.214,
+        1.389
+      ],
+      [
+        0.992,
+        1.379
+      ],
+      [
+        0.952,
+        1.554
+      ],
+      [
+        0.783,
+        1.722
+      ],
+      [
+        0.533,
+        1.794
+      ],
+      [
+        -2.134,
+        1.794
+      ],
+      [
+        -2.254,
+        1.675
+      ],
+      [
+        -2.274,
+        1.409
+      ]
+    ],
+    "handle": [
+      0.197,
+      1.219
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.393,
+    "layout": "front-v8",
+    "arch": "suv-v6",
+    "texUrl": "/games/forth-horizon/tex/engines/v6_suv_sport.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.479,
+    "zOffset": -0.361,
+    "cowlZ": 0.975,
+    "cowlY": 1.379
+  },
+  "exhaust": {
+    "z": -2.357,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.474,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.583,
+      "y": 0.804,
+      "w": 0.27,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.603,
+      "y": 0.939,
+      "len": 0.312,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.564,
+    "grilleHiY": 0.854,
+    "grilleStyle": "truck"
+  }
+}

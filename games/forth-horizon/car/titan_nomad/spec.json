@@ -1,0 +1,224 @@
+{
+  "id": "titan_nomad",
+  "name": "Titan Ridge Nomad Off-Road",
+  "glb": "/games/forth-horizon/car/titan_nomad_base.glb",
+  "paint": "0x6c6e5c",
+  "accent": "0x1a1c1e",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (titan_nomad_base.glb, L=4.77m W=2.07m H=1.88m).",
+  "wheels": {
+    "frontZ": 1.455,
+    "rearZ": -1.394,
+    "frontX": 0.725,
+    "rearX": 0.736,
+    "scale": 1.12,
+    "discardR": 0.414,
+    "centreY": 0.398,
+    "tyreR": 0.398,
+    "rimR": 0.255,
+    "style": "offroad"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.93,
+        0.0,
+        0.631
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.93,
+        0.0,
+        0.631
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.406,
+        0.611
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.703,
+        1.166,
+        0.631
+      ],
+      [
+        0.703,
+        1.646,
+        2.226
+      ]
+    ],
+    "trunk": [
+      [
+        -0.62,
+        1.246,
+        -2.266
+      ],
+      [
+        0.62,
+        1.626,
+        -2.188
+      ]
+    ],
+    "roof": [
+      [
+        -0.603,
+        1.676,
+        -1.537
+      ],
+      [
+        0.603,
+        2.021,
+        -0.039
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.406,
+    "roofEdge": 1.816,
+    "pillarBase": 0.591,
+    "pillarTop": -0.039,
+    "doorFront": 0.631,
+    "doorRear": -0.719,
+    "windBase": 0.591,
+    "windTop": -0.039,
+    "rearTop": -1.537,
+    "rearBase": -2.168,
+    "rearBase2": -2.148,
+    "windHalfW": 0.603,
+    "rearHalfW": 0.561,
+    "sideWindow": [
+      [
+        -1.577,
+        1.436
+      ],
+      [
+        0.591,
+        1.426
+      ],
+      [
+        0.551,
+        1.578
+      ],
+      [
+        0.296,
+        1.726
+      ],
+      [
+        -0.039,
+        1.786
+      ],
+      [
+        -1.497,
+        1.786
+      ],
+      [
+        -1.617,
+        1.685
+      ],
+      [
+        -1.637,
+        1.456
+      ]
+    ],
+    "handle": [
+      -0.204,
+      1.266
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 0.95,
+    "layout": "front-v8",
+    "arch": "suv-v6",
+    "texUrl": "/games/forth-horizon/tex/engines/v6_suv_sport.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.461,
+    "zOffset": -0.347,
+    "cowlZ": 0.541,
+    "cowlY": 1.426
+  },
+  "exhaust": {
+    "z": -2.258,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.286,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.579,
+      "y": 0.902,
+      "w": 0.269,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.599,
+      "y": 0.838,
+      "len": 0.31,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.662,
+    "grilleHiY": 0.952,
+    "grilleStyle": "truck"
+  }
+}

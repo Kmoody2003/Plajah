@@ -1,0 +1,28 @@
+{
+  "id": "kairos_kx",
+  "status": "built (multi-view matched: winner=tt_01, sideIoU=0.893, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_production_asset_sheet_424bbd4b.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Compact_crossover_SUV_turntable_\u2026_5bf5bf65.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_08",
+      "sideIoU": 0.88,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "tt_01",
+      "sideIoU": 0.8809,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "tt_01",
+  "finalSideIoU": 0.8931,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 4.559,
+    "width": 2.083,
+    "height": 1.81
+  },
+  "faces": 60000,
+  "elapsedSec": 94.7
+}

@@ -1,0 +1,28 @@
+{
+  "id": "aureon_lx750",
+  "status": "built (multi-view matched: winner=tt_03, sideIoU=0.913, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_production_asset_sheet_ef8b8a35.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_rotating_on_studio_turntable_c21343cc.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_10",
+      "sideIoU": 0.8905,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "tt_03",
+      "sideIoU": 0.8967,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_03",
+  "finalSideIoU": 0.913,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 5.217,
+    "width": 2.081,
+    "height": 1.896
+  },
+  "faces": 60000,
+  "elapsedSec": 93.6
+}

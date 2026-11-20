@@ -1,0 +1,28 @@
+{
+  "id": "ironport_commander",
+  "status": "built (multi-view matched: winner=tt_11, sideIoU=0.720, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_production_asset_sheet_layout_1bb78c42.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Ironport_Commander_SUV_turntable\u2026_9083dc75.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_06",
+      "sideIoU": 0.6774,
+      "yawSymDeg": 0.25
+    },
+    {
+      "candidate": "tt_11",
+      "sideIoU": 0.6785,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "tt_11",
+  "finalSideIoU": 0.7201,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 4.912,
+    "width": 2.082,
+    "height": 1.944
+  },
+  "faces": 60000,
+  "elapsedSec": 98.6
+}

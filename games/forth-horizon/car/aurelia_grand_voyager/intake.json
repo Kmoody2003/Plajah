@@ -1,0 +1,28 @@
+{
+  "id": "aurelia_grand_voyager",
+  "status": "built (multi-view matched: winner=tt_09, sideIoU=0.893, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_production_asset_sheet_9567e87e.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_rotating_on_studio_turntable_757b7a8d.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_04",
+      "sideIoU": 0.808,
+      "yawSymDeg": 0.75
+    },
+    {
+      "candidate": "tt_09",
+      "sideIoU": 0.8884,
+      "yawSymDeg": -0.5
+    }
+  ],
+  "winner": "tt_09",
+  "finalSideIoU": 0.8934,
+  "yawSymDeg": -0.5,
+  "boundsM": {
+    "length": 5.017,
+    "width": 2.079,
+    "height": 1.882
+  },
+  "faces": 60000,
+  "elapsedSec": 95.6
+}

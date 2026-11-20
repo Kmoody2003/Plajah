@@ -1,0 +1,28 @@
+{
+  "id": "veloce_strada_suv",
+  "status": "built (multi-view matched: winner=tt_00, sideIoU=0.921, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_blueprint_multi-view_project\u2026_961c5c14.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Veloce_Strada_rotating_on_turntable_bee49694.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_00",
+      "sideIoU": 0.9095,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "tt_05",
+      "sideIoU": 0.9073,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_00",
+  "finalSideIoU": 0.9215,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 4.841,
+    "width": 2.081,
+    "height": 1.87
+  },
+  "faces": 60000,
+  "elapsedSec": 95.2
+}

@@ -1,0 +1,224 @@
+{
+  "id": "aurelia_grand_voyager",
+  "name": "Aurelia Grand Voyager",
+  "glb": "/games/forth-horizon/car/aurelia_grand_voyager_base.glb",
+  "paint": "0x5e707e",
+  "accent": "0xd0d6de",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (aurelia_grand_voyager_base.glb, L=5.02m W=2.08m H=1.88m).",
+  "wheels": {
+    "frontZ": 1.536,
+    "rearZ": -1.561,
+    "frontX": 0.729,
+    "rearX": 0.72,
+    "scale": 1.12,
+    "discardR": 0.414,
+    "centreY": 0.398,
+    "tyreR": 0.398,
+    "rimR": 0.255,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.936,
+        0.0,
+        1.077
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.936,
+        0.0,
+        1.077
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.358,
+        1.057
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.707,
+        1.118,
+        1.077
+      ],
+      [
+        0.707,
+        1.598,
+        2.348
+      ]
+    ],
+    "trunk": [
+      [
+        -0.624,
+        1.198,
+        -2.388
+      ],
+      [
+        0.624,
+        1.578,
+        -2.428
+      ]
+    ],
+    "roof": [
+      [
+        -0.868,
+        1.668,
+        -2.116
+      ],
+      [
+        0.868,
+        2.022,
+        0.622
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.358,
+    "roofEdge": 1.808,
+    "pillarBase": 1.037,
+    "pillarTop": 0.622,
+    "doorFront": 1.077,
+    "doorRear": -0.273,
+    "windBase": 1.037,
+    "windTop": 0.622,
+    "rearTop": -2.116,
+    "rearBase": -2.408,
+    "rearBase2": -2.388,
+    "windHalfW": 0.868,
+    "rearHalfW": 0.642,
+    "sideWindow": [
+      [
+        -2.156,
+        1.388
+      ],
+      [
+        1.037,
+        1.378
+      ],
+      [
+        0.997,
+        1.547
+      ],
+      [
+        0.85,
+        1.709
+      ],
+      [
+        0.622,
+        1.778
+      ],
+      [
+        -2.076,
+        1.778
+      ],
+      [
+        -2.196,
+        1.664
+      ],
+      [
+        -2.216,
+        1.408
+      ]
+    ],
+    "handle": [
+      0.242,
+      1.218
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.456,
+    "layout": "front-v8",
+    "arch": "suv-v6",
+    "texUrl": "/games/forth-horizon/tex/engines/v6_suv_sport.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.462,
+    "zOffset": -0.329,
+    "cowlZ": 0.987,
+    "cowlY": 1.378
+  },
+  "exhaust": {
+    "z": -2.382,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.496,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.582,
+      "y": 0.805,
+      "w": 0.27,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.603,
+      "y": 0.897,
+      "len": 0.312,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.565,
+    "grilleHiY": 0.855,
+    "grilleStyle": "truck"
+  }
+}

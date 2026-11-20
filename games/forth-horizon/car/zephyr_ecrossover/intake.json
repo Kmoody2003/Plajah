@@ -1,0 +1,28 @@
+{
+  "id": "zephyr_ecrossover",
+  "status": "built (multi-view matched: winner=tt_00, sideIoU=0.930, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_blueprint_asset_sheet_65053f66.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Zephyr_E-Crossover_SUV_on_turntable_d5d6608e.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_07",
+      "sideIoU": 0.9125,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "tt_00",
+      "sideIoU": 0.9235,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "tt_00",
+  "finalSideIoU": 0.9298,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 4.681,
+    "width": 2.081,
+    "height": 1.714
+  },
+  "faces": 60000,
+  "elapsedSec": 112.8
+}

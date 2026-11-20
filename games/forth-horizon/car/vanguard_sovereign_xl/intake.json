@@ -1,0 +1,28 @@
+{
+  "id": "vanguard_sovereign_xl",
+  "status": "built (multi-view matched: winner=tt_03, sideIoU=0.926, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_blueprint_asset_sheet_projec\u2026_a2aad08f.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Vanguard_Sovereign_XL_SUV_rotating_5be1d05f.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_10",
+      "sideIoU": 0.9079,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "tt_03",
+      "sideIoU": 0.9203,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_03",
+  "finalSideIoU": 0.9264,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 5.322,
+    "width": 2.08,
+    "height": 1.892
+  },
+  "faces": 60000,
+  "elapsedSec": 91.7
+}

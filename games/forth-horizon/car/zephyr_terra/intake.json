@@ -1,0 +1,28 @@
+{
+  "id": "zephyr_terra",
+  "status": "built (multi-view matched: winner=tt_06, sideIoU=0.914, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_vehicle_asset_sheet_blueprint_754c5c53.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Zephyr_Terra_SUV_turntable_rotation_df88d127.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_06",
+      "sideIoU": 0.8994,
+      "yawSymDeg": 0.25
+    },
+    {
+      "candidate": "tt_11",
+      "sideIoU": 0.8937,
+      "yawSymDeg": 1.25
+    }
+  ],
+  "winner": "tt_06",
+  "finalSideIoU": 0.914,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 4.782,
+    "width": 2.08,
+    "height": 1.9
+  },
+  "faces": 59999,
+  "elapsedSec": 111.3
+}

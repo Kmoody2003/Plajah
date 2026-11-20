@@ -1,0 +1,28 @@
+{
+  "id": "ironport_carrier",
+  "status": "built (multi-view matched: winner=tt_01, sideIoU=0.921, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_production_asset_sheet_a4723c94.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_rotating_on_studio_turntable_a923906b.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_08",
+      "sideIoU": 0.9046,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "tt_01",
+      "sideIoU": 0.9056,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "tt_01",
+  "finalSideIoU": 0.9212,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 4.96,
+    "width": 2.081,
+    "height": 1.899
+  },
+  "faces": 60000,
+  "elapsedSec": 95.0
+}

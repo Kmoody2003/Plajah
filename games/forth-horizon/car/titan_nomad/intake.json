@@ -1,0 +1,28 @@
+{
+  "id": "titan_nomad",
+  "status": "built (multi-view matched: winner=tt_09, sideIoU=0.790, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_multi-view_production_asset_\u2026_c2f3cc0c.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Titan_Ridge_Nomad_turntable_rota\u2026_c295d828.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_04",
+      "sideIoU": 0.7417,
+      "yawSymDeg": 0.5
+    },
+    {
+      "candidate": "tt_09",
+      "sideIoU": 0.7531,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "tt_09",
+  "finalSideIoU": 0.7903,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 4.772,
+    "width": 2.067,
+    "height": 1.881
+  },
+  "faces": 60000,
+  "elapsedSec": 113.1
+}
