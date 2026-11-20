@@ -585,7 +585,7 @@ try {
   // plus fused AgX filmic tone mapping + sRGB encode when GradePass is inactive (saves an entire full-res HalfFloat pass)
   cinePass = new ShaderPass({
     uniforms: {
-      tDiffuse: { value: null }, tSkyMask: { value: aoPass.maskTexture }, uHasSkyMask: { value: 1 },
+      tDiffuse: { value: null }, tSkyMask: { value: null }, uHasSkyMask: { value: 1 },
       uSpeed: { value: 0 }, uSun: { value: new THREE.Vector2(0.5, 0.8) }, uShaft: { value: 0 },
       uTime: { value: 0 }, uVig: { value: 0.28 }, uAspect: { value: 1.6 }, uSunCol: { value: new THREE.Color(1, 0.9, 0.7) },
       uToneMap: { value: 1 }, uExposure: { value: 1.08 },
@@ -694,6 +694,7 @@ try {
         gl_FragColor = vec4(col, 1.0);
       }`,
   });
+  cinePass.uniforms.tSkyMask.value = aoPass.maskTexture;
   Object.assign(cinePass.uniforms, lensRain.uniforms);
   composer.addPass(cinePass);
   outputPass = new OutputPass();
@@ -4017,6 +4018,7 @@ function garageStep(dt: number, s: DriveState, bumped: boolean): void {
 }
 function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole?: PursuitRoleChoice): void {
   endCine(true);                                                       // a drive started without a click (gamepad, script) would otherwise be ended by the first key press
+  cineFade.style.opacity = '0';
   applyActiveCar();
   setMapMode(false);
   playMusic('drive');
@@ -4598,6 +4600,8 @@ async function boot(): Promise<void> {
   console.log('library models', JSON.stringify(await preloadModelledPieces()));
   buildFurniture();
   preset('overview');
+  lastInput = performance.now();
+  cineFade.style.opacity = '0';
   tweenOn = true;
   setTimeOfDay('golden');
   msg.remove();
