@@ -20,6 +20,9 @@ import { art, barkTube, segDist, SPR } from './cyberforest';
 import { CreatureBody, type CreatureKind, MothSwarm, preloadCreatures } from './creatures';
 import { enemyBodies, enemyNav } from './enemies';
 import type { Level, LevelInfo, Tier } from './shrine';
+import { Forest, type TreeSpot } from '../../../services/vegetation/trees/forest';
+import { CYBER_FOREST_TREES } from '../../../services/vegetation/catalog/cyberForest';
+import { addImpulse, updateWind } from '../../../services/vegetation/wind';
 
 const MODELS = '/games/rift-realm/assets/elderwood/';
 
@@ -702,43 +705,22 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   placeModel('ruin_walls.glb', 30, 4, -0.6, 4.5);
   placeModel('ruin_walls.glb', -46, 40, 2.0, 4.5);
 
-  // ── forest trees as models built from the Cyber Forest tree sheets (instanced). When they load, the code trunks
-  //    stay as colliders only and the card crowns go; until then (or if none load) the code trees stand. ──────────
+  // ── the forest: trees grown by the Plajah Vegetation service from species measured on the Cyber Forest tree sheets
+  //    (services/vegetation, docs/plajah-vegetation.md). Willows and mangroves by the water, violet and blue-leaf trees
+  //    elsewhere. The code trunks stay as the colliders; their card crowns and roots go. ──────────────────────────────
+  const forestSpotsV: TreeSpot[] = forestSpots.map((sp, i) => {
+    const wet = dist(sp.x, sp.z, POOL) < 30;
+    const k = wet ? (i % 2 ? 1 : 3) : (i % 3 === 0 ? 0 : 2);       // 0 violet, 1 willow, 2 blue, 3 mangrove
+    return { x: sp.x, y: H(sp.x, sp.z) - 0.2, z: sp.z, yaw: sp.yaw, species: k, scale: Math.max(0.6, Math.min(1.5, sp.h / CYBER_FOREST_TREES[k].height)) };
+  });
+  const forest = new Forest(CYBER_FOREST_TREES, forestSpotsV, { lowTier: lo, beat: uBeatPulse, shadows: !lo });
+  group.add(forest.group);
   {
-    const files = ['tree_willow.glb', 'tree_blue.glb', 'tree_mangrove.glb']; // tree_bio came out a flat cut-out from the side: left out
-    Promise.allSettled(files.map((f) => loader.loadAsync(MODELS + f))).then((res) => {
-      const models = res.flatMap((r) => {
-        if (r.status !== 'fulfilled') return [];
-        let mesh: THREE.Mesh | null = null;
-        r.value.scene.traverse((o) => { if (!mesh && (o as THREE.Mesh).isMesh) mesh = o as THREE.Mesh; });
-        if (!mesh) return [];
-        const m = mesh as THREE.Mesh;
-        m.updateWorldMatrix(true, false);
-        const geo = m.geometry.clone().applyMatrix4(m.matrixWorld);
-        geo.computeBoundingBox();
-        const b = geo.boundingBox!, c = b.getCenter(new THREE.Vector3());
-        geo.translate(-c.x, -b.min.y, -c.z);
-        return [{ geo, mat: m.material as THREE.Material, height: b.max.y - b.min.y }];
-      });
-      if (!models.length) return;
-      const per = models.map(() => [] as THREE.Matrix4[]);
-      forestSpots.forEach((sp, i) => {
-        const k = Math.abs(Math.floor(Math.sin(sp.x * 0.13 + sp.z * 0.07) * 1000 + i)) % models.length, md = models[k];
-        const sc = (sp.h * 1.05) / md.height;
-        per[k].push(new THREE.Matrix4().compose(new THREE.Vector3(sp.x, H(sp.x, sp.z) - 0.3, sp.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, sp.yaw, 0)), new THREE.Vector3(sc, sc, sc)));
-      });
-      models.forEach((md, k) => {
-        if (!per[k].length) return;
-        const im = new THREE.InstancedMesh(md.geo, md.mat, per[k].length);
-        per[k].forEach((mx, i) => im.setMatrixAt(i, mx));
-        im.castShadow = !lo; im.receiveShadow = true; im.frustumCulled = false;
-        group.add(im);
-      });
-      const trunks = group.getObjectByName('forest-trunks') as THREE.Mesh | undefined;
-      if (trunks) trunks.material = B.invisible;           // still the colliders
-      for (const n of ['forest-roots', 'forest-crowns']) { const o = group.getObjectByName(n); if (o) o.visible = false; }
-    });
+    const trunks = group.getObjectByName('forest-trunks') as THREE.Mesh | undefined;
+    if (trunks) trunks.material = B.invisible;           // still the colliders
+    for (const n of ['forest-roots', 'forest-crowns']) { const o = group.getObjectByName(n); if (o) o.visible = false; }
   }
+  let stepT = 0;
 
   // ── lights ────────────────────────────────────────────────────────────────────────────────────────────────
   const hemi = new THREE.HemisphereLight(0x9fd4e0, 0x1c3024, 1.8);
@@ -862,6 +844,11 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     setBiome() { return { name: info.name, track: info.track }; },
     update(dt, pulse) {
       uBeatPulse.value = pulse;
+      updateWind(dt, 0.55);
+      // the player pushes the vegetation as they run (dash and blasts add bigger impulses from the game)
+      const pp = enemyBodies.playerPos;
+      if ((stepT -= dt) <= 0) { stepT = 0.2; addImpulse(pp.x, pp.z, 3.0, 0.3, 3); }
+      forest.update(pp, dt);
       updateHerd(dt);
       moths.update(dt);
       for (const b of beacons) b.intensity = 45 + pulse * 25;

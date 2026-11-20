@@ -140,6 +140,19 @@ with our wind and impostors, and variants come from the seed. Scans can also sta
 - Order after the core: trees → grass → fungi (recommended) or grass first (cheapest visible win)?
 - Hero-tree destruction (breakable branches) in scope for phase 2, or later?
 
+## Progress
+- **2026-11-20 core + trees, first slice** — `services/vegetation`: `species.ts` (schema + validation), `wind.ts` (one
+  wind: Era Clash gust bands + local impulses — the player pushes the vegetation as they run), `trees/grow.ts`
+  (space colonization inside the crown hull, pipe-model radii, branch order, buttress roots, leaf placement),
+  `trees/mesh.ts` (bark tubes + leaf cards with sway weights baked per vertex: bend summed from the base so joints never
+  tear, each branch's own swing, leaf flutter), `trees/material.ts` (bark + conduit veins, leaf clusters with light
+  through the leaves and the art's glow, sway in TSL), `trees/forest.ts` (variants × instances, near/coarse LOD by
+  distance), `fromArt/profile.ts` (measure crown profile, crown base, lean, depth, flare from the cut-outs),
+  `catalog/cyberForest.ts` (violet, willow, blue-leaf, mangrove — measured from Kenne's sheets). Leaf atlases cut from
+  the art by `scripts/vegetation/leafAtlas.py` (`--strands`: willow strands drawn procedurally in the art's palette).
+  Elderwood's forest is now grown. Tests: `tests/vegetation.test.ts`.
+  Not yet: impostors, GPU scatter/culling, the fitter that scores grown species against the art (§3 step 5), perf
+  numbers on the RTX, the waterfall's flat sheet (level, not vegetation).
+
 ## Stopgap in the meantime
-Four Cyber Forest trees are being built with image-to-3D (Hunyuan + paint) and placed instanced in Elderwood
-(`elderwood.ts` loads `assets/elderwood/tree_*.glb` over the code trees). They are replaced by phase 2.
+Superseded 2026-11-20: Elderwood's forest is grown by the service; the image-to-3D tree GLBs are no longer loaded.
