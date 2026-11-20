@@ -1,0 +1,224 @@
+{
+  "id": "vanguard_pinnacle",
+  "name": "Vanguard Pinnacle Full-Size",
+  "glb": "/games/forth-horizon/car/vanguard_pinnacle_base.glb",
+  "paint": "0x3e444c",
+  "accent": "0xd4dce4",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (vanguard_pinnacle_base.glb, L=5.18m W=2.08m H=1.83m).",
+  "wheels": {
+    "frontZ": 1.661,
+    "rearZ": -1.385,
+    "frontX": 0.743,
+    "rearX": 0.735,
+    "scale": 1.091,
+    "discardR": 0.402,
+    "centreY": 0.387,
+    "tyreR": 0.387,
+    "rimR": 0.249,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.937,
+        0.0,
+        1.198
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.937,
+        0.0,
+        1.198
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.405,
+        1.178
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.708,
+        1.165,
+        1.198
+      ],
+      [
+        0.708,
+        1.645,
+        2.429
+      ]
+    ],
+    "trunk": [
+      [
+        -0.625,
+        1.245,
+        -2.469
+      ],
+      [
+        0.625,
+        1.625,
+        -2.506
+      ]
+    ],
+    "roof": [
+      [
+        -0.789,
+        1.642,
+        -2.279
+      ],
+      [
+        0.789,
+        1.973,
+        0.729
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.405,
+    "roofEdge": 1.782,
+    "pillarBase": 1.158,
+    "pillarTop": 0.729,
+    "doorFront": 1.198,
+    "doorRear": -0.152,
+    "windBase": 1.158,
+    "windTop": 0.729,
+    "rearTop": -2.279,
+    "rearBase": -2.486,
+    "rearBase2": -2.466,
+    "windHalfW": 0.789,
+    "rearHalfW": 0.561,
+    "sideWindow": [
+      [
+        -2.319,
+        1.435
+      ],
+      [
+        1.158,
+        1.425
+      ],
+      [
+        1.118,
+        1.563
+      ],
+      [
+        0.963,
+        1.699
+      ],
+      [
+        0.729,
+        1.752
+      ],
+      [
+        -2.239,
+        1.752
+      ],
+      [
+        -2.359,
+        1.661
+      ],
+      [
+        -2.379,
+        1.455
+      ]
+    ],
+    "handle": [
+      0.363,
+      1.265
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.581,
+    "layout": "front-v8",
+    "arch": "pickup-v8",
+    "texUrl": "/games/forth-horizon/tex/engines/pickup_v8.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.413,
+    "zOffset": -0.341,
+    "cowlZ": 1.108,
+    "cowlY": 1.425
+  },
+  "exhaust": {
+    "z": -2.471,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.582,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.583,
+      "y": 0.848,
+      "w": 0.271,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.604,
+      "y": 0.921,
+      "len": 0.312,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.608,
+    "grilleHiY": 0.898,
+    "grilleStyle": "truck"
+  }
+}

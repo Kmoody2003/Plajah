@@ -1,0 +1,28 @@
+{
+  "id": "veloce_sprint_suv",
+  "status": "built (multi-view matched: winner=tt_02, sideIoU=0.911, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_vehicle_production_asset_sheet_9fd76db6.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Veloce_Sprint_SUV_turntable_rota\u2026_e8512300.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_09",
+      "sideIoU": 0.884,
+      "yawSymDeg": 0.75
+    },
+    {
+      "candidate": "tt_02",
+      "sideIoU": 0.8973,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_02",
+  "finalSideIoU": 0.9106,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 4.782,
+    "width": 2.082,
+    "height": 1.896
+  },
+  "faces": 60000,
+  "elapsedSec": 101.5
+}

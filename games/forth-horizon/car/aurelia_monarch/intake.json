@@ -1,0 +1,23 @@
+{
+  "id": "aurelia_monarch",
+  "status": "built (multi-view matched: winner=sheet_side, sideIoU=0.926, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_vehicle_production_asset_sheet_a07bfa98.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.9094,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "sheet_side",
+  "finalSideIoU": 0.9255,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 5.08,
+    "width": 2.081,
+    "height": 1.896
+  },
+  "faces": 60000,
+  "elapsedSec": 40.2
+}

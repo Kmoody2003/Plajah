@@ -1,0 +1,28 @@
+{
+  "id": "veloce_apex_suv",
+  "status": "built (multi-view matched: winner=tt_03, sideIoU=0.918, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Vehicle_asset_sheet_multi-view_ffca1e39.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Veloce_Apex_SUV_rotating_showcase_982d106b.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_10",
+      "sideIoU": 0.8896,
+      "yawSymDeg": -0.75
+    },
+    {
+      "candidate": "tt_03",
+      "sideIoU": 0.8966,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_03",
+  "finalSideIoU": 0.9179,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 4.923,
+    "width": 2.081,
+    "height": 1.897
+  },
+  "faces": 60000,
+  "elapsedSec": 97.9
+}

@@ -1,0 +1,28 @@
+{
+  "id": "aurelia_summit",
+  "status": "built (multi-view matched: winner=sheet_front34, sideIoU=0.914, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_vehicle_production_asset_sheet_4e934b8f.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.8967,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.8948,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "sheet_front34",
+  "finalSideIoU": 0.9145,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 4.88,
+    "width": 2.081,
+    "height": 1.817
+  },
+  "faces": 60000,
+  "elapsedSec": 70.9
+}

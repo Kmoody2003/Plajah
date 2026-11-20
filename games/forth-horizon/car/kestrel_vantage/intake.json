@@ -1,0 +1,28 @@
+{
+  "id": "kestrel_vantage",
+  "status": "built (multi-view matched: winner=tt_08, sideIoU=0.927, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_vehicle_production_asset_sheet_b4f05799.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Kestrel_Vantage_SUV_rotating_on_b9b3534f.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_08",
+      "sideIoU": 0.9278,
+      "yawSymDeg": 0.25
+    },
+    {
+      "candidate": "tt_01",
+      "sideIoU": 0.8989,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "tt_08",
+  "finalSideIoU": 0.9272,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 4.88,
+    "width": 2.08,
+    "height": 1.893
+  },
+  "faces": 60000,
+  "elapsedSec": 97.7
+}

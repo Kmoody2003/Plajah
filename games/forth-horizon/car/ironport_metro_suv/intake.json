@@ -1,0 +1,23 @@
+{
+  "id": "ironport_metro_suv",
+  "status": "built (multi-view matched: winner=sheet_front34, sideIoU=0.000, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_vehicle_production_asset_sheet_73b2c5d7.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.0,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "sheet_front34",
+  "finalSideIoU": 0.0,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 4.76,
+    "width": 2.081,
+    "height": 1.888
+  },
+  "faces": 60000,
+  "elapsedSec": 62.2
+}

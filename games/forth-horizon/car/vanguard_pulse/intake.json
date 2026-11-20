@@ -1,0 +1,28 @@
+{
+  "id": "vanguard_pulse",
+  "status": "built (multi-view matched: winner=tt_07, sideIoU=0.918, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_vehicle_production_asset_sheet_68251836.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Vanguard_Pulse_compact_SUV_rotating_125b53d8.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_07",
+      "sideIoU": 0.8932,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "tt_00",
+      "sideIoU": 0.8447,
+      "yawSymDeg": 1.5
+    }
+  ],
+  "winner": "tt_07",
+  "finalSideIoU": 0.9183,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 4.54,
+    "width": 2.079,
+    "height": 1.801
+  },
+  "faces": 60000,
+  "elapsedSec": 108.5
+}

@@ -1,0 +1,23 @@
+{
+  "id": "vanguard_pinnacle",
+  "status": "built (multi-view matched: winner=sheet_side, sideIoU=0.936, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_vehicle_production_asset_sheet_f3e6b373.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.9291,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "sheet_side",
+  "finalSideIoU": 0.9361,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 5.179,
+    "width": 2.083,
+    "height": 1.833
+  },
+  "faces": 60000,
+  "elapsedSec": 39.6
+}

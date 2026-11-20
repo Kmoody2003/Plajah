@@ -1,0 +1,224 @@
+{
+  "id": "veloce_sprint_suv",
+  "name": "Veloce Sprint Performance SUV",
+  "glb": "/games/forth-horizon/car/veloce_sprint_suv_base.glb",
+  "paint": "0xc42024",
+  "accent": "0x16181c",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (veloce_sprint_suv_base.glb, L=4.78m W=2.08m H=1.90m).",
+  "wheels": {
+    "frontZ": 1.456,
+    "rearZ": -1.488,
+    "frontX": 0.702,
+    "rearX": 0.691,
+    "scale": 1.129,
+    "discardR": 0.417,
+    "centreY": 0.401,
+    "tyreR": 0.401,
+    "rimR": 0.257,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.937,
+        0.0,
+        1.015
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.937,
+        0.0,
+        1.015
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.383,
+        1.008
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.708,
+        1.143,
+        1.028
+      ],
+      [
+        0.708,
+        1.623,
+        2.231
+      ]
+    ],
+    "trunk": [
+      [
+        -0.624,
+        1.223,
+        -2.271
+      ],
+      [
+        0.624,
+        1.603,
+        -2.193
+      ]
+    ],
+    "roof": [
+      [
+        -0.645,
+        1.694,
+        -1.699
+      ],
+      [
+        0.645,
+        2.036,
+        0.356
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.383,
+    "roofEdge": 1.834,
+    "pillarBase": 0.988,
+    "pillarTop": 0.356,
+    "doorFront": 1.015,
+    "doorRear": -0.335,
+    "windBase": 0.988,
+    "windTop": 0.356,
+    "rearTop": -1.699,
+    "rearBase": -2.173,
+    "rearBase2": -2.153,
+    "windHalfW": 0.645,
+    "rearHalfW": 0.532,
+    "sideWindow": [
+      [
+        -1.739,
+        1.413
+      ],
+      [
+        0.975,
+        1.403
+      ],
+      [
+        0.935,
+        1.572
+      ],
+      [
+        0.685,
+        1.735
+      ],
+      [
+        0.356,
+        1.804
+      ],
+      [
+        -1.659,
+        1.804
+      ],
+      [
+        -1.779,
+        1.69
+      ],
+      [
+        -1.799,
+        1.433
+      ]
+    ],
+    "handle": [
+      0.18,
+      1.243
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.376,
+    "layout": "front-v8",
+    "arch": "suv-v6",
+    "texUrl": "/games/forth-horizon/tex/engines/v6_suv_sport.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.476,
+    "zOffset": -0.296,
+    "cowlZ": 0.938,
+    "cowlY": 1.403
+  },
+  "exhaust": {
+    "z": -2.27,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.382,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.583,
+      "y": 0.797,
+      "w": 0.271,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.604,
+      "y": 0.965,
+      "len": 0.312,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.557,
+    "grilleHiY": 0.847,
+    "grilleStyle": "truck"
+  }
+}

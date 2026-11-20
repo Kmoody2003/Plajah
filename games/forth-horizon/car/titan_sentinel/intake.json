@@ -1,0 +1,28 @@
+{
+  "id": "titan_sentinel",
+  "status": "built (multi-view matched: winner=tt_11, sideIoU=0.869, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_vehicle_production_asset_sheet_781a44b2.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Titan_Ridge_SUV_rotating_on_c0463f5a.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_06",
+      "sideIoU": 0.7514,
+      "yawSymDeg": 2.5
+    },
+    {
+      "candidate": "tt_11",
+      "sideIoU": 0.8429,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "tt_11",
+  "finalSideIoU": 0.869,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 5.235,
+    "width": 2.076,
+    "height": 1.871
+  },
+  "faces": 60000,
+  "elapsedSec": 99.6
+}

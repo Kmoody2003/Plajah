@@ -1,0 +1,28 @@
+{
+  "id": "vectra_atlas",
+  "status": "built (multi-view matched: winner=tt_01, sideIoU=0.931, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_vehicle_asset_sheet_design_4186cce3.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_rotating_on_turntable_platform_e32a60bc.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_08",
+      "sideIoU": 0.8968,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "tt_01",
+      "sideIoU": 0.9148,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_01",
+  "finalSideIoU": 0.9311,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 5.059,
+    "width": 2.08,
+    "height": 1.897
+  },
+  "faces": 60000,
+  "elapsedSec": 112.2
+}

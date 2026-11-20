@@ -1,0 +1,224 @@
+{
+  "id": "vanguard_pulse",
+  "name": "Vanguard Pulse Compact SUV",
+  "glb": "/games/forth-horizon/car/vanguard_pulse_base.glb",
+  "paint": "0x6c7a88",
+  "accent": "0x1c2026",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (vanguard_pulse_base.glb, L=4.54m W=2.08m H=1.80m).",
+  "wheels": {
+    "frontZ": 1.409,
+    "rearZ": -1.366,
+    "frontX": 0.709,
+    "rearX": 0.701,
+    "scale": 1.072,
+    "discardR": 0.396,
+    "centreY": 0.381,
+    "tyreR": 0.381,
+    "rimR": 0.244,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.935,
+        0.0,
+        0.988
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.935,
+        0.0,
+        0.988
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.314,
+        1.031
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.707,
+        1.074,
+        1.051
+      ],
+      [
+        0.707,
+        1.554,
+        2.11
+      ]
+    ],
+    "trunk": [
+      [
+        -0.624,
+        1.154,
+        -2.15
+      ],
+      [
+        0.624,
+        1.534,
+        -2.08
+      ]
+    ],
+    "roof": [
+      [
+        -0.84,
+        1.608,
+        -1.686
+      ],
+      [
+        0.84,
+        1.941,
+        0.412
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.314,
+    "roofEdge": 1.748,
+    "pillarBase": 1.011,
+    "pillarTop": 0.412,
+    "doorFront": 0.988,
+    "doorRear": -0.362,
+    "windBase": 1.011,
+    "windTop": 0.412,
+    "rearTop": -1.686,
+    "rearBase": -2.06,
+    "rearBase2": -2.04,
+    "windHalfW": 0.84,
+    "rearHalfW": 0.497,
+    "sideWindow": [
+      [
+        -1.726,
+        1.344
+      ],
+      [
+        0.948,
+        1.334
+      ],
+      [
+        0.908,
+        1.496
+      ],
+      [
+        0.7,
+        1.653
+      ],
+      [
+        0.412,
+        1.718
+      ],
+      [
+        -1.646,
+        1.718
+      ],
+      [
+        -1.766,
+        1.609
+      ],
+      [
+        -1.786,
+        1.364
+      ]
+    ],
+    "handle": [
+      0.153,
+      1.174
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.329,
+    "layout": "front-v8",
+    "arch": "i4-turbo",
+    "texUrl": "/games/forth-horizon/tex/engines/sports_sedan_20t.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.381,
+    "zOffset": -0.28,
+    "cowlZ": 0.961,
+    "cowlY": 1.334
+  },
+  "exhaust": {
+    "z": -2.156,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.264,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.582,
+      "y": 0.786,
+      "w": 0.27,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.603,
+      "y": 0.84,
+      "len": 0.312,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.546,
+    "grilleHiY": 0.836,
+    "grilleStyle": "truck"
+  }
+}

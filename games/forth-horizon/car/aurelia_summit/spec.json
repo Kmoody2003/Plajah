@@ -1,0 +1,224 @@
+{
+  "id": "aurelia_summit",
+  "name": "Aurelia Summit SUV",
+  "glb": "/games/forth-horizon/car/aurelia_summit_base.glb",
+  "paint": "0x4e5c6c",
+  "accent": "0xcfd6de",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (aurelia_summit_base.glb, L=4.88m W=2.08m H=1.82m).",
+  "wheels": {
+    "frontZ": 1.488,
+    "rearZ": -1.445,
+    "frontX": 0.731,
+    "rearX": 0.721,
+    "scale": 1.081,
+    "discardR": 0.399,
+    "centreY": 0.384,
+    "tyreR": 0.384,
+    "rimR": 0.247,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.936,
+        0.0,
+        1.048
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.936,
+        0.0,
+        1.048
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.299,
+        1.028
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.707,
+        1.059,
+        1.048
+      ],
+      [
+        0.707,
+        1.539,
+        2.28
+      ]
+    ],
+    "trunk": [
+      [
+        -0.624,
+        1.139,
+        -2.32
+      ],
+      [
+        0.624,
+        1.519,
+        -2.362
+      ]
+    ],
+    "roof": [
+      [
+        -0.66,
+        1.612,
+        -2.057
+      ],
+      [
+        0.66,
+        1.957,
+        0.524
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.299,
+    "roofEdge": 1.752,
+    "pillarBase": 1.008,
+    "pillarTop": 0.524,
+    "doorFront": 1.048,
+    "doorRear": -0.302,
+    "windBase": 1.008,
+    "windTop": 0.524,
+    "rearTop": -2.057,
+    "rearBase": -2.342,
+    "rearBase2": -2.322,
+    "windHalfW": 0.66,
+    "rearHalfW": 0.568,
+    "sideWindow": [
+      [
+        -2.097,
+        1.329
+      ],
+      [
+        1.008,
+        1.319
+      ],
+      [
+        0.968,
+        1.489
+      ],
+      [
+        0.786,
+        1.652
+      ],
+      [
+        0.524,
+        1.722
+      ],
+      [
+        -2.017,
+        1.722
+      ],
+      [
+        -2.137,
+        1.607
+      ],
+      [
+        -2.157,
+        1.349
+      ]
+    ],
+    "handle": [
+      0.213,
+      1.159
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.408,
+    "layout": "front-v8",
+    "arch": "suv-v6",
+    "texUrl": "/games/forth-horizon/tex/engines/v6_suv_sport.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.397,
+    "zOffset": -0.337,
+    "cowlZ": 0.958,
+    "cowlY": 1.319
+  },
+  "exhaust": {
+    "z": -2.315,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.426,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.583,
+      "y": 0.805,
+      "w": 0.27,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.603,
+      "y": 0.894,
+      "len": 0.312,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.565,
+    "grilleHiY": 0.855,
+    "grilleStyle": "truck"
+  }
+}
