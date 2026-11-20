@@ -1,0 +1,23 @@
+{
+  "id": "vanguard_tow",
+  "status": "built (multi-view matched: winner=sheet_side, sideIoU=0.854, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Flatbed_tow_truck_asset_sheet_164fa448.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.7874,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "sheet_side",
+  "finalSideIoU": 0.8543,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 6.891,
+    "width": 2.225,
+    "height": 2.561
+  },
+  "faces": 60000,
+  "elapsedSec": 27.9
+}

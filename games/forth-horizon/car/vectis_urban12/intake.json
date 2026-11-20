@@ -1,0 +1,28 @@
+{
+  "id": "vectis_urban12",
+  "status": "built (multi-view matched: winner=sheet_side, sideIoU=0.918, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\City_transit_bus_asset_sheet_c796023d.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.8762,
+      "yawSymDeg": 3.0
+    },
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.9196,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "sheet_side",
+  "finalSideIoU": 0.9183,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 8.203,
+    "width": 2.22,
+    "height": 2.457
+  },
+  "faces": 60000,
+  "elapsedSec": 64.0
+}

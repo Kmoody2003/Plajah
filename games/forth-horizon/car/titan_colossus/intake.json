@@ -1,0 +1,28 @@
+{
+  "id": "titan_colossus",
+  "status": "built (multi-view matched: winner=sheet_side, sideIoU=0.922, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Vehicle_production_asset_sheet_r\u2026_3f5c7d23.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Titan_Ridge_Colossus_SUV_turning_184ce20c.mp4",
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.8623,
+      "yawSymDeg": 1.0
+    },
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.9338,
+      "yawSymDeg": 0.5
+    }
+  ],
+  "winner": "sheet_side",
+  "finalSideIoU": 0.9224,
+  "yawSymDeg": 0.5,
+  "boundsM": {
+    "length": 5.369,
+    "width": 2.077,
+    "height": 1.905
+  },
+  "faces": 60000,
+  "elapsedSec": 101.9
+}

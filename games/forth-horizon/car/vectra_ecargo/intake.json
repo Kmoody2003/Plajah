@@ -1,0 +1,23 @@
+{
+  "id": "vectra_ecargo",
+  "status": "built (multi-view matched: winner=sheet_front34, sideIoU=0.000, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Box_delivery_truck_asset_sheet_23893c13.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Delivery_truck_turntable_rotatio\u2026_37519a34.mp4",
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.0,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "sheet_front34",
+  "finalSideIoU": 0.0,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 6.408,
+    "width": 2.487,
+    "height": 3.04
+  },
+  "faces": 59494,
+  "elapsedSec": 45.5
+}

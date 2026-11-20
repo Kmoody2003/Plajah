@@ -1,0 +1,23 @@
+{
+  "id": "kronos_v420",
+  "status": "built (multi-view matched: winner=sheet_side, sideIoU=0.845, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Box_truck_production_asset_sheet_9b9b4c2b.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.8102,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "sheet_side",
+  "finalSideIoU": 0.8454,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 7.093,
+    "width": 2.376,
+    "height": 2.493
+  },
+  "faces": 59999,
+  "elapsedSec": 40.7
+}

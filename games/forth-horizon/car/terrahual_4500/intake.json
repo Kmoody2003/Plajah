@@ -1,0 +1,23 @@
+{
+  "id": "terrahual_4500",
+  "status": "built (multi-view matched: winner=sheet_side, sideIoU=0.940, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Box_truck_asset_production_sheet_41074bc4.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.931,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "sheet_side",
+  "finalSideIoU": 0.94,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 6.642,
+    "width": 2.514,
+    "height": 2.915
+  },
+  "faces": 60000,
+  "elapsedSec": 55.3
+}

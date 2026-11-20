@@ -1,0 +1,23 @@
+{
+  "id": "valkyrie_semi",
+  "status": "built (multi-view matched: winner=sheet_side, sideIoU=0.895, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Semi-truck_production_asset_sheet_fe925e5d.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.8843,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "sheet_side",
+  "finalSideIoU": 0.895,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 7.398,
+    "width": 2.509,
+    "height": 3.493
+  },
+  "faces": 51413,
+  "elapsedSec": 63.2
+}

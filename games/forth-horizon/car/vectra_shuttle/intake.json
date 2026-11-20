@@ -1,0 +1,28 @@
+{
+  "id": "vectra_shuttle",
+  "status": "built (multi-view matched: winner=sheet_side, sideIoU=0.923, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Transit_shuttle_bus_asset_sheet_b0cee82a.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.8907,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.9144,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "sheet_side",
+  "finalSideIoU": 0.9232,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 6.795,
+    "width": 2.219,
+    "height": 2.371
+  },
+  "faces": 60000,
+  "elapsedSec": 68.2
+}
