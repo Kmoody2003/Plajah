@@ -39,7 +39,7 @@ const FRAG = `
     // cloud structure: 2x faster 3+2 octave projection with sunlit silver-lining scatter
     float up = max(dir.y, 0.0);
     float cloudy = smoothstep(0.28, 0.76, lum + (1.0 - uSunAmt) * 0.14);
-    float sd = max(dot(dir, uSunDir), 0.0);
+    float sd = max(dot(dir, uSunDir), 1e-4);
     if (dir.y > -0.04 && uDetail > 0.01) {
       vec3 cp = vec3(dir.xz / (up + 0.18), 0.0) * 1.7 + vec3(uTime * 0.012, 0.0, uTime * 0.006);
       float n1 = fbm3(cp), n2 = fbm2(cp * 3.1 + 4.0);
@@ -67,15 +67,18 @@ const FRAG = `
         float star = step(0.988, h) * pt * (0.4 + 0.6 * hash(g + 3.1)) * (0.78 + 0.22 * sin(uTime * 3.0 + h * 40.0));
         col += vec3(0.85, 0.91, 1.0) * star * 1.6 * starVis;
       }
-      float md = max(dot(dir, uMoonDir), 0.0);
+      float md = max(dot(dir, uMoonDir), 1e-4);
       col += vec3(0.9, 0.93, 1.0) * (smoothstep(0.9993, 0.9998, md) * 2.2 + pow(md, 220.0) * 0.35 + pow(md, 12.0) * 0.05) * uNight * (1.0 - 0.9 * uMixOver);
     }
     // weather: darker, lightning lit from inside
     col *= 1.0 - uDark * 0.32;
     col += vec3(0.62, 0.72, 1.0) * uFlash * (0.25 + cloudy * 0.9);
     // clean horizon atmospheric scatter matching AoPass dual-layer Rayleigh + Mie aerial perspective
-    float hz = pow(1.0 - clamp(dir.y, 0.0, 1.0), 4.2);
-    float mieHz = clamp(pow(sd, 3.0) * 0.28 + pow(sd, 12.0) * 0.56, 0.0, 0.84) * vis * (1.0 - uNight);
+    float hzBase = clamp(1.0 - clamp(dir.y, 0.0, 1.0), 0.0, 1.0);
+    float hz2 = hzBase * hzBase;
+    float hz = hz2 * hz2;
+    float sd2 = sd * sd, sd3 = sd2 * sd, sd6 = sd3 * sd3, sd12 = sd6 * sd6;
+    float mieHz = clamp(sd3 * 0.28 + sd12 * 0.56, 0.0, 0.84) * vis * (1.0 - uNight);
     vec3 hzCol = mix(uFog, uSunCol * 1.18, mieHz);
     col = mix(col, hzCol, clamp(hz * (0.30 + uFogAmt * 0.70), 0.0, 1.0));
     if (dir.y < 0.0) col = mix(col, hzCol, smoothstep(0.0, -0.10, dir.y));

@@ -580,6 +580,14 @@ try {
       varying vec2 vUv;
       ${LENS_RAIN_GLSL}
       float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+      vec3 sanitizeHdr(vec3 c) {
+        vec3 safe = vec3(
+          (c.r >= 0.0 && c.r <= 65000.0) ? c.r : 0.0,
+          (c.g >= 0.0 && c.g <= 65000.0) ? c.g : 0.0,
+          (c.b >= 0.0 && c.b <= 65000.0) ? c.b : 0.0
+        );
+        return min(safe, vec3(48.0));
+      }
       // Troy Sobotka's AgX filmic tone mapping: preserves vivid crimson LEDs, golden sunsets & metallic highlights without ACES hue-skew clipping.
       vec3 agxDefaultContrastApprox(vec3 x) {
         vec3 x2 = x * x;
@@ -597,12 +605,14 @@ try {
           -0.0980208811401368,  1.15190312990417,   -0.0980434501171241,
           -0.0990297440797205, -0.0989611768448433,  1.15107367264116
         );
-        vec3 v = agxIn * max(c * expVal, vec3(1e-6));
+        vec3 safeIn = sanitizeHdr(c) * max(expVal, 0.01);
+        vec3 v = max(agxIn * safeIn, vec3(1e-5));
         v = (clamp(log2(v), -12.47393, 4.026069) + 12.47393) / (4.026069 + 12.47393);
         v = clamp(agxOut * agxDefaultContrastApprox(v), 0.0, 1.0);
-        // Subtle photographic punch (clean shadow depth + vibrant highlights, already sRGB-encoded)
+        // Subtle photographic punch (guard pow base >= 1e-5 so D3D11 never hits pow(0.0, 1.05) = NaN)
         float l = dot(v, vec3(0.2126, 0.7152, 0.0722));
-        return clamp(mix(vec3(l), pow(v, vec3(1.05)), 1.07), 0.0, 1.0);
+        vec3 punched = pow(max(v, vec3(1e-5)), vec3(1.05));
+        return clamp(mix(vec3(l), punched, 1.07), 0.0, 1.0);
       }
       void main() {
         vec2 c = vec2(0.5, 0.42);
@@ -613,20 +623,25 @@ try {
         vec3 col = vec3(0.0);
         float ca = (0.0007 + uSpeed * 0.0012) * rd;
         if (amt <= 0.0008) {
-          col = vec3(texture2D(tDiffuse, vUv + d * ca).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - d * ca).b);
+          col = vec3(
+            texture2D(tDiffuse, clamp(vUv + d * ca, vec2(0.001), vec2(0.999))).r,
+            texture2D(tDiffuse, vUv).g,
+            texture2D(tDiffuse, clamp(vUv - d * ca, vec2(0.001), vec2(0.999))).b
+          );
         } else {
           vec3 acc = vec3(0.0);
           for (int i = 0; i < 6; i++) {
             float t = float(i) / 5.0;
-            acc += texture2D(tDiffuse, vUv - d * amt * t).rgb;
+            acc += sanitizeHdr(texture2D(tDiffuse, clamp(vUv - d * amt * t, vec2(0.001), vec2(0.999))).rgb);
           }
           acc /= 6.0;
           col = vec3(
-            mix(acc.r, texture2D(tDiffuse, vUv + d * ca).r, 0.45),
+            mix(acc.r, texture2D(tDiffuse, clamp(vUv + d * ca, vec2(0.001), vec2(0.999))).r, 0.45),
             acc.g,
-            mix(acc.b, texture2D(tDiffuse, vUv - d * ca).b, 0.45)
+            mix(acc.b, texture2D(tDiffuse, clamp(vUv - d * ca, vec2(0.001), vec2(0.999))).b, 0.45)
           );
         }
+        col = sanitizeHdr(col);
         float j = hash(vUv * 1000.0 + uTime);
         // Depth-occluded volumetric Mie sun shafts: 8 jittered march steps gated by true half-res sky occlusion (tSkyMask.b)
         // so skyscrapers, bridges & tree canopies cast authentic crepuscular god rays without white buildings glowing falsely.
@@ -637,20 +652,22 @@ try {
           vec3 accS = vec3(0.0);
           float w = 1.0;
           for (int i = 0; i < 8; i++) {
-            vec3 s = texture2D(tDiffuse, p).rgb;
+            vec2 cp = clamp(p, vec2(0.001), vec2(0.999));
+            vec3 s = sanitizeHdr(texture2D(tDiffuse, cp).rgb);
             float l = dot(s, vec3(0.3, 0.59, 0.11));
-            float skyVis = uHasSkyMask > 0.5 ? texture2D(tSkyMask, p).b : smoothstep(1.15, 2.5, l);
+            float skyVis = uHasSkyMask > 0.5 ? clamp(texture2D(tSkyMask, cp).b, 0.0, 1.0) : smoothstep(1.15, 2.5, l);
             float sampleAmt = uHasSkyMask > 0.5 ? skyVis * (0.45 + 0.55 * smoothstep(0.45, 1.8, l)) : skyVis;
             accS += mix(uSunCol * 1.1, s, 0.52) * sampleAmt * w;
             w *= 0.85;
             p += ds;
           }
-          float phase = pow(max(0.0, 1.0 - sunDist * 0.72), 1.75);
+          float phaseBase = max(1e-4, 1.0 - sunDist * 0.72);
+          float phase = pow(phaseBase, 1.75);
           col += accS * 0.095 * uSunCol * uShaft * (0.18 + 0.82 * phase);
         }
         float lensMask, lensShade, lensSparkle;
         vec2 refractedUv = lensRainUv(vUv, lensMask, lensShade, lensSparkle);
-        if (lensMask > 0.001) col = mix(col, texture2D(tDiffuse, refractedUv).rgb * lensShade + vec3(lensSparkle), lensMask);
+        if (lensMask > 0.001) col = mix(col, sanitizeHdr(texture2D(tDiffuse, clamp(refractedUv, vec2(0.001), vec2(0.999))).rgb) * lensShade + vec3(lensSparkle), clamp(lensMask, 0.0, 1.0));
         // Subtle AAA photographic clarity: clean vibrance without muddying skies or crushing shadow detail
         float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
         float sat = max(col.r, max(col.g, col.b)) - min(col.r, min(col.g, col.b));
@@ -2326,7 +2343,7 @@ function stepWeather(dt: number): void {
           .replace('#include <map_fragment>', '#include <map_fragment>\nfloat gPud = puddleAt(vRW.xz, uPool);\nfloat gRoad = 1.0;\ndiffuseColor.rgb *= 1.0 - 0.44 * gPud;')
           .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.018, gPud);')
           .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.12, gPud);')
-          .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n{ float fW = pow(1.0 - clamp(dot(geometryNormal, geometryViewDir), 0.0, 1.0), 3.5); reflectedLight.indirectSpecular *= 1.0 + gPud * (0.35 + 1.25 * fW) + uWet * 0.30 * fW; }');
+          .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n{ float fBase = clamp(1.0 - clamp(dot(geometryNormal, geometryViewDir), 0.0, 1.0), 0.0, 1.0); float fW = fBase * fBase * fBase; reflectedLight.indirectSpecular = min(max(reflectedLight.indirectSpecular, vec3(0.0)), vec3(16.0)) * (1.0 + gPud * (0.35 + 1.25 * fW) + uWet * 0.30 * fW); }');
         sh.fragmentShader = injectRoadPbr(sh.fragmentShader, 'vRW.xz');
       };
       mm.customProgramCacheKey = () => 'roadpud';

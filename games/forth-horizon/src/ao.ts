@@ -15,7 +15,8 @@ const AO_FRAG = `
   float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
   vec3 viewPosFromDepth(vec2 uv, float d) {
     vec3 ndc = vec3(uv * 2.0 - 1.0, d * 2.0 - 1.0);
-    float invW = 1.0 / (uProjInv[2][3] * ndc.z + uProjInv[3][3]);
+    float w = uProjInv[2][3] * ndc.z + uProjInv[3][3];
+    float invW = 1.0 / (abs(w) < 1e-6 ? 1e-6 : w);
     return vec3(uProjInv[0][0] * ndc.x + uProjInv[3][0], uProjInv[1][1] * ndc.y + uProjInv[3][1], uProjInv[3][2]) * invW;
   }
   vec3 viewPos(vec2 uv) {
@@ -27,13 +28,15 @@ const AO_FRAG = `
     if (d0 >= 0.99999) { gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); return; }
     vec3 P = viewPosFromDepth(vUv, d0);
     float dist = -P.z;
-    if (dist > 165.0) { gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0); return; }
+    if (!(dist > 0.0 && dist <= 165.0)) { gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0); return; }
     vec2 px = 1.0 / uRes;
     // normal from the smaller depth step on each axis, so it does not smear across silhouettes
     vec3 pr = viewPos(vUv + vec2(px.x, 0.0)), pl = viewPos(vUv - vec2(px.x, 0.0)), pu = viewPos(vUv + vec2(0.0, px.y)), pd = viewPos(vUv - vec2(0.0, px.y));
     vec3 dx = abs(pr.z - P.z) < abs(pl.z - P.z) ? pr - P : P - pl;
     vec3 dy = abs(pu.z - P.z) < abs(pd.z - P.z) ? pu - P : P - pd;
-    vec3 N = normalize(cross(dx, dy));
+    vec3 cr = cross(dx, dy);
+    float crLen = length(cr);
+    vec3 N = crLen > 1e-6 ? (cr / crLen) : vec3(0.0, 0.0, 1.0);
     if (dot(N, -P) < 0.0) N = -N;
     // screen radius of uRadius metres at this depth (uRes matches half-res aoRT)
     float rpx = clamp(uRadius * uProj[1][1] * 0.5 * uRes.y / dist, 2.0, 32.0);
@@ -95,9 +98,18 @@ const APPLY_FRAG = `
   uniform mat4 uProjInv, uCamWorld, uPrevViewProj;
   uniform float uBlur;               // motion blur shutter (0 off, 0.5 = half the frame's camera motion)
   varying vec2 vUv;
+  vec3 sanitizeHdr(vec3 c) {
+    vec3 safe = vec3(
+      (c.r >= 0.0 && c.r <= 65000.0) ? c.r : 0.0,
+      (c.g >= 0.0 && c.g <= 65000.0) ? c.g : 0.0,
+      (c.b >= 0.0 && c.b <= 65000.0) ? c.b : 0.0
+    );
+    return min(safe, vec3(48.0));
+  }
   vec3 worldAt(float d) {
     vec3 ndc = vec3(vUv * 2.0 - 1.0, d * 2.0 - 1.0);
-    float invW = 1.0 / (uProjInv[2][3] * ndc.z + uProjInv[3][3]);
+    float w = uProjInv[2][3] * ndc.z + uProjInv[3][3];
+    float invW = 1.0 / (abs(w) < 1e-6 ? 1e-6 : w);
     vec3 vp = vec3(uProjInv[0][0] * ndc.x + uProjInv[3][0], uProjInv[1][1] * ndc.y + uProjInv[3][1], uProjInv[3][2]) * invW;
     return (uCamWorld * vec4(vp, 1.0)).xyz;
   }
@@ -105,16 +117,17 @@ const APPLY_FRAG = `
   vec3 motionBlur(vec3 col, vec3 wp, float camDist) {
     if (uBlur < 0.001 || camDist < 9.0) return col;
     vec4 pc = uPrevViewProj * vec4(wp, 1.0);
-    if (pc.w <= 0.0) return col;
+    if (!(pc.w > 0.001)) return col;
     vec2 prev = pc.xy / pc.w * 0.5 + 0.5;
     vec2 vel = (vUv - prev) * uBlur * smoothstep(9.0, 24.0, camDist);
     float l = length(vel);
-    if (l < 0.0015) return col;
+    if (!(l >= 0.0015 && l < 10.0)) return col;
     vel *= min(1.0, 0.03 / l);
     vec3 acc = col;
     for (int i = 1; i <= 6; i++) {
       float t = float(i) / 6.0 - 0.5;
-      acc += texture2D(tDiffuse, vUv + vel * t).rgb;
+      vec2 suv = clamp(vUv + vel * t, vec2(0.001), vec2(0.999));
+      acc += sanitizeHdr(texture2D(tDiffuse, suv).rgb);
     }
     return acc * (1.0 / 7.0);
   }
@@ -123,47 +136,54 @@ const APPLY_FRAG = `
     if (uFog.w < 0.5) return col;
     vec3 dir = ray / max(dist, 1e-3);
     float b = uFog.y, dy = dir.y * dist;
-    float seg = abs(b * dy) > 1e-4 ? (1.0 - exp(-b * dy)) / (b * dy) : 1.0;
+    float seg = abs(b * dy) > 1e-4 ? (1.0 - exp(-clamp(b * dy, -30.0, 30.0))) / (b * dy) : 1.0;
     float amt = uFog.x * exp(-b * max(uCamPos.y, 0.0)) * dist * seg;
     // Valley & river low-altitude mist hugs terrain below ~48m (covered bridge, Finger Lake, canyons)
     float mb = 0.022;
-    float mSeg = abs(mb * dy) > 1e-4 ? (1.0 - exp(-mb * dy)) / (mb * dy) : 1.0;
+    float mSeg = abs(mb * dy) > 1e-4 ? (1.0 - exp(-clamp(mb * dy, -30.0, 30.0))) / (mb * dy) : 1.0;
     float mist = uFog.x * 2.1 * exp(-mb * max(uCamPos.y, 0.0)) * dist * mSeg * smoothstep(85.0, 620.0, dist);
-    float op = min(uFog.z, 1.0 - exp(-(amt + mist * 0.58)));
-    float sd = max(dot(dir, uSunDir), 0.0);
+    float op = clamp(min(uFog.z, 1.0 - exp(-clamp(amt + mist * 0.58, 0.0, 30.0))), 0.0, 1.0);
+    float sd = clamp(dot(dir, uSunDir), 0.0, 1.0);
+    float sd2 = sd * sd;
+    float sd3 = sd2 * sd;
+    float sd6 = sd3 * sd3;
+    float sd12 = sd6 * sd6;
+    float sd24 = sd12 * sd12;
+    float sd48 = sd24 * sd24;
     // Altitude-graded Rayleigh tint (higher distant towers & ridges pick up crisp sky-blue scatter while valley mist stays soft)
     float altTint = smoothstep(15.0, 140.0, max(wp.y, 0.0)) * 0.22;
     vec3 rayleighCol = mix(uFogCol, uFogCol * vec3(0.86, 0.94, 1.12), altTint);
-    float mie = pow(sd, 3.0) * 0.26 + pow(sd, 12.0) * 0.56 + pow(sd, 48.0) * 0.22;
+    float mie = sd3 * 0.26 + sd12 * 0.56 + sd48 * 0.22;
     vec3 fc = mix(rayleighCol, uSunCol * 1.18, clamp(mie, 0.0, 0.82));
-    return mix(col, fc, op);
+    return sanitizeHdr(mix(col, fc, op));
   }
-  float lin(float d) { float z = d * 2.0 - 1.0; return 2.0 * uNear * uFar / (uFar + uNear - z * (uFar - uNear)); }
+  float lin(float d) { float z = d * 2.0 - 1.0; float denom = uFar + uNear - z * (uFar - uNear); return 2.0 * uNear * uFar / max(abs(denom), 1e-4); }
   void main() {
     vec4 col = texture2D(tDiffuse, vUv);
+    col.rgb = sanitizeHdr(col.rgb);
     float dRaw = texture2D(tDepth, vUv).r;
     // Fast-exit sky pixels: sky dome already renders horizon scatter, saving inverse projections, blur & AO on ~35% of screen
-    if (dRaw >= 0.99999) { gl_FragColor = col; return; }
+    if (dRaw >= 0.99999) { gl_FragColor = vec4(col.rgb, 1.0); return; }
     vec3 wp = worldAt(dRaw);
     vec3 ray = wp - uCamPos;
     float dist = length(ray);
     col.rgb = motionBlur(col.rgb, wp, dist);
     // Beyond 158m AO is faded to 1.0: skip 8 bilateral depth/AO fetches on distant mountains, water & far skyline
-    if (uStrength <= 0.001 || dist > 158.0) { gl_FragColor = vec4(atmosphere(col.rgb, wp, ray, dist), col.a); return; }
+    if (uStrength <= 0.001 || dist > 158.0) { gl_FragColor = vec4(atmosphere(col.rgb, wp, ray, dist), 1.0); return; }
     float d0 = lin(dRaw);
-    vec2 sum = texture2D(tAO, vUv).rg * 1.6;
+    vec2 sum = clamp(texture2D(tAO, vUv).rg, vec2(0.0), vec2(1.0)) * 1.6;
     float wsum = 1.6;
     float k = 1.0 / (0.04 * d0 * d0 + 0.01);
     vec2 taps[4];
     taps[0] = vec2(-uHalf.x, 0.0); taps[1] = vec2(uHalf.x, 0.0);
     taps[2] = vec2(0.0, -uHalf.y); taps[3] = vec2(0.0, uHalf.y);
     for (int i = 0; i < 4; i++) {
-      vec2 uv = vUv + taps[i];
+      vec2 uv = clamp(vUv + taps[i], vec2(0.001), vec2(0.999));
       float dz = lin(texture2D(tDepth, uv).r) - d0;
-      float w = exp(-dz * dz * k);
-      sum += texture2D(tAO, uv).rg * w; wsum += w;
+      float w = exp(-min(dz * dz * k, 40.0));
+      sum += clamp(texture2D(tAO, uv).rg, vec2(0.0), vec2(1.0)) * w; wsum += w;
     }
-    vec2 aocs = sum / max(wsum, 1e-4);
+    vec2 aocs = clamp(sum / max(wsum, 1e-4), vec2(0.0), vec2(1.0));
     float ao = aocs.x;
     float cs = aocs.y;
     // Physically bounced ambient tint in crevices (cool sky fill instead of muddy black crush)
@@ -172,7 +192,7 @@ const APPLY_FRAG = `
     // Contact shadow modulation with cool sky-ambient fill
     vec3 contactTint = mix(vec3(0.36, 0.42, 0.54), vec3(1.0), cs);
     occ *= contactTint;
-    gl_FragColor = vec4(atmosphere(col.rgb * occ, wp, ray, dist), col.a);
+    gl_FragColor = vec4(atmosphere(col.rgb * occ, wp, ray, dist), 1.0);
   }`;
 
 export class AoPass extends Pass {
@@ -240,10 +260,17 @@ export class AoPass extends Pass {
     const f = this.fog;
     a.uFog.value.set(f.density, f.falloff, f.maxOpacity, f.on && depth ? 1 : 0); a.uFogCol.value.copy(f.color); a.uSunCol.value.copy(f.sunColor); a.uSunDir.value.copy(f.sunDir).normalize();
     a.uCamPos.value.setFromMatrixPosition(cam.matrixWorld); a.uProjInv.value.copy(cam.projectionMatrixInverse); a.uCamWorld.value.copy(cam.matrixWorld);
-    // last frame's camera; a cut (the camera jumping more than 40 m) is not motion, so no blur on that frame
-    const jump = !this.havePrev || this.prevPos.distanceTo(a.uCamPos.value) > 40;
+    // last frame's camera; a cut (the camera jumping more than 40 m) or any non-finite history matrix resets motion blur cleanly
+    const prevFinite = this.havePrev && this.prevVP.elements.every(Number.isFinite) && Number.isFinite(this.prevPos.x) && Number.isFinite(a.uCamPos.value.x);
+    const jump = !prevFinite || this.prevPos.distanceTo(a.uCamPos.value) > 40;
     a.uPrevViewProj.value.copy(this.prevVP); a.uBlur.value = jump || !depth ? 0 : this.blur;
-    this.prevVP.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse); this.prevPos.copy(a.uCamPos.value); this.havePrev = true;
+    this.prevVP.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+    if (this.prevVP.elements.every(Number.isFinite) && Number.isFinite(a.uCamPos.value.x)) {
+      this.prevPos.copy(a.uCamPos.value);
+      this.havePrev = true;
+    } else {
+      this.havePrev = false;
+    }
     this.quad.material = this.applyMat;
     renderer.setRenderTarget(this.renderToScreen ? null : writeBuffer);
     this.quad.render(renderer);

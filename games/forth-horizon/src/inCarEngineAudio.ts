@@ -390,10 +390,149 @@ function makeAsymmetricDriveCurve(drive: number): Float32Array<ArrayBuffer> {
   return curve;
 }
 
+interface SteadyClipBank {
+  idle: AudioBuffer;
+  mid: AudioBuffer;
+  high: AudioBuffer;
+  decel: AudioBuffer;
+}
+
+/**
+ * Extracts the steadiest, highest-energy micro-window (~0.32s) from a real engine clip
+ * and overlap-add crossfades it into a seamless, click-free, zero-pitch-drift steady loop.
+ * This eliminates repeating rev-up ramps and pass-by Doppler sweeps while preserving 100%
+ * of the real recorded combustion, valvetrain, intake, and exhaust timbre!
+ */
+function extractSteadyLoop(ctx: AudioContext, raw: AudioBuffer): AudioBuffer {
+  const sr = raw.sampleRate;
+  const ch0 = raw.getChannelData(0);
+  const ch1 = raw.numberOfChannels > 1 ? raw.getChannelData(1) : null;
+  const total = ch0.length;
+
+  // Build mono analysis signal
+  const mono = new Float32Array(total);
+  if (ch1) {
+    for (let i = 0; i < total; i++) mono[i] = 0.5 * (ch0[i] + ch1[i]);
+  } else {
+    mono.set(ch0);
+  }
+
+  // Target ~0.34s loop body + ~0.09s equal-power overlap splice (fits comfortably inside ~1.4s clips)
+  const xfade = Math.min(Math.floor(sr * 0.09), Math.floor(total * 0.14));
+  const body = Math.min(Math.floor(sr * 0.34), Math.max(Math.floor(sr * 0.16), total - xfade * 2));
+  const winLen = body + xfade;
+  if (total <= winLen + 64) return raw;
+
+  // Compute 25ms frame RMS + Zero-Crossing Rate (proxy for instantaneous pitch stability)
+  const hop = Math.max(128, Math.floor(sr * 0.025));
+  const nFrames = Math.floor((total - hop) / hop);
+  const rms = new Float32Array(nFrames);
+  const zcr = new Float32Array(nFrames);
+  let maxRms = 1e-6;
+  for (let f = 0; f < nFrames; f++) {
+    const o = f * hop;
+    let sumSq = 0;
+    let zc = 0;
+    let prev = mono[o];
+    for (let i = 0; i < hop; i++) {
+      const v = mono[o + i];
+      sumSq += v * v;
+      if ((v >= 0 && prev < 0) || (v < 0 && prev >= 0)) zc++;
+      prev = v;
+    }
+    const r = Math.sqrt(sumSq / hop);
+    rms[f] = r;
+    zcr[f] = zc / hop;
+    if (r > maxRms) maxRms = r;
+  }
+
+  // Slide window over interior (skip first/last 5% fade edges) to find minimal pitch+level drift with strong signal
+  const winFrames = Math.max(2, Math.floor(winLen / hop));
+  const startF = Math.max(0, Math.floor(nFrames * 0.05));
+  const endF = Math.max(startF + 1, Math.min(nFrames - winFrames, Math.floor(nFrames * 0.95) - winFrames));
+
+  let bestFrame = startF;
+  let bestScore = Infinity;
+  for (let f = startF; f < endF; f++) {
+    let meanR = 0, meanZ = 0;
+    for (let k = 0; k < winFrames; k++) { meanR += rms[f + k]; meanZ += zcr[f + k]; }
+    meanR /= winFrames;
+    meanZ /= winFrames;
+    const relR = meanR / maxRms;
+    if (relR < 0.32) continue; // skip quiet tails / silence
+    let varR = 0, varZ = 0;
+    for (let k = 0; k < winFrames; k++) {
+      const dr = (rms[f + k] - meanR) / (meanR + 1e-5);
+      const dz = (zcr[f + k] - meanZ) / (meanZ + 1e-5);
+      varR += dr * dr;
+      varZ += dz * dz;
+    }
+    // Strongly penalize pitch drift (ZCR slope/variance) & amplitude ramps, lightly reward energetic pocket
+    const drift = (varZ / winFrames) * 2.8 + (varR / winFrames) * 1.6;
+    const score = drift - relR * 0.25;
+    if (score < bestScore) {
+      bestScore = score;
+      bestFrame = f;
+    }
+  }
+
+  const s0 = Math.min(total - winLen, bestFrame * hop);
+  const outBuf = ctx.createBuffer(1, body, sr);
+  const dst = outBuf.getChannelData(0);
+
+  // Copy steady core and overlap-add tail [s0+body .. s0+body+xfade] onto head [0 .. xfade] with equal-power Hann window
+  for (let i = 0; i < body; i++) dst[i] = mono[s0 + i];
+  for (let i = 0; i < xfade; i++) {
+    const t = i / xfade;
+    const wHead = Math.sin(t * Math.PI * 0.5);
+    const wTail = Math.cos(t * Math.PI * 0.5);
+    dst[i] = mono[s0 + i] * wHead + mono[s0 + body + i] * wTail;
+  }
+
+  // Remove DC offset and normalize RMS to a consistent -13 dBFS so idle/mid/high/decel crossfade cleanly
+  let dc = 0;
+  for (let i = 0; i < body; i++) dc += dst[i];
+  dc /= body;
+  let sq = 0;
+  for (let i = 0; i < body; i++) {
+    const v = dst[i] - dc;
+    dst[i] = v;
+    sq += v * v;
+  }
+  const curRms = Math.sqrt(sq / body);
+  const targetRms = 0.22;
+  const norm = curRms > 1e-4 ? Math.min(4.0, targetRms / curRms) : 1.0;
+  for (let i = 0; i < body; i++) {
+    dst[i] = Math.max(-0.98, Math.min(0.98, dst[i] * norm));
+  }
+  return outBuf;
+}
+
 export class InCarEngineSynth {
   private ctx: AudioContext;
   private out: GainNode;
   private noiseBuf: AudioBuffer;
+
+  // Hybrid mix buses: real steady-state recorded clip layers (primary voice) + phase-locked harmonic sub-foundation
+  private synthBus: GainNode;
+  private clipBus: GainNode;
+  private clipLowShelf: BiquadFilterNode;
+  private clipPresence: BiquadFilterNode;
+  private clipLp: BiquadFilterNode;
+  private clipShaper: WaveShaperNode;
+
+  // 4 RPM-locked real recorded sample layers (idle, mid, high, off-throttle decel)
+  private clipIdleGain: GainNode;
+  private clipMidGain: GainNode;
+  private clipHighGain: GainNode;
+  private clipDecelGain: GainNode;
+  private clipIdleSrc: AudioBufferSourceNode | null = null;
+  private clipMidSrc: AudioBufferSourceNode | null = null;
+  private clipHighSrc: AudioBufferSourceNode | null = null;
+  private clipDecelSrc: AudioBufferSourceNode | null = null;
+  private clipLoadedBank = '';
+  private clipReady = false;
+  private clipCache = new Map<string, Promise<SteadyClipBank | null>>();
 
   // Core oscillators (firing order fundamental, uneven sub-order, mechanical upper rasp)
   private oscMain: OscillatorNode;
@@ -439,6 +578,53 @@ export class InCarEngineSynth {
     this.out.gain.value = 0.0001;
     this.out.connect(destination);
 
+    // Hybrid buses: synthBus starts at 1.0 until real clips finish decoding (~30ms), then smoothly hands primary voice to clipBus
+    this.synthBus = ctx.createGain();
+    this.synthBus.gain.value = 1.0;
+    this.synthBus.connect(this.out);
+
+    this.clipBus = ctx.createGain();
+    this.clipBus.gain.value = 0.0;
+
+    this.clipLowShelf = ctx.createBiquadFilter();
+    this.clipLowShelf.type = 'lowshelf';
+    this.clipLowShelf.frequency.value = 135;
+    this.clipLowShelf.gain.value = 4.5;
+
+    this.clipPresence = ctx.createBiquadFilter();
+    this.clipPresence.type = 'peaking';
+    this.clipPresence.frequency.value = 950;
+    this.clipPresence.Q.value = 1.1;
+    this.clipPresence.gain.value = 2.0;
+
+    this.clipLp = ctx.createBiquadFilter();
+    this.clipLp.type = 'lowpass';
+    this.clipLp.frequency.value = 3200;
+    this.clipLp.Q.value = 0.75;
+
+    this.clipShaper = ctx.createWaveShaper();
+    this.clipShaper.curve = makeAsymmetricDriveCurve(1.45);
+    this.clipShaper.oversample = '2x';
+
+    this.clipIdleGain = ctx.createGain();
+    this.clipMidGain = ctx.createGain();
+    this.clipHighGain = ctx.createGain();
+    this.clipDecelGain = ctx.createGain();
+    this.clipIdleGain.gain.value = 0;
+    this.clipMidGain.gain.value = 0;
+    this.clipHighGain.gain.value = 0;
+    this.clipDecelGain.gain.value = 0;
+
+    this.clipIdleGain.connect(this.clipShaper);
+    this.clipMidGain.connect(this.clipShaper);
+    this.clipHighGain.connect(this.clipShaper);
+    this.clipDecelGain.connect(this.clipShaper);
+    this.clipShaper.connect(this.clipLowShelf);
+    this.clipLowShelf.connect(this.clipPresence);
+    this.clipPresence.connect(this.clipLp);
+    this.clipLp.connect(this.clipBus);
+    this.clipBus.connect(this.out);
+
     // Warm cabin low-shelf + close-mic rolloff (eliminates harsh synthetic high-frequency fizz)
     this.cabinBass = ctx.createBiquadFilter();
     this.cabinBass.type = 'lowshelf';
@@ -471,7 +657,7 @@ export class InCarEngineSynth {
     this.exhaustRes.connect(this.shaper);
     this.shaper.connect(this.cabinBass);
     this.cabinBass.connect(this.masterLp);
-    this.masterLp.connect(this.out);
+    this.masterLp.connect(this.synthBus);
 
     // Oscillators
     this.oscMain = ctx.createOscillator();
@@ -564,6 +750,78 @@ export class InCarEngineSynth {
     const drive = Math.min(4.2, prof.drive + upgradeLevel * 0.26);
     this.shaper.curve = makeAsymmetricDriveCurve(drive);
     this.cabinBass.gain.value = prof.cabinBassDb;
+    this.clipLowShelf.gain.value = Math.min(7.5, prof.cabinBassDb * 0.65);
+    this.clipShaper.curve = makeAsymmetricDriveCurve(1.15 + Math.min(1.6, (prof.drive - 1.0) * 0.45 + upgradeLevel * 0.14));
+
+    if (this.clipLoadedBank !== bankId) {
+      this.clipLoadedBank = bankId;
+      void this.activateClipBank(bankId);
+    }
+  }
+
+  private fetchClipBank(bankId: string): Promise<SteadyClipBank | null> {
+    const cached = this.clipCache.get(bankId);
+    if (cached) return cached;
+    const meta = getEngineBank(bankId);
+    if (!meta?.basePath) return Promise.resolve(null);
+
+    const p = (async (): Promise<SteadyClipBank | null> => {
+      try {
+        const loadOne = async (name: string): Promise<AudioBuffer> => {
+          const res = await fetch(`${meta.basePath}/${name}.mp3`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const ab = await res.arrayBuffer();
+          const decoded = await this.ctx.decodeAudioData(ab);
+          return extractSteadyLoop(this.ctx, decoded);
+        };
+        const [idle, mid, high, decel] = await Promise.all([
+          loadOne('idle'),
+          loadOne('mid'),
+          loadOne('high'),
+          loadOne('decel'),
+        ]);
+        return { idle, mid, high, decel };
+      } catch {
+        return null;
+      }
+    })();
+    this.clipCache.set(bankId, p);
+    return p;
+  }
+
+  private stopClipSources(): void {
+    for (const s of [this.clipIdleSrc, this.clipMidSrc, this.clipHighSrc, this.clipDecelSrc]) {
+      if (s) {
+        try { s.stop(); s.disconnect(); } catch { /* already stopped */ }
+      }
+    }
+    this.clipIdleSrc = this.clipMidSrc = this.clipHighSrc = this.clipDecelSrc = null;
+  }
+
+  private async activateClipBank(bankId: string): Promise<void> {
+    const bank = await this.fetchClipBank(bankId);
+    if (!bank || this.clipLoadedBank !== bankId) return;
+
+    this.stopClipSources();
+    const startLoop = (buf: AudioBuffer, target: GainNode): AudioBufferSourceNode => {
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      src.playbackRate.value = 1.0;
+      src.connect(target);
+      src.start();
+      return src;
+    };
+    this.clipIdleSrc = startLoop(bank.idle, this.clipIdleGain);
+    this.clipMidSrc = startLoop(bank.mid, this.clipMidGain);
+    this.clipHighSrc = startLoop(bank.high, this.clipHighGain);
+    this.clipDecelSrc = startLoop(bank.decel, this.clipDecelGain);
+    this.clipReady = true;
+
+    const now = this.ctx.currentTime;
+    // Smoothly hand primary acoustic voice to real steady-state engine clips, keeping synth as warm RPM-locked sub-foundation
+    this.clipBus.gain.setTargetAtTime(0.92, now, 0.08);
+    this.synthBus.gain.setTargetAtTime(0.32, now, 0.08);
   }
 
   /** Crisp close-mic DSG/sequential upshift exhaust bark or downshift overrun crackle */
@@ -694,7 +952,49 @@ export class InCarEngineSynth {
     const lpMin = 380 + aggBoost * 240;
     const lpMax = 1450 + aggBoost * 2400;
     const lpHz = lpMin + (lpMax - lpMin) * (0.18 + load * 0.42 + rpmFrac * 0.48);
-    this.masterLp.frequency.setTargetAtTime(lpHz * shiftCut, now, 0.025);
+    // When real clips are active, keep synth sub-foundation warm & chesty underneath so real clips shine on top!
+    this.masterLp.frequency.setTargetAtTime((this.clipReady ? Math.min(lpHz, 520 + rpmFrac * 420) : lpHz) * shiftCut, now, 0.025);
+
+    // Update 4-layer RPM-locked real recorded engine clips (idle -> mid -> high + off-throttle decel overrun)
+    if (this.clipReady && this.clipIdleSrc && this.clipMidSrc && this.clipHighSrc && this.clipDecelSrc) {
+      // Pitch-locked playbackRate kept inside natural 0.72x..1.48x window so real recordings never sound chipmunky
+      const idleRate = 0.84 + rpmFrac * 1.12 + idleLope * 0.6;
+      const midRate = 0.72 + rpmFrac * 0.90;
+      const highRate = 0.64 + rpmFrac * 0.66;
+      const decelRate = 0.72 + rpmFrac * 0.78;
+      this.clipIdleSrc.playbackRate.setTargetAtTime(idleRate, now, 0.022);
+      this.clipMidSrc.playbackRate.setTargetAtTime(midRate, now, 0.020);
+      this.clipHighSrc.playbackRate.setTargetAtTime(highRate, now, 0.018);
+      this.clipDecelSrc.playbackRate.setTargetAtTime(decelRate, now, 0.024);
+
+      // Equal-power RPM crossfade weights: idle [0..0.42], mid [0.14..0.86], high [0.50..1.00]
+      const smooth = (a: number, b: number, x: number): number => {
+        const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
+        return t * t * (3 - 2 * t);
+      };
+      const wIdle = Math.cos(smooth(0.14, 0.42, rpmFrac) * Math.PI * 0.5);
+      const wMidIn = Math.sin(smooth(0.14, 0.36, rpmFrac) * Math.PI * 0.5);
+      const wMidOut = Math.cos(smooth(0.56, 0.86, rpmFrac) * Math.PI * 0.5);
+      const wMid = wMidIn * wMidOut;
+      const wHigh = Math.sin(smooth(0.48, 0.76, rpmFrac) * Math.PI * 0.5);
+
+      // Off-throttle engine-braking / overrun crossfade into real decel.mp3 clip
+      const decelMix = (1 - load) * smooth(0.18, 0.46, rpmFrac) * 0.72;
+      const onMix = 1 - decelMix * 0.65;
+
+      this.clipIdleGain.gain.setTargetAtTime(wIdle * onMix * (0.85 + load * 0.25), now, 0.028);
+      this.clipMidGain.gain.setTargetAtTime(wMid * onMix * (0.82 + load * 0.32), now, 0.025);
+      this.clipHighGain.gain.setTargetAtTime(wHigh * onMix * (0.86 + load * 0.34), now, 0.022);
+      this.clipDecelGain.gain.setTargetAtTime(decelMix, now, 0.035);
+
+      // Dynamic throttle-reactive cabin/exhaust EQ on the real recorded clips (smooth at cruise, wide open at WOT)
+      const clipCutMin = 1250 + aggBoost * 650;
+      const clipCutMax = 3800 + aggBoost * 4200;
+      const clipCut = clipCutMin + (clipCutMax - clipCutMin) * (0.22 + load * 0.48 + rpmFrac * 0.38);
+      this.clipLp.frequency.setTargetAtTime(clipCut * (0.65 + 0.35 * shiftCut), now, 0.025);
+      this.clipPresence.frequency.setTargetAtTime(480 + rpmFrac * 1350 + load * 320, now, 0.03);
+      this.clipPresence.gain.setTargetAtTime(0.5 + load * 4.2 + aggBoost * 2.0, now, 0.03);
+    }
 
     // Balance fundamental, uneven sub-order rumble, upper mechanical rasp, and air-intake growl
     this.mainGain.gain.setTargetAtTime(0.48 + load * 0.28, now, 0.025);
