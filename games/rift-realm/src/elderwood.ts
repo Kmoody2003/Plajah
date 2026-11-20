@@ -398,6 +398,12 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     const log = new THREE.Mesh(barkTube(logCurve, 3.0, 2.8, 10, lo ? 14 : 24, 0.35, 5), logMat);
     log.castShadow = !lo; log.receiveShadow = true; log.name = 'tunnel-log'; group.add(log);
   }
+  // ruin walls (CF-23): cover in the open ground, the arch walkable through
+  for (const [x, z, yaw] of [[30, 4, -0.6], [-46, 40, 2.0]] as const) {
+    const sx = Math.cos(yaw), sz = -Math.sin(yaw);
+    for (const s of [-1, 1]) solidBox(2.0, 4.2, 1.3, x + sx * s * 2.0, z + sz * s * 2.0, yaw);
+    kit.box(B.invisible, 6.0, 1.0, 1.3, x, H(x, z) + 3.7, z, yaw, { shadow: false });
+  }
   // the monolith
   kit.prism(B.invisible, 8, 1.9, 2.2, 10, MONOLITH.x, H(MONOLITH.x, MONOLITH.z), MONOLITH.z, 0, {});
   kit.prism(B.invisible, 16, 4.0, 4.2, 0.6, MONOLITH.x, H(MONOLITH.x, MONOLITH.z) - 0.2, MONOLITH.z, 0, {});
@@ -660,12 +666,15 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
 
   // ── structures as art: models built from their sheets in Plajah 3D (visual only; colliders are above) ───────
   const loader = new GLTFLoader();
-  const placeModel = (file: string, x: number, z: number, yaw: number, height: number, y = H(x, z)) => {
+  const placeModel = (file: string, x: number, z: number, yaw: number, height: number, y = H(x, z), o: { length?: number; replaces?: string } = {}) => {
     loader.load(MODELS + file, (gltf) => {
       const root = gltf.scene;
-      // scale to the manifest height, then stand its footprint's centre on (x, z) with its base on the ground
+      // scale to the manifest height, then stand its footprint's centre on (x, z) with its base on the ground;
+      // `length` stretches it along its own Z (a log generated from its end ring comes out too short)
       const box0 = new THREE.Box3().setFromObject(root);
-      root.scale.setScalar(height / Math.max(1e-3, box0.max.y - box0.min.y));
+      const k = height / Math.max(1e-3, box0.max.y - box0.min.y);
+      root.scale.set(k, k, o.length ? o.length / Math.max(1e-3, box0.max.z - box0.min.z) : k);
+      if (o.replaces) { const old = group.getObjectByName(o.replaces); if (old) old.visible = false; }
       const box = new THREE.Box3().setFromObject(root), c = box.getCenter(new THREE.Vector3());
       root.position.set(-c.x, -box.min.y, -c.z);
       const pivot = new THREE.Group(); pivot.position.set(x, y, z); pivot.rotation.y = yaw;
@@ -678,7 +687,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   placeModel('outpost_cabin.glb', CABIN.x, CABIN.z, CABIN_YAW, 7.2);
   placeModel('ruined_chapel.glb', CHAPEL.x, CHAPEL.z, CHAPEL_YAW, 10.5);
   placeModel('rune_monolith.glb', MONOLITH.x, MONOLITH.z, 0.3, 11);
-  placeModel('log_tunnel.glb', TUNNEL.x, TUNNEL.z, TUNNEL_YAW, 5.0);
+  placeModel('log_tunnel.glb', TUNNEL.x, TUNNEL.z, TUNNEL_YAW, 5.6, H(TUNNEL.x, TUNNEL.z) - 0.3, { length: 14, replaces: 'tunnel-log' });
   placeModel('mushroom_cluster.glb', MONOLITH.x - 9, MONOLITH.z + 5, 1.1, 4.5);
   placeModel('mushroom_cluster.glb', -40, -24, 2.3, 3.8);
   placeModel('ruin_walls.glb', 30, 4, -0.6, 4.5);
