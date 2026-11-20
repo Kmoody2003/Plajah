@@ -1,0 +1,28 @@
+{
+  "id": "continental",
+  "status": "built (multi-view matched: winner=sheet_front34, sideIoU=0.924, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\ironport-complete\\concept-art\\media-generation-meridian-continental-67-v2-0-4c444522-57e5-45b3-a36f-f3d01c5e6a3d.webp",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.9212,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "sheet_rear34",
+      "sideIoU": 0.8727,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "sheet_front34",
+  "finalSideIoU": 0.9238,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 4.882,
+    "width": 2.033,
+    "height": 1.445
+  },
+  "faces": 60000,
+  "elapsedSec": 54.7
+}

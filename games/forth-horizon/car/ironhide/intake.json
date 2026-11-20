@@ -1,0 +1,28 @@
+{
+  "id": "ironhide",
+  "status": "built (multi-view matched: winner=sheet_rear34, sideIoU=0.770, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\ironport-complete\\concept-art\\media-generation-meridian-ironhide-440-v2-0-c0626eaf-04fb-47a7-bd4c-fa42eaa4eb2a.webp",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.7814,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "sheet_rear34",
+      "sideIoU": 0.7839,
+      "yawSymDeg": 1.75
+    }
+  ],
+  "winner": "sheet_rear34",
+  "finalSideIoU": 0.7697,
+  "yawSymDeg": 1.75,
+  "boundsM": {
+    "length": 4.84,
+    "width": 2.04,
+    "height": 1.318
+  },
+  "faces": 60000,
+  "elapsedSec": 4.4
+}

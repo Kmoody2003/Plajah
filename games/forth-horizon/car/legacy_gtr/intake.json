@@ -1,0 +1,28 @@
+{
+  "id": "legacy_gtr",
+  "status": "built (multi-view matched: winner=sheet_front34, sideIoU=0.906, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Vintage_racecar_design_sheet_52244cfd.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Legacy_GT-R_1975_racecar_video_50274648.mp4",
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.8872,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "tt_00",
+      "sideIoU": 0.881,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "sheet_front34",
+  "finalSideIoU": 0.9058,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 4.458,
+    "width": 2.006,
+    "height": 1.325
+  },
+  "faces": 60000,
+  "elapsedSec": 63.6
+}

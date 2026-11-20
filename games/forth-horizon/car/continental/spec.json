@@ -1,0 +1,238 @@
+{
+  "id": "continental",
+  "name": "Meridian Continental 67",
+  "glb": "/games/forth-horizon/car/continental_base.glb",
+  "paint": "0x5a141c",
+  "accent": "0xd4d8de",
+  "cuts": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (continental_base.glb, L=4.88m W=2.03m H=1.44m).",
+  "wheels": {
+    "frontZ": 1.589,
+    "rearZ": -1.272,
+    "frontX": 0.824,
+    "rearX": 0.824,
+    "scale": 1.08,
+    "discardR": 0.398,
+    "centreY": 0.383,
+    "tyreR": 0.383,
+    "rimR": 0.268,
+    "style": "classic"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.915,
+        0.0,
+        0.807
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.915,
+        0.0,
+        0.807
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.081,
+        0.787
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    },
+    "trunk": {
+      "hinge": [
+        0.0,
+        1.101,
+        -1.493
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": 0.85
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.671,
+        0.841,
+        0.807
+      ],
+      [
+        0.671,
+        1.321,
+        2.261
+      ]
+    ],
+    "trunk": [
+      [
+        -0.59,
+        0.941,
+        -2.301
+      ],
+      [
+        0.59,
+        1.301,
+        -1.513
+      ]
+    ],
+    "roof": [
+      [
+        -0.726,
+        1.284,
+        -1.09
+      ],
+      [
+        0.726,
+        1.565,
+        0.407
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.081,
+    "roofEdge": 1.404,
+    "pillarBase": 0.767,
+    "pillarTop": 0.407,
+    "doorFront": 0.807,
+    "doorRear": -0.829,
+    "windBase": 0.767,
+    "windTop": 0.407,
+    "rearTop": -1.09,
+    "rearBase": -1.493,
+    "rearBase2": -1.463,
+    "windHalfW": 0.726,
+    "rearHalfW": 0.712,
+    "sideWindow": [
+      [
+        -0.769,
+        1.111
+      ],
+      [
+        0.747,
+        1.101
+      ],
+      [
+        0.707,
+        1.197
+      ],
+      [
+        0.607,
+        1.314
+      ],
+      [
+        0.407,
+        1.384
+      ],
+      [
+        -1.03,
+        1.384
+      ],
+      [
+        -1.25,
+        1.281
+      ],
+      [
+        -0.869,
+        1.141
+      ]
+    ],
+    "handle": [
+      -0.191,
+      0.941
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.539,
+    "layout": "front-v8",
+    "arch": "muscle-v8",
+    "texUrl": "/games/forth-horizon/tex/engines/muscle_v8.jpg"
+  },
+  "trunk": true,
+  "cabin": {
+    "yOffset": 0.065,
+    "zOffset": -0.171,
+    "cowlZ": 0.717,
+    "cowlY": 1.081
+  },
+  "exhaust": {
+    "z": -2.327,
+    "y": 0.24,
+    "xs": [
+      -0.48,
+      -0.35,
+      0.35,
+      0.48
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.411,
+    "splitterW": 0,
+    "splitterY": 0.11,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.549,
+      "y": 0.699,
+      "w": 0.285,
+      "h": 0.075,
+      "tilt": 0.025,
+      "style": "u-drl"
+    },
+    "tail": {
+      "x": 0.529,
+      "y": 0.75,
+      "len": 0.346,
+      "style": "double-u"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.36,
+    "bumperRearY": 0.38,
+    "skirtY": 0.2,
+    "archLipAdd": 0.045,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.459,
+    "grilleHiY": 0.739,
+    "grilleStyle": "sport"
+  }
+}

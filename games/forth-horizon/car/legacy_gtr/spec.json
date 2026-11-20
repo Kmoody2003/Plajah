@@ -1,0 +1,238 @@
+{
+  "id": "legacy_gtr",
+  "name": "Legacy GT-R 1975",
+  "glb": "/games/forth-horizon/car/legacy_gtr_base.glb",
+  "paint": "0x6caad0",
+  "accent": "0xe86c1c",
+  "cuts": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (legacy_gtr_base.glb, L=4.46m W=2.01m H=1.32m).",
+  "wheels": {
+    "frontZ": 1.384,
+    "rearZ": -1.091,
+    "frontX": 0.789,
+    "rearX": 0.809,
+    "scale": 1.004,
+    "discardR": 0.37,
+    "centreY": 0.356,
+    "tyreR": 0.356,
+    "rimR": 0.249,
+    "style": "classic"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.903,
+        0.0,
+        0.665
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.903,
+        0.0,
+        0.665
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.007,
+        0.645
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    },
+    "trunk": {
+      "hinge": [
+        0.0,
+        1.027,
+        -1.728
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": 0.85
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.662,
+        0.767,
+        0.665
+      ],
+      [
+        0.662,
+        1.247,
+        2.049
+      ]
+    ],
+    "trunk": [
+      [
+        -0.582,
+        0.867,
+        -2.089
+      ],
+      [
+        0.582,
+        1.227,
+        -1.748
+      ]
+    ],
+    "roof": [
+      [
+        -0.659,
+        1.164,
+        -1.287
+      ],
+      [
+        0.659,
+        1.445,
+        0.265
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.007,
+    "roofEdge": 1.284,
+    "pillarBase": 0.625,
+    "pillarTop": 0.265,
+    "doorFront": 0.665,
+    "doorRear": -0.675,
+    "windBase": 0.625,
+    "windTop": 0.265,
+    "rearTop": -1.287,
+    "rearBase": -1.728,
+    "rearBase2": -1.698,
+    "windHalfW": 0.659,
+    "rearHalfW": 0.637,
+    "sideWindow": [
+      [
+        -0.615,
+        1.037
+      ],
+      [
+        0.605,
+        1.027
+      ],
+      [
+        0.565,
+        1.107
+      ],
+      [
+        0.465,
+        1.206
+      ],
+      [
+        0.265,
+        1.264
+      ],
+      [
+        -1.227,
+        1.264
+      ],
+      [
+        -1.447,
+        1.179
+      ],
+      [
+        -0.715,
+        1.067
+      ]
+    ],
+    "handle": [
+      -0.185,
+      0.867
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.334,
+    "layout": "front-v8",
+    "arch": "rotary",
+    "texUrl": "/games/forth-horizon/tex/engines/rotary_twin.jpg"
+  },
+  "trunk": true,
+  "cabin": {
+    "yOffset": -0.055,
+    "zOffset": -0.255,
+    "cowlZ": 0.575,
+    "cowlY": 1.007
+  },
+  "exhaust": {
+    "z": -2.106,
+    "y": 0.24,
+    "xs": [
+      -0.48,
+      -0.35,
+      0.35,
+      0.48
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.213,
+    "splitterW": 0,
+    "splitterY": 0.11,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.542,
+      "y": 0.613,
+      "w": 0.281,
+      "h": 0.075,
+      "tilt": 0.025,
+      "style": "u-drl"
+    },
+    "tail": {
+      "x": 0.522,
+      "y": 0.728,
+      "len": 0.341,
+      "style": "double-u"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.36,
+    "bumperRearY": 0.38,
+    "skirtY": 0.2,
+    "archLipAdd": 0.045,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.373,
+    "grilleHiY": 0.653,
+    "grilleStyle": "sport"
+  }
+}
