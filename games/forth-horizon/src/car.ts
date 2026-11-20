@@ -84,67 +84,131 @@ function mat(color: number, rough: number, metal: number, extra: Partial<THREE.M
   return new THREE.MeshPhysicalMaterial({ color, roughness: rough, metalness: metal, ...extra });
 }
 
-export function wheel(front: boolean, left: boolean): { root: THREE.Group; steer: THREE.Group; spin: THREE.Group; discMat: THREE.MeshPhysicalMaterial } {
-  const R = front ? 0.352 : 0.358, W = front ? 0.285 : 0.315, RIM = 0.255;
+export type WheelStyle = 'forged' | 'classic' | 'offroad' | 'street' | 'heavy';
+
+export function wheel(front: boolean, left: boolean, style: WheelStyle = 'forged'): { root: THREE.Group; steer: THREE.Group; spin: THREE.Group; discMat: THREE.MeshPhysicalMaterial } {
+  const isOff = style === 'offroad';
+  const isHeavy = style === 'heavy';
+  const isClassic = style === 'classic';
+  const isStreet = style === 'street';
+  const R = front ? 0.352 : 0.358;
+  const W = isOff ? 0.325 : isHeavy ? 0.295 : isStreet ? 0.235 : (front ? 0.285 : 0.315);
+  const RIM = isOff ? 0.200 : isClassic ? 0.220 : isStreet ? 0.228 : isHeavy ? 0.224 : 0.255;
   const root = new THREE.Group(), steer = new THREE.Group(), spin = new THREE.Group();
   root.add(steer);
   steer.add(spin);
-  // tyre
+  // tyre: deep satin vulcanised rubber sidewall with realistic shoulder profile
   const prof: THREE.Vector2[] = [];
   const hw = W / 2;
-  const pts: [number, number][] = [[RIM, -hw * 0.98], [RIM + 0.04, -hw], [R - 0.05, -hw * 0.92], [R - 0.012, -hw * 0.55], [R, -hw * 0.2], [R, hw * 0.2], [R - 0.012, hw * 0.55], [R - 0.05, hw * 0.92], [RIM + 0.04, hw], [RIM, hw * 0.98]];
+  const sh = isOff ? 0.065 : isHeavy ? 0.058 : 0.05;
+  const pts: [number, number][] = [[RIM, -hw * 0.98], [RIM + 0.04, -hw], [R - sh, -hw * 0.94], [R - 0.012, -hw * 0.60], [R, -hw * 0.22], [R, hw * 0.22], [R - 0.012, hw * 0.60], [R - sh, hw * 0.94], [RIM + 0.04, hw], [RIM, hw * 0.98]];
   for (const [r, y] of pts) prof.push(new THREE.Vector2(r, y));
   const tg = new THREE.LatheGeometry(prof, 40);
   tg.rotateZ(Math.PI / 2);
-  spin.add(new THREE.Mesh(tg, mat(0x141414, 0.85, 0)));
-  // rim to the reference: gunmetal-bronze 10-spoke split-Y wheel, polished lip, drilled disc, big gold caliper
-  const bronze = mat(0x4b4640, 0.34, 0.92);
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(RIM, RIM, W * 0.9, 40, 1, true), mat(0x24262a, 0.5, 0.85, { side: THREE.DoubleSide }));
+  spin.add(new THREE.Mesh(tg, mat(isOff || isHeavy ? 0x111214 : 0x131416, isOff ? 0.92 : 0.84, 0.02)));
+  // rim finish per authentic vehicle archetype
+  const spokeMat = isOff
+    ? mat(0x1c1e22, 0.48, 0.72)
+    : isHeavy
+      ? mat(0x9ca2aa, 0.38, 0.88)
+      : isClassic
+        ? mat(0xc8cdd4, 0.20, 0.96)
+        : isStreet
+          ? mat(0xb2b8c2, 0.24, 0.92)
+          : mat(0x4b4640, 0.30, 0.94);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(RIM, RIM, W * 0.9, 40, 1, true), mat(isHeavy ? 0x5c626a : 0x202226, 0.48, 0.85, { side: THREE.DoubleSide }));
   barrel.rotation.z = Math.PI / 2;
   spin.add(barrel);
   const outer = left ? 1 : -1;
-  const faceX = outer * (W / 2 - 0.05);
-  // a spoke is a flat bar between two points in the wheel plane (y, z), tapered in thickness toward the rim
+  const faceX = outer * (W / 2 - (isClassic || isHeavy ? 0.075 : 0.05));
   const bar = (y0: number, z0: number, y1: number, z1: number, w0: number, w1: number, dx: number): void => {
     const len = Math.hypot(y1 - y0, z1 - z0);
-    const geo = new THREE.CylinderGeometry(w1 / 2, w0 / 2, len, 6);          // radius ends = half widths, axis along y before rotation
-    const me = new THREE.Mesh(geo, bronze);
-    me.scale.x = 0.55;                                                       // flatten in x so it reads as a blade
+    const geo = new THREE.CylinderGeometry(w1 / 2, w0 / 2, len, 6);
+    const me = new THREE.Mesh(geo, spokeMat);
+    me.scale.x = isOff || isHeavy ? 0.85 : 0.55;
     me.position.set(faceX + dx, (y0 + y1) / 2, (z0 + z1) / 2);
     me.rotation.x = Math.atan2(z1 - z0, y1 - y0);
     spin.add(me);
   };
-  for (let i = 0; i < 10; i++) {
-    const a0 = (i / 10) * Math.PI * 2;
-    const c = Math.cos(a0), sn = Math.sin(a0);
-    const r1 = RIM * 0.55;                                                   // fork radius
-    bar(c * 0.06, sn * 0.06, c * r1, sn * r1, 0.05, 0.034, 0);               // main spoke from the hub
-    for (const sgn of [-1, 1]) {
-      const a1 = a0 + sgn * 0.17;
-      bar(c * r1, sn * r1, Math.cos(a1) * (RIM - 0.012), Math.sin(a1) * (RIM - 0.012), 0.03, 0.022, -outer * 0.004);
+  if (isOff) {
+    // 6-spoke rugged beadlock off-road rim + 16 machined silver perimeter bolts
+    for (let i = 0; i < 6; i++) {
+      const a0 = (i / 6) * Math.PI * 2;
+      bar(Math.cos(a0) * 0.06, Math.sin(a0) * 0.06, Math.cos(a0) * (RIM - 0.012), Math.sin(a0) * (RIM - 0.012), 0.062, 0.048, 0);
+    }
+    const boltMat = mat(0xd2d6dc, 0.22, 0.96);
+    for (let i = 0; i < 16; i++) {
+      const ab = (i / 16) * Math.PI * 2;
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.007, 0.014, 6), boltMat);
+      b.rotation.z = Math.PI / 2;
+      b.position.set(outer * (W / 2 - 0.010), Math.cos(ab) * (RIM - 0.006), Math.sin(ab) * (RIM - 0.006));
+      spin.add(b);
+    }
+  } else if (isHeavy) {
+    // Heavy commercial steel disc wheel with 8 reinforced ventilation spokes & deep hub bell
+    const discFace = new THREE.Mesh(new THREE.CylinderGeometry(RIM - 0.008, RIM - 0.008, 0.022, 28), spokeMat);
+    discFace.rotation.z = Math.PI / 2;
+    discFace.position.x = faceX;
+    spin.add(discFace);
+    const slotMat = mat(0x0c0d10, 0.85, 0.2);
+    for (let i = 0; i < 8; i++) {
+      const a0 = (i / 8) * Math.PI * 2;
+      const sl = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.026, 10), slotMat);
+      sl.rotation.z = Math.PI / 2;
+      sl.position.set(faceX, Math.cos(a0) * (RIM * 0.64), Math.sin(a0) * (RIM * 0.64));
+      spin.add(sl);
+    }
+  } else if (isClassic) {
+    // Classic 5-spoke deep-dish heritage alloy
+    for (let i = 0; i < 5; i++) {
+      const a0 = (i / 5) * Math.PI * 2;
+      bar(Math.cos(a0) * 0.055, Math.sin(a0) * 0.055, Math.cos(a0) * (RIM - 0.012), Math.sin(a0) * (RIM - 0.012), 0.068, 0.044, 0);
+    }
+  } else if (isStreet) {
+    // Clean OEM twin-5-spoke machined alloy for everyday cars/SUVs/vans
+    for (let i = 0; i < 5; i++) {
+      const a0 = (i / 5) * Math.PI * 2;
+      for (const off of [-0.14, 0.14]) {
+        const a1 = a0 + off;
+        bar(Math.cos(a0) * 0.055, Math.sin(a0) * 0.055, Math.cos(a1) * (RIM - 0.010), Math.sin(a1) * (RIM - 0.010), 0.036, 0.026, 0);
+      }
+    }
+  } else {
+    // Forged motorsport 10-spoke split-Y wheel
+    for (let i = 0; i < 10; i++) {
+      const a0 = (i / 10) * Math.PI * 2;
+      const c = Math.cos(a0), sn = Math.sin(a0);
+      const r1 = RIM * 0.55;
+      bar(c * 0.06, sn * 0.06, c * r1, sn * r1, 0.05, 0.034, 0);
+      for (const sgn of [-1, 1]) {
+        const a1 = a0 + sgn * 0.17;
+        bar(c * r1, sn * r1, Math.cos(a1) * (RIM - 0.012), Math.sin(a1) * (RIM - 0.012), 0.03, 0.022, -outer * 0.004);
+      }
     }
   }
-  const lip = new THREE.Mesh(new THREE.TorusGeometry(RIM - 0.004, 0.011, 8, 48), mat(0x9a9ea5, 0.2, 0.98));
+  const lipColor = isOff ? 0x2c2e34 : isClassic ? 0xd8dce2 : isStreet ? 0xbec4ce : 0x9a9ea5;
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(RIM - 0.004, isOff ? 0.015 : 0.011, 8, 48), mat(lipColor, isOff ? 0.42 : 0.18, 0.96));
   lip.rotation.y = Math.PI / 2;
   lip.position.x = outer * (W / 2 - 0.012);
   spin.add(lip);
-  const hubC = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.075, 0.055, 24), mat(0x1b1c1f, 0.4, 0.85));
+  const hubC = new THREE.Mesh(new THREE.CylinderGeometry(isHeavy ? 0.088 : 0.07, isHeavy ? 0.095 : 0.075, isHeavy ? 0.09 : 0.055, 24), mat(isClassic || isStreet ? 0x3a3d42 : 0x1b1c1f, 0.4, 0.85));
   hubC.rotation.z = Math.PI / 2;
-  hubC.position.x = faceX;
+  hubC.position.x = faceX + (isHeavy ? outer * 0.02 : 0);
   spin.add(hubC);
   const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.06, 18), mat(0x2a2b2e, 0.3, 0.9));
   cap.rotation.z = Math.PI / 2;
   cap.position.x = faceX + outer * 0.003;
   spin.add(cap);
-  for (let i = 0; i < 5; i++) {                                              // lug nuts
-    const a2 = (i / 5) * Math.PI * 2;
+  const lugCount = isHeavy ? 8 : isOff ? 6 : 5;
+  for (let i = 0; i < lugCount; i++) {
+    const a2 = (i / lugCount) * Math.PI * 2;
     const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.02, 6), mat(0x9a9ea5, 0.3, 0.95));
     nut.rotation.z = Math.PI / 2;
-    nut.position.set(faceX + outer * 0.02, Math.cos(a2) * 0.048, Math.sin(a2) * 0.048);
+    nut.position.set(faceX + outer * 0.02, Math.cos(a2) * (isHeavy ? 0.062 : 0.048), Math.sin(a2) * (isHeavy ? 0.062 : 0.048));
     spin.add(nut);
   }
-  // brake disc: vented with cross-drilled holes, spins with the wheel; caliper stays on the knuckle
-  const DR = front ? 0.2 : 0.19;
+  // brake disc + archetype-matched caliper
+  const DR = (isOff || isHeavy ? 0.165 : isStreet || isClassic ? 0.175 : (front ? 0.2 : 0.19));
   const discMat = mat(0x8e9197, 0.34, 0.92, { emissive: 0xff3a00, emissiveIntensity: 0 });
   const disc = new THREE.Mesh(new THREE.CylinderGeometry(DR, DR, 0.032, 48), discMat);
   disc.rotation.z = Math.PI / 2;
@@ -154,21 +218,26 @@ export function wheel(front: boolean, left: boolean): { root: THREE.Group; steer
   hat.rotation.z = Math.PI / 2;
   hat.position.x = -outer * 0.045;
   spin.add(hat);
-  const holeM = new THREE.MeshBasicMaterial({ color: 0x0a0a0c });
-  for (let ring = 0; ring < 2; ring++) for (let i = 0; i < 24; i++) {
-    const a3 = (i / 24) * Math.PI * 2 + ring * 0.13;
-    const rr = DR * (0.62 + ring * 0.18);
-    const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.0065, 0.0065, 0.034, 8), holeM);
-    hole.rotation.z = Math.PI / 2;
-    hole.position.set(-outer * 0.06, Math.cos(a3) * rr, Math.sin(a3) * rr);
-    spin.add(hole);
+  if (style === 'forged') {
+    const holeM = new THREE.MeshBasicMaterial({ color: 0x0a0a0c });
+    for (let ring = 0; ring < 2; ring++) for (let i = 0; i < 24; i++) {
+      const a3 = (i / 24) * Math.PI * 2 + ring * 0.13;
+      const rr = DR * (0.62 + ring * 0.18);
+      const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.0065, 0.0065, 0.034, 8), holeM);
+      hole.rotation.z = Math.PI / 2;
+      hole.position.set(-outer * 0.06, Math.cos(a3) * rr, Math.sin(a3) * rr);
+      spin.add(hole);
+    }
   }
-  const cal = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.12, 0.27), mat(0xd49a2b, 0.32, 0.55));
-  cal.position.set(-outer * 0.06, 0.1, front ? 0.12 : -0.12);
+  const calColor = style === 'forged' ? 0xd49a2b : isOff ? 0xb82424 : isStreet ? 0x626770 : isClassic ? 0x45484f : 0x2c2e32;
+  const calTopColor = style === 'forged' ? 0xb88224 : isOff ? 0x901c1c : 0x3c3f45;
+  const calScale = isStreet || isClassic || isHeavy ? 0.72 : 1.0;
+  const cal = new THREE.Mesh(new THREE.BoxGeometry(0.075 * calScale, 0.12 * calScale, 0.25 * calScale), mat(calColor, 0.34, 0.55));
+  cal.position.set(-outer * 0.06, 0.09, front ? 0.11 : -0.11);
   cal.rotation.x = front ? 0.25 : -0.25;
   steer.add(cal);
-  const calTop = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.03, 0.23), mat(0xb88224, 0.4, 0.6));
-  calTop.position.set(-outer * 0.06, 0.17, front ? 0.12 : -0.12);
+  const calTop = new THREE.Mesh(new THREE.BoxGeometry(0.082 * calScale, 0.028 * calScale, 0.21 * calScale), mat(calTopColor, 0.4, 0.6));
+  calTop.position.set(-outer * 0.06, 0.15 * calScale + 0.02, front ? 0.11 : -0.11);
   steer.add(calTop);
   return { root, steer, spin, discMat };
 }

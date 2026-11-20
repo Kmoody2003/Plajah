@@ -19,10 +19,10 @@
   "finalSideIoU": 0.8513,
   "yawSymDeg": 0.25,
   "boundsM": {
-    "length": 4.74,
-    "width": 2.043,
-    "height": 1.398
+    "length": 4.741,
+    "width": 2.041,
+    "height": 1.396
   },
   "faces": 59999,
-  "elapsedSec": 7.9
+  "elapsedSec": 5.7
 }

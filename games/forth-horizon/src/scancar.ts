@@ -4,7 +4,7 @@
 // trim are built from the spec, and the doors, hood and trunk are real separate panels that open.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { wheel, type CarRig } from './car';
+import { wheel, type CarRig, type WheelStyle } from './car';
 import { batchStatic } from './carBatch';
 import { buildBodyGeometry } from './sovbody';
 import { buildDetailedEngine, type EngineArch } from './engineModels';
@@ -14,8 +14,8 @@ import corsairSpec from '../car/corsair/spec.json';
 import vanguardSpec from '../car/vanguard/spec.json';
 
 export interface ScanSpec {
-  id: string; glb: string; paint: string; accent?: string; body?: 'modelled'; cuts?: boolean;
-  wheels: { frontZ: number; rearZ: number; frontX: number; rearX: number; scale: number; discardR: number; centreY: number; tyreR: number; rimR: number };
+  id: string; glb: string; paint: string; accent?: string; body?: 'modelled'; cuts?: boolean; traffic?: boolean;
+  wheels: { frontZ: number; rearZ: number; frontX: number; rearX: number; scale: number; discardR: number; centreY: number; tyreR: number; rimR: number; style?: WheelStyle };
   panels: Record<string, { hinge: number[]; axis: number[]; open: number }>;
   panelBoxes?: { hood?: [number[], number[]]; trunk?: [number[], number[]]; roof?: [number[], number[]]; preserveRoof?: boolean; preserveHood?: boolean; preserveTrunk?: boolean };
   glass: { belt: number; roofEdge: number; pillarBase: number; pillarTop: number; doorFront: number; doorRear: number; windBase: number; windTop: number; rearTop: number; rearBase: number; rearBase2: number; sideWindow: number[][]; handle: number[]; windHalfW?: number; rearHalfW?: number };
@@ -34,7 +34,7 @@ export interface ScanSpec {
     head?: { x: number; y: number; w: number; h: number; tilt?: number; style?: 'swept' | 'u-drl' | 'blade' };
     tail?: { x: number; y: number; len: number; style?: 'twin-bar' | 'double-u' | 'full-blade' };
   };
-  shader?: { bumperFrontY?: number; bumperRearY?: number; skirtY?: number; archLipAdd?: number; wingCarbonZ?: number; wingCarbonY?: number };
+  shader?: { bumperFrontY?: number; bumperRearY?: number; skirtY?: number; archLipAdd?: number; wingCarbonZ?: number; wingCarbonY?: number; grilleLoY?: number; grilleHiY?: number; grilleStyle?: 'ev' | 'sport' | 'truck' };
 }
 
 const std = (color: number, rough = 0.6, metal = 0.5): THREE.MeshStandardMaterial => new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
@@ -792,40 +792,62 @@ function buildSuspension(spec: ScanSpec): THREE.Group {
   return g;
 }
 
-// smooth normals by shared position: the generated mesh is lumpy, and flat per-triangle normals make the clearcoat reflect blotchy
+// Class-A automotive smooth normals: area-weighted shared-vertex normals + 3-pass crease-preserving edge-adjacency fairing
+// (eliminates 7cm voxel stepping artifacts so clearcoat & skyline reflections glide cleanly across curved sheetmetal)
 function smoothNormals(geo: THREE.BufferGeometry): void {
   const pos = geo.attributes.position as THREE.BufferAttribute;
-  const acc = new Map<string, number[]>();
-  const key = (i: number): string => `${Math.round(pos.getX(i) * 2000)},${Math.round(pos.getY(i) * 2000)},${Math.round(pos.getZ(i) * 2000)}`;
+  const keyToId = new Map<string, number>();
+  const vertIds = new Int32Array(pos.count);
+  const acc: number[] = [];
+  let uniq = 0;
+  for (let i = 0; i < pos.count; i++) {
+    const k = `${Math.round(pos.getX(i) * 2000)},${Math.round(pos.getY(i) * 2000)},${Math.round(pos.getZ(i) * 2000)}`;
+    let id = keyToId.get(k);
+    if (id === undefined) { id = uniq++; keyToId.set(k, id); acc.push(0, 0, 0); }
+    vertIds[i] = id;
+  }
   const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+  const adj: number[][] = Array.from({ length: uniq }, () => []);
   for (let t = 0; t < pos.count; t += 3) {
     a.fromBufferAttribute(pos, t); b.fromBufferAttribute(pos, t + 1); c.fromBufferAttribute(pos, t + 2);
-    n.copy(b).sub(a).cross(c.clone().sub(a));            // area-weighted
-    for (let v = 0; v < 3; v++) {
-      const k = key(t + v);
-      const e = acc.get(k);
-      if (e) { e[0] += n.x; e[1] += n.y; e[2] += n.z; } else acc.set(k, [n.x, n.y, n.z]);
+    n.copy(b).sub(a).cross(c.clone().sub(a));
+    const i0 = vertIds[t], i1 = vertIds[t + 1], i2 = vertIds[t + 2];
+    acc[i0 * 3] += n.x; acc[i0 * 3 + 1] += n.y; acc[i0 * 3 + 2] += n.z;
+    acc[i1 * 3] += n.x; acc[i1 * 3 + 1] += n.y; acc[i1 * 3 + 2] += n.z;
+    acc[i2 * 3] += n.x; acc[i2 * 3 + 1] += n.y; acc[i2 * 3 + 2] += n.z;
+    adj[i0].push(i1, i2); adj[i1].push(i0, i2); adj[i2].push(i0, i1);
+  }
+  let cur = new Float32Array(uniq * 3);
+  for (let u = 0; u < uniq; u++) {
+    const x = acc[u * 3], y = acc[u * 3 + 1], z = acc[u * 3 + 2];
+    const l = Math.hypot(x, y, z) || 1;
+    cur[u * 3] = x / l; cur[u * 3 + 1] = y / l; cur[u * 3 + 2] = z / l;
+  }
+  // 4-pass crease-preserving Laplacian normal smoothing (preserves sharp >42 deg character lines, removes micro-dimples)
+  let nxt = new Float32Array(uniq * 3);
+  for (let pass = 0; pass < 4; pass++) {
+    for (let u = 0; u < uniq; u++) {
+      const nx = cur[u * 3], ny = cur[u * 3 + 1], nz = cur[u * 3 + 2];
+      let sx = nx * 1.4, sy = ny * 1.4, sz = nz * 1.4;
+      const nb = adj[u];
+      for (let k = 0; k < nb.length; k++) {
+        const v = nb[k];
+        const vx = cur[v * 3], vy = cur[v * 3 + 1], vz = cur[v * 3 + 2];
+        const d = nx * vx + ny * vy + nz * vz;
+        if (d > 0.72) {
+          const w = (d - 0.72) / 0.28;
+          sx += vx * w; sy += vy * w; sz += vz * w;
+        }
+      }
+      const l = Math.hypot(sx, sy, sz) || 1;
+      nxt[u * 3] = sx / l; nxt[u * 3 + 1] = sy / l; nxt[u * 3 + 2] = sz / l;
     }
+    const tmp = cur; cur = nxt; nxt = tmp;
   }
   const nm = new Float32Array(pos.count * 3);
   for (let i = 0; i < pos.count; i++) {
-    const e = acc.get(key(i))!;
-    n.set(e[0], e[1], e[2]).normalize();
-    nm[i * 3] = n.x; nm[i * 3 + 1] = n.y; nm[i * 3 + 2] = n.z;
-  }
-  // second, wider pass: average the normals inside 4 cm cells and blend, so the lumpy scan shell reflects as smoothly as the clean hood and roof skins
-  const coarse = new Map<string, number[]>();
-  const ck = (i: number): string => `${Math.round(pos.getX(i) * 14)},${Math.round(pos.getY(i) * 14)},${Math.round(pos.getZ(i) * 14)}`;
-  for (let i = 0; i < pos.count; i++) {
-    const k = ck(i), e = coarse.get(k);
-    if (e) { e[0] += nm[i * 3]; e[1] += nm[i * 3 + 1]; e[2] += nm[i * 3 + 2]; } else coarse.set(k, [nm[i * 3], nm[i * 3 + 1], nm[i * 3 + 2]]);
-  }
-  for (let i = 0; i < pos.count; i++) {
-    const e = coarse.get(ck(i))!;
-    n.set(e[0], e[1], e[2]).normalize();
-    const bx = nm[i * 3] * 0.2 + n.x * 0.8, by = nm[i * 3 + 1] * 0.2 + n.y * 0.8, bz = nm[i * 3 + 2] * 0.2 + n.z * 0.8;
-    const l = Math.hypot(bx, by, bz) || 1;
-    nm[i * 3] = bx / l; nm[i * 3 + 1] = by / l; nm[i * 3 + 2] = bz / l;
+    const u = vertIds[i];
+    nm[i * 3] = cur[u * 3]; nm[i * 3 + 1] = cur[u * 3 + 1]; nm[i * 3 + 2] = cur[u * 3 + 2];
   }
   geo.setAttribute('normal', new THREE.BufferAttribute(nm, 3));
 }
@@ -848,8 +870,12 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
   const noDisc = location.search.includes('nodisc');
 
   // paint is a live material the player can change: colour, metallic flake, finish (0 gloss, 1 satin, 2 matte, 3 chrome)
-  const uni = { uPaint: { value: new THREE.Vector3(paint.r, paint.g, paint.b) }, uFlake: { value: 0.42 }, uFinish: { value: 0 }, uPearl: { value: new THREE.Vector3(paint.r, paint.g, paint.b) }, uPearlAmt: { value: 0 } };
-  const mat = new THREE.MeshPhysicalMaterial({ metalness: 0.72, roughness: 0.20, clearcoat: 1, clearcoatRoughness: 0.032, envMapIntensity: 1.80, side: THREE.DoubleSide });
+  const uni = { uPaint: { value: new THREE.Vector3(paint.r, paint.g, paint.b) }, uFlake: { value: 0.44 }, uFinish: { value: 0 }, uPearl: { value: new THREE.Vector3(paint.r, paint.g, paint.b) }, uPearlAmt: { value: 0 } };
+  const mat = new THREE.MeshPhysicalMaterial({ metalness: 0.72, roughness: 0.19, clearcoat: 1, clearcoatRoughness: 0.025, envMapIntensity: 1.95, side: THREE.DoubleSide });
+  const grilleStyleNum = spec.shader?.grilleStyle === 'ev' ? 0 : spec.shader?.grilleStyle === 'truck' ? 2 : 1;
+  const gLoY = spec.shader?.grilleLoY ?? (grilleStyleNum === 2 ? 0.52 : 0.34);
+  const gHiY = spec.shader?.grilleHiY ?? (grilleStyleNum === 2 ? 1.02 : 0.60);
+  const hasPhysOpenings = cuts && spec.front.openings.length > 0 ? 1 : 0;
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uPaint = uni.uPaint; sh.uniforms.uFlake = uni.uFlake; sh.uniforms.uFinish = uni.uFinish; sh.uniforms.uPearl = uni.uPearl; sh.uniforms.uPearlAmt = uni.uPearlAmt;
     sh.uniforms.uOrg = { value: origin };
@@ -857,6 +883,8 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
     sh.uniforms.uWid = { value: bsz.x };
     sh.uniforms.uDisc = { value: noDisc ? 0 : 1 };
     sh.uniforms.uCut = { value: cuts ? 1 : 0 };
+    sh.uniforms.uHasOpen = { value: hasPhysOpenings };
+    sh.uniforms.uGrille = { value: new THREE.Vector4(gLoY, gHiY, grilleStyleNum === 2 ? 0.28 : 0.14, grilleStyleNum) };
     sh.uniforms.uSide = { value: Array.from({ length: 8 }, (_, i) => new THREE.Vector2(spec.glass.sideWindow[i % spec.glass.sideWindow.length][0], spec.glass.sideWindow[i % spec.glass.sideWindow.length][1])) };
     sh.uniforms.uGl = { value: new THREE.Vector4(spec.glass.windTop, spec.glass.windBase, spec.glass.rearBase2, spec.glass.rearTop) };
     sh.uniforms.uGlY = { value: new THREE.Vector4(spec.glass.belt - 0.04, spec.glass.belt + 0.04, spec.glass.windHalfW ?? 0.58, spec.glass.rearHalfW ?? 0.52) };
@@ -873,7 +901,7 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
     sh.uniforms.uPMax = { value: pmax };
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vObj;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvObj = position;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-      uniform float uFlake, uFinish, uPearlAmt, uCut, uHeadSlope; uniform vec3 uPearl; uniform vec2 uSide[8], uWingC; uniform vec4 uGl, uGlY, uTrim, uHeadL, uTailL;
+      uniform float uFlake, uFinish, uPearlAmt, uCut, uHasOpen, uHeadSlope; uniform vec3 uPearl; uniform vec2 uSide[8], uWingC; uniform vec4 uGl, uGlY, uTrim, uHeadL, uTailL, uGrille;
       bool inSide(vec2 p) { for (int i = 0; i < 8; i++) { int j = i == 7 ? 0 : i + 1; vec2 e = uSide[j] - uSide[i]; if (dot(vec2(e.y, -e.x), p - uSide[i]) > 0.0) return false; } return true; }
       float h31(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }
       uniform float uDisc, uLen, uWid; uniform vec3 uPaint, uOrg; uniform vec4 uWh; uniform vec2 uWr; uniform vec3 uPMin[4]; uniform vec3 uPMax[4]; varying vec3 vObj;
@@ -881,9 +909,7 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
       float hexEdge(vec2 p, float s) { p /= s; vec2 r = vec2(1.0, 1.7320508), h = r * 0.5; vec2 a = mod(p, r) - h, b = mod(p - h, r) - h; vec2 g = dot(a, a) < dot(b, b) ? a : b; return max(abs(g.x) * 0.866 + abs(g.y) * 0.5, abs(g.y)); }
       float sdBox(vec3 p, vec3 lo, vec3 hi) { vec3 c = (lo + hi) * 0.5, h = (hi - lo) * 0.5, q = abs(p - c) - h; return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0); }`)
     .replace('#include <map_fragment>', `
-      // the baked texture is only read to find the glass (dark) and the old wheel spokes; paint is always one solid colour
       vec4 bk = texture2D(map, vMapUv);
-      float lum = dot(bk.rgb, vec3(0.299, 0.587, 0.114));
       vec3 cp = vec3(vObj.x - uOrg.x, vObj.y - uOrg.y, vObj.z - uOrg.z);   // car frame: x across, y up, z along (nose +)
       float zN = cp.z / uLen, ax = abs(cp.x);
       float dw = min(length(vec2(cp.z - uWh.x, cp.y - uWh.z)), length(vec2(cp.z - uWh.y, cp.y - uWh.z)));
@@ -891,81 +917,89 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
       bool wheelZone = ax > uWid * 0.27 && dw < uWr.x;
       bool tyre = wheelZone && dw > uWr.y;
       bool rim = wheelZone && dw <= uWr.y;
-      bool cabin = cp.y > 0.86 && zN < 0.2 && zN > -0.32 && ax < uWid * 0.46;
-      // glass is the window openings, read from the source image (dark, with a wide blur so reflections do not punch holes); roof and pillars stay paint
-      float lumB = dot(textureLod(map, vMapUv, 3.0).rgb, vec3(0.299, 0.587, 0.114));
       bool glass = uCut < 0.5 && ((ax > 0.45 && inSide(vec2(cp.z, cp.y))) || (cp.z > uGl.x && cp.z < uGl.y && ax < uGlY.z - 0.08 + 0.13 * (cp.z - uGl.x) && cp.y > uGlY.x) || (cp.z > uGl.z && cp.z < uGl.w && ax < uGlY.w && cp.y > uGlY.y));
-      bool nose = zN > 0.40;
-      // the grille and intakes are real geometry now: the bumper is cut open here and the parts sit behind the cut
-      bool openG = nose && ax < 0.46 && cp.y > 0.37 && cp.y < 0.62;
-      bool openI = nose && ax > 0.10 && ax < 0.74 && cp.y > 0.14 && cp.y < 0.31;
-      bool grille = uCut < 0.5 && nose && ax < 0.46 && cp.y > 0.37 && cp.y < 0.62;
-      bool intake = uCut < 0.5 && nose && ax > 0.10 && ax < 0.74 && cp.y > 0.14 && cp.y < 0.31;
-      float slat = 0.5 + 0.5 * sin(cp.y * 90.0);
+      bool nose = zN > 0.42;
+      float gHalfW = uGrille.w > 1.5 ? uWid * 0.30 : uWid * 0.24;
+      bool grille = uHasOpen < 0.5 && uGrille.w > 0.5 && nose && ax < gHalfW && cp.y > uGrille.x && cp.y < uGrille.y;
+      bool intake = uHasOpen < 0.5 && nose && ax < uWid * 0.36 && cp.y > uGrille.z && cp.y < uGrille.x - 0.03;
       bool headL = nose && ax > uHeadL.x && ax < uHeadL.y && cp.y > uHeadL.z + (ax - uHeadL.x) * uHeadSlope && cp.y < uHeadL.w + (ax - uHeadL.x) * uHeadSlope;
       bool tailL = zN < -0.40 && ax >= uTailL.x && ax < uTailL.y && cp.y > uTailL.z && cp.y < uTailL.w;
-      // black trim: both bumpers, side skirts, arch lips, and optional baked carbon rear wing/ducktail
-      bool bumper = (zN > 0.43 && cp.y < uTrim.x) || (zN < -0.43 && cp.y < uTrim.y);
-      bool skirt = ax > 0.60 && cp.y < uTrim.z && abs(zN) < 0.30;
+      // black satin trim: lower bumpers, side skirts, arch lips, and optional baked carbon rear wing
+      bool bumper = (zN > 0.44 && cp.y < uTrim.x) || (zN < -0.44 && cp.y < uTrim.y);
+      bool skirt = ax > uWid * 0.32 && cp.y < uTrim.z && abs(zN) < 0.30;
       bool archLip = ax > uWid * 0.30 && dw < uWr.x + uTrim.w;
       bool carbonWing = cp.z < uWingC.x && cp.y > uWingC.y;
       float pLum = dot(uPaint, vec3(0.299, 0.587, 0.114));
-      vec3 col = uPaint; gBody = 1.0; gMetal = mix(0.72, 0.56, smoothstep(0.24, 0.68, pLum)); gRough = mix(0.20, 0.30, smoothstep(0.24, 0.68, pLum)); gLamp = vec3(0.0);
+      vec3 col = uPaint; gBody = 1.0; gMetal = mix(0.74, 0.54, smoothstep(0.22, 0.68, pLum)); gRough = mix(0.18, 0.28, smoothstep(0.22, 0.68, pLum)); gLamp = vec3(0.0);
+      // Physical contact ambient occlusion: grounds lower rockers, wheel wells, and downward overhangs
+      float aoGround = mix(0.46, 1.0, smoothstep(0.04, 0.34, cp.y));
+      float aoArch = mix(0.54, 1.0, smoothstep(uWr.x, uWr.x + 0.15, dw));
+      float aoUnder = mix(0.58, 1.0, smoothstep(-0.55, 0.12, normalize(vNormal).y));
+      float ao = aoGround * aoArch * aoUnder;
       {
-        float fl = h31(floor(cp * 950.0));
+        float fl = h31(floor(cp * 1100.0));
         float ndv = clamp(abs(dot(normalize(vNormal), normalize(vViewPosition))), 0.0, 1.0);
-        // Authentic two-tone automotive metallic paint flop: deep rich flanks at grazing angles, luminous highlight facing sky/camera
-        float flop = mix(0.66, 1.18, pow(ndv, 0.62));
+        // Photorealistic multi-stage automotive lacquer flop + grazing depth + subtle cool clearcoat highlight
+        float flop = mix(0.58, 1.18, pow(ndv, 0.58));
         col *= mix(1.0, flop, step(uFinish, 0.5));
+        col += vec3(0.015, 0.020, 0.030) * pow(1.0 - ndv, 3.2) * step(uFinish, 0.5);
         col = mix(col, uPearl, uPearlAmt * smoothstep(-0.8, 0.8, cp.x * sign(cp.z + 0.01) + cp.y * 0.4));
-        float aaF = 1.0 - smoothstep(0.35, 1.0, length(fwidth(cp)) * 950.0);
-        col *= 1.0 + uFlake * (fl - 0.5) * 0.85 * step(uFinish, 1.5) * aaF;
-        if (uFinish > 2.5) { gMetal = 1.0; gRough = 0.06; gBody = 0.0; }
-        else if (uFinish > 1.5) { gMetal = 0.15; gRough = 0.78; gBody = 0.0; }
-        else if (uFinish > 0.5) { gMetal = 0.48; gRough = 0.38; gBody = 0.40; }
+        float aaF = 1.0 - smoothstep(0.35, 1.0, length(fwidth(cp)) * 1100.0);
+        col *= 1.0 + uFlake * (fl - 0.5) * 0.82 * step(uFinish, 1.5) * aaF;
+        gRough = clamp(gRough + (fl - 0.5) * 0.07 * uFlake * step(uFinish, 1.5) * aaF, 0.08, 0.90);
+        if (uFinish > 2.5) { gMetal = 1.0; gRough = 0.05; gBody = 0.0; }
+        else if (uFinish > 1.5) { gMetal = 0.14; gRough = 0.78; gBody = 0.0; }
+        else if (uFinish > 0.5) { gMetal = 0.48; gRough = 0.36; gBody = 0.40; }
+        col *= mix(0.74, 1.0, ao);
       }
-      if (tyre) { col = vec3(0.018, 0.018, 0.02); gBody = 0.0; gMetal = 0.0; gRough = 0.88; }
-      else if (rim) { col = vec3(0.04); gBody = 0.0; gMetal = 1.0; gRough = 0.3; }
+      if (tyre) { col = vec3(0.016, 0.016, 0.018); gBody = 0.0; gMetal = 0.0; gRough = 0.88; }
+      else if (rim) { col = vec3(0.04); gBody = 0.0; gMetal = 1.0; gRough = 0.28; }
       else if (glass) {
-        // tinted glass: a very soft, blurred hint of the interior behind a clean dark tint, so no smeared bands cross the pillars and hood line
-        vec3 soft = textureLod(map, vMapUv, 5.0).rgb;
-        col = vec3(0.007, 0.009, 0.013) + soft * 0.05; gBody = 1.0; gMetal = 0.0; gRough = 0.02;
+        float ndvG = clamp(abs(dot(normalize(vNormal), normalize(vViewPosition))), 0.0, 1.0);
+        col = mix(vec3(0.03, 0.045, 0.065), vec3(0.005, 0.007, 0.011), pow(ndvG, 0.7));
+        gBody = 1.0; gMetal = 0.04; gRough = 0.018;
       }
       else if (headL) {
-        // dark glossy lamp housing, a thin DRL strip along the top edge and one projector lens
-        float hy = cp.y - (0.60 + (ax - 0.54) * 0.25);
-        float lit = max(smoothstep(0.012, 0.006, abs(hy - 0.085)), smoothstep(0.034, 0.026, length(vec2(ax - 0.66, hy - 0.045))));
-        col = vec3(0.012, 0.014, 0.018);                                         // the lamp assembly itself is real geometry now
-        gBody = 0.0; gMetal = 0.3; gRough = 0.12; gLamp = vec3(0.0);
+        col = vec3(0.010, 0.012, 0.016);
+        gBody = 0.25; gMetal = 0.35; gRough = 0.10; gLamp = vec3(0.0);
       }
-      else if (tailL) { col = vec3(0.02, 0.004, 0.004); gBody = 0.0; gMetal = 0.2; gRough = 0.12; gLamp = vec3(0.0); }
+      else if (tailL) { col = vec3(0.02, 0.004, 0.004); gBody = 0.25; gMetal = 0.2; gRough = 0.10; gLamp = vec3(0.0); }
       else if (grille || intake) {
-        // race-car openings: carbon-black frame, then wire honeycomb over a deep dark cavity (grille also gets horizontal bars)
-        float fe = grille ? min(min(0.50 - ax, cp.y - 0.34), 0.64 - cp.y) : min(min(0.78 - ax, cp.y - 0.12), 0.34 - cp.y);
-        float hd = hexEdge(vec2(cp.x, cp.y), 0.026);
-        float wire = smoothstep(0.36, 0.43, hd);                          // 1 on the wire, 0 in the hole
-        float depth = smoothstep(0.0, 0.10, fe);                          // cavity gets darker away from the frame
-        float bars = grille ? smoothstep(0.82, 0.95, 0.5 + 0.5 * sin(cp.y * 95.0)) : 0.0;
-        float divider = smoothstep(0.02, 0.012, abs(ax - 0.0)) * float(intake) + smoothstep(0.016, 0.01, abs(ax - 0.40)) * float(intake);
-        float frame = 1.0 - smoothstep(0.018, 0.03, fe);
-        vec3 holeC = vec3(0.004, 0.004, 0.005);
-        vec3 wireC = vec3(0.34, 0.35, 0.38) * (0.35 + 0.65 * (1.0 - depth * 0.7));
-        col = mix(holeC, wireC, max(wire * 0.85, bars * 0.7));
-        col = mix(col, vec3(0.03, 0.03, 0.034), max(frame, divider));
-        gBody = 0.0; gMetal = mix(0.1, 0.9, max(wire, bars) * (1.0 - frame)); gRough = mix(0.8, 0.32, max(wire, bars));
+        // Recessed automotive grille: satin frame + 3D hex honeycomb mesh / truck chrome slats over deep radiator cavity
+        float fe = grille
+          ? min(min(gHalfW - ax, cp.y - uGrille.x), uGrille.y - cp.y)
+          : min(min(uWid * 0.36 - ax, cp.y - uGrille.z), (uGrille.x - 0.03) - cp.y);
+        float hd = hexEdge(vec2(cp.x, cp.y), 0.024);
+        float wire = smoothstep(0.35, 0.43, hd);
+        float depth = smoothstep(0.0, 0.09, fe);
+        float barFreq = uGrille.w > 1.5 ? 62.0 : 95.0;
+        float bars = grille ? smoothstep(0.80, 0.94, 0.5 + 0.5 * sin(cp.y * barFreq)) : 0.0;
+        float frame = 1.0 - smoothstep(0.014, 0.026, fe);
+        vec3 holeC = vec3(0.003, 0.003, 0.004);
+        vec3 wireC = (uGrille.w > 1.5 ? vec3(0.46, 0.48, 0.52) : vec3(0.28, 0.30, 0.34)) * (0.32 + 0.68 * (1.0 - depth * 0.65));
+        col = mix(holeC, wireC, max(wire * 0.80, bars * (uGrille.w > 1.5 ? 0.92 : 0.65)));
+        vec3 frameC = uGrille.w > 1.5 ? vec3(0.22, 0.24, 0.27) : vec3(0.022, 0.024, 0.028);
+        col = mix(col, frameC, frame);
+        gBody = 0.0; gMetal = mix(0.12, 0.92, max(wire, bars) * (1.0 - frame)); gRough = mix(0.82, 0.26, max(wire, bars));
       }
-      else if (carbonWing) { col = vec3(0.020, 0.022, 0.026); gBody = 0.38; gMetal = 0.26; gRough = 0.32; }
-      else if (bumper || skirt || archLip) { col = vec3(0.016, 0.016, 0.018); gBody = 0.15; gMetal = 0.15; gRough = 0.5; }
+      else if (carbonWing) {
+        float cw = step(0.5, fract((cp.x + cp.z) * 55.0)) * 0.006;
+        col = vec3(0.018 + cw, 0.020 + cw, 0.024 + cw); gBody = 0.55; gMetal = 0.28; gRough = 0.28;
+      }
+      else if (bumper || skirt || archLip) {
+        float grain = (h31(floor(cp * 420.0)) - 0.5) * 0.008;
+        col = vec3(0.015 + grain, 0.016 + grain, 0.018 + grain) * mix(0.65, 1.0, ao);
+        gBody = 0.10; gMetal = 0.12; gRough = 0.62;
+      }
       else {
-        float sd = 9.0;                                                        // panel seams: dark gap where the surface crosses a panel boundary
+        float sd = 9.0;
         for (int i = 0; i < 4; i++) sd = min(sd, abs(sdBox(cp, uPMin[i], uPMax[i])));
-        // a real panel gap is a few millimetres: a hairline dark cut with a faint bevel highlight beside it
         float seam = 1.0 - smoothstep(0.0012, 0.0028, sd);
         float bevel = smoothstep(0.0028, 0.0045, sd) * (1.0 - smoothstep(0.0045, 0.009, sd));
-        col = mix(col, vec3(0.012), seam) * (1.0 + 0.16 * bevel); gBody *= 1.0 - seam; gRough = mix(gRough, 0.7, seam);
+        col = mix(col, vec3(0.010), seam) * (1.0 + 0.16 * bevel); gBody *= 1.0 - seam; gRough = mix(gRough, 0.72, seam);
       }
-      if (!gl_FrontFacing && zN > 0.30 && cp.y > 0.5) discard;                 // stray one-sided scan sheets around the nose
-      if (!gl_FrontFacing) { col *= 0.88; gLamp = vec3(0.0); }   // folds and inner faces of the scan read as inner painted panel, not black teeth
+      if (!gl_FrontFacing && zN > 0.30 && cp.y > 0.5) discard;
+      if (!gl_FrontFacing) { col *= 0.88; gLamp = vec3(0.0); }
       diffuseColor.rgb = col;
     `)
     .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = gRough;')
@@ -973,7 +1007,7 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
     .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += gLamp;')
     .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\nmaterial.clearcoat *= gBody;');
   };
-  mat.customProgramCacheKey = () => 'scan-car-v25';
+  mat.customProgramCacheKey = () => 'scan-car-v26';
 
   // ---- mesh surgery: cut the scan into separate real pieces with clean edges, gaps and thickness (see scanparts.ts) ----
   const g = new THREE.Group();
@@ -983,7 +1017,7 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
   root.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) meshes.push(m); });
   const GAP = 0.0015;
   const gl = spec.glass, fr = spec.front;
-  const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x06090d, roughness: 0.03, metalness: 0, transparent: true, opacity: 0.5, clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 2.4, side: THREE.DoubleSide });
+  const glassMat = new THREE.MeshPhysicalMaterial({ color: 0x05080d, roughness: 0.018, metalness: 0.02, ior: 1.52, reflectivity: 0.96, transparent: true, opacity: 0.68, clearcoat: 1, clearcoatRoughness: 0.01, envMapIntensity: 3.0, side: THREE.DoubleSide });
   const innerMat = new THREE.MeshStandardMaterial({ color: 0x2a2b2f, roughness: 0.65, metalness: 0.5, side: THREE.DoubleSide });
   const mk = (tris: Tri[], m: THREE.Material): THREE.Mesh => new THREE.Mesh(toGeometry(tris), m);
   // prism through a convex polygon in the front (x, y) plane, nose side only (z >= zLo)
@@ -1026,12 +1060,13 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
     b.push(s > 0 ? plane(-1, 0, -0.089, -0.5756, false) : plane(1, 0, -0.089, -0.5756, false));   // xMin falls from 0.58 to about 0.50 at the pillar base
     return [a, b];
   };
+  const glassTopY = gl.roofEdge + 0.12;
   const windGlass: Region = [
-    plane(0, 0, 1, gl.windBase, false), plane(0, 0, -1, -gl.windTop, false), plane(0, -1, 0, -windMinY, false), plane(0, 1, 0, 1.65, false),
+    plane(0, 0, 1, gl.windBase, false), plane(0, 0, -1, -gl.windTop, false), plane(0, -1, 0, -windMinY, false), plane(0, 1, 0, glassTopY, false),
     plane(1, 0, -0.13, windHW - 0.13 * gl.windTop, false), plane(-1, 0, -0.13, windHW - 0.13 * gl.windTop, false),
   ];
   const rearGlass: Region = [
-    plane(0, 0, 1, gl.rearTop, false), plane(0, 0, -1, -gl.rearBase2, false), plane(0, -1, 0, -rearMinY, false), plane(0, 1, 0, 1.65, false),
+    plane(0, 0, 1, gl.rearTop, false), plane(0, 0, -1, -gl.rearBase2, false), plane(0, -1, 0, -rearMinY, false), plane(0, 1, 0, glassTopY, false),
     plane(1, 0, 0, rearHW, false), plane(-1, 0, 0, rearHW, false),
   ];
   for (const m of meshes) {
@@ -1266,7 +1301,7 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
   const wl = [[true, true, W.frontX, W.frontZ], [true, false, -W.frontX, W.frontZ], [false, true, W.rearX, W.rearZ], [false, false, -W.rearX, W.rearZ]] as [boolean, boolean, number, number][];
   const WH: { spin: THREE.Group; steer: THREE.Group; discMat: THREE.MeshPhysicalMaterial; front: boolean; left: boolean }[] = [];
   for (const [front, left, x, z] of wl) {
-    const w = wheel(front, left);
+    const w = wheel(front, left, W.style);
     w.root.position.set(origin.x + x, origin.y + (front ? 0.352 : 0.358) * W.scale, origin.z + z);
     w.root.scale.setScalar(W.scale);
     if (!noDisc) g.add(w.root);
@@ -1345,6 +1380,11 @@ const CIRCUIT_OPP_CANDIDATES = [
 
 /** Built high-performance scan cars automatically used as AI race opponents on street circuits */
 export const RACE_OPPONENT_SCAN_IDS: string[] = CIRCUIT_OPP_CANDIDATES.filter((id) => id in SCAN_SPECS);
+
+/** Built everyday street & commercial scan vehicles automatically spawned in Ironport free-roam traffic */
+export const TRAFFIC_SCAN_IDS: string[] = Object.entries(SCAN_SPECS)
+  .filter(([id, spec]) => id !== 'sovereign' && spec.traffic === true)
+  .map(([id]) => id);
 
 export function hasScanCar(id: string): boolean {
   return id in SCAN_SPECS;
@@ -1498,7 +1538,10 @@ export async function loadScanOpponentCar(id: string, paintHex: number | string)
   const mapTex = bakedMap ?? (() => { const d = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); d.needsUpdate = true; return d; })();
   const pmin = [new THREE.Vector3(9, 9, 9), new THREE.Vector3(9, 9, 9), new THREE.Vector3(9, 9, 9), new THREE.Vector3(9, 9, 9)];
   const pmax = [new THREE.Vector3(9, 9, 9), new THREE.Vector3(9, 9, 9), new THREE.Vector3(9, 9, 9), new THREE.Vector3(9, 9, 9)];
-  const mat = new THREE.MeshPhysicalMaterial({ map: mapTex, metalness: 0.72, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.035, envMapIntensity: 1.65, side: THREE.DoubleSide });
+  const mat = new THREE.MeshPhysicalMaterial({ map: mapTex, metalness: 0.72, roughness: 0.20, clearcoat: 1, clearcoatRoughness: 0.028, envMapIntensity: 1.85, side: THREE.DoubleSide });
+  const grilleStyleNum = spec.shader?.grilleStyle === 'ev' ? 0 : spec.shader?.grilleStyle === 'truck' ? 2 : 1;
+  const gLoY = spec.shader?.grilleLoY ?? (grilleStyleNum === 2 ? 0.52 : 0.34);
+  const gHiY = spec.shader?.grilleHiY ?? (grilleStyleNum === 2 ? 1.02 : 0.60);
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uPaint = { value: new THREE.Vector3(paint.r, paint.g, paint.b) };
     sh.uniforms.uFlake = { value: 0.36 };
@@ -1510,6 +1553,7 @@ export async function loadScanOpponentCar(id: string, paintHex: number | string)
     sh.uniforms.uWid = { value: bsz.x };
     sh.uniforms.uDisc = { value: 1 };
     sh.uniforms.uCut = { value: 0 }; // shader renders crisp smoked jet-black glass + honeycomb grille + carbon trim in one pass!
+    sh.uniforms.uGrille = { value: new THREE.Vector4(gLoY, gHiY, grilleStyleNum === 2 ? 0.28 : 0.14, grilleStyleNum) };
     sh.uniforms.uSide = { value: Array.from({ length: 8 }, (_, i) => new THREE.Vector2(spec.glass.sideWindow[i % spec.glass.sideWindow.length][0], spec.glass.sideWindow[i % spec.glass.sideWindow.length][1])) };
     sh.uniforms.uGl = { value: new THREE.Vector4(spec.glass.windTop, spec.glass.windBase, spec.glass.rearBase2, spec.glass.rearTop) };
     sh.uniforms.uGlY = { value: new THREE.Vector4(spec.glass.belt - 0.05, spec.glass.belt - 0.01, (spec.glass.windHalfW ?? 0.58) + 0.04, (spec.glass.rearHalfW ?? 0.52) + 0.05) };
@@ -1525,7 +1569,7 @@ export async function loadScanOpponentCar(id: string, paintHex: number | string)
     sh.uniforms.uPMax = { value: pmax };
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vObj;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvObj = position;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-      uniform float uFlake, uFinish, uPearlAmt, uCut, uHeadSlope; uniform vec3 uPearl; uniform vec2 uSide[8], uWingC; uniform vec4 uGl, uGlY, uTrim, uHeadL, uTailL;
+      uniform float uFlake, uFinish, uPearlAmt, uCut, uHeadSlope; uniform vec3 uPearl; uniform vec2 uSide[8], uWingC; uniform vec4 uGl, uGlY, uTrim, uHeadL, uTailL, uGrille;
       bool inSide(vec2 p) { for (int i = 0; i < 8; i++) { int j = i == 7 ? 0 : i + 1; vec2 e = uSide[j] - uSide[i]; if (dot(vec2(e.y, -e.x), p - uSide[i]) > 0.0) return false; } return true; }
       float h31(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }
       uniform float uDisc, uLen, uWid; uniform vec3 uPaint, uOrg; uniform vec4 uWh; uniform vec2 uWr; uniform vec3 uPMin[4]; uniform vec3 uPMax[4]; varying vec3 vObj;
@@ -1542,29 +1586,44 @@ export async function loadScanOpponentCar(id: string, paintHex: number | string)
       bool tyre = wheelZone && dw > uWr.y;
       bool rim = wheelZone && dw <= uWr.y;
       bool glass = uCut < 0.5 && ((ax > 0.45 && inSide(vec2(cp.z, cp.y))) || (cp.z > uGl.x && cp.z < uGl.y && ax < uGlY.z - 0.08 + 0.13 * (cp.z - uGl.x) && cp.y > uGlY.x) || (cp.z > uGl.z && cp.z < uGl.w && ax < uGlY.w && cp.y > uGlY.y));
-      bool nose = zN > 0.40;
-      bool grille = uCut < 0.5 && nose && ax < 0.46 && cp.y > 0.37 && cp.y < 0.62;
-      bool intake = uCut < 0.5 && nose && ax > 0.10 && ax < 0.74 && cp.y > 0.14 && cp.y < 0.31;
+      bool nose = zN > 0.42;
+      float gHalfW = uGrille.w > 1.5 ? uWid * 0.30 : uWid * 0.24;
+      bool grille = uGrille.w > 0.5 && nose && ax < gHalfW && cp.y > uGrille.x && cp.y < uGrille.y;
+      bool intake = nose && ax < uWid * 0.36 && cp.y > uGrille.z && cp.y < uGrille.x - 0.03;
       bool headL = nose && ax > uHeadL.x && ax < uHeadL.y && cp.y > uHeadL.z + (ax - uHeadL.x) * uHeadSlope && cp.y < uHeadL.w + (ax - uHeadL.x) * uHeadSlope;
       bool tailL = zN < -0.40 && ax >= uTailL.x && ax < uTailL.y && cp.y > uTailL.z && cp.y < uTailL.w;
-      bool bumper = (zN > 0.43 && cp.y < uTrim.x) || (zN < -0.43 && cp.y < uTrim.y);
-      bool skirt = ax > 0.60 && cp.y < uTrim.z && abs(zN) < 0.30;
+      bool bumper = (zN > 0.44 && cp.y < uTrim.x) || (zN < -0.44 && cp.y < uTrim.y);
+      bool skirt = ax > uWid * 0.32 && cp.y < uTrim.z && abs(zN) < 0.30;
       bool archLip = ax > uWid * 0.30 && dw < uWr.x + uTrim.w;
       bool carbonWing = cp.z < uWingC.x && cp.y > uWingC.y;
       float pLum = dot(uPaint, vec3(0.299, 0.587, 0.114));
-      vec3 col = uPaint; gBody = 1.0; gMetal = mix(0.72, 0.56, smoothstep(0.24, 0.68, pLum)); gRough = mix(0.20, 0.30, smoothstep(0.24, 0.68, pLum)); gLamp = vec3(0.0);
+      vec3 col = uPaint; gBody = 1.0; gMetal = mix(0.74, 0.54, smoothstep(0.22, 0.68, pLum)); gRough = mix(0.18, 0.28, smoothstep(0.22, 0.68, pLum)); gLamp = vec3(0.0);
+      float aoGround = mix(0.46, 1.0, smoothstep(0.04, 0.34, cp.y));
+      float aoArch = mix(0.54, 1.0, smoothstep(uWr.x, uWr.x + 0.15, dw));
+      float aoUnder = mix(0.58, 1.0, smoothstep(-0.55, 0.12, normalize(vNormal).y));
+      float ao = aoGround * aoArch * aoUnder;
       {
         float ndv = clamp(abs(dot(normalize(vNormal), normalize(vViewPosition))), 0.0, 1.0);
-        col *= mix(0.68, 1.16, pow(ndv, 0.62));
+        col *= mix(0.60, 1.16, pow(ndv, 0.58)) * mix(0.74, 1.0, ao);
       }
-      if (tyre) { col = vec3(0.018, 0.018, 0.02); gBody = 0.0; gMetal = 0.0; gRough = 0.88; }
-      else if (rim) { col = vec3(0.04); gBody = 0.0; gMetal = 1.0; gRough = 0.3; }
-      else if (glass) { col = vec3(0.004, 0.006, 0.010); gBody = 0.48; gMetal = 0.04; gRough = 0.065; }
-      else if (headL) { col = vec3(0.012, 0.014, 0.018); gBody = 0.0; gMetal = 0.3; gRough = 0.12; }
-      else if (tailL) { col = vec3(0.02, 0.004, 0.004); gBody = 0.0; gMetal = 0.2; gRough = 0.12; }
-      else if (grille || intake) { col = vec3(0.02, 0.022, 0.025); gBody = 0.0; gMetal = 0.35; gRough = 0.6; }
-      else if (carbonWing) { col = vec3(0.020, 0.022, 0.026); gBody = 0.38; gMetal = 0.26; gRough = 0.32; }
-      else if (bumper || skirt || archLip) { col = vec3(0.016, 0.016, 0.018); gBody = 0.15; gMetal = 0.15; gRough = 0.5; }
+      if (tyre) { col = vec3(0.016, 0.016, 0.018); gBody = 0.0; gMetal = 0.0; gRough = 0.88; }
+      else if (rim) { col = vec3(0.04); gBody = 0.0; gMetal = 1.0; gRough = 0.28; }
+      else if (glass) {
+        float ndvG = clamp(abs(dot(normalize(vNormal), normalize(vViewPosition))), 0.0, 1.0);
+        col = mix(vec3(0.032, 0.046, 0.068), vec3(0.004, 0.006, 0.010), pow(ndvG, 0.68));
+        gBody = 0.92; gMetal = 0.04; gRough = 0.025;
+      }
+      else if (headL) { col = vec3(0.010, 0.012, 0.016); gBody = 0.25; gMetal = 0.35; gRough = 0.10; }
+      else if (tailL) { col = vec3(0.02, 0.004, 0.004); gBody = 0.25; gMetal = 0.2; gRough = 0.10; }
+      else if (grille || intake) {
+        float hd = hexEdge(vec2(cp.x, cp.y), 0.026);
+        float wire = smoothstep(0.35, 0.44, hd);
+        float bars = grille ? smoothstep(0.80, 0.94, 0.5 + 0.5 * sin(cp.y * (uGrille.w > 1.5 ? 62.0 : 95.0))) : 0.0;
+        col = mix(vec3(0.004, 0.004, 0.005), uGrille.w > 1.5 ? vec3(0.36, 0.38, 0.42) : vec3(0.18, 0.20, 0.23), max(wire * 0.72, bars * 0.78));
+        gBody = 0.0; gMetal = 0.68; gRough = 0.38;
+      }
+      else if (carbonWing) { col = vec3(0.020, 0.022, 0.026); gBody = 0.52; gMetal = 0.28; gRough = 0.28; }
+      else if (bumper || skirt || archLip) { col = vec3(0.015, 0.016, 0.018) * mix(0.65, 1.0, ao); gBody = 0.10; gMetal = 0.12; gRough = 0.62; }
       if (!gl_FrontFacing && zN > 0.30 && cp.y > 0.5) discard;
       diffuseColor.rgb = col;
     `)
@@ -1573,7 +1632,7 @@ export async function loadScanOpponentCar(id: string, paintHex: number | string)
     .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += gLamp;')
     .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\nmaterial.clearcoat *= gBody;');
   };
-  mat.customProgramCacheKey = () => 'scan-car-opp-v2';
+  mat.customProgramCacheKey = () => 'scan-car-opp-v3';
 
   const g = new THREE.Group();
   for (const geo of bodyGeos) {

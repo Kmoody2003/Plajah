@@ -6,24 +6,25 @@
   "accent": "0x24d8ff",
   "cuts": true,
   "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
-  "measuredFrom": "Multi-view matched 60k-face Hunyuan3D shell (aurelia_base.glb, L=4.62m W=2.04m H=1.33m).",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (aurelia_base.glb, L=4.62m W=2.02m H=1.33m).",
   "wheels": {
-    "frontZ": 1.238,
-    "rearZ": -1.576,
-    "frontX": 0.846,
-    "rearX": 0.843,
-    "scale": 1.008,
-    "discardR": 0.372,
-    "centreY": 0.358,
-    "tyreR": 0.358,
-    "rimR": 0.25
+    "frontZ": 1.239,
+    "rearZ": -1.569,
+    "frontX": 0.845,
+    "rearX": 0.833,
+    "scale": 1.004,
+    "discardR": 0.371,
+    "centreY": 0.357,
+    "tyreR": 0.357,
+    "rimR": 0.249,
+    "style": "forged"
   },
   "panels": {
     "doorL": {
       "hinge": [
-        0.919,
+        0.91,
         0.0,
-        0.82
+        0.822
       ],
       "axis": [
         0,
@@ -34,9 +35,9 @@
     },
     "doorR": {
       "hinge": [
-        -0.919,
+        -0.91,
         0.0,
-        0.82
+        0.822
       ],
       "axis": [
         0,
@@ -49,37 +50,37 @@
   "panelBoxes": {
     "hood": [
       [
-        -0.674,
-        0.806,
+        -0.667,
+        0.802,
         0.917
       ],
       [
-        0.674,
-        1.286,
+        0.667,
+        1.282,
         2.131
       ]
     ],
     "trunk": [
       [
-        -0.592,
-        0.906,
+        -0.586,
+        0.902,
         -2.171
       ],
       [
-        0.592,
-        1.266,
-        -2.054
+        0.586,
+        1.262,
+        -2.053
       ]
     ],
     "roof": [
       [
         -0.44,
-        1.169,
+        1.165,
         -1.479
       ],
       [
         0.44,
-        1.45,
+        1.446,
         0.496
       ]
     ],
@@ -88,56 +89,56 @@
     "preserveRoof": true
   },
   "glass": {
-    "belt": 1.046,
-    "roofEdge": 1.289,
+    "belt": 1.042,
+    "roofEdge": 1.285,
     "pillarBase": 0.877,
     "pillarTop": 0.496,
-    "doorFront": 0.82,
-    "doorRear": -1.158,
+    "doorFront": 0.822,
+    "doorRear": -1.152,
     "windBase": 0.877,
     "windTop": 0.496,
     "rearTop": -1.479,
-    "rearBase": -2.034,
-    "rearBase2": -2.004,
+    "rearBase": -2.033,
+    "rearBase2": -2.003,
     "windHalfW": 0.44,
-    "rearHalfW": 0.715,
+    "rearHalfW": 0.707,
     "sideWindow": [
       [
-        -1.098,
-        1.076
+        -1.092,
+        1.072
       ],
       [
-        0.76,
-        1.066
+        0.762,
+        1.062
       ],
       [
-        0.72,
-        1.133
+        0.722,
+        1.129
       ],
       [
-        0.658,
-        1.221
+        0.659,
+        1.217
       ],
       [
         0.496,
-        1.269
+        1.265
       ],
       [
         -1.419,
-        1.269
+        1.265
       ],
       [
         -1.639,
-        1.197
+        1.193
       ],
       [
-        -1.198,
-        1.106
+        -1.192,
+        1.102
       ]
     ],
     "handle": [
-      -0.349,
-      0.906
+      -0.345,
+      0.902
     ]
   },
   "front": {
@@ -151,10 +152,10 @@
   },
   "trunk": false,
   "cabin": {
-    "yOffset": -0.05,
+    "yOffset": -0.054,
     "zOffset": -0.246,
     "cowlZ": 0.827,
-    "cowlY": 1.046
+    "cowlY": 1.042
   },
   "exhaust": {
     "z": -2.145,
@@ -183,17 +184,17 @@
   },
   "lamps": {
     "head": {
-      "x": 0.551,
-      "y": 0.548,
-      "w": 0.286,
+      "x": 0.546,
+      "y": 0.546,
+      "w": 0.283,
       "h": 0.075,
       "tilt": 0.025,
       "style": "u-drl"
     },
     "tail": {
-      "x": 0.531,
-      "y": 0.674,
-      "len": 0.286,
+      "x": 0.526,
+      "y": 0.671,
+      "len": 0.283,
       "style": "full-blade"
     }
   },
@@ -203,6 +204,9 @@
     "skirtY": 0.2,
     "archLipAdd": 0.045,
     "wingCarbonZ": -9.0,
-    "wingCarbonY": 9.0
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.306,
+    "grilleHiY": 0.586,
+    "grilleStyle": "sport"
   }
 }

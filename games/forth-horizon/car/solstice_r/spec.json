@@ -6,24 +6,25 @@
   "accent": "0x00e5ff",
   "cuts": true,
   "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
-  "measuredFrom": "Multi-view matched 60k-face Hunyuan3D shell (solstice_r_base.glb, L=4.74m W=2.04m H=1.40m).",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (solstice_r_base.glb, L=4.74m W=2.04m H=1.40m).",
   "wheels": {
-    "frontZ": 1.398,
-    "rearZ": -1.506,
+    "frontZ": 1.402,
+    "rearZ": -1.508,
     "frontX": 0.771,
     "rearX": 0.761,
-    "scale": 1.059,
-    "discardR": 0.391,
-    "centreY": 0.376,
-    "tyreR": 0.376,
-    "rimR": 0.263
+    "scale": 1.057,
+    "discardR": 0.39,
+    "centreY": 0.375,
+    "tyreR": 0.375,
+    "rimR": 0.262,
+    "style": "forged"
   },
   "panels": {
     "doorL": {
       "hinge": [
-        0.919,
+        0.918,
         0.0,
-        0.962
+        0.967
       ],
       "axis": [
         0,
@@ -34,9 +35,9 @@
     },
     "doorR": {
       "hinge": [
-        -0.919,
+        -0.918,
         0.0,
-        0.962
+        0.967
       ],
       "axis": [
         0,
@@ -48,7 +49,7 @@
     "hood": {
       "hinge": [
         0.0,
-        1.023,
+        1.021,
         0.999
       ],
       "axis": [
@@ -61,7 +62,7 @@
     "trunk": {
       "hinge": [
         0.0,
-        1.043,
+        1.041,
         -2.086
       ],
       "axis": [
@@ -76,36 +77,36 @@
     "hood": [
       [
         -0.674,
-        0.783,
+        0.781,
         1.019
       ],
       [
         0.674,
-        1.263,
+        1.261,
         2.19
       ]
     ],
     "trunk": [
       [
         -0.592,
-        0.883,
+        0.881,
         -2.23
       ],
       [
         0.592,
-        1.243,
+        1.241,
         -2.106
       ]
     ],
     "roof": [
       [
-        -0.727,
-        1.237,
+        -0.702,
+        1.234,
         -0.901
       ],
       [
-        0.727,
-        1.518,
+        0.702,
+        1.516,
         0.509
       ]
     ],
@@ -114,56 +115,56 @@
     "preserveRoof": true
   },
   "glass": {
-    "belt": 1.023,
-    "roofEdge": 1.357,
+    "belt": 1.021,
+    "roofEdge": 1.354,
     "pillarBase": 0.979,
     "pillarTop": 0.509,
-    "doorFront": 0.962,
+    "doorFront": 0.967,
     "doorRear": -0.961,
     "windBase": 0.979,
     "windTop": 0.509,
     "rearTop": -0.901,
     "rearBase": -2.086,
     "rearBase2": -2.056,
-    "windHalfW": 0.727,
+    "windHalfW": 0.702,
     "rearHalfW": 0.4,
     "sideWindow": [
       [
         -0.901,
-        1.053
+        1.051
       ],
       [
-        0.902,
-        1.043
+        0.907,
+        1.041
       ],
       [
-        0.862,
-        1.143
+        0.867,
+        1.141
       ],
       [
-        0.736,
-        1.263
+        0.738,
+        1.261
       ],
       [
         0.509,
-        1.337
+        1.334
       ],
       [
         -0.841,
-        1.337
+        1.334
       ],
       [
         -1.061,
-        1.23
+        1.227
       ],
       [
         -1.001,
-        1.083
+        1.081
       ]
     ],
     "handle": [
-      -0.179,
-      0.883
+      -0.177,
+      0.881
     ]
   },
   "front": {
@@ -177,18 +178,18 @@
   },
   "trunk": true,
   "cabin": {
-    "yOffset": 0.018,
+    "yOffset": 0.016,
     "zOffset": -0.098,
     "cowlZ": 0.929,
-    "cowlY": 1.023
+    "cowlY": 1.021
   },
   "exhaust": {
-    "z": -2.226,
+    "z": -2.227,
     "y": 0.22,
     "xs": []
   },
   "aero": {
-    "splitterZ": 2.358,
+    "splitterZ": 2.357,
     "splitterW": 0,
     "splitterY": 0.11,
     "splitterStruts": false,
@@ -204,8 +205,8 @@
   },
   "lamps": {
     "head": {
-      "x": 0.552,
-      "y": 0.527,
+      "x": 0.551,
+      "y": 0.525,
       "w": 0.286,
       "h": 0.075,
       "tilt": 0.025,
@@ -213,7 +214,7 @@
     },
     "tail": {
       "x": 0.531,
-      "y": 0.61,
+      "y": 0.608,
       "len": 0.286,
       "style": "full-blade"
     }
@@ -224,6 +225,9 @@
     "skirtY": 0.2,
     "archLipAdd": 0.045,
     "wingCarbonZ": -9.0,
-    "wingCarbonY": 9.0
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.285,
+    "grilleHiY": 0.565,
+    "grilleStyle": "ev"
   }
 }
