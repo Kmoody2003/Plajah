@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { makeSovereign } from './car';
-import { loadSovereignScan } from './scancar';
+import { loadScanCarById, SCAN_SPECS } from './scancar';
 
 const view = document.getElementById('view') as HTMLElement;
 const scoreEl = document.getElementById('score') as HTMLElement;
@@ -151,29 +151,38 @@ document.getElementById('score-btn')!.addEventListener('click', async () => { sc
 (window as any).carRig = rig;
 let scanGroup: THREE.Group | null = null;
 let scanRig: import('./car').CarRig | null = null;
-async function useScan(on: boolean): Promise<void> {
+let scanCarId = new URLSearchParams(location.search).get('car') ?? 'kestrel';
+async function useScan(on: boolean, carId?: string): Promise<void> {
+  if (carId && carId !== scanCarId) {
+    scanCarId = carId;
+    if (scanGroup) { scene.remove(scanGroup); scanGroup = null; scanRig = null; }
+  }
   if (on && !scanGroup) {
-    const r = await loadSovereignScan(); scanRig = r; (window as any).scanRig = r; scanGroup = r.group; scene.add(scanGroup);
+    const r = await loadScanCarById(scanCarId); scanRig = r; (window as any).scanRig = r; scanGroup = r.group; scene.add(scanGroup);
+    const spec = SCAN_SPECS[scanCarId] ?? SCAN_SPECS.kestrel;
+    const titleEl = document.querySelector('h1, .title, #hud strong, #hud div') as HTMLElement | null;
+    if (titleEl && titleEl.textContent?.toUpperCase().includes('SOVEREIGN')) titleEl.textContent = (spec as { name?: string }).name?.toUpperCase() ?? scanCarId.toUpperCase();
     const bar = document.querySelector('button[data-v]')!.parentElement!;
-    if (r.paint) {
-      const col = document.createElement('input'); col.type = 'color'; col.value = '#b9531a'; col.title = 'paint colour';
-      col.oninput = () => r.paint!.set({ color: parseInt(col.value.slice(1), 16) });
+    if (r.paint && !bar.querySelector('input[type="color"]')) {
+      const col = document.createElement('input'); col.type = 'color'; col.value = '#' + Number(spec.paint).toString(16).padStart(6, '0'); col.title = 'paint colour';
+      col.oninput = () => scanRig?.paint?.set({ color: parseInt(col.value.slice(1), 16) });
       const fin = document.createElement('select');
       ['gloss', 'satin', 'matte', 'chrome'].forEach((n, i) => { const o = document.createElement('option'); o.value = String(i); o.textContent = n; fin.appendChild(o); });
-      fin.onchange = () => r.paint!.set({ finish: Number(fin.value) });
+      fin.onchange = () => scanRig?.paint?.set({ finish: Number(fin.value) });
       const fl = document.createElement('input'); fl.type = 'range'; fl.min = '0'; fl.max = '1'; fl.step = '0.05'; fl.value = '0.35'; fl.title = 'metallic flake';
-      fl.oninput = () => r.paint!.set({ flake: Number(fl.value) });
+      fl.oninput = () => scanRig?.paint?.set({ flake: Number(fl.value) });
       bar.append(col, fin, fl);
     }
+    bar.querySelectorAll('button[data-scan-panel]').forEach((b) => b.remove());
     for (const k of r.panels?.names ?? []) {
-      const b = document.createElement('button'); b.textContent = k; b.onclick = () => r.panels!.toggle(k); bar.appendChild(b);
+      const b = document.createElement('button'); b.dataset.scanPanel = k; b.textContent = k; b.onclick = () => r.panels!.toggle(k); bar.appendChild(b);
     }
   }
   if (scanGroup) scanGroup.visible = on;
   rig.group.visible = !on;
 }
 (window as any).useScan = useScan;
-if (new URLSearchParams(location.search).get('scan')) useScan(true);
+if (new URLSearchParams(location.search).get('scan') || new URLSearchParams(location.search).get('car')) useScan(true);
 
 addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 let last = performance.now(), t = 0;

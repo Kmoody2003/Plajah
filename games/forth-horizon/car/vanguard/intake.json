@@ -1,0 +1,73 @@
+{
+  "id": "vanguard",
+  "status": "built (GT-R standard: 60k Hunyuan3D frame0 shell + Taubin smooth + spec.json + live scancar assembly verified)",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Vanguard_Apex_GT_turntable_showcase_77117b32.mp4",
+  "assembly": "Claude Sovereign workflow: fresh cleaned frame to Hunyuan shell, then measured scan surgery and real parts",
+  "sourceShell": "C:\\Users\\Kenne\\plajah\\games\\forth-horizon\\car\\vanguard\\hunyuan_f0.glb",
+  "frames": [
+    {
+      "index": 0,
+      "sourceFrame": 0,
+      "file": "frame0.png"
+    },
+    {
+      "index": 1,
+      "sourceFrame": 45,
+      "file": "frame1.png"
+    },
+    {
+      "index": 2,
+      "sourceFrame": 90,
+      "file": "frame2.png"
+    },
+    {
+      "index": 3,
+      "sourceFrame": 135,
+      "file": "frame3.png"
+    },
+    {
+      "index": 4,
+      "sourceFrame": 180,
+      "file": "frame4.png"
+    },
+    {
+      "index": 5,
+      "sourceFrame": 224,
+      "file": "frame5.png"
+    },
+    {
+      "index": 6,
+      "sourceFrame": 269,
+      "file": "frame6.png"
+    },
+    {
+      "index": 7,
+      "sourceFrame": 314,
+      "file": "frame7.png"
+    }
+  ],
+  "cutouts": false,
+  "fit": {
+    "noseAxis": null,
+    "lengthMetres": null,
+    "wheels": null,
+    "panelPlanes": null,
+    "lampSurfaceHits": null
+  },
+  "review": {
+    "side": null,
+    "front": null,
+    "rear": null,
+    "top": null,
+    "requiredSilhouette": 0.95
+  },
+  "next": [
+    "Check turntable identity and nose axis",
+    "Measure this shell against side/front/rear/top views",
+    "Orient and scale shell",
+    "Measure wheel centres; do not copy GT-R positions",
+    "Cut hinged panels and glass from this shell",
+    "Ray-cast lamp hardware",
+    "Review all views"
+  ]
+}

@@ -1,5 +1,6 @@
 // Turns an owned car (stock car + fitted parts + tune) into the physics spec the game drives with, and into the numbers the garage shows.
 import type { CarSpec } from '../manufacturers';
+import { resolveUpgradedSoundBank } from '../engineAudio';
 import { CAR_BY_ID, classFor, classLabel, stockSpec, type ClassLetter } from './catalog';
 import { PART_BY_ID, SLOTS, slotAvailable, stockPart, type Fx, type PartDef, type SlotId } from './parts';
 import { applyTune, defaultTune, type Tune } from './tuning';
@@ -51,7 +52,13 @@ function mergeFx(parts: PartDef[]): Required<{ [K in keyof Fx]: number }> {
 
 /** the spec with parts fitted but no tune: what the garage compares against */
 export function specWithParts(c: OwnedCar): CarSpec {
-  const def = CAR_BY_ID[c.carId], s = stockSpec(def), f = mergeFx(fittedParts(c));
+  const def = CAR_BY_ID[c.carId], s = stockSpec(def);
+  const fittedList = fittedParts(c);
+  const f = mergeFx(fittedList);
+  const tierOf = (slot: SlotId): number => fittedList.find((p) => p.slot === slot)?.tier ?? 0;
+  const snd = resolveUpgradedSoundBank(s.engine.soundBank, tierOf('engine'), tierOf('induction'), tierOf('exhaust'));
+  s.engine.soundBank = snd.soundBank;
+  s.engine.soundUpgradeLevel = snd.soundUpgradeLevel;
   s.engine.peakHp = Math.round(s.engine.peakHp * f.power);
   s.engine.peakTorqueNm = Math.round(s.engine.peakTorqueNm * f.power);
   s.engine.redlineRpm = Math.round(s.engine.redlineRpm * f.redline / 50) * 50;

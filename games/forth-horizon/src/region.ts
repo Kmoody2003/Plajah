@@ -14,13 +14,15 @@ import { groundU, loadGroundArrays } from './groundArrays';
 import { buildYards } from './yards';
 import { buildTrench, type TrenchLine } from './trench';
 import { CityBatches, type CityPart } from './cityBatch';
+import { patchFacadeMasonry, patchGlassInterior, patchPunchedInterior } from './buildingShaders';
 import { makeSovereign } from './car';
+import { makeRivalCar, type RivalCarVariant } from './rivalCars';
 import { garage, cloud, activeSpec, hasCar, RunTracker, PathProgress, refParSec, showBanner, showCard, DeliveryGame, makeSpots, TIER_LIST } from './garageGame';
 import { medalFor } from './garage/progress';
 import { smoothClosedPath } from './circuitSmooth';
 import { PhotoMode } from './photo';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
-import { loadSovereignScan } from './scancar';
+import { hasScanCar, loadScanCarById, loadScanOpponentCar, RACE_OPPONENT_SCAN_IDS } from './scancar';
 import { Replay } from './broadcastReplay';
 import { createCarState, stepCarPhysics, setWorldBounds, type CarState, type CarInput } from './physics';
 import { CARS } from './manufacturers';
@@ -165,7 +167,7 @@ if (csm) {
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.left = -380; sun.shadow.camera.right = 380; sun.shadow.camera.top = 380; sun.shadow.camera.bottom = -380;
   sun.shadow.camera.near = 50; sun.shadow.camera.far = 6000;
-  sun.shadow.bias = -0.0025; sun.shadow.normalBias = 2.5;
+  sun.shadow.bias = -0.0012; sun.shadow.normalBias = 1.1;
 }
 const csmCast = [true, true, true];                 // which cascades draw a shadow map (debug / quality switch)
 (window as unknown as { csmCast: boolean[] }).csmCast = csmCast;
@@ -204,13 +206,13 @@ async function warmShaders(): Promise<void> {
   groups.forEach((g) => { g.visible = true; });
   try { await (renderer as unknown as { compileAsync(s: THREE.Scene, c: THREE.Camera): Promise<void> }).compileAsync(scene, camera); } catch { renderer.compile(scene, camera); }
   // the car is the heaviest set of shaders and loads a 14 MB scan: build it now, compile it, and hand it to the first race
-  try {
+  if (!driving) try {
     const car = makeCar(); car.position.set(0, -4000, 0); scene.add(car); prewarmCar = car;
-    for (let i = 0; i < 100 && !car.userData.panels; i++) await new Promise((r) => setTimeout(r, 250));
+    for (let i = 0; i < 100 && !car.userData.panels && prewarmCar === car; i++) await new Promise((r) => setTimeout(r, 250));
     csmSweep(true);
     await (renderer as unknown as { compileAsync(s: THREE.Scene, c: THREE.Camera): Promise<void> }).compileAsync(scene, camera);
-    scene.remove(car);
-  } catch (e) { console.warn('car warm-up failed', e); prewarmCar = null; }
+    if (prewarmCar === car) scene.remove(car);
+  } catch (e) { console.warn('car warm-up failed', e); if (prewarmCar) prewarmCar = null; }
   groups.forEach((g, i) => { g.visible = was[i]; });
   const tex = new Set<THREE.Texture>();
   scene.traverse((o) => {
@@ -380,20 +382,37 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
         wv[7] = rockK; tot += rockK;
         float tile[8]; tile[0] = 3.6; tile[1] = 3.4; tile[2] = 4.2; tile[3] = 4.0; tile[4] = 3.0; tile[5] = 4.6; tile[6] = 3.6; tile[7] = 6.5;
         vec3 alb = vec3(0.0); vec4 surf = vec4(0.0); float wsum = 0.0;
-        // a slow rotation of the second sample breaks the repeat of every tile; compute derivatives outside the loop so D3D11 never warns on divergent gradients (X3595)
-        float ra = tNoise(vWPos.xz / 31.0) * 6.2831; mat2 rot = mat2(cos(ra), sin(ra), -sin(ra), cos(ra));
-        vec2 dPdx = dFdx(vWPos.xz), dPdy = dFdy(vWPos.xz);
-        for (int i = 0; i < 8; i++) {
-          float wi = wv[i] / max(tot, 1e-4);
-          if (wi < 0.04 || uGroundOn < 0.5) continue;
-          float scA = tile[i] * uGTune.w, scB = scA * 2.7;
-          vec2 uvA = vWPos.xz / scA, uvB = rot * (vWPos.xz / scB) + 0.37;
-          vec2 gxA = dPdx / scA, gyA = dPdy / scA;
-          vec2 gxB = rot * (dPdx / scB), gyB = rot * (dPdy / scB);
-          float m = smoothstep(0.35, 0.65, tNoise(vWPos.xz / 9.0 + float(i)));
-          alb += wi * mix(textureGrad(tGA, vec3(uvA, float(i)), gxA, gyA).rgb, textureGrad(tGA, vec3(uvB, float(i)), gxB, gyB).rgb, m * 0.5);
-          surf += wi * textureGrad(tGP, vec3(uvA, float(i)), gxA, gyA);
-          wsum += wi;
+        // Skip all biome 2DArray texture fetches beyond uGTune.z (where near == 0), and blend only the Top-2 dominant biomes (cuts max fetches from 24 -> 6 with zero visual loss)
+        if (camD < uGTune.z && uGroundOn > 0.5) {
+          int b0 = 0, b1 = 0;
+          float w0 = -1.0, w1 = -1.0;
+          for (int i = 0; i < 8; i++) {
+            float wi = wv[i] / max(tot, 1e-4);
+            if (wi > w0) { w1 = w0; b1 = b0; w0 = wi; b0 = i; }
+            else if (wi > w1) { w1 = wi; b1 = i; }
+          }
+          vec2 dPdx = dFdx(vWPos.xz), dPdy = dFdy(vWPos.xz);
+          bool useRot = camD < 185.0;
+          mat2 rot = mat2(1.0, 0.0, 0.0, 1.0);
+          if (useRot) { float ra = tNoise(vWPos.xz / 31.0) * 6.2831; rot = mat2(cos(ra), sin(ra), -sin(ra), cos(ra)); }
+          for (int k = 0; k < 2; k++) {
+            int bi = (k == 0) ? b0 : b1;
+            float wi = (k == 0) ? w0 : w1;
+            if (wi < 0.06) continue;
+            float scA = tile[bi] * uGTune.w;
+            vec2 uvA = vWPos.xz / scA;
+            vec2 gxA = dPdx / scA, gyA = dPdy / scA;
+            vec3 cA = textureGrad(tGA, vec3(uvA, float(bi)), gxA, gyA).rgb;
+            if (useRot) {
+              float scB = scA * 2.7;
+              vec2 uvB = rot * (vWPos.xz / scB) + 0.37;
+              float m = smoothstep(0.35, 0.65, tNoise(vWPos.xz / 9.0 + float(bi)));
+              cA = mix(cA, textureGrad(tGA, vec3(uvB, float(bi)), rot * (dPdx / scB), rot * (dPdy / scB)).rgb, m * 0.5);
+            }
+            alb += wi * cA;
+            surf += wi * textureGrad(tGP, vec3(uvA, float(bi)), gxA, gyA);
+            wsum += wi;
+          }
         }
         if (wsum > 0.01) {
           alb /= wsum; surf /= wsum;
@@ -468,10 +487,14 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
         vec2 sp = vWPos.xz;
         vec3 col = diffuseColor.rgb;
         if (walk > 0.005) {
-          vec3 pave = texture2D(tPave, sp / 1.7).rgb * (0.86 + 0.18 * fract(sin(dot(floor(sp / 1.7), vec2(12.9898, 78.233))) * 43758.5453));
-          col = mix(col, pave * 0.95, walk);
+          vec2 slabF = fract(sp / 1.7);
+          float joint = 1.0 - smoothstep(0.0, 0.045, min(min(slabF.x, 1.0 - slabF.x), min(slabF.y, 1.0 - slabF.y)));
+          float stain = 0.84 + 0.24 * tNoise(sp / 9.5);
+          vec3 pave = texture2D(tPave, sp / 1.7).rgb * (0.84 + 0.20 * fract(sin(dot(floor(sp / 1.7), vec2(12.9898, 78.233))) * 43758.5453)) * stain;
+          pave *= 1.0 - 0.28 * joint * (1.0 - smoothstep(25.0, 85.0, camD));
+          col = mix(col, pave * 0.88, walk);
         }
-        col = mix(col, vec3(0.5, 0.5, 0.48), kerb);
+        col = mix(col, vec3(0.42, 0.42, 0.40) * (0.85 + 0.25 * tNoise(sp / 2.2)), kerb);
         if (road > 0.005) {
           vec3 a1 = texture2D(tAsph, sp / 4.0).rgb, a2 = texture2D(tAsph, sp / 13.7 + 0.37).rgb;
           float cellN = fract(sin(dot(floor(sp / 6.0), vec2(12.9898, 78.233))) * 43758.5453);
@@ -979,11 +1002,21 @@ function buildHarbor(): void {
   cIm.frustumCulled = false;
   harborGroup.add(cIm);
 
-  // transit sheds and warehouses
+  // transit sheds and warehouses: textured corrugated steel siding + weathered steel roof trim instead of plain untextured boxes
+  const shedTex = new THREE.TextureLoader().load('/games/forth-horizon/ironport/textures-v3/shared/tex-shared-21-corrugated-steel_base.jpg');
+  shedTex.colorSpace = THREE.SRGBColorSpace; shedTex.wrapS = shedTex.wrapT = THREE.RepeatWrapping; shedTex.repeat.set(8, 2); shedTex.anisotropy = 4;
+  const shedNrm = new THREE.TextureLoader().load('/games/forth-horizon/ironport/textures-v3/shared/tex-shared-21-corrugated-steel_nrm.jpg');
+  shedNrm.wrapS = shedNrm.wrapT = THREE.RepeatWrapping; shedNrm.repeat.set(8, 2); shedNrm.anisotropy = 4;
+  const shedWallMat = new THREE.MeshStandardMaterial({ map: shedTex, normalMap: shedNrm, normalScale: new THREE.Vector2(1.8, 1.8), color: 0x8a9096, roughness: 0.72, metalness: 0.38 });
+  const shedRoofMat = new THREE.MeshStandardMaterial({ color: 0x3b4856, roughness: 0.65, metalness: 0.45 });
   for (const s of h.sheds) {
     const gy = Math.max(hAt(s.c[0], s.c[1]), 1.6) * exag;
-    box(s.w, 11, s.d, 0x9aa0a6, s.c[0], gy + 5.5, s.c[1], harborGroup).rotation.y = phi;
-    box(s.w * 1.02, 0.8, s.d * 1.02, 0x4f6a86, s.c[0], gy + 11.3, s.c[1], harborGroup).rotation.y = phi;
+    const wMesh = new THREE.Mesh(new THREE.BoxGeometry(s.w, 11, s.d), shedWallMat);
+    wMesh.position.set(s.c[0], gy + 5.5, s.c[1]); wMesh.rotation.y = phi; wMesh.castShadow = wMesh.receiveShadow = true;
+    harborGroup.add(wMesh);
+    const rMesh = new THREE.Mesh(new THREE.BoxGeometry(s.w * 1.02, 0.8, s.d * 1.02), shedRoofMat);
+    rMesh.position.set(s.c[0], gy + 11.3, s.c[1]); rMesh.rotation.y = phi; rMesh.castShadow = rMesh.receiveShadow = true;
+    harborGroup.add(rMesh);
   }
   // tank farm
   const tIm = new THREE.InstancedMesh(new THREE.CylinderGeometry(9, 9, 16, 20), stdMat(0xd7d9dc, 0.6, 0.2), Math.max(h.tanks.length, 1));
@@ -1326,6 +1359,7 @@ function addTreeCards(parent: THREE.Object3D, list: { x: number; z: number; def:
   const by = new Map<SpriteDef, typeof list>();
   for (const t of list) { if (!by.has(t.def)) by.set(t.def, []); by.get(t.def)!.push(t); }
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
+  const CELL_SZ = 1800;
   by.forEach((arr, def) => {
     const mkey = def.file + (lod ? ':lod' : '');
     let mat = spriteMats.get(mkey);
@@ -1336,16 +1370,31 @@ function addTreeCards(parent: THREE.Object3D, list: { x: number; z: number; def:
       patchTreeCard(mat, lod);
       spriteMats.set(mkey, mat);
     }
-    const im = new THREE.InstancedMesh(crossGeo, mat, arr.length);
-    arr.forEach((t, i) => {
-      const hh = t.h, ww = hh * def.w / def.h;
-      q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), ((t.x * 7.3 + t.z * 3.1) % 6.283));
-      m4.compose(new THREE.Vector3(t.x, hAt(t.x, t.z) * exag - hh * 0.04, t.z), q, new THREE.Vector3(ww, hh, ww));
-      im.setMatrixAt(i, m4);
-      im.setColorAt(i, col.setScalar(0.8 + ((t.x * 13.1 + t.z * 5.7) % 1 + 1) % 1 * 0.3));
-    });
-    im.frustumCulled = false;
-    parent.add(im);
+    // Partition massive regional tree-card arrays into frustum- and distance-cullable 520 m cells so off-screen / 8 km-away trees are skipped
+    const buckets = new Map<string, typeof list>();
+    for (const t of arr) {
+      const k = Math.floor(t.x / CELL_SZ) + ',' + Math.floor(t.z / CELL_SZ);
+      let b = buckets.get(k);
+      if (!b) buckets.set(k, b = []);
+      b.push(t);
+    }
+    for (const sub of buckets.values()) {
+      const im = new THREE.InstancedMesh(crossGeo, mat, sub.length);
+      sub.forEach((t, i) => {
+        const hh = t.h, ww = hh * def.w / def.h;
+        q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), ((t.x * 7.3 + t.z * 3.1) % 6.283));
+        m4.compose(new THREE.Vector3(t.x, hAt(t.x, t.z) * exag - hh * 0.04, t.z), q, new THREE.Vector3(ww, hh, ww));
+        im.setMatrixAt(i, m4);
+        im.setColorAt(i, col.setScalar(0.8 + ((t.x * 13.1 + t.z * 5.7) % 1 + 1) % 1 * 0.3));
+      });
+      im.instanceMatrix.needsUpdate = true;
+      im.computeBoundingSphere();
+      const bs = im.boundingSphere!;
+      im.frustumCulled = true;
+      im.userData.chunked = true;
+      parent.add(im);
+      chunkList.push({ m: im, cx: bs.center.x, cz: bs.center.z, r: bs.radius, baseCastShadow: false, maxDist: 1750, maxShadowDist: 0 });
+    }
   });
 }
 interface TreeLayer { group: THREE.Group; setWind(w: number): void; setQuality(scale: number): void; update(dt: number, cam: THREE.Vector3): void }
@@ -1616,8 +1665,10 @@ async function buildStreetscape(): Promise<void> {
     m4.compose(new THREE.Vector3(l[0] + fx * 2.1, gy + 8.4, l[1] + fz * 2.1), q, new THREE.Vector3(1, 1, 1));
     head.setMatrixAt(i, m4);
   });
+  pole.name = arm.name = head.name = 'street-light';
   pole.frustumCulled = arm.frustumCulled = head.frustumCulled = false;
   scapeGroup.add(pole, arm, head);
+  chunkInstanced(scapeGroup);
   console.log('streetscape', trees.length, 'trees', ln, 'lights');
   (window as any).scapeCount = [trees.length, ln];
 }
@@ -1637,9 +1688,11 @@ function addRoofDetails(items: CityItem[]): void {
     const gy = groundMin(it) - 0.35, top = gy + it.h;
     const r0 = hash(cx, cz), r1 = hash(cz, cx + 7), r2 = hash(cx + 3, cz - 5);
     const at = (u: number, v: number): [number, number] => [cx + u * c + v * sn, cz - u * sn + v * c];
-    // cornice: a slightly larger stone slab at the roofline, and a thin base course
-    cornice.push({ x: cx, y: top - 0.45, z: cz, sx: it.w + 0.9, sy: 0.9, sz: it.d + 0.9, ry: phi, c: 0xb8b2a4 });
-    if (it.h > 30) cornice.push({ x: cx, y: gy + 3.2, z: cz, sx: it.w + 0.5, sy: 0.6, sz: it.d + 0.5, ry: phi, c: 0xa6a094 });
+    // cornice: only for legacy v1 plain boxes (v3 models already have sculpted 3D parapets & tapered tops)
+    if (MODELSET !== 'v3') {
+      cornice.push({ x: cx, y: top - 0.45, z: cz, sx: it.w + 0.9, sy: 0.9, sz: it.d + 0.9, ry: phi, c: 0x6e6c66 });
+      if (it.h > 30) cornice.push({ x: cx, y: gy + 3.2, z: cz, sx: it.w + 0.5, sy: 0.6, sz: it.d + 0.5, ry: phi, c: 0x5c5a55 });
+    }
     // rooftop mechanical units
     const nUnits = it.w * it.d > 400 ? 1 + Math.floor(r0 * 3) : Math.floor(r0 * 2);
     for (let k = 0; k < nUnits; k++) {
@@ -1713,10 +1766,11 @@ function addTowerGeometry(items: CityItem[]): void {
     const cx = it.bx ?? it.x, cz = it.bz ?? it.z, phi = it.rotY, c = Math.cos(phi), sn = Math.sin(phi);
     const gy = groundMin(it) - 0.35, top = gy + it.h;
     const at = (u: number, v: number): [number, number] => [cx + u * c + v * sn, cz - u * sn + v * c];
-    // podium: the base block, a little proud of the tower
-    if (it.h > 60) stone.push({ x: cx, y: gy + 4.4, z: cz, sx: it.w + 1.4, sy: 8.8, sz: it.d + 1.4, ry: phi });
-    // corner piers up the whole face
-    if (it.h > 55) for (const [u, v] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const [x, z] = at(u * (it.w / 2), v * (it.d / 2)); stone.push({ x, y: gy + it.h * 0.49, z, sx: 1.1, sy: it.h * 0.98, sz: 1.1, ry: phi }); }
+    // podium & corner piers: only for legacy v1 boxes (v3 towers already have real 3D ground lobbies, doors, and sculpted piers)
+    if (MODELSET !== 'v3') {
+      if (it.h > 60) stone.push({ x: cx, y: gy + 4.4, z: cz, sx: it.w + 1.4, sy: 8.8, sz: it.d + 1.4, ry: phi });
+      if (it.h > 55) for (const [u, v] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const [x, z] = at(u * (it.w / 2), v * (it.d / 2)); stone.push({ x, y: gy + it.h * 0.49, z, sx: 1.1, sy: it.h * 0.98, sz: 1.1, ry: phi }); }
+    }
     // setback tiers in glass, each with a stone parapet
     const t1 = Math.max(7, Math.min(16, it.h * 0.13));
     glass.push({ x: cx, y: top + t1 / 2, z: cz, sx: it.w * 0.8, sy: t1, sz: it.d * 0.8, ry: phi });
@@ -1737,7 +1791,7 @@ function addTowerGeometry(items: CityItem[]): void {
   };
   const gm = new THREE.MeshStandardMaterial({ color: 0x25384a, roughness: 0.4, metalness: 0.6 });
   gm.name = 'tex-shared-07-glass-curtain-blue_mat';
-  patchGlass(gm);
+  patchGlassInterior(gm, nightU, curtainU, sunDirU, false);
   make(glass, gm);
   make(stone, stoneMaterial());
   console.log('tower geometry', { glassTiers: glass.length, stone: stone.length });
@@ -1761,191 +1815,12 @@ function groundMin(it: CityItem): number {
   }
   return m;
 }
-// Facade depth: steep parallax mapping driven by the base-colour luminance (dark = recessed: windows, mortar, joints),
-// plus the relief normals. Faded out beyond about 200 m.
-// Weathering on top of the texture, in world space so it is continuous across the building: ground-level grime, rain streaks running down the wall, fine
-// grain at close range so the colour map is never a flat painted surface, and a wet darkening and gloss in the rain.
-const FACADE_WEATHER = `
-float fh3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
-float fvn(vec3 p) {
-  vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-  return mix(mix(mix(fh3(i), fh3(i + vec3(1, 0, 0)), f.x), mix(fh3(i + vec3(0, 1, 0)), fh3(i + vec3(1, 1, 0)), f.x), f.y),
-             mix(mix(fh3(i + vec3(0, 0, 1)), fh3(i + vec3(1, 0, 1)), f.x), mix(fh3(i + vec3(0, 1, 1)), fh3(i + vec3(1, 1, 1)), f.x), f.y), f.z);
-}
-vec3 facadeWeather(vec3 col, vec3 fw, float dist, float wet) {
-  float nearK = 1.0 - smoothstep(25.0, 100.0, dist);
-  float low = fvn(fw * vec3(0.3, 0.1, 0.3));
-  float ground = 1.0 - smoothstep(0.0, 8.0, fw.y);
-  float streak = fvn(vec3((fw.x + fw.z) * 0.45, fw.y * 0.05, 3.0));
-  float dirt = clamp(ground * (0.4 + 0.6 * low) + smoothstep(0.58, 0.92, streak) * 0.2 * smoothstep(3.0, 20.0, fw.y), 0.0, 1.0);
-  // a photograph is less saturated and has more contrast than a painted colour map: pull the colour toward grey a little and open up the midtones
-  float lum = dot(col, vec3(0.299, 0.587, 0.114));
-  col = mix(vec3(lum), col, 0.82);
-  col = mix(vec3(lum), col, 1.0) * (0.88 + 0.28 * smoothstep(0.05, 0.6, lum));
-  col *= 1.0 - 0.45 * dirt;
-  col = mix(col, col * vec3(0.8, 0.78, 0.74), dirt * 0.5);
-  if (nearK > 0.01) {
-    float micro = fvn(fw * 5.0) * 0.6 + fvn(fw * 17.0) * 0.4;
-    col *= 1.0 + (micro - 0.5) * 0.26 * nearK;
-  }
-  col *= 1.0 - 0.26 * wet * (0.6 + 0.4 * low);
-  return col;
-}`;
-function patchParallax(mat: THREE.MeshStandardMaterial): void {
-  mat.onBeforeCompile = (sh) => {
-    sh.uniforms.uWetF = wetU;
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vFW;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 fwp = vec4(position, 1.0);\n#ifdef USE_INSTANCING\nfwp = instanceMatrix * fwp;\n#endif\n#ifdef USE_BATCHING\nfwp = batchingMatrix * fwp;\n#endif\nvFW = (modelMatrix * fwp).xyz;');
-    sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vFW;\nuniform float uWetF;\n' + FACADE_WEATHER)
-      .replace('#include <map_fragment>', THREE.ShaderChunk.map_fragment.replace(/vMapUv/g, 'pUv') + '\ndiffuseColor.rgb = facadeWeather(diffuseColor.rgb, vFW, length(vViewPosition), uWetF);')
-      .replace('#include <roughnessmap_fragment>', THREE.ShaderChunk.roughnessmap_fragment.replace(/vRoughnessMapUv/g, 'pUv') + '\nroughnessFactor = mix(roughnessFactor, roughnessFactor * 0.5, uWetF);')
-      .replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps.replace(/vNormalMapUv/g, 'pUv'))
-      .replace('#include <logdepthbuf_fragment>', `#include <logdepthbuf_fragment>
-      vec2 pUv = vMapUv;
-      {
-        float pDist = length(vViewPosition);
-        float pFade = 1.0 - smoothstep(45.0, 135.0, pDist);
-        if (pFade > 0.02) {
-          vec3 pN = normalize(vNormal);
-          mat3 pT = getTangentFrame(-vViewPosition, pN, vMapUv);
-          vec3 pV = normalize(vViewPosition);
-          vec3 pt = vec3(dot(pV, pT[0]), dot(pV, pT[1]), dot(pV, pT[2]));
-          // depth in metres, converted to texture units with the local uv-per-metre of this surface
-          float uvA = dot(dFdx(vMapUv), dFdx(vMapUv)) + dot(dFdy(vMapUv), dFdy(vMapUv));
-          float pA = dot(dFdx(vViewPosition), dFdx(vViewPosition)) + dot(dFdy(vViewPosition), dFdy(vViewPosition));
-          float upm = sqrt(uvA / max(pA, 1e-8));
-          vec2 pDir = pt.xy / max(pt.z, 0.35) * (0.16 * upm) * pFade;
-          const float LAY = 5.0;
-          vec2 pStep = pDir / LAY;
-          float cur = 0.0;
-          vec2 uvc = vMapUv;
-          float hmap = 1.0 - smoothstep(0.08, 0.62, dot(texture2D(map, uvc).rgb, vec3(0.299, 0.587, 0.114)));
-          for (int i = 0; i < 5; i++) {
-            if (cur >= hmap) break;
-            uvc -= pStep;
-            cur += 1.0 / LAY;
-            hmap = 1.0 - smoothstep(0.08, 0.62, dot(texture2D(map, uvc).rgb, vec3(0.299, 0.587, 0.114)));
-          }
-          pUv = uvc;
-        }
-      }`);
-  };
-  mat.customProgramCacheKey = () => 'facade-parallax-1';
-}
-// Curtain-wall glass: a dark tinted mirror that reflects the sky and the sun with a sharp highlight, a little different from pane to pane, and at night (or under a
-// storm) a share of the panes light up warm. The facade texture still supplies the mullions, tint and relief.
+// AAA Building Shaders live in ./buildingShaders.ts (3D Ray-Box Interior Mapping, dielectric Fresnel glass,
+// recessed stone/concrete windows + ground-floor storefronts, street-canyon vertical AO, hero facade glass detection).
 const nightU = { value: 0 };
-const curtainU = { value: 1 };                         // 1: procedural curtain wall on the glass towers; 0: the texture only (debug A/B: window.apexTowers.set(0 | 1))
+const sunDirU = { value: sunDir };
+const curtainU = { value: 1 };                         // 1: 3D interior mapping & architectural glazing on towers; 0: texture only (debug A/B: window.apexTowers.set(0 | 1))
 (window as unknown as { apexTowers: unknown }).apexTowers = { set: (v: number) => { curtainU.value = v; } };
-function patchGlass(mat: THREE.MeshStandardMaterial): void {
-  mat.metalness = 0.62; mat.roughness = 0.5; mat.envMapIntensity = 3.4;
-  mat.color.multiplyScalar(0.72);
-  const prev = mat.onBeforeCompile;
-  mat.onBeforeCompile = (sh, r) => {
-    prev?.call(mat, sh, r);
-    sh.uniforms.uNightG = nightU; sh.uniforms.uCurtain = curtainU;
-    // glass tint by material: blue-green by default, cerulean, bronze
-    const tint = /bronze/i.test(mat.name) ? 'vec3(0.2, 0.14, 0.09)' : /cerulean/i.test(mat.name) ? 'vec3(0.09, 0.22, 0.32)' : 'vec3(0.11, 0.2, 0.27)';
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW; varying vec3 vGN;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 gwp = vec4(position, 1.0);\nmat3 gnm = mat3(modelMatrix);\n#ifdef USE_INSTANCING\ngwp = instanceMatrix * gwp;\ngnm = gnm * mat3(instanceMatrix);\n#endif\n#ifdef USE_BATCHING\ngwp = batchingMatrix * gwp;\ngnm = gnm * mat3(batchingMatrix);\n#endif\nvGW = (modelMatrix * gwp).xyz;\nvGN = gnm * normal;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-varying vec3 vGW; varying vec3 vGN;
-uniform float uNightG, uCurtain;
-float cwh(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
-// a real curtain wall instead of a texture of one: floors 3.9 m, bays 1.5 m, slim aluminium mullions and transoms, a spandrel panel at every floor slab, and a pane of dark
-// tinted glass in between. Built from where the point is on the wall (world position along the wall and height), so it is exact at any distance and continuous across
-// the building. The glass is a near mirror: it reflects the sky and the street, and each pane is a little different.
-void cwall(out vec3 col, out float glass, out float rough, out float metal, out float wall, out vec2 id) {
-  vec3 gn = normalize(vGN);
-  wall = 1.0 - smoothstep(0.35, 0.6, abs(gn.y));
-  vec2 td = normalize(vec2(-gn.z, gn.x) + vec2(1e-4));
-  vec2 uv = vec2(dot(vGW.xz, td) / 1.5, vGW.y / 3.9);
-  vec2 f = fract(uv); id = floor(uv);
-  float px = 1.0 / max(1.0, length(cameraPosition - vGW) * 0.9);                 // keep the thin bars from shimmering at a distance
-  float mw = clamp(0.045 + px * 0.2, 0.0, 0.5);
-  float mull = step(f.x, mw) + step(1.0 - mw, f.x);
-  float trans = step(0.9, f.y) * 1.0;
-  float slab = step(f.y, 0.24);
-  float rn = cwh(id);
-  vec3 glassC = TINT * (0.75 + 0.55 * rn) * (0.8 + 0.4 * cwh(id + 7.0));
-  vec3 spand = vec3(0.19, 0.2, 0.21) * (0.85 + 0.3 * cwh(id + 3.0));
-  vec3 alu = vec3(0.34, 0.35, 0.37);
-  float bars = clamp(mull + trans, 0.0, 1.0);
-  col = mix(glassC, spand, slab); col = mix(col, alu, bars * (1.0 - slab * 0.0));
-  glass = (1.0 - slab) * (1.0 - bars);
-  rough = mix(mix(0.07, 0.5, slab), 0.34, bars);
-  metal = mix(mix(0.92, 0.22, slab), 0.85, bars);
-}`.replace('TINT', tint))
-      .replace('#include <color_fragment>', `#include <color_fragment>
-      vec3 cwCol; float cwGlass, cwRough, cwMetal, cwWall; vec2 cwId;
-      cwall(cwCol, cwGlass, cwRough, cwMetal, cwWall, cwId);
-      float cwK = cwWall * uCurtain;
-      diffuseColor.rgb = mix(diffuseColor.rgb, cwCol, cwK);`)
-      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, cwMetal, cwK);')
-      // the facade texture's relief normals make a pane of glass glitter; a pane is flat
-      .replace('#include <clearcoat_normal_fragment_begin>', 'normal = normalize(mix(normal, nonPerturbedNormal, cwK * (cwGlass * 0.97 + 0.5 * (1.0 - cwGlass))));\n#include <clearcoat_normal_fragment_begin>')
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(clamp(roughnessFactor * 0.16, 0.035, 0.3), cwRough, cwK);')
-      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-      {
-        vec2 gc = floor(vec2(vGW.x + vGW.z, vGW.y) / vec2(3.2, 3.4));
-        float gh = fract(sin(dot(gc, vec2(12.9898, 78.233))) * 43758.5453);
-        float gl = step(1.0 - uNightG * 0.42, gh);
-        // at night a share of the panes are lit, whole panes (not blocks): the lit ones are found per pane of the curtain wall
-        float paneLit = step(1.0 - uNightG * 0.4, cwh(cwId + 21.0)) * cwGlass * cwK;
-        totalEmissiveRadiance += vec3(1.0, 0.82, 0.55) * mix(gl * uNightG, paneLit * uNightG * 1.4, cwK) * (0.5 + 0.9 * fract(gh * 7.3)) * 0.85;
-        diffuseColor.rgb *= mix(0.86 + 0.28 * fract(gh * 13.7), 1.0, cwK);
-      }`);
-  };
-  mat.customProgramCacheKey = () => 'glass-2-' + mat.name;
-}
-// Stone and concrete towers: the models have only a few window openings, so most of a tower's face is bare stone and it reads as a cartoon block. Above the podium (11.5 m)
-// the wall gets a grid of punched windows by world position: floors 3.9 m, bays 3.4 m, a reveal that is shaded at the top, a lighter sill and lintel, dark reflective
-// glass (a share of the windows have blinds drawn) and at night a share of them lit. Low buildings are not touched.
-function patchPunched(mat: THREE.MeshStandardMaterial): void {
-  const prev = mat.onBeforeCompile;
-  mat.onBeforeCompile = (sh, r) => {
-    prev?.call(mat, sh, r);
-    sh.uniforms.uNightG = nightU; sh.uniforms.uCurtain = curtainU;
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vPW; varying vec3 vPN;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvec4 pwp = vec4(position, 1.0);\nmat3 pnm = mat3(modelMatrix);\n#ifdef USE_INSTANCING\npwp = instanceMatrix * pwp;\npnm = pnm * mat3(instanceMatrix);\n#endif\n#ifdef USE_BATCHING\npwp = batchingMatrix * pwp;\npnm = pnm * mat3(batchingMatrix);\n#endif\nvPW = (modelMatrix * pwp).xyz;\nvPN = pnm * normal;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-varying vec3 vPW; varying vec3 vPN;
-uniform float uNightG, uCurtain;
-float pwh(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
-void punched(out float win, out vec3 wcol, out float wrough, out float wmetal, out float lit, out float frame) {
-  vec3 gn = normalize(vPN);
-  float wall = (1.0 - smoothstep(0.35, 0.6, abs(gn.y))) * smoothstep(11.0, 12.5, vPW.y);
-  vec2 td = normalize(vec2(-gn.z, gn.x) + vec2(1e-4));
-  vec2 uv = vec2(dot(vPW.xz, td) / 3.4, vPW.y / 3.9);
-  vec2 f = fract(uv), id = floor(uv);
-  float edge = 0.03 + 0.4 / max(1.0, length(cameraPosition - vPW) * 0.5);
-  vec2 lo = vec2(0.16, 0.2), hi = vec2(0.84, 0.8);
-  float inx = smoothstep(lo.x - edge, lo.x, f.x) * (1.0 - smoothstep(hi.x, hi.x + edge, f.x));
-  float iny = smoothstep(lo.y - edge, lo.y, f.y) * (1.0 - smoothstep(hi.y, hi.y + edge, f.y));
-  win = inx * iny * wall;
-  frame = wall * (1.0 - win) * (smoothstep(0.1, lo.x, f.x) * (1.0 - smoothstep(hi.x, 0.9, f.x)) * smoothstep(0.14, lo.y, f.y) * (1.0 - smoothstep(hi.y, 0.86, f.y)));
-  float r = pwh(id);
-  float blind = step(0.88, pwh(id + 5.0));
-  vec3 glass = vec3(0.1, 0.17, 0.23) * (0.7 + 0.7 * r);
-  float top = smoothstep(0.0, 0.18, hi.y - f.y);                        // the reveal shades the top of the opening
-  wcol = mix(glass * (0.55 + 0.45 * top), vec3(0.42, 0.38, 0.3) * (0.5 + 0.5 * top), blind);
-  wrough = mix(0.08, 0.8, blind); wmetal = mix(0.9, 0.0, blind);
-  lit = step(1.0 - uNightG * 0.4, pwh(id + 21.0)) * win * (1.0 - blind * 0.5);
-}`)
-      .replace('#include <color_fragment>', `#include <color_fragment>
-      float pwWin, pwWr, pwWm, pwLit, pwFrame; vec3 pwCol;
-      punched(pwWin, pwCol, pwWr, pwWm, pwLit, pwFrame);
-      float pwK = pwWin * uCurtain;
-      diffuseColor.rgb = mix(diffuseColor.rgb, pwCol, pwK);
-      diffuseColor.rgb *= 1.0 - 0.3 * pwFrame * uCurtain;                 // a darker band of reveal around the opening`)
-      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, pwWm, pwK);')
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, pwWr, pwK);')
-      .replace('#include <clearcoat_normal_fragment_begin>', 'normal = normalize(mix(normal, nonPerturbedNormal, pwK));\n#include <clearcoat_normal_fragment_begin>')
-      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.82, 0.55) * pwLit * uNightG * 1.3 * uCurtain;');
-  };
-  mat.customProgramCacheKey = () => 'punched-1-' + mat.name;
-}
 async function buildCity(): Promise<void> {
   const res = await fetch(BASE + 'city.json');
   if (!res.ok) return;
@@ -1984,12 +1859,22 @@ async function buildCity(): Promise<void> {
   };
   const texCache = new Map<string, THREE.Texture>();
   const finishMat = (mat: THREE.MeshStandardMaterial): void => {
-    if (mat.normalMap) mat.normalScale.set(2.2, 2.2);
-    if (mat.map && mat.normalMap && !LOW) patchParallax(mat);
-    if (/hero/i.test(mat.name)) mat.normalScale.set(1.4, 1.4);     // the sheet-derived normals are gentle: push the relief
-    mat.envMapIntensity = 0.7;
-    if (/glass/i.test(mat.name)) patchGlass(mat);
-    else if (/06-granite|04-limestone|16-concrete|15-concrete/.test(mat.name) && mat.map) patchPunched(mat);
+    // Reset onBeforeCompile before patching so cloned variant materials never stack duplicate shader passes
+    mat.onBeforeCompile = THREE.Material.prototype.onBeforeCompile;
+    const isV3 = MODELSET === 'v3';
+    if (/glass/i.test(mat.name)) {
+      patchGlassInterior(mat, nightU, curtainU, sunDirU, isV3);
+      mat.needsUpdate = true;
+      return;
+    }
+    const isHero = /hero/i.test(mat.name);
+    // Only synthesize procedural punched windows on legacy windowless v1 boxes — v3 models already have real 3D recessed windows & frames!
+    const isPunched = !isV3 && /06-granite|04-limestone|16-concrete|15-concrete|17-white-stucco/.test(mat.name) && !!mat.map;
+    const isMetalTrim = /12-bronze|14-steel|21-corrugated|13-copper/.test(mat.name);
+    if (mat.normalMap) mat.normalScale.set(isHero ? 2.2 : 2.6, isHero ? 2.2 : 2.6);
+    mat.envMapIntensity = (isHero || isPunched) ? 1.85 : isMetalTrim ? 1.65 : 1.05;
+    if (mat.map && mat.normalMap && !LOW) patchFacadeMasonry(mat, isHero, wetU, nightU, sunDirU);
+    if (isPunched) patchPunchedInterior(mat, nightU, curtainU, sunDirU);
     mat.needsUpdate = true;
   };
   const protos = new Map<string, Promise<THREE.Object3D | null>>();
@@ -2011,7 +1896,7 @@ async function buildCity(): Promise<void> {
               const uri = assoc?.textures != null ? json.images?.[json.textures?.[assoc.textures]?.source ?? -1]?.uri : undefined;
               if (!uri) continue;
               const have = texCache.get(uri);
-              if (have && have !== tx) { tx.dispose(); (mat as any)[k] = have; } else texCache.set(uri, tx);
+              if (have && have !== tx) { tx.dispose(); (mat as any)[k] = have; } else { tx.userData.srcKey = uri.split('/').pop() ?? uri; texCache.set(uri, tx); }
             }
             finishMat(mat);
           }
@@ -2068,6 +1953,7 @@ async function buildCity(): Promise<void> {
             const old = mat[k] as THREE.Texture | null;
             if (!old) return;
             const tx = (await loadSwap(to, suffix)).clone();
+            tx.userData.srcKey = `${to}_${suffix}.png`;
             tx.flipY = old.flipY; tx.wrapS = old.wrapS; tx.wrapT = old.wrapT; tx.repeat.copy(old.repeat); tx.offset.copy(old.offset); tx.rotation = old.rotation; tx.center.copy(old.center);
             tx.colorSpace = old.colorSpace; tx.anisotropy = Math.min(4, old.anisotropy || 4); tx.needsUpdate = true;
             nm[k] = tx;
@@ -2112,7 +1998,7 @@ async function buildCity(): Promise<void> {
     for (const m of meshes) {
       if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
       const transforms = placements.map((placement) => placement.clone().multiply(m.matrixWorld));
-      const castShadow = (m.geometry.boundingSphere?.radius ?? 5) >= 2.8;
+      const castShadow = (m.geometry.boundingSphere?.radius ?? 5) >= 4.5;
       // hero landmarks keep their own meshes: one (Central Station) drew a stray roof slab when batched, and the ~90 heroes cost few draws
       if (CITY_BATCH && kind !== 'hero') { cityParts.push({ geometry: m.geometry, material: m.material as THREE.Material, transforms, castShadow }); continue; }
       const batch = new InstanceVisibility(m.geometry, m.material, transforms);
@@ -3073,6 +2959,7 @@ function buildFurniture(): void {
   addRibbonUV(pitAcc, pit, 8, 0.33, 5);
   furnitureGroup.add(accMeshTex(pitAcc, gameTex('pit'), 0.9, -3));
   trackKit = new TrackKit({ P, corners: corners as { x: number; z: number; turn: number }[], ground: (x, z) => hAt(x, z) * exag, HALF, pitFrom: 0, pitTo: 41, gantryAt: 0 });
+  mergeByMaterial(trackKit.group, 600);
   furnitureGroup.add(trackKit.group);
   const gridQuad = new THREE.Mesh(new THREE.PlaneGeometry(26, 10.5), new THREE.MeshStandardMaterial({ map: gameTex('grid', false), roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }));
   gridQuad.rotation.order = 'YXZ';
@@ -3543,14 +3430,29 @@ renderer.domElement.addEventListener('wheel', (e) => {
   e.preventDefault();
 }, { passive: false });
 
-function makeCar(): THREE.Group {
+function activeCarId(): string {
+  const q = new URLSearchParams(location.search).get('car');
+  if (q && hasScanCar(q)) return q;
+  const a = garage.active;
+  const id = a ? garage.def(a.uid)?.id : undefined;
+  return id && hasScanCar(id) ? id : 'kestrel';
+}
+
+function makeCar(carId?: string): THREE.Group {
+  const id = carId ?? activeCarId();
+  const qOverride = new URLSearchParams(location.search).get('car');
   const holder = new THREE.Group();
+  holder.userData.carId = id;
   const rig = makeSovereign();
   holder.add(rig.group);
   holder.userData.update = rig.update;
-  // swap in the scanned Sovereign (Hunyuan mesh painted from the turntable) once it has loaded; the stand-in covers the wait
-  loadSovereignScan().then(async (r) => {
-    { const pc = garage.active?.paint; if (pc) r.paint?.set({ color: new THREE.Color(pc).getHex() }); }
+  // swap in the GT-R standard scan car once it has loaded; the stand-in covers the wait
+  loadScanCarById(id).then(async (r) => {
+    {
+      const activeDefId = garage.active ? garage.def(garage.active.uid)?.id : undefined;
+      const pc = !qOverride && activeDefId === id ? garage.active?.paint : undefined;
+      if (pc) r.paint?.set({ color: new THREE.Color(pc).getHex() });
+    }
     // compile the scan car's shaders before it is shown: the first render of its heavy paint / glass materials used to stall the frame the car appeared in. The compile starts with the car visible
     // (it only sees visible objects) and the car is hidden again before anything is drawn; the stand-in covers the wait.
     r.group.visible = true; holder.add(r.group);
@@ -3560,8 +3462,13 @@ function makeCar(): THREE.Group {
     try { await compiled; } catch { /* compile errors surface on the first render, as before */ }
     r.group.visible = true; holder.userData.update = r.update; holder.userData.panels = r.panels;
     // the stand-in is finished: stop drawing it and free its geometry
-    // the scan car casts the sun's shadow (it never did), and keeps the stand-in's soft contact shadow under it so it sits on the road
-    r.group.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && !(m.material as THREE.Material).transparent) m.castShadow = true; });
+    // the scan car casts the sun's shadow (skip sub-28 cm interior/hardware parts to save >100k shadow tris), and keeps the stand-in's soft contact shadow under it
+    r.group.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh || (m.material as THREE.Material).transparent) return;
+      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+      m.castShadow = (m.geometry.boundingSphere?.radius ?? 1) >= 0.28;
+    });
     let blob: THREE.Object3D | null = null;
     rig.group.traverse((o) => { const m = o as THREE.Mesh; if (!blob && m.isMesh && (m.geometry as THREE.BufferGeometry).type === 'PlaneGeometry' && ((m.material as THREE.MeshBasicMaterial).map as THREE.CanvasTexture | null)?.isCanvasTexture) blob = m; });
     if (blob) { const b = blob as THREE.Mesh; b.parent?.remove(b); holder.add(b); }
@@ -3718,30 +3625,8 @@ scene.add(aiGroup, trafficGroup);
 let aiMeshes: THREE.Group[] = [];
 let trafficMeshes: THREE.Group[] = [];
 
-function makeTrafficOrAiCarMesh(paintHex: number | string): THREE.Group {
-  const g = new THREE.Group();
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(1.9, 0.72, 4.45),
-    new THREE.MeshStandardMaterial({ color: paintHex, metalness: 0.65, roughness: 0.24 })
-  );
-  body.position.y = 0.66;
-  body.castShadow = true;
-  g.add(body);
-  const cabin = new THREE.Mesh(
-    new THREE.BoxGeometry(1.56, 0.50, 2.05),
-    new THREE.MeshStandardMaterial({ color: 0x0b1220, metalness: 0.15, roughness: 0.1 })
-  );
-  cabin.position.set(0, 1.18, -0.2);
-  g.add(cabin);
-  const wGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.24, 14);
-  wGeo.rotateZ(Math.PI * 0.5);
-  const wMat = new THREE.MeshStandardMaterial({ color: 0x15171c, roughness: 0.85 });
-  for (const [wx, wz] of [[-0.86, 1.36], [0.86, 1.36], [-0.86, -1.36], [0.86, -1.36]]) {
-    const w = new THREE.Mesh(wGeo, wMat);
-    w.position.set(wx, 0.34, wz);
-    g.add(w);
-  }
-  return g;
+function makeTrafficOrAiCarMesh(paintHex: number | string, variant: RivalCarVariant | number = 0): THREE.Group {
+  return makeRivalCar(paintHex, variant);
 }
 
 function teardownRun(): void {
@@ -3766,8 +3651,9 @@ function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole
     const hwPts = meta.coastal_highway.xz.map((p) => new THREE.Vector3(p[0], hAt(p[0], p[1]) * exag, p[1]));
     const subPts = streetRuns.slice(0, 12).flatMap((r) => r.p.map((p) => new THREE.Vector3(p[0], hAt(p[0], p[1]) * exag, p[1])));
     trafficMgr = new TrafficManager({ i196Samples: hwPts, suburbSamples: subPts, terrainHeight: groundH }, 18);
+    let tvIdx = 0;
     for (const tv of trafficMgr.vehicles) {
-      const m = makeTrafficOrAiCarMesh(new THREE.Color(tv.paintHex).getHex());
+      const m = makeTrafficOrAiCarMesh(new THREE.Color(tv.paintHex).getHex(), tvIdx++ % 4 === 0 ? 'exotic-wedge' : 'sport-coupe');
       m.position.copy(tv.pos);
       m.rotation.y = tv.yaw;
       trafficGroup.add(m);
@@ -3783,13 +3669,23 @@ function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole
   const vecPts = pts.map((p) => new THREE.Vector3(p.x, p.y, p.z));
   competition = new CompetitionEngine();
   competition.createGrid(vecPts, [CARS.kestrel, CARS.aurelia], groundH, { includePlayer: true });
+  const aiVariants: RivalCarVariant[] = ['gt-track', 'exotic-wedge', 'gt-track', 'sport-coupe'];
+  let aiVarIdx = 0;
   for (const r of competition.racers) {
     if (r.isPlayer) continue;
-    const m = makeTrafficOrAiCarMesh(r.paintHex);
+    const oppCarId = RACE_OPPONENT_SCAN_IDS[aiVarIdx % RACE_OPPONENT_SCAN_IDS.length];
+    const m = makeTrafficOrAiCarMesh(r.paintHex, aiVariants[aiVarIdx++ % aiVariants.length]);
     m.position.copy(r.state.pos);
     m.rotation.y = r.state.yaw;
     aiGroup.add(m);
     aiMeshes.push(m);
+    // Upgrade race opponents from placeholder shells to real built high-performance scan cars
+    // (Vanguard Apex GT, Ironport Corsair RS, Kestrel Sovereign GT-R) using cached exterior geometry
+    void loadScanOpponentCar(oppCarId, r.paintHex).then((realOpp) => {
+      if (!m.parent) return;
+      while (m.children.length) m.remove(m.children[0]);
+      m.add(realOpp);
+    }).catch(() => { /* keep sculpted fallback */ });
   }
   stagePath = city ? null : new PathProgress(pts);
 }
@@ -3832,7 +3728,16 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
   else if (id === 'great_lakes_cliff_raceway' && cliffDesign) { const d = cliffDesign.pts; p = [d[2].x, d[2].z]; q = [d[6].x, d[6].z]; }     // the engineered line, not the raw survey points (up to 14 m off it)
   else { p = city && cn > 8 ? [cp[cn - 8].x, cp[cn - 8].z] : c!.xz[0]; q = city && cn > 8 ? [cp[cn - 7].x, cp[cn - 7].z] : c!.xz[4]; }
   const yaw = Math.atan2(q[0] - p[0], q[1] - p[1]);
-  const car = driving?.car ?? prewarmCar ?? makeCar();
+  const wantCarId = activeCarId();
+  let car: THREE.Group;
+  if (driving?.car && driving.car.userData.carId === wantCarId) {
+    car = driving.car;
+  } else if (prewarmCar && prewarmCar.userData.carId === wantCarId) {
+    car = prewarmCar;
+  } else {
+    if (driving?.car) scene.remove(driving.car);
+    car = makeCar(wantCarId);
+  }
   prewarmCar = null;
   car.position.set(0, 0, 0);
   if (!car.parent) scene.add(car);
@@ -4554,7 +4459,7 @@ function carHit(ps: DriveState['ps'], op: THREE.Vector3, oyaw: number, ovel: THR
   return best;
 }
 
-// Whole-place culling: dense circuits & Ironport hardware (harbor, catch fencing, grandstands, yards, roof details) are hidden when far and split into ~300 m frustum-cullable chunks.
+// Whole-place culling: dense circuits & Ironport hardware (harbor, catch fencing, grandstands, yards, roof details) are hidden when far and split into frustum-cullable chunks with tiered view/shadow budgets.
 const PLACE_FAR = new Set([
   'river-bridges', 'country-scenes', 'port-district', 'parking-lots', 'utilities',
   'Ironport harbor hardware', 'Ironport bolted catch fencing', 'Ironport grandstand', 'yards', 'IronportCityExpansion', 'roof-group', 'harbor-group',
@@ -4572,35 +4477,50 @@ function cullPlaces(now: number): void {
       if ((g as THREE.InstancedMesh).userData?.chunked) continue;                  // chunks are distance/shadow managed by chunkList below
       let b = placeBoxes.get(g);
       if (!b) { g.visible = true; g.updateMatrixWorld(true); b = new THREE.Box3(); g.traverse((o) => { const m = o as THREE.InstancedMesh; if (!m.isMesh) return; if (m.isInstancedMesh) { m.computeBoundingBox(); if (m.boundingBox) b!.union(m.boundingBox.clone().applyMatrix4(m.matrixWorld)); } else { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); b!.union(m.geometry.boundingBox!.clone().applyMatrix4(m.matrixWorld)); } }); placeBoxes.set(g, b); }
-      g.visible = mapMode || b.distanceToPoint(camera.position) < (PLACE_FAR.has(root.name) ? 1800 : 1200);
+      g.visible = mapMode || b.distanceToPoint(camera.position) < (PLACE_FAR.has(root.name) ? 1600 : 1100);
     }
   }
+  const camX = camera.position.x, camZ = camera.position.z;
+  const tierSh = tierCfg.cullShadowDist;
   for (let i = 0; i < chunkList.length; i++) {
     const c = chunkList[i];
-    const dist = Math.hypot(c.cx - camera.position.x, c.cz - camera.position.z) - c.r;
-    const vis = mapMode || dist < 1300;
+    const dist = Math.hypot(c.cx - camX, c.cz - camZ) - c.r;
+    const vis = mapMode || dist < c.maxDist;
     c.m.visible = vis;
-    if (c.baseCastShadow) c.m.castShadow = vis && !mapMode && dist < tierCfg.cullShadowDist;
+    if (c.baseCastShadow) c.m.castShadow = vis && !mapMode && dist < Math.min(tierSh, c.maxShadowDist);
   }
 }
 
-// Big instanced sets (fences, barriers, harbor hardware, yards, grandstand seats) cannot be culled as one object. Split each into ~300 m chunks once; the renderer then frustum-culls the chunks and we hide far ones.
-const chunkList: { m: THREE.InstancedMesh; cx: number; cz: number; r: number; baseCastShadow: boolean }[] = [];
+// Big instanced sets (fences, barriers, tyre walls, harbor hardware, streetlights, tree cards, rooftops) are split into spatial chunks with tiered distance/shadow budgets.
+const chunkList: { m: THREE.InstancedMesh; cx: number; cz: number; r: number; baseCastShadow: boolean; maxDist: number; maxShadowDist: number }[] = [];
+function chunkBudgetFor(m: THREE.Object3D): { cell: number; maxDist: number; maxShadowDist: number } {
+  let label = m.name || '';
+  let cur = m.parent;
+  while (cur && cur !== scene) {
+    if (cur.name) label += ' ' + cur.name;
+    cur = cur.parent;
+  }
+  if (/catch fencing/i.test(label)) return { cell: 380, maxDist: 340, maxShadowDist: 105 };
+  if (/trackkit-tyres|harbor hardware|yards/i.test(label)) return { cell: 450, maxDist: 480, maxShadowDist: 120 };
+  if (/roof-group|street-light/i.test(label)) return { cell: 620, maxDist: 620, maxShadowDist: 135 };
+  return { cell: 750, maxDist: 1100, maxShadowDist: 180 };
+}
 function chunkInstanced(root: THREE.Object3D): void {
   const big: THREE.InstancedMesh[] = [];
-  root.traverse((o) => { const m = o as THREE.InstancedMesh; if (m.isInstancedMesh && m.count > 600 && !m.userData.chunked) big.push(m); });
+  root.traverse((o) => { const m = o as THREE.InstancedMesh; if (m.isInstancedMesh && m.count > 450 && !m.userData.chunked) big.push(m); });
   const e = new THREE.Matrix4(), v = new THREE.Vector3(), col = new THREE.Color();
   for (const m of big) {
     m.userData.chunked = true; m.updateMatrixWorld(true);
+    const { cell, maxDist, maxShadowDist } = chunkBudgetFor(m);
     const buckets = new Map<string, number[]>();
-    for (let i = 0; i < m.count; i++) { m.getMatrixAt(i, e); v.setFromMatrixPosition(e).applyMatrix4(m.matrixWorld); const k = Math.floor(v.x / 300) + ',' + Math.floor(v.z / 300); let a = buckets.get(k); if (!a) buckets.set(k, a = []); a.push(i); }
+    for (let i = 0; i < m.count; i++) { m.getMatrixAt(i, e); v.setFromMatrixPosition(e).applyMatrix4(m.matrixWorld); const k = Math.floor(v.x / cell) + ',' + Math.floor(v.z / cell); let a = buckets.get(k); if (!a) buckets.set(k, a = []); a.push(i); }
     for (const idx of buckets.values()) {
       const c = new THREE.InstancedMesh(m.geometry, m.material, idx.length);
-      c.castShadow = m.castShadow; c.receiveShadow = m.receiveShadow; c.userData.chunked = true; c.matrixAutoUpdate = false; c.matrix.copy(m.matrix); c.matrixWorld.copy(m.matrixWorld);
+      c.name = m.name; c.castShadow = m.castShadow; c.receiveShadow = m.receiveShadow; c.userData.chunked = true; c.matrixAutoUpdate = false; c.matrix.copy(m.matrix); c.matrixWorld.copy(m.matrixWorld);
       idx.forEach((src, j) => { m.getMatrixAt(src, e); c.setMatrixAt(j, e); if (m.instanceColor) { m.getColorAt(src, col); c.setColorAt(j, col); } });
       c.instanceMatrix.needsUpdate = true; c.computeBoundingSphere();
       const bs = c.boundingSphere!.clone().applyMatrix4(c.matrixWorld);
-      c.frustumCulled = true; m.parent!.add(c); chunkList.push({ m: c, cx: bs.center.x, cz: bs.center.z, r: bs.radius, baseCastShadow: m.castShadow });
+      c.frustumCulled = true; m.parent!.add(c); chunkList.push({ m: c, cx: bs.center.x, cz: bs.center.z, r: bs.radius, baseCastShadow: m.castShadow, maxDist, maxShadowDist });
     }
     m.parent!.remove(m);
   }
@@ -4650,7 +4570,17 @@ function frame(now: number): void {
       for (let i = 0; i < csm.lights.length; i++) { const l = csm.lights[i]; l.intensity = sun.intensity; l.color.copy(sun.color); l.castShadow = csmCast[i]; }        // constant: flipping it recompiles every shader
       csmSweep();
     } else {
-      { const sb = driving && !mapMode ? 170 : 380, sc = sun.shadow.camera; if (sc.right !== sb) { sc.left = -sb; sc.right = sb; sc.top = sb; sc.bottom = -sb; sc.updateProjectionMatrix(); } }   // driving: the 2048 map over 340 m, about 17 cm a texel, so the car and kerbs get crisp shadows
+      {
+        const drvSh = driving && !mapMode;
+        const sb = drvSh ? 170 : 380, sc = sun.shadow.camera;
+        if (sc.right !== sb) {
+          sc.left = -sb; sc.right = sb; sc.top = sb; sc.bottom = -sb;
+          sc.updateProjectionMatrix();
+          // Tight normalBias (0.36m) in drive mode anchors shadows flush against building bases, barriers & tires instead of floating 2.5m off the wall
+          sun.shadow.normalBias = drvSh ? 0.36 : 1.1;
+          sun.shadow.bias = drvSh ? -0.0005 : -0.0012;
+        }
+      }
       sun.castShadow = true;           // constant: toggling it with camera distance flickered the sun and recompiled shaders; shadow throttling stays in spatialCuller
     }
   }

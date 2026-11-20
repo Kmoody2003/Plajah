@@ -55,13 +55,18 @@ const FRAG = `
     float glow = pow(sd, 120.0) * 0.62 + pow(sd, 12.0) * 0.19 + pow(sd, 3.0) * 0.06;
     float vis = uSunAmt * (1.0 - 0.88 * uMixOver);
     col += uSunCol * (disc * 9.5 + glow * 2.4) * vis * (1.0 - uNight);
-    // night: stars and a moon
+    // night: crisp pinpoint circular stars (only in deep night, never blocky square pixels at dusk) and a moon
     if (uNight > 0.02 && dir.y > -0.05) {
-      vec3 g = floor(dir * 260.0);
-      float h = hash(g);
-      float star = step(0.9962, h) * (0.35 + 0.65 * hash(g + 3.1)) * (0.75 + 0.25 * sin(uTime * 3.0 + h * 40.0));
-      star *= smoothstep(0.0, 0.25, dir.y) * (1.0 - uMixOver) * uNight;
-      col += vec3(0.85, 0.9, 1.0) * star * 1.4;
+      float starVis = smoothstep(0.62, 0.95, uNight) * smoothstep(0.05, 0.30, dir.y) * (1.0 - uMixOver);
+      if (starVis > 0.01) {
+        vec3 gs = dir * 210.0;
+        vec3 g = floor(gs), gf = fract(gs) - 0.5;
+        float h = hash(g);
+        vec3 off = (vec3(hash(g + 1.3), hash(g + 5.7), hash(g + 9.1)) - 0.5) * 0.55;
+        float pt = smoothstep(0.16, 0.02, length(gf - off));
+        float star = step(0.988, h) * pt * (0.4 + 0.6 * hash(g + 3.1)) * (0.78 + 0.22 * sin(uTime * 3.0 + h * 40.0));
+        col += vec3(0.85, 0.91, 1.0) * star * 1.6 * starVis;
+      }
       float md = max(dot(dir, uMoonDir), 0.0);
       col += vec3(0.9, 0.93, 1.0) * (smoothstep(0.9993, 0.9998, md) * 2.2 + pow(md, 220.0) * 0.35 + pow(md, 12.0) * 0.05) * uNight * (1.0 - 0.9 * uMixOver);
     }

@@ -4,3 +4,6 @@
 {"car":"sovereign","step":"lamps","date":"2026-11-16","note":"shader-painted lamps read as flat slabs. Rule: real housing + lens + projector + LED geometry, ray cast onto the surface."}
 {"car":"sovereign","step":"exhaust","date":"2026-11-16","predicted":{"z":-2.4},"measured":{"z":-2.27},"note":"tips at the bbox edge floated outside the bumper. Rule: tips flush in the bumper, diffuser tucked under."}
 {"car":"sovereign","step":"score","date":"2026-11-16","score":{"side":79.1,"rear_vs_34_ref":89.8},"note":"gate 95 not met; single-image mesh. Next: multi-view mesh."}
+
+{"car":"corsair","step":"build","date":"2026-11-19","measured":{"length":4.80,"frontZ":1.35,"rearZ":-1.52,"frontX":0.87,"rearX":0.865,"scale":1.07,"discardR":0.395},"note":"60k Hunyuan3D shell from frame2.png (0.00 deg symmetry) + 14-iter Taubin smoothing (+18 rear). Fixed floating splitter, hood strut clearance, and upside-down right trunk wheel-arch hump in scancar.ts."}
+{"car":"vanguard","step":"build","date":"2026-11-19","measured":{"length":4.62,"frontZ":1.42,"rearZ":-1.50,"frontX":0.90,"rearX":0.90,"scale":1.04,"discardR":0.382},"note":"60k Hunyuan3D shell from tight-cropped frame0.png (0.00 deg symmetry, replacing skewed frame1 shell) + 16-iter Taubin smoothing. Baked carbon swan-neck wing & roof scoop preserved; low mid-engine cabin headliner/cowl/subframe cleared; dihedral doors open."}

@@ -29,13 +29,13 @@ function normalise(g: THREE.BufferGeometry, colours: boolean): THREE.BufferGeome
   return out;
 }
 
-/** Each building model loads its own copies of the shared materials (same textures, same settings): two materials that would draw the same pixels share a batch. */
+/** Each building model loads its own copies of the shared materials (same textures, same settings): two materials that would draw the same pixels share a batch (color tints use BatchedMesh.setColorAt). */
 function matKey(mat: THREE.Material): string {
   const m = mat as THREE.MeshStandardMaterial;
-  const tx = (t?: THREE.Texture | null): string => (t ? (t.source?.uuid ?? t.uuid) + ':' + t.repeat.x.toFixed(3) + ',' + t.repeat.y.toFixed(3) + ':' + t.offset.x.toFixed(3) + ',' + t.offset.y.toFixed(3) : '-');
-  return [m.type, m.name, m.color?.getHexString(), m.roughness, m.metalness, m.emissive?.getHexString(), m.emissiveIntensity, m.envMapIntensity, m.opacity, m.transparent ? 1 : 0, m.side, m.vertexColors ? 1 : 0,
+  const tx = (t?: THREE.Texture | null): string => (t ? String(t.userData?.srcKey ?? t.source?.uuid ?? t.uuid) + ':' + t.repeat.x.toFixed(2) + ',' + t.repeat.y.toFixed(2) + ':' + t.offset.x.toFixed(2) + ',' + t.offset.y.toFixed(2) : '-');
+  return [m.type, m.roughness.toFixed(2), m.metalness.toFixed(2), m.emissive?.getHexString(), m.emissiveIntensity.toFixed(2), m.envMapIntensity.toFixed(2), m.opacity.toFixed(2), m.transparent ? 1 : 0, m.side, m.vertexColors ? 1 : 0,
     m.visible ? 1 : 0, m.alphaTest, m.colorWrite ? 1 : 0, m.depthWrite ? 1 : 0, m.blending, m.flatShading ? 1 : 0, tx(m.alphaMap),
-    m.normalScale ? m.normalScale.x + ',' + m.normalScale.y : '-', tx(m.map), tx(m.normalMap), tx(m.roughnessMap), tx(m.metalnessMap), tx(m.aoMap), tx(m.emissiveMap), m.onBeforeCompile === THREE.Material.prototype.onBeforeCompile ? '' : String(m.customProgramCacheKey?.() ?? 'patched')].join('|');
+    m.normalScale ? m.normalScale.x.toFixed(1) + ',' + m.normalScale.y.toFixed(1) : '-', tx(m.map), tx(m.normalMap), tx(m.roughnessMap), tx(m.metalnessMap), tx(m.aoMap), tx(m.emissiveMap), m.onBeforeCompile === THREE.Material.prototype.onBeforeCompile ? '' : String(m.customProgramCacheKey?.() ?? 'patched')].join('|');
 }
 
 export class CityBatches {
@@ -59,7 +59,16 @@ export class CityBatches {
     }
     const sphere = new THREE.Sphere();
     for (const list of buckets.values()) {
-      const mat = list[0].material as THREE.MeshStandardMaterial;
+      const firstMat = list[0].material as THREE.MeshStandardMaterial;
+      const firstHex = firstMat.color?.getHex() ?? 0xffffff;
+      const multiColor = list.some((p) => ((p.material as THREE.MeshStandardMaterial).color?.getHex() ?? 0xffffff) !== firstHex);
+      let mat = firstMat;
+      if (multiColor) {
+        mat = firstMat.clone();
+        mat.color.setHex(0xffffff);
+        mat.onBeforeCompile = firstMat.onBeforeCompile;
+        mat.customProgramCacheKey = firstMat.customProgramCacheKey;
+      }
       const colours = !!mat.vertexColors;
       const geos = new Map<THREE.BufferGeometry, THREE.BufferGeometry>();
       let verts = 0, idxs = 0, insts = 0;
@@ -74,12 +83,15 @@ export class CityBatches {
       const geoIds = new Map<THREE.BufferGeometry, number>();
       for (const [src, g] of geos) geoIds.set(src, mesh.addGeometry(g));
       const ids = new Int32Array(insts), spheres = new Float32Array(insts * 4);
+      const white = new THREE.Color(0xffffff);
       let k = 0;
       for (const p of list) {
         const gid = geoIds.get(p.geometry)!, bs = geos.get(p.geometry)!.boundingSphere!;
+        const pCol = (p.material as THREE.MeshStandardMaterial).color ?? white;
         for (const t of p.transforms) {
           const id = mesh.addInstance(gid);
           mesh.setMatrixAt(id, t);
+          if (multiColor) mesh.setColorAt(id, pCol);
           sphere.copy(bs).applyMatrix4(t);
           ids[k] = id; spheres[k * 4] = sphere.center.x; spheres[k * 4 + 1] = sphere.center.y; spheres[k * 4 + 2] = sphere.center.z; spheres[k * 4 + 3] = sphere.radius;
           k++;
@@ -103,7 +115,7 @@ export class CityBatches {
           const dx = s[i * 4] - cam.x, dz = s[i * 4 + 2] - cam.z, r = s[i * 4 + 3];
           const dy = Math.max(0, Math.abs(s[i * 4 + 1] - cam.y) - r);
           const dd = Math.sqrt(dx * dx + dz * dz + dy * dy) - r;
-          const lim = Math.min(vd, Math.max(380, r * 32));
+          const lim = Math.min(vd, Math.max(250, r * 24));
           on = dd < lim || dd < sd ? 1 : 0;
         }
         if (on !== b.vis[i]) { b.vis[i] = on; b.mesh.setVisibleAt(b.ids[i], on === 1); }

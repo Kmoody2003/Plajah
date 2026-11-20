@@ -3,11 +3,30 @@ import { HOSTS } from '../../../services/onair/hosts';
 import type { CarSpec } from './manufacturers';
 import type { CarState } from './physics';
 import { ChoraRadioManager, type RadioPreset } from './choraRadio';
+import { getEngineBank, type EngineBankMeta } from './engineAudio';
 
 export type StationInfo = RadioPreset;
 
-/** engine / tyre / gravel / brake loops cut from reference-video soundtracks: off until real engine source material exists */
-const USE_VIDEO_SAMPLES = false;
+interface EngineBankBuffers {
+  idle: AudioBuffer;
+  mid: AudioBuffer;
+  high: AudioBuffer;
+  decel: AudioBuffer;
+}
+
+interface ActiveEngineRig {
+  bankId: string;
+  meta: EngineBankMeta;
+  filter: BiquadFilterNode;
+  bus: GainNode;
+  idleSrc: AudioBufferSourceNode;
+  midSrc: AudioBufferSourceNode;
+  highSrc: AudioBufferSourceNode;
+  idleGain: GainNode;
+  midGain: GainNode;
+  highGain: GainNode;
+  decelBuf: AudioBuffer;
+}
 
 export class GameAudio {
   private ctx: AudioContext | null = null;
@@ -27,11 +46,13 @@ export class GameAudio {
   private lastThumpAt = 0;
   private lastBackfireAt = 0;
 
-  // Real sample-based engine, surface & one-shot buffers decoded from motion-study videos
+  // Real 24-bank multi-layer engine-stand sample cache (idle / mid / high RPM crossfade + decel overrun)
+  private bankCache = new Map<string, EngineBankBuffers>();
+  private bankLoading = new Set<string>();
+  private activeBank: ActiveEngineRig | null = null;
+  private lastDecelAt = 0;
+  private lastThrottle = 0;
   private sampleBuffers = new Map<string, AudioBuffer>();
-  private engSampleSrc: AudioBufferSourceNode | null = null;
-  private engSampleGain: GainNode | null = null;
-  private engSampleKey = '';
   private tireSampleGain: GainNode | null = null;
   private gravelSampleGain: GainNode | null = null;
   private brakeSampleGain: GainNode | null = null;
@@ -216,105 +237,110 @@ export class GameAudio {
     this.musicGain = musicGain;
 
     this.nextStepTime = ctx.currentTime + 0.05;
-    // Video-soundtrack samples are OFF: they carry tyre squeal and road noise inside the engine loop and do not follow what the car is doing. The synthesised engine, tyre,
-    // gravel and brake layers drive everything until proper engine source material (see docs/apex-elohim/engine-audio-brief.md) is in.
-    if (USE_VIDEO_SAMPLES) void this.loadRealSamples(ctx, master);
   }
 
-  private sliceLoopBuffer(ctx: AudioContext, src: AudioBuffer, startSec: number, durSec: number, loopFadeSec = 0.14): AudioBuffer {
-    const sr = src.sampleRate;
-    const s0 = Math.min(src.length - 1, Math.max(0, Math.floor(startSec * sr)));
-    const len = Math.max(Math.floor(sr * 0.25), Math.min(src.length - s0, Math.floor(durSec * sr)));
-    const out = ctx.createBuffer(1, len, sr);
-    const dst = out.getChannelData(0);
-    const ch0 = src.getChannelData(0);
-    for (let i = 0; i < len; i++) dst[i] = ch0[s0 + i];
-    // Seamless loop crossfade at ends
-    const fadeN = Math.min(Math.floor(len * 0.25), Math.floor(loopFadeSec * sr));
-    for (let i = 0; i < fadeN; i++) {
-      const t = i / fadeN;
-      const tail = dst[len - fadeN + i];
-      dst[i] = dst[i] * t + tail * (1 - t);
-      dst[len - fadeN + i] = dst[len - fadeN + i] * (1 - t) + dst[i] * t;
+  private async fetchEngineBank(bankId: string): Promise<void> {
+    if (!this.ctx || this.bankCache.has(bankId) || this.bankLoading.has(bankId)) return;
+    const meta = getEngineBank(bankId);
+    if (!meta) return;
+    this.bankLoading.add(bankId);
+    try {
+      const ctx = this.ctx;
+      const loadOne = async (name: string): Promise<AudioBuffer> => {
+        const res = await fetch(`${meta.basePath}/${name}.mp3`);
+        if (!res.ok) throw new Error(`HTTP ${res.status} loading ${bankId}/${name}.mp3`);
+        return await ctx.decodeAudioData(await res.arrayBuffer());
+      };
+      const [idle, mid, high, decel] = await Promise.all([
+        loadOne('idle'),
+        loadOne('mid'),
+        loadOne('high'),
+        loadOne('decel'),
+      ]);
+      this.bankCache.set(bankId, { idle, mid, high, decel });
+    } catch {
+      // Offline or unsupported codec — synthetic fallback remains active
+    } finally {
+      this.bankLoading.delete(bankId);
     }
-    return out;
   }
 
-  private async loadRealSamples(ctx: AudioContext, master: GainNode): Promise<void> {
-    const specs: { key: string; url: string; start: number; dur: number; loop?: boolean }[] = [
-      { key: 'v8_muscle', url: '/racer-refs/Muscle_car_suspension_study_9ac957de.mp4', start: 0.9, dur: 3.4, loop: true },
-      { key: 'backfire', url: '/racer-refs/Muscle_car_suspension_study_9ac957de.mp4', start: 7.0, dur: 1.0, loop: false },
-      { key: 'supercar_track', url: '/racer-refs/Vehicle_suspension_movement_study_06ea8744.mp4', start: 0.6, dur: 4.0, loop: true },
-      { key: 'curb_thud', url: '/racer-refs/Car_suspension_movement_study_video_cf917772.mp4', start: 1.1, dur: 1.1, loop: false },
-      { key: 'tcr_touring', url: '/racer-refs/Car_suspension_movement_study_video_cf917772.mp4', start: 5.2, dur: 2.8, loop: true },
-      { key: 'rally_gravel', url: '/racer-refs/Rally_hatchback_sliding_on_gravel_2e3c5558.mp4', start: 1.0, dur: 4.0, loop: true },
-      { key: 'buggy_offroad', url: '/racer-refs/Buggy_tackling_sandy_humps_ed650de7.mp4', start: 1.0, dur: 3.8, loop: true },
-      { key: 'ev_motor', url: '/racer-refs/Electric_sedan_negotiating_S-ben…_1e3a2a46.mp4', start: 1.2, dur: 4.2, loop: true },
-      { key: 'tire_screech', url: '/racer-refs/Tire_smoke_swirling_horizontally_08e27b64.mp4', start: 0.6, dur: 3.2, loop: true },
-      { key: 'brake_hiss', url: '/racer-refs/Brake_rotor_heating_thermal_glow_4caa196f.mp4', start: 1.0, dur: 3.0, loop: true },
-    ];
+  private ensureEngineBank(bankId: string | undefined): ActiveEngineRig | null {
+    if (!bankId || !this.ctx || !this.master) return null;
+    if (this.activeBank && this.activeBank.bankId === bankId) return this.activeBank;
+    const bufs = this.bankCache.get(bankId);
+    if (!bufs) {
+      void this.fetchEngineBank(bankId);
+      return null;
+    }
+    const meta = getEngineBank(bankId);
+    if (!meta) return null;
 
-    const decodedCache = new Map<string, AudioBuffer>();
-    for (const s of specs) {
+    if (this.activeBank) {
       try {
-        let full = decodedCache.get(s.url);
-        if (!full) {
-          const resp = await fetch(encodeURI(s.url));
-          if (!resp.ok) continue;
-          const ab = await resp.arrayBuffer();
-          full = await ctx.decodeAudioData(ab);
-          decodedCache.set(s.url, full);
-        }
-        const sliced = this.sliceLoopBuffer(ctx, full, s.start, s.dur, s.loop ? 0.14 : 0.02);
-        this.sampleBuffers.set(s.key, sliced);
-      } catch {
-        // Offline or unsupported codec — synthetic fallback remains active
-      }
+        this.activeBank.idleSrc.stop();
+        this.activeBank.midSrc.stop();
+        this.activeBank.highSrc.stop();
+        this.activeBank.bus.disconnect();
+      } catch { /* ignore */ }
+      this.activeBank = null;
     }
 
-    const bindLoop = (key: string, gainRef: (g: GainNode) => void) => {
-      const buf = this.sampleBuffers.get(key);
-      if (!buf) return;
+    const ctx = this.ctx;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 1800;
+    filter.Q.value = 0.85;
+    const bus = ctx.createGain();
+    bus.gain.value = 0.001;
+    filter.connect(bus);
+    bus.connect(this.master);
+
+    const mkLayer = (buf: AudioBuffer): [AudioBufferSourceNode, GainNode] => {
       const src = ctx.createBufferSource();
       src.buffer = buf;
       src.loop = true;
       const g = ctx.createGain();
       g.gain.value = 0;
       src.connect(g);
-      g.connect(master);
+      g.connect(filter);
       src.start();
-      gainRef(g);
+      return [src, g];
     };
 
-    bindLoop('tire_screech', (g) => { this.tireSampleGain = g; });
-    bindLoop('rally_gravel', (g) => { this.gravelSampleGain = g; });
-    bindLoop('brake_hiss', (g) => { this.brakeSampleGain = g; });
+    const [idleSrc, idleGain] = mkLayer(bufs.idle);
+    const [midSrc, midGain] = mkLayer(bufs.mid);
+    const [highSrc, highGain] = mkLayer(bufs.high);
+
+    this.activeBank = {
+      bankId,
+      meta,
+      filter,
+      bus,
+      idleSrc,
+      midSrc,
+      highSrc,
+      idleGain,
+      midGain,
+      highGain,
+      decelBuf: bufs.decel,
+    };
+    return this.activeBank;
   }
 
-  private ensureEngineSample(key: string): boolean {
-    if (!this.ctx || !this.master) return false;
-    const buf = this.sampleBuffers.get(key);
-    if (!buf) return false;
-    if (this.engSampleKey === key && this.engSampleSrc && this.engSampleGain) return true;
-    try { this.engSampleSrc?.stop(); } catch {}
+  private triggerDecelOverrun(rig: ActiveEngineRig, now: number, intensity: number): void {
+    if (!this.ctx || !this.master) return;
     const src = this.ctx.createBufferSource();
-    src.buffer = buf;
-    src.loop = true;
+    src.buffer = rig.decelBuf;
+    src.playbackRate.value = 0.92 + Math.random() * 0.14;
     const g = this.ctx.createGain();
-    g.gain.value = 0;
-    // the engine loops are cut from video soundtracks, which carry tyre squeal and road noise in the 1 to 4 kHz band: keep the engine's body and cut that band so no squeal is
-    // ever heard in the engine; real tyre squeal comes only from the physics-driven layer below
-    const lp = this.ctx.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = 1700; lp.Q.value = 0.6;
-    const notch = this.ctx.createBiquadFilter();
-    notch.type = 'notch'; notch.frequency.value = 1450; notch.Q.value = 2.5;
-    src.connect(lp); lp.connect(notch); notch.connect(g);
-    g.connect(this.master);
-    src.start();
-    this.engSampleSrc = src;
-    this.engSampleGain = g;
-    this.engSampleKey = key;
-    return true;
+    g.gain.setValueAtTime(0.001, now);
+    g.gain.linearRampToValueAtTime(Math.min(0.45, intensity), now + 0.04);
+    g.gain.exponentialRampToValueAtTime(0.001, now + Math.min(1.25, rig.decelBuf.duration));
+    src.connect(g);
+    g.connect(rig.filter);
+    src.start(now);
+    src.stop(now + Math.min(1.3, rig.decelBuf.duration));
   }
 
   /** hosts that bring their own music (the region game) turn the built-in groove off */
@@ -370,22 +396,55 @@ export class GameAudio {
     this.engSub?.frequency.setTargetAtTime(baseHz * 0.5, now, 0.025);
 
     const shiftDip = state.shiftTimer > 0 ? 0.45 : 1.0;
-    const engSampleKey = isEv
-      ? 'ev_motor'
-      : spec.vehicleClass === 'buggy' || spec.vehicleClass === 'truck' || spec.suspension.travelM >= 0.25
-      ? 'buggy_offroad'
-      : spec.engine.aspiration === 'Supercharged' || spec.vehicleClass === 'muscle'
-      ? 'v8_muscle'
-      : spec.vehicleClass === 'rally'
-      ? 'tcr_touring'
-      : 'supercar_track';
-    const hasRealEng = this.ensureEngineSample(engSampleKey);
-    const synthScale = hasRealEng ? 0.16 : 1.0;
+    const upgLvl = spec.engine.soundUpgradeLevel ?? 0;
+    const bankId = isEv
+      ? undefined
+      : (spec.engine.soundBank
+        ?? (spec.vehicleClass === 'truck'
+          ? 'pickup_v8'
+          : spec.engine.aspiration === 'Supercharged'
+          ? 'sc_v8_blower'
+          : spec.vehicleClass === 'muscle'
+          ? 'muscle_v8'
+          : spec.vehicleClass === 'rally'
+          ? 'turbo_i5'
+          : spec.vehicleClass === 'track'
+          ? 'hypercar_tt_v8'
+          : 'sports_car_gt'));
+    const rig = this.ensureEngineBank(bankId);
+    const hasRealEng = !!rig;
+    const synthScale = hasRealEng ? 0.08 : 1.0;
 
-    if (hasRealEng && this.engSampleSrc && this.engSampleGain) {
-      this.engSampleSrc.playbackRate.setTargetAtTime(0.65 + rpmFrac * 0.95, now, 0.04);
-      this.engSampleGain.gain.setTargetAtTime((0.20 + throttle * 0.26 + rpmFrac * 0.14) * shiftDip, now, 0.04);
+    if (rig) {
+      const r = Math.min(1, Math.max(0, rpmFrac));
+      // Smooth 3-band RPM crossfade (idle 0..0.42 -> mid 0.18..0.82 -> high 0.54..1.0)
+      const wIdle = Math.max(0, 1 - r / 0.42);
+      const wHigh = Math.max(0, (r - 0.52) / 0.48);
+      const wMid = Math.max(0, 1 - wIdle - wHigh);
+      // Calibrated playback pitch ratios (keeps natural engine timbre without chipmunk distortion)
+      rig.idleSrc.playbackRate.setTargetAtTime(0.84 + r * 0.48, now, 0.035);
+      rig.midSrc.playbackRate.setTargetAtTime(0.78 + r * 0.56, now, 0.035);
+      rig.highSrc.playbackRate.setTargetAtTime(0.76 + r * 0.54, now, 0.035);
+      rig.idleGain.gain.setTargetAtTime(wIdle * (0.85 + throttle * 0.25), now, 0.04);
+      rig.midGain.gain.setTargetAtTime(wMid * (0.72 + throttle * 0.42), now, 0.04);
+      rig.highGain.gain.setTargetAtTime(wHigh * (0.76 + throttle * 0.48), now, 0.04);
+
+      // Quiet everyday stock cars stay refined/muted; sport/race cars & upgraded builds open up bright & punchy
+      const aggNorm = Math.min(1, (rig.meta.aggression + upgLvl * 0.65) / 4);
+      const maxCutoff = 1600 + aggNorm * 4800;
+      const minCutoff = 480 + aggNorm * 580;
+      rig.filter.frequency.setTargetAtTime((minCutoff + (maxCutoff - minCutoff) * (0.25 + 0.55 * throttle + 0.35 * r)) * shiftDip, now, 0.04);
+      const volBase = rig.meta.gain * (0.34 + aggNorm * 0.22) * (0.55 + throttle * 0.36 + r * 0.24) * shiftDip;
+      rig.bus.gain.setTargetAtTime(volBase, now, 0.04);
+
+      // Real deceleration overrun / exhaust burble on throttle lift at mid-high RPM
+      const liftOff = this.lastThrottle > 0.42 && throttle < 0.14 && r > 0.36;
+      if (liftOff && now - this.lastDecelAt > 0.55 && (rig.meta.aggression >= 1 || upgLvl >= 1)) {
+        this.lastDecelAt = now;
+        this.triggerDecelOverrun(rig, now, 0.16 + aggNorm * 0.26);
+      }
     }
+    this.lastThrottle = throttle;
 
     this.engFilter.frequency.setTargetAtTime(
       (220 + rpmFrac * 1850 + throttle * 480) * shiftDip,

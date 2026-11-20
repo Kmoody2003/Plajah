@@ -331,7 +331,7 @@ export async function runWithConcurrency<T>(
  */
 export function populateTerrainLOD(
   target: THREE.Group, material: THREE.Material, nx: number, ny: number, pos: Float32Array, uv: Float32Array, nor: Float32Array,
-  tileVerts = 64, lodDist: number[] = [0, 1100, 2400, 4800], skirt = 16,
+  tileVerts = 224, lodDist: number[] = [0, 850, 1900, 4000], skirt = 16,
 ): void {
   for (const lod of target.children) for (const lvl of (lod as THREE.LOD).levels ?? []) (lvl.object as THREE.Mesh).geometry?.dispose();
   target.clear();

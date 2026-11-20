@@ -68,6 +68,7 @@ export class Vegetation {
   private alb: { w: number; h: number; d: Uint8ClampedArray } | null = null;
   private lastCam = new THREE.Vector2(1e9, 1e9);
   private dirty = true;
+  private pending = true;
   private sinceRebuild = 0;
   private enabled = true;
 
@@ -264,11 +265,13 @@ export class Vegetation {
     this.uCam.value.copy(cam);
     if (!this.enabled || !this.cls || !this.alb) return;
     this.sinceRebuild += dt;
+    const moved = Math.hypot(cam.x - this.lastCam.x, cam.z - this.lastCam.y);
+    if (moved < 2.5 && !this.pending && !this.dirty) return;
     // which cells should exist, and make the nearest missing ones inside a time budget
     const t0 = performance.now();
-    const moved = Math.hypot(cam.x - this.lastCam.x, cam.z - this.lastCam.y);
-    if (moved > 3) { this.lastCam.set(cam.x, cam.z); this.dirty = true; }
+    if (moved >= 2.5) { this.lastCam.set(cam.x, cam.z); this.dirty = true; this.pending = true; }
     let budget = 1.6;
+    let remaining = false;
     for (const sp of this.species) {
       const r = sp.radius + CELL * 0.75;
       const ci0 = Math.floor((cam.x - r) / CELL), ci1 = Math.floor((cam.x + r) / CELL), cj0 = Math.floor((cam.z - r) / CELL), cj1 = Math.floor((cam.z + r) / CELL);
@@ -287,11 +290,12 @@ export class Vegetation {
       }
       need.sort((a, b) => a.d - b.d);
       for (const n of need) {
-        if (performance.now() - t0 > budget) break;
+        if (performance.now() - t0 > budget) { remaining = true; break; }
         sp.cells.set(n.key, this.genCell(sp, n.ci, n.cj));
         this.dirty = true;
       }
     }
+    this.pending = remaining;
     this.stats.genMs = performance.now() - t0;
     if (this.dirty && this.sinceRebuild > 0.12) { this.rebuild(cam); this.dirty = false; this.sinceRebuild = 0; }
   }

@@ -17,6 +17,10 @@ export interface EngineSpec {
   // Normalized torque multiplier at [0%, 25%, 50%, 75%, 90%, 100%] of RPM band
   torqueCurve: [number, number, number, number, number, number];
   pitchBaseHz: number;
+  /** Matched engine-stand audio bank from engineAudioManifest.json (quiet when stock on everyday cars, escalates with upgrades) */
+  soundBank?: string;
+  /** 0 (stock) .. 4 (Elohim forged/race) computed from fitted engine + induction + exhaust parts */
+  soundUpgradeLevel?: number;
 }
 
 export interface SuspensionSpec {

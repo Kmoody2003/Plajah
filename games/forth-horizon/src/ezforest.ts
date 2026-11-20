@@ -28,8 +28,8 @@ function copyGeo(src: Src): THREE.BufferGeometry {
 
 interface Variant { conifer: boolean; bark: THREE.BufferGeometry; leaves: THREE.BufferGeometry | null; barkType: string; leafType: string; width: number }
 const PRESETS: [boolean, string, number][] = [
-  [true, 'Pine Large', 11], [true, 'Pine Large', 23], [true, 'Pine Medium', 37], [true, 'Pine Medium', 41], [true, 'Pine Small', 53],
-  [false, 'Oak Medium', 61], [false, 'Oak Large', 67], [false, 'Ash Medium', 71], [false, 'Aspen Medium', 83],
+  [true, 'Pine Large', 11], [true, 'Pine Medium', 37],
+  [false, 'Oak Medium', 61], [false, 'Ash Medium', 71], [false, 'Aspen Medium', 83],
 ];
 let VARIANTS: Variant[] | null = null;
 function makeVariants(): Variant[] {
@@ -41,11 +41,11 @@ function makeVariants(): Variant[] {
       t.loadPreset(preset);
       t.options.seed = seed;
       const o = t.options as unknown as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-      for (const k of Object.keys(o.branch.sections)) o.branch.sections[k] = Math.max(3, Math.round(o.branch.sections[k] * 0.58));
-      for (const k of Object.keys(o.branch.segments)) o.branch.segments[k] = Math.max(3, Math.round(o.branch.segments[k] * 0.55));
+      for (const k of Object.keys(o.branch.sections)) o.branch.sections[k] = Math.max(3, Math.round(o.branch.sections[k] * 0.45));
+      for (const k of Object.keys(o.branch.segments)) o.branch.segments[k] = Math.max(3, Math.round(o.branch.segments[k] * 0.44));
       if (o.leaves) {
-        o.leaves.count = Math.round(o.leaves.count * 0.58);
-        if (typeof o.leaves.size === 'number') o.leaves.size *= 1.18;
+        o.leaves.count = Math.round(o.leaves.count * 0.48);
+        if (typeof o.leaves.size === 'number') o.leaves.size *= 1.28;
       }
       t.generate();
       const bark = copyGeo(t.branchesMesh.geometry as unknown as Src);
@@ -133,7 +133,7 @@ export class EzTreeField {
       const bm = new THREE.MeshStandardMaterial({ map: tex(`${v.barkType}_color_1k.jpg`, true), normalMap: tex(`${v.barkType}_normal_1k.jpg`, false), roughnessMap: tex(`${v.barkType}_roughness_1k.jpg`, false), roughness: 0.95, metalness: 0, color: 0x9a958c });
       sway(bm, 'bark');
       const meshes: THREE.InstancedMesh[] = [];
-      const mkim = (g: THREE.BufferGeometry, m: THREE.Material): THREE.InstancedMesh => { const im = new THREE.InstancedMesh(g, m, this.cap); im.count = 0; im.frustumCulled = false; im.castShadow = false; this.group.add(im); meshes.push(im); return im; };
+      const mkim = (g: THREE.BufferGeometry, m: THREE.Material): THREE.InstancedMesh => { const im = new THREE.InstancedMesh(g, m, this.cap); im.count = 0; im.visible = false; im.frustumCulled = false; im.castShadow = false; this.group.add(im); meshes.push(im); return im; };
       mkim(v.bark, bm);
       if (v.leaves) {
         const lm = new THREE.MeshStandardMaterial({ map: tex(`${v.leafType}_color.png`, true), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, metalness: 0, color: new THREE.Color(LEAF_GREEN[v.leafType] ?? 0x4a8a3a).multiplyScalar(2.1) });
@@ -197,8 +197,11 @@ export class EzTreeField {
       const c = fill[i];
       for (const im of this.sets[i].meshes) {
         im.count = c;
-        im.instanceMatrix.needsUpdate = true;
-        if (im.instanceColor) im.instanceColor.needsUpdate = true;
+        im.visible = c > 0;
+        if (c > 0) {
+          im.instanceMatrix.needsUpdate = true;
+          if (im.instanceColor) im.instanceColor.needsUpdate = true;
+        }
       }
     }
     this.count = total;

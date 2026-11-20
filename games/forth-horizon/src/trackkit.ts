@@ -89,12 +89,11 @@ export class TrackKit {
   // ---------- tyre walls: stacked tyres, red/white/black, on the outside of every corner ----------
   private tyreWalls(): void {
     const { P, corners, HALF } = this.k, n = P.length;
-    // One real tyre, lying flat as in a tyre barrier: a revolved profile with the rounded sidewall, the shoulder, the flat tread and the open bead (not a doughnut). 0.69 m
-    // across, 0.23 m tall. The look comes from the textures: tread blocks and sidewall rings and lettering in the colour map and the same picture as a bump map.
+    // One real tyre, lying flat as in a tyre barrier: smooth-shaded revolved profile (80 tris instead of 264 tris -> saves >1.5M triangles on Ironport circuit with identical tread/bump appearance).
     const profile: THREE.Vector2[] = [
-      [0.205, -0.105], [0.245, -0.118], [0.295, -0.112], [0.333, -0.082], [0.345, -0.045], [0.347, 0.045], [0.333, 0.082], [0.295, 0.112], [0.245, 0.118], [0.205, 0.105], [0.197, 0.0], [0.205, -0.105],
+      [0.205, -0.105], [0.295, -0.114], [0.346, -0.055], [0.346, 0.055], [0.295, 0.114], [0.205, 0.105],
     ].map(([x, y]) => new THREE.Vector2(x, y));
-    const geo = new THREE.LatheGeometry(profile, 12);
+    const geo = new THREE.LatheGeometry(profile, 8);
     const rubberTex = (paint: string | null): THREE.CanvasTexture => canvasTex(512, 256, (g) => {
       const R = rnd(paint ? (paint === '#d8d8d2' ? 5 : 9) : 3);
       g.fillStyle = '#15161a'; g.fillRect(0, 0, 512, 256);
@@ -124,7 +123,7 @@ export class TrackKit {
     const mats = [mk(null), mk('#d8d8d2'), mk('#b01e1e')];
     const slots: THREE.Matrix4[][] = [[], [], []];
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), r = rnd(7);
-    const TYRE_H = 0.22, SPACING = 0.64;
+    const TYRE_H = 0.22, SPACING = 0.72;
     for (const cn of corners) {
       let bi = 0, best = 1e18;
       for (let i = 0; i < n; i++) { const d = (P[i].x - cn.x) ** 2 + (P[i].z - cn.z) ** 2; if (d < best) { best = d; bi = i; } }
@@ -160,6 +159,7 @@ export class TrackKit {
       list.forEach((m, i) => im.setMatrixAt(i, m));
       im.instanceMatrix.needsUpdate = true;
       im.computeBoundingSphere();
+      im.name = 'trackkit-tyres';
       im.frustumCulled = true; im.castShadow = true; im.receiveShadow = true;
       this.group.add(im);
     });
@@ -200,7 +200,17 @@ export class TrackKit {
     for (const [i, side, len, rows] of spots) {
       if (len === 0) continue;
       if (side < 0 && this.inPit(((i % n) + n) % n)) continue;
-      const p = this.at(i, HALF + 9, side);
+      // the stand is straight and the track may curve under it: back it off until its whole front edge is clear of the barriers (front row stands at local z 0)
+      const clearance = HALF + 4;
+      const frontMin = (off: number): number => {
+        const q = this.at(i, off, side); let worst = 1e9;
+        const ox = q.tx * (side < 0 ? -1 : 1), oz = q.tz * (side < 0 ? -1 : 1);
+        for (let t = -0.5; t <= 0.501; t += 0.125) { const x = q.x + ox * len * t, z = q.z + oz * len * t; let d = 1e9; for (let k = 0; k < n; k++) d = Math.min(d, Math.hypot(P[k].x - x, P[k].z - z)); worst = Math.min(worst, d); }
+        return worst;
+      };
+      let off = HALF + 9;
+      for (let k = 0; k < 20 && frontMin(off) < clearance; k++) off += 1;
+      const p = this.at(i, off, side);
       const st = this.makeStand(len, rows);
       st.position.set(p.x, p.y, p.z);
       // local +x along the track, local +z away from it
@@ -266,8 +276,8 @@ export class TrackKit {
     const g = new THREE.Group();
     const bar = new THREE.Mesh(new THREE.BoxGeometry(5 * 1.5 + 0.8, 1.2, 0.5), mat(0x15181e, 0.5, 0.3)); g.add(bar);
     for (let k = 0; k < 5; k++) {
-      const l = new THREE.Mesh(new THREE.CircleGeometry(0.46, 20), this.lampMat[0]); l.position.set((k - 2) * 1.5, 0, 0.27); g.add(l); this.lamps.push(l);
-      const l2 = l.clone(); l2.rotation.y = Math.PI; l2.position.z = -0.27; g.add(l2); this.lamps.push(l2);
+      const l = new THREE.Mesh(new THREE.CircleGeometry(0.46, 20), this.lampMat[0]); l.position.set((k - 2) * 1.5, 0, 0.27); l.userData.keep = true; g.add(l); this.lamps.push(l);
+      const l2 = l.clone(); l2.rotation.y = Math.PI; l2.position.z = -0.27; l2.userData.keep = true; g.add(l2); this.lamps.push(l2);
     }
     g.position.set(p.x, y + 7.0, p.z);
     g.rotation.y = Math.atan2(p.tx, p.tz);

@@ -2,11 +2,12 @@
 // The Kestrel Sovereign and Aurelia Zephyr use their hand-built specs. The rest are generated from their published numbers (power, weight, drivetrain) on top of an
 // archetype (GT, muscle, rally, truck, ...), so all of them handle differently. Until a car has its own 3D body it drives with the Sovereign's (see `body`).
 import { CARS, type CarSpec } from '../manufacturers';
+import { stockSoundBankFor } from '../engineAudio';
 import type { Powertrain, Unlock } from './parts';
 
-export type Archetype = 'gt' | 'track' | 'muscle' | 'touring' | 'classic' | 'rally' | 'buggy' | 'truck' | 'suv' | 'ev';
+export type Archetype = 'gt' | 'track' | 'muscle' | 'touring' | 'classic' | 'rally' | 'buggy' | 'truck' | 'suv' | 'ev' | 'sedan' | 'compact' | 'van' | 'commercial';
 export type Aspiration = CarSpec['engine']['aspiration'];
-export type Body = 'sovereign' | 'procedural' | 'pending';
+export type Body = 'sovereign' | 'scan' | 'procedural' | 'pending';
 
 export interface CarDef {
   id: string;
@@ -29,6 +30,10 @@ export interface CarDef {
   sheetUrl: string;
   videoUrl?: string;
   glbUrl?: string;
+  /** Optional explicit stock engine-stand audio bank ID (from 24 real engine videos) */
+  soundBank?: string;
+  /** True when this vehicle also spawns in everyday Ironport street traffic */
+  traffic?: boolean;
 }
 
 const CA = '/ironport-assets/concept-art/';
@@ -47,7 +52,7 @@ export const CAR_DEFS: CarDef[] = [
   { id: 'badlands', make: 'Kestrel', name: 'Badlands XT', pi: 720, drivetrain: 'AWD', powertrain: 'ice', aspiration: 'Twin-Turbo', engineText: '3.5L Twin-Turbo V6', hp: 540, kg: 2040, archetype: 'rally', price: 80000, unlock: { kind: 'level', level: 5 }, body: 'pending', summary: 'Long-travel dune and forest rally-raid runner.', sheetUrl: CA + 'media-generation-kestrel-badlands-xt-0-3b3a5216-2957-4519-8eae-7ee0ab0d3aa5.webp' },
   { id: 'ironhide', make: 'Meridian', name: 'Ironhide 440', pi: 740, drivetrain: 'RWD', powertrain: 'ice', aspiration: 'Naturally Aspirated', engineText: '7.0L V8', hp: 560, kg: 1720, archetype: 'muscle', price: 88000, unlock: { kind: 'level', level: 5 }, body: 'pending', summary: 'Retro-modern Detroit brawler on a heavy steel unibody.', sheetUrl: CA + 'media-generation-meridian-ironhide-440-v2-0-c0626eaf-04fb-47a7-bd4c-fa42eaa4eb2a.webp' },
   { id: 'apex_tcr', make: 'Apex', name: 'TCR Spec-2', pi: 750, drivetrain: 'FWD', powertrain: 'ice', aspiration: 'Twin-Turbo', engineText: '2.0L Turbo I4', hp: 380, kg: 1210, archetype: 'touring', price: 82000, unlock: { kind: 'level', level: 6 }, body: 'pending', summary: 'Homologated touring car for the Ironport Grand Circuit.', sheetUrl: RR + 'Apex_TCR_Spec-2_touring_car_57cda8b3.jpg' },
-  { id: 'corsair', make: 'Ironport', name: 'Corsair RS', pi: 760, drivetrain: 'RWD', powertrain: 'ice', aspiration: 'Supercharged', engineText: '6.4L V8', hp: 640, kg: 1620, archetype: 'muscle', price: 96000, unlock: { kind: 'level', level: 6 }, body: 'pending', summary: 'Widebody Detroit muscle coupe.', sheetUrl: RR + 'Ironport_Corsair_RS_muscle_car_1eef7ba7.jpg' },
+  { id: 'corsair', make: 'Ironport', name: 'Corsair RS', pi: 760, drivetrain: 'RWD', powertrain: 'ice', aspiration: 'Supercharged', engineText: '6.4L V8', hp: 640, kg: 1620, archetype: 'muscle', price: 96000, unlock: { kind: 'level', level: 6 }, body: 'scan', summary: 'Widebody Detroit muscle coupe.', sheetUrl: RR + 'Ironport_Corsair_RS_muscle_car_1eef7ba7.jpg' },
   { id: 'zephyr_emotion', make: 'Zephyr', name: 'E-Motion', pi: 770, drivetrain: 'AWD', powertrain: 'ev', aspiration: 'Electric', engineText: 'Dual-Motor EV', hp: 690, kg: 1860, archetype: 'ev', price: 100000, unlock: { kind: 'level', level: 7 }, body: 'pending', summary: 'Aerodynamic electric fastback sedan.', sheetUrl: RR + 'Zephyr_E-Motion_design_turnaroun…_3d23caa3.jpg' },
   { id: 'sidewinder', make: 'Kestrel', name: 'Sidewinder', pi: 780, drivetrain: 'RWD', powertrain: 'ice', aspiration: 'Naturally Aspirated', engineText: '5.0L V8', hp: 610, kg: 1420, archetype: 'gt', price: 104000, unlock: { kind: 'level', level: 7 }, body: 'pending', summary: 'Lightweight drift and street-circuit coupe.', sheetUrl: CA + 'media-generation-kestrel-sidewinder-v2-0-4fdafafd-313a-4c7d-95a5-cdac76c13ddd.webp' },
   { id: 'terracorsa', make: 'Aurelia', name: 'Terra Corsa', pi: 790, drivetrain: 'AWD', powertrain: 'ice', aspiration: 'Naturally Aspirated', engineText: '4.0L Flat-6', hp: 520, kg: 1340, archetype: 'rally', price: 110000, unlock: { kind: 'level', level: 8 }, body: 'pending', summary: 'Lifted gravel and Pinewood Forest rally supercar.', sheetUrl: CA + 'media-generation-aurelia-terra-corsa-0-fa3d02cf-8594-4669-b613-bd4eb9ae125e.webp' },
@@ -59,7 +64,7 @@ export const CAR_DEFS: CarDef[] = [
   { id: 'veloce', make: 'Aurelia', name: 'Veloce Spyder', pi: 870, drivetrain: 'RWD', powertrain: 'ice', aspiration: 'Naturally Aspirated', engineText: '4.5L V8', hp: 710, kg: 1310, archetype: 'gt', price: 260000, unlock: { kind: 'level', level: 12 }, body: 'pending', summary: 'Open-top coastal GT built for the Lakeshore Bluffs.', sheetUrl: CA + 'media-generation-aurelia-veloce-spyder-0-085cdb7b-af49-41e2-b36a-75ff2d04a8f1.webp' },
   // S2
   { id: 'aurelia', make: 'Aurelia', name: 'Zephyr Apex', pi: 920, drivetrain: 'AWD', powertrain: 'ice', aspiration: 'Naturally Aspirated', engineText: '5.2L V10', hp: 820, nm: 690, kg: 1260, archetype: 'track', price: 400000, unlock: { kind: 'level', level: 15 }, body: 'pending', summary: 'Carbon-monocoque track weapon with a teardrop canopy and swan-neck rear wing.', sheetUrl: CA + 'media-generation-aurelia-zephyr-apex-0-40b6062a-8596-4f21-bcab-7b1fd984df89.webp' },
-  { id: 'vanguard', make: 'Vanguard', name: 'Apex GT', pi: 930, drivetrain: 'RWD', powertrain: 'ice', aspiration: 'Naturally Aspirated', engineText: '4.2L V8', hp: 840, kg: 1240, archetype: 'track', price: 420000, unlock: { kind: 'level', level: 16 }, body: 'pending', summary: 'Flagship circuit GT with an active diffuser and glowing twin-exit exhaust.', sheetUrl: RR + 'Vanguard_Apex_GT_rear_view_ffe2fcfd.jpg' },
+  { id: 'vanguard', make: 'Vanguard', name: 'Apex GT', pi: 930, drivetrain: 'RWD', powertrain: 'ice', aspiration: 'Naturally Aspirated', engineText: '4.2L V8', hp: 840, kg: 1240, archetype: 'track', price: 420000, unlock: { kind: 'level', level: 16 }, body: 'scan', summary: 'Flagship circuit GT with an active diffuser and glowing twin-exit exhaust.', sheetUrl: RR + 'Vanguard_Apex_GT_rear_view_ffe2fcfd.jpg' },
   { id: 'solstice', make: 'Halcyon', name: 'Solstice GT', pi: 940, drivetrain: 'AWD', powertrain: 'ev', aspiration: 'Electric', engineText: 'Quad-Motor EV', hp: 1180, kg: 1690, archetype: 'ev', price: 450000, unlock: { kind: 'level', level: 17 }, body: 'pending', summary: 'Active-aero electric grand tourer.', sheetUrl: CA + 'media-generation-halcyon-solstice-gt-v2-0-5ede5a8e-34af-4199-aebc-171f7faceca5.webp' },
   { id: 'solstice_r', make: 'Solstice', name: 'Aero R', pi: 950, drivetrain: 'AWD', powertrain: 'ev', aspiration: 'Electric', engineText: 'Track EV', hp: 1240, kg: 1580, archetype: 'ev', price: 480000, unlock: { kind: 'level', level: 18 }, body: 'pending', summary: 'Track-spec aero evolution of the Solstice GT.', sheetUrl: RR + 'Solstice_Aero_R_rear_view_572ac645.jpg' },
   // X
@@ -78,16 +83,20 @@ export const classLabel = (pi: number): string => `${classFor(pi)} · ${Math.rou
 interface Arche { grip: number; aero: number; wheelbase: number; trackWidth: number; wheelRadius: number; length: number; width: number; height: number; topScale: number; vehicleClass: NonNullable<CarSpec['vehicleClass']>;
   susp?: { springRateNm: number; damperNsM: number; antiRollFactor: number; travelM: number; rideHeightM: number }; steer?: number; offroadGrip?: number; cg?: number }
 const ARCHE: Record<Archetype, Arche> = {
-  gt: { grip: 1.08, aero: 3.4, wheelbase: 2.74, trackWidth: 1.66, wheelRadius: 0.35, length: 4.68, width: 1.96, height: 1.28, topScale: 1, vehicleClass: 'gt' },
-  track: { grip: 1.22, aero: 5.0, wheelbase: 2.68, trackWidth: 1.7, wheelRadius: 0.34, length: 4.54, width: 1.98, height: 1.18, topScale: 1.02, vehicleClass: 'track' },
-  muscle: { grip: 1.0, aero: 2.0, wheelbase: 2.78, trackWidth: 1.64, wheelRadius: 0.35, length: 4.8, width: 1.96, height: 1.34, topScale: 0.98, vehicleClass: 'muscle' },
-  touring: { grip: 1.06, aero: 2.4, wheelbase: 2.62, trackWidth: 1.6, wheelRadius: 0.33, length: 4.5, width: 1.86, height: 1.3, topScale: 0.95, vehicleClass: 'gt' },
-  classic: { grip: 0.93, aero: 0.6, wheelbase: 2.6, trackWidth: 1.54, wheelRadius: 0.34, length: 4.5, width: 1.76, height: 1.32, topScale: 0.92, vehicleClass: 'muscle', steer: 0.5, susp: { springRateNm: 42000, damperNsM: 5400, antiRollFactor: 0.5, travelM: 0.16, rideHeightM: 0.13 } },
-  rally: { grip: 1.02, aero: 1.0, wheelbase: 2.6, trackWidth: 1.64, wheelRadius: 0.36, length: 4.4, width: 1.88, height: 1.4, topScale: 0.93, vehicleClass: 'rally', offroadGrip: 0.05, susp: { springRateNm: 40000, damperNsM: 5800, antiRollFactor: 0.5, travelM: 0.24, rideHeightM: 0.2 } },
-  buggy: { grip: 0.98, aero: 0.6, wheelbase: 2.55, trackWidth: 1.72, wheelRadius: 0.4, length: 4.1, width: 2.0, height: 1.5, topScale: 0.92, vehicleClass: 'buggy', offroadGrip: 0.07, susp: { springRateNm: 36000, damperNsM: 5200, antiRollFactor: 0.45, travelM: 0.28, rideHeightM: 0.24 } },
-  truck: { grip: 0.9, aero: 0.5, wheelbase: 3.1, trackWidth: 1.8, wheelRadius: 0.42, length: 5.5, width: 2.1, height: 1.9, topScale: 0.84, vehicleClass: 'truck', offroadGrip: 0.06, cg: 0.78, susp: { springRateNm: 52000, damperNsM: 7200, antiRollFactor: 0.7, travelM: 0.24, rideHeightM: 0.22 } },
-  suv: { grip: 0.94, aero: 0.7, wheelbase: 2.95, trackWidth: 1.7, wheelRadius: 0.39, length: 4.9, width: 1.95, height: 1.8, topScale: 0.84, vehicleClass: 'truck', offroadGrip: 0.04, cg: 0.72, susp: { springRateNm: 54000, damperNsM: 7000, antiRollFactor: 0.7, travelM: 0.22, rideHeightM: 0.2 } },
-  ev: { grip: 1.06, aero: 3.0, wheelbase: 2.84, trackWidth: 1.66, wheelRadius: 0.35, length: 4.8, width: 1.96, height: 1.36, topScale: 0.98, vehicleClass: 'ev' },
+  gt: { grip: 1.11, aero: 3.6, wheelbase: 2.74, trackWidth: 1.66, wheelRadius: 0.35, length: 4.68, width: 1.96, height: 1.28, topScale: 1.03, vehicleClass: 'gt' },
+  track: { grip: 1.28, aero: 5.8, wheelbase: 2.68, trackWidth: 1.7, wheelRadius: 0.34, length: 4.54, width: 1.98, height: 1.18, topScale: 1.12, vehicleClass: 'track' },
+  muscle: { grip: 1.02, aero: 2.1, wheelbase: 2.78, trackWidth: 1.64, wheelRadius: 0.35, length: 4.8, width: 1.96, height: 1.34, topScale: 0.99, vehicleClass: 'muscle' },
+  touring: { grip: 1.08, aero: 2.6, wheelbase: 2.62, trackWidth: 1.6, wheelRadius: 0.33, length: 4.5, width: 1.86, height: 1.3, topScale: 0.96, vehicleClass: 'gt' },
+  classic: { grip: 0.91, aero: 0.6, wheelbase: 2.6, trackWidth: 1.54, wheelRadius: 0.34, length: 4.5, width: 1.76, height: 1.32, topScale: 0.90, vehicleClass: 'muscle', steer: 0.5, susp: { springRateNm: 42000, damperNsM: 5400, antiRollFactor: 0.5, travelM: 0.16, rideHeightM: 0.13 } },
+  rally: { grip: 1.03, aero: 1.1, wheelbase: 2.6, trackWidth: 1.64, wheelRadius: 0.36, length: 4.4, width: 1.88, height: 1.4, topScale: 0.93, vehicleClass: 'rally', offroadGrip: 0.06, susp: { springRateNm: 40000, damperNsM: 5800, antiRollFactor: 0.5, travelM: 0.24, rideHeightM: 0.2 } },
+  buggy: { grip: 0.98, aero: 0.6, wheelbase: 2.55, trackWidth: 1.72, wheelRadius: 0.4, length: 4.1, width: 2.0, height: 1.5, topScale: 0.91, vehicleClass: 'buggy', offroadGrip: 0.08, susp: { springRateNm: 36000, damperNsM: 5200, antiRollFactor: 0.45, travelM: 0.28, rideHeightM: 0.24 } },
+  truck: { grip: 0.89, aero: 0.5, wheelbase: 3.1, trackWidth: 1.8, wheelRadius: 0.42, length: 5.5, width: 2.1, height: 1.9, topScale: 0.84, vehicleClass: 'truck', offroadGrip: 0.07, cg: 0.78, susp: { springRateNm: 52000, damperNsM: 7200, antiRollFactor: 0.7, travelM: 0.24, rideHeightM: 0.22 } },
+  suv: { grip: 0.92, aero: 0.7, wheelbase: 2.95, trackWidth: 1.7, wheelRadius: 0.39, length: 4.9, width: 1.95, height: 1.8, topScale: 0.85, vehicleClass: 'truck', offroadGrip: 0.04, cg: 0.72, susp: { springRateNm: 54000, damperNsM: 7000, antiRollFactor: 0.7, travelM: 0.22, rideHeightM: 0.2 } },
+  ev: { grip: 1.12, aero: 3.4, wheelbase: 2.84, trackWidth: 1.66, wheelRadius: 0.35, length: 4.8, width: 1.96, height: 1.36, topScale: 1.04, vehicleClass: 'ev' },
+  sedan: { grip: 0.91, aero: 0.7, wheelbase: 2.82, trackWidth: 1.60, wheelRadius: 0.34, length: 4.85, width: 1.86, height: 1.46, topScale: 0.84, vehicleClass: 'gt', susp: { springRateNm: 44000, damperNsM: 5600, antiRollFactor: 0.60, travelM: 0.16, rideHeightM: 0.15 } },
+  compact: { grip: 0.89, aero: 0.5, wheelbase: 2.56, trackWidth: 1.54, wheelRadius: 0.31, length: 4.05, width: 1.78, height: 1.48, topScale: 0.79, vehicleClass: 'gt', susp: { springRateNm: 40000, damperNsM: 5200, antiRollFactor: 0.56, travelM: 0.15, rideHeightM: 0.14 } },
+  van: { grip: 0.83, aero: 0.3, wheelbase: 3.25, trackWidth: 1.74, wheelRadius: 0.37, length: 5.45, width: 2.04, height: 2.32, topScale: 0.74, vehicleClass: 'truck', cg: 0.84, susp: { springRateNm: 58000, damperNsM: 7600, antiRollFactor: 0.72, travelM: 0.20, rideHeightM: 0.19 } },
+  commercial: { grip: 0.78, aero: 0.2, wheelbase: 4.10, trackWidth: 1.95, wheelRadius: 0.48, length: 6.90, width: 2.38, height: 2.95, topScale: 0.68, vehicleClass: 'truck', cg: 1.05, susp: { springRateNm: 76000, damperNsM: 9400, antiRollFactor: 0.78, travelM: 0.22, rideHeightM: 0.26 } },
 };
 
 /** peak torque when the maker does not give it */
@@ -108,11 +117,13 @@ export function stockSpec(def: CarDef): CarSpec {
   // The physics was tuned on the Sovereign with the "sport" suspension (68 kN/m springs, 8.6 kN·s/m dampers: a damping ratio that settles the body without ringing).
   // Every car keeps that ratio, so a new car can never be badly underdamped.
   const SPORT = { springRateNm: 68000, damperNsM: 8600, antiRollFactor: 0.85, travelM: 0.13, rideHeightM: 0.12 };
-  if (def.id === 'kestrel') { const k = structuredClone(CARS.kestrel); k.suspension = { ...k.suspension, ...SPORT }; return k; }
-  if (def.id === 'aurelia') { const k = structuredClone(CARS.aurelia); k.suspension = { ...k.suspension, damperNsM: Math.round(k.suspension.springRateNm * 0.1265) }; return k; }
+  const bank = stockSoundBankFor(def.id, def.archetype, def.powertrain, def.soundBank);
+  if (def.id === 'kestrel') { const k = structuredClone(CARS.kestrel); k.suspension = { ...k.suspension, ...SPORT }; k.engine.soundBank = bank; k.engine.soundUpgradeLevel = 0; return k; }
+  if (def.id === 'aurelia') { const k = structuredClone(CARS.aurelia); k.suspension = { ...k.suspension, damperNsM: Math.round(k.suspension.springRateNm * 0.1265) }; k.engine.soundBank = bank; k.engine.soundUpgradeLevel = 0; return k; }
   const a = ARCHE[def.archetype], base = { ...CARS.kestrel, suspension: { ...CARS.kestrel.suspension, ...SPORT } };
   const pw = def.hp / def.kg;
-  const top = Math.min(92, Math.max(52, (81.5 + 28 * Math.log(pw / 0.513)) * a.topScale));
+  const top = Math.min(94.5, Math.max(50.5, (81.5 + 30 * Math.log(Math.max(0.06, pw) / 0.513)) * a.topScale));
+  const brakeTierMult = def.pi >= 900 ? 1.42 : def.pi >= 800 ? 1.24 : def.pi >= 700 ? 1.10 : def.pi >= 600 ? 0.96 : 0.84;
   const ev = def.powertrain === 'ev';
   const redline = ev ? 8000 : def.aspiration === 'Twin-Turbo' ? 7000 : def.hp / def.kg > 0.55 ? 8200 : 7000;
   const awdBonus = def.drivetrain === 'AWD' ? 0.03 : 0;
@@ -129,8 +140,10 @@ export function stockSpec(def: CarDef): CarSpec {
       code: def.id.toUpperCase().slice(0, 8), name: def.engineText, layout: def.engineText, displacementL: 0, aspiration: def.aspiration,
       peakHp: def.hp, peakTorqueNm: estimateNm(def), idleRpm: ev ? 1000 : 900, redlineRpm: redline,
       torqueCurve: [...ICE_CURVES[def.aspiration]] as CarSpec['engine']['torqueCurve'], pitchBaseHz: ev ? 60 : 40 + Math.min(20, def.hp / 60),
+      soundBank: bank,
+      soundUpgradeLevel: 0,
     },
     suspension: { ...base.suspension, ...(a.susp ?? {}), architecture: 'Stock' },
-    brakes: { ...base.brakes, systemName: 'Stock', maxTorqueNm: Math.round(2200 + def.kg * 1.6), rotorDiameterMm: 340 + Math.round(def.kg / 40) },
+    brakes: { ...base.brakes, systemName: def.pi >= 900 ? 'Carbon-Ceramic' : def.pi >= 800 ? '6-Piston Sport' : 'Stock', maxTorqueNm: Math.round((2400 + def.kg * 1.75) * brakeTierMult), rotorDiameterMm: 340 + Math.round(def.kg / 40) },
   };
 }

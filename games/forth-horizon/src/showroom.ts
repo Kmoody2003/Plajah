@@ -10,12 +10,12 @@ import { AoPass } from './ao';
 import { GradePass } from './grade';
 import { PhotoMode } from './photo';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { loadSovereignScan } from './scancar';
+import { hasScanCar, loadScanCarById } from './scancar';
 import type { CarRig } from './car';
 import { GarageUi } from './garageUi';
 import { garage, cloud } from './garageGame';
 import type { OwnedCar } from './garage/build';
-import type { CarDef } from './garage/catalog';
+import { CAR_BY_ID, type CarDef } from './garage/catalog';
 
 const gltf = new GLTFLoader();
 
@@ -45,7 +45,7 @@ async function boot(): Promise<void> {
   const studio = new THREE.Scene();
   studio.background = new THREE.Color(0x07040c);
   const box = (w: number, h: number, d: number, x: number, y: number, z: number, i: number, c = 0xffffff): void => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(i) })); m.position.set(x, y, z); studio.add(m); };
-  box(14, 0.3, 5, 0, 9, 0, 3.2); box(0.3, 5, 12, -9, 4, 0, 1.8, 0xcfe0ff); box(0.3, 5, 12, 9, 4, 0, 1.8, 0xffe6c8); box(12, 4, 0.3, 0, 4, -10, 1.2); box(10, 0.2, 0.2, 0, 1.2, 8, 1.6, 0xd40055); box(10, 0.2, 0.2, 0, 1.2, -8, 1.6, 0x00daf3);
+  box(14, 0.3, 5, 0, 9, 0, 3.2); box(0.3, 5, 12, -9, 4, 0, 1.8, 0xcfe0ff); box(0.3, 5, 12, 9, 4, 0, 1.8, 0xffe6c8); box(12, 4, 0.3, 0, 4, -10, 1.2); box(10, 0.2, 0.2, 0, 1.2, 8, 0.55, 0xd40055); box(10, 0.2, 0.2, 0, 1.2, -8, 0.55, 0x00daf3);
   const floorM = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.MeshBasicMaterial({ color: 0x0a0610 })); floorM.rotation.x = -Math.PI / 2; studio.add(floorM);
   scene.environment = pmrem.fromScene(studio, 0.02).texture;
   scene.environmentIntensity = 0.6;
@@ -63,26 +63,26 @@ async function boot(): Promise<void> {
   composer.renderTarget2.depthTexture.type = THREE.UnsignedIntType;
   composer.addPass(new AoPass(camera, innerWidth, innerHeight));
   composer.setSize(innerWidth, innerHeight);
-  composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.06, 0.4, 0.95));
+  composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.05, 0.35, 1.15));
   composer.addPass(new OutputPass());
   const gradePass = new GradePass(innerWidth, innerHeight);
   composer.addPass(gradePass);
 
-  // studio: warm key, magenta and cyan rims, a soft top light and two floor light strips
+  // studio: warm key, subtle magenta and cyan rims, a soft top light and satin turntable
   scene.add(new THREE.HemisphereLight(0xcdb8ff, 0x12051c, 0.55));
   const key = new THREE.SpotLight(0xfff0dc, 260, 30, 0.5, 0.6, 1.6);
   key.position.set(5, 8, 4); key.target.position.set(0, 0.4, 0); key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0002; key.shadow.radius = 7; key.shadow.normalBias = 0.02;
   scene.add(key, key.target);
-  const rimM = new THREE.PointLight(0xd40055, 30, 16, 1.6); rimM.position.set(-5.5, 2.4, -4); scene.add(rimM);
-  const rimC = new THREE.PointLight(0x00daf3, 25, 16, 1.6); rimC.position.set(5.5, 2.0, -5); scene.add(rimC);
+  const rimM = new THREE.PointLight(0xb02868, 5, 16, 1.8); rimM.position.set(-5.5, 2.4, -4); scene.add(rimM);
+  const rimC = new THREE.PointLight(0x00daf3, 6, 16, 1.8); rimC.position.set(5.5, 2.0, -5); scene.add(rimC);
   const top = new THREE.PointLight(0xffffff, 12, 12, 1.8); top.position.set(0, 5, 0); scene.add(top);
 
   // turntable, floor and a curved back wall
-  const plinth = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.7, 0.16, 96), new THREE.MeshPhysicalMaterial({ color: 0x120818, roughness: 0.14, metalness: 0.5, clearcoat: 1, clearcoatRoughness: 0.05 }));
+  const plinth = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.7, 0.16, 96), new THREE.MeshPhysicalMaterial({ color: 0x110c16, roughness: 0.48, metalness: 0.28, clearcoat: 0.08, clearcoatRoughness: 0.25 }));
   plinth.position.y = -0.08; plinth.receiveShadow = true; scene.add(plinth);
   const ring = new THREE.Mesh(new THREE.RingGeometry(3.4, 3.47, 96), new THREE.MeshBasicMaterial({ color: 0xff8c00, side: THREE.DoubleSide }));
   ring.rotation.x = -Math.PI / 2; ring.position.y = 0.004; scene.add(ring);
-  const ring2 = new THREE.Mesh(new THREE.RingGeometry(2.9, 2.93, 96), new THREE.MeshBasicMaterial({ color: 0xd40055, side: THREE.DoubleSide, transparent: true, opacity: 0.6 }));
+  const ring2 = new THREE.Mesh(new THREE.RingGeometry(2.9, 2.93, 96), new THREE.MeshBasicMaterial({ color: 0xd40055, side: THREE.DoubleSide, transparent: true, opacity: 0.35 }));
   ring2.rotation.x = -Math.PI / 2; ring2.position.y = 0.004; scene.add(ring2);
   const floor = new THREE.Mesh(new THREE.CircleGeometry(30, 64), new THREE.MeshStandardMaterial({ color: 0x0a0310, roughness: 0.55, metalness: 0.3 }));
   floor.rotation.x = -Math.PI / 2; floor.position.y = -0.16; floor.receiveShadow = true; scene.add(floor);
@@ -110,19 +110,20 @@ async function boot(): Promise<void> {
     clearCar();
     sheetWrap.style.display = 'none'; sheetVideo.pause();
     const paint = owned?.paint;
-    if (def.id === 'kestrel') {
-      status.textContent = 'Loading the Sovereign scan…';
+    if (hasScanCar(def.id)) {
+      status.textContent = `Loading ${def.make} ${def.name}…`;
       try {
-        const r = await loadSovereignScan();                 // the model and paint shader the game drives
+        const r = await loadScanCarById(def.id);             // the GT-R standard scan model and paint shader the game drives
         if (my !== token) return;
         if (paint) r.paint?.set({ color: new THREE.Color(paint).getHex() });
         rig = r; model = r.group; scene.add(r.group);
-        status.textContent = 'Kestrel Sovereign GT-R (the in-game model)';
-      } catch (e) { status.textContent = 'The Sovereign scan failed to load: ' + String(e); }
+        status.textContent = `${def.make} ${def.name} (in-game 3D model)`;
+      } catch (e) { status.textContent = `${def.name} failed to load: ` + String(e); }
       return;
     }
+    const allowCad = def.body !== 'pending' || location.search.includes('cad=1');
     const url = def.glbUrl ?? `/cars/${def.id}.glb`;
-    const head = await fetch(url, { method: 'HEAD' }).catch(() => null);
+    const head = allowCad ? await fetch(url, { method: 'HEAD' }).catch(() => null) : null;
     if (my !== token) return;
     if (head && head.ok) {
       try {
@@ -152,7 +153,17 @@ async function boot(): Promise<void> {
   const showCloud = (): void => { if (cs) cs.textContent = label[cloud.status]; };
   cloud.onStatus = showCloud; showCloud();
   const cur = ui.current();
-  void show(cur.def, cur.car);
+  const qCar = new URLSearchParams(location.search).get('car');
+  if (qCar && CAR_BY_ID[qCar]) {
+    document.querySelector<HTMLButtonElement>('[data-tab="showroom"]')?.click();
+    const pick = document.querySelector<HTMLElement>(`[data-act="pick-def"][data-id="${qCar}"]`);
+    if (pick) pick.click();
+    else void show(CAR_BY_ID[qCar], null);
+  } else {
+    void show(cur.def, cur.car);
+  }
+  (window as unknown as { showroomShow: typeof show; showroomSetSpin: (v: boolean) => void }).showroomShow = show;
+  (window as unknown as { showroomSetSpin: (v: boolean) => void }).showroomSetSpin = (v: boolean) => { spin = v; btnSpinEl.classList.toggle('on', v); if (!v && model) model.rotation.y = 0; };
 
   // camera presets: position, target and the panel to open. Car space: +z is the nose, +x the left side.
   const CAMS: Record<string, { p: [number, number, number]; t: [number, number, number]; open?: string[] }> = {

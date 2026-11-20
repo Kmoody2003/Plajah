@@ -72,18 +72,26 @@ const FRAG = `
     float spd = length(flow);
     // wind drift on open water
     vec2 cur = flow + uWindDir * (0.35 + uWind * 0.8) * (1.0 - smoothstep(0.1, 0.6, spd));
-    // two-phase flow advection so the ripples travel with the current without stretching
+    // three-scale flow & swell advection (rotated 31 m swell breaks up any repeating 9 m normal-tile grid across open lake)
     float T = 2.4;
     float ph0 = fract(uTime / T), ph1 = fract(uTime / T + 0.5);
     float wgt = abs(ph0 * 2.0 - 1.0);
     vec2 a0 = wp / 9.0 - cur * ph0 * T / 9.0, a1 = wp / 9.0 - cur * ph1 * T / 9.0;
     vec2 b0 = wp / 2.6 - cur * 1.25 * ph0 * T / 2.6 + vec2(0.37, 0.11), b1 = wp / 2.6 - cur * 1.25 * ph1 * T / 2.6 + vec2(0.37, 0.11);
+    vec2 wpR = mat2(0.8, -0.6, 0.6, 0.8) * wp;
+    vec2 wpR2 = mat2(-0.53, 0.85, -0.85, -0.53) * wp;
+    vec2 c0 = wpR / 37.0 - cur * 0.42 * uTime / 37.0 + vec2(0.19, 0.63);
+    vec2 c1 = wpR2 / 89.0 - cur * 0.28 * uTime / 89.0 + vec2(0.47, 0.29);
     vec4 ta0 = texture2D(tNormal, a0);
     vec4 ta1 = texture2D(tNormal, a1);
     vec3 nA = mix(ta0.xyz, ta1.xyz, wgt) * 2.0 - 1.0;
     vec3 nB = mix(nrm(tNormal, b0), nrm(tNormal, b1), wgt);
-    float choppy = 0.30 + uWind * 1.1 + spd * 0.22 + uRain * 0.25;
-    vec2 slope = (nA.xy * 0.9 + nB.xy * 0.6) * choppy;
+    vec3 nC = nrm(tNormal, c0) * 0.55 + nrm(tNormal, c1) * 0.45;
+    float d3 = length(cameraPosition - vW);
+    float nearFade = 1.0 - smoothstep(65.0, 320.0, d3);
+    float midFade = 1.0 - smoothstep(260.0, 1400.0, d3) * 0.78;
+    float choppy = 0.28 + uWind * 1.05 + spd * 0.22 + uRain * 0.25;
+    vec2 slope = (nA.xy * 0.65 * nearFade + nB.xy * 0.55 * nearFade + nC.xy * 0.72 * midFade) * choppy;
     // rain rings
     if (uRain > 0.02) {
       vec2 g = wp * 0.55, id = floor(g), f = fract(g) - 0.5;
@@ -120,11 +128,12 @@ const FRAG = `
     }
     sp = min(sp, 2.4);
     col += uSunCol * sp * max(uSunAmt, uGlint * 0.7) * (1.0 - uStorm * 0.7);
-    // foam: reuse alpha channel already fetched from tNormal at a0 and a1
-    float hh = mix(ta0.a, ta1.a, wgt);
-    float bank = smoothstep(0.62, 1.0, shore) * smoothstep(0.35, 0.8, hh + (1.0 - dep) * 0.1);
-    float fast = smoothstep(1.05, 1.5, spd) * smoothstep(0.55, 0.85, hh) * 0.6;
-    float caps = smoothstep(0.55, 1.0, uWind + uStorm * 0.4) * smoothstep(0.72, 0.9, hh) * 0.8;
+    // foam: modulate 9 m ripple height with both rotated large swells so whitecaps break up organically with zero square-grid tiling
+    float hSw = texture2D(tNormal, c0).a * 0.58 + texture2D(tNormal, c1).a * 0.42;
+    float hh = mix(ta0.a, ta1.a, wgt) * (0.35 + 0.85 * hSw);
+    float bank = smoothstep(0.62, 1.0, shore) * smoothstep(0.32, 0.78, hh + (1.0 - dep) * 0.1);
+    float fast = smoothstep(1.05, 1.5, spd) * smoothstep(0.50, 0.82, hh) * 0.6;
+    float caps = smoothstep(0.55, 1.0, uWind + uStorm * 0.4) * smoothstep(0.68, 0.92, hh) * 0.8 * midFade;
     float foam = clamp(bank + fast + caps, 0.0, 1.0);
     col = mix(col, vec3(0.88, 0.92, 0.94) * (0.5 + 0.5 * max(uSunAmt, 0.2)), foam * 0.85);
     float alpha = clamp(0.30 + tdeep * 0.62 + F * 0.35 + foam * 0.5, 0.0, 0.96);

@@ -137,17 +137,19 @@ export function stepCarPhysics(
   state.lateralSpeed = vLat;
   state.speedMps = Math.hypot(state.vel.x, state.vel.z);
 
-  // ── 1. Forza-Style Speed-Sensitive Steering + Counter-Steer Authority ──
+  // ── 1. Precision Speed-Sensitive Steering + Instant Self-Centering & Counter-Steer Authority ──
   const speedRatio = THREE.MathUtils.clamp(state.speedMps / spec.topSpeedMps, 0, 1);
   const isReturning = Math.abs(input.steer) < 0.05 || Math.sign(input.steer) !== Math.sign(state.steerInputSmoothed);
-  const steerRate = isReturning ? 12.0 : THREE.MathUtils.lerp(9.5, 6.5, speedRatio);
+  const steerRate = isReturning ? 18.5 : THREE.MathUtils.lerp(15.0, 10.2, speedRatio);
   state.steerInputSmoothed = THREE.MathUtils.lerp(
     state.steerInputSmoothed,
     input.steer,
     1 - Math.exp(-steerRate * safeDt)
   );
-  const maxWheelLock = THREE.MathUtils.lerp(spec.steerMaxRad, 0.095, Math.pow(speedRatio, 0.65));
-  state.steerAngle = state.steerInputSmoothed * maxWheelLock;
+  // Subtle non-linear center precision curve (fine micro-corrections around center, decisive lock into corners)
+  const steerShaped = Math.sign(state.steerInputSmoothed) * Math.pow(Math.abs(state.steerInputSmoothed), 1.12);
+  const maxWheelLock = THREE.MathUtils.lerp(spec.steerMaxRad, 0.135, Math.pow(speedRatio, 0.82));
+  state.steerAngle = steerShaped * maxWheelLock;
 
   // ── 2. Powertrain, Turbo/Supercharger Boost, Shift Cut & Line-Lock Burnout ──
   const absFwd = Math.abs(vFwd);
@@ -184,8 +186,15 @@ export function stepCarPhysics(
   state.isBraking = false;
   let burnoutActive = false;
 
-  // the brakes can never pull harder than the tyres can grip: about 1.1 g for a road-legal sports car on dry asphalt, less when wet or loose
-  const maxBrakeForce = Math.min(Math.max((spec.brakes.maxTorqueNm * 4) / spec.wheelRadius, spec.massKg * GRAVITY * 0.9 * surfaceGrip), spec.massKg * GRAVITY * Math.max(1.0, spec.corneringGrip) * surfaceGrip * 1.4);
+  // Aerodynamic downforce (computed ahead of braking so high-downforce race cars stop dramatically harder at speed)
+  const aeroDownforceN = 0.5 * 1.225 * spec.aeroDownforce * state.speedMps * state.speedMps;
+
+  // Reactive ABS-modulated braking: initial pedal bite + aero-assisted tyre grip ceiling, scaling cleanly from street cars to carbon-ceramic track hypercars
+  const effectiveWeightN = spec.massKg * GRAVITY + aeroDownforceN * 0.85;
+  const maxBrakeForce = Math.min(
+    Math.max((spec.brakes.maxTorqueNm * 4.6) / spec.wheelRadius, effectiveWeightN * 1.08 * surfaceGrip),
+    effectiveWeightN * Math.max(1.05, spec.corneringGrip) * surfaceGrip * 1.58
+  );
   const isStandingBurnout =
     spec.drivetrain === 'RWD' && input.throttle > 0.65 && input.brake > 0.45 && state.speedMps < 10;
 
@@ -199,31 +208,31 @@ export function stepCarPhysics(
       const shiftMult = state.shiftTimer > 0 ? 0.12 : 1.0;
       let wheelForce = (engineTorque * gearRatio * spec.finalDrive * 0.90) / spec.wheelRadius;
       // power and traction limits: the engine cannot deliver more than its peak power at speed, and the driven tyres cannot put down more than their grip
-      const powerCap = (spec.engine.peakHp * 745.7 * 0.8) / Math.max(vFwd, 4);
-      const tractionCap = spec.massKg * GRAVITY * spec.corneringGrip * surfaceGrip * (spec.drivetrain === 'AWD' ? 0.74 : 0.64);
+      const powerCap = (spec.engine.peakHp * 745.7 * 0.82) / Math.max(vFwd, 3.6);
+      const tractionCap = effectiveWeightN * spec.corneringGrip * surfaceGrip * (spec.drivetrain === 'AWD' ? 0.78 : 0.66);
       wheelForce = Math.min(wheelForce, powerCap, tractionCap);
       const topTaper = 1 - Math.pow(THREE.MathUtils.clamp(vFwd / spec.topSpeedMps, 0, 1), 3.0);
       longForce += input.throttle * wheelForce * shiftMult * Math.max(0.08, topTaper);
     }
 
     if (input.brake > 0.01 && !state.isAirborne) {
-      if (vFwd > 1.2) {
-        longForce -= input.brake * maxBrakeForce;
+      const reactiveBrake = Math.pow(THREE.MathUtils.clamp(input.brake, 0, 1), 0.78);
+      if (vFwd > 1.0) {
+        longForce -= reactiveBrake * maxBrakeForce;
         state.isBraking = true;
       } else {
-        longForce -= input.brake * 4600;
+        longForce -= reactiveBrake * 5800;
         state.isBraking = true;
       }
     }
   }
 
   if (input.handbrake && !state.isAirborne) {
-    longForce -= Math.sign(vFwd) * maxBrakeForce * 0.34;
+    longForce -= Math.sign(vFwd) * maxBrakeForce * 0.40;
     state.isBraking = true;
   }
 
-  // Aerodynamic drag + downforce
-  const aeroDownforceN = 0.5 * 1.225 * spec.aeroDownforce * state.speedMps * state.speedMps;
+  // Aerodynamic drag + rolling resistance
   const aeroDrag = 0.40 * state.speedMps * state.speedMps + (state.isAirborne ? 15 : 110 + surfaceDrag * 2200);
   if (state.speedMps > 0.1) {
     longForce -= (vFwd / state.speedMps) * aeroDrag;
@@ -247,10 +256,10 @@ export function stepCarPhysics(
   state.brakeTemp[2] = THREE.MathUtils.clamp(state.brakeTemp[2] + rearHeatAdd - cool, 0, 1);
   state.brakeTemp[3] = THREE.MathUtils.clamp(state.brakeTemp[3] + rearHeatAdd - cool, 0, 1);
 
-  // ── 4. Pacejka-Inspired Tire Grip, Weight Transfer & Drivetrain Yaw ──
-  const aeroLoadFactor = 1 + aeroDownforceN / 24000;
-  const trailBrakeBonus = state.isBraking && !input.handbrake ? 1.12 : 1.0;
-  const mu = spec.corneringGrip * surfaceGrip * aeroLoadFactor * trailBrakeBonus * 1.18;
+  // ── 4. Pacejka-Inspired Tire Grip, Weight Transfer & Precision Drivetrain Yaw ──
+  const aeroLoadFactor = 1 + aeroDownforceN / 22000;
+  const trailBrakeBonus = state.isBraking && !input.handbrake ? 1.18 : 1.0;
+  const mu = spec.corneringGrip * surfaceGrip * aeroLoadFactor * trailBrakeBonus * 1.22;
   const maxLatAccel = mu * GRAVITY;
 
   const turnSign = newVFwd >= -0.2 ? 1 : -1;
@@ -262,9 +271,9 @@ export function stepCarPhysics(
   // RWD power oversteer vs AWD neutral pull vs FWD understeer
   const rwdPowerOversteer =
     spec.drivetrain === 'RWD' && input.throttle > 0.65 && Math.abs(state.steerAngle) > 0.08 && !state.isAirborne
-      ? 1.0 + 0.22 * input.throttle * (1 - speedRatio * 0.6)
+      ? 1.0 + 0.20 * input.throttle * (1 - speedRatio * 0.62)
       : 1.0;
-  const handbrakeYawMult = (input.handbrake ? 1.48 : 1.0) * rwdPowerOversteer;
+  const handbrakeYawMult = (input.handbrake ? 1.52 : 1.0) * rwdPowerOversteer;
 
   const clampedYaw = THREE.MathUtils.clamp(
     kinematicYaw * handbrakeYawMult,
@@ -273,10 +282,11 @@ export function stepCarPhysics(
   );
 
   const slipAngle = absNewFwd > 4 ? Math.atan2(vLat, absNewFwd) : 0;
-  const counterSteerAssist = input.handbrake || burnoutActive ? 0 : -slipAngle * (spec.drivetrain === 'AWD' ? 1.45 : 1.25);
+  const counterSteerAssist = input.handbrake || burnoutActive ? 0 : -slipAngle * (spec.drivetrain === 'AWD' ? 1.55 : 1.32);
 
-  const targetYawRate = state.isAirborne ? state.angularVel * 0.98 : clampedYaw + counterSteerAssist * 0.35;
-  const yawResponsiveness = input.handbrake ? 7.5 : spec.drivetrain === 'AWD' ? 11.2 : 10.2;
+  const targetYawRate = state.isAirborne ? state.angularVel * 0.98 : clampedYaw + counterSteerAssist * 0.32;
+  const gripScale = THREE.MathUtils.clamp(spec.corneringGrip, 0.8, 1.35);
+  const yawResponsiveness = (input.handbrake ? 8.5 : spec.drivetrain === 'AWD' ? 14.8 : spec.drivetrain === 'RWD' ? 13.5 : 12.2) * gripScale;
   state.angularVel = THREE.MathUtils.lerp(
     state.angularVel,
     targetYawRate,
@@ -286,7 +296,7 @@ export function stepCarPhysics(
 
   const latGripRate = state.isAirborne
     ? 0.2
-    : (input.handbrake ? 2.4 : 8.8) * spec.corneringGrip * surfaceGrip;
+    : (input.handbrake ? 2.4 : 11.4) * spec.corneringGrip * surfaceGrip;
   const lateralKill = THREE.MathUtils.clamp(latGripRate * safeDt, 0, 0.96);
   const newVLat = vLat * (1 - lateralKill);
   const latAccel = (newVLat - vLat) / safeDt;

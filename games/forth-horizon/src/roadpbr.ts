@@ -58,14 +58,15 @@ export function injectRoadPbr(fs: string, wpExpr: string): string {
         rpFade = 1.0 - smoothstep(30.0, 120.0, length(vViewPosition));
         float rpAO = mix(1.0, texture2D(tRA, rwp / 2.4).r * 0.6 + texture2D(tRA, rwp / 0.62 + 0.21).r * 0.4, rpFade);
         float rpMacro = texture2D(tRA, rwp / 19.0).r;
-        diffuseColor.rgb *= mix(1.0, (0.64 + 0.52 * rpAO) * (0.9 + 0.2 * rpMacro), gRoad);
+        // High-frequency aggregate grit & patchy wear from real scanned asphalt maps (no synthetic wave contours)
+        diffuseColor.rgb *= mix(1.0, (0.60 + 0.56 * rpAO) * (0.86 + 0.28 * rpMacro), gRoad);
       }`)
     .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
       if (gRoad > 0.005) {
         float rr = mix(texture2D(tRR, rwp / 2.4).r, texture2D(tRR, rwp / 0.62 + 0.21).r, 0.45 * rpFade);
         float rr2 = texture2D(tRR, rwp / 9.0).r;                        // oil, rubber and damp patches at a larger scale
-        float dryRough = clamp(0.52 + 0.48 * mix(rr2, rr, 0.5), 0.48, 0.96);
-        float wetRough = 0.055 + 0.24 * rr2;
+        float dryRough = clamp(0.46 + 0.50 * mix(rr2, rr, 0.55), 0.42, 0.96);
+        float wetRough = 0.05 + 0.23 * rr2;
         roughnessFactor = mix(roughnessFactor, mix(dryRough, wetRough, clamp(uWet * 1.2, 0.0, 1.0)), gRoad);
       }`)
     .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>

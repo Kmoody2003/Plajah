@@ -1,0 +1,94 @@
+{
+  "id": "corsair",
+  "name": "Ironport Corsair RS",
+  "glb": "/games/forth-horizon/car/corsair_base.glb",
+  "paint": "0x142c54",
+  "accent": "0xc81e24",
+  "cuts": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Oriented 60k-face Hunyuan3D shell from car/corsair/views/frame2.png (0.00 deg symmetry). Positions measured from corsair_base.glb.",
+  "wheels": {
+    "frontZ": 1.35,
+    "rearZ": -1.52,
+    "frontX": 0.87,
+    "rearX": 0.865,
+    "scale": 1.07,
+    "discardR": 0.395,
+    "centreY": 0.378,
+    "tyreR": 0.378,
+    "rimR": 0.265
+  },
+  "panels": {
+    "doorL": { "hinge": [0.96, 0.0, 0.86], "axis": [0, 1, 0], "open": -1.0 },
+    "doorR": { "hinge": [-0.96, 0.0, 0.86], "axis": [0, 1, 0], "open": 1.0 },
+    "hood": { "hinge": [0.0, 1.08, 0.86], "axis": [1, 0, 0], "open": -0.95 },
+    "trunk": { "hinge": [0.0, 1.11, -1.78], "axis": [1, 0, 0], "open": 0.88 }
+  },
+  "panelBoxes": {
+    "hood": [[-0.76, 0.82, 0.88], [0.76, 1.32, 2.04]],
+    "trunk": [[-0.64, 0.96, -2.14], [0.64, 1.32, -1.80]],
+    "roof": [[-0.60, 1.30, -0.98], [0.60, 1.62, 0.12]],
+    "preserveHood": true,
+    "preserveTrunk": true
+  },
+  "glass": {
+    "belt": 1.08,
+    "roofEdge": 1.42,
+    "pillarBase": 0.84,
+    "pillarTop": 0.16,
+    "doorFront": 0.86,
+    "doorRear": -0.72,
+    "windBase": 0.84,
+    "windTop": 0.12,
+    "rearTop": -0.98,
+    "rearBase": -1.78,
+    "rearBase2": -1.76,
+    "windHalfW": 0.62,
+    "rearHalfW": 0.56,
+    "sideWindow": [
+      [-0.72, 1.12],
+      [0.80, 1.09],
+      [0.76, 1.20],
+      [0.46, 1.33],
+      [0.10, 1.43],
+      [-0.55, 1.43],
+      [-1.06, 1.30],
+      [-0.95, 1.16]
+    ],
+    "handle": [-0.40, 0.94]
+  },
+  "front": {
+    "openings": [
+      { "name": "grille", "mesh": "hex", "poly": [[-0.48, 0.52], [0.48, 0.52], [0.53, 0.66], [-0.53, 0.66]] },
+      { "name": "lowerCentre", "mesh": "slats", "poly": [[-0.46, 0.16], [0.46, 0.16], [0.52, 0.36], [-0.52, 0.36]] },
+      { "name": "cornerR", "mesh": "hex", "poly": [[0.62, 0.18], [0.90, 0.20], [0.92, 0.42], [0.60, 0.44]] },
+      { "name": "cornerL", "mesh": "hex", "poly": [[-0.60, 0.44], [-0.92, 0.42], [-0.90, 0.20], [-0.62, 0.18]] }
+    ]
+  },
+  "engine": { "z": 1.38, "layout": "front-v8", "arch": "sc-v8", "texUrl": "/games/forth-horizon/tex/engines/sc_v8_blower.jpg" },
+  "trunk": true,
+  "cabin": { "yOffset": 0.02, "zOffset": -0.02, "cowlZ": 0.86, "cowlY": 1.085 },
+  "exhaust": { "z": -2.18, "y": 0.29, "xs": [-0.54, -0.38, 0.38, 0.54] },
+  "aero": {
+    "splitterZ": 2.02,
+    "splitterW": 1.80,
+    "splitterY": 0.135,
+    "splitterStruts": true,
+    "canards": false,
+    "diffuserW": 1.48,
+    "diffuserFins": 3,
+    "wing": { "type": "none", "width": 0, "y": 0, "z": 0 }
+  },
+  "lamps": {
+    "head": { "x": 0.56, "y": 0.61, "w": 0.32, "h": 0.082, "tilt": 0.025, "style": "u-drl" },
+    "tail": { "x": 0.54, "y": 0.87, "len": 0.34, "style": "double-u" }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.42,
+    "skirtY": 0.22,
+    "archLipAdd": 0.045,
+    "wingCarbonZ": -2.06,
+    "wingCarbonY": 1.11
+  }
+}
