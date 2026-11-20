@@ -70,7 +70,7 @@ import { buildParkedCars } from './parkedCars';
 import { denseArea } from './sim/signals';
 import type { UserMapData } from './sim/data';
 import { buildPortDistrict, carvePlatform, inPort, type PortData } from './portDistrict';
-import { injectRoadPbr, roadUniforms, loadRoadPbr } from './roadpbr';
+import { injectRoadPbr, roadUniforms, loadRoadPbr, loadPbr1K, roadRipples } from './roadpbr';
 loadRoadPbr();
 import { SprayFx, DustFx, puddleDepth, PUDDLE_GLSL } from './spray';
 import { TreeField, cardLod } from './trees';
@@ -323,8 +323,9 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
     sh.uniforms.uCam = { value: new THREE.Vector3() };
     sh.uniforms.uMapFade = mapFadeU;
     sh.uniforms.uEdge = edgeU;
-    sh.uniforms.tAsph = { value: gameTex('asphalt_plain') };
-    sh.uniforms.tPave = { value: gameTex('paver_plain') };
+    // Surface our curated high-res PBR asphalt & architectural concrete sidewalk sets (1K mipmapped for low VRAM + 8x aniso crispness)
+    sh.uniforms.tAsph = { value: loadPbr1K('ground_asphalt_dry.png', true, 0x35373c) };
+    sh.uniforms.tPave = { value: loadPbr1K('ground_concrete_sidewalk.png', true, 0xa2a09a) };
     sh.uniforms.tMask = { value: maskTex };
     sh.uniforms.tClass = { value: classTex };
     sh.uniforms.uTerr = terrV; sh.uniforms.uTerrO = terrO;
@@ -498,25 +499,26 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
           pave *= 1.0 - 0.28 * joint * (1.0 - smoothstep(25.0, 85.0, camD));
           col = mix(col, pave * 0.88, walk);
         }
-        col = mix(col, vec3(0.42, 0.42, 0.40) * (0.85 + 0.25 * tNoise(sp / 2.2)), kerb);
+        col = mix(col, vec3(0.46, 0.45, 0.43) * (0.78 + 0.34 * tNoise(sp / 0.85)) * (0.88 + 0.20 * tNoise(sp / 3.1)), kerb);
         if (road > 0.005) {
-          vec3 a1 = texture2D(tAsph, sp / 4.0).rgb, a2 = texture2D(tAsph, sp / 13.7 + 0.37).rgb;
+          vec3 a1 = texture2D(tAsph, sp / 3.2).rgb, a2 = texture2D(tAsph, sp / 12.5 + 0.37).rgb;
           float cellN = fract(sin(dot(floor(sp / 6.0), vec2(12.9898, 78.233))) * 43758.5453);
           float cellM = fract(sin(dot(floor(sp / 23.0), vec2(39.3468, 11.135))) * 24634.6345);
-          vec3 asph = a1 * (0.5 + a2 * 1.0) * (0.82 + 0.22 * cellN) * (0.86 + 0.2 * cellM);
-          asph *= 1.0 - 0.28 * smoothstep(0.78, 0.98, cellN) * smoothstep(0.3, 0.9, a2.r);
-          col = mix(col, asph * 1.15, road);
+          vec3 asph = mix(a1, a1 * (0.55 + a2 * 0.9), 0.55) * (0.86 + 0.18 * cellN) * (0.88 + 0.18 * cellM);
+          asph *= 1.0 - 0.22 * smoothstep(0.78, 0.98, cellN) * smoothstep(0.3, 0.9, a2.r);
+          col = mix(col, asph * 1.12, road);
         }
         gWet = uWet * max(road, walk * 0.7);
         gRoad = road;
         gPud = puddleAt(vWPos.xz, uPool) * road * (1.0 - smoothstep(600.0, 1400.0, camD));
         col *= 1.0 - 0.42 * gWet;
-        col *= 1.0 - 0.38 * gPud;
+        col *= 1.0 - 0.44 * gPud;
         diffuseColor.rgb = col;
       }
       diffuseColor.rgb *= 1.0 - 0.16 * uWet;           // wet ground everywhere`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, mix(0.55, 1.0, gTR), gTW);\nroughnessFactor = mix(roughnessFactor, gRockR, gRockW);\nroughnessFactor = mix(roughnessFactor, 0.14, gWet);\nroughnessFactor = mix(roughnessFactor, 0.015, gPud);')
-      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.6, gPud);');
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, mix(0.55, 1.0, gTR), gTW);\nroughnessFactor = mix(roughnessFactor, gRockR, gRockW);\nroughnessFactor = mix(roughnessFactor, 0.14, gWet);\nroughnessFactor = mix(roughnessFactor, 0.018, gPud);')
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.10, gPud);')
+      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n{ if (gPud > 0.01 || gWet > 0.01) { float fBase = clamp(1.0 - clamp(dot(geometryNormal, geometryViewDir), 0.0, 1.0), 0.0, 1.0); float fW = fBase * fBase * fBase; reflectedLight.indirectSpecular = min(max(reflectedLight.indirectSpecular, vec3(0.0)), vec3(16.0)) * (1.0 + gPud * (0.35 + 1.25 * fW) + gWet * 0.28 * fW); } }');
     sh.fragmentShader = injectRoadPbr(sh.fragmentShader, 'vWPos.xz');
     Object.assign(sh.uniforms, roadUniforms);
     sh.fragmentShader = sh.fragmentShader
@@ -528,7 +530,7 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
           if (dfade > 0.002) {
             vec3 refA = abs(nWv.z) > 0.9 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 0.0, 1.0);
             vec3 T = normalize(cross(refA, nWv)), B = cross(nWv, T);
-            nWv = normalize(nWv + (T * gTN.x + B * gTN.y) * 0.9 * dfade);
+            nWv = normalize(nWv + (T * gTN.x + B * gTN.y) * 1.42 * dfade);
           }
           if (gRockW > 0.002) {
             nWv = normalize(nWv + gRockN * 0.55 * gRockW);
@@ -1343,8 +1345,10 @@ async function buildCurbs(): Promise<void> {
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.setIndex(idx);
   g.computeVertexNormals();
-  const t = gameTex('paver_plain');
-  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: t, vertexColors: true, roughness: 0.9, metalness: 0, side: THREE.DoubleSide }));
+  const curbMap = loadPbr1K('ground_curb_granite.png', true, 0x8e8d88);
+  const curbNorm = loadPbr1K('ground_curb_granite_normal.png', false, 0x8080ff);
+  const curbRough = loadPbr1K('ground_curb_granite_roughness.png', false, 0xd0d0d0);
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: curbMap, normalMap: curbNorm, normalScale: new THREE.Vector2(1.1, 1.1), roughnessMap: curbRough, vertexColors: true, roughness: 0.88, metalness: 0.02, side: THREE.DoubleSide }));
   m.receiveShadow = true; m.castShadow = false; m.frustumCulled = false;
   streetGroup.add(m);
   console.log('curbs', lines.length, 'lines', pos.length / 12, 'quads');
@@ -3032,7 +3036,16 @@ function buildFurniture(): void {
     }
     addRibbonUV(kAcc, kp, 1.9, RIBBON_LIFT + 0.02, 3.4);      // painted flush with the road: a 50 cm kerb was a ramp the car climbed and rolled on
   }
-  { const km = accMeshTex(kAcc, gameTex('kerb'), 0.8, -5); furnitureGroup.add(km); driveSurfaces.push(km); }
+  {
+    const km = accMeshTex(kAcc, loadPbr1K('ground_rumble_strip.png', true, 0xc8382e), 0.78, -5);
+    const kMat = km.material as THREE.MeshStandardMaterial;
+    kMat.normalMap = loadPbr1K('ground_rumble_strip_normal.png', false, 0x8080ff);
+    kMat.normalScale = new THREE.Vector2(1.15, 1.15);
+    kMat.roughnessMap = loadPbr1K('ground_rumble_strip_roughness.png', false, 0xc0c0c0);
+    kMat.needsUpdate = true;
+    furnitureGroup.add(km);
+    driveSurfaces.push(km);
+  }
   // racing surface over the street, the reference asphalt with its lane marks
   const roadAcc: Acc = { pos: [], idx: [], uv: [] };
   addRibbonUV(roadAcc, P.map((p) => [p.x, p.z]), 11, RIBBON_LIFT, 6.2);
@@ -4921,8 +4934,22 @@ function frame(now: number): void {
   const __t0 = performance.now();
   driveInput.tick();
   if (simLayer && !mapMode) { simLayer.setPublicTraffic(!driving || driving.circuitId === 'free'); simLayer.update(dt, camera.position); }
-  if (vegetation) { if (mapMode) vegetation.setEnabled(false); else { vegetation.setEnabled(true); vegetation.setWind(0.3 + wx.cur.wind * 0.9 + wx.cur.rain * 0.3); vegetation.setWet(wx.cur.wet); vegetation.update(dt, camera.position); } }
-  if (grassField && !mapMode) { grassField.setWind(0.3 + wx.cur.wind * 0.9 + wx.cur.rain * 0.3); grassField.setWet(wx.cur.wet); grassField.update(dt, camera.position); }
+  if (vegetation) {
+    if (mapMode) vegetation.setEnabled(false);
+    else {
+      vegetation.setEnabled(true);
+      vegetation.setWind(0.35 + wx.cur.wind * 0.95 + wx.cur.rain * 0.35);
+      vegetation.setWet(wx.cur.wet);
+      vegetation.setCarWake(driving ? driving.pos : null, driving ? driving.ps.vel : null);
+      vegetation.update(dt, camera.position);
+    }
+  }
+  if (grassField && !mapMode) {
+    grassField.setWind(0.35 + wx.cur.wind * 0.95 + wx.cur.rain * 0.35);
+    grassField.setWet(wx.cur.wet);
+    grassField.setCarWake(driving ? driving.pos : null, driving ? driving.ps.vel : null);
+    grassField.update(dt, camera.position);
+  }
   if (treeFields.length && !mapMode) for (const tf of treeFields) { tf.setWind(0.25 + wx.cur.rain * 0.5 + wx.cur.cloudDark * 0.4); tf.update(dt, camera.position); }
   const __t1 = performance.now();
   stepFly(dt);
@@ -4933,6 +4960,25 @@ function frame(now: number): void {
   heroBridgeUpdate?.(now * 0.001, Math.max(0, Math.min(1, 1 - (sunDir.y + 0.05) * 4)));
   for (const l of cloudLayers) { l.tex.offset.x += l.vx * dt; l.tex.offset.y += l.vz * dt; }
   if (replay.active) replay.step(dt); else if (!photo.active) stepDrive(dt);      // photo mode pauses the drive
+  if (trackKit && !mapMode) {
+    trackKit.update(dt, camera.position, wx.cur.wind + wx.cur.rain * 0.35, driving ? driving.pos : null, driving ? driving.ps.vel : null);
+  }
+  // Real-time shallow-water puddle/wet-road wake fluid simulation around the moving car (< 0.12 ms/frame)
+  if (!mapMode && (wx.cur.wet > 0.08 || poolLevel > 0.05)) {
+    const focusX = driving ? driving.pos.x : camera.position.x;
+    const focusZ = driving ? driving.pos.z : camera.position.z;
+    roadRipples.recenter(focusX, focusZ);
+    if (driving && Math.abs(driving.ps.speedMps) > 3.5) {
+      const sy = Math.sin(driving.yaw), cy = Math.cos(driving.yaw);
+      const strength = Math.min(0.65, Math.abs(driving.ps.speedMps) / 38) * Math.max(wx.cur.wet, poolLevel);
+      for (const [lx, lz] of [[-0.82, 1.38], [0.82, 1.38], [-0.82, -1.38], [0.82, -1.38]]) {
+        const wxp = driving.pos.x + cy * lx + sy * lz;
+        const wzp = driving.pos.z - sy * lx + cy * lz;
+        roadRipples.splat(wxp, wzp, -strength, 0.72);
+      }
+    }
+    roadRipples.step(dt, wx.cur.rain);
+  }
   photo.update();
   updateProbe(dt);
   if (!fly && !driving) controls.update();

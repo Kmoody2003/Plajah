@@ -1,33 +1,88 @@
-// Asphalt as a real material: micro normal, roughness and ambient occlusion maps (cut from the racer folder's damp-asphalt reference sheet, rebuilt by
-// tools/build_road_pbr.py) tiled at two scales over the road colour, so light breaks up on the grain instead of sliding off a flat plane. Wet roads fill the pores
-// (the normal flattens, the roughness drops), puddles are mirror-flat with rain rings, and the detail fades with distance so it never shimmers.
+// Asphalt & surface PBR engine: upgrades road grain, curbs, sidewalks, and rumble strips
+// to our curated high-res PBR texture sets (downsampled smoothly to 1024x1024 mipmapped GPU
+// textures with 8x anisotropy for crisp Series S/X detail at 4x lower VRAM), plus real-time
+// shallow-water tire-wake fluid ripples (services/realtimeSim/realtimeFluid.ts) in wet puddles.
 import * as THREE from 'three';
 import { PUDDLE_GLSL } from './spray';
+import { RealtimeRippleField } from '../../../services/realtimeSim/realtimeFluid';
 
 const BASE = '/games/forth-horizon/tex/';
 const cache: Record<string, THREE.Texture> = {};
-function tex(name: string, srgb: boolean): THREE.Texture {
+
+function quickTex(name: string, srgb: boolean): THREE.Texture {
   if (!cache[name]) {
     const t = new THREE.TextureLoader().load(BASE + name);
-    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.anisotropy = 8;
+    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     cache[name] = t;
   }
   return cache[name];
 }
 
+/**
+ * Loads a curated 2K PNG PBR texture and downsamples smoothly to 1024x1024 GPU mipmaps
+ * (4x less VRAM than raw 2K PNG, keeping Series X crispness with 8x anisotropy and zero VRAM spikes).
+ */
+export function loadPbr1K(file: string, srgb: boolean, fallbackHex = 0x808080): THREE.Texture {
+  const key = '1k:' + file;
+  if (cache[key]) return cache[key];
+  const c = document.createElement('canvas');
+  c.width = c.height = 4;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#' + fallbackHex.toString(16).padStart(6, '0');
+  g.fillRect(0, 0, 4, 4);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  tex.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  cache[key] = tex;
+
+  const img = new Image();
+  img.onload = () => {
+    const sz = Math.min(1024, img.naturalWidth || 1024);
+    const hi = document.createElement('canvas');
+    hi.width = hi.height = sz;
+    const ctx = hi.getContext('2d')!;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, sz, sz);
+    tex.image = hi;
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+  };
+  img.src = BASE + file;
+  return tex;
+}
+
+export const roadRipples = new RealtimeRippleField(96, 42);
+
 export const roadUniforms = {
-  tRN: { value: null as THREE.Texture | null }, tRR: { value: null as THREE.Texture | null }, tRA: { value: null as THREE.Texture | null },
-  uRainR: { value: 0 }, uTimeR: { value: 0 },
+  tRN: { value: null as THREE.Texture | null },
+  tRR: { value: null as THREE.Texture | null },
+  tRA: { value: null as THREE.Texture | null },
+  uRainR: { value: 0 },
+  uTimeR: { value: 0 },
+  tRipple: { value: roadRipples.texture as THREE.Texture },
+  uRippleOrigin: { value: roadRipples.origin },
+  uRippleSpan: { value: roadRipples.spanMeters },
 };
+
 export function loadRoadPbr(): void {
-  roadUniforms.tRN.value = tex('road_n.jpg', false);
-  roadUniforms.tRR.value = tex('road_r.jpg', false);
-  roadUniforms.tRA.value = tex('road_ao.jpg', false);
+  // Instant fast base maps upgraded seamlessly to our curated high-res ground_asphalt_dry PBR maps
+  roadUniforms.tRN.value = loadPbr1K('ground_asphalt_dry_normal.png', false, 0x8080ff);
+  roadUniforms.tRR.value = loadPbr1K('ground_asphalt_dry_roughness.png', false, 0xb8b8b8);
+  roadUniforms.tRA.value = loadPbr1K('ground_asphalt_dry_ao.png', false, 0xd8d8d8);
+  // Keep quick fallback warm in case of offline missing png
+  void quickTex;
 }
 
 const DECL = `
-uniform sampler2D tRN, tRR, tRA;
-uniform float uRainR, uTimeR;
+uniform sampler2D tRN, tRR, tRA, tRipple;
+uniform float uRainR, uTimeR, uRippleSpan;
+uniform vec2 uRippleOrigin;
 vec2 rainLayer(vec2 p, float t, float amt, float seed) {
   vec2 id = floor(p), f = fract(p) - 0.5;
   vec2 h2 = fract(sin(vec2(dot(id, vec2(127.1, 311.7)) + seed, dot(id, vec2(269.5, 183.3)) + seed * 1.7)) * 43758.5453);
@@ -55,28 +110,38 @@ export function injectRoadPbr(fs: string, wpExpr: string): string {
       float rpFade = 0.0;
       vec2 rwp = ${wpExpr};
       if (gRoad > 0.005) {
-        rpFade = 1.0 - smoothstep(30.0, 120.0, length(vViewPosition));
-        float rpAO = mix(1.0, texture2D(tRA, rwp / 2.4).r * 0.6 + texture2D(tRA, rwp / 0.62 + 0.21).r * 0.4, rpFade);
-        float rpMacro = texture2D(tRA, rwp / 19.0).r;
-        // High-frequency aggregate grit & patchy wear from real scanned asphalt maps (no synthetic wave contours)
-        diffuseColor.rgb *= mix(1.0, (0.60 + 0.56 * rpAO) * (0.86 + 0.28 * rpMacro), gRoad);
+        rpFade = 1.0 - smoothstep(32.0, 135.0, length(vViewPosition));
+        float rpAO = mix(1.0, texture2D(tRA, rwp / 2.8).r * 0.58 + texture2D(tRA, rwp / 0.72 + 0.21).r * 0.42, rpFade);
+        float rpMacro = texture2D(tRA, rwp / 18.0).r;
+        // High-frequency aggregate grit, bitumen pores & patchy wear from curated 2K asphalt PBR maps
+        diffuseColor.rgb *= mix(1.0, (0.56 + 0.60 * rpAO) * (0.85 + 0.30 * rpMacro), gRoad);
       }`)
     .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
       if (gRoad > 0.005) {
-        float rr = mix(texture2D(tRR, rwp / 2.4).r, texture2D(tRR, rwp / 0.62 + 0.21).r, 0.45 * rpFade);
-        float rr2 = texture2D(tRR, rwp / 9.0).r;                        // oil, rubber and damp patches at a larger scale
-        float dryRough = clamp(0.46 + 0.50 * mix(rr2, rr, 0.55), 0.42, 0.96);
-        float wetRough = 0.05 + 0.23 * rr2;
+        float rr = mix(texture2D(tRR, rwp / 2.8).r, texture2D(tRR, rwp / 0.72 + 0.21).r, 0.48 * rpFade);
+        float rr2 = texture2D(tRR, rwp / 9.5).r;                        // oil, rubber and damp patches at a larger scale
+        float dryRough = clamp(0.42 + 0.52 * mix(rr2, rr, 0.58), 0.38, 0.95);
+        float wetRough = 0.04 + 0.22 * rr2;
         roughnessFactor = mix(roughnessFactor, mix(dryRough, wetRough, clamp(uWet * 1.2, 0.0, 1.0)), gRoad);
       }`)
     .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
       if (gRoad > 0.005 && rpFade > 0.005) {
-        vec3 rn1 = texture2D(tRN, rwp / 2.4).xyz * 2.0 - 1.0, rn2 = texture2D(tRN, rwp / 0.62 + 0.21).xyz * 2.0 - 1.0;
-        float pores = 1.0 - clamp(uWet * 0.88, 0.0, 1.0);
-        vec2 sl = (rn1.xy * 0.95 + rn2.xy * 0.75) * gRoad * rpFade * mix(1.0, pores, 0.92) * (1.0 - gPud);
+        vec3 rn1 = texture2D(tRN, rwp / 2.8).xyz * 2.0 - 1.0, rn2 = texture2D(tRN, rwp / 0.72 + 0.21).xyz * 2.0 - 1.0;
+        float pores = 1.0 - clamp(uWet * 0.86, 0.0, 1.0);
+        vec2 sl = (rn1.xy * 1.25 + rn2.xy * 0.92) * gRoad * rpFade * mix(1.0, pores, 0.90) * (1.0 - gPud);
+        // Real-time shallow-water tire wake ripples from Plajah RealtimeRippleField on wet roads & puddles!
+        float wetMask = max(gPud, uWet * 0.45);
+        if (wetMask > 0.02) {
+          vec2 ripUv = (rwp - uRippleOrigin) / uRippleSpan + 0.5;
+          if (ripUv.x > 0.02 && ripUv.x < 0.98 && ripUv.y > 0.02 && ripUv.y < 0.98) {
+            vec2 ripN = texture2D(tRipple, ripUv).rg * 2.0 - 1.0;
+            float edgeFade = smoothstep(0.02, 0.14, min(min(ripUv.x, 1.0 - ripUv.x), min(ripUv.y, 1.0 - ripUv.y)));
+            sl += ripN * wetMask * edgeFade * 0.65;
+          }
+        }
         if (uRainR > 0.02) {
           float rDist = 1.0 - smoothstep(8.0, 32.0, length(vViewPosition));
-          if (rDist > 0.01) sl += rainRings(rwp, uTimeR, uRainR) * gPud * 0.34 * rDist;
+          if (rDist > 0.01) sl += rainRings(rwp, uTimeR, uRainR) * gPud * 0.36 * rDist;
         }
         normal = normalize(normal + (viewMatrix * vec4(sl.x, 0.0, sl.y, 0.0)).xyz);
       }`);

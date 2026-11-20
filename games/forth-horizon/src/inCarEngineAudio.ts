@@ -521,18 +521,23 @@ export class InCarEngineSynth {
   private clipLp: BiquadFilterNode;
   private clipShaper: WaveShaperNode;
 
-  // 4 RPM-locked real recorded sample layers (idle, mid, high, off-throttle decel)
+  // 4 RPM-locked real recorded sample layers (dual-phase staggered voices eliminate any loop periodicity on long straights!)
   private clipIdleGain: GainNode;
   private clipMidGain: GainNode;
   private clipHighGain: GainNode;
   private clipDecelGain: GainNode;
-  private clipIdleSrc: AudioBufferSourceNode | null = null;
-  private clipMidSrc: AudioBufferSourceNode | null = null;
-  private clipHighSrc: AudioBufferSourceNode | null = null;
-  private clipDecelSrc: AudioBufferSourceNode | null = null;
+  private clipIdleSrcs: AudioBufferSourceNode[] = [];
+  private clipMidSrcs: AudioBufferSourceNode[] = [];
+  private clipHighSrcs: AudioBufferSourceNode[] = [];
+  private clipDecelSrcs: AudioBufferSourceNode[] = [];
   private clipLoadedBank = '';
   private clipReady = false;
   private clipCache = new Map<string, Promise<SteadyClipBank | null>>();
+
+  // Motorsport straight-cut gearbox / differential whine (Track/Rally/Race/Elohim cars only)
+  private transOsc: OscillatorNode;
+  private transBand: BiquadFilterNode;
+  private transGain: GainNode;
 
   // Core oscillators (firing order fundamental, uneven sub-order, mechanical upper rasp)
   private oscMain: OscillatorNode;
@@ -708,12 +713,25 @@ export class InCarEngineSynth {
     this.forcedGain.gain.value = 0.0;
     this.forcedOsc.connect(this.forcedGain).connect(this.out);
 
+    // Straight-cut motorsport transmission / differential whine (Track/Rally/Race/Elohim cars)
+    this.transOsc = ctx.createOscillator();
+    this.transOsc.type = 'triangle';
+    this.transOsc.frequency.value = 420;
+    this.transBand = ctx.createBiquadFilter();
+    this.transBand.type = 'bandpass';
+    this.transBand.frequency.value = 1400;
+    this.transBand.Q.value = 3.2;
+    this.transGain = ctx.createGain();
+    this.transGain.gain.value = 0.0;
+    this.transOsc.connect(this.transBand).connect(this.transGain).connect(this.out);
+
     this.oscMain.start();
     this.oscSub.start();
     this.oscRasp.start();
     this.airSrc.start();
     this.airModOsc.start();
     this.forcedOsc.start();
+    this.transOsc.start();
 
     this.applyBank('sc_v8_blower', 0);
   }
@@ -790,12 +808,12 @@ export class InCarEngineSynth {
   }
 
   private stopClipSources(): void {
-    for (const s of [this.clipIdleSrc, this.clipMidSrc, this.clipHighSrc, this.clipDecelSrc]) {
-      if (s) {
+    for (const arr of [this.clipIdleSrcs, this.clipMidSrcs, this.clipHighSrcs, this.clipDecelSrcs]) {
+      for (const s of arr) {
         try { s.stop(); s.disconnect(); } catch { /* already stopped */ }
       }
+      arr.length = 0;
     }
-    this.clipIdleSrc = this.clipMidSrc = this.clipHighSrc = this.clipDecelSrc = null;
   }
 
   private async activateClipBank(bankId: string): Promise<void> {
@@ -803,25 +821,34 @@ export class InCarEngineSynth {
     if (!bank || this.clipLoadedBank !== bankId) return;
 
     this.stopClipSources();
-    const startLoop = (buf: AudioBuffer, target: GainNode): AudioBufferSourceNode => {
-      const src = this.ctx.createBufferSource();
-      src.buffer = buf;
-      src.loop = true;
-      src.playbackRate.value = 1.0;
-      src.connect(target);
-      src.start();
-      return src;
+    // Dual-phase staggered playback (0% and 50% loop phase + +-0.45% micro-detune) completely eliminates
+    // any audible 3Hz loop periodicity on sustained straightaways while preserving 100% real combustion timbre!
+    const startDualLoop = (buf: AudioBuffer, target: GainNode): AudioBufferSourceNode[] => {
+      const half = buf.duration * 0.5;
+      const out: AudioBufferSourceNode[] = [];
+      for (let v = 0; v < 2; v++) {
+        const src = this.ctx.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+        src.playbackRate.value = v === 0 ? 0.996 : 1.004;
+        const vg = this.ctx.createGain();
+        vg.gain.value = 0.68; // equal-power sum (~0.96 RMS)
+        src.connect(vg).connect(target);
+        src.start(0, v === 0 ? 0 : half);
+        out.push(src);
+      }
+      return out;
     };
-    this.clipIdleSrc = startLoop(bank.idle, this.clipIdleGain);
-    this.clipMidSrc = startLoop(bank.mid, this.clipMidGain);
-    this.clipHighSrc = startLoop(bank.high, this.clipHighGain);
-    this.clipDecelSrc = startLoop(bank.decel, this.clipDecelGain);
+    this.clipIdleSrcs = startDualLoop(bank.idle, this.clipIdleGain);
+    this.clipMidSrcs = startDualLoop(bank.mid, this.clipMidGain);
+    this.clipHighSrcs = startDualLoop(bank.high, this.clipHighGain);
+    this.clipDecelSrcs = startDualLoop(bank.decel, this.clipDecelGain);
     this.clipReady = true;
 
     const now = this.ctx.currentTime;
     // Smoothly hand primary acoustic voice to real steady-state engine clips, keeping synth as warm RPM-locked sub-foundation
-    this.clipBus.gain.setTargetAtTime(0.92, now, 0.08);
-    this.synthBus.gain.setTargetAtTime(0.32, now, 0.08);
+    this.clipBus.gain.setTargetAtTime(0.94, now, 0.08);
+    this.synthBus.gain.setTargetAtTime(0.30, now, 0.08);
   }
 
   /** Crisp close-mic DSG/sequential upshift exhaust bark or downshift overrun crackle */
@@ -955,17 +982,21 @@ export class InCarEngineSynth {
     // When real clips are active, keep synth sub-foundation warm & chesty underneath so real clips shine on top!
     this.masterLp.frequency.setTargetAtTime((this.clipReady ? Math.min(lpHz, 520 + rpmFrac * 420) : lpHz) * shiftCut, now, 0.025);
 
-    // Update 4-layer RPM-locked real recorded engine clips (idle -> mid -> high + off-throttle decel overrun)
-    if (this.clipReady && this.clipIdleSrc && this.clipMidSrc && this.clipHighSrc && this.clipDecelSrc) {
+    // Update 4-layer dual-phase RPM-locked real recorded engine clips (idle -> mid -> high + off-throttle decel overrun)
+    if (this.clipReady && this.clipIdleSrcs.length && this.clipMidSrcs.length && this.clipHighSrcs.length && this.clipDecelSrcs.length) {
       // Pitch-locked playbackRate kept inside natural 0.72x..1.48x window so real recordings never sound chipmunky
       const idleRate = 0.84 + rpmFrac * 1.12 + idleLope * 0.6;
       const midRate = 0.72 + rpmFrac * 0.90;
       const highRate = 0.64 + rpmFrac * 0.66;
       const decelRate = 0.72 + rpmFrac * 0.78;
-      this.clipIdleSrc.playbackRate.setTargetAtTime(idleRate, now, 0.022);
-      this.clipMidSrc.playbackRate.setTargetAtTime(midRate, now, 0.020);
-      this.clipHighSrc.playbackRate.setTargetAtTime(highRate, now, 0.018);
-      this.clipDecelSrc.playbackRate.setTargetAtTime(decelRate, now, 0.024);
+      const setDual = (srcs: AudioBufferSourceNode[], rate: number, tcRate: number) => {
+        if (srcs[0]) srcs[0].playbackRate.setTargetAtTime(rate * 0.9955, now, tcRate);
+        if (srcs[1]) srcs[1].playbackRate.setTargetAtTime(rate * 1.0045, now, tcRate);
+      };
+      setDual(this.clipIdleSrcs, idleRate, 0.022);
+      setDual(this.clipMidSrcs, midRate, 0.020);
+      setDual(this.clipHighSrcs, highRate, 0.018);
+      setDual(this.clipDecelSrcs, decelRate, 0.024);
 
       // Equal-power RPM crossfade weights: idle [0..0.42], mid [0.14..0.86], high [0.50..1.00]
       const smooth = (a: number, b: number, x: number): number => {
@@ -1014,6 +1045,19 @@ export class InCarEngineSynth {
       this.forcedGain.gain.setTargetAtTime(state.turboBoost * (prof.forced === 'diesel-turbo' ? 0.045 : 0.032) * shiftCut, now, 0.035);
     } else {
       this.forcedGain.gain.setTargetAtTime(0, now, 0.04);
+    }
+
+    // Motorsport straight-cut transmission / differential whine (Track/Rally/Race/Elohim cars; silent on quiet stock commuters)
+    const isMotorsportGearbox = spec.vehicleClass === 'track' || spec.vehicleClass === 'rally' || upgLvl >= 3 || (meta?.aggression ?? 0) >= 4;
+    if (isMotorsportGearbox && Math.abs(state.speedMps) > 4) {
+      const spdFrac = Math.min(1, Math.abs(state.speedMps) / Math.max(45, spec.topSpeedMps));
+      const whineHz = 360 + spdFrac * 1950 + rpmFrac * 340;
+      this.transOsc.frequency.setTargetAtTime(whineHz, now, 0.025);
+      this.transBand.frequency.setTargetAtTime(whineHz * 1.15, now, 0.03);
+      const gearLoad = 0.35 + load * 0.65;
+      this.transGain.gain.setTargetAtTime(0.028 * spdFrac * gearLoad * shiftCut, now, 0.03);
+    } else {
+      this.transGain.gain.setTargetAtTime(0, now, 0.04);
     }
 
     // Master engine bus gain (respects quiet stock everyday cars vs aggressive supercars + upgrades)

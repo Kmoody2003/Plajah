@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { catchFence } from './catchFence';
 import { detailedStand, pitGarage } from './trackArchitecture';
+import { RealtimeClothField } from '../../../services/realtimeSim/realtimeCloth';
 
 export interface KitInput {
   P: { x: number; y: number; z: number }[];
@@ -67,9 +68,11 @@ export class TrackKit {
   readonly group = new THREE.Group();
   private lamps: THREE.Mesh[] = [];
   private lampMat = [new THREE.MeshBasicMaterial({ color: 0x2a0c0c }), new THREE.MeshBasicMaterial({ color: 0xff2a1a }), new THREE.MeshBasicMaterial({ color: 0x28ff5a })];
+  private cloth = new RealtimeClothField();
   private state = -1;
 
   constructor(private k: KitInput) {
+    this.group.add(this.cloth.group);
     this.tyreWalls(); this.fencing(); this.stands(); this.pits(); this.marshals(); this.towers(); this.gantryLights();
   }
 
@@ -230,24 +233,35 @@ export class TrackKit {
     }
   }
 
-  // ---------- marshal posts with flags, one on the outside of every corner ----------
+  // ---------- marshal posts with live XPBD/Verlet fluttering cloth flags, one on the outside of every corner ----------
   private marshals(): void {
     const { P, corners, HALF } = this.k, n = P.length;
     const pole = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.04, 0.05, 4.2, 5), mat(0xdfe2e6, 0.5, 0.4), Math.max(1, corners.length));
     const booth = new THREE.InstancedMesh(new THREE.BoxGeometry(1.6, 2.1, 1.6), mat(0xdcdfe4, 0.8), Math.max(1, corners.length));
-    const flag = new THREE.InstancedMesh(new THREE.PlaneGeometry(1.5, 1.0), new THREE.MeshStandardMaterial({ roughness: 0.8, side: THREE.DoubleSide }), Math.max(1, corners.length));
-    const m4 = new THREE.Matrix4(), c = new THREE.Color();
-    const fc = [0xf2c230, 0x2aa05a, 0x1d6fd1];
+    const m4 = new THREE.Matrix4();
+    const fc = [0xf2c230, 0x2aa05a, 0x1d6fd1, 0xff451a];
     corners.forEach((cn, ci) => {
       let bi = 0, best = 1e18;
       for (let i = 0; i < n; i++) { const d = (P[i].x - cn.x) ** 2 + (P[i].z - cn.z) ** 2; if (d < best) { best = d; bi = i; } }
       const p = this.at(bi + 5, HALF + 6, cn.turn > 0 ? -1 : 1);
       m4.makeTranslation(p.x, p.y + 2.1, p.z); pole.setMatrixAt(ci, m4);
       m4.makeTranslation(p.x + p.tx * 1.6, p.y + 1.05, p.z + p.tz * 1.6); booth.setMatrixAt(ci, m4);
-      m4.makeRotationY(Math.atan2(-p.tz, p.tx)); m4.setPosition(p.x + p.tx * 0.75, p.y + 3.6, p.z + p.tz * 0.75); flag.setMatrixAt(ci, m4);
-      flag.setColorAt(ci, c.setHex(fc[ci % 3]));
+      // Real-time simulated fluttering cloth flag anchored to the pole top
+      this.cloth.addBanner({
+        x: p.x,
+        y: p.y + 4.15,
+        z: p.z,
+        dirX: p.tx,
+        dirZ: p.tz,
+        width: 1.85,
+        height: 1.15,
+        color: fc[ci % fc.length],
+        pinMode: 'left',
+        cols: 6,
+        rows: 4,
+      });
     });
-    for (const m of [pole, booth, flag]) { m.count = corners.length; m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere(); m.frustumCulled = true; this.group.add(m); }
+    for (const m of [pole, booth]) { m.count = corners.length; m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere(); m.frustumCulled = true; this.group.add(m); }
   }
 
   // ---------- light towers ----------
@@ -269,7 +283,7 @@ export class TrackKit {
     for (const m of [pole, head, lamp]) { m.count = spots.length; m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere(); m.frustumCulled = true; this.group.add(m); }
   }
 
-  // ---------- start gantry lights: five lamps that count down red, then go green ----------
+  // ---------- start gantry lights: five lamps that count down red, then go green + fluttering festival banners ----------
   private gantryLights(): void {
     const { P, HALF, gantryAt } = this.k;
     const p = this.at(gantryAt, 0, 1), y = this.k.ground(P[gantryAt].x, P[gantryAt].z);
@@ -281,8 +295,25 @@ export class TrackKit {
     }
     g.position.set(p.x, y + 7.0, p.z);
     g.rotation.y = Math.atan2(p.tx, p.tz);
-    void HALF;
     this.group.add(g);
+
+    // Pair of fluttering festival vertical cloth banners flanking the start/finish gantry
+    for (const side of [-1, 1]) {
+      const gp = this.at(gantryAt, HALF + 2.2, side);
+      this.cloth.addBanner({
+        x: gp.x,
+        y: gp.y + 6.4,
+        z: gp.z,
+        dirX: p.tx,
+        dirZ: p.tz,
+        width: 1.6,
+        height: 3.4,
+        color: side > 0 ? 0xff3b1f : 0x00d2f0,
+        pinMode: 'top',
+        cols: 5,
+        rows: 7,
+      });
+    }
   }
   /** 'red' while the grid is held, 'green' on the go, 'off' otherwise */
   setLights(s: 'red' | 'green' | 'off'): void {
@@ -290,5 +321,9 @@ export class TrackKit {
     if (v === this.state) return;
     this.state = v;
     for (const l of this.lamps) l.material = this.lampMat[v];
+  }
+  /** Advance real-time fluttering cloth flags & banners (reacts to world wind + high-speed car wake!) */
+  update(dt: number, camPos: THREE.Vector3, windStrength: number, carPos?: THREE.Vector3 | null, carVel?: THREE.Vector3 | null): void {
+    this.cloth.update(dt, camPos, windStrength, carPos, carVel);
   }
 }

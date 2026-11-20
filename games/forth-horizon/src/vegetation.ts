@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { bladeTexture, tuftGeo } from './grass';
 import { GRID } from './grid';
+import { buildCurvedBladeClusterGeo, STRAND_WIND_TRAMPLE_GLSL } from '../../../services/realtimeSim/strandFurEngine';
 
 /**
  * Vegetation for the whole map: grass, shrubs and rocks that cost the same wherever the camera is.
@@ -62,8 +62,20 @@ export class Vegetation {
   readonly stats: VegetationStats = { cells: 0, instances: {}, genMs: 0, drawCalls: 0 };
   private species: Species[] = [];
   private uTime = { value: 0 };
-  private uWind = { value: 0.3 };
+  private uWind = { value: 0.35 };
+  private uWet = { value: 0 };
   private uCam = { value: new THREE.Vector3() };
+  private uTrails = {
+    value: [
+      new THREE.Vector4(0, 0, 0, 0),
+      new THREE.Vector4(0, 0, 0, 0),
+      new THREE.Vector4(0, 0, 0, 0),
+      new THREE.Vector4(0, 0, 0, 0),
+    ],
+  };
+  private uCarVel = { value: new THREE.Vector3() };
+  private trailIdx = 0;
+  private lastTrailPos = new THREE.Vector3(1e9, 0, 1e9);
   private cls: { w: number; h: number; d: Uint8ClampedArray } | null = null;
   private alb: { w: number; h: number; d: Uint8ClampedArray } | null = null;
   private lastCam = new THREE.Vector2(1e9, 1e9);
@@ -84,8 +96,107 @@ export class Vegetation {
   }
 
   setWind(w: number): void { this.uWind.value = w; }
-  setWet(w: number): void { for (const s of this.species) s.mat.color.setScalar(1 - 0.3 * w); }
+  setWet(w: number): void {
+    this.uWet.value = w;
+    for (const s of this.species) {
+      if (s.name !== 'grass' && s.name !== 'grassMid') s.mat.color.setScalar(1 - 0.3 * w);
+    }
+  }
+  /** Feed live vehicle position & velocity so nearby 3D grass blades physically part & flatten under tires + aero wake! */
+  setCarWake(pos: THREE.Vector3 | null, vel?: THREE.Vector3 | null): void {
+    const trails = this.uTrails.value;
+    if (!pos) {
+      for (let i = 0; i < 4; i++) trails[i].w = 0;
+      this.uCarVel.value.set(0, 0, 0);
+      return;
+    }
+    if (vel) this.uCarVel.value.copy(vel);
+    const spd = vel ? Math.hypot(vel.x, vel.z) : 0;
+    trails[0].set(pos.x, pos.y, pos.z, 2.3 + Math.min(2.2, spd * 0.045));
+    if (this.lastTrailPos.distanceToSquared(pos) > 2.4 * 2.4) {
+      this.lastTrailPos.copy(pos);
+      this.trailIdx = 1 + (this.trailIdx % 3);
+      trails[this.trailIdx].set(pos.x, pos.y, pos.z, 1.9 + Math.min(1.6, spd * 0.03));
+    }
+  }
   setEnabled(on: boolean): void { this.enabled = on; this.group.visible = on; }
+
+  // ---------- Series S/X curved 3D blade-strand material (Kajiya-Kay sheen + SSS + rolling wind waves + car wake) ----------
+  private strandMaterial(sp: Pick<Species, 'fade'>, keySuffix: string): THREE.MeshStandardMaterial {
+    const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide, roughness: 0.68, metalness: 0 });
+    const fade = sp.fade;
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.uTime = this.uTime;
+      sh.uniforms.uWind = this.uWind;
+      sh.uniforms.uWet = this.uWet;
+      sh.uniforms.uCam = this.uCam;
+      sh.uniforms.uFade = { value: new THREE.Vector4(...fade) };
+      sh.uniforms.uTrails = this.uTrails;
+      sh.uniforms.uCarVel = this.uCarVel;
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', `#include <common>
+          attribute vec3 aPos; attribute vec2 aRS; attribute vec3 aCol; attribute vec4 aBlade;
+          uniform vec3 uCam; uniform vec4 uFade;
+          varying vec3 vTint; varying float vGrassH; varying float vBladePhase; varying vec3 vGrassWorld;
+          ${STRAND_WIND_TRAMPLE_GLSL}`)
+        .replace('#include <beginnormal_vertex>', `
+          float vr = aRS.x, vc = cos(vr), vs = sin(vr);
+          vec3 objectNormal = vec3(normal.x * vc + normal.z * vs, normal.y, -normal.x * vs + normal.z * vc);
+          #ifdef USE_TANGENT
+          vec3 objectTangent = vec3(tangent.xyz);
+          #endif`)
+        .replace('#include <begin_vertex>', `
+          float vd = distance(aPos.xz, uCam.xz);
+          float vfade = smoothstep(uFade.x, uFade.y, vd) * (1.0 - smoothstep(uFade.z, uFade.w, vd));
+          vec4 vClip = projectionMatrix * viewMatrix * vec4(aPos, 1.0);
+          if (vClip.z < -6.0 || abs(vClip.x) > vClip.w + 9.0) vfade = 0.0;
+          vec3 vp = position * aRS.y * vfade;
+          vec3 rotP = vec3(vp.x * vc + vp.z * vs, vp.y, -vp.x * vs + vp.z * vc);
+          if (vfade > 0.001) {
+            rotP = strandDisplace(rotP, aPos, aBlade.x, aBlade.y, aBlade.w);
+          }
+          vec3 transformed = rotP + aPos;
+          vTint = aCol;
+          vGrassH = aBlade.x;
+          vBladePhase = aBlade.y;
+          vGrassWorld = transformed;`);
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform float uWet;\nvarying vec3 vTint; varying float vGrassH; varying float vBladePhase; varying vec3 vGrassWorld;')
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          float h = clamp(vGrassH, 0.0, 1.0);
+          float dryTint = smoothstep(0.68, 0.98, vBladePhase);
+          vec3 rootTone = vTint * vec3(0.32, 0.36, 0.25);
+          vec3 midTone  = vTint * mix(vec3(0.94, 1.15, 0.72), vec3(1.18, 1.06, 0.62), dryTint * 0.65);
+          vec3 tipTone  = vTint * mix(vec3(1.26, 1.38, 0.86), vec3(1.42, 1.24, 0.76), dryTint);
+          vec3 grad = mix(rootTone, midTone, smoothstep(0.0, 0.45, h));
+          float dapple = 0.88 + 0.24 * sin(vGrassWorld.x * 0.055 + sin(vGrassWorld.z * 0.042) * 2.1);
+          diffuseColor.rgb *= mix(grad, tipTone, smoothstep(0.45, 1.0, h)) * dapple * (1.0 - 0.26 * uWet);`)
+        .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+          roughnessFactor = mix(0.84, 0.42, vGrassH) * (1.0 - 0.45 * uWet);`)
+        .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+          float rootAO = 0.36 + 0.64 * smoothstep(0.0, 0.68, vGrassH);
+          reflectedLight.indirectDiffuse *= rootAO;
+          reflectedLight.directDiffuse *= (0.48 + 0.52 * smoothstep(0.0, 0.55, vGrassH));
+          #if NUM_DIR_LIGHTS > 0
+          {
+            vec3 Vd = normalize(vViewPosition);
+            vec3 Ld = directionalLights[0].direction;
+            vec3 Hd = normalize(Ld + Vd);
+            float backRaw = clamp(dot(Vd, -Ld), 0.0, 1.0);
+            float back = backRaw * backRaw * backRaw;
+            vec3 sssCol = diffuseColor.rgb * vec3(1.35, 1.22, 0.64);
+            reflectedLight.directDiffuse += sssCol * directionalLights[0].color * (0.14 + 0.62 * back) * vGrassH * vGrassH;
+            vec3 T = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+            float tdh = clamp(dot(T, Hd), -1.0, 1.0);
+            float sinTH = sqrt(max(0.0001, 1.0 - tdh * tdh));
+            float sh2 = sinTH * sinTH; float sheen = sh2 * sh2 * sh2 * sh2;
+            reflectedLight.directSpecular += directionalLights[0].color * sheen * (0.18 + 0.32 * uWet) * vGrassH;
+          }
+          #endif`);
+    };
+    mat.customProgramCacheKey = () => 'veg-strand-v3-' + keySuffix;
+    return mat;
+  }
 
   // ---------- species ----------
   private material(sp: Pick<Species, 'fade'>, opts: { map?: THREE.Texture; alphaTest?: number; flat?: boolean; wind: number; rough: number }): THREE.MeshStandardMaterial {
@@ -127,7 +238,8 @@ export class Vegetation {
         .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
           #if NUM_DIR_LIGHTS > 0
           {
-            float back = pow(clamp(dot(normalize(vViewPosition), -directionalLights[0].direction), 0.0, 1.0), 3.0);
+            float backRaw = clamp(dot(normalize(vViewPosition), -directionalLights[0].direction), 0.0, 1.0);
+            float back = backRaw * backRaw * backRaw;
             reflectedLight.directDiffuse += diffuseColor.rgb * directionalLights[0].color * back * 0.36;
           }
           #endif`);
@@ -137,36 +249,45 @@ export class Vegetation {
   }
 
   private build(): void {
-    const tuft = tuftGeo();
-    const blade = bladeTexture();
+    // True curved 3D tapered multi-blade strand clusters (zero flat crossed X-cards, zero patchy weeds!)
+    const nearBladeGeo = buildCurvedBladeClusterGeo(6, 4);
+    const midBladeGeo = buildCurvedBladeClusterGeo(4, 2);
     const grassCol = (s: Sample, dry: number): [number, number, number] => {
-      // the ground's own colour lifted toward a blade green so the satellite's shadows do not turn the grass black
-      const k = 0.62 + dry * 0.4;
-      return [Math.min(1, s.r * 1.1 + 0.05) * k, Math.min(1, s.g * 1.15 + 0.07) * k, Math.min(1, s.b + 0.03) * k];
+      const k = 0.72 + dry * 0.32;
+      return [Math.min(1, s.r * 1.06 + 0.045) * k, Math.min(1, s.g * 1.18 + 0.075) * k, Math.min(1, s.b * 0.94 + 0.025) * k];
     };
-    // fine grass: dense tufts close to the camera (balanced cap for locked 60 FPS)
+    // Near hero carpet: dense 0.46m spacing continuous curved 3D blade meadow around the car (no sparse weed patches!)
     const grassNear: Species = {
-      name: 'grass', geo: tuft, spacing: 0.78, radius: 26, fade: [-1, 0, 15, 25], cap: 18000, seed: 1, cells: new Map(), total: 0,
+      name: 'grass', geo: nearBladeGeo, spacing: 0.46, radius: 32, fade: [-1, 0, 22, 31], cap: 26000, seed: 1, cells: new Map(), total: 0,
       mat: null as unknown as THREE.MeshStandardMaterial,
       rule: (x, z, i, j, s) => {
-        const patch = vnoise(x / 9, z / 9, 11);                                                        // tall patches and bare patches
-        const dens = (s.field * 1.15 + s.forest * 0.5 + s.sand * 0.2) * (0.62 + patch * 0.7);
-        if (dens < ihash(i, j, 3) || s.slope > 0.7 || s.y < 2.4) return null;
-        const dry = Math.max(s.sand, s.field * ihash(i, j, 9) * 0.5);
-        const h = (0.22 + ihash(i, j, 4) * 0.34 + patch * 0.18) * (s.sand > 0.5 ? 1.4 : 1);
-        return { scale: h * (1.2 + ihash(i, j, 5) * 0.7), col: grassCol(s, dry) };
+        const green = s.g - Math.max(s.r, s.b);
+        const lum = s.r * 0.3 + s.g * 0.59 + s.b * 0.11;
+        const isTurf = s.field > 0.12 || s.forest > 0.15 || (green > 0.008 && lum > 0.11 && lum < 0.74);
+        if (!isTurf || s.slope > 0.68 || s.y < 2.2) return null;
+        const patch = vnoise(x / 11, z / 11, 11);
+        // Continuous lush meadow coverage (~94% fill on lawns/fields, natural gentle thinning on steep sand/forest edges)
+        const dens = Math.min(1.0, 0.78 + s.field * 0.35 + Math.max(0, green) * 2.5 + patch * 0.18) * (1 - s.sand * 0.65);
+        if (dens < ihash(i, j, 3)) return null;
+        const dry = Math.max(s.sand, s.field * ihash(i, j, 9) * 0.45);
+        const h = (0.28 + ihash(i, j, 4) * 0.24 + patch * 0.24) * (s.sand > 0.5 ? 1.3 : 1);
+        return { scale: h * (1.25 + ihash(i, j, 5) * 0.55), col: grassCol(s, dry) };
       },
     };
-    // coarse grass: bigger, sparser clumps that carry the grass out to 85 m
+    // Mid-distance lush meadow: overlapping curved blade clusters carrying continuous turf cleanly to 105 m
     const grassMid: Species = {
-      name: 'grassMid', geo: tuft, spacing: 1.55, radius: 84, fade: [11, 19, 58, 82], cap: 12000, seed: 2, cells: new Map(), total: 0,
+      name: 'grassMid', geo: midBladeGeo, spacing: 1.05, radius: 105, fade: [17, 26, 74, 103], cap: 22000, seed: 2, cells: new Map(), total: 0,
       mat: null as unknown as THREE.MeshStandardMaterial,
       rule: (x, z, i, j, s) => {
-        const patch = vnoise(x / 14, z / 14, 12);
-        const dens = (s.field * 1.1 + s.forest * 0.5 + s.sand * 0.25) * (0.6 + patch * 0.7);
-        if (dens < ihash(i, j, 3) || s.slope > 0.7 || s.y < 2.4) return null;
-        const h = 0.38 + ihash(i, j, 4) * 0.42 + patch * 0.22;
-        return { scale: h * 1.62, col: grassCol(s, Math.max(s.sand, s.field * 0.3)) };
+        const green = s.g - Math.max(s.r, s.b);
+        const lum = s.r * 0.3 + s.g * 0.59 + s.b * 0.11;
+        const isTurf = s.field > 0.12 || s.forest > 0.15 || (green > 0.008 && lum > 0.11 && lum < 0.74);
+        if (!isTurf || s.slope > 0.68 || s.y < 2.2) return null;
+        const patch = vnoise(x / 16, z / 16, 12);
+        const dens = Math.min(1.0, 0.72 + s.field * 0.35 + Math.max(0, green) * 2.2 + patch * 0.2) * (1 - s.sand * 0.6);
+        if (dens < ihash(i, j, 3)) return null;
+        const h = 0.42 + ihash(i, j, 4) * 0.32 + patch * 0.24;
+        return { scale: h * 1.85, col: grassCol(s, Math.max(s.sand, s.field * 0.3)) };
       },
     };
     // shrubs: 20-tri low-poly organic canopy (4x fewer triangles than detail=1 -> saves >1.2M triangles per frame)
@@ -203,8 +324,8 @@ export class Vegetation {
       },
     };
     this.species = [grassNear, grassMid, shrubs, rocks];
-    grassNear.mat = this.material(grassNear, { map: blade, alphaTest: 0.5, wind: 0.28, rough: 0.95 });
-    grassMid.mat = this.material(grassMid, { map: blade, alphaTest: 0.5, wind: 0.22, rough: 0.95 });
+    grassNear.mat = this.strandMaterial(grassNear, 'near');
+    grassMid.mat = this.strandMaterial(grassMid, 'mid');
     shrubs.mat = this.material(shrubs, { wind: 0.05, rough: 0.9, flat: false });
     rocks.mat = this.material(rocks, { wind: 0, rough: 0.97, flat: true });
     for (const sp of this.species) {
@@ -220,7 +341,7 @@ export class Vegetation {
       g.instanceCount = 0;
       sp.geoI = g;
       const m = new THREE.Mesh(g, sp.mat);
-      m.frustumCulled = false; m.castShadow = false; m.receiveShadow = false; m.name = 'veg-' + sp.name;
+      m.frustumCulled = false; m.castShadow = false; m.receiveShadow = sp.name === 'grass' || sp.name === 'grassMid'; m.name = 'veg-' + sp.name;
       sp.mesh = m;
       this.group.add(m);
     }
@@ -263,6 +384,10 @@ export class Vegetation {
   update(dt: number, cam: THREE.Vector3): void {
     this.uTime.value += dt;
     this.uCam.value.copy(cam);
+    const trails = this.uTrails.value;
+    for (let i = 1; i < 4; i++) {
+      if (trails[i].w > 0) trails[i].w = Math.max(0, trails[i].w - dt * 0.85);
+    }
     if (!this.enabled || !this.cls || !this.alb) return;
     this.sinceRebuild += dt;
     const moved = Math.hypot(cam.x - this.lastCam.x, cam.z - this.lastCam.y);
