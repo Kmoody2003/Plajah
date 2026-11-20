@@ -108,7 +108,8 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     const a = tslTexture(mossA, wp.mul(1 / 9).add(vec2(0.21, 0.63))).rgb, b = tslTexture(mossB, wp.mul(1 / 8).add(vec2(0.37, 0.11))).rgb;
     const g = tslTexture(mossG, wp.mul(1 / 6)).rgb;
     const k = tslTexture(mossG, wp.mul(1 / 97)).g, k2 = tslTexture(mossB, wp.mul(1 / 71).add(vec2(0.5, 0.2))).g;
-    const base = mix(g.mul(0.5), b.mul(0.7), smoothstep(float(0.25), float(0.6), k2));
+    // strand moss is the floor; the glow moss shows in patches only (its cyan spots read as a repeat up close)
+    const base = mix(b.mul(0.75), g.mul(0.45), smoothstep(float(0.62), float(0.82), k2));
     const lum = a.dot(vec3(0.3, 0.5, 0.2));
     // Elderwood is greener than the old grove: lift the green a touch so the map reads as the art's mossy hollow
     ground.colorNode = mix(base, a.mul(0.6), smoothstep(float(0.62), float(0.8), k).mul(smoothstep(float(0.6), float(0.2), lum))).mul(vec3(0.4, 0.58, 0.36));

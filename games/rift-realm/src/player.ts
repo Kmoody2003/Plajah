@@ -82,7 +82,7 @@ export class PlayerController {
       if (e.code === 'KeyV') this.toggleView();
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') this.triggerDash();
       if (e.code === 'KeyQ') this.onSoulSurge?.();
-      if (e.code === 'KeyF' || e.code === 'KeyE') this.onStrike?.();
+      if (e.code === 'KeyF' || e.code === 'KeyE') { this.rig?.play('attack_1', 0.8); this.onStrike?.(); }
       if (e.code === 'Digit1') this.setVessel('aegis');
       if (e.code === 'Digit2') this.setVessel('stalker');
       if (e.code === 'Digit3') this.setVessel('seraph');
@@ -236,7 +236,7 @@ export class PlayerController {
         if (input.cycleVesselPressed) this.cycleVessel();
         if (input.dashPressed) this.triggerDash(input.moveX, input.moveY);
         if (input.surgePressed) this.onSoulSurge?.();
-        if (input.strikePressed) this.onStrike?.();
+        if (input.strikePressed) { this.rig?.play('attack_1', 0.8); this.onStrike?.(); }
         wish.addScaledVector(right, input.moveX).addScaledVector(forward, input.moveY);
       }
 
@@ -307,6 +307,7 @@ export class PlayerController {
       if (this.onGround) {
         this.airJumps = 1;
         if (wasAir && fallVy < -6) this.landKick = Math.min(1, -fallVy / 22);
+        if (wasAir && fallVy < -13) this.rig?.play('land', 0.85); // the Void Stalker's crouched landing (motion video)
       }
     }
 

@@ -32,8 +32,27 @@ async function load(file: string): Promise<CharacterAsset | null> {
   }
 }
 
+/**
+ * Clips studied from a character's own motion video (services/mocap: capture → solve → retarget onto the rig), stored
+ * beside the model as clips/<id>.json. They replace the same-named Muse clips and add new ones (land, wing_hover).
+ */
+async function videoClips(asset: CharacterAsset | null, id: string) {
+  if (!asset) return;
+  try {
+    const res = await fetch(BASE + 'clips/' + id + '.json');
+    if (!res.ok) return;
+    const data = await res.json() as { clips: THREE.AnimationClipJSON[] };
+    for (const json of data.clips) {
+      const clip = THREE.AnimationClip.parse(json);
+      asset.clips = asset.clips.filter((c) => c.name.toLowerCase() !== clip.name.toLowerCase());
+      asset.clips.push(clip);
+    }
+  } catch { /* no video clips: the Muse set stays */ }
+}
+
 export async function preloadCharacters() {
   [assets.stalker, assets.paladin] = await Promise.all([load('void_stalker.glb'), load('robot_paladin.glb')]);
+  await videoClips(assets.stalker, 'void_stalker');
 }
 
 export type Locomotion = 'idle' | 'run' | 'strafe_left' | 'strafe_right' | 'walk';
