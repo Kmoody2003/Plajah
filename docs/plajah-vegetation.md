@@ -168,6 +168,21 @@ with our wind and impostors, and variants come from the seed. Scans can also sta
   grown trees (140 low tier) stand on the hills beyond the edge in place of the wall cards; levels get a
   `prepare(renderer, camera)` hook for GPU bakes. Low-tier frame in the pane: ~0.8 M triangles, ~80 draws, 3.8 ms CPU.
   Next: grass & plants, then fungi; trunk twist and willow/mangrove forms in the grower; RTX numbers.
+- **2026-11-20 grass & plants, first slice** — `grass/field.ts`: GPU-placed blade fields with nothing stored per
+  blade — each species draws a dense near square (1 m cells) and a sparse far square (2 m cells, wider 2-segment
+  blades) as one instanced draw each; the vertex shader turns the instance number into a world cell + slot and hashes
+  that WORLD cell for position, height, facing, clumping and presence, so the field is pinned to the ground and never
+  shimmers. Rings cross-fade by thinning (no alpha), blades behind the camera collapse. `grass/ground.ts`: height (half
+  float), cover (RGBA = species 0–3) and a trample map (0.5 m texels: direction + flatness, springs back over 3.5 s) —
+  `press(x, z, r)` for anything that walks. Blades lean with the one wind and part around impulses. `plants/build.ts`
+  grows ferns (arching fronds of shrinking leaflet pairs), broadleaf bushes and flowers (twisting stem, cupped glowing
+  petals, bright bud) as meshes with per-vertex colour, glow and sway; `plants/field.ts` instances them with range +
+  frustum culling. Catalog: `cyberForestGrass.ts` (glow grass, turf — colours = the grass sprites' median by height),
+  `cyberForestPlants.ts` (fern, bush, glow flower — from the fern/bush/flower sprites); `leafAtlas.py --opaque --white`.
+  Elderwood: the grass_a/b/c, fern, bush and flower sprite cards are gone; player, walking enemies and running deer
+  trample the grass. Blades: ~65k low tier (16 m / 45 m rings, 4 draws), ~670k high tier (30 m / 85 m). Low-tier pane
+  frame with everything: ~1.4 M triangles, 88 draws. Not yet: compute-shader culling/indirect draws, plant LODs,
+  grass shadows, mushrooms (the fungi phase), vines, crystal plants, spore pods.
 
 ## Stopgap in the meantime
 Superseded 2026-11-20: Elderwood's forest is grown by the service; the image-to-3D tree GLBs are no longer loaded.

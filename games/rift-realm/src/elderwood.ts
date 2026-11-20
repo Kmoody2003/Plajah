@@ -23,6 +23,11 @@ import type { Level, LevelInfo, Tier } from './shrine';
 import { Forest, type TreeSpot } from '../../../services/vegetation/trees/forest';
 import { CF_GREAT_OAK, CF_PLATFORM_OAK, CYBER_FOREST_TREES } from '../../../services/vegetation/catalog/cyberForest';
 import { addImpulse, updateWind } from '../../../services/vegetation/wind';
+import { bakeGround } from '../../../services/vegetation/grass/ground';
+import { GrassField } from '../../../services/vegetation/grass/field';
+import { CYBER_FOREST_GRASS } from '../../../services/vegetation/catalog/cyberForestGrass';
+import { PlantField, type PlantSpot } from '../../../services/vegetation/plants/field';
+import { CYBER_FOREST_PLANTS } from '../../../services/vegetation/catalog/cyberForestPlants';
 
 const MODELS = '/games/rift-realm/assets/elderwood/';
 
@@ -626,21 +631,27 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   };
   const byPool = (): [number, number] | null => { const a = R() * 6.28, d = 12 + R() * 6, x = POOL.x + Math.sin(a) * d, z = POOL.z + Math.cos(a) * d; return nearLane(x, z, 2) ? null : [x, z]; };
   const kk = lo ? 0.35 : 1;
-  scatter('grass_a', Math.round(800 * kk), anywhere, 0.7, 1.3, 0.35);
-  scatter('grass_b', Math.round(600 * kk), anywhere, 0.7, 1.4, 0.35);
-  scatter('grass_c', Math.round(400 * kk), () => anywhere(1.5), 0.8, 1.5, 0.35);
-  scatter('fern_a', Math.round(420 * kk), byTrees, 1.2, 2.4, 0.45);
-  scatter('fern_b', Math.round(260 * kk), anywhere, 0.9, 1.8, 0.45);
-  scatter('fern_c', Math.round(160 * kk), byPool, 0.9, 1.6, 0.7);
-  scatter('bush_a', Math.round(200 * kk), anywhere, 1.0, 1.8, 0.5);
-  scatter('bush_b', Math.round(160 * kk), byTrees, 1.0, 1.9, 0.5);
+  // (the grass_a/b/c sprite cards are gone: real blades from the vegetation service below)
+  // ferns, bushes and flowers are grown plants (services/vegetation/plants), not sprite cards: spots here, field below
+  const plantSpots: PlantSpot[] = [];
+  const plant = (species: number, count: number, place: () => [number, number] | null, sMin: number, sMax: number) => {
+    for (let i = 0, n = 0; i < count * 4 && n < count; i++) {
+      const p = place(); if (!p) continue;
+      plantSpots.push({ x: p[0], y: H(p[0], p[1]) - 0.05, z: p[1], yaw: R() * 6.28, species, scale: sMin + R() * (sMax - sMin) }); n++;
+    }
+  };
+  plant(0, Math.round(260 * kk), byTrees, 1.1, 2.0);   // CF_FERN
+  plant(0, Math.round(140 * kk), anywhere, 0.8, 1.5);
+  plant(0, Math.round(90 * kk), byPool, 0.8, 1.4);
+  plant(1, Math.round(140 * kk), anywhere, 0.9, 1.6);  // CF_BUSH
+  plant(1, Math.round(110 * kk), byTrees, 0.9, 1.7);
   scatter('shroom_a', Math.round(110 * kk), byTrees, 1.0, 2.4, 1.1, 0.1);
   scatter('shroom_b', Math.round(80 * kk), () => anywhere(1.5), 0.9, 2.0, 1.1, 0.1);
   scatter('toadstool', Math.round(40 * kk), byTrees, 1.2, 2.6, 0.6, 0.06);
   scatter('shroom_tall', Math.round(40 * kk), () => { const a = R() * 6.28, d = 5 + R() * 8, x = MONOLITH.x + Math.sin(a) * d, z = MONOLITH.z + Math.cos(a) * d; return nearLane(x, z, 2) ? null : [x, z]; }, 2.4, 4.6, 1.0, 0.03);
   scatter('spore_pod', Math.round(24 * kk), anywhere, 2.2, 4.0, 0.9, 0.03);
-  scatter('flower_a', Math.round(70 * kk), byPool, 1.0, 2.0, 1.0, 0.05);
-  scatter('flower_b', Math.round(50 * kk), anywhere, 1.0, 1.8, 1.0, 0.05);
+  plant(2, Math.round(70 * kk), byPool, 0.9, 1.7);    // CF_GLOW_FLOWER
+  plant(2, Math.round(50 * kk), anywhere, 0.9, 1.5);
   scatter('crystal_plant', Math.round(30 * kk), byPool, 1.6, 3.2, 1.0);
   scatter('resin_stump', Math.round(14 * kk), byTrees, 1.4, 2.4, 0.4, 0.08);
   for (const [name, frac] of [['vine_a', 0.4], ['vine_b', 0.3], ['vine_c', 0.3]] as const) {
@@ -736,6 +747,24 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   }
   let stepT = 0;
 
+  // ── grass: GPU blade fields from the Cyber Forest grass species (services/vegetation/grass). The ground says where
+  //    each grows: glow tufts in clumps away from the paths, turf everywhere but the paths, water and buildings. ──
+  const GB = BOUND + 24;
+  const grassGround = bakeGround({ x0: -GB, z0: -GB, size: GB * 2, res: lo ? 128 : 200 }, H, (x, z) => {
+    if (inStructure(x, z, 0.5) || dist(x, z, POOL) < 13) return [0, 0];
+    const lane = LANES.reduce((m, l) => Math.min(m, segDist(x, z, l).d), Infinity);
+    const path = Math.min(1, Math.max(0, (lane - 1.2) / 2.2));           // bare in the middle of a path, thick 3.5 m off
+    const edge = Math.min(1, Math.max(0, (GB - Math.max(Math.abs(x), Math.abs(z))) / 6));
+    const wet = dist(x, z, POOL) < 22 ? 1.25 : 1;
+    return [path * edge * 0.75 * wet, Math.max(path, 0.25) * edge];
+  });
+  const grass = new GrassField(CYBER_FOREST_GRASS, grassGround, { lowTier: lo, beat: uBeatPulse, shadows: false });
+  group.add(grass.group);
+  const plants = new PlantField(CYBER_FOREST_PLANTS, plantSpots, { lowTier: lo, beat: uBeatPulse, shadows: !lo });
+  group.add(plants.group);
+  const walkers: THREE.Object3D[] = [], tmpW = new THREE.Vector3();
+  group.userData.vegetation = { forest, grass, plants, ground: grassGround };   // ?rrdebug: stats, trample tests
+
   // ── lights ────────────────────────────────────────────────────────────────────────────────────────────────
   const hemi = new THREE.HemisphereLight(0x9fd4e0, 0x1c3024, 1.8);
   const moon = new THREE.DirectionalLight(0xc8dcff, 3.2);
@@ -775,6 +804,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   enemyBodies.make = (id, boss) => {
     const k: CreatureKind = boss ? 'mantis' : (['wolf', 'bat', 'wolf', 'mantis', 'wasp', 'bat'] as const)[id % 6];
     const b = new CreatureBody(k);
+    if (!b.hover) walkers.push(b.root);
     return { root: b.root, hover: b.hover, height: b.height, speedMul: MUL[k][0], hpMul: MUL[k][1], update: (dt, sp) => b.update(dt, sp), attack: () => b.attack() };
   };
   type Deer = { b: CreatureBody; home: THREE.Vector3; tx: number; tz: number; wait: number; flee: number; speed: number };
@@ -864,6 +894,11 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
       const pp = enemyBodies.playerPos;
       if ((stepT -= dt) <= 0) { stepT = 0.2; addImpulse(pp.x, pp.z, 3.0, 0.3, 3); }
       forest.update(viewCam ?? pp, dt);
+      // everything that walks lays the grass flat; it springs back behind them
+      if (Math.abs(pp.y - H(pp.x, pp.z)) < 1.2) grassGround.press(pp.x, pp.z, 0.8, 0.85);
+      for (let k = walkers.length - 1; k >= 0; k--) { const o = walkers[k]; if (!o.parent) { walkers.splice(k, 1); continue; } o.getWorldPosition(tmpW); grassGround.press(tmpW.x, tmpW.z, 0.9, 0.9); }
+      for (const d of herd) if (d.speed > 0.3) grassGround.press(d.b.root.position.x, d.b.root.position.z, 0.9, 0.8);
+      if (viewCam) { grass.update(viewCam, dt); plants.update(viewCam, dt); } else grassGround.update(dt);
       updateHerd(dt);
       moths.update(dt);
       for (const b of beacons) b.intensity = 45 + pulse * 25;

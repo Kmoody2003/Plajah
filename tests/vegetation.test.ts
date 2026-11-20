@@ -62,3 +62,23 @@ test('art score: a grown tree scored against its own silhouette is perfect; cata
   assert.ok(oak.nodes.every((n) => !n.root));
   assert.ok(oak.nodes.filter((n) => n.order === 0 && n.y < 20).every((n) => Math.hypot(n.x, n.z) < 0.01));
 });
+
+test('grass + plant species are valid; plants grow deterministically with sane geometry', async () => {
+  const { validateGrass, validatePlant } = await import('../services/vegetation/species');
+  const { CYBER_FOREST_GRASS } = await import('../services/vegetation/catalog/cyberForestGrass');
+  const { CYBER_FOREST_PLANTS } = await import('../services/vegetation/catalog/cyberForestPlants');
+  const { buildPlant } = await import('../services/vegetation/plants/build');
+  for (const g of CYBER_FOREST_GRASS) assert.deepEqual(validateGrass(g), [], g.id);
+  for (const sp of CYBER_FOREST_PLANTS) {
+    assert.deepEqual(validatePlant(sp), [], sp.id);
+    const a = buildPlant(sp, 4), b = buildPlant(sp, 4);
+    assert.deepEqual(a.position, b.position, `${sp.id} deterministic`);
+    const nv = a.position.length / 3, tris = a.index.length / 3;
+    assert.ok(tris > 50 && tris < 8000, `${sp.id}: ${tris} triangles`);
+    assert.ok(a.index.every((i) => i < nv));
+    assert.equal(a.sway.length, nv * 2);
+    let top = 0; for (let i = 1; i < a.position.length; i += 3) top = Math.max(top, a.position[i]);
+    assert.ok(top > sp.height * 0.4 && top < sp.height * 2, `${sp.id} height ${top}`);
+    for (let i = 0; i < a.sway.length; i += 2) assert.ok(a.sway[i] >= 0 && a.sway[i] <= 1.2);
+  }
+});
