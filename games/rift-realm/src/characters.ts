@@ -82,7 +82,7 @@ export class CharacterRig {
     this.mixer = new THREE.AnimationMixer(model);
     for (const c of asset.clips) this.actions.set(c.name.toLowerCase(), this.mixer.clipAction(c));
     const idle = this.has('aim_idle') ? 'aim_idle' : 'idle';
-    for (const name of [idle, 'run', 'strafe_left', 'strafe_right']) {
+    for (const name of [idle, 'walk', 'run', 'strafe_left', 'strafe_right']) {
       const act = this.actions.get(name);
       if (!act) continue;
       act.setLoop(THREE.LoopRepeat, Infinity).play();
@@ -113,9 +113,12 @@ export class CharacterRig {
     const fwd = Math.max(0, localZ) / s, back = Math.max(0, -localZ) / s, side = Math.abs(localX) / s;
     const hasStrafe = this.loco.some((l) => l.name === 'strafe_left');
     const sideW = hasStrafe ? sstep(0.35, 0.8, side) : 0;
+    // a walk clip (motion-captured stride) carries the slow speeds, the run takes over from ~3 to 6 m/s
+    const hasWalk = this.loco.some((l) => l.name === 'walk'), runW = hasWalk ? sstep(3, 6, speed) : 1;
     const target: Record<string, number> = {
       idle: 1 - move,
-      run: move * (1 - sideW),
+      walk: move * (1 - sideW) * (1 - runW),
+      run: move * (1 - sideW) * runW,
       strafe_left: move * sideW * (localX > 0 ? 1 : 0),
       strafe_right: move * sideW * (localX > 0 ? 0 : 1),
     };

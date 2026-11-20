@@ -117,7 +117,10 @@ async function captureDecoded(blob: Blob, o: VideoCaptureOptions, fps: number, m
         f = toRaw(t, lock.pick(pose.detectAll(wc.canvas as HTMLCanvasElement, nextTs(performance.now())), t));
       }
       frames.push(f);
-      o.onProgress?.(++i, total, f);
+      // advance the frame clock unconditionally: `onProgress?.(++i)` skips the increment when there's no callback
+      // (optional-call arguments aren't evaluated), which stamped every frame t = 0 and collapsed the take
+      i++;
+      o.onProgress?.(i, total, f);
     }
     return { fps, frames, width, height, source: { kind: 'upload', label, model } };
   } finally {

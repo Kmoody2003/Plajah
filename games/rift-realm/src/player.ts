@@ -82,7 +82,7 @@ export class PlayerController {
       if (e.code === 'KeyV') this.toggleView();
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') this.triggerDash();
       if (e.code === 'KeyQ') this.onSoulSurge?.();
-      if (e.code === 'KeyF' || e.code === 'KeyE') { this.rig?.play('attack_1', 0.8); this.onStrike?.(); }
+      if (e.code === 'KeyF' || e.code === 'KeyE') { this.strikeAnim(); this.onStrike?.(); }
       if (e.code === 'Digit1') this.setVessel('aegis');
       if (e.code === 'Digit2') this.setVessel('stalker');
       if (e.code === 'Digit3') this.setVessel('seraph');
@@ -177,6 +177,10 @@ export class PlayerController {
     this.vy = 0;
   }
 
+  private strikeN = 0;
+  /** Melee strikes alternate the motion-captured slashes (leap slash, spin-arc slash). */
+  private strikeAnim() { this.rig?.play(this.strikeN++ % 2 ? 'attack_3' : 'attack_1', 0.85); }
+
   triggerMuzzleFlash() {
     this.muzzleFlash = 1;
     this.rig?.play('shoot', 0.9);
@@ -188,6 +192,7 @@ export class PlayerController {
   private triggerDash(moveX = 0, moveY = 0) {
     if (this.dashTimer > 0 || this.dashCharges <= 0) return;
     this.dashCharges--;
+    this.rig?.play('dash', 0.85); // the motion-captured sprint-lunge
     const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     const dir = new THREE.Vector3();
@@ -236,7 +241,7 @@ export class PlayerController {
         if (input.cycleVesselPressed) this.cycleVessel();
         if (input.dashPressed) this.triggerDash(input.moveX, input.moveY);
         if (input.surgePressed) this.onSoulSurge?.();
-        if (input.strikePressed) { this.rig?.play('attack_1', 0.8); this.onStrike?.(); }
+        if (input.strikePressed) { this.strikeAnim(); this.onStrike?.(); }
         wish.addScaledVector(right, input.moveX).addScaledVector(forward, input.moveY);
       }
 
