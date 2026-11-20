@@ -45,8 +45,9 @@ export function measureTree(front: Mask, side?: Mask, samples = 9): TreeMeasure 
     const y = Math.round(bottom - fracFromGround * (H - 1));
     return rf.find((r) => r.y === y) ?? rf.reduce((a, b) => (Math.abs(b.y - y) < Math.abs(a.y - y) ? b : a));
   };
-  // trunk: the solid count at 10–20% height (the run of solid pixels, not the l…r span: roots spread out wide)
-  const trunkRow = at(0.15);
+  // trunk: the narrowest solid run between the root spread and the crown (below ~15% the roots spread out wide)
+  let trunkRow = at(0.3);
+  for (let f = 0.15; f <= 0.5; f += 0.01) { const r = at(f); if (r.n < trunkRow.n) trunkRow = r; }
   const trunkW = Math.max(1, trunkRow.n);
   const baseRow = at(0.02);
   // crown base: lowest height (from 25% up) where the span is clearly wider than the trunk

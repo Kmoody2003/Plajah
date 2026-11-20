@@ -13,11 +13,17 @@ type N = any;
 
 const loader = new THREE.TextureLoader();
 const cache = new Map<string, THREE.Texture>();
+const pending = new Set<Promise<void>>();
+/** Resolves when every texture the tree materials asked for has loaded (bakes must wait for it). */
+export const texturesReady = () => Promise.all([...pending]).then(() => undefined);
 function tex(url: string, srgb: boolean, repeat: boolean) {
   const k = url + srgb + repeat;
   let t = cache.get(k);
   if (!t) {
-    t = loader.load(url);
+    let done!: () => void;
+    const pr = new Promise<void>((r) => { done = r; });
+    pending.add(pr);
+    t = loader.load(url, () => done(), undefined, () => done());
     t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     t.anisotropy = 8;
     if (repeat) t.wrapS = t.wrapT = THREE.RepeatWrapping;

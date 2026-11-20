@@ -48,3 +48,17 @@ test('measureTree reads a synthetic tree: trunk below, round crown above', () =>
   assert.ok(Math.abs(widest - 90 / 300) < 0.03, `widest ${widest}`);
   assert.ok(Math.abs(m.lean) < 0.02);
 });
+
+test('art score: a grown tree scored against its own silhouette is perfect; catalog species are valid', async () => {
+  const { silhouette, compare } = await import('../services/vegetation/fromArt/score');
+  const { CYBER_FOREST_TREES, CF_GREAT_OAK, CF_PLATFORM_OAK } = await import('../services/vegetation/catalog/cyberForest');
+  const sk = growTree(CYBER_FOREST_TREES[0], 3, { scale: 1 });
+  const g = silhouette(sk, 'front');
+  assert.ok(g.v.some((x) => x > 0.5));
+  assert.equal(compare(g, g).score, 1);
+  for (const sp of [...CYBER_FOREST_TREES, CF_GREAT_OAK, CF_PLATFORM_OAK]) assert.deepEqual(validateSpecies(sp), [], sp.id);
+  // crowns that ride in another trunk: no roots, and the trunk stays on its axis
+  const oak = growTree(CF_GREAT_OAK, 1, { scale: 1 });
+  assert.ok(oak.nodes.every((n) => !n.root));
+  assert.ok(oak.nodes.filter((n) => n.order === 0 && n.y < 20).every((n) => Math.hypot(n.x, n.z) < 0.01));
+});

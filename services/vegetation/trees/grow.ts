@@ -184,13 +184,16 @@ export function growTree(sp: TreeSpecies, seed: number, opt: GrowOptions = {}): 
   }
 
   // ── buttress roots: short arching chains from the base out to the ground ──
+  // they leave the trunk well above the ground (the art's root mass rises a trunk-width or more) and arch out
+  const tr = sp.trunk.radius * (H / sp.height);
   for (let r = 0; r < sp.trunk.roots; r++) {
-    const a = (r / sp.trunk.roots) * Math.PI * 2 + (R() - 0.5) * 0.6, reach = sp.trunk.radius * sp.trunk.rootReach * (0.7 + R() * 0.6);
+    const a = (r / sp.trunk.roots) * Math.PI * 2 + (R() - 0.5) * 0.6, reach = tr * sp.trunk.rootReach * (0.7 + R() * 0.6);
+    const rise = tr * (1.6 + R() * 1.6);
     let prev = 0;
-    for (let s = 1; s <= 4; s++) {
-      const t = s / 4, d = reach * t, y = sp.trunk.radius * 1.4 * (1 - t) * (1 - t);
+    for (let s = 1; s <= 6; s++) {
+      const t = s / 6, d = tr * 0.7 + (reach - tr * 0.7) * Math.pow(t, 0.8), y = rise * (1 - t) * (1 - t) * (1 + 0.3 * Math.sin(t * Math.PI));
       prev = add(Math.cos(a) * d, y, Math.sin(a) * d, prev, { root: true, order: 1, branchRoot: 0 });
-      nodes[prev].radius = sp.trunk.radius * 0.45 * (1 - t * 0.8);
+      nodes[prev].radius = tr * 0.55 * (1 - t * 0.85);
     }
   }
 

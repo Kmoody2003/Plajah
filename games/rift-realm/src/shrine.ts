@@ -28,6 +28,8 @@ export interface Level {
   /** Control points for Team Arena / Battleground modes. */
   controlPoints?: { id: string; name: string; pos: THREE.Vector3; radius: number }[];
   setBiome(index: number): { name: string; track: 'main' | 'combat' };
+  /** After the renderer is up (GPU bakes such as tree impostors) — main awaits it before the first frame. */
+  prepare?(renderer: THREE.WebGPURenderer, camera: THREE.Camera): Promise<void> | void;
   update(dt: number, pulse: number, beatIndex: number): void;
   resolveDynamicGates(pos: THREE.Vector3, radius: number): void;
 }

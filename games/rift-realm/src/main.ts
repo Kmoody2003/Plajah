@@ -77,6 +77,7 @@ async function boot() {
   const levelModule = moduleByParam(levelId);
   await preloadSets(levelModule.sets);
   const arena = levelModule.build(scene, tier);
+  await arena.prepare?.(renderer, camera);
   camera.far = levelModule.look.far; camera.updateProjectionMatrix(); renderer.toneMappingExposure = levelModule.look.exposure;
   // Game Studio Play view: the project's edits to this level (spawns, enemy spots, control points, props, look) apply before anyone spawns.
   const studioLook = await applyStudioProject(levelId, arena);

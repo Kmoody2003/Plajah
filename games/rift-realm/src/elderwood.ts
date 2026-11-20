@@ -21,7 +21,7 @@ import { CreatureBody, type CreatureKind, MothSwarm, preloadCreatures } from './
 import { enemyBodies, enemyNav } from './enemies';
 import type { Level, LevelInfo, Tier } from './shrine';
 import { Forest, type TreeSpot } from '../../../services/vegetation/trees/forest';
-import { CYBER_FOREST_TREES } from '../../../services/vegetation/catalog/cyberForest';
+import { CF_GREAT_OAK, CF_PLATFORM_OAK, CYBER_FOREST_TREES } from '../../../services/vegetation/catalog/cyberForest';
 import { addImpulse, updateWind } from '../../../services/vegetation/wind';
 
 const MODELS = '/games/rift-realm/assets/elderwood/';
@@ -189,7 +189,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     // (above the model's 24 m) carries the limbs into the crown
     oakCollider = barkTube(trunk, TRUNK_R + 0.6, 2.2, lo ? 14 : 24, lo ? 16 : 28, 0.45, 7);
     const upper = new THREE.CatmullRomCurve3([new THREE.Vector3(OAK.x - 0.4, gy + 20, OAK.z + 0.3), new THREE.Vector3(OAK.x - 0.6, gy + 30, OAK.z + 0.5), new THREE.Vector3(OAK.x + 0.3, gy + 42, OAK.z)]);
-    treeGeos.push(barkTube(upper, 3.0, 1.8, lo ? 8 : 14, lo ? 14 : 22, 0.4, 9));
+    void upper; // above the model the trunk, limbs and crown are grown (CF_GREAT_OAK in the forest below)
     for (let k = 0; k < (lo ? 7 : 12); k++) { // roots flaring over the plateau
       const a = (k / (lo ? 7 : 12)) * 6.28 + R() * 0.3, len = 9 + R() * 7;
       const ex = OAK.x + Math.sin(a) * len, ez = OAK.z + Math.cos(a) * len;
@@ -207,10 +207,8 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
         new THREE.Vector3(OAK.x + Math.sin(a) * bl * 0.5, by + bl * 0.25, OAK.z + Math.cos(a) * bl * 0.5),
         new THREE.Vector3(OAK.x + Math.sin(a) * bl, by + bl * 0.35 + R() * 3, OAK.z + Math.cos(a) * bl),
       ]);
-      rootGeos.push(barkTube(bc, 1.3, 0.3, 8, 8, 0.3, b + 11));
-      crowns.push({ x: OAK.x + Math.sin(a) * bl, y: by + bl * 0.4 + 2, z: OAK.z + Math.cos(a) * bl, r: 9 + R() * 4, kind: b % 3 });
+      void bc; R(); // (the grown crown has its own limbs; the R() keeps the level's other random draws unchanged)
     }
-    crowns.push({ x: OAK.x, y: gy + 44, z: OAK.z, r: 19, kind: 0 });
   }
 
   // ── the treetop deck round the oak: planks on radial beams, a rope rail with gaps for the bridges/stairs/nets ─
@@ -296,6 +294,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     const m = new THREE.Mesh(g, netMat); m.castShadow = !lo; group.add(m);
   }
 
+  const oakSpots: TreeSpot[] = [{ x: OAK.x, y: H(OAK.x, OAK.z), z: OAK.z, yaw: 0.6, species: 4, scale: 1 }];
   // ── oak platforms: a trunk through an octagonal deck at canopy level, struts, rope rail, a crown overhead ──
   const platform = (p: { x: number; z: number }, openTo: number[], hut: boolean) => {
     const gy = H(p.x, p.z);
@@ -332,7 +331,8 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     }
     const lamp = { x: p.x + 1.2, z: p.z + 1.2 };
     kit.box(lampMat, 0.3, 0.45, 0.3, lamp.x, DECK_Y + 2.6, lamp.z, 0, { solid: false });
-    crowns.push({ x: p.x, y: DECK_Y + 15, z: p.z, r: 10, kind: 1 + Math.floor(R() * 2) });
+    R(); // its crown is grown: CF_PLATFORM_OAK in the forest below
+    oakSpots.push({ x: p.x, y: gy, z: p.z, yaw: p.x * 0.37, species: 5, scale: (DECK_Y + 24 - gy) / CF_PLATFORM_OAK.height });
   };
   const toward = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.atan2(b.x - a.x, b.z - a.z);
   platform(PLATS.west, [toward(PLATS.west, OAK)], true);
@@ -654,7 +654,8 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     }
     mesh.frustumCulled = false; group.add(mesh);
   }
-  // the forest wall beyond the edge
+  // the forest wall beyond the edge (cards — replaced below by grown trees drawn mostly as impostors)
+  const wallCards = new THREE.Group(); wallCards.name = 'forest-wall-cards'; group.add(wallCards);
   {
     const names = ['tree_blue_a', 'tree_blue_b', 'tree_blue_c', 'tree_violet_a', 'tree_violet_b', 'tree_violet_c', 'tree_willow', 'tree_mangrove'];
     const per = lo ? 18 : 40;
@@ -667,7 +668,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
         m4.compose(v.set(x, H(x, z) - 1, z), q.setFromEuler(e.set(0, R() * 6.28, 0)), s3.set(sz, sz, sz));
         mesh.setMatrixAt(j, m4);
       }
-      mesh.frustumCulled = false; group.add(mesh);
+      mesh.frustumCulled = false; wallCards.add(mesh);
     }
   }
   for (const [cx, cz, w, d] of [[0, -BOUND - 3, 2 * BOUND + 12, 1], [0, BOUND + 3, 2 * BOUND + 12, 1], [-BOUND - 3, 0, 1, 2 * BOUND + 12], [BOUND + 3, 0, 1, 2 * BOUND + 12]] as const) {
@@ -713,8 +714,21 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     const k = wet ? (i % 2 ? 1 : 3) : (i % 3 === 0 ? 0 : 2);       // 0 violet, 1 willow, 2 blue, 3 mangrove
     return { x: sp.x, y: H(sp.x, sp.z) - 0.2, z: sp.z, yaw: sp.yaw, species: k, scale: Math.max(0.6, Math.min(1.5, sp.h / CYBER_FOREST_TREES[k].height)) };
   });
-  const forest = new Forest(CYBER_FOREST_TREES, forestSpotsV, { lowTier: lo, beat: uBeatPulse, shadows: !lo });
+  // the forest beyond the edge: hundreds of grown trees on the rising hills (impostors at range), not cards
+  {
+    const n = lo ? 140 : 320;
+    for (let i = 0; i < n * 3 && forestSpotsV.length < forestSpots.length + n; i++) {
+      const a = R() * Math.PI * 2, rr = BOUND + 6 + Math.pow(R(), 0.7) * 48, x = Math.sin(a) * rr, z = Math.cos(a) * rr;
+      if (forestSpotsV.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < 49)) continue;
+      const k = R() < 0.4 ? 2 : R() < 0.5 ? 0 : R() < 0.5 ? 3 : 1;
+      forestSpotsV.push({ x, y: H(x, z) - 0.3, z, yaw: R() * Math.PI * 2, species: k, scale: 0.9 + R() * 0.6 });
+    }
+    wallCards.visible = false;
+  }
+  forestSpotsV.push(...oakSpots);
+  const forest = new Forest([...CYBER_FOREST_TREES, CF_GREAT_OAK, CF_PLATFORM_OAK], forestSpotsV, { lowTier: lo, beat: uBeatPulse, shadows: !lo });
   group.add(forest.group);
+  let viewCam: THREE.Camera | null = null;
   {
     const trunks = group.getObjectByName('forest-trunks') as THREE.Mesh | undefined;
     if (trunks) trunks.material = B.invisible;           // still the colliders
@@ -842,13 +856,14 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     enemySpots, controlPoints,
     hazardBelow: -10,
     setBiome() { return { name: info.name, track: info.track }; },
+    async prepare(renderer, camera) { viewCam = camera; await forest.bake(renderer); },
     update(dt, pulse) {
       uBeatPulse.value = pulse;
       updateWind(dt, 0.55);
       // the player pushes the vegetation as they run (dash and blasts add bigger impulses from the game)
       const pp = enemyBodies.playerPos;
       if ((stepT -= dt) <= 0) { stepT = 0.2; addImpulse(pp.x, pp.z, 3.0, 0.3, 3); }
-      forest.update(pp, dt);
+      forest.update(viewCam ?? pp, dt);
       updateHerd(dt);
       moths.update(dt);
       for (const b of beacons) b.intensity = 45 + pulse * 25;

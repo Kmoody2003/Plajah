@@ -153,6 +153,21 @@ with our wind and impostors, and variants come from the seed. Scans can also sta
   Elderwood's forest is now grown. Tests: `tests/vegetation.test.ts`.
   Not yet: impostors, GPU scatter/culling, the fitter that scores grown species against the art (§3 step 5), perf
   numbers on the RTX, the waterfall's flat sheet (level, not vegetation).
+- **2026-11-20 trees phase finished** — `lod/impostor.ts` (hemi-octahedral impostors baked on the device, 6×6 frames
+  at 1024², billboarded in TSL); `trees/forest.ts` now three levels (full mesh < 55 m, coarse wood + full leaves < 130 m,
+  impostor beyond; low tier 30/70) with frustum culling and `stats`; `texturesReady()` so bakes wait for the atlases.
+  `fromArt/score.ts` scores a grown species against its cut-outs (silhouette IoU + crown density, front and side) and
+  `fitSpecies` searches leaf size, crown fill/width, leaves per tip, trunk girth and root reach
+  (`scripts/vegetation/fitSpecies.ts` → `catalog/cyberForest.fit.json`). Roots now rise from the trunk and arch out;
+  `measureTree` takes the trunk at its narrowest run above the roots. Art scores (mean of front/side): violet
+  0.69→0.77, willow 0.57→0.62, blue 0.66→0.75, mangrove 0.55→0.62. Silhouette IoU against a painting tops out well
+  short of the 95% gate — what's still off: willow strands and mangrove prop roots are shapes the grower doesn't have,
+  and the art's trunks twist. New species `CF_GREAT_OAK` / `CF_PLATFORM_OAK`: crowns grown out of trunks built
+  elsewhere (no roots, no lean), leaf atlas from the level's canopy sprites (`leafAtlas.py --opaque --white`).
+  Elderwood: the Great Oak and the three oak platforms carry grown crowns (the card crowns and code limbs are gone); 320
+  grown trees (140 low tier) stand on the hills beyond the edge in place of the wall cards; levels get a
+  `prepare(renderer, camera)` hook for GPU bakes. Low-tier frame in the pane: ~0.8 M triangles, ~80 draws, 3.8 ms CPU.
+  Next: grass & plants, then fungi; trunk twist and willow/mangrove forms in the grower; RTX numbers.
 
 ## Stopgap in the meantime
 Superseded 2026-11-20: Elderwood's forest is grown by the service; the image-to-3D tree GLBs are no longer loaded.

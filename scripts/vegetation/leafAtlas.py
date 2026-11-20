@@ -13,7 +13,7 @@ from PIL import Image
 ap = argparse.ArgumentParser()
 ap.add_argument('out'); ap.add_argument('art', nargs='+')
 ap.add_argument('--cells', type=int, default=4); ap.add_argument('--cell', type=int, default=256)
-ap.add_argument('--hang', action='store_true'); ap.add_argument('--seed', type=int, default=7)
+ap.add_argument('--hang', action='store_true'); ap.add_argument('--opaque', action='store_true', help='every opaque non-background pixel is foliage (dark, desaturated crowns cut from sprites, no trunk in view)'); ap.add_argument('--white', type=float, default=0.55, help='brightness above which a grey pixel is background (raise for pale-highlighted foliage)'); ap.add_argument('--seed', type=int, default=7)
 ap.add_argument('--strands', action='store_true', help='draw hanging strands procedurally in the art palette (willow)')
 a = ap.parse_args()
 rng = np.random.default_rng(a.seed)
@@ -27,8 +27,9 @@ for f in a.art:
     sat, val = hsv[..., 1] / 255, hsv[..., 2] / 255
     # foliage: opaque, and either saturated (green/blue/violet leaves) or bright (glowing); trunk = dark + grey
     # (the sheet's white/grey background trapped inside a crown is neither: low saturation and bright)
-    white = (sat < 0.16) & (val > 0.55)
+    white = (sat < 0.16) & (val > a.white)
     leafy = (alpha > 0.6) & ~white & (((sat > 0.22) & (val > 0.1)) | ((val > 0.62) & (sat > 0.16)))
+    if a.opaque: leafy = (alpha > 0.5) & ~white
     srcs.append((im, leafy.astype(np.float32)))
 
 n = a.cells * a.cells

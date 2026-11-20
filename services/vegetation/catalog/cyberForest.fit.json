@@ -1,0 +1,66 @@
+{
+ "cf-violet": {
+  "before": 0.686,
+  "after": 0.773,
+  "scores": {
+   "front": 0.789,
+   "side": 0.7576666666666667,
+   "mean": 0.773
+  },
+  "leavesSize": 1.37,
+  "attractors": 900,
+  "perTip": 2,
+  "profileScale": 1,
+  "trunkRadius": 1.078,
+  "rootReach": 4.48,
+  "ms": 10620
+ },
+ "cf-willow": {
+  "before": 0.572,
+  "after": 0.618,
+  "scores": {
+   "front": 0.5936666666666667,
+   "side": 0.6423333333333333,
+   "mean": 0.618
+  },
+  "leavesSize": 1.87,
+  "attractors": 717,
+  "perTip": 3,
+  "profileScale": 0.8,
+  "trunkRadius": 0.938,
+  "rootReach": 4,
+  "ms": 9892
+ },
+ "cf-blue": {
+  "before": 0.661,
+  "after": 0.745,
+  "scores": {
+   "front": 0.7403333333333334,
+   "side": 0.749,
+   "mean": 0.745
+  },
+  "leavesSize": 1.22,
+  "attractors": 1100,
+  "perTip": 2,
+  "profileScale": 0.8,
+  "trunkRadius": 1.333,
+  "rootReach": 3.6,
+  "ms": 13493
+ },
+ "cf-mangrove": {
+  "before": 0.548,
+  "after": 0.618,
+  "scores": {
+   "front": 0.6226666666666666,
+   "side": 0.6136666666666667,
+   "mean": 0.618
+  },
+  "leavesSize": 1.2,
+  "attractors": 560,
+  "perTip": 2,
+  "profileScale": 1,
+  "trunkRadius": 0.941,
+  "rootReach": 3.84,
+  "ms": 5485
+ }
+}
