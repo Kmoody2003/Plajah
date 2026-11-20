@@ -1,0 +1,28 @@
+{
+  "id": "titan_1500_crew",
+  "status": "built (multi-view matched: winner=tt_05, sideIoU=0.865, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Pickup_truck_production_asset_sheet_09f84d9a.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Pickup_truck_on_rotating_platform_33481628.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_00",
+      "sideIoU": 0.8545,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "tt_05",
+      "sideIoU": 0.8769,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "tt_05",
+  "finalSideIoU": 0.8651,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 5.588,
+    "width": 2.14,
+    "height": 1.969
+  },
+  "faces": 60000,
+  "elapsedSec": 80.7
+}

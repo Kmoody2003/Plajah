@@ -1,0 +1,28 @@
+{
+  "id": "ironport_work_pickup",
+  "status": "built (multi-view matched: winner=tt_06, sideIoU=0.869, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Pickup_truck_production_asset_sheet_b0e10efd.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Pickup_truck_rotating_on_turntable_4b16330f.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_06",
+      "sideIoU": 0.8647,
+      "yawSymDeg": 0.25
+    },
+    {
+      "candidate": "tt_11",
+      "sideIoU": 0.8624,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_06",
+  "finalSideIoU": 0.8689,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 5.523,
+    "width": 2.139,
+    "height": 2.068
+  },
+  "faces": 60000,
+  "elapsedSec": 77.2
+}

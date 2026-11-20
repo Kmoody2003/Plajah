@@ -1,0 +1,28 @@
+{
+  "id": "swiftpack_van",
+  "status": "built (multi-view matched: winner=tt_01, sideIoU=0.905, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Delivery_van_asset_sheet_layout_c7a43300.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Delivery_van_on_turntable_a70e75d8.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_01",
+      "sideIoU": 0.8928,
+      "yawSymDeg": -0.5
+    },
+    {
+      "candidate": "tt_06",
+      "sideIoU": 0.8921,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_01",
+  "finalSideIoU": 0.9052,
+  "yawSymDeg": -0.5,
+  "boundsM": {
+    "length": 5.418,
+    "width": 2.14,
+    "height": 2.486
+  },
+  "faces": 60000,
+  "elapsedSec": 78.6
+}

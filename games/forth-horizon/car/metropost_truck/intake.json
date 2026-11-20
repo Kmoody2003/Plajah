@@ -1,0 +1,28 @@
+{
+  "id": "metropost_truck",
+  "status": "built (multi-view matched: winner=tt_01, sideIoU=0.792, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\City_postal_mail_truck_asset_16382474.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Postal_mail_truck_rotating_on_e2b044e2.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_08",
+      "sideIoU": 0.7493,
+      "yawSymDeg": -0.5
+    },
+    {
+      "candidate": "tt_01",
+      "sideIoU": 0.7579,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "tt_01",
+  "finalSideIoU": 0.7917,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 4.956,
+    "width": 2.136,
+    "height": 2.515
+  },
+  "faces": 60000,
+  "elapsedSec": 87.3
+}

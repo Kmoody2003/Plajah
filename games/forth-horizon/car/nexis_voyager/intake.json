@@ -1,0 +1,28 @@
+{
+  "id": "nexis_voyager",
+  "status": "built (multi-view matched: winner=sheet_side, sideIoU=0.912, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Minivan_asset_sheet_projections_518dfbd6.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.8968,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "sheet_front",
+      "sideIoU": 0.8832,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "sheet_side",
+  "finalSideIoU": 0.9123,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 5.14,
+    "width": 2.141,
+    "height": 1.822
+  },
+  "faces": 60000,
+  "elapsedSec": 55.7
+}

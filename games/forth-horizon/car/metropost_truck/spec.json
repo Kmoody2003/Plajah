@@ -1,0 +1,183 @@
+{
+  "id": "metropost_truck",
+  "name": "MetroPost MT-280 Mail Truck",
+  "glb": "/games/forth-horizon/car/metropost_truck_base.glb",
+  "paint": "0xdce0e6",
+  "accent": "0x204a8c",
+  "cuts": false,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (metropost_truck_base.glb, L=4.96m W=2.14m H=2.48m).",
+  "wheels": {
+    "frontZ": 1.533,
+    "rearZ": -1.09,
+    "frontX": 0.67,
+    "rearX": 0.649,
+    "scale": 1.22,
+    "discardR": 0.45,
+    "centreY": 0.433,
+    "tyreR": 0.433,
+    "rimR": 0.278,
+    "style": "heavy"
+  },
+  "panels": {},
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.726,
+        1.182,
+        1.966
+      ],
+      [
+        0.726,
+        1.662,
+        2.318
+      ]
+    ],
+    "trunk": [
+      [
+        -0.641,
+        1.262,
+        -2.358
+      ],
+      [
+        0.641,
+        1.642,
+        -2.399
+      ]
+    ],
+    "roof": [
+      [
+        -0.897,
+        2.261,
+        -2.18
+      ],
+      [
+        0.897,
+        2.62,
+        0.943
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.422,
+    "roofEdge": 2.401,
+    "pillarBase": 1.926,
+    "pillarTop": 0.943,
+    "doorFront": 1.06,
+    "doorRear": -0.29,
+    "windBase": 1.926,
+    "windTop": 0.943,
+    "rearTop": -2.18,
+    "rearBase": -2.379,
+    "rearBase2": -2.359,
+    "windHalfW": 0.897,
+    "rearHalfW": 0.728,
+    "sideWindow": [
+      [
+        -2.22,
+        1.452
+      ],
+      [
+        1.02,
+        1.442
+      ],
+      [
+        0.98,
+        1.833
+      ],
+      [
+        1.001,
+        2.186
+      ],
+      [
+        0.943,
+        2.371
+      ],
+      [
+        -2.14,
+        2.371
+      ],
+      [
+        -2.26,
+        2.088
+      ],
+      [
+        -2.28,
+        1.472
+      ]
+    ],
+    "handle": [
+      0.225,
+      1.282
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.453,
+    "layout": "front-v8",
+    "arch": "diesel-i4",
+    "texUrl": "/games/forth-horizon/tex/engines/i4_commuter.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.55,
+    "zOffset": -0.272,
+    "cowlZ": 1.876,
+    "cowlY": 1.442
+  },
+  "exhaust": {
+    "z": -2.359,
+    "y": 0.36,
+    "xs": [
+      -0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.453,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.598,
+      "y": 0.822,
+      "w": 0.278,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.619,
+      "y": 0.837,
+      "len": 0.32,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.582,
+    "grilleHiY": 0.872,
+    "grilleStyle": "truck"
+  }
+}

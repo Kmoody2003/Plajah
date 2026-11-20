@@ -1,0 +1,28 @@
+{
+  "id": "vecto_van",
+  "status": "built (multi-view matched: winner=tt_00, sideIoU=0.893, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Cargo_delivery_van_asset_sheet_964d0e01.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Cargo_delivery_van_rotating_show\u2026_e2097c03.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_07",
+      "sideIoU": 0.873,
+      "yawSymDeg": 0.5
+    },
+    {
+      "candidate": "tt_00",
+      "sideIoU": 0.8812,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "tt_00",
+  "finalSideIoU": 0.8934,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 5.48,
+    "width": 2.142,
+    "height": 2.48
+  },
+  "faces": 60000,
+  "elapsedSec": 77.8
+}

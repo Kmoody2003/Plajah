@@ -1,0 +1,28 @@
+{
+  "id": "vortex_terric",
+  "status": "built (multi-view matched: winner=tt_00, sideIoU=0.902, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Compact_pickup_truck_asset_sheet_b7b23f4c.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Compact_pickup_truck_turntable_r\u2026_4492c39b.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_00",
+      "sideIoU": 0.8936,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "tt_05",
+      "sideIoU": 0.8934,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_00",
+  "finalSideIoU": 0.9023,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 5.181,
+    "width": 2.143,
+    "height": 1.977
+  },
+  "faces": 60000,
+  "elapsedSec": 71.6
+}

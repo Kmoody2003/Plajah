@@ -1,0 +1,224 @@
+{
+  "id": "ironport_work_pickup",
+  "name": "Ironport F-200 Work Pickup",
+  "glb": "/games/forth-horizon/car/ironport_work_pickup_base.glb",
+  "paint": "0x68727c",
+  "accent": "0x181c20",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (ironport_work_pickup_base.glb, L=5.52m W=2.14m H=2.07m).",
+  "wheels": {
+    "frontZ": 1.717,
+    "rearZ": -1.561,
+    "frontX": 0.723,
+    "rearX": 0.709,
+    "scale": 1.22,
+    "discardR": 0.45,
+    "centreY": 0.433,
+    "tyreR": 0.433,
+    "rimR": 0.278,
+    "style": "offroad"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.962,
+        0.0,
+        1.244
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.962,
+        0.0,
+        1.244
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.531,
+        1.348
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.727,
+        1.291,
+        1.368
+      ],
+      [
+        0.727,
+        1.771,
+        2.602
+      ]
+    ],
+    "trunk": [
+      [
+        -0.642,
+        1.371,
+        -2.642
+      ],
+      [
+        0.642,
+        1.751,
+        -1.165
+      ]
+    ],
+    "roof": [
+      [
+        -0.649,
+        1.856,
+        -0.962
+      ],
+      [
+        0.649,
+        2.208,
+        0.595
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.531,
+    "roofEdge": 1.996,
+    "pillarBase": 1.328,
+    "pillarTop": 0.595,
+    "doorFront": 1.244,
+    "doorRear": -0.106,
+    "windBase": 1.328,
+    "windTop": 0.595,
+    "rearTop": -0.962,
+    "rearBase": -1.145,
+    "rearBase2": -1.125,
+    "windHalfW": 0.649,
+    "rearHalfW": 0.647,
+    "sideWindow": [
+      [
+        -1.002,
+        1.561
+      ],
+      [
+        1.204,
+        1.551
+      ],
+      [
+        1.164,
+        1.726
+      ],
+      [
+        0.92,
+        1.894
+      ],
+      [
+        0.595,
+        1.966
+      ],
+      [
+        -0.922,
+        1.966
+      ],
+      [
+        -1.042,
+        1.847
+      ],
+      [
+        -1.062,
+        1.581
+      ]
+    ],
+    "handle": [
+      0.409,
+      1.391
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.637,
+    "layout": "front-v8",
+    "arch": "pickup-v8",
+    "texUrl": "/games/forth-horizon/tex/engines/pickup_v8.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.55,
+    "zOffset": -0.081,
+    "cowlZ": 1.278,
+    "cowlY": 1.551
+  },
+  "exhaust": {
+    "z": -2.645,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.748,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.599,
+      "y": 0.927,
+      "w": 0.278,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.62,
+      "y": 1.028,
+      "len": 0.321,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.687,
+    "grilleHiY": 0.977,
+    "grilleStyle": "truck"
+  }
+}

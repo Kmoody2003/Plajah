@@ -1,0 +1,28 @@
+{
+  "id": "apex_taxi",
+  "status": "built (multi-view matched: winner=tt_11, sideIoU=0.854, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Yellow_taxi_cab_asset_sheet_8ca3dd85.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Yellow_taxi_cab_rotating_turntable_8aec14a7.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_11",
+      "sideIoU": 0.8539,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "tt_04",
+      "sideIoU": 0.848,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "tt_11",
+  "finalSideIoU": 0.8542,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 4.92,
+    "width": 1.941,
+    "height": 1.533
+  },
+  "faces": 60000,
+  "elapsedSec": 84.2
+}

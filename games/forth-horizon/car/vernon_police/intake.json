@@ -1,0 +1,28 @@
+{
+  "id": "vernon_police",
+  "status": "built (multi-view matched: winner=sheet_side, sideIoU=0.861, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Police_car_asset_sheet_layout_aca43609.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.889,
+      "yawSymDeg": 0.25
+    },
+    {
+      "candidate": "sheet_front",
+      "sideIoU": 0.7764,
+      "yawSymDeg": 0.5
+    }
+  ],
+  "winner": "sheet_side",
+  "finalSideIoU": 0.8608,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 5.038,
+    "width": 1.94,
+    "height": 1.471
+  },
+  "faces": 60000,
+  "elapsedSec": 89.1
+}

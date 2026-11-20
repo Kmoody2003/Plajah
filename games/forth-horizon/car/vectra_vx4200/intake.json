@@ -1,0 +1,28 @@
+{
+  "id": "vectra_vx4200",
+  "status": "built (multi-view matched: winner=tt_07, sideIoU=0.782, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Utility_service_van_production_a\u2026_15e284a0.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Utility_service_van_turntable_ro\u2026_ce79b626.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_07",
+      "sideIoU": 0.7496,
+      "yawSymDeg": 0.25
+    },
+    {
+      "candidate": "tt_00",
+      "sideIoU": 0.7017,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "tt_07",
+  "finalSideIoU": 0.7818,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 5.558,
+    "width": 2.14,
+    "height": 2.502
+  },
+  "faces": 60000,
+  "elapsedSec": 99.0
+}
