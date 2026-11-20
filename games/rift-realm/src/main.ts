@@ -181,18 +181,33 @@ async function boot() {
     showBeatFeedback(label, color);
   }
 
-  function spawnBeam(from: THREE.Vector3, to: THREE.Vector3, quality: BeatQuality, primaryHex: number) {
+  // Every shot has to read at a glance (Kenne: "the mouse buttons don't do anything" — the old 2–4 cm grey beam lasted
+  // 0.13 s): a bright core in a soft additive glow, an impact flash where it lands, a hit marker on the reticle.
+  function spawnBeam(from: THREE.Vector3, to: THREE.Vector3, quality: BeatQuality, primaryHex: number, hit = false) {
     const dist = from.distanceTo(to);
-    const radius = quality === 'PERFECT' ? 0.042 : 0.024;
-    const col = quality === 'PERFECT' ? 0xfbbf24 : quality === 'GOOD' ? primaryHex : 0x94a3b8;
-    const geo = new THREE.CylinderGeometry(radius, radius, dist, 6);
-    geo.rotateX(Math.PI / 2);
-    const mat = new THREE.MeshBasicNodeMaterial({ color: col, transparent: true, opacity: 0.9 });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.copy(from).lerp(to, 0.5);
-    mesh.lookAt(to);
-    scene.add(mesh);
-    beams.push({ line: mesh, life: 0.13 });
+    const col = quality === 'PERFECT' ? 0xfbbf24 : primaryHex;
+    const core = quality === 'PERFECT' ? 0.06 : quality === 'GOOD' ? 0.045 : 0.035;
+    const g = new THREE.Group();
+    for (const [r, op] of [[core, 1.0], [core * 3.2, quality === 'OFF' ? 0.22 : 0.35]] as const) {
+      const geo = new THREE.CylinderGeometry(r, r, dist, 8);
+      geo.rotateX(Math.PI / 2);
+      const mat = new THREE.MeshBasicNodeMaterial({ color: r === core ? 0xffffff : col, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false });
+      if (r === core) mat.color.lerp(new THREE.Color(col), 0.35);
+      g.add(new THREE.Mesh(geo, mat));
+    }
+    g.position.copy(from).lerp(to, 0.5);
+    g.lookAt(to);
+    scene.add(g);
+    beams.push({ line: g as unknown as THREE.Mesh, life: 0.2 });
+    // impact flash
+    const flash = new THREE.Mesh(new THREE.SphereGeometry(hit ? 0.55 : 0.35, 12, 8), new THREE.MeshBasicNodeMaterial({ color: col, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
+    flash.position.copy(to);
+    scene.add(flash);
+    beams.push({ line: flash, life: 0.16 });
+    if (hit) {
+      const ret = document.getElementById('reticle');
+      if (ret) { ret.animate([{ transform: 'translate(-50%,-50%) scale(1.5) rotate(45deg)', filter: 'drop-shadow(0 0 6px #fb7185)' }, { transform: 'translate(-50%,-50%) scale(1)', filter: 'none' }], { duration: 180 }); }
+    }
   }
 
   function fireSingleRay(quality: BeatQuality, spreadRad: number, baseDmg: number, primaryHex: number) {
@@ -229,7 +244,7 @@ async function boot() {
       }
     }
 
-    spawnBeam(muzzle, endPt, quality, primaryHex);
+    spawnBeam(muzzle, endPt, quality, primaryHex, hits.length > 0);
   }
 
   function fireShot() {
@@ -484,6 +499,7 @@ async function boot() {
 
     for (let i = beams.length - 1; i >= 0; i--) {
       beams[i].life -= dt;
+      beams[i].line.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.MeshBasicNodeMaterial | undefined; if (m) m.opacity *= Math.max(0, 1 - dt * 7); });
       if (beams[i].life <= 0) {
         scene.remove(beams[i].line);
         beams.splice(i, 1);
