@@ -158,7 +158,7 @@ export function buildScenicRoads(roads: ScenicRoad[], ground: (x: number, z: num
       const m4 = new THREE.Matrix4(), qt = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1);
       rails.forEach(({ i, side }, k) => {
         const s = side * (r.half + SHOULDER - 0.4), x = r.xz[i][0] + nx[i] * s, z = r.xz[i][1] + nz[i] * s, y = surf(r, i, s);
-        qt.setFromAxisAngle(up, Math.atan2(-nz[i], nx[i]) + Math.PI / 2);
+        qt.setFromAxisAngle(up, Math.atan2(-nz[i], nx[i]));                            // the beam's long axis (local z) along the road: (sin, cos) of this is the tangent (-nz, nx)
         post.setMatrixAt(k, m4.compose(p.set(x, y + 0.375, z), qt, one));
         beam.setMatrixAt(k, m4.compose(p.set(x - nx[i] * side * 0.1, y + 0.6, z - nz[i] * side * 0.1), qt, one));
       });

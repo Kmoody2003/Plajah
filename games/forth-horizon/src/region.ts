@@ -58,7 +58,7 @@ import { buildParkingLots } from './parkingLots';
 import { buildUtilities, type UtilitiesData } from './utilities';
 import { mergeByMaterial } from './carBatch';
 import { SimLayer, carveSim, planSim, type SimPlan } from './simLayer';
-import { REF_SCENES, buildReferenceDressing, type RefDressing } from './referenceScenes';
+import { REF_SCENES, autumnLeaf, buildReferenceDressing, type RefDressing } from './referenceScenes';
 import { buildTownSidewalks } from './townStreets';
 import { buildParkedCars } from './parkedCars';
 import { denseArea } from './sim/signals';
@@ -1132,6 +1132,7 @@ function buildTownExtras(): void {
     refDress = buildReferenceDressing({
       ground: (x, z) => meshH(x, z), water: (x, z) => hAt(x, z) < 2.5, building: (x, z, m) => insideBuilding(x, z, m), roadDist: (x, z) => roadDist(x, z),
       paved: countryScenes.pavedRuns, shore: shoreHw, industrial: meta.circuits[IND]?.xz.map((q) => ({ x: q[0], z: q[1] })), mouths: countryScenes.driveMouths,
+      streets: streetRuns.map((r) => ({ line: r.p.map(([x, z]) => ({ x, z })), half: ({ street: 4.25, arterial: 7, freeway: 6.25, ramp: 2.75 } as Record<string, number>)[r.c] ?? 4.25 })),
     });
     furnitureGroup.add(refDress.group);
     console.log('reference dressing', JSON.stringify(refDress.counts));
@@ -1594,9 +1595,9 @@ async function buildStreetscape(): Promise<void> {
   };
   for (let i = 0; i < 40 && !roadMask; i++) await new Promise((r) => setTimeout(r, 100));
   const okTrees = trees.filter((t) => roadDist(t[0], t[1]) > 8.5 && !paintedRoad(t[0], t[1], 1.6, false));      // sidewalk trees, never in the carriageway or the course
-  addTreeCards(scapeGroup, okTrees.map((t) => ({ x: t[0], z: t[1], def: pickStreet(t[3]), h: (8 + t[3] * 5) * t[2] / 1.2 })), true);
+  addTreeCards(scapeGroup, okTrees.map((t) => ({ x: t[0], z: t[1], def: autumnLeaf(t[0], t[1], t[3]) !== undefined ? sp.autumn[Math.floor(t[3] * sp.autumn.length) % sp.autumn.length] ?? pickStreet(t[3]) : pickStreet(t[3]), h: (8 + t[3] * 5) * t[2] / 1.2 })), true);
   // up close the street trees are real 3D trees (the cards take over beyond ~150 m)
-  { const tf = mkTrees(okTrees.map((t) => [t[0], t[1], 0, t[3], 0.62 * t[2] + 0.2]), hAt, () => exag); scapeGroup.add(tf.group); treeFields.push(tf); }
+  { const tf = mkTrees(okTrees.map((t) => { const leaf = autumnLeaf(t[0], t[1], t[3]); return leaf === undefined ? [t[0], t[1], 0, t[3], 0.62 * t[2] + 0.2] : [t[0], t[1], 0, t[3], 0.62 * t[2] + 0.2, leaf]; }), hAt, () => exag); scapeGroup.add(tf.group); treeFields.push(tf); }
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
   // street lights: pole, arm, emissive lamp head
   const ln = lights.length;
@@ -3146,7 +3147,10 @@ function buildFurniture(): void {
   }
 
   if (simPlan && (simPlan.net || simPlan.L || simPlan.data.zones.length)) {
-    simLayer = new SimLayer(simPlan, { ground: (x, z) => meshH(x, z), carGround: (x, z) => groundH(x, z), water: (x, z) => hAt(x, z) < 2.5 });
+    // no signal pole or stop sign on a painted street or inside the city circuit's barriers (they stand 1.4 m past its 5.5 m half width)
+    const gcx = meta.circuits.ironport_grand_circuit as { xz?: number[][]; y?: number[] } | undefined;
+    const inCircuit = gcx?.xz ? makeCorridor(smoothClosedPath(gcx.xz, gcx.y, 12, 6).xz.map((p) => ({ x: p[0], z: p[1] }))) : null;
+    simLayer = new SimLayer(simPlan, { ground: (x, z) => meshH(x, z), carGround: (x, z) => groundH(x, z), water: (x, z) => hAt(x, z) < 2.5, keepOut: (x, z) => paintedRoad(x, z, 0.5) || !!inCircuit?.(x, z, 7.6) });
     furnitureGroup.add(simLayer.group);
     driveSurfaces.push(...simLayer.surfaces);
     surfGrid = null;
@@ -3185,7 +3189,20 @@ function buildFurniture(): void {
       const sr = buildScenicRoads(scenicData, (x, z) => meshH(x, z), cityRoadMat ?? undefined, keep); furnitureGroup.add(sr.group); driveSurfaces.push(...sr.decks);
       scenicRails = railIndex(sr.rails);
     }
-    if (festivalData) furnitureGroup.add(buildFestival(festivalData, (x, z) => meshH(x, z)));                         // Chora Fest stages and stunt furniture
+    // the arch's road direction: the named scenic road (or any scenic road) nearest the arch, over +-2 samples
+    const roadDir = (x: number, z: number, name?: string): [number, number] | null => {
+      let best = 900, bx = 0, bz = 0;
+      for (const r of scenicData) {
+        if (name && r.name !== name && scenicData.some((q) => q.name === name)) continue;
+        for (let i = 0; i < r.xz.length; i++) {
+          const d = (r.xz[i][0] - x) ** 2 + (r.xz[i][1] - z) ** 2; if (d >= best) continue;
+          const a = r.xz[Math.max(0, i - 2)], b = r.xz[Math.min(r.xz.length - 1, i + 2)], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+          best = d; bx = (b[0] - a[0]) / L; bz = (b[1] - a[1]) / L;
+        }
+      }
+      return best < 900 ? [bx, bz] : null;
+    };
+    if (festivalData) furnitureGroup.add(buildFestival(festivalData, (x, z) => groundH(x, z), roadDir));   // stand on the road surface (decks, raised beds), not the terrain under it                         // Chora Fest stages and stunt furniture
     // Chora Fest progression: Fest Points, Stage Passes, outposts and their opening sets (src/festProgress.ts), saved with the garage
     if (festivalData && !festProg) festProg = createFestProgress({
       festival: festivalData, scenic: scenicData, save: garage.save, persist: () => garage.persist(), banner: (t, k) => showBanner(t, k),
@@ -4296,6 +4313,10 @@ async function boot(): Promise<void> {
       ...scenicCorridors(scenicData),
     ]);
     const roads: GradeRoad[] = [];
+    // the Ironport Grand Circuit first, as one continuous road (graded with the highways, ahead of the streets it runs along): graded street by street it got a step
+    // at every joint where one street's profile met the next one's already-fixed bed (up to 1 m in 2 m); the cross streets now join the circuit's bed instead
+    const gc = meta.circuits.ironport_grand_circuit as { xz?: number[][]; y?: number[] } | undefined;
+    if (gc?.xz && gc.xz.length > 3) { const sm = smoothClosedPath(gc.xz, gc.y, 12, 6).xz; roads.push({ xz: [...sm, sm[0]], half: 6, cls: 'highway' }); }
     const W8 = { street: 8.5, arterial: 14, freeway: 12.5, ramp: 5.5 } as Record<string, number>;
     const runs = await fetch(BASE + 'city_streets.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { c: string; p: number[][] }[] | null;
     for (const r of runs ?? []) roads.push({ xz: r.p, half: (W8[r.c] ?? 8.5) / 2, cls: r.c === 'freeway' ? 'freeway' : r.c === 'street' ? 'street' : 'highway' });

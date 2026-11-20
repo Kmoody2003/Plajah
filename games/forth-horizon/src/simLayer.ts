@@ -53,10 +53,10 @@ export class SimLayer {
   private _col = new THREE.Color();
   private groundCache = new Float32Array(320 * 3); // [lastX, lastZ, cachedY] per slot
 
-  constructor(private plan: SimPlan, private o: { ground: (x: number, z: number) => number; carGround?: (x: number, z: number) => number; water: (x: number, z: number) => boolean }) {
+  constructor(private plan: SimPlan, private o: { ground: (x: number, z: number) => number; carGround?: (x: number, z: number) => number; water: (x: number, z: number) => boolean; keepOut?: (x: number, z: number) => boolean }) {
     this.group.name = 'sim-layer';
     this.world = new SimWorld({ roads: plan.data.roads, zones: plan.data.zones, services: plan.data.services, rail: plan.net, airport: plan.L, water: o.water, maxCars: 240, downtown: plan.tall?.length ? denseArea(plan.tall) : undefined });
-    this.junctions = buildIntersections(this.world.signals, this.world.graph, o.carGround ?? o.ground);
+    this.junctions = buildIntersections(this.world.signals, this.world.graph, o.carGround ?? o.ground, o.keepOut);
     this.group.add(this.junctions.group);
     this.rail = plan.net ? buildRailScenes({ net: plan.net, sim: this.world.trains, ground: o.ground }) : null;
     this.airport = plan.L ? buildAirportScenes({ L: plan.L, sim: this.world.air, ground: o.ground }) : null;

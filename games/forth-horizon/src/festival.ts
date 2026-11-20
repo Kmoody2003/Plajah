@@ -32,7 +32,8 @@ export function setSiteState(id: string, state: SiteState, act = ''): void {
   old?.dispose();
 }
 
-export function buildFestival(d: FestivalData, ground: (x: number, z: number) => number): THREE.Group {
+/** roadDir: the direction of the named road at (x, z), so an arch spans the road where it stands (a zone's end-to-end chord on a winding pass can be square to the road there) */
+export function buildFestival(d: FestivalData, ground: (x: number, z: number) => number, roadDir?: (x: number, z: number, road?: string) => [number, number] | null): THREE.Group {
   const root = new THREE.Group(); root.name = 'festival';
   const steel = new THREE.MeshStandardMaterial({ color: 0x1e2430, metalness: 0.8, roughness: 0.35 });
   const deckM = new THREE.MeshStandardMaterial({ color: 0x2b2b30, roughness: 0.8 });
@@ -97,7 +98,9 @@ export function buildFestival(d: FestivalData, ground: (x: number, z: number) =>
   for (const dz of d.driftZones) {
     for (const [p, q] of [[dz.a, dz.b], [dz.b, dz.a]] as number[][][]) {
       const g = new THREE.Group(); g.name = 'festival-drift:' + dz.id;
-      const ux = q[0] - p[0], uz = q[1] - p[1];
+      let ux = q[0] - p[0], uz = q[1] - p[1];
+      const rd = roadDir?.(p[0], p[1], (dz as { road?: string }).road);
+      if (rd) { const s = rd[0] * ux + rd[1] * uz < 0 ? -1 : 1; ux = rd[0] * s; uz = rd[1] * s; }        // along the road, still facing into the zone
       g.position.set(p[0], ground(p[0], p[1]), p[1]); g.rotation.y = Math.atan2(ux, uz);
       for (const sx of [-1, 1]) box(0.6, 6.5, 0.6, steel, sx * 7, 3.25, 0, g);
       box(14.6, 0.4, 0.4, neonC, 0, 6.4, 0, g);

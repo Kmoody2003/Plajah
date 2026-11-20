@@ -32,7 +32,8 @@ function plaqueTexture(): THREE.CanvasTexture {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 
-export function buildIntersections(sig: SignalSystem, g: RoadGraph, ground: (x: number, z: number) => number): IntersectionLayer {
+/** keepOut: where no pole or post may stand besides the sim's own carriageways (the painted streets, the race circuit inside its barriers) */
+export function buildIntersections(sig: SignalSystem, g: RoadGraph, ground: (x: number, z: number) => number, keepOut?: (x: number, z: number) => boolean): IntersectionLayer {
   const group = new THREE.Group(); group.name = 'intersections';
   const m4 = new THREE.Matrix4(), frame = new THREE.Matrix4(), local = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), v = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1), sc = new THREE.Vector3();
   const lists: Record<string, THREE.Matrix4[]> = { line: [], zebra: [], pole: [], arm: [], head: [], lamp: [], post: [], sign: [], plaque: [] };
@@ -49,6 +50,11 @@ export function buildIntersections(sig: SignalSystem, g: RoadGraph, ground: (x: 
     if (groundEach) { const e = m4.elements; e[13] = ground(e[12], e[14]) + ly; }
     list.push(m4.clone());
   };
+  // a pole or post stands only off the road: clear of every carriageway the sim knows (with a margin) and of keepOut
+  const clear = (x: number, z: number): boolean => { const n = g.nearestEdge(x, z, 16); if (n && n.d < n.edge.half + 0.7) return false; return !keepOut?.(x, z); };
+  /** slide a pole out from offset ox (to the driver's right of F's origin along r) until it is clear; null when nothing within 4 m is */
+  const clearOffset = (x0: number, z0: number, rx: number, rz: number, ox: number): number | null => { for (let k = 0; k <= 8; k++) { const o = ox + k * 0.5; if (clear(x0 + rx * o, z0 + rz * o)) return o; } return null; };
+  let dropped = 0;
   sig.junctions.forEach((j) => {
     if (j.control === 'none') return;
     j.approaches.forEach((a, ai) => {
@@ -63,11 +69,17 @@ export function buildIntersections(sig: SignalSystem, g: RoadGraph, ground: (x: 
       if (a.crosswalk) for (let x = -half + 0.55; x <= half - 0.4; x += 1.1) put(lists.zebra, F, x, 0.035, -2.4, 0.5, 1, 3.0, true);
       if (j.control === 'signal') {
         // far side: the pole beyond the junction on the right of the departing lanes, the mast arm reaching back over the approach
-        const crossHalf = Math.max(3, a.setback - (a.crosswalk ? 4.6 : 1.4));
-        const far = a.setback + crossHalf + 1.5;                           // stop line -> centre -> just past the far curb
+        // just past the far curb of the whole junction box: the furthest of its nodes along the approach, plus the widest crossing road's half width
+        let crossHalf = 0;
+        for (const b of j.approaches) if (b !== a && Math.abs(a.dx * b.dx + a.dz * b.dz) < 0.75) crossHalf = Math.max(crossHalf, b.half);
+        if (!crossHalf) crossHalf = Math.max(3, a.setback - (a.crosswalk ? 4.6 : 1.4));
+        let reachC = 0; for (const n of j.nodes) reachC = Math.max(reachC, (g.nodes[n].x - sm.x) * dx + (g.nodes[n].z - sm.z) * dz);
+        const far = Math.max(reachC, a.setback) + crossHalf + 2.0;
         const px = sm.x + dx * far, pz = sm.z + dz * far;
         const P = at(px, pz, dx, dz);
-        const ox = half + 1.7;
+        const oxc = clearOffset(px, pz, rx, rz, half + 1.7);
+        if (oxc === null) { dropped++; return; }                            // nowhere off the road for it: the junction still works, no mast is drawn
+        const ox = oxc;
         put(lists.pole, P, ox, 3.6, 0, 1, 1, 1);
         const lanes = Math.max(1, a.lanes), reach = Math.max(3.5, ox - 1.2);
         put(lists.arm, P, ox - reach / 2, 6.55, 0, reach, 1, 1);
@@ -82,7 +94,9 @@ export function buildIntersections(sig: SignalSystem, g: RoadGraph, ground: (x: 
         poles.push(px + rx * ox, pz + rz * ox);
       } else if (a.stopSign) {
         // near right corner, a metre before the line
-        const ox = half + 1.1;
+        const oxc = clearOffset(sm.x - dx * 1.0, sm.z - dz * 1.0, rx, rz, half + 1.1);
+        if (oxc === null) { dropped++; return; }
+        const ox = oxc;
         put(lists.post, F, ox, 1.25, 1.0, 1, 1, 1);
         put(lists.sign, F, ox, 2.2, 1.05, 1, 1, 1);
         if (j.control === 'allStop') put(lists.plaque, F, ox, 1.72, 1.05, 1, 1, 1);
@@ -140,6 +154,6 @@ export function buildIntersections(sig: SignalSystem, g: RoadGraph, ground: (x: 
     for (let i = -1; i <= 1; i++) for (let k = -1; k <= 1; k++) { const a = grid.get((cx + i) * 100003 + cz + k); if (a) for (let n = 0; n < a.length; n += 2) if ((a[n] - x) ** 2 + (a[n + 1] - z) ** 2 < r * r) return true; }
     return false;
   };
-  console.log('intersections', sig.stats(), Object.fromEntries(Object.entries(lists).map(([k, l]) => [k, l.length])));
+  console.log('intersections', sig.stats(), 'poles dropped (no clear spot)', dropped, Object.fromEntries(Object.entries(lists).map(([k, l]) => [k, l.length])));
   return { group, update, near };
 }

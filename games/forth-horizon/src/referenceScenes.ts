@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { HOLLOW, MILLBROOK, BRIDGE, type Pt } from './countryScenes';
 
 /**
@@ -8,7 +9,10 @@ import { HOLLOW, MILLBROOK, BRIDGE, type Pt } from './countryScenes';
  *  - 4  the lake bridge (the straight east-west road at z -4380 crossing the lake south of the finger lake): lamp posts along its parapets;
  *  - 5  the Millbrook farm road: hedgerows along it, wind turbines on the high ground behind the farm (rotors turn);
  *  - 8  the autumn suburban street (Eastside straight): leaf piles on the tree lawns, leaves at the curb, utility poles and wires, a crowd watching;
- *  - 10 the industrial circuit: brick smokestacks in the works beside it.
+ *  - 10 the industrial circuit: brick smokestacks in the works beside it;
+ *  - 2  the cul-de-sac: leaves along the curb and on the tree lawns, rain puddles at the gutters;
+ *  - 9  the cliff road: a light plane circling the coast above the cliff (prop turns, banks through the turns).
+ * autumnLeaf() gives the street trees on the autumn street and round the court their autumn leaf colour (src/ezforest.ts takes it per tree).
  * Plain geometry and instanced meshes (no new materials work: the look is the graphics lane's).
  */
 export interface RefScene { n: number; id: string; name: string; cam: [number, number, number]; at: [number, number, number]; /** heights above the ground there */ rel?: boolean }
@@ -17,6 +21,20 @@ export interface RefScene { n: number; id: string; name: string; cam: [number, n
 const AUTUMN = { a: { x: 7600, z: 2050 }, b: { x: 7934, z: 2209 } };
 /** the lake crossing for scene 4: the country road at z -4380 */
 const LAKE_ROAD_Z = -4380;
+/** the cul-de-sac bulb for scene 2 */
+const COURT = { x: 7261, z: 1960 };
+
+/** autumn leaf colours, as multipliers on the leaf material (orange, red maple, yellow, rust) */
+const AUTUMN_LEAF = [0xff9173, 0xf56161, 0xffb57a, 0xe8835c];
+/** the street trees along the autumn street and round the court turn: a leaf colour for them, or undefined (r: the tree's own random 0..1) */
+export function autumnLeaf(x: number, z: number, r: number): number | undefined {
+  const ux0 = AUTUMN.b.x - AUTUMN.a.x, uz0 = AUTUMN.b.z - AUTUMN.a.z, L = Math.hypot(ux0, uz0), ux = ux0 / L, uz = uz0 / L;
+  const t = (x - AUTUMN.a.x) * ux + (z - AUTUMN.a.z) * uz, d = Math.abs(-(x - AUTUMN.a.x) * uz + (z - AUTUMN.a.z) * ux);
+  const onStreet = t > -60 && t < L + 60 && d < 24, atCourt = Math.hypot(x - COURT.x, z - COURT.z) < 90;
+  if (!onStreet && !atCourt) return undefined;
+  if (r > 0.92) return undefined;                                                           // the odd tree is still green
+  return AUTUMN_LEAF[Math.floor(r * 97) % AUTUMN_LEAF.length];
+}
 
 export const REF_SCENES: RefScene[] = [
   { n: 1, id: 'covered-bridge', name: 'Covered bridge, misty river', cam: [BRIDGE.at.x - 38, 5, BRIDGE.at.z + 30], at: [BRIDGE.at.x, 4, BRIDGE.at.z], rel: true },
@@ -49,6 +67,8 @@ export function buildReferenceDressing(o: {
   industrial?: { x: number; z: number }[];
   /** driveway mouths (no leaf piles across a drive) */
   mouths: { x: number; z: number }[];
+  /** the town streets (user_streets.json), carriageway half-width */
+  streets?: { line: Pt[]; half: number }[];
 }): RefDressing {
   const group = new THREE.Group(); group.name = 'reference-dressing';
   let seed = 4421; const rnd = (): number => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -94,7 +114,7 @@ export function buildReferenceDressing(o: {
         hedges.push({ x, y: o.ground(x, z) + 0.75, z, ry: Math.atan2(dx, dz), sx: 1.1 + rnd() * 0.5, sy: 1.0 + rnd() * 0.5, c: [0x2f4a22, 0x35552a, 0x2a4220][Math.floor(rnd() * 3)] });
       }
     }
-    inst(new THREE.BoxGeometry(1, 1.5, 4.6), new THREE.MeshStandardMaterial({ roughness: 0.95 }), hedges, 'hedgerows');
+    inst(hedgeGeometry(), new THREE.MeshStandardMaterial({ roughness: 0.95 }), hedges, 'hedgerows');
     // turbines: the highest ground 450-1150 m round the farm road, 160 m apart, clear of roads and water
     const cand: { x: number; z: number; h: number }[] = [];
     for (let x = -2600; x <= -200; x += 40) for (let z = -3200; z <= -800; z += 40) {
@@ -267,5 +287,101 @@ export function buildReferenceDressing(o: {
     counts.smokestacks = sites.length;
   }
 
+  // ---- 2: the cul-de-sac after the rain: leaves along the curb and on the tree lawns, puddles at the gutters ----
+  if (o.streets?.length) {
+    const litter: { x: number; y: number; z: number; ry: number; sx: number; sz: number; c: number }[] = [];
+    const puddles: { x: number; y: number; z: number; ry: number; sx: number; sz: number }[] = [];
+    const leafC = [0x9a4f22, 0x86401a, 0xae6a2a, 0x6e3414, 0xb98a3c, 0x7d5a26];
+    for (const r of o.streets) {
+      if (!r.line.some((pt) => Math.hypot(pt.x - COURT.x, pt.z - COURT.z) < 40)) continue;
+      const Ln = r.line;
+      for (let i = 0; i < Ln.length - 1; i++) {
+        const a = Ln[i], b = Ln[i + 1], dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1, ux = dx / l, uz = dz / l, nx = -uz, nz = ux;
+        for (let t = 0; t < l; t += 1.6) {
+          const bx = a.x + ux * t, bz = a.z + uz * t;
+          if (Math.hypot(bx - COURT.x, bz - COURT.z) > 75) continue;
+          for (const side of [-1, 1]) {
+            if (rnd() < 0.75) {                                                              // wet leaves in the gutter, a few blown out into the lane
+              const off = r.half - 0.25 - Math.pow(rnd(), 2.2) * 2.6, x = bx + nx * side * off, z = bz + nz * side * off;
+              if (!near(o.mouths, x, z, 2.5) && !o.water(x, z)) litter.push({ x, y: o.ground(x, z) + 0.12, z, ry: rnd() * 6.28, sx: 0.25 + rnd() * 0.35, sz: 0.3 + rnd() * 0.6, c: leafC[Math.floor(rnd() * leafC.length)] });
+            }
+            if (rnd() < 0.35) {                                                              // on the tree lawn
+              const off = r.half + 0.2 + 0.3 + rnd() * 1.6, x = bx + nx * side * off, z = bz + nz * side * off;
+              if (!near(o.mouths, x, z, 2.5) && !o.building(x, z, 0.3)) litter.push({ x, y: o.ground(x, z) + 0.05, z, ry: rnd() * 6.28, sx: 0.35 + rnd() * 0.5, sz: 0.4 + rnd() * 0.7, c: leafC[Math.floor(rnd() * leafC.length)] });
+            }
+            if (rnd() < 0.045) {                                                             // a puddle where the gutter holds water
+              const off = r.half - 0.5 - rnd() * 0.9, x = bx + nx * side * off, z = bz + nz * side * off;
+              if (!near(puddles, x, z, 3)) puddles.push({ x, y: o.ground(x, z) + 0.125, z, ry: Math.atan2(ux, uz) + (rnd() - 0.5) * 0.4, sx: 0.9 + rnd() * 1.1, sz: 1.6 + rnd() * 2.4 });
+            }
+          }
+        }
+      }
+    }
+    const disc = new THREE.CircleGeometry(0.5, 16); disc.rotateX(-Math.PI / 2);
+    inst(disc, new THREE.MeshStandardMaterial({ roughness: 1, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }), litter, 'court-leaves', false);
+    // standing water: dark and smooth (the proper wet-road look is the graphics lane's)
+    inst(disc, new THREE.MeshStandardMaterial({ color: 0x23272b, roughness: 0.06, metalness: 0.1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), puddles, 'court-puddles', false);
+  }
+
+  // ---- 9: a light plane circling the coast above the cliff road ----
+  {
+    const C = { x: -5240, z: 1560 }, AX = 320, AZ = 820;                                     // along the shore, crossing the cliff shot
+    const alt = Math.max(o.ground(-5068, 1524), o.ground(C.x, C.z), 0) + 125;
+    const plane = lightPlane();
+    group.add(plane.g);
+    const period = 64;
+    updates.push((t) => {
+      const th = (t / period) * Math.PI * 2, x = C.x + AX * Math.cos(th), z = C.z + AZ * Math.sin(th);
+      const vx = -AX * Math.sin(th), vz = AZ * Math.cos(th), ax = -AX * Math.cos(th), az = -AZ * Math.sin(th);
+      const v = Math.hypot(vx, vz) || 1, k = (vx * az - vz * ax) / (v * v * v);              // signed curvature
+      plane.g.position.set(x, alt + Math.sin(th * 2) * 6, z);
+      plane.g.rotation.set(0, Math.atan2(vx, vz), Math.max(-0.5, Math.min(0.5, -k * 900)), 'YXZ');
+      plane.prop.rotation.z = t * 55;
+    });
+    counts.plane = 1;
+  }
+
   return { group, update: (t) => { for (const u of updates) u(t); }, counts };
+}
+
+/** a hedge section 1 m wide, 1.5 m high, 4.6 m long: overlapping lumpy clumps instead of a box (each vertex pushed by a hash of where it is, so the clumps stay closed) */
+function hedgeGeometry(): THREE.BufferGeometry {
+  const parts: THREE.BufferGeometry[] = [];
+  const clumps: [number, number, number, number, number, number][] = [                       // x, y, z, rx, ry, rz
+    [0, -0.1, -1.7, 0.55, 0.7, 0.95], [0.05, 0.05, -0.55, 0.6, 0.78, 0.9], [-0.05, 0, 0.6, 0.58, 0.75, 0.95], [0, -0.05, 1.7, 0.55, 0.7, 0.9],
+    [0, 0.45, -1.1, 0.45, 0.4, 0.8], [0, 0.5, 1.1, 0.45, 0.38, 0.8], [0, -0.55, 0, 0.6, 0.25, 2.3],
+  ];
+  for (const [x, y, z, rx, ry, rz] of clumps) { const g = new THREE.IcosahedronGeometry(1, 2); g.scale(rx, ry, rz); g.translate(x, y, z); g.deleteAttribute('uv'); parts.push(g); }
+  const g = mergeGeometries(parts, false)!;
+  const pos = g.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const h = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719) * 43758.5453, n = (h - Math.floor(h)) - 0.5;
+    const f = 1 + n * 0.22;
+    pos.setXYZ(i, x * f, y + (y > 0 ? n * 0.12 : 0), z + n * 0.08);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+/** a high-wing light plane, ~8 m long and 11 m span, nose toward +z */
+function lightPlane(): { g: THREE.Group; prop: THREE.Mesh } {
+  const g = new THREE.Group(); g.name = 'ref-light-plane';
+  const white = new THREE.MeshStandardMaterial({ color: 0xf2f2f0, roughness: 0.4, metalness: 0.15 }), red = new THREE.MeshStandardMaterial({ color: 0xa8262c, roughness: 0.45 }), dark = new THREE.MeshStandardMaterial({ color: 0x222628, roughness: 0.5, metalness: 0.4 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x1e2a33, roughness: 0.1, metalness: 0.3 });
+  const add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0): THREE.Mesh => { const mesh = new THREE.Mesh(geo, m); mesh.position.set(x, y, z); mesh.rotation.set(rx, ry, rz); mesh.castShadow = true; g.add(mesh); return mesh; };
+  add(new THREE.CylinderGeometry(0.62, 0.7, 3.2, 12), white, 0, 0, 0.9, Math.PI / 2);          // cabin
+  add(new THREE.CylinderGeometry(0.7, 0.18, 4.2, 12), white, 0, 0.12, -2.8, Math.PI / 2);      // tail cone
+  add(new THREE.CylinderGeometry(0.45, 0.62, 1.1, 12), white, 0, -0.05, 3.05, Math.PI / 2);    // cowling
+  add(new THREE.BoxGeometry(1.0, 0.5, 1.6), glass, 0, 0.45, 1.2);                               // windows
+  add(new THREE.BoxGeometry(1.32, 0.18, 3.6), red, 0, -0.15, 0.4);                             // cheat line
+  add(new THREE.BoxGeometry(11, 0.16, 1.5), white, 0, 0.78, 1.0);                              // the high wing
+  for (const sd of [-1, 1]) { add(new THREE.BoxGeometry(0.08, 1.2, 0.12), dark, sd * 1.5, 0.15, 1.2, 0, 0, sd * 0.45); add(new THREE.BoxGeometry(0.25, 0.17, 1.5), red, sd * 5.4, 0.78, 1.0); }   // struts, wing tips
+  add(new THREE.BoxGeometry(3.4, 0.1, 0.9), white, 0, 0.2, -4.6);                              // tailplane
+  add(new THREE.BoxGeometry(0.1, 1.3, 1.1), red, 0, 0.85, -4.7, -0.3);                         // fin
+  for (const sd of [-1, 1]) add(new THREE.CylinderGeometry(0.22, 0.22, 0.14, 12), dark, sd * 1.0, -1.05, 1.0, 0, 0, Math.PI / 2);   // wheels
+  add(new THREE.CylinderGeometry(0.18, 0.18, 0.12, 12), dark, 0, -0.95, 2.9, 0, 0, Math.PI / 2);
+  const prop = add(new THREE.BoxGeometry(1.9, 0.16, 0.05), dark, 0, -0.05, 3.65);
+  g.scale.setScalar(1.15);
+  return { g, prop };
 }

@@ -52,7 +52,9 @@ export interface Junction {
 export interface SignalCar { id: number; path: number[]; pi: number; s: number; v: number; len: number; stoppedAt?: number; inJ?: number; inJEdge?: number }
 
 const RANK: Record<RoadClass, number> = { highway: 5, avenue: 4, ramp: 3.5, collector: 3, street: 2, service: 1, dirt: 0 };
-const AMBER = 3.5, ALL_RED = 1.5, CLUSTER = 12;
+// CLUSTER: junction nodes joined by a road piece this short are one junction; 26 m takes in a divided avenue (two one-way carriageways 16-20 m apart), which
+// otherwise made one crossing into up to four signalled junctions, each with its own poles and mast arms
+const AMBER = 3.5, ALL_RED = 1.5, CLUSTER = 26;
 /** phases: 0 = group 0 green, 1 amber, 2 all red, 3 = group 1 green, 4 amber, 5 all red */
 const PHASE_LEN = (j: Junction, p: number): number => (p === 1 || p === 4 ? AMBER : p === 2 || p === 5 ? ALL_RED : j.maxG[p === 0 ? 0 : 1]);
 

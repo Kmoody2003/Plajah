@@ -63,7 +63,8 @@ function makeVariants(): Variant[] {
 }
 
 const LEAF_GREEN: Record<string, number> = { pine: 0x3b7a3c, oak: 0x5c9a3a, ash: 0x6aa040, aspen: 0x7fb04a };
-interface Pt { x: number; z: number; conifer: boolean; k: number; s: number }
+/** leaf: an optional per-tree leaf colour (hex), e.g. a street in autumn; it multiplies the leaf material like the usual tint */
+interface Pt { x: number; z: number; conifer: boolean; k: number; s: number; leaf?: number }
 
 export class EzTreeField {
   readonly group = new THREE.Group();
@@ -94,7 +95,7 @@ export class EzTreeField {
     for (const p of pts) {
       const k = Math.floor(p[0] / this.cell) * 4096 + Math.floor(p[1] / this.cell);
       let a = this.grid.get(k); if (!a) { a = []; this.grid.set(k, a); }
-      a.push({ x: p[0], z: p[1], conifer: !!p[2], k: p[3], s: p[4] ?? 1 });
+      a.push({ x: p[0], z: p[1], conifer: !!p[2], k: p[3], s: p[4] ?? 1, leaf: p[5] });
     }
     const sway = (m: THREE.Material, key: string): void => {
       m.onBeforeCompile = (sh) => {
@@ -188,7 +189,7 @@ export class EzTreeField {
         pos.set(t.x, this.hAt(t.x, t.z) * ex - 0.1, t.z); sc.set(h, h, h);
         m4.compose(pos, q, sc);
         const tint = 0.8 + (((t.x * 13.1 + t.z * 5.7) % 1 + 1) % 1) * 0.35;
-        for (const im of this.sets[si].meshes) { im.setMatrixAt(fill[si], m4); im.setColorAt(fill[si], col.setScalar(tint)); }
+        this.sets[si].meshes.forEach((im, mi) => { im.setMatrixAt(fill[si], m4); im.setColorAt(fill[si], mi > 0 && t.leaf !== undefined ? col.setHex(t.leaf).multiplyScalar(tint) : col.setScalar(tint)); });
         fill[si]++; total++;
       }
     }

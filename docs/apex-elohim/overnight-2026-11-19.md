@@ -87,3 +87,13 @@ The graphics session saves files every minute or so, and each save reloads the p
   - leaf piles, utility poles and wires, and a crowd on an Eastside suburban straight;
   - brick smokestacks by the industrial circuit.
 - Wet roads, mist, smoke, dust and autumn tree colour belong to the graphics lane.
+
+## Evening: reference scenes closed out, and fixes from Kenne's play-through
+
+- **Reference scenes:** scene 2 has wet leaves and puddles on the court, scene 8 has autumn street trees, scene 9 has a light plane circling the cliff, and the hedgerows are proper hedges. Nothing on the map side is left open in docs/apex-elohim/reference-scenes.md.
+- **Ironport Grand Circuit height jumps (25 → 0):** the street grade pass graded each downtown street on its own. Where one street's profile met the next one's fixed bed, the circuit jumped by up to 1 m in 2 m. The circuit is now graded first as one continuous road, and the cross streets join it. scripts/apex-probe-city.mjs walks the lap at 2 m and counts jumps.
+- **Traffic lights in the streets:** a divided avenue crossing (two carriageways 16-20 m apart) was split into up to four signalled junctions, each with its own poles. Junction nodes now merge up to 26 m apart, and the far pole stands past the whole box. No pole or stop sign stands on painted road or inside the circuit barriers: it slides out up to 4 m, or is left out (973 had no clear spot, which needs a look).
+- **Guardrails on the scenic roads** were turned a quarter turn across the road; they now run along it.
+- **Drift-zone arches** were turned to the zone's end-to-end chord and stood on the terrain. They now span the road at its own direction and stand on the road surface.
+- **Not mine, flagged to the graphics lane:** the white screen (most likely the terrain tiles going from 64 to 224 vertices in src/enginePerf.ts, uncommitted); suburban houses still look flat (src/cityExpansion.ts materials never got the new facade work).
+- vite.before.config.mjs (port 4334) serves the game with chosen source files swapped from a folder (APEX_BEFORE_DIR), for before/after graphics comparisons.
