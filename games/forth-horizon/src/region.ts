@@ -1169,7 +1169,7 @@ function buildTownExtras(): void {
     parked = buildParkedCars({
       streets: streetRuns, drives: countryNet?.roads ?? [], ground: (x, z) => meshH(x, z), downtown: dense, mouths: countryScenes.driveMouths,
       // never on the new street circuits' courses (they run along town streets, and a parked car is solid): downtown's are as they were
-      skip: (x, z) => roadDist(x, z) < 9 || hAt(x, z) < 2.5 || insideBuilding(x, z, 0.8) || !!(simLayer?.junctions.near(x, z, 3)) || onCourse(x, z, 1, [IND, HARB]),
+      skip: (x, z) => roadDist(x, z) < 9 || hAt(x, z) < 2.5 || insideBuilding(x, z, 0.8) || !!(simLayer?.junctions.near(x, z, 3)) || onCourse(x, z, 1, [IND, HARB, CIV]),
     });
     furnitureGroup.add(parked.group);
   }
@@ -1414,6 +1414,10 @@ interface TreeLayer { group: THREE.Group; setWind(w: number): void; setQuality(s
 const treeFields: TreeLayer[] = [];
 let grassField: GrassField | null = null;
 const IND = 'ironworks_industrial_circuit';                // the street course through the port, the refinery and the freight yard (North Harbor Circuit II)
+const CIV = 'civic_riverfront_circuit';                    // the street course along the civic riverfront (Civic Riverfront Street Circuit)
+let civicPath: { x: number; z: number }[] = [];
+let civicNear: ((x: number, z: number, r: number) => boolean) | null = null;
+let civicYs: number[] | undefined;
 const HARB = 'harbor_district_circuit';                    // the street course on the north coast's docks and piers (Harbor District Street Circuit)
 let harborPath: { x: number; z: number }[] = [];
 let harborNear: ((x: number, z: number, r: number) => boolean) | null = null;
@@ -1500,6 +1504,7 @@ function vegOk(x: number, z: number, extra = 0): boolean {
   if (bridgeNear && bridgeNear(x, z, 13 + extra)) return false;
   if (indNear && indNear(x, z, 10 + extra)) return false;
   if (harborNear && harborNear(x, z, 10 + extra)) return false;
+  if (civicNear && civicNear(x, z, 10 + extra)) return false;
   if (portData && inPort(portData, x, z, 14 + extra)) return false;
   if (utilData && inPort({ platform: utilData.platform } as PortData, x, z, 14 + extra)) return false;
   if (simLayer && simLayer.near(x, z, 7 + extra)) return false;
@@ -1866,7 +1871,7 @@ async function buildCity(): Promise<void> {
     const cx = it.bx ?? it.x, cz = it.bz ?? it.z, c = Math.cos(it.rotY), sn = Math.sin(it.rotY);
     for (const [u, v] of [[0, 0], [-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0, -0.5], [0, 0.5], [-0.5, 0], [0.5, 0]]) {
       const lx = u * it.w, lz = v * it.d;
-      if (onCourse(cx + lx * c + lz * sn, cz - lx * sn + lz * c, 1, [IND])) return false;
+      if (onCourse(cx + lx * c + lz * sn, cz - lx * sn + lz * c, 1, [IND, CIV])) return false;
     }
     return true;
   });
@@ -2196,6 +2201,7 @@ const WEATHER_PLAN: Record<string, { t: number; w: string }[]> = {
   cliff: [{ t: 0, w: 'fog' }, { t: 140, w: 'overcast' }, { t: 320, w: 'partly' }],
   rally: [{ t: 0, w: 'partly' }, { t: 60, w: 'overcast' }, { t: 150, w: 'rain' }],
   ind: [{ t: 0, w: 'overcast' }, { t: 90, w: 'rain' }, { t: 240, w: 'overcast' }],
+  civ: [{ t: 0, w: 'clear' }, { t: 180, w: 'partly' }, { t: 330, w: 'clear' }],        // a fine evening on the riverfront
   harb: [{ t: 0, w: 'partly' }, { t: 120, w: 'overcast' }, { t: 260, w: 'rain' }],       // sea weather rolling in over the harbour
   superior: [{ t: 0, w: 'clear' }, { t: 420, w: 'fog' }, { t: 720, w: 'partly' }],         // clear on the coast, cloud on the pass, sun again in the forest
   escarpment: [{ t: 0, w: 'partly' }, { t: 150, w: 'clear' }, { t: 330, w: 'overcast' }],    // broken cloud by the lake, clear on the crest, cloud coming in for the descent
@@ -2456,6 +2462,7 @@ const MAP_EVENTS: { id: string; tag: string; name: string; sub: string; color: s
   { id: 'escarpment', tag: 'MOUNTAIN CIRCUIT', name: 'Escarpment Circuit', sub: '10.4 km · the Stair · crest viaduct', color: '#FFB86B', act: () => openBrief('escarpment') },
   { id: 'ind', tag: 'STREET COURSE', name: 'Ironworks Industrial Circuit', sub: '5.3 km · rail-yard bridge · harbour hairpin', color: '#9bb0c8', act: () => openBrief('ind') },
   { id: 'harb', tag: 'STREET COURSE', name: 'Harbor District Street Circuit', sub: '5.4 km · piers · container yards', color: '#6fb7d8', act: () => openBrief('harb') },
+  { id: 'civ', tag: 'STREET COURSE', name: 'Civic Riverfront Street Circuit', sub: '5.4 km · riverwalk · opera to the beach', color: '#e8b04a', act: () => openBrief('civ') },
   { id: 'free', tag: 'FREE ROAM', name: 'Explore the region', sub: 'Port Halcyon · dunes · harbor · freeway', color: '#D0BCFF', act: () => openBrief('free') },
 ];
 const cardsEl = menuEl.querySelector('#mapCards') as HTMLElement;
@@ -2697,6 +2704,7 @@ const BRIEFS: Record<string, { view: string; drive: string; tag: string; name: s
   cliff: { view: 'cliff', drive: 'great_lakes_cliff_raceway', tag: 'ROAD COURSE', name: 'Great Lakes Cliff Raceway', color: '#00DAF3', lines: ['9.8 km  ·  switchback climb  ·  tunnel', 'Starts on the beach, finishes 135 m above the lake', 'Coastal run out of the tunnel with open lake views'], blurb: 'A traditional race course on the western bluff. Hold the line through the climb.' },
   rally: { view: 'rally', drive: 'pinewood_rally_stage', tag: 'RALLY STAGE', name: 'Pinewood Rally Stage', color: '#D40055', lines: ['11 km  ·  gravel and forest trail', 'Service park at Otter Creek', 'Creek ford, lighthouse point and a cut forest trail'], blurb: 'Loose surface through the pines. Short on grip, long on speed.' },
   ind: { view: 'industrial', drive: IND, tag: 'STREET COURSE', name: 'Ironworks Industrial Circuit', color: '#9bb0c8', lines: ['5.3 km  ·  20 turns  ·  clockwise', 'Warehouse district, container port and the harbour hairpin on the river', 'Through the refinery, over the freight yard, under the railway'], blurb: 'Concrete either side the whole way. The bridge over the rail yard and the dive under the railway decide the lap.' },
+  civ: { view: 'civic', drive: CIV, tag: 'STREET COURSE', name: 'Civic Riverfront Street Circuit', color: '#e8b04a', lines: ['5.4 km  ·  clockwise', 'South along the riverwalk past the marina, the museums, the amphitheatre and the beach', 'Back up the boulevard, a chicane by the museum and one by the amphitheatre'], blurb: 'The promenade on one side, the river beyond the palms. Two hairpins and two chicanes: brake late and keep it off the walls.' },
   harb: { view: 'harbor', drive: HARB, tag: 'STREET COURSE', name: 'Harbor District Street Circuit', color: '#6fb7d8', lines: ['5.4 km  ·  20 turns  ·  clockwise', 'Out along the east pier and back, round the wharf on the quay', 'Container yards, cranes and ships the whole lap'], blurb: 'Two piers and a wharf: the long DRS runs are out over the water. Brake for the pier hairpin before the cranes.' },
   superior: { view: 'superior', drive: 'superior_range_circuit', tag: 'MOUNTAIN CIRCUIT', name: 'Superior Range Circuit', color: '#7FD1FF', lines: ['23 km  ·  one lap  ·  clockwise', 'North along the cliff highway and over the three fjord bridges', 'Back over Glacier Pass: hairpins to 430 m between the glaciers, down through the giant forest'], blurb: 'Fast and open on the coast, tight and steep on the pass. Save the brakes for the descent.' },
   escarpment: { view: 'escarpment', drive: 'escarpment_circuit', tag: 'MOUNTAIN CIRCUIT', name: 'Escarpment Circuit', color: '#FFB86B', lines: ['10.4 km  ·  one lap', 'Over the finger lake head bridge, then up the Stair: six legs and five hairpins on the cliff face', 'East along the crest, a 120 m viaduct over the notch, down the eastern gap to the lake'], blurb: 'Climb hard, then hold your nerve on the skyline. The descent is long, fast and downhill all the way to the lake.' },
@@ -2769,7 +2777,7 @@ function openBrief(id: string): void {
   if (wxOverride === 'auto') wx.setWeather(worstOf(WEATHER_PLAN[id]), false, true);      // the map shows the race's worst weather as the forecast
   preset(b.view, true);       // stays on the map screen: dark backdrop, faded edges, no sky
   const cc = id === 'free' ? new THREE.Vector3(-4600, 0, 1800) : centroid(meta.circuits[b.drive]);
-  const hh = id === 'city' ? 1500 : id === 'ind' || id === 'harb' ? 1300 : id === 'cliff' ? 5200 : id === 'rally' ? 6200 : id === 'superior' ? 9000 : id === 'escarpment' ? 5200 : 6800;
+  const hh = id === 'city' ? 1500 : id === 'ind' || id === 'harb' || id === 'civ' ? 1300 : id === 'cliff' ? 5200 : id === 'rally' ? 6200 : id === 'superior' ? 9000 : id === 'escarpment' ? 5200 : 6800;
   look(new THREE.Vector3(cc.x - hh * 0.3, hh, cc.z + hh * 0.62), cc);   // steep, so no horizon shows
   briefEl.style.borderColor = b.color + '88';
   briefEl.innerHTML = `<div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:${b.color};box-shadow:0 0 10px ${b.color}"></span><span style="font:600 10px Outfit,sans-serif;letter-spacing:.28em;color:${b.color}">${b.tag}</span></div>
@@ -2828,6 +2836,7 @@ function preset(name: string, keepMap = false): void {
   if (name === 'downtown') { const c = centroid(city); look(new THREE.Vector3(c.x - 1500, 420, c.z + 1500), new THREE.Vector3(c.x + 100, 60, c.z - 100)); }
   if (name === 'street' && city.y) { const k = 20, p = city.xz[k], q = city.xz[k + 4]; look(new THREE.Vector3(p[0], city.y[k] + 9, p[1]), new THREE.Vector3(q[0], city.y[k] + 25, q[1])); }
   if (name === 'harbor' && harbor) { const t = harbor.terminals[0]; look(new THREE.Vector3(t.c[0] - 700, 260, t.c[1] - 500), new THREE.Vector3(t.c[0], 8, t.c[1] + 120)); }
+  if (name === 'civic' && meta.circuits[CIV]) { const c = centroid(meta.circuits[CIV]); look(new THREE.Vector3(c.x - 900, 900, c.z + 700), new THREE.Vector3(c.x, 10, c.z)); }
   if (name === 'harbor' && meta.circuits[HARB]) { const c = centroid(meta.circuits[HARB]); look(new THREE.Vector3(c.x - 700, 1000, c.z + 900), new THREE.Vector3(c.x, 10, c.z)); }
   if (name === 'industrial' && meta.circuits[IND]) { const c = centroid(meta.circuits[IND]); look(new THREE.Vector3(c.x - 600, 900, c.z + 900), new THREE.Vector3(c.x, 10, c.z)); }
   if (name === 'superior' && meta.circuits.superior_range_circuit) { const c = centroid(meta.circuits.superior_range_circuit); look(new THREE.Vector3(c.x + 4200, 3600, c.z + 5200), new THREE.Vector3(c.x - 200, 200, c.z)); }
@@ -3127,6 +3136,15 @@ function buildFurniture(): void {
       d.group.name = 'harbor-district'; mergeByMaterial(d.group, 400); furnitureGroup.add(d.group);
       console.log('harbor district', JSON.stringify(d.counts));
     }
+  }
+  if (meta.circuits[CIV]) {
+    const cc = buildIndustrialCircuit({ path: meta.circuits[CIV].xz.map((q) => ({ x: q[0], z: q[1] })), ground: (x, z) => meshH(x, z), roadMaterial: cityRoadMat ?? undefined, ys: civicYs });
+    cc.group.name = 'civic-circuit';
+    furnitureGroup.add(cc.group);
+    driveSurfaces.push(cc.road);
+    surfGrid = null;
+    civicPath = cc.path;
+    civicNear = makeCorridor(cc.path);
   }
 
   if (simPlan && (simPlan.net || simPlan.L || simPlan.data.zones.length)) {
@@ -3475,9 +3493,9 @@ function makeCorridor(pts: { x: number; z: number }[]): (x: number, z: number, r
 }
 /** on a race course or inside its barriers: every circuit's line (densified to 2 m) with its own clearance (half width + barriers + a margin). Built on first use, after
  *  the circuits are loaded; site plans, yards, hedges and utilities ask it before they stand anything on the ground */
-const COURSE_R: Record<string, number> = { ironport_grand_circuit: 8.0, ironworks_industrial_circuit: 8.0, harbor_district_circuit: 8.0, great_lakes_cliff_raceway: 8.5, pinewood_rally_stage: 6.5 };
+const COURSE_R: Record<string, number> = { ironport_grand_circuit: 8.0, ironworks_industrial_circuit: 8.0, harbor_district_circuit: 8.0, civic_riverfront_circuit: 8.0, great_lakes_cliff_raceway: 8.5, pinewood_rally_stage: 6.5 };
 let courseTests: { id: string; near: (x: number, z: number, r: number) => boolean; r: number }[] | null = null;
-const TARMAC_CIRCUITS = ['ironport_grand_circuit', 'ironworks_industrial_circuit', 'harbor_district_circuit', 'great_lakes_cliff_raceway'];
+const TARMAC_CIRCUITS = ['ironport_grand_circuit', 'ironworks_industrial_circuit', 'harbor_district_circuit', 'civic_riverfront_circuit', 'great_lakes_cliff_raceway'];
 function onCourse(x: number, z: number, extra = 0, only?: string[]): boolean {
   if (!courseTests) {
     if (!meta?.circuits) return false;
@@ -3552,6 +3570,7 @@ function surfaceAtXZ(x: number, z: number): SurfaceType {
   if (bridgeNear && bridgeNear(x, z, 10)) return 'asphalt';
   if (indNear && indNear(x, z, 7.2)) return 'asphalt';
   if (harborNear && harborNear(x, z, 7.2)) return 'asphalt';
+  if (civicNear && civicNear(x, z, 7.2)) return 'asphalt';
   if (portData && inPort(portData, x, z)) return 'asphalt';
   if (countryScenes) { if (countryScenes.pavedNear(x, z, 0.8)) return 'asphalt'; if (countryScenes.dirtNear(x, z, 0.8)) return 'gravel'; }
   return hAt(x, z) < 3 ? 'sand' : 'grass';
@@ -3707,7 +3726,7 @@ function corridorAt(P: { x: number; z: number }[], n: number, bi: number, x: num
 }
 function barrierCollide(s: DriveState): boolean {
   const cliff = s.circuitId === 'great_lakes_cliff_raceway';
-  const P = cliff ? cliffPathPts : s.circuitId === IND ? industrialPath : s.circuitId === HARB ? harborPath : cityPath, n = P.length;
+  const P = cliff ? cliffPathPts : s.circuitId === IND ? industrialPath : s.circuitId === HARB ? harborPath : s.circuitId === CIV ? civicPath : cityPath, n = P.length;
   if (!n) return false;
   // nearest path point near the last one (the path is a closed loop; search a window, fall back to a full scan)
   let best = 1e18, bi = barrierIdx;
@@ -3740,7 +3759,7 @@ function barrierCollide(s: DriveState): boolean {
 const freeBarrierIdx: Record<string, number> = {};
 function freeRoamBarrierHit(s: DriveState): boolean {
   const sy = Math.sin(s.yaw), cy = Math.cos(s.yaw);
-  for (const [id, P] of [[IND, industrialPath], [HARB, harborPath], ['ironport_grand_circuit', cityPath]] as [string, { x: number; z: number }[]][]) {
+  for (const [id, P] of [[IND, industrialPath], [HARB, harborPath], [CIV, civicPath], ['ironport_grand_circuit', cityPath]] as [string, { x: number; z: number }[]][]) {
     const n = P.length; if (n < 8) continue;
     let best = 1e18, bi = freeBarrierIdx[id] ?? 0;
     for (let k = -20; k <= 20; k++) { const i = ((bi + k) % n + n) % n, d = (P[i].x - s.pos.x) ** 2 + (P[i].z - s.pos.z) ** 2; if (d < best) { best = d; bi = i; } }
@@ -3959,7 +3978,7 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
   carY = -1e9; carPitch = carRoll = slopePS = slopeRS = 0; setMusicDuck(0.4); gameAudio.ensureStarted(); gameAudio.setPaused(false);
   wx.ensureAudio(); wx.setAudioLevel(engVol); wx.setPaused(false);
   {
-    const key = id === 'ironport_grand_circuit' ? 'city' : id === 'great_lakes_cliff_raceway' ? 'cliff' : id === 'pinewood_rally_stage' ? 'rally' : id === IND ? 'ind' : id === HARB ? 'harb' : id === 'superior_range_circuit' ? 'superior' : id === 'escarpment_circuit' ? 'escarpment' : 'free';
+    const key = id === 'ironport_grand_circuit' ? 'city' : id === 'great_lakes_cliff_raceway' ? 'cliff' : id === 'pinewood_rally_stage' ? 'rally' : id === IND ? 'ind' : id === HARB ? 'harb' : id === CIV ? 'civ' : id === 'superior_range_circuit' ? 'superior' : id === 'escarpment_circuit' ? 'escarpment' : 'free';
     wxPlan = WEATHER_PLAN[key]; wxPlanT = 0; wxPlanI = 0;
     wx.setWeather(wxOverride === 'auto' ? wxPlan[0].w : wxOverride, false, true);
   }
@@ -4171,8 +4190,8 @@ function stepDrive(dt: number): void {
   s.sp = ps.forwardSpeed; s.lat = ps.lateralSpeed; s.steer = ps.steerInputSmoothed;
   let bumped = false;
   if (collide(s)) { s.sp *= 0.86; s.lat *= 0.7; s.hit = 0.4; bumped = true; }
-  if ((s.circuitId === 'ironport_grand_circuit' || s.circuitId === IND || s.circuitId === HARB || s.circuitId === 'great_lakes_cliff_raceway') && barrierCollide(s)) { s.hit = 0.4; bumped = true; }
-  else if (s.circuitId !== 'ironport_grand_circuit' && s.circuitId !== IND && s.circuitId !== HARB && s.circuitId !== 'great_lakes_cliff_raceway' && freeRoamBarrierHit(s)) { s.hit = 0.4; bumped = true; }
+  if ((s.circuitId === 'ironport_grand_circuit' || s.circuitId === IND || s.circuitId === HARB || s.circuitId === CIV || s.circuitId === 'great_lakes_cliff_raceway') && barrierCollide(s)) { s.hit = 0.4; bumped = true; }
+  else if (s.circuitId !== 'ironport_grand_circuit' && s.circuitId !== IND && s.circuitId !== HARB && s.circuitId !== CIV && s.circuitId !== 'great_lakes_cliff_raceway' && freeRoamBarrierHit(s)) { s.hit = 0.4; bumped = true; }
   else if (scenicRailHit(s)) { s.hit = 0.4; bumped = true; }
   if (bumped) driveInput.rumble(0.9, 0.7, 220);
   else if (ps.isDrifting) driveInput.rumble(0.0, 0.25, 60);
@@ -4337,6 +4356,9 @@ async function boot(): Promise<void> {
     // the Harbor District Street Circuit on the north coast (tools/plan_harbor_circuit.py)
     const hb = await fetch(BASE + 'harbor_circuit.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { name: string; xz: number[][]; sectors?: Record<string, number[]> } | null;
     if (hb && hb.xz.length > 6) { const sm = smoothClosedPath(hb.xz, undefined, 16, 6); meta.circuits[HARB] = { name: hb.name, kind: 'road_course', xz: sm.xz } as typeof meta.circuits[string]; if (hb.sectors) harborRaw = { xz: hb.xz, sectors: hb.sectors }; }
+    // the Civic Riverfront Street Circuit along the east bank (tools/plan_civic_circuit.py)
+    const cvc = await fetch(BASE + 'civic_circuit.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { name: string; xz: number[][] } | null;
+    if (cvc && cvc.xz.length > 6) { const sm = smoothClosedPath(cvc.xz, undefined, 18, 6); meta.circuits[CIV] = { name: cvc.name, kind: 'road_course', xz: sm.xz } as typeof meta.circuits[string]; }
   }
   portData = await fetch(BASE + 'port_district.json').then((x) => (x.ok ? x.json() : null)).catch(() => null);
   { const dw = await fetch(BASE + 'driveways.json').then((x) => (x.ok ? x.json() : null)).catch(() => null); if (dw) { if (!countryNet) countryNet = { roads: [] }; countryNet.roads.push(...dw.roads); } }
@@ -4458,6 +4480,8 @@ async function boot(): Promise<void> {
     if (gi?.xz && gi.xz.length > 3) roads.push({ xz: [...gi.xz, gi.xz[0]], half: 7.5, cls: 'highway' });
     const gh = meta.circuits[HARB] as { xz?: number[][] } | undefined;
     if (gh?.xz && gh.xz.length > 3) roads.push({ xz: [...gh.xz, gh.xz[0]], half: 7.5, cls: 'highway' });
+    const gcv = meta.circuits[CIV] as { xz?: number[][] } | undefined;
+    if (gcv?.xz && gcv.xz.length > 3) roads.push({ xz: [...gcv.xz, gcv.xz[0]], half: 7.5, cls: 'highway' });
     // the Pinewood Rally Stage as a gravel lane (12 % at most): graded after the paved roads, it eases into their beds where it crosses them instead of dropping
     // into the cutting (a 0.76 m dip at 33 % where it crossed the paved road at -1117, -3571) and takes the steepest pitches off the hillsides it runs over
     const gr = meta.circuits.pinewood_rally_stage as { xz?: number[][] } | undefined;
@@ -4480,6 +4504,7 @@ async function boot(): Promise<void> {
     }
     // the harbour circuit's piers and wharf stand out over the water: its road never goes below 3.6 m (a deck on piers there) and no grade passes 10 %
     if (gh?.xz) harborYs = industrialProfile(gh.xz.map((q) => ({ x: q[0], z: q[1] })), [], (x, z) => hAt(x, z));
+    if (gcv?.xz) civicYs = industrialProfile(gcv.xz.map((q) => ({ x: q[0], z: q[1] })), [], (x, z) => hAt(x, z));
     console.log('road grade pass', st);
     (window as unknown as { roadGrade: unknown }).roadGrade = st;
   }
@@ -4511,7 +4536,7 @@ async function boot(): Promise<void> {
   (window as any).heroScenes = () => HERO_SCENES.map((h) => {
     const sp = h.spot;
     if ('course' in sp) {
-      const paths = { ironport_grand_circuit: cityPath, great_lakes_cliff_raceway: cliffPathPts, ironworks_industrial_circuit: industrialPath, harbor_district_circuit: harborPath } as Record<string, { x: number; z: number }[]>;
+      const paths = { ironport_grand_circuit: cityPath, great_lakes_cliff_raceway: cliffPathPts, ironworks_industrial_circuit: industrialPath, harbor_district_circuit: harborPath, civic_riverfront_circuit: civicPath } as Record<string, { x: number; z: number }[]>;
       const P = paths[sp.course]; if (!P?.length) return { id: h.id, files: h.files, what: h.what, cam: null, at: null };
       let k = 0, bd = 1e18; P.forEach((q, i) => { const d = (q.x - sp.near[0]) ** 2 + (q.z - sp.near[1]) ** 2; if (d < bd) { bd = d; k = i; } });
       const n = P.length, a = P[((k + sp.ahead) % n + n) % n], b = P[((k + sp.ahead + sp.look) % n + n) % n];
@@ -4523,7 +4548,7 @@ async function boot(): Promise<void> {
     const cx = L[0] + ux * sp.back - uz * side, cz = L[2] + uz * sp.back + ux * side;
     return { id: h.id, files: h.files, what: h.what, cam: [cx, Math.max(groundH(cx, cz), 1.5) + sp.h, cz], at: [L[0], L[1] + 8, L[2]] };
   });
-  (window as any).coursePaths = () => ({ ironport_grand_circuit: cityPath, great_lakes_cliff_raceway: cliffPathPts, ironworks_industrial_circuit: industrialPath, harbor_district_circuit: harborPath });   // the lines the circuits are built on (scripts/apex-probe-circuits.mjs)
+  (window as any).coursePaths = () => ({ ironport_grand_circuit: cityPath, great_lakes_cliff_raceway: cliffPathPts, ironworks_industrial_circuit: industrialPath, harbor_district_circuit: harborPath, civic_riverfront_circuit: civicPath });   // the lines the circuits are built on (scripts/apex-probe-circuits.mjs)
   (window as any).cineJump = (i: number) => { if (!cineOn) startCine(); cineIdx = i % cineShots.length; cineT = 1.2; };
   (window as any).vegStats = () => vegetation?.stats;
   (window as any).simDebug = () => ({ cars: simLayer?.world.cars ?? [], trafficCalls, signals: simLayer?.world.signals, surf: surfaceAtXZ, meshH, graph: simLayer?.world.graph });

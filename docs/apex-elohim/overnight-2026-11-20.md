@@ -33,9 +33,15 @@ Kenne's brief before bed: build the river districts from his asset folders (docs
 - **Hero scenes (src/heroScenes.ts).** 19 camera spots covering about 50 of Kenne's shots: Ironworks (finish line, straight, bridge, into and out of the underpass, refinery, silos, warehouses, harbour), the harbour circuit (cranes, container canyon) and the civic riverfront (opera, marina, glass museum, fountain, amphitheatre, beach, promenade, parklands). A spot is written against what it shows (a point on a built line, or a placed landmark seen from the river), so it follows the world. `window.heroScenes()` resolves them, and scripts/apex-hero-shots.mjs shoots them. The civic race shots (boulevard, chicane, riverwalk) wait for the Civic Riverfront Street Circuit.
 - **Black frames.** Some shots come out black at random (a different scene each run). The underpass exit, the warehouse and the marina were black on the first run and fine on the second. It is the renderer, not a place in the world: the graphics lane's.
 
+- **Civic Riverfront Street Circuit (tools/plan_civic_circuit.py).** Kenne's two civic circuit maps both cross a channel twice; our riverfront faces an 800 m river, so the layout is synthesised to the same parts, about 5.4 km clockwise:
+  - a riverwalk leg south along the promenade (inland of it, so the palms and the embankment stay on the water side), past the marina, the museums, the amphitheatre and the beach;
+  - a parklands hairpin, then a boulevard leg back north inland of the landmarks, with a chicane by the museum and one by the amphitheatre;
+  - an opera hairpin to close the lap.
+
+  It laps clean (no stalls, 0.3 m), and has a card, brief, weather, barriers and course checks; buildings on its course are cleared (it is north of downtown). Eight race hero spots ride it (finish, riverwalk, museum, stage, chicane, boulevard, parklands, the drift hairpin): 27 hero spots in all. Promenade lamps, benches, the embankment and the piers now keep off the courses too.
+
 ## Next
 
 - Look at the Ironworks district in the game and fix what is wrong; lap and probe it.
 - Civic riverfront: look again after the amphitheatre fix, the glasshouse site, and the bank's old satellite texture (containers still painted on the ground: the graphics lane's).
-- The Civic Riverfront Street Circuit (from Kenne's two circuit maps), then its race hero shots.
 - A finer opera hall: its white shells read edge-on from the river.

@@ -3,14 +3,14 @@
  * with a camera spot (docs/apex-elohim/east-bank-masterplan.md). A spot is written against what it shows, not fixed coordinates, so it follows the
  * world: a point on a circuit's built line (near a map point, `ahead` samples on, the camera `h` up, looking `look` samples on), or a landmark the civic
  * riverfront placed (its position, the camera `back` metres toward the river and `h` up).
- * Shots of the Civic Riverfront Street Circuit's racing (boulevard, chicane, riverwalk) wait for that circuit; their scenery shots are here.
+ * The civic race shots ride the Civic Riverfront Street Circuit (tools/plan_civic_circuit.py): the riverwalk leg, the boulevard leg, its chicanes and hairpins.
  */
 export type HeroSpot =
   | { course: string; near: [number, number]; ahead: number; h: number; look: number }
   | { landmark: string; back: number; h: number; side?: number };
 export interface HeroScene { id: string; files: string[]; what: string; spot: HeroSpot }
 
-const IW = 'ironworks_industrial_circuit', HB = 'harbor_district_circuit';
+const IW = 'ironworks_industrial_circuit', HB = 'harbor_district_circuit', CV = 'civic_riverfront_circuit';
 /** where the circuits' features are (their plan files): the Ironworks bridge and underpass crossings, a point on each sector */
 export const HERO_SCENES: HeroScene[] = [
   // ---- industrial districts: the new Ironworks ----
@@ -35,4 +35,14 @@ export const HERO_SCENES: HeroScene[] = [
   { id: 'cv-beach', files: ['City_beach_along_riverfront_ff9cd048', 'Urban_riverfront_beach_with_arch…_fe7ecdb4'], what: 'the urban beach and its pier', spot: { landmark: 'beach', back: 120, h: 10 } },
   { id: 'cv-promenade', files: ['Mediterranean_stone_promenade_wi…_0f8f4e63', 'Mediterranean_stone_promenade_wi…_ce168d0c', 'Pedestrians_strolling_along_rive…_1e287ecc', 'Pedestrians_strolling_along_rive…_e3ea4c06', 'Riverfront_promenade_at_twilight_b2cce28b', 'City_lights_along_riverfront_pro…_a2eaeb77', 'Riverfront_at_dawn_with_fog_21a48551', 'Riverfront_at_dawn_with_fog_cf0942b3'], what: 'along the stone promenade and its palms', spot: { landmark: 'museum of science and art', back: 70, h: 2, side: 80 } },
   { id: 'cv-park', files: ['People_relaxing_in_park_6d90e3a5', 'People_relaxing_in_park_ee0b5434', 'Palm_boulevard_near_flower_plaza_b2a75b13', 'Palm_boulevard_near_terraced_plazas_45495582'], what: 'the civic parklands: monument, flower beds, fountains', spot: { landmark: 'civic monument', back: 50, h: 4, side: 30 } },
+  // ---- civic riverfront: racing on the Civic Riverfront Street Circuit ----
+  { id: 'cv-race-finish', files: ['Race_cars_crossing_finish_line_c2582c1a', 'Race_cars_crossing_finish_line_cc8647c2'], what: 'the start/finish on the riverwalk', spot: { course: CV, near: [6010.5, -1823.3], ahead: 8, h: 1.4, look: 12 } },
+  { id: 'cv-race-riverwalk', files: ['Race_cars_battling_along_riverwalk_54206bbb', 'Race_cars_battling_along_riverwalk_908cf775', 'Race_cars_driving_down_promenade_acea01fd', 'Race_cars_speeding_along_promenade_4981ffec', 'Race_cars_speeding_on_promenade_692f9f55', 'Race_cars_driving_fast_803bc67e'], what: 'down the riverwalk beside the promenade and its palms', spot: { course: CV, near: [5690, -1000], ahead: 0, h: 1.4, look: 14 } },
+  { id: 'cv-race-museum', files: ['Race_cars_speeding_past_museum_695db399', 'Race_cars_speeding_past_museum_6ea3af5a'], what: 'past the museum quarter', spot: { course: CV, near: [5992, -1447], ahead: -4, h: 1.5, look: 10 } },
+  { id: 'cv-race-stage', files: ['Race_cars_drifting_near_stage_18a8413f', 'Race_cars_drifting_past_stage_25884bae'], what: 'past the festival stage and the amphitheatre', spot: { course: CV, near: [5454, -607], ahead: -4, h: 1.5, look: 10 } },
+  { id: 'cv-race-chicane', files: ['Race_cars_navigating_chicane_248efe30', 'Race_cars_navigating_chicane_807e0619'], what: 'the boulevard chicane by the museum', spot: { course: CV, near: [6140, -1450], ahead: -8, h: 1.6, look: 10 } },
+  { id: 'cv-race-boulevard', files: ['Race_cars_weaving_through_boulevard_19e1cb31', 'Race_cars_weaving_through_boulevard_c304d862', 'Race_cars_accelerating_along_bou…_8e056e25', 'Race_cars_accelerating_along_bou…_f4147d1b'], what: 'up the boulevard', spot: { course: CV, near: [5940, -1000], ahead: 0, h: 1.4, look: 14 } },
+  { id: 'cv-race-park', files: ['Race_cars_passing_green_park_7d11538b', 'Race_cars_passing_park_06dee168'], what: 'round the parklands hairpin', spot: { course: CV, near: [5170, 130], ahead: -6, h: 1.6, look: 8 } },
+  { id: 'cv-race-drift', files: ['Race_car_drifting_turn_47ba3425', 'Race_car_drifting_turn_f71bc363'], what: 'drifting the opera hairpin', spot: { course: CV, near: [6050, -1880], ahead: -6, h: 1.6, look: 8 } },
+
 ];

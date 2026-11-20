@@ -67,10 +67,10 @@ export function buildCivicRiverfront(o: CivicOpts): { group: THREE.Group; counts
         const b0 = pave.length / 3;
         for (const [u, v] of [[-5, -7], [5, -7], [-5, 7], [5, 7]]) { const qx = px + tx * u + nx * v, qz = pz + tz * u + nz * v; pave.push(qx, o.ground(qx, qz) + 0.07, qz); }
         idx.push(b0, b0 + 2, b0 + 1, b0 + 1, b0 + 2, b0 + 3);
-        if (acc >= 40) { acc = 0; const ex = x + nx * 1.5, ez = z + nz * 1.5; const e = stoneEmbankment(40, 4); put(e, ex, ez, Math.atan2(-nx, -nz), 0, 'embankment', o.ground(ex, ez)); }
-        if (lampAcc >= 30) { lampAcc = 0; const lx = x + nx * 3, lz = z + nz * 3; if (!o.water(lx, lz)) put(promenadeLamp(), lx, lz, 0, 0, 'lamp'); }
+        if (acc >= 40) { acc = 0; const ex = x + nx * 1.5, ez = z + nz * 1.5; if (o.blocked(ex, ez, 2)) continue; const e = stoneEmbankment(40, 4); put(e, ex, ez, Math.atan2(-nx, -nz), 0, 'embankment', o.ground(ex, ez)); }
+        if (lampAcc >= 30) { lampAcc = 0; const lx = x + nx * 3, lz = z + nz * 3; if (!o.water(lx, lz) && !o.blocked(lx, lz, 1)) put(promenadeLamp(), lx, lz, 0, 0, 'lamp'); }
         if (palmAcc >= 20) { palmAcc = 0; const lx = x + nx * 15, lz = z + nz * 15; if (!o.blocked(lx, lz, 2) && !o.water(lx, lz)) put(palmTree(Math.floor(rnd() * 999), 9 + rnd() * 4), lx, lz, 0, 0, 'palm'); }
-        if (benchAcc >= 45) { benchAcc = 0; const lx = x + nx * 6, lz = z + nz * 6; put(bench(), lx, lz, Math.atan2(-nx, -nz), 0, 'bench'); }
+        if (benchAcc >= 45) { benchAcc = 0; const lx = x + nx * 6, lz = z + nz * 6; if (!o.blocked(lx, lz, 1)) put(bench(), lx, lz, Math.atan2(-nx, -nz), 0, 'bench'); }
       }
     }
     if (idx.length) {
@@ -107,7 +107,7 @@ export function buildCivicRiverfront(o: CivicOpts): { group: THREE.Group; counts
     landmark(s2.z[0] + 380, 50, 60, () => glassMuseum(3), 'glass museum');
     landmark(s2.z[1] - 220, 80, 60, () => botanicalGlasshouse(4), 'botanical glasshouse');
     landmark(s2.z[0] + 270, 40, 7, () => fountain(6), 'plaza fountain');
-    const f = at((s2.z[0] + s2.z[1]) / 2); put(pier(120, 12), f.x - f.nx * 62, f.z - f.nz * 62, Math.atan2(-f.nx, -f.nz), 0, 'ferry pier', 0);
+    const f = at((s2.z[0] + s2.z[1]) / 2); if (!o.blocked(f.x, f.z, 6)) put(pier(120, 12), f.x - f.nx * 62, f.z - f.nz * 62, Math.atan2(-f.nx, -f.nz), 0, 'ferry pier', 0);
   }
   // ---- Concert Amphitheatre & Urban Beach ----
   const s3 = sec('amphitheatre_beach');
@@ -129,7 +129,7 @@ export function buildCivicRiverfront(o: CivicOpts): { group: THREE.Group; counts
       if (b0 > 0) idx.push(b0 - 2, b0, b0 - 1, b0 - 1, b0, b0 + 1);
     }
     if (idx.length) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: SAND_COLOUR, roughness: 1, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 })); m.name = 'urban-beach'; m.receiveShadow = true; group.add(m); counts.beach = 1; }
-    const f = at(s3.z[1] - 200); put(pier(170, 9), f.x - f.nx * 86, f.z - f.nz * 86, Math.atan2(-f.nx, -f.nz), 0, 'beach pier', 0); spots.beach = [f.x + f.nx * 20, 3, f.z + f.nz * 20];
+    const f = at(s3.z[1] - 200); if (!o.blocked(f.x, f.z, 6)) put(pier(170, 9), f.x - f.nx * 86, f.z - f.nz * 86, Math.atan2(-f.nx, -f.nz), 0, 'beach pier', 0); spots.beach = [f.x + f.nx * 20, 3, f.z + f.nz * 20];
   }
   // ---- Civic Parklands ----
   const s4 = sec('parklands');
