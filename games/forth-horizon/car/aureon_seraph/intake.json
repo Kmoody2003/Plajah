@@ -1,0 +1,28 @@
+{
+  "id": "aureon_seraph",
+  "status": "built (multi-view matched: winner=tt_06, sideIoU=0.920, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Executive_sedan_asset_sheet_71c824e4.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Luxury_executive_sedan_rotating_\u2026_b93d5dde.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_01",
+      "sideIoU": 0.8906,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "tt_06",
+      "sideIoU": 0.9182,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_06",
+  "finalSideIoU": 0.9196,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 5.02,
+    "width": 1.941,
+    "height": 1.694
+  },
+  "faces": 60000,
+  "elapsedSec": 68.6
+}

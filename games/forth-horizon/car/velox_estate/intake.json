@@ -1,0 +1,28 @@
+{
+  "id": "velox_estate",
+  "status": "built (multi-view matched: winner=tt_05, sideIoU=0.856, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Station_wagon_multi-view_asset_s\u2026_0f01ec20.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Station_wagon_car_rotating_on_7f6c72b1.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_00",
+      "sideIoU": 0.829,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "tt_05",
+      "sideIoU": 0.8458,
+      "yawSymDeg": -0.5
+    }
+  ],
+  "winner": "tt_05",
+  "finalSideIoU": 0.8563,
+  "yawSymDeg": -0.5,
+  "boundsM": {
+    "length": 4.856,
+    "width": 1.94,
+    "height": 1.922
+  },
+  "faces": 60000,
+  "elapsedSec": 76.4
+}

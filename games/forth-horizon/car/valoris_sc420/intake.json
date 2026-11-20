@@ -1,0 +1,28 @@
+{
+  "id": "valoris_sc420",
+  "status": "built (multi-view matched: winner=tt_06, sideIoU=0.904, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Sporty_coupe_asset_sheet_project\u2026_fef40bf5.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Sporty_coupe_on_rotating_turntable_fe8e3613.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_06",
+      "sideIoU": 0.9013,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "tt_11",
+      "sideIoU": 0.8841,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "tt_06",
+  "finalSideIoU": 0.9043,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 4.581,
+    "width": 1.94,
+    "height": 1.495
+  },
+  "faces": 60000,
+  "elapsedSec": 68.3
+}

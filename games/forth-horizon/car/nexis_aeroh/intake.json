@@ -1,0 +1,28 @@
+{
+  "id": "nexis_aeroh",
+  "status": "built (multi-view matched: winner=sheet_side, sideIoU=0.917, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Hybrid_sedan_production_asset_sheet_6de67776.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.9123,
+      "yawSymDeg": 0.25
+    },
+    {
+      "candidate": "sheet_front",
+      "sideIoU": 0.7555,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "sheet_side",
+  "finalSideIoU": 0.9175,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 4.78,
+    "width": 1.941,
+    "height": 1.745
+  },
+  "faces": 60000,
+  "elapsedSec": 51.9
+}

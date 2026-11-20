@@ -1,0 +1,28 @@
+{
+  "id": "vertix_terrahatch",
+  "status": "built (multi-view matched: winner=tt_07, sideIoU=0.933, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Compact_crossover_hatchback_prod\u2026_7ae68dad.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Compact_crossover_hatchback_rota\u2026_8601bf1d.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_07",
+      "sideIoU": 0.9187,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "tt_00",
+      "sideIoU": 0.9095,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_07",
+  "finalSideIoU": 0.9328,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 4.239,
+    "width": 1.842,
+    "height": 1.797
+  },
+  "faces": 60000,
+  "elapsedSec": 71.5
+}

@@ -1,0 +1,237 @@
+{
+  "id": "valoris_sc420",
+  "name": "Valoris SC-420 Coupe",
+  "glb": "/games/forth-horizon/car/valoris_sc420_base.glb",
+  "paint": "0xb4bcc6",
+  "accent": "0xc82228",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (valoris_sc420_base.glb, L=4.58m W=1.94m H=1.38m).",
+  "wheels": {
+    "frontZ": 1.353,
+    "rearZ": -1.235,
+    "frontX": 0.679,
+    "rearX": 0.671,
+    "scale": 0.94,
+    "discardR": 0.347,
+    "centreY": 0.334,
+    "tyreR": 0.334,
+    "rimR": 0.214,
+    "style": "forged"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.873,
+        0.0,
+        0.758
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.873,
+        0.0,
+        0.758
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.032,
+        0.738
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    },
+    "trunk": {
+      "hinge": [
+        0.0,
+        1.052,
+        -1.777
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": 0.85
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.66,
+        0.792,
+        0.758
+      ],
+      [
+        0.66,
+        1.272,
+        2.13
+      ]
+    ],
+    "trunk": [
+      [
+        -0.582,
+        0.872,
+        -2.17
+      ],
+      [
+        0.582,
+        1.252,
+        -1.797
+      ]
+    ],
+    "roof": [
+      [
+        -0.793,
+        1.186,
+        -1.248
+      ],
+      [
+        0.793,
+        1.52,
+        0.34
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.032,
+    "roofEdge": 1.326,
+    "pillarBase": 0.718,
+    "pillarTop": 0.34,
+    "doorFront": 0.758,
+    "doorRear": -0.592,
+    "windBase": 0.718,
+    "windTop": 0.34,
+    "rearTop": -1.248,
+    "rearBase": -1.777,
+    "rearBase2": -1.757,
+    "windHalfW": 0.793,
+    "rearHalfW": 0.486,
+    "sideWindow": [
+      [
+        -1.288,
+        1.062
+      ],
+      [
+        0.718,
+        1.052
+      ],
+      [
+        0.678,
+        1.155
+      ],
+      [
+        0.549,
+        1.261
+      ],
+      [
+        0.34,
+        1.296
+      ],
+      [
+        -1.208,
+        1.296
+      ],
+      [
+        -1.328,
+        1.232
+      ],
+      [
+        -1.348,
+        1.082
+      ]
+    ],
+    "handle": [
+      -0.077,
+      0.892
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.273,
+    "layout": "front-v8",
+    "arch": "i4-turbo",
+    "texUrl": "/games/forth-horizon/tex/engines/sports_sedan_20t.jpg"
+  },
+  "trunk": true,
+  "cabin": {
+    "yOffset": -0.04,
+    "zOffset": -0.2,
+    "cowlZ": 0.668,
+    "cowlY": 1.052
+  },
+  "exhaust": {
+    "z": -2.166,
+    "y": 0.26,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.278,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.543,
+      "y": 0.552,
+      "w": 0.252,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.563,
+      "y": 0.647,
+      "len": 0.291,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.32,
+    "bumperRearY": 0.34,
+    "skirtY": 0.2,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.312,
+    "grilleHiY": 0.602,
+    "grilleStyle": "sport"
+  }
+}

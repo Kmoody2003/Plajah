@@ -1,0 +1,28 @@
+{
+  "id": "nexis_strada",
+  "status": "built (multi-view matched: winner=tt_07, sideIoU=0.911, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Commuter_sedan_production_asset_\u2026_0283732f.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Sedan_on_turntable_rotation_show\u2026_0f903358.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_02",
+      "sideIoU": 0.8956,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "tt_07",
+      "sideIoU": 0.9028,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "tt_07",
+  "finalSideIoU": 0.9112,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 4.718,
+    "width": 1.941,
+    "height": 1.586
+  },
+  "faces": 60000,
+  "elapsedSec": 73.3
+}

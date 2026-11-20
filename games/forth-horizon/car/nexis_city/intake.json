@@ -1,0 +1,28 @@
+{
+  "id": "nexis_city",
+  "status": "built (multi-view matched: winner=tt_04, sideIoU=0.912, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\City_car_asset_sheet_layout_82776a23.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\City_car_rotating_on_turntable_a12ca051.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_04",
+      "sideIoU": 0.9002,
+      "yawSymDeg": -0.75
+    },
+    {
+      "candidate": "tt_09",
+      "sideIoU": 0.8992,
+      "yawSymDeg": 0.5
+    }
+  ],
+  "winner": "tt_04",
+  "finalSideIoU": 0.9123,
+  "yawSymDeg": -0.75,
+  "boundsM": {
+    "length": 3.849,
+    "width": 1.839,
+    "height": 1.766
+  },
+  "faces": 60000,
+  "elapsedSec": 94.1
+}

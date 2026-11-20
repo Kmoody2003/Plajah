@@ -1,0 +1,28 @@
+{
+  "id": "nexis_e03",
+  "status": "built (multi-view matched: winner=tt_01, sideIoU=0.923, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Electric_hatchback_vehicle_asset\u2026_0c7df06b.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Electric_hatchback_rotating_on_t\u2026_fef90c70.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_08",
+      "sideIoU": 0.9128,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "tt_01",
+      "sideIoU": 0.9193,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_01",
+  "finalSideIoU": 0.9233,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 4.158,
+    "width": 1.841,
+    "height": 1.541
+  },
+  "faces": 60000,
+  "elapsedSec": 70.3
+}

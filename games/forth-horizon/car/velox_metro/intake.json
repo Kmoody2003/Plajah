@@ -1,0 +1,28 @@
+{
+  "id": "velox_metro",
+  "status": "built (multi-view matched: winner=tt_00, sideIoU=0.892, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Hatchback_city_car_asset_sheet_0cbae574.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Hatchback_car_rotating_on_turntable_95aac7ba.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_07",
+      "sideIoU": 0.8983,
+      "yawSymDeg": 0.25
+    },
+    {
+      "candidate": "tt_00",
+      "sideIoU": 0.9065,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_00",
+  "finalSideIoU": 0.892,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 4.119,
+    "width": 1.842,
+    "height": 1.726
+  },
+  "faces": 60000,
+  "elapsedSec": 69.4
+}

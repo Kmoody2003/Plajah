@@ -1,0 +1,28 @@
+{
+  "id": "zephyr_spark_ev",
+  "status": "built (multi-view matched: winner=sheet_side, sideIoU=0.936, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Compact_hatchback_production_ass\u2026_6e4550c0.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.9353,
+      "yawSymDeg": 0.25
+    },
+    {
+      "candidate": "sheet_front",
+      "sideIoU": 0.7652,
+      "yawSymDeg": 1.5
+    }
+  ],
+  "winner": "sheet_side",
+  "finalSideIoU": 0.9358,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 4.22,
+    "width": 1.839,
+    "height": 1.516
+  },
+  "faces": 60000,
+  "elapsedSec": 42.2
+}
