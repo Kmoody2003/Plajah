@@ -1,0 +1,28 @@
+{
+  "id": "vanguard_crest",
+  "status": "built (multi-view matched: winner=tt_11, sideIoU=0.925, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_asset_sheet_blueprint_1324543b.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_rotating_on_studio_turntable_15d4d04b.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_06",
+      "sideIoU": 0.8837,
+      "yawSymDeg": 1.0
+    },
+    {
+      "candidate": "tt_11",
+      "sideIoU": 0.9219,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "tt_11",
+  "finalSideIoU": 0.9247,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 4.981,
+    "width": 2.079,
+    "height": 1.905
+  },
+  "faces": 60000,
+  "elapsedSec": 100.4
+}

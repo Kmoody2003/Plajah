@@ -1,0 +1,221 @@
+{
+  "id": "zephyr_majestic_ev",
+  "name": "Zephyr Majestic EV SUV",
+  "glb": "/games/forth-horizon/car/zephyr_majestic_ev_base.glb",
+  "paint": "0x526478",
+  "accent": "0x60a5fa",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (zephyr_majestic_ev_base.glb, L=5.08m W=2.08m H=1.67m).",
+  "wheels": {
+    "frontZ": 1.615,
+    "rearZ": -1.469,
+    "frontX": 0.776,
+    "rearX": 0.766,
+    "scale": 1.02,
+    "discardR": 0.376,
+    "centreY": 0.362,
+    "tyreR": 0.362,
+    "rimR": 0.233,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.936,
+        0.0,
+        1.213
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.936,
+        0.0,
+        1.213
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.305,
+        1.407
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.708,
+        1.065,
+        1.427
+      ],
+      [
+        0.708,
+        1.545,
+        2.38
+      ]
+    ],
+    "trunk": [
+      [
+        -0.624,
+        1.145,
+        -2.42
+      ],
+      [
+        0.624,
+        1.525,
+        -2.248
+      ]
+    ],
+    "roof": [
+      [
+        -0.826,
+        1.475,
+        -2.059
+      ],
+      [
+        0.826,
+        1.808,
+        1.107
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.305,
+    "roofEdge": 1.615,
+    "pillarBase": 1.387,
+    "pillarTop": 1.107,
+    "doorFront": 1.213,
+    "doorRear": -0.137,
+    "windBase": 1.387,
+    "windTop": 1.107,
+    "rearTop": -2.059,
+    "rearBase": -2.228,
+    "rearBase2": -2.208,
+    "windHalfW": 0.826,
+    "rearHalfW": 0.592,
+    "sideWindow": [
+      [
+        -2.099,
+        1.335
+      ],
+      [
+        1.173,
+        1.325
+      ],
+      [
+        1.133,
+        1.435
+      ],
+      [
+        1.16,
+        1.547
+      ],
+      [
+        1.107,
+        1.585
+      ],
+      [
+        -2.019,
+        1.585
+      ],
+      [
+        -2.139,
+        1.516
+      ],
+      [
+        -2.159,
+        1.355
+      ]
+    ],
+    "handle": [
+      0.378,
+      1.165
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.535,
+    "layout": "ev",
+    "arch": "ev",
+    "texUrl": "/games/forth-horizon/tex/engines/hybrid_i4.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.248,
+    "zOffset": -0.21,
+    "cowlZ": 1.337,
+    "cowlY": 1.325
+  },
+  "exhaust": {
+    "z": -2.418,
+    "y": 0.36,
+    "xs": []
+  },
+  "aero": {
+    "splitterZ": 2.529,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.583,
+      "y": 0.737,
+      "w": 0.271,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.604,
+      "y": 0.867,
+      "len": 0.312,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.497,
+    "grilleHiY": 0.787,
+    "grilleStyle": "ev"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "aurelia_solstice_cuv",
+  "status": "built (multi-view matched: winner=tt_09, sideIoU=0.924, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Crossover_SUV_production_asset_s\u2026_6724ffd8.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Crossover_SUV_rotating_on_turntable_84764586.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_09",
+      "sideIoU": 0.9131,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "tt_02",
+      "sideIoU": 0.9094,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "tt_09",
+  "finalSideIoU": 0.9238,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 4.62,
+    "width": 2.079,
+    "height": 1.879
+  },
+  "faces": 60000,
+  "elapsedSec": 96.4
+}

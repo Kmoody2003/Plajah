@@ -1,0 +1,28 @@
+{
+  "id": "aureon_luxury_suv",
+  "status": "built (multi-view matched: winner=tt_09, sideIoU=0.920, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_asset_sheet_multi-view_proje\u2026_b6ac82a8.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_rotating_on_studio_turntable_30a012a7.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_04",
+      "sideIoU": 0.8948,
+      "yawSymDeg": 0.25
+    },
+    {
+      "candidate": "tt_09",
+      "sideIoU": 0.9056,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_09",
+  "finalSideIoU": 0.9201,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 5.061,
+    "width": 2.081,
+    "height": 1.899
+  },
+  "faces": 60000,
+  "elapsedSec": 91.7
+}

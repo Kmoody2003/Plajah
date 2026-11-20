@@ -1,0 +1,28 @@
+{
+  "id": "kestrel_defender",
+  "status": "built (multi-view matched: winner=sheet_front34, sideIoU=0.793, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Armored_SUV_production_asset_sheet_bb1fd6dc.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.7568,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.7368,
+      "yawSymDeg": -0.75
+    }
+  ],
+  "winner": "sheet_front34",
+  "finalSideIoU": 0.7927,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 5.118,
+    "width": 2.081,
+    "height": 1.902
+  },
+  "faces": 60000,
+  "elapsedSec": 114.2
+}

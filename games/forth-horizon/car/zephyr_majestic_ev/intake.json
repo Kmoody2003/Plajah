@@ -1,0 +1,28 @@
+{
+  "id": "zephyr_majestic_ev",
+  "status": "built (multi-view matched: winner=sheet_front, sideIoU=0.802, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Electric_SUV_vehicle_asset_sheet_ea9dca39.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.7759,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "sheet_front",
+      "sideIoU": 0.7815,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "sheet_front",
+  "finalSideIoU": 0.802,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 5.079,
+    "width": 2.081,
+    "height": 1.668
+  },
+  "faces": 60000,
+  "elapsedSec": 62.3
+}

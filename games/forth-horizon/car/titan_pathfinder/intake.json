@@ -1,0 +1,28 @@
+{
+  "id": "titan_pathfinder",
+  "status": "built (multi-view matched: winner=tt_10, sideIoU=0.901, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_asset_sheet_multi-view_proje\u2026_9a245dcd.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Titan_Ridge_Pathfinder_SUV_rotating_b3740c8f.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_05",
+      "sideIoU": 0.7438,
+      "yawSymDeg": -1.5
+    },
+    {
+      "candidate": "tt_10",
+      "sideIoU": 0.8876,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_10",
+  "finalSideIoU": 0.9005,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 4.932,
+    "width": 2.07,
+    "height": 1.862
+  },
+  "faces": 50102,
+  "elapsedSec": 111.7
+}

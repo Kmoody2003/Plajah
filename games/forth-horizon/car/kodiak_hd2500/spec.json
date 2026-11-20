@@ -1,0 +1,224 @@
+{
+  "id": "kodiak_hd2500",
+  "name": "Meridian Kodiak HD-2500",
+  "glb": "/games/forth-horizon/car/kodiak_hd2500_base.glb",
+  "paint": "0x727880",
+  "accent": "0x1a1c20",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (kodiak_hd2500_base.glb, L=5.87m W=2.14m H=1.95m).",
+  "wheels": {
+    "frontZ": 1.79,
+    "rearZ": -1.644,
+    "frontX": 0.672,
+    "rearX": 0.661,
+    "scale": 1.162,
+    "discardR": 0.43,
+    "centreY": 0.413,
+    "tyreR": 0.413,
+    "rimR": 0.265,
+    "style": "offroad"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.963,
+        0.0,
+        1.337
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.963,
+        0.0,
+        1.337
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.385,
+        1.335
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.727,
+        1.145,
+        1.355
+      ],
+      [
+        0.727,
+        1.625,
+        2.774
+      ]
+    ],
+    "trunk": [
+      [
+        -0.642,
+        1.225,
+        -2.814
+      ],
+      [
+        0.642,
+        1.605,
+        -2.837
+      ]
+    ],
+    "roof": [
+      [
+        -0.867,
+        1.707,
+        -1.9
+      ],
+      [
+        0.867,
+        2.093,
+        0.438
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.385,
+    "roofEdge": 1.847,
+    "pillarBase": 1.315,
+    "pillarTop": 0.438,
+    "doorFront": 1.337,
+    "doorRear": -0.013,
+    "windBase": 1.315,
+    "windTop": 0.438,
+    "rearTop": -1.9,
+    "rearBase": -2.817,
+    "rearBase2": -2.797,
+    "windHalfW": 0.867,
+    "rearHalfW": 0.507,
+    "sideWindow": [
+      [
+        -1.94,
+        1.415
+      ],
+      [
+        1.297,
+        1.405
+      ],
+      [
+        1.257,
+        1.579
+      ],
+      [
+        0.888,
+        1.745
+      ],
+      [
+        0.438,
+        1.817
+      ],
+      [
+        -1.86,
+        1.817
+      ],
+      [
+        -1.98,
+        1.699
+      ],
+      [
+        -2.0,
+        1.435
+      ]
+    ],
+    "handle": [
+      0.502,
+      1.245
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.15,
+    "layout": "front-v8",
+    "arch": "diesel-v8",
+    "texUrl": "/games/forth-horizon/tex/engines/diesel_pickup.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.533,
+    "zOffset": -0.322,
+    "cowlZ": 1.265,
+    "cowlY": 1.405
+  },
+  "exhaust": {
+    "z": -2.666,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.908,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.599,
+      "y": 0.911,
+      "w": 0.278,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.621,
+      "y": 0.873,
+      "len": 0.321,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.671,
+    "grilleHiY": 0.961,
+    "grilleStyle": "truck"
+  }
+}

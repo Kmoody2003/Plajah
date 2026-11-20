@@ -1,0 +1,28 @@
+{
+  "id": "zephyr_titan_ev",
+  "status": "built (multi-view matched: winner=tt_06, sideIoU=0.914, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Electric_SUV_production_asset_sheet_62b24131.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Zephyr_Titan_EV_SUV_rotation_f56db64b.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_06",
+      "sideIoU": 0.902,
+      "yawSymDeg": -0.75
+    },
+    {
+      "candidate": "tt_11",
+      "sideIoU": 0.8989,
+      "yawSymDeg": 0.5
+    }
+  ],
+  "winner": "tt_06",
+  "finalSideIoU": 0.914,
+  "yawSymDeg": -0.75,
+  "boundsM": {
+    "length": 5.041,
+    "width": 2.082,
+    "height": 1.889
+  },
+  "faces": 60000,
+  "elapsedSec": 100.4
+}

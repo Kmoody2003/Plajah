@@ -1,0 +1,224 @@
+{
+  "id": "kestrel_defender",
+  "name": "Kestrel Defender Armored SUV",
+  "glb": "/games/forth-horizon/car/kestrel_defender_base.glb",
+  "paint": "0x3c4248",
+  "accent": "0x14161a",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (kestrel_defender_base.glb, L=5.12m W=2.08m H=1.90m).",
+  "wheels": {
+    "frontZ": 1.505,
+    "rearZ": -1.483,
+    "frontX": 0.724,
+    "rearX": 0.716,
+    "scale": 1.132,
+    "discardR": 0.418,
+    "centreY": 0.402,
+    "tyreR": 0.402,
+    "rimR": 0.258,
+    "style": "offroad"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.936,
+        0.0,
+        1.014
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.936,
+        0.0,
+        1.014
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.353,
+        0.994
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.707,
+        1.113,
+        1.014
+      ],
+      [
+        0.707,
+        1.593,
+        2.399
+      ]
+    ],
+    "trunk": [
+      [
+        -0.624,
+        1.193,
+        -2.439
+      ],
+      [
+        0.624,
+        1.573,
+        -2.477
+      ]
+    ],
+    "roof": [
+      [
+        -0.832,
+        1.689,
+        -1.737
+      ],
+      [
+        0.832,
+        2.042,
+        0.551
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.353,
+    "roofEdge": 1.829,
+    "pillarBase": 0.974,
+    "pillarTop": 0.551,
+    "doorFront": 1.014,
+    "doorRear": -0.336,
+    "windBase": 0.974,
+    "windTop": 0.551,
+    "rearTop": -1.737,
+    "rearBase": -2.457,
+    "rearBase2": -2.437,
+    "windHalfW": 0.832,
+    "rearHalfW": 0.579,
+    "sideWindow": [
+      [
+        -1.777,
+        1.383
+      ],
+      [
+        0.974,
+        1.373
+      ],
+      [
+        0.934,
+        1.553
+      ],
+      [
+        0.782,
+        1.724
+      ],
+      [
+        0.551,
+        1.799
+      ],
+      [
+        -1.697,
+        1.799
+      ],
+      [
+        -1.817,
+        1.677
+      ],
+      [
+        -1.837,
+        1.403
+      ]
+    ],
+    "handle": [
+      0.179,
+      1.213
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.425,
+    "layout": "front-v8",
+    "arch": "pickup-v8",
+    "texUrl": "/games/forth-horizon/tex/engines/pickup_v8.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.482,
+    "zOffset": -0.261,
+    "cowlZ": 0.924,
+    "cowlY": 1.373
+  },
+  "exhaust": {
+    "z": -2.436,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.547,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.583,
+      "y": 0.837,
+      "w": 0.27,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.603,
+      "y": 0.873,
+      "len": 0.312,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.597,
+    "grilleHiY": 0.887,
+    "grilleStyle": "truck"
+  }
+}

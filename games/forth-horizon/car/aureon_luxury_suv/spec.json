@@ -1,0 +1,224 @@
+{
+  "id": "aureon_luxury_suv",
+  "name": "Aureon Sovereign Luxury SUV",
+  "glb": "/games/forth-horizon/car/aureon_luxury_suv_base.glb",
+  "paint": "0x242830",
+  "accent": "0xd2d8e0",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (aureon_luxury_suv_base.glb, L=5.06m W=2.08m H=1.90m).",
+  "wheels": {
+    "frontZ": 1.584,
+    "rearZ": -1.356,
+    "frontX": 0.721,
+    "rearX": 0.714,
+    "scale": 1.13,
+    "discardR": 0.417,
+    "centreY": 0.401,
+    "tyreR": 0.401,
+    "rimR": 0.258,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.936,
+        0.0,
+        1.143
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.936,
+        0.0,
+        1.143
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.393,
+        1.151
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.707,
+        1.153,
+        1.171
+      ],
+      [
+        0.707,
+        1.633,
+        2.371
+      ]
+    ],
+    "trunk": [
+      [
+        -0.624,
+        1.233,
+        -2.411
+      ],
+      [
+        0.624,
+        1.613,
+        -2.407
+      ]
+    ],
+    "roof": [
+      [
+        -0.813,
+        1.686,
+        -2.136
+      ],
+      [
+        0.813,
+        2.039,
+        0.628
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.393,
+    "roofEdge": 1.826,
+    "pillarBase": 1.131,
+    "pillarTop": 0.628,
+    "doorFront": 1.143,
+    "doorRear": -0.207,
+    "windBase": 1.131,
+    "windTop": 0.628,
+    "rearTop": -2.136,
+    "rearBase": -2.387,
+    "rearBase2": -2.367,
+    "windHalfW": 0.813,
+    "rearHalfW": 0.542,
+    "sideWindow": [
+      [
+        -2.176,
+        1.423
+      ],
+      [
+        1.103,
+        1.413
+      ],
+      [
+        1.063,
+        1.575
+      ],
+      [
+        0.886,
+        1.731
+      ],
+      [
+        0.628,
+        1.796
+      ],
+      [
+        -2.096,
+        1.796
+      ],
+      [
+        -2.216,
+        1.687
+      ],
+      [
+        -2.236,
+        1.443
+      ]
+    ],
+    "handle": [
+      0.308,
+      1.253
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.504,
+    "layout": "front-v8",
+    "arch": "pickup-v8",
+    "texUrl": "/games/forth-horizon/tex/engines/pickup_v8.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.479,
+    "zOffset": -0.332,
+    "cowlZ": 1.081,
+    "cowlY": 1.413
+  },
+  "exhaust": {
+    "z": -2.414,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.523,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.583,
+      "y": 0.848,
+      "w": 0.27,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.603,
+      "y": 0.906,
+      "len": 0.312,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.608,
+    "grilleHiY": 0.898,
+    "grilleStyle": "truck"
+  }
+}

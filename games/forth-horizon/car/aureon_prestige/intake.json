@@ -1,0 +1,28 @@
+{
+  "id": "aureon_prestige",
+  "status": "built (multi-view matched: winner=tt_00, sideIoU=0.908, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_asset_sheet_projections_7e2405cc.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\SUV_rotating_on_studio_turntable_61fd2082.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_07",
+      "sideIoU": 0.8887,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "tt_00",
+      "sideIoU": 0.8913,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "tt_00",
+  "finalSideIoU": 0.9081,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 5.099,
+    "width": 2.079,
+    "height": 1.895
+  },
+  "faces": 59999,
+  "elapsedSec": 103.3
+}

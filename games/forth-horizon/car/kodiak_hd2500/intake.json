@@ -1,0 +1,28 @@
+{
+  "id": "kodiak_hd2500",
+  "status": "built (multi-view matched: winner=tt_10, sideIoU=0.814, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Heavy_duty_pickup_truck_blueprint_83637738.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Pickup_truck_rotating_on_turntable_bc022229.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_05",
+      "sideIoU": 0.7743,
+      "yawSymDeg": 4.25
+    },
+    {
+      "candidate": "tt_10",
+      "sideIoU": 0.7963,
+      "yawSymDeg": 0.75
+    }
+  ],
+  "winner": "tt_10",
+  "finalSideIoU": 0.8144,
+  "yawSymDeg": 0.75,
+  "boundsM": {
+    "length": 5.869,
+    "width": 2.14,
+    "height": 1.953
+  },
+  "faces": 57337,
+  "elapsedSec": 153.5
+}

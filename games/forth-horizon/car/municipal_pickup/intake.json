@@ -1,0 +1,23 @@
+{
+  "id": "municipal_pickup",
+  "status": "built (multi-view matched: winner=sheet_side, sideIoU=0.619, Class-A symmetry + 22-iter Taubin + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library\\Municipal_maintenance_pickup_tru\u2026_880e58c6.jpg",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_side",
+      "sideIoU": 0.6225,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "sheet_side",
+  "finalSideIoU": 0.6189,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 5.627,
+    "width": 2.134,
+    "height": 1.777
+  },
+  "faces": 60000,
+  "elapsedSec": 55.9
+}
