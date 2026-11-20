@@ -170,7 +170,10 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
 
   // ── the Great Oak: a trunk you can't miss, roots over the plateau, limbs into a vast crown ─────────────────
   const treeGeos: THREE.BufferGeometry[] = [], rootGeos: THREE.BufferGeometry[] = [];
-  type Crown = { x: number; y: number; z: number; r: number; kind: number };
+  type Crown = { x: number; y: number; z: number; r: number; kind: number; forest?: boolean };
+  /** Forest trees (not the oak, the platforms or the tower): code trunks + cards until the sheet-built tree models load. */
+  const fTreeGeos: THREE.BufferGeometry[] = [], fRootGeos: THREE.BufferGeometry[] = [];
+  const forestSpots: { x: number; z: number; h: number; yaw: number }[] = [];
   const crowns: Crown[] = [];
   let oakCollider: THREE.BufferGeometry | null = null;
   {
@@ -526,14 +529,15 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     const gy = H(x, z), lean = new THREE.Vector3((R() - 0.5) * 0.12 * h, 0, (R() - 0.5) * 0.12 * h);
     const c = new THREE.CatmullRomCurve3([new THREE.Vector3(x, gy - 1, z), new THREE.Vector3(x + lean.x * 0.3, gy + h * 0.35, z + lean.z * 0.3),
       new THREE.Vector3(x + lean.x * 0.75, gy + h * 0.7, z + lean.z * 0.75), new THREE.Vector3(x + lean.x, gy + h, z + lean.z)]);
-    treeGeos.push(barkTube(c, r, r * 0.3, lo ? 8 : 12, lo ? 8 : 12, 0.3, x * 0.1 + z));
+    fTreeGeos.push(barkTube(c, r, r * 0.3, lo ? 8 : 12, lo ? 8 : 12, 0.3, x * 0.1 + z));
+    forestSpots.push({ x, z, h, yaw: R() * Math.PI * 2 });
     for (let k = 0; k < (lo ? 3 : 5); k++) {
       const ra = (k / 5) * Math.PI * 2 + R(), len = r * (3 + R() * 3);
-      rootGeos.push(barkTube(new THREE.CatmullRomCurve3([new THREE.Vector3(x + Math.sin(ra) * r * 0.5, gy + r * 1.8, z + Math.cos(ra) * r * 0.5),
+      fRootGeos.push(barkTube(new THREE.CatmullRomCurve3([new THREE.Vector3(x + Math.sin(ra) * r * 0.5, gy + r * 1.8, z + Math.cos(ra) * r * 0.5),
         new THREE.Vector3(x + Math.sin(ra) * len * 0.5, gy + r * 0.4, z + Math.cos(ra) * len * 0.5),
         new THREE.Vector3(x + Math.sin(ra) * len, H(x + Math.sin(ra) * len, z + Math.cos(ra) * len) - 0.2, z + Math.cos(ra) * len)]), r * 0.42, r * 0.08, 7, 6, 0.5, k + x));
     }
-    crowns.push({ x: x + lean.x, y: gy + h * 0.92, z: z + lean.z, r: h * 0.36, kind });
+    crowns.push({ x: x + lean.x, y: gy + h * 0.92, z: z + lean.z, r: h * 0.36, kind, forest: true });
   };
   const okForTree = (x: number, z: number) => !nearLane(x, z, 6) && !inStructure(x, z, 2) && Math.abs(x) < BOUND + 2 && Math.abs(z) < BOUND + 2;
   {
@@ -552,6 +556,10 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     const rg = mergeGeometries(rootGeos.map((g) => g.index ? g.toNonIndexed() : g), false);
     if (rg) { const m = new THREE.Mesh(rg, bark); m.castShadow = !lo; m.receiveShadow = true; group.add(m); }
     if (oakCollider) { const m = new THREE.Mesh(oakCollider, B.invisible); m.userData.collide = true; group.add(m); }
+    const ftg = mergeGeometries(fTreeGeos.map((g) => g.index ? g.toNonIndexed() : g), false);
+    if (ftg) { const m = new THREE.Mesh(ftg, bark); m.name = 'forest-trunks'; m.castShadow = true; m.receiveShadow = true; m.userData.collide = true; group.add(m); }
+    const frg = mergeGeometries(fRootGeos.map((g) => g.index ? g.toNonIndexed() : g), false);
+    if (frg) { const m = new THREE.Mesh(frg, bark); m.name = 'forest-roots'; m.castShadow = !lo; m.receiveShadow = true; group.add(m); }
   }
   const cardMat = (file: string, glow: number, tint = 0xffffff) => {
     const map = art(file);
@@ -560,10 +568,11 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     m.emissiveNode = c.mul(smoothstep(float(0.05), float(0.3), c.b.sub(c.r))).mul(glow).mul(float(1).add(uBeatPulse.mul(0.35)));
     return m;
   };
-  {
+  const forestCrowns = new THREE.Group(); forestCrowns.name = 'forest-crowns'; group.add(forestCrowns);
+  for (const forest of [false, true]) {
     const perCrown = lo ? 14 : 30;
     for (let kind = 0; kind < 8; kind++) {
-      const list = crowns.filter((c) => c.kind === kind);
+      const list = crowns.filter((c) => c.kind === kind && !!c.forest === forest);
       if (!list.length) continue;
       const [w, hgt] = SPR[`canopy_${kind}`];
       const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, hgt / w), cardMat(`canopy_${kind}.webp`, kind >= 3 && kind <= 5 ? 0.9 : 0.5, 0xd8e8d8), list.reduce((n, c) => n + Math.round(perCrown * Math.min(3, c.r / 7)), 0));
@@ -579,7 +588,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
         }
       }
       mesh.count = n; mesh.frustumCulled = false; mesh.castShadow = !lo;
-      group.add(mesh);
+      (forest ? forestCrowns : group).add(mesh);
     }
   }
 
@@ -692,6 +701,44 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   placeModel('mushroom_cluster.glb', -40, -24, 2.3, 3.8);
   placeModel('ruin_walls.glb', 30, 4, -0.6, 4.5);
   placeModel('ruin_walls.glb', -46, 40, 2.0, 4.5);
+
+  // ── forest trees as models built from the Cyber Forest tree sheets (instanced). When they load, the code trunks
+  //    stay as colliders only and the card crowns go; until then (or if none load) the code trees stand. ──────────
+  {
+    const files = ['tree_willow.glb', 'tree_blue.glb', 'tree_mangrove.glb']; // tree_bio came out a flat cut-out from the side: left out
+    Promise.allSettled(files.map((f) => loader.loadAsync(MODELS + f))).then((res) => {
+      const models = res.flatMap((r) => {
+        if (r.status !== 'fulfilled') return [];
+        let mesh: THREE.Mesh | null = null;
+        r.value.scene.traverse((o) => { if (!mesh && (o as THREE.Mesh).isMesh) mesh = o as THREE.Mesh; });
+        if (!mesh) return [];
+        const m = mesh as THREE.Mesh;
+        m.updateWorldMatrix(true, false);
+        const geo = m.geometry.clone().applyMatrix4(m.matrixWorld);
+        geo.computeBoundingBox();
+        const b = geo.boundingBox!, c = b.getCenter(new THREE.Vector3());
+        geo.translate(-c.x, -b.min.y, -c.z);
+        return [{ geo, mat: m.material as THREE.Material, height: b.max.y - b.min.y }];
+      });
+      if (!models.length) return;
+      const per = models.map(() => [] as THREE.Matrix4[]);
+      forestSpots.forEach((sp, i) => {
+        const k = Math.abs(Math.floor(Math.sin(sp.x * 0.13 + sp.z * 0.07) * 1000 + i)) % models.length, md = models[k];
+        const sc = (sp.h * 1.05) / md.height;
+        per[k].push(new THREE.Matrix4().compose(new THREE.Vector3(sp.x, H(sp.x, sp.z) - 0.3, sp.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, sp.yaw, 0)), new THREE.Vector3(sc, sc, sc)));
+      });
+      models.forEach((md, k) => {
+        if (!per[k].length) return;
+        const im = new THREE.InstancedMesh(md.geo, md.mat, per[k].length);
+        per[k].forEach((mx, i) => im.setMatrixAt(i, mx));
+        im.castShadow = !lo; im.receiveShadow = true; im.frustumCulled = false;
+        group.add(im);
+      });
+      const trunks = group.getObjectByName('forest-trunks') as THREE.Mesh | undefined;
+      if (trunks) trunks.material = B.invisible;           // still the colliders
+      for (const n of ['forest-roots', 'forest-crowns']) { const o = group.getObjectByName(n); if (o) o.visible = false; }
+    });
+  }
 
   // ── lights ────────────────────────────────────────────────────────────────────────────────────────────────
   const hemi = new THREE.HemisphereLight(0x9fd4e0, 0x1c3024, 1.8);
