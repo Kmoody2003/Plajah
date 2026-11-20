@@ -86,3 +86,54 @@ for enterable structures, and **21 tiling 2048² photo textures** (+ v3's normal
   Cabin: side outline match 0.72/0.74 → 0.84/0.92, back 0.85, front kept 0.93+, caved-in back filled.
   Next in B2: SAM parts + Gemma naming so each part (roof plane, post, ladder, chimney) gets its own rule (planar roof,
   cylinder logs, thin ladder rails) instead of one voxel treatment.
+
+## Batch: all Elderwood sheets (2026-11-19), strengths and weaknesses
+`buildFromSheet` with the geometry step, run on CF-01…CF-23 (no tuning between sheets). 19 built. CF-16 Cover Kit,
+CF-21 Lighting Props, CF-22 Waterfall Pool and CF-23 Ruin Walls ran out of memory (PC commit ~5 GB free: other apps hold
+~17 GB; the engine's surface-snap step samples 4M points). Overview: `docs/plajah-3d-elderwood-batch.jpg`.
+
+**Scorecard** — better: 3 (cabin, chapel, monolith) · about the same: 7 · worse: 8 · total failure: 1 (Great Oak).
+
+### By situation
+| Situation | Sheets | Result | Why |
+|---|---|---|---|
+| Solid object, house layout, eye-level orthographic views | 03 cabin, 04 chapel, 18 monolith | **works** | views found + named right; sides rebuild what the generator melted (chapel walls) or left sunken (cabin back) |
+| Platforms around a trunk (radial) | 02, 05, 06, 07, 08 | **worse** (lumps, streaks) | figures merge/overlap on these sheets; a round object's silhouettes all agree at IoU ~0.7, so wrong views pass; uncapped grow fills the merged outline |
+| Open frames: railings, ropes, ladders, lattices | 09 tower, 11 bridge, 17 rack | **worse / walls** | the cut-out fills holes, the generator makes solids, grow fills between rails |
+| Organic / rounded | 19 mushrooms, 15 swing | **worse** on 19 even with every view right | voxel rebuild (288 grid, per-axis projection) terraces curved surfaces; it only keeps the generator's surface where nothing moved |
+| Views drawn from above (3/4 high angle) | 12 junction | unchanged | no view is an elevation; the generator also reads the raised front as eye level |
+| Long rigs between two anchors | 13 zipline | **worse** (−52% vol) | views at different scales; a side view in the plan slot cut a whole tree (single-view group, no vote) |
+| Collage / panel-grid / kit sheets | 01 oak, 15 swing, 17 rack, 20 vegetation | fail / unchanged | whole sheet or grid read as one figure; kit sheets hold several objects |
+| Sheets with printed view labels | 14 stairway | unchanged | labels ("LEFT SIDE VIEW") ignored; roles by reading order put left/right swapped |
+
+### Strengths
+- The generator (Hunyuan, front view) is usually good: platforms, watchtower, swing, mushrooms, stairway came out
+  recognisable before any geometry step.
+- When a sheet is read right, the geometry step does what it was built for (chapel walls, cabin back, monolith).
+- The overlap gate is safe against obviously wrong views: it rejected views on 07, 10, 11, 12, 14, 15, 20 and left the
+  shape alone.
+
+### Weaknesses, in order of damage
+1. **Reading the sheet** (10 of 19 sheets): figures merged by touching canopies / debris / panel frames, overlapping
+   boxes, full-bleed material insets taken as views, roles by reading order instead of what the drawing shows, labels
+   ignored, kit sheets with several objects.
+2. **Voxel rebuild quality**: terracing and horizontal streaks on everything it changes; snap only restores untouched areas.
+3. **Grow has no cap** (02: +16%, 17: +15%); the outline cut does (22%).
+4. **Proportions use rejected views** (13: a 0.05-overlap view drove depth ×1.6).
+5. **Single-view groups cut without a vote** (13).
+6. **Open structures become solids** (cut-out hole fill + generator).
+7. **No interiors** (chapel plan rejected because the model is solid; cutaways unused).
+8. **The judge is wrong**: outline overlap ROSE on the lumps (grow fills the outline), so IoU can't tell a better model
+   from a worse one. A judge must compare the painted render with the art per view (edges/features), not silhouettes.
+
+### What to build next (proposed)
+A. **Sheet reader from a vision model**: SAM regions + layout reasoning (Gemma 4 locally) to find each drawing, read
+   printed labels, tell elevation / plan / cutaway / inset / kit part apart, estimate each view's camera pitch, and split
+   kit sheets into separate objects. Fixes weakness 1 and feeds everything else.
+B. **Geometry step v2 as surface deformation**: move the generator's own vertices along normals toward each view's
+   silhouette and depth (no re-voxelising) → no terracing; keep the voxel path only for filling big dents. Add the guards:
+   proportions from passing views only, grow cap, single-view groups need ≥0.75, revert on any judged loss.
+C. **Render-vs-art judge**: per-view render of the painted model compared with the art cut-out (edge + feature
+   similarity), used both as the revert guard and as the batch score.
+D. **Open-structure rule**: keep the cut-out's holes (rails, ropes, ladder rungs) and build thin parts as tubes/planks
+   from the kit row instead of letting the generator make walls.
