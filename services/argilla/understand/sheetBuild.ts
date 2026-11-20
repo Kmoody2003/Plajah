@@ -11,6 +11,7 @@
  */
 
 import { imageToModel, paintFromViews, reshapeFromViews, type PaintViewName, type ReshapeReport } from '../../tela/tela3dService';
+import { readSheet, type SheetReading } from './sheetReader';
 
 export type SheetRole = 'front' | 'left' | 'right' | 'back' | 'top' | 'profile' | 'detail';
 
@@ -22,6 +23,11 @@ export interface SheetFigure {
   area: number;
   role: SheetRole;
   row: number;
+  /** Background colour around this drawing (a panel's colour inside a panel). */
+  bg?: [number, number, number];
+  /** What the sheet reader took it for (view, plan, cutaway, inset, part, label) and why. */
+  kind?: string;
+  why?: string;
 }
 
 /** The background colour: median of a thin border all round. */
@@ -70,59 +76,25 @@ function components(mask: Uint8Array, w: number, h: number) {
 }
 
 /**
- * The figures on a sheet, in reading order, with the house roles for the first six (row 1: front, left, right;
- * row 2: back, top, profile). Everything else is 'detail'. Roles are a guess the person can change; the build checks
- * each view's outline against the shape and reports a poor match.
+ * The views on a sheet, read by sheetReader: drawings found by straight cuts and connected pieces (touching drawings
+ * separated, close-ups and panels recognised), elevations found as the drawings sharing one height, the back and the
+ * sides chosen by how their outlines mirror the front and each other, the plan by its box. Roles the person sets win.
  */
-export function findSheetViews(img: Raster, threshold = 18): SheetFigure[] {
-  // Work at ~600 px wide: figures are big; small specks and insets are filtered by area.
-  const k = Math.max(1, Math.floor(img.width / 600)), w = Math.floor(img.width / k), h = Math.floor(img.height / k);
-  const bg = backgroundOf(img), dist = distanceMap(img, bg);
-  const mask = new Uint8Array(w * h);
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    let m = 0;
-    for (let j = 0; j < k; j++) for (let i = 0; i < k; i++) m = Math.max(m, dist[x * k + i + (y * k + j) * img.width]);
-    mask[x + y * w] = m > threshold ? 1 : 0;
-  }
-  // close small gaps so a figure with thin parts (rope rails, branches) stays one piece
-  const closed = new Uint8Array(mask);
-  for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) if (!mask[x + y * w]) {
-    let n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) n += mask[x + dx + (y + dy) * w];
-    if (n >= 3) closed[x + y * w] = 1;
-  }
-  const { boxes } = components(closed, w, h);
-  const big = boxes.filter((b) => b.area > w * h * 0.004);
-  // merge pieces of one figure: boxes that overlap or nearly touch
-  const merged: typeof big = [];
-  for (const b of big.sort((p, q) => q.area - p.area)) {
-    const near = merged.find((m) => b.x0 <= m.x1 + 4 && m.x0 <= b.x1 + 4 && b.y0 <= m.y1 + 4 && m.y0 <= b.y1 + 4);
-    if (near) { near.x0 = Math.min(near.x0, b.x0); near.y0 = Math.min(near.y0, b.y0); near.x1 = Math.max(near.x1, b.x1); near.y1 = Math.max(near.y1, b.y1); near.area += b.area; }
-    else merged.push({ ...b });
-  }
-  // rows: figures whose vertical centres are within half the median height of each other
-  const figs = merged.filter((b) => b.area > w * h * 0.01);
-  const hMed = figs.map((b) => b.y1 - b.y0).sort((a, b) => a - b)[figs.length >> 1] ?? h;
-  figs.sort((a, b) => (a.y0 + a.y1) - (b.y0 + b.y1));
-  const rows: (typeof figs)[] = [];
-  for (const f of figs) {
-    const cy = (f.y0 + f.y1) / 2, row = rows.find((r) => Math.abs((r[0].y0 + r[0].y1) / 2 - cy) < hMed * 0.5);
-    if (row) row.push(f); else rows.push([f]);
-  }
-  const HOUSE: SheetRole[] = ['front', 'left', 'right', 'back', 'top', 'profile'];
-  const out: SheetFigure[] = [];
-  rows.forEach((r, ri) => r.sort((a, b) => a.x0 - b.x0).forEach((f) => {
-    const role = out.length < HOUSE.length && ri < 2 ? HOUSE[out.length] : 'detail';
-    out.push({ x0: f.x0 * k, y0: f.y0 * k, x1: Math.min(img.width, (f.x1 + 1) * k), y1: Math.min(img.height, (f.y1 + 1) * k), area: f.area * k * k, role, row: ri });
+export function findSheetViews(img: Raster, reading: SheetReading = readSheet(img)): SheetFigure[] {
+  const ROLE: Record<string, SheetRole> = { front: 'front', back: 'back', left: 'left', right: 'right', top: 'top', extra: 'profile' };
+  return reading.figures.filter((f) => f.kind !== 'label').map((f) => ({
+    x0: f.x0, y0: f.y0, x1: f.x1, y1: f.y1, area: f.area,
+    role: (f.kind === 'view' || f.kind === 'plan') && f.role ? ROLE[f.role] : 'detail',
+    row: f.order, bg: f.bg, kind: f.kind, why: f.why,
   }));
-  return out;
 }
 
 /**
  * One view on transparency. Alpha comes from the distance to the background (soft ramp), so pale and thin parts stay;
  * holes inside the figure are filled and only the main piece is kept. A margin of background is left round it.
  */
-export function cutFigure(img: Raster, fig: Pick<SheetFigure, 'x0' | 'y0' | 'x1' | 'y1'>, threshold = 14, margin = 0.04): Raster {
-  const bg = backgroundOf(img);
+export function cutFigure(img: Raster, fig: Pick<SheetFigure, 'x0' | 'y0' | 'x1' | 'y1'> & { bg?: [number, number, number] }, threshold = 14, margin = 0.04): Raster {
+  const bg = fig.bg ?? backgroundOf(img);
   const mx = Math.round((fig.x1 - fig.x0) * margin), my = Math.round((fig.y1 - fig.y0) * margin);
   const x0 = Math.max(0, fig.x0 - mx), y0 = Math.max(0, fig.y0 - my), x1 = Math.min(img.width, fig.x1 + mx), y1 = Math.min(img.height, fig.y1 + my);
   const w = x1 - x0, h = y1 - y0, out = new Uint8ClampedArray(w * h * 4), on = new Uint8Array(w * h), a = new Float32Array(w * h);
@@ -141,6 +113,15 @@ export function cutFigure(img: Raster, fig: Pick<SheetFigure, 'x0' | 'y0' | 'x1'
   while (stack.length) {
     const p = stack.pop()!, x = p % w, y = (p / w) | 0;
     if (x > 0) seed(p - 1); if (x < w - 1) seed(p + 1); if (y > 0) seed(p - w); if (y < h - 1) seed(p + w);
+  }
+  // Big enclosed background (an archway, the sky between a railing's posts, the gap under a rope bridge's deck) is an
+  // opening, not part of the subject: only small holes (pale spots in the paint) are filled.
+  {
+    const hole = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) hole[i] = !on[i] && !outside[i] ? 1 : 0;
+    const { label: hl, boxes: hb } = components(hole, w, h);
+    const big = hb.map((b) => b.area > w * h * 0.004);
+    for (let i = 0; i < w * h; i++) if (hole[i] && big[hl[i]]) outside[i] = 1;
   }
   const solid = new Uint8Array(w * h);
   for (let i = 0; i < w * h; i++) solid[i] = outside[i] ? 0 : 1;
@@ -213,6 +194,12 @@ export interface SheetBuild {
   paintedShare: number;
   overlap: Record<string, number>;
   weak: string[];
+  /** The drawing the shape was generated from, and the turn (degrees about +Y) that puts the model's real front forward:
+   *  overlaps and the painted views are in the generated model's frame, where the source drawing is the front. */
+  sourceView: SheetRole;
+  turnDeg: number;
+  /** What the sheet reader noticed (no back view, a kit sheet, elevations not to one scale…). */
+  warnings: string[];
   seconds: number;
 }
 
@@ -221,27 +208,47 @@ export async function buildFromSheet(sheet: Blob, options: SheetBuildOptions = {
   const t0 = performance.now(), stage = options.onStage ?? (() => {});
   stage('Finding the views on the sheet');
   const img = await rasterOf(sheet);
-  const figures = findSheetViews(img);
+  const reading = readSheet(img);
+  const figures = findSheetViews(img, reading);
   for (const [i, role] of Object.entries(options.roles ?? {})) if (figures[+i]) figures[+i].role = role;
   const cut: Partial<Record<SheetRole, Raster>> = {};
   for (const f of figures) if (f.role !== 'detail' && !cut[f.role]) cut[f.role] = cutFigure(img, f);
-  const from = options.shapeFrom ?? 'front';
+  // Which drawing to generate from: the front, unless it's a narrow end (a log's ring, a stair's face) and a side shows
+  // far more of the object. Then the side: the generator takes its picture as the model's front, so every view is renamed
+  // into that frame (a quarter turn) and the turn is reported for placing the model.
+  const widthOf = (r: SheetRole) => { const f = figures.find((g) => g.role === r); return f ? f.x1 - f.x0 : 0; };
+  let from: SheetRole = options.shapeFrom ?? 'front';
+  if (!options.shapeFrom && cut.front) {
+    const side = (['left', 'right'] as const).filter((r) => cut[r]).sort((a, b) => widthOf(b) - widthOf(a))[0];
+    if (side && widthOf('front') < 0.6 * widthOf(side)) from = side;
+  }
   if (!cut[from]) throw new Error(`No ${from} view found on the sheet`);
+  const TURN: Record<string, Partial<Record<SheetRole, PaintViewName>>> = {
+    front: { front: 'front', back: 'back', left: 'left', right: 'right', top: 'top' },
+    left: { left: 'front', front: 'right', back: 'left', right: 'back' },
+    right: { right: 'front', front: 'left', back: 'right', left: 'back' },
+    back: { back: 'front', front: 'back', left: 'right', right: 'left' },
+  };
+  const turnDeg = ({ front: 0, left: 90, right: -90, back: 180 } as Record<string, number>)[from] ?? 0;
   const cutouts: Partial<Record<SheetRole, Blob>> = {};
   for (const [role, r] of Object.entries(cut)) cutouts[role as SheetRole] = await rasterToPng(r!);
   stage('Generating the shape from the ' + from + ' view');
   const shape = await imageToModel(cutouts[from]!, 'hunyuan_mini', { quality: 'detail', octreeResolution: 380, steps: 5, faceLimit: 300000, keepLargest: true });
+  // views in the generated model's frame (the source drawing is its front)
   const views: Partial<Record<PaintViewName, Blob>> = {};
-  for (const role of ['front', 'back', 'left', 'right', 'top'] as const) if (cutouts[role]) views[role] = cutouts[role];
-  // a sheet without a back: the mirrored front is the right outline and, for thin symmetric parts, the right paint
-  const mirroredBack = !views.back && !!cut.front;
-  if (mirroredBack) views.back = await rasterToPng(cut.front!, true);
+  for (const role of ['front', 'back', 'left', 'right', 'top'] as const) {
+    const as = TURN[from][role];
+    if (cutouts[role] && as) views[as] = cutouts[role];
+  }
+  // a sheet without the opposite side: the source mirrored is the right outline and, for thin symmetric parts, the paint
+  const mirroredBack = !views.back;
+  if (mirroredBack) views.back = await rasterToPng(cut[from]!, true);
   // The generator only saw one view. Every other view is a measurement: reshape the shape to all of them.
   let body = shape.glb;
   let geometry: ReshapeReport | undefined;
   if (options.shapeFromArt !== false) {
     stage('Reading the geometry from every view (outlines + depth)');
-    const r = await reshapeFromViews(shape.glb, views, { outlineOnly: mirroredBack ? ['back'] : [], shapeFrom: from, minOverlap: options.minOverlap ?? 0.6, faces: 200000 });
+    const r = await reshapeFromViews(shape.glb, views, { outlineOnly: mirroredBack ? ['back'] : [], shapeFrom: 'front', minOverlap: options.minOverlap ?? 0.6, faces: 200000 });
     body = r.glb;
     geometry = r.report;
   }
@@ -249,7 +256,7 @@ export async function buildFromSheet(sheet: Blob, options: SheetBuildOptions = {
   const paint = (v: typeof views) => paintFromViews(body, v, { faces: options.faces ?? 60000, res: options.textureSize ?? 2048 });
   let painted = await paint(views);
   const min = options.minOverlap ?? 0.6;
-  const weakNames = Object.entries(painted.overlap).filter(([k, v]) => v < min && k !== from).map(([k]) => k);
+  const weakNames = Object.entries(painted.overlap).filter(([k, v]) => v < min && k !== 'front').map(([k]) => k);
   const weak = weakNames.map((k) => `${k} ${painted.overlap[k].toFixed(2)}`);
   if (weakNames.length) {
     // A view that doesn't line up with the shape isn't that side of it (a floor plan in the top slot, a profile in a side
@@ -260,5 +267,5 @@ export async function buildFromSheet(sheet: Blob, options: SheetBuildOptions = {
     painted = await paint(views);
     painted.overlap = { ...first, ...painted.overlap };
   }
-  return { glb: painted.glb, shape: shape.glb, body, geometry, figures, cutouts, paintedShare: painted.paintedShare, overlap: painted.overlap, weak, seconds: (performance.now() - t0) / 1000 };
+  return { glb: painted.glb, shape: shape.glb, body, geometry, figures, cutouts, paintedShare: painted.paintedShare, overlap: painted.overlap, weak, sourceView: from, turnDeg, warnings: reading.warnings, seconds: (performance.now() - t0) / 1000 };
 }

@@ -6,6 +6,7 @@ import { labelSpots, parseLookAnswer } from '../services/argilla/understand/look
 import { cameraAt, cameraMove, retime, sceneBounds, setKey } from '../services/argilla/shot/shot';
 import { agreementWithPicture, facingWeight, fillUnseen, spreadLabels, visibilityFrom } from '../services/argilla/scene/finishObject';
 import assert from 'node:assert/strict';
+import { readSheet } from '../services/argilla/understand/sheetReader';
 import { BrickPool, BRICK_STRIDE, BRICK_VOXELS, CELL_INSIDE, isSlot } from '../services/argilla/brickPool';
 import { surfaceNets } from '../services/argilla/surfaceNets';
 import { voxelizeMesh } from '../services/argilla/voxelize';
@@ -1060,4 +1061,38 @@ test('shot camera: ready-made moves frame the scene from the viewer\'s side', ()
   const orbit = cameraMove('orbit', scene, 10, from);
   assert.ok(orbit.every((o) => Math.abs(dist(o.position) - dist(orbit[0].position)) < 1e-6), 'orbits at one distance');
   for (const m of ['pull-back', 'crane-up', 'slide-past'] as const) assert.ok(cameraMove(m, scene, 5, from).every((x) => x.position.every(Number.isFinite)));
+});
+
+// Sheet reader: a synthetic house sheet — gable front, sloped sides (mirrors of each other), the back (front mirrored
+// with a chimney), a plan, a textured close-up — and two drawings that touch through a strip of ground debris.
+test('sheetReader finds views, roles, close-ups and separates touching drawings', () => {
+  const W = 960, H = 640, data = new Uint8ClampedArray(W * H * 4);
+  const bg = [180, 176, 170];
+  for (let i = 0; i < W * H; i++) { data[i * 4] = bg[0]; data[i * 4 + 1] = bg[1]; data[i * 4 + 2] = bg[2]; data[i * 4 + 3] = 255; }
+  const put = (x: number, y: number, c: number[]) => { if (x < 0 || y < 0 || x >= W || y >= H) return; const p = (x + y * W) * 4; data[p] = c[0]; data[p + 1] = c[1]; data[p + 2] = c[2]; };
+  const wood = (x: number, y: number) => [90 + ((x * 7 + y * 13) % 30), 60, 40];
+  // a house outline: walls + roof given by top(x) in [0,1] across the width
+  const house = (x0: number, y0: number, w: number, h: number, top: (t: number) => number) => {
+    for (let x = 0; x < w; x++) { const t = x / (w - 1), yt = y0 + Math.round(top(t) * h * 0.4); for (let y = yt; y < y0 + h; y++) put(x0 + x, y, wood(x0 + x, y)); }
+  };
+  const gable = (t: number) => Math.abs(t - 0.5) * 2;
+  house(40, 60, 200, 180, gable);                                   // front
+  house(320, 60, 260, 180, (t) => t);                               // left: roof slopes down to the right
+  for (let x = 236; x < 326; x++) for (let y = 236; y < 240; y++) put(x, y, [70, 80, 50]);  // ground debris joining front and left
+  house(660, 60, 260, 180, (t) => 1 - t);                           // right: mirror of left
+  house(40, 360, 200, 180, (t) => gable(1 - t));                    // back (same width as the front)
+  for (let x = 120; x < 140; x++) for (let y = 346; y < 380; y++) put(x, y, wood(x, y));   // its chimney
+  for (let x = 330; x < 530; x++) for (let y = 380; y < 640 - 20; y++) if (x === 330 || x === 529 || y === 380 || y === 619 || (x - 330) % 50 === 0) put(x, y, [60, 50, 40]); // plan (lines)
+  for (let x = 640; x < 900; x++) for (let y = 380; y < 600; y++) put(x, y, [((x * 31) ^ (y * 17)) % 120 + 60, 90, 70]);     // close-up
+  const r = readSheet({ data, width: W, height: H });
+  const role = (r: string) => r;
+  const views = r.figures.filter((f) => f.kind === 'view');
+  const at = (x: number, y: number) => r.figures.find((f) => f.x0 <= x && x <= f.x1 && f.y0 <= y && y <= f.y1);
+  assert.equal(at(140, 200)?.role, role('front'));
+  assert.equal(at(450, 200)?.role, 'left');
+  assert.equal(at(790, 200)?.role, 'right');
+  assert.equal(at(140, 500)?.role, 'back');
+  assert.equal(at(770, 490)?.kind, 'inset');
+  assert.ok(views.length >= 4);
+  assert.ok(!views.some((v) => v.x1 - v.x0 > W * 0.5), 'no drawing spans the sheet');
 });
