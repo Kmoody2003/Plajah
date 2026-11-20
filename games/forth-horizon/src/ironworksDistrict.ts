@@ -29,8 +29,22 @@ export function buildIronworksDistrict(o: DistrictOpts): { group: THREE.Group; c
     for (const [a, b] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r], [r * 0.7, r * 0.7], [-r * 0.7, r * 0.7], [r * 0.7, -r * 0.7], [-r * 0.7, -r * 0.7]]) if (o.water(x + a, z + b) || o.blocked(x + a, z + b, 2)) return false;
     return true;
   };
+  /** the height a piece stands at: the lowest ground under its whole footprint (a 5 x 5 grid over its turned bounding box), so on a slope it sits on the
+   *  ground all round with its downhill side at grade and its uphill footing set into the bank, never hanging in the air (the centre's height alone
+   *  left the downhill side of a 120 m hall metres up) */
+  const footing = (obj: THREE.Object3D, x: number, z: number, ry: number): number => {
+    obj.rotation.y = 0; obj.position.set(0, 0, 0); obj.updateMatrixWorld(true);
+    const b = new THREE.Box3().setFromObject(obj); obj.rotation.y = ry; obj.position.set(x, 0, z);
+    const c = Math.cos(ry), sn = Math.sin(ry); let lo = Infinity;
+    for (let a = 0; a <= 4; a++) for (let e = 0; e <= 4; e++) {
+      const lx = b.min.x + (b.max.x - b.min.x) * a / 4, lz = b.min.z + (b.max.z - b.min.z) * e / 4;
+      lo = Math.min(lo, o.ground(x + lx * c + lz * sn, z - lx * sn + lz * c));
+    }
+    return (Number.isFinite(lo) ? lo : o.ground(x, z)) - 0.05;
+  };
   const put = (obj: THREE.Object3D, x: number, z: number, ry: number, r: number, kind: string): void => {
-    obj.position.set(x, o.ground(x, z) - 0.05, z); obj.rotation.y = ry; group.add(obj);
+    obj.position.set(x, 0, z); obj.rotation.y = ry; group.add(obj);
+    obj.position.y = footing(obj, x, z, ry);
     placed.push({ x, z, r }); counts[kind] = (counts[kind] ?? 0) + 1;
   };
   /** along a sector, on the outside of the loop (and the inside where `inside`), find spots `r` clear and stand pieces there facing the track */

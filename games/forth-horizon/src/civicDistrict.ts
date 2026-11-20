@@ -67,7 +67,7 @@ export function buildCivicRiverfront(o: CivicOpts): { group: THREE.Group; counts
         const b0 = pave.length / 3;
         for (const [u, v] of [[-5, -7], [5, -7], [-5, 7], [5, 7]]) { const qx = px + tx * u + nx * v, qz = pz + tz * u + nz * v; pave.push(qx, o.ground(qx, qz) + 0.07, qz); }
         idx.push(b0, b0 + 2, b0 + 1, b0 + 1, b0 + 2, b0 + 3);
-        if (acc >= 40) { acc = 0; const ex = x + nx * 1.5, ez = z + nz * 1.5; if (o.blocked(ex, ez, 2)) continue; const e = stoneEmbankment(40, 4); put(e, ex, ez, Math.atan2(-nx, -nz), 0, 'embankment', o.ground(ex, ez)); }
+        if (acc >= 40) { acc = 0; const ex = x + nx * 1.5, ez = z + nz * 1.5; if ([-20, -10, 0, 10, 20].some((t) => o.blocked(ex + nz * t, ez - nx * t, 2))) continue; /* the whole 40 m length clear: its ends swung onto the course where the shore bends */ const e = stoneEmbankment(40, 4); put(e, ex, ez, Math.atan2(-nx, -nz), 0, 'embankment', o.ground(ex, ez)); }
         if (lampAcc >= 30) { lampAcc = 0; const lx = x + nx * 3, lz = z + nz * 3; if (!o.water(lx, lz) && !o.blocked(lx, lz, 1)) put(promenadeLamp(), lx, lz, 0, 0, 'lamp'); }
         if (palmAcc >= 20) { palmAcc = 0; const lx = x + nx * 15, lz = z + nz * 15; if (!o.blocked(lx, lz, 2) && !o.water(lx, lz)) put(palmTree(Math.floor(rnd() * 999), 9 + rnd() * 4), lx, lz, 0, 0, 'palm'); }
         if (benchAcc >= 45) { benchAcc = 0; const lx = x + nx * 6, lz = z + nz * 6; if (!o.blocked(lx, lz, 1)) put(bench(), lx, lz, Math.atan2(-nx, -nz), 0, 'bench'); }

@@ -54,7 +54,7 @@ import { SpatialCuller, runWithConcurrency, populateTiledTerrain, populateTerrai
 import { harborDetail } from './harborDetail';
 import { duneDetail } from './duneDetail';
 import { Vegetation } from './vegetation';
-import { buildIndustrialCircuit, carveIndustrialCutting, industrialProfile, type GradeFeature } from './industrialCircuit';
+import { buildIndustrialCircuit, carveCourseFormation, carveIndustrialCutting, industrialProfile, type GradeFeature } from './industrialCircuit';
 import { buildIronworksDistrict } from './ironworksDistrict';
 import { buildCivicRiverfront, type CivicPlan } from './civicDistrict';
 import { HERO_SCENES } from './heroScenes';
@@ -4515,6 +4515,10 @@ async function boot(): Promise<void> {
     // the harbour circuit's piers and wharf stand out over the water: its road never goes below 3.6 m (a deck on piers there) and no grade passes 10 %
     if (gh?.xz) harborYs = industrialProfile(gh.xz.map((q) => ({ x: q[0], z: q[1] })), [], (x, z) => hAt(x, z));
     if (gcv?.xz) civicYs = industrialProfile(gcv.xz.map((q) => ({ x: q[0], z: q[1] })), [], (x, z) => hAt(x, z));
+    // each new circuit sits on a formation: the land cut and filled flat across the course to its design height, eased back into the hillside
+    for (const [nm, c, ys] of [['ironworks', gi, industrialYs], ['harbor', gh, harborYs], ['civic', gcv, civicYs]] as const) {
+      if (c?.xz && ys) console.log(nm + ' formation', JSON.stringify(carveCourseFormation(heights, meta.width, meta.height, meta.mpp, GRID.ox, GRID.oz, c.xz.map((q) => ({ x: q[0], z: q[1] })), ys)));
+    }
     console.log('road grade pass', st);
     (window as unknown as { roadGrade: unknown }).roadGrade = st;
   }

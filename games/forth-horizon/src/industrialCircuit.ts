@@ -63,6 +63,40 @@ export function carveIndustrialCutting(heights: Float32Array, W: number, H: numb
   return cells;
 }
 
+/**
+ * The road's formation, the way a civil engineer builds one: the ground under the course and its verges is made flat at the road's own design height
+ * across the whole width (cut on the high side, fill on the low side), then eased back into the land with a cut slope and a fill embankment. The cutting
+ * above only digs where the course runs below ground; on a hillside the 12 m terrain grid otherwise rose through the pavement on the uphill edge.
+ * Fill first, cut second, so where two legs meet (the bridge over the underpass) the lower leg's cutting wins; no fill under a deck (> 4 m up) or into the water (piers stand out over it).
+ */
+export function carveCourseFormation(heights: Float32Array, W: number, H: number, mpp: number, ox: number, oz: number, P: { x: number; z: number }[], ys: number[]): { cut: number; filled: number } {
+  const FLAT = 20, CUT_R = 52, FILL_R = 44, n = H * W;
+  const ease = (t: number): number => 1 - t * t * (3 - 2 * t);
+  const each = (R: number, fn: (k: number, d: number, i: number) => void): void => P.forEach((p, i) => {
+    const ci = Math.round((p.x - ox) / mpp + W / 2), cj = Math.round((p.z - oz) / mpp + H / 2), rc = Math.ceil(R / mpp);
+    for (let j = Math.max(0, cj - rc); j <= Math.min(H - 1, cj + rc); j++) for (let ii = Math.max(0, ci - rc); ii <= Math.min(W - 1, ci + rc); ii++) {
+      const d = Math.hypot((ii - W / 2) * mpp + ox - p.x, (j - H / 2) * mpp + oz - p.z); if (d <= R) fn(j * W + ii, d, i);
+    }
+  });
+  // fill: the nearest course point sets the level (an embankment), raise only
+  const best = new Float32Array(n).fill(1e9), lvl = new Float32Array(n);
+  each(FILL_R, (k, d, i) => { if (d < best[k]) { best[k] = d; lvl[k] = ys[i] - 0.3; } });
+  let filled = 0, cut = 0;
+  for (let k = 0; k < n; k++) {
+    if (best[k] > FILL_R) continue;
+    const t = lvl[k], h = heights[k]; if (t <= h || t - h > 4 || h < 2.5) continue;   // and never fill the water under a pier or a wharf
+    const w = best[k] <= FLAT ? 1 : ease((best[k] - FLAT) / (FILL_R - FLAT));
+    heights[k] = h + (t - h) * w; filled++;
+  }
+  // cut: every course point digs down to its level, lower only (the lowest leg wins)
+  each(CUT_R, (k, d, i) => {
+    const t = ys[i] - 0.3, h = heights[k]; if (t >= h) return;
+    const w = d <= FLAT ? 1 : ease((d - FLAT) / (CUT_R - FLAT)), nh = h + (t - h) * w;
+    if (nh < h) { heights[k] = nh; cut++; }
+  });
+  return { cut, filled };
+}
+
 export function buildIndustrialCircuit(o: { path: { x: number; z: number }[]; ground: (x: number, z: number) => number; roadMaterial?: THREE.Material; ys?: number[]; grade?: GradeFeature[] }): IndustrialCircuit {
   const P = o.path, n = P.length;
   const group = new THREE.Group(); group.name = 'industrial-circuit';
@@ -112,6 +146,12 @@ export function buildIndustrialCircuit(o: { path: { x: number; z: number }[]; gr
     }
     return false;
   };
+  /** within the road and its edge strip (6.3 m) of any point of the line, this leg included */
+  const inRoad = (x: number, z: number): boolean => {
+    const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const j of hash.get((cx + a) * 100003 + cz + b) ?? []) if (Math.hypot(P[j].x - x, P[j].z - z) < 6.3) return true;
+    return false;
+  };
   // concrete barriers either side, a block every 3 m
   {
     const geo = new THREE.BoxGeometry(0.55, 0.95, 3.0), mat = new THREE.MeshStandardMaterial({ color: 0xb5b3ac, roughness: 0.92 });
@@ -123,6 +163,9 @@ export function buildIndustrialCircuit(o: { path: { x: number; z: number }[]; gr
       for (let s = 1.5; s < len; s += 3.0) for (const side of [-1, 1]) {
         const x = a.x + (b.x - a.x) * (s / len) + nx * side * 6.9, z = a.z + (b.z - a.z) * (s / len) + nz * side * 6.9;
         if (onOtherLeg(x, z, i)) continue;
+        // a 3 m block square to its segment: through a sharp chicane its ends swing in over the road edge (5.3 m from the line on the civic boulevard)
+        const ux = (b.x - a.x) / len, uz = (b.z - a.z) / len;
+        if (inRoad(x + ux * 1.5, z + uz * 1.5) || inRoad(x - ux * 1.5, z - uz * 1.5)) continue;
         const yb = o.ys ? Math.max(o.ys[i], Math.min(o.ground(x, z), o.ys[i] + 0.3)) + LIFT - 0.42 : o.ground(x, z);   // on the deck or in the cutting: the road's height
         tp.set(x, yb + 0.45, z); im.setMatrixAt(k++, m4.compose(tp, q, sc));
       }

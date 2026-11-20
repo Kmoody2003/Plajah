@@ -11,12 +11,13 @@ const only = (process.argv[3] || '').split(',').filter(Boolean);
 const browser = await chromium.launch({args: ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist']});
 const page = await browser.newPage({viewport: {width: 1280, height: 720}});
 const errors = []; page.on('pageerror', (e) => errors.push(String(e))); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+await page.addInitScript((w) => { window.__probeW = w; }, +process.env.PROBE_WIDTH || 0.7);   // PROBE_WIDTH=0.95: check out to the road edges
 await page.goto((process.env.APEX_URL || 'http://127.0.0.1:4333') + '/region.html', {timeout: 120000});
 await page.waitForFunction(() => window.regionViewer && window.countryShots && window.simDebug?.().signals, null, {timeout: 300000, polling: 1000});
 await page.waitForTimeout(8000);
 const res = await page.evaluate((only) => {
   const R = window.regionViewer, meta = R.meta;
-  const HALF = { ironport_grand_circuit: 5.5, ironworks_industrial_circuit: 7, great_lakes_cliff_raceway: 6, pinewood_rally_stage: 4.5, superior_range_circuit: 4.2, escarpment_circuit: 4.2 };
+  const HALF = { ironport_grand_circuit: 5.5, ironworks_industrial_circuit: 7, harbor_district_circuit: 7, civic_riverfront_circuit: 7, great_lakes_cliff_raceway: 6, pinewood_rally_stage: 4.5, superior_range_circuit: 4.2, escarpment_circuit: 4.2 };
   const ids = Object.keys(meta.circuits).filter((id) => !only.length || only.includes(id));
   // ---- every circuit's line at 2 m ----
   const lines = {};
@@ -33,7 +34,7 @@ const res = await page.evaluate((only) => {
   const test = (name, minx, maxx, miny, maxy, minz, maxz) => {
     if (maxx - minx > 60 || maxz - minz > 60) return;                                      // a whole-mesh box this big says nothing; triangles are tested one by one
     for (const [id, k] of nearSamples(minx - 8, maxx + 8, minz - 8, maxz + 8)) {
-      const p = lines[id][k], h = (HALF[id] ?? 4) * 0.7;
+      const p = lines[id][k], h = (HALF[id] ?? 4) * (window.__probeW || 0.7);
       // the box against the slab across the road at this sample: lateral within +-h, along within +-1 m
       const cx = (minx + maxx) / 2 - p.x, cz = (minz + maxz) / 2 - p.z, ex = (maxx - minx) / 2, ez = (maxz - minz) / 2;
       const along = Math.abs(cx * p.tx + cz * p.tz) - (ex * Math.abs(p.tx) + ez * Math.abs(p.tz)), lat = Math.abs(-cx * p.tz + cz * p.tx) - (ex * Math.abs(p.tz) + ez * Math.abs(p.tx));
@@ -86,7 +87,7 @@ const res = await page.evaluate((only) => {
       const den = (V[1][2] - V[2][2]) * (V[0][0] - V[2][0]) + (V[2][0] - V[1][0]) * (V[0][2] - V[2][2]);
       if (Math.abs(den) < 1e-9) continue;
       for (const [id, k] of near) {
-        const p = lines[id][k], h = (HALF[id] ?? 4) * 0.7;
+        const p = lines[id][k], h = (HALF[id] ?? 4) * (window.__probeW || 0.7);
         for (const o of [-h, 0, h]) {
           const x = p.x - p.tz * o, z = p.z + p.tx * o;
           const l1 = ((V[1][2] - V[2][2]) * (x - V[2][0]) + (V[2][0] - V[1][0]) * (z - V[2][2])) / den, l2 = ((V[2][2] - V[0][2]) * (x - V[2][0]) + (V[0][0] - V[2][0]) * (z - V[2][2])) / den, l3 = 1 - l1 - l2;
