@@ -879,6 +879,7 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
   // paint is a live material the player can change: colour, metallic flake, finish (0 gloss, 1 satin, 2 matte, 3 chrome)
   const uni = { uPaint: { value: new THREE.Vector3(paint.r, paint.g, paint.b) }, uFlake: { value: 0.44 }, uFinish: { value: 0 }, uPearl: { value: new THREE.Vector3(paint.r, paint.g, paint.b) }, uPearlAmt: { value: 0 } };
   const mat = new THREE.MeshPhysicalMaterial({ metalness: 0.72, roughness: 0.19, clearcoat: 1, clearcoatRoughness: 0.025, envMapIntensity: 1.95, side: THREE.DoubleSide });
+  mat.userData.allowCarProbe = true; // Class-A Taubin + crease-preserving smoothed normals: enable real-time local skyline/bridge/neon CarProbe reflections on clearcoat paint
   const grilleStyleNum = spec.shader?.grilleStyle === 'ev' ? 0 : spec.shader?.grilleStyle === 'truck' ? 2 : 1;
   const gLoY = spec.shader?.grilleLoY ?? (grilleStyleNum === 2 ? 0.52 : 0.34);
   const gHiY = spec.shader?.grilleHiY ?? (grilleStyleNum === 2 ? 1.02 : 0.60);

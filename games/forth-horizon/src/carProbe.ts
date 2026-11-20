@@ -15,7 +15,7 @@ export class CarProbe {
 
   constructor(renderer: THREE.WebGLRenderer, size = 128) {
     this.rt = new THREE.WebGLCubeRenderTarget(size, { type: THREE.HalfFloatType, generateMipmaps: false });
-    this.cube = new THREE.CubeCamera(0.4, 450, this.rt);
+    this.cube = new THREE.CubeCamera(0.4, 900, this.rt);
     this.pmrem = new THREE.PMREMGenerator(renderer);
   }
 
@@ -48,8 +48,8 @@ export class CarProbe {
       for (const mat of (Array.isArray(m) ? m : [m]) as THREE.MeshStandardMaterial[]) {
         if (!(mat as THREE.MeshStandardMaterial).isMeshStandardMaterial) continue;
         if (mat.envMap === tex) continue;
-        // the scan body's paint keeps the smooth sky: its normals follow a scanned surface, and a sharp world reflection over them broke the paint into blotches
-        if (mat.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile) continue;
+        // custom-shader materials opt in via userData.allowCarProbe (our Class-A smoothed hero paint)
+        if (mat.onBeforeCompile !== THREE.Material.prototype.onBeforeCompile && !mat.userData?.allowCarProbe) continue;
         if (mat.envMap && !this.applied.has(mat)) continue;
         mat.envMap = tex;
         if (!this.applied.has(mat)) { mat.envMapIntensity *= intensityScale; mat.needsUpdate = true; this.applied.add(mat); }

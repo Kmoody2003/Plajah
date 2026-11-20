@@ -9,7 +9,8 @@ const VERT = 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(posit
 const AO_FRAG = `
   uniform sampler2D tDepth;
   uniform mat4 uProjInv; uniform mat4 uProj;
-  uniform vec2 uRes; uniform float uRadius, uBias, uNear, uFar, uTime;
+  uniform vec2 uRes; uniform float uRadius, uBias, uNear, uFar, uTime, uContactStr;
+  uniform vec3 uSunDirView;
   varying vec2 vUv;
   float ign(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
   vec3 viewPosFromDepth(vec2 uv, float d) {
@@ -22,10 +23,11 @@ const AO_FRAG = `
   }
   void main() {
     float d0 = texture2D(tDepth, vUv).r;
-    if (d0 >= 0.99999) { gl_FragColor = vec4(1.0); return; }
+    // B channel = sky occlusion mask (1.0 = sky, 0.0 = geometry) for depth-occluded volumetric sun shafts in cinePass
+    if (d0 >= 0.99999) { gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0); return; }
     vec3 P = viewPosFromDepth(vUv, d0);
     float dist = -P.z;
-    if (dist > 165.0) { gl_FragColor = vec4(1.0); return; }
+    if (dist > 165.0) { gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0); return; }
     vec2 px = 1.0 / uRes;
     // normal from the smaller depth step on each axis, so it does not smear across silhouettes
     vec3 pr = viewPos(vUv + vec2(px.x, 0.0)), pl = viewPos(vUv - vec2(px.x, 0.0)), pu = viewPos(vUv + vec2(0.0, px.y)), pd = viewPos(vUv - vec2(0.0, px.y));
@@ -35,7 +37,8 @@ const AO_FRAG = `
     if (dot(N, -P) < 0.0) N = -N;
     // screen radius of uRadius metres at this depth (uRes matches half-res aoRT)
     float rpx = clamp(uRadius * uProj[1][1] * 0.5 * uRes.y / dist, 2.0, 32.0);
-    float rot = ign(gl_FragCoord.xy) * 6.2831853;
+    float j1 = ign(gl_FragCoord.xy);
+    float rot = j1 * 6.2831853;
     float occ = 0.0;
     const int N_S = 8;
     for (int i = 0; i < N_S; i++) {
@@ -53,7 +56,35 @@ const AO_FRAG = `
     }
     float ao = 1.0 - clamp(occ / float(N_S) * 2.0, 0.0, 0.92);
     ao = mix(ao, 1.0, smoothstep(85.0, 155.0, dist));
-    gl_FragColor = vec4(ao, ao, ao, 1.0);
+
+    // Screen-space contact shadow raymarch along sun vector (6 quadratic steps, half-res):
+    // grounds tires, splitters, curbs, Jersey barriers and building plinths flush to asphalt.
+    float cs = 1.0;
+    if (uContactStr > 0.01 && dist < 68.0 && dot(N, uSunDirView) > 0.04) {
+      float j2 = ign(gl_FragCoord.xy + vec2(17.0, 31.0));
+      float marchLen = mix(0.65, 1.45, clamp(dist / 45.0, 0.0, 1.0));
+      vec3 origin = P + N * (0.014 + dist * 0.0012);
+      float thick = 0.045 + dist * 0.0065;
+      float hit = 0.0;
+      for (int i = 0; i < 6; i++) {
+        float f = (float(i) + 0.3 + 0.7 * j2) / 6.0;
+        vec3 S = origin + uSunDirView * (f * f * marchLen);
+        vec4 clip = uProj * vec4(S, 1.0);
+        vec2 suv = clip.xy / max(clip.w, 1e-4) * 0.5 + 0.5;
+        float ds = texture2D(tDepth, clamp(suv, 0.002, 0.998)).r;
+        if (S.z < -uNear && suv.x > 0.002 && suv.x < 0.998 && suv.y > 0.002 && suv.y < 0.998 && ds < 0.9998) {
+          vec3 Qs = viewPosFromDepth(suv, ds);
+          float dz = Qs.z - S.z;
+          if (dz > 0.012 && dz < thick) {
+            hit = max(hit, (1.0 - f * 0.5) * smoothstep(thick, thick * 0.25, dz));
+          }
+        }
+      }
+      hit *= (1.0 - smoothstep(42.0, 68.0, dist)) * uContactStr;
+      cs = 1.0 - clamp(hit * 0.74, 0.0, 0.74);
+    }
+
+    gl_FragColor = vec4(ao, cs, 0.0, 1.0);
   }`;
 
 const APPLY_FRAG = `
@@ -97,11 +128,14 @@ const APPLY_FRAG = `
     // Valley & river low-altitude mist hugs terrain below ~48m (covered bridge, Finger Lake, canyons)
     float mb = 0.022;
     float mSeg = abs(mb * dy) > 1e-4 ? (1.0 - exp(-mb * dy)) / (mb * dy) : 1.0;
-    float mist = uFog.x * 2.1 * exp(-mb * max(uCamPos.y, 0.0)) * dist * mSeg * smoothstep(90.0, 650.0, dist);
-    float op = min(uFog.z, 1.0 - exp(-(amt + mist * 0.55)));
+    float mist = uFog.x * 2.1 * exp(-mb * max(uCamPos.y, 0.0)) * dist * mSeg * smoothstep(85.0, 620.0, dist);
+    float op = min(uFog.z, 1.0 - exp(-(amt + mist * 0.58)));
     float sd = max(dot(dir, uSunDir), 0.0);
-    float mie = pow(sd, 3.0) * 0.24 + pow(sd, 12.0) * 0.52;
-    vec3 fc = mix(uFogCol, uSunCol * 1.15, clamp(mie, 0.0, 0.78));
+    // Altitude-graded Rayleigh tint (higher distant towers & ridges pick up crisp sky-blue scatter while valley mist stays soft)
+    float altTint = smoothstep(15.0, 140.0, max(wp.y, 0.0)) * 0.22;
+    vec3 rayleighCol = mix(uFogCol, uFogCol * vec3(0.86, 0.94, 1.12), altTint);
+    float mie = pow(sd, 3.0) * 0.26 + pow(sd, 12.0) * 0.56 + pow(sd, 48.0) * 0.22;
+    vec3 fc = mix(rayleighCol, uSunCol * 1.18, clamp(mie, 0.0, 0.82));
     return mix(col, fc, op);
   }
   float lin(float d) { float z = d * 2.0 - 1.0; return 2.0 * uNear * uFar / (uFar + uNear - z * (uFar - uNear)); }
@@ -117,7 +151,8 @@ const APPLY_FRAG = `
     // Beyond 158m AO is faded to 1.0: skip 8 bilateral depth/AO fetches on distant mountains, water & far skyline
     if (uStrength <= 0.001 || dist > 158.0) { gl_FragColor = vec4(atmosphere(col.rgb, wp, ray, dist), col.a); return; }
     float d0 = lin(dRaw);
-    float sum = texture2D(tAO, vUv).r * 1.6, wsum = 1.6;
+    vec2 sum = texture2D(tAO, vUv).rg * 1.6;
+    float wsum = 1.6;
     float k = 1.0 / (0.04 * d0 * d0 + 0.01);
     vec2 taps[4];
     taps[0] = vec2(-uHalf.x, 0.0); taps[1] = vec2(uHalf.x, 0.0);
@@ -126,12 +161,17 @@ const APPLY_FRAG = `
       vec2 uv = vUv + taps[i];
       float dz = lin(texture2D(tDepth, uv).r) - d0;
       float w = exp(-dz * dz * k);
-      sum += texture2D(tAO, uv).r * w; wsum += w;
+      sum += texture2D(tAO, uv).rg * w; wsum += w;
     }
-    float ao = sum / max(wsum, 1e-4);
+    vec2 aocs = sum / max(wsum, 1e-4);
+    float ao = aocs.x;
+    float cs = aocs.y;
     // Physically bounced ambient tint in crevices (cool sky fill instead of muddy black crush)
     vec3 bounceAO = mix(vec3(0.28, 0.34, 0.44), vec3(1.0), ao);
     vec3 occ = mix(vec3(1.0), bounceAO, uStrength);
+    // Contact shadow modulation with cool sky-ambient fill
+    vec3 contactTint = mix(vec3(0.36, 0.42, 0.54), vec3(1.0), cs);
+    occ *= contactTint;
     gl_FragColor = vec4(atmosphere(col.rgb * occ, wp, ray, dist), col.a);
   }`;
 
@@ -140,13 +180,18 @@ export class AoPass extends Pass {
   private aoMat: THREE.ShaderMaterial;
   private applyMat: THREE.ShaderMaterial;
   private quad: FullScreenQuad;
+  /** half-res AO (r), screen-space contact shadow (g), and sky occlusion mask (b) */
+  get maskTexture(): THREE.Texture { return this.aoRT.texture; }
   strength = 0.85;
+  /** screen-space sun contact shadow strength (0 at night/overcast, ~0.85 in direct sun) */
+  contactShadow = 0.85;
   /** ambient occlusion on/off (the pass itself stays on: it also draws the atmosphere) */
   aoOn = true;
   /** camera motion blur shutter: 0 off, 0.5 typical */
   blur = 0;
   private prevVP = new THREE.Matrix4();
   private prevPos = new THREE.Vector3();
+  private sunView = new THREE.Vector3(0, 1, 0);
   private havePrev = false;
   /** height fog + sun in-scatter; colours are linear */
   fog = { on: true, density: 0.00012, falloff: 1 / 350, maxOpacity: 0.92, color: new THREE.Color(0.75, 0.8, 0.88), sunColor: new THREE.Color(1, 0.85, 0.6), sunDir: new THREE.Vector3(0, 1, 0) };
@@ -158,7 +203,7 @@ export class AoPass extends Pass {
     this.aoRT = new THREE.WebGLRenderTarget(aw, ah, { type: THREE.UnsignedByteType, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false });
     this.aoMat = new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: AO_FRAG, depthTest: false, depthWrite: false,
-      uniforms: { tDepth: { value: null }, uProjInv: { value: new THREE.Matrix4() }, uProj: { value: new THREE.Matrix4() }, uRes: { value: new THREE.Vector2(aw, ah) }, uRadius: { value: 1.6 }, uBias: { value: 0.08 }, uNear: { value: 0.1 }, uFar: { value: 1000 }, uTime: { value: 0 } },
+      uniforms: { tDepth: { value: null }, uProjInv: { value: new THREE.Matrix4() }, uProj: { value: new THREE.Matrix4() }, uRes: { value: new THREE.Vector2(aw, ah) }, uRadius: { value: 1.6 }, uBias: { value: 0.08 }, uNear: { value: 0.1 }, uFar: { value: 1000 }, uTime: { value: 0 }, uSunDirView: { value: new THREE.Vector3(0, 1, 0) }, uContactStr: { value: 0.85 } },
     });
     this.applyMat = new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: APPLY_FRAG, depthTest: false, depthWrite: false,
@@ -180,7 +225,10 @@ export class AoPass extends Pass {
     cam.updateMatrixWorld();
     const u = this.aoMat.uniforms;
     u.tDepth.value = depth; u.uProj.value.copy(cam.projectionMatrix); u.uProjInv.value.copy(cam.projectionMatrixInverse); u.uNear.value = cam.near; u.uFar.value = cam.far;
-    // 1) occlusion at half resolution from the depth the main pass wrote
+    this.sunView.copy(this.fog.sunDir).normalize().transformDirection(cam.matrixWorldInverse);
+    u.uSunDirView.value.copy(this.sunView);
+    u.uContactStr.value = this.fog.sunDir.y > 0.03 ? this.contactShadow : 0;
+    // 1) occlusion + screen-space contact shadows at half resolution from the depth the main pass wrote
     if (aoOn) {
       this.quad.material = this.aoMat;
       renderer.setRenderTarget(this.aoRT);

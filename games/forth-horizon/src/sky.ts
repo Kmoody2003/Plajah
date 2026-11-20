@@ -73,10 +73,11 @@ const FRAG = `
     // weather: darker, lightning lit from inside
     col *= 1.0 - uDark * 0.32;
     col += vec3(0.62, 0.72, 1.0) * uFlash * (0.25 + cloudy * 0.9);
-    // clean horizon atmospheric scatter matching AoPass aerial perspective
-    float hz = pow(1.0 - clamp(dir.y, 0.0, 1.0), 4.5);
-    vec3 hzCol = mix(uFog, uSunCol * 1.15, pow(sd, 5.0) * 0.45 * vis * (1.0 - uNight));
-    col = mix(col, hzCol, clamp(hz * (0.26 + uFogAmt * 0.74), 0.0, 1.0));
+    // clean horizon atmospheric scatter matching AoPass dual-layer Rayleigh + Mie aerial perspective
+    float hz = pow(1.0 - clamp(dir.y, 0.0, 1.0), 4.2);
+    float mieHz = clamp(pow(sd, 3.0) * 0.28 + pow(sd, 12.0) * 0.56, 0.0, 0.84) * vis * (1.0 - uNight);
+    vec3 hzCol = mix(uFog, uSunCol * 1.18, mieHz);
+    col = mix(col, hzCol, clamp(hz * (0.30 + uFogAmt * 0.70), 0.0, 1.0));
     if (dir.y < 0.0) col = mix(col, hzCol, smoothstep(0.0, -0.10, dir.y));
     gl_FragColor = vec4(col, 1.0);
     #include <tonemapping_fragment>

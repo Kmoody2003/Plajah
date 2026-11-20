@@ -565,27 +565,45 @@ try {
     0.42, 0.55, 0.82
   );
   composer.addPass(bloomPass);
-  // cinematic pass: speed blur toward screen edges, 8-tap jittered sun shafts, lens rain, vibrance, vignette, grain,
-  // plus fused ACESFilmic tone mapping + sRGB encode when GradePass is inactive (saves an entire full-res HalfFloat pass)
+  // cinematic pass: speed blur toward screen edges, depth-occluded 8-tap jittered volumetric Mie sun shafts, lens rain, vibrance, vignette, grain,
+  // plus fused AgX filmic tone mapping + sRGB encode when GradePass is inactive (saves an entire full-res HalfFloat pass)
   cinePass = new ShaderPass({
     uniforms: {
-      tDiffuse: { value: null }, uSpeed: { value: 0 }, uSun: { value: new THREE.Vector2(0.5, 0.8) }, uShaft: { value: 0 },
+      tDiffuse: { value: null }, tSkyMask: { value: aoPass.maskTexture }, uHasSkyMask: { value: 1 },
+      uSpeed: { value: 0 }, uSun: { value: new THREE.Vector2(0.5, 0.8) }, uShaft: { value: 0 },
       uTime: { value: 0 }, uVig: { value: 0.28 }, uAspect: { value: 1.6 }, uSunCol: { value: new THREE.Color(1, 0.9, 0.7) },
       uToneMap: { value: 1 }, uExposure: { value: 1.08 },
     },
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: `
-      uniform sampler2D tDiffuse; uniform float uSpeed, uShaft, uTime, uVig, uAspect, uToneMap, uExposure; uniform vec2 uSun; uniform vec3 uSunCol;
+      uniform sampler2D tDiffuse, tSkyMask; uniform float uHasSkyMask, uSpeed, uShaft, uTime, uVig, uAspect, uToneMap, uExposure; uniform vec2 uSun; uniform vec3 uSunCol;
       varying vec2 vUv;
       ${LENS_RAIN_GLSL}
       float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
-      vec3 rrtOdt(vec3 v) { return (v * (v + 0.0245786) - 0.000090537) / (v * (0.983729 * v + 0.4329510) + 0.238081); }
-      vec3 acesFilmic(vec3 c, float expVal) {
-        const mat3 inM = mat3(vec3(0.59719, 0.07600, 0.02840), vec3(0.35458, 0.90834, 0.13383), vec3(0.04823, 0.01566, 0.83777));
-        const mat3 outM = mat3(vec3(1.60475, -0.10208, -0.00327), vec3(-0.53108, 1.10813, -0.07276), vec3(-0.07367, -0.00605, 1.07602));
-        return clamp(outM * rrtOdt(inM * (max(c, vec3(0.0)) * (expVal / 0.6))), 0.0, 1.0);
+      // Troy Sobotka's AgX filmic tone mapping: preserves vivid crimson LEDs, golden sunsets & metallic highlights without ACES hue-skew clipping.
+      vec3 agxDefaultContrastApprox(vec3 x) {
+        vec3 x2 = x * x;
+        vec3 x4 = x2 * x2;
+        return 15.5 * x4 * x2 - 40.14 * x4 * x + 31.96 * x4 - 6.868 * x2 * x + 0.4298 * x2 + 0.1191 * x - 0.00232;
       }
-      vec3 linToSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(max(c, vec3(0.0)), vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c)); }
+      vec3 agxToneMap(vec3 c, float expVal) {
+        const mat3 agxIn = mat3(
+          0.842479062253094,  0.0423282422610123, 0.0423756549057051,
+          0.0784335999999992, 0.878468636469772,  0.0784336,
+          0.0792237451477643, 0.0791661274605434, 0.879142973793104
+        );
+        const mat3 agxOut = mat3(
+           1.19687900512017,   -0.0528968517574562, -0.0529716355144438,
+          -0.0980208811401368,  1.15190312990417,   -0.0980434501171241,
+          -0.0990297440797205, -0.0989611768448433,  1.15107367264116
+        );
+        vec3 v = agxIn * max(c * expVal, vec3(1e-6));
+        v = (clamp(log2(v), -12.47393, 4.026069) + 12.47393) / (4.026069 + 12.47393);
+        v = clamp(agxOut * agxDefaultContrastApprox(v), 0.0, 1.0);
+        // Subtle photographic punch (clean shadow depth + vibrant highlights, already sRGB-encoded)
+        float l = dot(v, vec3(0.2126, 0.7152, 0.0722));
+        return clamp(mix(vec3(l), pow(v, vec3(1.05)), 1.07), 0.0, 1.0);
+      }
       void main() {
         vec2 c = vec2(0.5, 0.42);
         vec2 d = vUv - c;
@@ -610,9 +628,10 @@ try {
           );
         }
         float j = hash(vUv * 1000.0 + uTime);
-        // light shafts: 8 jittered march steps, skipped completely when sun is outside screen
-        float sunDist = length(uSun - vUv);
-        if (uShaft > 0.01 && sunDist < 1.15) {
+        // Depth-occluded volumetric Mie sun shafts: 8 jittered march steps gated by true half-res sky occlusion (tSkyMask.b)
+        // so skyscrapers, bridges & tree canopies cast authentic crepuscular god rays without white buildings glowing falsely.
+        float sunDist = length((uSun - vUv) * vec2(uAspect, 1.0));
+        if (uShaft > 0.01 && sunDist < 1.35) {
           vec2 ds = (uSun - vUv) / 8.0;
           vec2 p = vUv + ds * j;
           vec3 accS = vec3(0.0);
@@ -620,12 +639,14 @@ try {
           for (int i = 0; i < 8; i++) {
             vec3 s = texture2D(tDiffuse, p).rgb;
             float l = dot(s, vec3(0.3, 0.59, 0.11));
-            accS += s * smoothstep(1.15, 2.5, l) * w;
-            w *= 0.84;
+            float skyVis = uHasSkyMask > 0.5 ? texture2D(tSkyMask, p).b : smoothstep(1.15, 2.5, l);
+            float sampleAmt = uHasSkyMask > 0.5 ? skyVis * (0.45 + 0.55 * smoothstep(0.45, 1.8, l)) : skyVis;
+            accS += mix(uSunCol * 1.1, s, 0.52) * sampleAmt * w;
+            w *= 0.85;
             p += ds;
           }
-          float toward = 1.0 - clamp(sunDist * 0.88, 0.0, 1.0);
-          col += accS * 0.125 * uSunCol * uShaft * (0.25 + 0.75 * toward);
+          float phase = pow(max(0.0, 1.0 - sunDist * 0.72), 1.75);
+          col += accS * 0.095 * uSunCol * uShaft * (0.18 + 0.82 * phase);
         }
         float lensMask, lensShade, lensSparkle;
         vec2 refractedUv = lensRainUv(vUv, lensMask, lensShade, lensSparkle);
@@ -633,11 +654,11 @@ try {
         // Subtle AAA photographic clarity: clean vibrance without muddying skies or crushing shadow detail
         float luma = dot(col, vec3(0.2126, 0.7152, 0.0722));
         float sat = max(col.r, max(col.g, col.b)) - min(col.r, min(col.g, col.b));
-        col = mix(vec3(luma), col, 1.0 + 0.12 * (1.0 - clamp(sat * 1.4, 0.0, 1.0)));
+        col = mix(vec3(luma), col, 1.0 + 0.10 * (1.0 - clamp(sat * 1.4, 0.0, 1.0)));
         // vignette and fine film grain
         col *= 1.0 - uVig * smoothstep(0.38, 1.08, rd);
-        col += (j - 0.5) * 0.009;
-        if (uToneMap > 0.5) col = linToSRGB(acesFilmic(col, uExposure));
+        col += (j - 0.5) * 0.008;
+        if (uToneMap > 0.5) col = agxToneMap(col, uExposure);
         gl_FragColor = vec4(col, 1.0);
       }`,
   });
@@ -2302,9 +2323,10 @@ function stepWeather(dt: number): void {
         sh.uniforms.uPool = poolU; sh.uniforms.uWet = wetU; Object.assign(sh.uniforms, roadUniforms);
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vRW;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvRW = (modelMatrix * vec4(position, 1.0)).xyz;');
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vRW;\nuniform float uPool;\nuniform float uWet;\n' + PUDDLE_GLSL)
-          .replace('#include <map_fragment>', '#include <map_fragment>\nfloat gPud = puddleAt(vRW.xz, uPool);\nfloat gRoad = 1.0;\ndiffuseColor.rgb *= 1.0 - 0.38 * gPud;')
-          .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.015, gPud);')
-          .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.6, gPud);');
+          .replace('#include <map_fragment>', '#include <map_fragment>\nfloat gPud = puddleAt(vRW.xz, uPool);\nfloat gRoad = 1.0;\ndiffuseColor.rgb *= 1.0 - 0.44 * gPud;')
+          .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.018, gPud);')
+          .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.12, gPud);')
+          .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n{ float fW = pow(1.0 - clamp(dot(geometryNormal, geometryViewDir), 0.0, 1.0), 3.5); reflectedLight.indirectSpecular *= 1.0 + gPud * (0.35 + 1.25 * fW) + uWet * 0.30 * fW; }');
         sh.fragmentShader = injectRoadPbr(sh.fragmentShader, 'vRW.xz');
       };
       mm.customProgramCacheKey = () => 'roadpud';
@@ -4907,18 +4929,21 @@ function frame(now: number): void {
     const vis = sv.z < 1 ? 1 : 0;
     const clear = Math.max(0, 1 - w.cloudDark * 1.4) * Math.max(0, 1 - w.fogGrey * 0.8);
     u.uSun.value.set(sv.x * 0.5 + 0.5, sv.y * 0.5 + 0.5);
-    u.uShaft.value += (vis * clear * (1 - nk) * (mapMode ? 0 : 0.55) - u.uShaft.value) * Math.min(1, dt * 3);
+    u.uShaft.value += (vis * clear * (1 - nk) * (mapMode ? 0 : 0.68) - u.uShaft.value) * Math.min(1, dt * 3);
+    u.uHasSkyMask.value = aoPass?.aoOn ? 1 : 0;
     (u.uSunCol.value as THREE.Color).copy(sun.color);
   }
   if (aoPass) {
     // the atmosphere (ao.ts): dual-layer Rayleigh aerial perspective + low-altitude valley mist + warm Mie sun scatter; off on the map
     const f = aoPass.fog, w = wx.cur;
+    const nk = NIGHT_K[todKey] ?? 0;
     f.on = !mapMode;
     f.density = 0.000155 * (1 + w.fogGrey * 4.5 + w.rain * 1.4);
     f.falloff = 1 / 420;
     if (scene.fog instanceof THREE.Fog) f.color.copy(scene.fog.color);
     f.sunColor.copy(sun.color).multiplyScalar(Math.min(1.65, 0.35 + sun.intensity * 0.48));
     f.sunDir.copy(sunDir);
+    aoPass.contactShadow = mapMode ? 0 : Math.max(0, (1 - w.cloudDark * 1.15) * (1 - nk)) * 0.85;
     aoPass.blur = !mapMode && !photo.active && driving && !replay.active ? 0.5 : 0;             // camera motion blur while driving (ao.ts)
   }
   lensRain.update(dt, wx.cur.rain, driving ? Math.abs(driving.ps.speedMps) : 0, !mapMode && !!driving && !replay.active && driving.camView < 3, innerWidth / innerHeight);
