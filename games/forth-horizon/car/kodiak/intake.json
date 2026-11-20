@@ -1,0 +1,28 @@
+{
+  "id": "kodiak",
+  "status": "built (multi-view matched: winner=sheet_rear34, sideIoU=0.867, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\ironport-complete\\concept-art\\media-generation-meridian-kodiak-1500-0-aab12f49-d1b3-4259-8661-a7b4a16370d1.webp",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.8047,
+      "yawSymDeg": 1.0
+    },
+    {
+      "candidate": "sheet_rear34",
+      "sideIoU": 0.8636,
+      "yawSymDeg": -1.5
+    }
+  ],
+  "winner": "sheet_rear34",
+  "finalSideIoU": 0.867,
+  "yawSymDeg": -1.5,
+  "boundsM": {
+    "length": 5.485,
+    "width": 2.218,
+    "height": 2.105
+  },
+  "faces": 60000,
+  "elapsedSec": 4.6
+}

@@ -1276,13 +1276,13 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
         const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.12, 10), chromeM); pin.position.copy(P(sx * (hx + 0.04), hy, hz + 0.03)); g.add(pin);
       }
       strut(P(sx * (hx - 0.12), 0.7 + dyOff * 0.5, hz - 0.06), parts, P(sx * (hx - 0.08), 0.72 + dyOff * 0.5, hz - 0.56), 0.01);
-      const cx = sx * (hx - 0.08);
-      box(0.045, 0.54, cardLen, cardM, P(cx, 0.70 + dyOff * 0.7, midZ), parts);
-      box(0.06, 0.05, 0.48, lea, P(cx - sx * 0.02, 0.87 + dyOff * 0.7, midZ - 0.12), parts);
-      box(0.06, 0.012, 0.48, acc, P(cx - sx * 0.025, 0.90 + dyOff * 0.7, midZ - 0.12), parts);
-      box(0.05, 0.05, 0.2, std(0x2a2c30, 0.5, 0.8), P(cx - sx * 0.02, 0.73 + dyOff * 0.7, midZ + 0.24), parts);
-      const spk = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.02, 24), std(0x0a0a0c, 0.9, 0.3)); spk.rotation.z = Math.PI / 2; spk.position.copy(P(cx - sx * 0.02, 0.53 + dyOff * 0.6, midZ + 0.24)); parts.add(spk);
-      for (let i = 0; i < 3; i++) box(0.03, 0.012, 0.035, chromeM, P(cx - sx * 0.035, 0.89 + dyOff * 0.7, midZ + i * 0.05), parts);
+      const cx = sx * Math.max(0.50, hx - 0.16);
+      box(0.036, 0.44, cardLen * 0.88, cardM, P(cx, 0.68 + dyOff * 0.65, midZ), parts);
+      box(0.045, 0.045, 0.42, lea, P(cx - sx * 0.02, 0.84 + dyOff * 0.65, midZ - 0.10), parts);
+      box(0.045, 0.012, 0.42, acc, P(cx - sx * 0.025, 0.87 + dyOff * 0.65, midZ - 0.10), parts);
+      box(0.04, 0.045, 0.18, std(0x2a2c30, 0.5, 0.8), P(cx - sx * 0.02, 0.72 + dyOff * 0.65, midZ + 0.20), parts);
+      const spk = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.018, 24), std(0x0a0a0c, 0.9, 0.3)); spk.rotation.z = Math.PI / 2; spk.position.copy(P(cx - sx * 0.02, 0.54 + dyOff * 0.55, midZ + 0.20)); parts.add(spk);
+      for (let i = 0; i < 3; i++) box(0.025, 0.012, 0.032, chromeM, P(cx - sx * 0.035, 0.86 + dyOff * 0.65, midZ + i * 0.045), parts);
     }
   }
 
@@ -1294,7 +1294,9 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
   if (spec.exhaust) carFrame.add(buildAero(spec.exhaust, spec.aero));
   carFrame.add(buildSuspension(spec));
   carFrame.add(buildUnderbody(spec));
-  carFrame.add(buildCabin(accentHex, spec.cabin, spec.trunk !== false));
+  const cabGrp = buildCabin(accentHex, spec.cabin, spec.trunk !== false);
+  cabGrp.scale.x = Math.min(1.0, Math.max(0.68, (bsz.x - 0.56) / 1.56));
+  carFrame.add(cabGrp);
   carFrame.add(buildCowl(spec.cabin?.cowlZ, spec.cabin?.cowlY));
   carFrame.add(buildDriver(accentHex, spec.cabin));
   if (spec.trunk !== false) carFrame.add(buildTrunk(-bsz.z * 0.5 + 0.38, bsz.x * 0.28, gl.belt));

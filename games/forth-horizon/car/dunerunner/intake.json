@@ -1,0 +1,28 @@
+{
+  "id": "dunerunner",
+  "status": "built (multi-view matched: winner=tt_07, sideIoU=0.867, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\DuneRunner_V8_Buggy_design_turna\u2026_29e94c61.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Buggy_showcase_video_33958d23.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_07",
+      "sideIoU": 0.8499,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "tt_00",
+      "sideIoU": 0.8418,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "tt_07",
+  "finalSideIoU": 0.8671,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 4.174,
+    "width": 2.204,
+    "height": 1.859
+  },
+  "faces": 58710,
+  "elapsedSec": 4.6
+}

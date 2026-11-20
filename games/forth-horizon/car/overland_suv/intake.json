@@ -1,0 +1,28 @@
+{
+  "id": "overland_suv",
+  "status": "built (multi-view matched: winner=sheet_front34, sideIoU=0.804, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Dakar_SUV_design_sheet_4d47548a.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Kestrel_Overland_4x4_SUV_turntab\u2026_ff393ddf.mp4",
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.7769,
+      "yawSymDeg": 1.0
+    },
+    {
+      "candidate": "tt_06",
+      "sideIoU": 0.6753,
+      "yawSymDeg": -2.0
+    }
+  ],
+  "winner": "sheet_front34",
+  "finalSideIoU": 0.8038,
+  "yawSymDeg": 1.0,
+  "boundsM": {
+    "length": 4.907,
+    "width": 2.221,
+    "height": 2.031
+  },
+  "faces": 60000,
+  "elapsedSec": 5.0
+}

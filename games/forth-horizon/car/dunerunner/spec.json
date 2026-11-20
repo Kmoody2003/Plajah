@@ -1,0 +1,212 @@
+{
+  "id": "dunerunner",
+  "name": "DuneRunner V8 Buggy",
+  "glb": "/games/forth-horizon/car/dunerunner_base.glb",
+  "paint": "0xb85826",
+  "accent": "0x1c1e22",
+  "cuts": false,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (dunerunner_base.glb, L=4.17m W=2.20m H=1.86m).",
+  "wheels": {
+    "frontZ": 1.544,
+    "rearZ": -1.373,
+    "frontX": 0.888,
+    "rearX": 0.867,
+    "scale": 1.24,
+    "discardR": 0.458,
+    "centreY": 0.44,
+    "tyreR": 0.44,
+    "rimR": 0.308,
+    "style": "offroad"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.992,
+        0.0,
+        0.899
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.992,
+        0.0,
+        0.899
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.727,
+        1.043,
+        0.899
+      ],
+      [
+        0.727,
+        1.523,
+        1.907
+      ]
+    ],
+    "trunk": [
+      [
+        -0.639,
+        1.143,
+        -1.947
+      ],
+      [
+        0.639,
+        1.503,
+        -1.772
+      ]
+    ],
+    "roof": [
+      [
+        -0.563,
+        1.695,
+        -0.721
+      ],
+      [
+        0.563,
+        1.979,
+        0.309
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.283,
+    "roofEdge": 1.815,
+    "pillarBase": 0.859,
+    "pillarTop": 0.309,
+    "doorFront": 0.899,
+    "doorRear": -0.781,
+    "windBase": 0.859,
+    "windTop": 0.309,
+    "rearTop": -0.721,
+    "rearBase": -1.752,
+    "rearBase2": -1.722,
+    "windHalfW": 0.563,
+    "rearHalfW": 0.524,
+    "sideWindow": [
+      [
+        -0.721,
+        1.313
+      ],
+      [
+        0.839,
+        1.303
+      ],
+      [
+        0.799,
+        1.475
+      ],
+      [
+        0.604,
+        1.666
+      ],
+      [
+        0.309,
+        1.795
+      ],
+      [
+        -0.661,
+        1.795
+      ],
+      [
+        -0.881,
+        1.613
+      ],
+      [
+        -0.821,
+        1.343
+      ]
+    ],
+    "handle": [
+      -0.121,
+      1.143
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": -0.98,
+    "layout": "mid-v8",
+    "arch": "muscle-v8",
+    "texUrl": "/games/forth-horizon/tex/engines/muscle_v8.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.28,
+    "zOffset": -0.103,
+    "cowlZ": 0.809,
+    "cowlY": 1.283
+  },
+  "exhaust": {
+    "z": -1.903,
+    "y": 0.34,
+    "xs": [
+      -0.48,
+      -0.35,
+      0.35,
+      0.48
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.002,
+    "splitterW": 0,
+    "splitterY": 0.24,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.595,
+      "y": 0.756,
+      "w": 0.309,
+      "h": 0.075,
+      "tilt": 0.025,
+      "style": "u-drl"
+    },
+    "tail": {
+      "x": 0.573,
+      "y": 0.902,
+      "len": 0.375,
+      "style": "double-u"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.52,
+    "bumperRearY": 0.52,
+    "skirtY": 0.34,
+    "archLipAdd": 0.045,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.516,
+    "grilleHiY": 0.796,
+    "grilleStyle": "truck"
+  }
+}

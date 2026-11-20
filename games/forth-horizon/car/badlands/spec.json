@@ -1,0 +1,225 @@
+{
+  "id": "badlands",
+  "name": "Kestrel Badlands XT",
+  "glb": "/games/forth-horizon/car/badlands_base.glb",
+  "paint": "0xa89270",
+  "accent": "0x1a1c20",
+  "cuts": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (badlands_base.glb, L=5.18m W=2.22m H=2.03m).",
+  "wheels": {
+    "frontZ": 1.896,
+    "rearZ": -1.284,
+    "frontX": 0.732,
+    "rearX": 0.725,
+    "scale": 1.18,
+    "discardR": 0.436,
+    "centreY": 0.419,
+    "tyreR": 0.419,
+    "rimR": 0.293,
+    "style": "offroad"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.999,
+        0.0,
+        1.417
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.999,
+        0.0,
+        1.417
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.453,
+        1.434
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.732,
+        1.213,
+        1.454
+      ],
+      [
+        0.732,
+        1.693,
+        2.408
+      ]
+    ],
+    "trunk": [
+      [
+        -0.644,
+        1.313,
+        -2.448
+      ],
+      [
+        0.644,
+        1.673,
+        -1.008
+      ]
+    ],
+    "roof": [
+      [
+        -0.62,
+        1.855,
+        -0.728
+      ],
+      [
+        0.62,
+        2.147,
+        0.643
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.453,
+    "roofEdge": 1.975,
+    "pillarBase": 1.414,
+    "pillarTop": 0.643,
+    "doorFront": 1.417,
+    "doorRear": -0.788,
+    "windBase": 1.414,
+    "windTop": 0.643,
+    "rearTop": -0.728,
+    "rearBase": -0.988,
+    "rearBase2": -0.958,
+    "windHalfW": 0.62,
+    "rearHalfW": 0.588,
+    "sideWindow": [
+      [
+        -0.728,
+        1.483
+      ],
+      [
+        1.357,
+        1.473
+      ],
+      [
+        1.317,
+        1.641
+      ],
+      [
+        1.03,
+        1.829
+      ],
+      [
+        0.643,
+        1.955
+      ],
+      [
+        -0.668,
+        1.955
+      ],
+      [
+        -0.888,
+        1.777
+      ],
+      [
+        -0.828,
+        1.513
+      ]
+    ],
+    "handle": [
+      0.135,
+      1.313
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.708,
+    "layout": "front-v8",
+    "arch": "suv-v6",
+    "texUrl": "/games/forth-horizon/tex/engines/v6_suv_sport.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.28,
+    "zOffset": -0.021,
+    "cowlZ": 1.364,
+    "cowlY": 1.453
+  },
+  "exhaust": {
+    "z": -2.447,
+    "y": 0.34,
+    "xs": [
+      -0.48,
+      -0.35,
+      0.35,
+      0.48
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.536,
+    "splitterW": 0,
+    "splitterY": 0.24,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.599,
+      "y": 0.94,
+      "w": 0.311,
+      "h": 0.075,
+      "tilt": 0.025,
+      "style": "u-drl"
+    },
+    "tail": {
+      "x": 0.577,
+      "y": 0.996,
+      "len": 0.377,
+      "style": "double-u"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.52,
+    "bumperRearY": 0.52,
+    "skirtY": 0.34,
+    "archLipAdd": 0.045,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.62,
+    "grilleHiY": 0.98,
+    "grilleStyle": "truck"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "badlands",
+  "status": "built (multi-view matched: winner=sheet_rear34, sideIoU=0.882, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\ironport-complete\\concept-art\\media-generation-kestrel-badlands-xt-0-3b3a5216-2957-4519-8eae-7ee0ab0d3aa5.webp",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.8039,
+      "yawSymDeg": 0.25
+    },
+    {
+      "candidate": "sheet_rear34",
+      "sideIoU": 0.8618,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "sheet_rear34",
+  "finalSideIoU": 0.8816,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 5.176,
+    "width": 2.219,
+    "height": 2.027
+  },
+  "faces": 59999,
+  "elapsedSec": 72.0
+}

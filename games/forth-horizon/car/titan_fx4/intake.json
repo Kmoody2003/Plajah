@@ -1,0 +1,28 @@
+{
+  "id": "titan_fx4",
+  "status": "built (multi-view matched: winner=tt_11, sideIoU=0.888, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Titan_Ridge_FX4_trophy_truck_dde1c24e.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Truck_rotating_in_studio_9180f674.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_06",
+      "sideIoU": 0.8673,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "tt_11",
+      "sideIoU": 0.8827,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_11",
+  "finalSideIoU": 0.8881,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 5.38,
+    "width": 2.227,
+    "height": 2.12
+  },
+  "faces": 60000,
+  "elapsedSec": 4.5
+}
