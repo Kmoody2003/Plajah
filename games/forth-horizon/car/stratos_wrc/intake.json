@@ -1,0 +1,28 @@
+{
+  "id": "stratos_wrc",
+  "status": "built (multi-view matched: winner=tt_10, sideIoU=0.916, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Veloce_Stratos_WRC_rally_car_853f35e3.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Hatchback_rotating_on_studio_tur\u2026_8a40af0f.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_10",
+      "sideIoU": 0.8973,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "tt_03",
+      "sideIoU": 0.8426,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_10",
+  "finalSideIoU": 0.9163,
+  "yawSymDeg": -0.25,
+  "boundsM": {
+    "length": 4.379,
+    "width": 2.041,
+    "height": 1.474
+  },
+  "faces": 60000,
+  "elapsedSec": 74.7
+}

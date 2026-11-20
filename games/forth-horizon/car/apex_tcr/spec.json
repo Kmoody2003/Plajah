@@ -1,0 +1,238 @@
+{
+  "id": "apex_tcr",
+  "name": "Apex TCR Spec-2",
+  "glb": "/games/forth-horizon/car/apex_tcr_base.glb",
+  "paint": "0xb81a24",
+  "accent": "0xf0f2f5",
+  "cuts": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (apex_tcr_base.glb, L=4.52m W=1.98m H=1.41m).",
+  "wheels": {
+    "frontZ": 1.325,
+    "rearZ": -1.407,
+    "frontX": 0.748,
+    "rearX": 0.739,
+    "scale": 1.07,
+    "discardR": 0.395,
+    "centreY": 0.38,
+    "tyreR": 0.38,
+    "rimR": 0.265,
+    "style": "forged"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.89,
+        0.0,
+        0.824
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.89,
+        0.0,
+        0.824
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.016,
+        0.804
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    },
+    "trunk": {
+      "hinge": [
+        0.0,
+        1.036,
+        -1.977
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": 0.85
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.653,
+        0.776,
+        0.824
+      ],
+      [
+        0.653,
+        1.256,
+        2.081
+      ]
+    ],
+    "trunk": [
+      [
+        -0.574,
+        0.876,
+        -2.121
+      ],
+      [
+        0.574,
+        1.236,
+        -1.997
+      ]
+    ],
+    "roof": [
+      [
+        -0.624,
+        1.251,
+        -1.447
+      ],
+      [
+        0.624,
+        1.532,
+        0.261
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.016,
+    "roofEdge": 1.371,
+    "pillarBase": 0.784,
+    "pillarTop": 0.261,
+    "doorFront": 0.824,
+    "doorRear": -0.967,
+    "windBase": 0.784,
+    "windTop": 0.261,
+    "rearTop": -1.447,
+    "rearBase": -1.977,
+    "rearBase2": -1.947,
+    "windHalfW": 0.624,
+    "rearHalfW": 0.516,
+    "sideWindow": [
+      [
+        -0.907,
+        1.046
+      ],
+      [
+        0.764,
+        1.036
+      ],
+      [
+        0.724,
+        1.144
+      ],
+      [
+        0.543,
+        1.272
+      ],
+      [
+        0.261,
+        1.351
+      ],
+      [
+        -1.387,
+        1.351
+      ],
+      [
+        -1.607,
+        1.236
+      ],
+      [
+        -1.007,
+        1.076
+      ]
+    ],
+    "handle": [
+      -0.252,
+      0.876
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.37,
+    "layout": "front-v8",
+    "arch": "i4-turbo",
+    "texUrl": "/games/forth-horizon/tex/engines/sports_sedan_20t.jpg"
+  },
+  "trunk": true,
+  "cabin": {
+    "yOffset": 0.032,
+    "zOffset": -0.297,
+    "cowlZ": 0.734,
+    "cowlY": 1.016
+  },
+  "exhaust": {
+    "z": -2.145,
+    "y": 0.24,
+    "xs": [
+      -0.48,
+      -0.35,
+      0.35,
+      0.48
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.22,
+    "splitterW": 0,
+    "splitterY": 0.11,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.534,
+      "y": 0.505,
+      "w": 0.277,
+      "h": 0.075,
+      "tilt": 0.025,
+      "style": "u-drl"
+    },
+    "tail": {
+      "x": 0.514,
+      "y": 0.6,
+      "len": 0.336,
+      "style": "double-u"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.36,
+    "bumperRearY": 0.38,
+    "skirtY": 0.2,
+    "archLipAdd": 0.045,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.265,
+    "grilleHiY": 0.545,
+    "grilleStyle": "sport"
+  }
+}

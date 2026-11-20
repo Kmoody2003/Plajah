@@ -1,0 +1,28 @@
+{
+  "id": "apex_tcr",
+  "status": "built (multi-view matched: winner=sheet_front34, sideIoU=0.909, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Apex_TCR_Spec-2_touring_car_57cda8b3.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Apex_TCR_touring_car_showcase_50436818.mp4",
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.8986,
+      "yawSymDeg": 0.25
+    },
+    {
+      "candidate": "tt_05",
+      "sideIoU": 0.7967,
+      "yawSymDeg": -0.75
+    }
+  ],
+  "winner": "sheet_front34",
+  "finalSideIoU": 0.9086,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 4.523,
+    "width": 1.978,
+    "height": 1.412
+  },
+  "faces": 60000,
+  "elapsedSec": 99.6
+}

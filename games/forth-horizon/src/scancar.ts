@@ -597,20 +597,27 @@ function buildCabin(accentHex = 0xb9531a, cabin?: ScanSpec['cabin'], hasTrunk = 
   return g;
 }
 
-function buildTrunk(): THREE.Group {
+function buildTrunk(rearLimitZ = -2.18, halfW = 0.65, beltY = 1.08): THREE.Group {
   const g = new THREE.Group();
   const add = mesher(g);
   const carpet = std(0x18191c, 0.98, 0), trim = std(0x101114, 0.85, 0.1), metal = std(0x3a3d42, 0.5, 0.8);
-  add(new THREE.BoxGeometry(1.3, 0.04, 1.0), carpet, 0, 0.58, -1.55);                           // cargo floor
+  const zBack = Math.max(-2.18, rearLimitZ);
+  const zFront = Math.min(-1.04, zBack + 0.92);
+  const len = Math.max(0.42, zFront - zBack);
+  const zMid = (zFront + zBack) * 0.5;
+  const w = Math.min(1.26, halfW * 2);
+  const wallH = Math.min(0.42, Math.max(0.22, beltY - 0.62));
+  const yWall = 0.58 + wallH * 0.5;
+  add(new THREE.BoxGeometry(w, 0.04, len), carpet, 0, 0.58, zMid);
   for (const sx of [-1, 1]) {
-    add(new THREE.BoxGeometry(0.05, 0.45, 1.0), trim, sx * 0.66, 0.78, -1.55);                  // side trims
-    add(new THREE.CylinderGeometry(0.46, 0.46, 0.2, 28, 1, false, 0, Math.PI), trim, sx * 0.55, 0.35, -1.59, 0, 0, Math.PI / 2);   // wheel-arch hump (arches upward on both sides)
+    add(new THREE.BoxGeometry(0.05, wallH, len), trim, sx * (w * 0.5), yWall, zMid);
+    add(new THREE.CylinderGeometry(0.40, 0.40, 0.18, 28, 1, false, 0, Math.PI), trim, sx * (w * 0.42), 0.35, zMid, 0, 0, Math.PI / 2);
   }
-  add(new THREE.BoxGeometry(1.34, 0.5, 0.04), trim, 0, 0.82, -2.18);                            // tail panel inner
-  add(new THREE.CylinderGeometry(0.3, 0.3, 0.025, 36), carpet, 0, 0.61, -1.85);                 // spare-wheel cover
-  add(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 14), metal, 0, 0.625, -1.85);               // hold-down knob
-  add(new THREE.BoxGeometry(1.0, 0.18, 0.04), trim, 0, 0.7, -1.04);                            // rear seat-back bulkhead
-  add(new THREE.BoxGeometry(0.2, 0.012, 0.1), metal, 0.45, 0.61, -1.2);                          // tie-down plate
+  add(new THREE.BoxGeometry(w + 0.04, wallH, 0.04), trim, 0, yWall, zBack);
+  add(new THREE.CylinderGeometry(Math.min(0.28, len * 0.32), Math.min(0.28, len * 0.32), 0.025, 36), carpet, 0, 0.61, zMid - len * 0.14);
+  add(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 14), metal, 0, 0.625, zMid - len * 0.14);
+  add(new THREE.BoxGeometry(w * 0.78, Math.min(0.18, wallH * 0.6), 0.04), trim, 0, 0.68, zFront);
+  add(new THREE.BoxGeometry(0.2, 0.012, 0.1), metal, w * 0.34, 0.61, zFront - 0.14);
   return g;
 }
 
@@ -1243,15 +1250,15 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
         strut(P(s * 0.64, hy - 0.28, hz + 0.12), partsOf('hood'), P(s * 0.6, hy - 0.01, hz + 0.52));
       }
     }
-    // trunk: hinge brackets and struts
+    // trunk: hinge brackets and struts (tucked cleanly beneath sloped fastback rear decks)
     if (pivots.trunk && spec.panels.trunk) {
       const th = spec.panels.trunk.hinge;
-      const ty = th[1] - 0.03, tz = th[2];
+      const ty = th[1] - 0.14, tz = th[2];
       for (const s of [-1, 1]) {
-        box(0.1, 0.02, 0.1, steel, P(s * 0.55, ty, tz + 0.08), g);
-        box(0.07, 0.014, 0.22, steel, P(s * 0.55, ty + 0.03, tz - 0.10), partsOf('trunk'));
-        box(0.03, 0.03, 0.03, chromeM, P(s * 0.55, ty + 0.03, tz), partsOf('trunk'));
-        strut(P(s * 0.62, ty - 0.25, tz + 0.27), partsOf('trunk'), P(s * 0.6, ty + 0.02, tz - 0.28));
+        box(0.08, 0.02, 0.08, steel, P(s * 0.44, ty, tz + 0.08), g);
+        box(0.05, 0.014, 0.18, steel, P(s * 0.44, ty + 0.02, tz - 0.08), partsOf('trunk'));
+        box(0.024, 0.024, 0.024, chromeM, P(s * 0.44, ty + 0.02, tz), partsOf('trunk'));
+        strut(P(s * 0.48, ty - 0.22, tz + 0.24), partsOf('trunk'), P(s * 0.46, ty + 0.01, tz - 0.22));
       }
     }
     // doors: two hinges each at the A-pillar side, a check strap, an interior card with pull, armrest, speaker and window switches
@@ -1290,7 +1297,7 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
   carFrame.add(buildCabin(accentHex, spec.cabin, spec.trunk !== false));
   carFrame.add(buildCowl(spec.cabin?.cowlZ, spec.cabin?.cowlY));
   carFrame.add(buildDriver(accentHex, spec.cabin));
-  if (spec.trunk !== false) carFrame.add(buildTrunk());
+  if (spec.trunk !== false) carFrame.add(buildTrunk(-bsz.z * 0.5 + 0.38, bsz.x * 0.28, gl.belt));
   g.updateMatrixWorld(true);
   const lamps = buildLamps(shells, origin, spec.lamps);
   carFrame.add(lamps.group);

@@ -1,0 +1,28 @@
+{
+  "id": "terracorsa",
+  "status": "built (multi-view matched: winner=sheet_front34, sideIoU=0.904, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\ironport-complete\\concept-art\\media-generation-aurelia-terra-corsa-0-fa3d02cf-8594-4669-b613-bd4eb9ae125e.webp",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.8742,
+      "yawSymDeg": 0.25
+    },
+    {
+      "candidate": "sheet_rear34",
+      "sideIoU": 0.8585,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "sheet_front34",
+  "finalSideIoU": 0.9042,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 4.448,
+    "width": 2.04,
+    "height": 1.476
+  },
+  "faces": 60000,
+  "elapsedSec": 64.1
+}

@@ -1,0 +1,28 @@
+{
+  "id": "zephyr_emotion",
+  "status": "built (multi-view matched: winner=tt_01, sideIoU=0.901, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Zephyr_E-Motion_design_turnaroun\u2026_3d23caa3.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Zephyr_E_Motion_electric_sedan_9275fe91.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_08",
+      "sideIoU": 0.8879,
+      "yawSymDeg": 0.25
+    },
+    {
+      "candidate": "tt_01",
+      "sideIoU": 0.895,
+      "yawSymDeg": 0.0
+    }
+  ],
+  "winner": "tt_01",
+  "finalSideIoU": 0.9011,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 4.862,
+    "width": 2.042,
+    "height": 1.443
+  },
+  "faces": 60000,
+  "elapsedSec": 63.4
+}
