@@ -11,7 +11,7 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { CarProbe } from './carProbe';
 import { carvePads, type Pad } from './pads';
 import { groundU, loadGroundArrays } from './groundArrays';
-import { buildYards } from './yards';
+import { buildYards, type YardData } from './yards';
 import { buildTrench, type TrenchLine } from './trench';
 import { CityBatches, type CityPart } from './cityBatch';
 import { patchFacadeMasonry, patchGlassInterior, patchPunchedInterior } from './buildingShaders';
@@ -54,7 +54,8 @@ import { SpatialCuller, runWithConcurrency, populateTiledTerrain, populateTerrai
 import { harborDetail } from './harborDetail';
 import { duneDetail } from './duneDetail';
 import { Vegetation } from './vegetation';
-import { buildIndustrialCircuit } from './industrialCircuit';
+import { buildIndustrialCircuit, carveIndustrialCutting, industrialProfile, type GradeFeature } from './industrialCircuit';
+import { buildIronworksDistrict } from './ironworksDistrict';
 import { glassSelects } from './glassSelect';
 import { buildParkingLots } from './parkingLots';
 import { buildUtilities, type UtilitiesData } from './utilities';
@@ -1165,6 +1166,7 @@ function buildTownExtras(): void {
     refDress = buildReferenceDressing({
       ground: (x, z) => meshH(x, z), water: (x, z) => hAt(x, z) < 2.5, building: (x, z, m) => insideBuilding(x, z, m), roadDist: (x, z) => roadDist(x, z),
       paved: countryScenes.pavedRuns, shore: shoreHw, industrial: meta.circuits[IND]?.xz.map((q) => ({ x: q[0], z: q[1] })), mouths: countryScenes.driveMouths,
+      course: (x, z, extra) => onCourse(x, z, extra ?? 0),
       streets: streetRuns.map((r) => ({ line: r.p.map(([x, z]) => ({ x, z })), half: ({ street: 4.25, arterial: 7, freeway: 6.25, ramp: 2.75 } as Record<string, number>)[r.c] ?? 4.25 })),
     });
     furnitureGroup.add(refDress.group);
@@ -1402,6 +1404,9 @@ const treeFields: TreeLayer[] = [];
 let grassField: GrassField | null = null;
 const IND = 'ironworks_industrial_circuit';                // the short street course through the port's industrial yards
 let industrialPath: { x: number; z: number }[] = [];
+let industrialGrade: GradeFeature[] = [];
+let industrialRaw: { xz: number[][]; sectors: Record<string, number[]> } | null = null;   // the planned points and the map's sectors (dressing)             // where the new Ironworks leaves the ground (bridge, underpass)
+let industrialYs: number[] | undefined;               // its design heights along the path (industrialProfile)
 let indNear: ((x: number, z: number, r: number) => boolean) | null = null;
 let simPlan: SimPlan | null = null;                 // road graph, rails and airfield from the map editor (src/simLayer.ts)
 let simLayer: SimLayer | null = null;
@@ -1824,7 +1829,16 @@ const curtainU = { value: 1 };                         // 1: 3D interior mapping
 async function buildCity(): Promise<void> {
   const res = await fetch(BASE + 'city.json');
   if (!res.ok) return;
-  cityItems = ((await res.json()) as { items: CityItem[] }).items;
+  // the new Ironworks runs through the old yards: a building whose footprint (w x d, the world footprint) touches its course is left out (downtown and the
+  // other circuits are not touched)
+  cityItems = ((await res.json()) as { items: CityItem[] }).items.filter((it) => {
+    const cx = it.bx ?? it.x, cz = it.bz ?? it.z, c = Math.cos(it.rotY), sn = Math.sin(it.rotY);
+    for (const [u, v] of [[0, 0], [-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0, -0.5], [0, 0.5], [-0.5, 0], [0.5, 0]]) {
+      const lx = u * it.w, lz = v * it.d;
+      if (onCourse(cx + lx * c + lz * sn, cz - lx * sn + lz * c, 1, [IND])) return false;
+    }
+    return true;
+  });
   buildCollision();
   // Review viewer budget: Quest-tier textures (smaller), one GPU copy per shared texture, base colour only.
   const manager = new THREE.LoadingManager();
@@ -3017,7 +3031,18 @@ function buildFurniture(): void {
   // countryside set pieces for the reference shots: creek, covered bridge, paved and dirt lanes, barn
   {
     if (countryScenes) { furnitureGroup.remove(countryScenes.group); for (const r of countryScenes.roads) { const i = driveSurfaces.indexOf(r); if (i >= 0) driveSurfaces.splice(i, 1); } }
-    countryScenes = buildCountryScenes({ ground: (x, z) => meshH(x, z), roadMaterial: cityRoadMat ?? undefined, network: countryNet ?? undefined, shoreline: shoreHw ?? undefined });
+    // no country road runs onto a tarmac circuit: each is cut where it would enter one (the circuit's barriers end it); the rally stage and the scenic circuits keep their junctions
+    const netOff = countryNet ? { ...countryNet, roads: countryNet.roads.flatMap((r) => {
+      const pieces: number[][][] = []; let cur: number[][] = [];
+      if (!r.xz.some((p) => onCourse(p[0], p[1], 40, TARMAC_CIRCUITS))) return [r];                // far from every tarmac circuit: as it is
+      const dense: number[][] = [];
+      r.xz.forEach((p, i) => { if (i) { const q = r.xz[i - 1], L = Math.hypot(p[0] - q[0], p[1] - q[1]), k = Math.max(1, Math.ceil(L / 3)); for (let j = 1; j < k; j++) dense.push([q[0] + (p[0] - q[0]) * j / k, q[1] + (p[1] - q[1]) * j / k]); } dense.push(p); });
+      if (!dense.some((p) => onCourse(p[0], p[1], 1, TARMAC_CIRCUITS))) return [r];
+      for (const p of dense) { if (onCourse(p[0], p[1], 1, TARMAC_CIRCUITS)) { if (cur.length > 1) pieces.push(cur); cur = []; } else cur.push(p); }
+      if (cur.length > 1) pieces.push(cur);
+      return pieces.map((xz) => ({ ...r, xz }));
+    }) } : undefined;
+    countryScenes = buildCountryScenes({ ground: (x, z) => meshH(x, z), roadMaterial: cityRoadMat ?? undefined, network: netOff, shoreline: shoreHw ?? undefined });
     furnitureGroup.add(countryScenes.group);
     driveSurfaces.push(...countryScenes.roads);
     surfGrid = null;
@@ -3025,12 +3050,33 @@ function buildFurniture(): void {
   }
 
   if (meta.circuits[IND]) {
-    const ic = buildIndustrialCircuit({ path: meta.circuits[IND].xz.map((q) => ({ x: q[0], z: q[1] })), ground: (x, z) => meshH(x, z), roadMaterial: cityRoadMat ?? undefined });
+    const ic = buildIndustrialCircuit({ path: meta.circuits[IND].xz.map((q) => ({ x: q[0], z: q[1] })), ground: (x, z) => meshH(x, z), roadMaterial: cityRoadMat ?? undefined, ys: industrialYs, grade: industrialGrade });
     furnitureGroup.add(ic.group);
     driveSurfaces.push(ic.road);
     surfGrid = null;
     industrialPath = ic.path;
     indNear = makeCorridor(ic.path);
+    // the districts round it from the library pieces (src/ironworksDistrict.ts). The course counts as open ground where its road is up on the bridge (the
+    // rail yard runs on underneath); the Port Branch near the bridge sets the yard's line
+    if (industrialRaw && industrialYs) {
+      const ys = industrialYs, P = ic.path;
+      const elevated = (x: number, z: number): boolean => { let k = 0, bd = 1e18; for (let i = 0; i < P.length; i += 2) { const d = (P[i].x - x) ** 2 + (P[i].z - z) ** 2; if (d < bd) { bd = d; k = i; } } return bd < 30 * 30 && ys[k] - hAt(P[k].x, P[k].z) > 6; };
+      const bridge = industrialGrade.find((g) => g.kind === 'bridge');
+      const pb = userMap?.features.find((f) => f.type === 'rail' && /port branch/i.test(f.name ?? ''));
+      let rail: { x: number; z: number; dx: number; dz: number } | undefined;
+      if (bridge && pb) {
+        let bi = 0, bd = 1e18; pb.pts.forEach((q, i) => { const d = (q[0] - bridge.at[0]) ** 2 + (q[1] - bridge.at[1]) ** 2; if (d < bd) { bd = d; bi = i; } });
+        const a = pb.pts[Math.max(0, bi - 1)], b = pb.pts[Math.min(pb.pts.length - 1, bi + 1)];
+        rail = { x: bridge.at[0], z: bridge.at[1], dx: b[0] - a[0], dz: b[1] - a[1] };
+      }
+      const d = buildIronworksDistrict({
+        route: industrialRaw.xz, sectors: industrialRaw.sectors, ground: (x, z) => meshH(x, z), water: (x, z) => hAt(x, z) < 2.5, rail,
+        blocked: (x, z, r) => (onCourse(x, z, r) && !elevated(x, z)) || paintedRoad(x, z, r) || insideBuilding(x, z, r),
+      });
+      mergeByMaterial(d.group, 400);
+      furnitureGroup.add(d.group);
+      console.log('ironworks district', JSON.stringify(d.counts));
+    }
   }
 
   if (simPlan && (simPlan.net || simPlan.L || simPlan.data.zones.length)) {
@@ -3042,11 +3088,32 @@ function buildFurniture(): void {
     driveSurfaces.push(...simLayer.surfaces);
     surfGrid = null;
   }
+  if (utilData) {
+    // a pylon standing on a race course walks along its line (toward a neighbour) to the nearest clear spot, so the wires still run pylon to pylon
+    let moved = 0;
+    utilData.pylons.forEach((py, i) => {
+      if (!onCourse(py.x, py.z, 9)) return;
+      const nb = utilData!.spans.filter((sp) => sp[0] === i || sp[1] === i).map((sp) => utilData!.pylons[sp[0] === i ? sp[1] : sp[0]]);
+      let best: [number, number] | null = null, bd = 1e9;
+      for (const q of nb) { const L = Math.hypot(q.x - py.x, q.z - py.z) || 1, ux = (q.x - py.x) / L, uz = (q.z - py.z) / L; for (let d = 3; d < Math.min(60, L * 0.45); d += 3) { const x = py.x + ux * d, z = py.z + uz * d; if (!onCourse(x, z, 9)) { if (d < bd) { bd = d; best = [x, z]; } break; } } }
+      // a line running alongside the course never clears it: step sideways (square to the line) instead, the nearer way
+      if (!best) for (const q of nb.slice(0, 1)) { const L = Math.hypot(q.x - py.x, q.z - py.z) || 1, sx = -(q.z - py.z) / L, sz = (q.x - py.x) / L; for (let d = 3; d <= 36 && !best; d += 3) for (const sg of [1, -1]) { const x = py.x + sx * d * sg, z = py.z + sz * d * sg; if (!onCourse(x, z, 9)) { best = [x, z]; break; } } }
+      if (best) { py.x = best[0]; py.z = best[1]; moved++; }
+    });
+    if (moved) console.log('pylons moved off the race courses', moved);
+  }
   if (utilData) { const ug = buildUtilities(utilData, (x, z) => meshH(x, z)).group; const mb = mergeByMaterial(ug, 600); console.log('utilities meshes', mb.before, '->', mb.after); furnitureGroup.add(ug); }   // pylons and yards: one draw per material per 600 m cell
   if (parkingData && parkingData.length) { parkingLots = buildParkingLots(parkingData, (x, z) => meshH(x, z)); furnitureGroup.add(parkingLots.group); }
   if (portData) {
     const wy = waterMesh ? waterMesh.position.y : 0;
-    furnitureGroup.add(buildPortDistrict(portData, { waterY: wy }).group);
+    // nothing of the port stands on a race course (the new Ironworks runs across the old port yards): a container block, crane, tank or the flare on the
+    // course is left out, and the pipe rack and the plant fence go if any part of them would cross it
+    const pd = portData, onC = (x: number, z: number, r: number): boolean => onCourse(x, z, r);
+    const blockOn = (b: number[]): boolean => { const x1 = b[0] + b[2] * 12.6, z0b = b[1] - 1.3, z1 = b[1] + b[3] * 2.6; for (let x = b[0]; x <= x1; x += 6) for (let z = z0b; z <= z1; z += 6) if (onC(x, z, 2)) return true; return onC(x1, z1, 2); };
+    const portOff: PortData = { ...pd, cranes: pd.cranes.filter((c) => !onC(c.x, c.z, 16)), containers: pd.containers.filter((b) => !blockOn(b)), tanks: pd.tanks.filter((t) => !onC(t.x, t.z, t.r + 3)),
+      pipeRack: pd.pipeRack.some((q) => onC(q[0], q[1], 4)) ? [] : pd.pipeRack, flare: pd.flare.length >= 2 && onC(pd.flare[0], pd.flare[1], 8) ? [] : pd.flare,
+      fence: pd.fence.some((q, i) => { const r = pd.fence[(i + 1) % pd.fence.length]; for (let t = 0; t <= 1; t += 0.1) if (onC(q[0] + (r[0] - q[0]) * t, q[1] + (r[1] - q[1]) * t, 1)) return true; return false; }) ? [] : pd.fence };
+    furnitureGroup.add(buildPortDistrict(portOff, { waterY: wy }).group);
   }
 
   // Rural Horizon open-world architecture & Festival Outpost
@@ -3328,6 +3395,12 @@ function groundH(x: number, z: number): number {
     const sy = cliffIx ? cliffSurface(cliffIx, x, z, 14) : NaN;                         // a wheel past the road edge inside the tunnel stands on the road's own plane, never on the mountain above
     if (!Number.isNaN(sy)) return sy * exag;
   }       // in the tunnel the road is the ground; the terrain is the mountain over it
+  // on the cliff raceway's tarmac the road is the ground too: where a dune bank laps over the road edge (the sand at the start is meant to be there) the car
+  // drives on the road under it instead of climbing the sand and sticking there
+  if (cliffIx && cliffNear && cliffNear(x, z, 6.2)) {
+    const sy = cliffSurface(cliffIx, x, z, 6.2);
+    if (!Number.isNaN(sy)) return Math.max(sy * exag, top > -1e8 && top < sy * exag + 1.5 ? top : -1e9);
+  }
   return Math.max(meshH(x, z), top);
 }
 /** the lowest drivable surface at x,z (the freeway bed under an overpass), or `fallback` */
@@ -3348,6 +3421,48 @@ function makeCorridor(pts: { x: number; z: number }[]): (x: number, z: number, r
       for (let k = 0; k < a.length; k += 2) { const dx = a[k] - x, dz = a[k + 1] - z; if (dx * dx + dz * dz < r2) return true; }
     }
     return false;
+  };
+}
+/** on a race course or inside its barriers: every circuit's line (densified to 2 m) with its own clearance (half width + barriers + a margin). Built on first use, after
+ *  the circuits are loaded; site plans, yards, hedges and utilities ask it before they stand anything on the ground */
+const COURSE_R: Record<string, number> = { ironport_grand_circuit: 8.0, ironworks_industrial_circuit: 8.0, great_lakes_cliff_raceway: 8.5, pinewood_rally_stage: 6.5 };
+let courseTests: { id: string; near: (x: number, z: number, r: number) => boolean; r: number }[] | null = null;
+const TARMAC_CIRCUITS = ['ironport_grand_circuit', 'ironworks_industrial_circuit', 'great_lakes_cliff_raceway'];
+function onCourse(x: number, z: number, extra = 0, only?: string[]): boolean {
+  if (!courseTests) {
+    if (!meta?.circuits) return false;
+    courseTests = Object.entries(meta.circuits).map(([id, c]) => {
+      const xz = (c as { xz: number[][] }).xz, pts: { x: number; z: number }[] = [];
+      for (let i = 0; i < xz.length - 1; i++) { const a = xz[i], b = xz[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]), k = Math.max(1, Math.ceil(L / 2)); for (let j = 0; j < k; j++) pts.push({ x: a[0] + (b[0] - a[0]) * j / k, z: a[1] + (b[1] - a[1]) * j / k }); }
+      return { id, near: makeCorridor(pts), r: COURSE_R[id] ?? 6.5 };
+    });
+  }
+  return courseTests.some((t) => (!only || only.includes(t.id)) && t.near(x, z, t.r + extra));
+}
+/** the yard and site-plan items that would stand on a course, left out; long fence runs are cut where they cross one */
+function keepYardsOffCourse(d: YardData): YardData {
+  const seg = (list?: number[][]): number[][] | undefined => {
+    if (!list) return list;
+    const out: number[][] = [];
+    for (const [x0, z0, x1, z1, ...rest] of list) {
+      const L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.ceil(L / 3));
+      let run: number[] | null = null;
+      for (let k = 0; k < n; k++) {
+        const a = k / n, b = (k + 1) / n, ax = x0 + (x1 - x0) * a, az = z0 + (z1 - z0) * a, bx = x0 + (x1 - x0) * b, bz = z0 + (z1 - z0) * b;
+        const bad = onCourse(ax, az, 0.5) || onCourse(bx, bz, 0.5) || onCourse((ax + bx) / 2, (az + bz) / 2, 0.5);
+        if (bad) { if (run) { out.push(run); run = null; } continue; }
+        if (run) { run[2] = bx; run[3] = bz; } else run = [ax, az, bx, bz, ...rest];
+      }
+      if (run) out.push(run);
+    }
+    return out;
+  };
+  const pt = (list: number[][] | undefined, r: (it: number[]) => number): number[][] | undefined => list?.filter((it) => !onCourse(it[0], it[1], r(it)));
+  return {
+    ...d,
+    garages: pt(d.garages, () => 5) ?? [], fences: seg(d.fences) ?? [], walks: seg(d.walks), sideFences: seg(d.sideFences), pickets: seg(d.pickets), chain: seg(d.chain),
+    shrubs: pt(d.shrubs, (it) => it[2] ?? 1), mailboxes: pt(d.mailboxes, () => 0.5), docks: pt(d.docks, () => 2), trailers: pt(d.trailers, () => 9), dumpsters: pt(d.dumpsters, () => 1.5),
+    aprons: pt(d.aprons, (it) => Math.max(it[2], it[3]) / 2),
   };
 }
 let cliffPathPts: { x: number; z: number }[] = [];
@@ -3566,6 +3681,35 @@ function barrierCollide(s: DriveState): boolean {
     if (over > worst && c.d < 60) { worst = over; ux = c.nx / c.d; uz = c.nz / c.d; }
   }
   if (worst > 0) { wallPush(s, ux, uz, worst); return true; }
+  return false;
+}
+/** off a race (free roam, deliveries, events) the street circuits' concrete barriers are solid from both sides too: a car outside the course is stopped by them
+ *  as much as one inside it (it used to drive straight through them). Ironworks and Ironport: blocks centred 6.9 m from the line, 0.55 m thick; where Ironworks
+ *  left a block out (beside another leg of its own course) there is nothing to hit */
+const freeBarrierIdx: Record<string, number> = {};
+function freeRoamBarrierHit(s: DriveState): boolean {
+  const sy = Math.sin(s.yaw), cy = Math.cos(s.yaw);
+  for (const [id, P] of [[IND, industrialPath], ['ironport_grand_circuit', cityPath]] as [string, { x: number; z: number }[]][]) {
+    const n = P.length; if (n < 8) continue;
+    let best = 1e18, bi = freeBarrierIdx[id] ?? 0;
+    for (let k = -20; k <= 20; k++) { const i = ((bi + k) % n + n) % n, d = (P[i].x - s.pos.x) ** 2 + (P[i].z - s.pos.z) ** 2; if (d < best) { best = d; bi = i; } }
+    if (best > 40 * 40) { best = 1e18; for (let i = 0; i < n; i += 2) { const d = (P[i].x - s.pos.x) ** 2 + (P[i].z - s.pos.z) ** 2; if (d < best) { best = d; bi = i; } } }
+    freeBarrierIdx[id] = bi;
+    if (best > 14 * 14) continue;                                                     // nowhere near this course's barriers
+    const B = 6.9, T = 0.3 + 0.05;
+    const centre = corridorAt(P, n, bi, s.pos.x, s.pos.z), inside = centre.d < B;
+    let worst = 0, ux = 0, uz = 0;
+    for (const [lx, lz] of [[CAR_HW, CAR_HL], [-CAR_HW, CAR_HL], [CAR_HW, -CAR_HL], [-CAR_HW, -CAR_HL]]) {
+      const x = s.pos.x + cy * lx + sy * lz, z = s.pos.z - sy * lx + cy * lz;
+      const c = corridorAt(P, n, bi, x, z); if (c.d < 1e-3) continue;
+      const ox = c.nx / c.d, oz = c.nz / c.d;
+      // a gap Ironworks left (another leg of the course within 7.6 m of where the block would stand)
+      if (id === IND) { const bx = x - ox * (c.d - B), bz = z - oz * (c.d - B); let gap = false; for (let j = 0; j < n && !gap; j += 2) { const di = Math.min(Math.abs(j - bi), n - Math.abs(j - bi)); if (di >= 8 && Math.hypot(P[j].x - bx, P[j].z - bz) < 7.6) gap = true; } if (gap) continue; }
+      const over = inside ? c.d - (B - T) : (B + T) - c.d;
+      if (over > 0 && over < 2 * T + 1.2 && over > worst) { worst = over; ux = inside ? ox : -ox; uz = inside ? oz : -oz; }
+    }
+    if (worst > 0) { wallPush(s, ux, uz, worst); return true; }
+  }
   return false;
 }
 /** the scenic roads' guardrails are solid on every drive (a car that runs wide on a viaduct or a mountain bend scrapes the rail instead of dropping off) */
@@ -3977,6 +4121,7 @@ function stepDrive(dt: number): void {
   let bumped = false;
   if (collide(s)) { s.sp *= 0.86; s.lat *= 0.7; s.hit = 0.4; bumped = true; }
   if ((s.circuitId === 'ironport_grand_circuit' || s.circuitId === IND || s.circuitId === 'great_lakes_cliff_raceway') && barrierCollide(s)) { s.hit = 0.4; bumped = true; }
+  else if (s.circuitId !== 'ironport_grand_circuit' && s.circuitId !== IND && s.circuitId !== 'great_lakes_cliff_raceway' && freeRoamBarrierHit(s)) { s.hit = 0.4; bumped = true; }
   else if (scenicRailHit(s)) { s.hit = 0.4; bumped = true; }
   if (bumped) driveInput.rumble(0.9, 0.7, 220);
   else if (ps.isDrifting) driveInput.rumble(0.0, 0.25, 60);
@@ -4135,12 +4280,15 @@ async function boot(): Promise<void> {
     if (roads.length) { if (!countryNet) countryNet = { roads: [] }; countryNet.roads.push(...roads); }
   }
   {
-    const ind = await fetch(BASE + 'industrial_circuit.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { name: string; kind: string; xz: number[][] } | null;
-    if (ind && ind.xz.length > 6) { const sm = smoothClosedPath(ind.xz, undefined, 26, 6); meta.circuits[IND] = { name: ind.name, kind: 'road_course', xz: sm.xz } as typeof meta.circuits[string]; }
+    const ind = await fetch(BASE + 'industrial_circuit.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { name: string; kind: string; xz: number[][]; grade?: GradeFeature[] } | null;
+    // the new Ironworks (North Harbor Circuit II, tools/plan_ironworks_v2.py): tighter corners than the old route, so a 16 m rounding radius
+    if (ind && ind.xz.length > 6) { const sm = smoothClosedPath(ind.xz, undefined, ind.grade ? 16 : 26, 6); meta.circuits[IND] = { name: ind.name, kind: 'road_course', xz: sm.xz } as typeof meta.circuits[string]; industrialGrade = ind.grade ?? []; if ((ind as { sectors?: Record<string, number[]> }).sectors) industrialRaw = { xz: ind.xz, sectors: (ind as unknown as { sectors: Record<string, number[]> }).sectors }; }
   }
   portData = await fetch(BASE + 'port_district.json').then((x) => (x.ok ? x.json() : null)).catch(() => null);
   { const dw = await fetch(BASE + 'driveways.json').then((x) => (x.ok ? x.json() : null)).catch(() => null); if (dw) { if (!countryNet) countryNet = { roads: [] }; countryNet.roads.push(...dw.roads); } }
   parkingData = await fetch(BASE + 'parking_lots.json').then((x) => (x.ok ? x.json() : null)).catch(() => null);
+  // no parking lot on a race course (its surface stood up to 2.3 m over the new Ironworks): a lot whose rectangle touches a course is left out, before its pad is graded
+  if (parkingData) parkingData = (parkingData as number[][]).filter((l) => { const c = Math.cos(l[4] ?? 0), sn = Math.sin(l[4] ?? 0); for (const [u, v] of [[0, 0], [-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5], [0, -0.5], [0, 0.5], [-0.5, 0], [0.5, 0]]) { const lx = u * l[2], lz = v * l[3]; if (onCourse(l[0] + lx * c + lz * sn, l[1] - lx * sn + lz * c, 1)) return false; } return true; });
   utilData = await fetch(BASE + 'utilities.json').then((x) => (x.ok ? x.json() : null)).catch(() => null);
   { const us2 = await fetch(BASE + 'utility_streets.json').then((x) => (x.ok ? x.json() : null)).catch(() => null); if (us2) { if (!countryNet) countryNet = { roads: [] }; countryNet.roads.push(...us2.roads); } }
   { const ps = await fetch(BASE + 'port_streets.json').then((x) => (x.ok ? x.json() : null)).catch(() => null); if (ps) { if (!countryNet) countryNet = { roads: [] }; countryNet.roads.push(...ps.roads); } }
@@ -4249,8 +4397,15 @@ async function boot(): Promise<void> {
     const roads: GradeRoad[] = [];
     // the Ironport Grand Circuit first, as one continuous road (graded with the highways, ahead of the streets it runs along): graded street by street it got a step
     // at every joint where one street's profile met the next one's already-fixed bed (up to 1 m in 2 m); the cross streets now join the circuit's bed instead
+    // the Ironworks Industrial Circuit the same way (its line is already smoothed when loaded; 7.2 m half width)
     const gc = meta.circuits.ironport_grand_circuit as { xz?: number[][]; y?: number[] } | undefined;
     if (gc?.xz && gc.xz.length > 3) { const sm = smoothClosedPath(gc.xz, gc.y, 12, 6).xz; roads.push({ xz: [...sm, sm[0]], half: 6, cls: 'highway' }); }
+    const gi = meta.circuits[IND] as { xz?: number[][] } | undefined;
+    if (gi?.xz && gi.xz.length > 3) roads.push({ xz: [...gi.xz, gi.xz[0]], half: 7.5, cls: 'highway' });
+    // the Pinewood Rally Stage as a gravel lane (12 % at most): graded after the paved roads, it eases into their beds where it crosses them instead of dropping
+    // into the cutting (a 0.76 m dip at 33 % where it crossed the paved road at -1117, -3571) and takes the steepest pitches off the hillsides it runs over
+    const gr = meta.circuits.pinewood_rally_stage as { xz?: number[][] } | undefined;
+    if (gr?.xz && gr.xz.length > 3) roads.push({ xz: gr.xz, half: 4, cls: 'lane' });
     const W8 = { street: 8.5, arterial: 14, freeway: 12.5, ramp: 5.5 } as Record<string, number>;
     const runs = await fetch(BASE + 'city_streets.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { c: string; p: number[][] }[] | null;
     for (const r of runs ?? []) roads.push({ xz: r.p, half: (W8[r.c] ?? 8.5) / 2, cls: r.c === 'freeway' ? 'freeway' : r.c === 'street' ? 'street' : 'highway' });
@@ -4260,6 +4415,13 @@ async function boot(): Promise<void> {
       roads.push({ xz: rr.xz, half: rr.half ?? 3.6, cls });
     }
     const st = gradeRoads(heights, meta.width, meta.height, meta.mpp, roads, locked, scenicFlat);   // no later road reshapes the ground under a scenic road
+    // the new Ironworks leaves the ground twice: over the Port Branch on a bridge, under it in a cutting. Its design heights come from the graded ground, then
+    // the cutting is dug (the rail keeps the height it was planned at and crosses on its own bridge)
+    if (gi?.xz && industrialGrade.length) {
+      const pts = gi.xz.map((q) => ({ x: q[0], z: q[1] }));
+      industrialYs = industrialProfile(pts, industrialGrade, (x, z) => hAt(x, z));
+      console.log('ironworks cutting cells', carveIndustrialCutting(heights, meta.width, meta.height, meta.mpp, GRID.ox, GRID.oz, pts, industrialYs, (x, z) => hAt(x, z)));
+    }
     console.log('road grade pass', st);
     (window as unknown as { roadGrade: unknown }).roadGrade = st;
   }
@@ -4280,13 +4442,14 @@ async function boot(): Promise<void> {
   buildCity().catch((e) => console.error('city failed', e));
   buildTrenchLayer().catch((e) => console.error('trench failed', e));
   loadGroundArrays().catch((e) => console.error('ground materials failed', e));
-  fetch(BASE + 'yards.json').then((x) => (x.ok ? x.json() : null)).then((y) => { if (y) furnitureGroup.add(buildYards(y, (x, z) => meshH(x, z))); }).catch(() => undefined);
+  fetch(BASE + 'yards.json').then((x) => (x.ok ? x.json() : null)).then((y) => { if (y) furnitureGroup.add(buildYards(keepYardsOffCourse(y), (x, z) => meshH(x, z))); }).catch(() => undefined);
   mapEditor = createMapEditor({
     scene, camera, dom: renderer.domElement, terrain: () => terrain, ground: (x, z) => meshH(x, z),
     topView: () => { const t = controls.target; look(new THREE.Vector3(t.x, Math.max(2500, camera.position.distanceTo(t)), t.z + 1), t.clone()); },
   });
   mapEditor.load(userMap ?? { version: 1, features: [] });
   (window as any).refScenes = REF_SCENES;
+  (window as any).coursePaths = () => ({ ironport_grand_circuit: cityPath, great_lakes_cliff_raceway: cliffPathPts, ironworks_industrial_circuit: industrialPath });   // the lines the circuits are built on (scripts/apex-probe-circuits.mjs)
   (window as any).cineJump = (i: number) => { if (!cineOn) startCine(); cineIdx = i % cineShots.length; cineT = 1.2; };
   (window as any).vegStats = () => vegetation?.stats;
   (window as any).simDebug = () => ({ cars: simLayer?.world.cars ?? [], trafficCalls, signals: simLayer?.world.signals, surf: surfaceAtXZ, meshH, graph: simLayer?.world.graph });

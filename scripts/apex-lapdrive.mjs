@@ -21,7 +21,9 @@ console.log('cinematic was on:', cine, '| drive alive after a real W press:', al
 if (!alive) { await browser.close(); process.exit(1); }
 await page.evaluate(() => {
   const R = window.regionViewer, c = R.meta.circuits[R.drive().circuitId] || Object.values(R.meta.circuits).find(() => false);
-  const xz = c.xz, y = c.y, n = xz.length, K = R.keys;
+  // the line the circuit is built on, where the game has one (a smoothed or designed road departs from the raw points by up to 18 m at a corner)
+  const built = window.coursePaths?.()[R.drive().circuitId];
+  const xz = built?.length > 10 ? built.map((p) => [p.x, p.z]) : c.xz, y = built?.length > 10 ? null : c.y, n = xz.length, K = R.keys;
   const st = window.__lap = {i: 0, t0: performance.now(), maxOff: 0, maxDy: 0, sumDy: 0, cnt: 0, stalls: 0, offRuns: 0, wasOff: false, slow: 0, done: false, log: []};
   let last = performance.now();
   const near = (p, all) => { let best = st.i, bd = 1e18; for (let k = all ? 0 : Math.max(0, st.i - 20); k < (all ? n : Math.min(n, st.i + 120)); k++) { const d = (xz[k][0] - p.x) ** 2 + (xz[k][1] - p.z) ** 2; if (d < bd) { bd = d; best = k; } } return [best, Math.sqrt(bd)]; };
@@ -37,7 +39,7 @@ await page.evaluate(() => {
       st.sgn = Math.sign(wrap(ps.yaw - st.cal)) || 1; st.log.push(['sgn', st.sgn]); K.delete('KeyD');
     }
     if (i >= n - 3) { st.done = true; st.t = (now - st.t0) / 1000; K.clear(); return; }
-    const dy = p.y - y[i], v0 = ps.forwardSpeed; if (off < 4) { if (Math.abs(dy) > st.maxDy) st.maxAt = [i, Math.round(p.x), Math.round(p.z), +dy.toFixed(2), +v0.toFixed(1)]; st.maxDy = Math.max(st.maxDy, Math.abs(dy)); st.sumDy += Math.abs(dy); st.cnt++; }
+    const dy = p.y - (y ? y[i] : R.groundH(xz[i][0], xz[i][1])), v0 = ps.forwardSpeed; if (off < 4) { if (Math.abs(dy) > st.maxDy) st.maxAt = [i, Math.round(p.x), Math.round(p.z), +dy.toFixed(2), +v0.toFixed(1)]; st.maxDy = Math.max(st.maxDy, Math.abs(dy)); st.sumDy += Math.abs(dy); st.cnt++; }
     st.maxOff = Math.max(st.maxOff, off); if (off > 6 && !st.wasOff) st.offRuns++; st.wasOff = off > 6;
     const look = Math.min(n - 1, i + 6 + Math.round(Math.abs(ps.forwardSpeed) * 0.35));
     const want = Math.atan2(xz[look][0] - p.x, xz[look][1] - p.z), err = wrap(want - ps.yaw);

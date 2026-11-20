@@ -162,7 +162,9 @@ export function cliffSurface(ix: TrackIndex, x: number, z: number, reach = TRACK
 // ---------- grading the ground ----------
 const FLAT = 26;                // the terrain mesh has a vertex every 24 m: the bench must reach past the next vertex on each side or a slope vertex lifts the road under the ground
 const COVER = 18;               // metres of mountain over the tunnel roof line at the centre of the tunnel
-const PORTAL_RAMP = 80;         // metres from a portal over which the hillside rises from road level to full cover
+const PORTAL_RAMP = 80;
+/** half width of the cutting under the tunnel (the rock cover in cliffRaceway.ts spans it): the tube's radius plus the widest terrain triangle */
+export const TUNNEL_CUT = 48;         // metres from a portal over which the hillside rises from road level to full cover
 
 /** Grades `heights` (raw map units, W x H, `mpp` metres per cell, centred on the origin) to the design. */
 export function carveCliffRaceway(heights: Float32Array, W: number, H: number, mpp: number, design: TrackDesign): void {
@@ -188,12 +190,17 @@ export function carveCliffRaceway(heights: Float32Array, W: number, H: number, m
     if (p.tunnel) {
       const pd = portalDist(hit.i), t = smoothstep(0, 1, pd / PORTAL_RAMP);
       const top = yHere + 8.5 + COVER * t;                                    // road + the portal / tunnel height + the mountain over it (rising away from the portal)
+      // the ground is a height field: carried over the road it had to pass through the tunnel's opening somewhere (the hillside filled the portal from outside and
+      // the tube was open to the sky from inside). Under the tunnel it is a cutting at road level; the mountain over it is a mesh laid over the cutting
+      // (buildCliffRacewayCircuit: the rock cover and the portal headwalls), and the ground rises to the mountain only beside the cutting
+      // the cutting is wide enough that no terrain triangle (up to ~34 m across) can reach from the mountain beside it into the tube over the road
+      if (d <= TUNNEL_CUT) { heights[k] = yHere - 0.35; continue; }
       if (pd < PORTAL_RAMP) {
         // the portal: the hillside is cut back to a rock face just over the opening, then rises over the tunnel
-        const w = 1 - smoothstep(FLAT, FLAT + 22, d);
+        const w = 1 - smoothstep(TUNNEL_CUT, TUNNEL_CUT + 22, d);
         heights[k] = h0 * (1 - w) + top * w;
       } else {
-        const lw = 1 - smoothstep(24, 52, d);                                 // the mountain is a bump about 100 m wide
+        const lw = 1 - smoothstep(TUNNEL_CUT, TUNNEL_CUT + 28, d);                                 // the mountain is a bump about 100 m wide
         heights[k] = h0 + Math.max(0, top - h0) * lw;
       }
       continue;

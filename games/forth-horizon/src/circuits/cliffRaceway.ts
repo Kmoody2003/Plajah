@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { catchFence, type FencePoint } from '../catchFence';
 import { detailedStand, pitGarage } from '../trackArchitecture';
-import { TRACK_HALF, cliffSurface, indexTrack, type TrackDesign } from './cliffTrack';
+import { TRACK_HALF, TUNNEL_CUT, cliffSurface, indexTrack, type TrackDesign } from './cliffTrack';
 
 export interface CircuitCorner {
   n?: number;
@@ -763,7 +763,15 @@ export function buildCliffRacewayCircuit(opts: CliffRacewayOptions): CliffRacewa
   for (const [sampleIdx, side, len, rows] of standSpots) {
     const wrapped = ((sampleIdx % n) + n) % n;
     if (inTunnel(wrapped) || (side < 0 && inPit(wrapped))) continue;
-    const sp = at(wrapped, ROAD_HALF + 9.0, side);
+    // a straight stand beside a curving road: back it off until its whole front edge (local z 0) clears the road and its fencing by 4 m
+    const frontMin = (off: number): number => {
+      const q = at(wrapped, off, side), sg = side < 0 ? -1 : 1; let worst = 1e9;
+      for (let t = -0.5; t <= 0.501; t += 0.125) { const x = q.x + q.tx * sg * len * t, z = q.z + q.tz * sg * len * t; let d = 1e9; for (let k = 0; k < n; k++) d = Math.min(d, Math.hypot(P[k].x - x, P[k].z - z)); worst = Math.min(worst, d); }
+      return worst;
+    };
+    let off = ROAD_HALF + 9.0;
+    for (let k = 0; k < 24 && frontMin(off) < ROAD_HALF + 4.5; k++) off += 1;
+    const sp = at(wrapped, off, side);
     const stand = detailedStand(len, rows);
     stand.position.set(sp.x, sp.y, sp.z);
     stand.rotation.y = Math.atan2(-sp.tz, sp.tx) + (side < 0 ? Math.PI : 0);
@@ -940,7 +948,8 @@ export function buildCliffRacewayCircuit(opts: CliffRacewayOptions): CliffRacewa
     const pos: number[] = [], uv: number[] = [], idx: number[] = [];
     const section: [number, number][] = [[-R, 0], [-R, WALL]];
     for (let k = 1; k < ARC_N; k++) { const th = Math.PI - (k / ARC_N) * Math.PI; section.push([R * Math.cos(th), WALL + ARCH * Math.sin(th)]); }
-    section.push([R, WALL], [R, 0]);
+    section.push([R, WALL], [R, -2.2]);
+    section[0] = [-R, -2.2];                                                  // the walls go down past the road edge into the cutting: no gap under them to see out through
     let dist = 0;
     for (let i = tunnelDenseFrom; i <= tunnelDenseTo; i++) {
       const [tx, tz] = tan(i), nx = -tz, nz = tx, p = P[i];
@@ -965,6 +974,55 @@ export function buildCliffRacewayCircuit(opts: CliffRacewayOptions): CliffRacewa
     shellMesh.name = 'cliffRacewayTunnelShell';
     shellMesh.receiveShadow = true;
     group.add(shellMesh);
+  }
+  // the mountain over the tunnel: the ground under it is a cutting at road level (cliffTrack.ts carve), so a rock cover is laid over the cutting from one side of
+  // it to the other, and a concrete headwall closes each end round the portal opening
+  if (tunnelDenseFrom >= 0 && tunnelDenseTo > tunnelDenseFrom) {
+    const CUT = TUNNEL_CUT, L = CUT + 9, N = 14, spanW = ROAD_WIDTH + 3.2, LINTEL = 8.1;
+    const rock = new THREE.MeshStandardMaterial({ color: 0x6e6455, roughness: 1, side: THREE.DoubleSide });
+    const head = portalConcreteMat.clone(); head.side = THREE.DoubleSide;
+    const lidY: number[][] = [];
+    const pos: number[] = [], idx: number[] = [];
+    for (let i = tunnelDenseFrom; i <= tunnelDenseTo; i++) {
+      const [tx, tz] = tan(i), nx = -tz, nz = tx, p = P[i];
+      const eL = opts.ground(p.x - nx * L, p.z - nz * L), eR = opts.ground(p.x + nx * L, p.z + nz * L);
+      const crown = Math.max(p.y + LINTEL + 1.2, (eL + eR) / 2 + 2);
+      const row: number[] = [];
+      for (let k = 0; k <= N; k++) {
+        const u = (k / N) * 2 - 1, edge = u < 0 ? eL : eR, y = crown + (edge - crown) * u * u;
+        row.push(y); pos.push(p.x + nx * u * L, y, p.z + nz * u * L);
+      }
+      lidY.push(row);
+    }
+    const rows = tunnelDenseTo - tunnelDenseFrom + 1;
+    for (let r = 0; r < rows - 1; r++) for (let k = 0; k < N; k++) { const a = r * (N + 1) + k, b = a + N + 1; idx.push(a, a + 1, b, a + 1, b + 1, b); }
+    const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); lg.setIndex(idx); lg.computeVertexNormals();
+    const lid = new THREE.Mesh(lg, rock); lid.name = 'cliffRacewayTunnelCover'; lid.receiveShadow = true; lid.castShadow = true; group.add(lid);
+    // headwalls: from the cover's end section down to just over the lintel across the cutting, and down to the cutting floor beside the portal walls
+    for (const [i, r] of [[tunnelDenseFrom, 0], [tunnelDenseTo, rows - 1]] as [number, number][]) {
+      const [tx, tz] = tan(i), nx = -tz, nz = tx, p = P[i];
+      const hp: number[] = [], hi: number[] = [];
+      const quad = (u0: number, y0a: number, y0b: number, u1: number, y1a: number, y1b: number): void => {
+        const b = hp.length / 3;
+        hp.push(p.x + nx * u0, y0a, p.z + nz * u0, p.x + nx * u0, y0b, p.z + nz * u0, p.x + nx * u1, y1b, p.z + nz * u1, p.x + nx * u1, y1a, p.z + nz * u1);
+        hi.push(b, b + 1, b + 2, b, b + 2, b + 3);
+      };
+      for (let k = 0; k < N; k++) {
+        const u0 = ((k / N) * 2 - 1) * L, u1 = (((k + 1) / N) * 2 - 1) * L, t0 = lidY[r][k], t1 = lidY[r][k + 1];
+        // over the opening the wall stops at the lintel; beside it, it comes down to the cutting floor
+        const floor = (u: number): number => (Math.abs(u) < spanW / 2 ? p.y + LINTEL : p.y - 2.5);
+        if (Math.abs(u0) < spanW / 2 && Math.abs(u1) < spanW / 2) quad(u0, p.y + LINTEL, t0, u1, p.y + LINTEL, t1);
+        else if (Math.abs(u0) >= spanW / 2 && Math.abs(u1) >= spanW / 2 && Math.sign(u0) === Math.sign(u1 || u0)) quad(u0, floor(u0), t0, u1, floor(u1), t1);
+        else {
+          // the strip that holds an edge of the opening: split it at the portal wall
+          const ue = Math.sign(u0 + u1 || 1) * spanW / 2, te = t0 + (t1 - t0) * ((ue - u0) / (u1 - u0));
+          if (Math.abs(u0) < spanW / 2) { quad(u0, p.y + LINTEL, t0, ue, p.y + LINTEL, te); quad(ue, p.y - 2.5, te, u1, p.y - 2.5, t1); }
+          else { quad(u0, p.y - 2.5, t0, ue, p.y - 2.5, te); quad(ue, p.y + LINTEL, te, u1, p.y + LINTEL, t1); }
+        }
+      }
+      const hg = new THREE.BufferGeometry(); hg.setAttribute('position', new THREE.Float32BufferAttribute(hp, 3)); hg.setIndex(hi); hg.computeVertexNormals();
+      const hw = new THREE.Mesh(hg, head); hw.name = 'cliffRacewayPortalHeadwall'; hw.receiveShadow = true; hw.castShadow = true; group.add(hw);
+    }
   }
   // the tunnel corridor runs 40 m past each portal: the hillside is cut back to a rock face at the opening and the car must keep to the road surface through it
   const tunnelPath = tunnelDenseFrom >= 0 ? P.slice(Math.max(0, tunnelDenseFrom - 7), Math.min(n, tunnelDenseTo + 8)).map((p) => ({ x: p.x, z: p.z })) : [];

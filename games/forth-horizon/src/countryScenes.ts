@@ -234,7 +234,10 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
       const y = i0 >= 0 && i >= i0 && i <= i1 ? yEnd0 + (yEnd1 - yEnd0) * ((i - i0) / Math.max(1, i1 - i0)) : o.ground(p.x, p.z) + lift;
       ys.push(y);
       const nx = -dz * half, nz = dx * half;
-      pos.push(p.x + nx, y, p.z + nz, p.x - nx, y, p.z - nz);
+      // the cross-slope of the ground under each edge (level only on the causeway deck)
+      const onDeck = i0 >= 0 && i >= i0 && i <= i1, gc = o.ground(p.x, p.z);
+      const e1 = onDeck ? 0 : Math.max(-1, Math.min(1, o.ground(p.x + nx, p.z + nz) - gc)), e2 = onDeck ? 0 : Math.max(-1, Math.min(1, o.ground(p.x - nx, p.z - nz) - gc));
+      pos.push(p.x + nx, y + e1, p.z + nz, p.x - nx, y + e2, p.z - nz);
       uv.push(0, dist / uvLen, 1, dist / uvLen);
     }
     for (let i = 0; i < n - 1; i++) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
@@ -293,7 +296,12 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
         const p = line[i], pa = line[Math.max(0, i - 1)], pb = line[Math.min(line.length - 1, i + 1)];
         let dx = pb.x - pa.x, dz = pb.z - pa.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
         if (i > 0) dist += Math.hypot(p.x - line[i - 1].x, p.z - line[i - 1].z);
-        a.pos.push(p.x - dz * half, ys[i], p.z + dx * half, p.x + dz * half, ys[i], p.z - dx * half);
+        // across the road the surface follows the ground's own cross-slope (a road laid level at its centre height floated an edge over the hillside: a lip where
+        // the rally stage or a verge met it); a bridge deck or its ramps stays level
+        const onGround = Math.abs(ys[i] - gy[i] - (r.kind === 'drive' ? 0.07 : 0.1)) < 0.05;
+        const xl = p.x - dz * half, zl = p.z + dx * half, xr = p.x + dz * half, zr = p.z - dx * half;
+        const el = onGround ? Math.max(-1, Math.min(1, o.ground(xl, zl) - gy[i])) : 0, er = onGround ? Math.max(-1, Math.min(1, o.ground(xr, zr) - gy[i])) : 0;
+        a.pos.push(xl, ys[i] + el, zl, xr, ys[i] + er, zr);
         if (r.kind === 'drive') a.uv.push(0, dist / (half * 2), 1, dist / (half * 2)); else a.uv.push(0, dist / 8, 1, dist / 8);
         (r.kind === 'dirt' ? netDirt : netPaved).push({ x: p.x, z: p.z, h: half });
       }

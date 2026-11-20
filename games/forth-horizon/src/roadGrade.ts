@@ -24,13 +24,16 @@ const RULES = {
   drive: { g: 0.12, cut: 1.5, fill: 1.5, sh: 0.5, bl: 4 },
 };
 const STEP = 6, WATER = 0.3;
+/** side slope run per metre of height (the smoothstep's steepest pitch is 1.5x the mean): fill ~1:2, cut ~1:1 */
+const FILL_RUN = 3.2, CUT_RUN = 1.6;
 
 export interface GradeStats { roads: number; cells: number; steepBefore: Record<string, number>; steepAfter: Record<string, number>; ms: number }
 
 export function gradeRoads(heights: Float32Array, W: number, H: number, mpp: number, roads: GradeRoad[], locked: (x: number, z: number) => boolean, preLock?: Uint8Array): GradeStats {
   const t0 = performance.now();
   const lock = preLock ? preLock.slice() : new Uint8Array(W * H);              // 1 = fixed: an earlier road's carriageway, or (preLock) a scenic road's flat band
-  const bestD = new Float32Array(W * H), bestI = new Int32Array(W * H);          // per-road scratch: nearest sample distance (+1, 0 = untouched) and its index
+  const bestD = new Float32Array(W * H), bestI = new Int32Array(W * H);
+  const lockedCell = new Uint8Array(W * H);                                      // 0 unknown, 1 free, 2 locked (cached corridor test)          // per-road scratch: nearest sample distance (+1, 0 = untouched) and its index
   const order: Record<GradeClass, number> = { freeway: 0, highway: 1, street: 2, rural: 3, lane: 4, drive: 5 };
   const list = roads.filter((r) => r.xz.length > 1).sort((a, b) => order[a.cls] - order[b.cls]);
   const idx = (x: number, z: number): number => { const i = Math.min(W - 1, Math.max(0, Math.round((x - GRID.ox) / mpp + W / 2))), j = Math.min(H - 1, Math.max(0, Math.round((z - GRID.oz) / mpp + H / 2))); return j * W + i; };
@@ -76,13 +79,18 @@ export function gradeRoads(heights: Float32Array, W: number, H: number, mpp: num
       if (Math.abs(y[i] - y[i - 1]) / d > R.g + 0.01) steepAfter[r.cls] = (steepAfter[r.cls] ?? 0) + 1;
     }
     // carve: nearest sample decides the target (stamped around each sample, nearest wins); carriageway + shoulder take it fully, the blend band eases back
-    const reach = r.half + R.sh + R.bl, rc = Math.ceil(reach / mpp), touched: number[] = [];
+    const reach = r.half + R.sh + Math.max(R.bl, R.fill * FILL_RUN), rc = Math.ceil(reach / mpp), touched: number[] = [];
     for (let q = 0; q < n; q++) {
       if (skip[q] || wet[q]) continue;
       const ci = Math.round((S[q][0] - GRID.ox) / mpp + W / 2), cj = Math.round((S[q][1] - GRID.oz) / mpp + H / 2);
       for (let j = Math.max(0, cj - rc); j <= Math.min(H - 1, cj + rc); j++) for (let i = Math.max(0, ci - rc); i <= Math.min(W - 1, ci + rc); i++) {
         const k = j * W + i; if (lock[k]) continue;
-        const d = Math.hypot((((i - W / 2) * mpp) + GRID.ox) - S[q][0], (((j - H / 2) * mpp) + GRID.oz) - S[q][1]); if (d > reach) continue;
+        const wx = ((i - W / 2) * mpp) + GRID.ox, wz = ((j - H / 2) * mpp) + GRID.oz;
+        const d = Math.hypot(wx - S[q][0], wz - S[q][1]); if (d > reach) continue;
+        // a locked area (the cliff raceway, the sunken freeway, the bridge approaches, the scenic roads) is never reshaped by another road's slopes, cell by cell:
+        // only skipping a road's samples there let a wider embankment reach onto the cliff raceway and bury its road under a 3 m hump
+        if (lockedCell[k] === 0) lockedCell[k] = locked(wx, wz) ? 2 : 1;
+        if (lockedCell[k] === 2) continue;
         if (bestD[k] === 0) { touched.push(k); bestD[k] = d + 1; bestI[k] = q; } else if (d + 1 < bestD[k]) { bestD[k] = d + 1; bestI[k] = q; }
       }
     }
@@ -91,7 +99,9 @@ export function gradeRoads(heights: Float32Array, W: number, H: number, mpp: num
       const bd = bestD[k] - 1, bi = bestI[k]; bestD[k] = 0;
       const h = heights[k]; if (h < WATER) continue;                          // never fill water
       const tgt = Math.min(h + R.fill, Math.max(h - R.cut, y[bi] - 0.15));      // at most the class's cut or fill (beyond that a structure would be needed): grade as far as allowed
-      const dOut = bd - (r.half + R.sh), w = dOut <= 0 ? 1 : 1 - (dOut / R.bl) ** 2 * (3 - 2 * dOut / R.bl);
+      // the side slope widens with its height: embankments ~1:2 at their steepest, cuts ~1:1 (a fixed blend made a 5 m street fill a 32 degree bank)
+      const bl = Math.max(R.bl, Math.abs(tgt - h) * (tgt > h ? FILL_RUN : CUT_RUN));
+      const dOut = bd - (r.half + R.sh), w = dOut <= 0 ? 1 : dOut >= bl ? 0 : 1 - (dOut / bl) ** 2 * (3 - 2 * dOut / bl);
       heights[k] = h + (tgt - h) * w; cells++;
       if (bd <= Math.max(r.half + R.sh, mpp * 0.75)) mine.push(k);           // the carriageway and shoulders are fixed for every road graded after
     }

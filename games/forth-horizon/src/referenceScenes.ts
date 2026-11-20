@@ -67,6 +67,8 @@ export function buildReferenceDressing(o: {
   industrial?: { x: number; z: number }[];
   /** driveway mouths (no leaf piles across a drive) */
   mouths: { x: number; z: number }[];
+  /** on a race course (or within `extra` m of one): nothing is stood there */
+  course?: (x: number, z: number, extra?: number) => boolean;
   /** the town streets (user_streets.json), carriageway half-width */
   streets?: { line: Pt[]; half: number }[];
 }): RefDressing {
@@ -108,7 +110,7 @@ export function buildReferenceDressing(o: {
       for (const side of [-1, 1]) for (let i = 1; i < L.length - 1; i++) {
         const a = L[i - 1], b = L[i + 1], dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1, nx = -dz / l * side, nz = dx / l * side;
         const x = L[i].x + nx * off, z = L[i].z + nz * off;
-        if (Math.hypot(x - BRIDGE.at.x, z - BRIDGE.at.z) < 70 || o.water(x, z) || segDist(hollow, x, z) < 12 || o.building(x, z, 3)) continue;
+        if (Math.hypot(x - BRIDGE.at.x, z - BRIDGE.at.z) < 70 || o.water(x, z) || segDist(hollow, x, z) < 12 || o.building(x, z, 3) || o.course?.(x, z, 3)) continue;
         if (segDist(L, x, z) < off - 0.5) continue;                                        // the inside of a tight bend: the hedge would cross the road
         if (rnd() < 0.08) continue;                                                         // field gates
         hedges.push({ x, y: o.ground(x, z) + 0.75, z, ry: Math.atan2(dx, dz), sx: 1.1 + rnd() * 0.5, sy: 1.0 + rnd() * 0.5, c: [0x2f4a22, 0x35552a, 0x2a4220][Math.floor(rnd() * 3)] });

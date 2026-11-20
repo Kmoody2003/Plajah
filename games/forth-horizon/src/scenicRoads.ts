@@ -6,7 +6,9 @@ import { GRID } from './grid';
 
 export interface ScenicRoad { name: string; surface: 'paved' | 'gravel'; half: number; speed: number; xz: number[][]; y: number[]; bank: number[] }
 
-const SHOULDER = 1.6, BLEND = 14, MAX_FILL = 8, MAX_CUT = 30;              // a mountain road is cut into the rock (Glacier Pass cuts up to ~29 m through a ridge nose)
+const SHOULDER = 1.6, BLEND = 14, MAX_FILL = 8, MAX_CUT = 30;
+/** side slope run per metre of height (the smoothstep's steepest pitch is 1.5x the mean): fill ~1:2, cut ~1:1 */
+const FILL_RUN = 3.2, CUT_RUN = 1.6;              // a mountain road is cut into the rock (Glacier Pass cuts up to ~29 m through a ridge nose)
 
 /** left normal (the side the road turns to when the curvature is positive) */
 function frames(r: ScenicRoad): { nx: number[]; nz: number[] } {
@@ -36,7 +38,7 @@ export function carveScenicRoads(heights: Float32Array, W: number, H: number, mp
     return i >= 0 && j >= 0 && i < W && j < H && surf(r, q, 0) - heights[j * W + i] > MAX_FILL;
   }));
   roads.forEach((r, ri) => {
-    const { nx, nz } = fr[ri], reach = full[ri] + BLEND, rc = Math.ceil(reach / mpp);
+    const { nx, nz } = fr[ri], reach = full[ri] + Math.max(BLEND, MAX_FILL * FILL_RUN), rc = Math.ceil(reach / mpp);
     for (let q = 0; q < r.xz.length; q++) {
       const ci = Math.round((r.xz[q][0] - GRID.ox) / mpp + W / 2), cj = Math.round((r.xz[q][1] - GRID.oz) / mpp + H / 2);
       for (let j = Math.max(0, cj - rc); j <= Math.min(H - 1, cj + rc); j++) for (let i = Math.max(0, ci - rc); i <= Math.min(W - 1, ci + rc); i++) {
@@ -54,7 +56,10 @@ export function carveScenicRoads(heights: Float32Array, W: number, H: number, mp
     if (viaduct[bestR[k]][q]) continue;                                                 // a viaduct carries the road here: the hollow stays
     const t = Math.min(h + MAX_FILL, Math.max(h - MAX_CUT, tgt));
     // flat to the road surface one grid cell past the shoulder: the terrain mesh (6 m grid) cannot bulge over the road
-    const out = d - full[bestR[k]], w = out <= 0 ? 1 : 1 - (out / BLEND) ** 2 * (3 - 2 * out / BLEND);
+    // the side slope's width grows with its height: an embankment about 1:2 at its steepest (a car that runs wide stays on its wheels; a fixed 14 m blend made an
+    // 8 m fill a 40 degree bank that rolled it), a rock cut about 1:1
+    const bl = Math.max(BLEND, Math.abs(t - h) * (t > h ? FILL_RUN : CUT_RUN));
+    const out = d - full[bestR[k]], w = out <= 0 ? 1 : out >= bl ? 0 : 1 - (out / bl) ** 2 * (3 - 2 * out / bl);
     heights[k] = h + (t - h) * w;
     if (out <= 0) flat[k] = 1;
   }

@@ -153,12 +153,16 @@ export function buildPortDistrict(p: PortData, o: { waterY: number }): Port {
       for (const s of [-1, 1]) { box(bw, bh, bt, conc, t.x, y0 + bh / 2, t.z + s * bw / 2); box(bt, bh, bw, conc, t.x + s * bw / 2, y0 + bh / 2, t.z); }
     }
     // pipe rack: a steel frame carrying the lines between the tanks and the quay
+    if (p.pipeRack.length >= 2) {                                                     // (left out when a race course runs through it)
     const [a, b] = p.pipeRack; const len = Math.hypot(b[0] - a[0], b[1] - a[1]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
     for (let s = 0; s <= len; s += 12) { const x = a[0] + (b[0] - a[0]) * s / len, z = a[1] + (b[1] - a[1]) * s / len; box(0.5, 6, 3.4, steel, x, y0 + 3, z, -ang); }
     for (let i = 0; i < 4; i++) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, len, 8), i % 2 ? stripe : tankMat); m.rotation.z = Math.PI / 2; m.rotation.y = -ang; m.position.set((a[0] + b[0]) / 2, y0 + 5.2 + (i % 2) * 0.1, (a[1] + b[1]) / 2 + (i - 1.5) * 0.7); m.rotation.set(0, -ang, Math.PI / 2); group.add(m); }
+    }
     // flare stack
+    if (p.flare.length >= 2) {
     box(1.1, 40, 1.1, steel, p.flare[0], y0 + 20, p.flare[1], 0);
     const fl = new THREE.Mesh(new THREE.SphereGeometry(1.4, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffa040 })); fl.position.set(p.flare[0], y0 + 41, p.flare[1]); group.add(fl);
+    }
     // fence round the plant
     const posts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.15, 2.2, 0.15), steel, 400); let fk = 0;
     for (let i = 0; i < p.fence.length; i++) {
