@@ -4,6 +4,7 @@
 import { CARS, type CarSpec } from '../manufacturers';
 import { stockSoundBankFor } from '../engineAudio';
 import type { Powertrain, Unlock } from './parts';
+import { GENERAL_CAR_DEFS } from './generalFleet';
 
 export type Archetype = 'gt' | 'track' | 'muscle' | 'touring' | 'classic' | 'rally' | 'buggy' | 'truck' | 'suv' | 'ev' | 'sedan' | 'compact' | 'van' | 'commercial';
 export type Aspiration = CarSpec['engine']['aspiration'];
@@ -69,6 +70,8 @@ export const CAR_DEFS: CarDef[] = [
   { id: 'solstice_r', make: 'Solstice', name: 'Aero R', pi: 950, drivetrain: 'AWD', powertrain: 'ev', aspiration: 'Electric', engineText: 'Track EV', hp: 1240, kg: 1580, archetype: 'ev', price: 480000, unlock: { kind: 'level', level: 18 }, body: 'scan', summary: 'Track-spec aero evolution of the Solstice GT.', sheetUrl: RR + 'Solstice_Aero_R_rear_view_572ac645.jpg' },
   // X
   { id: 'helios', make: 'Halcyon', name: 'Helios X1', pi: 999, drivetrain: 'AWD', powertrain: 'ev', aspiration: 'Electric', engineText: 'Axial-Flux EV', hp: 1450, kg: 1410, archetype: 'ev', price: 900000, unlock: { kind: 'wins', count: 20 }, body: 'scan', summary: 'The hyper-experimental flagship from the Legend of Elohim future division.', sheetUrl: CA + 'media-generation-halcyon-helios-x1-0-22e19dd0-6992-416a-813d-0154264e4df7.webp' },
+  // 58 General Street & Commercial Vehicles (3D Vehicle Asset Library — buyable, tunable, and active in live traffic)
+  ...GENERAL_CAR_DEFS,
 ];
 
 export const CAR_BY_ID: Record<string, CarDef> = Object.fromEntries(CAR_DEFS.map((c) => [c.id, c]));

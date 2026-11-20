@@ -12,9 +12,11 @@ const mem = (): StorageLike & { d: Record<string, string> } => { const d: Record
 const run = (o: Partial<RunResult> = {}): RunResult => ({ eventId: 'ironport_grand_circuit', timeSec: 130, parSec: 100, collisions: 0, topMph: 120, driftPoints: 0, distanceKm: 5, wetness: 0, assists: { line: true, brake: true, steer: true }, ...o });
 
 test('every car has a sane physics spec and a class that matches its PI', () => {
-  assert.equal(CAR_DEFS.length, 23);
-  assert.equal(new Set(CAR_DEFS.map((c) => c.id)).size, 23);
+  assert.equal(CAR_DEFS.length, 81);
+  assert.equal(new Set(CAR_DEFS.map((c) => c.id)).size, 81);
   for (const d of CAR_DEFS) {
+    assert.notEqual(d.body, 'pending', `${d.id} must have a built 3D body`);
+    assert.ok(!/\b(forza|horizon)\b/i.test(`${d.make} ${d.name}`), `${d.id} must not use trademarked names`);
     const s = stockSpec(d);
     for (const v of [s.massKg, s.topSpeedMps, s.corneringGrip, s.engine.peakHp, s.engine.peakTorqueNm, s.wheelbase, s.finalDrive]) assert.ok(Number.isFinite(v) && v > 0, d.id);
     assert.ok(s.topSpeedMps >= 50 && s.topSpeedMps <= 95, `${d.id} top speed ${s.topSpeedMps}`);
@@ -23,6 +25,7 @@ test('every car has a sane physics spec and a class that matches its PI', () => 
   }
   assert.equal(classFor(499), 'D'); assert.equal(classFor(510), 'C'); assert.equal(classFor(840), 'S1'); assert.equal(classFor(999), 'X');
   assert.ok(CAR_DEFS.some((c) => c.starter));
+  assert.equal(CAR_DEFS.filter((c) => c.traffic).length, 58);
 });
 
 test('the faster car out-accelerates and out-runs the slower one, and trucks are better off road', () => {

@@ -22,7 +22,7 @@ import { medalFor } from './garage/progress';
 import { smoothClosedPath } from './circuitSmooth';
 import { PhotoMode } from './photo';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
-import { hasScanCar, loadScanCarById, loadScanOpponentCar, RACE_OPPONENT_SCAN_IDS } from './scancar';
+import { hasScanCar, loadScanCarById, loadScanOpponentCar, RACE_OPPONENT_SCAN_IDS, TRAFFIC_SCAN_IDS } from './scancar';
 import { Replay } from './broadcastReplay';
 import { createCarState, stepCarPhysics, setWorldBounds, type CarState, type CarInput } from './physics';
 import { CARS } from './manufacturers';
@@ -3870,11 +3870,21 @@ function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole
     trafficMgr = new TrafficManager({ i196Samples: hwPts, suburbSamples: subPts, terrainHeight: groundH }, 18);
     let tvIdx = 0;
     for (const tv of trafficMgr.vehicles) {
-      const m = makeTrafficOrAiCarMesh(new THREE.Color(tv.paintHex).getHex(), tvIdx++ % 4 === 0 ? 'exotic-wedge' : 'sport-coupe');
+      const idx = tvIdx++;
+      const paintHex = new THREE.Color(tv.paintHex).getHex();
+      const m = makeTrafficOrAiCarMesh(paintHex, idx % 4 === 0 ? 'exotic-wedge' : 'sport-coupe');
       m.position.copy(tv.pos);
       m.rotation.y = tv.yaw;
       trafficGroup.add(m);
       trafficMeshes.push(m);
+      if (TRAFFIC_SCAN_IDS.length > 0) {
+        const trafficId = TRAFFIC_SCAN_IDS[idx % TRAFFIC_SCAN_IDS.length];
+        void loadScanOpponentCar(trafficId, paintHex).then((realTraffic) => {
+          if (!m.parent) return;
+          while (m.children.length) m.remove(m.children[0]);
+          m.add(realTraffic);
+        }).catch(() => { /* keep fallback */ });
+      }
     }
     challengeMgr = new OpenWorldChallengeManager(festivalData);
     return;
