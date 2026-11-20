@@ -78,4 +78,15 @@ export class Objectives {
   }
 
   onCapture?: (def: ControlPointDef, owner: Owner) => void;
+
+  /** Where an enemy should head: the nearest point its side (orange) doesn't own yet. */
+  targetFor(from: THREE.Vector3): THREE.Vector3 | null {
+    let best: THREE.Vector3 | null = null, bd = Infinity;
+    for (const p of this.points) {
+      if (p.owner === 'orange' && p.progress <= -1) continue;
+      const d = from.distanceToSquared(p.ring.position);
+      if (d < bd) { bd = d; best = p.ring.position.clone().setY(p.ring.position.y - 1.6); }
+    }
+    return best;
+  }
 }

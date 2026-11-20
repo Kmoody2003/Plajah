@@ -11,7 +11,7 @@ import { createPost } from './post';
 import { preloadCharacters } from './characters';
 import { initKTX2, preloadSets } from './textures';
 import { PlayerController } from './player';
-import { EnemyManager } from './enemies';
+import { EnemyManager, enemyNav } from './enemies';
 import { VESSEL_ORDER, VESSELS, type VesselId } from './vessels';
 import { UnifiedControls } from './controls';
 import { PlajahGamesBridge } from './plajahBridge';
@@ -71,7 +71,7 @@ async function boot() {
   const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 260);
   scene.add(camera);
 
-  const levelId = new URLSearchParams(location.search).get('level') ?? 'shrine';
+  const levelId = new URLSearchParams(location.search).get('level') ?? 'elderwood';
   initKTX2(renderer);
   // one table of levels (studio/levelModules.ts), shared with the Game Studio
   const levelModule = moduleByParam(levelId);
@@ -126,6 +126,28 @@ async function boot() {
   const ruled = !!studioLook?.level.rules.some(r => r.enabled);
   const enemies = new EnemyManager(scene, collision, arena.enemySpots, !ruled);
   const objectives = new Objectives(scene, arena.controlPoints ?? [], (x, z, y) => collision.groundAt(x, z, y, 10));
+  enemyNav.goal = (arena.controlPoints?.length && !ruled) ? (p) => objectives.targetFor(p) : null;
+
+  // Domination match (levels with control points, no Studio rules): first side to MATCH_SCORE points (each owned point
+  // scores every 2 s), or the leader when the clock runs out. Downed players respawn at their spawn.
+  const MATCH_SCORE = 100, MATCH_SECONDS = 8 * 60;
+  const match = { on: !!arena.controlPoints?.length && !ruled, over: false, time: 0, downs: 0, kills: 0 };
+  if (match.on) enemies.onKilled = () => { match.kills++; };
+  const endMatch = (won: boolean) => {
+    match.over = true;
+    player.enabled = false;
+    if (document.pointerLockElement) document.exitPointerLock();
+    const m = Math.floor(match.time / 60), sec = Math.floor(match.time % 60).toString().padStart(2, '0');
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:radial-gradient(#06101cdd,#02060cf2);font-family:Segoe UI,sans-serif;color:#e6f1ff';
+    box.innerHTML = `<div style="text-align:center"><div style="letter-spacing:.4em;font-size:13px;color:#8fb3d9">${arena.info.name.toUpperCase()} · DOMINATION</div>
+      <div style="font-size:64px;font-weight:800;letter-spacing:.08em;margin:10px 0;color:${won ? '#38bdf8' : '#fb923c'};text-shadow:0 0 24px ${won ? '#38bdf8' : '#fb923c'}">${won ? 'VICTORY' : 'DEFEAT'}</div>
+      <div style="font-size:18px;margin-bottom:6px">${objectives.score.blue} — ${objectives.score.orange}</div>
+      <div style="font-size:13px;color:#9fb6cc;margin-bottom:22px">${m}:${sec} · ${match.kills} kills · downed ${match.downs}×</div>
+      <button id="rrAgain" style="padding:12px 28px;font:700 14px Segoe UI,sans-serif;letter-spacing:.14em;color:#04111c;background:linear-gradient(90deg,#38bdf8,#fbbf24);border:0;cursor:pointer">PLAY AGAIN</button></div>`;
+    document.body.appendChild(box);
+    box.querySelector<HTMLButtonElement>('#rrAgain')!.onclick = () => location.reload();
+  };
   objectives.onCapture = (def, owner) => showBeatFeedback(`${def.id} · ${def.name.toUpperCase()} ${owner === 'blue' ? 'CAPTURED' : 'LOST'}`, owner === 'blue' ? '#38bdf8' : '#fb923c');
   let hazardCooldown = 0;
   const rules = ruled && studioLook ? createRules({
@@ -372,7 +394,7 @@ async function boot() {
   player.onStrike = triggerMeleeStrike;
 
   renderer.domElement.addEventListener('mousedown', (e) => {
-    if (document.pointerLockElement !== renderer.domElement) return;
+    if (!player.enabled) return;
     if (e.button === 0) fireShot();
     if (e.button === 2) triggerSoulSurge();
   });
@@ -386,7 +408,12 @@ async function boot() {
       overlay.classList.add('hidden');
       touchHud.classList.add('on');
     } else {
-      renderer.domElement.requestPointerLock?.();
+      // A refused pointer lock (embedded views, some browsers) must never block play: drag-look takes over.
+      const enterUnlocked = () => { player.enabled = true; overlay.classList.add('hidden'); };
+      try {
+        const p = renderer.domElement.requestPointerLock?.() as Promise<void> | undefined;
+        if (p && typeof p.catch === 'function') p.catch(enterUnlocked); else if (!p) enterUnlocked();
+      } catch { enterUnlocked(); }
     }
   };
 
@@ -399,8 +426,10 @@ async function boot() {
   document.addEventListener('pointerlockchange', () => {
     if (controls.isTouchDevice) return;
     const locked = document.pointerLockElement === renderer.domElement;
-    player.enabled = locked;
-    overlay.classList.toggle('hidden', locked);
+    if (locked) { player.enabled = true; overlay.classList.add('hidden'); return; }
+    // lock released (Esc): pause on the menu
+    player.enabled = false;
+    overlay.classList.remove('hidden');
   });
 
   window.addEventListener('resize', () => {
@@ -434,6 +463,11 @@ async function boot() {
         if (player.hp === 0) { player.hp = player.maxHp; resonance = 1.0; score = Math.max(0, score - 150); player.spawnAt(arena.spawns.a.pos, arena.spawns.a.yaw); rules?.playerDowned(); }
       }
       objectives.update(dt, player.object.position, enemies.enemies.map((e) => e.mesh.position));
+      if (match.on && !match.over) {
+        match.time += dt;
+        const { blue, orange } = objectives.score;
+        if (blue >= MATCH_SCORE || orange >= MATCH_SCORE || match.time >= MATCH_SECONDS) endMatch(blue > orange);
+      }
       if (input.firePressed) fireShot();
       if (rules) { rules.start(); rules.update(dt, objectives.heldSeconds, score); }
       enemies.update(dt, rhythm.pulse, player.object.position, collision, (dmg) => {
@@ -443,6 +477,7 @@ async function boot() {
           resonance = 1.0;
           score = Math.max(0, score - 150);
           rules?.playerDowned();
+          if (match.on) { match.downs++; player.spawnAt(arena.spawns.a.pos, arena.spawns.a.yaw); showBeatFeedback('DOWNED · BACK AT SPAWN', '#fb7185'); }
         }
       });
     }
@@ -492,7 +527,7 @@ async function boot() {
   }
 
   if (new URLSearchParams(location.search).has('rrdebug')) {
-    (window as any).__rr = { player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier };
+    (window as any).__rr = { player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match };
     player.enabled = true;
     overlay.classList.add('hidden');
     // a hidden Browser pane freezes rAF; drive the loop from a timer in that case

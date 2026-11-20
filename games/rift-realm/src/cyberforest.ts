@@ -20,7 +20,7 @@ import { enemyBodies } from './enemies';
 const ART = '/games/rift-realm/assets/cyberforest/';
 const loader = new THREE.TextureLoader();
 const texCache = new Map<string, THREE.Texture>();
-function art(file: string, srgb = true, repeat = false): THREE.Texture {
+export function art(file: string, srgb = true, repeat = false): THREE.Texture {
   const key = file + srgb + repeat;
   let t = texCache.get(key);
   if (!t) {
@@ -34,7 +34,7 @@ function art(file: string, srgb = true, repeat = false): THREE.Texture {
 }
 
 /** Sprite name → pixel size (from exportCyberForest.py), so cards keep the art's proportions. */
-const SPR: Record<string, [number, number]> = {
+export const SPR: Record<string, [number, number]> = {
   grass_a: [192, 202], grass_b: [151, 196], grass_c: [196, 220], grass_d: [217, 214],
   fern_a: [486, 481], fern_b: [244, 189], fern_c: [231, 172], bush_a: [201, 157], bush_b: [156, 170],
   shroom_a: [353, 512], shroom_b: [282, 512], toadstool: [312, 381], shroom_tall: [356, 512], spore_pod: [286, 512],
@@ -50,7 +50,7 @@ const smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math
 const box = (x: number, z: number, x0: number, x1: number, z0: number, z1: number, f: number) =>
   smooth(x0 - f, x0, x) * smooth(x1 + f, x1, x) * smooth(z0 - f, z0, z) * smooth(z1 + f, z1, z);
 
-function segDist(px: number, pz: number, pts: number[][]): { d: number; t: number } {
+export function segDist(px: number, pz: number, pts: number[][]): { d: number; t: number } {
   let best = 1e9, bt = 0, acc = 0;
   for (let i = 0; i < pts.length - 1; i++) {
     const [ax, az] = pts[i], [bx, bz] = pts[i + 1], vx = bx - ax, vz = bz - az, L = Math.hypot(vx, vz);
@@ -118,7 +118,7 @@ export interface ForestMap {
 }
 
 /** Tube with proper UVs (u round the bark, v up the trunk), r0 → r1 along the curve. */
-function barkTube(curve: THREE.Curve<THREE.Vector3>, r0: number, r1: number, segs: number, radial: number, wobble: number, seed: number): THREE.BufferGeometry {
+export function barkTube(curve: THREE.Curve<THREE.Vector3>, r0: number, r1: number, segs: number, radial: number, wobble: number, seed: number): THREE.BufferGeometry {
   const pos: number[] = [], uvs: number[] = [], idx: number[] = [];
   const frames = curve.computeFrenetFrames(segs, false);
   const L = curve.getLength(), circ = Math.PI * 2 * (r0 + r1) / 2;

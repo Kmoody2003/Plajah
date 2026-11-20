@@ -18,6 +18,16 @@ export const enemyBodies: { make: ((id: number, boss: boolean) => EnemyBody | nu
   make: null, playerPos: new THREE.Vector3(),
 };
 
+/**
+ * Level hooks for where enemies go. `goal`: a place to be when the player is far (a control point to take);
+ * `via`: the next waypoint toward a target on another level (the stairs, a net, a bridge) — straight-line steering
+ * can't get onto a deck 12 m up.
+ */
+export const enemyNav: {
+  goal: ((from: THREE.Vector3) => THREE.Vector3 | null) | null;
+  via: ((from: THREE.Vector3, to: THREE.Vector3) => THREE.Vector3) | null;
+} = { goal: null, via: null };
+
 export interface Enemy {
   id: number;
   mesh: THREE.Group;
@@ -192,6 +202,37 @@ export class EnemyManager {
       toPlayer.y = 0;
       const dist = toPlayer.length();
       if (dist > 0.01) toPlayer.divideScalar(dist);
+      // far from the player: go and take a control point; on another level: route by the stairs / nets / bridges
+      let chase = true, aim = playerPos;
+      if (dist > 28 && enemyNav.goal) { const g = enemyNav.goal(e.mesh.position); if (g) { aim = g; chase = false; } }
+      const step = enemyNav.via ? enemyNav.via(e.mesh.position, aim) : aim;
+      if (step !== playerPos) {
+        const to = new THREE.Vector3().subVectors(step, e.mesh.position); to.y = 0;
+        const d = to.length();
+        if (d > 0.6) {
+          to.divideScalar(d);
+          e.mesh.rotation.y = Math.atan2(to.x, to.z);
+          e.mesh.position.addScaledVector(to, e.speed * dt);
+          if (Math.random() < dt * 0.7) e.strafeSign *= -1;
+          e.mesh.position.addScaledVector(new THREE.Vector3(-to.z, 0, to.x).multiplyScalar(e.strafeSign), e.speed * 0.25 * dt);
+        }
+        chase = false;
+      }
+      if (!chase) {
+        const gy = world.groundAt(e.mesh.position.x, e.mesh.position.z, e.mesh.position.y + 1.2, 6);
+        if (gy !== null) e.mesh.position.y += (gy - e.mesh.position.y) * Math.min(1, dt * 14);
+        world.resolve(e.mesh.position, 0.5, 2.0);
+        if (e.body) { e.body.update(dt, e.mesh.position.distanceTo(e.lastPos) / Math.max(dt, 1e-3)); e.lastPos.copy(e.mesh.position); }
+        else if (e.rig) {
+          const mv = e.mesh.position.distanceTo(e.lastPos) / Math.max(dt, 1e-3);
+          const dx = e.mesh.position.x - e.lastPos.x, dz = e.mesh.position.z - e.lastPos.z, ry = e.mesh.rotation.y;
+          e.rig.update(dt, mv, dx * Math.cos(ry) - dz * Math.sin(ry), dx * Math.sin(ry) + dz * Math.cos(ry));
+          e.lastPos.copy(e.mesh.position);
+        }
+        e.core.scale.setScalar(1 + pulse * 0.35);
+        e.attackCooldown -= dt;
+        continue;
+      }
 
       // Face player
       e.mesh.rotation.y = Math.atan2(toPlayer.x, toPlayer.z);
