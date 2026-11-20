@@ -76,8 +76,10 @@ export class CompetitionEngine {
   private completedLapsMap = new Map<string, number>();
   private finishOrderTime = new Map<string, number>();
   private _ranked: RacerEntry[] = [];
+  private goElapsed = 0;
   private _sampleA: SplineSample = { t: 0, pos: new THREE.Vector3(), tanX: 0, tanZ: 1, rightX: 1, rightZ: 0, cumLen: 0 };
   private _sampleB: SplineSample = { t: 0, pos: new THREE.Vector3(), tanX: 0, tanZ: 1, rightX: 1, rightZ: 0, cumLen: 0 };
+  private _sampleC: SplineSample = { t: 0, pos: new THREE.Vector3(), tanX: 0, tanZ: 1, rightX: 1, rightZ: 0, cumLen: 0 };
   private _proj = { t: 0, lateralOffset: 0, distSq: 0 };
 
   public createGrid(
@@ -100,6 +102,7 @@ export class CompetitionEngine {
     this.samples = [];
     this.completedLapsMap.clear();
     this.finishOrderTime.clear();
+    this.goElapsed = 0;
 
     let cumLen = 0;
     let prevPos: THREE.Vector3 | null = null;
@@ -186,13 +189,19 @@ export class CompetitionEngine {
     terrainHeight: (x: number, z: number) => number,
     surfaceAt: (x: number, z: number) => SurfaceType,
     colliders: BoxCollider[],
-    playerState?: CarState
+    playerState?: CarState,
+    locked = false
   ): RacerEntry[] {
     if (this.racers.length === 0 || this.samples.length === 0) {
       return this.racers;
     }
 
     const safeDt = Math.min(Math.max(dt, 0), 0.05);
+    if (locked) {
+      this.goElapsed = 0;
+    } else {
+      this.goElapsed += safeDt;
+    }
 
     // Sync external player state if provided
     if (playerState) {
@@ -203,10 +212,24 @@ export class CompetitionEngine {
       }
     }
 
-    // 1. Compute AI inputs & step physics for non-player cars
+    // 1. Compute AI inputs & step physics for non-player cars (hold cleanly on grid during 3-2-1 countdown!)
+    const maxLat = TRACK_HALF_WIDTH - 0.65;
     for (let i = 0; i < this.racers.length; i++) {
       const entry = this.racers[i];
       if (entry.isPlayer && playerState) {
+        continue;
+      }
+
+      // Hold AI opponents on the starting grid until GO!, plus realistic 0.04..0.22s human reaction stagger
+      const reactionDelay = 0.04 + ((i * 7) % 6) * 0.032;
+      if (locked || this.goElapsed < reactionDelay) {
+        entry.state.vel.set(0, 0, 0);
+        entry.state.angularVel = 0;
+        entry.state.forwardSpeed = 0;
+        entry.state.lateralSpeed = 0;
+        entry.state.speedMps = 0;
+        entry.state.gear = 0;
+        entry.state.pos.y = terrainHeight(entry.state.pos.x, entry.state.pos.z);
         continue;
       }
 
@@ -215,6 +238,35 @@ export class CompetitionEngine {
 
       // Slipstream draft bonus when within 14m directly behind another car
       this.applySlipstreamDraft(entry, i, safeDt);
+
+      // Hard track-corridor barrier containment so AI cars never pierce walls or fly off the circuit
+      const cProj = this.projectToSpline(entry.state.pos.x, entry.state.pos.z, entry.splineT);
+      const sp = this.sampleAtT(cProj.t, this._sampleC);
+      const st = entry.state;
+      if (Math.abs(cProj.lateralOffset) > maxLat) {
+        const sgn = Math.sign(cProj.lateralOffset);
+        st.pos.x = sp.pos.x + sp.rightX * sgn * maxLat;
+        st.pos.z = sp.pos.z + sp.rightZ * sgn * maxLat;
+        const vFwd = Math.max(0, st.vel.x * sp.tanX + st.vel.z * sp.tanZ) * 0.88;
+        const vLat = st.vel.x * sp.rightX + st.vel.z * sp.rightZ;
+        // Cancel outward velocity into the barrier and gently bounce inward
+        const vLatNew = vLat * sgn > 0 ? -sgn * Math.min(2.2, Math.abs(vLat) * 0.25) : vLat * 0.4;
+        st.vel.x = sp.tanX * vFwd + sp.rightX * vLatNew;
+        st.vel.z = sp.tanZ * vFwd + sp.rightZ * vLatNew;
+        const trackYaw = Math.atan2(sp.tanX, sp.tanZ);
+        const yawDiff = wrapAngle(trackYaw - st.yaw);
+        st.yaw = wrapAngle(st.yaw + yawDiff * 0.55 - sgn * 0.04);
+        st.angularVel *= 0.25;
+        st.speedMps = Math.hypot(st.vel.x, st.vel.z);
+        st.forwardSpeed = vFwd;
+      }
+      // Keep AI wheels grounded on track elevation (prevents airborne launches over kerbs/barriers)
+      const gY = terrainHeight(st.pos.x, st.pos.z);
+      if (st.pos.y > gY + 0.35 || st.pos.y < gY - 0.15) {
+        st.pos.y = gY;
+        if (st.vel.y > 0) st.vel.y = 0;
+        st.isAirborne = false;
+      }
     }
 
     // 2. Update spline progress, laps, sectors, and finish status for all racers
@@ -339,23 +391,30 @@ export class CompetitionEngine {
 
     entry.targetLaneOffset = THREE.MathUtils.clamp(
       desiredLane,
-      -TRACK_HALF_WIDTH + 1.0,
-      TRACK_HALF_WIDTH - 1.0
+      -TRACK_HALF_WIDTH + 1.5,
+      TRACK_HALF_WIDTH - 1.5
     );
 
-    // ── B. Lookahead target steering ──
-    const lookaheadM = THREE.MathUtils.clamp(12 + state.speedMps * 0.42, 12, 34);
+    // ── B. Adaptive curvature-aware lookahead steering (never cuts inside tight hairpins!) ──
+    const cornerSpeedLimit = this.computeLookaheadCornerSpeed(entry.splineT, spec, entry.basePace);
+    const inTightBend = cornerSpeedLimit < 32;
+    const lookaheadM = THREE.MathUtils.clamp(
+      (inTightBend ? 8.5 : 11.0) + state.speedMps * (inTightBend ? 0.22 : 0.30),
+      8.5,
+      25
+    );
     const targetT = wrap01(entry.splineT + lookaheadM / this.circuitLength);
     const targetSample = this.sampleAtT(targetT, this._sampleA);
-    const tx = targetSample.pos.x + targetSample.rightX * entry.targetLaneOffset;
-    const tz = targetSample.pos.z + targetSample.rightZ * entry.targetLaneOffset;
+    // Center toward racing apex in tight turns so opponents never clip inner barriers
+    const laneUse = inTightBend ? entry.targetLaneOffset * 0.45 : entry.targetLaneOffset;
+    const tx = targetSample.pos.x + targetSample.rightX * laneUse;
+    const tz = targetSample.pos.z + targetSample.rightZ * laneUse;
 
     const desiredYaw = Math.atan2(tx - state.pos.x, tz - state.pos.z);
     const yawErr = wrapAngle(desiredYaw - state.yaw);
-    const steer = THREE.MathUtils.clamp(yawErr * 2.2, -1, 1);
+    const steer = THREE.MathUtils.clamp(yawErr * 2.5 - state.angularVel * 0.22, -1, 1);
 
-    // ── C. Curvature lookahead braking (25m..70m ahead) ──
-    const cornerSpeedLimit = this.computeLookaheadCornerSpeed(entry.splineT, spec, entry.basePace);
+    // ── C. Kinematic braking-distance speed control ──
     const topPaceSpeed = spec.topSpeedMps * entry.basePace;
     const targetSpeed = Math.min(cornerSpeedLimit, topPaceSpeed);
 
@@ -363,14 +422,15 @@ export class CompetitionEngine {
     let brake = 0;
     const speedExcess = state.speedMps - targetSpeed;
 
-    if (speedExcess > 2.2) {
-      brake = THREE.MathUtils.clamp(speedExcess / 15.0, 0.15, 1.0);
+    if (speedExcess > 1.4 && state.speedMps > 11.0) {
+      brake = THREE.MathUtils.clamp(speedExcess / 9.5, 0.22, 1.0);
       throttle = 0;
-    } else if (speedExcess > -1.2) {
-      throttle = 0.32 * trafficThrottleCap;
+    } else if (speedExcess > -1.2 && state.speedMps > 11.0) {
+      throttle = 0.30 * trafficThrottleCap;
       brake = 0;
     } else {
-      throttle = THREE.MathUtils.clamp((0.78 + 0.22 * entry.basePace) * trafficThrottleCap, 0, 1);
+      const turnMod = 1 - Math.min(0.45, Math.abs(yawErr) * 0.75);
+      throttle = THREE.MathUtils.clamp((0.78 + 0.22 * entry.basePace) * trafficThrottleCap * turnMod, state.speedMps < 10 ? 0.55 : 0, 1);
       brake = 0;
     }
 
@@ -388,31 +448,32 @@ export class CompetitionEngine {
   }
 
   private computeLookaheadCornerSpeed(splineT: number, spec: CarSpec, basePace: number): number {
-    const checkDistances = [25, 40, 55, 70];
-    const stepM = 12;
-    let maxKappa = 0;
+    // True kinematic braking envelope across 8..175 m ahead so 180 mph supercars brake smoothly for 90-deg hairpins
+    const checkDistances = [8, 16, 26, 40, 56, 76, 100, 130, 165];
+    const maxLatAccel = spec.corneringGrip * 9.81 * 0.78;
+    const aiBrakeDecel = 13.0; // m/s^2 conservative braking budget (stays clean even on wet tarmac)
+    let allowedSpeed = spec.topSpeedMps * basePace;
 
     for (const distM of checkDistances) {
-      const tA = wrap01(splineT + distM / this.circuitLength);
-      const tB = wrap01(splineT + (distM + stepM) / this.circuitLength);
-      const sA = this.sampleAtT(tA, this._sampleA);
-      const sB = this.sampleAtT(tB, this._sampleB);
+      for (const stepM of [10, 22]) {
+        const tA = wrap01(splineT + distM / this.circuitLength);
+        const tB = wrap01(splineT + (distM + stepM) / this.circuitLength);
+        const sA = this.sampleAtT(tA, this._sampleA);
+        const sB = this.sampleAtT(tB, this._sampleB);
 
-      const dot = THREE.MathUtils.clamp(sA.tanX * sB.tanX + sA.tanZ * sB.tanZ, -1, 1);
-      const dTheta = Math.acos(dot);
-      const kappa = dTheta / stepM;
-      if (kappa > maxKappa) {
-        maxKappa = kappa;
+        const dot = THREE.MathUtils.clamp(sA.tanX * sB.tanX + sA.tanZ * sB.tanZ, -1, 1);
+        const dTheta = Math.acos(dot);
+        const kappa = dTheta / stepM;
+        if (kappa > 1e-4) {
+          const vCorner = THREE.MathUtils.clamp(Math.sqrt(maxLatAccel / kappa) * basePace, 11.5, spec.topSpeedMps * basePace);
+          const brakeDist = Math.max(0, distM - 6);
+          const vEntry = Math.sqrt(vCorner * vCorner + 2 * aiBrakeDecel * brakeDist);
+          if (vEntry < allowedSpeed) allowedSpeed = vEntry;
+        }
       }
     }
 
-    if (maxKappa < 1e-4) {
-      return spec.topSpeedMps * basePace;
-    }
-
-    const maxLatAccel = spec.corneringGrip * 9.81 * 1.15;
-    const vCorner = Math.sqrt(maxLatAccel / maxKappa) * basePace;
-    return THREE.MathUtils.clamp(vCorner, 12, spec.topSpeedMps * basePace);
+    return THREE.MathUtils.clamp(allowedSpeed, 11.5, spec.topSpeedMps * basePace);
   }
 
   private applySlipstreamDraft(entry: RacerEntry, selfIdx: number, dt: number): void {

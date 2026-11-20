@@ -3191,7 +3191,9 @@ function lapStep(x: number, z: number, now: number): string {
     }
   }
   const cur = L.started ? fmtT(now - L.t0) : '--:--.--';
-  return `LAP ${L.laps + (L.started ? 1 : 0)} &nbsp; ${cur}` + (L.last !== null ? ` &nbsp; last ${fmtT(L.last)}` : '') + (L.best !== null ? ` &nbsp; best ${fmtT(L.best)}` : '') + (L.splits.length ? ` &nbsp; S${L.splits.length} ${fmtT(L.splits[L.splits.length - 1])}` : '') + (L.off ? ' &nbsp; <span style="color:#ffb36a">off the street</span>' : '');
+  const totalLaps = competition?.totalLaps ?? 3;
+  const raceLap = Math.min(totalLaps, Math.max(0, L.laps - raceStartLaps) + (L.started ? 1 : 0));
+  return `LAP ${raceLap}/${totalLaps} &nbsp; ${cur}` + (L.last !== null ? ` &nbsp; last ${fmtT(L.last)}` : '') + (L.best !== null ? ` &nbsp; best ${fmtT(L.best)}` : '') + (L.splits.length ? ` &nbsp; S${L.splits.length} ${fmtT(L.splits[L.splits.length - 1])}` : '') + (L.off ? ' &nbsp; <span style="color:#ffb36a">off the street</span>' : '');
 }
 
 // ---------- driving ----------
@@ -3604,7 +3606,7 @@ function wallPush(s: DriveState, ux: number, uz: number, worst: number): void {
 }
 
 // ---------- garage: run tracking, medals, payouts and the courier mode ----------
-let runTracker: RunTracker | null = null, stagePath: PathProgress | null = null, stageFinished = false, lastLapCount = 0, delivery: DeliveryGame | null = null;
+let runTracker: RunTracker | null = null, stagePath: PathProgress | null = null, stageFinished = false, lastLapCount = 0, raceStartLaps = 0, delivery: DeliveryGame | null = null;
 const RUN_NAMES: Record<string, string> = { ironport_grand_circuit: 'Ironport Grand Circuit', great_lakes_cliff_raceway: 'Great Lakes Cliff Raceway', pinewood_rally_stage: 'Pinewood Rally Stage', ironworks_industrial_circuit: 'Ironworks Industrial Circuit', superior_range_circuit: 'Superior Range Circuit', escarpment_circuit: 'Escarpment Circuit' };
 let courierSpots: ReturnType<typeof makeSpots> | null = null;
 function deliverySpots(): ReturnType<typeof makeSpots> {
@@ -3640,6 +3642,7 @@ function teardownRun(): void {
 function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole?: PursuitRoleChoice): void {
   teardownRun();
   lastLapCount = lap?.laps ?? 0;
+  raceStartLaps = lastLapCount;
   if (pursuitRole && driving) {
     pursuitMode = new CopsAndRobbersMode(pursuitRole, driving.pos, driving.yaw, groundH);
     scene.add(pursuitMode.group);
@@ -3703,7 +3706,20 @@ function garageStep(dt: number, s: DriveState, bumped: boolean): void {
   if (!runTracker) return;
   runTracker.sample(dt, { x: s.pos.x, z: s.pos.z, speedMps: ps.speedMps, drifting: ps.isDrifting, hit: bumped, wet: wx.cur.wet });
   if (s.circuitId === 'ironport_grand_circuit') {
-    if (lap && lap.laps > lastLapCount) { lastLapCount = lap.laps; if (lap.last) finishRun(lap.last); }
+    if (lap && lap.laps > lastLapCount) {
+      lastLapCount = lap.laps;
+      const totalLaps = competition?.totalLaps ?? 3;
+      const raceLapsDone = lap.laps - raceStartLaps;
+      if (lap.last) {
+        if (raceLapsDone < totalLaps) {
+          // Non-blocking top toast on intermediate laps — never block the screen mid-race!
+          showBanner(`LAP ${raceLapsDone}/${totalLaps} · ${fmtT(lap.last)}${lap.best === lap.last ? ' · BEST' : ''}`, lap.best === lap.last ? 'gold' : 'ok', 2400);
+        } else if (!stageFinished) {
+          stageFinished = true;
+          finishRun(lap.best ?? lap.last);
+        }
+      }
+    }
   } else if (stagePath) {
     stagePath.update(s.pos.x, s.pos.z, performance.now() / 1000);
     if (stagePath.done && !stageFinished) { stageFinished = true; finishRun(performance.now() / 1000 - stagePath.t0); }
@@ -3799,6 +3815,7 @@ function stepDrive(dt: number): void {
     if (s.lock <= 0) countEl.style.display = 'none';
   }
   const pad = driveInput.axes;                                  // controller + touch, analog
+  const rawGas = Math.max((keys.has('KeyW') || keys.has('ArrowUp')) ? 1 : 0, pad.throttle);
   const kUp = !locked && (keys.has('KeyW') || keys.has('ArrowUp')), kDown = !locked && (keys.has('KeyS') || keys.has('ArrowDown'));
   const up = kUp || (!locked && pad.throttle > 0.05), down = kDown || (!locked && pad.brake > 0.05);
   const left = keys.has('KeyA') || keys.has('ArrowLeft'), right = keys.has('KeyD') || keys.has('ArrowRight');
@@ -3867,9 +3884,21 @@ function stepDrive(dt: number): void {
     if (ps.forwardSpeed < 1.5 && ps.forwardSpeed > -13) { const a = 5.2 * dt; ps.vel.x -= Math.sin(ps.yaw) * a; ps.vel.z -= Math.cos(ps.yaw) * a; }
     if (ps.forwardSpeed < -13) { const k = 13 / -ps.forwardSpeed; ps.vel.multiplyScalar(k); }
   }
-  gameAudio.update(ps, SOV_SPEC, input.throttle);          // buildings and barriers are handled below on the real footprints
+  if (locked) {
+    // Allow live Neutral grid revving during the 3-2-1 countdown so the player hears & feels the engine on the line!
+    const idle = SOV_SPEC.engine.idleRpm, red = SOV_SPEC.engine.redlineRpm;
+    const revTarget = idle + rawGas * (red - idle);
+    const revRate = rawGas > 0.08 ? 11.5 : 4.8;
+    ps.rpm += (revTarget - ps.rpm) * (1 - Math.exp(-revRate * dt));
+    if (ps.rpm > red - 90 && rawGas > 0.5) ps.rpm = red - 90 - Math.abs(Math.sin(performance.now() * 0.05)) * 180;
+    ps.gear = 0;
+    ps.prevGear = 1;
+    const boostTgt = rawGas * Math.max(0, (ps.rpm - idle) / Math.max(1, red - idle));
+    ps.turboBoost += (boostTgt - ps.turboBoost) * (1 - Math.exp(-7 * dt));
+  }
+  gameAudio.update(ps, SOV_SPEC, locked ? rawGas : input.throttle);          // buildings and barriers are handled below on the real footprints
   if (competition) {
-    competition.step(dt, driveClock, groundH, surfaceAtXZ, [], ps);
+    competition.step(dt, driveClock, groundH, surfaceAtXZ, [], ps, locked);
     let aiIdx = 0;
     for (const r of competition.racers) {
       if (r.isPlayer) continue;
@@ -4044,7 +4073,7 @@ function stepDrive(dt: number): void {
     if (Math.abs(camera.fov - fovWant) > 0.05) { camera.fov += (fovWant - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); }
   }
   const lapTxt = s.circuitId === 'ironport_grand_circuit' ? lapStep(s.pos.x, s.pos.z, performance.now() / 1000) + '<br>' : '';
-  racingHud.update(dt, { speed: ps.forwardSpeed, rpm: ps.rpm, redline: SOV_SPEC.engine.redlineRpm, gear: ps.forwardSpeed < -0.5 ? -1 : ps.gear, gears: SOV_SPEC.gearRatios.length, shift: ps.shiftTimer > 0, x: ps.pos.x, z: ps.pos.z, yaw: ps.yaw, throttle: input.throttle, brake: input.brake, rain: wx.cur.rain, wetness: roadWater.wetness, hydro, drift: ps.isDrifting, collision: s.hit > 0, assist: assistBrakeShown > 0.25, lapHtml: lapTxt, mode: VIEW_NAMES[s.camView], touch: driveInput.touchMode });
+  racingHud.update(dt, { speed: ps.forwardSpeed, rpm: ps.rpm, redline: SOV_SPEC.engine.redlineRpm, gear: ps.forwardSpeed < -0.5 ? -1 : ps.gear, gears: SOV_SPEC.gearRatios.length, shift: ps.shiftTimer > 0, x: ps.pos.x, z: ps.pos.z, yaw: ps.yaw, throttle: locked ? rawGas : input.throttle, brake: input.brake, rain: wx.cur.rain, wetness: roadWater.wetness, hydro, drift: ps.isDrifting, collision: s.hit > 0, assist: assistBrakeShown > 0.25, lapHtml: lapTxt, mode: VIEW_NAMES[s.camView], touch: driveInput.touchMode });
 }
 addEventListener('keydown', (e) => {
   if (e.code === 'KeyK' && driving && !replay.active) { e.preventDefault(); photo.toggle(); return; }

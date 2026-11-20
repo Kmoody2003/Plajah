@@ -151,11 +151,16 @@ export function stepCarPhysics(
   const maxWheelLock = THREE.MathUtils.lerp(spec.steerMaxRad, 0.135, Math.pow(speedRatio, 0.82));
   state.steerAngle = steerShaped * maxWheelLock;
 
-  // ── 2. Powertrain, Turbo/Supercharger Boost, Shift Cut & Line-Lock Burnout ──
+  // ── 2. Powertrain, True Gear-Ratio Selection, Boost, Shift Cut & Line-Lock Burnout ──
   const absFwd = Math.abs(vFwd);
-  const maxPerGear = spec.topSpeedMps / spec.gearRatios.length;
-  const gearIdx = THREE.MathUtils.clamp(Math.floor(absFwd / (maxPerGear * 0.92)), 0, spec.gearRatios.length - 1);
-  const gearRatio = spec.gearRatios[gearIdx];
+  const ratios = spec.gearRatios;
+  const topRatio = ratios[ratios.length - 1] || 0.72;
+  const gearTopMps = (idx: number): number => spec.topSpeedMps * (topRatio / Math.max(0.25, ratios[idx] || topRatio));
+  let gearIdx = THREE.MathUtils.clamp((state.prevGear || 1) - 1, 0, ratios.length - 1);
+  // Real gearbox hysteresis: upshift near 95% of current gear redline, downshift cleanly below 74% of lower gear
+  while (gearIdx < ratios.length - 1 && absFwd > gearTopMps(gearIdx) * 0.95) gearIdx++;
+  while (gearIdx > 0 && absFwd < gearTopMps(gearIdx - 1) * 0.74) gearIdx--;
+  const gearRatio = ratios[gearIdx];
   const rpmFrac = THREE.MathUtils.clamp(
     (state.rpm - spec.engine.idleRpm) / Math.max(1, spec.engine.redlineRpm - spec.engine.idleRpm),
     0,
@@ -486,20 +491,24 @@ export function stepCarPhysics(
     state.gear = 1;
     state.rpm = THREE.MathUtils.lerp(state.rpm, spec.engine.redlineRpm * 0.92, 1 - Math.exp(-10 * safeDt));
   } else {
-    const g = gearIdx + 1;
+    let g = THREE.MathUtils.clamp((state.prevGear || 1), 1, ratios.length);
+    while (g < ratios.length && absNewFwd > gearTopMps(g - 1) * 0.95) g++;
+    while (g > 1 && absNewFwd < gearTopMps(g - 2) * 0.74) g--;
     if (g !== state.prevGear && state.prevGear > 0) {
-      state.shiftTimer = 0.11;
+      state.shiftTimer = 0.095;
       if (g > state.prevGear && spec.engine.aspiration !== 'Electric') {
         state.backfireEvent = true;
       }
     }
     state.prevGear = g;
     state.gear = g;
-    const gearMin = (g - 1) * maxPerGear * 0.82;
-    const gearMax = g * maxPerGear * 1.04;
-    const frac = THREE.MathUtils.clamp((absNewFwd - gearMin) / Math.max(1, gearMax - gearMin), 0, 1);
-    const targetRpm = spec.engine.idleRpm + frac * (spec.engine.redlineRpm - spec.engine.idleRpm);
-    state.rpm = THREE.MathUtils.lerp(state.rpm, targetRpm, 1 - Math.exp(-18 * safeDt));
+    const gTop = Math.max(8, gearTopMps(g - 1));
+    // Mechanical wheel-to-crank RPM ratio + authentic 1st-gear launch clutch slip when launching hard
+    const wheelRpmFrac = THREE.MathUtils.clamp(absNewFwd / gTop, 0, 1.02);
+    const launchSlip = g === 1 && absNewFwd < gTop * 0.42 ? input.throttle * (1 - absNewFwd / (gTop * 0.42)) * 0.34 : 0;
+    const revFrac = THREE.MathUtils.clamp(Math.max(wheelRpmFrac, launchSlip), 0, 1);
+    const targetRpm = spec.engine.idleRpm + revFrac * (spec.engine.redlineRpm - spec.engine.idleRpm);
+    state.rpm = THREE.MathUtils.lerp(state.rpm, targetRpm, 1 - Math.exp(-22 * safeDt));
   }
 }
 

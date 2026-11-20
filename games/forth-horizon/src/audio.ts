@@ -3,34 +3,14 @@ import { HOSTS } from '../../../services/onair/hosts';
 import type { CarSpec } from './manufacturers';
 import type { CarState } from './physics';
 import { ChoraRadioManager, type RadioPreset } from './choraRadio';
-import { getEngineBank, type EngineBankMeta } from './engineAudio';
+import { InCarEngineSynth } from './inCarEngineAudio';
 
 export type StationInfo = RadioPreset;
-
-interface EngineBankBuffers {
-  idle: AudioBuffer;
-  mid: AudioBuffer;
-  high: AudioBuffer;
-  decel: AudioBuffer;
-}
-
-interface ActiveEngineRig {
-  bankId: string;
-  meta: EngineBankMeta;
-  filter: BiquadFilterNode;
-  bus: GainNode;
-  idleSrc: AudioBufferSourceNode;
-  midSrc: AudioBufferSourceNode;
-  highSrc: AudioBufferSourceNode;
-  idleGain: GainNode;
-  midGain: GainNode;
-  highGain: GainNode;
-  decelBuf: AudioBuffer;
-}
 
 export class GameAudio {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  private inCarEngine: InCarEngineSynth | null = null;
   private engOsc1: OscillatorNode | null = null;
   private engOsc2: OscillatorNode | null = null;
   private engSub: OscillatorNode | null = null;
@@ -45,13 +25,7 @@ export class GameAudio {
   private noiseBuffer: AudioBuffer | null = null;
   private lastThumpAt = 0;
   private lastBackfireAt = 0;
-
-  // Real 24-bank multi-layer engine-stand sample cache (idle / mid / high RPM crossfade + decel overrun)
-  private bankCache = new Map<string, EngineBankBuffers>();
-  private bankLoading = new Set<string>();
-  private activeBank: ActiveEngineRig | null = null;
-  private lastDecelAt = 0;
-  private lastThrottle = 0;
+  private lastUpdateAt = 0;
   private sampleBuffers = new Map<string, AudioBuffer>();
   private tireSampleGain: GainNode | null = null;
   private gravelSampleGain: GainNode | null = null;
@@ -173,12 +147,15 @@ export class GameAudio {
     this.forcedOsc = forcedOsc;
     this.forcedGain = forcedGain;
 
-    // Shared white noise buffer for tire squeal, gravel scrub, brake hiss & backfire pops
+    // Shared white noise buffer for tire squeal, gravel scrub, brake hiss, engine air-bite & backfire pops
     const bufLen = ctx.sampleRate * 1.5;
     const noiseBuf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
     const data = noiseBuf.getChannelData(0);
     for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
     this.noiseBuffer = noiseBuf;
+
+    // Authentic RPM-locked in-car multi-cylinder engine synthesizer (all 24 architecture profiles)
+    this.inCarEngine = new InCarEngineSynth(ctx, master, noiseBuf);
 
     // Asphalt tire screech
     const noiseSrc = ctx.createBufferSource();
@@ -239,110 +216,6 @@ export class GameAudio {
     this.nextStepTime = ctx.currentTime + 0.05;
   }
 
-  private async fetchEngineBank(bankId: string): Promise<void> {
-    if (!this.ctx || this.bankCache.has(bankId) || this.bankLoading.has(bankId)) return;
-    const meta = getEngineBank(bankId);
-    if (!meta) return;
-    this.bankLoading.add(bankId);
-    try {
-      const ctx = this.ctx;
-      const loadOne = async (name: string): Promise<AudioBuffer> => {
-        const res = await fetch(`${meta.basePath}/${name}.mp3`);
-        if (!res.ok) throw new Error(`HTTP ${res.status} loading ${bankId}/${name}.mp3`);
-        return await ctx.decodeAudioData(await res.arrayBuffer());
-      };
-      const [idle, mid, high, decel] = await Promise.all([
-        loadOne('idle'),
-        loadOne('mid'),
-        loadOne('high'),
-        loadOne('decel'),
-      ]);
-      this.bankCache.set(bankId, { idle, mid, high, decel });
-    } catch {
-      // Offline or unsupported codec — synthetic fallback remains active
-    } finally {
-      this.bankLoading.delete(bankId);
-    }
-  }
-
-  private ensureEngineBank(bankId: string | undefined): ActiveEngineRig | null {
-    if (!bankId || !this.ctx || !this.master) return null;
-    if (this.activeBank && this.activeBank.bankId === bankId) return this.activeBank;
-    const bufs = this.bankCache.get(bankId);
-    if (!bufs) {
-      void this.fetchEngineBank(bankId);
-      return null;
-    }
-    const meta = getEngineBank(bankId);
-    if (!meta) return null;
-
-    if (this.activeBank) {
-      try {
-        this.activeBank.idleSrc.stop();
-        this.activeBank.midSrc.stop();
-        this.activeBank.highSrc.stop();
-        this.activeBank.bus.disconnect();
-      } catch { /* ignore */ }
-      this.activeBank = null;
-    }
-
-    const ctx = this.ctx;
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 1800;
-    filter.Q.value = 0.85;
-    const bus = ctx.createGain();
-    bus.gain.value = 0.001;
-    filter.connect(bus);
-    bus.connect(this.master);
-
-    const mkLayer = (buf: AudioBuffer): [AudioBufferSourceNode, GainNode] => {
-      const src = ctx.createBufferSource();
-      src.buffer = buf;
-      src.loop = true;
-      const g = ctx.createGain();
-      g.gain.value = 0;
-      src.connect(g);
-      g.connect(filter);
-      src.start();
-      return [src, g];
-    };
-
-    const [idleSrc, idleGain] = mkLayer(bufs.idle);
-    const [midSrc, midGain] = mkLayer(bufs.mid);
-    const [highSrc, highGain] = mkLayer(bufs.high);
-
-    this.activeBank = {
-      bankId,
-      meta,
-      filter,
-      bus,
-      idleSrc,
-      midSrc,
-      highSrc,
-      idleGain,
-      midGain,
-      highGain,
-      decelBuf: bufs.decel,
-    };
-    return this.activeBank;
-  }
-
-  private triggerDecelOverrun(rig: ActiveEngineRig, now: number, intensity: number): void {
-    if (!this.ctx || !this.master) return;
-    const src = this.ctx.createBufferSource();
-    src.buffer = rig.decelBuf;
-    src.playbackRate.value = 0.92 + Math.random() * 0.14;
-    const g = this.ctx.createGain();
-    g.gain.setValueAtTime(0.001, now);
-    g.gain.linearRampToValueAtTime(Math.min(0.45, intensity), now + 0.04);
-    g.gain.exponentialRampToValueAtTime(0.001, now + Math.min(1.25, rig.decelBuf.duration));
-    src.connect(g);
-    g.connect(rig.filter);
-    src.start(now);
-    src.stop(now + Math.min(1.3, rig.decelBuf.duration));
-  }
-
   /** hosts that bring their own music (the region game) turn the built-in groove off */
   setMusic(on: boolean) { this.musicOn = on; }
   /** overall engine / tyre / brake level (0..1.5) */
@@ -387,6 +260,8 @@ export class GameAudio {
     if (!this.ctx || !this.engOsc1 || !this.engOsc2 || !this.engFilter || !this.engGain || !this.screechGain) return;
 
     const now = this.ctx.currentTime;
+    const dt = this.lastUpdateAt > 0 ? Math.min(0.05, Math.max(0.001, now - this.lastUpdateAt)) : 0.016;
+    this.lastUpdateAt = now;
     const rpmFrac = (state.rpm - spec.engine.idleRpm) / Math.max(1, spec.engine.redlineRpm - spec.engine.idleRpm);
     const isEv = spec.engine.aspiration === 'Electric';
     const baseHz = spec.engine.pitchBaseHz + rpmFrac * spec.engine.pitchBaseHz * 2.55;
@@ -395,8 +270,6 @@ export class GameAudio {
     this.engOsc2.frequency.setTargetAtTime(baseHz * 2.01, now, 0.025);
     this.engSub?.frequency.setTargetAtTime(baseHz * 0.5, now, 0.025);
 
-    const shiftDip = state.shiftTimer > 0 ? 0.45 : 1.0;
-    const upgLvl = spec.engine.soundUpgradeLevel ?? 0;
     const bankId = isEv
       ? undefined
       : (spec.engine.soundBank
@@ -411,66 +284,24 @@ export class GameAudio {
           : spec.vehicleClass === 'track'
           ? 'hypercar_tt_v8'
           : 'sports_car_gt'));
-    const rig = this.ensureEngineBank(bankId);
-    const hasRealEng = !!rig;
-    const synthScale = hasRealEng ? 0.08 : 1.0;
 
-    if (rig) {
-      const r = Math.min(1, Math.max(0, rpmFrac));
-      // Smooth 3-band RPM crossfade (idle 0..0.42 -> mid 0.18..0.82 -> high 0.54..1.0)
-      const wIdle = Math.max(0, 1 - r / 0.42);
-      const wHigh = Math.max(0, (r - 0.52) / 0.48);
-      const wMid = Math.max(0, 1 - wIdle - wHigh);
-      // Calibrated playback pitch ratios (keeps natural engine timbre without chipmunk distortion)
-      rig.idleSrc.playbackRate.setTargetAtTime(0.84 + r * 0.48, now, 0.035);
-      rig.midSrc.playbackRate.setTargetAtTime(0.78 + r * 0.56, now, 0.035);
-      rig.highSrc.playbackRate.setTargetAtTime(0.76 + r * 0.54, now, 0.035);
-      rig.idleGain.gain.setTargetAtTime(wIdle * (0.85 + throttle * 0.25), now, 0.04);
-      rig.midGain.gain.setTargetAtTime(wMid * (0.72 + throttle * 0.42), now, 0.04);
-      rig.highGain.gain.setTargetAtTime(wHigh * (0.76 + throttle * 0.48), now, 0.04);
-
-      // Quiet everyday stock cars stay refined/muted; sport/race cars & upgraded builds open up bright & punchy
-      const aggNorm = Math.min(1, (rig.meta.aggression + upgLvl * 0.65) / 4);
-      const maxCutoff = 1600 + aggNorm * 4800;
-      const minCutoff = 480 + aggNorm * 580;
-      rig.filter.frequency.setTargetAtTime((minCutoff + (maxCutoff - minCutoff) * (0.25 + 0.55 * throttle + 0.35 * r)) * shiftDip, now, 0.04);
-      const volBase = rig.meta.gain * (0.34 + aggNorm * 0.22) * (0.55 + throttle * 0.36 + r * 0.24) * shiftDip;
-      rig.bus.gain.setTargetAtTime(volBase, now, 0.04);
-
-      // Real deceleration overrun / exhaust burble on throttle lift at mid-high RPM
-      const liftOff = this.lastThrottle > 0.42 && throttle < 0.14 && r > 0.36;
-      if (liftOff && now - this.lastDecelAt > 0.55 && (rig.meta.aggression >= 1 || upgLvl >= 1)) {
-        this.lastDecelAt = now;
-        this.triggerDecelOverrun(rig, now, 0.16 + aggNorm * 0.26);
-      }
-    }
-    this.lastThrottle = throttle;
-
-    this.engFilter.frequency.setTargetAtTime(
-      (220 + rpmFrac * 1850 + throttle * 480) * shiftDip,
-      now,
-      0.035
-    );
-    this.engGain.gain.setTargetAtTime(
-      (isEv ? 0.015 : (0.08 + throttle * 0.11 + rpmFrac * 0.06) * shiftDip) * synthScale,
-      now,
-      0.035
-    );
-
-    // Supercharger / Twin-Turbo / EV inverter whine
-    if (this.forcedOsc && this.forcedGain) {
-      if (isEv) {
+    // Primary in-car RPM-locked physical-modeling engine (zero drive-by Doppler / rev-up loops!)
+    if (this.inCarEngine && bankId && !isEv) {
+      this.inCarEngine.update(state, spec, throttle, bankId, dt);
+      // Mute legacy raw sawtooth fallback & legacy forcedOsc (handled inside InCarEngineSynth)
+      this.engGain.gain.setTargetAtTime(0.0001, now, 0.03);
+      this.forcedGain?.gain.setTargetAtTime(0, now, 0.03);
+    } else {
+      this.inCarEngine?.setMuted(true);
+      this.engFilter.frequency.setTargetAtTime(220 + rpmFrac * 1850 + throttle * 480, now, 0.035);
+      this.engGain.gain.setTargetAtTime(isEv ? 0.012 : 0.0001, now, 0.035);
+      // EV inverter whine
+      if (this.forcedOsc && this.forcedGain && isEv) {
         const speedFrac = Math.min(1, state.speedMps / spec.topSpeedMps);
         this.forcedOsc.frequency.setTargetAtTime(280 + speedFrac * 2100, now, 0.03);
         this.forcedGain.gain.setTargetAtTime(0.02 + (throttle * 0.045 + (state.isBraking ? 0.03 : 0)) * (0.2 + speedFrac), now, 0.04);
-      } else if (spec.engine.aspiration === 'Supercharged') {
-        this.forcedOsc.frequency.setTargetAtTime(680 + rpmFrac * 2850, now, 0.03);
-        this.forcedGain.gain.setTargetAtTime((0.008 + state.turboBoost * 0.032) * (0.3 + rpmFrac), now, 0.04);
-      } else if (spec.engine.aspiration === 'Twin-Turbo') {
-        this.forcedOsc.frequency.setTargetAtTime(1600 + state.turboBoost * 2800, now, 0.03);
-        this.forcedGain.gain.setTargetAtTime(state.turboBoost * 0.028, now, 0.04);
       } else {
-        this.forcedGain.gain.setTargetAtTime(0, now, 0.04);
+        this.forcedGain?.gain.setTargetAtTime(0, now, 0.04);
       }
     }
 
