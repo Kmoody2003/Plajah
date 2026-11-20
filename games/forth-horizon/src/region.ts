@@ -550,20 +550,19 @@ let aaPass: ShaderPass | SMAAPass | null = null;
 const USE_SMAA = (() => { try { return new URLSearchParams(location.search).get('aa') === 'smaa'; } catch { return false; } })();
 let dbgCam: { pos: THREE.Vector3; at: THREE.Vector3 } | null = null;     // review tool: window.regionViewer.cam(x,y,z, tx,ty,tz) holds the camera still; cam() releases it
 let fxOn = true;
-let blackFrameStrikes = 0;
 renderer.domElement.addEventListener('webglcontextlost', (e) => {
   e.preventDefault();
   console.warn('[apex] WebGL context lost — waiting for GPU restore');
 });
 renderer.domElement.addEventListener('webglcontextrestored', () => {
-  blackFrameStrikes = 0;
   console.warn('[apex] WebGL context restored');
 });
 try {
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  // the scene is drawn into the composer's read buffer: give it a depth texture so the occlusion pass can read what was really drawn
-  composer.renderTarget2.depthTexture = new THREE.DepthTexture(innerWidth, innerHeight);
+  // the scene is drawn into the composer's read buffer: match depthTexture pixel dimensions to renderTarget2 (pixelRatio-scaled)
+  const initPr = renderer.getPixelRatio();
+  composer.renderTarget2.depthTexture = new THREE.DepthTexture(Math.max(1, Math.floor(innerWidth * initPr)), Math.max(1, Math.floor(innerHeight * initPr)));
   composer.renderTarget2.depthTexture.type = THREE.UnsignedIntType;
   aoPass = new AoPass(camera, Math.max(320, Math.floor(innerWidth * 0.5)), Math.max(180, Math.floor(innerHeight * 0.5)));
   composer.addPass(aoPass);
@@ -590,12 +589,11 @@ try {
       ${LENS_RAIN_GLSL}
       float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
       vec3 sanitizeHdr(vec3 c) {
-        vec3 safe = vec3(
-          (c.r >= 0.0 && c.r <= 65000.0) ? c.r : 0.0,
-          (c.g >= 0.0 && c.g <= 65000.0) ? c.g : 0.0,
-          (c.b >= 0.0 && c.b <= 65000.0) ? c.b : 0.0
+        return vec3(
+          !(c.r > 0.0) ? 0.0 : min(c.r, 48.0),
+          !(c.g > 0.0) ? 0.0 : min(c.g, 48.0),
+          !(c.b > 0.0) ? 0.0 : min(c.b, 48.0)
         );
-        return min(safe, vec3(48.0));
       }
       // Troy Sobotka's AgX filmic tone mapping: preserves vivid crimson LEDs, golden sunsets & metallic highlights without ACES hue-skew clipping.
       vec3 agxDefaultContrastApprox(vec3 x) {
@@ -4748,8 +4746,21 @@ function applyRenderScale(): void {
   const pr = Math.max(0.5, BASE_PR * renderScale);
   renderer.setPixelRatio(pr);
   renderer.setSize(innerWidth, innerHeight);
-  composer?.setPixelRatio?.(pr);
-  composer?.setSize(innerWidth, innerHeight);
+  if (composer) {
+    composer.setPixelRatio?.(pr);
+    composer.setSize(innerWidth, innerHeight);
+    // Recreate DepthTexture at exact renderTarget2 pixel dimensions so D3D11 FBO never goes INCOMPLETE_DIMENSIONS -> black
+    const dw = Math.max(1, Math.floor(innerWidth * pr)), dh = Math.max(1, Math.floor(innerHeight * pr));
+    const oldDepth = composer.renderTarget2.depthTexture;
+    if (oldDepth && (oldDepth.image?.width !== dw || oldDepth.image?.height !== dh)) {
+      oldDepth.dispose();
+      const nextDepth = new THREE.DepthTexture(dw, dh);
+      nextDepth.type = THREE.UnsignedIntType;
+      composer.renderTarget2.depthTexture = nextDepth;
+      composer.renderTarget2.dispose();
+    }
+    if (cinePass && aoPass) cinePass.uniforms.tSkyMask.value = aoPass.maskTexture;
+  }
   // Keep UnrealBloomPass at quarter resolution (capped at 480x270) after composer.setSize resizes passes
   bloomPass?.setSize(
     Math.min(480, Math.max(160, Math.floor(innerWidth * pr * 0.25))),
@@ -4890,7 +4901,13 @@ function frame(now: number): void {
   frameNo++;
   if (TV_MODE && now < tvNext) { requestAnimationFrame(frame); return; }
   if (TV_MODE) tvNext = now + 1000 / 30 - 4;
-  governFrames(now);
+  // When the opaque 2D interactive World Map is open, pause all 3D world updates & WebGL rendering so the map runs at locked 60+ FPS
+  if (festMap?.isOpen()) {
+    last = now;
+    requestAnimationFrame(frame);
+    return;
+  }
+  if (!mapMode) governFrames(now);
   cullPlaces(now);
   frameProfiler.begin(now);
   const dt = Math.min((now - last) / 1000, 0.1);
@@ -4909,11 +4926,11 @@ function frame(now: number): void {
   refDress?.update(now * 0.001);
   heroBridgeUpdate?.(now * 0.001, Math.max(0, Math.min(1, 1 - (sunDir.y + 0.05) * 4)));
   for (const l of cloudLayers) { l.tex.offset.x += l.vx * dt; l.tex.offset.y += l.vz * dt; }
-  if (replay.active) replay.step(dt); else if (!photo.active && !festMap?.isOpen()) stepDrive(dt);      // photo mode and the navigation map pause the drive
+  if (replay.active) replay.step(dt); else if (!photo.active) stepDrive(dt);      // photo mode pauses the drive
   photo.update();
   updateProbe(dt);
   if (!fly && !driving) controls.update();
-  let shadowStride = tierCfg.shadowStride;
+  let shadowStride = mapMode ? 6 : tierCfg.shadowStride;
   {
     const ft = driving ? driving.pos : controls.target;
     sun.target.position.set(ft.x, ft.y, ft.z);
@@ -4968,6 +4985,7 @@ function frame(now: number): void {
     // the atmosphere (ao.ts): dual-layer Rayleigh aerial perspective + low-altitude valley mist + warm Mie sun scatter; off on the map
     const f = aoPass.fog, w = wx.cur;
     const nk = NIGHT_K[todKey] ?? 0;
+    aoPass.aoOn = !mapMode && tierCfg.aoEnabled;
     f.on = !mapMode;
     f.density = 0.000155 * (1 + w.fogGrey * 4.5 + w.rain * 1.4);
     f.falloff = 1 / 420;
@@ -4977,6 +4995,7 @@ function frame(now: number): void {
     aoPass.contactShadow = mapMode ? 0 : Math.max(0, (1 - w.cloudDark * 1.15) * (1 - nk)) * 0.85;
     aoPass.blur = !mapMode && !photo.active && driving && !replay.active ? 0.5 : 0;             // camera motion blur while driving (ao.ts)
   }
+  if (bloomPass) bloomPass.enabled = !mapMode;
   lensRain.update(dt, wx.cur.rain, driving ? Math.abs(driving.ps.speedMps) : 0, !mapMode && !!driving && !replay.active && driving.camView < 3, innerWidth / innerHeight);
   const gradeActive = !!gradePass?.active;
   if (gradePass) gradePass.enabled = gradeActive;
@@ -4996,9 +5015,9 @@ function frame(now: number): void {
     if (carProbe.step(renderer, scene, probePos.set(driving.pos.x, driving.car.position.y + 1.1, driving.pos.z), [driving.car, spray.points, dust.points, forestGroup, scapeGroup])) carProbe.apply(driving.car);
   }
   cityVisibility.viewDist = mapMode ? Infinity : tierCfg.cityViewDist;
-  cityVisibility.shadowDist = mapMode ? Infinity : tierCfg.cityShadowDist;
-  if (mapMode) cityVisibility.update(camera, csm ? csm.lights : [sun]); else cityVisibility.update(camera, csm ? csm.lights : [sun], frameNo % 3, 3);
-  if (cityBatches) { cityBatches.viewDist = cityVisibility.viewDist; cityBatches.shadowDist = cityVisibility.shadowDist; if (mapMode) cityBatches.update(camera.position); else cityBatches.update(camera.position, frameNo % 3, 3); }
+  cityVisibility.shadowDist = mapMode ? 0 : tierCfg.cityShadowDist;
+  cityVisibility.update(camera, csm ? csm.lights : [sun], frameNo % 3, 3);
+  if (cityBatches) { cityBatches.viewDist = cityVisibility.viewDist; cityBatches.shadowDist = cityVisibility.shadowDist; cityBatches.update(camera.position, frameNo % 3, 3); }
   spatialCuller.update(camera, renderer, mapMode, tierCfg.cullViewDist, tierCfg.cullShadowDist, shadowStride);
   const __t3 = performance.now();
   frameProfiler.context = { mode: mapMode ? 'map' : driving ? 'drive' : 'review', weather: wx.name, camera: camera.position.toArray().map((v) => Math.round(v)) };
@@ -5011,39 +5030,6 @@ function frame(now: number): void {
     composer.render();
   } else {
     renderer.render(scene, camera);
-  }
-  // Real-GPU black-frame watchdog (runs once every 90 frames; zero-cost unless all 4 spread pixels read pure 0,0,0 twice in a row)
-  if (composer && fxOn && !mapMode && (frameNo % 90) === 45 && sun.intensity > 0.05) {
-    const gl = renderer.getContext();
-    if (gl && !gl.isContextLost()) {
-      const cw = renderer.domElement.width, ch = renderer.domElement.height;
-      const px = new Uint8Array(4);
-      const pts: [number, number][] = [[cw >> 1, ch >> 1], [cw >> 1, (ch * 3) >> 2], [cw >> 2, ch >> 1], [(cw * 3) >> 2, ch >> 2]];
-      let allZero = true;
-      for (const [x, y] of pts) {
-        gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
-        if (px[0] > 0 || px[1] > 0 || px[2] > 0) { allZero = false; break; }
-      }
-      if (allZero) {
-        blackFrameStrikes++;
-        console.warn('[apex-watchdog] black 3D frame detected', {
-          strikes: blackFrameStrikes,
-          glErr: gl.getError(),
-          exp: renderer.toneMappingExposure,
-          uSpeed: cinePass?.uniforms.uSpeed.value,
-          uShaft: cinePass?.uniforms.uShaft.value,
-          cam: camera.position.toArray().map((v) => +v.toFixed(1)),
-          weather: wx.name,
-        });
-        if (cinePass) { cinePass.uniforms.uSpeed.value = 0; cinePass.uniforms.uShaft.value = 0; }
-        if (blackFrameStrikes >= 2) {
-          fxOn = false;
-          console.warn('[apex-watchdog] disabling post composer fallback -> direct renderer.render()');
-        }
-      } else {
-        blackFrameStrikes = 0;
-      }
-    }
   }
   frameProfiler.end();
   { const __t4 = performance.now(), q = ((window as any).__seg ??= { sim: [], mid: [], city: [], render: [] }); q.sim.push(__t1 - __t0); q.mid.push(__t2 - __t1); q.city.push(__t3 - __t2); q.render.push(__t4 - __t3); if (q.sim.length > 600) for (const k in q) q[k].shift(); }

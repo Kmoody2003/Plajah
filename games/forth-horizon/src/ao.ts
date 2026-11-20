@@ -99,12 +99,11 @@ const APPLY_FRAG = `
   uniform float uBlur;               // motion blur shutter (0 off, 0.5 = half the frame's camera motion)
   varying vec2 vUv;
   vec3 sanitizeHdr(vec3 c) {
-    vec3 safe = vec3(
-      (c.r >= 0.0 && c.r <= 65000.0) ? c.r : 0.0,
-      (c.g >= 0.0 && c.g <= 65000.0) ? c.g : 0.0,
-      (c.b >= 0.0 && c.b <= 65000.0) ? c.b : 0.0
+    return vec3(
+      !(c.r > 0.0) ? 0.0 : min(c.r, 48.0),
+      !(c.g > 0.0) ? 0.0 : min(c.g, 48.0),
+      !(c.b > 0.0) ? 0.0 : min(c.b, 48.0)
     );
-    return min(safe, vec3(48.0));
   }
   vec3 worldAt(float d) {
     vec3 ndc = vec3(vUv * 2.0 - 1.0, d * 2.0 - 1.0);

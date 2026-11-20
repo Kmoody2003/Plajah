@@ -129,11 +129,22 @@ export function createFestMap(o: FestMapOpts): { open(): void; close(): void; to
     g.fill(); g.fillStyle = '#14001c'; g.font = `700 ${Math.round(size * 1.1)}px Outfit, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(glyph, 0, 1);
     g.restore();
   }
+  const g = cv.getContext('2d', { alpha: false })!;
+  let drawRaf = 0;
+  let fastDrag = false;
+  function scheduleDraw(interacting = false): void {
+    if (interacting) fastDrag = true;
+    if (drawRaf) return;
+    drawRaf = requestAnimationFrame(() => {
+      drawRaf = 0;
+      draw();
+      fastDrag = false;
+    });
+  }
   function draw(): void {
     if (!base) return;
-    const g = cv.getContext('2d')!;
     g.fillStyle = '#0b1410'; g.fillRect(0, 0, cv.width, cv.height);
-    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+    g.imageSmoothingEnabled = true; g.imageSmoothingQuality = fastDrag ? 'low' : 'medium';
     const [x0, y0] = scr(0, 0);
     g.drawImage(base, x0, y0, W * sc, H * sc);
     hits.length = 0;
@@ -172,26 +183,28 @@ export function createFestMap(o: FestMapOpts): { open(): void; close(): void; to
     for (let m = Math.ceil(o.bounds.minZ / 2000) * 2000; m <= o.bounds.maxZ; m += 2000) { const [, y] = scr(...toPx(0, m)); g.beginPath(); g.moveTo(0, y); g.lineTo(cv.width, y); g.stroke(); g.textAlign = 'left'; g.fillText(String(1 + Math.round((m - o.bounds.minZ) / 2000)), 8, y - 4); }
     (root.querySelector('#fmSub') as HTMLElement).textContent = `Chora Fest · ${o.fp()}`;
   }
-  const resize = (): void => { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; draw(); };
+  const dpr = (): number => Math.min(devicePixelRatio || 1, 1.5);
+  const resize = (): void => { const r = dpr(); cv.width = Math.round(innerWidth * r); cv.height = Math.round(innerHeight * r); scheduleDraw(false); };
   // pan and zoom
   let drag: { x: number; y: number; cx: number; cz: number; moved: boolean } | null = null;
   cv.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, cx, cz, moved: false }; cv.style.cursor = 'grabbing'; cv.setPointerCapture(e.pointerId); });
-  cv.addEventListener('pointermove', (e) => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true; cx = drag.cx - (dx * devicePixelRatio) / sc; cz = drag.cz - (dy * devicePixelRatio) / sc; draw(); });
+  cv.addEventListener('pointermove', (e) => { if (!drag) return; const r = dpr(), dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true; cx = drag.cx - (dx * r) / sc; cz = drag.cz - (dy * r) / sc; scheduleDraw(true); });
   cv.addEventListener('pointerup', (e) => {
     cv.style.cursor = 'grab';
     const d = drag; drag = null;
+    if (d && d.moved) scheduleDraw(false);
     if (d && !d.moved) {
-      const x = e.clientX * devicePixelRatio, y = e.clientY * devicePixelRatio;
+      const r = dpr(), x = e.clientX * r, y = e.clientY * r;
       const h = hits.find((q) => Math.hypot(q.x - x, q.y - y) < q.r + 6);
       if (h?.site) showPop(h.site, e.clientX, e.clientY); else pop.style.display = 'none';
     }
   });
   cv.addEventListener('wheel', (e) => {
     e.preventDefault();
-    const mx = e.clientX * devicePixelRatio, my = e.clientY * devicePixelRatio;
+    const r = dpr(), mx = e.clientX * r, my = e.clientY * r;
     const bx = (mx - cv.width / 2) / sc + cx, bz = (my - cv.height / 2) / sc + cz;          // keep the point under the cursor still
     sc = Math.max(0.2, Math.min(4, sc * Math.exp(-e.deltaY * 0.0015)));
-    cx = bx - (mx - cv.width / 2) / sc; cz = bz - (my - cv.height / 2) / sc; draw();
+    cx = bx - (mx - cv.width / 2) / sc; cz = bz - (my - cv.height / 2) / sc; scheduleDraw(true);
   }, { passive: false });
   function showPop(s: MapSite & { open: boolean; canOpen: boolean }, x: number, y: number): void {
     pop.innerHTML = `<div style="font:600 10px Outfit;letter-spacing:.22em;color:#ff7ab8">${s.kind === 'main' ? 'MAIN SITE' : 'OUTPOST'}</div><div style="font:700 17px Outfit;margin:2px 0 8px">${s.name}</div>` +
@@ -205,7 +218,8 @@ export function createFestMap(o: FestMapOpts): { open(): void; close(): void; to
   function open(): void {
     if (!base) base = buildBase();
     root.style.display = 'block'; pop.style.display = 'none';
-    cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; fit();
+    const r = dpr();
+    cv.width = Math.round(innerWidth * r); cv.height = Math.round(innerHeight * r); fit();
     const p = o.player(); if (p) { const [px, pz] = toPx(p.x, p.z); cx = px; cz = pz; sc = Math.max(sc, 1.2); }
     draw(); addEventListener('resize', resize);
     o.onOpen?.();
