@@ -550,11 +550,17 @@ let aaPass: ShaderPass | SMAAPass | null = null;
 const USE_SMAA = (() => { try { return new URLSearchParams(location.search).get('aa') === 'smaa'; } catch { return false; } })();
 let dbgCam: { pos: THREE.Vector3; at: THREE.Vector3 } | null = null;     // review tool: window.regionViewer.cam(x,y,z, tx,ty,tz) holds the camera still; cam() releases it
 let fxOn = true;
+const ctxLostEl = document.createElement('div');
+ctxLostEl.style.cssText = 'position:fixed;left:50%;top:20px;transform:translateX(-50%);z-index:9999;display:none;padding:10px 18px;border-radius:12px;background:rgba(160,24,24,0.92);color:#fff;font:600 13px/1.4 Inter,system-ui,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,0.45);pointer-events:none';
+ctxLostEl.textContent = 'GPU memory exhausted (WebGL context lost) — close other GPU apps/models or reload';
+document.body.appendChild(ctxLostEl);
 renderer.domElement.addEventListener('webglcontextlost', (e) => {
   e.preventDefault();
-  console.warn('[apex] WebGL context lost — waiting for GPU restore');
+  ctxLostEl.style.display = 'block';
+  console.warn('[apex] WebGL context lost (likely GPU VRAM pressure) — waiting for GPU restore');
 });
 renderer.domElement.addEventListener('webglcontextrestored', () => {
+  ctxLostEl.style.display = 'none';
   console.warn('[apex] WebGL context restored');
 });
 try {
@@ -4729,7 +4735,7 @@ const TV_MODE = (() => { try { return new URLSearchParams(location.search).get('
 let perfTier: PerfTier = detectInitialTier(renderer, TV_MODE);
 let tierCfg = TIER_CONFIGS[perfTier];
 const TARGET_MS = TV_MODE ? 1000 / 30 : 1000 / 60;
-const BASE_PR = Math.min(devicePixelRatio, TV_MODE ? 1 : 2);
+const BASE_PR = Math.min(devicePixelRatio, TV_MODE ? 1 : 1.5);
 let renderScale = TV_MODE ? 0.75 : perfTier === 'low' ? 0.8 : 1, govAcc = 0, govN = 0, govMax = 0, govLast = 0, govHold = 0, govPrev = 0, govFrom = 1, govDropped = false, govNoDrop = 0;
 function applyPerfTier(next: PerfTier): void {
   perfTier = next;
