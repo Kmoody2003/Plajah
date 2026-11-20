@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { bulkWarehouse, containerBlock, controlTower, customsBuilding, distillationTower, flareStack, hortonSphere, locomotive, logisticsCentre, manufacturingHall, pipeRack, quayCrane, railTrack, relayHut, signalGantry, storageTank, wagon, type WagonKind } from './library/industrial';
 import { seeded } from './library/kit';
+import { piece } from './library/modelled';
 
 /**
  * The districts round the new Ironworks Industrial Circuit (Kenne's North Harbor Circuit II), dressed from the library pieces in src/library/industrial.ts by
@@ -19,7 +20,7 @@ export interface DistrictOpts {
   rail?: { x: number; z: number; dx: number; dz: number };
 }
 
-export function buildIronworksDistrict(o: DistrictOpts): { group: THREE.Group; counts: Record<string, number> } {
+export function buildIronworksDistrict(o: DistrictOpts): { group: THREE.Group; counts: Record<string, number>; at: Record<string, [number, number][]> } {
   const group = new THREE.Group(); group.name = 'ironworks-district';
   const R = o.route, n = R.length, rnd = seeded(9137), counts: Record<string, number> = {};
   const cx = R.reduce((a, p) => a + p[0], 0) / n, cz = R.reduce((a, p) => a + p[1], 0) / n;
@@ -42,10 +43,12 @@ export function buildIronworksDistrict(o: DistrictOpts): { group: THREE.Group; c
     }
     return (Number.isFinite(lo) ? lo : o.ground(x, z)) - 0.05;
   };
+  /** where each kind of piece stands (x, z), for hero spots and review shots */
+  const at: Record<string, [number, number][]> = {};
   const put = (obj: THREE.Object3D, x: number, z: number, ry: number, r: number, kind: string): void => {
     obj.position.set(x, 0, z); obj.rotation.y = ry; group.add(obj);
     obj.position.y = footing(obj, x, z, ry);
-    placed.push({ x, z, r }); counts[kind] = (counts[kind] ?? 0) + 1;
+    placed.push({ x, z, r }); counts[kind] = (counts[kind] ?? 0) + 1; (at[kind] ??= []).push([Math.round(x), Math.round(z)]);
   };
   /** along a sector, on the outside of the loop (and the inside where `inside`), find spots `r` clear and stand pieces there facing the track */
   const line = (sector: string, r: number, make: (k: number) => THREE.Object3D, kind: string, every = 1, inside = false, extraOff = 0): void => {
@@ -69,7 +72,7 @@ export function buildIronworksDistrict(o: DistrictOpts): { group: THREE.Group; c
   // ---- warehouse district (start straight and the esses): logistics centres and bulk warehouses ----
   line('warehouse', 40, (k) => (k % 2 ? bulkWarehouse(100 + k, 36, 56, 11) : logisticsCentre(200 + k, 84, 52, 12)), 'warehouse', 2, true);
   // ---- the underpass approach: brick manufacturing halls ----
-  line('underpass', 30, (k) => manufacturingHall(300 + k, 48, 40, 9, 4), 'manufacturing hall', 2, true);
+  line('underpass', 30, (k) => piece('manufacturing_hall', () => manufacturingHall(300 + k, 48, 40, 9, 4)), 'manufacturing hall', 2, true);
   // ---- container port and harbour: container blocks inland, quay cranes on the water's edge, the control tower and customs at the hairpin ----
   line('container_port', 27, (k) => containerBlock(400 + k, 4, 6, 4), 'container block', 1, true);
   line('harbour', 27, (k) => containerBlock(450 + k, 4, 6, 4), 'container block', 1, true);
@@ -89,7 +92,7 @@ export function buildIronworksDistrict(o: DistrictOpts): { group: THREE.Group; c
       }
     }
     const h = o.sectors.harbour;
-    if (h) { const p = R[Math.floor((h[0] + h[1]) / 2) % n]; for (let d = 30; d < 140; d += 8) { const x = p[0] + (p[0] - cx) / Math.hypot(p[0] - cx, p[1] - cz) * d, z = p[1] + (p[1] - cz) / Math.hypot(p[0] - cx, p[1] - cz) * d; if (free(x, z, 12)) { put(controlTower(7), x, z, Math.atan2(cx - x, cz - z), 12, 'control tower'); break; } } }
+    if (h) { const p = R[Math.floor((h[0] + h[1]) / 2) % n]; for (let d = 30; d < 140; d += 8) { const x = p[0] + (p[0] - cx) / Math.hypot(p[0] - cx, p[1] - cz) * d, z = p[1] + (p[1] - cz) / Math.hypot(p[0] - cx, p[1] - cz) * d; if (free(x, z, 12)) { put(piece('control_tower', () => controlTower(7)), x, z, Math.atan2(cx - x, cz - z), 12, 'control tower'); break; } } }
     const c = o.sectors.container_port;
     if (c) { const p = R[c[0] % n], q = R[(c[0] + 1) % n]; for (let d = 30; d < 120; d += 6) { const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1, x = p[0] - (q[1] - p[1]) / L * d, z = p[1] + (q[0] - p[0]) / L * d; if (free(x, z, 26)) { put(customsBuilding(3), x, z, Math.atan2(p[0] - x, p[1] - z), 26, 'customs'); break; } } }
   }
@@ -124,5 +127,5 @@ export function buildIronworksDistrict(o: DistrictOpts): { group: THREE.Group; c
     for (const s of [-170, 150]) { const x = rx + ux * s, z = rz + uz * s; if (!o.blocked(x, z, 4)) { const g = signalGantry(7); g.position.set(x, o.ground(x, z), z); g.rotation.y = yaw + Math.PI / 2; group.add(g); counts.gantry = (counts.gantry ?? 0) + 1; } }
     for (const s of [-120, -40, 60]) { const x = rx + ux * s + vx * 19, z = rz + uz * s + vz * 19; if (!o.blocked(x, z, 3) && !o.water(x, z)) { const h = relayHut(); h.position.set(x, o.ground(x, z), z); h.rotation.y = yaw; group.add(h); counts.relayHut = (counts.relayHut ?? 0) + 1; } }
   }
-  return { group, counts };
+  return { group, counts, at };
 }

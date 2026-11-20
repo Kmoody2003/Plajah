@@ -1,0 +1,95 @@
+{
+ "figures": [
+  {
+   "x0": 176,
+   "y0": 176,
+   "x1": 1296,
+   "y1": 532,
+   "area": 324456,
+   "role": "front",
+   "row": 0,
+   "bg": [
+    241,
+    240,
+    235
+   ],
+   "kind": "view",
+   "why": "elevation (height 356 px, group of 2); first elevation → front"
+  },
+  {
+   "x0": 1464,
+   "y0": 176,
+   "x1": 2652,
+   "y1": 532,
+   "area": 305984,
+   "role": "left",
+   "row": 1,
+   "bg": [
+    241,
+    240,
+    235
+   ],
+   "kind": "view",
+   "why": "elevation (height 356 px, group of 2); front's width, mirrors the front (0.84) → back"
+  }
+ ],
+ "overlap": {
+  "front": 0.88,
+  "left": 0.64,
+  "back": 0.88
+ },
+ "weak": [],
+ "sourceView": "front",
+ "turnDeg": 0,
+ "warnings": [
+  "no side views"
+ ],
+ "paintedShare": 0.325,
+ "geometry": {
+  "views": {
+   "front": {
+    "overlapBefore": 0.944,
+    "filledToArt": 0,
+    "overlapAfter": 0.918
+   },
+   "left": {
+    "overlapBefore": 0.603,
+    "filledToArt": 0.0562,
+    "carved": 0.0007,
+    "extruded": 0.0001,
+    "reliefMm": 39.9,
+    "overlapAfter": 0.77
+   },
+   "back": {
+    "overlapBefore": 0.944,
+    "overlapAfter": 0.919
+   }
+  },
+  "depthScale": 1.6,
+  "depthEstimates": {
+   "left": 2.688
+  },
+  "voxel": 0.007762528161207836,
+  "groups": {
+   "z": {
+    "views": [
+     "front",
+     "back"
+    ],
+    "cut": 0.0007
+   },
+   "x": {
+    "views": [
+     "left"
+    ],
+    "cut": 0.0938
+   }
+  },
+  "outlineCut": 0.0945,
+  "grown": 0.0924,
+  "snapped": 0.47,
+  "faces": 199902,
+  "volumeChange": 0.0535
+ },
+ "seconds": 204.7555
+}

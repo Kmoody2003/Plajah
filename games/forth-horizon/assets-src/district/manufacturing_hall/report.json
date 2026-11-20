@@ -1,0 +1,87 @@
+{
+ "figures": [
+  {
+   "x0": 177,
+   "y0": 177,
+   "x1": 1011,
+   "y1": 492,
+   "area": 145284,
+   "role": "front",
+   "row": 0,
+   "bg": [
+    237,
+    237,
+    236
+   ],
+   "kind": "view",
+   "why": "elevation (height 315 px, group of 2); first elevation → front"
+  },
+  {
+   "x0": 1185,
+   "y0": 177,
+   "x1": 1917,
+   "y1": 492,
+   "area": 139560,
+   "role": "left",
+   "row": 1,
+   "bg": [
+    237,
+    237,
+    236
+   ],
+   "kind": "view",
+   "why": "elevation (height 315 px, group of 2); front's width, mirrors the front (0.79) → back"
+  }
+ ],
+ "overlap": {
+  "front": 0.81,
+  "left": 0.55,
+  "back": 0.81
+ },
+ "weak": [
+  "left 0.55"
+ ],
+ "sourceView": "front",
+ "turnDeg": 0,
+ "warnings": [
+  "no side views"
+ ],
+ "paintedShare": 0.21600000000000003,
+ "geometry": {
+  "views": {
+   "front": {
+    "overlapBefore": 0.875,
+    "filledToArt": 0,
+    "overlapAfter": 0.904
+   },
+   "left": {
+    "overlapBefore": 0.574,
+    "skipped": true
+   },
+   "back": {
+    "overlapBefore": 0.875,
+    "overlapAfter": 0.901
+   }
+  },
+  "depthScale": 1.6,
+  "depthEstimates": {
+   "left": 1.765
+  },
+  "voxel": 0.007760783665710026,
+  "groups": {
+   "z": {
+    "views": [
+     "front",
+     "back"
+    ],
+    "cut": 0.0097
+   }
+  },
+  "outlineCut": 0.0097,
+  "grown": 0.0132,
+  "snapped": 0.927,
+  "faces": 199948,
+  "volumeChange": 0.0035
+ },
+ "seconds": 276.9505
+}

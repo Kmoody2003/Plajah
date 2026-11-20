@@ -56,6 +56,7 @@ import { duneDetail } from './duneDetail';
 import { Vegetation } from './vegetation';
 import { buildIndustrialCircuit, carveCourseFormation, carveIndustrialCutting, industrialProfile, type GradeFeature } from './industrialCircuit';
 import { buildIronworksDistrict } from './ironworksDistrict';
+import { preloadModelledPieces } from './library/modelled';
 import { buildCivicRiverfront, type CivicPlan } from './civicDistrict';
 import { HERO_SCENES } from './heroScenes';
 import { glassSelects } from './glassSelect';
@@ -3120,7 +3121,7 @@ function buildFurniture(): void {
       });
       mergeByMaterial(d.group, 400);
       furnitureGroup.add(d.group);
-      console.log('ironworks district', JSON.stringify(d.counts));
+      console.log('ironworks district', JSON.stringify(d.counts)); (window as unknown as { districtAt: unknown }).districtAt = { ...((window as unknown as { districtAt?: object }).districtAt ?? {}), ironworks: d.at };
     }
   }
   if (meta.circuits[HARB]) {
@@ -3134,7 +3135,7 @@ function buildFurniture(): void {
     if (harborRaw) {
       const d = buildIronworksDistrict({ route: harborRaw.xz, sectors: harborRaw.sectors, ground: (x, z) => meshH(x, z), water: (x, z) => hAt(x, z) < 2.5, blocked: (x, z, r) => onCourse(x, z, r) || paintedRoad(x, z, r) || insideBuilding(x, z, r) });
       d.group.name = 'harbor-district'; mergeByMaterial(d.group, 400); furnitureGroup.add(d.group);
-      console.log('harbor district', JSON.stringify(d.counts));
+      console.log('harbor district', JSON.stringify(d.counts)); (window as unknown as { districtAt: unknown }).districtAt = { ...((window as unknown as { districtAt?: object }).districtAt ?? {}), harbor: d.at };
     }
   }
   if (meta.circuits[CIV]) {
@@ -4528,6 +4529,8 @@ async function boot(): Promise<void> {
   }
   buildTerrain();
   buildOverlays();
+  // the Plajah 3D builds of the district sheets (src/library/modelled.ts): loaded before the districts are dressed, each falls back to its code-built piece
+  console.log('library models', JSON.stringify(await preloadModelledPieces()));
   buildFurniture();
   preset('overview');
   tweenOn = true;

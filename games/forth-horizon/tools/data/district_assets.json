@@ -1,0 +1,54 @@
+{
+ "note": "One entry per library asset built from Kenne's district sheets by Plajah 3D (tools/district_sheets.py, scripts/apex-build-district-assets.mjs). front/side = box numbers from `district_sheets.py detect`; size = metres [width, depth, height], what the library piece is scaled to. size[0] is the width the model is scaled to (the art's proportions kept); it is kept inside the placer's clearance radius. rejected = a build that didn't match its sheet: not in the game.",
+ "assets": [
+  {
+   "id": "control_tower",
+   "lib": "controlTower",
+   "sheet": "industrial districts/Industrial_buildings_asset_sheet_54193293.jpg",
+   "front": 0,
+   "side": 1,
+   "size": [
+    18,
+    15,
+    22
+   ]
+  },
+  {
+   "id": "manufacturing_hall",
+   "lib": "manufacturingHall",
+   "sheet": "industrial districts/Industrial_buildings_asset_sheet_54193293.jpg",
+   "front": 7,
+   "side": 8,
+   "size": [
+    42,
+    34,
+    14
+   ]
+  },
+  {
+   "id": "grand_civic_building",
+   "lib": "grandCivicBuilding",
+   "sheet": "civic riverfront/Grand_civic_buildings_architectu…_3b49070c.jpg",
+   "front": 1,
+   "side": 2,
+   "size": [
+    76,
+    60,
+    24
+   ]
+  },
+  {
+   "id": "opera_hall",
+   "lib": "operaHall",
+   "sheet": "civic riverfront/Grand_civic_buildings_architectu…_3b49070c.jpg",
+   "front": 3,
+   "side": 4,
+   "size": [
+    120,
+    110,
+    36
+   ],
+   "rejected": "2026-11-20: melted blob; the generator could not follow the thin curved shells (the code-built hall stays)"
+  }
+ ]
+}

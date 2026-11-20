@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { amphitheatreBowl, bench, botanicalGlasshouse, festivalStage, flowerBed, fountain, glassMuseum, grandCivicBuilding, monument, operaHall, palmTree, pier, pontoon, promenadeLamp, sculpture, stoneEmbankment, yacht, SAND_COLOUR } from './library/civic';
 import { seeded } from './library/kit';
+import { piece } from './library/modelled';
 
 /**
  * The civic riverfront on the east bank (region/civic_riverfront.json, tools/plan_civic_riverfront.py; Kenne's civic riverfront maps and sheets):
@@ -103,7 +104,7 @@ export function buildCivicRiverfront(o: CivicOpts): { group: THREE.Group; counts
   // ---- Museum Plaza & Botanical Gardens ----
   const s2 = sec('museum_gardens');
   if (s2) {
-    landmark(s2.z[0] + 140, 60, 52, () => grandCivicBuilding(2), 'museum of science and art');
+    landmark(s2.z[0] + 140, 60, 52, () => piece('grand_civic_building', () => grandCivicBuilding(2)), 'museum of science and art');
     landmark(s2.z[0] + 380, 50, 60, () => glassMuseum(3), 'glass museum');
     landmark(s2.z[1] - 220, 80, 60, () => botanicalGlasshouse(4), 'botanical glasshouse');
     landmark(s2.z[0] + 270, 40, 7, () => fountain(6), 'plaza fountain');

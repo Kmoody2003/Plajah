@@ -1,0 +1,31 @@
+{
+ "pieces": [
+  {
+   "id": "control_tower",
+   "lib": "controlTower",
+   "size": [
+    18,
+    15,
+    22
+   ]
+  },
+  {
+   "id": "manufacturing_hall",
+   "lib": "manufacturingHall",
+   "size": [
+    42,
+    34,
+    14
+   ]
+  },
+  {
+   "id": "grand_civic_building",
+   "lib": "grandCivicBuilding",
+   "size": [
+    76,
+    60,
+    24
+   ]
+  }
+ ]
+}
