@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 // Scan cars: image-to-mesh body plus real parts, driven by car/<id>/spec.json. Process and rationale: docs/apex-elohim/car-pipeline.md.
 // The generated mesh is only the shell. Paint is one solid clearcoat colour, wheels / brakes / suspension / engine / exhaust / lamps /
 // trim are built from the spec, and the doors, hood and trunk are real separate panels that open.
@@ -234,11 +235,13 @@ function buildAero(ex: NonNullable<ScanSpec['exhaust']>, aero?: ScanSpec['aero']
   const finH = aero ? 0.11 : 0.16;
   const finD = aero ? 0.28 : 0.38;
   const diffZ = aero ? ex.z + 0.34 : ex.z + 0.28;
-  for (let i = -diffN; i <= diffN; i++) {
-    const step = (diffW * 0.44) / Math.max(1, diffN);
-    add(new THREE.BoxGeometry(0.014, finH, finD), carbon, i * step, diffY, diffZ);
+  if (diffN > 0 && diffW > 0) {
+    for (let i = -diffN; i <= diffN; i++) {
+      const step = (diffW * 0.44) / Math.max(1, diffN);
+      add(new THREE.BoxGeometry(0.014, finH, finD), carbon, i * step, diffY, diffZ);
+    }
+    add(new THREE.BoxGeometry(diffW, 0.014, finD - 0.02), carbon, 0, Math.max(0.11, diffY - finH * 0.52), diffZ + 0.02);
   }
-  add(new THREE.BoxGeometry(diffW, 0.014, finD - 0.02), carbon, 0, Math.max(0.11, diffY - finH * 0.52), diffZ + 0.02);
 
   // rear wing: Sovereign/Corsair ducktail lip OR Vanguard/Track swan-neck GT wing with endplates
   const wing = aero?.wing ?? { type: 'ducktail' as const, width: 1.46, y: 1.03, z: -2.27 };
@@ -1315,15 +1318,33 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
   };
 }
 
+// Automatically discover every built vehicle spec in games/forth-horizon/car/<id>/spec.json
+// Must stay a literal `import.meta.glob(...)` call so Vite's AST transform expands it!
+const _autoSpecModules = import.meta.glob<ScanSpec>('../car/*/spec.json', { eager: true, import: 'default' });
+
 export const SCAN_SPECS: Record<string, ScanSpec> = {
   kestrel: sovSpec as unknown as ScanSpec,
   sovereign: sovSpec as unknown as ScanSpec,
   corsair: corsairSpec as unknown as ScanSpec,
   vanguard: vanguardSpec as unknown as ScanSpec,
 };
+for (const [modPath, modSpec] of Object.entries(_autoSpecModules)) {
+  const m = modPath.match(/\/car\/([^/]+)\/spec\.json$/);
+  if (m && modSpec) {
+    const key = m[1] === 'sovereign' ? 'kestrel' : m[1];
+    if (!(key in SCAN_SPECS)) SCAN_SPECS[key] = modSpec;
+  }
+}
 
-/** Built high-performance scan cars automatically used as AI race opponents on circuits */
-export const RACE_OPPONENT_SCAN_IDS: string[] = ['vanguard', 'corsair', 'kestrel'];
+const CIRCUIT_OPP_CANDIDATES = [
+  'vanguard', 'aurelia', 'solstice_r', 'helios', 'solstice',
+  'veloce', 'voltstrike', 'kestrel', 'kuronuma', 'sidewinder',
+  'corsair', 'apex_tcr', 'zephyr_emotion', 'ironhide',
+  'stratos_wrc', 'terracorsa', 'legacy_gtr', 'continental',
+];
+
+/** Built high-performance scan cars automatically used as AI race opponents on street circuits */
+export const RACE_OPPONENT_SCAN_IDS: string[] = CIRCUIT_OPP_CANDIDATES.filter((id) => id in SCAN_SPECS);
 
 export function hasScanCar(id: string): boolean {
   return id in SCAN_SPECS;

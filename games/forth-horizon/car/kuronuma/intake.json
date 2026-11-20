@@ -1,0 +1,28 @@
+{
+  "id": "kuronuma",
+  "status": "built (multi-view matched: winner=sheet_front34, sideIoU=0.888, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Kuronuma_GT-6_coupe_design_sheet_80915908.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Turntable_showcase_of_coupe_coupe_5c2cf445.mp4",
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.8819,
+      "yawSymDeg": 0.0
+    },
+    {
+      "candidate": "tt_08",
+      "sideIoU": 0.7772,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "sheet_front34",
+  "finalSideIoU": 0.8883,
+  "yawSymDeg": 0.0,
+  "boundsM": {
+    "length": 4.703,
+    "width": 2.04,
+    "height": 1.443
+  },
+  "faces": 60000,
+  "elapsedSec": 10.9
+}

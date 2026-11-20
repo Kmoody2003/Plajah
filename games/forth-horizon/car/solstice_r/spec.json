@@ -1,0 +1,229 @@
+{
+  "id": "solstice_r",
+  "name": "Solstice Aero R",
+  "glb": "/games/forth-horizon/car/solstice_r_base.glb",
+  "paint": "0x2b3038",
+  "accent": "0x00e5ff",
+  "cuts": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Hunyuan3D shell (solstice_r_base.glb, L=4.74m W=2.04m H=1.40m).",
+  "wheels": {
+    "frontZ": 1.398,
+    "rearZ": -1.506,
+    "frontX": 0.771,
+    "rearX": 0.761,
+    "scale": 1.059,
+    "discardR": 0.391,
+    "centreY": 0.376,
+    "tyreR": 0.376,
+    "rimR": 0.263
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.919,
+        0.0,
+        0.962
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.919,
+        0.0,
+        0.962
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.023,
+        0.999
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    },
+    "trunk": {
+      "hinge": [
+        0.0,
+        1.043,
+        -2.086
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": 0.85
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.674,
+        0.783,
+        1.019
+      ],
+      [
+        0.674,
+        1.263,
+        2.19
+      ]
+    ],
+    "trunk": [
+      [
+        -0.592,
+        0.883,
+        -2.23
+      ],
+      [
+        0.592,
+        1.243,
+        -2.106
+      ]
+    ],
+    "roof": [
+      [
+        -0.727,
+        1.237,
+        -0.901
+      ],
+      [
+        0.727,
+        1.518,
+        0.509
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.023,
+    "roofEdge": 1.357,
+    "pillarBase": 0.979,
+    "pillarTop": 0.509,
+    "doorFront": 0.962,
+    "doorRear": -0.961,
+    "windBase": 0.979,
+    "windTop": 0.509,
+    "rearTop": -0.901,
+    "rearBase": -2.086,
+    "rearBase2": -2.056,
+    "windHalfW": 0.727,
+    "rearHalfW": 0.4,
+    "sideWindow": [
+      [
+        -0.901,
+        1.053
+      ],
+      [
+        0.902,
+        1.043
+      ],
+      [
+        0.862,
+        1.143
+      ],
+      [
+        0.736,
+        1.263
+      ],
+      [
+        0.509,
+        1.337
+      ],
+      [
+        -0.841,
+        1.337
+      ],
+      [
+        -1.061,
+        1.23
+      ],
+      [
+        -1.001,
+        1.083
+      ]
+    ],
+    "handle": [
+      -0.179,
+      0.883
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.507,
+    "layout": "ev",
+    "arch": "ev",
+    "texUrl": "/games/forth-horizon/tex/engines/hypercar_tt_v8.jpg"
+  },
+  "trunk": true,
+  "cabin": {
+    "yOffset": 0.018,
+    "zOffset": -0.098,
+    "cowlZ": 0.929,
+    "cowlY": 1.023
+  },
+  "exhaust": {
+    "z": -2.226,
+    "y": 0.22,
+    "xs": []
+  },
+  "aero": {
+    "splitterZ": 2.358,
+    "splitterW": 0,
+    "splitterY": 0.11,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.552,
+      "y": 0.527,
+      "w": 0.286,
+      "h": 0.075,
+      "tilt": 0.025,
+      "style": "u-drl"
+    },
+    "tail": {
+      "x": 0.531,
+      "y": 0.61,
+      "len": 0.286,
+      "style": "full-blade"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.36,
+    "bumperRearY": 0.38,
+    "skirtY": 0.2,
+    "archLipAdd": 0.045,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0
+  }
+}

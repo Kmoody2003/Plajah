@@ -1,0 +1,28 @@
+{
+  "id": "solstice_r",
+  "status": "built (multi-view matched: winner=tt_05, sideIoU=0.851, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Solstice_Aero_R_rear_view_572ac645.jpg",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Solstice_Aero_R_studio_showcase_f01e8f51.mp4",
+  "candidates": [
+    {
+      "candidate": "tt_00",
+      "sideIoU": 0.8328,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "tt_05",
+      "sideIoU": 0.843,
+      "yawSymDeg": 0.25
+    }
+  ],
+  "winner": "tt_05",
+  "finalSideIoU": 0.8513,
+  "yawSymDeg": 0.25,
+  "boundsM": {
+    "length": 4.74,
+    "width": 2.043,
+    "height": 1.398
+  },
+  "faces": 59999,
+  "elapsedSec": 7.9
+}

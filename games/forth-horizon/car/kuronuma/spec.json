@@ -1,0 +1,234 @@
+{
+  "id": "kuronuma",
+  "name": "Kuronuma GT-6",
+  "glb": "/games/forth-horizon/car/kuronuma_base.glb",
+  "paint": "0xd4dae2",
+  "accent": "0xd42228",
+  "cuts": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Hunyuan3D shell (kuronuma_base.glb, L=4.70m W=2.04m H=1.44m).",
+  "wheels": {
+    "frontZ": 1.415,
+    "rearZ": -1.413,
+    "frontX": 0.768,
+    "rearX": 0.786,
+    "scale": 1.08,
+    "discardR": 0.398,
+    "centreY": 0.383,
+    "tyreR": 0.383,
+    "rimR": 0.268
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.918,
+        0.0,
+        0.778
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.918,
+        0.0,
+        0.778
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.056,
+        0.758
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    },
+    "trunk": {
+      "hinge": [
+        0.0,
+        1.076,
+        -1.903
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": 0.85
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.673,
+        0.816,
+        0.778
+      ],
+      [
+        0.673,
+        1.296,
+        2.172
+      ]
+    ],
+    "trunk": [
+      [
+        -0.592,
+        0.916,
+        -2.212
+      ],
+      [
+        0.592,
+        1.276,
+        -1.923
+      ]
+    ],
+    "roof": [
+      [
+        -0.651,
+        1.281,
+        -1.126
+      ],
+      [
+        0.651,
+        1.563,
+        0.35
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.056,
+    "roofEdge": 1.401,
+    "pillarBase": 0.738,
+    "pillarTop": 0.35,
+    "doorFront": 0.778,
+    "doorRear": -0.97,
+    "windBase": 0.738,
+    "windTop": 0.35,
+    "rearTop": -1.126,
+    "rearBase": -1.903,
+    "rearBase2": -1.873,
+    "windHalfW": 0.651,
+    "rearHalfW": 0.519,
+    "sideWindow": [
+      [
+        -0.91,
+        1.086
+      ],
+      [
+        0.718,
+        1.076
+      ],
+      [
+        0.678,
+        1.18
+      ],
+      [
+        0.564,
+        1.304
+      ],
+      [
+        0.35,
+        1.381
+      ],
+      [
+        -1.066,
+        1.381
+      ],
+      [
+        -1.286,
+        1.27
+      ],
+      [
+        -1.01,
+        1.116
+      ]
+    ],
+    "handle": [
+      -0.276,
+      0.916
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.39,
+    "layout": "front-v8",
+    "arch": "i6-turbo",
+    "texUrl": "/games/forth-horizon/tex/engines/perf_coupe_i6.jpg"
+  },
+  "trunk": true,
+  "cabin": {
+    "yOffset": 0.063,
+    "zOffset": -0.194,
+    "cowlZ": 0.688,
+    "cowlY": 1.056
+  },
+  "exhaust": {
+    "z": -2.236,
+    "y": 0.24,
+    "xs": [
+      -0.48,
+      -0.35,
+      0.35,
+      0.48
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.341,
+    "splitterW": 0,
+    "splitterY": 0.11,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.551,
+      "y": 0.533,
+      "w": 0.286,
+      "h": 0.075,
+      "tilt": 0.025,
+      "style": "u-drl"
+    },
+    "tail": {
+      "x": 0.53,
+      "y": 0.717,
+      "len": 0.347,
+      "style": "double-u"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.36,
+    "bumperRearY": 0.38,
+    "skirtY": 0.2,
+    "archLipAdd": 0.045,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0
+  }
+}

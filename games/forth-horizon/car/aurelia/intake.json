@@ -1,0 +1,28 @@
+{
+  "id": "aurelia",
+  "status": "built (multi-view matched: winner=sheet_front34, sideIoU=0.832, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\ironport-complete\\concept-art\\media-generation-aurelia-zephyr-apex-0-40b6062a-8596-4f21-bcab-7b1fd984df89.webp",
+  "sourceVideo": "D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22\\Turntable_video_of_aero_track_6ad3d30c.mp4",
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.8265,
+      "yawSymDeg": -0.5
+    },
+    {
+      "candidate": "tt_07",
+      "sideIoU": 0.7969,
+      "yawSymDeg": -0.25
+    }
+  ],
+  "winner": "sheet_front34",
+  "finalSideIoU": 0.8324,
+  "yawSymDeg": -0.5,
+  "boundsM": {
+    "length": 4.622,
+    "width": 2.042,
+    "height": 1.33
+  },
+  "faces": 60000,
+  "elapsedSec": 11.6
+}

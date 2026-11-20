@@ -1,0 +1,28 @@
+{
+  "id": "veloce",
+  "status": "built (multi-view matched: winner=sheet_rear34, sideIoU=0.839, 14-iter Taubin smooth + measured spec.json)",
+  "sourceSheet": "D:\\plajah game assets deign from promtps\\racer\\ironport-complete\\concept-art\\media-generation-aurelia-veloce-spyder-0-085cdb7b-af49-41e2-b36a-75ff2d04a8f1.webp",
+  "sourceVideo": null,
+  "candidates": [
+    {
+      "candidate": "sheet_front34",
+      "sideIoU": 0.7997,
+      "yawSymDeg": -0.25
+    },
+    {
+      "candidate": "sheet_rear34",
+      "sideIoU": 0.8509,
+      "yawSymDeg": -0.5
+    }
+  ],
+  "winner": "sheet_rear34",
+  "finalSideIoU": 0.8388,
+  "yawSymDeg": -0.5,
+  "boundsM": {
+    "length": 4.603,
+    "width": 2.042,
+    "height": 1.184
+  },
+  "faces": 60000,
+  "elapsedSec": 8.4
+}

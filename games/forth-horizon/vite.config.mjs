@@ -7,6 +7,7 @@ import fs from 'node:fs';
 const here = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 const IRONPORT_DIR = 'D:\\plajah game assets deign from promtps\\racer\\ironport-complete';
 const RACER_REFS_DIR = 'D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22';
+const VEHICLE_LIB_DIR = 'D:\\plajah game assets deign from promtps\\racer\\3D Vehicle Asset Library';
 const CARS_DIR = path.resolve(here, 'assets-src/cars');
 const PROPS_DIR = path.resolve(here, 'assets-src/props');
 
@@ -87,6 +88,7 @@ export default defineConfig(({ command }) => ({
     userMapSave(),
     mountStaticDir('/ironport-assets', IRONPORT_DIR),
     mountStaticDir('/racer-refs', RACER_REFS_DIR),
+    mountStaticDir('/vehicle-lib', VEHICLE_LIB_DIR),
     mountStaticDir('/cars', CARS_DIR),
     mountStaticDir('/props', PROPS_DIR),
   ],
@@ -101,7 +103,7 @@ export default defineConfig(({ command }) => ({
   server: {
     host: '127.0.0.1',
     port: 4332,
-    fs: { allow: [path.resolve(here, '../..'), IRONPORT_DIR, RACER_REFS_DIR] },
+    fs: { allow: [path.resolve(here, '../..'), IRONPORT_DIR, RACER_REFS_DIR, VEHICLE_LIB_DIR] },
   },
   build: {
     outDir: path.resolve(here, '../../public/games/forth-horizon/play'),
