@@ -267,7 +267,7 @@ async function boot() {
       rhythm.playShot(beat.quality);
       player.triggerMuzzleFlash();
       for (let p = 0; p < spec.pellets; p++) {
-        fireSingleRay(beat.quality, spec.spreadRad, baseDmg, spec.primaryColor);
+        fireSingleRay(beat.quality, spec.spreadRad * (1 - player.aimBlend * 0.7), baseDmg, spec.primaryColor);
       }
     };
 
@@ -359,6 +359,8 @@ async function boot() {
   };
 
   player.onSoulSurge = triggerSoulSurge;
+  const reticleEl = document.getElementById('reticle') as HTMLElement | null;
+  let lastAim = 0;
 
   function triggerMeleeStrike() {
     if (!player.enabled) return;
@@ -409,11 +411,15 @@ async function boot() {
 
   player.onStrike = triggerMeleeStrike;
 
+  // left = fire, right (held) = aim down sights; Soul Surge is Q (Y / LT on a controller)
   renderer.domElement.addEventListener('mousedown', (e) => {
     if (!player.enabled) return;
     if (e.button === 0) fireShot();
-    if (e.button === 2) triggerSoulSurge();
+    if (e.button === 2) player.aiming = true;
   });
+  window.addEventListener('mouseup', (e) => { if (e.button === 2) player.aiming = false; });
+  window.addEventListener('blur', () => { player.aiming = false; });
+  document.addEventListener('pointerlockchange', () => { if (!document.pointerLockElement) player.aiming = false; });
   renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
   const enterRift = (fromTouch = false) => {
@@ -467,6 +473,8 @@ async function boot() {
     rhythm.update();
     arena.update(dt, rhythm.pulse, rhythm.beatIndex);
     player.update(dt, rhythm.pulse, input);
+    // aiming tightens the reticle (the shots tighten with it in fireShot)
+    if (reticleEl) { const k = player.aimBlend; if (Math.abs(k - lastAim) > 0.005) { lastAim = k; reticleEl.style.transform = `translate(-50%, -50%) scale(${(1 - k * 0.4).toFixed(3)})`; reticleEl.style.opacity = String(1 - k * 0.15); } }
     arena.resolveDynamicGates(player.object.position, 0.38);
 
     if (player.enabled) {

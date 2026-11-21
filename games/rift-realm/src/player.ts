@@ -60,6 +60,10 @@ export class PlayerController {
 
   world: CollisionWorld | null = null;
   enabled = false;
+  /** Aiming down sights (hold right mouse): zoomed view, tighter shots, slower look and move. */
+  aiming = false;
+  /** 0…1, eased toward `aiming` — the camera, look speed and the reticle follow it. */
+  aimBlend = 0;
   hp = 130;
   maxHp = 130;
 
@@ -93,8 +97,9 @@ export class PlayerController {
       if (!this.enabled || document.pointerLockElement !== dom) return;
       // pointer-lock glitch spikes (a jump of 90+ px in one event) are dropped, as in Ravencrest
       if (Math.abs(e.movementX) > 90 || Math.abs(e.movementY) > 90) return;
-      this.yaw -= e.movementX * MOUSE_SENS * this.mouseSens;
-      this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * MOUSE_SENS * this.mouseSens * 0.85, -1.25, 1.25);
+      const ads = 1 - this.aimBlend * 0.45;
+      this.yaw -= e.movementX * MOUSE_SENS * this.mouseSens * ads;
+      this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * MOUSE_SENS * this.mouseSens * 0.85 * ads, -1.25, 1.25);
     });
     // mouse wheel sets the 3rd-person camera distance (Ravencrest: 1.6 to 7 m)
     dom.addEventListener('wheel', (e) => {
@@ -284,7 +289,7 @@ export class PlayerController {
       this.vel.copy(this.dashDir).multiplyScalar(this.vessel.dashSpeed);
       if (this.dashTimer <= 0) this.vel.multiplyScalar(DASH_CARRY); // keep the momentum, don't stop dead
     } else {
-      const target = wish.multiplyScalar(this.vessel.moveSpeed);
+      const target = wish.multiplyScalar(this.vessel.moveSpeed * (1 - this.aimBlend * 0.4));
       const moving = wish.lengthSq() > 0;
       const rate = this.onGround ? (moving ? ACCEL : DECEL) : (moving ? AIR_ACCEL : 2);
       this.vel.lerp(target, Math.min(1, rate * dt));
@@ -334,12 +339,14 @@ export class PlayerController {
       this.vesselMesh.position.y = Math.sin(performance.now() * 0.004) * 0.05 + pulse * 0.04;
     }
 
-    const targetDist = this.firstPerson ? 0 : this.thirdDist;
+    this.aimBlend = THREE.MathUtils.lerp(this.aimBlend, this.aiming && this.enabled ? 1 : 0, Math.min(1, dt * 14));
+    // aiming pulls the 3rd-person camera in over the shoulder
+    const targetDist = this.firstPerson ? 0 : THREE.MathUtils.lerp(this.thirdDist, Math.min(this.thirdDist, 1.7), this.aimBlend);
     this.camDist = THREE.MathUtils.lerp(this.camDist, targetDist, Math.min(1, dt * 14));
 
     // speed feel: FOV opens with speed and kicks on a dash; a little lean into strafes; landing dip
     const hsp = Math.hypot(this.vel.x, this.vel.z);
-    const fovTarget = BASE_FOV + Math.min(12, hsp * 0.55) + (this.dashTimer > 0 ? 6 : 0);
+    const fovTarget = THREE.MathUtils.lerp(BASE_FOV + Math.min(12, hsp * 0.55) + (this.dashTimer > 0 ? 6 : 0), BASE_FOV * 0.6, this.aimBlend);
     if (Math.abs(this.camera.fov - fovTarget) > 0.05) {
       this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, fovTarget, Math.min(1, dt * 10));
       this.camera.updateProjectionMatrix();

@@ -64,7 +64,6 @@ export class UnifiedControls {
       if (e.button === 0) { this.fireHeld = true; this.fireRepeat = UnifiedControls.REPEAT; }
       if (document.pointerLockElement) return; // pointer lock handles look + fire itself
       if (e.button === 0) this.queuedFire = true;
-      if (e.button === 2) this.queuedSurge = true;
       dragging = true; lastX = e.clientX; lastY = e.clientY;
       // like Ravencrest / Era Clash: a click on the scene (re)takes the pointer lock for always-on mouse look
       if (!this.isTouchDevice) (this.surface.requestPointerLock?.() as Promise<void> | undefined)?.catch?.(() => { /* refused: drag-look stays */ });
