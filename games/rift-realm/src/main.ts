@@ -14,6 +14,7 @@ import { PlayerController } from './player';
 import { EnemyManager, enemyNav } from './enemies';
 import { VESSEL_ORDER, VESSELS, type VesselId } from './vessels';
 import { UnifiedControls } from './controls';
+import { Targeting } from './targeting';
 import { PlajahGamesBridge } from './plajahBridge';
 
 interface Beam {
@@ -126,6 +127,8 @@ async function boot() {
   // a Studio level with rules decides who arrives and how the level ends (studio/rulesHost.ts); else the endless trials run
   const ruled = !!studioLook?.level.rules.some(r => r.enabled);
   const enemies = new EnemyManager(scene, collision, arena.enemySpots, !ruled);
+  const targeting = new Targeting(camera, collision);
+  let moveAmt = 0; // 0…1 how hard the player is moving (aim assist widens on the run)
   const objectives = new Objectives(scene, arena.controlPoints ?? [], (x, z, y) => collision.groundAt(x, z, y, 10));
   enemyNav.goal = (arena.controlPoints?.length && !ruled) ? (p) => objectives.targetFor(p) : null;
 
@@ -213,6 +216,7 @@ async function boot() {
 
   function fireSingleRay(quality: BeatQuality, spreadRad: number, baseDmg: number, primaryHex: number) {
     const { origin, dir } = player.getAimRay();
+    targeting.assist(origin, dir, moveAmt); // locked: straight at the target; soft: pulled toward it
     if (spreadRad > 0) {
       dir.x += (Math.random() - 0.5) * spreadRad * 2;
       dir.y += (Math.random() - 0.5) * spreadRad * 2;
@@ -411,16 +415,10 @@ async function boot() {
 
   player.onStrike = triggerMeleeStrike;
 
-  // left = fire, right (held) = aim down sights; Soul Surge is Q (Y / LT on a controller)
-  renderer.domElement.addEventListener('mousedown', (e) => {
-    if (!player.enabled) return;
-    if (e.button === 0) fireShot();
-    if (e.button === 2) player.aiming = true;
-  });
-  window.addEventListener('mouseup', (e) => { if (e.button === 2) player.aiming = false; });
-  window.addEventListener('blur', () => { player.aiming = false; });
-  document.addEventListener('pointerlockchange', () => { if (!document.pointerLockElement) player.aiming = false; });
+  // Mouse: right = fire (hold to keep firing on the beat), left = melee strike, middle / Tab = lock-on — all read
+  // through UnifiedControls (controls.ts). Soul Surge is Q (Y on a controller), LT holds the lock.
   renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+  document.addEventListener('pointerlockchange', () => { if (!document.pointerLockElement) targeting.release(); });
 
   const enterRift = (fromTouch = false) => {
     rhythm.start();
@@ -472,6 +470,12 @@ async function boot() {
 
     rhythm.update();
     arena.update(dt, rhythm.pulse, rhythm.beatIndex);
+    // targeting: soft target under the crosshair, lock-on follows its enemy (the view turns to it while you move)
+    moveAmt = Math.min(1, Math.hypot(input.moveX, input.moveY) + (['KeyW', 'KeyA', 'KeyS', 'KeyD'].some((k) => player.keys.has(k)) ? 1 : 0));
+    if (input.lockPressed && player.enabled) targeting.toggle(enemies.enemies);
+    targeting.update(dt, enemies.enemies, input.lockHeld, player.enabled);
+    if (targeting.locked) player.aimAt(targeting.aimPoint(targeting.locked), dt);
+    player.aiming = targeting.isLocked;
     player.update(dt, rhythm.pulse, input);
     // aiming tightens the reticle (the shots tighten with it in fireShot)
     if (reticleEl) { const k = player.aimBlend; if (Math.abs(k - lastAim) > 0.005) { lastAim = k; reticleEl.style.transform = `translate(-50%, -50%) scale(${(1 - k * 0.4).toFixed(3)})`; reticleEl.style.opacity = String(1 - k * 0.15); } }
@@ -552,7 +556,7 @@ async function boot() {
   }
 
   if (new URLSearchParams(location.search).has('rrdebug')) {
-    (window as any).__rr = { player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match };
+    (window as any).__rr = { player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match, targeting };
     player.enabled = true;
     overlay.classList.add('hidden');
     // a hidden Browser pane freezes rAF; drive the loop from a timer in that case

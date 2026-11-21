@@ -1,0 +1,184 @@
+// Targeting: what the gun is pointed at, and a lock-on you can run and shoot with.
+//
+// Every frame the enemies in front of the camera are scored by how close they sit to the crosshair (in screen
+// space, so a near enemy has a bigger catch area than a far one) and whether a clear line reaches them.
+//  · Soft target: the best enemy inside the catch area. A bracket marks it, the reticle turns red, and shots
+//    bend toward it (aim assist), more so on the run.
+//  · Lock-on (middle mouse / Tab toggles, LT on a controller holds): the camera follows the locked enemy so you
+//    can circle-strafe, dash and keep firing; every shot goes to it. The lock drops when it dies or stays out of
+//    sight for 1.5 s, then hops to the next enemy near the crosshair if there is one.
+// The HUD shows a corner bracket, name, health bar and distance over the target, and an arrow at the screen edge
+// when a locked enemy is off screen.
+import * as THREE from 'three/webgpu';
+import type { Enemy } from './enemies';
+
+export interface TargetWorld { rayDistance(origin: THREE.Vector3, dir: THREE.Vector3, max: number): number }
+
+const RANGE = 75;
+/** Soft-target catch radius in normalised screen units (1 = half the screen height), and how it grows up close. */
+const CATCH = 0.11, CATCH_NEAR = 0.32;
+
+export class Targeting {
+  /** The enemy under (or near) the crosshair; null if none. */
+  soft: Enemy | null = null;
+  locked: Enemy | null = null;
+  private lockOn = false;
+  private lostT = 0;
+  private heldLock = false;
+  private hud: HTMLDivElement;
+  private label: HTMLDivElement;
+  private bar: HTMLDivElement;
+  private arrow: HTMLDivElement;
+  private reticle: HTMLElement | null;
+  private v = new THREE.Vector3(); private o = new THREE.Vector3(); private d = new THREE.Vector3();
+
+  constructor(private camera: THREE.PerspectiveCamera, private world: TargetWorld) {
+    const css = document.createElement('style');
+    css.textContent = `
+      #rrTarget{position:fixed;left:0;top:0;pointer-events:none;z-index:11;display:none;transform:translate(-50%,-50%);}
+      #rrTarget i{position:absolute;width:14px;height:14px;border:2px solid currentColor;filter:drop-shadow(0 0 4px currentColor);}
+      #rrTarget i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0}
+      #rrTarget i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0}
+      #rrTarget i:nth-child(3){left:0;bottom:0;border-right:0;border-top:0}
+      #rrTarget i:nth-child(4){right:0;bottom:0;border-left:0;border-top:0}
+      #rrTarget.lock i{border-width:3px}
+      #rrTarget .lab{position:absolute;left:50%;bottom:100%;transform:translate(-50%,-6px);white-space:nowrap;font:600 11px/1.2 system-ui,sans-serif;letter-spacing:.08em;text-shadow:0 0 4px #000,0 0 2px #000;text-align:center}
+      #rrTarget .hp{width:72px;height:4px;margin:3px auto 0;background:#0008;border:1px solid #fff4}
+      #rrTarget .hp b{display:block;height:100%;background:currentColor}
+      #rrTargetArrow{position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:11;display:none;border:11px solid transparent;border-left:18px solid #fb7185;filter:drop-shadow(0 0 6px #fb7185)}
+      #reticle.on-target .ret-dot{background:#fb7185;box-shadow:0 0 10px #fb7185}
+      #reticle.on-target .ret-ring{border-color:#fb7185cc;box-shadow:0 0 14px #fb718566}
+    `;
+    document.head.appendChild(css);
+    this.hud = document.createElement('div');
+    this.hud.id = 'rrTarget';
+    this.hud.innerHTML = '<i></i><i></i><i></i><i></i><div class="lab"><span></span><div class="hp"><b></b></div></div>';
+    this.label = this.hud.querySelector('.lab span')!;
+    this.bar = this.hud.querySelector('.hp b')!;
+    this.arrow = document.createElement('div');
+    this.arrow.id = 'rrTargetArrow';
+    document.body.append(this.hud, this.arrow);
+    this.reticle = document.getElementById('reticle');
+  }
+
+  get target() { return this.locked ?? this.soft; }
+  get isLocked() { return !!this.locked; }
+
+  /** Where to shoot at an enemy: the middle of its hit body. */
+  aimPoint(e: Enemy, out = new THREE.Vector3()) { return e.hitTarget.getWorldPosition(out); }
+
+  /** Toggle lock-on (middle mouse / Tab). Locks the soft target, or the best enemy on screen. */
+  toggle(enemies: Enemy[]) {
+    if (this.lockOn) { this.lockOn = false; this.locked = null; return; }
+    this.lockOn = true;
+    this.locked = this.soft ?? this.pick(enemies, 0.9);
+    this.lostT = 0;
+    if (!this.locked) this.lockOn = false;
+  }
+
+  release() { this.lockOn = false; this.locked = null; }
+
+  update(dt: number, enemies: Enemy[], held = false, active = true) {
+    if (!active) { this.hide(); return; }
+    this.camera.updateMatrixWorld();
+    this.soft = this.pick(enemies, null);
+    // LT held behaves like a lock for as long as it's held
+    if (held && !this.lockOn) { this.lockOn = true; this.locked = this.soft ?? this.pick(enemies, 0.9); this.lostT = 0; this.heldLock = true; }
+    if (!held && this.heldLock) { this.heldLock = false; this.release(); }
+    if (this.lockOn) {
+      const l = this.locked;
+      if (!l || l.hp <= 0 || !enemies.includes(l)) { this.locked = this.pick(enemies, 0.6); this.lostT = 0; }
+      else if (!this.visible(l, RANGE * 1.2)) { this.lostT += dt; if (this.lostT > 1.5) { this.locked = this.pick(enemies, 0.6); this.lostT = 0; } }
+      else this.lostT = 0;
+      if (!this.locked) this.lockOn = false;
+    }
+    this.draw();
+  }
+
+  /** Bend a shot direction toward the target (aim assist). `moving` 0…1 widens the help on the run. */
+  assist(origin: THREE.Vector3, dir: THREE.Vector3, moving: number) {
+    const t = this.target;
+    if (!t) return dir;
+    const to = this.aimPoint(t, this.v).sub(origin).normalize();
+    // locked: straight at it; soft: a strong pull if it's close to the crosshair already
+    const k = this.locked ? 1 : THREE.MathUtils.clamp(0.55 + moving * 0.35, 0, 0.9);
+    return dir.lerp(to, k).normalize();
+  }
+
+  /** Best enemy near the crosshair. `within` = catch radius override (screen units), null = the soft-target rule. */
+  private pick(enemies: Enemy[], within: number | null): Enemy | null {
+    const cam = this.camera;
+    cam.getWorldPosition(this.o);
+    let best: Enemy | null = null, bestS = Infinity;
+    for (const e of enemies) {
+      if (e.hp <= 0) continue;
+      const p = this.aimPoint(e, this.v);
+      const dist = p.distanceTo(this.o);
+      if (dist > RANGE) continue;
+      // the body on screen as a vertical segment (feet → head): the crosshair anywhere on it counts as on target
+      const half = e.hitTarget.scale.y * 1.05 * (e.boss ? 1.6 : 1);
+      const top = p.clone(); top.y += half; top.project(cam);
+      p.y -= half; p.project(cam);
+      if (p.z > 1 || p.z < -1) continue;                                   // behind or past the far plane
+      const sx = p.x * cam.aspect, y0 = p.y, y1 = top.y;                   // square screen units
+      const dy = y0 > 0 ? y0 : y1 < 0 ? y1 : 0;                            // 0 when the crosshair is between feet and head
+      const off = Math.hypot(sx, dy);
+      const radius = within ?? THREE.MathUtils.lerp(CATCH_NEAR, CATCH, THREE.MathUtils.smoothstep(dist, 4, 25)) * (e.boss ? 1.5 : 1);
+      if (off > radius) continue;
+      const s = off + dist * 0.004;
+      if (s >= bestS || !this.visible(e, RANGE)) continue;
+      best = e; bestS = s;
+    }
+    return best;
+  }
+
+  private visible(e: Enemy, max: number) {
+    const p = this.aimPoint(e, this.v);
+    this.d.subVectors(p, this.o);
+    const dist = this.d.length();
+    if (dist > max) return false;
+    this.d.divideScalar(dist);
+    return this.world.rayDistance(this.o, this.d, dist) >= dist - 0.6;
+  }
+
+  private hide() {
+    this.hud.style.display = 'none'; this.arrow.style.display = 'none';
+    this.reticle?.classList.remove('on-target');
+  }
+
+  private draw() {
+    const t = this.target;
+    this.reticle?.classList.toggle('on-target', !!t);
+    if (!t) { this.hide(); return; }
+    const W = window.innerWidth, H = window.innerHeight;
+    const wp = this.aimPoint(t, this.v);
+    const dist = wp.distanceTo(this.o);
+    const p = wp.clone().project(this.camera);
+    const col = this.locked ? '#fb7185' : '#fbbf24';
+    const behind = p.z > 1;
+    const onScreen = !behind && Math.abs(p.x) < 1 && Math.abs(p.y) < 1;
+    if (!onScreen) {
+      this.hud.style.display = 'none';
+      if (!this.locked) { this.arrow.style.display = 'none'; return; }
+      // arrow on the screen edge toward the locked enemy
+      let ax = p.x, ay = p.y;
+      if (behind) { ax = -ax; ay = -ay; }
+      const ang = Math.atan2(-ay, ax), r = Math.min(W, H) * 0.42;
+      this.arrow.style.display = 'block';
+      this.arrow.style.transform = `translate(${W / 2 + Math.cos(ang) * r}px, ${H / 2 + Math.sin(ang) * r}px) translate(-9px,-11px) rotate(${ang}rad)`;
+      return;
+    }
+    this.arrow.style.display = 'none';
+    // bracket sized to the enemy's body on screen
+    const tall = t.hitTarget.scale.y * 2.1 * (t.boss ? 1.6 : 1);
+    const px = (tall / (2 * dist * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2))) * H;
+    const h = THREE.MathUtils.clamp(px * 1.15, 34, H * 0.7), w = THREE.MathUtils.clamp(h * 0.62, 30, H * 0.45);
+    const s = this.hud.style;
+    s.display = 'block'; s.color = col; s.width = `${w}px`; s.height = `${h}px`;
+    s.left = `${(p.x * 0.5 + 0.5) * W}px`; s.top = `${(-p.y * 0.5 + 0.5) * H}px`;
+    this.hud.classList.toggle('lock', !!this.locked);
+    const name = (t.who || (t.boss ? 'Rift Tyrant' : 'Hostile')).toUpperCase();
+    this.label.textContent = `${this.locked ? '◆ ' : ''}${name} · ${Math.round(dist)} m`;
+    this.bar.style.width = `${Math.max(0, (t.hp / t.maxHp) * 100).toFixed(1)}%`;
+  }
+}

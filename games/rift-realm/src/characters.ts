@@ -70,8 +70,14 @@ export class CharacterRig {
   private mixer: THREE.AnimationMixer;
   private actions = new Map<string, THREE.AnimationAction>();
   private loco: { name: string; act: THREE.AnimationAction; w: number }[] = [];
-  private shot: { act: THREE.AnimationAction; base: number; left: number; dur: number } | null = null;
+  private shot: { act: THREE.AnimationAction; base: number; left: number; dur: number; upper: boolean } | null = null;
   private moving = 0;
+  /** Upper-body-only copies of the gun clips: they play over a run without touching the legs. */
+  private upper = new Map<string, THREE.AnimationAction>();
+  private spine: THREE.Bone[] = [];
+  /** Aim pitch (radians, + = up): the spine bends so the gun points where the player aims. */
+  aimPitch = 0;
+  private aimApplied = 0;
 
   constructor(asset: CharacterAsset, height = 1.9) {
     const model = SkeletonUtils.clone(asset.scene);
@@ -89,20 +95,31 @@ export class CharacterRig {
       act.setEffectiveWeight(name === idle ? 1 : 0);
       this.loco.push({ name: name === idle ? 'idle' : name, act, w: name === idle ? 1 : 0 });
     }
+    // legs + hips are left to the locomotion; everything above the hips (spine, arms, head) takes the gun clip
+    const lower = /(^|[:_|])?(Hips|LeftUpLeg|RightUpLeg|LeftLeg|RightLeg|LeftFoot|RightFoot|LeftToe\w*|RightToe\w*)$/;
+    for (const c of asset.clips) {
+      const n = c.name.toLowerCase();
+      if (n !== 'shoot' && n !== 'reload' && n !== 'aim_idle') continue;
+      const tracks = c.tracks.filter((t) => !lower.test(t.name.split('.')[0]));
+      if (tracks.length && tracks.length < c.tracks.length) this.upper.set(n, this.mixer.clipAction(new THREE.AnimationClip(`${n}_upper`, c.duration, tracks)));
+    }
+    model.traverse((o) => { if ((o as THREE.Bone).isBone && /Spine\d?$/.test(o.name)) this.spine.push(o as THREE.Bone); });
   }
 
   private has(n: string) { return this.actions.has(n); }
 
   /** Play a one-shot (shoot/hit/attack) over the locomotion layer. */
   play(name: string, weight = 1) {
-    const a = this.actions.get(name);
+    // on the move, a gun clip plays on the upper body only: the legs keep running (shoot while you run)
+    const up = this.moving > 0.25 ? this.upper.get(name) : undefined;
+    const a = up ?? this.actions.get(name);
     if (!a) return;
     if (this.shot && this.shot.act !== a) this.shot.act.fadeOut(0.06);
     a.reset().setLoop(THREE.LoopOnce, 1);
     a.clampWhenFinished = false;
     a.play();
     const dur = a.getClip().duration;
-    this.shot = { act: a, base: weight, left: dur, dur };
+    this.shot = { act: a, base: weight, left: dur, dur, upper: !!up };
   }
 
   /** speed in m/s; local = velocity in the character's own frame (x right, z forward). */
@@ -129,8 +146,13 @@ export class CharacterRig {
       if (this.shot.left <= 0) { this.shot.act.stop(); this.shot = null; }
       else {
         const fadeIn = Math.min(1, (this.shot.dur - this.shot.left) / 0.08), fadeOut = Math.min(1, this.shot.left / 0.18);
-        ow = this.shot.base * fadeIn * fadeOut * (1 - 0.5 * move);
-        this.shot.act.setEffectiveWeight(ow);
+        if (this.shot.upper) {
+          // the upper-body copy blends against the full-weight run (normalised), so it gets a bigger weight to lead
+          this.shot.act.setEffectiveWeight(this.shot.base * fadeIn * fadeOut * 4);
+        } else {
+          ow = this.shot.base * fadeIn * fadeOut * (1 - 0.5 * move);
+          this.shot.act.setEffectiveWeight(ow);
+        }
       }
     }
     const k = Math.min(1, dt * 12);
@@ -147,5 +169,24 @@ export class CharacterRig {
       }
     }
     this.mixer.update(dt);
+    this.applyAim(dt);
+  }
+
+  private axis = new THREE.Vector3(); private fwd = new THREE.Vector3(); private pq = new THREE.Quaternion(); private dq = new THREE.Quaternion();
+  /** Bend the spine (shared across its bones) about the character's right axis so the chest and gun follow the aim pitch. */
+  private applyAim(dt: number) {
+    this.aimApplied += (THREE.MathUtils.clamp(this.aimPitch, -0.85, 0.85) - this.aimApplied) * Math.min(1, dt * 16);
+    if (!this.spine.length || Math.abs(this.aimApplied) < 1e-3) return;
+    this.root.updateWorldMatrix(true, false);
+    this.root.getWorldDirection(this.fwd);                         // the rig faces its +Z
+    this.axis.crossVectors(this.fwd, THREE.Object3D.DEFAULT_UP).normalize(); // forward × up: + angle tips forward up
+    const per = this.aimApplied / this.spine.length;
+    for (const b of this.spine) {
+      b.parent!.updateWorldMatrix(true, false);
+      b.parent!.getWorldQuaternion(this.pq).invert();
+      this.dq.setFromAxisAngle(this.axis.clone().applyQuaternion(this.pq), per);
+      b.quaternion.premultiply(this.dq);
+      b.updateMatrixWorld(true);
+    }
   }
 }

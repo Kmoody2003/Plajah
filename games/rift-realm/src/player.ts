@@ -54,7 +54,7 @@ export class PlayerController {
   private spaceHeld = false;
   private lean = 0;
   private landKick = 0;
-  private keys = new Set<string>();
+  readonly keys = new Set<string>();
   private lastSafe = new THREE.Vector3(0, 0.2, 8);
   private muzzleFlash = 0;
 
@@ -97,7 +97,7 @@ export class PlayerController {
       if (!this.enabled || document.pointerLockElement !== dom) return;
       // pointer-lock glitch spikes (a jump of 90+ px in one event) are dropped, as in Ravencrest
       if (Math.abs(e.movementX) > 90 || Math.abs(e.movementY) > 90) return;
-      const ads = 1 - this.aimBlend * 0.45;
+      const ads = 1 - this.aimBlend * 0.2;
       this.yaw -= e.movementX * MOUSE_SENS * this.mouseSens * ads;
       this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * MOUSE_SENS * this.mouseSens * 0.85 * ads, -1.25, 1.25);
     });
@@ -215,6 +215,20 @@ export class PlayerController {
     this.onDash?.();
   }
 
+  /** Lock-on: turn the view toward a world point (eased, `rate` per second); the mouse still adds on top. */
+  aimAt(point: THREE.Vector3, dt: number, rate = 9) {
+    const eye = this.camera.getWorldPosition(new THREE.Vector3());
+    const d = point.clone().sub(eye);
+    const len = d.length();
+    if (len < 0.5) return;
+    const yaw = Math.atan2(-d.x, -d.z), pitch = Math.asin(THREE.MathUtils.clamp(d.y / len, -1, 1));
+    let dy = yaw - this.yaw;
+    dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    const k = 1 - Math.exp(-dt * rate);
+    this.yaw += dy * k;
+    this.pitch = THREE.MathUtils.clamp(this.pitch + (pitch - this.pitch) * k, -1.25, 1.25);
+  }
+
   /** World-space origin & direction for hitscan/projectile firing. */
   getAimRay(): { origin: THREE.Vector3; dir: THREE.Vector3 } {
     const origin = new THREE.Vector3();
@@ -289,7 +303,7 @@ export class PlayerController {
       this.vel.copy(this.dashDir).multiplyScalar(this.vessel.dashSpeed);
       if (this.dashTimer <= 0) this.vel.multiplyScalar(DASH_CARRY); // keep the momentum, don't stop dead
     } else {
-      const target = wish.multiplyScalar(this.vessel.moveSpeed * (1 - this.aimBlend * 0.4));
+      const target = wish.multiplyScalar(this.vessel.moveSpeed * (1 - this.aimBlend * 0.08));
       const moving = wish.lengthSq() > 0;
       const rate = this.onGround ? (moving ? ACCEL : DECEL) : (moving ? AIR_ACCEL : 2);
       this.vel.lerp(target, Math.min(1, rate * dt));
@@ -334,6 +348,7 @@ export class PlayerController {
       const sp = Math.hypot(this.vel.x, this.vel.z);
       const lx = this.vel.x * Math.cos(this.yaw) - this.vel.z * Math.sin(this.yaw);
       const lz = -(this.vel.x * Math.sin(this.yaw) + this.vel.z * Math.cos(this.yaw));
+      this.rig.aimPitch = this.firstPerson ? 0 : this.pitch; // the chest and gun follow the aim up and down
       this.rig.update(dt, sp, lx, lz);
     } else {
       this.vesselMesh.position.y = Math.sin(performance.now() * 0.004) * 0.05 + pulse * 0.04;
@@ -341,12 +356,12 @@ export class PlayerController {
 
     this.aimBlend = THREE.MathUtils.lerp(this.aimBlend, this.aiming && this.enabled ? 1 : 0, Math.min(1, dt * 14));
     // aiming pulls the 3rd-person camera in over the shoulder
-    const targetDist = this.firstPerson ? 0 : THREE.MathUtils.lerp(this.thirdDist, Math.min(this.thirdDist, 1.7), this.aimBlend);
+    const targetDist = this.firstPerson ? 0 : THREE.MathUtils.lerp(this.thirdDist, Math.min(this.thirdDist, 2.6), this.aimBlend);
     this.camDist = THREE.MathUtils.lerp(this.camDist, targetDist, Math.min(1, dt * 14));
 
     // speed feel: FOV opens with speed and kicks on a dash; a little lean into strafes; landing dip
     const hsp = Math.hypot(this.vel.x, this.vel.z);
-    const fovTarget = THREE.MathUtils.lerp(BASE_FOV + Math.min(12, hsp * 0.55) + (this.dashTimer > 0 ? 6 : 0), BASE_FOV * 0.6, this.aimBlend);
+    const fovTarget = THREE.MathUtils.lerp(BASE_FOV + Math.min(12, hsp * 0.55) + (this.dashTimer > 0 ? 6 : 0), BASE_FOV * 0.82, this.aimBlend);
     if (Math.abs(this.camera.fov - fovTarget) > 0.05) {
       this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, fovTarget, Math.min(1, dt * 10));
       this.camera.updateProjectionMatrix();

@@ -11,6 +11,10 @@ export interface InputState {
   strikePressed: boolean;
   toggleViewPressed: boolean;
   cycleVesselPressed: boolean;
+  /** Lock-on toggled this frame (middle mouse / Tab / R3-less pads: LT tap). */
+  lockPressed: boolean;
+  /** Lock-on held (LT on a controller): locked while held. */
+  lockHeld: boolean;
   isTouchActive: boolean;
 }
 
@@ -34,9 +38,10 @@ export class UnifiedControls {
   private queuedStrike = false;
   private queuedToggleView = false;
   private queuedCycleVessel = false;
+  private queuedLock = false;
 
   private prevPadButtons: boolean[] = [];
-  // hold to fire: while the left button / right trigger is held, a shot repeats on every eighth note of the
+  // hold to fire: while the right button / right trigger is held, a shot repeats on every eighth note of the
   // 124 BPM pulse (the press itself fires the first one), so holding keeps you in rhythm
   private fireHeld = false;
   private fireRepeat = 0;
@@ -55,15 +60,21 @@ export class UnifiedControls {
     this.bindTouchSurface();
     this.bindTouchButtons();
     this.bindMouseFallback();
+    // Tab (and middle mouse, below) toggles the lock-on
+    window.addEventListener('keydown', (e) => { if (e.code === 'Tab') { e.preventDefault(); if (!e.repeat) this.queuedLock = true; } });
   }
 
-  /** Mouse without pointer lock (lock refused, or a touch laptop in touch mode): drag to look, click to fire. */
+  /** Mouse buttons: right = fire (hold to keep firing on the beat), left = melee strike, middle = lock-on.
+   *  Without pointer lock (lock refused, or a touch laptop in touch mode) a drag also looks. */
   private bindMouseFallback() {
     let dragging = false, lastX = 0, lastY = 0;
+    this.surface.addEventListener('contextmenu', (e) => e.preventDefault());
     this.surface.addEventListener('mousedown', (e) => {
-      if (e.button === 0) { this.fireHeld = true; this.fireRepeat = UnifiedControls.REPEAT; }
-      if (document.pointerLockElement) return; // pointer lock handles look + fire itself
-      if (e.button === 0) this.queuedFire = true;
+      if (e.button === 2) { this.fireHeld = true; this.fireRepeat = UnifiedControls.REPEAT; this.queuedFire = true; }
+      if (e.button === 1) { e.preventDefault(); this.queuedLock = true; }
+      if (e.button === 0) this.queuedStrike = true;
+      if (document.pointerLockElement) return;
+      if (e.button !== 0 && e.button !== 2) return;
       dragging = true; lastX = e.clientX; lastY = e.clientY;
       // like Ravencrest / Era Clash: a click on the scene (re)takes the pointer lock for always-on mouse look
       if (!this.isTouchDevice) (this.surface.requestPointerLock?.() as Promise<void> | undefined)?.catch?.(() => { /* refused: drag-look stays */ });
@@ -74,7 +85,7 @@ export class UnifiedControls {
       this.pendingLookY += (e.clientY - lastY) * 1.6;
       lastX = e.clientX; lastY = e.clientY;
     });
-    window.addEventListener('mouseup', (e) => { dragging = false; if (e.button === 0) this.fireHeld = false; });
+    window.addEventListener('mouseup', (e) => { dragging = false; if (e.button === 2) this.fireHeld = false; });
     window.addEventListener('blur', () => { this.fireHeld = false; dragging = false; });
   }
 
@@ -197,6 +208,8 @@ export class UnifiedControls {
     let strikePressed = this.queuedStrike;
     let toggleViewPressed = this.queuedToggleView;
     let cycleVesselPressed = this.queuedCycleVessel;
+    let lockPressed = this.queuedLock;
+    let lockHeld = false;
 
     this.queuedJump = false;
     this.queuedDash = false;
@@ -205,6 +218,7 @@ export class UnifiedControls {
     this.queuedStrike = false;
     this.queuedToggleView = false;
     this.queuedCycleVessel = false;
+    this.queuedLock = false;
 
     let held = this.fireHeld;
     // Poll standard Gamepad API
@@ -234,7 +248,9 @@ export class UnifiedControls {
       if ((pad.buttons[7]?.value ?? 0) > 0.45) held = true;
       if (edge(2)) strikePressed = true;        // X / Square (Melee Strike / Finisher)
       if (edge(1) || edge(4)) dashPressed = true; // B / Circle or LB
-      if (edge(3) || edge(6)) surgePressed = true; // Y / Triangle or LT
+      if (edge(3)) surgePressed = true;          // Y / Triangle
+      edge(6);
+      if ((pad.buttons[6]?.value ?? 0) > 0.45) lockHeld = true; // LT: hold to lock on
       if (edge(5)) cycleVesselPressed = true;    // RB
       if (edge(8) || edge(11)) toggleViewPressed = true; // Select / R3
     }
@@ -256,6 +272,8 @@ export class UnifiedControls {
       strikePressed,
       toggleViewPressed,
       cycleVesselPressed,
+      lockPressed,
+      lockHeld,
       isTouchActive: this.isTouchDevice,
     };
   }
