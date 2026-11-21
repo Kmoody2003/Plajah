@@ -10,6 +10,7 @@ import { timelineBoundaries, crossedTimelineBoundary } from "../../services/fabu
 import { resolveMediaSource, setAudioProxyPreference, setLocalOnly, isLocalOnly, setSyncMode, isSyncMode, downloadMissingAsset, mediaOriginOf, subscribeMediaOrigin, onAssetDownloaded } from "../../services/fabula/mediaSource";
 import { prefetchAssets, onPrefetched, cancelPrefetch, setPrefetchSuspended, conformNow, autoSyncProjectMedia } from "../../services/fabula/prefetch";
 import { nextShuttleRate } from "../../services/fabula/shuttle";
+import { FABULA_ASPECT_RATIOS as ASPECTS, FABULA_RES_PRESETS as RES_PRESETS } from "../../services/fabula/filmFormats";
 import { useState, useEffect, useRef, useMemo, memo, Fragment, lazy, Suspense } from "react";
 import {
   Film, Music, Clapperboard, Layers, Play, Pause, SkipBack, Plus, Upload,
@@ -209,22 +210,6 @@ const STILL_TARGETS = [
   { id: "flux", label: "Flux / Krea" },
   { id: "ideogram", label: "Ideogram" },
 ];
-const ASPECTS = ["2.39:1", "2.35:1", "2:1", "1.85:1", "1.66:1", "16:9", "4:3", "1:1", "9:16"];
-
-/* project format presets — industry standard up to 4K/60; beyond = custom */
-const RES_PRESETS = [
-  { id: "sd-ntsc", label: "SD NTSC", w: 720, h: 480 },
-  { id: "sd-pal", label: "SD PAL", w: 720, h: 576 },
-  { id: "hd720", label: "HD 720p", w: 1280, h: 720 },
-  { id: "hd1080", label: "HD 1080p", w: 1920, h: 1080 },
-  { id: "2k-dci", label: "2K DCI", w: 2048, h: 1080 },
-  { id: "uhd4k", label: "UHD 4K", w: 3840, h: 2160 },
-  { id: "dci4k", label: "DCI 4K", w: 4096, h: 2160 },
-  { id: "custom", label: "CUSTOM", w: 0, h: 0 },
-];
-const FPS_OPTIONS = [23.976, 24, 25, 29.97, 30, 50, 59.94, 60];
-const isDropCapable = (fps) => Math.abs(fps - 29.97) < 0.01 || Math.abs(fps - 59.94) < 0.01;
-
 /* world knowledge sub-categories */
 const WORLD_CATS = [
   { id: "environments", label: "ENVIRONMENTS" },

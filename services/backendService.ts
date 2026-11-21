@@ -52,6 +52,7 @@ import {
 } from 'firebase/auth';
 import { db, opsDb, dbFor, storage, auth as firebaseAuth } from './firebase';
 import { videosOwnedBy } from './videoQuery';
+import { isUnlisted, visibilityFields } from './visibility';
 import { deviceTokens } from './pushTokensCore';
 import { hydrateClassRosters } from './classRoster';
 import { fetchGuardiansOf, listenMergedProfile, readPrivateProfile, splitUserFields, withPrivateFields, writePrivateProfile, privateProfileRef } from './userPrivate';
@@ -4416,6 +4417,7 @@ export const fetchAllPublicAlbums = async (): Promise<Album[]> => {
     return albums.filter(album => {
       if (album.isPrivate) return false;
       if (album.isDraft) return false;
+      if (isUnlisted(album)) return false; // link-only: opens by id, never on a shelf
       if (album.isScheduled && album.releaseDate && album.releaseDate > now) return false;
       return true;
     });
@@ -4436,7 +4438,7 @@ export const fetchPublicBooks = async (): Promise<Album[]> => {
     const snap = await getDocs(q);
     return snap.docs
       .map(d => ({ id: d.id, ...d.data() } as Album))
-      .filter(a => !a.isDraft && !a.isPrivate)
+      .filter(a => !a.isDraft && !a.isPrivate && !isUnlisted(a))
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
@@ -4452,7 +4454,7 @@ export const fetchUpcomingAlbums = async (): Promise<Album[]> => {
     const snapshot = await getDocs(q);
     return snapshot.docs
       .map(d => ({ id: d.id, ...d.data() } as Album))
-      .filter(a => !a.isDraft && !!a.releaseDate && a.releaseDate > now && !!a.coverImage)
+      .filter(a => !a.isDraft && !isUnlisted(a) && !!a.releaseDate && a.releaseDate > now && !!a.coverImage)
       .sort((a, b) => (a.releaseDate || 0) - (b.releaseDate || 0));
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
@@ -8123,7 +8125,9 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
     isPaywalled: video.isPaywalled || false,
     genre: video.genre || 'General',
     artist: auth.currentUser.displayName || 'Artist',
-    isPrivate: video.isPrivate || false,
+    isPrivate: video.isPrivate || video.visibility === 'UNLISTED' || video.visibility === 'PRIVATE' || false,
+    // Unlisted rides on isPrivate: true (never listed, never notified); the rules open it by id.
+    ...(video.visibility ? { visibility: video.visibility, unlisted: video.visibility === 'UNLISTED' } : {}),
     timestamp: Date.now(),
     likesCount: 0,
     commentsCount: 0,
@@ -8451,9 +8455,8 @@ export const createVideoPlaylist = async (playlist: Partial<VideoPlaylist>) => {
     description: playlist.description || '',
     videoIds: playlist.videoIds || [],
     thumbnailUrl: playlist.thumbnailUrl || '',
-    isPrivate: playlist.isPrivate || false,
-    isPublic: playlist.isPublic ?? true,
-    unlisted: playlist.unlisted || false,
+    ...visibilityFields(playlist.visibility
+      || (playlist.unlisted ? 'UNLISTED' : (playlist.isPrivate || playlist.isPublic === false) ? 'PRIVATE' : 'PUBLIC'), 'playlist'),
     system: playlist.system,
     updatedAt: Date.now(),
     timestamp: Date.now()

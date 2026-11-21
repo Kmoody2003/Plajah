@@ -3377,8 +3377,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         }
 
         // Smart Guide — auto-enable for new users
-        setHasSeenSmartGuide(!!p?.hasSeenSmartGuide || doorEntry); // door entries skip the first-run guide overlay
-        setSmartGuideEnabled(p?.smartGuideEnabled ?? (doorEntry ? false : !p?.hasSeenSmartGuide));
+        // Auto-run only for a brand-new account (first 24h). After that the guide never pops up on its
+        // own, neither the first-run overlay nor the idle tooltips; the compass toggle stays opt-in.
+        const acctCreated = Date.parse(u.metadata?.creationTime || '') || 0;
+        const withinFirstDay = acctCreated > 0 && Date.now() - acctCreated < 24 * 60 * 60 * 1000;
+        setHasSeenSmartGuide(!!p?.hasSeenSmartGuide || doorEntry || !withinFirstDay); // door entries and accounts older than 24h skip the first-run overlay
+        setSmartGuideEnabled(withinFirstDay ? (p?.smartGuideEnabled ?? (doorEntry ? false : !p?.hasSeenSmartGuide)) : false);
         // Load linked accounts for hot-switch. The DEVICE roster (localStorage) is
         // the source of truth so saved slots survive account switches; seed it from
         // the profile's list on first run, then upsert the now-active account.

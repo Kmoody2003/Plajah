@@ -1075,10 +1075,11 @@ service cloud.firestore {
     // for other people's videos carry where isPrivate == false (services/videoQuery.ts).
     function videoVisible(videoId) {
       let v = get(/databases/$(database)/documents/videos/$(videoId)).data;
-      return v.get('isPrivate', false) != true || (isAuthenticated() && v.ownerId == request.auth.uid) || isAdmin();
+      return v.get('isPrivate', false) != true || v.get('visibility', '') == 'UNLISTED' || (isAuthenticated() && v.ownerId == request.auth.uid) || isAdmin();
     }
+    // UNLISTED ("anyone with the link") keeps isPrivate: true, so it passes get by id but never list.
     match /videos/{videoId} {
-      allow get: if resource.data.get('isPrivate', false) != true || (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();
+      allow get: if resource.data.get('isPrivate', false) != true || resource.data.get('visibility', '') == 'UNLISTED' || (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();
       allow list: if resource.data.isPrivate == false || (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();
       allow create: if isRegisteredUser() && isValidVideo(request.resource.data) && request.resource.data.ownerId == request.auth.uid;
       // Anti-abuse: likesCount moves ±1 ONLY in the same batch that creates/deletes the caller's
@@ -1143,7 +1144,9 @@ service cloud.firestore {
 
 
     match /video_playlists/{playlistId} {
-      allow read: if (!('isPublic' in resource.data) || resource.data.isPublic == true) || (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();
+      // UNLISTED playlists carry isPublic: false + unlisted: true: open by link (get), never listed.
+      allow get: if (!('isPublic' in resource.data) || resource.data.isPublic == true) || resource.data.get('unlisted', false) == true || (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();
+      allow list: if (!('isPublic' in resource.data) || resource.data.isPublic == true) || (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();
       allow create: if isAuthenticated() && isValidVideoPlaylist(request.resource.data) && request.resource.data.ownerId == request.auth.uid;
       allow update: if (isAuthenticated() && resource.data.ownerId == request.auth.uid && isValidVideoPlaylist(request.resource.data));
       allow delete: if (isAuthenticated() && resource.data.ownerId == request.auth.uid) || isAdmin();

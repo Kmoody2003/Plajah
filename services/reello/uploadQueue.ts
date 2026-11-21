@@ -16,6 +16,7 @@ import { attachToDepartment, type DeptTarget } from './orgChannels';
 import { requestIntel } from './reelloApi';
 import type { IntelOptions } from './intel/types';
 import type { UploadVisibility } from './uploadPrefs';
+import { visibilityFields } from '../visibility';
 
 export type QueueSource = 'direct' | 'folder' | 'watch';
 export type QueueStatus = 'QUEUED' | 'UPLOADING' | 'AWAITING_DETAILS' | 'PUBLISHING' | 'DONE' | 'ERROR' | 'CANCELLED';
@@ -128,6 +129,7 @@ async function run(it: QueueItem) {
     const v = await uploadVideo({
       title: it.details.title || it.file.name, description: it.details.description, genre: it.details.genre || 'General',
       tags: it.details.tags, isRello: true, isPrivate: !goPublicNow, file: it.file,
+      ...(it.committed ? { visibility: it.details.visibility } : {}),
       ...(it.committed && it.details.thumbnail ? { thumbnailFile: new File([it.details.thumbnail], 'thumb.jpg', { type: 'image/jpeg' }) } : {}),
     } as any, p => patch(it.id, { progress: Math.round(p) }));
     patch(it.id, { videoId: v.id, progress: 100, status: 'AWAITING_DETAILS' });
@@ -150,7 +152,7 @@ async function finalize(it: QueueItem, o: { alreadyApplied?: boolean } = {}) {
       const isPrivate = it.details.visibility !== 'PUBLIC';
       await updateVideoSettings(it.videoId, {
         title: it.details.title.slice(0, 180) || it.file.name, description: it.details.description, tags: it.details.tags,
-        genre: it.details.genre || 'General', isPrivate, ...(thumbnailUrl ? { thumbnailUrl } : {}),
+        genre: it.details.genre || 'General', ...visibilityFields(it.details.visibility, 'video'), ...(thumbnailUrl ? { thumbnailUrl } : {}),
       } as any);
       // Went public on Publish, so uploadVideo's own follower notice (skipped for the private draft) goes out here.
       const u = auth.currentUser;

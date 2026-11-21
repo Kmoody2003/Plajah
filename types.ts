@@ -632,6 +632,9 @@ export interface PromoKit {
 }
 
 export interface Album {
+  /** Canonical visibility (services/visibility.ts). UNLISTED = anyone with the link, never listed. */
+  visibility?: 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
+  unlisted?: boolean;
   formats?: Record<string, string>;
   id: string;
   ownerId?: string; // UID of the user who created it
@@ -1219,6 +1222,9 @@ export interface WhatIfBranchPoint {
 }
 
 export interface Video {
+  /** Canonical visibility (services/visibility.ts). UNLISTED = anyone with the link, never listed. */
+  visibility?: 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
+  unlisted?: boolean;
   id: string;
   ownerId: string;
   title: string;
@@ -1368,6 +1374,8 @@ export interface VideoPlaylist {
   isPublic: boolean;
   /** YouTube-style "Unlisted": readable by link but hidden from public browse. */
   unlisted?: boolean;
+  /** Canonical visibility (services/visibility.ts); the legacy flags are written alongside it. */
+  visibility?: 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
   /** Auto-managed system playlists (Watch Later). Not user-deletable. */
   system?: 'WATCH_LATER';
   updatedAt?: number;
@@ -7634,7 +7642,8 @@ export type TelaFrameKind = 'PAPER' | 'SCREEN' | 'BOARD';
 export type TelaFramePreset =
   | 'LETTER' | 'A4' | 'BOOKLET'            // paper
   | 'SIGNAGE_1080x1920' | 'PHONE' | 'SQUARE' // screens
-  | 'FREE';                                 // freeform boards
+  | 'FREE'                                  // freeform boards
+  | (string & {});
 
 /** A bounded region on the canvas — what you print, present, publish. */
 export interface TelaFrame {
@@ -7652,6 +7661,9 @@ export interface TelaFrame {
   label?: string;
   /** Page setup is independent of the board and exports with this frame. */
   orientation?: 'PORTRAIT' | 'LANDSCAPE';
+  /** Comic Book page flag & undoable comic document snapshot when this frame is a comic book page. */
+  isComicPage?: boolean;
+  comicPageSnapshot?: unknown;
 }
 
 export type TelaBlockKind = 'h1' | 'h2' | 'p' | 'li';

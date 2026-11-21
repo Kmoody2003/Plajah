@@ -11,7 +11,8 @@
 import { DEFAULT_INTEL_OPTIONS } from './intel/core';
 import type { IntelOptions } from './intel/types';
 
-export type UploadVisibility = 'PUBLIC' | 'PRIVATE';
+/** Same three states as every upload on Plajah (services/visibility.ts). */
+export type UploadVisibility = 'PUBLIC' | 'UNLISTED' | 'PRIVATE';
 
 export interface UploadTemplate {
   id: string;
@@ -94,7 +95,7 @@ export function applyTemplate(t: UploadTemplate | null | undefined, ctx: Templat
 
 /** Clean a prefs body from the wire (server and client both run it). */
 export function sanitizePrefs(raw: any): ReelloUploadPrefs {
-  const vis = (v: any): UploadVisibility | null => (v === 'PUBLIC' || v === 'PRIVATE' ? v : null);
+  const vis = (v: any): UploadVisibility | null => (v === 'PUBLIC' || v === 'UNLISTED' || v === 'PRIVATE' ? v : null);
   const s = (v: any, n: number) => (typeof v === 'string' ? v.slice(0, n) : '');
   const templates: UploadTemplate[] = (Array.isArray(raw?.templates) ? raw.templates : []).slice(0, 40).map((t: any) => {
     const i = t?.intel || {};
