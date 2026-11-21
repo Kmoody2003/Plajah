@@ -6,6 +6,7 @@ import { gamer, isSignedIn, failed, type MatchView } from '../../../services/gam
 import { tableGame } from '../../../services/gamerNet/games/table';
 import { ChessBoard, CheckersBoard, DominoTable } from './TableBoards';
 import CardTable from './CardTable';
+import { MatchTogether } from '../together/MatchTogether';
 
 export interface BoardProps { game: string; state: string; you: 0 | 1; myTurn: boolean; names: [string, string]; onMove(move: unknown): void }
 
@@ -233,6 +234,7 @@ export default function TableGame({ gameId, onExit, onOpenLeaderboard }: { gameI
           {m && m.status !== 'waiting' && you >= 0 && (
             <Board game={g.id} state={m.state} you={you as 0 | 1} myTurn={myTurn && !busy} names={names} onMove={onlineMove} />
           )}
+          {matchId && m && m.status !== 'waiting' && <MatchTogether matchId={matchId} player={you >= 0} active={m.status === 'active'} myName={you >= 0 ? m.cards?.[you]?.name : undefined} />}
           {m?.status === 'active' && (
             <div className="mt-3 text-center"><button type="button" onClick={() => { if (confirm('Resign this match?')) void gamer.resign(matchId!).then(r => { if (!failed(r)) applyView(r); }); }} className="text-sm text-white/60 underline">Resign</button></div>
           )}

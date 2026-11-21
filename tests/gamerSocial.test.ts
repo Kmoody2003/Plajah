@@ -14,7 +14,7 @@ import { createGamerSocialRouter, type GamerNotice } from '../routes/gamerSocial
 // ── embed ───────────────────────────────────────────────────────────────────────────
 test('embed: only registered games, known kinds and clean ids survive', () => {
   assert.deepEqual(S.sanitizeGameEmbed({ game: 'ttt', kind: 'play' }), { v: 1, game: 'ttt', kind: 'play' });
-  assert.equal(S.sanitizeGameEmbed({ game: 'chess', kind: 'play' }), null, 'unknown game');
+  assert.equal(S.sanitizeGameEmbed({ game: 'nope', kind: 'play' }), null, 'unknown game');
   assert.equal(S.sanitizeGameEmbed({ game: 'ttt', kind: 'hack' }), null, 'unknown kind');
   assert.equal(S.sanitizeGameEmbed(null), null);
   assert.equal(S.sanitizeGameEmbed({ game: 'ttt', kind: 'result' }), null, 'a result needs a match id');
