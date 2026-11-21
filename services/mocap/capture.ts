@@ -6,12 +6,14 @@
 import { PoseTracker, type PoseFrame } from '../vtuber/poseTracker';
 import type { PoseModel, RawFrame, RawTake } from './types';
 
-const trackers = new Map<PoseModel, PoseTracker>();
-/** The shared pose tracker for a model (created and started on first use). */
-export async function tracker(model: PoseModel): Promise<PoseTracker> {
-  let t = trackers.get(model);
-  if (!t) { t = new PoseTracker(); trackers.set(model, t); }
-  if (!t.isReady && !(await t.init({ model, numPoses: 3 }))) throw new Error('The pose model could not start on this device.');
+const trackers = new Map<string, PoseTracker>();
+/** The shared pose tracker for a model (created and started on first use). `confidence` below MediaPipe's 0.5
+ *  finds bodies it otherwise drops: armoured, robotic or heavily stylised performers (game and animation reels). */
+export async function tracker(model: PoseModel, confidence?: number): Promise<PoseTracker> {
+  const key = `${model}:${confidence ?? ''}`;
+  let t = trackers.get(key);
+  if (!t) { t = new PoseTracker(); trackers.set(key, t); }
+  if (!t.isReady && !(await t.init({ model, numPoses: 3, confidence }))) throw new Error('The pose model could not start on this device.');
   return t;
 }
 
@@ -24,6 +26,8 @@ export const nextTs = (ms: number) => (clock = Math.max(clock + 1, Math.round(ms
  *  swapped in; the frame counts as missing until the performer reappears or enough time has passed. */
 export class PerformerLock {
   private last: { x: number; y: number; s: number; t: number } | null = null;
+  /** Forget the performer (a camera cut): the next frame picks the biggest person again. */
+  reset(): void { this.last = null; }
   /** Start following whoever stands where these landmarks are (e.g. the performer in a neighbouring frame). */
   prime(pts: { x: number; y: number }[], t: number): void {
     const q = [11, 12, 23, 24].map((i) => pts[i]);
@@ -70,6 +74,12 @@ export interface VideoCaptureOptions {
   onProgress?: (done: number, total: number, frame: RawFrame | null) => void;
   signal?: AbortSignal;
   label?: string;
+  /** Pose confidence threshold (default MediaPipe's 0.5); ~0.2 for armoured / stylised characters. */
+  confidence?: number;
+  /** Letterbox padding on every side, as a share of the frame (e.g. 0.25): a performer who fills the frame edge to
+   *  edge (close framing, a huge character) is shrunk inside a bigger canvas so the person detector finds the whole
+   *  body. Landmarks are mapped back to the original frame. Decode path only. */
+  pad?: number;
   /** 'decode' reads the file straight through with WebCodecs (fastest; works in a hidden tab); 'play' decodes while
    *  the video plays; 'seek' visits each frame (slow). 'auto' (default): decode, else play then seek-fill. */
   mode?: 'auto' | 'decode' | 'play' | 'seek';
@@ -88,6 +98,42 @@ const seek = (v: HTMLVideoElement, t: number) => new Promise<void>((resolve) => 
   go();
 });
 
+/** Camera-cut signal per frame: how different the whole picture is from the frame before (mean absolute luma
+ *  difference of a 32×18 thumbnail, 0..1, after removing the global brightness shift so a flash or a fade doesn't
+ *  read as a cut). Edited reels (trailers, AI combat reels) cut between shots; a solve across a cut teleports the
+ *  performer, so `services/mocap/shots.ts` splits the take there. */
+export class ShotCuts {
+  readonly scores: number[] = [];
+  private prev: Float32Array | null = null;
+  private cv: HTMLCanvasElement | OffscreenCanvas | null = null;
+  /** Adds a frame (null = not decoded); true when it looks like a new shot: a spike well above the change of the
+   *  last few frames (camera moves and particles change the picture every frame; a cut jumps once). */
+  push(src: CanvasImageSource | null, threshold = 0.2): boolean {
+    if (!src) { this.scores.push(0); return false; }
+    const W = 32, H = 18;
+    this.cv ??= typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(W, H) : Object.assign(document.createElement('canvas'), { width: W, height: H });
+    const g = this.cv.getContext('2d', { willReadFrequently: true }) as CanvasRenderingContext2D | null;
+    if (!g) { this.scores.push(0); return false; }
+    g.drawImage(src, 0, 0, W, H);
+    const px = g.getImageData(0, 0, W, H).data, cur = new Float32Array(W * H);
+    let mean = 0;
+    for (let k = 0; k < W * H; k++) { cur[k] = (0.299 * px[k * 4] + 0.587 * px[k * 4 + 1] + 0.114 * px[k * 4 + 2]) / 255; mean += cur[k]; }
+    mean /= W * H;
+    let d = 0;
+    if (this.prev) {
+      let pm = 0; for (let k = 0; k < W * H; k++) pm += this.prev[k];
+      pm /= W * H;
+      for (let k = 0; k < W * H; k++) d += Math.abs((cur[k] - mean) - (this.prev[k] - pm));
+      d /= W * H;
+    }
+    this.prev = cur;
+    const s = Math.min(1, d * 4);
+    const recent = this.scores.slice(-4).sort((a, b) => a - b)[1] ?? 0;
+    this.scores.push(+s.toFixed(3));
+    return s > threshold && s > 2.2 * Math.max(0.02, recent);
+  }
+}
+
 /** Landmarks for every frame by decoding the file straight through with WebCodecs (mediabunny): each compressed
  *  packet is decoded once, nothing waits on seeks or screen refresh, so it runs at the pose model's own speed and
  *  keeps going in a hidden tab. Returns null when the browser can't decode the file this way. */
@@ -102,27 +148,49 @@ async function captureDecoded(blob: Blob, o: VideoCaptureOptions, fps: number, m
     const duration = await track.computeDuration();
     const start = Math.max(0, o.start ?? 0), end = Math.min(duration, o.end ?? duration);
     const total = Math.max(1, Math.floor((end - start) * fps));
-    const pose = await tracker(model);
+    const pose = await tracker(model, o.confidence);
     const sink = new mb.CanvasSink(track, { poolSize: 2 });
     const lock = new PerformerLock();
     const frames: (RawFrame | null)[] = [];
     const times = Array.from({ length: total }, (_, i) => start + i / fps);
     let i = 0, width = track.displayWidth, height = track.displayHeight;
+    const cuts = new ShotCuts();
+    const pad = Math.max(0, o.pad ?? 0);
+    let padCv: HTMLCanvasElement | null = null;
+    /** The frame inside its letterbox (or the frame itself), and the landmarks mapped back to the frame. */
+    const padded = (src: HTMLCanvasElement): HTMLCanvasElement => {
+      if (!pad) return src;
+      const W = src.width, H = src.height, px = Math.round(W * pad), py = Math.round(H * pad);
+      padCv ??= document.createElement('canvas');
+      if (padCv.width !== W + 2 * px || padCv.height !== H + 2 * py) { padCv.width = W + 2 * px; padCv.height = H + 2 * py; }
+      const g = padCv.getContext('2d')!;
+      g.fillStyle = '#000'; g.fillRect(0, 0, padCv.width, padCv.height);
+      g.drawImage(src, px, py);
+      return padCv;
+    };
+    const unpad = (f: PoseFrame | null): PoseFrame | null => {
+      if (!pad || !f) return f;
+      const k = 1 + 2 * pad;
+      return { ...f, pts: f.pts.map((p) => ({ ...p, x: p.x * k - pad, y: p.y * k - pad })) };
+    };
     for await (const wc of sink.canvasesAtTimestamps(times)) {
       if (o.signal?.aborted) throw new DOMException('Stopped', 'AbortError');
       const t = i / fps;
       let f: RawFrame | null = null;
       if (wc) {
         width = wc.canvas.width; height = wc.canvas.height;
-        f = toRaw(t, lock.pick(pose.detectAll(wc.canvas as HTMLCanvasElement, nextTs(performance.now())), t));
-      }
+        // a camera cut: the lock must not carry the last shot's performer position into the new shot
+        if (cuts.push(wc.canvas as HTMLCanvasElement)) lock.reset();
+        const people = pose.detectAll(padded(wc.canvas as HTMLCanvasElement), nextTs(performance.now())).map((p) => unpad(p)!);
+        f = toRaw(t, lock.pick(people, t));
+      } else cuts.push(null);
       frames.push(f);
       // advance the frame clock unconditionally: `onProgress?.(++i)` skips the increment when there's no callback
       // (optional-call arguments aren't evaluated), which stamped every frame t = 0 and collapsed the take
       i++;
       o.onProgress?.(i, total, f);
     }
-    return { fps, frames, width, height, source: { kind: 'upload', label, model } };
+    return { fps, frames, width, height, cuts: cuts.scores, source: { kind: 'upload', label, model } };
   } finally {
     input.dispose?.();
   }
@@ -293,6 +361,31 @@ export class LiveCapture {
 }
 
 /** Round landmark numbers so a raw take stays small when saved alongside its clip. */
+/** Several capture passes of one video (different confidence, padding or model) merged frame by frame. The first
+ *  pass is the base; later passes only fill the frames it missed, so neighbouring frames come from the same
+ *  detector settings wherever possible (switching passes frame to frame adds landmark jitter). A filled run is
+ *  kept only if it is at least `minRun` frames or bridges a gap between found frames. All passes share fps. */
+export function mergeTakes(passes: RawTake[], o: { minRun?: number } = {}): RawTake {
+  if (!passes.length) throw new Error('no passes');
+  const n = Math.max(...passes.map((p) => p.frames.length));
+  const frames: (RawFrame | null)[] = Array.from({ length: n }, (_, i) => passes[0].frames[i] ?? null);
+  for (const p of passes.slice(1)) {
+    for (let i = 0; i < n; i++) if (!frames[i] && p.frames[i]) frames[i] = p.frames[i];
+  }
+  const minRun = o.minRun ?? 1;
+  if (minRun > 1) {
+    let i = 0;
+    while (i < n) {
+      if (!frames[i] || passes[0].frames[i]) { i++; continue; }
+      let k = i; while (k < n && frames[k] && !passes[0].frames[k]) k++;
+      const bridged = i > 0 && !!frames[i - 1] && k < n && !!frames[k];
+      if (k - i < minRun && !bridged) for (let q = i; q < k; q++) frames[q] = null;
+      i = k;
+    }
+  }
+  return { ...passes[0], frames, source: { ...passes[0].source, label: `${passes[0].source.label} (${passes.length} passes)` } };
+}
+
 export function compactTake(t: RawTake): RawTake {
   const r = (x: number, d = 4) => +x.toFixed(d);
   return {

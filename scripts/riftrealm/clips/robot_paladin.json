@@ -1,0 +1,17 @@
+{
+  "id": "robot_paladin",
+  "glb": "/games/rift-realm/assets/characters/robot_paladin.glb",
+  "clips": [
+    { "name": "idle", "video": "abf39cd6", "from": 0.0, "to": 1.15, "loop": { "minSec": 0.6 }, "note": "Robot Paladin guard stance, shield and lance" },
+    { "name": "walk", "video": "abf39cd6", "from": 1.15, "to": 1.9, "face": "mean", "loop": { "minSec": 0.4 }, "note": "first strides of the shield charge" },
+    { "name": "run", "video": "abf39cd6", "from": 1.4, "to": 2.45, "face": "mean", "loop": { "minSec": 0.45 }, "note": "shield charge" },
+    { "name": "attack_1", "video": "abf39cd6", "from": 2.4, "to": 3.6, "note": "spinning lance slash" },
+    { "name": "attack_2", "video": "abf39cd6", "from": 3.55, "to": 4.3, "note": "lance thrust into the energy punch wind-up" },
+    { "name": "attack_3", "video": "abf39cd6", "from": 2.4, "to": 4.3, "note": "the whole slash-thrust chain" },
+    { "name": "block", "video": "abf39cd6", "from": 5.2, "to": 6.5, "note": "plants the shield wall" },
+    { "name": "aim_idle", "video": "abf39cd6", "from": 8.1, "to": 9.05, "loop": { "minSec": 0.5, "blend": 5 }, "note": "lance levelled, beam firing" },
+    { "name": "shoot", "video": "abf39cd6", "from": 7.85, "to": 8.4, "note": "lance recoil as the beam fires" },
+    { "name": "rifle_aim", "video": "abf39cd6", "from": 7.3, "to": 8.0, "note": "brings the lance up to aim, charging" },
+    { "name": "recover", "video": "abf39cd6", "from": 9.1, "to": 9.95, "note": "lowers the lance back to guard" }
+  ]
+}

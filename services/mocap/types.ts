@@ -25,6 +25,8 @@ export interface RawTake {
   frames: (RawFrame | null)[];
   width: number;
   height: number;
+  /** Camera-cut score per frame (0..1, capture.ts ShotCuts); high = the picture changed completely (an edit). */
+  cuts?: number[];
   /** Horizontal field of view guess, degrees (phones and webcams are ~60–75). */
   hfovDeg?: number;
   source: { kind: CaptureSourceKind; label: string; model: PoseModel; /** Where the footage can be replayed from, if anywhere. */ url?: string };

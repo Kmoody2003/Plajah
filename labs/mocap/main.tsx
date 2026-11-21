@@ -11,6 +11,7 @@ import * as moves from '../../services/mocap/moves';
 import * as library from '../../services/mocap/library';
 import * as bench from './bench';
 import * as multiview from './multiview';
+import * as riftBake from './riftBake';
 import * as cameraRig from '../../services/cameraRig/rig';
 
 const sendToGame: SendToGame = async (name, text, mv, fps) => {
@@ -21,5 +22,6 @@ const sendToGame: SendToGame = async (name, text, mv, fps) => {
 
 (window as any).mocapLab = { solve, capture, bvh, moves, library };
 (window as any).mocapBench = bench;
+(window as any).rrBake = riftBake;
 (window as any).mocapMulti = { ...multiview, rig: cameraRig };
 createRoot(document.getElementById('root')!).render(<CaptureRoom sendToGame={sendToGame} autoVideo={new URLSearchParams(location.search).get('video')} />);

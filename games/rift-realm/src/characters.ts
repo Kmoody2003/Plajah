@@ -1,5 +1,27 @@
 // Rigged characters (Void Stalker = player, Robot Paladin = enemy) built from the concept turnarounds.
-// Rig contract: Y-up, faces +Z, feet at y=0, ~2 m tall; clips idle/aim_idle/run/walk/strafe_left/strafe_right/shoot/hit/death/attack_1..3.
+//
+// ── Contract for the combat track (track 2 → track 3) ────────────────────────────────────────────────────────
+// Rig: Y-up, faces +Z, feet at y = 0, ~2 m tall (CharacterRig scales to the height you pass). Skeleton (58 joints,
+// scripts/riftrealm/rig_upgrade.py): Hips, Spine, Spine1, Spine2, Neck, Head, Left/Right Shoulder/Arm/ForeArm/Hand,
+// Left/Right UpLeg/Leg/Foot/ToeBase; twist bones Left/Right ArmTwist, ForeArmTwist, UpLegTwist (driven here every
+// frame from the limb roll — clips never key them); fingers Left/RightHand{Thumb,Index,Middle,Ring,Pinky}{1,2,3}.
+// Sockets (plain nodes; attach weapon meshes with rig.socket(name)?.add(mesh)): hand_r_weapon, hand_l_weapon
+// (palm centre; +Z along the fingers = blade/barrel forward, +Y toward the thumb) and back_weapon (on the back at
+// Spine2; +Z down the spine, +Y out of the back).
+//
+// Clips (all from the characters' own motion videos, clips/<id>.json; its `source` names the video + seconds,
+// `rootMotion` the travel {dx, dz, speed} the game should apply — clips play in place):
+//   Void Stalker
+//     locomotion  idle, combat_idle, walk, walk_back, run, run_back, sprint          (loops, blended by update())
+//     movement    jump, land (hard), land_soft, rise, dash, dodge_back, wing_hover
+//     guns        aim_idle (= rifle_aim), rifle_aim, shoot, pistol_aim, pistol_shoot, throw
+//                 (upper-body masked copies play over the legs while moving: see UPPER)
+//     melee       light_1 → light_2 → light_3 (light chain), heavy_1 → heavy_2 → heavy_3 (heavy chain, 3 = launcher),
+//                 attack_1 / attack_2 / attack_3 (the original F-strike / flourish / spin-arc names), block
+//     finishers   finisher (dive ground slam), finisher_2 (blade plunge)
+//   Robot Paladin  idle, walk, run, attack_1..3, block, aim_idle, rifle_aim, shoot, recover
+//   Not in any motion video yet (the GLB's older clips still answer these names): strafe_left, strafe_right,
+//   reload, hit, death, chase — and nothing for slide or vault. Track 3: check rig.has(name) before relying on one.
 import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
@@ -7,7 +29,13 @@ import { getKTX2 } from './textures';
 
 const BASE = '/games/rift-realm/assets/characters/';
 
-export interface CharacterAsset { scene: THREE.Object3D; clips: THREE.AnimationClip[] }
+/** Travel of a clip in its own frame (+Z forward), m; speed in m/s (from the solve; clips play in place). */
+export interface RootMotion { dx: number; dy: number; dz: number; speed: number; durationSec: number }
+export interface CharacterAsset {
+  scene: THREE.Object3D; clips: THREE.AnimationClip[];
+  rootMotion?: Record<string, RootMotion>;
+  source?: Record<string, { video: string; from: number; to: number; note: string }>;
+}
 export const assets: { stalker: CharacterAsset | null; paladin: CharacterAsset | null } = { stalker: null, paladin: null };
 
 async function load(file: string): Promise<CharacterAsset | null> {
@@ -41,7 +69,8 @@ async function videoClips(asset: CharacterAsset | null, id: string) {
   try {
     const res = await fetch(BASE + 'clips/' + id + '.json');
     if (!res.ok) return;
-    const data = await res.json() as { clips: THREE.AnimationClipJSON[] };
+    const data = await res.json() as { clips: THREE.AnimationClipJSON[]; rootMotion?: CharacterAsset['rootMotion']; source?: CharacterAsset['source'] };
+    asset.rootMotion = data.rootMotion; asset.source = data.source;
     for (const json of data.clips) {
       const clip = THREE.AnimationClip.parse(json);
       asset.clips = asset.clips.filter((c) => c.name.toLowerCase() !== clip.name.toLowerCase());
@@ -52,10 +81,21 @@ async function videoClips(asset: CharacterAsset | null, id: string) {
 
 export async function preloadCharacters() {
   [assets.stalker, assets.paladin] = await Promise.all([load('void_stalker.glb'), load('robot_paladin.glb')]);
-  await videoClips(assets.stalker, 'void_stalker');
+  await Promise.all([videoClips(assets.stalker, 'void_stalker'), videoClips(assets.paladin, 'robot_paladin')]);
 }
 
-export type Locomotion = 'idle' | 'run' | 'strafe_left' | 'strafe_right' | 'walk';
+/** Gun / guard clips that also get an upper-body-only copy (the legs keep the locomotion underneath). */
+const UPPER = ['shoot', 'reload', 'aim_idle', 'rifle_aim', 'pistol_aim', 'pistol_shoot', 'throw', 'block'];
+
+/** Swing–twist: the part of `q` that turns about `axis` (unit, in q's frame). */
+function twistOf(q: THREE.Quaternion, axis: THREE.Vector3, out: THREE.Quaternion) {
+  const d = q.x * axis.x + q.y * axis.y + q.z * axis.z;
+  out.set(axis.x * d, axis.y * d, axis.z * d, q.w);
+  if (out.lengthSq() < 1e-10) out.identity(); else out.normalize();
+  return out;
+}
+
+export type Locomotion = 'idle' | 'run' | 'strafe_left' | 'strafe_right' | 'walk' | 'sprint' | 'walk_back' | 'run_back';
 
 const sstep = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
@@ -75,6 +115,9 @@ export class CharacterRig {
   /** Upper-body-only copies of the gun clips: they play over a run without touching the legs. */
   private upper = new Map<string, THREE.AnimationAction>();
   private spine: THREE.Bone[] = [];
+  private sockets = new Map<string, THREE.Object3D>();
+  private twists: { bone: THREE.Bone; src: THREE.Bone; restSrc: THREE.Quaternion; axisP: THREE.Vector3; axisT: THREE.Vector3; share: number; rest: THREE.Quaternion }[] = [];
+  private tq = new THREE.Quaternion(); private iq = new THREE.Quaternion();
   /** Aim pitch (radians, + = up): the spine bends so the gun points where the player aims. */
   aimPitch = 0;
   private aimApplied = 0;
@@ -88,7 +131,7 @@ export class CharacterRig {
     this.mixer = new THREE.AnimationMixer(model);
     for (const c of asset.clips) this.actions.set(c.name.toLowerCase(), this.mixer.clipAction(c));
     const idle = this.has('aim_idle') ? 'aim_idle' : 'idle';
-    for (const name of [idle, 'walk', 'run', 'strafe_left', 'strafe_right']) {
+    for (const name of [idle, 'walk', 'run', 'strafe_left', 'strafe_right', 'sprint', 'walk_back', 'run_back']) {
       const act = this.actions.get(name);
       if (!act) continue;
       act.setLoop(THREE.LoopRepeat, Infinity).play();
@@ -99,17 +142,41 @@ export class CharacterRig {
     const lower = /(^|[:_|])?(Hips|LeftUpLeg|RightUpLeg|LeftLeg|RightLeg|LeftFoot|RightFoot|LeftToe\w*|RightToe\w*)$/;
     for (const c of asset.clips) {
       const n = c.name.toLowerCase();
-      if (n !== 'shoot' && n !== 'reload' && n !== 'aim_idle') continue;
+      if (!UPPER.includes(n)) continue;
       const tracks = c.tracks.filter((t) => !lower.test(t.name.split('.')[0]));
       if (tracks.length && tracks.length < c.tracks.length) this.upper.set(n, this.mixer.clipAction(new THREE.AnimationClip(`${n}_upper`, c.duration, tracks)));
     }
-    model.traverse((o) => { if ((o as THREE.Bone).isBone && /Spine\d?$/.test(o.name)) this.spine.push(o as THREE.Bone); });
+    model.traverse((o) => {
+      if ((o as THREE.Bone).isBone && /Spine\d?$/.test(o.name)) this.spine.push(o as THREE.Bone);
+      if (/^(hand_r_weapon|hand_l_weapon|back_weapon)$/.test(o.name)) this.sockets.set(o.name, o);
+    });
+    // twist bones take a share of their limb's roll about the bone axis (rest pose kept): the forearm twist reads
+    // the hand's roll about the forearm→hand line; the upper-arm and thigh twists un-roll against their own bone
+    const bone = (n: string) => model.getObjectByName(n) as THREE.Bone | undefined;
+    for (const s of ['Left', 'Right']) {
+      for (const [tw, src, ref, share] of [[`${s}ForeArmTwist`, `${s}Hand`, `${s}Hand`, 0.55], [`${s}ArmTwist`, `${s}Arm`, `${s}ForeArm`, -0.5], [`${s}UpLegTwist`, `${s}UpLeg`, `${s}Leg`, -0.5]] as const) {
+        const b = bone(tw), sb = bone(src), rb = bone(ref);
+        if (!b || !sb || !rb) continue;
+        // roll is measured on the limb's change from its bind pose, about the bone line in the limb's parent frame;
+        // the twist bone turns about the same line in its own frame
+        const restSrc = sb.quaternion.clone();
+        const axisT = rb.position.clone().normalize();
+        const axisP = rb === sb ? axisT.clone() : axisT.clone().applyQuaternion(restSrc);
+        this.twists.push({ bone: b, src: sb, restSrc, axisP, axisT, share, rest: b.quaternion.clone() });
+      }
+    }
   }
 
-  private has(n: string) { return this.actions.has(n); }
+  /** Whether the character has a clip of this name (see the contract at the top of this file). */
+  has(n: string) { return this.actions.has(n.toLowerCase()); }
+  /** Every clip name the character carries. */
+  get clipNames() { return [...this.actions.keys()]; }
+  /** A weapon socket: hand_r_weapon, hand_l_weapon or back_weapon (undefined on an old rig). */
+  socket(name: 'hand_r_weapon' | 'hand_l_weapon' | 'back_weapon') { return this.sockets.get(name); }
 
   /** Play a one-shot (shoot/hit/attack) over the locomotion layer. */
   play(name: string, weight = 1) {
+    name = name.toLowerCase();
     // on the move, a gun clip plays on the upper body only: the legs keep running (shoot while you run)
     const up = this.moving > 0.25 ? this.upper.get(name) : undefined;
     const a = up ?? this.actions.get(name);
@@ -132,13 +199,22 @@ export class CharacterRig {
     const sideW = hasStrafe ? sstep(0.35, 0.8, side) : 0;
     // a walk clip (motion-captured stride) carries the slow speeds, the run takes over from ~3 to 6 m/s
     const hasWalk = this.loco.some((l) => l.name === 'walk'), runW = hasWalk ? sstep(3, 6, speed) : 1;
+    // sprint (the motion-captured low run) takes over above ~9.5 m/s; back-pedal clips (the advance / run played
+    // backwards) replace the reversed run when moving backwards
+    const hasSprint = this.loco.some((l) => l.name === 'sprint'), sprW = hasSprint ? sstep(9.2, 11, speed) : 0;
+    const hasBack = this.loco.some((l) => l.name === 'run_back'), backW = hasBack ? sstep(0.15, 0.55, back - fwd) : 0;
+    const fw = move * (1 - sideW);
     const target: Record<string, number> = {
       idle: 1 - move,
-      walk: move * (1 - sideW) * (1 - runW),
-      run: move * (1 - sideW) * runW,
+      walk: fw * (1 - runW) * (1 - backW),
+      run: fw * runW * (1 - sprW) * (1 - backW),
+      sprint: fw * runW * sprW * (1 - backW),
+      walk_back: fw * (1 - runW) * backW,
+      run_back: fw * runW * backW,
       strafe_left: move * sideW * (localX > 0 ? 1 : 0),
       strafe_right: move * sideW * (localX > 0 ? 0 : 1),
     };
+    if (!this.loco.some((l) => l.name === 'walk_back')) target.run_back += target.walk_back;
     // one-shot layer: full weight standing, lighter on the run; fades out over its last 0.18 s
     let ow = 0;
     if (this.shot) {
@@ -161,7 +237,8 @@ export class CharacterRig {
     for (const l of this.loco) {
       l.w += ((target[l.name] ?? 0) - l.w) * k;
       l.act.setEffectiveWeight(l.w * (1 - ow));
-      if (l.name === 'run') l.act.timeScale = back > fwd + 0.2 ? -rate : rate;
+      if (l.name === 'run') l.act.timeScale = !hasBack && back > fwd + 0.2 ? -rate : rate;
+      else if (l.name === 'sprint' || l.name === 'run_back') l.act.timeScale = rate;
       else if (l.name.startsWith('strafe')) {
         l.act.timeScale = rate;
         // keep the strafe step in phase with the run so the blend doesn't double-step
@@ -169,7 +246,20 @@ export class CharacterRig {
       }
     }
     this.mixer.update(dt);
+    this.applyTwist();
     this.applyAim(dt);
+  }
+
+  /** Twist bones follow their limb's roll (forearm skin turns with the wrist; shoulder and hip skin un-roll). */
+  private applyTwist() {
+    for (const t of this.twists) {
+      this.iq.copy(t.restSrc).invert();
+      this.tq.copy(t.src.quaternion).multiply(this.iq);                 // change from bind, parent frame
+      twistOf(this.tq, t.axisP, this.tq);
+      const ang = 2 * Math.atan2(this.tq.x * t.axisP.x + this.tq.y * t.axisP.y + this.tq.z * t.axisP.z, this.tq.w);
+      this.iq.setFromAxisAngle(t.axisT, ang * t.share);
+      t.bone.quaternion.copy(t.rest).multiply(this.iq);
+    }
   }
 
   private axis = new THREE.Vector3(); private fwd = new THREE.Vector3(); private pq = new THREE.Quaternion(); private dq = new THREE.Quaternion();

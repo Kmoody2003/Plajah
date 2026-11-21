@@ -34,7 +34,7 @@ export class PoseTracker {
   private wantMask = false;
 
   /** `full` = the heavier, more accurate model (`model: 'heavy'` = heavier still); `segmentation` = also return a person mask. */
-  async init(opts: { full?: boolean; model?: 'lite' | 'full' | 'heavy'; segmentation?: boolean; numPoses?: number } = {}): Promise<boolean> {
+  async init(opts: { full?: boolean; model?: 'lite' | 'full' | 'heavy'; segmentation?: boolean; numPoses?: number; /** detection / presence / tracking confidence (MediaPipe default 0.5); lower finds armoured or stylised bodies */ confidence?: number } = {}): Promise<boolean> {
     if (this.ready) return true;
     if (this.loading) return false;
     this.loading = true;
@@ -51,6 +51,7 @@ export class PoseTracker {
             runningMode: 'VIDEO',
             numPoses: opts.numPoses ?? 1,
             outputSegmentationMasks: !!opts.segmentation,
+            ...(opts.confidence !== undefined ? { minPoseDetectionConfidence: opts.confidence, minPosePresenceConfidence: opts.confidence, minTrackingConfidence: opts.confidence } : {}),
           });
           break;
         } catch (e) {

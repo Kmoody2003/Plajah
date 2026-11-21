@@ -12,6 +12,10 @@ const root = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z
 const CAPTURES = path.resolve(root, 'public/games/era-clash/3d/assets/mocap/captures');
 const CMU = path.resolve('D:/Plajah Models/mocap/cmu-fbx');
 const TRAIN = path.resolve('D:/Plajah Models/mocap/lifter-data');
+// Rift Realm character clips (labs/mocap/riftBake.ts): source videos, the work folder for raw takes, and the outputs.
+const RR_VIDEOS = path.resolve('D:/plajah game assets deign from promtps/Shooter/Nov 15 - 14_43');
+const RR_WORK = path.resolve('D:/rr_work/mocap_t2');
+const RR_OUT = { work: RR_WORK, clips: path.resolve(root, 'public/games/rift-realm/assets/characters/clips'), docs: path.resolve(root, 'docs/rift-realm-mocap') };
 
 export default defineConfig({
   cacheDir: 'node_modules/.vite-mocap-lab',
@@ -37,6 +41,36 @@ export default defineConfig({
           if (!file.startsWith(CMU) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.statusCode = 404; res.end(); return; }
           res.setHeader('content-type', file.endsWith('.json') ? 'application/json' : 'application/octet-stream');
           fs.createReadStream(file).pipe(res);
+        });
+        // Dev-only (Rift Realm bake): GET /__rrvideo/<id> = the source video whose file name contains <id> (its hash);
+        // GET /__rrwork/<path> = D:/rr_work/mocap_t2; POST /__rrsave?to=work|clips|docs&path=<rel> writes the body.
+        server.middlewares.use('/__rrvideo', (req, res) => {
+          const id = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '');
+          const hit = id && fs.readdirSync(RR_VIDEOS).find((f) => f.endsWith('.mp4') && f.includes(id));
+          if (!hit) { res.statusCode = 404; res.end(); return; }
+          res.setHeader('content-type', 'video/mp4');
+          fs.createReadStream(path.join(RR_VIDEOS, hit)).pipe(res);
+        });
+        server.middlewares.use('/__rrwork', (req, res) => {
+          const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '');
+          const file = path.resolve(RR_WORK, rel);
+          if (!file.startsWith(RR_WORK) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.statusCode = 404; res.end(); return; }
+          res.setHeader('content-type', file.endsWith('.json') ? 'application/json' : 'application/octet-stream');
+          fs.createReadStream(file).pipe(res);
+        });
+        server.middlewares.use('/__rrsave', (req, res) => {
+          if (req.method !== 'POST') { res.statusCode = 405; res.end(); return; }
+          const u = new URL(req.url, 'http://x');
+          const base = RR_OUT[u.searchParams.get('to') ?? ''];
+          const rel = (u.searchParams.get('path') ?? '').replace(/\.\.+/g, '');
+          const file = base && path.resolve(base, rel);
+          if (!file || !file.startsWith(base) || !rel) { res.statusCode = 400; res.end('bad path'); return; }
+          const chunks = [];
+          req.on('data', (c) => chunks.push(c));
+          req.on('end', () => {
+            try { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, Buffer.concat(chunks)); res.end(JSON.stringify({ ok: true, file })); }
+            catch (e) { res.statusCode = 500; res.end(String(e)); }
+          });
         });
         // Dev-only: lifter training rows. POST /__train?set=v1&name=05_01 (body Float32 rows, x-meta header JSON);
         // GET /__train/done?set=v1 → names already written.
