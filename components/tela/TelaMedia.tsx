@@ -1,11 +1,13 @@
 import React from 'react';
 import { Box, CircuitBoard, Dna, Download, File, FileArchive, FileType2, Music2, Ruler } from 'lucide-react';
 import type { TelaMediaDevice } from '../../types';
+import { TelaShowDevice } from './TelaShow';
 
 const shell: React.CSSProperties = { width: '100%', height: '100%', minHeight: 180, display: 'grid', placeItems: 'center', overflow: 'hidden', background: '#111018', color: '#fff' };
 
 export default function TelaMedia({ device, readOnly }: { device: TelaMediaDevice; readOnly?: boolean }) {
   const common = { src: device.src, title: device.name };
+  if (device.show) return <TelaShowDevice device={device} readOnly={readOnly} />;
   if (device.bio) {
     const b = device.bio;
     const reopen = () => window.dispatchEvent(new CustomEvent('tela:open-bio', { detail: { structure: b } }));

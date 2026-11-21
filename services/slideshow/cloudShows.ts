@@ -16,7 +16,7 @@ import type { ShowSpec } from './types';
 import { needsBrandBug } from './brandBug';
 
 export const SHOW_KIND = 'slideshow';
-export interface ShowRef { owner: string; id: string; title?: string; cover?: string }
+export interface ShowRef { owner: string; id: string; title?: string; cover?: string; /** when this copy was published (ms) — lets embeds refresh after a re-publish */ publishedAt?: number }
 
 const ext = (type: string) => (/png/.test(type) ? 'png' : /webp/.test(type) ? 'webp' : /jpe?g/.test(type) ? 'jpg' : /mpeg|mp3/.test(type) ? 'mp3' : /wav/.test(type) ? 'wav' : /aac|mp4a|m4a/.test(type) ? 'm4a' : /ogg/.test(type) ? 'ogg' : 'bin');
 
@@ -94,8 +94,10 @@ export async function publishShow(spec: ShowSpec, onProgress?: (done: number, to
   const shared: ShowSpec = { ...pub, brandBug: await needsBrandBug() };
   const body = JSON.stringify({ format: 'plajah.themedShow', version: 1, owner: uid, publishedAt: Date.now(), spec: shared });
   await uploadBytes(ref(storage, publishedPath({ owner: uid, id: spec.id })), new Blob([body], { type: 'application/json' }), { contentType: 'application/json', cacheControl: 'public, max-age=60' });
+  // players on this device pick up the new copy straight away
+  pubCache.set(`${uid}/${spec.id}`, Promise.resolve(shared));
   const cover = pub.photos.find((p) => !p.graphic)?.src || pub.photos[0]?.src;
-  return { owner: uid, id: spec.id, title: spec.title, cover };
+  return { owner: uid, id: spec.id, title: spec.title, cover, publishedAt: Date.now() };
 }
 
 const pubCache = new Map<string, Promise<ShowSpec>>();

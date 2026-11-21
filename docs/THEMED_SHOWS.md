@@ -57,6 +57,33 @@ time `t`, so one engine drives all three outputs:
 - Photos → **Shows** tab (PhotoManager).
 - On an album: **Make a themed show**. On a selection: **Make a Show**.
 - Lab: `themed-show-lab.vite.config.mjs` → http://127.0.0.1:3301/?preset=10 (painted sample photos and a synthesized pad). `showLab.stills(spec, times)` pins exact frames for review.
+- Tela, Fabula and comments (below) open the same studio through one event.
+
+## Opening the studio from anywhere
+
+`openShowStudio(opts)` in `services/slideshow/showStudioBus.ts` fires `plajah:openShowStudio` (the same pattern as `plajah:openGallery`). `components/photo/ShowStudioHost.tsx`, mounted once in App.tsx, opens the studio as an overlay above the caller. So the caller is still there, unchanged, when the studio returns `{ spec, ref? }`, or `null` if the person closed it.
+
+- `open: { owner, id }` edits an existing show. The owner's account copy is used first, then the published copy.
+- `publish: true` publishes when the person presses the finish button (`doneLabel`), so the result carries a `ShowRef` anyone can play.
+- `returnLabel` turns the close control into "Back to …".
+- If no host is mounted, the promise rejects with `ShowStudioUnavailableError`.
+
+There is one source of truth. The spec lives in the account (creative cloud `slideshow`) and its published copy (`public-shows/<owner>/<id>/show.json`). Every embed stores only the ref. Re-publishing refreshes this device's players straight away through `ShowRef.publishedAt` and the publish cache.
+
+## Shows as Tela documents
+
+- **Tela Home → Photo show** opens the studio and makes a `docType: 'PRESENTATION'` document. Its single 16:9 SCREEN frame holds the show (`makeShowDoc`). It syncs like any Tela doc (OPFS + manifest/cloud copy).
+- **Insert → Photo show** adds the show as a 1920×1080 screen frame in the current document.
+- The device is a `MEDIA` device with `show: TelaShowRef`. Its `kind` is `IMAGE` and `src` is the cover, so surfaces that ignore `show` still show a still. `TelaMedia` plays it with `ShowPlayer` (`TelaShowDevice`). The owner gets **Edit show**: it fires `tela:edit-show`, reopens the studio, re-publishes and patches the device.
+- **Present** (in the header for presentation docs and any doc with a show) opens `TelaPresenter` full screen. → and PageDown go to the next shot (a click advances page frames). ← goes back. Space plays or pauses. After the last shot it moves to the next frame. Frames without a show present as pages. Esc stops.
+
+## Fabula
+
+Media pool → **Bring media in → PHOTO SHOW** opens the studio ("Send to Fabula timeline"). The result goes through `openShowInFabula`: a new production with one live-scene clip per shot on V1 and the music on A1, opened in the editor.
+
+## Comments
+
+The comment footer (`CommentSection`) has **Photo show**. It opens the studio ("Attach to comment") and publishes the show. The show then waits as a chip and rides along with the next comment. **Post show** sends it on its own. The comment stores `show: { owner, id, title, cover }` and `imageUrl = cover`. That satisfies the existing comment rules with no rule change, and older surfaces see the cover. `CommentShowCard` shows the cover and plays the show inline on tap. Legacy pass-through surfaces get `media.show` through `onPostComment`. Whether they keep it depends on their own persister.
 
 ## Next
 

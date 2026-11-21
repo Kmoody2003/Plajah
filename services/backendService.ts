@@ -1813,6 +1813,8 @@ export const addPostComment = async (
   postId: string, text: string, parentId?: string | null,
   videoUrl?: string, audioUrl?: string, gifUrl?: string, imageUrl?: string,
   col: 'posts' | 'private_posts' | 'circle_posts' = 'posts',
+  /** Extra embeds, e.g. `show` ({ owner, id, title, cover }: a published Themed Show). */
+  extra?: { show?: { owner: string; id: string; title?: string; cover?: string } },
 ) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
   const displayName = auth.currentUser.displayName || 'Anonymous';
@@ -1832,6 +1834,10 @@ export const addPostComment = async (
   if (videoUrl) commentData.videoUrl = videoUrl;
   if (audioUrl) commentData.audioUrl = audioUrl;
   if (gifUrl)   commentData.gifUrl   = gifUrl;
+  if (extra?.show?.owner && extra.show.id) {
+    const s = extra.show;
+    commentData.show = { owner: s.owner, id: s.id, ...(s.title ? { title: s.title.slice(0, 200) } : {}), ...(s.cover ? { cover: s.cover } : {}) };
+  }
   const docRef = await addDoc(collection(db, col, postId, 'comments'), commentData);
   updateDoc(doc(db, col, postId), { commentsCount: increment(1) }).catch(() => {});
   return { id: docRef.id, ...commentData };

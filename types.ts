@@ -8481,6 +8481,22 @@ export interface TelaMediaDevice {
   bio?: TelaBioStructureRef;
   /** Set when this is a schematic from the Electronics Lab (services/elec). `src` is the SVG sheet. */
   elec?: TelaElecRef;
+  /** Set when this is a Themed Show (services/slideshow). Kind is IMAGE and `src` is the cover,
+   * so surfaces that ignore this still show a still; Tela plays it live with ShowPlayer. */
+  show?: TelaShowRef;
+}
+
+/** A Themed Show placed in a Tela document. Only the reference is stored: the show itself lives
+ * in the owner's account (creative cloud 'slideshow') and at public-shows/<owner>/<id>/show.json. */
+export interface TelaShowRef {
+  owner: string;
+  id: string;
+  title?: string;
+  cover?: string;
+  /** when the referenced copy was published (ms); a change reloads players */
+  publishedAt?: number;
+  /** how it opens: the timeline (as rendered) or the interactive live show */
+  mode?: 'timeline' | 'interactive';
 }
 
 /** A circuit drawn in the Electronics Lab: the editable circuit is kept so the lab can reopen it. */
@@ -8604,6 +8620,8 @@ export interface TelaDoc {
   orgOrigin?: { orgId: string; orgName?: string };
   /** Accounts that have edited this doc, so the Tela home page can list "Mine" as made or worked on by you (services/tela/recentScope). */
   editedBy?: string[];
+  /** What the document is for. 'PRESENTATION' opens ready to present (e.g. a Themed Show doc). */
+  docType?: 'PRESENTATION';
   createdAt: number;
   updatedAt: number;
   /** Last structural assignment formatting pass. Source content remains editable. */

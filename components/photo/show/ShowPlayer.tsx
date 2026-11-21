@@ -33,7 +33,7 @@ export interface ShowPlayerHandle {
 }
 
 export interface ShowPlayerProps {
-  showRef?: Pick<ShowRef, 'owner' | 'id'>;
+  showRef?: Pick<ShowRef, 'owner' | 'id' | 'publishedAt'>;
   spec?: ShowSpec;
   mode?: ShowPlayMode;
   /** Viewer may switch timeline ↔ interactive (default true). */
@@ -72,7 +72,7 @@ const ShowPlayer = forwardRef<ShowPlayerHandle, ShowPlayerProps>(function ShowPl
     setState((s) => ({ ...s, ready: false, label: 'Loading the show…' }));
     loadPublishedShow(showRef).then((s) => alive && setSpec(s)).catch((e) => alive && setState((st) => ({ ...st, error: e?.message || 'This show could not be loaded.' })));
     return () => { alive = false; };
-  }, [given, showRef?.owner, showRef?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [given, showRef?.owner, showRef?.id, showRef?.publishedAt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // build the runtime
   useEffect(() => {

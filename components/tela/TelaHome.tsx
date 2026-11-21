@@ -257,6 +257,7 @@ export default function TelaHome({
   onOpenElec,
   onOpenSew,
   onOpenPdf,
+  onCreateShow,
   onOpenBio,
   onBack,
   viewerUid = null,
@@ -286,6 +287,8 @@ export default function TelaHome({
   onOpenBio?: () => void;
   /** PDF reader: read, search, mark up, sign and Smart Fill forms. */
   onOpenPdf?: () => void;
+  /** New → Photo show: opens the Themed Shows studio; the show becomes a presentation document. */
+  onCreateShow?: () => void;
   onBack?: () => void;
 }) {
   const [promptText, setPromptText] = useState('');
@@ -746,6 +749,17 @@ export default function TelaHome({
         </div>
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          {onCreateShow && (
+            <button
+              onClick={onCreateShow}
+              className="h-9 px-3.5 flex items-center gap-2 rounded-[10px] text-[.72rem] font-bold text-white/85 bg-white/[.05] border border-amber-300/30 hover:bg-amber-300/10 hover:text-white transition-all font-sans"
+              title="New photo show: make a Themed Show (Back Yard, Lantern Garden, Classic) and present it as a Tela document"
+              data-testid="tela-home-photo-show"
+            >
+              <span className="hidden sm:inline">Photo show</span>
+              <span className="sm:hidden">Show</span>
+            </button>
+          )}
           {onOpenPdf && (
             <button
               onClick={onOpenPdf}

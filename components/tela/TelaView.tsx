@@ -97,6 +97,9 @@ import TelaImage, { TelaImageLayerControls, ImageLayerRow, makeImageLayer } from
 import { PRESETS, applyTelaOp, type TelaOp } from './telaOps';
 import { emptyHistory, recordOp, recordReplace, undo as historyUndo, redo as historyRedo, sealStep, isNativeUndoTarget, type TelaHistory } from './telaHistory';
 import { renderDevice as renderTelaDevice, type RenderDeviceCtx } from './renderDevice';
+import { Presentation as PresentIcon, Clapperboard as ShowIcon } from 'lucide-react';
+import { TelaPresenter, TELA_EDIT_SHOW, makeShowDoc, showDevice, telaShowRef, docHasShow } from './TelaShow';
+import { openShowStudio } from '../../services/slideshow/showStudioBus';
 import TelaFlyingMenu, { resolveFlyingTarget, type FlyingRef } from './TelaFlyingMenu';
 import TelaAssignmentBuilder from './TelaAssignmentBuilder';
 import TelaStyleEraLibrary from './TelaStyleEraLibrary';
@@ -567,6 +570,26 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     window.addEventListener('tela:open-argilla', reopen);
     return () => window.removeEventListener('tela:open-argilla', reopen);
   }, []);
+  // Themed Shows: a show device reopens in the studio; the re-published show updates the device.
+  const [presenting, setPresenting] = useState(false);
+  const [showMsg, setShowMsg] = useState<string | null>(null);
+  useEffect(() => { if (!showMsg) return; const t = setTimeout(() => setShowMsg(null), 5000); return () => clearTimeout(t); }, [showMsg]);
+  const askShow = async (open?: { owner: string; id: string }, doneLabel = 'Add to document') => {
+    try { return await openShowStudio({ source: 'tela', returnLabel: 'Tela', publish: true, doneLabel, open }); }
+    catch (e: any) { setShowMsg(e?.message || 'The Themed Shows studio could not open.'); return null; }
+  };
+  useEffect(() => {
+    const edit = async (event: Event) => {
+      const d = (event as CustomEvent<{ deviceId: string; show: import('../../types').TelaShowRef }>).detail;
+      if (!d?.deviceId || !d.show) return;
+      const r = await askShow({ owner: d.show.owner, id: d.show.id }, 'Update document');
+      if (!r?.ref) return;
+      dispatchOp({ type: 'UPDATE_MEDIA_DEVICE', deviceId: d.deviceId, patch: { show: telaShowRef(r.ref, d.show), src: r.ref.cover || '', name: r.ref.title || 'Photo show' } });
+      setShowMsg('Show updated.');
+    };
+    window.addEventListener(TELA_EDIT_SHOW, edit);
+    return () => window.removeEventListener(TELA_EDIT_SHOW, edit);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [prepressOpen, setPrepressOpen] = useState(false);
   const [localStudioOpen, setLocalStudioOpen] = useState(false);
   const [localStudioMinimized, setLocalStudioMinimized] = useState(false);
@@ -666,7 +689,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     setDoc(d);
     const first = d.frames.find(f => f.kind === 'PAPER') || d.frames[0] || null;
     setActiveFrameId(first?.id || null);
-    setPosture('STUDIO');
+    setPosture(d.docType === 'PRESENTATION' ? 'PAGE' : 'STUDIO');
     setStudioDocView('focus');
     setSaveState('clean');
     // Fit after layout settles.
@@ -2736,6 +2759,22 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     openDoc(next); setShowHome(false); if(kind==='BOARD')setPosture('BOARD');
   };
 
+  // Tela → New → Photo show: the studio opens over Tela; the published show becomes a presentation doc.
+  const createShowDocument = async () => {
+    const r = await askShow(undefined, 'Make Tela presentation');
+    if (!r?.ref) return;
+    const cur = docRef.current; if (cur) await saveTelaDoc(cur);
+    openDoc(makeShowDoc(r.ref, auth.currentUser?.uid || 'local', newTelaId()));
+    setShowHome(false); setPosture('PAGE');
+    scheduleSave();
+  };
+  // Insert → Photo show: the show as a 16:9 screen frame in the current document.
+  const insertShow = async () => {
+    const r = await askShow(undefined, 'Add to document');
+    if (!r?.ref) return;
+    addFrame('SCREEN', 'FREE', showDevice(r.ref), r.ref.title || 'Photo show', { size: { w: 1920, h: 1080 } });
+  };
+
   const createStyleDocument = async (entry:TelaStyleEra) => {
     const cur=docRef.current; if(cur)await saveTelaDoc(cur); const ownerId=auth.currentUser?.uid||'local'; const now=Date.now();
     const device:TelaVectorDevice={id:uid('dev'),type:'VECTOR',name:entry.name,width:816,height:1056,objects:instantiateStyleEraDocument(entry)};
@@ -3593,12 +3632,13 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
       {designImport && <React.Suspense fallback={null}><DesignImportDialog state={designImport} onClose={() => setDesignImport(null)} onOpenSmart={(id, name) => void openImportedSmartObject(id, name)}/></React.Suspense>}
       {libraryPanel && <React.Suspense fallback={null}><TelaLibraryPanel initialTab={libraryPanel.tab} note={libraryPanel.note} onClose={() => setLibraryPanel(null)} onPlaceShape={placeLibraryShape} onUseColor={useLibraryColor} onUsePattern={p => void useLibraryPattern(p)} onUseBrush={useLibraryBrush}/></React.Suspense>}
       {accessEndedNote && <div role="alert" className="fixed top-4 left-1/2 -translate-x-1/2 z-[9000] max-w-[min(560px,calc(100vw-32px))] flex items-start gap-3 rounded-xl border border-amber-300/30 bg-[#1b1710] px-4 py-3 text-xs text-amber-100"><span className="flex-1">{accessEndedNote}</span><button className="font-bold text-white/70 hover:text-white" onClick={() => setAccessEndedNote('')}>Dismiss</button></div>}
-      <TelaHome recent={canvasList || []} viewerUid={auth.currentUser?.uid || null} memberOrgIds={memberOrgIds} orgNames={orgNames} onOpen={id => void openCanvas(id)} onCreate={kind => void createHomeDocument(kind)} onChooseStyle={entry => void createStyleDocument(entry)} onChoosePublication={template => void createPublicationDocument(template)} onChooseTemplate={template => void createTemplateDocument(template)} onImport={() => fileRef.current?.click()} onOpenMerch={() => setMerchStudioOpen(true)} onOpenStoryIntel={() => setStoryIntel({})} onOpenArgilla={() => setArgillaOpen({})} onOpenCad={() => setCadOpen({})} onOpenBio={() => setBioOpen({})} onOpenElec={() => setElecOpen({})} onOpenSew={() => setSewOpen(true)} onOpenPdf={() => setPdfReader({ source: null })} onBack={onBack}/>
+      <TelaHome recent={canvasList || []} viewerUid={auth.currentUser?.uid || null} memberOrgIds={memberOrgIds} orgNames={orgNames} onOpen={id => void openCanvas(id)} onCreate={kind => void createHomeDocument(kind)} onChooseStyle={entry => void createStyleDocument(entry)} onChoosePublication={template => void createPublicationDocument(template)} onChooseTemplate={template => void createTemplateDocument(template)} onImport={() => fileRef.current?.click()} onOpenMerch={() => setMerchStudioOpen(true)} onOpenStoryIntel={() => setStoryIntel({})} onOpenArgilla={() => setArgillaOpen({})} onOpenCad={() => setCadOpen({})} onOpenBio={() => setBioOpen({})} onOpenElec={() => setElecOpen({})} onOpenSew={() => setSewOpen(true)} onOpenPdf={() => setPdfReader({ source: null })} onCreateShow={() => void createShowDocument()} onBack={onBack}/>
     </>;
   }
 
   return (
     <div className="flex-1 w-full h-full min-h-0 flex flex-col overflow-hidden select-none" style={{ background: 'var(--bg-color, #070609)' }}>
+      {presenting && <TelaPresenter doc={doc} startFrameId={activeFrameId} render={(d) => renderDevice(d, true)} onExit={() => setPresenting(false)} />}
       {/* ── Streamlined Top Toolbar ─────────────────────────────────────────── */}
       <header
         ref={collabAnchorRef}
@@ -3806,6 +3846,13 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           <FileDown size={14} /> <span className={hdrLabel2}>Export PDF</span>
         </button>
 
+        {(doc.docType === 'PRESENTATION' || docHasShow(doc)) && (
+          <button className={topBtn} onClick={() => setPresenting(true)} title="Present full screen (→ / Space next shot, ← back, Esc to stop)" data-testid="tela-present">
+            <PresentIcon size={14} /> <span className={hdrLabel2}>Present</span>
+          </button>
+        )}
+        {showMsg && <span className="shrink-0 text-[.7rem] text-white/70 px-2" role="status">{showMsg}</span>}
+
         <div className="relative shrink-0">
           <button className={topBtn} title="More tools & exports" aria-label="More" aria-expanded={headerMoreOpen} onClick={() => setHeaderMoreOpen(o => !o)}><MoreHorizontal size={14} /></button>
           {headerMoreOpen && (
@@ -3957,6 +4004,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               <div className="px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[.12em] text-white/28">Add to this Tela document</div>
               <button className={menuBarItem} onClick={() => { assetFileRef.current?.click(); setAppMenuOpen(null); }}><ImagePlus size={14}/>Media &amp; files<span className="ml-auto text-[9px] text-white/25">multi-select</span></button>
               <button className={menuBarItem} onClick={() => { setAppMenuOpen(null); openGenCloud({ source: 'tela', kinds: ['image', 'video', 'voice'], useLabel: 'Add to page', onUse: async outs => { const files = await Promise.all(outs.map((o, i) => outputToFile(o, `plajah-cloud-${Date.now()}-${i}`))); if (files.length) await insertAssetFiles(files); } }); }}><Sparkles size={14}/>Generate with Plajah Cloud<span className="ml-auto text-[9px] text-white/25">credits</span></button>
+              <button className={menuBarItem} data-testid="tela-insert-photo-show" onClick={() => { setAppMenuOpen(null); void insertShow(); }}><ShowIcon size={14}/>Photo show<span className="ml-auto text-[9px] text-white/25">Themed Shows</span></button>
               <button className={menuBarItem} onClick={() => { fileRef.current?.click(); setAppMenuOpen(null); }}><FileUp size={14}/>Import document, sheet, or board</button>
               <button className={menuBarItem} data-testid="import-design-file" onClick={() => { designFileRef.current?.click(); setAppMenuOpen(null); }}><Layers size={14}/>Adobe Photoshop / Illustrator / InDesign<span className="ml-auto text-[9px] text-white/25">.psd .ai .idml</span></button>
               <button className={menuBarItem} data-testid="open-tela-plugins" onClick={() => { setPluginPanelOpen(true); setAppMenuOpen(null); }}><Wand2 size={14}/>Photoshop plug-ins<span className="ml-auto text-[9px] text-white/25">.8bf · desktop</span></button>

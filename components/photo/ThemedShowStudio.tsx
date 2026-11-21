@@ -16,7 +16,7 @@ import { Button, IconButton, Surface, Eyebrow, Chip, Input, Actions, AnchoredPop
 import ShowTimeline, { type TimelineOps } from './show/ShowTimeline';
 import LookPicker from './show/LookPicker';
 import ShowPlayer from './show/ShowPlayer';
-import { saveShowToAccount, listAccountShows, openAccountShow, publishShow, showLink, signedInUid, type ShowRef } from '../../services/slideshow/cloudShows';
+import { saveShowToAccount, listAccountShows, openAccountShow, publishShow, showLink, signedInUid, loadPublishedShow, type ShowRef } from '../../services/slideshow/cloudShows';
 import type { CloudHead } from '../../services/creativeCloud/cloudStore';
 import { needsBrandBug, BUG_FREE_FROM_USD } from '../../services/slideshow/brandBug';
 import type { ShowPhoto, ShowSpec, ShowThemeId, ShowTrack, MusicMode, ClassicTransition, ShowLook } from '../../services/slideshow/types';
@@ -106,6 +106,16 @@ interface Props {
   openShowId?: string;
   /** Open this show (this device or the account), then add `initial` to it. */
   openShow?: { id: string; where: 'device' | 'account' };
+  /** Open this show for editing (account copy first, then the published copy). */
+  openRef?: Pick<ShowRef, 'owner' | 'id'>;
+  /** Called with the finished show when the person presses the finish button (shown only when set). */
+  onDone?: (result: { spec: ShowSpec; ref?: ShowRef }) => void;
+  /** Finish button label (default "Done"). */
+  doneLabel?: string;
+  /** Publish before onDone so the result carries a ShowRef anyone can play. */
+  publishOnDone?: boolean;
+  /** Where the studio was opened from, for the back control ("Back to Tela"). */
+  returnLabel?: string;
 }
 
 const THEMES: { id: ShowThemeId; name: string; blurb: string; tone: string }[] = [
@@ -119,7 +129,7 @@ const TRANSITIONS: (ClassicTransition | 'auto')[] = ['auto', 'crossfade', 'dip',
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-export default function ThemedShowStudio({ library = [], onClose, initial, owner, openShowId, openShow }: Props) {
+export default function ThemedShowStudio({ library = [], onClose, initial, owner, openShowId, openShow, openRef, onDone, doneLabel = 'Done', publishOnDone, returnLabel }: Props) {
   const [theme, setTheme] = useState<ShowThemeId>('backyard');
   const [title, setTitle] = useState('A life remembered');
   const [heading, setHeading] = useState('In loving memory of');
@@ -283,6 +293,39 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
     finally { setPublishing(null); }
   };
 
+  useEffect(() => {
+    if (openRef) void (async () => {
+      setHydrating(true);
+      try {
+        // the owner's account copy is the source of truth; the published copy is the fallback
+        const mine = openRef.owner === signedInUid() ? await openAccountShow(openRef.id).catch(() => null) : null;
+        if (mine) { hydrate(mine.spec); setCloud({ at: mine.head.updatedAt, busy: false }); }
+        else hydrate(await loadPublishedShow(openRef, true));
+        if (openRef.owner === signedInUid()) setShared({ ref: { owner: openRef.owner, id: openRef.id }, link: showLink(openRef) });
+      } catch (e: any) { setMsg(e?.message || 'Could not open that show.'); }
+      finally { setHydrating(false); }
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // --- finishing (when another surface opened the studio) -----------------------------
+  const [finishing, setFinishing] = useState<{ done: number; total: number } | null>(null);
+  const finish = async () => {
+    if (!onDone) return;
+    if (!photos.length) { setMsg('Add some photos first.'); return; }
+    if (prep) { setMsg('Still preparing photos — one moment.'); return; }
+    setFinishing({ done: 0, total: 1 });
+    try {
+      const stored = signedInUid() ? (await saveShowToAccount(saveSpec)) || saveSpec : saveSpec;
+      let ref: ShowRef | undefined = shared?.ref;
+      if (publishOnDone || shared) {
+        ref = await publishShow(saveSpec, (done, total) => setFinishing({ done, total }));
+        setShared({ ref, link: showLink(ref) });
+      }
+      onDone({ spec: stored, ref });
+    } catch (e: any) {
+      setMsg(e?.code === 'SIGN_IN_REQUIRED' ? 'Sign in to share this show.' : e?.message || 'Could not finish the show.');
+    } finally { setFinishing(null); }
+  };
 
   // autosave to this device a moment after any change (photos must be prepped first)
   const saveKey = JSON.stringify({ ...saveSpec, updatedAt: 0 });
@@ -658,7 +701,15 @@ export default function ThemedShowStudio({ library = [], onClose, initial, owner
           )}
           <Button size="sm" variant="secondary" icon={<FolderOpen />} onClick={(e) => { const el = e.currentTarget as HTMLElement; setOpenAnchor((a) => (a ? null : el)); void listLocal().then(setRecent); }}>Open</Button>
           {driveSupported() && <Button size="sm" variant="ghost" icon={<HardDrive />} disabled={!photos.length} onClick={toDrive} title="Write the whole show (settings, photos, music) as a folder on your drive">Save to drive</Button>}
-          {onClose && <IconButton size="sm" variant="ghost" aria-label="Close" onClick={onClose}><X /></IconButton>}
+          {onDone && (
+            <Button size="sm" variant="primary" icon={<Share2 />} loading={!!finishing} disabled={!photos.length || !!prep} onClick={() => void finish()}
+              title={publishOnDone ? 'Save, publish and hand the show back' : 'Save and hand the show back'}>
+              {finishing && finishing.total > 1 ? `Uploading ${finishing.done}/${finishing.total}…` : doneLabel}
+            </Button>
+          )}
+          {onClose && (returnLabel
+            ? <Button size="sm" variant="ghost" icon={<ChevronLeft />} onClick={onClose}>Back to {returnLabel}</Button>
+            : <IconButton size="sm" variant="ghost" aria-label="Close" onClick={onClose}><X /></IconButton>)}
         </div>
       </Surface>
       {openAnchor && (
