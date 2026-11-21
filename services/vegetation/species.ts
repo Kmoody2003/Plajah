@@ -152,7 +152,7 @@ export function validateGrass(s: GrassSpecies): string[] {
   return e;
 }
 
-export type AnySpecies = TreeSpecies | GrassSpecies | PlantSpecies;
+export type AnySpecies = TreeSpecies | GrassSpecies | PlantSpecies | FungusSpecies;
 
 // ── plants (ferns, bushes, flowers — docs/plajah-vegetation.md §2.1, phase 3) ───────────────────────────────────
 
@@ -184,5 +184,64 @@ export function validatePlant(s: PlantSpecies): string[] {
   if (!(s.count >= 1)) e.push('count must be ≥ 1');
   if (!(s.parts >= 1)) e.push('parts must be ≥ 1');
   if (!(s.leaf > 0)) e.push('leaf must be > 0');
+  return e;
+}
+
+// ── fungi (docs/plajah-vegetation.md §2.1, phase 4) ─────────────────────────────────────────────────────────────
+
+/** A mushroom species: cap (surface of revolution), gills, stem (optionally twisted strands + glowing cables), roots,
+ *  grown singly or as a cluster on a root ball, or as shelf brackets on a trunk (fungi/build.ts). */
+export interface FungusSpecies {
+  kind: 'fungus';
+  id: string;
+  name: string;
+  form: 'cap' | 'shelf';
+  cap: {
+    /** Radius at the rim and dome height above the rim, metres (for the cluster's biggest member). */
+    radius: number; height: number;
+    /** 0 round dome … 1 flat top; how far the rim curls down (fraction of the radius); bulb: the cap swells past
+     *  its equator and tucks back in (spore bulbs), 0…0.6. */
+    flat: number; curl: number; bulb: number;
+    /** Lumpy surface (fraction of the radius) and dark pits (spore pods). */
+    lumps: number; pits: number;
+  };
+  gills: { count: number; depth: number };
+  stem: {
+    /** Height to the cap's underside and radius at the top / at the base (metres, biggest member). */
+    height: number; radius: number; base: number;
+    /** Twisted strands round the stem (0 = one smooth stem) and turns over its height; glowing cables round it. */
+    strands: number; twist: number; cables: number;
+    /** Lean of the top from vertical (fraction of the height) and bend. */
+    lean: number;
+  };
+  roots: { count: number; reach: number };
+  /** Cluster: members, spread (m), size falloff for the smaller ones, on a mossy root ball or straight from the ground. */
+  cluster: { count: number; spread: number; falloff: number; ball: number };
+  look: {
+    capTop: number; capUnder: number; stem: number; root: number;
+    /** Surface pattern on the cap: circuit traces (Cyber Forest), leopard spots (toadstool), none. */
+    pattern: 'circuit' | 'spots' | 'none';
+    patternColor: number;
+    /** Jelly caps: light through the cap at the edges, 0…1; how shiny. */
+    translucency: number; roughness: number;
+    /** Glow of the pattern, the gills and the cables; beat response. */
+    glow: { pattern: number; gills: number; cables: number; color: number; beat: number };
+  };
+  /** Spores drifting up from the caps (particles per mushroom, colour). */
+  spores?: { count: number; color: number; rise: number };
+  /** Gentle wobble when pushed (0 rigid … 1 jelly). */
+  wobble: number;
+  provenance: { art: string[]; scores?: Record<string, number> };
+}
+
+export function validateFungus(s: FungusSpecies): string[] {
+  const e: string[] = [];
+  if (!(s.cap.radius > 0)) e.push('cap.radius must be > 0');
+  if (!(s.cap.height >= 0)) e.push('cap.height must be ≥ 0');
+  if (s.cap.flat < 0 || s.cap.flat > 1) e.push('cap.flat must be in [0, 1]');
+  if (s.cap.bulb < 0 || s.cap.bulb > 0.6) e.push('cap.bulb must be in [0, 0.6]');
+  if (!(s.stem.radius > 0) || !(s.stem.base > 0)) e.push('stem radii must be > 0');
+  if (s.form === 'cap' && !(s.stem.height > 0)) e.push('stem.height must be > 0 for capped mushrooms');
+  if (!(s.cluster.count >= 1)) e.push('cluster.count must be ≥ 1');
   return e;
 }

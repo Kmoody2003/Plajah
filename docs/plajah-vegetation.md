@@ -183,6 +183,20 @@ with our wind and impostors, and variants come from the seed. Scans can also sta
   trample the grass. Blades: ~65k low tier (16 m / 45 m rings, 4 draws), ~670k high tier (30 m / 85 m). Low-tier pane
   frame with everything: ~1.4 M triangles, 88 draws. Not yet: compute-shader culling/indirect draws, plant LODs,
   grass shadows, mushrooms (the fungi phase), vines, crystal plants, spore pods.
+- **2026-11-20 fungi, first slice** — `fungi/build.ts`: caps as surfaces of revolution (dome / flat toadstool / bell /
+  a bulb that swells past its equator and tucks back in), lumps and pits, radial gills, stems smooth or braided from
+  twisted strands with glowing cables wound round them, roots over the ground, mossy root balls for clusters, shelf
+  brackets for trunks; per-vertex part + (around, along) coords. `fungi/field.ts`: instanced with range + frustum
+  culling; the shader draws CIRCUIT traces (cell grid runs + pads, a pulse running out from the crown) or leopard
+  SPOTS (cell noise, dark rims), jelly-cap light through the edges, glowing gills / cables / root-ball nodes, all on
+  the beat; spores are GPU sprites rising from each cap on their own clock (no CPU per frame). Catalog
+  `cyberForestFungi.ts` from the five mushroom sheets: neon cluster, cybernetic toadstool, tall jelly, spore bulb,
+  shelf. `fromArt/score.meshSilhouette` scores any grown mesh against its art (`scripts/vegetation/scoreFungi.ts`,
+  front vs the sprites): cluster 0.63, toadstool 0.70, jelly 0.62, bulb 0.71 — short of the 95% gate (the jelly's bell
+  and the cluster's cap layout are the misses). Elderwood: the shroom/toadstool/tall/spore sprite cards are gone;
+  shelves grow up the grown trunks above the buttress roots. Low-tier pane frame with everything: ~1.3 M triangles,
+  94 draws, ~650 spores. Not yet: fungi on logs/metal (the cyber-parasite sheet), cap LODs, fitter for fungi, the
+  CF-19 cluster model still placed from its GLB.
 
 ## Stopgap in the meantime
 Superseded 2026-11-20: Elderwood's forest is grown by the service; the image-to-3D tree GLBs are no longer loaded.

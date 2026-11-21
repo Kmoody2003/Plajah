@@ -82,3 +82,23 @@ test('grass + plant species are valid; plants grow deterministically with sane g
     for (let i = 0; i < a.sway.length; i += 2) assert.ok(a.sway[i] >= 0 && a.sway[i] <= 1.2);
   }
 });
+
+test('fungi species are valid and grow deterministically with caps, gills and sane sizes', async () => {
+  const { validateFungus } = await import('../services/vegetation/species');
+  const { CYBER_FOREST_FUNGI } = await import('../services/vegetation/catalog/cyberForestFungi');
+  const { buildFungus, capProfile } = await import('../services/vegetation/fungi/build');
+  for (const sp of CYBER_FOREST_FUNGI) {
+    assert.deepEqual(validateFungus(sp), [], sp.id);
+    const a = buildFungus(sp, 2), b = buildFungus(sp, 2);
+    assert.deepEqual(a.index, b.index, `${sp.id} deterministic`);
+    const nv = a.position.length / 3;
+    assert.ok(a.index.every((i) => i < nv), `${sp.id} indices`);
+    assert.ok(a.position.every(Number.isFinite) && a.normal.every(Number.isFinite), `${sp.id} finite`);
+    assert.ok(a.index.length / 3 < 20000, `${sp.id}: ${a.index.length / 3} triangles`);
+    assert.ok(a.caps.length >= 1, `${sp.id} has caps`);
+    if (sp.form === 'cap') assert.ok(a.height > sp.stem.height * 0.8 && a.height < (sp.stem.height + sp.cap.height) * 1.6, `${sp.id} height ${a.height}`);
+  }
+  // a bulb cap swells past its equator and tucks back in under it
+  const bulb = CYBER_FOREST_FUNGI.find((s) => s.cap.bulb > 0)!;
+  assert.ok(capProfile(bulb, 1)[1] < 0 && capProfile(bulb, 1)[0] < capProfile(bulb, 0.75)[0]);
+});

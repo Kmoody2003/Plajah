@@ -109,3 +109,26 @@ export function fitSpecies(sp: TreeSpecies, art: Partial<Record<View, Mask>>, ro
   best.provenance = { ...best.provenance, scores: { ...scores } };
   return { species: best, before: +before.toFixed(3), after: +bestS.toFixed(3), scores };
 }
+
+/** Any grown mesh (plants, fungi) projected front (x/y) or side (z/y) into the score grid: triangles filled. */
+export function meshSilhouette(position: ArrayLike<number>, index: ArrayLike<number>, view: View): Grid {
+  const g = blank(), u = (i: number) => position[i * 3 + (view === 'front' ? 0 : 2)], y = (i: number) => position[i * 3 + 1];
+  let minU = Infinity, maxU = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < position.length / 3; i++) { minU = Math.min(minU, u(i)); maxU = Math.max(maxU, u(i)); minY = Math.min(minY, y(i)); maxY = Math.max(maxY, y(i)); }
+  const scale = (N - 2) / Math.max(maxY - minY, maxU - minU), cu = (minU + maxU) / 2;
+  const px = (i: number) => [N / 2 + (u(i) - cu) * scale, N - 1 - (y(i) - minY) * scale] as const;
+  for (let t = 0; t < index.length; t += 3) {
+    const [a, b, c] = [px(index[t]), px(index[t + 1]), px(index[t + 2])];
+    const x0 = Math.max(0, Math.floor(Math.min(a[0], b[0], c[0]))), x1 = Math.min(N - 1, Math.ceil(Math.max(a[0], b[0], c[0])));
+    const y0 = Math.max(0, Math.floor(Math.min(a[1], b[1], c[1]))), y1 = Math.min(N - 1, Math.ceil(Math.max(a[1], b[1], c[1])));
+    const area = (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1]);
+    if (Math.abs(area) < 1e-9) continue;
+    for (let j = y0; j <= y1; j++) for (let i = x0; i <= x1; i++) {
+      const p = [i + 0.5, j + 0.5];
+      const w0 = ((b[0] - p[0]) * (c[1] - p[1]) - (c[0] - p[0]) * (b[1] - p[1])) / area;
+      const w1 = ((c[0] - p[0]) * (a[1] - p[1]) - (a[0] - p[0]) * (c[1] - p[1])) / area;
+      if (w0 >= -0.02 && w1 >= -0.02 && 1 - w0 - w1 >= -0.02) g.v[i + j * N] = 1;
+    }
+  }
+  return g;
+}

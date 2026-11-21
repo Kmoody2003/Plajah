@@ -28,6 +28,8 @@ import { GrassField } from '../../../services/vegetation/grass/field';
 import { CYBER_FOREST_GRASS } from '../../../services/vegetation/catalog/cyberForestGrass';
 import { PlantField, type PlantSpot } from '../../../services/vegetation/plants/field';
 import { CYBER_FOREST_PLANTS } from '../../../services/vegetation/catalog/cyberForestPlants';
+import { FungusField, type FungusSpot } from '../../../services/vegetation/fungi/field';
+import { CYBER_FOREST_FUNGI } from '../../../services/vegetation/catalog/cyberForestFungi';
 
 const MODELS = '/games/rift-realm/assets/elderwood/';
 
@@ -645,11 +647,20 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   plant(0, Math.round(90 * kk), byPool, 0.8, 1.4);
   plant(1, Math.round(140 * kk), anywhere, 0.9, 1.6);  // CF_BUSH
   plant(1, Math.round(110 * kk), byTrees, 0.9, 1.7);
-  scatter('shroom_a', Math.round(110 * kk), byTrees, 1.0, 2.4, 1.1, 0.1);
-  scatter('shroom_b', Math.round(80 * kk), () => anywhere(1.5), 0.9, 2.0, 1.1, 0.1);
-  scatter('toadstool', Math.round(40 * kk), byTrees, 1.2, 2.6, 0.6, 0.06);
-  scatter('shroom_tall', Math.round(40 * kk), () => { const a = R() * 6.28, d = 5 + R() * 8, x = MONOLITH.x + Math.sin(a) * d, z = MONOLITH.z + Math.cos(a) * d; return nearLane(x, z, 2) ? null : [x, z]; }, 2.4, 4.6, 1.0, 0.03);
-  scatter('spore_pod', Math.round(24 * kk), anywhere, 2.2, 4.0, 0.9, 0.03);
+  // mushrooms are grown fungi (services/vegetation/fungi): cluster, toadstool, tall jelly, spore bulb; shelves below
+  const fungusSpots: FungusSpot[] = [];
+  const fungus = (species: number, count: number, place: () => [number, number] | null, hMin: number, hMax: number) => {
+    const h0 = [1.16, 1.48, 3.88, 1.63][species];
+    for (let i = 0, n = 0; i < count * 4 && n < count; i++) {
+      const p = place(); if (!p) continue;
+      fungusSpots.push({ x: p[0], y: H(p[0], p[1]) - 0.08, z: p[1], yaw: R() * 6.28, species, scale: (hMin + R() * (hMax - hMin)) / h0 }); n++;
+    }
+  };
+  fungus(0, Math.round(80 * kk), byTrees, 1.0, 2.2);     // CF_NEON_CLUSTER
+  fungus(0, Math.round(50 * kk), () => anywhere(1.5), 0.9, 1.8);
+  fungus(1, Math.round(36 * kk), byTrees, 1.3, 2.6);     // CF_TOADSTOOL
+  fungus(2, Math.round(30 * kk), () => { const a = R() * 6.28, d = 5 + R() * 8, x = MONOLITH.x + Math.sin(a) * d, z = MONOLITH.z + Math.cos(a) * d; return nearLane(x, z, 2) ? null : [x, z]; }, 2.6, 4.8); // CF_JELLY_TALL
+  fungus(3, Math.round(22 * kk), anywhere, 2.0, 3.6);    // CF_SPORE_BULB
   plant(2, Math.round(70 * kk), byPool, 0.9, 1.7);    // CF_GLOW_FLOWER
   plant(2, Math.round(50 * kk), anywhere, 0.9, 1.5);
   scatter('crystal_plant', Math.round(30 * kk), byPool, 1.6, 3.2, 1.0);
@@ -736,6 +747,19 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     }
     wallCards.visible = false;
   }
+  // shelf fungi up the grown trunks (CF_SHELF): on the trunk's surface, facing out
+  {
+    const trees = forestSpotsV.filter((p) => p.species < 4 && Math.abs(p.x) < BOUND + 4 && Math.abs(p.z) < BOUND + 4);
+    for (let i = 0; i < trees.length; i++) {
+      if (R() > (lo ? 0.25 : 0.45)) continue;
+      // above the buttress roots (they rise up to ~3.2 trunk radii) where the trunk is a clean column
+      const t = trees[i], tr = CYBER_FOREST_TREES[t.species].trunk.radius * t.scale, r0 = tr * 0.95;
+      for (let k = 0, n = 1 + Math.floor(R() * 2); k < n; k++) {
+        const a = R() * 6.28, hh = tr * 3.4 + R() * 2.5;
+        fungusSpots.push({ x: t.x + Math.sin(a) * r0, y: t.y + hh, z: t.z + Math.cos(a) * r0, yaw: a, species: 4, scale: 1.1 + R() * 0.9 });
+      }
+    }
+  }
   forestSpotsV.push(...oakSpots);
   const forest = new Forest([...CYBER_FOREST_TREES, CF_GREAT_OAK, CF_PLATFORM_OAK], forestSpotsV, { lowTier: lo, beat: uBeatPulse, shadows: !lo });
   group.add(forest.group);
@@ -762,8 +786,10 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   group.add(grass.group);
   const plants = new PlantField(CYBER_FOREST_PLANTS, plantSpots, { lowTier: lo, beat: uBeatPulse, shadows: !lo });
   group.add(plants.group);
+  const fungi = new FungusField(CYBER_FOREST_FUNGI, fungusSpots, { lowTier: lo, beat: uBeatPulse, shadows: !lo });
+  group.add(fungi.group);
   const walkers: THREE.Object3D[] = [], tmpW = new THREE.Vector3();
-  group.userData.vegetation = { forest, grass, plants, ground: grassGround };   // ?rrdebug: stats, trample tests
+  group.userData.vegetation = { forest, grass, plants, fungi, ground: grassGround };   // ?rrdebug: stats, trample tests
 
   // ── lights ────────────────────────────────────────────────────────────────────────────────────────────────
   const hemi = new THREE.HemisphereLight(0x9fd4e0, 0x1c3024, 1.8);
@@ -898,7 +924,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
       if (Math.abs(pp.y - H(pp.x, pp.z)) < 1.2) grassGround.press(pp.x, pp.z, 0.8, 0.85);
       for (let k = walkers.length - 1; k >= 0; k--) { const o = walkers[k]; if (!o.parent) { walkers.splice(k, 1); continue; } o.getWorldPosition(tmpW); grassGround.press(tmpW.x, tmpW.z, 0.9, 0.9); }
       for (const d of herd) if (d.speed > 0.3) grassGround.press(d.b.root.position.x, d.b.root.position.z, 0.9, 0.8);
-      if (viewCam) { grass.update(viewCam, dt); plants.update(viewCam, dt); } else grassGround.update(dt);
+      if (viewCam) { grass.update(viewCam, dt); plants.update(viewCam, dt); fungi.update(viewCam, dt); } else grassGround.update(dt);
       updateHerd(dt);
       moths.update(dt);
       for (const b of beacons) b.intensity = 45 + pulse * 25;
