@@ -11,11 +11,46 @@
  *
  * Transport: BroadcastChannel (instant zero-config multi-tab sync) + optional
  * WebSocket relay (`wss://` / `ws://`) when `serverUrl` is provided.
+ *
+ * Online race through the Plajah Realtime server (joinServerRace): matchmaking and a signed join ticket
+ * from /api/gamer/rt, then a server room (services/realtime/) that runs the lobby, ready, synced countdown,
+ * 20 Hz state relay and the finish order. The server referees the race; this client only reports where
+ * the car is. The result lands on both players' gamer ledgers. See docs/GAMER_NETWORK.md → Realtime.
  */
 
 import * as THREE from 'three';
 import type { CarState } from './physics';
 import type { PursuitRole } from './copsAndRobbers';
+import { RealtimeClient, type RtEvent, type RtStanding } from '../../../services/realtime/client';
+
+export const FH_RACE_GAME = 'fh-race';
+export type ServerRaceJoin = 'quick' | 'create' | { code: string };
+export interface ServerRaceOpts {
+  apiBase: string;
+  getToken(): Promise<string | null>;
+  how: ServerRaceJoin;
+  /** Lobby/race events for the UI (lobby list, room code, countdown, finishes, final order). */
+  onRt?(e: RtEvent): void;
+}
+
+/** Firebase ID token for /api/gamer/rt. Inside Plajah the game runs in IframeGameFrame, which answers
+ * `plajah.gamerToken.request`; on a local lab `?as=<name>` signs in as the lab's stub user. */
+export function resolveGamerToken(timeoutMs = 3000): Promise<string | null> {
+  const as = new URLSearchParams(location.search).get('as');
+  if (as && /^(127\.0\.0\.1|localhost)$/.test(location.hostname)) return Promise.resolve(`tok-${as}`);
+  if (window.parent === window) return Promise.resolve(null);
+  return new Promise(resolve => {
+    const done = (tok: string | null) => { removeEventListener('message', on); clearTimeout(timer); resolve(tok); };
+    const on = (e: MessageEvent) => {
+      if (e.origin !== location.origin || e.source !== window.parent) return;
+      const d = e.data as { type?: string; token?: string | null } | null;
+      if (d?.type === 'plajah.gamerToken') done(typeof d.token === 'string' ? d.token : null);
+    };
+    const timer = setTimeout(() => done(null), timeoutMs);
+    addEventListener('message', on);
+    window.parent.postMessage({ type: 'plajah.gamerToken.request' }, location.origin);
+  });
+}
 
 export type OnlineMode = 'offline' | 'persistent_world' | 'online_race';
 
@@ -112,6 +147,9 @@ export class OnlineSessionManager {
   roomId = 'open-world-na-1';
   readonly remotes = new Map<string, RemoteDriver>();
 
+  /** Set while racing through the Plajah Realtime server. */
+  rt: RealtimeClient | null = null;
+  standings: RtStanding[] = [];
   private channel: BroadcastChannel | null = null;
   private ws: WebSocket | null = null;
   private sendAcc = 0;
@@ -138,7 +176,55 @@ export class OnlineSessionManager {
     this.onEvent?.(`ONLINE RACE LOBBY (${circuitId}) · ${this.profile.driverName}`);
   }
 
+  /** Online race through the Plajah Realtime server: queue / room code → ticket → room. Resolves once in the lobby. */
+  async joinServerRace(circuitId: string, opts: ServerRaceOpts): Promise<void> {
+    this.disconnect();
+    this.mode = 'online_race';
+    this.roomId = `race_${circuitId}`;
+    this.standings = [];
+    const rt = new RealtimeClient({ apiBase: opts.apiBase, getToken: opts.getToken, game: FH_RACE_GAME, onEvent: e => { this.onRt(e); opts.onRt?.(e); } });
+    this.rt = rt;
+    try {
+      const matchId = opts.how === 'quick' ? await rt.quickMatch()
+        : opts.how === 'create' ? (await rt.createPrivate()).matchId
+        : await rt.joinCode(opts.how.code);
+      if (this.rt !== rt) return; // cancelled while queueing
+      await rt.connect(matchId);
+      this.onEvent?.(`ONLINE RACE LOBBY · ${this.profile.driverName}`);
+    } catch (e) {
+      if (this.rt === rt) { this.rt = null; this.mode = 'offline'; }
+      throw e;
+    }
+  }
+
+  private onRt(e: RtEvent): void {
+    const rt = this.rt; if (!rt) return;
+    if (e.type === 'states') {
+      for (const st of e.states) {
+        if (st.seat === rt.seat) continue;
+        this.handlePacket({
+          type: 'state', peerId: `seat:${st.seat}`, driverName: rt.nameOf(st.seat), carId: String(st.car ?? 'kestrel'), paintHex: Number(st.paint ?? 0x3a7bd5),
+          mode: 'online_race', roomId: this.roomId, x: Number(st.x) || 0, y: Number(st.y) || 0, z: Number(st.z) || 0, vx: Number(st.vx) || 0, vz: Number(st.vz) || 0,
+          yaw: Number(st.yaw) || 0, steerAngle: Number(st.steer) || 0, speedMps: Number(st.spd) || 0, isDrifting: !!st.drift, isBraking: !!st.brake,
+          lap: Number(st.lap) || 0, splineT: Number(st.splineT) || 0, ts: Date.now(),
+        });
+      }
+    } else if (e.type === 'left') this.remotes.delete(`seat:${e.seat}`);
+    else if (e.type === 'result') this.standings = e.standings;
+  }
+
+  /** What the grid should do this frame: hold in the lobby, count down to the server's GO, or race. */
+  raceHold(): null | { lobby: true } | { remainingSec: number } {
+    const rt = this.rt; if (!rt) return null;
+    if (rt.phase === 'countdown' && rt.goAt) return { remainingSec: Math.max(0, (rt.goAt - rt.serverNow()) / 1000) };
+    if (rt.phase === 'lobby' || rt.phase === 'connecting' || rt.phase === 'queue') return { lobby: true };
+    return null;
+  }
+
+  setReady(ready: boolean): void { this.rt?.setReady(ready); }
+
   disconnect(): void {
+    if (this.rt) { const rt = this.rt; this.rt = null; if (rt.phase === 'queue') void rt.leaveQueue().catch(() => null); rt.leave(); }
     if (this.mode !== 'offline') {
       this.broadcastPacket({
         type: 'leave',
@@ -244,7 +330,16 @@ export class OnlineSessionManager {
 
     // 1. Broadcast local car state at 20 Hz
     this.sendAcc += dt;
-    if (this.sendAcc >= this.sendInterval) {
+    if (this.sendAcc >= this.sendInterval && this.rt) {
+      // Realtime server: compact state; lap = laps done this race, splineT = 0..1 round the lap (the server
+      // checks both against a progress-rate cap and the car's speed, then decides finishes itself).
+      this.sendAcc = 0;
+      this.rt.sendState({
+        x: playerState.pos.x, y: playerState.pos.y, z: playerState.pos.z, vx: playerState.vel.x, vz: playerState.vel.z,
+        yaw: playerState.yaw, steer: playerState.steerAngle, spd: playerState.speedMps, drift: playerState.isDrifting, brake: playerState.isBraking,
+        lap: opts?.lap ?? 0, splineT: opts?.splineT ?? 0, car: opts?.carId ?? 'kestrel', paint: opts?.paintHex ?? 0xc24d12,
+      });
+    } else if (this.sendAcc >= this.sendInterval) {
       this.sendAcc = 0;
       this.broadcastPacket({
         type: 'state',
