@@ -106,6 +106,7 @@ export async function importAiNative(bytes: Uint8Array, o: { fileName: string; f
   const n = (i: number) => parseFloat(stack[stack.length - i]);
   o.env.progress?.('Reading Illustrator art', 0, 1);
   for (let li = 0; li < lines.length; li++) {
+    if ((li & 511) === 511) await new Promise<void>(r => setTimeout(r, 0));
     const line = lines[li];
     if (line === '%AI5_BeginLayer') { groupStack.length = 0; continue; }
     if (line === '%AI5_EndLayer--' || line.startsWith('%AI5_EndLayer')) { layerGroup = undefined; layerHidden = false; continue; }

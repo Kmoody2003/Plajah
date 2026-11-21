@@ -33,8 +33,38 @@ import type { StudioGroup } from '../studio/model';
 let canvasReady = false;
 function ensureCanvas() {
   if (canvasReady) return; canvasReady = true;
-  // ag-psd asks for a canvas factory even when we only read raw data.
-  initializeCanvas((() => { throw new Error('canvas not used by the importer'); }) as never, ((w: number, h: number) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) })) as never);
+  // ag-psd asks for a canvas factory even when reading raw pixel channels. Provide a harmless stub so
+  // files containing patterns or text previews never throw inside ag-psd.
+  initializeCanvas(
+    (() => ({ width: 0, height: 0, getContext: () => null })) as never,
+    ((w: number, h: number) => ({ width: Math.max(0, w | 0), height: Math.max(0, h | 0), data: new Uint8ClampedArray(Math.max(0, (w | 0) * (h | 0) * 4)) })) as never,
+  );
+}
+
+const MAX_RASTER_DIM = 3072;
+const yieldTick = () => new Promise<void>(resolve => setTimeout(resolve, 0));
+
+function downscaleRgbaIfNeeded(im: RgbaImage, maxSide = MAX_RASTER_DIM): RgbaImage {
+  if (im.width <= maxSide && im.height <= maxSide) return im;
+  const scale = maxSide / Math.max(im.width, im.height);
+  const nw = Math.max(1, Math.round(im.width * scale));
+  const nh = Math.max(1, Math.round(im.height * scale));
+  const out = new Uint8ClampedArray(nw * nh * 4);
+  const xRatio = im.width / nw;
+  const yRatio = im.height / nh;
+  for (let y = 0; y < nh; y++) {
+    const sy = Math.min(im.height - 1, Math.floor((y + 0.5) * yRatio));
+    for (let x = 0; x < nw; x++) {
+      const sx = Math.min(im.width - 1, Math.floor((x + 0.5) * xRatio));
+      const si = (sy * im.width + sx) * 4;
+      const di = (y * nw + x) * 4;
+      out[di] = im.data[si];
+      out[di + 1] = im.data[si + 1];
+      out[di + 2] = im.data[si + 2];
+      out[di + 3] = im.data[si + 3];
+    }
+  }
+  return { width: nw, height: nh, data: out };
 }
 
 const BLENDS: Record<string, TelaBlendMode> = { normal: 'normal', multiply: 'multiply', screen: 'screen', overlay: 'overlay', darken: 'darken', lighten: 'lighten', 'color dodge': 'color-dodge', 'color burn': 'color-burn', 'hard light': 'hard-light', 'soft light': 'soft-light', difference: 'difference', exclusion: 'exclusion', hue: 'hue', saturation: 'saturation', color: 'color', luminosity: 'luminosity' };
@@ -255,23 +285,43 @@ export async function importPsdDocument(bytes: Uint8Array, o: PsdImportOptions):
     maskUploads.set(l, out); return out;
   };
 
-  for (const it of allItems) {
+  const pendingUploads: Array<Promise<void>> = [];
+  const UPLOAD_CONCURRENCY = 4;
+  const flushBatch = async (force = false) => {
+    if (!force && pendingUploads.length < UPLOAD_CONCURRENCY) return;
+    if (pendingUploads.length) {
+      await Promise.all(pendingUploads.splice(0, pendingUploads.length));
+    }
+  };
+
+  for (let idx = 0; idx < allItems.length; idx++) {
+    const it = allItems[idx];
     if (it.needsPixels && (!o.skipHidden || !it.obj.hidden)) {
       env.progress?.(`Layer ${it.layer.name || ''}`.trim(), ++done, pixelItems.length);
       const rect = it.pixelRect!, l = it.layer;
-      const bm = decodeLayerPixels({ ...(l.rawData as RawLayerData), colorMode: mode }, rect.w, rect.h, ctx);
-      if (it.adjustments.length) await bakeAdjustments(bm, rect, it, ctx, l);
-      const put = await env.putImage(bm, l.name || 'Layer');
-      uploaded.set(l, { src: put.src, w: rect.w, h: rect.h, rect });
-      if (it.obj.kind === 'IMAGE') it.obj.sourceImageSrc = put.src;
-      else if (it.obj.kind === 'TEXT' && it.obj.geom?.textPreview) { const p = it.obj.geom.textPreview; p.src = put.src; p.dx = rect.x - it.obj.x; p.dy = rect.y - it.obj.y; p.w = rect.w; p.h = rect.h; p.base = { w: it.obj.w, h: it.obj.h }; }
-      (l as { rawData?: unknown }).rawData = it.ownMask || it.layer.mask ? l.rawData : undefined;
+      if (rect.w * rect.h > 64_000_000) {
+        report.warn(`Skipped oversized pixel buffer (${rect.w}×${rect.h}) on layer "${l.name || 'Layer'}" to prevent browser out-of-memory.`);
+      } else {
+        let bm = decodeLayerPixels({ ...(l.rawData as RawLayerData), colorMode: mode }, rect.w, rect.h, ctx);
+        if (it.adjustments.length) await bakeAdjustments(bm, rect, it, ctx, l);
+        bm = downscaleRgbaIfNeeded(bm);
+        (l as { rawData?: unknown }).rawData = it.ownMask || it.layer.mask ? l.rawData : undefined;
+        const job = env.putImage(bm, l.name || 'Layer').then(put => {
+          uploaded.set(l, { src: put.src, w: rect.w, h: rect.h, rect });
+          if (it.obj.kind === 'IMAGE') it.obj.sourceImageSrc = put.src;
+          else if (it.obj.kind === 'TEXT' && it.obj.geom?.textPreview) { const p = it.obj.geom.textPreview; p.src = put.src; p.dx = rect.x - it.obj.x; p.dy = rect.y - it.obj.y; p.w = rect.w; p.h = rect.h; p.base = { w: it.obj.w, h: it.obj.h }; }
+        });
+        pendingUploads.push(job);
+        await flushBatch(false);
+      }
+      if ((idx & 7) === 7) await yieldTick();
     }
     if (it.adjustments.length) {
       if (it.obj.kind !== 'IMAGE') bakeVectorAdjustments(it, report);
       (it.obj.geom ||= { v: 1 }).imported = { ...(it.obj.geom.imported as ImportedObjectMeta), bakedAdjustments: it.adjustments.map(a => a.name) };
     }
   }
+  await flushBatch(true);
 
   // Masks and clipping reference other layers' pixels, so they resolve once every upload is known.
   for (const it of allItems) {
@@ -301,7 +351,12 @@ export async function importPsdDocument(bytes: Uint8Array, o: PsdImportOptions):
     const m = it.obj.geom?.material; const style = m?.params?.style; if (typeof style !== 'string' || !style.includes('pattern:')) continue;
     const id = /"href":"pattern:([^"]+)"/.exec(style)?.[1]; if (!id) continue;
     let url = patternUrls.get(id);
-    if (!url) { const info = patternsById.get(id); url = (await env.putImage({ width: info.bounds.w, height: info.bounds.h, data: info.data }, info.name || 'Pattern')).src; patternUrls.set(id, url); }
+    if (!url) {
+      const info = patternsById.get(id);
+      if (!info?.data?.length) continue;
+      url = (await env.putImage({ width: info.bounds.w, height: info.bounds.h, data: info.data }, info.name || 'Pattern')).src;
+      patternUrls.set(id, url);
+    }
     m!.params!.style = style.replace(`pattern:${id}`, url);
   }
 
@@ -355,11 +410,17 @@ function knotsToPath(paths: any[], report: ReportBuilder): CompoundPath {
   // Photoshop's path operations run bottom to top. Combine runs stay plain; subtract and friends
   // go through the boolean engine so the outcome is a real outline, and fall back to even-odd.
   let out: CompoundPath = { fillRule: 'nonzero', subpaths: [] };
+  const countAnchors = (c: CompoundPath) => c.subpaths.reduce((n, s) => n + s.anchors.length, 0);
   for (const p of paths) {
     if (!p.knots?.length) continue;
     const sub: CompoundPath = { fillRule: p.fillRule === 'even-odd' ? 'evenodd' : 'nonzero', subpaths: [knotsToSub(p)] };
     const op = p.operation as string | undefined;
     if (!out.subpaths.length || !op || op === 'combine' || op === 'add') { out = { fillRule: out.fillRule, subpaths: [...out.subpaths, ...sub.subpaths] }; continue; }
+    if (countAnchors(out) + countAnchors(sub) > 220) {
+      report.note('Compound shape operations', 'approx', 'high-knot compound shape simplified with even-odd fill');
+      out = { fillRule: 'evenodd', subpaths: [...out.subpaths, ...sub.subpaths] };
+      continue;
+    }
     try {
       out = pathBoolean(op === 'subtract' ? 'subtract' : op === 'intersect' ? 'intersect' : 'exclude', [out, sub]);
     } catch {
@@ -434,13 +495,16 @@ async function bakeAdjustments(bm: RgbaImage, rect: { x: number; y: number; w: n
       m = adj.mask.rect; const dec = decodeLayerMask(adj.mask.layer.rawData as RawLayerData, m.w, m.h);
       if (dec) { coverage = new Uint8Array(m.w * m.h); for (let i = 0; i < coverage.length; i++) coverage[i] = dec.data[i * 4]; }
     }
-    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 4; if (data[i + 3] === 0) continue;
-      let k = adj.opacity;
-      if (coverage && m) { const mx = rect.x + x - m.x, my = rect.y + y - m.y; k *= (mx >= 0 && my >= 0 && mx < m.w && my < m.h ? coverage[my * m.w + mx] : adj.mask!.outside) / 255; if (k <= 0) continue; }
-      c[0] = data[i] / 255; c[1] = data[i + 1] / 255; c[2] = data[i + 2] / 255;
-      fn(c);
-      data[i] = data[i] + (c[0] * 255 - data[i]) * k; data[i + 1] = data[i + 1] + (c[1] * 255 - data[i + 1]) * k; data[i + 2] = data[i + 2] + (c[2] * 255 - data[i + 2]) * k;
+    for (let y = 0; y < h; y++) {
+      if ((y & 255) === 255) await yieldTick();
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4; if (data[i + 3] === 0) continue;
+        let k = adj.opacity;
+        if (coverage && m) { const mx = rect.x + x - m.x, my = rect.y + y - m.y; k *= (mx >= 0 && my >= 0 && mx < m.w && my < m.h ? coverage[my * m.w + mx] : adj.mask!.outside) / 255; if (k <= 0) continue; }
+        c[0] = data[i] / 255; c[1] = data[i + 1] / 255; c[2] = data[i + 2] / 255;
+        fn(c);
+        data[i] = data[i] + (c[0] * 255 - data[i]) * k; data[i + 1] = data[i + 1] + (c[1] * 255 - data[i + 1]) * k; data[i + 2] = data[i + 2] + (c[2] * 255 - data[i + 2]) * k;
+      }
     }
   }
 }

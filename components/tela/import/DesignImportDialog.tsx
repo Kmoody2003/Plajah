@@ -1,4 +1,4 @@
-// DesignImportDialog — progress while a Photoshop or Illustrator file imports, then an honest
+// DesignImportDialog — progress while a Photoshop, Illustrator, or InDesign file imports, then an honest
 // account of what stayed live, what kept its look, what was baked and what did not come across.
 import React, { useMemo } from 'react';
 import { CheckCircle2, Eye, Layers, Loader2, Package, Sparkles, Type, X, AlertTriangle, Flame } from 'lucide-react';

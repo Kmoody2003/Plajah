@@ -54,7 +54,15 @@ function bufferToPath(data: ArrayLike<number>, m: M, rule: FillRule): CompoundPa
   return { fillRule: rule, subpaths: subs.filter(s => s.anchors.length > 1 || s.closed) };
 }
 
-const objOf = (objs: any, id: string): Promise<any> => new Promise(resolve => { try { if (objs.has(id)) resolve(objs.get(id)); else objs.get(id, resolve); } catch { resolve(null); } });
+const objOf = (objs: any, id: string): Promise<any> => new Promise(resolve => {
+  let settled = false;
+  const done = (v: any) => { if (!settled) { settled = true; clearTimeout(timer); resolve(v); } };
+  const timer = setTimeout(() => done(null), 2500);
+  try {
+    if (objs.has(id)) done(objs.get(id));
+    else objs.get(id, done);
+  } catch { done(null); }
+});
 
 export interface PdfImportOptions { fileName: string; format: 'ai' | 'pdf'; env: ImportEnv; pdfjs: any; maxPages?: number }
 
@@ -87,9 +95,14 @@ export async function importPdfDocument(bytes: Uint8Array, o: PdfImportOptions):
 
     const clipDef = (): TelaGeomExt['clip'] | undefined => gs.clip ? { d: toPathData(gs.clip), fillRule: gs.clip.fillRule } : undefined;
     const coversPage = (c: CompoundPath) => { const b = pathBounds(c); return c.subpaths.length === 1 && c.subpaths[0].anchors.length <= 5 && b.x <= 1 && b.y <= 1 && b.x + b.w >= W - 1 && b.y + b.h >= H - 1; };
+    const countAnchors = (c: CompoundPath) => c.subpaths.reduce((n, s) => n + s.anchors.length, 0);
     const intersectClip = (path: CompoundPath) => {
       if (coversPage(path)) return;
       if (!gs.clip) { gs.clip = path; return; }
+      if (countAnchors(gs.clip) + countAnchors(path) > 220) {
+        gs.clip = path; report.note('Nested clipping', 'approx', 'the innermost clip is kept');
+        return;
+      }
       try { gs.clip = pathBoolean('intersect', [gs.clip, path]); }
       catch { gs.clip = path; report.note('Nested clipping', 'approx', 'the innermost clip is kept'); }
     };
@@ -187,6 +200,7 @@ export async function importPdfDocument(bytes: Uint8Array, o: PdfImportOptions):
     };
 
     for (let i = 0; i < list.fnArray.length; i++) {
+      if ((i & 511) === 511) await new Promise<void>(r => setTimeout(r, 0));
       const fn = list.fnArray[i], a = list.argsArray[i];
       switch (fn) {
         case OPS.save: stack.push(clone(gs)); break;

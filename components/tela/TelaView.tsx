@@ -165,21 +165,27 @@ const TelaWritingStudio = React.lazy(() => import('./TelaWritingStudio').then(m 
 import {
   useTelaComicVariant2Controller,
   comicRailItems,
+  createComicPageFromPreset,
   TelaComicPageStreamCanvas,
+  TelaComicSinglePageSurface,
+  ComicLivingStyles,
   TelaComicSplitRightInspector,
   TelaComicBottomTransportAndTimeline,
+  type ComicPageDocument,
+  type PanelLayoutPresetId,
 } from './studio/TelaNativeComicVariant2';
+import { TelaPageSizeControl } from './TelaPageSizeControl';
+import { TelaPagesSidebar } from './TelaPagesSidebar';
 
 // ── Presets ───────────────────────────────────────────────────────────────────
 // PRESETS + the op reducer (applyTelaOp/TelaOp) now live in ./telaOps so the
 // reference-embed and the flying menu share one code path with the canvas.
+import { getPresetMeta } from './telaOps';
 
-const PAPER_PRESETS: TelaFramePreset[] = ['LETTER', 'A4', 'BOOKLET'];
-const SCREEN_PRESETS: TelaFramePreset[] = ['SIGNAGE_1080x1920', 'PHONE', 'SQUARE'];
 const CHROME_H = 30;
 const TELA_ASSET_ACCEPT = [
   'image/*','audio/*','video/*','model/gltf+json','model/gltf-binary','application/pdf','font/*',
-  '.psd','.psb','.psdt','.ai','.ait','.eps','.abr','.csh','.ase','.aco','.pat',
+  '.psd','.psb','.psdt','.ai','.ait','.eps','.idml,.indd,.inx','.abr','.csh','.ase','.aco','.pat',
   '.glb','.gltf','.obj','.fbx','.stl','.usdz','.dae','.3ds','.blend','.ply','.3mf',
   '.mp3','.wav','.m4a','.aac','.flac','.ogg','.opus','.aiff','.mid','.midi',
   '.mp4','.mov','.m4v','.webm','.avi','.mkv','.mpeg','.mpg',
@@ -418,8 +424,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const [showHome, setShowHome] = useState(!initialDocId);
   const [posture, setPosture] = useState<Posture>('STUDIO');
   const [studioDocView, setStudioDocView] = useState<'focus' | 'continuous'>('focus');
-  const [studioRightTab, setStudioRightTab] = useState<'properties' | 'comic' | 'pages'>('properties');
-  const [comicLayoutMode, setComicLayoutMode] = useState(false);
+  const [studioRightTab, setStudioRightTab] = useState<'layers' | 'pages' | 'comic'>('layers');
   const [cam, setCam] = useState({ x: 0, y: 0, z: 1 });
   const [activeFrameId, setActiveFrameId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('clean');
@@ -817,7 +822,16 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     setHistory(result.history);
     docRef.current = result.doc;
     setDoc(result.doc);
-    if (!result.doc.frames.some(frame => frame.id === activeFrameIdRef.current)) setActiveFrameId(result.doc.frames[0]?.id || null);
+    let nextActive = result.doc.frames.find(frame => frame.id === activeFrameIdRef.current) || null;
+    if (!nextActive) {
+      nextActive = result.doc.frames[0] || null;
+      setActiveFrameId(nextActive?.id || null);
+    }
+    if (!nextActive?.isComicPage) {
+      setStudioRightTab(tab => (tab === 'comic' ? 'layers' : tab));
+    } else {
+      setStudioRightTab('comic');
+    }
     scheduleSave();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleSave]);
@@ -1033,21 +1047,166 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     return words;
   }, [writerTexts]);
 
-  const comicVariant2Ctrl = useTelaComicVariant2Controller(totalDocWriterWords, comicLayoutMode);
+  const comicFrames = useMemo(
+    () => (doc?.frames || []).filter(f => f.isComicPage && f.comicPageSnapshot),
+    [doc?.frames],
+  );
+  const comicPages = useMemo(
+    () => comicFrames.map(f => f.comicPageSnapshot as ComicPageDocument),
+    [comicFrames],
+  );
+  const activeFrameObj = useMemo(
+    () => (doc?.frames.find(f => f.id === activeFrameId) || doc?.frames[0] || null),
+    [doc?.frames, activeFrameId],
+  );
+  const comicLayoutMode = Boolean(activeFrameObj?.isComicPage);
+
+  const addComicPageFrame = useCallback((presetId: PanelLayoutPresetId = 'action-4-grid') => {
+    const cur = docRef.current;
+    if (!cur) return;
+    const comicNum = cur.frames.filter(f => f.isComicPage).length + 1;
+    const comicPage = createComicPageFromPreset(presetId, comicNum);
+    const comicSize = PRESETS.COMIC_US || { w: 636, h: 984, label: 'US Modern Comic' };
+    const last = cur.frames[cur.frames.length - 1];
+    const pos = last ? { x: last.x, y: last.y + last.h + 54 } : { x: 0, y: 0 };
+    const overlayVec: TelaVectorDevice = {
+      id: uid('dev'),
+      type: 'VECTOR',
+      name: `${comicPage.title} Overlay`,
+      width: comicSize.w,
+      height: comicSize.h,
+      objects: [],
+    };
+    const frame: TelaFrame = {
+      id: uid('frame'),
+      kind: 'PAPER',
+      preset: 'COMIC_US',
+      x: pos.x,
+      y: pos.y,
+      w: comicSize.w,
+      h: comicSize.h,
+      orientation: 'PORTRAIT',
+      deviceIds: [overlayVec.id],
+      label: comicPage.title,
+      isComicPage: true,
+      comicPageSnapshot: comicPage,
+    };
+    dispatchOp({ type: 'ADD_FRAME', frame, devices: [overlayVec] });
+    setActiveFrameId(frame.id);
+    setStudioRightTab('comic');
+    if (posture === 'BOARD') setPosture('STUDIO');
+    requestAnimationFrame(() => fitFrame(frame));
+  }, [dispatchOp, fitFrame, posture]);
+
+  const externalComicHost = useMemo(() => ({
+    enabled: true,
+    pages: comicPages,
+    activePageId: activeFrameObj?.isComicPage
+      ? ((activeFrameObj.comicPageSnapshot as ComicPageDocument | undefined)?.id ?? null)
+      : (comicPages[0]?.id ?? null),
+    onSelectPage: (pageId: string) => {
+      const f = docRef.current?.frames.find(fr => (fr.comicPageSnapshot as ComicPageDocument | undefined)?.id === pageId);
+      if (f) setActiveFrameId(f.id);
+    },
+    onUpdatePages: (nextPages: ComicPageDocument[], label?: string) => {
+      const cur = docRef.current;
+      if (!cur) return;
+      const ops: TelaOp[] = [];
+      for (const nextPg of nextPages) {
+        const frame = cur.frames.find(fr => fr.isComicPage && (fr.comicPageSnapshot as ComicPageDocument | undefined)?.id === nextPg.id);
+        if (frame && frame.comicPageSnapshot !== nextPg) {
+          ops.push({
+            type: 'SET_FRAME_COMIC_DATA',
+            frameId: frame.id,
+            isComicPage: true,
+            comicPageSnapshot: nextPg,
+            label: label || 'Comic edit',
+            coalesce: `comic:${frame.id}`,
+          });
+        }
+      }
+      if (ops.length === 1) dispatchOp(ops[0]);
+      else if (ops.length > 1) dispatchOp({ type: 'BATCH', ops, label: label || 'Comic edit' });
+    },
+    onAddPage: (presetId: PanelLayoutPresetId) => addComicPageFrame(presetId),
+    onDeletePage: (pageId: string) => {
+      const cur = docRef.current;
+      const frame = cur?.frames.find(fr => fr.isComicPage && (fr.comicPageSnapshot as ComicPageDocument | undefined)?.id === pageId);
+      if (!frame) return;
+      dispatchOp({ type: 'DELETE_FRAME', frameId: frame.id });
+    },
+    onImportProjectPages: (pages: ComicPageDocument[]) => {
+      const cur = docRef.current;
+      if (!cur || !pages.length) return;
+      const comicSize = PRESETS.COMIC_US || { w: 636, h: 984, label: 'US Modern Comic' };
+      let yCursor = cur.frames.length
+        ? Math.max(...cur.frames.map(f => f.y + f.h)) + 54
+        : 0;
+      const baseX = cur.frames[0]?.x ?? 0;
+      const ops: TelaOp[] = [];
+      let firstId: string | null = null;
+      for (const pg of pages) {
+        const cloned = structuredClone(pg);
+        const h = Math.round(comicSize.w * (cloned.aspect ?? 10.25 / 6.625));
+        const vec: TelaVectorDevice = {
+          id: uid('dev'),
+          type: 'VECTOR',
+          name: `${cloned.title} Overlay`,
+          width: comicSize.w,
+          height: h,
+          objects: [],
+        };
+        const fr: TelaFrame = {
+          id: uid('frame'),
+          kind: 'PAPER',
+          preset: 'COMIC_US',
+          x: baseX,
+          y: yCursor,
+          w: comicSize.w,
+          h,
+          orientation: 'PORTRAIT',
+          deviceIds: [vec.id],
+          label: cloned.title,
+          isComicPage: true,
+          comicPageSnapshot: cloned,
+        };
+        if (!firstId) firstId = fr.id;
+        yCursor += h + 54;
+        ops.push({ type: 'ADD_FRAME', frame: fr, devices: [vec] });
+      }
+      dispatchOp({ type: 'BATCH', ops, label: 'Import comic pages' });
+      if (firstId) setActiveFrameId(firstId);
+      setStudioRightTab('comic');
+    },
+  }), [comicPages, activeFrameObj, addComicPageFrame, dispatchOp]);
+
+  const comicVariant2Ctrl = useTelaComicVariant2Controller(
+    totalDocWriterWords,
+    comicLayoutMode || studioRightTab === 'comic',
+    externalComicHost,
+  );
 
   const toggleInlineComicLayoutMode = useCallback(() => {
-    setComicLayoutMode(prev => {
-      const next = !prev;
-      if (next) {
-        setPosture('PAGE');
-        setStudioDocView('continuous');
-        setStudioRightTab('comic');
-      } else if (studioRightTab === 'comic') {
-        setStudioRightTab('properties');
+    const cur = docRef.current;
+    const curFrame = cur?.frames.find(f => f.id === activeFrameIdRef.current) || cur?.frames[0];
+    if (curFrame?.isComicPage) {
+      const nonComic = cur?.frames.find(f => !f.isComicPage);
+      if (nonComic) {
+        setActiveFrameId(nonComic.id);
+        setStudioRightTab('layers');
+      } else {
+        setStudioRightTab(tab => (tab === 'comic' ? 'layers' : 'comic'));
       }
-      return next;
-    });
-  }, [studioRightTab]);
+      return;
+    }
+    const existingComic = cur?.frames.find(f => f.isComicPage);
+    if (existingComic) {
+      setActiveFrameId(existingComic.id);
+      setStudioRightTab('comic');
+      return;
+    }
+    addComicPageFrame('action-4-grid');
+  }, [addComicPageFrame]);
 
   /** Writers available to bind a Vector TEXT object to (id + friendly name). */
   const writerList = useMemo(
@@ -1726,7 +1885,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     });
     setActiveFrameId(targetFrame.id);
     setStudioSel(boxId);
-    setStudioRightTab('properties');
+    setStudioRightTab('layers');
   };
 
   // A text layer is a page-sized, transparent sheet of text lifted off the page — the Type
@@ -1868,7 +2027,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     });
     setActiveFrameId(targetFrame.id);
     setStudioSel(shapeId);
-    setStudioRightTab('properties');
+    setStudioRightTab('layers');
   };
 
   const createTypographyObjectOnActiveFrame = (kind: 'TEXT' | '3D' | 'SHAPE_ARRAY' | 'GENERATIVE', patch?: Partial<TelaVectorObject>) => {
@@ -1911,7 +2070,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     });
     setActiveFrameId(targetFrame.id);
     setStudioSel(boxId);
-    setStudioRightTab('properties');
+    setStudioRightTab('layers');
   };
 
   const explodeTextIntoLetters = (obj: TelaVectorObject) => {
@@ -1970,6 +2129,28 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     setStudioSelection(newIds);
   };
 
+  const isVisualDropFile = (file: File) =>
+    file.type.startsWith('image/') ||
+    /\.(png|jpe?g|gif|webp|avif|svg|bmp|tiff?|ico|heic|heif|jfif)$/i.test(file.name) ||
+    isVectorFile(file) ||
+    isCameraRawFile(file);
+
+  const fastUploadTelaImage = async (file: File): Promise<{ src: string; storagePath: string; sessionOnly: boolean }> => {
+    const fallback = () => ({ src: URL.createObjectURL(file), storagePath: '', sessionOnly: true });
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return fallback();
+    try {
+      return await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('timeout')), 3500);
+        uploadTelaImage(file).then(
+          res => { clearTimeout(timer); resolve(res); },
+          err => { clearTimeout(timer); reject(err); },
+        );
+      });
+    } catch {
+      return fallback();
+    }
+  };
+
   // Studio image adds — dispatched here so the Studio's own rail/panel can add
   // layers while the device renders chrome-less (Studio hosts the controls).
   const studioAddImageFile = async (deviceId: string, file: File) => {
@@ -1991,7 +2172,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
       }
       const assetKind = classifyTelaAsset(file);
       if (assetKind === 'LOTTIE' || assetKind === 'VIDEO') {
-        const r = await uploadTelaImage(file);
+        const r = await fastUploadTelaImage(file);
         dispatchOp({ type:'ADD_IMAGE_LAYER', deviceId, layer:makeImageLayer(r.src, file.name.replace(/\.[^.]+$/,''), { storagePath:r.storagePath, sessionOnly:r.sessionOnly, mediaKind:assetKind, intrinsicWidth:assetKind === 'LOTTIE' ? 512:1280, intrinsicHeight:assetKind === 'LOTTIE' ? 512:720 }) });
         return;
       }
@@ -2002,8 +2183,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         if (!raster) throw new Error('Tela could not decode this vector. For legacy Illustrator files, save a PDF-compatible AI, SVG, or PDF first.');
         prepared = raster;
       }
-      if (!prepared.type.startsWith('image/')) throw new Error(`${file.name} is not a drawable image asset yet.`);
-      const r = await uploadTelaImage(prepared);
+      if (!prepared.type.startsWith('image/') && !isVisualDropFile(prepared)) throw new Error(`${file.name} is not a drawable image asset yet.`);
+      const r = await fastUploadTelaImage(prepared);
       dispatchOp({ type: 'ADD_IMAGE_LAYER', deviceId, layer: makeImageLayer(r.src, file.name.replace(/\.[^.]+$/, ''), { storagePath: r.storagePath, sessionOnly: r.sessionOnly }) });
     } catch (e) { console.error('[Tela Studio] image upload failed', e); setImportError(e instanceof Error ? e.message : 'Asset import failed.'); }
     finally { setStudioImgBusy(false); }
@@ -2020,22 +2201,67 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     const notes: TelaNotesDevice = { id: uid('dev'), type: 'NOTES', name: journal ? 'Journal' : 'Tela Notes', entries: [entry], activeEntryId: entry.id, defaultKind: journal ? 'JOURNAL' : 'NOTE' };
     addFrame('BOARD', 'FREE', notes, notes.name!, { size: { w: 980, h: 680 } });
   };
-  const studioAddVectorFile = async (device: TelaVectorDevice, file: File) => {
+  const studioAddVectorFile = async (device: TelaVectorDevice, file: File, artboardPos?: { x: number; y: number }) => {
     if (isDesignFile(file.name)) { await importDesignFiles([file]); return; }
     if (isPresetFile(file.name)) { await importPresetsToLibrary([file]); return; }
     setStudioImgBusy(true);
     try {
-      let prepared = file;
-      if (isVectorFile(file)) prepared = (await rasterizeVector(file)) || file;
-      const r = await uploadTelaImage(prepared);
-      const image = await new Promise<HTMLImageElement>((resolve, reject) => { const el = new Image(); el.onload = () => resolve(el); el.onerror = reject; el.src = r.src; });
-      const scale = Math.min(1, device.width * .7 / image.naturalWidth, device.height * .7 / image.naturalHeight);
-      const w = image.naturalWidth * scale, h = image.naturalHeight * scale;
-      const object: TelaVectorObject = { id: uid('obj'), kind: 'IMAGE', x: (device.width - w) / 2, y: (device.height - h) / 2, w, h, fill: 'none', stroke: 'none', strokeWidth: 0, rotation: 0, opacity: 1, sourceImageSrc: r.src, sourceCrop: { x: 0, y: 0, width: image.naturalWidth, height: image.naturalHeight, sourceWidth: image.naturalWidth, sourceHeight: image.naturalHeight }, objectLabel: file.name, semanticRole: 'ARTWORK' };
-      dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: device.id, object }); setStudioSel(object.id);
-    } catch (error) { console.error('[Tela Studio] vector asset import failed', error); }
-    finally { setStudioImgBusy(false); }
+      let src = '';
+      let naturalW = 0;
+      let naturalH = 0;
+      if (isCameraRawFile(file)) {
+        const decoded = await decodeCameraRawFile(file);
+        src = decoded.dataUrl;
+        naturalW = decoded.width;
+        naturalH = decoded.height;
+      } else {
+        let prepared = file;
+        if (isVectorFile(file)) prepared = (await rasterizeVector(file)) || file;
+        const r = await fastUploadTelaImage(prepared);
+        src = r.src;
+        const image = await new Promise<HTMLImageElement>((resolve, reject) => { const el = new Image(); el.onload = () => resolve(el); el.onerror = reject; el.src = src; });
+        naturalW = image.naturalWidth || 400;
+        naturalH = image.naturalHeight || 300;
+      }
+      const scale = Math.min(1, (device.width * 0.72) / Math.max(1, naturalW), (device.height * 0.72) / Math.max(1, naturalH));
+      const w = Math.max(24, Math.round(naturalW * scale)), h = Math.max(24, Math.round(naturalH * scale));
+      const rawX = artboardPos ? Math.round(artboardPos.x - w / 2) : Math.round((device.width - w) / 2);
+      const rawY = artboardPos ? Math.round(artboardPos.y - h / 2) : Math.round((device.height - h) / 2);
+      const x = Math.max(0, Math.min(Math.max(0, device.width - w), rawX));
+      const y = Math.max(0, Math.min(Math.max(0, device.height - h), rawY));
+      const object: TelaVectorObject = { id: uid('obj'), kind: 'IMAGE', x, y, w, h, fill: 'none', stroke: 'none', strokeWidth: 0, rotation: 0, opacity: 1, sourceImageSrc: src, sourceCrop: { x: 0, y: 0, width: naturalW, height: naturalH, sourceWidth: naturalW, sourceHeight: naturalH }, objectLabel: file.name, semanticRole: 'ARTWORK' };
+      dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: device.id, object });
+      setStudioSel(object.id);
+    } catch (error) {
+      console.error('[Tela Studio] vector asset import failed', error);
+      setImportError(error instanceof Error ? error.message : `Could not place ${file.name} on page.`);
+    } finally { setStudioImgBusy(false); }
   };
+
+  const addImageFileToFrame = async (targetFrameId: string | null | undefined, file: File, artboardPos?: { x: number; y: number }) => {
+    const cur = docRef.current;
+    if (!cur) return;
+    const targetFrame = (targetFrameId ? cur.frames.find(f => f.id === targetFrameId) : null) || cur.frames.find(f => f.id === activeFrameIdRef.current) || cur.frames[0];
+    if (!targetFrame) return;
+    const frameImg = targetFrame.deviceIds.map(id => cur.devices[id]).find((d): d is TelaImageDevice => d?.type === 'IMAGE');
+    if (frameImg && !targetFrame.deviceIds.some(id => cur.devices[id]?.type === 'VECTOR')) {
+      setActiveFrameId(targetFrame.id);
+      await studioAddImageFile(frameImg.id, file);
+      return;
+    }
+    const vecId = ensureVectorOverlayForFrame(targetFrame);
+    const vecDev = (docRef.current?.devices[vecId] as TelaVectorDevice | undefined) || {
+      id: vecId,
+      type: 'VECTOR',
+      name: `${targetFrame.label || 'Page'} Overlay`,
+      width: targetFrame.w,
+      height: targetFrame.h,
+      objects: [],
+    };
+    setActiveFrameId(targetFrame.id);
+    await studioAddVectorFile(vecDev, file, artboardPos);
+  };
+
   // Lottie (.lottie / Lottie .json) → a native LOTTIE object on the artboard.
   const studioAddLottieFile = async (device: TelaVectorDevice, file: File, at?: { x: number; y: number }) => {
     setStudioImgBusy(true); setImportError(null);
@@ -2045,6 +2271,52 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     } catch (error) { setImportError(error instanceof Error ? error.message : 'Lottie import failed.'); }
     finally { setStudioImgBusy(false); }
   };
+
+  const handleDesktopFilesDrop = (files: File[], targetFrameId?: string | null, artboardPos?: { x: number; y: number }) => {
+    setAssetDropActive(false);
+    if (!files.length) return;
+    const design = files.filter(f => isDesignFile(f.name));
+    if (design.length) void importDesignFiles(design, artboardPos);
+    const presets = files.filter(f => !design.includes(f) && isPresetFile(f.name));
+    if (presets.length) void importPresetsToLibrary(presets);
+    const lotties = files.filter(f => !design.includes(f) && !presets.includes(f) && isLottieFileName(f.name));
+    const visual = files.filter(f => !design.includes(f) && !presets.includes(f) && !lotties.includes(f) && isVisualDropFile(f));
+    const other = files.filter(f => !design.includes(f) && !presets.includes(f) && !lotties.includes(f) && !visual.includes(f));
+
+    if (lotties.length) {
+      const cur = docRef.current;
+      const frame = (targetFrameId ? cur?.frames.find(f => f.id === targetFrameId) : null) || cur?.frames.find(f => f.id === activeFrameIdRef.current) || cur?.frames[0];
+      if (frame) {
+        const vecId = ensureVectorOverlayForFrame(frame);
+        const vecDev = (docRef.current?.devices[vecId] as TelaVectorDevice | undefined) || { id: vecId, type: 'VECTOR', name: 'Overlay', width: frame.w, height: frame.h, objects: [] };
+        lotties.forEach((file, index) => void studioAddLottieFile(vecDev, file, artboardPos ? { x: artboardPos.x + index * 24, y: artboardPos.y + index * 24 } : undefined));
+      }
+    }
+    visual.forEach((file, idx) => {
+      const at = artboardPos ? { x: artboardPos.x + idx * 24, y: artboardPos.y + idx * 24 } : undefined;
+      void addImageFileToFrame(targetFrameId, file, at);
+    });
+    if (other.length) void insertAssetFiles(other, artboardPos);
+  };
+
+  const pageContextMenu = useContextMenu<{ frame: TelaFrame; index: number }>(ctx => {
+    const frames = docRef.current?.frames || [];
+    const total = frames.length;
+    const { frame, index } = ctx;
+    return [
+      { kind: 'header', label: frame.label || `Page ${index + 1}` },
+      { id: 'move-up', label: 'Move Up', disabled: index <= 0, onSelect: () => dispatchOp({ type: 'REORDER_FRAME', frameId: frame.id, toIndex: index - 1 }) },
+      { id: 'move-down', label: 'Move Down', disabled: index >= total - 1, onSelect: () => dispatchOp({ type: 'REORDER_FRAME', frameId: frame.id, toIndex: index + 1 }) },
+      { id: 'move-top', label: 'Move to Top', disabled: index <= 0, onSelect: () => dispatchOp({ type: 'REORDER_FRAME', frameId: frame.id, toIndex: 0 }) },
+      { id: 'move-bottom', label: 'Move to Bottom', disabled: index >= total - 1, onSelect: () => dispatchOp({ type: 'REORDER_FRAME', frameId: frame.id, toIndex: total - 1 }) },
+      { kind: 'separator' },
+      { id: 'rename-pg', label: 'Rename Page', icon: <Type size={14} />, onSelect: () => {
+        const next = window.prompt('Page name:', frame.label || `Page ${index + 1}`);
+        if (next && next.trim()) dispatchOp({ type: 'RENAME_FRAME', frameId: frame.id, label: next.trim() });
+      } },
+      { id: 'delete-pg', label: 'Delete Page', icon: <Trash2 size={14} />, danger: true, disabled: total <= 1, onSelect: () => dispatchOp({ type: 'DELETE_FRAME', frameId: frame.id }) },
+    ];
+  });
   const saveStudioPaint = async (device: TelaImageDevice, blob: Blob) => {
     const file = new File([blob], `Tela paint ${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`, { type: 'image/png' });
     await studioAddImageFile(device.id, file); setStudioPaintOpen(false);
@@ -2777,13 +3049,53 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   // A design file becomes vector artboards (one per Photoshop or Illustrator artboard); see
   // services/tela/import. Each object stays what it was: pixels, live type, real paths.
   const addImportedDocument = (imported: ImportedDocument, pos?: { x: number; y: number }) => {
-    let x = pos?.x, y = pos?.y;
+    const cur = docRef.current;
+    const basePos = pos || nextFramePos();
+    let x = basePos.x;
+    const y = basePos.y;
+    const ops: TelaOp[] = [];
+    let firstFrame: TelaFrame | null = null;
     imported.pages.forEach(page => {
-      const dev: TelaVectorDevice = { id: uid('dev'), type: 'VECTOR', name: page.name, width: page.width, height: page.height, objects: page.objects, studio: { ...page.studio, imported: { fileName: imported.report.fileName, format: imported.report.format, at: Date.now(), report: imported.report } } };
-      addFrame('BOARD', 'FREE', dev, page.name, { size: { w: page.width, h: page.height }, pos: x !== undefined && y !== undefined ? { x, y } : undefined });
-      if (x !== undefined) x += page.width + 80;
+      const dev: TelaVectorDevice = {
+        id: uid('dev'),
+        type: 'VECTOR',
+        name: page.name,
+        width: page.width,
+        height: page.height,
+        objects: page.objects,
+        studio: {
+          ...page.studio,
+          imported: {
+            fileName: imported.report.fileName,
+            format: imported.report.format,
+            at: Date.now(),
+            report: imported.report,
+          },
+        },
+      };
+      const frame: TelaFrame = {
+        id: uid('frame'),
+        kind: 'BOARD',
+        preset: 'FREE',
+        x,
+        y,
+        w: page.width,
+        h: page.height,
+        deviceIds: [dev.id],
+        label: page.name,
+      };
+      if (!firstFrame) firstFrame = frame;
+      ops.push({ type: 'ADD_FRAME', frame, devices: [dev] });
+      x += page.width + 80;
     });
-    setShowHome(false); setPosture('STUDIO'); setStudioDocView('focus');
+    if (cur && ops.length) {
+      if (ops.length === 1) dispatchOp(ops[0]);
+      else dispatchOp({ type: 'BATCH', ops, label: `Import ${imported.report.fileName}` });
+      if (firstFrame) setActiveFrameId((firstFrame as TelaFrame).id);
+    }
+    setShowHome(false);
+    setPosture('STUDIO');
+    setStudioDocView('focus');
     // Open fitted to the window, the way Photoshop and Illustrator open a file.
     const first = imported.pages[0];
     if (first) requestAnimationFrame(() => { const el = studioScrollRef.current; const vw = el?.clientWidth || window.innerWidth - 520, vh = el?.clientHeight || window.innerHeight - 260; setStudioZoom(Math.max(.1, Math.min(1, (vw - 96) / first.width, (vh - 116) / first.height))); });
@@ -3277,7 +3589,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
   if (showHome) {
     return <>
-      <input ref={fileRef} type="file" accept={`${SUPPORTED_IMPORT_ACCEPT},.csv,.xlsx,.tela,.psd,.psb,.psdt,.ai,.ait,.eps,.abr,.csh,.ase,.aco,.pat,${CAD_ACCEPT}`} className="hidden" onChange={e => { const file=e.target.files?.[0]; if(file)void handleImportFile(file); e.target.value=''; }}/>
+      <input ref={fileRef} type="file" accept={`${SUPPORTED_IMPORT_ACCEPT},.csv,.xlsx,.tela,.psd,.psb,.psdt,.ai,.ait,.eps,.idml,.indd,.inx,.abr,.csh,.ase,.aco,.pat,${CAD_ACCEPT}`} className="hidden" onChange={e => { const file=e.target.files?.[0]; if(file)void handleImportFile(file); e.target.value=''; }}/>
       {designImport && <React.Suspense fallback={null}><DesignImportDialog state={designImport} onClose={() => setDesignImport(null)} onOpenSmart={(id, name) => void openImportedSmartObject(id, name)}/></React.Suspense>}
       {libraryPanel && <React.Suspense fallback={null}><TelaLibraryPanel initialTab={libraryPanel.tab} note={libraryPanel.note} onClose={() => setLibraryPanel(null)} onPlaceShape={placeLibraryShape} onUseColor={useLibraryColor} onUsePattern={p => void useLibraryPattern(p)} onUseBrush={useLibraryBrush}/></React.Suspense>}
       {accessEndedNote && <div role="alert" className="fixed top-4 left-1/2 -translate-x-1/2 z-[9000] max-w-[min(560px,calc(100vw-32px))] flex items-start gap-3 rounded-xl border border-amber-300/30 bg-[#1b1710] px-4 py-3 text-xs text-amber-100"><span className="flex-1">{accessEndedNote}</span><button className="font-bold text-white/70 hover:text-white" onClick={() => setAccessEndedNote('')}>Dismiss</button></div>}
@@ -3287,140 +3599,163 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
   return (
     <div className="flex-1 w-full h-full min-h-0 flex flex-col overflow-hidden select-none" style={{ background: 'var(--bg-color, #070609)' }}>
-      {/* ── Top bar ─────────────────────────────────────────────────────────── */}
+      {/* ── Streamlined Top Toolbar ─────────────────────────────────────────── */}
       <header
         ref={collabAnchorRef}
-        className="@container shrink-0 flex items-center gap-2 px-3 h-14 border-b min-w-0 relative z-[95]"
+        className="@container shrink-0 flex items-center gap-1.5 px-3 h-12 border-b min-w-0 relative z-[95]"
         style={{ borderColor: 'var(--border-color, rgba(255,255,255,0.08))', background: 'linear-gradient(180deg,#140D20,#0E0A16)' }}
       >
         {returnTo ? (
           <button
-            className="shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-full text-[.72rem] font-bold text-white bg-white/[0.07] border border-white/[0.14] hover:bg-white/[0.12]"
+            className="shrink-0 flex items-center gap-1 h-8 px-2.5 rounded-full text-[.7rem] font-bold text-white bg-white/[0.07] border border-white/[0.14] hover:bg-white/[0.12]"
             onClick={returnTo.onReturn}
             title={`Back to ${returnTo.label}`}
           >
-            <ChevronLeft size={14} /> <span className="max-w-[160px] truncate">Back to {returnTo.label}</span>
+            <ChevronLeft size={14} /> <span className="max-w-[140px] truncate">Back to {returnTo.label}</span>
           </button>
         ) : onBack && (
           <button className={topBtn} onClick={onBack} title="Back"><ChevronLeft size={15} /></button>
         )}
-        <button onClick={() => { void refreshList(); setShowHome(true); }} className="flex items-center gap-2 pr-1" title="Tela Home">
-          <span className="w-8 h-8 rounded-[10px] grid place-items-center text-white" style={{ background: 'var(--pj-grad-warm, linear-gradient(135deg,#6B0099,#D40055,#FF8C00))' }}>
-            <LayoutPanelTop size={16} />
+        <button onClick={() => { void refreshList(); setShowHome(true); }} className="flex items-center gap-1.5 pr-1 shrink-0" title="Tela Home">
+          <span className="w-7 h-7 rounded-[9px] grid place-items-center text-white" style={{ background: 'var(--pj-grad-warm, linear-gradient(135deg,#6B0099,#D40055,#FF8C00))' }}>
+            <LayoutPanelTop size={15} />
           </span>
-          <span className="font-display italic text-white text-[1.05rem] leading-none select-none">Tela</span>
+          <span className="font-display italic text-white text-[1rem] leading-none select-none">Tela</span>
         </button>
 
         <input
           value={doc.title}
           onChange={e => dispatchOp({ type: 'SET_TITLE', title: e.target.value })}
           placeholder="Untitled canvas"
-          className="bg-transparent border border-transparent hover:border-white/[0.12] focus:border-white/[0.25] rounded-[9px] outline-none text-white text-[.9rem] font-semibold px-2.5 h-9 w-[200px] @max-[1720px]:w-[150px] @max-[1240px]:w-[110px] min-w-0 transition-colors"
+          className="bg-transparent border border-transparent hover:border-white/[0.12] focus:border-white/[0.25] rounded-[8px] outline-none text-white text-[.85rem] font-semibold px-2 h-8 w-[170px] @max-[1500px]:w-[130px] @max-[1100px]:w-[100px] min-w-0 transition-colors"
         />
 
-        {/* Posture switch — Unified Studio UI */}
-        <div className="flex items-center rounded-[11px] border border-white/[0.12] bg-white/[0.04] p-0.5 ml-1">
+        {/* Quick Undo / Redo */}
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button
+            onClick={() => stepHistory('undo')}
+            disabled={!historyDepth.past || !!doc.locked}
+            title="Undo (Ctrl+Z)"
+            aria-label="Undo"
+            className="grid place-items-center w-7 h-8 rounded-[8px] text-white/75 hover:text-white hover:bg-white/[0.08] disabled:opacity-30 transition-colors"
+          >
+            <Undo2 size={14} />
+          </button>
+          <button
+            onClick={() => stepHistory('redo')}
+            disabled={!historyDepth.future || !!doc.locked}
+            title="Redo (Ctrl+Shift+Z)"
+            aria-label="Redo"
+            className="grid place-items-center w-7 h-8 rounded-[8px] text-white/75 hover:text-white hover:bg-white/[0.08] disabled:opacity-30 transition-colors"
+          >
+            <Redo2 size={14} />
+          </button>
+        </div>
+
+        {/* View Mode Switch — Studio / Pages / Board */}
+        <div className="flex items-center rounded-[10px] border border-white/[0.12] bg-white/[0.04] p-0.5 shrink-0">
           <button
             onClick={() => switchPosture('STUDIO')}
-            className="h-8 px-3.5 rounded-[9px] text-[.72rem] font-bold tracking-wide transition-colors"
+            className="h-7 px-3 rounded-[8px] text-[.7rem] font-bold tracking-wide transition-colors"
             style={posture === 'STUDIO' && studioDocView === 'focus'
               ? { background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))', color: '#fff', boxShadow: 'var(--pj-glow-brand, 0 6px 22px rgba(212,0,85,.34))' }
-              : { color: 'rgba(255,255,255,0.55)' }}
-            title="Studio Workspace — precision creative & productivity tools"
+              : { color: 'rgba(255,255,255,0.58)' }}
+            title="Studio Workspace — precision single-page canvas with rulers"
           >
             Studio
           </button>
           <button
             onClick={() => switchPosture('PAGE')}
-            className="h-8 px-3.5 rounded-[9px] text-[.72rem] font-bold tracking-wide transition-colors"
+            className="h-7 px-3 rounded-[8px] text-[.7rem] font-bold tracking-wide transition-colors"
             style={(posture === 'PAGE' || (posture === 'STUDIO' && studioDocView === 'continuous'))
               ? { background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))', color: '#fff', boxShadow: 'var(--pj-glow-brand, 0 6px 22px rgba(212,0,85,.34))' }
-              : { color: 'rgba(255,255,255,0.55)' }}
-            title="Page Document View — continuous scroll with full Studio tools"
+              : { color: 'rgba(255,255,255,0.58)' }}
+            title="Continuous Multi-Page View"
           >
-            Page
+            Pages
           </button>
           <button
             onClick={() => switchPosture('BOARD')}
-            className="h-8 px-3.5 rounded-[9px] text-[.72rem] font-bold tracking-wide transition-colors"
+            className="h-7 px-3 rounded-[8px] text-[.7rem] font-bold tracking-wide transition-colors"
             style={posture === 'BOARD'
               ? { background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))', color: '#fff', boxShadow: 'var(--pj-glow-brand, 0 6px 22px rgba(212,0,85,.34))' }
-              : { color: 'rgba(255,255,255,0.55)' }}
+              : { color: 'rgba(255,255,255,0.58)' }}
             title="Spatial Infinite Board"
           >
             Board
           </button>
         </div>
 
-        {/* Local AI Studio */}
+        {/* ＋ Add Page / Device */}
+        <div className="relative shrink-0">
+          <button className={topBtn} onClick={() => { setDeviceMenuOpen(o => !o); setPresetMenuOpen(false); setCanvasesOpen(false); }} title="Add Page or Device">
+            <Plus size={14} /> <span className={hdrLabel2}>Add</span> <ChevronDown size={12} className="opacity-60" />
+          </button>
+          {deviceMenuOpen && (
+            <div style={menuStyle} onMouseLeave={() => setDeviceMenuOpen(false)}>
+              <button className={menuItem} onClick={addWriterPage}><Type size={15} className="text-[var(--pj-lilac,#D0BCFF)]" /> Writer page<span className="ml-auto text-[.62rem] text-white/40">Letter</span></button>
+              <button className={menuItem} onClick={() => { addComicPageFrame('action-4-grid'); setDeviceMenuOpen(false); }}><BookOpen size={15} className="text-[#D0BCFF]" /> Comic Book page<span className="ml-auto text-[.62rem] text-white/40">6.625×10.25″</span></button>
+              <button className={menuItem} onClick={addSongwritingPage}><Music2 size={15} className="text-[var(--pj-orange,#FF8C00)]" /> Songwriting page<span className="ml-auto text-[.62rem] text-white/40">Lyrics</span></button>
+              <button className={menuItem} onClick={addPoetryPage}><Feather size={15} className="text-[var(--pj-magenta,#D40055)]" /> Poetry page</button>
+              <button className={menuItem} onClick={() => addNotesFrame(false)}><BookHeart size={15} className="text-[var(--pj-cyan,#00DAF3)]" /> Notes &amp; journals<span className="ml-auto text-[.62rem] text-white/40">Stack</span></button>
+              <button className={menuItem} onClick={addGridSheet}><Grid3X3 size={15} className="text-[var(--pj-cyan,#00DAF3)]" /> Grid sheet</button>
+              <button className={menuItem} onClick={addChartFrame}><BarChart3 size={15} className="text-[var(--pj-orange,#FF8C00)]" /> Data visualization<span className="ml-auto text-[.62rem] text-white/40">2D · 3D</span></button>
+              <button className={menuItem} onClick={addBaseTable}><Database size={15} className="text-[var(--pj-success,#06D6A0)]" /> Base table<span className="ml-auto text-[.62rem] text-white/40">Database</span></button>
+              <button className={menuItem} onClick={addFormFrame}><FormInput size={15} className="text-[var(--pj-magenta,#D40055)]" /> Form<span className="ml-auto text-[.62rem] text-white/40">→ Base</span></button>
+              <button className={menuItem} onClick={addVectorArtboard}><Shapes size={15} className="text-[var(--pj-lilac,#D0BCFF)]" /> Vector artboard<span className="ml-auto text-[.62rem] text-white/40">Studio</span></button>
+              <button className={menuItem} onClick={addImageCanvas}><ImageIcon size={15} className="text-[var(--pj-cyan,#00DAF3)]" /> Image canvas<span className="ml-auto text-[.62rem] text-white/40">Layers</span></button>
+              <button className={menuItem} onClick={addScreenFrame}><Monitor size={15} className="text-[var(--pj-orange,#FF8C00)]" /> Screen frame<span className="ml-auto text-[.62rem] text-white/40">1080×1920</span></button>
+            </div>
+          )}
+        </div>
+
+        {/* Creative Suites Compact Pill Group */}
         <button
           onClick={() => setLocalStudioOpen(true)}
-          className="shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[.72rem] font-bold text-[#FF8C00] bg-[#D40055]/10 border border-[#D40055]/30 hover:bg-[#D40055]/20 transition-all shadow-sm"
+          className="@max-[1360px]:hidden shrink-0 flex items-center gap-1 h-8 px-2.5 rounded-[8px] text-[.7rem] font-bold text-[#FF8C00] bg-[#D40055]/10 border border-[#D40055]/30 hover:bg-[#D40055]/20 transition-all"
           title="Open Local Creative Studio (On-Device GPU)"
         >
-          <Wand2 size={13} className="text-[#D40055]" />
-          <span className={hdrLabel}>AI Studio</span>
-          <span className="@max-[1720px]:hidden text-[9px] font-extrabold text-emerald-400 uppercase tracking-wider px-1 py-0.5 rounded bg-emerald-500/15">Local</span>
+          <Wand2 size={12} className="text-[#D40055]" />
+          <span>AI Studio</span>
         </button>
 
-        {/* PAI Generations Gallery */}
-        <button
-          onClick={() => setPaiGalleryOpen(true)}
-          className="@max-[1100px]:hidden shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[.72rem] font-bold text-sky-400 bg-sky-500/10 border border-sky-500/30 hover:bg-sky-500/20 transition-all shadow-sm"
-          title="Open PAI Generations Gallery (Your Past AI Creations)"
-        >
-          <Sparkles size={13} className="text-sky-400" />
-          <span className={hdrLabel}>PAI Gallery</span>
-        </button>
-
-        {/* Comic Studio (Inline Variant 2 Page-Layout Mode) */}
         <button
           onClick={toggleInlineComicLayoutMode}
-          className="shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[.72rem] font-bold transition-all shadow-sm"
+          className="shrink-0 flex items-center gap-1 h-8 px-2.5 rounded-[8px] text-[.7rem] font-bold transition-all"
           style={
             comicLayoutMode
-              ? {
-                  background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))',
-                  color: '#fff',
-                  boxShadow: 'var(--pj-glow-brand, 0 6px 22px rgba(212,0,85,.34))',
-                }
-              : {
-                  color: '#d8b4fe',
-                  background: 'rgba(168,85,247,0.1)',
-                  border: '1px solid rgba(168,85,247,0.3)',
-                }
+              ? { background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))', color: '#fff', boxShadow: 'var(--pj-glow-brand, 0 6px 22px rgba(212,0,85,.34))' }
+              : { color: '#d8b4fe', background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.3)' }
           }
-          title="Toggle Native Comic & Manga Page-Layout Mode (Variant 2)"
+          title={comicLayoutMode ? 'Switch back from Comic Page' : 'Open a New Undoable Comic Book Page'}
         >
-          <BookOpen size={13} className={comicLayoutMode ? 'text-white' : 'text-purple-300'} />
-          <span className={hdrLabel}>Comic Studio</span>
+          <BookOpen size={12} className={comicLayoutMode ? 'text-white' : 'text-purple-300'} />
+          <span>Comic Page</span>
         </button>
 
-        {/* Classwork — bring in lessons, worksheets, quizzes and keys (teachers & education staff) */}
         {(classwork || isEducator) && (
           <button
             onClick={() => setClassworkOpen(true)}
-            className="shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[.72rem] font-bold transition-all shadow-sm"
+            className="shrink-0 flex items-center gap-1 h-8 px-2.5 rounded-[8px] text-[.7rem] font-bold transition-all"
             style={classworkOpen
               ? { background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))', color: '#fff' }
               : { color: '#FFB15C', background: 'rgba(255,140,0,0.1)', border: '1px solid rgba(255,140,0,0.32)' }}
-            title="Classwork — turn lessons, worksheets, quizzes and answer keys into Tela docs and send them to a class"
+            title="Classwork"
           >
-            <GraduationCap size={13} />
+            <GraduationCap size={12} />
             <span className={hdrLabel}>Classwork</span>
           </button>
         )}
 
-        {/* Templates — save this document as a template (me / the org / everyone) or start from the shared library */}
         <div className="relative shrink-0">
           <button
             onClick={() => { setTemplateMenu(null); setLibraryPanel(null); setDocTemplates(s => (s === 'open' ? 'collapsed' : 'open')); }}
             aria-expanded={docTemplates === 'open'}
             data-testid="doc-templates-button"
-            className="flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[.72rem] font-bold text-violet-200 bg-violet-500/10 border border-violet-400/30 hover:bg-violet-500/20 transition-all shadow-sm"
-            title="Templates — themes and page templates for this document, in a panel on the right"
+            className="flex items-center gap-1 h-8 px-2.5 rounded-[8px] text-[.7rem] font-bold text-violet-200 bg-violet-500/10 border border-violet-400/30 hover:bg-violet-500/20 transition-all"
+            title="Themes and page templates"
           >
-            <LayoutTemplate size={13} />
+            <LayoutTemplate size={12} />
             <span className={hdrLabel}>Templates</span>
           </button>
           {templateMenu === 'menu' && (
@@ -3431,81 +3766,21 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           )}
         </div>
 
-        {/* Pro Vector Studio quick button */}
-        {posture !== 'STUDIO' && (
-          <button
-            onClick={() => switchPosture('STUDIO')}
-            className="flex items-center gap-1.5 h-8 px-3 rounded-[9px] text-[.72rem] font-bold text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 hover:bg-cyan-500/20 transition-all shadow-sm"
-            title="Switch to Pro Vector Studio (18 Precision Tools)"
-          >
-            <PenLine size={13} className="text-cyan-300" />
-            <span className={hdrLabel}>Pro Studio</span>
-          </button>
-        )}
-
-        {/* ＋ Device */}
-        <div className="relative">
-          <button className={topBtn} onClick={() => { setDeviceMenuOpen(o => !o); setPresetMenuOpen(false); setCanvasesOpen(false); }}>
-            <Plus size={15} /> <span className={hdrLabel2}>Device</span> <ChevronDown size={13} className="opacity-60" />
-          </button>
-          {deviceMenuOpen && (
-            <div style={menuStyle} onMouseLeave={() => setDeviceMenuOpen(false)}>
-              <button className={menuItem} onClick={addWriterPage}><Type size={15} className="text-[var(--pj-lilac,#D0BCFF)]" /> Writer page<span className="ml-auto text-[.62rem] text-white/40">Letter</span></button>
-              <button className={menuItem} onClick={addSongwritingPage}><Music2 size={15} className="text-[var(--pj-orange,#FF8C00)]" /> Songwriting page<span className="ml-auto text-[.62rem] text-white/40">Lyrics</span></button>
-              <button className={menuItem} onClick={addPoetryPage}><Feather size={15} className="text-[var(--pj-magenta,#D40055)]" /> Poetry page</button>
-              <button className={menuItem} onClick={() => addNotesFrame(false)}><BookHeart size={15} className="text-[var(--pj-cyan,#00DAF3)]" /> Notes & journals<span className="ml-auto text-[.62rem] text-white/40">Stack</span></button>
-              <button className={menuItem} onClick={addGridSheet}><Grid3X3 size={15} className="text-[var(--pj-cyan,#00DAF3)]" /> Grid sheet</button>
-              <button className={menuItem} onClick={addChartFrame}><BarChart3 size={15} className="text-[var(--pj-orange,#FF8C00)]" /> Data visualization<span className="ml-auto text-[.62rem] text-white/40">2D · 3D</span></button>
-              <button className={menuItem} onClick={addBaseTable}><Database size={15} className="text-[var(--pj-success,#06D6A0)]" /> Base table<span className="ml-auto text-[.62rem] text-white/40">Database</span></button>
-              <button className={menuItem} onClick={addFormFrame}><FormInput size={15} className="text-[var(--pj-magenta,#D40055)]" /> Form<span className="ml-auto text-[.62rem] text-white/40">→ Base</span></button>
-              <button className={menuItem} onClick={addVectorArtboard}><Shapes size={15} className="text-[var(--pj-lilac,#D0BCFF)]" /> Vector<span className="ml-auto text-[.62rem] text-white/40">Studio</span></button>
-              <button className={menuItem} onClick={addImageCanvas}><ImageIcon size={15} className="text-[var(--pj-cyan,#00DAF3)]" /> Image<span className="ml-auto text-[.62rem] text-white/40">Layers</span></button>
-              <button className={menuItem} onClick={addScreenFrame}><Monitor size={15} className="text-[var(--pj-orange,#FF8C00)]" /> Screen frame<span className="ml-auto text-[.62rem] text-white/40">1080×1920</span></button>
-            </div>
-          )}
-        </div>
-
-        {/* Frame preset picker (for the active frame) */}
-        <div className="relative">
-          <button
-            className={topBtn}
-            disabled={!activeFrame}
-            style={!activeFrame ? { opacity: 0.4, cursor: 'default' } : undefined}
-            onClick={() => { setPresetMenuOpen(o => !o); setDeviceMenuOpen(false); setCanvasesOpen(false); }}
-          >
-            {activeFrame ? PRESETS[activeFrame.preset].label : 'Preset'} <ChevronDown size={13} className="opacity-60" />
-          </button>
-          {presetMenuOpen && activeFrame && (
-            <div style={menuStyle} onMouseLeave={() => setPresetMenuOpen(false)}>
-              {(activeFrame.kind === 'PAPER' ? PAPER_PRESETS : activeFrame.kind === 'SCREEN' ? SCREEN_PRESETS : (['FREE', ...PAPER_PRESETS, ...SCREEN_PRESETS] as TelaFramePreset[])).map(p => (
-                <button
-                  key={p}
-                  className={menuItem}
-                  onClick={() => { dispatchOp({ type: 'SET_FRAME_PRESET', frameId: activeFrame.id, preset: p }); setPresetMenuOpen(false); }}
-                  style={activeFrame.preset === p ? { color: 'var(--pj-cyan, #00DAF3)' } : undefined}
-                >
-                  {PRESETS[p].label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         <div className="flex-1" />
 
-        {/* Import — honest about coverage */}
-        <button className={topBtn} onClick={() => fileRef.current?.click()} disabled={importBusy} title="Import docx · pdf · md · txt · fountain · csv · xlsx">
-          <FileUp size={15} /> <span className={hdrLabel2}>{importBusy ? 'Importing…' : 'Import'}</span>
+        {/* Import / Export / Overflow */}
+        <button className={topBtn} onClick={() => fileRef.current?.click()} disabled={importBusy} title="Import docx · pdf · psd · ai · idml · csv · xlsx">
+          <FileUp size={14} /> <span className={hdrLabel2}>{importBusy ? 'Importing…' : 'Import'}</span>
         </button>
         <input
           ref={fileRef}
           type="file"
-          accept={`${SUPPORTED_IMPORT_ACCEPT},.csv,.xlsx,.tela,.psd,.psb,.psdt,.ai,.ait,.eps,.abr,.csh,.ase,.aco,.pat,${CAD_ACCEPT}`}
+          accept={`${SUPPORTED_IMPORT_ACCEPT},.csv,.xlsx,.tela,.psd,.psb,.psdt,.ai,.ait,.eps,.idml,.indd,.inx,.abr,.csh,.ase,.aco,.pat,${CAD_ACCEPT}`}
           className="hidden"
           onChange={e => { const f = e.target.files?.[0]; if (f) void handleImportFile(f); e.target.value = ''; }}
         />
         <input ref={assetFileRef} type="file" accept={TELA_ASSET_ACCEPT} multiple className="hidden" onChange={e => { const files = [...(e.target.files || [])]; if (files.length) void insertAssetFiles(files); e.target.value = ''; }}/>
-        <input ref={designFileRef} type="file" accept=".psd,.psb,.psdt,.ai,.ait,.eps" multiple className="hidden" data-testid="design-file-input" onChange={e => { const files = [...(e.target.files || [])]; e.target.value = ''; if (files.length) void importDesignFiles(files); }}/>
+        <input ref={designFileRef} type="file" accept=".psd,.psb,.psdt,.ai,.ait,.eps,.idml,.indd,.inx" multiple className="hidden" data-testid="design-file-input" onChange={e => { const files = [...(e.target.files || [])]; e.target.value = ''; if (files.length) void importDesignFiles(files); }}/>
         {designImport && <React.Suspense fallback={null}><DesignImportDialog state={designImport} onClose={() => setDesignImport(null)} onOpenSmart={(id, name) => void openImportedSmartObject(id, name)}/></React.Suspense>}
         {pluginPanelOpen && <React.Suspense fallback={null}><TelaPluginPanel hasImage={!!pluginTargetImage()} onClose={() => setPluginPanelOpen(false)} onRun={runPluginOnSelection}/></React.Suspense>}
         {libraryPanel && <React.Suspense fallback={null}><TelaLibraryPanel initialTab={libraryPanel.tab} note={libraryPanel.note} onClose={() => setLibraryPanel(null)} onPlaceShape={placeLibraryShape} onUseColor={useLibraryColor} onUsePattern={p => void useLibraryPattern(p)} onUseBrush={useLibraryBrush}/></React.Suspense>}
@@ -3527,40 +3802,29 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           />
         </React.Suspense>}
 
-        <button className={topBtn} onClick={exportPdf} title="Print the active frame at exact page size — save as PDF in the print dialog">
-          <FileDown size={15} /> <span className={hdrLabel2}>Export PDF</span>
-        </button>
-        <button className={`${topBtn} ${hdrExtra}`} onClick={() => doc && downloadTelaHtml(doc, activeFrameId || undefined)} title="Export the active Tela frame as a responsive standalone HTML page">
-          <Monitor size={15} /> <span className={hdrLabel}>Export HTML</span>
+        <button className={topBtn} onClick={exportPdf} title="Export active page as PDF (Ctrl+P)">
+          <FileDown size={14} /> <span className={hdrLabel2}>Export PDF</span>
         </button>
 
-        {/* Reference-embed demo — reference-not-export + lock→propagate, live */}
-        <button
-          className={`${topBtn} ${hdrExtra}`}
-          title="See this doc embedded three ways — live-editable, follow-latest, and pinned"
-          onClick={openEmbedDemo}
-        >
-          <Link2 size={15} /> <span className={hdrLabel}>Embed demo</span>
-        </button>
-
-        {/* Narrow header: the extras fold into one menu */}
-        <div className="relative hidden @max-[1100px]:block shrink-0">
-          <button className={topBtn} title="More" aria-label="More" aria-expanded={headerMoreOpen} onClick={() => setHeaderMoreOpen(o => !o)}><MoreHorizontal size={15} /></button>
+        <div className="relative shrink-0">
+          <button className={topBtn} title="More tools & exports" aria-label="More" aria-expanded={headerMoreOpen} onClick={() => setHeaderMoreOpen(o => !o)}><MoreHorizontal size={14} /></button>
           {headerMoreOpen && (
             <div style={{ ...menuStyle, left: 'auto', right: 0 }} onMouseLeave={() => setHeaderMoreOpen(false)}>
-              <button className={menuItem} onClick={() => { setPaiGalleryOpen(true); setHeaderMoreOpen(false); }}><Sparkles size={15} className="text-sky-400" /> PAI Gallery</button>
-              <button className={menuItem} onClick={() => { if (doc) downloadTelaHtml(doc, activeFrameId || undefined); setHeaderMoreOpen(false); }}><Monitor size={15} /> Export HTML</button>
-              <button className={menuItem} onClick={() => { openEmbedDemo(); setHeaderMoreOpen(false); }}><Link2 size={15} /> Embed demo</button>
+              <button className={menuItem} onClick={() => { setLocalStudioOpen(true); setHeaderMoreOpen(false); }}><Wand2 size={14} className="text-[#D40055]" /> Local AI Studio</button>
+              <button className={menuItem} onClick={() => { setPaiGalleryOpen(true); setHeaderMoreOpen(false); }}><Sparkles size={14} className="text-sky-400" /> PAI Gallery</button>
+              <button className={menuItem} onClick={() => { designFileRef.current?.click(); setHeaderMoreOpen(false); }}><Layers size={14} /> Import Photoshop / AI / InDesign…</button>
+              <button className={menuItem} onClick={() => { if (doc) downloadTelaHtml(doc, activeFrameId || undefined); setHeaderMoreOpen(false); }}><Monitor size={14} /> Export HTML</button>
+              <button className={menuItem} onClick={() => { openEmbedDemo(); setHeaderMoreOpen(false); }}><Link2 size={14} /> Embed demo</button>
             </div>
           )}
         </div>
 
-        <button className={topBtn} onClick={() => setSecurityOpen(true)} title={docThreats.length ? 'Unsafe content was blocked in this document' : 'Security: unsafe content, access and paper trail'} aria-label="Document security">
-          {docThreats.length ? <ShieldAlert size={15} className="text-amber-300" /> : <ShieldCheck size={15} />}
+        <button className={topBtn} onClick={() => setSecurityOpen(true)} title={docThreats.length ? 'Unsafe content was blocked in this document' : 'Security'} aria-label="Document security">
+          {docThreats.length ? <ShieldAlert size={14} className="text-amber-300" /> : <ShieldCheck size={14} />}
         </button>
         {securityOpen && <TelaSecurityPanel doc={doc} co={co} threats={docThreats} onClose={() => setSecurityOpen(false)} onClean={(clean, found) => { setDoc(clean); docRef.current = clean; scheduleSave(); setThreatsByDoc(all => ({ ...all, [clean.id]: [...(all[clean.id] || []), ...found] })); void logDocEvent({ pid: coProjectId(TELA_CLOUD_KIND, clean.id), ownerId: clean.ownerId, ...(clean.orgOrigin?.orgId ? { orgId: clean.orgOrigin.orgId } : {}) }, 'threat_blocked', found.map(t => t.kind).join(', ')); }} />}
 
-        {/* People, team chat + call, shared history (components/collab) */}
+        {/* People, team chat + call, shared history */}
         <CollabDock
           co={co}
           kind={TELA_CLOUD_KIND}
@@ -3581,10 +3845,11 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           onOpenChange={setCollabOpen}
           ariaSink={ariaSink}
         />
+
         {/* Save state — click for version history */}
         <div className="relative">
           <button
-            className="text-[.68rem] font-semibold px-2.5 h-9 inline-flex items-center gap-1 rounded-[10px] border shrink-0 whitespace-nowrap"
+            className="text-[.66rem] font-semibold px-2 h-8 inline-flex items-center gap-1 rounded-[9px] border shrink-0 whitespace-nowrap"
             style={{
               color: saveState === 'dirty' ? 'var(--pj-warning, #F59E0B)' : saveState === 'synced' || cloudSync === 'synced' ? 'var(--pj-success, #06D6A0)' : 'rgba(255,255,255,0.55)',
               borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)',
@@ -3592,7 +3857,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
             title="Version history"
             onClick={() => setHistoryOpen(o => !o)}
           >
-            {saveLabel}<ChevronDown size={12} className="opacity-60" />
+            {saveLabel}<ChevronDown size={11} className="opacity-60" />
           </button>
           {historyOpen && doc && (
             <div style={{ ...menuStyle, width: 320, padding: 12 }} className="flex flex-col gap-3 max-h-[70vh] overflow-y-auto custom-scrollbar">
@@ -3618,7 +3883,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         {/* My Canvases */}
         <div className="relative">
           <button className={topBtn} onClick={() => { setCanvasesOpen(o => !o); if (!canvasesOpen) void refreshList(); setDeviceMenuOpen(false); setPresetMenuOpen(false); }}>
-            <Folder size={15} /> <span className={hdrLabel2}>My Canvases</span> <ChevronDown size={13} className="opacity-60" />
+            <Folder size={14} /> <span className={hdrLabel2}>Canvases</span> <ChevronDown size={12} className="opacity-60" />
           </button>
           {canvasesOpen && (
             <div style={{ ...menuStyle, left: 'auto', right: 0, minWidth: 290 }}>
@@ -3665,11 +3930,11 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         </div>
       </header>
 
-      {/* Desktop-class menu bar. A Tela file is the whole board; page exports target the active frame. */}
-      <nav className="shrink-0 flex items-center gap-0.5 px-3 h-9 relative z-[90]" style={{ background: '#0b0810', borderBottom: '1px solid rgba(255,255,255,.075)' }}>
+      {/* Menu bar + integrated Page Size Presets & Custom W×H Fields */}
+      <nav className="shrink-0 flex items-center gap-1 px-3 h-10 relative z-[90]" style={{ background: '#0b0810', borderBottom: '1px solid rgba(255,255,255,.075)' }}>
         {(['FILE','EDIT','SELECT','INSERT','DOCUMENT','EXPORT','ASSIGNMENT'] as const).map(menu => <div key={menu} className="relative">
           <button onClick={() => setAppMenuOpen(open => open === menu ? null : menu)} className={menuBarButton} style={{ color: appMenuOpen === menu ? '#fff' : 'rgba(255,255,255,.58)', background: appMenuOpen === menu ? 'rgba(255,255,255,.09)' : 'transparent' }}>{menu[0] + menu.slice(1).toLowerCase()}</button>
-          {appMenuOpen === menu && <div className="absolute left-0 top-[31px] min-w-[255px] max-h-[calc(100vh-100px)] overflow-y-auto custom-scrollbar p-1.5 rounded-[11px]" style={{ background: 'rgba(20,13,30,.985)', border: '1px solid rgba(255,255,255,.13)', boxShadow: '0 18px 55px rgba(0,0,0,.55)' }} onMouseLeave={() => setAppMenuOpen(null)}>
+          {appMenuOpen === menu && <div className="absolute left-0 top-[31px] min-w-[265px] max-h-[calc(100vh-100px)] overflow-y-auto custom-scrollbar p-1.5 rounded-[11px]" style={{ background: 'rgba(20,13,30,.985)', border: '1px solid rgba(255,255,255,.13)', boxShadow: '0 18px 55px rgba(0,0,0,.55)' }} onMouseLeave={() => setAppMenuOpen(null)}>
             {menu === 'FILE' && <>
               <div className="px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[.12em] text-white/28">Tela board · {doc.frames.length} pages</div>
               <button className={menuBarItem} onClick={() => void createCanvas()}><FilePlus2 size={14}/>New Tela board<span className="ml-auto text-[9px] text-white/25">whole file</span></button>
@@ -3690,10 +3955,10 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
             </>}
             {menu === 'INSERT' && <>
               <div className="px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[.12em] text-white/28">Add to this Tela document</div>
-              <button className={menuBarItem} onClick={() => { assetFileRef.current?.click(); setAppMenuOpen(null); }}><ImagePlus size={14}/>Media & files<span className="ml-auto text-[9px] text-white/25">multi-select</span></button>
+              <button className={menuBarItem} onClick={() => { assetFileRef.current?.click(); setAppMenuOpen(null); }}><ImagePlus size={14}/>Media &amp; files<span className="ml-auto text-[9px] text-white/25">multi-select</span></button>
               <button className={menuBarItem} onClick={() => { setAppMenuOpen(null); openGenCloud({ source: 'tela', kinds: ['image', 'video', 'voice'], useLabel: 'Add to page', onUse: async outs => { const files = await Promise.all(outs.map((o, i) => outputToFile(o, `plajah-cloud-${Date.now()}-${i}`))); if (files.length) await insertAssetFiles(files); } }); }}><Sparkles size={14}/>Generate with Plajah Cloud<span className="ml-auto text-[9px] text-white/25">credits</span></button>
               <button className={menuBarItem} onClick={() => { fileRef.current?.click(); setAppMenuOpen(null); }}><FileUp size={14}/>Import document, sheet, or board</button>
-              <button className={menuBarItem} data-testid="import-design-file" onClick={() => { designFileRef.current?.click(); setAppMenuOpen(null); }}><Layers size={14}/>Photoshop or Illustrator file<span className="ml-auto text-[9px] text-white/25">.psd .ai .eps</span></button>
+              <button className={menuBarItem} data-testid="import-design-file" onClick={() => { designFileRef.current?.click(); setAppMenuOpen(null); }}><Layers size={14}/>Adobe Photoshop / Illustrator / InDesign<span className="ml-auto text-[9px] text-white/25">.psd .ai .idml</span></button>
               <button className={menuBarItem} data-testid="open-tela-plugins" onClick={() => { setPluginPanelOpen(true); setAppMenuOpen(null); }}><Wand2 size={14}/>Photoshop plug-ins<span className="ml-auto text-[9px] text-white/25">.8bf · desktop</span></button>
               <button className={menuBarItem} data-testid="open-tela-library" onClick={() => { setLibraryPanel({}); setAppMenuOpen(null); }}><Brush size={14}/>Brushes, shapes, swatches, patterns<span className="ml-auto text-[9px] text-white/25">.abr .csh .ase</span></button>
               <div className="h-px my-1 bg-white/[.07]"/>
@@ -3717,7 +3982,34 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               <div className="px-3 py-1.5 text-[9px] font-extrabold uppercase tracking-[.12em] text-white/28">{activeFrame?.label || 'No active page'}</div>
               <button className={menuBarItem} onClick={renameActivePage} disabled={!activeFrame}><Type size={14}/>Page name</button>
               <div className="px-3 pt-2 pb-1 text-[9px] font-extrabold uppercase tracking-[.12em] text-white/28">Page standard</div>
-              {(['LETTER','A4','BOOKLET','SIGNAGE_1080x1920','PHONE','SQUARE','FREE'] as TelaFramePreset[]).map(preset => <button key={preset} className={menuBarItem} disabled={!activeFrame} onClick={() => { if (activeFrame) dispatchOp({ type: 'SET_FRAME_PRESET', frameId: activeFrame.id, preset }); setAppMenuOpen(null); }} style={{ color: activeFrame?.preset === preset ? '#8FF5FF' : undefined }}>{PRESETS[preset].label}{activeFrame?.preset === preset && <CheckCircle2 size={12} className="ml-auto"/>}</button>)}
+              {([
+                'LETTER',
+                'A4',
+                'BOOKLET',
+                'COMIC_US',
+                'MANGA_TANKOBON_B6',
+                'POSTCARD_4X6',
+                'POSTER_18X24',
+                ...Object.keys(PRESETS).filter(k => k.startsWith('FILM_') || k.startsWith('FABULA_')).slice(0, 3),
+                ...Object.keys(PRESETS).filter(k => k.startsWith('BANNER_')).slice(0, 2),
+                'SIGNAGE_1080x1920',
+                'PHONE',
+                'SQUARE',
+                'FREE',
+              ] as TelaFramePreset[])
+                .filter((preset, idx, arr) => arr.indexOf(preset) === idx && (preset === 'FREE' || Boolean(PRESETS[preset])))
+                .map(preset => (
+                  <button
+                    key={preset}
+                    className={menuBarItem}
+                    disabled={!activeFrame}
+                    onClick={() => { if (activeFrame) dispatchOp({ type: 'SET_FRAME_PRESET', frameId: activeFrame.id, preset }); setAppMenuOpen(null); }}
+                    style={{ color: activeFrame?.preset === preset ? '#8FF5FF' : undefined }}
+                  >
+                    {getPresetMeta(preset, activeFrame).label}
+                    {activeFrame?.preset === preset && <CheckCircle2 size={12} className="ml-auto"/>}
+                  </button>
+                ))}
               <div className="h-px my-1 bg-white/[.07]"/>
               {(['PORTRAIT','LANDSCAPE'] as const).map(orientation => <button key={orientation} className={menuBarItem} disabled={!activeFrame} onClick={() => { if (activeFrame) dispatchOp({ type: 'SET_FRAME_ORIENTATION', frameId: activeFrame.id, orientation }); setAppMenuOpen(null); }} style={{ color: (activeFrame?.orientation || (activeFrame && activeFrame.h >= activeFrame.w ? 'PORTRAIT' : 'LANDSCAPE')) === orientation ? '#D0BCFF' : undefined }}><LayoutPanelTop size={14} style={{ transform: orientation === 'LANDSCAPE' ? 'rotate(90deg)' : undefined }}/>{orientation[0] + orientation.slice(1).toLowerCase()}</button>)}
             </>}
@@ -3843,7 +4135,22 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
             </>}
           </div>}
         </div>)}
-        <span className="ml-auto text-[9px] text-white/24 truncate max-w-[38vw]">Board: {doc.title} · Active page: {activeFrame?.label || 'none'}</span>
+        <div className="h-4 w-px bg-white/10 mx-1.5 shrink-0" />
+        <TelaPageSizeControl
+          frame={activeFrame}
+          onSelectPreset={preset => {
+            if (activeFrame) dispatchOp({ type: 'SET_FRAME_PRESET', frameId: activeFrame.id, preset });
+          }}
+          onCustomResize={(w, h) => {
+            if (activeFrame) dispatchOp({ type: 'RESIZE_FRAME', frameId: activeFrame.id, w, h });
+          }}
+          onFlipOrientation={orientation => {
+            if (activeFrame) dispatchOp({ type: 'SET_FRAME_ORIENTATION', frameId: activeFrame.id, orientation });
+          }}
+        />
+        <span className="ml-auto text-[9px] text-white/28 truncate max-w-[26vw] @max-[1180px]:hidden">
+          {doc.title || 'Untitled'} · {activeFrame?.label || 'Page'} ({doc.frames.length})
+        </span>
       </nav>
 
       {importError && (
@@ -4083,12 +4390,10 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
             { id: 'library', icon: <LibraryIcon size={16} />, label: 'Universal Library', desc: 'Find your assets and use them on this page.', active: ulOpen, onClick: () => setUlOpen(v => !v) },
           ]),
           railSection('comics', [
-            { id: 'layout', icon: <BookOpen size={16} />, label: 'Comic layout', desc: 'Turn comic and manga page layout on or off.', active: comicLayoutMode, onClick: toggleInlineComicLayoutMode },
+            { id: 'layout', icon: <BookOpen size={16} />, label: 'Comic page', desc: 'Open a new undoable Comic Book page (or return to document).', active: comicLayoutMode, onClick: toggleInlineComicLayoutMode },
             ...comicRailItems(comicVariant2Ctrl, comicLayoutMode, () => {
-              setComicLayoutMode(true);
-              setPosture('PAGE');
-              setStudioDocView('continuous');
-              setStudioRightTab('comic');
+              if (!activeFrame.isComicPage) addComicPageFrame('action-4-grid');
+              else setStudioRightTab('comic');
             }),
           ], { defaultCollapsed: true, forceOpen: comicLayoutMode }),
         ];
@@ -4098,36 +4403,79 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
             {/* Left tool rail: named sections of labeled tools (Persistent) */}
             <TelaToolRail sections={railSections} />
 
-            {/* Center stage — rulers + canvas */}
-            <div 
-              className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden relative" 
-              style={{ background: '#141318', height: '100%', maxHeight: '100%' }} 
-              onDragOver={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } }} 
-              onDrop={event => { const files = [...event.dataTransfer.files]; if (!files.length) return; event.preventDefault(); const lotties = isVec ? files.filter(file => isLottieFileName(file.name)) : []; if (lotties.length) { const box = event.currentTarget.querySelector('.tela-vector > svg') as SVGSVGElement | null; const ctm = box?.getScreenCTM(); const at = box && ctm ? (() => { const pt = box.createSVGPoint(); pt.x = event.clientX; pt.y = event.clientY; const q = pt.matrixTransform(ctm.inverse()); return { x: q.x, y: q.y }; })() : undefined; lotties.forEach((file, index) => void studioAddLottieFile(vec!, file, at ? { x: at.x + index * 24, y: at.y + index * 24 } : undefined)); } const visual = files.filter(file => !lotties.includes(file) && (file.type.startsWith('image/') || isVectorFile(file) || isCameraRawFile(file))); const other = files.filter(file => !lotties.includes(file) && !visual.includes(file)); visual.forEach(file => { if (isVec) void studioAddVectorFile(vec!, file); else if (img) void studioAddImageFile(img.id, file); }); if (other.length) void insertAssetFiles(other); }} 
+            {/* Center stage — rulers + canvas (supports desktop file drops on ANY page) */}
+            <div
+              className="flex-1 flex flex-col min-w-0 min-h-0 h-full overflow-hidden relative"
+              style={{ background: '#141318', height: '100%', maxHeight: '100%' }}
+              onDragOverCapture={event => {
+                if (event.dataTransfer?.types?.includes('Files')) {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'copy';
+                  setAssetDropActive(true);
+                }
+              }}
+              onDragLeave={event => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+                  setAssetDropActive(false);
+                }
+              }}
+              onDropCapture={event => {
+                if (!event.dataTransfer?.types?.includes('Files')) return;
+                const files = [...(event.dataTransfer.files || [])];
+                if (!files.length) { setAssetDropActive(false); return; }
+                event.preventDefault();
+                event.stopPropagation();
+                setAssetDropActive(false);
+                const pageEl = (event.target as HTMLElement | null)?.closest?.('[data-page-frame-id]') as HTMLElement | null;
+                const dropFrameId = pageEl?.dataset.pageFrameId || activeFrame.id;
+                const dropFrame = doc.frames.find(f => f.id === dropFrameId) || activeFrame;
+                let at: { x: number; y: number } | undefined;
+                if (pageEl) {
+                  const r = pageEl.getBoundingClientRect();
+                  const sx = dropFrame.w / Math.max(1, r.width);
+                  const sy = dropFrame.h / Math.max(1, r.height);
+                  at = {
+                    x: Math.round((event.clientX - r.left) * sx),
+                    y: Math.round((event.clientY - r.top) * sy),
+                  };
+                }
+                handleDesktopFilesDrop(files, dropFrame.id, at);
+              }}
               onWheel={event => { if (!event.ctrlKey && !event.metaKey) return; event.preventDefault(); setStudioZoom(value => Math.max(.1, Math.min(4, value * (event.deltaY > 0 ? .9 : 1.1)))); }}
             >
-              {/* Studio top-strip (Persistent across scroll) */}
+              {assetDropActive && (
+                <div
+                  className="absolute inset-3 z-[85] pointer-events-none grid place-items-center rounded-[18px]"
+                  style={{ border: '2px dashed #00DAF3', background: 'rgba(18,12,28,.72)', backdropFilter: 'blur(4px)' }}
+                >
+                  <div className="text-center text-white">
+                    <ImagePlus size={36} className="mx-auto mb-2 text-[#8FF5FF]" />
+                    <div className="text-sm font-black">Drop pictures or Adobe files onto page</div>
+                    <div className="text-[11px] text-white/60 mt-0.5">Images, .psd, .ai, .eps, .idml, .indd, .pdf</div>
+                  </div>
+                </div>
+              )}
+              {/* Studio workspace strip */}
               <div className="shrink-0 flex items-center gap-2 px-3 h-9 overflow-x-auto custom-scrollbar select-none z-20" style={{ background: 'rgba(11,10,16,0.96)', borderBottom: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)' }}>
-                <span className="text-[.74rem] font-bold text-white/90 truncate max-w-[160px]">{activeFrame.label || (isVec ? 'Artboard' : isImg ? 'Image' : isWriter ? 'Writer Page' : isGrid ? 'Grid Sheet' : 'Page')}</span>
-                <span className="text-[.64rem] font-semibold text-white/40 shrink-0">
-                  {isVec ? 'Vector' : isImg ? 'Image' : isWriter ? 'Writer' : isGrid ? 'Grid' : isBase ? 'Base' : 'Page'} · {focusWidth}×{focusHeight}
+                <span className="text-[.72rem] font-bold text-white/90 truncate max-w-[140px]">
+                  {activeFrame.label || (activeFrame.isComicPage ? 'Comic Page' : isVec ? 'Artboard' : isImg ? 'Image' : isWriter ? 'Writer Page' : 'Page')}
                 </span>
 
-                {/* View Mode Toggle: Page Focus vs Continuous Scroll */}
+                {/* View Mode Toggle: Focus vs Scroll */}
                 <div className="flex items-center rounded-[8px] bg-white/[0.06] p-0.5 border border-white/10 shrink-0">
                   <button
                     onClick={() => { setStudioDocView('focus'); if (posture === 'PAGE') setPosture('STUDIO'); }}
                     className={`px-2 py-0.5 rounded-[6px] text-[.62rem] font-bold transition-colors ${!isContinuousMode ? 'bg-[var(--pj-magenta,#D40055)] text-white shadow-sm' : 'text-white/60 hover:text-white'}`}
                     title="Focus on this page in Studio canvas with precision rulers and zoom"
                   >
-                    Focus Page
+                    Focus
                   </button>
                   <button
                     onClick={() => { setStudioDocView('continuous'); }}
                     className={`px-2 py-0.5 rounded-[6px] text-[.62rem] font-bold transition-colors ${isContinuousMode ? 'bg-[var(--pj-magenta,#D40055)] text-white shadow-sm' : 'text-white/60 hover:text-white'}`}
                     title="Continuous multi-page document view"
                   >
-                    Continuous ({doc.frames.length})
+                    Scroll ({doc.frames.length})
                   </button>
                 </div>
 
@@ -4191,11 +4539,6 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                   <button onClick={() => setStudioZoom(value => Math.min(4, value * 1.2))} className="w-7 h-7 rounded-[8px] text-white/60 bg-white/[.045] hover:bg-white/[.09]">+</button>
                 </div>
 
-                <div className="flex items-center gap-1 ml-1 shrink-0">
-                  <button onClick={exportPdf} className="h-7 px-2.5 rounded-[8px] text-[.62rem] font-bold text-white/75 bg-white/[.06] hover:bg-white/[.12] transition-colors" title="Export as PDF (Ctrl+P)">
-                    <FileDown size={12} className="inline mr-1" /> PDF
-                  </button>
-                </div>
               </div>
 
               {/* Tool options — the secondary row for whichever tool is active (typography for Type) */}
@@ -4235,9 +4578,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
               {/* Stage Scrollable Body — ONLY this area scrolls when viewing documents */}
               <div ref={studioScrollRef} className="flex-1 min-h-0 h-full overflow-y-auto overflow-x-auto relative isolate custom-scrollbar flex flex-col" style={{ overscrollBehavior: 'contain' }}>
-                {comicLayoutMode ? (
-                  <TelaComicPageStreamCanvas ctrl={comicVariant2Ctrl} zoom={studioZoom} />
-                ) : isContinuousMode ? (
+                {comicFrames.length > 0 && <ComicLivingStyles />}
+                {isContinuousMode ? (
                   <div
                     className="min-h-full flex flex-col items-center py-10 px-6 gap-8"
                     style={{
@@ -4247,6 +4589,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                   >
                   {doc.frames.map((frame, index) => {
                     const active = frame.id === activeFrameId;
+                    const comicPg = frame.isComicPage && frame.comicPageSnapshot ? (frame.comicPageSnapshot as ComicPageDocument) : null;
                     return (
                       <div key={frame.id} id={`page-${frame.id}`} className="flex flex-col items-center" onPointerDownCapture={() => { if (activeFrameId !== frame.id) setActiveFrameId(frame.id); }}>
                         {/* Page Header Strip */}
@@ -4256,35 +4599,51 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                               {index + 1}
                             </span>
                             <span className={active ? 'text-white font-bold' : 'text-white/80'}>{frame.label || `Page ${index + 1}`}</span>
-                            <span className="text-white/40 text-[10px]">({PRESETS[frame.preset]?.label || frame.kind})</span>
+                            <span className="text-white/40 text-[10px]">({comicPg ? `Comic · ${comicPg.panels.length} Panels` : getPresetMeta(frame.preset, frame).label})</span>
                           </div>
                           <div className="flex items-center gap-2 text-[10px]">
-                            <button
-                              onClick={() => addTextBoxToActiveFrame(frame.id)}
-                              className="px-2.5 py-1 rounded-[7px] bg-[var(--pj-magenta,#D40055)]/20 hover:bg-[var(--pj-magenta,#D40055)]/35 text-white/90 hover:text-white transition-colors flex items-center gap-1 font-semibold border border-[var(--pj-magenta,#D40055)]/30"
-                              title="Add Free-moving Typography / Text Box to this page"
-                            >
-                              <Type size={12} className="text-[#D0BCFF]" /> ＋ Text Box
-                            </button>
-                            <button
-                              onClick={() => addShapeToActiveFrame('RECT', frame.id)}
-                              className="px-2.5 py-1 rounded-[7px] bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-colors flex items-center gap-1 font-semibold"
-                              title="Add Shape / Callout layer to this page"
-                            >
-                              <Shapes size={12} className="text-[#00DAF3]" /> ＋ Shape
-                            </button>
+                            {comicPg ? (
+                              <button
+                                onClick={() => {
+                                  setActiveFrameId(frame.id);
+                                  setStudioRightTab('comic');
+                                  comicVariant2Ctrl.addSafeSpeechBalloon();
+                                }}
+                                className="px-2.5 py-1 rounded-[7px] bg-[var(--pj-magenta,#D40055)]/20 hover:bg-[var(--pj-magenta,#D40055)]/35 text-white/90 hover:text-white transition-colors flex items-center gap-1 font-semibold border border-[var(--pj-magenta,#D40055)]/30"
+                                title="Add Safe-Zone Speech Balloon to comic page"
+                              >
+                                <Type size={12} className="text-[#D0BCFF]" /> ＋ Balloon
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => addTextBoxToActiveFrame(frame.id)}
+                                  className="px-2.5 py-1 rounded-[7px] bg-[var(--pj-magenta,#D40055)]/20 hover:bg-[var(--pj-magenta,#D40055)]/35 text-white/90 hover:text-white transition-colors flex items-center gap-1 font-semibold border border-[var(--pj-magenta,#D40055)]/30"
+                                  title="Add Free-moving Typography / Text Box to this page"
+                                >
+                                  <Type size={12} className="text-[#D0BCFF]" /> ＋ Text Box
+                                </button>
+                                <button
+                                  onClick={() => addShapeToActiveFrame('RECT', frame.id)}
+                                  className="px-2.5 py-1 rounded-[7px] bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-colors flex items-center gap-1 font-semibold"
+                                  title="Add Shape / Callout layer to this page"
+                                >
+                                  <Shapes size={12} className="text-[#00DAF3]" /> ＋ Shape
+                                </button>
+                              </>
+                            )}
                             <button
                               onClick={() => { setActiveFrameId(frame.id); setStudioDocView('focus'); if (posture === 'PAGE') setPosture('STUDIO'); }}
                               className="px-2.5 py-1 rounded-[7px] bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-colors flex items-center gap-1 font-semibold"
                               title="Focus on this page in Studio canvas with precision rulers"
                             >
-                              <PenLine size={12} className="text-[#00DAF3]" /> Studio Focus
+                              <PenLine size={12} className="text-[#00DAF3]" /> Focus
                             </button>
                             {doc.frames.length > 1 && (
                               <button
                                 onClick={() => dispatchOp({ type: 'DELETE_FRAME', frameId: frame.id })}
                                 className="p-1 rounded-[7px] hover:bg-red-500/20 text-white/40 hover:text-red-400 transition-colors"
-                                title="Delete page"
+                                title="Delete page (Ctrl+Z undoable)"
                               >
                                 <Trash2 size={13} />
                               </button>
@@ -4294,6 +4653,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
                         {/* Page Surface */}
                         <div
+                          data-page-frame-id={frame.id}
                           onClick={() => setActiveFrameId(frame.id)}
                           style={{
                             width: frame.w,
@@ -4309,35 +4669,62 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                             overflow: 'visible',
                           }}
                         >
-                          {frame.deviceIds.map((id, devIdx) => {
-                            const dev = doc.devices[id];
-                            if (!dev) return null;
-                            const isOverlay = devIdx > 0 && dev.type === 'VECTOR';
-                            return (
-                              <div
-                                key={id}
-                                style={isOverlay ? {
-                                  position: 'absolute',
-                                  inset: 0,
-                                  zIndex: 10 + devIdx,
-                                  pointerEvents: 'none',
-                                } : {
-                                  flex: 1,
-                                  minHeight: frame.h,
-                                  position: 'relative',
-                                  zIndex: 1,
-                                }}
-                              >
-                                {renderDevice(dev, false, isOverlay)}
-                              </div>
-                            );
-                          })}
-                          {isTypeTool && !frame.deviceIds.some(id => doc.devices[id]?.type === 'VECTOR') && (
-                            <div
-                              aria-label="Click to start a text layer"
-                              style={{ position: 'absolute', inset: 0, zIndex: 5, cursor: 'text' }}
-                              onPointerDown={event => { event.preventDefault(); event.stopPropagation(); addTextLayerToFrame(frame.id); }}
-                            />
+                          {comicPg ? (
+                            <>
+                              <TelaComicSinglePageSurface
+                                page={comicPg}
+                                ctrl={comicVariant2Ctrl}
+                                width={frame.w}
+                                height={frame.h}
+                                isPageActive={active}
+                                readMode={comicVariant2Ctrl.readMode}
+                              />
+                              {frame.deviceIds.map((id, devIdx) => {
+                                const dev = doc.devices[id];
+                                if (!dev || dev.type !== 'VECTOR' || !dev.objects.length) return null;
+                                return (
+                                  <div
+                                    key={id}
+                                    style={{ position: 'absolute', inset: 0, zIndex: 50 + devIdx, pointerEvents: 'none' }}
+                                  >
+                                    {renderDevice(dev, false, true)}
+                                  </div>
+                                );
+                              })}
+                            </>
+                          ) : (
+                            <>
+                              {frame.deviceIds.map((id, devIdx) => {
+                                const dev = doc.devices[id];
+                                if (!dev) return null;
+                                const isOverlay = devIdx > 0 && dev.type === 'VECTOR';
+                                return (
+                                  <div
+                                    key={id}
+                                    style={isOverlay ? {
+                                      position: 'absolute',
+                                      inset: 0,
+                                      zIndex: 10 + devIdx,
+                                      pointerEvents: 'none',
+                                    } : {
+                                      flex: 1,
+                                      minHeight: frame.h,
+                                      position: 'relative',
+                                      zIndex: 1,
+                                    }}
+                                  >
+                                    {renderDevice(dev, false, isOverlay)}
+                                  </div>
+                                );
+                              })}
+                              {isTypeTool && !frame.deviceIds.some(id => doc.devices[id]?.type === 'VECTOR') && (
+                                <div
+                                  aria-label="Click to start a text layer"
+                                  style={{ position: 'absolute', inset: 0, zIndex: 5, cursor: 'text' }}
+                                  onPointerDown={event => { event.preventDefault(); event.stopPropagation(); addTextLayerToFrame(frame.id); }}
+                                />
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -4354,6 +4741,9 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                     </button>
                     <button onClick={addWriterPage} className="flex items-center gap-1.5 h-9 px-4 rounded-[10px] text-[.75rem] font-bold text-white bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all shadow-sm">
                       <Type size={14} className="text-[#D0BCFF]" /> ＋ Add Writer Page
+                    </button>
+                    <button onClick={() => addComicPageFrame('action-4-grid')} className="flex items-center gap-1.5 h-9 px-4 rounded-[10px] text-[.75rem] font-bold text-[#D0BCFF] bg-purple-500/15 border border-purple-400/30 hover:bg-purple-500/25 transition-all shadow-sm">
+                      <BookOpen size={14} /> ＋ Add Comic Book Page
                     </button>
                     <button onClick={addGridSheet} className="flex items-center gap-1.5 h-9 px-4 rounded-[10px] text-[.75rem] font-bold text-white bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-all shadow-sm">
                       <Grid3X3 size={14} className="text-[#00DAF3]" /> ＋ Add Grid Sheet
@@ -4378,8 +4768,50 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
                     {/* Canvas Stage Box */}
                     <div style={{ position: 'relative', width: focusWidth * studioZoom, height: focusHeight * studioZoom, borderRadius: 3, boxShadow: '0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08)' }}>
-                      <div style={{ position: 'absolute', left: 0, top: 0, width: focusWidth, height: focusHeight, transform: isVec && studioMode === 'pro' ? undefined : `scale(${studioZoom})`, transformOrigin: '0 0', overflow: 'visible', borderRadius: 3, background: isProductivity ? '#ffffff' : undefined }}>
-                        {isVec && vec!.objects.length > 500 ? (
+                      <div data-page-frame-id={activeFrame.id} style={{ position: 'absolute', left: 0, top: 0, width: focusWidth, height: focusHeight, transform: (!activeFrame.isComicPage && isVec && studioMode === 'pro') ? undefined : `scale(${studioZoom})`, transformOrigin: '0 0', overflow: 'visible', borderRadius: 3, background: (isProductivity || activeFrame.isComicPage) ? '#ffffff' : undefined }}>
+                        {activeFrame.isComicPage && activeFrame.comicPageSnapshot ? (
+                          <div style={{ position: 'relative', width: focusWidth, height: focusHeight }}>
+                            <TelaComicSinglePageSurface
+                              page={activeFrame.comicPageSnapshot as React.ComponentProps<typeof TelaComicSinglePageSurface>['page']}
+                              ctrl={comicVariant2Ctrl}
+                              width={focusWidth}
+                              height={focusHeight}
+                              isPageActive={true}
+                              readMode={comicVariant2Ctrl.readMode}
+                            />
+                            {activeFrame.deviceIds.map((id, devIdx) => {
+                              const dev = doc.devices[id];
+                              if (!dev || dev.type !== 'VECTOR') return null;
+                              const showOverlay = dev.objects.length > 0 || ['text', 'rect', 'ellipse', 'line', 'pen', 'ink'].includes(studioTool as string);
+                              if (!showOverlay) return null;
+                              return (
+                                <div key={id} style={{ position: 'absolute', inset: 0, zIndex: 30 + devIdx, pointerEvents: 'none' }}>
+                                  <TelaVector
+                                    device={{ ...dev, width: focusWidth, height: focusHeight }}
+                                    chrome={false}
+                                    overlay={true}
+                                    tool={(studioTool === 'type' ? 'text' : ['select', 'direct', 'marquee', 'rect', 'ellipse', 'line', 'pen', 'text', 'ink'].includes(studioTool as string) ? studioTool : 'select') as VectorTool}
+                                    onToolChange={t => setStudioTool(t as any)}
+                                    onTypeAt={() => addTextLayerToFrame(activeFrame.id)}
+                                    editTextRequest={textEditRequest}
+                                    selectedId={studioSel}
+                                    selectedIds={studioSelIds}
+                                    onSelectionChange={setStudioSelection}
+                                    writerTexts={writerTexts}
+                                    writers={writerList}
+                                    onAddObject={object => dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: dev.id, object })}
+                                    onUpdateObject={(objectId, patch) => dispatchOp({ type: 'UPDATE_VECTOR_OBJECT', deviceId: dev.id, objectId, patch })}
+                                    onDeleteObject={objectId => dispatchOp({ type: 'DELETE_VECTOR_OBJECT', deviceId: dev.id, objectId })}
+                                    onReorder={(objectId, toIndex) => dispatchOp({ type: 'REORDER_VECTOR_OBJECT', deviceId: dev.id, objectId, toIndex })}
+                                    onObjectContextMenu={(event, object) => vectorContextMenu.openAt(event.clientX, event.clientY, { deviceId: dev.id, object })}
+                                    objectContextBindings={object => vectorContextMenu.bind({ deviceId: dev.id, object })}
+                                    snap={snapTargets}
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : isVec && vec!.objects.length > 500 ? (
                           <div className="grid place-items-center text-center p-8" style={{ width: Math.min(vec!.width, 720), minHeight: 420, background: '#fff' }}><div className="max-w-[430px]"><div className="mx-auto grid place-items-center w-12 h-12 rounded-[14px] text-white" style={{ background: 'var(--pj-grad-spatial,linear-gradient(135deg,#6B0099,#00DAF3))' }}><Sparkles size={21}/></div><h3 className="mt-4 font-display italic text-[#1B1523] text-[1.25rem]">This legacy trace needs consolidation</h3><p className="mt-2 text-[.76rem] leading-relaxed text-[#1B1523]/55">Tela found {vec!.objects.length.toLocaleString()} microscopic paths from the earlier tracer. Consolidate them before previewing so the browser is not forced to render thousands of invisible layers.</p><button className="mt-4 h-9 px-5 rounded-[10px] text-[.72rem] font-extrabold text-white" style={{ background: 'var(--pj-grad-brand,linear-gradient(135deg,#6B0099,#D40055))' }} onClick={() => dispatchOp({ type: 'REPLACE_VECTOR_OBJECTS', deviceId: vec!.id, objects: consolidateTelaTraceObjects(vec!.objects) })}>Consolidate and preview</button></div></div>
                         ) : isVec && studioMode === 'pro' ? (
                           <StudioCtx.Provider value={studioApi}>
@@ -4532,31 +4964,54 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                 onToggleComicMode={toggleInlineComicLayoutMode}
               />
 
-              <input ref={studioFileRef} type="file" accept="image/*,video/*,.svg,.ai,.pdf,.webp,.avif,.gif,.bmp,.tif,.tiff,.lottie,.json,.abr,.csh,.ase,.arw,.cr2,.cr3,.nef,.dng,.raf,.orf,.rw2,.pef" multiple className="hidden" onChange={e => { const files = [...(e.target.files || [])]; if (img) files.forEach(file => void studioAddImageFile(img.id, file)); e.target.value = ''; }} />
+              <input
+                ref={studioFileRef}
+                type="file"
+                accept={TELA_ASSET_ACCEPT}
+                multiple
+                className="hidden"
+                onChange={e => {
+                  const files = [...(e.target.files || [])];
+                  if (files.length) {
+                    if (img && files.every(file => !/\.(psd|psb|psdt|ai|eps|pdf|idml|indd|inx|svg|fig)$/i.test(file.name))) {
+                      files.forEach(file => void studioAddImageFile(img.id, file));
+                    } else {
+                      void handleDesktopFilesDrop(files, activeFrame.id);
+                    }
+                  }
+                  e.target.value = '';
+                }}
+              />
             </div>
 
-            {/* Right Inspector — Adaptive Studio Panel (Persistent) */}
-            <div 
-              className="shrink-0 hidden md:flex flex-col min-h-0 h-full select-none z-30" 
+            {/* Right Inspector — Adaptive Studio Panel (Layers first by default) */}
+            <div
+              className="shrink-0 hidden md:flex flex-col min-h-0 h-full select-none z-30"
               style={{ width: 268, height: '100%', maxHeight: '100%', flexShrink: 0, borderLeft: '1px solid rgba(255,255,255,0.08)', background: '#0e0d14' }}
             >
-              {/* Header Tabs */}
+              {/* Header Tabs — Layers first, Pages reorderable outline second, Comic page creator third */}
               <div className="flex items-center gap-1 px-2.5 h-9 shrink-0 border-b border-white/[0.08]">
                 <button
-                  onClick={() => setStudioRightTab('properties')}
-                  className={`h-7 px-2.5 rounded-[7px] text-[.64rem] font-bold transition-colors flex items-center gap-1 ${studioRightTab === 'properties' ? 'bg-white/10 text-white' : 'text-white/45 hover:text-white/80'}`}
+                  onClick={() => setStudioRightTab('layers')}
+                  className={`h-7 px-2.5 rounded-[7px] text-[.64rem] font-bold transition-colors flex items-center gap-1 ${studioRightTab === 'layers' ? 'bg-white/10 text-white' : 'text-white/45 hover:text-white/80'}`}
                 >
-                  Properties
+                  <Layers size={11} className="text-[#00DAF3]" /> Layers
+                </button>
+                <button
+                  onClick={() => setStudioRightTab('pages')}
+                  className={`h-7 px-2.5 rounded-[7px] text-[.64rem] font-bold transition-colors ${studioRightTab === 'pages' ? 'bg-white/10 text-white' : 'text-white/45 hover:text-white/80'}`}
+                >
+                  Pages ({doc.frames.length})
                 </button>
                 <button
                   onClick={() => {
-                    setStudioRightTab('comic');
-                    if (!comicLayoutMode) {
-                      setComicLayoutMode(true);
-                      setPosture('PAGE');
-                      setStudioDocView('continuous');
+                    if (!activeFrame.isComicPage) {
+                      addComicPageFrame('action-4-grid');
+                    } else {
+                      setStudioRightTab('comic');
                     }
                   }}
+                  title={activeFrame.isComicPage ? 'Show Comic Book panel inspector' : 'Open a new removable Comic Book page (Ctrl+Z to undo)'}
                   className={`h-7 px-2.5 rounded-[7px] text-[.64rem] font-bold transition-colors flex items-center gap-1 ${
                     studioRightTab === 'comic'
                       ? 'bg-white/10 text-white'
@@ -4565,12 +5020,6 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                 >
                   <BookOpen size={11} className="text-[#D0BCFF]" /> Comic
                 </button>
-                <button
-                  onClick={() => setStudioRightTab('pages')}
-                  className={`h-7 px-2.5 rounded-[7px] text-[.64rem] font-bold transition-colors ${studioRightTab === 'pages' ? 'bg-white/10 text-white' : 'text-white/45 hover:text-white/80'}`}
-                >
-                  Pages ({doc.frames.length})
-                </button>
                 {studioSelIds.length > 1 && <span className="ml-auto text-[9px] font-extrabold text-[var(--pj-cyan,#00DAF3)]">{studioSelIds.length} sel</span>}
               </div>
 
@@ -4578,58 +5027,20 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               {studioRightTab === 'comic' ? (
                 <TelaComicSplitRightInspector ctrl={comicVariant2Ctrl} />
               ) : studioRightTab === 'pages' ? (
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col gap-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={panelLbl}>Document Outline</span>
-                    <button
-                      onClick={addWriterPage}
-                      className="text-[.64rem] font-bold text-[var(--pj-magenta,#D40055)] hover:underline flex items-center gap-0.5"
-                    >
-                      <Plus size={12} /> Add Page
-                    </button>
-                  </div>
-                  {doc.frames.map((frame, index) => {
-                    const active = frame.id === activeFrameId;
-                    const frameDev = frame.deviceIds.map(id => doc.devices[id]).find(Boolean);
-                    const devType = frameDev?.type || 'PAGE';
-                    return (
-                      <div
-                        key={frame.id}
-                        onClick={() => setActiveFrameId(frame.id)}
-                        className={`p-2.5 rounded-[10px] border cursor-pointer transition-all flex items-center justify-between gap-2 ${
-                          active
-                            ? 'bg-white/[0.08] border-[var(--pj-magenta,#D40055)] text-white shadow-sm'
-                            : 'bg-white/[0.02] border-white/[0.08] text-white/70 hover:bg-white/[0.05] hover:text-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className={`w-5 h-5 rounded-full text-[9px] font-extrabold grid place-items-center ${active ? 'bg-[var(--pj-magenta,#D40055)] text-white' : 'bg-white/10 text-white/60'}`}>
-                            {index + 1}
-                          </span>
-                          <div className="min-w-0">
-                            <div className="text-[.72rem] font-bold truncate">{frame.label || `Page ${index + 1}`}</div>
-                            <div className="text-[.6rem] text-white/40">{devType} · {PRESETS[frame.preset]?.label || `${frame.w}×${frame.h}`}</div>
-                          </div>
-                        </div>
-                        {doc.frames.length > 1 && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); dispatchOp({ type: 'DELETE_FRAME', frameId: frame.id }); }}
-                            className="p-1 rounded-[6px] hover:bg-red-500/20 text-white/30 hover:text-red-400 transition-colors"
-                            title="Delete page"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                  <div className="grid grid-cols-2 gap-1.5 mt-2 pt-2 border-t border-white/[0.08]">
-                    <button onClick={addWriterPage} className="h-8 rounded-[8px] text-[.66rem] font-bold text-white/80 bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 transition-colors">＋ Writer</button>
-                    <button onClick={addGridSheet} className="h-8 rounded-[8px] text-[.66rem] font-bold text-white/80 bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 transition-colors">＋ Grid</button>
-                    <button onClick={addVectorArtboard} className="h-8 rounded-[8px] text-[.66rem] font-bold text-white/80 bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 transition-colors">＋ Vector</button>
-                    <button onClick={addImageCanvas} className="h-8 rounded-[8px] text-[.66rem] font-bold text-white/80 bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 transition-colors">＋ Image</button>
-                  </div>
-                </div>
+                <TelaPagesSidebar
+                  frames={doc.frames}
+                  devices={doc.devices}
+                  activeFrameId={activeFrameId}
+                  onSelectFrame={id => setActiveFrameId(id)}
+                  onReorderFrame={(id, toIndex) => dispatchOp({ type: 'REORDER_FRAME', frameId: id, toIndex })}
+                  onDeleteFrame={id => dispatchOp({ type: 'DELETE_FRAME', frameId: id })}
+                  onAddComicPage={() => addComicPageFrame('action-4-grid')}
+                  onAddWriterPage={addWriterPage}
+                  onAddGridSheet={addGridSheet}
+                  onAddVectorArtboard={addVectorArtboard}
+                  onAddImageCanvas={addImageCanvas}
+                  onContextMenuPage={(e, frame, index) => pageContextMenu.openAt(e.clientX, e.clientY, { frame, index })}
+                />
               ) : (() => {
                 const selectedVecObj = (currentVecDev && studioSel)
                   ? (currentVecDev.objects.find(o => o.id === studioSel) || null)
@@ -5137,7 +5548,19 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           onDragEnter={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); setAssetDropActive(true); } }}
           onDragOver={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; setAssetDropActive(true); } }}
           onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setAssetDropActive(false); }}
-          onDrop={event => { const files = [...event.dataTransfer.files]; if (!files.length) return; event.preventDefault(); const rect = event.currentTarget.getBoundingClientRect(); void insertAssetFiles(files, { x: (event.clientX - rect.left - cam.x) / cam.z, y: (event.clientY - rect.top - cam.y) / cam.z }); }}
+          onDrop={event => {
+            const files = [...event.dataTransfer.files];
+            if (!files.length) return;
+            event.preventDefault();
+            setAssetDropActive(false);
+            const rect = event.currentTarget.getBoundingClientRect();
+            const targetFrameEl = (event.target instanceof Element ? event.target : null)?.closest?.('[data-page-frame-id]') as HTMLElement | null;
+            const targetFrameId = targetFrameEl?.getAttribute('data-page-frame-id') || null;
+            void handleDesktopFilesDrop(files, targetFrameId, {
+              x: (event.clientX - rect.left - cam.x) / cam.z,
+              y: (event.clientY - rect.top - cam.y) / cam.z,
+            });
+          }}
         >
           {assetDropActive && <div className="absolute inset-3 z-[85] pointer-events-none grid place-items-center rounded-[22px]" style={{ border: '2px dashed #D0BCFF', background: 'rgba(30,12,46,.78)', backdropFilter: 'blur(5px)', boxShadow: 'inset 0 0 80px rgba(107,0,153,.25)' }}><div className="text-center text-white"><FileUp size={42} className="mx-auto mb-3 text-[var(--pj-lilac,#D0BCFF)]"/><div className="text-lg font-black">Drop assets into Tela</div><div className="mt-1 text-xs text-white/55">Images, audio, video, 3D models, PDFs, fonts, archives, and more</div></div></div>}
           {/* World layer — zoom lives here, on the frame wrappers, never on resting text */}
@@ -5175,7 +5598,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               </svg>
             )}
 
-            {doc.frames.map(frame => {
+            {doc.frames.map((frame, frameIndex) => {
               const active = frame.id === activeFrameId;
               const isPaper = frame.kind === 'PAPER';
               const hasWriter = frame.deviceIds.some(id => doc.devices[id]?.type === 'WRITER');
@@ -5185,6 +5608,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               return (
                 <div
                   key={frame.id}
+                  data-page-frame-id={frame.id}
                   onPointerDown={e => { e.stopPropagation(); setActiveFrameId(frame.id); }}
                   onDoubleClick={() => { if (posture === 'BOARD') { setActiveFrameId(frame.id); setPosture('PAGE'); fitFrame(frame); } }}
                   style={{ position: 'absolute', left: frame.x, top: frame.y - CHROME_H, width: frame.w }}
@@ -5194,6 +5618,11 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                     onPointerDown={e => onChromePointerDown(e, frame)}
                     onPointerMove={onChromePointerMove}
                     onPointerUp={onChromePointerUp}
+                    onContextMenu={event => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      pageContextMenu.openAt(event.clientX, event.clientY, { frame, index: frameIndex });
+                    }}
                     className="flex items-center gap-2 px-2.5 select-none"
                     style={{
                       height: CHROME_H, cursor: 'grab',
@@ -5206,7 +5635,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                       style={{ background: active ? 'var(--pj-magenta, #D40055)' : 'rgba(255,255,255,0.25)' }}
                     />
                     <span className="truncate">{frame.label || frame.kind}</span>
-                    <span className="opacity-50 font-normal">{PRESETS[frame.preset].label}</span>
+                    <span className="opacity-50 font-normal">{getPresetMeta(frame.preset, frame).label}</span>
 
                     {/* Binding chips — the link shown on both ends. */}
                     {frameBindings.map(b => (
@@ -5278,7 +5707,35 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                       display: positionedForm ? 'block' : 'flex', flexDirection: 'column', position: 'relative',
                     }}
                   >
-                    {frame.deviceIds.map((id, devIdx) => {
+                    {frame.isComicPage && frame.comicPageSnapshot ? (
+                      <div style={{ position: 'relative', width: frame.w, height: frame.h }}>
+                        <TelaComicSinglePageSurface
+                          page={frame.comicPageSnapshot as React.ComponentProps<typeof TelaComicSinglePageSurface>['page']}
+                          ctrl={comicVariant2Ctrl}
+                          width={frame.w}
+                          height={frame.h}
+                          isPageActive={active}
+                          readMode={true}
+                        />
+                        {frame.deviceIds.map((id, devIdx) => {
+                          const dev = doc.devices[id];
+                          if (!dev || dev.type !== 'VECTOR' || dev.objects.length === 0) return null;
+                          return (
+                            <div
+                              key={id}
+                              style={{
+                                position: 'absolute',
+                                inset: 0,
+                                zIndex: 10 + devIdx,
+                                pointerEvents: 'none',
+                              }}
+                            >
+                              {renderDevice(dev, false, true)}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : frame.deviceIds.map((id, devIdx) => {
                       const dev = doc.devices[id];
                       if (!dev) return null;
                       if (positionedForm && dev.type === 'BASE') return null;
@@ -5716,6 +6173,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
       {vectorContextMenu.node}
       {imageContextMenu.node}
       {canvasContextMenu.node}
+      {pageContextMenu.node}
       {flying && flyingTarget && (
         <TelaFlyingMenu
           anchor={flying.anchor}

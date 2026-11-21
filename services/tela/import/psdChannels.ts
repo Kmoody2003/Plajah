@@ -4,7 +4,7 @@
 // once costs gigabytes on the print templates people actually have. So the importer reads with
 // useRawData and decodes here, one layer at a time: RGB, CMYK, Lab, grayscale, indexed, and bitmap,
 // at 1 / 8 / 16 / 32 bits, for RLE and zip channels.
-import { unzlibSync } from 'fflate';
+import { unzlibSync, inflateSync } from 'fflate';
 import { cmykToLinear } from '../raster/color';
 import type { RgbaImage } from './types';
 
@@ -16,29 +16,51 @@ export const COLOR_MODE_NAMES: Record<number, string> = { 0: 'Bitmap', 1: 'Grays
 
 const packedRowBytes = (w: number, bits: number) => bits === 1 ? (w + 7) >> 3 : w * (bits >> 3);
 
+function exactSize(buf: Uint8Array, size: number): Uint8Array {
+  if (buf.length === size) return buf;
+  if (buf.length > size) return buf.subarray(0, size);
+  const out = new Uint8Array(size);
+  out.set(buf);
+  return out;
+}
+
+function safeDecompress(data: Uint8Array, size: number): Uint8Array {
+  try {
+    return exactSize(unzlibSync(data), size);
+  } catch {
+    try {
+      return exactSize(inflateSync(data), size);
+    } catch {
+      return new Uint8Array(size);
+    }
+  }
+}
+
 function unpackBits(src: Uint8Array, pos: number, end: number, out: Uint8Array, outPos: number, outEnd: number) {
   while (pos < end && outPos < outEnd) {
     const n = src[pos++];
     if (n < 128) { const c = Math.min(n + 1, outEnd - outPos, end - pos); out.set(src.subarray(pos, pos + c), outPos); pos += n + 1; outPos += c; }
-    else if (n > 128) { const c = Math.min(257 - n, outEnd - outPos); out.fill(src[pos++], outPos, outPos + c); outPos += c; }
+    else if (n > 128) { if (pos >= end) break; const c = Math.min(257 - n, outEnd - outPos); out.fill(src[pos++], outPos, outPos + c); outPos += c; }
   }
 }
 
 /** One channel's samples as big-endian bytes, row by row. */
 function inflateChannel(ch: RawChannel, w: number, h: number, bits: number, large: boolean): Uint8Array {
+  if (w <= 0 || h <= 0) return new Uint8Array(0);
   const rb = packedRowBytes(w, bits), size = rb * h, data = ch.data;
   if (!data) return new Uint8Array(size);
-  if (ch.compression === 0) return data.length >= size ? data.subarray(0, size) : (() => { const o = new Uint8Array(size); o.set(data); return o; })();
+  if (ch.compression === 0) return exactSize(data, size);
   if (ch.compression === 1) {
     const out = new Uint8Array(size), hdr = large ? 4 : 2, view = new DataView(data.buffer, data.byteOffset, data.byteLength);
     let pos = h * hdr;
     for (let y = 0; y < h; y++) {
+      if (y * hdr + hdr > data.byteLength || pos >= data.length) break;
       const len = large ? view.getUint32(y * 4) : view.getUint16(y * 2);
       unpackBits(data, pos, Math.min(pos + len, data.length), out, y * rb, (y + 1) * rb); pos += len;
     }
     return out;
   }
-  const raw = unzlibSync(data);
+  const raw = safeDecompress(data, size);
   if (ch.compression === 2) return raw;
   // zip with prediction: per-row deltas, 32-bit floats are also byte-planar
   if (bits === 16) { for (let y = 0; y < h; y++) { const o = y * rb; for (let x = 1; x < w; x++) { const i = o + x * 2; const v = ((raw[i] << 8 | raw[i + 1]) + (raw[i - 2] << 8 | raw[i - 1])) & 0xffff; raw[i] = v >> 8; raw[i + 1] = v & 255; } } return raw; }
@@ -55,18 +77,31 @@ function inflateChannel(ch: RawChannel, w: number, h: number, bits: number, larg
 }
 
 /** Linear 32-bit HDR values to display-referred 8-bit (Photoshop's default gamma view). */
-const float8 = (v: number) => v <= 0 ? 0 : v >= 1 ? 255 : Math.round(Math.pow(v, 1 / 2.2) * 255);
+const float8 = (v: number) => !Number.isFinite(v) || v <= 0 ? 0 : v >= 1 ? 255 : Math.round(Math.pow(v, 1 / 2.2) * 255);
 
 /** A channel reduced to 8 bits per sample. */
 export function channel8(ch: RawChannel | undefined, w: number, h: number, bits: number, large: boolean, fill = 255): Uint8Array {
-  const n = w * h;
-  if (!ch || !ch.data) return new Uint8Array(n).fill(fill);
+  const n = Math.max(0, w * h);
+  if (!ch || !ch.data || n === 0) return new Uint8Array(n).fill(fill);
   const raw = inflateChannel(ch, w, h, bits, large);
-  if (bits === 8) return raw;
+  if (bits === 8) return exactSize(raw, n);
   const out = new Uint8Array(n);
-  if (bits === 16) for (let i = 0; i < n; i++) out[i] = raw[i * 2];
-  else if (bits === 32) { const v = new DataView(raw.buffer, raw.byteOffset, raw.byteLength); for (let i = 0; i < n; i++) out[i] = float8(v.getFloat32(i * 4)); }
-  else if (bits === 1) { const rb = (w + 7) >> 3; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) out[y * w + x] = (raw[y * rb + (x >> 3)] >> (7 - (x & 7))) & 1 ? 0 : 255; }
+  if (bits === 16) {
+    const safeN = Math.min(n, Math.floor(raw.length / 2));
+    for (let i = 0; i < safeN; i++) out[i] = raw[i * 2];
+  } else if (bits === 32) {
+    const v = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
+    const safeN = Math.min(n, Math.floor(raw.byteLength / 4));
+    for (let i = 0; i < safeN; i++) out[i] = float8(v.getFloat32(i * 4));
+  } else if (bits === 1) {
+    const rb = (w + 7) >> 3;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * rb + (x >> 3);
+        out[y * w + x] = idx < raw.length && ((raw[idx] >> (7 - (x & 7))) & 1) ? 0 : 255;
+      }
+    }
+  }
   return out;
 }
 
@@ -153,17 +188,19 @@ export function decodeLayerMask(raw: RawLayerData, w: number, h: number): RgbaIm
 
 /** The flattened composite Photoshop saved: compression word, then all planes. */
 export function decodeComposite(bytes: Uint8Array, w: number, h: number, channels: number, bits: number, mode: number, large: boolean, ctx: DecodeContext): RgbaImage | null {
-  if (bytes.length < 2) return null;
+  if (bytes.length < 2 || w <= 0 || h <= 0) return null;
   const compression = bytes[0] << 8 | bytes[1], body = bytes.subarray(2), rb = packedRowBytes(w, bits);
   const plane = (i: number): Uint8Array | null => {
     if (i >= channels) return null;
-    if (compression === 0) return body.subarray(rb * h * i, rb * h * (i + 1));
+    if (compression === 0) return exactSize(body.subarray(rb * h * i, rb * h * (i + 1)), rb * h);
     if (compression !== 1) return null;
     const hdr = large ? 4 : 2, view = new DataView(body.buffer, body.byteOffset, body.byteLength); let pos = channels * h * hdr;
     const out = new Uint8Array(rb * h);
     for (let ch = 0; ch < channels; ch++) for (let y = 0; y < h; y++) {
-      const idx = (ch * h + y) * hdr, len = large ? view.getUint32(idx) : view.getUint16(idx);
-      if (ch === i) unpackBits(body, pos, pos + len, out, y * rb, (y + 1) * rb);
+      const idx = (ch * h + y) * hdr;
+      if (idx + hdr > body.byteLength || pos >= body.length) break;
+      const len = large ? view.getUint32(idx) : view.getUint16(idx);
+      if (ch === i) unpackBits(body, pos, Math.min(pos + len, body.length), out, y * rb, (y + 1) * rb);
       pos += len;
     }
     return out;

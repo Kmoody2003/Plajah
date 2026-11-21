@@ -43,6 +43,7 @@ export function coalesceKey(op: TelaOp): string | null {
     case 'MOVE_FRAME': return `move:${op.frameId}`;
     case 'RESIZE_FRAME': return `resize:${op.frameId}`;
     case 'RENAME_FRAME': return `rename:${op.frameId}`;
+    case 'SET_FRAME_COMIC_DATA': return op.coalesce ? `comic:${op.frameId}:${op.coalesce}` : null;
     case 'SET_TITLE': return 'title';
     case 'UPDATE_VECTOR_OBJECT': return `vec:${op.deviceId}:${op.objectId}:${Object.keys(op.patch).sort().join(',')}`;
     case 'EDIT_VECTOR_DEVICE': return op.coalesce ? `vedit:${op.deviceId}:${op.coalesce}` : null;
@@ -59,13 +60,15 @@ export function coalesceKey(op: TelaOp): string | null {
 
 const LABELS: Partial<Record<TelaOp['type'], string>> = {
   SET_WRITER_BLOCKS: 'Typing', SET_GRID_CELL: 'Cell edit', MOVE_FRAME: 'Move page', RESIZE_FRAME: 'Resize page',
-  ADD_FRAME: 'Add page', DELETE_FRAME: 'Delete page', ADD_VECTOR_OBJECT: 'Add object', UPDATE_VECTOR_OBJECT: 'Edit object',
+  ADD_FRAME: 'Add page', DELETE_FRAME: 'Delete page', REORDER_FRAME: 'Reorder page', SET_FRAME_PRESET: 'Page size',
+  SET_FRAME_ORIENTATION: 'Flip orientation', SET_FRAME_COMIC_DATA: 'Comic edit',
+  ADD_VECTOR_OBJECT: 'Add object', UPDATE_VECTOR_OBJECT: 'Edit object',
   DELETE_VECTOR_OBJECT: 'Delete object', REORDER_VECTOR_OBJECT: 'Arrange', REPLACE_VECTOR_OBJECTS: 'Edit artwork',
   ADD_IMAGE_LAYER: 'Add layer', UPDATE_IMAGE_LAYER: 'Edit layer', DELETE_IMAGE_LAYER: 'Delete layer', REORDER_IMAGE_LAYER: 'Arrange layers',
   ADD_BINDING: 'Bind', REMOVE_BINDING: 'Unbind', SET_LIVING_PAGE: 'Edit behaviours', SET_TITLE: 'Rename',
 };
 
-export const opLabel = (op: TelaOp): string => (op.type === 'BATCH' && op.label) || (op.type === 'WRITER_EDIT' && op.label) || (op.type === 'SET_IMAGE_RASTER' && op.label) || (op.type === 'EDIT_VECTOR_DEVICE' && op.label) || (op.type === 'GRID_WORKBOOK' && op.label) || LABELS[op.type] || op.type.toLowerCase().replace(/_/g, ' ');
+export const opLabel = (op: TelaOp): string => (op.type === 'BATCH' && op.label) || (op.type === 'WRITER_EDIT' && op.label) || (op.type === 'SET_IMAGE_RASTER' && op.label) || (op.type === 'EDIT_VECTOR_DEVICE' && op.label) || (op.type === 'GRID_WORKBOOK' && op.label) || (op.type === 'SET_FRAME_COMIC_DATA' && op.label) || LABELS[op.type] || op.type.toLowerCase().replace(/_/g, ' ');
 
 /**
  * Record that `before` is about to become the result of `op`. Returns the

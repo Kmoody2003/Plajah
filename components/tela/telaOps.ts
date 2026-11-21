@@ -17,11 +17,17 @@ import type { RasterDocument } from '../../services/tela/raster/model';
 import type { TelaImageRasterPreview } from '../../types';
 import { mirrorLegacyAdd, mirrorLegacyDelete, mirrorLegacyUpdate } from './image/rasterLegacyBridge';
 import { setCellInput as gridSetCellInput, type Workbook as GridWorkbook } from '../../services/tela/sheet';
+import { TELA_PAGE_SIZE_CATALOG } from '../../services/tela/pagePresets';
 
 // ── Presets ───────────────────────────────────────────────────────────────────
 // CSS px at 96dpi, so 816px prints as exactly 8.5in via @page.
 
-export const PRESETS: Record<TelaFramePreset, { w: number; h: number; label: string; page?: string }> = {
+export interface TelaPresetMeta { w: number; h: number; label: string; page?: string }
+
+export const PRESETS: Record<string, TelaPresetMeta> = {
+  ...Object.fromEntries(
+    TELA_PAGE_SIZE_CATALOG.map(p => [p.id, { w: p.w, h: p.h, label: p.label, ...(p.page ? { page: p.page } : {}) }]),
+  ),
   LETTER:            { w: 816,  h: 1056, label: 'Letter 8.5×11″', page: '8.5in 11in' },
   A4:                { w: 794,  h: 1123, label: 'A4 210×297mm',   page: '210mm 297mm' },
   BOOKLET:           { w: 528,  h: 816,  label: 'Booklet 5.5×8.5″', page: '5.5in 8.5in' },
@@ -31,14 +37,22 @@ export const PRESETS: Record<TelaFramePreset, { w: number; h: number; label: str
   FREE:              { w: 760,  h: 440,  label: 'Free' },
 };
 
+export function getPresetMeta(preset: TelaFramePreset | undefined, fallback?: { w: number; h: number }): TelaPresetMeta {
+  if (preset && PRESETS[preset]) return PRESETS[preset];
+  if (fallback) return { w: fallback.w, h: fallback.h, label: `${fallback.w}×${fallback.h}` };
+  return PRESETS.FREE;
+}
+
 // ── Ops — every mutation flows through here (CRDT-friendly shape) ─────────────
 
 export type TelaOp =
   | { type: 'SET_TITLE'; title: string }
-  | { type: 'ADD_FRAME'; frame: TelaFrame; devices: TelaDevice[] }
+  | { type: 'ADD_FRAME'; frame: TelaFrame; devices: TelaDevice[]; insertIndex?: number }
+  | { type: 'REORDER_FRAME'; frameId: string; toIndex: number }
+  | { type: 'SET_FRAME_COMIC_DATA'; frameId: string; isComicPage?: boolean; comicPageSnapshot: unknown; label?: string; coalesce?: string | null }
   | { type: 'ADD_DEVICES_TO_FRAME'; frameId: string; devices: TelaDevice[] }
   | { type: 'MOVE_FRAME'; frameId: string; x: number; y: number }
-  | { type: 'RESIZE_FRAME'; frameId: string; w: number; h: number }
+  | { type: 'RESIZE_FRAME'; frameId: string; w: number; h: number; preset?: TelaFramePreset }
   | { type: 'RENAME_FRAME'; frameId: string; label: string }
   | { type: 'SET_FRAME_PRESET'; frameId: string; preset: TelaFramePreset }
   | { type: 'SET_FRAME_ORIENTATION'; frameId: string; orientation: 'PORTRAIT' | 'LANDSCAPE' }
@@ -128,7 +142,37 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
     case 'ADD_FRAME': {
       const devices = { ...doc.devices };
       for (const d of op.devices) devices[d.id] = d;
+      if (typeof op.insertIndex === 'number' && op.insertIndex >= 0 && op.insertIndex <= doc.frames.length) {
+        const frames = [...doc.frames];
+        frames.splice(op.insertIndex, 0, op.frame);
+        return { ...doc, frames, devices, updatedAt: now };
+      }
       return { ...doc, frames: [...doc.frames, op.frame], devices, updatedAt: now };
+    }
+    case 'REORDER_FRAME': {
+      const fromIndex = doc.frames.findIndex(f => f.id === op.frameId);
+      if (fromIndex < 0) return doc;
+      const toIndex = Math.max(0, Math.min(doc.frames.length - 1, Math.round(op.toIndex)));
+      if (fromIndex === toIndex) return doc;
+      const frames = [...doc.frames];
+      const [moved] = frames.splice(fromIndex, 1);
+      frames.splice(toIndex, 0, moved);
+      return { ...doc, frames, updatedAt: now };
+    }
+    case 'SET_FRAME_COMIC_DATA': {
+      return {
+        ...doc,
+        frames: doc.frames.map(f =>
+          f.id === op.frameId
+            ? {
+                ...f,
+                ...(op.isComicPage !== undefined ? { isComicPage: op.isComicPage } : {}),
+                comicPageSnapshot: op.comicPageSnapshot,
+              }
+            : f,
+        ),
+        updatedAt: now,
+      };
     }
     case 'ADD_DEVICES_TO_FRAME': {
       const devices = { ...doc.devices };
@@ -136,26 +180,51 @@ export function applyTelaOp(doc: TelaDoc, op: TelaOp): TelaDoc {
       const ids = op.devices.map(device => device.id);
       return { ...doc, frames: doc.frames.map(frame => frame.id === op.frameId ? { ...frame, deviceIds: [...frame.deviceIds.filter(id => !ids.includes(id)), ...ids] } : frame), devices, updatedAt: now };
     }
-    case 'RESIZE_FRAME':
-      return { ...doc, frames: doc.frames.map(f => f.id === op.frameId ? { ...f, w: Math.max(80, Math.round(op.w)), h: Math.max(40, Math.round(op.h)) } : f), updatedAt: now };
+    case 'RESIZE_FRAME': {
+      const frame = doc.frames.find(f => f.id === op.frameId);
+      if (!frame) return doc;
+      const w = Math.max(40, Math.round(op.w));
+      const h = Math.max(40, Math.round(op.h));
+      const orientation: 'PORTRAIT' | 'LANDSCAPE' = w > h ? 'LANDSCAPE' : 'PORTRAIT';
+      const devices = { ...doc.devices };
+      for (const id of frame.deviceIds) {
+        const device = devices[id];
+        if (device?.type === 'VECTOR' || device?.type === 'IMAGE' || device?.type === 'CHART') {
+          devices[id] = { ...device, width: w, height: h };
+        }
+      }
+      return {
+        ...doc,
+        frames: doc.frames.map(f =>
+          f.id === op.frameId
+            ? { ...f, w, h, orientation, preset: op.preset ?? (w === f.w && h === f.h ? f.preset : 'FREE') }
+            : f,
+        ),
+        devices,
+        updatedAt: now,
+      };
+    }
     case 'MOVE_FRAME':
       return { ...doc, frames: doc.frames.map(f => f.id === op.frameId ? { ...f, x: op.x, y: op.y } : f), updatedAt: now };
     case 'RENAME_FRAME':
       return { ...doc, frames: doc.frames.map(f => f.id === op.frameId ? { ...f, label: op.label } : f), updatedAt: now };
     case 'SET_FRAME_PRESET': {
-      const p = PRESETS[op.preset];
       const frame = doc.frames.find(item => item.id === op.frameId); if (!frame) return doc;
-      const w = frame.orientation === 'LANDSCAPE' ? Math.max(p.w, p.h) : frame.orientation === 'PORTRAIT' ? Math.min(p.w, p.h) : p.w;
-      const h = frame.orientation === 'LANDSCAPE' ? Math.min(p.w, p.h) : frame.orientation === 'PORTRAIT' ? Math.max(p.w, p.h) : p.h;
+      const p = getPresetMeta(op.preset, frame);
+      const w = p.w;
+      const h = p.h;
+      const orientation: 'PORTRAIT' | 'LANDSCAPE' = w > h ? 'LANDSCAPE' : 'PORTRAIT';
       const devices = { ...doc.devices };
       for (const id of frame.deviceIds) { const device = devices[id]; if (device?.type === 'VECTOR' || device?.type === 'IMAGE' || device?.type === 'CHART') devices[id] = { ...device, width: w, height: h }; }
-      return { ...doc, frames: doc.frames.map(item => item.id === op.frameId ? { ...item, preset: op.preset, w, h } : item), devices, updatedAt: now };
+      return { ...doc, frames: doc.frames.map(item => item.id === op.frameId ? { ...item, preset: op.preset, orientation, w, h } : item), devices, updatedAt: now };
     }
     case 'SET_FRAME_ORIENTATION': {
       const frame = doc.frames.find(item => item.id === op.frameId); if (!frame) return doc;
-      const p = PRESETS[frame.preset];
-      const w = op.orientation === 'LANDSCAPE' ? Math.max(p.w, p.h) : Math.min(p.w, p.h);
-      const h = op.orientation === 'LANDSCAPE' ? Math.min(p.w, p.h) : Math.max(p.w, p.h);
+      const base = frame.preset === 'FREE' ? frame : getPresetMeta(frame.preset, frame);
+      const longSide = Math.max(base.w, base.h, frame.w, frame.h);
+      const shortSide = Math.min(base.w, base.h);
+      const w = op.orientation === 'LANDSCAPE' ? Math.max(frame.w, frame.h) || longSide : Math.min(frame.w, frame.h) || shortSide;
+      const h = op.orientation === 'LANDSCAPE' ? Math.min(frame.w, frame.h) || shortSide : Math.max(frame.w, frame.h) || longSide;
       const devices = { ...doc.devices };
       for (const id of frame.deviceIds) { const device = devices[id]; if (device?.type === 'VECTOR' || device?.type === 'IMAGE' || device?.type === 'CHART') devices[id] = { ...device, width: w, height: h }; }
       return { ...doc, frames: doc.frames.map(item => item.id === op.frameId ? { ...item, orientation: op.orientation, w, h } : item), devices, updatedAt: now };

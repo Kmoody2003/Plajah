@@ -36,7 +36,7 @@ export interface FeatureRow { feature: string; status: FeatureStatus; count: num
 
 export interface ImportReport {
   fileName: string;
-  format: 'psd' | 'psb' | 'ai' | 'pdf' | 'eps';
+  format: 'psd' | 'psb' | 'ai' | 'pdf' | 'eps' | 'idml' | 'indd' | 'inx';
   width: number; height: number;
   colorMode?: string; bits?: number;
   layers: number;

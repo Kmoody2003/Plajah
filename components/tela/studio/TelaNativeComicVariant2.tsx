@@ -208,7 +208,7 @@ function createDefaultLayersForPanel(order: number): PanelSubLayer[] {
   ];
 }
 
-function createComicPageFromPreset(
+export function createComicPageFromPreset(
   presetId: PanelLayoutPresetId,
   pageNumber = 1,
   customTitle?: string
@@ -277,7 +277,7 @@ function createComicPageFromPreset(
   });
 
   return {
-    id: `comic_pg_${pageNumber}_${Date.now().toString().slice(-4)}`,
+    id: `comic_pg_${pageNumber}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
     title: customTitle || `Comic Page ${pageNumber}`,
     presetId,
     gutterPx: 10,
@@ -431,18 +431,43 @@ const telaSelectStyle: React.CSSProperties = {
   border: '1px solid rgba(255,255,255,0.14)',
 };
 
+export interface ExternalComicHost {
+  enabled: boolean;
+  pages: ComicPageDocument[];
+  activePageId?: string | null;
+  onUpdatePages?: (nextPages: ComicPageDocument[], label?: string) => void;
+  onSelectPage?: (pageId: string) => void;
+  onAddPage?: (presetId: PanelLayoutPresetId) => void;
+  onDeletePage?: (pageId: string) => void;
+  onImportProjectPages?: (pages: ComicPageDocument[], title?: string) => void;
+}
+
 /**
  * @param extraDocWords words in the surrounding Tela document (added to read-time stats)
  * @param active whether comic mode is showing; the project store and showcase catalog
  *   load the first time it is, so Tela pays nothing for comic mode until it's opened.
  */
-export function useTelaComicVariant2Controller(extraDocWords = 0, active = true): TelaComicVariant2Controller {
+export function useTelaComicVariant2Controller(
+  extraDocWords = 0,
+  active = true,
+  externalHost?: ExternalComicHost
+): TelaComicVariant2Controller {
+  const hostRef = useRef<ExternalComicHost | undefined>(externalHost);
+  hostRef.current = externalHost;
+
   const [project, setProject] = useState<ComicProject>(() => blankComicProject());
-  const pages = project.pages;
+  const hostedWithPages = Boolean(externalHost?.enabled && externalHost.pages.length > 0);
+  const pages = hostedWithPages ? externalHost!.pages : project.pages;
   const selectedShowcaseBookId = project.source?.showcaseId ?? '';
   // Edits mark the project dirty; opening a project doesn't, so it isn't re-saved unchanged.
   const dirtyRef = useRef(false);
   const setPages = useCallback((next: React.SetStateAction<ComicPageDocument[]>) => {
+    const h = hostRef.current;
+    if (h?.enabled && h.pages.length > 0) {
+      const resolved = typeof next === 'function' ? (next as (p: ComicPageDocument[]) => ComicPageDocument[])(h.pages) : next;
+      h.onUpdatePages?.(resolved);
+      return;
+    }
     dirtyRef.current = true;
     setProject((prev) => ({
       ...prev,
@@ -457,7 +482,14 @@ export function useTelaComicVariant2Controller(extraDocWords = 0, active = true)
   const [readMode, setReadMode] = useState(false);
   const [loopsEnabled, setLoopsEnabled] = useState(true);
 
-  const [activePageId, setActivePageId] = useState<string>(() => pages[0]?.id || '');
+  const [internalActivePageId, setInternalActivePageId] = useState<string>(() => pages[0]?.id || '');
+  const activePageId = hostedWithPages && externalHost?.activePageId
+    ? externalHost.activePageId
+    : internalActivePageId;
+  const setActivePageId = useCallback((id: string) => {
+    setInternalActivePageId(id);
+    if (hostRef.current?.enabled) hostRef.current.onSelectPage?.(id);
+  }, []);
   const activePage = useMemo(
     () => pages.find((p) => p.id === activePageId) || pages[0],
     [pages, activePageId]
@@ -544,6 +576,10 @@ export function useTelaComicVariant2Controller(extraDocWords = 0, active = true)
   }, []);
 
   const openProject = useCallback((next: ComicProject, markDirty = false) => {
+    if (hostRef.current?.enabled && hostRef.current.onImportProjectPages) {
+      hostRef.current.onImportProjectPages(next.pages, next.title);
+      return;
+    }
     dirtyRef.current = markDirty;
     setProject(next);
     setProjectError(null);
@@ -554,7 +590,7 @@ export function useTelaComicVariant2Controller(extraDocWords = 0, active = true)
     setIsPlaying(false);
     setSaveState(markDirty ? 'idle' : 'saved');
     setLastComicProjectId(next.id);
-  }, []);
+  }, [setActivePageId]);
 
   const openSavedProject = useCallback(
     async (id: string) => {
@@ -637,6 +673,7 @@ export function useTelaComicVariant2Controller(extraDocWords = 0, active = true)
     bootedRef.current = true;
     void refreshSavedProjects();
     void listShowcaseCatalog().then(setShowcaseCatalog, () => setShowcaseCatalog([]));
+    if (hostRef.current?.enabled) return;
     // An edit parked at the last page close wins over the saved copy if it's newer.
     const pending = takePendingComicProject();
     const lastId = pending?.id ?? getLastComicProjectId();
@@ -781,6 +818,10 @@ export function useTelaComicVariant2Controller(extraDocWords = 0, active = true)
 
   const addNewComicPage = useCallback(
     (presetId: PanelLayoutPresetId = 'action-4-grid') => {
+      if (hostRef.current?.enabled && hostRef.current.onAddPage) {
+        hostRef.current.onAddPage(presetId);
+        return;
+      }
       const nextIndex = pages.length + 1;
       const newPage = createComicPageFromPreset(presetId, nextIndex);
       setPages((prev) => [...prev, newPage]);
@@ -789,11 +830,15 @@ export function useTelaComicVariant2Controller(extraDocWords = 0, active = true)
         setActivePanelId(newPage.panels[0].id);
       }
     },
-    [pages.length]
+    [pages.length, setActivePageId, setPages]
   );
 
   const deleteComicPage = useCallback(
     (pageId: string) => {
+      if (hostRef.current?.enabled && hostRef.current.onDeletePage) {
+        hostRef.current.onDeletePage(pageId);
+        return;
+      }
       if (pages.length <= 1) return;
       setPages((prev) => {
         const filtered = prev.filter((p) => p.id !== pageId);
@@ -804,7 +849,7 @@ export function useTelaComicVariant2Controller(extraDocWords = 0, active = true)
         return filtered;
       });
     },
-    [pages.length, activePageId]
+    [pages.length, activePageId, setActivePageId, setPages]
   );
 
   const splitActivePanel = useCallback(
@@ -1227,6 +1272,293 @@ export const comicRailItems = (
 // ============================================================================
 // 2. CONTINUOUS TELA PAGE STREAM CANVAS WITH COMIC PANELS & FLOATING TELA CHROME
 // ============================================================================
+export const TelaComicSinglePageSurface: React.FC<{
+  page: ComicPageDocument;
+  ctrl: TelaComicVariant2Controller;
+  width: number;
+  height: number;
+  isPageActive: boolean;
+  readMode?: boolean;
+}> = ({ page, ctrl, width, height, isPageActive, readMode = false }) => {
+  const deepFocusedPanel = useMemo(
+    () => (ctrl.deepFocusPanelId ? page.panels.find((p) => p.id === ctrl.deepFocusPanelId) || null : null),
+    [ctrl.deepFocusPanelId, page.panels]
+  );
+
+  if (deepFocusedPanel) {
+    return (
+      <div
+        onClick={() => ctrl.setActivePageId(page.id)}
+        style={{
+          width,
+          height,
+          background: '#FFFFFF',
+          borderRadius: 4,
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          onPointerDown={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            top: 10,
+            left: 10,
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <button
+            onClick={() => ctrl.setDeepFocusPanelId(null)}
+            className="px-2.5 py-1 rounded-[7px] text-white flex items-center gap-1 font-bold text-[11px] shadow-md"
+            style={{
+              background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))',
+            }}
+          >
+            <ChevronLeft size={13} /> Back to {page.title}
+          </button>
+        </div>
+        <SingleComicPanelSurface
+          page={page}
+          panel={deepFocusedPanel}
+          ctrl={ctrl}
+          isActive={true}
+          isDeepFocus={true}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={() => ctrl.setActivePageId(page.id)}
+      style={{
+        width,
+        height,
+        background: page.paperColorHex || '#FFFFFF',
+        borderRadius: 4,
+        boxShadow:
+          isPageActive && !readMode
+            ? '0 0 0 2px var(--pj-magenta, #D40055), 0 20px 50px rgba(0,0,0,0.65)'
+            : '0 10px 30px rgba(0,0,0,0.45)',
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      {isPageActive && !readMode && (
+        <div
+          onPointerDown={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            top: 10,
+            left: 10,
+            zIndex: 45,
+            display: 'flex',
+            gap: 2,
+            padding: 3,
+            background: 'rgba(18,13,28,0.92)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 10,
+            backdropFilter: 'blur(6px)',
+            boxShadow: '0 10px 28px rgba(0,0,0,0.45)',
+          }}
+        >
+          <button
+            title="Select Panel / Layer (V)"
+            onClick={() => ctrl.setActiveTool('select')}
+            style={{
+              width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#fff',
+              background: ctrl.activeTool === 'select' ? 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))' : 'transparent',
+            }}
+          >
+            <MousePointer2 size={14} />
+          </button>
+          <button
+            title="G-Pen Sketchbook Inker (B)"
+            onClick={() => ctrl.setActiveTool('gpen')}
+            style={{
+              width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center',
+              color: ctrl.activeTool === 'gpen' ? '#fff' : 'rgba(255,255,255,0.7)',
+              background: ctrl.activeTool === 'gpen' ? 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))' : 'transparent',
+            }}
+          >
+            <PenTool size={14} />
+          </button>
+          <button
+            title="Add Safe-Zone Speech Balloon (T)"
+            onClick={() => { ctrl.setActiveTool('balloon'); ctrl.addSafeSpeechBalloon(); }}
+            style={{
+              width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center',
+              color: ctrl.activeTool === 'balloon' ? '#00DAF3' : 'rgba(255,255,255,0.7)',
+              background: ctrl.activeTool === 'balloon' ? 'rgba(0,218,243,0.18)' : 'transparent',
+            }}
+          >
+            <Type size={14} />
+          </button>
+          <button
+            title="Split Active Panel Horizontally"
+            onClick={() => ctrl.splitActivePanel('horizontal')}
+            style={{ width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,0.7)', background: 'transparent' }}
+          >
+            <Rows size={14} />
+          </button>
+          <button
+            title="Split Active Panel Vertically"
+            onClick={() => ctrl.splitActivePanel('vertical')}
+            style={{ width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center', color: 'rgba(255,255,255,0.7)', background: 'transparent' }}
+          >
+            <Columns size={14} />
+          </button>
+          <button
+            title="Diagonal Action Slash Split (14°)"
+            onClick={() => ctrl.splitActivePanel('diagonal', 14)}
+            style={{
+              width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center',
+              color: ctrl.activeTool === 'knife' ? '#00DAF3' : 'rgba(255,255,255,0.7)',
+              background: ctrl.activeTool === 'knife' ? 'rgba(0,218,243,0.18)' : 'transparent',
+            }}
+          >
+            <Scissors size={14} />
+          </button>
+          <button
+            title="Stamp Kanji Action SFX"
+            onClick={() => { ctrl.setActiveTool('sfx'); ctrl.addKanjiSfxStamp(); }}
+            style={{
+              width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center',
+              color: ctrl.activeTool === 'sfx' ? '#00DAF3' : 'rgba(255,255,255,0.7)',
+              background: ctrl.activeTool === 'sfx' ? 'rgba(0,218,243,0.18)' : 'transparent',
+            }}
+          >
+            <Zap size={14} />
+          </button>
+          <button
+            title="Toggle 60 LPI Manga Screentone"
+            onClick={() => { ctrl.setActiveTool('screentone'); ctrl.setPanelScreentone({ enabled: !ctrl.activePanel?.nestedDocument.halftone.enabled }); }}
+            style={{
+              width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center',
+              color: ctrl.activePanel?.nestedDocument.halftone.enabled ? '#00DAF3' : 'rgba(255,255,255,0.7)',
+              background: ctrl.activePanel?.nestedDocument.halftone.enabled ? 'rgba(0,218,243,0.18)' : 'transparent',
+            }}
+          >
+            <Grid3X3 size={14} />
+          </button>
+          <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', margin: '5px 2px' }} />
+          <button
+            title="Open Active Panel in Deep Focus Smart-Object View"
+            onClick={() => ctrl.setDeepFocusPanelId(ctrl.activePanel.id)}
+            style={{ width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center', color: '#8ff5ff', background: 'rgba(0,218,243,0.15)' }}
+          >
+            <Maximize2 size={14} />
+          </button>
+          <button
+            title={ctrl.showOnCanvasLayersCard ? 'Hide On-Page Layers Card' : 'Show On-Page Layers Card'}
+            onClick={() => ctrl.setShowOnCanvasLayersCard((v) => !v)}
+            style={{
+              width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer', display: 'grid', placeItems: 'center',
+              color: ctrl.showOnCanvasLayersCard ? '#00DAF3' : 'rgba(255,255,255,0.7)',
+              background: ctrl.showOnCanvasLayersCard ? 'rgba(0,218,243,0.22)' : 'transparent',
+            }}
+          >
+            <Layers size={14} />
+          </button>
+        </div>
+      )}
+
+      {isPageActive && !readMode && ctrl.showOnCanvasLayersCard && ctrl.activePanel && (
+        <div
+          onPointerDown={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute', top: 10, right: 10, zIndex: 45, width: 224, maxHeight: 280, overflowY: 'auto', padding: 12,
+            background: 'rgba(18,13,28,0.95)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12,
+            backdropFilter: 'blur(8px)', boxShadow: '0 16px 40px rgba(0,0,0,0.5)',
+          }}
+          className="custom-scrollbar"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>
+              LAYERS · P{ctrl.activePanel.order}
+            </span>
+            <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--pj-cyan,#00DAF3)' }}>
+              {ctrl.activePanel.cameraShot.replace(/_/g, ' ')}
+            </span>
+          </div>
+          {ctrl.activePanel.nestedDocument.layers.map((lyr) => {
+            const isSel = lyr.id === ctrl.activeLayerId;
+            return (
+              <div
+                key={lyr.id}
+                onClick={() => ctrl.setActiveLayerId(lyr.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 7, padding: '5px 6px', marginBottom: 3, borderRadius: 8, cursor: 'pointer',
+                  background: isSel ? 'rgba(255,255,255,0.09)' : 'transparent',
+                  border: isSel ? '1px solid rgba(212,0,85,0.55)' : '1px solid transparent',
+                }}
+              >
+                <span style={{ width: 20, height: 20, borderRadius: 5, display: 'grid', placeItems: 'center', flex: 'none', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: '#D0BCFF' }}>
+                  {lyr.kind === 'SPEECH_BALLOONS' ? <Type size={11} className="text-[#FF8C00]" /> : lyr.kind === 'INK_DRAWING' ? <PenTool size={11} className="text-[#f472b6]" /> : <Layers size={11} className="text-[#00DAF3]" />}
+                </span>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, color: lyr.visible ? '#fff' : 'rgba(255,255,255,0.4)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {lyr.name}
+                </span>
+                <button
+                  title={lyr.visible ? 'Hide' : 'Show'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    ctrl.updateActiveNestedDoc((doc) => ({
+                      ...doc,
+                      layers: doc.layers.map((item) => (item.id === lyr.id ? { ...item, visible: !item.visible } : item)),
+                    }));
+                  }}
+                  style={{ display: 'grid', placeItems: 'center', width: 20, height: 20, border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.55)', cursor: 'pointer' }}
+                >
+                  {lyr.visible ? <Eye size={12} /> : <EyeOff size={12} />}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <LazyMount>
+        {page.panels.map((panel) => {
+          const isPanelActive = isPageActive && panel.id === ctrl.activePanel?.id;
+          const clipPoly =
+            panel.box.clipPolygon && panel.box.clipPolygon.length >= 3
+              ? `polygon(${panel.box.clipPolygon.map((pt) => `${pt.xPct}% ${pt.yPct}%`).join(', ')})`
+              : undefined;
+          const bleed = panel.geometry === 'open-bleed';
+          return (
+            <div
+              key={panel.id}
+              style={{
+                position: 'absolute',
+                left: `${panel.box.xPct}%`,
+                top: `${panel.box.yPct}%`,
+                width: `${panel.box.widthPct}%`,
+                height: `${panel.box.heightPct}%`,
+                padding: bleed ? 0 : `${Math.max(3, page.gutterPx / 2)}px`,
+                boxSizing: 'border-box',
+                clipPath: clipPoly,
+                zIndex: panel.geometry === 'floating-inset' || panel.geometry === 'circle-reticle' ? 2 : 1,
+              }}
+            >
+              <SingleComicPanelSurface
+                page={page}
+                panel={panel}
+                ctrl={ctrl}
+                isActive={isPanelActive}
+                isDeepFocus={false}
+              />
+            </div>
+          );
+        })}
+      </LazyMount>
+    </div>
+  );
+};
+
 export const TelaComicPageStreamCanvas: React.FC<{
   ctrl: TelaComicVariant2Controller;
   zoom: number;
@@ -1999,7 +2331,7 @@ const PanelLoopVideo: React.FC<{ src: string; start: number; end: number; style:
   );
 };
 
-const ComicLivingStyles: React.FC = () => (
+export const ComicLivingStyles: React.FC = () => (
   <style>{`
 @keyframes tcv2-shake { 0%,100% { translate: 0 0 } 20% { translate: -2px 1px } 40% { translate: 2px -1px } 60% { translate: -1px -2px } 80% { translate: 1px 2px } }
 @keyframes tcv2-pulse { 0%,100% { scale: 1 } 50% { scale: 1.12 } }
