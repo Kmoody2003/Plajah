@@ -20,7 +20,8 @@
  * opts in (headphones).
  */
 
-export type MixSourceId = 'mic' | 'device' | 'screen' | 'media';
+/** 'party' = Gamer Network party voice, only the members who agreed (services/gamerNet/partyStreamBus.ts). */
+export type MixSourceId = 'mic' | 'device' | 'screen' | 'media' | 'party';
 
 export interface MixSourceState {
   id: MixSourceId;
@@ -41,7 +42,7 @@ export class LiveAudioMixer {
   private dest: MediaStreamAudioDestinationNode;
   private master: GainNode;
   private nodes = new Map<MixSourceId, { src: AudioNode; gain: GainNode; stop?: () => void }>();
-  private gains: Record<MixSourceId, number> = { mic: 1, device: 0.8, screen: 0.8, media: 0.7 };
+  private gains: Record<MixSourceId, number> = { mic: 1, device: 0.8, screen: 0.8, media: 0.7, party: 0.9 };
   private micAnalyser: AnalyserNode | null = null;
   private duckTimer = 0;
   private mediaEl: HTMLMediaElement | null = null;
@@ -66,8 +67,8 @@ export class LiveAudioMixer {
   resume() { if (this.ctx.state !== 'running') this.ctx.resume().catch(() => {}); }
 
   state(): MixSourceState[] {
-    const label: Record<MixSourceId, string> = { mic: 'Mic', device: 'Device audio', screen: 'Screen audio', media: 'Play into stream' };
-    return (['mic', 'device', 'screen', 'media'] as MixSourceId[]).map(id => ({ id, active: this.nodes.has(id), gain: this.gains[id], label: label[id] }));
+    const label: Record<MixSourceId, string> = { mic: 'Mic', device: 'Device audio', screen: 'Screen audio', media: 'Play into stream', party: 'Party voice' };
+    return (['mic', 'device', 'screen', 'media', 'party'] as MixSourceId[]).map(id => ({ id, active: this.nodes.has(id), gain: this.gains[id], label: label[id] }));
   }
 
   setGain(id: MixSourceId, g: number) {

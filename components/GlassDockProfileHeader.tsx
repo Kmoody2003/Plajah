@@ -19,6 +19,7 @@
  */
 import React from 'react';
 import { ChallengeButton } from './games/social/ChallengeButton';
+import { InviteToPartyButton } from './games/together/InviteToPartyButton';
 import { motion } from 'motion/react';
 import {
   Camera,
@@ -451,6 +452,14 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
                         name={profile.displayName || 'Player'}
                         source="profile"
                         className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-[18px] font-black text-[10px] uppercase tracking-widest text-fuchsia-200 transition-all hover:bg-fuchsia-500/20"
+                      />
+                    )}
+                    {!isOwnProfile && (
+                      <InviteToPartyButton
+                        uid={profile.uid}
+                        name={profile.displayName || 'Player'}
+                        label="Party"
+                        className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-[18px] font-black text-[10px] uppercase tracking-widest text-cyan-200 transition-all hover:bg-cyan-500/20"
                       />
                     )}
                   </>

@@ -12,9 +12,13 @@
 //     POST   /game      {game}        leader only
 //     POST   /invite    {to}          any member → notification `game-party:<id>` for them
 //     POST   /play      {game, with}  leader starts a friendly 2-seat match with a member
+//     POST   /team      {uid?, team}  Team A (0) / Team B (1) / none (null); self, or the leader for anyone
+//     POST   /queue     {game}        leader sends the party into matchmaking; DELETE /queue stops it
+//     POST   /stream    {on}          I put party voice on my live stream (one streamer at a time)
+//     POST   /stream-consent {ok}     I agree (or stop agreeing) to be heard on it
 //
 //   /api/gamer/chat
-//     POST   /voice     {scope}       LiveKit join token for party_<id> or match_<id>
+//     POST   /voice     {scope}       LiveKit join token for party_, team_, match_ or rt_ (realtime room) scopes
 //     GET    /:scope?since=N          new lines + what I may do here
 //     POST   /:scope    {text}|{quick}
 //     POST   /:scope/report {lineId, reason}
@@ -47,11 +51,14 @@ export interface GamerTogetherDeps {
   now?: () => number;
 }
 
-const PROFILES = 'gamerProfiles', MATCHES = 'gamerMatches', PARTIES = 'gamerParties', PARTY_OF = 'gamerPartyOf', CHAT = 'gamerChat', REPORTS = 'gamerChatReports';
+const PROFILES = 'gamerProfiles', MATCHES = 'gamerMatches', RT_MATCHES = 'gamerRtMatches', PARTIES = 'gamerParties', PARTY_OF = 'gamerPartyOf', CHAT = 'gamerChat', REPORTS = 'gamerChatReports';
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
 /** Party voice rooms hold the whole party; a match room holds its two players. */
-export const VOICE_CAP = { party: P.MAX_PARTY, match: 2 };
+/** Realtime rooms (routes/gamerRealtime.ts on the realtime branch) hold up to 12 drivers. */
+export const VOICE_CAP = { party: P.MAX_PARTY, team: P.MAX_PARTY, match: 2, rt: 12 };
+/** `team_<partyId>_<n>` -> party id + team number. */
+const splitTeam = (id: string): { partyId: string; team: 0 | 1 } => ({ partyId: id.slice(0, -2), team: (id.endsWith('_1') ? 1 : 0) });
 const s = (v: unknown, max: number) => String(v ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max);
 type Fail = { error: string; status: number };
 
@@ -243,15 +250,66 @@ export function createGamerTogether(deps: GamerTogetherDeps): { party: Router; c
     res.json({ ...partyOut(out.doc), matchId: doc.id });
   });
 
+  party.post('/team', async (req, res) => {
+    const uid = await needUid(req, res); if (!uid) return;
+    const cur = await partyOf(uid); if (!cur) { res.status(404).json({ error: 'You are not in a party' }); return; }
+    const target = s(req.body?.uid, 128) || uid;
+    const t = req.body?.team; const team = t === 0 || t === 1 ? t : null;
+    const out = await partyStep(cur.id, d => P.setTeam(d, uid, target, team, now()));
+    if ('error' in out) { fail(res, out); return; }
+    res.json(partyOut(out.doc));
+  });
+
+  party.post('/queue', async (req, res) => {
+    const uid = await needUid(req, res); if (!uid) return;
+    const game = s(req.body?.game, 40);
+    if (!gameRules(game)) { res.status(400).json({ error: 'That game has no online matches yet' }); return; }
+    const cur = await partyOf(uid); if (!cur) { res.status(404).json({ error: 'You are not in a party' }); return; }
+    const out = await partyStep(cur.id, d => P.startQueue(d, uid, { id: randomUUID(), game }, now()));
+    if ('error' in out) { fail(res, out); return; }
+    res.json(partyOut(out.doc));
+  });
+
+  party.delete('/queue', async (req, res) => {
+    const uid = await needUid(req, res); if (!uid) return;
+    const cur = await partyOf(uid); if (!cur) { res.status(404).json({ error: 'You are not in a party' }); return; }
+    const out = await partyStep(cur.id, d => P.stopQueue(d, uid, now()));
+    if ('error' in out) { fail(res, out); return; }
+    res.json(partyOut(out.doc));
+  });
+
+  party.post('/stream', async (req, res) => {
+    const uid = await needUid(req, res); if (!uid) return;
+    const cur = await partyOf(uid); if (!cur) { res.status(404).json({ error: 'You are not in a party' }); return; }
+    const out = await partyStep(cur.id, d => P.setStreaming(d, uid, req.body?.on === true, now()));
+    if ('error' in out) { fail(res, out); return; }
+    res.json(partyOut(out.doc));
+  });
+
+  party.post('/stream-consent', async (req, res) => {
+    const uid = await needUid(req, res); if (!uid) return;
+    const cur = await partyOf(uid); if (!cur) { res.status(404).json({ error: 'You are not in a party' }); return; }
+    const out = await partyStep(cur.id, d => P.setStreamConsent(d, uid, req.body?.ok === true, now()));
+    if ('error' in out) { fail(res, out); return; }
+    res.json(partyOut(out.doc));
+  });
+
   // ═════════════════════════════════════════════ /api/gamer/chat
   const chat = Router();
 
   /** Who I am in this scope: player / member / spectator, and what that lets me do. */
-  async function scopeAccess(scope: C.ChatScope, uid: string, me: C.Sender): Promise<{ access: C.ScopeAccess; match?: M.MatchDoc; party?: P.PartyDoc } | Fail> {
-    if (scope.kind === 'party') {
-      const d = (await store.get(PARTIES, scope.id)) as P.PartyDoc | null;
+  async function scopeAccess(scope: C.ChatScope, uid: string, me: C.Sender): Promise<{ access: C.ScopeAccess; match?: M.MatchDoc; party?: P.PartyDoc; rtPlayers?: string[] } | Fail> {
+    if (scope.kind === 'party' || scope.kind === 'team') {
+      const { partyId, team } = scope.kind === 'team' ? splitTeam(scope.id) : { partyId: scope.id, team: null as 0 | 1 | null };
+      const d = (await store.get(PARTIES, partyId)) as P.PartyDoc | null;
       if (!d) return { error: 'Party not found', status: 404 };
-      return { access: C.accessFor('party', { uid, isChild: me.isChild, isMember: P.isMember(d, uid) }), party: d };
+      return { access: C.accessFor(scope.kind, { uid, isChild: me.isChild, isMember: P.isMember(d, uid), onTeam: team !== null && P.teamOf(d, uid) === team }), party: d };
+    }
+    if (scope.kind === 'rt') {
+      const r = await store.get(RT_MATCHES, scope.id);
+      if (!r) return { error: 'Room not found', status: 404 };
+      const players: string[] = Array.isArray(r.players) ? r.players.map(String) : [];
+      return { access: C.accessFor('rt', { uid, isChild: me.isChild, isPlayer: players.includes(uid) }), rtPlayers: players };
     }
     const m = (await store.get(MATCHES, scope.id)) as M.MatchDoc | null;
     if (!m) return { error: 'Match not found', status: 404 };
@@ -263,26 +321,39 @@ export function createGamerTogether(deps: GamerTogetherDeps): { party: Router; c
     const cfg = deps.livekit?.() ?? null;
     if (!cfg) { res.status(503).json({ error: 'Voice is off right now', available: false }); return; }
     const scope = C.parseScope(req.body?.scope);
-    if (!scope || scope.kind === 'spec') { res.status(400).json({ error: 'Voice is for parties and matches' }); return; }
+    if (!scope || scope.kind === 'spec') { res.status(400).json({ error: 'Voice is for parties, teams, matches and rooms' }); return; }
     const me = await who(uid);
     if (me.isChild) { res.status(403).json({ error: 'Voice chat isn’t available on child accounts — use quick chat' }); return; }
     let room: string, cap: number;
-    if (scope.kind === 'party') {
-      const d = (await store.get(PARTIES, scope.id)) as P.PartyDoc | null;
+    /** People in the room this listener must never hear (blocks); the client drops them. */
+    let exclude: string[] = [];
+    const nope = await blocked(uid);
+    if (scope.kind === 'party' || scope.kind === 'team') {
+      const { partyId, team } = scope.kind === 'team' ? splitTeam(scope.id) : { partyId: scope.id, team: null as 0 | 1 | null };
+      const d = (await store.get(PARTIES, partyId)) as P.PartyDoc | null;
       if (!d || !P.voiceAllowed(d, uid)) { res.status(403).json({ error: 'Join the party to talk' }); return; }
-      room = `gparty-${d.id}`; cap = VOICE_CAP.party;
+      if (team !== null && P.teamOf(d, uid) !== team) { res.status(403).json({ error: 'Join this team to use its voice' }); return; }
+      room = team === null ? `gparty-${d.id}` : `gteam-${d.id}-${team}`;
+      cap = team === null ? VOICE_CAP.party : VOICE_CAP.team;
+      exclude = d.members.map(m => m.uid).filter(u => nope.has(u));
+    } else if (scope.kind === 'rt') {
+      const r = await store.get(RT_MATCHES, scope.id);
+      const players: string[] = Array.isArray(r?.players) ? r!.players.map(String) : [];
+      if (!r || !players.includes(uid)) { res.status(403).json({ error: 'Only the players in this room can talk' }); return; }
+      if (r.status === 'done') { res.status(409).json({ error: 'This race is over' }); return; }
+      room = `grt-${scope.id}`; cap = VOICE_CAP.rt;
+      exclude = players.filter(u => nope.has(u));
     } else {
       const m = (await store.get(MATCHES, scope.id)) as M.MatchDoc | null;
       if (!m || !m.players.includes(uid)) { res.status(403).json({ error: 'Only the players can talk in this match' }); return; }
       if (m.status === 'done') { res.status(409).json({ error: 'This match is over' }); return; }
       const others = await Promise.all(m.players.filter(p => p !== uid).map(p => who(p)));
       if (others.some(o => o.isChild)) { res.status(403).json({ error: 'Voice is off — your opponent uses quick chat' }); return; }
-      const nope = await blocked(uid);
       if (m.players.some(p => nope.has(p))) { res.status(403).json({ error: 'Voice is off for this match' }); return; }
       room = `gmatch-${m.id}`; cap = VOICE_CAP.match;
     }
     const token = mintJoinToken(cfg, { room, identity: uid, name: me.name, metadata: JSON.stringify({ scope: scope.key }), ttlSeconds: 4 * 3600 }, now());
-    res.json({ url: cfg.url, token, room, identity: uid, cap, available: true });
+    res.json({ url: cfg.url, token, room, identity: uid, cap, exclude, available: true });
   });
 
   chat.get('/:scope', async (req, res) => {

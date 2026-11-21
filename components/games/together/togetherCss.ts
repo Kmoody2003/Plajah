@@ -52,6 +52,16 @@ export const GT_CSS = `
 .gt-row select option{background:#070814}
 .gt-sec{font-size:10px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;opacity:.55;margin-top:12px}
 .gt-invite{padding:10px;border-radius:14px;border:1px solid rgba(255,209,102,.4);background:rgba(255,209,102,.07);margin-bottom:10px;font-size:13px}
+.gt-team{min-width:24px;height:22px;border-radius:7px;font-size:10px;font-weight:900;border:1px solid rgba(255,255,255,.18)!important;opacity:1!important;padding:0 6px!important;cursor:pointer}
+.gt-team.none{background:rgba(255,255,255,.04);color:rgba(232,251,255,.5)!important}
+.gt-team.t0{background:rgba(0,240,255,.18);color:#9fefff!important;border-color:#00f0ff!important}
+.gt-team.t1{background:rgba(255,43,214,.18);color:#ffb3f0!important;border-color:#ff2bd6!important}
+.gt-team:disabled{cursor:default}
+.gt-onair{color:#ff2d55!important;opacity:1!important;font-weight:900}
+.gt-livedot{width:8px;height:8px;border-radius:50%;background:#3dff9a;box-shadow:0 0 8px #3dff9a}
+.gt-stream{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px;padding:8px 10px;border-radius:12px;border:1px solid rgba(255,45,85,.45);background:rgba(255,45,85,.08);font-size:12px}
+.gt-stream span{flex:1;min-width:160px}
+.gt-stream small{flex-basis:100%;font-size:10px;opacity:.6}
 /* the few shared game classes the dock uses outside a game screen (same values as GX_CSS) */
 .gt-dock .gx-btn,.gt-chat .gx-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:38px;padding:0 14px;border-radius:12px;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#031016;background:#00f0ff;border:1px solid #00f0ff;cursor:pointer}
 .gt-dock .gx-btn:disabled,.gt-chat .gx-btn:disabled{opacity:.45;cursor:default}

@@ -23,6 +23,14 @@ export interface PartyDoc {
   invites: PartyInvite[];
   /** The latest match the leader started for the party; members' docks jump into it. */
   match?: { id: string; game: string; seats: string[]; at: number };
+  /** Team channels inside the party (0 = Team A, 1 = Team B); members without a team stay in party voice. */
+  teams?: Record<string, 0 | 1>;
+  /** The leader sent everyone into matchmaking for this game; each member's dock queues and opens its match. */
+  queue?: { id: string; game: string; at: number } | null;
+  /** A member is broadcasting party voice into their live stream. Only members in streamOk are mixed in. */
+  streaming?: { uid: string; at: number } | null;
+  /** Members who agreed to be heard on that stream. Cleared whenever the streamer changes. */
+  streamOk?: string[];
   v: number;
   createdAt: number;
   updatedAt: number;
@@ -59,7 +67,15 @@ export function leave(d: PartyDoc, uid: string, now: number): PartyStep {
   if (!members.length) return { ok: true, note: `${me.name} left`, doc: bump(d, now, { members, status: 'closed', invites: [] }) };
   const leader = d.leader === uid ? [...members].sort((a, b) => a.joinedAt - b.joinedAt)[0].uid : d.leader;
   const handed = leader !== d.leader ? ` — ${members.find(m => m.uid === leader)!.name} leads now` : '';
-  return { ok: true, note: `${me.name} left${handed}`, doc: bump(d, now, { members, leader }) };
+  return { ok: true, note: `${me.name} left${handed}`, doc: bump(d, now, { members, leader, ...withoutMember(d, uid) }) };
+}
+
+/** Team, stream and consent entries that go when a member leaves. */
+function withoutMember(d: PartyDoc, uid: string): Partial<PartyDoc> {
+  const teams = { ...(d.teams ?? {}) }; delete teams[uid];
+  const out: Partial<PartyDoc> = { teams, streamOk: (d.streamOk ?? []).filter(u => u !== uid) };
+  if (d.streaming?.uid === uid) { out.streaming = null; out.streamOk = []; }
+  return out;
 }
 
 const leaderOnly = (d: PartyDoc, by: string): PartyStep | null =>
@@ -69,7 +85,7 @@ export function kick(d: PartyDoc, by: string, uid: string, now: number): PartySt
   const no = leaderOnly(d, by); if (no) return no;
   if (uid === by) return { ok: false, error: 'Use Leave instead', status: 400 };
   const who = d.members.find(m => m.uid === uid); if (!who) return { ok: false, error: 'Not in this party', status: 404 };
-  return { ok: true, note: `${who.name} was removed`, doc: bump(d, now, { members: d.members.filter(m => m.uid !== uid) }) };
+  return { ok: true, note: `${who.name} was removed`, doc: bump(d, now, { members: d.members.filter(m => m.uid !== uid), ...withoutMember(d, uid) }) };
 }
 
 export function promote(d: PartyDoc, by: string, uid: string, now: number): PartyStep {
@@ -98,6 +114,60 @@ export function startMatch(d: PartyDoc, by: string, m: { id: string; game: strin
   const no = leaderOnly(d, by); if (no) return no;
   if (!m.seats.every(u => d.members.some(x => x.uid === u))) return { ok: false, error: 'Everyone in the match must be in the party', status: 400 };
   return { ok: true, doc: bump(d, now, { match: { ...m, at: now } }) };
+}
+
+/** Put a member on Team A (0), Team B (1) or no team (null). Members pick for themselves; the leader can move anyone. */
+export function setTeam(d: PartyDoc, by: string, uid: string, team: 0 | 1 | null, now: number): PartyStep {
+  if (d.status !== 'open') return { ok: false, error: 'That party has ended', status: 410 };
+  if (by !== uid && d.leader !== by) return { ok: false, error: 'Only the leader can move other people', status: 403 };
+  const who = d.members.find(m => m.uid === uid); if (!who) return { ok: false, error: 'Not in this party', status: 404 };
+  const teams = { ...(d.teams ?? {}) };
+  if (team === null) delete teams[uid]; else teams[uid] = team;
+  // No chat line: the team chips show it, and stepping none → A → B would spam the party chat.
+  return { ok: true, doc: bump(d, now, { teams }) };
+}
+
+export const teamOf = (d: PartyDoc, uid: string): 0 | 1 | null => (d.teams && d.teams[uid] !== undefined ? d.teams[uid] : null);
+
+/** Leader sends the party into matchmaking (id changes each time so docks know it's a new search). */
+export function startQueue(d: PartyDoc, by: string, q: { id: string; game: string }, now: number): PartyStep {
+  const no = leaderOnly(d, by); if (no) return no;
+  return { ok: true, note: 'The party is looking for matches', doc: bump(d, now, { queue: { ...q, at: now } }) };
+}
+export function stopQueue(d: PartyDoc, by: string, now: number): PartyStep {
+  const no = leaderOnly(d, by); if (no) return no;
+  if (!d.queue) return { ok: true, doc: d };
+  return { ok: true, note: 'The party stopped searching', doc: bump(d, now, { queue: null }) };
+}
+
+/** A member starts (or stops) putting party voice on their live stream. One streamer at a time; consent resets. */
+export function setStreaming(d: PartyDoc, by: string, on: boolean, now: number): PartyStep {
+  const me = d.members.find(m => m.uid === by);
+  if (!me || d.status !== 'open') return { ok: false, error: 'Join the party first', status: 403 };
+  if (me.isChild) return { ok: false, error: 'Not available on child accounts', status: 403 };
+  if (!on) {
+    if (d.streaming?.uid !== by) return { ok: true, doc: d };
+    return { ok: true, note: `${me.name} took party voice off their stream`, doc: bump(d, now, { streaming: null, streamOk: [] }) };
+  }
+  if (d.streaming && d.streaming.uid !== by) {
+    const other = d.members.find(m => m.uid === d.streaming!.uid)?.name ?? 'Someone';
+    return { ok: false, error: `${other} is already streaming party voice`, status: 409 };
+  }
+  if (d.streaming?.uid === by) return { ok: true, doc: d };
+  return { ok: true, note: `${me.name} wants to put party voice on their stream — only people who agree are heard`, doc: bump(d, now, { streaming: { uid: by, at: now }, streamOk: [] }) };
+}
+
+/** A member agrees (or stops agreeing) to be heard on the party stream. Only for themselves. */
+export function setStreamConsent(d: PartyDoc, uid: string, ok: boolean, now: number): PartyStep {
+  const me = d.members.find(m => m.uid === uid);
+  if (!me || d.status !== 'open') return { ok: false, error: 'Join the party first', status: 403 };
+  if (!d.streaming) return { ok: false, error: 'Nobody is streaming party voice', status: 409 };
+  if (d.streaming.uid === uid) return { ok: false, error: 'You are the streamer', status: 400 };
+  if (ok && me.isChild) return { ok: false, error: 'Child accounts are never put on a stream', status: 403 };
+  const cur = new Set(d.streamOk ?? []);
+  if (ok === cur.has(uid)) return { ok: true, doc: d };
+  if (ok) cur.add(uid); else cur.delete(uid);
+  return { ok: true, note: ok ? `${me.name} is OK being heard on the stream` : `${me.name} is off the stream`, doc: bump(d, now, { streamOk: [...cur] }) };
 }
 
 /** Voice: children never join party voice (text quick chat only). */

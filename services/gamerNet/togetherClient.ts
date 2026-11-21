@@ -10,10 +10,12 @@ const base = () => `${(import.meta as any).env?.VITE_APP_URL ?? window.location.
 export interface PartyView {
   id: string; leader: string; members: PartyMember[]; code: string; status: 'open' | 'closed'; game: string;
   match?: { id: string; game: string; seats: string[]; at: number }; v: number; createdAt: number; updatedAt: number; pendingInvites: number;
+  teams?: Record<string, 0 | 1>; queue?: { id: string; game: string; at: number } | null;
+  streaming?: { uid: string; at: number } | null; streamOk?: string[];
 }
 export interface PartyState { party: PartyView | null; voice: { available: boolean } }
 export interface ChatPage { lines: ChatLine[]; seq: number; access: ScopeAccess; quick: QuickChat[] }
-export interface VoiceGrant { url: string; token: string; room: string; identity: string; cap: number; available: true }
+export interface VoiceGrant { url: string; token: string; room: string; identity: string; cap: number; exclude?: string[]; available: true }
 export interface PartyPeek { party: { id: string; game: string; leader: string; members: Array<{ uid: string; name: string; photo: string }> }; invited: boolean }
 
 export interface Fail { ok: false; error: string; httpStatus: number }
@@ -50,6 +52,11 @@ export const party = {
   setGame: (game: string) => call<PartyState>('POST', '/party/game', { game }),
   invite: (to: string) => call<PartyState>('POST', '/party/invite', { to }),
   play: (game: string, withUid: string) => call<PartyState & { matchId: string }>('POST', '/party/play', { game, with: withUid }),
+  setTeam: (team: 0 | 1 | null, uid?: string) => call<PartyState>('POST', '/party/team', { team, uid }),
+  queue: (game: string) => call<PartyState>('POST', '/party/queue', { game }),
+  stopQueue: () => call<PartyState>('DELETE', '/party/queue'),
+  stream: (on: boolean) => call<PartyState>('POST', '/party/stream', { on }),
+  streamConsent: (ok: boolean) => call<PartyState>('POST', '/party/stream-consent', { ok }),
 };
 
 export const chat = {
@@ -73,6 +80,14 @@ export function setMuted(uid: string, on: boolean): Set<string> {
 
 // ── party dock opener: the dock mounts itself into <body> on first use ──
 export const OPEN_PARTY_EVENT = 'plajah:open-party';
+/** Invite someone from a profile or a chat: starts a party first if you aren't in one, then opens the dock. */
+export async function inviteToParty(uid: string): Promise<Res<PartyState>> {
+  const cur = await party.me();
+  if (!failed(cur) && !cur.party) { const made = await party.create(); if (failed(made)) return made; }
+  const r = await party.invite(uid);
+  void openPartyDock();
+  return r;
+}
 export type PartyTarget = { invite?: string } | undefined;
 export async function openPartyDock(target?: PartyTarget): Promise<void> {
   const { showPartyDock } = await import('../../components/games/together/PartyDock');

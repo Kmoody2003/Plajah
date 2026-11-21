@@ -3,13 +3,15 @@
 //   match_<matchId>  the players of a match
 //   spec_<matchId>   spectators of a match (players can read it after the match ends)
 //   party_<partyId>  the members of a party
+//   team_<partyId>_<0|1>  one team inside a party (Team A / Team B)
+//   rt_<matchId>     the players of a realtime room (gamerRtMatches) — races, open world
 //
 // Safety: every free-text line goes through the profanity mask; child accounts can only send quick-chat
 // lines, and they see other people's free text as "(message hidden)". Blocked people are filtered per viewer.
 
 import { PROFANITY_SET, normalizeForMatch } from '../profanityLexicon';
 
-export type ChatScopeKind = 'match' | 'spec' | 'party';
+export type ChatScopeKind = 'match' | 'spec' | 'party' | 'team' | 'rt';
 export interface ChatScope { kind: ChatScopeKind; id: string; key: string }
 
 export interface QuickChat { id: string; text: string }
@@ -53,8 +55,9 @@ const ID = /^[A-Za-z0-9_-]{1,128}$/;
 
 export function parseScope(raw: unknown): ChatScope | null {
   const s = String(raw ?? '');
-  const m = /^(match|spec|party)_(.+)$/.exec(s);
+  const m = /^(match|spec|party|team|rt)_(.+)$/.exec(s);
   if (!m || !ID.test(m[2])) return null;
+  if (m[1] === 'team' && !/_[01]$/.test(m[2])) return null;
   return { kind: m[1] as ChatScopeKind, id: m[2], key: s };
 }
 
@@ -136,9 +139,13 @@ export interface ScopeAccess { read: boolean; post: boolean; quickOnly: boolean;
  * - match: players read and post.
  * - spec: any signed-in adult reads and posts; children read only (quick chat); players read once it's over.
  * - party: members read and post.
+ * - team: members on that team read and post.
+ * - rt: the players of a realtime room read and post.
  */
-export function accessFor(kind: ChatScopeKind, ctx: { uid: string; isChild: boolean; isPlayer?: boolean; isMember?: boolean; matchDone?: boolean }): ScopeAccess {
+export function accessFor(kind: ChatScopeKind, ctx: { uid: string; isChild: boolean; isPlayer?: boolean; isMember?: boolean; onTeam?: boolean; matchDone?: boolean }): ScopeAccess {
   const quickOnly = ctx.isChild;
+  if (kind === 'team') return ctx.isMember && ctx.onTeam ? { read: true, post: true, quickOnly } : { read: false, post: false, quickOnly, reason: 'Join this team to chat' };
+  if (kind === 'rt') return ctx.isPlayer ? { read: true, post: true, quickOnly } : { read: false, post: false, quickOnly, reason: 'Only the players in this room can see this chat' };
   if (kind === 'match') return ctx.isPlayer ? { read: true, post: true, quickOnly } : { read: false, post: false, quickOnly, reason: 'Only the players can see this chat' };
   if (kind === 'party') return ctx.isMember ? { read: true, post: true, quickOnly } : { read: false, post: false, quickOnly, reason: 'Join the party to chat' };
   if (ctx.isPlayer) return ctx.matchDone ? { read: true, post: true, quickOnly } : { read: false, post: false, quickOnly, reason: 'Spectator chat opens for players after the match' };

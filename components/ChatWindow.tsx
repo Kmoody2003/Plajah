@@ -1,5 +1,6 @@
 import { UserAvatar } from './avatar/UserAvatar';
 import { ChallengeButton } from './games/social/ChallengeButton';
+import { InviteToPartyButton } from './games/together/InviteToPartyButton';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useContextMenu, type MenuNode } from './ui/ContextMenu';
 import {
@@ -1148,6 +1149,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
           {walkiePeerUid && uid && (
             <ChallengeButton uid={walkiePeerUid} name={profiles[walkiePeerUid]?.displayName || 'them'} source="chat" label=""
               className="p-2 rounded-xl transition-all text-white/30 hover:text-fuchsia-300 hover:bg-white/5 inline-flex items-center" />
+          )}
+          {walkiePeerUid && uid && (
+            <InviteToPartyButton uid={walkiePeerUid} name={profiles[walkiePeerUid]?.displayName || 'them'} label=""
+              className="p-2 rounded-xl transition-all text-white/30 hover:text-cyan-300 hover:bg-white/5 inline-flex items-center" />
           )}
           {walkiePeerUid && uid && (
             <button onClick={() => setShowWalkie(p => !p)} title="Two-Way (walkie-talkie)" className={`hidden sm:flex p-2 rounded-xl transition-all ${showWalkie ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>

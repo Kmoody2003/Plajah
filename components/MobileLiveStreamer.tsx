@@ -817,6 +817,18 @@ function MobileStreamer({ onClose, clubId, isPrivate, liveOverlay, onOpenStudio,
     return m;
   };
   useEffect(() => () => { mixerRef.current?.dispose(); mixerRef.current = null; }, []);
+  // Party voice (Gamer Network): only members who agreed to be heard, mixed under the mic while it's offered.
+  useEffect(() => {
+    let off: (() => void) | null = null; let alive = true;
+    void import('../services/gamerNet/partyStreamBus').then(bus => {
+      if (!alive) return;
+      off = bus.onPartyStreamTrack(t => {
+        if (t) ensureMixer().then(m => m.setTrack('party', t)).catch(() => {});
+        else mixerRef.current?.remove('party');
+      });
+    });
+    return () => { alive = false; off?.(); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   // Choosing a mic. Plain path: the session swaps the published track. With voice FX or the mixer
   // engaged the published track is THEIR output — the session's swap would stop it (a mixer's
   // destination track can't restart) and send the raw mic instead — so open the new mic ourselves

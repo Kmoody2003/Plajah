@@ -232,3 +232,101 @@ test('router: voice — off without LiveKit, tokens for members/players, never f
     assert.equal((await h.call('kim', 'POST', `/chat/match_${kidMatch}`, { quick: 'gg' })).status, 200);
   } finally { h.close(); }
 });
+
+// ── teams, party search, stream consent ─────────────────────────────────────────────
+test('party: teams — pick your own, leader moves anyone, leaving clears it', () => {
+  let d = P.newParty({ id: 'p', code: 'C', leader: pm('a'), now: 0 });
+  for (const u of ['b', 'c']) { const r = P.join(d, pm(u), 1); if (r.ok) d = r.doc; }
+  const self = P.setTeam(d, 'b', 'b', 1, 2); assert.ok(self.ok); if (self.ok) d = self.doc;
+  assert.equal(P.teamOf(d, 'b'), 1);
+  assert.equal(P.setTeam(d, 'b', 'c', 0, 3).ok, false, 'members only move themselves');
+  const moved = P.setTeam(d, 'a', 'c', 0, 3); assert.ok(moved.ok); if (moved.ok) d = moved.doc;
+  assert.equal(P.teamOf(d, 'c'), 0);
+  const gone = P.leave(d, 'b', 4); assert.ok(gone.ok); if (gone.ok) d = gone.doc;
+  assert.equal(P.teamOf(d, 'b'), null);
+  const none = P.setTeam(d, 'c', 'c', null, 5); assert.ok(none.ok); if (none.ok) assert.equal(P.teamOf(none.doc, 'c'), null);
+});
+
+test('party: stream consent — one streamer, opt-in only, resets on change, kids never', () => {
+  let d = P.newParty({ id: 'p', code: 'C', leader: pm('a'), now: 0 });
+  for (const m of [pm('b'), pm('c'), pm('k', 0, true)]) { const r = P.join(d, m, 1); if (r.ok) d = r.doc; }
+  assert.equal(P.setStreamConsent(d, 'b', true, 2).ok, false, 'nobody streaming yet');
+  assert.equal(P.setStreaming(d, 'k', true, 2).ok, false, 'kids cannot stream party voice');
+  const on = P.setStreaming(d, 'a', true, 2); assert.ok(on.ok); if (on.ok) d = on.doc;
+  assert.deepEqual(d.streamOk, [], 'nobody is on it until they agree');
+  assert.equal(P.setStreaming(d, 'b', true, 3).ok, false, 'one streamer at a time');
+  const ok = P.setStreamConsent(d, 'b', true, 3); assert.ok(ok.ok); if (ok.ok) d = ok.doc;
+  assert.deepEqual(d.streamOk, ['b']);
+  assert.equal(P.setStreamConsent(d, 'k', true, 3).ok, false, 'kids are never put on a stream');
+  assert.equal(P.setStreamConsent(d, 'a', true, 3).ok, false, 'the streamer does not consent to themselves');
+  const back = P.setStreamConsent(d, 'b', false, 4); assert.ok(back.ok); if (back.ok) d = back.doc;
+  assert.deepEqual(d.streamOk, []);
+  const again = P.setStreamConsent(d, 'c', true, 5); if (again.ok) d = again.doc;
+  const left = P.leave(d, 'a', 6); assert.ok(left.ok); if (left.ok) { assert.equal(left.doc.streaming, null); assert.deepEqual(left.doc.streamOk, []); }
+});
+
+test('party: search — leader only, new id each time', () => {
+  let d = P.newParty({ id: 'p', code: 'C', leader: pm('a'), now: 0 });
+  const j = P.join(d, pm('b'), 1); if (j.ok) d = j.doc;
+  assert.equal(P.startQueue(d, 'b', { id: 'q1', game: 'ttt' }, 2).ok, false);
+  const q = P.startQueue(d, 'a', { id: 'q1', game: 'ttt' }, 2); assert.ok(q.ok); if (q.ok) d = q.doc;
+  assert.equal(d.queue!.id, 'q1');
+  const s2 = P.stopQueue(d, 'a', 3); assert.ok(s2.ok); if (s2.ok) assert.equal(s2.doc.queue, null);
+});
+
+test('chat: team and realtime-room scopes', () => {
+  assert.deepEqual(C.parseScope('team_abc-1_0'), { kind: 'team', id: 'abc-1_0', key: 'team_abc-1_0' });
+  assert.equal(C.parseScope('team_abc-1'), null, 'team needs _0 or _1');
+  assert.equal(C.parseScope('team_abc_2'), null);
+  assert.equal(C.accessFor('team', { uid: 'a', isChild: false, isMember: true, onTeam: false }).read, false);
+  assert.equal(C.accessFor('team', { uid: 'a', isChild: false, isMember: true, onTeam: true }).post, true);
+  assert.equal(C.accessFor('rt', { uid: 'a', isChild: false, isPlayer: false }).read, false);
+});
+
+test('spatial: volume falls with distance and stops at the edge', async () => {
+  const S = await import('../services/gamerNet/spatialVoice');
+  const o = S.SPATIAL_DEFAULTS;
+  assert.equal(S.proximityGain(0), 1); assert.equal(S.proximityGain(o.refDistance), 1);
+  const mid = S.proximityGain(40), far = S.proximityGain(100);
+  assert.ok(mid < 1 && far < mid && far > 0);
+  assert.equal(S.proximityGain(o.maxDistance), 0); assert.equal(S.proximityGain(500), 0);
+  assert.equal(S.distance({ x: 0, y: 0, z: 0 }, { x: 3, y: 4, z: 0 }), 5);
+});
+
+test('router: teams, team voice, party search, stream consent; realtime-room voice with blocks', async () => {
+  const h = await harness({ voice: true, kids: ['kim'] });
+  try {
+    const p = (await h.call('ann', 'POST', '/party')).json.party;
+    await h.call('bob', 'POST', '/party/join', { code: p.code });
+    await h.call('carl', 'POST', '/party/join', { code: p.code });
+    // teams
+    assert.equal((await h.call('bob', 'POST', '/party/team', { team: 1 })).json.party.teams.bob, 1);
+    assert.equal((await h.call('bob', 'POST', '/party/team', { uid: 'carl', team: 0 })).status, 403);
+    assert.equal((await h.call('ann', 'POST', '/party/team', { uid: 'carl', team: 1 })).status, 200);
+    const tv = await h.call('bob', 'POST', '/chat/voice', { scope: 'team_' + p.id + '_1' });
+    assert.equal(tv.status, 200); assert.equal(tv.json.room, 'gteam-' + p.id + '-1');
+    assert.equal((await h.call('ann', 'POST', '/chat/voice', { scope: 'team_' + p.id + '_1' })).status, 403, 'not on that team');
+    assert.equal((await h.call('carl', 'POST', '/chat/team_' + p.id + '_1', { quick: 'ready' })).status, 200);
+    assert.equal((await h.call('ann', 'GET', '/chat/team_' + p.id + '_1')).status, 403, 'team chat is for the team');
+    // party search
+    assert.equal((await h.call('bob', 'POST', '/party/queue', { game: 'ttt' })).status, 403);
+    const q = await h.call('ann', 'POST', '/party/queue', { game: 'ttt' });
+    assert.equal(q.json.party.queue.game, 'ttt');
+    assert.equal((await h.call('ann', 'DELETE', '/party/queue')).json.party.queue, null);
+    // stream consent
+    assert.equal((await h.call('bob', 'POST', '/party/stream', { on: true })).json.party.streaming.uid, 'bob');
+    assert.equal((await h.call('ann', 'POST', '/party/stream', { on: true })).status, 409);
+    assert.deepEqual((await h.call('ann', 'POST', '/party/stream-consent', { ok: true })).json.party.streamOk, ['ann']);
+    assert.deepEqual((await h.call('ann', 'POST', '/party/stream-consent', { ok: false })).json.party.streamOk, []);
+    assert.equal((await h.call('bob', 'POST', '/party/stream', { on: false })).json.party.streaming, null);
+
+    // realtime room voice: players only, blocked people listed for the listener to drop
+    await h.store.createOnce('gamerRtMatches', 'race1', { id: 'race1', game: 'fh-race', status: 'open', players: ['carl', 'dave', 'ann'] });
+    const rv = await h.call('carl', 'POST', '/chat/voice', { scope: 'rt_race1' });
+    assert.equal(rv.status, 200); assert.equal(rv.json.room, 'grt-race1'); assert.equal(rv.json.cap, 12);
+    assert.deepEqual(rv.json.exclude, ['dave'], 'carl blocked dave');
+    assert.equal((await h.call('bob', 'POST', '/chat/voice', { scope: 'rt_race1' })).status, 403);
+    assert.equal((await h.call('ann', 'POST', '/chat/rt_race1', { text: 'gl all' })).status, 200);
+    assert.equal((await h.call('bob', 'GET', '/chat/rt_race1')).status, 403);
+  } finally { h.close(); }
+});

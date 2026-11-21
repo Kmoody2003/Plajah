@@ -41,7 +41,7 @@ export function LiveSoundSheet({ mixer, state, ensureMixer, onClose, compact, di
   const [playing, setPlaying] = useState(false);
   const [msg, setMsg] = useState('');
   const [, force] = useState(0);
-  const LABEL: Record<MixSourceId, string> = { mic: 'Mic', device: 'Device audio', screen: 'Screen audio', media: 'Play into stream' };
+  const LABEL: Record<MixSourceId, string> = { mic: 'Mic', device: 'Device audio', screen: 'Screen audio', media: 'Play into stream', party: 'Party voice' };
   const src = (id: MixSourceId): MixSourceState => state.find(s => s.id === id) ?? { id, active: false, gain: 1, label: LABEL[id] };
   const deviceOk = canShareDeviceAudio();
 
@@ -103,6 +103,7 @@ export function LiveSoundSheet({ mixer, state, ensureMixer, onClose, compact, di
         )}
 
         {src('screen')?.active && <SourceRow mixer={mixer} s={src("screen")} icon={<MonitorSpeaker size={15} />} />}
+        {src('party')?.active && <SourceRow mixer={mixer} s={src('party')} icon={<MonitorSpeaker size={15} />} />}
 
         <SourceRow mixer={mixer} s={src("media")} icon={<Music size={15} />}>
           {src('media')?.active ? (
