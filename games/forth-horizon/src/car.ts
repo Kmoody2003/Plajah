@@ -244,9 +244,9 @@ export function wheel(front: boolean, left: boolean, style: WheelStyle = 'forged
 
 export function makeSovereign(): CarRig {
   const g = new THREE.Group();
-  const paint = mat(0xb9531a, 0.20, 0.72, { clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.95 });
-  const carbon = mat(0x15171a, 0.35, 0.35, { clearcoat: 0.8, clearcoatRoughness: 0.15, envMapIntensity: 1.4 });
-  const glass = mat(0x0b121a, 0.03, 0.15, { clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 2.3 });
+  const paint = mat(0xb9531a, 0.34, 0.42, { clearcoat: 0.52, clearcoatRoughness: 0.16, ior: 1.46, specularIntensity: 0.50, envMapIntensity: 0.78 });
+  const carbon = mat(0x15171a, 0.40, 0.28, { clearcoat: 0.45, clearcoatRoughness: 0.18, envMapIntensity: 0.85 });
+  const glass = mat(0x0b121a, 0.06, 0.08, { clearcoat: 0.65, clearcoatRoughness: 0.06, envMapIntensity: 1.15 });
   const black = mat(0x0d0e10, 0.7, 0.1);
 
   // ---- body tub ----

@@ -677,11 +677,11 @@ function getSharedMaterials(): {
   if (!sharedGlassMat) {
     sharedGlassMat = new THREE.MeshPhysicalMaterial({
       color: 0x050912,
-      metalness: 0.15,
-      roughness: 0.03,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.02,
-      envMapIntensity: 2.8,
+      metalness: 0.08,
+      roughness: 0.06,
+      clearcoat: 0.65,
+      clearcoatRoughness: 0.06,
+      envMapIntensity: 1.1,
       polygonOffset: true,
       polygonOffsetFactor: -1,
       polygonOffsetUnits: -1,
@@ -691,17 +691,17 @@ function getSharedMaterials(): {
     sharedCarbonMat = new THREE.MeshStandardMaterial({
       color: 0x1b1e25,
       metalness: 0.22,
-      roughness: 0.50,
-      envMapIntensity: 1.15,
+      roughness: 0.52,
+      envMapIntensity: 0.85,
       vertexColors: true,
     });
   }
   if (!sharedMetalMat) {
     sharedMetalMat = new THREE.MeshStandardMaterial({
       color: 0xffffff,
-      metalness: 0.88,
-      roughness: 0.22,
-      envMapIntensity: 1.9,
+      metalness: 0.86,
+      roughness: 0.28,
+      envMapIntensity: 1.05,
       vertexColors: true,
     });
   }
@@ -782,11 +782,13 @@ function getPaintMaterial(paintHex: number | string): THREE.MeshPhysicalMaterial
     );
     mat = new THREE.MeshPhysicalMaterial({
       color: tuned,
-      metalness: hsl.s > 0.2 ? 0.72 : 0.64,
-      roughness: 0.24,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.045,
-      envMapIntensity: 1.85,
+      metalness: hsl.s > 0.2 ? 0.40 : 0.32,
+      roughness: 0.36,
+      clearcoat: 0.50,
+      clearcoatRoughness: 0.17,
+      ior: 1.46,
+      specularIntensity: 0.50,
+      envMapIntensity: 0.74,
       vertexColors: true,
     });
     paintMatCache.set(key, mat);

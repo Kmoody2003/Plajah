@@ -153,17 +153,18 @@ export function injectRoadPbr(fs: string, wpExpr: string): string {
       if (gRoad > 0.005) {
         float rr = mix(texture2D(tRR, rwp / 2.8).r, texture2D(tRR, rwp / 0.72 + 0.21).r, 0.48 * rpFade);
         float rr2 = texture2D(tRR, rwp / 9.5).r;                        // oil, rubber and damp patches at a larger scale
-        float dryRough = clamp(0.42 + 0.52 * mix(rr2, rr, 0.58), 0.38, 0.95);
-        float wetRough = 0.04 + 0.22 * rr2;
-        roughnessFactor = mix(roughnessFactor, mix(dryRough, wetRough, clamp(uWet * 1.2, 0.0, 1.0)), gRoad);
+        float dryRough = clamp(0.48 + 0.46 * mix(rr2, rr, 0.58), 0.44, 0.95);
+        // Damp drained asphalt stays textured satin tarmac (0.28..0.52); only discrete gPud pockets go glassy
+        float wetRough = 0.28 + 0.24 * rr2;
+        roughnessFactor = mix(roughnessFactor, mix(dryRough, wetRough, clamp(uWet, 0.0, 1.0)), gRoad);
       }`)
     .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
       if (gRoad > 0.005 && rpFade > 0.005) {
         vec3 rn1 = texture2D(tRN, rwp / 2.8).xyz * 2.0 - 1.0, rn2 = texture2D(tRN, rwp / 0.72 + 0.21).xyz * 2.0 - 1.0;
-        float pores = 1.0 - clamp(uWet * 0.86, 0.0, 1.0);
-        vec2 sl = (rn1.xy * 1.25 + rn2.xy * 0.92) * gRoad * rpFade * mix(1.0, pores, 0.90) * (1.0 - gPud);
-        // Real-time shallow-water tire wake ripples from Plajah RealtimeRippleField on wet roads & puddles!
-        float wetMask = max(gPud, uWet * 0.45);
+        float pores = 1.0 - clamp(uWet * 0.48, 0.0, 1.0);
+        vec2 sl = (rn1.xy * 1.25 + rn2.xy * 0.92) * gRoad * rpFade * mix(1.0, pores, 0.72) * (1.0 - gPud);
+        // Real-time shallow-water tire wake ripples appear inside standing puddles (not across plain damp tarmac)
+        float wetMask = gPud;
         if (wetMask > 0.02) {
           vec2 ripUv = (rwp - uRippleOrigin) / uRippleSpan + 0.5;
           if (ripUv.x > 0.02 && ripUv.x < 0.98 && ripUv.y > 0.02 && ripUv.y < 0.98) {

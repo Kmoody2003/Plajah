@@ -512,14 +512,14 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
         gWet = uWet * max(road, walk * 0.7);
         gRoad = road;
         gPud = puddleAt(vWPos.xz, uPool) * road * (1.0 - smoothstep(600.0, 1400.0, camD));
-        col *= 1.0 - 0.42 * gWet;
-        col *= 1.0 - 0.44 * gPud;
+        col *= 1.0 - 0.26 * gWet;
+        col *= 1.0 - 0.30 * gPud;
         diffuseColor.rgb = col;
       }
-      diffuseColor.rgb *= 1.0 - 0.16 * uWet;           // wet ground everywhere`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, mix(0.55, 1.0, gTR), gTW);\nroughnessFactor = mix(roughnessFactor, gRockR, gRockW);\nroughnessFactor = mix(roughnessFactor, 0.14, gWet);\nroughnessFactor = mix(roughnessFactor, 0.018, gPud);')
-      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.10, gPud);')
-      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n{ if (gPud > 0.01 || gWet > 0.01) { float fBase = clamp(1.0 - clamp(dot(geometryNormal, geometryViewDir), 0.0, 1.0), 0.0, 1.0); float fW = fBase * fBase * fBase; reflectedLight.indirectSpecular = min(max(reflectedLight.indirectSpecular, vec3(0.0)), vec3(16.0)) * (1.0 + gPud * (0.35 + 1.25 * fW) + gWet * 0.28 * fW); } }');
+      diffuseColor.rgb *= 1.0 - 0.14 * uWet;           // wet ground everywhere`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, mix(0.55, 1.0, gTR), gTW);\nroughnessFactor = mix(roughnessFactor, gRockR, gRockW);\nroughnessFactor = mix(roughnessFactor, 0.42, gWet);\nroughnessFactor = mix(roughnessFactor, 0.06, gPud);')
+      .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.02, gPud);')
+      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n{ if (gPud > 0.01 || gWet > 0.01) { float fBase = clamp(1.0 - clamp(dot(geometryNormal, geometryViewDir), 0.0, 1.0), 0.0, 1.0); float fW = fBase * fBase * fBase; reflectedLight.indirectSpecular = min(max(reflectedLight.indirectSpecular, vec3(0.0)), vec3(16.0)) * (1.0 + gPud * (0.18 + 0.65 * fW) + gWet * 0.10 * fW); } }');
     sh.fragmentShader = injectRoadPbr(sh.fragmentShader, 'vWPos.xz');
     Object.assign(sh.uniforms, roadUniforms);
     sh.fragmentShader = sh.fragmentShader
@@ -583,7 +583,7 @@ try {
   // Quarter-res bloom (capped at 480x270): visually identical wide glow at ~4x lower GPU fill & bandwidth across 11 blur passes
   bloomPass = new UnrealBloomPass(
     new THREE.Vector2(Math.min(480, Math.max(160, Math.floor(innerWidth * 0.25))), Math.min(270, Math.max(90, Math.floor(innerHeight * 0.25)))),
-    0.42, 0.55, 0.82
+    0.34, 0.45, 1.45
   );
   composer.addPass(bloomPass);
   // cinematic pass: speed blur toward screen edges, depth-occluded 8-tap jittered volumetric Mie sun shafts, lens rain, vibrance, vignette, grain,
@@ -2291,9 +2291,12 @@ let wxGripSpec: typeof CARS.kestrel | null = null;       // the car's spec with 
 function stepWeather(dt: number): void {
   wx.step(dt, camera.position, mapMode, driving ? Math.abs(driving.ps.speedMps) : 0, false);
   const w = wx.cur, t = TOD[todKey];
-  roadWater.pooling = poolLevel;
-  roadWater.update(dt, w.rain, w.sun, w.wind);
-  w.wet = roadWater.wetness;
+  // Don't soak or pool the race track while hovering storm forecast cards on the overview menu
+  if (!mapMode) {
+    roadWater.pooling = poolLevel;
+    roadWater.update(dt, w.rain, w.sun, w.wind);
+  }
+  w.wet = mapMode ? 0 : roadWater.wetness;
   if (!t) return;
   const f = wx.flash;
   sun.intensity = t.sunInt * w.sun * (1 + f * 2.5);
@@ -2369,20 +2372,20 @@ function stepWeather(dt: number): void {
   }
   for (const m of driveSurfaces) {
     const mm = m.material as THREE.MeshStandardMaterial;
-    mm.roughness = 0.8 - 0.62 * w.wet; mm.color.setScalar(1 - 0.36 * w.wet);
-    if (!mm.userData.pud) {                      // the road meshes carry the same puddles as the terrain's painted roads
+    mm.roughness = 0.84 - 0.34 * w.wet; mm.color.setScalar(1 - 0.24 * w.wet);
+    if (!mm.userData.pud) {                      // the road meshes carry the same localized puddles as the terrain's painted roads
       mm.userData.pud = true;
       mm.onBeforeCompile = (sh) => {
         sh.uniforms.uPool = poolU; sh.uniforms.uWet = wetU; Object.assign(sh.uniforms, roadUniforms);
         sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vRW;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvRW = (modelMatrix * vec4(position, 1.0)).xyz;');
         sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vRW;\nuniform float uPool;\nuniform float uWet;\n' + PUDDLE_GLSL)
-          .replace('#include <map_fragment>', '#include <map_fragment>\nfloat gPud = puddleAt(vRW.xz, uPool);\nfloat gRoad = 1.0;\ndiffuseColor.rgb *= 1.0 - 0.44 * gPud;')
-          .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.018, gPud);')
-          .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.12, gPud);')
-          .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n{ float fBase = clamp(1.0 - clamp(dot(geometryNormal, geometryViewDir), 0.0, 1.0), 0.0, 1.0); float fW = fBase * fBase * fBase; reflectedLight.indirectSpecular = min(max(reflectedLight.indirectSpecular, vec3(0.0)), vec3(16.0)) * (1.0 + gPud * (0.35 + 1.25 * fW) + uWet * 0.30 * fW); }');
+          .replace('#include <map_fragment>', '#include <map_fragment>\nfloat gPud = puddleAt(vRW.xz, uPool);\nfloat gRoad = 1.0;\ndiffuseColor.rgb *= 1.0 - 0.30 * gPud;')
+          .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.06, gPud);')
+          .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.02, gPud);')
+          .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n{ float fBase = clamp(1.0 - clamp(dot(geometryNormal, geometryViewDir), 0.0, 1.0), 0.0, 1.0); float fW = fBase * fBase * fBase; reflectedLight.indirectSpecular = min(max(reflectedLight.indirectSpecular, vec3(0.0)), vec3(16.0)) * (1.0 + gPud * (0.18 + 0.65 * fW) + uWet * 0.10 * fW); }');
         sh.fragmentShader = injectRoadPbr(sh.fragmentShader, 'vRW.xz');
       };
-      mm.customProgramCacheKey = () => 'roadpud';
+      mm.customProgramCacheKey = () => 'roadpud-v2';
       mm.needsUpdate = true;
     }
   }
@@ -4082,7 +4085,15 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
   {
     const key = id === 'ironport_grand_circuit' ? 'city' : id === 'great_lakes_cliff_raceway' ? 'cliff' : id === 'pinewood_rally_stage' ? 'rally' : id === IND ? 'ind' : id === HARB ? 'harb' : id === CIV ? 'civ' : id === 'superior_range_circuit' ? 'superior' : id === 'escarpment_circuit' ? 'escarpment' : 'free';
     wxPlan = WEATHER_PLAN[key]; wxPlanT = 0; wxPlanI = 0;
-    wx.setWeather(wxOverride === 'auto' ? wxPlan[0].w : wxOverride, false, true);
+    const startWx = wxOverride === 'auto' ? wxPlan[0].w : wxOverride;
+    wx.setWeather(startWx, false, true);
+    // Match road wetness & puddle level to the race's starting weather (never carry over soaked puddles from card previews or a prior storm race)
+    const w0 = WEATHERS[startWx]?.p;
+    roadWater.wetness = w0 ? (w0.rain > 0.3 ? 0.55 : w0.wet * 0.25) : 0;
+    roadWater.pooling = w0 && w0.rain > 0.5 ? 0.22 : 0;
+    poolLevel = roadWater.pooling;
+    poolU.value = poolLevel;
+    wetU.value = roadWater.wetness;
   }
   camera.near = 1.0; camera.far = 18000; camera.updateProjectionMatrix();      // the map view uses an altitude-adaptive near plane; 1 m / 18 km preserves tight 24-bit road depth precision in chase view
   lapReset();
@@ -5125,7 +5136,7 @@ function frame(now: number): void {
   const __t2 = performance.now();
   const probeMask = (TV_MODE || perfTier === 'low') ? 3 : 1;
   if (driving && !mapMode && !replay.active && (frameNo & probeMask) === 0) {                  // one cube face every other frame (every fourth on TV/low): a full refresh about 5 times a second
-    if (carProbe.step(renderer, scene, probePos.set(driving.pos.x, driving.car.position.y + 1.1, driving.pos.z), [driving.car, spray.points, dust.points, forestGroup, scapeGroup])) carProbe.apply(driving.car);
+    if (carProbe.step(renderer, scene, probePos.set(driving.pos.x, driving.car.position.y + 1.1, driving.pos.z), [driving.car, spray.points, dust.points, forestGroup, scapeGroup])) carProbe.apply(driving.car, 0.85);
   }
   cityVisibility.viewDist = mapMode ? Infinity : tierCfg.cityViewDist;
   cityVisibility.shadowDist = mapMode ? 0 : tierCfg.cityShadowDist;

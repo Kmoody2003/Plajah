@@ -1,24 +1,32 @@
 // Standing water: where puddles collect on the road (the same function drives the road shader and the physics), and the spray and mist a car throws up in them.
 import * as THREE from 'three';
 
-/** low-frequency pooling pattern, identical in the road shaders (GLSL below) and in JS so the puddle you see is the puddle you hit */
+/** localized puddle pockets (~3-8 m discrete low spots, never wall-to-wall track flooding), identical in GLSL and JS so the puddle you see is the puddle you hit */
 export function puddleNoise(x: number, z: number): number {
-  return 0.5 + 0.25 * Math.sin(x * 0.043 + 1.7 * Math.sin(z * 0.031)) + 0.25 * Math.sin(z * 0.057 + 1.3 * Math.sin(x * 0.029 + 1.0)) + 0.12 * Math.sin(x * 0.19 + z * 0.23) * Math.sin(z * 0.17 - x * 0.11);
+  const pocket = 0.5 + 0.25 * Math.sin(x * 0.21 + 1.4 * Math.sin(z * 0.16)) + 0.25 * Math.sin(z * 0.23 + 1.2 * Math.sin(x * 0.18 + 0.8));
+  const detail = 0.11 * Math.sin(x * 0.52 + z * 0.41) * Math.sin(z * 0.37 - x * 0.33);
+  const env = 0.78 + 0.22 * Math.sin(x * 0.037 + 0.9 * Math.sin(z * 0.031)) * Math.cos(z * 0.033 - 0.7 * Math.sin(x * 0.027));
+  return (pocket + detail) * env;
 }
 const sm = (a: number, b: number, x: number): number => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /** 0 dry .. 1 deep, for a pool level 0..1 */
 export function puddleDepth(x: number, z: number, level: number): number {
-  const thr = 1.12 - level * 0.27;                 // drained road: at full pooling ~7% of the surface holds water (the low spots), not ~43%
-  return sm(thr, thr + 0.12, puddleNoise(x, z));
+  if (level <= 0.01) return 0;
+  const thr = 0.98 - level * 0.22;                 // crowned drained track: ~0.9% scattered pockets in rain, ~3.6% max in peak storm (discrete 3-8 m puddles, never flooded sections)
+  return sm(thr, thr + 0.13, puddleNoise(x, z));
 }
 
 export const PUDDLE_GLSL = `
 float puddleNoise(vec2 p) {
-  return 0.5 + 0.25 * sin(p.x * 0.043 + 1.7 * sin(p.y * 0.031)) + 0.25 * sin(p.y * 0.057 + 1.3 * sin(p.x * 0.029 + 1.0)) + 0.12 * sin(p.x * 0.19 + p.y * 0.23) * sin(p.y * 0.17 - p.x * 0.11);
+  float pocket = 0.5 + 0.25 * sin(p.x * 0.21 + 1.4 * sin(p.y * 0.16)) + 0.25 * sin(p.y * 0.23 + 1.2 * sin(p.x * 0.18 + 0.8));
+  float detail = 0.11 * sin(p.x * 0.52 + p.y * 0.41) * sin(p.y * 0.37 - p.x * 0.33);
+  float env = 0.78 + 0.22 * sin(p.x * 0.037 + 0.9 * sin(p.y * 0.031)) * cos(p.y * 0.033 - 0.7 * sin(p.x * 0.027));
+  return (pocket + detail) * env;
 }
 float puddleAt(vec2 p, float level) {
-  float thr = 1.12 - level * 0.27;
-  return smoothstep(thr, thr + 0.12, puddleNoise(p));
+  if (level <= 0.01) return 0.0;
+  float thr = 0.98 - level * 0.22;
+  return smoothstep(thr, thr + 0.13, puddleNoise(p));
 }`;
 
 const VERT = `
