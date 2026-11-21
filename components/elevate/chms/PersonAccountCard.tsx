@@ -11,6 +11,7 @@ import { ELEVATE_ROLES, canAssignRole, getElevateRole } from '../../../services/
 import { provisionAccount, linkPersonToUser, claimUrl, updateProvisionedSeat, importRoleToKey, canProvision, sendClaimInvites, describeInviteResult, inviteStatusLabel, claimInvitesConfigured } from '../../../services/elevateAccounts';
 import { searchUserProfiles } from '../../../services/backendService';
 import { btn, btnPrimary, field, label } from './PeopleUI';
+import MemberAccessEditor from '../MemberAccessEditor';
 
 interface Props {
   org: Organization;
@@ -76,6 +77,14 @@ const PersonAccountCard: React.FC<Props> = ({ org, myMembership, person, members
         <p className="text-xs text-emerald-300 font-bold flex items-center gap-1.5"><Check size={13} /> Claimed — this person signs in to Plajah as {linkedMember?.displayName || 'themselves'}{linkedMember?.title ? ` · ${linkedMember.title}` : ''}.</p>
         {person.memberNumber && <p className="text-[11px] text-white/50">Member ID <span className="font-mono text-white/80 select-all">{person.memberNumber}</span></p>}
         <p className="text-[11px] text-white/35">They can update their own contact info, directory privacy, and see their department feeds and chat rooms.</p>
+        {linkedMember && allowed && (
+          <details className="mt-2 rounded-xl border border-white/10 bg-black/20 p-3" open>
+            <summary className="cursor-pointer text-[10px] font-black uppercase tracking-widest text-white/60">Roles, departments &amp; roster</summary>
+            <div className="mt-3">
+              <MemberAccessEditor org={org} myMembership={myMembership} member={linkedMember} onChanged={onChanged} />
+            </div>
+          </details>
+        )}
       </div>
     );
   }

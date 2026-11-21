@@ -124,7 +124,7 @@ const PeopleDirectory: React.FC<{ initialPersonId?: string | null }> = ({ initia
 
       <p className="text-[10px] text-white/40 font-bold">{rows.length} of {people.length} people{access.ministryScope ? ' · limited to ministries you lead' : ''}{access.financeOnly ? ' · directory view (no notes)' : ''}</p>
 
-      {rows.length === 0 ? <Empty>No people match. {access.staff ? 'Add someone or import your Servant Keeper data from the Import tab.' : ''}</Empty> : (
+      {rows.length === 0 ? <Empty>No people match. {access.staff ? 'Add someone, or bring in a list (Servant Keeper, CSV) from Add & Onboard → Import people.' : ''}</Empty> : (
         <div className={`${card} overflow-x-auto`}>
           <table className="w-full text-xs">
             <thead className="border-b border-white/10"><tr>

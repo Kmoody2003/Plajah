@@ -463,7 +463,7 @@ export function setupChecklist(org: Organization, members: OrgMembership[]) {
     { key: 'pastoral', label: 'Pastoral / lead roster filled', done: members.some(m => m.rosterGroup === 'PASTORAL' && m.userId !== org.creatorId) },
     { key: 'leaders', label: 'Department heads assigned', done: (org.ministries || []).some(m => m.headUids?.length) },
     { key: 'chat', label: 'Department chat & feeds configured', done: !!org.chatProvisionedAt },
-    { key: 'accounts', label: 'Member accounts provisioned (import or Accounts & Access)', done: !!org.accountProvisioning?.lastRunAt },
+    { key: 'accounts', label: 'Member accounts provisioned (People → Add & Onboard)', done: !!org.accountProvisioning?.lastRunAt },
     { key: 'giving', label: 'Giving connected (Stripe)', done: orgCanReceiveGiving(org) || !!org.givingUrl },
     { key: 'brand', label: 'Logo & cover set', done: !!org.logoUrl && !!org.coverUrl },
   ];

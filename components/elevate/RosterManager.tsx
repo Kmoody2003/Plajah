@@ -4,7 +4,7 @@
 // Church/Org Class Instructor, distinct from Academia `TEACHER`), and `DEPARTMENT_VOLUNTEER`.
 import { UserAvatar } from '../avatar/UserAvatar';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, ChevronUp, ChevronDown, Pencil, Check, X, Loader2, Camera, UserPlus, Star, Plus, Layers, GraduationCap } from 'lucide-react';
+import { Search, ChevronUp, ChevronDown, Pencil, Check, X, Loader2, UserPlus, Star, GraduationCap } from 'lucide-react';
 import type { Organization, OrgMembership, OrgMembershipOnboarding, RosterGroup, UserProfile } from '../../types';
 import {
   DEPARTMENT_SCOPED_ROLE_KEYS,
@@ -17,18 +17,16 @@ import {
   memberRoleKeys,
 } from '../../services/elevateRoles';
 import {
-  addDepartmentRole,
   assignRole,
   setProtectedRole,
   recomputeOrgRoleIndex,
-  removeDepartmentRole,
   rosterFor,
-  toggleOrgRoleKey,
   updateRosterEntry,
 } from '../../services/elevateService';
-import { fetchOrgMembers, acceptOrgMember, declineOrgMember, addOrgMember, removeOrgMember, fetchOnboardingVault } from '../../services/organizationService';
-import { searchUserProfiles, uploadFile } from '../../services/backendService';
+import { fetchOrgMembers, acceptOrgMember, declineOrgMember, addOrgMember, fetchOnboardingVault } from '../../services/organizationService';
+import { searchUserProfiles } from '../../services/backendService';
 import { provisionAccount } from '../../services/elevateAccounts';
+import MemberAccessEditor from './MemberAccessEditor';
 import { savePerson } from '../../services/chmsPeople';
 
 export interface RosterManagerProps {
@@ -36,6 +34,10 @@ export interface RosterManagerProps {
   myMembership: OrgMembership | null;
   onClose?: () => void;
   onChanged?: () => void;
+  /** People workspace splits the roster: 'roles' = role groups only, 'requests' = pending join requests only. */
+  only?: 'roles' | 'requests';
+  /** Open this person's full directory profile (People workspace). Returns false when they have no record. */
+  onOpenPerson?: (m: OrgMembership) => boolean | void;
 }
 
 type Tab = RosterGroup | 'PENDING';
@@ -46,20 +48,16 @@ const TABS: { key: Tab; label: string }[] = [
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-2.5 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 const pill = 'px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all';
 
-const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClose, onChanged }) => {
+const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClose, onChanged, only, onOpenPerson }) => {
   const [members, setMembers] = useState<OrgMembership[]>([]);
   const [pendingVaults, setPendingVaults] = useState<Record<string, OrgMembershipOnboarding>>({});
   const [pendingRoles, setPendingRoles] = useState<Record<string, string>>({});
-  const [tab, setTab] = useState<Tab>('PASTORAL');
+  const [tab, setTab] = useState<Tab>(only === 'requests' ? 'PENDING' : 'PASTORAL');
+  const [showAdd, setShowAdd] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<{ about: string; title: string; photo?: string }>({ about: '', title: '' });
-  const [deptRolePick, setDeptRolePick] = useState<{ ministryId: string; roleKey: string }>({
-    ministryId: org.ministries?.[0]?.id || '',
-    roleKey: 'INSTRUCTOR',
-  });
   const [q, setQ] = useState('');
   const [results, setResults] = useState<UserProfile[]>([]);
   const [addRole, setAddRole] = useState('INSTRUCTOR');
@@ -113,27 +111,6 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
   const pending = members.filter(m => m.status === 'PENDING');
   const list = tab === 'PENDING' ? pending : rosterFor(members, tab);
 
-  const changeRole = (m: OrgMembership, roleKey: string, ministryId?: string) => run(m.id, async () => {
-    const def = getElevateRole(roleKey);
-    await assignRole(org, myMembership, m, roleKey, { ministryId: ministryId || undefined, title: def?.label });
-    if (roleKey === 'SENIOR_PASTOR') await updateRosterEntry(m.id, { isSenior: true });
-  });
-
-  const handleToggleExtraRole = (m: OrgMembership, roleKey: string) => run(m.id, async () => {
-    await toggleOrgRoleKey(org, myMembership, m, roleKey);
-  });
-
-  const handleAddDeptRole = (m: OrgMembership) => {
-    if (!deptRolePick.ministryId || !deptRolePick.roleKey) return;
-    run(m.id, async () => {
-      await addDepartmentRole(org, myMembership, m, { ministryId: deptRolePick.ministryId, roleKey: deptRolePick.roleKey });
-    });
-  };
-
-  const handleRemoveDeptRole = (m: OrgMembership, ministryId: string, roleKey?: string) => run(m.id, async () => {
-    await removeDepartmentRole(org, myMembership, m, { ministryId, roleKey });
-  });
-
   const move = (m: OrgMembership, dir: -1 | 1) => {
     const i = list.findIndex(x => x.id === m.id), j = i + dir;
     if (j < 0 || j >= list.length) return;
@@ -141,25 +118,7 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
     return run(m.id, async () => { await Promise.all(ids.map((id, idx) => updateRosterEntry(id, { rosterOrder: idx }))); });
   };
 
-  const startEdit = (m: OrgMembership) => {
-    setEditId(m.id);
-    setDraft({ about: m.aboutInOrg || '', title: m.title || '', photo: m.orgPhotoUrl });
-    if (!deptRolePick.ministryId && ministries[0]?.id) {
-      setDeptRolePick(prev => ({ ...prev, ministryId: ministries[0].id }));
-    }
-  };
-  const saveEdit = (m: OrgMembership) => run(m.id, async () => {
-    await updateRosterEntry(m.id, { aboutInOrg: draft.about, title: draft.title || undefined, orgPhotoUrl: draft.photo });
-    setEditId(null);
-  });
-  const uploadPhoto = async (m: OrgMembership, f?: File | null) => {
-    if (!f) return;
-    setBusy(m.id);
-    try { const url = await uploadFile(`uploads/organizations/${org.id}/roster/${m.id}_${Date.now()}.${(f.name.split('.').pop() || 'jpg')}`, f); setDraft(d => ({ ...d, photo: url })); }
-    catch (e: any) { setErr(e?.message || 'Upload failed.'); }
-    setBusy(null);
-  };
-
+  const startEdit = (m: OrgMembership) => setEditId(m.id);
   const approve = (m: OrgMembership) => run(m.id, async () => {
     const chosenRoleKey = pendingRoles[m.id] || m.onboarding?.requestedRoleKey || m.roleKey || 'MEMBER';
     await acceptOrgMember(m.id, undefined, chosenRoleKey);
@@ -194,35 +153,24 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
     setPre({ first: '', last: '', email: '', memberNumber: '' });
   });
 
-  const remove = (m: OrgMembership) => {
-    if (!window.confirm(`Remove ${m.displayName} from ${org.name}?`)) return;
-    run(m.id, async () => { await removeOrgMember(m.id); await recomputeOrgRoleIndex(org.id); });
-  };
-
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h3 className="text-lg font-black text-white">Organization Roster &amp; Multi-Department Role Matrix</h3>
-          <p className="text-xs text-white/45">
-            Any person can belong to multiple departments and hold multiple roles simultaneously (Department Head, Department Administrator, non-credentialed Church Class Instructor, Department Volunteer, Member).
-          </p>
+      {onClose && !only && (
+        <div className="flex justify-end">
+          <button onClick={onClose} className={`${pill} bg-white/5 border-white/10 text-white/60 hover:bg-white/10`}>Close</button>
         </div>
-        {onClose && <button onClick={onClose} className={`${pill} bg-white/5 border-white/10 text-white/60 hover:bg-white/10`}>Close</button>}
-      </div>
-
-      {/* Role Distinction Callout: Church Class Instructor vs Credentialed Academia Teacher */}
-      <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06] px-4 py-2.5 text-xs text-emerald-200 flex items-center gap-2.5 flex-wrap">
-        <GraduationCap size={15} className="text-emerald-300 shrink-0" />
-        <span>
-          <strong>Role Distinction:</strong> <code className="text-emerald-300 font-bold">Instructor</code> is used for non-credentialed church &amp; Christian Education class teachers, whereas <code className="text-sky-300 font-bold">Teacher</code> is reserved strictly for credentialed educational &amp; Academia school educators.
-        </span>
-      </div>
+      )}
+      {only !== 'requests' && (
+        <p className="text-xs text-white/45 flex items-start gap-2">
+          <GraduationCap size={14} className="text-emerald-300 shrink-0 mt-0.5" />
+          <span>Anyone can hold several roles and belong to several departments. Tap the pencil to change a person's roles. <span className="text-white/30">Instructor = church / org class teacher; Teacher = credentialed Academia educator.</span></span>
+        </p>
+      )}
 
       {err && <div className="text-xs text-red-300 bg-red-500/10 border border-red-500/20 rounded-2xl px-4 py-2">{err}</div>}
 
-      <div className="flex gap-1.5 overflow-x-auto pb-1">
-        {TABS.map(t => {
+      {only !== 'requests' && <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+        {TABS.filter(t => only === 'roles' ? t.key !== 'PENDING' : true).map(t => {
           const n = t.key === 'PENDING' ? pending.length : rosterFor(members, t.key).length;
           return (
             <button key={t.key} onClick={() => setTab(t.key)} className={`${pill} whitespace-nowrap ${tab === t.key ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'}`}>
@@ -230,11 +178,17 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
             </button>
           );
         })}
-      </div>
+      </div>}
 
-      {tab !== 'PENDING' && assignable.length > 0 && (
+      {tab !== 'PENDING' && assignable.length > 0 && !showAdd && (
+        <button onClick={() => setShowAdd(true)} className={`${pill} bg-small-orange text-black border-small-orange flex items-center gap-1.5`}><UserPlus size={12} /> Give someone a role</button>
+      )}
+      {tab !== 'PENDING' && assignable.length > 0 && showAdd && (
         <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-3 space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-white/40 flex items-center gap-1.5"><UserPlus size={12} /> Add or Assign a Person (Multi-Role / Multi-Department)</p>
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-black uppercase tracking-widest text-white/40 flex items-center gap-1.5"><UserPlus size={12} /> Give someone a role</p>
+            <button onClick={() => setShowAdd(false)} className="text-white/40 hover:text-white" aria-label="Close"><X size={14} /></button>
+          </div>
           <div className="flex gap-2 flex-wrap">
             <select className={field + ' !w-auto flex-1 min-w-[180px]'} value={addRole} onChange={e => setAddRole(e.target.value)}>
               {assignable.map(r => (
@@ -381,14 +335,15 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
                             <option key={r.key} value={r.key} className="bg-[#0e0e11]">{r.label}</option>
                           ))}
                         </select>
-                        <button onClick={() => approve(m)} disabled={busy === m.id} className={`${pill} bg-emerald-500/20 border-emerald-400/30 text-emerald-200 flex items-center gap-1`}><Check size={12} /> Approve &amp; Auto-Assign IDs</button>
+                        <button onClick={() => approve(m)} disabled={busy === m.id} className={`${pill} bg-emerald-500/20 border-emerald-400/30 text-emerald-200 flex items-center gap-1`}><Check size={12} /> Approve</button>
                         <button onClick={() => decline(m)} disabled={busy === m.id} className={`${pill} bg-red-500/10 border-red-400/20 text-red-300 flex items-center gap-1`}><X size={12} /> Decline</button>
                       </div>
                     ) : (
                       <div className="flex items-center gap-1">
                         <button onClick={() => move(m, -1)} disabled={idx === 0 || !!busy} className="p-1.5 text-white/40 hover:text-white disabled:opacity-20" aria-label="Move up"><ChevronUp size={14} /></button>
                         <button onClick={() => move(m, 1)} disabled={idx === list.length - 1 || !!busy} className="p-1.5 text-white/40 hover:text-white disabled:opacity-20" aria-label="Move down"><ChevronDown size={14} /></button>
-                        <button onClick={() => (editing ? setEditId(null) : startEdit(m))} className="p-1.5 text-white/40 hover:text-white" aria-label="Edit"><Pencil size={14} /></button>
+                        {onOpenPerson && <button onClick={() => onOpenPerson(m)} className="px-2 py-1 rounded-full text-[9px] font-black uppercase tracking-widest text-white/50 hover:text-white hover:bg-white/10" title="Open full profile">Profile</button>}
+                        <button onClick={() => (editing ? setEditId(null) : startEdit(m))} className="p-1.5 text-white/40 hover:text-white" aria-label="Edit roles"><Pencil size={14} /></button>
                       </div>
                     )}
                     {busy === m.id && <Loader2 size={14} className="animate-spin text-white/40" />}
@@ -476,129 +431,11 @@ const RosterManager: React.FC<RosterManagerProps> = ({ org, myMembership, onClos
                   )}
 
                   {editing && (
-                    <div className="mt-3 pt-3 border-t border-white/5 space-y-3">
-                      {/* Primary Role */}
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-white/45">
-                          Primary Role
-                        </p>
-                        <select className={field} value={m.roleKey || ''} onChange={e => e.target.value && changeRole(m, e.target.value)}>
-                          <option value="">Select primary role…</option>
-                          {assignable.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
-                        </select>
-                      </div>
-
-                      {/* Multi-Role Matrix (Toggle Additional Org Roles) */}
-                      <div className="space-y-1.5">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-white/45 flex items-center gap-1">
-                          <Layers size={11} /> Multi-Role Assignments (Click to toggle additional roles)
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {assignable.map(r => {
-                            const active = allRoleKeys.includes(r.key);
-                            return (
-                              <button
-                                key={r.key}
-                                type="button"
-                                onClick={() => handleToggleExtraRole(m, r.key)}
-                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${
-                                  active
-                                    ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-200'
-                                    : 'bg-white/5 border-white/10 text-white/50 hover:bg-white/10'
-                                }`}
-                              >
-                                {active ? '✓ ' : '+ '}{r.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Multi-Department Roles (Department Head, Department Admin, Instructor, Department Volunteer) */}
-                      {ministries.length > 0 && (
-                        <div className="rounded-xl border border-white/10 bg-black/30 p-3 space-y-2">
-                          <p className="text-[10px] font-black uppercase tracking-widest text-sky-300">
-                            Department Memberships &amp; Department Roles
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {(m.ministryRoles || []).map((mr, i) => {
-                              const minName = ministries.find(min => min.id === mr.ministryId)?.name || mr.ministryId;
-                              const rLabel = getElevateRole(mr.roleKey)?.label || mr.roleKey;
-                              return (
-                                <span
-                                  key={`${mr.ministryId}_${mr.roleKey}_${i}`}
-                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-500/15 border border-sky-400/30 text-sky-200"
-                                >
-                                  {minName} · {rLabel}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveDeptRole(m, mr.ministryId, mr.roleKey)}
-                                    className="hover:text-red-300"
-                                    title="Remove this department role"
-                                  >
-                                    <X size={11} />
-                                  </button>
-                                </span>
-                              );
-                            })}
-                            {(m.ministryRoles || []).length === 0 && (
-                              <span className="text-[11px] text-white/40">No department-specific roles assigned yet.</span>
-                            )}
-                          </div>
-
-                          <div className="flex flex-wrap gap-2 pt-1">
-                            <select
-                              value={deptRolePick.ministryId}
-                              onChange={e => setDeptRolePick(p => ({ ...p, ministryId: e.target.value }))}
-                              className="bg-black/50 border border-white/15 rounded-xl px-3 py-1.5 text-xs text-white flex-1 min-w-[150px]"
-                            >
-                              <option value="">Select Department…</option>
-                              {ministries.map(min => (
-                                <option key={min.id} value={min.id}>{min.name}</option>
-                              ))}
-                            </select>
-                            <select
-                              value={deptRolePick.roleKey}
-                              onChange={e => setDeptRolePick(p => ({ ...p, roleKey: e.target.value }))}
-                              className="bg-black/50 border border-white/15 rounded-xl px-3 py-1.5 text-xs text-white flex-1 min-w-[180px]"
-                            >
-                              {DEPARTMENT_SCOPED_ROLE_KEYS.map(rk => (
-                                <option key={rk} value={rk}>
-                                  {getElevateRole(rk)?.label || rk}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => handleAddDeptRole(m)}
-                              className="px-3 py-1.5 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 border border-sky-400/35 text-sky-200 text-xs font-black uppercase tracking-wider flex items-center gap-1"
-                            >
-                              <Plus size={12} /> Add Dept Role
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      <input className={field} placeholder="Title shown on the roster" value={draft.title} onChange={e => setDraft(d => ({ ...d, title: e.target.value }))} />
-                      <textarea rows={3} className={field + ' resize-none'} placeholder={`About ${m.displayName.split(' ')[0]} at ${org.name}…`} value={draft.about} onChange={e => setDraft(d => ({ ...d, about: e.target.value }))} />
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <label className={`${pill} bg-white/5 border-white/10 text-white/60 cursor-pointer flex items-center gap-1.5 hover:bg-white/10`}>
-                          <Camera size={12} /> {draft.photo ? 'Change headshot' : 'Org headshot'}
-                          <input type="file" accept="image/*" className="hidden" onChange={e => uploadPhoto(m, e.target.files?.[0])} />
-                        </label>
-                        {draft.photo && <img src={draft.photo} alt="" className="w-9 h-9 rounded-full object-cover" />}
-                        {draft.photo && <button onClick={() => setDraft(d => ({ ...d, photo: undefined }))} className="text-[10px] text-white/40 underline">Remove</button>}
-                        {tab === 'PASTORAL' && (
-                          <button onClick={() => run(m.id, async () => { await updateRosterEntry(m.id, { isSenior: !m.isSenior }); })}
-                            className={`${pill} ${m.isSenior ? 'bg-amber-400/20 border-amber-300/40 text-amber-200' : 'bg-white/5 border-white/10 text-white/50'}`}>
-                            {m.isSenior ? 'Senior pastor' : 'Mark as senior'}
-                          </button>
-                        )}
-                      </div>
-                      <div className="flex gap-2 justify-between">
-                        <button onClick={() => remove(m)} className="text-[10px] font-black uppercase tracking-widest text-red-400/70 hover:text-red-400">Remove from org</button>
-                        <button onClick={() => saveEdit(m)} className={`${pill} bg-white text-black border-white`}>Save</button>
-                      </div>
+                    <div className="mt-3 pt-3 border-t border-white/5">
+                      <MemberAccessEditor org={org} myMembership={myMembership} member={m}
+                        onChanged={async () => { await load(); onChanged?.(); }}
+                        onRemoved={() => setEditId(null)}
+                        onDone={() => setEditId(null)} />
                     </div>
                   )}
                 </div>

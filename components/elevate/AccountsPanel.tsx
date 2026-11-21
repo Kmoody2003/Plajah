@@ -1,4 +1,4 @@
-// AccountsPanel — "Accounts & Access" in Elevate Ops.
+// AccountsPanel — "Join link & accounts" + "Import staff from payroll" under People → Add & Onboard.
 //   • Join link + QR code (claim a pre-provisioned account / join as a new member)
 //   • Claim stats: people · provisioned · claimed · nobody yet
 //   • Provision everyone who doesn't have an account yet (one click, batched)
@@ -12,13 +12,15 @@ import { fetchOrgMembers, updateOrganization } from '../../services/organization
 import { accountStats, provisionAccountsBulk, joinUrl, joinQr, claimUrl, importRoleToKey, canProvision, memberNumberPrefix, sendClaimInvites, describeInviteResult, claimInvitesConfigured } from '../../services/elevateAccounts';
 import PayrollImport from './PayrollImport';
 
-interface Props { org: Organization; myMembership: OrgMembership | null; onOrgChange?: (o: Organization) => void }
+interface Props { org: Organization; myMembership: OrgMembership | null; onOrgChange?: (o: Organization) => void;
+  /** Lock to one view and hide the internal tab bar (People → Onboarding drives it). */
+  view?: 'access' | 'payroll' }
 
 const card = 'bg-white/[0.03] border border-white/10 rounded-[2rem]';
 const pill = 'px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all flex items-center gap-1.5';
 const field = 'w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-2.5 text-sm text-white outline-none focus:border-small-orange/50 transition-all placeholder:text-white/25';
 
-const AccountsPanel: React.FC<Props> = ({ org, myMembership, onOrgChange }) => {
+const AccountsPanel: React.FC<Props> = ({ org, myMembership, onOrgChange, view }) => {
   const allowed = canProvision(org, myMembership);
   const [people, setPeople] = useState<ChmsPerson[]>([]);
   const [members, setMembers] = useState<OrgMembership[]>([]);
@@ -29,7 +31,8 @@ const AccountsPanel: React.FC<Props> = ({ org, myMembership, onOrgChange }) => {
   const [msg, setMsg] = useState('');
   const [prefix, setPrefix] = useState(org.memberNumberPrefix || '');
   const [onImport, setOnImport] = useState(org.accountProvisioning?.onImport !== false);
-  const [tab, setTab] = useState<'access' | 'payroll'>('access');
+  const [tabState, setTab] = useState<'access' | 'payroll'>(view || 'access');
+  const tab = view || tabState;
   const [mailReady, setMailReady] = useState<boolean | null>(null);
   const [inviting, setInviting] = useState(false);
   useEffect(() => { if (allowed) claimInvitesConfigured().then(setMailReady); }, [allowed]);
@@ -91,11 +94,11 @@ const AccountsPanel: React.FC<Props> = ({ org, myMembership, onOrgChange }) => {
 
   return (
     <div className="space-y-5">
-      <div className="flex gap-1.5">
+      {!view && <div className="flex gap-1.5">
         {([['access', 'Join link & accounts', Users], ['payroll', 'Import staff from payroll', Briefcase]] as const).map(([k, l, I]) => (
           <button key={k} onClick={() => setTab(k)} className={`${pill} ${tab === k ? 'bg-small-orange text-black border-small-orange' : 'bg-white/5 border-white/10 text-white/50 hover:text-white'}`}><I size={12} /> {l}</button>
         ))}
-      </div>
+      </div>}
 
       {tab === 'payroll' && <PayrollImport org={org} myMembership={myMembership} people={people} onDone={load} />}
 
@@ -113,7 +116,7 @@ const AccountsPanel: React.FC<Props> = ({ org, myMembership, onOrgChange }) => {
                   <button onClick={downloadQr} className={`${pill} bg-white/5 border-white/10 text-white/70`}><Download size={12} /> QR PNG</button>
                   <a href={`mailto:?subject=${encodeURIComponent(`Join ${org.name} on Plajah`)}&body=${encodeURIComponent(`${org.name} is on Plajah. Claim your account (member ID or email) or join here:\n${url}`)}`} className={`${pill} bg-white/5 border-white/10 text-white/70`}><Link2 size={12} /> Email it</a>
                 </div>
-                <p className="text-[11px] text-white/35">Member IDs look like <span className="font-mono text-white/60">{memberNumberPrefix(org)}-48213</span>. Role-specific invite links (Pastor, Media Team…) live under Invites.</p>
+                <p className="text-[11px] text-white/35">Member IDs look like <span className="font-mono text-white/60">{memberNumberPrefix(org)}-48213</span>. Role-specific invite links (Pastor, Media Team…) are under Role invite links.</p>
               </div>
             </div>
           </div>

@@ -459,7 +459,7 @@ const ImportWizard: React.FC<ImportWizardProps> = ({ org, myMembership, onClose,
                   <p className="text-[11px] mt-2 flex items-center gap-1.5">
                     {provisioned.busy ? <Loader2 size={12} className="animate-spin text-sky-300" /> : <Check size={12} className="text-sky-300" />}
                     <span className={provisioned.error ? 'text-red-400' : 'text-sky-300'}>
-                      {provisioned.error || (provisioned.busy ? `Provisioning Plajah accounts… ${provisioned.count}` : `${provisioned.count} Plajah account${provisioned.count === 1 ? '' : 's'} pre-provisioned${provisioned.skipped ? ` (${provisioned.skipped} already had one)` : ''}. Share your join link or QR from Accounts & Access so people can claim them.`)}
+                      {provisioned.error || (provisioned.busy ? `Provisioning Plajah accounts… ${provisioned.count}` : `${provisioned.count} Plajah account${provisioned.count === 1 ? '' : 's'} pre-provisioned${provisioned.skipped ? ` (${provisioned.skipped} already had one)` : ''}. Share your join link or QR from People → Add & Onboard so people can claim them.`)}
                     </span>
                   </p>
                 )}
