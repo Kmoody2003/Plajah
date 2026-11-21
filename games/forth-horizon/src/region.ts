@@ -17,7 +17,7 @@ import { CityBatches, type CityPart } from './cityBatch';
 import { patchFacadeMasonry, patchGlassInterior, patchPunchedInterior } from './buildingShaders';
 import { makeSovereign } from './car';
 import { makeRivalCar, type RivalCarVariant } from './rivalCars';
-import { garage, cloud, activeSpec, hasCar, RunTracker, PathProgress, refParSec, showBanner, showCard, DeliveryGame, makeSpots, TIER_LIST } from './garageGame';
+import { garage, cloud, activeSpec, hasCar, RunTracker, PathProgress, refParSec, showBanner, showCard, showRaceResultsOverlay, DeliveryGame, makeSpots, TIER_LIST, type RaceFinishStanding } from './garageGame';
 import { medalFor } from './garage/progress';
 import { smoothClosedPath } from './circuitSmooth';
 import { PhotoMode } from './photo';
@@ -54,7 +54,8 @@ import { SpatialCuller, runWithConcurrency, populateTiledTerrain, populateTerrai
 import { harborDetail } from './harborDetail';
 import { duneDetail } from './duneDetail';
 import { Vegetation } from './vegetation';
-import { buildIndustrialCircuit, carveCourseFormation, carveIndustrialCutting, industrialProfile, type GradeFeature } from './industrialCircuit';
+import { buildIndustrialCircuit, buildJerseyBarrierRibbon, concreteBarrierMaterial, carveCourseFormation, carveIndustrialCutting, industrialProfile, type GradeFeature } from './industrialCircuit';
+import { shippingContainerMaterials } from './library/industrial';
 import { buildIronworksDistrict } from './ironworksDistrict';
 import { preloadModelledPieces } from './library/modelled';
 import { sharedPbrTex } from './library/kit';
@@ -84,7 +85,7 @@ import { CSM } from 'three/addons/csm/CSM.js';
 import { GradePass, GAME_LENSES, GAME_LUTS, type GameLens } from './grade';
 import { WeatherRig, WEATHERS, worstOf, forecastText } from './weather';
 import { LensRain, LENS_RAIN_GLSL } from './lensRain';
-import { RacingHud } from './racingHud';
+import { RacingHud, type MapLandmark, type MapOpponent } from './racingHud';
 import { WetRoad, waterContact } from './wetRoad';
 import { BlackGuard } from './blackGuard';
 import { FrameProfiler, gpuPreference } from './performance';
@@ -203,6 +204,23 @@ function csmSetup(m: THREE.Material): void {
 // one per frame. The cascade setup runs first so no material compiles twice.
 let warmed = false;
 let prewarmCar: THREE.Group | null = null;
+/** Start loading & compiling the player's active scan car right away after boot so frame 1 of the first race already has the real model (zero pop-in near '1'!). */
+function preloadHeroCar(): void {
+  const wantId = activeCarId();
+  if (driving || (prewarmCar && prewarmCar.userData.carId === wantId)) return;
+  try {
+    const car = makeCar(wantId);
+    car.position.set(0, -4000, 0);
+    scene.add(car);
+    prewarmCar = car;
+    void (car.userData.scanPromise as Promise<void> | undefined)?.then(async () => {
+      if (prewarmCar !== car || driving) return;
+      csmSweep(true);
+      try { await (renderer as unknown as { compileAsync(s: THREE.Scene, c: THREE.Camera): Promise<void> }).compileAsync(scene, camera); } catch { /* ok */ }
+      if (prewarmCar === car && !driving) scene.remove(car);
+    });
+  } catch (e) { console.warn('hero car preload failed', e); }
+}
 async function warmShaders(): Promise<void> {
   if (warmed) return;
   warmed = true;
@@ -211,14 +229,7 @@ async function warmShaders(): Promise<void> {
   const was = groups.map((g) => g.visible);
   groups.forEach((g) => { g.visible = true; });
   try { await (renderer as unknown as { compileAsync(s: THREE.Scene, c: THREE.Camera): Promise<void> }).compileAsync(scene, camera); } catch { renderer.compile(scene, camera); }
-  // the car is the heaviest set of shaders and loads a 14 MB scan: build it now, compile it, and hand it to the first race
-  if (!driving) try {
-    const car = makeCar(); car.position.set(0, -4000, 0); scene.add(car); prewarmCar = car;
-    for (let i = 0; i < 100 && !car.userData.panels && prewarmCar === car; i++) await new Promise((r) => setTimeout(r, 250));
-    csmSweep(true);
-    await (renderer as unknown as { compileAsync(s: THREE.Scene, c: THREE.Camera): Promise<void> }).compileAsync(scene, camera);
-    if (prewarmCar === car) scene.remove(car);
-  } catch (e) { console.warn('car warm-up failed', e); if (prewarmCar) prewarmCar = null; }
+  if (!driving && !prewarmCar) preloadHeroCar();
   groups.forEach((g, i) => { g.visible = was[i]; });
   const tex = new Set<THREE.Texture>();
   scene.traverse((o) => {
@@ -1060,9 +1071,10 @@ function buildHarbor(): void {
       }
     }
   }
-  const cIm = new THREE.InstancedMesh(new THREE.BoxGeometry(12.2, 2.6, 2.5), stdMat(0xffffff, 0.8), Math.max(cells.length, 1));
+  const cIm = new THREE.InstancedMesh(new THREE.BoxGeometry(12.2, 2.6, 2.5), shippingContainerMaterials(), Math.max(cells.length, 1));
   const col = new THREE.Color(), rq = new THREE.Matrix4().makeRotationY(phi);
   cells.forEach((c, i) => { m4.makeTranslation(c.x, c.y, c.z).multiply(rq); cIm.setMatrixAt(i, m4); cIm.setColorAt(i, col.setHex(c.c)); });
+  cIm.castShadow = cIm.receiveShadow = true;
   cIm.frustumCulled = false;
   harborGroup.add(cIm);
 
@@ -2797,9 +2809,17 @@ const briefEl = document.createElement('div');
 briefEl.style.cssText = 'position:fixed;left:44px;bottom:48px;width:420px;display:none;font-family:Inter,sans-serif;color:#fff;padding:22px 24px;background:rgba(26,0,38,.78);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.12);border-radius:28px;box-shadow:0 24px 60px rgba(0,0,0,.55);user-select:none';
 document.body.appendChild(briefEl);
 const countEl = document.createElement('div');
+countEl.id = 'raceCount';
 countEl.style.cssText = 'position:fixed;left:0;right:0;top:30%;text-align:center;font:800 130px Outfit,sans-serif;color:#fff;text-shadow:0 0 50px rgba(212,0,85,.9),0 0 90px rgba(255,140,0,.5);display:none;pointer-events:none;letter-spacing:.04em';
 document.body.appendChild(countEl);
 function hideBrief(): void { briefEl.style.display = 'none'; }
+addEventListener('keydown', (e) => {
+  if (e.code === 'Escape' && !driving && briefEl.style.display === 'block') {
+    e.preventDefault();
+    if (wxOverride === 'auto') wx.setWeather('partly', false, true);
+    preset('overview');
+  }
+});
 
 // ---------- garage and courier cards on the map screen ----------
 const walletEl = document.createElement('div');
@@ -2857,9 +2877,11 @@ addMenuCard('COURIER MODE', 'Delivery shift','Passengers · food · packages · 
 addMenuCard('GARAGE', 'Cars, parts and tuning', 'Showroom · upgrades · tuning · objectives', '#ffd166', () => { location.href = 'showroom.html'; });
 function openBrief(id: string): void {
   const b = BRIEFS[id];
-  if (wxOverride === 'auto') wx.setWeather(worstOf(WEATHER_PLAN[id]), false, true);      // the map shows the race's worst weather as the forecast
+  if (!b) return;
+  if (wxOverride === 'auto' && WEATHER_PLAN[id]) wx.setWeather(worstOf(WEATHER_PLAN[id]), false, true);      // the map shows the race's worst weather as the forecast
   preset(b.view, true);       // stays on the map screen: dark backdrop, faded edges, no sky
-  const cc = id === 'free' ? new THREE.Vector3(-4600, 0, 1800) : centroid(meta.circuits[b.drive]);
+  const circ = id === 'free' ? null : meta.circuits[b.drive];
+  const cc = id === 'free' ? new THREE.Vector3(-4600, 0, 1800) : (circ ? centroid(circ) : new THREE.Vector3(3800, 0, 300));
   const hh = id === 'city' ? 1500 : id === 'ind' || id === 'harb' || id === 'civ' ? 1300 : id === 'cliff' ? 5200 : id === 'rally' ? 6200 : id === 'superior' ? 9000 : id === 'escarpment' ? 5200 : 6800;
   look(new THREE.Vector3(cc.x - hh * 0.3, hh, cc.z + hh * 0.62), cc);   // steep, so no horizon shows
   briefEl.style.borderColor = b.color + '88';
@@ -2918,7 +2940,7 @@ function preset(name: string, keepMap = false): void {
   }
   if (name === 'downtown') { const c = centroid(city); look(new THREE.Vector3(c.x - 1500, 420, c.z + 1500), new THREE.Vector3(c.x + 100, 60, c.z - 100)); }
   if (name === 'street' && city.y) { const k = 20, p = city.xz[k], q = city.xz[k + 4]; look(new THREE.Vector3(p[0], city.y[k] + 9, p[1]), new THREE.Vector3(q[0], city.y[k] + 25, q[1])); }
-  if (name === 'harbor' && harbor) { const t = harbor.terminals[0]; look(new THREE.Vector3(t.c[0] - 700, 260, t.c[1] - 500), new THREE.Vector3(t.c[0], 8, t.c[1] + 120)); }
+  if (name === 'harbor' && harbor && harbor.terminals.length) { const t = harbor.terminals[0]; look(new THREE.Vector3(t.c[0] - 700, 260, t.c[1] - 500), new THREE.Vector3(t.c[0], 8, t.c[1] + 120)); }
   if (name === 'civic' && meta.circuits[CIV]) { const c = centroid(meta.circuits[CIV]); look(new THREE.Vector3(c.x - 900, 900, c.z + 700), new THREE.Vector3(c.x, 10, c.z)); }
   if (name === 'harbor' && meta.circuits[HARB]) { const c = centroid(meta.circuits[HARB]); look(new THREE.Vector3(c.x - 700, 1000, c.z + 900), new THREE.Vector3(c.x, 10, c.z)); }
   if (name === 'industrial' && meta.circuits[IND]) { const c = centroid(meta.circuits[IND]); look(new THREE.Vector3(c.x - 600, 900, c.z + 900), new THREE.Vector3(c.x, 10, c.z)); }
@@ -2992,61 +3014,61 @@ function buildFurniture(): void {
     const dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1;
     return [dx / l, dz / l];
   };
-  // concrete jersey barriers from the asset sheet (grey, hazard-stripe and worn red/white), 3.05 m long
-  const jProf: number[][] = [[-0.30, 0], [0.30, 0], [0.30, 0.075], [0.255, 0.33], [0.125, 0.81], [-0.125, 0.81], [-0.255, 0.33], [-0.30, 0.075]];
-  const jGeo = (() => {
-    const L = 3.05, pos: number[] = [], uv: number[] = [], idx: number[] = [];
-    const n = jProf.length;
-    let tot = 0; const cum = [0];
-    for (let i = 0; i < n; i++) { const a = jProf[i], b = jProf[(i + 1) % n]; tot += Math.hypot(b[0] - a[0], b[1] - a[1]); cum.push(tot); }
-    for (let r = 0; r < 2; r++) for (let i = 0; i <= n; i++) { const p = jProf[i % n]; pos.push(p[0], p[1], (r - 0.5) * L); uv.push(r, cum[i] / tot); }
-    for (let i = 0; i < n; i++) { const a = i, b = i + 1, c = a + n + 1, d = b + n + 1; idx.push(a, c, b, b, c, d); }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-    g.setIndex(idx);
-    g.computeVertexNormals();
-    return g;
-  })();
-  const jMat = (k: string): THREE.MeshStandardMaterial => { const t = gameTex(k, false); t.wrapS = t.wrapT = THREE.RepeatWrapping; return new THREE.MeshStandardMaterial({ map: t, roughness: 0.92, metalness: 0, side: THREE.DoubleSide }); };
-  const variants = [['barrier_grey', 0], ['barrier_hazard', 0], ['barrier_red', 0]] as [string, number][];
-  const slots: THREE.Matrix4[][] = [[], [], []];
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
-  // barriers are laid end to end along the offset edge of the road by arc length, each turned to the edge's own direction: round a corner they follow the curve with no
-  // gaps on the outside and no overlap or fanning on the inside (the old version placed them along the centre line's tangent at fixed samples)
-  const BL = 3.05;
-  for (const side of [-1, 1]) {
+  // Continuous, strictly vertical F-shape concrete Jersey barrier walls along both edges of the Grand Circuit
+  // (weathered precast concrete + tire scuffs + red/white outside-corner accents, smoothly following road height with zero block staggering or tilted angles)
+  const m4 = new THREE.Matrix4(), col = new THREE.Color();
+  {
+    const greyRuns: [number, number, number][][] = [];
+    const redRuns: [number, number, number][][] = [];
+    const hazRuns: [number, number, number][][] = [];
     const off = HALF + 1.4;
-    const edge: [number, number][] = [];
-    for (let i = 0; i < n; i++) { const [tx, tz] = tan(i); edge.push([P[i].x - tz * off * side, P[i].z + tx * off * side]); }
-    let travelled = 0, next = BL / 2, count = 0;
-    for (let i = 0; i < n; i++) {
-      const a = edge[i], b = edge[(i + 1) % n];
-      const dx = b[0] - a[0], dz = b[1] - a[1], L = Math.hypot(dx, dz);
-      if (L < 1e-3) continue;
-      const ux = dx / L, uz = dz / L, [tx, tz] = tan(i);
-      const folded = ux * tx + uz * tz < 0.3;                                 // the inside edge of a tight corner folds back on itself: nothing stands there
-      while (next <= travelled + L) {
-        if (!folded) {
-          const s = next - travelled, x = a[0] + ux * s, z = a[1] + uz * s, y = hAt(x, z) * exag;
-          q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(ux, uz));
-          m4.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(1, 1, 1));
-          slots[(count % 9 === 4 && side > 0) ? 2 : (count % 13 === 6 && side < 0) ? 1 : 0].push(m4.clone());
-          count++;
-        }
-        next += BL;
+    for (const side of [-1, 1]) {
+      const edge: ({ p: [number, number, number]; kind: 'grey' | 'red' | 'hazard' } | null)[] = [];
+      for (let i = 0; i < n; i++) {
+        const [tx, tz] = tan(i);
+        const x = P[i].x - tz * off * side, z = P[i].z + tx * off * side;
+        const [txA, tzA] = tan((i - 2 + n) % n), [txB, tzB] = tan((i + 2) % n);
+        const turn = Math.atan2(txA * tzB - tzA * txB, txA * txB + tzA * tzB);
+        // Smooth road edge height (anchored cleanly with the ribbon's -0.32 m footing so it never steps or floats on crowns)
+        const roadY = Math.max(hAt(P[i].x, P[i].z) * exag, meshH(P[i].x, P[i].z)) + RIBBON_LIFT - 0.04;
+        const isOutsideCorner = Math.abs(turn) > 0.20 && (turn > 0 ? -1 : 1) === side;
+        const kind: 'grey' | 'red' | 'hazard' = isOutsideCorner ? (side > 0 ? 'red' : 'hazard') : 'grey';
+        edge.push({ p: [x, roadY, z], kind });
       }
-      travelled += L;
+      let curKind: 'grey' | 'red' | 'hazard' = 'grey';
+      let curRun: [number, number, number][] = [];
+      const flush = (): void => {
+        if (curRun.length >= 2) (curKind === 'red' ? redRuns : curKind === 'hazard' ? hazRuns : greyRuns).push(curRun);
+        curRun = [];
+      };
+      for (let k = 0; k <= n; k++) {
+        const i = k % n, item = edge[i];
+        if (!item) { flush(); continue; }
+        const [tx, tz] = tan(i);
+        if (curRun.length) {
+          const prev = curRun[curRun.length - 1];
+          const dx = item.p[0] - prev[0], dz = item.p[2] - prev[2], d = Math.hypot(dx, dz);
+          if (d > 24 || (d > 0.25 && (dx * tx + dz * tz) / d < 0.28)) { flush(); }
+        }
+        if (curRun.length && item.kind !== curKind) {
+          curRun.push(item.p);
+          flush();
+          curKind = item.kind;
+          curRun.push(item.p);
+        } else {
+          curKind = item.kind;
+          curRun.push(item.p);
+        }
+      }
+      flush();
     }
+    const gWall = buildJerseyBarrierRibbon(greyRuns, concreteBarrierMaterial('grey'), 'city-jersey-grey');
+    const rWall = buildJerseyBarrierRibbon(redRuns, concreteBarrierMaterial('red'), 'city-jersey-red');
+    const hWall = buildJerseyBarrierRibbon(hazRuns, concreteBarrierMaterial('hazard'), 'city-jersey-hazard');
+    if (gWall) furnitureGroup.add(gWall);
+    if (rWall) furnitureGroup.add(rWall);
+    if (hWall) furnitureGroup.add(hWall);
   }
-  variants.forEach(([k], vi) => {
-    const im = new THREE.InstancedMesh(jGeo, jMat(k), Math.max(slots[vi].length, 1));
-    slots[vi].forEach((mm, i) => im.setMatrixAt(i, mm));
-    im.count = slots[vi].length;
-    im.frustumCulled = false;
-    im.castShadow = true;
-    furnitureGroup.add(im);
-  });
   // kerbs on the inside of each corner (reference kerb texture)
   const corners = c.corners ?? [];
   const kAcc: Acc = { pos: [], idx: [], uv: [] };
@@ -3312,6 +3334,10 @@ function buildFurniture(): void {
       const keep = [...(countryNet?.roads ?? []).map((r) => r.xz), ...streetRuns.map((r) => r.p)];
       const sr = buildScenicRoads(scenicData, (x, z) => meshH(x, z), cityRoadMat ?? undefined, keep); furnitureGroup.add(sr.group); driveSurfaces.push(...sr.decks);
       scenicRails = railIndex(sr.rails);
+      const pavedPts = scenicData.filter((r) => r.surface === 'paved').flatMap((r) => r.xz.map((p) => ({ x: p[0], z: p[1] })));
+      const gravelPts = scenicData.filter((r) => r.surface !== 'paved').flatMap((r) => r.xz.map((p) => ({ x: p[0], z: p[1] })));
+      if (pavedPts.length) scenicPavedNear = makeCorridor(pavedPts);
+      if (gravelPts.length) scenicGravelNear = makeCorridor(gravelPts);
     }
     // the arch's road direction: the named scenic road (or any scenic road) nearest the arch, over +-2 samples
     const roadDir = (x: number, z: number, name?: string): [number, number] | null => {
@@ -3435,7 +3461,7 @@ function lapStep(x: number, z: number, now: number): string {
 
 // ---------- driving ----------
 const keys = new Set<string>();
-interface DriveState { lock: number; camDist: number; camH: number; camView: number; circuitId: string; pos: THREE.Vector3; yaw: number; sp: number; lat: number; steer: number; car: THREE.Group; startPos: THREE.Vector3; startYaw: number; camPos: THREE.Vector3; hit: number; ps: CarState }
+interface DriveState { lock: number; readyHold: number; gridCompiled: boolean; camDist: number; camH: number; camView: number; circuitId: string; pos: THREE.Vector3; yaw: number; sp: number; lat: number; steer: number; car: THREE.Group; startPos: THREE.Vector3; startYaw: number; camPos: THREE.Vector3; hit: number; ps: CarState }
 let driving: DriveState | null = null;
 // racing line and assists (Settings > Driving)
 const assist = { line: true, brake: true, steer: true };
@@ -3486,7 +3512,7 @@ const photo = new PhotoMode({
 });
 const photoBtn = document.createElement('button');
 photoBtn.textContent = 'PHOTO (K)';
-photoBtn.style.cssText = 'position:fixed;right:76px;top:66px;height:38px;padding:0 16px;background:rgba(26,0,38,.62);color:#fff;border:1px solid rgba(255,255,255,.14);border-radius:999px;backdrop-filter:blur(12px);font:600 11px Outfit,sans-serif;letter-spacing:.16em;cursor:pointer;display:none;z-index:30';
+photoBtn.style.cssText = 'position:fixed;right:184px;top:16px;height:36px;padding:0 15px;background:rgba(26,0,38,.72);color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:999px;backdrop-filter:blur(12px);font:600 11px Outfit,sans-serif;letter-spacing:.16em;cursor:pointer;display:none;z-index:30';
 photoBtn.onclick = () => { if (driving && !replay.active) photo.enter(); };
 document.body.appendChild(photoBtn);
 
@@ -3648,6 +3674,8 @@ let countryNet: RoadNetwork | null = null;                                      
 let bridgeNear: ((x: number, z: number, r: number) => boolean) | null = null;         // the river bridges' roadway
 let countryScenes: CountryScenes | null = null;                                        // Millbrook Creek, its covered bridge, Millbrook Road and Hollow Lane
 let rallyNear: ((x: number, z: number, r: number) => boolean) | null = null;         // the rally stage's gravel road
+let scenicPavedNear: ((x: number, z: number, r: number) => boolean) | null = null;   // paved scenic highways (Escarpment Circuit, Superior Range)
+let scenicGravelNear: ((x: number, z: number, r: number) => boolean) | null = null;  // gravel scenic passes
 function surfaceAtXZ(x: number, z: number): SurfaceType {
   // roads and pavement from the baked street mask, the coastal highway and the city circuit corridor, beach sand near the water, grass elsewhere
   if (roadMask) {
@@ -3668,6 +3696,8 @@ function surfaceAtXZ(x: number, z: number): SurfaceType {
     if (best < 80) return 'asphalt';
   }
   if (cliffNear && cliffNear(x, z, 6.6)) return 'asphalt';
+  if (scenicPavedNear && scenicPavedNear(x, z, 6.4)) return 'asphalt';
+  if (scenicGravelNear && scenicGravelNear(x, z, 6.0)) return 'gravel';
   if (rallyNear && rallyNear(x, z, 5.2)) return 'gravel';
   if (bridgeNear && bridgeNear(x, z, 10)) return 'asphalt';
   if (indNear && indNear(x, z, 7.2)) return 'asphalt';
@@ -3732,11 +3762,12 @@ function makeCar(carId?: string): THREE.Group {
   const qOverride = new URLSearchParams(location.search).get('car');
   const holder = new THREE.Group();
   holder.userData.carId = id;
+  holder.userData.scanReady = false;
   const rig = makeSovereign();
   holder.add(rig.group);
   holder.userData.update = rig.update;
   // swap in the GT-R standard scan car once it has loaded; the stand-in covers the wait
-  loadScanCarById(id).then(async (r) => {
+  holder.userData.scanPromise = loadScanCarById(id).then(async (r) => {
     {
       const activeDefId = garage.active ? garage.def(garage.active.uid)?.id : undefined;
       const pc = !qOverride && activeDefId === id ? garage.active?.paint : undefined;
@@ -3763,7 +3794,11 @@ function makeCar(carId?: string): THREE.Group {
     if (blob) { const b = blob as THREE.Mesh; b.parent?.remove(b); holder.add(b); }
     rig.group.visible = false; holder.remove(rig.group);
     rig.group.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) { m.geometry.dispose(); (Array.isArray(m.material) ? m.material : [m.material]).forEach((x) => x.dispose()); } });
-  }).catch((e) => console.warn('scan car failed', e));
+    holder.userData.scanReady = true;
+  }).catch((e) => {
+    console.warn('scan car failed', e);
+    holder.userData.scanReady = true;
+  });
   return holder;
 }
 
@@ -3897,7 +3932,7 @@ function scenicRailHit(s: DriveState): boolean {
   if (worst > 0) { wallPush(s, ux, uz, worst); return true; }
   return false;
 }
-/** push the car back from a wall it is `worst` metres into ((ux, uz) points into the wall) and take away the speed going into it */
+/** push the car back from a wall it is `worst` metres into ((ux, uz) points into the wall), play wall crash/scrape SFX, and take away the speed going into it */
 function wallPush(s: DriveState, ux: number, uz: number, worst: number): void {
   {
     s.pos.x -= ux * worst;
@@ -3908,6 +3943,12 @@ function wallPush(s: DriveState, ux: number, uz: number, worst: number): void {
     const fx = Math.sin(s.yaw), fz = Math.cos(s.yaw), rx = Math.cos(s.yaw), rz = -Math.sin(s.yaw);
     let vx = fx * s.sp + rx * s.lat, vz = fz * s.sp + rz * s.lat;
     const into = vx * ux + vz * uz;                     // speed towards the wall (positive: going into it)
+    const speedMag = Math.hypot(vx, vz);
+    if (into > 2.4) {
+      gameAudio.playCollision('wall', Math.min(1, into / 18));
+    } else if (speedMag > 3.0) {
+      gameAudio.playCollision('scrape', Math.min(0.85, speedMag / 26));
+    }
     if (into > 0) { vx -= (1 + 0.12) * into * ux; vz -= (1 + 0.12) * into * uz; }
     vx *= 0.985; vz *= 0.985;                           // scrape friction along the wall
     // turn the nose toward the wall's direction (whichever way along it the car was already going)
@@ -3922,8 +3963,29 @@ function wallPush(s: DriveState, ux: number, uz: number, worst: number): void {
 }
 
 // ---------- garage: run tracking, medals, payouts and the courier mode ----------
-let runTracker: RunTracker | null = null, stagePath: PathProgress | null = null, stageFinished = false, lastLapCount = 0, raceStartLaps = 0, delivery: DeliveryGame | null = null;
-const RUN_NAMES: Record<string, string> = { ironport_grand_circuit: 'Ironport Grand Circuit', great_lakes_cliff_raceway: 'Great Lakes Cliff Raceway', pinewood_rally_stage: 'Pinewood Rally Stage', ironworks_industrial_circuit: 'Ironworks Industrial Circuit', superior_range_circuit: 'Superior Range Circuit', escarpment_circuit: 'Escarpment Circuit' };
+let runTracker: RunTracker | null = null, stagePath: PathProgress | null = null, stageFinished = false, lastLapCount = 0, raceStartLaps = 0, lastCompLap = 1, raceClockStart = 0, delivery: DeliveryGame | null = null;
+let runGen = 0;
+interface VictoryCineState { active: boolean; elapsed: number; circuitId: string; dismissUi: (() => void) | null }
+let victoryCine: VictoryCineState | null = null;
+const CLOSED_CIRCUITS = new Set([
+  'ironport_grand_circuit',
+  'ironworks_industrial_circuit',
+  'harbor_district_circuit',
+  'civic_riverfront_circuit',
+  'great_lakes_cliff_raceway',
+  'superior_range_circuit',
+  'escarpment_circuit',
+]);
+const RUN_NAMES: Record<string, string> = {
+  ironport_grand_circuit: 'Ironport Grand Circuit',
+  great_lakes_cliff_raceway: 'Great Lakes Cliff Raceway',
+  pinewood_rally_stage: 'Pinewood Rally Stage',
+  ironworks_industrial_circuit: 'Ironworks Industrial Circuit',
+  harbor_district_circuit: 'Harbor District Circuit',
+  civic_riverfront_circuit: 'Civic Riverfront Circuit',
+  superior_range_circuit: 'Superior Range Circuit',
+  escarpment_circuit: 'Escarpment Circuit',
+};
 let courierSpots: ReturnType<typeof makeSpots> | null = null;
 function deliverySpots(): ReturnType<typeof makeSpots> {
   if (!courierSpots) courierSpots = makeSpots([meta.coastal_highway.xz.map((p) => ({ x: p[0], z: p[1] })), ...streetRuns.map((r) => r.p.map((p) => ({ x: p[0], z: p[1] })))]);
@@ -3947,18 +4009,28 @@ function makeTrafficOrAiCarMesh(paintHex: number | string, variant: RivalCarVari
   return makeRivalCar(paintHex, variant);
 }
 
+function clearVictoryCine(): void {
+  if (!victoryCine) return;
+  victoryCine.dismissUi?.();
+  victoryCine = null;
+}
 function teardownRun(): void {
+  runGen++;
+  clearVictoryCine();
   if (delivery) { const d = delivery; delivery = null; d.quit(); d.dispose(); }
   if (pursuitMode) { scene.remove(pursuitMode.group); pursuitMode = null; }
-  runTracker = null; stagePath = null; stageFinished = false;
+  runTracker = null; stagePath = null; stageFinished = false; lastCompLap = 1; raceClockStart = 0;
   competition = null; trafficMgr = null; challengeMgr = null;
   aiGroup.clear(); trafficGroup.clear();
   aiMeshes = []; trafficMeshes = [];
 }
 function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole?: PursuitRoleChoice): void {
   teardownRun();
+  const gen = runGen;
   lastLapCount = lap?.laps ?? 0;
   raceStartLaps = lastLapCount;
+  lastCompLap = 1;
+  raceClockStart = 0;
   if (pursuitRole && driving) {
     pursuitMode = new CopsAndRobbersMode(pursuitRole, driving.pos, driving.yaw, groundH);
     scene.add(pursuitMode.group);
@@ -3981,78 +4053,160 @@ function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole
       trafficMeshes.push(m);
       if (TRAFFIC_SCAN_IDS.length > 0) {
         const trafficId = TRAFFIC_SCAN_IDS[idx % TRAFFIC_SCAN_IDS.length];
-        void loadScanOpponentCar(trafficId, paintHex).then((realTraffic) => {
-          if (!m.parent) return;
-          while (m.children.length) m.remove(m.children[0]);
-          m.add(realTraffic);
-        }).catch(() => { /* keep fallback */ });
+        // Stagger traffic scan-car upgrades so spawning free roam never stalls the GPU on frame 1
+        setTimeout(() => {
+          if (gen !== runGen || !m.parent) return;
+          void loadScanOpponentCar(trafficId, paintHex).then((realTraffic) => {
+            if (gen !== runGen || !m.parent) return;
+            while (m.children.length) m.remove(m.children[0]);
+            m.add(realTraffic);
+          }).catch(() => { /* keep fallback */ });
+        }, 450 + idx * 160);
       }
     }
     challengeMgr = new OpenWorldChallengeManager(festivalData);
     return;
   }
   const city = id === 'ironport_grand_circuit';
+  const isClosed = CLOSED_CIRCUITS.has(id);
   const pts = city ? cityPath : meta.circuits[id] ? densify(meta.circuits[id], 6) : [];
   if (pts.length < 8) return;
-  runTracker = new RunTracker(id, refParSec(pts, city, city ? 5.4 : 4.2));
+  runTracker = new RunTracker(id, refParSec(pts, isClosed, city ? 5.4 : 4.2));
   const vecPts = pts.map((p) => new THREE.Vector3(p.x, p.y, p.z));
   competition = new CompetitionEngine();
-  competition.createGrid(vecPts, [CARS.kestrel, CARS.aurelia], groundH, { includePlayer: true });
+  competition.createGrid(vecPts, [CARS.kestrel, CARS.aurelia], groundH, { totalLaps: isClosed ? 3 : 1, includePlayer: true });
   const aiVariants: RivalCarVariant[] = ['gt-track', 'exotic-wedge', 'gt-track', 'sport-coupe'];
   let aiVarIdx = 0;
   for (const r of competition.racers) {
     if (r.isPlayer) continue;
-    const oppCarId = RACE_OPPONENT_SCAN_IDS[aiVarIdx % RACE_OPPONENT_SCAN_IDS.length];
-    const m = makeTrafficOrAiCarMesh(r.paintHex, aiVariants[aiVarIdx++ % aiVariants.length]);
+    const idx = aiVarIdx++;
+    const oppCarId = RACE_OPPONENT_SCAN_IDS[idx % RACE_OPPONENT_SCAN_IDS.length];
+    const m = makeTrafficOrAiCarMesh(r.paintHex, aiVariants[idx % aiVariants.length]);
     m.position.copy(r.state.pos);
     m.rotation.y = r.state.yaw;
     aiGroup.add(m);
     aiMeshes.push(m);
-    // Upgrade race opponents from placeholder shells to real built high-performance scan cars
-    // (Vanguard Apex GT, Ironport Corsair RS, Kestrel Sovereign GT-R) using cached exterior geometry
-    void loadScanOpponentCar(oppCarId, r.paintHex).then((realOpp) => {
-      if (!m.parent) return;
-      while (m.children.length) m.remove(m.children[0]);
-      m.add(realOpp);
-    }).catch(() => { /* keep sculpted fallback */ });
+    // Stagger opponent scan-car upgrades cleanly (140 ms apart) so 11 GLB parses never stall the 3-2-1 race start countdown!
+    setTimeout(() => {
+      if (gen !== runGen || !m.parent) return;
+      void loadScanOpponentCar(oppCarId, r.paintHex).then((realOpp) => {
+        if (gen !== runGen || !m.parent) return;
+        while (m.children.length) m.remove(m.children[0]);
+        m.add(realOpp);
+      }).catch(() => { /* keep sculpted fallback */ });
+    }, 280 + idx * 140);
   }
-  stagePath = city ? null : new PathProgress(pts);
+  // Only open point-to-point stages (like Pinewood Rally) use single-pass PathProgress; all closed circuits use multi-lap competition tracking!
+  stagePath = isClosed ? null : new PathProgress(pts);
 }
-function finishRun(timeSec: number): void {
-  if (!runTracker) return;
-  const r = runTracker.take(timeSec, 1, { ...assist });
+function finishRun(timeSec: number, lapsDone = 1): void {
+  if (!runTracker || victoryCine?.active) return;
+  const circuitId = driving?.circuitId ?? runTracker.eventId;
+  const topMph = runTracker.top * 2.23694;
+  const playerRacer = competition?.racers.find((r) => r.isPlayer);
+  const position = playerRacer?.position ?? 1;
+  const totalRacers = competition?.racers.length ?? 1;
+  const totalRaceSec = raceClockStart > 0 ? Math.max(timeSec, driveClock - raceClockStart) : timeSec;
+  const bestLapSec = playerRacer?.bestLapSec ?? (circuitId === 'ironport_grand_circuit' ? lap?.best : null) ?? timeSec;
+  const standings: RaceFinishStanding[] = competition
+    ? [...competition.racers]
+        .sort((a, b) => a.position - b.position)
+        .map((r) => ({ position: r.position, driverName: r.isPlayer ? 'You' : r.driverName, carName: r.carName, gapSec: r.gapToLeaderSec, isPlayer: r.isPlayer }))
+    : [{ position: 1, driverName: 'You', carName: garage.active ? `${garage.def(garage.active.uid)?.make ?? ''} ${garage.def(garage.active.uid)?.name ?? ''}`.trim() : 'Kestrel Sovereign GT-R', gapSec: 0, isPlayer: true }];
+
+  const r = runTracker.take(bestLapSec, Math.max(1, lapsDone), { ...assist });
   const o = garage.recordRun(r);
-  const m = o.medal ? `${o.medal} medal` : 'no medal';
-  showCard(RUN_NAMES[r.eventId] ?? r.eventId, `${fmtT(timeSec)} · ${m} · ideal line ${fmtT(r.parSec)}`, o);
+  const courseName = RUN_NAMES[r.eventId] ?? meta.circuits[r.eventId]?.name ?? r.eventId;
+
+  // Enter live 3D Victory Cutscene (cinematic hero orbit around the finishing car) + Post-Race Results & 12s Auto-Replay
+  driveHud.style.display = 'none';
+  countEl.style.display = 'none';
+  photoBtn.style.display = 'none';
+  setMusicDuck(0.28);
+  victoryCine = { active: true, elapsed: 0, circuitId, dismissUi: null };
+  const canReplay = replay.n >= 12;
+  const ui = showRaceResultsOverlay({
+    courseName,
+    position,
+    totalRacers,
+    raceTimeText: fmtT(totalRaceSec),
+    bestLapText: fmtT(bestLapSec),
+    parTimeText: fmtT(r.parSec),
+    topMph,
+    standings,
+    outcome: o,
+    canReplay,
+    autoReplaySec: 12,
+    onReplay: () => {
+      if (victoryCine) victoryCine.dismissUi = null;
+      if (replay.start()) {
+        driveHud.style.display = 'none';
+        countEl.style.display = 'none';
+        gameAudio.setPaused(true);
+      }
+    },
+    onRestart: () => {
+      clearVictoryCine();
+      startDrive(circuitId);
+    },
+    onContinue: () => {
+      clearVictoryCine();
+      preset('overview');
+    },
+  });
+  victoryCine.dismissUi = ui.dismiss;
 }
 function garageStep(dt: number, s: DriveState, bumped: boolean): void {
-  if (s.lock > 0) return;
+  if (s.lock > 0 || s.readyHold > 0 || victoryCine?.active) return;
   const ps = s.ps;
   if (delivery) { delivery.update(dt, { x: s.pos.x, z: s.pos.z, speedMps: Math.abs(ps.forwardSpeed), hit: bumped }, s.yaw); return; }
   if (!runTracker) return;
+  if (raceClockStart <= 0) raceClockStart = driveClock;
   runTracker.sample(dt, { x: s.pos.x, z: s.pos.z, speedMps: ps.speedMps, drifting: ps.isDrifting, hit: bumped, wet: wx.cur.wet });
-  if (s.circuitId === 'ironport_grand_circuit') {
-    if (lap && lap.laps > lastLapCount) {
+
+  const isClosed = CLOSED_CIRCUITS.has(s.circuitId);
+  if (isClosed) {
+    const playerRacer = competition?.racers.find((r) => r.isPlayer);
+    const totalLaps = competition?.totalLaps ?? 3;
+    if (s.circuitId === 'ironport_grand_circuit' && lap && lap.laps > lastLapCount) {
       lastLapCount = lap.laps;
-      const totalLaps = competition?.totalLaps ?? 3;
       const raceLapsDone = lap.laps - raceStartLaps;
       if (lap.last) {
         if (raceLapsDone < totalLaps) {
-          // Non-blocking top toast on intermediate laps — never block the screen mid-race!
-          showBanner(`LAP ${raceLapsDone}/${totalLaps} · ${fmtT(lap.last)}${lap.best === lap.last ? ' · BEST' : ''}`, lap.best === lap.last ? 'gold' : 'ok', 2400);
+          // Non-blocking top toast on intermediate laps — never obstructs the player mid-race!
+          showBanner(`LAP ${raceLapsDone}/${totalLaps} · ${fmtT(lap.last)}${lap.best === lap.last ? ' · BEST' : ''} · P${playerRacer?.position ?? 1}/${competition?.racers.length ?? 12}`, lap.best === lap.last ? 'gold' : 'ok', 2400);
         } else if (!stageFinished) {
           stageFinished = true;
-          finishRun(lap.best ?? lap.last);
+          finishRun(lap.best ?? lap.last, totalLaps);
         }
+      }
+    } else if (s.circuitId !== 'ironport_grand_circuit' && playerRacer) {
+      if (playerRacer.lap > lastCompLap) {
+        const doneLap = playerRacer.lap - 1;
+        lastCompLap = playerRacer.lap;
+        if (!playerRacer.finished && doneLap < totalLaps) {
+          const lt = playerRacer.lastLapSec ? ` · ${fmtT(playerRacer.lastLapSec)}` : '';
+          const bestTag = playerRacer.lastLapSec && playerRacer.bestLapSec === playerRacer.lastLapSec ? ' · BEST' : '';
+          showBanner(`LAP ${doneLap}/${totalLaps}${lt}${bestTag} · P${playerRacer.position}/${competition!.racers.length}`, bestTag ? 'gold' : 'ok', 2400);
+        }
+      }
+      if (playerRacer.finished && !stageFinished) {
+        stageFinished = true;
+        const finishT = playerRacer.bestLapSec ?? playerRacer.lastLapSec ?? Math.max(10, driveClock - raceClockStart);
+        finishRun(finishT, totalLaps);
       }
     }
   } else if (stagePath) {
     stagePath.update(s.pos.x, s.pos.z, performance.now() / 1000);
-    if (stagePath.done && !stageFinished) { stageFinished = true; finishRun(performance.now() / 1000 - stagePath.t0); }
+    if (stagePath.done && !stageFinished) {
+      stageFinished = true;
+      finishRun(performance.now() / 1000 - stagePath.t0, 1);
+    }
   }
 }
 function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole?: PursuitRoleChoice): void {
   endCine(true);                                                       // a drive started without a click (gamepad, script) would otherwise be ended by the first key press
+  clearVictoryCine();
   cineFade.style.opacity = '0';
   applyActiveCar();
   setMapMode(false);
@@ -4092,7 +4246,17 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
   // never spawn under the drawn road: the cliff raceway's road was raised above its survey heights, and the start countdown holds the car still, so a car started under the
   // asphalt stayed stuck in it, nose down
   const y = Math.max((free ? hAt(p[0], p[1]) : city && cn > 8 ? cp[cn - 8].y : c!.y ? c!.y[0] : hAt(p[0], p[1])) * exag, groundH(p[0], p[1]) + 0.05);
-  driving = { lock: 3.6, camDist: 5.8, camH: 1.6, camView: 0, circuitId: id, pos: new THREE.Vector3(p[0], y, p[1]), yaw, sp: 0, lat: 0, steer: 0, car, startPos: new THREE.Vector3(p[0], y, p[1]), startYaw: yaw, camPos: new THREE.Vector3(p[0] - Math.sin(yaw) * 10, y + 4, p[1] - Math.cos(yaw) * 10), hit: 0, ps: createCarState(p[0], y, p[1], yaw) };
+  const scanReadyNow = !!car.userData.scanReady;
+  driving = {
+    lock: 3.6,
+    readyHold: scanReadyNow ? 0 : 6.0,
+    gridCompiled: false,
+    camDist: 5.8, camH: 1.6, camView: 0, circuitId: id,
+    pos: new THREE.Vector3(p[0], y, p[1]), yaw, sp: 0, lat: 0, steer: 0, car,
+    startPos: new THREE.Vector3(p[0], y, p[1]), startYaw: yaw,
+    camPos: new THREE.Vector3(p[0] - Math.sin(yaw) * 10, y + 4, p[1] - Math.cos(yaw) * 10),
+    hit: 0, ps: createCarState(p[0], y, p[1], yaw),
+  };
   carY = -1e9; carPitch = carRoll = slopePS = slopeRS = 0; setMusicDuck(0.4); gameAudio.ensureStarted(); gameAudio.setPaused(false);
   wx.ensureAudio(); wx.setAudioLevel(engVol); wx.setPaused(false);
   {
@@ -4116,7 +4280,11 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
   controls.enabled = false;
   circuitGroup.visible = false;      // the review ribbons are drawn wider than the road
   const route = city && cityPath.length ? cityPath.map((p) => ({ x: p.x, z: p.z })) : (c?.xz ?? []).map((p) => ({ x: p[0], z: p[1] }));
-  racingHud.configure(free ? 'Free roam' : c?.name ?? 'Ironport Grand Circuit', route, [meta.coastal_highway.xz.map((p) => ({ x: p[0], z: p[1] })), ...streetRuns.map((r) => r.p.map((p) => ({ x: p[0], z: p[1] })))]);
+  racingHud.configure(free ? 'Free roam' : c?.name ?? 'Ironport Grand Circuit', route, [
+    meta.coastal_highway.xz.map((p) => ({ x: p[0], z: p[1] })),
+    ...streetRuns.map((r) => r.p.map((p) => ({ x: p[0], z: p[1] }))),
+    ...scenicData.map((r) => r.xz.map((p) => ({ x: p[0], z: p[1] }))),
+  ]);
   labelGroup.visible = false;
   furnitureGroup.traverse((object) => { if (object instanceof THREE.Sprite) object.visible = false; });
   hud.style.display = 'none';
@@ -4125,6 +4293,7 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
 }
 function stopDrive(): void {
   if (!driving) return;
+  clearVictoryCine();
   if (lineMesh) { scene.remove(lineMesh); lineMesh.geometry.dispose(); lineMesh = null; }
   racingLine = null;
   photo.exit(); photoBtn.style.display = 'none';
@@ -4145,23 +4314,42 @@ function stopDrive(): void {
 function stepDrive(dt: number): void {
   if (!driving) return;
   const s = driving;
-  const locked = s.lock > 0;
+  const inVictory = !!victoryCine?.active;
+  if (inVictory && victoryCine) victoryCine.elapsed += dt;
+  const preparing = !inVictory && s.readyHold > 0 && !s.car.userData.scanReady;
+  if (preparing) {
+    s.readyHold = Math.max(0, s.readyHold - dt);
+    // Keep boxy fallback hidden while real scan car finishes loading/compiling so the real car appears on frame 1 of '3' with zero visible pop-in
+    s.car.visible = false;
+    countEl.style.display = 'block';
+    countEl.textContent = 'GRID';
+  } else if (!s.gridCompiled) {
+    s.car.visible = true;
+    s.gridCompiled = true;
+    s.readyHold = 0;
+    csmSweep(true);
+    try { renderer.compile(scene, camera); } catch { /* ok */ }
+  } else if (!s.car.visible) {
+    s.car.visible = true;
+  }
+  const locked = preparing || (!inVictory && s.lock > 0);
   if (trackKit) { if (locked) goClock = 0; else goClock += dt; trackKit.setLights(locked ? 'red' : goClock < 3.5 ? 'green' : 'off'); }
-  if (locked) {
-    s.lock -= dt;
+  if (!preparing && !inVictory && s.lock > 0) {
+    // Clamp countdown tick dt to 50 ms so a compile frame never skips numbers
+    s.lock -= Math.min(dt, 0.05);
     const n = Math.ceil(s.lock - 0.5);
     countEl.style.display = 'block';
     countEl.textContent = n > 0 ? String(n) : s.lock > 0 ? 'GO' : '';
     if (s.lock <= 0) countEl.style.display = 'none';
   }
   const pad = driveInput.axes;                                  // controller + touch, analog
-  const rawGas = Math.max((keys.has('KeyW') || keys.has('ArrowUp')) ? 1 : 0, pad.throttle);
-  const kUp = !locked && (keys.has('KeyW') || keys.has('ArrowUp')), kDown = !locked && (keys.has('KeyS') || keys.has('ArrowDown'));
-  const up = kUp || (!locked && pad.throttle > 0.05), down = kDown || (!locked && pad.brake > 0.05);
-  const left = keys.has('KeyA') || keys.has('ArrowLeft'), right = keys.has('KeyD') || keys.has('ArrowRight');
-  const hand = keys.has('Space') || pad.handbrake;
+  const rawGas = inVictory ? 0 : Math.max((keys.has('KeyW') || keys.has('ArrowUp')) ? 1 : 0, pad.throttle);
+  const kUp = !locked && !inVictory && (keys.has('KeyW') || keys.has('ArrowUp')), kDown = !locked && !inVictory && (keys.has('KeyS') || keys.has('ArrowDown'));
+  const up = kUp || (!locked && !inVictory && pad.throttle > 0.05), down = kDown || (!locked && !inVictory && pad.brake > 0.05);
+  const left = !inVictory && (keys.has('KeyA') || keys.has('ArrowLeft')), right = !inVictory && (keys.has('KeyD') || keys.has('ArrowRight'));
+  const hand = !inVictory && (keys.has('Space') || pad.handbrake);
   const kSteer = (left ? 1 : 0) - (right ? 1 : 0);
-  if (Math.abs(pad.lookX) + Math.abs(pad.lookY) > 0) {            // right stick: free-look
+  if (!inVictory && Math.abs(pad.lookX) + Math.abs(pad.lookY) > 0) {            // right stick: free-look
     camYawOff -= pad.lookX * dt * 2.4; camPitchOff = Math.max(-0.12, Math.min(1.1, camPitchOff + pad.lookY * dt * 1.6)); camIdle = 0;
   }
   // ---- the new vehicle model (physics.ts): gears and RPM, supercharger, weight transfer, 4-corner suspension, tyre grip, drift, brake heat ----
@@ -4170,7 +4358,7 @@ function stepDrive(dt: number): void {
   // pedals ease in like a foot would: throttle takes about a third of a second to go to the floor, the brake about half, and both lift faster
   // driving assists, as in Forza: brake help ahead of corners the car is too fast for, and a nudge toward the racing line (both off in the Settings, along with the line itself)
   let assistBrake = 0, assistSteer = 0;
-  if (racingLine && !locked) {
+  if (racingLine && !locked && !inVictory) {
     const li = racingLine.nearest(s.pos.x, s.pos.z), off = racingLine.offsets(li, s.pos.x, s.pos.z, s.yaw), v = Math.max(0, s.ps.forwardSpeed);
     const gripNow = Math.max(0.3, (1 - 0.24 * roadWater.wetness) * (1 - 0.82 * hydro));
     if (Math.abs(off.lat) < 9) {
@@ -4180,10 +4368,11 @@ function stepDrive(dt: number): void {
   }
   assistBrakeShown = assistBrake;
   if (racingLine && chevrons && lineMesh?.visible) chevrons.update(racingLine.nearest(s.pos.x, s.pos.z), Math.max(0, s.ps.forwardSpeed), Math.max(0.3, (1 - 0.24 * roadWater.wetness) * (1 - 0.82 * hydro)));
-  const thrWant = locked ? 0 : Math.max(kUp ? 1 : 0, pad.throttle) * (1 - assistBrake), brkWant = locked ? 1 : Math.max(kDown ? 1 : 0, pad.brake, assistBrake);
+  const thrWant = (locked || inVictory) ? 0 : Math.max(kUp ? 1 : 0, pad.throttle) * (1 - assistBrake);
+  const brkWant = locked ? 1 : inVictory ? (ps.speedMps > 4.5 ? 0.32 : 0.85) : Math.max(kDown ? 1 : 0, pad.brake, assistBrake);
   pedalT += (thrWant - pedalT) * Math.min(1, dt * (thrWant > pedalT ? 3.4 : 8));
   pedalB += (brkWant - pedalB) * Math.min(1, dt * (brkWant > pedalB ? (assistBrake > 0 && brkWant === assistBrake ? 2.6 : 14) : 10));
-  const input: CarInput = { throttle: locked ? 0 : pedalT, brake: locked ? 1 : pedalB, steer: (() => { const p = Math.abs(pad.steer) > Math.abs(kSteer) ? pad.steer : kSteer; return Math.max(-1, Math.min(1, p + assistSteer * (1 - Math.abs(p)))); })(), handbrake: hand };
+  const input: CarInput = { throttle: (locked || inVictory) ? 0 : pedalT, brake: locked ? 1 : pedalB, steer: inVictory ? 0 : (() => { const p = Math.abs(pad.steer) > Math.abs(kSteer) ? pad.steer : kSteer; return Math.max(-1, Math.min(1, p + assistSteer * (1 - Math.abs(p)))); })(), handbrake: hand };
   // Every tyre samples the puddles drawn by the shader. The unloaded side
   // loses contact earlier, and one-sided water drag produces a modest yaw moment.
   let contactGrip = 0, hydroTarget = 0, waterDrag = 0, splitDrag = 0;
@@ -4211,16 +4400,41 @@ function stepDrive(dt: number): void {
     stepCarPhysics(ps, wxGripSpec, input, dt, groundH, surfaceAtXZ, []);
     if (trenchHole(ps.pos.x, ps.pos.z) !== trenchHole(ox, oz)) {
       const g = groundH(ps.pos.x, ps.pos.z);
-      if (Math.abs(g - oy) > 1.8) { ps.pos.x = ox; ps.pos.z = oz; ps.vel.x *= -0.25; ps.vel.z *= -0.25; s.hit = 0.4; }
+      if (Math.abs(g - oy) > 1.8) {
+        gameAudio.playCollision('wall', Math.min(1, Math.max(0.32, ps.speedMps / 16)));
+        ps.pos.x = ox; ps.pos.z = oz; ps.vel.x *= -0.25; ps.vel.z *= -0.25; s.hit = 0.4;
+      }
     }
     groundYHint = null;
+  }
+  // Steep off-road embankment gravity pushback: prevents a car that veers onto the high side of a cut/embankment from sticking & driving sideways at 90 degrees!
+  if (!ps.isAirborne && !locked && surfaceAtXZ(ps.pos.x, ps.pos.z) !== 'asphalt') {
+    const gx = (groundH(ps.pos.x + 1.2, ps.pos.z) - groundH(ps.pos.x - 1.2, ps.pos.z)) / 2.4;
+    const gz = (groundH(ps.pos.x, ps.pos.z + 1.2) - groundH(ps.pos.x, ps.pos.z - 1.2)) / 2.4;
+    const gMag = Math.hypot(gx, gz);
+    if (gMag > 0.40) {
+      const ux = gx / gMag, uz = gz / gMag;
+      const upDot = ps.vel.x * ux + ps.vel.z * uz;
+      if (upDot > 0) {
+        const damp = Math.min(1, dt * 10 * Math.min(3, (gMag - 0.35) * 4));
+        ps.vel.x -= ux * upDot * damp;
+        ps.vel.z -= uz * upDot * damp;
+      }
+      const slideAccel = Math.min(22, (gMag - 0.38) * 32) * dt;
+      ps.vel.x -= ux * slideAccel;
+      ps.vel.z -= uz * slideAccel;
+      const syE = Math.sin(ps.yaw), cyE = Math.cos(ps.yaw);
+      ps.forwardSpeed = ps.vel.x * syE + ps.vel.z * cyE;
+      ps.lateralSpeed = ps.vel.x * cyE - ps.vel.z * syE;
+      ps.speedMps = Math.hypot(ps.vel.x, ps.vel.z);
+    }
   }
   if (!ps.isAirborne) {
     ps.vel.multiplyScalar(Math.exp(-waterDrag * dt));
     ps.angularVel += Math.max(-0.2, Math.min(0.2, splitDrag * ps.forwardSpeed * 0.1)) * dt;
   }
   // reverse: hold brake at a standstill and the car backs out right away (Forza style), with a sensible top speed in reverse
-  if (down && !up && !locked) {
+  if (down && !up && !locked && !inVictory) {
     if (ps.forwardSpeed < 1.5 && ps.forwardSpeed > -13) { const a = 5.2 * dt; ps.vel.x -= Math.sin(ps.yaw) * a; ps.vel.z -= Math.cos(ps.yaw) * a; }
     if (ps.forwardSpeed < -13) { const k = 13 / -ps.forwardSpeed; ps.vel.multiplyScalar(k); }
   }
@@ -4315,7 +4529,10 @@ function stepDrive(dt: number): void {
   s.yaw = ps.yaw;
   s.sp = ps.forwardSpeed; s.lat = ps.lateralSpeed; s.steer = ps.steerInputSmoothed;
   let bumped = false;
-  if (collide(s)) { s.sp *= 0.86; s.lat *= 0.7; s.hit = 0.4; bumped = true; }
+  if (collide(s)) {
+    gameAudio.playCollision('wall', Math.min(1, Math.max(0.32, Math.hypot(s.sp, s.lat) / 18)));
+    s.sp *= 0.86; s.lat *= 0.7; s.hit = 0.4; bumped = true;
+  }
   if ((s.circuitId === 'ironport_grand_circuit' || s.circuitId === IND || s.circuitId === HARB || s.circuitId === CIV || s.circuitId === 'great_lakes_cliff_raceway') && barrierCollide(s)) { s.hit = 0.4; bumped = true; }
   else if (s.circuitId !== 'ironport_grand_circuit' && s.circuitId !== IND && s.circuitId !== HARB && s.circuitId !== CIV && s.circuitId !== 'great_lakes_cliff_raceway' && freeRoamBarrierHit(s)) { s.hit = 0.4; bumped = true; }
   else if (scenicRailHit(s)) { s.hit = 0.4; bumped = true; }
@@ -4340,9 +4557,11 @@ function stepDrive(dt: number): void {
   const wg = (ox: number, oz: number): number => groundH(s.pos.x + nlx * ox + nfx * oz, s.pos.z + nlz * ox + nfz * oz);
   const gFL = wg(HT, HW), gFR = wg(-HT, HW), gRL = wg(HT, -HW), gRR = wg(-HT, -HW);
   const mean = (gFL + gFR + gRL + gRR) / 4;
-  const slopeP = ((gFL + gFR) - (gRL + gRR)) / 2 / (2 * HW), slopeR = ((gFL + gRL) - (gFR + gRR)) / 2 / (2 * HT);
+  // Physically believable body slope clamps (prevents 90-degree sideways wall-driving tilt on steep embankment lips!)
+  const slopeP = Math.max(-0.44, Math.min(0.44, ((gFL + gFR) - (gRL + gRR)) / 2 / (2 * HW)));
+  const slopeR = Math.max(-0.40, Math.min(0.40, ((gFL + gRL) - (gFR + gRR)) / 2 / (2 * HT)));
   const lift = Math.max(0, gFL - (mean + slopeP * HW + slopeR * HT), gFR - (mean + slopeP * HW - slopeR * HT), gRL - (mean - slopeP * HW + slopeR * HT), gRR - (mean - slopeP * HW - slopeR * HT));
-  const yWant = (ps.isAirborne ? ps.pos.y : mean + lift) + 0.02;
+  const yWant = (ps.isAirborne ? ps.pos.y : mean + Math.min(lift, 0.45)) + 0.02;
   carY = carY < -1e8 || Math.abs(carY - yWant) > 1.5 ? yWant : carY + (yWant - carY) * Math.min(1, dt * 22);
   s.car.position.set(s.pos.x, carY, s.pos.z);
   s.car.rotation.order = 'YXZ';
@@ -4350,8 +4569,8 @@ function stepDrive(dt: number): void {
   // the body follows the road slope and the suspension, both low-passed so ground noise and spring ringing do not read as bouncing
   slopePS += (slopeP - slopePS) * Math.min(1, dt * 14); slopeRS += (slopeR - slopeRS) * Math.min(1, dt * 14);
   carPitch += (ps.pitch * 0.7 - carPitch) * Math.min(1, dt * 7); carRoll += (ps.roll * 0.5 - carRoll) * Math.min(1, dt * 7);
-  s.car.rotation.x = -Math.atan(slopePS) + carPitch;
-  s.car.rotation.z = Math.atan(slopeRS) + carRoll;
+  s.car.rotation.x = Math.max(-0.45, Math.min(0.45, -Math.atan(slopePS) + carPitch));
+  s.car.rotation.z = Math.max(-0.40, Math.min(0.40, Math.atan(slopeRS) + carRoll));
   const brakeAmt = Math.max(input.brake, hand ? 0.85 : 0);
   const wetNightAmt = Math.min(1, wx.cur.wet * 0.85 + (NIGHT_K[todKey] ?? 0) * 1.15);
   (s.car.userData.update as ((sp: number, st: number, dt: number, lights?: boolean, brake?: number, wetNight?: number) => void) | undefined)?.(
@@ -4370,13 +4589,29 @@ function stepDrive(dt: number): void {
       if (loose > 0) dust.wheel(dt, x, groundH(x, z), z, ps.vel.x, ps.vel.z, spdH, loose * (1 - 0.65 * wx.cur.wet), Math.abs(ps.lateralSpeed) / Math.max(spdH, 4) + (ps.isDrifting ? 0.5 : 0), bigK + 0.4);
     }
   }
-  // chase camera
-  // free-look: drag with the mouse to orbit the car, wheel to zoom, hold B to look back; it eases home after a moment
-  if (replay.n === 0 || !locked) replay.record(driveClock += dt, s.pos.x, s.car.position.y, s.pos.z, s.yaw, s.car.rotation.x, s.car.rotation.z, s.sp, s.steer, s.hit > 0 ? 1 : 0, s.lat);
+  // Record replay frames while racing (pause recording once victory cutscene begins so the replay captures the actual race!)
+  if (!inVictory && (replay.n === 0 || !locked)) replay.record(driveClock += dt, s.pos.x, s.car.position.y, s.pos.z, s.yaw, s.car.rotation.x, s.car.rotation.z, s.sp, s.steer, s.hit > 0 ? 1 : 0, s.lat);
   camIdle += dt;
   const dragging = camIdle < 1.4;
   if (lookBack) camYawOff += (Math.PI - camYawOff) * Math.min(1, dt * 8);
   else if (!dragging) { camYawOff += (Math.round(camYawOff / (Math.PI * 2)) * Math.PI * 2 - camYawOff) * Math.min(1, dt * 2.5); camPitchOff += (0 - camPitchOff) * Math.min(1, dt * 2.5); }
+  // Victory cinematic orbit camera takes over gracefully on race finish!
+  if (inVictory && victoryCine) {
+    const tV = victoryCine.elapsed;
+    const ang = s.yaw + 0.65 + tV * 0.38;
+    const r = 6.2 + Math.sin(tV * 0.45) * 0.65;
+    const camX = s.pos.x + Math.sin(ang) * r;
+    const camZ = s.pos.z + Math.cos(ang) * r;
+    const camYWant = Math.max(groundH(camX, camZ) + 0.85, s.car.position.y + 1.55 + Math.sin(tV * 0.52) * 0.35);
+    s.camPos.lerp(new THREE.Vector3(camX, camYWant, camZ), 1 - Math.exp(-dt * 4.5));
+    camera.position.copy(s.camPos);
+    // Offset look slightly to the right of the car so the hero car frames cleanly left-of-center beside the post-race results panel!
+    const rightX = Math.cos(ang), rightZ = -Math.sin(ang);
+    camera.lookAt(s.pos.x + rightX * 1.1, s.car.position.y + 0.78, s.pos.z + rightZ * 1.1);
+    const fovWant = 42;
+    if (Math.abs(camera.fov - fovWant) > 0.05) { camera.fov += (fovWant - camera.fov) * Math.min(1, dt * 3.5); camera.updateProjectionMatrix(); }
+    return;
+  }
   // Forza-style views: 0 near chase, 1 far chase, 2 hood, 3 dash, 4 first person (the driver's eyes). Chase views sit at a fixed length behind the car;
   // the others are fixed to the car body and look along it, with mouse free-look on top.
   const view = s.camView;
@@ -4412,14 +4647,51 @@ function stepDrive(dt: number): void {
     const fovWant = FOV[view - 2] + 6 * Math.min(1, Math.abs(ps.speedMps) / 70);
     if (Math.abs(camera.fov - fovWant) > 0.05) { camera.fov += (fovWant - camera.fov) * Math.min(1, dt * 4); camera.updateProjectionMatrix(); }
   }
-  const lapTxt = s.circuitId === 'ironport_grand_circuit' ? lapStep(s.pos.x, s.pos.z, performance.now() / 1000) + '<br>' : '';
-  racingHud.update(dt, { speed: ps.forwardSpeed, rpm: ps.rpm, redline: SOV_SPEC.engine.redlineRpm, gear: ps.forwardSpeed < -0.5 ? -1 : ps.gear, gears: SOV_SPEC.gearRatios.length, shift: ps.shiftTimer > 0, x: ps.pos.x, z: ps.pos.z, yaw: ps.yaw, throttle: locked ? rawGas : input.throttle, brake: input.brake, rain: wx.cur.rain, wetness: roadWater.wetness, hydro, drift: ps.isDrifting, collision: s.hit > 0, assist: assistBrakeShown > 0.25, lapHtml: lapTxt, mode: VIEW_NAMES[s.camView], touch: driveInput.touchMode });
+  // Keep downtown lap tracker synced on ironport_grand_circuit, and build rich live POS + LAP/PROGRESS + TIMER HUD on EVERY race!
+  if (s.circuitId === 'ironport_grand_circuit') lapStep(s.pos.x, s.pos.z, performance.now() / 1000);
+  let lapTxt = '';
+  let opponents: MapOpponent[] | undefined;
+  if (competition) {
+    const me = competition.racers.find((r) => r.isPlayer);
+    opponents = competition.racers
+      .filter((r) => !r.isPlayer)
+      .map((r) => ({ x: r.state.pos.x, z: r.state.pos.z, isLeader: r.position === 1 }));
+    if (me) {
+      const posCol = me.position === 1 ? '#ffd166' : me.position === 2 ? '#dbe4ee' : me.position === 3 ? '#e8a26e' : '#68dbe4';
+      const total = competition.racers.length;
+      const elapsedSec = raceClockStart > 0 ? Math.max(0, driveClock - raceClockStart) : 0;
+      const timerStr = locked ? '--:--.--' : fmtT(elapsedSec);
+      const gapStr = me.position === 1 ? '<span style="color:#ffd166">LEADER</span>' : `+${me.gapToLeaderSec.toFixed(1)}s`;
+      if (CLOSED_CIRCUITS.has(s.circuitId)) {
+        const totalLaps = competition.totalLaps;
+        const curLap = s.circuitId === 'ironport_grand_circuit' && lap
+          ? Math.min(totalLaps, Math.max(1, lap.laps - raceStartLaps + 1))
+          : Math.min(totalLaps, Math.max(1, me.lap));
+        const pct = locked ? 0 : Math.max(0, Math.min(99, Math.round(me.splineT * 100)));
+        const bestSec = me.bestLapSec ?? (s.circuitId === 'ironport_grand_circuit' ? lap?.best : null);
+        lapTxt = `<span style="color:${posCol};font-weight:900">POS ${me.position}/${total}</span> &nbsp;·&nbsp; LAP ${curLap}/${totalLaps} &nbsp;·&nbsp; ${pct}% &nbsp;·&nbsp; ${timerStr} &nbsp;·&nbsp; ${gapStr}` + (bestSec ? ` &nbsp;·&nbsp; BEST ${fmtT(bestSec)}` : '');
+      } else {
+        const stagePct = stagePath ? Math.round((stagePath.idx / Math.max(1, (meta.circuits[s.circuitId]?.xz.length ?? 100) - 1)) * 100) : Math.round(me.splineT * 100);
+        lapTxt = `<span style="color:${posCol};font-weight:900">POS ${me.position}/${total}</span> &nbsp;·&nbsp; STAGE ${Math.max(0, Math.min(100, stagePct))}% &nbsp;·&nbsp; ${timerStr} &nbsp;·&nbsp; ${gapStr}`;
+      }
+    }
+  }
+  racingHud.update(dt, { speed: ps.forwardSpeed, rpm: ps.rpm, redline: SOV_SPEC.engine.redlineRpm, gear: ps.forwardSpeed < -0.5 ? -1 : ps.gear, gears: SOV_SPEC.gearRatios.length, shift: ps.shiftTimer > 0, x: ps.pos.x, z: ps.pos.z, yaw: ps.yaw, throttle: locked ? rawGas : input.throttle, brake: input.brake, rain: wx.cur.rain, wetness: roadWater.wetness, hydro, drift: ps.isDrifting, collision: s.hit > 0, assist: assistBrakeShown > 0.25, lapHtml: lapTxt, mode: VIEW_NAMES[s.camView], touch: driveInput.touchMode, opponents });
 }
 addEventListener('keydown', (e) => {
   if (e.code === 'KeyK' && driving && !replay.active) { e.preventDefault(); photo.toggle(); return; }
-  if (replay.active) { if (replay.key(e.code)) { e.preventDefault(); if (!replay.active && driving) { driveHud.style.display = 'block'; s2cam(); gameAudio.setPaused(false); } } return; }
+  if (replay.active) {
+    if (replay.key(e.code)) {
+      e.preventDefault();
+      if (!replay.active && driving) {
+        if (victoryCine?.active) { clearVictoryCine(); preset('overview'); }
+        else { driveHud.style.display = 'block'; s2cam(); gameAudio.setPaused(false); }
+      }
+    }
+    return;
+  }
   if (!driving) return;
-  if (e.code === 'KeyP') { if (replay.start()) { driveHud.style.display = 'none'; countEl.style.display = 'none'; gameAudio.setPaused(true); } return; }
+  if (e.code === 'KeyP') { if (replay.start()) { clearVictoryCine(); driveHud.style.display = 'none'; countEl.style.display = 'none'; gameAudio.setPaused(true); } return; }
   if (e.code === 'KeyB') { lookBack = true; return; }
   if (e.code === 'KeyL') { assist.line = !assist.line; saveAssist(); const cb = document.getElementById('tLine') as HTMLInputElement | null; if (cb) cb.checked = assist.line; return; }
   if (e.code === 'Escape') { preset('overview'); return; }
@@ -4652,6 +4924,28 @@ async function boot(): Promise<void> {
   tweenOn = true;
   setTimeOfDay('golden');
   msg.remove();
+  // Configure the heading-up minimap with live regional terrain/water imagery & named landmarks
+  {
+    const lm: MapLandmark[] = [];
+    for (const p of meta.places) {
+      const kind: MapLandmark['kind'] = /port|harbor|ironworks|refinery|plant/i.test(p.name) ? 'industrial' : /lake|river|bay|shore|beach/i.test(p.name) ? 'water' : /park|forest|pine|ridge|bluff|cliff/i.test(p.name) ? 'nature' : 'city';
+      lm.push({ name: p.name, x: p.xz[0], z: p.xz[1], kind });
+    }
+    for (const [name, x, z] of NORTH_PLACES) {
+      const kind: MapLandmark['kind'] = /lake|coast|shore|fjord/i.test(name) ? 'water' : 'nature';
+      lm.push({ name, x, z, kind });
+    }
+    for (const st of festivalData?.sites ?? []) lm.push({ name: st.name, x: st.x, z: st.z, kind: 'festival' });
+    for (const sr of scenicData) {
+      const m = sr.xz[sr.xz.length >> 1];
+      if (m) lm.push({ name: sr.name, x: m[0], z: m[1], kind: 'track' });
+    }
+    if (portData?.cranes?.length) lm.push({ name: 'Container Port', x: portData.cranes[0].x, z: portData.cranes[0].z, kind: 'industrial' });
+    if (portData?.tanks?.length) lm.push({ name: 'Refinery Tanks', x: portData.tanks[0].x, z: portData.tanks[0].z, kind: 'industrial' });
+    racingHud.configureEnvironment(BASE + 'albedo.jpg', { ox: GRID.ox, oz: GRID.oz, w: meta.width * meta.mpp, h: meta.height * meta.mpp }, lm);
+  }
+  // Eagerly preload & compile the active hero scan car immediately so frame 1 of the first race already has the real model (zero pop-in near '1')
+  preloadHeroCar();
   // Spin up curved 3D blade-strand grass, leafy shrubs & PBR rocks right away (lightweight: ~1 MB, instant on frame 1!)
   if (!location.search.includes('veg=old') && !vegetation) {
     vegetation = new Vegetation({ rw: meta.width * meta.mpp, rh: meta.height * meta.mpp, classUrl: BASE + 'landclass.png', albedoUrl: BASE + 'albedo.jpg', ground: meshH, ok: (x, z) => vegOk(x, z) });
@@ -4694,7 +4988,7 @@ async function boot(): Promise<void> {
   (window as any).cineJump = (i: number) => { if (!cineOn) startCine(); cineIdx = i % cineShots.length; cineT = 1.2; };
   (window as any).vegStats = () => vegetation?.stats;
   (window as any).simDebug = () => ({ cars: simLayer?.world.cars ?? [], trafficCalls, signals: simLayer?.world.signals, surf: surfaceAtXZ, meshH, graph: simLayer?.world.graph });
-  (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, csm, renderer, warmShaders, audio: gameAudio, cam: (x?: number, y?: number, z?: number, tx?: number, ty?: number, tz?: number) => { dbgCam = x === undefined ? null : { pos: new THREE.Vector3(x, y!, z!), at: new THREE.Vector3(tx!, ty!, tz!) }; }, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, keys, drive: () => driving, delivery: () => delivery, garage };
+  (window as any).regionViewer = { debug: () => ({ cityItems, cityPath }), wx, scene, terrain: () => terrain, furniture: () => furnitureGroup, groundH, meshH, lap: () => lap, preset, startFly, stopFly, hAt, camera, controls, meta, csm, renderer, warmShaders, audio: gameAudio, cam: (x?: number, y?: number, z?: number, tx?: number, ty?: number, tz?: number) => { dbgCam = x === undefined ? null : { pos: new THREE.Vector3(x, y!, z!), at: new THREE.Vector3(tx!, ty!, tz!) }; }, setPool: (v: number) => { poolLevel = v; }, hydro: () => hydro, startDrive, stopDrive, finishRun, keys, drive: () => driving, delivery: () => delivery, garage };
 }
 
 document.querySelectorAll<HTMLButtonElement>('button[data-cam]').forEach((b) => b.addEventListener('click', () => preset(b.dataset.cam!)));
@@ -4901,6 +5195,9 @@ function carHit(ps: DriveState['ps'], op: THREE.Vector3, oyaw: number, ovel: THR
       ps.suspensionImpact = Math.max(ps.suspensionImpact, Math.min(1, -rel / 14));
       best = Math.max(best, -rel);
     }
+  }
+  if (best > 0.6) {
+    gameAudio.playCollision(best > 2.8 ? 'car' : 'scrape', Math.min(1, best / 14));
   }
   return best;
 }

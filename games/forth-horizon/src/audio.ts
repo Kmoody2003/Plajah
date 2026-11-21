@@ -25,6 +25,8 @@ export class GameAudio {
   private noiseBuffer: AudioBuffer | null = null;
   private lastThumpAt = 0;
   private lastBackfireAt = 0;
+  private lastCrashAt = 0;
+  private lastScrapeAt = 0;
   private lastUpdateAt = 0;
   private sampleBuffers = new Map<string, AudioBuffer>();
   private tireSampleGain: GainNode | null = null;
@@ -380,6 +382,83 @@ export class GameAudio {
     g.connect(this.master);
     src.start(t);
     src.stop(t + 0.09);
+  }
+
+  /**
+   * Realistic multi-layer collision & crash audio for car-to-car impacts, concrete wall/barrier slams, and metallic barrier scrapes.
+   * Rate-limited so continuous scraping creates crisp grinding bursts without saturating the master bus.
+   */
+  playCollision(kind: 'car' | 'wall' | 'scrape', intensity = 0.6): void {
+    if (!this.ctx || !this.master || this.muted || this.paused) return;
+    const now = this.ctx.currentTime;
+    const power = Math.max(0.12, Math.min(1.0, intensity));
+    if (kind === 'scrape') {
+      if (now - this.lastScrapeAt < 0.12) return;
+      this.lastScrapeAt = now;
+      if (!this.noiseBuffer) return;
+      const ctx = this.ctx;
+      const src = ctx.createBufferSource();
+      src.buffer = this.noiseBuffer;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.setValueAtTime(1950 + power * 1100, now);
+      bp.Q.value = 3.2;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.001, now);
+      g.gain.linearRampToValueAtTime(0.18 * power, now + 0.014);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+      src.connect(bp); bp.connect(g); g.connect(this.master);
+      src.start(now, Math.random() * 0.4, 0.15);
+      return;
+    }
+
+    if (now - this.lastCrashAt < 0.095) return;
+    this.lastCrashAt = now;
+    const ctx = this.ctx;
+
+    // 1. Heavy low-end chassis impact thump
+    const sub = ctx.createOscillator();
+    sub.type = kind === 'wall' ? 'triangle' : 'sine';
+    sub.frequency.setValueAtTime((kind === 'wall' ? 128 : 112) + power * 42, now);
+    sub.frequency.exponentialRampToValueAtTime(kind === 'wall' ? 26 : 34, now + 0.18 + power * 0.08);
+    const subG = ctx.createGain();
+    subG.gain.setValueAtTime(0.42 * power, now);
+    subG.gain.exponentialRampToValueAtTime(0.001, now + 0.22 + power * 0.10);
+    sub.connect(subG); subG.connect(this.master);
+    sub.start(now); sub.stop(now + 0.34);
+
+    // 2. Broadband crunch (concrete slam / sheet-metal crumple)
+    if (this.noiseBuffer) {
+      const n1 = ctx.createBufferSource();
+      n1.buffer = this.noiseBuffer;
+      const f1 = ctx.createBiquadFilter();
+      f1.type = kind === 'wall' ? 'lowpass' : 'bandpass';
+      f1.frequency.setValueAtTime(kind === 'wall' ? 680 + power * 520 : 1150 + power * 850, now);
+      f1.frequency.exponentialRampToValueAtTime(kind === 'wall' ? 210 : 380, now + 0.24);
+      if (f1.type === 'bandpass') f1.Q.value = 1.1;
+      const g1 = ctx.createGain();
+      g1.gain.setValueAtTime(0.46 * power, now);
+      g1.gain.exponentialRampToValueAtTime(0.001, now + 0.20 + power * 0.14);
+      n1.connect(f1); f1.connect(g1); g1.connect(this.master);
+      n1.start(now, Math.random() * 0.4, 0.38);
+    }
+
+    // 3. Metallic fender / guardrail ring partials
+    const partials = kind === 'car' ? [340, 625, 1180] : [260, 510];
+    for (let i = 0; i < partials.length; i++) {
+      const osc = ctx.createOscillator();
+      osc.type = i === 0 ? 'sawtooth' : 'square';
+      const f0 = partials[i] * (0.94 + Math.random() * 0.12);
+      osc.frequency.setValueAtTime(f0, now);
+      osc.frequency.exponentialRampToValueAtTime(f0 * 0.72, now + 0.16);
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass'; bp.frequency.value = f0; bp.Q.value = 4.5;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime((kind === 'car' ? 0.12 : 0.08) * power / (i + 1), now);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.14 + power * 0.08);
+      osc.connect(bp); bp.connect(g); g.connect(this.master);
+      osc.start(now); osc.stop(now + 0.26);
+    }
   }
 
   private triggerSuspensionThump(t: number, intensity: number) {

@@ -102,7 +102,7 @@ export class Replay {
   }
 
   start(): boolean {
-    if (this.n < 30) return false;
+    if (this.n < 12) return false;
     this.active = true;
     this.paused = false;
     this.rate = 1;

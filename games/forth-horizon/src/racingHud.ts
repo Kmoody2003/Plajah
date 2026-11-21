@@ -1,12 +1,33 @@
+export interface MapLandmark {
+  name: string;
+  x: number;
+  z: number;
+  kind?: 'city' | 'industrial' | 'nature' | 'water' | 'festival' | 'track';
+}
+export interface MapOpponent {
+  x: number;
+  z: number;
+  isLeader?: boolean;
+}
 export interface HudTelemetry {
   speed: number; rpm: number; redline: number; gear: number; gears: number; shift: boolean;
   x: number; z: number; yaw: number; throttle: number; brake: number;
   rain: number; wetness: number; hydro: number; drift: boolean; collision: boolean; assist: boolean;
   lapHtml: string; mode: string; touch: boolean;
+  opponents?: MapOpponent[];
 }
 type Route = { x: number; z: number }[];
 const TAU = Math.PI * 2;
 const clamp = (n: number): number => Math.max(0, Math.min(1, n));
+
+const LANDMARK_COLOR: Record<NonNullable<MapLandmark['kind']>, string> = {
+  city: '#ffd166',
+  industrial: '#ff9650',
+  nature: '#7be396',
+  water: '#68dbe4',
+  festival: '#ff6fb1',
+  track: '#f4f6ee',
+};
 
 /** Fixed DOM and two small canvases; telemetry never rebuilds the HUD every frame. */
 export class RacingHud {
@@ -18,6 +39,9 @@ export class RacingHud {
   private route: Route = [];
   private roads: { points: Route; minX: number; minZ: number; maxX: number; maxZ: number }[] = [];
   private routeName = '';
+  private envImg: HTMLImageElement | null = null;
+  private envBounds: { ox: number; oz: number; w: number; h: number } | null = null;
+  private landmarks: MapLandmark[] = [];
   private time = 0;
   private sampleFrames = 0;
   private sampleStart = performance.now();
@@ -30,6 +54,16 @@ export class RacingHud {
     this.status = root.querySelector('.race-status')!;
     this.lap = root.querySelector('.race-lap')!;
     this.hint = root.querySelector('.race-hint')!;
+  }
+  configureEnvironment(albedoUrl: string, bounds: { ox: number; oz: number; w: number; h: number }, landmarks: MapLandmark[]): void {
+    this.envBounds = bounds;
+    this.landmarks = landmarks;
+    if (!this.envImg) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.src = albedoUrl;
+      img.onload = () => { this.envImg = img; };
+    }
   }
   configure(name: string, route: Route, roads: Route[]): void {
     this.routeName = name; this.route = route;
@@ -60,8 +94,8 @@ export class RacingHud {
   private drawMap(data: HudTelemetry): void {
     const c = this.map.getContext('2d')!, size = 210, cx = 105, cy = 128;
     c.setTransform(2, 0, 0, 2, 0, 0); c.clearRect(0, 0, size, size);
-    c.fillStyle = 'rgba(8,16,24,.86)'; c.fillRect(0, 0, size, size);
-    const range = 250 + Math.min(300, Math.abs(data.speed) * 5), scale = 180 / range;
+    c.fillStyle = 'rgba(7,15,24,.92)'; c.fillRect(0, 0, size, size);
+    const range = 260 + Math.min(340, Math.abs(data.speed) * 5.2), scale = 180 / range;
     const sn = Math.sin(data.yaw), cs = Math.cos(data.yaw);
     const project = (p: { x: number; z: number }): [number, number] => { const x = p.x - data.x, z = p.z - data.z; return [cx + (x * cs - z * sn) * scale, cy - (x * sn + z * cs) * scale]; };
     const line = (route: Route, color: string, width: number): void => {
@@ -71,19 +105,110 @@ export class RacingHud {
       c.strokeStyle = color; c.lineWidth = width; c.lineJoin = 'round'; c.lineCap = 'round'; c.stroke();
     };
     c.save(); c.beginPath(); c.rect(5, 5, 200, 200); c.clip();
-    for (const road of this.roads) {
-      if (road.maxX < data.x - range * 1.5 || road.minX > data.x + range * 1.5 || road.maxZ < data.z - range * 1.5 || road.minZ > data.z + range * 1.5) continue;
-      line(road.points, '#3e5262', 3);
+
+    // 1. Live heading-up regional terrain, water, shoreline, forest & urban satellite backdrop
+    if (this.envImg && this.envBounds && this.envImg.complete && this.envImg.naturalWidth > 0) {
+      const b = this.envBounds;
+      const iw = this.envImg.naturalWidth, ih = this.envImg.naturalHeight;
+      const worldMinX = b.ox - b.w * 0.5, worldMinZ = b.oz - b.h * 0.5;
+      // Crop a generous world square around the player so rotation fills the 200x200 viewport cleanly
+      const cropWorld = range * 2.4;
+      const sx = ((data.x - cropWorld * 0.5 - worldMinX) / b.w) * iw;
+      const sy = ((data.z - cropWorld * 0.5 - worldMinZ) / b.h) * ih;
+      const sw = (cropWorld / b.w) * iw;
+      const sh = (cropWorld / b.h) * ih;
+      const drawPx = cropWorld * scale;
+      c.save();
+      c.translate(cx, cy);
+      // Match project(): when yaw=0 (car faces +Z), +Z must point UP (-Y on canvas), +X points RIGHT (+X on canvas)
+      c.scale(1, -1);
+      c.rotate(data.yaw);
+      c.globalAlpha = 0.62;
+      c.drawImage(this.envImg, sx, sy, sw, sh, -drawPx * 0.5, -drawPx * 0.5, drawPx, drawPx);
+      c.restore();
+      // Subtle GPS night-slate tint overlay so bright route, landmarks & cars pop effortlessly
+      c.fillStyle = 'rgba(7,16,26,0.42)';
+      c.fillRect(5, 5, 200, 200);
     }
-    line(this.route, '#111d26', 8); line(this.route, '#68dbe4', 3.5);
+
+    // 2. Surrounding road network
+    for (const road of this.roads) {
+      if (road.maxX < data.x - range * 1.6 || road.minX > data.x + range * 1.6 || road.maxZ < data.z - range * 1.6 || road.minZ > data.z + range * 1.6) continue;
+      line(road.points, 'rgba(130,158,178,0.48)', 2.4);
+    }
+
+    // 3. Active race circuit / route ribbon with dark casing + cyan glow
+    line(this.route, 'rgba(7,14,22,0.9)', 8.2);
+    line(this.route, '#68dbe4', 3.6);
+
+    // 4. Start / Finish checkered gate marker
     const start = this.route[0];
-    if (start) { const [x, y] = project(start); c.fillStyle = '#f4f6ee'; c.fillRect(x - 3, y - 3, 6, 6); }
+    if (start) {
+      const [sx, sy] = project(start);
+      if (sx > 6 && sx < 204 && sy > 6 && sy < 204) {
+        c.fillStyle = '#0e1620'; c.fillRect(sx - 5, sy - 5, 10, 10);
+        c.fillStyle = '#f8fafc'; c.fillRect(sx - 4, sy - 4, 4, 4); c.fillRect(sx, sy, 4, 4);
+      }
+    }
+
+    // 5. Nearby environmental & circuit landmarks (with compact pills & colored pins)
+    if (this.landmarks.length) {
+      let drawnLabels = 0;
+      const placed: [number, number][] = [];
+      for (let i = 0; i < this.landmarks.length; i++) {
+        const lm = this.landmarks[i];
+        const dist = Math.hypot(lm.x - data.x, lm.z - data.z);
+        if (dist > range * 1.55) continue;
+        const [lx, ly] = project(lm);
+        if (lx < 14 || lx > 196 || ly < 16 || ly > 192) continue;
+        const col = LANDMARK_COLOR[lm.kind ?? 'city'];
+        c.fillStyle = '#071019';
+        c.beginPath(); c.arc(lx, ly, 4.2, 0, TAU); c.fill();
+        c.fillStyle = col;
+        c.beginPath(); c.arc(lx, ly, 2.7, 0, TAU); c.fill();
+        if (drawnLabels < 4 && !placed.some(([px, py]) => Math.hypot(px - lx, py - ly) < 38)) {
+          placed.push([lx, ly]);
+          drawnLabels++;
+          c.font = '700 8.5px Inter,sans-serif';
+          const tw = Math.min(82, c.measureText(lm.name).width + 8);
+          const bx = Math.max(8, Math.min(200 - tw, lx - tw * 0.5));
+          const by = ly - 15 < 10 ? ly + 6 : ly - 15;
+          c.fillStyle = 'rgba(7,15,24,0.82)';
+          c.fillRect(bx, by, tw, 11);
+          c.fillStyle = col;
+          c.fillRect(bx, by, 2, 11);
+          c.fillStyle = '#edf3f7';
+          c.textAlign = 'left';
+          c.textBaseline = 'top';
+          c.fillText(lm.name.slice(0, 15), bx + 4, by + 1.5);
+        }
+      }
+    }
+
+    // 6. Live opponent racer pips
+    if (data.opponents && data.opponents.length) {
+      for (const opp of data.opponents) {
+        const [ox, oy] = project(opp);
+        if (ox < 8 || ox > 202 || oy < 8 || oy > 202) continue;
+        c.fillStyle = '#09121a';
+        c.beginPath(); c.arc(ox, oy, opp.isLeader ? 4.6 : 3.6, 0, TAU); c.fill();
+        c.fillStyle = opp.isLeader ? '#ffd166' : '#ff6b4a';
+        c.beginPath(); c.arc(ox, oy, opp.isLeader ? 3.2 : 2.3, 0, TAU); c.fill();
+      }
+    }
     c.restore();
+
+    // Subtle crisp map frame border
+    c.strokeStyle = 'rgba(130,210,230,0.28)';
+    c.lineWidth = 1;
+    c.strokeRect(5.5, 5.5, 199, 199);
+
+    // Player chevron arrow
     c.fillStyle = '#fff'; c.strokeStyle = '#102430'; c.lineWidth = 2;
     c.beginPath(); c.moveTo(cx, cy - 9); c.lineTo(cx + 6, cy + 7); c.lineTo(cx, cy + 3); c.lineTo(cx - 6, cy + 7); c.closePath(); c.fill(); c.stroke();
     const north = project({ x: data.x, z: data.z - 100 });
     const angle = Math.atan2(north[1] - cy, north[0] - cx);
-    c.fillStyle = '#d0dbe1'; c.font = '700 10px Inter,sans-serif'; c.textAlign = 'center';
+    c.fillStyle = '#d0dbe1'; c.font = '700 10px Inter,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'alphabetic';
     c.fillText('N', cx + Math.cos(angle) * 78, 100 + Math.sin(angle) * 78);
     c.font = '10px JetBrains Mono,monospace'; c.textAlign = 'left'; c.fillText(`${Math.round(range)} m`, 10, 199);
     c.strokeStyle = '#9dabb5'; c.lineWidth = 1; c.beginPath(); c.moveTo(156, 193); c.lineTo(198, 193); c.stroke();

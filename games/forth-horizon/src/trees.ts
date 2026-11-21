@@ -6,16 +6,23 @@ import * as THREE from 'three';
 export const NEAR_R = 195;
 export const cardLodUniforms = { uNearR: { value: NEAR_R - 14 } };
 
-/** patch a sprite card material so cards inside the 3D radius vanish (the 3D tree stands there instead) */
+/** patch a sprite card material so cards cross-fade smoothly out as the 3D tree models take over (zero harsh popping!) */
 export function cardLod(mat: THREE.MeshStandardMaterial): void {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uNearR = cardLodUniforms.uNearR;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uNearR;\nvarying float vTreeD;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n#ifdef USE_INSTANCING\nvTreeD = distance(cameraPosition.xz, (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz);\nif (vTreeD < uNearR) transformed = vec3(0.0);\n#else\nvTreeD = 1e5;\n#endif');
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+#ifdef USE_INSTANCING
+vTreeD = distance(cameraPosition.xz, (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz);
+float cardFade = smoothstep(uNearR - 8.0, uNearR + 14.0, vTreeD);
+transformed *= cardFade;
+#else
+vTreeD = 1e5;
+#endif`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vTreeD;\nuniform float uNearR;')
-      .replace('void main() {', 'void main() {\n  if (vTreeD < uNearR) discard;');
+      .replace('void main() {', 'void main() {\n  if (vTreeD < uNearR - 8.0) discard;');
   };
-  mat.customProgramCacheKey = () => 'cardlod-v2';
+  mat.customProgramCacheKey = () => 'cardlod-v3';
 }
 
 function rng(seed: number): () => number { let s = seed % 2147483647; if (s <= 0) s += 2147483646; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
@@ -194,34 +201,40 @@ export class TreeField {
     this.uTime.value += dt;
     this.accT += dt;
     const moved = Math.hypot(cam.x - this.last.x, cam.z - this.last.y);
-    if (this.accT < 0.25 || moved < 8) return;
+    if (this.last.x < 1e8 && (this.accT < 0.12 || moved < 3.0)) return;
     this.accT = 0; this.last.set(cam.x, cam.z);
     const R = this.effRadius, R2 = R * R, c0 = Math.floor((cam.x - R) / this.cell), c1 = Math.floor((cam.x + R) / this.cell), d0 = Math.floor((cam.z - R) / this.cell), d1 = Math.floor((cam.z + R) / this.cell);
     const buckets = this._buckets; buckets.fill(0);
     const m4 = this._m4, q = this._q, up = this._up, pos = this._pos, sc = this._sc, col = this._col;
     const maxCap = this.effCap;
     const ex = this.exag();
-    let total = 0;
+    // Collect & sort nearest-first so close trees are 100% deterministic and never evicted by cell scan order
+    const cands: { t: Pt; d2: number }[] = [];
     for (let cx = c0; cx <= c1; cx++) for (let cz = d0; cz <= d1; cz++) {
       const a = this.grid.get(cx * 4096 + cz); if (!a) continue;
       for (const t of a) {
-        if (total >= maxCap * 2) break;
-        const dx = t.x - cam.x, dz = t.z - cam.z;
-        if (dx * dx + dz * dz > R2) continue;
-        const h = (t.conifer ? 13 + t.k * 7 : 11 + t.k * 5) / (t.conifer ? 18 : 14) * t.s;
-        const pick = Math.floor(((t.x * 31 + t.z * 17) % 1 + 1) % 1 * 3);
-        let vi = t.conifer ? pick : 3 + pick;
-        if (!t.conifer && ((t.x * 7 + t.z * 3) % 1 + 1) % 1 < 0.15) vi = 5;
-        const v = this.variants[vi];
-        if (buckets[vi] >= maxCap) continue;
-        q.setFromAxisAngle(up, ((t.x * 7.3 + t.z * 3.1) % 6.283));
-        pos.set(t.x, this.hAt(t.x, t.z) * ex - 0.15, t.z);
-        sc.set(h, h, h);
-        m4.compose(pos, q, sc);
-        v.mesh.setMatrixAt(buckets[vi], m4);
-        v.mesh.setColorAt(buckets[vi], col.setScalar(0.78 + (((t.x * 13.1 + t.z * 5.7) % 1 + 1) % 1) * 0.4));
-        buckets[vi]++; total++;
+        const dx = t.x - cam.x, dz = t.z - cam.z, d2 = dx * dx + dz * dz;
+        if (d2 <= R2) cands.push({ t, d2 });
       }
+    }
+    cands.sort((a, b) => a.d2 - b.d2);
+    let total = 0;
+    for (let ci = 0; ci < cands.length; ci++) {
+      if (total >= maxCap * 2) break;
+      const t = cands[ci].t;
+      const h = (t.conifer ? 13 + t.k * 7 : 11 + t.k * 5) / (t.conifer ? 18 : 14) * t.s;
+      const pick = Math.floor(((t.x * 31 + t.z * 17) % 1 + 1) % 1 * 3);
+      let vi = t.conifer ? pick : 3 + pick;
+      if (!t.conifer && ((t.x * 7 + t.z * 3) % 1 + 1) % 1 < 0.15) vi = 5;
+      const v = this.variants[vi];
+      if (buckets[vi] >= maxCap) continue;
+      q.setFromAxisAngle(up, ((t.x * 7.3 + t.z * 3.1) % 6.283));
+      pos.set(t.x, this.hAt(t.x, t.z) * ex - 0.15, t.z);
+      sc.set(h, h, h);
+      m4.compose(pos, q, sc);
+      v.mesh.setMatrixAt(buckets[vi], m4);
+      v.mesh.setColorAt(buckets[vi], col.setScalar(0.78 + (((t.x * 13.1 + t.z * 5.7) % 1 + 1) % 1) * 0.4));
+      buckets[vi]++; total++;
     }
     this.variants.forEach((v, i) => { v.mesh.count = buckets[i]; v.mesh.instanceMatrix.needsUpdate = true; if (v.mesh.instanceColor) v.mesh.instanceColor.needsUpdate = true; });
     this.count = total;

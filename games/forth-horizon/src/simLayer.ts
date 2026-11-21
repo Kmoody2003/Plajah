@@ -45,6 +45,8 @@ export class SimLayer {
   /** stop lines, crosswalks, signals and stop signs, from the sim's junction control */
   readonly junctions: IntersectionLayer;
   private t = 0;
+  private stepAcc = 0;
+  private hiddenSkip = 0;
   private _m4 = new THREE.Matrix4();
   private _q = new THREE.Quaternion();
   private _up = new THREE.Vector3(0, 1, 0);
@@ -78,25 +80,46 @@ export class SimLayer {
 
   update(dt: number, cam: THREE.Vector3): void {
     this.t += dt;
-    this.world.setFocus(cam.x, cam.z);
-    this.world.step(dt);
     this.rail?.update(this.t, dt);
     this.airport?.update(this.t, dt);
+    // During closed-circuit races when public traffic is hidden, throttle background traffic stepping to 15 Hz so it never competes with race-start frame times
+    if (!this.cars.visible) {
+      this.stepAcc += dt;
+      if (++this.hiddenSkip < 4) return;
+      this.hiddenSkip = 0;
+      const stepDt = Math.min(this.stepAcc, 0.1);
+      this.stepAcc = 0;
+      this.world.setFocus(cam.x, cam.z);
+      this.world.step(stepDt);
+      this.junctions.update();
+      return;
+    }
+
+    // In free roam with heavy downtown traffic, cap traffic simulation & matrix upload cleanly at ~30 Hz and cull cars > 380 m away from camera
+    this.stepAcc += dt;
+    const dense = this.world.cars.length > 60;
+    if (dense && this.stepAcc < 1 / 34) return;
+    const stepDt = Math.min(this.stepAcc, 0.08);
+    this.stepAcc = 0;
+    this.world.setFocus(cam.x, cam.z);
+    this.world.step(stepDt);
     this.junctions.update();
-    if (!this.cars.visible) return;
 
     const m4 = this._m4, q = this._q, up = this._up, sc = this._sc, p = this._p, col = this._col;
     const gc = this.groundCache;
     const gFn = this.o.carGround ?? this.o.ground;
+    const maxVisDist2 = 380 * 380;
     let n = 0;
     const list = this.world.cars;
     for (let i = 0; i < list.length && n < 320; i++) {
       const c = list[i];
+      const dx = c.x - cam.x, dz = c.z - cam.z;
+      if (dx * dx + dz * dz > maxVisDist2) continue;
       q.setFromAxisAngle(up, c.yaw);
       if (c.kind === 'truck') sc.set(1.25, 1.7, 1.9); else sc.set(1, 1, 1);
       const base = n * 3;
       let gy = gc[base + 2];
-      if (gy < -1e8 || Math.abs(c.x - gc[base]) + Math.abs(c.z - gc[base + 1]) > 1.8) {
+      if (gy < -1e8 || Math.abs(c.x - gc[base]) + Math.abs(c.z - gc[base + 1]) > 2.2) {
         gy = gFn(c.x, c.z) + 0.05;
         gc[base] = c.x;
         gc[base + 1] = c.z;

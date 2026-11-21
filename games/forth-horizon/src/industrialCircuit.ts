@@ -1,5 +1,224 @@
 import * as THREE from 'three';
 
+let _barrierMats: Record<'grey' | 'hazard' | 'red', THREE.MeshStandardMaterial> | null = null;
+
+/**
+ * Procedural weathered cast-concrete Jersey barrier PBR material set (albedo + normal + roughness):
+ * vertical panel joints every 3.05 m, dark tire-rub bands at wheel height, subtle water/rust staining at the footing,
+ * and optional motorsport red/white or amber hazard stripe accents along the upper slope.
+ */
+export function concreteBarrierMaterial(variant: 'grey' | 'hazard' | 'red' = 'grey'): THREE.MeshStandardMaterial {
+  if (_barrierMats) return _barrierMats[variant];
+  const make = (v: 'grey' | 'hazard' | 'red'): THREE.MeshStandardMaterial => {
+    const W = 1024, H = 512;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const ctx = c.getContext('2d')!;
+    const nC = document.createElement('canvas'); nC.width = W; nC.height = H;
+    const nCtx = nC.getContext('2d')!;
+    const rC = document.createElement('canvas'); rC.width = W; rC.height = H;
+    const rCtx = rC.getContext('2d')!;
+
+    // Base weathered precast concrete tone
+    ctx.fillStyle = '#aba8a0';
+    ctx.fillRect(0, 0, W, H);
+    nCtx.fillStyle = 'rgb(128,128,255)';
+    nCtx.fillRect(0, 0, W, H);
+    rCtx.fillStyle = 'rgb(228,228,228)';
+    rCtx.fillRect(0, 0, W, H);
+
+    // Deterministic speckle / aggregate / weathered blotches
+    let s = v === 'grey' ? 1031 : v === 'hazard' ? 2053 : 3079;
+    const rnd = (): number => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+    for (let i = 0; i < 4200; i++) {
+      const x = rnd() * W, y = rnd() * H, sz = 1 + rnd() * 5;
+      const g = Math.floor(136 + rnd() * 62);
+      ctx.fillStyle = `rgba(${g},${g - 2},${g - 6},0.28)`;
+      ctx.fillRect(x, y, sz, sz);
+      const nx = Math.floor(116 + rnd() * 24), ny = Math.floor(116 + rnd() * 24);
+      nCtx.fillStyle = `rgba(${nx},${ny},250,0.35)`;
+      nCtx.fillRect(x, y, sz, sz);
+      const rg = Math.floor(200 + rnd() * 52);
+      rCtx.fillStyle = `rgba(${rg},${rg},${rg},0.3)`;
+      rCtx.fillRect(x, y, sz * 1.4, sz * 1.4);
+    }
+
+    // Subtle rain runoff streaks from the top lip downward (v = 0.5 is top ridge, v = 0..0.5 and 0.5..1 are the two sloped sides)
+    for (let i = 0; i < 110; i++) {
+      const x = rnd() * W, w = 2 + rnd() * 9, len = 45 + rnd() * 140;
+      ctx.fillStyle = `rgba(68,66,60,${0.06 + rnd() * 0.11})`;
+      ctx.fillRect(x, H * 0.5 - len, w, len * 2);
+    }
+
+    // Footing grime & road spray near base (v near 0 and 1)
+    const grdBot = ctx.createLinearGradient(0, 0, 0, H * 0.22);
+    grdBot.addColorStop(0, 'rgba(52,50,46,0.58)');
+    grdBot.addColorStop(1, 'rgba(52,50,46,0)');
+    ctx.fillStyle = grdBot; ctx.fillRect(0, 0, W, H * 0.22);
+    const grdTop = ctx.createLinearGradient(0, H, 0, H * 0.78);
+    grdTop.addColorStop(0, 'rgba(52,50,46,0.58)');
+    grdTop.addColorStop(1, 'rgba(52,50,46,0)');
+    ctx.fillStyle = grdTop; ctx.fillRect(0, H * 0.78, W, H * 0.22);
+
+    // Realistic rubber tire-scuff marks along wheel-contact height on both faces
+    for (let i = 0; i < 75; i++) {
+      const x = rnd() * W, len = 24 + rnd() * 115, h = 4 + rnd() * 11;
+      const side = rnd() < 0.5 ? 0.24 + rnd() * 0.14 : 0.62 + rnd() * 0.14;
+      const a = 0.08 + rnd() * 0.22;
+      ctx.fillStyle = `rgba(26,25,24,${a})`;
+      ctx.fillRect(x, side * H, len, h);
+      rCtx.fillStyle = `rgba(150,150,150,${a * 1.4})`;
+      rCtx.fillRect(x, side * H, len, h);
+    }
+
+    // Cast-concrete chamfered expansion joint seams (every 128 px -> 1/8 of 24.4 m repeat = 3.05 m precast segments)
+    for (let x = 0; x < W; x += 128) {
+      ctx.fillStyle = 'rgba(38,37,34,0.68)';
+      ctx.fillRect(x, 0, 3, H);
+      ctx.fillStyle = 'rgba(220,218,210,0.28)';
+      ctx.fillRect(x + 3, 0, 2, H);
+      nCtx.fillStyle = 'rgb(70,128,225)';
+      nCtx.fillRect(x, 0, 2, H);
+      nCtx.fillStyle = 'rgb(185,128,225)';
+      nCtx.fillRect(x + 2, 0, 2, H);
+      // Forklift / lifting slot recesses near the base of every 3.05 m Jersey block
+      for (const fy of [H * 0.05, H * 0.91]) {
+        ctx.fillStyle = 'rgba(30,29,27,0.72)';
+        ctx.fillRect(x + 34, fy, 16, 12);
+        ctx.fillRect(x + 78, fy, 16, 12);
+      }
+    }
+
+    // Upper motorsport paint accents & reflective road markers
+    if (v === 'red') {
+      const band = (y0: number, bh: number): void => {
+        for (let i = 0; i < 16; i++) {
+          ctx.fillStyle = i % 2 === 0 ? 'rgba(196,38,32,0.88)' : 'rgba(235,233,225,0.86)';
+          ctx.fillRect(i * 64, y0, 64, bh);
+        }
+      };
+      band(H * 0.34, H * 0.11);
+      band(H * 0.55, H * 0.11);
+    } else if (v === 'hazard') {
+      const stripe = (y0: number, bh: number): void => {
+        ctx.save(); ctx.beginPath(); ctx.rect(0, y0, W, bh); ctx.clip();
+        ctx.fillStyle = 'rgba(226,166,24,0.92)'; ctx.fillRect(0, y0, W, bh);
+        ctx.fillStyle = 'rgba(26,26,28,0.88)';
+        for (let x = -64; x < W + 64; x += 48) {
+          ctx.beginPath(); ctx.moveTo(x, y0 + bh); ctx.lineTo(x + 22, y0 + bh); ctx.lineTo(x + 42, y0); ctx.lineTo(x + 20, y0); ctx.closePath(); ctx.fill();
+        }
+        ctx.restore();
+      };
+      stripe(H * 0.36, H * 0.09);
+      stripe(H * 0.55, H * 0.09);
+    } else {
+      // Subtle amber / white cat's-eye reflectors mounted along the upper shoulder of standard concrete barriers
+      for (let x = 64; x < W; x += 128) {
+        ctx.fillStyle = '#e8a82e';
+        ctx.fillRect(x - 6, H * 0.39, 12, 8);
+        ctx.fillRect(x - 6, H * 0.59, 12, 8);
+        rCtx.fillStyle = 'rgb(75,75,75)';
+        rCtx.fillRect(x - 6, H * 0.39, 12, 8);
+        rCtx.fillRect(x - 6, H * 0.59, 12, 8);
+      }
+    }
+
+    const mkT = (el: HTMLCanvasElement, srgb: boolean): THREE.CanvasTexture => {
+      const t = new THREE.CanvasTexture(el);
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.anisotropy = 4;
+      if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+      t.needsUpdate = true;
+      return t;
+    };
+    return new THREE.MeshStandardMaterial({
+      map: mkT(c, true),
+      normalMap: mkT(nC, false),
+      normalScale: new THREE.Vector2(1.25, 1.25),
+      roughnessMap: mkT(rC, false),
+      roughness: 0.90,
+      metalness: 0.04,
+      side: THREE.DoubleSide,
+    });
+  };
+  _barrierMats = { grey: make('grey'), hazard: make('hazard'), red: make('red') };
+  return _barrierMats[variant];
+}
+
+/**
+ * Extrude a continuous, strictly vertical F-shape concrete Jersey barrier wall along a polyline of
+ * edge points `[x, y, z]`. Eliminates block-to-block staggering, air gaps on slopes, and tilted angles.
+ */
+export function buildJerseyBarrierRibbon(
+  runs: [number, number, number][][],
+  mat: THREE.Material,
+  name = 'concrete-jersey-barriers',
+): THREE.Mesh | null {
+  // True F-shape concrete Jersey profile: bottom root apron sinks 0.32 m into ground so barriers never hover on slopes
+  const prof: [number, number][] = [
+    [-0.31, -0.32], [-0.31, 0.08], [-0.25, 0.34], [-0.12, 0.92],
+    [0.12, 0.92], [0.25, 0.34], [0.31, 0.08], [0.31, -0.32],
+  ];
+  const pn = prof.length;
+  const cum = [0];
+  let perim = 0;
+  for (let i = 1; i < pn; i++) {
+    perim += Math.hypot(prof[i][0] - prof[i - 1][0], prof[i][1] - prof[i - 1][1]);
+    cum.push(perim);
+  }
+  const pos: number[] = [], uv: number[] = [], idx: number[] = [];
+  const REPEAT_M = 24.4; // 8 × 3.05 m precast sections per texture repeat
+
+  for (const run of runs) {
+    if (run.length < 2) continue;
+    const rn = run.length;
+    const baseVert = pos.length / 3;
+    let dist = 0;
+    for (let i = 0; i < rn; i++) {
+      const cur = run[i];
+      if (i > 0) dist += Math.hypot(cur[0] - run[i - 1][0], cur[2] - run[i - 1][2]);
+      const prev = run[Math.max(0, i - 1)], next = run[Math.min(rn - 1, i + 1)];
+      let tx = next[0] - prev[0], tz = next[2] - prev[2];
+      const tl = Math.hypot(tx, tz) || 1;
+      tx /= tl; tz /= tl;
+      // Strict horizontal normal (cross-section stays 100% upright / vertical, never pointing skyward!)
+      const nx = -tz, nz = tx;
+      const u = dist / REPEAT_M;
+      for (let k = 0; k < pn; k++) {
+        const [lat, h] = prof[k];
+        pos.push(cur[0] + nx * lat, cur[1] + h, cur[2] + nz * lat);
+        uv.push(u, cum[k] / perim);
+      }
+    }
+    for (let i = 0; i < rn - 1; i++) {
+      const a0 = baseVert + i * pn, b0 = baseVert + (i + 1) * pn;
+      for (let k = 0; k < pn - 1; k++) {
+        const a = a0 + k, b = a0 + k + 1, c = b0 + k, d = b0 + k + 1;
+        idx.push(a, c, b, b, c, d);
+      }
+    }
+    // End caps so open ends look solid cast concrete
+    const cap = (startV: number, flip: boolean): void => {
+      for (let k = 1; k < pn - 1; k++) {
+        if (flip) idx.push(startV, startV + k + 1, startV + k);
+        else idx.push(startV, startV + k, startV + k + 1);
+      }
+    };
+    cap(baseVert, true);
+    cap(baseVert + (rn - 1) * pn, false);
+  }
+  if (!idx.length) return null;
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  const mesh = new THREE.Mesh(g, mat);
+  mesh.name = name;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
 /**
  * The Ironworks Industrial Circuit: a short street course cut through the port's industrial yards (route planned by tools/plan_industrial_circuit.py).
  * Asphalt with white edge lines and a chequered start line, concrete barriers 6.9 m from the centre line (the same distance the city circuit's physics uses),
@@ -170,25 +389,53 @@ export function buildIndustrialCircuit(o: { path: { x: number; z: number }[]; gr
     for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const j of hash.get((cx + a) * 100003 + cz + b) ?? []) if (Math.hypot(P[j].x - x, P[j].z - z) < 6.3) return true;
     return false;
   };
-  // concrete barriers either side, a block every 3 m
+  // Continuous, strictly vertical F-shape concrete Jersey barrier walls on both sides (realistic weathered concrete + tire-scuff PBR, zero staggering or tilted blocks!)
   {
-    const geo = new THREE.BoxGeometry(0.55, 0.95, 3.0), mat = new THREE.MeshStandardMaterial({ color: 0xb5b3ac, roughness: 0.92 });
-    const im = new THREE.InstancedMesh(geo, mat, n * 6 * 2);
-    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sc = new THREE.Vector3(1, 1, 1), tp = new THREE.Vector3(); let k = 0;
-    for (let i = 0; i < n; i++) {
-      const a = P[i], b = P[(i + 1) % n], len = Math.hypot(b.x - a.x, b.z - a.z), { tx, tz } = tan(i), nx = -tz, nz = tx;
-      q.setFromAxisAngle(up, Math.atan2(b.x - a.x, b.z - a.z));
-      for (let s = 1.5; s < len; s += 3.0) for (const side of [-1, 1]) {
-        const x = a.x + (b.x - a.x) * (s / len) + nx * side * 6.9, z = a.z + (b.z - a.z) * (s / len) + nz * side * 6.9;
-        if (onOtherLeg(x, z, i)) continue;
-        // a 3 m block square to its segment: through a sharp chicane its ends swing in over the road edge (5.3 m from the line on the civic boulevard)
-        const ux = (b.x - a.x) / len, uz = (b.z - a.z) / len;
-        if (inRoad(x + ux * 1.5, z + uz * 1.5) || inRoad(x - ux * 1.5, z - uz * 1.5)) continue;
-        const yb = o.ys ? Math.max(o.ys[i], Math.min(o.ground(x, z), o.ys[i] + 0.3)) + LIFT - 0.42 : o.ground(x, z);   // on the deck or in the cutting: the road's height
-        tp.set(x, yb + 0.45, z); im.setMatrixAt(k++, m4.compose(tp, q, sc));
+    const greyRuns: [number, number, number][][] = [];
+    const redRuns: [number, number, number][][] = [];
+    for (const side of [-1, 1]) {
+      // Precompute smooth offset edge points at 6.9 m from centreline following exact road deck elevation
+      const edge: ({ p: [number, number, number]; corner: boolean } | null)[] = [];
+      for (let i = 0; i < n; i++) {
+        const { tx, tz } = tan(i), nx = -tz, nz = tx;
+        const x = P[i].x + nx * side * 6.9, z = P[i].z + nz * side * 6.9;
+        if (onOtherLeg(x, z, i) || inRoad(x, z)) { edge.push(null); continue; }
+        const aT = tan((i - 2 + n) % n), bT = tan((i + 2) % n);
+        const turn = Math.atan2(aT.tx * bT.tz - aT.tz * bT.tx, aT.tx * bT.tx + aT.tz * bT.tz);
+        const outsideTight = Math.abs(turn) > 0.22 && (turn > 0 ? -1 : 1) === side;
+        // Exact smooth road edge height (barrier's -0.32 m root apron anchors solidly into sloped verges!)
+        const yb = yAt(i) - 0.04;
+        edge.push({ p: [x, yb, z], corner: outsideTight });
       }
+      // Split into contiguous valid runs (skipping inside-hairpin folds where consecutive edge points double back)
+      let curGrey: [number, number, number][] = [];
+      let curRed: [number, number, number][] = [];
+      const flushGrey = (): void => { if (curGrey.length >= 2) greyRuns.push(curGrey); curGrey = []; };
+      const flushRed = (): void => { if (curRed.length >= 2) redRuns.push(curRed); curRed = []; };
+      for (let k = 0; k <= n; k++) {
+        const i = k % n, cur = edge[i];
+        if (!cur) { flushGrey(); flushRed(); continue; }
+        const prevPt = cur.corner ? curRed[curRed.length - 1] : curGrey[curGrey.length - 1];
+        if (prevPt) {
+          const dx = cur.p[0] - prevPt[0], dz = cur.p[2] - prevPt[2], d = Math.hypot(dx, dz);
+          const { tx, tz } = tan(i);
+          // Break run if segment jumps across a gap or folds backward on an ultra-tight inside corner
+          if (d > 26 || (d > 0.2 && (dx * tx + dz * tz) / d < 0.25)) { flushGrey(); flushRed(); }
+        }
+        if (cur.corner) {
+          if (curGrey.length) { curGrey.push(cur.p); flushGrey(); }
+          curRed.push(cur.p);
+        } else {
+          if (curRed.length) { curRed.push(cur.p); flushRed(); }
+          curGrey.push(cur.p);
+        }
+      }
+      flushGrey(); flushRed();
     }
-    im.count = k; im.castShadow = true; im.receiveShadow = true; group.add(im);
+    const greyWall = buildJerseyBarrierRibbon(greyRuns, concreteBarrierMaterial('grey'), 'industrial-jersey-grey');
+    const redWall = buildJerseyBarrierRibbon(redRuns, concreteBarrierMaterial('red'), 'industrial-jersey-red');
+    if (greyWall) group.add(greyWall);
+    if (redWall) group.add(redWall);
   }
 
   // tyre walls on the outside of the tight corners

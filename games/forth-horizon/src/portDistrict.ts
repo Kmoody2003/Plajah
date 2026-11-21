@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GRID } from './grid';
+import { shippingContainerMaterials } from './library/industrial';
 
 /**
  * The Ironworks port district's ground and props (planned in tools/plan_port_district.py, data in region/port_district.json):
@@ -95,7 +96,7 @@ export function buildPortDistrict(p: PortData, o: { waterY: number }): Port {
     box(sh.len, 16, sh.w, hull, 0, o.waterY + 2, 0, 0, g);
     box(sh.len * 0.28, 5, sh.w * 0.9, hull, -sh.len * 0.36, o.waterY + 12.5, 0, 0, g);
     box(sh.len * 0.12, 22, sh.w * 0.8, new THREE.MeshStandardMaterial({ color: 0xe8e8e4, roughness: 0.8 }), sh.len * 0.38, o.waterY + 19, 0, 0, g);   // bridge house aft
-    const cont = new THREE.InstancedMesh(new THREE.BoxGeometry(12.2, 2.6, 2.44), new THREE.MeshStandardMaterial({ roughness: 0.7 }), 400);
+    const cont = new THREE.InstancedMesh(new THREE.BoxGeometry(12.2, 2.6, 2.44), shippingContainerMaterials(), 400);
     let ck = 0; const col = new THREE.Color();
     for (let ix = -6; ix <= 6; ix++) for (let iz = -5; iz <= 5; iz++) for (let l = 0; l < 3; l++) {
       if (r() < 0.12 || ck >= 400) continue;
@@ -119,7 +120,7 @@ export function buildPortDistrict(p: PortData, o: { waterY: number }): Port {
   // ---- container yard: stacks in rows square to the quay ----
   {
     const total = p.containers.reduce((a, c) => a + c[2] * c[3] * 4, 0);
-    const im = new THREE.InstancedMesh(new THREE.BoxGeometry(12.2, 2.6, 2.44), new THREE.MeshStandardMaterial({ roughness: 0.72, metalness: 0.15 }), total);
+    const im = new THREE.InstancedMesh(new THREE.BoxGeometry(12.2, 2.6, 2.44), shippingContainerMaterials(), total);
     const palette = [0x1f4e8c, 0xa32c26, 0x2d6a3a, 0xc27a20, 0x6b6e72, 0x3a3a3c, 0x8c2f5b, 0x2c7a85, 0xd9d4c4];
     const col = new THREE.Color(); let k = 0;
     for (const b of p.containers) {

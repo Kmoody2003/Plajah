@@ -76,12 +76,15 @@ export class EzTreeField {
   private accT = 0;
   private uTime = { value: 0 };
   private uWind = { value: 0.3 };
-  private cap = 640;
+  private uFadeStart = { value: NEAR_R - 26 };
+  private uFadeEnd = { value: NEAR_R };
+  private cap = 820;
   private effRadius = NEAR_R;
-  private effCap = 640;
+  private effCap = 820;
   private conIndices: number[] = [];
   private broIndices: number[] = [];
   private _fill: number[] = [];
+  private _cands: { t: Pt; d2: number; si: number }[] = [];
   private _m4 = new THREE.Matrix4();
   private _q = new THREE.Quaternion();
   private _up = new THREE.Vector3(0, 1, 0);
@@ -100,8 +103,9 @@ export class EzTreeField {
     const sway = (m: THREE.Material, key: string): void => {
       m.onBeforeCompile = (sh) => {
         sh.uniforms.uTime = this.uTime; sh.uniforms.uWind = this.uWind;
+        sh.uniforms.uFadeStart = this.uFadeStart; sh.uniforms.uFadeEnd = this.uFadeEnd;
         sh.vertexShader = sh.vertexShader
-          .replace('#include <common>', '#include <common>\nuniform float uTime, uWind;\nvarying float vTreeH;\nvarying float vCrownAO;\nvarying float vTreeRand;')
+          .replace('#include <common>', '#include <common>\nuniform float uTime, uWind, uFadeStart, uFadeEnd;\nvarying float vTreeH;\nvarying float vCrownAO;\nvarying float vTreeRand;')
           .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
           ${key === 'leaf'
             ? `// SpeedTree-style volumetric spherical crown normal smoothing: turns crossed leaf cards into lush sunlit 3D canopies
@@ -115,10 +119,13 @@ export class EzTreeField {
           vTreeRand = 0.5;
           #ifdef USE_INSTANCING
           vec3 ib = vec3(instanceMatrix[3].x, 0.0, instanceMatrix[3].z);
+          float camD = distance(cameraPosition.xz, ib.xz);
+          float lodScale = smoothstep(uFadeEnd, uFadeStart, camD);
+          transformed *= lodScale;
           vTreeRand = fract(sin(dot(ib.xz, vec2(12.9898, 78.233))) * 43758.5453);
           float sc = max(0.01, length(instanceMatrix[1].xyz));
           float h01 = clamp(position.y, 0.0, 1.2);
-          float sw = uWind * h01 * h01 * 0.052 * sc;
+          float sw = uWind * h01 * h01 * 0.052 * sc * lodScale;
           float gust = sin(uTime * 1.35 + ib.x * 0.045 + ib.z * 0.032 + position.y * 2.6);
           float flutter = ${key === 'leaf' ? 'sin(uTime * 4.4 + position.x * 32.0 + position.z * 38.0 + ib.z * 0.17) * 0.34' : '0.0'};
           transformed.x += (gust * sw + flutter * sw) / sc;
@@ -154,7 +161,7 @@ export class EzTreeField {
             diffuseColor.rgb *= mix(0.56, 1.0, smoothstep(0.0, 0.14, vTreeH));`);
         }
       };
-      m.customProgramCacheKey = () => 'ezsway-' + key + '-v3';
+      m.customProgramCacheKey = () => 'ezsway-' + key + '-v4';
     };
     for (const v of variants) {
       const bm = new THREE.MeshStandardMaterial({ map: tex(`${v.barkType}_color_1k.jpg`, true), normalMap: tex(`${v.barkType}_normal_1k.jpg`, false), normalScale: new THREE.Vector2(1.45, 1.45), roughnessMap: tex(`${v.barkType}_roughness_1k.jpg`, false), roughness: 0.92, metalness: 0, color: 0xa69e94 });
@@ -178,9 +185,11 @@ export class EzTreeField {
   setWind(w: number): void { this.uWind.value = w; }
   setQuality(scale: number): void {
     const s = Math.max(0.5, Math.min(1, scale));
-    const nr = NEAR_R * (0.68 + 0.32 * s);
-    const nc = Math.max(120, Math.floor(this.cap * (0.5 + 0.5 * s)));
-    cardLodUniforms.uNearR.value = nr - 12;
+    const nr = NEAR_R * (0.72 + 0.28 * s);
+    const nc = Math.max(180, Math.floor(this.cap * (0.55 + 0.45 * s)));
+    this.uFadeEnd.value = nr;
+    this.uFadeStart.value = nr - 26;
+    cardLodUniforms.uNearR.value = nr - 20;
     if (Math.abs(nr - this.effRadius) > 4 || Math.abs(nc - this.effCap) > 40) {
       this.effRadius = nr;
       this.effCap = nc;
@@ -192,7 +201,8 @@ export class EzTreeField {
     this.uTime.value += dt;
     this.accT += dt;
     const moved = Math.hypot(cam.x - this.last.x, cam.z - this.last.y);
-    if (this.accT < 0.25 || moved < 6) return;
+    // Update immediately on first frame, then smoothly every 2.0 m / 100 ms so 3D trees stay rock-steady ahead of the car
+    if (this.last.x < 1e8 && (this.accT < 0.10 || moved < 2.0)) return;
     this.accT = 0; this.last.set(cam.x, cam.z);
     const R = this.effRadius, R2 = R * R, c0 = Math.floor((cam.x - R) / this.cell), c1 = Math.floor((cam.x + R) / this.cell), d0 = Math.floor((cam.z - R) / this.cell), d1 = Math.floor((cam.z + R) / this.cell);
     const con = this.conIndices, bro = this.broIndices;
@@ -200,26 +210,47 @@ export class EzTreeField {
     const maxCap = this.effCap;
     const m4 = this._m4, q = this._q, up = this._up, col = this._col, pos = this._pos, sc = this._sc;
     const ex = this.exag();
-    let total = 0;
+    // Collect candidates within radius and sort nearest-first: guarantees nearby trees NEVER pop out or get evicted when grid cells shift!
+    const cands = this._cands;
+    cands.length = 0;
     for (let cx = c0; cx <= c1; cx++) for (let cz = d0; cz <= d1; cz++) {
       const a = this.grid.get(cx * 4096 + cz); if (!a) continue;
-      for (const t of a) {
+      for (let j = 0; j < a.length; j++) {
+        const t = a[j];
         const dx = t.x - cam.x, dz = t.z - cam.z;
-        if (dx * dx + dz * dz > R2) continue;
+        const d2 = dx * dx + dz * dz;
+        if (d2 > R2) continue;
         const pool = t.conifer ? con : bro;
         if (!pool.length) continue;
         const hash = ((t.x * 31 + t.z * 17) % 1 + 1) % 1;
         const si = pool[Math.floor(hash * pool.length) % pool.length];
-        if (fill[si] >= maxCap) continue;
-        const h = (t.conifer ? 14 + t.k * 8 : 10 + t.k * 6) * t.s;
-        q.setFromAxisAngle(up, (t.x * 7.3 + t.z * 3.1) % 6.283);
-        pos.set(t.x, this.hAt(t.x, t.z) * ex - 0.1, t.z); sc.set(h, h, h);
-        m4.compose(pos, q, sc);
-        const tint = 0.8 + (((t.x * 13.1 + t.z * 5.7) % 1 + 1) % 1) * 0.35;
-        this.sets[si].meshes.forEach((im, mi) => { im.setMatrixAt(fill[si], m4); im.setColorAt(fill[si], mi > 0 && t.leaf !== undefined ? col.setHex(t.leaf).multiplyScalar(tint) : col.setScalar(tint)); });
-        fill[si]++; total++;
+        cands.push({ t, d2, si });
       }
     }
+    cands.sort((a, b) => a.d2 - b.d2);
+    let total = 0;
+    let farthestDrawnD2 = R2;
+    let cappedOut = false;
+    for (let ci = 0; ci < cands.length; ci++) {
+      const { t, d2, si } = cands[ci];
+      if (fill[si] >= maxCap) {
+        if (!cappedOut) { cappedOut = true; farthestDrawnD2 = d2; }
+        continue;
+      }
+      const h = (t.conifer ? 14 + t.k * 8 : 10 + t.k * 6) * t.s;
+      q.setFromAxisAngle(up, (t.x * 7.3 + t.z * 3.1) % 6.283);
+      pos.set(t.x, this.hAt(t.x, t.z) * ex - 0.1, t.z); sc.set(h, h, h);
+      m4.compose(pos, q, sc);
+      const tint = 0.8 + (((t.x * 13.1 + t.z * 5.7) % 1 + 1) % 1) * 0.35;
+      const idx = fill[si];
+      this.sets[si].meshes.forEach((im, mi) => { im.setMatrixAt(idx, m4); im.setColorAt(idx, mi > 0 && t.leaf !== undefined ? col.setHex(t.leaf).multiplyScalar(tint) : col.setScalar(tint)); });
+      fill[si]++; total++;
+    }
+    // Keep the outer fade band synchronized with the true drawn envelope so no gap opens in ultra-dense forest
+    const actualR = cappedOut ? Math.max(85, Math.min(R, Math.sqrt(farthestDrawnD2))) : R;
+    this.uFadeEnd.value = actualR;
+    this.uFadeStart.value = Math.max(55, actualR - 26);
+    if (total > 80) cardLodUniforms.uNearR.value = Math.min(cardLodUniforms.uNearR.value * 0.7 + (actualR - 18) * 0.3, actualR - 12);
     for (let i = 0; i < this.sets.length; i++) {
       const c = fill[i];
       for (const im of this.sets[i].meshes) {

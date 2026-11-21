@@ -106,7 +106,7 @@ export function wagon(kind: WagonKind, seed = 1): THREE.Group {
   if (kind === 'hopper') { k.slab(0, 1.3, 0, 3.0, 2.9, 15.2, mat(body, 0.85)); k.slab(0, 4.2, 0, 2.7, 0.35, 14.5, mat(0x1b1a19, 1)); }
   else if (kind === 'tanker') { k.cylZ(0, 2.7, 0, 1.45, 14.8, mat(r() < 0.5 ? PAL.black : 0xd8d6cf, 0.45, 0.35), 18); k.cyl(0, 4.1, 0, 0.5, 0.4, dark, 10); }
   else if (kind === 'boxcar') { k.slab(0, 1.3, 0, 3.0, 3.5, 15.4, mat(body, 0.85)); k.slab(1.52, 1.5, 0, 0.06, 3.0, 3.2, mat(0x2f2a26, 0.8)); }
-  else { const c = [0x9a3b2e, 0x2c5c8a, 0x8a8f94, 0x3f6b3c, 0xc79a2a][Math.floor(r() * 5)]; k.slab(0, 1.15, 0, 2.44, 2.6, 12.2, mat(c, 0.75, 0.2)); }
+  else { const c = [0x9a3b2e, 0x2c5c8a, 0x8a8f94, 0x3f6b3c, 0xc79a2a][Math.floor(r() * 5)]; const cm = new THREE.Mesh(new THREE.BoxGeometry(12.2, 2.6, 2.44), shippingContainerMaterials().map((m) => { const cl = m.clone(); cl.color.setHex(c); return cl; })); cm.position.set(0, 2.45, 0); cm.rotation.y = Math.PI / 2; cm.castShadow = cm.receiveShadow = true; k.g.add(cm); }
   return k.g;
 }
 
@@ -191,14 +191,237 @@ export function flareStack(h = 45): THREE.Group {
 
 // ---------- port ----------
 
+let _containerMats: THREE.MeshStandardMaterial[] | null = null;
+
+/**
+ * Shared 6-face procedural ISO 40ft shipping container PBR materials (corrugated steel ribs,
+ * structural header rails, corner twist-lock castings, stenciled cargo codes, double rear doors
+ * with vertical locking bars, subtle rust streaks and marine salt weathering). Designed with neutral
+ * bright greyscale base so InstancedMesh.setColorAt(...) tints each container cleanly to its shipping-line livery.
+ */
+export function shippingContainerMaterials(): THREE.MeshStandardMaterial[] {
+  if (_containerMats) return _containerMats;
+
+  const mkTex = (el: HTMLCanvasElement, srgb: boolean): THREE.CanvasTexture => {
+    const t = new THREE.CanvasTexture(el);
+    t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+    t.anisotropy = 4;
+    if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+    t.needsUpdate = true;
+    return t;
+  };
+
+  // Helper to paint vertical corrugated steel panels + matching normal & roughness maps
+  const buildSideSet = (): THREE.MeshStandardMaterial => {
+    const W = 1024, H = 512;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const ctx = c.getContext('2d')!;
+    const nC = document.createElement('canvas'); nC.width = W; nC.height = H;
+    const nCtx = nC.getContext('2d')!;
+    const rC = document.createElement('canvas'); rC.width = W; rC.height = H;
+    const rCtx = rC.getContext('2d')!;
+
+    ctx.fillStyle = '#dadad6'; ctx.fillRect(0, 0, W, H);
+    nCtx.fillStyle = 'rgb(128,128,255)'; nCtx.fillRect(0, 0, W, H);
+    rCtx.fillStyle = 'rgb(168,168,168)'; rCtx.fillRect(0, 0, W, H);
+
+    // 44 trapezoidal corrugated steel vertical ribs across the 12.2 m container side
+    const leftPost = 38, rightPost = W - 38, topRail = 40, botRail = H - 44;
+    const ribs = 44, ribW = (rightPost - leftPost) / ribs;
+    for (let i = 0; i < ribs; i++) {
+      const x0 = leftPost + i * ribW;
+      // Shaded trough & bright crest
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.fillRect(x0, topRail, ribW * 0.34, botRail - topRail);
+      ctx.fillStyle = 'rgba(255,255,255,0.16)';
+      ctx.fillRect(x0 + ribW * 0.42, topRail, ribW * 0.36, botRail - topRail);
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.fillRect(x0 + ribW * 0.80, topRail, ribW * 0.20, botRail - topRail);
+      // Crisp 3D corrugated bevel normals
+      nCtx.fillStyle = 'rgb(64,128,236)';
+      nCtx.fillRect(x0, topRail, ribW * 0.22, botRail - topRail);
+      nCtx.fillStyle = 'rgb(192,128,236)';
+      nCtx.fillRect(x0 + ribW * 0.28, topRail, ribW * 0.22, botRail - topRail);
+      nCtx.fillStyle = 'rgb(128,128,255)';
+      nCtx.fillRect(x0 + ribW * 0.50, topRail, ribW * 0.50, botRail - topRail);
+    }
+
+    // Structural top & bottom header beams + vertical corner posts
+    ctx.fillStyle = '#c4c4c0';
+    ctx.fillRect(0, 0, W, topRail);
+    ctx.fillRect(0, botRail, W, H - botRail);
+    ctx.fillRect(0, 0, leftPost, H);
+    ctx.fillRect(rightPost, 0, W - rightPost, H);
+    // Recessed horizontal weld seam beneath top rail & above bottom rail
+    ctx.fillStyle = 'rgba(0,0,0,0.42)';
+    ctx.fillRect(leftPost, topRail - 2, rightPost - leftPost, 4);
+    ctx.fillRect(leftPost, botRail - 2, rightPost - leftPost, 4);
+    nCtx.fillStyle = 'rgb(128,72,240)'; nCtx.fillRect(leftPost, topRail - 3, rightPost - leftPost, 6);
+    nCtx.fillStyle = 'rgb(128,184,240)'; nCtx.fillRect(leftPost, botRail - 3, rightPost - leftPost, 6);
+
+    // Forklift pockets along bottom rail
+    ctx.fillStyle = '#252629';
+    ctx.fillRect(W * 0.36, H - 30, 52, 22);
+    ctx.fillRect(W * 0.58, H - 30, 52, 22);
+
+    // 4 ISO heavy cast-steel corner twist-lock blocks
+    ctx.fillStyle = '#4c4f54';
+    for (const [cx, cy] of [[0, 0], [W - 38, 0], [0, H - 40], [W - 38, H - 40]]) {
+      ctx.fillRect(cx, cy, 38, 40);
+      ctx.fillStyle = '#181a1d';
+      ctx.fillRect(cx + 10, cy + 12, 18, 16);
+      ctx.fillStyle = '#4c4f54';
+    }
+
+    // Center white stencil cargo band + crisp logistics lettering & ISO code plates
+    ctx.fillStyle = 'rgba(252,252,250,0.88)';
+    ctx.font = '900 72px Outfit, Inter, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('GREAT LAKES CARGO', W * 0.45, H * 0.52);
+    ctx.fillStyle = 'rgba(255,255,255,0.72)';
+    ctx.fillRect(W * 0.14, H * 0.58, W * 0.62, 7);
+
+    // Right-hand ISO serial number & weight stencil block
+    ctx.textAlign = 'right';
+    ctx.font = '700 24px monospace';
+    ctx.fillStyle = 'rgba(250,250,248,0.86)';
+    ctx.fillText('GLCU 482910 [4]', rightPost - 18, topRail + 44);
+    ctx.font = '600 18px monospace';
+    ctx.fillText('45G1  HIGH CUBE', rightPost - 18, topRail + 70);
+    ctx.fillText('MAX.GR  32,500 KG', rightPost - 18, topRail + 94);
+    ctx.fillText('TARE     3,780 KG', rightPost - 18, topRail + 116);
+
+    // Yellow/black high-cube height warning stripe near top-left
+    ctx.fillStyle = '#f0c430';
+    ctx.fillRect(leftPost + 14, topRail + 14, 58, 28);
+    ctx.fillStyle = '#1a1b1d';
+    ctx.font = '800 18px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('9\'6"', leftPost + 43, topRail + 34);
+
+    // Subtle weathering: marine salt streaks, rust flecks & chipped paint along edges
+    let s = 9187;
+    const rnd = (): number => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+    for (let i = 0; i < 160; i++) {
+      const x = leftPost + rnd() * (rightPost - leftPost), y = topRail + rnd() * (botRail - topRail);
+      const rw = 3 + rnd() * 14, rh = 14 + rnd() * 68;
+      ctx.fillStyle = rnd() < 0.55 ? `rgba(88,48,28,${0.08 + rnd() * 0.14})` : `rgba(38,40,42,${0.06 + rnd() * 0.10})`;
+      ctx.fillRect(x, y, rw, rh);
+      rCtx.fillStyle = `rgba(235,235,235,${0.25 + rnd() * 0.3})`;
+      rCtx.fillRect(x, y, rw, rh);
+    }
+
+    return new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      map: mkTex(c, true),
+      normalMap: mkTex(nC, false),
+      normalScale: new THREE.Vector2(1.55, 1.55),
+      roughnessMap: mkTex(rC, false),
+      roughness: 0.72,
+      metalness: 0.34,
+    });
+  };
+
+  // Rear double doors (+x face): recessed vertical frame, center split, 4 galvanized vertical locking rods + handles + hinges
+  const buildDoorSet = (): THREE.MeshStandardMaterial => {
+    const W = 512, H = 512;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const ctx = c.getContext('2d')!;
+    const nC = document.createElement('canvas'); nC.width = W; nC.height = H;
+    const nCtx = nC.getContext('2d')!;
+    ctx.fillStyle = '#cfcfc9'; ctx.fillRect(0, 0, W, H);
+    nCtx.fillStyle = 'rgb(128,128,255)'; nCtx.fillRect(0, 0, W, H);
+
+    // Outer structural frame & corner castings
+    ctx.fillStyle = '#b4b4ae';
+    ctx.fillRect(0, 0, W, 38); ctx.fillRect(0, H - 38, W, 38);
+    ctx.fillRect(0, 0, 34, H); ctx.fillRect(W - 34, 0, 34, H);
+    ctx.fillStyle = '#4c4f54';
+    for (const [cx, cy] of [[0, 0], [W - 36, 0], [0, H - 38], [W - 36, H - 38]]) ctx.fillRect(cx, cy, 36, 38);
+
+    // Recessed horizontal door panels
+    for (const py of [72, 162, 252, 342]) {
+      ctx.fillStyle = 'rgba(0,0,0,0.16)';
+      ctx.fillRect(48, py, W - 96, 62);
+      ctx.fillStyle = 'rgba(255,255,255,0.14)';
+      ctx.fillRect(48, py + 58, W - 96, 6);
+      nCtx.fillStyle = 'rgb(128,76,240)'; nCtx.fillRect(48, py, W - 96, 8);
+      nCtx.fillStyle = 'rgb(128,180,240)'; nCtx.fillRect(48, py + 54, W - 96, 8);
+    }
+
+    // Center rubber gasket seam between left & right doors
+    ctx.fillStyle = '#1b1d20'; ctx.fillRect(W / 2 - 4, 38, 8, H - 76);
+
+    // Four galvanized steel vertical cam-locking rods + cam keepers & lever handles
+    for (const rx of [122, 206, 306, 390]) {
+      ctx.fillStyle = '#e4e7ec'; ctx.fillRect(rx - 5, 32, 10, H - 64);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(rx + 5, 32, 4, H - 64);
+      ctx.fillStyle = '#555b62'; ctx.fillRect(rx - 9, H * 0.64, 24, 14); // handle latch
+      nCtx.fillStyle = 'rgb(70,128,235)'; nCtx.fillRect(rx - 6, 32, 6, H - 64);
+      nCtx.fillStyle = 'rgb(186,128,235)'; nCtx.fillRect(rx, 32, 6, H - 64);
+    }
+
+    // Stenciled serial code on top right door
+    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+    ctx.font = '700 20px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('GLCU 482910', W - 48, 66);
+
+    return new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      map: mkTex(c, true),
+      normalMap: mkTex(nC, false),
+      normalScale: new THREE.Vector2(1.4, 1.4),
+      roughness: 0.68,
+      metalness: 0.38,
+    });
+  };
+
+  // Corrugated steel roof (+y face)
+  const buildRoofSet = (): THREE.MeshStandardMaterial => {
+    const W = 512, H = 128;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const ctx = c.getContext('2d')!;
+    const nC = document.createElement('canvas'); nC.width = W; nC.height = H;
+    const nCtx = nC.getContext('2d')!;
+    ctx.fillStyle = '#c8c8c2'; ctx.fillRect(0, 0, W, H);
+    nCtx.fillStyle = 'rgb(128,128,255)'; nCtx.fillRect(0, 0, W, H);
+    const ribs = 32, rw = W / ribs;
+    for (let i = 0; i < ribs; i++) {
+      ctx.fillStyle = 'rgba(0,0,0,0.20)'; ctx.fillRect(i * rw, 8, rw * 0.38, H - 16);
+      ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(i * rw + rw * 0.45, 8, rw * 0.38, H - 16);
+      nCtx.fillStyle = 'rgb(76,128,238)'; nCtx.fillRect(i * rw, 8, rw * 0.25, H - 16);
+      nCtx.fillStyle = 'rgb(180,128,238)'; nCtx.fillRect(i * rw + rw * 0.3, 8, rw * 0.25, H - 16);
+    }
+    // Weathered roof water-pooling grime patches
+    ctx.fillStyle = 'rgba(78,56,38,0.16)'; ctx.fillRect(36, 22, 160, 82); ctx.fillRect(280, 18, 180, 86);
+    return new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      map: mkTex(c, true),
+      normalMap: mkTex(nC, false),
+      normalScale: new THREE.Vector2(1.3, 1.3),
+      roughness: 0.78,
+      metalness: 0.30,
+    });
+  };
+
+  const side = buildSideSet();
+  const door = buildDoorSet();
+  const roof = buildRoofSet();
+  const under = new THREE.MeshStandardMaterial({ color: 0x3b3d40, roughness: 0.9, metalness: 0.2 });
+  // Three.js BoxGeometry(lenX, hY, wZ) group order: 0:+x (doors), 1:-x (front wall), 2:+y (roof), 3:-y (bottom), 4:+z (side), 5:-z (side)
+  _containerMats = [door, door, roof, under, side, side];
+  return _containerMats;
+}
+
 /** a block of 40 ft containers: `cols` along local x (12.2 m each), `rows` across (2.44 m, 0.3 m gaps), stacked 1-`tiers` high at random */
 export function containerBlock(seed = 1, cols = 4, rows = 6, tiers = 4): THREE.Group {
   const r = seeded(seed), k = new Kit('lib:container-block');
-  const colours = [0x9a3b2e, 0x2c5c8a, 0x8a8f94, 0x3f6b3c, 0xc79a2a, 0x6b2f5a, 0xd0d0cc, 0x1f4f6f, 0xb4532a];
+  const colours = [0x9a3b2e, 0x2c5c8a, 0x7b838c, 0x37693a, 0xc79024, 0x6b2f5a, 0xc8c7c2, 0x1f4f6f, 0xb4532a];
   const geo = new THREE.BoxGeometry(12.1, 2.55, 2.4), m4 = new THREE.Matrix4(), col = new THREE.Color();
   const cells: [number, number, number, number][] = [];
   for (let c = 0; c < cols; c++) for (let w = 0; w < rows; w++) { const h = 1 + Math.floor(r() * tiers); for (let t = 0; t < h; t++) cells.push([c, w, t, colours[Math.floor(r() * colours.length)]]); }
-  const im = new THREE.InstancedMesh(geo, mat(0xffffff, 0.7, 0.25), cells.length);
+  const im = new THREE.InstancedMesh(geo, shippingContainerMaterials(), cells.length);
   cells.forEach(([c, w, t, cc], i) => { im.setMatrixAt(i, m4.makeTranslation(-(cols - 1) * 6.3 + c * 12.6, 1.3 + t * 2.6, -(rows - 1) * 1.35 + w * 2.7)); im.setColorAt(i, col.setHex(cc)); });
   im.castShadow = im.receiveShadow = true; im.name = 'containers'; k.g.add(im);
   return k.g;

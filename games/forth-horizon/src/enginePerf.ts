@@ -331,7 +331,7 @@ export async function runWithConcurrency<T>(
  */
 export function populateTerrainLOD(
   target: THREE.Group, material: THREE.Material, nx: number, ny: number, pos: Float32Array, uv: Float32Array, nor: Float32Array,
-  tileVerts = 224, lodDist: number[] = [0, 850, 1900, 4000], skirt = 16,
+  tileVerts = 144, lodDist: number[] = [0, 1700, 3200, 5800], skirt = 16,
 ): void {
   for (const lod of target.children) for (const lvl of (lod as THREE.LOD).levels ?? []) (lvl.object as THREE.Mesh).geometry?.dispose();
   target.clear();
@@ -348,18 +348,18 @@ export function populateTerrainLOD(
     for (let j = th - 2; j >= 1; j--) ring.push([0, j]);
     const vCount = tw * th + ring.length;
     const tPos = new Float32Array(vCount * 3), tNor = new Float32Array(vCount * 3), tUv = new Float32Array(vCount * 2);
-    // tile centre: positions are stored relative to it so THREE.LOD measures the distance from the tile, not from the world origin
-    const cs = ((y0 + (th >> 1)) * nx + x0 + (tw >> 1)) * 3, cx = pos[cs], cz = pos[cs + 2];
+    // tile centre (including median elevation cy): keeps high mountain tiles (Escarpment Crest at y ~ 350 m) at full LOD 0 whenever the car is anywhere on or near them!
+    const cs = ((y0 + (th >> 1)) * nx + x0 + (tw >> 1)) * 3, cx = pos[cs], cy = pos[cs + 1], cz = pos[cs + 2];
     const put = (dst: number, src: number, drop: number): void => {
       const s3 = src * 3, d3 = dst * 3, s2 = src * 2, d2 = dst * 2;
-      tPos[d3] = pos[s3] - cx; tPos[d3 + 1] = pos[s3 + 1] - drop; tPos[d3 + 2] = pos[s3 + 2] - cz;
+      tPos[d3] = pos[s3] - cx; tPos[d3 + 1] = pos[s3 + 1] - cy - drop; tPos[d3 + 2] = pos[s3 + 2] - cz;
       tNor[d3] = nor[s3]; tNor[d3 + 1] = nor[s3 + 1]; tNor[d3 + 2] = nor[s3 + 2]; tUv[d2] = uv[s2]; tUv[d2 + 1] = uv[s2 + 1];
     };
     for (let j = 0; j < th; j++) for (let i = 0; i < tw; i++) put(j * tw + i, (y0 + j) * nx + x0 + i, 0);
     const skirtOf = new Map<number, number>();
     ring.forEach(([i, j], r) => { const dst = tw * th + r; put(dst, (y0 + j) * nx + x0 + i, skirt); skirtOf.set(j * tw + i, dst); });
     const aPos = new THREE.BufferAttribute(tPos, 3), aNor = new THREE.BufferAttribute(tNor, 3), aUv = new THREE.BufferAttribute(tUv, 2);
-    const lod = new THREE.LOD(); lod.position.set(cx, 0, cz); lod.updateMatrix(); lod.matrixAutoUpdate = false;
+    const lod = new THREE.LOD(); lod.position.set(cx, cy, cz); lod.updateMatrix(); lod.matrixAutoUpdate = false;
     steps.forEach((s, li) => {
       const is: number[] = []; for (let i = 0; i < tw - 1; i += s) is.push(i); is.push(tw - 1);
       const js: number[] = []; for (let j = 0; j < th - 1; j += s) js.push(j); js.push(th - 1);
