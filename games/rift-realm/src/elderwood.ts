@@ -27,6 +27,7 @@ import { bakeGround } from '../../../services/vegetation/grass/ground';
 import { GrassField } from '../../../services/vegetation/grass/field';
 import { CYBER_FOREST_GRASS } from '../../../services/vegetation/catalog/cyberForestGrass';
 import { PlantField, type PlantSpot } from '../../../services/vegetation/plants/field';
+import { nebulaSky } from './nebulaSky';
 import { CF_VINE, CYBER_FOREST_PLANTS } from '../../../services/vegetation/catalog/cyberForestPlants';
 import { FungusField, type FungusSpot } from '../../../services/vegetation/fungi/field';
 import { CYBER_FOREST_FUNGI } from '../../../services/vegetation/catalog/cyberForestFungi';
@@ -719,8 +720,9 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   group.userData.vegetation = { forest, grass, plants, fungi, ground: grassGround };   // ?rrdebug: stats, trample tests
 
   // ── lights ────────────────────────────────────────────────────────────────────────────────────────────────
-  const hemi = new THREE.HemisphereLight(0x9fd4e0, 0x1c3024, 1.8);
-  const moon = new THREE.DirectionalLight(0xc8dcff, 3.2);
+  // the sky lights the level: nebula-tinted sky light, moonlight from the moon you can see, aurora glow (below)
+  const hemi = new THREE.HemisphereLight(0x8c96e6, 0x1c3024, 1.7);
+  const moon = new THREE.DirectionalLight(0xcfe2ff, 3.0);
   moon.position.set(-50, 110, 40); moon.target.position.set(0, 0, 0); group.add(moon.target);
   moon.castShadow = !lo; moon.shadow.mapSize.set(4096, 4096);
   Object.assign(moon.shadow.camera, { left: -100, right: 100, top: 100, bottom: -100, near: 1, far: 260 });
@@ -736,19 +738,13 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     pl(CHAPEL.x, 4, CHAPEL.z, 0x8a6cff, 30, 16);
   }
 
-  // night sky with a teal horizon (reflections and background agree)
-  {
-    const c = document.createElement('canvas'); c.width = 1024; c.height = 512;
-    const g = c.getContext('2d')!;
-    const grad = g.createLinearGradient(0, 0, 0, 512);
-    grad.addColorStop(0, '#04101c'); grad.addColorStop(0.5, '#0b2a30'); grad.addColorStop(1, '#06160f');
-    g.fillStyle = grad; g.fillRect(0, 0, 1024, 512);
-    for (let i = 0; i < 700; i++) { g.fillStyle = `rgba(200,235,255,${0.2 + Math.random() * 0.7})`; const s = Math.random() * 1.6 + 0.3; g.fillRect(Math.random() * 1024, Math.random() * 230, s, s); }
-    const sky = new THREE.CanvasTexture(c);
-    sky.mapping = THREE.EquirectangularReflectionMapping; sky.colorSpace = THREE.SRGBColorSpace;
-    scene.background = sky; scene.environment = sky; scene.environmentIntensity = 1.2;
-  }
-  scene.fog = new THREE.FogExp2(0x103a3c, 0.0095);
+  // the sky: a colour nebula, aurora curtains over the treeline, stars, the moon (nebulaSky.ts). It is the background,
+  // the environment (baked in prepare(): reflections + image light) and the source of the aurora's coloured lights.
+  const sky = nebulaSky({ moonDir: moon.position.clone().normalize(), auroraAz: [0.7, -2.3], beat: uBeatPulse });
+  sky.apply(scene);
+  const auroraLights = sky.lights(group);
+  let skyT = 0;
+  scene.fog = new THREE.FogExp2(sky.horizon.getHex(), 0.0085);
   scene.add(group);
 
   // ── the forest fights back: wolves, mantises, wasps, bats; deer graze the hollow; moths round every light ─────
@@ -839,9 +835,10 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     enemySpots, controlPoints,
     hazardBelow: -10,
     setBiome() { return { name: info.name, track: info.track }; },
-    async prepare(renderer, camera) { viewCam = camera; await forest.bake(renderer); },
+    async prepare(renderer, camera) { viewCam = camera; sky.bakeEnvironment(renderer, scene, 1.15); await forest.bake(renderer); },
     update(dt, pulse) {
       uBeatPulse.value = pulse;
+      skyT += dt; auroraLights(skyT, pulse);
       updateWind(dt, 0.55);
       // the player pushes the vegetation as they run (dash and blasts add bigger impulses from the game)
       const pp = enemyBodies.playerPos;
