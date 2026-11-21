@@ -8,7 +8,7 @@ import https from 'node:https';
 import { pipeline } from 'node:stream/promises';
 import { SELF_HOSTED_FILMS, getSelfHostedFilm, registerSelfHostedFilm } from '../services/selfHostedFilms';
 import { ARCHIVE_FILM_ITEMS, resolveArchiveFilm, resolveAnyArchiveItem, explainYoutubeError } from '../services/filmIngestSources';
-import { fsGet, fsSet, fsPatch } from '../services/firebaseAdminRest';
+import { fsGet, fsGetStrict, fsSet, fsPatch } from '../services/firebaseAdminRest';
 import { getDirectorProfile } from '../data/classicDirectors';
 import { getHalloweenStoryIntelBundle, getCharactersForFilm, getSyntheticAnalysisJob } from '../data/halloweenStoryIntel';
 import {
@@ -646,6 +646,10 @@ const activeHttpRequests: Record<string, http.ClientRequest> = {};
 const inMemoryStatuses: Record<string, IngestJobStatus> = {};
 const resolvedArchiveUrlCache: Record<string, { url: string; size: number; exp: number }> = {};
 const activeMuxIngests = new Set<string>();
+/** Firestore collection: one doc per public-domain film that any instance has started sending to Mux. */
+const MUX_INGEST_CLAIMS = 'muxIngestClaims';
+/** A claim with no asset yet (create failed or the instance died) may be retried after this long. */
+const MUX_INGEST_CLAIM_TTL_MS = 6 * 60 * 60 * 1000;
 
 /**
  * Dynamically register or update a public-domain film in the vault catalog
@@ -1234,7 +1238,8 @@ export async function syncFilmToPlatformFirestore(
         )
       : [];
 
-    const existingAlbum = await fsGet('albums', docId).catch(() => null);
+    // Strict read: a failed read must not look like "no doc" — fsSet replaces the whole doc.
+    const existingAlbum = await fsGetStrict(`albums/${docId}`);
     const nowIso = new Date().toISOString();
 
     const directorProfile = getDirectorProfile(film.director, cleanId);
@@ -1306,9 +1311,9 @@ export async function syncFilmToPlatformFirestore(
       ...(existingAlbum?.createdAt ? {} : { createdAt: nowIso, syncedAt: nowIso }),
     };
 
-    await fsSet('albums', docId, albumPayload);
+    await fsSet(`albums/${docId}`, albumPayload);
 
-    const existingVideo = await fsGet('videos', docId).catch(() => null);
+    const existingVideo = await fsGetStrict(`videos/${docId}`);
     const videoPayload: Record<string, any> = {
       ...(existingVideo || {}),
       id: docId,
@@ -1337,13 +1342,13 @@ export async function syncFilmToPlatformFirestore(
       ...(existingVideo?.createdAt ? {} : { createdAt: nowIso }),
     };
 
-    await fsSet('videos', docId, videoPayload);
+    await fsSet(`videos/${docId}`, videoPayload);
 
     // Sync Story Intelligence analysis job (`taleoAnalysis`) to Firestore if available
     const synthJobForClean = getSyntheticAnalysisJob(cleanId);
     const synthJobForDoc = getSyntheticAnalysisJob(docId);
     if (synthJobForClean && storyBundle) {
-      await fsSet('taleoAnalysis', cleanId, {
+      await fsSet(`taleoAnalysis/${cleanId}`, {
         ...synthJobForClean,
         storyReportInline: storyBundle.report,
         charactersWithActors: storyBundle.characters,
@@ -1351,7 +1356,7 @@ export async function syncFilmToPlatformFirestore(
       }).catch(() => {});
     }
     if (synthJobForDoc && storyBundle) {
-      await fsSet('taleoAnalysis', docId, {
+      await fsSet(`taleoAnalysis/${docId}`, {
         ...synthJobForDoc,
         storyReportInline: storyBundle.report,
         charactersWithActors: storyBundle.characters,
@@ -1360,9 +1365,9 @@ export async function syncFilmToPlatformFirestore(
     }
 
     // Also patch unprefixed doc if one exists in albums/videos
-    const rawAlbum = await fsGet('albums', cleanId).catch(() => null);
+    const rawAlbum = await fsGet(`albums/${cleanId}`).catch(() => null);
     if (rawAlbum) {
-      await fsPatch('albums', cleanId, {
+      await fsPatch(`albums/${cleanId}`, {
         videoUrl: streamUrl,
         tracks: [trackPayload],
         ...(muxPlaybackId ? { muxPlaybackId } : {}),
@@ -1372,9 +1377,9 @@ export async function syncFilmToPlatformFirestore(
         updatedAt: nowIso,
       }).catch(() => {});
     }
-    const rawVideo = await fsGet('videos', cleanId).catch(() => null);
+    const rawVideo = await fsGet(`videos/${cleanId}`).catch(() => null);
     if (rawVideo) {
-      await fsPatch('videos', cleanId, {
+      await fsPatch(`videos/${cleanId}`, {
         videoUrl: streamUrl,
         ...(muxPlaybackId ? { muxPlaybackId, status: 'READY' } : {}),
         ...(muxAssetId ? { muxAssetId } : {}),
@@ -1426,9 +1431,25 @@ export async function ingestFilmIntoMux(
     } catch {}
   }
 
-  // 2. Check Firestore to see if this film already has a muxPlaybackId
+  // 2. Check Firestore (shared by every server instance) for a Mux id or an ingest another
+  //    instance already started. Local disk and memory are wiped on every Cloud Run start, so
+  //    Firestore is the only memory that stops a fresh instance re-uploading the film to Mux.
+  //    A failed read fails CLOSED: no Mux asset is created when we can't tell.
+  let existingDoc: Record<string, any> | null;
+  let claim: Record<string, any> | null;
   try {
-    const existingDoc = await fsGet('videos', `public_domain_${cleanId}`);
+    [existingDoc, claim] = await Promise.all([
+      fsGetStrict(`videos/public_domain_${cleanId}`),
+      fsGetStrict(`${MUX_INGEST_CLAIMS}/${cleanId}`),
+    ]);
+  } catch (err) {
+    console.warn(`[MuxPublicDomainIngest] Firestore check failed for ${cleanId}; not creating a Mux asset:`, (err as any)?.message || err);
+    return null;
+  }
+  if (!existingDoc?.muxPlaybackId && claim?.muxPlaybackId) {
+    existingDoc = { muxPlaybackId: claim.muxPlaybackId, muxAssetId: claim.muxAssetId };
+  }
+  try {
     if (existingDoc?.muxPlaybackId) {
       const meta = {
         muxAssetId: existingDoc.muxAssetId || '',
@@ -1459,7 +1480,20 @@ export async function ingestFilmIntoMux(
   if (activeMuxIngests.has(cleanId)) {
     return null;
   }
+  // An asset already created (or being created) by any instance: never make a second one.
+  if (claim?.muxAssetId) return null;
+  const claimedAt = Date.parse(String(claim?.claimedAt || ''));
+  if (Number.isFinite(claimedAt) && Date.now() - claimedAt < MUX_INGEST_CLAIM_TTL_MS) return null;
   activeMuxIngests.add(cleanId);
+  const claimed = await fsSet(`${MUX_INGEST_CLAIMS}/${cleanId}`, {
+    identifier: cleanId,
+    claimedAt: new Date().toISOString(),
+  });
+  if (!claimed) {
+    activeMuxIngests.delete(cleanId);
+    console.warn(`[MuxPublicDomainIngest] Could not record the ingest claim for ${cleanId}; not creating a Mux asset.`);
+    return null;
+  }
 
   try {
     const MuxModule = await import('@mux/mux-node');
@@ -1543,6 +1577,12 @@ export async function ingestFilmIntoMux(
     }
 
     if (assetId || playbackId) {
+      // Record the asset on the shared claim first, so no instance ever creates another one.
+      await fsPatch(`${MUX_INGEST_CLAIMS}/${cleanId}`, {
+        ...(assetId ? { muxAssetId: assetId } : {}),
+        ...(playbackId ? { muxPlaybackId: playbackId } : {}),
+        createdAssetAt: new Date().toISOString(),
+      });
       const muxMeta = {
         muxAssetId: assetId,
         muxPlaybackId: playbackId,
@@ -1600,6 +1640,19 @@ export async function handleMuxAssetReadyForPublicDomain(
   if (!passthrough || !passthrough.startsWith('public_domain:')) return false;
   const cleanId = passthrough.replace(/^public_domain:/, '').trim();
   if (!cleanId) return false;
+
+  // A duplicate asset finishing must never replace the film's established playback id
+  // (registry, or the asset recorded on the shared ingest claim).
+  const known = getSelfHostedFilm(cleanId);
+  if (known?.muxAssetId && known.muxAssetId !== assetId) {
+    console.warn(`[PublicDomainMux] Ignoring duplicate asset ${assetId} for ${cleanId}; keeping ${known.muxAssetId}.`);
+    return true;
+  }
+  const claim = await fsGet(`${MUX_INGEST_CLAIMS}/${cleanId}`);
+  if (claim?.muxAssetId && claim.muxAssetId !== assetId) {
+    console.warn(`[PublicDomainMux] Ignoring duplicate asset ${assetId} for ${cleanId}; claim holds ${claim.muxAssetId}.`);
+    return true;
+  }
 
   const film = ensureFilmCatalogEntry({ identifier: cleanId });
   const vaultDir = await getVaultDirectory();
@@ -2232,27 +2285,10 @@ export function createAdminFilmIngestRouter(deps?: {
         ? `/api/admin/film-ingest/stream/${encodeURIComponent(cleanId)}`
         : directMp4Url || `/api/admin/film-ingest/proxy-stream/${encodeURIComponent(cleanId)}`;
 
-      // Trigger background platform sync, Mux ingest, and local vault download without blocking response
-      (async () => {
-        try {
-          await syncFilmToPlatformFirestore(film, {
-            videoUrl: directMp4Url || streamUrl,
-            muxPlaybackId,
-            muxAssetId,
-          });
-          if (!muxPlaybackId && directMp4Url) {
-            await ingestFilmIntoMux(film, directMp4Url);
-          }
-          // A Mux stream already serves this film; don't pull gigabytes onto the server's disk.
-          if (muxPlaybackId) return;
-          const currentStat = inMemoryStatuses[cleanId];
-          if (!localVideoExists && (!currentStat || (currentStat.status !== 'DOWNLOADING' && currentStat.status !== 'COMPLETED'))) {
-            await startOrResumeDownload(cleanId);
-          }
-        } catch (bgErr) {
-          console.warn(`[EnsureOnPlatform] Background ingest note for ${cleanId}:`, (bgErr as any)?.message || bgErr);
-        }
-      })();
+      // This route is public (every player calls it when a film opens), so it only RESOLVES a
+      // stream. It no longer creates Mux assets, writes Firestore or downloads to the vault:
+      // viewer traffic re-uploaded films to Mux on every fresh server instance. Bringing films
+      // onto Mux is admin-only now (POST /ingest-all-native and the vault endpoints).
 
       return res.json({
         success: true,
@@ -2265,61 +2301,6 @@ export function createAdminFilmIngestRouter(deps?: {
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Failed to ensure film on platform' });
-    }
-  });
-
-  // POST /ingest-all-native — Brings the entire public-domain catalog (films, anime, cartoons, TV series)
-  // natively onto the platform (Firestore albums/videos + Mux HLS queue + optional local vault download).
-  router.post('/ingest-all-native', async (req, res) => {
-    try {
-      const downloadToLocalVault = Boolean(req.body?.downloadToLocalVault);
-      const vaultDir = await getVaultDirectory();
-      await syncVaultStatus(vaultDir);
-
-      // Respond immediately while background sync & Mux ingestion progresses through the full catalog
-      const totalCatalog = SURFACED_PUBLIC_DOMAIN_FILMS.length;
-      (async () => {
-        for (const film of SURFACED_PUBLIC_DOMAIN_FILMS) {
-          if (film.sourceIssue) continue;
-          try {
-            const selfHosted = getSelfHostedFilm(film.identifier);
-            let directUrl = film.directDownloadUrl;
-            if (!directUrl && (ARCHIVE_FILM_ITEMS[film.identifier] || film.archive === 'INTERNET_ARCHIVE')) {
-              try {
-                const resolved = await resolveAnyArchiveItem(film.identifier);
-                directUrl = resolved.url;
-                film.directDownloadUrl = resolved.url;
-              } catch {}
-            }
-            await syncFilmToPlatformFirestore(film, {
-              videoUrl: directUrl,
-              muxPlaybackId: selfHosted?.muxPlaybackId,
-              muxAssetId: selfHosted?.muxAssetId,
-            });
-            if (!selfHosted?.muxPlaybackId && directUrl) {
-              await ingestFilmIntoMux(film, directUrl);
-            }
-            if (downloadToLocalVault) {
-              const stat = inMemoryStatuses[film.identifier];
-              if (!stat || (stat.status !== 'COMPLETED' && stat.status !== 'DOWNLOADING')) {
-                await startOrResumeDownload(film.identifier);
-              }
-            }
-          } catch (e) {
-            console.warn(`[IngestAllNative] Error processing ${film.identifier}:`, (e as any)?.message || e);
-          }
-          await new Promise((r) => setTimeout(r, 500));
-        }
-      })();
-
-      res.json({
-        success: true,
-        totalCatalog,
-        downloadToLocalVault,
-        message: `Queued ${totalCatalog} public-domain films, anime, cartoons, and TV series for native Firestore registration and Mux HLS ingestion.`,
-      });
-    } catch (err: any) {
-      res.status(500).json({ error: err.message });
     }
   });
 
@@ -2427,6 +2408,61 @@ export function createAdminFilmIngestRouter(deps?: {
       });
     });
   }
+
+  // POST /ingest-all-native — Brings the entire public-domain catalog (films, anime, cartoons, TV series)
+  // natively onto the platform (Firestore albums/videos + Mux HLS queue + optional local vault download).
+  router.post('/ingest-all-native', async (req, res) => {
+    try {
+      const downloadToLocalVault = Boolean(req.body?.downloadToLocalVault);
+      const vaultDir = await getVaultDirectory();
+      await syncVaultStatus(vaultDir);
+
+      // Respond immediately while background sync & Mux ingestion progresses through the full catalog
+      const totalCatalog = SURFACED_PUBLIC_DOMAIN_FILMS.length;
+      (async () => {
+        for (const film of SURFACED_PUBLIC_DOMAIN_FILMS) {
+          if (film.sourceIssue) continue;
+          try {
+            const selfHosted = getSelfHostedFilm(film.identifier);
+            let directUrl = film.directDownloadUrl;
+            if (!directUrl && (ARCHIVE_FILM_ITEMS[film.identifier] || film.archive === 'INTERNET_ARCHIVE')) {
+              try {
+                const resolved = await resolveAnyArchiveItem(film.identifier);
+                directUrl = resolved.url;
+                film.directDownloadUrl = resolved.url;
+              } catch {}
+            }
+            await syncFilmToPlatformFirestore(film, {
+              videoUrl: directUrl,
+              muxPlaybackId: selfHosted?.muxPlaybackId,
+              muxAssetId: selfHosted?.muxAssetId,
+            });
+            if (!selfHosted?.muxPlaybackId && directUrl) {
+              await ingestFilmIntoMux(film, directUrl);
+            }
+            if (downloadToLocalVault) {
+              const stat = inMemoryStatuses[film.identifier];
+              if (!stat || (stat.status !== 'COMPLETED' && stat.status !== 'DOWNLOADING')) {
+                await startOrResumeDownload(film.identifier);
+              }
+            }
+          } catch (e) {
+            console.warn(`[IngestAllNative] Error processing ${film.identifier}:`, (e as any)?.message || e);
+          }
+          await new Promise((r) => setTimeout(r, 500));
+        }
+      })();
+
+      res.json({
+        success: true,
+        totalCatalog,
+        downloadToLocalVault,
+        message: `Queued ${totalCatalog} public-domain films, anime, cartoons, and TV series for native Firestore registration and Mux HLS ingestion.`,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
 
   // GET /config
   router.get('/config', async (_req, res) => {
