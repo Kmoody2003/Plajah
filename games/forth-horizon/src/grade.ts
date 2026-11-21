@@ -49,7 +49,10 @@ export class GradePass extends Pass {
   lut = 'none'; lutAmount = 1; lens: GameLens = 'none';
   /** 0..1 how hard the car is going: the found-footage lens shakes with it */
   speed = 0;
-  private A: THREE.WebGLRenderTarget; private Bt: THREE.WebGLRenderTarget;
+  private A: THREE.WebGLRenderTarget | null = null;
+  private Bt: THREE.WebGLRenderTarget | null = null;
+  private rtW: number;
+  private rtH: number;
   private quad = new FullScreenQuad();
   private blit: THREE.RawShaderMaterial;
   private lens3: Partial<Record<GameLens, THREE.RawShaderMaterial>> = {};
@@ -61,12 +64,26 @@ export class GradePass extends Pass {
   constructor(w: number, h: number) {
     super();
     this.needsSwap = true;
+    this.rtW = Math.max(1, w);
+    this.rtH = Math.max(1, h);
     this.empty.format = THREE.RGBAFormat; this.empty.type = THREE.UnsignedByteType; this.empty.needsUpdate = true;
-    this.A = new THREE.WebGLRenderTarget(w, h, { type: THREE.UnsignedByteType, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: true, depthBuffer: false });
-    this.Bt = new THREE.WebGLRenderTarget(w, h, { type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false });
     this.blit = raw(BLIT, { tSrc: { value: null }, tLut: { value: this.empty }, uLut: { value: 0 }, uFlip: { value: 1 } });
   }
-  setSize(w: number, h: number): void { this.A.setSize(w, h); this.Bt.setSize(w, h); }
+  private ensureLensTargets(): { A: THREE.WebGLRenderTarget; Bt: THREE.WebGLRenderTarget } {
+    if (!this.A) {
+      this.A = new THREE.WebGLRenderTarget(this.rtW, this.rtH, { type: THREE.UnsignedByteType, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: true, depthBuffer: false });
+    }
+    if (!this.Bt) {
+      this.Bt = new THREE.WebGLRenderTarget(this.rtW, this.rtH, { type: THREE.UnsignedByteType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false });
+    }
+    return { A: this.A, Bt: this.Bt };
+  }
+  setSize(w: number, h: number): void {
+    this.rtW = Math.max(1, w);
+    this.rtH = Math.max(1, h);
+    this.A?.setSize(this.rtW, this.rtH);
+    this.Bt?.setSize(this.rtW, this.rtH);
+  }
   get active(): boolean { return this.lens !== 'none' || (this.lut !== 'none' && this.lutAmount > 0.001); }
 
   private lensMat(id: Exclude<GameLens, 'none'>): THREE.RawShaderMaterial {
@@ -101,14 +118,15 @@ export class GradePass extends Pass {
       return;
     }
     const size = new THREE.Vector2(); renderer.getDrawingBufferSize(size);
+    const { A, Bt } = this.ensureLensTargets();
     // the lens shaders expect the picture top row first: flip into A (mipmapped), run the lens into B, flip back out with the grade
     b.tSrc.value = readBuffer.texture; b.tLut.value = this.empty; b.uLut.value = 0; b.uFlip.value = -1;
     this.quad.material = this.blit;
-    renderer.setRenderTarget(this.A); this.quad.render(renderer);
+    renderer.setRenderTarget(A); this.quad.render(renderer);
     const id = this.lens as Exclude<GameLens, 'none'>;
     const m = this.lensMat(id), u = m.uniforms;
     const frame = Math.floor(this.t * HOLD_FPS[id]);
-    u.uTex.value = this.A.texture; (u.uRes.value as THREE.Vector2).copy(size); u.uT.value = this.t; u.uSeed.value = frame; u.uFlip.value = 1;
+    u.uTex.value = A.texture; (u.uRes.value as THREE.Vector2).copy(size); u.uT.value = this.t; u.uSeed.value = frame; u.uFlip.value = 1;
     if (id === 'found') {
       const k = 0.0035 * (0.3 + this.speed);
       (u.uVel.value as THREE.Vector2).set((Math.sin(this.t * 9.1) + Math.sin(this.t * 17.3)) * k, (Math.sin(this.t * 11.7) + Math.sin(this.t * 23.9)) * k * 0.7);
@@ -116,10 +134,10 @@ export class GradePass extends Pass {
       u.uFocus.value = 0.2; u.uGlitch.value = 0;
     }
     this.quad.material = m;
-    renderer.setRenderTarget(this.Bt); this.quad.render(renderer);
-    b.tSrc.value = this.Bt.texture; b.tLut.value = lutTex ?? this.empty; b.uLut.value = lutAmt; b.uFlip.value = -1;
+    renderer.setRenderTarget(Bt); this.quad.render(renderer);
+    b.tSrc.value = Bt.texture; b.tLut.value = lutTex ?? this.empty; b.uLut.value = lutAmt; b.uFlip.value = -1;
     this.quad.material = this.blit;
     renderer.setRenderTarget(out); this.quad.render(renderer);
   }
-  dispose(): void { this.A.dispose(); this.Bt.dispose(); this.blit.dispose(); this.quad.dispose(); for (const m of Object.values(this.lens3)) m?.dispose(); for (const t of this.luts.values()) t.dispose(); }
+  dispose(): void { this.A?.dispose(); this.Bt?.dispose(); this.blit.dispose(); this.quad.dispose(); for (const m of Object.values(this.lens3)) m?.dispose(); for (const t of this.luts.values()) t.dispose(); }
 }

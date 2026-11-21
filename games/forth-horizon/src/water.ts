@@ -104,8 +104,9 @@ const FRAG = `
     vec3 toCam = cameraPosition - vW;
     float dist = length(toCam);
     vec3 V = toCam / dist;
-    float ndv = max(dot(N, V), 0.0);
-    float F = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
+    float ndv = clamp(dot(N, V), 0.0, 1.0);
+    float omN = 1.0 - ndv; float omN2 = omN * omN;
+    float F = 0.02 + 0.98 * (omN2 * omN2 * omN);
     // sky reflection from the same panorama the sky dome draws
     vec3 R = reflect(-V, N); R.y = abs(R.y) * 0.98 + 0.02;
     vec3 sky = vec3(0.55, 0.65, 0.78);
@@ -117,9 +118,10 @@ const FRAG = `
     vec3 deep = vec3(0.012, 0.085, 0.125);
     vec3 body = mix(shallow, deep, tdeep);
     body *= 0.55 + 0.6 * max(uSunAmt, 0.15);
-    body += uSunCol * pow(max(dot(N, uSunDir), 0.0), 3.0) * 0.05 * (1.0 - tdeep) * uSunAmt;
+    float nds = clamp(dot(N, uSunDir), 0.0, 1.0);
+    body += uSunCol * (nds * nds * nds) * 0.05 * (1.0 - tdeep) * uSunAmt;
     vec3 col = mix(body, sky, F);
-    float rs = max(dot(R, uSunDir), 0.0);
+    float rs = max(dot(R, uSunDir), 1e-4);
     float sp = pow(rs, mix(900.0, 260.0, uGlint)) * mix(6.0, 3.0, uGlint) + pow(rs, 70.0) * 0.28 * (1.0 + uGlint * 0.4);
     // glitter: only sample when glint > 0 and sun highlight is active
     if (uGlint > 0.005 && rs > 0.45) {
@@ -137,7 +139,8 @@ const FRAG = `
     float foam = clamp(bank + fast + caps, 0.0, 1.0);
     col = mix(col, vec3(0.88, 0.92, 0.94) * (0.5 + 0.5 * max(uSunAmt, 0.2)), foam * 0.85);
     float alpha = clamp(0.30 + tdeep * 0.62 + F * 0.35 + foam * 0.5, 0.0, 0.96);
-    alpha *= smoothstep(0.0, 0.5, dep + (inside ? 0.0 : 1.0));
+    // Smooth wide shoreline feather eliminates harsh depth-fighting shimmer along shallow river/lake edges
+    alpha *= smoothstep(0.02, 0.90, dep + (inside ? 0.0 : 1.0));
     // fog and the map edge fade
     float fg = smoothstep(uFogNear, uFogFar, dist);
     col = mix(col, uFog, fg);
@@ -158,6 +161,7 @@ export class WaterSurface {
     const blank = new THREE.DataTexture(new Uint8Array([128, 128, 255, 0]), 1, 1); blank.needsUpdate = true;
     this.mat = new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false,
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2,
       uniforms: {
         tFlow: { value: blank }, tNormal: { value: normalTexture() }, tSky: { value: blank },
         uTime: { value: 0 }, uSunAmt: { value: 1 }, uWind: { value: 0.1 }, uRain: { value: 0 }, uFogNear: { value: 9000 }, uFogFar: { value: 42000 }, uMapFade: { value: 0 }, uSkyDim: { value: 1 }, uHaveSky: { value: 0 }, uStorm: { value: 0 }, uGlint: { value: 0 },

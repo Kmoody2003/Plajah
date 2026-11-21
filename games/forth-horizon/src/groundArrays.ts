@@ -7,7 +7,8 @@
 import * as THREE from 'three';
 
 export const GROUND_LAYERS = ['ground_grass_meadow', 'ground_grass_dry', 'ground_forest_floor', 'ground_dirt_track', 'ground_gravel_rally', 'ground_sand', 'ground_mud', 'tex-shared-24-stone-rubble'];
-const SIZE = 1024;
+// 512x512x8 mipmapped RGBA8 arrays (~21 MB total vs 86 MB at 1024) stay crisp under 3D strand grass & satellite albedo without tripping D3D11 VRAM limits
+const SIZE = 512;
 const TEX = '/games/forth-horizon/tex/';
 
 function stand(colorSpace: THREE.ColorSpace, fill: number[]): THREE.DataArrayTexture {
@@ -38,17 +39,22 @@ export async function loadGroundArrays(): Promise<void> {
   const pixels = (im: HTMLImageElement | null, fallback: number): Uint8ClampedArray => {
     if (!im) { const f = new Uint8ClampedArray(SIZE * SIZE * 4); f.fill(fallback); return f; }
     cx.clearRect(0, 0, SIZE, SIZE); cx.drawImage(im, 0, 0, SIZE, SIZE);
+    im.onload = im.onerror = null; im.src = '';
     return cx.getImageData(0, 0, SIZE, SIZE).data;
   };
   for (let L = 0; L < n; L++) {
     const base = GROUND_LAYERS[L], shared = base.startsWith('tex-shared');
-    const [col, nrm, rgh, ao] = await Promise.all([
-      img(TEX + base + (shared ? '_base.png' : '.png')), img(TEX + base + '_normal.png'), img(TEX + base + '_roughness.png'), img(TEX + base + '_ao.png'),
+    const [col, nrm] = await Promise.all([
+      img(TEX + base + (shared ? '_base.png' : '.png')), img(TEX + base + '_normal.png'),
     ]);
     const c = pixels(col, 128); A.set(c, L * SIZE * SIZE * 4);
-    const nn = pixels(nrm, 128), rr = pixels(rgh, 220), aa = pixels(ao, 255), o = L * SIZE * SIZE * 4;
+    const nn = pixels(nrm, 128);
+    const [rgh, ao] = await Promise.all([
+      img(TEX + base + '_roughness.png'), img(TEX + base + '_ao.png'),
+    ]);
+    const rr = pixels(rgh, 220), aa = pixels(ao, 255), o = L * SIZE * SIZE * 4;
     for (let i = 0; i < SIZE * SIZE; i++) { P[o + i * 4] = nn[i * 4]; P[o + i * 4 + 1] = nn[i * 4 + 1]; P[o + i * 4 + 2] = rr[i * 4]; P[o + i * 4 + 3] = aa[i * 4]; }
-    await new Promise((r) => setTimeout(r, 0));                              // keep the page responsive between layers
+    await new Promise((r) => setTimeout(r, 16));                              // yield between layers so frame pacing & GPU upload stay smooth
   }
   const mk = (data: Uint8Array, cs: THREE.ColorSpace): THREE.DataArrayTexture => {
     const t = new THREE.DataArrayTexture(data, SIZE, SIZE, n);
@@ -56,7 +62,9 @@ export async function loadGroundArrays(): Promise<void> {
     t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.anisotropy = 8; t.needsUpdate = true;
     return t;
   };
+  const oldA = groundU.tGA.value, oldP = groundU.tGP.value;
   groundU.tGA.value = mk(A, THREE.SRGBColorSpace);
   groundU.tGP.value = mk(P, THREE.NoColorSpace);
+  oldA.dispose(); oldP.dispose();
   groundU.uGroundOn.value = 1;
 }

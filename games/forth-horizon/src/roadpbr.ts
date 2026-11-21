@@ -20,12 +20,31 @@ function quickTex(name: string, srgb: boolean): THREE.Texture {
   return cache[name];
 }
 
+// Serialized 2-slot queue for 2K PNG -> mipmapped PBR downsampling so we never flood
+// Chrome's HTTP pool or spike D3D11 Texture2D allocations at boot.
+let pbrInFlight = 0;
+const pbrQueue: (() => void)[] = [];
+function enqueuePbr(job: () => Promise<void>): void {
+  const run = (): void => {
+    pbrInFlight++;
+    job().finally(() => {
+      pbrInFlight--;
+      const next = pbrQueue.shift();
+      if (next) next();
+    });
+  };
+  if (pbrInFlight < 2) run();
+  else pbrQueue.push(run);
+}
+
 /**
- * Loads a curated 2K PNG PBR texture and downsamples smoothly to 1024x1024 GPU mipmaps
- * (4x less VRAM than raw 2K PNG, keeping Series X crispness with 8x anisotropy and zero VRAM spikes).
+ * Loads a curated 2K PNG PBR texture and downsamples smoothly to target mipmapped GPU size
+ * (default 512 for aux maps, 1024 for hero asphalt albedo/normal) with 8x anisotropy.
+ * Disposes the temporary 4x4 WebGL2 immutable storage before uploading the full canvas
+ * so WebGL2 never emits GL_INVALID_VALUE: Offset overflows texture dimensions.
  */
-export function loadPbr1K(file: string, srgb: boolean, fallbackHex = 0x808080): THREE.Texture {
-  const key = '1k:' + file;
+export function loadPbr1K(file: string, srgb: boolean, fallbackHex = 0x808080, maxSize = 1024): THREE.Texture {
+  const key = `${maxSize}:${file}`;
   if (cache[key]) return cache[key];
   const c = document.createElement('canvas');
   c.width = c.height = 4;
@@ -38,22 +57,35 @@ export function loadPbr1K(file: string, srgb: boolean, fallbackHex = 0x808080): 
   tex.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   cache[key] = tex;
 
-  const img = new Image();
-  img.onload = () => {
-    const sz = Math.min(1024, img.naturalWidth || 1024);
-    const hi = document.createElement('canvas');
-    hi.width = hi.height = sz;
-    const ctx = hi.getContext('2d')!;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, 0, 0, sz, sz);
-    tex.image = hi;
-    tex.generateMipmaps = true;
-    tex.minFilter = THREE.LinearMipmapLinearFilter;
-    tex.magFilter = THREE.LinearFilter;
-    tex.needsUpdate = true;
-  };
-  img.src = BASE + file;
+  enqueuePbr(() => new Promise<void>((resolve) => {
+    const img = new Image();
+    const finish = (): void => {
+      img.onload = null;
+      img.onerror = null;
+      img.src = '';
+      resolve();
+    };
+    img.onload = () => {
+      const sz = Math.min(maxSize, img.naturalWidth || maxSize);
+      const hi = document.createElement('canvas');
+      hi.width = hi.height = sz;
+      const ctx = hi.getContext('2d')!;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, sz, sz);
+      // Free the 4x4 immutable WebGL2 texStorage2D and bind a fresh Source so WebGLTextures
+      // allocates full-size storage instead of calling texSubImage2D into the 4x4 buffer.
+      tex.dispose();
+      tex.source = new THREE.Source(hi);
+      tex.generateMipmaps = true;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      tex.needsUpdate = true;
+      finish();
+    };
+    img.onerror = finish;
+    img.src = BASE + file;
+  }));
   return tex;
 }
 
@@ -72,9 +104,10 @@ export const roadUniforms = {
 
 export function loadRoadPbr(): void {
   // Instant fast base maps upgraded seamlessly to our curated high-res ground_asphalt_dry PBR maps
-  roadUniforms.tRN.value = loadPbr1K('ground_asphalt_dry_normal.png', false, 0x8080ff);
-  roadUniforms.tRR.value = loadPbr1K('ground_asphalt_dry_roughness.png', false, 0xb8b8b8);
-  roadUniforms.tRA.value = loadPbr1K('ground_asphalt_dry_ao.png', false, 0xd8d8d8);
+  // Hero asphalt normal stays crisp 1024; roughness & AO are smooth scalar maps at 512 (4x lower VRAM)
+  roadUniforms.tRN.value = loadPbr1K('ground_asphalt_dry_normal.png', false, 0x8080ff, 1024);
+  roadUniforms.tRR.value = loadPbr1K('ground_asphalt_dry_roughness.png', false, 0xb8b8b8, 512);
+  roadUniforms.tRA.value = loadPbr1K('ground_asphalt_dry_ao.png', false, 0xd8d8d8, 512);
   // Keep quick fallback warm in case of offline missing png
   void quickTex;
 }

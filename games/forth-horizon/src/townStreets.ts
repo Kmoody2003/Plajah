@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { CountryScenes, Pt } from './countryScenes';
+import { loadPbr1K } from './roadpbr';
 
 /**
  * Curbs and sidewalks for the town streets (the subdivisions in user_streets.json), laid out the way a suburban street is built:
@@ -222,9 +223,12 @@ export function buildTownSidewalks(
   if (wPos.length) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(wPos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(wUv, 2)); g.setIndex(wIdx); g.computeVertexNormals();
-    const tl = new THREE.TextureLoader(), T = '/games/forth-horizon/tex/';
-    const t = (f: string, srgb: boolean): THREE.Texture => { const x = tl.load(T + f); x.wrapS = x.wrapT = THREE.RepeatWrapping; x.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; x.anisotropy = 4; return x; };
-    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: t('ground_concrete_sidewalk.png', true), normalMap: t('ground_concrete_sidewalk_normal.png', false), color: 0xd6d3cc, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({
+      map: loadPbr1K('ground_concrete_sidewalk.png', true, 0xd6d3cc, 512),
+      normalMap: loadPbr1K('ground_concrete_sidewalk_normal.png', false, 0x8080ff, 512),
+      color: 0xd6d3cc, roughness: 0.9,
+      polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6,
+    }));
     m.receiveShadow = true; m.name = 'town-walks'; group.add(m);
   }
   if (cPos.length) {

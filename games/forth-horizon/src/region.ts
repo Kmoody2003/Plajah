@@ -85,6 +85,7 @@ import { WeatherRig, WEATHERS, worstOf, forecastText } from './weather';
 import { LensRain, LENS_RAIN_GLSL } from './lensRain';
 import { RacingHud } from './racingHud';
 import { WetRoad, waterContact } from './wetRoad';
+import { BlackGuard } from './blackGuard';
 import { FrameProfiler, gpuPreference } from './performance';
 import { InstanceVisibility, CityVisibility } from './instanceVisibility';
 import { Atmosphere } from './atmosphere';
@@ -114,7 +115,7 @@ const msg = document.getElementById('msg') as HTMLElement;
 let requestedGpu: WebGLPowerPreference = 'default';
 try { requestedGpu = gpuPreference(new URLSearchParams(location.search).get('gpu') ?? localStorage.getItem('apex.gpu')); } catch { /* use browser default */ }
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: requestedGpu });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -324,8 +325,8 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
     sh.uniforms.uMapFade = mapFadeU;
     sh.uniforms.uEdge = edgeU;
     // Surface our curated high-res PBR asphalt & architectural concrete sidewalk sets (1K mipmapped for low VRAM + 8x aniso crispness)
-    sh.uniforms.tAsph = { value: loadPbr1K('ground_asphalt_dry.png', true, 0x35373c) };
-    sh.uniforms.tPave = { value: loadPbr1K('ground_concrete_sidewalk.png', true, 0xa2a09a) };
+    sh.uniforms.tAsph = { value: loadPbr1K('ground_asphalt_dry.png', true, 0x35373c, 1024) };
+    sh.uniforms.tPave = { value: loadPbr1K('ground_concrete_sidewalk.png', true, 0xa2a09a, 512) };
     sh.uniforms.tMask = { value: maskTex };
     sh.uniforms.tClass = { value: classTex };
     sh.uniforms.uTerr = terrV; sh.uniforms.uTerrO = terrO;
@@ -556,12 +557,16 @@ const ctxLostEl = document.createElement('div');
 ctxLostEl.style.cssText = 'position:fixed;left:50%;top:20px;transform:translateX(-50%);z-index:9999;display:none;padding:10px 18px;border-radius:12px;background:rgba(160,24,24,0.92);color:#fff;font:600 13px/1.4 Inter,system-ui,sans-serif;box-shadow:0 8px 28px rgba(0,0,0,0.45);pointer-events:none';
 ctxLostEl.textContent = 'GPU memory exhausted (WebGL context lost) — close other GPU apps/models or reload';
 document.body.appendChild(ctxLostEl);
+let glContextLost = false;
 renderer.domElement.addEventListener('webglcontextlost', (e) => {
   e.preventDefault();
+  glContextLost = true;
   ctxLostEl.style.display = 'block';
+  try { cineFade.style.opacity = '0'; } catch { /* not created yet */ }
   console.warn('[apex] WebGL context lost (likely GPU VRAM pressure) — waiting for GPU restore');
 });
 renderer.domElement.addEventListener('webglcontextrestored', () => {
+  glContextLost = false;
   ctxLostEl.style.display = 'none';
   console.warn('[apex] WebGL context restored');
 });
@@ -603,13 +608,13 @@ try {
           !(c.b > 0.0) ? 0.0 : min(c.b, 48.0)
         );
       }
-      // Troy Sobotka's AgX filmic tone mapping: preserves vivid crimson LEDs, golden sunsets & metallic highlights without ACES hue-skew clipping.
-      vec3 agxDefaultContrastApprox(vec3 x) {
+      // Troy Sobotka's AgX filmic tone mapping (prefixed to never collide with Three.js built-in agxDefaultContrastApprox)
+      vec3 apexAgxContrast(vec3 x) {
         vec3 x2 = x * x;
         vec3 x4 = x2 * x2;
         return 15.5 * x4 * x2 - 40.14 * x4 * x + 31.96 * x4 - 6.868 * x2 * x + 0.4298 * x2 + 0.1191 * x - 0.00232;
       }
-      vec3 agxToneMap(vec3 c, float expVal) {
+      vec3 apexAgxToneMap(vec3 c, float expVal) {
         const mat3 agxIn = mat3(
           0.842479062253094,  0.0423282422610123, 0.0423756549057051,
           0.0784335999999992, 0.878468636469772,  0.0784336,
@@ -623,7 +628,7 @@ try {
         vec3 safeIn = sanitizeHdr(c) * max(expVal, 0.01);
         vec3 v = max(agxIn * safeIn, vec3(1e-5));
         v = (clamp(log2(v), -12.47393, 4.026069) + 12.47393) / (4.026069 + 12.47393);
-        v = clamp(agxOut * agxDefaultContrastApprox(v), 0.0, 1.0);
+        v = clamp(agxOut * apexAgxContrast(v), 0.0, 1.0);
         // Subtle photographic punch (guard pow base >= 1e-5 so D3D11 never hits pow(0.0, 1.05) = NaN)
         float l = dot(v, vec3(0.2126, 0.7152, 0.0722));
         vec3 punched = pow(max(v, vec3(1e-5)), vec3(1.05));
@@ -690,7 +695,7 @@ try {
         // vignette and fine film grain
         col *= 1.0 - uVig * smoothstep(0.38, 1.08, rd);
         col += (j - 0.5) * 0.008;
-        if (uToneMap > 0.5) col = agxToneMap(col, uExposure);
+        if (uToneMap > 0.5) col = apexAgxToneMap(col, uExposure);
         gl_FragColor = vec4(col, 1.0);
       }`,
   });
@@ -1164,8 +1169,15 @@ function addRibbonUV(acc: Acc, pts: number[][], width: number, lift: number, til
     const l = Math.hypot(dx, dz) || 1;
     dx /= l; dz /= l;
     const nx = -dz * width / 2, nz = dx * width / 2;
-    const y = hAt(p[0], p[1]) * exag + lift;
-    acc.pos.push(p[0] + nx, y, p[1] + nz, p[0] - nx, y, p[1] - nz);
+    const lx = p[0] + nx, lz = p[1] + nz, rx = p[0] - nx, rz = p[1] - nz;
+    // Sample BOTH bilinear height and the actual drawn stride-2 terrain mesh across center, left & right
+    // so neither side-slopes nor terrain triangle ridges can ever poke up or peel through the pavement.
+    const sC = Math.max(hAt(p[0], p[1]) * exag, meshH(p[0], p[1]));
+    const sL = Math.max(hAt(lx, lz) * exag, meshH(lx, lz));
+    const sR = Math.max(hAt(rx, rz) * exag, meshH(rx, rz));
+    const yL = Math.max(sL, sC) + lift;
+    const yR = Math.max(sR, sC) + lift;
+    acc.pos.push(lx, yL, lz, rx, yR, rz);
     acc.uv.push(0, dist / tile, 1, dist / tile);
     if (i < n - 1) dist += Math.hypot(pts[i + 1][0] - p[0], pts[i + 1][1] - p[1]);
   }
@@ -1180,7 +1192,7 @@ function accMeshTex(acc: Acc, map: THREE.Texture, rough: number, po: number): TH
   g.setAttribute('uv', new THREE.Float32BufferAttribute(acc.uv ?? [], 2));
   g.setIndex(acc.idx);
   g.computeVertexNormals();
-  const mm = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: po, polygonOffsetUnits: po }));
+  const mm = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map, roughness: rough, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: po, polygonOffsetUnits: po * 2 }));
   mm.receiveShadow = true;
   return mm;
 }
@@ -1346,9 +1358,9 @@ async function buildCurbs(): Promise<void> {
   g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
   g.setIndex(idx);
   g.computeVertexNormals();
-  const curbMap = loadPbr1K('ground_curb_granite.png', true, 0x8e8d88);
-  const curbNorm = loadPbr1K('ground_curb_granite_normal.png', false, 0x8080ff);
-  const curbRough = loadPbr1K('ground_curb_granite_roughness.png', false, 0xd0d0d0);
+  const curbMap = loadPbr1K('ground_curb_granite.png', true, 0x8e8d88, 512);
+  const curbNorm = loadPbr1K('ground_curb_granite_normal.png', false, 0x8080ff, 512);
+  const curbRough = loadPbr1K('ground_curb_granite_roughness.png', false, 0xd0d0d0, 512);
   const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: curbMap, normalMap: curbNorm, normalScale: new THREE.Vector2(1.1, 1.1), roughnessMap: curbRough, vertexColors: true, roughness: 0.88, metalness: 0.02, side: THREE.DoubleSide }));
   m.receiveShadow = true; m.castShadow = false; m.frustumCulled = false;
   streetGroup.add(m);
@@ -1959,7 +1971,7 @@ async function buildCity(): Promise<void> {
   // All 86 models used to load at once, and every one asks for its own copy of each texture: with the detailed v3 models that is thousands of requests in flight and the browser
   // refuses some (net::ERR_INSUFFICIENT_RESOURCES), which left buildings out. So: a few models at a time, and the cache answers a texture a second model asks for again.
   THREE.Cache.enabled = true;
-  let loadSlots = 4;
+  let loadSlots = 2;
   const loadWaiters: (() => void)[] = [];
   const limited = async <T,>(f: () => Promise<T>): Promise<T> => {
     if (loadSlots > 0) loadSlots--; else await new Promise<void>((r) => loadWaiters.push(r));
@@ -2030,7 +2042,7 @@ async function buildCity(): Promise<void> {
   const swapTex = new Map<string, Promise<THREE.Texture>>();
   const loadSwap = (name: string, suffix: 'base' | 'nrm' | 'rgh'): Promise<THREE.Texture> => {
     const url = `${name}_${suffix}.png`;                          // the URL modifier above points it at the packed jpg of whichever texture set is on
-    if (!swapTex.has(url)) swapTex.set(url, swapLoader.loadAsync(url));
+    if (!swapTex.has(url)) swapTex.set(url, limited(() => swapLoader.loadAsync(url)));
     return swapTex.get(url)!;
   };
   const vprotos = new Map<string, Promise<THREE.Object3D | null>>();
@@ -2060,10 +2072,15 @@ async function buildCity(): Promise<void> {
           const set = async (k: 'map' | 'normalMap' | 'roughnessMap', suffix: 'base' | 'nrm' | 'rgh'): Promise<void> => {
             const old = mat[k] as THREE.Texture | null;
             if (!old) return;
-            const tx = (await loadSwap(to, suffix)).clone();
+            const baseTx = await loadSwap(to, suffix);
+            const tx = baseTx.clone();
             tx.userData.srcKey = `${to}_${suffix}.png`;
-            tx.flipY = old.flipY; tx.wrapS = old.wrapS; tx.wrapT = old.wrapT; tx.repeat.copy(old.repeat); tx.offset.copy(old.offset); tx.rotation = old.rotation; tx.center.copy(old.center);
-            tx.colorSpace = old.colorSpace; tx.anisotropy = Math.min(4, old.anisotropy || 4); tx.needsUpdate = true;
+            const isComp = (tx as THREE.CompressedTexture).isCompressedTexture === true;
+            if (!isComp) tx.flipY = old.flipY;
+            tx.wrapS = old.wrapS; tx.wrapT = old.wrapT; tx.repeat.copy(old.repeat); tx.offset.copy(old.offset); tx.rotation = old.rotation; tx.center.copy(old.center);
+            tx.colorSpace = old.colorSpace; tx.anisotropy = Math.min(4, old.anisotropy || 4);
+            // Share baseTx's already-uploaded GPU image instead of forcing duplicate D3D11 Texture2D re-uploads per clone
+            if (!isComp && (baseTx.flipY !== old.flipY || baseTx.colorSpace !== old.colorSpace)) tx.needsUpdate = true;
             nm[k] = tx;
           };
           jobs.push((async () => { await Promise.all([set('map', 'base'), set('normalMap', 'nrm'), set('roughnessMap', 'rgh')]); finishMat(nm as THREE.MeshStandardMaterial); })());
@@ -2088,7 +2105,7 @@ async function buildCity(): Promise<void> {
   cityBatches?.dispose(); cityBatches = null;
   const cityParts: CityPart[] = [];
   let done = 0;
-  await runWithConcurrency([...groups.entries()], 6, async ([key, items]) => {
+  await runWithConcurrency([...groups.entries()], 3, async ([key, items]) => {
     const [kind, rest] = key.split('/');
     const [slug, vs] = rest.split('#');
     const proto = await variantProto(kind, slug, Number(vs));
@@ -2124,6 +2141,7 @@ async function buildCity(): Promise<void> {
   }
   console.log('city buildings placed', done, 'of', cityItems.length);
   (window as any).cityCount = done;
+  lastInput = performance.now();
   addRoofDetails(cityItems);
   buildStreetscape().then(() => spatialCuller.indexGroups([furnitureGroup, scapeGroup, zoneGroup])).catch((e) => console.error('streetscape failed', e));
   buildZones().then(() => spatialCuller.indexGroups([furnitureGroup, scapeGroup, zoneGroup])).catch((e) => console.error('zones failed', e));
@@ -2711,7 +2729,8 @@ function endCine(quiet = false): void {                              // quiet: a
 }
 function stepCine(dt: number, now: number): void {
   if (!cineOn) {
-    if (mapMode && menuEl.style.display === 'block' && briefEl.style.display === 'none' && settingsEl.style.display !== 'block' && !mapEditor?.isOpen() && !driving && now - lastInput > 10000) startCine();
+    const cityReady = ((window as unknown as { cityCount?: number }).cityCount ?? 0) > 0;
+    if (cityReady && mapMode && menuEl.style.display === 'block' && briefEl.style.display === 'none' && settingsEl.style.display !== 'block' && !mapEditor?.isOpen() && !driving && now - lastInput > 45000) startCine();
     return;
   }
   const s = cineShots[cineIdx];
@@ -3038,11 +3057,11 @@ function buildFurniture(): void {
     addRibbonUV(kAcc, kp, 1.9, RIBBON_LIFT + 0.02, 3.4);      // painted flush with the road: a 50 cm kerb was a ramp the car climbed and rolled on
   }
   {
-    const km = accMeshTex(kAcc, loadPbr1K('ground_rumble_strip.png', true, 0xc8382e), 0.78, -5);
+    const km = accMeshTex(kAcc, loadPbr1K('ground_rumble_strip.png', true, 0xc8382e, 512), 0.78, -5);
     const kMat = km.material as THREE.MeshStandardMaterial;
-    kMat.normalMap = loadPbr1K('ground_rumble_strip_normal.png', false, 0x8080ff);
+    kMat.normalMap = loadPbr1K('ground_rumble_strip_normal.png', false, 0x8080ff, 512);
     kMat.normalScale = new THREE.Vector2(1.15, 1.15);
-    kMat.roughnessMap = loadPbr1K('ground_rumble_strip_roughness.png', false, 0xc0c0c0);
+    kMat.roughnessMap = loadPbr1K('ground_rumble_strip_roughness.png', false, 0xc0c0c0, 512);
     kMat.needsUpdate = true;
     furnitureGroup.add(km);
     driveSurfaces.push(km);
@@ -3050,7 +3069,7 @@ function buildFurniture(): void {
   // racing surface over the street, the reference asphalt with its lane marks
   const roadAcc: Acc = { pos: [], idx: [], uv: [] };
   addRibbonUV(roadAcc, P.map((p) => [p.x, p.z]), 11, RIBBON_LIFT, 6.2);
-  { const rm = accMeshTex(roadAcc, gameTex('asphalt_highway'), 0.8, -3); furnitureGroup.add(rm); driveSurfaces.push(rm); cityRoadMat = rm.material as THREE.Material; }
+  { const rm = accMeshTex(roadAcc, gameTex('asphalt_highway'), 0.8, -4); furnitureGroup.add(rm); driveSurfaces.push(rm); cityRoadMat = rm.material as THREE.Material; }
   // start and finish gantry with a chequered line
   const [gx, gz] = tan(0);
   const g0 = P[0];
@@ -3464,8 +3483,8 @@ gameAudio.setMusic(false);              // the region game plays its own tracks
 let engVol = 1.0;
 try { const v = parseFloat(localStorage.getItem('apex.engVol') ?? ''); if (!Number.isNaN(v)) engVol = Math.min(1.5, Math.max(0, v)); } catch { /* storage blocked */ }
 gameAudio.setLevel(engVol);
-// the racing surface is a ribbon a few centimetres above the terrain mesh; the car has to ride on what is drawn
-const RIBBON_LIFT = 0.07;
+// the racing surface is a ribbon above the terrain mesh (edge-conforming in addRibbonUV); 12 cm keeps side-slopes and distant Z-buffer precision from peeling back the underlying texture
+const RIBBON_LIFT = 0.12;
 // every drivable surface mesh (the racing-surface ribbon, the kerbs) goes into a 2D triangle grid, so the car's wheels sit on exactly what is drawn,
 // including the steps, crowns and kerbs that stand above the terrain mesh. groundH = the highest of the terrain mesh and those surfaces.
 const driveSurfaces: THREE.Mesh[] = [];
@@ -4021,6 +4040,11 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
   cineFade.style.opacity = '0';
   applyActiveCar();
   setMapMode(false);
+  // Explicitly hide menu/brief overlays even when startDrive is triggered from idle beauty mode (where mapMode was already false)
+  menuEl.style.display = 'none';
+  briefEl.style.display = 'none';
+  vignette.style.display = 'none';
+  backBtn.style.display = 'none';
   playMusic('drive');
   stopFly();
   tween = null;
@@ -4060,7 +4084,7 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
     wxPlan = WEATHER_PLAN[key]; wxPlanT = 0; wxPlanI = 0;
     wx.setWeather(wxOverride === 'auto' ? wxPlan[0].w : wxOverride, false, true);
   }
-  camera.near = 1.0; camera.far = 22000; camera.updateProjectionMatrix();      // the map view uses a 5 m near plane, which cut the back of the car off at chase distance
+  camera.near = 1.0; camera.far = 18000; camera.updateProjectionMatrix();      // the map view uses an altitude-adaptive near plane; 1 m / 18 km preserves tight 24-bit road depth precision in chase view
   lapReset();
   buildRacingLine(id);
   setupRun(id, courier, pursuitRole);
@@ -4332,9 +4356,8 @@ function stepDrive(dt: number): void {
   // Forza-style views: 0 near chase, 1 far chase, 2 hood, 3 dash, 4 first person (the driver's eyes). Chase views sit at a fixed length behind the car;
   // the others are fixed to the car body and look along it, with mouse free-look on top.
   const view = s.camView;
-  // depth precision: the road ribbon sits 7 cm above the painted road under it, and that only holds apart if the near plane is as far out as it can be (1 m in the chase views; the
-  // car is never that close), with the far plane no further than the horizon needs. A 0.35 m near and 30 km far made road, kerb and ground flicker into each other past about 500 m.
-  const nearWant = view >= 2 ? 0.05 : 1.0;
+  // depth precision: keeping near >= 0.14 m in hood/dash/cockpit (3x finer Z-buffer than 0.05 m) and 1.0 m in chase prevents pavement/kerb peeling past 300 m.
+  const nearWant = view >= 2 ? 0.14 : 1.0;
   if (camera.near !== nearWant) { camera.near = nearWant; camera.updateProjectionMatrix(); }
   const driverObj = s.car.getObjectByName('driver');
   if (driverObj) driverObj.visible = view !== 4;                 // no helmet in front of the driver's own eyes
@@ -4606,11 +4629,16 @@ async function boot(): Promise<void> {
   setTimeOfDay('golden');
   msg.remove();
   buildStreets().catch((e) => console.error('streets failed', e));
-  buildForest().catch((e) => console.error('forest failed', e));
   loadHarbor().catch((e) => console.error('harbor failed', e));
-  buildCity().catch((e) => console.error('city failed', e));
   buildTrenchLayer().catch((e) => console.error('trench failed', e));
-  loadGroundArrays().catch((e) => console.error('ground materials failed', e));
+  // Stagger the 3 heaviest VRAM/HTTP loaders (city -> forest -> ground arrays) so D3D11 never spikes
+  // Texture2D allocations or triggers net::ERR_INSUFFICIENT_RESOURCES on shared/busy laptop GPUs.
+  buildCity()
+    .catch((e) => console.error('city failed', e))
+    .finally(() => {
+      buildForest().catch((e) => console.error('forest failed', e));
+      loadGroundArrays().catch((e) => console.error('ground materials failed', e));
+    });
   fetch(BASE + 'yards.json').then((x) => (x.ok ? x.json() : null)).then((y) => { if (y) furnitureGroup.add(buildYards(keepYardsOffCourse(y), (x, z) => meshH(x, z))); }).catch(() => undefined);
   mapEditor = createMapEditor({
     scene, camera, dom: renderer.domElement, terrain: () => terrain, ground: (x, z) => meshH(x, z),
@@ -4920,12 +4948,30 @@ let last = performance.now();
 let lastHudMs = 0;
 let frameNo = 0;
 const probePos = new THREE.Vector3();
+// black 3D view guard (src/blackGuard.ts): spots a pure black frame where the scene should be lit, resets the effects, then turns them off; log in localStorage 'apex.blackLog'
+const blackGuard = new BlackGuard({
+  renderer, camera,
+  shouldBeLit: () => !mapMode && (NIGHT_K[todKey] ?? 0) < 0.5 && !replay.active,
+  fxOn: () => fxOn, setFx: (on) => { fxOn = on; },
+  resetPost: () => {
+    if (cinePass) { cinePass.uniforms.uSpeed.value = 0; cinePass.uniforms.uShaft.value = 0; cinePass.uniforms.uTime.value = 0; }
+    if (aoPass) (aoPass as unknown as { havePrev: boolean }).havePrev = false;
+    if (!Number.isFinite(renderer.toneMappingExposure) || renderer.toneMappingExposure <= 0.05) renderer.toneMappingExposure = 1.08;
+  },
+  resetCamera: () => {
+    const d = driving;
+    if (d && Number.isFinite(d.pos.x) && Number.isFinite(d.car.position.y)) { camera.position.set(d.pos.x - Math.sin(d.yaw) * 8, d.car.position.y + 3, d.pos.z - Math.cos(d.yaw) * 8); camera.lookAt(d.pos.x, d.car.position.y + 1, d.pos.z); }
+    else { camera.position.set(4000, 400, 1500); camera.lookAt(4600, 0, 2000); }
+    camera.fov = 60; camera.near = 1; camera.far = 18000; camera.updateProjectionMatrix(); camera.updateMatrixWorld();
+  },
+  context: () => ({ weather: wx.name, tier: perfTier, scale: +renderScale.toFixed(2), circuit: driving?.circuitId ?? null, cam: camera.position.toArray().map((v) => Math.round(v)), w: renderer.domElement.width, h: renderer.domElement.height }),
+});
 function frame(now: number): void {
   frameNo++;
   if (TV_MODE && now < tvNext) { requestAnimationFrame(frame); return; }
   if (TV_MODE) tvNext = now + 1000 / 30 - 4;
   // When the opaque 2D interactive World Map is open, pause all 3D world updates & WebGL rendering so the map runs at locked 60+ FPS
-  if (festMap?.isOpen()) {
+  if (glContextLost || festMap?.isOpen()) {
     last = now;
     requestAnimationFrame(frame);
     return;
@@ -4986,6 +5032,17 @@ function frame(now: number): void {
   photo.update();
   updateProbe(dt);
   if (!fly && !driving) controls.update();
+  // Altitude-adaptive near/far planes in 3D overview/map/fly views: raises 24-bit depth precision by >50x at map altitude
+  // so rivers, lakeshores, and distant roads stay rock-solid with zero Z-fighting jitter.
+  if (!driving) {
+    const gndY = meta && heights ? Math.max(0, hAt(camera.position.x, camera.position.z) * exag) : 0;
+    const camClear = Math.max(5, camera.position.y - gndY);
+    const wantNear = Math.min(280, Math.max(4, camClear * 0.065));
+    const wantFar = Math.min(48000, Math.max(24000, camClear * 9.5));
+    if (Math.abs(camera.near - wantNear) > wantNear * 0.08 || Math.abs(camera.far - wantFar) > 1500) {
+      camera.near = wantNear; camera.far = wantFar; camera.updateProjectionMatrix();
+    }
+  }
   let shadowStride = mapMode ? 6 : tierCfg.shadowStride;
   {
     const ft = driving ? driving.pos : controls.target;
@@ -5087,6 +5144,7 @@ function frame(now: number): void {
   } else {
     renderer.render(scene, camera);
   }
+  blackGuard.check();
   frameProfiler.end();
   { const __t4 = performance.now(), q = ((window as any).__seg ??= { sim: [], mid: [], city: [], render: [] }); q.sim.push(__t1 - __t0); q.mid.push(__t2 - __t1); q.city.push(__t3 - __t2); q.render.push(__t4 - __t3); if (q.sim.length > 600) for (const k in q) q[k].shift(); }
   if (meta && heights && now - lastHudMs > 100) {
