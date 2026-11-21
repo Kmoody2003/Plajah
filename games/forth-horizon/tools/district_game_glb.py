@@ -13,7 +13,7 @@ from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "..", "assets-src", "district")
 OUT = os.path.join(HERE, "..", "..", "..", "public", "games", "forth-horizon", "library")
-SIZE = 1024
+SIZE = 2048   # hero buildings: the high tier's 2k (house budget 1k/2k)
 
 
 def slim(src, dst):
@@ -45,7 +45,8 @@ def main():
     only = set(sys.argv[1:])
     os.makedirs(OUT, exist_ok=True)
     for a in man["assets"]:
-        src = os.path.join(SRC, a["id"], "painted.glb")
+        mv = os.path.join(r"D:\plajah-tmp\district", a["id"], "painted.glb")       # the multi-view build (tools/district_build_mv.py), when there is one
+        src = mv if os.path.exists(mv) else os.path.join(SRC, a["id"], "painted.glb")
         if (only and a["id"] not in only) or not os.path.exists(src):
             continue
         dst = os.path.join(OUT, a["id"] + ".glb")

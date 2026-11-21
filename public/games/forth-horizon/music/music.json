@@ -12,7 +12,23 @@
   },
   {
    "file": "drive1.mp3",
+   "title": "High-Speed Ritual 3"
+  },
+  {
+   "file": "drive2.mp3",
+   "title": "High-Speed Ritual 4"
+  },
+  {
+   "file": "drive3.mp3",
    "title": "High-Speed Ritual"
+  },
+  {
+   "file": "drive4.mp3",
+   "title": "Ritual Breakbeat"
+  },
+  {
+   "file": "drive5.mp3",
+   "title": "Ritualistic Groove"
   }
  ]
 }

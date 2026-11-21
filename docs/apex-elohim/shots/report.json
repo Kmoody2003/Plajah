@@ -1,0 +1,27 @@
+{
+ "gpu": "--use-angle=d3d11",
+ "size": [
+  1600,
+  900
+ ],
+ "tod": "noon",
+ "report": [
+  {
+   "name": "coast-highway",
+   "frameMs": 16.7
+  },
+  {
+   "name": "glacier-pass-forest",
+   "frameMs": 16.7
+  },
+  {
+   "name": "mill-road-junction",
+   "frameMs": 16.7
+  },
+  {
+   "name": "mill-road-junction-top",
+   "frameMs": 16.7
+  }
+ ],
+ "errors": []
+}
