@@ -1505,14 +1505,23 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   // Open the composer on the shell "New Post" entry — warm (event) or cold (a flag
   // set on window just before the feed mounted). Switches to the composer's tab,
   // remounts it expanded, and scrolls to the top.
+  // A sharer (e.g. a Themed Show: services/slideshow/showPosts.openComposer) may hand a prefill —
+  // text, an assetEmbed and/or attachments — on the event detail or the pending flag.
+  const [composePrefill, setComposePrefill] = useState<import('../services/slideshow/showPosts').ComposePrefill | null>(null);
   useEffect(() => {
-    const open = () => {
+    const open = (prefill?: unknown) => {
+      setComposePrefill(prefill && typeof prefill === 'object' ? prefill as any : null);
       setActiveTab('GLOBAL');
       setComposeSignal(n => n + 1);
       requestAnimationFrame(() => { try { feedScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); } catch { /* */ } });
     };
-    if ((window as any).__composePostPending) { (window as any).__composePostPending = false; open(); }
-    const h = () => { (window as any).__composePostPending = false; open(); };
+    const pending = (window as any).__composePostPending;
+    if (pending) { (window as any).__composePostPending = false; open(pending); }
+    const h = (e: CustomEvent) => {
+      const p = e.detail ?? (window as any).__composePostPending;
+      (window as any).__composePostPending = false;
+      open(p);
+    };
     window.addEventListener('plajah:composePost', h as EventListener);
     return () => window.removeEventListener('plajah:composePost', h as EventListener);
   }, []);
@@ -2457,6 +2466,7 @@ const toggleFavoriteTeam = async (team: string) => {
   };
   const requireUser = (action: string, fn: () => void) => { if (currentUser) fn(); else setSignInAction(action); };
   const openComposer = () => requireUser('post to Plajah Social', () => {
+    setComposePrefill(null);
     setActiveTab('GLOBAL');
     setComposerOpen(true);
     setComposeSignal(n => n + 1);
@@ -3024,6 +3034,9 @@ const toggleFavoriteTeam = async (team: string) => {
             <UniversalPostComposer
               key={quoteTarget ? `quote-${quoteTarget.id}` : `main-${composeSignal}`}
               autoExpand={composeSignal > 0}
+              initialText={!quoteTarget ? composePrefill?.text : undefined}
+              initialAttachments={!quoteTarget ? composePrefill?.attachments as any : undefined}
+              initialAssetEmbed={!quoteTarget ? composePrefill?.assetEmbed as any : undefined}
               currentUser={currentUser}
               placeholder={postToToday ? 'Share a Today — gone in 24 hours…' : "What's on your mind?"}
               avatarUrl={currentUser.photoURL || undefined}

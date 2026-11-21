@@ -514,6 +514,8 @@ const MeetingJoinPage = retryLazy(() => import('./components/meetings/MeetingJoi
 const AmboOutputWindow = retryLazy(() => import('./components/scripture/AmboOutputWindow'));
 const AmboOperatorWindow = retryLazy(() => import('./components/scripture/AmboOperatorWindow'));
 const TelehealthJoinPage = retryLazy(() => import('./components/clinic/TelehealthJoinPage'));
+const ShowViewerPage = retryLazy(() => import('./components/photo/show/ShowViewerPage'));
+import { parseShowLink } from './services/slideshow/showPosts';
 const AmboPartyEventReceiver = retryLazy(() => import('./components/scripture/AmboPartyEventReceiver'));
 import { registerEventDevice } from './services/ambo/amboPartyEventService';
 import PartyToastHost from './components/party/PartyToastHost';
@@ -767,6 +769,17 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<div className="fixed inset-0 bg-[#07030d] flex items-center justify-center text-white/40 font-mono text-sm">Loading visit…</div>}>
         <TelehealthJoinPage />
+      </Suspense>
+    );
+  }
+
+  // A shared Themed Show (?show=<owner>/<id>[&mode=live]) — the full-page show viewer, no app shell,
+  // no sign-in (services/slideshow/showPosts.ts, cloudShows.showLink). Only the owner/id form: a release
+  // shared "in Show Mode" also uses ?show=<mode> (no slash) and keeps going to the album route below.
+  if (typeof window !== 'undefined' && parseShowLink(window.location.search)) {
+    return (
+      <Suspense fallback={<div className="fixed inset-0 bg-black flex items-center justify-center text-white/40 font-mono text-sm">Loading the show…</div>}>
+        <ShowViewerPage />
       </Suspense>
     );
   }
