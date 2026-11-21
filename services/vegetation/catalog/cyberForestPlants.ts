@@ -64,4 +64,15 @@ export const CF_RESIN_STUMP: PlantSpecies = {
   provenance: { art: ['Shooter/Cyber Forest Level Assets/Cyber_forest_glowing_resin_props_f123e792.jpg', 'resin_stump'] },
 };
 
-export const CYBER_FOREST_PLANTS = [CF_FERN, CF_BUSH, CF_GLOW_FLOWER, CF_VINE, CF_CRYSTAL_PLANT, CF_RESIN_STUMP];
+/** Cybernetic carnivorous plant (sprite carnivore): mossy stalk, an open toothed jaw, cables, roots. */
+export const CF_CARNIVORE: PlantSpecies = {
+  kind: 'plant', id: 'cf-carnivore', name: 'Cybernetic carnivorous plant', form: 'carnivore',
+  height: 2.8, spread: 1.0, count: 1, parts: 1, leaf: 0.1,
+  color: { stem: 0x4a5a3a, leaf: 0x4a5a3a, tip: 0x6a7a4a },
+  glow: { color: 0x30d8ff, strength: 0.7, beat: 0.4 },
+  accents: { cable: 0x30d8ff },
+  wind: { sway: 0.15, flutter: 0 },
+  provenance: { art: ['carnivore'] },
+};
+
+export const CYBER_FOREST_PLANTS = [CF_FERN, CF_BUSH, CF_GLOW_FLOWER, CF_VINE, CF_CRYSTAL_PLANT, CF_RESIN_STUMP, CF_CARNIVORE];

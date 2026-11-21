@@ -143,7 +143,7 @@ export function buildPlant(sp: PlantSpecies, seed: number): PlantMesh {
   const R = rng(seed * 4099 + 7), B = new Builder();
   const stemC = hex(sp.color.stem), leafC = hex(sp.color.leaf), tipC = hex(sp.color.tip), veinC = hex(sp.color.vein ?? sp.color.stem);
   const H = sp.height * (0.85 + R() * 0.3);
-  if (sp.form === 'vine' || sp.form === 'crystal' || sp.form === 'stump') return buildCyber(sp, R, B, H);
+  if (sp.form === 'vine' || sp.form === 'crystal' || sp.form === 'stump' || sp.form === 'carnivore') return buildCyber(sp, R, B, H);
 
   if (sp.form === 'fern') {
     for (let f = 0; f < sp.count; f++) {
@@ -296,6 +296,60 @@ function buildCyber(sp: PlantSpecies, R: () => number, B: Builder, H: number): P
     B.surface = 1; // quartz at the foot
     for (let k = 0; k < 5; k++) { const a = R() * Math.PI * 2, d = H * (0.06 + R() * 0.1); B.crystal([Math.cos(a) * d, 0, Math.sin(a) * d], norm([Math.cos(a) * 0.4, 1, Math.sin(a) * 0.4]), H * (0.06 + R() * 0.08), H * 0.018, hex(0xc8e4ee), 0.2, 0, 0); }
     B.surface = 0;
+    return B.done(H);
+  }
+
+  if (sp.form === 'carnivore') {
+    // a thick mossy stalk leaning a little, an open jaw (two cupped shells, pink inside, a row of teeth each), tendrils
+    const phase = R(), r0 = H * 0.09, axis: V3[] = [];
+    for (let k = 0; k <= 10; k++) { const t = k / 10; axis.push([Math.sin(t * 2.2) * H * 0.05, t * H * 0.7, Math.cos(t * 1.7) * H * 0.03 - t * t * H * 0.06]); }
+    B.stem(axis, r0, r0 * 0.62, lerp3(stemC, mossC, 0.3), (t) => t * 0.7, phase, 9);
+    for (let k = 0; k < 9; k++) { // roots
+      const a = (k / 9) * Math.PI * 2 + R() * 0.4, reach = H * (0.22 + R() * 0.14), pts: V3[] = [];
+      for (let j = 0; j <= 5; j++) { const t = j / 5; pts.push([Math.cos(a) * (r0 * 0.8 + reach * t), H * 0.12 * (1 - t) * (1 - t) - 0.02 * t, Math.sin(a) * (r0 * 0.8 + reach * t)]); }
+      B.stem(pts, r0 * 0.35, 0.012, stemC, () => 0, phase, 4);
+    }
+    for (let c = 0; c < 4; c++) { // cables up the stalk and down to the ground
+      const a0 = R() * Math.PI * 2, pts = axis.map((p, k): V3 => { const t = k / 10, an = a0 + t * 1.5; return add(p, [Math.cos(an) * r0 * 1.05 * (1 - t * 0.35), 0, Math.sin(an) * r0 * 1.05 * (1 - t * 0.35)]); });
+      B.stem(pts, 0.016, 0.014, c % 2 ? cableC : hex(0x1c1e22), (t) => t * 0.7, phase, 4, c % 2 ? 0.9 : 0);
+    }
+    const top = axis[axis.length - 1], head = H * 0.3, jaw = head * 0.55;
+    const fwd: V3 = norm([0.15, 0.25, 1]), side: V3 = norm(cross([0, 1, 0], fwd)), upv = norm(cross(fwd, side));
+    const shell = (open: number, flip: number) => {
+      // a cupped half-shell from the hinge (at `top`) forward, opening by `open` radians up (flip 1) or down (−1)
+      const rows: number[][] = [], A = 10, S = 7, dir = norm(add(mul(fwd, Math.cos(open)), mul(upv, Math.sin(open) * flip)));
+      const n2 = norm(cross(side, dir));
+      for (let j = 0; j <= S; j++) {
+        const t = j / S, len = head * t, row: number[] = [];
+        for (let k = 0; k <= A; k++) {
+          const u = (k / A) * Math.PI, w = jaw * Math.sin(Math.PI * Math.min(1, t * 0.85 + 0.15)) * (1 - t * 0.35);
+          const p = add(add(add(top, mul(dir, len)), mul(side, Math.cos(u) * w)), mul(n2, Math.sin(u) * w * 0.55 * flip));
+          const inside = Math.sin(u) < 0.25 ? 1 : 0;
+          row.push(B.vert(p, n2, inside ? hex(0x8a3a40) : lerp3(stemC, mossC, 0.4 + R() * 0.2), 0, 0.7 + t * 0.3, phase));
+        }
+        rows.push(row);
+      }
+      for (let j = 0; j < S; j++) for (let k = 0; k < A; k++) {
+        const a = rows[j][k], b = rows[j][k + 1], c = rows[j + 1][k], d = rows[j + 1][k + 1];
+        B.tri(a, c, b); B.tri(b, c, d);
+      }
+      // teeth along the rim (u = 0 … π edge at the mouth): small white cones pointing into the mouth
+      B.surface = 1;
+      for (let k = 1; k < 12; k++) {
+        const t = 0.25 + 0.75 * (k / 12), side2 = k % 2 ? 1 : -1, len = head * t, w = jaw * Math.sin(Math.PI * Math.min(1, t * 0.85 + 0.15)) * (1 - t * 0.35);
+        const base = add(add(top, mul(dir, len)), mul(side, side2 * w * 0.98));
+        B.crystal(base, norm(add(mul(n2, -flip), mul(side, -side2 * 0.3))), head * 0.09, head * 0.018, hex(0xe8e0cc), 0, 1, phase);
+      }
+      B.surface = 0;
+    };
+    shell(0.55, 1); shell(0.45, -1);
+    // a tongue and a few tendrils curling off the stalk
+    B.stem([top, add(top, add(mul(fwd, head * 0.45), mul(upv, -head * 0.05)))], head * 0.09, head * 0.05, hex(0xb05058), () => 0.9, phase, 6);
+    for (let k = 0; k < 5; k++) {
+      const t = 0.35 + R() * 0.45, [p] = along(axis, t), a = R() * Math.PI * 2;
+      const pts = wander(p, [Math.cos(a), 0.2, Math.sin(a)], H * (0.25 + R() * 0.2), 6, 0.9, R);
+      B.stem(pts, 0.025, 0.006, lerp3(stemC, mossC, 0.5), (u) => t * 0.7 + u * 0.3, phase, 3);
+    }
     return B.done(H);
   }
 

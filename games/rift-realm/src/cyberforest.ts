@@ -16,6 +16,11 @@ import { builders } from './structures';
 import { pbr } from './textures';
 import { CreatureBody, CreatureKind, MothSwarm, preloadCreatures } from './creatures';
 import { enemyBodies } from './enemies';
+import { VegetationScene, type FungusSpot, type PlantSpot, type TreeSpot } from '../../../services/vegetation/scene';
+import { CF_GREAT_OAK, CYBER_FOREST_TREES } from '../../../services/vegetation/catalog/cyberForest';
+import { CYBER_FOREST_GRASS } from '../../../services/vegetation/catalog/cyberForestGrass';
+import { CF_VINE, CYBER_FOREST_PLANTS } from '../../../services/vegetation/catalog/cyberForestPlants';
+import { CYBER_FOREST_FUNGI } from '../../../services/vegetation/catalog/cyberForestFungi';
 
 const ART = '/games/rift-realm/assets/cyberforest/';
 const loader = new THREE.TextureLoader();
@@ -115,6 +120,8 @@ export interface ForestMap {
   enemySpots: THREE.Vector3[];
   controlPoints: { id: string; name: string; pos: THREE.Vector3; radius: number }[];
   update(dt: number, pulse: number): void;
+  /** GPU bakes once the renderer is up (the vegetation's tree impostors). */
+  prepare?(renderer: THREE.WebGPURenderer, camera: THREE.Camera): Promise<void>;
 }
 
 /** Tube with proper UVs (u round the bark, v up the trunk), r0 → r1 along the curve. */
@@ -753,13 +760,16 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
   // ── forest trees: bark trunks with conduit veins + canopy card crowns cut from the tree turnarounds ───
   type Crown = { x: number; y: number; z: number; r: number; kind: number };
   const crowns: Crown[] = [];
+  // the forest is grown by the vegetation service (services/vegetation): these code trunks stay as colliders only
+  const fTreeGeos: THREE.BufferGeometry[] = [], fRootGeos: THREE.BufferGeometry[] = [];
+  const forestSpots: { x: number; z: number; h: number; yaw: number; kind: number }[] = [];
   const tree = (x: number, z: number, h: number, r: number, kind: number) => {
     const gy = H(x, z), lean = new THREE.Vector3((R() - 0.5) * 0.12 * h, 0, (R() - 0.5) * 0.12 * h);
     const c = new THREE.CatmullRomCurve3([
       new THREE.Vector3(x, gy - 1, z), new THREE.Vector3(x + lean.x * 0.3, gy + h * 0.35, z + lean.z * 0.3),
       new THREE.Vector3(x + lean.x * 0.75, gy + h * 0.7, z + lean.z * 0.75), new THREE.Vector3(x + lean.x, gy + h, z + lean.z),
     ]);
-    treeGeos.push(barkTube(c, r, r * 0.3, lo ? 8 : 12, lo ? 8 : 12, 0.3, x * 0.1 + z));
+    fTreeGeos.push(barkTube(c, r, r * 0.3, lo ? 6 : 8, 6, 0.3, x * 0.1 + z));
     const roots = lo ? 3 : 6;
     for (let k = 0; k < roots; k++) {
       const ra = (k / roots) * Math.PI * 2 + R(), len = r * (3 + R() * 3);
@@ -768,7 +778,7 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
         new THREE.Vector3(x + Math.sin(ra) * len * 0.5, gy + r * 0.4, z + Math.cos(ra) * len * 0.5),
         new THREE.Vector3(x + Math.sin(ra) * len, H(x + Math.sin(ra) * len, z + Math.cos(ra) * len) - 0.2, z + Math.cos(ra) * len),
       ]);
-      rootGeos.push(barkTube(rc, r * 0.42, r * 0.08, 7, 6, 0.5, k + x));
+      fRootGeos.push(barkTube(rc, r * 0.42, r * 0.08, 7, 6, 0.5, k + x));
     }
     for (let b = 0; b < 3; b++) { // a few limbs into the crown
       const ba = R() * 6.28, by = gy + h * (0.55 + R() * 0.25), bl = h * 0.28;
@@ -776,9 +786,10 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
         new THREE.Vector3(x + lean.x * 0.6, by, z + lean.z * 0.6),
         new THREE.Vector3(x + lean.x * 0.6 + Math.sin(ba) * bl, by + bl * 0.7, z + lean.z * 0.6 + Math.cos(ba) * bl),
       ]);
-      rootGeos.push(barkTube(bc, r * 0.32, r * 0.1, 5, 6, 0.2, b + z));
+      fRootGeos.push(barkTube(bc, r * 0.32, r * 0.1, 5, 6, 0.2, b + z));
     }
     crowns.push({ x: x + lean.x, y: gy + h * 0.92, z: z + lean.z, r: h * 0.36, kind });
+    forestSpots.push({ x, z, h, yaw: R() * Math.PI * 2, kind });
   };
   const okForTree = (x: number, z: number) => !near(x, z, 7) && !inBuilding(x, z, 4) && !inRiver(x, z, 2) && !inCanyon(x, z, 1) &&
     Math.hypot(x - TITAN.x, z - TITAN.z) > 18 && Math.hypot(x - OBJ.A.x, z - OBJ.A.z) > 12 && !glowSpots.some((g) => Math.hypot(g.x - x, g.z - z) < 6) && x > BOUND.x0 + 2 && x < BOUND.x1 - 2 && Math.abs(z) < BOUND.z1 - 2;
@@ -811,68 +822,19 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
     if (tg) { const m = new THREE.Mesh(tg, bark); m.castShadow = true; m.receiveShadow = true; m.userData.collide = true; group.add(m); }
     const rg = mergeGeometries(rootGeos.map((g) => g.index ? g.toNonIndexed() : g), false);
     if (rg) { const m = new THREE.Mesh(rg, bark); m.castShadow = !lo; m.receiveShadow = true; group.add(m); }
+    const ftg = fTreeGeos.length ? mergeGeometries(fTreeGeos.map((g) => g.index ? g.toNonIndexed() : g), false) : null;
+    if (ftg) { const m = new THREE.Mesh(ftg, B.invisible); m.name = 'forest-trunks'; m.userData.collide = true; group.add(m); }
+    void fRootGeos; // (the grown trees have their own roots)
   }
   // the titan's crown: its own big cluster
   crowns.push({ x: TITAN.x, y: H(TITAN.x, TITAN.z) + 38, z: TITAN.z, r: 17, kind: 0 });
   crowns.push({ x: TITAN.x + 6, y: H(TITAN.x, TITAN.z) + 33, z: TITAN.z - 5, r: 11, kind: 1 });
   crowns.push({ x: TITAN.x - 7, y: H(TITAN.x, TITAN.z) + 34, z: TITAN.z + 4, r: 11, kind: 2 });
 
-  // canopy cards: each kind is one instanced mesh; cards sit on the crown's shell, facing out, slightly drooped
-  const cardMat = (file: string, glow: number, tint = 0xffffff) => {
-    const map = art(file);
-    const m = new THREE.MeshStandardNodeMaterial({ map, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.85, color: tint });
-    const c = tslTexture(map, uv()).rgb;
-    // the sheets' cyan / violet pixels are the self-lit ones
-    m.emissiveNode = c.mul(smoothstep(float(0.05), float(0.3), c.b.sub(c.r))).mul(glow).mul(float(1).add(uBeatPulse.mul(0.35)));
-    return m;
-  };
-  {
-    const perCrown = lo ? 14 : 30;
-    for (let kind = 0; kind < 8; kind++) {
-      const list = crowns.filter((c) => c.kind === kind);
-      if (!list.length) continue;
-      const [w, hgt] = SPR[`canopy_${kind}`];
-      const geo = new THREE.PlaneGeometry(1, hgt / w);
-      const mesh = new THREE.InstancedMesh(geo, cardMat(`canopy_${kind}.webp`, kind >= 3 && kind <= 5 ? 0.9 : 0.55, 0xd8e0e8), list.reduce((n, c) => n + Math.round(perCrown * Math.min(3, c.r / 7)), 0));
-      let n = 0;
-      for (const c of list) {
-        const cnt = Math.round(perCrown * Math.min(3, c.r / 7));
-        for (let i = 0; i < cnt; i++) {
-          const th = R() * Math.PI * 2, ph = Math.acos(1 - R() * 1.3); // upper-heavy shell
-          const rr = c.r * (0.55 + R() * 0.45);
-          v.set(c.x + Math.sin(ph) * Math.cos(th) * rr, c.y + Math.cos(ph) * rr * 0.55 - c.r * 0.15, c.z + Math.sin(ph) * Math.sin(th) * rr);
-          const sz = c.r * (0.7 + R() * 0.5);
-          q.setFromEuler(e.set((R() - 0.5) * 0.5, -th + Math.PI / 2 + (R() - 0.5) * 0.8, (R() - 0.5) * 0.3, 'YXZ'));
-          m4.compose(v, q, s3.set(sz, sz, sz));
-          mesh.setMatrixAt(n++, m4);
-        }
-      }
-      mesh.count = n; mesh.frustumCulled = false; mesh.castShadow = !lo;
-      group.add(mesh);
-    }
-  }
+  // (canopy cards are gone: every crown is grown by the vegetation service)
 
-  // ── undergrowth: cross-cards from the plant sprites ───────────────────────────────────────────────────
-  const crossGeo = (aspect: number) => {
-    const a = new THREE.PlaneGeometry(aspect, 1); a.translate(0, 0.5, 0);
-    const parts = [a, a.clone().rotateY(Math.PI / 2)];
-    const g = mergeGeometries(parts.map((p) => p.toNonIndexed()), false)!;
-    const n = g.attributes.normal; for (let i = 0; i < n.count; i++) n.setXYZ(i, n.getX(i) * 0.35, 1, n.getZ(i) * 0.35);
-    return g;
-  };
-  const scatter = (name: string, count: number, place: () => [number, number] | null, sMin: number, sMax: number, glow = 0.7, sink = 0.05) => {
-    const [w, h] = SPR[name];
-    const mesh = new THREE.InstancedMesh(crossGeo(w / h), cardMat(`${name}.webp`, glow), count);
-    let n = 0;
-    for (let i = 0; i < count * 4 && n < count; i++) {
-      const p = place(); if (!p) continue;
-      const sz = sMin + R() * (sMax - sMin);
-      m4.compose(v.set(p[0], H(p[0], p[1]) - sink * sz, p[1]), q.setFromEuler(e.set(0, R() * 6.28, 0)), s3.set(sz, sz, sz));
-      mesh.setMatrixAt(n++, m4);
-    }
-    mesh.count = n; mesh.frustumCulled = false; mesh.receiveShadow = true;
-    group.add(mesh);
-  };
+  // ── vegetation: trees, grass, plants, fungi and vines grown by the Plajah Vegetation service from the Cyber Forest
+  //    species (services/vegetation/catalog) — no sprite cards. Placement rules are the level's; the rest is the service's.
   const anywhere = (minLane = 2.5): [number, number] | null => {
     const x = BOUND.x0 + R() * (BOUND.x1 - BOUND.x0), z = BOUND.z0 + R() * (BOUND.z1 - BOUND.z0);
     if (inBuilding(x, z, 1) || inRiver(x, z, -1) || near(x, z, minLane)) return null;
@@ -884,79 +846,103 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
     const x = c.x + Math.sin(a) * d, z = c.z + Math.cos(a) * d;
     return inBuilding(x, z, 1) || inRiver(x, z) || near(x, z, 2) ? null : [x, z];
   };
-  const bank = (): [number, number] | null => {
-    const t = R(), k = Math.min(RIVER.length - 2, Math.floor(t * (RIVER.length - 1))), f = t * (RIVER.length - 1) - k;
-    const [ax, az] = RIVER[k], [bx, bz] = RIVER[k + 1], nx = -(bz - az), nz = bx - ax, nl = Math.hypot(nx, nz), side = R() < 0.5 ? -1 : 1;
-    const x = ax + (bx - ax) * f + nx / nl * side * (RIVER_HALF + 0.5 + R() * 4), z = az + (bz - az) * f + nz / nl * side * (RIVER_HALF + 0.5 + R() * 4);
-    return inBuilding(x, z, 1) || Math.abs(z - BRIDGE_Z) < 4 || Math.abs(z) > 84 ? null : [x, z];
-  };
   const k = lo ? 0.35 : 1;
-  scatter('grass_a', Math.round(700 * k), grove, 0.7, 1.3, 0.4);
-  scatter('grass_b', Math.round(500 * k), anywhere, 0.7, 1.4, 0.4);
-  scatter('grass_c', Math.round(400 * k), grove, 0.8, 1.5, 0.4);
-  scatter('grass_d', Math.round(300 * k), bank, 0.8, 1.5, 0.4);
-  scatter('fern_a', Math.round(420 * k), byTrees, 1.2, 2.4, 0.5);
-  scatter('fern_b', Math.round(260 * k), grove, 0.9, 1.8, 0.5);
-  scatter('fern_c', Math.round(160 * k), byTrees, 0.9, 1.6, 0.7);
-  scatter('bush_a', Math.round(220 * k), anywhere, 1.0, 1.8, 0.6);
-  scatter('bush_b', Math.round(160 * k), byTrees, 1.0, 1.9, 0.6);
-  scatter('shroom_a', Math.round(90 * k), byTrees, 1.0, 2.4, 1.1, 0.1);
-  scatter('shroom_b', Math.round(70 * k), grove, 0.9, 2.0, 1.1, 0.1);
-  scatter('toadstool', Math.round(40 * k), byTrees, 1.2, 2.6, 0.6, 0.06);
-  scatter('shroom_tall', Math.round(30 * k), grove, 2.6, 4.8, 1.0, 0.03);
-  scatter('spore_pod', Math.round(24 * k), grove, 2.2, 4.0, 0.9, 0.03);
-  scatter('flower_a', Math.round(60 * k), grove, 1.0, 2.0, 1.0, 0.05);
-  scatter('flower_b', Math.round(50 * k), anywhere, 1.0, 1.8, 1.0, 0.05);
-  scatter('crystal_plant', Math.round(40 * k), () => { const p = anywhere(3); return p && inCanyon(p[0], p[1], 6) ? p : null; }, 1.6, 3.2, 1.0);
-  scatter('carnivore', Math.round(16 * k), grove, 2.2, 3.4, 0.7, 0.04);
-  scatter('resin_stump', Math.round(14 * k), byTrees, 1.4, 2.4, 0.4, 0.08);
-  // hanging vines under the crowns (single planes, face random)
-  {
-    for (const [name, frac] of [['vine_a', 0.4], ['vine_b', 0.3], ['vine_c', 0.3]] as const) {
-      const [w, h] = SPR[name], cnt = Math.round((lo ? 70 : 220) * frac);
-      const g = new THREE.PlaneGeometry(w / h, 1); g.translate(0, -0.5, 0);
-      const mesh = new THREE.InstancedMesh(g, cardMat(`${name}.webp`, 0.9), cnt);
-      for (let i = 0; i < cnt; i++) {
-        const c = crowns[Math.floor(R() * crowns.length)], a = R() * 6.28, d = c.r * (0.2 + R() * 0.6), sz = 3 + R() * 5;
-        m4.compose(v.set(c.x + Math.sin(a) * d, c.y - c.r * 0.2, c.z + Math.cos(a) * d), q.setFromEuler(e.set(0, R() * 6.28, 0)), s3.set(sz, sz, sz));
-        mesh.setMatrixAt(i, m4);
-      }
-      mesh.frustumCulled = false; group.add(mesh);
+  // trees: the code trees' spots (kinds from the old canopy cards → species), the Titan's crown, the forest beyond the edge
+  const KIND_TO_SPECIES = [2, 2, 2, 0, 0, 0, 1, 3];                  // 0 violet, 1 willow, 2 blue-leaf, 3 mangrove
+  const treeSpots: TreeSpot[] = forestSpots.map((t) => {
+    const sp = KIND_TO_SPECIES[t.kind] ?? 2;
+    return { x: t.x, y: H(t.x, t.z) - 0.2, z: t.z, yaw: t.yaw, species: sp, scale: Math.max(0.6, Math.min(1.6, t.h / CYBER_FOREST_TREES[sp].height)) };
+  });
+  treeSpots.push({ x: TITAN.x, y: H(TITAN.x, TITAN.z), z: TITAN.z, yaw: 0.4, species: 4, scale: 0.72 });   // CF_GREAT_OAK crown
+  for (let i = 0, n = lo ? 130 : 300; i < n * 3 && treeSpots.length < forestSpots.length + 1 + n; i++) {
+    const t = R(), out = 6 + Math.pow(R(), 0.7) * 44, per4 = t * 4, side = Math.floor(per4), f = per4 - side;
+    let x: number, z: number;
+    if (side === 0) { x = BOUND.x0 + f * (BOUND.x1 - BOUND.x0); z = BOUND.z0 - out; }
+    else if (side === 1) { x = BOUND.x1 + out; z = BOUND.z0 + f * (BOUND.z1 - BOUND.z0); }
+    else if (side === 2) { x = BOUND.x0 + f * (BOUND.x1 - BOUND.x0); z = BOUND.z1 + out; }
+    else { x = BOUND.x0 - out; z = BOUND.z0 + f * (BOUND.z1 - BOUND.z0); }
+    if (treeSpots.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < 49)) continue;
+    const sp = R() < 0.4 ? 2 : R() < 0.5 ? 0 : R() < 0.5 ? 3 : 1;
+    treeSpots.push({ x, y: H(x, z) - 0.3, z, yaw: R() * Math.PI * 2, species: sp, scale: 0.9 + R() * 0.6 });
+  }
+  // plants: 0 fern, 1 bush, 2 glow flower, 3 vine, 4 crystal plant, 5 resin stump, 6 carnivore
+  const plantSpots: PlantSpot[] = [];
+  const plant = (species: number, count: number, place: () => [number, number] | null, hMin: number, hMax: number) => {
+    const h0 = CYBER_FOREST_PLANTS[species].height;
+    for (let i = 0, n = 0; i < count * 4 && n < count; i++) {
+      const p = place(); if (!p) continue;
+      plantSpots.push({ x: p[0], y: H(p[0], p[1]) - 0.05, z: p[1], yaw: R() * 6.28, species, scale: (hMin + R() * (hMax - hMin)) / h0 }); n++;
+    }
+  };
+  plant(0, Math.round(260 * k), byTrees, 1.3, 2.4);
+  plant(0, Math.round(160 * k), grove, 1.0, 1.9);
+  plant(1, Math.round(150 * k), anywhere, 1.1, 1.9);
+  plant(1, Math.round(110 * k), byTrees, 1.1, 2.0);
+  plant(2, Math.round(60 * k), grove, 1.1, 1.9);
+  plant(2, Math.round(50 * k), anywhere, 1.0, 1.7);
+  plant(4, Math.round(40 * k), () => { const p = anywhere(3); return p && inCanyon(p[0], p[1], 6) ? p : null; }, 1.6, 3.2);
+  plant(5, Math.round(14 * k), byTrees, 1.3, 2.3);
+  plant(6, Math.round(16 * k), grove, 2.2, 3.4);
+  // vines over the building walls: hung from the wall tops, just off the face
+  for (const [x, y, z, yaw] of vines) plantSpots.push({ x: x + Math.sin(yaw) * 0.25, y, z: z + Math.cos(yaw) * 0.25, yaw: R() * 6.28, species: 3, scale: (2.2 + R() * 2.6) / CF_VINE.height });
+  // fungi: 0 neon cluster, 1 toadstool, 2 tall jelly, 3 spore bulb, 4 shelf (on trunks, below)
+  const fungusSpots: FungusSpot[] = [];
+  const fungus = (species: number, count: number, place: () => [number, number] | null, hMin: number, hMax: number) => {
+    const h0 = [1.16, 1.48, 3.88, 1.63][species];
+    for (let i = 0, n = 0; i < count * 4 && n < count; i++) {
+      const p = place(); if (!p) continue;
+      fungusSpots.push({ x: p[0], y: H(p[0], p[1]) - 0.08, z: p[1], yaw: R() * 6.28, species, scale: (hMin + R() * (hMax - hMin)) / h0 }); n++;
+    }
+  };
+  fungus(0, Math.round(70 * k), byTrees, 1.0, 2.2);
+  fungus(0, Math.round(50 * k), grove, 0.9, 1.8);
+  fungus(1, Math.round(36 * k), byTrees, 1.3, 2.6);
+  fungus(2, Math.round(26 * k), grove, 2.6, 4.8);
+  fungus(3, Math.round(22 * k), grove, 2.0, 3.6);
+  for (const t of treeSpots) {
+    if (t.species > 3 || t.x < BOUND.x0 - 4 || t.x > BOUND.x1 + 4 || Math.abs(t.z) > BOUND.z1 + 4 || R() > (lo ? 0.25 : 0.45)) continue;
+    const tr = CYBER_FOREST_TREES[t.species].trunk.radius * t.scale;
+    for (let j = 0, n = 1 + Math.floor(R() * 2); j < n; j++) {
+      const a = R() * 6.28;
+      fungusSpots.push({ x: t.x + Math.sin(a) * tr * 0.95, y: t.y + tr * 3.4 + R() * 2.5, z: t.z + Math.cos(a) * tr * 0.95, yaw: a, species: 4, scale: 1.1 + R() * 0.9 });
     }
   }
+  // grass: glow tufts thick in the grove and along the banks, turf everywhere but the lanes, the river and the buildings
+  const GX0 = BOUND.x0 - 24, GZ0 = BOUND.z0 - 24, GS = Math.max(BOUND.x1 - BOUND.x0, BOUND.z1 - BOUND.z0) + 48;
+  const veg = new VegetationScene({
+    lowTier: lo, beat: uBeatPulse, wind: 0.55,
+    trees: { species: [...CYBER_FOREST_TREES, CF_GREAT_OAK], spots: treeSpots },
+    grass: {
+      species: CYBER_FOREST_GRASS, bounds: { x0: GX0, z0: GZ0, size: GS, res: lo ? 128 : 220 }, heightAt: H,
+      coverAt: (x, z) => {
+        if (inBuilding(x, z, 0.5) || inRiver(x, z, 0.3)) return [0, 0];
+        const lane = LANES.reduce((m, l) => Math.min(m, segDist(x, z, l).d), Infinity);
+        const path = Math.min(1, Math.max(0, (lane - 1.2) / 2.2));
+        const ex = Math.min(x - (BOUND.x0 - 18), (BOUND.x1 + 18) - x, z - (BOUND.z0 - 18), (BOUND.z1 + 18) - z);
+        const edge = Math.min(1, Math.max(0, ex / 6)), canyon = inCanyon(x, z, 0) ? 0.25 : 1;
+        const bank = inRiver(x, z, 6) ? 1.3 : 1, groveK = x < -40 ? 1 : 0.55;
+        return [path * edge * canyon * 0.8 * groveK * bank, Math.max(path, 0.25) * edge * canyon];
+      },
+    },
+    plants: {
+      species: CYBER_FOREST_PLANTS, spots: plantSpots,
+      // vines also hang from the grown branches inside the map
+      more: (v) => {
+        const extra: PlantSpot[] = [];
+        for (const hp of v.hangPoints(lo ? 1 : 2, (t) => t.x > BOUND.x0 - 6 && t.x < BOUND.x1 + 6 && Math.abs(t.z) < BOUND.z1 + 6, 13)) {
+          const clear = hp.y - H(hp.x, hp.z);
+          if (clear < 3.5 || R() > 0.6) continue;
+          extra.push({ x: hp.x, y: hp.y + 0.15, z: hp.z, yaw: R() * 6.28, species: 3, scale: Math.min(1.6, (clear - 2.4) / CF_VINE.height) });
+        }
+        return extra;
+      },
+    },
+    fungi: { species: CYBER_FOREST_FUNGI, spots: fungusSpots },
+  });
+  group.add(veg.group);
+  group.userData.vegetation = veg;   // ?rrdebug: stats, trample tests
+  const walkers: THREE.Object3D[] = [], walkPos: THREE.Vector3[] = [];
 
-  // vines over the building walls
-  {
-    const [w, h] = SPR.vine_a, g = new THREE.PlaneGeometry(w / h, 1); g.translate(0, -0.5, 0);
-    const mesh = new THREE.InstancedMesh(g, cardMat('vine_a.webp', 0.7), vines.length);
-    vines.forEach(([x, y, z, yaw], i) => { const sz = 2.2 + R() * 2.6; m4.compose(v.set(x, y, z), q.setFromEuler(e.set(0, yaw, 0)), s3.set(sz, sz, sz)); mesh.setMatrixAt(i, m4); });
-    mesh.frustumCulled = false; group.add(mesh);
-  }
-
-  // ── the forest wall: whole-tree cards on the edge hills, so the map sits inside a deep forest ─────────
-  {
-    const names = ['tree_blue_a', 'tree_blue_b', 'tree_blue_c', 'tree_violet_a', 'tree_violet_b', 'tree_violet_c', 'tree_willow', 'tree_mangrove'];
-    const per = lo ? 20 : 44;
-    for (const [i, name] of names.entries()) {
-      const [w, h] = SPR[name];
-      const mesh = new THREE.InstancedMesh(crossGeo(w / h), cardMat(`${name}.webp`, i >= 3 && i <= 5 ? 0.8 : 0.4, 0xb8c8d0), per);
-      for (let j = 0; j < per; j++) {
-        // walk the boundary, 6–40 m outside it
-        const t = R(), out = 4 + R() * 36;
-        const per4 = t * 4, side = Math.floor(per4), f = per4 - side;
-        let x: number, z: number;
-        if (side === 0) { x = BOUND.x0 + f * (BOUND.x1 - BOUND.x0); z = BOUND.z0 - out; }
-        else if (side === 1) { x = BOUND.x1 + out; z = BOUND.z0 + f * (BOUND.z1 - BOUND.z0); }
-        else if (side === 2) { x = BOUND.x0 + f * (BOUND.x1 - BOUND.x0); z = BOUND.z1 + out; }
-        else { x = BOUND.x0 - out; z = BOUND.z0 + f * (BOUND.z1 - BOUND.z0); }
-        const sz = 22 + R() * 22;
-        m4.compose(v.set(x, H(x, z) - 1, z), q.setFromEuler(e.set(0, R() * 6.28, 0)), s3.set(sz, sz, sz));
-        mesh.setMatrixAt(j, m4);
-      }
-      mesh.frustumCulled = false;
-      group.add(mesh);
-    }
-  }
   // invisible fence just inside the edge hills
   for (const [cx, cz, w, d] of [[(BOUND.x0 + BOUND.x1) / 2, BOUND.z0 - 3, BOUND.x1 - BOUND.x0 + 12, 1], [(BOUND.x0 + BOUND.x1) / 2, BOUND.z1 + 3, BOUND.x1 - BOUND.x0 + 12, 1], [BOUND.x0 - 3, 0, 1, BOUND.z1 - BOUND.z0 + 12], [BOUND.x1 + 3, 0, 1, BOUND.z1 - BOUND.z0 + 12]] as const) {
     kit.box(B.invisible, w, 60, d, cx, 20, cz, 0, { shadow: false });
@@ -1003,6 +989,7 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
   enemyBodies.make = (id, boss) => {
     const k: CreatureKind = boss ? 'mantis' : (['wolf', 'bat', 'wolf', 'mantis', 'wasp', 'bat'] as const)[id % 6];
     const b = new CreatureBody(k);
+    if (!b.hover) walkers.push(b.root);
     return { root: b.root, hover: b.hover, height: b.height, speedMul: MUL[k][0], hpMul: MUL[k][1], update: (dt, sp) => b.update(dt, sp), attack: () => b.attack() };
   };
   type Deer = { b: CreatureBody; home: THREE.Vector3; tx: number; tz: number; wait: number; flee: number; speed: number };
@@ -1055,8 +1042,15 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
   let el = 0;
   return {
     enemySpots, controlPoints,
+    async prepare(renderer: THREE.WebGPURenderer, camera: THREE.Camera) { await veg.prepare(renderer, camera); },
     update(dt, pulse) {
       el += dt;
+      // the player, walking enemies and running deer lay the grass flat (the player first: it also pushes the plants)
+      walkPos.length = 0;
+      walkPos.push(enemyBodies.playerPos);
+      for (let i = walkers.length - 1; i >= 0; i--) { const o = walkers[i]; if (!o.parent) { walkers.splice(i, 1); continue; } walkPos.push(o.getWorldPosition(new THREE.Vector3())); }
+      for (const d of herd) if (d.speed > 0.3) walkPos.push(d.b.root.position);
+      veg.update(dt, walkPos);
       updateHerd(dt);
       moths.update(dt);
       for (const c of glitchCubes) {

@@ -467,6 +467,7 @@ export function buildShrine(scene: THREE.Scene, tier: Tier = 'high'): Level {
     enemySpots,
     controlPoints: [...map.controlPoints, { id: 'D', name: 'Anomaly Clearing', pos: new THREE.Vector3(0, PIT_Y, 0), radius: 3.0 }],
     setBiome() { return { name: info.name, track: info.track }; },
+    prepare: (renderer, camera) => map.prepare?.(renderer, camera),
     update(dt, pulse) {
       elapsed += dt;
       map.update(dt, pulse);

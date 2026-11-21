@@ -5,7 +5,7 @@
 // platform: local IMPULSES — a dash, a blast, a Soul Surge, a vehicle — that push vegetation away from a point and
 // spring back. updateWind(dt) once a frame; addImpulse() when something happens.
 import * as THREE from 'three/webgpu';
-import { cos, dot, float, length, max, sin, smoothstep, time, uniform, uniformArray, vec2, vec3 } from 'three/tsl';
+import { cos, dot, float, length, max, positionLocal, sin, smoothstep, time, uniform, uniformArray, uv, vec2, vec3 } from 'three/tsl';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type N = any;
@@ -85,3 +85,45 @@ export function bendOffset(pushLocal: N, amount: N): N {
   const p: N = pushLocal.mul(amount);
   return vec3(p.x, dot(p, p).mul(-0.35), p.y);
 }
+
+// ── cloth in the same wind (from Era Clash: noren, banners, nets, sails, awnings) ──────────────────────────────
+
+/** The wind's direction in an instance's own frame (the instance turned by `yaw` about y). */
+export function localWindDir(yaw: N): N {
+  const c: N = cos(yaw), s: N = sin(yaw), d: N = wind.dir;
+  return vec2(d.x.mul(c).sub(d.y.mul(s)), d.x.mul(s).add(d.y.mul(c)));
+}
+
+/**
+ * Hanging cloth in world-space geometry (merged at the identity): noren, banners, nets. `uv.y` is 1 along the
+ * top (where it hangs from) and 0 at the hem: the hem streams downwind and flutters, the top stays put.
+ * `k` is how far the hem travels in a full gust (metres per metre of drop, roughly).
+ */
+export function hangingCloth(k = 0.5): N {
+  const p: N = positionLocal, hang: N = float(1).sub(uv().y).clamp(0, 1);
+  const w: N = windAt(p.xz);
+  const flutter: N = sin(time.mul(7.3).add(p.x.mul(2.9)).add(p.z.mul(2.3)).add(hang.mul(4))).mul(0.06).mul(w);
+  const push: N = w.mul(k).add(flutter).mul(hang.mul(hang));
+  const d: N = wind.dir;
+  // streaming out downwind lifts the hem a little (the cloth keeps its length)
+  return p.add(vec3(d.x.mul(push), push.mul(push).mul(0.35).add(hang.mul(sin(time.mul(5.1).add(p.x)).mul(0.012).mul(w))), d.y.mul(push)));
+}
+
+/** A sail or awning held at its edges: it bellies downwind in the middle (uv 0…1 both ways). */
+export function bellyCloth(k = 0.45): N {
+  const p: N = positionLocal, u: N = uv();
+  const belly: N = sin(u.x.clamp(0, 1).mul(Math.PI)).mul(sin(u.y.clamp(0, 1).mul(Math.PI)));
+  const w: N = windAt(p.xz);
+  const shiver: N = sin(time.mul(9).add(p.x.mul(3.1)).add(p.y.mul(2.2))).mul(0.03);
+  const push: N = w.mul(k).add(shiver.mul(w)).mul(belly);
+  const d: N = wind.dir;
+  return p.add(vec3(d.x.mul(push), float(0), d.y.mul(push)));
+}
+
+/** A stretched awning (a thin box): a small travelling ripple, up and down. */
+export function awningRipple(k = 0.05): N {
+  const p: N = positionLocal, w: N = windAt(p.xz);
+  const r: N = sin(time.mul(6.2).add(p.x.mul(1.7)).add(p.z.mul(1.3))).mul(k).mul(w);
+  return p.add(vec3(0, r, 0));
+}
+

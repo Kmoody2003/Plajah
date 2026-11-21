@@ -204,6 +204,17 @@ with our wind and impostors, and variants come from the seed. Scans can also sta
   glowing amber resin blobs, blue crystal clusters, cables, a band). Per-vertex surface (`aMat`) makes crystals, resin
   and metal glossy with an iridescent rim. Elderwood builds no sprite cards at all now (the hidden card crowns and
   wall cards are gone too). Low-tier pane frame: ~1.25 M triangles, 87 draws.
+- **2026-11-20 migration, first pass** — `scene.ts`: `VegetationScene` bundles trees + grass + plants + fungi + wind
+  behind `new` / `prepare(renderer, camera)` / `update(dt, walkers)` (plants can add spots once the forest exists, e.g.
+  vines on its branches). Rift Realm's **Cyber-Forest Shrine** now runs on it: grown trees from its code-tree spots
+  (canopy kinds → species), the Titan carries a grown `CF_GREAT_OAK` crown, a grown forest beyond the edge, grass,
+  ferns/bushes/flowers/crystal plants/stumps, a new `carnivore` form (stalk + open toothed jaw), mushrooms, shelves,
+  vines on walls and branches — no sprite cards. **Era Clash** `core/wind.ts` now re-exports the service's wind
+  (which gained Era Clash's cloth helpers: `localWindDir`, `hangingCloth`, `bellyCloth`, `awningRipple`); the
+  byte-identical **Ravencrest** `foliage.ts` / Era Clash `core/foliage.ts` are now one module,
+  `trees/foliageCards.ts`, with the kit's LCG inlined so trees grow exactly as before (both games build; not yet
+  checked in a browser). Still to migrate: Era Clash forest/grass/undergrowth (needs realistic species + seasons),
+  Ravencrest forest + cloth wind, Forth Horizon scatter/grass (other lanes active there), Museion's TreeGrower, Kith.
 
 ## Stopgap in the meantime
 Superseded 2026-11-20: Elderwood's forest is grown by the service; the image-to-3D tree GLBs are no longer loaded.

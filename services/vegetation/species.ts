@@ -162,8 +162,9 @@ export interface PlantSpecies {
   id: string;
   name: string;
   /** vine: strands hanging DOWN from the origin (height = hanging length); crystal: a gnarled plant with gem leaves
-   *  and crystal flowers; stump: a broken stump with resin blobs, crystal clusters, cables and bands. */
-  form: 'fern' | 'bush' | 'flower' | 'vine' | 'crystal' | 'stump';
+   *  and crystal flowers; stump: a broken stump with resin blobs, crystal clusters, cables and bands; carnivore: a
+   *  thick stalk carrying an open toothed jaw, tendrils, cables. */
+  form: 'fern' | 'bush' | 'flower' | 'vine' | 'crystal' | 'stump' | 'carnivore';
   /** Overall height (m) and spread radius (m). */
   height: number; spread: number;
   /** Fern: fronds; bush: stems; flower: blooms. */
