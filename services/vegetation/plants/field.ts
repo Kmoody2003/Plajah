@@ -4,7 +4,7 @@
 // the draw range, or skipped. Fronds and stems bend from their roots with the wind and the impulses (aSway.x = how far
 // out along the frond), leaves and petals flutter, and glowing parts pulse with the beat.
 import * as THREE from 'three/webgpu';
-import { attribute, color, float, normalView, positionLocal, positionViewDirection, sin, time, uniform, vec3 } from 'three/tsl';
+import { attribute, color, float, mix, normalView, positionLocal, positionViewDirection, sin, time, uniform, vec3 } from 'three/tsl';
 import type { PlantSpecies } from '../species';
 import { pushAt, toLocal, windAt } from '../wind';
 import { buildPlant } from './build';
@@ -26,9 +26,12 @@ function plantMaterial(sp: PlantSpecies, beat: N) {
   const flutter: N = sin(time.mul(7.5).add(sw.y.mul(40)).add(positionLocal.x.mul(9))).mul(w.add(0.2)).mul(sp.wind.flutter * 0.015).mul(sw.x);
   const bend: N = push.mul(k.mul(sp.wind.sway * 0.35)).add(swing.mul(k));
   m.positionNode = positionLocal.add(vec3(bend.x.add(flutter), bend.dot(bend).mul(-0.4).add(flutter.mul(0.5)), bend.y.sub(flutter)));
-  m.colorNode = col;
+  // glossy surfaces (crystals, resin, metal): smooth, and crystals catch an iridescent rim
+  const mt: N = attribute('aMat', 'float');
   const edge: N = float(1).sub(normalView.dot(positionViewDirection).abs());
-  let em: N = col.mul(edge.mul(0.12));
+  m.colorNode = mix(col, col.mul(0.7).add(vec3(0.25, 0.2, 0.35).mul(edge)), mt.mul(0.5));
+  m.roughnessNode = mix(float(0.72), float(0.18), mt);
+  let em: N = col.mul(edge.mul(0.12)).add(col.mul(edge.mul(edge)).mul(mt.mul(0.35)));
   if (sp.glow) em = em.add(col.mul(gl).mul(float(sp.glow.strength).add(beat.mul(sp.glow.beat))).add(color(sp.glow.color).mul(gl.mul(0.15))));
   m.emissiveNode = em;
   return m;
@@ -58,6 +61,7 @@ export class PlantField {
         g.setAttribute('color', new THREE.BufferAttribute(pm.color, 3));
         g.setAttribute('aGlow', new THREE.BufferAttribute(pm.glow, 1));
         g.setAttribute('aSway', new THREE.BufferAttribute(pm.sway, 2));
+        g.setAttribute('aMat', new THREE.BufferAttribute(pm.mat, 1));
         g.setIndex(new THREE.BufferAttribute(pm.index, 1));
         g.setAttribute('aInst', new THREE.InstancedBufferAttribute(new Float32Array(mine.length * 4), 4));
         g.computeBoundingSphere();

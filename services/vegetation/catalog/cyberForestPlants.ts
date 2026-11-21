@@ -31,4 +31,37 @@ export const CF_GLOW_FLOWER: PlantSpecies = {
   provenance: { art: [art('flower_a'), art('flower_b')] },
 };
 
-export const CYBER_FOREST_PLANTS = [CF_FERN, CF_BUSH, CF_GLOW_FLOWER];
+/** Hanging vine tendrils (Cybernetic_vine_tendrils…, sprites vine_a/b/c): hung from branches, height = hanging length. */
+export const CF_VINE: PlantSpecies = {
+  kind: 'plant', id: 'cf-vine', name: 'Cybernetic vine tendrils', form: 'vine',
+  height: 5, spread: 0.8, count: 11, parts: 12, leaf: 0.24,
+  color: { stem: 0x2a2a22, leaf: 0x2f6a5a, tip: 0x4a9a8a, vein: 0x40e0d0 },
+  glow: { color: 0x40e0ff, strength: 0.6, beat: 0.4, center: 0xe08ae8 },
+  accents: { cable: 0x30d8ff, metal: 0x5a6066 },
+  wind: { sway: 1.0, flutter: 0.8 },
+  provenance: { art: ['Shooter/Cyber Forest Level Assets/Cybernetic_vine_tendrils_asset_s…_4c5e323f.jpg', 'vine_a', 'vine_b', 'vine_c'] },
+};
+
+/** Crystalline plant (Crystalline_plants_orthographic…, sprite crystal_plant): gnarled trunk, gem leaves, crystal flowers. */
+export const CF_CRYSTAL_PLANT: PlantSpecies = {
+  kind: 'plant', id: 'cf-crystal-plant', name: 'Crystalline plant', form: 'crystal',
+  height: 2.4, spread: 1.0, count: 4, parts: 7, leaf: 0.22,
+  color: { stem: 0x3a3830, leaf: 0x2e6a78, tip: 0x6ac8d8, vein: 0x6a50b0 },
+  glow: { color: 0x8af0e8, strength: 0.6, beat: 0.5, center: 0x8af0e8 },
+  accents: { cable: 0x30d8ff },
+  wind: { sway: 0.2, flutter: 0.2 },
+  provenance: { art: ['Shooter/Cyber Forest Level Assets/Crystalline_plants_orthographic_…_4085b876.jpg', 'crystal_plant'] },
+};
+
+/** Cybernetic resin node stump (Cyber_forest_glowing_resin_props…, sprite resin_stump). */
+export const CF_RESIN_STUMP: PlantSpecies = {
+  kind: 'plant', id: 'cf-resin-stump', name: 'Cybernetic resin stump', form: 'stump',
+  height: 1.4, spread: 1.4, count: 1, parts: 1, leaf: 0.1,
+  color: { stem: 0x3a3228, leaf: 0x3a3228, tip: 0x3a3228 },
+  glow: { color: 0xffa028, strength: 0.9, beat: 0.5 },
+  accents: { resin: 0xffa028, crystal: 0x30a8ff, metal: 0x4a4e52 },
+  wind: { sway: 0, flutter: 0 },
+  provenance: { art: ['Shooter/Cyber Forest Level Assets/Cyber_forest_glowing_resin_props_f123e792.jpg', 'resin_stump'] },
+};
+
+export const CYBER_FOREST_PLANTS = [CF_FERN, CF_BUSH, CF_GLOW_FLOWER, CF_VINE, CF_CRYSTAL_PLANT, CF_RESIN_STUMP];

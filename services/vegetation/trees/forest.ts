@@ -6,7 +6,7 @@
 // (x, z, yaw, scale) for the wind; impostors carry aCenter/aYaw.
 import * as THREE from 'three/webgpu';
 import type { TreeSpecies } from '../species';
-import { growTree } from './grow';
+import { growTree, rng, type TreeSkeleton } from './grow';
 import { buildTreeGeometry, type TreeGeometry } from './mesh';
 import { texturesReady, treeMaterials, type TreeMaterials } from './material';
 import { bakeImpostor, impostorMaterial, impostorMesh, setImpostor } from '../lod/impostor';
@@ -22,6 +22,7 @@ interface Bucket {
   far: THREE.InstancedMesh | null;
   spots: TreeSpot[];
   full: TreeGeometry; mats: TreeMaterials; radius: number;
+  sk: TreeSkeleton; crownBase: number;
 }
 
 export interface ForestOptions {
@@ -52,7 +53,8 @@ export class Forest {
         const mine = spots.filter((p, k) => p.species === si && (k * 7 + Math.floor(Math.abs(p.x * 13 + p.z * 7))) % variants === vi);
         if (!mine.length) continue;
         const seed = si * 101 + vi * 13 + 1;
-        const full = buildTreeGeometry(growTree(sp, seed, { scale: 1, detail: lo ? 0.6 : 1 }), sp, { radial: lo ? 8 : 14 });
+        const sk = growTree(sp, seed, { scale: 1, detail: lo ? 0.6 : 1 });
+        const full = buildTreeGeometry(sk, sp, { radial: lo ? 8 : 14 });
         const low = buildTreeGeometry(growTree(sp, seed, { scale: 1, detail: 0.3 }), sp, { radial: 5 });
         const mats = treeMaterials(sp, full.height, { beat: o.beat });
         const make = (geo: THREE.BufferGeometry, mat: THREE.Material, castShadow: boolean) => {
@@ -68,12 +70,33 @@ export class Forest {
           near: { wood: make(full.wood, mats.wood, true), leaves: make(full.leaves, mats.leaves, true) },
           // mid range: coarse wood, but the full leaf set (cards are cheap; a thin crown reads as a dead tree)
           mid: { wood: make(low.wood, mats.wood, false), leaves: make(full.leaves, mats.leaves, true) },
-          far: null, spots: mine, full, mats,
+          far: null, spots: mine, full, mats, sk, crownBase: sp.trunk.crownBase,
           radius: Math.max(full.wood.boundingSphere!.radius, full.leaves.boundingSphere!.radius),
         });
       }
     });
     this.update(new THREE.Vector3(0, 0, 0), 1);
+  }
+
+  /** Branch points under the crowns where things can hang (vines, lanterns), world space: up to `perTree` per tree,
+   *  chosen from limbs and branches in the lower crown, out toward its edge. Deterministic for a seed. */
+  hangPoints(perTree = 3, keep: (p: TreeSpot) => boolean = () => true, seed = 7): { x: number; y: number; z: number; tree: TreeSpot }[] {
+    const out: { x: number; y: number; z: number; tree: TreeSpot }[] = [], R = rng(seed);
+    for (const b of this.buckets) {
+      const H = b.sk.height, nodes = b.sk.nodes;
+      const spread = Math.max(...nodes.map((n) => Math.hypot(n.x, n.z)));
+      const cand = nodes.filter((n) => !n.root && n.order >= 1 && n.y > H * b.crownBase * 0.95 && n.y < H * 0.78 && Math.hypot(n.x, n.z) > spread * 0.35);
+      if (!cand.length) continue;
+      for (const p of b.spots) {
+        if (!keep(p)) continue;
+        const c = Math.cos(p.yaw), s = Math.sin(p.yaw);
+        for (let k = 0; k < perTree; k++) {
+          const n = cand[Math.floor(R() * cand.length)];
+          out.push({ x: p.x + (n.x * c + n.z * s) * p.scale, y: p.y + n.y * p.scale, z: p.z + (-n.x * s + n.z * c) * p.scale, tree: p });
+        }
+      }
+    }
+    return out;
   }
 
   /** Bake every variant's impostor (once, after the renderer is up). Without it, far trees stay on the coarse mesh. */

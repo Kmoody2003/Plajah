@@ -16,7 +16,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { StaticKit, boulder, fbm3, polyPrism, rng, taperTube } from './geom';
 import { builders } from './structures';
 import { pbr } from './textures';
-import { art, barkTube, segDist, SPR } from './cyberforest';
+import { art, barkTube, segDist } from './cyberforest';
 import { CreatureBody, type CreatureKind, MothSwarm, preloadCreatures } from './creatures';
 import { enemyBodies, enemyNav } from './enemies';
 import type { Level, LevelInfo, Tier } from './shrine';
@@ -27,7 +27,7 @@ import { bakeGround } from '../../../services/vegetation/grass/ground';
 import { GrassField } from '../../../services/vegetation/grass/field';
 import { CYBER_FOREST_GRASS } from '../../../services/vegetation/catalog/cyberForestGrass';
 import { PlantField, type PlantSpot } from '../../../services/vegetation/plants/field';
-import { CYBER_FOREST_PLANTS } from '../../../services/vegetation/catalog/cyberForestPlants';
+import { CF_VINE, CYBER_FOREST_PLANTS } from '../../../services/vegetation/catalog/cyberForestPlants';
 import { FungusField, type FungusSpot } from '../../../services/vegetation/fungi/field';
 import { CYBER_FOREST_FUNGI } from '../../../services/vegetation/catalog/cyberForestFungi';
 
@@ -571,57 +571,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     const frg = mergeGeometries(fRootGeos.map((g) => g.index ? g.toNonIndexed() : g), false);
     if (frg) { const m = new THREE.Mesh(frg, bark); m.name = 'forest-roots'; m.castShadow = !lo; m.receiveShadow = true; group.add(m); }
   }
-  const cardMat = (file: string, glow: number, tint = 0xffffff) => {
-    const map = art(file);
-    const m = new THREE.MeshStandardNodeMaterial({ map, alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.85, color: tint });
-    const c = tslTexture(map, uv()).rgb;
-    m.emissiveNode = c.mul(smoothstep(float(0.05), float(0.3), c.b.sub(c.r))).mul(glow).mul(float(1).add(uBeatPulse.mul(0.35)));
-    return m;
-  };
-  const forestCrowns = new THREE.Group(); forestCrowns.name = 'forest-crowns'; group.add(forestCrowns);
-  for (const forest of [false, true]) {
-    const perCrown = lo ? 14 : 30;
-    for (let kind = 0; kind < 8; kind++) {
-      const list = crowns.filter((c) => c.kind === kind && !!c.forest === forest);
-      if (!list.length) continue;
-      const [w, hgt] = SPR[`canopy_${kind}`];
-      const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, hgt / w), cardMat(`canopy_${kind}.webp`, kind >= 3 && kind <= 5 ? 0.9 : 0.5, 0xd8e8d8), list.reduce((n, c) => n + Math.round(perCrown * Math.min(3, c.r / 7)), 0));
-      let n = 0;
-      for (const c of list) {
-        const cnt = Math.round(perCrown * Math.min(3, c.r / 7));
-        for (let i = 0; i < cnt; i++) {
-          const th = R() * Math.PI * 2, ph = Math.acos(1 - R() * 1.3), rr = c.r * (0.55 + R() * 0.45);
-          v.set(c.x + Math.sin(ph) * Math.cos(th) * rr, c.y + Math.cos(ph) * rr * 0.55 - c.r * 0.15, c.z + Math.sin(ph) * Math.sin(th) * rr);
-          const sz = c.r * (0.7 + R() * 0.5);
-          q.setFromEuler(e.set((R() - 0.5) * 0.5, -th + Math.PI / 2 + (R() - 0.5) * 0.8, (R() - 0.5) * 0.3, 'YXZ'));
-          m4.compose(v, q, s3.set(sz, sz, sz)); mesh.setMatrixAt(n++, m4);
-        }
-      }
-      mesh.count = n; mesh.frustumCulled = false; mesh.castShadow = !lo;
-      (forest ? forestCrowns : group).add(mesh);
-    }
-  }
-
-  // ── undergrowth from the plant sprites ────────────────────────────────────────────────────────────────────
-  const crossGeo = (aspect: number) => {
-    const a = new THREE.PlaneGeometry(aspect, 1); a.translate(0, 0.5, 0);
-    const g = mergeGeometries([a, a.clone().rotateY(Math.PI / 2)].map((p) => p.toNonIndexed()), false)!;
-    const n = g.attributes.normal; for (let i = 0; i < n.count; i++) n.setXYZ(i, n.getX(i) * 0.35, 1, n.getZ(i) * 0.35);
-    return g;
-  };
-  const scatter = (name: string, count: number, place: () => [number, number] | null, sMin: number, sMax: number, glow = 0.7, sink = 0.05) => {
-    const [w, h] = SPR[name];
-    const mesh = new THREE.InstancedMesh(crossGeo(w / h), cardMat(`${name}.webp`, glow), count);
-    let n = 0;
-    for (let i = 0; i < count * 4 && n < count; i++) {
-      const p = place(); if (!p) continue;
-      const sz = sMin + R() * (sMax - sMin);
-      m4.compose(v.set(p[0], H(p[0], p[1]) - sink * sz, p[1]), q.setFromEuler(e.set(0, R() * 6.28, 0)), s3.set(sz, sz, sz));
-      mesh.setMatrixAt(n++, m4);
-    }
-    mesh.count = n; mesh.frustumCulled = false; mesh.receiveShadow = true;
-    group.add(mesh);
-  };
+  // ── undergrowth: every plant, mushroom and vine is grown by the vegetation service (no sprite cards left) ────
   const anywhere = (lane = 2.5): [number, number] | null => {
     const x = (R() - 0.5) * 2 * BOUND, z = (R() - 0.5) * 2 * BOUND;
     if (inStructure(x, z, -1) || nearLane(x, z, lane) || dist(x, z, POOL) < 12) return null;
@@ -663,36 +613,8 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   fungus(3, Math.round(22 * kk), anywhere, 2.0, 3.6);    // CF_SPORE_BULB
   plant(2, Math.round(70 * kk), byPool, 0.9, 1.7);    // CF_GLOW_FLOWER
   plant(2, Math.round(50 * kk), anywhere, 0.9, 1.5);
-  scatter('crystal_plant', Math.round(30 * kk), byPool, 1.6, 3.2, 1.0);
-  scatter('resin_stump', Math.round(14 * kk), byTrees, 1.4, 2.4, 0.4, 0.08);
-  for (const [name, frac] of [['vine_a', 0.4], ['vine_b', 0.3], ['vine_c', 0.3]] as const) {
-    const [w, h] = SPR[name], cnt = Math.round((lo ? 80 : 240) * frac);
-    const g = new THREE.PlaneGeometry(w / h, 1); g.translate(0, -0.5, 0);
-    const mesh = new THREE.InstancedMesh(g, cardMat(`${name}.webp`, 0.9), cnt);
-    for (let i = 0; i < cnt; i++) {
-      const c = crowns[Math.floor(R() * crowns.length)], a = R() * 6.28, d = c.r * (0.2 + R() * 0.6), sz = 3 + R() * 5;
-      m4.compose(v.set(c.x + Math.sin(a) * d, c.y - c.r * 0.2, c.z + Math.cos(a) * d), q.setFromEuler(e.set(0, R() * 6.28, 0)), s3.set(sz, sz, sz));
-      mesh.setMatrixAt(i, m4);
-    }
-    mesh.frustumCulled = false; group.add(mesh);
-  }
-  // the forest wall beyond the edge (cards — replaced below by grown trees drawn mostly as impostors)
-  const wallCards = new THREE.Group(); wallCards.name = 'forest-wall-cards'; group.add(wallCards);
-  {
-    const names = ['tree_blue_a', 'tree_blue_b', 'tree_blue_c', 'tree_violet_a', 'tree_violet_b', 'tree_violet_c', 'tree_willow', 'tree_mangrove'];
-    const per = lo ? 18 : 40;
-    for (const [i, name] of names.entries()) {
-      const [w, h] = SPR[name];
-      const mesh = new THREE.InstancedMesh(crossGeo(w / h), cardMat(`${name}.webp`, i >= 3 && i <= 5 ? 0.7 : 0.35, 0xb8c8c0), per);
-      for (let j = 0; j < per; j++) {
-        const a = R() * 6.28, rr = BOUND * 1.15 + 4 + R() * 34;
-        const x = Math.sin(a) * rr, z = Math.cos(a) * rr, sz = 22 + R() * 22;
-        m4.compose(v.set(x, H(x, z) - 1, z), q.setFromEuler(e.set(0, R() * 6.28, 0)), s3.set(sz, sz, sz));
-        mesh.setMatrixAt(j, m4);
-      }
-      mesh.frustumCulled = false; wallCards.add(mesh);
-    }
-  }
+  plant(4, Math.round(30 * kk), byPool, 1.5, 3.0);    // CF_CRYSTAL_PLANT
+  plant(5, Math.round(14 * kk), byTrees, 1.3, 2.3);    // CF_RESIN_STUMP (vines are hung from the grown branches below)
   for (const [cx, cz, w, d] of [[0, -BOUND - 3, 2 * BOUND + 12, 1], [0, BOUND + 3, 2 * BOUND + 12, 1], [-BOUND - 3, 0, 1, 2 * BOUND + 12], [BOUND + 3, 0, 1, 2 * BOUND + 12]] as const) {
     kit.box(B.invisible, w, 60, d, cx, 20, cz, 0, { shadow: false });
   }
@@ -745,7 +667,6 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
       const k = R() < 0.4 ? 2 : R() < 0.5 ? 0 : R() < 0.5 ? 3 : 1;
       forestSpotsV.push({ x, y: H(x, z) - 0.3, z, yaw: R() * Math.PI * 2, species: k, scale: 0.9 + R() * 0.6 });
     }
-    wallCards.visible = false;
   }
   // shelf fungi up the grown trunks (CF_SHELF): on the trunk's surface, facing out
   {
@@ -784,6 +705,12 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   });
   const grass = new GrassField(CYBER_FOREST_GRASS, grassGround, { lowTier: lo, beat: uBeatPulse, shadows: false });
   group.add(grass.group);
+  // vines hang from the grown trees' branches (not the code crowns), never reaching the ground
+  for (const hp of forest.hangPoints(lo ? 1 : 2, (t) => Math.abs(t.x) < BOUND + 10 && Math.abs(t.z) < BOUND + 10, 11)) {
+    const clear = hp.y - H(hp.x, hp.z);
+    if (clear < 3.5 || R() > 0.6) continue;
+    plantSpots.push({ x: hp.x, y: hp.y + 0.15, z: hp.z, yaw: R() * 6.28, species: 3, scale: Math.min(1.6, (clear - 2.4) / CF_VINE.height) });
+  }
   const plants = new PlantField(CYBER_FOREST_PLANTS, plantSpots, { lowTier: lo, beat: uBeatPulse, shadows: !lo });
   group.add(plants.group);
   const fungi = new FungusField(CYBER_FOREST_FUNGI, fungusSpots, { lowTier: lo, beat: uBeatPulse, shadows: !lo });

@@ -77,7 +77,8 @@ test('grass + plant species are valid; plants grow deterministically with sane g
     assert.ok(tris > 50 && tris < 8000, `${sp.id}: ${tris} triangles`);
     assert.ok(a.index.every((i) => i < nv));
     assert.equal(a.sway.length, nv * 2);
-    let top = 0; for (let i = 1; i < a.position.length; i += 3) top = Math.max(top, a.position[i]);
+    // vines hang DOWN from their origin: their extent is below it
+    let top = 0; for (let i = 1; i < a.position.length; i += 3) top = Math.max(top, sp.form === 'vine' ? -a.position[i] : a.position[i]);
     assert.ok(top > sp.height * 0.4 && top < sp.height * 2, `${sp.id} height ${top}`);
     for (let i = 0; i < a.sway.length; i += 2) assert.ok(a.sway[i] >= 0 && a.sway[i] <= 1.2);
   }

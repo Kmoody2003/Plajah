@@ -197,6 +197,13 @@ with our wind and impostors, and variants come from the seed. Scans can also sta
   shelves grow up the grown trunks above the buttress roots. Low-tier pane frame with everything: ~1.3 M triangles,
   94 draws, ~650 spores. Not yet: fungi on logs/metal (the cyber-parasite sheet), cap LODs, fitter for fungi, the
   CF-19 cluster model still placed from its GLB.
+- **2026-11-20 last sprite cards gone** — `plants/build.ts` grows the Cyber Forest hybrids: hanging VINES (woody
+  tendrils wound with glowing cables, circuit-veined leaves, bell flowers, metal connector rings — hung from real
+  branch points via `Forest.hangPoints()`, never reaching the ground), CRYSTAL plants (twisted trunk on arching roots,
+  flat-shaded gem leaves, crystal flowers, quartz at the foot) and RESIN stumps (jagged broken stump, root flare,
+  glowing amber resin blobs, blue crystal clusters, cables, a band). Per-vertex surface (`aMat`) makes crystals, resin
+  and metal glossy with an iridescent rim. Elderwood builds no sprite cards at all now (the hidden card crowns and
+  wall cards are gone too). Low-tier pane frame: ~1.25 M triangles, 87 draws.
 
 ## Stopgap in the meantime
 Superseded 2026-11-20: Elderwood's forest is grown by the service; the image-to-3D tree GLBs are no longer loaded.

@@ -161,7 +161,9 @@ export interface PlantSpecies {
   kind: 'plant';
   id: string;
   name: string;
-  form: 'fern' | 'bush' | 'flower';
+  /** vine: strands hanging DOWN from the origin (height = hanging length); crystal: a gnarled plant with gem leaves
+   *  and crystal flowers; stump: a broken stump with resin blobs, crystal clusters, cables and bands. */
+  form: 'fern' | 'bush' | 'flower' | 'vine' | 'crystal' | 'stump';
   /** Overall height (m) and spread radius (m). */
   height: number; spread: number;
   /** Fern: fronds; bush: stems; flower: blooms. */
@@ -173,6 +175,8 @@ export interface PlantSpecies {
   color: { stem: number; leaf: number; tip: number; vein?: number };
   /** Glow (flower petals, glowing leaf edges), colour and strength, plus the beat response. */
   glow?: { color: number; strength: number; beat: number; center?: number };
+  /** Cyber details: glowing cables, resin, crystals, metal bands (colours). */
+  accents?: { cable?: number; resin?: number; crystal?: number; metal?: number };
   wind: { sway: number; flutter: number };
   provenance: { art: string[] };
 }
