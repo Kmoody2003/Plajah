@@ -9,7 +9,7 @@ import type { TreeSpecies } from '../species';
 import { growTree, rng, type TreeSkeleton } from './grow';
 import { buildTreeGeometry, type TreeGeometry } from './mesh';
 import { texturesReady, treeMaterials, type TreeMaterials } from './material';
-import { bakeImpostor, impostorMaterial, impostorMesh, setImpostor } from '../lod/impostor';
+import { bakeImpostor, impostorMaterial, impostorMesh, setImpostor, type ImpostorAtlas } from '../lod/impostor';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type N = any;
@@ -23,6 +23,7 @@ interface Bucket {
   spots: TreeSpot[];
   full: TreeGeometry; mats: TreeMaterials; radius: number;
   sk: TreeSkeleton; crownBase: number;
+  atlas?: ImpostorAtlas;
 }
 
 export interface ForestOptions {
@@ -100,7 +101,7 @@ export class Forest {
   }
 
   /** Bake every variant's impostor (once, after the renderer is up). Without it, far trees stay on the coarse mesh. */
-  async bake(renderer: THREE.WebGPURenderer) {
+  async bake(renderer: THREE.WebGPURenderer, light: { environment?: THREE.Texture | null; envIntensity?: number } = {}) {
     await texturesReady();
     for (const b of this.buckets) {
       const one = (geo: THREE.BufferGeometry, mat: THREE.Material) => {
@@ -109,8 +110,9 @@ export class Forest {
         g.setAttribute('aInst', new THREE.BufferAttribute(a, 4));
         return new THREE.Mesh(g, mat);
       };
-      const atlas = await bakeImpostor(renderer, [one(b.full.wood, b.mats.wood), one(b.full.leaves, b.mats.leaves)], { frames: this.o.lowTier ? 5 : 6, size: this.o.lowTier ? 768 : 1024 });
-      b.far = impostorMesh(atlas, b.spots.length, impostorMaterial(atlas, { brightness: 1.3 }));
+      const atlas = await bakeImpostor(renderer, [one(b.full.wood, b.mats.wood), one(b.full.leaves, b.mats.leaves)], { frames: this.o.lowTier ? 5 : 6, size: this.o.lowTier ? 768 : 1024, ...light });
+      b.atlas = atlas;
+      b.far = impostorMesh(atlas, b.spots.length, impostorMaterial(atlas, { brightness: light.environment ? 1.0 : 1.3, flipV: true }));
       this.group.add(b.far);
     }
     this.t = 1;

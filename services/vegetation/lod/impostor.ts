@@ -30,20 +30,24 @@ export interface ImpostorAtlas {
   /** Bounding sphere of the baked object, in its own units: card half-size and the sphere centre's height. */
   radius: number;
   centerY: number;
+  /** The atlas render target (owns the texture; readable for debugging). */
+  target: THREE.RenderTarget;
 }
 
 /**
  * Bake an impostor atlas for `objects` (meshes in the object's own frame: base at the origin, facing +Z).
  * `prepare` lets the caller swap materials/attributes for the bake (e.g. give wind attributes a still value).
  */
-export async function bakeImpostor(renderer: THREE.WebGPURenderer, objects: THREE.Object3D[], o: { frames?: number; size?: number; envIntensity?: number } = {}): Promise<ImpostorAtlas> {
+export async function bakeImpostor(renderer: THREE.WebGPURenderer, objects: THREE.Object3D[], o: { frames?: number; size?: number; environment?: THREE.Texture | null; envIntensity?: number } = {}): Promise<ImpostorAtlas> {
   const frames = o.frames ?? 6, size = o.size ?? 1024, cell = Math.floor(size / frames);
   const scene = new THREE.Scene();
   const holder = new THREE.Group();
   for (const ob of objects) holder.add(ob);
   scene.add(holder);
-  scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x2a3a30, 1.6));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(-4, 10, 6); scene.add(sun);
+  // lit by the level's own sky when it has one (far trees then match the near ones), else a neutral studio light
+  if (o.environment) { scene.environment = o.environment; scene.environmentIntensity = o.envIntensity ?? 1; }
+  scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x2a3a30, o.environment ? 0.6 : 1.6));
+  const sun = new THREE.DirectionalLight(0xffffff, o.environment ? 1.1 : 1.6); sun.position.set(-4, 10, 6); scene.add(sun);
   const box = new THREE.Box3().setFromObject(holder), sphere = box.getBoundingSphere(new THREE.Sphere());
   const R = sphere.radius, c = sphere.center;
   const cam = new THREE.OrthographicCamera(-R, R, R, -R, 0.01, R * 6);
@@ -70,7 +74,7 @@ export async function bakeImpostor(renderer: THREE.WebGPURenderer, objects: THRE
   renderer.setClearColor(prevClear, prevAlpha);
   cellRT.dispose();
   for (const ob of objects) holder.remove(ob);
-  return { texture: atlas.texture, frames, radius: R, centerY: c.y };
+  return { texture: atlas.texture, frames, radius: R, centerY: c.y, target: atlas };
 }
 
 /**

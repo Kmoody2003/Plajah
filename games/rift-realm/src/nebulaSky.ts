@@ -8,8 +8,8 @@
 // drifting along them. Stars = hashed direction cells, twinkling. Moon = a cratered disc in the moonlight's direction.
 import * as THREE from 'three/webgpu';
 import {
-  abs, atan, clamp, color, cos, dot, exp, float, floor, fract, length, max, mix, mx_fractal_noise_float, normalize,
-  positionWorldDirection, pow, sin, smoothstep, time, uniform, vec3,
+  abs, atan, cameraPosition, clamp, color, cos, densityFogFactor, dot, fog, exp, float, floor, fract, length, max, mix, mx_fractal_noise_float, normalize,
+  pmremTexture, positionWorld, positionWorldDirection, pow, sin, smoothstep, time, uniform, vec3,
 } from 'three/tsl';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -110,7 +110,14 @@ export function nebulaSky(o: NebulaSkyOptions) {
     const a = mk(azA, AURORA_A), b = mk(azB, 0x40e8ff);
     return (t: number, beatV = 0) => { a.intensity = 1.1 * auroraPulse(t, 0) + beatV * 0.3; b.intensity = 0.7 * auroraPulse(t, 1) + beatV * 0.2; };
   };
-  return { node, apply, bakeEnvironment, lights, horizon: new THREE.Color(0x0f3038) };
+  /** Fog that fades into the (blurred) sky in each view direction, not a flat colour: far trees melt into the nebula
+   *  and aurora behind them instead of turning into dark cut-outs. Needs the baked environment. */
+  const fogNode = (env: THREE.Texture, density: number, k = 0.85): N => {
+    const d: N = normalize(positionWorld.sub(cameraPosition));
+    const dir: N = normalize(vec3(d.x, max(d.y, float(0.05)), d.z));
+    return fog((pmremTexture(env as N, dir, float(0.55)) as N).mul(k), densityFogFactor(float(density)));
+  };
+  return { node, apply, bakeEnvironment, lights, fogNode, horizon: new THREE.Color(0x0f3038) };
 }
 
 /** 1 for roughly 0.3% of cells (the stars). */

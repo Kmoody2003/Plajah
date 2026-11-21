@@ -64,9 +64,9 @@ export class VegetationScene {
   hangPoints(perTree: number, keep?: (p: TreeSpot) => boolean, seed?: number) { return this.forest?.hangPoints(perTree, keep, seed) ?? []; }
 
   /** Once the renderer is up: bake the tree impostors (far trees stay on the coarse mesh until then). */
-  async prepare(renderer: THREE.WebGPURenderer, camera: THREE.Camera) {
+  async prepare(renderer: THREE.WebGPURenderer, camera: THREE.Camera, light: { environment?: THREE.Texture | null; envIntensity?: number } = {}) {
     this.camera = camera;
-    if (this.forest) await this.forest.bake(renderer);
+    if (this.forest) await this.forest.bake(renderer, light);
   }
 
   /** Every frame. `walkers` (on the ground) lay the grass flat; the first one also pushes the vegetation as it runs. */

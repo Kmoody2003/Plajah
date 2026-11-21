@@ -835,7 +835,13 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     enemySpots, controlPoints,
     hazardBelow: -10,
     setBiome() { return { name: info.name, track: info.track }; },
-    async prepare(renderer, camera) { viewCam = camera; sky.bakeEnvironment(renderer, scene, 1.15); await forest.bake(renderer); },
+    async prepare(renderer, camera) {
+      viewCam = camera;
+      sky.bakeEnvironment(renderer, scene, 1.15);
+      // the far trees are baked under the same sky, and the fog fades into the sky behind them
+      if (scene.environment) { (scene as unknown as { fogNode: unknown }).fogNode = sky.fogNode(scene.environment, 0.0085); scene.fog = null; }
+      await forest.bake(renderer, { environment: scene.environment, envIntensity: 1.15 });
+    },
     update(dt, pulse) {
       uBeatPulse.value = pulse;
       skyT += dt; auroraLights(skyT, pulse);
