@@ -5,6 +5,7 @@
 // State is an opaque string the rules own (Tic Tac Toe: the 9-char board). Seat 0 moves first.
 
 import * as ttt from './games/ticTacToe';
+import { TABLE_GAMES } from './games/table';
 
 export interface MatchOutcome { winnerSeat: 0 | 1 | null; draw: boolean; detail?: unknown }
 
@@ -18,6 +19,9 @@ export interface GameRules {
   /** Apply a move for `seat`; null when illegal. */
   apply(state: string, seat: 0 | 1, move: unknown): string | null;
   outcome(state: string): MatchOutcome | null;
+  /** What `seat` may see (-1 = spectator). Hidden-information games strip other hands, the deck and the RNG
+   *  seed here; the server never sends raw `state` for a game that defines this. Default: everything. */
+  viewFor?(state: string, seat: number): string;
 }
 
 const ticTacToe: GameRules = {
@@ -34,7 +38,7 @@ const ticTacToe: GameRules = {
   },
 };
 
-export const GAMES: Readonly<Record<string, GameRules>> = { [ticTacToe.id]: ticTacToe };
+export const GAMES: Readonly<Record<string, GameRules>> = { [ticTacToe.id]: ticTacToe, ...Object.fromEntries(TABLE_GAMES.map(g => [g.id, g])) };
 export const gameRules = (id: unknown): GameRules | null => (typeof id === 'string' && Object.prototype.hasOwnProperty.call(GAMES, id) ? GAMES[id] : null);
 
 /**

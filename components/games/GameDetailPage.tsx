@@ -19,7 +19,7 @@ interface GameDetailPageProps {
 }
 
 /** Gamer Network game ids that have ranked boards (registry GAMES). */
-const BOARD_ID: Record<string, string> = { 'cyber-ttt': 'ttt' };
+const BOARD_ID: Record<string, string> = { 'cyber-ttt': 'ttt', chess: 'chess', checkers: 'checkers', dominoes: 'dominoes', spades: 'spades', euchre: 'euchre', bidwhist: 'bidwhist' };
 
 export const GameDetailPage: React.FC<GameDetailPageProps> = ({ game, onBack, onPlayNow, onGoLive }) => {
   useConcourseFont();

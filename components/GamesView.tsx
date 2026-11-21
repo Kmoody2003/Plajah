@@ -15,6 +15,7 @@ const EraClash3DFrame = React.lazy(() => import('./games/EraClash3DFrame'));
 const IframeGameFrame = React.lazy(() => import('./games/IframeGameFrame'));
 const RavencrestGameFrame = React.lazy(() => import('./taleo/RavencrestGameFrame').then(m => ({ default: m.RavencrestGameFrame })));
 const CyberTicTacToe = React.lazy(() => import('./games/CyberTicTacToe'));
+const TableGame = React.lazy(() => import('./games/table/TableGame'));
 const GamerHub = React.lazy(() => import('./games/GamerHub'));
 const LiveGamesStudio = React.lazy(() => import('./liveGames/LiveGamesStudio'));
 const LiveNowStrip = React.lazy(() => import('./liveGames/LiveNowStrip'));
@@ -59,6 +60,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
   const [showRavencrest, setShowRavencrest] = useState(false);
   const [iframeGame, setIframeGame] = useState<{ url: string; title: string; id: string } | null>(null);
   const [showTtt, setShowTtt] = useState(false);
+  const [tableGameId, setTableGameId] = useState<string | null>(null);
   const [liveGameKind, setLiveGameKind] = useState<null | 'pick' | 'sketch' | 'trivia' | 'crowd' | 'impostor'>(null);
   const [selectedDetailGame, setSelectedDetailGame] = useState<PlajahGameEntry | null>(null);
   const [gamerProfile, setGamerProfile] = useState<GamerProfile | null>(null);
@@ -173,6 +175,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
       case 'iframe': setIframeGame({ url: entry.launch.url, title: entry.launch.title, id: entry.id }); break;
       case 'kith-party': setKithInitialGame(entry.launch.gameId); setShowKithParty(true); break;
       case 'cyber-ttt': setShowTtt(true); break;
+      case 'table': setTableGameId(entry.launch.gameId); break;
       case 'live-game': setLiveGameKind(entry.launch.kind); break;
     }
   };
@@ -190,6 +193,11 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
     (g.title.toLowerCase().includes(searchQuery.toLowerCase()) || g.short_description.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
+  if (tableGameId) return (
+    <React.Suspense fallback={<div className="p-8">Loading…</div>}>
+      <TableGame gameId={tableGameId} onExit={() => setTableGameId(null)} onOpenLeaderboard={() => { setTableGameId(null); setActiveTab('LEADERBOARDS'); }} />
+    </React.Suspense>
+  );
   if (showTtt) return (
     <React.Suspense fallback={<div className="p-8">Loading Cyber Tic Tac Toe…</div>}>
       <CyberTicTacToe onExit={() => setShowTtt(false)} onOpenLeaderboard={() => { setShowTtt(false); setActiveTab('LEADERBOARDS'); }} />

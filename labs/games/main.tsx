@@ -27,6 +27,7 @@ function PartyMatchSheet() {
     </div>
   );
 }
+import TableGame from '../../components/games/table/TableGame';
 
 function ConcourseLab() {
   useConcourseFont();
@@ -49,6 +50,8 @@ function ConcourseLab() {
 function Lab() {
   const v = new URLSearchParams(location.search).get('view');
   const [view, setView] = useState(v === 'hub' ? 'hub' : v === 'concourse' ? 'concourse' : 'game');
+  // ?view=table&game=chess|checkers|dominoes|spades|euchre|bidwhist — the table games.
+  if (v === 'table') return <div style={{ height: '100dvh', overflowY: 'auto' }}><TableGame gameId={new URLSearchParams(location.search).get('game') || 'chess'} onExit={() => location.assign(`?as=${new URLSearchParams(location.search).get('as') || ''}&view=hub`)} /></div>;
   if (new URLSearchParams(location.search).get('view') === 'tv') return <GamesTvView userProfile={null} />;   // the television screen (?tv=1 forces TV mode)
   if (view === 'concourse') return <ConcourseLab />;
   if (view === 'hub') return <div style={{ padding: 16 }}><button onClick={() => setView('game')} style={{ marginBottom: 12 }}>← Game</button><GamerHub /></div>;

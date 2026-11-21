@@ -14,6 +14,7 @@ export type PlajahLaunchAction =
   | { type: 'iframe'; url: string; title: string }
   | { type: 'kith-party'; gameId: KithGameId }
   | { type: 'cyber-ttt' }
+  | { type: 'table'; gameId: string }
   | { type: 'live-game'; kind: AnyLiveKind };
 
 export interface CommercialScene {
@@ -761,6 +762,7 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
     synergy: { inviteFriend: true, liveStream: true, postToFeed: true },
     launch: { type: 'cyber-ttt' },
   },
+  ...TABLE_ENTRIES(),
   {
     id: 'sketch-rush',
     commercialVideoUrl: '/games/commercials/sketch-rush.mp4',
@@ -954,3 +956,38 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
 
 export const getPlajahGameById = (id: string) =>
   PLAJAH_GAMES_CATALOG.find((g) => g.id === id) ?? null;
+
+/** Chess, checkers, dominoes and the partnership card games — server-refereed online on the Gamer Network
+ *  (services/gamerNet/games). One compact builder so the six entries stay consistent. */
+function TABLE_ENTRIES(): PlajahGameEntry[] {
+  const rows: { id: string; title: string; glyph: string; accent: string; players: string; duration: string; blurb: string; features: string[]; controls: string[] }[] = [
+    { id: 'chess', title: 'Chess', glyph: '♞', accent: '#a5b4fc', players: 'vs CPU · Online Ranked · Invite a Friend', duration: '10–30 Min Matches',
+      blurb: 'Full-rules chess refereed by the server: castling, en passant, promotion, checkmate, stalemate, repetition and the 50-move rule.',
+      features: ['Server-refereed online ranked matches & ELO', 'Invite a friend with a 6-letter code', 'Practice against the CPU'], controls: ['Tap a piece, then a highlighted square', '90-second per-move clock online'] },
+    { id: 'checkers', title: 'Checkers', glyph: '⛀', accent: '#fca5a5', players: 'vs CPU · Online Ranked · Invite a Friend', duration: '5–15 Min Matches',
+      blurb: 'American checkers: forced jumps, multi-jumps in one move, kings on the back row.',
+      features: ['Forced captures enforced by the referee', 'Multi-jump paths', 'Ranked online & vs CPU'], controls: ['Tap a piece, then each landing square', '60-second per-move clock online'] },
+    { id: 'dominoes', title: 'Dominoes', glyph: '🁫', accent: '#fde68a', players: 'vs CPU · Online Ranked · Invite a Friend', duration: '10–20 Min Games',
+      blurb: 'Draw dominoes with a double-six set. Go out or block the line; first to 100 wins.',
+      features: ['Hidden hands and boneyard — only the server sees them', 'Seeded, replayable deals', 'Ranked online & vs CPU'], controls: ['Tap a tile to play it; pick an end if it fits both', 'Draw when you cannot play'] },
+    { id: 'spades', title: 'Spades', glyph: '♠', accent: '#93c5fd', players: 'You + CPU Partner · Online Ranked · vs CPU', duration: '20–40 Min Games',
+      blurb: 'Partnership Spades: bids, nil, bags and the 10-bag penalty. First team to 500.',
+      features: ['You and a CPU partner against another player and theirs', 'Nil bids and bags', 'Ranked online & vs CPU'], controls: ['Bid with the number row', 'Tap a lit card to play it'] },
+    { id: 'euchre', title: 'Euchre', glyph: '♣', accent: '#86efac', players: 'You + CPU Partner · Online Ranked · vs CPU', duration: '15–25 Min Games',
+      blurb: 'Euchre with bowers, order-up and stick-the-dealer. First team to 10.',
+      features: ['Right and left bowers', 'Stick the dealer', 'Ranked online & vs CPU'], controls: ['Order up, pass or name trump', 'Tap a lit card to play it'] },
+    { id: 'bidwhist', title: 'Bid Whist', glyph: '♦', accent: '#f9a8d4', players: 'You + CPU Partner · Online Ranked · vs CPU', duration: '20–40 Min Games',
+      blurb: 'Bid Whist the Detroit way: jokers, uptown, downtown and no trump, the kitty and Boston. First team to 7.',
+      features: ['Uptown, downtown and no trump (double)', 'Kitty and lay-away', 'Ranked online & vs CPU'], controls: ['Bid books and direction, or pass', 'Lay away 6 cards and name trump when you win the bid'] },
+  ];
+  return rows.map(r => ({
+    id: r.id, title: r.title, subtitle: 'Table Classic · Ranked ELO & Verified Ledger', category: 'PARLOR_BOARD_WORD', categoryLabel: 'Table Classic',
+    badge: 'Ranked · Ledger Verified', engine: 'Plajah GamerNet Rules Engine', playersLabel: r.players, duration: r.duration,
+    accentGradient: 'from-indigo-500/25 via-slate-800/30 to-slate-950', accentColor: r.accent, thumbnailUrl: '', screenshots: [],
+    description: r.blurb, longDescription: `${r.blurb} Every online match is refereed on the server and written to your Gamer Ledger, moving your ${r.title} rating.`,
+    features: r.features, controls: r.controls,
+    commercial: { tagline: 'EVERY MOVE REFEREED. EVERY WIN ON THE LEDGER.', durationSec: 9, musicVibe: 'Parlor Soul', scenes: [{ headline: r.title.toUpperCase(), subline: r.blurb, callout: 'PLAY NOW', accentColor: r.accent }] },
+    achievementTriggers: [], synergy: { inviteFriend: true, liveStream: true, postToFeed: true },
+    launch: { type: 'table', gameId: r.id }, capturePending: true, coverGlyph: r.glyph,
+  }));
+}

@@ -140,6 +140,38 @@ calls a day per key; one first sync of a big library costs about 2 + (played gam
 
 Parties, match/party/spectator chat and game voice: `docs/GAMER_TOGETHER.md` (`routes/gamerTogether.ts`, `/api/gamer/party` + `/api/gamer/chat`).
 
+## Table games (chess, checkers, dominoes, Spades, Euchre, Bid Whist)
+
+Six classics run through the same refereed match engine as Tic Tac Toe: quick match, invite codes, rematch,
+per-move clock, Elo, ledger entries and per-game leaderboards (`/leaderboard?game=chess` and so on). The rules live in
+`services/gamerNet/games/` and are shared by the server and the browser, so the board only offers moves the referee accepts.
+
+| Game | Id | Rules file | Clock | Notes |
+|---|---|---|---|---|
+| Chess | `chess` | `chess.ts` (chess.js, BSD-2) | 90 s | State is the UCI move list + FEN; the server replays the list, so repetition is judged from real history. Move `{from,to,promotion?}`. |
+| Checkers | `checkers` | `checkers.ts` | 60 s | American rules: forced captures, a multi-jump is one move (list of squares), crowning ends the move, no legal move loses, 80 quiet plies draw. |
+| Dominoes | `dominoes` | `dominoes.ts` | 60 s | Draw game, double-six, 7 each. Draw when stuck, pass when the boneyard is empty. Going out scores the other hand's pips; a blocked line goes to the lighter hand. First to 100. |
+| Spades | `spades` | `spades.ts` | 60 s | Bids 0–13 (0 = nil ±100), spades break, 10×bid made / −10×bid set, 1 per bag, −100 per 10 bags. 500 wins, −200 loses. |
+| Euchre | `euchre` | `euchre.ts` | 60 s | 9–A, bowers, order up / name trump, stick the dealer. Makers 3–4 tricks = 1, march = 2, euchred = 2 to defenders. To 10. No going alone yet. |
+| Bid Whist | `bidwhist` | `bidWhist.ts` | 60 s | Detroit table: 54 cards with jokers, 12 each, 6-card kitty. Bid 3–7 uptown / downtown / no trump (no trump outranks the same number and scores double). Stuck dealer must bid. The lay-away is the bidder's first book. Jokers top trump; in no trump they follow no suit and can't win. Books − 6 if made, −bid if set, Boston wins outright. To 7, −7 loses. |
+
+* **Hidden information.** `GameRules.viewFor(state, seat)` (optional) decides what a seat may see; `view()` in
+  `routes/gamerNet.ts` sends only that. Card games and dominoes strip the RNG seed, every other hand, the kitty and the
+  boneyard (counts stay). Spectators (`seat -1`) see no hands. Match docs are written only by the server and have no
+  client read rule, so the raw state never leaves it.
+* **Seeded, replayable deals.** Shuffles use a 32-bit generator (`games/rng.ts`) whose position lives in the state (`rs`),
+  seeded on the server with Web Crypto. A deal can be replayed from the stored state; the seed itself is never sent.
+* **Partnership card games are 1v1 for now.** Each human seat plays with a server CPU partner: seat 0 = table position 0
+  (partner 2), seat 1 = position 1 (partner 3). CPU turns run inside `apply()` until a human must act, so
+  `seatToMove` only ever names a human and the existing 2-seat engine, Elo and settle code apply unchanged.
+  Four-human tables (2v2 with team ratings) are a later step.
+* **UI.** `components/games/table/TableGame.tsx` (lobby, vs CPU, quick match, invite/join, clock, resign, rematch),
+  `TableBoards.tsx` (chess, checkers, dominoes) and `CardTable.tsx` (Spades, Euchre, Bid Whist). Catalog entries come
+  from `TABLE_ENTRIES()` in `data/plajahGamesCatalog.ts` with launch `{ type: 'table', gameId }`.
+* **Lab.** `?as=alice&view=table&game=spades` (any id above); open `?as=bob…` in a second tab for online play.
+* **Tests.** `tests/gamerTable.test.ts` (in `npm run test:gamer`): legality, endings, scoring, seeded deals, view
+  redaction, CPU-vs-CPU games to the end, and full online chess, Spades and dominoes matches through the router.
+
 ## Next
 
 1. **More linked platforms.** RetroAchievements (above), then Xbox once partner access is settled.
@@ -150,3 +182,4 @@ Parties, match/party/spectator chat and game voice: `docs/GAMER_TOGETHER.md` (`r
 4. **Realtime.** Polling (1.2 s while waiting on the opponent) is fine for turn-based games. Real-time games will
    need the WebSocket/RTC path.
 5. More first-party games registered on the network, and friends and parties on the gamer profile.
+6. Four-human tables for Spades, Euchre and Bid Whist (2v2, team ratings), going alone in Euchre, and total-time chess clocks.

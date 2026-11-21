@@ -8,7 +8,7 @@ import type { GamerEntry } from '../../services/gamerNet/ledger';
 import { ACHIEVEMENTS } from '../../services/gamerNet/score';
 import LinkedPlatforms from './LinkedPlatforms';
 
-const BOARDS = [{ id: 'all', label: 'Gamer Score' }, { id: 'ttt', label: 'Cyber Tic Tac Toe' }];
+const BOARDS = [{ id: 'all', label: 'Gamer Score' }, { id: 'ttt', label: 'Cyber Tic Tac Toe' }, { id: 'chess', label: 'Chess' }, { id: 'checkers', label: 'Checkers' }, { id: 'dominoes', label: 'Dominoes' }, { id: 'spades', label: 'Spades' }, { id: 'euchre', label: 'Euchre' }, { id: 'bidwhist', label: 'Bid Whist' }];
 const achTitle = (id: string) => ACHIEVEMENTS.find(a => a.id === id)?.title ?? id;
 
 function describe(e: GamerEntry): string {

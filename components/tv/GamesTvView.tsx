@@ -13,6 +13,7 @@ const EraClashFrame = React.lazy(() => import('../games/EraClashFrame'));
 const EraClash3DFrame = React.lazy(() => import('../games/EraClash3DFrame'));
 const RavencrestGameFrame = React.lazy(() => import('../taleo/RavencrestGameFrame').then(m => ({ default: m.RavencrestGameFrame })));
 const CyberTicTacToe = React.lazy(() => import('../games/CyberTicTacToe'));
+const TableGame = React.lazy(() => import('../games/table/TableGame'));
 const LiveGamesStudio = React.lazy(() => import('../liveGames/LiveGamesStudio'));
 
 /**
@@ -33,6 +34,7 @@ type Playing =
   | { kind: 'ravencrest'; title: string }
   | { kind: 'iframe'; url: string; title: string }
   | { kind: 'ttt'; title: string }
+  | { kind: 'table'; gameId: string; title: string }
   | { kind: 'kith'; gameId?: KithGameId; title: string }
   | { kind: 'live'; liveKind: any; title: string };
 
@@ -46,6 +48,7 @@ const launchOf = (g: PlajahGameEntry): Playing => {
       return { kind: 'iframe', url: `${g.launch.url}${sep}tv=1&gamepad=1`, title: g.launch.title || g.title };
     }
     case 'cyber-ttt': return { kind: 'ttt', title: g.title };
+    case 'table': return { kind: 'table', gameId: g.launch.gameId, title: g.title };
     case 'kith-party': return { kind: 'kith', gameId: g.launch.gameId, title: g.title };
     case 'live-game': return { kind: 'live', liveKind: g.launch.kind, title: g.title };
   }
@@ -282,6 +285,7 @@ const GamesTvView: React.FC<{ userProfile: UserProfile | null }> = ({ userProfil
             />
           )}
           {playing.kind === 'ttt' && <CyberTicTacToe onExit={exit} onOpenLeaderboard={exit} />}
+          {playing.kind === 'table' && <TableGame gameId={playing.gameId} onExit={exit} onOpenLeaderboard={exit} />}
           {playing.kind === 'kith' && (
             <KithParty
               initialGame={playing.gameId}

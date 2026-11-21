@@ -146,7 +146,7 @@ export function createGamerRouter(deps: GamerDeps): Router & { appendEvent: Game
     };
   };
 
-  r.get('/games', (_req, res) => { res.json({ games: Object.values(GAMES).map(g => ({ id: g.id, title: g.title, moveTimeMs: g.moveTimeMs })) }); });
+  r.get('/games', (_req, res) => { res.json({ games: Object.values(GAMES).map(g => ({ id: g.id, title: g.title, moveTimeMs: g.moveTimeMs, hidden: !!g.viewFor })) }); });
 
   r.get('/me', async (req, res) => {
     const uid = await needUid(req, res); if (!uid) return;
@@ -264,7 +264,13 @@ export function createGamerRouter(deps: GamerDeps): Router & { appendEvent: Game
     return fresh ? { doc: fresh } : { error: 'Match not found', status: 404 };
   }
 
-  const view = (doc: M.MatchDoc, uid: string | null) => ({ match: doc, you: uid ? doc.players.indexOf(uid) : -1, serverNow: now() });
+  // Hidden-information games (cards, dominoes) only ever send the caller's own view of the state.
+  const view = (doc: M.MatchDoc, uid: string | null) => {
+    const you = uid ? doc.players.indexOf(uid) : -1;
+    const rules = gameRules(doc.game);
+    const match = rules?.viewFor ? { ...doc, state: rules.viewFor(doc.state, you) } : doc;
+    return { match, you, serverNow: now() };
+  };
 
   r.post('/private', async (req, res) => {
     const uid = await needUid(req, res); if (!uid) return;
