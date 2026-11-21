@@ -81,30 +81,30 @@ export const ProjectFirstlightLandingView: React.FC<Props> = ({ onBack, currentU
           
           <div className="relative z-10 max-w-3xl space-y-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[#00DAF3] text-xs font-bold uppercase tracking-widest">
-              <Sparkles size={13} /> Official Plajah Sports Passing Prototype
+              <Sparkles size={13} /> Legends of Elohim · SOL Timeline Gridiron Engine 2.0
             </div>
 
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight uppercase leading-[1.08]">
               Project Firstlight <br />
               <span className="bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#D0BCFF] bg-clip-text text-transparent">
-                The 3D Football Passing Lab
+                Pro Football &amp; Fever Jam Arcade
               </span>
             </h1>
 
             <p className="text-base sm:text-lg text-white/70 font-medium max-w-2xl leading-relaxed">
-              Your first read. Your next big play. A browser-native 3-on-3 American football passing simulation built on pure deterministic physics, 7-second pocket countdowns, and real-time route separation.
+              Full 11-on-11 3D football combining Madden-depth playbooks, pro stadiums, and SOL Timeline franchises with high-voltage NFL Fever × NBA Jam arcade action, Blocky Classic special mode, and scalable Rookie-to-Legend skill tiers.
             </p>
 
             {/* Quick Stat Tags */}
             <div className="flex flex-wrap gap-3 pt-2">
               <span className="px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold flex items-center gap-2">
-                <Cpu size={14} className="text-[#00DAF3]" /> Three.js WebGL Engine
+                <Cpu size={14} className="text-[#00DAF3]" /> Full 11v11 3D Sports Engine
               </span>
               <span className="px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold flex items-center gap-2">
-                <Shield size={14} className="text-[#06D6A0]" /> Family-Safe · No Gambling
+                <Shield size={14} className="text-[#06D6A0]" /> 8 SOL Timeline Pro Teams
               </span>
               <span className="px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold flex items-center gap-2">
-                <Flame size={14} className="text-[#FF8C00]" /> 7-Second Pocket Pressure
+                <Flame size={14} className="text-[#FF8C00]" /> Fever Jam ON-FIRE Mode + Blocky Classic
               </span>
             </div>
           </div>

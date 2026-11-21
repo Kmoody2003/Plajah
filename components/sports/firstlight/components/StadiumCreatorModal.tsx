@@ -1,118 +1,153 @@
 import React from 'react';
-import { CameraViewMode, WeatherPreset } from '../types';
-import { CloudRain, Moon, Sun, Snowflake, Sparkles, Video, X } from 'lucide-react';
+import { CameraViewMode, PlayStyleMode, SkillLevel, WeatherPreset } from '../types';
+import { CloudRain, Moon, Sun, Snowflake, Sparkles, Video, X, Box, Flame } from 'lucide-react';
 
 interface StadiumCreatorModalProps {
   currentWeather: WeatherPreset;
   currentCamera: CameraViewMode;
+  playerMode?: 'ATHLETE' | 'BLOCK';
+  playStyle?: PlayStyleMode;
+  skillLevel?: SkillLevel;
   onSelectWeather: (weather: WeatherPreset) => void;
   onSelectCamera: (cam: CameraViewMode) => void;
+  onSelectPlayerMode?: (mode: 'ATHLETE' | 'BLOCK') => void;
+  onSelectPlayStyle?: (style: PlayStyleMode) => void;
+  onSelectSkillLevel?: (skill: SkillLevel) => void;
   onClose: () => void;
 }
 
 export const StadiumCreatorModal: React.FC<StadiumCreatorModalProps> = ({
   currentWeather,
   currentCamera,
+  playerMode = 'ATHLETE',
+  playStyle = 'SIMULATION',
+  skillLevel = 'PRO',
   onSelectWeather,
   onSelectCamera,
+  onSelectPlayerMode,
+  onSelectPlayStyle,
+  onSelectSkillLevel,
   onClose,
 }) => {
   const weatherOptions: { id: WeatherPreset; name: string; icon: React.ReactNode; desc: string }[] = [
-    {
-      id: 'AURORA',
-      name: 'Aurora Borealis Sunset',
-      icon: <Sparkles className="text-purple-400" size={20} />,
-      desc: 'Twilight sky with magenta/emerald northern lights (Project Firstlight signature)',
-    },
-    {
-      id: 'NIGHT',
-      name: 'Night Lights',
-      icon: <Moon className="text-sky-400" size={20} />,
-      desc: 'Dark dome stadium atmosphere with high-intensity halogen floodlights',
-    },
-    {
-      id: 'SUNSET',
-      name: 'Golden Hour',
-      icon: <Sun className="text-amber-400" size={20} />,
-      desc: 'Warm sunset lighting casting long shadows across the turf',
-    },
-    {
-      id: 'RAIN',
-      name: 'Heavy Rain & Wet Turf',
-      icon: <CloudRain className="text-blue-400" size={20} />,
-      desc: 'Falling rain streaks, glossy wet turf reflections, damp stadium mist',
-    },
-    {
-      id: 'SNOW',
-      name: 'Winter Snow Game',
-      icon: <Snowflake className="text-indigo-200" size={20} />,
-      desc: 'Falling snowflakes, frosty turf, cold breath atmosphere',
-    },
+    { id: 'AURORA', name: 'Aurora Prime Time', icon: <Sparkles className="text-purple-400" size={18} />, desc: 'Signature SOL Aurora curtains over Firstlight Citadel' },
+    { id: 'DAY', name: 'Bright Sunday Day', icon: <Sun className="text-sky-300" size={18} />, desc: 'Crisp blue skies, bright turf & sharp daylight shadows' },
+    { id: 'SUNSET', name: 'Golden Hour', icon: <Sun className="text-amber-400" size={18} />, desc: 'Warm late-afternoon stadium glow across the grass' },
+    { id: 'NIGHT', name: 'Night Floodlights', icon: <Moon className="text-sky-400" size={18} />, desc: 'Prime-time dark sky with blazing catwalk light banks' },
+    { id: 'RAIN', name: 'Heavy Rain & Slick Turf', icon: <CloudRain className="text-blue-400" size={18} />, desc: 'Falling rain streaks & lowered wet-turf traction' },
+    { id: 'SNOW', name: 'Winter Snow Bowl', icon: <Snowflake className="text-indigo-200" size={18} />, desc: 'Blizzard snow flurries & slippery frozen field cuts' },
   ];
 
   const cameraOptions: { id: CameraViewMode; name: string; desc: string }[] = [
-    {
-      id: 'BEHIND_QB',
-      name: '3rd-Person Dynamic QB Cam',
-      desc: 'Low-angle action cam behind quarterback with responsive pocket tracking (Default)',
-    },
-    {
-      id: 'BROADCAST',
-      name: 'Sideline Broadcast Angle',
-      desc: 'Elevated 50-yard line TV camera giving high-contrast broadcast view',
-    },
-    {
-      id: 'FIRST_PERSON',
-      name: 'Helmet POV (First Person)',
-      desc: 'Eyes of the quarterback inside the pocket making real-time reads',
-    },
-    {
-      id: 'ALL_22',
-      name: 'All-22 High End Zone Cam',
-      desc: 'Wide tactical film camera showing all 22 players on field simultaneously',
-    },
+    { id: 'BEHIND_QB', name: 'Pro Action Cam (Behind QB)', desc: 'Dynamic Madden-style action cam tracking QB, carrier & kicks' },
+    { id: 'BROADCAST', name: 'TV Broadcast Sideline', desc: 'Authentic 50-yard sideline television broadcast angle' },
+    { id: 'ALL_22', name: 'All-22 Coach Sky Cam', desc: 'Wide tactical overhead view showing all 22 players & coverages' },
+    { id: 'FIRST_PERSON', name: 'Helmet POV Cam', desc: 'First-person quarterback / user-defender eyes on the turf' },
   ];
 
   return (
     <div id="stadium-creator-modal" className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md select-none font-sans">
-      <div className="relative w-full max-w-2xl p-6 sm:p-8 rounded-3xl bg-slate-950/90 backdrop-blur-2xl border border-white/20 shadow-2xl flex flex-col gap-6 text-white max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-white/10 pb-4">
+      <div className="relative w-full max-w-2xl p-6 sm:p-7 rounded-3xl bg-slate-950/95 backdrop-blur-2xl border border-white/20 shadow-2xl flex flex-col gap-5 text-white max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold font-['Rajdhani'] uppercase tracking-wider text-white">
-              Stadium & Atmosphere Creator
+            <h2 className="text-2xl font-black font-['Rajdhani'] uppercase tracking-wider text-white">
+              Stadium, Camera &amp; Live Tuning
             </h2>
-            <p className="text-xs sm:text-sm text-slate-400">
-              Customize real-time 3D environment lighting, weather physics, and camera angles
+            <p className="text-xs text-slate-400">
+              Switch atmosphere, camera, Pro vs Blocky characters, and skill tier live mid-game
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-slate-900 border border-white/15 text-slate-400 hover:text-white transition cursor-pointer"
+            className="p-2 rounded-xl bg-slate-900 border border-white/15 text-slate-400 hover:text-white cursor-pointer"
           >
             <X size={20} />
           </button>
         </div>
 
-        {/* Weather & Sky Presets */}
-        <div className="flex flex-col gap-3">
-          <label className="text-sm font-bold uppercase tracking-wider text-cyan-300 font-['Rajdhani']">
-            Atmospheric Weather & Lighting Preset
+        {/* Live Mode / Character / Skill Switchers */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {onSelectPlayStyle && (
+            <div className="p-3 rounded-2xl bg-slate-900/75 border border-white/10 space-y-2">
+              <div className="text-[10px] font-black uppercase tracking-widest text-amber-300 flex items-center gap-1">
+                <Flame size={12} /> Gameplay Style
+              </div>
+              <div className="grid grid-cols-2 gap-1">
+                {(['SIMULATION', 'ARCADE'] as PlayStyleMode[]).map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => onSelectPlayStyle(st)}
+                    className={`py-1.5 rounded-lg text-[11px] font-bold border cursor-pointer ${
+                      playStyle === st ? 'bg-orange-500/25 border-orange-400 text-orange-200' : 'bg-slate-950 border-white/10 text-slate-400'
+                    }`}
+                  >
+                    {st === 'SIMULATION' ? 'SOL Sim' : 'Arcade'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {onSelectPlayerMode && (
+            <div className="p-3 rounded-2xl bg-slate-900/75 border border-white/10 space-y-2">
+              <div className="text-[10px] font-black uppercase tracking-widest text-cyan-300 flex items-center gap-1">
+                <Box size={12} /> Character Models
+              </div>
+              <div className="grid grid-cols-2 gap-1">
+                <button
+                  onClick={() => onSelectPlayerMode('ATHLETE')}
+                  className={`py-1.5 rounded-lg text-[11px] font-bold border cursor-pointer ${
+                    playerMode === 'ATHLETE' ? 'bg-cyan-500/25 border-cyan-400 text-cyan-200' : 'bg-slate-950 border-white/10 text-slate-400'
+                  }`}
+                >
+                  Pro Teams
+                </button>
+                <button
+                  onClick={() => onSelectPlayerMode('BLOCK')}
+                  className={`py-1.5 rounded-lg text-[11px] font-bold border cursor-pointer ${
+                    playerMode === 'BLOCK' ? 'bg-amber-500/25 border-amber-400 text-amber-200' : 'bg-slate-950 border-white/10 text-slate-400'
+                  }`}
+                >
+                  Blocky
+                </button>
+              </div>
+            </div>
+          )}
+
+          {onSelectSkillLevel && (
+            <div className="p-3 rounded-2xl bg-slate-900/75 border border-white/10 space-y-2">
+              <div className="text-[10px] font-black uppercase tracking-widest text-purple-300">Skill Tier</div>
+              <select
+                value={skillLevel}
+                onChange={(e) => onSelectSkillLevel(e.target.value as SkillLevel)}
+                className="w-full bg-slate-950 border border-white/15 rounded-lg px-2 py-1.5 text-xs font-bold text-white"
+              >
+                <option value="ROOKIE">Rookie (Newcomer)</option>
+                <option value="PRO">Pro (Balanced)</option>
+                <option value="ALL_PRO">All-Pro (Veteran)</option>
+                <option value="LEGEND">Elohim Legend</option>
+              </select>
+            </div>
+          )}
+        </div>
+
+        {/* Weather */}
+        <div className="flex flex-col gap-2.5">
+          <label className="text-xs font-black uppercase tracking-wider text-cyan-300 font-['Chakra_Petch']">
+            Stadium Atmosphere &amp; Weather Physics
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {weatherOptions.map((opt) => (
               <button
                 key={opt.id}
                 onClick={() => onSelectWeather(opt.id)}
                 className={`p-3 rounded-2xl text-left border transition cursor-pointer flex items-start gap-3 ${
                   currentWeather === opt.id
-                    ? 'bg-purple-950/70 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.4)] ring-1 ring-cyan-400'
+                    ? 'bg-purple-950/70 border-cyan-400 ring-1 ring-cyan-400'
                     : 'bg-slate-900/60 border-white/10 hover:border-white/25'
                 }`}
               >
-                <div className="p-2 rounded-xl bg-slate-800/80 border border-white/10 shrink-0">
-                  {opt.icon}
-                </div>
+                <div className="p-2 rounded-xl bg-slate-800/80 border border-white/10 shrink-0">{opt.icon}</div>
                 <div>
                   <div className="text-sm font-bold font-['Rajdhani'] text-white">{opt.name}</div>
                   <div className="text-[11px] text-slate-400 leading-snug mt-0.5">{opt.desc}</div>
@@ -122,36 +157,34 @@ export const StadiumCreatorModal: React.FC<StadiumCreatorModalProps> = ({
           </div>
         </div>
 
-        {/* Camera Views */}
-        <div className="flex flex-col gap-3">
-          <label className="text-sm font-bold uppercase tracking-wider text-amber-300 font-['Rajdhani'] flex items-center gap-2">
-            <Video size={16} />
-            <span>Camera Perspective</span>
+        {/* Camera */}
+        <div className="flex flex-col gap-2.5">
+          <label className="text-xs font-black uppercase tracking-wider text-amber-300 font-['Chakra_Petch'] flex items-center gap-1.5">
+            <Video size={14} /> Broadcast Camera Angle
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {cameraOptions.map((cam) => (
               <button
                 key={cam.id}
                 onClick={() => onSelectCamera(cam.id)}
-                className={`p-3 rounded-2xl text-left border transition cursor-pointer flex flex-col justify-between ${
+                className={`p-3 rounded-2xl text-left border transition cursor-pointer ${
                   currentCamera === cam.id
-                    ? 'bg-amber-950/60 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.3)] ring-1 ring-amber-400'
+                    ? 'bg-amber-950/60 border-amber-400 ring-1 ring-amber-400'
                     : 'bg-slate-900/60 border-white/10 hover:border-white/25'
                 }`}
               >
                 <div className="text-sm font-bold font-['Rajdhani'] text-white">{cam.name}</div>
-                <div className="text-[11px] text-slate-400 leading-snug mt-1">{cam.desc}</div>
+                <div className="text-[11px] text-slate-400 leading-snug mt-0.5">{cam.desc}</div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Done button */}
         <button
           onClick={onClose}
-          className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-extrabold font-['Rajdhani'] uppercase tracking-wider shadow-lg cursor-pointer transition active:scale-95"
+          className="w-full py-3 rounded-xl bg-gradient-to-r from-[#FF8C00] to-[#D40055] text-slate-950 font-black font-['Rajdhani'] uppercase tracking-wider shadow-lg cursor-pointer transition active:scale-95"
         >
-          APPLY & RESUME SIMULATION
+          APPLY &amp; RESUME GAME
         </button>
       </div>
     </div>

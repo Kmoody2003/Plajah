@@ -1,22 +1,24 @@
 import React from 'react';
-import { 
-  Play, 
-  Sparkles, 
-  Sliders, 
-  Shield, 
-  Volume2, 
-  VolumeX, 
-  BookOpen, 
-  Sun, 
-  Moon, 
+import {
+  Play,
+  Sparkles,
+  Sliders,
+  Shield,
+  Volume2,
+  VolumeX,
+  Sun,
+  Moon,
   Compass,
   Zap,
-  ChevronRight
+  ChevronRight,
+  Flame,
+  Trophy,
+  Box,
 } from 'lucide-react';
-import { WeatherPreset, CameraViewMode } from '../types';
+import { WeatherPreset, CameraViewMode, PlayStyleMode } from '../types';
 
 interface MainMenuProps {
-  onPlayDrive: () => void;
+  onPlayDrive: (style?: PlayStyleMode, playerMode?: 'ATHLETE' | 'BLOCK') => void;
   onOpenStadiumCreator: () => void;
   onOpenOptions: () => void;
   onOpenControls: () => void;
@@ -26,13 +28,11 @@ interface MainMenuProps {
   onSelectCamera?: (cam: CameraViewMode) => void;
   isMuted?: boolean;
   onToggleSound?: () => void;
-  onOpenCurriculum?: () => void;
 }
 
 export const MainMenu: React.FC<MainMenuProps> = ({
   onPlayDrive,
   onOpenStadiumCreator,
-  onOpenOptions,
   onOpenControls,
   currentWeather = 'AURORA',
   onSelectWeather,
@@ -40,152 +40,83 @@ export const MainMenu: React.FC<MainMenuProps> = ({
   onSelectCamera,
   isMuted = false,
   onToggleSound,
-  onOpenCurriculum,
 }) => {
   const gid = 'main-menu-chevron-grad';
 
   return (
-    <div 
-      id="main-menu" 
-      className="absolute inset-0 z-20 flex flex-col justify-between p-4 sm:p-8 md:p-10 pointer-events-auto select-none overflow-hidden"
+    <div
+      id="main-menu"
+      className="absolute inset-0 z-20 flex flex-col justify-between p-4 sm:p-7 md:p-9 pointer-events-auto select-none overflow-hidden"
     >
-      {/* Dynamic Animated Aurora Borealis CSS Wave Overlay (complements 3D WebGL shader) */}
+      {/* Atmospheric Stadium Gradient Scrim */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-        {/* Deep atmospheric stadium vignette */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/40" />
-        
-        {/* Dancing Aurora Light Curtains */}
-        <div 
-          className="absolute -top-32 left-1/4 w-[600px] h-[350px] rounded-full blur-[90px] opacity-40 animate-pulse pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse at center, rgba(0, 218, 243, 0.45) 0%, rgba(107, 0, 153, 0.35) 50%, transparent 75%)',
-            animationDuration: '6s',
-          }}
-        />
-        <div 
-          className="absolute -top-24 right-1/4 w-[700px] h-[380px] rounded-full blur-[100px] opacity-35 pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse at center, rgba(212, 0, 85, 0.35) 0%, rgba(255, 140, 0, 0.25) 45%, transparent 75%)',
-            animation: 'aurora-shift 9s ease-in-out infinite alternate',
-          }}
-        />
-        <div 
-          className="absolute top-10 left-1/3 w-[800px] h-[220px] rounded-full blur-[80px] opacity-30 pointer-events-none"
-          style={{
-            background: 'radial-gradient(ellipse at center, rgba(6, 214, 160, 0.4) 0%, rgba(147, 51, 234, 0.3) 60%, transparent 80%)',
-            animation: 'aurora-drift 12s ease-in-out infinite alternate',
-          }}
-        />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#070712]/90 via-[#0b0a18]/55 to-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/45" />
       </div>
 
-      {/* Inline styles for realistic smooth aurora drift animation */}
-      <style>{`
-        @keyframes aurora-shift {
-          0% { transform: translate(-30px, 0px) scale(1); }
-          50% { transform: translate(40px, -20px) scale(1.1); }
-          100% { transform: translate(-20px, 15px) scale(0.95); }
-        }
-        @keyframes aurora-drift {
-          0% { transform: translateX(0) scaleY(1); opacity: 0.25; }
-          50% { transform: translateX(60px) scaleY(1.2); opacity: 0.45; }
-          100% { transform: translateX(-40px) scaleY(0.9); opacity: 0.3; }
-        }
-      `}</style>
-
-      {/* Top Bar: Engine Status & Top-Right Ambient HUD Controls */}
+      {/* Top Bar: League Network Tag + Weather/Camera/Audio Controls */}
       <div className="relative z-10 flex items-center justify-between w-full max-w-7xl mx-auto">
-        {/* Left: Platform Status */}
-        <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 text-white/80 text-[11px] sm:text-xs font-semibold tracking-wider font-['Chakra_Petch'] shadow-lg">
+        <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-black/55 backdrop-blur-xl border border-white/15 text-white/85 text-[11px] sm:text-xs font-semibold tracking-wider font-['Chakra_Petch'] shadow-lg">
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00DAF3]"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF8C00] opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF8C00]"></span>
           </span>
-          <span className="uppercase">3D WebGL Passing Lab</span>
-          <span className="text-white/30">|</span>
-          <span className="text-amber-400 font-mono text-[10px]">60 FPS</span>
+          <span className="uppercase">SOL GRIDIRON LEAGUE · 3D SPORTS ENGINE</span>
+          <span className="text-white/30 hidden sm:inline">|</span>
+          <span className="text-[#00DAF3] font-mono text-[10px] hidden sm:inline">LEGENDS OF ELOHIM</span>
         </div>
 
-        {/* Right: Ambient HUD Controls (Weather, Audio, Camera) */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Weather Selector Quick Pills */}
           {onSelectWeather && (
             <div className="hidden md:flex items-center p-1 rounded-full bg-[#120F1E]/80 backdrop-blur-xl border border-white/15 shadow-xl text-xs font-bold">
-              <button
-                onClick={() => onSelectWeather('AURORA')}
-                className={`px-3 py-1 rounded-full transition-all flex items-center gap-1.5 ${
-                  currentWeather === 'AURORA'
-                    ? 'bg-gradient-to-r from-[#00DAF3]/30 to-[#6B0099]/40 text-[#00DAF3] border border-[#00DAF3]/50 shadow-[0_0_12px_rgba(0,218,243,0.3)]'
-                    : 'text-white/60 hover:text-white'
-                }`}
-                title="Northern Lights Night"
-              >
-                <Sparkles size={12} className={currentWeather === 'AURORA' ? 'text-[#00DAF3] animate-spin' : ''} />
-                <span>Aurora</span>
-              </button>
-              <button
-                onClick={() => onSelectWeather('SUNSET')}
-                className={`px-3 py-1 rounded-full transition-all flex items-center gap-1.5 ${
-                  currentWeather === 'SUNSET'
-                    ? 'bg-gradient-to-r from-[#FF8C00]/30 to-[#D40055]/40 text-amber-300 border border-amber-400/50 shadow-[0_0_12px_rgba(255,140,0,0.3)]'
-                    : 'text-white/60 hover:text-white'
-                }`}
-                title="Sunset Twilight"
-              >
-                <Sun size={12} />
-                <span>Sunset</span>
-              </button>
-              <button
-                onClick={() => onSelectWeather('NIGHT')}
-                className={`px-3 py-1 rounded-full transition-all flex items-center gap-1.5 ${
-                  currentWeather === 'NIGHT'
-                    ? 'bg-white/20 text-white border border-white/40'
-                    : 'text-white/60 hover:text-white'
-                }`}
-                title="Night Lights"
-              >
-                <Moon size={12} />
-                <span>Night</span>
-              </button>
-              <button
-                onClick={() => onSelectWeather('SNOW')}
-                className={`px-2.5 py-1 rounded-full transition-all flex items-center gap-1 ${
-                  currentWeather === 'SNOW'
-                    ? 'bg-white/20 text-white border border-white/40'
-                    : 'text-white/60 hover:text-white'
-                }`}
-                title="Winter Snow"
-              >
-                <span>❄</span>
-              </button>
+              {(
+                [
+                  { id: 'AURORA', label: 'Aurora', icon: <Sparkles size={12} /> },
+                  { id: 'DAY', label: 'Day', icon: <Sun size={12} /> },
+                  { id: 'SUNSET', label: 'Sunset', icon: <Sun size={12} className="text-orange-400" /> },
+                  { id: 'NIGHT', label: 'Night', icon: <Moon size={12} /> },
+                ] as const
+              ).map((w) => (
+                <button
+                  key={w.id}
+                  onClick={() => onSelectWeather(w.id)}
+                  className={`px-3 py-1 rounded-full transition-all flex items-center gap-1.5 cursor-pointer ${
+                    currentWeather === w.id
+                      ? 'bg-gradient-to-r from-[#00DAF3]/30 to-[#6B0099]/40 text-[#00DAF3] border border-[#00DAF3]/50'
+                      : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  {w.icon}
+                  <span>{w.label}</span>
+                </button>
+              ))}
             </div>
           )}
 
-          {/* Camera View Mode Quick Switch */}
           {onSelectCamera && (
-            <div className="hidden lg:flex items-center p-1 rounded-full bg-[#120F1E]/80 backdrop-blur-xl border border-white/15 shadow-xl text-xs font-bold text-white/70">
-              <button
-                onClick={() => onSelectCamera(currentCamera === 'BEHIND_QB' ? 'BROADCAST' : currentCamera === 'BROADCAST' ? 'ALL_22' : 'BEHIND_QB')}
-                className="px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 text-white/90 border border-white/10 flex items-center gap-1.5 transition-colors"
-                title="Switch Camera Perspective"
-              >
-                <Compass size={12} className="text-[#FF8C00]" />
-                <span className="font-['Rajdhani'] uppercase tracking-wider">
-                  {currentCamera === 'BEHIND_QB' ? 'Follow QB' : currentCamera === 'BROADCAST' ? 'Broadcast' : 'All-22'}
-                </span>
-              </button>
-            </div>
+            <button
+              onClick={() =>
+                onSelectCamera(
+                  currentCamera === 'BEHIND_QB' ? 'BROADCAST' : currentCamera === 'BROADCAST' ? 'ALL_22' : 'BEHIND_QB'
+                )
+              }
+              className="hidden lg:flex px-3 py-1.5 rounded-full bg-[#120F1E]/80 hover:bg-white/10 text-white/90 border border-white/15 items-center gap-1.5 text-xs font-bold cursor-pointer transition"
+            >
+              <Compass size={12} className="text-[#FF8C00]" />
+              <span className="font-['Rajdhani'] uppercase tracking-wider">
+                {currentCamera === 'BEHIND_QB' ? 'Action Cam' : currentCamera === 'BROADCAST' ? 'TV Broadcast' : 'All-22'}
+              </span>
+            </button>
           )}
 
-          {/* Sound Toggle */}
           {onToggleSound && (
             <button
               onClick={onToggleSound}
-              className={`p-2 sm:px-3 sm:py-1.5 rounded-full backdrop-blur-xl border transition-all flex items-center gap-2 text-xs font-bold shadow-xl ${
+              className={`p-2 sm:px-3 sm:py-1.5 rounded-full backdrop-blur-xl border transition-all flex items-center gap-2 text-xs font-bold shadow-xl cursor-pointer ${
                 isMuted
-                  ? 'bg-red-500/20 text-red-300 border-red-400/30 hover:bg-red-500/30'
+                  ? 'bg-red-500/20 text-red-300 border-red-400/30'
                   : 'bg-white/10 text-white border-white/20 hover:bg-white/20'
               }`}
-              title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
             >
               {isMuted ? <VolumeX size={14} /> : <Volume2 size={14} className="text-[#00DAF3]" />}
               <span className="hidden sm:inline font-['Rajdhani'] uppercase tracking-wider">
@@ -196,26 +127,16 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         </div>
       </div>
 
-      {/* Main Stitch Design Floating Navigation Card (Matches approved mockup firstlight_menu_plajah_brand_1789345739123.jpg) */}
-      <div className="relative z-10 w-full max-w-sm sm:max-w-md my-auto self-start sm:ml-4 md:ml-10">
-        <div className="relative rounded-[28px] bg-[#120F1E]/85 backdrop-blur-2xl border border-white/15 p-6 sm:p-8 shadow-[0_25px_60px_rgba(0,0,0,0.85)] flex flex-col gap-5">
-          
-          {/* Ambient Card Top Glow Accent */}
+      {/* Main Navigation Card */}
+      <div className="relative z-10 w-full max-w-md sm:max-w-lg my-auto self-start sm:ml-4 md:ml-8">
+        <div className="relative rounded-[28px] bg-[#100D1C]/88 backdrop-blur-2xl border border-white/15 p-5 sm:p-7 shadow-[0_25px_70px_rgba(0,0,0,0.9)] flex flex-col gap-4">
           <div className="absolute -top-10 -left-10 w-48 h-48 bg-gradient-to-br from-[#6B0099]/40 via-[#D40055]/30 to-transparent rounded-full blur-2xl pointer-events-none" />
-          
-          {/* Brand Lockup: Plajah Chevron + Title */}
+
+          {/* Brand Lockup */}
           <div className="relative flex items-center gap-4">
-            {/* Glowing Plajah Chevron SVG Icon */}
-            <div className="relative flex-shrink-0 group cursor-pointer" onClick={onPlayDrive}>
+            <div className="relative flex-shrink-0 group cursor-pointer" onClick={() => onPlayDrive('SIMULATION', 'ATHLETE')}>
               <div className="absolute -inset-2 bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] rounded-2xl blur-lg opacity-70 group-hover:opacity-100 transition duration-300" />
-              <svg
-                width="48"
-                height="48"
-                viewBox="0 0 100 100"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="relative drop-shadow-[0_0_15px_rgba(255,140,0,0.8)]"
-              >
+              <svg width="46" height="46" viewBox="0 0 100 100" fill="none" className="relative">
                 <defs>
                   <linearGradient id={gid} x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor="#6B0099" />
@@ -233,129 +154,144 @@ export const MainMenu: React.FC<MainMenuProps> = ({
               </svg>
             </div>
 
-            {/* Typography Header */}
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
-                <span className="text-[11px] sm:text-xs font-black uppercase tracking-[0.28em] text-white/70 font-['Chakra_Petch']">
+                <span className="text-[11px] font-black uppercase tracking-[0.26em] text-white/70 font-['Chakra_Petch']">
                   PLAJAH SPORTS
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-gradient-to-r from-[#D40055] to-[#FF8C00] text-white shadow-[0_0_10px_rgba(255,140,0,0.5)]">
-                  Beta
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] text-white">
+                  PRO ENGINE 2.0
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tight text-white font-['Teko'] leading-none mt-0.5">
                 PROJECT FIRSTLIGHT
               </h1>
-              <p className="text-xs text-white/60 font-medium tracking-wide mt-0.5">
-                Learn the game. Make your play.
+              <p className="text-xs text-white/65 font-medium tracking-wide mt-0.5">
+                SOL Timeline Pro Simulation · Fever Jam Arcade · Scalable Skill
               </p>
             </div>
           </div>
 
-          {/* Divider Line with Plajah Gradient */}
           <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
-          {/* Action Buttons Stack */}
+          {/* 3 Primary Game Modes */}
           <div className="flex flex-col gap-2.5">
-            {/* Primary Action Button: Glowing Solar-Orange CTA */}
+            {/* 1. SIMULATION MODE (SOL TIMELINE) */}
             <button
               id="menu-play-drive-btn"
-              onClick={onPlayDrive}
-              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#FF8C00] via-[#F97316] to-[#D40055] hover:from-[#ff9d26] hover:to-[#e01a68] text-slate-950 font-black text-base sm:text-lg tracking-wider font-['Rajdhani'] uppercase shadow-[0_0_30px_rgba(255,140,0,0.55)] hover:shadow-[0_0_40px_rgba(255,140,0,0.8)] hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border border-amber-300/50 flex items-center justify-center gap-3 cursor-pointer group"
+              onClick={() => onPlayDrive('SIMULATION', 'ATHLETE')}
+              className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#FF8C00] via-[#F97316] to-[#D40055] hover:brightness-110 text-slate-950 font-black text-left shadow-[0_0_30px_rgba(255,140,0,0.45)] hover:scale-[1.01] active:scale-[0.99] transition-all border border-amber-300/50 flex items-center justify-between cursor-pointer group"
             >
-              <div className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Play size={16} fill="currentColor" className="ml-0.5 text-black" />
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center">
+                  <Trophy size={20} className="text-slate-950" />
+                </div>
+                <div>
+                  <div className="text-base sm:text-lg font-black uppercase tracking-wider font-['Rajdhani'] leading-tight">
+                    SOL LEAGUE SIMULATION
+                  </div>
+                  <div className="text-[11px] font-bold text-slate-900/80">
+                    Madden-depth 11v11 · Pro Teams · SOL Timeline Broadcast
+                  </div>
+                </div>
               </div>
-              <span>PLAY A DRIVE</span>
-              <ChevronRight size={18} className="text-black/60 group-hover:translate-x-1 transition-transform" />
+              <ChevronRight size={20} className="text-slate-950/75 group-hover:translate-x-1 transition-transform" />
             </button>
 
-            {/* Secondary Action 1: Learn Football */}
+            {/* 2. ARCADE MODE (NFL FEVER x NBA JAM) */}
             <button
-              onClick={onOpenCurriculum || onOpenControls}
-              className="w-full py-3 px-4 rounded-xl bg-white/[0.06] hover:bg-white/[0.14] border border-white/10 hover:border-white/25 text-white/90 hover:text-white font-bold text-sm tracking-wider font-['Rajdhani'] uppercase flex items-center justify-between transition-all duration-150 cursor-pointer shadow-sm group"
+              id="menu-arcade-btn"
+              onClick={() => onPlayDrive('ARCADE', 'ATHLETE')}
+              className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#6B0099]/90 via-[#9333ea]/85 to-[#0284c7]/90 hover:brightness-115 text-white font-black text-left shadow-[0_0_24px_rgba(0,218,243,0.3)] hover:scale-[1.01] active:scale-[0.99] transition-all border border-cyan-300/40 flex items-center justify-between cursor-pointer group"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center">
+                  <Flame size={20} className="text-[#FF8C00]" />
+                </div>
+                <div>
+                  <div className="text-base sm:text-lg font-black uppercase tracking-wider font-['Rajdhani'] leading-tight flex items-center gap-2">
+                    <span>FEVER JAM ARCADE</span>
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-[#FF8C00] text-slate-950">ON FIRE!</span>
+                  </div>
+                  <div className="text-[11px] font-medium text-cyan-100/85">
+                    NFL Fever × NBA Jam · Turbo, Hot Streaks &amp; Bone-Rattling Hits
+                  </div>
+                </div>
+              </div>
+              <ChevronRight size={20} className="text-white/75 group-hover:translate-x-1 transition-transform" />
+            </button>
+
+            {/* 3. SPECIAL MODE: BLOCKY CLASSIC (ROBLOX-STYLE) */}
+            <button
+              id="menu-blocky-mode-btn"
+              onClick={() => onPlayDrive('ARCADE', 'BLOCK')}
+              className="w-full py-3 px-4 rounded-xl bg-white/[0.07] hover:bg-white/[0.14] border border-amber-400/30 hover:border-amber-400/60 text-white font-bold text-left flex items-center justify-between transition-all cursor-pointer group"
             >
               <div className="flex items-center gap-3">
-                <BookOpen size={16} className="text-[#00DAF3] group-hover:scale-110 transition-transform" />
-                <span>LEARN FOOTBALL</span>
+                <Box size={18} className="text-amber-300" />
+                <div>
+                  <div className="text-sm font-black uppercase tracking-wider font-['Rajdhani'] flex items-center gap-2">
+                    <span>BLOCKY CLASSIC SPECIAL MODE</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                      RETRO BLOCK
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-white/60 font-normal">
+                    Play with classic blocky avatars &amp; arcade turf physics
+                  </div>
+                </div>
               </div>
-              <span className="text-[10px] text-white/40 uppercase tracking-widest font-mono">12 Lessons</span>
+              <Play size={14} className="text-amber-300" />
             </button>
 
-            {/* Secondary Action 2: How To Play / Controls */}
-            <button
-              onClick={onOpenControls}
-              className="w-full py-3 px-4 rounded-xl bg-white/[0.06] hover:bg-white/[0.14] border border-white/10 hover:border-white/25 text-white/90 hover:text-white font-bold text-sm tracking-wider font-['Rajdhani'] uppercase flex items-center justify-between transition-all duration-150 cursor-pointer shadow-sm group"
-            >
-              <div className="flex items-center gap-3">
-                <Sliders size={16} className="text-[#D40055] group-hover:scale-110 transition-transform" />
-                <span>HOW TO PLAY &amp; CONTROLS</span>
-              </div>
-              <span className="text-[10px] text-white/40 uppercase tracking-widest font-mono">Keys</span>
-            </button>
-
-            {/* Secondary Action 3: Stadium Creator (with 3D badge) */}
-            <button
-              onClick={onOpenStadiumCreator}
-              className="w-full py-3 px-4 rounded-xl bg-white/[0.06] hover:bg-white/[0.14] border border-white/10 hover:border-white/25 text-white/90 hover:text-white font-bold text-sm tracking-wider font-['Rajdhani'] uppercase flex items-center justify-between transition-all duration-150 cursor-pointer shadow-sm group"
-            >
-              <div className="flex items-center gap-3">
-                <Zap size={16} className="text-[#FFBF42] group-hover:scale-110 transition-transform" />
-                <span>STADIUM CREATOR</span>
-              </div>
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-cyan-500/20 text-[#00DAF3] border border-cyan-400/40">
-                3D
-              </span>
-            </button>
-
-            {/* Secondary Action 4: Settings */}
-            <button
-              onClick={onOpenOptions}
-              className="w-full py-2.5 px-4 rounded-xl bg-transparent hover:bg-white/[0.08] text-white/60 hover:text-white font-medium text-xs tracking-wider font-['Rajdhani'] uppercase flex items-center justify-between transition-all duration-150 cursor-pointer"
-            >
-              <span>SETTINGS &amp; GRAPHICS</span>
-              <span className="text-[10px] text-white/40">Quality</span>
-            </button>
+            {/* Secondary Row */}
+            <div className="grid grid-cols-2 gap-2 pt-0.5">
+              <button
+                onClick={onOpenStadiumCreator}
+                className="py-2.5 px-3.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.13] border border-white/10 text-white/90 font-bold text-xs tracking-wider font-['Rajdhani'] uppercase flex items-center justify-center gap-2 transition cursor-pointer"
+              >
+                <Zap size={14} className="text-[#00DAF3]" />
+                <span>Stadium &amp; Cams</span>
+              </button>
+              <button
+                onClick={onOpenControls}
+                className="py-2.5 px-3.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.13] border border-white/10 text-white/90 font-bold text-xs tracking-wider font-['Rajdhani'] uppercase flex items-center justify-center gap-2 transition cursor-pointer"
+              >
+                <Sliders size={14} className="text-[#D40055]" />
+                <span>Controls &amp; Guide</span>
+              </button>
+            </div>
           </div>
 
-          {/* Status Footer: Privacy & Version */}
           <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-white/50 font-medium">
             <span className="flex items-center gap-1.5">
-              <Shield size={12} className="text-[#06D6A0]" /> 
-              <span>Local practice · No account needed</span>
+              <Shield size={12} className="text-[#06D6A0]" />
+              <span>SOL Timeline · 8 Original Franchises · Skill-Scaled</span>
             </span>
-            <span className="text-[10px] text-white/40 font-mono">v1.4.2</span>
+            <span className="text-[10px] text-white/40 font-mono">v2.0</span>
           </div>
         </div>
       </div>
 
-      {/* Bottom Controls Bar & Pulsing Start Prompt */}
-      <div className="relative z-10 w-full flex flex-col items-center gap-2 pb-2">
-        {/* Bottom Control Reminder Bar */}
-        <div className="hidden sm:flex items-center gap-4 px-5 py-2 rounded-full bg-black/60 backdrop-blur-xl border border-white/10 text-white/70 text-xs font-semibold tracking-wider font-['Rajdhani'] shadow-2xl">
-          <span className="flex items-center gap-1.5">
-            <kbd className="px-2 py-0.5 rounded bg-white/15 text-white font-mono text-[10px] border border-white/20">SPACE</kbd> 
-            <span>SNAP / THROW</span>
+      {/* Bottom Control Hints */}
+      <div className="relative z-10 w-full flex flex-col items-center gap-1.5 pb-1">
+        <div className="hidden sm:flex items-center gap-4 px-5 py-2 rounded-full bg-black/65 backdrop-blur-xl border border-white/10 text-white/75 text-xs font-semibold tracking-wider font-['Rajdhani'] shadow-2xl">
+          <span>
+            <kbd className="px-1.5 py-0.5 rounded bg-white/15 text-white font-mono text-[10px]">SPACE</kbd> SNAP / JUKE
           </span>
-          <span className="text-white/20">·</span>
-          <span className="flex items-center gap-1.5">
-            <kbd className="px-2 py-0.5 rounded bg-white/15 text-white font-mono text-[10px] border border-white/20">A / D</kbd> 
-            <span>POCKET DRIFT</span>
+          <span className="text-white/25">·</span>
+          <span>
+            <kbd className="px-1.5 py-0.5 rounded bg-white/15 text-white font-mono text-[10px]">1–4</kbd> PASS TARGETS
           </span>
-          <span className="text-white/20">·</span>
-          <span className="flex items-center gap-1.5">
-            <kbd className="px-2 py-0.5 rounded bg-white/15 text-white font-mono text-[10px] border border-white/20">1 - 4</kbd> 
-            <span>TARGET READS</span>
+          <span className="text-white/25">·</span>
+          <span>
+            <kbd className="px-1.5 py-0.5 rounded bg-white/15 text-white font-mono text-[10px]">X / F / E</kbd> SPIN · TRUCK · DIVE
+          </span>
+          <span className="text-white/25">·</span>
+          <span>
+            <kbd className="px-1.5 py-0.5 rounded bg-white/15 text-white font-mono text-[10px]">TAB</kbd> SWITCH DEFENDER
           </span>
         </div>
-
-        {/* Pulsing Start Prompt */}
-        <button
-          onClick={onPlayDrive}
-          className="text-[#FF8C00] hover:text-amber-300 font-bold tracking-[0.25em] text-xs sm:text-sm uppercase animate-pulse font-['Rajdhani'] cursor-pointer transition-colors pt-1"
-        >
-          PRESS [SPACE] OR CLICK PLAY A DRIVE TO START
-        </button>
       </div>
     </div>
   );
