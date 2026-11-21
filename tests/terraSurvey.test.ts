@@ -159,3 +159,64 @@ test('site context: building setbacks, coverage, nearest hydrant', async () => {
   assert.ok(Math.abs(sb[0] - 5) < 0.2 && Math.abs(sb[1] - 5) < 0.2 && Math.abs(sb[2] - 20) < 0.3 && Math.abs(sb[3] - 30) < 0.3, sb.join(','));
   assert.ok(Math.abs(c.nearestHydrant!.distanceFt - 30) < 0.5);
 });
+
+// ── Regression fixtures from the 120k-parcel accuracy corpus (verbatim roll text) ──
+
+test('BEG…FROM then TH: the first real course is NOT taken as a tie', () => {
+  const p = parseLegalDescription('S EDWARD PT OF O L 13 DESC AS BEG AT A PTE IN S LINE EDWARD 231 FT WLY FROM PALMS SUB TH S 30D 44M E 560.51 FT TH S 58D 19M W 306.8 FT TH N 30D 44M W 436.5 FT TH N 59D 06M E 20 FT TH N 30D 44M W 130 FT TH N 59D 06M E 288 FT TO PTE OF BEG');
+  assert.equal(p.ties.length, 0);
+  assert.equal(p.courses.length, 6);
+});
+
+test('tie to POB without COM ("BEG AT … TH … TO P.O.B.; TH …")', () => {
+  const p = parseLegalDescription('S DAVISON W ALL THAT PT OF 1/4 SEC 12 TTAT DESC AS FOLS: BEG AT A PTE S LINE OF DAVISON AVE 120 FT WD & E LINE OF PETOSKEY AVE 60 FT WD;TH N 64D 44M 58S E 286.99 FT TO P.O.B.; TH N 64D 44M 58S E 250.14 FT; TH S 24D 39M 44S E 172.40 FT; TH S 64D 44M 58S W 248.50 FT; TH N 25D 12M 21S W 172.40 FT TO P.O.B. 14/--- 42,981 SQ FT');
+  assert.equal(p.ties.length, 1);
+  assert.equal(p.courses.length, 4);
+  const t = runTraverse(p.courses)!;
+  assert.ok(t.precision > 1000, `1:${t.precision}`);
+});
+
+test('"(RECORDED AS …)" notes and glued THN are not extra or lost calls', () => {
+  const p = parseLegalDescription('S WIGHT PT OF LOT 1 BG DESC AS COM AT INT OF ELY EXT OF SLY LN WIGHT ST (50 FT WD) & ELY LN PC 15 TH S 59D 52M 24S W ALG SD LN WIGHT ST & ELY EXT 223.23 FT TH S 26D 28M 31S E 20 FT TO POB TH S 26D 28M 31S E 102 FT S 61D 43M 48S E 17.60 FT TH S 25D 37M 36S E 78.52 FT TH S 63D 52M 57S W 60.08 FT THN 26D 7M 3S W 191.34 FT TH N 59D 52M 59S E 49.98 FT TO POB');
+  assert.equal(p.ties.length, 2);
+  assert.equal(p.courses.length, 6);
+  const q = parseLegalDescription('BEG AT A PTE SD PTE BG DIST S 60D 00M 00S W 80.77 FT (RECORDED AS 80.93 FT) ALG SD NLY LN FROM NE COR LOT 1 TH S 04D 07M 21S W 16.17 FT TH S 44D 53M 26S E 45.43 FT TH N 60D 00M 15S E 278.16 FT TH N 30D 02M 15S W 280.14 FT (RECORDED AS 280.17 FT) TO THE SLY LN OF HOWARD ST TH S 60D 00M 00S W 358.93 FT (RECORDED AS S 59D 59M 55S W 358.93 FT TO POB');
+  assert.equal(q.ties.length, 1);
+  assert.equal(q.courses.length, 5);
+});
+
+test('curve wordings: arc before RAD, number-then-RAD, CH BRG, dash bearing', () => {
+  const a = parseLegalDescription('BEG AT X TH N 1D 02M W 200 FT TH S 88D 52M W 146.50 FT TH S 1D 02M E 87.15 FT TH ON A CUR RAD 409 FT TO THE L 150.30 FT TO N LINE FULLERTON TH ALG SD LINE N 88D 52M E 48.29 FT TO P O B');
+  const c = a.courses.find(x => x.kind === 'curve')!;
+  assert.ok(c && c.kind === 'curve' && c.radius === 409 && c.arc === 150.3 && c.turn === 'left', JSON.stringify(c));
+  const b = parseLegalDescription('TH ON A CUR TO LEFT OF A 431.68 FT RAD CENTRAL ANGLE OF 11D 15M 20S 84.80 FT TO N LINE');
+  const bc = b.courses[0] ?? (b as any).ties[0];
+  assert.ok(bc?.kind === 'curve' && bc.radius === 431.68 && Math.abs(bc.delta! - (11 + 15 / 60 + 20 / 3600)) < 1e-9, JSON.stringify(bc));
+  const d = parseLegalDescription('BEG AT X TH S 02D 34M 14S E 772.07 FT, TH CUR TO R 40.20 FT RAD 351.98 FT CH BRG N49-24-14W 40.18 FT, TH N 46D 17M 54S W 142.57 FT TO POB');
+  const dc = d.courses.find(x => x.kind === 'curve');
+  assert.ok(dc?.kind === 'curve' && dc.chordBearing?.ns === 'N' && dc.chordBearing.ew === 'W' && Math.abs(dc.chordBearing.deg - (49 + 24 / 60 + 14 / 3600)) < 1e-9 && dc.chord === 40.18, JSON.stringify(dc));
+});
+
+test('EXC THAT PT DESC AS … marks the calls as the exception', () => {
+  const p = parseLegalDescription('E MEYERS 332&331 EXC THAT PT DESC AS BEG AT SW COR SD LOT 332 TH N 00D 57M 20S W ALG E LINE MEYERS RD 66 FT WD 240 FT TH N 89D 12M E 279.18 FT TH S 00D 30M 31S E 48.88 FT TH N 89D 21M 30S E 99.48 FT TH S 00D 57M 20S E 194.07 FT TH S 89D 12M W 378.31 FT TO POB');
+  assert.equal(p.describes, 'exception');
+});
+
+test('typos: letter O for zero, M for D, impossible bearing is reported', () => {
+  const p = parseLegalDescription('BEG AT X TH N 0D O9M E 843.48 FT TH N 89D 59M E 286.54 FT TH S 0D 13M W 905.65 FT TH S 89D 59M W 305.43 FT TO P O B');
+  assert.equal(p.courses.length, 4);
+  const q = parseLegalDescription('COMM AT X TH S 23D 56M 53S E 128 FT; TH S 65D 51M 59S W 42.5 FT; TH N 23D 56M 53S W 128 FT; TH N 65M 51M 59S E 42.5 FT TO POB');
+  const t = runTraverse(q.courses)!;
+  assert.equal(q.courses.length, 4);
+  assert.ok(t.misclosure < 0.05, `mis ${t.misclosure}`);
+  const r = parseLegalDescription('BEG AT X TH CONT ALG SD N LINE N 898D 21M 20S W 83.10 FT TH N 01D 36M 50S W 126.78 FT TH N 88D 19M 19S E 82.86 FT TH S 01D 36M 50S E 130.15 FT TO P O B');
+  assert.ok(r.notes.some(n => n.includes('898D')), r.notes.join('|'));
+});
+
+test('a single flipped quadrant is diagnosed as a likely typo', async () => {
+  const { diagnoseMisclosure } = await import('../services/terra/survey/parcelSurvey');
+  const p = parseLegalDescription('BEG AT X TH N 0D 00M E 100 FT TH S 90D 00M E 50 FT TH S 0D 00M E 100 FT TH N 90D 00M E 50 FT TO POB');
+  // last call should be N 89 W (or close to W); flipping its E/W makes it close nearly
+  const hint = diagnoseMisclosure(p.courses);
+  assert.ok(hint && /call 4/.test(hint), String(hint));
+});

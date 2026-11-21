@@ -431,6 +431,52 @@ function matchCall(a: TraverseCourse, b: TraverseCourse): { dAzSec: number; dLen
   return null;
 }
 
+/**
+ * When the record does not close, find a single-call correction that makes it
+ * close: one bearing with its quadrant flipped (N<->S or E<->W), or one call
+ * that should not be there. Reported as a likely typo, never applied silently.
+ */
+export function diagnoseMisclosure(calls: SurveyCall[]): string | null {
+  const base = runTraverse(calls);
+  if (!base || base.precision >= 5000) return null;
+  const quad = (b: { ns: string; ew: string; deg: number }) => (b.deg === 0 ? b.ns : b.deg === 90 ? b.ew : `${b.ns}…${b.ew}`);
+  const flips: string[] = [];
+  for (let i = 0; i < calls.length; i++) {
+    const c = calls[i];
+    if (c.kind !== 'line') continue;
+    for (const flip of ['ns', 'ew'] as const) {
+      const b = { ...c.bearing };
+      if (flip === 'ns') b.ns = b.ns === 'N' ? 'S' : 'N'; else b.ew = b.ew === 'E' ? 'W' : 'E';
+      // A due-north/south or due-east/west bearing only has one meaningful flip.
+      if ((b.deg === 0 && flip === 'ew') || (b.deg === 90 && flip === 'ns')) continue;
+      const t = runTraverse(calls.map((x, j) => (j === i ? { ...c, bearing: b } : x)));
+      if (t && t.precision >= 5000) flips.push(`call ${i + 1} as ${quad(b)} (not ${quad(c.bearing)})`);
+    }
+  }
+  if (flips.length) {
+    return `It closes if ${flips.length === 1 ? flips[0] : `any one of these is corrected: ${flips.join('; ')}`} — probably a quadrant typo in the record.`;
+  }
+  const drops: number[] = [];
+  for (let i = 0; i < calls.length && calls.length > 3; i++) {
+    const t = runTraverse(calls.filter((_, j) => j !== i));
+    if (t && t.precision >= 5000) drops.push(i + 1);
+  }
+  if (drops.length) return `It closes without call ${drops.join(' or ')} — that call may be a tie line or a repeated line in the record.`;
+  return null;
+}
+
+/** Run every figure in the description and keep the one that closes best (largest on a tie). */
+export function bestTraverse(legal: ParsedLegalDescription): RecordTraverse | undefined {
+  const figs = legal.figures.length ? legal.figures : [legal.courses];
+  let best: RecordTraverse | undefined;
+  for (const f of figs) {
+    const t = runTraverse(f);
+    if (!t) continue;
+    if (!best || t.precision > best.precision * 1.0001 || (Math.abs(t.precision - best.precision) <= best.precision * 1e-4 && t.areaSqFt > best.areaSqFt)) best = t;
+  }
+  return best;
+}
+
 // ─── Orchestrator ────────────────────────────────────────────────────────────
 
 export function surveyParcel(parcel: TerraParcel, nearby: TerraParcel[] = []): ParcelSurvey {
@@ -488,12 +534,12 @@ export function surveyParcel(parcel: TerraParcel, nearby: TerraParcel[] = []): P
 
     // Record agreement with neighbours' deeds.
     if (legal.hasMetesAndBounds) {
-      survey.record = runTraverse(legal.courses);
+      survey.record = bestTraverse(legal);
       const rec = survey.record;
       if (rec) {
         const nbTraverses = neighbours
           .filter(nb => adjoinerIds.has(nb.parcel.id))
-          .map(nb => ({ nb, tr: runTraverse(parseLegalDescription(nb.parcel.legalDescription).courses) }))
+          .map(nb => ({ nb, tr: bestTraverse(parseLegalDescription(nb.parcel.legalDescription)) }))
           .filter(x => x.tr);
         let agreed = 0;
         for (const c of rec.courses) {
@@ -511,7 +557,7 @@ export function surveyParcel(parcel: TerraParcel, nearby: TerraParcel[] = []): P
       }
     }
   } else if (legal.hasMetesAndBounds) {
-    survey.record = runTraverse(legal.courses);
+    survey.record = bestTraverse(legal);
   }
 
   // Record traverse checks.
@@ -523,14 +569,20 @@ export function surveyParcel(parcel: TerraParcel, nearby: TerraParcel[] = []): P
         ? 'The calls close exactly.'
         : `Misclosure ${rec.misclosure.toFixed(2)} ft (precision 1:${Math.round(rec.precision).toLocaleString()}). ${rec.closes ? 'Closes within 1:5,000.' : 'Does not close within 1:5,000 — a call may be misread or missing.'}`,
     });
-    if (legal.recordAreaSqFt) {
+    if (!rec.closes) {
+      const hint = diagnoseMisclosure(rec.courses.map(c => c.call));
+      if (hint) checks.splice(1, 0, { label: 'Likely record typo', status: 'warn', detail: hint });
+    }
+    if (legal.recordAreaSqFt && legal.describes !== 'exception') {
       const pct = ((rec.areaSqFt - legal.recordAreaSqFt) / legal.recordAreaSqFt) * 100;
       checks.push({
         label: 'Area vs record', status: Math.abs(pct) <= 1 ? 'ok' : Math.abs(pct) <= 5 ? 'warn' : 'bad',
         detail: `Computed ${Math.round(rec.areaSqFt).toLocaleString()} sq ft vs ${Math.round(legal.recordAreaSqFt).toLocaleString()} written (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%).`,
       });
     }
-    if (mapped) {
+    if (legal.describes === 'exception') {
+      checks.push({ label: 'Record vs city map', status: 'info', detail: 'The calls describe the EXCEPTED part, not this parcel, so they are not compared with the parcel outline.' });
+    } else if (mapped) {
       survey.fit = fitRecordToMap(rec.adjusted.slice(0, -1), mapped.vertices);
       const f = survey.fit;
       checks.push({
