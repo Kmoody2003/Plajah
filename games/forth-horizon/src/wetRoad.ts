@@ -10,7 +10,8 @@ export class WetRoad {
     // A thin film arrives first. Puddles fill more slowly and survive the shower.
     const drying = (0.0018 + clamp(sun) * 0.004 + clamp(wind) * 0.0015);
     this.wetness = clamp(this.wetness + seconds * (r * (1 - this.wetness) / 9 - (1 - r) * drying));
-    this.pooling = clamp(this.pooling + seconds * (r * smooth(0.35, 0.9, this.wetness) / 75 - (1 - r) * (0.0012 + drying * 0.15)));
+    // drains and the road's crown carry water off all the time, so puddles level out under steady rain and clear within a few minutes after it
+    this.pooling = clamp(this.pooling + seconds * (r * smooth(0.35, 0.9, this.wetness) / 75 - this.pooling * 0.004 - (1 - r) * (0.004 + drying * 0.3)));
   }
 }
 

@@ -8,7 +8,7 @@ export function puddleNoise(x: number, z: number): number {
 const sm = (a: number, b: number, x: number): number => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 /** 0 dry .. 1 deep, for a pool level 0..1 */
 export function puddleDepth(x: number, z: number, level: number): number {
-  const thr = 1.12 - level * 0.62;
+  const thr = 1.12 - level * 0.27;                 // drained road: at full pooling ~7% of the surface holds water (the low spots), not ~43%
   return sm(thr, thr + 0.12, puddleNoise(x, z));
 }
 
@@ -17,7 +17,7 @@ float puddleNoise(vec2 p) {
   return 0.5 + 0.25 * sin(p.x * 0.043 + 1.7 * sin(p.y * 0.031)) + 0.25 * sin(p.y * 0.057 + 1.3 * sin(p.x * 0.029 + 1.0)) + 0.12 * sin(p.x * 0.19 + p.y * 0.23) * sin(p.y * 0.17 - p.x * 0.11);
 }
 float puddleAt(vec2 p, float level) {
-  float thr = 1.12 - level * 0.62;
+  float thr = 1.12 - level * 0.27;
   return smoothstep(thr, thr + 0.12, puddleNoise(p));
 }`;
 
