@@ -13,6 +13,7 @@ const EraClashFrame = React.lazy(() => import('../games/EraClashFrame'));
 const EraClash3DFrame = React.lazy(() => import('../games/EraClash3DFrame'));
 const RavencrestGameFrame = React.lazy(() => import('../taleo/RavencrestGameFrame').then(m => ({ default: m.RavencrestGameFrame })));
 const CyberTicTacToe = React.lazy(() => import('../games/CyberTicTacToe'));
+const FirstlightFrame = React.lazy(() => import('../games/FirstlightFrame'));
 const TableGame = React.lazy(() => import('../games/table/TableGame'));
 const LiveGamesStudio = React.lazy(() => import('../liveGames/LiveGamesStudio'));
 
@@ -32,6 +33,7 @@ type Playing =
   | { kind: 'era2d'; title: string }
   | { kind: 'era3d'; title: string }
   | { kind: 'ravencrest'; title: string }
+  | { kind: 'firstlight'; title: string }
   | { kind: 'iframe'; url: string; title: string }
   | { kind: 'ttt'; title: string }
   | { kind: 'table'; gameId: string; title: string }
@@ -43,6 +45,7 @@ const launchOf = (g: PlajahGameEntry): Playing => {
     case 'era-clash-2d': return { kind: 'era2d', title: g.title };
     case 'era-clash-3d': return { kind: 'era3d', title: g.title };
     case 'ravencrest': return { kind: 'ravencrest', title: g.title };
+    case 'firstlight': return { kind: 'firstlight', title: g.title };
     case 'iframe': {
       const sep = g.launch.url.includes('?') ? '&' : '?';
       return { kind: 'iframe', url: `${g.launch.url}${sep}tv=1&gamepad=1`, title: g.launch.title || g.title };
@@ -58,6 +61,7 @@ const needsPad = (g: PlajahGameEntry) =>
   g.launch.type === 'era-clash-2d' ||
   g.launch.type === 'era-clash-3d' ||
   g.launch.type === 'ravencrest' ||
+  g.launch.type === 'firstlight' ||
   g.launch.type === 'iframe';
 
 const phoneParty = (g: PlajahGameEntry) => g.launch.type === 'live-game';
@@ -284,7 +288,8 @@ const GamesTvView: React.FC<{ userProfile: UserProfile | null }> = ({ userProfil
               allowFullScreen
             />
           )}
-          {playing.kind === 'ttt' && <CyberTicTacToe onExit={exit} onOpenLeaderboard={exit} />}
+          {playing.kind === 'firstlight' && <FirstlightFrame onExit={exit} backButton={false} />}
+          {playing.kind === 'ttt' &&<CyberTicTacToe onExit={exit} onOpenLeaderboard={exit} />}
           {playing.kind === 'table' && <TableGame gameId={playing.gameId} onExit={exit} onOpenLeaderboard={exit} />}
           {playing.kind === 'kith' && (
             <KithParty

@@ -49,6 +49,6 @@ export const gameRules = (id: unknown): GameRules | null => (typeof id === 'stri
 export const PLAY_ONLY_GAMES: ReadonlySet<string> = new Set([
   'ravencrest', 'era-clash-2d', 'era-clash-3d',
   'kith-circuit', 'kith-tennis', 'kith-kombat', 'kith-crystals', 'kith-rhythm', 'kith-quest',
-  'sketch-rush', 'brain-rush', 'crowd-says', 'impostor-night',
+  'sketch-rush', 'brain-rush', 'crowd-says', 'impostor-night', 'firstlight',
 ]);
 export const canLogPlay = (id: unknown): boolean => !!gameRules(id) || (typeof id === 'string' && PLAY_ONLY_GAMES.has(id));

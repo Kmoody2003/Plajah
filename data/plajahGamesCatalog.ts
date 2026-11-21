@@ -11,6 +11,7 @@ export type PlajahLaunchAction =
   | { type: 'era-clash-2d' }
   | { type: 'era-clash-3d' }
   | { type: 'ravencrest' }
+  | { type: 'firstlight' }
   | { type: 'iframe'; url: string; title: string }
   | { type: 'kith-party'; gameId: KithGameId }
   | { type: 'cyber-ttt' }
@@ -397,6 +398,53 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
     synergy: { inviteFriend: true, liveStream: true, postToFeed: true },
     launch: { type: 'iframe', url: '/games/rift-realm/play/index.html', title: 'Rift Realm' },
     directUrl: '/games/rift-realm/play/index.html',
+  },
+
+  // ── PROJECT FIRSTLIGHT (Plajah Sports 3D football; same game as the Sports page) ─────────────────
+  {
+    id: 'firstlight',
+    title: 'Project Firstlight',
+    subtitle: 'Early build · Plajah Sports 3D football · SOL League simulation and Fever Jam arcade',
+    category: 'ADVENTURE_3D',
+    categoryLabel: 'Plajah Sports · 3D Football',
+    badge: 'Plajah Sports · Early Build',
+    engine: 'Three.js · rigged players with motion capture',
+    playersLabel: '1 Player vs CPU',
+    duration: '2, 3 or 5 Minute Quarters',
+    accentGradient: 'from-orange-500/30 via-fuchsia-700/25 to-slate-950',
+    accentColor: '#FF8C00',
+    thumbnailUrl: '/games/screens/firstlight-snap.jpg',
+    screenshots: [
+      { url: '/games/screens/firstlight-snap.jpg', caption: 'Firstlight Citadel · Aurora at the line with route art showing' },
+      { url: '/games/screens/firstlight-menu.jpg', caption: 'Title screen · SOL League simulation, Fever Jam arcade and Blocky Classic' },
+      { url: '/games/screens/firstlight-setup.jpg', caption: 'Matchup setup · eight original franchises, skill level and quarter length' },
+    ],
+    description: 'Original 3D American football: 11-on-11 SOL League simulation or turbo Fever Jam arcade, with eight fictional franchises and four skill levels.',
+    longDescription: 'Project Firstlight is Plajah Sports’ football game, set in the SOL League of the Legend of Elohim timeline. Pick a franchise, an opponent and a skill level from Rookie to Elohim Legend, then call audibles, read the route art and throw to your receivers before the rush arrives. Fever Jam turns it into an arcade game with turbo, jukes, spins and hot streaks, and Blocky Classic swaps in retro block players. The stadium creator lets you change the time of day and camera.',
+    features: [
+      'SOL League simulation: full 11-on-11 games with pre-snap audibles',
+      'Fever Jam arcade mode: turbo, juke, 360 spin, truck and hot streaks',
+      'Eight original franchises, four skill levels, pro or blocky player models',
+      'Stadium creator: Aurora, day, sunset and night lighting, action camera',
+    ],
+    controls: [
+      'Snap / juke: Space · Pass to a receiver: 1–4',
+      'Turbo: Shift · Spin: X · Truck: F · Dive: E',
+      'Switch defender: Tab · Flip play: Q',
+    ],
+    commercial: {
+      tagline: 'LEARN THE GAME. MAKE YOUR PLAY.',
+      durationSec: 12,
+      musicVibe: 'Stadium Drums & Brass Hits',
+      scenes: [
+        { headline: 'READ THE COVERAGE', subline: 'Route art, audibles and four receivers', callout: 'SOL LEAGUE', imageUrl: '/games/screens/firstlight-snap.jpg', accentColor: '#FF8C00' },
+        { headline: 'PICK YOUR FRANCHISE', subline: 'Eight original teams, Rookie to Elohim Legend', callout: 'PLAJAH SPORTS', imageUrl: '/games/screens/firstlight-setup.jpg', accentColor: '#D40055' },
+        { headline: 'TURN IT UP', subline: 'Fever Jam arcade: turbo, jukes and hot streaks', callout: 'PLAY FIRSTLIGHT', imageUrl: '/games/screens/firstlight-menu.jpg', accentColor: '#00DAF3' },
+      ],
+    },
+    achievementTriggers: [],
+    synergy: { inviteFriend: true, liveStream: true, postToFeed: true },
+    launch: { type: 'firstlight' },
   },
 
   // ── KITH PARTY GAMES (6 GAMES) ────────────────────────────────────────────

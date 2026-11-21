@@ -15,6 +15,7 @@ const EraClash3DFrame = React.lazy(() => import('./games/EraClash3DFrame'));
 const IframeGameFrame = React.lazy(() => import('./games/IframeGameFrame'));
 const RavencrestGameFrame = React.lazy(() => import('./taleo/RavencrestGameFrame').then(m => ({ default: m.RavencrestGameFrame })));
 const CyberTicTacToe = React.lazy(() => import('./games/CyberTicTacToe'));
+const FirstlightFrame = React.lazy(() => import('./games/FirstlightFrame'));
 const TableGame = React.lazy(() => import('./games/table/TableGame'));
 const GamerHub = React.lazy(() => import('./games/GamerHub'));
 const LiveGamesStudio = React.lazy(() => import('./liveGames/LiveGamesStudio'));
@@ -58,6 +59,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
   const [showEraClash, setShowEraClash] = useState(false);
   const [showEraClash3d, setShowEraClash3d] = useState(false);
   const [showRavencrest, setShowRavencrest] = useState(false);
+  const [showFirstlight, setShowFirstlight] = useState(false);
   const [iframeGame, setIframeGame] = useState<{ url: string; title: string; id: string } | null>(null);
   const [showTtt, setShowTtt] = useState(false);
   const [tableGameId, setTableGameId] = useState<string | null>(null);
@@ -172,6 +174,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
       case 'era-clash-2d': setShowEraClash(true); break;
       case 'era-clash-3d': setShowEraClash3d(true); break;
       case 'ravencrest': setShowRavencrest(true); break;
+      case 'firstlight': setShowFirstlight(true); break;
       case 'iframe': setIframeGame({ url: entry.launch.url, title: entry.launch.title, id: entry.id }); break;
       case 'kith-party': setKithInitialGame(entry.launch.gameId); setShowKithParty(true); break;
       case 'cyber-ttt': setShowTtt(true); break;
@@ -207,6 +210,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
   if (showEraClash) return <React.Suspense fallback={<div className="p-8">Loading Era Clash…</div>}><EraClashFrame onExit={() => setShowEraClash(false)} /></React.Suspense>;
   if (iframeGame) return <React.Suspense fallback={<div className="p-8">Loading {iframeGame.title}…</div>}><IframeGameFrame src={iframeGame.url} title={iframeGame.title} gameId={iframeGame.id} onExit={() => setIframeGame(null)} /></React.Suspense>;
   if (showEraClash3d) return <React.Suspense fallback={<div className="p-8">Loading Era Clash 3D Campaign…</div>}><EraClash3DFrame onExit={() => setShowEraClash3d(false)} /></React.Suspense>;
+  if (showFirstlight) return <React.Suspense fallback={<div className="p-8">Loading Project Firstlight…</div>}><FirstlightFrame onExit={() => setShowFirstlight(false)} /></React.Suspense>;
   if (showRavencrest) return (
     <React.Suspense fallback={<div className="p-8">Loading Ravencrest…</div>}>
       <RavencrestGameFrame
