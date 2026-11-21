@@ -133,6 +133,7 @@ import { verifyIdToken as verifyGamerToken, verifyIdTokenDetailed, fsGetUser as 
 import { createLiveGameRouter } from './routes/liveGames';
 import { createLivePartyRouter } from './routes/liveParty';
 import { createGamerSocialRouter } from './routes/gamerSocial';
+import { createGamerTogether } from './routes/gamerTogether';
 import { fsQuery as gamerFsQuery } from './services/firebaseAdminRest';
 import { driveRouter } from './routes/drive';
 import { driveTransfersRouter } from './routes/driveTransfers';
@@ -15394,6 +15395,23 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       return new Set([...mine.map((x: any) => String(x.data?.blockedId)), ...theirs.map((x: any) => String(x.data?.blockerId))]);
     },
   }));
+  // Playing together: parties, match/party/spectator chat, game voice on LiveKit (routes/gamerTogether.ts, docs/GAMER_TOGETHER.md).
+  {
+    const together = createGamerTogether({
+      store: liveGamerStore(restCas),
+      verify: verifyGamerToken,
+      userCard: async uid => { const u = await gamerUserDoc(uid); return u ? { name: String(u.displayName || u.username || 'Player'), photo: String(u.photoURL || u.avatarUrl || ''), isChild: u.isChild === true || u.accountType === 'CHILD' } : null; },
+      notify: async n => { await firestoreCreate('notifications', { ...n, type: 'SYSTEM', isRead: false, timestamp: Date.now() }); },
+      blockedFor: async uid => {
+        const [mine, theirs] = await Promise.all([gamerFsQuery('blocks', [{ field: 'blockerId', value: uid }], 200), gamerFsQuery('blocks', [{ field: 'blockedId', value: uid }], 200)]);
+        return new Set([...mine.map((x: any) => String(x.data?.blockedId)), ...theirs.map((x: any) => String(x.data?.blockerId))]);
+      },
+      livekit: () => livekitConfigFromEnv(),
+    });
+    // Chat polls every ~2 s per open panel, so its limit is higher than the party API's.
+    app.use('/api/gamer/party', rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '8kb' }), together.party);
+    app.use('/api/gamer/chat', rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '8kb' }), together.chat);
+  }
   // Plajah Gamer Network: profiles, gamer ledger, matchmaking, refereed matches, leaderboards (routes/gamerNet.ts, docs/GAMER_NETWORK.md).
   const gamerRouter = createGamerRouter({
     store: liveGamerStore(restCas),

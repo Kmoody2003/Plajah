@@ -13,6 +13,7 @@ import { planBlueskyVersion, BSKY_LIMIT } from '../../../services/fediverse/blue
 import type { MatchView } from '../../../services/gamerNet/client';
 import { useOnlineMatch, matchStatus } from './useOnlineMatch';
 import { makeMatchOverlay, type OverlaySnapshot } from './matchOverlayDraw';
+import { MatchTogether } from '../together/MatchTogether';
 
 const MobileLiveStreamer = lazy(() => import('../../MobileLiveStreamer'));
 
@@ -92,6 +93,7 @@ export function MatchPanel({ matchId, onLeave, onNext }: { matchId: string; onLe
         {watch && !player && <button className="gx-btn live" onClick={() => setLive(true)}><Eye size={14} /> Watch live</button>}
         {onLeave && <button className="gx-btn ghost" onClick={onLeave}>{done ? 'Close' : 'Back'}</button>}
       </div>
+      {m && m.status !== 'waiting' && <MatchTogether matchId={matchId} player={player} active={m.status === 'active'} myName={player ? m.cards[you]?.name : undefined} />}
       {posted === 'error' && <p className="gx-err">Could not post — try again.</p>}
       {om.error && <p className="gx-err" role="alert">{om.error}</p>}
       {live && player && m && <LiveMatchStudio view={view!} matchId={matchId} onClose={() => setLive(false)} />}

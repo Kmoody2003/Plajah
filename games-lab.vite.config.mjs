@@ -13,7 +13,7 @@ export default defineConfig({
     {
       name: 'stub-firebase-auth',
       enforce: 'pre',
-      resolveId: (id, importer) => (id === '../firebase' && importer && /(gamerNet|liveGames)[\/]client\.ts/.test(importer) ? '\0virtual-lab-auth' : null),
+      resolveId: (id, importer) => (id === '../firebase' && importer && /(gamerNet|liveGames)[\/](client|togetherClient|socialClient)\.ts/.test(importer) ? '\0virtual-lab-auth' : null),
       load: (id) => (id === '\0virtual-lab-auth'
         ? "const uid = new URLSearchParams(location.search).get('as'); export const auth = { currentUser: uid ? { uid, getIdToken: async () => 'tok-' + uid } : null };"
         : null),
@@ -29,13 +29,21 @@ export default defineConfig({
         const { createGamerRouter } = await server.ssrLoadModule('/routes/gamerNet.ts');
         const { memoryGamerStore } = await server.ssrLoadModule('/services/gamerNet/store.ts');
         const { labSteamFetch, labSteamLogin } = await server.ssrLoadModule('/labs/games/steamStub.ts');
+        const { createGamerTogether } = await server.ssrLoadModule('/routes/gamerTogether.ts');
         const app = express();
         // Stand-in Steam sign-in page (the real one is steamcommunity.com/openid/login).
         app.get('/__steam-stub/login', (req, res) => { res.redirect(302, labSteamLogin(new URLSearchParams(req.url.split('?')[1] || ''), req.get('referer') || '')); });
+        // Playing together (parties, chat). No LiveKit in the lab, so voice reports itself off.
+        const labStore = memoryGamerStore();
+        const labVerify = async (t) => (t.startsWith('tok-') ? t.slice(4) : null);
+        const labCard = async (uid) => ({ name: uid[0].toUpperCase() + uid.slice(1), isChild: uid.startsWith('kid') });
+        const together = createGamerTogether({ store: labStore, verify: labVerify, userCard: labCard, notify: async (n) => console.log('[lab notify]', n.userId, n.message, n.link) });
+        app.use('/api/gamer/party', express.json(), together.party);
+        app.use('/api/gamer/chat', express.json(), together.chat);
         app.use('/api/gamer', express.json(), createGamerRouter({
-          store: memoryGamerStore(),
-          verify: async (t) => (t.startsWith('tok-') ? t.slice(4) : null),
-          userCard: async (uid) => ({ name: uid[0].toUpperCase() + uid.slice(1) }),
+          store: labStore,
+          verify: labVerify,
+          userCard: labCard,
           steam: { apiKey: 'lab-stub', fetch: labSteamFetch, loginBase: '/__steam-stub/login' },
         }));
         server.middlewares.use(app);

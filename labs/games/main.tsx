@@ -12,6 +12,21 @@ import { useConcourseFont, logPlay } from '../../components/games/concourse/shar
 import { getPlajahGameById, type PlajahGameEntry } from '../../data/plajahGamesCatalog';
 import { gamer, failed, type GamerProfile } from '../../services/gamerNet/client';
 import GamesTvView from '../../components/tv/GamesTvView';
+import { setPartyMatchOpener, ensurePartyDock } from '../../components/games/together/PartyDock';
+import { MatchPanel, GX_CSS } from '../../components/games/social/GameParts';
+
+// Party matches open in a lab sheet (the app uses the game overlay instead).
+function PartyMatchSheet() {
+  const [id, setId] = useState<string | null>(null);
+  React.useEffect(() => { setPartyMatchOpener(m => setId(m.id)); ensurePartyDock(); }, []);
+  if (!id) return null;
+  return (
+    <div style={{ position: 'fixed', right: 14, top: 14, width: 360, maxHeight: '92vh', overflowY: 'auto', zIndex: 50, background: '#070814', borderRadius: 20, padding: 12, border: '1px solid rgba(0,240,255,.3)' }} data-testid="party-match">
+      <style>{GX_CSS}</style>
+      <MatchPanel key={id} matchId={id} onLeave={() => setId(null)} onNext={setId} />
+    </div>
+  );
+}
 
 function ConcourseLab() {
   useConcourseFont();
@@ -39,4 +54,4 @@ function Lab() {
   if (view === 'hub') return <div style={{ padding: 16 }}><button onClick={() => setView('game')} style={{ marginBottom: 12 }}>← Game</button><GamerHub /></div>;
   return <CyberTicTacToe onExit={() => setView('hub')} onOpenLeaderboard={() => setView('hub')} />;
 }
-createRoot(document.getElementById('root')!).render(<Lab />);
+createRoot(document.getElementById('root')!).render(<><Lab /><PartyMatchSheet /></>);

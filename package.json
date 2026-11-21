@@ -140,6 +140,8 @@
     "typecheck:livegames": "tsc -p tsconfig.livegames.json",
     "test:gamer-social": "npx tsx --test tests/gamerSocial.test.ts",
     "typecheck:gamer-social": "tsc -p tsconfig.gamersocial.json",
+    "test:gamer-together": "npx tsx --test tests/gamerTogether.test.ts",
+    "typecheck:gamer-together": "tsc -p tsconfig.gamertogether.json",
     "typecheck:cad": "tsc -p tsconfig.cad.json",
     "test:bio": "npx tsx --test tests/bio.test.ts",
     "test:elec": "npx tsx --test tests/elec.test.ts",

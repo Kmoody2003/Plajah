@@ -136,6 +136,10 @@ calls a day per key; one first sync of a big library costs about 2 + (played gam
 * **PSN**: no public API. The unofficial NPSSO-token route breaks Sony's terms, so we won't build it. It waits for an
   official partner programme.
 
+## Playing together
+
+Parties, match/party/spectator chat and game voice: `docs/GAMER_TOGETHER.md` (`routes/gamerTogether.ts`, `/api/gamer/party` + `/api/gamer/chat`).
+
 ## Next
 
 1. **More linked platforms.** RetroAchievements (above), then Xbox once partner access is settled.

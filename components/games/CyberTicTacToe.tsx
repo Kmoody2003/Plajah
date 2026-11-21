@@ -10,6 +10,7 @@ import { ChevronLeft, Cpu, Users, Globe, RotateCcw, Flag, Copy, Check, Smartphon
 import * as T from '../../services/gamerNet/games/ticTacToe';
 import { gamer, isSignedIn, failed, type MatchView } from '../../services/gamerNet/client';
 import { PostGameButton } from './social/PostGameButton';
+import { MatchTogether } from './together/MatchTogether';
 
 type Screen = 'menu' | 'cpu' | 'local' | 'lobby' | 'online';
 interface Props { onExit: () => void; onOpenLeaderboard?: () => void }
@@ -327,6 +328,7 @@ export default function CyberTicTacToe({ onExit, onOpenLeaderboard }: Props) {
           {done && <button className="ctt-btn ghost" onClick={() => { setMatchId(null); setMv(null); setScreen('lobby'); }}>New opponent</button>}
           {done && m && m.endReason !== 'abandoned' && <PostGameButton key={m.id} what={{ kind: 'result', match: m, seat: you }} className="ctt-btn ghost" label="Post result" doneLabel="Posted" />}
         </div>
+        {matchId && m && m.status !== 'waiting' && <MatchTogether matchId={matchId} player={you >= 0} active={m.status === 'active'} myName={meCard?.name} />}
         {netError && <p className="ctt-err" role="alert">{netError}</p>}
       </div>
     );

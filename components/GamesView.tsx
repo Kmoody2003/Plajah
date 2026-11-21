@@ -75,6 +75,9 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
   // Admin-only visibility for the in-development first-party prototype (Pew Pew).
   // Hidden from the public until the status ladder advances it; see
   // packages/first-party-games/games/live-action/docs/platform-integration.md
+  // The party dock (components/games/together/PartyDock.tsx) shows itself here if you're in a party.
+  useEffect(() => { if (auth.currentUser) void import('./games/together/PartyDock').then(m => m.ensurePartyDock()); }, []);
+
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
     if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {

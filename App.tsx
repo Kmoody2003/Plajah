@@ -4249,6 +4249,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       return;
     }
 
+    // Party invites (routes/gamerTogether.ts): `game-party:<id>` opens the party dock with Accept / Not now.
+    if (link.startsWith('game-party:')) {
+      const { openPartyLink } = await import('./services/gamerNet/togetherClient');
+      openPartyLink(link);
+      return;
+    }
+
     // A gifted book (routes/sponsorCopies.ts): `claim-copy:<code>` opens the claim screen.
     if (link.startsWith('claim-copy:')) {
       const { openClaim } = await import('./services/sponsorCopies/client');

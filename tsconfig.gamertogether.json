@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true, "types": ["vite/client", "node"] },
+  "include": ["services/gamerNet/chat.ts", "services/gamerNet/party.ts", "services/gamerNet/togetherClient.ts", "routes/gamerTogether.ts", "components/games/together/*.tsx", "components/games/together/*.ts", "tests/gamerTogether.test.ts"]
+}

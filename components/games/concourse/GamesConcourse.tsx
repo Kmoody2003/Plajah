@@ -3,13 +3,14 @@
 // category shelves, and a Gamer Network rail with the real score, live party games, top players and ledger.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Play, UserPlus, X, Radio } from 'lucide-react';
+import { Play, UserPlus, X, Radio, Users } from 'lucide-react';
 import { PLAJAH_GAMES_CATALOG, getPlajahGameById, type PlajahGameEntry } from '../../../data/plajahGamesCatalog';
 import { gamer, failed, isSignedIn, type GamerProfile, type LeaderRow } from '../../../services/gamerNet/client';
 import type { GamerEntry } from '../../../services/gamerNet/ledger';
 import { liveGame, failed as liveFailed } from '../../../services/liveGames/client';
 import type { LiveGameDoc } from '../../../services/liveGames/core';
 import { SHELVES, FLAGSHIP_IDS, shortTitle, copyInvite, GameThumb, Avatar } from './shared';
+import { openPartyDock } from '../../../services/gamerNet/togetherClient';
 
 const LiveGamePlay = React.lazy(() => import('../../liveGames/LiveGamePlay'));
 
@@ -195,6 +196,11 @@ export default function GamesConcourse({ profile, onOpenGame, onPlay, onHostLive
             ) : (
               <p className="gcx-signin">Sign in to start your gamer score. Wins, achievements and live games go onto a ledger you own, and you can link Steam to bring your history with you.</p>
             )}
+          </section>
+
+          <section className="gcx-panel">
+            <h4>Play with friends <button type="button" onClick={() => void openPartyDock()}>Party</button></h4>
+            <p className="gcx-empty"><Users size={13} style={{ verticalAlign: -2 }} /> Start a party: one chat and voice room that follows you from game to game. The leader picks the game and starts matches.</p>
           </section>
 
           <section className="gcx-panel">
