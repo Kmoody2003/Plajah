@@ -15566,7 +15566,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     startTerraIngestionScheduler({ intervalMs });
   }
 
-  if (process.env.PUBLIC_DOMAIN_AUTO_INGEST !== 'false') {
+  // Opt-in: this walks the whole public-domain catalog on EVERY server start (each Cloud Run
+  // cold start / new instance), syncing Firestore and sending films to Mux + the vault.
+  if (process.env.PUBLIC_DOMAIN_AUTO_INGEST === 'true') {
     startPublicDomainAutoIngestScheduler();
   }
 
