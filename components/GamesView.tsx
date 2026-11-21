@@ -237,6 +237,18 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse
       </header>
 
       <div className="gcx-wrap" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
+        {/* Early-access notice: always shown, on every tab */}
+        <div role="note" aria-label="Early access notice" className="gcx-pad" style={{ paddingTop: 12, paddingBottom: 0 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: '12px 16px', borderRadius: 12, border: '1px solid rgba(251,191,36,0.35)', borderLeft: '4px solid #fbbf24', background: 'rgba(251,191,36,0.08)', color: 'rgba(255,255,255,0.88)', fontSize: 13, lineHeight: 1.45 }}>
+            <span aria-hidden style={{ fontSize: 16, lineHeight: 1.2 }}>⚠</span>
+            <p style={{ margin: 0 }}>
+              <strong style={{ color: '#fde68a' }}>Very early access, built in the open.</strong>{' '}
+              Plajah Games is at a very early stage. The games here are unfinished and have bugs: art may be missing, controls
+              and performance change from build to build, and progress may not always save. We build transparently, so what
+              you play is the real work in progress.
+            </p>
+          </div>
+        </div>
         {activeTab === 'LEADERBOARDS' ? (
           <div className="max-w-7xl mx-auto gcx-pad">
             <React.Suspense fallback={<div className="p-8 text-white/50 text-sm">Loading leaderboards…</div>}><GamerHub /></React.Suspense>

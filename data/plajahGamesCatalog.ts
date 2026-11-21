@@ -349,6 +349,55 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
     directUrl: '/games/forth-horizon/play/region.html',
   },
 
+  // ── RIFT REALM (rhythm shooter, Plajah first-party; bridge config 'rift-realm' in first-party-games) ─────────────────
+  {
+    id: 'rift-realm',
+    title: 'Rift Realm',
+    subtitle: 'Very early build · Third-person rhythm shooter · Elderwood Hollow under a nebula and aurora sky',
+    category: 'ADVENTURE_3D',
+    categoryLabel: 'Shooter · 3D · Very early build',
+    badge: 'VERY EARLY BUILD · Plajah Original · Shooter',
+    engine: 'Three.js WebGPU · Plajah Vegetation · motion-captured rigs',
+    playersLabel: '1 Player',
+    duration: 'Domination matches, about 10 minutes',
+    accentGradient: 'from-cyan-600/35 via-violet-800/30 to-black',
+    accentColor: '#38BDF8',
+    thumbnailUrl: '/games/rift-realm/screenshots/key-art.jpg',
+    screenshots: [
+      { url: '/games/rift-realm/screenshots/key-art.jpg', caption: 'Key art (concept, not gameplay)' },
+      { url: '/games/rift-realm/screenshots/elderwood-aurora.jpg', caption: 'In-game: Elderwood Hollow under the nebula and aurora' },
+      { url: '/games/rift-realm/screenshots/elderwood-hollow.jpg', caption: 'In-game: the grown forest floor, glowing grass and fungi' },
+    ],
+    description: 'Banished between worlds, souls fight in forged vessels on a 124 BPM pulse. Shots on the beat hit harder.',
+    longDescription: 'Rift Realm is a third-person shooter where the music sets the pace: firing on the beat builds resonance, which powers the Soul Surge and the Soul-Rend finisher. Elderwood Hollow is the first playable level, a Domination match in a glowing cyber-forest under a nebula and aurora sky. Everything you see is a work in progress, built in the open: the forest, characters, controls and enemies change from build to build, and some things will break.',
+    features: [
+      'Elderwood Hollow: Domination on three control points in a grown cyber-forest',
+      'Rhythm combat: on-beat shots and strikes build resonance',
+      'Lock-on targeting you can run and gun with',
+      'Three vessels: Aegis Automaton, Void Stalker, Seraph',
+    ],
+    controls: [
+      'Very early build: expect bugs, missing art and big changes between builds',
+      'Move: WASD · Fire: right mouse (hold) · Melee / finisher: left mouse or F',
+      'Lock-on: middle mouse or Tab · Dash: Shift · Soul Surge: Q · Vessel: 1 / 2 / 3',
+      'Controller: RT fire · X melee · LT hold to lock on · Y Soul Surge · B dash',
+      'View: V switches 1st / 3rd person · Esc pauses',
+    ],
+    commercial: {
+      tagline: 'FIGHT ON THE PULSE.',
+      durationSec: 10,
+      musicVibe: 'Dark synth at 124 BPM',
+      scenes: [
+        { headline: 'ELDERWOOD HOLLOW', subline: 'A glowing forest under a living sky', callout: 'FIRST LEVEL', imageUrl: '/games/rift-realm/screenshots/elderwood-aurora.jpg', accentColor: '#38BDF8' },
+        { headline: 'SHOOT ON THE BEAT', subline: 'Resonance builds with every on-beat shot', callout: 'RHYTHM COMBAT', imageUrl: '/games/rift-realm/screenshots/elderwood-hollow.jpg', accentColor: '#A855F7' },
+      ],
+    },
+    achievementTriggers: ['rift_realm_first_blood', 'rift_realm_perfect_resonance', 'rift_realm_soul_surge', 'rift_realm_soul_rend'],
+    synergy: { inviteFriend: true, liveStream: true, postToFeed: true },
+    launch: { type: 'iframe', url: '/games/rift-realm/play/index.html', title: 'Rift Realm' },
+    directUrl: '/games/rift-realm/play/index.html',
+  },
+
   // ── KITH PARTY GAMES (6 GAMES) ────────────────────────────────────────────
   {
     id: 'kith-circuit',
