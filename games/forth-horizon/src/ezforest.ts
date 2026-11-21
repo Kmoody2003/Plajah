@@ -41,11 +41,11 @@ function makeVariants(): Variant[] {
       t.loadPreset(preset);
       t.options.seed = seed;
       const o = t.options as unknown as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-      for (const k of Object.keys(o.branch.sections)) o.branch.sections[k] = Math.max(3, Math.round(o.branch.sections[k] * 0.45));
-      for (const k of Object.keys(o.branch.segments)) o.branch.segments[k] = Math.max(3, Math.round(o.branch.segments[k] * 0.44));
+      for (const k of Object.keys(o.branch.sections)) o.branch.sections[k] = Math.max(3, Math.round(o.branch.sections[k] * 0.55));
+      for (const k of Object.keys(o.branch.segments)) o.branch.segments[k] = Math.max(3, Math.round(o.branch.segments[k] * 0.50));
       if (o.leaves) {
-        o.leaves.count = Math.round(o.leaves.count * 0.48);
-        if (typeof o.leaves.size === 'number') o.leaves.size *= 1.28;
+        o.leaves.count = Math.round(o.leaves.count * 0.76);
+        if (typeof o.leaves.size === 'number') o.leaves.size *= 1.32;
       }
       t.generate();
       const bark = copyGeo(t.branchesMesh.geometry as unknown as Src);
@@ -76,9 +76,9 @@ export class EzTreeField {
   private accT = 0;
   private uTime = { value: 0 };
   private uWind = { value: 0.3 };
-  private cap = 320;
+  private cap = 640;
   private effRadius = NEAR_R;
-  private effCap = 320;
+  private effCap = 640;
   private conIndices: number[] = [];
   private broIndices: number[] = [];
   private _fill: number[] = [];
@@ -100,43 +100,70 @@ export class EzTreeField {
     const sway = (m: THREE.Material, key: string): void => {
       m.onBeforeCompile = (sh) => {
         sh.uniforms.uTime = this.uTime; sh.uniforms.uWind = this.uWind;
-        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime, uWind;' + (key === 'leaf' ? '\nvarying float vLeafH;' : ''))
+        sh.vertexShader = sh.vertexShader
+          .replace('#include <common>', '#include <common>\nuniform float uTime, uWind;\nvarying float vTreeH;\nvarying float vCrownAO;\nvarying float vTreeRand;')
+          .replace('#include <beginnormal_vertex>', `#include <beginnormal_vertex>
+          ${key === 'leaf'
+            ? `// SpeedTree-style volumetric spherical crown normal smoothing: turns crossed leaf cards into lush sunlit 3D canopies
+               vec3 crownCenter = vec3(0.0, 0.56, 0.0);
+               vec3 crownOut = normalize(position - crownCenter + vec3(0.0, 0.14, 0.0));
+               objectNormal = normalize(mix(objectNormal, crownOut, 0.72));`
+            : ''}`)
           .replace('#include <begin_vertex>', `#include <begin_vertex>
+          vTreeH = clamp(position.y, 0.0, 1.0);
+          vCrownAO = clamp(length((position - vec3(0.0, 0.56, 0.0)) * vec3(2.2, 1.6, 2.2)), 0.0, 1.0);
+          vTreeRand = 0.5;
           #ifdef USE_INSTANCING
           vec3 ib = vec3(instanceMatrix[3].x, 0.0, instanceMatrix[3].z);
-          float sc = length(instanceMatrix[1].xyz);
+          vTreeRand = fract(sin(dot(ib.xz, vec2(12.9898, 78.233))) * 43758.5453);
+          float sc = max(0.01, length(instanceMatrix[1].xyz));
           float h01 = clamp(position.y, 0.0, 1.2);
-          ${key === 'leaf' ? 'vLeafH = clamp(position.y, 0.0, 1.0);' : ''}
-          float sw = uWind * h01 * h01 * 0.045 * sc;
-          transformed.x += (sin(uTime * 1.4 + ib.x * 0.07 + position.y * 3.0) * sw + sin(uTime * 3.3 + position.z * 40.0 + ib.z * 0.11) * sw * 0.3 * ${key === 'leaf' ? '1.0' : '0.0'}) / sc;
-          transformed.z += cos(uTime * 1.15 + ib.z * 0.06) * sw * 0.7 / sc;
+          float sw = uWind * h01 * h01 * 0.052 * sc;
+          float gust = sin(uTime * 1.35 + ib.x * 0.045 + ib.z * 0.032 + position.y * 2.6);
+          float flutter = ${key === 'leaf' ? 'sin(uTime * 4.4 + position.x * 32.0 + position.z * 38.0 + ib.z * 0.17) * 0.34' : '0.0'};
+          transformed.x += (gust * sw + flutter * sw) / sc;
+          transformed.z += (cos(uTime * 1.10 + ib.z * 0.048 + ib.x * 0.025) * sw * 0.72 + flutter * sw * 0.45) / sc;
           #endif`);
         if (key === 'leaf') {
           sh.fragmentShader = sh.fragmentShader
-            .replace('#include <common>', '#include <common>\nvarying float vLeafH;')
+            .replace('#include <common>', '#include <common>\nvarying float vTreeH; varying float vCrownAO; varying float vTreeRand;')
+            .replace('#include <color_fragment>', `#include <color_fragment>
+            // Natural botanical variation per tree (warm sunlit olive vs deep forest emerald) + interior crown depth shading
+            vec3 warmTint = vec3(1.10, 1.04, 0.84);
+            vec3 coolTint = vec3(0.84, 1.02, 0.90);
+            diffuseColor.rgb *= mix(coolTint, warmTint, vTreeRand) * mix(0.62, 1.12, smoothstep(0.18, 0.95, vCrownAO * 0.65 + vTreeH * 0.35));`)
             .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
-            // Warm backlit leaf subsurface translucency & subtle crown sky-fill lift
+            // Volumetric canopy interior AO + warm golden backlit leaf translucency
+            float aoCrown = mix(0.46, 1.04, clamp(vCrownAO * 0.60 + vTreeH * 0.48, 0.0, 1.0));
+            reflectedLight.indirectDiffuse *= aoCrown;
             #if NUM_DIR_LIGHTS > 0
             {
               vec3 lDir = directionalLights[0].direction;
-              float back = pow(clamp(dot(normalize(vViewPosition), -lDir), 0.0, 1.0), 3.0);
-              float topMask = 0.45 + 0.55 * vLeafH;
-              reflectedLight.directDiffuse += diffuseColor.rgb * directionalLights[0].color * back * topMask * 0.42;
-              reflectedLight.indirectDiffuse *= 0.85 + 0.30 * vLeafH;
+              float backRaw = clamp(dot(normalize(vViewPosition), -lDir), 0.0, 1.0);
+              float back = backRaw * backRaw * backRaw;
+              float topMask = 0.38 + 0.62 * vTreeH;
+              vec3 sssTint = diffuseColor.rgb * vec3(1.32, 1.24, 0.62);
+              reflectedLight.directDiffuse += sssTint * directionalLights[0].color * (0.08 + 0.56 * back) * topMask * aoCrown;
             }
             #endif`);
+        } else {
+          sh.fragmentShader = sh.fragmentShader
+            .replace('#include <common>', '#include <common>\nvarying float vTreeH; varying float vCrownAO; varying float vTreeRand;')
+            .replace('#include <color_fragment>', `#include <color_fragment>
+            // Root ground-contact moss/shadow darkening so tree bases anchor seamlessly into the grass & soil
+            diffuseColor.rgb *= mix(0.56, 1.0, smoothstep(0.0, 0.14, vTreeH));`);
         }
       };
-      m.customProgramCacheKey = () => 'ezsway-' + key + '-v2';
+      m.customProgramCacheKey = () => 'ezsway-' + key + '-v3';
     };
     for (const v of variants) {
-      const bm = new THREE.MeshStandardMaterial({ map: tex(`${v.barkType}_color_1k.jpg`, true), normalMap: tex(`${v.barkType}_normal_1k.jpg`, false), roughnessMap: tex(`${v.barkType}_roughness_1k.jpg`, false), roughness: 0.95, metalness: 0, color: 0x9a958c });
+      const bm = new THREE.MeshStandardMaterial({ map: tex(`${v.barkType}_color_1k.jpg`, true), normalMap: tex(`${v.barkType}_normal_1k.jpg`, false), normalScale: new THREE.Vector2(1.45, 1.45), roughnessMap: tex(`${v.barkType}_roughness_1k.jpg`, false), roughness: 0.92, metalness: 0, color: 0xa69e94 });
       sway(bm, 'bark');
       const meshes: THREE.InstancedMesh[] = [];
       const mkim = (g: THREE.BufferGeometry, m: THREE.Material): THREE.InstancedMesh => { const im = new THREE.InstancedMesh(g, m, this.cap); im.count = 0; im.visible = false; im.frustumCulled = false; im.castShadow = false; this.group.add(im); meshes.push(im); return im; };
       mkim(v.bark, bm);
       if (v.leaves) {
-        const lm = new THREE.MeshStandardMaterial({ map: tex(`${v.leafType}_color.png`, true), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9, metalness: 0, color: new THREE.Color(LEAF_GREEN[v.leafType] ?? 0x4a8a3a).multiplyScalar(2.1) });
+        const lm = new THREE.MeshStandardMaterial({ map: tex(`${v.leafType}_color.png`, true), alphaTest: 0.38, side: THREE.DoubleSide, roughness: 0.80, metalness: 0, color: new THREE.Color(LEAF_GREEN[v.leafType] ?? 0x4a8a3a).multiplyScalar(1.85) });
         sway(lm, 'leaf');
         mkim(v.leaves, lm);
       }

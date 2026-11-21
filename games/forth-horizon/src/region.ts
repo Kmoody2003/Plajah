@@ -57,6 +57,7 @@ import { Vegetation } from './vegetation';
 import { buildIndustrialCircuit, carveCourseFormation, carveIndustrialCutting, industrialProfile, type GradeFeature } from './industrialCircuit';
 import { buildIronworksDistrict } from './ironworksDistrict';
 import { preloadModelledPieces } from './library/modelled';
+import { sharedPbrTex } from './library/kit';
 import { buildCivicRiverfront, type CivicPlan } from './civicDistrict';
 import { HERO_SCENES } from './heroScenes';
 import { glassSelects } from './glassSelect';
@@ -1640,8 +1641,10 @@ async function buildForest(): Promise<void> {
   console.log('verge trees', verge.length);
   // real grass around the camera, on green ground only, never on roads, pavement or the course
   if (!location.search.includes('veg=old')) {
-    vegetation = new Vegetation({ rw: meta.width * meta.mpp, rh: meta.height * meta.mpp, classUrl: BASE + 'landclass.png', albedoUrl: BASE + 'albedo.jpg', ground: meshH, ok: (x, z) => vegOk(x, z) });
-    forestGroup.add(vegetation.group);
+    if (!vegetation) {
+      vegetation = new Vegetation({ rw: meta.width * meta.mpp, rh: meta.height * meta.mpp, classUrl: BASE + 'landclass.png', albedoUrl: BASE + 'albedo.jpg', ground: meshH, ok: (x, z) => vegOk(x, z) });
+      scene.add(vegetation.group);
+    }
   } else {
   grassField = new GrassField({ rw: meta.width * meta.mpp, rh: meta.height * meta.mpp, albedoUrl: BASE + 'albedo.jpg', ground: meshH, ok: (x, z) => growable(x, z, 6.5, 2.5, true) });
   forestGroup.add(grassField.group);
@@ -1820,12 +1823,12 @@ function addRoofDetails(items: CityItem[]): void {
     roofGroup.add(im);
   };
   const unit = new THREE.BoxGeometry(1, 1, 1);
-  const stone = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.92, metalness: 0 });
-  const metal = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.55 });
+  const stone = new THREE.MeshStandardMaterial({ color: 0xdedbd4, map: sharedPbrTex('tex-shared-16-concrete-weathered', 'base'), normalMap: sharedPbrTex('tex-shared-16-concrete-weathered', 'nrm'), roughnessMap: sharedPbrTex('tex-shared-16-concrete-weathered', 'rgh'), roughness: 0.90, metalness: 0 });
+  const metal = new THREE.MeshStandardMaterial({ color: 0xd8dce0, map: sharedPbrTex('tex-shared-14-steel-panel', 'base'), normalMap: sharedPbrTex('tex-shared-14-steel-panel', 'nrm'), roughnessMap: sharedPbrTex('tex-shared-14-steel-panel', 'rgh'), roughness: 0.52, metalness: 0.55 });
   make(unit, stone, cornice, true);
   make(unit, metal, plant, false);
   make(unit, stone, pent, true);
-  make(new THREE.CylinderGeometry(1.9, 1.9, 3.4, 14), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 }), tanks, false);
+  make(new THREE.CylinderGeometry(1.9, 1.9, 3.4, 14), new THREE.MeshStandardMaterial({ color: 0xcab092, map: sharedPbrTex('tex-shared-18-timber-siding', 'base'), normalMap: sharedPbrTex('tex-shared-18-timber-siding', 'nrm'), roughness: 0.88 }), tanks, false);
   make(new THREE.BoxGeometry(2.6, 2.4, 2.6), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.4, wireframe: true }), legs, false);
   make(new THREE.CylinderGeometry(0.5, 0.5, 1, 6), metal, masts, false);
   make(new THREE.SphereGeometry(0.45, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff }), lamps, false);
@@ -3267,8 +3270,18 @@ function buildFurniture(): void {
     // course is left out, and the pipe rack and the plant fence go if any part of them would cross it
     const pd = portData, onC = (x: number, z: number, r: number): boolean => onCourse(x, z, r);
     const blockOn = (b: number[]): boolean => { const x1 = b[0] + b[2] * 12.6, z0b = b[1] - 1.3, z1 = b[1] + b[3] * 2.6; for (let x = b[0]; x <= x1; x += 6) for (let z = z0b; z <= z1; z += 6) if (onC(x, z, 2)) return true; return onC(x1, z1, 2); };
-    const portOff: PortData = { ...pd, cranes: pd.cranes.filter((c) => !onC(c.x, c.z, 16)), containers: pd.containers.filter((b) => !blockOn(b)), tanks: pd.tanks.filter((t) => !onC(t.x, t.z, t.r + 3)),
-      pipeRack: pd.pipeRack.some((q) => onC(q[0], q[1], 4)) ? [] : pd.pipeRack, flare: pd.flare.length >= 2 && onC(pd.flare[0], pd.flare[1], 8) ? [] : pd.flare,
+    const pipeOnCourse = (pts: number[][]): boolean => {
+      for (let i = 0; i < pts.length; i++) {
+        if (onC(pts[i][0], pts[i][1], 8)) return true;
+        if (i + 1 < pts.length) {
+          const a = pts[i], b = pts[i + 1], len = Math.hypot(b[0] - a[0], b[1] - a[1]), steps = Math.max(1, Math.ceil(len / 4));
+          for (let s = 1; s < steps; s++) { const t = s / steps; if (onC(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, 8)) return true; }
+        }
+      }
+      return false;
+    };
+    const portOff: PortData = { ...pd, cranes: pd.cranes.filter((c) => !onC(c.x, c.z, 18)), containers: pd.containers.filter((b) => !blockOn(b)), tanks: pd.tanks.filter((t) => !onC(t.x, t.z, t.r + 9)),
+      pipeRack: pipeOnCourse(pd.pipeRack) ? [] : pd.pipeRack, flare: pd.flare.length >= 2 && onC(pd.flare[0], pd.flare[1], 12) ? [] : pd.flare,
       fence: pd.fence.some((q, i) => { const r = pd.fence[(i + 1) % pd.fence.length]; for (let t = 0; t <= 1; t += 0.1) if (onC(q[0] + (r[0] - q[0]) * t, q[1] + (r[1] - q[1]) * t, 1)) return true; return false; }) ? [] : pd.fence };
     furnitureGroup.add(buildPortDistrict(portOff, { waterY: wy }).group);
   }
@@ -4639,15 +4652,19 @@ async function boot(): Promise<void> {
   tweenOn = true;
   setTimeOfDay('golden');
   msg.remove();
+  // Spin up curved 3D blade-strand grass, leafy shrubs & PBR rocks right away (lightweight: ~1 MB, instant on frame 1!)
+  if (!location.search.includes('veg=old') && !vegetation) {
+    vegetation = new Vegetation({ rw: meta.width * meta.mpp, rh: meta.height * meta.mpp, classUrl: BASE + 'landclass.png', albedoUrl: BASE + 'albedo.jpg', ground: meshH, ok: (x, z) => vegOk(x, z) });
+    scene.add(vegetation.group);
+  }
   buildStreets().catch((e) => console.error('streets failed', e));
+  buildForest().catch((e) => console.error('forest failed', e));
   loadHarbor().catch((e) => console.error('harbor failed', e));
   buildTrenchLayer().catch((e) => console.error('trench failed', e));
-  // Stagger the 3 heaviest VRAM/HTTP loaders (city -> forest -> ground arrays) so D3D11 never spikes
-  // Texture2D allocations or triggers net::ERR_INSUFFICIENT_RESOURCES on shared/busy laptop GPUs.
+  // Stagger the heaviest 2K ground array pack after city building models finish so D3D11 never spikes Texture2D allocations
   buildCity()
     .catch((e) => console.error('city failed', e))
     .finally(() => {
-      buildForest().catch((e) => console.error('forest failed', e));
       loadGroundArrays().catch((e) => console.error('ground materials failed', e));
     });
   fetch(BASE + 'yards.json').then((x) => (x.ok ? x.json() : null)).then((y) => { if (y) furnitureGroup.add(buildYards(keepYardsOffCourse(y), (x, z) => meshH(x, z))); }).catch(() => undefined);

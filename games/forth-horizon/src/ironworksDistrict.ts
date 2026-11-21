@@ -27,7 +27,12 @@ export function buildIronworksDistrict(o: DistrictOpts): { group: THREE.Group; c
   const placed: { x: number; z: number; r: number }[] = [];
   const free = (x: number, z: number, r: number): boolean => {
     if (placed.some((p) => Math.hypot(p.x - x, p.z - z) < p.r + r)) return false;
-    for (const [a, b] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r], [r * 0.7, r * 0.7], [-r * 0.7, r * 0.7], [r * 0.7, -r * 0.7], [-r * 0.7, -r * 0.7]]) if (o.water(x + a, z + b) || o.blocked(x + a, z + b, 2)) return false;
+    // Dense interior + perimeter clearance grid (<= 6 m step, 6 m course margin) so curved track apices never clip large tanks or halls
+    const step = Math.max(5, r / Math.max(2, Math.ceil(r / 6)));
+    for (let a = -r; a <= r + 0.01; a += step) for (let b = -r; b <= r + 0.01; b += step) {
+      if (a * a + b * b > (r + 1) * (r + 1)) continue;
+      if (o.water(x + a, z + b) || o.blocked(x + a, z + b, 6)) return false;
+    }
     return true;
   };
   /** the height a piece stands at: the lowest ground under its whole footprint (a 5 x 5 grid over its turned bounding box), so on a slope it sits on the
@@ -97,13 +102,24 @@ export function buildIronworksDistrict(o: DistrictOpts): { group: THREE.Group; c
     if (c) { const p = R[c[0] % n], q = R[(c[0] + 1) % n]; for (let d = 30; d < 120; d += 6) { const L = Math.hypot(q[0] - p[0], q[1] - p[1]) || 1, x = p[0] - (q[1] - p[1]) / L * d, z = p[1] + (q[0] - p[0]) / L * d; if (free(x, z, 26)) { put(customsBuilding(3), x, z, Math.atan2(p[0] - x, p[1] - z), 26, 'customs'); break; } } }
   }
   // ---- the oil refinery: storage tanks, Horton spheres, distillation towers, a pipe rack along the track and the flare ----
-  line('refinery', 22, (k) => (k % 3 === 0 ? storageTank(600 + k, 14, 15, k % 2 === 0) : k % 3 === 1 ? hortonSphere(600 + k, 8) : distillationTower(600 + k, 34 + (k % 4) * 4)), 'refinery unit', 1, true);
+  line('refinery', 24, (k) => (k % 3 === 0 ? storageTank(600 + k, 14, 15, k % 2 === 0) : k % 3 === 1 ? hortonSphere(600 + k, 8) : distillationTower(600 + k, 34 + (k % 4) * 4)), 'refinery unit', 1, true, 6);
   {
     const s = o.sectors.refinery;
     if (s) {
-      const i = Math.floor((s[0] + s[1]) / 2), a = R[i % n], b = R[(i + 1) % n], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, nx = -(b[1] - a[1]) / L, nz = (b[0] - a[0]) / L;
-      for (const d of [18, 24, 30]) { const x = (a[0] + b[0]) / 2 + nx * d, z = (a[1] + b[1]) / 2 + nz * d; if (free(x, z, 8)) { put(pipeRack(60), x, z, Math.atan2(b[1] - a[1], -(b[0] - a[0])) + Math.PI / 2, 8, 'pipe rack'); break; } }
-      for (let d = 60; d < 200; d += 10) { const p = R[s[1] % n], x = p[0] + (p[0] - cx) / Math.hypot(p[0] - cx, p[1] - cz) * d, z = p[1] + (p[1] - cz) / Math.hypot(p[0] - cx, p[1] - cz) * d; if (free(x, z, 6)) { put(flareStack(46), x, z, 0, 6, 'flare'); break; } }
+      const i = Math.floor((s[0] + s[1]) / 2), a = R[i % n], b = R[(i + 1) % n], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      const ux = (b[0] - a[0]) / L, uz = (b[1] - a[1]) / L, nx = -uz, nz = ux;
+      const rackClear = (x: number, z: number): boolean => {
+        for (let t = -32; t <= 32; t += 6) {
+          const px = x + ux * t, pz = z + uz * t;
+          if (o.water(px, pz) || o.blocked(px, pz, 9)) return false;
+        }
+        return free(x, z, 10);
+      };
+      for (const d of [22, 28, 36, 44]) {
+        const x = (a[0] + b[0]) / 2 + nx * d, z = (a[1] + b[1]) / 2 + nz * d;
+        if (rackClear(x, z)) { put(pipeRack(60), x, z, Math.atan2(b[1] - a[1], -(b[0] - a[0])) + Math.PI / 2, 10, 'pipe rack'); break; }
+      }
+      for (let d = 60; d < 200; d += 10) { const p = R[s[1] % n], x = p[0] + (p[0] - cx) / Math.hypot(p[0] - cx, p[1] - cz) * d, z = p[1] + (p[1] - cz) / Math.hypot(p[0] - cx, p[1] - cz) * d; if (free(x, z, 8)) { put(flareStack(46), x, z, 0, 8, 'flare'); break; } }
     }
   }
   // ---- the freight rail yard on the Port Branch, under the bridge: sidings either side of the main line, wagon strings, a locomotive, a gantry, relay huts ----

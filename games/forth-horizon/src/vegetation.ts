@@ -57,6 +57,75 @@ interface Species {
   total: number;
 }
 
+function buildLeafyShrubGeo(): THREE.BufferGeometry {
+  // 6 arched organic foliage cards arranged radially in 3D with outward spherical normals -> lush leafy bushes (zero polyhedron blobs!)
+  const pos: number[] = [], nor: number[] = [], uv: number[] = [], idx: number[] = [];
+  const planes: [number, number, number, number, number][] = [
+    [0.0, 0.25, 0.96, 0.88, 0.0],
+    [1.05, 0.28, 0.94, 0.84, 0.06],
+    [2.10, 0.24, 0.92, 0.86, -0.05],
+    [0.52, 0.52, 0.84, 0.72, 0.14],
+    [1.57, 0.56, 0.82, 0.70, 0.16],
+    [2.62, 0.50, 0.86, 0.74, 0.12],
+  ];
+  for (const [yaw, tilt, w, h, yOff] of planes) {
+    const cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const ct = Math.cos(tilt), st = Math.sin(tilt);
+    const base = pos.length / 3;
+    const corners: [number, number, number, number][] = [
+      [-w * 0.5, 0, 0, 0],
+      [w * 0.5, 0, 1, 0],
+      [w * 0.5, h, 1, 1],
+      [-w * 0.5, h, 0, 1],
+    ];
+    for (const [lx, ly, u, v] of corners) {
+      const ty = ly * ct + yOff;
+      const tz = ly * st;
+      const wx = lx * cy + tz * sy;
+      const wz = -lx * sy + tz * cy;
+      pos.push(wx, ty, wz);
+      const nx = wx, ny = ty - 0.18 + 0.35, nz = wz;
+      const nl = Math.hypot(nx, ny, nz) || 1;
+      nor.push(nx / nl, ny / nl, nz / nl);
+      uv.push(u, v);
+    }
+    idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  return g;
+}
+
+const vegTexLoader = new THREE.TextureLoader();
+let cachedShrubLeafTex: THREE.Texture | null = null;
+let cachedRockBaseTex: THREE.Texture | null = null;
+let cachedRockNrmTex: THREE.Texture | null = null;
+function getShrubLeafTex(): THREE.Texture {
+  if (!cachedShrubLeafTex) {
+    cachedShrubLeafTex = vegTexLoader.load('/games/ravencrest/assets/trees/oak_color.png');
+    cachedShrubLeafTex.colorSpace = THREE.SRGBColorSpace;
+    cachedShrubLeafTex.anisotropy = 4;
+  }
+  return cachedShrubLeafTex;
+}
+function getRockPbr(): { map: THREE.Texture; normalMap: THREE.Texture } {
+  if (!cachedRockBaseTex) {
+    cachedRockBaseTex = vegTexLoader.load('/games/forth-horizon/ironport/textures-v3/shared/tex-shared-24-stone-rubble_base.jpg');
+    cachedRockBaseTex.colorSpace = THREE.SRGBColorSpace;
+    cachedRockBaseTex.wrapS = cachedRockBaseTex.wrapT = THREE.RepeatWrapping;
+    cachedRockBaseTex.repeat.set(2, 2);
+  }
+  if (!cachedRockNrmTex) {
+    cachedRockNrmTex = vegTexLoader.load('/games/forth-horizon/ironport/textures-v3/shared/tex-shared-24-stone-rubble_nrm.jpg');
+    cachedRockNrmTex.wrapS = cachedRockNrmTex.wrapT = THREE.RepeatWrapping;
+    cachedRockNrmTex.repeat.set(2, 2);
+  }
+  return { map: cachedRockBaseTex, normalMap: cachedRockNrmTex };
+}
+
 export class Vegetation {
   readonly group = new THREE.Group();
   readonly stats: VegetationStats = { cells: 0, instances: {}, genMs: 0, drawCalls: 0 };
@@ -199,8 +268,17 @@ export class Vegetation {
   }
 
   // ---------- species ----------
-  private material(sp: Pick<Species, 'fade'>, opts: { map?: THREE.Texture; alphaTest?: number; flat?: boolean; wind: number; rough: number }): THREE.MeshStandardMaterial {
-    const mat = new THREE.MeshStandardMaterial({ map: opts.map ?? null, alphaTest: opts.alphaTest ?? 0, side: THREE.DoubleSide, roughness: opts.rough, metalness: 0, flatShading: !!opts.flat });
+  private material(sp: Pick<Species, 'fade'>, opts: { map?: THREE.Texture; normalMap?: THREE.Texture; alphaTest?: number; flat?: boolean; wind: number; rough: number }): THREE.MeshStandardMaterial {
+    const mat = new THREE.MeshStandardMaterial({
+      map: opts.map ?? null,
+      normalMap: opts.normalMap ?? null,
+      normalScale: opts.normalMap ? new THREE.Vector2(1.3, 1.3) : undefined,
+      alphaTest: opts.alphaTest ?? 0,
+      side: THREE.DoubleSide,
+      roughness: opts.rough,
+      metalness: 0,
+      flatShading: !!opts.flat,
+    });
     const fade = sp.fade, wind = opts.wind;
     mat.onBeforeCompile = (sh) => {
       sh.uniforms.uTime = this.uTime; sh.uniforms.uWind = this.uWind; sh.uniforms.uCam = this.uCam;
@@ -253,81 +331,85 @@ export class Vegetation {
     const nearBladeGeo = buildCurvedBladeClusterGeo(6, 4);
     const midBladeGeo = buildCurvedBladeClusterGeo(4, 2);
     const grassCol = (s: Sample, dry: number): [number, number, number] => {
-      const k = 0.72 + dry * 0.32;
-      return [Math.min(1, s.r * 1.06 + 0.045) * k, Math.min(1, s.g * 1.18 + 0.075) * k, Math.min(1, s.b * 0.94 + 0.025) * k];
+      const k = 0.72 + dry * 0.28;
+      // Ground grass tint in natural chlorophyll green so satellite road-edge spillover never bleaches trackside turf beige
+      const r = Math.min(1, s.r * 0.88 + 0.055) * k;
+      const g = Math.min(1, Math.max(s.g * 1.16 + 0.08, s.r * 1.18 + 0.08)) * k;
+      const b = Math.min(1, s.b * 0.76 + 0.028) * k;
+      return [r, g, b];
     };
-    // Near hero carpet: dense 0.46m spacing continuous curved 3D blade meadow around the car (no sparse weed patches!)
+    // Near hero carpet: dense 0.44m spacing continuous curved 3D blade meadow around the car (parks, verges, lawns, fields!)
     const grassNear: Species = {
-      name: 'grass', geo: nearBladeGeo, spacing: 0.46, radius: 32, fade: [-1, 0, 22, 31], cap: 26000, seed: 1, cells: new Map(), total: 0,
+      name: 'grass', geo: nearBladeGeo, spacing: 0.44, radius: 38, fade: [-1, 0, 26, 37], cap: 30000, seed: 1, cells: new Map(), total: 0,
       mat: null as unknown as THREE.MeshStandardMaterial,
       rule: (x, z, i, j, s) => {
         const green = s.g - Math.max(s.r, s.b);
         const lum = s.r * 0.3 + s.g * 0.59 + s.b * 0.11;
-        const isTurf = s.field > 0.12 || s.forest > 0.15 || (green > 0.008 && lum > 0.11 && lum < 0.74);
-        if (!isTurf || s.slope > 0.68 || s.y < 2.2) return null;
+        const isTurf = s.field > 0.12 || s.forest > 0.15 || (green > 0.008 && lum > 0.10 && lum < 0.76);
+        if (!isTurf || s.slope > 0.68 || s.y < 1.8) return null;
         const patch = vnoise(x / 11, z / 11, 11);
         // Continuous lush meadow coverage (~94% fill on lawns/fields, natural gentle thinning on steep sand/forest edges)
-        const dens = Math.min(1.0, 0.78 + s.field * 0.35 + Math.max(0, green) * 2.5 + patch * 0.18) * (1 - s.sand * 0.65);
+        const dens = Math.min(1.0, 0.80 + s.field * 0.35 + Math.max(0, green) * 2.6 + patch * 0.18) * (1 - s.sand * 0.65);
         if (dens < ihash(i, j, 3)) return null;
         const dry = Math.max(s.sand, s.field * ihash(i, j, 9) * 0.45);
-        const h = (0.28 + ihash(i, j, 4) * 0.24 + patch * 0.24) * (s.sand > 0.5 ? 1.3 : 1);
-        return { scale: h * (1.25 + ihash(i, j, 5) * 0.55), col: grassCol(s, dry) };
+        const h = (0.30 + ihash(i, j, 4) * 0.24 + patch * 0.24) * (s.sand > 0.5 ? 1.3 : 1);
+        return { scale: h * (1.28 + ihash(i, j, 5) * 0.55), col: grassCol(s, dry) };
       },
     };
-    // Mid-distance lush meadow: overlapping curved blade clusters carrying continuous turf cleanly to 105 m
+    // Mid-distance lush meadow: overlapping curved blade clusters carrying continuous turf cleanly to 120 m
     const grassMid: Species = {
-      name: 'grassMid', geo: midBladeGeo, spacing: 1.05, radius: 105, fade: [17, 26, 74, 103], cap: 22000, seed: 2, cells: new Map(), total: 0,
+      name: 'grassMid', geo: midBladeGeo, spacing: 1.02, radius: 120, fade: [20, 30, 84, 118], cap: 26000, seed: 2, cells: new Map(), total: 0,
       mat: null as unknown as THREE.MeshStandardMaterial,
       rule: (x, z, i, j, s) => {
         const green = s.g - Math.max(s.r, s.b);
         const lum = s.r * 0.3 + s.g * 0.59 + s.b * 0.11;
-        const isTurf = s.field > 0.12 || s.forest > 0.15 || (green > 0.008 && lum > 0.11 && lum < 0.74);
-        if (!isTurf || s.slope > 0.68 || s.y < 2.2) return null;
+        const isTurf = s.field > 0.12 || s.forest > 0.15 || (green > 0.008 && lum > 0.10 && lum < 0.76);
+        if (!isTurf || s.slope > 0.68 || s.y < 1.8) return null;
         const patch = vnoise(x / 16, z / 16, 12);
-        const dens = Math.min(1.0, 0.72 + s.field * 0.35 + Math.max(0, green) * 2.2 + patch * 0.2) * (1 - s.sand * 0.6);
+        const dens = Math.min(1.0, 0.74 + s.field * 0.35 + Math.max(0, green) * 2.2 + patch * 0.2) * (1 - s.sand * 0.6);
         if (dens < ihash(i, j, 3)) return null;
         const h = 0.42 + ihash(i, j, 4) * 0.32 + patch * 0.24;
         return { scale: h * 1.85, col: grassCol(s, Math.max(s.sand, s.field * 0.3)) };
       },
     };
-    // shrubs: 20-tri low-poly organic canopy (4x fewer triangles than detail=1 -> saves >1.2M triangles per frame)
-    const shrubGeo = new THREE.IcosahedronGeometry(0.5, 0);
-    { const p = shrubGeo.getAttribute('position'); for (let i = 0; i < p.count; i++) { const f = 0.78 + ihash(Math.round(p.getX(i) * 100), Math.round(p.getZ(i) * 100), Math.round(p.getY(i) * 100)) * 0.44; p.setXYZ(i, p.getX(i) * f, (p.getY(i) + 0.45) * f * 0.8, p.getZ(i) * f); } shrubGeo.computeVertexNormals(); }
+    // shrubs: true 3D multi-layered leafy botanical bushes with painted oak foliage scan (replaces flat geometric icosahedron blobs!)
+    const shrubGeo = buildLeafyShrubGeo();
     const shrubs: Species = {
-      name: 'shrubs', geo: shrubGeo, spacing: 5.8, radius: 175, fade: [-1, 0, 125, 173], cap: 9000, seed: 3, cells: new Map(), total: 0,
+      name: 'shrubs', geo: shrubGeo, spacing: 5.5, radius: 185, fade: [-1, 0, 130, 182], cap: 10000, seed: 3, cells: new Map(), total: 0,
       mat: null as unknown as THREE.MeshStandardMaterial,
       rule: (x, z, i, j, s) => {
         const patch = vnoise(x / 40, z / 40, 21);
         const edge = vnoise(x / 18, z / 18, 22);
-        const dens = s.forest * (0.14 + patch * 0.4) + s.field * 0.012 * (edge > 0.72 ? 6 : 1) + s.sand * 0.05 * patch;
-        if (dens < ihash(i, j, 3) || s.slope > 0.8 || s.y < 2.6) return null;
-        const sc = 0.8 + ihash(i, j, 4) * 1.5 + patch * 0.6;
-        const dry = s.sand > 0.4 ? 0.6 : 0;
-        const g = 0.13 + ihash(i, j, 6) * 0.12;
-        return { scale: sc, col: [0.08 + dry * 0.2 + ihash(i, j, 7) * 0.06, g * (0.9 + (1 - dry) * 0.35), 0.04 + ihash(i, j, 8) * 0.03] };
+        const dens = s.forest * (0.16 + patch * 0.42) + s.field * 0.015 * (edge > 0.70 ? 6 : 1) + s.sand * 0.05 * patch;
+        if (dens < ihash(i, j, 3) || s.slope > 0.8 || s.y < 2.2) return null;
+        const sc = 1.05 + ihash(i, j, 4) * 1.65 + patch * 0.65;
+        const dry = s.sand > 0.4 ? 0.55 : 0;
+        const g = 0.46 + ihash(i, j, 6) * 0.32;
+        return { scale: sc, col: [0.28 + dry * 0.35 + ihash(i, j, 7) * 0.14, g * (0.95 + (1 - dry) * 0.35), 0.16 + ihash(i, j, 8) * 0.10] };
       },
     };
-    // rocks: 20-tri faceted crags on slopes, dunes and woods
-    const rockGeo = new THREE.IcosahedronGeometry(0.5, 0);
-    { const p = rockGeo.getAttribute('position'); for (let i = 0; i < p.count; i++) { const f = 0.8 + ihash(Math.round(p.getX(i) * 100), Math.round(p.getY(i) * 100), Math.round(p.getZ(i) * 100)) * 0.4; p.setXYZ(i, p.getX(i) * f, p.getY(i) * f * 0.62, p.getZ(i) * f); } rockGeo.computeVertexNormals(); }
+    // rocks: PBR stone-rubble textured crags on slopes, dunes and woods
+    const rockGeo = new THREE.IcosahedronGeometry(0.5, 1);
+    { const p = rockGeo.getAttribute('position'); for (let i = 0; i < p.count; i++) { const f = 0.80 + ihash(Math.round(p.getX(i) * 100), Math.round(p.getY(i) * 100), Math.round(p.getZ(i) * 100)) * 0.40; p.setXYZ(i, p.getX(i) * f, p.getY(i) * f * 0.62, p.getZ(i) * f); } rockGeo.computeVertexNormals(); }
     const rocks: Species = {
       name: 'rocks', geo: rockGeo, spacing: 8.2, radius: 165, fade: [-1, 0, 120, 163], cap: 5000, seed: 4, cells: new Map(), total: 0,
       mat: null as unknown as THREE.MeshStandardMaterial,
       rule: (x, z, i, j, s) => {
         const patch = vnoise(x / 55, z / 55, 31);
         const dens = 0.012 + s.slope * 0.35 + s.sand * 0.05 * patch + s.forest * 0.03 * patch;
-        if (dens < ihash(i, j, 3) || s.y < 2.6) return null;
+        if (dens < ihash(i, j, 3) || s.y < 2.4) return null;
         const big = ihash(i, j, 4);
         const sc = 0.35 + big * big * 2.2;
-        const g = 0.34 + ihash(i, j, 5) * 0.2;
+        const g = 0.62 + ihash(i, j, 5) * 0.28;
         return { scale: sc, col: [g * 1.03, g, g * 0.94] };
       },
     };
     this.species = [grassNear, grassMid, shrubs, rocks];
     grassNear.mat = this.strandMaterial(grassNear, 'near');
     grassMid.mat = this.strandMaterial(grassMid, 'mid');
-    shrubs.mat = this.material(shrubs, { wind: 0.05, rough: 0.9, flat: false });
-    rocks.mat = this.material(rocks, { wind: 0, rough: 0.97, flat: true });
+    shrubs.mat = this.material(shrubs, { map: getShrubLeafTex(), alphaTest: 0.34, wind: 0.08, rough: 0.80, flat: false });
+    const rockPbr = getRockPbr();
+    rocks.mat = this.material(rocks, { map: rockPbr.map, normalMap: rockPbr.normalMap, wind: 0, rough: 0.92, flat: false });
     for (const sp of this.species) {
       const g = new THREE.InstancedBufferGeometry();
       g.index = sp.geo.index;
@@ -369,8 +451,9 @@ export class Vegetation {
       const gi = i0 + a, gj = j0 + b;
       const x = (gi + ihash(gi, gj, sp.seed * 17 + 1)) * sp.spacing, z = (gj + ihash(gi, gj, sp.seed * 17 + 2)) * sp.spacing;
       if (!this.sample(x, z, s)) continue;
-      if (s.sand + s.forest + s.field < 0.05) continue;
-      // cheap rejection before any terrain work: the rule's density test happens once the ground is known, but a quick class-based pass skips the water and towns
+      const isGreenTurf = (s.g - Math.max(s.r, s.b)) > 0.010 && s.g > 0.14;
+      if (s.sand + s.forest + s.field < 0.05 && !isGreenTurf) continue;
+      // cheap rejection before any terrain work: skip water/asphalt/roofs while letting green parks, suburban lawns & track verges grow 3D grass!
       s.y = this.o.ground(x, z);
       s.slope = Math.max(Math.abs(this.o.ground(x + 1.2, z) - s.y), Math.abs(this.o.ground(x, z + 1.2) - s.y)) / 1.2;
       const r = sp.rule(x, z, gi, gj, s);
@@ -395,7 +478,7 @@ export class Vegetation {
     // which cells should exist, and make the nearest missing ones inside a time budget
     const t0 = performance.now();
     if (moved >= 2.5) { this.lastCam.set(cam.x, cam.z); this.dirty = true; this.pending = true; }
-    let budget = 1.6;
+    let budget = 3.0;
     let remaining = false;
     for (const sp of this.species) {
       const r = sp.radius + CELL * 0.75;

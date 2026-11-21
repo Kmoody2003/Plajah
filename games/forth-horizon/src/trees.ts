@@ -3,8 +3,8 @@
 // material (see `cardLod`). Trees are selected from a spatial grid a few times a second, so the cost is bounded by how many are near, not by the forest.
 import * as THREE from 'three';
 
-export const NEAR_R = 150;
-export const cardLodUniforms = { uNearR: { value: NEAR_R - 12 } };
+export const NEAR_R = 195;
+export const cardLodUniforms = { uNearR: { value: NEAR_R - 14 } };
 
 /** patch a sprite card material so cards inside the 3D radius vanish (the 3D tree stands there instead) */
 export function cardLod(mat: THREE.MeshStandardMaterial): void {

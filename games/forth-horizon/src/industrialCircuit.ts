@@ -35,9 +35,27 @@ export function industrialProfile(P: { x: number; z: number }[], grade: GradeFea
   // never below the water: where the line crosses the edge of the inlet the road is carried over it at least 3.6 m up (a low bridge: the deck and piers
   // are built wherever the road stands clear of the ground)
   for (let i = 0; i < n; i++) ys[i] = Math.max(ys[i], 3.6);
-  // ease every rise that is steeper than 10 % (the raised edge of the inlet, a ramp meeting a rise of the ground) by lifting the low side, round the loop
-  const G = 0.10;
-  for (let pass = 0; pass < 3; pass++) {
+  // Smooth out 12 m height-grid ripples and elevation mini-humps along the circuit while keeping bridge/underpass deck zones exact
+  const locked = new Uint8Array(n);
+  for (const f of grade) {
+    let k = 0, bd = 1e18; P.forEach((p, i) => { const d = (p.x - f.at[0]) ** 2 + (p.z - f.at[1]) ** 2; if (d < bd) { bd = d; k = i; } });
+    for (let i = 0; i < n; i++) {
+      let d = Math.abs(cum[i] - cum[k]); d = Math.min(d, total - d);
+      if (d <= 22) locked[i] = 1;
+    }
+  }
+  const tmp = new Array<number>(n);
+  for (let pass = 0; pass < 8; pass++) {
+    for (let i = 0; i < n; i++) {
+      if (locked[i]) { tmp[i] = ys[i]; continue; }
+      const p2 = ys[(i - 2 + n) % n], p1 = ys[(i - 1 + n) % n], c0 = ys[i], n1 = ys[(i + 1) % n], n2 = ys[(i + 2) % n];
+      tmp[i] = Math.max(3.6, p2 * 0.12 + p1 * 0.23 + c0 * 0.30 + n1 * 0.23 + n2 * 0.12);
+    }
+    for (let i = 0; i < n; i++) ys[i] = tmp[i];
+  }
+  // ease every rise that is steeper than 8 % (the raised edge of the inlet, a ramp meeting a rise of the ground) by lifting the low side, round the loop
+  const G = 0.08;
+  for (let pass = 0; pass < 4; pass++) {
     for (let i = 1; i < n + 1; i++) { const a = (i - 1) % n, b = i % n, d = Math.hypot(P[b].x - P[a].x, P[b].z - P[a].z); ys[b] = Math.max(ys[b], ys[a] - G * d); }
     for (let i = n - 1; i >= 0; i--) { const a = (i + 1) % n, b = i, d = Math.hypot(P[b].x - P[a].x, P[b].z - P[a].z); ys[b] = Math.max(ys[b], ys[a] - G * d); }
   }

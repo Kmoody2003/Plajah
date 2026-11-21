@@ -5,21 +5,16 @@
  */
 
 import * as THREE from 'three';
-
-const TEX_BASE = '/games/forth-horizon/tex/';
-const loader = new THREE.TextureLoader();
+import { sharedPbrTex } from './library/kit';
 
 function loadPbr(stem: string, repX = 2, repY = 2, metalness = 0.04, roughness = 0.85): THREE.MeshStandardMaterial {
-  const map = loader.load(`${TEX_BASE}${stem}_base.png`);
-  const normalMap = loader.load(`${TEX_BASE}${stem}_normal.png`);
-  const roughnessMap = loader.load(`${TEX_BASE}${stem}_roughness.png`);
+  const map = sharedPbrTex(stem, 'base').clone();
+  const normalMap = sharedPbrTex(stem, 'nrm').clone();
+  const roughnessMap = sharedPbrTex(stem, 'rgh').clone();
   for (const t of [map, normalMap, roughnessMap]) {
-    t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.repeat.set(repX, repY);
-    t.anisotropy = 8;
   }
-  map.colorSpace = THREE.SRGBColorSpace;
-  return new THREE.MeshStandardMaterial({ map, normalMap, roughnessMap, metalness, roughness });
+  return new THREE.MeshStandardMaterial({ map, normalMap, normalScale: new THREE.Vector2(1.35, 1.35), roughnessMap, metalness, roughness });
 }
 
 export interface RuralDetailOptions {

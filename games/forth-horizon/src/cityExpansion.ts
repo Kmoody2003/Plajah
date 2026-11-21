@@ -4,6 +4,7 @@
  */
 
 import * as THREE from 'three';
+import { sharedPbrTex } from './library/kit';
 
 const TEX_BASE = '/games/forth-horizon/tex/';
 const loader = new THREE.TextureLoader();
@@ -15,6 +16,14 @@ function loadPbr(
   metalness = 0.04,
   roughness = 0.85
 ): THREE.MeshStandardMaterial {
+  // Use fast GPU-friendly shared v3 JPG triplets for all tex-shared-* sets (cuts ~200 MB RAM/VRAM vs 2K PNGs)
+  if (stem.startsWith('tex-shared-')) {
+    const map = sharedPbrTex(stem, 'base').clone();
+    const normalMap = sharedPbrTex(stem, 'nrm').clone();
+    const roughnessMap = sharedPbrTex(stem, 'rgh').clone();
+    for (const t of [map, normalMap, roughnessMap]) { t.repeat.set(repX, repY); }
+    return new THREE.MeshStandardMaterial({ map, normalMap, normalScale: new THREE.Vector2(1.25, 1.25), roughnessMap, metalness, roughness });
+  }
   const baseFile = stem.startsWith('ground_') ? `${stem}.png` : `${stem}_base.png`;
   const map = loader.load(`${TEX_BASE}${baseFile}`);
   const normalMap = loader.load(`${TEX_BASE}${stem}_normal.png`);

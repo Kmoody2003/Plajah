@@ -140,14 +140,42 @@ export function stoneEmbankment(len = 40, h = 4): THREE.Group {
 /** a promenade lamp: a black cast post with a lantern */
 export function promenadeLamp(): THREE.Group { const k = new Kit('lib:promenade-lamp'), iron = mat(0x24272a, 0.5, 0.6); k.cyl(0, 0, 0, 0.12, 4.6, iron, 8, 0.08); k.cyl(0, 4.6, 0, 0.32, 0.6, mat(0xf3e6c4, 0.3, 0, 0xffe2a8), 8, 0.22); k.cyl(0, 5.2, 0, 0.34, 0.2, iron, 8, 0.05); return k.g; }
 
-/** a palm tree: a slightly curved trunk and a crown of drooping fronds */
+/** a palm tree: a curved ringed trunk and a lush crown of arched drooping multi-segment tapered fronds */
 export function palmTree(seed = 1, h = 11): THREE.Group {
-  const r = seeded(seed), k = new Kit('lib:palm-tree'), trunk = mat(0x8a7356, 0.95), frond = mat(0x3f6b2e, 0.8);
+  const r = seeded(seed), k = new Kit('lib:palm-tree'), trunk = mat(0x8a7356, 0.95), frond = mat(0x3f6b2e, 0.78);
   const lean = (r() - 0.5) * 1.5;
-  for (let i = 0; i < 6; i++) { const y0 = (i / 6) * h, y1 = ((i + 1) / 6) * h; k.beam([lean * (i / 6) ** 2, y0, 0], [lean * ((i + 1) / 6) ** 2, y1, 0], 0.32 - i * 0.025, trunk); }
-  for (let i = 0; i < 9; i++) {
-    const a = (i / 9) * Math.PI * 2 + r() * 0.3, g = new THREE.PlaneGeometry(1.1, 5.2); g.translate(0, 2.6, 0);
-    const m = new THREE.Mesh(g, frond); m.position.set(lean, h, 0); m.rotation.set(0, a, 0); m.rotateX(1.05 + r() * 0.35); (m.material as THREE.Material).side = THREE.DoubleSide; k.g.add(m);
+  for (let i = 0; i < 6; i++) { const y0 = (i / 6) * h, y1 = ((i + 1) / 6) * h; k.beam([lean * (i / 6) ** 2, y0, 0], [lean * ((i + 1) / 6) ** 2, y1, 0], 0.34 - i * 0.028, trunk); }
+  // Build one arched tapered palm frond geometry (4 curved segments with V-folded leaflets)
+  const buildFrond = (len: number, w: number, droop: number): THREE.BufferGeometry => {
+    const segs = 4, pos: number[] = [], idx: number[] = [];
+    for (let s = 0; s <= segs; s++) {
+      const t = s / segs;
+      const z = t * len;
+      const y = Math.sin(t * Math.PI * 0.65) * 0.95 - t * t * droop;
+      const hw = w * Math.sin(Math.pow(t, 0.65) * Math.PI) * 0.52;
+      const dip = hw * 0.38;
+      pos.push(-hw, y - dip, z, 0, y, z, hw, y - dip, z);
+    }
+    for (let s = 0; s < segs; s++) {
+      const a = s * 3, b = a + 3;
+      idx.push(a, a + 1, b, a + 1, b + 1, b, a + 1, a + 2, b + 1, a + 2, b + 2, b + 1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  };
+  frond.side = THREE.DoubleSide;
+  const gLower = buildFrond(4.9, 1.45, 2.35), gUpper = buildFrond(3.8, 1.25, 1.15);
+  for (let i = 0; i < 11; i++) {
+    const upper = i >= 6;
+    const a = ((upper ? i - 6 : i) / (upper ? 5 : 6)) * Math.PI * 2 + (upper ? 0.55 : 0) + (r() - 0.5) * 0.28;
+    const m = new THREE.Mesh(upper ? gUpper : gLower, frond);
+    m.position.set(lean, h + (upper ? 0.25 : -0.05), 0);
+    m.rotation.set(upper ? -0.25 : 0.08, a, 0);
+    m.castShadow = true; m.receiveShadow = true;
+    k.g.add(m);
   }
   return k.g;
 }

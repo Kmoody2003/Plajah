@@ -3,6 +3,33 @@
 // Site plans (tools/site_plan.py adds to the same file): front walks, side-yard fences, foundation shrubs, mailboxes and picket fences for the homes; truck aprons with dock
 // doors and trailers, chain-link perimeters and dumpster pads for the businesses. Each kind is one instanced or merged mesh.
 import * as THREE from 'three';
+import { sharedPbrTex } from './library/kit';
+
+function buildYardLeafyShrubGeo(): THREE.BufferGeometry {
+  const pos: number[] = [], nor: number[] = [], uv: number[] = [], idx: number[] = [];
+  const planes: [number, number, number, number][] = [
+    [0.0, 0.25, 1.85, 1.55], [1.05, 0.28, 1.80, 1.50], [2.10, 0.24, 1.82, 1.52],
+    [0.52, 0.54, 1.60, 1.25], [1.57, 0.56, 1.55, 1.22], [2.62, 0.52, 1.62, 1.28],
+  ];
+  for (const [yaw, tilt, w, h] of planes) {
+    const cy = Math.cos(yaw), sy = Math.sin(yaw), ct = Math.cos(tilt), st = Math.sin(tilt);
+    const b = pos.length / 3;
+    for (const [lx, ly, u, v] of [[-w * 0.5, 0, 0, 0], [w * 0.5, 0, 1, 0], [w * 0.5, h, 1, 1], [-w * 0.5, h, 0, 1]]) {
+      const ty = ly * ct, tz = ly * st, wx = lx * cy + tz * sy, wz = -lx * sy + tz * cy;
+      pos.push(wx, ty, wz);
+      const nl = Math.hypot(wx, ty + 0.45, wz) || 1;
+      nor.push(wx / nl, (ty + 0.45) / nl, wz / nl);
+      uv.push(u, v);
+    }
+    idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  return g;
+}
 
 export interface YardData {
   garages: number[][]; fences: number[][];
@@ -40,9 +67,12 @@ export function buildYards(d: YardData, ground: (x: number, z: number) => number
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), s = new THREE.Vector3(), col = new THREE.Color();
   const siding = [0xd8d2c4, 0xbfb6a3, 0x9a9c97, 0xe4e0d6, 0x8e7f6d, 0xc8c2b4, 0x7d8a86];
   if (d.garages.length) {
-    const walls = new THREE.InstancedMesh(new THREE.BoxGeometry(6.2, 3.0, 6.8).translate(0, 1.5, 0), new THREE.MeshStandardMaterial({ roughness: 0.85 }), d.garages.length);
-    const roof = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.01, 4.9, 1.6, 4, 1).rotateY(Math.PI / 4).translate(0, 3.8, 0), new THREE.MeshStandardMaterial({ color: 0x3b3a3c, roughness: 0.9 }), d.garages.length);
-    const door = new THREE.InstancedMesh(new THREE.BoxGeometry(4.6, 2.3, 0.08).translate(0, 1.15, -3.42), new THREE.MeshStandardMaterial({ color: 0xe8e6e0, roughness: 0.6 }), d.garages.length);
+    const clapMap = sharedPbrTex('tex-shared-20-white-clapboard', 'base'), clapNrm = sharedPbrTex('tex-shared-20-white-clapboard', 'nrm'), clapRgh = sharedPbrTex('tex-shared-20-white-clapboard', 'rgh');
+    const shingMap = sharedPbrTex('tex-shared-22-asphalt-shingle', 'base'), shingNrm = sharedPbrTex('tex-shared-22-asphalt-shingle', 'nrm'), shingRgh = sharedPbrTex('tex-shared-22-asphalt-shingle', 'rgh');
+    const steelMap = sharedPbrTex('tex-shared-21-corrugated-steel', 'base'), steelNrm = sharedPbrTex('tex-shared-21-corrugated-steel', 'nrm');
+    const walls = new THREE.InstancedMesh(new THREE.BoxGeometry(6.2, 3.0, 6.8).translate(0, 1.5, 0), new THREE.MeshStandardMaterial({ map: clapMap, normalMap: clapNrm, normalScale: new THREE.Vector2(1.3, 1.3), roughnessMap: clapRgh, roughness: 0.86 }), d.garages.length);
+    const roof = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.01, 4.9, 1.6, 4, 1).rotateY(Math.PI / 4).translate(0, 3.8, 0), new THREE.MeshStandardMaterial({ color: 0x9a989c, map: shingMap, normalMap: shingNrm, normalScale: new THREE.Vector2(1.35, 1.35), roughnessMap: shingRgh, roughness: 0.92 }), d.garages.length);
+    const door = new THREE.InstancedMesh(new THREE.BoxGeometry(4.6, 2.3, 0.08).translate(0, 1.15, -3.42), new THREE.MeshStandardMaterial({ color: 0xefede8, map: steelMap, normalMap: steelNrm, normalScale: new THREE.Vector2(0.85, 0.85), roughness: 0.62, metalness: 0.12 }), d.garages.length);
     d.garages.forEach(([x, z, rot], i) => {
       const y = ground(x, z) - 0.05;
       q.setFromAxisAngle(up, rot); p.set(x, y, z);
@@ -54,8 +84,9 @@ export function buildYards(d: YardData, ground: (x: number, z: number) => number
     door.castShadow = false; // flush against garage wall: avoids duplicate shadow geometry
     for (const m of [walls, roof, door]) { m.receiveShadow = true; group.add(m); }
   }
+  const timberMap = sharedPbrTex('tex-shared-18-timber-siding', 'base'), timberNrm = sharedPbrTex('tex-shared-18-timber-siding', 'nrm'), timberRgh = sharedPbrTex('tex-shared-18-timber-siding', 'rgh');
   if (d.fences.length) {
-    const fence = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1.5, 0.08).translate(0, 0.75, 0), new THREE.MeshStandardMaterial({ color: 0x8a7a62, roughness: 0.9 }), d.fences.length);
+    const fence = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1.5, 0.08).translate(0, 0.75, 0), new THREE.MeshStandardMaterial({ color: 0xd0c0a4, map: timberMap, normalMap: timberNrm, normalScale: new THREE.Vector2(1.2, 1.2), roughnessMap: timberRgh, roughness: 0.92 }), d.fences.length);
     d.fences.forEach(([x0, z0, x1, z1], i) => {
       const x = (x0 + x1) / 2, z = (z0 + z1) / 2, L = Math.hypot(x1 - x0, z1 - z0);
       q.setFromAxisAngle(up, Math.atan2(-(z1 - z0), x1 - x0)); p.set(x, ground(x, z), z);
@@ -64,7 +95,7 @@ export function buildYards(d: YardData, ground: (x: number, z: number) => number
     fence.receiveShadow = true; group.add(fence);
   }
   if (d.sideFences?.length) {
-    const fence = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1.8, 0.07).translate(0, 0.9, 0), new THREE.MeshStandardMaterial({ color: 0x86765e, roughness: 0.9 }), d.sideFences.length);
+    const fence = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1.8, 0.07).translate(0, 0.9, 0), new THREE.MeshStandardMaterial({ color: 0xd0c2aa, map: timberMap, normalMap: timberNrm, normalScale: new THREE.Vector2(1.2, 1.2), roughnessMap: timberRgh, roughness: 0.92 }), d.sideFences.length);
     d.sideFences.forEach(([x0, z0, x1, z1], i) => {
       const x = (x0 + x1) / 2, z = (z0 + z1) / 2, L = Math.hypot(x1 - x0, z1 - z0);
       q.setFromAxisAngle(up, Math.atan2(-(z1 - z0), x1 - x0)); p.set(x, Math.min(ground(x0, z0), ground(x1, z1), ground(x, z)) - 0.05, z);
@@ -120,7 +151,8 @@ export function buildYards(d: YardData, ground: (x: number, z: number) => number
     if (pos.length) {
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
-      const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xc9c6bd, roughness: 0.92, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+      const cMap = sharedPbrTex('tex-shared-16-concrete-weathered', 'base'), cNrm = sharedPbrTex('tex-shared-16-concrete-weathered', 'nrm'), cRgh = sharedPbrTex('tex-shared-16-concrete-weathered', 'rgh');
+      const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xdddad2, map: cMap, normalMap: cNrm, normalScale: new THREE.Vector2(1.15, 1.15), roughnessMap: cRgh, roughness: 0.90, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }));
       m.receiveShadow = true; m.name = 'yard-concrete'; group.add(m);
     }
   }
@@ -131,10 +163,13 @@ export function buildYards(d: YardData, ground: (x: number, z: number) => number
     im.castShadow = shadow; im.receiveShadow = true; group.add(im); return im;
   };
   const stand = ([x, z, rot]: number[], lift = 0): void => { q.setFromAxisAngle(up, rot); m4.compose(p.set(x, ground(x, z) + lift, z), q, s.set(1, 1, 1)); };
-  // foundation shrubs: squashed low-poly balls in a few greens
-  const shrubCols = [0x3f5a2c, 0x4d6b33, 0x2f4a26, 0x5b6e38];
-  const sh = inst(d.shrubs, new THREE.IcosahedronGeometry(1, 1), new THREE.MeshStandardMaterial({ roughness: 0.95, flatShading: true }), ([x, z, r]) => {
-    q.setFromAxisAngle(up, (x * 3.1 + z) % 6.28); m4.compose(p.set(x, ground(x, z) + r * 0.45, z), q, s.set(r, r * 0.8, r));
+  // foundation shrubs: real multi-layered leafy botanical bushes using painted oak foliage scan (no geometric balls!)
+  const shrubCols = [0x6f994c, 0x7ea858, 0x557e3e, 0x8ea45c];
+  const shrubLeaf = new THREE.TextureLoader().load('/games/ravencrest/assets/trees/oak_color.png');
+  shrubLeaf.colorSpace = THREE.SRGBColorSpace; shrubLeaf.anisotropy = 4;
+  const shrubMat = new THREE.MeshStandardMaterial({ map: shrubLeaf, alphaTest: 0.34, side: THREE.DoubleSide, roughness: 0.80, metalness: 0 });
+  const sh = inst(d.shrubs, buildYardLeafyShrubGeo(), shrubMat, ([x, z, r]) => {
+    q.setFromAxisAngle(up, (x * 3.1 + z) % 6.28); m4.compose(p.set(x, ground(x, z) - 0.04, z), q, s.set(r, r * 0.92, r));
   });
   if (sh) d.shrubs!.forEach((row, i) => sh.setColorAt(i, col.setHex(shrubCols[row[3] ?? i % 4])));
   // mailboxes: a post and a box facing the street
