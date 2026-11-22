@@ -228,6 +228,11 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
       }
       for (const p of pool) if (p.userData.base) p.intensity = p.userData.base * (1 + pulse * 0.25);
     },
-    prepare(r) { renderer = r; chunks.update(cam, 1, true); },
+    async prepare(r, camera) {
+      renderer = r; chunks.update(cam, 1, true);
+      if (DAY && !dayDone) applyDay();                // before compiling: changing the fog later recompiles every material
+      // compile every pipeline now (grass, plants, fungi are heavy node shaders): otherwise they pop in 10–20 s after start
+      try { await r.compileAsync(ctx.scene, camera); } catch (e) { console.warn('[wilds] precompile', e); }
+    },
   };
 }

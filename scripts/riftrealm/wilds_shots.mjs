@@ -63,7 +63,8 @@ for (const s of shots) {
   }, s);
   // let the terrain stream in and the vegetation re-sort round the new camera
   await page.waitForTimeout(2500);
-  await page.evaluate(() => { const w = window.__wilds; const c = window.__rr.camera.position; w.chunks.update(c, 1, true); });
+  // stream the terrain round the camera, then compile every new pipeline before shooting (node shaders compile lazily)
+  await page.evaluate(async () => { const w = window.__wilds, rr = window.__rr; w.chunks.update(rr.camera.position, 1, true); await rr.renderer.compileAsync(rr.scene, rr.camera); });
   await page.waitForTimeout(2500);
   if (s.cam.far) await page.waitForTimeout(40000);   // every material recompiles without fog
   await page.screenshot({ path: `${OUT}/${s.id}.png`, timeout: 180000 });

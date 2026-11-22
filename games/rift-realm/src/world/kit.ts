@@ -306,7 +306,7 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
       const p = spot(); if (!p) continue;
       ctx.plantSpots.push({ x: p[0], y: y - 0.02, z: p[1], yaw: rnd() * 6.28, species: rnd() < 0.7 ? 8 : 7, scale: 0.45 + rnd() * 0.5 });   // green forest fern / undergrowth
     }
-    grassy.push([x, z, r, 0.12]);   // a few blades in the cracks; the green masses are the plants and mounds
+    // no grass blades on paving: the forest grass is a knee-high teal carpet; the green on the floor is moss, mounds, plants
   };
 
   /** Merge the trunk/trim geometry into the level (call once, after every place is built). */

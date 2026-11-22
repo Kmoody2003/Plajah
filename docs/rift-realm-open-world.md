@@ -154,6 +154,14 @@ frame edges. Score unchanged at 0.598. Open issue: the leafy plants show up clos
 22 m away even though 240 are drawn: next step is to find out why (LOD/culling or shading at range) before more dressing.
 The remaining gap is mostly the background (the art's dense trunks, vines and god rays vs open haze).
 
+**Pop-in fixed (2026-11-22).** The plants weren't missing: grass, plants and fungi are heavy node shaders that WebGPU
+compiles lazily, so for 10–20 s after start (and after `?time=day` changed the fog) they did not draw at all. Every earlier
+capture, the 34 pairs and all scores before this, was taken in that window, without vegetation. Now the world's `prepare()`
+applies the day look first and runs `renderer.compileAsync` before the first frame, and `wilds_shots.mjs` compiles after each
+camera move. Portal Plaza with its vegetation actually drawn: plants cut to the art's 1–2 m, no grass blades on paving,
+crowns lifted out of frame. Score 0.541 (layout 0.694, silhouettes 0.312, the best silhouette yet); the earlier 0.60
+numbers measured an empty floor and aren't comparable. All 34 pairs need re-shooting.
+
 ## Track 2 — Characters from video
 - Every clip comes from the character's own motion videos (services/mocap: capture → solveTake → clipToThree →
   retarget), never hand-keyed. Assassin, Archangel, Cyber-Assassin and the other combat videos sit in
