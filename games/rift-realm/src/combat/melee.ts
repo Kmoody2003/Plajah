@@ -31,6 +31,8 @@ export interface MeleeHost {
   onContact(): void;
   /** A swing started: main lights the blade trail. */
   onSwing(tint: number, perfect: boolean): void;
+  /** Optional strike damage multiplier (a power-up such as danger.dmgMul / Furyberry). */
+  dmgMul?: () => number;
 }
 
 type Input = 'L' | 'H';
@@ -247,7 +249,7 @@ export class Melee {
       if (dist > reach || Math.abs(dy) > (m.id === 'air' || m.id === 'spike' ? 3.8 : 2.6)) continue;
       if (dist > 0.01) toE.divideScalar(dist);
       if (!m.around && this.moveFwd.dot(toE) < m.cone && dist > 1.2) continue;
-      const dmg = Math.round(m.dmg * beatMul * resMul * (counter ? C.counterMul : 1));
+      const dmg = Math.round(m.dmg * beatMul * resMul * (counter ? C.counterMul : 1) * (h.dmgMul?.() ?? 1));
       const res = h.enemies.damageEnemy(e.id, dmg, toE, m.knock, {
         source: 'melee', hitstun: m.hitstun * (perfect ? 1.2 : 1), guardDmg: m.guardDmg * (perfect ? 1.3 : 1),
         launch: m.launch, spike: m.spike, unblockable: counter,
