@@ -714,6 +714,19 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   // the open world grows more seeds per species so neighbouring trees differ
   const forest = new Forest(ELDERWOOD_TREES, forestSpotsV, { lowTier: lo, beat: uBeatPulse, shadows: !lo, variants: W && !lo ? 6 : 3 });
   group.add(forest.group);
+  // every planted tree's trunk is solid: the Forest draws only the trees in view (its instance lists change as you
+  // turn), so the colliders come from the planting list, not from what happens to be drawn (collision.ts reads these)
+  forest.group.userData.noCollide = true;
+  {
+    const cols: number[][] = (group.userData.trunkColumns as number[][] | undefined) ?? [];
+    for (const t of forestSpotsV) {
+      const sp = ELDERWOOD_TREES[t.species];
+      if (!sp?.trunk) continue;
+      const r = sp.trunk.radius * t.scale * (1 + Math.min(0.35, (sp.trunk.buttress ?? 0) * 0.3));
+      cols.push([t.x, t.z, Math.max(0.2, r * 0.9), t.y - 1, t.y + sp.height * t.scale * (sp.trunk.crownBase ?? 0.5)]);
+    }
+    group.userData.trunkColumns = cols;
+  }
   let viewCam: THREE.Camera | null = null;
   {
     const trunks = group.getObjectByName('forest-trunks') as THREE.Mesh | undefined;

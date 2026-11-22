@@ -26,6 +26,7 @@ const DASH_CARRY = 0.55;   // fraction of dash speed kept as momentum afterwards
 const BASE_FOV = 72; // matches the camera main.ts creates
 const RADIUS = 0.38;
 const HEIGHT = 1.8;
+const STEP_UP = 0.45;     // tallest step / kerb the character walks up without jumping (m)
 const MOUSE_SENS = 0.002;
 
 // Magazine size, reload length / beats, recoil, spread, ADS and switch time are per weapon: WEAPONS in weapons.ts.
@@ -425,6 +426,18 @@ export class PlayerController {
     return { origin, dir };
   }
 
+  /** The highest ground under the capsule's footprint (centre + 4 points at 70 % of the radius), or null. */
+  private footGround(pos: THREE.Vector3): number | null {
+    if (!this.world) return null;
+    let best: number | null = null;
+    const r = RADIUS * 0.7;
+    for (const [ox, oz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) {
+      const g = this.world.groundAt(pos.x + ox, pos.z + oz, pos.y + STEP_UP, STEP_UP + 0.4);
+      if (g !== null && (best === null || g > best)) best = g;
+    }
+    return best;
+  }
+
   /** Chest height on the character (line-of-sight checks in third person start here). */
   chestPos(out = new THREE.Vector3()) { return out.copy(this.object.position).setY(this.object.position.y + (this.crouched ? 1.0 : 1.35)); }
 
@@ -571,12 +584,49 @@ export class PlayerController {
     const fallVy = this.vy;
     let grounded = false;
     for (let s = 0; s < steps; s++) {
-      this.object.position.addScaledVector(this.vel, dt / steps);
-      this.object.position.y += (this.vy * dt) / steps;
+      const pos = this.object.position;
+      _before.copy(pos);
+      pos.addScaledVector(this.vel, dt / steps);
+      pos.y += (this.vy * dt) / steps;
       if (this.world) {
-        const res = this.world.resolve(this.object.position, RADIUS, HEIGHT);
+        const res = this.world.resolve(pos, RADIUS, HEIGHT);
         if (res.onGround && this.vy < 0) this.vy = 0;
         grounded = res.onGround;
+        // walk up stairs and kerbs: on the ground and blocked sideways, look for a step just ahead (the ground a
+        // capsule-radius in front, no higher than STEP_UP) and lift onto it, then carry on the move
+        if ((grounded || this.onGround) && this.vy <= 0.5) {
+          _want.set(this.vel.x, 0, this.vel.z).multiplyScalar(dt / steps);
+          const wl = _want.length();
+          if (wl > 1e-4) {
+            const got = (pos.x - _before.x) * _want.x / wl + (pos.z - _before.z) * _want.z / wl;
+            if (got < wl * 0.7) {
+              const ux = _want.x / wl, uz = _want.z / wl;
+              let gAhead: number | null = null;
+              for (const reach of [RADIUS + 0.06, RADIUS + 0.2]) {
+                const g = this.world.groundAt(_before.x + ux * reach, _before.z + uz * reach, _before.y + STEP_UP + 0.05, STEP_UP + 0.1);
+                if (g !== null && (gAhead === null || g > gAhead)) gAhead = g;
+              }
+              if (gAhead !== null && gAhead > _before.y + 0.03 && gAhead <= _before.y + STEP_UP + 0.01) {
+                _trial.copy(_before).add(_want).setY(gAhead + 0.02);
+                this.world.resolve(_trial, RADIUS, HEIGHT);
+                const gotT = (_trial.x - _before.x) * ux + (_trial.z - _before.z) * uz;
+                if (gotT > got + wl * 0.2 && _trial.y >= gAhead - 0.05) {
+                  pos.copy(_trial); grounded = true; if (this.vy < 0) this.vy = 0;
+                }
+              }
+            }
+          }
+        }
+        // stand on the highest ground under the body's footprint: lifts it out of stair edges it was sinking into,
+        // and keeps it glued to stairs and slopes on the way down instead of bouncing off each step
+        if ((grounded || (this.onGround && this.vy <= 0)) && this.lungeT <= 0) {
+          const g = this.footGround(pos);
+          if (g !== null) {
+            const d = g - pos.y;
+            if (d > 0.06 && d <= STEP_UP) { pos.y = g; grounded = true; }
+            else if (d < -0.02 && d > -0.38 && this.vy <= 0) { pos.y = g; grounded = true; this.vy = 0; }
+          }
+        }
       }
     }
 
@@ -700,3 +750,4 @@ export class PlayerController {
 }
 
 const _chest = new THREE.Vector3();
+const _before = new THREE.Vector3(), _want = new THREE.Vector3(), _trial = new THREE.Vector3();
