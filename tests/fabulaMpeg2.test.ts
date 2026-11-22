@@ -35,11 +35,11 @@ test('delivery presets carry their spec', () => {
   assert.equal(after(buildMpeg2Args('m', 'o', 'dvd-pal'), '-target'), 'pal-dvd');
 
   const ts = buildMpeg2Args('m', 'o.ts', 'ts-hd');
-  assert.deepEqual([after(ts, '-f'), after(ts, '-b:v'), after(ts, '-minrate'), after(ts, '-qmax')], ['mpegts', '20M', '20M', '28']);
+  assert.deepEqual([after(ts, '-f'), after(ts, '-b:v'), after(ts, '-minrate'), after(ts, '-bufsize'), after(ts, '-muxrate'), after(ts, '-qmax')], ['mpegts', '17500000', '17500000', '7995392', '19392658', '28']);
   assert.ok(ts.includes('+ilme+ildct'));
 
   const xd = buildMpeg2Args('m', 'o.mxf', 'xdcam-hd422', { fps: 25 });
-  assert.deepEqual([after(xd, '-pix_fmt'), after(xd, '-b:v'), after(xd, '-g'), after(xd, '-c:a'), after(xd, '-f')], ['yuv422p', '50M', '12', 'pcm_s24le', 'mxf']);
+  assert.deepEqual([after(xd, '-pix_fmt'), after(xd, '-b:v'), after(xd, '-g'), after(xd, '-c:a'), after(xd, '-f')], ['yuv422p', '50000000', '12', 'pcm_s24le', 'mxf']);
   assert.match(after(xd, '-vf'), /fps=25,setfield=tff/);
   assert.match(after(buildMpeg2Args('m', 'o', 'xdcam-hd422', { fps: 29.97 }), '-vf'), /fps=30000\/1001/);
 
@@ -67,4 +67,28 @@ test('SD deliverables convert to and tag BT.601; HD tags BT.709', () => {
   const xd = buildMpeg2Args('m', 'o', 'xdcam-hd422');
   assert.match(after(xd, '-vf'), /out_color_matrix=bt709/);
   assert.equal(after(xd, '-colorspace'), 'bt709');
+});
+
+test('HD broadcast specs: rates snap to the spec, fields only at field rates, anamorphic 1440', async () => {
+  const { pickRate, isInterlacedAt, mpeg2Preset } = await import('../services/fabula/mpeg2.ts');
+  const xd = mpeg2Preset('xdcam-hd422');
+  assert.equal(pickRate(xd, 25), '25');
+  assert.equal(pickRate(xd, 23.976), '24000/1001');
+  assert.equal(pickRate(xd, 60), '30000/1001', 'unsupported rate falls back to the spec default');
+  assert.equal(isInterlacedAt(xd, '30000/1001'), true);
+  assert.equal(isInterlacedAt(xd, '24000/1001'), false);
+  const p23 = buildMpeg2Args('m', 'o', 'xdcam-hd422', { fps: 23.976 });
+  assert.equal(after(p23, '-field_order'), 'progressive');
+  assert.match(after(p23, '-vf'), /fps=24000\/1001,setfield=prog/);
+  const a720 = buildMpeg2Args('m', 'o', 'atsc-720p');
+  assert.match(after(a720, '-vf'), /scale=1280:720.*fps=60000\/1001,setfield=prog/);
+  const hdv = buildMpeg2Args('m', 'o.m2t', 'hdv-1080i', { fps: 25 });
+  assert.match(after(hdv, '-vf'), /scale=1440:1080:flags=lanczos,setsar=4\/3,fps=25,setfield=tff/);
+  assert.equal(after(hdv, '-c:a'), 'mp2');
+  const x35 = buildMpeg2Args('m', 'o', 'xdcam-hd35');
+  assert.equal(after(x35, '-maxrate'), '35000000');
+  assert.ok(!x35.includes('-minrate'), 'XDCAM HD 35 is VBR');
+  const c422 = buildMpeg2Args('m', 'o', 'contrib-422', { fps: 25 });
+  assert.deepEqual([after(c422, '-pix_fmt'), after(c422, '-b:v'), after(c422, '-f')], ['yuv422p', '50000000', 'mpegts']);
+  assert.equal(after(buildMpeg2Args('m', 'o', 'dvb-1080i25'), '-c:a'), 'mp2');
 });

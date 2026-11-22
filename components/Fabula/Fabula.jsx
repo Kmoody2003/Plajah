@@ -47,7 +47,8 @@ import { createPortal } from "react-dom";
 import CaptionsWorkbench from "./captions/CaptionsWorkbench";
 import CaptionSafePreview from "./captions/CaptionSafePreview";
 import { cuesOfTrack } from "./captions/captionClips";
-import { isMpeg2Source, MPEG2_PRESETS, mpeg2Preset } from "../../services/fabula/mpeg2";
+import { isMpeg2Source } from "../../services/fabula/mpeg2";
+import DeliverPage, { RenderQueueChip } from "./deliver/DeliverPage";
 import { probeMediaDuration, hasRealDuration, sourceLimit, reconcileClipDurations, clampWindow } from "../../services/fabula/mediaDuration";
 import KeyboardShortcutsEditor from "./KeyboardShortcutsEditor";
 import { loadShortcutPrefs } from "../../services/fabula/shortcuts";
@@ -97,7 +98,6 @@ import PlajahColoristSuite from "../shared/color/PlajahColoristSuite";
 import { buildCurveLut, isCurvesIdentity } from "../../services/fabula/gradeCurves";
 import { isQualifierIdentity, keyFromPixel, QUALIFIER_DEFAULT } from "../../services/fabula/hslKey";
 import { isWindowEnabled, WINDOW_DEFAULT } from "../../services/fabula/gradeWindow";
-import { rangeClips } from "../../services/fabula/rangeClips";
 import {
   startPlayback, stopPlayback, engineRunning, engineClock, setEngineTracks,
   warmAudio, subscribePlayback, enginePlayable, registerLiveVideo, unregisterLiveVideo, syncLiveVideos, engineStats, engineIsDead,
@@ -748,10 +748,6 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   // ── Render queue: several export jobs (format × range) run in sequence, with a
   //    done-list you can come back to. deliverRange picks what a new job covers. ──
   const [deliverRange, setDeliverRange] = useState("all"); // all | inout | markers
-  const [renderQueue, setRenderQueue] = useState([]);      // {id,kind,label,t0,t1,status,pct}
-  const [mpeg2PresetId, setMpeg2PresetId] = useState(() => { try { return localStorage.getItem("fabula:mpeg2preset") || "dvd-ntsc"; } catch { return "dvd-ntsc"; } });
-  const [queueRunning, setQueueRunning] = useState(false);
-  const queueAbortRef = useRef(false);
   const [editWs, setEditWs] = useState("edit");     // resolve-style workspace: media|edit|script|vfx|color|audio|deliver
   const [scriptAutoScroll, setScriptAutoScroll] = useState(true);
   const [scriptShowTrimmed, setScriptShowTrimmed] = useState(true);
@@ -4936,101 +4932,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       setRendering(false);
     }
   };
-  // ── RENDER QUEUE ENGINE ────────────────────────────────────────────────────
-  // Transform the timeline to a sub-range [t0,t1): keep clips that overlap, shift
-  // them to a zero origin, and push srcIn forward when the range cuts mid-clip so
-  // the source frame stays correct. Whole-timeline is just [0, seqEnd].
-  const rangeClipsFor = (t0, t1) => rangeClips(clips, t0, t1);
-  // The ranges a job can cover, from the current deliverRange choice.
-  const queueSpans = () => {
-    if (deliverRange === "inout" && markIn != null && markOut != null && markOut > markIn) {
-      return [{ t0: markIn, t1: markOut, tag: "IN→OUT" }];
-    }
-    if (deliverRange === "markers" && markers.length) {
-      const pts = [...markers.map((m) => m.t), seqEnd].sort((a, b) => a - b);
-      const spans = [];
-      let prev = 0;
-      for (const p of pts) { if (p - prev > 0.05) spans.push({ t0: prev, t1: p, tag: `SEG ${spans.length + 1}` }); prev = p; }
-      return spans.length ? spans : [{ t0: 0, t1: seqEnd, tag: "ALL" }];
-    }
-    return [{ t0: 0, t1: seqEnd, tag: "ALL" }];
-  };
-  const addToQueue = (kind) => {
-    if (!clips.length) { ping("Nothing on the timeline to queue."); return; }
-    const rendered = kind === "mp4" || kind === "mpeg2";
-    const spans = rendered ? queueSpans() : [{ t0: 0, t1: seqEnd, tag: "ALL" }]; // interchange = whole cut
-    const base = (container?.title || "Fabula Cut").trim();
-    const preset = kind === "mpeg2" ? mpeg2Preset(mpeg2PresetId) : null;
-    const jobs = spans.map((sp) => ({
-      id: uid(), kind, t0: sp.t0, t1: sp.t1, status: "queued", pct: 0, ...(preset ? { preset: preset.id } : {}),
-      label: `${base} · ${preset ? preset.label : kind.toUpperCase()}${sp.tag !== "ALL" ? ` · ${sp.tag}` : ""}`,
-    }));
-    setRenderQueue((q) => [...q, ...jobs]);
-    ping(`Queued ${jobs.length} ${kind.toUpperCase()} job${jobs.length === 1 ? "" : "s"}`);
-  };
-  const downloadBlob = (blob, name) => {
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = name;
-    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 30000);
-  };
-  const runQueue = async () => {
-    if (queueRunning) { queueAbortRef.current = true; renderAbortRef.current?.abort(); return; }
-    const pending = renderQueue.filter((j) => j.status === "queued");
-    if (!pending.length) { ping("Queue is empty."); return; }
-    setQueueRunning(true); queueAbortRef.current = false;
-    setPlaying(false); rateRef.current = 1;
-    for (const job of pending) {
-      if (queueAbortRef.current) break;
-      setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, status: "running", pct: 0 } : j)));
-      const nameBase = job.label.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
-      try {
-        if (job.kind === "mp4") {
-          renderAbortRef.current = new AbortController();
-          const rc = rangeClipsFor(job.t0, job.t1);
-          const blob = await renderFabulaToBlob({
-            clips: rc, mediaPool: prod.mediaPool || [], format: vfmt,
-            palette: prod?.pixelsConfig?.colorPalette || [], title: job.label,
-            trackSettings: container?.timeline?.trackSettings || {},
-            cubeLut: (prod?.design?.luts || []).find((lut) => lut.id === prod?.design?.activeLutId) || null,
-            onProgress: (p) => setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, pct: p } : j))),
-            signal: renderAbortRef.current.signal,
-          });
-          if (!blob) { setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, status: queueAbortRef.current ? "queued" : "error" } : j))); continue; }
-          downloadBlob(blob, nameBase + ".mp4");
-        } else if (job.kind === "mpeg2") {
-          // Render the H.264 master for the range (0-60%), then encode it to the MPEG-2 preset (60-100%).
-          renderAbortRef.current = new AbortController();
-          const rc = rangeClipsFor(job.t0, job.t1);
-          const master = await renderFabulaToBlob({
-            clips: rc, mediaPool: prod.mediaPool || [], format: vfmt,
-            palette: prod?.pixelsConfig?.colorPalette || [], title: job.label,
-            trackSettings: container?.timeline?.trackSettings || {},
-            cubeLut: (prod?.design?.luts || []).find((lut) => lut.id === prod?.design?.activeLutId) || null,
-            onProgress: (p) => setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, pct: p * 0.6, stage: "Rendering master" } : j))),
-            signal: renderAbortRef.current.signal,
-          });
-          if (!master) { setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, status: queueAbortRef.current ? "queued" : "error" } : j))); continue; }
-          const { deliverMpeg2 } = await import("../../services/fabula/mpeg2Run");
-          const aspect = /^4:3$/.test(prod?.defaults?.aspect || "") ? "4:3" : "16:9";
-          const out = await deliverMpeg2(master, (container?.title || "Fabula Cut").trim() + (job.label.includes(" · SEG ") ? "_" + job.label.split(" · ").pop() : ""), job.preset, { aspect, fps: vfmt.fps },
-            (pr) => setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, pct: 0.6 + (pr.progress || 0) * 0.4, stage: pr.line || "Encoding MPEG-2" } : j))),
-            renderAbortRef.current.signal, job.t1 - job.t0);
-          if (out.blob) downloadBlob(out.blob, out.name);
-          else if (out.outputPath) ping(`Saved ${out.outputPath}`);
-        } else if (job.kind === "fcpxml") {
-          exportTimelineFCPXML();
-        } else if (job.kind === "edl") {
-          exportEDL();
-        }
-        setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, status: "done", pct: 1 } : j)));
-      } catch (e) {
-        console.warn("[Fabula queue]", e);
-        setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, status: "error" } : j)));
-      }
-    }
-    setQueueRunning(false);
-    ping(queueAbortRef.current ? "Queue stopped." : "Queue finished.");
-  };
+  // Background render queue: services/fabula/renderQueue.ts (driven by the Deliver page).
 
   // Shared destinations UI — shown inline in the DELIVER section (pre-render) AND in the
   // post-render confirm dialog. Same state either way: one file, flags route where it surfaces.
@@ -7547,7 +7449,6 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         </>
       );
     } else if (editWs === "deliver") {
-      const rangeReady = deliverRange === "all" || (deliverRange === "inout" ? (markIn != null && markOut != null && markOut > markIn) : markers.length > 0);
       verbs = (
         <>
           <div className="tgrp">
@@ -7560,26 +7461,14 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
           </div>
           <span className="tdiv" />
           <div className="tgrp">
-            <span className="cap" style={{ marginRight: 3 }}>QUEUE</span>
-            <button className="tbtn2" disabled={!rangeReady} title="Add MP4 render job(s) for the chosen range" onClick={() => addToQueue("mp4")}>＋ MP4</button>
-            <select className="sel xs" value={mpeg2PresetId} title={mpeg2Preset(mpeg2PresetId).note} aria-label="MPEG-2 delivery preset"
-              onChange={(e) => { setMpeg2PresetId(e.target.value); try { localStorage.setItem("fabula:mpeg2preset", e.target.value); } catch { /* */ } }}>
-              {MPEG2_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
-            </select>
-            <button className="tbtn2" disabled={!rangeReady} title={`Add MPEG-2 job(s): ${mpeg2Preset(mpeg2PresetId).note}`} onClick={() => addToQueue("mpeg2")}>＋ MPEG-2</button>
-            <button className="tbtn2" title="Add an FCPXML job (whole cut)" onClick={() => addToQueue("fcpxml")}>＋ FCPXML</button>
-            <button className="tbtn2" title="Add an EDL job (whole cut)" onClick={() => addToQueue("edl")}>＋ EDL</button>
-          </div>
-          <span className="tdiv" />
-          <div className="tgrp">
-            <button className="tbtn2 on" disabled={rendering} title="Render the whole timeline to MP4 now" onClick={doRenderMP4}>
-              <Film size={11} /> {rendering ? `RENDERING ${Math.round(renderPct * 100)}%` : "RENDER NOW"}</button>
+            <span className="cap" style={{ marginRight: 3 }}>INTERCHANGE</span>
+            <button className="tbtn2" title="Export FCPXML (Resolve / Premiere / FCP)" onClick={exportTimelineFCPXML}>FCPXML</button>
+            <button className="tbtn2" title="Export a CMX3600 EDL" onClick={exportEDL}>EDL</button>
           </div>
         </>
       );
       state = (
         <>
-          {renderQueue.some((j) => j.status === "queued") && <span className="chip amb">{renderQueue.filter((j) => j.status === "queued").length} QUEUED</span>}
           <span className="chip dimchip">{vfmt.label} · {vfmt.w}×{vfmt.h}</span>
           <span className="numval">{fmtTc(seqEnd, vfmt)}</span>
         </>
@@ -8200,6 +8089,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
           </div>
         )}
         <div className="hdr-right">
+          <RenderQueueChip onOpen={() => { setPage("edit"); setEditWs("deliver"); }} />
           {storageReady === false && <span className="warn-dot">SESSION ONLY</span>}
           <span className="ver">α</span>
         </div>
@@ -10408,118 +10298,20 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                   </div>
                 )}
 
-                {editWs === "deliver" && (() => {
-                  // ── Four-band DELIVER. The export VERBS (RENDER MP4 / FCPXML / EDL) live in the
-                  //    band-2 tool bar like every other room; the work surface holds the deliverables:
-                  //    format presets, destinations, and a runtime summary. Band-4 = render progress. ──
-                  const runtime = fmtTc(seqEnd, vfmt);
-                  const mp = prod.mediaPool || [];
-                  const badFormats = mp.filter((a) => a.needsConversion && !a.converted && clips.some((c) => c.assetId === a.id && !c.disabled)).length;
-                  const PRESETS = [
-                    { id: "mp4", tab: "var(--org)", name: "Master — MP4 / H.264", sub: `${vfmt.w}×${vfmt.h} · ${vfmt.fps}${vfmt.drop ? " DF" : ""} · AAC`, note: "Pixels engine · frame-exact" },
-                    ...MPEG2_PRESETS.map((p) => ({ id: "m2-" + p.id, tab: "#a78bfa", name: `MPEG-2 — ${p.label}`, sub: p.size ? `${p.size.w}×${p.size.h} · ${p.interlaced ? "interlaced TFF" : "progressive"} · .${p.ext}` : `${vfmt.w}×${vfmt.h} · .${p.ext}`, note: p.note })),
-                    { id: "sbs3d", tab: "var(--blue)", name: "Side-by-Side 3D — VR / Quest", sub: `${vfmt.w * 2}×${vfmt.h} · Full SBS MP4`, note: "Meta Quest / Android XR / 4XVR" },
-                    { id: "fcpxml", tab: "var(--blue)", name: "FCPXML — Resolve / Premiere / FCP", sub: "timeline interchange · relinkable", note: "Round-trips this cut for finishing" },
-                    { id: "edl", tab: "var(--green)", name: "EDL — CMX3600", sub: "classic conform list", note: "Avid / any NLE" },
-                  ];
-                  return (
-                    <div className="deliverroom">
-                      <div className="deliverstage">
-                        <aside className="deliverpanel glass-dark" style={{ width: 300, flex: "none" }}>
-                          <div className="lbl">DELIVERABLES <span className="cap">RUN A VERB FROM THE TOOL BAR</span></div>
-                          {PRESETS.map((ps) => (
-                            <div key={ps.id} className="pset idtop" style={{ "--tab": ps.tab }}>
-                              <span style={{ fontSize: 10, fontWeight: 800, color: "#eee" }}>{ps.name}</span>
-                              <span className="qsub numval">{ps.sub}</span>
-                              <span className="dim small" style={{ letterSpacing: 0 }}>{ps.note}</span>
-                            </div>
-                          ))}
-                          <CopyBtn text={exportAll()} label="⤓ COPY FULL EXPORT (BIBLE + SHOTS + PROMPTS)" />
-                        </aside>
-
-                        <div className="deliverpanel glass-dark" style={{ flex: 1, minWidth: 0 }}>
-                          <div className="isec"><span className="lbl" style={{ flex: 1 }}>RENDER QUEUE <span className="cap">FORMAT × RANGE</span></span>
-                            {renderQueue.length > 0 && <button className="minibtn" onClick={() => setRenderQueue((q) => q.filter((j) => j.status === "running"))}>CLEAR</button>}</div>
-                          {renderQueue.length === 0 && (
-                            <div className="dim small" style={{ lineHeight: 1.6 }}>Nothing queued. Pick a <b>range</b> in the tool bar and add MP4 / FCPXML / EDL jobs — MP4 honours In→Out and per-marker segments (dailies), interchange exports the whole cut.</div>
-                          )}
-                          {renderQueue.map((j) => {
-                            const tab = j.kind === "mp4" ? "var(--org)" : j.kind === "mpeg2" ? "#a78bfa" : j.kind === "fcpxml" ? "var(--blue)" : "var(--green)";
-                            const st = j.status === "running" ? "amb" : j.status === "done" ? "green" : j.status === "error" ? "red" : "dimchip";
-                            return (
-                              <div key={j.id} className="qrow idtop" style={{ "--tab": tab }}>
-                                <span style={{ flex: 1, minWidth: 0 }}>
-                                  <span className="qname" style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.label}</span>
-                                  <span className="qsub numval">{j.kind === "mp4" || j.kind === "mpeg2" ? `${fmtTc(j.t0, vfmt)} → ${fmtTc(j.t1, vfmt)}${j.status === "running" && j.stage ? ` · ${j.stage}` : ""}` : "whole cut"}</span>
-                                </span>
-                                {j.status === "running" && <><div className="dbar" style={{ maxWidth: 90 }}><span style={{ width: `${j.pct * 100}%` }} /></div><span className="numval" style={{ fontSize: 9 }}>{Math.round(j.pct * 100)}%</span></>}
-                                <span className={`chip ${st}`}>{j.status.toUpperCase()}</span>
-                                {j.status !== "running" && <button className="ghost danger" title="Remove" onClick={() => setRenderQueue((q) => q.filter((x) => x.id !== j.id))}><X size={11} /></button>}
-                              </div>
-                            );
-                          })}
-                          <div className="insp-div" />
-                          <div className="lbl">DESTINATIONS <span className="cap">MP4 · WHERE IT SURFACES</span></div>
-                          {renderDestinations()}
-                        </div>
-
-                        <aside className="deliverpanel glass-dark" style={{ width: 250, flex: "none" }}>
-                          <div className="lbl">SEQUENCE</div>
-                          <div className="dtable">
-                            <div><span className="param">FORMAT</span><span className="numval">{vfmt.label}</span></div>
-                            <div><span className="param">FRAME</span><span className="numval">{vfmt.w}×{vfmt.h}</span></div>
-                            <div><span className="param">RATE</span><span className="numval">{vfmt.fps}{vfmt.drop ? " DF" : " NDF"}</span></div>
-                            <div><span className="param">ASPECT</span><span className="numval">{prod.defaults.aspect}</span></div>
-                            <div><span className="param">CLIPS</span><span className="numval">{clips.length}</span></div>
-                            <div><span className="param">RUNTIME</span><span className="numval">{runtime}</span></div>
-                          </div>
-                          {badFormats > 0 && <span className="chip amb" style={{ alignSelf: "flex-start" }}>{badFormats} CLIP{badFormats > 1 ? "S" : ""} NEED CONVERT</span>}
-                          <span className="dim small" style={{ lineHeight: 1.5 }}>RENDER MP4 writes a real, frame/beat/sample-accurate file via the Plajah Pixels engine. FCPXML / EDL round-trip this cut into Resolve, Premiere or Avid for finishing.</span>
-                        </aside>
-                      </div>
-
-                      <div className="deliverctrl glass-dark">
-                        <span className="troom">DELIVER</span>
-                        <span className="tdiv" />
-                        {(() => {
-                          const pending = renderQueue.filter((j) => j.status === "queued").length;
-                          const done = renderQueue.filter((j) => j.status === "done").length;
-                          if (queueRunning) {
-                            const running = renderQueue.find((j) => j.status === "running");
-                            return (
-                              <>
-                                <span className="cap" style={{ color: "var(--org)" }}>RENDERING QUEUE</span>
-                                {running && <span className="dim small" style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{running.label}</span>}
-                                {running && <div className="dbar"><span style={{ width: `${(running.pct || 0) * 100}%` }} /></div>}
-                                <span className="numval">{done}/{renderQueue.length}</span>
-                                <button className="minibtn danger" style={{ marginLeft: "auto" }} onClick={runQueue}>STOP QUEUE</button>
-                              </>
-                            );
-                          }
-                          if (rendering) {
-                            return (
-                              <>
-                                <span className="cap" style={{ color: "var(--org)" }}>{renderStage}…</span>
-                                <div className="dbar"><span style={{ width: `${renderPct * 100}%` }} /></div>
-                                <span className="numval">{Math.round(renderPct * 100)}%</span>
-                                <button className="minibtn danger" style={{ marginLeft: "auto" }} onClick={doRenderMP4}>CANCEL</button>
-                              </>
-                            );
-                          }
-                          return (
-                            <>
-                              <span className="chip green">READY</span>
-                              {pending > 0
-                                ? <span className="dim small">{pending} job{pending === 1 ? "" : "s"} queued{done ? ` · ${done} done` : ""} — MP4 downloads as it finishes.</span>
-                                : <span className="dim small">Add jobs from the tool bar, or RENDER NOW for a one-off whole-timeline MP4.</span>}
-                              <button className="minibtn on" style={{ marginLeft: "auto" }} disabled={!pending} onClick={runQueue}><Film size={12} /> START QUEUE</button>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  );
-                })()}
+                {editWs === "deliver" && (
+                  <div className="deliverroom" style={{ flex: 1, minHeight: 0 }}>
+                    <DeliverPage
+                      sequence={(container?.title || prod?.title || "Fabula Cut").trim()}
+                      timeline={{ w: vfmt.w || 1920, h: vfmt.h || 1080, fps: vfmt.fps || 24, drop: !!vfmt.drop }}
+                      end={seqEnd} markIn={markIn} markOut={markOut} markers={markers}
+                      clips={clips} mediaPool={prod.mediaPool || []} trackSettings={container?.timeline?.trackSettings || {}}
+                      cubeLut={(prod?.design?.luts || []).find((lut) => lut.id === prod?.design?.activeLutId) || null}
+                      palette={prod?.pixelsConfig?.colorPalette || []}
+                      range={deliverRange} onRange={setDeliverRange}
+                      onPublish={(blob, name) => setExportReady({ blob, name })}
+                      onExportFcpxml={exportTimelineFCPXML} onExportEdl={exportEDL} ping={ping} />
+                  </div>
+                )}
               </>
             )}
           </div>

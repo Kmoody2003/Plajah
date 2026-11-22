@@ -84,20 +84,25 @@ export async function conformMpeg2(file: File, onProgress: OnProgress, signal?: 
 
 export interface DeliverResult { engine: 'native' | 'wasm'; name: string; blob?: Blob; outputPath?: string; sizeBytes: number }
 
-/** Rendered H.264 master → MPEG-2 deliverable. Desktop writes to Downloads; the web returns a Blob. */
-export async function deliverMpeg2(master: Blob, base: string, presetId: Mpeg2PresetId, opts: DeliverOptions, onProgress: OnProgress, signal?: AbortSignal, durationSec?: number): Promise<DeliverResult> {
+/** Any master → deliverable with ffmpeg arguments built by `makeArgs(encoders, input, output)`.
+ *  Desktop writes straight into Downloads (no size limit); the web returns a Blob. */
+export async function deliverWithArgs(master: Blob, name: string, makeArgs: (encoders: string[], input: string, output: string) => string[], onProgress: OnProgress, signal?: AbortSignal, durationSec?: number, label = 'Encoding'): Promise<DeliverResult> {
   const engine = await mpeg2Engine();
-  const name = deliverName(base, presetId);
   if (engine === 'native') {
     const status = await nativeStatus();
     const inPath = await stageNative(master, 'master.mp4', onProgress);
     const dir = status.downloads || inPath.replace(/[\\/][^\\/]+$/, '');
     const sep = dir.includes('\\') ? '\\' : '/';
     const { path: outPath } = await invoke<{ path: string }>('crossover_unique_path', { path: `${dir}${sep}${name}` });
-    const r = await runNativeFfmpeg(() => buildMpeg2Args(inPath, outPath, presetId, opts), outPath, durationSec, false,
-      (p) => onProgress({ progress: p.progress, line: p.speed ? `Encoding MPEG-2 · ${p.speed}` : 'Encoding MPEG-2' }), signal);
+    const r = await runNativeFfmpeg((enc) => makeArgs(enc, inPath, outPath), outPath, durationSec, false,
+      (p) => onProgress({ progress: p.progress, line: p.speed ? `${label} · ${p.speed}` : label }), signal);
     return { engine, name, outputPath: r.outputPath, sizeBytes: r.sizeBytes };
   }
-  const { blob } = await runWasm(master, 'master.mp4', name, (i, o) => buildMpeg2Args(i, o, presetId, opts), (p) => onProgress({ progress: p.progress, line: p.line || 'Encoding MPEG-2' }), signal);
+  const { blob } = await runWasm(master, 'master.mp4', name.replace(/[^\w.-]+/g, '_'), (i, o) => makeArgs([], i, o), (p) => onProgress({ progress: p.progress, line: p.line || label }), signal);
   return { engine, name, blob, sizeBytes: blob.size };
+}
+
+/** Rendered H.264 master → MPEG-2 deliverable. */
+export function deliverMpeg2(master: Blob, base: string, presetId: Mpeg2PresetId, opts: DeliverOptions, onProgress: OnProgress, signal?: AbortSignal, durationSec?: number): Promise<DeliverResult> {
+  return deliverWithArgs(master, deliverName(base, presetId), (_e, i, o) => buildMpeg2Args(i, o, presetId, opts), onProgress, signal, durationSec, 'Encoding MPEG-2');
 }

@@ -109,6 +109,35 @@ const motionCanvases = new Map<string, HTMLCanvasElement>();
 /** CG graphics whose fonts/images are already loaded for this session. */
 const cgPrepared = new Set<string>();
 
+// ── Background-safe pacing ──────────────────────────────────────────────────
+// Fabula renders in the background while you work elsewhere — including with its tab or window
+// hidden / minimised. Browsers throttle timers in hidden pages (≥1 s, then once a minute) and stop
+// requestVideoFrameCallback entirely, which used to freeze a render the moment Fabula lost focus.
+// The loop therefore waits on EVENTS (encoder 'dequeue', media 'seeked') and yields through a
+// MessageChannel, none of which are throttled.
+// Note: a backgrounded WebView / occluded window throttles all of this while still reporting
+// document.hidden === false, so nothing below relies on detecting visibility.
+const yieldTask = () => new Promise<void>((r) => { const ch = new MessageChannel(); ch.port1.onmessage = () => { ch.port1.close(); r(); }; ch.port2.postMessage(0); });
+const yieldToBrowser = yieldTask;
+/** Resolve after `ms` using un-throttled ticks (a timer would sleep ≥1 s when backgrounded). */
+async function waitMs(ms: number, until?: () => boolean) {
+  const end = performance.now() + ms;
+  while (performance.now() < end) { if (until?.()) return; await yieldTask(); }
+}
+/** requestVideoFrameCallback stops firing when the page isn't being painted. Once it misses its
+ *  deadline during a render, stop asking for it (renderTimeline resets this per render). */
+let frameCallbacksWork = true;
+/** Wait for a WebCodecs encoder's queue to fall to `max`, by its dequeue event where supported. */
+async function drainEncoder(enc: any, max: number, aborted?: () => boolean) {
+  while (enc.encodeQueueSize > max) {
+    if (aborted?.()) throw new Error('aborted');
+    if ('ondequeue' in enc) {
+      // Race a short timer so an encoder that stops emitting can never hang the render.
+      await new Promise<void>((r) => { let t: any; const on = () => { clearTimeout(t); r(); }; enc.addEventListener('dequeue', on, { once: true }); t = setTimeout(() => { enc.removeEventListener('dequeue', on); r(); }, 50); });
+    } else await yieldTask();
+  }
+}
+
 function seekVideo(v: HTMLVideoElement, t: number, timeoutMs = 2500): Promise<void> {
   // ALWAYS RESOLVES — never rejects. A paused seek presents exactly ONE frame (the nearest
   // decodable frame ≤ target); that frame IS the seek result and must be used, even when it sits
@@ -124,11 +153,12 @@ function seekVideo(v: HTMLVideoElement, t: number, timeoutMs = 2500): Promise<vo
     let done = false;
     const settle = () => {
       if (done) return; done = true;
-      if (typeof (v as any).requestVideoFrameCallback === 'function') {
+      if (frameCallbacksWork && typeof (v as any).requestVideoFrameCallback === 'function') {
         let fired = false;
         // Cap the present-wait so a missed callback can't stall the render; resolve with
-        // whatever frame is on the element (never fail).
-        const cap = setTimeout(() => { if (!fired) { fired = true; resolve(); } }, 300);
+        // whatever frame is on the element (never fail). A miss means the page isn't painting
+        // (background / occluded) — later frames then rely on 'seeked' alone.
+        void waitMs(300, () => fired).then(() => { if (!fired) { fired = true; frameCallbacksWork = false; resolve(); } });
         (v as any).requestVideoFrameCallback((_now: number, meta: any) => {
           if (meta && typeof meta.mediaTime === 'number') {
             const prev = presented.get(v);
@@ -138,7 +168,7 @@ function seekVideo(v: HTMLVideoElement, t: number, timeoutMs = 2500): Promise<vo
               : (prev?.frameDur ?? 1 / 120);            // pessimistic default until measured
             presented.set(v, { mediaTime: meta.mediaTime, frameDur, samples: (prev?.samples || 0) + (delta > 0.001 ? 1 : 0) });
           }
-          if (!fired) { fired = true; clearTimeout(cap); resolve(); }
+          if (!fired) { fired = true; resolve(); }
         });
       } else resolve();
     };
@@ -175,6 +205,7 @@ async function loadMediaEl(url: string, type: 'video' | 'image'): Promise<HTMLVi
 export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> {
   const { timeline, resolveLayers, audioBuffer, config, fast, analysis, onProgress, signal, cubeLut } = opts;
   const fps = normalizeVideoFrameRate(opts.fps) || 30;
+  frameCallbacksWork = true; // re-probe each render: the page may be visible again
   const width = Math.max(2, Math.round(opts.width / 2) * 2);
   const height = Math.max(2, Math.round(opts.height / 2) * 2);
   const bitrate = opts.bitrate ?? Math.round(Math.min(24_000_000, Math.max(8_000_000, width * height * fps * 0.12)));
@@ -281,6 +312,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
 
   try {
     // ── Video pass ──────────────────────────────────────────────────────────
+    let lastReport = 0;
     for (let i = 0; i < total; i++) {
       if (aborted()) throw new Error('aborted');
       if (encErr) throw encErr;
@@ -509,13 +541,16 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
       frame.close();
 
       // Let the encoder pipeline run deep before waiting (more parallelism = faster).
-      while (videoEnc.encodeQueueSize > 24) { if (aborted()) throw new Error('aborted'); await new Promise(r => setTimeout(r, 1)); }
+      await drainEncoder(videoEnc, 24, aborted);
       if (sink && queued > 192 * 1024 * 1024) await pending;
       if (sinkErr) throw sinkErr;
       // Yield to the browser only occasionally (keeps the tab alive without throttling
       // the render to the event-loop tick) — generator/shader renders then run far
       // faster than real time.
-      if (i % 24 === 0) { onProgress?.(i / total * 0.92, 'Rendering frames'); await new Promise(r => setTimeout(r, 0)); }
+      // Report at least twice a second: when decoding runs slowly (an unpainted / minimised window
+      // decodes seeks lazily) 24 frames can take a while, and a frozen 0% reads as a hang.
+      const now = performance.now();
+      if (i % 24 === 0 || now - lastReport > 500) { lastReport = now; onProgress?.(i / total * 0.92, 'Rendering frames'); await yieldToBrowser(); }
     }
     await videoEnc.flush();
     if (encErr) throw encErr;
@@ -544,7 +579,7 @@ export async function renderTimeline(opts: RenderOptions): Promise<Blob | null> 
         if (CH1) planar.set(CH1.subarray(off, off + n), n);
         const ad = new AudioData({ format: 'f32-planar', sampleRate: sr, numberOfFrames: n, numberOfChannels: chs, timestamp: Math.round(off / sr * 1e6), data: planar });
         audioEnc.encode(ad); ad.close();
-        while (audioEnc.encodeQueueSize > 16) await new Promise(r => setTimeout(r, 3));
+        await drainEncoder(audioEnc, 16);
       }
       await audioEnc.flush();
       audioEnc.close();

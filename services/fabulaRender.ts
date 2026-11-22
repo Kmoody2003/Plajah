@@ -48,6 +48,8 @@ interface RenderFabulaOpts {
   quality?: boolean;
   /** Receives the mixed timeline audio before video rendering (for a lossless WAV master). */
   onAudio?: (mix: AudioBuffer | null) => void | Promise<void>;
+  /** Deliveries: the file runs at exactly format.fps (no source-cadence upgrade). */
+  exactFps?: boolean;
 }
 
 function itemToSnapshot(item: any, label: string): SceneSnapshot {
@@ -485,7 +487,7 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
   // Cadence probe is a NICETY, never a blocker: only probe sources without a cached fps, and
   // cap the whole phase — if probing is slow/unresponsive we fall back to the requested fps
   // rather than stalling the export.
-  const toProbe = [...sources].filter(([url, item]) => !(item.url === url && item.fps));
+  const toProbe = opts.exactFps ? [] : [...sources].filter(([url, item]) => !(item.url === url && item.fps));
   let sourceRates: number[] = [...sources].map(([url, item]) => (item.url === url && item.fps) ? (item.fps as number) : 0);
   if (toProbe.length) {
     onProgress?.(0, 'Checking source frame rates');
@@ -500,7 +502,7 @@ export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob |
     if (Array.isArray(probed) && probed.length) sourceRates = sourceRates.concat(probed);
   }
   if (signal?.aborted) return null;
-  const renderFps = sourceSafeRenderFrameRate(requestedFps, sourceRates);
+  const renderFps = opts.exactFps ? requestedFps : sourceSafeRenderFrameRate(requestedFps, sourceRates);
   if (renderFps > requestedFps + 0.001) onProgress?.(0, `Preserving source cadence at ${renderFps} fps`);
   const config = {
     colorPalette: palette || [],
