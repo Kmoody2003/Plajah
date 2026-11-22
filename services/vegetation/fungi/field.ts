@@ -44,14 +44,23 @@ function spots(u: N, v: N, ku: number, kv: number): [N, N] {
   return [spot, rim];
 }
 
-function fungusMaterial(sp: FungusSpecies, beat: N) {
+function fungusMaterial(sp: FungusSpecies, beat: N, lowTier = false) {
   const L = sp.look, g = L.glow;
-  const m = new THREE.MeshStandardNodeMaterial({ side: THREE.DoubleSide, metalness: 0 });
+  // Physical on full tier: sheen = the soft velvety scatter of mushroom flesh, clearcoat = slime / moisture film
+  const m = lowTier ? new THREE.MeshStandardNodeMaterial({ side: THREE.DoubleSide, metalness: 0 })
+    : new THREE.MeshPhysicalNodeMaterial({ side: THREE.DoubleSide, metalness: 0 });
   const part: N = attribute('aPart', 'float'), co: N = attribute('aCoord', 'vec2'), col: N = attribute('color', 'vec3');
   const gl: N = attribute('aGlow', 'float'), sw: N = attribute('aSway', 'vec2'), inst: N = attribute('aInst', 'vec4');
   const isTop: N = float(1).sub(step(float(0.5), part)), isUnder: N = step(float(0.5), part).mul(float(1).sub(step(float(1.5), part)));
   const isRoot: N = step(float(2.5), part).mul(float(1).sub(step(float(3.5), part))), isCable: N = step(float(3.5), part);
+  const isStem: N = step(float(1.5), part).mul(float(1).sub(step(float(2.5), part)));
   const pulse: N = float(1).add(beat.mul(g.beat));
+  // per mushroom: its own hash → which ones are slimy, their wobble phase and rate
+  const ih: N = h2(inst.xy.mul(0.173)), ih2: N = h2(inst.xy.mul(0.311).add(7.1));
+  const slimy: N = step(float(0.5), ih);                                   // about half are coated in slime
+  // wetness 0…1: slimy caps fully wet, the rest damp; streaks of slime run down from the crown
+  const streak: N = smoothstep(float(0.55), float(0.95), sin(co.x.mul(37).add(ih.mul(40)).add(sin(co.y.mul(9).add(ih2.mul(6))).mul(1.4))).mul(0.5).add(0.5));
+  const wet: N = max(slimy.mul(float(0.75).add(streak.mul(0.25))), float(0.28).add(streak.mul(0.3)).mul(isTop.add(isStem.mul(0.6))));
   let base: N = col, em: N = vec3(0, 0, 0);
   if (L.pattern === 'circuit') {
     const [mask, h] = circuit(co.x, co.y, 26, 8);
@@ -65,19 +74,40 @@ function fungusMaterial(sp: FungusSpecies, beat: N) {
     base = mix(mix(base, color(L.patternColor), spot.mul(zone)), color(0x2a2a1c), rim.mul(zone).mul(0.8));
     em = em.add(color(L.patternColor).mul(spot.mul(zone).mul(g.pattern * 0.5)).mul(pulse));
   }
-  // jelly caps: light through the thin edges, a soft inner glow
+  // wet flesh reads darker and more saturated
+  base = base.mul(float(1).sub(wet.mul(0.18)));
+  // light through the flesh (sub-surface): thin cap edges glow with the cap colour, the whole body carries a soft
+  // inner fill so its shadow side isn't dead; the underside picks up some of the cap's scattered light
   const edge: N = float(1).sub(abs(dot(normalView, positionViewDirection)));
-  em = em.add(color(L.capTop).mul(isTop).mul(edge.mul(edge).mul(L.translucency * 0.9).add(L.translucency * 0.12)));
+  const tl = Math.max(0.25, L.translucency);
+  em = em.add(color(L.capTop).mul(isTop).mul(edge.mul(edge).mul(tl * 0.9).add(tl * 0.14)));
+  em = em.add(base.mul(isTop.add(isStem.mul(0.6)).add(isUnder.mul(0.8))).mul(0.07 + tl * 0.08));
   em = em.add(color(g.color).mul(isUnder.mul(gl).mul(g.gills)).mul(pulse));
   em = em.add(color(g.color).mul(isCable.mul(g.cables)).mul(pulse).mul(sin(time.mul(3).add(co.y.mul(9))).mul(0.25).add(0.75)));
   em = em.add(color(g.color).mul(isRoot.mul(gl).mul(0.7)).mul(pulse));
   m.colorNode = base;
   m.emissiveNode = em;
-  m.roughnessNode = mix(float(0.75), float(L.roughness), isTop);
-  // a little wobble when pushed: the cap end sways, the foot stays put
-  const push: N = toLocal(pushAt(inst.xy), inst.z), k: N = sw.x.mul(sw.x).mul(sp.wobble * 0.12);
-  const jig: N = sin(time.mul(5).add(sw.y.mul(6.28))).mul(length(push).mul(0.5)).mul(k);
-  m.positionNode = positionLocal.add(vec3(push.x.mul(k).add(jig), 0, push.y.mul(k).sub(jig)));
+  // slime is glossy, dry flesh stays soft
+  m.roughnessNode = mix(mix(float(0.75), float(L.roughness), isTop), float(0.16), wet.mul(isTop.add(isStem).min(1)).mul(0.85));
+  if (!lowTier) {
+    const pm = m as THREE.MeshPhysicalNodeMaterial;
+    pm.sheenNode = mix(color(L.capTop), vec3(1, 1, 1), float(0.35)).mul(isTop.add(isStem.mul(0.6)).mul(0.55));
+    pm.sheenRoughnessNode = float(0.7);
+    pm.clearcoatNode = wet.mul(isTop.add(isStem.mul(0.8)).min(1));
+    pm.clearcoatRoughnessNode = mix(float(0.18), float(0.04), slimy);
+  }
+  // gelatin motion: every cap breathes in a slow squash-and-stretch (jelly species more), bounces on the beat, and
+  // lags behind its stem in a soft sway; pushing it sets it jiggling. The foot stays put (weight = sway height²).
+  const k2: N = sw.x.mul(sw.x), jelly = 0.35 + sp.wobble * 0.65;
+  const w: N = float(2.1).add(ih2.mul(1.6));
+  const breathe: N = sin(time.mul(w).add(sw.y.mul(6.28)).add(ih.mul(6.28))).mul(0.022 * jelly).add(beat.mul(0.03 * jelly));
+  const sx: N = sin(time.mul(w.mul(0.55)).add(ih.mul(9))), sz: N = cos(time.mul(w.mul(0.47)).add(ih2.mul(9)));
+  const sway: N = (vec2 as N)(sx, sz).mul(0.018 * jelly);
+  const push: N = toLocal(pushAt(inst.xy), inst.z), k: N = k2.mul(sp.wobble * 0.12 + 0.03);
+  const jig: N = sin(time.mul(9).add(sw.y.mul(6.28))).mul(length(push).mul(0.8)).mul(k);
+  const squash: N = vec3(float(1).add(breathe.mul(k2)), float(1).sub(breathe.mul(1.6).mul(k2)), float(1).add(breathe.mul(k2)));
+  const lateral: N = vec3(push.x.mul(k).add(jig).add(sway.x.mul(k2)), 0, push.y.mul(k).sub(jig).add(sway.y.mul(k2)));
+  m.positionNode = positionLocal.mul(squash).add(lateral);
   return m;
 }
 
@@ -96,7 +126,7 @@ export class FungusField {
     const variants = o.variants ?? 3, beat: N = o.beat ?? uniform(0), lo = !!o.lowTier;
     this.range = o.range ?? (lo ? 45 : 80);
     species.forEach((sp, si) => {
-      const mat = fungusMaterial(sp, beat);
+      const mat = fungusMaterial(sp, beat, lo);
       const sporeAt: number[] = [];
       for (let vi = 0; vi < variants; vi++) {
         const mine = spots.filter((p, k) => p.species === si && k % variants === vi);

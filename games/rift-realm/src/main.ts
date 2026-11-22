@@ -9,6 +9,7 @@ import { applyStudioProject } from './studio/projectHook';
 import { createRules } from './studio/rulesHost';
 import { createPost } from './post';
 import { preloadCharacters } from './characters';
+import { wetten } from './wetness';
 import { initKTX2, preloadSets } from './textures';
 import { PlayerController } from './player';
 import { EnemyManager, enemyNav } from './enemies';
@@ -82,6 +83,11 @@ async function boot() {
   const levelModule = moduleByParam(levelId);
   await preloadSets(levelModule.sets);
   const arena = levelModule.build(scene, tier);
+  // wet forest: damp surfaces, glossy wet patches, puddle shine (?dry turns it off); models that stream in later get it too
+  if (!new URLSearchParams(location.search).has('dry')) {
+    wetten(arena.group);
+    for (const ms of [3000, 8000, 20000]) window.setTimeout(() => wetten(arena.group), ms);
+  }
   await arena.prepare?.(renderer, camera);
   camera.far = levelModule.look.far; camera.updateProjectionMatrix(); renderer.toneMappingExposure = levelModule.look.exposure;
   // Game Studio Play view: the project's edits to this level (spawns, enemy spots, control points, props, look) apply before anyone spawns.
