@@ -607,8 +607,9 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
       }
       // vines down the arches, ferns and bushes along the walls and the sides
       for (let k = 0; k < 16; k++) { const q = at(30 + R() * 2, -16 + R() * 32); ctx.plantSpots.push({ x: q.x, y: py + 5 + R() * 4, z: q.z, yaw: R() * 6.28, species: 3, scale: 0.6 + R() * 0.6 }); }
-      for (let k = 0; k < 40; k++) { const q = at(26 + R() * 6, -20 + R() * 40); plant(R() < 0.6 ? 0 : 1, q.x, q.z, 0.9 + R() * 0.8, py); }
-      for (let k = 0; k < 18; k++) { const sd = R() < 0.5 ? -1 : 1, q = at(3 + R() * 20, sd * (9 + R() * 8)); plant(R() < 0.5 ? 0 : 1, q.x, q.z, 1 + R() * 0.8, py); }
+      // the overgrowth at the foot of the ruins and down both sides: bush and fern masses 2–4 m high, as in the art
+      for (let k = 0; k < 46; k++) { const q = at(21 + R() * 9, -20 + R() * 40); if (Math.abs(q.x - g.x) + Math.abs(q.z - g.z) < 3) continue; plant(R() < 0.55 ? 1 : 0, q.x, q.z, 1.8 + R() * 1.4, py); }
+      for (let k = 0; k < 30; k++) { const sd = R() < 0.5 ? -1 : 1, q = at(2 + R() * 22, sd * (8 + R() * 9)); plant(R() < 0.5 ? 0 : 1, q.x, q.z, 1.6 + R() * 1.4, py); }
       // machinery wreck and rubble in the near corners (the art's half-buried tech, bottom left and right)
       for (const [d, sx, n] of [[4.6, -5.8, 1], [4.8, 6.2, 2]] as const) {
         const q = at(d, sx);
@@ -619,6 +620,9 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
         const band = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.09, 6, 18), K.mats.cyanGlow); band.position.copy(tube.position); band.rotation.copy(tube.rotation); group.add(band);
       }
       for (let k = 0; k < 12; k++) { const q = at(4 + R() * 26, -14 + R() * 28); K.rocks(q.x, q.z, 1, 0.1, [0.2, 0.5], 400 + k); }
+      // the overgrown floor: moss, heaved flagstones, roots, ferns and grass in the cracks (the walk to the portal kept clear)
+      const toPortal = (x: number, z: number) => { const dx = x - cam.x, dz = z - cam.z, d = dx * f.x + dz * f.z, sx = dx * r.x + dz * r.z; return d > 2 && d < 23 && Math.abs(sx - 3.5 * d / 24) < 1.6; };
+      K.clutter(p.x, p.z, 32, py, { moss: 40, slabs: 34, roots: 8, plants: 60, seed: 41, keepClear: toPortal });
       out.clear.push([p.x, p.z, 34]);
       glowAt(g.x, py + 3, g.z);
       K.lamp(g.x - f.x * 2, py + 3.5, g.z - f.z * 2, 0x9ff8ff, 34);

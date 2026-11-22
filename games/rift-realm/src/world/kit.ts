@@ -3,9 +3,9 @@
 // sandbags and crates, waterfalls. Everything solid is a simple collider; looks come from the Elderwood materials, and the
 // structures with a sheet-built model (assets/elderwood/*.glb) are placed as art by index.ts.
 import * as THREE from 'three/webgpu';
-import { color, float, fract, mix, sin, smoothstep, texture as tslTexture, time, uniform, uv } from 'three/tsl';
+import { color, float, fract, mix, normalWorld, positionWorld, sin, smoothstep, texture as tslTexture, time, uniform, uv, vec3 } from 'three/tsl';
 import { taperTube, polyPrism, boulder } from '../geom';
-import { barkTube } from '../cyberforest';
+import { art, barkTube } from '../cyberforest';
 import type { WildsCtx } from './registry';
 import type { WorldTerrain } from './terrain';
 
@@ -29,6 +29,19 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
   const canvasMat = new THREE.MeshStandardNodeMaterial({ color: 0x6f6650, roughness: 1, side: THREE.DoubleSide });
   const sandbag = new THREE.MeshStandardNodeMaterial({ color: 0x8a7a58, roughness: 1 });
   const crate = new THREE.MeshStandardNodeMaterial({ color: 0x4a5236, roughness: 0.8, metalness: 0.2 });
+  // forest rock: the rock sheet's relief in grey-green stone, moss over every upward face (no volcanic orange)
+  const mossRock = (() => {
+    const src = mats.rock as THREE.MeshStandardNodeMaterial;
+    const m = new THREE.MeshStandardNodeMaterial({ normalMap: src.normalMap, roughnessMap: src.roughnessMap, roughness: 0.95 });
+    m.normalScale.set(1.3, 1.3);
+    const rl = src.map ? tslTexture(src.map, uv()).rgb.dot(vec3(0.3, 0.55, 0.15)) : float(0.4);
+    const moss = tslTexture(art('moss_strand_albedo.jpg', true, true), positionWorld.xz.mul(0.35)).rgb.mul(vec3(0.5, 0.7, 0.42));
+    const up = smoothstep(float(0.35), float(0.75), normalWorld.y);
+    m.colorNode = mix(vec3(rl).mul(vec3(0.46, 0.52, 0.48)), moss, up.mul(0.85));
+    return m;
+  })();
+  /** Grass allowed back into a place's footprint (cracks in paving): [x, z, r, cover]. */
+  const grassy: number[][] = [];
 
   // ── decks: a living trunk through a polygon deck, struts, a rope rail with openings, optional crenellated stone cap ──
   type DeckOpts = { sides?: number; open?: number[]; trunk?: boolean; trunkR?: number; crenel?: boolean; rail?: boolean; posts?: boolean; rune?: number | null; hut?: number | null; lamp?: boolean; square?: boolean; thick?: number };
@@ -178,7 +191,7 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
     let s = seed; const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
     for (let i = 0; i < n; i++) {
       const a = rnd() * 6.283, d = rnd() * rad, px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d, r = size[0] + rnd() * (size[1] - size[0]);
-      const g = boulder(r, px * 0.37 + pz, lo ? 1 : 2); kit.place(g, px, H(px, pz) - r * 0.35, pz, rnd() * 6.28); kit.add(mats.rock, g, { tpm: 0.4 });
+      const g = boulder(r, px * 0.37 + pz, lo ? 1 : 2); kit.place(g, px, H(px, pz) - r * 0.35, pz, rnd() * 6.28); kit.add(mossRock, g, { tpm: 0.4 });
     }
   };
 
@@ -251,6 +264,46 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
     }
   };
 
+  // ── floor clutter: what makes a paved floor read as an overgrown ruin, not a tiled plane ──
+  const mossDecal = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d')!;
+    for (let k = 0; k < 26; k++) { // a ragged blob: overlapping soft discs
+      const x = 128 + (Math.random() - 0.5) * 120, y = 128 + (Math.random() - 0.5) * 120, r = 18 + Math.random() * 46;
+      const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    }
+    const blob = new THREE.CanvasTexture(c);
+    const m = new THREE.MeshStandardNodeMaterial({ transparent: true, depthWrite: false, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2 });
+    const moss = tslTexture(art('moss_strand_albedo.jpg', true, true), positionWorld.xz.mul(0.5)).rgb;
+    m.colorNode = moss.mul(vec3(0.55, 0.8, 0.42));
+    m.opacityNode = tslTexture(blob, uv()).a.mul(1.3).min(0.95);
+    return m;
+  })();
+  /** Overgrow a floor round (x, z): moss patches, broken and tilted flagstones, roots across it, ferns and grass in the
+   *  cracks. `keepClear(x, z)` keeps paths and set pieces free. */
+  const clutter = (x: number, z: number, r: number, y: number, o: { moss?: number; slabs?: number; roots?: number; plants?: number; seed?: number; keepClear?: (x: number, z: number) => boolean } = {}) => {
+    let sd = o.seed ?? 5; const rnd = () => ((sd = (sd * 9301 + 49297) % 233280) / 233280);
+    const spot = () => { for (let t = 0; t < 8; t++) { const a = rnd() * 6.283, d = Math.sqrt(rnd()) * r, px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d; if (!o.keepClear?.(px, pz)) return [px, pz]; } return null; };
+    for (let k = 0; k < (o.moss ?? 24); k++) {
+      const p = spot(); if (!p) continue; const sz = 1.2 + rnd() * 3.2;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(sz * (1 + rnd()), sz), mossDecal); m.rotation.set(-Math.PI / 2, 0, rnd() * 6.28); m.position.set(p[0], y + 0.07, p[1]); m.renderOrder = 1; group.add(m);
+    }
+    for (let k = 0; k < (o.slabs ?? 22); k++) { // heaved and broken flagstones
+      const p = spot(); if (!p) continue; const w = 0.6 + rnd() * 0.7, d = 0.45 + rnd() * 0.6;
+      kit.box(mats.stone, w, 0.16, d, p[0], y + 0.05 + rnd() * 0.08, p[1], rnd() * 6.28, { tpm: 0.6, rx: (rnd() - 0.5) * 0.35, rz: (rnd() - 0.5) * 0.35 });
+    }
+    for (let k = 0; k < (o.roots ?? 5); k++) { // roots snaking over the stones
+      const p = spot(); if (!p) continue; const a = rnd() * 6.283, L = 4 + rnd() * 6, pts: THREE.Vector3[] = [];
+      for (let i = 0; i <= 6; i++) { const t = i / 6, w = Math.sin(t * 7 + k) * 0.6; pts.push(new THREE.Vector3(p[0] + Math.sin(a) * L * t + Math.cos(a) * w, y + 0.05 + Math.sin(t * Math.PI) * 0.18, p[1] + Math.cos(a) * L * t - Math.sin(a) * w)); }
+      trimGeos.push(barkTube(new THREE.CatmullRomCurve3(pts), 0.22 + rnd() * 0.12, 0.06, 18, 6, 0.2, k * 7 + x));
+    }
+    for (let k = 0; k < (o.plants ?? 30); k++) {
+      const p = spot(); if (!p) continue;
+      ctx.plantSpots.push({ x: p[0], y: y - 0.02, z: p[1], yaw: rnd() * 6.28, species: rnd() < 0.7 ? 0 : 1, scale: 0.45 + rnd() * 0.5 });
+    }
+    grassy.push([x, z, r, 0.45]);
+  };
+
   /** Merge the trunk/trim geometry into the level (call once, after every place is built). */
   const finish = () => {
     const tg = barkGeos.length ? mergeAll(barkGeos) : null;
@@ -260,7 +313,7 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
   };
 
   return {
-    H, deck, bridge, link, toward, hut, lamp, arch, ruinWall, pillar, paving, discPave, rocks, circuit, runeCircle, ring, screen, crystal, crates, sandbags, waterfall, finish,
+    H, deck, bridge, link, clutter, grassy, mossRock, toward, hut, lamp, arch, ruinWall, pillar, paving, discPave, rocks, circuit, runeCircle, ring, screen, crystal, crates, sandbags, waterfall, finish,
     barkGeos, trimGeos, lights, clears,
     mats: { cyanGlow, amberGlow, violetGlow, goldGlow, crystalMat, metal, canvasMat, sandbag, crate, fallMat },
   };

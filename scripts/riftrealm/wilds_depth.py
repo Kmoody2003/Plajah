@@ -69,7 +69,9 @@ def score(sid):
     A = np.stack([dg.ravel(), np.ones(dg.size)], 1); s, t = np.linalg.lstsq(A, da.ravel(), rcond=None)[0]
     dga = dg * s + t
     err = dga - da
-    depth_ok = float(np.mean(np.abs(err) < 0.10))
+    # sky: where the game frame has no geometry (its farthest few percent) the art's haze is not compared
+    sky = dg < 0.02
+    depth_ok = float(np.mean((np.abs(err) < 0.10)[~sky])) if (~sky).any() else 0.0
     ea, eg = edges(da), edges(dga)
     prec = float((eg & dilate(ea, 3)).sum() / max(1, eg.sum())); rec = float((ea & dilate(eg, 3)).sum() / max(1, ea.sum()))
     f = 2 * prec * rec / max(1e-6, prec + rec)

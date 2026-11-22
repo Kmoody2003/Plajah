@@ -3,6 +3,7 @@
 // the rivers and falls, and the forest, undergrowth and grass across the 2 km map.
 import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { color, densityFogFactor, float, fog } from 'three/tsl';
 import { CYBER_FOREST_TREES } from '../../../../services/vegetation/catalog/cyberForest';
 import type { TreeSpot } from '../../../../services/vegetation/trees/forest';
 import type { WildsBuilt, WildsCtx, WildsHooks } from './registry';
@@ -146,7 +147,11 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
     if (Math.abs(x) < CORE + 20 && Math.abs(z) < CORE + 20) return null;
     const y = H(x, z);
     if (y < WATER_Y + 0.25) return [0, 0];
-    if (inPlace[cellOf(x, z)]) return [0, 0];
+    if (inPlace[cellOf(x, z)]) {
+      // overgrown floors (kit.clutter) take grass back in their cracks; everything else in a place stays bare
+      for (const g of K.grassy) if ((x - g[0]) ** 2 + (z - g[1]) ** 2 < g[2] * g[2]) return [0.25 * g[3], g[3]];
+      return [0, 0];
+    }
     const c = clearance(x, z);
     if (c < 0.6) return [0, 0.12];
     const n = terrain.normal(x, z, 2);
@@ -180,6 +185,23 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
   let lt = 1;
   const cam = new THREE.Vector3();
 
+  // ── ?time=day: the art's misty daylight (the shots are lit this way; the level's own look is the nebula night).
+  //    Sky light and the moon become a soft green-grey day and a warm sun, a thick haze fills the distance. ──
+  const DAY = typeof location !== 'undefined' && new URLSearchParams(location.search).get('time') === 'day';
+  let renderer: THREE.WebGPURenderer | null = null, dayDone = false;
+  const applyDay = () => {
+    dayDone = true;
+    group.traverse((o) => {
+      const h = o as THREE.HemisphereLight, d = o as THREE.DirectionalLight;
+      if (h.isHemisphereLight) { h.color.setHex(0xd6e6dc); h.groundColor.setHex(0x33412d); h.intensity = 2.7; }
+      else if (d.isDirectionalLight) { d.color.setHex(0xfff0d4); d.intensity = 5.2; }
+    });
+    const haze = color(0x9fb6ac);
+    const sc = ctx.scene as unknown as { fogNode: unknown; backgroundNode: unknown };
+    sc.fogNode = fog(haze, densityFogFactor(float(0.0105))); sc.backgroundNode = color(0xaec4ba);
+    if (renderer) renderer.toneMappingExposure = 1.2;
+  };
+
   console.info(`[wilds] ${PLACES.length} places, ${trees.length} trees, ${ctx.plantSpots.length} plants, ${ctx.fungusSpots.length} fungi; built in ${Math.round(performance.now() - t0)} ms`);
   (globalThis as unknown as { __wilds?: unknown }).__wilds = { terrain, chunks, places: PLACES, shots: SHOTS, height: worldHeight, trees: trees.length };
 
@@ -189,6 +211,7 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
     vineKeep: (t) => t.species < 4 && Math.abs(t.x) < 700 && Math.abs(t.z) < 700 && ((t.x * 13 + t.z * 7) % 9 + 9) % 9 < 1,
     update(dt, view, player, pulse) {
       syncBeat(ctx); tm.setBeat();
+      if (DAY && !dayDone && renderer) applyDay();
       if (view) {
         view.getWorldPosition(cam);
         // the game sets the camera's far plane after prepare(); the open world needs it out to the mountains
@@ -203,6 +226,6 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
       }
       for (const p of pool) if (p.userData.base) p.intensity = p.userData.base * (1 + pulse * 0.25);
     },
-    prepare() { chunks.update(cam, 1, true); },
+    prepare(r) { renderer = r; chunks.update(cam, 1, true); },
   };
 }

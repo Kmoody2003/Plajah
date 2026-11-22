@@ -15,7 +15,8 @@ const browser = await chromium.launch({ headless: false, args: ['--enable-unsafe
 const page = await browser.newPage({ viewport: { width: 1440, height: 810 } });
 page.on('console', (m) => { const t = m.text(); if (/wilds|tier|error|Error/.test(t)) console.log('[page]', t.slice(0, 300)); });
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
-await page.goto(`${base}?rrdebug&q=high`, { timeout: 120000 });
+// DAY=1 renders the shots under the art's misty daylight (?time=day)
+await page.goto(`${base}?rrdebug&q=high${process.env.DAY ? '&time=day' : ''}`, { timeout: 120000 });
 await page.waitForFunction(() => !!window.__rr && !!window.__wilds, null, { timeout: 300000, polling: 1000 });
 let shots = await page.evaluate(() => {
   const rr = window.__rr;
