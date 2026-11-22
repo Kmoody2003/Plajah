@@ -139,6 +139,7 @@ async function boot() {
   if (match.on) enemies.onKilled = () => { match.kills++; };
   const endMatch = (won: boolean) => {
     match.over = true;
+    rhythm.setMood(won ? 'victory' : 'defeat');
     player.enabled = false;
     if (document.pointerLockElement) document.exitPointerLock();
     const m = Math.floor(match.time / 60), sec = Math.floor(match.time % 60).toString().padStart(2, '0');
@@ -254,6 +255,7 @@ async function boot() {
 
   function fireShot() {
     if (!player.enabled) return;
+    combatT = Math.min(combatT, 3); // firing keeps the combat music going
     const beat = rhythm.evaluateBeat();
     const spec = player.vessel;
     showQuality(beat.quality);
@@ -420,7 +422,30 @@ async function boot() {
   renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
   document.addEventListener('pointerlockchange', () => { if (!document.pointerLockElement) targeting.release(); });
 
+  // ── score: the music fits the moment (rhythm.ts music director); N skips to another song of the same mood ──
+  let combatT = 99; // seconds since the last fight contact (shot, hit, enemy close)
+  const nowPlaying = document.createElement('div');
+  nowPlaying.style.cssText = 'position:fixed;left:16px;bottom:16px;z-index:12;pointer-events:none;font:600 11px/1.3 system-ui,sans-serif;letter-spacing:.12em;color:#bfe9ff;text-shadow:0 0 6px #000;opacity:0;transition:opacity .6s';
+  document.body.appendChild(nowPlaying);
+  let npTimer: number | undefined;
+  rhythm.onTrackChange = (title) => {
+    nowPlaying.textContent = `♪ ${title.toUpperCase()}`;
+    nowPlaying.style.opacity = '0.9';
+    window.clearTimeout(npTimer); npTimer = window.setTimeout(() => { nowPlaying.style.opacity = '0'; }, 5000);
+  };
+  window.addEventListener('keydown', (e) => { if (e.code === 'KeyN' && player.enabled) rhythm.skip(); });
+  const updateMood = (dt: number) => {
+    if (match.over || !player.enabled) return;
+    const pp = player.object.position;
+    const near = enemies.enemies.some((e) => e.mesh.position.distanceToSquared(pp) < 28 * 28);
+    combatT = near ? 0 : combatT + dt;
+    const boss = enemies.enemies.some((e) => e.boss);
+    const tight = match.on && MATCH_SECONDS - match.time < 60 && Math.abs(objectives.score.blue - objectives.score.orange) <= 15;
+    rhythm.setMood(boss ? 'boss' : tight ? 'showdown' : combatT < 10 ? 'combat' : 'explore');
+  };
+
   const enterRift = (fromTouch = false) => {
+    rhythm.setMood('explore');
     rhythm.start();
     if (fromTouch || controls.isTouchDevice || window.matchMedia('(pointer: coarse)').matches) {
       controls.isTouchDevice = true;
@@ -469,6 +494,7 @@ async function boot() {
     if (input.isTouchActive) touchHud.classList.add('on');
 
     rhythm.update();
+    updateMood(dt);
     arena.update(dt, rhythm.pulse, rhythm.beatIndex);
     // targeting: soft target under the crosshair, lock-on follows its enemy (the view turns to it while you move)
     moveAmt = Math.min(1, Math.hypot(input.moveX, input.moveY) + (['KeyW', 'KeyA', 'KeyS', 'KeyD'].some((k) => player.keys.has(k)) ? 1 : 0));
@@ -556,7 +582,7 @@ async function boot() {
   }
 
   if (new URLSearchParams(location.search).has('rrdebug')) {
-    (window as any).__rr = { player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match, targeting };
+    (window as any).__rr = { player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match, targeting, rhythm };
     player.enabled = true;
     overlay.classList.add('hidden');
     // a hidden Browser pane freezes rAF; drive the loop from a timer in that case
