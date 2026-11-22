@@ -1,14 +1,26 @@
 // One caption model every format reads into and writes out of. Text keeps \n line breaks and <i>
 // markup; times are seconds from the start of the video (a file's start timecode is removed on read).
 
+export type CaptionMode = 'popon' | 'rollup' | 'painton';
+export type CaptionAlign = 'left' | 'center' | 'right';
+
 export interface CaptionCue {
   id: string;
   startSec: number;
   endSec: number;
   text: string;
+  /** Broadcast (CEA-608) presentation. Text formats ignore it. Default pop-on. */
+  mode?: CaptionMode;
+  /** Roll-up depth: 2, 3 or 4 rows on screen. */
+  rollRows?: 2 | 3 | 4;
+  /** Bottom row of the caption block, 1-15 (15 = bottom of the safe area). */
+  row?: number;
+  align?: CaptionAlign;
+  /** Speaker name; written as a leading ">> NAME:" only when the text doesn't already carry it. */
+  speaker?: string;
 }
 
-export type CaptionFormat = 'srt' | 'vtt' | 'scc' | 'mcc' | 'ttml' | 'sbv' | 'ass' | 'txt';
+export type CaptionFormat = 'srt' | 'vtt' | 'scc' | 'mcc' | 'ttml' | 'sbv' | 'ass' | 'txt' | 'smi' | 'stl';
 
 export interface CaptionDoc {
   cues: CaptionCue[];

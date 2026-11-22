@@ -259,15 +259,18 @@ export function enginePlayable(url: string | null | undefined, clipId?: string):
   return state.running && (clipId ? ownedClips.has(clipId) : bufCache.has(url));
 }
 
-/** Warm a bounded pair of initial sources on project open / edits. */
-export function warmAudio(clips: any[], mediaPool: any[]) {
+/** Warm the sources Play will need first — the ones under / just after the playhead — so
+ *  pressing Space schedules decoded buffers immediately instead of waiting on a decode.
+ *  Bounded (decode workers are capped at 2) and best-effort. */
+export function warmAudio(clips: any[], mediaPool: any[], t0 = 0, max = 3) {
   try {
     const seen = new Set<string>();
-    for (const e of planPlayback(clips, mediaPool, 0)) {
+    for (const e of planPlayback(clips, mediaPool, Math.max(0, t0))) {
+      if (e.when > 30) break;                 // only what plays in the next ~30 s
       if (seen.has(e.url)) continue;
       seen.add(e.url);
       void decodeUrl(e.url, e.assetId, mediaPool.find(a => a.id === e.assetId));
-      if (seen.size >= 2) break;
+      if (seen.size >= max) break;
     }
   } catch { /* warm is best-effort */ }
 }

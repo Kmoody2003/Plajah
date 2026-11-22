@@ -1,6 +1,6 @@
-// CEA-608 (line 21) on data channel CC1: the character set, a pop-on encoder that schedules every
-// byte pair on a slot of the 29.97 pairs-per-second channel, and a decoder for pop-on, roll-up and
-// paint-on. SCC stores these pairs directly; MCC carries them inside CDPs.
+// CEA-608 (line 21) on field 1 data channels CC1/CC2: the character set, an encoder for pop-on,
+// roll-up and paint-on that schedules every byte pair on a slot of the 29.97 pairs-per-second
+// channel, and a decoder for all three. SCC stores these pairs directly; MCC carries them in CDPs.
 
 import { newCueId, stripMarkup, type CaptionCue } from './model';
 
@@ -58,7 +58,10 @@ export function canEncode(ch: string): boolean {
 }
 
 const CMD = { RCL: 0x20, BS: 0x21, DER: 0x24, RU2: 0x25, RU3: 0x26, RU4: 0x27, RDC: 0x29, EDM: 0x2c, CR: 0x2d, ENM: 0x2e, EOC: 0x2f };
-const cmd = (low: number): Pair => [withParity(0x14), withParity(low)];
+// Data channel 2 sets bit 3 of every control code's first byte (0x14 -> 0x1C, PAC 0x11 -> 0x19 ...).
+let chBit = 0;
+const hiFor = (hi: number) => hi | chBit;
+const cmd = (low: number): Pair => [withParity(hiFor(0x14)), withParity(low)];
 
 // Row (1-15) -> first PAC byte on CC1, and whether it uses the 0x60 low-byte range.
 const ROW_HI = [0, 0x11, 0x11, 0x12, 0x12, 0x15, 0x15, 0x16, 0x16, 0x17, 0x17, 0x10, 0x13, 0x13, 0x14, 0x14];
@@ -66,7 +69,7 @@ const ROW_LOW_HIGH = [false, false, true, false, true, false, true, false, true,
 
 function pacPair(row: number, indent: number): Pair {
   const low = (ROW_LOW_HIGH[row] ? 0x70 : 0x50) | ((indent / 4) << 1);
-  return [withParity(ROW_HI[row]), withParity(low)];
+  return [withParity(hiFor(ROW_HI[row])), withParity(low)];
 }
 
 /** Cells a line takes on screen. Each italic on/off is a mid-row code, which occupies a cell. */
@@ -123,7 +126,7 @@ function textPairs(line: string, warn: (ch: string) => void): Pair[] {
   };
   const control = (hi: number, lo: number) => {
     flush();
-    const p: Pair = [withParity(hi), withParity(lo)];
+    const p: Pair = [withParity(hiFor(hi)), withParity(lo)];
     pairs.push(p, p); // sent twice so one lost frame can't lose it; decoders drop the repeat
   };
 
@@ -157,6 +160,8 @@ export interface EncodeOptions {
   maxRows?: number;
   /** Bottom row of the caption block, 1-15. Row 15 is the bottom of the safe area. */
   bottomRow?: number;
+  /** Field 1 data channel: 1 = CC1 (default, the primary language), 2 = CC2. */
+  channel?: 1 | 2;
 }
 
 export interface LateCue { id: string; text: string; lateSlots: number }
@@ -171,79 +176,173 @@ export interface Encoded608 {
   unsupported: string[];
 }
 
+/** Prefix the speaker the way broadcast captions do, unless the text already names them. */
+export function withSpeaker(cue: CaptionCue): string {
+  const name = (cue.speaker || '').trim();
+  if (!name || /^\s*(>>|-)/.test(cue.text) || cue.text.toUpperCase().startsWith(name.toUpperCase() + ':')) return cue.text;
+  return `>> ${name.toUpperCase()}: ${cue.text}`;
+}
+
+/** Column where a line starts for an alignment (608 has 32 columns; a 1-column inset off the edges). */
+const colFor = (align: CaptionCue['align'], width: number) =>
+  align === 'left' ? 1 : align === 'right' ? Math.max(0, COLS - 1 - width) : Math.max(0, Math.floor((COLS - width) / 2));
+
+/** PAC (+ tab offset when the column isn't a multiple of 4) for a row/column. */
+const placePairs = (row: number, col: number): Pair[] => {
+  const indent = col - (col % 4);
+  const pac = pacPair(row, indent);
+  const out: Pair[] = [pac, pac];
+  if (col % 4) { const tab: Pair = [withParity(hiFor(0x17)), withParity(0x20 + (col % 4))]; out.push(tab, tab); }
+  return out;
+};
+
 /**
- * Pop-on encoding. The caption text loads into the hidden buffer ahead of time and End Of Caption
- * lands on the cue's exact start, which is what makes pop-on frame-accurate. The channel only moves
- * two bytes a frame, so a long caption straight after another can't always load in time; those are
- * reported as late rather than silently shifted.
+ * Encode cues of any mix of presentation modes onto one channel.
+ *
+ * POP-ON: text loads into the hidden buffer ahead of time and End Of Caption lands on the cue's exact
+ * start, which is what makes pop-on frame-accurate.
+ * ROLL-UP: each line is written live at the base row and scrolls up; the control codes go out just
+ * before the start so the line's FIRST character lands on its start time.
+ * PAINT-ON: characters paint straight to the screen, lead-in timed the same way.
+ *
+ * The channel only moves two bytes a frame, so text that can't arrive in time is reported as late
+ * rather than silently shifted.
  */
-export function encodePopOn(input: CaptionCue[], opts: EncodeOptions = {}): Encoded608 {
+export function encode608(input: CaptionCue[], opts: EncodeOptions = {}): Encoded608 {
   const maxRows = opts.maxRows ?? 2;
-  const bottom = opts.bottomRow ?? 15;
-  const cues = fitCuesToRows(input, maxRows);
-  const slots = new Map<number, Pair>();
-  const unsupported = new Set<string>();
-  const late: LateCue[] = [];
-  let floor = 0; // nothing for this cue may load before the previous caption has popped
+  const defBottom = opts.bottomRow ?? 15;
+  chBit = opts.channel === 2 ? 0x08 : 0;
+  try {
+    const slots = new Map<number, Pair>();
+    const unsupported = new Set<string>();
+    const late: LateCue[] = [];
+    const encoded: CaptionCue[] = [];
+    let floor = 0; // nothing for this cue may load before the previous caption has gone out
+    let lastMode: CaptionCue['mode'] | null = null;
+    let lastRollRows = 0;
 
-  const place = (slot: number, p: Pair) => slots.set(slot, p);
-  const taken = (slot: number) => slots.has(slot);
-  const putTwice = (slot: number, p: Pair) => {
-    let s = slot;
-    while (taken(s)) s++;
-    place(s, p);
-    let t = s + 1;
-    while (taken(t)) t++;
-    place(t, p);
-    return s;
-  };
+    const taken = (slot: number) => slots.has(slot);
+    const putTwice = (slot: number, p: Pair) => {
+      let s = slot;
+      while (taken(s)) s++;
+      slots.set(s, p);
+      let t = s + 1;
+      while (taken(t)) t++;
+      slots.set(t, p);
+      return s;
+    };
+    /** Lead-in pairs end right before `at`; body pairs start at `at` (or as soon after as is free). */
+    const scheduleLive = (lead: Pair[], body: Pair[], wanted: number): number => {
+      let at = Math.max(wanted, floor + lead.length);
+      const fitsLead = (a: number) => { let free = 0; for (let s = a - 1; s >= floor && free < lead.length; s--) if (!taken(s)) free++; return free >= lead.length; };
+      while (!fitsLead(at) || taken(at)) at++;
+      let cursor = at - 1;
+      for (let i = lead.length - 1; i >= 0; i--) { while (taken(cursor)) cursor--; slots.set(cursor--, lead[i]); }
+      let w = at;
+      for (const p of body) { while (taken(w)) w++; slots.set(w++, p); }
+      floor = w;
+      return at;
+    };
 
-  cues.forEach((cue, idx) => {
-    const lines = wrapLines(cue.text);
-    const load: Pair[] = [cmd(CMD.ENM), cmd(CMD.ENM), cmd(CMD.RCL), cmd(CMD.RCL)];
-    lines.forEach((line, li) => {
-      const row = bottom - (lines.length - 1 - li);
-      const width = cellWidth(line);
-      const col = Math.max(0, Math.floor((COLS - width) / 2));
-      const indent = col - (col % 4);
-      const pac = pacPair(row, indent);
-      load.push(pac, pac);
-      if (col % 4) { const tab: Pair = [withParity(0x17), withParity(0x20 + (col % 4))]; load.push(tab, tab); }
-      load.push(...textPairs(line, ch => unsupported.add(ch)));
+    const all = [...input].sort((a, b) => a.startSec - b.startSec);
+    all.forEach((src, idx) => {
+      const mode = src.mode || 'popon';
+      const text = withSpeaker(src);
+      const bottom = Math.min(15, Math.max(1, src.row || defBottom));
+      const next = all[idx + 1];
+      const nextStartSlot = next ? secToSlot(next.startSec) : Infinity;
+      const warn = (ch: string) => unsupported.add(ch);
+
+      if (mode === 'rollup') {
+        const depth = src.rollRows || 3;
+        const base = Math.max(depth, bottom);
+        const lines = wrapLines(text);
+        const total = lines.reduce((n, l) => n + stripMarkup(l).length, 0) || 1;
+        let t = src.startSec;
+        lines.forEach((line, li) => {
+          const chars = stripMarkup(line).length;
+          const lineEnd = li === lines.length - 1 ? src.endSec : t + ((src.endSec - src.startSec) * chars) / total;
+          const lead: Pair[] = [];
+          if (lastMode !== 'rollup' && lastMode !== null) lead.push(cmd(CMD.EDM), cmd(CMD.EDM)); // leaving pop/paint clears the screen
+          if (lastMode !== 'rollup' || lastRollRows !== depth) { const ru = cmd(CMD.RU2 + depth - 2); lead.push(ru, ru); }
+          lead.push(cmd(CMD.CR), cmd(CMD.CR), ...placePairs(base, 0));
+          const wanted = secToSlot(t);
+          const at = scheduleLive(lead, textPairs(line, warn), wanted);
+          if (at > wanted) late.push({ id: src.id, text: line, lateSlots: at - wanted });
+          encoded.push({ ...src, id: li === 0 ? src.id : newCueId(), text: line, startSec: t, endSec: lineEnd, mode: 'rollup', rollRows: depth });
+          lastMode = 'rollup'; lastRollRows = depth;
+          t = lineEnd;
+        });
+        // A roll-up run ends with a clear unless the next caption picks up within a couple of frames.
+        const end = Math.max(secToSlot(src.endSec), floor);
+        if (!next || nextStartSlot > end + 2) { putTwice(end, cmd(CMD.EDM)); floor = Math.max(floor, end + 2); }
+        return;
+      }
+
+      const fitted = fitCuesToRows([{ ...src, text }], maxRows);
+      fitted.forEach((cue, fi) => {
+        const lines = wrapLines(cue.text);
+        const placed = (line: string, li: number) => placePairs(bottom - (lines.length - 1 - li), colFor(src.align, cellWidth(line)));
+        const isLastPiece = fi === fitted.length - 1;
+        const followStart = isLastPiece ? nextStartSlot : secToSlot(fitted[fi + 1].startSec);
+
+        if (mode === 'painton') {
+          const lead: Pair[] = [cmd(CMD.EDM), cmd(CMD.EDM), cmd(CMD.RDC), cmd(CMD.RDC)];
+          const body: Pair[] = [];
+          lines.forEach((line, li) => { if (li === 0) lead.push(...placed(line, li)); else body.push(...placed(line, li)); body.push(...textPairs(line, warn)); });
+          const wanted = secToSlot(cue.startSec);
+          const at = scheduleLive(lead, body, wanted);
+          if (at > wanted) late.push({ id: cue.id, text: cue.text, lateSlots: at - wanted });
+          encoded.push({ ...src, id: fi === 0 ? src.id : cue.id, text: lines.join('\n'), startSec: cue.startSec, endSec: cue.endSec, mode: 'painton' });
+          const end = Math.max(secToSlot(cue.endSec), floor);
+          if (followStart > end + 2) { putTwice(end, cmd(CMD.EDM)); floor = Math.max(floor, end + 2); }
+          lastMode = 'painton';
+          return;
+        }
+
+        // POP-ON (unchanged scheduling: load into hidden memory, EOC on the start frame).
+        const load: Pair[] = [cmd(CMD.ENM), cmd(CMD.ENM), cmd(CMD.RCL), cmd(CMD.RCL)];
+        lines.forEach((line, li) => { load.push(...placed(line, li)); load.push(...textPairs(line, warn)); });
+        const wanted = secToSlot(cue.startSec);
+        let eoc = wanted;
+        const canFit = (at: number) => {
+          if (taken(at) || taken(at + 1)) return false;
+          let free = 0;
+          for (let s = at - 1; s >= floor; s--) {
+            if (!taken(s)) free++;
+            if (free >= load.length) return true;
+          }
+          return false;
+        };
+        while (!canFit(eoc)) eoc++;
+        let cursor = eoc - 1;
+        for (let i = load.length - 1; i >= 0; i--) {
+          while (taken(cursor)) cursor--;
+          slots.set(cursor--, load[i]);
+        }
+        slots.set(eoc, cmd(CMD.EOC));
+        slots.set(eoc + 1, cmd(CMD.EOC));
+        if (eoc > wanted) late.push({ id: cue.id, text: cue.text, lateSlots: eoc - wanted });
+        floor = eoc + 2;
+        encoded.push({ ...src, id: fi === 0 ? src.id : cue.id, text: lines.join('\n'), startSec: cue.startSec, endSec: cue.endSec, mode: 'popon' });
+
+        // Clear the screen at the end, unless the next caption's swap replaces it within a couple of
+        // frames. A following roll-up/paint-on run clears with its own lead-in.
+        const end = Math.max(secToSlot(cue.endSec), eoc + 2);
+        if (followStart > end + 2) putTwice(end, cmd(CMD.EDM));
+        lastMode = 'popon';
+      });
     });
 
-    const wanted = secToSlot(cue.startSec);
-    // Find the latest run of free slots that ends just before EOC; slide EOC later only if forced.
-    let eoc = wanted;
-    const canFit = (at: number) => {
-      if (taken(at) || taken(at + 1)) return false;
-      let free = 0;
-      for (let s = at - 1; s >= floor; s--) {
-        if (!taken(s)) free++;
-        if (free >= load.length) return true;
-      }
-      return false;
-    };
-    while (!canFit(eoc)) eoc++;
-    let cursor = eoc - 1;
-    for (let i = load.length - 1; i >= 0; i--) {
-      while (taken(cursor)) cursor--;
-      place(cursor--, load[i]);
-    }
-    place(eoc, cmd(CMD.EOC));
-    place(eoc + 1, cmd(CMD.EOC));
-    if (eoc > wanted) late.push({ id: cue.id, text: cue.text, lateSlots: eoc - wanted });
-    floor = eoc + 2;
+    return { slots, cues: encoded, late, unsupported: [...unsupported] };
+  } finally {
+    chBit = 0;
+  }
+}
 
-    // Clear the screen at the end, unless the next caption's swap replaces it within a couple of frames.
-    const end = Math.max(secToSlot(cue.endSec), eoc + 2);
-    const next = cues[idx + 1];
-    if (!next || secToSlot(next.startSec) > end + 2) {
-      putTwice(end, cmd(CMD.EDM));
-    }
-  });
-
-  return { slots, cues, late, unsupported: [...unsupported] };
+/** Pop-on only (the original entry point). */
+export function encodePopOn(input: CaptionCue[], opts: EncodeOptions = {}): Encoded608 {
+  return encode608(input.map((c) => ({ ...c, mode: 'popon' as const })), opts);
 }
 
 // ── Decoder ─────────────────────────────────────────────────────────────────
@@ -284,7 +383,7 @@ export interface Decoded608 {
 export type PairEvent = { sec: number; b1: number; b2: number };
 
 /** Run the 608 state machine over timed byte pairs. Works from any source: SCC lines or MCC CDPs. */
-export function decode608(events: PairEvent[]): Decoded608 {
+export function decode608(events: PairEvent[], want: 0 | 1 = 0): Decoded608 {
   const cues: CaptionCue[] = [];
   let parityErrors = 0;
   let otherChannelPairs = 0;
@@ -297,18 +396,18 @@ export function decode608(events: PairEvent[]): Decoded608 {
   let col = 0;
   let italic = false;
   let lastCtrl: [number, number] | null = null;
-  let open: { start: number; text: string } | null = null;
+  let open: { start: number; text: string; paint?: boolean } | null = null;
   let rollLine: { start: number } | null = null;
 
   const close = (sec: number) => {
-    if (open && sec > open.start) cues.push({ id: newCueId(), startSec: open.start, endSec: sec, text: open.text });
+    if (open && sec > open.start) cues.push({ id: newCueId(), startSec: open.start, endSec: sec, text: open.text, ...(open.paint ? { mode: 'painton' as const } : {}) });
     open = null;
   };
   const showDisplayed = (sec: number) => {
     const text = gridText(displayed);
     if (open && open.text === text) return;
     close(sec);
-    if (text) open = { start: sec, text };
+    if (text) open = { start: sec, text, ...(mode === 'paint' ? { paint: true } : {}) };
   };
   const target = () => (mode === 'pop' ? hidden : displayed);
   const ensureRow = (g: Grid, r: number) => (g[r] ??= { chars: [], italic: [] });
@@ -336,7 +435,7 @@ export function decode608(events: PairEvent[]): Decoded608 {
       if (lastCtrl && lastCtrl[0] === b1 && lastCtrl[1] === b2) { lastCtrl = null; continue; }
       lastCtrl = [b1, b2];
       channel = b1 & 0x08 ? 1 : 0;
-      if (channel !== 0) { otherChannelPairs++; continue; }
+      if (channel !== want) { otherChannelPairs++; continue; }
       const hi = b1 & 0x07 | 0x10;
 
       if ((hi === 0x14 || hi === 0x15) && b2 >= 0x20 && b2 <= 0x2f) {
@@ -350,7 +449,7 @@ export function decode608(events: PairEvent[]): Decoded608 {
           case CMD.EDM:
             if (mode === 'roll' && rollLine) {
               const partial = gridTextRow(displayed[row]);
-              if (partial) cues.push({ id: newCueId(), startSec: rollLine.start, endSec: sec, text: partial });
+              if (partial) cues.push({ id: newCueId(), startSec: rollLine.start, endSec: sec, text: partial, mode: 'rollup', rollRows: rollRows as 2 | 3 | 4 });
               rollLine = null;
             }
             displayed = [];
@@ -360,7 +459,7 @@ export function decode608(events: PairEvent[]): Decoded608 {
           case CMD.CR:
             if (mode === 'roll') {
               const finished = gridTextRow(displayed[row]);
-              if (finished && rollLine) cues.push({ id: newCueId(), startSec: rollLine.start, endSec: sec, text: finished });
+              if (finished && rollLine) cues.push({ id: newCueId(), startSec: rollLine.start, endSec: sec, text: finished, mode: 'rollup', rollRows: rollRows as 2 | 3 | 4 });
               rollLine = null;
               const next: Grid = [];
               for (let r = row - rollRows + 2; r <= row; r++) if (displayed[r]) next[r - 1] = displayed[r];
@@ -413,7 +512,7 @@ export function decode608(events: PairEvent[]): Decoded608 {
     }
 
     lastCtrl = null;
-    if (channel !== 0) { otherChannelPairs++; continue; }
+    if (channel !== want) { otherChannelPairs++; continue; }
     for (const b of [b1, b2]) {
       if (b < 0x20) continue;
       write(BASIC_DIFF[b] ?? String.fromCharCode(b), sec);
@@ -426,7 +525,7 @@ export function decode608(events: PairEvent[]): Decoded608 {
 
   const warnings: string[] = [];
   if (parityErrors) warnings.push(`${parityErrors} byte pair${parityErrors === 1 ? '' : 's'} failed parity.`);
-  if (otherChannelPairs) warnings.push('This file also has captions on CC2. Only CC1 is shown.');
+  if (otherChannelPairs) warnings.push(`This file also has captions on CC${want ? 1 : 2}. Only CC${want + 1} is shown.`);
   cues.sort((a, b) => a.startSec - b.startSec);
   // Paint-on grows a character at a time; report the finished line, from when it began.
   const merged: CaptionCue[] = [];

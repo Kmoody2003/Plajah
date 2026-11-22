@@ -21,6 +21,7 @@ import {
   Scissors, MousePointer2, FlagTriangleRight, FlagTriangleLeft,
   SlidersHorizontal, Mic2, FolderOpen, Search, Tag, FileText, RefreshCw,
   Image as ImageIcon, HardDrive, Eye, BookOpen, Disc3,
+  ChevronDown,
 } from "lucide-react";
 import SpatialStudio from "./SpatialStudio";
 const AnimaStudio = lazy(() => import("./anima/AnimaStudio"));
@@ -42,6 +43,11 @@ import { getLicense } from "../../services/licensingService";
 import { purchaseSyncLicense, listMyGrants, grantSet, grantKey } from "../../services/syncLicensing";
 import { getMyVideos } from "../../services/fabulaVideos";
 import { useFabulaShortcuts } from "./useFabulaShortcuts";
+import { createPortal } from "react-dom";
+import CaptionsWorkbench from "./captions/CaptionsWorkbench";
+import CaptionSafePreview from "./captions/CaptionSafePreview";
+import { cuesOfTrack } from "./captions/captionClips";
+import { probeMediaDuration, hasRealDuration, sourceLimit, reconcileClipDurations, clampWindow } from "../../services/fabula/mediaDuration";
 import KeyboardShortcutsEditor from "./KeyboardShortcutsEditor";
 import { loadShortcutPrefs } from "../../services/fabula/shortcuts";
 import Waveform from "./Waveform";
@@ -2164,9 +2170,15 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       const type = isLottie ? "lottie" : f.type.startsWith("video") ? "video" : f.type.startsWith("audio") ? "audio" : "image";
       const id = uid();
       if (handle) { try { await idbSet(studioKey("studio:handle:" + id), handle); } catch { /* handle not persistable here */ } }
-      addAssetToPool({ id, name: f.name, type, url: URL.createObjectURL(f), duration: type === "image" ? 0 : 5, session: true, bin: "imports", ...(handle ? { localFileHandle: true } : {}) });
+      const blobUrl = URL.createObjectURL(f);
+      addAssetToPool({ id, name: f.name, type, url: blobUrl, duration: type === "image" ? 0 : 5, durProbed: type === "image", session: true, bin: "imports", ...(handle ? { localFileHandle: true } : {}) });
       stSet("studio:blob:" + id, f); // local fallback + cloud-sync source (the bytes are already in hand — never a re-download)
       added.push({ id, f, type });
+      // REAL length straight from the container header (instant for a local file). Clips placed
+      // before this lands carry durAuto and snap to it — no more 5 s placeholder clips.
+      if (type === "video" || type === "audio") probeMediaDuration(blobUrl, type).then((d) => {
+        if (d) updateProd((p) => { const a = p.mediaPool.find((x) => x.id === id); if (a) { a.duration = d; a.durProbed = true; } });
+      });
     }
     if (added.length) {
       ping(`Imported ${added.length} asset${added.length > 1 ? "s" : ""}${entries.some((e) => e.handle) ? " · reading from disk" : ""}`);
@@ -2183,7 +2195,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         updateProd((p) => {
           const a = p.mediaPool.find((x) => x.id === id);
           if (!a) return;
-          if (dur) a.duration = dur;
+          if (dur && !a.durProbed) { a.duration = dur; a.durProbed = true; }
           if (probe.width) a.width = probe.width;
           if (probe.height) a.height = probe.height;
           if (probe.fps) a.fps = probe.fps;
@@ -2242,11 +2254,15 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     const srcInVal = hasRange ? qFrame(range.in) : 0;
     const duration = Math.max(1 / (vfmt.fps || 24), qFrame(hasRange ? (range.out - range.in) : (asset.duration || 5)));
     const start = qFrame(opts.at != null ? Math.max(0, opts.at) : playhead);
+    // Length not known yet (probe in flight) → place at the placeholder and let the reconciler
+    // snap it to the real source length the moment it arrives.
+    const durAuto = !hasRange && (asset.type === "video" || asset.type === "audio") && !hasRealDuration(asset) ? { durAuto: true } : {};
+    activeViewerRef.current = "program"; // a clip just landed on the timeline → Space plays the timeline
     let aTrack = tracks.find((t) => t.type === "audio")?.id || "a1";
     const dropType = opts.trackId ? tracks.find((t) => t.id === opts.trackId)?.type : null;
     // Audio-only asset, OR dropped onto an audio track → a single audio clip.
     if (asset.type === "audio" || dropType === "audio") {
-      const clip = { id: uid(), trackId: dropType === "audio" ? opts.trackId : aTrack, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name };
+      const clip = { id: uid(), trackId: dropType === "audio" ? opts.trackId : aTrack, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name, ...durAuto };
       const next = [...clips, clip]; setClips(next); commitClips(next); setSelClipId(clip.id); return;
     }
     // Imported 3D model → a model3d clip (three.js render; camera/lighting live on clip.model3d).
@@ -2276,8 +2292,8 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       addTracks.push({ id: aTrack, name: "A" + n, type: "audio" });
     }
     const linkId = uid();
-    const videoClip = { id: uid(), trackId, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name, linkId, av: true };
-    const audioClip = { id: uid(), trackId: aTrack, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name + " · A", linkId };
+    const videoClip = { id: uid(), trackId, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name, linkId, av: true, ...durAuto };
+    const audioClip = { id: uid(), trackId: aTrack, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name + " · A", linkId, ...durAuto };
     const next = [...clips, videoClip, audioClip];
     if (addTracks.length) {
       updateProd((p) => {
@@ -2654,8 +2670,8 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   sendAnimaRef.current = sendAnimaToTimeline;
 
   // Load an asset into the source viewer; `play` = double-click behaviour (start playing).
-  const openInViewer = async (a, play) => {
-    activeViewerRef.current="source";
+  const openInViewer = async (a, play, focus = true) => {
+    if (focus) activeViewerRef.current="source"; // timeline clicks load the source viewer WITHOUT taking Space from the timeline
     const request=++sourceRequestRef.current;sourceLeaseRef.current?.release();sourceLeaseRef.current=null;
     setPreviewAsset(a ? {...a,url:null}:null);setSrcTc(0);setSrcPlaying(false);srcWantPlayRef.current=false;
     if(!a)return;
@@ -4105,17 +4121,18 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   const addAssetToScene = (asset, actId, sceneId) => {
     if (!asset || !sceneId) return;
     const dur = asset.duration && isFinite(asset.duration) && asset.duration > 0 ? asset.duration : 5;
+    const autoLen = (asset.type === "video" || asset.type === "audio") && !hasRealDuration(asset);
     const label = asset.name || "Clip";
     const isVideo = asset.type === "video";
     const linkId = isVideo ? uid() : undefined;
     if (!editSel && sceneSel?.sceneId === sceneId) {
       const v1End = clips.filter((c) => (c.trackId || "v1").startsWith("v")).reduce((m, c) => Math.max(m, (c.start || 0) + (c.duration || 0)), 0);
-      const vClip = { id: uid(), trackId: "v1", start: v1End, duration: dur, kind: "media", assetId: asset.id, label, srcIn: 0, ...(isVideo ? { linkId, av: true } : {}) };
+      const vClip = { id: uid(), trackId: "v1", start: v1End, duration: dur, kind: "media", assetId: asset.id, label, srcIn: 0, ...(isVideo ? { linkId, av: true } : {}), ...(autoLen ? { durAuto: true } : {}) };
       let nc = [...clips, vClip];
       if (isVideo) {
         const curTracks = (prod?.tracks && prod.tracks.length) ? prod.tracks : TRACKS;
         const aTrack = curTracks.find((t) => t.type === "audio")?.id || "a1";
-        const aClip = { id: uid(), trackId: aTrack, start: v1End, duration: dur, kind: "media", assetId: asset.id, label: label + " · A", srcIn: 0, linkId };
+        const aClip = { id: uid(), trackId: aTrack, start: v1End, duration: dur, kind: "media", assetId: asset.id, label: label + " · A", srcIn: 0, linkId, ...(autoLen ? { durAuto: true } : {}) };
         nc.push(aClip);
       }
       setClips(nc); commitClips(nc);
@@ -4126,10 +4143,10 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         sc.timeline = sc.timeline || { clips: [] };
         const cl = sc.timeline.clips || [];
         const v1End = cl.filter((c) => (c.trackId || "v1").startsWith("v")).reduce((m, c) => Math.max(m, (c.start || 0) + (c.duration || 0)), 0);
-        const vClip = { id: uid(), trackId: "v1", start: v1End, duration: dur, kind: "media", assetId: asset.id, label, srcIn: 0, ...(isVideo ? { linkId, av: true } : {}) };
+        const vClip = { id: uid(), trackId: "v1", start: v1End, duration: dur, kind: "media", assetId: asset.id, label, srcIn: 0, ...(isVideo ? { linkId, av: true } : {}), ...(autoLen ? { durAuto: true } : {}) };
         cl.push(vClip);
         if (isVideo) {
-          const aClip = { id: uid(), trackId: "a1", start: v1End, duration: dur, kind: "media", assetId: asset.id, label: label + " · A", srcIn: 0, linkId };
+          const aClip = { id: uid(), trackId: "a1", start: v1End, duration: dur, kind: "media", assetId: asset.id, label: label + " · A", srcIn: 0, linkId, ...(autoLen ? { durAuto: true } : {}) };
           cl.push(aClip);
         }
         sc.timeline.clips = cl; sc.updatedAt = Date.now();
@@ -4528,6 +4545,33 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   const [mcSel, setMcSel] = useState([]);
   const [angleView, setAngleView] = useState(false);
   const vfmt = prod?.defaults?.format || { fps: 30, drop: false, w: 1920, h: 1080, label: "HD 1080p" };
+
+  /* ----- source-length truth (services/fabula/mediaDuration) -----
+     1. Every time-based asset without a real length gets probed once, local-first.
+     2. Whenever lengths change (or a timeline loads), auto-length clips snap to the real
+        source and any clip running past its file is clamped — no frozen "stretched" tails. */
+  const probedRef = useRef(new Set());
+  const durationSig = (prod?.mediaPool || []).map((a) => `${a.id}:${a.duration}:${a.durProbed ? 1 : 0}`).join("|");
+  useEffect(() => {
+    for (const a of prod?.mediaPool || []) {
+      if ((a.type !== "video" && a.type !== "audio") || a.durProbed || probedRef.current.has(a.id)) continue;
+      if (!a.url && !a.localFileHandle) continue;
+      probedRef.current.add(a.id);
+      (async () => {
+        let lease = null;
+        try {
+          lease = await resolveMediaSource(a, false, true);
+          const d = await probeMediaDuration(lease.url, a.type);
+          if (d) updateProd((p) => { const x = p.mediaPool.find((y) => y.id === a.id); if (x && !x.durProbed) { if (x.duration === 5) x.legacyPlaceholder = true; x.duration = d; x.durProbed = true; } });
+        } catch { /* offline media — stays unbounded until relinked */ }
+        finally { lease?.release?.(); }
+      })();
+    }
+  }, [durationSig]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!clips.length) return;
+    setClips((cur) => reconcileClipDurations(cur, prod?.mediaPool || [], vfmt.fps || 24));
+  }, [durationSig, clips.length, sceneSel?.sceneId, editSel]); // eslint-disable-line react-hooks/exhaustive-deps
   // Dynamic, unlimited tracks (display order: video group then audio). videoTracksAsc
   // is bottom→top for compositing (v1 base, higher numbers overlay).
   const tracks = (prod?.tracks && prod.tracks.length) ? prod.tracks : TRACKS;
@@ -4548,6 +4592,25 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   const ensureSubTrack = (p, sid) => {
     p.tracks = (p.tracks && p.tracks.length) ? p.tracks : TRACKS.map((t) => ({ ...t }));
     if (!p.tracks.some((t) => t.id === sid)) p.tracks.unshift({ id: sid, name: sid.toUpperCase() + " · SUBTITLES", type: "subtitle" });
+  };
+  // Titles / graphics are PICTURE clips: they live on video tracks and move freely between them.
+  // Only subtitle/caption clips are bound to subtitle tracks. New titles take the top-most video
+  // track that's free at the playhead (above V1 so they overlay the picture), else a new track.
+  const titleTrackId = (at, dur = 3) => {
+    const vids = tracks.filter((t) => t.type === "video").sort((a, b) => (parseInt(b.id.slice(1), 10) || 0) - (parseInt(a.id.slice(1), 10) || 0));
+    const free = (tid) => !clips.some((x) => x.trackId === tid && !(x.start + x.duration <= at + 1e-4 || x.start >= at + dur - 1e-4));
+    const pick = vids.find((t) => t.id !== "v1" && free(t.id));
+    if (pick) return pick.id;
+    const n = Math.max(1, ...vids.map((t) => parseInt(t.id.slice(1), 10) || 0)) + 1;
+    return "v" + n;
+  };
+  const ensureTrackFor = (p, tid) => {
+    if (tid.startsWith("s")) { ensureSubTrack(p, tid); return; }
+    p.tracks = (p.tracks && p.tracks.length) ? p.tracks : TRACKS.map((t) => ({ ...t }));
+    if (!p.tracks.some((t) => t.id === tid)) {
+      const firstVid = p.tracks.findIndex((t) => t.type === "video");
+      p.tracks.splice(Math.max(0, firstVid), 0, { id: tid, name: tid.toUpperCase(), type: "video" }); // new video tracks stack on top
+    }
   };
   const writeTimelineClips = (p, nc) => {
     if (editSel) { const ed = p.edits.find((e) => e.id === editSel); if (ed) ed.timeline = { ...(ed.timeline || {}), clips: nc }; }
@@ -4607,10 +4670,10 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   };
   useEffect(() => subscribeHandoffs("fabula", (items) => handoffRef.current?.(items)), []);
   const addTitle = () => {
-    const sid = subTrackId();
+    const sid = titleTrackId(playhead);
     const clip = { id: uid(), trackId: sid, start: playhead, duration: 3, kind: "title", text: "Title", subtitle: "", titleStyle: "modern", label: "Title", srcIn: 0, fx: { ...SUB_FX } };
     const nc = [...clips, clip];
-    updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
+    updateProd((p) => { ensureTrackFor(p, sid); writeTimelineClips(p, nc); });
     setClips(nc); setSelClipId(clip.id);
   };
   // Broadcast template graphic as a duration-aware timeline clip. Like a lower third it
@@ -4619,7 +4682,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   // handles and the animation retimes. The identity's held still is rasterized once; a
   // deterministic motion envelope (services/fabula/graphicMotion) animates it.
   const addBroadcastGraphic = (template) => {
-    const sid = subTrackId();
+    const sid = titleTrackId(playhead);
     const dur = Math.max(1.5, (template.durationMs || 6000) / 1000);
     const clip = { id: uid(), trackId: sid, start: playhead, duration: dur, kind: "title",
       text: template.controls?.title || template.packName || template.name,
@@ -4627,7 +4690,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       bGraphic: { packId: template.packId, kind: template.kind, controls: template.controls },
       label: `${template.name}`, srcIn: 0, fx: { ...SUB_FX, blend: "normal", fadeIn: 0, fadeOut: 0 } };
     const nc = [...clips, clip];
-    updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
+    updateProd((p) => { ensureTrackFor(p, sid); writeTimelineClips(p, nc); });
     setClips(nc); setSelClipId(clip.id);
     ping(`${template.name} placed on the timeline — drag the clip handles to set its duration.`);
   };
@@ -4637,7 +4700,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   // draw it with renderMotionClipFrame; the clip duration drives entrance/exit.
   const addMotionTemplateClip = (item) => {
     const spec = motionSpecFromItem(item); if (!spec) return;
-    const sid = subTrackId();
+    const sid = titleTrackId(playhead);
     const d = motionTemplateDurations(spec);
     const dur = Math.max(2, Math.round((d.enter + 4 + d.exit) * 10) / 10);
     const name = motionTemplateName(spec);
@@ -4645,7 +4708,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     const clip = { id: uid(), trackId: sid, start: playhead, duration: dur, kind: "title", text, subtitle: "", mGraphic: spec,
       label: `${name}`, srcIn: 0, fx: { ...SUB_FX, blend: "normal", fadeIn: 0, fadeOut: 0 } };
     const nc = [...clips, clip];
-    updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
+    updateProd((p) => { ensureTrackFor(p, sid); writeTimelineClips(p, nc); });
     setClips(nc); setSelClipId(clip.id);
     ping(`${name} placed on the timeline — drag the clip handles to retime its entrance and exit.`);
   };
@@ -4658,10 +4721,10 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       const nc = clips.map((c) => (c.id === ltGallery ? { ...c, tGraphic: { specId: spec.id }, tx: undefined, ty: undefined, label: `${c.text || spec.defaults.title} · ${spec.name}` } : c));
       setClips(nc); commitClips(nc); setLtGallery(null); return;
     }
-    const sid = subTrackId();
+    const sid = titleTrackId(playhead);
     const clip = { id: uid(), trackId: sid, start: playhead, duration: spec.duration || 5, kind: "title", text: spec.defaults.title, subtitle: spec.defaults.subtitle || "", tag: spec.defaults.tag || "", tGraphic: { specId: spec.id }, label: `${spec.defaults.title} · ${spec.name}`, srcIn: 0, fx: { ...SUB_FX, blend: "normal", fadeIn: 0, fadeOut: 0 } };
     const nc = [...clips, clip];
-    updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
+    updateProd((p) => { ensureTrackFor(p, sid); writeTimelineClips(p, nc); });
     setClips(nc); setSelClipId(clip.id); setLtGallery(null);
   };
 
@@ -4670,14 +4733,14 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   // and Stage; the clip duration is the graphic's D, so the handles retime the OUT.
   const addCgGraphic = (ref, opts = {}) => {
     const g = findCgGraphic(ref); if (!g) { ping("That graphic is not available."); return; }
-    const sid = opts.trackId && tracks.find((t) => t.id === opts.trackId && t.type === "subtitle") ? opts.trackId : subTrackId();
+    const sid = opts.trackId && tracks.find((t) => t.id === opts.trackId && t.type === "video") ? opts.trackId : titleTrackId(opts.at != null ? opts.at : playhead);
     const dur = Math.max(.5, opts.duration || cgDefaultDuration(g));
     const firstField = g.fields.find((f) => f.type === "text");
     const text = (firstField && (ref.fields?.[firstField.key] ?? firstField.default)) || g.name;
     const clip = { id: uid(), trackId: sid, start: opts.at != null ? opts.at : playhead, duration: dur, kind: "title", text, subtitle: "",
       cGraphic: ref, label: `${g.name}`, srcIn: 0, fx: { ...SUB_FX, blend: "normal", fadeIn: 0, fadeOut: 0 } };
     const nc = [...clips, clip];
-    updateProd((p) => { ensureSubTrack(p, sid); writeTimelineClips(p, nc); });
+    updateProd((p) => { ensureTrackFor(p, sid); writeTimelineClips(p, nc); });
     setClips(nc); setSelClipId(clip.id);
     ping(`${g.name} placed on the timeline${g.live === "transition" ? " — centre it over the cut" : " — drag the handles to retime its OUT"}.`);
   };
@@ -4713,9 +4776,15 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   const clipAudioSig = useMemo(() => clips.map((c) => `${c.id}:${c.assetId || ""}`).join("|"), [clips]);
   useEffect(() => {
     if (!prod?.mediaPool?.length || !clips.length) return undefined;
-    const t = setTimeout(() => warmAudio(clips, prod.mediaPool), 400);
+    const t = setTimeout(() => warmAudio(clips, prod.mediaPool, 0), 400);
     return () => clearTimeout(t);
   }, [clipAudioSig, prod?.id]); // eslint-disable-line
+  // Parked somewhere else? Warm what Space will play from HERE (debounced so scrubbing doesn't decode).
+  useEffect(() => {
+    if (playing || !prod?.mediaPool?.length || !clips.length || playhead < 1) return undefined;
+    const t = setTimeout(() => warmAudio(clips, prod.mediaPool, playhead), 600);
+    return () => clearTimeout(t);
+  }, [Math.floor(playhead), playing, clipAudioSig]); // eslint-disable-line
 
   const newEdit = (title) => {
     const ed = { id: uid(), title: title || `EDIT ${(prod?.edits?.length || 0) + 1}`, timeline: { clips: [], trackSettings: {} }, updatedAt: Date.now() };
@@ -4742,6 +4811,29 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     if (editSel) updateProd((p) => { const ed = p.edits.find((e) => e.id === editSel); if (ed) { ed.timeline = ed.timeline || { clips: [] }; apply(ed.timeline); } });
     else updateScene((sc) => { sc.timeline = sc.timeline || { clips: [] }; apply(sc.timeline); });
   };
+  /* ----- Captions workflow (components/Fabula/captions) -----
+     Settings ride on the open timeline (trackId / delivery spec / start TC / rows); the cues are the
+     subtitle clips themselves, and a subtitle track's capLang / capChannel tag it for delivery. */
+  const [captionsOpen, setCaptionsOpen] = useState(() => { try { return localStorage.getItem("fabula:captions:open") === "1"; } catch { return false; } });
+  const toggleCaptions = (v) => setCaptionsOpen((cur) => { const n = typeof v === "boolean" ? v : !cur; try { localStorage.setItem("fabula:captions:open", n ? "1" : "0"); } catch { /* */ } return n; });
+  const capSettings = container?.timeline?.captions || {};
+  const setCapSettings = (patch) => {
+    const apply = (tl) => { tl.captions = { ...(tl.captions || {}), ...patch }; };
+    if (editSel) updateProd((p) => { const ed = p.edits.find((e) => e.id === editSel); if (ed) { ed.timeline = ed.timeline || { clips: [] }; apply(ed.timeline); } });
+    else updateScene((sc) => { sc.timeline = sc.timeline || { clips: [] }; apply(sc.timeline); });
+  };
+  const addCaptionTrack = () => {
+    const nums = tracks.filter((t) => t.type === "subtitle").map((t) => parseInt(t.id.slice(1), 10) || 0);
+    const id = "s" + ((nums.length ? Math.max(...nums) : 0) + 1);
+    const used = new Set(tracks.filter((t) => t.type === "subtitle").map((t) => t.capChannel === 2 ? 2 : 1));
+    updateProd((p) => {
+      p.tracks = (p.tracks && p.tracks.length) ? p.tracks : TRACKS.map((t) => ({ ...t }));
+      if (!p.tracks.some((t) => t.id === id)) p.tracks.unshift({ id, name: id.toUpperCase() + " · CAPTIONS", type: "subtitle", capLang: "en", capChannel: used.has(1) && !used.has(2) ? 2 : 1 });
+    });
+    return id;
+  };
+  const patchTrack = (tid, patch) => updateProd((p) => { const t = (p.tracks || []).find((x) => x.id === tid); if (t) Object.assign(t, patch); });
+  const activeCaptionTrackId = (capSettings.trackId && tracks.some((t) => t.id === capSettings.trackId && t.type === "subtitle")) ? capSettings.trackId : tracks.find((t) => t.type === "subtitle")?.id;
   const exportEDL = () => {
     const edlTc = (s) => fmtTc(s + 3600, { fps: vfmt.fps });
     let n = 0;
@@ -5561,7 +5653,16 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     const group = (mode === "move" && inSel && selIds.length > 1)
       ? clips.filter((x) => selIds.includes(x.id) && x.id !== clipId).map((x) => ({ id: x.id, origStart: x.start }))
       : [];
-    dragRef.current = { clipId, mode, startX: e.clientX, origStart: c.start, origDur: c.duration, origSrcIn: c.srcIn || 0, trackId: c.trackId, trimMode, links, group };
+    // Source length bounds every trim: the clip (and its linked siblings) can never run past either
+    // end of the file. Infinity = stills/titles/unknown length (unbounded, as before).
+    const pool = prod?.mediaPool || [];
+    const lim = Math.min(sourceLimit(c, pool), ...clips.filter((x) => c.linkId && x.linkId === c.linkId).map((x) => sourceLimit(x, pool)));
+    const nextOnTrack = clips.filter((x) => x.trackId === c.trackId && x.id !== c.id && x.start >= c.start + 1e-4).sort((a, b) => a.start - b.start)[0];
+    dragRef.current = { clipId, mode, startX: e.clientX, origStart: c.start, origDur: c.duration, origSrcIn: c.srcIn || 0, trackId: c.trackId, trimMode, links, group, lim,
+      nextLim: nextOnTrack ? sourceLimit(nextOnTrack, pool) : Infinity, nextSrcIn: nextOnTrack?.srcIn || 0, nextDur: nextOnTrack?.duration || 0, nextId: nextOnTrack?.id || null,
+      // Snapshot of every clip at drag start: ripple/roll math is ALWAYS orig + delta (applying the
+      // delta to already-moved clips compounded on every mouse move — downstream clips ran away).
+      orig: Object.fromEntries(clips.map((x) => [x.id, { start: x.start, duration: x.duration, srcIn: x.srcIn || 0 }])) };
     setSelClipId(clipId);
   };
   const onTimelineMove = (e) => {
@@ -5586,20 +5687,38 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       return Math.max(0, best);
     };
     // Live trim preview: park the playhead on the frame at the edge being trimmed (Resolve-style).
-    if (d.mode === "start") { const nd = Math.max(0.3, d.origDur - dt); setPlayhead(Math.max(0, snap(d.origStart + (d.origDur - nd)))); }
-    else if (d.mode === "end") { const nd = Math.max(0.3, d.origDur + dt); setPlayhead(Math.max(0, snap(d.origStart + nd) - 1 / fps)); }
+    const minDur = 1 / fps; // a clip can be trimmed down to a single frame
+    const lim = d.lim ?? Infinity;
+    // Head trim: can't reveal media before frame 0 of the source, nor shrink below one frame.
+    const headDur = () => Math.min(Math.max(minDur, d.origDur - dt), d.origDur + d.origSrcIn, Math.max(0, d.origStart) + d.origDur);
+    // Tail trim: can't extend past the last frame of the source.
+    const tailDur = () => Math.min(Math.max(minDur, d.origDur + dt), Math.max(minDur, Math.floor((lim - d.origSrcIn) * fps + 1e-6) / fps)); // floor: never past the last whole frame
+    if (d.mode === "start") { const nd = headDur(); setPlayhead(Math.max(0, snap(d.origStart + (d.origDur - nd)))); }
+    else if (d.mode === "end") { const nd = tailDur(); setPlayhead(Math.max(0, snap(d.origStart + nd) - 1 / fps)); }
     setClips((cur) => {
-      const same = cur.filter((x) => x.trackId === d.trackId).sort((a, b) => a.start - b.start);
-      const nextC = same[same.findIndex((x) => x.id === d.clipId) + 1];
       // body drag — move / slip
       if (d.mode === "move") {
         if (d.trimMode === "slip") {
-          return cur.map((x) => (x.id === d.clipId ? { ...x, srcIn: Math.max(0, snap(d.origSrcIn + dt)) } : x)); // shift content within window
+          const w = clampWindow(snap(d.origSrcIn + dt), d.origDur, lim, minDur);
+          return cur.map((x) => (x.id === d.clipId || d.links.some((l) => l.id === x.id) ? { ...x, srcIn: w.srcIn } : x)); // shift content within window (linked audio slips with it)
         }
         const ns = snap(edgeSnap(Math.max(0, d.origStart + dt), d.origDur));
         const moveDelta = ns - d.origStart;
+        // Vertical: hop to the track under the pointer when its type accepts this clip
+        // (picture + titles → any video track · audio → audio · subtitles → subtitle only).
+        let toTrack = null;
+        if (!(d.group || []).length) {
+          const body = document.elementFromPoint(e.clientX, e.clientY)?.closest?.("[data-track]");
+          const tid = body?.getAttribute("data-track"), ttype = body?.getAttribute("data-ttype");
+          const me = cur.find((x) => x.id === d.clipId);
+          if (tid && me && tid !== me.trackId) {
+            const want = me.kind === "subtitle" ? "subtitle" : /^a\d+$/.test(me.trackId) ? "audio" : "video";
+            const clear = !cur.some((x) => x.trackId === tid && x.id !== me.id && !(x.start + x.duration <= ns + 1e-4 || x.start >= ns + me.duration - 1e-4));
+            if (ttype === want && clear) { toTrack = tid; d.trackId = tid; } // snapping now reads the new track
+          }
+        }
         return cur.map((x) => {
-          if (x.id === d.clipId) return { ...x, start: ns };
+          if (x.id === d.clipId) return { ...x, start: ns, ...(toTrack ? { trackId: toTrack } : {}) };
           const lk = d.links.find((l) => l.id === x.id); // linked A/V sibling rides along
           if (lk) return { ...x, start: Math.max(0, snap(lk.origStart + moveDelta)) };
           const gm = (d.group || []).find((g) => g.id === x.id); // multi-selected clips move as a block
@@ -5609,7 +5728,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
       }
       // left-edge trim — changes start + duration + srcIn together
       if (d.mode === "start") {
-        const nd = Math.max(0.3, d.origDur - dt);
+        const nd = headDur();
         const consumed = d.origDur - nd;            // how much trimmed off the head
         const ns = Math.max(0, d.origStart + consumed);
         const nSrc = Math.max(0, d.origSrcIn + consumed);
@@ -5617,20 +5736,24 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
           if (x.id === d.clipId) return { ...x, start: snap(ns), duration: snap(nd), srcIn: snap(nSrc) };
           const lk = d.links.find((l) => l.id === x.id);
           if (lk) return { ...x, start: snap(ns), duration: snap(nd), srcIn: snap(nSrc) };
-          if (d.trimMode === "ripple" && x.trackId === d.trackId && x.start > d.origStart) return { ...x, start: snap(x.start - consumed) };
+          const o = d.orig?.[x.id];
+          if (o && d.trimMode === "ripple" && x.trackId === d.trackId && o.start > d.origStart) return { ...x, start: snap(o.start - consumed) };
           return x;
         });
       }
       // right-edge trim — duration (+ ripple downstream / roll the next clip)
       if (d.mode === "end") {
-        const nd = Math.max(0.3, d.origDur + dt);
+        let nd = tailDur();
+        // Roll: the incoming clip gives up / takes back its head, bounded by ITS source too.
+        if (d.trimMode === "roll" && d.nextId) nd = Math.max(Math.min(nd, d.origDur + d.nextDur - minDur), d.origDur - d.nextSrcIn);
         const delta = nd - d.origDur;
         return cur.map((x) => {
           if (x.id === d.clipId) return { ...x, duration: snap(nd) };
           const lk = d.links.find((l) => l.id === x.id);
           if (lk) return { ...x, duration: snap(nd) };
-          if (d.trimMode === "ripple" && x.trackId === d.trackId && x.start > d.origStart) return { ...x, start: snap(x.start + delta) };
-          if (d.trimMode === "roll" && nextC && x.id === nextC.id) return { ...x, start: snap(x.start + delta), duration: Math.max(0.3, snap(x.duration - delta)), srcIn: Math.max(0, snap((x.srcIn || 0) + delta)) };
+          const o = d.orig?.[x.id];
+          if (o && d.trimMode === "ripple" && x.trackId === d.trackId && o.start > d.origStart) return { ...x, start: snap(o.start + delta) };
+          if (o && d.trimMode === "roll" && x.id === d.nextId) return { ...x, start: snap(o.start + delta), duration: Math.max(minDur, snap(o.duration - delta)), srcIn: Math.max(0, snap(o.srcIn + delta)) };
           return x;
         });
       }
@@ -5691,7 +5814,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   const monitorClip = useMemo(() => {
     for (let i = videoTracksAsc.length - 1; i >= 0; i--) { // top-most video track down
       const tid = videoTracksAsc[i].id;
-      const c = clips.find((c) => c.trackId === tid && c.kind !== "script" && playhead >= c.start && playhead < c.start + c.duration);
+      const c = clips.find((c) => c.trackId === tid && c.kind !== "script" && c.kind !== "title" && c.kind !== "subtitle" && playhead >= c.start && playhead < c.start + c.duration);
       if (c) return c;
     }
     return null;
@@ -6160,7 +6283,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                         // Double-buffer: mount the current clip + its neighbours, keyed by clip.id, so the
                         // next clip is already decoded/seeked and going live is just a visibility swap (no
                         // src reload → no dip to black between butted clips).
-                        const tclips = clips.filter((c) => c.trackId === tr.id && c.kind !== "script").sort((a, b) => a.start - b.start);
+                        const tclips = clips.filter((c) => c.trackId === tr.id && c.kind !== "script" && c.kind !== "title" && c.kind !== "subtitle").sort((a, b) => a.start - b.start);
                         if (!tclips.length) return null;
                         let curIdx = tclips.findIndex((c) => playhead >= c.start && playhead < c.start + c.duration);
                         if (curIdx < 0 && tclips.length > 0) {
@@ -6204,7 +6327,9 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                           return <AudioLayer key={c.id} clip={c} active={isActive} prod={prod} playhead={playhead} playing={playing} track={ts} trackId={tr.id} />;
                         });
                       })}
-                      {(() => {
+                      {(captionsOpen || clips.some((c) => c.kind === "subtitle" && c.cap)) && activeCaptionTrackId ? (
+                        <CaptionSafePreview cues={cuesOfTrack(clips, activeCaptionTrackId)} time={playhead} showGrid={captionsOpen && !playing} />
+                      ) : (() => {
                         const sc = clips.find((c) => c.kind === "subtitle" && c.text && playhead >= c.start && playhead < c.start + c.duration);
                         return sc ? (
                           <div style={{ position: "absolute", left: 0, right: 0, bottom: "8%", textAlign: "center", padding: "0 8%", zIndex: 60, pointerEvents: "none" }}>
@@ -7398,9 +7523,20 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
 
   const renderTimeline = () => (
 <>
+                {captionsOpen && prod && container && (
+                  <CaptionsWorkbench
+                    clips={clips} tracks={tracks} fps={vfmt.fps || 24} drop={!!vfmt.drop} playhead={playhead}
+                    durationSec={seqEnd} selectedId={selClipId} projectName={prod.title || "Captions"} settings={capSettings}
+                    mediaPool={prod.mediaPool || []} baseFx={SUB_FX} makeId={uid}
+                    onSettings={setCapSettings} onSelect={(id) => setSelClipId(id)} onSeek={(t) => { clockRef.current = t; setPlayhead(t); }}
+                    onApply={(next, label) => { applyClips(next); if (label) ping(label); }}
+                    onAddTrack={addCaptionTrack} onTrackPatch={patchTrack}
+                    onTranscribe={() => { const c = getSel(); if (!c || !c.assetId) { ping("Select a media clip on the timeline to transcribe its dialogue."); return; } void transcribeClip(c); }}
+                    onClose={() => toggleCaptions(false)} ping={ping} />
+                )}
                 <div className="tl-resize" title="Drag to resize the timeline" onMouseDown={startTlResize} />
                 {tlMarquee && <div style={{ position: "fixed", left: Math.min(tlMarquee.x0, tlMarquee.x1), top: Math.min(tlMarquee.y0, tlMarquee.y1), width: Math.abs(tlMarquee.x1 - tlMarquee.x0), height: Math.abs(tlMarquee.y1 - tlMarquee.y0), border: "1px solid #FF8C00", background: "rgba(255,140,0,0.12)", zIndex: 9998, pointerEvents: "none" }} />}
-<div className="tlwrap glass-dark" style={{ height: tlHeight }}>
+<div className="tlwrap glass-dark" style={{ height: captionsOpen ? Math.min(tlHeight, 230) : tlHeight }} onMouseDownCapture={() => { activeViewerRef.current = "program"; }}>
                   <div className="tl-tools">
                     {/* Room VERBS live in the page tool band (renderRoomToolbar) — what stays
                         here is timeline-scoped VIEW state: what is in it and how it is displayed. */}
@@ -7457,37 +7593,54 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                       </div>
                     </div>
                   </div>
-                      <div className="tl-commandbar" role="toolbar" aria-label="Timeline editing tools" style={{ display: "flex", gap: 6, padding: "5px 8px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                        <button className="minibtn" onClick={() => addTrack("video")} title="Add a video track (no limit)"><Film size={10} /> + VIDEO</button>
-                        <button className="minibtn" onClick={() => addTrack("audio")} title="Add an audio track (no limit)"><Music size={10} /> + AUDIO</button>
-                        <button className="minibtn" onClick={() => addTrack("subtitle")} title="Add a subtitle/caption track"><Captions size={10} /> + SUBS</button>
-                        <button className="minibtn" onClick={addSubtitle} title="Add a subtitle clip at the playhead"><Type size={10} /> + SUBTITLE</button>
-                        <button className="minibtn" onClick={addTitle} title="Add a plain title at the playhead"><Type size={10} /> + TITLE</button>
-                        <label className="minibtn" style={{ cursor: "pointer" }} title="Import SRT, VTT, SCC, MCC, TTML, ASS or SBV as subtitle clips at the playhead"><Captions size={10} /> IMPORT CAPS<input type="file" hidden accept=".srt,.vtt,.scc,.mcc,.ttml,.dfxp,.itt,.xml,.ass,.ssa,.sbv" onChange={(e) => { const f = e.target.files?.[0]; if (f) void importCaptionFile(f); e.target.value = ""; }} /></label>
-                        <button className="minibtn" onClick={sendCaptionsToCrossover} title="Check these subtitle clips against video and export MCC, SCC or any sidecar in Crossover"><Captions size={10} /> CAPS TO CROSSOVER</button>
-                        <button className="minibtn" onClick={sendSelectedToCrossover} title="Inspect or convert the selected clip's media in Crossover"><Film size={10} /> TO CROSSOVER</button>
-                        <button className="minibtn" onClick={() => setLtGallery("add")} title="Add an editable lower third or full-page shader motion graphic"><Type size={10} /> + MOTION GFX</button>
-                        <button className="minibtn" onClick={() => setEditWs("graphics")} title="Fabula CG — the full motion-graphics & title library, designer and live playout"><Sparkles size={10} /> CG &amp; TITLES</button>
-                        {/* Trim modes + snap now live in the edit toolset directly above the timeline (moved 2026-09-06). */}
-                        <button className="minibtn" onClick={() => setShowShortcuts(true)} title="Keyboard shortcuts — map your own (Ctrl+Alt+K)"><Keyboard size={10} /> KEYS</button>
-                        <span style={{ width: 1, alignSelf: "stretch", background: "rgba(255,255,255,0.1)", margin: "0 2px" }} />
-                        <button className="minibtn" title="Preview indexed worker decoding; unsupported sources automatically use compatibility playback" onClick={() => { setIndexedMode(!indexedMode); localStorage.setItem("fabula:decoder", indexedMode ? "compat" : "indexed"); }}>DECODER {indexedMode ? "INDEXED · PREVIEW" : "COMPAT"}</button>
-                        <button className="minibtn" title="Preview plays lightweight proxies — 540p video, tiny AAC audio, downscaled stills. Export is always full-res (native)." style={{ opacity: proxyOn ? 1 : 0.45, color: proxyOn && proxies.size ? "#7ee2a8" : undefined }}
-                          onClick={() => { const nv = !proxyOn; setProxyOn(nv); try { localStorage.setItem("fabula:proxy", nv ? "1" : "0"); } catch { /* */ } }}>PROXY {proxyOn ? "ON" : "OFF"}{proxies.size ? ` · ${proxies.size}✓` : ""}</button>
-                        {(() => { const missing = (prod?.mediaPool || []).filter((a) => a?.url && (a.type === "video" || a.type === "audio" || a.type === "image" || a.type === "graphic") && !proxies.has(a.id)).length; return (
-                          <button className="minibtn" disabled={!!proxyBusy || !missing} title="Build lightweight proxies for heavy media (540p video, AAC audio, downscaled stills). Compact/local-friendly sources are skipped. Runs automatically in the background too."
-                            onClick={() => buildProxiesFor()}>{proxyBusy ? `⚙ ${proxyBusy}` : `BUILD PROXIES${missing ? ` (${missing})` : " ✓"}`}</button>
-                        ); })()}
-                        <button className="minibtn" title="SWITCH TO LOCAL — read originals straight off disk, like Resolve/Premiere. Never streams from the cloud; media not on this device reads as OFFLINE (relink). Enabling it re-grants disk access." style={{ opacity: localOnly ? 1 : 0.55, borderColor: localOnly ? "rgba(90,168,255,0.7)" : undefined, color: localOnly ? "#bcdcff" : undefined, background: localOnly ? "rgba(60,120,220,0.16)" : undefined }}
-                          onClick={toggleLocalOnly}><HardDrive size={10} /> LOCAL {localOnly ? "ON" : "OFF"}</button>
-                        <button className="minibtn" title="SYNC TO LOCAL — download CLOUD-ONLY assets (ones that don't live on this device) to disk for offline use. OFF by default: files already on your drive are read straight off disk, never re-downloaded." style={{ opacity: syncToLocal ? 1 : 0.45, color: syncToLocal ? "#8fd0ff" : undefined }}
-                          onClick={toggleSyncLocal}>SYNC LOCAL {syncToLocal ? "ON" : "OFF"}</button>
-                        <button className="minibtn" disabled={!!conforming} title="EVERYTHING LOCAL — reconnect your drives and pull every cloud-only asset onto this device now, so the whole project plays from local storage." style={{ borderColor: conforming ? "rgba(90,168,255,0.7)" : undefined, color: conforming ? "#bcdcff" : undefined }}
-                          onClick={conformEverythingLocal}><HardDrive size={10} /> {conforming ? `CONFORMING ${conforming.done}/${conforming.total}` : "EVERYTHING LOCAL"}</button>
-                        <button className="minibtn" title="CONFORM AUDIO TRACKS — ensures every video clip on the timeline with embedded audio has its accompanying audio clip on an audio track (Resolve/Premiere style)." onClick={() => syncEmbeddedAudioTracks()}><Music size={10} /> SYNC AUDIO TRACKS</button>
-                        <button className="minibtn" disabled={scriptBuilding || !clips.length} title="Reverse-engineer the screenplay from this edit: every clip is watched (computer vision) + transcribed, dialogue is tagged to your cast, and the scene + SLATE shot list are rebuilt from the cut"
-                          onClick={buildScriptFromTimeline} style={{ color: scriptBuilding ? "#FF8C00" : undefined }}>{scriptBuilding ? "📜 BUILDING…" : "📜 BUILD SCRIPT FROM TIMELINE"}</button>
-                      </div>
+                      {/* Timeline command bar — grouped menus instead of a wall of buttons. Verbs live in
+                          menus by job (tracks / insert / captions / media); persistent playback modes live
+                          in one Playback menu with their state shown as quiet status chips. */}
+                      {(() => {
+                        const missingProxies = (prod?.mediaPool || []).filter((a) => a?.url && (a.type === "video" || a.type === "audio" || a.type === "image" || a.type === "graphic") && !proxies.has(a.id)).length;
+                        return (
+                          <div className="tl-commandbar" role="toolbar" aria-label="Timeline commands">
+                            <TlMenu label="Tracks" icon={<Layers size={11} />} items={[
+                              { label: "Video track", icon: <Film size={11} />, onClick: () => addTrack("video") },
+                              { label: "Audio track", icon: <Music size={11} />, onClick: () => addTrack("audio") },
+                              { label: "Subtitle track", icon: <Captions size={11} />, onClick: () => addTrack("subtitle") },
+                            ]} />
+                            <TlMenu label="Insert" icon={<Plus size={11} />} items={[
+                              { label: "Title", hint: "Plain title at the playhead, on a video track", icon: <Type size={11} />, onClick: addTitle },
+                              { label: "Motion graphic…", hint: "Lower third or full-page shader graphic", icon: <Type size={11} />, onClick: () => setLtGallery("add") },
+                              { label: "CG & titles library", icon: <Sparkles size={11} />, onClick: () => setEditWs("graphics") },
+                              { sep: true },
+                              { label: "Subtitle", hint: "Caption clip on the subtitle track", icon: <Captions size={11} />, onClick: addSubtitle },
+                            ]} />
+                            <button className={"tlc-toggle" + (captionsOpen ? " on" : "")} onClick={() => toggleCaptions()} title="Captions workflow — closed captions & subtitles (SCC · MCC · SRT · STL …)" aria-pressed={captionsOpen}><Captions size={12} /> CC</button>
+                            <TlMenu label="Captions" icon={<Captions size={11} />} items={[
+                              { label: captionsOpen ? "Hide captions workbench" : "Open captions workbench", hint: "Edit, QC, export and embed closed captions", icon: <Captions size={11} />, onClick: () => toggleCaptions() },
+                              { label: "Import captions file…", hint: "SRT · VTT · SCC · MCC · TTML · ASS · SBV", icon: <Captions size={11} />, accept: ".srt,.vtt,.scc,.mcc,.ttml,.dfxp,.itt,.xml,.ass,.ssa,.sbv", onFile: (f) => void importCaptionFile(f) },
+                              { label: "Check & export in Crossover", hint: "Broadcast QC, MCC / SCC / sidecars", icon: <Captions size={11} />, onClick: sendCaptionsToCrossover },
+                            ]} />
+                            <TlMenu label="Media" icon={<Film size={11} />} items={[
+                              { label: "Selected clip to Crossover", icon: <Film size={11} />, onClick: sendSelectedToCrossover },
+                              { label: "Conform audio tracks", hint: "Give every video clip its linked audio", icon: <Music size={11} />, onClick: () => syncEmbeddedAudioTracks() },
+                              { sep: true },
+                              { label: proxyBusy ? "Building proxies · " + proxyBusy : missingProxies ? "Build proxies (" + missingProxies + ")" : "Proxies up to date", disabled: !!proxyBusy || !missingProxies, onClick: () => buildProxiesFor() },
+                              { label: conforming ? "Conforming " + conforming.done + "/" + conforming.total : "Pull everything local", hint: "Download every cloud-only asset to this device", icon: <HardDrive size={11} />, disabled: !!conforming, onClick: conformEverythingLocal },
+                              { sep: true },
+                              { label: scriptBuilding ? "Building script…" : "Build script from timeline", hint: "Rebuild scene + shot list from the cut", disabled: scriptBuilding || !clips.length, onClick: buildScriptFromTimeline },
+                            ]} />
+                            <span className="tlc-spacer" />
+                            {localOnly && <span className="tlc-chip blue" title="Reading originals straight off disk"><HardDrive size={10} /> Local</span>}
+                            {proxyOn && <span className="tlc-chip green" title="Preview plays proxies; export is always full-res">Proxy{proxies.size ? " " + proxies.size : ""}</span>}
+                            {indexedMode && <span className="tlc-chip" title="Indexed worker decoding (preview)">Indexed</span>}
+                            <TlMenu label="Playback" icon={<SlidersHorizontal size={11} />} align="right" items={[
+                              { label: "Local only", hint: "Read originals off disk; never stream from cloud", checked: localOnly, onClick: toggleLocalOnly },
+                              { label: "Proxy preview", hint: "540p / AAC preview; export stays full-res", checked: proxyOn, onClick: () => { const nv = !proxyOn; setProxyOn(nv); try { localStorage.setItem("fabula:proxy", nv ? "1" : "0"); } catch { /* */ } } },
+                              { label: "Sync cloud media to disk", hint: "Download cloud-only assets for offline use", checked: syncToLocal, onClick: toggleSyncLocal },
+                              { label: "Indexed decoder (preview)", hint: "Worker decoding; falls back automatically", checked: indexedMode, onClick: () => { setIndexedMode(!indexedMode); localStorage.setItem("fabula:decoder", indexedMode ? "compat" : "indexed"); } },
+                            ]} />
+                            <button className="tlc-icon" onClick={() => setShowShortcuts(true)} title="Keyboard shortcuts (Ctrl+Alt+K)" aria-label="Keyboard shortcuts"><Keyboard size={13} /></button>
+                          </div>
+                        );
+                      })()}
                   <div className="tl-scroll" ref={tlScrollRef}>
                     <div className="tl-inner" style={{ width: Math.max(900, (seqEnd + 20) * pxPerSec + 128) }} onMouseDown={startTlMarquee}>
                       {/* ruler */}
@@ -7536,7 +7689,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                               );
                             })()}
                           </div>
-                          <div className="trackbody"
+                          <div className="trackbody" data-track={tr.id} data-ttype={tr.type}
                             onDragOver={(e) => { if (dragAssetRef.current || isCgDrag(e.dataTransfer)) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } }}
                             onDrop={(e) => {
                               const cg = readCgDragData(e.dataTransfer);
@@ -7573,7 +7726,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                                   title={noMedia && missingMediaHint(cAsset) ? missingMediaHint(cAsset) : cOrigin ? (cOrigin.local ? `Playing locally · ${cOrigin.origin === "proxy" ? "proxy" : cOrigin.origin === "folder" ? "reading from disk" : "on-device"}` : "Streaming from the cloud (not on this device)") : undefined}
                                   style={{ left: c.start * pxPerSec, width: Math.max(8, c.duration * pxPerSec), opacity: c.disabled ? 0.4 : 1, cursor: toolMode === "razor" ? "crosshair" : undefined }}
                                   onMouseDown={(e) => { if (toolMode === "razor") { e.stopPropagation(); razorAt(e, c.id); return; } onClipDown(e, c.id, "move"); }}
-                                  onClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") { setSelClipId(c.id); if(cAsset) { setPoolSel([cAsset.id]); openInViewer(cAsset,false); } } }}
+                                  onClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") { setSelClipId(c.id); if(cAsset) { setPoolSel([cAsset.id]); openInViewer(cAsset,false,false); } } }}
                                   onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setSelClipId(c.id); clipMenu.openAt(e.clientX, e.clientY, c.id); }}
                                   onDoubleClick={(e) => { e.stopPropagation(); if (toolMode !== "razor") openNested(c); }}>
                                   {shot?.frameUrl && c.kind !== "voice" && <img className="clipframe" src={shot.frameUrl} alt="" />}
@@ -7936,7 +8089,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                 </optgroup>}
               </select>
             )}
-            {(page === "slate" || page === "edit") && <button className="crumb" onClick={() => newEdit()} title="New standalone timeline">＋ EDIT</button>}
+            {(page === "slate" || page === "edit") && <button className="crumb" onClick={() => newEdit()} title="New standalone timeline"><Plus size={12} /> New edit</button>}
             {/* live collaboration: inline presence pill here, panel portaled below the header */}
             <CollabDock co={co} kind="fabula" title={prod.title || "Untitled"} doc={coDoc} localId={prod.id}
               serialize={(d) => JSON.stringify(d)}
@@ -7951,38 +8104,29 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                 } catch { ping("Couldn't restore that version."); }
               }}
               top={hdrBottom} pill="inline" open={collabOpen} onOpenChange={setCollabOpen} />
-            {scene && <button className="crumb" onClick={sendSceneToComic} title="Send this scene's script + world cast to the Lorea comic composer">→ SCENE TO COMIC</button>}
-            <button
-              className="crumb"
-              style={{ borderColor: "rgba(249, 115, 22, 0.55)", color: "#fb923c", background: "rgba(249, 115, 22, 0.12)" }}
-              onClick={() => openFullComicInBookStudio(0)}
-              title="Open the full converted Graphic Novel in Book & Comic Authoring Studio (ComicPanelBuilder)"
-            >
-              <BookOpen size={11} color="#fb923c" /> COMIC STUDIO
-            </button>
-            <button
-              className={`crumb ${localStudioOpen ? "on" : ""}`}
-              style={localStudioOpen ? { borderColor: "#f59e0b", color: "#fbbf24", background: "rgba(245, 158, 11, 0.15)" } : { borderColor: "rgba(245, 158, 11, 0.45)", color: "#f59e0b" }}
-              onClick={() => setLocalStudioOpen(!localStudioOpen)}
-              title="Plajah Local Creative Studio — FLUX Cinema, Detail Hallucination, 3D Relighting & Cinema Motion"
-            >
-              <Sparkles size={11} color="#f59e0b" /> LOCAL AI STUDIO
-            </button>
-            {page === "edit" && (
-              <button
-                className={`crumb ${runwayPluginOpen ? "on" : ""}`}
-                style={runwayPluginOpen ? { borderColor: "#10b981", color: "#34d399", background: "rgba(16, 185, 129, 0.15)" } : {}}
-                onClick={() => setRunwayPluginOpen(!runwayPluginOpen)}
-                title="Runway Workflow Integration plugin (Resolve / Premiere style)"
-              >
-                <Sparkles size={11} color="#10b981" /> RUNWAY
+                        <span className="hdr-spacer" />
+            {/* Companion studios — one quiet segmented group; colour lives only in the icons. */}
+            <div className="hdr-studios" role="group" aria-label="Companion studios">
+              {scene && <button className="crumb" onClick={sendSceneToComic} title="Send this scene's script + world cast to the Lorea comic composer"><BookOpen size={12} className="ic-comic" /> Scene to comic</button>}
+              <button className="crumb" onClick={() => openFullComicInBookStudio(0)} title="Open the full converted Graphic Novel in Book & Comic Authoring Studio">
+                <BookOpen size={12} className="ic-comic" /> Comic Studio
               </button>
-            )}
+              <button className={"crumb" + (localStudioOpen ? " on" : "")} onClick={() => setLocalStudioOpen(!localStudioOpen)}
+                title="Plajah Local Creative Studio — FLUX Cinema, Detail Hallucination, 3D Relighting & Cinema Motion">
+                <Sparkles size={12} className="ic-local" /> Local AI
+              </button>
+              {page === "edit" && (
+                <button className={"crumb" + (runwayPluginOpen ? " on" : "")} onClick={() => setRunwayPluginOpen(!runwayPluginOpen)}
+                  title="Runway Workflow Integration plugin (Resolve / Premiere style)">
+                  <Sparkles size={12} className="ic-runway" /> Runway
+                </button>
+              )}
+            </div>
           </div>
         )}
         <div className="hdr-right">
           {storageReady === false && <span className="warn-dot">SESSION ONLY</span>}
-          <span className="ver">CTX-LINKED · α</span>
+          <span className="ver">α</span>
         </div>
       </header>
 
@@ -11375,6 +11519,59 @@ function AttachMedia({ onAttach }) {
 }
 
 /* ════════════════════════ CSS ════════════════════════ */
+/* ---------- timeline command menu ----------
+   A quiet dropdown: one trigger, grouped items with an optional hint line, toggles show a check,
+   file items open a picker. Closes on outside click / Escape / choosing an item. */
+function TlMenu({ label, icon, items, align = "left" }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
+  const ref = useRef(null);
+  const popRef = useRef(null);
+  const toggle = () => {
+    if (open) { setOpen(false); return; }
+    // Fixed-position popover anchored to the trigger: panels with overflow:hidden can't clip it.
+    // Opens downward when there's room, otherwise upward.
+    const r = ref.current?.getBoundingClientRect();
+    if (r) {
+      const below = window.innerHeight - r.bottom;
+      const x = align === "right" ? { right: Math.max(8, window.innerWidth - r.right) } : { left: Math.max(8, r.left) };
+      setPos(below > 260 ? { ...x, top: r.bottom + 4 } : { ...x, bottom: window.innerHeight - r.top + 4 });
+    }
+    setOpen(true);
+  };
+  useEffect(() => {
+    if (!open) return undefined;
+    const down = (e) => { if (ref.current?.contains(e.target) || popRef.current?.contains(e.target)) return; setOpen(false); };
+    const key = (e) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("mousedown", down); window.addEventListener("keydown", key);
+    return () => { window.removeEventListener("mousedown", down); window.removeEventListener("keydown", key); };
+  }, [open]);
+  return (
+    <div className={"tlc-menu" + (open ? " open" : "")} ref={ref}>
+      <button className="tlc-trigger" onClick={toggle} aria-haspopup="menu" aria-expanded={open}>
+        {icon}<span>{label}</span><ChevronDown size={10} className="tlc-caret" />
+      </button>
+      {open && createPortal(
+        <div className="tlc-pop" role="menu" style={pos || undefined} ref={popRef}>
+          {items.map((it, i) => it.sep ? <div key={i} className="tlc-sep" /> : it.onFile ? (
+            <label key={i} className="tlc-item" role="menuitem">
+              <span className="tlc-ic">{it.icon}</span>
+              <span className="tlc-txt"><b>{it.label}</b>{it.hint && <i>{it.hint}</i>}</span>
+              <input type="file" hidden accept={it.accept} onChange={(e) => { const f = e.target.files?.[0]; if (f) it.onFile(f); e.target.value = ""; setOpen(false); }} />
+            </label>
+          ) : (
+            <button key={i} className="tlc-item" role={it.checked != null ? "menuitemcheckbox" : "menuitem"} aria-checked={it.checked} disabled={it.disabled}
+              onClick={() => { it.onClick?.(); if (it.checked == null) setOpen(false); }}>
+              <span className="tlc-ic">{it.checked != null ? <span className={"tlc-check" + (it.checked ? " on" : "")} /> : it.icon}</span>
+              <span className="tlc-txt"><b>{it.label}</b>{it.hint && <i>{it.hint}</i>}</span>
+            </button>
+          ))}
+        </div>, document.body
+      )}
+    </div>
+  );
+}
+
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,700;0,900;1,900&family=JetBrains+Mono:wght@400;700&display=swap');
 :root{
@@ -11409,12 +11606,24 @@ const CSS = `
 .brand{display:flex;align-items:center;gap:9px}
 .brandmark{width:24px;height:24px;flex:none}
 .brand-main{font-weight:900;font-style:italic;letter-spacing:-.045em;font-size:17px;color:#fff;text-transform:uppercase}
-.brand-tag{font-size:8.5px;letter-spacing:.3em;color:var(--w40);font-weight:700;margin-left:8px}
+.brand-tag{font:500 10.5px/1 Inter,system-ui,sans-serif;letter-spacing:.02em;color:var(--w40);margin-left:6px;padding-left:12px;border-left:1px solid var(--w08);white-space:nowrap}
+@media (max-width:1400px){.brand-tag{display:none}}
 .hdr-mid{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
-.hdr-prod{background:var(--org-dim);border:1px solid rgba(249,115,22,.3);color:var(--org);font-weight:800;
-  font-size:11px;letter-spacing:.08em;text-transform:uppercase;padding:5px 12px;border-radius:6px;cursor:pointer}
-.scene-pick{background:rgba(255,255,255,.05);border:1px solid var(--w08);color:#ddd;font-size:11px;padding:5px 8px;border-radius:6px;max-width:340px}
-.hdr-right{display:flex;align-items:center;gap:12px;font-size:9px;letter-spacing:.2em;color:var(--w40);font-weight:700}
+.hdr-prod{height:28px;display:inline-flex;align-items:center;background:var(--org-dim);border:1px solid rgba(249,115,22,.3);color:#ffb26b;
+  font:600 12px/1 Inter,system-ui,sans-serif;letter-spacing:0;padding:0 12px;border-radius:6px;cursor:pointer;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hdr-prod:hover{border-color:rgba(249,115,22,.55)}
+.hdr-spacer{flex:1}
+.crumb{height:28px;display:inline-flex;align-items:center;gap:6px;padding:0 10px;border-radius:6px;border:1px solid var(--w08);background:rgba(255,255,255,.03);
+  color:rgba(255,255,255,.78);font:500 12px/1 Inter,system-ui,sans-serif;letter-spacing:0;white-space:nowrap;cursor:pointer;transition:background .12s,color .12s,border-color .12s}
+.crumb:hover{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.14)}
+.crumb.on{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.22)}
+.hdr-studios{display:flex;align-items:center;gap:0;border:1px solid var(--w08);border-radius:7px;padding:2px;background:rgba(0,0,0,.18)}
+.hdr-studios .crumb{border-color:transparent;background:transparent;height:24px}
+.hdr-studios .crumb:hover{background:rgba(255,255,255,.07)}
+.hdr-studios .crumb.on{background:rgba(255,255,255,.1)}
+.ic-comic{color:#fb923c}.ic-local{color:#f5b041}.ic-runway{color:#34d399}
+.scene-pick{height:28px;background:rgba(255,255,255,.05);border:1px solid var(--w08);color:#e4e4e7;font:500 12px/1 Inter,system-ui,sans-serif;padding:0 8px;border-radius:6px;max-width:300px}
+.hdr-right{display:flex;align-items:center;gap:12px;font:600 10.5px/1 Inter,system-ui,sans-serif;letter-spacing:.04em;color:var(--w40)}
 .warn-dot{color:var(--red)}
 
 /* main + scroll */
@@ -11515,6 +11724,32 @@ const CSS = `
 .cta.sm{padding:9px 12px;font-size:10.5px}
 .cta:disabled{opacity:.4;cursor:default}
 .cta:hover:not(:disabled){filter:brightness(1.1)}
+.tl-commandbar{display:flex;align-items:center;gap:2px;padding:4px 8px;border-top:1px solid rgba(255,255,255,.06);min-height:30px}
+.tlc-menu{position:relative}
+.tlc-trigger{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:5px;border:1px solid transparent;background:transparent;color:rgba(255,255,255,.72);font:600 11.5px/1 Inter,system-ui,sans-serif;letter-spacing:.01em;cursor:pointer}
+.tlc-trigger:hover,.tlc-menu.open .tlc-trigger{background:rgba(255,255,255,.07);color:#fff}
+.tlc-menu.open .tlc-trigger{border-color:rgba(255,255,255,.1)}
+.tlc-caret{opacity:.5}
+.tlc-pop{position:fixed;z-index:9000;min-width:248px;padding:5px;border-radius:9px;background:#16171b;border:1px solid rgba(255,255,255,.1);box-shadow:0 14px 40px rgba(0,0,0,.55)}
+.tlc-item{display:flex;align-items:flex-start;gap:9px;width:100%;padding:7px 9px;border:0;border-radius:6px;background:transparent;color:#e8e8ea;text-align:left;cursor:pointer}
+.tlc-item:hover:not(:disabled){background:rgba(255,140,0,.13)}
+.tlc-item:disabled{opacity:.38;cursor:default}
+.tlc-ic{display:inline-flex;width:14px;justify-content:center;padding-top:1px;color:rgba(255,255,255,.55)}
+.tlc-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.tlc-txt b{font:500 12px/1.25 Inter,system-ui,sans-serif;letter-spacing:0}
+.tlc-txt i{font:400 10.5px/1.3 Inter,system-ui,sans-serif;font-style:normal;color:rgba(255,255,255,.45)}
+.tlc-sep{height:1px;margin:4px 6px;background:rgba(255,255,255,.07)}
+.tlc-check{width:11px;height:11px;border-radius:3px;border:1.5px solid rgba(255,255,255,.35);margin-top:1px}
+.tlc-check.on{background:#FF8C00;border-color:#FF8C00;box-shadow:inset 0 0 0 2px #16171b}
+.tlc-spacer{flex:1}
+.tlc-toggle{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 9px;margin-right:2px;border-radius:5px;border:1px solid rgba(255,255,255,.12);background:transparent;color:rgba(255,255,255,.72);font:700 11px/1 Inter,system-ui,sans-serif;letter-spacing:.04em;cursor:pointer}
+.tlc-toggle:hover{background:rgba(255,255,255,.07);color:#fff}
+.tlc-toggle.on{background:rgba(59,160,255,.18);border-color:rgba(59,160,255,.5);color:#cfe6ff}
+.tlc-chip{display:inline-flex;align-items:center;gap:4px;height:18px;padding:0 7px;border-radius:9px;margin-right:4px;font:600 10px/1 Inter,system-ui,sans-serif;color:rgba(255,255,255,.6);background:rgba(255,255,255,.06)}
+.tlc-chip.blue{color:#bcdcff;background:rgba(60,120,220,.18)}
+.tlc-chip.green{color:#8fe3b4;background:rgba(60,190,120,.14)}
+.tlc-icon{display:inline-flex;align-items:center;justify-content:center;width:26px;height:24px;border-radius:5px;border:0;background:transparent;color:rgba(255,255,255,.6);cursor:pointer}
+.tlc-icon:hover{background:rgba(255,255,255,.07);color:#fff}
 .minibtn{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.07);border:1px solid var(--w08);
   color:#ddd;font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;padding:7px 11px;border-radius:6px;cursor:pointer}
 .minibtn:hover{background:rgba(255,255,255,.12)}

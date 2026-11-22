@@ -1,6 +1,6 @@
 // Scenarist SCC: CEA-608 pairs as hex words on timecode lines. One pair per frame at 29.97.
 
-import { decode608, encodePopOn, secToSlot, slotToSec, type EncodeOptions, type LateCue, type PairEvent } from './cea608';
+import { decode608, encode608, secToSlot, slotToSec, type EncodeOptions, type LateCue, type PairEvent } from './cea608';
 import type { CaptionCue, CaptionDoc } from './model';
 import { frameToSec, frameToTc, rateById, tcToFrame, type FrameRate } from './timecode';
 
@@ -9,6 +9,10 @@ export interface SccOptions extends EncodeOptions {
   rateId?: string;
   /** Timecode of the video's first frame, e.g. 01:00:00;00. */
   startTc?: string;
+  /** Add a null-pair line this many seconds after the last command. Muxing into MOV (c608) drops
+   *  an SCC's final line, which would leave the last caption on screen forever; a pad keeps the
+   *  real final Erase Display Memory inside the file. */
+  tailPadSec?: number;
 }
 
 export interface WrittenBroadcast { text: string; late: LateCue[]; unsupported: string[]; encodedCues: CaptionCue[]; rate: FrameRate; startFrame: number }
@@ -18,7 +22,7 @@ const hex2 = (b: number) => b.toString(16).padStart(2, '0');
 export function writeScc(cues: CaptionCue[], opts: SccOptions = {}): WrittenBroadcast {
   const rate = rateById(opts.rateId === '29.97ndf' ? '29.97ndf' : '29.97df');
   const startFrame = opts.startTc ? tcToFrame(opts.startTc, rate) ?? 0 : 0;
-  const enc = encodePopOn(cues, opts);
+  const enc = encode608(cues, opts);
   const slots = [...enc.slots.keys()].sort((a, b) => a - b);
   const lines: string[] = ['Scenarist_SCC V1.0', ''];
   let i = 0;
@@ -31,13 +35,18 @@ export function writeScc(cues: CaptionCue[], opts: SccOptions = {}): WrittenBroa
     while (i < slots.length && slots[i] === s && words.length < 32) {
       const [b1, b2] = enc.slots.get(s)!;
       const prev = enc.slots.get(s - 1);
-      const isTimed = b1 === 0x94 && (b2 === 0x2f || b2 === 0x2c);
+      // EOC / EDM / CR / RU2-4 / RDC on either channel: the moments the screen changes.
+      const isTimed = ((b1 & 0x77) === 0x14) && [0x2f, 0x2c, 0x2d, 0x25, 0x26, 0x27, 0x29].includes(b2 & 0x7f);
       const isRepeat = prev && prev[0] === b1 && prev[1] === b2;
       if (words.length && isTimed && !isRepeat) break;
       words.push(hex2(b1) + hex2(b2));
       i++; s++;
     }
     lines.push(`${frameToTc(first + startFrame, rate)}\t${words.join(' ')}`, '');
+  }
+  if (opts.tailPadSec && slots.length) {
+    const padAt = slots[slots.length - 1] + Math.max(1, Math.round(opts.tailPadSec * 30000 / 1001));
+    lines.push(`${frameToTc(padAt + startFrame, rate)}\t8080 8080`, '');
   }
   return { text: lines.join('\n'), late: enc.late, unsupported: enc.unsupported, encodedCues: enc.cues, rate, startFrame };
 }
@@ -47,6 +56,8 @@ export interface SccReadOptions {
   startTc?: string;
   /** Force a rate. By default `;` means 29.97 drop and `:` means 29.97 non-drop. */
   rateId?: string;
+  /** Data channel to present: 1 = CC1 (default), 2 = CC2. */
+  channel?: 1 | 2;
 }
 
 export function parseScc(text: string, opts: SccReadOptions = {}): CaptionDoc {
@@ -75,7 +86,7 @@ export function parseScc(text: string, opts: SccReadOptions = {}): CaptionDoc {
       });
     });
   }
-  const dec = decode608(events);
+  const dec = decode608(events, opts.channel === 2 ? 1 : 0);
   return {
     cues: dec.cues,
     sourceFormat: 'scc',

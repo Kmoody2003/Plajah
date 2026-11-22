@@ -2,7 +2,7 @@
 // both CEA-608 and CEA-708 captions. The header text is required by the format's licence terms and
 // must be reproduced whole.
 
-import { encodePopOn, slotToSec, type EncodeOptions, type LateCue, type PairEvent } from './cea608';
+import { encode608, slotToSec, type EncodeOptions, type LateCue, type PairEvent } from './cea608';
 import { decode608 } from './cea608';
 import { decode708, encode708, packetBytesToTriples, type TripleEvent } from './cea708';
 import type { CaptionCue, CaptionDoc } from './model';
@@ -144,7 +144,7 @@ export function ancPacket(cdp: number[]): number[] {
 export function writeMcc(cues: CaptionCue[], opts: MccOptions = {}): WrittenMcc {
   const rate = rateById(opts.rateId || '29.97df');
   const startFrame = opts.startTc ? tcToFrame(opts.startTc, rate) ?? 0 : 0;
-  const enc = encodePopOn(cues, opts);
+  const enc = encode608(cues, opts);
   const frameOf = (sec: number) => secToFrame(sec, rate);
 
   // 608 takes up to 3 triples a frame at low rates (one field 1 + one field 2 pair at 29.97).
@@ -205,6 +205,8 @@ export interface MccReadOptions {
   startTc?: string;
   /** Which caption layer to present. By default the one with more captions. */
   layer?: '608' | '708';
+  /** 608 data channel to present: 1 = CC1 (default), 2 = CC2. */
+  channel?: 1 | 2;
 }
 
 export interface MccDiagnostics {
@@ -320,7 +322,7 @@ export function parseMcc(text: string, opts: MccReadOptions = {}): McDoc {
     }
   }
 
-  const dec608 = decode608(pairs);
+  const dec608 = decode608(pairs, opts.channel === 2 ? 1 : 0);
   const dec708 = decode708(triples);
   if (d.badAncChecksums) warnings.push(`${d.badAncChecksums} ANC packets have a bad checksum.`);
   if (d.badCdpChecksums) warnings.push(`${d.badCdpChecksums} CDPs have a bad checksum.`);

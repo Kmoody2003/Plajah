@@ -278,7 +278,7 @@ async function mixAudio(clips: any[], mediaPool: any[], durationSec: number, tra
  *  ALL video tracks (v1, v2, … unlimited; bottom→top) per frame, captions included. */
 export async function renderFabulaToBlob(opts: RenderFabulaOpts): Promise<Blob | null> {
   const { clips, mediaPool, format, palette, trackSettings, onProgress, signal, cubeLut } = opts;
-  const videoClips = clips.filter(c => /^v\d+$/.test(c.trackId) && !c.disabled);
+  const videoClips = clips.filter(c => /^v\d+$/.test(c.trackId) && !c.disabled && c.kind !== 'title' && c.kind !== 'subtitle'); // titles may sit on video tracks; they burn in below
   const subtitleClips = clips.filter(c => c.kind === 'subtitle' && c.text);
   const titleClips = clips.filter(c => c.kind === 'title' && c.text);
   if (!videoClips.length && !subtitleClips.length && !titleClips.length) { console.warn('[Fabula render] nothing visual to render'); return null; }

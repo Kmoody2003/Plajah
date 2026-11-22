@@ -4,12 +4,18 @@
 import { normalizeForCompare, stripMarkup, sortCues, type CaptionCue, type CaptionDoc, type CaptionFormat } from './model';
 import { parseMcc, writeMcc, type MccOptions, type McDoc, type MccDiagnostics } from './mcc';
 import { parseScc, writeScc, type SccOptions } from './scc';
-import { COLS, wrapLines, type LateCue } from './cea608';
+import { COLS, canEncode, wrapLines, type LateCue } from './cea608';
 import { parseAss, parseSbv, parseSrt, parseTtml, parseVtt, writeAss, writeSbv, writeSrt, writeTtml, writeTxt, writeVtt } from './textFormats';
 import { fpsOf, rateById, secToFrame, type FrameRate } from './timecode';
+import { parseSami, writeSami } from './sami';
+import { isEbuStl, parseEbuStl, writeEbuStl, type StlOptions } from './ebuStl';
+
+export { parseSami, writeSami, parseEbuStl, writeEbuStl, isEbuStl };
 
 export * from './model';
 export * from './timecode';
+export * from './profiles';
+export * from './embed';
 export { writeMcc, parseMcc, writeScc, parseScc };
 export type { McDoc, MccDiagnostics };
 
@@ -23,6 +29,8 @@ export const CAPTION_FORMATS: CaptionFormatInfo[] = [
   { id: 'ttml', ext: 'ttml', label: 'TTML', note: 'TTML / DFXP / IMSC, for streaming delivery.', canRead: true },
   { id: 'ass', ext: 'ass', label: 'ASS', note: 'Styled subtitles for burn-in tools.', canRead: true },
   { id: 'sbv', ext: 'sbv', label: 'SBV', note: 'YouTube captions.', canRead: true },
+  { id: 'stl', ext: 'stl', label: 'EBU-STL', note: 'EBU Tech 3264 binary, European broadcast exchange.', broadcast: true, canRead: true },
+  { id: 'smi', ext: 'smi', label: 'SAMI', note: 'Microsoft SAMI, for Windows Media and some broadcasters.', canRead: true },
   { id: 'txt', ext: 'txt', label: 'Transcript', note: 'Text only, no timing.', canRead: false },
 ];
 
@@ -33,9 +41,11 @@ export function detectFormat(name: string, text: string): CaptionFormat | null {
   if (/^WEBVTT/.test(head)) return 'vtt';
   if (/<tt[\s:>]/.test(head) || /<\?xml/.test(head)) return 'ttml';
   if (/\[Script Info\]/i.test(head)) return 'ass';
+  if (/<SAMI\b/i.test(head)) return 'smi';
   const ext = name.split('.').pop()?.toLowerCase();
   if (ext === 'dfxp' || ext === 'xml' || ext === 'itt') return 'ttml';
   if (ext === 'ssa') return 'ass';
+  if (ext === 'sami') return 'smi';
   const known = CAPTION_FORMATS.find(f => f.ext === ext && f.canRead);
   if (known) return known.id;
   if (/-->/.test(head)) return 'srt';
@@ -56,17 +66,40 @@ export function readCaptions(name: string, text: string, opts: ReadOptions = {})
     case 'ass': doc = parseAss(text); break;
     case 'sbv': doc = parseSbv(text); break;
     case 'srt': doc = parseSrt(text); break;
+    case 'smi': doc = parseSami(text); break;
+    case 'stl': throw new Error(`${name} is a binary EBU-STL file; read it with readCaptionBytes.`);
     default: throw new Error(`Couldn't recognise ${name} as a caption file.`);
   }
   doc.cues = sortCues(doc.cues);
   return doc;
 }
 
-export interface WriteOptions extends MccOptions, SccOptions {}
+/** Read any caption file from its bytes: EBU-STL is binary, everything else is text (UTF-8 or UTF-16). */
+export function readCaptionBytes(name: string, bytes: Uint8Array, opts: ReadOptions = {}): CaptionDoc {
+  if (isEbuStl(bytes)) { const doc = parseEbuStl(bytes); doc.cues = sortCues(doc.cues); return doc; }
+  let text: string;
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) text = new TextDecoder('utf-16le').decode(bytes.subarray(2));
+  else if (bytes[0] === 0xfe && bytes[1] === 0xff) text = new TextDecoder('utf-16be').decode(bytes.subarray(2));
+  else {
+    text = new TextDecoder('utf-8').decode(bytes);
+    // Old Windows-1252 SAMI/SRT: invalid UTF-8 shows as U+FFFD; re-read as Latin-1 so accents survive.
+    if (text.includes('\uFFFD')) text = new TextDecoder('windows-1252').decode(bytes);
+  }
+  return readCaptions(name, text, opts);
+}
+
+export interface WriteOptions extends MccOptions, SccOptions {
+  /** EBU-STL frame base and teletext width. */
+  stl?: StlOptions;
+  title?: string;
+  lang?: string;
+}
 
 export interface WrittenCaptions {
   text: string;
-  /** The MIME type for the download; all are plain text on disk. */
+  /** Binary formats (EBU-STL) carry their bytes here; `text` is then empty. */
+  bytes?: Uint8Array;
+  /** The MIME type for the download. */
   mime: string;
   ext: string;
   late?: LateCue[];
@@ -88,6 +121,8 @@ export function writeCaptions(input: CaptionCue[], format: CaptionFormat, opts: 
     case 'ass': return { text: writeAss(cues), mime: 'text/plain', ext };
     case 'sbv': return { text: writeSbv(cues), mime: 'text/plain', ext };
     case 'txt': return { text: writeTxt(cues), mime: 'text/plain', ext };
+    case 'smi': return { text: writeSami(cues, { title: opts.title, lang: opts.lang }), mime: 'application/smil', ext };
+    case 'stl': return { text: '', bytes: writeEbuStl(cues, { title: opts.title, startTc: opts.startTc, ...opts.stl }), mime: 'application/octet-stream', ext };
   }
 }
 
@@ -155,8 +190,11 @@ function compareLayer(layer: LayerResult['layer'], expected: CaptionCue[], actua
     };
   });
   const found = checks.filter(c => c.startDeltaFrames !== null);
+  // A roll-up line leaves the screen when it scrolls off the top, which no file states as an end
+  // time; those lines are checked on their start frame and their words.
+  const rolled = new Set(expected.filter(e => e.mode === 'rollup').map(e => e.id));
   const worstStartFrames = found.reduce((m, c) => Math.max(m, Math.abs(c.startDeltaFrames!)), 0);
-  const worstEndFrames = found.reduce((m, c) => Math.max(m, Math.abs(c.endDeltaFrames!)), 0);
+  const worstEndFrames = found.filter(c => !rolled.has(c.id)).reduce((m, c) => Math.max(m, Math.abs(c.endDeltaFrames!)), 0);
   const missing = checks.length - found.length;
   const extra = actual.length - used.size;
   const textErrors = found.filter(c => !c.textMatch).length;
@@ -167,19 +205,19 @@ function compareLayer(layer: LayerResult['layer'], expected: CaptionCue[], actua
 }
 
 /** Read the bytes of a written file back through the decoders and compare with the cues. */
-export function verifyBroadcast(written: WrittenCaptions, format: 'mcc' | 'scc', opts: { startTc?: string } = {}): ReadbackReport {
+export function verifyBroadcast(written: WrittenCaptions, format: 'mcc' | 'scc', opts: { startTc?: string; channel?: 1 | 2 } = {}): ReadbackReport {
   const expected = written.encodedCues ?? [];
   const rate = written.rate ?? rateById('29.97df');
   const layers: LayerResult[] = [];
   let diagnostics: MccDiagnostics | undefined;
   let warnings: string[];
   if (format === 'mcc') {
-    const doc = parseMcc(written.text, { startTc: opts.startTc });
+    const doc = parseMcc(written.text, { startTc: opts.startTc, channel: opts.channel });
     diagnostics = doc.diagnostics;
     warnings = doc.warnings;
     layers.push(compareLayer('CEA-608', expected, doc.cues608, rate), compareLayer('CEA-708', expected, doc.cues708, rate));
   } else {
-    const doc = parseScc(written.text, { startTc: opts.startTc, rateId: rate.id });
+    const doc = parseScc(written.text, { startTc: opts.startTc, rateId: rate.id, channel: opts.channel });
     warnings = doc.warnings;
     layers.push(compareLayer('SCC', expected, doc.cues, rate));
   }
@@ -194,7 +232,7 @@ export function verifyBroadcast(written: WrittenCaptions, format: 'mcc' | 'scc',
 
 // ── Timing QC ───────────────────────────────────────────────────────────────
 
-export type QcKind = 'overlap' | 'too-fast' | 'too-short' | 'too-long' | 'line-too-long' | 'too-many-rows' | 'unsupported-char' | 'empty' | 'past-end';
+export type QcKind = 'overlap' | 'too-fast' | 'too-short' | 'too-long' | 'line-too-long' | 'too-many-rows' | 'unsupported-char' | 'empty' | 'past-end' | 'gap-too-small' | 'off-frame';
 export interface QcIssue { cueId: string; kind: QcKind; severity: 'error' | 'warn'; message: string }
 
 export interface QcOptions {
@@ -204,10 +242,18 @@ export interface QcOptions {
   maxDurationSec?: number;
   maxRows?: number;
   videoDurationSec?: number;
+  /** Characters per line (608 = 32). Defaults to the 608 limit. */
+  maxCols?: number;
+  /** Minimum frames between one caption's end and the next one's start (0 = touching is fine). */
+  minGapFrames?: number;
+  /** Frame rate used for gap and frame-grid checks. */
+  rate?: FrameRate;
+  /** Flag characters the CEA-608 character set can't carry. */
+  check608Chars?: boolean;
 }
 
 export function qcCaptions(cues: CaptionCue[], opts: QcOptions = {}): QcIssue[] {
-  const { maxCps = 20, minDurationSec = 0.8, maxDurationSec = 8, maxRows = 3, videoDurationSec } = opts;
+  const { maxCps = 20, minDurationSec = 0.8, maxDurationSec = 8, maxRows = 3, videoDurationSec, maxCols = COLS, minGapFrames = 0, rate, check608Chars } = opts;
   const issues: QcIssue[] = [];
   const sorted = sortCues(cues);
   sorted.forEach((c, i) => {
@@ -226,8 +272,20 @@ export function qcCaptions(cues: CaptionCue[], opts: QcOptions = {}): QcIssue[] 
       const cps = chars / dur;
       if (cps > maxCps) issues.push({ cueId: c.id, kind: 'too-fast', severity: 'warn', message: `${cps.toFixed(0)} characters a second, over the ${maxCps} limit.` });
     }
-    if (plain.split('\n').some(l => l.length > COLS)) issues.push({ cueId: c.id, kind: 'line-too-long', severity: 'warn', message: `A line is over ${COLS} characters; it will be rewrapped for broadcast.` });
-    if (wrapLines(c.text).length > maxRows) issues.push({ cueId: c.id, kind: 'too-many-rows', severity: 'warn', message: `Needs more than ${maxRows} rows; it will be split for broadcast.` });
+    if (plain.split('\n').some(l => l.length > maxCols)) issues.push({ cueId: c.id, kind: 'line-too-long', severity: 'warn', message: `A line is over ${maxCols} characters; it will be rewrapped.` });
+    if (wrapLines(c.text, maxCols).length > maxRows) issues.push({ cueId: c.id, kind: 'too-many-rows', severity: 'warn', message: `Needs more than ${maxRows} rows; it will be split.` });
+    if (rate && next && minGapFrames > 0 && next.startSec >= c.endSec - 0.001) {
+      const gap = secToFrame(next.startSec, rate) - secToFrame(c.endSec, rate);
+      if (gap > 0 && gap < minGapFrames) issues.push({ cueId: c.id, kind: 'gap-too-small', severity: 'warn', message: `Only ${gap} frame${gap === 1 ? '' : 's'} before the next caption; the spec wants ${minGapFrames} (or close the gap).` });
+    }
+    if (rate) {
+      const off = (t: number) => Math.abs(t * fpsOf(rate) - Math.round(t * fpsOf(rate))) > 0.01;
+      if (off(c.startSec) || off(c.endSec)) issues.push({ cueId: c.id, kind: 'off-frame', severity: 'warn', message: 'In or out point is between frames; it will be rounded to the nearest frame.' });
+    }
+    if (check608Chars) {
+      const bad = [...new Set([...plain.replace(/\n/g, '')].filter(ch => !canEncode(ch)))];
+      if (bad.length) issues.push({ cueId: c.id, kind: 'unsupported-char', severity: 'error', message: `CEA-608 can't carry ${bad.map(b => `"${b}"`).join(' ')}; it will be sent as a space.` });
+    }
     if (videoDurationSec && c.startSec >= videoDurationSec) issues.push({ cueId: c.id, kind: 'past-end', severity: 'error', message: 'Starts after the video ends.' });
   });
   return issues;
