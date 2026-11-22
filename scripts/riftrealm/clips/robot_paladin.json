@@ -342,6 +342,26 @@
         "minSec": 0.5
       },
       "note": "Soldier jogging forward holding the rifle"
+    },
+    {
+      "name": "launch",
+      "video": "ae5947ac",
+      "from": 1.4,
+      "to": 2.3,
+      "face": "start",
+      "loop": {
+        "blend": 4,
+        "search": false
+      },
+      "note": "Soldier knocked back: the airborne part, blown up off his feet (loops while the enemy is in the air)"
+    },
+    {
+      "name": "parried",
+      "video": "8f48f048",
+      "from": 3.9,
+      "to": 5.2,
+      "face": "start",
+      "note": "Soldier staggering from hits: the second stagger, a recoil (parried)"
     }
   ]
 }
