@@ -7,6 +7,7 @@ import * as THREE from 'three/webgpu';
 import { color, float, mix, normalWorld, positionWorld, smoothstep, texture as tslTexture, uniform, vec2, vec3 } from 'three/tsl';
 import { ColumnGrid, HeightField, type TerrainField } from '../../../../services/terrain/field';
 import { TerrainChunks as ServiceChunks } from '../../../../services/terrain/chunks';
+import { compileGraph, type TerrainGraph } from '../../../../services/terrain/graph';
 import { art } from '../cyberforest';
 import { pbr } from '../textures';
 import { CAVES, CAVE_CIRCLES, HALF, MESH_HOLES, worldHeight } from './layout';
@@ -16,6 +17,11 @@ const inBox = (x: number, z: number, b: number[], pad = 0) => {
   return Math.abs(dx * c - dz * s) <= b[2] / 2 + pad && Math.abs(dx * s + dz * c) <= b[3] / 2 + pad;
 };
 
+/** The Wilds as a terrain graph. Today its one node is the hand-written height (layout.ts worldHeight); later phases
+ *  add erosion and other nodes on top without touching it. */
+export const WILDS_GRAPH: TerrainGraph = { version: 1, name: 'elderwood-wilds', nodes: { base: { type: 'fn', name: 'wilds.worldHeight' } }, output: 'base' };
+const wildsHeight = compileGraph(WILDS_GRAPH, { 'wilds.worldHeight': worldHeight });
+
 /** The Wilds' ground: 2 m over the 2 km world, 1 m over the hollow (worldHeight is read at bake time, so setCoreHeight
  *  then `baked = false` re-bakes with the new core). */
 export class WorldTerrain extends HeightField implements TerrainField {
@@ -23,7 +29,7 @@ export class WorldTerrain extends HeightField implements TerrainField {
   step = 0.55;
 
   constructor() {
-    super({ name: 'wilds', height: worldHeight, world: { x0: -HALF, z0: -HALF, size: HALF * 2, cell: 2 }, detail: [{ x0: -112, z0: -112, size: 224, cell: 1 }] });
+    super({ name: 'wilds', height: wildsHeight, world: { x0: -HALF, z0: -HALF, size: HALF * 2, cell: 2 }, detail: [{ x0: -112, z0: -112, size: 224, cell: 1 }] });
   }
 
   heightAt(x: number, z: number, y?: number) {

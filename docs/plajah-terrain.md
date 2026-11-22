@@ -88,6 +88,14 @@ Rift Realm's `world/terrain.ts` is now the Wilds' settings on top (regions, cave
 old sampler (0 m difference); in the browser the old and new modules give identical heights and identical chunk meshes
 (400 chunks, same vertex and index counts).
 
+**Phase 2 done (2026-11-22):** `noise.ts` (integer-hashed value / gradient / cellular noise, fBm / ridged / billow),
+`graph.ts` (the terrain graph as JSON: noise, warp, combine, scale, mix, curve, terrace, clamp, mask, radial stamps, carved
+paths, distance, and `fn` for a game's own height code; validation + CPU compile), `gpu.ts` (the same graph as a TSL
+compute bake; `bakeRegion` falls back to the CPU for `fn` graphs), `HeightField.bakeAsync`. Rift Realm's height is now
+`WILDS_GRAPH` (one `fn` node over `worldHeight`, identical output). `presets/highlands.ts` is a world made only from the
+graph. In the browser the GPU bake matches the CPU to 0.7 mm over 251 001 samples and takes ~0.6 s against ~5 s on the CPU
+(2 km at 4 m); picture: `docs/plajah-terrain/highlands-phase2.jpg`.
+
 Order matters: 1 is pure refactor and unlocks everything; 3 (erosion) is the biggest visual jump; 5 is where it becomes
 "a living ecosystem".
 

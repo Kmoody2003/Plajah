@@ -27,8 +27,13 @@ export type HeightFn = (x: number, z: number) => number;
 export class HeightGrid {
   readonly n: number;
   readonly data: Float32Array;
-  constructor(readonly x0: number, readonly z0: number, readonly size: number, readonly cell: number, f: HeightFn) {
+  constructor(readonly x0: number, readonly z0: number, readonly size: number, readonly cell: number, f: HeightFn | Float32Array) {
     this.n = Math.round(size / cell) + 1;
+    if (f instanceof Float32Array) {
+      if (f.length !== this.n * this.n) throw new Error(`height grid: ${f.length} samples for a ${this.n}² grid`);
+      this.data = f;
+      return;
+    }
     this.data = new Float32Array(this.n * this.n);
     for (let j = 0; j < this.n; j++) for (let i = 0; i < this.n; i++) this.data[i + j * this.n] = f(x0 + i * cell, z0 + j * cell);
   }
@@ -68,6 +73,20 @@ export class HeightField implements SurfaceSource {
     this.baked = true;
     if (this.opts.name) console.info(`[terrain] ${this.opts.name} baked in ${Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0)} ms`);
   }
+
+  /** Bake with an async region baker (e.g. the GPU: gpu.ts bakeRegion); regions it returns null for use the CPU. */
+  async bakeAsync(bakeRegion: (r: GridRegion) => Promise<Float32Array | null>) {
+    const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const { height, world, detail = [] } = this.opts;
+    const regions = [...detail, world];
+    const datas = await Promise.all(regions.map((r) => bakeRegion(r)));
+    this.grids = regions.map((r, k) => new HeightGrid(r.x0, r.z0, r.size, r.cell, datas[k] ?? height));
+    this.baked = true;
+    if (this.opts.name) console.info(`[terrain] ${this.opts.name} baked (async) in ${Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0)} ms`);
+  }
+
+  /** The baked grids, finest first (for meshing, export, erosion). */
+  get bakedGrids(): readonly HeightGrid[] { if (!this.baked) this.bake(); return this.grids; }
 
   /** Surface height (ignores caves and overlays): for placing things and drawing the ground. */
   surface(x: number, z: number) {

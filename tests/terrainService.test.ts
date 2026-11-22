@@ -58,3 +58,71 @@ test('column grid finds columns in overlapping cells only', () => {
   assert.equal(c.near(30, 30, 1).length, 1);
   assert.equal(c.near(100, 100, 1).length, 0);
 });
+
+// ── phase 2: noise + terrain graph ──────────────────────────────────────────────────────────────────────────────────
+import { cellularNoise, fractal, gradientNoise, hash2, valueNoise } from '../services/terrain/noise';
+import { compileGraph, gpuReady, validateGraph, type TerrainGraph } from '../services/terrain/graph';
+import { HIGHLANDS } from '../services/terrain/presets/highlands';
+
+test('hash is deterministic, 32-bit and well spread', () => {
+  assert.equal(hash2(3, -7, 1), hash2(3, -7, 1));
+  assert.notEqual(hash2(3, -7, 1), hash2(3, -7, 2));
+  const buckets = new Array(16).fill(0);
+  for (let i = -50; i < 50; i++) for (let j = -50; j < 50; j++) { const h = hash2(i, j, 9); assert.ok(h >= 0 && h < 2 ** 32); buckets[h >>> 28]++; }
+  for (const b of buckets) assert.ok(b > 450 && b < 800, `bucket ${b}`);
+});
+
+test('noises stay in range and are continuous across lattice lines', () => {
+  for (const f of [valueNoise, gradientNoise, cellularNoise]) {
+    let lo = Infinity, hi = -Infinity;
+    for (let k = 0; k < 5000; k++) { const v = f(k * 0.137 - 300, k * 0.291 + 50, 4); lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    assert.ok(lo >= -1.05 && hi <= 1.05 && hi - lo > 0.8, `${f.name} ${lo}..${hi}`);
+    for (const x of [2, -5, 17]) assert.ok(Math.abs(f(x - 1e-7, 0.4, 4) - f(x + 1e-7, 0.4, 4)) < 1e-4, `${f.name} jumps at ${x}`);
+  }
+  for (let k = 0; k < 500; k++) { const r = fractal(k * 0.31, k * 0.17, { mode: 'ridged', seed: 2 }); assert.ok(r >= 0 && r <= 1); }
+});
+
+test('graph validation catches unknown nodes, cycles and bad parameters', () => {
+  const bad: TerrainGraph = { version: 1, output: 'a', nodes: {
+    a: { type: 'combine', op: 'add', inputs: ['b', 'ghost'] }, b: { type: 'scale', input: 'a' },
+    n: { type: 'noise', freq: 0 }, c: { type: 'curve', input: 1, points: [[1, 0], [0, 1]] }, f: { type: 'fn', name: 'nope' } } };
+  const errs = validateGraph(bad).join('\n');
+  for (const s of ['ghost', 'cycle', 'freq', 'curve', 'nope']) assert.ok(errs.includes(s), `missing "${s}" in ${errs}`);
+  assert.throws(() => compileGraph(bad));
+  assert.deepEqual(validateGraph(HIGHLANDS), []);
+});
+
+test('graph nodes compute what they say', () => {
+  const g: TerrainGraph = { version: 1, output: 'out', nodes: {
+    x: { type: 'distance', center: [0, 0] },
+    c: { type: 'curve', input: 'x', points: [[0, 0], [10, 5], [20, 5]] },
+    t: { type: 'terrace', input: 'x', step: 4, sharpness: 100 },
+    m: { type: 'mix', a: 0, b: 10, t: 'half' }, half: { type: 'const', value: 0.5 },
+    p: { type: 'path', points: [[-100, 0], [100, 0]], width: 10, depth: 3, falloff: 5 },
+    out: { type: 'combine', op: 'add', inputs: ['c', 'm'] } } };
+  const out = compileGraph(g), at = (id: string) => compileGraph({ ...g, output: id });
+  assert.equal(out(6, 8), 5 + 5);                       // distance 10 → curve 5, mix 5
+  assert.equal(at('c')(15, 0), 5);
+  assert.ok(Math.abs(at('t')(0, 5.5) - 4) < 1e-9 && Math.abs(at('t')(0, 7.9) - 8) < 1e-6, 'sharp terraces snap to steps');
+  assert.equal(at('p')(0, 3), 3); assert.equal(at('p')(0, 20), 0);
+});
+
+test('the Wilds graph is the hand-written height, unchanged', () => {
+  const g: TerrainGraph = { version: 1, nodes: { base: { type: 'fn', name: 'w' } }, output: 'base' };
+  assert.equal(gpuReady(g), false);
+  const f = compileGraph(g, { w: worldHeight });
+  for (let k = 0; k < 2000; k++) { const x = (k * 37.1) % 2000 - 1000, z = (k * 91.7) % 2000 - 1000; assert.equal(f(x, z), worldHeight(x, z)); }
+});
+
+test('Highlands: a pure-graph world with valley, mountains, mesa, crater and river', () => {
+  assert.equal(gpuReady(HIGHLANDS), true);
+  const f = compileGraph(HIGHLANDS);
+  const field = new HeightField({ height: f, world: { x0: -1000, z0: -1000, size: 2000, cell: 8 } });
+  let lo = Infinity, hi = -Infinity;
+  for (let x = -1000; x <= 1000; x += 25) for (let z = -1000; z <= 1000; z += 25) { const h = field.surface(x, z); lo = Math.min(lo, h); hi = Math.max(hi, h); }
+  assert.ok(hi - lo > 150, `relief ${lo}..${hi}`);
+  assert.ok(f(-360, 260) > f(-360 + 250, 260) + 30, 'the mesa stands above its surroundings');
+  assert.ok(f(420, -360) < f(420 + 120, -360), 'the crater floor sits below its rim');
+  assert.ok(f(-60, -120) < f(-60, -120 + 80) - 8, 'the river is carved below its banks');
+  assert.ok(f(900, 900) - f(0, 0) > 40 || f(-900, 900) - f(0, 0) > 40, 'mountains rise toward the edges');
+});
