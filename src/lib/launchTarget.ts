@@ -24,6 +24,8 @@ export const EXPERIENCE_VIEWS: Record<string, AppView> = {
   files: 'PLAJAH_DRIVE',
   drive: 'PLAJAH_DRIVE',
   hq: 'PLAJAH_DRIVE',
+  // Default Phone / SMS app intents + call notifications (android/.../telecom/PhoneIntents.kt).
+  phone: 'PHONE_HUB',
   // Shared landing-page links (services/deepLinkService 'app' → /share?type=app → /?view=<slug>).
   lorea: 'BOOKS',
   cinema: 'MOVIES_TV',

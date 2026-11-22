@@ -1,4 +1,5 @@
 import { UserAvatar } from '../avatar/UserAvatar';
+import '../../hooks/useFoldLayout'; // sets html[data-fold-layout] for the fold: variants
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   MessageSquare, Search, Hash, Users, Radio, Mail, ChevronLeft,
@@ -616,7 +617,7 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
     if (collaborationId) return <CollaboBoard projectId={collaborationId} onBack={() => setCollaborationId(null)} />;
     if (space === 'mail') {
       return (
-        <div className="hidden md:flex flex-1 flex-col items-center justify-center p-12 text-center">
+        <div className="hidden md:flex fold:flex flex-1 flex-col items-center justify-center p-12 text-center">
           <Mail size={44} className="text-small-orange mb-6" />
           <h2 className="text-2xl font-black uppercase tracking-tighter mb-2">The Post Man</h2>
           <p className="text-[11px] font-bold text-white/25 uppercase tracking-[0.2em]">Your mail lives in the left column</p>
@@ -652,7 +653,7 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
       );
     }
     return (
-      <div className="hidden md:flex flex-1 flex-col items-center justify-center p-12 text-center">
+      <div className="hidden md:flex fold:flex flex-1 flex-col items-center justify-center p-12 text-center">
         <div className="w-24 h-24 bg-gradient-to-br from-small-orange/20 to-purple-500/20 rounded-[2rem] flex items-center justify-center mb-6 border border-white/10">
           <Sparkles size={40} className="text-small-orange" />
         </div>
@@ -675,15 +676,18 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
   const showRightRail = (isProductionThread || isOrgThread) && !!activeRoom;
 
   return (
-    <div className="h-full flex overflow-hidden relative pb-20 md:pb-0" style={currentRoomIsIntimate ? { background: 'linear-gradient(160deg,#1a0008 0%,#2d0010 50%,#0d0005 100%)' } : {}}>
+    <div className="h-full flex overflow-hidden relative pb-20 md:pb-0 fold:pb-20" style={currentRoomIsIntimate ? { background: 'linear-gradient(160deg,#1a0008 0%,#2d0010 50%,#0d0005 100%)' } : {}}>
       {currentRoomIsIntimate && (
         <div className="absolute inset-0 pointer-events-none z-0">
           <div className="absolute top-0 left-1/4 w-64 h-64 bg-rose-900/20 rounded-full blur-[80px]" />
         </div>
       )}
 
+      {/* Foldable inner screen: rail + channels form the leading pane (ends on the hinge in book
+          posture). `contents` keeps phone/tablet/desktop layout exactly as before. */}
+      <div className="contents fold:flex fold:shrink-0 fold:min-w-0 pj-fold-lead">
       {/* ── SPACES RAIL (64px) ── */}
-      <div className={`${railExpanded ? 'w-56 max-w-[45vw] px-2' : 'w-16'} ${activeRoom ? 'hidden md:flex' : 'flex'} shrink-0 border-r border-white/[0.06] bg-black/30 backdrop-blur-xl flex-col items-center gap-2 py-3 overflow-y-auto no-scrollbar z-20 transition-[width] duration-200`}>
+      <div className={`${railExpanded ? 'w-56 max-w-[45vw] px-2' : 'w-16'} ${activeRoom ? 'hidden md:flex fold:flex' : 'flex'} shrink-0 border-r border-white/[0.06] bg-black/30 backdrop-blur-xl flex-col items-center gap-2 py-3 overflow-y-auto no-scrollbar z-20 transition-[width] duration-200`}>
         <button onClick={toggleRail} aria-expanded={railExpanded} aria-label={railExpanded ? 'Collapse chat categories' : 'Expand chat categories'} title={railExpanded ? 'Collapse categories' : 'Expand categories'} className="w-full min-h-11 flex items-center justify-center gap-2 rounded-xl text-white/60 hover:bg-white/10">
           {railExpanded ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
           {railExpanded && <span className="text-xs font-semibold">Categories</span>}
@@ -716,7 +720,7 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
       </div>
 
       {/* ── CHANNEL COLUMN ── */}
-      <div className={`flex-1 min-w-0 md:flex-none md:w-72 md:shrink-0 border-r border-white/[0.06] bg-black/20 backdrop-blur-xl flex flex-col z-10 ${activeRoom || space === 'mail' ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`flex-1 min-w-0 md:flex-none md:w-72 md:shrink-0 fold:flex-none fold:w-[clamp(200px,32vw,288px)] fold-book:flex-1 fold-book:w-auto border-r border-white/[0.06] bg-black/20 backdrop-blur-xl flex flex-col z-10 ${activeRoom || space === 'mail' ? 'hidden md:flex fold:flex' : 'flex'}`}>
         <div className="px-4 pt-4 pb-3 border-b border-white/[0.05] flex items-center justify-between">
           <h2 className="text-sm font-black uppercase tracking-widest text-white truncate">{spaceTitle}</h2>
           {space === 'home' && (
@@ -725,9 +729,10 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
         </div>
         {renderChannelColumn()}
       </div>
+      </div>
 
       {/* ── MAIN (thread / mail) ── */}
-      <div className={`${activeRoom || space === 'mail' ? 'flex' : 'hidden md:flex'} flex-1 flex-col min-w-0 relative z-10`}>
+      <div className={`${activeRoom || space === 'mail' ? 'flex' : 'hidden md:flex fold:flex'} flex-1 flex-col min-w-0 relative z-10`}>
         {renderMain()}
       </div>
 

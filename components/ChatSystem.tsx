@@ -26,11 +26,17 @@ import ChatWindow from './ChatWindow';
 import CollaboBoard from './CollaboBoard';
 import PostmanSystem from './PostmanSystem';
 import ChatSpaces from './chat/ChatSpaces';
+import { usePhoneBook } from './phone/usePhoneBook';
+import { SmsConversation, SmsThreadRow } from './phone/SmsViews';
+import { RcsConversation, RcsSetupCard, RcsThreadRow } from './phone/RcsViews';
+import type { RcsThread, SmsThread } from '../services/phone/telecom';
+import { telecom } from '../services/phone/telecom';
 import RoomMessagePreview from './chat/RoomMessagePreview';
 import { useShellNext } from '../hooks/useShellNext';
+import '../hooks/useFoldLayout'; // sets html[data-fold-layout] for the fold: variants
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type SidebarTab = 'ALL' | 'DIRECT' | 'GROUPS' | 'PRODUCTIONS' | 'CHANNELS' | 'SONGS' | 'POSTMAN';
+type SidebarTab = 'ALL' | 'DIRECT' | 'GROUPS' | 'PRODUCTIONS' | 'CHANNELS' | 'SONGS' | 'POSTMAN' | 'TEXTS';
 type MainView = 'CHAT_LIST' | 'NEW_MESSAGE' | 'INVITE_FRIENDS' | 'FIND_CONTACTS';
 const EMOJI_STATUS = ['😊', '🎵', '🎨', '💤', '🔥', '👻', '🌙', '⚡', '🎯', '🌊', '🎤', '🏆'];
 
@@ -594,6 +600,18 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
   const [activeRoom, setActiveRoom]         = useState<ChatRoom | null>(null);
   const [activeCollabId, setActiveCollabId] = useState<string | null>(null);
   const { placeCall } = useCall();
+  // Carrier texts (Android, Plajah = default SMS app) live beside Plajah DMs; they stay on the phone.
+  const phoneBook = usePhoneBook();
+  const [activeSms, setActiveSms] = useState<{ threadId?: string; addresses: string[] } | null>(null);
+  const [activeRcs, setActiveRcs] = useState<RcsThread | null>(null);
+  // SMS + RCS threads, newest first (Texts tab and the Texts section under All).
+  const textRows = useMemo(() => [
+    ...phoneBook.threads.map(t => ({ kind: 'sms' as const, t: t as SmsThread })),
+    ...phoneBook.rcsThreads.map(t => ({ kind: 'rcs' as const, t: t as RcsThread })),
+  ].sort((a, b) => b.t.date - a.t.date), [phoneBook.threads, phoneBook.rcsThreads]);
+  const openSms = (t: SmsThread) => { setActiveSms({ threadId: t.threadId, addresses: t.addresses }); setActiveRcs(null); setActiveRoom(null); setActiveCollabId(null); };
+  const openRcs = (t: RcsThread) => { setActiveRcs(t); setActiveSms(null); setActiveRoom(null); setActiveCollabId(null); };
+  const textsEnabled = phoneBook.available && !!phoneBook.status?.hasTelephony;
   const { enabled: shellNext } = useShellNext();
   // Land on DMs first — a user's direct conversations are what they open chat for,
   // not the firehose of every group/channel.
@@ -688,6 +706,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
     }
     if (searchTerm && !name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (sidebarTab === 'ALL') return true;
+    if (sidebarTab === 'TEXTS') return false;
     if (sidebarTab === 'DIRECT') return room.type === 'PRIVATE';
     if (sidebarTab === 'GROUPS') return (room.type === 'GROUP' || room.type === 'CLASSROOM') && room.workspaceType !== 'PRODUCTION';
     if (sidebarTab === 'PRODUCTIONS') return room.workspaceType === 'PRODUCTION';
@@ -814,6 +833,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
     { id: 'SONGS',    label: 'Songs',   icon: Hash },
     { id: 'CHANNELS', label: 'Live',    icon: Radio },
     { id: 'POSTMAN',  label: 'Mail',    icon: Mail },
+    ...(textsEnabled ? [{ id: 'TEXTS' as SidebarTab, label: phoneBook.unreadTexts ? `Texts ${phoneBook.unreadTexts}` : 'Texts', icon: Phone }] : []),
   ];
 
   // ── Render ───────────────────────────────────────────────────────────────────
@@ -844,7 +864,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
 
   return (
     <div
-      className="h-full flex overflow-hidden relative pb-20 md:pb-0"
+      className="h-full flex overflow-hidden relative pb-20 md:pb-0 fold:pb-20"
       style={currentRoomIsIntimate ? { background: INTIMATE_STYLE.bg } : {}}
     >
       {/* Intimate ambient glow */}
@@ -856,9 +876,9 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
       )}
 
       {/* ── LEFT SIDEBAR — full-width room list on phone; fixed panel at md+ ── */}
-      <div className={`w-full md:w-80 lg:w-96 border-r flex flex-col z-10 ${
+      <div className={`w-full md:w-80 lg:w-96 fold:w-[clamp(240px,38vw,340px)] fold:shrink-0 fold-book:w-auto pj-fold-lead border-r flex flex-col z-10 ${
         currentRoomIsIntimate ? 'border-rose-900/30 bg-black/20 backdrop-blur-xl' : 'border-white/[0.06] bg-black/20 backdrop-blur-xl'
-      } ${activeRoom || activeCollabId || mainView !== 'CHAT_LIST' ? 'hidden md:flex' : 'flex'}`}>
+      } ${activeRoom || activeCollabId || activeSms || activeRcs || mainView !== 'CHAT_LIST' ? 'hidden md:flex fold:flex' : 'flex'}`}>
 
         {/* Invite Friends panel */}
         {mainView === 'INVITE_FRIENDS' && (
@@ -969,6 +989,37 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
                 <div className="p-4">
                   <PostmanSystem />
                 </div>
+              ) : sidebarTab === 'TEXTS' ? (
+                <div className="p-3 space-y-1">
+                  <button
+                    onClick={() => window.dispatchEvent(new CustomEvent('plajah:openPhone'))}
+                    className="w-full flex items-center gap-2 px-3 py-2 mb-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[9px] font-black uppercase tracking-widest"
+                  >
+                    <Phone size={12} /> Open Phone · keypad, calls, contacts
+                  </button>
+                  <RcsSetupCard status={phoneBook.rcsStatus} plajahIsDefaultSms={!!phoneBook.status?.isDefaultSms} onDone={phoneBook.refreshRcs} />
+                  {phoneBook.status && phoneBook.status.permissions.sms !== 'granted' && !phoneBook.rcsStatus?.enabled ? (
+                    <div className="py-10 text-center space-y-3">
+                      <p className="text-[10px] text-white/35">Set Plajah as your texting app to see carrier texts here. They stay on this phone.</p>
+                      <button onClick={() => window.dispatchEvent(new CustomEvent('plajah:openPhone'))} className="px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[9px] font-black uppercase tracking-widest">Set up texting</button>
+                    </div>
+                  ) : textRows.length === 0 ? (
+                    <p className="py-14 text-center text-[9px] font-black uppercase tracking-widest text-white/20">No texts yet</p>
+                  ) : textRows
+                    .filter(r => {
+                      if (!searchTerm) return true;
+                      const q = searchTerm.toLowerCase();
+                      if (r.t.snippet.toLowerCase().includes(q)) return true;
+                      return r.kind === 'sms'
+                        ? r.t.addresses.some(a => a.includes(searchTerm) || (phoneBook.lookup(a)?.name || '').toLowerCase().includes(q))
+                        : r.t.title.toLowerCase().includes(q);
+                    })
+                    .map(r => r.kind === 'sms' ? (
+                      <SmsThreadRow key={`s${r.t.threadId}`} thread={r.t} lookup={phoneBook.lookup} active={activeSms?.threadId === r.t.threadId} onOpen={() => openSms(r.t)} />
+                    ) : (
+                      <RcsThreadRow key={`r${r.t.threadKey}`} thread={r.t} active={activeRcs?.threadKey === r.t.threadKey} onOpen={() => openRcs(r.t)} />
+                    ))}
+                </div>
               ) : (
                 <div className="p-3 space-y-1">
                   {filteredRooms.length === 0 ? (
@@ -1005,7 +1056,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
                           isDeleting={deletingRoom === room.id}
                           menuOpen={roomMenu === room.id}
                           intimateMode={intimateRooms.has(room.id)}
-                          onSelect={() => { setActiveRoom(room); setActiveCollabId(null); setRoomMenu(null); }}
+                          onSelect={() => { setActiveRoom(room); setActiveCollabId(null); setRoomMenu(null); setActiveSms(null); setActiveRcs(null); }}
                           onRename={() => handleRenameRoom(room.id)}
                           onDelete={() => handleDeleteRoom(room.id)}
                           onMenuToggle={() => setRoomMenu(prev => prev === room.id ? null : room.id)}
@@ -1015,6 +1066,17 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
                       ))}
                     </AnimatePresence>
                   )}
+                  {/* Carrier texts appear in All too, under the Plajah conversations. */}
+                  {sidebarTab === 'ALL' && textsEnabled && textRows.length > 0 && !searchTerm && (
+                    <>
+                      <div className="px-2 pt-4 pb-1 text-[8px] font-black uppercase tracking-widest text-white/25">Texts</div>
+                      {textRows.slice(0, 30).map(r => r.kind === 'sms' ? (
+                        <SmsThreadRow key={`sms-${r.t.threadId}`} thread={r.t} lookup={phoneBook.lookup} active={activeSms?.threadId === r.t.threadId} onOpen={() => openSms(r.t)} />
+                      ) : (
+                        <RcsThreadRow key={`rcs-${r.t.threadKey}`} thread={r.t} active={activeRcs?.threadKey === r.t.threadKey} onOpen={() => openRcs(r.t)} />
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -1023,9 +1085,24 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
       </div>
 
       {/* ── MAIN CHAT AREA — hidden on phone until a room is open (single-pane) ── */}
-      <div className={`${activeRoom || activeCollabId ? 'flex' : 'hidden md:flex'} flex-1 flex-col min-w-0 relative z-10`}>
+      <div className={`${activeRoom || activeCollabId || activeSms || activeRcs ? 'flex' : 'hidden md:flex fold:flex'} flex-1 flex-col min-w-0 relative z-10`}>
         {activeCollabId ? (
           <CollaboBoard projectId={activeCollabId} onBack={() => setActiveCollabId(null)} />
+        ) : activeRcs ? (
+          <RcsConversation key={activeRcs.threadKey} thread={activeRcs} onBack={() => setActiveRcs(null)}
+            onDeleted={() => { setActiveRcs(null); phoneBook.refreshRcs(); }} onChanged={phoneBook.refreshRcs} />
+        ) : activeSms ? (
+          <SmsConversation
+            key={activeSms.threadId || activeSms.addresses.join(',')}
+            threadId={activeSms.threadId}
+            addresses={activeSms.addresses}
+            lookup={phoneBook.lookup}
+            onBack={() => setActiveSms(null)}
+            onCall={(n) => { telecom.placeCall(n).catch(() => {}); window.dispatchEvent(new CustomEvent('plajah:openPhone')); }}
+            onPlajahCall={async (uid, video) => { const r = await phoneBook.plajah.roomFor(uid); if (r) placeCall(r, video ? 'VIDEO' : 'AUDIO'); }}
+            onDeleted={() => { setActiveSms(null); phoneBook.refreshThreads(); }}
+            onChanged={phoneBook.refreshThreads}
+          />
         ) : activeRoom ? (
           <div className="flex flex-col h-full">
             {/* Intimate mode toggle bar */}
@@ -1058,7 +1135,7 @@ const ChatSystem: React.FC<ChatSystemProps> = ({ onBack, initialRoomId, currentU
             />
           </div>
         ) : (
-          <div className="hidden lg:flex flex-1 flex-col items-center justify-center p-12 text-center">
+          <div className="hidden lg:flex fold:flex flex-1 flex-col items-center justify-center p-12 text-center">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}

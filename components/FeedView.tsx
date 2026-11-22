@@ -1,5 +1,6 @@
 import { UserAvatar } from './avatar/UserAvatar';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useFoldLayout } from '../hooks/useFoldLayout';
 import { scoreText } from '../src/lib/scoreText';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
@@ -1564,7 +1565,10 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [composerOpen, setComposerOpen] = useState(false);
   const [editLeagues, setEditLeagues] = useState(false);
   const [nowSheetOpen, setNowSheetOpen] = useState(false);
-  const [isWide, setIsWide] = useState(true);
+  const [isWideRaw, setIsWide] = useState(true);
+  // Unfolded foldable inner screen: feed + Now side column even below the 1000px threshold.
+  const fold = useFoldLayout();
+  const isWide = isWideRaw || fold.twoPane;
   // Leagues the viewer follows: they feed the scores in the Now panel and the chips under Your teams.
   const [followedLeagues, setFollowedLeagues] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem('plajah.news.leagues') || '[]'); } catch { return []; } });
   const toggleLeague = (league: string) => setFollowedLeagues(cur => {

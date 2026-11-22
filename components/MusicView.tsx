@@ -29,6 +29,8 @@ import ChoraSkyBand from './chora/ChoraSkyBand';
 import { fetchTopPodcasts, type PodcastShow } from '../services/podcastDirectory';
 import { getFollowedPodcasts, subscribePodcastLibrary } from '../services/podcastLibraryService';
 import { useChoraNext } from '../hooks/useChoraNext';
+import { useFoldLayout } from '../hooks/useFoldLayout';
+import FoldNowPlaying from './chora/FoldNowPlaying';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import MyLibraryView from './MyLibraryView';
@@ -331,6 +333,8 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
   const [selectedSpeechTrack, setSelectedSpeechTrack] = useState<ArchiveTrack | null>(null);
   const [showConservatory, setShowConservatory] = useState(false);
   const { playTrack, isPlaying, currentTrack, theme } = useGlobalPlayerState();
+  const fold = useFoldLayout();
+  const foldNowPlaying = fold.twoPane && !!currentTrack && !getPlatformInfo().isTV;
 
   const [personalPlaylists, setPersonalPlaylists] = useState<Playlist[]>([]);
   const [playlistPickerTrack, setPlaylistPickerTrack] = useState<Track | null>(null);
@@ -1880,8 +1884,8 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
     );
   }
 
-  return (
-    <div className={`flex-1 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40 relative${choraNextOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
+  const libraryPane = (
+    <div className={`flex-1 min-w-0 bg-transparent text-white overflow-y-auto custom-scrollbar pb-40 relative${foldNowPlaying && fold.book ? ' pj-fold-lead' : ''}${choraNextOn ? (choraNext.isNight ? ' chora-next chora-night' : ' chora-next') : ''}`}>
       <div className="flex flex-col h-full relative z-[1]">
         <div className="flex-1 min-w-0">
           {/* L1 Marquee header — one quiet line: the wordmark, then the skin controls. The marquee,
@@ -3817,6 +3821,18 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
           <SignInPrompt action={signInAction} onClose={() => setSignInAction(null)} />
         )}
       </AnimatePresence>
+    </div>
+  );
+
+  // Unfolded foldable: library + now playing side by side (book posture: the hinge splits
+  // them); tabletop: now playing above the hinge, transport + library below. Everything
+  // else (phones, tablets, desktop, TV) renders the library alone, exactly as before.
+  if (!foldNowPlaying) return libraryPane;
+  return (
+    <div className={`flex-1 min-h-0 h-full flex ${fold.tabletop ? 'flex-col' : 'flex-row'} overflow-hidden`}>
+      {fold.tabletop && <FoldNowPlaying variant="tabletop" />}
+      {libraryPane}
+      {!fold.tabletop && <FoldNowPlaying variant="side" />}
     </div>
   );
 };

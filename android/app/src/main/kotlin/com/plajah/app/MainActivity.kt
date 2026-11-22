@@ -35,6 +35,8 @@ class MainActivity : BridgeActivity() {
     private var launchIntent: Intent? = null
 
     private fun experienceFor(intent: Intent?): String? {
+        // Default Phone / SMS app intents (dial, sms:, our call notification) → the "phone" experience.
+        com.plajah.app.telecom.PhoneIntents.capture(this, intent)?.let { return it }
         val component = intent?.component ?: return null
         return try {
             packageManager.getActivityInfo(component, PackageManager.GET_META_DATA)
@@ -145,6 +147,7 @@ class MainActivity : BridgeActivity() {
         registerPlugin(PlajahMatterPlugin::class.java)
         registerPlugin(PlajahDevicePlugin::class.java)
         registerPlugin(PlajahHubPlugin::class.java)
+        registerPlugin(com.plajah.app.telecom.PlajahTelecomPlugin::class.java)
 
         PlajahLaunchPlugin.pendingMediaJson = launchMedia
         val startPath = when {
@@ -271,7 +274,19 @@ class MainActivity : BridgeActivity() {
         }
     }
 
+    /** Last hinge reading. Posture is re-sent from this on rotation and after every page load:
+     *  WindowInfoTracker's first emission lands before the plajah.com page exists, and an
+     *  attribute set on that blank document is gone once the real page loads. */
+    private var lastFoldFeature: FoldingFeature? = null
+
     private fun observeFoldablePosture() {
+        try {
+            bridge?.addWebViewListener(object : com.getcapacitor.WebViewListener() {
+                override fun onPageLoaded(webView: WebView?) { pushFoldableStateToWeb(lastFoldFeature) }
+            })
+        } catch (e: Exception) {
+            Log.w(TAG, "Foldable page-load hook unavailable: ${e.message}")
+        }
         lifecycleScope.launch {
             try {
                 WindowInfoTracker.getOrCreate(this@MainActivity)
@@ -280,6 +295,7 @@ class MainActivity : BridgeActivity() {
                         val feature = layoutInfo.displayFeatures
                             .filterIsInstance<FoldingFeature>()
                             .firstOrNull()
+                        lastFoldFeature = feature
                         pushFoldableStateToWeb(feature)
                     }
             } catch (e: Exception) {
@@ -309,6 +325,7 @@ class MainActivity : BridgeActivity() {
         val hh = ((b?.height() ?: 0) / density).toInt()
         val js = "(function(){var r=document.documentElement;if(!r)return;" +
             "r.setAttribute('data-fold-mode','$mode');" +
+            "r.setAttribute('data-fold-hinge','${if (isSeparating) "separating" else if (feature != null) "flat" else "none"}');" +
             "r.style.setProperty('--fold-hinge-x','${hx}px');" +
             "r.style.setProperty('--fold-hinge-y','${hy}px');" +
             "r.style.setProperty('--fold-hinge-w','${hw}px');" +
@@ -320,7 +337,7 @@ class MainActivity : BridgeActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        if (!televisionMode) pushFoldableStateToWeb(null)
+        if (!televisionMode) pushFoldableStateToWeb(lastFoldFeature)
     }
 
     /** Warm re-entry (singleTask): a file opened, or an experience icon tapped, while running. */

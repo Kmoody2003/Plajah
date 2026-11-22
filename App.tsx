@@ -487,6 +487,7 @@ const TV_BLOCKED_VIEWS: Partial<Record<string, { feature: TvDisabledFeature; tit
 const AppsView = retryLazy(() => import('./components/AppsView'));
 const GamesTvView = retryLazy(() => import('./components/tv/GamesTvView'));
 const CrossoverView = retryLazy(() => import('./components/CrossoverView'));
+const PhoneHub = retryLazy(() => import('./components/phone/PhoneHub'));
 const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView'));
 const LightingDesigner = retryLazy(() => import('./components/LightingDesigner'));
 const PlajahBuildHub = retryLazy(() => import('./components/build/PlajahBuildHub'));
@@ -1171,6 +1172,13 @@ const App: React.FC = () => {
     const h = (e: Event) => { setTechnoRoom((e as CustomEvent)?.detail?.room); setView('TECHNO_EXHIBIT'); };
     window.addEventListener('plajah:openTechnoExhibit', h as EventListener);
     return () => window.removeEventListener('plajah:openTechnoExhibit', h as EventListener);
+  }, [setView]);
+
+  // Open Plajah Phone (Android default dialer/SMS) from anywhere, e.g. Chat's Texts tab.
+  useEffect(() => {
+    const h = () => setView('PHONE_HUB');
+    window.addEventListener('plajah:openPhone', h as EventListener);
+    return () => window.removeEventListener('plajah:openPhone', h as EventListener);
   }, [setView]);
 
   // Open the Tela reference-embed demo (P2b) from anywhere.
@@ -6252,7 +6260,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     </linearGradient>
                   </defs>
                 </svg>
-                <div className="flex items-center px-1 pt-1 pb-android-nav gap-0">
+                {/* Capped + centred so the tabs don't spread edge to edge on a foldable's
+                    unfolded inner screen or a small tablet (the phone shell runs there too). */}
+                <div className="flex items-center px-1 pt-1 pb-android-nav gap-0 max-w-[720px] mx-auto">
                   {getBottomTabsForPersona(activePersonaKey, effectiveProfile).map((tab, idx, arr) => {
                     const Icon = tab.icon;
                     const isActive = view === tab.id || (tab.id === 'ELEVATE_HUB' && view === 'ORG_HUB');
@@ -6385,7 +6395,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: '100%', opacity: 0 }}
                     transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-                    className={`fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 z-[145] glass-sheet rounded-t-m3-2xl max-h-[65vh] gpu${drawerSearchFocused ? '' : ' overflow-y-auto'}`}
+                    className={`fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] left-0 right-0 sm:mx-auto sm:max-w-3xl z-[145] glass-sheet rounded-t-m3-2xl max-h-[65vh] gpu${drawerSearchFocused ? '' : ' overflow-y-auto'}`}
                   >
                     <div className="sticky top-0 glass-nav rounded-t-m3-2xl border-b border-white/5">
                       <div className="flex items-center justify-between px-5 pt-3 pb-2">
@@ -6410,7 +6420,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-4 gap-2 p-4">
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 p-4">
                       {[
                         { id: 'USER_PROFILE', icon: User, label: 'Profile' },
                         { id: 'DASHBOARD', icon: Home, label: 'Home' },
@@ -6430,6 +6440,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         { id: 'FEED', icon: Rss, label: 'Social' },
                         { id: 'CLASSROOMS', icon: GraduationCap, label: 'Academia' },
                         { id: 'GLOBAL_PHOTOS', icon: Camera, label: 'Photos' },
+                        { id: 'PLAJAH_DRIVE', icon: HardDrive, label: 'Files' },
                         { id: 'SEARCH', icon: Search, label: 'Search' },
                         { id: 'HELP_CENTER', icon: HelpCircle, label: 'Help' },
                       ].map(section => {
@@ -7985,6 +7996,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
+            {view === 'PHONE_HUB' && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <PhoneHub onBack={() => setView('CHAT')} onOpenChat={(roomId) => { setSelectedChatRoomId(roomId); setView('CHAT'); }} />
+              </Suspense>
+            )}
             {view === 'PLAJAH_DRIVE' && !tvBlocked && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <PlajahDriveView onBack={() => setView('DASHBOARD')} onSendToChora={() => setView('MUSIC')} onOpenCinemaPlayer={(item, siblings) => setActiveUniversalVideo({ file: { name: item.name, fullPath: item.fullPath || '', folderPath: item.folderPath, size: item.size || 0, lastModified: item.lastModified, url: item.url, mediaKind: 'VIDEO' }, folderFiles: siblings.map(s => ({ name: s.name, fullPath: s.fullPath || '', folderPath: s.folderPath, size: s.size || 0, lastModified: s.lastModified, url: s.url })), context: 'LOCAL', title: item.name })} />

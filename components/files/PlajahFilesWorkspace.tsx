@@ -3,6 +3,7 @@
 // Built to replace OS File Explorer / Android Files inside Web, WinUI 3 Desktop, and Android APK.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import '../../hooks/useFoldLayout'; // sets html[data-fold-layout] for the fold: variants
 import {
   Archive,
   ArrowLeft,
@@ -732,7 +733,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
           )}
           <button
             onClick={() => setMobileSourcesOpen(o => !o)}
-            className={`md:hidden p-1.5 rounded-lg border cursor-pointer ${
+            className={`md:hidden fold:hidden p-1.5 rounded-lg border cursor-pointer ${
               mobileSourcesOpen ? 'bg-amber-500/20 border-amber-400/50 text-amber-300' : 'bg-white/8 border-white/10 text-white/80'
             }`}
             title="Toggle Sources & Drives"
@@ -789,17 +790,17 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
       </header>
 
       {/* Main Workspace Body */}
-      <div className="relative flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
+      <div className="relative flex-1 min-h-0 flex flex-col lg:flex-row fold:flex-row overflow-hidden">
         {mobileSourcesOpen && (
           <div
             onClick={() => setMobileSourcesOpen(false)}
-            className="md:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-[1px]"
+            className="md:hidden fold:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-[1px]"
           />
         )}
         {/* ── LEFT UNIFIED LOCATION SIDEBAR ── */}
         <aside
           className={`${
-            mobileSourcesOpen ? 'fixed top-12 bottom-0 left-0 z-40 w-64 shadow-2xl block' : 'hidden md:block md:w-56 lg:w-60'
+            mobileSourcesOpen ? 'fixed top-12 bottom-0 left-0 z-40 w-64 shadow-2xl block fold:static fold:z-auto fold:shadow-none fold:w-[clamp(200px,30vw,260px)] pj-fold-lead' : 'hidden md:block md:w-56 lg:w-60 fold:block fold:w-[clamp(200px,30vw,260px)] pj-fold-lead'
           } border-r border-white/10 bg-[#0a0b11] overflow-y-auto p-2.5 space-y-4 shrink-0`}
         >
           {/* This Device */}
@@ -1549,7 +1550,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
 
         {/* ── OPTIONAL SPLIT DUAL-PANE CLOUD DRIVE ── */}
         {splitCloudPane && active.kind !== 'drive' && (
-          <section className="h-[44%] lg:h-auto lg:w-[380px] xl:w-[440px] border-t lg:border-t-0 lg:border-l border-white/10 bg-[#090a10] overflow-y-auto shrink-0">
+          <section className="h-[44%] lg:h-auto lg:w-[380px] xl:w-[440px] fold:h-auto fold:w-[min(340px,38vw)] fold:border-t-0 fold:border-l border-t lg:border-t-0 lg:border-l border-white/10 bg-[#090a10] overflow-y-auto shrink-0">
             <div className="px-3 py-2 border-b border-white/10 text-[11px] font-bold uppercase tracking-wider text-purple-300 flex items-center justify-between">
               <span>Split Pane • Plajah Drive</span>
               <button onClick={() => setSplitCloudPane(false)} className="text-white/50 hover:text-white cursor-pointer">Close</button>
@@ -1560,7 +1561,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
 
         {/* ── RIGHT EMBEDDED QUICK-VIEW MEDIA & DOC STAGE (DESKTOP / TABLET) ── */}
         {showPreviewPane && previewItem && !lightboxOpen && (active.kind === 'local' || active.kind === 'connector') && (
-          <aside className="w-80 xl:w-96 shrink-0 hidden md:block">
+          <aside className="w-80 xl:w-96 shrink-0 hidden md:block fold:hidden">
             <PlajahMediaStage
               activeItem={previewItem}
               playlist={folderPlaylist}
@@ -1583,7 +1584,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
 
         {/* ── COMPACT DOCKED QUICK-VIEW BAR (PORTRAIT PHONES / NARROW WINDOWS) ── */}
         {showPreviewPane && previewItem && !lightboxOpen && (active.kind === 'local' || active.kind === 'connector') && (
-          <div className="md:hidden border-t border-white/12 bg-[#0b0d14] px-3 py-2.5 flex items-center gap-2 shrink-0">
+          <div className="md:hidden fold:flex border-t border-white/12 bg-[#0b0d14] px-3 py-2.5 flex items-center gap-2 shrink-0">
             <div className="min-w-0 flex-1" onClick={() => setLightboxOpen(true)}>
               <div className="text-xs font-semibold truncate">{previewItem.name}</div>
               <div className="text-[10px] text-white/50 font-mono">

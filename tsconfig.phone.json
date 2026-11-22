@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "noEmit": true
+  },
+  "include": [
+    "services/phone/phoneNumber.ts",
+    "services/phone/contactsMerge.ts",
+    "services/phone/telecom.ts",
+    "components/phone/usePhoneBook.ts",
+    "components/phone/SmsViews.tsx",
+    "components/phone/PhoneHub.tsx",
+    "components/ChatSystem.tsx",
+    "src/lib/launchTarget.ts",
+    "tests/phoneHub.test.ts",
+    "App.tsx",
+    "components/phone/RcsViews.tsx",
+    "labs/phone/main.tsx",
+    "labs/phone/mockTelecom.ts",
+    "labs/phone/mockBackend.ts",
+    "labs/phone/mockCallContext.tsx"
+  ]
+}

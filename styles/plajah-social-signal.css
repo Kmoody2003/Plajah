@@ -78,6 +78,12 @@
 .pj-social-body { max-width: 760px; margin-inline: auto; padding: 16px 12px 80px; }
 .pj-social-body.with-panel { max-width: 1160px; padding-inline: 24px; display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 26px; align-items: start; }
 .pj-social-main { min-width: 0; }
+/* Unfolded foldable (hooks/useFoldLayout.ts): a slimmer Now column so the feed keeps room;
+   book posture puts the feed on the left page and Now on the right, with the hinge as gutter. */
+html[data-fold-layout] .pj-social-body.with-panel { max-width: none; padding-inline: 12px; grid-template-columns: minmax(0, 1fr) clamp(240px, 34vw, 300px); gap: 16px; }
+html[data-fold-layout="book"] .pj-social-body.with-panel { padding-inline: 0; margin: 0; grid-template-columns: var(--fold-hinge-x) minmax(0, 1fr); column-gap: var(--fold-hinge-w); }
+html[data-fold-layout="book"] .pj-social-body.with-panel > .pj-social-main { padding-inline: 12px; }
+html[data-fold-layout="book"] .pj-social-body.with-panel > .pj-now-panel { padding-inline: 12px; }
 .pj-now-panel { position: sticky; top: 112px; max-height: calc(100dvh - 140px); overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .pj-now-panel::-webkit-scrollbar { display: none; }
 

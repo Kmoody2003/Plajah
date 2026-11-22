@@ -12,6 +12,10 @@ import { useSyncExternalStore } from 'react';
 export type Breakpoint = 'phone' | 'tablet' | 'desktop';
 export type Orientation = 'portrait' | 'landscape';
 export type FoldPosture = 'single' | 'spanning';
+/** Posture reported by the Android shell (MainActivity.pushFoldableStateToWeb → html[data-fold-mode]).
+ *  'cover' = folded outer screen, 'inner' = unfolded flat, 'book'/'tabletop' = half-open on the hinge.
+ *  'none' off Android or on a phone that isn't a foldable. */
+export type FoldMode = 'none' | 'standard' | 'cover' | 'inner' | 'book' | 'tabletop';
 
 export interface Viewport {
   width: number;
@@ -23,13 +27,25 @@ export interface Viewport {
   isMobile: boolean;      // phone or tablet
   orientation: Orientation;
   foldPosture: FoldPosture; // 'spanning' when the window straddles a foldable hinge
+  foldMode: FoldMode;
+  /** Unfolded foldable inner screen (or any near-square touch screen 580–1050px): roomier than a
+   *  phone, but the Android app still runs its phone shell there. Use it to add columns. */
+  isFoldInner: boolean;
 }
 
 const PHONE_MAX = 768;   // < 768  → phone
 const TABLET_MAX = 1200; // < 1200 → tablet, else desktop
 
-function detectFold(w: number, h: number): FoldPosture {
+const FOLD_MODES: FoldMode[] = ['standard', 'cover', 'inner', 'book', 'tabletop'];
+function readFoldMode(): FoldMode {
+  if (typeof document === 'undefined') return 'none';
+  const m = document.documentElement?.getAttribute('data-fold-mode') as FoldMode | null;
+  return m && FOLD_MODES.includes(m) ? m : 'none';
+}
+
+function detectFold(w: number, h: number, mode: FoldMode): FoldPosture {
   if (typeof window === 'undefined') return 'single';
+  if (mode === 'book' || mode === 'tabletop') return 'spanning';
   // Viewport Segments API (Chrome on foldables): >1 segment means we straddle the hinge.
   const segs = (window as any).visualViewport?.segments || (window as any).getWindowSegments?.();
   if (Array.isArray(segs) && segs.length > 1) return 'spanning';
@@ -42,6 +58,11 @@ function read(): Viewport {
   const w = typeof window !== 'undefined' ? window.innerWidth : 1280;
   const h = typeof window !== 'undefined' ? window.innerHeight : 800;
   const breakpoint: Breakpoint = w < PHONE_MAX ? 'phone' : w < TABLET_MAX ? 'tablet' : 'desktop';
+  const foldMode = readFoldMode();
+  const aspect = w / Math.max(h, 1);
+  const isFoldInner = foldMode === 'inner' || foldMode === 'book'
+    || (foldMode === 'none' && w >= 580 && w <= 1050 && aspect >= 0.68 && aspect <= 1.48
+        && typeof navigator !== 'undefined' && navigator.maxTouchPoints > 0);
   return {
     width: w,
     height: h,
@@ -51,7 +72,9 @@ function read(): Viewport {
     isDesktop: breakpoint === 'desktop',
     isMobile: breakpoint !== 'desktop',
     orientation: h >= w ? 'portrait' : 'landscape',
-    foldPosture: detectFold(w, h),
+    foldPosture: detectFold(w, h, foldMode),
+    foldMode,
+    isFoldInner,
   };
 }
 
@@ -67,6 +90,7 @@ function onChange() {
     next.breakpoint !== snapshot.breakpoint ||
     next.orientation !== snapshot.orientation ||
     next.foldPosture !== snapshot.foldPosture ||
+    next.foldMode !== snapshot.foldMode ||
     next.width !== snapshot.width ||
     next.height !== snapshot.height
   ) {
@@ -82,6 +106,8 @@ function subscribe(cb: () => void): () => void {
     window.addEventListener('resize', onChange, { passive: true });
     window.addEventListener('orientationchange', onChange, { passive: true });
     (window as any).visualViewport?.addEventListener?.('resize', onChange, { passive: true });
+    // Native posture changes (hinge half-open, fold/unfold) arrive from the Android shell.
+    window.addEventListener('plajah:foldable-change', onChange);
   }
   return () => {
     listeners.delete(cb);

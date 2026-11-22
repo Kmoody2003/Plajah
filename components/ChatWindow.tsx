@@ -1155,23 +1155,23 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
               className="p-2 rounded-xl transition-all text-white/30 hover:text-cyan-300 hover:bg-white/5 inline-flex items-center" />
           )}
           {walkiePeerUid && uid && (
-            <button onClick={() => setShowWalkie(p => !p)} title="Two-Way (walkie-talkie)" className={`hidden sm:flex p-2 rounded-xl transition-all ${showWalkie ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
+            <button onClick={() => setShowWalkie(p => !p)} title="Two-Way (walkie-talkie)" className={`hidden sm:flex fold:hidden p-2 rounded-xl transition-all ${showWalkie ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
               <Radio size={17} />
             </button>
           )}
           {isProductionRoom && uid && (
-            <button onClick={() => setShowWalkie(p => !p)} title={`Production PTT channel ${room.radioChannel || 1}`} className={`hidden sm:flex p-2 rounded-xl transition-all ${showWalkie ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
+            <button onClick={() => setShowWalkie(p => !p)} title={`Production PTT channel ${room.radioChannel || 1}`} className={`hidden sm:flex fold:hidden p-2 rounded-xl transition-all ${showWalkie ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
               <Radio size={17} />
             </button>
           )}
           {isProductionRoom && uid && (
-            <button onClick={() => setShowProductionContext(p => !p)} title="Production context and my notes" className={`hidden sm:flex p-2 rounded-xl transition-all ${showProductionContext ? 'bg-brand-purple/20 text-brand-lilac' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
+            <button onClick={() => setShowProductionContext(p => !p)} title="Production context and my notes" className={`hidden sm:flex fold:hidden p-2 rounded-xl transition-all ${showProductionContext ? 'bg-brand-purple/20 text-brand-lilac' : 'text-white/30 hover:text-white hover:bg-white/5'}`}>
               <ClipboardList size={17} />
             </button>
           )}
           <button
             onClick={() => setShowCollabMenu(p => !p)}
-            className={`hidden sm:flex p-2 rounded-xl transition-all ${showCollabMenu ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}
+            className={`hidden sm:flex fold:hidden p-2 rounded-xl transition-all ${showCollabMenu ? 'bg-small-orange/20 text-small-orange' : 'text-white/30 hover:text-white hover:bg-white/5'}`}
           >
             <Layers size={17} />
           </button>
@@ -1204,7 +1204,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     <button
                       key={label}
                       onClick={() => { action(); setShowMoreMenu(false); }}
-                      className={`${phoneOnly ? 'flex sm:hidden' : 'flex'} w-full items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all text-left`}
+                      className={`${phoneOnly ? 'flex sm:hidden fold:flex' : 'flex'} w-full items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-white/5 transition-all text-left`}
                     >
                       <Icon size={14} className="text-white/40" />
                       <span className="text-[10px] font-black uppercase tracking-widest">{label}</span>

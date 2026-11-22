@@ -4326,7 +4326,9 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   // Plajah Build — maker & engineering hub (Electronics, CAD/BIM/Make, Sewing & Plush, Biology, Maker Exchange)
   | 'PLAJAH_BUILD'
   // Plajah Drive — personal + org file storage (B2 + Bunny); owner preview until DRIVE_ENABLED
-  | 'PLAJAH_DRIVE';
+  | 'PLAJAH_DRIVE'
+  // Plajah Phone — default dialer + SMS app on Android (components/phone/PhoneHub)
+  | 'PHONE_HUB';
 
 const APP_VIEW_RUNTIME_ALIASES: Record<string, AppView> = {
   TELA_STUDIO: 'TELA',

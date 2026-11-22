@@ -684,8 +684,37 @@ html[data-fold-mode="inner"] body {
   /* Comfortable two-column density on unfolded foldable inner screens */
   body { font-size: 14.5px; }
 }
-html[data-fold-mode="book"] main {
+html[data-fold-mode="book"] main:not(:has(.pj-fold-lead)) {
   padding-inline: max(12px, calc(var(--fold-hinge-w, 0px) * 0.5));
+}
+
+/* Foldable two-pane layouts (hooks/useFoldLayout.ts sets html[data-fold-layout]).
+   fold:       unfolded inner screen — two panes side by side (also true in book/tabletop)
+   fold-book:  book posture — the vertical hinge is the gutter
+   fold-table: tabletop posture — media above the horizontal hinge, controls below */
+@custom-variant fold (html[data-fold-layout] &);
+@custom-variant fold-book (html[data-fold-layout="book"] &);
+@custom-variant fold-table (html[data-fold-layout="tabletop"] &);
+
+/* Book posture: the leading pane ends exactly at the hinge and the hinge itself is the gutter. */
+html[data-fold-layout="book"] .pj-fold-lead {
+  flex: 0 0 auto !important;
+  width: var(--fold-hinge-x) !important;
+  max-width: none !important;
+  margin-inline-end: var(--fold-hinge-w);
+}
+html[data-fold-layout="book"] .pj-fold-grid {
+  grid-template-columns: var(--fold-hinge-x) minmax(0, 1fr) !important;
+  column-gap: var(--fold-hinge-w) !important;
+}
+/* Tabletop: FoldTabletopSplit sizes the top half to the hinge (--pj-fold-top-h). */
+html[data-fold-layout="tabletop"] .pj-fold-top {
+  height: var(--pj-fold-top-h, 50dvh) !important;
+  max-height: none !important;
+  flex: 0 0 auto !important;
+}
+html[data-fold-layout="tabletop"] .pj-fold-bottom {
+  margin-top: var(--fold-hinge-h);
 }
 
 /* ── Dropdown menus (platform-wide) ─────────────────────────────────────────
