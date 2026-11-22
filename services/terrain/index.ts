@@ -7,3 +7,4 @@ export type { NoiseKind, FractalMode, FractalOptions } from './noise';
 export { compileGraph, validateGraph, gpuReady, polylineDistance } from './graph';
 export type { TerrainGraph, GraphNode, Ref, HeightFns } from './graph';
 export { HIGHLANDS } from './presets/highlands';
+export { EXPANSE, EXPANSE_SIZE } from './presets/expanse';

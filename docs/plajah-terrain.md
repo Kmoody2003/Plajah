@@ -155,6 +155,29 @@ draw calls:
 That is within noise, with ~11k fewer draw calls under the rules. The ~10 fps itself is a separate whole-level problem
 (~13 M triangles, ~50k draw calls).
 
+**Phase 6 done (2026-11-22), shown on a sample world; no game uses it yet.** `stream.ts` streams the ground:
+- **`StreamedHeightField`** bakes the whole world once at a coarse cell (8 km at 16 m, 501²) as the far grid and
+  fallback. Fine 200 m tiles at 2 m are baked round the player, nearest first, within a per-frame budget: 16 samples at
+  a time on the CPU, or whole tiles on the GPU through `bakeTile`. Tiles beyond 1.35 × radius are evicted.
+  `surface()` never calls the slow graph.
+- **`StreamingChunks`** keeps meshes within view distance (1.8 km): a time-budgeted build, rebuilds when a fine tile
+  lands, drops chunks left behind. Normals come from the sampled grid.
+- **`gpu.ts`** now caches one compiled kernel per graph and grid size; the tile corner is a uniform. Before this, each
+  tile compiled its own shader, which stalled streaming.
+- **`presets/expanse.ts`** is an 8 km sample world: ranges, valleys, a mesa plateau and a river.
+
+Results:
+- **10 km walk in node** (`scripts/terrain/streamWalk.ts`, 12 m/s, CPU baking): flat at ~3.9 MB of field, ~55–67
+  tiles and ~1,100 chunks the whole way; the player is never on coarse ground. Terrain work per frame was 3.8 ms median
+  and 9 ms p99 on a quiet run. Spikes (p99.9 18 ms and up) track GC and the machine being at 100 % CPU from other
+  sessions.
+- **10 km flight in the browser** (GPU-baked tiles, 80 m/s): peak 69 tiles, 4 MB, 1,101 chunks; 443 tiles baked and
+  394 evicted. The far grid took 2.2 s and spawn 4.9 s. Terrain work was 3.1 ms median and 28 ms p99. Frame times were
+  not meaningful because the pane was hidden. Picture: `docs/plajah-terrain/expanse-stream-phase6.jpg` (fog-washed).
+
+Not done: hitch-free frame timing on a visible, quiet machine; a game using it (the Wilds are 2 km and bake whole).
+Next for this phase: build meshes off the main thread in a worker, and streamed vegetation.
+
 Order matters: 1 is pure refactor and unlocks everything; 3 (erosion) is the biggest visual jump; 5 is where it becomes
 "a living ecosystem".
 

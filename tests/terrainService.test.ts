@@ -281,3 +281,49 @@ test('eco: suitability multiplies ranges and the region mask; rule sets validate
   assert.deepEqual(validateEco(WILDS_ECO), []);
   assert.ok(validateEco([{ id: 'x', kind: 'tree', layer: 'canopy', species: 0, density: 2 }, { id: 'x', kind: 'plant', layer: 'around', species: 0, prob: 1, count: [3, 1], ring: [0, 1] }]).length >= 3);
 });
+
+// ── phase 6: streaming ──────────────────────────────────────────────────────────────────────────────────────────────
+import { StreamedHeightField, StreamingChunks } from '../services/terrain/stream';
+
+test('streamed field: far grid until a tile bakes, nearest tiles first, memory bounded while walking', () => {
+  const h = (x: number, z: number) => Math.sin(x / 37) * 6 + Math.cos(z / 53) * 4;
+  const f = new StreamedHeightField({ height: h, bounds: { x0: -2000, z0: -2000, size: 4000 }, tile: 200, cell: 2, farCell: 20, radius: 400 });
+  f.focus(0, 0);
+  assert.equal(f.fineAt(10, 10), false);
+  assert.ok(Math.abs(f.surface(10, 10) - h(10, 10)) < 1, 'far grid ≈ the height');
+  f.update(1);                                                 // a sliver of the budget: the nearest tile only is in progress
+  f.flush();
+  assert.equal(f.fineAt(10, 10), true);
+  assert.ok(Math.abs(f.surface(11.3, 7.9) - h(11.3, 7.9)) < 0.05, 'fine tile ≈ the height');
+  let peak = 0;
+  for (let x = 0; x < 3000; x += 50) { f.focus(x - 1500, x - 1500); f.flush(); peak = Math.max(peak, f.residentTiles); }
+  assert.ok(peak <= Math.ceil((2 * 400 * 1.35) / 200 + 1) ** 2, `resident tiles bounded (${peak})`);
+  assert.ok(f.stats.evicted > 50);
+});
+
+test('streamed field: an async tile baker replaces CPU slicing', async () => {
+  const h = (x: number) => x * 0.01;
+  let calls = 0;
+  const f = new StreamedHeightField({ height: h, bounds: { x0: 0, z0: 0, size: 1000 }, tile: 200, cell: 2, farCell: 50, radius: 150,
+    bakeTile: async (r) => { calls++; const n = Math.round(r.size / r.cell) + 1, d = new Float32Array(n * n); for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) d[i + j * n] = (r.x0 + i * r.cell) * 0.01; return d; } });
+  f.focus(100, 100); f.update(5);
+  await new Promise((r) => setTimeout(r, 10));
+  assert.ok(calls >= 1 && f.fineAt(100, 100));
+  assert.ok(Math.abs(f.surface(123, 45) - 1.23) < 1e-4);
+});
+
+test('streaming chunks: build within view, rebuild when the fine tile lands, drop behind', async () => {
+  const THREE = await import('three/webgpu');
+  const f = new StreamedHeightField({ height: (x, z) => (x + z) * 0.01, bounds: { x0: -3000, z0: -3000, size: 6000 }, tile: 200, cell: 4, farCell: 40, radius: 300 });
+  const c = new StreamingChunks(f, new THREE.MeshBasicNodeMaterial(), { chunk: 100, lods: [{ seg: 8, range: 200 }, { seg: 4, range: 600 }], buildBudgetMs: 1e9 });
+  c.update({ x: 0, z: 0 });
+  const first = c.liveChunks;
+  assert.ok(first > 80 && first < 160, `chunks within 600 m (${first})`);
+  const built = c.stats.built;
+  f.focus(0, 0); f.flush(); c.update({ x: 0, z: 0 });
+  assert.ok(c.stats.built > built, 'chunks over freshly baked tiles rebuild');
+  c.update({ x: 2000, z: 0 });
+  assert.ok(c.stats.disposed > first * 0.5, 'chunks left behind are dropped');
+  assert.ok(Math.abs(c.liveChunks - first) < 25, 'the live set stays the same size');
+  c.dispose();
+});

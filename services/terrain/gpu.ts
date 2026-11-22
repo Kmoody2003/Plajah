@@ -4,7 +4,7 @@
 // mirrors noise.ts / graph.ts line for line (same integer hash, same shapes), so a GPU bake and a CPU bake of one graph
 // agree to f32 rounding. Graphs with `fn` nodes can't run here: bakeRegion() falls back to the CPU for those.
 import * as THREE from 'three/webgpu';
-import { Fn, abs, clamp, cos, exp, float, floor, instanceIndex, instancedArray, int, max, min, sin, sqrt, uint } from 'three/tsl';
+import { Fn, abs, clamp, cos, exp, float, floor, instanceIndex, instancedArray, int, max, min, sin, sqrt, uint, uniform } from 'three/tsl';
 import { H1, H2, H3, M1, M2 } from './noise';
 import { gpuReady, type GraphNode, type Ref, type TerrainGraph, compileGraph, type HeightFns } from './graph';
 import type { GridRegion } from './field';
@@ -145,20 +145,41 @@ export function graphNode(g: TerrainGraph, x: N, z: N): N {
   return at(x, z)(g.output);
 }
 
+/** One compiled bake kernel per (renderer, graph, grid size, cell): the region's corner is a uniform, so streaming many
+ *  tiles compiles the graph's shader once. Bakes on one kernel run one after another (they share its buffer). */
+interface Baker { n: number; buf: N; kernel: N; ux: N; uz: N; chain: Promise<unknown> }
+const bakers = new WeakMap<THREE.WebGPURenderer, WeakMap<TerrainGraph, Map<string, Baker>>>();
+
+function bakerFor(renderer: THREE.WebGPURenderer, g: TerrainGraph, n: number, cell: number): Baker {
+  let byGraph = bakers.get(renderer); if (!byGraph) { byGraph = new WeakMap(); bakers.set(renderer, byGraph); }
+  let byGrid = byGraph.get(g); if (!byGrid) { byGrid = new Map(); byGraph.set(g, byGrid); }
+  const key = `${n}:${cell}`;
+  let b = byGrid.get(key);
+  if (!b) {
+    const count = n * n, buf = instancedArray(count, 'float'), ux = uniform(0), uz = uniform(0);
+    const kernel = Fn(() => {
+      const i = instanceIndex;
+      const x = ux.add(float(i.mod(uint(n))).mul(cell)).toVar();
+      const z = uz.add(float(i.div(uint(n))).mul(cell)).toVar();
+      buf.element(i).assign(graphNode(g, x, z));
+    })().compute(count);
+    b = { n, buf, kernel, ux, uz, chain: Promise.resolve() };
+    byGrid.set(key, b);
+  }
+  return b;
+}
+
 /** Bake one grid region of a graph on the GPU; returns the (size/cell + 1)² heights, row by row (z outer). */
-export async function bakeGraphGPU(renderer: THREE.WebGPURenderer, g: TerrainGraph, r: GridRegion): Promise<Float32Array> {
-  const n = Math.round(r.size / r.cell) + 1, count = n * n;
-  const buf = instancedArray(count, 'float');
-  const kernel = Fn(() => {
-    const i = instanceIndex;
-    const x = float(r.x0).add(float(i.mod(uint(n))).mul(r.cell)).toVar();
-    const z = float(r.z0).add(float(i.div(uint(n))).mul(r.cell)).toVar();
-    buf.element(i).assign(graphNode(g, x, z));
-  })().compute(count);
-  await renderer.computeAsync(kernel);
-  const ab = await renderer.getArrayBufferAsync(buf.value as unknown as THREE.StorageBufferAttribute);
-  kernel.dispose?.();
-  return new Float32Array(ab).slice(0, count);
+export function bakeGraphGPU(renderer: THREE.WebGPURenderer, g: TerrainGraph, r: GridRegion): Promise<Float32Array> {
+  const n = Math.round(r.size / r.cell) + 1, b = bakerFor(renderer, g, n, r.cell);
+  const run = b.chain.then(async () => {
+    b.ux.value = r.x0; b.uz.value = r.z0;
+    await renderer.computeAsync(b.kernel);
+    const ab = await renderer.getArrayBufferAsync(b.buf.value as unknown as THREE.StorageBufferAttribute);
+    return new Float32Array(ab).slice(0, n * n);
+  });
+  b.chain = run.catch(() => undefined);
+  return run;
 }
 
 /** Bake a region: GPU when a renderer is given and the graph has no CPU-only nodes, CPU otherwise. */

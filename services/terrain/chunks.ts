@@ -33,6 +33,58 @@ export interface ChunkOptions {
   name?: string;
 }
 
+/** One square ground patch centred on (cx, cz): seg × seg quads sampled from the surface, holes cut, skirts round the
+ *  edge (to hide cracks between detail levels). Shared by the fixed-world and streaming chunk managers. */
+export function chunkGeometry(S: SurfaceSource, cx: number, cz: number, C: number, seg: number, skirt: number,
+  o: Pick<ChunkOptions, 'holed' | 'mayHaveHoles' | 'uvScale'> & { gridNormals?: boolean } = {}): THREE.BufferGeometry {
+  const step = C / seg, x0 = cx - C / 2, z0 = cz - C / 2, v = seg + 1, uvk = 1 / (o.uvScale ?? 8), e = Math.max(1, step * 0.5);
+  const nGrid = v * v, nSkirt = 4 * seg * 2, nv = nGrid + nSkirt;
+  const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), uvs = new Float32Array(nv * 2);
+  // gridNormals: sample one ring beyond the patch once and take normals from neighbours (5× fewer height reads)
+  const vb = v + 2, hb = o.gridNormals ? new Float32Array(vb * vb) : null;
+  if (hb) for (let j = 0; j < vb; j++) for (let i = 0; i < vb; i++) hb[i + j * vb] = S.surface(x0 + (i - 1) * step, z0 + (j - 1) * step);
+  for (let j = 0; j <= seg; j++) for (let i = 0; i <= seg; i++) {
+    const x = x0 + i * step, z = z0 + j * step, k = i + j * v;
+    let nx: number, ny: number, nz: number, h: number;
+    if (hb) {
+      const c = i + 1 + (j + 1) * vb, dx = hb[c - 1] - hb[c + 1], dz = hb[c - vb] - hb[c + vb], l = Math.hypot(dx, 2 * step, dz);
+      nx = dx / l; ny = (2 * step) / l; nz = dz / l; h = hb[c];
+    } else { const n = S.normal(x, z, e); nx = n[0]; ny = n[1]; nz = n[2]; h = S.surface(x, z); }
+    pos[k * 3] = x; pos[k * 3 + 1] = h; pos[k * 3 + 2] = z;
+    nor[k * 3] = nx; nor[k * 3 + 1] = ny; nor[k * 3 + 2] = nz;
+    uvs[k * 2] = x * uvk; uvs[k * 2 + 1] = z * uvk;
+  }
+  const hasHoles = !!o.holed && (o.mayHaveHoles ? o.mayHaveHoles(cx, cz, C) : true);
+  const idx: number[] = [];
+  for (let j = 0; j < seg; j++) for (let i = 0; i < seg; i++) {
+    const a = i + j * v, b = a + 1, c = a + v, d = c + 1;
+    if (hasHoles && o.holed!(x0 + (i + 0.5) * step, z0 + (j + 0.5) * step)) continue;
+    idx.push(a, c, b, b, c, d);
+  }
+  // skirts round the edge hide the cracks between detail levels
+  let w = nGrid;
+  const edge = (list: number[]) => {
+    for (let k = 0; k < list.length - 1; k++) {
+      const p = list[k], q = list[k + 1], base = w;
+      for (const s of [p, q]) {
+        pos[w * 3] = pos[s * 3]; pos[w * 3 + 1] = pos[s * 3 + 1] - skirt; pos[w * 3 + 2] = pos[s * 3 + 2];
+        nor[w * 3] = nor[s * 3]; nor[w * 3 + 1] = nor[s * 3 + 1]; nor[w * 3 + 2] = nor[s * 3 + 2];
+        uvs[w * 2] = uvs[s * 2]; uvs[w * 2 + 1] = uvs[s * 2 + 1]; w++;
+      }
+      idx.push(p, base, q, q, base, base + 1);
+    }
+  };
+  const row = (j: number) => Array.from({ length: v }, (_, i) => i + j * v), col = (i: number) => Array.from({ length: v }, (_, j) => i + j * v);
+  edge(row(0)); edge(row(seg).reverse()); edge(col(0).reverse()); edge(col(seg));
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+  g.setIndex(nv > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
+  g.computeBoundingSphere();
+  return g;
+}
+
 export const DEFAULT_LODS: ChunkLod[] = [{ seg: 50, range: 170 }, { seg: 20, range: 480 }, { seg: 8, range: Infinity }];
 
 export class TerrainChunks {
@@ -57,35 +109,7 @@ export class TerrainChunks {
     let seg = this.lods[lod].seg;
     if (o.segFor) seg = o.segFor(cx, cz, lod, seg);
     if (o.lowTier) seg = Math.max(6, Math.round(seg * 0.6));
-    const S = this.source, step = C / seg, x0 = cx - C / 2, z0 = cz - C / 2, v = seg + 1, uvk = 1 / (o.uvScale ?? 8);
-    const skirt = lod > 0 ? 3 : 1.2;
-    const pos: number[] = [], nor: number[] = [], idx: number[] = [], uvs: number[] = [];
-    for (let j = 0; j <= seg; j++) for (let i = 0; i <= seg; i++) {
-      const x = x0 + i * step, z = z0 + j * step, h = S.surface(x, z), n = S.normal(x, z, Math.max(1, step * 0.5));
-      pos.push(x, h, z); nor.push(n[0], n[1], n[2]); uvs.push(x * uvk, z * uvk);
-    }
-    const hasHoles = !!o.holed && (o.mayHaveHoles ? o.mayHaveHoles(cx, cz, C) : true);
-    for (let j = 0; j < seg; j++) for (let i = 0; i < seg; i++) {
-      const a = i + j * v, b = a + 1, c = a + v, d = c + 1;
-      if (hasHoles && o.holed!(x0 + (i + 0.5) * step, z0 + (j + 0.5) * step)) continue;
-      idx.push(a, c, b, b, c, d);
-    }
-    // skirts round the edge hide the cracks between detail levels
-    const edge = (list: number[]) => {
-      for (let k = 0; k < list.length - 1; k++) {
-        const p = list[k], q = list[k + 1], base = pos.length / 3;
-        for (const s of [p, q]) { pos.push(pos[s * 3], pos[s * 3 + 1] - skirt, pos[s * 3 + 2]); nor.push(nor[s * 3], nor[s * 3 + 1], nor[s * 3 + 2]); uvs.push(uvs[s * 2], uvs[s * 2 + 1]); }
-        idx.push(p, base, q, q, base, base + 1);
-      }
-    };
-    const row = (j: number) => Array.from({ length: v }, (_, i) => i + j * v), col = (i: number) => Array.from({ length: v }, (_, j) => i + j * v);
-    edge(row(0)); edge(row(seg).reverse()); edge(col(0).reverse()); edge(col(seg));
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-    g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    g.setIndex(idx);
-    g.computeBoundingSphere();
+    const g = chunkGeometry(this.source, cx, cz, C, seg, lod > 0 ? 3 : 1.2, o);
     const m = new THREE.Mesh(g, this.material);
     m.receiveShadow = true; m.castShadow = false; m.matrixAutoUpdate = false; m.name = `${this.group.name}-${cx}-${cz}-${lod}`;
     return m;
