@@ -162,6 +162,39 @@ camera move. Portal Plaza with its vegetation actually drawn: plants cut to the 
 crowns lifted out of frame. Score 0.541 (layout 0.694, silhouettes 0.312, the best silhouette yet); the earlier 0.60
 numbers measured an empty floor and aren't comparable. All 34 pairs need re-shooting.
 
+**Grown giant trees, real stone, glow vines, a sky and a day (2026-11-22).** Kenne's notes on the re-shot frames: the
+trees were identical spears, the paving was flat, the day sky was flat grey. What changed:
+- *Trees.* The Portal Plaza / Redwood Ruins trunks were hand-made bark tubes (`barkTube`), one shape for all, so they
+  never went through the procedural trees. They are now `CF_REDWOOD` (services/vegetation/catalog/cyberForest.ts),
+  grown by the vegetation service like every other tree, six seeds per species in the open world (was three). The grower
+  gained three things every species can use: `trunk.furrow` carves fluted, furrowed bark into the geometry (ridges with
+  their own normals, more sides on big trunks), `crown.limbs` pre-grows giant scaffold limbs off the trunk before the
+  crown colonizes (old growth: big limbs high up carrying the leaf mass), and `bark.moss` greens the tops of limbs and the
+  lower trunk, thickest in the crevices. Redwoods also get ferns and leafy undergrowth crowding their buttresses and
+  shelf fungi up the trunk; the ruin courts are ringed with them.
+- *Floors.* `kit.paving` / `discPave` lay real flagstones: each stone its own bevelled slab with an irregular, sometimes
+  chipped outline, in running-bond rows with gaps, heaved and tilted a few cm, a few missing; in hollows the stones have
+  sunk and a puddle (reflecting the haze, faint ripples) stands over them. Mossy earth underneath is the collider.
+  Weathered grey stone, not the brick sheet. ~7,600 stones in the world (low tier keeps the flat slab).
+- *Glow vines.* `kit.glowVines` (also via `clutter({ vines })`): vines snaking over the floors with bioluminescent rings
+  running along them; between beats the rings glow softly, on every beat of the music (the level's beat pulse) they
+  flare and the whole vine lights.
+- *Sky, sun and the day.* world/skyCycle.ts: a physical sky (three's SkyMesh: scattering, clouds, the sun disc) and a
+  4-minute day — night → dawn → day → dusk → evening — on the level's shadow-casting light (the moon after sunset). The
+  sky fades in over the nebula at dawn and out after dusk; the haze blends from the night fog to a blue-green day haze
+  that warms toward the sun and turns amber at golden hour. Godrays (post.ts, three's GodraysNode raymarching that
+  light's shadow map) put shafts through the real gaps in the canopy, gold at dusk, faint moonlight at night.
+  `?time=day` pins the art's daylight (the shots), `?time=night` the night, `?cycle=` seconds per day, `?clock=` start.
+- *Weather.* Apex's six states (clear, partly cloudy, overcast, fog, rain, thunderstorm) with their multipliers on sun,
+  sky light, haze, clouds, rain and wind, switched by a sporadic director: short spells (10–50 s), squalls that arrive
+  in a second or two, fog banks, breaks of sun. Rain, splashes, lightning bolts and thunder by distance are Era Clash's
+  `Weather` (it gained `{ natural: false, lightningAt }` so another game can drive it; its own storm is unchanged). The
+  vegetation's wind follows the weather. `?weather=storm|rain|fog|overcast|partly|clear` pins one, `?weather=off` none.
+- Fixes on the way: the fungus mesh needed 9 vertex buffers (WebGPU allows 8) — sway and glow now share one; the Rift
+  Realm Vite config pre-bundles every three addon it uses (a late-found addon got its own copy of three and broke TSL).
+
+**All 34 pairs re-shot (2026-11-22), vegetation drawn, daylight:** mean geometry score 0.372. Best: mangrove-mire 0.60, portal-plaza 0.59, crystal-vault 0.56, circuit-court 0.54. Weakest: eh10-rope-bridge 0.23, eh01-aerial 0.20, chapel-flythrough 0.18, titan-ramp 0.11. Portal Plaza 0.541 → 0.590. Caveat: every shot was rendered under `?time=day`, including the night art (the eh-series Elderwood shots), which costs those pairs; next is shooting `night` shots with `?time=night`, then working up the weakest places (the Titan Tree ramp, the chapel, the aerial, the rope bridge).
+
 ## Track 2 — Characters from video
 - Every clip comes from the character's own motion videos (services/mocap: capture → solveTake → clipToThree →
   retarget), never hand-keyed. Assassin, Archangel, Cyber-Assassin and the other combat videos sit in

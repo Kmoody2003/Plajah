@@ -3,8 +3,8 @@
 // the rivers and falls, and the forest, undergrowth and grass across the 2 km map.
 import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { color, densityFogFactor, float, fog } from 'three/tsl';
-import { CYBER_FOREST_TREES } from '../../../../services/vegetation/catalog/cyberForest';
+import { createSkyCycle, type SkyCycle, type SkyMode } from './skyCycle';
+import { CYBER_FOREST_TREES, ELDERWOOD_TREES } from '../../../../services/vegetation/catalog/cyberForest';
 import type { TreeSpot } from '../../../../services/vegetation/trees/forest';
 import type { WildsBuilt, WildsCtx, WildsHooks } from './registry';
 import { WorldTerrain, TerrainChunks, terrainMaterial } from './terrain';
@@ -108,15 +108,15 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
     if (wet) { if (R() > 0.35) continue; k = 3; }
     else if (P < 0.5) { k = R() < 0.72 ? 0 : R() < 0.5 ? 1 : 2; dens = 0.9; }                     // the Violet Vale
     else if (z < -470) { k = R() < 0.6 ? 2 : 0; dens = 0.7; }                                       // the Highland
-    else if (x > 220 && z < 40) { k = R() < 0.75 ? 2 : 0; s = 1.25 + R() * 0.7; dens = 0.62; }     // the Redwood Ruins: tall
+    else if (x > 220 && z < 40) { k = R() < 0.7 ? 6 : 2; s = k === 6 ? 0.75 + R() * 0.5 : 1.25 + R() * 0.7; dens = 0.62; }     // the Redwood Ruins: grown redwoods
     if (riverD < 34 && !wet && R() < 0.45) k = 1;                                                    // willows by the river
     if (r > 880) dens = 0.55;
     if (R() > dens) continue;
     trees.push({ x, y: y - 0.25, z, yaw: R() * 6.283, species: k, scale: s });
   }
   for (const t of trees) {
-    if (t.species >= 4) continue;
-    const sp = CYBER_FOREST_TREES[t.species];
+    if (t.species >= 4 && t.species !== 6) continue;
+    const sp = ELDERWOOD_TREES[t.species];
     terrain.addTrunk(t.x, t.z, sp.trunk.radius * t.scale * 0.85, t.y - 1, t.y + sp.height * t.scale * sp.trunk.crownBase);
   }
 
@@ -124,7 +124,18 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
   {
     const near = (x: number, z: number) => Math.hypot(x, z) < HALF * 0.95;
     for (const t of trees) {
-      if (t.species >= 4 || !near(t.x, t.z) || R() > (lo ? 0.3 : 0.65)) continue;
+      if ((t.species >= 4 && t.species !== 6) || !near(t.x, t.z)) continue;
+      if (t.species === 6) { // a redwood: ferns and leafy undergrowth crowding its buttress roots, shelf fungi up the trunk
+        const tr = ELDERWOOD_TREES[6].trunk.radius * t.scale;
+        for (let k = 0, m = lo ? 3 : 7; k < m; k++) {
+          const a = R() * 6.283, d = tr * (1.6 + R() * 2.6), x = t.x + Math.sin(a) * d, z = t.z + Math.cos(a) * d;
+          if (clearance(x, z) < 1.5) continue;
+          ctx.plantSpots.push({ x, y: H(x, z) - 0.05, z, yaw: R() * 6.283, species: R() < 0.55 ? 8 : 7, scale: 0.9 + R() * 0.9 });
+        }
+        for (let k = 0; k < 3; k++) { const a = R() * 6.283; ctx.fungusSpots.push({ x: t.x + Math.sin(a) * tr * 0.9, y: t.y + tr * 2 + R() * 6, z: t.z + Math.cos(a) * tr * 0.9, yaw: a, species: 4, scale: 1.2 + R() * 1.2 }); }
+        continue;
+      }
+      if (R() > (lo ? 0.3 : 0.65)) continue;
       for (let k = 0, m = 1 + Math.floor(R() * 2); k < m; k++) {
         const a = R() * 6.283, d = 2.5 + R() * 5, x = t.x + Math.sin(a) * d, z = t.z + Math.cos(a) * d;
         if (clearance(x, z) < 2) continue;
@@ -185,24 +196,12 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
   let lt = 1;
   const cam = new THREE.Vector3();
 
-  // ── ?time=day: the art's misty daylight (the shots are lit this way; the level's own look is the nebula night).
-  //    Sky light and the moon become a soft green-grey day and a warm sun, a thick haze fills the distance. ──
-  const DAY = typeof location !== 'undefined' && new URLSearchParams(location.search).get('time') === 'day';
-  let renderer: THREE.WebGPURenderer | null = null, dayDone = false;
-  const applyDay = () => {
-    dayDone = true;
-    group.traverse((o) => {
-      const h = o as THREE.HemisphereLight, d = o as THREE.DirectionalLight;
-      if (h.isHemisphereLight) { h.color.setHex(0xd6e6dc); h.groundColor.setHex(0x33412d); h.intensity = 2.7; }
-      else if (d.isDirectionalLight) { d.color.setHex(0xfff0d4); d.intensity = 5.2; }
-    });
-    const haze = color(0x9fb6ac);
-    const sc = ctx.scene as unknown as { fogNode: unknown; backgroundNode: unknown };
-    sc.fogNode = fog(haze, densityFogFactor(float(0.0105))); sc.backgroundNode = color(0xaec4ba);
-    // the night sky's environment map reflects violet and cyan off every leaf and stone; by day it only fills a little
-    (ctx.scene as unknown as { environmentIntensity: number }).environmentIntensity = 0.18;
-    if (renderer) renderer.toneMappingExposure = 1.2;
-  };
+  // ── time of day and weather (skyCycle.ts): a 4-minute day, night → day → dusk → evening, and sporadic weather.
+  //    ?time=day pins the art's daylight (the shots are lit this way), ?time=night the level's own night. ──
+  const qs = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams();
+  const tq = qs.get('time'), DAY = tq === 'day';
+  const skyMode: SkyMode = DAY ? 'day' : tq === 'night' ? 'night' : 'cycle';
+  let cycle: SkyCycle | null = null;
 
   console.info(`[wilds] ${PLACES.length} places, ${trees.length} trees, ${ctx.plantSpots.length} plants, ${ctx.fungusSpots.length} fungi; built in ${Math.round(performance.now() - t0)} ms`);
   (globalThis as unknown as { __wilds?: unknown }).__wilds = { terrain, chunks, places: PLACES, shots: SHOTS, height: worldHeight, trees: trees.length };
@@ -211,9 +210,10 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
     treeSpots: trees,
     grassCover,
     vineKeep: (t) => t.species < 4 && Math.abs(t.x) < 700 && Math.abs(t.z) < 700 && ((t.x * 13 + t.z * 7) % 9 + 9) % 9 < 1,
+    wind: () => cycle?.wind() ?? 0.55,
     update(dt, view, player, pulse) {
       syncBeat(ctx); tm.setBeat();
-      if (DAY && !dayDone && renderer) applyDay();
+      cycle?.update(dt, (view as THREE.Camera | null) ?? null, player);
       if (view) {
         view.getWorldPosition(cam);
         // the game sets the camera's far plane after prepare(); the open world needs it out to the mountains
@@ -228,10 +228,15 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
       }
       for (const p of pool) if (p.userData.base) p.intensity = p.userData.base * (1 + pulse * 0.25);
     },
-    async prepare(r, camera) {
-      renderer = r; chunks.update(cam, 1, true);
-      if (DAY && !dayDone) applyDay();                // before compiling: changing the fog later recompiles every material
-      // compile every pipeline now (grass, plants, fungi are heavy node shaders): otherwise they pop in 10–20 s after start
+    async prepare(r, camera) { chunks.update(cam, 1, true);
+      // before compiling: the cycle replaces the fog node, and changing it later would recompile every material
+      if (!cycle) {
+        cycle = createSkyCycle(ctx.scene, group, r, {
+          mode: skyMode, cycleSeconds: Number(qs.get('cycle')) || 240, start: Number(qs.get('clock') ?? 0.2) % 1,
+          weather: qs.get('weather') ?? (DAY ? 'off' : 'auto'), lo, ground: (x, z) => terrain.surface(x, z),
+        });
+        cycle.update(0, camera as THREE.Camera, cam);
+      }
       try { await r.compileAsync(ctx.scene, camera); } catch (e) { console.warn('[wilds] precompile', e); }
     },
   };

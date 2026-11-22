@@ -47,7 +47,13 @@ export class Weather {
   private rainGroup = new THREE.Group();
   wind = new THREE.Vector3();
 
-  constructor(private h: WeatherHooks, count: number) {
+  private natural: boolean;
+  private lightningAt: number;
+
+  /** opts.natural false: no storm of its own, `force` alone sets it (another game's weather director); lightningAt: storm level
+   *  where lightning starts (0.35). */
+  constructor(private h: WeatherHooks, count: number, opts: { natural?: boolean; lightningAt?: number } = {}) {
+    this.natural = opts.natural ?? true; this.lightningAt = opts.lightningAt ?? 0.35;
     this.rainGroup.userData.dynamic = true;
     // Rain streak: a thin quad oriented along its fall velocity, facing the camera.
     const geo = new THREE.PlaneGeometry(1, 1);
@@ -78,7 +84,7 @@ export class Weather {
   /** Called every frame (simulation time). `cam` for splashes. */
   update(dt: number, cam: THREE.Camera, player: THREE.Vector3, bossFight: boolean) {
     this.t += dt;
-    const natural = THREE.MathUtils.smoothstep(this.t, STORM_START, STORM_START + STORM_RAMP);
+    const natural = this.natural ? THREE.MathUtils.smoothstep(this.t, STORM_START, STORM_START + STORM_RAMP) : 0;
     this.storm = this.calm ? Math.max(0, this.storm - dt / 10) : Math.max(natural, this.force);
     const s = this.storm;
     const g = 0.5 + 0.5 * Math.sin(this.t * 0.23) * Math.sin(this.t * 0.071 + 2);
@@ -107,7 +113,7 @@ export class Weather {
     this.splash.update(dt, cam);
 
     // Lightning: rare in a building storm, frequent in a full one, near and violent in the fight.
-    if (s > 0.35 && this.t >= this.nextStrike) {
+    if (s > this.lightningAt && this.t >= this.nextStrike) {
       this.nextStrike = this.t + (bossFight ? 3 + Math.random() * 6 : (12 + Math.random() * 25) / s);
       this.strike(bossFight ? 35 + Math.random() * 90 : 150 + Math.random() * 600, player);
     }

@@ -28,6 +28,8 @@ export interface TreeSpecies {
     twist: number;
     /** Roots above ground: count and reach (multiple of the trunk radius). */
     roots: number; rootReach: number;
+    /** Furrowed / fluted bark carved into the geometry (0 smooth … ~0.15 deep ridges, as a fraction of the radius). */
+    furrow?: number;
   };
   crown: {
     /** The crown's silhouette from the front: radius against height. Measured from the art (fromArt/profile). */
@@ -38,6 +40,8 @@ export interface TreeSpecies {
     attractors: number; kill: number; influence: number; step: number;
     /** + branches turn up toward the light, − they droop (willow). */
     gravitropism: number;
+    /** Giant scaffold limbs grown off the trunk before the crown fills in (old-growth trees): how many. */
+    limbs?: number;
   };
   branches: {
     /** Pipe model exponent (Leonardo ~2–2.5): parent r^n = Σ child r^n. */
@@ -60,6 +64,8 @@ export interface TreeSpecies {
     map: string; normal?: string; tint: number;
     /** Glowing conduit veins in the bark (Cyber Forest). */
     veins?: { map: string; color: number; strength: number };
+    /** Moss on the bark: up-facing limbs and the lower trunk, patchy in the crevices. */
+    moss?: { color: number; amount: number };
   };
   wind: {
     /** 0 rigid … 1 floppy: trunk bow, branch sway, leaf flutter. */

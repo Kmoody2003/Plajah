@@ -50,7 +50,8 @@ function fungusMaterial(sp: FungusSpecies, beat: N, lowTier = false) {
   const m = lowTier ? new THREE.MeshStandardNodeMaterial({ side: THREE.DoubleSide, metalness: 0 })
     : new THREE.MeshPhysicalNodeMaterial({ side: THREE.DoubleSide, metalness: 0 });
   const part: N = attribute('aPart', 'float'), co: N = attribute('aCoord', 'vec2'), col: N = attribute('color', 'vec3');
-  const gl: N = attribute('aGlow', 'float'), sw: N = attribute('aSway', 'vec2'), inst: N = attribute('aInst', 'vec4');
+  // sway (xy) and glow (z) share one buffer: WebGPU allows 8 vertex buffers and an instanced fungus already uses all of them
+  const swg: N = attribute('aSway', 'vec3'), sw: N = swg.xy, gl: N = swg.z, inst: N = attribute('aInst', 'vec4');
   const isTop: N = float(1).sub(step(float(0.5), part)), isUnder: N = step(float(0.5), part).mul(float(1).sub(step(float(1.5), part)));
   const isRoot: N = step(float(2.5), part).mul(float(1).sub(step(float(3.5), part))), isCable: N = step(float(3.5), part);
   const isStem: N = step(float(1.5), part).mul(float(1).sub(step(float(2.5), part)));
@@ -138,8 +139,9 @@ export class FungusField {
         g.setAttribute('color', new THREE.BufferAttribute(fm.color, 3));
         g.setAttribute('aPart', new THREE.BufferAttribute(fm.part, 1));
         g.setAttribute('aCoord', new THREE.BufferAttribute(fm.coord, 2));
-        g.setAttribute('aGlow', new THREE.BufferAttribute(fm.glow, 1));
-        g.setAttribute('aSway', new THREE.BufferAttribute(fm.sway, 2));
+        const swg = new Float32Array(fm.glow.length * 3);
+        for (let i = 0; i < fm.glow.length; i++) { swg[i * 3] = fm.sway[i * 2]; swg[i * 3 + 1] = fm.sway[i * 2 + 1]; swg[i * 3 + 2] = fm.glow[i]; }
+        g.setAttribute('aSway', new THREE.BufferAttribute(swg, 3));
         g.setIndex(new THREE.BufferAttribute(fm.index, 1));
         g.setAttribute('aInst', new THREE.InstancedBufferAttribute(new Float32Array(mine.length * 4), 4));
         g.computeBoundingSphere();

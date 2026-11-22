@@ -2,10 +2,11 @@
 // Tone mapping comes from the renderer.
 import * as THREE from 'three/webgpu';
 import {
-  colorToDirection, directionToColor, float, vec4, length, mix, mrt, normalView, output, pass, sample, screenUV, smoothstep, vec2, vec3, luminance,
+  colorToDirection, directionToColor, reference, uniform, float, vec4, length, mix, mrt, normalView, output, pass, sample, screenUV, smoothstep, vec2, vec3, luminance,
 } from 'three/tsl';
 import { bloom } from 'three/addons/tsl/display/BloomNode.js';
 import { ao } from 'three/addons/tsl/display/GTAONode.js';
+import { godrays } from 'three/addons/tsl/display/GodraysNode.js';
 
 export interface Post {
   render(): void;
@@ -30,8 +31,16 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
     const dbg = new URLSearchParams(location.search).get('post') ?? '';
     const occl = aoPass.getTextureNode().r;
     const lit = dbg.includes('noao') ? color.rgb : color.rgb.mul(mix(float(1), occl, 0.85));
-    const glow = bloom(lit, 0.45, 0.5, 0.82);
-    let c: any = lit.add(glow);
+    // sun shafts: a level that wants them tags its shadow-casting sun as scene.userData.godrays (Elderwood Wilds by day);
+    // the godrays pass raymarches that light's shadow map, so the shafts are the real gaps in the canopy
+    const sun = scene.userData.godrays as THREE.DirectionalLight | undefined;
+    let rays: any = null;
+    if (sun && sun.castShadow && !dbg.includes('norays')) {
+      const g = godrays(depth, camera, sun); g.resolutionScale = 0.5; g.density.value = 1.0; g.maxDensity.value = 0.85; g.distanceAttenuation.value = 0.8;
+      rays = g.getTextureNode().r.mul(uniform(sun.color)).mul(reference('intensity', 'float', sun).mul(1.6 / 5.2).min(2));
+    }
+    const glow = bloom(rays ? lit.add(rays) : lit, 0.45, 0.5, 0.82);
+    let c: any = (rays ? lit.add(rays) : lit).add(glow);
     // grade: cool the shadows, keep highlights neutral-warm, gentle S-curve contrast
     const l = luminance(c);
     // (a saturation boost here turned the desaturated blue stone orange in the distance - keep the grade to a mild cool lift)

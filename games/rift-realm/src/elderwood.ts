@@ -21,7 +21,7 @@ import { CreatureBody, type CreatureKind, MothSwarm, preloadCreatures } from './
 import { enemyBodies, enemyNav } from './enemies';
 import type { Level, LevelInfo, Tier } from './shrine';
 import { Forest, type TreeSpot } from '../../../services/vegetation/trees/forest';
-import { CF_GREAT_OAK, CF_PLATFORM_OAK, CYBER_FOREST_TREES } from '../../../services/vegetation/catalog/cyberForest';
+import { CF_PLATFORM_OAK, CYBER_FOREST_TREES, ELDERWOOD_TREES } from '../../../services/vegetation/catalog/cyberForest';
 import { addImpulse, updateWind } from '../../../services/vegetation/wind';
 import { bakeGround } from '../../../services/vegetation/grass/ground';
 import { GrassField } from '../../../services/vegetation/grass/field';
@@ -711,7 +711,8 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     }
   }
   forestSpotsV.push(...wildTrees, ...oakSpots);
-  const forest = new Forest([...CYBER_FOREST_TREES, CF_GREAT_OAK, CF_PLATFORM_OAK], forestSpotsV, { lowTier: lo, beat: uBeatPulse, shadows: !lo });
+  // the open world grows more seeds per species so neighbouring trees differ
+  const forest = new Forest(ELDERWOOD_TREES, forestSpotsV, { lowTier: lo, beat: uBeatPulse, shadows: !lo, variants: W && !lo ? 6 : 3 });
   group.add(forest.group);
   let viewCam: THREE.Camera | null = null;
   {
@@ -754,6 +755,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const hemi = new THREE.HemisphereLight(0x8c96e6, 0x1c3024, 1.7);
   const moon = new THREE.DirectionalLight(0xcfe2ff, 3.0);
   moon.position.set(-50, 110, 40); moon.target.position.set(0, 0, 0); group.add(moon.target);
+  const MOON_OFF = new THREE.Vector3(-50, 110, 40);   // the open world's day mode moves the light (userData.offset)
   moon.castShadow = !lo; moon.shadow.mapSize.set(4096, 4096);
   Object.assign(moon.shadow.camera, { left: -100, right: 100, top: 100, bottom: -100, near: 1, far: 260 });
   moon.shadow.bias = -0.0004; moon.shadow.normalBias = 0.04;
@@ -882,7 +884,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     update(dt, pulse) {
       uBeatPulse.value = pulse;
       skyT += dt; auroraLights(skyT, pulse);
-      updateWind(dt, 0.55);
+      updateWind(dt, wb?.wind?.() ?? 0.55);
       // the player pushes the vegetation as they run (dash and blasts add bigger impulses from the game)
       const pp = enemyBodies.playerPos;
       if ((stepT -= dt) <= 0) { stepT = 0.2; addImpulse(pp.x, pp.z, 3.0, 0.3, 3); }
@@ -898,7 +900,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
         wb.update(dt, viewCam, pp, pulse);
         // the moon's shadow box follows the player across the world (snapped so it doesn't shimmer)
         const sx = Math.round(pp.x / 4) * 4, sz = Math.round(pp.z / 4) * 4, sy = Math.round(pp.y / 4) * 4;
-        moon.target.position.set(sx, sy, sz); moon.position.set(sx - 50, sy + 110, sz + 40);
+        const mo = (moon.userData.offset as THREE.Vector3 | undefined) ?? MOON_OFF; moon.target.position.set(sx, sy, sz); moon.position.set(sx + mo.x, sy + mo.y, sz + mo.z);
       }
       for (const b of beacons) b.intensity = 45 + pulse * 25;
       for (const l of spawnLights) l.intensity = 26 + pulse * 8;

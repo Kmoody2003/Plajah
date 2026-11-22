@@ -98,3 +98,23 @@ export const CF_PLATFORM_OAK: TreeSpecies = {
   leaves: { ...CF_GREAT_OAK.leaves, size: 3.0 },
   wind: { trunk: 0.05, branch: 0.45, flutter: 0.7 },
 };
+
+// ── the Redwood Ruins redwood (Bioluminescent_cyber_forest_spawn, the Portal Plaza shot): a straight columnar trunk
+// 4–5 m across with buttress roots, bare for most of its height, a narrow green crown far overhead. Before this the
+// plaza's redwoods were hand-made bark tubes, all one shape; now each is grown (several seeds) like every other tree.
+export const CF_REDWOOD: TreeSpecies = {
+  kind: 'tree', id: 'cf-redwood', name: 'Elderwood Redwood', height: 52,
+  trunk: { crownBase: 0.52, radius: 1.9, flare: 2.1, lean: 0.012, wobble: 0.3, twist: 0.12, roots: 10, rootReach: 2.9, furrow: 0.13 },
+  crown: {
+    profile: [{ y: 0.5, r: 0.06 }, { y: 0.57, r: 0.17 }, { y: 0.65, r: 0.23 }, { y: 0.74, r: 0.24 }, { y: 0.83, r: 0.2 }, { y: 0.91, r: 0.13 }, { y: 0.97, r: 0.05 }, { y: 1, r: 0.012 }],
+    depthScale: 1, attractors: 1100, kill: 1.1, influence: 5.0, step: 0.95, gravitropism: 0.05, limbs: 11,
+  },
+  branches: { pipe: 2.3, tipRadius: 0.04 },
+  leaves: { atlas: LEAVES + 'cf_oak.webp', cells: [4, 4], perTip: 3, size: 2.8, sizeJitter: 0.35, tint: 0x74a458, transmission: 0x4a8a30 },
+  bark: { map: BARK, normal: BARK_N, tint: 0x7a5e4a, veins: { map: VEINS, color: 0x2ae6ff, strength: 0.35 }, moss: { color: 0x4f7a2c, amount: 0.75 } },
+  wind: { trunk: 0.02, branch: 0.3, flutter: 0.5 },
+  provenance: { art: [art('Bioluminescent_cyber_forest_spawn')] },
+};
+
+/** Every species the Elderwood forest grows, by spot index: 0–3 Cyber Forest trees, 4 Great Oak crown, 5 platform oak, 6 redwood. */
+export const ELDERWOOD_TREES = [...CYBER_FOREST_TREES, CF_GREAT_OAK, CF_PLATFORM_OAK, CF_REDWOOD];

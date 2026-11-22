@@ -13,10 +13,11 @@ fs.mkdirSync(OUT, { recursive: true });
 // headless Chrome has no WebGPU here; a headed window parked off-screen on the discrete GPU does (the game's high tier)
 const browser = await chromium.launch({ headless: false, args: ['--enable-unsafe-webgpu', '--force_high_performance_gpu', '--window-position=-32000,-32000', '--window-size=1460,1500'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 810 } });
-page.on('console', (m) => { const t = m.text(); if (/wilds|tier|error|Error/.test(t)) console.log('[page]', t.slice(0, 300)); });
+page.on('console', (m) => { const t = m.text(); if (process.env.LOGALL || /wilds|tier|error|Error/.test(t)) console.log('[page]', t.slice(0, 300)); });
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
 // DAY=1 renders the shots under the art's misty daylight (?time=day)
-await page.goto(`${base}?rrdebug&q=high${process.env.DAY ? '&time=day' : ''}`, { timeout: 120000 });
+// Q='clock=0.74&cycle=99999&weather=storm' adds any query (time of day, weather) to the page URL
+await page.goto(`${base}?rrdebug&q=high${process.env.DAY ? '&time=day' : ''}${process.env.Q ? '&' + process.env.Q : ''}`, { timeout: 120000 });
 await page.waitForFunction(() => !!window.__rr && !!window.__wilds, null, { timeout: 300000, polling: 1000 });
 let shots = await page.evaluate(() => {
   const rr = window.__rr;
@@ -31,8 +32,8 @@ let shots = await page.evaluate(() => {
   };
   return window.__wilds.shots;
 });
-// CAMS='name:x,y,z,lx,ly,lz,fov;…' renders extra absolute cameras (for scouting)
-if (process.env.CAMS) for (const c of process.env.CAMS.split(';')) { const [n, v] = c.split(':'); const a = v.split(',').map(Number); shots.push({ id: n, art: '', abs: true, cam: { pos: a.slice(0, 3), look: a.slice(3, 6), fov: a[6] ?? 60, far: a[7] } }); }
+// CAMS='name:x,y,z,lx,ly,lz,fov;…' renders extra absolute cameras (for scouting); CAMSREL=1 makes y relative to the ground
+if (process.env.CAMS) for (const c of process.env.CAMS.split(';')) { const [n, v] = c.split(':'); const a = v.split(',').map(Number); shots.push({ id: n, art: '', abs: !process.env.CAMSREL, cam: { pos: a.slice(0, 3), look: a.slice(3, 6), fov: a[6] ?? 60, far: a[7] } }); }
 if (process.env.RAY) { // what the first thing in front of each listed shot's camera is
   console.log(JSON.stringify(await page.evaluate((ids) => {
     const { THREE, scene } = window.__rr, out = {};

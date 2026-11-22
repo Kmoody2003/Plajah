@@ -3,12 +3,11 @@
 import * as THREE from 'three/webgpu';
 import { atan, color, float, mix, positionWorld, sin, smoothstep, time, uv, vec2 } from 'three/tsl';
 import type { TreeSpot } from '../../../../services/vegetation/trees/forest';
-import { CF_PLATFORM_OAK, CYBER_FOREST_TREES } from '../../../../services/vegetation/catalog/cyberForest';
+import { CF_PLATFORM_OAK, CF_REDWOOD, CYBER_FOREST_TREES } from '../../../../services/vegetation/catalog/cyberForest';
 import { PLANT_FOREST_FERN, PLANT_UNDERGROWTH } from '../../../../services/vegetation/catalog/cyberForestPlants';
 import type { WildsCtx } from './registry';
 import type { WorldTerrain } from './terrain';
 import { type Kit, uniformBeat } from './kit';
-import { barkTube } from '../cyberforest';
 import { GREAT_FALLS, NEON_FALLS, POOL_FALLS, POOL_STREAM, RIVER, gorgeX, place, placeY, polyNear } from './layout';
 
 // the hollow's Great Oak deck (elderwood.ts OAK / DECK_R / DECK_Y)
@@ -30,9 +29,9 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
   const { kit, B, mats, group, lo } = ctx;
   const beat = uniformBeat(ctx);
   const giant = (x: number, z: number, top: number, species = 5) => {
-    const gy = H(x, z), sp = species === 5 ? CF_PLATFORM_OAK : CYBER_FOREST_TREES[species];
+    const gy = H(x, z), sp = species === 5 ? CF_PLATFORM_OAK : species === 6 ? CF_REDWOOD : CYBER_FOREST_TREES[species];
     // grown species look wrong much past 1.6× (crowns swallow the courts they ring)
-    out.trees.push({ x, y: gy - 0.3, z, yaw: x * 0.37 + z, species, scale: Math.min(species < 4 ? 1.6 : 9, Math.max(0.6, (top - gy) / sp.height)) });
+    out.trees.push({ x, y: gy - 0.3, z, yaw: x * 0.37 + z, species, scale: Math.min(species < 4 ? 1.6 : species === 6 ? 1.4 : 9, Math.max(0.6, (top - gy) / sp.height)) });
   };
   /** A platform oak through a deck: its crown starts well above the deck, so the deck stays open under the canopy. */
   const deckOak = (x: number, z: number, deckY: number) => {
@@ -563,12 +562,8 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
       const cam = { x: 380, z: -96 }, fl = Math.hypot(38, -26), f = { x: 38 / fl, z: -26 / fl }, r = { x: -f.z, z: f.x };
       const at = (d: number, s: number) => ({ x: cam.x + f.x * d + r.x * s, z: cam.z + f.z * d + r.z * s });
       const wallYaw = Math.atan2(-r.z, r.x);                     // kit walls and arches run along (cos yaw, -sin yaw) = r
-      K.discPave(p.x, p.z, 30, py, 48);
-      // puddles in the sunk flagstones (the art's wet floor catching the glow)
-      const puddle = new THREE.MeshStandardNodeMaterial({ color: 0x0a1418, roughness: 0.03, metalness: 0.2, transparent: true, opacity: 0.55 });
-      for (const [d, s, rad] of [[9, 2, 1.4], [14, 6, 1.0], [17, -3, 1.2], [20, 3, 0.8], [12, -5, 0.7]] as const) {
-        const q = at(d, s), m = new THREE.Mesh(new THREE.CircleGeometry(rad, 24), puddle); m.rotation.x = -Math.PI / 2; m.scale.set(1.6, 1, 1); m.position.set(q.x, py + 0.05, q.z); group.add(m);
-      }
+      // flagstones, sunk in hollows where puddles stand (the art's wet floor catching the glow)
+      K.discPave(p.x, p.z, 30, py, 48, { seed: 61, pits: ([[9, 2, 1.4], [14, 6, 1.0], [17, -3, 1.2], [20, 3, 0.8], [12, -5, 0.7], [6, 4, 0.6]] as const).map(([d, s0, rad]) => { const q = at(d, s0); return [q.x, q.z, rad * 1.3]; }) });
       // circuit lines: in from the bottom-left of the frame toward the portal, and a ring of them round the plaza
       { const q = at(7, -3.5); K.circuit(q.x, py, q.z, 3.5, 9, Math.atan2(f.x, f.z) + 0.9, 0x2ae6ff, 81); }
       for (let k = 0; k < 3; k++) K.circuit(p.x + Math.sin(k * 2.1 + 2) * 20, py, p.z + Math.cos(k * 2.1 + 2) * 20, 4, 9, k * 2.1, 0x2ae6ff, 83 + k);
@@ -595,16 +590,9 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
         // the deeper stand behind the ruins (the art's haze of trunks, no open sky between them)
         [62, -14, 2.2], [66, -4, 1.9], [70, 6, 2.1], [64, 15, 2.0], [78, -22, 2.3], [82, 0, 2.0], [86, 14, 2.2], [74, 24, 2.0], [58, -26, 2.0], [92, -10, 2.1]];
       for (const [d, sx, rad] of trunks) {
-        const q = at(d, sx), gy = H(q.x, q.z), top = gy + 58;
-        const c = new THREE.CatmullRomCurve3([new THREE.Vector3(q.x, gy - 2, q.z), new THREE.Vector3(q.x + 0.3, gy + 20, q.z - 0.2), new THREE.Vector3(q.x - 0.2, gy + 40, q.z + 0.3), new THREE.Vector3(q.x, top, q.z)]);
-        K.barkGeos.push(barkTube(c, rad * 1.18, rad * 0.62, lo ? 10 : 18, lo ? 12 : 20, 0.35, q.x + q.z));
-        terrain.addTrunk(q.x, q.z, rad + 0.2, gy - 2, top);
-        for (let k = 0; k < 6; k++) {
-          const a = (k / 6) * 6.283 + d, len = rad * 2.6 + 1.5, ex = q.x + Math.sin(a) * len, ez = q.z + Math.cos(a) * len;
-          K.trimGeos.push(barkTube(new THREE.CatmullRomCurve3([new THREE.Vector3(q.x + Math.sin(a) * rad * 0.7, gy + rad * 1.6, q.z + Math.cos(a) * rad * 0.7), new THREE.Vector3(q.x + Math.sin(a) * len * 0.55, gy + 0.5, q.z + Math.cos(a) * len * 0.55), new THREE.Vector3(ex, H(ex, ez) - 0.3, ez)]), rad * 0.5, 0.15, 8, 7, 0.4, k + d));
-        }
-        for (let k = 0; k < 7; k++) { const a = R() * 6.283, hh = 3 + R() * 22; ctx.fungusSpots.push({ x: q.x + Math.sin(a) * rad * 0.98, y: gy + hh, z: q.z + Math.cos(a) * rad * 0.98, yaw: a, species: 4, scale: 1.4 + R() * 1.4 }); }
-        if (d < 50) out.trees.push({ x: q.x, y: top - 4, z: q.z, yaw: d, species: 2, scale: 1.6 });   // a crown far overhead, out of frame
+        const q = at(d, sx), gy = H(q.x, q.z), scale = Math.min(1.4, Math.max(0.85, rad / 2.05)), tr = CF_REDWOOD.trunk.radius * scale;
+        out.trees.push({ x: q.x, y: gy - 0.4, z: q.z, yaw: d * 1.7 + sx, species: 6, scale });
+        for (let k = 0; k < 7; k++) { const a = R() * 6.283, hh = 3.5 + R() * 7; ctx.fungusSpots.push({ x: q.x + Math.sin(a) * tr * 0.9, y: gy + hh, z: q.z + Math.cos(a) * tr * 0.9, yaw: a, species: 4, scale: 1.4 + R() * 1.4 }); }
       }
       // vines down the arches, ferns and bushes along the walls and the sides
       for (let k = 0; k < 16; k++) { const q = at(30 + R() * 2, -16 + R() * 32); ctx.plantSpots.push({ x: q.x, y: py + 5 + R() * 4, z: q.z, yaw: R() * 6.28, species: 3, scale: 0.6 + R() * 0.6 }); }
@@ -630,7 +618,7 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
       for (let k = 0; k < 12; k++) { const q = at(4 + R() * 26, -14 + R() * 28); K.rocks(q.x, q.z, 1, 0.1, [0.2, 0.5], 400 + k); }
       // the overgrown floor: moss, heaved flagstones, roots, ferns and grass in the cracks (the walk to the portal kept clear)
       const toPortal = (x: number, z: number) => { const dx = x - cam.x, dz = z - cam.z, d = dx * f.x + dz * f.z, sx = dx * r.x + dz * r.z; return d > 2 && d < 23 && Math.abs(sx - 3.5 * d / 24) < 1.6; };
-      K.clutter(p.x, p.z, 32, py, { moss: 40, slabs: 34, roots: 8, plants: 60, seed: 41, keepClear: toPortal });
+      K.clutter(p.x, p.z, 32, py, { moss: 40, slabs: 10, roots: 8, plants: 60, vines: 28, seed: 41, keepClear: toPortal });
       out.clear.push([p.x, p.z, 34]);
       glowAt(g.x, py + 3, g.z);
       K.lamp(g.x - f.x * 2, py + 3.5, g.z - f.z * 2, 0x9ff8ff, 34);
@@ -645,7 +633,7 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
       for (const [dx, dz, yaw, len] of [[-17, -4, Math.PI / 2, 16], [17, 6, Math.PI / 2, 12], [-6, -17, 0, 14], [8, 17, 0, 10]] as const) K.ruinWall(c.x + dx, c.z + dz, yaw, len, 4 + R() * 3, dx + dz);
       for (const [dx, dz] of [[-13, -13], [13, -13], [-13, 13], [13, 13], [0, -15]]) K.pillar(c.x + dx, c.z + dz, 2 + R() * 4, 0.7, cy);
       K.arch(c.x + 17, c.z - 10, Math.PI / 2, 4, 5, { y: cy, pointed: false, broken: 3 });
-      for (let k = 0; k < 8; k++) { const a = (k / 8) * 6.283, r = 32 + R() * 10; giant(c.x + Math.sin(a) * r, c.z + Math.cos(a) * r, cy + 36 + R() * 10, 2); }
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * 6.283, r = 32 + R() * 10; giant(c.x + Math.sin(a) * r, c.z + Math.cos(a) * r, cy + 40 + R() * 12, 6); }
       out.clear.push([c.x, c.z, 24]);
       glowAt(c.x, cy + 2, c.z);
     }
@@ -687,7 +675,7 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
       kit.prism(mats.stone, 8, 1.1, 1.3, 9, z0.x - 13, zy - 0.2, z0.z + 2, 0, { tpm: 0.4 });
       K.screen(z0.x - 13 + 1.25, zy + 6.5, z0.z + 2, Math.PI / 2, 1.8, 1.0, ['ZONE', '10'], '#cfe6ff');
       for (let k = 0; k < 6; k++) K.ruinWall(z0.x + (R() - 0.5) * 30, z0.z + (R() - 0.5) * 30, R() * 3, 4 + R() * 6, 2 + R() * 3, k + 40);
-      for (let k = 0; k < 7; k++) { const a = (k / 7) * 6.283, r = 30 + R() * 10; giant(z0.x + Math.sin(a) * r, z0.z + Math.cos(a) * r, zy + 34 + R() * 8, k % 2 ? 2 : 0); }
+      for (let k = 0; k < 7; k++) { const a = (k / 7) * 6.283, r = 30 + R() * 10; giant(z0.x + Math.sin(a) * r, z0.z + Math.cos(a) * r, zy + 34 + R() * 8, k % 2 ? 6 : 0); }
       for (let k = 0; k < 24; k++) { const [x, z] = ringOf(z0.x, z0.z, 6, 22); fungus(k % 4 === 0 ? 4 : 0, x, z, 0.8 + R()); }
       out.clear.push([z0.x, z0.z, 20]);
       glowAt(z0.x, zy + 3, z0.z - 4);
@@ -743,7 +731,7 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
         B.steelStair(K.mats.metal, gx + Math.cos(a) * 6 - Math.sin(a) * 4, sy, gz - Math.sin(a) * 6 - Math.cos(a) * 4, a + Math.PI / 2 + Math.PI, sy + 5, 1.4);
         K.lamp(gx, sy + 6.6, gz, 0xffb050, 16);
       }
-      for (let k = 0; k < 10; k++) { const a = (k / 10) * 6.283, r = 40 + R() * 10; giant(s.x + Math.sin(a) * r, s.z + Math.cos(a) * r, sy + 30 + R() * 10, k % 2 ? 2 : 0); }
+      for (let k = 0; k < 10; k++) { const a = (k / 10) * 6.283, r = 40 + R() * 10; giant(s.x + Math.sin(a) * r, s.z + Math.cos(a) * r, sy + 30 + R() * 10, k % 2 ? 6 : 0); }
       out.clear.push([s.x, s.z, 34]);
       glowAt(s.x, sy + 3, s.z);
       K.lamp(s.x, sy + 6, s.z, 0x40e8ff, 40);

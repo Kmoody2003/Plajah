@@ -4,7 +4,7 @@
 // stands and turned into the tree's own frame. Sway = trunk bow (height²) + bend (flexibility summed from the base —
 // continuous at joints) + each branch's own swing (phase per branch) + leaf flutter (leaves only).
 import * as THREE from 'three/webgpu';
-import { attribute, color, float, max, mix, normalView, positionLocal, positionViewDirection, sin, smoothstep, texture, time, uniform, uv, vec2, vec3 } from 'three/tsl';
+import { attribute, color, float, max, mix, normalView, positionLocal, positionViewDirection, sin, smoothstep, texture, time, uniform, uv, vec2, vec3, normalGeometry, positionGeometry } from 'three/tsl';
 import type { TreeSpecies } from '../species';
 import { pushAt, toLocal, windAt } from '../wind';
 
@@ -60,6 +60,15 @@ export function treeMaterials(sp: TreeSpecies, height: number, o: { beat?: N } =
   const barkMap = tex(sp.bark.map, true, true);
   wood.colorNode = texture(barkMap, uv()).rgb.mul(color(sp.bark.tint)).mul(1.6);
   if (sp.bark.normal) { wood.normalMap = tex(sp.bark.normal, false, true); wood.normalScale.set(1.5, 1.5); }
+  if (sp.bark.moss) {
+    // moss: on the tops of limbs and up the lower trunk (wettest), thickest in the bark's dark crevices
+    const bark: N = texture(barkMap, uv()).rgb, crev: N = float(1).sub(bark.dot(vec3(0.3, 0.55, 0.15)).mul(1.6)).clamp(0, 1);
+    const upF: N = smoothstep(float(0.15), float(0.75), normalGeometry.y);
+    const low: N = smoothstep(float(height * 0.22), float(0), positionGeometry.y);
+    const mask: N = max(upF, low.mul(0.85)).mul(crev.mul(0.6).add(0.55)).mul(sp.bark.moss.amount).clamp(0, 1);
+    const mossC: N = color(sp.bark.moss.color).mul(bark.g.mul(0.9).add(0.45));
+    wood.colorNode = mix(wood.colorNode as N, mossC, mask);
+  }
   if (sp.bark.veins) {
     const cond: N = texture(tex(sp.bark.veins.map, true, true), uv().mul(vec2(0.9, 0.5))).rgb;
     const band: N = smoothstep(float(0.55), float(0.62), sin(uv().x.mul(5.3).add(sin(uv().y.mul(0.7)).mul(1.4))).mul(0.5).add(0.5));

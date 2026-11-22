@@ -11,7 +11,8 @@ export default defineConfig(({ command }) => ({
   cacheDir: path.resolve(here, '../../node_modules/.vite-rift-realm'),
   optimizeDeps: {
     entries: [path.resolve(here, 'index.html')],
-    include: ['three', 'three/webgpu', 'three/tsl', 'three-mesh-bvh'],
+    // every addon the game imports, so a late-found one never gets its own copy of three (TSL's If/Fn break across copies)
+    include: ['three', 'three/webgpu', 'three/tsl', 'three-mesh-bvh', 'three/addons/tsl/display/BloomNode.js', 'three/addons/tsl/display/GTAONode.js', 'three/addons/tsl/display/GodraysNode.js', 'three/addons/objects/SkyMesh.js', 'three/addons/loaders/GLTFLoader.js'],
   },
   server: {
     host: true,

@@ -98,6 +98,27 @@ export function growTree(sp: TreeSpecies, seed: number, opt: GrowOptions = {}): 
     tip = add(p.x, t * crownY0, p.z, tip);
   }
   const top = trunkAt(1);
+  void top;
+  // ── scaffold limbs (old growth): the trunk runs on up through the crown and throws a few giant limbs out and up;
+  //    the crown then colonizes from them, so the pipe model makes them as thick as the twigs they carry demand ──
+  const limbN = Math.round((sp.crown.limbs ?? 0) * (detail < 0.5 ? 0.7 : 1));
+  if (limbN > 0) {
+    const yTop = sp.crown.profile[sp.crown.profile.length - 1].y * H * 0.82, trunkIdx: number[] = [tip];
+    while (nodes[tip].y < yTop) { const ny = nodes[tip].y + step, p = trunkAt(Math.min(1, ny / H)); tip = add(p.x, ny, p.z, tip); trunkIdx.push(tip); }
+    const rW = Math.max(...sp.crown.profile.map((p) => p.r)) * H;
+    for (let i = 0; i < limbN; i++) {
+      const f = (i + 0.3 + R() * 0.4) / limbN, yAt = crownY0 + (yTop - crownY0) * f * 0.85;
+      let from = trunkIdx[0]; for (const t of trunkIdx) if (Math.abs(nodes[t].y - yAt) < Math.abs(nodes[from].y - yAt)) from = t;
+      const az = i * 2.39996 + R() * 0.5, el = 0.12 + R() * 0.35 + f * 0.25;
+      const L = rW * (0.75 + R() * 0.35) * (1 - f * 0.45), n = Math.max(3, Math.round(L / step));
+      let x = nodes[from].x, y = nodes[from].y, z = nodes[from].z, prev = from, dx = Math.cos(az) * Math.cos(el), dy = Math.sin(el), dz = Math.sin(az) * Math.cos(el) * sp.crown.depthScale;
+      for (let s = 1; s <= n; s++) {
+        // the limb kinks and wanders, and turns up toward the light along its length
+        [dx, dy, dz] = norm(dx + (R() - 0.5) * 0.25, dy + 0.05 + sp.crown.gravitropism * 0.06, dz + (R() - 0.5) * 0.25);
+        x += dx * step; y += dy * step; z += dz * step; prev = add(x, y, z, prev);
+      }
+    }
+  }
 
   // ── attractors filling the crown hull (front profile × side depth), denser where the crown is wider ──
   const prof = sp.crown.profile;

@@ -35,7 +35,8 @@ export function buildTreeGeometry(sk: TreeSkeleton, sp: TreeSpecies, o: { radial
     a.set(p.x, p.y, p.z); b.set(n.x, n.y, n.z);
     dir.subVectors(b, a); const len = dir.length(); if (len < 1e-4) continue; dir.divideScalar(len);
     const r0 = n.root ? Math.max(n.radius, nodes[n.parent].radius * 0.6) : p.radius, r1 = n.radius;
-    const radial = Math.max(4, Math.min(o.radial ?? 14, Math.round(5 + p.radius * 18)));
+    const fur = sp.trunk.furrow ?? 0, big = fur > 0 && p.radius > 0.5;
+    const radial = Math.max(4, Math.min(big ? Math.max(o.radial ?? 14, Math.round(14 + p.radius * 10)) : (o.radial ?? 14), Math.round(5 + p.radius * 18)));
     // a frame for the ring (stable-ish: project "up", or x when the segment is vertical)
     side.copy(Math.abs(dir.y) > 0.95 ? tmp.set(1, 0, 0) : up).cross(dir).normalize();
     side2.crossVectors(dir, side).normalize();
@@ -51,10 +52,24 @@ export function buildTreeGeometry(sk: TreeSkeleton, sp: TreeSpecies, o: { radial
         const cx = Math.cos(ang), sx = Math.sin(ang);
         // twisted species: strands — the ring is lobed so the trunk reads as braided cords
         const lobes = sp.trunk.twist > 0.8 && nd.order === 0 ? 1 + 0.12 * Math.cos(ang * 5) : 1;
-        const rr = r * flare * lobes;
+        // furrowed bark: sharp-bottomed grooves between rounded ridges, wandering along the trunk (continuous in dist)
+        let fk = 1, fd = 0;
+        if (fur > 0 && r > 0.25 && !n.root) {
+          const ph = ang * 13 + Math.sin(nd.dist * 0.23 + sk.seed) * 1.6, ph2 = ang * 29 + nd.dist * 0.11;
+          const g = Math.abs(Math.sin(ph)), g2 = Math.abs(Math.sin(ph2));
+          const amp = fur * Math.min(1, r / 0.8);
+          fk = 1 + amp * (Math.sqrt(g) - 0.6) + amp * 0.35 * (Math.sqrt(g2) - 0.6);
+          fd = amp * (Math.cos(ph) * Math.sign(Math.sin(ph)) * 13 / (2 * Math.sqrt(g + 1e-3)) + 0.35 * Math.cos(ph2) * Math.sign(Math.sin(ph2)) * 29 / (2 * Math.sqrt(g2 + 1e-3)));
+          fd = Math.max(-3, Math.min(3, fd / fk));
+        }
+        const rr = r * flare * lobes * fk;
         const nx = side.x * cx + side2.x * sx, ny = side.y * cx + side2.y * sx, nz = side.z * cx + side2.z * sx;
         pos.push(c.x + nx * rr, c.y + ny * rr, c.z + nz * rr);
-        nor.push(nx, ny, nz);
+        if (fd) { // normal of r(ang): the radial direction tilted against the slope round the ring
+          const tx = -side.x * sx + side2.x * cx, ty = -side.y * sx + side2.y * cx, tz = -side.z * sx + side2.z * cx;
+          const mx = nx - tx * fd * 0.5, my = ny - ty * fd * 0.5, mz = nz - tz * fd * 0.5, ml = Math.hypot(mx, my, mz) || 1;
+          nor.push(mx / ml, my / ml, mz / ml);
+        } else nor.push(nx, ny, nz);
         uv.push((k / radial) * Math.max(1, Math.round((2 * Math.PI * Math.max(r, 0.05)) / tile)), nd.dist / tile);
         piv.push(piv0.x, piv0.y, piv0.z);
         const tw2 = Math.pow(Math.max(0, c.y) / H, 2), ni = e ? i : n.parent;

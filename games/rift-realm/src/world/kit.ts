@@ -195,9 +195,130 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
     kit.prism(mats.stone, 10, r, r * 1.05, h, x, y + 0.5, z, 0, { tpm: 0.5 });
     kit.prism(mats.stone, 10, r * 1.3, r * 1.1, 0.6, x, y + 0.5 + h, z, 0, { tpm: 0.5 });
   };
-  /** A paved floor (flagstones) at y: a thin slab polygon. */
-  const paving = (pts: [number, number][], y: number) => { const d = polyPrism(pts, [], y - 0.6, y + 0.04); kit.add(mats.stone, d.top, { tpm: 0.33 }); kit.add(mats.stone, d.sides, { tpm: 0.4 }); };
-  const discPave = (x: number, z: number, r: number, y: number, n = 32) => paving(Array.from({ length: n }, (_, k) => [x + Math.sin((k / n) * 6.283) * r, z + Math.cos((k / n) * 6.283) * r] as [number, number]), y);
+  // ── paved floors: real flagstones, not a textured plane. Each stone is its own bevelled slab (an irregular outline,
+  //    chipped corners), laid in running-bond rows with gaps, heaved and tilted by a few cm; in a few hollows the stones
+  //    have sunk and rain stands in a puddle over them. Under the stones: dark mossy earth (the collider). ──
+  const soilMat = mossyStone(1, -1);
+  // weathered grey flagstone: the rock sheet's relief (normal map) only, its colour a soft mottle of grey with a green cast
+  const flagMat = (() => {
+    const src = mats.rock as THREE.MeshStandardNodeMaterial;
+    const m = new THREE.MeshStandardNodeMaterial({ normalMap: src.normalMap, roughness: 0.62 });
+    m.normalScale.set(0.8, 0.8);
+    const mot = tslTexture(art('moss_strand_albedo.jpg', true, true), positionWorld.xz.mul(0.06)).rgb.dot(vec3(0.3, 0.55, 0.15));
+    const fine = tslTexture(art('moss_strand_albedo.jpg', true, true), positionWorld.xz.mul(0.9)).rgb.dot(vec3(0.3, 0.55, 0.15));
+    m.colorNode = vec3(0.075, 0.085, 0.08).mul(float(0.65).add(mot.mul(0.7)).add(fine.mul(0.2)));
+    return m;
+  })();
+  const puddleMat = (() => {
+    const m = new THREE.MeshStandardNodeMaterial({ color: 0x050a09, roughness: 0.02, metalness: 0.1, transparent: true, depthWrite: false });
+    // the haze and the canopy light mirrored in the water (the day environment barely reflects): brighter toward the shore
+    m.emissiveNode = color(0x7f9890).mul(float(0.28).add(uv().sub(0.5).length().mul(0.4))).add(color(0x2ae6ff).mul(uniformBeat(ctx).mul(0.08)));
+    const d = uv().sub(0.5).length().mul(2);                                      // soft shore, faint ripples
+    m.opacityNode = float(1).sub(smoothstep(float(0.7), float(1.0), d)).mul(0.92);
+    m.normalNode = normalWorld.add(vec3(sin(positionWorld.x.mul(9).add(time.mul(1.7))).mul(0.015), 0, sin(positionWorld.z.mul(8).sub(time.mul(1.3))).mul(0.015))).normalize();
+    return m;
+  })();
+  let stoneCount = 0;
+  /** One flagstone: an irregular outline (corners pulled about, sometimes chipped), bevelled, h thick, base at y = 0. */
+  const slab = (w: number, d: number, h: number, rnd: () => number) => {
+    const pts: THREE.Vector2[] = [];
+    for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]] as const) {
+      const jx = (rnd() - 0.5) * 0.14 * w, jz = (rnd() - 0.5) * 0.14 * d;
+      if (rnd() < 0.22) {
+        const c = 0.12 + rnd() * 0.18, first = sx === sz;
+        pts.push(new THREE.Vector2(sx * w / 2 * (first ? 1 : 1 - c) + jx, sz * d / 2 * (first ? 1 - c : 1) + jz));
+        pts.push(new THREE.Vector2(sx * w / 2 * (first ? 1 - c : 1) + jx, sz * d / 2 * (first ? 1 : 1 - c) + jz));
+      } else pts.push(new THREE.Vector2(sx * w / 2 + jx, sz * d / 2 + jz));
+    }
+    if (THREE.ShapeUtils.isClockWise(pts)) pts.reverse();
+    const b = Math.min(0.045, h * 0.3);
+    const g = new THREE.ExtrudeGeometry(new THREE.Shape(pts), { depth: h - 2 * b, bevelEnabled: true, bevelThickness: b, bevelSize: b, bevelSegments: 1, curveSegments: 1 });
+    g.rotateX(-Math.PI / 2); g.translate(0, b, 0);
+    return g;
+  };
+  /** Flagstones over the polygon `pts` at height y. pits: [x, z, r] hollows where the stones sank and a puddle stands. */
+  const paving = (pts: [number, number][], y: number, o: { pits?: number[][]; seed?: number; cell?: number } = {}) => {
+    const base = polyPrism(pts, [], y - 0.6, y + 0.02);
+    if (lo) { kit.add(mats.stone, base.top, { tpm: 0.33 }); kit.add(mats.stone, base.sides, { tpm: 0.4 }); return; }
+    kit.add(soilMat, base.top, { tpm: 0.4 }); kit.add(soilMat, base.sides, { tpm: 0.4 });
+    let sd = o.seed ?? Math.abs(Math.round(pts[0][0] * 31 + pts[0][1] * 17)) % 200000 + 7;
+    const rnd = () => ((sd = (sd * 9301 + 49297) % 233280) / 233280);
+    let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+    for (const [px, pz] of pts) { x0 = Math.min(x0, px); x1 = Math.max(x1, px); z0 = Math.min(z0, pz); z1 = Math.max(z1, pz); }
+    const inside = (px: number, pz: number) => {
+      let c = false;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, zi] = pts[i], [xj, zj] = pts[j]; if ((zi > pz) !== (zj > pz) && px < ((xj - xi) * (pz - zi)) / (zj - zi) + xi) c = !c; }
+      return c;
+    };
+    // hollows: the ones asked for, else about one per 150 m² of floor
+    const pits = o.pits ?? Array.from({ length: Math.max(1, Math.round(((x1 - x0) * (z1 - z0)) / 150)) }, () => [x0 + rnd() * (x1 - x0), z0 + rnd() * (z1 - z0), 0.9 + rnd() * 1.4]).filter((q) => inside(q[0], q[1]));
+    const sink = (px: number, pz: number) => { let s = 0; for (const [qx, qz, qr] of pits) { const t = 1 - ((px - qx) ** 2 + (pz - qz) ** 2) / (qr * 1.25) ** 2; if (t > 0) s = Math.max(s, t); } return s; };
+    const cell = o.cell ?? 1.05, yaw = rnd() * 6.283, ca = Math.cos(yaw), sa = Math.sin(yaw);
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, R = Math.hypot(x1 - x0, z1 - z0) / 2 + cell;
+    // running bond: rows of stones of varied length, each row offset
+    for (let v = -R; v < R; v += cell * 0.86) {
+      let u = -R + rnd() * cell;
+      while (u < R) {
+        const len = cell * (0.7 + rnd() * 0.75), wid = cell * 0.86 - 0.07 - rnd() * 0.05;
+        const mu = u + len / 2, px = cx + mu * ca - v * sa, pz = cz + mu * sa + v * ca;
+        u += len + 0.06 + rnd() * 0.06;
+        if (!inside(px, pz) || rnd() < 0.05) continue;                       // a few stones missing: earth and moss show
+        const k = sink(px, pz), heave = Math.sin(px * 0.61 + 1.3) * Math.sin(pz * 0.53) * 0.035 + rnd() * 0.03;
+        const h = 0.16 + rnd() * 0.08, broken = rnd() < 0.08;
+        const g = slab((broken ? 0.55 : 1) * (len - 0.06), wid, h, rnd);
+        kit.place(g, px, y - 0.1 + heave - k * 0.26, pz, -yaw + (rnd() - 0.5) * 0.06, (rnd() - 0.5) * (0.05 + k * 0.12), (rnd() - 0.5) * (0.05 + k * 0.12));
+        kit.add(flagMat, g, { tpm: 0.5, solid: false });
+        stoneCount++;
+      }
+    }
+    for (const [qx, qz, qr] of pits) {
+      const m = new THREE.Mesh(new THREE.CircleGeometry(qr * 1.15, 28), puddleMat); m.rotation.set(-Math.PI / 2, 0, rnd() * 6.28);
+      m.scale.set(1 + rnd() * 0.6, 1, 1); m.position.set(qx, y + 0.06, qz); m.renderOrder = 2; group.add(m);
+    }
+  };
+  const discPave = (x: number, z: number, r: number, y: number, n = 32, o: { pits?: number[][]; seed?: number } = {}) => paving(Array.from({ length: n }, (_, k) => [x + Math.sin((k / n) * 6.283) * r, z + Math.cos((k / n) * 6.283) * r] as [number, number]), y, o);
+
+  // ── glow vines across the floor: living vines snaking over the stones, bioluminescent rings running along them that
+  //    flare on every beat of whatever music is playing (the level's beat pulse) ──
+  const vineGeos: THREE.BufferGeometry[] = [];
+  const vineMat = (() => {
+    const m = new THREE.MeshStandardNodeMaterial({ color: 0x121c10, roughness: 0.55 });
+    const s = uv().x;                                                              // metres along the vine
+    const ph = fract(s.div(1.7).sub(time.mul(0.8)));                               // rings travelling along it
+    const ring = smoothstep(float(0.0), float(0.05), ph).mul(smoothstep(float(0.2), float(0.07), ph));
+    const b = uniformBeat(ctx);
+    // between beats the rings glow softly; on the beat they flare and the whole vine lights
+    m.emissiveNode = color(0x34ffd2).mul(ring.mul(float(0.6).add(b.mul(3.5))).add(b.mul(0.06)).add(0.015));
+    return m;
+  })();
+  /** n glow vines over a floor round (x, z) within r at height y (keepClear keeps paths free). */
+  const glowVines = (x: number, z: number, r: number, y: number, n: number, seed = 3, keepClear?: (x: number, z: number) => boolean) => {
+    let sd = seed; const rnd = () => ((sd = (sd * 9301 + 49297) % 233280) / 233280);
+    for (let k = 0; k < n; k++) {
+      const a = rnd() * 6.283, d = Math.sqrt(rnd()) * r;
+      let px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d, dir = rnd() * 6.283;
+      const L = 7 + rnd() * 11, pts: THREE.Vector3[] = [];
+      for (let s = 0; s <= L; s += 0.8) {
+        if (keepClear?.(px, pz)) { if (pts.length > 2) break; dir += 1.2; }
+        if ((px - x) ** 2 + (pz - z) ** 2 > r * r) dir = Math.atan2(x - px, z - pz) + (rnd() - 0.5);
+        pts.push(new THREE.Vector3(px, y + 0.17 + Math.sin(s * 1.9 + k) * 0.05, pz));
+        dir += (rnd() - 0.5) * 0.7; px += Math.sin(dir) * 0.8; pz += Math.cos(dir) * 0.8;
+      }
+      if (pts.length < 4) continue;
+      const curve = new THREE.CatmullRomCurve3(pts), len = curve.getLength(), rad = 0.045 + rnd() * 0.04;
+      const g = new THREE.TubeGeometry(curve, Math.ceil(len * 5), rad, 6, false);
+      const t = g.attributes.uv; for (let i = 0; i < t.count; i++) t.setX(i, t.getX(i) * len + k * 3.1);   // u in metres
+      vineGeos.push(g);
+      if (rnd() < 0.6) { // a thinner tendril off the vine
+        const p0 = curve.getPoint(0.3 + rnd() * 0.4), tp: THREE.Vector3[] = [p0]; let td = rnd() * 6.283, tx = p0.x, tz = p0.z;
+        for (let i = 0; i < 5; i++) { td += rnd() - 0.5; tx += Math.sin(td) * 0.7; tz += Math.cos(td) * 0.7; tp.push(new THREE.Vector3(tx, y + 0.13, tz)); }
+        const tc = new THREE.CatmullRomCurve3(tp), tl = tc.getLength(), tg = new THREE.TubeGeometry(tc, Math.ceil(tl * 5), rad * 0.5, 5, false);
+        const tu = tg.attributes.uv; for (let i = 0; i < tu.count; i++) tu.setX(i, tu.getX(i) * tl + k * 1.7);
+        vineGeos.push(tg);
+      }
+    }
+  };
+
   const rocks = (x: number, z: number, n: number, rad: number, size: [number, number], seed = 1) => {
     let s = seed; const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
     for (let i = 0; i < n; i++) {
@@ -286,7 +407,7 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
   })();
   /** Overgrow a floor round (x, z): moss patches, broken and tilted flagstones, roots across it, ferns and grass in the
    *  cracks. `keepClear(x, z)` keeps paths and set pieces free. */
-  const clutter = (x: number, z: number, r: number, y: number, o: { moss?: number; slabs?: number; roots?: number; plants?: number; seed?: number; keepClear?: (x: number, z: number) => boolean } = {}) => {
+  const clutter = (x: number, z: number, r: number, y: number, o: { moss?: number; slabs?: number; roots?: number; plants?: number; vines?: number; seed?: number; keepClear?: (x: number, z: number) => boolean } = {}) => {
     let sd = o.seed ?? 5; const rnd = () => ((sd = (sd * 9301 + 49297) % 233280) / 233280);
     const spot = () => { for (let t = 0; t < 8; t++) { const a = rnd() * 6.283, d = Math.sqrt(rnd()) * r, px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d; if (!o.keepClear?.(px, pz)) return [px, pz]; } return null; };
     for (let k = 0; k < (o.moss ?? 24); k++) {
@@ -306,6 +427,7 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
       const p = spot(); if (!p) continue;
       ctx.plantSpots.push({ x: p[0], y: y - 0.02, z: p[1], yaw: rnd() * 6.28, species: rnd() < 0.7 ? 8 : 7, scale: 0.45 + rnd() * 0.5 });   // green forest fern / undergrowth
     }
+    glowVines(x, z, r, y, o.vines ?? Math.round(r / 4), (o.seed ?? 5) * 3 + 1, o.keepClear);
     // no grass blades on paving: the forest grass is a knee-high teal carpet; the green on the floor is moss, mounds, plants
   };
 
@@ -315,10 +437,13 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
     if (tg) { const m = new THREE.Mesh(tg, mats.bark); m.castShadow = !lo; m.receiveShadow = true; m.userData.collide = true; m.name = 'wilds-trunks'; group.add(m); }
     const rg = trimGeos.length ? mergeAll(trimGeos) : null;
     if (rg) { const m = new THREE.Mesh(rg, mats.bark); m.castShadow = !lo; m.receiveShadow = true; m.name = 'wilds-trim'; group.add(m); }
+    const vg = vineGeos.length ? mergeAll(vineGeos) : null;
+    if (vg) { const m = new THREE.Mesh(vg, vineMat); m.receiveShadow = true; m.name = 'wilds-glow-vines'; group.add(m); }
+    console.info(`[wilds] ${stoneCount} flagstones, ${vineGeos.length} glow vines`);
   };
 
   return {
-    H, deck, bridge, link, clutter, grassy, mossRock, mound, toward, hut, lamp, arch, ruinWall, pillar, paving, discPave, rocks, circuit, runeCircle, ring, screen, crystal, crates, sandbags, waterfall, finish,
+    H, deck, bridge, link, clutter, glowVines, grassy, mossRock, mound, toward, hut, lamp, arch, ruinWall, pillar, paving, discPave, rocks, circuit, runeCircle, ring, screen, crystal, crates, sandbags, waterfall, finish,
     barkGeos, trimGeos, lights, clears,
     mats: { cyanGlow, amberGlow, violetGlow, goldGlow, crystalMat, metal, canvasMat, sandbag, crate, fallMat },
   };

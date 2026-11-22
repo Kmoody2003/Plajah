@@ -25,12 +25,14 @@ export interface WildsCtx {
 }
 
 export interface WildsBuilt {
-  /** Extra tree placements (species index into [...CYBER_FOREST_TREES, CF_GREAT_OAK, CF_PLATFORM_OAK]). */
+  /** Extra tree placements (species index into ELDERWOOD_TREES (6 = redwood)). */
   treeSpots: TreeSpot[];
   /** Grass cover override outside the hollow (null = the hollow's own rule). */
   grassCover(x: number, z: number): [number, number] | null;
   /** Whether a grown tree outside the hollow gets vines. */
   vineKeep(t: TreeSpot): boolean;
+  /** Wind strength for the vegetation (0.55 calm; storms blow harder). */
+  wind?(): number;
   update(dt: number, view: THREE.Camera | null, player: THREE.Vector3, pulse: number): void;
   prepare?(renderer: THREE.WebGPURenderer, camera: THREE.Camera): Promise<void> | void;
 }
