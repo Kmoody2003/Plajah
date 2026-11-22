@@ -125,7 +125,7 @@ the hollow's 1 m chunks keep their mesh normals). On for the Wilds with `?erosio
 where mesh normals blur them: `docs/plajah-terrain/wilds-far-normals.jpg`. Not yet seen in the real game with its
 lighting, fog and wet pass.
 
-**Phase 5 (2026-11-22): rules and service done; the swap into the game is waiting on world/index.ts.**
+**Phase 5 done (2026-11-22).**
 `eco/index.ts` places life by rules. **Canopy** rules compete for one jittered candidate grid: the species is picked by
 weight × suitability and kept by density, which can vary by region. **Around** rules grow from placed trees: ferns at a
 redwood's roots, shelf fungi up a trunk. **Ground** rules scatter on their own grids. Suitability multiplies smoothstep
@@ -141,10 +141,19 @@ glowcaps follow the channels. `scripts/terrain/compareWildsEco.ts` replicates th
 | Plants | 25,055 | 24,251 (−3%) | 23,027 |
 | Fungi | 7,097 | 6,889 (−3%) | 6,637 |
 
-The placement map (hand | rules | rules + erosion) is `docs/plajah-terrain/wilds-eco-phase5.png`. Not done: replacing
-index.ts's loops with `scatterWilds`, because that file is the forest session's (it has uncommitted work there). The
-suggested swap is in that group's notes, `terrain-phase5-eco-handover.md`. The frame-time check waits on it too; the
-instance counts are within 10% of today's, so no frame-time change is expected.
+The placement map (hand | rules | rules + erosion) is `docs/plajah-terrain/wilds-eco-phase5.png`. The forest
+session swapped them into world/index.ts and made the rules the default (`?eco=0` brings back the hand loops; it ships
+with that session's commit). Same-camera A/B captures show the same forest. The frame-rate check, fps median (min) and
+draw calls:
+
+| Shot | Hand | Rules |
+|---|---|---|
+| portal-plaza | 11.4 (9.8), 54k | 9.1 (8.6), 43k |
+| mangrove-mire | 11.8 (9.7), 57k | 11.8 (10.4), 45k |
+| eh08-atmosphere | 9.8 (7.9), 59k | 11.0 (9.3), 47k |
+
+That is within noise, with ~11k fewer draw calls under the rules. The ~10 fps itself is a separate whole-level problem
+(~13 M triangles, ~50k draw calls).
 
 Order matters: 1 is pure refactor and unlocks everything; 3 (erosion) is the biggest visual jump; 5 is where it becomes
 "a living ecosystem".
