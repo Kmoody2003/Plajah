@@ -125,6 +125,27 @@ the hollow's 1 m chunks keep their mesh normals). On for the Wilds with `?erosio
 where mesh normals blur them: `docs/plajah-terrain/wilds-far-normals.jpg`. Not yet seen in the real game with its
 lighting, fog and wet pass.
 
+**Phase 5 (2026-11-22): rules and service done; the swap into the game is waiting on world/index.ts.**
+`eco/index.ts` places life by rules. **Canopy** rules compete for one jittered candidate grid: the species is picked by
+weight × suitability and kept by density, which can vary by region. **Around** rules grow from placed trees: ferns at a
+redwood's roots, shelf fungi up a trunk. **Ground** rules scatter on their own grids. Suitability multiplies smoothstep
+ranges over height, steepness, wetness, flow, fresh sediment and clearance, times a region mask; a per-point memo lets
+rules share derived values. It is deterministic for a seed and runs on the CPU in ~0.35 s for the whole Wilds (GPU
+scatter not needed at this size). `games/rift-realm/src/world/eco.ts` writes world/index.ts's forest as rules
+(`WILDS_ECO`, `scatterWilds`). With `?erosion=1`, trees thin on scree and in channels, ferns crowd the wet ground and
+glowcaps follow the channels. `scripts/terrain/compareWildsEco.ts` replicates the hand loops:
+
+| | Hand-written | Rules | Rules + erosion |
+|---|---|---|---|
+| Trees | 20,152 | 20,056 (−0.5%, same species mix) | 18,161 |
+| Plants | 25,055 | 24,251 (−3%) | 23,027 |
+| Fungi | 7,097 | 6,889 (−3%) | 6,637 |
+
+The placement map (hand | rules | rules + erosion) is `docs/plajah-terrain/wilds-eco-phase5.png`. Not done: replacing
+index.ts's loops with `scatterWilds`, because that file is the forest session's (it has uncommitted work there). The
+suggested swap is in that group's notes, `terrain-phase5-eco-handover.md`. The frame-time check waits on it too; the
+instance counts are within 10% of today's, so no frame-time change is expected.
+
 Order matters: 1 is pure refactor and unlocks everything; 3 (erosion) is the biggest visual jump; 5 is where it becomes
 "a living ecosystem".
 

@@ -233,3 +233,51 @@ test('normal texture of a height field encodes its slope; the material takes it 
   assert.ok(withField.material.normalNode);
   without.dispose(); withField.dispose();
 });
+
+// ── phase 5: the EcoSystem ──────────────────────────────────────────────────────────────────────────────────────────
+import { scatterEcosystem, suitability, validateEco, type EcoRule, type EcoWorld } from '../services/terrain/eco/index';
+import { WILDS_ECO } from '../games/rift-realm/src/world/eco';
+
+const flatWorld = (o: Partial<EcoWorld> = {}): EcoWorld => ({
+  bounds: { x0: 0, z0: 0, x1: 200, z1: 200 }, height: (x) => x * 0.1, normal: () => [0, 1, 0], trunkRadius: () => 0.5, ...o,
+});
+
+test('eco: canopy rules share candidates by weight × suitability and keep by density; deterministic', () => {
+  const rules: EcoRule[] = [
+    { id: 'low', kind: 'tree', layer: 'canopy', species: 0, weight: 1, density: 1, height: [12, 8] },   // below ~10 m
+    { id: 'high', kind: 'tree', layer: 'canopy', species: 1, weight: 1, density: 0.5, height: [8, 12] },
+  ];
+  const a = scatterEcosystem(flatWorld(), rules, { canopyCell: 5, seed: 3 }), b = scatterEcosystem(flatWorld(), rules, { canopyCell: 5, seed: 3 });
+  assert.deepEqual(a.trees, b.trees);
+  const low = a.trees.filter((t) => t.species === 0), high = a.trees.filter((t) => t.species === 1);
+  assert.ok(low.every((t) => t.x < 125) && high.every((t) => t.x > 75), 'species follow their height ranges');
+  const lowLeft = low.filter((t) => t.x < 70).length, highRight = high.filter((t) => t.x > 130).length;
+  assert.ok(highRight > 0.35 * lowLeft && highRight < 0.65 * lowLeft, `density 0.5 halves the count (${highRight} vs ${lowLeft})`);
+});
+
+test('eco: around rules grow from hosts, ground rules on their own grid, map rules only with maps', () => {
+  const rules: EcoRule[] = [
+    { id: 'tree', kind: 'tree', layer: 'canopy', species: 6, density: 1 },
+    { id: 'fern', kind: 'plant', layer: 'around', species: 2, hosts: [6], prob: 1, count: [2, 2], ring: [1, 2], trunkScaled: true },
+    { id: 'shelf', kind: 'fungus', layer: 'around', species: 4, hosts: [6], prob: 1, count: [1, 1], ring: [0, 0], onTrunk: [3, 3] },
+    { id: 'wetcap', kind: 'fungus', layer: 'ground', species: 0, cell: 10, density: 1, needsMaps: true, wet: [0.4, 0.6] },
+  ];
+  const plain = scatterEcosystem(flatWorld(), rules, { canopyCell: 20, seed: 1 });
+  assert.equal(plain.plants.length, plain.trees.length * 2);
+  for (const p of plain.plants) assert.ok(plain.trees.some((t) => { const d = Math.hypot(p.x - t.x, p.z - t.z); return d >= 0.5 - 1e-9 && d <= 1 + 1e-9; }));
+  assert.equal(plain.fungi.length, plain.trees.length, 'shelf only: no maps, no wetcaps');
+  const shelf = plain.fungi[0], host = plain.trees.find((t) => Math.hypot(t.x - shelf.x, t.z - shelf.z) < 0.6)!;
+  assert.ok(Math.abs(shelf.y - (host.y + 1.5)) < 1e-9, 'on the trunk at 3 radii');
+  const wet = scatterEcosystem(flatWorld({ maps: { wet: { at: (x) => (x > 100 ? 1 : 0) } } }), rules, { canopyCell: 20, seed: 1 });
+  const caps = wet.fungi.filter((f) => f.species === 0);
+  assert.ok(caps.length > 50 && caps.every((f) => f.x > 95), `wetcaps on the wet half only (${caps.length})`);
+});
+
+test('eco: suitability multiplies ranges and the region mask; rule sets validate', () => {
+  const r: EcoRule = { id: 'a', kind: 'plant', layer: 'ground', species: 0, cell: 1, density: 1, up: [0.8, 0.9], where: (s) => (s.x > 0 ? 1 : 0.5) };
+  const s = { x: 1, z: 0, y: 0, up: 0.85, wet: 0, flow: 0, dep: 0, clear: Infinity, maps: false, memo: {} };
+  assert.ok(Math.abs(suitability(r, s) - 0.5) < 1e-9);
+  assert.ok(Math.abs(suitability(r, { ...s, x: -1 }) - 0.25) < 1e-9);
+  assert.deepEqual(validateEco(WILDS_ECO), []);
+  assert.ok(validateEco([{ id: 'x', kind: 'tree', layer: 'canopy', species: 0, density: 2 }, { id: 'x', kind: 'plant', layer: 'around', species: 0, prob: 1, count: [3, 1], ring: [0, 1] }]).length >= 3);
+});
