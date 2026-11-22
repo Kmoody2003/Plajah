@@ -76,6 +76,9 @@ console.log('                   eco plain   ', bySpecies(eco.trees), eco.trees.l
 console.log('                   eco eroded  ', bySpecies(ecoE.trees), ecoE.trees.length, `(${Math.round(ecoE.ms)} ms)`);
 console.log('plants / fungi     hand-written', H.plants.length, H.fungi.length, '· eco plain', eco.plants.length, eco.fungi.length, '· eco eroded', ecoE.plants.length, ecoE.fungi.length);
 console.log('rules (eroded)', ecoE.byRule);
+// trees round a point: --near x,z,r
+const ni = process.argv.indexOf('--near');
+if (ni > 0) { const [nx, nz, nr] = process.argv[ni + 1].split(',').map(Number), f = (t: Spot) => Math.hypot(t.x - nx, t.z - nz) < nr; console.log(`within ${nr} m of (${nx}, ${nz}): hand`, bySpecies(hand.filter(f)), 'eco', bySpecies(eco.trees.filter(f)), 'eco eroded', bySpecies(ecoE.trees.filter(f))); }
 
 const pi = process.argv.indexOf('--png');
 if (pi > 0) {
