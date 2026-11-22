@@ -11,6 +11,14 @@ import type { CollisionWorld } from './collision';
 import { assets, CharacterRig } from './characters';
 import { COMBAT, type Archetype, type ArchetypeTuning, type EnemyAttack } from './combat/tuning';
 
+/** The one-shot side of a skeletal rig (CharacterRig, or a creature's own rig from creatures.ts). */
+export interface OneShotRig {
+  has(name: string): boolean;
+  play(name: string, weight?: number, seconds?: number): void;
+  hold(name: string): boolean;
+  release(): void;
+}
+
 /** A level can swap the robot for its own creatures (Cyber Forest: wolves, mantises, wasps). */
 export interface EnemyBody {
   root: THREE.Object3D;
@@ -23,6 +31,9 @@ export interface EnemyBody {
   attack(): void;
   /** Optional: which combat archetype this creature fights as (else guessed: flyers cast, heavy ones are brutes). */
   archetype?: Archetype;
+  /** Optional skeletal rig: reactions (hit, hit_heavy, launch, knockdown, get_up, parried, block, dodge_*) and death
+   *  play on it by name. Its own attack clip plays from attack(); locomotion stays in update(). */
+  rig?: OneShotRig;
 }
 export const enemyBodies: { make: ((id: number, boss: boolean) => EnemyBody | null) | null; playerPos: THREE.Vector3 } = {
   make: null, playerPos: new THREE.Vector3(),
@@ -362,10 +373,13 @@ export class EnemyManager {
     e.state = s; e.stateT = t;
     if (s !== 'stun') e.parried = false;
   }
+  /** The rig reactions play on: the Paladin's, or a level creature's own skeleton. */
+  private anim(e: Enemy): OneShotRig | null { return e.rig ?? e.body?.rig ?? null; }
   /** Play the first clip the rig has (reaction clips arrive from the characters track as they're made). */
   private react(e: Enemy, names: string[], seconds: number, weight = 1) {
-    const n = e.rig && names.find((c) => e.rig!.has(c));
-    if (n) e.rig!.play(n, weight, seconds);
+    const r = this.anim(e);
+    const n = r && names.find((c) => r.has(c));
+    if (n) r!.play(n, weight, seconds);
   }
   private hideRing(e: Enemy) { e.ring.visible = false; e.ringMat.opacity = 0; }
   private isOpen(e: Enemy) { return e.state === 'stun' || e.state === 'daze' || e.state === 'broken' || e.state === 'air' || e.state === 'down' || e.state === 'held'; }
@@ -379,7 +393,7 @@ export class EnemyManager {
       if (d > range + 1.2 || d < 0.01 || fwd.dot(_v.divideScalar(d)) < 0.2) continue;
       if (Math.random() < e.tune.block && e.guard > 0) {
         this.setState(e, 'block', 0.7);
-        e.rig?.play('block', 1, 0.7);
+        this.react(e, ['block'], 0.7);
         e.dodgeCd = e.tune.dodgeCooldown * 0.6;
       } else if (Math.random() < e.tune.dodgeStrike) {
         this.dodge(e, _w.copy(_v).multiplyScalar(1).add(_u.set(-_v.z, 0, _v.x).multiplyScalar(e.strafeSign * 0.6)).normalize(), 'dodge_back');
@@ -394,7 +408,7 @@ export class EnemyManager {
       // heavies don't sidestep: they raise their guard into your fire (shoot round it, or break it with a heavy)
       if (e.tune.dodgeShot <= 0) {
         if ((e.archetype === 'brute' || e.boss) && e.guard > 0 && Math.random() < e.tune.block * 0.35) {
-          this.setState(e, 'block', 1.1); e.rig?.play('block', 1, 1.1); e.dodgeCd = e.tune.dodgeCooldown * 0.4;
+          this.setState(e, 'block', 1.1); this.react(e, ['block'], 1.1); e.dodgeCd = e.tune.dodgeCooldown * 0.4;
         } else e.dodgeCd = 0.6;
         continue;
       }
@@ -414,7 +428,7 @@ export class EnemyManager {
     this.setState(e, 'dodge', 0.34);
     e.push.copy(dir).setY(0).normalize().multiplyScalar(e.archetype === 'caster' ? 13 : 11);
     e.dodgeCd = e.tune.dodgeCooldown * rand(0.8, 1.3);
-    if (e.rig) e.rig.play(e.rig.has(clip) ? clip : e.rig.has('dodge_left') ? 'dodge_left' : 'dive_roll', 1, 0.4);
+    this.react(e, [clip, 'dodge_left', 'dive_roll'], 0.4);
     this.onDodge?.(e);
   }
 
@@ -449,7 +463,7 @@ export class EnemyManager {
         if (e.guard <= 0) {
           e.guard = 0;
           this.setState(e, 'broken', t.dazeSec);
-          e.rig?.play('recover', 1, t.dazeSec);
+          this.react(e, ['recover', 'hit_heavy'], t.dazeSec);
           out.guardBroken = true;
         } else {
           e.hp -= Math.max(1, Math.round(amount * 0.12));
@@ -520,7 +534,7 @@ export class EnemyManager {
     const winding = e.state === 'windup' || e.state === 'active';
     if (winding && e.poiseAcc >= t.poise) {
       this.setState(e, 'stun', 0.45);
-      e.rig?.play('recover', 0.8, 0.45);
+      this.react(e, ['recover', 'hit'], 0.45, 0.8);
       out.interrupted = true;
     }
 
@@ -529,7 +543,7 @@ export class EnemyManager {
     if (e.stagger >= t.stagger && e.state !== 'broken') {
       e.stagger = 0;
       this.setState(e, 'daze', t.dazeSec);
-      e.rig?.play('recover', 1, t.dazeSec);
+      this.react(e, ['recover', 'hit_heavy'], t.dazeSec);
       out.dazed = true;
       return out;
     }
@@ -549,9 +563,12 @@ export class EnemyManager {
     this.enemies.splice(idx, 1);
     e.mesh.rotation.x = 0;
     // the body falls (mocap collapse / shot-backwards fall) and stays a moment instead of vanishing
-    if (e.rig?.hold(Math.random() < 0.5 ? 'death' : 'death_back')) {
+    const r = this.anim(e);
+    const death = r && (Math.random() < 0.5 ? ['death', 'death_back'] : ['death_back', 'death']).find((n) => r.has(n));
+    if (r && death && r.hold(death)) {
       e.mesh.traverse((o) => { if (o.userData.enemyId !== undefined) o.visible = false; });
-      this.corpses.push({ mesh: e.mesh, rig: e.rig, t: CORPSE_SEC });
+      const rig = e.rig, body = e.body;
+      this.corpses.push({ mesh: e.mesh, tick: (dt) => { if (rig) rig.update(dt, 0); else body?.update(dt, 0); }, t: CORPSE_SEC });
     } else this.group.remove(e.mesh);
     this.onKilled?.(e);
     if (this.auto && this.enemies.length === 0) {
@@ -561,12 +578,12 @@ export class EnemyManager {
   }
 
   /** Fallen enemies: their death clip holds, then they sink and are removed. */
-  private corpses: { mesh: THREE.Object3D; rig: CharacterRig; t: number }[] = [];
+  private corpses: { mesh: THREE.Object3D; tick: (dt: number) => void; t: number }[] = [];
   private updateCorpses(dt: number) {
     for (let i = this.corpses.length - 1; i >= 0; i--) {
       const c = this.corpses[i];
       c.t -= dt;
-      c.rig.update(dt, 0);
+      c.tick(dt);
       if (c.t < 0.8) c.mesh.position.y -= dt * 0.9; // sink away over the last moment
       if (c.t <= 0) { this.group.remove(c.mesh); this.corpses.splice(i, 1); }
     }
