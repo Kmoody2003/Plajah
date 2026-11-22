@@ -433,4 +433,44 @@ export class RhythmEngine {
     osc.start(t);
     osc.stop(t + 0.37);
   }
+  // ── combat cues (combat/melee.ts, enemies.ts): short synth layers over the sampled hits, on the SFX bus ──
+  private blip(type: OscillatorType, f0: number, f1: number, dur: number, gain: number, delay = 0) {
+    if (!this.ctx || !this.master) return;
+    const t = this.ctx.currentTime + delay;
+    const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(f0, t);
+    osc.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(gain, t + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g).connect(this.sfxIn ?? this.master);
+    osc.start(t); osc.stop(t + dur + 0.02);
+  }
+  /** An enemy winds up: a rising whine (higher for ranged, a low growl for a slam) — the tell you dodge on. */
+  playTelegraph(kind: 'melee' | 'bolt' | 'slam' | 'charge' | 'barrage') {
+    if (kind === 'slam') { this.blip('sawtooth', 70, 180, 0.6, 0.12); this.blip('sine', 140, 360, 0.6, 0.08); }
+    else if (kind === 'bolt' || kind === 'barrage') this.blip('triangle', 420, 1300, 0.45, 0.08);
+    else this.blip('square', 240, 620, 0.22, 0.06);
+  }
+  /** A strike swing, light or heavy (whoosh sample + a body thump on a heavy). */
+  playSwing(heavy: boolean) { this.sample('melee', { gain: heavy ? 1 : 0.75, rate: heavy ? 0.8 : 1.1, send: 0.3 }); if (heavy) this.blip('sine', 120, 50, 0.18, 0.2); }
+  /** A melee impact: sample + pitched layer that climbs with the combo count. */
+  playImpact(combo: number, heavy: boolean, perfect: boolean) {
+    this.sample('hit', { gain: heavy ? 0.95 : 0.7, rate: heavy ? 0.85 : 1 + Math.min(combo, 12) * 0.02, send: 0.3 });
+    this.blip(perfect ? 'sawtooth' : 'triangle', (heavy ? 180 : 320) * (1 + Math.min(combo, 16) * 0.035), heavy ? 60 : 120, heavy ? 0.16 : 0.09, perfect ? 0.16 : 0.11);
+  }
+  playBlock() { this.blip('square', 900, 420, 0.07, 0.1); this.blip('triangle', 1800, 900, 0.05, 0.06); }
+  /** Perfect parry: a bright bell chord. */
+  playParry() { for (const [f, d] of [[1046, 0], [1568, 0.01], [2093, 0.02]] as const) this.blip('sine', f, f * 0.98, 0.5, 0.12, d); this.blip('square', 2600, 1200, 0.06, 0.08); }
+  playGuardBreak() { this.blip('sawtooth', 600, 70, 0.35, 0.18); this.sample('hit', { gain: 1, rate: 0.6, send: 0.5 }); }
+  playLaunch() { this.blip('triangle', 200, 900, 0.25, 0.14); }
+  playEvade() { this.blip('sine', 700, 1400, 0.18, 0.08); }
+  playInterrupt() { this.blip('square', 1400, 300, 0.12, 0.1); }
+  /** Soul-Rend: low swell, the tear, the release. */
+  playRend(stage: 0 | 1 | 2) {
+    if (stage === 0) { this.blip('sawtooth', 55, 110, 0.9, 0.16); this.blip('sine', 220, 440, 0.9, 0.06); }
+    else if (stage === 1) { this.sample('melee', { gain: 1, rate: 0.7, send: 0.8 }); this.blip('square', 880, 180, 0.25, 0.1); }
+    else { if (!this.sample('surge', { gain: 1.1, send: 0.9 })) this.blip('sawtooth', 440, 55, 0.5, 0.3); this.sample('kill', { gain: 1, send: 0.8 }); }
+  }
 }

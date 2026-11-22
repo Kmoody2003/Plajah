@@ -144,7 +144,7 @@ export class PlayerController {
       if (e.code === 'KeyV') this.toggleView();
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') this.triggerDash();
       if (e.code === 'KeyQ') this.onSoulSurge?.();
-      if (e.code === 'KeyF' || e.code === 'KeyE') { this.strikeAnim(); this.onStrike?.(); }
+      if (e.code === 'KeyF' || e.code === 'KeyE') { if (!this.onStrike) this.strikeAnim(); this.onStrike?.(); }
       if (e.code === 'KeyR') this.reload();
       if (e.code === 'KeyC') this.crouchToggle = !this.crouchToggle;
       if (e.code === 'Digit1') this.setVessel('aegis');
@@ -267,6 +267,25 @@ export class PlayerController {
   private strikeN = 0;
   /** Melee strikes alternate the motion-captured slashes (leap slash, spin-arc slash). */
   private strikeAnim() { this.faceAimT = FACE_AIM_AFTER; this.rig?.play(this.strikeN++ % 2 ? 'attack_3' : 'attack_1', 0.85); }
+
+  // ── combat hooks (combat/melee.ts drives these: the fighting-game moves, block, lunges, air strings) ──
+  /** 0..1 movement allowed (an attack's recovery / hit-stun slows you), and guarding. */
+  moveLock = 1;
+  blocking = false;
+  private lungeT = 0;
+  private lungeV = new THREE.Vector3();
+  private hangT = 0;
+  /** Travel toward a target over `time` s (an attack's step-in / the dash strike). */
+  lunge(dir: THREE.Vector3, speed: number, time: number) { this.lungeV.copy(dir).setY(0).normalize().multiplyScalar(speed); this.lungeT = time; }
+  /** A hop (follow a launcher up). */
+  hop(vy: number) { this.vy = Math.max(this.vy, vy); this.onGround = false; }
+  /** Hang in the air for `time` s (air strings don't drop you). */
+  airHang(time: number) { this.hangT = Math.max(this.hangT, time); if (this.vy < 0) this.vy = 0; }
+  /** Face the aim for a moment (a strike / a block turns the body). */
+  faceAim(t = FACE_AIM_AFTER) { this.faceAimT = Math.max(this.faceAimT, t); }
+  get grounded() { return this.onGround; }
+  hasClip(name: string) { return !!this.rig?.has(name); }
+  get dashing() { return this.dashTimer > 0; }
 
   /** Magazine size of the current vessel's weapon (trigger pulls). */
   get magSize() { return this.weapon.magSize; }
@@ -485,7 +504,7 @@ export class PlayerController {
         if (input.cycleVesselPressed) this.cycleVessel();
         if (input.dashPressed) this.triggerDash(input.moveX, input.moveY);
         if (input.surgePressed) this.onSoulSurge?.();
-        if (input.strikePressed) { this.strikeAnim(); this.onStrike?.(); }
+        if (input.strikePressed) { if (!this.onStrike) this.strikeAnim(); this.onStrike?.(); }
         wish.addScaledVector(right, input.moveX).addScaledVector(forward, input.moveY);
       }
 
@@ -523,12 +542,16 @@ export class PlayerController {
       if (this.dashRecharge >= DASH_RECHARGE) { this.dashRecharge = 0; this.dashCharges++; }
     }
 
-    if (this.dashTimer > 0) {
+    if (this.lungeT > 0) {
+      this.lungeT -= dt;
+      this.vel.copy(this.lungeV);
+      if (this.lungeT <= 0) this.vel.multiplyScalar(0.25);
+    } else if (this.dashTimer > 0) {
       this.dashTimer -= dt;
       this.vel.copy(this.dashDir).multiplyScalar(this.vessel.dashSpeed);
       if (this.dashTimer <= 0) this.vel.multiplyScalar(DASH_CARRY); // keep the momentum, don't stop dead
     } else {
-      const target = wish.multiplyScalar(this.vessel.moveSpeed * (1 - this.aimBlend * 0.08) * (this.crouched ? 0.45 : 1));
+      const target = wish.multiplyScalar(this.vessel.moveSpeed * (1 - this.aimBlend * 0.08) * (this.crouched ? 0.45 : 1) * this.moveLock * (this.blocking ? 0.45 : 1));
       const moving = wish.lengthSq() > 0;
       if (this.onGround) {
         // Ravencrest / Era Clash: a straight-line change toward the wanted velocity at a fixed rate
@@ -539,7 +562,8 @@ export class PlayerController {
       } else this.vel.lerp(target, Math.min(1, (moving ? AIR_ACCEL : 2) * dt));
     }
 
-    this.vy -= this.vessel.gravity * dt * (this.vy < 0 ? 1.35 : 1); // falls faster than it rises: snappy arcs
+    if (this.hangT > 0) { this.hangT -= dt; this.vy = Math.max(this.vy - this.vessel.gravity * dt * 0.3, -1.5); } // air string hang
+    else this.vy -= this.vessel.gravity * dt * (this.vy < 0 ? 1.35 : 1); // falls faster than it rises: snappy arcs
     // sub-step so a 34 m/s dash can't tunnel through a thin wall (≤ 0.25 m per collision pass)
     const travel = Math.hypot(this.vel.x * dt, this.vy * dt, this.vel.z * dt);
     const steps = this.world ? Math.min(6, Math.max(1, Math.ceil(travel / 0.25))) : 1;

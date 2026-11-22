@@ -17,6 +17,8 @@ import { VESSEL_ORDER, VESSELS, type VesselId } from './vessels';
 import { Tracers, recipe } from './weapons';
 import { UnifiedControls } from './controls';
 import { Targeting } from './targeting';
+import { Melee } from './combat/melee';
+import { COMBAT, DEFAULT_TUNING, applyCombatTuning, initCombatTuning, resetCombatTuning, type Archetype } from './combat/tuning';
 import { PlajahGamesBridge } from './plajahBridge';
 import { VfxSystem, HIT_SPARKS, HIT_PERFECT, KILL_BURST, SHADOW_BURST, SLASH, SLASH_PERFECT, SLASH_SHADOW, BLADE_TRAIL, STREAK_TRAIL } from '../../../services/vfx';
 
@@ -133,6 +135,7 @@ async function boot() {
 
   // a Studio level with rules decides who arrives and how the level ends (studio/rulesHost.ts); else the endless trials run
   const ruled = !!studioLook?.level.rules.some(r => r.enabled);
+  initCombatTuning(); // combat/tuning.ts: the Studio's / a saved override applies before anyone spawns
   const enemies = new EnemyManager(scene, collision, arena.enemySpots, !ruled);
   const targeting = new Targeting(camera, collision);
   let moveAmt = 0; // 0…1 how hard the player is moving (aim assist widens on the run)
@@ -259,9 +262,10 @@ async function boot() {
       endPt = hits[0].point;
       const enemyId = hits[0].object.userData.enemyId as number;
       const dmg = Math.round(baseDmg * (1 + (resonance - 1) * 0.25));
-      const res = enemies.damageEnemy(enemyId, dmg);
+      const res = enemies.damageEnemy(enemyId, dmg, dir, 0, { source: 'shot' });
       if (res) {
         startMatch();
+        melee.onShot(res); // shots interrupt wind-ups, fill the stagger meter, keep launched enemies up
         if (!quiet || res.killed) rhythm.playHit(res.killed);
         if (!quiet) rhythm.playSfx(w.sounds.impact, { gain: 0.55, send: 0.3 });
         showHit(hits[0].point, dmg, res.killed);
@@ -277,6 +281,7 @@ async function boot() {
       }
     }
 
+    enemies.shotFired(origin, dir); // enemies near the line may juke the next shot
     if (!hits.length && worldDist < 120) {
       vfx.spawn(recipe(w.fx.impact), endPt, { dir: [-dir.x, -dir.y, -dir.z], tint: primaryHex, count: 0.7 });
       if (!quiet) rhythm.playSfx(w.sounds.impact, { gain: 0.3, send: 0.5 });
@@ -354,7 +359,7 @@ async function boot() {
       const d = toEnemy.length();
       if (d <= 8.5) {
         if (d > 0.01) toEnemy.divideScalar(d);
-        const res = enemies.damageEnemy(e.id, 45, toEnemy, 3.6);
+        const res = enemies.damageEnemy(e.id, 45, toEnemy, 3.6, { source: 'surge', hitstun: 0.7, guardDmg: 80, launch: 7 });
         if (res?.killed) score += Math.round(125 * resonance);
       }
     }
@@ -395,6 +400,7 @@ async function boot() {
   };
 
   player.onDash = () => {
+    melee.noteDash(); // i-frames; a strike right after is the lunge
     dashTrail.setColor(player.vessel.primaryColor); dashTrail.emitting = true; dashT = 0.32;
     const evalRes = rhythm.evaluateBeat();
     const onBeat = evalRes.quality !== 'OFF';
@@ -409,69 +415,26 @@ async function boot() {
   const reticleEl = document.getElementById('reticle') as HTMLElement | null;
   let lastAim = 0;
 
-  function triggerMeleeStrike() {
-    if (!player.enabled) return;
-    const beat = rhythm.evaluateBeat();
-    const pPos = player.object.position;
-    const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
-    // a strike goes at the target if one is within reach (third person especially: it may not be dead ahead)
-    const mt = targeting.target;
-    if (mt) { const to = mt.mesh.position.clone().sub(pPos).setY(0); if (to.length() < 4.5 && to.length() > 0.2) forward.copy(to.normalize()); }
-    // the strike's crescent, alternating sides; gold on the beat
-    const tint = player.vessel.primaryColor, perfect = beat.quality === 'PERFECT';
-    const chest = pPos.clone().add(new THREE.Vector3(0, 1.15, 0)).addScaledVector(forward, 0.6);
-    vfx.slash(perfect ? SLASH_PERFECT : SLASH, chest, { forward, tilt: strikeFlip ? 0.55 : -0.45, flip: strikeFlip, tint });
-    strikeFlip = !strikeFlip;
-    blade.setColor(perfect ? 0xffd36a : tint, perfect ? 0xff9a2a : tint); blade.emitting = true; bladeT = 0.42;
-
-    let hitAny = false;
-    for (const e of [...enemies.enemies]) {
-    rhythm.playMelee();
-      const toE = new THREE.Vector3().subVectors(e.mesh.position, pPos);
-      toE.y = 0;
-      const dist = toE.length();
-      if (dist > 3.6) continue;
-      if (dist > 0.01) toE.divideScalar(dist);
-      if (forward.dot(toE) < 0.25 && dist > 1.3) continue;
-
-      hitAny = true;
-      if (e.staggered) {
-        // DOOM-meets-Mortal Kombat Soul-Rend Finisher!
-        const ePos = e.mesh.position.clone().setY(e.mesh.position.y + 1.1);
-        const res = enemies.damageEnemy(e.id, e.hp + 999);
-        vfx.slash(SLASH_SHADOW, chest, { forward, tilt: 0.2, flip: !strikeFlip, tint });
-        vfx.spawn(SHADOW_BURST, ePos, { dir: [toE.x, 0.3, toE.z] });
-        if (res?.killed) vfx.spawn(KILL_BURST, ePos, { tint: 0x9b5cff });
-        rhythm.playSurge();
-        player.hp = Math.min(player.maxHp, player.hp + 25);
-        resonance = Math.min(4.0, resonance + 0.6);
-        score += Math.round(180 * resonance);
-        plajah.creditXp(Math.round(30 * resonance), enemies.wave);
-        plajah.unlock('rift_realm_soul_rend');
-        plajah.unlock('rift_realm_first_blood');
-        if (res?.killed && enemies.wave >= 3) plajah.unlock('rift_realm_trial_3');
-        showBeatFeedback('SOUL-REND FINISHER! +25 HP', '#fbbf24');
-        break;
-      } else {
-        const dmg = beat.quality === 'PERFECT' ? 36 : beat.quality === 'GOOD' ? 26 : 16;
-        const ePos = e.mesh.position.clone().setY(e.mesh.position.y + 1.1);
-        const res = enemies.damageEnemy(e.id, dmg, toE, 3.2);
-        vfx.spawn(perfect ? HIT_PERFECT : HIT_SPARKS, ePos, { dir: [-toE.x, 0.25, -toE.z], tint });
-        if (res?.killed) vfx.spawn(KILL_BURST, ePos, { tint });
-        rhythm.playHit(Boolean(res?.killed));
-        if (res?.killed) {
-          score += Math.round(120 * resonance);
-          plajah.creditXp(Math.round(20 * resonance), enemies.wave);
-          plajah.unlock('rift_realm_first_blood');
-        }
-        showBeatFeedback(beat.quality === 'OFF' ? 'MELEE STRIKE' : 'ON-BEAT STRIKE!', '#38bdf8');
-      }
-    }
-
-    if (!hitAny) {
-      rhythm.playDash(false);
-    }
-  }
+  // Close combat (combat/melee.ts): light / heavy chains, guard + perfect parry, launchers, guard breaks, Soul-Rend.
+  const melee = new Melee({
+    player, enemies, vfx, rhythm, targeting, camera,
+    rayDistance: (o, d, m) => collision.rayDistance(o, d, m),
+    resonance: { get: () => resonance, set: (v) => { resonance = v; if (resonance >= 4.0) plajah.unlock('rift_realm_perfect_resonance'); } },
+    addScore: (pts) => { score += pts; },
+    feedback: showBeatFeedback,
+    showHit,
+    onKill: (_e, how) => {
+      plajah.creditXp(Math.round((how === 'rend' ? 30 : 20) * resonance), enemies.wave);
+      plajah.unlock('rift_realm_first_blood');
+      if (how === 'rend') plajah.unlock('rift_realm_soul_rend');
+      if (enemies.wave >= 3) plajah.unlock('rift_realm_trial_3');
+    },
+    onContact: () => { startMatch(); combatT = 0; },
+    onSwing: (tint, perfect) => { blade.setColor(perfect ? 0xffd36a : tint, perfect ? 0xff9a2a : tint); blade.emitting = true; bladeT = 0.42; },
+  });
+  const triggerMeleeStrike = () => { if (player.enabled) melee.light(); };
+  melee.wireEnemyFx(); // enemy tells: wind-up sounds, the slam's shock ring, bolts bursting on walls
+  const camSave = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() }, cinPos = new THREE.Vector3(), cinLook = new THREE.Vector3(), cinM = new THREE.Matrix4(), cinQ = new THREE.Quaternion();
 
   player.onStrike = triggerMeleeStrike;
 
@@ -575,8 +538,11 @@ async function boot() {
     });
   }
   function frame(now: number) {
-    const dt = Math.min(0.05, (now - last) / 1000);
+    const realDt = Math.max(0, Math.min(0.05, (now - last) / 1000));
     last = now;
+    // hit-stop freezes the world for a few frames, a parry / Soul-Rend slows it (combat/melee.ts)
+    melee.update(realDt);
+    const dt = realDt * melee.timeScale;
     trapDamageCooldown = Math.max(0, trapDamageCooldown - dt);
 
     const input = controls.poll(dt);
@@ -589,7 +555,7 @@ async function boot() {
     moveAmt = Math.min(1, Math.hypot(input.moveX, input.moveY) + (['KeyW', 'KeyA', 'KeyS', 'KeyD'].some((k) => player.keys.has(k)) ? 1 : 0));
     targeting.setView(player.firstPerson, (o) => player.chestPos(o)); // each view has its own catch / assist tuning
     if (input.lockPressed && player.enabled) targeting.toggle(enemies.enemies);
-    targeting.update(dt, enemies.enemies, input.lockHeld, player.enabled, moveAmt);
+    targeting.update(realDt, enemies.enemies, input.lockHeld, player.enabled, moveAmt);
     hitMarker.style.left = `${targeting.screenX}px`; hitMarker.style.top = `${targeting.screenY}px`; // hit marks sit on the crosshair
     {
       const tp = targeting.profile;
@@ -625,12 +591,20 @@ async function boot() {
       }
       if (input.firePressed) fireShot();
       if (rules) { rules.start(); rules.update(dt, objectives.heldSeconds, score); }
-      enemies.update(dt, rhythm.pulse, player.object.position, collision, (dmg) => {
-        if (player.downed) return;
+      enemies.playerForward.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+      enemies.playerChest = player.crouched ? 1.0 : 1.3;
+      enemies.update(dt, rhythm.pulse, player.object.position, collision, (_dmg, strike) => {
+        if (player.downed) return 'evaded';
         startMatch();
-        player.hp = Math.max(0, player.hp - dmg);
-        if (player.hp === 0) downPlayer(match.on);
-        else player.takeHit(dmg);
+        combatT = 0;
+        // evade (dash i-frames), block, perfect parry or take it (combat/melee.ts)
+        const { outcome, dmg } = melee.incoming(strike);
+        if (dmg > 0) {
+          player.hp = Math.max(0, player.hp - dmg);
+          if (player.hp === 0) downPlayer(match.on);
+          else if (outcome === 'hit') player.takeHit(dmg);
+        }
+        return outcome;
       });
     }
 
@@ -676,13 +650,43 @@ async function boot() {
     // a kill's shake, applied for this render only (the player controller owns the camera)
     const shk = vfx.shake * 0.06;
     if (shk > 0.001) camera.position.add(shakeV.set((Math.random() - 0.5) * shk, (Math.random() - 0.5) * shk, (Math.random() - 0.5) * shk));
+    // Soul-Rend: a side-on camera beat, for this render only
+    const cinW = melee.cinematic(cinPos, cinLook);
+    if (cinW > 0) {
+      camSave.pos.copy(camera.position); camSave.quat.copy(camera.quaternion);
+      cinQ.setFromRotationMatrix(cinM.lookAt(cinPos, cinLook, THREE.Object3D.DEFAULT_UP));
+      camera.position.lerp(cinPos, cinW); camera.quaternion.slerp(cinQ, cinW);
+    }
     if (post) post.render(); else renderer.render(scene, camera);
+    if (cinW > 0) { camera.position.copy(camSave.pos); camera.quaternion.copy(camSave.quat); }
     if (shk > 0.001) camera.position.sub(shakeV);
     requestAnimationFrame(frame);
   }
 
   if (new URLSearchParams(location.search).has('rrdebug')) {
     (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match, targeting, rhythm };
+    // combat checks: __rr.combat.arena(['rusher', 'caster', 'brute']) clears the field and rings those around you;
+    // .passive(true) freezes their AI; .tune({...}) edits the table live; .state() reads the fight
+    (window as any).__rr.combat = {
+      melee, tuning: COMBAT, defaults: DEFAULT_TUNING, tune: applyCombatTuning, reset: resetCombatTuning,
+      passive: (on = true) => { enemies.passive = on; },
+      arena: (kinds: Archetype[] = ['rusher', 'rusher', 'caster', 'brute'], radius = 9) => {
+        enemies.clear();
+        const pp = player.object.position;
+        kinds.forEach((k, i) => {
+          const a = (i / kinds.length) * Math.PI * 2 + player.yaw + Math.PI;
+          const at = new THREE.Vector3(pp.x + Math.sin(a) * radius, pp.y, pp.z + Math.cos(a) * radius);
+          at.y = collision.groundAt(at.x, at.z, pp.y + 4, 12) ?? pp.y;
+          enemies.spawnAt(at, k);
+        });
+        return enemies.enemies.map((e) => `${e.id}:${e.archetype}`);
+      },
+      light: () => melee.light(), heavy: () => melee.heavy(),
+      state: () => ({
+        combo: melee.combo, chain: melee.chain, move: melee.move?.id ?? null, guard: Math.round(melee.guard), counter: melee.counterT > 0, exec: !!melee.exec, stats: { ...melee.stats }, tokens: enemies.tokenState,
+        enemies: enemies.enemies.map((e) => ({ id: e.id, a: e.archetype, s: e.state, hp: e.hp, air: +e.air.toFixed(2), d: +e.mesh.position.distanceTo(player.object.position).toFixed(1), fin: e.staggered })),
+      }),
+    };
     player.enabled = true;
     overlay.classList.add('hidden');
     // a hidden Browser pane freezes rAF; drive the loop from a timer in that case
