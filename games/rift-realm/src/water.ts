@@ -12,7 +12,7 @@
 // surface, and a per-level palette (cold teal pools, murky green marsh, glowing cyber river).
 import * as THREE from 'three/webgpu';
 import {
-  abs, cameraPosition, clamp, color, length, dot, float, fract, max, min, mix, normalize, positionViewDirection, positionWorld, pow, smoothstep,
+  Fn, abs, cameraPosition, clamp, color, length, dot, float, fract, max, min, mix, normalize, positionViewDirection, positionWorld, pow, reflect, smoothstep,
   texture, time, transformNormalToView, uv, vec2, vec3,
 } from 'three/tsl';
 
@@ -76,16 +76,39 @@ export interface RiftWaterOptions {
   sky?: number; skyAmt?: number;
   /** Base opacity looking straight down (rises to ~0.97 at grazing angles). */
   opacity?: number;
+  /** Strength of the sky mirror (setWaterSky), 0…1.5, default 1. */
+  reflect?: number;
   lowTier?: boolean;
 }
 
 /** The Rift Realm water material (see the header). */
+// ── sky mirror: the water reflects the level's own sky function along the reflected view ray (the aurora, the
+// nebula, the moon) — sharp, full resolution, and it always matches the sky. Levels call setWaterSky(sky.at). ──
+interface Mirror { m: THREE.MeshStandardNodeMaterial; em: N; nW: N; F: N; foam: N; amt: number }
+const mirrors: Mirror[] = [];
+let skyAt: ((dir: N) => N) | null = null;
+function applySky(w: Mirror) {
+  const view: N = normalize(positionWorld.sub(cameraPosition));
+  const r: N = reflect(view, w.nW);
+  const rr: N = normalize(vec3(r.x, max(r.y, float(0.02)), r.z)); // never reflect below the horizon
+  const sky: N = skyAt!(rr);
+  w.m.emissiveNode = w.em.add(sky.mul(w.F.mul(0.92).add(0.06)).mul(float(1).sub(w.foam)).mul(w.amt));
+  w.m.needsUpdate = true;
+}
+/** Give every water surface (made before or after this call) the level's sky to mirror. */
+export function setWaterSky(at: (dir: N) => N) {
+  skyAt = at;
+  for (const w of mirrors) applySky(w);
+}
+
 export function riftWater(o: RiftWaterOptions): THREE.MeshStandardNodeMaterial {
   const lo = !!o.lowTier;
   const m: THREE.MeshStandardNodeMaterial = lo
     ? new THREE.MeshStandardNodeMaterial({ metalness: 0, roughness: 0.05, transparent: true })
     : new THREE.MeshPhysicalNodeMaterial({ metalness: 0, roughness: 0.035, ior: 1.33, specularIntensity: 1, transparent: true });
   m.depthWrite = false;
+  // water is mostly reflection: canopy shadows only dim it a little (full shadows read as dark camouflage blotches)
+  (m as N).receivedShadowNode = Fn(([sh]: [N]) => sh.mul(0.25).add(0.75));
   m.polygonOffset = true; m.polygonOffsetFactor = -1; m.polygonOffsetUnits = -2;
   const tex = rippleTexture();
   const speed = o.speed ?? (o.flow === 'uv' ? 1.6 : 0.25), chop = o.chop ?? 1;
@@ -111,7 +134,8 @@ export function riftWater(o: RiftWaterOptions): THREE.MeshStandardNodeMaterial {
   const nA: N = mix(tA0.xyz, tA1.xyz, wgt).mul(2).sub(1);
   const nB: N = mix(tB0.xyz, tB1.xyz, wgt).mul(2).sub(1);
   const nC: N = tC.xyz.mul(2).sub(1);
-  const choppy = (0.5 + speed * 0.16) * chop;
+  // gentle: at full Apex strength the ripple faces tilted ~45° and read as dark blotches on a forest stream
+  const choppy = (0.5 + speed * 0.16) * chop * 0.4;
   // fine ripples fade with distance (Apex near/mid fade) so far water doesn't sparkle into noise; the swell stays
   const dist: N = length(cameraPosition.sub(positionWorld));
   const nearFade: N = float(1).sub(smoothstep(25, 140, dist).mul(0.75)), midFade: N = float(1).sub(smoothstep(120, 600, dist).mul(0.6));
@@ -126,10 +150,11 @@ export function riftWater(o: RiftWaterOptions): THREE.MeshStandardNodeMaterial {
   const F: N = float(0.02).add(pow(omN, 5).mul(0.98));
 
   // body colour: deep straight down, lit shallow on ripple faces and the swell's crests
-  const hh: N = mix(tA0.w, tA1.w, wgt).mul(tC.w.mul(0.85).add(0.35));
+  const hh: N = mix(tA0.w, tA1.w, wgt).mul(tC.w.mul(0.3).add(0.85)); // the swell only nudges it (it painted dark blotches)
   // ripple faces tilted toward the viewer catch more light: slope magnitude brightens the body, crests lift it
-  const tilt: N = clamp(slope.x.mul(slope.x).add(slope.y.mul(slope.y)).mul(6), 0, 1);
-  let body: N = mix(color(o.deep), color(o.shallow), smoothstep(0.35, 0.95, hh).mul(0.5).add(tilt.mul(0.35)).add(omN.mul(0.2)));
+  const tilt: N = clamp(slope.x.mul(slope.x).add(slope.y.mul(slope.y)).mul(30), 0, 1);
+  // (the ripple height only nudges the colour: at 0.5 it mottled the surface into camouflage blotches)
+  let body: N = mix(color(o.deep), color(o.shallow), smoothstep(0.35, 0.95, hh).mul(0.16).add(tilt.mul(0.3)).add(omN.mul(0.25)));
 
   // foam: banks of a river, the fast crests, a little on still water's highest ripples
   const foamAmt = o.foam ?? (isRiver ? 0.6 : 0.15);
@@ -150,15 +175,24 @@ export function riftWater(o: RiftWaterOptions): THREE.MeshStandardNodeMaterial {
     const glowAmt = o.glowAmt ?? 0.35;
     const crest: N = smoothstep(0.55, 0.82, hh).mul(tilt.mul(0.6).add(0.4));
     // caustics: two height samples drifting against each other, their product sharpened into thin bright webs
-    const c1: N = texture(tex, q.div(3.1).add(vec2(time.mul(0.05), time.mul(0.031)))).w;
-    const c2: N = texture(tex, q.div(2.3).sub(vec2(time.mul(0.037), time.mul(-0.043))).add(0.5)).w;
-    const caustic: N = smoothstep(0.42, 0.62, float(1).sub(abs(c1.sub(c2)).mul(3.2))).mul(ndv);
+    // (fine scale and a thin band: at q/3 with a wide band they lit metre-wide patches → camouflage blotches)
+    const c1: N = texture(tex, q.div(0.9).add(vec2(time.mul(0.11), time.mul(0.07)))).w;
+    const c2: N = texture(tex, q.div(0.7).sub(vec2(time.mul(0.08), time.mul(-0.1))).add(0.5)).w;
+    const caustic: N = smoothstep(0.86, 0.97, float(1).sub(abs(c1.sub(c2)).mul(4))).mul(ndv).mul(float(1).sub(smoothstep(8, 30, dist)));
     em = em.add(color(o.glow).mul(crest.mul(glowAmt).add(caustic.mul(glowAmt * 0.45)).add(glowAmt * 0.04)));
   }
   m.emissiveNode = em;
+  // the mirror uses a calmer normal than the lighting: reflections shimmer, they don't shatter
+  // only the fine ripples, small: the big ripple layer broke the swirly nebula into dark camouflage blobs
+  const rs: N = nB.xy.mul(0.14).mul(nearFade).add(nC.xy.mul(0.05).mul(midFade));
+  const nR: N = normalize(vec3(rs.x, float(1), rs.y));
+  const ndvR: N = clamp(dot(transformNormalToView(nR), positionViewDirection), 0, 1);
+  const FR: N = float(0.02).add(pow(float(1).sub(ndvR), 5).mul(0.98));
+  if (!lo) mirrors.push({ m, em, nW: nR, F: FR, foam, amt: o.reflect ?? 1 });
+  if (skyAt && !lo) applySky(mirrors[mirrors.length - 1]);
 
   // opacity: see into it looking down, a mirror at grazing angles; foam is opaque
-  const op = o.opacity ?? 0.72;
+  const op = o.opacity ?? (isRiver ? 0.86 : 0.78);
   m.opacityNode = clamp(float(op).add(F.mul(0.6)).add(foam.mul(0.4)), 0, 0.97);
   return m;
 }

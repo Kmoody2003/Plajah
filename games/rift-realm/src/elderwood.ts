@@ -28,6 +28,7 @@ import { GrassField } from '../../../services/vegetation/grass/field';
 import { CYBER_FOREST_GRASS } from '../../../services/vegetation/catalog/cyberForestGrass';
 import { PlantField, type PlantSpot } from '../../../services/vegetation/plants/field';
 import { nebulaSky } from './nebulaSky';
+import { setWaterSky } from './water';
 import { riftWater, riftWaterfall } from './water';
 import { CF_VINE, CYBER_FOREST_PLANTS } from '../../../services/vegetation/catalog/cyberForestPlants';
 import { FungusField, type FungusSpot } from '../../../services/vegetation/fungi/field';
@@ -477,8 +478,8 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   // water (water.ts: the Apex water in TSL): a still, cold-teal pool with bioluminescent crests and caustics, and a
   // flowing river variant for the streams (also the open world's rivers via mats.river)
   const waterMat = riftWater({ deep: 0x03161b, shallow: 0x0f4a52, glow: 0x3ff0ff, glowAmt: 0.32, flow: 'still', speed: 0.22, opacity: 0.74, lowTier: lo });
-  const riverMat = riftWater({ deep: 0x05202a, shallow: 0x1a6670, glow: 0x5ff4ff, glowAmt: 0.28, flow: 'uv', speed: 1.8, uvMetres: 6, width: 14, opacity: 0.8, lowTier: lo });
-  const streamMat = riftWater({ deep: 0x05202a, shallow: 0x1a6670, glow: 0x5ff4ff, glowAmt: 0.3, flow: 'uv', speed: 1.4, uvMetres: 7, width: 2.6, opacity: 0.8, lowTier: lo });
+  const riverMat = riftWater({ deep: 0x05202a, shallow: 0x1a6670, glow: 0x5ff4ff, glowAmt: 0.28, flow: 'uv', speed: 1.8, uvMetres: 6, width: 14, opacity: 0.9, lowTier: lo });
+  const streamMat = riftWater({ deep: 0x05202a, shallow: 0x1a6670, glow: 0x5ff4ff, glowAmt: 0.3, flow: 'uv', speed: 1.4, uvMetres: 7, width: 2.6, opacity: 0.88, lowTier: lo });
   {
     const pool = new THREE.Mesh(new THREE.CircleGeometry(11.2, 48), waterMat);
     pool.rotation.x = -Math.PI / 2; pool.position.set(POOL.x, -3.2, POOL.z); group.add(pool);
@@ -771,6 +772,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   // the environment (baked in prepare(): reflections + image light) and the source of the aurora's coloured lights.
   const sky = nebulaSky({ moonDir: moon.position.clone().normalize(), auroraAz: [0.7, -2.3], beat: uBeatPulse });
   sky.apply(scene);
+  setWaterSky(sky.at); // every pool, stream and river mirrors the aurora sky
   const auroraLights = sky.lights(group);
   let skyT = 0;
   const FOG = W ? W.fogDensity : 0.0085;

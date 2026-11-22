@@ -22,7 +22,8 @@ function wetMask(amount: number): N {
   // big wandering wet zones + smaller blotches
   const big: N = mx_noise_float(p.mul(0.045)).mul(0.5).add(0.5);
   const small: N = mx_noise_float(p.mul(0.32).add(17.3)).mul(0.5).add(0.5);
-  const zones: N = smoothstep(float(0.38), float(0.72), big.mul(0.65).add(small.mul(0.35)));
+  // soft, large patches (small hard-edged ones read as camouflage, especially through river water)
+  const zones: N = smoothstep(float(0.3), float(0.85), big.mul(0.82).add(small.mul(0.18)));
   // flat ground holds water (puddle shine), walls and trunks stay damp
   const up: N = smoothstep(float(0.55), float(0.95), normalWorld.y);
   return float(amount * 0.45).add(zones.mul(amount * 0.55)).add(up.mul(zones).mul(0.35)).min(1);
@@ -44,7 +45,7 @@ export function wetten(root: THREE.Object3D, o: WetOptions = {}): number {
       const wet: N = wetMask(amount);
       const col: N = m.colorNode ?? materialColor;
       const rough: N = m.roughnessNode ?? materialRoughness;
-      m.colorNode = col.mul(float(1).sub(wet.mul(0.28)));                // wet darkens
+      m.colorNode = col.mul(float(1).sub(wet.mul(0.2)));                // wet darkens
       m.roughnessNode = mix(rough, rough.mul(0.22).max(0.06), wet);     // and shines
       m.needsUpdate = true;
       n++;

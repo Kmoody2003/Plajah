@@ -117,7 +117,9 @@ export function nebulaSky(o: NebulaSkyOptions) {
     const dir: N = normalize(vec3(d.x, max(d.y, float(0.05)), d.z));
     return fog((pmremTexture(env as N, dir, float(0.55)) as N).mul(k), densityFogFactor(float(density)));
   };
-  return { node, apply, bakeEnvironment, lights, fogNode, horizon: new THREE.Color(0x0f3038) };
+  /** The sky's colour in any world direction (water reflects it: setWaterSky(sky.at)). */
+  const at = (d: N): N => sky(d);
+  return { node, at, apply, bakeEnvironment, lights, fogNode, horizon: new THREE.Color(0x0f3038) };
 }
 
 /** 1 for roughly 0.3% of cells (the stars). */
