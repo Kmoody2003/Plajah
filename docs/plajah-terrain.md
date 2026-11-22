@@ -112,6 +112,17 @@ on the GPU (so worlds can erode on the device), and scoring the Gorge / Glowcap 
 (`scripts/riftrealm/wilds_depth.py`) with erosion on, before making it the default. The play server on 4358 needs a
 restart to serve the new `.ptrs` file.
 
+**Phase 4 done (2026-11-22):** `material.ts` paints the ground from a level's layer stack: each layer is a look
+(colour, roughness, glow) plus a rule of smoothstep ranges over steepness (`up` = |normal.y|), height and — with an
+erosion bake — wetness, flow and fresh sediment (`wet`, `flow`, `dep`), mixed in order. Map layers drop out when no bake
+is loaded, so a level looks exactly as before without one. Rift Realm's ground (`world/terrain.ts` `terrainMaterial`)
+is now only layers: moss (with its glow) · wet moss · scree · rock · channel mud · waterline mud; the blend code is the
+service's. Thresholds from the bake's percentiles (wet top ~8 %, channels top ~4 %). Rendered check, plain vs
+`?erosion=1`: `docs/plajah-terrain/wilds-material-phase4.jpg` (gullies and a scree fan on the mountain, notched Gorge rim).
+Known limit: chunks beyond 480 m are meshed at 12.5 m, so gullies fade on far mountains; a normal map baked from the
+eroded 2 m heights would keep them (next step for this phase, not done). Not yet seen in the real game with its
+lighting and fog.
+
 Order matters: 1 is pure refactor and unlocks everything; 3 (erosion) is the biggest visual jump; 5 is where it becomes
 "a living ecosystem".
 

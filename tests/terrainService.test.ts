@@ -199,3 +199,22 @@ test('a raster node adds a baked layer to the graph', () => {
   assert.ok(validateGraph(g).some((s) => s.includes('no raster')));
   assert.equal(compileGraph(g, {}, { d: delta })(4, 2), 5);
 });
+
+// ── phase 4: the ground material painted by the land ────────────────────────────────────────────────────────────────
+test('splat material: map-only layers drop out without a bake; map textures hold the grid', async () => {
+  const { activeLayers, mapTexture, terrainSplatMaterial } = await import('../services/terrain/material');
+  const L = [{ name: 'base', color: () => 0 }, { name: 'wet', needsMaps: true, color: () => 0 }, { name: 'rock', color: () => 0, where: { up: [0.78, 0.6] as [number, number] } }];
+  assert.deepEqual(activeLayers(L, false).map((l) => l.name), ['base', 'rock']);
+  assert.deepEqual(activeLayers(L, true).map((l) => l.name), ['base', 'wet', 'rock']);
+  const g = new HeightGrid(0, 0, 4, 1, (x, z) => (x + z) / 8);
+  const t = mapTexture(g);
+  assert.equal(t.image.width, 5);
+  assert.equal((t.image.data as Uint8Array)[4 + 4 * 5], 255);
+  assert.equal((t.image.data as Uint8Array)[0], 0);
+  const { vec3 } = await import('three/tsl');
+  const plain = terrainSplatMaterial({ layers: [{ name: 'a', color: () => vec3(1, 0, 0) }, { name: 'b', needsMaps: true, color: () => vec3(0, 1, 0), roughness: 0.5, where: { wet: [0.5, 0.8] } }] });
+  assert.equal(plain.hasMaps, false); assert.deepEqual(plain.layers, ['a']); assert.equal(plain.material.roughnessNode, null);
+  const withMaps = terrainSplatMaterial({ maps: { wetness: g }, layers: [{ name: 'a', color: () => vec3(1, 0, 0) }, { name: 'b', needsMaps: true, color: () => vec3(0, 1, 0), roughness: 0.5, where: { wet: [0.5, 0.8] } }] });
+  assert.equal(withMaps.hasMaps, true); assert.deepEqual(withMaps.layers, ['a', 'b']); assert.ok(withMaps.material.roughnessNode);
+  plain.dispose(); withMaps.dispose();
+});

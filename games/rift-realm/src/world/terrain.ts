@@ -9,6 +9,7 @@ import { ColumnGrid, HeightField, type TerrainField } from '../../../../services
 import { TerrainChunks as ServiceChunks } from '../../../../services/terrain/chunks';
 import { compileGraph, type TerrainGraph } from '../../../../services/terrain/graph';
 import { loadRaster, type DecodedRaster } from '../../../../services/terrain/raster';
+import { terrainSplatMaterial, type TerrainLayer } from '../../../../services/terrain/material';
 import { art } from '../cyberforest';
 import { pbr } from '../textures';
 import { CAVES, CAVE_CIRCLES, HALF, MESH_HOLES, worldHeight } from './layout';
@@ -75,11 +76,11 @@ export class WorldTerrain extends HeightField implements TerrainField {
   trunksNear(x: number, z: number, r: number) { return this.trunks.near(x, z, r); }
 }
 
-// ── the ground material: the hollow's moss on the flats, rock on the slopes and cliffs, mud by the water ──────────
+// ── the ground material: the hollow's moss on the flats, rock on the slopes and cliffs, mud by the water; with the
+// erosion bake loaded (?erosion=1) also wet moss where water gathers, scree on the fans below cliffs and dark mud in the
+// drainage channels. The blending is the terrain service's (services/terrain/material.ts); this is only the look.
 export function terrainMaterial(beat: { value: number }) {
   const mossA = art('moss_cable_albedo.jpg', true, true), mossB = art('moss_strand_albedo.jpg', true, true), mossG = art('moss_glow_albedo.jpg', true, true);
-  const m = new THREE.MeshStandardNodeMaterial({ roughness: 0.95, normalMap: art('moss_cable_normal.jpg', false, true) });
-  m.normalScale.set(0.8, 0.8);
   const rockSet = pbr('volc-rock', { maps: ['normal', 'roughness'], tint: 0x8a9488, normalScale: 1.3 }) as THREE.MeshStandardNodeMaterial;
   const rockMap = rockSet.map ?? null;
   const wp = positionWorld.xz;
@@ -90,20 +91,28 @@ export function terrainMaterial(beat: { value: number }) {
   const lum = a.dot(vec3(0.3, 0.5, 0.2));
   const moss = mix(base, a.mul(0.6), smoothstep(float(0.62), float(0.8), k).mul(smoothstep(float(0.6), float(0.2), lum))).mul(vec3(0.4, 0.58, 0.36));
   // rock: side-projected on the steep faces (x/z planes by the normal), grey-green
-  const ny = normalWorld.y.abs();
   const rx = rockMap ? tslTexture(rockMap, positionWorld.zy.mul(1 / 7)).rgb : vec3(0.35);
   const rz = rockMap ? tslTexture(rockMap, positionWorld.xy.mul(1 / 7)).rgb : vec3(0.35);
   // grey-green stone: the rock sheet's luminance only (its lava-orange cracks belong to the volcanic level)
   const rl = mix(rx, rz, normalWorld.z.abs().div(normalWorld.x.abs().add(normalWorld.z.abs()).add(0.001))).dot(vec3(0.3, 0.55, 0.15));
   const rock = vec3(rl).mul(vec3(0.5, 0.6, 0.55));
-  const steep = smoothstep(float(0.78), float(0.6), ny);
-  // mud at the waterline and in the vale's wet ground
-  const wet = smoothstep(float(-47.6), float(-48.8), positionWorld.y);
-  m.colorNode = mix(mix(moss, rock, steep), vec3(0.09, 0.1, 0.08), wet.mul(0.7));
+  // scree: loose stone on the fans, top-projected so it reads on gentle slopes
+  const sl = rockMap ? tslTexture(rockMap, wp.mul(1 / 3.5)).rgb.dot(vec3(0.3, 0.55, 0.15)) : float(0.35);
+  const scree = vec3(sl).mul(vec3(0.6, 0.66, 0.6)).mul(k2.mul(0.35).add(0.8));
   const cyan = color(0x2ae6ff), uB = uniform(0);
-  m.emissiveNode = g.mul(smoothstep(float(0.6), float(0.9), g.g)).mul(cyan).mul(smoothstep(float(0.25), float(0.75), k).mul(0.8).add(0.2))
-    .mul(float(0.12).add(uB.mul(0.1))).mul(float(1).sub(steep));
-  return { material: m, setBeat: () => { uB.value = beat.value; } };
+  const glow = g.mul(smoothstep(float(0.6), float(0.9), g.g)).mul(cyan).mul(smoothstep(float(0.25), float(0.75), k).mul(0.8).add(0.2)).mul(float(0.12).add(uB.mul(0.1)));
+  const none = () => vec3(0);
+  const layers: TerrainLayer[] = [
+    { name: 'moss', color: () => moss, emissive: () => glow },
+    { name: 'wet moss', needsMaps: true, color: () => moss.mul(vec3(0.62, 0.8, 0.74)), roughness: 0.72, where: { wet: [0.62, 0.8], strength: 0.85 } },
+    { name: 'scree', needsMaps: true, color: () => scree, roughness: 0.9, emissive: none, where: { dep: [0.12, 0.45], up: [0.995, 0.9], strength: 0.9 } },
+    { name: 'rock', color: () => rock, emissive: none, where: { up: [0.78, 0.6] } },
+    { name: 'channel mud', needsMaps: true, color: () => vec3(0.06, 0.075, 0.06), roughness: 0.55, emissive: none, where: { flow: [0.33, 0.45], strength: 0.75 } },
+    // mud at the waterline and in the vale's wet ground
+    { name: 'waterline mud', color: () => vec3(0.09, 0.1, 0.08), where: { height: [-47.6, -48.8], strength: 0.7 } },
+  ];
+  const t = terrainSplatMaterial({ layers, maps: wildsMaps(), normalMap: art('moss_cable_normal.jpg', false, true), normalScale: 0.8, roughness: 0.95 });
+  return { material: t.material, layers: t.layers, setBeat: () => { uB.value = beat.value; } };
 }
 
 // ── streamed chunks ────────────────────────────────────────────────────────────────────────────────────────────────
