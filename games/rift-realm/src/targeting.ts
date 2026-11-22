@@ -25,6 +25,11 @@ export class Targeting {
   private lockOn = false;
   private lostT = 0;
   private heldLock = false;
+  /** Where the crosshair sits, in normalised screen coords (-1…1). It glides onto the enemy you're aiming at
+   *  (all the way onto a locked one) and back to the centre when there's none; shots go exactly through it. */
+  aimX = 0; aimY = 0;
+  /** The crosshair's position in CSS pixels (for anything drawn on it, e.g. hit markers). */
+  screenX = window.innerWidth / 2; screenY = window.innerHeight / 2;
   private hud: HTMLDivElement;
   private label: HTMLDivElement;
   private bar: HTMLDivElement;
@@ -78,8 +83,8 @@ export class Targeting {
 
   release() { this.lockOn = false; this.locked = null; }
 
-  update(dt: number, enemies: Enemy[], held = false, active = true) {
-    if (!active) { this.hide(); return; }
+  update(dt: number, enemies: Enemy[], held = false, active = true, moving = 0) {
+    if (!active) { this.hide(); this.aimX = this.aimY = 0; this.placeReticle(); return; }
     this.camera.updateMatrixWorld();
     this.soft = this.pick(enemies, null);
     // LT held behaves like a lock for as long as it's held
@@ -92,17 +97,35 @@ export class Targeting {
       else this.lostT = 0;
       if (!this.locked) this.lockOn = false;
     }
+    // the crosshair glides onto the target (soft: most of the way, more on the run; locked: onto it)
+    let gx = 0, gy = 0;
+    const t = this.target;
+    if (t) {
+      const p = this.aimPoint(t, this.v).project(this.camera);
+      if (p.z < 1 && Math.abs(p.x) < 1.1 && Math.abs(p.y) < 1.1) {
+        const k = this.locked ? 1 : Math.min(1, 0.8 + moving * 0.2);
+        gx = p.x * k; gy = p.y * k;
+      }
+    }
+    const a = 1 - Math.exp(-dt * (this.locked ? 18 : 12));
+    this.aimX += (gx - this.aimX) * a; this.aimY += (gy - this.aimY) * a;
+    this.placeReticle();
     this.draw();
   }
 
-  /** Bend a shot direction toward the target (aim assist). `moving` 0…1 widens the help on the run. */
-  assist(origin: THREE.Vector3, dir: THREE.Vector3, moving: number) {
-    const t = this.target;
-    if (!t) return dir;
-    const to = this.aimPoint(t, this.v).sub(origin).normalize();
-    // locked: straight at it; soft: a strong pull if it's close to the crosshair already
-    const k = this.locked ? 1 : THREE.MathUtils.clamp(0.55 + moving * 0.35, 0, 0.9);
-    return dir.lerp(to, k).normalize();
+  private placeReticle() {
+    this.screenX = (this.aimX * 0.5 + 0.5) * window.innerWidth;
+    this.screenY = (-this.aimY * 0.5 + 0.5) * window.innerHeight;
+    if (this.reticle) { this.reticle.style.left = `${this.screenX}px`; this.reticle.style.top = `${this.screenY}px`; }
+  }
+
+  /** Aim the shot through the crosshair (which sits on the target when there is one): what you see is where it goes.
+   *  A locked target is hit dead centre. `moving` is kept for callers; the crosshair already leans more on the run. */
+  assist(origin: THREE.Vector3, dir: THREE.Vector3, _moving = 0) {
+    if (this.locked) return dir.copy(this.aimPoint(this.locked, this.v).sub(origin).normalize());
+    if (Math.abs(this.aimX) < 1e-4 && Math.abs(this.aimY) < 1e-4) return dir;
+    this.v.set(this.aimX, this.aimY, 0.5).unproject(this.camera);
+    return dir.copy(this.v.sub(origin).normalize());
   }
 
   /** Best enemy near the crosshair. `within` = catch radius override (screen units), null = the soft-target rule. */

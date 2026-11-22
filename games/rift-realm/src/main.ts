@@ -535,7 +535,8 @@ async function boot() {
     // targeting: soft target under the crosshair, lock-on follows its enemy (the view turns to it while you move)
     moveAmt = Math.min(1, Math.hypot(input.moveX, input.moveY) + (['KeyW', 'KeyA', 'KeyS', 'KeyD'].some((k) => player.keys.has(k)) ? 1 : 0));
     if (input.lockPressed && player.enabled) targeting.toggle(enemies.enemies);
-    targeting.update(dt, enemies.enemies, input.lockHeld, player.enabled);
+    targeting.update(dt, enemies.enemies, input.lockHeld, player.enabled, moveAmt);
+    hitMarker.style.left = `${targeting.screenX}px`; hitMarker.style.top = `${targeting.screenY}px`; // hit marks sit on the crosshair
     if (targeting.locked) player.aimAt(targeting.aimPoint(targeting.locked), dt);
     player.aiming = targeting.isLocked || input.aimHeld; // right mouse / LT holds aim down sights
     player.update(dt, rhythm.pulse, input);
