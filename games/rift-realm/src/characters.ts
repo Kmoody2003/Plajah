@@ -17,7 +17,7 @@
 //     locomotion  idle, combat_idle (video); walk, walk_back, run, run_back, sprint (CMU gait cycles; blended by
 //                 update(), each played at ground speed ÷ its own speed)
 //     movement    jump, land (hard), land_soft, rise, dash, dodge_back, wing_hover (+ the CMU moves below)
-//     guns        aim_idle (= rifle_aim), rifle_aim, shoot, pistol_aim, pistol_shoot, throw
+//     guns        aim_idle (= rifle_aim, CMU gun hold), shoot, pistol_aim, pistol_shoot, throw, draw
 //                 (upper-body masked copies play over the legs while moving: see UPPER)
 //     melee       light_1 → light_2 → light_3 (light chain), heavy_1 → heavy_2 → heavy_3 (heavy chain, 3 = launcher),
 //                 attack_1 / attack_2 / attack_3 (the original F-strike / flourish / spin-arc names), block

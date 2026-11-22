@@ -190,35 +190,6 @@
       "note": "Assassin arm thrust as the disc bursts (one-hand shot recoil)"
     },
     {
-      "name": "rifle_aim",
-      "video": "abf39cd6",
-      "from": 8.1,
-      "to": 9.05,
-      "loop": {
-        "minSec": 0.5,
-        "blend": 5
-      },
-      "note": "Robot Paladin two-hand lance levelled at the target, beam firing"
-    },
-    {
-      "name": "aim_idle",
-      "video": "abf39cd6",
-      "from": 8.1,
-      "to": 9.05,
-      "loop": {
-        "minSec": 0.5,
-        "blend": 5
-      },
-      "note": "same as rifle_aim (the gun stance CharacterRig idles in)"
-    },
-    {
-      "name": "shoot",
-      "video": "abf39cd6",
-      "from": 7.85,
-      "to": 8.4,
-      "note": "Robot Paladin lance recoil as the beam fires"
-    },
-    {
       "name": "throw",
       "video": "a9340b37",
       "from": 7.0,
@@ -378,6 +349,37 @@
         "minSec": 0.5
       },
       "note": "CMU 09_01 run (fast)"
+    },
+    {
+      "name": "aim_idle",
+      "cmu": "139_05",
+      "from": 1.45,
+      "to": 2.85,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.6,
+        "blend": 6
+      },
+      "note": "CMU 139_05 pulling a gun: the steady hold after the draw, hand raised in front at shoulder height (replaces the hunched lance aim)"
+    },
+    {
+      "name": "rifle_aim",
+      "cmu": "139_05",
+      "from": 1.45,
+      "to": 2.85,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.6,
+        "blend": 6
+      },
+      "note": "same hold as aim_idle (no two-handed rifle hold in the local CMU library)"
+    },
+    {
+      "name": "shoot",
+      "video": "a9340b37",
+      "from": 6.5,
+      "to": 6.95,
+      "note": "Assassin arm thrust as the disc bursts (one-hand shot recoil; replaces the hunched lance recoil)"
     }
   ]
 }

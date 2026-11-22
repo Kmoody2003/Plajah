@@ -53,7 +53,7 @@ executing combo, a9340b37 Assassin high-agility, e5f8c560 Assassin shadow combat
 | finisher / finisher_2 | b230aae3 4.55–5.6 / 566a3ead 6.4–8.6 | poor / poor (63% hidden) | |
 | block | abf39cd6 5.2–6.5s (Paladin's shield wall) | poor | |
 | pistol_aim / pistol_shoot | a9340b37 5.3–6.5 / 6.5–6.95 (arm locked out at target) | poor | |
-| rifle_aim = aim_idle / shoot | abf39cd6 8.1–9.05 / 7.85–8.4 (Paladin's lance levelled, beam firing) | poor (36% hidden) | |
+| shoot | a9340b37 6.5–6.95s (Assassin's arm thrust; replaced the Paladin's hunched lance recoil) | poor | |
 | throw | a9340b37 7.0–7.95s | poor (9.4) | |
 | wing_hover | 888b0e94 4.25–5.45s | usable (4.5) | |
 
@@ -81,6 +81,7 @@ EIA-0196217)". `source.<clip>.cmu` names the take. The bake retargets it onto th
 | dive_roll | 127_23 0.45–2.6 s | dive over, roll, up |
 | slide | 134_01 1.3–2.6 s | duck under at a run (the local library has no true slide) |
 | draw | 139_05 0.25–2.0 s | pulling a gun |
+| aim_idle = rifle_aim | 139_05 1.45–2.85 s, looped | the steady hold after the draw, hand raised at shoulder height. Replaced the Paladin's lance aim, which leaned the standing stance 47° forward (now 10–22°). One-handed: there's no two-handed rifle hold in the local CMU library |
 | death / get_up | 88_04 8.0–9.1 / 8.9–10.0 s | a flip that ends on the floor; getting up |
 
 ## Rig: Character Forge
