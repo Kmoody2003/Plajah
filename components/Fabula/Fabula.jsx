@@ -47,6 +47,7 @@ import { createPortal } from "react-dom";
 import CaptionsWorkbench from "./captions/CaptionsWorkbench";
 import CaptionSafePreview from "./captions/CaptionSafePreview";
 import { cuesOfTrack } from "./captions/captionClips";
+import { isMpeg2Source, MPEG2_PRESETS, mpeg2Preset } from "../../services/fabula/mpeg2";
 import { probeMediaDuration, hasRealDuration, sourceLimit, reconcileClipDurations, clampWindow } from "../../services/fabula/mediaDuration";
 import KeyboardShortcutsEditor from "./KeyboardShortcutsEditor";
 import { loadShortcutPrefs } from "../../services/fabula/shortcuts";
@@ -748,6 +749,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   //    done-list you can come back to. deliverRange picks what a new job covers. ──
   const [deliverRange, setDeliverRange] = useState("all"); // all | inout | markers
   const [renderQueue, setRenderQueue] = useState([]);      // {id,kind,label,t0,t1,status,pct}
+  const [mpeg2PresetId, setMpeg2PresetId] = useState(() => { try { return localStorage.getItem("fabula:mpeg2preset") || "dvd-ntsc"; } catch { return "dvd-ntsc"; } });
   const [queueRunning, setQueueRunning] = useState(false);
   const queueAbortRef = useRef(false);
   const [editWs, setEditWs] = useState("edit");     // resolve-style workspace: media|edit|script|vfx|color|audio|deliver
@@ -2167,13 +2169,16 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     const added = [];
     for (const { file: f, handle } of entries) {
       const isLottie = /\.(lottie)$/i.test(f.name) || (/\.json$/i.test(f.name)) || f.type === "application/json";
-      const type = isLottie ? "lottie" : f.type.startsWith("video") ? "video" : f.type.startsWith("audio") ? "audio" : "image";
+      const mpeg2 = !isLottie && isMpeg2Source(f.name, f.type);
+      // MPEG-2 often arrives with an empty / odd MIME on Windows (.m2ts, .mod, .mxf) — it is video.
+      const type = isLottie ? "lottie" : (mpeg2 || f.type.startsWith("video")) ? "video" : f.type.startsWith("audio") ? "audio" : "image";
       const id = uid();
       if (handle) { try { await idbSet(studioKey("studio:handle:" + id), handle); } catch { /* handle not persistable here */ } }
       const blobUrl = URL.createObjectURL(f);
-      addAssetToPool({ id, name: f.name, type, url: blobUrl, duration: type === "image" ? 0 : 5, durProbed: type === "image", session: true, bin: "imports", ...(handle ? { localFileHandle: true } : {}) });
+      addAssetToPool({ id, name: f.name, type, url: blobUrl, duration: type === "image" ? 0 : 5, durProbed: type === "image", session: true, bin: "imports", ...(handle ? { localFileHandle: true } : {}), ...(mpeg2 ? { conforming: { pct: 0, line: "Queued" } } : {}) });
       stSet("studio:blob:" + id, f); // local fallback + cloud-sync source (the bytes are already in hand — never a re-download)
-      added.push({ id, f, type });
+      added.push({ id, f, type, mpeg2 });
+      if (mpeg2) { queueMpeg2Conform(id, f); continue; } // no browser can decode it — conform first
       // REAL length straight from the container header (instant for a local file). Clips placed
       // before this lands carry durAuto and snap to it — no more 5 s placeholder clips.
       if (type === "video" || type === "audio") probeMediaDuration(blobUrl, type).then((d) => {
@@ -2186,8 +2191,8 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     }
     // Crossover: probe real duration + browser-compatibility (client-side, instant),
     // replacing the old hardcoded 5s guess and flagging formats that won't decode.
-    for (const { id, f, type } of added) {
-      if (type === "lottie") continue; // vector animation — nothing to probe
+    for (const { id, f, type, mpeg2 } of added) {
+      if (type === "lottie" || mpeg2) continue; // vector animation — nothing to probe; MPEG-2 is measured after conform
       try {
         const probe = await crossover.probe({ id, name: f.name, kind: type, sizeBytes: f.size, file: f });
         const dur = probe.durationSec && isFinite(probe.durationSec) ? probe.durationSec : undefined;
@@ -2204,6 +2209,44 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
         if (incompatible) ping(`"${f.name}" may not play/render in-browser — hit CONVERT on it to transcode via Crossover.`);
       } catch { /* probe is best-effort */ }
     }
+  };
+  /* ----- MPEG-2 conform (services/fabula/mpeg2) -----
+     Browsers can't decode MPEG-2, so each MPEG-2 import gets ONE full-resolution H.264 working copy
+     (deinterlaced, square pixels). It becomes the asset's media — playback, proxies, render and
+     cloud sync all use it — while the original file is kept on this device (studio:orig:<id>).
+     Jobs run one at a time on the desktop ffmpeg or the in-browser codec pack. */
+  const conformChainRef = useRef(Promise.resolve());
+  const queueMpeg2Conform = (id, file) => {
+    conformChainRef.current = conformChainRef.current.then(async () => {
+      const setState = (st) => updateProd((p) => { const a = p.mediaPool.find((x) => x.id === id); if (a) { if (st) a.conforming = st; else delete a.conforming; } });
+      try {
+        const { conformMpeg2 } = await import("../../services/fabula/mpeg2Run");
+        let last = -1, lastLine = "";
+        const res = await conformMpeg2(file, (pr) => {
+          const pct = Math.round((pr.progress || 0) * 100);
+          const line = (pr.line || "Conforming").replace(/ · .*$/, "");
+          if (pct !== last || line !== lastLine) { last = pct; lastLine = line; setState({ pct, line }); } // one project write per % step
+        });
+        try { await stSet("studio:orig:" + id, file); } catch { /* original stays reachable via its disk handle */ }
+        await stSet("studio:blob:" + id, res.blob);
+        const url = URL.createObjectURL(res.blob);
+        const dur = await probeMediaDuration(url, "video");
+        updateProd((p) => {
+          const a = p.mediaPool.find((x) => x.id === id); if (!a) return;
+          a.url = url; delete a.conforming; delete a.needsConversion;
+          // The disk handle points at the MPEG-2 original; playback must read the working copy.
+          if (a.localFileHandle) { delete a.localFileHandle; a.origHandle = true; }
+          a.conformedFrom = { codec: "mpeg2", name: file.name, size: file.size, engine: res.engine, ...(res.source || {}) };
+          if (res.source?.width) { a.sourceWidth = res.source.width; a.sourceHeight = res.source.height; }
+          if (dur) { a.duration = dur; a.durProbed = true; }
+        });
+        ping(`"${file.name}" conformed from MPEG-2 — ready to edit (original kept).`);
+      } catch (e) {
+        setState(null);
+        updateProd((p) => { const a = p.mediaPool.find((x) => x.id === id); if (a) a.needsConversion = true; });
+        ping(`Couldn't conform "${file.name}": ${e?.message || e}`);
+      }
+    });
   };
   const handleUpload = async (e) => {
     const files = Array.from(e.target.files || []);
@@ -4914,11 +4957,13 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
   };
   const addToQueue = (kind) => {
     if (!clips.length) { ping("Nothing on the timeline to queue."); return; }
-    const spans = kind === "mp4" ? queueSpans() : [{ t0: 0, t1: seqEnd, tag: "ALL" }]; // interchange = whole cut
+    const rendered = kind === "mp4" || kind === "mpeg2";
+    const spans = rendered ? queueSpans() : [{ t0: 0, t1: seqEnd, tag: "ALL" }]; // interchange = whole cut
     const base = (container?.title || "Fabula Cut").trim();
+    const preset = kind === "mpeg2" ? mpeg2Preset(mpeg2PresetId) : null;
     const jobs = spans.map((sp) => ({
-      id: uid(), kind, t0: sp.t0, t1: sp.t1, status: "queued", pct: 0,
-      label: `${base} · ${kind.toUpperCase()}${sp.tag !== "ALL" ? ` · ${sp.tag}` : ""}`,
+      id: uid(), kind, t0: sp.t0, t1: sp.t1, status: "queued", pct: 0, ...(preset ? { preset: preset.id } : {}),
+      label: `${base} · ${preset ? preset.label : kind.toUpperCase()}${sp.tag !== "ALL" ? ` · ${sp.tag}` : ""}`,
     }));
     setRenderQueue((q) => [...q, ...jobs]);
     ping(`Queued ${jobs.length} ${kind.toUpperCase()} job${jobs.length === 1 ? "" : "s"}`);
@@ -4952,6 +4997,26 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
           });
           if (!blob) { setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, status: queueAbortRef.current ? "queued" : "error" } : j))); continue; }
           downloadBlob(blob, nameBase + ".mp4");
+        } else if (job.kind === "mpeg2") {
+          // Render the H.264 master for the range (0-60%), then encode it to the MPEG-2 preset (60-100%).
+          renderAbortRef.current = new AbortController();
+          const rc = rangeClipsFor(job.t0, job.t1);
+          const master = await renderFabulaToBlob({
+            clips: rc, mediaPool: prod.mediaPool || [], format: vfmt,
+            palette: prod?.pixelsConfig?.colorPalette || [], title: job.label,
+            trackSettings: container?.timeline?.trackSettings || {},
+            cubeLut: (prod?.design?.luts || []).find((lut) => lut.id === prod?.design?.activeLutId) || null,
+            onProgress: (p) => setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, pct: p * 0.6, stage: "Rendering master" } : j))),
+            signal: renderAbortRef.current.signal,
+          });
+          if (!master) { setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, status: queueAbortRef.current ? "queued" : "error" } : j))); continue; }
+          const { deliverMpeg2 } = await import("../../services/fabula/mpeg2Run");
+          const aspect = /^4:3$/.test(prod?.defaults?.aspect || "") ? "4:3" : "16:9";
+          const out = await deliverMpeg2(master, (container?.title || "Fabula Cut").trim() + (job.label.includes(" · SEG ") ? "_" + job.label.split(" · ").pop() : ""), job.preset, { aspect, fps: vfmt.fps },
+            (pr) => setRenderQueue((q) => q.map((j) => (j.id === job.id ? { ...j, pct: 0.6 + (pr.progress || 0) * 0.4, stage: pr.line || "Encoding MPEG-2" } : j))),
+            renderAbortRef.current.signal, job.t1 - job.t0);
+          if (out.blob) downloadBlob(out.blob, out.name);
+          else if (out.outputPath) ping(`Saved ${out.outputPath}`);
         } else if (job.kind === "fcpxml") {
           exportTimelineFCPXML();
         } else if (job.kind === "edl") {
@@ -6235,6 +6300,11 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                           <span className="poolname">{a.name}</span>
                           {(!a.pixels && (!a.url || a.offline)) && <button className="chip blue" style={{ fontSize: 7, border: "none", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); openRelink(a.id); }} title="Relink to a local file">🔗 RELINK</button>}
                           {a.generated && <Sparkles size={10} className="genstar" />}
+                          {a.conforming && (
+                            <span className="chip" style={{ fontSize: 7, background: "rgba(59,160,255,0.18)", color: "#9ccfff" }} title={`MPEG-2 → editable H.264 working copy · ${a.conforming.line || ""}`}>
+                              MPEG-2 · {a.conforming.pct ? `${a.conforming.pct}%` : (a.conforming.line || "…").toUpperCase().slice(0, 14)}</span>
+                          )}
+                          {a.conformedFrom && !a.conforming && <span className="chip" style={{ fontSize: 7, background: "rgba(255,255,255,0.08)", color: "#bbb" }} title={`Conformed from ${a.conformedFrom.name}${a.conformedFrom.interlaced ? " (interlaced, deinterlaced)" : ""} — original kept on this device`}>MPEG-2</span>}
                           {a.needsConversion && !a.converted && (
                             <span className="chip" style={{ fontSize: 7, cursor: "pointer", background: "rgba(255,140,0,0.18)", color: "#ffb057" }}
                               title="Transcode to a browser-friendly format via Crossover"
@@ -7492,6 +7562,11 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
           <div className="tgrp">
             <span className="cap" style={{ marginRight: 3 }}>QUEUE</span>
             <button className="tbtn2" disabled={!rangeReady} title="Add MP4 render job(s) for the chosen range" onClick={() => addToQueue("mp4")}>＋ MP4</button>
+            <select className="sel xs" value={mpeg2PresetId} title={mpeg2Preset(mpeg2PresetId).note} aria-label="MPEG-2 delivery preset"
+              onChange={(e) => { setMpeg2PresetId(e.target.value); try { localStorage.setItem("fabula:mpeg2preset", e.target.value); } catch { /* */ } }}>
+              {MPEG2_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+            </select>
+            <button className="tbtn2" disabled={!rangeReady} title={`Add MPEG-2 job(s): ${mpeg2Preset(mpeg2PresetId).note}`} onClick={() => addToQueue("mpeg2")}>＋ MPEG-2</button>
             <button className="tbtn2" title="Add an FCPXML job (whole cut)" onClick={() => addToQueue("fcpxml")}>＋ FCPXML</button>
             <button className="tbtn2" title="Add an EDL job (whole cut)" onClick={() => addToQueue("edl")}>＋ EDL</button>
           </div>
@@ -10342,6 +10417,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                   const badFormats = mp.filter((a) => a.needsConversion && !a.converted && clips.some((c) => c.assetId === a.id && !c.disabled)).length;
                   const PRESETS = [
                     { id: "mp4", tab: "var(--org)", name: "Master — MP4 / H.264", sub: `${vfmt.w}×${vfmt.h} · ${vfmt.fps}${vfmt.drop ? " DF" : ""} · AAC`, note: "Pixels engine · frame-exact" },
+                    ...MPEG2_PRESETS.map((p) => ({ id: "m2-" + p.id, tab: "#a78bfa", name: `MPEG-2 — ${p.label}`, sub: p.size ? `${p.size.w}×${p.size.h} · ${p.interlaced ? "interlaced TFF" : "progressive"} · .${p.ext}` : `${vfmt.w}×${vfmt.h} · .${p.ext}`, note: p.note })),
                     { id: "sbs3d", tab: "var(--blue)", name: "Side-by-Side 3D — VR / Quest", sub: `${vfmt.w * 2}×${vfmt.h} · Full SBS MP4`, note: "Meta Quest / Android XR / 4XVR" },
                     { id: "fcpxml", tab: "var(--blue)", name: "FCPXML — Resolve / Premiere / FCP", sub: "timeline interchange · relinkable", note: "Round-trips this cut for finishing" },
                     { id: "edl", tab: "var(--green)", name: "EDL — CMX3600", sub: "classic conform list", note: "Avid / any NLE" },
@@ -10368,13 +10444,13 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                             <div className="dim small" style={{ lineHeight: 1.6 }}>Nothing queued. Pick a <b>range</b> in the tool bar and add MP4 / FCPXML / EDL jobs — MP4 honours In→Out and per-marker segments (dailies), interchange exports the whole cut.</div>
                           )}
                           {renderQueue.map((j) => {
-                            const tab = j.kind === "mp4" ? "var(--org)" : j.kind === "fcpxml" ? "var(--blue)" : "var(--green)";
+                            const tab = j.kind === "mp4" ? "var(--org)" : j.kind === "mpeg2" ? "#a78bfa" : j.kind === "fcpxml" ? "var(--blue)" : "var(--green)";
                             const st = j.status === "running" ? "amb" : j.status === "done" ? "green" : j.status === "error" ? "red" : "dimchip";
                             return (
                               <div key={j.id} className="qrow idtop" style={{ "--tab": tab }}>
                                 <span style={{ flex: 1, minWidth: 0 }}>
                                   <span className="qname" style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{j.label}</span>
-                                  <span className="qsub numval">{j.kind === "mp4" ? `${fmtTc(j.t0, vfmt)} → ${fmtTc(j.t1, vfmt)}` : "whole cut"}</span>
+                                  <span className="qsub numval">{j.kind === "mp4" || j.kind === "mpeg2" ? `${fmtTc(j.t0, vfmt)} → ${fmtTc(j.t1, vfmt)}${j.status === "running" && j.stage ? ` · ${j.stage}` : ""}` : "whole cut"}</span>
                                 </span>
                                 {j.status === "running" && <><div className="dbar" style={{ maxWidth: 90 }}><span style={{ width: `${j.pct * 100}%` }} /></div><span className="numval" style={{ fontSize: 9 }}>{Math.round(j.pct * 100)}%</span></>}
                                 <span className={`chip ${st}`}>{j.status.toUpperCase()}</span>
