@@ -17,6 +17,8 @@ export interface OneShotRig {
   play(name: string, weight?: number, seconds?: number): void;
   hold(name: string): boolean;
   release(): void;
+  /** Optional cloth / wing impulse (m/s, world): a hit whips the coat, tabard and wings. */
+  shove?(v: THREE.Vector3): void;
 }
 
 /** A level can swap the robot for its own creatures (Cyber Forest: wolves, mantises, wasps). */
@@ -483,6 +485,7 @@ export class EnemyManager {
     out.dmg = dmg;
     e.hp -= dmg;
     e.flinch = Math.min(1, e.flinch + (dmg >= e.maxHp * 0.2 ? 1 : 0.5));
+    if (knockbackDir) this.anim(e)?.shove?.(knockbackDir.clone().setY(0.15).normalize().multiplyScalar(Math.min(6, dmg * 0.05 + (o.launch ? 2 : 0)))); // the hit whips its cloth
     if (e.hp > dmg && e.state !== 'held') this.react(e, dmg >= e.maxHp * 0.2 ? ['hit_heavy', 'hit'] : ['hit'], dmg >= e.maxHp * 0.2 ? 0.8 : 0.4, 0.8);
     if (o.guardDmg && src === 'melee') e.guard = Math.max(0, e.guard - o.guardDmg * 0.25);
 

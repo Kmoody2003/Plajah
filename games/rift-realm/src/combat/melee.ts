@@ -40,7 +40,7 @@ const SLASHES = { slash: SLASH, perfect: SLASH_PERFECT, shadow: SLASH_SHADOW } a
 /** Combo tiers, by hit count (music words: the fight builds like a piece). */
 const TIERS: [number, string, string][] = [[3, 'ECHO', '#7dd3fc'], [6, 'CADENCE', '#38bdf8'], [10, 'CRESCENDO', '#a78bfa'], [16, 'FORTISSIMO', '#f472b6'], [25, 'SYMPHONY', '#fbbf24']];
 
-const _v = new THREE.Vector3(), _w = new THREE.Vector3();
+const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _whip = new THREE.Vector3();
 
 export class Melee {
   move: PlayerMove | null = null;
@@ -334,6 +334,8 @@ export class Melee {
       return { outcome: 'evaded', dmg: 0 };
     }
     const pos = p.object.position;
+    // the hit whips the coat / tabard / wings (CharacterRig.shove)
+    const whip = (k: number) => p.shove(_whip.subVectors(pos, s.from).setY(0.2).normalize().multiplyScalar(Math.min(5, s.dmg * k)));
     _v.subVectors(s.from, pos).setY(0).normalize();
     const facing = _v.dot(_w.set(-Math.sin(p.yaw), 0, -Math.cos(p.yaw))) > -0.15;
     if (this.blocking && facing && !s.unblockable) {
@@ -355,10 +357,10 @@ export class Melee {
         this.guard = 0; this.stunT = 0.85; this.blocking = false; p.blocking = false;
         h.rhythm.playGuardBreak();
         h.feedback('GUARD CRUSHED', '#fb7185');
-        p.takeHit(30);
+        p.takeHit(30); whip(0.12);
         return { outcome: 'hit', dmg: Math.round(s.dmg * 0.6) };
       }
-      this.stats.blocks++;
+      this.stats.blocks++; whip(0.04);
       h.vfx.spawn(WALL_IMPACT, contact, { dir: [_v.x, 0.2, _v.z], tint: 0x9fd8ff });
       h.rhythm.playBlock();
       this.shake(0.12);
@@ -366,7 +368,7 @@ export class Melee {
     }
     if (this.blocking && s.unblockable) h.feedback('UNBLOCKABLE · DASH OUT!', '#fb923c');
     // took it: the swing is cut, a short hit-stun
-    this.stats.hitsTaken++;
+    this.stats.hitsTaken++; whip(0.1);
     this.move = null; this.chain = ''; this.buffered = null;
     this.stunT = s.dmg >= 18 ? 0.42 : 0.22;
     this.combo = 0;

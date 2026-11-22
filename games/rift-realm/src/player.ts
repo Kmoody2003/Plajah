@@ -297,6 +297,8 @@ export class PlayerController {
   get grounded() { return this.onGround; }
   hasClip(name: string) { return !!this.rig?.has(name); }
   get dashing() { return this.dashTimer > 0; }
+  /** A hit or block through the coat, tabard and wings (m/s, world). */
+  shove(v: THREE.Vector3) { this.rig?.shove(v); }
 
   /** Magazine size of the current vessel's weapon (trigger pulls). */
   get magSize() { return this.weapon.magSize; }
