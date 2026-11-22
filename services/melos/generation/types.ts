@@ -1,6 +1,7 @@
 import type { MusicEngineId } from '../../musicEnginePolicy';
 import type { VocalRegenRequest } from '../direct/vocalScore';
 import type { EnsemblePlan } from './ensemblePlan';
+import { MAGENTA_MAX_SECONDS, validateMagentaOptions, type MagentaOptions } from './magentaRt';
 
 export type GenerationKind = 'audio' | 'midi' | 'sample' | 'transcribe';
 export interface GeneratedNote { startBeats: number; lengthBeats: number; key: number; vel: number }
@@ -74,6 +75,8 @@ export interface GenerationRequest {
   autoShift?: boolean;
   /** SoulX-Singer `--pitch_shift` in semitones (-24..24). */
   pitchShift?: number;
+  /** Magenta RealTime 2 style blend, guide notes, drums and sampling controls. Audio style uses `referenceAudio`. */
+  magenta?: MagentaOptions;
 }
 export interface GenerationResult {
   notes?: GeneratedNote[];
@@ -98,6 +101,7 @@ export const ENGINE_KINDS: Record<MusicEngineId, readonly GenerationKind[]> = {
   'heartmula-rl-3b': ['audio'],
   'soulx-singer': ['audio'],
   'qwen-score': ['midi'],
+  'magenta-rt2': ['audio', 'sample'],
   'basic-pitch': ['transcribe'],
   yue2: ['audio', 'midi'],
   sheetsage2: ['transcribe'],
@@ -147,7 +151,9 @@ export function validateGenerationRequest(raw: any): GenerationRequest {
     request.task = task;
   }
 
-  const promptOptional = request.kind === 'transcribe' || task === 'extract' || engine === 'soulx-singer';
+  const isMagenta = engine === 'magenta-rt2';
+  const promptOptional = request.kind === 'transcribe' || task === 'extract' || engine === 'soulx-singer' ||
+    (isMagenta && (raw.referenceAudio !== undefined || (Array.isArray(raw.magenta?.styles) && raw.magenta.styles.length > 0)));
   if (!promptOptional && !request.prompt) throw new Error('Describe what you want to create');
 
   if (raw.abc) request.abc = text(raw.abc, 100000);
@@ -248,9 +254,16 @@ export function validateGenerationRequest(raw: any): GenerationRequest {
       if (!Number.isInteger(ps)) throw new Error('pitchShift must be an integer');
       request.pitchShift = ps;
     }
+  } else if (isMagenta) {
+    if (request.seconds > MAGENTA_MAX_SECONDS) throw new Error(`Magenta renders up to ${MAGENTA_MAX_SECONDS} seconds per take`);
+    if (raw.referenceAudio !== undefined) {
+      request.referenceAudio = validateBase64Audio(raw.referenceAudio, 'Style audio must be valid base64 smaller than 20 MB');
+    }
+    request.magenta = validateMagentaOptions(raw.magenta, request.seconds);
   } else if (!isAce && raw.referenceAudio !== undefined) {
-    throw new Error('referenceAudio is only supported on ACE-Step and SoulX-Singer');
+    throw new Error('referenceAudio is only supported on ACE-Step, SoulX-Singer and Magenta RealTime 2');
   }
+  if (!isMagenta && raw.magenta !== undefined) throw new Error('magenta options are only supported on Magenta RealTime 2');
 
   return request;
 }

@@ -6,6 +6,8 @@ import type { GenerationKind, GenerationRequest, GenerationResult } from '../../
 import type { InsertTarget } from '../../../../services/melos/generation/insert';
 import { validateGeneratedNotes } from '../../../../services/melos/generation/types';
 import { briefToRenderRequest, type SongBrief } from '../../../../services/melos/direct/songBrief';
+import { MAGENTA_MAX_SECONDS, type MagentaDrums, type MagentaOptions } from '../../../../services/melos/generation/magentaRt';
+import { magentaGuideNotes, magentaGuideTracks } from '../../../../services/melos/generation/magentaGuide';
 
 export interface GenerationInsertion {
   result: GenerationResult;
@@ -60,12 +62,26 @@ export default function GenerationPanel({ doc, engines, startBeats, initialDesti
   const [sampleLength, setSampleLength] = useState(4);
   const [inserted, setInserted] = useState(false);
   const [autoInsert, setAutoInsert] = useState(true);
+  // Magenta RealTime 2
+  const [guideTrackId, setGuideTrackId] = useState('');
+  const [autoStrum, setAutoStrum] = useState(true);
+  const [drums, setDrums] = useState<MagentaDrums>('auto');
+  const [blendText, setBlendText] = useState('');
+  const [blendWeight, setBlendWeight] = useState(0.5);
+  const [styleFile, setStyleFile] = useState<File | null>(null);
+  const [styleAudioWeight, setStyleAudioWeight] = useState(0.7);
+  const [cfgStyle, setCfgStyle] = useState(3);
+  const [cfgNotes, setCfgNotes] = useState(1);
+  const [temperature, setTemperature] = useState(1.3);
   const active = useRef<{ id?: string; controller: AbortController } | null>(null);
   const mounted = useRef(true);
   const notesMode = kind === 'midi' || kind === 'transcribe';
   const choices = engines.filter(engine => engine.kinds.includes(kind));
   const selected = choices.find(engine => engine.id === engineId) || choices[0];
   const allowed = Boolean(selected && (selected.id === 'basic-pitch' || selected.access.allowed));
+  const isMagenta = selected?.id === 'magenta-rt2';
+  const guideTracks = isMagenta ? magentaGuideTracks(doc) : [];
+  const magentaStyleOnly = isMagenta && (Boolean(styleFile) || Boolean(blendText.trim()));
   useEffect(() => { setTrackId(''); }, [kind, destination]);
   useEffect(() => {
     mounted.current = true;
@@ -110,11 +126,27 @@ export default function GenerationPanel({ doc, engines, startBeats, initialDesti
       } else if (!selected.runtimeConnected) {
         throw new Error('Connect this local engine in Music Lab before generating.');
       } else {
-        if (kind === 'transcribe') {
-          if (!file || file.size > 20000000) throw new Error('Choose a recording smaller than 20 MB');
-          const bytes = new Uint8Array(await file.arrayBuffer()); let binary = '';
+        const toBase64 = async (source: File) => {
+          if (source.size > 20000000) throw new Error('Choose an audio file smaller than 20 MB');
+          const bytes = new Uint8Array(await source.arrayBuffer()); let binary = '';
           for (let i = 0; i < bytes.length; i += 8192) binary += String.fromCharCode(...bytes.subarray(i, i + 8192));
-          request.inputAudio = btoa(binary);
+          return btoa(binary);
+        };
+        if (kind === 'transcribe') {
+          if (!file) throw new Error('Choose a recording smaller than 20 MB');
+          request.inputAudio = await toBase64(file);
+        }
+        if (isMagenta) {
+          request.seconds = Math.min(MAGENTA_MAX_SECONDS, request.seconds);
+          const magenta: MagentaOptions = { autoStrum, drums, cfgStyle, cfgNotes, temperature };
+          if (blendText.trim()) magenta.styles = [{ text: blendText.trim(), weight: blendWeight }];
+          if (styleFile) { request.referenceAudio = await toBase64(styleFile); magenta.audioStyleWeight = styleAudioWeight; }
+          if (!prompt.trim()) magenta.promptWeight = 0;
+          if (guideTrackId) {
+            magenta.guideNotes = magentaGuideNotes(doc, guideTrackId, atBeat, request.seconds);
+            if (!magenta.guideNotes.length) throw new Error('The guide track has no notes in this window. Move the start beat or pick another track.');
+          }
+          request.magenta = magenta;
         }
         signal.throwIfAborted();
         try {
@@ -175,18 +207,38 @@ export default function GenerationPanel({ doc, engines, startBeats, initialDesti
       </select></label>
       <label className="block text-xs">Engine<select className={field} value={selected?.id || ''} onChange={event => { setEngineId(event.target.value); setReady(null); }}>{choices.map(engine => <option key={engine.id} value={engine.id}>{engine.name}</option>)}</select></label>
       {!allowed && <p className="text-xs text-amber-200">{selected?.access.reason || 'No engine available'}. Configure this engine in the local server environment.</p>}
+      {isMagenta && <div className="space-y-2 rounded-lg border border-[#8B5CFF]/30 bg-[#8B5CFF]/5 p-2">
+        <p className="text-[11px] leading-relaxed text-white/60">Magenta RealTime 2 plays an instrumental ensemble in the style you describe. Point it at a MIDI track and it follows your chords and melody.</p>
+        <label className="block text-xs">Follow notes from<select className={field} value={guideTrackId} onChange={event => setGuideTrackId(event.target.value)}>
+          <option value="">Nothing (free play)</option>{guideTracks.map(track => <option key={track.id} value={track.id}>{track.name}</option>)}
+        </select></label>
+        {guideTrackId && <label className="flex gap-2 items-center text-xs"><input type="checkbox" checked={autoStrum} onChange={event => setAutoStrum(event.target.checked)} /> Let Magenta place the attacks (off: exact note starts)</label>}
+        <label className="block text-xs">Drums<select className={field} value={drums} onChange={event => setDrums(event.target.value as MagentaDrums)}>
+          <option value="auto">Model decides</option><option value="on">Drums on</option><option value="off">No drums</option>
+        </select></label>
+        <div className="grid grid-cols-[1fr_72px] gap-2 items-end"><label className="text-xs">Blend with style (optional)<input className={field} maxLength={300} placeholder="lo-fi tape, dusty vinyl" value={blendText} onChange={event => setBlendText(event.target.value)} /></label>
+          <label className="text-xs">Mix<input className={field} type="number" min={0} max={1} step={0.1} value={blendWeight} onChange={event => setBlendWeight(Number(event.target.value))} /></label></div>
+        <div className="grid grid-cols-[1fr_72px] gap-2 items-end"><label className="text-xs">Style from audio (optional)<input className={field} type="file" accept="audio/wav,audio/flac,audio/ogg,audio/mpeg" onChange={event => setStyleFile(event.target.files?.[0] || null)} /></label>
+          <label className="text-xs">Mix<input className={field} type="number" min={0} max={1} step={0.1} value={styleAudioWeight} onChange={event => setStyleAudioWeight(Number(event.target.value))} /></label></div>
+        <div className="grid grid-cols-3 gap-2">
+          <label className="text-xs" title="How strongly the style is followed, -1 to 7">Style pull<input className={field} type="number" min={-1} max={7} step={0.2} value={cfgStyle} onChange={event => setCfgStyle(Number(event.target.value))} /></label>
+          <label className="text-xs" title="How strictly the guide notes are followed, -1 to 7">Note pull<input className={field} type="number" min={-1} max={7} step={0.2} value={cfgNotes} onChange={event => setCfgNotes(Number(event.target.value))} /></label>
+          <label className="text-xs" title="Higher is wilder, 0.1 to 3">Heat<input className={field} type="number" min={0.1} max={3} step={0.1} value={temperature} onChange={event => setTemperature(Number(event.target.value))} /></label>
+        </div>
+        <p className="text-[10px] text-white/40">Google DeepMind model, weights CC-BY 4.0. Credit Magenta RealTime 2 when you publish.</p>
+      </div>}
       {selected?.id === 'yue2' && <p className="text-xs text-white/60">YuE2 stays private. Its official full model needs more VRAM than this laptop; use a suitable configured runtime.</p>}
       {kind === 'transcribe' ? <label className="block text-xs">Recording<input className={field} type="file" accept="audio/*" onChange={event => setFile(event.target.files?.[0] || null)} /></label> : <label className="block text-xs">Describe the sound<textarea className={field} rows={4} maxLength={4000} placeholder={kind === 'sample' ? 'A warm muted guitar pluck, dry and isolated' : 'Full-length cinematic orchestral film score with solo cello, French horns, and Regency fortepiano'} value={prompt} onChange={event => setPrompt(event.target.value)} /></label>}
-      {kind === 'audio' && <label className="block text-xs">Lyrics / Choir Latin Text (optional)<textarea className={field} rows={2} maxLength={12000} value={lyrics} onChange={event => setLyrics(event.target.value)} /></label>}
+      {kind === 'audio' && !isMagenta && <label className="block text-xs">Lyrics / Choir Latin Text (optional)<textarea className={field} rows={2} maxLength={12000} value={lyrics} onChange={event => setLyrics(event.target.value)} /></label>}
       <div className="grid grid-cols-2 gap-2"><label className="text-xs">Key<input className={field} value={key} maxLength={40} onChange={event => setKey(event.target.value)} /></label>
-        {notesMode ? <label className="text-xs">Bars (up to 128)<input className={field} type="number" min={1} max={destination === 'timeline' ? 128 : 16} value={bars} onChange={event => setBars(Number(event.target.value))} /></label> : <label className="text-xs">Score Length (10–360s)<input className={field} type="number" min={10} max={360} value={seconds} onChange={event => setSeconds(Number(event.target.value))} /></label>}</div>
+        {notesMode ? <label className="text-xs">Bars (up to 128)<input className={field} type="number" min={1} max={destination === 'timeline' ? 128 : 16} value={bars} onChange={event => setBars(Number(event.target.value))} /></label> : <label className="text-xs">{isMagenta ? `Length (1–${MAGENTA_MAX_SECONDS}s)` : 'Score Length (10–360s)'}<input className={field} type="number" min={isMagenta ? 1 : 10} max={isMagenta ? MAGENTA_MAX_SECONDS : 360} value={seconds} onChange={event => setSeconds(Number(event.target.value))} /></label>}</div>
       <label className="block text-xs">Seed<input className={field} type="number" min={0} max={2147483647} value={seed} onChange={event => setSeed(Number(event.target.value))} /></label>
       {notesMode && <><label className="block text-xs">Destination<select className={field} value={destination} onChange={event => setDestination(event.target.value as InsertTarget['destination'])}><option value="timeline">Timeline MIDI track</option><option value="meka">MEKA pattern</option><option value="glass">Glass pattern</option></select></label><label className="block text-xs">Instrument<select className={field} value={instrument} onChange={event => setInstrument(event.target.value as InstrumentType)}><option value="aura">AURA vintage & orchestral synth</option><option value="volta">VOLTA circuit-modeled Super-Synth</option><option value="soma">SOMA physical acoustic percussion</option><option value="bajo">BAJO physical contrabass & cello</option><option value="vela">VELA modal harp & strings</option><option value="cantus">CANTUS vocal & Gothic choir</option><option value="ison">ISON pipe organ & drone</option><option value="pneuma">PNEUMA breath flute & woodwind</option><option value="onda">ONDA wavetable synth</option></select></label></>}
       {kind !== 'sample' && (!notesMode || destination === 'timeline') && <><label className="block text-xs">Track<select className={field} value={trackId} onChange={event => setTrackId(event.target.value)}><option value="">New {notesMode ? 'MIDI' : 'audio'} track</option>{doc.arrangement.filter(track => track.kind === (notesMode ? 'instrument' : 'audio') && !track.padOwned).map(track => <option key={track.id} value={track.id}>{track.name}</option>)}</select></label><label className="block text-xs">Start beat (0 = beginning)<input className={field} type="number" min={0} max={100000} step={0.25} value={atBeat} onChange={event => setAtBeat(Number(event.target.value))} /></label></>}
       {selected?.id === 'yue2' && <label className="block text-xs">ABC score (optional)<textarea className={field} rows={3} maxLength={100000} value={abc} onChange={event => setAbc(event.target.value)} /></label>}
       {kind !== 'sample' && <label className="flex gap-2 items-center text-xs"><input type="checkbox" checked={autoInsert} onChange={event => setAutoInsert(event.target.checked)} /> Insert when ready</label>}
     </fieldset>
-    {running ? <button className={field} onClick={() => void stop()}>Cancel generation</button> : <button className="w-full rounded-lg bg-[#8B5CFF] py-2 text-sm font-semibold disabled:opacity-40" disabled={!allowed || inserting || (!prompt.trim() && kind !== 'transcribe')} onClick={() => void generate()}>Generate{autoInsert && kind !== 'sample' ? ' & insert' : ''}</button>}
+    {running ? <button className={field} onClick={() => void stop()}>Cancel generation</button> : <button className="w-full rounded-lg bg-[#8B5CFF] py-2 text-sm font-semibold disabled:opacity-40" disabled={!allowed || inserting || (!prompt.trim() && kind !== 'transcribe' && !magentaStyleOnly)} onClick={() => void generate()}>Generate{autoInsert && kind !== 'sample' ? ' & insert' : ''}</button>}
     <p role="status" className="text-xs text-white/70">{status}</p>
     {error && <p role="alert" className="text-xs text-red-300">{error}</p>}
     {ready && <div className="space-y-3 border-t border-white/10 pt-3">

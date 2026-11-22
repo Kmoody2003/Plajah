@@ -17,6 +17,7 @@ import {
 } from './types';
 import { buildEnsemblePlan, validateEnsemblePlan } from './ensemblePlan';
 import { aceStepAudioUrl } from './aceStepProtocol';
+import { MAGENTA_ATTRIBUTION, buildPianorollRuns } from './magentaRt';
 
 export interface AdapterResult extends GenerationResult { audio?: Buffer }
 export interface EngineConfig { url?: string; token?: string; python?: string; model?: string; aceThinking?: boolean }
@@ -30,6 +31,7 @@ export function generationConfigs(env: NodeJS.ProcessEnv = process.env): EngineC
       : { python: env.MELOS_QWEN_PYTHON, model: env.MELOS_QWEN_GGUF },
     heartmula: { python: env.MELOS_HEARTMULA_PYTHON, model: env.MELOS_HEARTMULA_MODEL },
     'heartmula-rl-3b': { python: env.MELOS_HEARTMULA_RL_PYTHON || env.MELOS_HEARTMULA_PYTHON, model: env.MELOS_HEARTMULA_RL_MODEL },
+    'magenta-rt2': { url: env.MELOS_MAGENTA_URL, token: env.MELOS_MAGENTA_TOKEN },
     'soulx-singer': { python: env.MELOS_SOULX_SINGER_PYTHON, model: env.MELOS_SOULX_SINGER_MODEL },
     yue2: { python: env.MELOS_YUE2_PYTHON, model: env.MELOS_YUE2_MODEL },
     sheetsage2: { python: env.MELOS_SHEETSAGE2_PYTHON, model: env.MELOS_SHEETSAGE2_MODEL },
@@ -213,6 +215,41 @@ export async function runGeneration(request: GenerationRequest, config: EngineCo
     });
     const raw = JSON.parse(reply.message?.content || '{}');
     return { notes: validateGeneratedNotes(raw.notes, request.bars * 4) };
+  }
+  if (request.engine === 'magenta-rt2') {
+    // Sidecar: scripts/magenta_rt_server.py (WSL2/JAX on NVIDIA, or MLX on Apple Silicon).
+    const m = request.magenta ?? {};
+    const runs = buildPianorollRuns(m.guideNotes, request.seconds, m.autoStrum ?? true);
+    const cfg: Record<string, number> = {};
+    if (m.cfgStyle !== undefined) cfg.musiccoca = m.cfgStyle;
+    if (m.cfgNotes !== undefined) cfg.notes = m.cfgNotes;
+    if (m.cfgDrums !== undefined) cfg.drums = m.cfgDrums;
+    progress(runs.length ? `Rendering ${request.seconds}s on Magenta RT 2, following ${m.guideNotes!.length} guide notes…` : `Rendering ${request.seconds}s on Magenta RT 2…`);
+    const response = await fetch(new URL('/generate', config.url), {
+      method: 'POST', headers, signal, redirect: 'error',
+      body: JSON.stringify({
+        seconds: request.seconds, seed: request.seed,
+        prompt: request.prompt, promptWeight: m.promptWeight, styles: m.styles,
+        styleAudio: request.referenceAudio, audioStyleWeight: m.audioStyleWeight,
+        runs: runs.length ? runs : undefined, autoStrum: m.autoStrum ?? true,
+        drums: m.drums ?? 'auto', cfg, temperature: m.temperature, topK: m.topK,
+      }),
+    });
+    if (!response.ok) {
+      let reason = '';
+      try {
+        const text = response.headers.get('content-type')?.includes('json') ? (await response.text()).slice(0, 20000) : '';
+        reason = String(JSON.parse(text).error || '');
+      } catch { /* not JSON */ }
+      if (response.status === 409) throw new AdapterUserError(409, 'Magenta is busy with another render. Try again when it finishes.');
+      if (response.status === 400 && reason) throw new AdapterUserError(400, `Magenta refused the request: ${reason.slice(0, 200)}`);
+      throw new Error(`Magenta sidecar failed (HTTP ${response.status}); check its log`);
+    }
+    const audio = await boundedBytes(response, 60000000);
+    if (audio.length < 44 || audio.subarray(0, 4).toString('ascii') !== 'RIFF') throw new Error('Magenta sidecar returned no WAV audio');
+    const notes = [MAGENTA_ATTRIBUTION];
+    if (request.kind === 'sample') notes.push('Choose a region from the preview for your sample.');
+    return { audio, mime: 'audio/wav', warning: notes.join(' ') };
   }
   if (request.engine === 'ace-step' || request.engine === 'ace-step-2.5') {
     const task: AceTaskType = request.task ?? 'text2music';
