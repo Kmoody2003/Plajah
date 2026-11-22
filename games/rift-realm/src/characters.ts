@@ -92,7 +92,7 @@ export async function preloadCharacters() {
 }
 
 /** Gun / guard clips that also get an upper-body-only copy (the legs keep the locomotion underneath). */
-const UPPER = ['shoot', 'reload', 'aim_idle', 'rifle_aim', 'pistol_aim', 'pistol_shoot', 'throw', 'block', 'draw'];
+const UPPER = ['shoot', 'reload', 'reload_pistol', 'switch_weapon', 'hit', 'aim_idle', 'rifle_aim', 'pistol_aim', 'pistol_shoot', 'throw', 'block', 'draw'];
 
 export type Locomotion = 'idle' | 'run' | 'strafe_left' | 'strafe_right' | 'walk' | 'sprint' | 'walk_back' | 'run_back';
 
@@ -112,6 +112,12 @@ export class CharacterRig {
   private loco: { name: string; act: THREE.AnimationAction; w: number; nat: number }[] = [];
   private shot: { act: THREE.AnimationAction; base: number; left: number; dur: number; upper: boolean } | null = null;
   private moving = 0;
+  /** A clip that holds its last frame over everything (death, knockdown) until release(). */
+  private held: { act: THREE.AnimationAction; w: number } | null = null;
+  /** 0…1 toward the crouch layer (crouch_walk: played at ground speed, frozen when standing still). */
+  crouch = false;
+  private crouchW = 0;
+  private crouchAct: { act: THREE.AnimationAction; nat: number } | null = null;
   /** Upper-body-only copies of the gun clips: they play over a run without touching the legs. */
   private upper = new Map<string, THREE.AnimationAction>();
   private spine: THREE.Bone[] = [];
@@ -144,6 +150,13 @@ export class CharacterRig {
       const nat = rm && rm.durationSec > 0 ? Math.hypot(rm.dx, rm.dz) / rm.durationSec * (height / h) : ({ walk: 1.5, run: 3.6, sprint: 4.4, walk_back: 1.5, run_back: 3.6, strafe_left: 0.45, strafe_right: 0.45 } as Record<string, number>)[name] ?? 0;
       this.loco.push({ name: name === idle ? 'idle' : name, act, w: name === idle ? 1 : 0, nat });
     }
+    const cw = this.actions.get('crouch_walk');
+    if (cw) {
+      cw.setLoop(THREE.LoopRepeat, Infinity).play();
+      cw.setEffectiveWeight(0);
+      const rm = asset.rootMotion?.crouch_walk;
+      this.crouchAct = { act: cw, nat: rm && rm.durationSec > 0 ? Math.max(0.4, Math.hypot(rm.dx, rm.dz) / rm.durationSec * (height / h)) : 1.1 };
+    }
     // legs + hips are left to the locomotion; everything above the hips (spine, arms, head) takes the gun clip
     const lower = /(^|[:_|])?(Hips|LeftUpLeg|RightUpLeg|LeftLeg|RightLeg|LeftFoot|RightFoot|LeftToe\w*|RightToe\w*)$/;
     for (const c of asset.clips) {
@@ -171,8 +184,9 @@ export class CharacterRig {
   socket(name: 'hand_r_weapon' | 'hand_l_weapon' | 'back_weapon') { return this.sockets.get(name); }
 
   /** Play a one-shot (shoot/hit/attack) over the locomotion layer. */
-  play(name: string, weight = 1) {
+  play(name: string, weight = 1, seconds?: number) {
     name = name.toLowerCase();
+    if (this.held) return;
     // on the move, a gun clip plays on the upper body only: the legs keep running (shoot while you run)
     const up = this.moving > 0.25 ? this.upper.get(name) : undefined;
     const a = up ?? this.actions.get(name);
@@ -180,10 +194,29 @@ export class CharacterRig {
     if (this.shot && this.shot.act !== a) this.shot.act.fadeOut(0.06);
     a.reset().setLoop(THREE.LoopOnce, 1);
     a.clampWhenFinished = false;
+    // `seconds` squeezes a long take (the 5.7 s mocap reload) into a gameplay length
+    a.timeScale = seconds ? a.getClip().duration / seconds : 1;
     a.play();
-    const dur = a.getClip().duration;
+    const dur = seconds ?? a.getClip().duration;
     this.shot = { act: a, base: weight, left: dur, dur, upper: !!up };
   }
+
+  /** Play a clip once and hold its last frame over everything (death, knockdown) until release(). */
+  hold(name: string) {
+    const a = this.actions.get(name.toLowerCase());
+    if (!a) return false;
+    if (this.shot) { this.shot.act.stop(); this.shot = null; }
+    this.held?.act.stop();
+    a.reset().setLoop(THREE.LoopOnce, 1);
+    a.clampWhenFinished = true;
+    a.timeScale = 1;
+    a.play();
+    this.held = { act: a, w: 0 };
+    return true;
+  }
+  /** Back to the locomotion after hold(). */
+  release() { if (this.held) { this.held.act.stop(); this.held = null; } }
+  get holding() { return !!this.held; }
 
   /** speed in m/s; local = velocity in the character's own frame (x right, z forward). */
   update(dt: number, speed: number, localX = 0, localZ = 1) {
@@ -228,13 +261,25 @@ export class CharacterRig {
       }
     }
     const k = Math.min(1, dt * 12);
+    // held clip (death / knockdown) takes the whole body
+    if (this.held) {
+      this.held.w = Math.min(1, this.held.w + dt * 10);
+      this.held.act.setEffectiveWeight(this.held.w);
+      ow = Math.max(ow, this.held.w);
+    }
+    // crouch: the crouch walk replaces the standing locomotion (held still when not moving)
+    this.crouchW += ((this.crouch && this.crouchAct ? 1 : 0) - this.crouchW) * k;
+    if (this.crouchAct) {
+      this.crouchAct.act.setEffectiveWeight(this.crouchW * (1 - ow));
+      this.crouchAct.act.timeScale = move < 0.05 ? 0 : THREE.MathUtils.clamp(speed / this.crouchAct.nat, 0.5, 2);
+    }
     // each cycle plays at (ground speed / its own speed), so planted feet stay planted (within sane cadence limits)
     const rateOf = (l: { nat: number }) => (l.nat > 0 ? THREE.MathUtils.clamp(speed / l.nat, 0.6, 2.6) : 1);
     const run = this.loco.find((l) => l.name === 'run');
     const rate = run ? rateOf(run) : 1;
     for (const l of this.loco) {
       l.w += ((target[l.name] ?? 0) - l.w) * k;
-      l.act.setEffectiveWeight(l.w * (1 - ow));
+      l.act.setEffectiveWeight(l.w * (1 - ow) * (1 - this.crouchW));
       if (l.name === 'run') l.act.timeScale = !hasBack && back > fwd + 0.2 ? -rate : rate;
       else if (l.name === 'sprint' || l.name === 'run_back' || l.name === 'walk' || l.name === 'walk_back') l.act.timeScale = rateOf(l);
       else if (l.name.startsWith('strafe')) {

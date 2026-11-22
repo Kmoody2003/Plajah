@@ -50,6 +50,9 @@ export interface Enemy {
   hitDmg: number;
 }
 
+/** Seconds a fallen enemy stays on the floor. */
+const CORPSE_SEC = 3.5;
+
 export class EnemyManager {
   readonly group = new THREE.Group();
   enemies: Enemy[] = [];
@@ -80,6 +83,8 @@ export class EnemyManager {
   /** Remove everyone (the level ended). */
   clear() {
     for (const e of this.enemies) this.group.remove(e.mesh);
+    for (const c of this.corpses) this.group.remove(c.mesh);
+    this.corpses = [];
     this.enemies.length = 0;
   }
 
@@ -170,7 +175,8 @@ export class EnemyManager {
     if (idx === -1) return null;
     const e = this.enemies[idx];
     e.hp -= amount;
-    if (e.hp > 0) e.rig?.play('hit', 0.8);
+    // mocap hit reactions: a flinch, or a stagger for a big hit (a quarter of its health or more)
+    if (e.hp > 0) e.rig?.play(amount >= e.maxHp * 0.25 ? 'hit_heavy' : 'hit', 0.8, amount >= e.maxHp * 0.25 ? 0.9 : 0.5);
     if (e.hp > 0 && e.hp <= e.maxHp * (e.boss ? 0.12 : 0.35) && !e.staggered) {
       e.staggered = true;
       e.coreMat.color.setHex(0xfbbf24);
@@ -183,8 +189,12 @@ export class EnemyManager {
     const pos = e.mesh.position.clone().add(new THREE.Vector3(0, 1.1, 0));
 
     if (e.hp <= 0) {
-      this.group.remove(e.mesh);
       this.enemies.splice(idx, 1);
+      // the body falls (mocap collapse / shot-backwards fall) and stays a moment instead of vanishing
+      if (e.rig?.hold(Math.random() < 0.5 ? 'death' : 'death_back')) {
+        e.mesh.traverse((o) => { if (o.userData.enemyId !== undefined) o.visible = false; });
+        this.corpses.push({ mesh: e.mesh, rig: e.rig, t: CORPSE_SEC });
+      } else this.group.remove(e.mesh);
       this.onKilled?.(e);
       if (this.auto && this.enemies.length === 0) {
         this.wave++;
@@ -195,7 +205,20 @@ export class EnemyManager {
     return { killed: false, pos };
   }
 
+  /** Fallen enemies: their death clip holds, then they sink and are removed. */
+  private corpses: { mesh: THREE.Object3D; rig: CharacterRig; t: number }[] = [];
+  private updateCorpses(dt: number) {
+    for (let i = this.corpses.length - 1; i >= 0; i--) {
+      const c = this.corpses[i];
+      c.t -= dt;
+      c.rig.update(dt, 0);
+      if (c.t < 0.8) c.mesh.position.y -= dt * 0.9; // sink away over the last moment
+      if (c.t <= 0) { this.group.remove(c.mesh); this.corpses.splice(i, 1); }
+    }
+  }
+
   update(dt: number, pulse: number, playerPos: THREE.Vector3, world: CollisionWorld, onPlayerHit: (dmg: number) => void) {
+    this.updateCorpses(dt);
     enemyBodies.playerPos.copy(playerPos);
     for (const e of this.enemies) {
       const toPlayer = new THREE.Vector3().subVectors(playerPos, e.mesh.position);

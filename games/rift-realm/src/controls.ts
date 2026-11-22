@@ -17,6 +17,11 @@ export interface InputState {
   lockHeld: boolean;
   /** Aim down sights held (right mouse / LT), Fortnite-style. */
   aimHeld: boolean;
+  /** Reload pressed (D-pad left; R on the keyboard is handled by the player). */
+  reloadPressed: boolean;
+  /** Crouch toggle pressed (D-pad down; C / Ctrl on the keyboard are handled by the player). */
+  crouchPressed: boolean;
+  crouchHeld?: boolean;
   isTouchActive: boolean;
 }
 
@@ -215,6 +220,7 @@ export class UnifiedControls {
     let lockPressed = this.queuedLock;
     let lockHeld = false;
     let aimHeld = this.aimHeld;
+    let reloadPressed = false, crouchPressed = false;
 
     this.queuedJump = false;
     this.queuedDash = false;
@@ -257,6 +263,8 @@ export class UnifiedControls {
       edge(6);
       if ((pad.buttons[6]?.value ?? 0) > 0.45) { lockHeld = true; aimHeld = true; } // LT: aim down sights + lock on
       if (edge(5)) cycleVesselPressed = true;    // RB
+      if (edge(14)) reloadPressed = true;         // D-pad left
+      if (edge(13)) crouchPressed = true;         // D-pad down
       if (edge(8) || edge(11)) toggleViewPressed = true; // Select / R3
     }
 
@@ -280,6 +288,8 @@ export class UnifiedControls {
       lockPressed,
       lockHeld,
       aimHeld,
+      reloadPressed,
+      crouchPressed,
       isTouchActive: this.isTouchDevice,
     };
   }

@@ -27,6 +27,13 @@ const RADIUS = 0.38;
 const HEIGHT = 1.8;
 const MOUSE_SENS = 0.002;
 
+/** Trigger pulls per magazine (Seraph's 3-round burst counts once). */
+const MAG_SIZE: Record<VesselId, number> = { aegis: 24, stalker: 8, seraph: 12 };
+/** Reload length: the 5.7 s mocap reload is squeezed into this. */
+const RELOAD_SEC = 1.7;
+/** Seconds on the floor after being downed before the respawn. */
+const DOWN_SEC = 2.4;
+
 export class PlayerController {
   readonly object = new THREE.Group();
   vesselMesh = new THREE.Group();
@@ -67,6 +74,16 @@ export class PlayerController {
   bloom = 0;
   /** View kick still to recover (radians of pitch); a shot kicks the aim up and about 60 % comes back down. */
   private recoilBack = 0;
+  /** Rounds left per vessel's magazine (one round = one trigger pull; Seraph's 3-shot burst is one round). */
+  private mags: Partial<Record<VesselId, number>> = {};
+  private reloadT = 0;
+  private autoReloadT = 0;
+  /** Crouched (C toggles, Ctrl holds, D-pad down on a pad): slower, quieter, tighter bloom. */
+  crouched = false;
+  private crouchToggle = false;
+  /** Seconds left lying on the floor after being downed (death clip held), then onRespawn. */
+  private downedT = 0;
+  private onDownedDone?: () => void;
   private lockT = 0;
   private clock = 0;
   private landKick = 0;
@@ -103,6 +120,8 @@ export class PlayerController {
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') this.triggerDash();
       if (e.code === 'KeyQ') this.onSoulSurge?.();
       if (e.code === 'KeyF' || e.code === 'KeyE') { this.strikeAnim(); this.onStrike?.(); }
+      if (e.code === 'KeyR') this.reload();
+      if (e.code === 'KeyC') this.crouchToggle = !this.crouchToggle;
       if (e.code === 'Digit1') this.setVessel('aegis');
       if (e.code === 'Digit2') this.setVessel('stalker');
       if (e.code === 'Digit3') this.setVessel('seraph');
@@ -146,6 +165,7 @@ export class PlayerController {
 
   setVessel(id: VesselId) {
     const spec = VESSELS[id];
+    if (this.rig && this.vessel.id !== id && this.downedT <= 0) { this.reloadT = 0; this.rig.play('switch_weapon', 0.9, 0.9); }
     const hpRatio = this.maxHp > 0 ? this.hp / this.maxHp : 1;
     this.vessel = spec;
     this.maxHp = spec.maxHp;
@@ -202,6 +222,52 @@ export class PlayerController {
   private strikeN = 0;
   /** Melee strikes alternate the motion-captured slashes (leap slash, spin-arc slash). */
   private strikeAnim() { this.faceAimT = FACE_AIM_AFTER; this.rig?.play(this.strikeN++ % 2 ? 'attack_3' : 'attack_1', 0.85); }
+
+  /** Magazine size of the current vessel's weapon (trigger pulls). */
+  get magSize() { return MAG_SIZE[this.vessel.id]; }
+  /** Rounds left in the current magazine. */
+  get ammo() { return this.mags[this.vessel.id] ?? this.magSize; }
+  get reloading() { return this.reloadT > 0; }
+  /** 0…1 progress of the running reload (for the HUD). */
+  get reloadProgress() { return this.reloadT > 0 ? 1 - this.reloadT / RELOAD_SEC : 1; }
+  get downed() { return this.downedT > 0; }
+  /** Play a one-shot on the body (e.g. 'get_up' after being downed). */
+  playClip(name: string, weight = 1, seconds?: number) { this.rig?.play(name, weight, seconds); }
+
+  /** Reload (R, D-pad left; automatic when the magazine runs dry): the motion-captured rifle / pistol reload,
+   *  squeezed to RELOAD_SEC. No firing until it's done. */
+  reload() {
+    if (!this.enabled || this.reloadT > 0 || this.downedT > 0 || this.ammo >= this.magSize) return false;
+    this.reloadT = RELOAD_SEC;
+    this.autoReloadT = 0;
+    this.rig?.play(this.vessel.id === 'stalker' ? 'reload_pistol' : 'reload', 1, RELOAD_SEC);
+    return true;
+  }
+
+  /** Spend a round for a trigger pull; false = can't fire (reloading, down, or empty → starts the reload). */
+  useRound() {
+    if (this.reloadT > 0 || this.downedT > 0) return false;
+    const left = this.ammo;
+    if (left <= 0) { this.reload(); return false; }
+    this.mags[this.vessel.id] = left - 1;
+    if (left - 1 === 0) this.autoReloadT = 0.3; // let the last shot's recoil play, then reload
+    return true;
+  }
+
+  /** Took a hit: flinch (light) or stagger (heavy) from the mocap footage — not over a reload or while down. */
+  takeHit(dmg: number) {
+    if (this.downedT > 0 || this.reloadT > 0 || !this.rig) return;
+    this.rig.play(dmg >= 20 ? 'hit_heavy' : 'hit', dmg >= 20 ? 0.9 : 0.7, dmg >= 20 ? 0.9 : 0.5);
+  }
+
+  /** Downed: the death fall plays and holds for DOWN_SEC (no control), then `onDone` (respawn) runs. */
+  goDown(onDone: () => void) {
+    if (this.downedT > 0) return;
+    this.downedT = DOWN_SEC;
+    this.reloadT = 0;
+    this.onDownedDone = onDone;
+    if (!this.rig?.hold(Math.random() < 0.5 ? 'death' : 'death_back')) { this.downedT = 0.01; }
+  }
 
   /** Spread multiplier for the next shot: hip fire on the move is loose, standing ADS is near-exact. */
   get spreadMul() { return (0.25 + this.bloom * 1.25) * (1 - this.aimBlend * 0.75); }
@@ -281,12 +347,23 @@ export class PlayerController {
     // recoil recovery: the kick comes back down over ~0.15 s
     if (this.recoilBack > 0) { const r = Math.min(this.recoilBack, dt * 0.35 + this.recoilBack * dt * 9); this.pitch -= r; this.recoilBack -= r; }
     this.faceAimT = Math.max(0, this.faceAimT - dt);
+    // reload / auto-reload / downed timers
+    if (this.reloadT > 0) { this.reloadT -= dt; if (this.reloadT <= 0) { this.reloadT = 0; this.mags[this.vessel.id] = this.magSize; } }
+    if (this.autoReloadT > 0) { this.autoReloadT -= dt; if (this.autoReloadT <= 0) this.reload(); }
+    if (this.downedT > 0) {
+      this.downedT -= dt;
+      if (this.downedT <= 0) { this.downedT = 0; this.rig?.release(); this.mags = {}; const cb = this.onDownedDone; this.onDownedDone = undefined; cb?.(); }
+    }
+    this.crouched = this.downedT <= 0 && (this.crouchToggle || this.keys.has('ControlLeft') || this.keys.has('ControlRight') || !!input?.crouchHeld);
+    if (input?.crouchPressed) this.crouchToggle = !this.crouchToggle;
+    if (input?.reloadPressed) this.reload();
+    if (this.rig) this.rig.crouch = this.crouched;
     this.lockT = Math.max(0, this.lockT - dt);
     const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     const wish = new THREE.Vector3();
 
-    if (this.enabled) {
+    if (this.enabled && this.downedT <= 0) {
       if (input) {
         if (input.lookDeltaX || input.lookDeltaY) {
               this.yaw -= input.lookDeltaX * MOUSE_SENS * this.mouseSens;
@@ -339,7 +416,7 @@ export class PlayerController {
       this.vel.copy(this.dashDir).multiplyScalar(this.vessel.dashSpeed);
       if (this.dashTimer <= 0) this.vel.multiplyScalar(DASH_CARRY); // keep the momentum, don't stop dead
     } else {
-      const target = wish.multiplyScalar(this.vessel.moveSpeed * (1 - this.aimBlend * 0.08));
+      const target = wish.multiplyScalar(this.vessel.moveSpeed * (1 - this.aimBlend * 0.08) * (this.crouched ? 0.45 : 1));
       const moving = wish.lengthSq() > 0;
       if (this.onGround) {
         // Ravencrest / Era Clash: a straight-line change toward the wanted velocity at a fixed rate
@@ -393,7 +470,7 @@ export class PlayerController {
     // strike square it up to the aim instead, so the gun points down the crosshair and the legs strafe.
     const hsp0 = Math.hypot(this.vel.x, this.vel.z);
     // bloom follows movement (running ~half open, airborne more), and settles at ~2.5 /s once you stand still
-    const bloomT = Math.min(1, (hsp0 / 9) * 0.5 + (this.onGround ? 0 : 0.55));
+    const bloomT = Math.min(1, (hsp0 / 9) * 0.5 + (this.onGround ? 0 : 0.55)) * (this.crouched ? 0.6 : 1);
     this.bloom += (bloomT - this.bloom) * Math.min(1, dt * (bloomT > this.bloom ? 6 : 2.5));
     const faceAim = this.firstPerson || this.aiming || this.faceAimT > 0 || this.lockT > 0;
     let want: number | null = null;

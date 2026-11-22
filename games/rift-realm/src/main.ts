@@ -42,6 +42,10 @@ async function boot() {
   const camText = document.getElementById('camText')!;
   const vesselTag = document.getElementById('vesselTag')!;
   const surgeTag = document.getElementById('surgeTag')!;
+  // ammo: magazine count bottom-right (Fortnite-style), reload bar while reloading
+  const ammoEl = document.createElement('div');
+  ammoEl.style.cssText = 'position:fixed;right:24px;bottom:64px;z-index:12;pointer-events:none;font:800 22px/1 system-ui,sans-serif;letter-spacing:.06em;color:#e2f3ff;text-shadow:0 2px 6px #000';
+  document.body.appendChild(ammoEl);
   const touchHud = document.getElementById('touchHud')!;
   const achToast = document.getElementById('achToast')!;
 
@@ -282,6 +286,7 @@ async function boot() {
 
   function fireShot() {
     if (!player.enabled) return;
+    if (!player.useRound()) return; // reloading, down, or the magazine just ran dry (starts the reload)
     combatT = Math.min(combatT, 3); // firing keeps the combat music going
     const beat = rhythm.evaluateBeat();
     const spec = player.vessel;
@@ -521,6 +526,20 @@ async function boot() {
 
   let last = performance.now();
   let trapDamageCooldown = 0;
+  // Downed: the mocap death fall plays and holds on the floor, then you respawn (match / hazard) or get back up.
+  function downPlayer(toSpawn: boolean) {
+    if (player.downed) return;
+    resonance = 1.0;
+    score = Math.max(0, score - 150);
+    rules?.playerDowned();
+    if (match.on) match.downs++;
+    showBeatFeedback(toSpawn ? 'DOWNED · BACK AT SPAWN' : 'DOWNED', '#fb7185');
+    player.goDown(() => {
+      player.hp = player.maxHp;
+      if (toSpawn) player.spawnAt(arena.spawns.a.pos, arena.spawns.a.yaw);
+      else player.playClip('get_up', 1);
+    });
+  }
   function frame(now: number) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
@@ -551,7 +570,7 @@ async function boot() {
         hazardCooldown = 0.4;
         player.hp = Math.max(0, player.hp - 20);
         showBeatFeedback('BURNING! -20 HP', '#f97316');
-        if (player.hp === 0) { player.hp = player.maxHp; resonance = 1.0; score = Math.max(0, score - 150); player.spawnAt(arena.spawns.a.pos, arena.spawns.a.yaw); rules?.playerDowned(); }
+        if (player.hp === 0) downPlayer(true);
       }
       objectives.update(dt, player.object.position, enemies.enemies.map((e) => e.mesh.position));
       if (match.on && !match.over) {
@@ -562,14 +581,10 @@ async function boot() {
       if (input.firePressed) fireShot();
       if (rules) { rules.start(); rules.update(dt, objectives.heldSeconds, score); }
       enemies.update(dt, rhythm.pulse, player.object.position, collision, (dmg) => {
+        if (player.downed) return;
         player.hp = Math.max(0, player.hp - dmg);
-        if (player.hp === 0) {
-          player.hp = player.maxHp;
-          resonance = 1.0;
-          score = Math.max(0, score - 150);
-          rules?.playerDowned();
-          if (match.on) { match.downs++; player.spawnAt(arena.spawns.a.pos, arena.spawns.a.yaw); showBeatFeedback('DOWNED · BACK AT SPAWN', '#fb7185'); }
-        }
+        if (player.hp === 0) downPlayer(match.on);
+        else player.takeHit(dmg);
       });
     }
 
@@ -612,6 +627,8 @@ async function boot() {
     }
     waveText.textContent = rules ? rules.title : `Trial ${enemies.wave} · ${currentBiomeName}`;
     surgeTag.textContent = resonance >= 2.0 ? 'SOUL SURGE READY [Q]' : 'SURGE AT 2.0x RESONANCE';
+    const ammoTxt = player.reloading ? `RELOADING ${'▮'.repeat(Math.round(player.reloadProgress * 8)).padEnd(8, '▯')}` : `${player.ammo} / ${player.magSize}${player.ammo === 0 ? '  [R]' : ''}${player.crouched ? '  · CROUCHED' : ''}`;
+    if (ammoEl.textContent !== ammoTxt) { ammoEl.textContent = ammoTxt; ammoEl.style.color = player.ammo <= Math.ceil(player.magSize / 4) && !player.reloading ? '#fb7185' : '#e2f3ff'; }
     surgeTag.style.color = resonance >= 2.0 ? '#fbbf24' : '#64748b';
 
     if (post) post.render(); else renderer.render(scene, camera);
