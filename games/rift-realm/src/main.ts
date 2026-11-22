@@ -179,7 +179,7 @@ async function boot() {
   let score = 0;
   let popTimeout: number | undefined;
   const beams: Beam[] = [];
-  const shakeV = new THREE.Vector3();
+  const shakeV = new THREE.Vector3(), assistV = new THREE.Vector3();
   const surges: SurgeWave[] = [];
   const raycaster = new THREE.Raycaster();
   // Particles (services/vfx): sparks on every hit, a burst of shards on a kill; bounce off the real ground.
@@ -432,6 +432,9 @@ async function boot() {
     const beat = rhythm.evaluateBeat();
     const pPos = player.object.position;
     const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+    // a strike goes at the target if one is within reach (third person especially: it may not be dead ahead)
+    const mt = targeting.target;
+    if (mt) { const to = mt.mesh.position.clone().sub(pPos).setY(0); if (to.length() < 4.5 && to.length() > 0.2) forward.copy(to.normalize()); }
     // the strike's crescent, alternating sides; gold on the beat
     const tint = player.vessel.primaryColor, perfect = beat.quality === 'PERFECT';
     const chest = pPos.clone().add(new THREE.Vector3(0, 1.15, 0)).addScaledVector(forward, 0.6);
@@ -592,10 +595,20 @@ async function boot() {
     arena.update(dt, rhythm.pulse, rhythm.beatIndex);
     // targeting: soft target under the crosshair, lock-on follows its enemy (the view turns to it while you move)
     moveAmt = Math.min(1, Math.hypot(input.moveX, input.moveY) + (['KeyW', 'KeyA', 'KeyS', 'KeyD'].some((k) => player.keys.has(k)) ? 1 : 0));
+    targeting.setView(player.firstPerson, (o) => player.chestPos(o)); // each view has its own catch / assist tuning
     if (input.lockPressed && player.enabled) targeting.toggle(enemies.enemies);
     targeting.update(dt, enemies.enemies, input.lockHeld, player.enabled, moveAmt);
     hitMarker.style.left = `${targeting.screenX}px`; hitMarker.style.top = `${targeting.screenY}px`; // hit marks sit on the crosshair
-    if (targeting.locked) player.aimAt(targeting.aimPoint(targeting.locked), dt);
+    {
+      const tp = targeting.profile;
+      if (targeting.locked) player.aimAt(targeting.aimPoint(targeting.locked), dt, tp.lockRate);
+      else { const ap = targeting.assistPoint(assistV); if (ap && moveAmt > 0.15) player.aimAt(ap, dt, tp.assist * moveAmt, false); }
+      player.aimFriction = targeting.soft && !targeting.locked ? tp.friction : 1;
+      player.lockedOn = targeting.isLocked;
+      // locked: a sideways flick hops to the next enemy that way; slow drift decays and never adds up to a switch
+      if (player.lockedOn && Math.abs(player.flickX) > tp.flick) { targeting.flickSwitch(enemies.enemies, player.flickX); player.flickX = 0; }
+      player.flickX *= Math.exp(-dt * 6);
+    }
     player.aiming = targeting.isLocked || input.aimHeld; // right mouse / LT holds aim down sights
     player.update(dt, rhythm.pulse, input);
     // the reticle shows the spread: it opens with bloom (moving, jumping, firing) and tightens while aiming

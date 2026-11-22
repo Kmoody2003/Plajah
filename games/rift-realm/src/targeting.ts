@@ -9,14 +9,40 @@
 //    sight for 1.5 s, then hops to the next enemy near the crosshair if there is one.
 // The HUD shows a corner bracket, name, health bar and distance over the target, and an arrow at the screen edge
 // when a locked enemy is off screen.
+//
+// Each view has its own tuning (VIEW_PROFILES). Third person (camera ~3.6 m behind the shoulder) catches a much
+// wider area, also takes anything close in front of the character, checks line of sight from the character's chest
+// (not the camera, which trees and walls behind you would block), and pulls the view gently toward the soft target
+// while you move. First person keeps a tighter catch and a lighter crosshair glide. Both slow the look a little
+// over a target (friction). While locked, a sideways flick of the mouse / right stick hops to the next enemy that way.
 import * as THREE from 'three/webgpu';
 import type { Enemy } from './enemies';
 
 export interface TargetWorld { rayDistance(origin: THREE.Vector3, dir: THREE.Vector3, max: number): number }
 
 const RANGE = 75;
-/** Soft-target catch radius in normalised screen units (1 = half the screen height), and how it grows up close. */
-const CATCH = 0.11, CATCH_NEAR = 0.32;
+
+export interface ViewProfile {
+  /** Soft-target catch radius in normalised screen units (1 = half the screen height): far (25 m+) and near (4 m). */
+  catchFar: number; catchNear: number;
+  /** Anything closer than this (m) and in front of the view counts within `closeCatch` (third person melee range). */
+  closeDist: number; closeCatch: number;
+  /** How far the crosshair glides onto a soft target, standing / on the run (1 = all the way). */
+  glide: number; glideMoving: number;
+  /** Rotational assist toward the soft target while moving (per second; 0 = off). */
+  assist: number;
+  /** Look-speed multiplier while on a target. */
+  friction: number;
+  /** How fast lock-on turns the view onto the target (per second). */
+  lockRate: number;
+  /** Mouse px (or stick-equivalent) of sideways flick that switches the locked target. */
+  flick: number;
+}
+
+export const VIEW_PROFILES: Record<'first' | 'third', ViewProfile> = {
+  first: { catchFar: 0.13, catchNear: 0.3, closeDist: 0, closeCatch: 0, glide: 0.55, glideMoving: 0.8, assist: 0, friction: 0.65, lockRate: 10, flick: 140 },
+  third: { catchFar: 0.24, catchNear: 0.5, closeDist: 7, closeCatch: 0.8, glide: 0.85, glideMoving: 1, assist: 1.6, friction: 0.75, lockRate: 7, flick: 160 },
+};
 
 export class Targeting {
   /** The enemy under (or near) the crosshair; null if none. */
@@ -35,7 +61,41 @@ export class Targeting {
   private bar: HTMLDivElement;
   private arrow: HTMLDivElement;
   private reticle: HTMLElement | null;
-  private v = new THREE.Vector3(); private o = new THREE.Vector3(); private d = new THREE.Vector3();
+  private v = new THREE.Vector3(); private o = new THREE.Vector3(); private d = new THREE.Vector3(); private los = new THREE.Vector3();
+  /** The active view's tuning (setView). */
+  profile: ViewProfile = VIEW_PROFILES.first;
+  /** Where line-of-sight checks start (third person: the character's chest); null = the camera. */
+  losFrom: ((out: THREE.Vector3) => THREE.Vector3) | null = null;
+
+  setView(firstPerson: boolean, losFrom: ((out: THREE.Vector3) => THREE.Vector3) | null) {
+    this.profile = firstPerson ? VIEW_PROFILES.first : VIEW_PROFILES.third;
+    this.losFrom = firstPerson ? null : losFrom;
+  }
+
+  /** The point the view should drift toward this frame (soft target, unlocked), or null. */
+  assistPoint(out = new THREE.Vector3()): THREE.Vector3 | null {
+    if (this.locked || !this.soft || this.profile.assist <= 0) return null;
+    return this.aimPoint(this.soft, out);
+  }
+
+  /** Locked: hop to the nearest enemy on screen to the left (dir < 0) or right (dir > 0) of the current one. */
+  flickSwitch(enemies: Enemy[], dir: number): boolean {
+    if (!this.locked) return false;
+    const cur = this.aimPoint(this.locked, this.v).project(this.camera).x;
+    let best: Enemy | null = null, bestD = Infinity;
+    for (const e of enemies) {
+      if (e === this.locked || e.hp <= 0) continue;
+      const p = this.aimPoint(e, this.d).project(this.camera);
+      if (p.z > 1 || Math.abs(p.y) > 1.2) continue;
+      const dx = (p.x - cur) * Math.sign(dir);
+      if (dx <= 0.02 || dx >= bestD) continue;
+      if (!this.visible(e, RANGE)) continue;
+      best = e; bestD = dx;
+    }
+    if (!best) return false;
+    this.locked = best; this.lostT = 0;
+    return true;
+  }
 
   constructor(private camera: THREE.PerspectiveCamera, private world: TargetWorld) {
     const css = document.createElement('style');
@@ -103,7 +163,7 @@ export class Targeting {
     if (t) {
       const p = this.aimPoint(t, this.v).project(this.camera);
       if (p.z < 1 && Math.abs(p.x) < 1.1 && Math.abs(p.y) < 1.1) {
-        const k = this.locked ? 1 : Math.min(1, 0.8 + moving * 0.2);
+        const P = this.profile, k = this.locked ? 1 : THREE.MathUtils.lerp(P.glide, P.glideMoving, Math.min(1, moving));
         gx = p.x * k; gy = p.y * k;
       }
     }
@@ -146,9 +206,13 @@ export class Targeting {
       const sx = p.x * cam.aspect, y0 = p.y, y1 = top.y;                   // square screen units
       const dy = y0 > 0 ? y0 : y1 < 0 ? y1 : 0;                            // 0 when the crosshair is between feet and head
       const off = Math.hypot(sx, dy);
-      const radius = within ?? THREE.MathUtils.lerp(CATCH_NEAR, CATCH, THREE.MathUtils.smoothstep(dist, 4, 25)) * (e.boss ? 1.5 : 1);
+      const P = this.profile;
+      let radius = within ?? THREE.MathUtils.lerp(P.catchNear, P.catchFar, THREE.MathUtils.smoothstep(dist, 4, 25)) * (e.boss ? 1.5 : 1);
+      // third person: anything close in front of you is fair game even off the crosshair (it's about to hit you)
+      const close = within === null && dist < P.closeDist + 3.6 * (this.losFrom ? 1 : 0);
+      if (close) radius = Math.max(radius, P.closeCatch);
       if (off > radius) continue;
-      const s = off + dist * 0.004;
+      const s = off + dist * (close ? 0.02 : 0.004);
       if (s >= bestS || !this.visible(e, RANGE)) continue;
       best = e; bestS = s;
     }
@@ -156,12 +220,13 @@ export class Targeting {
   }
 
   private visible(e: Enemy, max: number) {
+    const from = this.losFrom ? this.losFrom(this.los) : this.camera.getWorldPosition(this.los);
     const p = this.aimPoint(e, this.v);
-    this.d.subVectors(p, this.o);
+    this.d.subVectors(p, from);
     const dist = this.d.length();
     if (dist > max) return false;
     this.d.divideScalar(dist);
-    return this.world.rayDistance(this.o, this.d, dist) >= dist - 0.6;
+    return this.world.rayDistance(from, this.d, dist) >= dist - 0.6;
   }
 
   private hide() {

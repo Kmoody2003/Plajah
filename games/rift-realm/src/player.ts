@@ -95,6 +95,11 @@ export class PlayerController {
   enabled = false;
   /** Aiming down sights (hold right mouse): zoomed view, tighter shots, slower look and move. */
   aiming = false;
+  /** Aim friction (targeting sets it): look speed multiplier while the crosshair is on an enemy, so you don't sail past. */
+  aimFriction = 1;
+  /** True while locked on: sideways look movement collects in flickX (a flick switches target) instead of turning. */
+  lockedOn = false;
+  flickX = 0;
   /** 0…1, eased toward `aiming` — the camera, look speed and the reticle follow it. */
   aimBlend = 0;
   hp = 130;
@@ -134,7 +139,8 @@ export class PlayerController {
       if (!this.enabled || document.pointerLockElement !== dom) return;
       // pointer-lock glitch spikes (a jump of 90+ px in one event) are dropped, as in Ravencrest
       if (Math.abs(e.movementX) > 90 || Math.abs(e.movementY) > 90) return;
-      const ads = 1 - this.aimBlend * 0.2;
+      const ads = (1 - this.aimBlend * 0.2) * this.aimFriction;
+      if (this.lockedOn) this.flickX += e.movementX;
       this.yaw -= e.movementX * MOUSE_SENS * this.mouseSens * ads;
       this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * MOUSE_SENS * this.mouseSens * 0.85 * ads, -1.25, 1.25);
     });
@@ -315,7 +321,7 @@ export class PlayerController {
   }
 
   /** Lock-on: turn the view toward a world point (eased, `rate` per second); the mouse still adds on top. */
-  aimAt(point: THREE.Vector3, dt: number, rate = 9) {
+  aimAt(point: THREE.Vector3, dt: number, rate = 9, square = true) {
     const eye = this.camera.getWorldPosition(new THREE.Vector3());
     const d = point.clone().sub(eye);
     const len = d.length();
@@ -324,7 +330,7 @@ export class PlayerController {
     let dy = yaw - this.yaw;
     dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     const k = 1 - Math.exp(-dt * rate);
-    this.lockT = 0.25; // locked on: the body squares up to the target (strafing round it)
+    if (square) this.lockT = 0.25; // locked on: the body squares up to the target (strafing round it)
     this.yaw += dy * k;
     this.pitch = THREE.MathUtils.clamp(this.pitch + (pitch - this.pitch) * k, -1.25, 1.25);
   }
@@ -335,8 +341,18 @@ export class PlayerController {
     const dir = new THREE.Vector3();
     this.camera.getWorldPosition(origin);
     this.camera.getWorldDirection(dir);
+    // third person: the camera sits metres behind the shoulder, so start the shot where the view ray passes the
+    // character — a tree or wall between the camera and the body must not eat the shot
+    if (!this.firstPerson) {
+      const chest = this.chestPos(_chest);
+      const t = Math.max(0, chest.sub(origin).dot(dir) - 0.4);
+      origin.addScaledVector(dir, t);
+    }
     return { origin, dir };
   }
+
+  /** Chest height on the character (line-of-sight checks in third person start here). */
+  chestPos(out = new THREE.Vector3()) { return out.copy(this.object.position).setY(this.object.position.y + (this.crouched ? 1.0 : 1.35)); }
 
   private handBones: { hand: THREE.Object3D; fore: THREE.Object3D } | null | undefined;
   /** The blade edge of the right hand for melee trails: base at the hand, tip 0.75 m on past it along the forearm
@@ -387,8 +403,9 @@ export class PlayerController {
     if (this.enabled && this.downedT <= 0) {
       if (input) {
         if (input.lookDeltaX || input.lookDeltaY) {
-              this.yaw -= input.lookDeltaX * MOUSE_SENS * this.mouseSens;
-          this.pitch = THREE.MathUtils.clamp(this.pitch - input.lookDeltaY * MOUSE_SENS * this.mouseSens * 0.85, -1.25, 1.25);
+          if (this.lockedOn) this.flickX += input.lookDeltaX;
+          this.yaw -= input.lookDeltaX * MOUSE_SENS * this.mouseSens * this.aimFriction;
+          this.pitch = THREE.MathUtils.clamp(this.pitch - input.lookDeltaY * MOUSE_SENS * this.mouseSens * 0.85 * this.aimFriction, -1.25, 1.25);
         }
         if (input.toggleViewPressed) this.toggleView();
         if (input.cycleVesselPressed) this.cycleVessel();
@@ -566,3 +583,5 @@ export class PlayerController {
     this.viewmodel.position.z = -0.45 + this.muzzleFlash * 0.07;
   }
 }
+
+const _chest = new THREE.Vector3();
