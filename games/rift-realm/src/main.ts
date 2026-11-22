@@ -3,6 +3,7 @@ import * as THREE from 'three/webgpu';
 import { CollisionWorld } from './collision';
 import { RhythmEngine, type BeatQuality } from './rhythm';
 import type { Tier } from './shrine';
+import { setSecondaryTier } from './secondary';
 import { moduleByParam } from './studio/levelModules';
 import { Objectives } from './objectives';
 import { applyStudioProject } from './studio/projectHook';
@@ -64,6 +65,7 @@ async function boot() {
   const forced = new URLSearchParams(location.search).get('q');
   const tier: Tier = forced === 'low' || forced === 'high' ? forced : adapter.vendor === 'intel' ? 'low' : 'high';
   console.info('[rift-realm] tier', tier, adapter.vendor, adapter.architecture);
+  setSecondaryTier(tier); // cloth / wing solver budget (secondary.ts)
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.15;
   renderer.shadowMap.enabled = tier === 'high';

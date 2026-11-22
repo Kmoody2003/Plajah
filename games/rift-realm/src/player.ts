@@ -5,6 +5,7 @@ import type { InputState } from './controls';
 import { assets, CharacterRig } from './characters';
 import { VESSELS, VESSEL_ORDER, buildVesselMesh, type VesselId, type VesselSpec } from './vessels';
 import { WEAPONS, WeaponViewmodel, buildWeapon, type ReloadPhases, type WeaponModel, type WeaponSpec } from './weapons';
+import { Glide } from './glide';
 
 // Feel: fast, nimble, upbeat. Snappy ground control, full air control at a lower rate,
 // double jump, coyote time + jump buffer, and dash charges so movement chains.
@@ -37,6 +38,8 @@ export class PlayerController {
   readonly object = new THREE.Group();
   vesselMesh = new THREE.Group();
   private rig: CharacterRig | null = null;
+  /** Wings deploy on the run; in the air with wings out he glides (glide.ts, tuning in GLIDE). */
+  readonly glide = new Glide();
   readonly viewmodel = new THREE.Group();
   /** First-person gun + hands (weapons.ts). */
   readonly weaponVM = new WeaponViewmodel();
@@ -556,6 +559,14 @@ export class PlayerController {
       }
     }
 
+    // wings + glide: deploy on the run, glide in the air with wings out (running jump, or hold jump while falling)
+    this.glide.update(dt, {
+      onGround: this.onGround, hsp: Math.hypot(this.vel.x, this.vel.z), vy: this.vy,
+      jumpHeld: this.enabled && this.spaceHeld, crouch: this.crouched,
+      combat: this.aiming || this.blocking || this.moveLock < 1,
+      busy: this.dashTimer > 0 || this.lungeT > 0 || this.hangT > 0 || this.downedT > 0, pos: this.object.position,
+    });
+
     // dash charges refill one at a time
     if (this.dashCharges < DASH_CHARGES) {
       this.dashRecharge += dt;
@@ -579,10 +590,12 @@ export class PlayerController {
         const step = (target.lengthSq() > this.vel.lengthSq() ? ACCEL : DECEL) * dt;
         if (dv.length() > step) dv.setLength(step);
         this.vel.add(dv);
-      } else this.vel.lerp(target, Math.min(1, (moving ? AIR_ACCEL : 2) * dt));
+      } else if (this.glide.gliding) this.glide.steer(this.vel, wish, dt);
+      else this.vel.lerp(target, Math.min(1, (moving ? AIR_ACCEL : 2) * dt));
     }
 
     if (this.hangT > 0) { this.hangT -= dt; this.vy = Math.max(this.vy - this.vessel.gravity * dt * 0.3, -1.5); } // air string hang
+    else if (this.glide.gliding) this.vy = this.glide.fall(this.vy, dt);
     else this.vy -= this.vessel.gravity * dt * (this.vy < 0 ? 1.35 : 1); // falls faster than it rises: snappy arcs
     // sub-step so a 34 m/s dash can't tunnel through a thin wall (≤ 0.25 m per collision pass)
     const travel = Math.hypot(this.vel.x * dt, this.vy * dt, this.vel.z * dt);
@@ -675,7 +688,7 @@ export class PlayerController {
       turned = THREE.MathUtils.clamp(d, -TURN * dt, TURN * dt);
       this.bodyYaw += turned;
     }
-    const bankT = faceAim ? 0 : THREE.MathUtils.clamp(-(turned / Math.max(dt, 1e-3)) * 0.035 * Math.min(1, hsp0 / 9), -0.22, 0.22);
+    const bankT = this.glide.gliding ? this.glide.bank : faceAim ? 0 : THREE.MathUtils.clamp(-(turned / Math.max(dt, 1e-3)) * 0.035 * Math.min(1, hsp0 / 9), -0.22, 0.22);
     this.bank += (bankT - this.bank) * (1 - Math.exp(-dt * 10));
     // the camera stays on the mouse: a camera that turns itself bends camera-relative movement into circles
     // (Ravencrest's own rule); the mouse is also the aim here
@@ -686,6 +699,7 @@ export class PlayerController {
       const lx = this.vel.x * Math.cos(this.bodyYaw) - this.vel.z * Math.sin(this.bodyYaw);
       const lz = -(this.vel.x * Math.sin(this.bodyYaw) + this.vel.z * Math.cos(this.bodyYaw));
       this.rig.aimPitch = this.firstPerson ? 0 : this.pitch; // the chest and gun follow the aim up and down
+      this.glide.pose(this.rig, { firstPerson: this.firstPerson, yaw: this.bodyYaw, scene: this.object.parent, camera: this.camera, pitch: this.pitch });
       this.rig.update(dt, sp, lx, lz);
     } else {
       this.vesselMesh.position.y = Math.sin(performance.now() * 0.004) * 0.05 + pulse * 0.04;

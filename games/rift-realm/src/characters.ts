@@ -33,6 +33,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { getKTX2 } from './textures';
 import { forgeRig, type ForgeRig } from '../../../playkit/character/forgeRig';
+import { buildSecondary, windAt } from './secondary';
+import type { SoftRegions } from '../../../playkit/character/softRegions';
+import type { BatWings } from '../../../playkit/character/batWings';
 
 const BASE = '/games/rift-realm/assets/characters/';
 
@@ -146,6 +149,19 @@ export class CharacterRig {
   private sockets = new Map<string, THREE.Object3D>();
   /** The Character Forge runtime: twist drivers, hand grips, springs (null on a rig without `extras.forge`). */
   private forge: ForgeRig | null = null;
+  /** Outfit swing (coat, hood, pouches / tabard, tassets): secondary.ts. Null with ?soft=0 or no loose parts. */
+  readonly soft: SoftRegions | null = null;
+  /** The Void Stalker's bat wings: set `wings.target` (open / sweep / lift); null on other characters. */
+  readonly wings: BatWings | null = null;
+  /** World velocity of the character (m/s), measured from its travel; drives the air past the cloth. */
+  readonly velocity = new THREE.Vector3();
+  private secT = 0;
+  private lastPos = new THREE.Vector3();
+  private hasPos = false;
+  private windV = new THREE.Vector3();
+  /** A looping pose layer over everything (the glide's wing_hover): weight chases `poseLayerW`. */
+  private poseLayer: { act: THREE.AnimationAction; w: number } | null = null;
+  poseLayerW = 0;
   /** Aim pitch (radians, + = up): the spine bends so the gun points where the player aims. */
   aimPitch = 0;
   private aimApplied = 0;
@@ -195,7 +211,21 @@ export class CharacterRig {
     });
     this.spineRest = this.spine.map((b) => b.quaternion.clone());
     this.forge = forgeRig(model);
+    const sec = buildSecondary(model);
+    this.soft = sec.soft; this.wings = sec.wings;
   }
+
+  /** Loop `name` as a pose layer (e.g. 'wing_hover' while gliding); its weight follows poseLayerW. */
+  setPoseLayer(name: string | null) {
+    const a = name ? this.actions.get(name.toLowerCase()) : undefined;
+    if (this.poseLayer?.act === a) return;
+    this.poseLayer?.act.stop();
+    this.poseLayer = a ? { act: a.reset().setLoop(THREE.LoopRepeat, Infinity).play(), w: 0 } : null;
+    this.poseLayer?.act.setEffectiveWeight(0);
+  }
+
+  /** A hit or a shove (m/s, world) through the cloth and the wings. */
+  shove(v: THREE.Vector3) { this.soft?.impulse(v); }
 
   /** Hand grip pose from the Forge (relaxed, fist, dagger, katana). */
   grip(hand: 'Left' | 'Right', pose: string) { this.forge?.grip(hand, pose); }
@@ -291,6 +321,12 @@ export class CharacterRig {
       this.held.act.setEffectiveWeight(this.held.w);
       ow = Math.max(ow, this.held.w);
     }
+    // pose layer (the glide): takes the body like a held clip, faded by poseLayerW
+    if (this.poseLayer) {
+      this.poseLayer.w += (this.poseLayerW - this.poseLayer.w) * Math.min(1, dt * 6);
+      this.poseLayer.act.setEffectiveWeight(this.poseLayer.w);
+      ow = Math.max(ow, this.poseLayer.w);
+    }
     // crouch: the crouch walk replaces the standing locomotion (held still when not moving)
     this.crouchW += ((this.crouch && this.crouchAct ? 1 : 0) - this.crouchW) * k;
     if (this.crouchAct) {
@@ -317,7 +353,27 @@ export class CharacterRig {
     this.mixer.update(dt);
     this.forge?.update(dt);
     this.applyAim(dt);
+    this.updateSecondary(dt);
   }
+
+  private _p = new THREE.Vector3();
+  /** Cloth and wings last: they hang off the final pose (aim bend included) and feel the travel and the wind. */
+  private updateSecondary(dt: number) {
+    if ((!this.soft && !this.wings) || dt <= 0) return;
+    this.secT += dt;
+    this.root.updateWorldMatrix(true, true);
+    const p = this.root.getWorldPosition(this._p);
+    if (this.hasPos) {
+      const vx = (p.x - this.lastPos.x) / dt, vy = (p.y - this.lastPos.y) / dt, vz = (p.z - this.lastPos.z) / dt;
+      if (vx * vx + vy * vy + vz * vz > 60 * 60) { this.velocity.set(0, 0, 0); this.soft?.reset(); this.wings?.reset(); }
+      else this.velocity.lerp(this._p2.set(vx, vy, vz), Math.min(1, dt * 20));
+    }
+    this.lastPos.copy(p); this.hasPos = true;
+    windAt(p, this.secT, this.windV);
+    if (this.soft) { this.soft.wind.copy(this.windV); this.soft.bodyVel.copy(this.velocity); this.soft.update(dt); }
+    if (this.wings) { this.wings.wind.copy(this.windV); this.wings.bodyVel.copy(this.velocity); this.wings.update(dt); }
+  }
+  private _p2 = new THREE.Vector3();
 
 
   private axis = new THREE.Vector3(); private fwd = new THREE.Vector3(); private pq = new THREE.Quaternion(); private dq = new THREE.Quaternion();

@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Rift Realm — wings + cloth lab</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #15181d; color: #cfe; font: 13px system-ui, sans-serif; overflow: hidden; }
+  #ui { position: absolute; left: 8px; top: 8px; display: flex; flex-wrap: wrap; gap: 4px; max-width: 80vw; }
+  #ui button { background: #233; color: #cfe; border: 1px solid #355; border-radius: 4px; padding: 4px 8px; cursor: pointer; }
+  #ui button.on { background: #2a6; color: #fff; }
+  #info { position: absolute; left: 8px; bottom: 8px; white-space: pre; opacity: 0.85; }
+</style>
+</head>
+<body>
+<div id="ui"></div>
+<div id="info"></div>
+<script type="module" src="./src/wingsLab.ts"></script>
+</body>
+</html>
