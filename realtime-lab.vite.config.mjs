@@ -37,6 +37,12 @@ function realtimeLab() {
       });
       server.httpServer?.once('close', () => { void rt.close(); });
       const app = express();
+      // Race chat + proximity voice (routes/gamerTogether.ts) on the same store, so rt_<matchId> sees the rooms.
+      // Voice needs LiveKit: set MEETINGS_SFU=1 + LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET to try it here; without them it reports "off".
+      const { createGamerTogether } = await load('routes/gamerTogether.ts');
+      const { livekitConfigFromEnv } = await load('services/meetings/livekitServer.ts');
+      const together = createGamerTogether({ store, verify: async (t) => (t.startsWith('tok-') ? t.slice(4) : null), userCard: async (uid) => ({ name: uid[0].toUpperCase() + uid.slice(1) }), livekit: () => livekitConfigFromEnv() });
+      app.use('/api/gamer/chat', express.json({ limit: '8kb' }), together.chat);
       app.use('/api/gamer', express.json({ limit: '8kb' }), createGamerRouter({
         store,
         verify: async (t) => (t.startsWith('tok-') ? t.slice(4) : null),

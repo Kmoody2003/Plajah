@@ -5,6 +5,8 @@
 import type { RtEvent, RtPlayer, RtStanding } from '../../../services/realtime/client';
 import { OnlineSessionManager, resolveGamerToken, type ServerRaceJoin } from './onlineMultiplayer';
 
+import type { GameVoiceState } from '../../../services/gamerNet/gameVoiceCore';
+
 const fmt = (ms: number) => `${Math.floor(ms / 60000)}:${((ms % 60000) / 1000).toFixed(2).padStart(5, '0')}`;
 
 export interface LobbyHooks {
@@ -36,6 +38,8 @@ export function openOnlineRaceLobby(session: OnlineSessionManager, hooks: LobbyH
       <div data-k="code-line" style="margin-bottom:6px"></div>
       <ul data-k="players" style="list-style:none;margin:0 0 12px;padding:0"></ul>
       <button data-a="ready">Ready</button>
+      <button data-a="voice" title="Proximity voice: hear drivers near you">🎙 Voice</button>
+      <span data-k="voice" style="margin-left:8px;font-size:12px;color:#d8cdb9"></span>
     </div>
     <div style="margin-top:12px;text-align:right"><button data-a="leave">Leave</button></div>`;
   el.querySelectorAll('button').forEach((b) => { b.style.cssText = 'padding:6px 12px;background:#2a1d10;color:#ffe2b8;border:1px solid #a86a2c;border-radius:5px;cursor:pointer;font-weight:700'; });
@@ -54,6 +58,23 @@ export function openOnlineRaceLobby(session: OnlineSessionManager, hooks: LobbyH
   const showResult = (st: RtStanding[]) => {
     const lines = st.map(s => `P${s.place} ${s.name}${s.timeMs !== null ? ` ${fmt(s.timeMs)}` : s.dnf ? ' DNF' : ''}`);
     hooks.onBanner(`RESULT · ${lines.join(' · ')}`, st.find(s => s.seat === session.rt?.seat)?.place === 1 ? 'gold' : 'ok');
+  };
+
+  const voiceText = (v: GameVoiceState) => v.status === 'on' ? `Voice on${v.muted ? ' (muted)' : ''} · ${v.peers.length} other driver${v.peers.length === 1 ? '' : 's'} in voice · M mutes`
+    : v.status === 'connecting' ? 'Connecting voice…' : v.status === 'unavailable' ? 'Voice is off right now' : v.status === 'error' ? v.error : '';
+  const onVoice = (v: GameVoiceState) => {
+    q<HTMLSpanElement>('[data-k=voice]').textContent = voiceText(v);
+    const chip = document.getElementById('rtVoiceChip');
+    if (chip) chip.textContent = v.status === 'on' ? (v.muted ? '🔇 Voice muted (M)' : `🎙 Voice · ${v.speaking.length ? 'talking' : 'on'} (M)`) : '';
+    if (chip) chip.style.display = v.status === 'on' ? 'block' : 'none';
+  };
+  const voiceChip = () => {
+    if (document.getElementById('rtVoiceChip')) return;
+    const c = document.createElement('button'); c.id = 'rtVoiceChip';
+    c.style.cssText = 'position:fixed;left:14px;bottom:14px;z-index:60;display:none;padding:6px 12px;background:rgba(8,12,18,.85);color:#ffe2b8;border:1px solid #a86a2c;border-radius:16px;font:700 12px system-ui,sans-serif;cursor:pointer';
+    c.addEventListener('click', () => { const v = session.voice; if (v) v.setMuted(!v.state.muted); });
+    addEventListener('keydown', ev => { if ((ev.key === 'm' || ev.key === 'M') && session.voice && !(ev.target instanceof HTMLInputElement)) session.voice.setMuted(!session.voice.state.muted); });
+    document.body.appendChild(c);
   };
 
   const onRt = (e: RtEvent) => {
@@ -94,7 +115,11 @@ export function openOnlineRaceLobby(session: OnlineSessionManager, hooks: LobbyH
     } else if (a === 'ready') {
       ready = !ready; session.setReady(ready);
       (ev.target as HTMLButtonElement).textContent = ready ? 'Not ready' : 'Ready';
-    } else if (a === 'leave') { session.disconnect(); el.remove(); hooks.onCancel(); }
+    } else if (a === 'voice') {
+      if (session.voice) { session.stopVoice(); onVoice({ status: 'off', error: '', muted: false, peers: [], speaking: [] }); (ev.target as HTMLButtonElement).textContent = '🎙 Voice'; return; }
+      voiceChip();
+      void session.startVoice(hooks.apiBase, () => resolveGamerToken(), onVoice).then(v => { if (v?.status === 'on' || v?.status === 'connecting') (ev.target as HTMLButtonElement).textContent = 'Leave voice'; });
+    } else if (a === 'leave') { session.disconnect(); document.getElementById('rtVoiceChip')?.remove(); el.remove(); hooks.onCancel(); }
   });
   // Keep keystrokes in the code box from driving the car.
   q<HTMLInputElement>('[data-k=code]').addEventListener('keydown', ev => ev.stopPropagation());

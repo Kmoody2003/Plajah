@@ -12,6 +12,7 @@
     "services/gamerNet/chat.ts",
     "services/gamerNet/party.ts",
     "services/gamerNet/togetherClient.ts",
+    "services/gamerNet/gameVoiceCore.ts",
     "services/gamerNet/partyStreamBus.ts",
     "services/gamerNet/spatialVoice.ts",
     "routes/gamerTogether.ts",

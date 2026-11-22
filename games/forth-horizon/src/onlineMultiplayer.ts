@@ -22,6 +22,7 @@ import * as THREE from 'three';
 import type { CarState } from './physics';
 import type { PursuitRole } from './copsAndRobbers';
 import { RealtimeClient, type RtEvent, type RtStanding } from '../../../services/realtime/client';
+import type { GameVoiceSession, GameVoiceState } from '../../../services/gamerNet/gameVoiceCore';
 
 export const FH_RACE_GAME = 'fh-race';
 export type ServerRaceJoin = 'quick' | 'create' | { code: string };
@@ -223,7 +224,24 @@ export class OnlineSessionManager {
 
   setReady(ready: boolean): void { this.rt?.setReady(ready); }
 
+  /** Proximity voice for this room (opt-in from a click: it asks for the mic). Drivers fade out with distance. */
+  voice: GameVoiceSession | null = null;
+  async startVoice(apiBase: string, getToken: () => Promise<string | null>, onChange?: (s: GameVoiceState) => void): Promise<GameVoiceState | null> {
+    const rt = this.rt; if (!rt?.matchId) return null;
+    if (this.voice) return this.voice.state;
+    const { GameVoiceSession: V } = await import('../../../services/gamerNet/gameVoiceCore');
+    if (this.rt !== rt) return null;
+    // Hear a car clearly within ~25 m, fading out completely past 180 m (a few corners away).
+    const v = new V({ apiBase, getToken, scope: `rt_${rt.matchId}`, spatial: { refDistance: 25, maxDistance: 180, rolloff: 1.2 }, onChange });
+    this.voice = v;
+    await v.join();
+    if (v.state.status !== 'on' && v.state.status !== 'connecting') { if (this.voice === v) this.voice = null; }
+    return v.state;
+  }
+  stopVoice(): void { this.voice?.leave(); this.voice = null; }
+
   disconnect(): void {
+    this.stopVoice();
     if (this.rt) { const rt = this.rt; this.rt = null; if (rt.phase === 'queue') void rt.leaveQueue().catch(() => null); rt.leave(); }
     if (this.mode !== 'offline') {
       this.broadcastPacket({
@@ -365,6 +383,17 @@ export class OnlineSessionManager {
         splineT: opts?.splineT,
         ts: Date.now(),
       });
+    }
+
+    // Proximity voice: me as the listener facing along the car, every other driver at their car.
+    if (this.voice && this.rt) {
+      const p = playerState.pos;
+      this.voice.setListener({ x: p.x, y: p.y, z: p.z }, { x: Math.sin(playerState.yaw), y: 0, z: Math.cos(playerState.yaw) });
+      for (const [id, r] of this.remotes) {
+        const seat = id.startsWith('seat:') ? Number(id.slice(5)) : NaN;
+        const uid = this.rt.players.find(pl => pl.seat === seat)?.uid;
+        if (uid) this.voice.setPeer(uid, { x: r.pos.x, y: r.pos.y, z: r.pos.z });
+      }
     }
 
     // 2. Dead-reckon & smoothly interpolate remote drivers + prune stale peers (> 6s)

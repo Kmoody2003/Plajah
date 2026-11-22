@@ -42,6 +42,8 @@ Built 2026-11-21 on the Gamer Network (`docs/GAMER_NETWORK.md`). Reuses the plat
 | Voice hook + button (LiveKitSession, audio only) | `components/games/together/useGameVoice.ts`, `VoiceButton.tsx` |
 | Chat + voice under a board | `components/games/together/MatchTogether.tsx` (used by `CyberTicTacToe` and `GameParts` `MatchPanel`) |
 | Proximity voice (Web Audio HRTF, distance gate) | `services/gamerNet/spatialVoice.ts` |
+| Game voice without React/Firebase (for games on their own page) | `services/gamerNet/gameVoiceCore.ts` (`GameVoiceSession`) |
+| Forth Horizon race voice | `games/forth-horizon/src/onlineMultiplayer.ts` (`startVoice`, positions in `step`) + **🎙 Voice** in `onlineLobby.ts`; in the race a chip bottom-left, **M** mutes. Clear within ~25 m, silent past 180 m. |
 | Party voice → stream (consenting voices only) | `services/gamerNet/partyStreamBus.ts` → `LiveAudioMixer` source `'party'` (`services/liveAudioMixer.ts`), subscribed in `MobileLiveStreamer`, shown in `LiveSoundSheet` |
 | Invite button | `components/games/together/InviteToPartyButton.tsx` (in `GlassDockProfileHeader`, `ChatWindow`) |
 | Party dock (self-mounting) | `components/games/together/PartyDock.tsx` — `ensurePartyDock()` from `GamesView`, `showPartyDock()` from the Games home, `App.tsx` handles `game-party:<id>` |
@@ -63,8 +65,7 @@ realtime game server lands, chat and party updates should move onto its socket.
 * Voice wasn't checked end to end: the lab has no LiveKit. Production has LiveKit + TURN switched on; the
   token routes (party, team, match, realtime room, blocks) are unit-tested.
 * The stream mix wasn't heard on a real broadcast (needs two people in voice and a live stream).
-* Proximity voice is ready but not wired into a game yet: the realtime server and Forth Horizon's online race
-  are on the `claude/realtime-game-server` branch. Once merged, the race calls `useGameVoice('rt_' + matchId, name, { spatial: true })`
-  and feeds car positions to `voice.spatial`.
+* Proximity voice in a real race wasn't heard: the realtime lab has no LiveKit unless you start it with
+  `MEETINGS_SFU=1 LIVEKIT_URL=… LIVEKIT_API_KEY=… LIVEKIT_API_SECRET=… npm run realtime:lab`.
 * Team voice for realtime team modes: party teams work today; realtime rooms have no teams yet.
 * Party search pairs people one by one; a whole party entering one realtime room together needs the realtime branch's private rooms.

@@ -293,6 +293,10 @@ It then fixes the ledger plan in the match doc, so a retry replays exactly the s
    recreates the room in the lobby. A race in progress is lost: its match stays open and nothing reaches the ledger.
    The realtime server's posts share `/api/gamer`'s per-IP rate limit (240/min), which covers one post per finished room.
 
+**Race voice.** In the lobby, **🎙 Voice** joins proximity voice for the room (`rt_<matchId>`, LiveKit room `grt-<matchId>`,
+`routes/gamerTogether.ts`): you hear nearby drivers placed around you, fading out past 180 m. Kids never get voice; blocked
+drivers are never played. See `docs/GAMER_TOGETHER.md`.
+
 **Inside Plajah** the game runs in `IframeGameFrame`, which answers the same-origin game's `{type:'plajah.gamerToken.request'}`
 with the player's Firebase ID token. On a lab host (`127.0.0.1`/`localhost`), `?as=<name>` signs in as the lab's stub user.
 
