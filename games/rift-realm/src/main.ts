@@ -9,9 +9,13 @@ import { Objectives } from './objectives';
 import { applyStudioProject } from './studio/projectHook';
 import { createRules } from './studio/rulesHost';
 import { createPost } from './post';
-import { preloadCharacters } from './characters';
 import { wetten } from './wetness';
-import { initKTX2, preloadSets } from './textures';
+import { getKTX2, initKTX2 } from './textures';
+// front end + loading (menu/*): Start → Map → Character → loading screen; prefetch and the faster shader precompile
+import { applyVolume, menuSkipped, prefetch, settings as menuSettings, startMenu } from './menu/menu';
+import { LoadScreen } from './menu/loadProgress';
+import { CHARS, MAPS } from './menu/content';
+import { compileEverything, compileStats, installFastCompile, warmFrame } from './menu/fastCompile';
 import { PlayerController } from './player';
 import { EnemyManager, enemyNav } from './enemies';
 import { VESSEL_ORDER, VESSELS, type VesselId } from './vessels';
@@ -51,6 +55,9 @@ async function boot() {
   const touchHud = document.getElementById('touchHud')!;
   const achToast = document.getElementById('achToast')!;
 
+  // ── front end: the menus run (DOM + video) while the renderer starts behind them; ?rrdebug / ?studio=1 / ?menu=0 skip ──
+  const menu = menuSkipped() ? null : startMenu();
+
   let renderer: THREE.WebGPURenderer;
   try {
     renderer = new THREE.WebGPURenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -60,9 +67,18 @@ async function boot() {
     renderer = new THREE.WebGPURenderer({ antialias: true, powerPreference: 'high-performance', forceWebGL: true });
     await renderer.init();
   }
+  menu?.attachRenderer(renderer, view);
+  const choice = menu ? await menu.choice : null;
+  const pickMap = MAPS.find((m) => m.param === (choice?.level ?? new URLSearchParams(location.search).get('level') ?? 'elderwood')) ?? MAPS[0];
+  const pickChar = CHARS.find((c) => c.id === (choice?.vessel ?? 'aegis')) ?? CHARS[0];
+  const loading = new LoadScreen({ mapName: pickMap.name, mapVideo: pickMap.video, mapPoster: pickMap.poster, charName: pickChar.name, charVideo: pickChar.turn, charPoster: pickChar.turnPoster, accent: pickMap.accent });
+  // batched, parallel shader precompile with progress (menu/fastCompile.ts); ?fastcompile=0 = three's own
+  if (new URLSearchParams(location.search).get('fastcompile') !== '0') {
+    installFastCompile(renderer, (p) => loading.progress((p.built + p.ready) / Math.max(1, p.objects + p.pipelines), `${p.ready} / ${p.pipelines} shaders`));
+  }
   // quality tier: Intel iGPUs (the baseline) get the light path; discrete GPUs get shadows, bloom and full foliage
   const adapter = (renderer.backend as any)?.device?.adapterInfo ?? {};
-  const forced = new URLSearchParams(location.search).get('q');
+  const forced = new URLSearchParams(location.search).get('q') ?? (menuSettings.quality !== 'auto' ? menuSettings.quality : null);
   const tier: Tier = forced === 'low' || forced === 'high' ? forced : adapter.vendor === 'intel' ? 'low' : 'high';
   console.info('[rift-realm] tier', tier, adapter.vendor, adapter.architecture);
   setSecondaryTier(tier); // cloth / wing solver budget (secondary.ts)
@@ -79,31 +95,28 @@ async function boot() {
   const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 260);
   scene.add(camera);
 
-  const levelId = new URLSearchParams(location.search).get('level') ?? 'elderwood';
-  initKTX2(renderer);
+  const levelId = choice?.level ?? new URLSearchParams(location.search).get('level') ?? 'elderwood';
+  if (!getKTX2()) initKTX2(renderer);
   // one table of levels (studio/levelModules.ts), shared with the Game Studio
   const levelModule = moduleByParam(levelId);
-  await Promise.all([preloadSets(levelModule.sets), levelModule.preload?.()]);
+  await loading.stage('assets');
+  // the menus already started these (menu.ts prefetch); the same promises, so nothing loads twice
+  prefetch.files(levelId);
+  await Promise.all([prefetch.level(levelModule), prefetch.characters()]);
+  await loading.stage('world');
   const arena = levelModule.build(scene, tier);
   // wet forest: damp surfaces, glossy wet patches, puddle shine (?dry turns it off); models that stream in later get it too
   if (!new URLSearchParams(location.search).has('dry')) {
     wetten(arena.group);
     for (const ms of [3000, 8000, 20000]) window.setTimeout(() => wetten(arena.group), ms);
   }
+  await loading.stage('prepare');
   await arena.prepare?.(renderer, camera);
   camera.far = levelModule.look.far; camera.updateProjectionMatrix(); renderer.toneMappingExposure = levelModule.look.exposure;
   // Game Studio Play view: the project's edits to this level (spawns, enemy spots, control points, props, look) apply before anyone spawns.
   const studioLook = await applyStudioProject(levelId, arena);
   if (studioLook) { camera.far = studioLook.far; camera.updateProjectionMatrix(); renderer.toneMappingExposure = studioLook.exposure; }
-  document.querySelectorAll<HTMLButtonElement>('#levelPick .lvl').forEach((b) => {
-    b.classList.toggle('on', b.dataset.level === levelId);
-    b.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (b.dataset.level === levelId) return;
-      const q = new URLSearchParams(location.search); q.set('level', b.dataset.level!);
-      location.search = q.toString();
-    });
-  });
+  await loading.stage('collision');
   const collision = new CollisionWorld(arena.group);
   collision.rebuild();
   const post = tier === 'high' ? createPost(renderer, scene, camera) : null;
@@ -119,7 +132,7 @@ async function boot() {
     }
   });
 
-  const rhythm = new RhythmEngine();
+  const rhythm = menu?.rhythm ?? new RhythmEngine(); // the menus' score keeps playing into the level
   const controls = new UnifiedControls(renderer.domElement);
   const usedVessels = new Set<VesselId>(['aegis']);
   let toastTimer: number | undefined;
@@ -130,11 +143,13 @@ async function boot() {
     toastTimer = window.setTimeout(() => achToast.classList.remove('on'), 2800);
   });
 
-  await preloadCharacters();
+  await loading.stage('characters');
+  await prefetch.characters();
   const player = new PlayerController(camera, renderer.domElement);
   player.world = collision;
   player.spawnAt(arena.spawns.a.pos, arena.spawns.a.yaw);
   scene.add(player.object);
+  if (choice) player.setVessel(choice.vessel); // the vessel picked on the character screen
 
   // a Studio level with rules decides who arrives and how the level ends (studio/rulesHost.ts); else the endless trials run
   const ruled = !!studioLook?.level.rules.some(r => r.enabled);
@@ -510,6 +525,7 @@ async function boot() {
   const enterRift = (fromTouch = false) => {
     rhythm.setMood('explore');
     rhythm.start();
+    applyVolume(rhythm); // the menus' volume setting
     if (fromTouch || controls.isTouchDevice || window.matchMedia('(pointer: coarse)').matches) {
       controls.isTouchDevice = true;
       player.enabled = true;
@@ -568,7 +584,7 @@ async function boot() {
       else player.playClip('get_up', 1);
     });
   }
-  function frame(now: number) {
+  function frame(now: number, once = false) {
     const realDt = Math.max(0, Math.min(0.05, (now - last) / 1000));
     last = now;
     // hit-stop freezes the world for a few frames, a parry / Soul-Rend slows it (combat/melee.ts)
@@ -704,10 +720,39 @@ async function boot() {
     if (post) post.render(); else renderer.render(scene, camera);
     if (cinW > 0) { camera.position.copy(camSave.pos); camera.quaternion.copy(camSave.quat); }
     if (shk > 0.001) camera.position.sub(shakeV);
-    requestAnimationFrame(frame);
+    if (!once) requestAnimationFrame(frame);
   }
 
+  // ── loading: compile what joined after the level's precompile (vessel, enemies, VFX, post), draw one frame behind
+  //    the loading screen so the first visible frame doesn't stall, then wait for the player to enter ──
+  await loading.stage('spawn');
+  const tSpawn = performance.now();
+  try { await renderer.compileAsync(scene, camera); } catch (e) { console.warn('[load] spawn precompile', e); }
+  const tFirst = performance.now();
+  // shadow / post pipelines compile async in a no-draw pass first (menu/fastCompile.ts warmFrame), then the real frame
+  const warmed = new URLSearchParams(location.search).get('fastcompile') === '0' ? 0
+    : await warmFrame(renderer, () => frame(performance.now(), true), (n, t) => loading.progress(0.5 + 0.45 * (n / Math.max(1, t)), `${n} / ${t} frame shaders`));
+  const tWarm = performance.now();
+  frame(performance.now(), true);
+  await (renderer.backend as any).device?.queue?.onSubmittedWorkDone?.(); // the GPU actually finished that frame
+  console.info(`[load] spawn: precompile ${Math.round(tFirst - tSpawn)} ms, warm frame ${Math.round(tWarm - tFirst)} ms (${warmed} pipelines), first frame ${Math.round(performance.now() - tWarm)} ms`);
+  console.info(`[load] precompile: ${compileStats.objects} objects, ${compileStats.pipelines} pipelines, ${Math.round(compileStats.ms)} ms in ${compileStats.calls} passes`);
+  const entered = loading.ready().then(() => {
+    loading.hide();
+    prefetch.remember(levelId);
+    if (!new URLSearchParams(location.search).has('rrdebug')) enterRift(controls.isTouchDevice);
+    // the rest of the world's shaders (areas out of view at spawn), in the background so walking on doesn't hitch
+    window.setTimeout(() => { void compileEverything(renderer, scene, camera).then(() => console.info('[load] background warm-up done')); }, 1500);
+  });
+  document.getElementById('menuBtn')?.addEventListener('click', () => { location.href = location.pathname; }); // pause → back to the menus
+  // Esc pauses drag-look play too (no pointer lock to release, e.g. an embedded view that refused the lock)
+  window.addEventListener('keydown', (e) => {
+    if (e.code !== 'Escape' || controls.isTouchDevice || document.pointerLockElement || document.querySelector('.rr-load')) return;
+    if (player.enabled) { player.enabled = false; overlay.classList.remove('hidden'); } else if (!overlay.classList.contains('hidden')) enterRift(false);
+  });
+
   if (new URLSearchParams(location.search).has('rrdebug')) {
+    loading.release(); await entered;
     (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match, targeting, rhythm, danger };
     // combat checks: __rr.combat.arena(['rusher', 'caster', 'brute']) clears the field and rings those around you;
     // .passive(true) freezes their AI; .tune({...}) edits the table live; .state() reads the fight
@@ -743,4 +788,6 @@ boot().catch((err) => {
   console.error('[rift-realm] Boot error:', err);
   const lore = document.querySelector('#overlay .lore');
   if (lore) lore.textContent = `Renderer error: ${err instanceof Error ? err.message : String(err)}`;
+  document.getElementById('overlay')?.classList.remove('hidden');
+  document.querySelector('.rr-load')?.remove();
 });
