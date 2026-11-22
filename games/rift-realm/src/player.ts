@@ -376,7 +376,10 @@ export class PlayerController {
       }
     }
 
-    if (this.object.position.y < -12) {
+    // out of the world: 20 m under the ground in an open world (its vale and gorge lie far below y = 0), else y < -12
+    const pp = this.object.position, field = this.world?.terrain;
+    const floor = field ? field.heightAt(pp.x, pp.z, pp.y + 1) - 20 : -12;
+    if (pp.y < floor) {
       this.object.position.copy(this.lastSafe);
       this.vel.set(0, 0, 0);
       this.vy = 0;

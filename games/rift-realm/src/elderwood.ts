@@ -31,6 +31,11 @@ import { nebulaSky } from './nebulaSky';
 import { CF_VINE, CYBER_FOREST_PLANTS } from '../../../services/vegetation/catalog/cyberForestPlants';
 import { FungusField, type FungusSpot } from '../../../services/vegetation/fungi/field';
 import { CYBER_FOREST_FUNGI } from '../../../services/vegetation/catalog/cyberForestFungi';
+import type { WildsBuilt, WildsHooks } from './world/registry';
+import { wildsHooks } from './world/index';
+
+/** The open world round the hollow (world/*, docs/rift-realm-open-world.md track 1); `?classic` plays the 152 m arena alone. */
+const WORLD: WildsHooks | null = typeof location !== 'undefined' && new URLSearchParams(location.search).has('classic') ? null : wildsHooks();
 
 const MODELS = '/games/rift-realm/assets/elderwood/';
 
@@ -57,6 +62,8 @@ const rimAt = (a: number, r = DECK_R) => ({ x: OAK.x + Math.sin(a) * r, z: OAK.z
 const ang = (p: { x: number; z: number }) => Math.atan2(p.x - OAK.x, p.z - OAK.z);
 const A_WEST = ang(PLATS.west), A_EAST = ang(PLATS.east);
 const A_STAIR = 0.72, A_NET1 = -0.55, A_NET2 = 0.12;
+/** North: the rope bridge out to the High Canopy (the open world's North Oak Platform at 8, -120). */
+const A_NORTH = Math.atan2(8 - OAK.x, -120 - OAK.z);
 const OBJ_A = (() => { const p = rimAt(0.32, 13); return new THREE.Vector3(p.x, DECK_Y, p.z); })();
 const OBJ_B = { x: -34, z: 26 }, OBJ_C = { x: 43, z: 37 };
 
@@ -71,7 +78,12 @@ const LANES: number[][][] = [
   [[-16, -8], [0, 4], [MONOLITH.x, MONOLITH.z]],
 ];
 
+/** The hollow's height. In the open world (wilds) the world answers instead, using this without the edge hills. */
 export function elderwoodHeight(x: number, z: number): number {
+  return WORLD ? WORLD.height(x, z) : coreHeight(x, z, true);
+}
+
+function coreHeight(x: number, z: number, edge: boolean): number {
   let h = (fbm3(x * 0.04, 1, z * 0.04) - 0.5) * 1.8 + (fbm3(x * 0.15, 2, z * 0.15) - 0.5) * 0.4;
   // the plateau the Great Oak grows from: a mound under its deck
   h += 3.4 * smooth(36, 12, dist(x, z, OAK));
@@ -84,7 +96,8 @@ export function elderwoodHeight(x: number, z: number): number {
   for (const [p, r, y] of [[SPAWN_A, 7, 0], [SPAWN_B, 7, 0], [CABIN, 7, 0], [CHAPEL, 9, 0], [TOWER, 5, 0], [MONOLITH, 5, 0.6]] as const) {
     const f = smooth(r + 5, r, dist(x, z, p)); h = h * (1 - f) + y * f;
   }
-  // the map's edge: rising forested hills
+  // the map's edge: rising forested hills (not in the open world, where the forest carries on)
+  if (!edge) return h;
   const o = Math.max(Math.abs(x) - BOUND, Math.abs(z) - BOUND);
   h += smooth(-4, 14, o) * (14 + fbm3(x * 0.03, 4, z * 0.03) * 12);
   return h;
@@ -97,6 +110,10 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const kit = new StaticKit();
   const B = builders(kit);
   const R = rng(2424);
+  // the open world round the hollow (wilds/*), when registered
+  const W = WORLD;
+  W?.setCore((x, z) => coreHeight(x, z, false));
+  let wb: WildsBuilt | null = null;
   const H = elderwoodHeight;
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s3 = new THREE.Vector3();
   const nearLane = (x: number, z: number, d: number) => LANES.some((l) => segDist(x, z, l).d < d);
@@ -147,8 +164,8 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const runeMat = new THREE.MeshStandardNodeMaterial({ color: 0x03141a, roughness: 0.3 });
   runeMat.emissiveNode = cyan.mul(float(1.1).add(uBeatPulse.mul(1.2)));
 
-  // ── terrain ─────────────────────────────────────────────────────────────────────────────────────────────────
-  {
+  // ── terrain (the open world streams its own) ────────────────────────────────────────────────────────────────
+  if (!W) {
     const W = 240, SX = lo ? 120 : 220;
     const g = new THREE.PlaneGeometry(W, W, SX, SX);
     g.rotateX(-Math.PI / 2);
@@ -220,7 +237,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   }
 
   // ── the treetop deck round the oak: planks on radial beams, a rope rail with gaps for the bridges/stairs/nets ─
-  const openings = [A_WEST, A_EAST, A_STAIR, A_NET1, A_NET2];
+  const openings = [A_WEST, A_EAST, A_STAIR, A_NET1, A_NET2, ...(WORLD ? [A_NORTH] : [])];
   const isOpen = (a: number, half = 0.09) => openings.some((o) => Math.abs(Math.atan2(Math.sin(a - o), Math.cos(a - o))) < half);
   {
     const N = 64, outer: [number, number][] = [], hole: [number, number][] = [];
@@ -616,8 +633,19 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   plant(2, Math.round(50 * kk), anywhere, 0.9, 1.5);
   plant(4, Math.round(30 * kk), byPool, 1.5, 3.0);    // CF_CRYSTAL_PLANT
   plant(5, Math.round(14 * kk), byTrees, 1.3, 2.3);    // CF_RESIN_STUMP (vines are hung from the grown branches below)
-  for (const [cx, cz, w, d] of [[0, -BOUND - 3, 2 * BOUND + 12, 1], [0, BOUND + 3, 2 * BOUND + 12, 1], [-BOUND - 3, 0, 1, 2 * BOUND + 12], [BOUND + 3, 0, 1, 2 * BOUND + 12]] as const) {
+  if (!W) for (const [cx, cz, w, d] of [[0, -BOUND - 3, 2 * BOUND + 12, 1], [0, BOUND + 3, 2 * BOUND + 12, 1], [-BOUND - 3, 0, 1, 2 * BOUND + 12], [BOUND + 3, 0, 1, 2 * BOUND + 12]] as const) {
     kit.box(B.invisible, w, 60, d, cx, 20, cz, 0, { shadow: false });
+  }
+  // the open world: its places, terrain, water and trees join the level here
+  const wildTrees: TreeSpot[] = [];
+  if (W) {
+    wb = W.build({
+      scene, group, kit, B, lo, beat: uBeatPulse, H,
+      mats: { ground, bark, wood, darkWood, stone, rock, rope, lamp: lampMat, rune: runeMat, water: waterMat, cable: cableMat, net: netMat },
+      treeSpots: wildTrees, plantSpots, fungusSpots,
+    });
+    wildTrees.push(...wb.treeSpots);
+    group.userData.terrain = W.terrain();
   }
 
   kit.build(group);
@@ -660,7 +688,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     return { x: sp.x, y: H(sp.x, sp.z) - 0.2, z: sp.z, yaw: sp.yaw, species: k, scale: Math.max(0.6, Math.min(1.5, sp.h / CYBER_FOREST_TREES[k].height)) };
   });
   // the forest beyond the edge: hundreds of grown trees on the rising hills (impostors at range), not cards
-  {
+  if (!W) {
     const n = lo ? 140 : 320;
     for (let i = 0; i < n * 3 && forestSpotsV.length < forestSpots.length + n; i++) {
       const a = R() * Math.PI * 2, rr = BOUND + 6 + Math.pow(R(), 0.7) * 48, x = Math.sin(a) * rr, z = Math.cos(a) * rr;
@@ -682,7 +710,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
       }
     }
   }
-  forestSpotsV.push(...oakSpots);
+  forestSpotsV.push(...wildTrees, ...oakSpots);
   const forest = new Forest([...CYBER_FOREST_TREES, CF_GREAT_OAK, CF_PLATFORM_OAK], forestSpotsV, { lowTier: lo, beat: uBeatPulse, shadows: !lo });
   group.add(forest.group);
   let viewCam: THREE.Camera | null = null;
@@ -695,19 +723,21 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
 
   // ── grass: GPU blade fields from the Cyber Forest grass species (services/vegetation/grass). The ground says where
   //    each grows: glow tufts in clumps away from the paths, turf everywhere but the paths, water and buildings. ──
-  const GB = BOUND + 24;
-  const grassGround = bakeGround({ x0: -GB, z0: -GB, size: GB * 2, res: lo ? 128 : 200 }, H, (x, z) => {
+  const GB = W ? W.half : BOUND + 24;
+  const grassGround = bakeGround({ x0: -GB, z0: -GB, size: GB * 2, res: W ? (lo ? 512 : 1024) : lo ? 128 : 200 }, H, (x, z) => {
+    const wc = wb?.grassCover(x, z);
+    if (wc) return wc;
     if (inStructure(x, z, 0.5) || dist(x, z, POOL) < 13) return [0, 0];
     const lane = LANES.reduce((m, l) => Math.min(m, segDist(x, z, l).d), Infinity);
     const path = Math.min(1, Math.max(0, (lane - 1.2) / 2.2));           // bare in the middle of a path, thick 3.5 m off
-    const edge = Math.min(1, Math.max(0, (GB - Math.max(Math.abs(x), Math.abs(z))) / 6));
+    const edge = W ? 1 : Math.min(1, Math.max(0, (GB - Math.max(Math.abs(x), Math.abs(z))) / 6));
     const wet = dist(x, z, POOL) < 22 ? 1.25 : 1;
     return [path * edge * 0.75 * wet, Math.max(path, 0.25) * edge];
-  });
+  }, W ? { trampleRes: 1024 } : {});
   const grass = new GrassField(CYBER_FOREST_GRASS, grassGround, { lowTier: lo, beat: uBeatPulse, shadows: false });
   group.add(grass.group);
   // vines hang from the grown trees' branches (not the code crowns), never reaching the ground
-  for (const hp of forest.hangPoints(lo ? 1 : 2, (t) => Math.abs(t.x) < BOUND + 10 && Math.abs(t.z) < BOUND + 10, 11)) {
+  for (const hp of forest.hangPoints(lo ? 1 : 2, (t) => (Math.abs(t.x) < BOUND + 10 && Math.abs(t.z) < BOUND + 10) || (!!wb && wb.vineKeep(t)), 11)) {
     const clear = hp.y - H(hp.x, hp.z);
     if (clear < 3.5 || R() > 0.6) continue;
     plantSpots.push({ x: hp.x, y: hp.y + 0.15, z: hp.z, yaw: R() * 6.28, species: 3, scale: Math.min(1.6, (clear - 2.4) / CF_VINE.height) });
@@ -744,7 +774,8 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   sky.apply(scene);
   const auroraLights = sky.lights(group);
   let skyT = 0;
-  scene.fog = new THREE.FogExp2(sky.horizon.getHex(), 0.0085);
+  const FOG = W ? W.fogDensity : 0.0085;
+  scene.fog = new THREE.FogExp2(sky.horizon.getHex(), FOG);
   scene.add(group);
 
   // ── the forest fights back: wolves, mantises, wasps, bats; deer graze the hollow; moths round every light ─────
@@ -833,14 +864,19 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
       b: { pos: SPAWN_B.clone().setY(H(SPAWN_B.x, SPAWN_B.z) + 0.3), yaw: Math.PI / 2 },
     },
     enemySpots, controlPoints,
-    hazardBelow: -10,
+    hazardBelow: W ? -160 : -10,
     setBiome() { return { name: info.name, track: info.track }; },
     async prepare(renderer, camera) {
       viewCam = camera;
       sky.bakeEnvironment(renderer, scene, 1.15);
       // the far trees are baked under the same sky, and the fog fades into the sky behind them
-      if (scene.environment) { (scene as unknown as { fogNode: unknown }).fogNode = sky.fogNode(scene.environment, 0.0085); scene.fog = null; }
+      if (scene.environment) { (scene as unknown as { fogNode: unknown }).fogNode = sky.fogNode(scene.environment, FOG); scene.fog = null; }
       await forest.bake(renderer, { environment: scene.environment, envIntensity: 1.15 });
+      if (wb) {
+        const cam = camera as THREE.PerspectiveCamera;
+        if (cam.isPerspectiveCamera) { cam.far = Math.max(cam.far, 1600); cam.updateProjectionMatrix(); }
+        await wb.prepare?.(renderer, camera);
+      }
     },
     update(dt, pulse) {
       uBeatPulse.value = pulse;
@@ -857,6 +893,12 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
       if (viewCam) { grass.update(viewCam, dt); plants.update(viewCam, dt); fungi.update(viewCam, dt); } else grassGround.update(dt);
       updateHerd(dt);
       moths.update(dt);
+      if (wb) {
+        wb.update(dt, viewCam, pp, pulse);
+        // the moon's shadow box follows the player across the world (snapped so it doesn't shimmer)
+        const sx = Math.round(pp.x / 4) * 4, sz = Math.round(pp.z / 4) * 4, sy = Math.round(pp.y / 4) * 4;
+        moon.target.position.set(sx, sy, sz); moon.position.set(sx - 50, sy + 110, sz + 40);
+      }
       for (const b of beacons) b.intensity = 45 + pulse * 25;
       for (const l of spawnLights) l.intensity = 26 + pulse * 8;
     },
