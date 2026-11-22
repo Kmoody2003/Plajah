@@ -31,16 +31,26 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
   const sandbag = new THREE.MeshStandardNodeMaterial({ color: 0x8a7a58, roughness: 1 });
   const crate = new THREE.MeshStandardNodeMaterial({ color: 0x4a5236, roughness: 0.8, metalness: 0.2 });
   // forest rock: the rock sheet's relief in grey-green stone, moss over every upward face (no volcanic orange)
-  const mossRock = (() => {
+  const mossyStone = (cover: number, lo0: number) => {
     const src = mats.rock as THREE.MeshStandardNodeMaterial;
     const m = new THREE.MeshStandardNodeMaterial({ normalMap: src.normalMap, roughnessMap: src.roughnessMap, roughness: 0.95 });
     m.normalScale.set(1.3, 1.3);
     const rl = src.map ? tslTexture(src.map, uv()).rgb.dot(vec3(0.3, 0.55, 0.15)) : float(0.4);
-    const moss = tslTexture(art('moss_strand_albedo.jpg', true, true), positionWorld.xz.mul(0.35)).rgb.mul(vec3(0.5, 0.7, 0.42));
-    const up = smoothstep(float(0.35), float(0.75), normalWorld.y);
-    m.colorNode = mix(vec3(rl).mul(vec3(0.46, 0.52, 0.48)), moss, up.mul(0.85));
+    // the moss sheet's light and shade only, in forest green (its own colours are teal-violet strands)
+    const ml = tslTexture(art('moss_strand_albedo.jpg', true, true), positionWorld.xz.mul(0.35)).rgb.dot(vec3(0.3, 0.55, 0.15));
+    const moss = vec3(ml).mul(vec3(0.3, 0.46, 0.2)).add(vec3(0.01, 0.02, 0.005));
+    const up = smoothstep(float(lo0), float(lo0 + 0.4), normalWorld.y);
+    m.colorNode = mix(vec3(rl).mul(vec3(0.46, 0.52, 0.48)), moss, up.mul(cover));
     return m;
-  })();
+  };
+  const mossRock = mossyStone(0.85, 0.35);
+  const moundMat = mossyStone(1, -0.2);       // moss everywhere but the undersides
+  /** A moss mound: a low lumpy hump of earth and moss (the art's overgrown floor), rad across, h high. */
+  const mound = (x: number, z: number, rad: number, h: number, y = H(x, z), seed = 1) => {
+    const g = boulder(1, x * 0.71 + z * 1.3 + seed, lo ? 1 : 2);
+    kit.place(g, x, y - h * 0.3, z, seed * 1.7, 0, 0, rad, h * 1.3, rad * (0.75 + 0.5 * ((seed * 0.37) % 1)));
+    kit.add(moundMat, g, { tpm: 0.5, solid: h > 1.0 });
+  };
   /** Grass allowed back into a place's footprint (cracks in paving): [x, z, r, cover]. */
   const grassy: number[][] = [];
 
@@ -294,9 +304,9 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
     }
     for (let k = 0; k < (o.plants ?? 30); k++) {
       const p = spot(); if (!p) continue;
-      ctx.plantSpots.push({ x: p[0], y: y - 0.02, z: p[1], yaw: rnd() * 6.28, species: rnd() < 0.7 ? 0 : 1, scale: 0.45 + rnd() * 0.5 });
+      ctx.plantSpots.push({ x: p[0], y: y - 0.02, z: p[1], yaw: rnd() * 6.28, species: rnd() < 0.7 ? 8 : 7, scale: 0.45 + rnd() * 0.5 });   // green forest fern / undergrowth
     }
-    grassy.push([x, z, r, 0.45]);
+    grassy.push([x, z, r, 0.12]);   // a few blades in the cracks; the green masses are the plants and mounds
   };
 
   /** Merge the trunk/trim geometry into the level (call once, after every place is built). */
@@ -308,7 +318,7 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
   };
 
   return {
-    H, deck, bridge, link, clutter, grassy, mossRock, toward, hut, lamp, arch, ruinWall, pillar, paving, discPave, rocks, circuit, runeCircle, ring, screen, crystal, crates, sandbags, waterfall, finish,
+    H, deck, bridge, link, clutter, grassy, mossRock, mound, toward, hut, lamp, arch, ruinWall, pillar, paving, discPave, rocks, circuit, runeCircle, ring, screen, crystal, crates, sandbags, waterfall, finish,
     barkGeos, trimGeos, lights, clears,
     mats: { cyanGlow, amberGlow, violetGlow, goldGlow, crystalMat, metal, canvasMat, sandbag, crate, fallMat },
   };

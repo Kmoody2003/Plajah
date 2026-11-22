@@ -146,6 +146,14 @@ clutter is too low and too blue-grey to change the depth or the silhouettes; the
 The art's floor reads by green moss mounds and big leafy masses. Next: a green, leafy undergrowth species sized like the
 art's (1–3 m mounds), mossy mounds as geometry (not decals), placed only in front of walls.
 
+**Green undergrowth + moss mounds (2026-11-22).** Two green forest species from the shots (`CF_UNDERGROWTH`, `CF_FOREST_FERN`,
+catalog indices 7/8), `kit.mound()` moss mounds, a mossy stone in forest green (the moss sheet's own colours are teal-violet
+strands), and by day the night sky's environment map is turned down (it was reflecting violet/cyan off every leaf and stone:
+the reason the plants looked like blue streaks). Portal Plaza: mounds line the floor in front of the walls and along both
+frame edges. Score unchanged at 0.598. Open issue: the leafy plants show up close (verified) but not from the shot camera
+22 m away even though 240 are drawn: next step is to find out why (LOD/culling or shading at range) before more dressing.
+The remaining gap is mostly the background (the art's dense trunks, vines and god rays vs open haze).
+
 ## Track 2 — Characters from video
 - Every clip comes from the character's own motion videos (services/mocap: capture → solveTake → clipToThree →
   retarget), never hand-keyed. Assassin, Archangel, Cyber-Assassin and the other combat videos sit in

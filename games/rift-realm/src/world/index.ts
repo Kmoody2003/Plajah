@@ -199,6 +199,8 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
     const haze = color(0x9fb6ac);
     const sc = ctx.scene as unknown as { fogNode: unknown; backgroundNode: unknown };
     sc.fogNode = fog(haze, densityFogFactor(float(0.0105))); sc.backgroundNode = color(0xaec4ba);
+    // the night sky's environment map reflects violet and cyan off every leaf and stone; by day it only fills a little
+    (ctx.scene as unknown as { environmentIntensity: number }).environmentIntensity = 0.18;
     if (renderer) renderer.toneMappingExposure = 1.2;
   };
 

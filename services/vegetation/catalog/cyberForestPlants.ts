@@ -75,4 +75,25 @@ export const CF_CARNIVORE: PlantSpecies = {
   provenance: { art: ['carnivore'] },
 };
 
-export const CYBER_FOREST_PLANTS = [CF_FERN, CF_BUSH, CF_GLOW_FLOWER, CF_VINE, CF_CRYSTAL_PLANT, CF_RESIN_STUMP, CF_CARNIVORE];
+/** Green forest undergrowth from the environment shots (Bioluminescent_cyber_forest_spawn, Neon_grid_forest_ruins…):
+ *  the dense leafy masses at the foot of ruin walls and trunks. Natural green, no glow; the cyber look stays in the glowcaps. */
+export const CF_UNDERGROWTH: PlantSpecies = {
+  kind: 'plant', id: 'cf-undergrowth', name: 'Forest undergrowth (broadleaf)', form: 'bush',
+  height: 1.6, spread: 1.4, count: 14, parts: 11, leaf: 0.34,
+  color: { stem: 0x2e2a1e, leaf: 0x3a6428, tip: 0x88aa4c, vein: 0x56763a },
+  wind: { sway: 0.45, flutter: 0.8 },
+  provenance: { art: ['Shooter/Nov 15 - 14_43/Bioluminescent_cyber_forest_spaw…_14e53bc1.jpg'] },
+};
+
+/** Green forest fern from the same shots: big arching fronds round the paving and the wreckage. */
+export const CF_FOREST_FERN: PlantSpecies = {
+  kind: 'plant', id: 'cf-forest-fern', name: 'Forest fern', form: 'fern',
+  height: 1.4, spread: 1.7, count: 12, parts: 18, leaf: 0.32,
+  color: { stem: 0x2a3420, leaf: 0x3c6828, tip: 0x80a848, vein: 0x4c7030 },
+  wind: { sway: 0.7, flutter: 0.8 },
+  provenance: { art: ['Shooter/Nov 15 - 14_43/Bioluminescent_cyber_forest_spaw…_14e53bc1.jpg'] },
+};
+
+export const CYBER_FOREST_PLANTS = [CF_FERN, CF_BUSH, CF_GLOW_FLOWER, CF_VINE, CF_CRYSTAL_PLANT, CF_RESIN_STUMP, CF_CARNIVORE, CF_UNDERGROWTH, CF_FOREST_FERN];
+/** Indices of the green forest species in CYBER_FOREST_PLANTS. */
+export const PLANT_UNDERGROWTH = 7, PLANT_FOREST_FERN = 8;

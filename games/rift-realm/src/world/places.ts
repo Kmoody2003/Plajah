@@ -4,6 +4,7 @@ import * as THREE from 'three/webgpu';
 import { atan, color, float, mix, positionWorld, sin, smoothstep, time, uv, vec2 } from 'three/tsl';
 import type { TreeSpot } from '../../../../services/vegetation/trees/forest';
 import { CF_PLATFORM_OAK, CYBER_FOREST_TREES } from '../../../../services/vegetation/catalog/cyberForest';
+import { PLANT_FOREST_FERN, PLANT_UNDERGROWTH } from '../../../../services/vegetation/catalog/cyberForestPlants';
 import type { WildsCtx } from './registry';
 import type { WorldTerrain } from './terrain';
 import { type Kit, uniformBeat } from './kit';
@@ -608,8 +609,15 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
       // vines down the arches, ferns and bushes along the walls and the sides
       for (let k = 0; k < 16; k++) { const q = at(30 + R() * 2, -16 + R() * 32); ctx.plantSpots.push({ x: q.x, y: py + 5 + R() * 4, z: q.z, yaw: R() * 6.28, species: 3, scale: 0.6 + R() * 0.6 }); }
       // the overgrowth at the foot of the ruins and down both sides: bush and fern masses 2–4 m high, as in the art
-      for (let k = 0; k < 46; k++) { const q = at(21 + R() * 9, -20 + R() * 40); if (Math.abs(q.x - g.x) + Math.abs(q.z - g.z) < 3) continue; plant(R() < 0.55 ? 1 : 0, q.x, q.z, 1.8 + R() * 1.4, py); }
-      for (let k = 0; k < 30; k++) { const sd = R() < 0.5 ? -1 : 1, q = at(2 + R() * 22, sd * (8 + R() * 9)); plant(R() < 0.5 ? 0 : 1, q.x, q.z, 1.6 + R() * 1.4, py); }
+      //   moss mounds and green leafy masses only IN FRONT of the wall line (d < WD), the portal's mouth kept open
+      const UG = PLANT_UNDERGROWTH, FF = PLANT_FOREST_FERN;
+      const greenery = (d: number, sx: number, rad: number, hh: number, n: number) => {
+        const q = at(d, sx); K.mound(q.x, q.z, rad, hh, py, d * 3 + sx);
+        for (let k = 0; k < n; k++) { const a = R() * 6.283, e = rad * (0.15 + R() * 0.75), px = q.x + Math.sin(a) * e, pz = q.z + Math.cos(a) * e; plant(R() < 0.6 ? UG : FF, px, pz, 1.7 + R() * 1.3, py + hh * (1 - (e / (rad * 1.05)) ** 2) * 0.95); }   // on the mound's surface
+      };
+      for (let sx = -17; sx <= 15; sx += 2.2) { if (sx > 1.5 && sx < 5.8) continue; greenery(WD - 2.2 - R() * 1.6, sx + (R() - 0.5), 2.0 + R() * 1.4, 1.1 + R() * 1.0, 5); }
+      for (let k = 0; k < 16; k++) { const sd = R() < 0.5 ? -1 : 1, d = 4 + R() * 16; greenery(d, sd * (d * 0.55 + 2 + R() * 4), 1.6 + R() * 1.4, 0.8 + R() * 1.0, 4); }   // along both edges of the frame
+      for (const [d, sx] of [[4.5, -3.8], [5, 4.4], [6.5, -5.5], [7, 6]] as const) greenery(d, sx, 1.6 + R() * 0.6, 0.9 + R() * 0.5, 5);   // the near corners
       // machinery wreck and rubble in the near corners (the art's half-buried tech, bottom left and right)
       for (const [d, sx, n] of [[4.6, -5.8, 1], [4.8, 6.2, 2]] as const) {
         const q = at(d, sx);
