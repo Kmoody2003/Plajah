@@ -17,7 +17,7 @@ import { VESSEL_ORDER, VESSELS, type VesselId } from './vessels';
 import { UnifiedControls } from './controls';
 import { Targeting } from './targeting';
 import { PlajahGamesBridge } from './plajahBridge';
-import { VfxSystem, HIT_SPARKS, HIT_PERFECT, WALL_IMPACT, MUZZLE, KILL_BURST } from '../../../services/vfx';
+import { VfxSystem, HIT_SPARKS, HIT_PERFECT, WALL_IMPACT, MUZZLE, KILL_BURST, SHADOW_BURST, SLASH, SLASH_PERFECT, SLASH_SHADOW, BLADE_TRAIL, STREAK_TRAIL } from '../../../services/vfx';
 
 interface Beam {
   line: THREE.Mesh;
@@ -185,6 +185,10 @@ async function boot() {
   // Particles (services/vfx): sparks on every hit, a burst of shards on a kill; bounce off the real ground.
   const vfx = new VfxSystem({ ground: (x, z, y) => collision.groundAt(x, z, y, 4) });
   scene.add(vfx.group);
+  // Strikes: a blade trail off the right hand (third person) and a dash streak, fed each frame while active.
+  const blade = vfx.trail(BLADE_TRAIL), dashTrail = vfx.trail(STREAK_TRAIL);
+  const bladeA = new THREE.Vector3(), bladeB = new THREE.Vector3(), dashP = new THREE.Vector3();
+  let bladeT = 0, dashT = 0, strikeFlip = false;
 
   if (controls.isTouchDevice) {
     touchHud.classList.add('on');
@@ -409,6 +413,7 @@ async function boot() {
   };
 
   player.onDash = () => {
+    dashTrail.setColor(player.vessel.primaryColor); dashTrail.emitting = true; dashT = 0.32;
     const evalRes = rhythm.evaluateBeat();
     const onBeat = evalRes.quality !== 'OFF';
     rhythm.playDash(onBeat);
@@ -427,6 +432,12 @@ async function boot() {
     const beat = rhythm.evaluateBeat();
     const pPos = player.object.position;
     const forward = new THREE.Vector3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
+    // the strike's crescent, alternating sides; gold on the beat
+    const tint = player.vessel.primaryColor, perfect = beat.quality === 'PERFECT';
+    const chest = pPos.clone().add(new THREE.Vector3(0, 1.15, 0)).addScaledVector(forward, 0.6);
+    vfx.slash(perfect ? SLASH_PERFECT : SLASH, chest, { forward, tilt: strikeFlip ? 0.55 : -0.45, flip: strikeFlip, tint });
+    strikeFlip = !strikeFlip;
+    blade.setColor(perfect ? 0xffd36a : tint, perfect ? 0xff9a2a : tint); blade.emitting = true; bladeT = 0.42;
 
     let hitAny = false;
     for (const e of [...enemies.enemies]) {
@@ -441,7 +452,11 @@ async function boot() {
       hitAny = true;
       if (e.staggered) {
         // DOOM-meets-Mortal Kombat Soul-Rend Finisher!
+        const ePos = e.mesh.position.clone().setY(e.mesh.position.y + 1.1);
         const res = enemies.damageEnemy(e.id, e.hp + 999);
+        vfx.slash(SLASH_SHADOW, chest, { forward, tilt: 0.2, flip: !strikeFlip, tint });
+        vfx.spawn(SHADOW_BURST, ePos, { dir: [toE.x, 0.3, toE.z] });
+        if (res?.killed) vfx.spawn(KILL_BURST, ePos, { tint: 0x9b5cff });
         rhythm.playSurge();
         player.hp = Math.min(player.maxHp, player.hp + 25);
         resonance = Math.min(4.0, resonance + 0.6);
@@ -454,7 +469,10 @@ async function boot() {
         break;
       } else {
         const dmg = beat.quality === 'PERFECT' ? 36 : beat.quality === 'GOOD' ? 26 : 16;
+        const ePos = e.mesh.position.clone().setY(e.mesh.position.y + 1.1);
         const res = enemies.damageEnemy(e.id, dmg, toE, 3.2);
+        vfx.spawn(perfect ? HIT_PERFECT : HIT_SPARKS, ePos, { dir: [-toE.x, 0.25, -toE.z], tint });
+        if (res?.killed) vfx.spawn(KILL_BURST, ePos, { tint });
         rhythm.playHit(Boolean(res?.killed));
         if (res?.killed) {
           score += Math.round(120 * resonance);
@@ -611,7 +629,9 @@ async function boot() {
       });
     }
 
-    vfx.update(dt);
+    if (bladeT > 0) { bladeT -= dt; if (player.bladeEdge(bladeA, bladeB)) blade.push(bladeA, bladeB); if (bladeT <= 0) blade.emitting = false; }
+    if (dashT > 0) { dashT -= dt; dashTrail.push(dashP.copy(player.object.position).setY(player.object.position.y + 1.0)); if (dashT <= 0) dashTrail.emitting = false; }
+    vfx.update(dt, camera);
     for (let i = beams.length - 1; i >= 0; i--) {
       beams[i].life -= dt;
       beams[i].line.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.MeshBasicNodeMaterial | undefined; if (m) m.opacity *= Math.max(0, 1 - dt * 7); });

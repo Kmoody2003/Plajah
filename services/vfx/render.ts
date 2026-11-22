@@ -7,6 +7,8 @@ import {
   atan, cameraViewMatrix, float, instancedBufferAttribute, length, mix, select, sin, smoothstep, step, uv, vec2, vec3, vec4,
 } from 'three/tsl';
 import { ParticleSim, type Layer, type LayerOut, type Recipe, type SpawnOpts } from './sim';
+import { RECIPES } from './recipes';
+import { Slashes, Trail, type SlashOpts, type SlashSpec, type TrailOpts } from './trails';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type N = any;
@@ -85,7 +87,11 @@ export class VfxSystem {
   readonly sim: ParticleSim;
   private layers: { layer: Layer; attrs: ReturnType<typeof attrs>; setCount: (n: number) => void }[] = [];
   private lights: { light: THREE.PointLight; life: number; max: number; peak: number }[] = [];
-  readonly stats = { live: 0, add: 0, alpha: 0, shard: 0, ms: 0 };
+  readonly stats = { live: 0, add: 0, alpha: 0, shard: 0, slashes: 0, trails: 0, ms: 0 };
+  readonly slashes = new Slashes(6);
+  private trails: Trail[] = [];
+  /** Recipes a slash may name for its sparks (filled by the caller, e.g. with RECIPES). */
+  recipes: Record<string, Recipe> = RECIPES;
 
   constructor(opts: VfxOptions = {}) {
     this.sim = new ParticleSim(opts.caps, opts.seed ?? 7);
@@ -94,6 +100,8 @@ export class VfxSystem {
     const add = spriteLayer(this.sim.pools.add.out, true), alpha = spriteLayer(this.sim.pools.alpha.out, false);
     const shard = shardLayer(this.sim.pools.shard.out, this.sim.pools.shard.cap);
     for (const [layer, l] of [['alpha', alpha], ['add', add], ['shard', shard]] as const) { this.group.add(l.obj); this.layers.push({ layer, attrs: l.attrs, setCount: l.setCount }); }
+    this.group.add(this.slashes.group);
+    this.slashes.onSparks = (id, at, dir, tint) => { const r = this.recipes[id]; if (r) this.sim.spawn(r, [at.x, at.y, at.z], { dir: [dir.x, dir.y, dir.z], tint }); };
     for (let k = 0; k < (opts.lights ?? 2); k++) {
       const light = new THREE.PointLight(0xffffff, 0, 6, 2);
       light.castShadow = false;
@@ -107,12 +115,23 @@ export class VfxSystem {
     this.sim.spawn(recipe, p, opts);
   }
 
+  /** A crescent of light for a strike, centred `at`, facing `o.forward`. */
+  slash(spec: SlashSpec, at: THREE.Vector3, o: SlashOpts) { this.slashes.spawn(spec, at, o); }
+
+  /** A ribbon trail the caller feeds each frame (trail.emitting = true; trail.push(base, tip)). */
+  trail(opts: TrailOpts = {}) { const t = new Trail(opts); this.trails.push(t); this.group.add(t.mesh); return t; }
+
+  removeTrail(t: Trail) { this.trails = this.trails.filter((x) => x !== t); t.mesh.removeFromParent(); t.mesh.geometry.dispose(); }
+
   /** Camera shake amount (0..1) requested by recent effects; the game decides how to apply it. */
   get shake() { return this.sim.shake; }
 
-  update(dt: number) {
+  update(dt: number, camera?: THREE.Camera) {
     const t0 = performance.now();
     this.sim.step(Math.min(dt, 0.05));
+    this.slashes.update(Math.min(dt, 0.05));
+    for (const t of this.trails) t.update(Math.min(dt, 0.05), camera);
+    this.stats.slashes = this.slashes.active; this.stats.trails = this.trails.filter((t) => t.visibleSamples > 1).length;
     for (const l of this.layers) {
       const out = this.sim.pools[l.layer].out, n = out.count;
       for (const a of Object.values(l.attrs)) { a.clearUpdateRanges(); a.addUpdateRange(0, Math.max(4, n * 4)); a.needsUpdate = true; }

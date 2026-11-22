@@ -62,3 +62,39 @@ test('every recipe is valid data', () => {
     for (const l of ['add', 'alpha', 'shard'] as const) { const o = s.pools[l].out; for (let i = 0; i < o.count * 4; i++) assert.ok(Number.isFinite(o.posAge[i]) && Number.isFinite(o.color[i])); }
   }
 });
+
+test('a blade trail builds a strip from its samples, smooths it, and empties after its life', async () => {
+  const THREE = await import('three/webgpu');
+  const { Trail } = await import('../services/vfx/trails');
+  const t = new Trail({ mode: 'blade', life: 0.2, samples: 16 });
+  t.emitting = true;
+  for (let k = 0; k < 8; k++) {
+    const a = Math.PI * k / 8;
+    t.push(new THREE.Vector3(Math.cos(a) * 0.3, 1, Math.sin(a) * 0.3), new THREE.Vector3(Math.cos(a), 1, Math.sin(a)));
+    t.update(0.016);
+  }
+  const g = t.mesh.geometry as InstanceType<typeof THREE.BufferGeometry>;
+  // 8 samples → 7 segments × 4 sub-steps → 29 cross-sections → 28 quads
+  assert.equal(g.drawRange.count, 28 * 6);
+  const p = g.attributes.position.array as Float32Array, uv = g.attributes.uv.array as Float32Array;
+  assert.ok(uv[0] < 0.1 && uv[28 * 4] > uv[0] + 0.3, 'u grows from the head (one frame old) to the tail');
+  for (let i = 0; i < 29 * 6; i++) assert.ok(Number.isFinite(p[i]));
+  t.emitting = false;
+  for (let k = 0; k < 20; k++) t.update(0.016);
+  assert.equal(g.drawRange.count, 0);
+});
+
+test('slashes reuse a small pool and throw sparks as they open', async () => {
+  const THREE = await import('three/webgpu');
+  const { Slashes } = await import('../services/vfx/trails');
+  const { SLASH } = await import('../services/vfx/recipes');
+  const s = new Slashes(3);
+  const sparks: string[] = [];
+  s.onSparks = (id) => sparks.push(id);
+  for (let k = 0; k < 5; k++) s.spawn(SLASH, new THREE.Vector3(0, 1, 0), { forward: new THREE.Vector3(0, 0, -1), flip: k % 2 === 1 });
+  assert.equal(s.active, 3);
+  for (let k = 0; k < 8; k++) { s.group.updateMatrixWorld(true); s.update(0.016); }
+  assert.ok(sparks.length >= 3 && sparks.every((x) => x === 'slash_sparks'));
+  for (let k = 0; k < 30; k++) s.update(0.016);
+  assert.equal(s.active, 0);
+});

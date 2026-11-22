@@ -338,6 +338,24 @@ export class PlayerController {
     return { origin, dir };
   }
 
+  private handBones: { hand: THREE.Object3D; fore: THREE.Object3D } | null | undefined;
+  /** The blade edge of the right hand for melee trails: base at the hand, tip 0.75 m on past it along the forearm
+   *  (the Void Stalker swings blades; the gun vessels swing the gun). False in first person or without a rig. */
+  bladeEdge(base: THREE.Vector3, tip: THREE.Vector3): boolean {
+    if (this.firstPerson || !this.rig) return false;
+    if (this.handBones === undefined) {
+      let hand: THREE.Object3D | undefined, fore: THREE.Object3D | undefined;
+      this.rig.root.traverse((o) => { if (/RightHand$/.test(o.name)) hand = o; else if (/RightForeArm$/.test(o.name)) fore = o; });
+      this.handBones = hand && fore ? { hand, fore } : null;
+    }
+    if (!this.handBones) return false;
+    this.handBones.hand.getWorldPosition(base);
+    this.handBones.fore.getWorldPosition(tip);
+    tip.subVectors(base, tip).normalize().multiplyScalar(0.75).add(base);
+    base.lerp(tip, 0.15);
+    return true;
+  }
+
   getMuzzleWorldPos(): THREE.Vector3 {
     if (this.firstPerson) {
       return this.camera.localToWorld(new THREE.Vector3(0.22, -0.15, -0.65));

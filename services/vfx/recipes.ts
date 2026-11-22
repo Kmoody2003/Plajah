@@ -2,6 +2,7 @@
 // add them; `sound` names the clip family from the SFX library (docs/rift-realm-fx-study.md §1) that plays with it.
 // Looks are taken from the Flow reference videos (frame sheets in docs/rift-realm-fx/).
 import type { Recipe } from './sim';
+import type { SlashSpec, TrailOpts } from './trails';
 
 const HOT = 0xfff4d6; // white-gold core most energy sparks start at
 
@@ -97,3 +98,26 @@ export const SHADOW_BURST: Recipe = {
 export const RECIPES: Record<string, Recipe> = Object.fromEntries(
   [HIT_SPARKS, HIT_PERFECT, WALL_IMPACT, MUZZLE, KILL_BURST, EMBERS, FROST_SHATTER, SHADOW_BURST].map((r) => [r.id, r]),
 );
+
+// ── Strikes ────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** Small sparks thrown off a slash's leading edge. */
+export const SLASH_SPARKS: Recipe = {
+  id: 'slash_sparks',
+  emitters: [
+    { layer: 'add', shape: 'spark', count: [6, 9], life: [0.15, 0.32], speed: [3, 7], spread: 0.6, size: [0.025, 0.008], color: ['tint+white', 'tint'], intensity: 2, drag: 3, gravity: 4, stretch: 0.03 },
+  ],
+};
+RECIPES[SLASH_SPARKS.id] = SLASH_SPARKS;
+
+/** A melee strike: a crescent in the weapon's colour that sweeps open in ~0.08 s and fades by 0.3 s. */
+export const SLASH: SlashSpec = { id: 'slash', radius: 1.35, arc: 2.3, thickness: 0.6, life: 0.3, sweep: 0.08, color: 'tint', tail: 'tint', intensity: 1.6, grow: 0.15, sparks: 'slash_sparks', sound: 'whoosh' };
+/** On-beat strike: gold, wider and brighter. */
+export const SLASH_PERFECT: SlashSpec = { id: 'slash_perfect', radius: 1.55, arc: 2.7, thickness: 0.75, life: 0.36, sweep: 0.085, color: 0xffd36a, tail: 0xff9a2a, intensity: 2.1, grow: 0.2, sparks: 'slash_sparks', sound: 'whoosh' };
+/** Soul-Rend finisher / Void Stalker shadow strike: a deep violet arc. */
+export const SLASH_SHADOW: SlashSpec = { id: 'slash_shadow', radius: 1.8, arc: 3.4, thickness: 0.95, life: 0.45, sweep: 0.1, color: 0xc9a8ff, tail: 0x5b21b6, intensity: 2.2, grow: 0.25, sparks: 'slash_sparks', sound: 'whoosh' };
+
+/** The trail a blade (or a hand swinging a weapon) leaves during a strike. */
+export const BLADE_TRAIL: TrailOpts = { mode: 'blade', color: 0x38bdf8, intensity: 2, life: 0.18, samples: 32, streaks: 1 };
+/** A thin camera-facing streak behind something fast (a dash, a thrown blade, a projectile). */
+export const STREAK_TRAIL: TrailOpts = { mode: 'ribbon', color: 0x38bdf8, intensity: 1.6, life: 0.25, width: 0.18, samples: 40, streaks: 0 };
