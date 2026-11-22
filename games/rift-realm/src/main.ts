@@ -497,6 +497,12 @@ async function boot() {
     enterRift(true);
   }, { passive: false });
   startBtn.addEventListener('click', () => enterRift(false));
+  // Sound must never stay off while you play: browsers only start / resume audio on a click or key, and a
+  // suspended context (tab hidden, debug entry that skipped the menu) stays silent until then — so any click or key
+  // during play (re)starts the score.
+  const wakeAudio = () => { if (player.enabled) rhythm.start(); };
+  window.addEventListener('pointerdown', wakeAudio, true);
+  window.addEventListener('keydown', wakeAudio, true);
 
   document.addEventListener('pointerlockchange', () => {
     if (controls.isTouchDevice) return;
