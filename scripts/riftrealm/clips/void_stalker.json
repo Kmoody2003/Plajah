@@ -506,6 +506,30 @@
         "minSec": 0.5
       },
       "note": "Soldier jogging forward holding the rifle"
+    },
+    {
+      "name": "eat",
+      "video": "e47a1c09",
+      "from": 2.2,
+      "to": 4.2,
+      "face": "start",
+      "loop": {
+        "minSec": 1.2,
+        "blend": 6
+      },
+      "note": "Kneeling on one knee, hand from the lap to the mouth (generated studio take, Kling 2.5, 2026-11-22)"
+    },
+    {
+      "name": "drink",
+      "video": "d71b3e52",
+      "from": 2.5,
+      "to": 4.5,
+      "face": "start",
+      "loop": {
+        "minSec": 1.2,
+        "blend": 6
+      },
+      "note": "Kneeling, scooping water with cupped hands to the mouth (generated studio take, Kling 2.5, 2026-11-22)"
     }
   ]
 }
