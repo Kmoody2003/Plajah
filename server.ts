@@ -15420,6 +15420,10 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     steam: { apiKey: process.env.STEAM_WEB_API_KEY || '' },
     publicOrigin: (process.env.VITE_APP_URL || 'https://plajah.com').replace(/\/+$/, ''),
     userCard: async uid => { const u = await gamerUserDoc(uid); return u ? { name: String(u.displayName || u.username || 'Player'), photo: String(u.photoURL || u.avatarUrl || ''), isChild: u.isChild === true || u.accountType === 'CHILD' } : null; },
+    // Realtime games (WebSocket rooms on the plajah-realtime service, services/realtime/). Server-only secrets; off until all three are set.
+    realtime: process.env.GAMER_RT_TICKET_SECRET && process.env.GAMER_RT_RESULT_SECRET && process.env.GAMER_RT_URLS
+      ? { ticketSecret: process.env.GAMER_RT_TICKET_SECRET, resultSecret: process.env.GAMER_RT_RESULT_SECRET, urls: process.env.GAMER_RT_URLS.split(',').map(u => u.trim()).filter(Boolean) }
+      : undefined,
   });
   app.use('/api/gamer', rateLimit({ windowMs: 60 * 1000, max: 240, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '8kb' }), gamerRouter);
   // Live party games on streams + feed (Sketch Rush): server-refereed rounds, judged guesses, gamer ledger awards

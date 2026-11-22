@@ -1,0 +1,9 @@
+{
+  "name": "plajah-realtime",
+  "private": true,
+  "type": "module",
+  "description": "Plajah Realtime: WebSocket game rooms (services/realtime). Image built by services/realtime/deploy/Dockerfile.",
+  "engines": { "node": ">=22" },
+  "scripts": { "start": "tsx services/realtime/main.ts" },
+  "dependencies": { "tsx": "^4.19.0", "ws": "^8.21.0" }
+}

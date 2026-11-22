@@ -40,6 +40,8 @@ import { pickOpponent, type Ticket } from '../services/gamerNet/matchmaking';
 import * as M from '../services/gamerNet/match';
 import * as Steam from '../services/gamerNet/links/steam';
 import { LINKABLE } from '../services/gamerNet/links/platforms';
+import { createRealtimeRoutes, type RealtimeConfig } from './gamerRealtime';
+import { realtimeGame } from '../services/realtime/games';
 
 export interface UserCard { name: string; photo?: string; isChild?: boolean }
 export interface GamerDeps {
@@ -51,6 +53,8 @@ export interface GamerDeps {
   steam?: { apiKey?: string; fetch?: Steam.Fetch; loginBase?: string };
   /** Origin Steam redirects back to (e.g. https://plajah.com). Defaults to the request's own origin. */
   publicOrigin?: string;
+  /** Realtime games (WebSocket rooms, routes/gamerRealtime.ts). Without it /rt/config answers { enabled: false }. */
+  realtime?: RealtimeConfig;
 }
 
 const PROFILES = 'gamerProfiles', LEDGER = 'gamerLedger', MATCHES = 'gamerMatches', QUEUE = 'gamerQueue';
@@ -193,7 +197,7 @@ export function createGamerRouter(deps: GamerDeps): Router & { appendEvent: Game
   r.get('/leaderboard', async (req, res) => {
     const game = s(req.query.game, 20) || 'all';
     const limit = Math.max(1, Math.min(100, Number(req.query.limit) || 25));
-    if (game !== 'all' && !gameRules(game)) { res.status(400).json({ error: 'Unknown game' }); return; }
+    if (game !== 'all' && !gameRules(game) && !realtimeGame(game)) { res.status(400).json({ error: 'Unknown game' }); return; }
     const field = game === 'all' ? 'score' : `ratings.${game}`;
     // A <= bound + order on the same field needs only Firestore's automatic single-field index.
     const rows = await store.query(PROFILES, [{ field, value: 1e9, op: 'LESS_THAN_OR_EQUAL' }], limit * 2, { field, direction: 'DESCENDING' });
@@ -559,6 +563,10 @@ export function createGamerRouter(deps: GamerDeps): Router & { appendEvent: Game
     const out = await casUpdate(store.cas(LINKS), linkId(uid, 'steam'), cur => (cur?.status === 'linked' ? { patch: { status: 'unlinked', unlinkedAt: now(), leaseUntil: 0 }, result: true } : { abort: true, result: false }));
     res.json({ ok: out.ok });
   });
+
+  // ───────────────────────────────────────────── realtime games (/rt/*)
+  if (deps.realtime) r.use('/rt', createRealtimeRoutes({ ...deps.realtime, store, now, needUid, profile: ensureProfile, appendEvent }));
+  else r.get('/rt/config', (_req, res) => { res.json({ enabled: false, games: [] }); });
 
   return Object.assign(r, { appendEvent });
 }

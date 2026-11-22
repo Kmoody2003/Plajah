@@ -50,6 +50,8 @@ import { HOSTS } from '../../../services/onair/hosts';
 import { onAirNow } from '../../../services/onair/station';
 import { CopsAndRobbersMode, type PursuitRoleChoice } from './copsAndRobbers';
 import { OnlineSessionManager } from './onlineMultiplayer';
+import { openOnlineRaceLobby } from './onlineLobby';
+import { RealtimeClient } from '../../../services/realtime/client';
 import { SpatialCuller, runWithConcurrency, populateTiledTerrain, populateTerrainLOD, detectInitialTier, TIER_CONFIGS, type PerfTier } from './enginePerf';
 import { harborDetail } from './harborDetail';
 import { duneDetail } from './duneDetail';
@@ -3996,6 +3998,7 @@ let trafficMgr: TrafficManager | null = null;
 let challengeMgr: OpenWorldChallengeManager | null = null;
 let pursuitMode: CopsAndRobbersMode | null = null;
 const onlineSession = new OnlineSessionManager((text) => { msg.textContent = text; });
+if ((import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV) (window as unknown as Record<string, unknown>).__fhOnline = onlineSession; // dev servers only: inspect the online session from the console / lab scripts
 const remoteGroup = new THREE.Group();
 scene.add(remoteGroup);
 const spatialCuller = new SpatialCuller();
@@ -4332,6 +4335,10 @@ function stepDrive(dt: number): void {
   } else if (!s.car.visible) {
     s.car.visible = true;
   }
+  // Online race on the Plajah Realtime server: the grid waits in the lobby, then the lights follow the server's GO, not the local timer.
+  const rtHold = onlineSession.raceHold();
+  if (rtHold && 'lobby' in rtHold) s.lock = Math.max(s.lock, 1);
+  else if (rtHold) s.lock = rtHold.remainingSec;
   const locked = preparing || (!inVictory && s.lock > 0);
   if (trackKit) { if (locked) goClock = 0; else goClock += dt; trackKit.setLights(locked ? 'red' : goClock < 3.5 ? 'green' : 'off'); }
   if (!preparing && !inVictory && s.lock > 0) {
@@ -4341,6 +4348,7 @@ function stepDrive(dt: number): void {
     countEl.style.display = 'block';
     countEl.textContent = n > 0 ? String(n) : s.lock > 0 ? 'GO' : '';
     if (s.lock <= 0) countEl.style.display = 'none';
+    if (rtHold && 'lobby' in rtHold) countEl.textContent = 'LOBBY';
   }
   const pad = driveInput.axes;                                  // controller + touch, analog
   const rawGas = inVictory ? 0 : Math.max((keys.has('KeyW') || keys.has('ArrowUp')) ? 1 : 0, pad.throttle);
@@ -4514,7 +4522,9 @@ function stepDrive(dt: number): void {
       paintHex: 0xc24d12,
       onFoot: pursuitMode?.playerOnFoot.active,
       pursuitRole: pursuitMode?.role,
-      lap: (lap?.laps ?? 0) + 1,
+      // On the realtime server: laps done this race + position round the lap (0..1); the server referees both.
+      lap: onlineSession.rt ? (lap?.started ? Math.max(0, lap.laps - raceStartLaps) : 0) : (lap?.laps ?? 0) + 1,
+      splineT: onlineSession.rt && lap?.started && cityPath.length ? lap.idx / cityPath.length : undefined,
     });
     for (const r of onlineSession.remotes.values()) {
       if (!r.mesh) {
@@ -5087,9 +5097,24 @@ document.getElementById('playOnlineWorld')?.addEventListener('click', () => {
   onlineSession.connectPersistentWorld();
   startDrive('free');
 });
+// Online race: through the Plajah Realtime server when /api/gamer/rt is switched on (lobby, server countdown,
+// refereed finish order on the gamer ledger); otherwise the old same-browser BroadcastChannel mode.
+const RT_API = new URLSearchParams(location.search).get('api') ?? '';
 document.getElementById('playOnlineRace')?.addEventListener('click', () => {
-  onlineSession.joinOnlineRace('ironport_grand_circuit');
-  startDrive('ironport_grand_circuit');
+  void RealtimeClient.enabled(RT_API).then((on) => {
+    if (!on) { onlineSession.joinOnlineRace('ironport_grand_circuit'); startDrive('ironport_grand_circuit'); return; }
+    openOnlineRaceLobby(onlineSession, {
+      apiBase: RT_API, circuitId: 'ironport_grand_circuit',
+      onEnterGrid: () => {
+        startDrive('ironport_grand_circuit');
+        // Human field only: drop the AI grid so the server's finish order is the race everyone sees.
+        if (competition) competition.racers = competition.racers.filter((r) => r.isPlayer);
+        aiGroup.clear(); aiMeshes = [];
+      },
+      onBanner: (t, k) => showBanner(t, k, 5200),
+      onCancel: () => { /* stays on the menu */ },
+    });
+  });
 });
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; applyMapOffset();

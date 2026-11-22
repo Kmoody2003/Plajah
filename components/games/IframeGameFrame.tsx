@@ -23,6 +23,12 @@ export default function IframeGameFrame({ src, title, onExit, gameId }: { src: s
       if (e.origin !== window.location.origin || e.source !== frame.current?.contentWindow) return;
       const d = e.data as { type?: string } | null;
       if (d?.type === 'plajah.exit') onExit();
+      // Online play (realtime races): the same-origin game asks for the player's Firebase ID token to call /api/gamer/rt.
+      if (d?.type === 'plajah.gamerToken.request') {
+        const target = frame.current?.contentWindow;
+        void (auth.currentUser?.getIdToken() ?? Promise.resolve(null)).catch(() => null)
+          .then(token => target?.postMessage({ type: 'plajah.gamerToken', token }, window.location.origin));
+      }
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
