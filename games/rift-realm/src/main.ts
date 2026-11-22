@@ -17,6 +17,7 @@ import { VESSEL_ORDER, VESSELS, type VesselId } from './vessels';
 import { UnifiedControls } from './controls';
 import { Targeting } from './targeting';
 import { PlajahGamesBridge } from './plajahBridge';
+import { VfxSystem, HIT_SPARKS, HIT_PERFECT, WALL_IMPACT, MUZZLE, KILL_BURST } from '../../../services/vfx';
 
 interface Beam {
   line: THREE.Mesh;
@@ -178,8 +179,12 @@ async function boot() {
   let score = 0;
   let popTimeout: number | undefined;
   const beams: Beam[] = [];
+  const shakeV = new THREE.Vector3();
   const surges: SurgeWave[] = [];
   const raycaster = new THREE.Raycaster();
+  // Particles (services/vfx): sparks on every hit, a burst of shards on a kill; bounce off the real ground.
+  const vfx = new VfxSystem({ ground: (x, z, y) => collision.groundAt(x, z, y, 4) });
+  scene.add(vfx.group);
 
   if (controls.isTouchDevice) {
     touchHud.classList.add('on');
@@ -281,6 +286,8 @@ async function boot() {
         startMatch();
         rhythm.playHit(res.killed);
         showHit(hits[0].point, dmg, res.killed);
+        vfx.spawn(quality === 'PERFECT' ? HIT_PERFECT : HIT_SPARKS, hits[0].point, { dir: [-dir.x, -dir.y, -dir.z], tint: primaryHex, count: spreadRad > 0.03 ? 0.5 : 1 });
+        if (res.killed) vfx.spawn(KILL_BURST, res.pos.clone().setY(res.pos.y + 1), { tint: primaryHex });
         if (res.killed) {
           const pts = Math.round(100 * resonance);
           score += pts;
@@ -291,6 +298,7 @@ async function boot() {
       }
     }
 
+    if (!hits.length && worldDist < 120) vfx.spawn(WALL_IMPACT, endPt, { dir: [-dir.x, -dir.y, -dir.z], tint: primaryHex, count: spreadRad > 0.03 ? 0.4 : 1 });
     spawnBeam(muzzle, endPt, quality, primaryHex, hits.length > 0);
   }
 
@@ -314,6 +322,7 @@ async function boot() {
     const triggerBurst = () => {
       rhythm.playShot(beat.quality, spec.id);
       player.triggerMuzzleFlash();
+      { const m = player.getMuzzleWorldPos(), d = player.getAimRay().dir; vfx.spawn(MUZZLE, m, { dir: [d.x, d.y, d.z], tint: spec.primaryColor }); }
       // bloom: hip fire on the move sprays, standing and aiming is near-exact (player.spreadMul)
       const spread = spec.spreadRad * player.spreadMul + 0.012 * player.bloom * (1 - player.aimBlend);
       for (let p = 0; p < spec.pellets; p++) {
@@ -602,6 +611,7 @@ async function boot() {
       });
     }
 
+    vfx.update(dt);
     for (let i = beams.length - 1; i >= 0; i--) {
       beams[i].life -= dt;
       beams[i].line.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.MeshBasicNodeMaterial | undefined; if (m) m.opacity *= Math.max(0, 1 - dt * 7); });
@@ -645,12 +655,16 @@ async function boot() {
     if (ammoEl.textContent !== ammoTxt) { ammoEl.textContent = ammoTxt; ammoEl.style.color = player.ammo <= Math.ceil(player.magSize / 4) && !player.reloading ? '#fb7185' : '#e2f3ff'; }
     surgeTag.style.color = resonance >= 2.0 ? '#fbbf24' : '#64748b';
 
+    // a kill's shake, applied for this render only (the player controller owns the camera)
+    const shk = vfx.shake * 0.06;
+    if (shk > 0.001) camera.position.add(shakeV.set((Math.random() - 0.5) * shk, (Math.random() - 0.5) * shk, (Math.random() - 0.5) * shk));
     if (post) post.render(); else renderer.render(scene, camera);
+    if (shk > 0.001) camera.position.sub(shakeV);
     requestAnimationFrame(frame);
   }
 
   if (new URLSearchParams(location.search).has('rrdebug')) {
-    (window as any).__rr = { player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match, targeting, rhythm };
+    (window as any).__rr = { vfx, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match, targeting, rhythm };
     player.enabled = true;
     overlay.classList.add('hidden');
     // a hidden Browser pane freezes rAF; drive the loop from a timer in that case
