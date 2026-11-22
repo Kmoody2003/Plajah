@@ -144,5 +144,5 @@ api.list = async (org, parent, trash) => {
 };
 
 createRoot(document.getElementById('root')!).render(
-  <PlajahDrive api={api} orgs={[{ id: 'org_grace01', name: 'Grace Chapel' }]} onBack={() => alert('Back')} onAddStorage={() => alert('Add storage')} />,
+  <div style={{ position: 'fixed', inset: 0, display: 'flex' }}><PlajahDrive api={api} orgs={[{ id: 'org_grace01', name: 'Grace Chapel' }]} onBack={() => alert('Back')} onAddStorage={() => alert('Add storage')} /></div>,
 );

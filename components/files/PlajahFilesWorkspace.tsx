@@ -998,7 +998,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
         {/* ── CENTER EXPLORER / CLOUD PANE ── */}
         <section className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
           {active.kind === 'drive' && (
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               <PlajahDrive
                 api={driveApi}
                 orgs={orgs}
@@ -1550,7 +1550,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
 
         {/* ── OPTIONAL SPLIT DUAL-PANE CLOUD DRIVE ── */}
         {splitCloudPane && active.kind !== 'drive' && (
-          <section className="h-[44%] lg:h-auto lg:w-[380px] xl:w-[440px] fold:h-auto fold:w-[min(340px,38vw)] fold:border-t-0 fold:border-l border-t lg:border-t-0 lg:border-l border-white/10 bg-[#090a10] overflow-y-auto shrink-0">
+          <section className="h-[44%] lg:h-auto lg:w-[380px] xl:w-[440px] fold:h-auto fold:w-[min(340px,38vw)] fold:border-t-0 fold:border-l border-t lg:border-t-0 lg:border-l border-white/10 bg-[#090a10] overflow-hidden flex flex-col shrink-0">
             <div className="px-3 py-2 border-b border-white/10 text-[11px] font-bold uppercase tracking-wider text-purple-300 flex items-center justify-between">
               <span>Split Pane • Plajah Drive</span>
               <button onClick={() => setSplitCloudPane(false)} className="text-white/50 hover:text-white cursor-pointer">Close</button>

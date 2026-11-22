@@ -303,7 +303,7 @@ export default function PlajahDrive({ api, orgs = [], onBack, onAddStorage }: Pr
   }
 
   return (
-    <div className="pd-root" onDragEnter={e => { if (trash || !e.dataTransfer.types.includes('Files')) return; e.preventDefault(); dragDepth.current++; setDragging(true); }}
+    <div className="pd-shell"><div className="pd-root" onDragEnter={e => { if (trash || !e.dataTransfer.types.includes('Files')) return; e.preventDefault(); dragDepth.current++; setDragging(true); }}
       onDragOver={e => { if (!trash && e.dataTransfer.types.includes('Files')) e.preventDefault(); }}
       onDragLeave={() => { dragDepth.current = Math.max(0, dragDepth.current - 1); if (!dragDepth.current) setDragging(false); }}
       onDrop={onDrop}>
@@ -378,7 +378,7 @@ export default function PlajahDrive({ api, orgs = [], onBack, onAddStorage }: Pr
       )}
 
       {toast && <div className="pd-toast" role="status">{toast}</div>}
-    </div>
+    </div></div>
   );
 }
 
@@ -417,7 +417,8 @@ function MoveDialog({ api, org, item, rootName, onClose, onMove }: { api: DriveA
 }
 
 const CSS = `
-.pd-root{position:fixed;inset:0;display:flex;background:#0b0d12;color:#e7e9ee;font-family:Inter,system-ui,sans-serif;z-index:40}
+.pd-shell{flex:1 1 auto;width:100%;height:100%;min-height:0;display:flex;container-type:inline-size}
+.pd-root{position:relative;flex:1 1 auto;min-width:0;min-height:0;display:flex;background:#0b0d12;color:#e7e9ee;font-family:Inter,system-ui,sans-serif}
 .pd-rail{width:248px;flex-shrink:0;border-right:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;padding:14px 12px;gap:14px;background:#0e1117}
 .pd-brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:17px;padding:4px 6px}
 .pd-rail-nav{display:flex;flex-direction:column;gap:2px}
@@ -431,7 +432,7 @@ const CSS = `
 .pd-meter-note{font-size:12px;line-height:1.4;padding:7px 9px;border-radius:8px}
 .pd-meter-note.is-warn{background:rgba(251,191,36,.1);color:#fde68a}.pd-meter-note.is-grace{background:rgba(251,146,60,.12);color:#fed7aa}.pd-meter-note.is-blocked{background:rgba(244,63,94,.12);color:#fecdd3}
 .pd-link{font-size:13px;color:#7dd3fc;text-align:left;font-weight:550}.pd-link:hover{text-decoration:underline}
-.pd-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.pd-main{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
 .pd-top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.07);flex-wrap:wrap}
 .pd-crumbs{display:flex;align-items:center;gap:4px;min-width:0;overflow:hidden}
 .pd-crumb{font-size:15px;padding:4px 7px;border-radius:7px;color:rgba(255,255,255,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
@@ -483,7 +484,8 @@ const CSS = `
 .pd-move-item{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:8px;font-size:14px}
 .pd-move-item:hover{background:rgba(255,255,255,.06)}
 .pd-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:80;padding:10px 16px;border-radius:10px;background:#f1f5f9;color:#0b0d12;font-size:13.5px;font-weight:550;box-shadow:0 10px 30px rgba(0,0,0,.4)}
-@media (max-width:760px){
+/* Narrow layout follows the drive's own width (it sits inside Files panes), not the window. */
+@container (max-width:760px){
   .pd-root{flex-direction:column}
   .pd-rail{width:auto;border-right:0;border-bottom:1px solid rgba(255,255,255,.07);padding:10px 12px;gap:8px}
   .pd-rail-nav{flex-direction:row;overflow-x:auto;gap:4px}
