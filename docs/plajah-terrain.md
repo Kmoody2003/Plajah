@@ -81,6 +81,13 @@ a `services/terrain/sky` or a sibling service; Rift Realm's nebula sky stays its
 | 7 | Node editor in Game Studio / Tela over the terrain graph and eco rules | Kenne edits a world visually and plays it |
 | 8 | Adopt in Era Clash, Ravencrest, Kith; sky service | Each game's own height code deleted |
 
+**Phase 1 done (2026-11-22):** `services/terrain/field.ts` (`HeightGrid`, `HeightField` with detail regions, `ColumnGrid`,
+the `TerrainField` interface) and `services/terrain/chunks.ts` (streamed chunks with options for detail, holes, LODs).
+Rift Realm's `world/terrain.ts` is now the Wilds' settings on top (regions, caves, holes, ground material) and
+`collision.ts` takes `TerrainField` from the service. `tests/terrainService.test.ts` checks 20 000 points against the
+old sampler (0 m difference); in the browser the old and new modules give identical heights and identical chunk meshes
+(400 chunks, same vertex and index counts).
+
 Order matters: 1 is pure refactor and unlocks everything; 3 (erosion) is the biggest visual jump; 5 is where it becomes
 "a living ecosystem".
 

@@ -10,15 +10,10 @@ export function collide<T extends THREE.Object3D>(obj: T): T {
 }
 
 /** A big open world's ground and tree trunks, answered from a height grid and a trunk grid instead of the BVH
- *  (a 2 km terrain as triangles would be millions of them). A level puts one on its group's userData.terrain. */
-export interface TerrainField {
-  /** Ground height at (x, z); `y` (the query's height) lets caves and hollow trunks answer -Infinity inside them. */
-  heightAt(x: number, z: number, y?: number): number;
-  /** Vertical trunks near (x, z) within `r`: [x, z, radius, y0, y1] each. */
-  trunksNear?(x: number, z: number, r: number): ArrayLike<number>[];
-  /** Highest step the capsule walks up; terrain rising more than this across its radius is a wall. */
-  step?: number;
-}
+ *  (a 2 km terrain as triangles would be millions of them). A level puts one on its group's userData.terrain.
+ *  The interface lives in the shared terrain service. */
+import type { TerrainField } from '../../../services/terrain/field';
+export type { TerrainField };
 
 export class CollisionWorld {
   private bvh: MeshBVH | null = null;
