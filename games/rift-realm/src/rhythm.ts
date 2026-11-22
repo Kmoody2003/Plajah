@@ -92,15 +92,30 @@ export class RhythmEngine {
     } catch { this.tracks = []; }
   }
 
-  /** Set the moment the music should fit. Changes track (crossfading) only when the pool changes. */
+  /** A song that doesn't fit the new mood keeps playing until it is this far through (Kenne: let most of the song
+   *  play), then hands over at the next bar. Only the end of a match (victory / defeat) cuts straight across. */
+  static readonly LET_PLAY = 0.8;
+  private pending = false;
+
+  /** Set the moment the music should fit. The song changes only once the current one has mostly played. */
   setMood(mood: Mood) {
     if (mood === this.mood) return;
     const was = this.mood;
     this.mood = mood;
     const cur = this.decks[this.live]?.track;
-    // stay on the song if it also fits the new moment (explore ↔ combat flip-flops shouldn't thrash the music)
-    if (cur && cur.roles.includes(mood) && was !== 'menu') return;
-    if (this.ctx) this.next();
+    if (!this.ctx) return;
+    if (!cur || was === 'menu' || mood === 'victory' || mood === 'defeat') { this.pending = false; this.next(); return; }
+    // the song carries on; if it doesn't suit the new moment, the next one will (picked when it's mostly done)
+    this.pending = !cur.roles.includes(mood);
+  }
+
+  /** Called every frame: hand over to the mood's music once the playing song is mostly through, on a downbeat. */
+  private handover() {
+    if (!this.pending) return;
+    const d = this.decks[this.live];
+    const dur = d?.el.duration;
+    if (!d?.track || !dur || !isFinite(dur)) return;
+    if (d.el.currentTime / dur >= RhythmEngine.LET_PLAY && this.downbeat && this.phase < 0.25) { this.pending = false; this.next(); }
   }
 
   /** Back-compat with the old two-track API (biome changes). */
@@ -121,6 +136,7 @@ export class RhythmEngine {
   private next() {
     const ctx = this.ctx;
     if (!ctx) return;
+    this.pending = false;
     const t = this.pick();
     if (!t) return;
     this.recent = [t.id, ...this.recent.filter((r) => r !== t.id)].slice(0, Math.max(1, Math.min(4, this.tracks.length - 1)));
@@ -177,6 +193,7 @@ export class RhythmEngine {
     }
     this.beatIndex = idx;
     this.phase = phase;
+    this.handover();
 
     let bassEnergy = 0;
     if (this.analyser && this.freqData) {
