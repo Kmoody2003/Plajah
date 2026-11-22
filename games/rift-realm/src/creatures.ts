@@ -4,12 +4,15 @@
 // Bio-electrical Moths (shape from the moth sheet's front view, painted from its front/side/back).
 // Pipeline: sheet side view → Hunyuan3D-2mini shape → painted from the sheet's front/side/back
 // (engines/tela-3d/paint_from_views.py) → scripts/riftrealm/cf_creature_export.py (glow map from the bio-light hues).
-// No skeleton: at load each mesh's vertices are sorted into regions (legs by quadrant and phase, head, tail, wings,
+// Skeletons: each kind has a rigged GLB (creatureRig.ts) that CreatureBody plays when it's there. The fallback, with no
+// skeleton: at load each mesh's vertices are sorted into regions (legs by quadrant and phase, head, tail, wings,
 // raptor arms, stinger) and a TSL vertex program animates them — gallop / trot / tripod scuttle, wing buzz, strikes.
 // One geometry + one material per kind; per-creature gait phase, speed and attack come in through object uniforms.
 import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { attribute, color, cos, dot, float, fract, max, mix, positionLocal, sign, sin, smoothstep, texture, time, uniform, uv, vec3 } from 'three/tsl';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { CreatureRig, loadRig, type RigTemplate } from './creatureRig';
+import { attribute, color, cos, dot, float, floor, fract, ivec2, max, mix, mod, positionLocal, sign, sin, smoothstep, texture, textureLoad, time, uniform, uv, vec3, vertexIndex } from 'three/tsl';
 
 export type CreatureKind = 'wolf' | 'mantis' | 'wasp' | 'deer' | 'bat';
 
@@ -280,6 +283,20 @@ function load(kind: CreatureKind) {
 }
 
 /** One creature: a group (feet at its origin, facing +Z) and its gait state. */
+/** The one-shot side of a creature's skeletal rig, stable from construction (the rig itself loads async: until it
+ *  lands, has() is false and play/hold do nothing). Same shape as CharacterRig's (enemies.ts OneShotRig). */
+export interface CreatureAnim {
+  has(name: string): boolean;
+  play(name: string, weight?: number, seconds?: number): void;
+  hold(name: string): boolean;
+  release(): void;
+  readonly holding: boolean;
+  readonly clipNames: string[];
+}
+
+/** One creature: a group (feet at its origin, facing +Z) and its gait state. With its rigged GLB (creatureRig.ts,
+ *  assets/creatures/rigged/) it is a skinned mesh playing clips from its motion video; without one it falls back to
+ *  the vertex-region TSL motion above. */
 export class CreatureBody {
   readonly root = new THREE.Group();
   /** The model's own offset group (flying height + bob for the wasp). */
@@ -290,26 +307,69 @@ export class CreatureBody {
   private atkT = 0;
   private seed = Math.random() * 100;
   private el = Math.random() * 10;
+  private skel: CreatureRig | null = null;
   /** Predator controls (0…1): stalking crouch, the attack's wind-up, glow flare (1 = normal), feral tint. */
   crouch = 0; tell = 0; glow = 1; wild = 0;
   readonly spec: Spec;
+  /** Reactions / death / eat by name (hit, hit_heavy, launch, knockdown, get_up, parried, death, attack, attack_2, eat). */
+  readonly rig: CreatureAnim;
   constructor(readonly kind: CreatureKind, readonly size = 1) {
     this.spec = SPECS[kind];
     this.root.add(this.body);
     this.body.position.y = this.hover;
-    const t = templates.get(kind);
-    if (t) this.attach(t);
-    else { if (!pending.has(kind)) pending.set(kind, []); pending.get(kind)!.push(this); load(kind); }
+    const self = this;
+    this.rig = {
+      has: (n) => !!self.skel?.has(n),
+      play: (n, w, s) => self.skel?.play(n, w, s),
+      hold: (n) => !!self.skel?.hold(n),
+      release: () => self.skel?.release(),
+      get holding() { return !!self.skel?.holding; },
+      get clipNames() { return self.skel?.clipNames ?? []; },
+    };
+    loadRig(kind).then((rt) => {
+      if (rt) this.attachRig(rt);
+      else {
+        const t = templates.get(kind);
+        if (t) this.attach(t);
+        else { if (!pending.has(kind)) pending.set(kind, []); pending.get(kind)!.push(this); load(kind); }
+      }
+    });
   }
   get hover() { return (this.spec.hover ?? 0) * this.size; }
   get height() { return this.spec.height * this.size; }
+  /** Whether the skeletal rig is in (false while loading, or on the TSL fallback). */
+  get rigged() { return !!this.skel; }
   attach(t: Template) {
+    if (this.skel) return;
     for (const part of [{ geo: t.geo, mat: t.mat }, ...(t.extra ? [t.extra] : [])]) {
       const m = new THREE.Mesh(part.geo, part.mat);
       m.scale.setScalar(t.scale * this.size);
       m.castShadow = true;
       m.frustumCulled = false;
       this.body.add(m); this.meshes.push(m);
+    }
+    this.write();
+  }
+  private attachRig(rt: RigTemplate) {
+    for (const m of this.meshes) this.body.remove(m);
+    this.meshes = [];
+    const r = new CreatureRig(this.kind, rt, this.spec.height * this.size, this.size);
+    this.skel = r;
+    this.body.add(r.root);
+    if (this.kind === 'deer') {
+      // the built antlers (they dropped out of the cut-out) ride on the head bone
+      const sm = r.meshes[0] as THREE.SkinnedMesh;
+      const head = sm.skeleton?.bones.findIndex((b) => b.name === 'head') ?? -1;
+      if (head >= 0) {
+        const geo = sm.geometry.clone();
+        const { info } = regions('deer', geo);
+        const am = new THREE.MeshStandardNodeMaterial({ color: 0x1a3040, roughness: 0.4 });
+        am.emissiveNode = mix(color(0x40c8ff), color(0xffc060), smoothstep(float(0.35), float(1.0), uv().x)).mul(1.6);
+        const ant = new THREE.Mesh(antlers(info, geo), am);
+        ant.castShadow = true; ant.frustumCulled = false;
+        ant.applyMatrix4(sm.skeleton.boneInverses[head]);
+        sm.skeleton.bones[head].add(ant);
+      }
     }
     this.write();
   }
@@ -321,11 +381,24 @@ export class CreatureBody {
     // cadence: one full gait cycle per stride length travelled, with a floor so a creature on the spot still breathes
     this.phase += dt * Math.PI * 2 * Math.max(speed / (this.spec.stride * this.size), 0.2);
     this.atkT = Math.max(0, this.atkT - dt);
-    if (this.kind === 'bat') this.body.rotation.x = this.gait * 0.5 + (this.atkT > 0 ? Math.sin(this.atkT / 0.4 * Math.PI) * 0.5 : 0); // lean into the flight / the dive
-    if (this.spec.hover) this.body.position.y = this.hover + Math.sin(this.el * 2.1 + this.seed) * 0.18 - (this.atkT > 0 ? Math.sin(this.atkT / 0.4 * Math.PI) * 0.7 : 0);
+    // the rigged attack clips carry their own dive / lunge; the old body dip is for the TSL fallback
+    const dip = this.skel ? 0 : 1;
+    if (this.kind === 'bat') this.body.rotation.x = this.gait * 0.5 + (this.atkT > 0 ? Math.sin(this.atkT / 0.4 * Math.PI) * 0.5 * dip : 0); // lean into the flight / the dive
+    if (this.spec.hover) this.body.position.y = this.hover + Math.sin(this.el * 2.1 + this.seed) * 0.18 * (this.rig.holding ? 0 : 1) - (this.atkT > 0 ? Math.sin(this.atkT / 0.4 * Math.PI) * 0.7 * dip : 0);
+    if (this.skel) {
+      const r = this.skel;
+      r.crouch = this.crouch; r.tell = this.tell; r.glow = this.glow; r.wild = this.wild;
+      r.update(dt, speed);
+    }
     this.write();
   }
-  attack() { this.atkT = 0.4; }
+  /** The strike: called when the hit lands (enemies.ts beginActive, predators' strike), so the clip starts just before
+   *  its contact frame — the wind-up is the tell layer / the combat ring. */
+  attack() {
+    this.atkT = 0.4;
+    const r = this.skel;
+    if (r) r.strike(r.has('attack_2') && Math.random() < 0.35 ? 'attack_2' : 'attack');
+  }
   private write() {
     const atk = this.atkT > 0 ? Math.sin(this.atkT / 0.4 * Math.PI) : 0;
     for (const m of this.meshes) {
@@ -337,6 +410,32 @@ export class CreatureBody {
 }
 
 export function preloadCreatures(kinds: CreatureKind[]) { for (const k of kinds) load(k); }
+
+/** Skin a rig's clip on the CPU into a float texture of vertex positions (frames × vertices, row-major in a W-wide
+ *  texture), in the rig mesh's own space mapped through `xf`. For instanced crowds that can't each carry a skeleton. */
+function bakeClip(rt: RigTemplate, clip: string, frames: number, xf: (v: THREE.Vector3) => void) {
+  const c = rt.clips.find((a) => a.name === clip);
+  if (!c) return null;
+  const scene = SkeletonUtils.clone(rt.scene);
+  let sm: THREE.SkinnedMesh | null = null;
+  scene.traverse((o) => { if (!sm && (o as THREE.SkinnedMesh).isSkinnedMesh) sm = o as THREE.SkinnedMesh; });
+  if (!sm) return null;
+  const mesh = sm as THREE.SkinnedMesh, nv = mesh.geometry.attributes.position.count, W = 1024;
+  const rows = Math.ceil((nv * frames) / W), data = new Float32Array(W * rows * 4);
+  const mixer = new THREE.AnimationMixer(scene); mixer.clipAction(c).play();
+  const v = new THREE.Vector3();
+  for (let f = 0; f < frames; f++) {
+    mixer.setTime((f / frames) * c.duration);
+    scene.updateMatrixWorld(true); mesh.skeleton.update();
+    for (let i = 0; i < nv; i++) {
+      mesh.getVertexPosition(i, v); xf(v);
+      data.set([v.x, v.y, v.z, 1], (f * nv + i) * 4);
+    }
+  }
+  const tex = new THREE.DataTexture(data, W, rows, THREE.RGBAFormat, THREE.FloatType);
+  tex.needsUpdate = true;
+  return { tex, frames, verts: nv, width: W, duration: c.duration };
+}
 
 const lcg = (seed: number) => { let sd = seed; return () => { sd = (sd * 16807) % 2147483647; return sd / 2147483647; }; };
 
@@ -359,7 +458,8 @@ export class MothSwarm {
       geo.computeBoundingBox();
       const bb = geo.boundingBox!, k = wingspan / (bb.max.x - bb.min.x);
       // centre it on the body (the model's feet sit at y = 0) so it turns about its middle
-      geo.translate(0, -(bb.min.y + bb.max.y) / 2, -(bb.min.z + bb.max.z) / 2); geo.scale(k, k, k); geo.computeBoundingBox();
+      const ty = -(bb.min.y + bb.max.y) / 2, tz = -(bb.min.z + bb.max.z) / 2;
+      geo.translate(0, ty, tz); geo.scale(k, k, k); geo.computeBoundingBox();
       const rgn = new Float32Array(geo.attributes.position.count * 4);
       const info = wingMasks('moth', geo, rgn);
       geo.setAttribute('rgn', new THREE.BufferAttribute(rgn, 4));
@@ -376,6 +476,21 @@ export class MothSwarm {
       this.mesh.frustumCulled = false;
       parent.add(this.mesh);
       this.update(0);
+      // the moth's skeleton (creatureRig.ts): its video-derived 'fly' clip, skinned on the CPU into a vertex-animation
+      // texture once, then played per instance (each at its own phase) so the swarm stays one instanced draw
+      loadRig('moth').then((rt) => {
+        const baked = rt && bakeClip(rt, 'fly', 16, (v) => v.set(v.x * k, (v.y + ty) * k, (v.z + tz) * k));
+        if (!baked) return;
+        const F = baked.frames, nv = baked.verts, W = baked.width;
+        const fi = fract(time.div(baked.duration).mul(1.6).add(attribute<'float'>('mph', 'float').mul(0.1))).mul(F);
+        const f0 = floor(fi), f1 = mod(f0.add(1), F), w = fract(fi);
+        const at = (f: THREE.Node<'float'>) => {
+          const i = f.toInt().mul(nv).add(vertexIndex.toInt());
+          return textureLoad(baked.tex, ivec2(i.mod(W), i.div(W))).xyz;
+        };
+        mat.positionNode = mix(at(f0), at(f1), w);
+        mat.needsUpdate = true;
+      });
     }).catch((err) => console.warn('[rift] moth failed to load', err));
   }
   private pos(o: { a: THREE.Vector3; r: number; h: number; w: number; ph: number }, t: number, out: THREE.Vector3) {
