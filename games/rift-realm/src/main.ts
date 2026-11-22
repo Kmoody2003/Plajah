@@ -598,6 +598,17 @@ async function boot() {
     }
     player.aiming = targeting.isLocked || input.aimHeld; // right mouse / LT holds aim down sights
     player.update(dt, rhythm.pulse, input);
+    // bodies are solid: the player can't walk through enemies or predators (pushed out sideways, a boss is wider)
+    if (player.enabled) {
+      const pp = player.object.position;
+      for (const f of foes()) {
+        if (!f.mesh || (f as { hp?: number }).hp! <= 0) continue;
+        const fp = f.mesh.position, dx = pp.x - fp.x, dz = pp.z - fp.z, d = Math.hypot(dx, dz);
+        const min = 0.38 + ((f as { boss?: boolean }).boss ? 1.1 : 0.5);
+        if (d >= min || d < 1e-4 || Math.abs(pp.y - fp.y) > 1.6) continue;
+        pp.x += (dx / d) * (min - d); pp.z += (dz / d) * (min - d);
+      }
+    }
     // the reticle shows the spread: it opens with bloom (moving, jumping, firing) and tightens while aiming
     if (reticleEl) { const k = player.aimBlend; const sc = (0.8 + player.bloom * 0.9) * (1 - k * 0.4); if (Math.abs(sc - lastAim) > 0.005) { lastAim = sc; reticleEl.style.transform = `translate(-50%, -50%) scale(${sc.toFixed(3)})`; reticleEl.style.opacity = String(1 - k * 0.15); } }
     arena.resolveDynamicGates(player.object.position, 0.38);

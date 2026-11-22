@@ -37,6 +37,8 @@ export class UnifiedControls {
   private lookLastY = 0;
   private pendingLookX = 0;
   private pendingLookY = 0;
+  /** Pointer lock refused (some embedded browsers, iframes): plain mouse movement over the game turns the view. */
+  private hoverLook = false;
 
   private queuedJump = false;
   private queuedDash = false;
@@ -86,10 +88,13 @@ export class UnifiedControls {
       if (e.button !== 0 && e.button !== 2) return;
       dragging = true; lastX = e.clientX; lastY = e.clientY;
       // like Ravencrest / Era Clash: a click on the scene (re)takes the pointer lock for always-on mouse look
-      if (!this.isTouchDevice) (this.surface.requestPointerLock?.() as Promise<void> | undefined)?.catch?.(() => { /* refused: drag-look stays */ });
+      if (!this.isTouchDevice) (this.surface.requestPointerLock?.() as Promise<void> | undefined)?.catch?.(() => { this.hoverLook = true; /* refused: look follows the mouse without a drag */ });
     });
+    document.addEventListener('pointerlockerror', () => { this.hoverLook = true; });
     window.addEventListener('mousemove', (e) => {
-      if (!dragging || document.pointerLockElement) return;
+      if (document.pointerLockElement) return;
+      if (!dragging && this.hoverLook && e.target === this.surface) { this.pendingLookX += e.movementX * 1.4; this.pendingLookY += e.movementY * 1.4; return; }
+      if (!dragging) return;
       this.pendingLookX += (e.clientX - lastX) * 1.6;
       this.pendingLookY += (e.clientY - lastY) * 1.6;
       lastX = e.clientX; lastY = e.clientY;

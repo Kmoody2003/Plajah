@@ -155,6 +155,11 @@ export class PlayerController {
       if (e.code === 'Digit3') this.setVessel('seraph');
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
+    // a key released while the window wasn't focused never sends keyup: drop held keys when focus goes, or the
+    // character runs on by itself (clicking over to another window mid-run did exactly that)
+    const releaseKeys = () => this.keys.clear();
+    window.addEventListener('blur', releaseKeys);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) releaseKeys(); });
 
     dom.addEventListener('mousemove', (e) => {
       if (!this.enabled || document.pointerLockElement !== dom) return;
