@@ -7,8 +7,12 @@ import { VESSELS, VESSEL_ORDER, buildVesselMesh, type VesselId, type VesselSpec 
 
 // Feel: fast, nimble, upbeat. Snappy ground control, full air control at a lower rate,
 // double jump, coyote time + jump buffer, and dash charges so movement chains.
-const ACCEL = 62;          // ground: reach top speed in ~0.08 s
-const DECEL = 44;
+// Ground control follows Ravencrest / Era Clash 3D (linear accel toward the wanted velocity, decel a bit harder),
+// scaled to Rift Realm's faster runs: ~0.25 s to top speed, ~0.2 s to stop.
+const ACCEL = 40;          // m/s²
+const DECEL = 50;          // m/s²
+const TURN = 16;           // rad/s: the body turns to face where it's going (Ravencrest TURN)
+const FACE_AIM_AFTER = 0.7; // s the body keeps facing the aim after a shot or a strike
 const AIR_ACCEL = 26;      // still steerable mid-air
 const JUMP_VEL = 10.8;
 const DOUBLE_JUMP_VEL = 9.6;
@@ -53,6 +57,13 @@ export class PlayerController {
   private airJumps = 1;
   private spaceHeld = false;
   private lean = 0;
+  /** Body facing (same convention as `yaw`: forward = -Z turned by it). The camera / aim is `yaw`; the body turns
+   *  toward where it's moving (Ravencrest / Era Clash action controls) and faces the aim while aiming or shooting. */
+  bodyYaw = 0;
+  private bank = 0;
+  private faceAimT = 0;
+  private lockT = 0;
+  private clock = 0;
   private landKick = 0;
   readonly keys = new Set<string>();
   private lastSafe = new THREE.Vector3(0, 0.2, 8);
@@ -178,16 +189,18 @@ export class PlayerController {
     this.object.position.copy(pos);
     this.lastSafe.copy(pos);
     this.yaw = yaw;
+    this.bodyYaw = yaw;
     this.vel.set(0, 0, 0);
     this.vy = 0;
   }
 
   private strikeN = 0;
   /** Melee strikes alternate the motion-captured slashes (leap slash, spin-arc slash). */
-  private strikeAnim() { this.rig?.play(this.strikeN++ % 2 ? 'attack_3' : 'attack_1', 0.85); }
+  private strikeAnim() { this.faceAimT = FACE_AIM_AFTER; this.rig?.play(this.strikeN++ % 2 ? 'attack_3' : 'attack_1', 0.85); }
 
   triggerMuzzleFlash() {
     this.muzzleFlash = 1;
+    this.faceAimT = FACE_AIM_AFTER;
     this.rig?.play('shoot', 0.9);
   }
 
@@ -225,6 +238,7 @@ export class PlayerController {
     let dy = yaw - this.yaw;
     dy = Math.atan2(Math.sin(dy), Math.cos(dy));
     const k = 1 - Math.exp(-dt * rate);
+    this.lockT = 0.25; // locked on: the body squares up to the target (strafing round it)
     this.yaw += dy * k;
     this.pitch = THREE.MathUtils.clamp(this.pitch + (pitch - this.pitch) * k, -1.25, 1.25);
   }
@@ -246,6 +260,9 @@ export class PlayerController {
   }
 
   update(dt: number, pulse: number, input?: InputState) {
+    this.clock += dt;
+    this.faceAimT = Math.max(0, this.faceAimT - dt);
+    this.lockT = Math.max(0, this.lockT - dt);
     const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     const wish = new THREE.Vector3();
@@ -253,7 +270,7 @@ export class PlayerController {
     if (this.enabled) {
       if (input) {
         if (input.lookDeltaX || input.lookDeltaY) {
-          this.yaw -= input.lookDeltaX * MOUSE_SENS * this.mouseSens;
+              this.yaw -= input.lookDeltaX * MOUSE_SENS * this.mouseSens;
           this.pitch = THREE.MathUtils.clamp(this.pitch - input.lookDeltaY * MOUSE_SENS * this.mouseSens * 0.85, -1.25, 1.25);
         }
         if (input.toggleViewPressed) this.toggleView();
@@ -305,8 +322,13 @@ export class PlayerController {
     } else {
       const target = wish.multiplyScalar(this.vessel.moveSpeed * (1 - this.aimBlend * 0.08));
       const moving = wish.lengthSq() > 0;
-      const rate = this.onGround ? (moving ? ACCEL : DECEL) : (moving ? AIR_ACCEL : 2);
-      this.vel.lerp(target, Math.min(1, rate * dt));
+      if (this.onGround) {
+        // Ravencrest / Era Clash: a straight-line change toward the wanted velocity at a fixed rate
+        const dv = target.clone().sub(this.vel).setY(0);
+        const step = (target.lengthSq() > this.vel.lengthSq() ? ACCEL : DECEL) * dt;
+        if (dv.length() > step) dv.setLength(step);
+        this.vel.add(dv);
+      } else this.vel.lerp(target, Math.min(1, (moving ? AIR_ACCEL : 2) * dt));
     }
 
     this.vy -= this.vessel.gravity * dt * (this.vy < 0 ? 1.35 : 1); // falls faster than it rises: snappy arcs
@@ -344,10 +366,30 @@ export class PlayerController {
     }
 
     this.object.rotation.y = this.yaw;
+    // Body facing (Ravencrest / Era Clash action controls): it turns toward where it's going at TURN rad/s, the
+    // shortest way round, banking into the turn; aiming, first person, lock-on and the moment after a shot or a
+    // strike square it up to the aim instead, so the gun points down the crosshair and the legs strafe.
+    const hsp0 = Math.hypot(this.vel.x, this.vel.z);
+    const faceAim = this.firstPerson || this.aiming || this.faceAimT > 0 || this.lockT > 0;
+    let want: number | null = null;
+    if (faceAim) want = this.yaw;
+    else if (hsp0 > 0.6) want = Math.atan2(-this.vel.x, -this.vel.z);
+    let turned = 0;
+    if (want !== null) {
+      const d = Math.atan2(Math.sin(want - this.bodyYaw), Math.cos(want - this.bodyYaw));
+      turned = THREE.MathUtils.clamp(d, -TURN * dt, TURN * dt);
+      this.bodyYaw += turned;
+    }
+    const bankT = faceAim ? 0 : THREE.MathUtils.clamp(-(turned / Math.max(dt, 1e-3)) * 0.035 * Math.min(1, hsp0 / 9), -0.22, 0.22);
+    this.bank += (bankT - this.bank) * (1 - Math.exp(-dt * 10));
+    // the camera stays on the mouse: a camera that turns itself bends camera-relative movement into circles
+    // (Ravencrest's own rule); the mouse is also the aim here
+    this.object.rotation.y = this.yaw;
+    this.vesselMesh.rotation.set(0, this.bodyYaw - this.yaw, this.bank, 'YXZ');
     if (this.rig) {
-      const sp = Math.hypot(this.vel.x, this.vel.z);
-      const lx = this.vel.x * Math.cos(this.yaw) - this.vel.z * Math.sin(this.yaw);
-      const lz = -(this.vel.x * Math.sin(this.yaw) + this.vel.z * Math.cos(this.yaw));
+      const sp = hsp0;
+      const lx = this.vel.x * Math.cos(this.bodyYaw) - this.vel.z * Math.sin(this.bodyYaw);
+      const lz = -(this.vel.x * Math.sin(this.bodyYaw) + this.vel.z * Math.cos(this.bodyYaw));
       this.rig.aimPitch = this.firstPerson ? 0 : this.pitch; // the chest and gun follow the aim up and down
       this.rig.update(dt, sp, lx, lz);
     } else {
