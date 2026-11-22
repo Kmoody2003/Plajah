@@ -4,6 +4,7 @@ import type { CollisionWorld } from './collision';
 import type { InputState } from './controls';
 import { assets, CharacterRig } from './characters';
 import { VESSELS, VESSEL_ORDER, buildVesselMesh, type VesselId, type VesselSpec } from './vessels';
+import { WEAPONS, WeaponViewmodel, buildWeapon, type ReloadPhases, type WeaponModel, type WeaponSpec } from './weapons';
 
 // Feel: fast, nimble, upbeat. Snappy ground control, full air control at a lower rate,
 // double jump, coyote time + jump buffer, and dash charges so movement chains.
@@ -27,10 +28,7 @@ const RADIUS = 0.38;
 const HEIGHT = 1.8;
 const MOUSE_SENS = 0.002;
 
-/** Trigger pulls per magazine (Seraph's 3-round burst counts once). */
-const MAG_SIZE: Record<VesselId, number> = { aegis: 24, stalker: 8, seraph: 12 };
-/** Reload length: the 5.7 s mocap reload is squeezed into this. */
-const RELOAD_SEC = 1.7;
+// Magazine size, reload length / beats, recoil, spread, ADS and switch time are per weapon: WEAPONS in weapons.ts.
 /** Seconds on the floor after being downed before the respawn. */
 const DOWN_SEC = 2.4;
 
@@ -39,7 +37,11 @@ export class PlayerController {
   vesselMesh = new THREE.Group();
   private rig: CharacterRig | null = null;
   readonly viewmodel = new THREE.Group();
-  private viewmodelRail: THREE.Mesh | null = null;
+  /** First-person gun + hands (weapons.ts). */
+  readonly weaponVM = new WeaponViewmodel();
+  /** Third-person guns on the rig's hand_r_weapon socket, one per vessel (the shown one is visible). */
+  private tpGuns = new Map<VesselId, WeaponModel>();
+  private tpShown: VesselId | null = null;
 
   vessel: VesselSpec = VESSELS.aegis;
   yaw = 0;
@@ -77,7 +79,17 @@ export class PlayerController {
   /** Rounds left per vessel's magazine (one round = one trigger pull; Seraph's 3-shot burst is one round). */
   private mags: Partial<Record<VesselId, number>> = {};
   private reloadT = 0;
+  private reloadLen = 1;
+  private reloadP = -1;
   private autoReloadT = 0;
+  /** Weapon switch: seconds left / total; the gun swaps half-way (lowered out of view). */
+  private switchT = 0;
+  private switchLen = 1;
+  /** Recoil pattern position and the time since the last shot (the pattern restarts after a pause). */
+  private recoilN = 0;
+  private sinceShot = 9;
+  /** Chord Repeater barrel cycle. */
+  private tipN = 0;
   /** Crouched (C toggles, Ctrl holds, D-pad down on a pad): slower, quieter, tighter bloom. */
   crouched = false;
   private crouchToggle = false;
@@ -112,10 +124,16 @@ export class PlayerController {
   onStrike?: () => void;
   /** A reload started (sound). */
   onReload?: () => void;
+  /** A reload beat passed (mag release / out / in / charge): the weapon's sound for it plays. */
+  onReloadBeat?: (beat: keyof ReloadPhases, spec: WeaponSpec) => void;
+  /** Trigger pulled on an empty magazine (dry click). */
+  onDryFire?: (spec: WeaponSpec) => void;
+  /** A weapon switch started (sound). */
+  onWeaponSwitch?: (spec: WeaponSpec) => void;
 
   constructor(private camera: THREE.PerspectiveCamera, dom: HTMLElement) {
     this.object.position.copy(this.lastSafe);
-    this.buildViewmodel();
+    this.viewmodel.add(this.weaponVM.root);
     this.camera.add(this.viewmodel);
     this.viewmodel.visible = false;
     this.setVessel('aegis');
@@ -139,7 +157,7 @@ export class PlayerController {
       if (!this.enabled || document.pointerLockElement !== dom) return;
       // pointer-lock glitch spikes (a jump of 90+ px in one event) are dropped, as in Ravencrest
       if (Math.abs(e.movementX) > 90 || Math.abs(e.movementY) > 90) return;
-      const ads = (1 - this.aimBlend * 0.2) * this.aimFriction;
+      const ads = (1 - this.aimBlend * (1 - this.weapon.adsSens)) * this.aimFriction;
       if (this.lockedOn) this.flickX += e.movementX;
       this.yaw -= e.movementX * MOUSE_SENS * this.mouseSens * ads;
       this.pitch = THREE.MathUtils.clamp(this.pitch - e.movementY * MOUSE_SENS * this.mouseSens * 0.85 * ads, -1.25, 1.25);
@@ -173,7 +191,13 @@ export class PlayerController {
 
   setVessel(id: VesselId) {
     const spec = VESSELS[id];
-    if (this.rig && this.vessel.id !== id && this.downedT <= 0) { this.reloadT = 0; this.rig.play('switch_weapon', 0.9, 0.9); }
+    if (this.vessel.id !== id && this.downedT <= 0 && this.enabled) {
+      // lower the old gun, raise the new one (the body's mocap switch, squeezed); a running reload is dropped
+      this.reloadT = 0;
+      this.switchLen = this.switchT = WEAPONS[id].switchSec;
+      this.rig?.play('switch_weapon', 0.9, Math.max(0.6, this.switchLen * 1.6));
+      this.onWeaponSwitch?.(WEAPONS[id]);
+    }
     const hpRatio = this.maxHp > 0 ? this.hp / this.maxHp : 1;
     this.vessel = spec;
     this.maxHp = spec.maxHp;
@@ -195,27 +219,40 @@ export class PlayerController {
     this.vesselMesh.visible = !this.firstPerson;
     this.object.add(this.vesselMesh);
 
-    if (this.viewmodelRail) {
-      const mat = this.viewmodelRail.material as THREE.MeshStandardNodeMaterial;
-      mat.color.setHex(spec.primaryColor);
-      mat.emissive.setHex(spec.primaryColor);
-    }
+    this.weaponVM.select(id);
+    this.weaponVM.setTrim(spec.primaryColor);
+    if (this.switchT <= 0) this.showTpGun(id);
 
     this.onSwitchVessel?.(spec);
   }
 
-  private buildViewmodel() {
-    const gunMat = new THREE.MeshStandardNodeMaterial({ color: 0x0f172a, metalness: 0.9, roughness: 0.25 });
-    const glowMat = new THREE.MeshStandardNodeMaterial({
-      color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 1.5,
-    });
-    const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.09, 0.52), gunMat);
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.025, 0.54), glowMat);
-    rail.position.y = 0.05;
-    this.viewmodelRail = rail;
-    this.viewmodel.add(barrel, rail);
-    this.viewmodel.position.set(0.26, -0.22, -0.45);
+  /** Hang the vessel's gun in the rig's right hand (hand_r_weapon socket); built once per vessel. */
+  private showTpGun(id: VesselId) {
+    if (this.tpShown === id || !this.rig) return;
+    const socket = this.rig.socket('hand_r_weapon');
+    if (!socket) return;
+    let m = this.tpGuns.get(id);
+    if (!m) {
+      m = buildWeapon(id);
+      const spec = WEAPONS[id];
+      // the socket sits inside the scaled skeleton: undo its scale so the gun keeps its real size
+      const holder = new THREE.Group();
+      socket.updateWorldMatrix(true, false);
+      const ws = socket.getWorldScale(new THREE.Vector3());
+      holder.scale.setScalar(1 / Math.max(1e-4, ws.x));
+      holder.rotation.set(...spec.tpOffset.rot);
+      holder.position.set(...spec.tpOffset.pos);
+      holder.add(m.root);
+      socket.add(holder);
+      this.tpGuns.set(id, m);
+      this.rig.grip('Right', 'dagger');
+    }
+    for (const [k, g] of this.tpGuns) g.root.visible = k === id;
+    this.tpShown = id;
   }
+
+  /** The current weapon's handling table. */
+  get weapon(): WeaponSpec { return WEAPONS[this.vessel.id]; }
 
   /** Place the player at a spawn point facing `yaw`. */
   spawnAt(pos: THREE.Vector3, yaw: number) {
@@ -232,12 +269,13 @@ export class PlayerController {
   private strikeAnim() { this.faceAimT = FACE_AIM_AFTER; this.rig?.play(this.strikeN++ % 2 ? 'attack_3' : 'attack_1', 0.85); }
 
   /** Magazine size of the current vessel's weapon (trigger pulls). */
-  get magSize() { return MAG_SIZE[this.vessel.id]; }
+  get magSize() { return this.weapon.magSize; }
   /** Rounds left in the current magazine. */
   get ammo() { return this.mags[this.vessel.id] ?? this.magSize; }
   get reloading() { return this.reloadT > 0; }
   /** 0…1 progress of the running reload (for the HUD). */
-  get reloadProgress() { return this.reloadT > 0 ? 1 - this.reloadT / RELOAD_SEC : 1; }
+  get reloadProgress() { return this.reloadT > 0 ? 1 - this.reloadT / this.reloadLen : 1; }
+  get switching() { return this.switchT > 0; }
   get downed() { return this.downedT > 0; }
   /** Play a one-shot on the body (e.g. 'get_up' after being downed). */
   playClip(name: string, weight = 1, seconds?: number) { this.rig?.play(name, weight, seconds); }
@@ -245,19 +283,27 @@ export class PlayerController {
   /** Reload (R, D-pad left; automatic when the magazine runs dry): the motion-captured rifle / pistol reload,
    *  squeezed to RELOAD_SEC. No firing until it's done. */
   reload() {
-    if (!this.enabled || this.reloadT > 0 || this.downedT > 0 || this.ammo >= this.magSize) return false;
-    this.reloadT = RELOAD_SEC;
+    if (!this.enabled || this.reloadT > 0 || this.switchT > 0 || this.downedT > 0 || this.ammo >= this.magSize) return false;
+    const w = this.weapon;
+    this.reloadLen = this.reloadT = w.reloadSec;
+    this.reloadP = 0;
     this.autoReloadT = 0;
-    this.rig?.play(this.vessel.id === 'stalker' ? 'reload_pistol' : 'reload', 1, RELOAD_SEC);
+    this.rig?.play(w.reloadClip, 1, w.reloadSec);
     this.onReload?.();
     return true;
   }
 
   /** Spend a round for a trigger pull; false = can't fire (reloading, down, or empty → starts the reload). */
   useRound() {
-    if (this.reloadT > 0 || this.downedT > 0) return false;
+    if (this.reloadT > 0 || this.switchT > 0 || this.downedT > 0) return false;
     const left = this.ammo;
-    if (left <= 0) { this.reload(); return false; }
+    if (left <= 0) {
+      // dry fire: the trigger clicks on an empty chamber, then the reload starts by itself
+      this.weaponVM.dryFire();
+      this.onDryFire?.(this.weapon);
+      if (this.autoReloadT <= 0) this.autoReloadT = 0.22;
+      return false;
+    }
     this.mags[this.vessel.id] = left - 1;
     if (left - 1 === 0) this.autoReloadT = 0.3; // let the last shot's recoil play, then reload
     return true;
@@ -279,15 +325,24 @@ export class PlayerController {
   }
 
   /** Spread multiplier for the next shot: hip fire on the move is loose, standing ADS is near-exact. */
-  get spreadMul() { return (0.25 + this.bloom * 1.25) * (1 - this.aimBlend * 0.75); }
+  get spreadMul() { return (0.25 + this.bloom * 1.25) * (1 - this.aimBlend * (1 - this.weapon.spread.adsMul)); }
+  /** Cone (radians) for the next shot: the vessel's pellet spread scaled by bloom, plus the weapon's hip bloom. */
+  spreadRad(base: number) { return base * this.spreadMul + this.weapon.spread.hip * this.bloom * (1 - this.aimBlend); }
 
-  /** A shot's kick: the aim jumps up (less while aiming), a touch sideways, and partly recovers; bloom grows. */
-  recoil(kick = 0.018, bloom = 0.22) {
-    const k = kick * (1 - this.aimBlend * 0.45);
+  /** A shot's kick from the weapon's recoil pattern: the aim climbs (less while aiming), steps sideways along the
+   *  pattern, and part of it recovers by itself; bloom grows; the first-person gun kicks back. */
+  recoil() {
+    const r = this.weapon.recoil;
+    if (this.sinceShot > r.resetSec) this.recoilN = 0;
+    this.sinceShot = 0;
+    const ads = 1 - this.aimBlend * 0.45;
+    const k = r.pitch * ads;
     this.pitch = THREE.MathUtils.clamp(this.pitch + k, -1.25, 1.25);
-    this.yaw += (Math.random() - 0.5) * k * 0.5;
-    this.recoilBack += k * 0.6;
-    this.bloom = Math.min(1, this.bloom + bloom);
+    this.yaw -= (r.yaw[this.recoilN % r.yaw.length] ?? 0) * ads;
+    this.recoilN++;
+    this.recoilBack += k * r.recover;
+    this.bloom = Math.min(1, this.bloom + this.weapon.spread.bloomPerShot);
+    this.weaponVM.kick(this.weapon, this.aimBlend);
   }
 
   triggerMuzzleFlash() {
@@ -372,10 +427,17 @@ export class PlayerController {
     return true;
   }
 
-  getMuzzleWorldPos(): THREE.Vector3 {
-    if (this.firstPerson) {
-      return this.camera.localToWorld(new THREE.Vector3(0.22, -0.15, -0.65));
+  /** The barrel tip in the world: the first-person gun's muzzle socket, or the third-person gun in the hand. The
+   *  Chord Repeater cycles its three barrels (`next` advances the cycle for a new shot). */
+  getMuzzleWorldPos(next = false): THREE.Vector3 {
+    const m = this.firstPerson ? this.weaponVM.model() : this.tpShown ? this.tpGuns.get(this.tpShown) : undefined;
+    if (m && (this.firstPerson || m.root.visible)) {
+      if (next) this.tipN++;
+      const tip = m.tips ? m.tips[this.tipN % m.tips.length] : m.muzzle;
+      tip.updateWorldMatrix(true, false);
+      return tip.getWorldPosition(new THREE.Vector3());
     }
+    if (this.firstPerson) return this.camera.localToWorld(new THREE.Vector3(0.22, -0.15, -0.65));
     return this.object.localToWorld(new THREE.Vector3(0.32, 1.32, -0.45));
   }
 
@@ -385,7 +447,19 @@ export class PlayerController {
     if (this.recoilBack > 0) { const r = Math.min(this.recoilBack, dt * 0.35 + this.recoilBack * dt * 9); this.pitch -= r; this.recoilBack -= r; }
     this.faceAimT = Math.max(0, this.faceAimT - dt);
     // reload / auto-reload / downed timers
-    if (this.reloadT > 0) { this.reloadT -= dt; if (this.reloadT <= 0) { this.reloadT = 0; this.mags[this.vessel.id] = this.magSize; } }
+    this.sinceShot += dt;
+    if (this.reloadT > 0) {
+      this.reloadT -= dt;
+      // the reload's beats (mag release, out, in, charge) raise their sounds, in either view
+      const p = 1 - Math.max(0, this.reloadT) / this.reloadLen, ph = this.weapon.phases;
+      for (const k of ['release', 'out', 'in', 'charge'] as const) if (this.reloadP < ph[k] && p >= ph[k]) this.onReloadBeat?.(k, this.weapon);
+      this.reloadP = p;
+      if (this.reloadT <= 0) { this.reloadT = 0; this.reloadP = -1; this.mags[this.vessel.id] = this.magSize; }
+    } else this.reloadP = -1;
+    if (this.switchT > 0) {
+      this.switchT = Math.max(0, this.switchT - dt);
+      if (this.switchT <= this.switchLen / 2) this.showTpGun(this.vessel.id);
+    }
     if (this.autoReloadT > 0) { this.autoReloadT -= dt; if (this.autoReloadT <= 0) this.reload(); }
     if (this.downedT > 0) {
       this.downedT -= dt;
@@ -536,14 +610,16 @@ export class PlayerController {
       this.vesselMesh.position.y = Math.sin(performance.now() * 0.004) * 0.05 + pulse * 0.04;
     }
 
-    this.aimBlend = THREE.MathUtils.lerp(this.aimBlend, this.aiming && this.enabled ? 1 : 0, Math.min(1, dt * 14));
+    // into ADS over the weapon's adsSec (no ADS mid-reload or mid-switch)
+    const adsWant = this.aiming && this.enabled && this.reloadT <= 0 && this.switchT <= 0 ? 1 : 0;
+    this.aimBlend = THREE.MathUtils.lerp(this.aimBlend, adsWant, Math.min(1, dt * 2.2 / Math.max(0.05, this.weapon.adsSec)));
     // aiming pulls the 3rd-person camera in over the shoulder
     const targetDist = this.firstPerson ? 0 : THREE.MathUtils.lerp(this.thirdDist, Math.min(this.thirdDist, 2.6), this.aimBlend);
     this.camDist = THREE.MathUtils.lerp(this.camDist, targetDist, Math.min(1, dt * 14));
 
     // speed feel: FOV opens with speed and kicks on a dash; a little lean into strafes; landing dip
     const hsp = Math.hypot(this.vel.x, this.vel.z);
-    const fovTarget = THREE.MathUtils.lerp(BASE_FOV + Math.min(12, hsp * 0.55) + (this.dashTimer > 0 ? 6 : 0), BASE_FOV * 0.82, this.aimBlend);
+    const fovTarget = THREE.MathUtils.lerp(BASE_FOV + Math.min(12, hsp * 0.55) + (this.dashTimer > 0 ? 6 : 0), BASE_FOV * (this.firstPerson ? this.weapon.adsFov : Math.max(0.82, this.weapon.adsFov)), this.aimBlend);
     if (Math.abs(this.camera.fov - fovTarget) > 0.05) {
       this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, fovTarget, Math.min(1, dt * 10));
       this.camera.updateProjectionMatrix();
@@ -580,7 +656,22 @@ export class PlayerController {
     this.camera.rotateZ(this.lean);
 
     this.muzzleFlash = Math.max(0, this.muzzleFlash - dt * 8);
-    this.viewmodel.position.z = -0.45 + this.muzzleFlash * 0.07;
+    // first-person gun: sway, bob, recoil spring, ADS, reload and switch poses
+    if (this.firstPerson) {
+      this.weaponVM.update(dt, {
+        spec: this.weapon, yaw: this.yaw, pitch: this.pitch, speed: hsp, onGround: this.onGround, ads: this.aimBlend,
+        reload: this.reloadT > 0 ? this.reloadProgress : -1, sw: this.switchT > 0 ? 1 - this.switchT / this.switchLen : -1,
+        pulse, crouched: this.crouched,
+      });
+    }
+    // third-person gun: the mag leaves the gun while it's out of the hand, the glow breathes with the beat
+    const tg = this.tpShown ? this.tpGuns.get(this.tpShown) : undefined;
+    if (tg) {
+      const ph = this.weapon.phases, p = this.reloadT > 0 ? this.reloadProgress : -1;
+      tg.mag.visible = !(p >= ph.out && p < ph.in);
+      tg.glow.value += (1 + pulse * 0.7 + this.muzzleFlash * 2 - tg.glow.value) * Math.min(1, dt * 12);
+      tg.root.visible = !this.firstPerson && !(this.switchT > 0 && Math.abs(this.switchT / this.switchLen - 0.5) < 0.12);
+    }
   }
 }
 

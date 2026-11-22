@@ -24,7 +24,13 @@ const FADE = 2.4;
 // Sampled SFX + forest ambience (assets/audio/sfx, generated 2026-11-22 for Kenne: guns that sound powerful and
 // unique, "not like some 8bit toy", and a real ambient soundscape for the forest).
 // name -> number of takes (files <name>_<n>.mp3); amb_* are seamless loops.
-const SFX: Record<string, number> = { lance: 3, scatter: 3, chord: 3, hit: 3, kill: 2, surge: 1, reload: 1, empty: 1, melee: 2 };
+const SFX: Record<string, number> = {
+  lance: 3, scatter: 3, chord: 3, hit: 3, kill: 2, surge: 1, reload: 1, empty: 1, melee: 2,
+  // per-weapon handling (src/weapons.ts, cut by scripts/riftrealm/sfx/weapons.py from the Flow-video clip library):
+  // reload parts from the same mocap videos as the body's reload clips (r = rifle, p = pistol), dry fire, switch, impacts
+  magout_r: 1, magin_r: 1, charge_r: 1, magout_p: 1, magin_p: 1, charge_p: 1, dry: 2, switch: 2,
+  imp_lance: 2, imp_scatter: 2, imp_chord: 2,
+};
 const AMB = ['amb_forest', 'amb_stream', 'amb_drone'] as const;
 /** Each vessel's own gun voice (vessels.ts ids). */
 const GUN: Record<string, string> = { aegis: 'lance', stalker: 'scatter', seraph: 'chord' };
@@ -359,6 +365,8 @@ export class RhythmEngine {
   }
 
   playReload() { this.sample('reload', { gain: 0.8, send: 0.2 }); }
+  /** Play a named SFX bank (see SFX) — the weapon table (src/weapons.ts) names its sounds this way. False if absent. */
+  playSfx(name: string, o: { gain?: number; rate?: number; send?: number; pan?: number } = {}) { return this.sample(name, o); }
   playEmpty() { if (!this.sample('empty', { gain: 0.7, send: 0.15 })) this.oscShot('OFF', 0.4); }
   playMelee() { this.sample('melee', { gain: 0.85, send: 0.35 }); }
 

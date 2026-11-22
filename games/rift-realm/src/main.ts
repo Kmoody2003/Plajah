@@ -14,15 +14,11 @@ import { initKTX2, preloadSets } from './textures';
 import { PlayerController } from './player';
 import { EnemyManager, enemyNav } from './enemies';
 import { VESSEL_ORDER, VESSELS, type VesselId } from './vessels';
+import { Tracers, recipe } from './weapons';
 import { UnifiedControls } from './controls';
 import { Targeting } from './targeting';
 import { PlajahGamesBridge } from './plajahBridge';
-import { VfxSystem, HIT_SPARKS, HIT_PERFECT, WALL_IMPACT, MUZZLE, KILL_BURST, SHADOW_BURST, SLASH, SLASH_PERFECT, SLASH_SHADOW, BLADE_TRAIL, STREAK_TRAIL } from '../../../services/vfx';
-
-interface Beam {
-  line: THREE.Mesh;
-  life: number;
-}
+import { VfxSystem, HIT_SPARKS, HIT_PERFECT, KILL_BURST, SHADOW_BURST, SLASH, SLASH_PERFECT, SLASH_SHADOW, BLADE_TRAIL, STREAK_TRAIL } from '../../../services/vfx';
 
 interface SurgeWave {
   mesh: THREE.Mesh;
@@ -178,13 +174,15 @@ async function boot() {
   let resonance = 1.0;
   let score = 0;
   let popTimeout: number | undefined;
-  const beams: Beam[] = [];
   const shakeV = new THREE.Vector3(), assistV = new THREE.Vector3();
   const surges: SurgeWave[] = [];
   const raycaster = new THREE.Raycaster();
   // Particles (services/vfx): sparks on every hit, a burst of shards on a kill; bounce off the real ground.
   const vfx = new VfxSystem({ ground: (x, z, y) => collision.groundAt(x, z, y, 4) });
   scene.add(vfx.group);
+  // Each weapon's tracer (weapons.ts: lance beam, scatter streaks, chord bolts), pooled.
+  const tracers = new Tracers();
+  scene.add(tracers.group);
   // Strikes: a blade trail off the right hand (third person) and a dash streak, fed each frame while active.
   const blade = vfx.trail(BLADE_TRAIL), dashTrail = vfx.trail(STREAK_TRAIL);
   const bladeA = new THREE.Vector3(), bladeB = new THREE.Vector3(), dashP = new THREE.Vector3();
@@ -206,31 +204,6 @@ async function boot() {
     const label = quality === 'PERFECT' ? 'PERFECT RESONANCE' : quality === 'GOOD' ? 'ON BEAT' : 'OFF BEAT';
     const color = quality === 'PERFECT' ? '#fbbf24' : quality === 'GOOD' ? '#38bdf8' : '#94a3b8';
     showBeatFeedback(label, color);
-  }
-
-  // Every shot has to read at a glance (Kenne: "the mouse buttons don't do anything" — the old 2–4 cm grey beam lasted
-  // 0.13 s): a bright core in a soft additive glow, an impact flash where it lands, a hit marker on the reticle.
-  function spawnBeam(from: THREE.Vector3, to: THREE.Vector3, quality: BeatQuality, primaryHex: number, hit = false) {
-    const dist = from.distanceTo(to);
-    const col = quality === 'PERFECT' ? 0xfbbf24 : primaryHex;
-    const core = quality === 'PERFECT' ? 0.06 : quality === 'GOOD' ? 0.045 : 0.035;
-    const g = new THREE.Group();
-    for (const [r, op] of [[core, 1.0], [core * 3.2, quality === 'OFF' ? 0.22 : 0.35]] as const) {
-      const geo = new THREE.CylinderGeometry(r, r, dist, 8);
-      geo.rotateX(Math.PI / 2);
-      const mat = new THREE.MeshBasicNodeMaterial({ color: r === core ? 0xffffff : col, transparent: true, opacity: op, blending: THREE.AdditiveBlending, depthWrite: false });
-      if (r === core) mat.color.lerp(new THREE.Color(col), 0.35);
-      g.add(new THREE.Mesh(geo, mat));
-    }
-    g.position.copy(from).lerp(to, 0.5);
-    g.lookAt(to);
-    scene.add(g);
-    beams.push({ line: g as unknown as THREE.Mesh, life: 0.2 });
-    // impact flash
-    const flash = new THREE.Mesh(new THREE.SphereGeometry(hit ? 0.55 : 0.35, 12, 8), new THREE.MeshBasicNodeMaterial({ color: col, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
-    flash.position.copy(to);
-    scene.add(flash);
-    beams.push({ line: flash, life: 0.16 });
   }
 
   // Hit feedback (Fortnite-style): an X hit marker on the crosshair (white, red on a kill) and the damage number
@@ -263,7 +236,9 @@ async function boot() {
     ], { duration: 750, easing: 'ease-out' }).onfinish = () => n.remove();
   }
 
-  function fireSingleRay(quality: BeatQuality, spreadRad: number, baseDmg: number, primaryHex: number) {
+  /** One ray of a shot (a pellet of the scatter); the weapon's tracer, impact FX and sounds. Returns whether it hit. */
+  function fireSingleRay(quality: BeatQuality, spreadRad: number, baseDmg: number, primaryHex: number, muzzle: THREE.Vector3, quiet = false) {
+    const w = player.weapon;
     const { origin, dir } = player.getAimRay();
     targeting.assist(origin, dir, moveAmt); // locked: straight at the target; soft: pulled toward it
     if (spreadRad > 0) {
@@ -278,7 +253,6 @@ async function boot() {
     raycaster.far = worldDist;
     const hits = raycaster.intersectObjects(enemies.getHitMeshes(), false);
 
-    const muzzle = player.getMuzzleWorldPos();
     let endPt = origin.clone().addScaledVector(dir, worldDist);
 
     if (hits.length > 0) {
@@ -288,9 +262,10 @@ async function boot() {
       const res = enemies.damageEnemy(enemyId, dmg);
       if (res) {
         startMatch();
-        rhythm.playHit(res.killed);
+        if (!quiet || res.killed) rhythm.playHit(res.killed);
+        if (!quiet) rhythm.playSfx(w.sounds.impact, { gain: 0.55, send: 0.3 });
         showHit(hits[0].point, dmg, res.killed);
-        vfx.spawn(quality === 'PERFECT' ? HIT_PERFECT : HIT_SPARKS, hits[0].point, { dir: [-dir.x, -dir.y, -dir.z], tint: primaryHex, count: spreadRad > 0.03 ? 0.5 : 1 });
+        vfx.spawn(recipe(quality === 'PERFECT' ? w.fx.impactPerfect : w.fx.impact), hits[0].point, { dir: [-dir.x, -dir.y, -dir.z], tint: primaryHex, count: quality === 'PERFECT' && spreadRad > 0.03 ? 0.5 : 1 });
         if (res.killed) vfx.spawn(KILL_BURST, res.pos.clone().setY(res.pos.y + 1), { tint: primaryHex });
         if (res.killed) {
           const pts = Math.round(100 * resonance);
@@ -302,13 +277,17 @@ async function boot() {
       }
     }
 
-    if (!hits.length && worldDist < 120) vfx.spawn(WALL_IMPACT, endPt, { dir: [-dir.x, -dir.y, -dir.z], tint: primaryHex, count: spreadRad > 0.03 ? 0.4 : 1 });
-    spawnBeam(muzzle, endPt, quality, primaryHex, hits.length > 0);
+    if (!hits.length && worldDist < 120) {
+      vfx.spawn(recipe(w.fx.impact), endPt, { dir: [-dir.x, -dir.y, -dir.z], tint: primaryHex, count: 0.7 });
+      if (!quiet) rhythm.playSfx(w.sounds.impact, { gain: 0.3, send: 0.5 });
+    }
+    tracers.spawn(muzzle, endPt, w.fx.tracer, primaryHex, quality === 'PERFECT');
+    return hits.length > 0;
   }
 
   function fireShot() {
     if (!player.enabled) return;
-    if (!player.useRound()) { if (player.ammo === 0 && !player.downed) rhythm.playEmpty(); return; } // reloading, down, or dry (starts the reload)
+    if (!player.useRound()) return; // reloading, switching, down, or dry (player.onDryFire clicks; the reload starts)
     combatT = Math.min(combatT, 3); // firing keeps the combat music going
     const beat = rhythm.evaluateBeat();
     const spec = player.vessel;
@@ -324,15 +303,18 @@ async function boot() {
       beat.quality === 'PERFECT' ? spec.dmgPerfect : beat.quality === 'GOOD' ? spec.dmgGood : spec.dmgOff;
 
     const triggerBurst = () => {
+      if (player.vessel.id !== spec.id || player.downed) return; // switched away mid-burst
       rhythm.playShot(beat.quality, spec.id);
       player.triggerMuzzleFlash();
-      { const m = player.getMuzzleWorldPos(), d = player.getAimRay().dir; vfx.spawn(MUZZLE, m, { dir: [d.x, d.y, d.z], tint: spec.primaryColor }); }
-      // bloom: hip fire on the move sprays, standing and aiming is near-exact (player.spreadMul)
-      const spread = spec.spreadRad * player.spreadMul + 0.012 * player.bloom * (1 - player.aimBlend);
+      // the shot leaves the real barrel tip (the Chord Repeater cycles its three barrels)
+      const muzzle = player.getMuzzleWorldPos(true), d = player.getAimRay().dir;
+      vfx.spawn(recipe(player.weapon.fx.muzzle), muzzle, { dir: [d.x, d.y, d.z], tint: spec.primaryColor });
+      // bloom: hip fire on the move sprays, standing and aiming is near-exact (player.spreadRad, weapons.ts spread)
+      const spread = player.spreadRad(spec.spreadRad);
       for (let p = 0; p < spec.pellets; p++) {
-        fireSingleRay(beat.quality, spread, baseDmg, spec.primaryColor);
+        fireSingleRay(beat.quality, spread, baseDmg, spec.primaryColor, muzzle, p > 0);
       }
-      player.recoil(spec.pellets > 1 ? 0.032 : 0.016, spec.pellets > 1 ? 0.4 : 0.2);
+      player.recoil();
     };
 
     triggerBurst();
@@ -521,6 +503,16 @@ async function boot() {
     rhythm.setMood(boss ? 'boss' : tight ? 'showdown' : combatT < 10 ? 'combat' : 'explore');
   };
 
+  // Weapon sounds (weapons.ts names them, rhythm.ts banks them): the reload plays beat by beat in step with the
+  // body's reload clip (mag out, mag in, charge), a dry click on an empty mag, a holster rattle on a switch.
+  player.onReload = () => { /* the reload sounds now play per beat (onReloadBeat) */ };
+  player.onReloadBeat = (beat, w) => {
+    const name = beat === 'out' ? w.sounds.magOut : beat === 'in' ? w.sounds.magIn : beat === 'charge' ? w.sounds.charge : w.sounds.dry;
+    rhythm.playSfx(name, { gain: beat === 'release' ? 0.45 : 0.85, send: 0.15 });
+  };
+  player.onDryFire = (w) => { if (!rhythm.playSfx(w.sounds.dry, { gain: 0.8, send: 0.1 })) rhythm.playEmpty(); };
+  player.onWeaponSwitch = (w) => rhythm.playSfx(w.sounds.switch, { gain: 0.7, send: 0.15 });
+
   const enterRift = (fromTouch = false) => {
     rhythm.setMood('explore');
     rhythm.start();
@@ -645,14 +637,7 @@ async function boot() {
     if (bladeT > 0) { bladeT -= dt; if (player.bladeEdge(bladeA, bladeB)) blade.push(bladeA, bladeB); if (bladeT <= 0) blade.emitting = false; }
     if (dashT > 0) { dashT -= dt; dashTrail.push(dashP.copy(player.object.position).setY(player.object.position.y + 1.0)); if (dashT <= 0) dashTrail.emitting = false; }
     vfx.update(dt, camera);
-    for (let i = beams.length - 1; i >= 0; i--) {
-      beams[i].life -= dt;
-      beams[i].line.traverse((o) => { const m = (o as THREE.Mesh).material as THREE.MeshBasicNodeMaterial | undefined; if (m) m.opacity *= Math.max(0, 1 - dt * 7); });
-      if (beams[i].life <= 0) {
-        scene.remove(beams[i].line);
-        beams.splice(i, 1);
-      }
-    }
+    tracers.update(dt);
 
     for (let i = surges.length - 1; i >= 0; i--) {
       const s = surges[i];
@@ -697,7 +682,7 @@ async function boot() {
   }
 
   if (new URLSearchParams(location.search).has('rrdebug')) {
-    (window as any).__rr = { vfx, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match, targeting, rhythm };
+    (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match, targeting, rhythm };
     player.enabled = true;
     overlay.classList.add('hidden');
     // a hidden Browser pane freezes rAF; drive the loop from a timer in that case
