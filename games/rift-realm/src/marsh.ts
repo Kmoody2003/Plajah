@@ -9,6 +9,7 @@ import { StaticKit, boulder, fbm3, rng, taperTube } from './geom';
 import { builders } from './structures';
 import { circuitTexture } from './decals';
 import { pbr, leafTexture, fernTexture } from './textures';
+import { riftWater } from './water';
 import type { Level, LevelInfo, Tier } from './shrine';
 
 const smooth = (e0: number, e1: number, x: number) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
@@ -68,13 +69,13 @@ export function buildMarsh(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const rope = new THREE.MeshStandardNodeMaterial({ color: 0x6a5a40, roughness: 0.9 });
   // water: dark green, glossy, scrolling ripples from the swamp-water sheet's normals, algae mats
   const waterSrc = pbr('marsh-water', { maps: ['normal'] });
-  const water = new THREE.MeshStandardNodeMaterial({ color: 0x0c1a12, roughness: 0.2, metalness: 0.0, transparent: true, opacity: 0.94 });
-  water.normalMap = waterSrc.normalMap; water.normalScale.set(0.35, 0.35);
+  // the Apex water (water.ts) tuned murky: slow swamp drift, low chop, a faint green-gold glow, algae mats on top
+  const water = riftWater({ deep: 0x030a06, shallow: 0x16301a, glow: 0x9bdc5a, glowAmt: 0.12, flow: 'still', speed: 0.08, chop: 0.55, foam: 0, sky: 0x2a3a2c, skyAmt: 0.35, opacity: 0.9, lowTier: lo });
   {
     const algae = tslTexture(waterSrc.map!, positionWorld.xz.mul(0.05).add(vec2(time.mul(0.003), 0))).rgb;
     const patch = smoothstep(float(0.55), float(0.75), luminance(tslTexture(mud.map!, positionWorld.xz.mul(0.02)).rgb).add(0.25));
-    water.colorNode = mix(vec3(0.012, 0.03, 0.022), algae.mul(vec3(0.5, 0.8, 0.35)), patch.mul(0.7));
-    water.roughnessNode = mix(float(0.3), float(0.8), patch); // dark water: glints, not a sky mirror
+    water.colorNode = mix(water.colorNode as any, algae.mul(vec3(0.5, 0.8, 0.35)), patch.mul(0.7));
+    water.roughnessNode = mix(water.roughnessNode as any, float(0.8), patch); // algae mats are matte
   }
 
   // ── terrain + water ──────────────────────────────────────────────────────────────────────────────────

@@ -8,6 +8,7 @@ import { taperTube, polyPrism, boulder } from '../geom';
 import { art, barkTube } from '../cyberforest';
 import type { WildsCtx } from './registry';
 import type { WorldTerrain } from './terrain';
+import { riftWaterfall } from '../water';
 
 export type P3 = { x: number; y: number; z: number };
 
@@ -240,13 +241,7 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
   };
 
   // ── water falling: a sheet of streaks, mist at the foot ──────────────────────────────────────────────────────
-  const fallMat = (() => {
-    const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
-    const streak = fract(uv().y.mul(4).add(time.mul(1.3)).add(sin(uv().x.mul(41)).mul(0.35)));
-    m.colorNode = mix(color(0x6ccfe0), color(0xeaffff), smoothstep(float(0.55), float(0.95), streak));
-    m.opacityNode = smoothstep(float(0.0), float(0.12), uv().x).mul(smoothstep(float(1.0), float(0.88), uv().x)).mul(0.78);
-    return m;
-  })();
+  const fallMat = riftWaterfall({ tint: 0x6ccfe0, speed: 1.6, opacity: 0.78 });
   const mistMat = new THREE.MeshBasicNodeMaterial({ color: 0xd8f6ff, transparent: true, opacity: 0.1, depthWrite: false });
   /** A waterfall from `top` (lip centre) dropping to `bottom`, facing along `yaw` (the flow direction), `width` wide. */
   const waterfall = (top: P3, bottom: P3, width: number) => {

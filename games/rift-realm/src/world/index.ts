@@ -58,7 +58,7 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g.setIndex(I); g.computeVertexNormals();
-    const m = new THREE.Mesh(g, mats.water); m.receiveShadow = true; m.name = 'wilds-river'; group.add(m);
+    const m = new THREE.Mesh(g, mats.river ?? mats.water); m.receiveShadow = true; m.name = 'wilds-river'; group.add(m);
   };
   ribbon(RIVER, 1.5); ribbon(POOL_STREAM, 0.8);
   {

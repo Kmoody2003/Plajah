@@ -11,7 +11,7 @@ import type { TerrainField } from '../collision';
 
 export interface WildsMats {
   ground: THREE.Material; bark: THREE.Material; wood: THREE.Material; darkWood: THREE.Material; stone: THREE.Material;
-  rock: THREE.Material; rope: THREE.Material; lamp: THREE.Material; rune: THREE.Material; water: THREE.Material;
+  rock: THREE.Material; rope: THREE.Material; lamp: THREE.Material; rune: THREE.Material; water: THREE.Material; river?: THREE.Material;
   cable: THREE.Material; net: THREE.Material;
 }
 

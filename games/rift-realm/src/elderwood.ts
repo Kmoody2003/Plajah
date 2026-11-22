@@ -28,6 +28,7 @@ import { GrassField } from '../../../services/vegetation/grass/field';
 import { CYBER_FOREST_GRASS } from '../../../services/vegetation/catalog/cyberForestGrass';
 import { PlantField, type PlantSpot } from '../../../services/vegetation/plants/field';
 import { nebulaSky } from './nebulaSky';
+import { riftWater, riftWaterfall } from './water';
 import { CF_VINE, CYBER_FOREST_PLANTS } from '../../../services/vegetation/catalog/cyberForestPlants';
 import { FungusField, type FungusSpot } from '../../../services/vegetation/fungi/field';
 import { CYBER_FOREST_FUNGI } from '../../../services/vegetation/catalog/cyberForestFungi';
@@ -473,20 +474,18 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   }
 
   // ── OBJ C's shelf and the waterfall pool (CF-22): a stream over the lip, a falling sheet, a glowing pool ─────
-  const waterMat = new THREE.MeshStandardNodeMaterial({ color: 0x0b2a30, roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.86 });
+  // water (water.ts: the Apex water in TSL): a still, cold-teal pool with bioluminescent crests and caustics, and a
+  // flowing river variant for the streams (also the open world's rivers via mats.river)
+  const waterMat = riftWater({ deep: 0x03161b, shallow: 0x0f4a52, glow: 0x3ff0ff, glowAmt: 0.32, flow: 'still', speed: 0.22, opacity: 0.74, lowTier: lo });
+  const riverMat = riftWater({ deep: 0x05202a, shallow: 0x1a6670, glow: 0x5ff4ff, glowAmt: 0.28, flow: 'uv', speed: 1.8, uvMetres: 6, width: 14, opacity: 0.8, lowTier: lo });
+  const streamMat = riftWater({ deep: 0x05202a, shallow: 0x1a6670, glow: 0x5ff4ff, glowAmt: 0.3, flow: 'uv', speed: 1.4, uvMetres: 7, width: 2.6, opacity: 0.8, lowTier: lo });
   {
-    const flow = fract(uv().y.mul(3).sub(time.mul(0.35)));
-    waterMat.emissiveNode = cyan.mul(smoothstep(float(0.85), float(1.0), sin(positionWorld.x.mul(1.3).add(positionWorld.z.mul(0.7)).add(time.mul(1.4))).mul(0.5).add(0.5)).mul(0.25).add(0.05))
-      .add(color(0x9ff6ff).mul(smoothstep(float(0.9), float(1.0), flow)).mul(0.15));
     const pool = new THREE.Mesh(new THREE.CircleGeometry(11.2, 48), waterMat);
     pool.rotation.x = -Math.PI / 2; pool.position.set(POOL.x, -3.2, POOL.z); group.add(pool);
     // the falling sheet, from the shelf's lip down to the pool
     const lip = { x: POOL.x + Math.sin(2.3 + 1.0) * 11.5, z: POOL.z + Math.cos(2.3 + 1.0) * 11.5 };
     const lipY = H(lip.x, lip.z) + 0.3;
-    const fallMat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
-    const streak = fract(uv().y.mul(5).add(time.mul(1.6)).add(sin(uv().x.mul(37)).mul(0.3)));
-    fallMat.colorNode = mix(color(0x7ad8e8), color(0xe8ffff), smoothstep(float(0.6), float(0.95), streak));
-    fallMat.opacityNode = smoothstep(float(0.0), float(0.15), uv().x).mul(smoothstep(float(1.0), float(0.85), uv().x)).mul(0.75);
+    const fallMat = riftWaterfall({ tint: 0x6fd2e4, speed: 1.8, opacity: 0.75 });
     const fallH = lipY + 3.2, fall = new THREE.Mesh(new THREE.PlaneGeometry(3.4, fallH, 1, 12), fallMat);
     const toPool = Math.atan2(POOL.x - lip.x, POOL.z - lip.z);
     fall.position.set(lip.x + Math.sin(toPool) * 0.8, lipY - fallH / 2, lip.z + Math.cos(toPool) * 0.8); fall.rotation.y = toPool;
@@ -502,7 +501,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     for (let i = 0; i < SN; i++) { const a = i * 2; si.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
     const sg = new THREE.BufferGeometry();
     sg.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3)); sg.setAttribute('uv', new THREE.Float32BufferAttribute(suv, 2)); sg.setIndex(si); sg.computeVertexNormals();
-    group.add(new THREE.Mesh(sg, waterMat));
+    group.add(new THREE.Mesh(sg, streamMat));
     // mist where it lands
     const mist = new THREE.Mesh(new THREE.SphereGeometry(3, 16, 8), new THREE.MeshBasicNodeMaterial({ color: 0xcff6ff, transparent: true, opacity: 0.08, depthWrite: false }));
     mist.position.set(lip.x + Math.sin(toPool) * 3, -2, lip.z + Math.cos(toPool) * 3); mist.scale.set(1.4, 0.6, 1.4); group.add(mist);
@@ -641,7 +640,7 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   if (W) {
     wb = W.build({
       scene, group, kit, B, lo, beat: uBeatPulse, H,
-      mats: { ground, bark, wood, darkWood, stone, rock, rope, lamp: lampMat, rune: runeMat, water: waterMat, cable: cableMat, net: netMat },
+      mats: { ground, bark, wood, darkWood, stone, rock, rope, lamp: lampMat, rune: runeMat, water: waterMat, river: riverMat, cable: cableMat, net: netMat },
       treeSpots: wildTrees, plantSpots, fungusSpots,
     });
     wildTrees.push(...wb.treeSpots);

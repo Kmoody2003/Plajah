@@ -12,6 +12,7 @@ import {
 } from 'three/tsl';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { StaticKit, boulder, fbm3, rng } from './geom';
+import { riftWater } from './water';
 import { builders } from './structures';
 import { pbr } from './textures';
 import { CreatureBody, CreatureKind, MothSwarm, preloadCreatures } from './creatures';
@@ -244,13 +245,15 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     g.setIndex(idx); g.computeVertexNormals();
-    const water = new THREE.MeshStandardNodeMaterial({ color: 0x041820, roughness: 0.06, metalness: 0.3, transparent: true, opacity: 0.88 });
+    // the Apex water (water.ts) flowing down the ribbon, with the cyber river's data streaks riding on top
+    const water = riftWater({ deep: 0x02121a, shallow: 0x0c4a5c, glow: 0x34e8ff, glowAmt: 0.3, flow: 'uv', speed: 2.0, uvMetres: 10, width: 13, sky: 0x1a3550, skyAmt: 0.5, opacity: 0.82, lowTier: lo });
+    const baseGlow = water.emissiveNode as any; // eslint-disable-line @typescript-eslint/no-explicit-any
     const across = uv().x, along = uv().y.mul(10);
     const lane = fract(across.mul(9));
     const streak = smoothstep(float(0.46), float(0.5), lane).mul(smoothstep(float(0.54), float(0.5), lane));
     const pulse = smoothstep(float(0.7), float(0.98), fract(along.mul(0.08).sub(time.mul(0.25)).add(across.mul(7.3).floor().mul(0.37))));
     const mid = float(1).sub(across.sub(0.5).abs().mul(2)); // streaks run brightest down the middle
-    water.emissiveNode = cyan.mul(streak.mul(pulse).mul(2.2).add(0.05)).mul(mid.mul(0.6).add(0.4)).add(color(0x0a5a7a).mul(0.12));
+    water.emissiveNode = baseGlow.add(cyan.mul(streak.mul(pulse).mul(2.2)).mul(mid.mul(0.6).add(0.4)));
     const mesh = new THREE.Mesh(g, water);
     mesh.renderOrder = 2;
     group.add(mesh);
