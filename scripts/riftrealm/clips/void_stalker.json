@@ -2,37 +2,382 @@
   "id": "void_stalker",
   "glb": "/games/rift-realm/assets/characters/void_stalker.glb",
   "clips": [
-    { "name": "idle", "video": "888b0e94", "from": 8.4, "to": 9.9, "loop": { "minSec": 0.7 }, "note": "Void Stalker ready stance, daggers low (end of the combat reel)" },
-    { "name": "combat_idle", "video": "a9340b37", "from": 0.0, "to": 1.05, "loop": { "minSec": 0.6 }, "note": "Assassin wide crouched guard (high-agility reel opening)" },
-    { "name": "walk", "video": "b230aae3", "from": 8.95, "to": 9.9, "face": "mean", "loop": { "minSec": 0.5 }, "note": "Void Stalker rises and advances toward camera (executing-combo reel end)" },
-    { "name": "walk_back", "video": "b230aae3", "from": 8.95, "to": 9.9, "face": "mean", "loop": { "minSec": 0.5 }, "reverse": true, "note": "the walk advance played backwards" },
-    { "name": "run", "video": "1247d50a", "from": 1.15, "to": 2.45, "face": "mean", "loop": { "minSec": 0.45 }, "note": "Cyber-Assassin charging strides" },
-    { "name": "run_back", "video": "1247d50a", "from": 1.15, "to": 2.45, "face": "mean", "loop": { "minSec": 0.45 }, "reverse": true, "note": "the charge strides played backwards" },
-    { "name": "sprint", "video": "e5f8c560", "from": 3.7, "to": 5.25, "face": "mean", "loop": { "minSec": 0.45 }, "note": "Shadow assassin low running strides, blades trailing" },
-    { "name": "dash", "video": "a9340b37", "from": 1.2, "to": 2.15, "face": "mean", "note": "Assassin sprint-lunge" },
-    { "name": "jump", "video": "1247d50a", "from": 2.1, "to": 2.6, "solve": { "smooth": 2.0 }, "note": "Cyber-Assassin take-off into the aerial spin" },
-    { "name": "land", "video": "888b0e94", "from": 5.85, "to": 6.95, "note": "Void Stalker superhero landing (hard landing)" },
-    { "name": "land_soft", "video": "1247d50a", "from": 3.7, "to": 4.3, "note": "Cyber-Assassin crouched landing after the spin" },
-    { "name": "rise", "video": "888b0e94", "from": 7.0, "to": 7.9, "note": "Void Stalker rising from the landing crouch to the ready stance" },
-    { "name": "dodge_back", "video": "e5f8c560", "from": 5.2, "to": 7.0, "solve": { "smooth": 2.4, "lockFeet": false }, "note": "Shadow assassin back-flip to a crouched landing" },
-    { "name": "light_1", "video": "b230aae3", "from": 3.5, "to": 4.05, "note": "Void Stalker X cross-slash, both daggers" },
-    { "name": "light_2", "video": "b230aae3", "from": 4.05, "to": 4.65, "note": "Void Stalker turning back-hand slash" },
-    { "name": "light_3", "video": "888b0e94", "from": 3.62, "to": 4.25, "note": "Void Stalker low spinning slash" },
-    { "name": "heavy_1", "video": "a9340b37", "from": 4.05, "to": 5.1, "note": "Assassin wide two-blade swing" },
-    { "name": "heavy_2", "video": "888b0e94", "from": 2.4, "to": 3.45, "solve": { "smooth": 2.4 }, "note": "Void Stalker leaping spin slash" },
-    { "name": "heavy_3", "video": "1247d50a", "from": 2.4, "to": 3.7, "solve": { "smooth": 2.4 }, "note": "Cyber-Assassin aerial spin-arc slash (launcher)" },
-    { "name": "attack_1", "video": "888b0e94", "from": 2.4, "to": 3.1, "solve": { "smooth": 2.4 }, "note": "leap slash (F strike, kept name)" },
-    { "name": "attack_2", "video": "888b0e94", "from": 3.5, "to": 4.6, "solve": { "smooth": 2.4 }, "note": "spin slash (double-jump flourish, kept name)" },
-    { "name": "attack_3", "video": "1247d50a", "from": 2.45, "to": 3.45, "solve": { "smooth": 2.4 }, "note": "spin-arc slash (kept name)" },
-    { "name": "finisher", "video": "b230aae3", "from": 4.55, "to": 5.6, "note": "Void Stalker overhead dive into a ground slam" },
-    { "name": "finisher_2", "video": "566a3ead", "from": 6.4, "to": 8.6, "note": "Archangel raises the blade and plunges it into the floor" },
-    { "name": "block", "video": "abf39cd6", "from": 5.2, "to": 6.5, "note": "Robot Paladin plants the shield wall (guard up)" },
-    { "name": "pistol_aim", "video": "a9340b37", "from": 5.3, "to": 6.5, "loop": { "minSec": 0.5, "blend": 5 }, "note": "Assassin one arm locked out at the target (projects the disc)" },
-    { "name": "pistol_shoot", "video": "a9340b37", "from": 6.5, "to": 6.95, "note": "Assassin arm thrust as the disc bursts (one-hand shot recoil)" },
-    { "name": "rifle_aim", "video": "abf39cd6", "from": 8.1, "to": 9.05, "loop": { "minSec": 0.5, "blend": 5 }, "note": "Robot Paladin two-hand lance levelled at the target, beam firing" },
-    { "name": "aim_idle", "video": "abf39cd6", "from": 8.1, "to": 9.05, "loop": { "minSec": 0.5, "blend": 5 }, "note": "same as rifle_aim (the gun stance CharacterRig idles in)" },
-    { "name": "shoot", "video": "abf39cd6", "from": 7.85, "to": 8.4, "note": "Robot Paladin lance recoil as the beam fires" },
-    { "name": "throw", "video": "a9340b37", "from": 7.0, "to": 7.95, "note": "Assassin lunging blade throw" },
-    { "name": "wing_hover", "video": "888b0e94", "from": 4.25, "to": 5.45, "solve": { "lockFeet": false }, "note": "Void Stalker wing hover" }
+    {
+      "name": "idle",
+      "video": "888b0e94",
+      "from": 8.4,
+      "to": 9.9,
+      "loop": {
+        "minSec": 0.7
+      },
+      "note": "Void Stalker ready stance, daggers low (end of the combat reel)"
+    },
+    {
+      "name": "combat_idle",
+      "video": "a9340b37",
+      "from": 0.0,
+      "to": 1.05,
+      "loop": {
+        "minSec": 0.6
+      },
+      "note": "Assassin wide crouched guard (high-agility reel opening)"
+    },
+    {
+      "name": "walk",
+      "video": "b230aae3",
+      "from": 8.95,
+      "to": 9.9,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.5
+      },
+      "note": "Void Stalker rises and advances toward camera (executing-combo reel end)"
+    },
+    {
+      "name": "walk_back",
+      "video": "b230aae3",
+      "from": 8.95,
+      "to": 9.9,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.5
+      },
+      "reverse": true,
+      "note": "the walk advance played backwards"
+    },
+    {
+      "name": "run",
+      "video": "1247d50a",
+      "from": 1.15,
+      "to": 2.45,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.45
+      },
+      "note": "Cyber-Assassin charging strides"
+    },
+    {
+      "name": "run_back",
+      "video": "1247d50a",
+      "from": 1.15,
+      "to": 2.45,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.45
+      },
+      "reverse": true,
+      "note": "the charge strides played backwards"
+    },
+    {
+      "name": "sprint",
+      "video": "e5f8c560",
+      "from": 3.7,
+      "to": 5.25,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.45
+      },
+      "note": "Shadow assassin low running strides, blades trailing"
+    },
+    {
+      "name": "dash",
+      "video": "a9340b37",
+      "from": 1.2,
+      "to": 2.15,
+      "face": "mean",
+      "note": "Assassin sprint-lunge"
+    },
+    {
+      "name": "jump",
+      "video": "1247d50a",
+      "from": 2.1,
+      "to": 2.6,
+      "solve": {
+        "smooth": 2.0
+      },
+      "note": "Cyber-Assassin take-off into the aerial spin"
+    },
+    {
+      "name": "land",
+      "video": "888b0e94",
+      "from": 5.85,
+      "to": 6.95,
+      "note": "Void Stalker superhero landing (hard landing)"
+    },
+    {
+      "name": "land_soft",
+      "video": "1247d50a",
+      "from": 3.7,
+      "to": 4.3,
+      "note": "Cyber-Assassin crouched landing after the spin"
+    },
+    {
+      "name": "rise",
+      "video": "888b0e94",
+      "from": 7.0,
+      "to": 7.9,
+      "note": "Void Stalker rising from the landing crouch to the ready stance"
+    },
+    {
+      "name": "dodge_back",
+      "video": "e5f8c560",
+      "from": 5.2,
+      "to": 7.0,
+      "solve": {
+        "smooth": 2.4,
+        "lockFeet": false
+      },
+      "note": "Shadow assassin back-flip to a crouched landing"
+    },
+    {
+      "name": "light_1",
+      "video": "b230aae3",
+      "from": 3.5,
+      "to": 4.05,
+      "note": "Void Stalker X cross-slash, both daggers"
+    },
+    {
+      "name": "light_2",
+      "video": "b230aae3",
+      "from": 4.05,
+      "to": 4.65,
+      "note": "Void Stalker turning back-hand slash"
+    },
+    {
+      "name": "light_3",
+      "video": "888b0e94",
+      "from": 3.62,
+      "to": 4.25,
+      "note": "Void Stalker low spinning slash"
+    },
+    {
+      "name": "heavy_1",
+      "video": "a9340b37",
+      "from": 4.05,
+      "to": 5.1,
+      "note": "Assassin wide two-blade swing"
+    },
+    {
+      "name": "heavy_2",
+      "video": "888b0e94",
+      "from": 2.4,
+      "to": 3.45,
+      "solve": {
+        "smooth": 2.4
+      },
+      "note": "Void Stalker leaping spin slash"
+    },
+    {
+      "name": "heavy_3",
+      "video": "1247d50a",
+      "from": 2.4,
+      "to": 3.7,
+      "solve": {
+        "smooth": 2.4
+      },
+      "note": "Cyber-Assassin aerial spin-arc slash (launcher)"
+    },
+    {
+      "name": "attack_1",
+      "video": "888b0e94",
+      "from": 2.4,
+      "to": 3.1,
+      "solve": {
+        "smooth": 2.4
+      },
+      "note": "leap slash (F strike, kept name)"
+    },
+    {
+      "name": "attack_2",
+      "video": "888b0e94",
+      "from": 3.5,
+      "to": 4.6,
+      "solve": {
+        "smooth": 2.4
+      },
+      "note": "spin slash (double-jump flourish, kept name)"
+    },
+    {
+      "name": "attack_3",
+      "video": "1247d50a",
+      "from": 2.45,
+      "to": 3.45,
+      "solve": {
+        "smooth": 2.4
+      },
+      "note": "spin-arc slash (kept name)"
+    },
+    {
+      "name": "finisher",
+      "video": "b230aae3",
+      "from": 4.55,
+      "to": 5.6,
+      "note": "Void Stalker overhead dive into a ground slam"
+    },
+    {
+      "name": "finisher_2",
+      "video": "566a3ead",
+      "from": 6.4,
+      "to": 8.6,
+      "note": "Archangel raises the blade and plunges it into the floor"
+    },
+    {
+      "name": "block",
+      "video": "abf39cd6",
+      "from": 5.2,
+      "to": 6.5,
+      "note": "Robot Paladin plants the shield wall (guard up)"
+    },
+    {
+      "name": "pistol_aim",
+      "video": "a9340b37",
+      "from": 5.3,
+      "to": 6.5,
+      "loop": {
+        "minSec": 0.5,
+        "blend": 5
+      },
+      "note": "Assassin one arm locked out at the target (projects the disc)"
+    },
+    {
+      "name": "pistol_shoot",
+      "video": "a9340b37",
+      "from": 6.5,
+      "to": 6.95,
+      "note": "Assassin arm thrust as the disc bursts (one-hand shot recoil)"
+    },
+    {
+      "name": "rifle_aim",
+      "video": "abf39cd6",
+      "from": 8.1,
+      "to": 9.05,
+      "loop": {
+        "minSec": 0.5,
+        "blend": 5
+      },
+      "note": "Robot Paladin two-hand lance levelled at the target, beam firing"
+    },
+    {
+      "name": "aim_idle",
+      "video": "abf39cd6",
+      "from": 8.1,
+      "to": 9.05,
+      "loop": {
+        "minSec": 0.5,
+        "blend": 5
+      },
+      "note": "same as rifle_aim (the gun stance CharacterRig idles in)"
+    },
+    {
+      "name": "shoot",
+      "video": "abf39cd6",
+      "from": 7.85,
+      "to": 8.4,
+      "note": "Robot Paladin lance recoil as the beam fires"
+    },
+    {
+      "name": "throw",
+      "video": "a9340b37",
+      "from": 7.0,
+      "to": 7.95,
+      "note": "Assassin lunging blade throw"
+    },
+    {
+      "name": "wing_hover",
+      "video": "888b0e94",
+      "from": 4.25,
+      "to": 5.45,
+      "solve": {
+        "lockFeet": false
+      },
+      "note": "Void Stalker wing hover"
+    },
+    {
+      "name": "strafe_right",
+      "cmu": "41_02",
+      "from": 3.6,
+      "to": 5.6,
+      "face": "start",
+      "loop": {
+        "blend": 5
+      },
+      "note": "CMU 41_02 navigate: walking sideways to the right"
+    },
+    {
+      "name": "strafe_left",
+      "cmu": "41_02",
+      "from": 3.6,
+      "to": 5.6,
+      "face": "start",
+      "loop": {
+        "blend": 5
+      },
+      "mirror": true,
+      "note": "CMU 41_02 walking sideways, mirrored"
+    },
+    {
+      "name": "dodge_left",
+      "cmu": "127_13",
+      "from": 0.2,
+      "to": 1.3,
+      "face": "start",
+      "note": "CMU 127_13 run side-step left"
+    },
+    {
+      "name": "dodge_right",
+      "cmu": "127_14",
+      "from": 0.15,
+      "to": 1.2,
+      "face": "start",
+      "note": "CMU 127_14 run side-step right"
+    },
+    {
+      "name": "vault",
+      "cmu": "41_07",
+      "from": 22.1,
+      "to": 23.9,
+      "face": "start",
+      "note": "CMU 41_07 jump over a stepstool"
+    },
+    {
+      "name": "dive_roll",
+      "cmu": "127_23",
+      "from": 0.45,
+      "to": 2.6,
+      "face": "start",
+      "note": "CMU 127_23 run, dive over, roll, up"
+    },
+    {
+      "name": "slide",
+      "cmu": "134_01",
+      "from": 1.3,
+      "to": 2.6,
+      "face": "start",
+      "note": "CMU 134_01 duck under at a run (closest to a slide in the local library)"
+    },
+    {
+      "name": "draw",
+      "cmu": "139_05",
+      "from": 0.25,
+      "to": 2.0,
+      "face": "mean",
+      "note": "CMU 139_05 pulling a gun (draw)"
+    },
+    {
+      "name": "death",
+      "cmu": "88_04",
+      "from": 8.0,
+      "to": 9.1,
+      "face": "start",
+      "note": "CMU 88_04 flip that ends in a fall to the floor (no straight death fall in the local library)"
+    },
+    {
+      "name": "get_up",
+      "cmu": "88_04",
+      "from": 8.9,
+      "to": 10.0,
+      "face": "start",
+      "note": "CMU 88_04 getting up off the floor"
+    }
   ]
 }

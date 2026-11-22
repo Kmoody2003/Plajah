@@ -1,10 +1,12 @@
 // Rigged characters (Void Stalker = player, Robot Paladin = enemy) built from the concept turnarounds.
 //
 // ── Contract for the combat track (track 2 → track 3) ────────────────────────────────────────────────────────
-// Rig: Y-up, faces +Z, feet at y = 0, ~2 m tall (CharacterRig scales to the height you pass). Skeleton (58 joints,
-// scripts/riftrealm/rig_upgrade.py): Hips, Spine, Spine1, Spine2, Neck, Head, Left/Right Shoulder/Arm/ForeArm/Hand,
-// Left/Right UpLeg/Leg/Foot/ToeBase; twist bones Left/Right ArmTwist, ForeArmTwist, UpLegTwist (driven here every
-// frame from the limb roll — clips never key them); fingers Left/RightHand{Thumb,Index,Middle,Ring,Pinky}{1,2,3}.
+// Rig: Y-up, faces +Z, feet at y = 0, ~2 m tall (CharacterRig scales to the height you pass). The Character Forge's
+// human skeleton (58 joints; scripts/eraclash3d/forgeRigMesh.ts → services/argilla/creature/meshRig.ts): Hips, Spine,
+// Spine1, Spine2, Neck, Head, Left/RightEye, Left/Right Shoulder/Arm/ForeArm/Hand, Left/Right UpLeg/Leg/Foot/ToeBase;
+// twist joints Left/Right ArmTwist and ForeArmTwist; fingers Left/RightHand{Thumb,Index,Middle,Ring,Pinky}{1,2,3}.
+// The Forge runtime (playkit/character/forgeRig.ts) runs after the mixer: twist drivers and hand grips (clips never
+// key fingers or twists). Grips: rig.grip('Right', 'dagger' | 'fist' | 'relaxed' | 'katana').
 // Sockets (plain nodes; attach weapon meshes with rig.socket(name)?.add(mesh)): hand_r_weapon, hand_l_weapon
 // (palm centre; +Z along the fingers = blade/barrel forward, +Y toward the thumb) and back_weapon (on the back at
 // Spine2; +Z down the spine, +Y out of the back).
@@ -13,19 +15,22 @@
 // `rootMotion` the travel {dx, dz, speed} the game should apply — clips play in place):
 //   Void Stalker
 //     locomotion  idle, combat_idle, walk, walk_back, run, run_back, sprint          (loops, blended by update())
-//     movement    jump, land (hard), land_soft, rise, dash, dodge_back, wing_hover
+//     movement    jump, land (hard), land_soft, rise, dash, dodge_back, wing_hover (+ the CMU moves below)
 //     guns        aim_idle (= rifle_aim), rifle_aim, shoot, pistol_aim, pistol_shoot, throw
 //                 (upper-body masked copies play over the legs while moving: see UPPER)
 //     melee       light_1 → light_2 → light_3 (light chain), heavy_1 → heavy_2 → heavy_3 (heavy chain, 3 = launcher),
 //                 attack_1 / attack_2 / attack_3 (the original F-strike / flourish / spin-arc names), block
 //     finishers   finisher (dive ground slam), finisher_2 (blade plunge)
 //   Robot Paladin  idle, walk, run, attack_1..3, block, aim_idle, rifle_aim, shoot, recover
-//   Not in any motion video yet (the GLB's older clips still answer these names): strafe_left, strafe_right,
-//   reload, hit, death, chase — and nothing for slide or vault. Track 3: check rig.has(name) before relying on one.
+//   Both, from the CMU motion-capture library (no video shows them; `source` names the take): strafe_left,
+//     strafe_right, dodge_left, dodge_right (side-step at a run), vault, dive_roll, slide (a duck-under run), draw
+//     (pulling a gun), death (a flip into a fall), get_up.
+//   Nothing yet for hit reactions or reload (in neither the videos nor CMU). Track 3: check rig.has(name) first.
 import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { getKTX2 } from './textures';
+import { forgeRig, type ForgeRig } from '../../../playkit/character/forgeRig';
 
 const BASE = '/games/rift-realm/assets/characters/';
 
@@ -85,15 +90,7 @@ export async function preloadCharacters() {
 }
 
 /** Gun / guard clips that also get an upper-body-only copy (the legs keep the locomotion underneath). */
-const UPPER = ['shoot', 'reload', 'aim_idle', 'rifle_aim', 'pistol_aim', 'pistol_shoot', 'throw', 'block'];
-
-/** Swing–twist: the part of `q` that turns about `axis` (unit, in q's frame). */
-function twistOf(q: THREE.Quaternion, axis: THREE.Vector3, out: THREE.Quaternion) {
-  const d = q.x * axis.x + q.y * axis.y + q.z * axis.z;
-  out.set(axis.x * d, axis.y * d, axis.z * d, q.w);
-  if (out.lengthSq() < 1e-10) out.identity(); else out.normalize();
-  return out;
-}
+const UPPER = ['shoot', 'reload', 'aim_idle', 'rifle_aim', 'pistol_aim', 'pistol_shoot', 'throw', 'block', 'draw'];
 
 export type Locomotion = 'idle' | 'run' | 'strafe_left' | 'strafe_right' | 'walk' | 'sprint' | 'walk_back' | 'run_back';
 
@@ -116,8 +113,8 @@ export class CharacterRig {
   private upper = new Map<string, THREE.AnimationAction>();
   private spine: THREE.Bone[] = [];
   private sockets = new Map<string, THREE.Object3D>();
-  private twists: { bone: THREE.Bone; src: THREE.Bone; restSrc: THREE.Quaternion; axisP: THREE.Vector3; axisT: THREE.Vector3; share: number; rest: THREE.Quaternion }[] = [];
-  private tq = new THREE.Quaternion(); private iq = new THREE.Quaternion();
+  /** The Character Forge runtime: twist drivers, hand grips, springs (null on a rig without `extras.forge`). */
+  private forge: ForgeRig | null = null;
   /** Aim pitch (radians, + = up): the spine bends so the gun points where the player aims. */
   aimPitch = 0;
   private aimApplied = 0;
@@ -150,22 +147,11 @@ export class CharacterRig {
       if ((o as THREE.Bone).isBone && /Spine\d?$/.test(o.name)) this.spine.push(o as THREE.Bone);
       if (/^(hand_r_weapon|hand_l_weapon|back_weapon)$/.test(o.name)) this.sockets.set(o.name, o);
     });
-    // twist bones take a share of their limb's roll about the bone axis (rest pose kept): the forearm twist reads
-    // the hand's roll about the forearm→hand line; the upper-arm and thigh twists un-roll against their own bone
-    const bone = (n: string) => model.getObjectByName(n) as THREE.Bone | undefined;
-    for (const s of ['Left', 'Right']) {
-      for (const [tw, src, ref, share] of [[`${s}ForeArmTwist`, `${s}Hand`, `${s}Hand`, 0.55], [`${s}ArmTwist`, `${s}Arm`, `${s}ForeArm`, -0.5], [`${s}UpLegTwist`, `${s}UpLeg`, `${s}Leg`, -0.5]] as const) {
-        const b = bone(tw), sb = bone(src), rb = bone(ref);
-        if (!b || !sb || !rb) continue;
-        // roll is measured on the limb's change from its bind pose, about the bone line in the limb's parent frame;
-        // the twist bone turns about the same line in its own frame
-        const restSrc = sb.quaternion.clone();
-        const axisT = rb.position.clone().normalize();
-        const axisP = rb === sb ? axisT.clone() : axisT.clone().applyQuaternion(restSrc);
-        this.twists.push({ bone: b, src: sb, restSrc, axisP, axisT, share, rest: b.quaternion.clone() });
-      }
-    }
+    this.forge = forgeRig(model);
   }
+
+  /** Hand grip pose from the Forge (relaxed, fist, dagger, katana). */
+  grip(hand: 'Left' | 'Right', pose: string) { this.forge?.grip(hand, pose); }
 
   /** Whether the character has a clip of this name (see the contract at the top of this file). */
   has(n: string) { return this.actions.has(n.toLowerCase()); }
@@ -246,21 +232,10 @@ export class CharacterRig {
       }
     }
     this.mixer.update(dt);
-    this.applyTwist();
+    this.forge?.update(dt);
     this.applyAim(dt);
   }
 
-  /** Twist bones follow their limb's roll (forearm skin turns with the wrist; shoulder and hip skin un-roll). */
-  private applyTwist() {
-    for (const t of this.twists) {
-      this.iq.copy(t.restSrc).invert();
-      this.tq.copy(t.src.quaternion).multiply(this.iq);                 // change from bind, parent frame
-      twistOf(this.tq, t.axisP, this.tq);
-      const ang = 2 * Math.atan2(this.tq.x * t.axisP.x + this.tq.y * t.axisP.y + this.tq.z * t.axisP.z, this.tq.w);
-      this.iq.setFromAxisAngle(t.axisT, ang * t.share);
-      t.bone.quaternion.copy(t.rest).multiply(this.iq);
-    }
-  }
 
   private axis = new THREE.Vector3(); private fwd = new THREE.Vector3(); private pq = new THREE.Quaternion(); private dq = new THREE.Quaternion();
   /** Bend the spine (shared across its bones) about the character's right axis so the chest and gun follow the aim pitch. */

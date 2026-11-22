@@ -2,16 +2,184 @@
   "id": "robot_paladin",
   "glb": "/games/rift-realm/assets/characters/robot_paladin.glb",
   "clips": [
-    { "name": "idle", "video": "abf39cd6", "from": 0.0, "to": 1.15, "loop": { "minSec": 0.6 }, "note": "Robot Paladin guard stance, shield and lance" },
-    { "name": "walk", "video": "abf39cd6", "from": 1.15, "to": 1.9, "face": "mean", "loop": { "minSec": 0.4 }, "note": "first strides of the shield charge" },
-    { "name": "run", "video": "abf39cd6", "from": 1.4, "to": 2.45, "face": "mean", "loop": { "minSec": 0.45 }, "note": "shield charge" },
-    { "name": "attack_1", "video": "abf39cd6", "from": 2.4, "to": 3.6, "note": "spinning lance slash" },
-    { "name": "attack_2", "video": "abf39cd6", "from": 3.55, "to": 4.3, "note": "lance thrust into the energy punch wind-up" },
-    { "name": "attack_3", "video": "abf39cd6", "from": 2.4, "to": 4.3, "note": "the whole slash-thrust chain" },
-    { "name": "block", "video": "abf39cd6", "from": 5.2, "to": 6.5, "note": "plants the shield wall" },
-    { "name": "aim_idle", "video": "abf39cd6", "from": 8.1, "to": 9.05, "loop": { "minSec": 0.5, "blend": 5 }, "note": "lance levelled, beam firing" },
-    { "name": "shoot", "video": "abf39cd6", "from": 7.85, "to": 8.4, "note": "lance recoil as the beam fires" },
-    { "name": "rifle_aim", "video": "abf39cd6", "from": 7.3, "to": 8.0, "note": "brings the lance up to aim, charging" },
-    { "name": "recover", "video": "abf39cd6", "from": 9.1, "to": 9.95, "note": "lowers the lance back to guard" }
+    {
+      "name": "idle",
+      "video": "abf39cd6",
+      "from": 0.0,
+      "to": 1.15,
+      "loop": {
+        "minSec": 0.6
+      },
+      "note": "Robot Paladin guard stance, shield and lance"
+    },
+    {
+      "name": "walk",
+      "video": "abf39cd6",
+      "from": 1.15,
+      "to": 1.9,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.4
+      },
+      "note": "first strides of the shield charge"
+    },
+    {
+      "name": "run",
+      "video": "abf39cd6",
+      "from": 1.4,
+      "to": 2.45,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.45
+      },
+      "note": "shield charge"
+    },
+    {
+      "name": "attack_1",
+      "video": "abf39cd6",
+      "from": 2.4,
+      "to": 3.6,
+      "note": "spinning lance slash"
+    },
+    {
+      "name": "attack_2",
+      "video": "abf39cd6",
+      "from": 3.55,
+      "to": 4.3,
+      "note": "lance thrust into the energy punch wind-up"
+    },
+    {
+      "name": "attack_3",
+      "video": "abf39cd6",
+      "from": 2.4,
+      "to": 4.3,
+      "note": "the whole slash-thrust chain"
+    },
+    {
+      "name": "block",
+      "video": "abf39cd6",
+      "from": 5.2,
+      "to": 6.5,
+      "note": "plants the shield wall"
+    },
+    {
+      "name": "aim_idle",
+      "video": "abf39cd6",
+      "from": 8.1,
+      "to": 9.05,
+      "loop": {
+        "minSec": 0.5,
+        "blend": 5
+      },
+      "note": "lance levelled, beam firing"
+    },
+    {
+      "name": "shoot",
+      "video": "abf39cd6",
+      "from": 7.85,
+      "to": 8.4,
+      "note": "lance recoil as the beam fires"
+    },
+    {
+      "name": "rifle_aim",
+      "video": "abf39cd6",
+      "from": 7.3,
+      "to": 8.0,
+      "note": "brings the lance up to aim, charging"
+    },
+    {
+      "name": "recover",
+      "video": "abf39cd6",
+      "from": 9.1,
+      "to": 9.95,
+      "note": "lowers the lance back to guard"
+    },
+    {
+      "name": "strafe_right",
+      "cmu": "41_02",
+      "from": 3.6,
+      "to": 5.6,
+      "face": "start",
+      "loop": {
+        "blend": 5
+      },
+      "note": "CMU 41_02 navigate: walking sideways to the right"
+    },
+    {
+      "name": "strafe_left",
+      "cmu": "41_02",
+      "from": 3.6,
+      "to": 5.6,
+      "face": "start",
+      "loop": {
+        "blend": 5
+      },
+      "mirror": true,
+      "note": "CMU 41_02 walking sideways, mirrored"
+    },
+    {
+      "name": "dodge_left",
+      "cmu": "127_13",
+      "from": 0.2,
+      "to": 1.3,
+      "face": "start",
+      "note": "CMU 127_13 run side-step left"
+    },
+    {
+      "name": "dodge_right",
+      "cmu": "127_14",
+      "from": 0.15,
+      "to": 1.2,
+      "face": "start",
+      "note": "CMU 127_14 run side-step right"
+    },
+    {
+      "name": "vault",
+      "cmu": "41_07",
+      "from": 22.1,
+      "to": 23.9,
+      "face": "start",
+      "note": "CMU 41_07 jump over a stepstool"
+    },
+    {
+      "name": "dive_roll",
+      "cmu": "127_23",
+      "from": 0.45,
+      "to": 2.6,
+      "face": "start",
+      "note": "CMU 127_23 run, dive over, roll, up"
+    },
+    {
+      "name": "slide",
+      "cmu": "134_01",
+      "from": 1.3,
+      "to": 2.6,
+      "face": "start",
+      "note": "CMU 134_01 duck under at a run (closest to a slide in the local library)"
+    },
+    {
+      "name": "draw",
+      "cmu": "139_05",
+      "from": 0.25,
+      "to": 2.0,
+      "face": "mean",
+      "note": "CMU 139_05 pulling a gun (draw)"
+    },
+    {
+      "name": "death",
+      "cmu": "88_04",
+      "from": 8.0,
+      "to": 9.1,
+      "face": "start",
+      "note": "CMU 88_04 flip that ends in a fall to the floor (no straight death fall in the local library)"
+    },
+    {
+      "name": "get_up",
+      "cmu": "88_04",
+      "from": 8.9,
+      "to": 10.0,
+      "face": "start",
+      "note": "CMU 88_04 getting up off the floor"
+    }
   ]
 }

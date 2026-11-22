@@ -46,6 +46,8 @@ export interface GMaterial {
   sheen?: { color: [number, number, number]; roughness: number };
   specular?: { factor: number; color?: [number, number, number] };
   emissive?: [number, number, number];
+  /** Emissive map (glow paint); emissiveFactor scales it (default white when a map is given). */
+  emissiveTexture?: number;
   doubleSided?: boolean;
   /** Alpha-tested cutouts (hair cards). */
   alphaMode?: 'MASK' | 'BLEND';
@@ -175,6 +177,7 @@ export function writeGlb(scene: GScene): Uint8Array {
     }
     if (m.ormTexture !== undefined) out.occlusionTexture = { index: m.ormTexture };
     if (m.emissive) out.emissiveFactor = m.emissive;
+    if (m.emissiveTexture !== undefined) { out.emissiveTexture = { index: m.emissiveTexture }; out.emissiveFactor ??= [1, 1, 1]; }
     if (m.doubleSided) out.doubleSided = true;
     if (m.alphaMode) { out.alphaMode = m.alphaMode; if (m.alphaMode === 'MASK') out.alphaCutoff = m.alphaCutoff ?? 0.5; }
     const ext: Record<string, unknown> = {};

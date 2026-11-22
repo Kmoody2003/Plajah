@@ -214,3 +214,37 @@ export function bakeRecipe(solved: MotionClip, r: ClipRecipe): { clip: MotionCli
   c.name = r.name;
   return { clip: c, rootMotion: rootMotion(c), levelDeg, faceDeg: Math.round(faceDeg) };
 }
+
+/** Close a baked three.js clip into a loop: over the last `blendSec` every quaternion track is slerped onto its first
+ *  key and every position track's last keys onto its first (game clips from libraries like CMU, cut between two
+ *  matching steps by hand, still end a few degrees off). Edits the clip in place. */
+export function closeLoopThree(clip: THREE.AnimationClip, blendSec = 0.15): void {
+  const q0 = new THREE.Quaternion(), q = new THREE.Quaternion();
+  for (const t of clip.tracks) {
+    const n = t.times.length, stride = t.getValueSize();
+    if (n < 3) continue;
+    const tEnd = t.times[n - 1];
+    for (let i = 0; i < n; i++) {
+      const u = (t.times[i] - (tEnd - blendSec)) / blendSec;
+      if (u <= 0) continue;
+      const w = Math.min(1, u), s = w * w * (3 - 2 * w), o = i * stride;
+      if (stride === 4) {
+        q0.fromArray(t.values, 0); q.fromArray(t.values, o);
+        if (q.dot(q0) < 0) q0.set(-q0.x, -q0.y, -q0.z, -q0.w);
+        q.slerp(q0, s).toArray(t.values, o);
+      } else for (let c = 0; c < stride; c++) t.values[o + c] += (t.values[c] - t.values[o + c]) * s;
+    }
+  }
+}
+
+/** Turn a baked clip about the vertical (its root bone's rotation and travel), e.g. to face a library take +Z. */
+export function yawThree(clip: THREE.AnimationClip, root: string, yaw: number): void {
+  const r = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), q = new THREE.Quaternion(), v = new THREE.Vector3();
+  for (const t of clip.tracks) {
+    if (t.name === `${root}.quaternion`) for (let o = 0; o < t.values.length; o += 4) q.fromArray(t.values, o).premultiply(r).toArray(t.values, o);
+    if (t.name === `${root}.position`) {
+      const x0 = t.values[0], z0 = t.values[2];
+      for (let o = 0; o < t.values.length; o += 3) { v.set(t.values[o] - x0, t.values[o + 1], t.values[o + 2] - z0).applyQuaternion(r); t.values[o] = v.x + x0; t.values[o + 1] = v.y; t.values[o + 2] = v.z + z0; }
+    }
+  }
+}

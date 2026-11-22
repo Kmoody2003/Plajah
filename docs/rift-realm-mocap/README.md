@@ -63,18 +63,55 @@ executing combo, a9340b37 Assassin high-agility, e5f8c560 Assassin shadow combat
 Robot Paladin (all from abf39cd6): idle, walk, run, attack_1..3, block, aim_idle, rifle_aim, shoot, recover. All of
 them grade poor: the gold robot is hard for the pose model, and much of the reel is close-ups or beam flashes.
 
+## CMU library clips (both characters)
+
+No video shows these moves. They come from the CMU Motion Capture Library already on D: (Kenne, 2026-11-21: "Use CMU
+mocap"). Licence: usable in products, not resellable; credit "Data from mocap.cs.cmu.edu (funded by NSF
+EIA-0196217)". `source.<clip>.cmu` names the take. The bake retargets it onto the rig with its travel, turns it to face
++Z, records the travel as `rootMotion`, then plays it in place. Mirrored clips also mirror their travel.
+`scripts/mocap/cmuScan.mjs <take>` prints a take's hip path, which is how the cuts were picked.
+
+| clip | take | what |
+|---|---|---|
+| strafe_right / strafe_left | 41_02 3.6–5.6 s (left = mirrored) | walking sideways |
+| dodge_left / dodge_right | 127_13 / 127_14 | side-step at a run |
+| vault | 41_07 22.1–23.9 s | jump over a stepstool (1.8 m forward) |
+| dive_roll | 127_23 0.45–2.6 s | dive over, roll, up |
+| slide | 134_01 1.3–2.6 s | duck under at a run (the local library has no true slide) |
+| draw | 139_05 0.25–2.0 s | pulling a gun |
+| death / get_up | 88_04 8.0–9.1 / 8.9–10.0 s | a flip that ends on the floor; getting up |
+
+## Rig: Character Forge
+
+Both GLBs are rigged by the Character Forge (`scripts/eraclash3d/forgeRigMesh.ts` → `services/argilla/creature/meshRig.ts`):
+- the Forge's human skeleton (58 joints: contract bones, three-joint fingers and thumb, arm twist joints, eyes), laid
+  onto the old rig's joint positions;
+- the Forge's skin weights (`humanSkinWeights` on a solid field voxelised from the mesh), with weapons and the wing
+  cloak kept on one bone;
+- `extras.forge` (twist drivers, grips relaxed / fist / dagger / katana, body capsules) and sockets `hand_r_weapon`,
+  `hand_l_weapon`, `back_weapon`.
+
+In the game, `CharacterRig` runs the Forge runtime (`playkit/character/forgeRig.ts`) after the mixer. The look didn't
+change: fidelity 0.82 / 0.84 against the sheets.
+
+Re-rig:
+```
+npx tsx scripts/eraclash3d/forgeRigMesh.ts D:/rr_work/backup_t2/void_stalker.glb public/games/rift-realm/assets/characters/void_stalker.glb --hold Right:dagger,Left:dagger
+```
+Then run `scripts/riftrealm/ktxPack.py chars` and re-bake the clips.
+
+Pipeline fix found here: `retarget()` sampled with a looping action, so every retargeted clip's last frame wrapped
+back to its first pose. It now plays once and holds.
+
 ## Gaps (honest list)
 
-- **Not in any of the videos**: strafes, reload, hit reactions, deaths, slide, vault. The GLB's older clips still answer
-  `strafe_left/right, reload, hit, death, chase`. Those were Muse- or hand-authored, so they break the "from video"
-  rule. They need new motion videos (or Kenne's OK to use the CMU mocap library, which is real captured motion,
-  licensed and already on D:).
+- **Hit reactions and reload** are in neither the videos nor CMU. The Paladin's `play('hit')` in enemies.ts is now a
+  no-op. **A clean death fall** and **gun firing** exist in the full CMU library (e.g. 90_16 fall on face, 85_15,
+  79_96 / 80_03 shooting a gun) but aren't downloaded. Fetching them is a separate download to approve.
 - **Guns**: no character fires a gun in the footage. Rifle poses come from the Paladin's two-handed lance aim. Pistol
   poses come from the Assassin's arm-out disc cast. Both are the closest real motion we have, not gun handling.
 - The **"poor" clips** come from VFX-heavy shots. They are usable in game, but a re-shoot with clean, full-body,
   camera-facing takes per move would lift them.
-- **Models**: `rig_upgrade.py` gave both GLBs the combat skeleton (58 joints: 6 twist bones, 30 finger bones, and
-  sockets `hand_r_weapon`, `hand_l_weapon`, `back_weapon`), re-skinned, with the look unchanged. **No re-model was
-  done.** Fidelity against the sheets is still Void Stalker 0.82 (front 0.82, side 0.82, back 0.82) and Paladin 0.84
+- **Models**: rigged by the Character Forge (see above). **No re-model was done.** Fidelity against the sheets is still Void Stalker 0.82 (front 0.82, side 0.82, back 0.82) and Paladin 0.84
   (0.83 / 0.90 / 0.80), below the 95 % gate. The hands are mitten-shaped in the Hunyuan mesh, so the finger bones
   carry few vertices.

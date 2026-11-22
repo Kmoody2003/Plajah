@@ -105,7 +105,8 @@ export function retarget(dst: THREE.Object3D, src: THREE.Object3D, clip: THREE.A
   const ratio = (worldPos(tHips).y - footY(dst)) / Math.max(1e-4, sHip0.y - footY(src));
 
   const mixer = new THREE.AnimationMixer(src);
-  mixer.clipAction(clip).play();
+  // play once and hold: a looping action wraps setTime(duration) back to 0, so the last frame came out as the first
+  const action = mixer.clipAction(clip); action.setLoop(THREE.LoopOnce, 1); action.clampWhenFinished = true; action.play();
   const frames = Math.max(2, Math.round(clip.duration * fps));
   const times: number[] = [], hipTrack: number[] = [];
   const qTracks = new Map<string, number[]>(pairs.map((p) => [p.tName, []]));
