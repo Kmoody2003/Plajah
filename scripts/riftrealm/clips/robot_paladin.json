@@ -144,14 +144,6 @@
       "note": "CMU 139_05 pulling a gun (draw)"
     },
     {
-      "name": "death",
-      "cmu": "88_04",
-      "from": 8.0,
-      "to": 9.1,
-      "face": "start",
-      "note": "CMU 88_04 flip that ends in a fall to the floor (no straight death fall in the local library)"
-    },
-    {
       "name": "get_up",
       "cmu": "88_04",
       "from": 8.9,
@@ -180,6 +172,38 @@
         "minSec": 0.55
       },
       "note": "CMU 16_35 run/jog"
+    },
+    {
+      "name": "death",
+      "cmu": "85_15",
+      "from": 1.9,
+      "to": 3.1,
+      "face": "start",
+      "note": "CMU 85_15 collapse to the floor (replaces the flip-fall)"
+    },
+    {
+      "name": "death_back",
+      "cmu": "90_18",
+      "from": 0.45,
+      "to": 1.15,
+      "face": "start",
+      "note": "CMU 90_18 rug-pull fall onto the back (cut before the take's bad tail)"
+    },
+    {
+      "name": "hit",
+      "cmu": "105_59",
+      "from": 0.35,
+      "to": 0.9,
+      "face": "start",
+      "note": "CMU 105_59 small stumble (light hit reaction)"
+    },
+    {
+      "name": "hit_heavy",
+      "cmu": "104_13",
+      "from": 0.4,
+      "to": 1.45,
+      "face": "start",
+      "note": "CMU 104_13 stumbling lurch (heavy hit, knocked forward)"
     }
   ]
 }

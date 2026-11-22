@@ -278,14 +278,6 @@
       "note": "CMU 139_05 pulling a gun (draw)"
     },
     {
-      "name": "death",
-      "cmu": "88_04",
-      "from": 8.0,
-      "to": 9.1,
-      "face": "start",
-      "note": "CMU 88_04 flip that ends in a fall to the floor (no straight death fall in the local library)"
-    },
-    {
       "name": "get_up",
       "cmu": "88_04",
       "from": 8.9,
@@ -351,35 +343,79 @@
       "note": "CMU 09_01 run (fast)"
     },
     {
-      "name": "aim_idle",
-      "cmu": "139_05",
-      "from": 1.45,
-      "to": 2.85,
-      "face": "mean",
-      "loop": {
-        "minSec": 0.6,
-        "blend": 6
-      },
-      "note": "CMU 139_05 pulling a gun: the steady hold after the draw, hand raised in front at shoulder height (replaces the hunched lance aim)"
-    },
-    {
-      "name": "rifle_aim",
-      "cmu": "139_05",
-      "from": 1.45,
-      "to": 2.85,
-      "face": "mean",
-      "loop": {
-        "minSec": 0.6,
-        "blend": 6
-      },
-      "note": "same hold as aim_idle (no two-handed rifle hold in the local CMU library)"
-    },
-    {
       "name": "shoot",
       "video": "a9340b37",
       "from": 6.5,
       "to": 6.95,
       "note": "Assassin arm thrust as the disc bursts (one-hand shot recoil; replaces the hunched lance recoil)"
+    },
+    {
+      "name": "death",
+      "cmu": "85_15",
+      "from": 1.9,
+      "to": 3.1,
+      "face": "start",
+      "note": "CMU 85_15 collapse to the floor (replaces the flip-fall)"
+    },
+    {
+      "name": "death_back",
+      "cmu": "90_18",
+      "from": 0.45,
+      "to": 1.15,
+      "face": "start",
+      "note": "CMU 90_18 rug-pull fall onto the back (cut before the take's bad tail)"
+    },
+    {
+      "name": "hit",
+      "cmu": "105_59",
+      "from": 0.35,
+      "to": 0.9,
+      "face": "start",
+      "note": "CMU 105_59 small stumble (light hit reaction)"
+    },
+    {
+      "name": "hit_heavy",
+      "cmu": "104_13",
+      "from": 0.4,
+      "to": 1.45,
+      "face": "start",
+      "note": "CMU 104_13 stumbling lurch (heavy hit, knocked forward)"
+    },
+    {
+      "name": "aim_idle",
+      "cmu": "80_03",
+      "from": 2.2,
+      "to": 3.3,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.5,
+        "blend": 6
+      },
+      "note": "CMU 80_03 shooting a gun: two-handed hold, left hand forward on the handguard, right at the stock"
+    },
+    {
+      "name": "rifle_aim",
+      "cmu": "80_03",
+      "from": 2.2,
+      "to": 3.3,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.5,
+        "blend": 6
+      },
+      "note": "CMU 80_03 two-handed rifle hold"
+    },
+    {
+      "name": "pistol_hold",
+      "cmu": "139_05",
+      "from": 1.45,
+      "to": 2.85,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.6,
+        "blend": 6
+      },
+      "note": "CMU 139_05 one-hand gun hold after the draw"
     }
   ]
 }
