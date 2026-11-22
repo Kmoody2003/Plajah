@@ -9,7 +9,7 @@
 // One geometry + one material per kind; per-creature gait phase, speed and attack come in through object uniforms.
 import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { attribute, color, cos, float, fract, max, mix, positionLocal, sign, sin, smoothstep, time, uniform, uv, vec3 } from 'three/tsl';
+import { attribute, color, cos, dot, float, fract, max, mix, positionLocal, sign, sin, smoothstep, texture, time, uniform, uv, vec3 } from 'three/tsl';
 
 export type CreatureKind = 'wolf' | 'mantis' | 'wasp' | 'deer' | 'bat';
 
@@ -132,8 +132,23 @@ const uPhase = uniform(0).onObjectUpdate(({ object }) => (object?.userData.cPhas
 const uGait = uniform(0).onObjectUpdate(({ object }) => (object?.userData.cGait as number) ?? 0);
 const uAtk = uniform(0).onObjectUpdate(({ object }) => (object?.userData.cAtk as number) ?? 0);
 const uSeed = uniform(0).onObjectUpdate(({ object }) => (object?.userData.cSeed as number) ?? 0);
+// predators (danger/predators.ts): a low stalking crouch, the attack's wind-up (its tell), a glow flare, and the feral
+// red-amber glow that marks a wild predator apart from the rift's cyan creatures
+const uCrouch = uniform(0).onObjectUpdate(({ object }) => (object?.userData.cCrouch as number) ?? 0);
+const uTell = uniform(0).onObjectUpdate(({ object }) => (object?.userData.cTell as number) ?? 0);
+const uGlow = uniform(1).onObjectUpdate(({ object }) => (object?.userData.cGlow as number) ?? 1);
+const uWild = uniform(0).onObjectUpdate(({ object }) => (object?.userData.cWild as number) ?? 0);
+const WILD = color(0xff4a1a);
 
 function motion(kind: CreatureKind, info: Record<string, number>) {
+  const P0 = motionBase(kind, info);
+  if (SPECS[kind].hover) return P0;
+  // crouch: the body sinks toward the feet (legs fold, the feet stay planted) — a predator stalking low
+  const legW = attribute<'vec4'>('rgn', 'vec4').x;
+  return P0.sub(vec3(0, uCrouch.mul(float(1).sub(legW)).mul(info.H * (kind === 'mantis' ? 0.16 : 0.24)), 0));
+}
+
+function motionBase(kind: CreatureKind, info: Record<string, number>) {
   const s = SPECS[kind], r = attribute<'vec4'>('rgn', 'vec4'), P = positionLocal;
   const legW = r.x, head = r.z, aux = r.w;
   const a = uPhase.add(r.y.mul(Math.PI * 2));
@@ -151,13 +166,14 @@ function motion(kind: CreatureKind, info: Record<string, number>) {
     const tailY = run.mul(0.12).mul(tail);
     // attack (wolf): a snapping lunge, the front half dips and pushes forward
     const lunge = uAtk.mul(smoothstep(float(info.z0 + info.L * 0.4), float(info.z1), P.z));
-    return P.add(vec3(headX.add(tailX), liftY.add(bob).add(headY.mul(head)).add(tailY).sub(lunge.mul(0.12)), swingZ.add(lunge.mul(0.35))));
+    const snarl = uTell.mul(head).mul(info.H * 0.1);                                           // tell: the head drops, ready to spring
+    return P.add(vec3(headX.add(tailX), liftY.add(bob).add(headY.mul(head)).add(tailY).sub(lunge.mul(0.12)).sub(snarl), swingZ.add(lunge.mul(0.35)).sub(snarl.mul(0.4))));
   }
   if (kind === 'mantis') {
     // raptor arms sway when idle and whip forward and down on a strike; the head tracks
     const sway = sin(time.mul(2.2).add(uSeed)).mul(0.03);
-    const armZ = aux.mul(uAtk.mul(0.55).add(sway));
-    const armY = aux.mul(uAtk.mul(-0.3).add(sway.mul(0.5)));
+    const armZ = aux.mul(uAtk.mul(0.55).add(sway).sub(uTell.mul(info.H * 0.08)));
+    const armY = aux.mul(uAtk.mul(-0.3).add(sway.mul(0.5)).add(uTell.mul(info.H * 0.2)));
     const headX = sin(time.mul(1.3).add(uSeed)).mul(0.05).mul(head);
     return P.add(vec3(headX, liftY.add(bob).add(armY), swingZ.add(armZ)));
   }
@@ -176,7 +192,7 @@ function motion(kind: CreatureKind, info: Record<string, number>) {
   const wy = P.x.mul(sin(ang)).add(ry.mul(cos(ang))).add(info.wingRoot);
   const wing = vec3(wx, wy, P.z);
   const dangle = sin(time.mul(3).add(uSeed).add(P.x.mul(4))).mul(0.04).mul(legW);
-  const sting = aux.mul(uAtk);
+  const sting = aux.mul(max(uAtk, uTell.mul(0.9)));
   const body = P.add(vec3(0, sting.mul(-0.18).add(sin(time.mul(9)).mul(0.012).mul(aux)), dangle.add(sting.mul(0.22))));
   return mix(body, wing, head);
 }
@@ -245,6 +261,11 @@ function load(kind: CreatureKind) {
     if (std.map) mat.map!.colorSpace = THREE.SRGBColorSpace;
     if (mat.emissiveMap) mat.emissiveMap.colorSpace = THREE.SRGBColorSpace;
     mat.positionNode = motion(kind, info);
+    if (mat.emissiveMap) {
+      // the glow map, flared by uGlow; wild predators shift it to a feral red-amber (same brightness)
+      const e = texture(mat.emissiveMap).rgb.mul(1.6).mul(uGlow);
+      mat.emissiveNode = mix(e, WILD.mul(dot(e, vec3(0.45, 0.45, 0.45)).mul(1.5)), uWild);
+    }
     const t: Template = { geo, mat, scale: SPECS[kind].height / info.H };
     if (kind === 'deer') {
       const am = new THREE.MeshStandardNodeMaterial({ color: 0x1a3040, roughness: 0.4 });
@@ -269,6 +290,8 @@ export class CreatureBody {
   private atkT = 0;
   private seed = Math.random() * 100;
   private el = Math.random() * 10;
+  /** Predator controls (0…1): stalking crouch, the attack's wind-up, glow flare (1 = normal), feral tint. */
+  crouch = 0; tell = 0; glow = 1; wild = 0;
   readonly spec: Spec;
   constructor(readonly kind: CreatureKind, readonly size = 1) {
     this.spec = SPECS[kind];
@@ -305,7 +328,11 @@ export class CreatureBody {
   attack() { this.atkT = 0.4; }
   private write() {
     const atk = this.atkT > 0 ? Math.sin(this.atkT / 0.4 * Math.PI) : 0;
-    for (const m of this.meshes) { m.userData.cPhase = this.phase; m.userData.cGait = this.gait; m.userData.cAtk = atk; m.userData.cSeed = this.seed; }
+    for (const m of this.meshes) {
+      const u = m.userData;
+      u.cPhase = this.phase; u.cGait = this.gait; u.cAtk = atk; u.cSeed = this.seed;
+      u.cCrouch = this.crouch; u.cTell = this.tell; u.cGlow = this.glow; u.cWild = this.wild;
+    }
   }
 }
 

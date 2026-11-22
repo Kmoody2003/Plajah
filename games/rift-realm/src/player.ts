@@ -93,6 +93,8 @@ export class PlayerController {
   private tipN = 0;
   /** Crouched (C toggles, Ctrl holds, D-pad down on a pad): slower, quieter, tighter bloom. */
   crouched = false;
+  /** Movement multiplier from the world's dangers (thorns, swamp water, shock — danger/status.ts). */
+  moveMul = 1;
   private crouchToggle = false;
   /** Seconds left lying on the floor after being downed (death clip held), then onRespawn. */
   private downedT = 0;
@@ -564,7 +566,7 @@ export class PlayerController {
       this.vel.copy(this.dashDir).multiplyScalar(this.vessel.dashSpeed);
       if (this.dashTimer <= 0) this.vel.multiplyScalar(DASH_CARRY); // keep the momentum, don't stop dead
     } else {
-      const target = wish.multiplyScalar(this.vessel.moveSpeed * (1 - this.aimBlend * 0.08) * (this.crouched ? 0.45 : 1) * this.moveLock * (this.blocking ? 0.45 : 1));
+      const target = wish.multiplyScalar(this.vessel.moveSpeed * (1 - this.aimBlend * 0.08) * (this.crouched ? 0.45 : 1) * this.moveLock * (this.blocking ? 0.45 : 1) * this.moveMul);
       const moving = wish.lengthSq() > 0;
       if (this.onGround) {
         // Ravencrest / Era Clash: a straight-line change toward the wanted velocity at a fixed rate

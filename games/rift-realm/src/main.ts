@@ -17,6 +17,7 @@ import { VESSEL_ORDER, VESSELS, type VesselId } from './vessels';
 import { Tracers, recipe } from './weapons';
 import { UnifiedControls } from './controls';
 import { Targeting } from './targeting';
+import { createDanger } from './danger';
 import { Melee } from './combat/melee';
 import { COMBAT, DEFAULT_TUNING, applyCombatTuning, initCombatTuning, resetCombatTuning, type Archetype } from './combat/tuning';
 import { PlajahGamesBridge } from './plajahBridge';
@@ -190,6 +191,18 @@ async function boot() {
   const blade = vfx.trail(BLADE_TRAIL), dashTrail = vfx.trail(STREAK_TRAIL);
   const bladeA = new THREE.Vector3(), bladeB = new THREE.Vector3(), dashP = new THREE.Vector3();
   let bladeT = 0, dashT = 0, strikeFlip = false;
+  // A dangerous world (danger/*, Elderwood + the Wilds): predators that hunt you and the rift's creatures, environment
+  // hazards with status effects, night danger. Predators join the shot raycast, melee, Soul Surge and the lock-on list.
+  const danger = createDanger({
+    scene, camera, collision, vfx, player, enemies, level: levelId, lo: tier === 'low',
+    beat: () => rhythm.beatIndex, pulse: () => rhythm.pulse, phase: () => rhythm.phase,
+    busy: () => melee.busy || melee.blocking, // no eating mid-strike / while blocking
+    addResonance: (n) => { resonance = Math.min(4.0, resonance + n); showBeatFeedback(`RESONANCE +${n.toFixed(1)}`, '#b36aff'); },
+    hurt: (dmg) => { if (player.downed) return; startMatch(); player.hp = Math.max(0, player.hp - dmg); if (player.hp === 0) downPlayer(match.on); else player.takeHit(dmg); },
+    say: (t, c) => showBeatFeedback(t, c),
+    onKill: (xp, name) => { score += Math.round(xp * 4 * resonance); plajah.creditXp(Math.round(xp * resonance), enemies.wave); plajah.unlock('rift_realm_first_blood'); showBeatFeedback(`${name.toUpperCase()} DOWN · +${xp} XP`, '#ffb366'); },
+  });
+  const foes = () => (danger ? danger.foes(enemies.enemies) : enemies.enemies);
 
   if (controls.isTouchDevice) {
     touchHud.classList.add('on');
@@ -254,14 +267,20 @@ async function boot() {
     const worldDist = collision.rayDistance(origin, dir, 120);
     raycaster.set(origin, dir);
     raycaster.far = worldDist;
-    const hits = raycaster.intersectObjects(enemies.getHitMeshes(), false);
+    const hits = raycaster.intersectObjects(danger ? [...enemies.getHitMeshes(), ...danger.hitMeshes()] : enemies.getHitMeshes(), false);
 
     let endPt = origin.clone().addScaledVector(dir, worldDist);
 
-    if (hits.length > 0) {
+    const pHit = hits.length && danger ? danger.damage(hits[0].object, Math.round(baseDmg * (1 + (resonance - 1) * 0.25) * (danger?.dmgMul ?? 1)), origin) : null;
+    if (pHit) { // a predator
+      endPt = hits[0].point;
+      if (!quiet || pHit.killed) rhythm.playHit(pHit.killed);
+      showHit(hits[0].point, Math.round(baseDmg * (1 + (resonance - 1) * 0.25) * (danger?.dmgMul ?? 1)), pHit.killed);
+      vfx.spawn(recipe(quality === 'PERFECT' ? w.fx.impactPerfect : w.fx.impact), hits[0].point, { dir: [-dir.x, -dir.y, -dir.z], tint: primaryHex });
+    } else if (hits.length > 0) {
       endPt = hits[0].point;
       const enemyId = hits[0].object.userData.enemyId as number;
-      const dmg = Math.round(baseDmg * (1 + (resonance - 1) * 0.25));
+      const dmg = Math.round(baseDmg * (1 + (resonance - 1) * 0.25) * (danger?.dmgMul ?? 1));
       const res = enemies.damageEnemy(enemyId, dmg, dir, 0, { source: 'shot' });
       if (res) {
         startMatch();
@@ -297,6 +316,7 @@ async function boot() {
     const beat = rhythm.evaluateBeat();
     const spec = player.vessel;
     showQuality(beat.quality);
+    danger?.noise(player.object.position, 60); // predators hear gunshots
 
     if (beat.quality === 'PERFECT') resonance = Math.min(4.0, resonance + 0.35);
     else if (beat.quality === 'GOOD') resonance = Math.min(4.0, resonance + 0.15);
@@ -363,6 +383,7 @@ async function boot() {
         if (res?.killed) score += Math.round(125 * resonance);
       }
     }
+    danger?.blast(center, 8.5, 45);
   }
 
   function updateVesselUI(activeId: VesselId) {
@@ -418,6 +439,7 @@ async function boot() {
   // Close combat (combat/melee.ts): light / heavy chains, guard + perfect parry, launchers, guard breaks, Soul-Rend.
   const melee = new Melee({
     player, enemies, vfx, rhythm, targeting, camera,
+    dmgMul: () => danger?.dmgMul ?? 1, // Furyberry (danger/forage.ts)
     rayDistance: (o, d, m) => collision.rayDistance(o, d, m),
     resonance: { get: () => resonance, set: (v) => { resonance = v; if (resonance >= 4.0) plajah.unlock('rift_realm_perfect_resonance'); } },
     addScore: (pts) => { score += pts; },
@@ -430,20 +452,27 @@ async function boot() {
       if (enemies.wave >= 3) plajah.unlock('rift_realm_trial_3');
     },
     onContact: () => { startMatch(); combatT = 0; },
-    onSwing: (tint, perfect) => { blade.setColor(perfect ? 0xffd36a : tint, perfect ? 0xff9a2a : tint); blade.emitting = true; bladeT = 0.42; },
+    onSwing: (tint, perfect) => {
+      blade.setColor(perfect ? 0xffd36a : tint, perfect ? 0xff9a2a : tint); blade.emitting = true; bladeT = 0.42;
+      if (danger) { // the swing also lands on predators in reach (combat/melee.ts handles the rift's creatures)
+        const pp = player.object.position, fwd = new THREE.Vector3(-Math.sin(player.bodyYaw), 0, -Math.cos(player.bodyYaw)), t = targeting.target;
+        if (t && danger.isPredator(t)) { const to = t.mesh.position.clone().sub(pp).setY(0); if (to.length() < 4.5 && to.length() > 0.2) fwd.copy(to.normalize()); }
+        for (const h of danger.melee(pp, fwd, perfect ? 36 : 24)) { showHit(h.pos, perfect ? 36 : 24, h.killed); vfx.spawn(perfect ? HIT_PERFECT : HIT_SPARKS, h.pos, { tint }); rhythm.playHit(h.killed); }
+      }
+    },
   });
   const triggerMeleeStrike = () => { if (player.enabled) melee.light(); };
   melee.wireEnemyFx(); // enemy tells: wind-up sounds, the slam's shock ring, bolts bursting on walls
   const camSave = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() }, cinPos = new THREE.Vector3(), cinLook = new THREE.Vector3(), cinM = new THREE.Matrix4(), cinQ = new THREE.Quaternion();
 
   player.onStrike = triggerMeleeStrike;
+  player.onReload = () => rhythm.playReload();
 
   // Mouse: right = fire (hold to keep firing on the beat), left = melee strike, middle / Tab = lock-on — all read
   // through UnifiedControls (controls.ts). Soul Surge is Q (Y on a controller), LT holds the lock.
   renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
   document.addEventListener('pointerlockchange', () => { if (!document.pointerLockElement) targeting.release(); });
 
-  player.onReload = () => rhythm.playReload();
   // ── score: the music fits the moment (rhythm.ts music director); N skips to another song of the same mood ──
   let combatT = 99; // seconds since the last fight contact (shot, hit, enemy close)
   const nowPlaying = document.createElement('div');
@@ -459,7 +488,7 @@ async function boot() {
   const updateMood = (dt: number) => {
     if (match.over || !player.enabled) return;
     const pp = player.object.position;
-    const near = enemies.enemies.some((e) => e.mesh.position.distanceToSquared(pp) < 28 * 28);
+    const near = enemies.enemies.some((e) => e.mesh.position.distanceToSquared(pp) < 28 * 28) || !!danger?.engaged;
     combatT = near ? 0 : combatT + dt;
     const boss = enemies.enemies.some((e) => e.boss);
     const tight = match.on && MATCH_SECONDS - match.time < 60 && Math.abs(objectives.score.blue - objectives.score.orange) <= 15;
@@ -554,8 +583,8 @@ async function boot() {
     // targeting: soft target under the crosshair, lock-on follows its enemy (the view turns to it while you move)
     moveAmt = Math.min(1, Math.hypot(input.moveX, input.moveY) + (['KeyW', 'KeyA', 'KeyS', 'KeyD'].some((k) => player.keys.has(k)) ? 1 : 0));
     targeting.setView(player.firstPerson, (o) => player.chestPos(o)); // each view has its own catch / assist tuning
-    if (input.lockPressed && player.enabled) targeting.toggle(enemies.enemies);
-    targeting.update(realDt, enemies.enemies, input.lockHeld, player.enabled, moveAmt);
+    if (input.lockPressed && player.enabled) targeting.toggle(foes());
+    targeting.update(realDt, foes(), input.lockHeld, player.enabled, moveAmt);
     hitMarker.style.left = `${targeting.screenX}px`; hitMarker.style.top = `${targeting.screenY}px`; // hit marks sit on the crosshair
     {
       const tp = targeting.profile;
@@ -564,7 +593,7 @@ async function boot() {
       player.aimFriction = targeting.soft && !targeting.locked ? tp.friction : 1;
       player.lockedOn = targeting.isLocked;
       // locked: a sideways flick hops to the next enemy that way; slow drift decays and never adds up to a switch
-      if (player.lockedOn && Math.abs(player.flickX) > tp.flick) { targeting.flickSwitch(enemies.enemies, player.flickX); player.flickX = 0; }
+      if (player.lockedOn && Math.abs(player.flickX) > tp.flick) { targeting.flickSwitch(foes(), player.flickX); player.flickX = 0; }
       player.flickX *= Math.exp(-dt * 6);
     }
     player.aiming = targeting.isLocked || input.aimHeld; // right mouse / LT holds aim down sights
@@ -598,7 +627,8 @@ async function boot() {
         startMatch();
         combatT = 0;
         // evade (dash i-frames), block, perfect parry or take it (combat/melee.ts)
-        const { outcome, dmg } = melee.incoming(strike);
+        const { outcome, dmg: raw } = melee.incoming(strike);
+        const dmg = danger && raw > 0 ? danger.absorb(raw) : raw; // a Shellfruit shield soaks it first
         if (dmg > 0) {
           player.hp = Math.max(0, player.hp - dmg);
           if (player.hp === 0) downPlayer(match.on);
@@ -608,6 +638,7 @@ async function boot() {
       });
     }
 
+    danger?.update(dt);
     if (bladeT > 0) { bladeT -= dt; if (player.bladeEdge(bladeA, bladeB)) blade.push(bladeA, bladeB); if (bladeT <= 0) blade.emitting = false; }
     if (dashT > 0) { dashT -= dt; dashTrail.push(dashP.copy(player.object.position).setY(player.object.position.y + 1.0)); if (dashT <= 0) dashTrail.emitting = false; }
     vfx.update(dt, camera);
@@ -664,7 +695,7 @@ async function boot() {
   }
 
   if (new URLSearchParams(location.search).has('rrdebug')) {
-    (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match, targeting, rhythm };
+    (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match, targeting, rhythm, danger };
     // combat checks: __rr.combat.arena(['rusher', 'caster', 'brute']) clears the field and rings those around you;
     // .passive(true) freezes their AI; .tune({...}) edits the table live; .state() reads the fight
     (window as any).__rr.combat = {
