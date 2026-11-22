@@ -114,6 +114,9 @@ export class CharacterRig {
   /** Upper-body-only copies of the gun clips: they play over a run without touching the legs. */
   private upper = new Map<string, THREE.AnimationAction>();
   private spine: THREE.Bone[] = [];
+  /** Each spine bone's rest rotation: the aim bend is laid on top of the animated pose every frame, so a bone no clip
+   *  keys (the Forge rig's Spine1) must start each frame from rest or the bend adds up and the torso spins. */
+  private spineRest: THREE.Quaternion[] = [];
   private sockets = new Map<string, THREE.Object3D>();
   /** The Character Forge runtime: twist drivers, hand grips, springs (null on a rig without `extras.forge`). */
   private forge: ForgeRig | null = null;
@@ -152,6 +155,7 @@ export class CharacterRig {
       if ((o as THREE.Bone).isBone && /Spine\d?$/.test(o.name)) this.spine.push(o as THREE.Bone);
       if (/^(hand_r_weapon|hand_l_weapon|back_weapon)$/.test(o.name)) this.sockets.set(o.name, o);
     });
+    this.spineRest = this.spine.map((b) => b.quaternion.clone());
     this.forge = forgeRig(model);
   }
 
@@ -238,6 +242,8 @@ export class CharacterRig {
         if (run && l.w < 0.05) l.act.time = (run.act.time / run.act.getClip().duration) * l.act.getClip().duration;
       }
     }
+    // procedural layers start from rest each frame (the mixer then writes the bones its clips key)
+    this.spine.forEach((b, i) => b.quaternion.copy(this.spineRest[i]));
     this.mixer.update(dt);
     this.forge?.update(dt);
     this.applyAim(dt);
