@@ -121,6 +121,21 @@ the stone tower houses, the statues of Zone 10, the sniper shelter. Art is dayli
 surface is a flat glowing sheet, no white water). The High Canopy bridges are walkable; enemies still path only inside the
 hollow.
 
+### Geometry score against the art (2026-11-22)
+
+`scripts/riftrealm/wilds_depth.py <shot ids>` (run with `D:/Plajah Runtime/tela-py/Scripts/python.exe`) puts the art shot and
+the game frame through the same local depth model (Depth Anything V2 Base), aligns them, and scores the layout (share of
+pixels within 10 % depth) and the silhouettes (edge F-score); diagnostics in D:/rr_work/wilds/depth, the Portal Plaza one is
+`docs/rift-realm-wilds/depth/portal-plaza.jpg`.
+
+**Portal Plaza, first place done this way:** rebuilt from the shot's own camera: columnar redwood trunks framing the edges,
+the ruin line 24 m out with the tall pointed arch left and the portal arch right of centre, a deeper stand of trunks behind,
+puddles, near-corner wreckage. Silhouettes 0.238 → 0.271; the total score 0.627 → 0.610, so it did not go up. The old
+open plaza matched the art's broad near-to-far floor gradient, and what still costs points is not the ruins: the night sky
+above them where the art has a hazy daytime stand of trunks and foliage, and the bare flagstones where the art's floor is
+full of moss, ferns and roots. Next for every place: score under a daytime haze (as the shots are lit), mask the sky, and
+add the floor clutter; the rocks still show the volcanic sheet's orange cracks and need a forest rock material.
+
 ## Track 2 — Characters from video
 - Every clip comes from the character's own motion videos (services/mocap: capture → solveTake → clipToThree →
   retarget), never hand-keyed. Assassin, Archangel, Cyber-Assassin and the other combat videos sit in

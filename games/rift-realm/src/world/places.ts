@@ -7,6 +7,7 @@ import { CF_PLATFORM_OAK, CYBER_FOREST_TREES } from '../../../../services/vegeta
 import type { WildsCtx } from './registry';
 import type { WorldTerrain } from './terrain';
 import { type Kit, uniformBeat } from './kit';
+import { barkTube } from '../cyberforest';
 import { GREAT_FALLS, NEON_FALLS, POOL_FALLS, POOL_STREAM, RIVER, gorgeX, place, placeY, polyNear } from './layout';
 
 // the hollow's Great Oak deck (elderwood.ts OAK / DECK_R / DECK_Y)
@@ -22,6 +23,7 @@ export interface PlaceOut {
 }
 
 export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
+  const terrain = T;
   const out: PlaceOut = { trees: [], clear: [], models: [], glows: [] };
   const H = (x: number, z: number) => T.surface(x, z);
   const { kit, B, mats, group, lo } = ctx;
@@ -550,25 +552,76 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
   }
 
   function ruins() {
-    // ── Portal Plaza: flagstones under redwoods, gothic arches, the portal gate, cyan floor lines ──
+    // ── Portal Plaza (Bioluminescent_cyber_forest_spawn), composed from the shot's own camera: columnar redwood trunks
+    //    4–5 m across frame it; 31 m out a ruined wall line crosses the view (a tall pointed arch left, the portal gate
+    //    right of centre between broken arches); broken paving with puddles and circuit lines; machinery wreck in the
+    //    near corners. Scored with scripts/riftrealm/wilds_depth.py. ──
     {
       const p = place('portal-plaza'), py = placeY(p);
-      K.discPave(p.x, p.z, 26, py, 40);
-      for (let k = 0; k < 8; k++) K.circuit(p.x + Math.sin(k * 0.785) * 12, py, p.z + Math.cos(k * 0.785) * 12, 6, 14, k * 0.785, 0x2ae6ff, 80 + k);
-      K.ring(p.x, py, p.z, 3.2, 3.6);
-      const gx = p.x + 18, gz = p.z - 12, gyaw = -2.2;
-      K.arch(gx, gz, gyaw, 4.6, 6, { y: py, pointed: true, depth: 2 });
+      // the shot's camera (shots.ts): f = forward, r = screen right; at(d, s) = d metres ahead, s to the right
+      const cam = { x: 380, z: -96 }, fl = Math.hypot(38, -26), f = { x: 38 / fl, z: -26 / fl }, r = { x: -f.z, z: f.x };
+      const at = (d: number, s: number) => ({ x: cam.x + f.x * d + r.x * s, z: cam.z + f.z * d + r.z * s });
+      const wallYaw = Math.atan2(-r.z, r.x);                     // kit walls and arches run along (cos yaw, -sin yaw) = r
+      K.discPave(p.x, p.z, 30, py, 48);
+      // puddles in the sunk flagstones (the art's wet floor catching the glow)
+      const puddle = new THREE.MeshStandardNodeMaterial({ color: 0x0a1418, roughness: 0.03, metalness: 0.2, transparent: true, opacity: 0.55 });
+      for (const [d, s, rad] of [[9, 2, 1.4], [14, 6, 1.0], [17, -3, 1.2], [20, 3, 0.8], [12, -5, 0.7]] as const) {
+        const q = at(d, s), m = new THREE.Mesh(new THREE.CircleGeometry(rad, 24), puddle); m.rotation.x = -Math.PI / 2; m.scale.set(1.6, 1, 1); m.position.set(q.x, py + 0.05, q.z); group.add(m);
+      }
+      // circuit lines: in from the bottom-left of the frame toward the portal, and a ring of them round the plaza
+      { const q = at(7, -3.5); K.circuit(q.x, py, q.z, 3.5, 9, Math.atan2(f.x, f.z) + 0.9, 0x2ae6ff, 81); }
+      for (let k = 0; k < 3; k++) K.circuit(p.x + Math.sin(k * 2.1 + 2) * 20, py, p.z + Math.cos(k * 2.1 + 2) * 20, 4, 9, k * 2.1, 0x2ae6ff, 83 + k);
+      // the ruin line across the view: [s right, opening, pier height, broken stones]
+      const WD = 24;
+      for (const [sx, w, h, br] of [[-12.5, 2.5, 4.8, 2], [-7, 4.0, 7.8, 0], [3.5, 3.6, 6.8, 0], [9.5, 2.5, 4.4, 3]] as const) {
+        const q = at(WD, sx); K.arch(q.x, q.z, wallYaw, w, h, { y: py, pointed: true, depth: 1.6, broken: br });
+      }
+      for (const [s0, s1, h] of [[-16.5, -14.4, 4.0], [-10.2, -9.6, 8.2], [-4.6, -1.8, 6.5], [5.8, 7.8, 6.0], [11.2, 14, 3.2]] as const) {
+        const q = at(WD + 0.3, (s0 + s1) / 2); K.ruinWall(q.x, q.z, wallYaw, s1 - s0 + 0.4, h, s0 * 3 + 7);
+      }
+      // a second, lower line further back (the deeper arches in the haze)
+      for (const sx of [-4, 7, 16]) { const q = at(46, sx); K.arch(q.x, q.z, wallYaw, 3, 4.6, { y: H(q.x, q.z), pointed: true, broken: sx > 10 ? 2 : 0 }); }
+      // the portal, filling the arch right of centre (pointed top)
+      const g = at(WD, 3.5);
       const portal = new THREE.MeshBasicNodeMaterial({ transparent: true, side: THREE.DoubleSide, depthWrite: false });
       const pu = uv(); const shimmer = sin(pu.y.mul(30).sub(time.mul(3))).mul(0.15).add(0.85);
-      portal.colorNode = mix(color(0x9ff8ff), color(0xffffff), smoothstep(float(0.3), float(0.0), pu.x.sub(0.5).abs())).mul(shimmer).mul(float(1.8).add(beat.mul(0.8)));
-      portal.opacityNode = smoothstep(float(0.5), float(0.38), pu.x.sub(0.5).abs()).mul(0.85);
-      const pm = new THREE.Mesh(new THREE.PlaneGeometry(4.4, 8.2), portal); pm.position.set(gx, py + 4.1, gz); pm.rotation.y = gyaw + Math.PI / 2; group.add(pm);
-      for (const [a, r, w, h, br] of [[2.4, 20, 5, 7, 0], [3.4, 22, 4, 6.5, 2], [0.6, 22, 4.5, 8, 0], [1.2, 24, 3.6, 5, 4]] as const) K.arch(p.x + Math.sin(a) * r, p.z + Math.cos(a) * r, a + Math.PI / 2, w, h, { y: py, pointed: true, broken: br });
-      for (let k = 0; k < 6; k++) { const a = k * 1.1 + 0.4; K.ruinWall(p.x + Math.sin(a) * 25, p.z + Math.cos(a) * 25, a + Math.PI / 2, 6 + R() * 5, 2 + R() * 3, k + 20); }
-      for (let k = 0; k < 9; k++) { const a = (k / 9) * 6.283 + 0.2, r = 38 + R() * 12; giant(p.x + Math.sin(a) * r, p.z + Math.cos(a) * r, py + 38 + R() * 10, 2); }
-      out.clear.push([p.x, p.z, 30]);
-      glowAt(gx, py + 3, gz);
-      K.lamp(gx - 2, py + 3, gz + 2, 0x9ff8ff, 30);
+      const archShape = smoothstep(float(0.5), float(0.4), pu.x.sub(0.5).abs()).mul(smoothstep(float(1.0), float(0.82), pu.y.add(pu.x.sub(0.5).abs().mul(0.9))));
+      portal.colorNode = mix(color(0x7ff0ff), color(0xf4ffff), smoothstep(float(0.35), float(0.0), pu.x.sub(0.5).abs())).mul(shimmer).mul(float(1.9).add(beat.mul(0.8)));
+      portal.opacityNode = archShape.mul(0.9);
+      const pm = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 8.2), portal); pm.position.set(g.x, py + 4.1, g.z); pm.rotation.y = Math.atan2(-f.x, -f.z); group.add(pm);
+      // the redwoods: [d, s, radius] — trunks that run out of the top of the frame, buttress roots, glowing shelf fungi
+      const trunks: [number, number, number][] = [[8, -13, 2.3], [10, 14, 2.5], [36, -1.5, 2.7], [40, 10, 2.5], [38, -18, 2.4], [48, -9, 2.2], [26, 22, 2.6], [55, 3, 2.0], [-6, -15, 2.4], [-4, 17, 2.4],
+        // the deeper stand behind the ruins (the art's haze of trunks, no open sky between them)
+        [62, -14, 2.2], [66, -4, 1.9], [70, 6, 2.1], [64, 15, 2.0], [78, -22, 2.3], [82, 0, 2.0], [86, 14, 2.2], [74, 24, 2.0], [58, -26, 2.0], [92, -10, 2.1]];
+      for (const [d, sx, rad] of trunks) {
+        const q = at(d, sx), gy = H(q.x, q.z), top = gy + 58;
+        const c = new THREE.CatmullRomCurve3([new THREE.Vector3(q.x, gy - 2, q.z), new THREE.Vector3(q.x + 0.3, gy + 20, q.z - 0.2), new THREE.Vector3(q.x - 0.2, gy + 40, q.z + 0.3), new THREE.Vector3(q.x, top, q.z)]);
+        K.barkGeos.push(barkTube(c, rad * 1.18, rad * 0.62, lo ? 10 : 18, lo ? 12 : 20, 0.35, q.x + q.z));
+        terrain.addTrunk(q.x, q.z, rad + 0.2, gy - 2, top);
+        for (let k = 0; k < 6; k++) {
+          const a = (k / 6) * 6.283 + d, len = rad * 2.6 + 1.5, ex = q.x + Math.sin(a) * len, ez = q.z + Math.cos(a) * len;
+          K.trimGeos.push(barkTube(new THREE.CatmullRomCurve3([new THREE.Vector3(q.x + Math.sin(a) * rad * 0.7, gy + rad * 1.6, q.z + Math.cos(a) * rad * 0.7), new THREE.Vector3(q.x + Math.sin(a) * len * 0.55, gy + 0.5, q.z + Math.cos(a) * len * 0.55), new THREE.Vector3(ex, H(ex, ez) - 0.3, ez)]), rad * 0.5, 0.15, 8, 7, 0.4, k + d));
+        }
+        for (let k = 0; k < 7; k++) { const a = R() * 6.283, hh = 3 + R() * 22; ctx.fungusSpots.push({ x: q.x + Math.sin(a) * rad * 0.98, y: gy + hh, z: q.z + Math.cos(a) * rad * 0.98, yaw: a, species: 4, scale: 1.4 + R() * 1.4 }); }
+        out.trees.push({ x: q.x, y: top - 14, z: q.z, yaw: d, species: 2, scale: 1.6 });   // a crown far overhead, out of frame
+      }
+      // vines down the arches, ferns and bushes along the walls and the sides
+      for (let k = 0; k < 16; k++) { const q = at(30 + R() * 2, -16 + R() * 32); ctx.plantSpots.push({ x: q.x, y: py + 5 + R() * 4, z: q.z, yaw: R() * 6.28, species: 3, scale: 0.6 + R() * 0.6 }); }
+      for (let k = 0; k < 40; k++) { const q = at(26 + R() * 6, -20 + R() * 40); plant(R() < 0.6 ? 0 : 1, q.x, q.z, 0.9 + R() * 0.8, py); }
+      for (let k = 0; k < 18; k++) { const sd = R() < 0.5 ? -1 : 1, q = at(3 + R() * 20, sd * (9 + R() * 8)); plant(R() < 0.5 ? 0 : 1, q.x, q.z, 1 + R() * 0.8, py); }
+      // machinery wreck and rubble in the near corners (the art's half-buried tech, bottom left and right)
+      for (const [d, sx, n] of [[4.6, -5.8, 1], [4.8, 6.2, 2]] as const) {
+        const q = at(d, sx);
+        K.rocks(q.x, q.z, 8, 2.0, [0.4, 0.9], 300 + n);
+        for (let k = 0; k < 6; k++) { const e = at(d + R() * 3, sx + (R() - 0.5) * 4); plant(R() < 0.6 ? 0 : 1, e.x, e.z, 1.6 + R() * 0.9, py); }
+        const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 4.2, 14, 1, true), K.mats.metal);
+        tube.position.set(q.x, py + 0.55, q.z); tube.rotation.set(Math.PI / 2, n, 0.4 * n); tube.castShadow = !lo; group.add(tube);
+        const band = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.09, 6, 18), K.mats.cyanGlow); band.position.copy(tube.position); band.rotation.copy(tube.rotation); group.add(band);
+      }
+      for (let k = 0; k < 12; k++) { const q = at(4 + R() * 26, -14 + R() * 28); K.rocks(q.x, q.z, 1, 0.1, [0.2, 0.5], 400 + k); }
+      out.clear.push([p.x, p.z, 34]);
+      glowAt(g.x, py + 3, g.z);
+      K.lamp(g.x - f.x * 2, py + 3.5, g.z - f.z * 2, 0x9ff8ff, 34);
     }
     // ── Circuit Court: a square court, lines converging on a stele on round steps, ruin walls ──
     {
