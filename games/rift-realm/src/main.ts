@@ -209,10 +209,36 @@ async function boot() {
     flash.position.copy(to);
     scene.add(flash);
     beams.push({ line: flash, life: 0.16 });
-    if (hit) {
-      const ret = document.getElementById('reticle');
-      if (ret) { ret.animate([{ transform: 'translate(-50%,-50%) scale(1.5) rotate(45deg)', filter: 'drop-shadow(0 0 6px #fb7185)' }, { transform: 'translate(-50%,-50%) scale(1)', filter: 'none' }], { duration: 180 }); }
-    }
+  }
+
+  // Hit feedback (Fortnite-style): an X hit marker on the crosshair (white, red on a kill) and the damage number
+  // popping up at the hit point, rising and fading.
+  const hitMarker = document.createElement('div');
+  hitMarker.style.cssText = 'position:fixed;left:50%;top:50%;width:26px;height:26px;transform:translate(-50%,-50%);pointer-events:none;z-index:13;opacity:0';
+  hitMarker.innerHTML = '<svg viewBox="0 0 26 26" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M3 3l6 6M23 3l-6 6M3 23l6-6M23 23l-6-6"/></svg>';
+  document.body.appendChild(hitMarker);
+  const projV = new THREE.Vector3();
+  function showHit(point: THREE.Vector3, dmg: number, killed: boolean) {
+    hitMarker.style.color = killed ? '#ff3b4e' : '#ffffff';
+    hitMarker.style.filter = `drop-shadow(0 0 3px ${killed ? '#ff3b4e' : '#000'})`;
+    hitMarker.animate([
+      { opacity: 1, transform: `translate(-50%,-50%) scale(${killed ? 1.5 : 1.25})` },
+      { opacity: 1, transform: 'translate(-50%,-50%) scale(1)', offset: 0.35 },
+      { opacity: 0, transform: 'translate(-50%,-50%) scale(1)' },
+    ], { duration: killed ? 420 : 280, easing: 'ease-out' });
+    projV.copy(point).project(camera);
+    if (projV.z > 1) return;
+    const n = document.createElement('div');
+    const x = (projV.x * 0.5 + 0.5) * window.innerWidth + (Math.random() - 0.5) * 24;
+    const y = (-projV.y * 0.5 + 0.5) * window.innerHeight;
+    n.textContent = String(dmg);
+    n.style.cssText = `position:fixed;left:${x}px;top:${y}px;transform:translate(-50%,-50%);pointer-events:none;z-index:13;font:800 ${killed ? 24 : 18}px/1 system-ui,sans-serif;color:${killed ? '#ff3b4e' : '#ffffff'};-webkit-text-stroke:1px #000;text-shadow:0 2px 4px #000`;
+    document.body.appendChild(n);
+    n.animate([
+      { transform: 'translate(-50%,-50%) scale(1.35)', opacity: 1 },
+      { transform: 'translate(-50%,-90%) scale(1)', opacity: 1, offset: 0.3 },
+      { transform: 'translate(-50%,-220%) scale(0.9)', opacity: 0 },
+    ], { duration: 750, easing: 'ease-out' }).onfinish = () => n.remove();
   }
 
   function fireSingleRay(quality: BeatQuality, spreadRad: number, baseDmg: number, primaryHex: number) {
@@ -240,6 +266,7 @@ async function boot() {
       const res = enemies.damageEnemy(enemyId, dmg);
       if (res) {
         rhythm.playHit(res.killed);
+        showHit(hits[0].point, dmg, res.killed);
         if (res.killed) {
           const pts = Math.round(100 * resonance);
           score += pts;
@@ -272,9 +299,12 @@ async function boot() {
     const triggerBurst = () => {
       rhythm.playShot(beat.quality);
       player.triggerMuzzleFlash();
+      // bloom: hip fire on the move sprays, standing and aiming is near-exact (player.spreadMul)
+      const spread = spec.spreadRad * player.spreadMul + 0.012 * player.bloom * (1 - player.aimBlend);
       for (let p = 0; p < spec.pellets; p++) {
-        fireSingleRay(beat.quality, spec.spreadRad * (1 - player.aimBlend * 0.7), baseDmg, spec.primaryColor);
+        fireSingleRay(beat.quality, spread, baseDmg, spec.primaryColor);
       }
+      player.recoil(spec.pellets > 1 ? 0.032 : 0.016, spec.pellets > 1 ? 0.4 : 0.2);
     };
 
     triggerBurst();
@@ -501,10 +531,10 @@ async function boot() {
     if (input.lockPressed && player.enabled) targeting.toggle(enemies.enemies);
     targeting.update(dt, enemies.enemies, input.lockHeld, player.enabled);
     if (targeting.locked) player.aimAt(targeting.aimPoint(targeting.locked), dt);
-    player.aiming = targeting.isLocked;
+    player.aiming = targeting.isLocked || input.aimHeld; // right mouse / LT holds aim down sights
     player.update(dt, rhythm.pulse, input);
-    // aiming tightens the reticle (the shots tighten with it in fireShot)
-    if (reticleEl) { const k = player.aimBlend; if (Math.abs(k - lastAim) > 0.005) { lastAim = k; reticleEl.style.transform = `translate(-50%, -50%) scale(${(1 - k * 0.4).toFixed(3)})`; reticleEl.style.opacity = String(1 - k * 0.15); } }
+    // the reticle shows the spread: it opens with bloom (moving, jumping, firing) and tightens while aiming
+    if (reticleEl) { const k = player.aimBlend; const sc = (0.8 + player.bloom * 0.9) * (1 - k * 0.4); if (Math.abs(sc - lastAim) > 0.005) { lastAim = sc; reticleEl.style.transform = `translate(-50%, -50%) scale(${sc.toFixed(3)})`; reticleEl.style.opacity = String(1 - k * 0.15); } }
     arena.resolveDynamicGates(player.object.position, 0.38);
 
     if (player.enabled) {
@@ -574,7 +604,7 @@ async function boot() {
       showBeatFeedback(`TRIAL ${enemies.wave} · ${b.name.toUpperCase()}`, '#fbbf24');
     }
     waveText.textContent = rules ? rules.title : `Trial ${enemies.wave} · ${currentBiomeName}`;
-    surgeTag.textContent = resonance >= 2.0 ? 'SOUL SURGE READY [Q / RMB]' : 'SURGE AT 2.0x RESONANCE';
+    surgeTag.textContent = resonance >= 2.0 ? 'SOUL SURGE READY [Q]' : 'SURGE AT 2.0x RESONANCE';
     surgeTag.style.color = resonance >= 2.0 ? '#fbbf24' : '#64748b';
 
     if (post) post.render(); else renderer.render(scene, camera);

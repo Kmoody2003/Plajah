@@ -62,6 +62,11 @@ export class PlayerController {
   bodyYaw = 0;
   private bank = 0;
   private faceAimT = 0;
+  /** Crosshair bloom 0…1 (Fortnite-style): grows with speed, air time and each shot, settles when you stand still;
+   *  aiming down sights tightens it. Shots spread by `spreadMul`, the reticle grows with it. */
+  bloom = 0;
+  /** View kick still to recover (radians of pitch); a shot kicks the aim up and about 60 % comes back down. */
+  private recoilBack = 0;
   private lockT = 0;
   private clock = 0;
   private landKick = 0;
@@ -198,6 +203,18 @@ export class PlayerController {
   /** Melee strikes alternate the motion-captured slashes (leap slash, spin-arc slash). */
   private strikeAnim() { this.faceAimT = FACE_AIM_AFTER; this.rig?.play(this.strikeN++ % 2 ? 'attack_3' : 'attack_1', 0.85); }
 
+  /** Spread multiplier for the next shot: hip fire on the move is loose, standing ADS is near-exact. */
+  get spreadMul() { return (0.25 + this.bloom * 1.25) * (1 - this.aimBlend * 0.75); }
+
+  /** A shot's kick: the aim jumps up (less while aiming), a touch sideways, and partly recovers; bloom grows. */
+  recoil(kick = 0.018, bloom = 0.22) {
+    const k = kick * (1 - this.aimBlend * 0.45);
+    this.pitch = THREE.MathUtils.clamp(this.pitch + k, -1.25, 1.25);
+    this.yaw += (Math.random() - 0.5) * k * 0.5;
+    this.recoilBack += k * 0.6;
+    this.bloom = Math.min(1, this.bloom + bloom);
+  }
+
   triggerMuzzleFlash() {
     this.muzzleFlash = 1;
     this.faceAimT = FACE_AIM_AFTER;
@@ -261,6 +278,8 @@ export class PlayerController {
 
   update(dt: number, pulse: number, input?: InputState) {
     this.clock += dt;
+    // recoil recovery: the kick comes back down over ~0.15 s
+    if (this.recoilBack > 0) { const r = Math.min(this.recoilBack, dt * 0.35 + this.recoilBack * dt * 9); this.pitch -= r; this.recoilBack -= r; }
     this.faceAimT = Math.max(0, this.faceAimT - dt);
     this.lockT = Math.max(0, this.lockT - dt);
     const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
@@ -370,6 +389,9 @@ export class PlayerController {
     // shortest way round, banking into the turn; aiming, first person, lock-on and the moment after a shot or a
     // strike square it up to the aim instead, so the gun points down the crosshair and the legs strafe.
     const hsp0 = Math.hypot(this.vel.x, this.vel.z);
+    // bloom follows movement (running ~half open, airborne more), and settles at ~2.5 /s once you stand still
+    const bloomT = Math.min(1, (hsp0 / 9) * 0.5 + (this.onGround ? 0 : 0.55));
+    this.bloom += (bloomT - this.bloom) * Math.min(1, dt * (bloomT > this.bloom ? 6 : 2.5));
     const faceAim = this.firstPerson || this.aiming || this.faceAimT > 0 || this.lockT > 0;
     let want: number | null = null;
     if (faceAim) want = this.yaw;

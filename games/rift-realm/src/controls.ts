@@ -15,6 +15,8 @@ export interface InputState {
   lockPressed: boolean;
   /** Lock-on held (LT on a controller): locked while held. */
   lockHeld: boolean;
+  /** Aim down sights held (right mouse / LT), Fortnite-style. */
+  aimHeld: boolean;
   isTouchActive: boolean;
 }
 
@@ -41,9 +43,10 @@ export class UnifiedControls {
   private queuedLock = false;
 
   private prevPadButtons: boolean[] = [];
-  // hold to fire: while the right button / right trigger is held, a shot repeats on every eighth note of the
+  // hold to fire: while the left button / right trigger is held, a shot repeats on every eighth note of the
   // 124 BPM pulse (the press itself fires the first one), so holding keeps you in rhythm
   private fireHeld = false;
+  private aimHeld = false;
   private fireRepeat = 0;
   private static readonly REPEAT = 60 / 124 / 2;
   isTouchDevice = false;
@@ -64,15 +67,16 @@ export class UnifiedControls {
     window.addEventListener('keydown', (e) => { if (e.code === 'Tab') { e.preventDefault(); if (!e.repeat) this.queuedLock = true; } });
   }
 
-  /** Mouse buttons: right = fire (hold to keep firing on the beat), left = melee strike, middle = lock-on.
+  /** Mouse buttons (Fortnite-style): left = fire (hold to keep firing on the beat), right = hold to aim down sights,
+   *  middle = lock-on; melee is F / E.
    *  Without pointer lock (lock refused, or a touch laptop in touch mode) a drag also looks. */
   private bindMouseFallback() {
     let dragging = false, lastX = 0, lastY = 0;
     this.surface.addEventListener('contextmenu', (e) => e.preventDefault());
     this.surface.addEventListener('mousedown', (e) => {
-      if (e.button === 2) { this.fireHeld = true; this.fireRepeat = UnifiedControls.REPEAT; this.queuedFire = true; }
+      if (e.button === 0) { this.fireHeld = true; this.fireRepeat = UnifiedControls.REPEAT; this.queuedFire = true; }
       if (e.button === 1) { e.preventDefault(); this.queuedLock = true; }
-      if (e.button === 0) this.queuedStrike = true;
+      if (e.button === 2) this.aimHeld = true;
       if (document.pointerLockElement) return;
       if (e.button !== 0 && e.button !== 2) return;
       dragging = true; lastX = e.clientX; lastY = e.clientY;
@@ -85,8 +89,8 @@ export class UnifiedControls {
       this.pendingLookY += (e.clientY - lastY) * 1.6;
       lastX = e.clientX; lastY = e.clientY;
     });
-    window.addEventListener('mouseup', (e) => { dragging = false; if (e.button === 2) this.fireHeld = false; });
-    window.addEventListener('blur', () => { this.fireHeld = false; dragging = false; });
+    window.addEventListener('mouseup', (e) => { dragging = false; if (e.button === 0) this.fireHeld = false; if (e.button === 2) this.aimHeld = false; });
+    window.addEventListener('blur', () => { this.fireHeld = false; this.aimHeld = false; dragging = false; });
   }
 
   private bindTouchSurface() {
@@ -210,6 +214,7 @@ export class UnifiedControls {
     let cycleVesselPressed = this.queuedCycleVessel;
     let lockPressed = this.queuedLock;
     let lockHeld = false;
+    let aimHeld = this.aimHeld;
 
     this.queuedJump = false;
     this.queuedDash = false;
@@ -250,7 +255,7 @@ export class UnifiedControls {
       if (edge(1) || edge(4)) dashPressed = true; // B / Circle or LB
       if (edge(3)) surgePressed = true;          // Y / Triangle
       edge(6);
-      if ((pad.buttons[6]?.value ?? 0) > 0.45) lockHeld = true; // LT: hold to lock on
+      if ((pad.buttons[6]?.value ?? 0) > 0.45) { lockHeld = true; aimHeld = true; } // LT: aim down sights + lock on
       if (edge(5)) cycleVesselPressed = true;    // RB
       if (edge(8) || edge(11)) toggleViewPressed = true; // Select / R3
     }
@@ -274,6 +279,7 @@ export class UnifiedControls {
       cycleVesselPressed,
       lockPressed,
       lockHeld,
+      aimHeld,
       isTouchActive: this.isTouchDevice,
     };
   }
