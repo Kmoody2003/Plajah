@@ -8,6 +8,7 @@ import { color, float, mix, normalWorld, positionWorld, smoothstep, texture as t
 import { ColumnGrid, HeightField, type TerrainField } from '../../../../services/terrain/field';
 import { TerrainChunks as ServiceChunks } from '../../../../services/terrain/chunks';
 import { compileGraph, type TerrainGraph } from '../../../../services/terrain/graph';
+import { loadRaster, type DecodedRaster } from '../../../../services/terrain/raster';
 import { art } from '../cyberforest';
 import { pbr } from '../textures';
 import { CAVES, CAVE_CIRCLES, HALF, MESH_HOLES, worldHeight } from './layout';
@@ -20,7 +21,31 @@ const inBox = (x: number, z: number, b: number[], pad = 0) => {
 /** The Wilds as a terrain graph. Today its one node is the hand-written height (layout.ts worldHeight); later phases
  *  add erosion and other nodes on top without touching it. */
 export const WILDS_GRAPH: TerrainGraph = { version: 1, name: 'elderwood-wilds', nodes: { base: { type: 'fn', name: 'wilds.worldHeight' } }, output: 'base' };
-const wildsHeight = compileGraph(WILDS_GRAPH, { 'wilds.worldHeight': worldHeight });
+const WILDS_FNS = { 'wilds.worldHeight': worldHeight };
+const wildsHeight = compileGraph(WILDS_GRAPH, WILDS_FNS);
+
+/** The Wilds with the offline-baked erosion (scripts/terrain/bakeWildsErosion.ts) added on top. */
+export const WILDS_ERODED_GRAPH: TerrainGraph = {
+  version: 1, name: 'elderwood-wilds-eroded', output: 'out',
+  nodes: { base: { type: 'fn', name: 'wilds.worldHeight' }, erosion: { type: 'raster', name: 'wilds.erosion' }, out: { type: 'combine', op: 'add', inputs: ['base', 'erosion'] } },
+};
+const EROSION_URL = '/games/rift-realm/assets/terrain/wilds-erosion.ptrs';
+let erosion: DecodedRaster | null = null;
+
+/** Load the Wilds' baked layers before the level builds. Opt-in for now: `?erosion=1` (or `?erosion`). */
+export async function preloadWildsTerrain(force = false) {
+  const on = force || (typeof location !== 'undefined' && new URLSearchParams(location.search).has('erosion'));
+  if (!on || erosion) return;
+  try { erosion = await loadRaster(EROSION_URL); console.info('[wilds] erosion loaded', erosion.meta); }
+  catch (e) { console.warn('[wilds] erosion not loaded; plain terrain', e); }
+}
+
+/** The erosion bake's maps (flow, wetness, deposition: 0…1, 4 m) for materials and placement, or null without it. */
+export function wildsMaps() {
+  if (!erosion) return null;
+  const { flow, wetness, deposition } = erosion.layers;
+  return { flow, wetness, deposition };
+}
 
 /** The Wilds' ground: 2 m over the 2 km world, 1 m over the hollow (worldHeight is read at bake time, so setCoreHeight
  *  then `baked = false` re-bakes with the new core). */
@@ -30,6 +55,12 @@ export class WorldTerrain extends HeightField implements TerrainField {
 
   constructor() {
     super({ name: 'wilds', height: wildsHeight, world: { x0: -HALF, z0: -HALF, size: HALF * 2, cell: 2 }, detail: [{ x0: -112, z0: -112, size: 224, cell: 1 }] });
+  }
+
+  /** Bakes the eroded world when the erosion layers are loaded (preloadWildsTerrain), the plain one otherwise. */
+  bake() {
+    this.opts.height = erosion ? compileGraph(WILDS_ERODED_GRAPH, WILDS_FNS, { 'wilds.erosion': erosion.layers.delta }) : wildsHeight;
+    super.bake();
   }
 
   heightAt(x: number, z: number, y?: number) {

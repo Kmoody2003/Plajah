@@ -34,7 +34,9 @@ export type GraphNode =
   /** Distance from a point in metres (for masks: "mountains beyond 800 m"). */
   | { type: 'distance'; center: [number, number] }
   /** A height function the game registers by name (CPU only). */
-  | { type: 'fn'; name: string };
+  | { type: 'fn'; name: string }
+  /** A baked raster layer (e.g. an erosion delta) registered by name, sampled bilinearly, times `scale` (CPU only for now). */
+  | { type: 'raster'; name: string; scale?: number };
 
 export interface TerrainGraph {
   version: 1;
@@ -44,9 +46,11 @@ export interface TerrainGraph {
 }
 
 export type HeightFns = Record<string, (x: number, z: number) => number>;
+/** Raster layers by name: anything with a bilinear at(x, z) (a HeightGrid from raster.ts). */
+export type Rasters = Record<string, { at(x: number, z: number): number }>;
 
 /** Problems with a graph (unknown inputs, cycles, bad parameters); empty when it is sound. */
-export function validateGraph(g: TerrainGraph, fns: HeightFns = {}): string[] {
+export function validateGraph(g: TerrainGraph, fns: HeightFns = {}, rasters: Rasters = {}): string[] {
   const errs: string[] = [];
   if (!g.nodes[g.output]) errs.push(`output "${g.output}" is not a node`);
   const state = new Map<string, 1 | 2>();
@@ -69,6 +73,7 @@ export function validateGraph(g: TerrainGraph, fns: HeightFns = {}): string[] {
     if (n.type === 'radial' && !(n.radius > 0)) errs.push(`${id}: radius must be > 0`);
     if (n.type === 'combine' && n.inputs.length < 1) errs.push(`${id}: combine needs inputs`);
     if (n.type === 'fn' && !fns[n.name]) errs.push(`${id}: no height function "${n.name}" registered`);
+    if (n.type === 'raster' && !rasters[n.name]) errs.push(`${id}: no raster "${n.name}" registered`);
   }
   return errs;
 }
@@ -83,14 +88,14 @@ export function refs(n: GraphNode): Ref[] {
   }
 }
 
-/** True when every node can run on the GPU (no `fn` nodes reachable from the output). */
+/** True when every node can run on the GPU (no `fn` or `raster` nodes reachable from the output). */
 export function gpuReady(g: TerrainGraph) {
   const seen = new Set<string>();
   const walk = (r: Ref): boolean => {
     if (typeof r === 'number' || seen.has(r)) return true;
     seen.add(r);
     const n = g.nodes[r];
-    return !!n && n.type !== 'fn' && refs(n).every(walk);
+    return !!n && n.type !== 'fn' && n.type !== 'raster' && refs(n).every(walk);
   };
   return walk(g.output);
 }
@@ -131,8 +136,8 @@ export function polylineDistance(pts: [number, number][], x: number, z: number) 
 }
 
 /** Compile a graph to a CPU height function. Throws with the validation errors if the graph is unsound. */
-export function compileGraph(g: TerrainGraph, fns: HeightFns = {}): F {
-  const errs = validateGraph(g, fns);
+export function compileGraph(g: TerrainGraph, fns: HeightFns = {}, rasters: Rasters = {}): F {
+  const errs = validateGraph(g, fns, rasters);
   if (errs.length) throw new Error(`terrain graph${g.name ? ` "${g.name}"` : ''}: ${errs.join('; ')}`);
   const memo = new Map<string, F>();
   const ref = (r: Ref): F => (typeof r === 'number' ? () => r : node(r));
@@ -175,6 +180,7 @@ export function compileGraph(g: TerrainGraph, fns: HeightFns = {}): F {
       case 'path': { const p = n.points, w = n.width, d = n.depth, fo = n.falloff ?? 10; return (x, z) => d * shapes.path(polylineDistance(p, x, z), w, fo); }
       case 'distance': { const [cx, cz] = n.center; return (x, z) => Math.hypot(x - cx, z - cz); }
       case 'fn': return fns[n.name];
+      case 'raster': { const r = rasters[n.name], k = n.scale ?? 1; return k === 1 ? (x, z) => r.at(x, z) : (x, z) => r.at(x, z) * k; }
     }
   };
   return node(g.output);

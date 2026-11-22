@@ -73,7 +73,7 @@ function fractal(x: N, z: N, o: { kind?: keyof typeof BASE; mode?: string; octav
 
 /** Build the TSL expression for the graph's output at (x, z). */
 export function graphNode(g: TerrainGraph, x: N, z: N): N {
-  if (!gpuReady(g)) throw new Error(`terrain graph${g.name ? ` "${g.name}"` : ''} has CPU-only (fn) nodes`);
+  if (!gpuReady(g)) throw new Error(`terrain graph${g.name ? ` "${g.name}"` : ''} has CPU-only (fn / raster) nodes`);
   const at = (X: N, Z: N) => {
     const memo = new Map<string, N>();
     const ref = (r: Ref): N => (typeof r === 'number' ? float(r) : node(r));
@@ -137,7 +137,7 @@ export function graphNode(g: TerrainGraph, x: N, z: N): N {
           return float(1).sub(ss(w / 2, w / 2 + fo, best)).mul(n.depth);
         }
         case 'distance': { const dx = X.sub(n.center[0]), dz = Z.sub(n.center[1]); return sqrt(dx.mul(dx).add(dz.mul(dz))); }
-        case 'fn': throw new Error('fn nodes are CPU only');
+        case 'fn': case 'raster': throw new Error(`${n.type} nodes are CPU only`);
       }
     };
     return ref;

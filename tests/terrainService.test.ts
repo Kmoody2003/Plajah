@@ -126,3 +126,76 @@ test('Highlands: a pure-graph world with valley, mountains, mesa, crater and riv
   assert.ok(f(-60, -120) < f(-60, -120 + 80) - 8, 'the river is carved below its banks');
   assert.ok(f(900, 900) - f(0, 0) > 40 || f(-900, 900) - f(0, 0) > 40, 'mountains rise toward the edges');
 });
+
+// ── phase 3: erosion, maps, rasters ─────────────────────────────────────────────────────────────────────────────────
+import { encodeRaster, decodeRaster } from '../services/terrain/raster';
+import { hydraulicErosion } from '../services/terrain/erode/hydraulic';
+import { thermalErosion } from '../services/terrain/erode/thermal';
+import { erodeGrid } from '../services/terrain/erode/index';
+import { flowAccumulation } from '../services/terrain/maps';
+
+/** A cone 40 m tall on a 65 × 65 grid at 2 m, with a little noise so drops pick paths. */
+function cone(n = 65, cell = 2) {
+  const h = new Float32Array(n * n), c = (n - 1) / 2;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) h[i + j * n] = Math.max(0, 40 - Math.hypot(i - c, j - c) * cell * 0.9) + valueNoise(i * 0.7, j * 0.7, 3) * 0.3;
+  return h;
+}
+const centreMass = (h: Float32Array, n: number) => { let a = 0, b = 0; const c = (n - 1) / 2; for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = i + j * n, r = Math.hypot(i - c, j - c); if (r < 8) a += h[k]; else if (r < 20) b += h[k]; } return { inner: a, ring: b }; };
+
+test('raster round trip: i16 heights within half a step, u8 maps within 1/255', () => {
+  const n = 11, r = rand(3), a = new Float32Array(n * n).map(() => (r() - 0.5) * 80), b = new Float32Array(n * n).map(() => r());
+  const buf = encodeRaster([{ name: 'delta', x0: -10, z0: -10, size: 20, cell: 2, data: a, type: 'i16', step: 0.01 }, { name: 'wet', x0: 0, z0: 0, size: 10, cell: 1, data: b, type: 'u8' }], { hi: 1 });
+  const d = decodeRaster(buf);
+  assert.deepEqual(d.meta, { hi: 1 });
+  for (let k = 0; k < n * n; k++) { assert.ok(Math.abs(d.layers.delta.data[k] - a[k]) <= 0.005 + 1e-6); assert.ok(Math.abs(d.layers.wet.data[k] - b[k]) <= 0.5 / 255 + 1e-6); }
+  assert.ok(Math.abs(d.layers.delta.at(-10 + 4, -10 + 6) - a[2 + 3 * n]) <= 0.005 + 1e-6);
+  assert.throws(() => decodeRaster(new ArrayBuffer(16)));
+});
+
+test('hydraulic erosion moves material downhill, is deterministic and leaves protected cells alone', () => {
+  const n = 65, a = cone(), b = Float32Array.from(a), before = centreMass(a, n);
+  const protect = new Float32Array(n * n); for (let k = 0; k < n * 10; k++) protect[k] = 1;   // the first 10 rows
+  const p0 = Float32Array.from(a.subarray(0, n * 10));
+  hydraulicErosion(a, n, 2, { droplets: 3000, seed: 5, protect });
+  hydraulicErosion(b, n, 2, { droplets: 3000, seed: 5, protect });
+  assert.deepEqual(a, b, 'same seed, same result');
+  const after = centreMass(a, n);
+  assert.ok(after.inner < before.inner, `the peak lost material (${before.inner.toFixed(0)} → ${after.inner.toFixed(0)})`);
+  for (let k = 0; k < n * 10; k++) assert.equal(a[k], p0[k]);
+});
+
+test('thermal erosion slumps a spike toward the angle of repose and spares protected cells', () => {
+  const n = 21, h = new Float32Array(n * n); h[10 + 10 * n] = 30; h[3 + 3 * n] = 30;
+  const protect = new Float32Array(n * n); protect[3 + 3 * n] = 1;
+  thermalErosion(h, n, 1, { iterations: 200, talus: 35, rate: 0.25, protect });
+  assert.ok(h[10 + 10 * n] < 10, `spike slumped to ${h[10 + 10 * n]}`);
+  assert.equal(h[3 + 3 * n], 30);
+  let sum = 0; for (let k = 0; k < n * n; k++) if (k !== 3 + 3 * n) sum += h[k];
+  assert.ok(Math.abs(sum - 30) < 1e-2, `mass kept (${sum})`);
+});
+
+test('D8 flow accumulates the whole tilted plane into its lowest corner', () => {
+  const n = 16, h = new Float32Array(n * n);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) h[i + j * n] = i + j * 1.01;
+  const acc = flowAccumulation(h, n);
+  assert.equal(acc[0], n * n);
+  assert.equal(acc[n * n - 1], 1);
+});
+
+test('erodeGrid clamps the change, keeps the input and reports maps', () => {
+  const n = 65, a = cone(), copy = Float32Array.from(a);
+  const r = erodeGrid(a, n, 2, { dropsPerCell: 1, maxCut: 0.5, maxFill: 0.2, seed: 2 });
+  assert.deepEqual(a, copy, 'input untouched');
+  let lo = 0, hi = 0; for (const d of r.delta) { lo = Math.min(lo, d); hi = Math.max(hi, d); }
+  assert.ok(lo >= -0.5 - 1e-6 && hi <= 0.2 + 1e-6 && lo < -0.1, `delta ${lo}..${hi}`);
+  for (let k = 0; k < n * n; k++) assert.ok(Math.abs(r.height[k] - (copy[k] + r.delta[k])) < 1e-4);
+  for (const m of [r.flow, r.wetness, r.deposition]) for (const v of m) assert.ok(v >= 0 && v <= 1);
+});
+
+test('a raster node adds a baked layer to the graph', () => {
+  const delta = new HeightGrid(0, 0, 10, 1, (x) => x * 0.5);
+  const g: TerrainGraph = { version: 1, output: 'out', nodes: { base: { type: 'const', value: 3 }, e: { type: 'raster', name: 'd' }, out: { type: 'combine', op: 'add', inputs: ['base', 'e'] } } };
+  assert.equal(gpuReady(g), false);
+  assert.ok(validateGraph(g).some((s) => s.includes('no raster')));
+  assert.equal(compileGraph(g, {}, { d: delta })(4, 2), 5);
+});

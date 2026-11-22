@@ -15,6 +15,7 @@ import { buildVolcanic } from '../volcanic';
 import { buildMarsh } from '../marsh';
 import { buildCelestial } from '../celestial';
 import { buildElderwood } from '../elderwood';
+import { preloadWildsTerrain } from '../world/terrain';
 import type { GameLevel, LevelDefaults, Look, Marker, Zone } from '../../../../services/gamestudio/schema';
 import { effectiveLook, effectiveMarkers, effectiveZones } from '../../../../services/gamestudio/schema';
 import { buildInstances } from './prefabs';
@@ -25,12 +26,14 @@ export interface LevelModule {
   param: string;
   build: (scene: THREE.Scene, tier: Tier) => Level;
   sets: string[];
+  /** Async work before build() (baked terrain layers…). */
+  preload?: () => Promise<void>;
   look: Required<Pick<Look, 'exposure' | 'far'>>;
 }
 
 export const LEVEL_MODULES: LevelModule[] = [
   // Level 1: Elderwood Hollow (the Cyber Forest, laid out from the CF-24 tactical map) is the default level
-  { id: 'rift-realm.elderwood', param: 'elderwood', build: buildElderwood, sets: ['marsh-wood', 'glacial-brick', 'volc-rock'], look: { exposure: 1.1, far: 320 } },
+  { id: 'rift-realm.elderwood', param: 'elderwood', build: buildElderwood, preload: () => preloadWildsTerrain(), sets: ['marsh-wood', 'glacial-brick', 'volc-rock'], look: { exposure: 1.1, far: 320 } },
   { id: 'rift-realm.shrine', param: 'shrine', build: buildShrine, sets: ['volc-basalt', 'glacial-brick', 'marsh-mud', 'volc-steel'], look: { exposure: 1.15, far: 260 } },
   { id: 'rift-realm.glacial', param: 'glacial', build: buildGlacial, sets: ['glacial-ground', 'glacial-brick', 'celestial-obsidian', 'glacial-ice', 'volc-steel'], look: { exposure: 0.78, far: 700 } },
   { id: 'rift-realm.volcanic', param: 'volcanic', build: buildVolcanic, sets: ['volc-basalt', 'volc-rock', 'volc-ash', 'volc-steel', 'volc-lava'], look: { exposure: 1.25, far: 900 } },

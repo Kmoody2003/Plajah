@@ -96,6 +96,22 @@ compute bake; `bakeRegion` falls back to the CPU for `fn` graphs), `HeightField.
 graph. In the browser the GPU bake matches the CPU to 0.7 mm over 251 001 samples and takes ~0.6 s against ~5 s on the CPU
 (2 km at 4 m); picture: `docs/plajah-terrain/highlands-phase2.jpg`.
 
+**Phase 3 (2026-11-22): CPU erosion, baked offline; GPU erosion and the art check still to do.**
+`erode/hydraulic.ts` (droplet erosion in scaled cell units, deterministic per seed, protect mask), `erode/thermal.ts`
+(talus slip), `erode/index.ts` (`erodeGrid`, change clamped by maxCut / maxFill, presets `light` and `weathered` tuned on
+the Highlands), `maps.ts` (slope, D8 flow accumulation, wetness, downsample), `raster.ts` (the `.ptrs` file: int16
+heights at 1 cm, uint8 maps) and a `raster` graph node (CPU only for now). `scripts/terrain/bakeWildsErosion.ts` erodes
+the Wilds at 2 m in ~35 s and writes `public/games/rift-realm/assets/terrain/wilds-erosion.ptrs` (2.8 MB: the height
+change at 2 m; flow, wetness and deposition at 4 m). Protected: the hollow, every place, the river and stream corridors,
+the trails (80 %), standing water. Mean change: mountains 6.4 m, escarpment 6.1 m, Highland 1.6 m, plateau 0.7 m, vale
+0.7 m; the hollow 0 m, places ≤ 2 cm (at the edge of their protected zone). Before | after:
+`docs/plajah-terrain/wilds-erosion-phase3.png` (protected areas tinted red, the biggest drainage in blue).
+Rift Realm: **opt-in with `?erosion=1`** (`preloadWildsTerrain()` via the level module's `preload`; `WorldTerrain.bake()`
+uses `WILDS_ERODED_GRAPH` = worldHeight + the baked change; `wildsMaps()` hands the maps to phase 4). Still open: erosion
+on the GPU (so worlds can erode on the device), and scoring the Gorge / Glowcap Stream shots against the art
+(`scripts/riftrealm/wilds_depth.py`) with erosion on, before making it the default. The play server on 4358 needs a
+restart to serve the new `.ptrs` file.
+
 Order matters: 1 is pure refactor and unlocks everything; 3 (erosion) is the biggest visual jump; 5 is where it becomes
 "a living ecosystem".
 

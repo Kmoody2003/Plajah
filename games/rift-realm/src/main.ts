@@ -81,7 +81,7 @@ async function boot() {
   initKTX2(renderer);
   // one table of levels (studio/levelModules.ts), shared with the Game Studio
   const levelModule = moduleByParam(levelId);
-  await preloadSets(levelModule.sets);
+  await Promise.all([preloadSets(levelModule.sets), levelModule.preload?.()]);
   const arena = levelModule.build(scene, tier);
   // wet forest: damp surfaces, glossy wet patches, puddle shine (?dry turns it off); models that stream in later get it too
   if (!new URLSearchParams(location.search).has('dry')) {
