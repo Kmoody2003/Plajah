@@ -1,0 +1,21 @@
+{
+  "$comment": "Era Clash 3D native HQ package (docs/GAME_DELIVERY_ARCHITECTURE.md). Build: npx tsx scripts/games/buildGamePackage.ts --config games/era-clash-3d/package.config.json --out <dir>. Paths are web paths under public/; the game keeps requesting them and the resolver serves the package copy.",
+  "gameId": "era-clash",
+  "platform": "win-x64",
+  "tier": "native-pc",
+  "version": "0.1.0",
+  "build": 1,
+  "root": "public",
+  "chunkMb": 32,
+  "requires": { "webgpu": true, "vramGb": 4 },
+  "groups": [
+    {
+      "id": "core",
+      "required": true,
+      "$comment": "2k colour + normal + packed AO/rough/disp for every Poly Haven surface Era Clash uses (the web build ships only the 1k files).",
+      "include": [
+        "games/ravencrest/assets/polyhaven/textures/{aerial_grass_rock,aerial_rocks_02,asphalt_02,black_painted_planks,brown_mud_02,coast_sand_01,coast_sand_rocks_02,cobblestone_large_01,forrest_ground_01,grey_roof_tiles,japanese_cedar_planks,japanese_stone_wall,painted_plaster_wall,road_damaged,rocks_ground_05,roof_slates_02,stone_tiles_02}/{diff,nor_gl,ard}.jpg"
+      ]
+    }
+  ]
+}

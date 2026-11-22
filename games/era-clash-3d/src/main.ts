@@ -9,6 +9,8 @@ import { HDRLoader } from 'three/addons/loaders/HDRLoader.js';
 import { texture, equirectUV, positionWorldDirection, mix, smoothstep, vec3 } from 'three/tsl';
 import { initKTX2 } from './core/ktx2';
 import { setTextureTier, setReflectEnabled } from './core/materials';
+import { findPackage, makeResolver, installResolver } from '../../../services/gamePackages/assetResolver';
+import { pickTier } from '../../../services/gamePackages/tiers';
 import { CollisionWorld } from './core/collision';
 import { PlayerController } from './core/player';
 import { loadJack, prefetchHero, type Character, type CombatMove } from './core/character';
@@ -47,6 +49,12 @@ const CH = Math.max(0, Math.min(3, Number(params.get('chapter') ?? 0)));
 const chapter = FALLING_PETAL.chapters[CH];
 const scholar = params.get('mode') === 'scholar';
 
+// ── Delivery tier (docs/GAME_DELIVERY_ARCHITECTURE.md): the app's installed HQ package, if any, serves every asset it
+// holds from disk before anything loads; the browser finds none at once and plays the web tier exactly as before.
+const pkg = await findPackage('era-clash');
+const resolver = pkg ? makeResolver(pkg) : null;
+if (resolver) installResolver(resolver, THREE.DefaultLoadingManager);
+
 // ── Quality tier by GPU (Ravencrest canon: the Intel Arc iGPU at 60 fps is the baseline) ─────────────
 // (Haru v3 is the hero: fetch the model that will be shown, not the old one; ?haru=v2 is the exception)
 prefetchHero('haru', params.get('haru') !== 'v2' ? '/games/era-clash/3d/assets/characters/samurai_v3.glb' : undefined);
@@ -58,16 +66,17 @@ const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ||
 // Television (Android TV, Fire TV, Tizen, Chromecast): ?tv=1 from the Plajah TV app, or the platform's own user-agent tokens.
 const isTv = params.get('tv') === '1' || /Android TV|AFTM|AFTB|AFTS|AFTT|BRAVIA|SmartTV|Smart-TV|Tizen|CrKey|GoogleTV|HbbTV/i.test(navigator.userAgent);
 document.documentElement.classList.toggle('tv', isTv);
-const quality = (params.get('q') ?? (isMobile || isTv ? 'low' : inDesktopApp ? 'ultra' : integrated ? 'medium' : 'high')) as 'low' | 'medium' | 'high' | 'ultra';
+const tierChoice = pickTier({ packageTier: resolver?.tier, isMobile, isTv, integrated, inDesktopApp, q: params.get('q') });
+const quality = tierChoice.quality;
 const Q = {
   low:    { pr: 1.0, res: 540, resMin: 380, shadow: 0 },
   medium: { pr: 1.0, res: 720, resMin: 480, shadow: 1536 },   // long golden-hour shadows are the look; a tight frustum round Haru
   high:   { pr: Math.min(devicePixelRatio, 1.5), res: 1080, resMin: 720, shadow: 2048 },
   ultra:  { pr: Math.min(devicePixelRatio, 2), res: 2160, resMin: 900, shadow: 4096 },
 }[quality];
-const frameTarget = isMobile || isTv ? 33.3 : 16.7;
-setTextureTier(quality === 'high' || quality === 'ultra' ? '2k' : '1k');
-console.info(`[eraclash3d] GPU ${adapterInfo?.vendor ?? '?'} ${adapterInfo?.architecture ?? ''} → ${quality}`);
+const frameTarget = tierChoice.frameTargetMs;
+setTextureTier(tierChoice.textures);
+console.info(`[eraclash3d] GPU ${adapterInfo?.vendor ?? '?'} ${adapterInfo?.architecture ?? ''} → ${tierChoice.tier} · ${quality}${pkg ? ` · package ${pkg.index.version} (${pkg.index.paths.length} files)` : ''}`);
 
 const renderer = new THREE.WebGPURenderer({ antialias: false, powerPreference: 'high-performance', reversedDepthBuffer: true });
 await renderer.init();
@@ -1276,7 +1285,7 @@ let camHold: (() => void) | null = null;
     });
     return new THREE.Vector3(2, world.heightAt(2, -68), -68);
   },
-  get climate() { return climate; }, dayLabel, kick, THREE, renderer, perf: () => ({ fpsText: document.getElementById('fps')?.textContent, frameEma, internalH, quality, msaa: MSAA }),
+  get climate() { return climate; }, dayLabel, kick, THREE, renderer, perf: () => ({ fpsText: document.getElementById('fps')?.textContent, frameEma, internalH, quality, msaa: MSAA, tier: tierChoice.tier, packageHits: resolver?.hits() ?? 0 }),
   pause(p: boolean) { setPaused(p); },
   get state() { return { mode, section, hero: { ...hero }, enemies: enemies.map((m) => ({ k: m.kind, hp: Math.round(m.hp), alive: m.alive, st: m.state })), allies: allies.map((a) => ({ hp: Math.round(a.hp), st: a.state })), pos: player.object.position.toArray().map((n) => +n.toFixed(1)) }; },
   begin() { ($('stGo') as HTMLButtonElement).disabled = false; $('stGo').click(); },

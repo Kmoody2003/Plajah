@@ -189,7 +189,7 @@ Because both tiers run the same game core (option A), the snapshot is just the c
 
 ## 10. Build order
 
-1. **Renderer tiers in Apex:** finish the WebGPU/TSL migration and add the tier presets (`web`, `native-pc`, `native-mobile`). Add the asset-variant loader (package index first, web set second).
+1. **Renderer tiers, Era Clash first, then Apex:** tier presets (`web`, `native-pc`, `native-mobile`) and the asset-variant loader (package index first, web set second). For Apex this rides on the WebGPU/TSL migration.
 2. **Asset pipeline outputs three sets** (KTX2 web, BC7 PC, ASTC Android) with LODs, plus the chunker and signed manifest writer (CI).
 3. **`PackageDownloader` in the WinUI app** (moving the model downloads onto it), the Library UI and the Install HQ card. Local virtual host for installed games.
 4. **Session snapshots:** game-core snapshot API, same-device handoff, then `gameSessions` + lease + "Continue where you left off".
@@ -197,14 +197,36 @@ Because both tiers run the same game core (option A), the snapshot is just the c
 6. **Native-only effects for the PC tier** (volumetrics, full-res GTAO, 4-cascade shadows, SSR) and the measurement harness: frame time per preset on Arc, an RTX card and two Android phones.
 7. **Later, if needed:** the `plajah-core` (wgpu) native renderer for PC (option B).
 
+### Status (2026-11-21)
+Built for Era Clash 3D (step 1 and the chunker/manifest part of step 2), uncommitted:
+- `services/gamePackages/tiers.ts`: `pickTier()` picks `web` / `native-pc` / `native-mobile` plus quality, texture set and frame target. A package only applies on its own platform. Without a package the browser keeps exactly its old choices.
+- `services/gamePackages/assetResolver.ts`: finds the installed package (`window.__plajahPackages[gameId].base` set by the shell, or `?pkg=` limited to `packages.plajah.local`, the Android asset host or the page's own origin). It then routes every request for a path the package holds to the package folder, through three's loading-manager URL modifier and `fetch`. Paths the package doesn't hold load from the web as before, so a half-installed package still plays.
+- `services/gamePackages/manifest.ts`: manifest types, canonical JSON, Ed25519 sign/verify (WebCrypto), safety validation (no `..` paths, refs inside their chunks), `planInstall()` (core first, then the region the player is in, shared chunks fetched once, delta against chunks already on disk) and `installedIndex()`.
+- `scripts/games/buildGamePackage.ts` plus `games/era-clash-3d/package.config.json`: stable chunking, manifest, optional signing (`PLAJAH_PKG_KEY`, `--genkey`), `--prev` update report, and `--install <dir>`, which unpacks exactly what the app's downloader must write. Era Clash v0.1.0 = the 2k Poly Haven surfaces it uses: 51 files, 11 chunks, 132 MB.
+- Wired into `games/era-clash-3d/src/main.ts`. Headless Chrome check: the web run is unchanged (tier `web`, 0 package hits). With `?pkg=/pkg-dev/era-clash/` (a dev install in `public/pkg-dev/`, git-ignored), 45 surface textures load from the package.
+- Tests: `npm run test:game-packages` (10 passing).
+
+Next: the WinUI `PackageDownloader` and a virtual host `packages.plajah.local` mapped to the install root with `CoreWebView2HostResourceAccessKind.Allow` (the game page is on `plajah.com`, so cross-origin texture loads need it). The shell sets `window.__plajahPackages` in the game frame. Then the Install HQ card on the Era Clash game page, and more HQ content: hi-res cast GLBs and 4k hero surfaces in BC7.
+
 ---
 
-## 11. Decisions for Kenne
+## 11. Keeping packages small
 
-1. **Native runtime:** start with option A (same game code in the app's WebView, HQ packages, native services beside it) and grow toward a wgpu native renderer later? Or go straight to a native renderer, or an engine like Unreal for Apex?
-2. **Package hosting:** Backblaze B2 + Bunny (existing Plajah Drive engine) or Cloudflare R2? Memory says B2 only when you designate it, and this is a designation request for game packages.
-3. **Disk budgets:** is ~20–40 GB on PC and ~6–12 GB on Android acceptable for Apex HQ? Or do you want a smaller "HQ Lite" package too?
-4. **Android floor:** the minimum device for the native tier (suggested: Android 12+, Snapdragon 7-series / Adreno 7xx or better). Below that, the web tier only.
-5. **Cross-device continue:** OK to add a `gameSessions` collection (position and current event, written every ~10 s while playing) next to `gameSaves`? And should "Continue in the app" from a desktop browser deep-link into the app?
-6. **Default download behaviour:** offer Install HQ on the game page only, or also prompt once after the third play session on a capable device?
-7. **Which games get a native tier first:** Apex first (proposed), then Rift Realm, Ravencrest and Era Clash?
+The budgets above are acceptable (Kenne, 2026-11-21) but packages should be as small as we can make them:
+- **Supercompressed GPU textures:** KTX2 with Zstandard on top of BC7/ASTC (often 30-50 % smaller than raw BC7); ETC1S/Basis for anything that survives it (ground detail, vegetation, props); 4K only for hero assets close to the camera.
+- **Shared libraries, not copies:** textures, materials, vegetation and props shared between regions (and between games, through the Plajah asset library) are stored once per install; the manifest points several files at one chunk.
+- **Procedural and generated on the device:** terrain detail, grass, rock scatter, road markings and decals generated at load from small data (height grid, masks, road lines) instead of shipped as meshes or baked textures.
+- **Meshes:** meshopt or Draco compression; LOD chains generated at install time from LOD0 where quality allows.
+- **Audio:** Opus, streamed music from Chora instead of bundled tracks.
+- **Regions on demand:** only the core plus the region the player is in are required; other regions download as they drive toward them, and rarely visited regions can be evicted when disk is short.
+- **HQ Lite:** a second package per platform (2K textures, no 4K heroes) for smaller disks, picked automatically when free space is low.
+
+## 12. Decisions (Kenne, 2026-11-21)
+
+1. **Native runtime: option A** (the same game code in the app's WebView with installed HQ packages and native services), growing toward the `plajah-core` wgpu renderer later.
+2. **Hosting: Backblaze B2 + Bunny CDN** for game packages (designated by Kenne; the existing Plajah Drive B2 + Bunny engine).
+3. **Disk budgets accepted** (~20-40 GB PC, ~6-12 GB Android for Apex), but make them smaller wherever possible (section 11).
+4. **Android floor:** still open (suggested Android 12+, Snapdragon 7-series / Adreno 7xx or better).
+5. **Cross-device continue: yes.** Add `gameSessions` (position and current event, ~10 s while playing) beside `gameSaves`, and "Continue in the app" deep-links from a desktop browser into the app.
+6. **Install HQ is offered on the game page only.** No prompts.
+7. **Order: Era Clash first, then Apex.** Era Clash (`public/games/era-clash`, 350 MB today) is the first game to get the tier presets, the package build, the Library install card and the handoff; Apex follows with the region packs.
