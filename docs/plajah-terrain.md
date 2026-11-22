@@ -119,9 +119,11 @@ is loaded, so a level looks exactly as before without one. Rift Realm's ground (
 is now only layers: moss (with its glow) · wet moss · scree · rock · channel mud · waterline mud; the blend code is the
 service's. Thresholds from the bake's percentiles (wet top ~8 %, channels top ~4 %). Rendered check, plain vs
 `?erosion=1`: `docs/plajah-terrain/wilds-material-phase4.jpg` (gullies and a scree fan on the mountain, notched Gorge rim).
-Known limit: chunks beyond 480 m are meshed at 12.5 m, so gullies fade on far mountains; a normal map baked from the
-eroded 2 m heights would keep them (next step for this phase, not done). Not yet seen in the real game with its
-lighting and fog.
+Far detail: chunks beyond 480 m are meshed at 12.5 m, so the material can shade from the height field instead
+(`normalField`: the baked 2 m world grid as a mipmapped two-channel normal texture; the moss detail normal rides on top;
+the hollow's 1 m chunks keep their mesh normals). On for the Wilds with `?erosion=1`. At ~800 m the gullies stay sharp
+where mesh normals blur them: `docs/plajah-terrain/wilds-far-normals.jpg`. Not yet seen in the real game with its
+lighting, fog and wet pass.
 
 Order matters: 1 is pure refactor and unlocks everything; 3 (erosion) is the biggest visual jump; 5 is where it becomes
 "a living ecosystem".

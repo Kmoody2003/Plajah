@@ -5,7 +5,7 @@
 // loaded — how wet, how much water flows through, and where fresh sediment lies. Layers are painted in order, each
 // mixed over the ones below by the product of its rule's ranges. No level writes blend code of its own.
 import * as THREE from 'three/webgpu';
-import { abs, clamp, float, mix, normalWorld, positionWorld, texture as tslTexture, vec2, vec3 } from 'three/tsl';
+import { abs, clamp, float, mix, normalize, normalMap, normalView, normalWorld, positionWorld, sqrt, texture as tslTexture, transformNormalToView, vec2, vec3 } from 'three/tsl';
 import type { HeightGrid } from './field';
 
 // TSL nodes are dynamically typed.
@@ -56,9 +56,15 @@ export interface TerrainLayer {
 
 export interface TerrainMaps { flow?: HeightGrid | null; wetness?: HeightGrid | null; deposition?: HeightGrid | null }
 
+/** Shade with normals from the height field instead of the mesh's: far chunks are meshed coarsely (12.5 m) and would
+ *  lose gullies and rills; the field keeps its full resolution. `geometryInside` = a square where the mesh is finer
+ *  than the field (e.g. a 1 m arena), shaded by the mesh as before. */
+export interface NormalField { grid: HeightGrid; geometryInside?: { x0: number; z0: number; size: number; fade?: number } }
+
 export interface TerrainMaterialOptions {
   layers: TerrainLayer[];
   maps?: TerrainMaps | null;
+  normalField?: NormalField | null;
   normalMap?: THREE.Texture | null;
   normalScale?: number;
   /** Base roughness when no layer sets one. */
@@ -80,6 +86,21 @@ export function mapTexture(g: HeightGrid): THREE.DataTexture {
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   t.colorSpace = THREE.NoColorSpace;
   t.needsUpdate = true;
+  return t;
+}
+
+/** A height grid's normals as a two-channel texture (x, z in 0…1; y is rebuilt), mipmapped for distance. */
+export function normalTexture(g: HeightGrid): THREE.DataTexture {
+  const n = g.n, d = g.data, data = new Uint8Array(n * n * 2);
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+    const xl = Math.max(0, i - 1), xr = Math.min(n - 1, i + 1), zl = Math.max(0, j - 1), zr = Math.min(n - 1, j + 1);
+    const gx = (d[xr + j * n] - d[xl + j * n]) / ((xr - xl) * g.cell), gz = (d[i + zr * n] - d[i + zl * n]) / ((zr - zl) * g.cell);
+    const l = Math.hypot(gx, 1, gz), k = (i + j * n) * 2;
+    data[k] = Math.round((-gx / l * 0.5 + 0.5) * 255); data[k + 1] = Math.round((-gz / l * 0.5 + 0.5) * 255);
+  }
+  const t = new THREE.DataTexture(data, n, n, THREE.RGFormat, THREE.UnsignedByteType);
+  t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.colorSpace = THREE.NoColorSpace; t.needsUpdate = true;
   return t;
 }
 
@@ -119,8 +140,24 @@ export function terrainSplatMaterial(o: TerrainMaterialOptions) {
     return tslTexture(t, gridUv(g, pos)).r;
   };
   const maps = o.maps ?? null, hasMaps = !!(maps && (maps.flow || maps.wetness || maps.deposition));
+  // the surface normal: the height field's (full resolution at any distance) or the mesh's
+  let nW: N = normalWorld;
+  const nf = o.normalField;
+  if (nf) {
+    const t = normalTexture(nf.grid); textures.push(t);
+    const e = tslTexture(t, gridUv(nf.grid, pos)).rg.mul(2).sub(1).toVar();
+    let field: N = vec3(e.x, sqrt(clamp(float(1).sub(e.x.mul(e.x)).sub(e.y.mul(e.y)), 0.0001, 1)), e.y);
+    const gi = nf.geometryInside;
+    if (gi) {
+      const f = gi.fade ?? 16;
+      const inX = ramp(gi.x0, gi.x0 + f, pos.x).mul(ramp(gi.x0 + gi.size, gi.x0 + gi.size - f, pos.x));
+      const inZ = ramp(gi.z0, gi.z0 + f, pos.z).mul(ramp(gi.z0 + gi.size, gi.z0 + gi.size - f, pos.z));
+      field = normalize(mix(field, normalWorld, inX.mul(inZ)));
+    }
+    nW = field.toVar();
+  }
   const c: SplatContext = {
-    pos, normal: normalWorld, up: abs(normalWorld.y), height: pos.y,
+    pos, normal: nW, up: abs(nW.y), height: pos.y,
     wet: sample(maps?.wetness).toVar(), flow: sample(maps?.flow).toVar(), dep: sample(maps?.deposition).toVar(), hasMaps,
   };
   const layers = activeLayers(o.layers, hasMaps);
@@ -133,6 +170,11 @@ export function terrainSplatMaterial(o: TerrainMaterialOptions) {
     col = mix(col, l.color(c), w);
     if (l.emissive) em = mix(em ?? vec3(0), l.emissive(c), w);
     if (l.roughness !== undefined) ro = mix(ro ?? float(o.roughness ?? 0.95), rough(l), w);
+  }
+  if (nf) {
+    // shade with the field normal; the detail normal map (if any) rides on top of it
+    const macroV = transformNormalToView(nW);
+    m.normalNode = o.normalMap ? normalize((normalMap(tslTexture(o.normalMap), vec2(o.normalScale ?? 1)) as N).add(macroV.sub(normalView))) : normalize(macroV);
   }
   m.colorNode = col;
   if (em) m.emissiveNode = em;

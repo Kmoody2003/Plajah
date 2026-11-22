@@ -32,6 +32,8 @@ export const WILDS_ERODED_GRAPH: TerrainGraph = {
 };
 const EROSION_URL = '/games/rift-realm/assets/terrain/wilds-erosion.ptrs';
 let erosion: DecodedRaster | null = null;
+/** The last baked Wilds ground (its 2 m world grid shades far chunks; see terrainMaterial). */
+let bakedWilds: WorldTerrain | null = null;
 
 /** Load the Wilds' baked layers before the level builds. Opt-in for now: `?erosion=1` (or `?erosion`). */
 export async function preloadWildsTerrain(force = false) {
@@ -62,6 +64,7 @@ export class WorldTerrain extends HeightField implements TerrainField {
   bake() {
     this.opts.height = erosion ? compileGraph(WILDS_ERODED_GRAPH, WILDS_FNS, { 'wilds.erosion': erosion.layers.delta }) : wildsHeight;
     super.bake();
+    bakedWilds = this;
   }
 
   heightAt(x: number, z: number, y?: number) {
@@ -111,7 +114,11 @@ export function terrainMaterial(beat: { value: number }) {
     // mud at the waterline and in the vale's wet ground
     { name: 'waterline mud', color: () => vec3(0.09, 0.1, 0.08), where: { height: [-47.6, -48.8], strength: 0.7 } },
   ];
-  const t = terrainSplatMaterial({ layers, maps: wildsMaps(), normalMap: art('moss_cable_normal.jpg', false, true), normalScale: 0.8, roughness: 0.95 });
+  // with erosion on, far chunks shade from the 2 m height field so gullies survive their coarse meshes (the hollow's
+  // 1 m chunks keep their own normals)
+  const grids = erosion && bakedWilds?.baked ? bakedWilds.bakedGrids : null;
+  const normalField = grids ? { grid: grids[grids.length - 1], geometryInside: { x0: -112, z0: -112, size: 224, fade: 20 } } : null;
+  const t = terrainSplatMaterial({ layers, maps: wildsMaps(), normalField, normalMap: art('moss_cable_normal.jpg', false, true), normalScale: 0.8, roughness: 0.95 });
   return { material: t.material, layers: t.layers, setBeat: () => { uB.value = beat.value; } };
 }
 

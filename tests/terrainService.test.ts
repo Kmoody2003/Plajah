@@ -218,3 +218,18 @@ test('splat material: map-only layers drop out without a bake; map textures hold
   assert.equal(withMaps.hasMaps, true); assert.deepEqual(withMaps.layers, ['a', 'b']); assert.ok(withMaps.material.roughnessNode);
   plain.dispose(); withMaps.dispose();
 });
+
+test('normal texture of a height field encodes its slope; the material takes it as the shading normal', async () => {
+  const { normalTexture, terrainSplatMaterial } = await import('../services/terrain/material');
+  const g = new HeightGrid(0, 0, 20, 2, (x) => x);              // 45° rising toward +x → normal (−0.707, 0.707, 0)
+  const t = normalTexture(g), d = t.image.data as Uint8Array, k = (5 + 5 * g.n) * 2;
+  assert.ok(Math.abs(d[k] / 255 * 2 - 1 + Math.SQRT1_2) < 0.01, `nx ${d[k] / 255 * 2 - 1}`);
+  assert.ok(Math.abs(d[k + 1] / 255 * 2 - 1) < 0.01);
+  assert.equal(t.generateMipmaps, true);
+  const { vec3 } = await import('three/tsl');
+  const without = terrainSplatMaterial({ layers: [{ name: 'a', color: () => vec3(1) }] });
+  const withField = terrainSplatMaterial({ layers: [{ name: 'a', color: () => vec3(1) }], normalField: { grid: g, geometryInside: { x0: 0, z0: 0, size: 4 } } });
+  assert.equal(without.material.normalNode, null);
+  assert.ok(withField.material.normalNode);
+  without.dispose(); withField.dispose();
+});
