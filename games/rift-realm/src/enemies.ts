@@ -362,6 +362,11 @@ export class EnemyManager {
     e.state = s; e.stateT = t;
     if (s !== 'stun') e.parried = false;
   }
+  /** Play the first clip the rig has (reaction clips arrive from the characters track as they're made). */
+  private react(e: Enemy, names: string[], seconds: number, weight = 1) {
+    const n = e.rig && names.find((c) => e.rig!.has(c));
+    if (n) e.rig!.play(n, weight, seconds);
+  }
   private hideRing(e: Enemy) { e.ring.visible = false; e.ringMat.opacity = 0; }
   private isOpen(e: Enemy) { return e.state === 'stun' || e.state === 'daze' || e.state === 'broken' || e.state === 'air' || e.state === 'down' || e.state === 'held'; }
 
@@ -464,6 +469,7 @@ export class EnemyManager {
     out.dmg = dmg;
     e.hp -= dmg;
     e.flinch = Math.min(1, e.flinch + (dmg >= e.maxHp * 0.2 ? 1 : 0.5));
+    if (e.hp > dmg && e.state !== 'held') this.react(e, dmg >= e.maxHp * 0.2 ? ['hit_heavy', 'hit'] : ['hit'], dmg >= e.maxHp * 0.2 ? 0.8 : 0.4, 0.8);
     if (o.guardDmg && src === 'melee') e.guard = Math.max(0, e.guard - o.guardDmg * 0.25);
 
     if (e.hp <= 0) {
@@ -503,10 +509,11 @@ export class EnemyManager {
       e.air = Math.max(e.air, 0.05);
       e.juggle = 0;
       e.push.multiplyScalar(0.25);
+      this.react(e, ['launch', 'hit_heavy'], 1.2);
       out.airborne = true;
       return out;
     }
-    if (o.spike) { this.setState(e, 'down', 1.0); e.rig?.play('get_up', 1, 1.0); return out; }
+    if (o.spike) { this.setState(e, 'down', 1.0); this.react(e, ['knockdown', 'get_up'], 1.0); return out; }
 
     // poise: a wind-up breaks when the recent damage passes it (rushers / casters: anything)
     e.poiseAcc += dmg;
@@ -711,7 +718,7 @@ export class EnemyManager {
             e.air = 0;
             if (e.spiked) { e.spiked = false; e.vy = 3.5; e.air = 0.01; this.onSlam?.(e, pos.clone(), 1.6); break; }
             this.setState(e, 'down', 0.85);
-            e.rig?.play('get_up', 1, 0.85);
+            this.react(e, ['knockdown', 'get_up'], 0.85);
           }
           break;
         }
@@ -878,7 +885,7 @@ export class EnemyManager {
           this.setState(e, 'stun', COMBAT.player.counterSec + 0.25);
           e.parried = true;
           e.push.copy(toPlayer).multiplyScalar(-5);
-          e.rig?.play('recover', 1, COMBAT.player.counterSec);
+          this.react(e, ['parried', 'hit_heavy', 'recover'], COMBAT.player.counterSec);
           return;
         }
         if (out === 'blocked') { e.push.copy(toPlayer).multiplyScalar(-3); if (a.kind === 'charge') { e.push.set(0, 0, 0); } }
