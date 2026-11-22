@@ -105,6 +105,8 @@ export class PlayerController {
   onSwitchVessel?: (spec: VesselSpec) => void;
   onSoulSurge?: () => void;
   onStrike?: () => void;
+  /** A reload started (sound). */
+  onReload?: () => void;
 
   constructor(private camera: THREE.PerspectiveCamera, dom: HTMLElement) {
     this.object.position.copy(this.lastSafe);
@@ -241,6 +243,7 @@ export class PlayerController {
     this.reloadT = RELOAD_SEC;
     this.autoReloadT = 0;
     this.rig?.play(this.vessel.id === 'stalker' ? 'reload_pistol' : 'reload', 1, RELOAD_SEC);
+    this.onReload?.();
     return true;
   }
 

@@ -290,7 +290,7 @@ async function boot() {
 
   function fireShot() {
     if (!player.enabled) return;
-    if (!player.useRound()) return; // reloading, down, or the magazine just ran dry (starts the reload)
+    if (!player.useRound()) { if (player.ammo === 0 && !player.downed) rhythm.playEmpty(); return; } // reloading, down, or dry (starts the reload)
     combatT = Math.min(combatT, 3); // firing keeps the combat music going
     const beat = rhythm.evaluateBeat();
     const spec = player.vessel;
@@ -306,7 +306,7 @@ async function boot() {
       beat.quality === 'PERFECT' ? spec.dmgPerfect : beat.quality === 'GOOD' ? spec.dmgGood : spec.dmgOff;
 
     const triggerBurst = () => {
-      rhythm.playShot(beat.quality);
+      rhythm.playShot(beat.quality, spec.id);
       player.triggerMuzzleFlash();
       // bloom: hip fire on the move sprays, standing and aiming is near-exact (player.spreadMul)
       const spread = spec.spreadRad * player.spreadMul + 0.012 * player.bloom * (1 - player.aimBlend);
@@ -415,6 +415,7 @@ async function boot() {
 
     let hitAny = false;
     for (const e of [...enemies.enemies]) {
+    rhythm.playMelee();
       const toE = new THREE.Vector3().subVectors(e.mesh.position, pPos);
       toE.y = 0;
       const dist = toE.length();
@@ -461,6 +462,7 @@ async function boot() {
   renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
   document.addEventListener('pointerlockchange', () => { if (!document.pointerLockElement) targeting.release(); });
 
+  player.onReload = () => rhythm.playReload();
   // ── score: the music fits the moment (rhythm.ts music director); N skips to another song of the same mood ──
   let combatT = 99; // seconds since the last fight contact (shot, hit, enemy close)
   const nowPlaying = document.createElement('div');
