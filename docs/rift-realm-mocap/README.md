@@ -43,9 +43,6 @@ executing combo, a9340b37 Assassin high-agility, e5f8c560 Assassin shadow combat
 |---|---|---|---|
 | idle | 888b0e94 8.4–9.9s | usable (jitter 3.4) | in place |
 | combat_idle | a9340b37 0–1.05s | usable (5.0) | in place |
-| walk / walk_back (reversed) | b230aae3 8.95–9.9s | good (2.9) | ±0.13 m per cycle |
-| run / run_back (reversed) | 1247d50a 1.15–2.45s | poor (13.4) | ±0.68 m |
-| sprint | e5f8c560 3.7–5.25s | usable (5.3) | 0.83 m |
 | dash | a9340b37 1.2–2.15s | usable (5.5) | 1.15 m |
 | jump | 1247d50a 2.1–2.6s | poor (19.6) | — |
 | land / land_soft / rise | 888b0e94 5.85–6.95 / 1247d50a 3.7–4.3 / 888b0e94 7.0–7.9 | usable / poor / good | |
@@ -65,6 +62,8 @@ them grade poor: the gold robot is hard for the pose model, and much of the reel
 
 ## CMU library clips (both characters)
 
+The walk, run and sprint cycles come from CMU too (Kenne, 2026-11-21: the reel's walk mixed rising and stepping and played badly). The reels have no clean gait cycle: measured in game, the planted foot never travelled backward and the run faced 13–17° off. `CharacterRig` plays each cycle at (ground speed ÷ the clip's own speed from its root motion).
+
 No video shows these moves. They come from the CMU Motion Capture Library already on D: (Kenne, 2026-11-21: "Use CMU
 mocap"). Licence: usable in products, not resellable; credit "Data from mocap.cs.cmu.edu (funded by NSF
 EIA-0196217)". `source.<clip>.cmu` names the take. The bake retargets it onto the rig with its travel, turns it to face
@@ -73,6 +72,9 @@ EIA-0196217)". `source.<clip>.cmu` names the take. The bake retargets it onto th
 
 | clip | take | what |
 |---|---|---|
+| walk / walk_back | 35_01 (loop cut where the stride repeats; back = reversed) | clean walk, 1.1 s cycle, 1.5 m/s |
+| run / run_back | 16_35 (back = reversed) | run/jog, 0.8 s cycle, 3.6 m/s |
+| sprint | 09_01 | fast run, 4.4 m/s |
 | strafe_right / strafe_left | 41_02 3.6–5.6 s (left = mirrored) | walking sideways |
 | dodge_left / dodge_right | 127_13 / 127_14 | side-step at a run |
 | vault | 41_07 22.1–23.9 s | jump over a stepstool (1.8 m forward) |

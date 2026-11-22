@@ -13,28 +13,6 @@
       "note": "Robot Paladin guard stance, shield and lance"
     },
     {
-      "name": "walk",
-      "video": "abf39cd6",
-      "from": 1.15,
-      "to": 1.9,
-      "face": "mean",
-      "loop": {
-        "minSec": 0.4
-      },
-      "note": "first strides of the shield charge"
-    },
-    {
-      "name": "run",
-      "video": "abf39cd6",
-      "from": 1.4,
-      "to": 2.45,
-      "face": "mean",
-      "loop": {
-        "minSec": 0.45
-      },
-      "note": "shield charge"
-    },
-    {
       "name": "attack_1",
       "video": "abf39cd6",
       "from": 2.4,
@@ -180,6 +158,28 @@
       "to": 10.0,
       "face": "start",
       "note": "CMU 88_04 getting up off the floor"
+    },
+    {
+      "name": "walk",
+      "cmu": "35_01",
+      "from": 0.25,
+      "to": 2.8,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.9
+      },
+      "note": "CMU 35_01 walk"
+    },
+    {
+      "name": "run",
+      "cmu": "16_35",
+      "from": 0.2,
+      "to": 1.33,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.55
+      },
+      "note": "CMU 16_35 run/jog"
     }
   ]
 }

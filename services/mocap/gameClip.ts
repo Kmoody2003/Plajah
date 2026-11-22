@@ -248,3 +248,37 @@ export function yawThree(clip: THREE.AnimationClip, root: string, yaw: number): 
     }
   }
 }
+
+/** Best loop in a baked three.js clip: the pair of sample times (at least `minSec` apart) whose joint rotations match
+ *  best (hips height and travel excluded). Returns the clip cut to [start, end] with times from 0. */
+export function findLoopThree(clip: THREE.AnimationClip, minSec = 0.5, fps = 30): THREE.AnimationClip {
+  const qt = clip.tracks.filter((t) => t.getValueSize() === 4 && !t.name.startsWith('Hips.'));
+  if (!qt.length) return clip;
+  const n = qt[0].times.length, min = Math.round(minSec * fps);
+  if (n < min + 2) return clip;
+  let best = { a: 0, b: n - 1, e: Infinity };
+  for (let a = 0; a < n - min; a++) for (let b = a + min; b < n; b++) {
+    let e = 0;
+    for (const t of qt) { const v = t.values; const d = Math.abs(v[a * 4] * v[b * 4] + v[a * 4 + 1] * v[b * 4 + 1] + v[a * 4 + 2] * v[b * 4 + 2] + v[a * 4 + 3] * v[b * 4 + 3]); e += 1 - Math.min(1, d); }
+    // prefer longer loops a little (two strides beat one when they match as well)
+    e -= (b - a) * 1e-5;
+    if (e < best.e) best = { a, b, e };
+  }
+  const t0 = qt[0].times[best.a], t1 = qt[0].times[best.b];
+  const tracks = clip.tracks.map((t) => {
+    const s = t.getValueSize(), times: number[] = [], vals: number[] = [];
+    for (let i = 0; i < t.times.length; i++) if (t.times[i] >= t0 - 1e-6 && t.times[i] <= t1 + 1e-6) { times.push(t.times[i] - t0); for (let c = 0; c < s; c++) vals.push(t.values[i * s + c]); }
+    return new (t.constructor as new (n: string, t: number[], v: number[]) => THREE.KeyframeTrack)(t.name, times, vals);
+  });
+  return new THREE.AnimationClip(clip.name, t1 - t0, tracks);
+}
+
+/** A baked three.js clip played backwards (the root's travel reverses with it). */
+export function reverseThree(clip: THREE.AnimationClip): THREE.AnimationClip {
+  const tracks = clip.tracks.map((t) => {
+    const s = t.getValueSize(), n = t.times.length, times: number[] = [], vals: number[] = [];
+    for (let i = n - 1; i >= 0; i--) { times.push(clip.duration - t.times[i]); for (let c = 0; c < s; c++) vals.push(t.values[i * s + c]); }
+    return new (t.constructor as new (n: string, t: number[], v: number[]) => THREE.KeyframeTrack)(t.name, times, vals);
+  });
+  return new THREE.AnimationClip(clip.name, clip.duration, tracks);
+}

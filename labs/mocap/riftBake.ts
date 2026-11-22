@@ -14,7 +14,7 @@ import { solveTake, type SolveOptions } from '../../services/mocap/solve';
 import { clipToThree } from '../../services/mocap/bvh';
 import { retarget, CMU_TO_CONTRACT } from '../../services/mocap/retarget';
 import { findShots, sliceTake, frameAt } from '../../services/mocap/shots';
-import { bakeRecipe, closeLoopThree, yawThree, type ClipRecipe, type RootMotion } from '../../services/mocap/gameClip';
+import { bakeRecipe, closeLoopThree, yawThree, findLoopThree, reverseThree, type ClipRecipe, type RootMotion } from '../../services/mocap/gameClip';
 import type { RawTake, MotionClip } from '../../services/mocap/types';
 import { loadLifter, type Lifter } from '../../services/mocap/lifter';
 
@@ -134,8 +134,11 @@ async function cmuClip(spec: ClipSpec, rig: THREE.Object3D): Promise<BakedClip> 
   mixer.stopAllAction(); mixer.uncacheRoot(fbx);
   const yaw = Math.atan2(sx, sz);
   restPoseOf(fbx); // the retargeter snapshots the source's rest the first time it sees it: hand it the bind pose
-  const anim = retarget(rig, fbx, cut, spec.name, CMU_TO_CONTRACT, { fps: 30, travel: true });
+  let anim = retarget(rig, fbx, cut, spec.name, CMU_TO_CONTRACT, { fps: 30, travel: true });
   yawThree(anim, 'Hips', -yaw);
+  // a cycle is cut where the stride repeats (matching poses), before its travel is measured
+  if (spec.loop && !(typeof spec.loop === 'object' && spec.loop.search === false)) anim = findLoopThree(anim, typeof spec.loop === 'object' && spec.loop.minSec ? spec.loop.minSec : 0.5);
+  if (spec.reverse) anim = reverseThree(anim);
   const pos = anim.tracks.find((t) => t.name === 'Hips.position')!;
   const n = pos.times.length, v = pos.values;
   const d = new THREE.Vector3(v[(n - 1) * 3] - v[0], v[(n - 1) * 3 + 1] - v[1], v[(n - 1) * 3 + 2] - v[2]);
@@ -144,7 +147,7 @@ async function cmuClip(spec: ClipSpec, rig: THREE.Object3D): Promise<BakedClip> 
   if (spec.mirror) { mirrorThree(anim); d.x = -d.x; }
   if (spec.loop) closeLoopThree(anim, typeof spec.loop === 'object' && spec.loop.blend ? spec.loop.blend / 30 : 0.15);
   const scale = rig.scale.x || 1;
-  const rootMotion: RootMotion = { dx: +(d.x * scale).toFixed(3), dy: +(d.y * scale).toFixed(3), dz: +(d.z * scale).toFixed(3), speed: +(Math.hypot(d.x, d.z) * scale / Math.max(1e-3, cut.duration)).toFixed(2), durationSec: +cut.duration.toFixed(3) };
+  const rootMotion: RootMotion = { dx: +(d.x * scale).toFixed(3), dy: +(d.y * scale).toFixed(3), dz: +(d.z * scale).toFixed(3), speed: +(Math.hypot(d.x, d.z) * scale / Math.max(1e-3, anim.duration)).toFixed(2), durationSec: +anim.duration.toFixed(3) };
   return { spec, anim, rootMotion, levelDeg: 0, faceDeg: 0, cmuSrc: { obj: fbx, clip: cut, yaw: yaw + restYaw }, shot: { from: spec.from, to: spec.to } };
 }
 const RESTS = new WeakMap<THREE.Object3D, Map<string, [THREE.Vector3, THREE.Quaternion]>>();

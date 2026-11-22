@@ -14,7 +14,8 @@
 // Clips (all from the characters' own motion videos, clips/<id>.json; its `source` names the video + seconds,
 // `rootMotion` the travel {dx, dz, speed} the game should apply — clips play in place):
 //   Void Stalker
-//     locomotion  idle, combat_idle, walk, walk_back, run, run_back, sprint          (loops, blended by update())
+//     locomotion  idle, combat_idle (video); walk, walk_back, run, run_back, sprint (CMU gait cycles; blended by
+//                 update(), each played at ground speed ÷ its own speed)
 //     movement    jump, land (hard), land_soft, rise, dash, dodge_back, wing_hover (+ the CMU moves below)
 //     guns        aim_idle (= rifle_aim), rifle_aim, shoot, pistol_aim, pistol_shoot, throw
 //                 (upper-body masked copies play over the legs while moving: see UPPER)
@@ -106,7 +107,8 @@ export class CharacterRig {
   readonly root = new THREE.Group();
   private mixer: THREE.AnimationMixer;
   private actions = new Map<string, THREE.AnimationAction>();
-  private loco: { name: string; act: THREE.AnimationAction; w: number }[] = [];
+  /** Locomotion layers; `nat` = the clip's own ground speed in m/s at this rig's size (from its root motion). */
+  private loco: { name: string; act: THREE.AnimationAction; w: number; nat: number }[] = [];
   private shot: { act: THREE.AnimationAction; base: number; left: number; dur: number; upper: boolean } | null = null;
   private moving = 0;
   /** Upper-body-only copies of the gun clips: they play over a run without touching the legs. */
@@ -133,7 +135,10 @@ export class CharacterRig {
       if (!act) continue;
       act.setLoop(THREE.LoopRepeat, Infinity).play();
       act.setEffectiveWeight(name === idle ? 1 : 0);
-      this.loco.push({ name: name === idle ? 'idle' : name, act, w: name === idle ? 1 : 0 });
+      // playback follows ground speed: each cycle's own speed comes from its root motion (scaled to this rig)
+      const rm = asset.rootMotion?.[name];
+      const nat = rm && rm.durationSec > 0 ? Math.hypot(rm.dx, rm.dz) / rm.durationSec * (height / h) : ({ walk: 1.5, run: 3.6, sprint: 4.4, walk_back: 1.5, run_back: 3.6, strafe_left: 0.45, strafe_right: 0.45 } as Record<string, number>)[name] ?? 0;
+      this.loco.push({ name: name === idle ? 'idle' : name, act, w: name === idle ? 1 : 0, nat });
     }
     // legs + hips are left to the locomotion; everything above the hips (spine, arms, head) takes the gun clip
     const lower = /(^|[:_|])?(Hips|LeftUpLeg|RightUpLeg|LeftLeg|RightLeg|LeftFoot|RightFoot|LeftToe\w*|RightToe\w*)$/;
@@ -218,15 +223,17 @@ export class CharacterRig {
       }
     }
     const k = Math.min(1, dt * 12);
-    const rate = THREE.MathUtils.clamp(speed / 7, 0.8, 1.6); // run clip authored near 7 m/s
+    // each cycle plays at (ground speed / its own speed), so planted feet stay planted (within sane cadence limits)
+    const rateOf = (l: { nat: number }) => (l.nat > 0 ? THREE.MathUtils.clamp(speed / l.nat, 0.6, 2.6) : 1);
     const run = this.loco.find((l) => l.name === 'run');
+    const rate = run ? rateOf(run) : 1;
     for (const l of this.loco) {
       l.w += ((target[l.name] ?? 0) - l.w) * k;
       l.act.setEffectiveWeight(l.w * (1 - ow));
       if (l.name === 'run') l.act.timeScale = !hasBack && back > fwd + 0.2 ? -rate : rate;
-      else if (l.name === 'sprint' || l.name === 'run_back') l.act.timeScale = rate;
+      else if (l.name === 'sprint' || l.name === 'run_back' || l.name === 'walk' || l.name === 'walk_back') l.act.timeScale = rateOf(l);
       else if (l.name.startsWith('strafe')) {
-        l.act.timeScale = rate;
+        l.act.timeScale = rateOf(l);
         // keep the strafe step in phase with the run so the blend doesn't double-step
         if (run && l.w < 0.05) l.act.time = (run.act.time / run.act.getClip().duration) * l.act.getClip().duration;
       }
