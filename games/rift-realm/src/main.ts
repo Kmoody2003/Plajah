@@ -139,18 +139,21 @@ async function boot() {
   // Domination match (levels with control points, no Studio rules): first side to MATCH_SCORE points (each owned point
   // scores every 2 s), or the leader when the clock runs out. Downed players respawn at their spawn.
   const MATCH_SCORE = 100, MATCH_SECONDS = 8 * 60;
-  const match = { on: !!arena.controlPoints?.length && !ruled, over: false, time: 0, downs: 0, kills: 0 };
+  // The match waits for you (Kenne: "keeps telling me defeat with no activity fighting against me" — enemies took the
+  // points while he explored): it starts when you step onto a point, land a hit or get hit; until then nobody captures.
+  const match = { on: !!arena.controlPoints?.length && !ruled, started: false, over: false, time: 0, downs: 0, kills: 0 };
+  const startMatch = () => { if (!match.on || match.started || match.over) return; match.started = true; showBeatFeedback('MATCH ON · HOLD A / B / C', '#38bdf8'); };
   if (match.on) enemies.onKilled = () => { match.kills++; };
-  const endMatch = (won: boolean) => {
+  const endMatch = (won: boolean, draw = false) => {
     match.over = true;
-    rhythm.setMood(won ? 'victory' : 'defeat');
+    rhythm.setMood(won || draw ? 'victory' : 'defeat');
     player.enabled = false;
     if (document.pointerLockElement) document.exitPointerLock();
     const m = Math.floor(match.time / 60), sec = Math.floor(match.time % 60).toString().padStart(2, '0');
     const box = document.createElement('div');
     box.style.cssText = 'position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:radial-gradient(#06101cdd,#02060cf2);font-family:Segoe UI,sans-serif;color:#e6f1ff';
     box.innerHTML = `<div style="text-align:center"><div style="letter-spacing:.4em;font-size:13px;color:#8fb3d9">${arena.info.name.toUpperCase()} · DOMINATION</div>
-      <div style="font-size:64px;font-weight:800;letter-spacing:.08em;margin:10px 0;color:${won ? '#38bdf8' : '#fb923c'};text-shadow:0 0 24px ${won ? '#38bdf8' : '#fb923c'}">${won ? 'VICTORY' : 'DEFEAT'}</div>
+      <div style="font-size:64px;font-weight:800;letter-spacing:.08em;margin:10px 0;color:${won ? '#38bdf8' : draw ? '#e2e8f0' : '#fb923c'};text-shadow:0 0 24px ${won ? '#38bdf8' : draw ? '#94a3b8' : '#fb923c'}">${won ? 'VICTORY' : draw ? 'DRAW' : 'DEFEAT'}</div>
       <div style="font-size:18px;margin-bottom:6px">${objectives.score.blue} — ${objectives.score.orange}</div>
       <div style="font-size:13px;color:#9fb6cc;margin-bottom:22px">${m}:${sec} · ${match.kills} kills · downed ${match.downs}×</div>
       <button id="rrAgain" style="padding:12px 28px;font:700 14px Segoe UI,sans-serif;letter-spacing:.14em;color:#04111c;background:linear-gradient(90deg,#38bdf8,#fbbf24);border:0;cursor:pointer">PLAY AGAIN</button></div>`;
@@ -269,6 +272,7 @@ async function boot() {
       const dmg = Math.round(baseDmg * (1 + (resonance - 1) * 0.25));
       const res = enemies.damageEnemy(enemyId, dmg);
       if (res) {
+        startMatch();
         rhythm.playHit(res.killed);
         showHit(hits[0].point, dmg, res.killed);
         if (res.killed) {
@@ -572,16 +576,18 @@ async function boot() {
         showBeatFeedback('BURNING! -20 HP', '#f97316');
         if (player.hp === 0) downPlayer(true);
       }
-      objectives.update(dt, player.object.position, enemies.enemies.map((e) => e.mesh.position));
-      if (match.on && !match.over) {
+      if (match.on && !match.started && arena.controlPoints!.some((c) => Math.hypot(player.object.position.x - c.pos.x, player.object.position.z - c.pos.z) < c.radius)) startMatch();
+      objectives.update(dt, player.object.position, !match.on || match.started ? enemies.enemies.map((e) => e.mesh.position) : [], !match.on || match.started);
+      if (match.on && match.started && !match.over) {
         match.time += dt;
         const { blue, orange } = objectives.score;
-        if (blue >= MATCH_SCORE || orange >= MATCH_SCORE || match.time >= MATCH_SECONDS) endMatch(blue > orange);
+        if (blue >= MATCH_SCORE || orange >= MATCH_SCORE || match.time >= MATCH_SECONDS) endMatch(blue > orange, blue === orange);
       }
       if (input.firePressed) fireShot();
       if (rules) { rules.start(); rules.update(dt, objectives.heldSeconds, score); }
       enemies.update(dt, rhythm.pulse, player.object.position, collision, (dmg) => {
         if (player.downed) return;
+        startMatch();
         player.hp = Math.max(0, player.hp - dmg);
         if (player.hp === 0) downPlayer(match.on);
         else player.takeHit(dmg);

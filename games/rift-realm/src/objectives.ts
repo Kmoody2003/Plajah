@@ -50,7 +50,8 @@ export class Objectives {
   }
 
   /** progress: -1 = orange owns, +1 = blue owns. */
-  update(dt: number, player: THREE.Vector3, enemies: THREE.Vector3[]) {
+  /** `scoring` false = the match hasn't started: points can be taken but nobody scores yet. */
+  update(dt: number, player: THREE.Vector3, enemies: THREE.Vector3[], scoring = true) {
     for (const p of this.points) {
       const inside = (v: THREE.Vector3) => Math.hypot(v.x - p.def.pos.x, v.z - p.def.pos.z) < p.def.radius && Math.abs(v.y - p.ring.position.y) < 4;
       const b = inside(player) ? 1 : 0;
@@ -70,7 +71,7 @@ export class Objectives {
     }
     this.heldSeconds = this.points.some(p => p.owner === 'blue') ? this.heldSeconds + dt : 0;
     this.tick += dt;
-    if (this.tick >= 2) {
+    if (this.tick >= 2 && scoring) {
       this.tick = 0;
       for (const p of this.points) if (p.owner !== 'none') this.score[p.owner] += 1;
     }
