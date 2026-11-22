@@ -111,6 +111,8 @@ export class Predator {
   deadT = 0;
   pack: Pack | null = null;
   meal: Carcass | null = null;              // the carcass it is feeding on
+  /** Dying on its rig's death clip (no code topple then). */
+  deathClip = false;
   biteT = 0;
   readonly den: Den;
   private lastPos = new THREE.Vector3();
@@ -245,17 +247,20 @@ export class PredatorDirector {
     const pos = p.chest(new THREE.Vector3());
     if (from && knock > 0) { tmp.subVectors(p.pos, from).setY(0).normalize(); p.pos.addScaledVector(tmp, knock * (p.spec.size > 1.2 ? 0.4 : 1)); }
     if (p.hp <= 0) { this.kill(p); return { killed: true, pos, p }; }
+    // the rig flinches (creatures.ts: hit / hit_heavy clips when it has a skeleton; nothing on the old TSL body)
+    p.body.rig.play(real >= p.maxHp * 0.3 ? 'hit_heavy' : 'hit');
     // anything that hurts it becomes the target (the player, if it was them)
     if (byPlayer && player) { p.meal = null; p.target = player; p.aware = 1; p.lastKnown.copy(player.pos); this.alertPack(p, player); }
     if (p.hp < p.maxHp * 0.25 && p.state !== 'flee') { p.state = 'flee'; p.t = 6; this.env.audio.play('screech', pos, { gain: 0.7, rate: 0.8 }); }
     else if (p.hurtRecent > p.maxHp * 0.3 && ['circle', 'charge', 'tell', 'stalk'].includes(p.state)) { p.state = 'retreat'; p.t = 1.4 + Math.random() * 0.6; p.hurtRecent = 0; }
     else if (p.state === 'hide' || p.state === 'perch' || p.state === 'idle' || p.state === 'patrol') { p.state = 'charge'; p.t = 6; }
-    if (p.state === 'tell' && real > p.maxHp * 0.2) { p.state = 'recover'; p.t = 0.5; p.body.tell = 0; }   // a big hit interrupts the wind-up
+    if (p.state === 'tell' && real > p.maxHp * 0.2) { p.state = 'recover'; p.t = 0.5; p.body.tell = 0; p.body.rig.play('parried'); }   // a big hit interrupts the wind-up
     return { killed: false, pos, p };
   }
 
   private kill(p: Predator) {
     p.state = 'dead'; p.deadT = 0; p.body.tell = 0; p.body.crouch = 0;
+    p.deathClip = p.body.rigged && p.body.rig.hold('death');
     p.hitTarget.visible = false; p.hitTarget.userData.predatorId = -1;
     const c = p.chest(new THREE.Vector3());
     this.env.vfx.spawn(KILL_BURST, c, { tint: p.spec.tint });
@@ -499,7 +504,7 @@ export class PredatorDirector {
         if (c && c.bites > 0 && p.pos.distanceTo(c.pos) > 1.8) { want = s.walk * 2.5; p.goal.copy(c.pos); break; }
         crouch = 0.8; want = 0;
         p.hp = Math.min(p.maxHp, p.hp + dt * 6);
-        if (c && (p.biteT -= dt) <= 0) { p.biteT = 3; if (!env.bite?.(c)) p.meal = null; else this.env.audio.play('crack', c.pos, { gain: 0.5, rate: 0.7, gap: 1 }); }
+        if (c && (p.biteT -= dt) <= 0) { p.biteT = 3; if (!env.bite?.(c)) p.meal = null; else { this.env.audio.play('crack', c.pos, { gain: 0.5, rate: 0.7, gap: 1 }); p.body.rig.play('eat', 1, 2.5); } }
         if (p.t <= 0 || (p.meal === null && c)) { p.state = 'patrol'; p.t = 8; p.meal = null; this.pickPatrol(p); }
         break;
       }
@@ -623,7 +628,7 @@ export class PredatorDirector {
   private updateDead(p: Predator, dt: number) {
     p.deadT += dt;
     const k = Math.min(1, p.deadT / 0.5);
-    p.body.root.rotation.z = k * (Math.PI / 2) * (p.id % 2 ? 1 : -1);
+    if (!p.deathClip) p.body.root.rotation.z = k * (Math.PI / 2) * (p.id % 2 ? 1 : -1);   // the rig's death clip rolls it itself
     if (p.spec.fly) { const gy = this.env.ground(p.pos.x, p.pos.z); p.pos.y = Math.max(gy - p.body.hover + 0.3, p.pos.y - dt * 9); }
     p.body.glow = Math.max(0, 1 - p.deadT / 2);
     p.body.update(dt, 0);

@@ -133,6 +133,7 @@ export class PreyDirector {
     p.hp -= dmg; p.body.glow = 2.5;
     const pos = p.chest(new THREE.Vector3());
     if (p.hp <= 0) { this.kill(p); return { killed: true, pos, p }; }
+    p.body.rig.play(dmg >= p.maxHp * 0.3 ? 'hit_heavy' : 'hit');
     if (from) {
       // a stag hit at close range turns and kicks once before it runs
       if (p.spec.kick && from.distanceTo(p.pos) < 4 && p.kickCd <= 0) { p.state = 'stand'; p.t = 0.6; p.kickCd = 5; p.fear.copy(from); }
@@ -148,8 +149,8 @@ export class PreyDirector {
     this.env.audio.play('screech', p.chest(tmp), { gain: 0.5, rate: 0.7 });
     // the body stays as a carcass (on its side, its glow fading to embers)
     const i = this.list.indexOf(p); if (i >= 0) this.list.splice(i, 1);
-    p.body.root.rotation.z = Math.PI / 2 * (Math.random() < 0.5 ? 1 : -1);
-    p.body.root.position.y = p.body.height * 0.12;
+    // the rig's death clip lays it down; the old TSL body is toppled by hand
+    if (!(p.body.rigged && p.body.rig.hold('death'))) { p.body.root.rotation.z = Math.PI / 2 * (Math.random() < 0.5 ? 1 : -1); p.body.root.position.y = p.body.height * 0.12; }
     p.body.glow = 0.35; p.body.update(0, 0);
     this.carcasses.push({ id: this.cid++, kind: p.herd.kind, meat: p.spec.meat, bites: p.spec.bites, pos: p.pos.clone(), obj: p.mesh, body: p.body, life: 150, sinking: 0 });
     this.scare(p.pos, 30);
@@ -215,6 +216,7 @@ export class PreyDirector {
     for (let i = this.carcasses.length - 1; i >= 0; i--) {
       const c = this.carcasses[i];
       c.life -= dt;
+      if (c.body.rigged && c.life > 140) c.body.update(dt, 0);   // let the death clip play out, then it holds
       if (c.life <= 0 && c.sinking <= 0) c.sinking = 1.5;
       if (c.sinking > 0) { c.sinking -= dt; c.obj.position.y -= dt * 0.6; if (c.sinking <= 0) { this.group.remove(c.obj); this.carcasses.splice(i, 1); } }
     }
