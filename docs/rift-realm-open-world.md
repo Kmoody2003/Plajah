@@ -136,6 +136,16 @@ above them where the art has a hazy daytime stand of trunks and foliage, and the
 full of moss, ferns and roots. Next for every place: score under a daytime haze (as the shots are lit), mask the sky, and
 add the floor clutter; the rocks still show the volcanic sheet's orange cracks and need a forest rock material.
 
+**Haze + clutter pass (2026-11-22).** `?time=day` gives the world the art's misty daylight (soft green-grey sky light,
+warm sun, dense haze, haze sky) — the level's own look stays the nebula night; `DAY=1 node scripts/riftrealm/wilds_shots.mjs`
+shoots under it. The depth score now ignores the game's sky. `kit.clutter()` overgrows a floor (moss patches, heaved
+flagstones, roots, ferns, grass back in the cracks); kit rocks use a grey-green mossy rock instead of the volcanic sheet.
+Portal Plaza under daylight: 0.600 (layout 0.820, silhouettes 0.271), no gain. What the diagnostic shows: the floor
+clutter is too low and too blue-grey to change the depth or the silhouettes; the ferns and bushes along the ruin bases
+(Cyber Forest fern/bush species, teal) disappear against hazy paving, and many of their spots fall inside the wall line.
+The art's floor reads by green moss mounds and big leafy masses. Next: a green, leafy undergrowth species sized like the
+art's (1–3 m mounds), mossy mounds as geometry (not decals), placed only in front of walls.
+
 ## Track 2 — Characters from video
 - Every clip comes from the character's own motion videos (services/mocap: capture → solveTake → clipToThree →
   retarget), never hand-keyed. Assassin, Archangel, Cyber-Assassin and the other combat videos sit in

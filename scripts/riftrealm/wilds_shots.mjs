@@ -67,7 +67,7 @@ for (const s of shots) {
   await page.waitForTimeout(2500);
   if (s.cam.far) await page.waitForTimeout(40000);   // every material recompiles without fog
   await page.screenshot({ path: `${OUT}/${s.id}.png`, timeout: 180000 });
-  console.log('shot', s.id);
+  console.log('shot', s.id, process.env.VEG ? JSON.stringify(await page.evaluate(() => { const v = window.__rr.arena.group.userData.vegetation; return { plants: v.plants.stats, fungi: v.fungi.stats, forest: v.forest.stats, grass: v.grass.stats }; })) : '');
 }
 const info = await page.evaluate(() => { const r = window.__rr.renderer.info.render; return { calls: r.calls, tris: r.triangles }; });
 console.log('render', JSON.stringify(info));
