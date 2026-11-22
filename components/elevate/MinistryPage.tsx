@@ -9,6 +9,7 @@ import { auth } from '../../services/backendService';
 import { isEducationMinistry, isMusicDepartmentMinistry } from '../../services/elevateTemplates';
 import ChurchEducation from '../church/ChurchEducation';
 import { ChurchMusicDepartmentHub, type MusicSubCategoryKey } from './ChurchMusicDepartmentHub';
+import PrayerCallCard from './prayerCall/PrayerCallCard';
 
 const MinistryPage: React.FC<{
   org: Organization;
@@ -123,6 +124,9 @@ const MinistryPage: React.FC<{
           </button>
         )}
       </div>
+
+      {/* Prayer Call: live card for this ministry's members, Start for its leaders (faith orgs only; renders nothing otherwise). */}
+      <PrayerCallCard org={org} ministry={live} />
 
       {isEdu && (
         <div className="mb-8">

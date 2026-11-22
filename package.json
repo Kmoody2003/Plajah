@@ -15,6 +15,7 @@
     "test:quest": "tsx --test tests/kithQuest.test.ts",
     "test:crew": "npx tsx --test tests/crew.test.ts tests/crewRoutes.test.ts",
     "test:onair": "npx tsx --test tests/onair.test.ts",
+    "test:prayer-call": "npx tsx --test tests/prayerCall.test.ts",
     "test:lexicon": "npx tsx --test tests/lexicon.test.ts",
     "test:terra-survey": "npx tsx --test tests/terraSurvey.test.ts tests/terraCodec.test.ts",
     "accuracy:terra-survey": "npx tsx scripts/terraSurveyAccuracy.ts",

@@ -150,6 +150,7 @@ import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak
 import { createRtcIceRouter } from './routes/rtcIce';
 import { createMeetingsSfuRouter } from './routes/meetingsSfu';
 import { livekitConfigFromEnv } from './services/meetings/livekitServer';
+import { createPrayerCallRouter } from './routes/prayerCall';
 import { registerShuffleRoutes } from './services/shuffle/shuffleServer';
 import { createDefaultShuffleDeps } from './services/shuffle/shuffleDeps';
 import { decideVerifiedAgentTier, type VerifiedAgentTier, type VerifiedFacts } from './services/aria/ariaTier';
@@ -14577,6 +14578,23 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     query: (c, f, n) => fsQueryDocs(c, f, n),
     hasPlajahPlus: uid => hasPlajahPlusSub(uid),
     isAdmin: isPlatformAdminReq,
+  }));
+  // Prayer Call (routes/prayerCall.ts): a church ministry's live prayer room on LiveKit, 60 minutes max,
+  // leaders start it, ministry members join. prayerCalls/* is server-only (no client rules).
+  app.use('/api/elevate/prayer-call', createPrayerCallRouter({
+    authMiddleware, limiter: apiLimiter,
+    livekit: () => livekitConfigFromEnv(),
+    getOrg: async orgId => { const o = await firestoreGetDeep('organizations', orgId); return o ? ({ ...o, id: orgId } as any) : null; },
+    getMembership: async (orgId, uid) => {
+      const rows = await fsQueryDocs('orgMemberships', [{ field: 'orgId', op: 'EQUAL', value: orgId }, { field: 'userId', op: 'EQUAL', value: uid }], 5);
+      const all = rows.map(x => x.data as any);
+      return all.find(m => m.status === 'ACTIVE') || all[0] || null;
+    },
+    displayName: async uid => { const u = await firestoreGetDeep('users', uid); return String(u?.displayName || u?.username || 'Member'); },
+    store: {
+      get: key => firestoreGetDeep('prayerCalls', key),
+      put: (key, raw) => firestorePatchDeep('prayerCalls', key, raw),
+    },
   }));
   // Shuffle — Omegle-style random 1:1 video (18+, server-only matchmaking; services/shuffle/*).
   registerShuffleRoutes(app, { authMiddleware, limiter: apiLimiter, deps: createDefaultShuffleDeps() });

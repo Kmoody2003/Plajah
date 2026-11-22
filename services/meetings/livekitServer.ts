@@ -137,6 +137,16 @@ export function createRoomService(cfg: LiveKitConfig, fetchImpl: typeof fetch = 
   };
 }
 
+/** Close a room now: LiveKit disconnects everyone in it (used for timed rooms like Prayer Call). */
+export async function deleteRoom(cfg: LiveKitConfig, room: string, fetchImpl: typeof fetch = fetch): Promise<void> {
+  await twirp(cfg, 'DeleteRoom', { room }, adminToken(cfg, undefined, { roomCreate: true }), fetchImpl);
+}
+
+/** Disconnect one person from a room (their token still works until it expires, so callers must also refuse new tokens). */
+export async function removeParticipant(cfg: LiveKitConfig, room: string, identity: string, fetchImpl: typeof fetch = fetch): Promise<void> {
+  await twirp(cfg, 'RemoveParticipant', { room, identity }, adminToken(cfg, room, { roomAdmin: true }), fetchImpl);
+}
+
 /**
  * Verify a LiveKit webhook: the Authorization header is a JWT signed with our API secret whose
  * `sha256` claim is the base64 SHA-256 of the raw body. Returns the parsed event or null.
