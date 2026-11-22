@@ -92,6 +92,25 @@ export async function preloadCharacters() {
 }
 
 /** Gun / guard clips that also get an upper-body-only copy (the legs keep the locomotion underneath). */
+/** Height of a character's body: skinned vertices, leaving out rigid cloak parts (100 % Spine2). */
+function bodyHeight(model: THREE.Object3D): number {
+  model.updateMatrixWorld(true);
+  let lo = Infinity, hi = -Infinity;
+  const v = new THREE.Vector3();
+  model.traverse((o) => {
+    const m = o as THREE.SkinnedMesh;
+    if (!m.isMesh) return;
+    const pos = m.geometry.getAttribute('position'), si = m.geometry.getAttribute('skinIndex'), sw = m.geometry.getAttribute('skinWeight');
+    const sp = m.isSkinnedMesh ? m.skeleton.bones.findIndex((b) => /Spine2$/.test(b.name)) : -1;
+    for (let i = 0; i < pos.count; i += 3) {
+      if (sp >= 0 && si && sw && si.getX(i) === sp && sw.getX(i) > 0.999) continue;
+      v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+      lo = Math.min(lo, v.y); hi = Math.max(hi, v.y);
+    }
+  });
+  return hi > lo ? hi - lo : new THREE.Box3().setFromObject(model).getSize(v).y;
+}
+
 const UPPER = ['shoot', 'reload', 'reload_pistol', 'switch_weapon', 'hit', 'aim_idle', 'rifle_aim', 'pistol_aim', 'pistol_shoot', 'throw', 'block', 'draw'];
 
 export type Locomotion = 'idle' | 'run' | 'strafe_left' | 'strafe_right' | 'walk' | 'sprint' | 'walk_back' | 'run_back';
@@ -133,8 +152,9 @@ export class CharacterRig {
 
   constructor(asset: CharacterAsset, height = 1.9) {
     const model = SkeletonUtils.clone(asset.scene);
-    const box = new THREE.Box3().setFromObject(model);
-    const h = Math.max(0.01, box.max.y - box.min.y);
+    // sized by the BODY (feet → hood), not the whole bbox: the Void Stalker's wing cloak rises above its hood like
+    // the art, and must not shrink the character (the cloak is pinned rigidly to Spine2; body weights are blended)
+    const h = Math.max(0.01, bodyHeight(model));
     model.scale.setScalar(height / h);
     this.root.add(model);
     this.mixer = new THREE.AnimationMixer(model);
@@ -147,7 +167,11 @@ export class CharacterRig {
       act.setEffectiveWeight(name === idle ? 1 : 0);
       // playback follows ground speed: each cycle's own speed comes from its root motion (scaled to this rig)
       const rm = asset.rootMotion?.[name];
-      const nat = rm && rm.durationSec > 0 ? Math.hypot(rm.dx, rm.dz) / rm.durationSec * (height / h) : ({ walk: 1.5, run: 3.6, sprint: 4.4, walk_back: 1.5, run_back: 3.6, strafe_left: 0.45, strafe_right: 0.45 } as Record<string, number>)[name] ?? 0;
+      // a cycle whose recorded travel is too small to trust (the side-run video: seen from the front, the solved root
+      // barely moves) falls back to a typical cadence for its kind
+      const rmSpeed = rm && rm.durationSec > 0 ? Math.hypot(rm.dx, rm.dz) / rm.durationSec : 0;
+      const trust = name.startsWith('strafe') ? 1.5 : 0.4; // a side-run solved from the front under-reads its travel
+      const nat = rmSpeed >= trust ? rmSpeed * (height / h) : ({ walk: 1.5, run: 3.6, sprint: 4.4, walk_back: 1.5, run_back: 3.6, strafe_left: 2.8, strafe_right: 2.8 } as Record<string, number>)[name] ?? 0;
       this.loco.push({ name: name === idle ? 'idle' : name, act, w: name === idle ? 1 : 0, nat });
     }
     const cw = this.actions.get('crouch_walk');

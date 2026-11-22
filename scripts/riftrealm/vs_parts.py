@@ -20,7 +20,7 @@ def magenta(rgb, smin=0.3, vmin=0.3):
     return ((h >= MAG[0]) & (h <= MAG[1]) & (s >= smin) & (v >= vmin)).astype(np.float32)
 
 
-def build_wings(rig, P):
+def build_wings(rig, P, full=False):
     sheet = np.array(Image.open(D + 'sheet.jpg').convert('RGB'))
     wa = np.array(Image.open(D + 'wing_alpha_full.png')) > 127
     cxs = float(open(D + 'wing_mirror_x.txt').read())
@@ -57,7 +57,7 @@ def build_wings(rig, P):
     sx = x0 + pts[:, 0] / UP; sy = y0 + pts[:, 1] / UP                                   # sheet px
     X = -(sx - cxs) * k; Y = (yb - sy) * k
     yroot = P['Spine2'][1]; top = Hb - 0.05
-    if Y.max() > top:                                                                  # stay under the head top (game scales by bbox height)
+    if Y.max() > top and not full:                                                     # old: stay under the head top (the game sized by bbox height; --full-wings now that it sizes by the body)
         kk = (top - yroot) / (Y.max() - yroot); Y = np.where(Y > yroot, yroot + (Y - yroot) * kk, Y)
     def zat(Xa, Ya):
         i = np.clip(((Xa - gx0) / cs).astype(int), 0, GW - 1); jj = np.clip(((Ya - gy0) / cs).astype(int), 0, GH - 1)
@@ -121,7 +121,8 @@ def build_daggers(rig, P):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('glb'); ap.add_argument('joints'); ap.add_argument('out')
-    ap.add_argument('--no-parts', action='store_true'); ap.add_argument('--room', type=float, default=0.85); a = ap.parse_args()
+    ap.add_argument('--no-parts', action='store_true'); ap.add_argument('--room', type=float, default=0.85)
+    ap.add_argument('--full-wings', action='store_true', help='wings as high as the art (the game sizes characters by the body)'); a = ap.parse_args()
     P = json.load(open(a.joints))
     rig = Rig(a.glb)
     print(f'atlas free: {rig.free_space() * 100:.1f}%')
@@ -129,7 +130,7 @@ def main():
     rig.project_emissive({'front': D + 'front.png', 'back': D + 'back_body.png', 'left': D + 'side.png', 'right': D + 'side_r.png'},
                          MAG, 0.28, 0.28, gain=1.6)
     if not a.no_parts:
-        wt = build_wings(rig, P); dt = build_daggers(rig, P)
+        wt = build_wings(rig, P, a.full_wings); dt = build_daggers(rig, P)
         print(f'wing tris {wt}, dagger tris {dt}')
     rig.save(a.out)
     print('\n'.join(rig.log))

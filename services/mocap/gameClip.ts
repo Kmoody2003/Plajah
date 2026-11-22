@@ -109,7 +109,8 @@ export function rootMotion(c: MotionClip): RootMotion {
 /** Make a cycle: cut at the best-matching pair of frames inside the clip (moves.ts findLoop), then blend the last
  *  `blend` frames so the final pose equals the first exactly (rotations by a slerped correction, hip height by a
  *  ramp) and the floor path runs at its average velocity, so a looping action never pops or drifts sideways. */
-export function makeLoop(c: MotionClip, o: { minSec?: number; blend?: number; search?: boolean } = {}): MotionClip {
+/** `travel: 'side'` (strafes, side-runs): the sideways path is the travel and is kept; forward drift is removed. */
+export function makeLoop(c: MotionClip, o: { minSec?: number; blend?: number; search?: boolean; travel?: 'forward' | 'side' } = {}): MotionClip {
   let out = c;
   if (o.search !== false) {
     const lp = findLoop(c, o.minSec ?? 0.5);
@@ -131,7 +132,8 @@ export function makeLoop(c: MotionClip, o: { minSec?: number; blend?: number; se
     const u = f / (n - 1), w = f >= n - 1 - k ? ((f - (n - 1 - k)) / k) : 0;
     const r = getR(out, f);
     // sideways and height: pulled back onto the start so the cycle closes; forward: kept (that is the travel)
-    r.x -= end.x * u; // sideways drift removed: the loop must not walk off its line
+    if (o.travel === 'side') r.z -= end.z * u; // a side-run: forward drift removed, the sideways travel kept
+    else r.x -= end.x * u; // sideways drift removed: the loop must not walk off its line
     r.y = r.y + (y0 - y1) * w * w * (3 - 2 * w);
     setR(out, f, r);
   }
@@ -193,7 +195,7 @@ export interface ClipRecipe {
   face?: 'start' | 'mean' | 'travel';
   level?: boolean;
   smooth?: number;
-  loop?: boolean | { minSec?: number; blend?: number; search?: boolean };
+  loop?: boolean | { minSec?: number; blend?: number; search?: boolean; travel?: 'forward' | 'side' };
   mirror?: boolean;
   reverse?: boolean;
   rate?: number;

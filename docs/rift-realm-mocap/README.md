@@ -39,6 +39,37 @@ Unused so far: the knight takes, stairs runs, martial-arts / boxing / dagger / s
 slide, the sideways run and the walk / run cycles (CMU cycles stay). Not yet wired in the game: reload, switch_weapon,
 crouch_walk, run_rifle, knockdown.
 
+## Model fidelity pass (2026-11-22)
+
+Scored with `scripts/riftrealm/render_views.mjs` → `score_views.py` (0.6 × silhouette IoU + 0.4 × colour). Before/after:
+`models_before_after.jpg`; in the level (Glacial, third + first person): `in_level_glacial.jpg`.
+
+| | front | side | back | back with wings |
+|---|---|---|---|---|
+| Void Stalker before (old bbox scorer, wings scored against wingless art) | 81.6 | 82.0 | 82.3 | 85.5 (body-sized) |
+| **Void Stalker now** | **96.3** | **97.0** | **95.0** | **95.6** |
+| Robot Paladin before | 85.2 | 90.1 | 81.2 | — |
+| **Robot Paladin now** | **95.8** | **96.6** | **91.9** | — |
+
+What changed:
+- **Measurement.** The body is scored against the body art (`--parts body` drops the rigid add-ons: the Spine2 wing
+  cloak and weapons pinned 100 % to a hand bone); the cloak against the back-with-wings art (`--wings`, sized by
+  feet → hood). Registration is translation + uniform scale by best overlap (a held prop shifted the old bbox fit).
+- **Wings at the art's height** (`vs_parts.py --full-wings`). They had been squashed under the hood because the game
+  sized characters by their bbox; `CharacterRig` now sizes by the body (`bodyHeight`, rigid Spine2 parts excluded).
+- **Paladin leg webbing removed** (`clean_webs.py`, between mid-thigh and knee).
+- Both re-rigged with the Character Forge (`forgeRigMesh.ts`, holds dagger / fist), sockets and bone names unchanged;
+  KTX copies rebuilt; every clip re-baked on the new rigs.
+
+Not reached: the **Paladin back is 91.9 %, under the 95 % gate**, and is capped by the art itself — the turnaround's
+front and back silhouettes agree only 90.4 % with each other (mirrored front vs back), so no single 3D shape can
+match both. (The Void Stalker's front and back agree 95.9 %.) The geometry is still the original generated mesh;
+no from-scratch re-model was done.
+
+Strafes now come from `Soldier_running_sideways` (3c1728a1, facing the camera: 3.5–4.5 s = his right, 2.0–3.0 s =
+his left), looped with `travel: 'side'` (makeLoop keeps the sideways path). The solver under-reads a side-run's
+travel, so `CharacterRig` plays strafes at a 2.8 m/s cadence unless the recorded speed is at least 1.5 m/s.
+
 ## Pipeline changes (services/mocap)
 
 - **Shot cuts** (`capture.ts` ShotCuts, `shots.ts` findShots / sliceTake): every captured frame gets a

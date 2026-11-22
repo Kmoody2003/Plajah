@@ -216,26 +216,29 @@
     },
     {
       "name": "strafe_right",
-      "cmu": "41_02",
-      "from": 3.6,
-      "to": 5.6,
+      "video": "3c1728a1",
+      "from": 3.5,
+      "to": 4.5,
       "face": "start",
       "loop": {
-        "blend": 5
+        "blend": 5,
+        "travel": "side"
       },
-      "note": "CMU 41_02 navigate: walking sideways to the right"
+      "note": "Soldier running sideways in studio, facing the camera: moving to his right (screen-left), 3.5-4.5 s",
+      "replaced": "cmu 41_02"
     },
     {
       "name": "strafe_left",
-      "cmu": "41_02",
-      "from": 3.6,
-      "to": 5.6,
+      "video": "3c1728a1",
+      "from": 2,
+      "to": 3,
       "face": "start",
       "loop": {
-        "blend": 5
+        "blend": 5,
+        "travel": "side"
       },
-      "mirror": true,
-      "note": "CMU 41_02 walking sideways, mirrored"
+      "note": "Soldier running sideways in studio, facing the camera: moving to his left (screen-right), 2.0-3.0 s",
+      "replaced": "cmu 41_02"
     },
     {
       "name": "dodge_left",

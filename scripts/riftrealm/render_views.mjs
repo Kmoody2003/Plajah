@@ -9,7 +9,7 @@ import { chromium } from 'playwright';
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..', '..');
 const [glb, outDir, ...rest] = process.argv.slice(2);
 const opt = (k, d) => { const i = rest.indexOf(k); return i >= 0 ? rest[i + 1] : d; };
-const clip = opt('--clip', ''); const tcl = parseFloat(opt('--t', '0'));
+const clip = opt('--clip', ''); const tcl = parseFloat(opt('--t', '0')); const parts = opt('--parts', 'all'); // all | body (drop the Spine2-only cloak) | wings
 fs.mkdirSync(outDir, { recursive: true });
 const glbAbs = path.resolve(glb);
 const server = http.createServer((req, res) => {
@@ -36,6 +36,20 @@ g.scene.traverse(o => { if (o.isMesh) { tris += (o.geometry.index ? o.geometry.i
   const maps = {}; for (const k of ['map','normalMap','roughnessMap','emissiveMap','metalnessMap','aoMap']) if (m[k]?.image) maps[k] = m[k].image.width + 'x' + m[k].image.height;
   mats.push(maps); const nm = new THREE.MeshBasicMaterial({ map: m.map, side: THREE.DoubleSide, transparent: m.transparent, opacity: m.opacity, alphaTest: m.alphaTest }); if (m.emissiveMap) nm.userData.emi = 1; o.material = nm; o.frustumCulled = false; }
   if (o.isBone) bones++; });
+// --parts body|wings: split off the wing cloak (vs_parts.py adds it rigidly on Spine2, outside the torso) so the body is
+// scored against the body art and the cloak against the back-with-wings art
+const partsMode = q.get('parts') || 'all';
+if (partsMode !== 'all') g.scene.traverse(o => { if (!o.isSkinnedMesh) return;
+  const sp = o.skeleton.bones.findIndex(b => /Spine2$/.test(b.name)); const ge = o.geometry, si = ge.attributes.skinIndex, sw = ge.attributes.skinWeight, pos = ge.attributes.position;
+  const bb = new THREE.Box3().setFromBufferAttribute(pos), h = bb.max.y - bb.min.y, cx = (bb.min.x + bb.max.x) / 2;
+  // rigid add-on parts: the cloak pinned to Spine2, and held weapons pinned to a hand bone reaching well past the hand
+  const hands = o.skeleton.bones.map((b, k) => /(Left|Right)Hand$/.test(b.name) ? new THREE.Vector3().setFromMatrixPosition(o.skeleton.boneInverses[k].clone().invert()) : null);
+  const vp = new THREE.Vector3();
+  const isWing = (i) => { if (sw.getX(i) <= 0.999) return false; const k = si.getX(i); if (k === sp) return true;
+    return !!hands[k]; }; // Forge hands blend over the finger bones, so 100 % on a hand bone is a held weapon
+  const idx = ge.index.array, keep = [];
+  for (let t = 0; t < idx.length; t += 3) { const w = isWing(idx[t]) && isWing(idx[t + 1]) && isWing(idx[t + 2]); if ((partsMode === 'wings') === w) keep.push(idx[t], idx[t + 1], idx[t + 2]); }
+  ge.setIndex(keep); });
 const clipName = q.get('clip'); const mixer = new THREE.AnimationMixer(g.scene);
 if (clipName) { const c = g.animations.find(a => a.name === clipName); if (c) { mixer.clipAction(c).play(); mixer.setTime(parseFloat(q.get('t') || '0')); } }
 g.scene.updateMatrixWorld(true);
@@ -57,7 +71,7 @@ const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--ena
 const page = await browser.newPage({ viewport: { width: 1024, height: 1024 } });
 page.on('console', m => { if (m.type() === 'error') console.error('[page]', m.text()); });
 page.on('pageerror', e => console.error('[pageerror]', e.message));
-await page.goto(`http://127.0.0.1:${port}/page.html?clip=${clip}&t=${tcl}`);
+await page.goto(`http://127.0.0.1:${port}/page.html?clip=${clip}&t=${tcl}&parts=${parts}`);
 await page.waitForFunction('window.__result', null, { timeout: 120000 });
 const res = await page.evaluate('window.__result');
 for (const [k, v] of Object.entries(res.shots)) fs.writeFileSync(path.join(outDir, `${k}.png`), Buffer.from(v.split(',')[1], 'base64'));

@@ -94,7 +94,8 @@ class Rig:
         pbr = self.mat['pbrMetallicRoughness']
 
         def img(t):
-            src = j['textures'][t['index']].get('source')
+            tex = j['textures'][t['index']]
+            src = tex.get('source', tex.get('extensions', {}).get('EXT_texture_webp', {}).get('source'))  # this file's own saves are WebP
             return np.array(Image.open(io.BytesIO(buffer_view_bytes(j, b, j['images'][src]['bufferView']))).convert('RGB'))
         self.base = img(pbr['baseColorTexture'])
         self.R = self.base.shape[0]
@@ -202,7 +203,7 @@ class Rig:
             m = ((hh >= hue[0]) & (hh <= hue[1]) & (ss >= smin) & (vv >= vmin) & (img[:, :, 3] > 127)).astype(np.float32)
             m = cv2.GaussianBlur(m, (0, 0), 1.2) * 1.4
             em = np.dstack([img[:, :, :3] * np.clip(m, 0, 1)[..., None], img[:, :, 3]])
-            d, right = view_axes(name)
+            d, right, *_ = view_axes(name)   # (toward camera, right, up) since 3d2619ff
             project, iou = fit_view(V, d, right, img[:, :, 3])
             h, w = img.shape[:2]
             sx, sy = project(samples)
