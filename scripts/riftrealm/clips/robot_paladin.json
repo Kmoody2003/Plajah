@@ -5,7 +5,7 @@
     {
       "name": "idle",
       "video": "abf39cd6",
-      "from": 0.0,
+      "from": 0,
       "to": 1.15,
       "loop": {
         "minSec": 0.6
@@ -42,28 +42,38 @@
     },
     {
       "name": "aim_idle",
-      "video": "abf39cd6",
-      "from": 8.1,
-      "to": 9.05,
+      "video": "8e1c58e3",
+      "from": 2,
+      "to": 5,
+      "face": "mean",
       "loop": {
-        "minSec": 0.5,
-        "blend": 5
+        "minSec": 0.6,
+        "blend": 6
       },
-      "note": "lance levelled, beam firing"
+      "note": "Soldier aiming assault rifle: steady two-handed shouldered hold (mocap body footage)",
+      "replaced": "video abf39cd6"
     },
     {
       "name": "shoot",
-      "video": "abf39cd6",
-      "from": 7.85,
-      "to": 8.4,
-      "note": "lance recoil as the beam fires"
+      "video": "ad5f76e1",
+      "from": 1.5,
+      "to": 2.1,
+      "face": "mean",
+      "note": "Soldier firing rifle in stance: one shot with recoil",
+      "replaced": "video abf39cd6"
     },
     {
       "name": "rifle_aim",
-      "video": "abf39cd6",
-      "from": 7.3,
-      "to": 8.0,
-      "note": "brings the lance up to aim, charging"
+      "video": "8e1c58e3",
+      "from": 2,
+      "to": 5,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.6,
+        "blend": 6
+      },
+      "note": "Soldier aiming assault rifle: steady two-handed shouldered hold",
+      "replaced": "video abf39cd6"
     },
     {
       "name": "recover",
@@ -113,43 +123,47 @@
     },
     {
       "name": "vault",
-      "cmu": "41_07",
-      "from": 22.1,
-      "to": 23.9,
+      "video": "269e1775",
+      "from": 2.2,
+      "to": 5,
       "face": "start",
-      "note": "CMU 41_07 jump over a stepstool"
+      "note": "Soldier vaults over a crate",
+      "replaced": "cmu 41_07"
     },
     {
       "name": "dive_roll",
-      "cmu": "127_23",
-      "from": 0.45,
-      "to": 2.6,
+      "video": "3d2a4c79",
+      "from": 0.9,
+      "to": 3.8,
       "face": "start",
-      "note": "CMU 127_23 run, dive over, roll, up"
+      "note": "Soldier tactical roll and back up",
+      "replaced": "cmu 127_23"
     },
     {
       "name": "slide",
-      "cmu": "134_01",
-      "from": 1.3,
-      "to": 2.6,
+      "video": "5c2c32f7",
+      "from": 0.8,
+      "to": 4.4,
       "face": "start",
-      "note": "CMU 134_01 duck under at a run (closest to a slide in the local library)"
+      "note": "Soldier sliding run: drops into the slide and gets up",
+      "replaced": "cmu 134_01"
     },
     {
       "name": "draw",
       "cmu": "139_05",
       "from": 0.25,
-      "to": 2.0,
+      "to": 2,
       "face": "mean",
       "note": "CMU 139_05 pulling a gun (draw)"
     },
     {
       "name": "get_up",
-      "cmu": "88_04",
-      "from": 8.9,
-      "to": 10.0,
+      "video": "ae5947ac",
+      "from": 4,
+      "to": 6.6,
       "face": "start",
-      "note": "CMU 88_04 getting up off the floor"
+      "note": "Soldier gets back up after the knockdown",
+      "replaced": "cmu 88_04"
     },
     {
       "name": "walk",
@@ -175,35 +189,156 @@
     },
     {
       "name": "death",
-      "cmu": "85_15",
-      "from": 1.9,
-      "to": 3.1,
+      "video": "5cf6fb49",
+      "from": 0.9,
+      "to": 4.6,
       "face": "start",
-      "note": "CMU 85_15 collapse to the floor (replaces the flip-fall)"
+      "note": "Soldier collapses on the floor",
+      "replaced": "cmu 85_15"
     },
     {
       "name": "death_back",
-      "cmu": "90_18",
-      "from": 0.45,
-      "to": 1.15,
+      "video": "b47ff154",
+      "from": 2.8,
+      "to": 5.2,
       "face": "start",
-      "note": "CMU 90_18 rug-pull fall onto the back (cut before the take's bad tail)"
+      "note": "Soldier shot, falling backwards",
+      "replaced": "cmu 90_18"
     },
     {
       "name": "hit",
-      "cmu": "105_59",
-      "from": 0.35,
-      "to": 0.9,
+      "video": "7658dcff",
+      "from": 0.9,
+      "to": 2.2,
       "face": "start",
-      "note": "CMU 105_59 small stumble (light hit reaction)"
+      "note": "Soldier flinching from an impact (light hit)",
+      "replaced": "cmu 105_59"
     },
     {
       "name": "hit_heavy",
-      "cmu": "104_13",
-      "from": 0.4,
-      "to": 1.45,
+      "video": "8f48f048",
+      "from": 0.9,
+      "to": 3.3,
       "face": "start",
-      "note": "CMU 104_13 stumbling lurch (heavy hit, knocked forward)"
+      "note": "Soldier staggering from hits (heavy hit)",
+      "replaced": "cmu 104_13"
+    },
+    {
+      "name": "rifle_fire",
+      "video": "ad5f76e1",
+      "from": 1,
+      "to": 4,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.5,
+        "blend": 5
+      },
+      "note": "Soldier firing rifle in stance: sustained fire, loops"
+    },
+    {
+      "name": "pistol_hold",
+      "video": "3084cdd8",
+      "from": 0.3,
+      "to": 1.9,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.6,
+        "blend": 6
+      },
+      "note": "Soldier pistol hold before firing"
+    },
+    {
+      "name": "pistol_aim",
+      "video": "3084cdd8",
+      "from": 0.3,
+      "to": 1.9,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.6,
+        "blend": 6
+      },
+      "note": "Soldier pistol aimed at the target"
+    },
+    {
+      "name": "pistol_shoot",
+      "video": "3084cdd8",
+      "from": 2,
+      "to": 2.6,
+      "face": "mean",
+      "note": "Soldier firing pistol: one shot with recoil"
+    },
+    {
+      "name": "reload",
+      "video": "5db86210",
+      "from": 0.9,
+      "to": 6.6,
+      "face": "mean",
+      "note": "Soldier reloading assault rifle: mag out, mag in, charge"
+    },
+    {
+      "name": "reload_pistol",
+      "video": "95edb996",
+      "from": 0.9,
+      "to": 6.4,
+      "face": "mean",
+      "note": "Soldier reloading pistol"
+    },
+    {
+      "name": "switch_weapon",
+      "video": "2ca130a9",
+      "from": 0.9,
+      "to": 6.8,
+      "face": "mean",
+      "note": "Soldier switching from rifle to pistol"
+    },
+    {
+      "name": "knockdown",
+      "video": "ae5947ac",
+      "from": 0.9,
+      "to": 3.1,
+      "face": "start",
+      "note": "Soldier knocked back onto the floor"
+    },
+    {
+      "name": "jump",
+      "video": "cfecf33d",
+      "from": 1.2,
+      "to": 2.6,
+      "face": "start",
+      "solve": {
+        "smooth": 2
+      },
+      "note": "Soldier jump take-off (plain floor)"
+    },
+    {
+      "name": "land",
+      "video": "cfecf33d",
+      "from": 3,
+      "to": 4.4,
+      "face": "start",
+      "note": "Soldier jump landing"
+    },
+    {
+      "name": "crouch_walk",
+      "video": "b994e900",
+      "from": 1.5,
+      "to": 7,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.8
+      },
+      "note": "Soldier walking in a tactical crouch"
+    },
+    {
+      "name": "run_rifle",
+      "video": "c83a055a",
+      "from": 1,
+      "to": 7,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.5
+      },
+      "note": "Soldier jogging forward holding the rifle"
     }
   ]
 }

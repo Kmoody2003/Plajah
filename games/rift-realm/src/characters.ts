@@ -26,7 +26,8 @@
 //   Both, from the CMU motion-capture library (no video shows them; `source` names the take): strafe_left,
 //     strafe_right, dodge_left, dodge_right (side-step at a run), vault, dive_roll, slide (a duck-under run), draw
 //     (pulling a gun), death (a flip into a fall), get_up.
-//   Nothing yet for hit reactions or reload (in neither the videos nor CMU). Track 3: check rig.has(name) first.
+//   Guns, reloads, hits, deaths, slide/vault/roll come from Kenne's mocap body footage (2026-11-21): reload,
+//   reload_pistol, switch_weapon, rifle_fire, knockdown, crouch_walk, run_rifle are new. Check rig.has(name) first.
 import * as THREE from 'three/webgpu';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';

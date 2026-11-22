@@ -13,7 +13,8 @@ const CAPTURES = path.resolve(root, 'public/games/era-clash/3d/assets/mocap/capt
 const CMU = path.resolve('D:/Plajah Models/mocap/cmu-fbx');
 const TRAIN = path.resolve('D:/Plajah Models/mocap/lifter-data');
 // Rift Realm character clips (labs/mocap/riftBake.ts): source videos, the work folder for raw takes, and the outputs.
-const RR_VIDEOS = path.resolve('D:/plajah game assets deign from promtps/Shooter/Nov 15 - 14_43');
+// Motion videos: the character reels, plus Kenne's motion-capture reference footage (guns, reloads, hits, falls…)
+const RR_VIDEO_DIRS = ['Nov 15 - 14_43', 'motion capture body'].map((d) => path.resolve('D:/plajah game assets deign from promtps/Shooter', d));
 const RR_WORK = path.resolve('D:/rr_work/mocap_t2');
 const RR_OUT = { work: RR_WORK, clips: path.resolve(root, 'public/games/rift-realm/assets/characters/clips'), docs: path.resolve(root, 'docs/rift-realm-mocap') };
 
@@ -46,10 +47,14 @@ export default defineConfig({
         // GET /__rrwork/<path> = D:/rr_work/mocap_t2; POST /__rrsave?to=work|clips|docs&path=<rel> writes the body.
         server.middlewares.use('/__rrvideo', (req, res) => {
           const id = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '');
-          const hit = id && fs.readdirSync(RR_VIDEOS).find((f) => f.endsWith('.mp4') && f.includes(id));
+          let hit = null;
+          for (const d of RR_VIDEO_DIRS) {
+            const f = id && fs.existsSync(d) && fs.readdirSync(d).find((n) => n.endsWith('.mp4') && n.includes(id));
+            if (f) { hit = path.join(d, f); break; }
+          }
           if (!hit) { res.statusCode = 404; res.end(); return; }
           res.setHeader('content-type', 'video/mp4');
-          fs.createReadStream(path.join(RR_VIDEOS, hit)).pipe(res);
+          fs.createReadStream(hit).pipe(res);
         });
         server.middlewares.use('/__rrwork', (req, res) => {
           const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '');

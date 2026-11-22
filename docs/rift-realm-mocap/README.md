@@ -15,6 +15,30 @@ rrBake.bakeFile('void_stalker')    # or bakeFile('robot_paladin'); { only: ['run
 ```
 Then run `scripts/riftrealm/ktxPack.py chars` if the GLBs changed.
 
+## Mocap body footage (2026-11-21)
+
+Kenne's studio reference takes in `D:\plajah game assets deign from promtps\Shooter\motion capture body` (36 clean,
+full-body, plain-background videos). The mocap lab serves them through `/__rrvideo/<hash>` next to the reels. All 36
+were captured (3 passes each; body found in every frame except the sliding run 140/192 and crate vault 157/192). These
+clips now come from that footage on both characters, replacing the CMU and reel proxies:
+
+| clip | video | seconds | grade |
+|---|---|---|---|
+| aim_idle / rifle_aim | 8e1c58e3 Soldier aiming assault rifle | 2.0–5.0 loop | good (hands reach the chest, stock short of the shoulder: forearms point at the camera) |
+| shoot / rifle_fire | ad5f76e1 Soldier firing rifle in stance | 1.5–2.1 / 1.0–4.0 loop | good |
+| pistol_hold / pistol_aim / pistol_shoot | 3084cdd8 Soldier firing pistol | 0.3–1.9 loop / 2.0–2.6 | good |
+| reload / reload_pistol / switch_weapon (new) | 5db86210 / 95edb996 / 2ca130a9 | 0.9–6.6 / 0.9–6.4 / 0.9–6.8 | good |
+| hit / hit_heavy | 7658dcff flinch / 8f48f048 stagger | 0.9–2.2 / 0.9–3.3 | good |
+| knockdown (new) / get_up | ae5947ac knocked back and stands | 0.9–3.1 / 4.0–6.6 | usable / good |
+| death / death_back | 5cf6fb49 collapse / b47ff154 shot falling backwards | 0.9–4.6 / 2.8–5.2 | usable / good |
+| slide / vault / dive_roll | 5c2c32f7 / 269e1775 / 3d2a4c79 | 0.8–4.4 / 2.2–5.0 / 0.9–3.8 | usable / usable / good |
+| jump / land | cfecf33d Soldier jumping | 1.2–2.6 / 3.0–4.4 | good |
+| crouch_walk / run_rifle (new) | b994e900 / c83a055a | 1.5–7.0 loop / 1.0–7.0 loop | good |
+
+Unused so far: the knight takes, stairs runs, martial-arts / boxing / dagger / spear strikes, the hurdle leap and floor
+slide, the sideways run and the walk / run cycles (CMU cycles stay). Not yet wired in the game: reload, switch_weapon,
+crouch_walk, run_rifle, knockdown.
+
 ## Pipeline changes (services/mocap)
 
 - **Shot cuts** (`capture.ts` ShotCuts, `shots.ts` findShots / sliceTake): every captured frame gets a
