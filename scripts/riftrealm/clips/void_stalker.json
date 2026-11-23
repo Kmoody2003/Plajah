@@ -542,6 +542,14 @@
         "blend": 6
       },
       "note": "Character-select stance: fighter standing tall, feet shoulder-width, blade held low and ready (end of the block-strike-counter take)"
+    },
+    {
+      "name": "pray",
+      "video": "d71b3e52",
+      "from": 0.6,
+      "to": 1.25,
+      "face": "start",
+      "note": "Pray: lowers onto one knee, head bowed, both hands held together open at the chest (the opening of the kneel-and-drink studio take, before the scoop rises to the mouth)"
     }
   ]
 }
