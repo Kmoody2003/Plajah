@@ -26,6 +26,8 @@ export interface PreyEnv {
   ground(x: number, z: number): number;
   resolve(p: THREE.Vector3, r: number, h: number): void;
   hurtPlayer(dmg: number, why: string): void;
+  /** How close the player may come before `p` bolts (the soul and the creature's trust change it; danger/bonds.ts). */
+  fearR?(p: Prey, base: number): number;
 }
 
 let nextId = 200000; // apart from enemy (1…) and predator (100000…) ids
@@ -45,6 +47,13 @@ export class Prey {
   home: THREE.Vector3;
   fear = new THREE.Vector3();         // where the scare came from
   kickCd = 0;
+  /** Trust in the player, 0…1 (danger/bonds.ts); bonded at 1. */
+  affinity = 0;
+  bonded = false;
+  /** Seconds spent calmly near the player (sparing it); spared once counted. */
+  calmT = 0; spared = false;
+  /** Walk to this point (a bonded creature bringing a gift); null otherwise. */
+  come: THREE.Vector3 | null = null;
   readonly herd: Herd;
   readonly last = new THREE.Vector3();
   constructor(herd: Herd, at: THREE.Vector3) {
@@ -115,8 +124,8 @@ export class PreyDirector {
   }
 
   /** Everything alarms the herd: a threat at `at` (the player, a predator, a gunshot). */
-  scare(at: THREE.Vector3, r: number) {
-    for (const p of this.list) if (p.alive && p.pos.distanceTo(at) < r) this.bolt(p, at);
+  scare(at: THREE.Vector3, r: number, fromPlayer = false) {
+    for (const p of this.list) if (p.alive && p.pos.distanceTo(at) < r && !(fromPlayer && p.bonded)) this.bolt(p, at);
   }
   private bolt(p: Prey, from: THREE.Vector3) {
     if (p.state === 'flee' && p.t > 1) return;
@@ -178,10 +187,14 @@ export class PreyDirector {
       p.body.glow += (1 - p.body.glow) * Math.min(1, dt * 3);
       // senses: you (crouched you get much closer), predators near
       const pd = p.pos.distanceTo(player);
-      if (p.state !== 'flee' && p.state !== 'stand' && pd < (crouched ? 6 : 16)) this.bolt(p, player);
+      const base = crouched ? 6 : 16, fr = env.fearR ? env.fearR(p, base) : base;
+      if (p.state !== 'flee' && p.state !== 'stand' && pd < fr) this.bolt(p, player);
       for (const t of threats) if (p.state !== 'flee' && t.distanceTo(p.pos) < 20) { this.bolt(p, t); break; }
       let want = 0;
-      if (p.state === 'graze') { if (p.t <= 0) { p.state = 'walk'; p.t = 6; const a = Math.random() * 6.28, r = Math.random() * p.herd.r; p.goal.set(p.herd.x + Math.cos(a) * r, 0, p.herd.z + Math.sin(a) * r); } }
+      if (p.come && p.state !== 'flee' && p.state !== 'stand') {   // walking up to the player (a gift)
+        p.state = 'walk'; p.t = 2; p.goal.copy(p.come); want = p.spec.walk * 2.2;
+        if (Math.hypot(p.come.x - p.pos.x, p.come.z - p.pos.z) < 2.2) { p.come = null; p.state = 'graze'; p.t = 4; want = 0; }
+      } else if (p.state === 'graze') { if (p.t <= 0) { p.state = 'walk'; p.t = 6; const a = Math.random() * 6.28, r = Math.random() * p.herd.r; p.goal.set(p.herd.x + Math.cos(a) * r, 0, p.herd.z + Math.sin(a) * r); } }
       else if (p.state === 'walk') { want = p.spec.walk; if (Math.hypot(p.goal.x - p.pos.x, p.goal.z - p.pos.z) < 1 || p.t <= 0) { p.state = 'graze'; p.t = 3 + Math.random() * 6; } }
       else if (p.state === 'flee') {
         want = p.spec.run;

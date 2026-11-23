@@ -153,18 +153,18 @@ export const inHollow = (x: number, z: number) => Math.abs(x) < 76 && Math.abs(z
 export interface ForagePatch { id: string; x: number; z: number; r: number; n: number; kinds: string[] }
 export const FORAGE: ForagePatch[] = [
   // the hollow: a little help at the edges of the fight, and a trap beside it
-  { id: 'hollow-caps-w', x: -46, z: -10, r: 3, n: 4, kinds: ['lumencap', 'lumencap', 'mimicap'] },
+  { id: 'hollow-caps-w', x: -46, z: -10, r: 3, n: 4, kinds: ['lumencap', 'lumencap', 'mimicap', 'chargecap'] },
   { id: 'hollow-berries-s', x: 14, z: 66, r: 3, n: 4, kinds: ['emberberry', 'ashberry'] },
   { id: 'hollow-pulse-e', x: 66, z: 4, r: 2.5, n: 3, kinds: ['pulsecap', 'dreamcap'] },
   // High Canopy / ruins
-  { id: 'canopy-pulse', x: 30, z: -170, r: 4, n: 5, kinds: ['pulsecap', 'pulsecap', 'dreamcap'] },
+  { id: 'canopy-pulse', x: 30, z: -170, r: 4, n: 5, kinds: ['pulsecap', 'pulsecap', 'dreamcap', 'chargecap'] },
   { id: 'ruins-shell', x: -70, z: -240, r: 4, n: 3, kinds: ['shellfruit', 'muskpod'] },
   // Westwood
-  { id: 'glowcap-caps', x: -412, z: 230, r: 6, n: 8, kinds: ['lumencap', 'mimicap', 'mimicap', 'lumencap', 'pulsecap'] },
+  { id: 'glowcap-caps', x: -412, z: 230, r: 6, n: 8, kinds: ['lumencap', 'mimicap', 'mimicap', 'lumencap', 'pulsecap', 'chargecap', 'chargecap'] },
   { id: 'settlement-berries', x: -380, z: -30, r: 5, n: 6, kinds: ['emberberry', 'emberberry', 'ashberry'] },
   { id: 'village-fruit', x: -300, z: -170, r: 5, n: 5, kinds: ['swiftpod', 'muskpod'] },
   // river, Gorge
-  { id: 'stream-caps', x: 220, z: 140, r: 5, n: 5, kinds: ['lumencap', 'mimicap'] },
+  { id: 'stream-caps', x: 220, z: 140, r: 5, n: 6, kinds: ['lumencap', 'mimicap', 'chargecap'] },
   { id: 'gorge-shell', x: 190, z: 470, r: 5, n: 4, kinds: ['shellfruit', 'shellfruit', 'muskpod'] },
   // Mire, Vale
   { id: 'mire-berries', x: -290, z: 660, r: 6, n: 6, kinds: ['emberberry', 'ashberry', 'ashberry'] },
@@ -172,7 +172,7 @@ export const FORAGE: ForagePatch[] = [
   // the Redwood Ruins
   { id: 'plaza-fury', x: 420, z: -90, r: 5, n: 5, kinds: ['furyberry', 'bloodberry'] },
   { id: 'cathedral-fury', x: 250, z: -405, r: 4, n: 4, kinds: ['furyberry', 'bloodberry', 'bloodberry'] },
-  { id: 'zone10-caps', x: 455, z: -370, r: 4, n: 4, kinds: ['pulsecap', 'dreamcap', 'lumencap'] },
+  { id: 'zone10-caps', x: 455, z: -370, r: 4, n: 4, kinds: ['pulsecap', 'dreamcap', 'lumencap', 'chargecap'] },
 ];
 
 // the forest map reads this when it builds its forest mask (world/index.ts): main.ts imports danger/ at the top, so
@@ -192,6 +192,10 @@ export const DEMO_FORAGE: ForagePatch[] = [
   { id: 'demo-caps', x: -44, z: -14, r: 1.6, n: 4, kinds: ['lumencap', 'mimicap', 'pulsecap', 'dreamcap'] },
   { id: 'demo-berries', x: -40, z: -8, r: 1.6, n: 4, kinds: ['emberberry', 'ashberry', 'furyberry', 'bloodberry'] },
   { id: 'demo-fruit', x: -48, z: -18, r: 1.6, n: 3, kinds: ['swiftpod', 'muskpod', 'shellfruit'] },
+  { id: 'demo-charge', x: -36, z: -20, r: 1.2, n: 2, kinds: ['chargecap'] },
+  // a lone Lumencap across the floor for the mycelium's guidance, and Mimic Caps by the path for its warnings
+  { id: 'demo-guide', x: -62, z: -48, r: 0.5, n: 1, kinds: ['lumencap'] },
+  { id: 'demo-warn', x: -34, z: -30, r: 1.4, n: 3, kinds: ['mimicap', 'dreamcap', 'mimicap'] },
 ];
 export const DEMO_HERDS: Herd[] = [{ id: 'demo-herd', kind: 'deer', x: -56, z: -30, r: 10, n: 3 }];
 

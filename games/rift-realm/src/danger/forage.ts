@@ -29,6 +29,8 @@ export interface ForageEnv {
   /** The musk scent: predators hear/smell you from far away. */
   lure(pos: THREE.Vector3): void;
   hint(text: string, color: string): void;
+  /** Spirit charge for the guns (Chargecap, gifts): the weapons' addCharge. */
+  charge?(n: number, src: string): void;
 }
 
 export interface Item { id: string; kind: string; k: ForageKind; pos: THREE.Vector3; obj: THREE.Group; alive: boolean; regrow: number; smokeT: number }
@@ -54,6 +56,8 @@ export class Forage {
   dmgMul = 1; moveMul = 1;
   shield = 0;
   private view: HTMLElement | null = document.getElementById('view');
+  /** Told after every eat / drink (the soul meter and the mycelium listen): the kind, its entry, known before? */
+  onConsume: ((kind: string, k: ForageKind, knew: boolean) => void) | null = null;
   private v = new THREE.Vector3();
   private geo = {
     stem: new THREE.CylinderGeometry(0.05, 0.08, 1, 7), cap: new THREE.SphereGeometry(0.3, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
@@ -160,7 +164,7 @@ export class Forage {
   /** Apply what eating / drinking `kind` does (forage, meat, water), with its sound, VFX and first-time hint. */
   consume(kind: string, where: THREE.Vector3) {
     const k = this.table[kind]; if (!k) return;
-    const env = this.env;
+    const env = this.env, knew = this.seen.has(kind);
     let hint = this.seen.has(kind) ? '' : k.hint;
     if (k.risk && Math.random() < k.risk.chance) { this.apply(k.risk.effect, k); hint = k.risk.hint; }
     const at = this.v.copy(where).setY(where.y + 0.5);
@@ -174,7 +178,11 @@ export class Forage {
       try { localStorage.setItem(SEEN_KEY, JSON.stringify([...this.seen])); } catch { /* private mode */ }
     }
     env.hint(hint || k.name.toUpperCase(), k.good ? '#7dffb0' : '#fb7185');
+    this.onConsume?.(kind, k, knew);
   }
+
+  /** Pick an item into the bag instead of eating it (danger/inventory.ts): it regrows like an eaten one. */
+  take(it: Item) { it.alive = false; it.obj.visible = false; it.regrow = it.k.respawn; return it.kind; }
 
   private apply(e: ForageKind['effect'], k: ForageKind) {
     const env = this.env, st = env.status;
@@ -189,6 +197,8 @@ export class Forage {
       case 'slow': st.apply('slow', e.seconds, e.amount); break;
       case 'blur': st.buff('blur', 'DAZED', '#b36aff', e.seconds); break;
       case 'lure': st.buff('lure', 'MUSK SCENT', '#ffb0d8', e.seconds); this.lureT = 0; break;
+      case 'charge': env.charge?.(e.amount, 'chargecap'); st.buff('charge', `SPIRIT +${e.amount}`, '#ffe46a', 2.5); break;
+      case 'blessing': st.buff('blessed', 'BLESSED', '#fff0b0', e.seconds); if (e.heal) env.heal(e.heal); break;
     }
   }
 
@@ -206,6 +216,7 @@ export class Forage {
 
   /** Shield (Shellfruit) soaks damage first: returns what gets through. */
   absorb(dmg: number) {
+    if (this.env.status.buffLeft('blessed') > 0) dmg *= 0.75;
     if (this.shield <= 0 || this.env.status.buffLeft('shield') <= 0) { this.shield = 0; return dmg; }
     const took = Math.min(this.shield, dmg);
     this.shield -= took;

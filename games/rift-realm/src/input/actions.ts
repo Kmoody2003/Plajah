@@ -38,7 +38,14 @@ export const RR_ACTIONS: ActionDef[] = [
   { id: 'surge', label: 'Soul Surge (special)', group: 'Specials & weapons', canonical: K('KeyQ'), defaults: [K('Digit4'), M(3)], padCanonical: 3 },
   { id: 'fists', label: 'Gun ⇄ fists', group: 'Specials & weapons', canonical: M(1), defaults: [K('Digit5'), M(1)], padCanonical: 15 },
   // other
-  { id: 'eat', label: 'Eat / drink (hold)', group: 'Other', canonical: K('KeyH'), defaults: [K('KeyH')], padCanonical: 12 },
+  { id: 'eat', label: 'Eat / drink (hold) · take into the bag (tap)', group: 'Other', canonical: K('KeyH'), defaults: [K('KeyH')], padCanonical: 12 },
+  // the living forest (danger/inventory.ts, danger/bonds.ts)
+  { id: 'pray', label: 'Pray (hold)', group: 'Forest', canonical: K('KeyT'), defaults: [K('KeyT')], padCanonical: 10 },
+  { id: 'bag', label: 'Bag (inventory)', group: 'Forest', canonical: K('KeyI'), defaults: [K('KeyI')] },
+  { id: 'quick1', label: 'Quick slot 1', group: 'Forest', canonical: K('Digit6'), defaults: [K('Digit6')] },
+  { id: 'quick2', label: 'Quick slot 2', group: 'Forest', canonical: K('Digit7'), defaults: [K('Digit7')] },
+  { id: 'quick3', label: 'Quick slot 3', group: 'Forest', canonical: K('Digit8'), defaults: [K('Digit8')] },
+  { id: 'quick4', label: 'Quick slot 4', group: 'Forest', canonical: K('Digit9'), defaults: [K('Digit9')] },
   { id: 'view', label: '1st / 3rd person', group: 'Other', canonical: K('KeyV'), defaults: [K('KeyV')], padCanonical: 8 },
   { id: 'realm', label: 'Switch realm', group: 'Other', canonical: K('KeyB'), defaults: [K('KeyB')] },
   { id: 'skip', label: 'Skip song', group: 'Other', canonical: K('KeyN'), defaults: [K('KeyN')] },

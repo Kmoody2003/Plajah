@@ -2,6 +2,8 @@
 // (hazards.ts), status effects (status.ts), their sounds (audio.ts), placed from data the forest map shares (spots.ts).
 // main.ts talks to it through this one object: raycast hits, melee, blasts, gunshot noise, the lock-on list, update.
 // Night (world/skyCycle's clock) opens extra dens and sharpens night-eyed hunters. `?nodanger` turns it all off.
+// The living world on top: the bag (inventory.ts), the soul meter (soul.ts), creature bonds and Pray (bonds.ts), the
+// mycelium network (mycelium.ts), all talking over the forest network (forest.ts) that the trees and ents share.
 import * as THREE from 'three/webgpu';
 import type { CollisionWorld } from '../collision';
 import type { Enemy, EnemyManager } from '../enemies';
@@ -17,6 +19,11 @@ import { EatAction } from './eat';
 import { RIVER, polyNear } from '../world/layout';
 import { Forage } from './forage';
 import { WATER_Y, escarpZ } from '../world/layout';
+import { forest } from './forest';
+import { SoulMeter } from './soul';
+import { Bonds } from './bonds';
+import { Mycelium } from './mycelium';
+import { Inventory } from './inventory';
 
 export interface DangerCtx {
   scene: THREE.Scene;
@@ -53,6 +60,14 @@ export class Danger {
   readonly forage: Forage;
   readonly prey: PreyDirector;
   readonly eat: EatAction;
+  readonly soul: SoulMeter;
+  readonly bonds: Bonds;
+  readonly mycelium: Mycelium;
+  readonly bag: Inventory;
+  readonly forest = forest;
+  private lastCombat = -99;
+  private combatNoteT = 0; private beatT = 0;
+  private hunting = new Set<number>();
   private toast: HTMLDivElement;
   private toastT = 0;
   private clock = 0;
@@ -111,6 +126,7 @@ export class Danger {
     this.prey = new PreyDirector({
       scene: ctx.scene, vfx: ctx.vfx, audio: this.audio, ground,
       resolve: (p, r, h) => col.resolve(p, r, h), hurtPlayer: hurt,
+      fearR: (p, base) => this.bonds ? this.bonds.fearR(p, base) : base,
     }, [...(this.wilds ? HERDS : []), ...(demo ? DEMO_HERDS : [])]);
     const patches = [...(this.wilds ? FORAGE : FORAGE.filter((f) => inHollow(f.x, f.z))), ...(demo ? DEMO_FORAGE : [])];
     this.forage = new Forage({
@@ -119,6 +135,7 @@ export class Danger {
       hurt, addResonance: ctx.addResonance,
       lure: (pos) => { this.predators.noise(pos, 110); this.predators.scent(pos); },
       hint: (text, col) => { this.toast.textContent = text; this.toast.style.color = col; this.toast.style.opacity = '1'; this.toastT = text.length > 24 ? 5 : 1.6; },
+      charge: (n, src) => this.charge(n, src),
     }, patches);
     const toxicPools = hazards.filter((h) => h.kind === 'toxic');
     this.eat = new EatAction({
@@ -138,7 +155,60 @@ export class Danger {
         return null;
       },
     });
+    // ── the living world ──
+    const say = (t: string, c: string) => this.ctx.say(t, c);
+    this.soul = new SoulMeter(ctx.player, ctx.vfx, (t, c) => this.hint(t, c));
+    this.mycelium = new Mycelium({
+      scene: ctx.scene, vfx: ctx.vfx, audio: this.audio, status: this.status, player: ctx.player, forage: this.forage, soul: this.soul, lo: ctx.lo, ground,
+      charge: (n, src) => this.charge(n, src),
+      chargeFrac: () => { const w = (ctx.player as unknown as { weapons?: { getCharge?: () => { frac: number } } }).weapons; return w?.getCharge?.()?.frac ?? null; },
+      hurt, say: (t, c) => this.hint(t, c),
+      hazardFungi: () => hazards.filter((h) => h.kind === 'fungi' || h.kind === 'spores').map((h) => ({ x: h.x, y: ground(h.x, h.z), z: h.z, kind: h.kind })),
+      sinceCombat: () => this.clock - this.lastCombat,
+    });
+    this.bag = new Inventory({
+      scene: ctx.scene, player: ctx.player, forage: this.forage, ground,
+      channel: (kind, done) => this.eat.channel(kind, done),
+      say,
+      status: () => {
+        const s = this.soul.value, b = this.bonds.bonded();
+        return [
+          `Soul: <b style="color:${s >= 30 ? '#ffe9a0' : s <= -30 ? '#c08cff' : '#cfd8e6'}">${s >= 30 ? 'Light' : s <= -30 ? 'Dark' : 'Balanced'} (${s > 0 ? '+' : ''}${Math.round(s)})</b>`,
+          `Mycelium connection: <b style="color:#8aff9a">${['none', 'I', 'II', 'III', 'IV'][this.mycelium.level]}</b> · ${this.mycelium.eaten} healthy mushrooms eaten`,
+          `Bonded creatures: ${b.length ? b.map((p) => p.who).join(', ') : 'none yet · Pray (hold T) near a calm creature, or defend one'}`,
+        ];
+      },
+    });
+    this.eat.setBag(this.bag);
+    this.bonds = new Bonds({
+      player: ctx.player, prey: this.prey, soul: this.soul, vfx: ctx.vfx, audio: this.audio, status: this.status, busy: ctx.busy,
+      heal: (n) => { const p = ctx.player; if (!p.downed) p.hp = Math.min(p.maxHp, p.hp + n); },
+      charge: (n, src) => this.charge(n, src),
+      reveal: (sec) => this.mycelium.reveal(sec),
+      give: (kind) => this.bag.add(kind, true),
+      say,
+      loud: () => this.clock - this.lastCombat < 3,
+    });
+    // eating: the soul and the mycelium both care what you eat
+    this.forage.onConsume = (kind, k, knew) => {
+      const pp = ctx.player.object.position;
+      if (k.good && k.shape === 'cap') { this.soul.deed('eat-good', pp); this.mycelium.ateGood(); }
+      else if (!k.good && knew && k.shape !== 'water') this.soul.deed('eat-poison', pp);
+    };
   }
+
+  /** The centre toast (hints, soul changes, mycelium news). */
+  hint(text: string, col: string) { this.toast.textContent = text; this.toast.style.color = col; this.toast.style.opacity = '1'; this.toastT = text.length > 24 ? 5 : 1.6; }
+
+  /** Spirit charge for the guns (the weapons' addCharge, when they have it). */
+  charge(n: number, src: string) {
+    const w = (this.ctx.player as unknown as { weapons?: { addCharge?: (n: number, src: string) => number } }).weapons;
+    const g = globalThis as unknown as { __rr?: { weapons?: { addCharge?: (n: number, src: string) => number } } };
+    (w?.addCharge ?? g.__rr?.weapons?.addCharge)?.call(w ?? g.__rr?.weapons, n, src);
+    this.chargeGiven += n;
+  }
+  /** Total spirit charge handed to the weapons this session (debug). */
+  chargeGiven = 0;
   private nightFn: () => number;
   /** 0 by day … 1 at night. */
   get night() { return this.nightFn(); }
@@ -173,7 +243,11 @@ export class Danger {
     const qid = obj.userData.preyId as number | undefined;
     if (qid !== undefined) {   // a prey animal: no XP, but a carcass to eat
       if (qid < 0) return null;
+      const q = this.prey.list.find((x) => x.id === qid);
+      const wasHurt = !!q && q.hp < q.maxHp, wasFleeing = q?.state === 'flee', trusted = !!q && (q.bonded || q.affinity > 0.5);
       const r = this.prey.damage(qid, dmg, from);
+      this.lastCombat = this.clock;
+      if (r && q) { if (r.killed) { if (trusted) q.bonded = true; this.bonds.killed(q); } else this.bonds.struck(q, wasHurt, wasFleeing); }
       if (r?.killed) this.ctx.say(`${r.p.who.toUpperCase()} DOWN · HOLD [H] TO EAT`, '#ffb366');
       return r ? { killed: r.killed, pos: r.pos } : null;
     }
@@ -183,6 +257,10 @@ export class Danger {
   }
   private damageId(id: number, dmg: number, from: THREE.Vector3 | null, knock = 0) {
     const prey: Prey = { pos: this.ctx.player.object.position, enemy: null };
+    const pr = this.predators.list.find((p) => p.id === id);
+    const quarry = pr?.target?.quarry ? this.prey.list.find((q) => q === (pr.target!.quarry as unknown)) ?? null : null;
+    if (pr) this.bonds.defended(pr.pos, quarry);
+    this.lastCombat = this.clock;
     const r = this.predators.damage(id, dmg, from, knock, true, prey);
     if (r?.killed) this.ctx.onKill(r.p.spec.xp, r.p.who, r.pos.clone());
     return r;
@@ -192,6 +270,7 @@ export class Danger {
   melee(pos: THREE.Vector3, forward: THREE.Vector3, dmg: number, reach = 3.6) {
     const out: { killed: boolean; pos: THREE.Vector3 }[] = [];
     dmg = Math.round(dmg * this.dmgMul);
+    this.lastCombat = this.clock;
     for (const p of [...this.predators.list]) {
       if (!p.alive) continue;
       const to = this.v.subVectors(p.pos, pos).setY(0), d = to.length();
@@ -206,8 +285,9 @@ export class Danger {
       if (d > reach + 0.4) continue;
       if (d > 0.01) to.divideScalar(d);
       if (forward.dot(to) < 0.25 && d > 1.3) continue;
+      const wasHurt = q.hp < q.maxHp, wasFleeing = q.state === 'flee', trusted = q.bonded || q.affinity > 0.5;
       const r = this.prey.damage(q.id, dmg, pos);
-      if (r) out.push({ killed: r.killed, pos: r.pos });
+      if (r) { out.push({ killed: r.killed, pos: r.pos }); if (r.killed) { if (trusted) q.bonded = true; this.bonds.killed(q); } else this.bonds.struck(q, wasHurt, wasFleeing); }
     }
     return out;
   }
@@ -221,7 +301,11 @@ export class Danger {
   }
 
   /** A gunshot (or any loud sound) predators may hear. */
-  noise(pos: THREE.Vector3, r = 60) { this.predators.noise(pos, r); this.prey.scare(pos, r * 0.8); }
+  noise(pos: THREE.Vector3, r = 60) {
+    this.predators.noise(pos, r); this.prey.scare(pos, r * 0.8, true);
+    this.lastCombat = this.clock;
+    if (this.combatNoteT <= 0) { this.combatNoteT = 0.5; forest.notify('combat', pos, { loud: r }, 'player'); }
+  }
 
   /** The rift's creatures plus the live predators, for targeting / lock-on (predators carry the same fields). */
   foes(enemies: Enemy[]): Enemy[] {
@@ -247,7 +331,8 @@ export class Danger {
   absorb(dmg: number) { return Math.round(this.forage.absorb(dmg)); }
 
   update(dt: number) {
-    this.clock += dt; this.sayT -= dt;
+    this.clock += dt; this.sayT -= dt; this.combatNoteT -= dt;
+    forest.tick(dt);
     const pl = this.ctx.player, pp = pl.object.position;
     this.audio.listen(this.ctx.camera);
     // footsteps and scent from the player's own movement
@@ -280,6 +365,17 @@ export class Danger {
     this.predators.update(dt, pp, pl.crouched, spd > 10, pl.downed || !pl.enabled, this.ctx.enemies.enemies);
     this.prey.update(dt, pp, pl.crouched, this.predators.list.filter((p) => p.alive && p.pos.distanceToSquared(pp) < 200 * 200).map((p) => p.pos));
     this.eat.update(dt);
+    // the living world
+    this.bonds.update(dt);
+    this.mycelium.update(dt);
+    this.bag.update(dt);
+    this.soul.update(dt, pl.enabled);
+    if ((this.beatT -= dt) <= 0) { this.beatT = 2; forest.notify('player', pp, { soul: this.soul.soul }, 'player'); }
+    for (const p of this.predators.list) {                 // a predator starts hunting the player: the network hears
+      const on = p.alive && p.engaged && !p.target?.enemy && !p.target?.quarry;
+      if (on && !this.hunting.has(p.id)) forest.notify('predator', p.pos, { kind: p.who, name: p.who, state: p.state }, 'predator');
+      if (on) this.hunting.add(p.id); else this.hunting.delete(p.id);
+    }
     if (pl.downed) this.status.clear();
   }
 
@@ -289,7 +385,13 @@ export class Danger {
   herd(kind: 'deer' | 'stag', x: number, z: number, n = 3) { return this.prey.spawnHerd(kind, x, z, n); }
 
   /** Debug (window.__rr.danger). */
-  debug() { return { night: +this.night.toFixed(2), predators: this.predators.info(), hazards: this.hazards.info().length, forage: this.forage.info(), prey: this.prey.info() }; }
+  debug() {
+    return {
+      night: +this.night.toFixed(2), predators: this.predators.info(), hazards: this.hazards.info().length, forage: this.forage.info(), prey: this.prey.info(),
+      soul: Math.round(this.soul.value), mycelium: this.mycelium.info(), bag: this.bag.slots.map((s) => `${s.kind}×${s.n}`), quick: [...this.bag.quick],
+      bonds: this.prey.list.filter((p) => p.affinity > 0).map((p) => `${p.who}:${p.affinity.toFixed(2)}${p.bonded ? '*' : ''}`), charge: Math.round(this.chargeGiven),
+    };
+  }
 }
 
 /** The danger layer for levels that have one (Elderwood and its Wilds), or null. */

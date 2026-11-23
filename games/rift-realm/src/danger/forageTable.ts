@@ -6,7 +6,7 @@
 // The first time you eat a kind, a hint names it and its tell. A Studio or saved override (localStorage
 // 'rrForageTable', a JSON object of kind → partial entry) merges over these defaults.
 
-export type ForageShape = 'cap' | 'berries' | 'fruit' | 'meat' | 'water';
+export type ForageShape = 'cap' | 'berries' | 'fruit' | 'meat' | 'water' | 'gift';
 export type GlowRhythm = 'breath' | 'steady' | 'beat' | 'offbeat' | 'flicker' | 'twinkle';
 export type ForageTell = 'none' | 'ring' | 'seam' | 'spines' | 'smoke';
 export type ForageEffect =
@@ -19,7 +19,9 @@ export type ForageEffect =
   | { kind: 'poison'; seconds: number; dmg?: number }        // damage over time (+ an instant bite)
   | { kind: 'slow'; amount: number; seconds: number }
   | { kind: 'blur'; seconds: number }                        // blurred, swimming vision
-  | { kind: 'lure'; seconds: number };                       // a scent that draws predators
+  | { kind: 'lure'; seconds: number }                         // a scent that draws predators
+  | { kind: 'charge'; amount: number }                       // spirit charge for the guns (weapons' addCharge)
+  | { kind: 'blessing'; seconds: number; heal?: number };    // a creature's gift: hits soften by a quarter
 
 export interface ForageKind {
   name: string;
@@ -60,6 +62,9 @@ export const FORAGE_KINDS: Record<string, ForageKind> = {
   water: { name: 'Clear Water', good: true, shape: 'water', color: 0x1a4a6a, glow: 0x8fd8ff, rhythm: 'steady', tell: 'none', effect: { kind: 'regen', amount: 12, seconds: 4 }, hint: 'Clear water: a little heal. Streams, falls and clean pools.', respawn: 0, eat: 1.2 },
   swampwater: { name: 'Swamp Water', good: false, shape: 'water', color: 0x2a3a14, glow: 0x6a8a2a, rhythm: 'steady', tell: 'none', effect: { kind: 'poison', seconds: 5 }, hint: 'Swamp water: makes you sick. Drink from running water instead.', respawn: 0, eat: 1.2 },
   toxicwater: { name: 'Toxic Water', good: false, shape: 'water', color: 0x2a4a0c, glow: 0x8cff2a, rhythm: 'steady', tell: 'none', effect: { kind: 'poison', seconds: 10, dmg: 8 }, hint: 'Toxic water: poison. The glowing green pools are never safe.', respawn: 0, eat: 1.2 },
+  // ── spirit: charge mushrooms (the fungi that hold spirit energy) and what bonded creatures give ──
+  chargecap: { name: 'Chargecap', good: true, shape: 'cap', color: 0x2a2408, glow: 0xffe46a, rhythm: 'beat', tell: 'none', effect: { kind: 'charge', amount: 40 }, hint: 'Chargecap: spirit charge for your gun. Gold gills that pulse on the beat; spirit motes rise off it.', respawn: 100 },
+  spiritgift: { name: 'Spirit Gift', good: true, shape: 'gift', color: 0x3a3424, glow: 0xfff0b0, rhythm: 'breath', tell: 'none', effect: { kind: 'blessing', seconds: 30, heal: 20 }, hint: 'Spirit Gift: from a creature that trusts you. Heals a little and softens hits for 30 s.', respawn: 0, eat: 0.8 },
   shellfruit: { name: 'Shellfruit', good: true, shape: 'fruit', color: 0x3a4a5a, glow: 0x8fd8ff, rhythm: 'steady', tell: 'none', effect: { kind: 'shield', amount: 40, seconds: 20 }, hint: 'Shellfruit: a 40-point shield for 20 s.', respawn: 120 },
 };
 
