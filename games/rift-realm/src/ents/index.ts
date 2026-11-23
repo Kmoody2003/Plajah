@@ -247,7 +247,7 @@ export class Ents {
     ent.rooted = mode === 'stand';
     ent.update(0);
     this.group.add(ent.root);
-    const g: Guard = { id: this.nextId++, kind: warden.id, hp: Math.round(6000 * warden.scale), maxHp: Math.round(6000 * warden.scale), sigCd: 3, follow: null, ent, mode, home: p.clone(), think: 0, cd: 0, threatCd: 0, idleT: 0, pauseT: 0, stirT: 60 + this.R() * 80, tendAt: null, fighting: false, warned: false, lastSaid: -99, impostor: null, lod: 0 };
+    const g: Guard = { id: this.nextId++, kind: warden.id, hp: Math.round(150 * warden.height), maxHp: Math.round(150 * warden.height), sigCd: 3, follow: null, ent, mode, home: p.clone(), think: 0, cd: 0, threatCd: 0, idleT: 0, pauseT: 0, stirT: 60 + this.R() * 80, tendAt: null, fighting: false, warned: false, lastSaid: -99, impostor: null, lod: 0 };
     ent.onStep = (side, at) => this.footfall(g, at);
     ent.onAct = (kind, at, phase, move) => this.acted(g, kind, at, phase, move);
     ent.avoid = (pt) => {

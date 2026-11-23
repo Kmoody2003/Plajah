@@ -70,9 +70,14 @@ export class Ent {
   readonly scale: number;
 
   constructor(seed: number, private ground: (x: number, z: number) => number, x: number, z: number, yaw: number, lo = false, warden: Warden = WARDENS[0]) {
-    this.warden = warden; this.scale = warden.scale;
+    this.warden = warden;
     this.model = buildEntModel(seed, { lo, look: warden.look });
     this.root = this.model.root;
+    // measure the grown body (feet to crown top, standing pose) and size it to the warden's height, ±1 % per individual
+    this.root.updateMatrixWorld(true);
+    const grown = Math.max(1, new THREE.Box3().setFromObject(this.root).max.y);
+    const jitter = 1 + (((seed * 9301 + 49297) % 233280) / 233280 - 0.5) * 0.02;
+    this.scale = (warden.height * jitter) / grown;
     this.root.scale.setScalar(this.scale);
     this.maxSpeed *= this.scale;
     this.yaw = yaw;

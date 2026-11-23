@@ -1,6 +1,6 @@
 // Vesselbound (Rift Realm) — the twelve Grovewardens: Kenne's reference set
 // (D:/plajah game assets deign from promtps/Shooter/Grovewardens: a turnaround sheet, a turntable, a walking study and
-// fight clips for each). One record per warden: its look (what model.ts grows), its scale and its signature move
+// fight clips for each). One record per warden: its look (what model.ts grows), its height and its signature move
 // (index.ts MOVES), taken from its fight clip and expanded so it plays as a game move rather than a copy of the clip.
 //
 // Pass 1 is parametric: the shared grown body (model.ts) dressed per warden from its sheet: bark, crown, moss, flowers,
@@ -35,8 +35,8 @@ export interface WardenLook {
 export interface Warden {
   id: string;
   name: string;
-  /** Height multiple of the 46 m base body. */
-  scale: number;
+  /** Standing height to the top of its crown, metres (35–45; each warden its own). Each individual varies ±1 %; targets keep a margin for the crouch so every pose stays in 35–45 m. */
+  height: number;
   look: WardenLook;
   /** Its own move (index.ts MOVES key), from its fight clip. */
   signature: string;
@@ -56,40 +56,40 @@ const OAK_LOOK: WardenLook = {
 };
 
 export const WARDENS: Warden[] = [
-  { id: 'ancient-oak', name: 'Ancient Oak', scale: 1, weight: 3, signature: 'root-grapple',
+  { id: 'ancient-oak', name: 'Ancient Oak', height: 41, weight: 3, signature: 'root-grapple',
     look: { ...OAK_LOOK, crownScale: 1.45 },
     refs: [G + 'Oak_tree_guardian_character_turn…_dee6184e.jpg', G + 'Colossal_tree_giant_character_tu…_32746fcb.jpg', G + 'Oak_tree_rotating_on_turntable_a8578dce.mp4', G + 'Ancient_oak_tree_walking_dc45466a.mp4', G + 'Oak_knight_fights_titan_monster_2533bf9c.mp4', G + 'Forest_guardian_tending_sapling_309cc60b.mp4'] },
-  { id: 'banyan', name: 'Banyan', scale: 1, weight: 1, signature: 'root-cage',
+  { id: 'banyan', name: 'Banyan', height: 38.4, weight: 1, signature: 'root-cage',
     look: { ...OAK_LOOK, bark: 0x6b5e3e, veins: 0xffa830, veinStrength: 0.9, crown: 'flat', crownTint: 0x9cc070, crownScale: 1.2, moss: [0x4a3a22, 0x7a6440], mossLen: 1.6, mossAmount: 1.3, flowers: [], flowerAmount: 0, heart: 0xffa020, eyes: 0xffb030, saplings: 0 },
     refs: [G + 'Banyan_tree_guardian_turnaround_…_077270c7.jpg', G + 'Banyan_root_tree_guardian_rotation_152c0cf4.mp4', G + 'Banyan_tree_guardian_trapping_mo…_d0b2bd13.mp4'] },
-  { id: 'baobab', name: 'Baobab', scale: 0.88, weight: 1, signature: 'chest-slam',
+  { id: 'baobab', name: 'Baobab', height: 36.2, weight: 1, signature: 'chest-slam',
     look: { ...OAK_LOOK, barkWash: [0xa8a290, 0.5], bark: 0x8a8270, veins: 0x9cff6a, veinStrength: 0.25, barkMoss: 0x6a7a40, barkMossAmount: 0.4, crown: 'flat', crownTint: 0x8cbc60, crownScale: 0.85, moss: [0x5a5a3a, 0x9a9a6a], mossLen: 1.3, mossAmount: 0.5, flowers: [0xfff2d0], flowerAmount: 0.2, bulk: 1.55, belly: 1, limbs: 1.25, saplings: 0 },
     refs: [G + 'Baobab_tree_guardian_character_s…_c1d2dcd4.jpg', G + 'Baobab_tree_walking_through_forest_84b3d616.mp4', G + 'Baobab_titan_slams_chest_402b52e7.mp4'] },
-  { id: 'bioluminescent', name: 'Bioluminescent', scale: 1, weight: 1, signature: 'lumen-pulse',
+  { id: 'bioluminescent', name: 'Bioluminescent', height: 37.9, weight: 1, signature: 'lumen-pulse',
     look: { ...OAK_LOOK, bark: 0x3a3450, veins: 0x40c8ff, veinStrength: 1.6, barkMoss: 0x403a70, barkMossAmount: 0.5, crown: 'glow', crownTint: 0x80b0ff, crownScale: 1.1, crownGlow: 0x48d8ff, moss: [0x2a2450, 0x7a60ff], mossLen: 0.8, mossAmount: 0.5, flowers: [0x48d8ff, 0xa070ff, 0x80ffff], flowerAmount: 1.2, eyes: 0x60e0ff, saplings: 0 },
     refs: [G + 'Character_turnaround_of_tree_gua…_23e2658a.jpg', G + 'Bioluminescent_tree_guardian_rot…_296352f4.mp4'] },
-  { id: 'cherry-blossom', name: 'Cherry Blossom', scale: 0.95, weight: 1, signature: 'petal-storm',
+  { id: 'cherry-blossom', name: 'Cherry Blossom', height: 37, weight: 1, signature: 'petal-storm',
     look: { ...OAK_LOOK, bark: 0x4a3a34, veins: 0xff8ac0, veinStrength: 0.4, barkMoss: 0x5a6a3a, barkMossAmount: 0.3, crown: 'blossom', crownTint: 0xffb8d8, crownScale: 1.25, moss: [0xd07a9a, 0xffd0e4], mossLen: 1.2, mossAmount: 0.6, flowers: [0xffc0d8, 0xffe0ec, 0xff9ec2], flowerAmount: 1.8, eyes: 0xffa0c0, saplings: 0 },
     refs: [G + 'Cherry_blossom_tree_guardian_tur…_1702804e.jpg', G + 'Cherry_blossom_tree_video_rotation_ac890f61.mp4', G + 'Hero_fighting_demons_amid_petals_cfd20b36.mp4'] },
-  { id: 'fungal-spore', name: 'Fungal Spore', scale: 0.95, weight: 1, signature: 'spore-burst',
+  { id: 'fungal-spore', name: 'Fungal Spore', height: 36.6, weight: 1, signature: 'spore-burst',
     look: { ...OAK_LOOK, bark: 0x5a4434, veins: 0xff8a30, veinStrength: 0.4, barkMoss: 0x6a5030, barkMossAmount: 0.5, crown: 'cap', crownTint: 0x8a9a50, crownScale: 0.6, moss: [0x4a3424, 0x9a7050], mossLen: 0.8, mossAmount: 0.6, flowers: [0xa070ff], flowerAmount: 0.3, eyes: 0xff9040, caps: { count: 46, color: 0xe07030, glow: 0xff9a40 }, saplings: 0 },
     refs: [G + 'Fungal_tree_guardian_turnaround_…_a67c309d.jpg', G + 'Fungal_spore_tree_guardian_rotating_9f145850.mp4', G + 'Fungal_tree_guardian_walking_slowly_3012efcf.mp4'] },
-  { id: 'ironwood-thorn', name: 'Ironwood Thorn', scale: 1, weight: 1, signature: 'thorn-field',
+  { id: 'ironwood-thorn', name: 'Ironwood Thorn', height: 40.1, weight: 1, signature: 'thorn-field',
     look: { ...OAK_LOOK, bark: 0x3a2a26, veins: 0xff3020, veinStrength: 1.1, barkMoss: 0x2a2020, barkMossAmount: 0.1, crown: 'antler', crownTint: 0x3a2a26, crownScale: 1, moss: [0x2a1a18, 0x4a2a24], mossLen: 0.6, mossAmount: 0.15, flowers: [], flowerAmount: 0, bulk: 1.1, limbs: 1.1, eyes: 0xff4020, heart: 0xff2a10, spikes: { count: 70, color: 0x2a1c18, glow: 0xff3a1a }, saplings: 0 },
     refs: [G + 'Ironwood_thorn_guardian_characte…_2c54e818.jpg', G + 'Ironwood_thorn_tree_rotation_71e97062.mp4', G + 'Ironwood_tree_guardian_walking_081f5a67.mp4', G + 'Guardian_impaling_demons_and_titan_5a46995e.mp4', G + 'Hero_fighting_with_ironwood_spikes_602252d6.mp4'] },
-  { id: 'pine-sentinel', name: 'Pine Sentinel', scale: 1.08, weight: 1, signature: 'sap-wave',
+  { id: 'pine-sentinel', name: 'Pine Sentinel', height: 43, weight: 1, signature: 'sap-wave',
     look: { ...OAK_LOOK, bark: 0x4a3a2c, veins: 0xffb030, veinStrength: 0.7, barkMoss: 0x3a5a2a, barkMossAmount: 0.6, crown: 'cone', crownTint: 0x3a6a34, crownScale: 1.1, moss: [0x24381a, 0x5a7a34], mossLen: 1.1, mossAmount: 1.1, flowers: [], flowerAmount: 0, eyes: 0xffb030, spikes: { count: 60, color: 0x2e4a22, glow: 0x000000 }, saplings: 1 },
     refs: [G + 'Pine_tree_guardian_character_tur…_c2d27e6e.jpg', G + 'Pine_needle_tree_guardian_rotation_5dfded59.mp4', G + 'Pine_sentinel_battles_demon_hordes_c3c823dc.mp4'] },
-  { id: 'sequoia', name: 'Giant Sequoia', scale: 1.18, weight: 1, signature: 'titan-hammer',
+  { id: 'sequoia', name: 'Giant Sequoia', height: 44, weight: 1, signature: 'titan-hammer',
     look: { ...OAK_LOOK, barkWash: [0xa4583a, 0.35], bark: 0x8a4a30, veins: 0xffb060, veinStrength: 0.35, barkMoss: 0x4a6a2a, barkMossAmount: 0.35, crown: 'fronds', crownTint: 0x6a9a48, crownScale: 1.1, moss: [0x3a4a1a, 0x7a8a3a], mossLen: 1.2, mossAmount: 0.8, flowers: [], flowerAmount: 0, bulk: 1.15, limbs: 1.15, saplings: 1 },
     refs: [G + 'Giant_sequoia_character_turnarou…_444a2e1d.jpg', G + 'Redwood_sequoia_tree_rotation_video_321f24dd.mp4', G + 'Sequoia_tree_walking_in_forest_a1229d80.mp4'] },
-  { id: 'swamp-mangrove', name: 'Swamp Mangrove', scale: 0.95, weight: 1, signature: 'bog-drag',
+  { id: 'swamp-mangrove', name: 'Swamp Mangrove', height: 37.4, weight: 1, signature: 'bog-drag',
     look: { ...OAK_LOOK, bark: 0x4a4230, veins: 0x9cff6a, veinStrength: 0.35, barkMoss: 0x4a5a2a, barkMossAmount: 0.9, crown: 'mangrove', crownTint: 0x88a860, crownScale: 0.95, moss: [0x2a3a1a, 0x6a7a3a], mossLen: 1.4, mossAmount: 1.2, flowers: [], flowerAmount: 0, roots: { toes: 11, reach: 1.9 }, saplings: 0 },
     refs: [G + 'Tree_guardian_character_turnarou…_75fcbe49.jpg', G + 'Swamp_mangrove_tree_rotation_05c5da35.mp4', G + 'Swamp_tree_guardian_walking_forest_5bfb8b41.mp4'] },
-  { id: 'weeping-willow', name: 'Weeping Willow', scale: 0.98, weight: 1, signature: 'vine-lash',
+  { id: 'weeping-willow', name: 'Weeping Willow', height: 39.2, weight: 1, signature: 'vine-lash',
     look: { ...OAK_LOOK, bark: 0x5a5030, veins: 0x9cff6a, veinStrength: 0.6, barkMoss: 0x6a8a3a, barkMossAmount: 0.8, crown: 'willow', crownTint: 0x9ad870, crownScale: 1.2, moss: [0x4a6a24, 0xaed870], mossLen: 2.2, mossAmount: 1.6, flowers: [], flowerAmount: 0, eyes: 0xc0ff70, saplings: 0 },
     refs: [G + 'Willow_tree_guardian_character_s…_ff030eb9.jpg', G + 'Weeping_willow_tree_rotation_85577c86.mp4', G + 'Willow_tree_guardian_walking_forest_db330ed9.mp4', G + 'Willow_tree_guardian_battling_de…_57700bef.mp4'] },
-  { id: 'white-birch', name: 'White Birch', scale: 0.95, weight: 1, signature: 'blizzard',
+  { id: 'white-birch', name: 'White Birch', height: 42, weight: 1, signature: 'blizzard',
     look: { ...OAK_LOOK, barkWash: [0xeceae4, 0.72], bark: 0xd8d4cc, veins: 0x8fe8ff, veinStrength: 0.5, barkMoss: 0xf0f6ff, barkMossAmount: 0.55, crown: 'bare', crownTint: 0xe8f2ff, crownScale: 1.1, moss: [0xc8d8e8, 0xffffff], mossLen: 0.7, mossAmount: 0.4, flowers: [], flowerAmount: 0, eyes: 0x9ff0ff, saplings: 0 },
     refs: [G + 'Tree_guardian_character_turnarou…_a8d1fb3b.jpg', G + 'White_birch_tree_rotating_529a7956.mp4', G + 'Tree_guardian_unleashing_blizzard_d5d5f856.mp4'] },
 ];
