@@ -71,6 +71,8 @@ export class Targeting {
   losFrom: ((out: THREE.Vector3) => THREE.Vector3) | null = null;
   /** Aim assist (the bullet magnet) applies: controller / touch aim. A mouse aims raw. */
   assistOn = false;
+  /** Cursor aim: the crosshair sits where the mouse points (normalised), or null for a centred crosshair. */
+  cursor: { x: number; y: number } | null = null;
 
   setView(firstPerson: boolean, losFrom: ((out: THREE.Vector3) => THREE.Vector3) | null) {
     this.profile = firstPerson ? VIEW_PROFILES.first : VIEW_PROFILES.third;
@@ -173,7 +175,8 @@ export class Targeting {
       }
     }
     const a = 1 - Math.exp(-dt * (this.locked ? 18 : 12));
-    this.aimX += (gx - this.aimX) * a; this.aimY += (gy - this.aimY) * a;
+    if (this.cursor && !this.locked) { this.aimX = this.cursor.x; this.aimY = this.cursor.y; } // the crosshair is the mouse
+    else { this.aimX += (gx - this.aimX) * a; this.aimY += (gy - this.aimY) * a; }
     this.placeReticle();
     this.draw();
   }
@@ -188,6 +191,7 @@ export class Targeting {
    *  A locked target is hit dead centre. `moving` is kept for callers; the crosshair already leans more on the run. */
   assist(origin: THREE.Vector3, dir: THREE.Vector3, _moving = 0) {
     if (this.locked) return dir.copy(this.aimPoint(this.locked, this.v).sub(origin).normalize());
+    if (this.cursor) return dir; // cursor aim: the player's aim ray already goes through the cursor
     if (this.soft && this.profile.magnet > 0 && this.assistOn) {
       // the crosshair is on (or just off) the marked enemy: the shot lands on it
       const p = this.aimPoint(this.soft, this.d).project(this.camera);
@@ -214,7 +218,7 @@ export class Targeting {
       const top = p.clone(); top.y += half; top.project(cam);
       p.y -= half; p.project(cam);
       if (p.z > 1 || p.z < -1) continue;                                   // behind or past the far plane
-      const sx = p.x * cam.aspect, y0 = p.y, y1 = top.y;                   // square screen units
+      const sx = (p.x - this.aimX) * cam.aspect, y0 = p.y - this.aimY, y1 = top.y - this.aimY; // square screen units, from the crosshair
       const dy = y0 > 0 ? y0 : y1 < 0 ? y1 : 0;                            // 0 when the crosshair is between feet and head
       const off = Math.hypot(sx, dy);
       const P = this.profile;

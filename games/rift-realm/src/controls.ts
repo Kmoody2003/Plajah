@@ -29,6 +29,8 @@ export interface InputState {
   isTouchActive: boolean;
   /** The last aim input came from a controller stick (aim assist applies) rather than the mouse (raw aim). */
   padAim: boolean;
+  /** Cursor aim (third person): where the mouse points over the game, normalised -1..1 (x right, y up), or null. */
+  cursor: { x: number; y: number } | null;
 }
 
 export class UnifiedControls {
@@ -47,7 +49,17 @@ export class UnifiedControls {
   /** Where the cursor is over the game (client px) and whether it's inside it: without pointer lock the cursor runs
    *  into the window edge and mouse movement stops, so resting it near a side keeps turning (edge turn). */
   private curX = 0; private curY = 0; private cursorIn = false;
-  private hoverLook = true; // the view follows the mouse from the start: no click needed to turn (pointer lock, when granted, takes over)
+  private hoverLook = true;
+  private cursorNdc(): { x: number; y: number } | null {
+    if (!this.cursorAim || this.isTouchDevice || document.pointerLockElement || this.padAim) return null;
+    const r = this.surface.getBoundingClientRect();
+    if (!r.width || !r.height) return null;
+    const x = THREE_CLAMP(((this.curX - r.left) / r.width) * 2 - 1), y = THREE_CLAMP(-(((this.curY - r.top) / r.height) * 2 - 1));
+    return { x, y };
+  }
+  /** Cursor aim (main.ts sets it: third person): the mouse moves the crosshair, the camera turns with A / D and the
+   *  screen edges, and no pointer lock is taken. */
+  cursorAim = false; // the view follows the mouse from the start: no click needed to turn (pointer lock, when granted, takes over)
 
   private queuedJump = false;
   private queuedDash = false;
@@ -104,7 +116,7 @@ export class UnifiedControls {
       // the mouse already turns the view without a click (hoverLook); a click only fires / strikes, never drag-looks
       if (!this.hoverLook) { dragging = true; lastX = e.clientX; lastY = e.clientY; }
       // like Ravencrest / Era Clash: a click on the scene (re)takes the pointer lock for always-on mouse look
-      if (!this.isTouchDevice) (this.surface.requestPointerLock?.() as Promise<void> | undefined)?.catch?.(() => { this.hoverLook = true; /* refused: look follows the mouse without a drag */ });
+      if (!this.isTouchDevice && !this.cursorAim) (this.surface.requestPointerLock?.() as Promise<void> | undefined)?.catch?.(() => { this.hoverLook = true; /* refused: look follows the mouse without a drag */ });
     });
     document.addEventListener('pointerlockerror', () => { this.hoverLook = true; });
     // while playing, the OS cursor is hidden: without pointer lock it stayed visible and read as the aim, though shots
@@ -120,7 +132,8 @@ export class UnifiedControls {
         const r = this.surface.getBoundingClientRect();
         this.cursorIn = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
         this.curX = e.clientX; this.curY = e.clientY;
-        if (this.cursorIn) { this.pendingLookX += e.movementX; this.pendingLookY += e.movementY; }
+        // cursor aim: the mouse only moves the crosshair (the edges still turn the view); otherwise it looks
+        if (this.cursorIn && !this.cursorAim) { this.pendingLookX += e.movementX; this.pendingLookY += e.movementY; }
         return;
       }
       if (!dragging) return;
@@ -343,6 +356,8 @@ export class UnifiedControls {
       crouchPressed,
       isTouchActive: this.isTouchDevice,
       padAim: this.padAim || this.isTouchDevice,
+      cursor: this.cursorNdc(),
     };
   }
 }
+const THREE_CLAMP = (v: number) => Math.max(-1, Math.min(1, v));

@@ -116,6 +116,8 @@ export class PlayerController {
   aiming = false;
   /** Aim friction (targeting sets it): look speed multiplier while the crosshair is on an enemy, so you don't sail past. */
   aimFriction = 1;
+  /** Cursor aim (third person): where the mouse points on screen, normalised; shots and the body go there. */
+  aimNdc: { x: number; y: number } | null = null;
   /** In a fight (enemies close / just fought; main.ts sets it): A / D strafe instead of turning. */
   inCombat = false;
   /** Where the crosshair lands in the world (third person): the body and gun turn to it. */
@@ -462,6 +464,8 @@ export class PlayerController {
     const dir = new THREE.Vector3();
     this.camera.getWorldPosition(origin);
     this.camera.getWorldDirection(dir);
+    // cursor aim: the ray goes from the camera through the point the mouse is on
+    if (this.aimNdc && !this.firstPerson) dir.set(this.aimNdc.x, this.aimNdc.y, 1).unproject(this.camera).sub(origin).normalize();
     // third person: the camera sits metres behind the shoulder, so start the shot where the view ray passes the
     // character — a tree or wall between the camera and the body must not eat the shot
     if (!this.firstPerson) {

@@ -196,6 +196,7 @@ async function boot() {
   let score = 0;
   let popTimeout: number | undefined;
   const shakeV = new THREE.Vector3(), assistV = new THREE.Vector3();
+  const AIM_STYLE = new URLSearchParams(location.search).get('aim') ?? 'cursor';
   const surges: SurgeWave[] = [];
   const raycaster = new THREE.Raycaster();
   // Particles (services/vfx): sparks on every hit, a burst of shards on a kill; bounce off the real ground.
@@ -603,6 +604,12 @@ async function boot() {
     // targeting: soft target under the crosshair, lock-on follows its enemy (the view turns to it while you move)
     moveAmt = Math.min(1, Math.hypot(input.moveX, input.moveY) + (['KeyW', 'KeyA', 'KeyS', 'KeyD'].some((k) => player.keys.has(k)) ? 1 : 0));
     targeting.setView(player.firstPerson, (o) => player.chestPos(o)); // each view has its own catch / assist tuning
+    // third person: cursor aim — the crosshair is where the mouse points, shots and the body go there, the camera turns
+    // with A / D and the screen edges (Kenne: "the crosshair is never where I'm pointing the mouse"). First person and
+    // ?aim=look keep mouse-look.
+    controls.cursorAim = !player.firstPerson && AIM_STYLE !== 'look';
+    if (controls.cursorAim && document.pointerLockElement) document.exitPointerLock?.();
+    targeting.cursor = input.cursor; player.aimNdc = input.cursor;
     if (input.lockPressed && player.enabled) targeting.toggle(foes());
     targeting.update(realDt, foes(), input.lockHeld, player.enabled, moveAmt);
     hitMarker.style.left = `${targeting.screenX}px`; hitMarker.style.top = `${targeting.screenY}px`; // hit marks sit on the crosshair
