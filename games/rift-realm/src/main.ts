@@ -11,6 +11,7 @@ import { createRules } from './studio/rulesHost';
 import { createPost } from './post';
 import { DynamicResolution, EmptyInstanceSkip, capShadowMaps, intelShadows, pickGfx } from './gfx';
 import { wetten } from './wetness';
+import { JumpPads } from './jumpPads';
 import { getKTX2, initKTX2 } from './textures';
 // front end + loading (menu/*): Start → Map → Character → loading screen; prefetch and the faster shader precompile
 import { applyVolume, menuSkipped, prefetch, settings as menuSettings, startMenu } from './menu/menu';
@@ -209,6 +210,7 @@ async function boot() {
   };
   objectives.onCapture = (def, owner) => showBeatFeedback(`${def.id} · ${def.name.toUpperCase()} ${owner === 'blue' ? 'CAPTURED' : 'LOST'}`, owner === 'blue' ? '#38bdf8' : '#fb923c');
   let hazardCooldown = 0;
+  const jumpPads = arena.jumpPads?.length ? new JumpPads(arena.jumpPads) : null;
   const rules = ruled && studioLook ? createRules({
     scene, enemies, player, level: studioLook.level, names: studioLook.names, fallbackSpots: arena.enemySpots,
     groundAt: (x, z, y) => collision.groundAt(x, z, y, 10),
@@ -714,6 +716,7 @@ async function boot() {
     arena.resolveDynamicGates(player.object.position, 0.38);
 
     if (player.enabled) {
+      jumpPads?.update(dt, player);
       // lava / abyss hazard
       hazardCooldown = Math.max(0, hazardCooldown - dt);
       if (arena.hazardBelow !== undefined && player.object.position.y < arena.hazardBelow && hazardCooldown <= 0) {
@@ -853,7 +856,7 @@ async function boot() {
 
   if (new URLSearchParams(location.search).has('rrdebug')) {
     loading.release(); await entered;
-    (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, gfx, dynres, objectives, match, targeting, rhythm, danger, ents };
+    (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, gfx, dynres, objectives, match, targeting, rhythm, danger, ents, pads: jumpPads };
     // combat checks: __rr.combat.arena(['rusher', 'caster', 'brute']) clears the field and rings those around you;
     // .passive(true) freezes their AI; .tune({...}) edits the table live; .state() reads the fight
     (window as any).__rr.combat = {

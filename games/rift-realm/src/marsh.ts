@@ -11,6 +11,7 @@ import { circuitTexture } from './decals';
 import { pbr, leafTexture, fernTexture } from './textures';
 import { riftWater } from './water';
 import type { Level, LevelInfo, Tier } from './shrine';
+import type { JumpPad } from './jumpPads';
 
 const smooth = (e0: number, e1: number, x: number) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
 // causeway spine points (the art's green-lit stone paths)
@@ -40,6 +41,8 @@ export function buildMarsh(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const lo = tier === 'low';
   const group = new THREE.Group();
   const uBeatPulse = uniform(0);
+  const jumpPads: JumpPad[] = [];  // the rift wells (docks)
+  const uWellFlash = uniform(0);
   const kit = new StaticKit();
   const B = builders(kit);
   const R = rng(77);
@@ -382,15 +385,18 @@ export function buildMarsh(scene: THREE.Scene, tier: Tier = 'high'): Level {
       kit.prism(pathStone, 16, 2.5, 2.6, 0.18, x, D, -63, 0, { tpm: 0.5 });
       const m = new THREE.Mesh(new THREE.CircleGeometry(2.4, 40), runeMat); m.rotation.x = -Math.PI / 2; m.position.set(x, D + 0.2, -63); group.add(m); runeDiscs.push(m);
     }
-    // rift wells at the cross pier ends: stone collars round a green-lit shaft, with a column of light
-    const shaft = new THREE.MeshBasicNodeMaterial({ side: THREE.DoubleSide }); shaft.colorNode = glowGreen.mul(float(1.4).add(uBeatPulse.mul(1.0)));
+    // rift wells at the cross pier ends: jump pads (jumpPads.ts). A low stone collar you step over, a green-lit
+    // well mouth and a column of light; stepping in throws you up onto the village decks for a flank from the north.
+    const shaft = new THREE.MeshBasicNodeMaterial({ side: THREE.DoubleSide }); shaft.colorNode = glowGreen.mul(float(1.4).add(uBeatPulse.mul(1.0)).add(uWellFlash.mul(3)));
     const beam = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
-    beam.colorNode = glowGreen; beam.opacityNode = uv().y.mul(0.13); // fades upward (cylinder uv.y runs top→bottom)
-    for (const x of [21.5, 46.5]) {
-      kit.prism(pathStone, 14, 1.5, 1.6, 0.7, x, D - 0.1, -50, 0, { tpm: 0.6 });
-      const w = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 1.6, 20, 1, true), shaft); w.position.set(x, D - 0.2, -50); group.add(w);
-      const cap = new THREE.Mesh(new THREE.CircleGeometry(1.1, 20), shaft); cap.rotation.x = -Math.PI / 2; cap.position.set(x, D - 0.6, -50); group.add(cap);
-      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.05, 7, 16, 1, true), beam); b.position.set(x, D + 4.1, -50); group.add(b);
+    beam.colorNode = glowGreen; beam.opacityNode = uv().y.mul(float(0.13).add(uWellFlash.mul(0.35))); // fades upward (cylinder uv.y runs top→bottom)
+    // each arc ends just over the deck's north railing (railing top + 0.35), then the rider drops the last 1.5 m onto the deck
+    for (const [x, to] of [[21.5, new THREE.Vector3(20, 4.2 + 1.5, -30.2)], [46.5, new THREE.Vector3(38.5, 3.6 + 1.5, -31.2)]] as const) {
+      kit.prism(pathStone, 14, 1.5, 1.6, 0.4, x, D - 0.1, -50, 0, { tpm: 0.6 });               // collar, top D + 0.3 (a step)
+      const rim = new THREE.Mesh(new THREE.CylinderGeometry(1.12, 1.12, 0.14, 20, 1, true), shaft); rim.position.set(x, D + 0.3, -50); group.add(rim);
+      const cap = new THREE.Mesh(new THREE.CircleGeometry(1.1, 20), shaft); cap.rotation.x = -Math.PI / 2; cap.position.set(x, D + 0.32, -50); group.add(cap);
+      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.05, 7, 16, 1, true), beam); b.position.set(x, D + 3.8, -50); group.add(b);
+      jumpPads.push({ name: 'rift well', pos: new THREE.Vector3(x, D + 0.3, -50), radius: 1.15, to: to.clone(), apex: 3.5, flash: uWellFlash });
     }
     // lantern gallows down the spine and round the platform
     const lampMat = new THREE.MeshBasicNodeMaterial(); lampMat.colorNode = color(0xffb45a).mul(4.5);
@@ -460,6 +466,7 @@ export function buildMarsh(scene: THREE.Scene, tier: Tier = 'high'): Level {
       { id: 'B', name: 'Causeway Cross', pos: new THREE.Vector3(0, 0.3, 2), radius: 6 },
       { id: 'C', name: 'Stilt Village', pos: new THREE.Vector3(24, 3.6, -12), radius: 5 },
     ],
+    jumpPads,
     setBiome() { return { name: info.name, track: info.track }; },
     update(dt, pulse) {
       elapsed += dt; uBeatPulse.value = pulse;

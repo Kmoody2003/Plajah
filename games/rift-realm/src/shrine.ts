@@ -11,6 +11,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { StaticKit, boulder, fbm3, octagon, polyPrism, rng, taperTube } from './geom';
 import { circuitTexture, fernTexture, grassTexture, mossTexture, pbr } from './textures';
 import { SPAWN_A, SPAWN_B, buildForestMap } from './cyberforest';
+import type { JumpPad } from './jumpPads';
 
 export interface LevelInfo { id: string; name: string; track: 'main' | 'combat'; accentHex: number }
 export interface Level {
@@ -27,6 +28,8 @@ export interface Level {
   hazardBelow?: number;
   /** Control points for Team Arena / Battleground modes. */
   controlPoints?: { id: string; name: string; pos: THREE.Vector3; radius: number }[];
+  /** Jump pads (jumpPads.ts): step in, get thrown on a fixed arc to a landing spot. */
+  jumpPads?: JumpPad[];
   setBiome(index: number): { name: string; track: 'main' | 'combat' };
   /** After the renderer is up (GPU bakes such as tree impostors) — main awaits it before the first frame. */
   prepare?(renderer: THREE.WebGPURenderer, camera: THREE.Camera): Promise<void> | void;
