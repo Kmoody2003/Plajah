@@ -15,9 +15,12 @@ import {
 import type { UserProfile } from '../types';
 import OnboardingFollowStep from './discovery/OnboardingFollowStep';
 
+export type StartScope = 'starter' | 'full';
+
 interface OnboardingProps {
-  /** Called when the user finishes (or skips) — pass the AppView id of their chosen home. */
-  onDone: (homeView: string) => void;
+  /** Called when the user finishes (or skips) — the AppView id of their chosen home, and how much of
+   *  Plajah to show at first ('starter' = six core spaces for the first week, 'full' = everything). */
+  onDone: (homeView: string, scope: StartScope) => void;
   /** Optional: when given, adds the "Find your people" follow step as the last page. */
   viewer?: UserProfile | null;
 }
@@ -60,6 +63,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onDone, viewer }) => {
   const lastStep = viewer ? 2 : 1;
   const [pick, setPick] = useState('everything');
   const chosen = PICKS.find(p => p.key === pick) || PICKS[0];
+  const [scope, setScope] = useState<StartScope>('starter');
 
   return (
     <motion.div
@@ -106,6 +110,29 @@ const Onboarding: React.FC<OnboardingProps> = ({ onDone, viewer }) => {
                   </motion.button>
                 );
               })}
+            </div>
+
+            {/* How much at once: a calm first week, or everything from day one. */}
+            <div className="mt-9">
+              <p className="text-center text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-3">How would you like to start?</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label="How would you like to start?">
+                {([
+                  { k: 'starter' as const, label: 'Start simple', badge: 'Recommended', desc: 'A calm first week with the essentials: Social, Chora, Reello, Cinema, Lorea and Museion. More opens up on day 8.' },
+                  { k: 'full' as const, label: 'Full Pro experience', desc: 'Everything from day one — every space, every studio and creator tool.' },
+                ]).map(o => {
+                  const sel = scope === o.k;
+                  return (
+                    <button key={o.k} role="radio" aria-checked={sel} onClick={() => setScope(o.k)} data-testid={`start-${o.k}`}
+                      className="relative text-left rounded-2xl p-5 border transition-all bg-white/[0.04] hover:bg-white/[0.07]"
+                      style={sel ? { borderColor: 'transparent', boxShadow: '0 0 0 2px #D0BCFF' } : { borderColor: 'rgba(255,255,255,0.1)' }}>
+                      {o.badge && <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-[#D0BCFF] text-black text-[7px] font-black uppercase tracking-widest">{o.badge}</span>}
+                      <p className="text-base font-black text-white">{o.label}</p>
+                      <p className="text-[12px] text-white/50 leading-snug mt-1">{o.desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-center text-[11px] text-white/35 mt-3">You can change this any time, and “Show all of Plajah” is always one tap away.</p>
             </div>
           </>
         ) : step === 2 && viewer ? (
@@ -157,12 +184,12 @@ const Onboarding: React.FC<OnboardingProps> = ({ onDone, viewer }) => {
       {/* nav bar */}
       <div className="fixed inset-x-0 bottom-0 flex items-center justify-center gap-3 p-4" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.85) 40%, transparent)' }}>
         {step === 0 ? (
-          <button onClick={() => onDone(chosen.home)} className="text-[11px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors px-4 py-3.5">Skip</button>
+          <button onClick={() => onDone(chosen.home, scope)} className="text-[11px] font-black uppercase tracking-widest text-white/40 hover:text-white transition-colors px-4 py-3.5">Skip</button>
         ) : (
           <button onClick={() => setStep(s => Math.max(0, s - 1))} className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-3.5 text-[12px] font-black uppercase tracking-widest text-white hover:bg-white/10 transition-all"><span aria-hidden>←</span> Back</button>
         )}
         <button
-          onClick={() => (step < lastStep ? setStep(step + 1) : onDone(chosen.home))}
+          onClick={() => (step < lastStep ? setStep(step + 1) : onDone(chosen.home, scope))}
           className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] px-8 py-3.5 text-[12px] font-black uppercase tracking-widest text-white shadow-[0_10px_30px_-8px_rgba(212,0,85,0.6)] hover:scale-[1.03] active:scale-95 transition-all"
         >
           {step < lastStep ? <>Continue <ArrowRight size={15} /></> : <>Enter Plajah <Compass size={15} /></>}

@@ -194,6 +194,9 @@ interface RelloChurchViewerProps {
   compact?: boolean;
   /** Mini player's expand button — take the viewer back to the main page's full player. */
   onExpand?: () => void;
+  /** 'column': a narrow side column (Elevate home) — video on top, the scripture panel directly under it,
+   *  no source grid. 'wide' (default): the full-width sources grid + player/scripture split. */
+  layout?: 'wide' | 'column';
 }
 
 const NOTHING_ON_AIR: ChurchStreamItem = {
@@ -210,6 +213,7 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
   onOpenOnAir,
   compact = false,
   onExpand,
+  layout = 'wide',
 }) => {
   const liveFeeds = useOrgLive(org, viewerIsOrgMember);
   const orgChannels = useOrgChannels(org, viewerIsOrgMember);
@@ -643,6 +647,158 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
   if (streamCatalog.length === 0) return nothingLive;
   const showPanel = !!faith && panelMounted;
 
+  const videoBox = (
+    <div className="relative rounded-2xl overflow-hidden border border-white/10 aspect-video flex flex-col justify-between p-4 bg-black" style={{ background: activeStream.thumbnailGradient }}>
+      {media}
+      <div className="flex items-center justify-between gap-2 z-10 pointer-events-none">
+        <span className="px-2.5 py-1 rounded-full text-[12px] font-semibold bg-black/65 text-white flex items-center gap-1.5">
+          <span className={`w-2 h-2 rounded-full ${isLiveStream ? 'bg-[#FF8C00] animate-pulse' : 'bg-white/70'}`} />
+          {isLiveStream ? 'Live' : 'Replay'} <span className="tabular-nums text-white/70">· {formatTC(playheadSec)}</span>
+        </span>
+        <div className="flex items-center gap-1.5 pointer-events-auto">
+          <button onClick={() => setMuted(m => !m)} className="px-3 h-8 rounded-full bg-black/65 hover:bg-black/85 flex items-center gap-1.5 text-white text-[12px] font-semibold" title={muted ? 'Unmute stream' : 'Mute stream'}>
+            {muted ? <><VolumeX size={14} /><span>Unmute</span></> : <Volume2 size={14} />}
+          </button>
+          <button onClick={() => setPlaying(p => !p)} className="w-8 h-8 rounded-full bg-black/65 hover:bg-black/85 flex items-center justify-center text-white" title={playing ? 'Pause' : 'Play'}>
+            {playing ? <Pause size={14} /> : <Play size={14} />}
+          </button>
+        </div>
+      </div>
+      {/* With the panel hidden, the passage being read rides as a quiet lower third. */}
+      {faith && !panelMounted && passage && (
+        <button
+          onClick={() => setPanelMounted(true)}
+          className="z-10 self-start max-w-[80%] text-left rounded-xl px-3.5 py-2.5 bg-black/70 backdrop-blur-md"
+        >
+          <div className="text-[12px] font-semibold" style={{ color: EV.gold }}>{passage.label}</div>
+          <div className="text-[13px] text-white/85 line-clamp-1" style={{ fontFamily: EV_FONT.scripture }}>
+            {text?.lines.find(l => l.id === text.called)?.text || ''}
+          </div>
+        </button>
+      )}
+    </div>
+  );
+  const notesCard = faith ? (
+    <div className="rounded-2xl p-4 border space-y-3" style={{ background: EV.panel, borderColor: EV.line }}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-[13px] font-semibold text-white">
+          <MessageSquarePlus size={15} style={{ color: EV.violetText }} />
+          <span>Your notes on this {isLiveStream ? 'stream' : 'replay'}</span>
+        </div>
+        <span className="text-[12px] tabular-nums" style={{ color: EV.muted }}>
+          {formatTC(playheadSec)}{passage ? ` · ${passage.label}` : ''}
+        </span>
+      </div>
+      <form className="flex gap-2" onSubmit={e => { e.preventDefault(); handleAddNote(); }}>
+        <input
+          type="text"
+          value={noteDraft}
+          onChange={e => setNoteDraft(e.target.value)}
+          placeholder={passage ? `A thought on ${passage.label}…` : 'A thought, stamped to this moment…'}
+          className="flex-1 h-10 px-3.5 rounded-full bg-white/[0.04] border border-white/12 text-[14px] text-white placeholder:text-white/40 outline-none focus:border-white/35"
+        />
+        <button type="submit" disabled={!noteDraft.trim()} className="px-4 h-10 rounded-full text-[13px] font-semibold text-white flex items-center gap-1.5 whitespace-nowrap disabled:opacity-40" style={{ background: '#6D3FD6' }}>
+          <Plus size={14} /> Add note
+        </button>
+      </form>
+      {session.notes.length > 0 ? (
+        <ul className="space-y-1.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
+          {session.notes.map(n => (
+            <li key={n.id} className="group flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.04]">
+              <button
+                onClick={() => seekTo(n.tc)}
+                className="shrink-0 mt-0.5 px-2 h-6 rounded-full text-[11px] font-semibold tabular-nums bg-white/[0.06] text-white/80 hover:bg-white/15"
+                title={isEmbed ? 'Stamped at this moment' : 'Jump to this moment'}
+              >
+                {formatTC(n.tc)}
+              </button>
+              <div className="flex-1 min-w-0">
+                {n.label && <div className="text-[12px] font-semibold" style={{ color: EV.gold }}>{n.label}</div>}
+                <p className="text-[14px] text-white/85 leading-snug">{n.text}</p>
+              </div>
+              <button onClick={() => deleteNote(n.id)} className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10" title="Delete note">
+                <Trash2 size={13} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-[13px]" style={{ color: EV.muted }}>Notes you add here stay with this {isLiveStream ? 'stream' : 'replay'} and in your notebook.</p>
+      )}
+    </div>
+  ) : null;
+  const versePanel = faith ? (
+    <VersePanel
+      faith={faith}
+      passage={passage}
+      passages={session.passages}
+      text={text}
+      loading={loading}
+      error={error}
+      isLive={isLiveStream}
+      following={!pinned}
+      onFollow={() => setPinned(null)}
+      onPick={pickPassage}
+      onJump={jumpToPassage}
+      listen={listen}
+      reading={readAlong.spot}
+      listenEnabled={listenPref}
+      onToggleListen={hearsRefs ? toggleListen : undefined}
+      stageFollowing={stageFollowing}
+      translation={translation}
+      onTranslation={chooseTranslation}
+      editionSwitch={edition.switched}
+      onUndoEdition={edition.undo}
+      onDismissEdition={edition.dismiss}
+      skin={activeSkin}
+      onSkin={pickSkin}
+      textSize={TEXT_SIZES.some(s => s.id === textSize) ? textSize : 'm'}
+      onTextSize={pickSize}
+      onOpenStudy={openStudy}
+    />
+  ) : null;
+
+  // ── Column (Elevate home side column): the video, then the scripture directly under it. ──
+  if (layout === 'column') {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-3xl border overflow-hidden" style={{ background: EV.chrome, borderColor: EV.line }}>
+          <div className="px-4 py-3 border-b flex items-center justify-between gap-2" style={{ borderColor: EV.line }}>
+            <span className="inline-flex items-center gap-2 min-w-0 text-[14px] font-semibold text-white" style={{ fontFamily: EV_FONT.display }}>
+              <span className="ev-live-dot shrink-0" />
+              <span className="truncate">{activeStream.title || (faith ? 'Watch' : 'Live & on demand')}</span>
+            </span>
+            {onOpenOnAir && activeStream.onAirItem && (
+              <button type="button" onClick={() => onOpenOnAir(activeStream.onAirItem!)} title="Open in Live TV+"
+                className="shrink-0 w-8 h-8 rounded-full border border-white/15 text-white/85 hover:bg-white/10 flex items-center justify-center">
+                <Maximize2 size={13} />
+              </button>
+            )}
+          </div>
+          <div className="p-3">{videoBox}</div>
+          {streamCatalog.length > 1 && (
+            <div className="px-3 pb-3">
+              <select
+                aria-label="Switch source"
+                value={activeStream.id}
+                onChange={e => selectStreamSource(e.target.value)}
+                className="w-full h-9 rounded-full bg-white/[0.06] border border-white/15 text-[12px] font-semibold text-white px-3 outline-none focus:border-white/40"
+              >
+                {streamCatalog.map(s => (
+                  <option key={s.id} value={s.id} className="bg-[#18141F] text-white">
+                    {s.isOrgOwned ? `${org.name}: ` : 'LiveHub TV+: '}{s.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+        {versePanel && <div className="rounded-3xl overflow-hidden border" style={{ borderColor: EV.line }}>{versePanel}</div>}
+        {notesCard}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-5">
       {/* ── 1. Sources ── */}
@@ -779,117 +935,14 @@ export const RelloChurchViewer: React.FC<RelloChurchViewerProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-12">
             {/* Video + notes */}
             <div className={`${showPanel ? 'lg:col-span-7' : 'lg:col-span-12'} p-5 flex flex-col gap-4 border-b lg:border-b-0 ${showPanel ? 'lg:border-r' : ''}`} style={{ borderColor: EV.line }}>
-              <div className="relative rounded-2xl overflow-hidden border border-white/10 aspect-video flex flex-col justify-between p-4 bg-black" style={{ background: activeStream.thumbnailGradient }}>
-                {media}
-                <div className="flex items-center justify-between gap-2 z-10 pointer-events-none">
-                  <span className="px-2.5 py-1 rounded-full text-[12px] font-semibold bg-black/65 text-white flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${isLiveStream ? 'bg-[#FF8C00] animate-pulse' : 'bg-white/70'}`} />
-                    {isLiveStream ? 'Live' : 'Replay'} <span className="tabular-nums text-white/70">· {formatTC(playheadSec)}</span>
-                  </span>
-                  <div className="flex items-center gap-1.5 pointer-events-auto">
-                    <button onClick={() => setMuted(m => !m)} className="px-3 h-8 rounded-full bg-black/65 hover:bg-black/85 flex items-center gap-1.5 text-white text-[12px] font-semibold" title={muted ? 'Unmute stream' : 'Mute stream'}>
-                      {muted ? <><VolumeX size={14} /><span>Unmute</span></> : <Volume2 size={14} />}
-                    </button>
-                    <button onClick={() => setPlaying(p => !p)} className="w-8 h-8 rounded-full bg-black/65 hover:bg-black/85 flex items-center justify-center text-white" title={playing ? 'Pause' : 'Play'}>
-                      {playing ? <Pause size={14} /> : <Play size={14} />}
-                    </button>
-                  </div>
-                </div>
-                {/* With the panel hidden, the passage being read rides as a quiet lower third. */}
-                {faith && !panelMounted && passage && (
-                  <button
-                    onClick={() => setPanelMounted(true)}
-                    className="z-10 self-start max-w-[80%] text-left rounded-xl px-3.5 py-2.5 bg-black/70 backdrop-blur-md"
-                  >
-                    <div className="text-[12px] font-semibold" style={{ color: EV.gold }}>{passage.label}</div>
-                    <div className="text-[13px] text-white/85 line-clamp-1" style={{ fontFamily: EV_FONT.scripture }}>
-                      {text?.lines.find(l => l.id === text.called)?.text || ''}
-                    </div>
-                  </button>
-                )}
-              </div>
+              {videoBox}
 
-              {faith && (
-                <div className="rounded-2xl p-4 border space-y-3" style={{ background: EV.panel, borderColor: EV.line }}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 text-[13px] font-semibold text-white">
-                      <MessageSquarePlus size={15} style={{ color: EV.violetText }} />
-                      <span>Your notes on this {isLiveStream ? 'stream' : 'replay'}</span>
-                    </div>
-                    <span className="text-[12px] tabular-nums" style={{ color: EV.muted }}>
-                      {formatTC(playheadSec)}{passage ? ` · ${passage.label}` : ''}
-                    </span>
-                  </div>
-                  <form className="flex gap-2" onSubmit={e => { e.preventDefault(); handleAddNote(); }}>
-                    <input
-                      type="text"
-                      value={noteDraft}
-                      onChange={e => setNoteDraft(e.target.value)}
-                      placeholder={passage ? `A thought on ${passage.label}…` : 'A thought, stamped to this moment…'}
-                      className="flex-1 h-10 px-3.5 rounded-full bg-white/[0.04] border border-white/12 text-[14px] text-white placeholder:text-white/40 outline-none focus:border-white/35"
-                    />
-                    <button type="submit" disabled={!noteDraft.trim()} className="px-4 h-10 rounded-full text-[13px] font-semibold text-white flex items-center gap-1.5 whitespace-nowrap disabled:opacity-40" style={{ background: '#6D3FD6' }}>
-                      <Plus size={14} /> Add note
-                    </button>
-                  </form>
-                  {session.notes.length > 0 ? (
-                    <ul className="space-y-1.5 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-                      {session.notes.map(n => (
-                        <li key={n.id} className="group flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.04]">
-                          <button
-                            onClick={() => seekTo(n.tc)}
-                            className="shrink-0 mt-0.5 px-2 h-6 rounded-full text-[11px] font-semibold tabular-nums bg-white/[0.06] text-white/80 hover:bg-white/15"
-                            title={isEmbed ? 'Stamped at this moment' : 'Jump to this moment'}
-                          >
-                            {formatTC(n.tc)}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            {n.label && <div className="text-[12px] font-semibold" style={{ color: EV.gold }}>{n.label}</div>}
-                            <p className="text-[14px] text-white/85 leading-snug">{n.text}</p>
-                          </div>
-                          <button onClick={() => deleteNote(n.id)} className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10" title="Delete note">
-                            <Trash2 size={13} />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-[13px]" style={{ color: EV.muted }}>Notes you add here stay with this {isLiveStream ? 'stream' : 'replay'} and in your notebook.</p>
-                  )}
-                </div>
-              )}
+              {notesCard}
             </div>
 
             {showPanel && faith && (
               <div className="lg:col-span-5">
-                <VersePanel
-                  faith={faith}
-                  passage={passage}
-                  passages={session.passages}
-                  text={text}
-                  loading={loading}
-                  error={error}
-                  isLive={isLiveStream}
-                  following={!pinned}
-                  onFollow={() => setPinned(null)}
-                  onPick={pickPassage}
-                  onJump={jumpToPassage}
-                  listen={listen}
-                  reading={readAlong.spot}
-                  listenEnabled={listenPref}
-                  onToggleListen={hearsRefs ? toggleListen : undefined}
-                  stageFollowing={stageFollowing}
-                  translation={translation}
-                  onTranslation={chooseTranslation}
-                  editionSwitch={edition.switched}
-                  onUndoEdition={edition.undo}
-                  onDismissEdition={edition.dismiss}
-                  skin={activeSkin}
-                  onSkin={pickSkin}
-                  textSize={TEXT_SIZES.some(s => s.id === textSize) ? textSize : 'm'}
-                  onTextSize={pickSize}
-                  onOpenStudy={openStudy}
-                />
+                {versePanel}
               </div>
             )}
           </div>
