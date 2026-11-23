@@ -13,6 +13,8 @@ export interface LinkedAccount {
   photoURL?: string;
   provider: string;
   lastUsed?: number;
+  /** Elevate orgs this account belongs to (services/elevateHome) — lets other accounts' org switchers list them. */
+  orgs?: { id: string; name: string; logoUrl?: string }[];
 }
 
 interface AccountSwitcherProps {

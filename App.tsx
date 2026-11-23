@@ -727,7 +727,9 @@ import OrgSidebarLayoutBanner from './components/OrgSidebarLayoutBanner';
 import { useActiveOrgSidebar, useOrgSidebarChoice, resolveOrgHiddenSections, SIDEBAR_SECTION_IDS } from './services/orgSidebarLayout';
 import { resolveNavScope, scopeAllowedNav, starterDay, orgAdsOnly, useScopeTick, requestOrgPage, type NavScope } from './services/experienceScope';
 import { isElevateOrg as isElevateOrgType } from './services/elevateTemplates';
-import { ElevateScopePillar, ScopeFooter, useHomeOrg } from './components/elevate/ElevateScopePillar';
+import { ElevateScopePillar, ScopeFooter } from './components/elevate/ElevateScopePillar';
+import { useMyElevateOrgs, pickHomeOrg, takePendingOrg, rememberRosterOrgs } from './services/elevateHome';
+import { ensureMyPlajahId } from './services/plajahIdClient';
 const SmartGuide = retryLazy(() => import('./components/SmartGuide'));
 import AccountSwitcher, { HotSwitchOverlay, LinkedAccount } from './components/AccountSwitcher';
 import { loadRoster, upsertAccount } from './services/accountRoster';
@@ -1807,7 +1809,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const navScope: NavScope = useMemo(() => resolveNavScope(userProfile as any), [userProfile, scopeTick]);
   const scopeAllowed = useMemo(() => scopeAllowedNav(navScope), [navScope]);
   const scopeOk = (id: string) => !scopeAllowed || scopeAllowed.has(id);
-  const homeOrg = useHomeOrg(user?.uid, navScope === 'elevate');
+  // Your Elevate orgs (services/elevateHome): Elevate opens on the one you used last; the pillar and the
+  // org page carry a switcher when there's more than one (across every account saved on this device).
+  const { orgs: myElevateOrgs, loaded: myElevateOrgsLoaded } = useMyElevateOrgs(user?.uid);
+  const homeOrg = useMemo(() => pickHomeOrg(user?.uid, myElevateOrgs), [user?.uid, myElevateOrgs]);
+  const elevateBrowseRef = useRef(false);
   // The org whose pillar / news rail shows: the org page on screen (active members get their departments
   // pinned), else an Elevate-scoped person's home org.
   const onOrgPage = view === 'ORG_HUB' && !!activeOrgSidebar?.org;
@@ -1820,6 +1826,39 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const authCreatedMs = (() => { const t = Date.parse((user as any)?.metadata?.creationTime || ''); return Number.isFinite(t) ? t : undefined; })();
   const railAdsOk = !!railOrg && !orgAdsOnly(userProfile as any, authCreatedMs);
   const openOrgFromPillar = (orgId: string) => { setOrgHubInitial({ orgId }); setView('ORG_HUB'); };
+  // Signed in and a member: Elevate means your org. "Browse all organizations" (or Back out of an org
+  // page that was opened from Elevate) shows the directory once.
+  useEffect(() => {
+    if (view !== 'PLAJAH_ELEVATE' || !user || !myElevateOrgsLoaded || !homeOrg) return;
+    if (elevateBrowseRef.current) { elevateBrowseRef.current = false; return; }
+    setOrgHubInitial({ orgId: homeOrg.org.id, fromElevate: true });
+    setView('ORG_HUB');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, user?.uid, myElevateOrgsLoaded, homeOrg?.org.id]);
+  useEffect(() => {
+    const browse = () => { elevateBrowseRef.current = true; setView('PLAJAH_ELEVATE'); };
+    window.addEventListener('plajah:elevate-browse', browse);
+    return () => window.removeEventListener('plajah:elevate-browse', browse);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Plajah ID: every signed-in account gets its permanent identity (minted once, server-side; docs/plajah-id.md).
+  useEffect(() => {
+    if (!user || user.isAnonymous) return;
+    const t = window.setTimeout(() => { void ensureMyPlajahId(); }, 2500); // after first paint; not on the critical path
+    return () => window.clearTimeout(t);
+  }, [user?.uid]);
+  // Switched accounts from the org switcher: open the org that account was switched in for.
+  useEffect(() => {
+    if (!user) return;
+    const orgId = takePendingOrg(user.uid);
+    if (orgId) { setOrgHubInitial({ orgId, fromElevate: true }); setView('ORG_HUB'); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]);
+  // This account's orgs ride on its roster entry so the other saved accounts can switch to them.
+  useEffect(() => {
+    if (user && myElevateOrgsLoaded) { rememberRosterOrgs(user.uid, myElevateOrgs); setLinkedAccounts(loadRoster()); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid, myElevateOrgsLoaded, myElevateOrgs]);
   const showAllOfPlajah = () => { if (user) updateUserProfile(user.uid, { navScope: 'full', navScopeSince: Date.now() } as any).catch(() => {}); };
   const [activePersonaKey, setActivePersonaKeyLocal] = useState<PersonaKey>(() => getActivePersonaKey());
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
@@ -6993,7 +7032,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'ORG_HUB' && (user || orgHubInitial?.orgId) && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <OrgHub user={user} onBack={() => { const fromElevate = !!orgHubInitial?.fromElevate; setOrgHubInitial(null); setView(fromElevate ? 'PLAJAH_ELEVATE' : 'CREATOR'); }} initialCreate={orgHubInitial?.create} initialOrgId={orgHubInitial?.orgId} initialGive={orgHubInitial?.give} initialContentHq={orgHubInitial?.contentHq} onVisitUser={(uid) => { setViewedUserId(uid); setView('USER_PROFILE'); }} onOpenVideo={handleSelectItem} onOpenAlbum={handleSelectItem} onOpenLive={setActiveLiveFeed} onOpenChannel={(ownerId, sourceId) => { setLiveChannelFocus({ ownerId, sourceId }); setView('LIVE_HUB' as AppView); }} />
+                <OrgHub user={user} onBack={() => { const fromElevate = !!orgHubInitial?.fromElevate; setOrgHubInitial(null); if (fromElevate) elevateBrowseRef.current = true; setView(fromElevate ? 'PLAJAH_ELEVATE' : 'CREATOR'); }} initialCreate={orgHubInitial?.create} initialOrgId={orgHubInitial?.orgId} initialGive={orgHubInitial?.give} initialContentHq={orgHubInitial?.contentHq} onVisitUser={(uid) => { setViewedUserId(uid); setView('USER_PROFILE'); }} onOpenVideo={handleSelectItem} onOpenAlbum={handleSelectItem} onOpenLive={setActiveLiveFeed} onOpenChannel={(ownerId, sourceId) => { setLiveChannelFocus({ ownerId, sourceId }); setView('LIVE_HUB' as AppView); }} />
               </Suspense>
             )}
 

@@ -74,6 +74,7 @@ import ClassroomAnalyticsView from './ClassroomAnalyticsView';
 import CertificateGenerator from './CertificateGenerator';
 import OrganizationAccountModal from './elevate/OrganizationAccountModal';
 import { useFaithContentScope } from '../hooks/useFaithContentScope';
+import { MyPlajahIdCard } from './PlajahIdCard';
 // Content & Safety
 const LazyContentSafetySettings = React.lazy(() => import('./safety/ContentSafetySettings'));
 const LazyNotificationSettings = React.lazy(() => import('./NotificationSettings'));
@@ -789,6 +790,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-12">
 
               {activeTab === 'ACCOUNT' && (<>
+              {/* Plajah ID — the permanent identity above every login (docs/plajah-id.md). */}
+              <MyPlajahIdCard uid={user?.uid} />
               {/* Launch a Business Page — business capability is OFF by default; this is the opt-in. */}
               <button
                 type="button"

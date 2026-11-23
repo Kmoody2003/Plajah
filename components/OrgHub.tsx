@@ -60,6 +60,10 @@ import OrgMediaShelf from './orgPublish/OrgMediaShelf';
 import RelloChurchViewer from './elevate/RelloChurchViewer';
 import { setActiveOrgSidebar } from '../services/orgSidebarLayout';
 import { ORG_PAGE_EVENT, takePendingOrgPage, type OrgPageTarget } from '../services/experienceScope';
+import { setLastOrgId } from '../services/elevateHome';
+import OrgSwitcher from './elevate/OrgSwitcher';
+import PlajahIdCard from './PlajahIdCard';
+import { useOrgPlajahId, fetchOrgIdentityHistory } from '../services/plajahIdClient';
 // Operations side + public rosters + Church Member Hub (lazy so the public page never blocks on them).
 const ElevateOps = lazy(() => import('./elevate/ElevateOps'));
 const ElevateRosters = lazy(() => import('./elevate/ElevateRosters'));
@@ -168,7 +172,7 @@ const OrgHub: React.FC<OrgHubProps> = ({ user, onBack, initialCreate, initialOrg
         ? <ChurchDemoView onBack={back} onCreate={create} onVisitUser={onVisitUser} />
         : <BusinessDemoView onBack={back} onCreate={create} />;
     }
-    return <OrgProfile org={active} isOwner={active.creatorId === user?.uid || !!active.admins?.includes(user?.uid)} initialGive={initialGive} initialContentHq={initialContentHq} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} onOpenLive={onOpenLive} onOpenChannel={onOpenChannel} onBack={() => { setActive(null); setMode('list'); if (initialOrgId) onBack(); }} onDeleted={() => { setActive(null); setMode('list'); loadOrgs(); if (initialCreate || initialOrgId) onBack(); }} />;
+    return <OrgProfile key={active.id} org={active} isOwner={active.creatorId === user?.uid || !!active.admins?.includes(user?.uid)} initialGive={initialGive} initialContentHq={initialContentHq} onVisitUser={onVisitUser} onOpenVideo={onOpenVideo} onOpenAlbum={onOpenAlbum} onOpenLive={onOpenLive} onOpenChannel={onOpenChannel} onBack={() => { setActive(null); setMode('list'); if (initialOrgId) onBack(); }} onDeleted={() => { setActive(null); setMode('list'); loadOrgs(); if (initialCreate || initialOrgId) onBack(); }} />;
   }
 
   // ── List ────────────────────────────────────────────────────────────────
@@ -452,11 +456,18 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
     (isOwner && auth.currentUser
       ? { id: '', orgId: org.id, userId: auth.currentUser.uid, role: 'OWNER' as OrgRole, status: 'ACTIVE' as const, displayName: '', joinedAt: 0 }
       : null);
+  // A member opening their org makes it the one Elevate returns to (services/elevateHome).
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (uid && myMembership?.status === 'ACTIVE') setLastOrgId(uid, org.id);
+  }, [org.id, myMembership?.id, myMembership?.status]);
   // Org default sidebar + the Elevate pillar: the app rail follows this org while its page is open.
   useEffect(() => {
     setActiveOrgSidebar({ orgId: org.id, orgName: org.name, layout: org.sidebarDefault || null, org, membership: myMembership && myMembership.status === 'ACTIVE' ? myMembership : null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [org, myMembership?.id, myMembership?.status, myMembership?.ministryIds?.join(','), myMembership?.ministryRoles?.length]);
+  // Plajah ID: the org's permanent identity. Its owner/admins mint it on first visit (routes/plajahId.ts checks).
+  const orgPjId = useOrgPlajahId(isDemoOrg(org) ? undefined : org.id, isOwner || !!org.admins?.includes(auth.currentUser?.uid || ''));
   const elevate = isElevateOrg(org.orgType);
   const faith = isFaithOrg(org.orgType);
   const can = (p: Parameters<typeof elevateCan>[2]) => isOwner || elevateCan(myMembership, org, p);
@@ -503,6 +514,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
       onChange={k => setView(k as typeof view)}
       onBack={onBack}
       trailing={<>
+        {myMembership?.status === 'ACTIVE' && (
+          <OrgSwitcher variant="chip" uid={auth.currentUser?.uid} currentOrgId={org.id} currentOrgName={org.name} currentLogoUrl={org.logoUrl} />
+        )}
         {hasOps && <CreateEventButton compact host={{ kind: 'org', id: org.id, label: org.name }} />}
         {ownAccount && (
           // This org page is the signed-in account's profile — switching to a non-org type restores the personal profile.
@@ -1047,6 +1061,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                   ))}
                 </div>
               )}
+              {orgPjId && (isOwner || hasStaffOps
+                ? <PlajahIdCard id={orgPjId} kind="org" loadHistory={() => fetchOrgIdentityHistory(org.id)} />
+                : <div className="flex items-center gap-2 px-1 text-[12px] text-white/45">Plajah ID <PlajahIdCard id={orgPjId} kind="org" compact /></div>)}
             </>
           )}
         </aside>

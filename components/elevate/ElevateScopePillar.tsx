@@ -1,37 +1,20 @@
 // ElevateScopePillar — the top of the left pillar for someone in the Elevate scope (or any active member
 // on their org's page): the org, the department(s) they belong to pinned first, and the org's own pages.
 // ScopeFooter — the "Show all of Plajah" way out for the Elevate and week-one starter scopes.
-import React, { useEffect, useMemo, useState } from 'react';
-import { Pin, Home, Play, Calendar, HandHeart, Gift, ShoppingBag, Users, ChevronRight, Compass } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Pin, Home, Play, Calendar, HandHeart, Gift, ShoppingBag, Users, Compass } from 'lucide-react';
 import type { Organization, OrgMembership, OrgType } from '../../types';
 import { memberDepartments } from '../../services/memberDepartments';
-import { isElevateOrg, isFaithOrg } from '../../services/elevateTemplates';
-import { fetchUserMemberships, fetchOrganization } from '../../services/organizationService';
+import { isFaithOrg } from '../../services/elevateTemplates';
+import { useMyElevateOrgs, pickHomeOrg } from '../../services/elevateHome';
+import OrgSwitcher from './OrgSwitcher';
 import { requestOrgPage, setLocalShowAll, type NavScope } from '../../services/experienceScope';
 
-// ── The person's home org when they are not on an org page ──────────────────────────────────────
-
-const homeCache = new Map<string, Promise<{ org: Organization; membership: OrgMembership } | null>>();
-
-async function loadHomeOrg(uid: string): Promise<{ org: Organization; membership: OrgMembership } | null> {
-  const ms = (await fetchUserMemberships(uid)).filter(m => m.status === 'ACTIVE').sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
-  for (const m of ms) {
-    const org = await fetchOrganization(m.orgId).catch(() => null);
-    if (org && isElevateOrg(org.orgType)) return { org, membership: m };
-  }
-  return null;
-}
+// ── The person's home org when they are not on an org page: the one they used last, else the first joined.
 
 export function useHomeOrg(uid: string | undefined, enabled: boolean): { org: Organization; membership: OrgMembership } | null {
-  const [v, setV] = useState<{ org: Organization; membership: OrgMembership } | null>(null);
-  useEffect(() => {
-    if (!uid || !enabled) { setV(null); return; }
-    let alive = true;
-    if (!homeCache.has(uid)) homeCache.set(uid, loadHomeOrg(uid).catch(() => { homeCache.delete(uid); return null; }));
-    homeCache.get(uid)!.then(r => { if (alive) setV(r); });
-    return () => { alive = false; };
-  }, [uid, enabled]);
-  return v;
+  const { orgs } = useMyElevateOrgs(enabled ? uid : undefined);
+  return useMemo(() => (enabled ? pickHomeOrg(uid, orgs) : null), [enabled, uid, orgs]);
 }
 
 // ── Org page links, worded for the org type (matches the org page's tabs) ──────────────────────────
@@ -93,16 +76,14 @@ export const ElevateScopePillar: React.FC<PillarProps> = ({ org, membership, uid
 
   return (
     <div className="flex flex-col gap-4 mb-4" data-testid="elevate-pillar">
-      <button onClick={() => go({ tab: 'HOME' })} className="flex items-center gap-2.5 p-2 rounded-2xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] text-left transition-colors">
-        <span className="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center text-white text-[13px] font-black overflow-hidden" style={{ background: '#7A1FC0' }}>
-          {org.logoUrl ? <img src={org.logoUrl} alt="" className="w-full h-full object-cover" /> : initials(org.name)}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[13px] font-bold text-white truncate">{org.name}</span>
-          <span className="block text-[11px] text-white/50 truncate">{membership ? `Member${membership.memberNumber ? ` · #${membership.memberNumber}` : ''}` : 'Visiting'}</span>
-        </span>
-        <ChevronRight size={14} className="text-white/35 shrink-0" />
-      </button>
+      <OrgSwitcher
+        uid={uid}
+        currentOrgId={org.id}
+        currentOrgName={org.name}
+        currentLogoUrl={org.logoUrl}
+        sub={membership ? `Member${membership.memberNumber ? ` · #${membership.memberNumber}` : ''}` : 'Visiting'}
+        onOpenCurrent={() => go({ tab: 'HOME' })}
+      />
 
       {depts.length > 0 && (
         <section className="flex flex-col gap-1.5">

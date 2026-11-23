@@ -169,6 +169,7 @@ import { createGameStoryRouter } from './routes/gameStory';
 import { reelloOrgChannelsRouter } from './routes/reelloOrgChannels';
 import { createOrgMediaRouter } from './routes/orgMedia';
 import { authMethodsRouter } from './routes/authMethods';
+import { plajahIdRouter } from './routes/plajahId';
 // Anti-bot layer (docs/ANTI_BOT_PLAYBOOK.md): App Check monitor, signup-check, shared limits.
 import { antiAbuseRouter } from './routes/antiAbuse';
 import { createAppCheckMiddleware, verifyAppCheckTokenStrict } from './services/appCheckServer';
@@ -15560,6 +15561,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // "Invalid email or password." authLimiter because it takes an unauthenticated email.
   app.use('/api/auth-methods', authLimiter);
   app.use('/api/auth-methods', express.json({ limit: '2kb' }), authMethodsRouter);
+  // Plajah ID (docs/plajah-id.md): permanent person / org identities with hash-chained history. Server-only data.
+  app.use('/api/plajah-id', apiLimiter, express.json({ limit: '4kb' }), plajahIdRouter);
   // POST /api/auth/signup-check (disposable-domain gate, strict per-IP) + POST /api/security/csp-report.
   app.use('/api', antiAbuseRouter);
 

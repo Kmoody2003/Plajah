@@ -145,6 +145,8 @@ export interface DecodedAuthToken {
   /** Account email (lower-cased) when the token carries one; `emailVerified` is false when unknown. */
   email?: string;
   emailVerified?: boolean;
+  /** How this account signs in (e.g. 'google.com', 'password'), when known. Informational only. */
+  provider?: string;
 }
 
 export async function verifyIdTokenDetailed(idToken: string): Promise<DecodedAuthToken | null> {
@@ -161,7 +163,7 @@ export async function verifyIdTokenDetailed(idToken: string): Promise<DecodedAut
         if (user?.localId) {
           const isAnonymous = !user.providerUserInfo || user.providerUserInfo.length === 0;
           const email = typeof user.email === 'string' ? user.email.toLowerCase() : undefined;
-          return { uid: user.localId, isAnonymous, email, emailVerified: !!user.emailVerified };
+          return { uid: user.localId, isAnonymous, email, emailVerified: !!user.emailVerified, provider: user.providerUserInfo?.[0]?.providerId };
         }
       }
     } catch { /* fall through to cert verification */ }
@@ -184,7 +186,7 @@ export async function verifyIdTokenDetailed(idToken: string): Promise<DecodedAut
     if (!ok) return null;
     const isAnonymous = payload.firebase?.sign_in_provider === 'anonymous';
     const email = typeof payload.email === 'string' ? payload.email.toLowerCase() : undefined;
-    return { uid: payload.sub, isAnonymous, email, emailVerified: !!payload.email_verified };
+    return { uid: payload.sub, isAnonymous, email, emailVerified: !!payload.email_verified, provider: payload.firebase?.sign_in_provider };
   } catch { return null; }
 }
 
@@ -349,6 +351,38 @@ export async function fsBatchWrite(docs: { path: string; data: Record<string, un
     }
   }
   return ok;
+}
+
+/** One write in an atomic fsCommit. `mustNotExist` makes the whole commit fail if the doc is already there
+ *  (how two racing requests can't both create the same thing); `mask` patches only those fields. */
+export interface CommitWrite { path: string; data: Record<string, unknown>; mustNotExist?: boolean; mask?: string[] }
+
+/** All-or-nothing multi-document write (one database). `conflict` = a mustNotExist doc already existed. */
+export async function fsCommit(writes: CommitWrite[]): Promise<{ ok: boolean; conflict: boolean; status: number }> {
+  if (!writes.length) return { ok: true, conflict: false, status: 200 };
+  const root = docRootFor(writes[0].path);
+  if (writes.some(w => docRootFor(w.path) !== root)) throw new Error('fsCommit: writes span databases');
+  try {
+    const res = await fetch(`https://firestore.googleapis.com/v1/${root}:commit`, {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify({
+        writes: writes.map(w => ({
+          update: { name: `${root}/${w.path}`, fields: toFields(w.data) },
+          ...(w.mask ? { updateMask: { fieldPaths: w.mask } } : {}),
+          ...(w.mustNotExist ? { currentDocument: { exists: false } } : {}),
+        })),
+      }),
+    });
+    if (res.ok) return { ok: true, conflict: false, status: res.status };
+    const body = (await res.text().catch(() => '')).slice(0, 300);
+    const conflict = res.status === 409 || /ALREADY_EXISTS|FAILED_PRECONDITION/.test(body);
+    if (!conflict) console.warn('[fsCommit] HTTP', res.status, body);
+    return { ok: false, conflict, status: res.status };
+  } catch (err: any) {
+    console.warn('[fsCommit] failed:', err?.message || err);
+    return { ok: false, conflict: false, status: 0 };
+  }
 }
 
 /** Atomic increment; returns the new count, or null when it couldn't be counted. */
