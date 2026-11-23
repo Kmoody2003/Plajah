@@ -362,6 +362,18 @@
       "to": 5.2,
       "face": "start",
       "note": "Soldier staggering from hits: the second stagger, a recoil (parried)"
+    },
+    {
+      "name": "hero_idle",
+      "video": "2ca130a9",
+      "from": 0.05,
+      "to": 1,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.6,
+        "blend": 6
+      },
+      "note": "Character-select stance: soldier set wide, chest up, weapon held low with intent (start of the rifle-to-pistol take)"
     }
   ]
 }

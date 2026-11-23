@@ -530,6 +530,18 @@
         "blend": 6
       },
       "note": "Kneeling, scooping water with cupped hands to the mouth (generated studio take, Kling 2.5, 2026-11-22)"
+    },
+    {
+      "name": "hero_idle",
+      "video": "d9d74cf1",
+      "from": 6.9,
+      "to": 8,
+      "face": "mean",
+      "loop": {
+        "minSec": 0.6,
+        "blend": 6
+      },
+      "note": "Character-select stance: fighter standing tall, feet shoulder-width, blade held low and ready (end of the block-strike-counter take)"
     }
   ]
 }
