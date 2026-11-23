@@ -580,6 +580,7 @@ export class PlayerController {
       jumpHeld: this.enabled && this.spaceHeld, crouch: this.crouched,
       combat: this.aiming || this.blocking || this.moveLock < 1,
       busy: this.dashTimer > 0 || this.lungeT > 0 || this.hangT > 0 || this.downedT > 0, pos: this.object.position,
+      groundBelow: this.glide.gliding && this.world ? this.object.position.y - (this.world.groundAt(this.object.position.x, this.object.position.z, this.object.position.y, 40) ?? -1e9) : undefined,
     });
 
     // dash charges refill one at a time

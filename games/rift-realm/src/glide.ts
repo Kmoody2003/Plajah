@@ -40,13 +40,24 @@ export const GLIDE = {
   /** Rising air: vertical wind into climb (1 = all of it). */
   updraft: 1,
   /** The wings' spread while gliding: lift (dihedral, rad; negative = flatter than the art's raised wings). */
-  glideLift: -0.18,
+  glideLift: -0.42,
+  /** The wings' sweep while gliding (×0.42 rad, negative = forward): the modelled tips trail behind the back, so this
+   *  brings them into the body's plane, which the prone posture lays level with the horizon. */
+  glideSweep: -1.05,
   /** How much the inside wing drops into a turn (rad of wing lift per rad of bank). */
   wingBank: 0.7,
   /** Third person: radius / distance of the window kept clear of wing round the aim ray (~4 % of screen height). */
   aimClear: 0.075,
-  /** Weight of the glide pose clip (wing_hover) over the body. */
-  poseWeight: 0.8,
+  /** Weight of the glide pose clip (wing_hover) over the body: 0, the posture below is procedural. */
+  poseWeight: 0,
+  /** Body pitch toward prone (deg from upright): at the slowest glide / at full glide speed and above (wingsuit). */
+  pitchSlow: 62,
+  pitchFast: 80,
+  /** Braking (no forward input, or pulling back): pitch up by this much (deg). */
+  brakeFlare: 28,
+  /** Landing flare: below this height (m) over the ground the body pitches up toward flarePitch (deg). */
+  flareHeight: 3.2,
+  flarePitch: 18,
 } as const;
 export type GlideTuning = { -readonly [K in keyof typeof GLIDE]: number };
 /** Live tuning (the Studio or the console may change it): `__rr.player.glide.tune({ sink: 2 })`. */
@@ -64,6 +75,8 @@ export interface GlideInput {
   combat: boolean;
   /** Dash / lunge / hang in progress: the glide waits. */
   busy: boolean;
+  /** Height over the ground below (m), for the landing flare; omitted = high up. */
+  groundBelow?: number;
   pos: THREE.Vector3;
 }
 
@@ -81,6 +94,9 @@ export class Glide {
   private fromRun = false; private wasGround = true;
   private airVel = new THREE.Vector3();
   private turnNow = 0;
+  /** Body pitch the glide wants (rad toward prone), and whether the player is braking (no forward input). */
+  pitch = 0;
+  private braking = false;
   private clock = 0;
 
   tune(p: Partial<GlideTuning>) { Object.assign(T, p); return { ...T }; }
@@ -91,7 +107,9 @@ export class Glide {
     windAt(i.pos, this.clock, this.wind);
     this.lockT = Math.max(0, this.lockT - dt);
     if (!this.hasWings) { this.gliding = false; this.wantOpen = 0; return; }
-    if (i.onGround) {
+    // touching down (the collision may not call a slow glide's contact "ground"): land
+    const touching = this.gliding && i.groundBelow !== undefined && i.groundBelow < 0.12;
+    if (i.onGround || touching) {
       // landing folds the wings (a real landing: from a glide or a proper fall, not a step down a stair)
       if (!this.wasGround && (this.gliding || this.airT > 0.35)) { this.lockT = T.landLockout; this.wantOpen = 0; }
       this.gliding = false; this.airT = 0;
@@ -115,6 +133,13 @@ export class Glide {
       this.gliding = start || (this.gliding && want && this.open >= T.minOpen * 0.8);
     }
     this.wasGround = i.onGround;
+    // posture: prone by airspeed, pitched up when braking and in the last metres before touching down
+    const sp = this.airVel.length();
+    const k = THREE.MathUtils.clamp((sp - T.minSpeed) / Math.max(0.1, T.speed - T.minSpeed), 0, 1);
+    let pitch = THREE.MathUtils.lerp(T.pitchSlow, T.pitchFast, k) - (this.braking ? T.brakeFlare : 0);
+    const gb = i.groundBelow ?? 99;
+    if (gb < T.flareHeight) pitch = THREE.MathUtils.lerp(T.flarePitch, pitch, Math.max(0, gb) / T.flareHeight);
+    this.pitch = (pitch * Math.PI) / 180;
     if (!this.gliding) { this.bank += (0 - this.bank) * Math.min(1, dt * 6); this.turnNow = 0; }
   }
 
@@ -127,6 +152,7 @@ export class Glide {
       if (this.airVel.lengthSq() < 1) this.airVel.set(-Math.sin(this.lastYaw), 0, -Math.cos(this.lastYaw)).multiplyScalar(T.minSpeed);
     }
     const heading = Math.atan2(this.airVel.x, this.airVel.z);
+    this.braking = wish.lengthSq() < 0.01 || (wish.x * Math.sin(heading) + wish.z * Math.cos(heading)) < -0.3;
     let turn = 0;
     if (wish.lengthSq() > 0.01) {
       const want = Math.atan2(wish.x, wish.z);
@@ -161,13 +187,15 @@ export class Glide {
     if (!rig || !w) return;
     this.open = w.open;
     w.target.open = this.wantOpen;
-    w.target.sweep = this.gliding ? 0 : this.wasGround ? 1 : 0.5;
+    w.target.sweep = this.gliding ? T.glideSweep : this.wasGround ? 1 : 0.5;
     const base = this.gliding ? T.glideLift : 0;
     const tip = this.gliding ? this.bank * T.wingBank : 0;
     w.target.liftL = base + tip;
     w.target.liftR = base - tip;
     rig.setPoseLayer('wing_hover');                                   // weight 0 unless gliding: it fades in and out
     rig.poseLayerW = this.gliding ? T.poseWeight : 0;
+    rig.glidePose.w = this.gliding ? 1 : 0;
+    rig.glidePose.pitch = this.pitch;
     // first person: the camera is in the head, and your own back is out of sight: the wings are not drawn at all
     // (Kenne: they must never cover the view). They keep simulating, so they're in the right state on switching back.
     const model = rig.root.children[0] ?? rig.root;

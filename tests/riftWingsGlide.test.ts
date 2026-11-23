@@ -9,7 +9,7 @@ import { Glide, GLIDE, type GlideInput } from '../games/rift-realm/src/glide';
 function fakeRig() {
   const wings = { open: 0, target: { open: 0, sweep: 1, liftL: 0, liftR: 0 }, mesh: new THREE.Mesh(), view: null as unknown, setAimClear() {} };
   const root = new THREE.Group(); root.add(new THREE.Group());
-  return { wings, root, setPoseLayer() {}, poseLayerW: 0 } as unknown as Parameters<Glide['pose']>[0] & { wings: typeof wings };
+  return { wings, root, setPoseLayer() {}, poseLayerW: 0, glidePose: { w: 0, pitch: 0 } } as unknown as Parameters<Glide['pose']>[0] & { wings: typeof wings };
 }
 
 function frame(g: Glide, rig: ReturnType<typeof fakeRig>, inp: Partial<GlideInput>, dt = 1 / 60) {

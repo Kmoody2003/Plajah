@@ -52,12 +52,12 @@ async function main() {
     if (w) {
       const running = speed > 6;
       w.target.open = running || mode === 'glide' || (mode === 'jump' && y > 0.3) ? 1 : 0;
-      w.target.sweep = mode === 'glide' ? 0 : 1;
-      w.target.liftL = mode === 'glide' ? -0.2 + turnRate * 0.3 : 0;
-      w.target.liftR = mode === 'glide' ? -0.2 - turnRate * 0.3 : 0;
+      w.target.sweep = mode === 'glide' ? (Number(q.get('gs')) || -1.05) : 1;
+      w.target.liftL = mode === 'glide' ? -0.42 + turnRate * 0.3 : 0;
+      w.target.liftR = mode === 'glide' ? -0.42 - turnRate * 0.3 : 0;
     }
-    stalker.setPoseLayer(mode === 'glide' ? 'wing_hover' : null);
-    stalker.poseLayerW = mode === 'glide' ? 0.85 : 0;
+    stalker.glidePose.w = mode === 'glide' ? 1 : 0;
+    stalker.glidePose.pitch = (Number(q.get('gp')) || 74) * Math.PI / 180;
     stalker.update(dt, mode === 'glide' ? 0 : speed, 0, 1);
     ppos.set(pos.x + Math.cos(heading) * 3, 0, pos.z - Math.sin(heading) * 3);
     paladin.root.position.copy(ppos); paladin.root.rotation.set(0, heading, 0);

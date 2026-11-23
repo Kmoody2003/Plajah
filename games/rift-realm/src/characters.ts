@@ -159,6 +159,14 @@ export class CharacterRig {
   private lastPos = new THREE.Vector3();
   private hasPos = false;
   private windV = new THREE.Vector3();
+  /** Glide posture (glide.ts sets it): weight 0…1 and body pitch toward prone (rad, + = head forward / down). The
+   *  body tips about the hips, legs trail in line, arms sweep back and a little out, the head lifts to look ahead. */
+  readonly glidePose = { w: 0, pitch: 0 };
+  private gw = 0;
+  private gp = 0;
+  private model!: THREE.Object3D;
+  private heightM = 1.9;
+  private boneByName = new Map<string, THREE.Object3D>();
   /** A looping pose layer over everything (the glide's wing_hover): weight chases `poseLayerW`. */
   private poseLayer: { act: THREE.AnimationAction; w: number } | null = null;
   poseLayerW = 0;
@@ -167,7 +175,8 @@ export class CharacterRig {
   private aimApplied = 0;
 
   constructor(asset: CharacterAsset, height = 1.9) {
-    const model = SkeletonUtils.clone(asset.scene);
+    const model = (this.model = SkeletonUtils.clone(asset.scene));
+    this.heightM = height;
     // sized by the BODY (feet → hood), not the whole bbox: the Void Stalker's wing cloak rises above its hood like
     // the art, and must not shrink the character (the cloak is pinned rigidly to Spine2; body weights are blended)
     const h = Math.max(0.01, bodyHeight(model));
@@ -211,6 +220,7 @@ export class CharacterRig {
     });
     this.spineRest = this.spine.map((b) => b.quaternion.clone());
     this.forge = forgeRig(model);
+    model.traverse((o) => { if ((o as THREE.Bone).isBone) this.boneByName.set(o.name.replace(/^.*[:|]/, ''), o); });
     const sec = buildSecondary(model);
     this.soft = sec.soft; this.wings = sec.wings;
   }
@@ -352,8 +362,62 @@ export class CharacterRig {
     this.spine.forEach((b, i) => b.quaternion.copy(this.spineRest[i]));
     this.mixer.update(dt);
     this.forge?.update(dt);
+    this.applyGlidePose(dt);
     this.applyAim(dt);
     this.updateSecondary(dt);
+  }
+
+  private _gq = new THREE.Quaternion(); private _gq2 = new THREE.Quaternion(); private _ga = new THREE.Vector3(); private _gb = new THREE.Vector3();
+  private _gUp = new THREE.Vector3(); private _gFwd = new THREE.Vector3(); private _gSide = new THREE.Vector3(); private _gT = new THREE.Vector3();
+  /** Glide posture: the whole body pitched about the hips toward prone, then the limbs laid along it (wingsuit). */
+  private applyGlidePose(dt: number) {
+    this.gw += (this.glidePose.w - this.gw) * Math.min(1, dt * (this.glidePose.w > this.gw ? 4 : 6));
+    this.gp += (this.glidePose.pitch - this.gp) * Math.min(1, dt * 3.5);
+    const th = this.gp * this.gw;
+    // body pitch about the hips (rig space: +Z forward, +X the figure's left): the head goes forward, the feet back
+    // pivot at the chest: the prone body stays up near where the standing figure's shoulders were (the camera's line)
+    const piv = this.heightM * 0.78;
+    this.model.quaternion.setFromAxisAngle(this._ga.set(1, 0, 0), th);
+    this.model.position.set(0, piv, 0).sub(this._gb.set(0, piv, 0).applyQuaternion(this.model.quaternion));
+    if (this.gw < 0.01) return;
+    this.model.updateMatrixWorld(true);
+    this.model.getWorldQuaternion(this._gq);
+    const up = this._gUp.set(0, 1, 0).applyQuaternion(this._gq), fwd = this._gFwd.set(0, 0, 1).applyQuaternion(this._gq);
+    const left = this._gSide.set(1, 0, 0).applyQuaternion(this._gq);
+    const w = this.gw;
+    for (const [s, k] of [['Left', 1], ['Right', -1]] as const) {
+      // legs trail straight in line with the body (a touch apart), knees just soft
+      this.aimBone(s + 'UpLeg', s + 'Leg', this._gT.copy(up).negate().addScaledVector(left, 0.1 * k).addScaledVector(fwd, 0.04), w);
+      this.aimBone(s + 'Leg', s + 'Foot', this._gT.copy(up).negate().addScaledVector(fwd, -0.18).addScaledVector(left, 0.08 * k), w);
+      // arms swept back along the flanks and a little out, forearms in line
+      this.aimBone(s + 'Arm', s + 'ForeArm', this._gT.copy(up).multiplyScalar(-0.72).addScaledVector(left, 0.55 * k).addScaledVector(fwd, -0.3), w);
+      this.aimBone(s + 'ForeArm', s + 'Hand', this._gT.copy(up).multiplyScalar(-0.8).addScaledVector(left, 0.45 * k).addScaledVector(fwd, -0.25), w);
+    }
+    // the head lifts to look ahead (most in the neck)
+    this.turnBone('Neck', left, -th * 0.5);
+    this.turnBone('Head', left, -th * 0.35);
+  }
+  /** Turn a bone (in world space) so its child joint lies along `dir`, by weight w. */
+  private aimBone(name: string, child: string, dir: THREE.Vector3, w: number) {
+    const b = this.boneByName.get(name), c = this.boneByName.get(child);
+    if (!b || !c || !b.parent) return;
+    const from = c.getWorldPosition(this._ga).sub(b.getWorldPosition(this._gb)).normalize();
+    this._gq.setFromUnitVectors(from, dir.normalize());
+    this._gq2.identity().slerp(this._gq, w);
+    this.worldTurn(b, this._gq2);
+  }
+  private turnBone(name: string, axis: THREE.Vector3, angle: number) {
+    const b = this.boneByName.get(name);
+    if (!b || !b.parent || !angle) return;
+    this.worldTurn(b, this._gq2.setFromAxisAngle(axis, angle));
+  }
+  private _wq = new THREE.Quaternion();
+  /** bone.world ← q · bone.world, written into its local rotation. */
+  private worldTurn(b: THREE.Object3D, q: THREE.Quaternion) {
+    b.parent!.getWorldQuaternion(this._wq);
+    const pinv = this._gq.copy(this._wq).invert();
+    b.quaternion.premultiply(pinv.multiply(q).multiply(this._wq));
+    b.updateMatrixWorld(true);
   }
 
   private _p = new THREE.Vector3();
@@ -379,7 +443,7 @@ export class CharacterRig {
   private axis = new THREE.Vector3(); private fwd = new THREE.Vector3(); private pq = new THREE.Quaternion(); private dq = new THREE.Quaternion();
   /** Bend the spine (shared across its bones) about the character's right axis so the chest and gun follow the aim pitch. */
   private applyAim(dt: number) {
-    this.aimApplied += (THREE.MathUtils.clamp(this.aimPitch, -0.85, 0.85) - this.aimApplied) * Math.min(1, dt * 16);
+    this.aimApplied += (THREE.MathUtils.clamp(this.aimPitch, -0.85, 0.85) * (1 - this.gw) - this.aimApplied) * Math.min(1, dt * 16);
     if (!this.spine.length || Math.abs(this.aimApplied) < 1e-3) return;
     this.root.updateWorldMatrix(true, false);
     this.root.getWorldDirection(this.fwd);                         // the rig faces its +Z
