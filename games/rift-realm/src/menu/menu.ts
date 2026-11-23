@@ -18,6 +18,7 @@ import { moduleByParam, type LevelModule } from '../studio/levelModules';
 import { RhythmEngine } from '../rhythm';
 import { WEAPONS } from '../weapons';
 import { VESSELS, type VesselId } from '../vessels';
+import { openControls } from './controlsPanel';
 
 export type Quality = 'auto' | 'low' | 'high';
 export interface MenuChoice { level: string; vessel: VesselId; quality: Quality }
@@ -129,7 +130,8 @@ export function startMenu(): MenuHandle {
       <div class="rr-set" data-i="0"><span>Graphics quality</span><b class="rr-opt" data-k="quality"></b></div>
       <div class="rr-set" data-i="1"><span>Look sensitivity</span><b class="rr-opt" data-k="sens"></b></div>
       <div class="rr-set" data-i="2"><span>Volume</span><b class="rr-opt" data-k="volume"></b></div>
-      <button class="rr-set rr-set-back" data-i="3">Back</button>
+      <button class="rr-set rr-set-controls" data-i="3"><span>Controls</span><b>Keyboard · mouse · controller · touch ›</b></button>
+      <button class="rr-set rr-set-back" data-i="4">Back</button>
       <div class="rr-hint"><kbd>←→</kbd> change · <kbd>Esc</kbd> / <kbd>B</kbd> back</div>
     </section>
     <section class="rr-scr rr-map">
@@ -298,12 +300,13 @@ export function startMenu(): MenuHandle {
       if (a === 'ok') { if (startI === 0) { show('map'); void prefetch.characters(); } else if (startI === 1) { setI = 0; show('settings'); } else quit(); return; }
       renderStart();
     } else if (screen === 'settings') {
-      if (a === 'up') setI = (setI + 3) % 4;
-      if (a === 'down') setI = (setI + 1) % 4;
+      if (a === 'up') setI = (setI + 4) % 5;
+      if (a === 'down') setI = (setI + 1) % 5;
       if (a === 'reset') { resetSetting(); return; }
+      if (a === 'ok' && setI === 3) { openControls(() => renderSettings()); return; }
       if (a === 'left' || a === 'prev') changeSetting(-1);
       if (a === 'right' || a === 'next') changeSetting(1);
-      if (a === 'back' || (a === 'ok' && setI === 3)) { show('start'); return; }
+      if (a === 'back' || (a === 'ok' && setI === 4)) { show('start'); return; }
       if (a === 'ok') changeSetting(1);
       renderSettings();
     } else if (screen === 'map') {
@@ -346,7 +349,8 @@ export function startMenu(): MenuHandle {
     b.addEventListener('pointerenter', () => { setI = i; renderSettings(); });
     b.addEventListener('click', (e: MouseEvent) => {
       setI = i;
-      if (i === 3) { show('start'); return; }
+      if (i === 3) { openControls(() => renderSettings()); return; }
+      if (i === 4) { show('start'); return; }
       const t = e.target as HTMLElement;
       if (t.closest('.rr-reset')) { resetSetting(); return; }
       const step = t.closest<HTMLElement>('.rr-nudge');

@@ -248,6 +248,16 @@ export class UnifiedControls {
     bindBtn('btnStrike', () => { this.queuedStrike = true; });
     bindBtn('btnJump', () => { this.queuedJump = true; });
     bindBtn('btnView', () => { this.queuedToggleView = true; });
+    bindBtn('btnLock', () => { this.queuedLock = true; });
+    bindBtn('btnFists', () => { this.queuedFists = true; });
+    bindBtn('btnReload', () => { window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyR', bubbles: true })); window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyR', bubbles: true })); });
+    // guard is a hold: the combat code reads the X key while it's down
+    const guard = document.getElementById('btnGuard');
+    if (guard) {
+      const down = (e: Event) => { e.preventDefault(); window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyX', bubbles: true })); };
+      const up = () => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyX', bubbles: true }));
+      guard.addEventListener('pointerdown', down); guard.addEventListener('pointerup', up); guard.addEventListener('pointercancel', up); guard.addEventListener('pointerleave', up);
+    }
   }
 
   poll(dt: number): InputState {
@@ -326,7 +336,7 @@ export class UnifiedControls {
       if (edge(5)) cycleVesselPressed = true;    // RB
       if (edge(14)) reloadPressed = true;         // D-pad left
       if (edge(13)) crouchPressed = true;         // D-pad down
-      if (edge(12)) fistsPressed = true;          // D-pad up: gun <-> hand-to-hand
+      if (edge(15)) fistsPressed = true;          // D-pad right: gun <-> hand-to-hand (D-pad up is eat)
       if (edge(8) || edge(11)) toggleViewPressed = true; // Select / R3
     }
 

@@ -27,6 +27,8 @@ import { Melee } from './combat/melee';
 import { COMBAT, DEFAULT_TUNING, applyCombatTuning, initCombatTuning, resetCombatTuning, type Archetype } from './combat/tuning';
 import { PlajahGamesBridge } from './plajahBridge';
 import { VfxSystem, HIT_SPARKS, HIT_PERFECT, KILL_BURST, SHADOW_BURST, SLASH, SLASH_PERFECT, SLASH_SHADOW, BLADE_TRAIL, STREAK_TRAIL } from '../../../services/vfx';
+import { wireRemap } from './input/actions';
+import { openControls } from './menu/controlsPanel';
 
 interface SurgeWave {
   mesh: THREE.Mesh;
@@ -56,6 +58,9 @@ async function boot() {
   const achToast = document.getElementById('achToast')!;
 
   // ── front end: the menus run (DOM + video) while the renderer starts behind them; ?rrdebug / ?studio=1 / ?menu=0 skip ──
+  // player-customisable controls (services/input/remap.ts): bindings are translated onto the inputs the game listens
+  // for while playing; the Controls page (Settings, pause panel) edits them
+  wireRemap({ target: () => renderer.domElement, active: () => { try { return !!player?.enabled; } catch { return false; } } });
   const menu = menuSkipped() ? null : startMenu();
 
   let renderer: THREE.WebGPURenderer;
@@ -767,6 +772,7 @@ async function boot() {
     window.setTimeout(() => { void compileEverything(renderer, scene, camera).then(() => console.info('[load] background warm-up done')); }, 1500);
   });
   document.getElementById('menuBtn')?.addEventListener('click', () => { location.href = location.pathname; }); // pause → back to the menus
+  document.getElementById('controlsBtn')?.addEventListener('click', () => openControls()); // pause → Controls page
   // Esc pauses drag-look play too (no pointer lock to release, e.g. an embedded view that refused the lock)
   window.addEventListener('keydown', (e) => {
     if (e.code !== 'Escape' || controls.isTouchDevice || document.pointerLockElement || document.querySelector('.rr-load')) return;

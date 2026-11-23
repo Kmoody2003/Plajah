@@ -29,7 +29,7 @@
 @keyframes rr-mote { 0% { transform: translate3d(0, 0, 0); opacity: 0; } 12% { opacity: .8; } 80% { opacity: .5; } 100% { transform: translate3d(30px, -105vh, 0); opacity: 0; } }
 body.rr-pedestal #view { z-index: 10; }
 /* the game's HUD stays out of sight while the menus or the loading screen are up */
-body:has(> .rr-menu, > .rr-load) > :not(.rr-menu, .rr-load, #view, script) { visibility: hidden !important; }
+body:has(> .rr-menu, > .rr-load) > :not(.rr-menu, .rr-load, .rr-cp, .rr-cp-toast, #view, script) { visibility: hidden !important; }
 
 .rr-scr { position: fixed; inset: 0; z-index: 30; pointer-events: none; opacity: 0; transition: opacity .35s ease; }
 .rr-scr.on { opacity: 1; }
@@ -62,7 +62,9 @@ body:has(> .rr-menu, > .rr-load) > :not(.rr-menu, .rr-load, #view, script) { vis
 .rr-settings { background: #05040a8c; }
 .rr-settings h2 { position: absolute; left: 7vw; top: 20vh; margin: 0; font: 300 34px 'Segoe UI', sans-serif; letter-spacing: .3em; text-transform: uppercase; color: var(--gold); }
 .rr-set { position: absolute; left: 7vw; width: min(560px, 80vw); display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border: 1px solid #ffffff12; background: #0d0a16cc; font-size: 14px; letter-spacing: .08em; }
-.rr-set[data-i="0"] { top: calc(20vh + 70px); } .rr-set[data-i="1"] { top: calc(20vh + 124px); } .rr-set[data-i="2"] { top: calc(20vh + 178px); } .rr-set[data-i="3"] { top: calc(20vh + 244px); width: 140px; justify-content: center; text-transform: uppercase; letter-spacing: .2em; }
+.rr-set[data-i="0"] { top: calc(20vh + 70px); } .rr-set[data-i="1"] { top: calc(20vh + 124px); } .rr-set[data-i="2"] { top: calc(20vh + 178px); } .rr-set[data-i="3"] { top: calc(20vh + 232px); cursor: pointer; }
+.rr-set[data-i="3"] b { color: var(--gold); font-weight: 400; font-size: 12px; letter-spacing: .06em; }
+.rr-set[data-i="4"] { top: calc(20vh + 298px); width: 140px; justify-content: center; text-transform: uppercase; letter-spacing: .2em; }
 .rr-set b { font-weight: 600; color: #fff; }
 .rr-opt { display: inline-flex; align-items: center; gap: 4px; }
 .rr-nudge { font-style: normal; width: 30px; height: 26px; display: inline-grid; place-items: center; color: var(--gold); border: 1px solid #ffffff1a; cursor: pointer; user-select: none; }
