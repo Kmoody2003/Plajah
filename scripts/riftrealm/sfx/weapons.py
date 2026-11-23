@@ -32,15 +32,16 @@ def load(path):
     subprocess.run([FF, '-y', '-v', 'error', '-i', path, '-ac', '1', '-ar', '48000', tmp], check=True)
     a, sr = sf.read(tmp); os.remove(tmp); return a, sr
 
-for name, (clip, maxs, peak) in PICKS.items():
-    a, sr = load(SRC + clip + '.mp3')
-    # start at the first transient (10 % of peak), keep maxs, short fade in, cosine fade over the last 35 %
-    on = int(np.argmax(np.abs(a) > 0.1 * np.abs(a).max()))
-    a = a[max(0, on - int(0.004 * sr)): max(0, on - int(0.004 * sr)) + int(maxs * sr)].copy()
-    n = len(a); fi = int(0.003 * sr); fo = int(n * 0.35)
-    a[:fi] *= np.linspace(0, 1, fi)
-    a[-fo:] *= 0.5 + 0.5 * np.cos(np.linspace(0, np.pi, fo))
-    a *= 10 ** (peak / 20) / max(1e-6, np.abs(a).max())
-    tmp = tempfile.mktemp(suffix='.wav'); sf.write(tmp, a, sr)
-    subprocess.run([FF, '-y', '-v', 'error', '-i', tmp, '-ac', '1', '-b:a', '128k', OUT + name + '.mp3'], check=True)
-    os.remove(tmp); print(name, f'{n / sr:.2f}s', clip)
+if __name__ == '__main__':
+    for name, (clip, maxs, peak) in PICKS.items():
+        a, sr = load(SRC + clip + '.mp3')
+        # start at the first transient (10 % of peak), keep maxs, short fade in, cosine fade over the last 35 %
+        on = int(np.argmax(np.abs(a) > 0.1 * np.abs(a).max()))
+        a = a[max(0, on - int(0.004 * sr)): max(0, on - int(0.004 * sr)) + int(maxs * sr)].copy()
+        n = len(a); fi = int(0.003 * sr); fo = int(n * 0.35)
+        a[:fi] *= np.linspace(0, 1, fi)
+        a[-fo:] *= 0.5 + 0.5 * np.cos(np.linspace(0, np.pi, fo))
+        a *= 10 ** (peak / 20) / max(1e-6, np.abs(a).max())
+        tmp = tempfile.mktemp(suffix='.wav'); sf.write(tmp, a, sr)
+        subprocess.run([FF, '-y', '-v', 'error', '-i', tmp, '-ac', '1', '-b:a', '128k', OUT + name + '.mp3'], check=True)
+        os.remove(tmp); print(name, f'{n / sr:.2f}s', clip)

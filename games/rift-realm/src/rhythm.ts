@@ -30,6 +30,9 @@ const SFX: Record<string, number> = {
   // reload parts from the same mocap videos as the body's reload clips (r = rifle, p = pistol), dry fire, switch, impacts
   magout_r: 1, magin_r: 1, charge_r: 1, magout_p: 1, magin_p: 1, charge_p: 1, dry: 2, switch: 2,
   imp_lance: 2, imp_scatter: 2, imp_chord: 2,
+  // layered vessel shots (scripts/riftrealm/sfx/shots.py): the sampled gun body + laser zap + magic (chime, sub, crackle)
+  // + each vessel's tail; *_p = the PERFECT-beat bloom
+  shot_lance: 3, shot_lance_p: 2, shot_scatter: 3, shot_scatter_p: 2, shot_chord: 3, shot_chord_p: 2,
 };
 const AMB = ['amb_forest', 'amb_stream', 'amb_drone'] as const;
 /** Each vessel's own gun voice (vessels.ts ids). */
@@ -356,12 +359,36 @@ export class RhythmEngine {
   /** A gun shot: each vessel's own sampled voice; on the beat it hits harder (PERFECT adds a bright crack on top). */
   playShot(quality: BeatQuality, vessel = 'aegis') {
     const gun = GUN[vessel] ?? 'lance';
-    const gain = quality === 'PERFECT' ? 1.05 : quality === 'GOOD' ? 0.9 : 0.7;
-    if (this.sample(gun, { gain, rate: quality === 'PERFECT' ? 1.03 : 1, send: gun === 'scatter' ? 0.75 : 0.55 })) {
-      if (quality === 'PERFECT') this.oscShot('PERFECT', 0.35);
+    const perfect = quality === 'PERFECT';
+    const gain = perfect ? 1.05 : quality === 'GOOD' ? 0.9 : 0.7;
+    const o = { gain, rate: perfect ? 1.02 : 1, send: gun === 'scatter' ? 0.75 : 0.55 };
+    // the layered shot (PERFECT blooms: its own brighter takes); the plain sampled gun if those haven't loaded
+    if (this.sample(perfect ? `shot_${gun}_p` : `shot_${gun}`, o) || this.sample(gun, o)) {
+      this.zapLayer(gun, perfect);
+      if (perfect) this.oscShot('PERFECT', 0.25);
       return;
     }
     this.oscShot(quality, 1);
+  }
+
+  /** A live laser flick on top of the sampled shot, new every time (pitch and length vary), so rapid fire never
+   *  repeats exactly: the lance drops low, the scatter is a short buzz, the chord a bright blip. */
+  private zapLayer(gun: string, perfect: boolean) {
+    const ctx = this.ctx;
+    if (!ctx || !this.sfxIn) return;
+    const t = ctx.currentTime, j = 0.92 + Math.random() * 0.16;
+    const [f0, f1, dur, type, lvl] = gun === 'lance' ? [2200, 160, 0.22, 'sawtooth', 0.05] as const
+      : gun === 'scatter' ? [1600, 220, 0.09, 'square', 0.035] as const : [3200, 900, 0.07, 'triangle', 0.05] as const;
+    const osc = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter();
+    osc.type = type;
+    osc.frequency.setValueAtTime(f0 * j * (perfect ? 1.25 : 1), t);
+    osc.frequency.exponentialRampToValueAtTime(f1 * j, t + dur);
+    lp.type = 'lowpass'; lp.frequency.value = perfect ? 9000 : 5000;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(lvl * (perfect ? 1.4 : 1), t + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(lp).connect(g).connect(this.sfxIn);
+    osc.start(t); osc.stop(t + dur + 0.02);
   }
 
   playReload() { this.sample('reload', { gain: 0.8, send: 0.2 }); }
