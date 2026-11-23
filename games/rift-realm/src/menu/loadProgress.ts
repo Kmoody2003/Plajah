@@ -50,6 +50,7 @@ export class LoadScreen {
         <div class="rr-sigil"><i></i><i></i><i></i></div>
         <video muted loop playsinline autoplay preload="auto" poster="${opts.charPoster}" src="${opts.charVideo}"></video>
       </div>
+      <div class="rr-load-brand">Vesselbound</div>
       <div class="rr-load-head"><div class="rr-kicker">Entering</div><h2>${opts.mapName}</h2><div class="rr-load-as">as <b>${opts.charName}</b></div></div>
       <ol class="rr-load-stages">${STAGES.map((s) => `<li data-s="${s.id}"><span></span>${s.label}</li>`).join('')}</ol>
       <div class="rr-load-foot">

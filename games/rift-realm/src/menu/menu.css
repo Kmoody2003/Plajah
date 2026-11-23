@@ -70,6 +70,7 @@ body:has(> .rr-menu, > .rr-load) > :not(.rr-menu, .rr-load, #view, script) { vis
 .rr-step { position: absolute; left: 4vw; top: 26px; font-size: 12px; letter-spacing: .3em; text-transform: uppercase; color: #cfc6dd; }
 .rr-step b { display: inline-grid; place-items: center; width: 24px; height: 24px; margin-right: 10px; border: 1px solid var(--gold); font-weight: 600; color: var(--gold); }
 .rr-step em { font-style: normal; color: var(--accent); margin-left: 6px; }
+.rr-step em.rr-world { color: var(--gold); letter-spacing: .4em; margin-left: 14px; padding-left: 14px; border-left: 1px solid #d9b26a55; }
 .rr-map-info { position: absolute; left: 4vw; top: 16vh; width: min(460px, 42vw); }
 .rr-map-info h2, .rr-char-left h2 { margin: 8px 0 4px; font: 300 clamp(30px, 3.6vw, 50px)/1.05 'Segoe UI', sans-serif; letter-spacing: .06em; color: #fff; text-shadow: 0 2px 20px #000; }
 .rr-map-size { font-size: 13px; color: var(--accent); letter-spacing: .12em; text-transform: uppercase; }
@@ -145,6 +146,8 @@ body:has(> .rr-menu, > .rr-load) > :not(.rr-menu, .rr-load, #view, script) { vis
 .rr-sigil i:nth-child(2) { inset: 0; border-color: var(--gold); border-left-color: transparent; border-right-color: transparent; animation-duration: 22s; animation-direction: reverse; opacity: .4; }
 .rr-sigil i:nth-child(3) { inset: 9%; border-style: dashed; opacity: .25; animation-duration: 40s; }
 .rr-load-head { position: absolute; left: 6vw; top: 14vh; }
+.rr-load-brand { position: absolute; left: 6vw; top: 5vh; font: 300 18px/1 'Segoe UI', sans-serif; letter-spacing: .42em; text-transform: uppercase;
+  background: linear-gradient(180deg, #fff8e6, #d9b26a 60%, #7c5a2a); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .rr-load-head h2 { margin: 8px 0 6px; font: 300 clamp(32px, 4.4vw, 60px)/1.05 'Segoe UI', sans-serif; letter-spacing: .06em; color: #fff; }
 .rr-load-as { font-size: 14px; color: #cfc6dd; letter-spacing: .1em; } .rr-load-as b { color: var(--accent); font-weight: 600; }
 .rr-load-stages { position: absolute; left: 6vw; top: calc(14vh + 150px); margin: 0; padding: 0; list-style: none; display: grid; gap: 7px; font-size: 13px; letter-spacing: .06em; color: #6f6880; }

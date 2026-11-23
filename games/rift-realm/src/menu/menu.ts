@@ -118,7 +118,7 @@ export function startMenu(): MenuHandle {
     </div>
     <section class="rr-scr rr-start">
       <div class="rr-rune"><svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="92"/><circle cx="100" cy="100" r="74"/><path d="M100 8 L180 146 L20 146 Z"/><path d="M100 192 L20 54 L180 54 Z"/></svg></div>
-      <div class="rr-title"><div class="rr-kicker">The Void Tournament</div><h1>Rift Realm</h1><div class="rr-sub">Fight on the pulse. Every beat is a blade.</div></div>
+      <div class="rr-title"><div class="rr-kicker">The Void Tournament</div><h1>Vesselbound</h1><div class="rr-sub">Fight on the pulse. Every beat is a blade.</div></div>
       <nav class="rr-list">
         <button data-i="0">Start</button><button data-i="1">Settings</button><button data-i="2">Quit</button>
       </nav>
@@ -133,7 +133,7 @@ export function startMenu(): MenuHandle {
       <div class="rr-hint"><kbd>←→</kbd> change · <kbd>Esc</kbd> / <kbd>B</kbd> back</div>
     </section>
     <section class="rr-scr rr-map">
-      <header class="rr-step"><b>1</b> Choose the battleground</header>
+      <header class="rr-step"><b>1</b> Choose the battleground <em class="rr-world">Rift Realm</em></header>
       <div class="rr-map-info"><div class="rr-kicker rr-map-mode"></div><h2 class="rr-map-name"></h2><div class="rr-map-size"></div><p class="rr-map-blurb"></p>
         <button class="rr-go">Choose map <kbd>Enter</kbd></button></div>
       <div class="rr-cards">${MAPS.map((m, i) => `<button class="rr-card" data-i="${i}" style="--accent:${m.accent}"><img src="${m.poster}" alt="" loading="eager"><span>${m.name}</span></button>`).join('')}</div>
