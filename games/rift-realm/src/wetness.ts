@@ -41,9 +41,20 @@ function wetMask(amount: number): N {
   const small: N = mx_noise_float(p.mul(0.32).add(17.3)).mul(0.5).add(0.5);
   // soft, large patches (small hard-edged ones read as camouflage, especially through river water)
   const zones: N = smoothstep(float(0.3), float(0.85), big.mul(0.82).add(small.mul(0.18)));
-  // flat ground holds water (puddle shine), walls and trunks stay damp
+  // flat ground holds a little more water, walls and trunks stay damp
   const up: N = smoothstep(float(0.55), float(0.95), normalWorld.y);
-  return float(amount * 0.45).add(zones.mul(amount * 0.55)).add(up.mul(zones).mul(0.35)).min(1);
+  return float(amount * 0.45).add(zones.mul(amount * 0.55)).add(up.mul(zones).mul(0.2)).min(1);
+}
+
+// standing water: only rare pools on flat ground, where the wandering wet zones peak and the ground sits a little low
+// (the art: puddles in the hollows, dry-ish stone around them). Every flat face as a puddle turned whole plazas into
+// mirrors of the bright day sky.
+function poolMask(): N {
+  const p: N = positionWorld;
+  const big: N = mx_noise_float(p.mul(0.045)).mul(0.5).add(0.5);
+  const blot: N = mx_noise_float(p.mul(0.55).add(41.7)).mul(0.5).add(0.5);
+  const flat: N = smoothstep(float(0.9), float(0.985), normalWorld.y);
+  return smoothstep(float(0.74), float(0.86), big.mul(0.7).add(blot.mul(0.3))).mul(flat);
 }
 
 /** Add the moisture layer to every eligible material under `root` (each material once). Returns how many. */
@@ -65,8 +76,11 @@ export function wetten(root: THREE.Object3D, o: WetOptions = {}): number {
       // soaked banks by the water: much darker, a satin sheen (not a mirror: flat banks at roughness 0.06 turned white
       // under the day sky)
       const shore: N = shoreWet();
-      m.colorNode = col.mul(float(1).sub(wet.mul(0.2)).sub(shore.mul(0.32)));       // wet darkens
-      m.roughnessNode = mix(mix(rough, rough.mul(0.22).max(0.06), wet), rough.min(0.38), shore.mul(0.75));     // and shines
+      const pool: N = poolMask();
+      m.colorNode = col.mul(float(1).sub(wet.mul(0.2)).sub(shore.mul(0.32)).sub(pool.mul(0.25)));       // wet darkens
+      // damp is a satin sheen (never under 0.3: at 0.14 every flagstone mirrored the sky); only the pools are glossy
+      const damp: N = mix(rough, rough.mul(0.6).max(0.3), wet);
+      m.roughnessNode = mix(mix(damp, rough.min(0.38), shore.mul(0.75)), float(0.07), pool.mul(0.9));
       m.needsUpdate = true;
       n++;
     }

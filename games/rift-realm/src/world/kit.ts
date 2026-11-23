@@ -204,9 +204,29 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
     const src = mats.rock as THREE.MeshStandardNodeMaterial;
     const m = new THREE.MeshStandardNodeMaterial({ normalMap: src.normalMap, roughness: 0.62 });
     m.normalScale.set(0.8, 0.8);
-    const mot = tslTexture(art('moss_strand_albedo.jpg', true, true), positionWorld.xz.mul(0.06)).rgb.dot(vec3(0.3, 0.55, 0.15));
-    const fine = tslTexture(art('moss_strand_albedo.jpg', true, true), positionWorld.xz.mul(0.9)).rgb.dot(vec3(0.3, 0.55, 0.15));
-    m.colorNode = vec3(0.075, 0.085, 0.08).mul(float(0.65).add(mot.mul(0.7)).add(fine.mul(0.2)));
+    const mossTex = art('moss_strand_albedo.jpg', true, true);
+    const mot = tslTexture(mossTex, positionWorld.xz.mul(0.06)).rgb.dot(vec3(0.3, 0.55, 0.15));
+    const fine = tslTexture(mossTex, positionWorld.xz.mul(0.9)).rgb.dot(vec3(0.3, 0.55, 0.15));
+    // the art's paving (Portal Plaza, Circuit Court, Cathedral): dark worn stone, each slab its own tone, moss and dirt
+    // packed into the joints and up the bevels, moss creeping onto the tops in patches
+    // per-stone tone: a hash of the ~1 m cell the stone sits in (stones are about a cell; floor = x - fract(x))
+    const cellXZ = positionWorld.xz.div(1.05);
+    const cell = cellXZ.sub(fract(cellXZ));
+    const h1 = fract(sin(cell.x.mul(127.1).add(cell.y.mul(311.7))).mul(43758.55));
+    const h2 = fract(sin(cell.x.mul(269.5).add(cell.y.mul(183.3))).mul(24634.63));
+    const tone = vec3(0.062, 0.072, 0.082).mul(float(0.7).add(h1.mul(0.6)))                  // light/dark slabs
+      .mul(mix(vec3(1.0, 1.0, 0.97), vec3(0.9, 0.98, 1.1), h2));                          // warm or cool grey
+    const stone = tone.mul(float(0.7).add(mot.mul(0.55)).add(fine.mul(0.2)));
+    // faces: tops (worn, slightly lighter where feet go), bevels and sides (joints) carry moss and dirt
+    const top = smoothstep(float(0.955), float(0.992), normalWorld.y);
+    const mossCol = vec3(0.045, 0.075, 0.028).mul(float(0.6).add(fine.mul(0.9)));
+    const dirt = vec3(0.035, 0.03, 0.022);
+    // moss creeping onto the tops: big soft patches from the moss sheet, more on some slabs than others
+    const patch = smoothstep(float(0.36), float(0.62), mot.mul(0.75).add(h2.mul(0.35)));
+    const joint = float(1).sub(top);
+    const c0 = mix(stone, mossCol, patch.mul(0.85).mul(top));
+    m.colorNode = mix(c0, mix(dirt, mossCol, fine.add(0.2).min(1)), joint.mul(0.9));
+    m.roughnessNode = mix(float(0.58).add(h1.mul(0.12)), float(0.88), patch.mul(top).add(joint).min(1));
     return m;
   })();
   const puddleMat = (() => {

@@ -64,6 +64,17 @@ Circuit Court and Great Oak are still bright from the glossy flagstones (D) and 
 geometry). The Cathedral art is a cool blue interior: it wants a per-place light (a local look volume), not the global
 day.
 
+## D — stone and ground pass 1 (2026-11-23)
+
+Proof: `docs/rift-realm-wilds/stone-pass-1.jpg` (art | before | after: Portal Plaza, Circuit Court, Cathedral).
+- wetness.ts: damp is a satin sheen (roughness never under 0.3; it was 0.14 on every flat face, so plazas mirrored the
+  sky). Only rare pools on flat ground (where the wet zones peak) go glossy (0.07) and darker.
+- kit.ts flagstones: per-slab tone from a ~1 m cell hash (light/dark, warm/cool grey), cooler darker stone, moss and dirt
+  in the joints and up the bevels, moss patches creeping onto the tops, rougher moss.
+- Paving mean luminance: Portal Plaza 89 → 77 (art 76), Circuit Court 76 → 66 (art 78), Cathedral 71 → 63 (art 55).
+
+Still open: a warm cast on the stone (the light grade; the Cathedral wants its own cool look), moss on the tops is faint,
+no leaf-litter or crack decals yet, the circuit lines in the paving are thin and sparse next to the art.
 ## Coordination
 
 The forest session (`local_06184409`) owns world/* geometry. Uncommitted edits in post.ts, skyCycle.ts and
