@@ -197,6 +197,7 @@ async function boot() {
   let popTimeout: number | undefined;
   const shakeV = new THREE.Vector3(), assistV = new THREE.Vector3();
   const AIM_STYLE = new URLSearchParams(location.search).get('aim') ?? 'cursor';
+  let releasingLock = false; // the game dropped the pointer lock itself (cursor aim), so the unlock isn't a pause
   const surges: SurgeWave[] = [];
   const raycaster = new THREE.Raycaster();
   // Particles (services/vfx): sparks on every hit, a burst of shards on a kill; bounce off the real ground.
@@ -537,6 +538,9 @@ async function boot() {
     } else {
       // A refused pointer lock (embedded views, some browsers) must never block play: drag-look takes over.
       const enterUnlocked = () => { player.enabled = true; overlay.classList.add('hidden'); };
+      // third person aims with the cursor: no pointer lock to take (taking it, then dropping it for the cursor, read
+      // as Esc and paused the game on entry and on every resume)
+      if (!player.firstPerson && AIM_STYLE !== 'look') { enterUnlocked(); return; }
       try {
         const p = renderer.domElement.requestPointerLock?.() as Promise<void> | undefined;
         if (p && typeof p.catch === 'function') p.catch(enterUnlocked); else if (!p) enterUnlocked();
@@ -560,6 +564,8 @@ async function boot() {
     if (controls.isTouchDevice) return;
     const locked = document.pointerLockElement === renderer.domElement;
     if (locked) { player.enabled = true; overlay.classList.add('hidden'); return; }
+    // released by the game itself (switching to cursor aim): not a pause
+    if (releasingLock) { releasingLock = false; return; }
     // lock released (Esc): pause on the menu
     player.enabled = false;
     overlay.classList.remove('hidden');
@@ -608,7 +614,7 @@ async function boot() {
     // with A / D and the screen edges (Kenne: "the crosshair is never where I'm pointing the mouse"). First person and
     // ?aim=look keep mouse-look.
     controls.cursorAim = !player.firstPerson && AIM_STYLE !== 'look';
-    if (controls.cursorAim && document.pointerLockElement) document.exitPointerLock?.();
+    if (controls.cursorAim && document.pointerLockElement) { releasingLock = true; document.exitPointerLock?.(); }
     targeting.cursor = input.cursor; player.aimNdc = input.cursor;
     if (input.lockPressed && player.enabled) targeting.toggle(foes());
     targeting.update(realDt, foes(), input.lockHeld, player.enabled, moveAmt);
