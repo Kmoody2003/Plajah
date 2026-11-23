@@ -200,8 +200,8 @@ class HeroPose {
     // which the layer below turns into the hero stance; a named clip replaces it once a real hero idle exists
     this.idleEntry = r.loco.find((l) => l.name === 'idle');
     this.actions = r.actions;
-    if (HeroPose.clip[kind]) this.useClip(HeroPose.clip[kind]);
-    else this.idleEntry?.act.stop();
+    this.onClip = !!HeroPose.clip[kind] && this.useClip(HeroPose.clip[kind], HeroPose.clipRate);
+    if (!this.onClip) this.idleEntry?.act.stop(); // no hero clip on this rig: the bind pose
     rig.aimPitch = 0;
     rig.root.traverse((o) => {
       const n = o.name.replace(/^.*[:|]/, '');
@@ -232,16 +232,20 @@ class HeroPose {
     b.quaternion.premultiply(this.q);
   }
 
-  /** The standing clip per body ('' = bind pose). The rigs' clips named "idle" are not standing idles (the Paladin's
-   *  is a lunge, the Stalker's holds the gun up), so both use the bind pose until a hero idle is baked. */
-  static clip: Record<'stalker' | 'paladin', string> = { stalker: '', paladin: '' };
-  /** per-body tweaks on top of k (the Stalker's bind pose holds its arms out: + brings them in to the sides) */
+  /** The standing clip per body ('' = bind pose). hero_idle is the characters track's menu stance (mocap: tall,
+   *  chest up, weapon low and ready; short loops, so played slow). The clips named "idle" are not standing idles. */
+  static clip: Record<'stalker' | 'paladin', string> = { stalker: 'hero_idle', paladin: 'hero_idle' };
+  static clipRate = 0.38;
+  /** Per-body tweaks on top of k. On the bind pose the layer does the whole stance (the Stalker's arms come in: +);
+   *  on a hero clip, which already stands tall, it only adds a lighter lift, the look past the camera and the breath. */
   static kindK: Record<'stalker' | 'paladin', Partial<typeof HeroPose.k>> = { stalker: { arms: 0.3 }, paladin: { arms: 0 } };
+  static clipK: Partial<typeof HeroPose.k> = { chest: 0.04, shoulders: 0.05, drop: 0.01, arms: 0, neck: 0.04 };
+  private onClip = false;
 
   after(t: number, turn: THREE.Object3D) {
     if (!HeroPose.k.on) return;
     for (const e of this.bones) e.base = e.b.quaternion.clone();
-    const k = { ...HeroPose.k, ...HeroPose.kindK[this.kind] }, heavy = this.kind === 'paladin' ? 0.8 : 1;
+    const k = { ...HeroPose.k, ...(this.onClip ? HeroPose.clipK : HeroPose.kindK[this.kind]) }, heavy = this.kind === 'paladin' ? 0.8 : 1;
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(turn.quaternion);   // the character faces +Z
     const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(turn.quaternion), up = new THREE.Vector3(0, 1, 0);
     const breath = Math.sin(t * 1.6) * k.breath;                                  // a ~4 s breath
