@@ -187,7 +187,7 @@ export function startMenu(): MenuHandle {
   const QUAL: Quality[] = ['auto', 'low', 'high'];
   function renderSettings() {
     const opt = (k: string, label: string, isDefault: boolean) => {
-      $(`.rr-opt[data-k="${k}"]`).innerHTML = `<i class="rr-step" data-d="-1" title="Lower">‹</i><span class="rr-val">${label}</span><i class="rr-step" data-d="1" title="Higher">›</i>`
+      $(`.rr-opt[data-k="${k}"]`).innerHTML = `<i class="rr-nudge" data-d="-1" title="Lower">‹</i><span class="rr-val">${label}</span><i class="rr-nudge" data-d="1" title="Higher">›</i>`
         + `<i class="rr-reset${isDefault ? ' off' : ''}" title="Reset to default">↺</i>`;
     };
     opt('quality', ({ auto: 'Auto (by GPU)', low: 'Low', high: 'High' })[settings.quality], settings.quality === DEFAULTS.quality);
@@ -349,7 +349,7 @@ export function startMenu(): MenuHandle {
       if (i === 3) { show('start'); return; }
       const t = e.target as HTMLElement;
       if (t.closest('.rr-reset')) { resetSetting(); return; }
-      const step = t.closest<HTMLElement>('.rr-step');
+      const step = t.closest<HTMLElement>('.rr-nudge');
       changeSetting(step ? Number(step.dataset.d) : 1);
     });
   });
