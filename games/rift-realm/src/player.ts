@@ -13,6 +13,7 @@ import { Glide } from './glide';
 // scaled to Rift Realm's faster runs: ~0.25 s to top speed, ~0.2 s to stop.
 const ACCEL = 40;          // m/s²
 const DECEL = 50;          // m/s²
+const KEY_TURN = 3.6;      // rad/s: A / D turn the character in the follow camera (Era Clash KEY_TURN)
 const TURN = 16;           // rad/s: the body turns to face where it's going (Ravencrest TURN)
 const FACE_AIM_AFTER = 0.7; // s the body keeps facing the aim after a shot or a strike
 const AIR_ACCEL = 26;      // still steerable mid-air
@@ -115,6 +116,12 @@ export class PlayerController {
   aiming = false;
   /** Aim friction (targeting sets it): look speed multiplier while the crosshair is on an enemy, so you don't sail past. */
   aimFriction = 1;
+  /** 0 = centred camera (fists, glide), 1 = over-the-shoulder (gun out). */
+  private shoulderT = 1;
+  /** A / D are turning the character this frame (the Era Clash follow camera) rather than strafing. */
+  private keyTurning = false;
+  /** 0..1 toward the glide framing (camera back and lower while gliding). */
+  private glideCam = 0;
   /** Hand-to-hand: the gun is holstered, fire and right mouse throw strikes (setFists). */
   fists = false;
   onFists?: (on: boolean) => void;
@@ -546,10 +553,21 @@ export class PlayerController {
         wish.addScaledVector(right, input.moveX).addScaledVector(forward, input.moveY);
       }
 
-      if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) wish.add(forward);
-      if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) wish.sub(forward);
-      if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) wish.add(right);
-      if (this.keys.has('KeyA') || this.keys.has('ArrowLeft')) wish.sub(right);
+      const k = this.keys;
+      const ix = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
+      const iz = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
+      // Gun out (both views): the shooter scheme — the mouse aims, A / D strafe (Fortnite / CoD).
+      // Fists in third person: the Era Clash follow camera — A / D turn the character and the camera with him, W / S
+      // go along the facing (S backs up slower), the mouse mostly looks up / down. Locked on or aiming, A / D strafe.
+      this.keyTurning = this.fists && !this.firstPerson && !this.lockedOn && this.aimBlend < 0.5 && !this.glide.gliding;
+      if (this.keyTurning) {
+        if (ix) this.yaw -= ix * KEY_TURN * (iz ? 0.85 : 1.15) * dt;
+        const fwd = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+        if (iz > 0) wish.add(fwd); else if (iz < 0) wish.addScaledVector(fwd, -0.45);
+      } else {
+        if (iz > 0) wish.add(forward); else if (iz < 0) wish.sub(forward);
+        if (ix > 0) wish.add(right); else if (ix < 0) wish.sub(right);
+      }
       if (wish.lengthSq() > 1) wish.normalize();
 
       // edge-triggered jump (held Space doesn't bunny-hop by itself), buffered so early presses count
@@ -694,7 +712,9 @@ export class PlayerController {
     // bloom follows movement (running ~half open, airborne more), and settles at ~2.5 /s once you stand still
     const bloomT = Math.min(1, (hsp0 / 9) * 0.5 + (this.onGround ? 0 : 0.55)) * (this.crouched ? 0.6 : 1);
     this.bloom += (bloomT - this.bloom) * Math.min(1, dt * (bloomT > this.bloom ? 6 : 2.5));
-    const faceAim = this.firstPerson || this.aiming || this.faceAimT > 0 || this.lockT > 0;
+    // gun out: the body always faces the aim and the legs strafe (Fortnite / CoD); the fists follow camera keeps the
+    // body facing the way it turns (backing up with S doesn't spin him round)
+    const faceAim = this.firstPerson || this.aiming || this.faceAimT > 0 || this.lockT > 0 || this.keyTurning || (!this.fists && !this.glide.gliding);
     let want: number | null = null;
     if (faceAim) want = this.yaw;
     else if (hsp0 > 0.6) want = Math.atan2(-this.vel.x, -this.vel.z);
@@ -725,7 +745,10 @@ export class PlayerController {
     const adsWant = this.aiming && this.enabled && this.reloadT <= 0 && this.switchT <= 0 ? 1 : 0;
     this.aimBlend = THREE.MathUtils.lerp(this.aimBlend, adsWant, Math.min(1, dt * 2.2 / Math.max(0.05, this.weapon.adsSec)));
     // aiming pulls the 3rd-person camera in over the shoulder
-    const targetDist = this.firstPerson ? 0 : THREE.MathUtils.lerp(this.thirdDist, Math.min(this.thirdDist, 2.6), this.aimBlend);
+    // gliding: the camera eases back ~1.2 m and drops toward the body so the prone flyer and his whole wingspan
+    // stay on screen (the wings session's framing note); eased so take-off and landing don't jolt
+    this.glideCam += ((this.glide.gliding ? 1 : 0) - this.glideCam) * (1 - Math.exp(-dt * 3.5));
+    const targetDist = this.firstPerson ? 0 : THREE.MathUtils.lerp(this.thirdDist, Math.min(this.thirdDist, 2.6), this.aimBlend) + this.glideCam * 1.2;
     this.camDist = THREE.MathUtils.lerp(this.camDist, targetDist, Math.min(1, dt * 14));
 
     // speed feel: FOV opens with speed and kicks on a dash; a little lean into strafes; landing dip
@@ -759,7 +782,12 @@ export class PlayerController {
       // body sits just under the crosshair; the camera looks straight down the aim, so the centre of the screen
       // (the crosshair) is exactly where shots and strikes go
       // high enough that the hood clears the crosshair; looking down (and leaning into a run) needs more
-      const pivot = eyePos.clone().setY(eyePos.y + 0.7 + Math.max(0, -this.pitch) * 0.9);
+      // gun out: over the right shoulder (the body sits left of the crosshair, the view looks exactly down the aim:
+      // the crosshair is the aim). Fists: centred behind, pivot over the head (Era Clash). Eased between the two.
+      this.shoulderT += ((this.fists || this.glide.gliding ? 0 : 1) - this.shoulderT) * (1 - Math.exp(-dt * 6));
+      const centredLift = 0.7 + Math.max(0, -this.pitch) * 0.9;
+      const lift = THREE.MathUtils.lerp(centredLift, 0.22, this.shoulderT);
+      const pivot = eyePos.clone().setY(eyePos.y + THREE.MathUtils.lerp(lift, 0.15, this.glideCam)).addScaledVector(right, 0.62 * this.shoulderT);
       const backDir = lookDir.clone().negate();
       const maxD = this.world ? this.world.rayDistance(pivot, backDir, this.camDist) - 0.3 : this.camDist;
       // a wall behind pulls the boom in at once; it eases back out (no popping)

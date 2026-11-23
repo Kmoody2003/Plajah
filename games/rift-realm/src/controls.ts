@@ -27,6 +27,8 @@ export interface InputState {
   crouchPressed: boolean;
   crouchHeld?: boolean;
   isTouchActive: boolean;
+  /** The last aim input came from a controller stick (aim assist applies) rather than the mouse (raw aim). */
+  padAim: boolean;
 }
 
 export class UnifiedControls {
@@ -56,6 +58,7 @@ export class UnifiedControls {
   private queuedCycleVessel = false;
   private queuedLock = false;
   private queuedMelee = false;
+  private padAim = false;
   private queuedFists = false;
 
   private prevPadButtons: boolean[] = [];
@@ -105,6 +108,7 @@ export class UnifiedControls {
     });
     document.addEventListener('pointerlockerror', () => { this.hoverLook = true; });
     window.addEventListener('mousemove', (e) => {
+      if (e.movementX || e.movementY) this.padAim = false;
       if (document.pointerLockElement) return;
       if (!dragging && this.hoverLook && !this.isTouchDevice) {
         // anywhere over the game counts (HUD text sits on top of the canvas but shouldn't swallow the look)
@@ -284,6 +288,7 @@ export class UnifiedControls {
       if (Math.abs(ly) > Math.abs(moveY)) moveY = -ly;
       lookDeltaX += rx * 1100 * dt;
       lookDeltaY += ry * 850 * dt;
+      if (rx || ry || lx || ly) this.padAim = true;
 
       const edge = (idx: number) => {
         const down = Boolean(pad.buttons[idx]?.pressed || (pad.buttons[idx]?.value ?? 0) > 0.45);
@@ -332,6 +337,7 @@ export class UnifiedControls {
       reloadPressed,
       crouchPressed,
       isTouchActive: this.isTouchDevice,
+      padAim: this.padAim || this.isTouchDevice,
     };
   }
 }

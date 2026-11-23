@@ -69,6 +69,8 @@ export class Targeting {
   profile: ViewProfile = VIEW_PROFILES.first;
   /** Where line-of-sight checks start (third person: the character's chest); null = the camera. */
   losFrom: ((out: THREE.Vector3) => THREE.Vector3) | null = null;
+  /** Aim assist (the bullet magnet) applies: controller / touch aim. A mouse aims raw. */
+  assistOn = false;
 
   setView(firstPerson: boolean, losFrom: ((out: THREE.Vector3) => THREE.Vector3) | null) {
     this.profile = firstPerson ? VIEW_PROFILES.first : VIEW_PROFILES.third;
@@ -186,7 +188,7 @@ export class Targeting {
    *  A locked target is hit dead centre. `moving` is kept for callers; the crosshair already leans more on the run. */
   assist(origin: THREE.Vector3, dir: THREE.Vector3, _moving = 0) {
     if (this.locked) return dir.copy(this.aimPoint(this.locked, this.v).sub(origin).normalize());
-    if (this.soft && this.profile.magnet > 0) {
+    if (this.soft && this.profile.magnet > 0 && this.assistOn) {
       // the crosshair is on (or just off) the marked enemy: the shot lands on it
       const p = this.aimPoint(this.soft, this.d).project(this.camera);
       if (p.z < 1 && Math.hypot(p.x * this.camera.aspect - this.aimX * this.camera.aspect, p.y - this.aimY) < this.profile.magnet)

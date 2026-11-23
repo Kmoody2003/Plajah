@@ -607,9 +607,11 @@ async function boot() {
     hitMarker.style.left = `${targeting.screenX}px`; hitMarker.style.top = `${targeting.screenY}px`; // hit marks sit on the crosshair
     {
       const tp = targeting.profile;
+      // aim assist is for sticks (Fortnite / CoD): a mouse gets raw aim, no pull, no slow-down over targets
+      targeting.assistOn = input.padAim;
       if (targeting.locked) player.aimAt(targeting.aimPoint(targeting.locked), dt, tp.lockRate);
-      else { const ap = targeting.assistPoint(assistV); if (ap && moveAmt > 0.15) player.aimAt(ap, dt, tp.assist * moveAmt, false); }
-      player.aimFriction = targeting.soft && !targeting.locked ? tp.friction : 1;
+      else if (input.padAim) { const ap = targeting.assistPoint(assistV); if (ap && moveAmt > 0.15) player.aimAt(ap, dt, tp.assist * moveAmt, false); }
+      player.aimFriction = input.padAim && targeting.soft && !targeting.locked ? tp.friction : 1;
       player.lockedOn = targeting.isLocked;
       // locked: a sideways flick hops to the next enemy that way; slow drift decays and never adds up to a switch
       if (player.lockedOn && Math.abs(player.flickX) > tp.flick) { targeting.flickSwitch(foes(), player.flickX); player.flickX = 0; }
