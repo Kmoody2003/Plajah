@@ -203,6 +203,7 @@ async function boot() {
   }) : null;
 
   let resonance = 1.0;
+  let lastBeatHit = 0; // when the last on-beat shot landed (resonance grace)
   let score = 0;
   let popTimeout: number | undefined;
   const shakeV = new THREE.Vector3(), assistV = new THREE.Vector3();
@@ -247,10 +248,11 @@ async function boot() {
     popTimeout = window.setTimeout(() => { beatPop.style.opacity = '0'; }, 380);
   }
 
+  // The beat is a bonus, never a requirement (Kenne): an on-beat action earns a callout and extra power; an off-beat one
+  // is just a normal action, with no 'OFF BEAT' scolding
   function showQuality(quality: BeatQuality) {
-    const label = quality === 'PERFECT' ? 'PERFECT RESONANCE' : quality === 'GOOD' ? 'ON BEAT' : 'OFF BEAT';
-    const color = quality === 'PERFECT' ? '#fbbf24' : quality === 'GOOD' ? '#38bdf8' : '#94a3b8';
-    showBeatFeedback(label, color);
+    if (quality === 'OFF') return;
+    showBeatFeedback(quality === 'PERFECT' ? 'PERFECT RESONANCE' : 'ON BEAT', quality === 'PERFECT' ? '#fbbf24' : '#38bdf8');
   }
 
   // Hit feedback (Fortnite-style): an X hit marker on the crosshair (white, red on a kill) and the damage number
@@ -350,14 +352,15 @@ async function boot() {
     showQuality(beat.quality);
     danger?.noise(player.object.position, 60); // predators hear gunshots
 
-    if (beat.quality === 'PERFECT') resonance = Math.min(4.0, resonance + 0.35);
-    else if (beat.quality === 'GOOD') resonance = Math.min(4.0, resonance + 0.15);
-    else resonance = Math.max(1.0, resonance - 0.25);
+    // resonance only builds on the beat (it fades slowly by itself when you stop landing beats; see frame())
+    if (beat.quality === 'PERFECT') { resonance = Math.min(4.0, resonance + 0.35); lastBeatHit = performance.now(); }
+    else if (beat.quality === 'GOOD') { resonance = Math.min(4.0, resonance + 0.15); lastBeatHit = performance.now(); }
 
     if (resonance >= 4.0) plajah.unlock('rift_realm_perfect_resonance');
 
+    // a normal shot does the vessel's full damage; on the beat it hits harder (GOOD halfway to PERFECT)
     const baseDmg =
-      beat.quality === 'PERFECT' ? spec.dmgPerfect : beat.quality === 'GOOD' ? spec.dmgGood : spec.dmgOff;
+      beat.quality === 'PERFECT' ? spec.dmgPerfect : beat.quality === 'GOOD' ? Math.round((spec.dmgGood + spec.dmgPerfect) / 2) : spec.dmgGood;
 
     const triggerBurst = () => {
       if (player.vessel.id !== spec.id || player.downed) return; // switched away mid-burst
@@ -744,6 +747,8 @@ async function boot() {
       }
     }
 
+    // resonance fades slowly once you stop landing beats (2 s grace, then ~0.1 / s) instead of dropping on each miss
+    if (resonance > 1 && performance.now() - lastBeatHit > 2000) resonance = Math.max(1, resonance - dt * 0.1);
     const ringScale = 1.0 - rhythm.phase * 0.62;
     beatRing.style.transform = `translate(-50%, -50%) scale(${ringScale.toFixed(3)})`;
     beatRing.style.borderColor = rhythm.pulse > 0.65 ? '#fbbf24' : '#38bdf8aa';
