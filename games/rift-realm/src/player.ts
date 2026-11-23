@@ -13,7 +13,7 @@ import { Glide } from './glide';
 // scaled to Rift Realm's faster runs: ~0.25 s to top speed, ~0.2 s to stop.
 const ACCEL = 40;          // m/s²
 const DECEL = 50;          // m/s²
-const KEY_TURN = 3.6;      // rad/s: A / D turn the character in the follow camera (Era Clash KEY_TURN)
+const KEY_TURN = 2.2;      // rad/s: A / D turn the character in the follow camera (Era Clash's 3.6 was too fast here)
 const TURN = 16;           // rad/s: the body turns to face where it's going (Ravencrest TURN)
 const FACE_AIM_AFTER = 0.7; // s the body keeps facing the aim after a shot or a strike
 const AIR_ACCEL = 26;      // still steerable mid-air
@@ -29,7 +29,7 @@ const BASE_FOV = 72; // matches the camera main.ts creates
 const RADIUS = 0.38;
 const HEIGHT = 1.8;
 const STEP_UP = 0.45;     // tallest step / kerb the character walks up without jumping (m)
-const MOUSE_SENS = 0.002;
+const MOUSE_SENS = 0.0014; // rad per mouse px at 1x (Kenne: the camera moved too fast to aim)
 
 // Magazine size, reload length / beats, recoil, spread, ADS and switch time are per weapon: WEAPONS in weapons.ts.
 /** Seconds on the floor after being downed before the respawn. */
@@ -116,6 +116,8 @@ export class PlayerController {
   aiming = false;
   /** Aim friction (targeting sets it): look speed multiplier while the crosshair is on an enemy, so you don't sail past. */
   aimFriction = 1;
+  /** In a fight (enemies close / just fought; main.ts sets it): A / D strafe instead of turning. */
+  inCombat = false;
   /** Where the crosshair lands in the world (third person): the body and gun turn to it. */
   readonly aimPoint = new THREE.Vector3();
   private aimPointOk = false;
@@ -549,7 +551,7 @@ export class PlayerController {
     // hit from behind / the side: whip round to face the attacker, camera with him (Ravencrest faceThreat)
     if (this.threatYaw !== null) {
       const d = Math.atan2(Math.sin(this.threatYaw - this.yaw), Math.cos(this.threatYaw - this.yaw));
-      this.yaw += THREE.MathUtils.clamp(d, -12 * dt, 12 * dt);
+      this.yaw += THREE.MathUtils.clamp(d, -7 * dt, 7 * dt);
       if (Math.abs(d) < 0.06) this.threatYaw = null;
     }
     const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
@@ -577,7 +579,8 @@ export class PlayerController {
       // Third person (Kenne: A / D turn, not strafe): the Era Clash follow camera — A / D turn the character and the
       // camera with him, W / S go along the facing (S backs up slower), the mouse aims. Locked on (circle-strafing),
       // aiming down sights (Z) or in first person, A / D strafe.
-      this.keyTurning = !this.firstPerson && !this.lockedOn && this.aimBlend < 0.5 && !this.glide.gliding;
+      // in a fight A / D strafe by themselves (circle an enemy and keep the gun on it); exploring they turn
+      this.keyTurning = !this.firstPerson && !this.lockedOn && !this.inCombat && this.aimBlend < 0.5 && !this.glide.gliding;
       if (this.keyTurning) {
         if (ix) this.yaw -= ix * KEY_TURN * (iz ? 0.85 : 1.15) * dt;
         const fwd = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));

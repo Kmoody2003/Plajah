@@ -107,6 +107,11 @@ export class UnifiedControls {
       if (!this.isTouchDevice) (this.surface.requestPointerLock?.() as Promise<void> | undefined)?.catch?.(() => { this.hoverLook = true; /* refused: look follows the mouse without a drag */ });
     });
     document.addEventListener('pointerlockerror', () => { this.hoverLook = true; });
+    // while playing, the OS cursor is hidden: without pointer lock it stayed visible and read as the aim, though shots
+    // go through the crosshair (main.ts toggles body.rr-ingame)
+    const hide = document.createElement('style');
+    hide.textContent = 'body.rr-ingame, body.rr-ingame * { cursor: none !important; }';
+    document.head.appendChild(hide);
     window.addEventListener('mousemove', (e) => {
       if (e.movementX || e.movementY) this.padAim = false;
       if (document.pointerLockElement) return;
@@ -243,8 +248,8 @@ export class UnifiedControls {
       const r = this.surface.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) {
         const nx = (this.curX - r.left) / r.width, ny = (this.curY - r.top) / r.height, B = 0.08;
-        if (nx < B) lookDeltaX -= ((B - nx) / B) * 600 * dt; else if (nx > 1 - B) lookDeltaX += ((nx - (1 - B)) / B) * 600 * dt;
-        if (ny < B) lookDeltaY -= ((B - ny) / B) * 300 * dt; else if (ny > 1 - B) lookDeltaY += ((ny - (1 - B)) / B) * 300 * dt;
+        if (nx < B) lookDeltaX -= ((B - nx) / B) * 420 * dt; else if (nx > 1 - B) lookDeltaX += ((nx - (1 - B)) / B) * 420 * dt;
+        if (ny < B) lookDeltaY -= ((B - ny) / B) * 220 * dt; else if (ny > 1 - B) lookDeltaY += ((ny - (1 - B)) / B) * 220 * dt;
       }
     }
     this.pendingLookX = 0;

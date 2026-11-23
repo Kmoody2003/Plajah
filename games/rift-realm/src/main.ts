@@ -508,6 +508,7 @@ async function boot() {
     const pp = player.object.position;
     const near = enemies.enemies.some((e) => e.mesh.position.distanceToSquared(pp) < 28 * 28) || !!danger?.engaged;
     combatT = near ? 0 : combatT + dt;
+    player.inCombat = combatT < 1.5; // A / D strafe in a fight, turn when exploring
     const boss = enemies.enemies.some((e) => e.boss);
     const tight = match.on && MATCH_SECONDS - match.time < 60 && Math.abs(objectives.score.blue - objectives.score.orange) <= 15;
     rhythm.setMood(boss ? 'boss' : tight ? 'showdown' : combatT < 10 ? 'combat' : 'explore');
@@ -619,6 +620,7 @@ async function boot() {
     }
     player.aiming = targeting.isLocked || input.aimHeld; // right mouse / LT holds aim down sights
     player.update(dt, rhythm.pulse, input);
+    if (document.body.classList.contains('rr-ingame') !== player.enabled) document.body.classList.toggle('rr-ingame', player.enabled); // no OS cursor in play
     // bodies are solid: the player can't walk through enemies or predators (pushed out sideways, a boss is wider)
     if (player.enabled) {
       const pp = player.object.position;
