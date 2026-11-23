@@ -29,6 +29,8 @@ export interface ViewProfile {
   closeDist: number; closeCatch: number;
   /** How far the crosshair glides onto a soft target, standing / on the run (1 = all the way). */
   glide: number; glideMoving: number;
+  /** Bullet magnet: a shot bends onto the soft target only when its body is this close to the crosshair (screen units). */
+  magnet: number;
   /** Rotational assist toward the soft target while moving (per second; 0 = off). */
   assist: number;
   /** Look-speed multiplier while on a target. */
@@ -40,8 +42,9 @@ export interface ViewProfile {
 }
 
 export const VIEW_PROFILES: Record<'first' | 'third', ViewProfile> = {
-  first: { catchFar: 0.13, catchNear: 0.3, closeDist: 0, closeCatch: 0, glide: 0.55, glideMoving: 0.8, assist: 0, friction: 0.65, lockRate: 10, flick: 140 },
-  third: { catchFar: 0.24, catchNear: 0.5, closeDist: 7, closeCatch: 0.8, glide: 0.85, glideMoving: 1, assist: 1.6, friction: 0.75, lockRate: 7, flick: 160 },
+  // the crosshair never slides (glide 0): it is always exactly where the shot goes (Kenne: "not where you think it is")
+  first: { catchFar: 0.13, catchNear: 0.3, closeDist: 0, closeCatch: 0, glide: 0, glideMoving: 0, magnet: 0.035, assist: 0, friction: 0.7, lockRate: 10, flick: 140 },
+  third: { catchFar: 0.2, catchNear: 0.45, closeDist: 7, closeCatch: 0.8, glide: 0, glideMoving: 0, magnet: 0.05, assist: 0.8, friction: 0.8, lockRate: 7, flick: 160 },
 };
 
 export class Targeting {
@@ -183,6 +186,12 @@ export class Targeting {
    *  A locked target is hit dead centre. `moving` is kept for callers; the crosshair already leans more on the run. */
   assist(origin: THREE.Vector3, dir: THREE.Vector3, _moving = 0) {
     if (this.locked) return dir.copy(this.aimPoint(this.locked, this.v).sub(origin).normalize());
+    if (this.soft && this.profile.magnet > 0) {
+      // the crosshair is on (or just off) the marked enemy: the shot lands on it
+      const p = this.aimPoint(this.soft, this.d).project(this.camera);
+      if (p.z < 1 && Math.hypot(p.x * this.camera.aspect - this.aimX * this.camera.aspect, p.y - this.aimY) < this.profile.magnet)
+        return dir.copy(this.aimPoint(this.soft, this.v).sub(origin).normalize());
+    }
     if (Math.abs(this.aimX) < 1e-4 && Math.abs(this.aimY) < 1e-4) return dir;
     this.v.set(this.aimX, this.aimY, 0.5).unproject(this.camera);
     return dir.copy(this.v.sub(origin).normalize());

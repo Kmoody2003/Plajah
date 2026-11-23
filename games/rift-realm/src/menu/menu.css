@@ -64,6 +64,13 @@ body:has(> .rr-menu, > .rr-load) > :not(.rr-menu, .rr-load, #view, script) { vis
 .rr-set { position: absolute; left: 7vw; width: min(560px, 80vw); display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border: 1px solid #ffffff12; background: #0d0a16cc; font-size: 14px; letter-spacing: .08em; }
 .rr-set[data-i="0"] { top: calc(20vh + 70px); } .rr-set[data-i="1"] { top: calc(20vh + 124px); } .rr-set[data-i="2"] { top: calc(20vh + 178px); } .rr-set[data-i="3"] { top: calc(20vh + 244px); width: 140px; justify-content: center; text-transform: uppercase; letter-spacing: .2em; }
 .rr-set b { font-weight: 600; color: #fff; }
+.rr-opt { display: inline-flex; align-items: center; gap: 4px; }
+.rr-step { font-style: normal; width: 30px; height: 26px; display: inline-grid; place-items: center; color: var(--gold); border: 1px solid #ffffff1a; cursor: pointer; user-select: none; }
+.rr-step:hover { background: #d9b26a22; border-color: var(--gold); }
+.rr-val { min-width: 92px; text-align: center; }
+.rr-reset { font-style: normal; margin-left: 8px; width: 26px; height: 26px; display: inline-grid; place-items: center; color: #cfc7e0; border: 1px solid #ffffff1a; cursor: pointer; user-select: none; }
+.rr-reset:hover { color: #fff; border-color: var(--gold); }
+.rr-reset.off { opacity: .25; pointer-events: none; }
 .rr-set.focus { border-color: var(--gold); box-shadow: inset 3px 0 0 var(--gold), 0 0 18px #d9b26a22; }
 
 /* ── map select ── */

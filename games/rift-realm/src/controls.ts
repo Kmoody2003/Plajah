@@ -11,12 +11,16 @@ export interface InputState {
   strikePressed: boolean;
   toggleViewPressed: boolean;
   cycleVesselPressed: boolean;
-  /** Lock-on toggled this frame (middle mouse / Tab / R3-less pads: LT tap). */
+  /** Lock-on toggled this frame (Tab; LT holds it on a controller). */
   lockPressed: boolean;
   /** Lock-on held (LT on a controller): locked while held. */
   lockHeld: boolean;
-  /** Aim down sights held (right mouse / LT), Fortnite-style. */
+  /** Aim down sights held (Z / LT). */
   aimHeld: boolean;
+  /** Melee pressed (right mouse): a light strike with a gun out, a heavy one in fists mode. */
+  meleePressed: boolean;
+  /** Switch between gun and hand-to-hand (middle mouse / T / D-pad up). */
+  fistsPressed: boolean;
   /** Reload pressed (D-pad left; R on the keyboard is handled by the player). */
   reloadPressed: boolean;
   /** Crouch toggle pressed (D-pad down; C / Ctrl on the keyboard are handled by the player). */
@@ -38,7 +42,10 @@ export class UnifiedControls {
   private pendingLookX = 0;
   private pendingLookY = 0;
   /** Pointer lock refused (some embedded browsers, iframes): plain mouse movement over the game turns the view. */
-  private hoverLook = false;
+  /** Where the cursor is over the game (client px) and whether it's inside it: without pointer lock the cursor runs
+   *  into the window edge and mouse movement stops, so resting it near a side keeps turning (edge turn). */
+  private curX = 0; private curY = 0; private cursorIn = false;
+  private hoverLook = true; // the view follows the mouse from the start: no click needed to turn (pointer lock, when granted, takes over)
 
   private queuedJump = false;
   private queuedDash = false;
@@ -48,6 +55,8 @@ export class UnifiedControls {
   private queuedToggleView = false;
   private queuedCycleVessel = false;
   private queuedLock = false;
+  private queuedMelee = false;
+  private queuedFists = false;
 
   private prevPadButtons: boolean[] = [];
   // hold to fire: while the left button / right trigger is held, a shot repeats on every eighth note of the
@@ -72,6 +81,9 @@ export class UnifiedControls {
     this.bindMouseFallback();
     // Tab (and middle mouse, below) toggles the lock-on
     window.addEventListener('keydown', (e) => { if (e.code === 'Tab') { e.preventDefault(); if (!e.repeat) this.queuedLock = true; } });
+    // Z holds aim down sights; T switches gun / fists (middle mouse does too)
+    window.addEventListener('keydown', (e) => { if (e.code === 'KeyZ') this.aimHeld = true; if (e.code === 'KeyT' && !e.repeat) this.queuedFists = true; });
+    window.addEventListener('keyup', (e) => { if (e.code === 'KeyZ') this.aimHeld = false; });
   }
 
   /** Mouse buttons (Fortnite-style): left = fire (hold to keep firing on the beat), right = hold to aim down sights,
@@ -82,24 +94,33 @@ export class UnifiedControls {
     this.surface.addEventListener('contextmenu', (e) => e.preventDefault());
     this.surface.addEventListener('mousedown', (e) => {
       if (e.button === 0) { this.fireHeld = true; this.fireRepeat = UnifiedControls.REPEAT; this.queuedFire = true; }
-      if (e.button === 1) { e.preventDefault(); this.queuedLock = true; }
-      if (e.button === 2) this.aimHeld = true;
+      if (e.button === 1) { e.preventDefault(); this.queuedFists = true; }   // middle: gun <-> hand-to-hand
+      if (e.button === 2) this.queuedMelee = true;                           // right: melee strike
       if (document.pointerLockElement) return;
       if (e.button !== 0 && e.button !== 2) return;
-      dragging = true; lastX = e.clientX; lastY = e.clientY;
+      // the mouse already turns the view without a click (hoverLook); a click only fires / strikes, never drag-looks
+      if (!this.hoverLook) { dragging = true; lastX = e.clientX; lastY = e.clientY; }
       // like Ravencrest / Era Clash: a click on the scene (re)takes the pointer lock for always-on mouse look
       if (!this.isTouchDevice) (this.surface.requestPointerLock?.() as Promise<void> | undefined)?.catch?.(() => { this.hoverLook = true; /* refused: look follows the mouse without a drag */ });
     });
     document.addEventListener('pointerlockerror', () => { this.hoverLook = true; });
     window.addEventListener('mousemove', (e) => {
       if (document.pointerLockElement) return;
-      if (!dragging && this.hoverLook && e.target === this.surface) { this.pendingLookX += e.movementX * 1.4; this.pendingLookY += e.movementY * 1.4; return; }
+      if (!dragging && this.hoverLook && !this.isTouchDevice) {
+        // anywhere over the game counts (HUD text sits on top of the canvas but shouldn't swallow the look)
+        const r = this.surface.getBoundingClientRect();
+        this.cursorIn = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+        this.curX = e.clientX; this.curY = e.clientY;
+        if (this.cursorIn) { this.pendingLookX += e.movementX; this.pendingLookY += e.movementY; }
+        return;
+      }
       if (!dragging) return;
       this.pendingLookX += (e.clientX - lastX) * 1.6;
       this.pendingLookY += (e.clientY - lastY) * 1.6;
       lastX = e.clientX; lastY = e.clientY;
     });
-    window.addEventListener('mouseup', (e) => { dragging = false; if (e.button === 0) this.fireHeld = false; if (e.button === 2) this.aimHeld = false; });
+    window.addEventListener('mouseup', (e) => { dragging = false; if (e.button === 0) this.fireHeld = false; });
+    document.documentElement.addEventListener('mouseleave', () => { this.cursorIn = false; });
     window.addEventListener('blur', () => { this.fireHeld = false; this.aimHeld = false; dragging = false; });
   }
 
@@ -212,6 +233,16 @@ export class UnifiedControls {
     let moveY = this.moveStickY;
     let lookDeltaX = this.pendingLookX;
     let lookDeltaY = this.pendingLookY;
+    // edge turn (no pointer lock): the cursor resting in the outer 8 % of the game keeps turning that way, faster
+    // the closer to the edge, so the view never sticks when the cursor reaches the side of the window
+    if (this.hoverLook && this.cursorIn && !document.pointerLockElement && !this.isTouchDevice) {
+      const r = this.surface.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) {
+        const nx = (this.curX - r.left) / r.width, ny = (this.curY - r.top) / r.height, B = 0.08;
+        if (nx < B) lookDeltaX -= ((B - nx) / B) * 600 * dt; else if (nx > 1 - B) lookDeltaX += ((nx - (1 - B)) / B) * 600 * dt;
+        if (ny < B) lookDeltaY -= ((B - ny) / B) * 300 * dt; else if (ny > 1 - B) lookDeltaY += ((ny - (1 - B)) / B) * 300 * dt;
+      }
+    }
     this.pendingLookX = 0;
     this.pendingLookY = 0;
 
@@ -223,6 +254,8 @@ export class UnifiedControls {
     let toggleViewPressed = this.queuedToggleView;
     let cycleVesselPressed = this.queuedCycleVessel;
     let lockPressed = this.queuedLock;
+    let meleePressed = this.queuedMelee, fistsPressed = this.queuedFists;
+    this.queuedMelee = false; this.queuedFists = false;
     let lockHeld = false;
     let aimHeld = this.aimHeld;
     let reloadPressed = false, crouchPressed = false;
@@ -270,6 +303,7 @@ export class UnifiedControls {
       if (edge(5)) cycleVesselPressed = true;    // RB
       if (edge(14)) reloadPressed = true;         // D-pad left
       if (edge(13)) crouchPressed = true;         // D-pad down
+      if (edge(12)) fistsPressed = true;          // D-pad up: gun <-> hand-to-hand
       if (edge(8) || edge(11)) toggleViewPressed = true; // Select / R3
     }
 
@@ -293,6 +327,8 @@ export class UnifiedControls {
       lockPressed,
       lockHeld,
       aimHeld,
+      meleePressed,
+      fistsPressed,
       reloadPressed,
       crouchPressed,
       isTouchActive: this.isTouchDevice,

@@ -484,6 +484,7 @@ async function boot() {
 
   player.onStrike = triggerMeleeStrike;
   player.onReload = () => rhythm.playReload();
+  player.onFists = (on) => showBeatFeedback(on ? 'HAND TO HAND' : 'WEAPON DRAWN', on ? '#fb7185' : '#38bdf8');
 
   // Mouse: right = fire (hold to keep firing on the beat), left = melee strike, middle / Tab = lock-on — all read
   // through UnifiedControls (controls.ts). Soul Surge is Q (Y on a controller), LT holds the lock.
@@ -647,7 +648,10 @@ async function boot() {
         const { blue, orange } = objectives.score;
         if (blue >= MATCH_SCORE || orange >= MATCH_SCORE || match.time >= MATCH_SECONDS) endMatch(blue > orange, blue === orange);
       }
-      if (input.firePressed) fireShot();
+      // gun out: left fires, right throws a quick strike. Fists: left = light, right = heavy (combat/melee.ts chains them)
+      if (input.fistsPressed && player.enabled) player.setFists(!player.fists);
+      if (input.firePressed) { if (player.fists) { if (player.enabled) melee.light(); } else fireShot(); }
+      if (input.meleePressed && player.enabled) { if (player.fists) melee.heavy(); else melee.light(); }
       if (rules) { rules.start(); rules.update(dt, objectives.heldSeconds, score); }
       enemies.playerForward.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
       enemies.playerChest = player.crouched ? 1.0 : 1.3;
@@ -703,7 +707,7 @@ async function boot() {
     }
     waveText.textContent = rules ? rules.title : `Trial ${enemies.wave} · ${currentBiomeName}`;
     surgeTag.textContent = resonance >= 2.0 ? 'SOUL SURGE READY [Q]' : 'SURGE AT 2.0x RESONANCE';
-    const ammoTxt = player.reloading ? `RELOADING ${'▮'.repeat(Math.round(player.reloadProgress * 8)).padEnd(8, '▯')}` : `${player.ammo} / ${player.magSize}${player.ammo === 0 ? '  [R]' : ''}${player.crouched ? '  · CROUCHED' : ''}`;
+    const ammoTxt = player.fists ? 'FISTS  ·  MMB / T: gun' : player.reloading ? `RELOADING ${'▮'.repeat(Math.round(player.reloadProgress * 8)).padEnd(8, '▯')}` : `${player.ammo} / ${player.magSize}${player.ammo === 0 ? '  [R]' : ''}${player.crouched ? '  · CROUCHED' : ''}`;
     if (ammoEl.textContent !== ammoTxt) { ammoEl.textContent = ammoTxt; ammoEl.style.color = player.ammo <= Math.ceil(player.magSize / 4) && !player.reloading ? '#fb7185' : '#e2f3ff'; }
     surgeTag.style.color = resonance >= 2.0 ? '#fbbf24' : '#64748b';
 

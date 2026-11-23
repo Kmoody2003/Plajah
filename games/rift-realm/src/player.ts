@@ -115,6 +115,9 @@ export class PlayerController {
   aiming = false;
   /** Aim friction (targeting sets it): look speed multiplier while the crosshair is on an enemy, so you don't sail past. */
   aimFriction = 1;
+  /** Hand-to-hand: the gun is holstered, fire and right mouse throw strikes (setFists). */
+  fists = false;
+  onFists?: (on: boolean) => void;
   /** True while locked on: sideways look movement collects in flickX (a flick switches target) instead of turning. */
   lockedOn = false;
   flickX = 0;
@@ -181,7 +184,7 @@ export class PlayerController {
     // - / = step the mouse sensitivity (saved), the shared scheme across the Plajah action games
     window.addEventListener('keydown', (e) => {
       if (e.code !== 'Minus' && e.code !== 'Equal') return;
-      this.mouseSens = THREE.MathUtils.clamp(this.mouseSens * (e.code === 'Equal' ? 1.2 : 1 / 1.2), 0.3, 2.5);
+      this.mouseSens = THREE.MathUtils.clamp(this.mouseSens * (e.code === 'Equal' ? 1.2 : 1 / 1.2), 0.2, 3); // same range as the Settings screen
       try { localStorage.setItem('rift-realm-mouse-sens', String(this.mouseSens)); } catch { /* private mode */ }
     });
   }
@@ -190,7 +193,7 @@ export class PlayerController {
     this.firstPerson = !this.firstPerson;
     this.camDist = this.boom = this.firstPerson ? 0 : this.thirdDist; // cut straight to the new view, no dolly
     this.vesselMesh.visible = !this.firstPerson;
-    this.viewmodel.visible = this.firstPerson;
+    this.viewmodel.visible = this.firstPerson && !this.fists;
     this.onToggleView?.(this.firstPerson);
   }
 
@@ -237,6 +240,16 @@ export class PlayerController {
     this.onSwitchVessel?.(spec);
   }
 
+  /** Switch between gun and hand-to-hand on the fly: the gun is put away (both views) and comes back out. */
+  setFists(on: boolean) {
+    if (this.fists === on) return;
+    this.fists = on;
+    this.viewmodel.visible = this.firstPerson && !on;
+    for (const [k, g] of this.tpGuns) g.root.visible = !on && k === this.tpShown;
+    this.rig?.play(on ? 'switch_weapon' : 'switch_weapon', 0.7, 0.45);
+    this.onFists?.(on);
+  }
+
   /** Hang the vessel's gun in the rig's right hand (hand_r_weapon socket); built once per vessel. */
   private showTpGun(id: VesselId) {
     if (this.tpShown === id || !this.rig) return;
@@ -258,7 +271,7 @@ export class PlayerController {
       this.tpGuns.set(id, m);
       this.rig.grip('Right', 'dagger');
     }
-    for (const [k, g] of this.tpGuns) g.root.visible = k === id;
+    for (const [k, g] of this.tpGuns) g.root.visible = k === id && !this.fists;
     this.tpShown = id;
   }
 
@@ -741,14 +754,16 @@ export class PlayerController {
       this.camera.position.copy(eyePos);
       this.camera.lookAt(eyePos.clone().add(lookDir));
     } else {
-      const shoulderOffset = right.clone().multiplyScalar(0.52);
-      const pivot = eyePos.clone().add(shoulderOffset);
+      // Era Clash / Ravencrest framing: centred behind the character, the pivot a little over the head so the
+      // body sits just under the crosshair; the camera looks straight down the aim, so the centre of the screen
+      // (the crosshair) is exactly where shots and strikes go
+      const pivot = eyePos.clone().setY(eyePos.y + 0.42);
       const backDir = lookDir.clone().negate();
       const maxD = this.world ? this.world.rayDistance(pivot, backDir, this.camDist) - 0.3 : this.camDist;
       // a wall behind pulls the boom in at once; it eases back out (no popping)
       this.boom = maxD < this.boom ? maxD : THREE.MathUtils.lerp(this.boom, maxD, Math.min(1, dt * 3));
       this.camera.position.copy(pivot).addScaledVector(backDir, Math.max(0.3, this.boom));
-      this.camera.lookAt(pivot.clone().addScaledVector(lookDir, 18));
+      this.camera.lookAt(this.camera.position.clone().add(lookDir));
     }
     this.camera.rotateZ(this.lean);
 
@@ -767,7 +782,7 @@ export class PlayerController {
       const ph = this.weapon.phases, p = this.reloadT > 0 ? this.reloadProgress : -1;
       tg.mag.visible = !(p >= ph.out && p < ph.in);
       tg.glow.value += (1 + pulse * 0.7 + this.muzzleFlash * 2 - tg.glow.value) * Math.min(1, dt * 12);
-      tg.root.visible = !this.firstPerson && !(this.switchT > 0 && Math.abs(this.switchT / this.switchLen - 0.5) < 0.12);
+      tg.root.visible = !this.firstPerson && !this.fists && !(this.switchT > 0 && Math.abs(this.switchT / this.switchLen - 0.5) < 0.12);
     }
   }
 }

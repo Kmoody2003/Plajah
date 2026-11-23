@@ -441,7 +441,7 @@ export class Melee {
 
   private endExecution() {
     const x = this.exec!, p = this.h.player;
-    if (x.fp && p.firstPerson) { p.vesselMesh.visible = false; p.viewmodel.visible = true; }
+    if (x.fp && p.firstPerson) { p.vesselMesh.visible = false; p.viewmodel.visible = !p.fists; }
     if (this.h.enemies.enemies.includes(x.e) && x.e.state === 'held') { x.e.state = 'stun'; x.e.stateT = 0.5; }
     this.exec = null;
     this.slowT = 0;

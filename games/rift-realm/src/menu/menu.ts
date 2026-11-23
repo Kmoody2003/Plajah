@@ -78,13 +78,13 @@ export const prefetch = {
 };
 
 // ── input: one stream of menu actions from keys, pads and the mouse ──
-type Act = 'left' | 'right' | 'up' | 'down' | 'ok' | 'back' | 'prev' | 'next';
+type Act = 'left' | 'right' | 'up' | 'down' | 'ok' | 'back' | 'prev' | 'next' | 'reset';
 const KEYMAP: Record<string, Act> = {
   ArrowLeft: 'left', KeyA: 'left', ArrowRight: 'right', KeyD: 'right', ArrowUp: 'up', KeyW: 'up', ArrowDown: 'down', KeyS: 'down',
-  Enter: 'ok', NumpadEnter: 'ok', Space: 'ok', Escape: 'back', Backspace: 'back', KeyQ: 'prev', KeyE: 'next',
+  Enter: 'ok', NumpadEnter: 'ok', Space: 'ok', Escape: 'back', Backspace: 'back', KeyQ: 'prev', KeyE: 'next', KeyR: 'reset', Delete: 'reset',
 };
 // standard gamepad: 0 A, 1 B, 4 LB, 5 RB, 9 Start, 12–15 d-pad
-const PADMAP: [number, Act][] = [[0, 'ok'], [9, 'ok'], [1, 'back'], [4, 'prev'], [5, 'next'], [12, 'up'], [13, 'down'], [14, 'left'], [15, 'right']];
+const PADMAP: [number, Act][] = [[0, 'ok'], [9, 'ok'], [1, 'back'], [4, 'prev'], [5, 'next'], [12, 'up'], [13, 'down'], [14, 'left'], [15, 'right'], [3, 'reset']];
 
 export interface MenuHandle {
   choice: Promise<MenuChoice>;
@@ -186,10 +186,21 @@ export function startMenu(): MenuHandle {
 
   const QUAL: Quality[] = ['auto', 'low', 'high'];
   function renderSettings() {
-    $('.rr-opt[data-k="quality"]').textContent = `‹ ${({ auto: 'Auto (by GPU)', low: 'Low', high: 'High' })[settings.quality]} ›`;
-    $('.rr-opt[data-k="sens"]').textContent = `‹ ${settings.sens.toFixed(1)}× ›`;
-    $('.rr-opt[data-k="volume"]').textContent = `‹ ${Math.round(settings.volume * 100)}% ›`;
+    const opt = (k: string, label: string, isDefault: boolean) => {
+      $(`.rr-opt[data-k="${k}"]`).innerHTML = `<i class="rr-step" data-d="-1" title="Lower">‹</i><span class="rr-val">${label}</span><i class="rr-step" data-d="1" title="Higher">›</i>`
+        + `<i class="rr-reset${isDefault ? ' off' : ''}" title="Reset to default">↺</i>`;
+    };
+    opt('quality', ({ auto: 'Auto (by GPU)', low: 'Low', high: 'High' })[settings.quality], settings.quality === DEFAULTS.quality);
+    opt('sens', `${settings.sens.toFixed(1)}×`, settings.sens === DEFAULTS.sens);
+    opt('volume', `${Math.round(settings.volume * 100)}%`, settings.volume === DEFAULTS.volume);
     $$('.rr-settings .rr-set').forEach((e, i) => e.classList.toggle('focus', i === setI));
+  }
+  const DEFAULTS: Settings = { quality: 'auto', sens: 1, volume: 0.8 };
+  function resetSetting() {
+    if (setI === 0) settings.quality = DEFAULTS.quality;
+    if (setI === 1) settings.sens = DEFAULTS.sens;
+    if (setI === 2) { settings.volume = DEFAULTS.volume; applyVolume(rhythm); }
+    saveSettings(); renderSettings();
   }
   function changeSetting(d: number) {
     if (setI === 0) settings.quality = QUAL[(QUAL.indexOf(settings.quality) + d + 3) % 3];
@@ -289,6 +300,7 @@ export function startMenu(): MenuHandle {
     } else if (screen === 'settings') {
       if (a === 'up') setI = (setI + 3) % 4;
       if (a === 'down') setI = (setI + 1) % 4;
+      if (a === 'reset') { resetSetting(); return; }
       if (a === 'left' || a === 'prev') changeSetting(-1);
       if (a === 'right' || a === 'next') changeSetting(1);
       if (a === 'back' || (a === 'ok' && setI === 3)) { show('start'); return; }
@@ -332,7 +344,14 @@ export function startMenu(): MenuHandle {
   });
   $$<HTMLElement>('.rr-settings .rr-set').forEach((b, i) => {
     b.addEventListener('pointerenter', () => { setI = i; renderSettings(); });
-    b.addEventListener('click', (e: MouseEvent) => { setI = i; if (i === 3) { show('start'); return; } const r = b.getBoundingClientRect(); changeSetting((e as MouseEvent).clientX < r.left + r.width * 0.6 ? -1 : 1); });
+    b.addEventListener('click', (e: MouseEvent) => {
+      setI = i;
+      if (i === 3) { show('start'); return; }
+      const t = e.target as HTMLElement;
+      if (t.closest('.rr-reset')) { resetSetting(); return; }
+      const step = t.closest<HTMLElement>('.rr-step');
+      changeSetting(step ? Number(step.dataset.d) : 1);
+    });
   });
   $$('.rr-card').forEach((c, i) => {
     c.addEventListener('pointerenter', () => { if (mapI !== i) { mapI = i; renderMap(); } });

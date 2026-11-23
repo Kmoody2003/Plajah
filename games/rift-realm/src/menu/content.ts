@@ -117,7 +117,7 @@ export const TIPS = [
   'Dash just before a strike lands: the i-frames carry you through it.',
   'Stagger a foe, then press F for a Soul-Rend execution.',
   'Hold the right mouse button (LT) to aim down sights; the spread tightens.',
-  'Middle mouse or Tab (LT) locks on, so you can run and gun.',
+  'Tab (LT on a controller) locks on, so you can run and gun. Middle mouse or T puts the gun away for hand-to-hand.',
   'Hold A, B and C to win Domination in Elderwood Hollow.',
   'Press V to switch between first and third person.',
 ];
