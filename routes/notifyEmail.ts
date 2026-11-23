@@ -10,7 +10,7 @@
 import { Router } from 'express';
 import express from 'express';
 import nodeCrypto from 'node:crypto';
-import { verifyIdTokenDetailed, fsGet, fsPatch } from '../services/firebaseAdminRest';
+import { verifyIdTokenDetailed, getAccessToken, fsGet, fsPatch } from '../services/firebaseAdminRest';
 import { verifyUnsub, prefKeyForScope, renderEmail, escapeHtml } from '../services/notify/emailNotifyCore';
 import { lookupAuthUser, sendViaResend, runEmailNotificationCron, emailConfigured, appUrl } from '../services/notify/emailNotifyServer';
 
@@ -65,6 +65,56 @@ notifyEmailRouter.post('/notify/email/test', async (req, res) => {
     ctaLabel: 'Open Plajah', ctaUrl: `${appUrl()}/`,
   });
   const ok = await sendViaResend(u.email, mail);
+  res.json({ sent: ok, to: u.email.replace(/^(.).*(@.*)$/, '$1•••$2') });
+});
+
+// ── Sign-up verification email, sent through Resend instead of Firebase's default sender ──
+// Firebase's own mail comes from noreply@<project>.firebaseapp.com and iCloud/Yahoo/Outlook
+// often junk or drop it. We mint the same verify link with the Identity Toolkit admin API
+// (returnOobLink) and deliver it from the verified notify.plajah.com domain.
+// The client falls back to Firebase's mail whenever this answers sent:false.
+const verifyHits = new Map<string, number[]>();
+notifyEmailRouter.post('/auth/send-verification', async (req, res) => {
+  const h = String(req.headers.authorization || '');
+  const tok = h.startsWith('Bearer ') ? await verifyIdTokenDetailed(h.slice(7)) : null;
+  if (!tok || tok.isAnonymous) return res.status(401).json({ sent: false, error: 'Sign in first' });
+  if (!process.env.RESEND_API_KEY) return res.json({ sent: false, reason: 'not_configured' });
+  // 1 per 30 s, 6 per hour per account.
+  const now = Date.now();
+  const hits = (verifyHits.get(tok.uid) || []).filter(t => now - t < 3_600_000);
+  if (hits.length && now - hits[hits.length - 1] < 30_000) return res.status(429).json({ sent: false, error: 'Please wait a few seconds before asking for another email.' });
+  if (hits.length >= 6) return res.status(429).json({ sent: false, error: 'Too many verification emails. Try again in an hour.' });
+  hits.push(now); verifyHits.set(tok.uid, hits);
+
+  const u = await lookupAuthUser(tok.uid);
+  if (!u?.email) return res.json({ sent: false, reason: 'no_email' });
+  if (u.emailVerified) return res.json({ sent: false, reason: 'already_verified' });
+  const at = await getAccessToken();
+  if (!at) return res.json({ sent: false, reason: 'no_admin_token' });
+
+  const project = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0665118474';
+  const mint = async (continueUrl?: string): Promise<string | null> => {
+    try {
+      const r = await fetch(`https://identitytoolkit.googleapis.com/v1/projects/${project}/accounts:sendOobCode`, {
+        method: 'POST', headers: { Authorization: `Bearer ${at}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestType: 'VERIFY_EMAIL', email: u.email, returnOobLink: true, ...(continueUrl ? { continueUrl } : {}) }),
+      });
+      if (!r.ok) { console.warn('[verifyEmail] oob', r.status, (await r.text().catch(() => '')).slice(0, 200)); return null; }
+      return ((await r.json()) as any).oobLink || null;
+    } catch (e: any) { console.warn('[verifyEmail] oob error', e?.message); return null; }
+  };
+  // An unauthorised continue URL must not cost the person their email: retry without it.
+  const link = (await mint(`${appUrl()}/?verified=1`)) || (await mint());
+  if (!link) return res.json({ sent: false, reason: 'link_failed' });
+
+  const mail = renderEmail({
+    subject: 'Confirm your email for Plajah', heading: 'Confirm your email',
+    lines: ['Welcome to Plajah! Tap the button to confirm this email address and finish setting up your account.', 'If you didn’t create a Plajah account, you can ignore this message.'],
+    ctaLabel: 'Confirm my email', ctaUrl: link,
+    footerNote: 'You’re getting this one-time email because an account was created with this address.',
+  });
+  const ok = await sendViaResend(u.email, mail);
+  if (!ok) console.warn('[verifyEmail] resend failed for', tok.uid);
   res.json({ sent: ok, to: u.email.replace(/^(.).*(@.*)$/, '$1•••$2') });
 });
 
