@@ -7,8 +7,9 @@ import { createSkyCycle, type SkyCycle, type SkyMode } from './skyCycle';
 import { CYBER_FOREST_TREES, ELDERWOOD_TREES } from '../../../../services/vegetation/catalog/cyberForest';
 import type { TreeSpot } from '../../../../services/vegetation/trees/forest';
 import type { WildsBuilt, WildsCtx, WildsHooks } from './registry';
-import { WorldTerrain, TerrainChunks, terrainMaterial } from './terrain';
-import { makeKit, syncBeat } from './kit';
+import { WorldTerrain, TerrainChunks, terrainMaterial, wildsMaps } from './terrain';
+import { scatterWilds } from './eco';
+import { makeKit, syncBeat, uniformBeat } from './kit';
 import { buildPlaces } from './places';
 import { CORE, HALF, PLACES, POOL_STREAM, RIVER, TRAILS, WATER_Y, plateauMask, polyNear, setCoreHeight, worldHeight } from './layout';
 import { SHOTS } from './shots';
@@ -78,12 +79,17 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
   const inPlace = new Uint8Array(MN * MN);          // 1 inside a place's footprint (no grass through decks and paving)
   {
     const clears = placed.clear;
+    // the danger zones (lava rifts, vents, thorn and swamp patches) keep trees off too: games/rift-realm/src/danger/spots.ts
+    // registers dangerClearings() here when it loads (a hook, so the world builds with or without it)
+    // [x, z, r, noGrass?]: a 4th value of 1 also keeps the grass out (lava, vents, toxic pools; not forage or herd spots)
+    const danger = (globalThis as unknown as { __wildsClearings?: () => number[][] }).__wildsClearings?.() ?? [];
     for (let j = 0; j < MN; j++) for (let i = 0; i < MN; i++) {
       const x = -HALF + (i + 0.5) * MC, z = -HALF + (j + 0.5) * MC;
       let d = 12;
       for (const tr of TRAILS) { const n = polyNear(tr, x, z); if (n.d < d) d = n.d; }
       for (const pts of [RIVER, POOL_STREAM]) { const n = polyNear(pts, x, z); const w = pts[n.i][3] / 2 + 1.5; if (n.d - w < d) d = Math.max(0, n.d - w); }
       for (const c of clears) { const e = Math.hypot(x - c[0], z - c[1]) - c[2]; if (e < d) d = Math.max(0, e); if (e < -2) inPlace[i + j * MN] = 1; }
+      for (const c of danger) { const e = Math.hypot(x - c[0], z - c[1]) - c[2]; if (e < d) d = Math.max(0, e); if (c[3] === 1 && e < 1) inPlace[i + j * MN] = 1; }
       mask[i + j * MN] = d;
     }
   }
@@ -93,6 +99,16 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
   // ── the forest across the world: species by region, trunks into the collision grid ──
   let seed = 9091; const R = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const trees: TreeSpot[] = [...placed.trees];
+  // The forest from the EcoSystem rules (services/terrain/eco, world/eco.ts: canopy, undergrowth and fungi round the
+  // trees, riverside flowers; with ?erosion=1 the land's wetness/flow/deposition maps join in). Default since the A/B
+  // (2026-11-22: same look, frame rate within noise, ~11k fewer draw calls); ?eco=0 brings back the hand placement below.
+  const ECO = !(typeof location !== 'undefined' && new URLSearchParams(location.search).get('eco') === '0');
+  if (ECO) {
+    const m = wildsMaps(), t0e = performance.now();
+    const eco = scatterWilds({ height: H, normal: (x, z) => terrain.normal(x, z, 2), clearance, lowTier: lo, maps: m ? { wet: m.wetness, flow: m.flow, dep: m.deposition } : null, existingTrees: placed.trees });
+    trees.push(...eco.trees); ctx.plantSpots.push(...eco.plants); ctx.fungusSpots.push(...eco.fungi);
+    console.info(`[wilds] eco rules: ${eco.trees.length} trees, ${eco.plants.length} plants, ${eco.fungi.length} fungi in ${Math.round(performance.now() - t0e)} ms`);
+  } else {
   const cell = lo ? 15 : 10.5;
   for (let gz = -HALF + 40; gz < HALF - 40; gz += cell) for (let gx = -HALF + 40; gx < HALF - 40; gx += cell) {
     const x = gx + (R() - 0.5) * cell * 0.95, z = gz + (R() - 0.5) * cell * 0.95;
@@ -114,6 +130,7 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
     if (R() > dens) continue;
     trees.push({ x, y: y - 0.25, z, yaw: R() * 6.283, species: k, scale: s });
   }
+  }
   for (const t of trees) {
     if (t.species >= 4 && t.species !== 6) continue;
     const sp = ELDERWOOD_TREES[t.species];
@@ -121,7 +138,7 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
   }
 
   // ── undergrowth round the trees (ferns, bushes, glowcaps), glow flowers and crystals by the water ──
-  {
+  if (!ECO) {
     const near = (x: number, z: number) => Math.hypot(x, z) < HALF * 0.95;
     for (const t of trees) {
       if ((t.species >= 4 && t.species !== 6) || !near(t.x, t.z)) continue;
@@ -204,7 +221,19 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
   let cycle: SkyCycle | null = null;
 
   console.info(`[wilds] ${PLACES.length} places, ${trees.length} trees, ${ctx.plantSpots.length} plants, ${ctx.fungusSpots.length} fungi; built in ${Math.round(performance.now() - t0)} ms`);
-  (globalThis as unknown as { __wilds?: unknown }).__wilds = { terrain, chunks, places: PLACES, shots: SHOTS, height: worldHeight, trees: trees.length };
+  (globalThis as unknown as { __wilds?: unknown }).__wilds = { terrain, chunks, places: PLACES, shots: SHOTS, height: worldHeight, trees: trees.length,
+    /** The clock and weather now (danger: night spawns follow the real sky). */
+    sky: () => cycle?.state() ?? null,
+    /** Water at (x, z): its surface height and kind (danger: drinking). The river, the pool stream and their falls are
+     *  clean; the vale's standing water (the slough round the Mangrove Mire) is swamp. Null on dry ground. */
+    waterAt: (x: number, z: number): { y: number; kind: 'clean' | 'swamp' } | null => {
+      for (const [pts, pad] of [[RIVER, 1.5], [POOL_STREAM, 0.8]] as const) {
+        const n = polyNear(pts, x, z), a = pts[n.i], b = pts[Math.min(pts.length - 1, n.i + 1)];
+        if (n.d < (a[3] + (b[3] - a[3]) * n.t) / 2 + pad) return { y: a[2] + (b[2] - a[2]) * n.t + 0.85, kind: 'clean' };
+      }
+      if (Math.abs(z - 620) < 380 && terrain.surface(x, z) < WATER_Y) return { y: WATER_Y, kind: 'swamp' };
+      return null;
+    } };
 
   return {
     treeSpots: trees,
@@ -233,11 +262,25 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
       if (!cycle) {
         cycle = createSkyCycle(ctx.scene, group, r, {
           mode: skyMode, cycleSeconds: Number(qs.get('cycle')) || 240, start: Number(qs.get('clock') ?? 0.2) % 1,
-          weather: qs.get('weather') ?? (DAY ? 'off' : 'auto'), lo, ground: (x, z) => terrain.surface(x, z),
+          weather: qs.get('weather') ?? (DAY ? 'off' : 'auto'), lo, ground: (x, z) => terrain.surface(x, z), beat: uniformBeat(ctx),
         });
         cycle.update(0, camera as THREE.Camera, cam);
       }
+      if (qs.has('compileprof')) { // which objects' shaders take the time (each compiled on its own, slowest first)
+        const prof: [string, number][] = [];
+        const walk = async (o: THREE.Object3D, depth: number) => {
+          if (depth < 2 && o.children.length > 3) { for (const c of o.children) await walk(c, depth + 1); return; }
+          const t = performance.now(); try { await r.compileAsync(o, camera, ctx.scene); } catch { /* skip */ }
+          prof.push([`${o.name || o.type}${(o as THREE.Mesh).material ? ':' + (((o as THREE.Mesh).material as THREE.Material).type) : ''}`, Math.round(performance.now() - t)]);
+        };
+        for (const c of ctx.scene.children) await walk(c, 0);
+        prof.sort((a, b) => b[1] - a[1]);
+        console.info(`[wilds] compile profile: ${prof.length} objects, ${prof.reduce((t, p) => t + p[1], 0)} ms total`);
+        for (const [n, ms] of prof.slice(0, 14)) console.info(`[wilds]   ${ms} ms ${n}`);
+      }
+      const tc = performance.now(); console.info('[wilds] compiling');
       try { await r.compileAsync(ctx.scene, camera); } catch (e) { console.warn('[wilds] precompile', e); }
+      console.info(`[wilds] compiled in ${Math.round(performance.now() - tc)} ms`);
     },
   };
 }

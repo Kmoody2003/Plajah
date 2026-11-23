@@ -12,7 +12,9 @@ import * as THREE from 'three/webgpu';
 import type { TreeSkeleton } from './grow';
 import type { TreeSpecies } from '../species';
 
-export interface TreeGeometry { wood: THREE.BufferGeometry; leaves: THREE.BufferGeometry; height: number }
+export interface TreeGeometry { wood: THREE.BufferGeometry; leaves: THREE.BufferGeometry; height: number;
+  /** Glowing conduit cables (species with bark.conduits), with the same wind attributes as the wood. */
+  cables: THREE.BufferGeometry | null }
 
 const hash = (n: number) => { const s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); };
 
@@ -35,7 +37,7 @@ export function buildTreeGeometry(sk: TreeSkeleton, sp: TreeSpecies, o: { radial
     a.set(p.x, p.y, p.z); b.set(n.x, n.y, n.z);
     dir.subVectors(b, a); const len = dir.length(); if (len < 1e-4) continue; dir.divideScalar(len);
     const r0 = n.root ? Math.max(n.radius, nodes[n.parent].radius * 0.6) : p.radius, r1 = n.radius;
-    const fur = sp.trunk.furrow ?? 0, big = fur > 0 && p.radius > 0.5;
+    const fur = sp.trunk.furrow ?? 0, gn = sp.trunk.gnarl ?? 0, plank = sp.trunk.buttress ?? 0, big = (fur > 0 || gn > 0) && p.radius > 0.5;
     const radial = Math.max(4, Math.min(big ? Math.max(o.radial ?? 14, Math.round(14 + p.radius * 10)) : (o.radial ?? 14), Math.round(5 + p.radius * 18)));
     // a frame for the ring (stable-ish: project "up", or x when the segment is vertical)
     side.copy(Math.abs(dir.y) > 0.95 ? tmp.set(1, 0, 0) : up).cross(dir).normalize();
@@ -47,29 +49,32 @@ export function buildTreeGeometry(sk: TreeSkeleton, sp: TreeSpecies, o: { radial
       // root flare at the base of the trunk
       const flare = nd === nodes[0] || (nd.order === 0 && nd.y < sp.trunk.radius * 2) ? 1 + (sp.trunk.flare - 1) * Math.max(0, 1 - nd.y / (sp.trunk.radius * 3)) : 1;
       const tw = twist * (nd.dist / H);
+      // the ring's shape round its axis, r(ang) = r·(1 + F(ang)): braided lobes (twisted species), furrowed bark (sharp
+      // grooves between rounded ridges), gnarl (slow bulges and burls, strongest low on the trunk); all continuous in
+      // dist so neighbouring rings meet
+      const lob = sp.trunk.twist > 0.8 && nd.order === 0, furOn = fur > 0 && r > 0.25 && !n.root, gnOn = gn > 0 && !n.root && nd.order <= 1 && r > 0.3;
+      const gf = gnOn ? gn * Math.max(0.3, 1 - nd.y / (H * 0.6)) : 0, amp = furOn ? fur * Math.min(1, r / 0.8) : 0, dd = nd.dist, sd = sk.seed;
+      const F = (ang: number) => {
+        let f = lob ? 0.12 * Math.cos(ang * 5) : 0;
+        if (amp) f += amp * (Math.sqrt(Math.abs(Math.sin(ang * 13 + Math.sin(dd * 0.23 + sd) * 1.6))) - 0.6) + amp * 0.35 * (Math.sqrt(Math.abs(Math.sin(ang * 29 + dd * 0.11))) - 0.6);
+        if (gf) f += gf * (0.55 * Math.sin(ang * 3 + dd * 0.37 + sd) + 0.3 * Math.sin(ang * 2 - dd * 0.61 + sd * 1.3) + 0.15 * Math.sin(ang * 7 + dd * 1.1));
+        return f;
+      };
+      // plank buttresses: near the trunk a root's cross-section is a tall thin wall (ellipse, wide vertically)
+      const pk = n.root && plank > 0 ? plank * Math.max(0, 1 - Math.hypot(nd.x, nd.z) / (sp.trunk.radius * sp.trunk.rootReach * 0.9)) : 0;
+      const ea = 1 - 0.3 * pk, eb = 1 + 0.55 * pk;                 // a rounded wall, not a blade
       for (let k = 0; k <= radial; k++) {
         const ang = (k / radial) * Math.PI * 2 + tw;
         const cx = Math.cos(ang), sx = Math.sin(ang);
-        // twisted species: strands — the ring is lobed so the trunk reads as braided cords
-        const lobes = sp.trunk.twist > 0.8 && nd.order === 0 ? 1 + 0.12 * Math.cos(ang * 5) : 1;
-        // furrowed bark: sharp-bottomed grooves between rounded ridges, wandering along the trunk (continuous in dist)
-        let fk = 1, fd = 0;
-        if (fur > 0 && r > 0.25 && !n.root) {
-          const ph = ang * 13 + Math.sin(nd.dist * 0.23 + sk.seed) * 1.6, ph2 = ang * 29 + nd.dist * 0.11;
-          const g = Math.abs(Math.sin(ph)), g2 = Math.abs(Math.sin(ph2));
-          const amp = fur * Math.min(1, r / 0.8);
-          fk = 1 + amp * (Math.sqrt(g) - 0.6) + amp * 0.35 * (Math.sqrt(g2) - 0.6);
-          fd = amp * (Math.cos(ph) * Math.sign(Math.sin(ph)) * 13 / (2 * Math.sqrt(g + 1e-3)) + 0.35 * Math.cos(ph2) * Math.sign(Math.sin(ph2)) * 29 / (2 * Math.sqrt(g2 + 1e-3)));
-          fd = Math.max(-3, Math.min(3, fd / fk));
-        }
-        const rr = r * flare * lobes * fk;
-        const nx = side.x * cx + side2.x * sx, ny = side.y * cx + side2.y * sx, nz = side.z * cx + side2.z * sx;
+        const f = F(ang), fd = (amp || gf || lob) ? Math.max(-3, Math.min(3, (F(ang + 0.01) - F(ang - 0.01)) / 0.02 / (1 + f))) : 0;
+        const rr = r * flare * (1 + f);
+        const nx = side.x * cx * ea + side2.x * sx * eb, ny = side.y * cx * ea + side2.y * sx * eb, nz = side.z * cx * ea + side2.z * sx * eb;
         pos.push(c.x + nx * rr, c.y + ny * rr, c.z + nz * rr);
-        if (fd) { // normal of r(ang): the radial direction tilted against the slope round the ring
-          const tx = -side.x * sx + side2.x * cx, ty = -side.y * sx + side2.y * cx, tz = -side.z * sx + side2.z * cx;
-          const mx = nx - tx * fd * 0.5, my = ny - ty * fd * 0.5, mz = nz - tz * fd * 0.5, ml = Math.hypot(mx, my, mz) || 1;
-          nor.push(mx / ml, my / ml, mz / ml);
-        } else nor.push(nx, ny, nz);
+        // normal: the ellipse's own (cx/a, sx/b), tilted against the slope of r(ang) round the ring
+        let mx = side.x * cx / ea + side2.x * sx / eb, my = side.y * cx / ea + side2.y * sx / eb, mz = side.z * cx / ea + side2.z * sx / eb;
+        if (fd) { const tx = -side.x * sx + side2.x * cx, ty = -side.y * sx + side2.y * cx, tz = -side.z * sx + side2.z * cx; mx -= tx * fd * 0.6; my -= ty * fd * 0.6; mz -= tz * fd * 0.6; }
+        const ml = Math.hypot(mx, my, mz) || 1;
+        nor.push(mx / ml, my / ml, mz / ml);
         uv.push((k / radial) * Math.max(1, Math.round((2 * Math.PI * Math.max(r, 0.05)) / tile)), nd.dist / tile);
         piv.push(piv0.x, piv0.y, piv0.z);
         const tw2 = Math.pow(Math.max(0, c.y) / H, 2), ni = e ? i : n.parent;
@@ -133,5 +138,55 @@ export function buildTreeGeometry(sk: TreeSkeleton, sp: TreeSpecies, o: { radial
   leaves.setAttribute('aSway', new THREE.Float32BufferAttribute(lsw, 4));
   leaves.setIndex(li);
   wood.computeBoundingSphere(); leaves.computeBoundingSphere();
-  return { wood, leaves, height: H };
+
+  // ── conduit cables (Cyber Forest sheets and the rotating tree): glowing cords spiralling up the trunk and running out
+  //    along the biggest limbs; they carry the wood's wind attributes so they sway with it, u = metres along the cord ──
+  let cables: THREE.BufferGeometry | null = null;
+  const cd = sp.bark.conduits;
+  if (cd && cd.count > 0) {
+    const cp: number[] = [], cn: number[] = [], cu: number[] = [], cpv: number[] = [], csw: number[] = [], ci: number[] = [];
+    const kids = (i: number) => nodes[i].children.filter((c) => !nodes[c].root);
+    const trunk = [0]; for (let cur = 0; ;) { const ks = kids(cur).filter((c) => nodes[c].order === 0); if (!ks.length) break; cur = ks[0]; trunk.push(cur); }
+    const starts: number[] = []; for (const t of trunk) for (const c of kids(t)) if (nodes[c].order === 1 && nodes[c].radius > 0.1) starts.push(c);
+    starts.sort((x, y) => nodes[y].radius - nodes[x].radius);
+    const paths: { idx: number[]; cords: number }[] = [{ idx: trunk, cords: cd.count }];
+    for (const s0 of starts.slice(0, cd.limbs ?? 3)) {
+      const pth = [nodes[s0].parent, s0];
+      for (let c = s0; ;) { const ks = kids(c); if (!ks.length) break; c = ks.reduce((x, y) => (nodes[y].radius > nodes[x].radius ? y : x)); if (nodes[c].radius < 0.07) break; pth.push(c); }
+      if (pth.length > 3) paths.push({ idx: pth, cords: 1 });
+    }
+    const margin = 1.03 + (sp.trunk.gnarl ?? 0) * 0.5 + (sp.trunk.furrow ?? 0) * 0.3, crad = cd.radius, turns = cd.turns ?? 1.2, SEG = 5;
+    const T = new THREE.Vector3(), S1 = new THREE.Vector3(), S2 = new THREE.Vector3(), P = new THREE.Vector3();
+    paths.forEach((pth, pi) => {
+      for (let k = 0; k < pth.cords; k++) {
+        const a0 = (k / pth.cords) * Math.PI * 2 + pi * 1.7 + hash(pi * 7 + k) * 0.8;
+        const ringBase = cp.length / 3; let rings = 0;
+        for (let q = 0; q < pth.idx.length; q++) {
+          const nd = nodes[pth.idx[q]], nb = nodes[pth.idx[Math.min(pth.idx.length - 1, q + 1)]], na = nodes[pth.idx[Math.max(0, q - 1)]];
+          T.set(nb.x - na.x, nb.y - na.y, nb.z - na.z).normalize();
+          S1.copy(Math.abs(T.y) > 0.95 ? tmp.set(1, 0, 0) : up).cross(T).normalize(); S2.crossVectors(T, S1).normalize();
+          const ang = a0 + (nd.dist / H) * turns * Math.PI * 2 * (pi === 0 ? 1 : 0.4);
+          const flare = q === 0 && pi === 0 ? sp.trunk.flare : 1, off = nd.radius * margin * flare + crad;
+          P.set(nd.x, nd.y, nd.z).addScaledVector(S1, Math.cos(ang) * off).addScaledVector(S2, Math.sin(ang) * off);
+          const ni = pth.idx[q], pv = nodes[nd.branchRoot], ph = hash(nd.branchRoot + sk.seed * 31);
+          for (let j = 0; j <= SEG; j++) {
+            const ra = (j / SEG) * Math.PI * 2, rx = Math.cos(ra), ry = Math.sin(ra);
+            const ox = S1.x * rx + S2.x * ry, oy = S1.y * rx + S2.y * ry, oz = S1.z * rx + S2.z * ry;
+            cp.push(P.x + ox * crad, P.y + oy * crad, P.z + oz * crad); cn.push(ox, oy, oz); cu.push(nd.dist, j / SEG);
+            cpv.push(pv.x, pv.y, pv.z); csw.push(Math.pow(Math.max(0, P.y) / H, 2), cum[ni], ph, own[ni]);
+          }
+          if (rings > 0) for (let j = 0; j < SEG; j++) { const i0 = ringBase + (rings - 1) * (SEG + 1) + j, i1 = i0 + 1, j0 = i0 + SEG + 1, j1 = j0 + 1; ci.push(i0, j0, i1, i1, j0, j1); }
+          rings++;
+        }
+      }
+    });
+    cables = new THREE.BufferGeometry();
+    cables.setAttribute('position', new THREE.Float32BufferAttribute(cp, 3));
+    cables.setAttribute('normal', new THREE.Float32BufferAttribute(cn, 3));
+    cables.setAttribute('uv', new THREE.Float32BufferAttribute(cu, 2));
+    cables.setAttribute('aPivot', new THREE.Float32BufferAttribute(cpv, 3));
+    cables.setAttribute('aSway', new THREE.Float32BufferAttribute(csw, 4));
+    cables.setIndex(ci);
+  }
+  return { wood, leaves, height: H, cables };
 }

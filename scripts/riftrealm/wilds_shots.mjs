@@ -11,14 +11,14 @@ const OUT = 'D:/rr_work/wilds/game';
 fs.mkdirSync(OUT, { recursive: true });
 
 // headless Chrome has no WebGPU here; a headed window parked off-screen on the discrete GPU does (the game's high tier)
-const browser = await chromium.launch({ headless: false, args: ['--enable-unsafe-webgpu', '--force_high_performance_gpu', '--window-position=-32000,-32000', '--window-size=1460,1500'] });
+const browser = await chromium.launch({ headless: false, args: ['--enable-unsafe-webgpu', '--force_high_performance_gpu', ...(process.env.DXC ? ['--enable-dawn-features=use_dxc'] : []), '--window-position=-32000,-32000', '--window-size=1460,1500'] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 810 } });
 page.on('console', (m) => { const t = m.text(); if (process.env.LOGALL || /wilds|tier|error|Error/.test(t)) console.log('[page]', t.slice(0, 300)); });
 page.on('pageerror', (e) => console.log('[pageerror]', e.message));
 // DAY=1 renders the shots under the art's misty daylight (?time=day)
 // Q='clock=0.74&cycle=99999&weather=storm' adds any query (time of day, weather) to the page URL
-await page.goto(`${base}?rrdebug&q=high${process.env.DAY ? '&time=day' : ''}${process.env.Q ? '&' + process.env.Q : ''}`, { timeout: 120000 });
-await page.waitForFunction(() => !!window.__rr && !!window.__wilds, null, { timeout: 300000, polling: 1000 });
+await page.goto(`${base}?rrdebug&q=${process.env.QUAL ?? 'high'}${process.env.DAY ? '&time=day' : ''}${process.env.Q ? '&' + process.env.Q : ''}`, { timeout: 120000 });
+await page.waitForFunction(() => !!window.__rr && !!window.__wilds, null, { timeout: 600000, polling: 1000 });
 let shots = await page.evaluate(() => {
   const rr = window.__rr;
   for (const id of ['hudTop', 'hudRight', 'hudBottom', 'reticle', 'beatRing', 'beatPop', 'touchHud', 'overlay', 'achToast', 'camText']) { const e = document.getElementById(id); if (e) e.style.display = 'none'; }
@@ -62,6 +62,7 @@ for (const s of shots) {
     window.__cam = { pos: p, look: l, fov: s.cam.fov, far: s.cam.far };
     if (s.cam.far) { const sc = window.__rr.scene; sc.fogNode = null; sc.fog = null; }   // the map shot: no fog
   }, s);
+  if (process.env.RAWTONE) await page.evaluate(() => { window.__rr.renderer.toneMapping = 0; window.__rr.renderer.toneMappingExposure = 1; });   // raw values (debug outputs)
   // let the terrain stream in and the vegetation re-sort round the new camera
   await page.waitForTimeout(2500);
   // stream the terrain round the camera, then compile every new pipeline before shooting (node shaders compile lazily)
@@ -69,6 +70,7 @@ for (const s of shots) {
   await page.waitForTimeout(2500);
   if (s.cam.far) await page.waitForTimeout(40000);   // every material recompiles without fog
   await page.screenshot({ path: `${OUT}/${s.id}.png`, timeout: 180000 });
+  if (process.env.SKYU) console.log('skyu', JSON.stringify(await page.evaluate(() => { const u = window.__sky?.clouds?.u; if (!u) return null; const o = {}; for (const k in u) { const v = u[k].value; o[k] = v?.isColor ? [v.r, v.g, v.b].map((x) => +x.toFixed(3)) : v?.isVector3 || v?.isVector2 ? v.toArray().map((x) => +x.toFixed(3)) : v; } return o; })));
   console.log('shot', s.id, process.env.VEG ? JSON.stringify(await page.evaluate(() => { const v = window.__rr.arena.group.userData.vegetation; return { plants: v.plants.stats, fungi: v.fungi.stats, forest: v.forest.stats, grass: v.grass.stats }; })) : '');
 }
 const info = await page.evaluate(() => { const r = window.__rr.renderer.info.render; return { calls: r.calls, tris: r.triangles }; });

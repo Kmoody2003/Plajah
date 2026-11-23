@@ -36,8 +36,15 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
     const sun = scene.userData.godrays as THREE.DirectionalLight | undefined;
     let rays: any = null;
     if (sun && sun.castShadow && !dbg.includes('norays')) {
-      const g = godrays(depth, camera, sun); g.resolutionScale = 0.5; g.density.value = 1.0; g.maxDensity.value = 0.85; g.distanceAttenuation.value = 0.8;
-      rays = g.getTextureNode().r.mul(uniform(sun.color)).mul(reference('intensity', 'float', sun).mul(1.6 / 5.2).min(2));
+      // light builds up with the length of lit air the ray crosses inside the shadow box: at density 1 an open view of the
+      // box (from a deck, a ridge, the sky) saturated into a white block with hard edges, worst under the moon. Lower
+      // density and cap: the shafts between trunks still read, open air is a soft haze, the box edge is gone.
+      const g = godrays(depth, camera, sun); g.resolutionScale = 0.5; g.density.value = 0.4; g.maxDensity.value = 0.45; g.distanceAttenuation.value = 2;
+      rays = g.getTextureNode().r.mul(uniform(sun.color)).mul(reference('intensity', 'float', sun).mul(1.2 / 5.2).min(1));
+      // a level can fade them (the Wilds' day cycle: full by day, gone at night — under the moon the lit shadow box
+      // still read as a pale block over the forest)
+      const gain = scene.userData.godraysGain as { value: number } | undefined;
+      if (gain) rays = rays.mul(reference('value', 'float', gain));
     }
     const glow = bloom(rays ? lit.add(rays) : lit, 0.45, 0.5, 0.82);
     let c: any = (rays ? lit.add(rays) : lit).add(glow);

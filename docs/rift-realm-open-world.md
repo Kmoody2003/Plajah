@@ -195,6 +195,47 @@ trees were identical spears, the paving was flat, the day sky was flat grey. Wha
 
 **All 34 pairs re-shot (2026-11-22), vegetation drawn, daylight:** mean geometry score 0.372. Best: mangrove-mire 0.60, portal-plaza 0.59, crystal-vault 0.56, circuit-court 0.54. Weakest: eh10-rope-bridge 0.23, eh01-aerial 0.20, chapel-flythrough 0.18, titan-ramp 0.11. Portal Plaza 0.541 → 0.590. Caveat: every shot was rendered under `?time=day`, including the night art (the eh-series Elderwood shots), which costs those pairs; next is shooting `night` shots with `?time=night`, then working up the weakest places (the Titan Tree ramp, the chapel, the aerial, the rope bridge).
 
+**Volumetric sky, auroras, the eco forest, upgraded trees (2026-11-22, later).** From Kenne's sky dome references
+(Shooter/sky domes: 24 stills, 22 videos — curtains and swirls in emerald, turquoise, violet and silver, cumulus with
+lit tops and grey bases, coral dusk clouds, cosmic pink and lavender cirrus, nebula bands):
+- *services/sky* (shared by every game). `volumetricClouds()`: real-time raymarched clouds in a 1.5–4.2 km shell over
+  a planet-sized sphere — tileable Perlin-Worley noise built at load (`noise3d.ts`), a coverage map, cumulus height
+  profile, Worley erosion, a march toward the sun per sample (Beer + powder), two-lobe phase, sky light occluded by the
+  cloud above (the lumpy undersides of a deck), and a high cirrus layer with a cosmic tint. `auroraCurtains()`:
+  raymarched curtains — a domain-warped noise field's zero line folds and curls into the references' swirls, ray
+  striations run up the curtains, a sharp bright lower edge, colour climbing from the low colour to the high one;
+  palettes from the references, a new pair each night; the music's beat brightens them a little.
+- *Opt-in for now:* `?sky=vol` turns them on; the default stays the SkyMesh sky of 6551a5c7 until the volumetric one
+  clearly wins side by side (docs/rift-realm-wilds/sky-old-new.jpg: it already does at dusk). A D3D shader-compiler
+  trap found on the way: any use of the cloud-base distance in the output (the old horizon fade) made dense decks draw
+  nothing, so storms showed a clear sky; the fade now uses the view height only.
+- *skyCycle* drives both: sun or moon light and sky ambient from the time of day, coverage, darkness and drift from
+  the weather (storm decks are dark and grey). The aurora is full at night, softer at dawn and dusk and a faint veil by
+  day (the fantasy domes show it at noon); clouds hide it. Tuning switches: `?cov=`, `?dark=`, `?noclouds`.
+- Loop counts are uniforms (constant bounds let the D3D compiler unroll the marches). A cold load still takes ~2 min to
+  compile every pipeline in this world (measured the same on the commit before today's work; ~1.5 s per pipeline,
+  ~1000 objects — `?compileprof` logs the slowest); a warm shader cache is the fix, not the sky.
+- *The eco forest is the default*: the canopy, undergrowth and fungi now come from the EcoSystem rules
+  (services/terrain/eco, world/eco.ts). A/B from the same cameras (scripts/riftrealm/wilds_fps.mjs): same look, frame
+  rate within noise (portal-plaza 11.4 → 9.1, mangrove-mire 11.8 → 11.8, eh08 9.8 → 11.0 fps) with ~11k fewer draw
+  calls. `?eco=0` brings back the hand placement. The absolute ~10 fps in these captures (≈13 M triangles, ≈50 k draw
+  calls with shadows, godrays and impostors) is a whole-level budget problem to take on separately.
+- *Danger hooks* (for games/rift-realm/src/danger): `globalThis.__wildsClearings()` keeps trees off hazard, forage and
+  herd spots (a 4th value of 1 also keeps grass out of lava, vents and toxic pools); `__wilds.sky()` gives the clock and
+  weather; `__wilds.waterAt(x, z)` → `{ y, kind: 'clean' | 'swamp' }` for drinking.
+- *Trees* (services/vegetation, every species): `trunk.gnarl` (slow bulges and burls), `trunk.buttress` (plank
+  buttress roots that twist, fork and dive into the ground, a rounded wall in section), `bark.conduits` (glowing cyan
+  cords spiralling up the trunk and along the biggest limbs, light running up them, brighter on the beat — they sway
+  with the wood and appear in the impostors), furrows, moss and scaffold limbs on the Cyber Forest species, tuned to the
+  tree sheets and the rotating tree (Cyber Forest Level Assets). Moss is patchy (a coarse second bark read, crevices
+  only, about half the first pass's amount: the first pass washed the bark out). One material set per species (each
+  set is its own pipelines). Before/after from the same cameras: docs/rift-realm-wilds/trees-before-after.jpg.
+- *Godrays retuned* (post.ts): light built up with the length of lit air inside the shadow box, so from a deck or a
+  ridge the box itself showed as a white hexagon, worst under the moon. Density 0.4, cap 0.45, gain by the light's live
+  strength: shafts between trunks remain, open air is a soft haze.
+- Next (docs/rift-realm-look-gap.md): the foliage material (translucency, crown depth, colour), then light and
+  performance (~10 fps, ~50 k draw calls).
+
 ## Track 2 — Characters from video
 - Every clip comes from the character's own motion videos (services/mocap: capture → solveTake → clipToThree →
   retarget), never hand-keyed. Assassin, Archangel, Cyber-Assassin and the other combat videos sit in

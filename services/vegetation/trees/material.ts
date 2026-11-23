@@ -51,7 +51,7 @@ function swayed(sp: TreeSpecies, height: number, leaves: boolean): N {
   return positionLocal.add(off);
 }
 
-export interface TreeMaterials { wood: THREE.MeshStandardNodeMaterial; leaves: THREE.MeshStandardNodeMaterial }
+export interface TreeMaterials { wood: THREE.MeshStandardNodeMaterial; leaves: THREE.MeshStandardNodeMaterial; cables: THREE.MeshStandardNodeMaterial | null }
 
 export function treeMaterials(sp: TreeSpecies, height: number, o: { beat?: N } = {}): TreeMaterials {
   const beat: N = o.beat ?? uniform(0);
@@ -65,7 +65,10 @@ export function treeMaterials(sp: TreeSpecies, height: number, o: { beat?: N } =
     const bark: N = texture(barkMap, uv()).rgb, crev: N = float(1).sub(bark.dot(vec3(0.3, 0.55, 0.15)).mul(1.6)).clamp(0, 1);
     const upF: N = smoothstep(float(0.15), float(0.75), normalGeometry.y);
     const low: N = smoothstep(float(height * 0.22), float(0), positionGeometry.y);
-    const mask: N = max(upF, low.mul(0.85)).mul(crev.mul(0.6).add(0.55)).mul(sp.bark.moss.amount).clamp(0, 1);
+    // patches, not a wash: a coarse second read of the bark breaks the moss up, and it keeps to the crevices (the bark's
+    // own colour and relief stay readable between patches)
+    const patch: N = smoothstep(float(0.38), float(0.62), texture(barkMap, uv().mul(vec2(0.23, 0.11))).g);
+    const mask: N = max(upF, low.mul(0.85)).mul(crev.mul(0.8).add(0.2)).mul(patch).mul(sp.bark.moss.amount).clamp(0, 1);
     const mossC: N = color(sp.bark.moss.color).mul(bark.g.mul(0.9).add(0.45));
     wood.colorNode = mix(wood.colorNode as N, mossC, mask);
   }
@@ -93,5 +96,14 @@ export function treeMaterials(sp: TreeSpecies, height: number, o: { beat?: N } =
   }
   leaves.emissiveNode = em;
   leaves.positionNode = swayed(sp, height, true);
-  return { wood, leaves };
+  // ── conduit cables: dark cords with light running up them, brighter on the beat ──
+  let cables: THREE.MeshStandardNodeMaterial | null = null;
+  if (sp.bark.conduits) {
+    cables = new THREE.MeshStandardNodeMaterial({ color: 0x15191c, roughness: 0.35, metalness: 0.6 });
+    const ph: N = uv().x.mul(0.22).sub(time.mul(0.55)).fract();
+    const pulse: N = smoothstep(float(0), float(0.08), ph).mul(smoothstep(float(0.4), float(0.1), ph));
+    cables.emissiveNode = color(sp.bark.conduits.color).mul(float(0.22).add(pulse.mul(1.8)).add(beat.mul(1.0)));
+    cables.positionNode = swayed(sp, height, false);
+  }
+  return { wood, leaves, cables };
 }

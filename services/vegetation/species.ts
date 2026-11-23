@@ -30,6 +30,10 @@ export interface TreeSpecies {
     roots: number; rootReach: number;
     /** Furrowed / fluted bark carved into the geometry (0 smooth … ~0.15 deep ridges, as a fraction of the radius). */
     furrow?: number;
+    /** Gnarled trunk: slow bulges and burls round and along the trunk and big limbs (0 … ~0.25 of the radius). */
+    gnarl?: number;
+    /** Plank buttress roots (0 … 1): tall thin root walls near the trunk, twisting, branching, sinking into the ground. */
+    buttress?: number;
   };
   crown: {
     /** The crown's silhouette from the front: radius against height. Measured from the art (fromArt/profile). */
@@ -66,6 +70,8 @@ export interface TreeSpecies {
     veins?: { map: string; color: number; strength: number };
     /** Moss on the bark: up-facing limbs and the lower trunk, patchy in the crevices. */
     moss?: { color: number; amount: number };
+    /** Glowing conduit cables (Cyber Forest): `count` cords spiral up the trunk, one along each of the `limbs` biggest limbs. */
+    conduits?: { count: number; limbs?: number; radius: number; color: number; turns?: number };
   };
   wind: {
     /** 0 rigid … 1 floppy: trunk bow, branch sway, leaf flutter. */

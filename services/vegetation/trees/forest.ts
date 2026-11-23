@@ -17,8 +17,8 @@ type N = any;
 export interface TreeSpot { x: number; y: number; z: number; yaw: number; species: number; scale: number }
 
 interface Bucket {
-  near: { wood: THREE.InstancedMesh; leaves: THREE.InstancedMesh };
-  mid: { wood: THREE.InstancedMesh; leaves: THREE.InstancedMesh };
+  near: { wood: THREE.InstancedMesh; leaves: THREE.InstancedMesh; cables: THREE.InstancedMesh | null };
+  mid: { wood: THREE.InstancedMesh; leaves: THREE.InstancedMesh; cables: THREE.InstancedMesh | null };
   far: THREE.InstancedMesh | null;
   spots: TreeSpot[];
   full: TreeGeometry; mats: TreeMaterials; radius: number;
@@ -49,6 +49,7 @@ export class Forest {
     const variants = o.variants ?? 3, lo = !!o.lowTier;
     this.near = o.nearRange ?? (lo ? 30 : 55);
     this.mid = o.midRange ?? (lo ? 70 : 130);
+    const matCache = new Map<number, TreeMaterials>();
     species.forEach((sp, si) => {
       for (let vi = 0; vi < variants; vi++) {
         const mine = spots.filter((p, k) => p.species === si && (k * 7 + Math.floor(Math.abs(p.x * 13 + p.z * 7))) % variants === vi);
@@ -57,7 +58,9 @@ export class Forest {
         const sk = growTree(sp, seed, { scale: 1, detail: lo ? 0.6 : 1 });
         const full = buildTreeGeometry(sk, sp, { radial: lo ? 8 : 14 });
         const low = buildTreeGeometry(growTree(sp, seed, { scale: 1, detail: 0.3 }), sp, { radial: 5 });
-        const mats = treeMaterials(sp, full.height, { beat: o.beat });
+        // one material set per species (the first seed's height): each set is its own shader pipelines, and six seeds of
+        // seven species compiling 42 sets made the page take minutes to start
+        const mats = matCache.get(si) ?? matCache.set(si, treeMaterials(sp, full.height, { beat: o.beat })).get(si)!;
         const make = (geo: THREE.BufferGeometry, mat: THREE.Material, castShadow: boolean) => {
           const g = geo.clone();
           g.setAttribute('aInst', new THREE.InstancedBufferAttribute(new Float32Array(mine.length * 4), 4));
@@ -68,9 +71,9 @@ export class Forest {
         };
         full.wood.computeBoundingSphere(); full.leaves.computeBoundingSphere();
         this.buckets.push({
-          near: { wood: make(full.wood, mats.wood, true), leaves: make(full.leaves, mats.leaves, true) },
+          near: { wood: make(full.wood, mats.wood, true), leaves: make(full.leaves, mats.leaves, true), cables: full.cables && mats.cables ? make(full.cables, mats.cables, false) : null },
           // mid range: coarse wood, but the full leaf set (cards are cheap; a thin crown reads as a dead tree)
-          mid: { wood: make(low.wood, mats.wood, false), leaves: make(full.leaves, mats.leaves, true) },
+          mid: { wood: make(low.wood, mats.wood, false), leaves: make(full.leaves, mats.leaves, true), cables: full.cables && mats.cables ? make(full.cables, mats.cables, false) : null },
           far: null, spots: mine, full, mats, sk, crownBase: sp.trunk.crownBase,
           radius: Math.max(full.wood.boundingSphere!.radius, full.leaves.boundingSphere!.radius),
         });
@@ -110,7 +113,9 @@ export class Forest {
         g.setAttribute('aInst', new THREE.BufferAttribute(a, 4));
         return new THREE.Mesh(g, mat);
       };
-      const atlas = await bakeImpostor(renderer, [one(b.full.wood, b.mats.wood), one(b.full.leaves, b.mats.leaves)], { frames: this.o.lowTier ? 5 : 6, size: this.o.lowTier ? 768 : 1024, ...light });
+      const parts = [one(b.full.wood, b.mats.wood), one(b.full.leaves, b.mats.leaves)];
+      if (b.full.cables && b.mats.cables) parts.push(one(b.full.cables, b.mats.cables));
+      const atlas = await bakeImpostor(renderer, parts, { frames: this.o.lowTier ? 5 : 6, size: this.o.lowTier ? 768 : 1024, ...light });
       b.atlas = atlas;
       b.far = impostorMesh(atlas, b.spots.length, impostorMaterial(atlas, { brightness: light.environment ? 1.0 : 1.3, flipV: true }));
       this.group.add(b.far);
@@ -137,13 +142,14 @@ export class Forest {
         if (d2 > m2 && b.far) { setImpostor(b.far, nf++, p.x, p.y, p.z, p.yaw, p.scale); continue; }
         const near = d2 < n2, set = near ? b.near : b.mid, i = near ? nn++ : nm++;
         m4.compose(v.set(p.x, p.y, p.z), q.setFromAxisAngle(up, p.yaw), s3.set(p.scale, p.scale, p.scale));
-        for (const im of [set.wood, set.leaves]) {
+        for (const im of [set.wood, set.leaves, set.cables]) {
+          if (!im) continue;
           im.setMatrixAt(i, m4);
           const a = im.geometry.getAttribute('aInst') as THREE.InstancedBufferAttribute;
           a.setXYZW(i, p.x, p.z, p.yaw, p.scale); a.needsUpdate = true;
         }
       }
-      for (const [set, n] of [[b.near, nn], [b.mid, nm]] as const) for (const im of [set.wood, set.leaves]) { im.count = n; im.instanceMatrix.needsUpdate = true; }
+      for (const [set, n] of [[b.near, nn], [b.mid, nm]] as const) for (const im of [set.wood, set.leaves, set.cables]) { if (!im) continue; im.count = n; im.instanceMatrix.needsUpdate = true; }
       if (b.far) b.far.count = nf;
       st.near += nn; st.mid += nm; st.far += nf;
       const tri = (g: THREE.BufferGeometry) => (g.index ? g.index.count : g.getAttribute('position').count) / 3;

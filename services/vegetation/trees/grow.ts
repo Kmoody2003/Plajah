@@ -207,7 +207,34 @@ export function growTree(sp: TreeSpecies, seed: number, opt: GrowOptions = {}): 
   // ── buttress roots: short arching chains from the base out to the ground ──
   // they leave the trunk well above the ground (the art's root mass rises a trunk-width or more) and arch out
   const tr = sp.trunk.radius * (H / sp.height);
-  for (let r = 0; r < sp.trunk.roots; r++) {
+  const bt = sp.trunk.buttress ?? 0;
+  if (bt > 0) {
+    // old-growth buttresses (the Cyber Forest sheets): roots leave the trunk high, run out as twisting walls, fork, and
+    // dive into the ground at their ends
+    for (let r = 0; r < sp.trunk.roots; r++) {
+      let a = (r / sp.trunk.roots) * Math.PI * 2 + (R() - 0.5) * 0.5;
+      const reach = tr * sp.trunk.rootReach * (0.75 + R() * 0.6), rise = tr * (1.0 + R() * 0.9) * (0.6 + bt * 0.4);
+      const steps = 9, drift = (R() - 0.5) * 0.5;
+      let prev = 0;
+      for (let s = 1; s <= steps; s++) {
+        const t = s / steps, d = tr * 0.6 + (reach - tr * 0.6) * Math.pow(t, 0.75);
+        a += drift / steps + (R() - 0.5) * 0.06;
+        const y = rise * (1 - t) * (1 - t) - (t > 0.8 ? (t - 0.8) * tr * 2.2 : 0);
+        prev = add(Math.cos(a) * d, y, Math.sin(a) * d, prev, { root: true, order: 1, branchRoot: 0 });
+        nodes[prev].radius = tr * 0.5 * Math.pow(1 - t * 0.88, 1.1);
+        // a fork part-way out: a thinner root peeling off to one side
+        if ((s === 4 || s === 6) && R() < 0.65) {
+          let fa = a + (R() < 0.5 ? -1 : 1) * (0.35 + R() * 0.35), fp = prev; const fy = y, fd = d, fr = nodes[prev].radius * 0.62;
+          for (let k = 1; k <= 4; k++) {
+            const u = k / 4, dd = fd + reach * 0.32 * u; fa += (R() - 0.5) * 0.1;
+            fp = add(Math.cos(fa) * dd, fy * (1 - u) * (1 - u) - (u > 0.7 ? (u - 0.7) * tr : 0), Math.sin(fa) * dd, fp, { root: true, order: 2, branchRoot: 0 });
+            nodes[fp].radius = fr * (1 - u * 0.8);
+          }
+        }
+      }
+    }
+  }
+  for (let r = 0; r < (bt > 0 ? 0 : sp.trunk.roots); r++) {
     const a = (r / sp.trunk.roots) * Math.PI * 2 + (R() - 0.5) * 0.6, reach = tr * sp.trunk.rootReach * (0.7 + R() * 0.6);
     const rise = tr * (1.6 + R() * 1.6);
     let prev = 0;

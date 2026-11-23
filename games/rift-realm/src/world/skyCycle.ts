@@ -16,10 +16,11 @@
 // ?time=night — fixed night (the level's own look)
 // ?cycle=240 — seconds per day; ?weather=storm|rain|fog|overcast|partly|clear pins one, ?weather=off none
 import * as THREE from 'three/webgpu';
-import { cameraPosition, color, densityFogFactor, float, fog, max, mix, normalize, pmremTexture, positionWorld, uniform, vec3, vec4 } from 'three/tsl';
+import { smoothstep, cameraPosition, color, densityFogFactor, float, fog, max, mix, normalize, pmremTexture, positionWorld, uniform, vec3, vec4 } from 'three/tsl';
 import { SkyMesh } from 'three/addons/objects/SkyMesh.js';
 import { WEATHERS, type WxParams } from '../../../forth-horizon/src/weather';
 import { Weather } from '../../../era-clash-3d/src/core/weather';
+import { auroraCurtains, volumetricClouds, AURORA_PALETTES } from '../../../../services/sky';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type N = any;
@@ -35,6 +36,8 @@ export interface SkyCycleOptions {
   weather: string;
   lo: boolean;
   ground(x: number, z: number): number;
+  /** The level's beat pulse (TSL uniform): the aurora brightens a little on the beat. */
+  beat?: N;
 }
 export interface SkyCycle {
   update(dt: number, view: THREE.Camera | null, player: THREE.Vector3): void;
@@ -58,6 +61,8 @@ const NIGHT_DENSITY = 0.0032;
 const SPELL: Record<string, [number, number]> = { clear: [15, 50], partly: [15, 40], overcast: [10, 30], fog: [15, 45], rain: [10, 35], storm: [12, 40] };
 const NEXT: Record<string, number> = { clear: 0.22, partly: 0.2, overcast: 0.14, fog: 0.14, rain: 0.16, storm: 0.14 };
 
+// ?cov= / ?dark= override the cloud coverage and storm darkness (tuning)
+const DBG = (() => { const q = typeof location !== 'undefined' ? new URLSearchParams(location.search) : null; const n = (k: string) => (q?.has(k) ? Number(q.get(k)) : undefined); return { cov: n('cov'), dark: n('dark') }; })();
 const smooth = (a: number, b: number, x: number) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 export function createSkyCycle(scene: THREE.Scene, group: THREE.Object3D, renderer: THREE.WebGPURenderer, o: SkyCycleOptions): SkyCycle {
@@ -70,6 +75,7 @@ export function createSkyCycle(scene: THREE.Scene, group: THREE.Object3D, render
   if (!sun) group.traverse((x) => { const d = x as THREE.DirectionalLight; if (d.isDirectionalLight && !sun) sun = d; });
   const sunL = sun as THREE.DirectionalLight | null, hemiL = hemi as THREE.HemisphereLight | null;
   if (sunL) { sunL.userData.offset = DAY_SUN.clone().multiplyScalar(150); scene.userData.godrays = sunL; }
+  const godraysGain = { value: 1 }; scene.userData.godraysGain = godraysGain;   // post.ts fades the shafts with it
   const nightEnvI = scene.environmentIntensity, nightExposure = renderer.toneMappingExposure;
 
   // ── the haze: night fog (the nebula environment's colour) ↔ day haze warming toward the sun ──
@@ -77,7 +83,7 @@ export function createSkyCycle(scene: THREE.Scene, group: THREE.Object3D, render
   const uHaze: N = uniform(DAY.haze.clone()), uGlow: N = uniform(DAY.glow.clone()), uSun: N = uniform(DAY_SUN.clone());
   const view: N = normalize(positionWorld.sub(cameraPosition));
   const env = scene.environment;
-  const nightCol: N = env ? (pmremTexture(env as N, normalize(vec3(view.x, max(view.y, float(0.05)), view.z)), float(0.55)) as N).mul(0.85) : color(0x0f3038);
+  const nightCol: N = env ? (pmremTexture(env as N, normalize(vec3(view.x, max(view.y, float(0.05)), view.z)), float(0.55)) as N).mul(0.85) : mix(color(0x0f3038), color(0x1c1f48), smoothstep(-0.05, 0.5, view.y));
   const dayCol: N = mix(uHaze, uGlow, view.dot(uSun).max(0).pow(5).mul(uGlowK));
   (scene as unknown as { fogNode: unknown }).fogNode = fog(mix(nightCol, dayCol, uDay), densityFogFactor(uDens));
   scene.fog = null;
@@ -90,7 +96,18 @@ export function createSkyCycle(scene: THREE.Scene, group: THREE.Object3D, render
   sm.colorNode = vec4((sm.colorNode as N).rgb.mul(uSkyDim), uSkyA);
   sm.transparent = true; sm.fog = false;
   sky.turbidity.value = 3.2; sky.rayleigh.value = 1.3; sky.mieCoefficient.value = 0.006; sky.mieDirectionalG.value = 0.86;
-  scene.add(sky);
+  // ?sky=vol: the volumetric clouds and aurora (services/sky), opt-in until they clearly beat the SkyMesh's own clouds
+  // side by side (Kenne, 2026-11-22: the sky had regressed); without it the SkyMesh clouds as committed in 6551a5c7
+  const VOL = typeof location !== 'undefined' && new URLSearchParams(location.search).get('sky') === 'vol';
+  if (VOL) sky.cloudCoverage.value = 0;
+  if (!(typeof location !== 'undefined' && location.search.includes('noskymesh'))) scene.add(sky);   // (?noskymesh: tuning)
+  // ── volumetric clouds over everything in the sky, the aurora under them (services/sky) ──
+  const clouds = VOL ? volumetricClouds({ lo: o.lo }) : null, aurora = VOL ? auroraCurtains({ lo: o.lo, beat: o.beat }) : null;
+  if (aurora) scene.add(aurora.mesh);
+  (globalThis as unknown as { __sky?: unknown }).__sky = { clouds, aurora };   // ?rrdebug inspection (uniform values)
+  if (clouds && !(typeof location !== 'undefined' && location.search.includes('noclouds'))) scene.add(clouds.mesh);
+  const palettes = Object.keys(AURORA_PALETTES);
+  let palA = 'emerald', palB = 'turquoise', wasNight = false;
 
   // ── weather: Apex's states, Era Clash's rain and lightning ──
   const pinned = o.weather !== 'auto' && o.weather !== 'off' && WEATHERS[o.weather] ? o.weather : null;
@@ -131,6 +148,7 @@ export function createSkyCycle(scene: THREE.Scene, group: THREE.Object3D, render
   return {
     wind: () => 0.55 + cur.wind * 1.4,
     state: () => ({ time: clock, weather: wxName, storm: rain?.storm ?? 0 }),
+    // (clouds and aurora: services/sky; tuned in update below)
     update(dt, cam, player) {
       dt = Math.min(dt, 0.1);
       // ── the clock and the sun's path ──
@@ -183,6 +201,7 @@ export function createSkyCycle(scene: THREE.Scene, group: THREE.Object3D, render
 
       // ── haze, sky, exposure ──
       uDay.value = dayK;
+      godraysGain.value = dayK;
       lerpC(tmpC, DAY.haze, GOLD.haze, gold); (uHaze.value as THREE.Color).copy(tmpC).lerp(GREY, cur.fogGrey);
       lerpC(uGlow.value as THREE.Color, DAY.glow, GOLD.glow, gold);
       (uSun.value as THREE.Vector3).copy(dir);
@@ -191,8 +210,28 @@ export function createSkyCycle(scene: THREE.Scene, group: THREE.Object3D, render
       uSkyA.value = o.mode === 'day' ? 1 : smooth(-0.18, 0.05, sinE);
       uSkyDim.value = 1 - 0.55 * cur.cloudDark;
       sky.sunPosition.value.copy(dir);
-      sky.cloudCoverage.value = Math.min(0.95, 0.15 + 0.35 * cur.cloud);
-      sky.cloudDensity.value = 0.3 + 0.6 * cur.cloudDark;
+      const night = sinE <= -0.04, cov = Math.min(0.97, Math.max(0.08, (cur.cloud - 0.4) * 0.55));
+      if (!clouds || !aurora) { sky.cloudCoverage.value = Math.min(0.95, 0.15 + 0.35 * cur.cloud); sky.cloudDensity.value = 0.3 + 0.6 * cur.cloudDark; }
+      else {
+      // clouds: lit by the sun (or the moon), sky light from the hemisphere; coverage, storm darkness and drift from the weather
+      const cu = clouds.u;
+      (cu.sunDir.value as THREE.Vector3).copy(night ? (sunL?.userData.offset as THREE.Vector3 ?? dir).clone().normalize() : dir);
+      if (sunL) (cu.sunColor.value as THREE.Color).copy(sunL.color).multiplyScalar(Math.max(0, sunL.intensity - flash * 9) / DAY.sunI * (night ? 0.3 : 0.6));
+      if (hemiL) { (cu.ambient.value as THREE.Color).copy(hemiL.color).multiplyScalar(Math.max(0, hemiL.intensity - flash * 3) * (night ? 0.07 : 0.13)); (cu.ambientLow.value as THREE.Color).copy(cu.ambient.value as THREE.Color).multiplyScalar(0.3).lerp(new THREE.Color(0.05, 0.055, 0.06), cur.cloudDark * 0.6); }
+      cu.coverage.value = DBG.cov ?? cov; cu.darkness.value = DBG.dark ?? cur.cloudDark;
+      // a heavy deck is grey, not tinted by the sky light
+      (cu.ambient.value as THREE.Color).lerp(tmpC.setRGB(0.42, 0.44, 0.47).multiplyScalar(hemiL ? hemiL.intensity * 0.13 : 0.3), Math.min(1, (DBG.cov ?? cov) * 0.8));
+      cu.cirrus.value = 0.65 * (1 - cov) * (1 - cur.fogGrey * 0.6);
+      cu.cosmic.value = 0.2 + 0.3 * gold;
+      cu.camY.value = player.y;
+      clouds.update(dt, 5 + cur.wind * 22, 2 + cur.wind * 8);
+      // aurora: full at night, softer at dawn and dusk, a faint cyan veil by day (the fantasy domes have it at noon); clouds hide it.
+      // A new pair of curtain colours every night (emerald, turquoise, violet, silver, cyan), blended in slowly.
+      if (night && !wasNight) { palA = palettes[Math.floor(Math.random() * palettes.length)]; palB = palettes[Math.floor(Math.random() * palettes.length)]; }
+      wasNight = night;
+      aurora.setPalette(palA, Math.min(1, dt * 0.2), palB);
+      aurora.u.intensity.value = (o.mode === 'day' ? 0.16 : 0.16 + 0.84 * (1 - smooth(-0.15, 0.25, sinE))) * (1 - 0.8 * cov) * (1 - cur.fogGrey * 0.7);
+      }
       scene.environmentIntensity = nightEnvI + (DAY.env - nightEnvI) * dayK;
       renderer.toneMappingExposure = nightExposure + (DAY.exposure - nightExposure) * dayK + cur.exposure * dayK + flash * 0.3;
     },
