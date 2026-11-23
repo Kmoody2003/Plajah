@@ -308,7 +308,11 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
     const ring = smoothstep(float(0.0), float(0.05), ph).mul(smoothstep(float(0.2), float(0.07), ph));
     const b = uniformBeat(ctx);
     // between beats the rings glow softly; on the beat they flare and the whole vine lights
-    m.emissiveNode = color(0x34ffd2).mul(ring.mul(float(0.6).add(b.mul(3.5))).add(b.mul(0.06)).add(0.015));
+    // mycelium guidance (games/rift-realm/src/danger): green bands running toward the nearest healthy mushroom, added
+    // when the danger layer registers globalThis.__mycelGuideEmissive() (a hook, so the world builds without it)
+    const guide = (globalThis as unknown as { __mycelGuideEmissive?: () => unknown }).__mycelGuideEmissive?.();
+    const base = color(0x34ffd2).mul(ring.mul(float(0.6).add(b.mul(3.5))).add(b.mul(0.06)).add(0.015));
+    m.emissiveNode = guide ? base.add(guide as typeof base) : base;
     return m;
   })();
   /** n glow vines over a floor round (x, z) within r at height y (keepClear keeps paths free). */
