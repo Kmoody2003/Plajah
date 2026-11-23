@@ -28,6 +28,11 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
     const sceneNormal = sample((uv: any) => colorToDirection(normalTex.sample(uv)));
     const aoPass = ao(depth, sceneNormal, camera);
     aoPass.resolutionScale = 0.5;
+    // forest scale: the default 0.25 m radius only darkened creases; trunk feet, roots, slabs on the ground and the
+    // underside of the canopy need a metre or two of reach (the art's soft dark contact shadows everywhere)
+    const look = (scene.userData.look ?? {}) as { aoRadius?: number; aoScale?: number; contrast?: number; toe?: number; warm?: number; rays?: number };
+    aoPass.radius.value = look.aoRadius ?? 0.25; aoPass.thickness.value = Math.max(1, (look.aoRadius ?? 0.25) * 2);
+    aoPass.scale.value = look.aoScale ?? 1; aoPass.distanceFallOff.value = 0.6;
     const dbg = new URLSearchParams(location.search).get('post') ?? '';
     const occl = aoPass.getTextureNode().r;
     const lit = dbg.includes('noao') ? color.rgb : color.rgb.mul(mix(float(1), occl, 0.85));
@@ -40,7 +45,8 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
       // box (from a deck, a ridge, the sky) saturated into a white block with hard edges, worst under the moon. Lower
       // density and cap: the shafts between trunks still read, open air is a soft haze, the box edge is gone.
       const g = godrays(depth, camera, sun); g.resolutionScale = 0.5; g.density.value = 0.4; g.maxDensity.value = 0.45; g.distanceAttenuation.value = 2;
-      rays = g.getTextureNode().r.mul(uniform(sun.color)).mul(reference('intensity', 'float', sun).mul(1.2 / 5.2).min(1));
+      // a level can ask for stronger shafts (look.rays): the Wilds' low fill leaves room for them without the white block
+      rays = g.getTextureNode().r.mul(uniform(sun.color)).mul(reference('intensity', 'float', sun).mul(1.2 / 5.2).min(1)).mul(look.rays ?? 1);
       // a level can fade them (the Wilds' day cycle: full by day, gone at night — under the moon the lit shadow box
       // still read as a pale block over the forest)
       const gain = scene.userData.godraysGain as { value: number } | undefined;
@@ -52,6 +58,14 @@ export function createPost(renderer: THREE.WebGPURenderer, scene: THREE.Scene, c
     const l = luminance(c);
     // (a saturation boost here turned the desaturated blue stone orange in the distance - keep the grade to a mild cool lift)
     if (!dbg.includes('nograde')) c = mix(c.mul(vec3(0.94, 0.98, 1.05)), c, smoothstep(float(0.05), float(0.5), l));
+    // a level can ask for a contrast curve around mid grey (the Wilds: deep shade, bright shafts) and a darker toe
+    if (!dbg.includes('nograde') && (look.contrast || look.toe)) {
+      const k = float(look.contrast ?? 1), mid = float(0.18);
+      c = c.max(1e-4).div(mid).pow(k).mul(mid);
+      if (look.toe) c = c.mul(smoothstep(float(0), float(look.toe), luminance(c)).mul(0.35).add(0.65));
+      // warm mids and highlights over the cool shade (the art's gold sun through green, teal in the shadows)
+      if (look.warm) c = mix(c, c.mul(vec3(1.07, 1.0, 0.84)), smoothstep(float(0.08), float(0.6), luminance(c)).mul(look.warm));
+    }
     const vig = smoothstep(float(0.95), float(0.35), length(screenUV.sub(vec2(0.5, 0.5))).mul(1.25)).mul(0.35).add(0.65);
     pipeline.outputNode = c.mul(vig);
     return {

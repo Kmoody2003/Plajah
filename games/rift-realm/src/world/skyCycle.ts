@@ -52,7 +52,9 @@ export const DAY_SUN = new THREE.Vector3(0.6, 0.55, -0.58).normalize();
 
 const C = (h: number) => new THREE.Color(h);
 const NIGHT = { hemi: C(0x8c96e6), ground: C(0x1c3024), hemiI: 1.7, moon: C(0xcfe2ff), moonI: 3.0 };
-const DAY = { hemi: C(0xd6e6dc), ground: C(0x33412d), hemiI: 2.7, sun: C(0xfff0d4), sunI: 5.2, haze: C(0xa4b8b4), glow: C(0xfff0cc), density: 0.0085, exposure: 1.2, env: 0.18 };
+// low key like the art: the sun does the lighting (warm shafts), the sky fill is a dim green-grey bounce, so the shade
+// under the canopy reads dark and the AO shows (a 2.7 fill lit everything evenly and the forest went flat and pale)
+const DAY = { hemi: C(0xa9bf9c), ground: C(0x2c3a1e), hemiI: 1.05, sun: C(0xffd9a2), sunI: 6.0, haze: C(0x76846a), glow: C(0xffd890), density: 0.011, exposure: 1.0, env: 0.12 };
 const GOLD = { hemi: C(0xe8b49a), sun: C(0xff9b55), haze: C(0x9c8c86), glow: C(0xffb070) };
 const GREY = C(0x7f878a);
 const NIGHT_DENSITY = 0.0032;
@@ -76,6 +78,8 @@ export function createSkyCycle(scene: THREE.Scene, group: THREE.Object3D, render
   const sunL = sun as THREE.DirectionalLight | null, hemiL = hemi as THREE.HemisphereLight | null;
   if (sunL) { sunL.userData.offset = DAY_SUN.clone().multiplyScalar(150); scene.userData.godrays = sunL; }
   const godraysGain = { value: 1 }; scene.userData.godraysGain = godraysGain;   // post.ts fades the shafts with it
+  // post.ts reads these: forest-scale contact shadows and a low-key contrast curve (the art's deep shade)
+  scene.userData.look = { aoRadius: 1.4, aoScale: 1.3, contrast: 1.12, toe: 0.05, warm: 0.6, rays: 1.4, ...(scene.userData.look ?? {}) };
   const nightEnvI = scene.environmentIntensity, nightExposure = renderer.toneMappingExposure;
 
   // ── the haze: night fog (the nebula environment's colour) ↔ day haze warming toward the sun ──
@@ -85,15 +89,22 @@ export function createSkyCycle(scene: THREE.Scene, group: THREE.Object3D, render
   const env = scene.environment;
   const nightCol: N = env ? (pmremTexture(env as N, normalize(vec3(view.x, max(view.y, float(0.05)), view.z)), float(0.55)) as N).mul(0.85) : mix(color(0x0f3038), color(0x1c1f48), smoothstep(-0.05, 0.5, view.y));
   const dayCol: N = mix(uHaze, uGlow, view.dot(uSun).max(0).pow(5).mul(uGlowK));
-  (scene as unknown as { fogNode: unknown }).fogNode = fog(mix(nightCol, dayCol, uDay), densityFogFactor(uDens));
+  // height fog: thick on the forest floor, thinning over ~35 m, so trunks fade into mist in layers and the canopy and sky
+  // stay clear (one flat density washed the whole frame out)
+  const uFogBase = uniform(0), uFogH = uniform(35);
+  const heightK: N = float(1).sub(smoothstep(0, 1, positionWorld.y.sub(uFogBase).div(uFogH).clamp(0, 3).div(3))).mul(0.8).add(0.2);
+  (scene as unknown as { fogNode: unknown }).fogNode = fog(mix(nightCol, dayCol, uDay), densityFogFactor(uDens).mul(heightK));
   scene.fog = null;
 
   // ── the day sky over the nebula ──
   const sky = new SkyMesh();
   sky.scale.setScalar(450000); sky.frustumCulled = false; sky.renderOrder = -10;
   const sm = sky.material as unknown as THREE.NodeMaterial & { colorNode: N; fog: boolean };
-  const uSkyA = uniform(0), uSkyDim = uniform(1);
-  sm.colorNode = vec4((sm.colorNode as N).rgb.mul(uSkyDim), uSkyA);
+  const uSkyA = uniform(0), uSkyDim = uniform(1), uHorizonDim = uniform(0);
+  // storms also darken the band near the horizon (below the volumetric deck's fade, 0–0.14 view height, the SkyMesh shows)
+  const skyView: N = normalize(positionWorld.sub(cameraPosition));
+  const horizonK: N = float(1).sub(uHorizonDim.mul(float(1).sub(smoothstep(0.0, 0.25, skyView.y.abs()))));
+  sm.colorNode = vec4((sm.colorNode as N).rgb.mul(uSkyDim).mul(horizonK), uSkyA);
   sm.transparent = true; sm.fog = false;
   sky.turbidity.value = 3.2; sky.rayleigh.value = 1.3; sky.mieCoefficient.value = 0.006; sky.mieDirectionalG.value = 0.86;
   // ?sky=vol: the volumetric clouds and aurora (services/sky), opt-in until they clearly beat the SkyMesh's own clouds
@@ -201,14 +212,18 @@ export function createSkyCycle(scene: THREE.Scene, group: THREE.Object3D, render
 
       // ── haze, sky, exposure ──
       uDay.value = dayK;
+      uFogBase.value = o.ground(player.x, player.z);
       godraysGain.value = dayK;
-      lerpC(tmpC, DAY.haze, GOLD.haze, gold); (uHaze.value as THREE.Color).copy(tmpC).lerp(GREY, cur.fogGrey);
+      // a storm's haze is dark: a pale haze under a dark deck read as a bright band along the horizon
+      lerpC(tmpC, DAY.haze, GOLD.haze, gold); (uHaze.value as THREE.Color).copy(tmpC).lerp(GREY, cur.fogGrey).multiplyScalar(1 - 0.55 * cur.cloudDark);
+      uHorizonDim.value = 0.7 * cur.cloudDark;
       lerpC(uGlow.value as THREE.Color, DAY.glow, GOLD.glow, gold);
       (uSun.value as THREE.Vector3).copy(dir);
       uGlowK.value = 0.75 * cur.sun;
       uDens.value = (NIGHT_DENSITY + (DAY.density - NIGHT_DENSITY) * dayK) / Math.max(0.25, 0.3 + 0.7 * cur.fogFar);
       uSkyA.value = o.mode === 'day' ? 1 : smooth(-0.18, 0.05, sinE);
-      uSkyDim.value = 1 - 0.55 * cur.cloudDark;
+      // the day sky through canopy gaps was a blown white hole: hold it a little under the sun-lit ground
+      uSkyDim.value = (1 - 0.55 * cur.cloudDark) * (1 - 0.5 * dayK);
       sky.sunPosition.value.copy(dir);
       const night = sinE <= -0.04, cov = Math.min(0.97, Math.max(0.08, (cur.cloud - 0.4) * 0.55));
       if (!clouds || !aurora) { sky.cloudCoverage.value = Math.min(0.95, 0.15 + 0.35 * cur.cloud); sky.cloudDensity.value = 0.3 + 0.6 * cur.cloudDark; }

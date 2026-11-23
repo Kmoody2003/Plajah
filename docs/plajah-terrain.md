@@ -70,6 +70,11 @@ a `services/terrain/sky` or a sibling service; Rift Realm's nebula sky stays its
 
 ## Phases
 
+**Paused 2026-11-22** after phase 6 (streaming + worker meshing), so Kenne could put the focus on the cyber forest's look.
+Still open: phase 7 (node editor), phase 8 (other games + sky), GPU erosion, erosion on by default in the Wilds,
+streamed vegetation.
+
+
 | # | Phase | Done when |
 |---|---|---|
 | 1 | `HeightField` + chunks + collision moved out of Rift Realm into the service; Rift Realm uses it unchanged | Elderwood Wilds plays identically; tests sample heights against the old bake |
