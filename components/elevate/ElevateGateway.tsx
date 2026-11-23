@@ -15,7 +15,6 @@ import { AnimatePresence } from 'motion/react';
 import { ArrowRight, Bell, Check, Church, Clock, HeartHandshake, KeyRound, Loader2, LogIn, Mail, Search, ShieldCheck, Sparkles, UserCheck, UserPlus, X } from 'lucide-react';
 import type { Organization, OrgMembership } from '../../types';
 import { auth, fetchUserProfile, updateUserProfile, loginWithGoogle, loginWithFacebook, loginWithMicrosoft, loginWithTwitter } from '../../services/backendService';
-import { sendEmailVerification } from 'firebase/auth';
 import { GoogleIcon, FacebookIcon, MicrosoftIcon, XIcon } from '../ui/ProviderIcons';
 import { fetchPublicOrganizations, requestOrgMembership, fetchUserMemberships } from '../../services/organizationService';
 import { followOrg, unfollowOrg, isFollowing } from '../../services/orgFollowService';
@@ -270,7 +269,7 @@ const ElevateGateway: React.FC<ElevateGatewayProps> = ({ orgKey, initialMode, in
     const u = auth.currentUser;
     if (!u) return;
     setBusy(true); setErr('');
-    try { await sendEmailVerification(u); setVerifySent(true); } catch (e: any) { setErr(e?.message || 'Could not send the link. Try again in a minute.'); }
+    try { const { sendVerificationEmail } = await import('../../services/signupClient'); await sendVerificationEmail(u); setVerifySent(true); } catch (e: any) { setErr(e?.message || 'Could not send the link. Try again in a minute.'); }
     setBusy(false);
   };
   const recheckVerified = async () => {

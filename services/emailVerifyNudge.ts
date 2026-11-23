@@ -58,12 +58,12 @@ export function showEmailVerifyNudge(user: User, opts: { justSignedUp?: boolean 
     if (Date.now() - lsGet(SENT_KEY) < RESEND_COOLDOWN_MS) { msg.textContent = 'Sent — check your inbox (and spam folder).'; return; }
     resend.disabled = true;
     try {
-      const { sendEmailVerification } = await import('firebase/auth');
-      await sendEmailVerification(user);
+      const { sendVerificationEmail } = await import('./signupClient');
+      await sendVerificationEmail(user);
       lsSet(SENT_KEY, Date.now());
       msg.textContent = 'Sent — check your inbox (and spam folder).';
-    } catch {
-      msg.textContent = 'Couldn’t send right now. Please try again in a minute.';
+    } catch (e) {
+      msg.textContent = /wait|Too many/i.test((e as Error)?.message || '') ? (e as Error).message : 'Couldn’t send right now. Please try again in a minute.';
     } finally {
       setTimeout(() => { resend.disabled = false; }, RESEND_COOLDOWN_MS);
     }

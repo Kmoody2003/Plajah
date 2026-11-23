@@ -31,15 +31,40 @@ export async function preSignupCheck(email: string): Promise<void> {
   }
 }
 
+/**
+ * Send the verification email. Primary path: our server mints the link and delivers it through
+ * Resend from the verified notify.plajah.com domain (inboxes at iCloud/Yahoo/Outlook often junk
+ * Firebase's default noreply sender). If the server can't send, fall back to Firebase's own mail
+ * so a person is never left without one. Resolves true when some path sent it; throws if both fail.
+ */
+export async function sendVerificationEmail(user: User): Promise<boolean> {
+  try {
+    const token = await user.getIdToken();
+    const res = await fetch('/api/auth/send-verification', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+    if (res.status === 429) {
+      const j: any = await res.json().catch(() => null);
+      throw new Error(j?.error || 'Please wait a moment before asking for another email.');
+    }
+    const j: any = res.ok ? await res.json().catch(() => null) : null;
+    if (j?.sent) return true;
+    if (j?.reason === 'already_verified') return true;
+  } catch (e) {
+    if (/wait|Too many/i.test((e as Error)?.message || '')) throw e;
+    console.warn('[signup] server verification mail failed, using Firebase:', (e as Error)?.message);
+  }
+  const { sendEmailVerification } = await import('firebase/auth');
+  await sendEmailVerification(user, { url: `${window.location.origin}/?verified=1` }).catch(async () => {
+    // An unauthorized continue URL must not cost the person their verification mail.
+    await sendEmailVerification(user);
+  });
+  return true;
+}
+
 export function afterEmailSignup(user: User): void {
   if (!user || user.emailVerified) return;
   void (async () => {
     try {
-      const { sendEmailVerification } = await import('firebase/auth');
-      await sendEmailVerification(user, { url: `${window.location.origin}/?verified=1` }).catch(async () => {
-        // An unauthorized continue URL must not cost the person their verification mail.
-        await sendEmailVerification(user);
-      });
+      await sendVerificationEmail(user);
       try { localStorage.setItem('plajah.verifyNudge.sentAt', String(Date.now())); } catch { /* */ }
     } catch (e) {
       console.warn('[signup] verification email not sent:', (e as Error)?.message);
