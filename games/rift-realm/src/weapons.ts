@@ -17,6 +17,7 @@
 // characters.ts (+Z along the fingers = barrel forward, +Y toward the thumb). `tpOffset` corrects a socket that
 // disagrees, without touching the model.
 import * as THREE from 'three/webgpu';
+import { mergeRigid } from './batching';
 import { abs, color, float, mix, mx_fractal_noise_float, mx_noise_float, positionLocal, smoothstep, uniform, vec3 } from 'three/tsl';
 import type { Recipe } from '../../../services/vfx';
 import { RECIPES } from '../../../services/vfx';
@@ -733,6 +734,9 @@ export function buildWeapon(id: VesselId, fp = false): WeaponModel {
   const m: WeaponModel = { ...(id === 'aegis' ? buildLance(glow) : id === 'stalker' ? buildScatter(glow) : buildChord(glow)), heat };
   m.root.name = `weapon_${id}${fp ? '_fp' : ''}`;
   finish(m.root, fp);
+  // one draw per material (the Halo Lance was 63 draws): everything but the magazine, which moves on a reload
+  const moving = new Set<THREE.Object3D>(); m.mag.traverse((o) => { moving.add(o); });
+  mergeRigid(m.root, (x) => !moving.has(x));
   return m;
 }
 

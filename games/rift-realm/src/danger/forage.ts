@@ -13,6 +13,10 @@ import type { DangerAudio } from './audio';
 import type { PlayerStatus } from './status';
 import type { ForagePatch } from './spots';
 import { forageTable, type ForageKind } from './forageTable';
+import { mergeRigid } from '../batching';
+
+/** Items draw within this range of the player (they are a few pixels beyond it); the tells only show within 7 m. */
+const DRAW_RANGE = 45, TELL_RANGE = 7.5;
 
 export interface ForageEnv {
   scene: THREE.Scene;
@@ -33,7 +37,7 @@ export interface ForageEnv {
   charge?(n: number, src: string): void;
 }
 
-export interface Item { id: string; kind: string; k: ForageKind; pos: THREE.Vector3; obj: THREE.Group; alive: boolean; regrow: number; smokeT: number }
+export interface Item { id: string; kind: string; k: ForageKind; pos: THREE.Vector3; obj: THREE.Group; alive: boolean; regrow: number; smokeT: number; tell?: THREE.Object3D[] }
 
 /** Sweet musk smoke dripping from a Musk Pod (its tell). */
 const MUSK_DRIP: Recipe = {
@@ -151,7 +155,11 @@ export class Forage {
     g.position.set(x, y, z); g.rotation.y = r * 6.28;
     g.traverse((o) => { (o as THREE.Mesh).castShadow = false; });
     this.group.add(g);
-    this.items.push({ id, kind, k, pos: new THREE.Vector3(x, y, z), obj: g, alive: true, regrow: 0, smokeT: r });
+    // one draw per material instead of one per cap / berry / spine (10–30 per item; 437 draws in the Wilds)
+    const merged = mergeRigid(g);
+    const tell = M.tell ? [...new Set([...merged, ...g.children])].filter((o) => (o as THREE.Mesh).material === M.tell) : undefined;
+    g.visible = false; tell?.forEach((o) => { o.visible = false; }); // update() shows the ones in range
+    this.items.push({ id, kind, k, pos: new THREE.Vector3(x, y, z), obj: g, alive: true, regrow: 0, smokeT: r, tell });
   }
 
   // ── eating ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -240,8 +248,11 @@ export class Forage {
     }
     // regrowth and smoke tells (eating is the eat action, danger/eat.ts)
     for (const it of this.items) {
-      if (!it.alive) { if ((it.regrow -= dt) <= 0) { it.alive = true; it.obj.visible = true; } continue; }
+      if (!it.alive) { if ((it.regrow -= dt) <= 0) it.alive = true; else continue; }
       const dx = it.pos.x - playerPos.x, dz = it.pos.z - playerPos.z, d = Math.hypot(dx, dz);
+      const show = d < DRAW_RANGE;
+      if (it.obj.visible !== show) it.obj.visible = show;
+      if (it.tell) { const t = d < TELL_RANGE; if (it.tell[0].visible !== t) for (const o of it.tell) o.visible = t; }
       if (d > 40) continue;
       if (it.k.tell === 'smoke' && d < 9 && (it.smokeT -= dt) <= 0) { it.smokeT = 0.5 + Math.random() * 0.4; env.vfx.spawn(MUSK_DRIP, this.v.copy(it.pos).setY(it.pos.y + 0.45)); }
     }

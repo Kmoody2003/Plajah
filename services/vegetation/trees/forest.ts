@@ -61,11 +61,12 @@ export class Forest {
         // one material set per species (the first seed's height): each set is its own shader pipelines, and six seeds of
         // seven species compiling 42 sets made the page take minutes to start
         const mats = matCache.get(si) ?? matCache.set(si, treeMaterials(sp, full.height, { beat: o.beat })).get(si)!;
-        const make = (geo: THREE.BufferGeometry, mat: THREE.Material, castShadow: boolean) => {
+        const make = (geo: THREE.BufferGeometry, mat: THREE.Material, castShadow: boolean, lod: 'near' | 'mid' = 'near') => {
           const g = geo.clone();
           g.setAttribute('aInst', new THREE.InstancedBufferAttribute(new Float32Array(mine.length * 4), 4));
           const im = new THREE.InstancedMesh(g, mat, mine.length);
           im.castShadow = castShadow && !!o.shadows; im.receiveShadow = true; im.frustumCulled = false; im.count = 0;
+          im.userData.lod = lod; // a render profile can make only the near trees cast (rift-realm gfx.ts)
           this.group.add(im);
           return im;
         };
@@ -73,7 +74,7 @@ export class Forest {
         this.buckets.push({
           near: { wood: make(full.wood, mats.wood, true), leaves: make(full.leaves, mats.leaves, true), cables: full.cables && mats.cables ? make(full.cables, mats.cables, false) : null },
           // mid range: coarse wood, but the full leaf set (cards are cheap; a thin crown reads as a dead tree)
-          mid: { wood: make(low.wood, mats.wood, false), leaves: make(full.leaves, mats.leaves, true), cables: full.cables && mats.cables ? make(full.cables, mats.cables, false) : null },
+          mid: { wood: make(low.wood, mats.wood, false, 'mid'), leaves: make(full.leaves, mats.leaves, true, 'mid'), cables: full.cables && mats.cables ? make(full.cables, mats.cables, false, 'mid') : null },
           far: null, spots: mine, full, mats, sk, crownBase: sp.trunk.crownBase,
           radius: Math.max(full.wood.boundingSphere!.radius, full.leaves.boundingSphere!.radius),
         });

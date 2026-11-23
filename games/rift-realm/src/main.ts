@@ -9,6 +9,7 @@ import { Objectives } from './objectives';
 import { applyStudioProject } from './studio/projectHook';
 import { createRules } from './studio/rulesHost';
 import { createPost } from './post';
+import { DynamicResolution, EmptyInstanceSkip, capShadowMaps, intelShadows, pickGfx } from './gfx';
 import { wetten } from './wetness';
 import { getKTX2, initKTX2 } from './textures';
 // front end + loading (menu/*): Start → Map → Character → loading screen; prefetch and the faster shader precompile
@@ -87,17 +88,19 @@ async function boot() {
   if (new URLSearchParams(location.search).get('fastcompile') !== '0') {
     installFastCompile(renderer, (p) => loading.progress((p.built + p.ready) / Math.max(1, p.objects + p.pipelines), `${p.ready} / ${p.pipelines} shaders`));
   }
-  // quality tier: Intel iGPUs (the baseline) get the light path; discrete GPUs get shadows, bloom and full foliage
+  // graphics profile (gfx.ts), picked from the adapter: Intel iGPUs get the 'intel' profile (shadows + the light pass at a
+  // dynamic internal resolution + FSR 1), discrete GPUs 'high'; Settings → Graphics quality / ?q= can force low / high
   const adapter = (renderer.backend as any)?.device?.adapterInfo ?? {};
   const forced = new URLSearchParams(location.search).get('q') ?? (menuSettings.quality !== 'auto' ? menuSettings.quality : null);
-  const tier: Tier = forced === 'low' || forced === 'high' ? forced : adapter.vendor === 'intel' ? 'low' : 'high';
-  console.info('[rift-realm] tier', tier, adapter.vendor, adapter.architecture);
+  const gfx = pickGfx(adapter, forced);
+  const tier: Tier = gfx.tier;
+  console.info('[rift-realm] tier', tier, adapter.vendor, adapter.architecture, `profile ${gfx.profile}`);
   setSecondaryTier(tier); // cloth / wing solver budget (secondary.ts)
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.15;
-  renderer.shadowMap.enabled = tier === 'high';
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  const pixelRatio = tier === 'low' ? 0.7 : Math.min(window.devicePixelRatio, 2);
+  renderer.shadowMap.enabled = gfx.shadows;
+  renderer.shadowMap.type = gfx.profile === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+  const pixelRatio = gfx.pixelRatio;
   renderer.setPixelRatio(pixelRatio);
   renderer.setSize(window.innerWidth, window.innerHeight);
   view.appendChild(renderer.domElement);
@@ -116,6 +119,12 @@ async function boot() {
   await Promise.all([prefetch.level(levelModule), prefetch.characters()]);
   await loading.stage('world');
   const arena = levelModule.build(scene, tier);
+  if (gfx.shadowMapMax && gfx.shadowMapMax < 4096) capShadowMaps(scene, gfx.shadowMapMax);
+  // intel profile on the low content set: one shadow map from the key light, near trees + big static casters, every 2nd frame
+  const shadowRig = gfx.profile === 'intel' && gfx.shadows && tier === 'low' ? intelShadows(scene, { mapSize: gfx.shadowMapMax, every: 2 }) : null;
+  // empty instanced meshes skip three's per-object work (gfx.ts); ?emptyskip=0 turns it off (A/B)
+  const emptySkip = new URLSearchParams(location.search).get('emptyskip') === '0' ? null : new EmptyInstanceSkip(scene);
+  if (shadowRig) console.info(`[gfx] shadows: ${shadowRig.casters} casters added, key light ${shadowRig.light.shadow.mapSize.x}`);
   // wet forest: damp surfaces, glossy wet patches, puddle shine (?dry turns it off); models that stream in later get it too
   if (!new URLSearchParams(location.search).has('dry')) {
     wetten(arena.group);
@@ -130,7 +139,10 @@ async function boot() {
   await loading.stage('collision');
   const collision = new CollisionWorld(arena.group);
   collision.rebuild();
-  const post = tier === 'high' ? createPost(renderer, scene, camera) : null;
+  const post = gfx.post ? createPost(renderer, scene, camera, { scaled: gfx.post === 'scaled' }) : null;
+  // dynamic resolution (intel profile): the internal scale follows the GPU frame time (gfx.ts)
+  const setScale = (post as { setScale?: (s: number) => void } | null)?.setScale;
+  const dynres = gfx.dynres && setScale ? new DynamicResolution(gfx.dynres, renderer, setScale) : null;
 
   let currentBiomeName = arena.info.name;
   let lastWave = 1;
@@ -802,7 +814,9 @@ async function boot() {
       cinQ.setFromRotationMatrix(cinM.lookAt(cinPos, cinLook, THREE.Object3D.DEFAULT_UP));
       camera.position.lerp(cinPos, cinW); camera.quaternion.slerp(cinQ, cinW);
     }
+    shadowRig?.tick(); emptySkip?.tick(realDt);
     if (post) post.render(); else renderer.render(scene, camera);
+    if (!once) dynres?.afterRender(realDt);
     if (cinW > 0) { camera.position.copy(camSave.pos); camera.quaternion.copy(camSave.quat); }
     if (shk > 0.001) camera.position.sub(shakeV);
     if (!once) requestAnimationFrame(frame);
@@ -839,7 +853,7 @@ async function boot() {
 
   if (new URLSearchParams(location.search).has('rrdebug')) {
     loading.release(); await entered;
-    (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match, targeting, rhythm, danger, ents };
+    (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, gfx, dynres, objectives, match, targeting, rhythm, danger, ents };
     // combat checks: __rr.combat.arena(['rusher', 'caster', 'brute']) clears the field and rings those around you;
     // .passive(true) freezes their AI; .tune({...}) edits the table live; .state() reads the fight
     (window as any).__rr.combat = {
