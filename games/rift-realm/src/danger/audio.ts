@@ -8,6 +8,8 @@ import * as THREE from 'three/webgpu';
 const AUDIO = '/games/rift-realm/assets/audio/sfx/';
 const BANK: Record<string, number> = {
   howl: 2, growl: 3, strike: 2, buzz: 1, zap: 2, rumble: 1, erupt: 1, hiss: 1, splash: 1, crack: 1, screech: 1,
+  // warden co-op combos (danger/wardens.ts), cut from Kenne's Grovewardens co-op clips
+  wd_reap: 2, wd_void: 2, wd_lumen: 2, wd_petal: 2, wd_spore: 2, wd_thorn: 2, wd_ember: 2, wd_leap: 2, wd_hurl: 2, wd_lash: 2, wd_frost: 2, wd_ward: 2,
 };
 
 export type DangerSound = keyof typeof BANK | 'sizzle' | 'thorn';

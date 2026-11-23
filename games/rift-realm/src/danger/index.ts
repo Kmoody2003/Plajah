@@ -24,6 +24,7 @@ import { SoulMeter } from './soul';
 import { Bonds } from './bonds';
 import { Mycelium } from './mycelium';
 import { Inventory } from './inventory';
+import { Wardens } from './wardens';
 
 export interface DangerCtx {
   scene: THREE.Scene;
@@ -64,6 +65,8 @@ export class Danger {
   readonly bonds: Bonds;
   readonly mycelium: Mycelium;
   readonly bag: Inventory;
+  /** Grovewardens × player: call, assist, synergy combos (wardens.ts; the wardens themselves are src/ents). */
+  readonly wardens: Wardens;
   readonly forest = forest;
   private lastCombat = -99;
   private combatNoteT = 0; private beatT = 0;
@@ -189,6 +192,30 @@ export class Danger {
       say,
       loud: () => this.clock - this.lastCombat < 3,
     });
+    this.wardens = new Wardens({
+      player: ctx.player, vfx: ctx.vfx, audio: this.audio, status: this.status, scene: ctx.scene, ground,
+      foes: () => [
+        ...ctx.enemies.enemies.filter((e) => e.hp > 0).map((e) => ({ id: e.id, pos: e.mesh.position, hp: e.hp, maxHp: e.maxHp, who: (e as unknown as { who?: string }).who ?? 'creature', kind: 'enemy' as const, boss: !!(e as unknown as { boss?: boolean }).boss })),
+        ...this.predators.list.filter((p) => p.alive).map((p) => ({ id: p.id, pos: p.pos, hp: p.hp, maxHp: p.maxHp, who: p.who, kind: 'predator' as const })),
+      ],
+      hit: (f, dmg, from, o = {}) => {
+        dmg = Math.round(dmg * this.dmgMul);
+        this.lastCombat = this.clock;
+        const dir = (o.toward ? this.v.subVectors(o.toward, f.pos) : this.v.subVectors(f.pos, from)).setY(0);
+        if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1); dir.normalize();
+        if (f.kind === 'enemy') return !!ctx.enemies.damageEnemy(f.id, dmg, dir.clone(), o.knock ?? 1, { source: 'melee', launch: o.launch, hitstun: o.hitstun, unblockable: true })?.killed;
+        const r = this.damageId(f.id, dmg, o.toward ? null : from, o.knock ?? 1);
+        return !!r?.killed;
+      },
+      heal: (n) => { const p = ctx.player; if (!p.downed) p.hp = Math.min(p.maxHp, p.hp + n); },
+      charge: (n, src) => this.charge(n, src),
+      soul: () => this.soul.soul,
+      say: (t, c) => this.hint(t, c),
+      lockTarget: () => {
+        const T = (globalThis as unknown as { __rr?: { targeting?: { locked?: { mesh?: THREE.Object3D } | null; target?: { mesh?: THREE.Object3D } | null } } }).__rr?.targeting;
+        return (T?.locked ?? T?.target)?.mesh?.position.clone() ?? null;
+      },
+    });
     // eating: the soul and the mycelium both care what you eat
     this.forage.onConsume = (kind, k, knew) => {
       const pp = ctx.player.object.position;
@@ -216,7 +243,7 @@ export class Danger {
   private hurtPlayer(dmg: number, why: string) {
     const p = this.ctx.player;
     if (p.downed || !p.enabled) return;
-    dmg = this.forage ? Math.round(this.forage.absorb(dmg)) : dmg;
+    dmg = this.forage ? Math.round(this.forage.absorb(this.wardens ? this.wardens.absorb(dmg) : dmg)) : dmg;
     if (dmg <= 0) return;
     this.ctx.hurt(dmg, why);
     if (why !== 'poison' && why !== 'burn' && this.sayT <= 0) { this.ctx.say(`${why === 'drown' ? 'DROWNING' : why} -${dmg}`, '#fb7185'); this.sayT = 0.6; }
@@ -326,9 +353,9 @@ export class Danger {
   /** Movement multiplier from slows and Swiftpod haste (player.moveMul). */
   get moveMul() { return this.status.moveMul * this.forage.moveMul; }
   /** Damage dealt multiplier (Furyberry): the game multiplies shots / strikes by it. */
-  get dmgMul() { return this.forage.dmgMul; }
+  get dmgMul() { return this.forage.dmgMul * (this.wardens?.dmgMul ?? 1); }
   /** Shellfruit shield: hits from anything (the rift's creatures too) pass through here first; returns what's left. */
-  absorb(dmg: number) { return Math.round(this.forage.absorb(dmg)); }
+  absorb(dmg: number) { return Math.round(this.forage.absorb(this.wardens ? this.wardens.absorb(dmg) : dmg)); }
 
   update(dt: number) {
     this.clock += dt; this.sayT -= dt; this.combatNoteT -= dt;
@@ -367,6 +394,7 @@ export class Danger {
     this.eat.update(dt);
     // the living world
     this.bonds.update(dt);
+    this.wardens.update(dt);
     this.mycelium.update(dt);
     this.bag.update(dt);
     this.soul.update(dt, pl.enabled);
@@ -389,6 +417,7 @@ export class Danger {
     return {
       night: +this.night.toFixed(2), predators: this.predators.info(), hazards: this.hazards.info().length, forage: this.forage.info(), prey: this.prey.info(),
       soul: Math.round(this.soul.value), mycelium: this.mycelium.info(), bag: this.bag.slots.map((s) => `${s.kind}×${s.n}`), quick: [...this.bag.quick],
+      wardens: this.wardens.info(),
       bonds: this.prey.list.filter((p) => p.affinity > 0).map((p) => `${p.who}:${p.affinity.toFixed(2)}${p.bonded ? '*' : ''}`), charge: Math.round(this.chargeGiven),
     };
   }

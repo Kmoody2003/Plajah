@@ -42,6 +42,7 @@ export const RR_ACTIONS: ActionDef[] = [
   // the living forest (danger/inventory.ts, danger/bonds.ts)
   { id: 'pray', label: 'Pray (hold)', group: 'Forest', canonical: K('KeyT'), defaults: [K('KeyT')], padCanonical: 10 },
   { id: 'bag', label: 'Bag (inventory)', group: 'Forest', canonical: K('KeyI'), defaults: [K('KeyI')] },
+  { id: 'warden', label: 'Warden: call (hold) · assist (tap)', group: 'Forest', canonical: K('KeyY'), defaults: [K('KeyY')] },
   { id: 'quick1', label: 'Quick slot 1', group: 'Forest', canonical: K('Digit6'), defaults: [K('Digit6')] },
   { id: 'quick2', label: 'Quick slot 2', group: 'Forest', canonical: K('Digit7'), defaults: [K('Digit7')] },
   { id: 'quick3', label: 'Quick slot 3', group: 'Forest', canonical: K('Digit8'), defaults: [K('Digit8')] },
