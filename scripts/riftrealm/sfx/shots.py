@@ -243,7 +243,50 @@ def futurize(name, a):
     return out[: nz[-1] + 1]
 
 
+# ── spirit-energy sounds (no magazines: the weapons vent heat and take charge from the world) ─────────────────────
+
+def spirit(name, take):
+    rng = np.random.default_rng(zlib.crc32(f'{name}/{take}'.encode()))
+    if name == 'vent_hiss':        # the cell slides out: a steam hiss with a falling whistle over a real release click
+        n = int(0.7 * SR); noise = rng.uniform(-1, 1, n)
+        hiss = hp(onepole_lp(noise, 7000), 1800) * env(n, 0.01, 0.7, 2.4)
+        t = t_(0.5); whistle = np.sin(2 * np.pi * np.cumsum(3200 - 1900 * t / t[-1]) / SR) * env(len(t), 0.02, 0.5, 2.5)
+        out = np.zeros(n + int(0.1 * SR)); mix(out, hiss, 0, 0.8); mix(out, whistle, 0.03, 0.18)
+        mix(out, onset_crop(load(LIB + 'reload/Soldier_reloading_assault_rifle_01.mp3'), 0.3), 0, 0.5)
+        mix(out, crackle(rng, 0.25, 200, 4000), 0.02, 0.12)
+    elif name == 'vent_chime':     # the cell seats again: the real seat click, a two-note attune chime, a shimmer
+        out = np.zeros(int(0.9 * SR))
+        mix(out, onset_crop(load(LIB + 'reload/Soldier_reloading_assault_rifle_03.mp3'), 0.3), 0, 0.6)
+        mix(out, chime(rng, 1568, 0.5, 4), 0.02, 0.35); mix(out, chime(rng, 2093, 0.6, 4), 0.09, 0.3)
+        mix(out, shimmer(rng, 0.3, 8, 3500, 7000), 0.1, 0.15)
+    elif name == 'overheat':       # too hot: a sizzling crackle, a sagging tone and a thump
+        out = np.zeros(int(1.0 * SR))
+        t = t_(0.7); f = 900 * np.exp(-t * 3.2) + 110
+        ph = 2 * np.pi * np.cumsum(f) / SR
+        mix(out, onepole_lp(2 * ((ph / (2 * np.pi)) % 1) - 1, 3000) * env(len(t), 0.005, 0.7, 2.2), 0, 0.35)
+        n = int(0.8 * SR); mix(out, hp(onepole_lp(rng.uniform(-1, 1, n), 9000), 3000) * env(n, 0.005, 0.8, 2.0), 0, 0.35)
+        mix(out, crackle(rng, 0.6, 380, 3000), 0, 0.4); mix(out, whoomp(0.25, 80, 30), 0, 0.6)
+    else:                          # recharge: spirit energy flowing in — a rising tone under climbing chime grains
+        out = np.zeros(int(0.9 * SR))
+        t = t_(0.55); f = 380 + 900 * (t / t[-1]) ** 1.3
+        mix(out, np.sin(2 * np.pi * np.cumsum(f) / SR) * np.minimum(1, t / 0.08) * env(len(t), 0, 0.55, 1.6), 0, 0.25)
+        for k in range(9):
+            mix(out, chime(rng, (1100 + k * 160) * rng.uniform(0.97, 1.03), 0.25, 3), 0.03 + k * 0.05, 0.22)
+    nz = np.nonzero(np.abs(out) > 1e-3 * np.abs(out).max())[0]
+    out = out[: nz[-1] + 1]
+    fo = int(len(out) * 0.3); out[-fo:] *= 0.5 + 0.5 * np.cos(np.linspace(0, np.pi, fo))
+    return out
+
+
+SPIRIT = {'vent_hiss': 2, 'vent_chime': 1, 'overheat': 1, 'recharge': 2}
+
 if __name__ == '__main__':
+    if '--spirit' in sys.argv:     # just the spirit-energy set
+        for nm, k in SPIRIT.items():
+            for i in range(k):
+                save(spirit(nm, i), SFX + f'{nm}_{i + 1}.mp3', -2.5 if nm != 'overheat' else -1.5)
+                print('spirit', nm, i + 1)
+        sys.exit(0)
     os.makedirs(DEMO, exist_ok=True)
     for gun in ('lance', 'scatter', 'chord'):
         takes = [shot(gun, i, False) for i in range(3)]

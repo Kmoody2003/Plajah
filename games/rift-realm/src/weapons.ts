@@ -8,6 +8,11 @@
 // Rift Scatter = Nyx's black chitin, magenta fin membranes, claws and hex visor glow; Chord Repeater = Lumen's white
 // enamel and gold filigree, golden wing-blades, halo ring and prism. Fantasy first; the glow inlays are the Tron accent.
 //
+// Spirit energy (Kenne 2026-11-23: the vessel weapons are magical, not mechanical — no magazines, no reload): each
+// vessel holds charge that every shot spends and that only trickles back by itself; firing builds heat, too much heat
+// overheats the weapon into a forced cool-down (the vent motion); R vents early for a little charge. The forest
+// refills it (discharging fungi, picked charge mushrooms, creature gifts) through WeaponEnergy.addCharge().
+//
 // Model space: grip (palm centre) at the origin, barrel along +Z, +Y up — the hand_r_weapon socket contract in
 // characters.ts (+Z along the fingers = barrel forward, +Y toward the thumb). `tpOffset` corrects a socket that
 // disagrees, without touching the model.
@@ -26,14 +31,37 @@ export interface ReloadPhases { release: number; out: number; in: number; charge
 export const RIFLE_PHASES: ReloadPhases = { release: 0.165, out: 0.27, in: 0.62, charge: 0.73 };
 export const PISTOL_PHASES: ReloadPhases = { release: 0.19, out: 0.32, in: 0.71, charge: 0.86 };
 
+/** Spirit energy and heat of one vessel weapon (WeaponEnergy runs it). Charge is in points; heat is 0…1. */
+export interface EnergySpec {
+  /** Charge the vessel holds, and what one trigger pull spends (the Chord Repeater's burst is one pull). */
+  capacity: number;
+  costPerShot: number;
+  /** Heat one trigger pull adds (1 = overheated). */
+  heatPerShot: number;
+  /** Heat shed per second once `coolDelay` seconds have passed without firing. */
+  coolPerSec: number;
+  coolDelay: number;
+  /** Forced cool-down after an overheat (the vent motion plays over it). */
+  overheatSec: number;
+  /** Charge that comes back by itself, per second (slow: the world is where you refill). */
+  regenPerSec: number;
+  /** R / reload binding: vent the heat early, for this much charge, over `ventSec`. */
+  ventCost: number;
+  ventSec: number;
+  /** On the beat: cost and heat multipliers for PERFECT and GOOD shots (OFF pays full). */
+  beat: { perfect: { cost: number; heat: number }; good: { cost: number; heat: number } };
+}
+
 export interface WeaponSpec {
   id: VesselId;
   name: string;
-  /** Trigger pulls per magazine (the Chord Repeater's 3-round burst counts once). */
+  /** Spirit energy, heat, vent and recharge tuning (replaces magazines). */
+  energy: EnergySpec;
+  /** Shots a full charge gives (HUD / legacy callers): derived from `energy`. */
   magSize: number;
-  /** Seconds; the body's reload clip is squeezed to this. */
+  /** Seconds of the vent (attune) motion; set from energy.ventSec. */
   reloadSec: number;
-  /** Body clip for the reload (CharacterRig name) and its beats. */
+  /** Body clip the vent / overheat motion plays (CharacterRig name) and its beats. */
   reloadClip: 'reload' | 'reload_pistol';
   phases: ReloadPhases;
   /** Seconds to lower the old gun and raise this one. */
@@ -66,7 +94,9 @@ export interface WeaponSpec {
   /** Look-speed multiplier fully aimed. */
   adsSens: number;
   fx: { muzzle: string; impact: string; impactPerfect: string; tracer: TracerSpec };
-  sounds: { magOut: string; magIn: string; charge: string; dry: string; switch: string; impact: string };
+  /** magOut / magIn / charge are the vent's beats (hiss, attune chime, power-up); overheat warns, recharge plays
+   *  when the world gives charge, dry when a pull finds no charge. */
+  sounds: { magOut: string; magIn: string; charge: string; dry: string; switch: string; impact: string; overheat: string; recharge: string };
   /** Socket correction for the third-person mesh (Euler radians XYZ + metres). */
   tpOffset: { rot: [number, number, number]; pos: [number, number, number] };
   /** First-person hip position in camera space (m). */
@@ -94,34 +124,37 @@ export const HAND_R_ROT: [number, number, number] = [2.193, -0.4, 1.929];
 export const WEAPONS: Record<VesselId, WeaponSpec> = {
   aegis: {
     id: 'aegis', name: 'Halo Lance',
-    magSize: 16, reloadSec: 1.9, reloadClip: 'reload', phases: RIFLE_PHASES, switchSec: 0.5,
+    energy: { capacity: 100, costPerShot: 6, heatPerShot: 0.17, coolPerSec: 0.55, coolDelay: 0.35, overheatSec: 1.6, regenPerSec: 0.9, ventCost: 6, ventSec: 0.9, beat: { perfect: { cost: 0.5, heat: 0.3 }, good: { cost: 0.8, heat: 0.75 } } },
+    magSize: 16, reloadSec: 0.9, reloadClip: 'reload', phases: RIFLE_PHASES, switchSec: 0.5,
     recoil: { pitch: 0.022, yaw: [0.002, -0.003, 0.004, -0.002, 0.003], resetSec: 0.45, recover: 0.7, recoverRate: 9, kickBack: 0.075, kickRot: 0.09 },
     spread: { hip: 0.012, bloomPerShot: 0.22, adsMul: 0.2 },
     adsFov: 0.66, adsSec: 0.16, adsSens: 0.7,
     fx: { muzzle: 'muzzle_lance', impact: 'impact_lance', impactPerfect: 'hit_perfect', tracer: { style: 'beam', core: 0.032, glow: 0.12, life: 0.24 } },
-    sounds: { magOut: 'magout_r', magIn: 'magin_r', charge: 'charge_r', dry: 'dry', switch: 'switch', impact: 'imp_lance' },
+    sounds: { magOut: 'vent_hiss', magIn: 'vent_chime', charge: 'charge_r', dry: 'dry', switch: 'switch', impact: 'imp_lance', overheat: 'overheat', recharge: 'recharge' },
     tpOffset: { rot: HAND_R_ROT, pos: [0, 0, 0] },
     fpHip: [0.15, -0.235, -0.5],
   },
   stalker: {
     id: 'stalker', name: 'Rift Scatter',
-    magSize: 6, reloadSec: 1.6, reloadClip: 'reload_pistol', phases: PISTOL_PHASES, switchSec: 0.42,
+    energy: { capacity: 90, costPerShot: 11, heatPerShot: 0.3, coolPerSec: 0.7, coolDelay: 0.3, overheatSec: 1.4, regenPerSec: 0.8, ventCost: 5, ventSec: 0.8, beat: { perfect: { cost: 0.5, heat: 0.3 }, good: { cost: 0.8, heat: 0.75 } } },
+    magSize: 8, reloadSec: 0.8, reloadClip: 'reload_pistol', phases: PISTOL_PHASES, switchSec: 0.42,
     recoil: { pitch: 0.04, yaw: [0.006, -0.008, 0.005], resetSec: 0.6, recover: 0.55, recoverRate: 7, kickBack: 0.11, kickRot: 0.16 },
     spread: { hip: 0.016, bloomPerShot: 0.4, adsMul: 0.55 },
     adsFov: 0.88, adsSec: 0.13, adsSens: 0.85,
     fx: { muzzle: 'muzzle_scatter', impact: 'impact_scatter', impactPerfect: 'hit_perfect', tracer: { style: 'streak', core: 0.012, glow: 0.04, life: 0.12, speed: 210, length: 2.2 } },
-    sounds: { magOut: 'magout_p', magIn: 'magin_p', charge: 'charge_p', dry: 'dry', switch: 'switch', impact: 'imp_scatter' },
+    sounds: { magOut: 'vent_hiss', magIn: 'vent_chime', charge: 'charge_p', dry: 'dry', switch: 'switch', impact: 'imp_scatter', overheat: 'overheat', recharge: 'recharge' },
     tpOffset: { rot: HAND_R_ROT, pos: [0, 0, 0] },
     fpHip: [0.16, -0.22, -0.44],
   },
   seraph: {
     id: 'seraph', name: 'Chord Repeater',
-    magSize: 12, reloadSec: 1.75, reloadClip: 'reload', phases: RIFLE_PHASES, switchSec: 0.46,
+    energy: { capacity: 120, costPerShot: 5, heatPerShot: 0.1, coolPerSec: 0.6, coolDelay: 0.3, overheatSec: 1.5, regenPerSec: 1.1, ventCost: 6, ventSec: 0.9, beat: { perfect: { cost: 0.5, heat: 0.3 }, good: { cost: 0.8, heat: 0.75 } } },
+    magSize: 24, reloadSec: 0.9, reloadClip: 'reload', phases: RIFLE_PHASES, switchSec: 0.46,
     recoil: { pitch: 0.011, yaw: [0.003, 0.004, -0.002, -0.004, 0.002, 0.003], resetSec: 0.35, recover: 0.8, recoverRate: 12, kickBack: 0.035, kickRot: 0.045 },
     spread: { hip: 0.01, bloomPerShot: 0.13, adsMul: 0.3 },
     adsFov: 0.76, adsSec: 0.15, adsSens: 0.75,
     fx: { muzzle: 'muzzle_chord', impact: 'impact_chord', impactPerfect: 'hit_perfect', tracer: { style: 'bolt', core: 0.016, glow: 0.06, life: 0.16, speed: 150, length: 3.2, trace: 0.12 } },
-    sounds: { magOut: 'magout_r', magIn: 'magin_r', charge: 'charge_r', dry: 'dry', switch: 'switch', impact: 'imp_chord' },
+    sounds: { magOut: 'vent_hiss', magIn: 'vent_chime', charge: 'charge_r', dry: 'dry', switch: 'switch', impact: 'imp_chord', overheat: 'overheat', recharge: 'recharge' },
     tpOffset: { rot: HAND_R_ROT, pos: [0, 0, 0] },
     fpHip: [0.15, -0.225, -0.48],
   },
@@ -134,6 +167,117 @@ export function patchWeapon(id: VesselId, patch: Partial<WeaponSpec>) {
     w[k] = v && typeof v === 'object' && !Array.isArray(v) ? { ...(w[k] as object), ...v } : v;
   }
 }
+
+// ── Spirit energy runtime ─────────────────────────────────────────────────────────────────────────────────────────
+
+/** Where charge came from (the forage / creature systems pass their own names too). */
+export type ChargeSource = 'regen' | 'fungus' | 'mushroom' | 'creature' | 'pickup' | 'vent' | (string & {});
+export interface ChargeState { charge: number; max: number; frac: number; heat: number; overheated: boolean; venting: boolean; shotsLeft: number }
+/** Result of a trigger pull: fired, no charge (dry), or the weapon is cooling (overheated / venting). */
+export type SpendResult = 'ok' | 'dry' | 'hot';
+
+/**
+ * Charge and heat for every vessel (each keeps its own while holstered; holstered ones cool and regen too).
+ * The player owns one (`player.weapons`); the world refills it with addCharge(). Events: onDry (a vessel ran out),
+ * onOverheat, onCharge (charge added from outside), onVentDone.
+ */
+export class WeaponEnergy {
+  /** The drawn vessel (the player sets it). */
+  current: VesselId = 'aegis';
+  private s = new Map<VesselId, { charge: number; heat: number; cool: number; vent: number; since: number }>();
+  onDry?: (id: VesselId) => void;
+  onOverheat?: (id: VesselId) => void;
+  onCharge?: (id: VesselId, added: number, source: ChargeSource) => void;
+  onVentDone?: (id: VesselId) => void;
+
+  private st(id: VesselId) {
+    let v = this.s.get(id);
+    if (!v) { v = { charge: WEAPONS[id].energy.capacity, heat: 0, cool: 0, vent: 0, since: 9 }; this.s.set(id, v); }
+    return v;
+  }
+
+  /** Charge state of a vessel (the drawn one by default). */
+  getCharge(id: VesselId = this.current): ChargeState {
+    const v = this.st(id), e = WEAPONS[id].energy;
+    return { charge: v.charge, max: e.capacity, frac: v.charge / e.capacity, heat: v.heat, overheated: v.cool > 0, venting: v.vent > 0, shotsLeft: Math.floor(v.charge / e.costPerShot) };
+  }
+
+  /** Give charge (fungus discharge, an eaten mushroom, a creature's gift…). Returns what was actually added. */
+  addCharge(amount: number, source: ChargeSource = 'pickup', id: VesselId = this.current): number {
+    const v = this.st(id), cap = WEAPONS[id].energy.capacity;
+    const add = Math.max(0, Math.min(cap - v.charge, amount));
+    v.charge += add;
+    if (add > 0 && source !== 'regen') this.onCharge?.(id, add, source);
+    return add;
+  }
+
+  /** Can the drawn vessel fire right now (without spending)? */
+  canFire(id: VesselId = this.current): SpendResult {
+    const v = this.st(id), e = WEAPONS[id].energy;
+    if (v.cool > 0 || v.vent > 0) return 'hot';
+    return v.charge + 1e-6 >= e.costPerShot ? 'ok' : 'dry';
+  }
+
+  /** A trigger pull: spend charge and add heat (cheaper and cooler on the beat). Overheating starts the cool-down. */
+  spend(quality: 'PERFECT' | 'GOOD' | 'OFF' = 'OFF', id: VesselId = this.current): SpendResult {
+    const r = this.canFire(id);
+    if (r !== 'ok') return r;
+    const v = this.st(id), e = WEAPONS[id].energy;
+    const m = quality === 'PERFECT' ? e.beat.perfect : quality === 'GOOD' ? e.beat.good : { cost: 1, heat: 1 };
+    v.charge = Math.max(0, v.charge - e.costPerShot * m.cost);
+    v.heat = Math.min(1, v.heat + e.heatPerShot * m.heat);
+    v.since = 0;
+    if (v.heat >= 1) { v.cool = e.overheatSec; this.onOverheat?.(id); }
+    if (v.charge + 1e-6 < e.costPerShot) this.onDry?.(id);
+    return 'ok';
+  }
+
+  /** Vent early (R): dump the heat over ventSec for a little charge. False if there's nothing to vent or it's busy. */
+  vent(id: VesselId = this.current): boolean {
+    const v = this.st(id), e = WEAPONS[id].energy;
+    if (v.cool > 0 || v.vent > 0 || v.heat < 0.05) return false;
+    v.charge = Math.max(0, v.charge - e.ventCost);
+    v.vent = e.ventSec;
+    return true;
+  }
+
+  /** After being downed: cool, and at least half charged. */
+  reset() { for (const id of ['aegis', 'stalker', 'seraph'] as VesselId[]) { const v = this.st(id); v.heat = 0; v.cool = 0; v.vent = 0; v.charge = Math.max(v.charge, WEAPONS[id].energy.capacity * 0.5); } }
+
+  update(dt: number) {
+    for (const id of ['aegis', 'stalker', 'seraph'] as VesselId[]) {
+      const v = this.st(id), e = WEAPONS[id].energy;
+      v.since += dt;
+      if (v.cool > 0) {                         // overheated: the heat bleeds off over the forced cool-down
+        v.heat = Math.max(0, v.heat - dt / e.overheatSec);
+        v.cool -= dt;
+        if (v.cool <= 0) { v.cool = 0; v.heat = 0; this.onVentDone?.(id); }
+      } else if (v.vent > 0) {                  // venting: the heat drains over the vent
+        v.heat = Math.max(0, v.heat - dt / Math.max(0.05, e.ventSec) * 1.2);
+        v.vent -= dt;
+        if (v.vent <= 0) { v.vent = 0; v.heat = 0; this.onVentDone?.(id); }
+      } else if (v.since > e.coolDelay) v.heat = Math.max(0, v.heat - e.coolPerSec * dt);
+      if (v.since > 1) this.addCharge(e.regenPerSec * dt, 'regen', id);
+    }
+  }
+}
+
+/** Steam and motes off the weapon while it vents or cools after an overheat. */
+export const VENT_STEAM: Recipe = {
+  id: 'vent_steam', sound: 'vent_hiss',
+  emitters: [
+    { layer: 'alpha', shape: 'smoke', count: [3, 5], life: [0.5, 0.9], speed: [0.6, 1.6], spread: 0.7, size: [0.06, 0.34], color: [0xdff6ff, 0x9ab4c4], alpha: [0.45, 0], drag: 2.5, lift: [0.4, 0.9], spin: [0.3, 1] },
+    { layer: 'add', shape: 'soft', count: [4, 7], life: [0.3, 0.6], speed: [0.5, 1.8], spread: 1.2, size: [0.025, 0.006], color: ['tint+white', 'tint'], intensity: 2, drag: 2, turbulence: 3, lift: [0.3, 0.8] },
+  ],
+};
+/** Spirit energy flowing in (a fungus pulse, a mushroom, a gift): motes rising round the body. */
+export const CHARGE_IN: Recipe = {
+  id: 'charge_in', sound: 'recharge',
+  emitters: [
+    { layer: 'add', shape: 'soft', count: [10, 16], life: [0.5, 0.9], speed: [0.2, 0.8], spread: Math.PI, radius: 0.6, size: [0.04, 0.01], color: [0xe0fbff, 'tint'], intensity: 2.4, drag: 1, turbulence: 2, lift: [0.8, 1.6] },
+    { layer: 'add', shape: 'ring', count: 1, life: 0.35, speed: 0, size: [0.2, 1.3], color: ['tint+white', 'tint'], intensity: 0.8, alpha: [0.7, 0] },
+  ],
+};
 
 // ── Per-weapon effect recipes (services/vfx building blocks; registered in RECIPES so the Studio lists them) ───────
 
@@ -198,7 +342,7 @@ export const IMPACT_CHORD: Recipe = {
   ],
 };
 export const WEAPON_RECIPES: Record<string, Recipe> = Object.fromEntries(
-  [MUZZLE_LANCE, MUZZLE_SCATTER, MUZZLE_CHORD, IMPACT_LANCE, IMPACT_SCATTER, IMPACT_CHORD].map((r) => [r.id, r]),
+  [MUZZLE_LANCE, MUZZLE_SCATTER, MUZZLE_CHORD, IMPACT_LANCE, IMPACT_SCATTER, IMPACT_CHORD, VENT_STEAM, CHARGE_IN].map((r) => [r.id, r]),
 );
 Object.assign(RECIPES, WEAPON_RECIPES);
 /** A recipe by id (the weapon recipes, then the shared ones). */
@@ -224,7 +368,9 @@ function surface(a: number, b: number, scale: number, rough: [number, number], m
 function glowMat(hex: number, glow: Glow, base = 1.4, opacity = 1) {
   const m = new THREE.MeshStandardNodeMaterial({ color: hex, roughness: 0.2, metalness: 0, transparent: opacity < 1, opacity });
   const c = new THREE.Color(hex);
-  m.emissiveNode = vec3(c.r, c.g, c.b).mul(glow.mul(base));
+  // heat (0…1) runs the inlays from the vessel's colour to a white-hot ember and brightens them
+  const h = (glow as unknown as { heat: Glow }).heat ?? float(0);
+  m.emissiveNode = mix(vec3(c.r, c.g, c.b), vec3(1.0, 0.38, 0.12), h).mul(glow.mul(base)).mul(h.mul(0.8).add(1));
   return m;
 }
 
@@ -333,6 +479,8 @@ export interface WeaponModel {
   charge: THREE.Vector3;
   /** Glow drive: 1 at rest, the beat pulse and each shot lift it. */
   glow: Glow;
+  /** Heat 0…1: the inlays run toward ember orange as the weapon heats up. */
+  heat: Glow;
   /** For the Chord Repeater: the three barrel tips (shots cycle through them). */
   tips?: THREE.Object3D[];
 }
@@ -348,7 +496,7 @@ function finish(root: THREE.Group, fp: boolean) {
 
 /** Halo Lance — Aegis: mossy stone stock and receiver in gold frames, cyan soul gems along an octagonal shroud, a
  *  spiked gold halo ring and a four-edged spear tip; a cyan crystal cell for a magazine. ~1.3 m. */
-function buildLance(glow: Glow): WeaponModel {
+function buildLance(glow: Glow): Omit<WeaponModel, 'heat'> {
   const M = mats(), cyan = glowMat(0x22d3ee, glow, 1.6), cyanCell = glowMat(0x67e8f9, glow, 1.1, 0.88);
   const root = new THREE.Group();
   // receiver (stone) framed in gold
@@ -434,7 +582,7 @@ function buildLance(glow: Glow): WeaponModel {
 
 /** Rift Scatter — Nyx: a hunched black chitin carapace, magenta fin membranes on black ribs down the spine, a hex
  *  visor window, twin bores inside three hooked claws; a void-shell canister for a magazine. ~0.85 m. */
-function buildScatter(glow: Glow): WeaponModel {
+function buildScatter(glow: Glow): Omit<WeaponModel, 'heat'> {
   const M = mats(), mag = glowMat(0xd946ef, glow, 1.7), memb = glowMat(0xc026d3, glow, 0.9, 0.82), shell = glowMat(0xf0abfc, glow, 1.2, 0.9);
   const root = new THREE.Group();
   // carapace body and short spined stock
@@ -508,7 +656,7 @@ function buildScatter(glow: Glow): WeaponModel {
 
 /** Chord Repeater — Seraph / Lumen: white enamel with gold filigree, golden wing-blades sweeping back from the
  *  receiver, three gold barrels (a chord) held by enamel rings, a gold halo at the muzzle and a prism sight. ~1 m. */
-function buildChord(glow: Glow): WeaponModel {
+function buildChord(glow: Glow): Omit<WeaponModel, 'heat'> {
   const M = mats(), gold = glowMat(0xfbbf24, glow, 1.3), violet = glowMat(0xa855f7, glow, 1.6), prismMat = glowMat(0xfde68a, glow, 0.7, 0.8);
   const root = new THREE.Group();
   const bodyPts: [number, number][] = [[-0.1, 0.05], [-0.06, 0.13], [0.2, 0.138], [0.27, 0.105], [0.27, 0.055], [0.0, 0.04]];
@@ -580,7 +728,9 @@ function buildChord(glow: Glow): WeaponModel {
 /** Build one vessel's gun. `fp` = first-person copy (no shadows, drawn over the world). */
 export function buildWeapon(id: VesselId, fp = false): WeaponModel {
   const glow = makeGlow();
-  const m = id === 'aegis' ? buildLance(glow) : id === 'stalker' ? buildScatter(glow) : buildChord(glow);
+  const heat = uniform(0);
+  (glow as unknown as { heat: Glow }).heat = heat;   // glowMat reads it
+  const m: WeaponModel = { ...(id === 'aegis' ? buildLance(glow) : id === 'stalker' ? buildScatter(glow) : buildChord(glow)), heat };
   m.root.name = `weapon_${id}${fp ? '_fp' : ''}`;
   finish(m.root, fp);
   return m;

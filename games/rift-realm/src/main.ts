@@ -50,10 +50,15 @@ async function boot() {
   const camText = document.getElementById('camText')!;
   const vesselTag = document.getElementById('vesselTag')!;
   const surgeTag = document.getElementById('surgeTag')!;
-  // ammo: magazine count bottom-right (Fortnite-style), reload bar while reloading
+  // spirit charge + heat meters bottom-right (the vessel weapons are spirit-charged: no magazines); the label shows
+  // OVERHEATED / VENTING / SPIRIT DRAINED
   const ammoEl = document.createElement('div');
-  ammoEl.style.cssText = 'position:fixed;right:24px;bottom:64px;z-index:12;pointer-events:none;font:800 22px/1 system-ui,sans-serif;letter-spacing:.06em;color:#e2f3ff;text-shadow:0 2px 6px #000';
+  ammoEl.style.cssText = 'position:fixed;right:24px;bottom:56px;z-index:12;pointer-events:none;width:230px;font:800 12px/1 system-ui,sans-serif;letter-spacing:.14em;color:#e2f3ff;text-shadow:0 2px 6px #000;text-align:right';
+  ammoEl.innerHTML = '<div data-l style="margin-bottom:6px"></div>'
+    + '<div style="height:9px;background:#0b1626cc;border:1px solid #38bdf866;margin-bottom:4px"><div data-c style="height:100%;width:100%;background:linear-gradient(90deg,#0ea5e9,#a5f3fc);box-shadow:0 0 8px #38bdf8"></div></div>'
+    + '<div style="height:5px;background:#1a0d08cc;border:1px solid #fb923c55"><div data-h style="height:100%;width:0;background:linear-gradient(90deg,#fbbf24,#f97316,#ef4444);box-shadow:0 0 6px #f97316"></div></div>';
   document.body.appendChild(ammoEl);
+  const hudLabel = ammoEl.querySelector<HTMLElement>('[data-l]')!, hudCharge = ammoEl.querySelector<HTMLElement>('[data-c]')!, hudHeat = ammoEl.querySelector<HTMLElement>('[data-h]')!;
   const touchHud = document.getElementById('touchHud')!;
   const achToast = document.getElementById('achToast')!;
 
@@ -337,10 +342,10 @@ async function boot() {
 
   function fireShot() {
     if (!player.enabled) return;
-    if (!player.useRound()) return; // reloading, switching, down, or dry (player.onDryFire clicks; the reload starts)
+    const beat = rhythm.evaluateBeat(); // first: on the beat a shot costs less spirit charge and builds less heat
+    if (!player.useRound(beat.quality)) return; // venting, switching, down, overheated, or drained (player.onDryFire clicks)
     combatT = Math.min(combatT, 3); // firing keeps the combat music going
     player.faceAimNow(); // third person: the gun points at the crosshair point when the shot leaves it
-    const beat = rhythm.evaluateBeat();
     const spec = player.vessel;
     showQuality(beat.quality);
     danger?.noise(player.object.position, 60); // predators hear gunshots
@@ -524,15 +529,29 @@ async function boot() {
     rhythm.setMood(boss ? 'boss' : tight ? 'showdown' : combatT < 10 ? 'combat' : 'explore');
   };
 
-  // Weapon sounds (weapons.ts names them, rhythm.ts banks them): the reload plays beat by beat in step with the
-  // body's reload clip (mag out, mag in, charge), a dry click on an empty mag, a holster rattle on a switch.
+  // Weapon sounds (weapons.ts names them, rhythm.ts banks them): the vent plays beat by beat in step with the body's
+  // attune clip (hiss as the cell slides out, a chime as it seats, the power-up), with steam off the gun; a dry click
+  // when the spirit charge is gone, a holster rattle on a switch.
   player.onReload = () => { /* the reload sounds now play per beat (onReloadBeat) */ };
   player.onReloadBeat = (beat, w) => {
     const name = beat === 'out' ? w.sounds.magOut : beat === 'in' ? w.sounds.magIn : beat === 'charge' ? w.sounds.charge : w.sounds.dry;
     rhythm.playSfx(name, { gain: beat === 'release' ? 0.45 : 0.85, send: 0.15 });
+    if (beat === 'out' || beat === 'in') vfx.spawn(recipe('vent_steam'), player.getMuzzleWorldPos(), { dir: [0, 1, 0], tint: player.vessel.primaryColor });
   };
   player.onDryFire = (w) => { if (!rhythm.playSfx(w.sounds.dry, { gain: 0.8, send: 0.1 })) rhythm.playEmpty(); };
   player.onWeaponSwitch = (w) => rhythm.playSfx(w.sounds.switch, { gain: 0.7, send: 0.15 });
+  // Spirit energy (weapons.ts WeaponEnergy): an overheat warns and forces the vent; a drained vessel says so; charge
+  // from the world (fungus pulses, mushrooms, creature gifts: player.weapons.addCharge) shimmers in.
+  player.weapons.onOverheat = () => { rhythm.playSfx(player.weapon.sounds.overheat, { gain: 0.9, send: 0.3 }); showBeatFeedback('OVERHEATED', '#fb923c'); };
+  player.weapons.onDry = () => showBeatFeedback('SPIRIT DRAINED · FIND CHARGE', '#fb7185');
+  let chargeFxAt = 0;
+  player.weapons.onCharge = () => {
+    const now = performance.now();
+    if (now - chargeFxAt < 450) return; // a steady flow (a fungus pulse every frame) sounds once in a while
+    chargeFxAt = now;
+    rhythm.playSfx(player.weapon.sounds.recharge, { gain: 0.6, send: 0.4 });
+    vfx.spawn(recipe('charge_in'), player.chestPos(new THREE.Vector3()), { tint: player.vessel.primaryColor });
+  };
 
   const enterRift = (fromTouch = false) => {
     rhythm.setMood('explore');
@@ -743,8 +762,16 @@ async function boot() {
     }
     waveText.textContent = rules ? rules.title : `Trial ${enemies.wave} · ${currentBiomeName}`;
     surgeTag.textContent = resonance >= 2.0 ? 'SOUL SURGE READY [Q]' : 'SURGE AT 2.0x RESONANCE';
-    const ammoTxt = player.fists ? 'FISTS  ·  MMB / T: gun' : player.reloading ? `RELOADING ${'▮'.repeat(Math.round(player.reloadProgress * 8)).padEnd(8, '▯')}` : `${player.ammo} / ${player.magSize}${player.ammo === 0 ? '  [R]' : ''}${player.crouched ? '  · CROUCHED' : ''}`;
-    if (ammoEl.textContent !== ammoTxt) { ammoEl.textContent = ammoTxt; ammoEl.style.color = player.ammo <= Math.ceil(player.magSize / 4) && !player.reloading ? '#fb7185' : '#e2f3ff'; }
+    {
+      const c = player.weapons.getCharge();
+      const label = player.fists ? 'FISTS  ·  MMB / T: gun' : c.overheated ? 'OVERHEATED' : c.venting ? 'VENTING' : c.shotsLeft === 0 ? 'SPIRIT DRAINED · FIND CHARGE'
+        : `SPIRIT ${Math.round(c.charge)} / ${c.max}${c.heat > 0.6 ? '  ·  [R] VENT' : ''}${player.crouched ? '  · CROUCHED' : ''}`;
+      if (hudLabel.textContent !== label) { hudLabel.textContent = label; hudLabel.style.color = c.overheated ? '#fb923c' : c.shotsLeft === 0 ? '#fb7185' : '#e2f3ff'; }
+      const cw = `${(c.frac * 100).toFixed(1)}%`, hw = `${(c.heat * 100).toFixed(1)}%`;
+      if (hudCharge.style.width !== cw) hudCharge.style.width = cw;
+      if (hudHeat.style.width !== hw) hudHeat.style.width = hw;
+      hudHeat.style.opacity = c.overheated ? (0.55 + 0.45 * Math.sin(performance.now() * 0.02)).toFixed(2) : '1';
+    }
     surgeTag.style.color = resonance >= 2.0 ? '#fbbf24' : '#64748b';
 
     // a kill's shake, applied for this render only (the player controller owns the camera)

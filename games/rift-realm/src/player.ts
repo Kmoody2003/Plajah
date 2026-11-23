@@ -4,7 +4,7 @@ import type { CollisionWorld } from './collision';
 import type { InputState } from './controls';
 import { assets, CharacterRig } from './characters';
 import { VESSELS, VESSEL_ORDER, buildVesselMesh, type VesselId, type VesselSpec } from './vessels';
-import { WEAPONS, WeaponViewmodel, buildWeapon, type ReloadPhases, type WeaponModel, type WeaponSpec } from './weapons';
+import { WEAPONS, WeaponEnergy, WeaponViewmodel, buildWeapon, type ReloadPhases, type WeaponModel, type WeaponSpec } from './weapons';
 import { Glide } from './glide';
 
 // Feel: fast, nimble, upbeat. Snappy ground control, full air control at a lower rate,
@@ -44,6 +44,9 @@ export class PlayerController {
   readonly viewmodel = new THREE.Group();
   /** First-person gun + hands (weapons.ts). */
   readonly weaponVM = new WeaponViewmodel();
+  /** Spirit energy + heat per vessel (weapons.ts). The world refills it: player.weapons.addCharge(amount, source);
+   *  read it with getCharge(); onDry / onOverheat / onCharge fire as it changes. */
+  readonly weapons = new WeaponEnergy();
   /** Third-person guns on the rig's hand_r_weapon socket, one per vessel (the shown one is visible). */
   private tpGuns = new Map<VesselId, WeaponModel>();
   private tpShown: VesselId | null = null;
@@ -82,7 +85,6 @@ export class PlayerController {
   /** View kick still to recover (radians of pitch); a shot kicks the aim up and about 60 % comes back down. */
   private recoilBack = 0;
   /** Rounds left per vessel's magazine (one round = one trigger pull; Seraph's 3-shot burst is one round). */
-  private mags: Partial<Record<VesselId, number>> = {};
   private reloadT = 0;
   private reloadLen = 1;
   private reloadP = -1;
@@ -274,6 +276,7 @@ export class PlayerController {
     this.vesselMesh.visible = !this.firstPerson;
     this.object.add(this.vesselMesh);
 
+    this.weapons.current = id;
     this.weaponVM.select(id);
     this.weaponVM.setTrim(spec.primaryColor);
     if (this.switchT <= 0) this.showTpGun(id);
@@ -354,10 +357,10 @@ export class PlayerController {
   /** A hit or block through the coat, tabard and wings (m/s, world). */
   shove(v: THREE.Vector3) { this.rig?.shove(v); }
 
-  /** Magazine size of the current vessel's weapon (trigger pulls). */
+  /** Shots a full charge gives (the drawn vessel). */
   get magSize() { return this.weapon.magSize; }
-  /** Rounds left in the current magazine. */
-  get ammo() { return this.mags[this.vessel.id] ?? this.magSize; }
+  /** Shots the remaining spirit charge gives. */
+  get ammo() { return this.weapons.getCharge().shotsLeft; }
   get reloading() { return this.reloadT > 0; }
   /** 0…1 progress of the running reload (for the HUD). */
   get reloadProgress() { return this.reloadT > 0 ? 1 - this.reloadT / this.reloadLen : 1; }
@@ -366,32 +369,31 @@ export class PlayerController {
   /** Play a one-shot on the body (e.g. 'get_up' after being downed). */
   playClip(name: string, weight = 1, seconds?: number) { this.rig?.play(name, weight, seconds); }
 
-  /** Reload (R, D-pad left; automatic when the magazine runs dry): the motion-captured rifle / pistol reload,
-   *  squeezed to RELOAD_SEC. No firing until it's done. */
-  reload() {
-    if (!this.enabled || this.reloadT > 0 || this.switchT > 0 || this.downedT > 0 || this.ammo >= this.magSize) return false;
-    const w = this.weapon;
-    this.reloadLen = this.reloadT = w.reloadSec;
+  /** The reload binding (R, D-pad left) vents: the weapons are spirit-charged, not magazine-fed. */
+  reload() { return this.vent(); }
+
+  /** Vent the heat (the attune motion: the body's reload clip, the gun's cell slides out and back, a hiss and a chime).
+   *  R vents early for a little charge; `forced` is the cool-down after an overheat. No firing until it's done. */
+  vent(forced = false) {
+    if (!this.enabled || this.reloadT > 0 || this.switchT > 0 || this.downedT > 0) return false;
+    if (!forced && !this.weapons.vent()) return false;
+    const w = this.weapon, sec = forced ? w.energy.overheatSec : w.energy.ventSec;
+    this.reloadLen = this.reloadT = sec;
     this.reloadP = 0;
     this.autoReloadT = 0;
-    this.rig?.play(w.reloadClip, 1, w.reloadSec);
+    this.rig?.play(w.reloadClip, 1, sec);
     this.onReload?.();
     return true;
   }
 
-  /** Spend a round for a trigger pull; false = can't fire (reloading, down, or empty → starts the reload). */
-  useRound() {
+  /** A trigger pull spends spirit charge and builds heat (cheaper and cooler on the beat). False = can't fire: venting,
+   *  switching, down, overheated, or dry (the trigger clicks on nothing — find charge in the world). */
+  useRound(quality: 'PERFECT' | 'GOOD' | 'OFF' = 'OFF') {
     if (this.reloadT > 0 || this.switchT > 0 || this.downedT > 0) return false;
-    const left = this.ammo;
-    if (left <= 0) {
-      // dry fire: the trigger clicks on an empty chamber, then the reload starts by itself
-      this.weaponVM.dryFire();
-      this.onDryFire?.(this.weapon);
-      if (this.autoReloadT <= 0) this.autoReloadT = 0.22;
-      return false;
-    }
-    this.mags[this.vessel.id] = left - 1;
-    if (left - 1 === 0) this.autoReloadT = 0.3; // let the last shot's recoil play, then reload
+    const r = this.weapons.spend(quality);
+    if (r === 'dry') { this.weaponVM.dryFire(); this.onDryFire?.(this.weapon); return false; }
+    if (r === 'hot') return false;
+    if (this.weapons.getCharge().overheated) this.autoReloadT = 0.2; // the overheat vent starts once the kick has played
     return true;
   }
 
@@ -548,22 +550,23 @@ export class PlayerController {
     this.faceAimT = Math.max(0, this.faceAimT - dt);
     // reload / auto-reload / downed timers
     this.sinceShot += dt;
+    this.weapons.update(dt);
     if (this.reloadT > 0) {
       this.reloadT -= dt;
       // the reload's beats (mag release, out, in, charge) raise their sounds, in either view
       const p = 1 - Math.max(0, this.reloadT) / this.reloadLen, ph = this.weapon.phases;
       for (const k of ['release', 'out', 'in', 'charge'] as const) if (this.reloadP < ph[k] && p >= ph[k]) this.onReloadBeat?.(k, this.weapon);
       this.reloadP = p;
-      if (this.reloadT <= 0) { this.reloadT = 0; this.reloadP = -1; this.mags[this.vessel.id] = this.magSize; }
+      if (this.reloadT <= 0) { this.reloadT = 0; this.reloadP = -1; }
     } else this.reloadP = -1;
     if (this.switchT > 0) {
       this.switchT = Math.max(0, this.switchT - dt);
       if (this.switchT <= this.switchLen / 2) this.showTpGun(this.vessel.id);
     }
-    if (this.autoReloadT > 0) { this.autoReloadT -= dt; if (this.autoReloadT <= 0) this.reload(); }
+    if (this.autoReloadT > 0) { this.autoReloadT -= dt; if (this.autoReloadT <= 0 && this.weapons.getCharge().overheated) this.vent(true); }
     if (this.downedT > 0) {
       this.downedT -= dt;
-      if (this.downedT <= 0) { this.downedT = 0; this.rig?.release(); this.mags = {}; const cb = this.onDownedDone; this.onDownedDone = undefined; cb?.(); }
+      if (this.downedT <= 0) { this.downedT = 0; this.rig?.release(); this.weapons.reset(); const cb = this.onDownedDone; this.onDownedDone = undefined; cb?.(); }
     }
     this.crouched = this.downedT <= 0 && (this.crouchToggle || this.keys.has('ControlLeft') || this.keys.has('ControlRight') || !!input?.crouchHeld);
     if (input?.crouchPressed) this.crouchToggle = !this.crouchToggle;
@@ -870,12 +873,14 @@ export class PlayerController {
         pulse, crouched: this.crouched,
       });
     }
+    this.weaponVM.model().heat.value = this.weapons.getCharge().heat; // inlays run ember-hot as it heats
     // third-person gun: the mag leaves the gun while it's out of the hand, the glow breathes with the beat
     const tg = this.tpShown ? this.tpGuns.get(this.tpShown) : undefined;
     if (tg) {
       const ph = this.weapon.phases, p = this.reloadT > 0 ? this.reloadProgress : -1;
       tg.mag.visible = !(p >= ph.out && p < ph.in);
       tg.glow.value += (1 + pulse * 0.7 + this.muzzleFlash * 2 - tg.glow.value) * Math.min(1, dt * 12);
+      tg.heat.value = this.weapons.getCharge().heat;
       tg.root.visible = !this.firstPerson && !this.fists && !(this.switchT > 0 && Math.abs(this.switchT / this.switchLen - 0.5) < 0.12);
     }
   }

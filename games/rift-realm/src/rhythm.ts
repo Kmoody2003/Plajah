@@ -33,6 +33,8 @@ const SFX: Record<string, number> = {
   // layered vessel shots (scripts/riftrealm/sfx/shots.py): the sampled gun body + laser zap + magic (chime, sub, crackle)
   // + each vessel's tail; *_p = the PERFECT-beat bloom
   shot_lance: 3, shot_lance_p: 2, shot_scatter: 3, shot_scatter_p: 2, shot_chord: 3, shot_chord_p: 2,
+  // spirit energy (shots.py --spirit): the vent's hiss + attune chime, the overheat warning, charge flowing in
+  vent_hiss: 2, vent_chime: 1, overheat: 1, recharge: 2,
 };
 const AMB = ['amb_forest', 'amb_stream', 'amb_drone'] as const;
 /** Each vessel's own gun voice (vessels.ts ids). */
