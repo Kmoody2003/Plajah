@@ -339,6 +339,7 @@ async function boot() {
     if (!player.enabled) return;
     if (!player.useRound()) return; // reloading, switching, down, or dry (player.onDryFire clicks; the reload starts)
     combatT = Math.min(combatT, 3); // firing keeps the combat music going
+    player.faceAimNow(); // third person: the gun points at the crosshair point when the shot leaves it
     const beat = rhythm.evaluateBeat();
     const spec = player.vessel;
     showQuality(beat.quality);
@@ -633,8 +634,10 @@ async function boot() {
       const pref = menuSettings.aimAssist ?? 'auto';
       const level: 'off' | 'light' | 'strong' = pref === 'auto' ? (input.padAim || controls.lockRefused ? 'strong' : 'light') : pref;
       targeting.assistLevel = level; targeting.assistOn = level !== 'off';
-      player.keyTurnMode = controls.lockRefused;
-      const pull = level === 'strong' ? 2.4 : input.padAim && level === 'light' ? tp.assist : 0;
+      player.keyTurnMode = false; // the mouse turns the view in every mode (Kenne: first person needs it)
+      // the assist's pull never fights your own hand: only while you aren't moving the view yourself
+      const steering = Math.abs(input.lookDeltaX) + Math.abs(input.lookDeltaY) > 0.5;
+      const pull = steering ? 0 : level === 'strong' ? 1.2 : input.padAim && level === 'light' ? tp.assist : 0;
       if (targeting.locked) player.aimAt(targeting.aimPoint(targeting.locked), dt, tp.lockRate);
       else if (pull > 0) { const ap = targeting.assistPoint(assistV); if (ap) player.aimAt(ap, dt, pull * (0.35 + Math.min(1, moveAmt)), false); }
       // strong assist: pressing aim snaps onto the enemy near the crosshair (console-style aim snap)

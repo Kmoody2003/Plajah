@@ -195,7 +195,8 @@ export class Targeting {
   assist(origin: THREE.Vector3, dir: THREE.Vector3, _moving = 0) {
     if (this.locked) return dir.copy(this.aimPoint(this.locked, this.v).sub(origin).normalize());
     if (this.cursor) return dir; // cursor aim: the player's aim ray already goes through the cursor
-    const magnet = this.assistLevel === 'strong' ? 0.14 : this.assistLevel === 'light' ? Math.max(0.035, this.profile.magnet) : 0;
+    // strong bends a shot onto the marked enemy only when the crosshair is close to it (not across the screen)
+    const magnet = this.assistLevel === 'strong' ? 0.07 : this.assistLevel === 'light' ? Math.max(0.035, this.profile.magnet) : 0;
     if (this.soft && magnet > 0 && this.assistOn) {
       // the crosshair is on (or near) the marked enemy: the shot lands on it
       const p = this.aimPoint(this.soft, this.d).project(this.camera);

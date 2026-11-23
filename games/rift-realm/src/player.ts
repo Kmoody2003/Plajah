@@ -127,10 +127,22 @@ export class PlayerController {
   private threatYaw: number | null = null;
   /** Hit from outside the view (behind or to the side): turn to face the attacker, camera with him. */
   faceThreat(from: THREE.Vector3) {
-    if (this.lockedOn || this.downedT > 0) return;
+    if (this.lockedOn || this.downedT > 0 || this.firstPerson) return;
     const p = this.object.position, want = Math.atan2(-(from.x - p.x), -(from.z - p.z));
     const off = Math.abs(Math.atan2(Math.sin(want - this.yaw), Math.cos(want - this.yaw)));
     if (off > 1.6) this.threatYaw = want; // ~90 deg: only what you can't already see
+  }
+  /** Quick 180: the view swings right round over ~0.2 s. */
+  quickTurn() { if (this.enabled && this.downedT <= 0) this.turnLeft = Math.PI; }
+  private turnLeft = 0;
+  /** Square the body to the crosshair point at once (a shot leaves a gun that points at the target, not the way the
+   *  character was running). */
+  faceAimNow() {
+    if (this.firstPerson || !this.aimPointOk) return;
+    this.bodyYaw = Math.atan2(-(this.aimPoint.x - this.object.position.x), -(this.aimPoint.z - this.object.position.z));
+    this.faceAimT = Math.max(this.faceAimT, FACE_AIM_AFTER);
+    this.vesselMesh.rotation.set(0, this.bodyYaw - this.yaw, this.bank, 'YXZ');
+    this.vesselMesh.updateWorldMatrix(true, true);
   }
   /** Which shoulder the third-person camera sits over: 1 right, -1 left (swap shoulder). */
   shoulderSide = 1;
@@ -186,7 +198,8 @@ export class PlayerController {
       if (e.code === 'Digit1') this.setVessel('aegis');
       if (e.code === 'Digit2') this.setVessel('stalker');
       if (e.code === 'Digit3') this.setVessel('seraph');
-      if (e.code === 'F8' && !e.repeat) this.shoulderSide = -this.shoulderSide; // swap shoulder (Q by default, input/actions.ts)
+      // Q by default (input/actions.ts): third person swaps shoulder; first person turns you right round (quick 180)
+      if (e.code === 'F8' && !e.repeat) { if (this.firstPerson) this.quickTurn(); else this.shoulderSide = -this.shoulderSide; }
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     // a key released while the window wasn't focused never sends keyup: drop held keys when focus goes, or the
@@ -557,6 +570,7 @@ export class PlayerController {
     if (input?.reloadPressed) this.reload();
     if (this.rig) this.rig.crouch = this.crouched;
     this.lockT = Math.max(0, this.lockT - dt);
+    if (this.turnLeft > 0) { const s = Math.min(this.turnLeft, dt * Math.PI / 0.2); this.yaw += s; this.turnLeft -= s; }
     // hit from behind / the side: whip round to face the attacker, camera with him (Ravencrest faceThreat)
     if (this.threatYaw !== null) {
       const d = Math.atan2(Math.sin(this.threatYaw - this.yaw), Math.cos(this.threatYaw - this.yaw));

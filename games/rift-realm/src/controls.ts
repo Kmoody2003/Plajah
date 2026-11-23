@@ -137,7 +137,8 @@ export class UnifiedControls {
         this.cursorIn = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
         this.curX = e.clientX; this.curY = e.clientY;
         // cursor aim: the mouse only moves the crosshair (the edges still turn the view); otherwise it looks
-        // without a captured mouse the cursor doesn't turn the camera (it would wander off the game); edges still do
+        // without a captured mouse, moving it still turns the view (resting it at an edge keeps turning)
+        if (this.cursorIn && !this.cursorAim) { this.pendingLookX += e.movementX * 0.85; this.pendingLookY += e.movementY * 0.85; }
         return;
       }
       if (!dragging) return;
