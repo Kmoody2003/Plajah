@@ -5,7 +5,7 @@
 // (orgType 'BRAND'); the same page will serve churches (orgType 'CHURCH') in Part 3.
 
 import { orgCanReceiveGiving } from '../services/orgFinanceCore';
-import React, { useEffect, useState, useCallback, lazy, Suspense } from 'react';
+import React, { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
 import CreateEventButton from './events/CreateEventButton';
 import { motion } from 'motion/react';
 import {
@@ -58,6 +58,8 @@ import OrgMediaShelves from './elevate/OrgMediaShelves';
 import ReelloDeptChannelsRow from './reello/ReelloDeptChannelsRow';
 import OrgMediaShelf from './orgPublish/OrgMediaShelf';
 import RelloChurchViewer from './elevate/RelloChurchViewer';
+import { setActiveOrgSidebar } from '../services/orgSidebarLayout';
+import { ORG_PAGE_EVENT, takePendingOrgPage, type OrgPageTarget } from '../services/experienceScope';
 // Operations side + public rosters + Church Member Hub (lazy so the public page never blocks on them).
 const ElevateOps = lazy(() => import('./elevate/ElevateOps'));
 const ElevateRosters = lazy(() => import('./elevate/ElevateRosters'));
@@ -419,7 +421,26 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   const [tab, setTab] = useState<ElevateOrgTab>('HOME');
   const [following, setFollowing] = useState(false);
   const [openMinistry, setOpenMinistry] = useState<string | null>(null);
+  // The org page is its own scroll area (like the demo church), so the mode bar and section tabs stay
+  // pinned whatever the app shell does around it (a fixed top bar over a padded scroller hid them before).
+  const pageScrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => listenFollowedState(org.id, s => setFollowing(s.org)), [org.id]);
+  // Org default sidebar: the app rail follows this org's layout while its page is open (members can override).
+  useEffect(() => () => setActiveOrgSidebar(null), []);
+  // The left pillar (Elevate scope) opens a tab or a department here.
+  useEffect(() => {
+    const apply = (t: OrgPageTarget | null) => {
+      if (!t || t.orgId !== org.id) return;
+      setView('public');
+      if (t.ministryId) { setTab('MINISTRIES'); setOpenMinistry(t.ministryId); }
+      else if (t.tab) { setTab(t.tab as ElevateOrgTab); setOpenMinistry(null); }
+      pageScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    apply(takePendingOrgPage(org.id));
+    const on = (e: Event) => { takePendingOrgPage(org.id); apply((e as CustomEvent<OrgPageTarget>).detail); };
+    window.addEventListener(ORG_PAGE_EVENT, on);
+    return () => window.removeEventListener(ORG_PAGE_EVENT, on);
+  }, [org.id]);
   const reloadStaff = useCallback(() => { fetchOrgMembers(org.id).then(setStaff).catch(() => {}); }, [org.id]);
   useEffect(() => { reloadStaff(); }, [reloadStaff]);
   useEffect(() => { fetchOrgPostings(org.id).then(ps => setOpenings(ps.filter(p => p.status === 'OPEN'))).catch(() => {}); }, [org.id]);
@@ -431,6 +452,11 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
     (isOwner && auth.currentUser
       ? { id: '', orgId: org.id, userId: auth.currentUser.uid, role: 'OWNER' as OrgRole, status: 'ACTIVE' as const, displayName: '', joinedAt: 0 }
       : null);
+  // Org default sidebar + the Elevate pillar: the app rail follows this org while its page is open.
+  useEffect(() => {
+    setActiveOrgSidebar({ orgId: org.id, orgName: org.name, layout: org.sidebarDefault || null, org, membership: myMembership && myMembership.status === 'ACTIVE' ? myMembership : null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [org, myMembership?.id, myMembership?.status, myMembership?.ministryIds?.join(','), myMembership?.ministryRoles?.length]);
   const elevate = isElevateOrg(org.orgType);
   const faith = isFaithOrg(org.orgType);
   const can = (p: Parameters<typeof elevateCan>[2]) => isOwner || elevateCan(myMembership, org, p);
@@ -501,7 +527,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
 
   if (view === 'ops' && hasOps) {
     return (
-      <EvScope className="min-h-full">
+      <EvScope ref={pageScrollRef} className="h-full overflow-y-auto scrollbar-hide">
         {modeToggle}
         <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
           <div key="ops" className="ev-fade">
@@ -518,7 +544,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
 
   if (view === 'member') {
     return (
-      <EvScope className="min-h-full">
+      <EvScope ref={pageScrollRef} className="h-full overflow-y-auto scrollbar-hide">
         {modeToggle}
         <div key="member" className="max-w-[1280px] mx-auto px-4 sm:px-8 py-6 ev-fade">
           <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
@@ -539,9 +565,10 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
     ? (org.ministries?.find(m => m.id === openMinistry) || effectiveMinistries.find(m => m.id === openMinistry))
     : undefined;
   const pill = { minHeight: 44 };
+  const homeOn = tab === 'HOME' && !ministryOpen;
 
   return (
-    <EvScope className="min-h-full">
+    <EvScope ref={pageScrollRef} className="h-full overflow-y-auto scrollbar-hide">
       {modeToggle}
 
       {/* ── Hero: wordmark, display tagline, gatherings, the four relationships (follow · claim · join · give) ── */}
@@ -598,23 +625,8 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
       {/* ── Sticky section tabs (names tailored to org type) ── */}
       <EvTabs tabs={orgTabs.map(t => ({ k: t.k, label: t.label }))} value={ministryOpen ? null : tab} onChange={k => { setTab(k as ElevateOrgTab); setOpenMinistry(null); }} top={52} />
 
-      <div className="max-w-[1240px] mx-auto px-4 sm:px-8 py-10 space-y-8">
-        {/* Reello player: full on Home, a floating mini player on every other tab so playback carries on.
-            Org-owned sources only (see services/orgMedia). */}
-        <RelloChurchViewer
-          org={org}
-          defaultPlayerExpanded={true}
-          viewerIsOrgMember={myMembership?.status === 'ACTIVE'}
-          compact={tab !== 'HOME' || !!ministryOpen}
-          onExpand={() => { setOpenMinistry(null); setTab('HOME'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-          onOpenOnAir={item => {
-            if (item.feed) {
-              if (onOpenLive) onOpenLive(item.feed);
-              else window.dispatchEvent(new CustomEvent('PLAY_LIVE_FEED', { detail: { feed: item.feed } }));
-            } else if (item.channel) onOpenChannel?.(item.channel.ownerId, item.channel.sourceId);
-          }}
-        />
-
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-8 flex flex-wrap gap-5 items-start">
+        <div className="min-w-0 space-y-8" style={{ flex: '999 1 420px' }}>
         {applyFor && <ApplyModal posting={applyFor} orgName={org.name} onClose={() => setApplyFor(null)} />}
 
         <div key={openMinistry || tab} className="ev-fade space-y-8">
@@ -634,10 +646,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
           <>
             {/* ── TAB 1: HOME ── */}
             {tab === 'HOME' && (
-              <AdaptiveGrid phone={1} tablet={1} desktop={3} gap="1.5rem">
-                <div className="lg:col-span-2 space-y-5">
-                  <ChurchAnnouncements orgId={org.id} orgName={org.name} orgPhoto={org.logoUrl || ''} org={org} isOwner={isOwner} canPost={can('POST_AS_ORG')} />
+              <div className="space-y-5">
                   <OrgThread org={org} myMembership={myMembership} onVisitUser={onVisitUser} onOrgChange={setOrg} readOnly={!myMembership || myMembership.status !== 'ACTIVE'} />
+                  <ChurchAnnouncements orgId={org.id} orgName={org.name} orgPhoto={org.logoUrl || ''} org={org} isOwner={isOwner} canPost={can('POST_AS_ORG')} />
                   {demo && <div className="space-y-3">
                     <p className={TYPE.labelSm} style={{ color: VIOLET_SOFT }}>Latest from {org.name}</p>
                     {DEMO_CHURCH_FEED.map(p => (
@@ -655,63 +666,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
                       </div>
                     ))}
                   </div>}
-                </div>
-
-                <div className="space-y-4">
-                  <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
-                    <p className={`${TYPE.labelMd} text-white/40 mb-3`}>
-                      {faith ? 'Service times' : org.orgType === 'CULTURAL' ? 'Hours & Gatherings' : 'Schedule & Gatherings'}
-                    </p>
-                    {effectiveServiceTimes.length === 0 && (
-                      <p className="text-sm text-[#A49CB2] m-0">{isOwner || hasOps ? 'Add your service times in Manage so visitors know when to come.' : 'Service times haven’t been posted yet.'}</p>
-                    )}
-                    {effectiveServiceTimes.map(s => (
-                      <div key={s.id} className="flex items-center justify-between py-1.5 border-b border-white/6 last:border-0">
-                        <span className="type-body-md text-white/70">{s.label}</span>
-                        <span className="type-body-sm font-black text-white tabular-nums">{s.day} · {s.time}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
-                    <p className={`${TYPE.labelMd} text-white/40 mb-3`}>Coming up</p>
-                    {!demo ? (
-                      <HostEventsPublic host={{ kind: 'org', id: org.id, name: org.name }} accent={VIOLET} limit={2} emptyText="Nothing on the calendar yet." onOpenEvent={() => setTab('EVENTS')} />
-                    ) : (
-                    <div className="space-y-2">
-                      {DEMO_CHURCH_EVENTS.slice(0, 2).map(e => (
-                        <button key={e.id} onClick={() => setTab('EVENTS')} className="w-full text-left flex items-center gap-2 group">
-                          <img src={e.image} className="w-12 h-12 rounded-lg object-cover" alt="" />
-                          <div className="min-w-0">
-                            <p className="type-body-md font-bold text-white truncate group-hover:text-violet-300">{e.title}</p>
-                            <p className="text-[10px] text-white/40">{e.date}</p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                    )}
-                  </div>
-
-                  {openings.length > 0 && (
-                    <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className={`${TYPE.labelMd} text-white/40`}>
-                          {elevate ? 'Get Involved' : 'Careers'}
-                        </p>
-                        <button onClick={() => setShowCareers(true)} className="text-[9px] font-black uppercase tracking-widest text-small-orange">All →</button>
-                      </div>
-                      {openings.slice(0, 3).map(p => (
-                        <div key={p.id} className="flex items-center justify-between gap-2 py-1.5 border-b border-white/5 last:border-0">
-                          <span className="text-xs font-bold text-white truncate">{p.title}</span>
-                          <button onClick={() => setApplyFor(p)} className="px-2.5 py-1 rounded-full bg-small-orange text-black text-[9px] font-black uppercase tracking-widest shrink-0">
-                            {p.postingType === 'VOLUNTEER' ? 'Sign up' : 'Apply'}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </AdaptiveGrid>
+              </div>
             )}
 
             {/* ── TAB 2: MINISTRIES / PROGRAMS / EXHIBITS / DEPARTMENTS ── */}
@@ -1018,7 +973,84 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
           </>
         )}
         </div>
-        <div className="h-16" />
+        </div>
+
+        {/* Right column: the video with the scripture directly under it, then gatherings. One player instance
+            for every tab (off Home it floats as the mini player), so playback carries on across tabs. */}
+        <aside aria-label={`${org.name} watch and scripture`} className="min-w-0 space-y-4"
+          style={homeOn ? { flex: '1 1 320px', maxWidth: 440 } : { flex: '0 0 0px', width: 0 }}>
+          <RelloChurchViewer
+            org={org}
+            layout="column"
+            defaultPlayerExpanded={true}
+            viewerIsOrgMember={myMembership?.status === 'ACTIVE'}
+            compact={!homeOn}
+            onExpand={() => { setOpenMinistry(null); setTab('HOME'); pageScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); }}
+            onOpenOnAir={item => {
+              if (item.feed) {
+                if (onOpenLive) onOpenLive(item.feed);
+                else window.dispatchEvent(new CustomEvent('PLAY_LIVE_FEED', { detail: { feed: item.feed } }));
+              } else if (item.channel) onOpenChannel?.(item.channel.ownerId, item.channel.sourceId);
+            }}
+          />
+          {homeOn && (
+            <>
+              <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
+                <p className={`${TYPE.labelMd} text-white/40 mb-3`}>
+                  {faith ? 'Service times' : org.orgType === 'CULTURAL' ? 'Hours & Gatherings' : 'Schedule & Gatherings'}
+                </p>
+                {effectiveServiceTimes.length === 0 && (
+                  <p className="text-sm text-[#A49CB2] m-0">{isOwner || hasOps ? 'Add your service times in Manage so visitors know when to come.' : 'Service times haven’t been posted yet.'}</p>
+                )}
+                {effectiveServiceTimes.map(s => (
+                  <div key={s.id} className="flex items-center justify-between py-1.5 border-b border-white/6 last:border-0">
+                    <span className="type-body-md text-white/70">{s.label}</span>
+                    <span className="type-body-sm font-black text-white tabular-nums">{s.day} · {s.time}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
+                <p className={`${TYPE.labelMd} text-white/40 mb-3`}>Coming up</p>
+                {!demo ? (
+                  <HostEventsPublic host={{ kind: 'org', id: org.id, name: org.name }} accent={VIOLET} limit={2} emptyText="Nothing on the calendar yet." onOpenEvent={() => setTab('EVENTS')} />
+                ) : (
+                <div className="space-y-2">
+                  {DEMO_CHURCH_EVENTS.slice(0, 2).map(e => (
+                    <button key={e.id} onClick={() => setTab('EVENTS')} className="w-full text-left flex items-center gap-2 group">
+                      <img src={e.image} className="w-12 h-12 rounded-lg object-cover" alt="" />
+                      <div className="min-w-0">
+                        <p className="type-body-md font-bold text-white truncate group-hover:text-violet-300">{e.title}</p>
+                        <p className="text-[10px] text-white/40">{e.date}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                )}
+              </div>
+
+              {openings.length > 0 && (
+                <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className={`${TYPE.labelMd} text-white/40`}>
+                      {elevate ? 'Get Involved' : 'Careers'}
+                    </p>
+                    <button onClick={() => setShowCareers(true)} className="text-[9px] font-black uppercase tracking-widest text-small-orange">All →</button>
+                  </div>
+                  {openings.slice(0, 3).map(p => (
+                    <div key={p.id} className="flex items-center justify-between gap-2 py-1.5 border-b border-white/5 last:border-0">
+                      <span className="text-xs font-bold text-white truncate">{p.title}</span>
+                      <button onClick={() => setApplyFor(p)} className="px-2.5 py-1 rounded-full bg-small-orange text-black text-[9px] font-black uppercase tracking-widest shrink-0">
+                        {p.postingType === 'VOLUNTEER' ? 'Sign up' : 'Apply'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </aside>
+        <div className="basis-full h-16" />
       </div>
     </EvScope>
   );

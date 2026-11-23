@@ -47,9 +47,10 @@ export const heroImage = (url?: string) =>
   url && url.includes('images.unsplash.com') ? url.replace(/([?&])w=\d+&h=\d+/, '$1w=2000&h=840') : url;
 
 /** Root of every Elevate surface: sets tokens, voice and the label/size floor. */
-export const EvScope: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className = '', ...rest }) => (
-  <div className={`ev-scope ${className}`} {...rest} />
-);
+export const EvScope = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className = '', ...rest }, ref) => (
+  <div ref={ref} className={`ev-scope ${className}`} {...rest} />
+));
+EvScope.displayName = 'EvScope';
 
 /**
  * Calls `onShow` once `el` scrolls into view. IntersectionObserver first; a capture-phase scroll check

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { setActiveOrgSidebar } from '../services/orgSidebarLayout';
 import {
   ChevronLeft, Users, Image as ImageIcon, Calendar, Play, Heart, MessageSquare,
   MapPin, Clock, Ticket, ShoppingBag, ArrowRight, Home, HandHeart, Church, MessageCircle,
@@ -16,7 +17,7 @@ import {
   type DemoPost, type DemoEvent, type DemoStaff,
 } from '../data/demoShowcase';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
-import { EV, EvScope, EvModeBar, EvHero, EvTabs, EvSundaySheet, EvIndexList, EvSectionHead, EvReveal, EvGallery, openLectio, heroImage } from './elevate/vellum';
+import { EV, EvScope, EvModeBar, EvHero, EvTabs, EvIndexList, EvSectionHead, EvReveal, EvGallery, openLectio, heroImage } from './elevate/vellum';
 
 // A fully-populated, static tour of a church on Plajah — the ministry hierarchy,
 // each ministry a space with feed / photos / staff+DM / events / merch, plus
@@ -87,6 +88,11 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
   const [ministryId, setMinistryId] = useState<string | null>(null);
   const [mode, setMode] = useState<'hub' | 'member' | 'admin'>('member');
   const c = DEMO_CHURCH;
+  // The app's side rail shows this church's own news while its page is open (same as a real org page).
+  useEffect(() => {
+    setActiveOrgSidebar({ orgId: c.id, orgName: c.name, layout: null, org: c, membership: null });
+    return () => setActiveOrgSidebar(null);
+  }, [c]);
 
   // Public page · Member home · Staff — the same three views every Elevate org page carries.
   const MODES = [
@@ -136,6 +142,7 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
   const md = ministryId ? DEMO_MINISTRY_DETAIL[ministryId] : undefined;
   const [latest, ...earlier] = DEMO_CHURCH_VIDEOS;
   const splitTitle = (t: string) => { const [title, ref] = t.split(' — '); return { title, ref }; };
+  const homeOn = tab === 'HOME' && !ministryId;
 
   return (
     <EvScope className="h-full overflow-y-auto scrollbar-hide">
@@ -158,10 +165,8 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
 
       <EvTabs tabs={TABS} value={ministryId ? null : tab} onChange={k => { setTab(k as Tab); setMinistryId(null); }} top={52} />
 
-      <div className="max-w-[1240px] mx-auto px-4 sm:px-8 py-10 space-y-10">
-        {/* Persistent Live Stream & Ministry TV Channel Thumbnail Carousel right under the tabs */}
-        <RelloChurchViewer org={c} defaultPlayerExpanded={true} />
-
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-8 flex flex-wrap gap-5 items-start">
+        <div className="min-w-0 space-y-10" style={{ flex: '999 1 420px' }}>
         <div key={ministryId || tab} className="ev-fade space-y-10">
         {/* ── Ministry detail (drill-down) ── */}
         {ministry ? (
@@ -227,17 +232,15 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
           <>
             {/* ── HOME · This Sunday ── */}
             {tab === 'HOME' && latest && (
-              <div className="space-y-16">
-                <EvSundaySheet
-                  eyebrow={`This Sunday · ${latest.series}`}
-                  title={splitTitle(latest.title).title}
-                  byline={`Pastor Daniel Reyes · ${splitTitle(latest.title).ref || latest.series} · ${latest.duration}`}
-                  verse={{ n: 12, text: 'I am the light of the world. He who follows me will not walk in the darkness, but will have the light of life.', ref: 'John 8:12' }}
-                  onWatch={() => setTab('WATCH')}
-                  onRead={() => openLectio('43.8.12')}
-                  readLabel="Read John 8 in Verse"
-                  earlier={earlier.map((v, i) => ({ id: v.id, n: v.series === latest.series ? String(7 - i).padStart(2, '0') : undefined, title: splitTitle(v.title).title, meta: `${splitTitle(v.title).ref ? `${splitTitle(v.title).ref} · ` : ''}${v.date}`, len: v.duration, onClick: () => setTab('WATCH') }))}
-                />
+              <div className="space-y-12">
+                {/* The church's feed — Plajah Social, scoped to this church. */}
+                <section className="space-y-3">
+                  <button onClick={demoAction} className="w-full flex items-center gap-3 rounded-2xl p-3.5 border text-left" style={{ background: EV.panel, borderColor: EV.line }}>
+                    <span className="w-9 h-9 rounded-full shrink-0" style={{ background: EV.raised }} />
+                    <span className="flex-1 h-10 rounded-full px-4 flex items-center text-[14px]" style={{ background: EV.raised, color: EV.muted }}>Share something with {c.name}…</span>
+                  </button>
+                  {DEMO_CHURCH_FEED.map(p => <PostCard key={p.id} p={p} />)}
+                </section>
 
                 <EvReveal as="section">
                   <EvSectionHead title="Find your people" action={<button onClick={() => setTab('MINISTRIES')} className="text-sm" style={{ color: VS }}>All ministries</button>} />
@@ -247,25 +250,6 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
                 <EvReveal as="section">
                   <EvSectionHead title="Life together" action={<button onClick={() => setTab('PHOTOS')} className="text-sm" style={{ color: VS }}>All photos</button>} />
                   <EvGallery albums={DEMO_CHURCH_ALBUMS.slice(0, 2)} onOpen={() => setTab('PHOTOS')} />
-                </EvReveal>
-
-                <EvReveal className="flex flex-wrap gap-5 items-start">
-                  <section className="space-y-3" style={{ flex: '999 1 560px', minWidth: 0 }}>
-                    <EvSectionHead title="From the church" size="md" />
-                    {DEMO_CHURCH_FEED.map(p => <PostCard key={p.id} p={p} />)}
-                  </section>
-                  <aside className="ev-panel p-7 flex flex-col" style={{ flex: '1 1 320px', minWidth: 0 }}>
-                    <h2 className="m-0 mb-3 ev-title text-2xl text-white">Coming up</h2>
-                    <div className="ev-rule">
-                      {DEMO_CHURCH_EVENTS.slice(0, 3).map(e => (
-                        <button key={e.id} onClick={() => setTab('EVENTS')} className="ev-row-link w-full text-left py-3.5 px-1 flex flex-col gap-0.5">
-                          <span className="ev-num text-sm text-[#A49CB2]">{e.date}</span>
-                          <span className="text-[15px] font-medium text-white">{e.title}</span>
-                          <span className="text-[13px] text-[#A49CB2]">{e.location}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </aside>
                 </EvReveal>
               </div>
             )}
@@ -427,6 +411,43 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
           </>
         )}
         </div>
+        </div>
+
+        {/* Right column: the video, the scripture directly under it, then what's coming up. */}
+        <aside aria-label={`${c.name} watch and scripture`} className="min-w-0 space-y-4"
+          style={homeOn ? { flex: '1 1 320px', maxWidth: 440 } : { flex: '0 0 0px', width: 0 }}>
+          <RelloChurchViewer org={c} layout="column" defaultPlayerExpanded={true} compact={!homeOn}
+            onExpand={() => { setMinistryId(null); setTab('HOME'); }} />
+          {homeOn && latest && (
+            <>
+              <section className="ev-sheet p-6 flex flex-col gap-3" aria-label="This Sunday's scripture">
+                <p className="m-0 text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: EV.vellumGold }}>This Sunday · {latest.series}</p>
+                <h2 className="m-0 ev-display text-[26px] leading-tight">{splitTitle(latest.title).title}</h2>
+                <blockquote className="m-0 ev-scripture text-[19px] leading-[1.5]">
+                  “I am the light of the world. He who follows me will not walk in the darkness, but will have the light of life.”
+                  <footer className="mt-2 text-[13px] ev-muted" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>John 8:12 · WEB</footer>
+                </blockquote>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button onClick={() => openLectio('43.8.12')} className="ev-btn ev-btn-ink">Read John 8 in Verse</button>
+                  <button onClick={() => setTab('WATCH')} className="ev-btn" style={{ border: '1px solid rgba(34,28,20,0.2)' }}>Watch the sermon</button>
+                </div>
+              </section>
+              <section className="ev-panel p-6 flex flex-col">
+                <h2 className="m-0 mb-2 ev-title text-xl text-white">Coming up</h2>
+                <div className="ev-rule">
+                  {DEMO_CHURCH_EVENTS.slice(0, 3).map(e => (
+                    <button key={e.id} onClick={() => setTab('EVENTS')} className="ev-row-link w-full text-left py-3 px-1 flex flex-col gap-0.5">
+                      <span className="ev-num text-sm text-[#A49CB2]">{e.date}</span>
+                      <span className="text-[15px] font-medium text-white">{e.title}</span>
+                      <span className="text-[13px] text-[#A49CB2]">{e.location}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            </>
+          )}
+        </aside>
+        <div className="basis-full h-16" />
       </div>
     </EvScope>
   );

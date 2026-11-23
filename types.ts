@@ -1959,6 +1959,11 @@ export interface UserProfile {
   partnerConfig?: PartnerConfig;
   hasCompletedOnboarding?: boolean;
   experienceMode?: ExperienceMode;
+  /** How much of Plajah the left pillar shows (services/experienceScope): 'elevate' (came in through an
+   *  Elevate door), 'starter' (chose "Start simple" — six core spaces for the first week), 'full'. */
+  navScope?: 'elevate' | 'starter' | 'full';
+  /** When navScope was last set (the starter week counts from here). */
+  navScopeSince?: number;
   welcomeAchievementShown?: boolean;
   totalPoints?: number;
   /** Generated trading-card image (used as the profile's share/link-preview image). */
@@ -2915,6 +2920,8 @@ export interface Organization {
   logoUrl?: string;
   coverUrl?: string;
   accentColor?: string;
+  /** Default left-sidebar layout while someone is on this org's page (members can still change their own). See services/orgSidebarLayout. */
+  sidebarDefault?: { enabled: boolean; hidden: string[]; updatedAt?: number; updatedBy?: string };
 
   // Ownership & staff
   creatorId: string;

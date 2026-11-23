@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "skipLibCheck": true, "incremental": false },
+  "include": [],
+  "files": ["services/orgSidebarLayout.ts", "components/OrgSidebarLayoutBanner.tsx", "components/elevate/OrgSidebarLayoutEditor.tsx", "components/elevate/ElevateOps.tsx", "components/OrgHub.tsx", "App.tsx"]
+}

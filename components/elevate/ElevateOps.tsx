@@ -10,7 +10,7 @@ import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from
 import {
   LayoutDashboard, Users, Church, Link2, Gift, HandHeart, MonitorPlay, MessagesSquare, ShoppingBag,
   Megaphone, Check, Circle, Loader2, Trash2, Sparkles, Mail, HardDrive, UserCog, Mic2, Wallet, KeyRound, GraduationCap, Music, ShieldCheck,
-  Calendar, Radio, Upload, Send, DollarSign, BookOpen, Landmark, Palette, Clock, MapPin, Plus, Globe, Bot, ChevronDown, X,
+  Calendar, Radio, Upload, Send, DollarSign, BookOpen, Landmark, Palette, Clock, MapPin, Plus, Globe, Bot, ChevronDown, X, PanelLeft,
 } from 'lucide-react';
 import { spendingPerms } from '../../services/acctSpending';
 import { CountBadge, useMoneyInbox } from './chms/finance/SpendingUi';
@@ -58,6 +58,7 @@ const ElevateMobilizeHub = lazy(() => import('./ElevateMobilizeHub'));
 const ElevateTelaOperationsSuite = lazy(() => import('./ElevateTelaOperationsSuite'));
 const GrowthHub = lazy(() => import('../growth/GrowthHub'));
 const GrantHub = lazy(() => import('./GrantHub'));
+const OrgSidebarLayoutEditor = lazy(() => import('./OrgSidebarLayoutEditor'));
 const OrgCrewPanel = lazy(() => import('../crew/OrgCrewPanel'));
 const OrgCentralCalendarHub = lazy(() => import('./OrgCentralCalendarHub'));
 const VolunteerMemberManageHub = lazy(() => import('./VolunteerMemberManageHub'));
@@ -77,6 +78,7 @@ const SECTION_SUB: Partial<Record<SectionKey, string>> = {
   education: 'Christian Education, Academia Teacher Dashboard, Google Forms/Docs & PDF → Interactive Tela & Mastery.',
   tela_ops: 'Facilities & Room Floorplan Tela, Multi-Week Matrix & Blockouts, Child Ratios & Paging, Automated Workflows, Camp Logistics & Non-Cash IRS Receipts.',
   grants: 'Find federal grants that fit, then let Aria fill in your applications — and learn the process in Grant School.',
+  sidebar_layout: 'The default left sidebar on your page — turn sections of Plajah on or off. Everyone can still switch to their own.',
   calendar: 'Centralized Organization Calendar built on Postman — detects cross-department timing conflicts and ranks weighted substitutes.',
   content_hq: 'Organization Asset Management — manage Christian Education assignments, Original Docs, Interactive Tela Documents, Answer Keys, and department uploads.',
 };
@@ -109,7 +111,8 @@ export type SectionKey =
   | 'calendar'
   | 'my_settings'
   | 'grants'
-  | 'crew';
+  | 'crew'
+  | 'sidebar_layout';
 /** Manage nav categories, in display order. */
 type NavGroup = 'home' | 'people' | 'programs' | 'content' | 'money' | 'settings';
 const GROUP_LABEL = (faith: boolean): Record<NavGroup, string> => ({
@@ -156,6 +159,8 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
   const billingNav = useBillingNav();
   const [peopleTab, setPeopleTab] = useState<PeopleTab | undefined>(() => (initialSection && LEGACY_PEOPLE[initialSection]) || undefined);
   const [navOpen, setNavOpen] = useState(false);
+  // The org document only takes layout edits from the owner, IT admins and org admins (firestore.rules).
+  const canEditSidebarLayout = isOwner || (!!uid && ((org.admins || []).includes(uid) || (org.itAdminUids || []).includes(uid)));
   const [donationTotals, setDonationTotals] = useState<Record<string, number>>({});
   const uid = auth.currentUser?.uid;
 
@@ -224,6 +229,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
     { key: 'grants' as const, group: 'money', label: 'Grants', icon: Landmark, show: can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING') || isOwner },
     // Settings
     { key: 'security' as const, group: 'settings', label: 'Security & Privacy', icon: ShieldCheck, show: can('MANAGE_ROSTER') || can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING') || isOwner },
+    { key: 'sidebar_layout' as const, group: 'settings', label: 'Sidebar Layout', icon: PanelLeft, show: canEditSidebarLayout },
   ] as { key: SectionKey; group: NavGroup; label: string; icon: any; show: boolean; badge?: number }[]).filter(n => n.show), [can, faith, isOwner, myMembership, showMoney, moneyInbox.count, org.admins, org.itAdminUids, uid, isDeptHead, members]);
   const groupLabels = GROUP_LABEL(faith);
   const navGroups = useMemo(() => (Object.keys(groupLabels) as NavGroup[])
@@ -627,6 +633,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
                 />
               )}
               {section === 'grants' && <GrantHub org={org} />}
+              {section === 'sidebar_layout' && <OrgSidebarLayoutEditor org={org} canEdit={canEditSidebarLayout} onOrgChange={setOrg} />}
               {section === 'crew' && <OrgCrewPanel org={org} onOpenSection={k => setSection(k as SectionKey)} />}
             </Suspense>
           </div>

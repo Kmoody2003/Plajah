@@ -410,6 +410,7 @@ const JournalistHub = retryLazy(() => import('./components/journalist/Journalist
 const PublicationPage = retryLazy(() => import('./components/journalist/PublicationPage'));
 const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
 const OrgHub = retryLazy(() => import('./components/OrgHub'));
+const OrgNewsRail = retryLazy(() => import('./components/elevate/OrgNewsRail'));
 const PlajahElevate = retryLazy(() => import('./components/PlajahElevate'));
 const InviteRedeemView = retryLazy(() => import('./components/elevate/InviteRedeemView'));
 const ElevateGateway = retryLazy(() => import('./components/elevate/ElevateGateway'));
@@ -722,6 +723,11 @@ import LiveHubShowcase from './components/dashboard/LiveHubShowcase';
 
 import SpatialUIRoot from './components/SpatialUIRoot';
 import SidebarSearch from './components/SidebarSearch';
+import OrgSidebarLayoutBanner from './components/OrgSidebarLayoutBanner';
+import { useActiveOrgSidebar, useOrgSidebarChoice, resolveOrgHiddenSections, SIDEBAR_SECTION_IDS } from './services/orgSidebarLayout';
+import { resolveNavScope, scopeAllowedNav, starterDay, orgAdsOnly, useScopeTick, requestOrgPage, type NavScope } from './services/experienceScope';
+import { isElevateOrg as isElevateOrgType } from './services/elevateTemplates';
+import { ElevateScopePillar, ScopeFooter, useHomeOrg } from './components/elevate/ElevateScopePillar';
 const SmartGuide = retryLazy(() => import('./components/SmartGuide'));
 import AccountSwitcher, { HotSwitchOverlay, LinkedAccount } from './components/AccountSwitcher';
 import { loadRoster, upsertAccount } from './services/accountRoster';
@@ -1788,6 +1794,33 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     catch { return ['USER_PROFILE', 'DASHBOARD', 'MUSIC', 'VIDEOS', 'PLAJAH_SPORTS', 'FEED', 'LIVE_HUB', 'POSTMAN']; }
   });
   const [showMoreDrawer, setShowMoreDrawer] = useState(false);
+  // Org default sidebar: on an org page with a published layout, the rail follows the org's on/off sections
+  // unless this person picked their own (per org, services/orgSidebarLayout).
+  const activeOrgSidebar = useActiveOrgSidebar();
+  const [orgSidebarChoice, setOrgSidebarChoice] = useOrgSidebarChoice(user?.uid, activeOrgSidebar?.orgId);
+  const orgLayoutOnPage = view === 'ORG_HUB' && !!activeOrgSidebar?.layout?.enabled;
+  const orgHiddenNav = orgLayoutOnPage ? resolveOrgHiddenSections(activeOrgSidebar?.layout, orgSidebarChoice) : null;
+  // Experience scope (services/experienceScope): Elevate-door people see their org + a short Discover list,
+  // new "Start simple" accounts see six core spaces for their first week, everyone else the full rail.
+  const scopeTick = useScopeTick();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const navScope: NavScope = useMemo(() => resolveNavScope(userProfile as any), [userProfile, scopeTick]);
+  const scopeAllowed = useMemo(() => scopeAllowedNav(navScope), [navScope]);
+  const scopeOk = (id: string) => !scopeAllowed || scopeAllowed.has(id);
+  const homeOrg = useHomeOrg(user?.uid, navScope === 'elevate');
+  // The org whose pillar / news rail shows: the org page on screen (active members get their departments
+  // pinned), else an Elevate-scoped person's home org.
+  const onOrgPage = view === 'ORG_HUB' && !!activeOrgSidebar?.org;
+  const pillarOrg = onOrgPage && activeOrgSidebar?.org && (activeOrgSidebar.membership || navScope === 'elevate')
+    ? { org: activeOrgSidebar.org, membership: activeOrgSidebar.membership || null }
+    : navScope === 'elevate' && homeOrg ? homeOrg : null;
+  const railOrg = onOrgPage && activeOrgSidebar?.org && isElevateOrgType(activeOrgSidebar.org.orgType)
+    ? activeOrgSidebar.org
+    : navScope === 'elevate' ? homeOrg?.org || null : null;
+  const authCreatedMs = (() => { const t = Date.parse((user as any)?.metadata?.creationTime || ''); return Number.isFinite(t) ? t : undefined; })();
+  const railAdsOk = !!railOrg && !orgAdsOnly(userProfile as any, authCreatedMs);
+  const openOrgFromPillar = (orgId: string) => { setOrgHubInitial({ orgId }); setView('ORG_HUB'); };
+  const showAllOfPlajah = () => { if (user) updateUserProfile(user.uid, { navScope: 'full', navScopeSince: Date.now() } as any).catch(() => {}); };
   const [activePersonaKey, setActivePersonaKeyLocal] = useState<PersonaKey>(() => getActivePersonaKey());
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState(false);
 
@@ -3359,6 +3392,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
         if (doorEntry && p && !p.hasSeenWelcomePackage && !p.welcomePackageInPostman && firstTime('welcome_package')) {
           updateUserProfile(u.uid, {
+            // An Elevate door scopes the rail to their org (services/experienceScope) until they tap "Show all".
+            ...(pendingPortal?.portal === 'elevate' && !p.navScope ? { navScope: 'elevate', navScopeSince: Date.now() } : {}),
             hasCompletedOnboarding: true, welcomePackageNotified: true, welcomePackageInPostman: true, isPioneer: true,
             hasSeenSmartGuide: true,
             ...(p.smartGuideEnabled === undefined ? { smartGuideEnabled: false } : {}),
@@ -3379,7 +3414,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           // and mark it notified so the existing-user campaign below never also nudges them.
           setTimeout(() => setView('WELCOME_PACKAGE'), 1200);
           setWelcomeFirstRun(true); // the letter's "Continue" then leads into the 2-page onboarding
-          updateUserProfile(u.uid, { hasSeenWelcomePackage: true, welcomePackageNotified: true, isPioneer: true } as any).catch(() => {});
+          // New accounts start simple (first week) unless onboarding's "Full Pro experience" says otherwise.
+          updateUserProfile(u.uid, { hasSeenWelcomePackage: true, welcomePackageNotified: true, isPioneer: true, ...(p.navScope ? {} : { navScope: 'starter', navScopeSince: Date.now() }) } as any).catch(() => {});
           import('./services/backendService').then(({ sendSystemWelcomeDM }) => {
             sendSystemWelcomeDM(u.uid, u.displayName || 'Creator').catch(() => {});
           });
@@ -4884,6 +4920,24 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   ? 'lg:order-last border-l lg:w-80 sticky top-0 h-screen'
                   : 'lg:w-80 border-r sticky top-0 h-screen'
             }`}>
+              {railOrg && (
+                /* Elevate pages: the org's own billboard. Regular ads only join (below it) once the account is a month old. */
+                <div className={`absolute inset-x-0 top-0 z-10 ${railAdsOk ? 'h-[58%] border-b border-white/[0.06]' : 'bottom-0'}`} style={{ background: '#0E0C13' }}>
+                  <Suspense fallback={null}><OrgNewsRail
+                    org={railOrg}
+                    adsBelow={railAdsOk}
+                    canManage={!!user && (railOrg.creatorId === user.uid || railOrg.accountUid === user.uid)}
+                    onOpen={(item) => {
+                      if (item.kind === 'video') { handleSelectItem(item.raw as any); return; }
+                      if (item.kind === 'release') { handleSelectItem(item.raw.raw as any); return; }
+                      requestOrgPage({ orgId: railOrg.id, tab: item.kind === 'product' ? 'SHOP' : 'HOME' });
+                      openOrgFromPillar(railOrg.id);
+                    }}
+                  /></Suspense>
+                </div>
+              )}
+              {(!railOrg || railAdsOk) && (
+              <div className={railOrg ? 'absolute inset-x-0 bottom-0 top-[58%]' : 'contents'}>
               {isEducationAccount(effectiveProfile) ? (
                 /* Education accounts never see ads here — a rotating learning rail instead:
                    the Chora/Taleo "history of the day", real Met/Art-Institute open-access art,
@@ -5228,6 +5282,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               })()}
               </AnimatePresence>
               )}
+              </div>
+              )}
             </aside>
           )}
 
@@ -5400,7 +5456,28 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <span className={isSidebarCollapsed ? 'hidden' : 'inline'}>Try New Nav</span>
               </button>
 
-              {sidebarMode === 'og' && <nav className="flex-1 flex flex-col gap-2 overflow-y-auto pr-1 custom-scrollbar overflow-x-hidden w-full">
+              {orgLayoutOnPage && activeOrgSidebar?.layout && (
+                <OrgSidebarLayoutBanner
+                  orgName={activeOrgSidebar.orgName}
+                  layout={activeOrgSidebar.layout}
+                  choice={orgSidebarChoice}
+                  onChoice={setOrgSidebarChoice}
+                  collapsed={isSidebarCollapsed}
+                />
+              )}
+
+              {pillarOrg && (
+                <ElevateScopePillar
+                  org={pillarOrg.org}
+                  membership={pillarOrg.membership}
+                  uid={user?.uid}
+                  collapsed={isSidebarCollapsed}
+                  onOpenOrg={openOrgFromPillar}
+                  onOrgPage={view === 'ORG_HUB' && activeOrgSidebar?.orgId === pillarOrg.org.id}
+                />
+              )}
+
+              {sidebarMode === 'og' &&<nav className="flex-1 flex flex-col gap-2 overflow-y-auto pr-1 custom-scrollbar overflow-x-hidden w-full">
                 {(() => {
                   const baseConfig = [
                     { id: 'USER_PROFILE', order: 0, isVisible: true },
@@ -5461,8 +5538,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     });
                   }
 
+                  // An org layout decides on/off for the sections it covers (order stays the person's own).
                   return displayConfig
-                    .filter(item => item.isVisible)
+                    .filter(item => scopeOk(item.id))
+                    .filter(item => orgHiddenNav && SIDEBAR_SECTION_IDS.has(item.id) ? !orgHiddenNav.has(item.id) : item.isVisible)
                     .sort((a, b) => a.order - b.order)
                     .map(config => {
                       const items = {
@@ -5686,7 +5765,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'PLAJAH_BUILD', 'TV_STUDIO', 'AMBO_PRO', 'MEDIA_ROUTER', 'POSTMAN'] },
                       { id: 'platform', label: 'Platform', ids: ['PLAJAH_HOME', 'HELP_CENTER', 'BROWSER'] },
                     ];
-                    return groups.map(group => {
+                    return groups
+                      .map(group => orgHiddenNav ? { ...group, ids: group.ids.filter(id => !orgHiddenNav.has(id)) } : group)
+                      .map(group => scopeAllowed ? { ...group, ids: group.ids.filter(scopeOk) } : group)
+                      .filter(group => group.ids.length > 0)
+                      .map(group => {
                       const expanded = expandedGroups.includes(group.id);
                       const hasActive = group.ids.some(id => isActive(id));
                       return (
@@ -5770,7 +5853,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         return next;
                       });
                     };
-                    const effectivePinned = pinnedNavItems.filter(id => allNavIds.includes(id));
+                    // A scoped rail pins exactly the scope's spaces; otherwise the person's own pins.
+                    const effectivePinned = scopeAllowed
+                      ? allNavIds.filter(id => scopeAllowed.has(id) && !orgHiddenNav?.has(id))
+                      : pinnedNavItems.filter(id => allNavIds.includes(id) && !orgHiddenNav?.has(id));
                     if (showMoreDrawer && !isSidebarCollapsed) {
                       return (
                         <div className="flex flex-col h-full">
@@ -5779,7 +5865,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                             <button onClick={() => setShowMoreDrawer(false)} className="text-white/30 hover:text-white transition-colors p-1"><XIcon size={13} /></button>
                           </div>
                           <div className="flex flex-col gap-0.5 overflow-y-auto custom-scrollbar flex-1">
-                            {allNavIds.map(id => {
+                            {allNavIds.filter(scopeOk).map(id => {
                               const item = navItems[id];
                               if (!item) return null;
                               const pinned = pinnedNavItems.includes(id);
@@ -6181,6 +6267,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 </div>
               )}
 
+              {navScope !== 'full' && (
+                <ScopeFooter
+                  scope={navScope}
+                  orgName={pillarOrg?.org.name}
+                  starter={starterDay(userProfile as any)}
+                  collapsed={isSidebarCollapsed}
+                  onShowAll={showAllOfPlajah}
+                />
+              )}
+
               <div className="pt-4 border-t border-theme space-y-4 px-4">
                 <div data-guide="Profile Card" className={`p-4 bg-white/[0.04] border border-theme rounded-[2rem] shadow-inner ${isSidebarCollapsed ? 'p-2 rounded-2xl flex flex-col items-center gap-4' : ''}`}>
                   <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : (theme === 'BIG_SCREEN' ? 'justify-center group-hover/sidebar:justify-start' : '')}`}>
@@ -6208,8 +6304,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                      </div>
                   </div>
 
-                  {/* ── Creator Tools Persistent Shortcut ── */}
-                  {user && (
+                  {/* ── Creator Tools Persistent Shortcut (not in the scoped Elevate / starter rails) ── */}
+                  {user && navScope === 'full' && (
                     <button
                       onClick={() => setView('PLAJAH_STUDIO')}
                       className={`mt-3 flex items-center gap-3 text-[9px] font-black uppercase tracking-widest rounded-xl px-3 py-2.5 transition-all w-full ${
@@ -8716,7 +8812,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               then lands the user on their chosen home. */}
           {showFirstRunOnboarding && (
             <Suspense fallback={null}>
-              <Onboarding viewer={userProfile} onDone={(home) => { setShowFirstRunOnboarding(false); handleGlobalNavigate(home); }} />
+              <Onboarding viewer={userProfile} onDone={(home, scope) => {
+                setShowFirstRunOnboarding(false);
+                if (user) updateUserProfile(user.uid, { navScope: scope, navScopeSince: Date.now() } as any).catch(() => {});
+                handleGlobalNavigate(home);
+              }} />
             </Suspense>
           )}
 
