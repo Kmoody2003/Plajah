@@ -394,7 +394,9 @@ async function boot() {
   }
 
   function triggerSoulSurge() {
-    if (resonance < 2.0) {
+    // a Banyan root cage's Void Burst window (danger/wardens.ts) lets Surge fire at any resonance
+    const wardenSurge = danger?.wardens.info().window?.key === 'surge';
+    if (resonance < 2.0 && !wardenSurge) {
       showBeatFeedback('NEED 2.0x RESONANCE', '#f43f5e');
       return;
     }
