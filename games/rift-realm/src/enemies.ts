@@ -44,12 +44,15 @@ export const enemyBodies: { make: ((id: number, boss: boolean) => EnemyBody | nu
 /**
  * Level hooks for where enemies go. `goal`: a place to be when the player is far (a control point to take);
  * `via`: the next waypoint toward a target on another level (the stairs, a net, a bridge) — straight-line steering
- * can't get onto a deck 12 m up.
+ * can't get onto a deck 12 m up. `threat`: something bigger than the player near this enemy (a tree ent): return its
+ * position and the enemy turns on it — brutes and bosses charge it, rushers and casters scatter away — instead of
+ * fighting the player; null leaves the player as the target. Called per enemy per frame while it positions: keep it cheap.
  */
 export const enemyNav: {
   goal: ((from: THREE.Vector3) => THREE.Vector3 | null) | null;
   via: ((from: THREE.Vector3, to: THREE.Vector3) => THREE.Vector3) | null;
-} = { goal: null, via: null };
+  threat?: ((e: Enemy) => THREE.Vector3 | null) | null;
+} = { goal: null, via: null, threat: null };
 
 export type EnemyState =
   | 'move'     // positioning: approach / circle / flank / retreat
@@ -134,7 +137,7 @@ export interface EnemyStrike {
 export type StrikeOutcome = 'hit' | 'blocked' | 'parried' | 'evaded';
 
 export interface HitOpts {
-  source?: 'shot' | 'melee' | 'surge' | 'reflect' | 'execute';
+  source?: 'shot' | 'melee' | 'surge' | 'reflect' | 'execute' | 'ent';
   hitstun?: number;
   guardDmg?: number;
   launch?: number;
@@ -172,7 +175,7 @@ const RING_GEO = new THREE.RingGeometry(0.82, 1, 48).rotateX(-Math.PI / 2);
 const BOLT_GEO = new THREE.IcosahedronGeometry(0.2, 1);
 const BOLT_GLOW_GEO = new THREE.SphereGeometry(0.48, 12, 8);
 const TELE_COL: Record<EnemyAttack['kind'], number> = { melee: 0xff3b4e, charge: 0xff7a2a, slam: 0xffb020, bolt: 0xb46bff, barrage: 0xd946ef };
-const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3();
+const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3(), _flee = new THREE.Vector3();
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 const angDiff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
@@ -697,7 +700,12 @@ export class EnemyManager {
     let navStep: THREE.Vector3 | null = null;
     if (e.state === 'move') {
       let aim = playerPos;
-      if (dist > COMBAT.ai.engageDist && enemyNav.goal) { const g = enemyNav.goal(pos); if (g) aim = g; }
+      const threat = enemyNav.threat?.(e);
+      if (threat) {
+        // a giant in the way (an ent): the heavies square up to it, the rest scatter (enemyNav.threat)
+        const fights = e.archetype === 'brute' || e.archetype === 'boss' || e.boss;
+        aim = fights ? threat : _flee.subVectors(pos, threat).setY(0).setLength(10).add(pos);
+      } else if (dist > COMBAT.ai.engageDist && enemyNav.goal) { const g = enemyNav.goal(pos); if (g) aim = g; }
       const step = enemyNav.via ? enemyNav.via(pos, aim) : aim;
       if (step !== playerPos) navStep = step;
     }
