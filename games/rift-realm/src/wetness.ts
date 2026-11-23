@@ -4,7 +4,7 @@
 // glossier, so the light catches it. Water, glowing / additive / transparent things, characters and fungi (they have
 // their own slime) are left alone.
 import * as THREE from 'three/webgpu';
-import { float, materialColor, materialRoughness, mix, mx_noise_float, normalWorld, positionWorld, smoothstep } from 'three/tsl';
+import { float, materialColor, materialRoughness, mix, mx_noise_float, normalWorld, positionWorld, smoothstep, texture, uniform, vec2 } from 'three/tsl';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type N = any;
@@ -15,6 +15,23 @@ const SKIP = /water|river|lake|pond|fall|fung|spore|sky|cloud|glow|beam|flash|ri
 export interface WetOptions {
   /** Overall moisture 0…1 (default 0.55: a damp night forest after rain). */
   amount?: number;
+}
+
+// ── the wet shoreline: banks, rocks and roots by the water are soaked (darker and glossier), up to ~1 m above it.
+// A level with water hands over a field (world/water.ts): r = closeness to the water's edge (1 at it, 0 beyond ~5 m),
+// g = the water's surface height there, over the world square [x0, z0, size]. Without one the term is zero. ──
+const blank = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1); blank.needsUpdate = true;
+const shoreTex: N = texture(blank);
+const shoreBox: N = uniform(new THREE.Vector4(0, 0, 1, 0));   // x0, z0, size, on (0/1)
+/** Give the wet layer a shoreline field (see above). Materials made before or after this call pick it up. */
+export function setShoreField(tex: THREE.Texture, x0: number, z0: number, size: number) {
+  shoreTex.value = tex;
+  shoreBox.value.set(x0, z0, size, 1);
+  (globalThis as unknown as { __shore?: (on: boolean) => void }).__shore = (on) => { shoreBox.value.w = on ? 1 : 0; };   // debug
+}
+function shoreWet(): N {
+  const s: N = shoreTex.sample(vec2(positionWorld.x.sub(shoreBox.x), positionWorld.z.sub(shoreBox.y)).div(shoreBox.z));
+  return s.r.mul(float(1).sub(smoothstep(float(0.05), float(0.8), positionWorld.y.sub(s.g)))).mul(shoreBox.w);
 }
 
 function wetMask(amount: number): N {
@@ -45,8 +62,11 @@ export function wetten(root: THREE.Object3D, o: WetOptions = {}): number {
       const wet: N = wetMask(amount);
       const col: N = m.colorNode ?? materialColor;
       const rough: N = m.roughnessNode ?? materialRoughness;
-      m.colorNode = col.mul(float(1).sub(wet.mul(0.2)));                // wet darkens
-      m.roughnessNode = mix(rough, rough.mul(0.22).max(0.06), wet);     // and shines
+      // soaked banks by the water: much darker, a satin sheen (not a mirror: flat banks at roughness 0.06 turned white
+      // under the day sky)
+      const shore: N = shoreWet();
+      m.colorNode = col.mul(float(1).sub(wet.mul(0.2)).sub(shore.mul(0.32)));       // wet darkens
+      m.roughnessNode = mix(mix(rough, rough.mul(0.22).max(0.06), wet), rough.min(0.38), shore.mul(0.75));     // and shines
       m.needsUpdate = true;
       n++;
     }

@@ -21,7 +21,7 @@ type N = any;
 
 let normalTex: THREE.DataTexture | null = null;
 /** Tileable ripple normal map (rgb = tangent-space normal, a = height), generated once and shared. */
-function rippleTexture(size = 256): THREE.DataTexture {
+export function rippleTexture(size = 256): THREE.DataTexture {
   if (normalTex) return normalTex;
   const h = new Float32Array(size * size);
   const lat = (n: number, seed: number) => { const a = new Float32Array(n * n); let s = seed; for (let i = 0; i < a.length; i++) { s = (s * 16807) % 2147483647; a[i] = s / 2147483647; } return a; };
@@ -87,6 +87,8 @@ export interface RiftWaterOptions {
 interface Mirror { m: THREE.MeshStandardNodeMaterial; em: N; nW: N; F: N; foam: N; amt: number }
 const mirrors: Mirror[] = [];
 let skyAt: ((dir: N) => N) | null = null;
+/** The level sky the water mirrors (setWaterSky), for creek.ts. */
+export const waterSkyAt = () => skyAt;
 function applySky(w: Mirror) {
   const view: N = normalize(positionWorld.sub(cameraPosition));
   const r: N = reflect(view, w.nW);
@@ -99,7 +101,11 @@ function applySky(w: Mirror) {
 export function setWaterSky(at: (dir: N) => N) {
   skyAt = at;
   for (const w of mirrors) applySky(w);
+  for (const cb of skyListeners) cb();
 }
+const skyListeners: (() => void)[] = [];
+/** Call `cb` whenever the level's sky changes (creek.ts rebuilds its reflections). */
+export function onWaterSky(cb: () => void) { skyListeners.push(cb); }
 
 export function riftWater(o: RiftWaterOptions): THREE.MeshStandardNodeMaterial {
   const lo = !!o.lowTier;

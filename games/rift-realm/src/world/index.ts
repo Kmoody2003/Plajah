@@ -13,6 +13,7 @@ import { makeKit, syncBeat, uniformBeat } from './kit';
 import { buildPlaces } from './places';
 import { CORE, HALF, PLACES, POOL_STREAM, RIVER, TRAILS, WATER_Y, plateauMask, polyNear, setCoreHeight, worldHeight } from './layout';
 import { SHOTS } from './shots';
+import { buildWildsWater } from './water';
 
 const MODELS = '/games/rift-realm/assets/elderwood/';
 
@@ -40,36 +41,11 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
   group.add(chunks.group);
   chunks.update(new THREE.Vector3(0, 0, 0), 1, true);
 
-  // ── water: the river and the pool stream as ribbons, the vale's standing water ──
-  const ribbon = (pts: readonly (readonly number[])[], pad: number) => {
-    const P: number[] = [], I: number[] = [], U: number[] = [];
-    let row = 0, prevSteep = true, sAcc = 0;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const a = pts[i], b = pts[i + 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]);
-      const steep = Math.abs(b[2] - a[2]) / L > 0.5;                       // a fall: drawn as a sheet, not a ribbon
-      if (steep) { prevSteep = true; continue; }
-      const n = Math.max(1, Math.ceil(L / 3)), dx = (b[0] - a[0]) / L, dz = (b[1] - a[1]) / L;
-      for (let k = prevSteep ? 0 : 1; k <= n; k++) {
-        const t = k / n, x = a[0] + (b[0] - a[0]) * t, z = a[1] + (b[1] - a[1]) * t, w = (a[3] + (b[3] - a[3]) * t) / 2 + pad, y = a[2] + (b[2] - a[2]) * t + 0.85;
-        P.push(x - dz * w, y, z + dx * w, x + dz * w, y, z - dx * w); U.push(0, (sAcc + L * t) / 6, 1, (sAcc + L * t) / 6);
-        if (!(prevSteep && k === 0)) I.push((row - 1) * 2, row * 2, (row - 1) * 2 + 1, (row - 1) * 2 + 1, row * 2, row * 2 + 1);
-        row++;
-      }
-      prevSteep = false; sAcc += L;
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); g.setIndex(I); g.computeVertexNormals();
-    const m = new THREE.Mesh(g, mats.river ?? mats.water); m.receiveShadow = true; m.name = 'wilds-river'; group.add(m);
-  };
-  ribbon(RIVER, 1.5); ribbon(POOL_STREAM, 0.8);
-  {
-    const lake = new THREE.Mesh(new THREE.PlaneGeometry(HALF * 2, 760, 1, 1), mats.water);
-    lake.rotation.x = -Math.PI / 2; lake.position.set(0, WATER_Y, 620); lake.name = 'wilds-vale-water'; group.add(lake);
-  }
-
   // ── the places ──
   const K = makeKit(ctx, terrain);
   const placed = buildPlaces(ctx, terrain, K);
+  // ── water: the river and the pool stream as flowing creek ribbons, the vale's swamp, falls spray, sound (water.ts) ──
+  const water = buildWildsWater(ctx, terrain, K);
   K.finish();
   placed.clear.push(...K.clears);
 
@@ -175,6 +151,7 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
     if (Math.abs(x) < CORE + 20 && Math.abs(z) < CORE + 20) return null;
     const y = H(x, z);
     if (y < WATER_Y + 0.25) return [0, 0];
+    if (water.under(x, z)) return [0, 0];                                   // no lawn on the creek bed
     if (inPlace[cellOf(x, z)]) {
       // overgrown floors (kit.clutter) take grass back in their cracks; everything else in a place stays bare
       for (const g of K.grassy) if ((x - g[0]) ** 2 + (z - g[1]) ** 2 < g[2] * g[2]) return [0.25 * g[3], g[3]];
@@ -250,6 +227,7 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
         if (pc.isPerspectiveCamera && pc.far < 1600) { pc.far = 1600; pc.updateProjectionMatrix(); }
       } else cam.copy(player);
       chunks.update(cam, dt);
+      water.update(dt, cam, (view as THREE.Camera | null) ?? null, cycle?.wind() ?? 0.55, cycle?.state() ?? null);
       if ((lt += dt) > 0.4) {
         lt = 0;
         const near = lampSpecs.map((l) => ({ l, d: (l.x - cam.x) ** 2 + (l.y - cam.y) ** 2 + (l.z - cam.z) ** 2 })).filter((e) => e.d < 70 * 70).sort((a, b) => a.d - b.d);

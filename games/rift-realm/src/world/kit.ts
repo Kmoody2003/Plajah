@@ -8,7 +8,7 @@ import { taperTube, polyPrism, boulder } from '../geom';
 import { art, barkTube } from '../cyberforest';
 import type { WildsCtx } from './registry';
 import type { WorldTerrain } from './terrain';
-import { riftWaterfall } from '../water';
+import { riftFallSheet } from '../creek';
 
 export type P3 = { x: number; y: number; z: number };
 
@@ -319,11 +319,13 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
     }
   };
 
+  /** Every boulder rocks() placed, [x, z, radius] (world/water.ts foams the river round the ones in it). */
+  const rockSpots: [number, number, number][] = [];
   const rocks = (x: number, z: number, n: number, rad: number, size: [number, number], seed = 1) => {
     let s = seed; const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
     for (let i = 0; i < n; i++) {
       const a = rnd() * 6.283, d = rnd() * rad, px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d, r = size[0] + rnd() * (size[1] - size[0]);
-      const g = boulder(r, px * 0.37 + pz, lo ? 1 : 2); kit.place(g, px, H(px, pz) - r * 0.35, pz, rnd() * 6.28); kit.add(mossRock, g, { tpm: 0.4 });
+      const g = boulder(r, px * 0.37 + pz, lo ? 1 : 2); kit.place(g, px, H(px, pz) - r * 0.35, pz, rnd() * 6.28); kit.add(mossRock, g, { tpm: 0.4 }); rockSpots.push([px, pz, r]);
     }
   };
 
@@ -371,9 +373,8 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
     }
   };
 
-  // ── water falling: a sheet of streaks, mist at the foot ──────────────────────────────────────────────────────
-  const fallMat = riftWaterfall({ tint: 0x6ccfe0, speed: 1.6, opacity: 0.78 });
-  const mistMat = new THREE.MeshBasicNodeMaterial({ color: 0xd8f6ff, transparent: true, opacity: 0.1, depthWrite: false });
+  // ── water falling: a sheet of streaks (spray and mist at the foot: world/water.ts) ─────────────────────────────
+  const fallMat = riftFallSheet({ tint: 0x6ccfe0, opacity: 0.82 });   // accelerating streaks, glassy lip, broken white below
   /** A waterfall from `top` (lip centre) dropping to `bottom`, facing along `yaw` (the flow direction), `width` wide. */
   const waterfall = (top: P3, bottom: P3, width: number) => {
     const yaw = Math.atan2(bottom.x - top.x, bottom.z - top.z), hgt = top.y - bottom.y;
@@ -384,10 +385,7 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
     for (let i = 0; i < p.count; i++) { const t = (hgt / 2 - p.getY(i)) / hgt; p.setZ(i, Math.sqrt(t) * Math.min(4, hgt * 0.12) + Math.hypot(bottom.x - top.x, bottom.z - top.z) * t); }
     g.computeVertexNormals();
     const m = new THREE.Mesh(g, fallMat); m.position.set(top.x, top.y - hgt / 2, top.z); m.rotation.y = yaw; group.add(m);
-    for (let k = 0; k < 3; k++) {
-      const mist = new THREE.Mesh(new THREE.SphereGeometry(width * 0.5 + k * 1.5, 14, 8), mistMat);
-      mist.position.set(bottom.x + Math.sin(yaw) * (2 + k * 2), bottom.y + 1 + k * 1.2, bottom.z + Math.cos(yaw) * (2 + k * 2)); mist.scale.set(1.3, 0.5, 1.3); group.add(mist);
-    }
+    // (the spray and mist at the foot are particles now: world/water.ts)
   };
 
   // ── floor clutter: what makes a paved floor read as an overgrown ruin, not a tiled plane ──
@@ -443,7 +441,7 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
   };
 
   return {
-    H, deck, bridge, link, clutter, glowVines, grassy, mossRock, mound, toward, hut, lamp, arch, ruinWall, pillar, paving, discPave, rocks, circuit, runeCircle, ring, screen, crystal, crates, sandbags, waterfall, finish,
+    H, deck, bridge, link, clutter, glowVines, grassy, mossRock, mound, toward, hut, lamp, arch, ruinWall, pillar, paving, discPave, rocks, rockSpots, circuit, runeCircle, ring, screen, crystal, crates, sandbags, waterfall, finish,
     barkGeos, trimGeos, lights, clears,
     mats: { cyanGlow, amberGlow, violetGlow, goldGlow, crystalMat, metal, canvasMat, sandbag, crate, fallMat },
   };
