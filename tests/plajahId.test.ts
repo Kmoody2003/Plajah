@@ -1,13 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { generatePlajahId, parsePlajahId, isPlajahId, nextEvent, verifyChain, canonicalJson, seqDocId, type IdentityEvent } from '../services/plajahId/core';
+import { generatePlajahId, parsePlajahId, isPlajahId, spellsBlockedWord, nextEvent, verifyChain, canonicalJson, seqDocId, type IdentityEvent } from '../services/plajahId/core';
 
 describe('Plajah ID format', () => {
-  it('person and org IDs have their prefix, four groups and a valid check character', () => {
+  it('person and org IDs are PJ-/PJO- plus three groups of four, with a valid check character', () => {
     const p = generatePlajahId('person');
     const o = generatePlajahId('org');
-    assert.match(p, /^PJ-[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){3}$/);
-    assert.match(o, /^PJO-[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){3}$/);
+    assert.match(p, /^PJ-[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){2}$/);
+    assert.match(o, /^PJO-[0-9A-HJKMNP-TV-Z]{4}(-[0-9A-HJKMNP-TV-Z]{4}){2}$/);
     assert.ok(isPlajahId(p) && isPlajahId(o));
     assert.equal(parsePlajahId(o)?.kind, 'org');
   });
@@ -37,8 +37,26 @@ describe('Plajah ID format', () => {
     }
   });
 
-  it('rejects junk', () => {
-    for (const bad of ['', 'PJ-', 'XX-1234-5678-9ABC-DEFG', 'PJ-1234', 'PJ-UUUU-UUUU-UUUU-UUUU']) assert.equal(parsePlajahId(bad), null, bad);
+  it('rejects junk, including the old 16-character length', () => {
+    for (const bad of ['', 'PJ-', 'XX-1234-5678-9ABC', 'PJ-1234', 'PJ-UUUU-UUUU-UUUU', 'PJ-1234-5678-9ABC-DEFG']) assert.equal(parsePlajahId(bad), null, bad);
+  });
+
+  it('offensive words are screened, as written and read as letters', () => {
+    for (const w of ['XXSHXXXXXXXX', 'XFVCKXXXXXXX', 'XX455XXXXXXX', 'XXXXXXXN4Z1X', 'XXXXXX666XXX']) {
+      const hit = spellsBlockedWord(w.replace('SHX', 'SHT'));
+      assert.equal(hit, true, w);
+    }
+    assert.equal(spellsBlockedWord('7K3M9QXA2HFD'), false);
+  });
+
+  it('a draw that spells a blocked word is thrown away and drawn again', () => {
+    // First draw spells "SEX…" (S=25, E=14, X=29 in the alphabet), second is clean.
+    const draws = [[25, 14, 29, 0, 0, 0, 0, 0, 0, 0, 0], [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]];
+    let n = 0;
+    const id = generatePlajahId('person', () => Uint8Array.from(draws[Math.min(n++, 1)]));
+    assert.equal(n, 2);
+    assert.ok(id.startsWith('PJ-1234-5678-9AB'), id);
+    assert.ok(isPlajahId(id));
   });
 });
 

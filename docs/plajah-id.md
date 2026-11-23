@@ -13,12 +13,18 @@ A Plajah ID is a permanent identity record that sits **above** logins.
 
 | | Person ID | Organization ID |
 |---|---|---|
-| Looks like | `PJ-7K3M-9QXA-2HFD-8R4C` | `PJO-4TRW-8N6C-VJ5E-1M7Q` |
+| Looks like | `PJ-7K3M-9QXA-2HFD` | `PJO-4TRW-8N6C-VJ5E` |
 | Who it is | one human | the institution itself |
 | Holds | linked logins (emails, Google, Apple, phone), profile, org roles | its own credentials, its controllers, its people and roles |
 | Survives | email changes, lost accounts | every staff change |
 
-**How the ID is made.** It's 15 random characters (75 bits from a secure server generator) in Crockford base32 (no I/L/O/U, so no look-alike letters), plus a check character that catches every single-character typo. It is **not** derived from an email, name or uid. Knowing someone's email tells you nothing about their ID, and nobody can pick or guess a particular ID.
+**How the ID is made.** It's 11 random characters (55 bits from a secure server generator) in Crockford base32 (no I/L/O/U, so no look-alike letters), plus a check character that catches every single-character typo. It is **not** derived from an email, name or uid. Knowing someone's email tells you nothing about their ID, and nobody can pick or guess a particular ID.
+
+Why 12 characters is enough: the ID is a public name, not a password (passkeys protect the identity), so it only needs to be unique and not worth guessing. 55 bits is about 36 quadrillion IDs. A collision is harmless, because creates are "must not exist" and the server just draws again. Twelve characters are easy to read aloud and fit on a membership card.
+
+**No offensive IDs.** A draw that spells a blocked word is thrown away and drawn again. Digits are read as letters (0→O, 1→I, 3→E, 4→A, 5→S, 7→T, 8→B, 9→G) and V as U, so leetspeak is caught too.
+
+**No vanity IDs, no meaning inside.** Nobody picks their ID, Plajah staff included, so there's no squatting or look-alike impersonation. Memorable names belong in a changeable `@handle`. The ID carries nothing beyond the PJ/PJO prefix (no year, region or type), because anything baked into a permanent ID eventually goes stale.
 
 **Who can make one.** Only the server (Cloud Run `plajah-api` with the Admin SDK) mints IDs. Firestore rules deny every client write to identity collections, so nobody can forge an ID or write one onto their own profile.
 
@@ -99,7 +105,7 @@ Custom auth claim `pjid` is set on the Firebase token by the server, so rules ca
 
 ## 9. Decisions needed from you
 
-1. **ID format**: built as `PJ-XXXX-XXXX-XXXX-XXXX` for people and `PJO-…` for orgs. Change before the backfill runs, or add a vanity handle on top later?
+1. ~~**ID format**~~: **decided 2026-11-23**: `PJ-XXXX-XXXX-XXXX` for people and `PJO-XXXX-XXXX-XXXX` for orgs, with an offensive-word filter, no vanity IDs, and a separate `@handle` for memorable names.
 2. **Passkeys required?** Required for org controllers only, or for everyone after a grace period? (Recommendation: required for controllers and admins, strongly prompted for everyone.)
 3. **Org control quorum**: 2-of-N by default, adjustable per org?
 4. **Public transparency digest**: publish it (strongest guarantee) or keep it internal (simpler)?
