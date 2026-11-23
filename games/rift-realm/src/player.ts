@@ -116,6 +116,18 @@ export class PlayerController {
   aiming = false;
   /** Aim friction (targeting sets it): look speed multiplier while the crosshair is on an enemy, so you don't sail past. */
   aimFriction = 1;
+  /** Where the crosshair lands in the world (third person): the body and gun turn to it. */
+  readonly aimPoint = new THREE.Vector3();
+  private aimPointOk = false;
+  /** Yaw to whip round to after a hit from outside the view (faceThreat), or null. */
+  private threatYaw: number | null = null;
+  /** Hit from outside the view (behind or to the side): turn to face the attacker, camera with him. */
+  faceThreat(from: THREE.Vector3) {
+    if (this.lockedOn || this.downedT > 0) return;
+    const p = this.object.position, want = Math.atan2(-(from.x - p.x), -(from.z - p.z));
+    const off = Math.abs(Math.atan2(Math.sin(want - this.yaw), Math.cos(want - this.yaw)));
+    if (off > 1.6) this.threatYaw = want; // ~90 deg: only what you can't already see
+  }
   /** 0 = centred camera (fists, glide), 1 = over-the-shoulder (gun out). */
   private shoulderT = 1;
   /** A / D are turning the character this frame (the Era Clash follow camera) rather than strafing. */
@@ -534,6 +546,12 @@ export class PlayerController {
     if (input?.reloadPressed) this.reload();
     if (this.rig) this.rig.crouch = this.crouched;
     this.lockT = Math.max(0, this.lockT - dt);
+    // hit from behind / the side: whip round to face the attacker, camera with him (Ravencrest faceThreat)
+    if (this.threatYaw !== null) {
+      const d = Math.atan2(Math.sin(this.threatYaw - this.yaw), Math.cos(this.threatYaw - this.yaw));
+      this.yaw += THREE.MathUtils.clamp(d, -12 * dt, 12 * dt);
+      if (Math.abs(d) < 0.06) this.threatYaw = null;
+    }
     const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
     const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     const wish = new THREE.Vector3();
@@ -556,10 +574,10 @@ export class PlayerController {
       const k = this.keys;
       const ix = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
       const iz = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
-      // Gun out (both views): the shooter scheme — the mouse aims, A / D strafe (Fortnite / CoD).
-      // Fists in third person: the Era Clash follow camera — A / D turn the character and the camera with him, W / S
-      // go along the facing (S backs up slower), the mouse mostly looks up / down. Locked on or aiming, A / D strafe.
-      this.keyTurning = this.fists && !this.firstPerson && !this.lockedOn && this.aimBlend < 0.5 && !this.glide.gliding;
+      // Third person (Kenne: A / D turn, not strafe): the Era Clash follow camera — A / D turn the character and the
+      // camera with him, W / S go along the facing (S backs up slower), the mouse aims. Locked on (circle-strafing),
+      // aiming down sights (Z) or in first person, A / D strafe.
+      this.keyTurning = !this.firstPerson && !this.lockedOn && this.aimBlend < 0.5 && !this.glide.gliding;
       if (this.keyTurning) {
         if (ix) this.yaw -= ix * KEY_TURN * (iz ? 0.85 : 1.15) * dt;
         const fwd = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
@@ -716,7 +734,12 @@ export class PlayerController {
     // body facing the way it turns (backing up with S doesn't spin him round)
     const faceAim = this.firstPerson || this.aiming || this.faceAimT > 0 || this.lockT > 0 || this.keyTurning || (!this.fists && !this.glide.gliding);
     let want: number | null = null;
-    if (faceAim) want = this.yaw;
+    if (faceAim) {
+      // third person: square up to the point under the crosshair, so the gun visibly points at what you aim at (the
+      // camera sits over the shoulder, so a body parallel to the view would point beside the target)
+      if (!this.firstPerson && this.aimPointOk) want = Math.atan2(-(this.aimPoint.x - this.object.position.x), -(this.aimPoint.z - this.object.position.z));
+      else want = this.yaw;
+    }
     else if (hsp0 > 0.6) want = Math.atan2(-this.vel.x, -this.vel.z);
     let turned = 0;
     if (want !== null) {
@@ -734,7 +757,10 @@ export class PlayerController {
       const sp = hsp0;
       const lx = this.vel.x * Math.cos(this.bodyYaw) - this.vel.z * Math.sin(this.bodyYaw);
       const lz = -(this.vel.x * Math.sin(this.bodyYaw) + this.vel.z * Math.cos(this.bodyYaw));
-      this.rig.aimPitch = this.firstPerson ? 0 : this.pitch; // the chest and gun follow the aim up and down
+      // the chest and gun tilt to the point under the crosshair (third person), so the barrel points at it
+      let ap = this.pitch;
+      if (!this.firstPerson && this.aimPointOk) { const c = this.chestPos(_chest2), dx = this.aimPoint.x - c.x, dz = this.aimPoint.z - c.z; ap = Math.atan2(this.aimPoint.y - c.y, Math.hypot(dx, dz)); }
+      this.rig.aimPitch = this.firstPerson ? 0 : ap;
       this.glide.pose(this.rig, { firstPerson: this.firstPerson, yaw: this.bodyYaw, scene: this.object.parent, camera: this.camera, pitch: this.pitch });
       this.rig.update(dt, sp, lx, lz);
     } else {
@@ -796,6 +822,13 @@ export class PlayerController {
       this.camera.lookAt(this.camera.position.clone().add(lookDir));
     }
     this.camera.rotateZ(this.lean);
+    // the world point under the crosshair (what the body / gun turn to next frame); far if the ray hits nothing
+    if (!this.firstPerson) {
+      const { origin, dir } = this.getAimRay();
+      const d = this.world ? this.world.rayDistance(origin, dir, 120) : 120;
+      this.aimPoint.copy(origin).addScaledVector(dir, Math.max(3, Math.min(120, d)));
+      this.aimPointOk = true;
+    } else this.aimPointOk = false;
 
     this.muzzleFlash = Math.max(0, this.muzzleFlash - dt * 8);
     // first-person gun: sway, bob, recoil spring, ADS, reload and switch poses
@@ -819,3 +852,4 @@ export class PlayerController {
 
 const _chest = new THREE.Vector3();
 const _before = new THREE.Vector3(), _want = new THREE.Vector3(), _trial = new THREE.Vector3();
+const _chest2 = new THREE.Vector3();

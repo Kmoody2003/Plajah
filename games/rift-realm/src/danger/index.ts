@@ -97,6 +97,7 @@ export class Danger {
       resolve: (p, r, h) => col.resolve(p, r, h),
       clear: (a, b) => { const d = this.v.subVectors(b, a), L = d.length(); if (L < 0.5) return true; d.divideScalar(L); return col.rayDistance(a, d, L) >= L - 0.4; },
       hurtPlayer: hurt,
+      faceThreat: (from: THREE.Vector3) => this.ctx.player.faceThreat(from),
       damageEnemy: (e, dmg, dir) => !!ctx.enemies.damageEnemy(e.id, dmg, dir, 1.2)?.killed,
       heal: (n) => { const p = ctx.player; if (p.downed) return; p.hp = Math.min(p.maxHp, p.hp + n); ctx.say(`LIFE MOTE +${n} HP`, '#7dffb0'); },
       onKill: () => { /* the player's kills are reported by damageId; hazard and creature kills give nothing */ },

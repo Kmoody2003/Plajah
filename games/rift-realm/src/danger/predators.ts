@@ -66,6 +66,8 @@ export interface PredatorEnv {
   /** Clear line between two points (no world in between). */
   clear(a: THREE.Vector3, b: THREE.Vector3): boolean;
   hurtPlayer(dmg: number, why: string): void;
+  /** A bite from outside the player's view turns them to face it (player.faceThreat). */
+  faceThreat?(from: THREE.Vector3): void;
   damageEnemy(e: Enemy, dmg: number, dir: THREE.Vector3): boolean;   // true = killed
   heal(n: number): void;
   onKill(p: Predator): void;
@@ -567,6 +569,7 @@ export class PredatorDirector {
       return;
     }
     const night = env.night() > 0.5 ? 1.2 : 1;
+    env.faceThreat?.(p.pos);
     env.hurtPlayer(Math.round(s.dmg * night), s.name.toUpperCase());
     if (s.venom) env.status.apply('poison', 5);
     if (s.shock) env.status.apply('shock', 0.6);

@@ -663,6 +663,7 @@ async function boot() {
         combatT = 0;
         // evade (dash i-frames), block, perfect parry or take it (combat/melee.ts)
         const { outcome, dmg: raw } = melee.incoming(strike);
+        if (outcome === 'hit' || outcome === 'blocked') player.faceThreat(strike.from); // a hit from behind turns you to face it
         const dmg = danger && raw > 0 ? danger.absorb(raw) : raw; // a Shellfruit shield soaks it first
         if (dmg > 0) {
           player.hp = Math.max(0, player.hp - dmg);
