@@ -16,7 +16,8 @@ import { growTree, rng, type TreeLeaf, type TreeNode, type TreeSkeleton } from '
 import { buildTreeGeometry } from '../../../../services/vegetation/trees/mesh';
 import { treeMaterials, type TreeMaterials } from '../../../../services/vegetation/trees/material';
 import type { TreeSpecies } from '../../../../services/vegetation/species';
-import { CF_BLUE, CF_PLATFORM_OAK, CF_VIOLET } from '../../../../services/vegetation/catalog/cyberForest';
+import { CF_BLUE, CF_MANGROVE, CF_PLATFORM_OAK, CF_VIOLET, CF_WILLOW } from '../../../../services/vegetation/catalog/cyberForest';
+import { WARDENS, type WardenLook } from './wardens';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type N = any;
@@ -78,6 +79,8 @@ export interface EntModel {
   /** Everything the ent draws (for the impostor bake and compile). */
   meshes: THREE.Mesh[];
   eyes: THREE.MeshBasicNodeMaterial;
+  /** The eyes' own colour (the warden's), scaled by how awake it is. */
+  eyeColor: THREE.Color;
   /** 0…1: how lit the eyes and veins are (awake). */
   wake: { value: number };
   dispose(): void;
@@ -97,6 +100,8 @@ interface LimbSpec {
   leaves?: number;
   fingers?: number;
   roots?: number;
+  /** Root toes' reach multiple (mangrove stilts splay far). */
+  rootReach?: number;
   /** Where on the limb twigs may start (0 base … 1 tip). */
   twigFrom?: number; twigTo?: number;
 }
@@ -169,7 +174,7 @@ function limbSkeleton(s: LimbSpec): TreeSkeleton {
   // root toes: splaying out of the ankle and down into the ground (feet)
   for (let i = 0; i < (s.roots ?? 0); i++) {
     const back = i === (s.roots ?? 0) - 1, a = back ? Math.PI + (R() - 0.5) * 0.5 : (i / Math.max(1, (s.roots ?? 1) - 2) - 0.5) * 1.6 + (R() - 0.5) * 0.2;
-    const reach = back ? 3.2 : 4.4 + R() * 1.4;
+    const reach = (back ? 3.2 : 4.4 + R() * 1.4) * (s.rootReach ?? 1);
     branch(0, Math.sin(a), -0.15, Math.cos(a), reach, s.r0 * 0.5, 1, 0, 0, true, -ENT.ankleY - 0.3);
   }
   return { species: ENT_WOOD.id, seed: s.seed, nodes, leaves, height: s.len, crownCenter: { x: 0, z: 0 } };
@@ -232,14 +237,14 @@ function mossGeometry(anchors: { p: THREE.Vector3; len: number; w: number; face:
   return g;
 }
 
-function mossMaterial(): THREE.MeshStandardNodeMaterial {
+function mossMaterial(c0 = 0x2e4a1a, c1 = 0x8aa64a): THREE.MeshStandardNodeMaterial {
   const m = new THREE.MeshStandardNodeMaterial({ side: THREE.DoubleSide, roughness: 0.95, alphaTest: 0.5 });
   const h: N = attribute('aHang', 'float'), u: N = uv();
   // stringy: fibres across the ribbon, thinning and splitting toward the tips
   const fib: N = sin(u.x.mul(61).add(sin(u.y.mul(3.1).add(u.x.mul(17))).mul(2))).mul(0.5).add(0.5);
   const fib2: N = sin(u.x.mul(23).add(u.y.mul(0.7))).mul(0.5).add(0.5);
   m.opacityNode = smoothstep(h.mul(0.55).add(0.18), h.mul(0.55).add(0.32), max(fib, fib2.mul(0.85))).mul(smoothstep(float(1), float(0.82), h));
-  m.colorNode = mix(color(0x2e4a1a), color(0x8aa64a), h.mul(0.8).add(fib.mul(0.2)));
+  m.colorNode = mix(color(c0), color(c1), h.mul(0.8).add(fib.mul(0.2)));
   m.emissiveNode = color(0x9cff6a).mul(fib.mul(h).mul(0.05));
   const sway: N = sin(time.mul(1.1).add(u.x.mul(2.3))).mul(h.mul(h)).mul(0.7);
   m.positionNode = positionLocal.add(vec3(sway, h.mul(h).mul(0.12).negate(), sway.mul(0.6)));
@@ -260,7 +265,7 @@ function flowerMaterial(): THREE.MeshStandardNodeMaterial {
 const FLOWER_TINTS = [0xffd6e4, 0xf7f2ff, 0xc9a8ff, 0xff9ec2, 0xffe6a8, 0x9fd8ff];
 
 /** Scatter flowers on a skeleton's surface (facing out of the wood), as one instanced mesh. */
-function flowersOn(sk: TreeSkeleton, count: number, seed: number, size: [number, number], mat: THREE.Material, base: THREE.BufferGeometry, upOnly = false) {
+function flowersOn(sk: TreeSkeleton, count: number, seed: number, size: [number, number], mat: THREE.Material, base: THREE.BufferGeometry, upOnly = false, tints = FLOWER_TINTS) {
   const R = rng(seed);
   const g = base.clone();
   const tint = new Float32Array(count * 3);
@@ -279,7 +284,7 @@ function flowersOn(sk: TreeSkeleton, count: number, seed: number, size: [number,
     q.setFromUnitVectors(up, n);
     m4.compose(p, q, s.set(sc, sc, sc));
     im.setMatrixAt(k, m4);
-    const c = new THREE.Color(FLOWER_TINTS[Math.floor(R() * FLOWER_TINTS.length)]);
+    const c = new THREE.Color(tints[Math.floor(R() * tints.length)]);
     tint[k * 3] = c.r; tint[k * 3 + 1] = c.g; tint[k * 3 + 2] = c.b;
     k++;
   }
@@ -290,7 +295,7 @@ function flowersOn(sk: TreeSkeleton, count: number, seed: number, size: [number,
 }
 
 /** Moss strands hanging from points round a skeleton's nodes between two fractions of its length. */
-function mossOn(sk: TreeSkeleton, count: number, seed: number, from: number, to: number, len: [number, number], faceBias?: THREE.Vector3) {
+function mossOn(sk: TreeSkeleton, count: number, seed: number, from: number, to: number, len: [number, number], faceBias?: THREE.Vector3, lenMul = 1) {
   const R = rng(seed + 99);
   const trunk = sk.nodes.filter((x) => x.order === 0 && !x.root);
   const out: { p: THREE.Vector3; len: number; w: number; face: THREE.Vector3 }[] = [];
@@ -299,25 +304,60 @@ function mossOn(sk: TreeSkeleton, count: number, seed: number, from: number, to:
     let a = R() * Math.PI * 2;
     if (faceBias && R() < 0.6) a = Math.atan2(faceBias.z, faceBias.x) + (R() - 0.5) * 1.8;
     const face = V(Math.cos(a), 0, Math.sin(a));
-    out.push({ p: V(nd.x, nd.y, nd.z).addScaledVector(face, nd.radius * 0.95), len: len[0] + R() * (len[1] - len[0]), w: 0.6 + R() * 0.7, face });
+    out.push({ p: V(nd.x, nd.y, nd.z).addScaledVector(face, nd.radius * 0.95), len: (len[0] + R() * (len[1] - len[0])) * lenMul, w: 0.6 + R() * 0.7, face });
   }
   return out;
 }
 
+/** The crown a warden wears, by its sheet: a domed oak, a blossom cloud, a pine cone, willow curtains, bare birch
+ *  boughs, a glowing canopy, a flat baobab / banyan top, sequoia fronds, mangrove leaves, ironwood antlers. */
+function crownSpecies(L: WardenLook): TreeSpecies {
+  const base: TreeSpecies = { ...ENT_CROWN, bark: { ...ENT_CROWN.bark, tint: L.bark, veins: { ...ENT_CROWN.bark.veins!, color: L.veins, strength: L.veinStrength }, moss: { color: L.barkMoss, amount: L.barkMossAmount } },
+    leaves: { ...ENT_CROWN.leaves, tint: L.crownTint, ...(L.crownGlow ? { glow: { color: L.crownGlow, strength: 0.9, beat: 0.5 } } : {}) } };
+  const P = (pts: [number, number][]) => pts.map(([y, r]) => ({ y, r }));
+  switch (L.crown) {
+    case 'blossom': return { ...base, leaves: { ...base.leaves, atlas: '/vegetation/leaves/cf_violet.webp', size: 3.2, perTip: 4, glow: { color: 0xffa0c8, strength: 0.25, beat: 0.2 } },
+      crown: { ...base.crown, profile: P([[0.12, 0.25], [0.3, 0.6], [0.5, 0.72], [0.7, 0.62], [0.86, 0.42], [1, 0.08]]), attractors: 800 } };
+    case 'cone': return { ...base, height: 15, leaves: { ...base.leaves, atlas: '/vegetation/leaves/cf_mangrove.webp', size: 2.0, perTip: 4, glow: undefined },
+      crown: { ...base.crown, profile: P([[0.05, 0.36], [0.25, 0.32], [0.45, 0.25], [0.65, 0.17], [0.85, 0.08], [1, 0.01]]), gravitropism: -0.15, limbs: 10, attractors: 700 } };
+    case 'willow': return { ...base, leaves: { ...base.leaves, atlas: '/vegetation/leaves/cf_willow.webp', hang: true, size: 2.6, perTip: 4, glow: undefined },
+      crown: { ...base.crown, profile: P([[0.1, 0.3], [0.3, 0.62], [0.5, 0.7], [0.7, 0.6], [0.88, 0.38], [1, 0.06]]), gravitropism: -0.3 } };
+    case 'bare': return { ...base, leaves: { ...base.leaves, size: 0.9, perTip: 1, glow: { color: 0xc8f0ff, strength: 0.3, beat: 0.2 } },
+      crown: { ...base.crown, profile: P([[0.1, 0.25], [0.35, 0.5], [0.6, 0.55], [0.85, 0.38], [1, 0.06]]), attractors: 260, kill: 1.4, gravitropism: 0.3, limbs: 8 } };
+    case 'antler': return { ...base, crown: { ...base.crown, profile: P([[0.1, 0.3], [0.4, 0.6], [0.7, 0.55], [1, 0.2]]), attractors: 160, kill: 1.8, influence: 5, gravitropism: 0.5, limbs: 9 } };
+    case 'glow': return { ...base, leaves: { ...base.leaves, atlas: '/vegetation/leaves/cf_blue.webp', size: 2.8 } };
+    case 'cap': return { ...base, height: 8, crown: { ...base.crown, attractors: 300 } };
+    case 'flat': return { ...base, height: 9, crown: { ...base.crown, profile: P([[0.35, 0.3], [0.55, 0.85], [0.75, 0.95], [0.9, 0.7], [1, 0.12]]), gravitropism: -0.05, limbs: 7 } };
+    case 'fronds': return { ...base, height: 14, leaves: { ...base.leaves, size: 2.4 }, crown: { ...base.crown, profile: P([[0.15, 0.3], [0.35, 0.42], [0.6, 0.4], [0.82, 0.28], [1, 0.05]]), limbs: 9 } };
+    case 'mangrove': return { ...base, leaves: { ...base.leaves, atlas: '/vegetation/leaves/cf_mangrove.webp', size: 2.4, glow: undefined } };
+    default: return base;
+  }
+}
+
 /** Build one ent. `lo` = the Intel / low tier: fewer flowers, moss and leaves, a coarser crown. */
-export function buildEntModel(seed: number, o: { lo?: boolean } = {}): EntModel {
-  const lo = !!o.lo;
+export function buildEntModel(seed: number, o: { lo?: boolean; look?: WardenLook } = {}): EntModel {
+  const lo = !!o.lo, L = o.look ?? WARDENS[0].look;
   const R = rng(seed * 977 + 3);
   const root = new THREE.Group(); root.name = 'ent';
   const meshes: THREE.Mesh[] = [], detail: THREE.Object3D[] = [];
   const geos: THREE.BufferGeometry[] = [], mats: THREE.Material[] = [];
-  const woodMats: TreeMaterials = treeMaterials(ENT_WOOD, 46);
+  // this warden's wood: its bark, sap veins and bark moss; twig leaves take its crown's tint
+  const WOOD: TreeSpecies = {
+    ...ENT_WOOD,
+    bark: { ...ENT_WOOD.bark, tint: L.bark, veins: { ...ENT_WOOD.bark.veins!, color: L.veins, strength: L.veinStrength }, moss: { color: L.barkMoss, amount: L.barkMossAmount } },
+    leaves: { ...ENT_WOOD.leaves, tint: L.crownTint, ...(L.crown === 'blossom' || L.crown === 'glow' ? { atlas: '/vegetation/leaves/cf_violet.webp' } : {}) },
+  };
+  const woodMats: TreeMaterials = treeMaterials(WOOD, 46);
   mats.push(woodMats.wood, woodMats.leaves);
-  const flowerMat = flowerMaterial(), mossMat = mossMaterial(), flowerBase = flowerGeometry();
+  // the bark's own colour where the shared bark texture can't reach it (white birch, grey baobab, red sequoia)
+  const wash = (mat: THREE.MeshStandardNodeMaterial) => { if (L.barkWash) mat.colorNode = mix(mat.colorNode as N, color(L.barkWash[0]), L.barkWash[1]); };
+  wash(woodMats.wood);
+  const mossN = (n: number) => Math.round(n * L.mossAmount), flowerN = (n: number) => Math.round(n * L.flowerAmount), LM = L.limbs;
+  const flowerMat = flowerMaterial(), mossMat = mossMaterial(L.moss[0], L.moss[1]), flowerBase = flowerGeometry();
   mats.push(flowerMat, mossMat); geos.push(flowerBase);
   // the eyes and the veins wake: the sap light brightens when it moves or fights
   const wake = { value: 0 };
-  const eyes = new THREE.MeshBasicNodeMaterial({ color: 0xffb347 });
+  const eyes = new THREE.MeshBasicNodeMaterial({ color: L.eyes });
   mats.push(eyes);
 
   const mesh = (g: THREE.BufferGeometry, m: THREE.Material, parent: THREE.Object3D, name: string, isDetail = false, shadow = true) => {
@@ -327,14 +367,34 @@ export function buildEntModel(seed: number, o: { lo?: boolean } = {}): EntModel 
     return me;
   };
   const addWood = (sk: TreeSkeleton, parent: THREE.Object3D, name: string, radial?: number) => {
-    const tg = buildTreeGeometry(sk, ENT_WOOD, { radial: radial ?? (lo ? 10 : 14), barkTile: 2.4 });
+    const tg = buildTreeGeometry(sk, WOOD, { radial: radial ?? (lo ? 10 : 14), barkTile: 2.4 });
     mesh(still(tg.wood), woodMats.wood, parent, name + '-wood');
     if (sk.leaves.length) mesh(still(tg.leaves), woodMats.leaves, parent, name + '-leaves', true, false);
     else tg.leaves.dispose();
     tg.cables?.dispose();
   };
+  // thorns (ironwood, pine) and mushroom caps (fungal) stud the same surfaces the flowers grow on
+  const spikeMat = L.spikes ? new THREE.MeshStandardNodeMaterial({ color: L.spikes.color, roughness: 0.7, emissive: new THREE.Color(L.spikes.glow), emissiveIntensity: 0.22 }) : null;
+  const capMat = L.caps ? new THREE.MeshStandardNodeMaterial({ color: L.caps.color, roughness: 0.55, emissive: new THREE.Color(L.caps.glow), emissiveIntensity: 0.35, side: THREE.DoubleSide }) : null;
+  const spikeGeo = new THREE.ConeGeometry(0.32, 3, 6).translate(0, 1.4, 0);
+  const capGeo = new THREE.LatheGeometry([0, 0.15, 0.35, 0.6, 0.95, 1.2, 1.25, 1.0].map((r, i, a) => new THREE.Vector2(r, 0.5 + (i < 2 ? -0.6 + i * 0.3 : Math.cos((i / (a.length - 1)) * Math.PI * 0.5) * 0.7))), 12);
+  if (spikeMat) mats.push(spikeMat); if (capMat) mats.push(capMat); geos.push(spikeGeo, capGeo);
+  let studSeed = 0;
+  const addStuds = (sk: TreeSkeleton, parent: THREE.Object3D, n: number) => {
+    for (const [def, m, g, size, up] of [[L.spikes, spikeMat, spikeGeo, [0.7, 1.5], false], [L.caps, capMat, capGeo, [0.8, 2.2], true]] as const) {
+      if (!def || !m) continue;
+      const k = Math.round((def.count / 300) * n * (lo ? 0.5 : 1));
+      if (k < 1) continue;
+      const im = flowersOn(sk, k, seed * 17 + ++studSeed, size as [number, number], m, g, up);
+      im.name = def === L.spikes ? 'ent-thorns' : 'ent-caps'; im.castShadow = false;
+      parent.add(im); meshes.push(im); geos.push(im.geometry);
+    }
+  };
   const addFlowers = (sk: TreeSkeleton, parent: THREE.Object3D, n: number, s: number, size: [number, number], upOnly = false) => {
-    const im = flowersOn(sk, lo ? Math.round(n * 0.5) : n, seed * 31 + s, size, flowerMat, flowerBase, upOnly);
+    addStuds(sk, parent, n);
+    n = flowerN(n);
+    if (n < 1 || !L.flowers.length) return;
+    const im = flowersOn(sk, lo ? Math.round(n * 0.5) : n, seed * 31 + s, size, flowerMat, flowerBase, upOnly, L.flowers);
     im.castShadow = false; parent.add(im); meshes.push(im); detail.push(im); geos.push(im.geometry);
   };
   const addMoss = (anchors: ReturnType<typeof mossOn>, parent: THREE.Object3D, name: string) => {
@@ -347,19 +407,30 @@ export function buildEntModel(seed: number, o: { lo?: boolean } = {}): EntModel 
   pelvis.position.set(0, ENT.hipY, 0);
   {
     // hip log across the pelvis, the legs hang from its ends
-    const hip = new THREE.Group(); hip.rotation.z = Math.PI / 2; hip.position.x = ENT.hipX + 0.9; pelvis.add(hip);
+    const hip = new THREE.Group(); hip.rotation.z = -Math.PI / 2; hip.position.x = ENT.hipX + 0.9; pelvis.add(hip);
     addWood(limbSkeleton({ len: (ENT.hipX + 0.9) * 2, r0: 2.9, r1: 2.9, seed: seed + 1, dir: -1, wobble: 0.5 }), hip, 'pelvis');
   }
   const spine = new THREE.Group(); spine.name = 'Spine2'; pelvis.add(spine);
   const torsoSk = limbSkeleton({ len: ENT.torso, r0: 3.7, r1: 4.5, seed: seed + 2, dir: 1, overlap: 1.6, wobble: 0.8, twigs: lo ? 5 : 9, twigLen: [3, 6.5], twigFrom: 0.55, twigTo: 0.98, leaves: 3, twigUp: 0.9 });
   {
-    const torso = new THREE.Group(); torso.scale.set(1.2, 1, 0.88); spine.add(torso);
+    const torso = new THREE.Group(); torso.scale.set(1.2 * L.bulk, 1, 0.88 * (1 + (L.bulk - 1) * 0.6)); spine.add(torso);
     addWood(torsoSk, torso, 'torso');
     addFlowers(torsoSk, torso, 70, 1, [0.9, 1.6]);
+    // baobab: a great round belly of bark
+    if (L.belly > 0) {
+      const bg = new THREE.Group(); bg.position.set(0, -0.5, 3.6 * L.belly); bg.scale.set(1.1, 1, 1); torso.add(bg);
+      addWood(limbSkeleton({ len: 7, r0: 5.6 * L.belly, r1: 4.6 * L.belly, seed: seed + 9, dir: 1, overlap: 2.5, wobble: 0.3 }), bg, 'belly');
+    }
+    // banyan / ironwood: a heart glowing through the bark of the chest
+    if (L.heart !== undefined) {
+      const hm = new THREE.MeshBasicNodeMaterial({ color: new THREE.Color(L.heart).multiplyScalar(2.2) }); mats.push(hm);
+      const h = new THREE.Mesh(new THREE.IcosahedronGeometry(1.1, 2), hm); h.name = 'ent-heart'; h.position.set(0, ENT.torso * 0.62, 3.3 * (L.bulk > 1.2 ? 1.25 : 1)); h.scale.set(0.8, 1.2, 0.7);
+      torso.add(h); meshes.push(h); geos.push(h.geometry);
+    }
     // moss down the chest and back, a mantle round the shoulders
-    addMoss(mossOn(torsoSk, 46, seed + 3, 0.62, 1, [3, 8.5]), torso, 'torso-moss');
+    addMoss(mossOn(torsoSk, mossN(46), seed + 3, 0.62, 1, [3, 8.5], undefined, L.mossLen), torso, 'torso-moss');
     // the yoke: a thick bough across the shoulders
-    const yoke = new THREE.Group(); yoke.rotation.z = Math.PI / 2; yoke.position.set(ENT.shoulderX + 1.2, ENT.shoulderY, 0); spine.add(yoke);
+    const yoke = new THREE.Group(); yoke.rotation.z = -Math.PI / 2; yoke.position.set(ENT.shoulderX + 1.2, ENT.shoulderY, 0); spine.add(yoke);
     const yokeSk = limbSkeleton({ len: (ENT.shoulderX + 1.2) * 2, r0: 2.5, r1: 2.5, seed: seed + 4, dir: -1, wobble: 0.6 });
     addWood(yokeSk, yoke, 'yoke');
     addFlowers(yokeSk, yoke, 46, 2, [0.9, 1.5]);
@@ -379,17 +450,27 @@ export function buildEntModel(seed: number, o: { lo?: boolean } = {}): EntModel 
       sock.position.copy(e.position).setZ(2.3); sock.rotation.y = sx * 0.25; still(sock.geometry); head.add(sock); meshes.push(sock); geos.push(sock.geometry);
     }
     // beard + hair: moss from the jaw down over the chest, and off the back and sides of the head
-    const beard = mossOn(headSk, 30, seed + 7, 0.05, 0.35, [5, 11], V(0, 0, 1));
-    const hair = mossOn(headSk, 26, seed + 8, 0.5, 1, [4, 9], V(0, 0, -1));
+    const beard = mossOn(headSk, mossN(30), seed + 7, 0.05, 0.35, [5, 11], V(0, 0, 1), L.mossLen);
+    const hair = mossOn(headSk, mossN(26), seed + 8, 0.5, 1, [4, 9], V(0, 0, -1), L.mossLen);
     addMoss([...beard, ...hair], head, 'head-moss');
     addFlowers(headSk, head, 18, 3, [0.7, 1.2], true);
     // the crown: a living oak growing out of the top of its head
-    const crownSk = growTree(ENT_CROWN, seed * 13 + 5, { scale: 1, detail: lo ? 0.55 : 0.9 });
+    const CROWN = crownSpecies(L);
+    const crownSk = growTree(CROWN, seed * 13 + 5, { scale: L.crownScale, detail: lo ? 0.55 : 0.9 });
+    if (L.crown === 'antler' || L.crown === 'bare') for (const n of crownSk.nodes) n.radius *= 1.3; // stark branches
     const cg = new THREE.Group(); cg.name = 'crown'; cg.position.set(0, ENT.headLen - 0.6, -0.8); cg.rotation.y = R() * 6.28; head.add(cg);
-    const ctm = treeMaterials(ENT_CROWN, ENT.crownH); mats.push(ctm.wood, ctm.leaves);
-    const ct = buildTreeGeometry(crownSk, ENT_CROWN, { radial: lo ? 8 : 12, barkTile: 2 });
+    const ctm = treeMaterials(CROWN, crownSk.height); mats.push(ctm.wood, ctm.leaves); wash(ctm.wood);
+    const ct = buildTreeGeometry(crownSk, CROWN, { radial: lo ? 8 : 12, barkTile: 2 });
     mesh(still(ct.wood), ctm.wood, cg, 'crown-wood');
-    mesh(still(ct.leaves), ctm.leaves, cg, 'crown-leaves', false, true);
+    if (crownSk.leaves.length && L.crown !== 'antler' && L.crown !== 'blossom') mesh(still(ct.leaves), ctm.leaves, cg, 'crown-leaves', false, true); else ct.leaves.dispose();
+    if (L.crown === 'blossom') {
+      // every twig blooms: big pink flowers all through the crown, and blossom strands hanging from it
+      const all: TreeSkeleton = { ...crownSk, nodes: crownSk.nodes.map((n) => ({ ...n, order: n.root ? 5 : 0, radius: Math.max(n.radius, 0.35) })) };
+      const im = flowersOn(all, lo ? 320 : 700, seed * 5 + 1, [1.6, 3.0], flowerMat, flowerBase, false, L.flowers);
+      im.castShadow = true; im.name = 'crown-blossom'; cg.add(im); meshes.push(im); geos.push(im.geometry);
+      mesh(mossGeometry(mossOn(all, lo ? 30 : 60, seed + 11, 0.2, 1, [3, 8])), mossMat, cg, 'blossom-strands', true, false);
+    }
+    if (L.caps) addStuds(crownSk, cg, 120);
     ct.cables?.dispose();
     // flowers through the crown: blossom clusters on its limbs
     const crownLimbs: TreeSkeleton = { ...crownSk, nodes: crownSk.nodes.map((n) => ({ ...n, order: n.order <= 1 && n.radius > 0.12 ? 0 : 5 })) };
@@ -398,11 +479,12 @@ export function buildEntModel(seed: number, o: { lo?: boolean } = {}): EntModel 
   // living trees on its shoulders and back (the forest's own species, small)
   {
     const spots: [TreeSpecies, number, THREE.Vector3, number][] = [
-      [CF_VIOLET, 0.3, V(ENT.shoulderX * 0.8, ENT.shoulderY + 2.0, -0.8), 0.25],
+      [L.crown === 'mangrove' ? CF_MANGROVE : L.crown === 'willow' ? CF_WILLOW : CF_VIOLET, 0.3, V(ENT.shoulderX * 0.8, ENT.shoulderY + 2.0, -0.8), 0.25],
       [CF_BLUE, 0.27, V(-ENT.shoulderX * 0.55, ENT.shoulderY + 2.2, -2.6), -0.2],
       [CF_VIOLET, 0.22, V(-1.2, ENT.torso * 0.55, -4.1), -0.7],
     ];
-    if (lo) spots.pop();
+    spots.length = Math.min(spots.length, L.saplings);
+    if (lo && spots.length > 1) spots.pop();
     spots.forEach(([sp, sc, at, tilt], i) => {
       const sk = growTree(sp, seed * 7 + i * 3, { scale: sc, detail: lo ? 0.4 : 0.6 });
       const g = new THREE.Group(); g.name = 'ent-tree'; g.position.copy(at); g.rotation.set(tilt * 0.4, R() * 6.28, tilt); spine.add(g);
@@ -425,25 +507,25 @@ export function buildEntModel(seed: number, o: { lo?: boolean } = {}): EntModel 
   let si = 10;
   for (const side of ['Left', 'Right'] as const) {
     const s = si; si += 10;
-    segs[`${side}UpLeg`] = seg(`${side}UpLeg`, limbSkeleton({ len: ENT.thigh, r0: 2.6, r1: 2.0, seed: seed + s, dir: -1, wobble: 0.5, twigs: lo ? 1 : 3, twigLen: [2, 4], twigFrom: 0.1, twigTo: 0.6, leaves: 2 }), ENT.thigh,
-      (g, sk) => { addFlowers(sk, g, 16, s, [0.8, 1.3]); addMoss(mossOn(sk, 10, seed + s, 0.05, 0.4, [2, 5]), g, 'thigh-moss'); });
-    segs[`${side}Leg`] = seg(`${side}Leg`, limbSkeleton({ len: ENT.shin, r0: 2.1, r1: 1.7, seed: seed + s + 1, dir: -1, wobble: 0.4 }), ENT.shin,
-      (g, sk) => addMoss(mossOn(sk, 8, seed + s + 1, 0.0, 0.35, [1.5, 3.5]), g, 'shin-moss'));
-    segs[`${side}Arm`] = seg(`${side}Arm`, limbSkeleton({ len: ENT.upperArm, r0: 2.1, r1: 1.6, seed: seed + s + 2, dir: -1, wobble: 0.5, twigs: lo ? 2 : 4, twigLen: [2.5, 5], twigFrom: 0.05, twigTo: 0.7, leaves: 3, twigUp: 0.8 }), ENT.upperArm,
-      (g, sk) => { addFlowers(sk, g, 22, s + 2, [0.8, 1.4]); addMoss(mossOn(sk, 14, seed + s + 2, 0.05, 0.9, [2.5, 6.5]), g, 'arm-moss'); });
-    segs[`${side}ForeArm`] = seg(`${side}ForeArm`, limbSkeleton({ len: ENT.foreArm, r0: 1.6, r1: 1.25, seed: seed + s + 3, dir: -1, wobble: 0.5, twigs: lo ? 1 : 3, twigLen: [2, 4], twigFrom: 0.1, twigTo: 0.6, leaves: 2, fingers: 5, twigUp: 0.8 }), ENT.foreArm,
-      (g, sk) => { addFlowers(sk, g, 12, s + 3, [0.7, 1.1]); addMoss(mossOn(sk, 10, seed + s + 3, 0.0, 0.7, [2, 5.5]), g, 'forearm-moss'); });
+    segs[`${side}UpLeg`] = seg(`${side}UpLeg`, limbSkeleton({ len: ENT.thigh, r0: 2.6 * LM, r1: 2.0 * LM, seed: seed + s, dir: -1, wobble: 0.5, twigs: lo ? 1 : 3, twigLen: [2, 4], twigFrom: 0.1, twigTo: 0.6, leaves: 2 }), ENT.thigh,
+      (g, sk) => { addFlowers(sk, g, 16, s, [0.8, 1.3]); addMoss(mossOn(sk, mossN(10), seed + s, 0.05, 0.4, [2, 5], undefined, L.mossLen), g, 'thigh-moss'); });
+    segs[`${side}Leg`] = seg(`${side}Leg`, limbSkeleton({ len: ENT.shin, r0: 2.1 * LM, r1: 1.7 * LM, seed: seed + s + 1, dir: -1, wobble: 0.4 }), ENT.shin,
+      (g, sk) => addMoss(mossOn(sk, mossN(8), seed + s + 1, 0.0, 0.35, [1.5, 3.5], undefined, L.mossLen), g, 'shin-moss'));
+    segs[`${side}Arm`] = seg(`${side}Arm`, limbSkeleton({ len: ENT.upperArm, r0: 2.1 * LM, r1: 1.6 * LM, seed: seed + s + 2, dir: -1, wobble: 0.5, twigs: lo ? 2 : 4, twigLen: [2.5, 5], twigFrom: 0.05, twigTo: 0.7, leaves: 3, twigUp: 0.8 }), ENT.upperArm,
+      (g, sk) => { addFlowers(sk, g, 22, s + 2, [0.8, 1.4]); addMoss(mossOn(sk, mossN(14), seed + s + 2, 0.05, 0.9, [2.5, 6.5], undefined, L.mossLen), g, 'arm-moss'); });
+    segs[`${side}ForeArm`] = seg(`${side}ForeArm`, limbSkeleton({ len: ENT.foreArm, r0: 1.6 * LM, r1: 1.25 * LM, seed: seed + s + 3, dir: -1, wobble: 0.5, twigs: lo ? 1 : 3, twigLen: [2, 4], twigFrom: 0.1, twigTo: 0.6, leaves: 2, fingers: 5, twigUp: 0.8 }), ENT.foreArm,
+      (g, sk) => { addFlowers(sk, g, 12, s + 3, [0.7, 1.1]); addMoss(mossOn(sk, mossN(10), seed + s + 3, 0.0, 0.7, [2, 5.5], undefined, L.mossLen), g, 'forearm-moss'); });
   }
   // feet: root toes gripping the ground (the group sits at the ankle, yawed with the foot)
   const feet = {} as EntModel['feet'];
   for (const side of ['Left', 'Right'] as const) {
     const g = new THREE.Group(); g.name = `${side}Foot`; root.add(g);
-    addWood(limbSkeleton({ len: 1.2, r0: 2.0, r1: 1.9, seed: seed + (side === 'Left' ? 51 : 61), dir: 1, overlap: 0.4, wobble: 0.1, roots: 6 }), g, `${side}Foot`, lo ? 8 : 12);
+    addWood(limbSkeleton({ len: 1.2, r0: 2.0 * LM, r1: 1.9 * LM, seed: seed + (side === 'Left' ? 51 : 61), dir: 1, overlap: 0.4, wobble: 0.1, roots: L.roots?.toes ?? 6, rootReach: L.roots?.reach ?? 1 }), g, `${side}Foot`, lo ? 8 : 12);
     feet[side] = g;
   }
   root.traverse((o) => { o.matrixAutoUpdate = true; });
   return {
-    root, pelvis, head, segs, feet, detail, meshes, eyes, wake,
+    root, pelvis, head, segs, feet, detail, meshes, eyes, wake, eyeColor: new THREE.Color(L.eyes),
     dispose() { for (const g of geos) g.dispose(); for (const m of mats) m.dispose(); },
   };
 }

@@ -27,6 +27,7 @@ import type { VfxSystem, Recipe } from '../../../../services/vfx';
 import { bakeImpostor, impostorMaterial, impostorMesh, setImpostor } from '../../../../services/vegetation/lod/impostor';
 import { CORE } from '../world/layout';
 import { Ent, type EntActKind } from './ent';
+import { Eruptions, FX, pickWarden, wardenById, WARDENS, type Warden } from './wardens';
 
 export type EntSound = 'step' | 'smash' | 'groan' | 'creak' | 'bless';
 
@@ -99,7 +100,15 @@ const clamp = (x: number, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 
 /** Named moves (the API's `command(id, move)`): which timeline plays it and what lands. radius m, dmg × base,
  *  knock m, launch m/s up, hold = hit-stun s (root-trap holds them). Per-warden moves join this table. */
-export interface EntMove { act: EntActKind; radius: number; dmg: number; knock: number; launch: number; hold: number; note: string }
+export interface EntMove {
+  act: EntActKind; radius: number; dmg: number; knock: number; launch: number; hold: number; note: string;
+  /** Cast round itself (in front of it), not at a target. */
+  centered?: boolean;
+  /** Particles (wardens.ts FX); spikes / roots / a cage from the ground; a multiplier on titans and bosses; draws foes in. */
+  fx?: string; erupt?: { n: number; color: number; h: [number, number]; life: number; ring?: boolean }; titan?: number; pull?: boolean;
+  /** The warden it belongs to (signature moves). */
+  warden?: string;
+}
 export const MOVES: Record<string, EntMove> = {
   smash: { act: 'smash', radius: 10, dmg: 1, knock: 5, launch: 7, hold: 0.6, note: 'two fists brought down on a point' },
   sweep: { act: 'smash', radius: 14, dmg: 0.7, knock: 10, launch: 4, hold: 0.4, note: 'a wide low sweep that scatters a horde' },
@@ -111,10 +120,25 @@ export const MOVES: Record<string, EntMove> = {
   tend: { act: 'tend', radius: 8, dmg: 0, knock: 0, launch: 0, hold: 0, note: 'reaches down and tends the ground' },
   bless: { act: 'bless', radius: 9, dmg: 0, knock: 0, launch: 0, hold: 0, note: 'a blessing hand over a light soul' },
   threaten: { act: 'threaten', radius: 0, dmg: 0, knock: 0, launch: 0, hold: 0, note: 'rises, boughs spread wide in warning' },
+  // ── signature moves, one per Grovewarden, grown from its fight clip ──
+  'root-grapple': { warden: 'ancient-oak', act: 'smash', radius: 11, dmg: 1.1, knock: 0, launch: 0, hold: 4, titan: 1.8, pull: true, note: 'Oak Knight vs titan: roots and boughs burst up round the foe and wrestle it down', erupt: { n: 26, color: 0x5a4430, h: [5, 11], life: 4.2 } },
+  'root-cage': { warden: 'banyan', act: 'smash', radius: 9, dmg: 0.4, knock: 0, launch: 0, hold: 5.5, titan: 1.4, note: 'Banyan trapping: aerial roots arch over and close into a cage round the beast', erupt: { n: 22, color: 0x6a5434, h: [10, 16], life: 5.5, ring: true } },
+  'chest-slam': { warden: 'baobab', act: 'smash', radius: 18, dmg: 0.9, knock: 14, launch: 6, hold: 0.8, note: 'Baobab titan: beats its chest, then slams; a green shockwave throws the horde back', fx: 'shock' },
+  'lumen-pulse': { warden: 'bioluminescent', act: 'threaten', radius: 18, dmg: 0.3, knock: 3, launch: 0, hold: 3, centered: true, note: 'a flash of its whole canopy: demons blinded and stalled', fx: 'lumen' },
+  'petal-storm': { warden: 'cherry-blossom', act: 'threaten', radius: 16, dmg: 0.6, knock: 6, launch: 3, hold: 1.2, centered: true, note: 'a vortex of razor petals round it', fx: 'petals' },
+  'spore-burst': { warden: 'fungal-spore', act: 'threaten', radius: 15, dmg: 0.5, knock: 0, launch: 0, hold: 2.5, centered: true, note: 'its caps burst: a choking spore cloud stalls the horde', fx: 'spores' },
+  'thorn-field': { warden: 'ironwood-thorn', act: 'smash', radius: 16, dmg: 1.4, knock: 2, launch: 10, hold: 1.2, titan: 1.5, note: 'Ironwood impaling: a red-veined fist to the ground and a forest of giant thorns erupts through demons and titan', erupt: { n: 70, color: 0x2a1c18, h: [6, 15], life: 3.4 } },
+  'sap-wave': { warden: 'pine-sentinel', act: 'smash', radius: 16, dmg: 1.1, knock: 9, launch: 4, hold: 0.6, note: 'Pine Sentinel: a sun-gold orb of sap, then a burning wave along the ground', fx: 'sap' },
+  'titan-hammer': { warden: 'sequoia', act: 'smash', radius: 10, dmg: 2.2, knock: 8, launch: 8, hold: 1.2, titan: 2, note: 'the tallest tree brings both fists down: a blow for titans' },
+  'bog-drag': { warden: 'swamp-mangrove', act: 'smash', radius: 13, dmg: 0.5, knock: 4, launch: 0, hold: 3.5, pull: true, note: 'stilt roots plunge in and drag the horde into the mire', fx: 'mud', erupt: { n: 30, color: 0x4a4230, h: [3, 7], life: 3.5 } },
+  'vine-lash': { warden: 'weeping-willow', act: 'smash', radius: 12, dmg: 0.8, knock: 6, launch: 2, hold: 1.5, note: 'Willow: its curtain of vines lashes out green and snares', fx: 'vines' },
+  blizzard: { warden: 'white-birch', act: 'threaten', radius: 22, dmg: 0.5, knock: 8, launch: 0, hold: 4, centered: true, note: 'White Birch: arms raised, a blizzard bursts out and freezes the horde', fx: 'frost' },
 };
 const RECIPES = [ENT_STEP, ENT_LEAVES, ENT_SMASH, ENT_MOTES];
 
 interface Guard {
+  /** Seconds until it may use its signature move again. */
+  sigCd: number;
   /** Stable id for the API (list / command / follow). */
   id: number;
   /** The warden kind (Grovewardens); 'placeholder' until the sheet-built bodies land. */
@@ -141,6 +165,8 @@ interface Guard {
 
 export class Ents {
   readonly group = new THREE.Group();
+  /** Spikes, roots and cages bursting from the ground (signature moves). */
+  readonly erupt = new Eruptions();
   readonly guards: Guard[] = [];
   private soulOverride: number | null = null;
   private busOff: (() => void)[] = [];
@@ -154,6 +180,7 @@ export class Ents {
   constructor(private ctx: EntsCtx, private seed: number) {
     this.group.name = 'ents';
     ctx.scene.add(this.group);
+    this.group.add(this.erupt.mesh);
     let s = seed >>> 0;
     this.R = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
     const q = new URLSearchParams(location.search).get('soul');
@@ -213,14 +240,14 @@ export class Ents {
     return best;
   }
 
-  spawn(mode: 'stand' | 'walk', at?: THREE.Vector3 | null, yaw = this.R() * Math.PI * 2) {
+  spawn(mode: 'stand' | 'walk', at?: THREE.Vector3 | null, yaw = this.R() * Math.PI * 2, warden: Warden = pickWarden(this.R)) {
     const p = at ?? this.findSpot(undefined, 110, mode === 'stand' ? 340 : 280, mode === 'stand');
     if (!p) { console.warn('[ents] no spot found'); return null; }
-    const ent = new Ent(this.seed + this.guards.length * 101, this.ground, p.x, p.z, yaw, this.ctx.lo);
+    const ent = new Ent(this.seed + this.guards.length * 101, this.ground, p.x, p.z, yaw, this.ctx.lo, warden);
     ent.rooted = mode === 'stand';
     ent.update(0);
     this.group.add(ent.root);
-    const g: Guard = { id: this.nextId++, kind: 'placeholder', hp: 6000, maxHp: 6000, follow: null, ent, mode, home: p.clone(), think: 0, cd: 0, threatCd: 0, idleT: 0, pauseT: 0, stirT: 60 + this.R() * 80, tendAt: null, fighting: false, warned: false, lastSaid: -99, impostor: null, lod: 0 };
+    const g: Guard = { id: this.nextId++, kind: warden.id, hp: Math.round(6000 * warden.scale), maxHp: Math.round(6000 * warden.scale), sigCd: 3, follow: null, ent, mode, home: p.clone(), think: 0, cd: 0, threatCd: 0, idleT: 0, pauseT: 0, stirT: 60 + this.R() * 80, tendAt: null, fighting: false, warned: false, lastSaid: -99, impostor: null, lod: 0 };
     ent.onStep = (side, at) => this.footfall(g, at);
     ent.onAct = (kind, at, phase, move) => this.acted(g, kind, at, phase, move);
     ent.avoid = (pt) => {
@@ -229,7 +256,7 @@ export class Ents {
       if (d < 6.5) { const k = d > 0.01 ? 6.5 / d : 1; pt.x = pp.x + (d > 0.01 ? dx : 1) * k; pt.z = pp.z + (d > 0.01 ? dz : 0) * k; }
     };
     this.guards.push(g);
-    console.info(`[ents] a ${mode === 'stand' ? 'rooted' : 'walking'} ent at (${p.x.toFixed(0)}, ${p.z.toFixed(0)})`);
+    console.info(`[ents] a ${mode === 'stand' ? 'rooted' : 'walking'} ${warden.name} at (${p.x.toFixed(0)}, ${p.z.toFixed(0)})`);
     return g;
   }
 
@@ -281,7 +308,9 @@ export class Ents {
         const t = this.v.copy(foe);
         if (d < 9) { const k = 9 / Math.max(0.1, d); t.set(ent.pos.x + (foe.x - ent.pos.x) * k, 0, ent.pos.z + (foe.z - ent.pos.z) * k); }
         t.y = this.ground(t.x, t.z);
-        ent.goal = null; ent.start('smash', t); g.cd = 2.6;
+        const sig = g.ent.warden.signature;
+        if (g.sigCd <= 0 && MOVES[sig]) { ent.goal = null; ent.start(MOVES[sig].act, t, sig); g.sigCd = 9 + this.R() * 5; g.cd = 3.4; }
+        else { ent.goal = null; ent.start('smash', t); g.cd = 2.6; }
       } else if (d >= 17 && !ent.busy) ent.goal = this.w.set(foe.x - (foe.x - ent.pos.x) / d * 12, 0, foe.z - (foe.z - ent.pos.z) / d * 12).clone();
       return;
     }
@@ -392,53 +421,64 @@ export class Ents {
     }
   }
 
-  /** An action reaches its moment: the smash lands, the tending hand touches the ground, the blessing opens. */
+  /** An action reaches its moment: the smash lands, a signature move goes off, the tending hand touches the ground. */
   private acted(g: Guard, kind: EntActKind, at: THREE.Vector3, phase: 'start' | 'strike' | 'end', move: string = kind) {
     const ent = g.ent;
     this.emit('ent-move', { id: g.id, move, phase: phase === 'start' ? 'tell' : phase === 'strike' ? 'hit' : 'end', x: at.x, z: at.z });
     const M = MOVES[move] ?? MOVES[kind];
-    if (phase === 'start') { if (kind !== 'bless') this.ctx.sound('creak', this.gainAt(ent.pos), this.panAt(ent.pos)); if (kind === 'tend') this.emit('ent-tend', { x: at.x, z: at.z }); return; }
+    if (phase === 'start') {
+      if (kind !== 'bless') this.ctx.sound(M.fx ? 'groan' : 'creak', this.gainAt(ent.pos), this.panAt(ent.pos));
+      if (kind === 'tend') this.emit('ent-tend', { x: at.x, z: at.z });
+      return;
+    }
     if (phase === 'end') return;
-    if (kind === 'smash') {
-      const pp = this.ctx.player.object.position, d = Math.hypot(at.x - pp.x, at.z - pp.z);
-      this.ctx.vfx.spawn(ENT_SMASH, at, { dir: [0, 1, 0] });
-      this.ctx.vfx.sim.shake = Math.max(this.ctx.vfx.sim.shake, 3.4 * Math.pow(clamp(1 - (d - 8) / 160), 1.4));
-      this.ctx.sound('smash', this.gainAt(at), this.panAt(at));
-      this.emit('ent-smash', { x: at.x, z: at.z });
-      // the rift's creatures under the fists
-      const dir = new THREE.Vector3();
-      for (const e of [...this.ctx.enemies.enemies]) {
-        if (e.hp <= 0) continue;
-        const r = Math.hypot(e.mesh.position.x - at.x, e.mesh.position.z - at.z);
-        if (r > M.radius) continue;
-        dir.set(e.mesh.position.x - at.x, 0, e.mesh.position.z - at.z).normalize();
-        this.ctx.enemies.damageEnemy(e.id, Math.round((e.boss ? 260 : 420) * M.dmg * (1 - r / (M.radius * 2))), dir, M.knock, { source: 'ent' as never, launch: M.launch, hitstun: M.hold, unblockable: true });
-      }
-      // predators caught in it (always: they share the ground it strikes)
-      const dg = this.danger;
-      const pd = dg?.predators;
-      if (pd?.damage) for (const p of pd.list) {
-        if (!p.alive || Math.hypot(p.mesh.position.x - at.x, p.mesh.position.z - at.z) > M.radius) continue;
-        pd.damage(p.id, Math.round(320 * M.dmg), at, M.knock, false);
-      }
-      // throw: the player in reach is flung forward (an ally's launch, no harm)
-      if (move === 'throw') {
-        if (d < 8) { this.ctx.player.lunge(dir.set(Math.sin(ent.yaw), 0, Math.cos(ent.yaw)), 26, 0.7); this.ctx.player.hop(15); }
-        return;
-      }
-      // the player: a dark soul is the target; anyone else just gets thrown by the shock
-      if (M.dmg > 0 && d < 11 && pp.y - at.y < 6) {
-        const soul = this.soul();
-        this.ctx.player.lunge(dir.set(pp.x - at.x, 0, pp.z - at.z).normalize(), 14, 0.4); this.ctx.player.hop(8);
-        if (soul < -0.3) this.ctx.hurt(Math.round(55 * (1 - d / 22)), 'ent smash');
-        else if (soul < 0.3 && d < 7) this.ctx.hurt(12, 'ent smash');
-      }
-    } else if (kind === 'tend' || kind === 'bless') {
+    // where it lands: the target, or (moves it casts round itself: blizzard, spores, petals) in front of it
+    const c = M.centered ? new THREE.Vector3(ent.pos.x + Math.sin(ent.yaw) * 8 * ent.scale, 0, ent.pos.z + Math.cos(ent.yaw) * 8 * ent.scale) : at.clone();
+    if (M.centered) c.y = this.ground(c.x, c.z);
+    const R = M.radius * (M.centered ? ent.scale : 1);
+    if (M.fx && FX[M.fx]) this.ctx.vfx.spawn(FX[M.fx], c.clone().setY(c.y + (M.centered ? 6 : 1)), { dir: [0, 1, 0] });
+    if (M.erupt) this.erupt.spawn(c, R * (M.erupt.ring ? 1 : 0.9), M.erupt.n, M.erupt.color, M.erupt.h, M.erupt.life, this.ground, this.R, !!M.erupt.ring);
+    if (kind === 'smash' || M.dmg > 0 || M.hold > 0) this.strikeArea(g, c, R, M, move, kind === 'smash');
+    else if (kind === 'tend' || kind === 'bless') {
       this.ctx.vfx.spawn(ENT_MOTES, at, { dir: [0, 1, 0] });
       if (move === 'lift') { const pp = this.ctx.player.object.position; if (Math.hypot(pp.x - at.x, pp.z - at.z) < M.radius) this.ctx.player.hop(16); }
       this.ctx.sound(kind === 'bless' ? 'bless' : 'creak', this.gainAt(at) * 0.7, this.panAt(at));
     } else if (kind === 'threaten') {
       this.ctx.vfx.spawn(ENT_LEAVES, ent.joints.head, { dir: [0, -1, 0], count: 1.5 });
+    }
+  }
+
+  /** Everything in the circle takes the move: the rift's creatures and predators (damage, knock, launch, hold), and the
+   *  player by soul (a dark soul is a target; anyone else is only thrown by the shock of a plain smash). */
+  private strikeArea(g: Guard, at: THREE.Vector3, R: number, M: EntMove, move: string, dust: boolean) {
+    const ent = g.ent, pp = this.ctx.player.object.position, d = Math.hypot(at.x - pp.x, at.z - pp.z);
+    if (dust) this.ctx.vfx.spawn(ENT_SMASH, at, { dir: [0, 1, 0], scale: Math.max(1, R / 10) });
+    this.ctx.vfx.sim.shake = Math.max(this.ctx.vfx.sim.shake, (M.dmg > 0 ? 3.4 : 1.6) * Math.pow(clamp(1 - (d - R) / 160), 1.4));
+    this.ctx.sound('smash', this.gainAt(at) * (M.dmg > 0 ? 1 : 0.6), this.panAt(at));
+    this.emit('ent-smash', { x: at.x, z: at.z, move });
+    const dir = new THREE.Vector3();
+    for (const e of [...this.ctx.enemies.enemies]) {
+      if (e.hp <= 0) continue;
+      const r = Math.hypot(e.mesh.position.x - at.x, e.mesh.position.z - at.z);
+      if (r > R) continue;
+      dir.set(e.mesh.position.x - at.x, 0, e.mesh.position.z - at.z).normalize();
+      // a pull (bog-drag, root-grapple) draws them in instead of throwing them out
+      if (M.pull) dir.negate();
+      this.ctx.enemies.damageEnemy(e.id, Math.round((e.boss ? 260 : 420) * M.dmg * (1 - r / (R * 2)) * (e.boss ? M.titan ?? 1 : 1)), dir, M.knock, { source: 'ent' as never, launch: M.launch, hitstun: M.hold, unblockable: true });
+    }
+    const pd = this.danger?.predators;
+    if (pd?.damage) for (const p of pd.list) {
+      if (!p.alive || Math.hypot(p.mesh.position.x - at.x, p.mesh.position.z - at.z) > R) continue;
+      pd.damage(p.id, Math.round(320 * Math.max(0.15, M.dmg)), at, M.knock, false);
+    }
+    if (move === 'throw') {
+      if (d < 8) { this.ctx.player.lunge(dir.set(Math.sin(ent.yaw), 0, Math.cos(ent.yaw)), 26, 0.7); this.ctx.player.hop(15); }
+      return;
+    }
+    if (M.dmg > 0 && d < R + 1 && pp.y - at.y < 6) {
+      const soul = this.soul();
+      if (soul < -0.3) { this.ctx.player.lunge(dir.set(pp.x - at.x, 0, pp.z - at.z).normalize(), 14, 0.4); this.ctx.player.hop(8); this.ctx.hurt(Math.round(55 * M.dmg * (1 - d / (R * 2))), `${g.kind} ${move}`); }
+      else if (soul < 0.3 && d < 7 && move === 'smash') { this.ctx.player.lunge(dir.set(pp.x - at.x, 0, pp.z - at.z).normalize(), 14, 0.4); this.ctx.player.hop(8); this.ctx.hurt(12, 'ent smash'); }
     }
   }
 
@@ -469,7 +509,7 @@ export class Ents {
     movers.length = 0;
     for (const g of this.guards) {
       const ent = g.ent;
-      g.cd -= dt; g.threatCd -= dt; g.pauseT -= dt; g.stirT -= dt;
+      g.cd -= dt; g.threatCd -= dt; g.sigCd -= dt; g.pauseT -= dt; g.stirT -= dt;
       if ((g.think -= dt) <= 0) { g.think = 0.4; this.think(g); }
       // a light-souled player under a blessing heals (and the motes keep rising)
       if (ent.act?.kind === 'bless' && ent.act.fired && this.soul() > 0.3) {
@@ -490,6 +530,7 @@ export class Ents {
       movers.push([J.pelvis.x, J.pelvis.z, 5.2, J.pelvis.y - 3, J.pelvis.y + 15]);
       void pp;
     }
+    this.erupt.update(dt);
     if ((this.lodT -= dt) <= 0) { this.lodT = 0.25; this.lods(); }
   }
 
@@ -515,7 +556,7 @@ export class Ents {
   /** Every warden now: id, kind, position, awake 0…1, busy (mid-move), hp. */
   list() { return this.guards.map((g) => ({ id: g.id, kind: g.kind, pos: g.ent.pos.clone(), awake: g.ent.awake, busy: g.ent.busy, move: g.ent.act?.move ?? null, hp: g.hp, maxHp: g.maxHp })); }
   /** Moves a warden knows (shared set; per-warden moves join MOVES by id). */
-  moves(_id?: number) { return Object.keys(MOVES); }
+  moves(id?: number) { const g = this.guards.find((q) => q.id === id); return Object.keys(MOVES).filter((k) => !MOVES[k].warden || !g || MOVES[k].warden === g.kind); }
   /** Play a named move at a point or an enemy (anything with a position). False when busy or unknown.
    *  Events on the forest bus: 'ent-move' { id, move, phase: 'tell' | 'hit' | 'end', x, z }. */
   command(id: number, move: string, target?: { x: number; z: number } | { mesh?: THREE.Object3D; position?: THREE.Vector3 } | null) {
@@ -535,10 +576,14 @@ export class Ents {
   follow(id: number, target: THREE.Object3D | null) { const g = this.guards.find((q) => q.id === id); if (!g) return false; g.follow = target; if (!target) g.ent.goal = null; return true; }
 
   // ── debug (?rrdebug: __rr.ents) ──
-  info() { return this.guards.map((g) => ({ mode: g.mode, x: +g.ent.pos.x.toFixed(1), z: +g.ent.pos.z.toFixed(1), y: +g.ent.pos.y.toFixed(1), yaw: +g.ent.yaw.toFixed(2), rooted: g.ent.rooted, act: g.ent.act?.kind ?? null, speed: +g.ent.speed.toFixed(2), awake: +g.ent.awake.toFixed(2), lod: g.lod, soul: this.soul(), dist: +g.ent.pos.distanceTo(this.ctx.player.object.position).toFixed(0) })); }
+  info() { return this.guards.map((g) => ({ id: g.id, kind: g.kind, mode: g.mode, x: +g.ent.pos.x.toFixed(1), z: +g.ent.pos.z.toFixed(1), y: +g.ent.pos.y.toFixed(1), yaw: +g.ent.yaw.toFixed(2), rooted: g.ent.rooted, act: g.ent.act?.kind ?? null, speed: +g.ent.speed.toFixed(2), awake: +g.ent.awake.toFixed(2), lod: g.lod, soul: this.soul(), dist: +g.ent.pos.distanceTo(this.ctx.player.object.position).toFixed(0) })); }
   act(kind: EntActKind, i = 0) { const g = this.guards[i]; if (!g) return false; const t = this.ctx.player.object.position.clone(); if (kind !== 'bless') { const e = g.ent; t.set(e.pos.x + Math.sin(e.yaw) * 11, 0, e.pos.z + Math.cos(e.yaw) * 11); t.y = this.ground(t.x, t.z); } return g.ent.start(kind, t); }
   walkTo(x: number, z: number, i = 0) { const g = this.guards[i]; if (!g) return; g.ent.rooted = false; g.ent.goal = new THREE.Vector3(x, 0, z); g.mode = 'walk'; g.pauseT = 1e9; }
   setSoul(v: number | null) { this.soulOverride = v; }
+  /** Debug: every warden's id (for ?warden= and spawnWarden). */
+  wardens() { return WARDENS.map((w) => `${w.id}: ${w.name} — ${w.signature}`); }
+  /** Debug: grow another warden `ahead` metres in front of the camera. */
+  spawnWarden(id: string, ahead = 60) { const w = wardenById(id); if (!w) return null; const c = this.ctx.camera, f = this.v.set(0, 0, -1).applyQuaternion(c.quaternion).setY(0).normalize(), p = this.ctx.player.object.position; const x = p.x + f.x * ahead, z = p.z + f.z * ahead; return this.spawn('stand', new THREE.Vector3(x, this.ground(x, z), z), Math.atan2(p.x - x, p.z - z), w)?.id ?? null; }
   /** Move the ent next to the player (scale shots): `ahead` metres in front of the camera. */
   near(ahead = 40, i = 0) { const g = this.guards[i]; if (!g) return; const c = this.ctx.camera, f = this.v.set(0, 0, -1).applyQuaternion(c.quaternion).setY(0).normalize(); const p = this.ctx.player.object.position; const x = p.x + f.x * ahead, z = p.z + f.z * ahead; g.ent.place(x, z, Math.atan2(p.x - x, p.z - z)); g.home.set(x, this.ground(x, z), z); }
 
@@ -556,11 +601,12 @@ export function createEnts(ctx: EntsCtx): Ents | null {
   const q = new URLSearchParams(location.search);
   const want = q.get('ent');
   if (want === '0' || ctx.level !== 'elderwood' || q.has('classic')) return null;
-  const forced = want === '1' || want === 'stand' || want === 'walk';
+  const forced = want === '1' || want === 'stand' || want === 'walk' || q.has('warden');
   const seed = Math.floor(Math.random() * 1e9);
   if (!forced && Math.random() >= 0.4) return null;
   const ents = new Ents(ctx, seed);
   const mode = want === 'stand' || want === 'walk' ? want : Math.random() < 0.7 ? 'stand' : 'walk';
-  if (!ents.spawn(mode)) { ents.dispose(); return null; }
+  const w = wardenById(q.get('warden'));
+  if (!ents.spawn(mode, null, undefined, w ?? undefined)) { ents.dispose(); return null; }
   return ents;
 }

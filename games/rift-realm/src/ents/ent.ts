@@ -8,6 +8,7 @@
 //   • Actions are short timelines that drive crouch, torso pitch and the hand targets from idle and back to idle.
 import * as THREE from 'three/webgpu';
 import { ENT, buildEntModel, type EntModel } from './model';
+import { WARDENS, type Warden } from './wardens';
 
 export type EntActKind = 'tend' | 'smash' | 'bless' | 'threaten';
 type Side = 'Left' | 'Right';
@@ -64,9 +65,16 @@ export class Ent {
   private handT = { Left: new THREE.Vector3(), Right: new THREE.Vector3() };
   private t = 0;
 
-  constructor(seed: number, private ground: (x: number, z: number) => number, x: number, z: number, yaw: number, lo = false) {
-    this.model = buildEntModel(seed, { lo });
+  /** Which Grovewarden this is, and its size (a multiple of the 46 m body). */
+  readonly warden: Warden;
+  readonly scale: number;
+
+  constructor(seed: number, private ground: (x: number, z: number) => number, x: number, z: number, yaw: number, lo = false, warden: Warden = WARDENS[0]) {
+    this.warden = warden; this.scale = warden.scale;
+    this.model = buildEntModel(seed, { lo, look: warden.look });
     this.root = this.model.root;
+    this.root.scale.setScalar(this.scale);
+    this.maxSpeed *= this.scale;
     this.yaw = yaw;
     this.pos.set(x, ground(x, z), z);
     this.bodyY = this.pos.y;
@@ -105,8 +113,8 @@ export class Ent {
 
   private homeOf(side: Side, out: THREE.Vector3) {
     const s = Math.sin(this.yaw), c = Math.cos(this.yaw);
-    const lead = this.speed * 1.1;
-    out.set(this.pos.x + c * SX[side] * ENT.hipX * 1.05 + s * lead, 0, this.pos.z - s * SX[side] * ENT.hipX * 1.05 + c * lead);
+    const lead = this.speed * 1.1, hx = ENT.hipX * 1.05 * this.scale;
+    out.set(this.pos.x + c * SX[side] * hx + s * lead, 0, this.pos.z - s * SX[side] * hx + c * lead);
     out.y = this.ground(out.x, out.z);
     return out;
   }
@@ -151,8 +159,8 @@ export class Ent {
       let pick: Side | null = null, worst = 0;
       for (const side of SIDES) {
         const f = this.feet[side], h = this.homeOf(side, this.v);
-        const need = Math.hypot(h.x - f.pos.x, h.z - f.pos.z) + Math.abs(wrap(this.yaw - f.yaw)) * 6;
-        const thresh = this.speed > 0.2 ? 3.2 : 2.2;
+        const need = Math.hypot(h.x - f.pos.x, h.z - f.pos.z) + Math.abs(wrap(this.yaw - f.yaw)) * 6 * this.scale;
+        const thresh = (this.speed > 0.2 ? 3.2 : 2.2) * this.scale;
         if (need > thresh && need > worst) { worst = need; pick = side; }
       }
       if (pick) {
@@ -226,7 +234,7 @@ export class Ent {
     for (const side of SIDES) {
       const f = this.feet[side], fl = f.swing >= 0 ? Math.sin(f.swing * Math.PI) : 0;
       const hip = this.v.set(SX[side] * ENT.hipX, 0, 0).applyMatrix4(pv.matrix);
-      const ankle = this.w.copy(f.pos); ankle.y += ENT.ankleY + fl * 2.6;
+      const ankle = this.w.copy(f.pos); ankle.y += (ENT.ankleY + fl * 2.6) * this.scale;
       this.root.worldToLocal(ankle);
       const knee = this.u;
       solve2(hip, ankle, ENT.thigh, ENT.shin, this.bz.set(0, 0, 1), knee);
@@ -279,7 +287,7 @@ export class Ent {
     }
     // eyes: dim amber asleep, bright when awake (bloom catches it)
     const e = 0.35 + this.awake * 3.2 + (a?.kind === 'smash' || a?.kind === 'threaten' ? 2 : 0);
-    this.model.eyes.color.setRGB(1.0 * e, 0.62 * e, 0.22 * e);
+    this.model.eyes.color.copy(this.model.eyeColor).multiplyScalar(e);
     this.root.updateMatrixWorld(true);
     this.joints.head.set(0, 0, 0).applyMatrix4(hd.matrixWorld);
   }
