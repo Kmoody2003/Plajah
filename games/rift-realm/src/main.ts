@@ -201,7 +201,9 @@ async function boot() {
   let score = 0;
   let popTimeout: number | undefined;
   const shakeV = new THREE.Vector3(), assistV = new THREE.Vector3();
-  const AIM_STYLE = new URLSearchParams(location.search).get('aim') ?? 'cursor';
+  // third person plays like Gears of War (captured mouse-look, over the shoulder); ?aim=cursor keeps the old cursor aim
+  const AIM_STYLE = new URLSearchParams(location.search).get('aim') ?? 'look';
+  let wasAimHeld = false;
   let releasingLock = false; // the game dropped the pointer lock itself (cursor aim), so the unlock isn't a pause
   const surges: SurgeWave[] = [];
   const raycaster = new THREE.Raycaster();
@@ -626,11 +628,19 @@ async function boot() {
     hitMarker.style.left = `${targeting.screenX}px`; hitMarker.style.top = `${targeting.screenY}px`; // hit marks sit on the crosshair
     {
       const tp = targeting.profile;
-      // aim assist is for sticks (Fortnite / CoD): a mouse gets raw aim, no pull, no slow-down over targets
-      targeting.assistOn = input.padAim;
+      // aim assist (Settings → Aim assist): Auto = light on a captured mouse, strong on a controller / touch or where
+      // the mouse can't be captured (the fallback turns with A / D and aims for you)
+      const pref = menuSettings.aimAssist ?? 'auto';
+      const level: 'off' | 'light' | 'strong' = pref === 'auto' ? (input.padAim || controls.lockRefused ? 'strong' : 'light') : pref;
+      targeting.assistLevel = level; targeting.assistOn = level !== 'off';
+      player.keyTurnMode = controls.lockRefused;
+      const pull = level === 'strong' ? 2.4 : input.padAim && level === 'light' ? tp.assist : 0;
       if (targeting.locked) player.aimAt(targeting.aimPoint(targeting.locked), dt, tp.lockRate);
-      else if (input.padAim) { const ap = targeting.assistPoint(assistV); if (ap && moveAmt > 0.15) player.aimAt(ap, dt, tp.assist * moveAmt, false); }
-      player.aimFriction = input.padAim && targeting.soft && !targeting.locked ? tp.friction : 1;
+      else if (pull > 0) { const ap = targeting.assistPoint(assistV); if (ap) player.aimAt(ap, dt, pull * (0.35 + Math.min(1, moveAmt)), false); }
+      // strong assist: pressing aim snaps onto the enemy near the crosshair (console-style aim snap)
+      if (level === 'strong' && input.aimHeld && !wasAimHeld && targeting.soft && !targeting.locked) player.aimAt(targeting.aimPoint(targeting.soft), 1, 60, false);
+      wasAimHeld = input.aimHeld;
+      player.aimFriction = level !== 'off' && targeting.soft && !targeting.locked ? (level === 'strong' ? 0.6 : 0.8) : 1;
       player.lockedOn = targeting.isLocked;
       // locked: a sideways flick hops to the next enemy that way; slow drift decays and never adds up to a switch
       if (player.lockedOn && Math.abs(player.flickX) > tp.flick) { targeting.flickSwitch(foes(), player.flickX); player.flickX = 0; }

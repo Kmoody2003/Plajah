@@ -71,6 +71,9 @@ export class Targeting {
   losFrom: ((out: THREE.Vector3) => THREE.Vector3) | null = null;
   /** Aim assist (the bullet magnet) applies: controller / touch aim. A mouse aims raw. */
   assistOn = false;
+  /** Settings → Aim assist (resolved by main.ts): off = raw, light = a small magnet, strong = shots home on the marked
+   *  enemy near the crosshair (controllers, touch, and where the mouse can't be captured). */
+  assistLevel: 'off' | 'light' | 'strong' = 'light';
   /** Cursor aim: the crosshair sits where the mouse points (normalised), or null for a centred crosshair. */
   cursor: { x: number; y: number } | null = null;
 
@@ -192,10 +195,11 @@ export class Targeting {
   assist(origin: THREE.Vector3, dir: THREE.Vector3, _moving = 0) {
     if (this.locked) return dir.copy(this.aimPoint(this.locked, this.v).sub(origin).normalize());
     if (this.cursor) return dir; // cursor aim: the player's aim ray already goes through the cursor
-    if (this.soft && this.profile.magnet > 0 && this.assistOn) {
-      // the crosshair is on (or just off) the marked enemy: the shot lands on it
+    const magnet = this.assistLevel === 'strong' ? 0.14 : this.assistLevel === 'light' ? Math.max(0.035, this.profile.magnet) : 0;
+    if (this.soft && magnet > 0 && this.assistOn) {
+      // the crosshair is on (or near) the marked enemy: the shot lands on it
       const p = this.aimPoint(this.soft, this.d).project(this.camera);
-      if (p.z < 1 && Math.hypot(p.x * this.camera.aspect - this.aimX * this.camera.aspect, p.y - this.aimY) < this.profile.magnet)
+      if (p.z < 1 && Math.hypot(p.x * this.camera.aspect - this.aimX * this.camera.aspect, p.y - this.aimY) < magnet)
         return dir.copy(this.aimPoint(this.soft, this.v).sub(origin).normalize());
     }
     if (Math.abs(this.aimX) < 1e-4 && Math.abs(this.aimY) < 1e-4) return dir;

@@ -132,6 +132,10 @@ export class PlayerController {
     const off = Math.abs(Math.atan2(Math.sin(want - this.yaw), Math.cos(want - this.yaw)));
     if (off > 1.6) this.threatYaw = want; // ~90 deg: only what you can't already see
   }
+  /** Which shoulder the third-person camera sits over: 1 right, -1 left (swap shoulder). */
+  shoulderSide = 1;
+  /** Fallback scheme where the mouse can't be captured: A / D turn the character and camera (main.ts sets it). */
+  keyTurnMode = false;
   /** 0 = centred camera (fists, glide), 1 = over-the-shoulder (gun out). */
   private shoulderT = 1;
   /** A / D are turning the character this frame (the Era Clash follow camera) rather than strafing. */
@@ -182,6 +186,7 @@ export class PlayerController {
       if (e.code === 'Digit1') this.setVessel('aegis');
       if (e.code === 'Digit2') this.setVessel('stalker');
       if (e.code === 'Digit3') this.setVessel('seraph');
+      if (e.code === 'F8' && !e.repeat) this.shoulderSide = -this.shoulderSide; // swap shoulder (Q by default, input/actions.ts)
     });
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     // a key released while the window wasn't focused never sends keyup: drop held keys when focus goes, or the
@@ -584,7 +589,8 @@ export class PlayerController {
       // camera with him, W / S go along the facing (S backs up slower), the mouse aims. Locked on (circle-strafing),
       // aiming down sights (Z) or in first person, A / D strafe.
       // in a fight A / D strafe by themselves (circle an enemy and keep the gun on it); exploring they turn
-      this.keyTurning = !this.firstPerson && !this.lockedOn && !this.inCombat && this.aimBlend < 0.5 && !this.glide.gliding;
+      // Gears: A / D strafe and the mouse turns the camera; only where the mouse can't be captured do A / D turn
+      this.keyTurning = this.keyTurnMode && !this.firstPerson && !this.lockedOn && !this.inCombat && this.aimBlend < 0.5 && !this.glide.gliding;
       if (this.keyTurning) {
         if (ix) this.yaw -= ix * KEY_TURN * (iz ? 0.85 : 1.15) * dt;
         const fwd = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
@@ -739,7 +745,9 @@ export class PlayerController {
     this.bloom += (bloomT - this.bloom) * Math.min(1, dt * (bloomT > this.bloom ? 6 : 2.5));
     // gun out: the body always faces the aim and the legs strafe (Fortnite / CoD); the fists follow camera keeps the
     // body facing the way it turns (backing up with S doesn't spin him round)
-    const faceAim = this.firstPerson || this.aiming || this.faceAimT > 0 || this.lockT > 0 || this.keyTurning || (!this.fists && !this.glide.gliding);
+    // Gears: running, the body faces where it's going; aiming, shooting (for a moment after) or locked on, it squares up
+    // to the crosshair point and the legs strafe
+    const faceAim = this.firstPerson || this.aiming || this.faceAimT > 0 || this.lockT > 0 || this.keyTurning;
     let want: number | null = null;
     if (faceAim) {
       // third person: square up to the point under the crosshair, so the gun visibly points at what you aim at (the
@@ -781,7 +789,8 @@ export class PlayerController {
     // gliding: the camera eases back ~1.2 m and drops toward the body so the prone flyer and his whole wingspan
     // stay on screen (the wings session's framing note); eased so take-off and landing don't jolt
     this.glideCam += ((this.glide.gliding ? 1 : 0) - this.glideCam) * (1 - Math.exp(-dt * 3.5));
-    const targetDist = this.firstPerson ? 0 : THREE.MathUtils.lerp(this.thirdDist, Math.min(this.thirdDist, 2.6), this.aimBlend) + this.glideCam * 1.2;
+    // aiming pulls the camera in tight over the shoulder (Gears), from wherever the wheel left it
+    const targetDist = this.firstPerson ? 0 : THREE.MathUtils.lerp(this.thirdDist, Math.min(this.thirdDist, 1.7), this.aimBlend) + this.glideCam * 1.2;
     this.camDist = THREE.MathUtils.lerp(this.camDist, targetDist, Math.min(1, dt * 14));
 
     // speed feel: FOV opens with speed and kicks on a dash; a little lean into strafes; landing dip
@@ -820,7 +829,8 @@ export class PlayerController {
       this.shoulderT += ((this.fists || this.glide.gliding ? 0 : 1) - this.shoulderT) * (1 - Math.exp(-dt * 6));
       const centredLift = 0.7 + Math.max(0, -this.pitch) * 0.9;
       const lift = THREE.MathUtils.lerp(centredLift, 0.22, this.shoulderT);
-      const pivot = eyePos.clone().setY(eyePos.y + THREE.MathUtils.lerp(lift, 0.15, this.glideCam)).addScaledVector(right, 0.62 * this.shoulderT);
+      const side = this.shoulderSide * this.shoulderT * (0.62 + 0.16 * this.aimBlend); // a touch wider while aiming
+      const pivot = eyePos.clone().setY(eyePos.y + THREE.MathUtils.lerp(lift, 0.15, this.glideCam) + 0.08 * this.aimBlend).addScaledVector(right, side);
       const backDir = lookDir.clone().negate();
       const maxD = this.world ? this.world.rayDistance(pivot, backDir, this.camDist) - 0.3 : this.camDist;
       // a wall behind pulls the boom in at once; it eases back out (no popping)

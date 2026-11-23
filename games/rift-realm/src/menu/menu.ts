@@ -28,9 +28,9 @@ export const menuSkipped = () => { const q = qs(); return q.has('rrdebug') || q.
 
 // ── settings (saved) ──
 const SKEY = 'rift-realm-settings';
-export interface Settings { quality: Quality; sens: number; volume: number }
+export interface Settings { quality: Quality; sens: number; volume: number; aimAssist: 'auto' | 'off' | 'light' | 'strong' }
 export const settings: Settings = (() => {
-  const d: Settings = { quality: 'auto', sens: 1, volume: 0.8 };
+  const d: Settings = { quality: 'auto', sens: 1, volume: 0.8, aimAssist: 'auto' };
   try { Object.assign(d, JSON.parse(localStorage.getItem(SKEY) ?? '{}')); d.sens = Number(localStorage.getItem('rift-realm-mouse-sens')) || d.sens; } catch { /* private mode */ }
   return d;
 })();
@@ -130,8 +130,9 @@ export function startMenu(): MenuHandle {
       <div class="rr-set" data-i="0"><span>Graphics quality</span><b class="rr-opt" data-k="quality"></b></div>
       <div class="rr-set" data-i="1"><span>Look sensitivity</span><b class="rr-opt" data-k="sens"></b></div>
       <div class="rr-set" data-i="2"><span>Volume</span><b class="rr-opt" data-k="volume"></b></div>
-      <button class="rr-set rr-set-controls" data-i="3"><span>Controls</span><b>Keyboard · mouse · controller · touch ›</b></button>
-      <button class="rr-set rr-set-back" data-i="4">Back</button>
+      <div class="rr-set" data-i="3"><span>Aim assist</span><b class="rr-opt" data-k="assist"></b></div>
+      <button class="rr-set rr-set-controls" data-i="4"><span>Controls</span><b>Keyboard · mouse · controller · touch ›</b></button>
+      <button class="rr-set rr-set-back" data-i="5">Back</button>
       <div class="rr-hint"><kbd>←→</kbd> change · <kbd>Esc</kbd> / <kbd>B</kbd> back</div>
     </section>
     <section class="rr-scr rr-map">
@@ -195,19 +196,23 @@ export function startMenu(): MenuHandle {
     opt('quality', ({ auto: 'Auto (by GPU)', low: 'Low', high: 'High' })[settings.quality], settings.quality === DEFAULTS.quality);
     opt('sens', `${settings.sens.toFixed(1)}×`, settings.sens === DEFAULTS.sens);
     opt('volume', `${Math.round(settings.volume * 100)}%`, settings.volume === DEFAULTS.volume);
+    opt('assist', ({ auto: 'Auto', off: 'Off', light: 'Light', strong: 'Strong' })[settings.aimAssist ?? 'auto'], (settings.aimAssist ?? 'auto') === DEFAULTS.aimAssist);
     $$('.rr-settings .rr-set').forEach((e, i) => e.classList.toggle('focus', i === setI));
   }
-  const DEFAULTS: Settings = { quality: 'auto', sens: 1, volume: 0.8 };
+  const DEFAULTS: Settings = { quality: 'auto', sens: 1, volume: 0.8, aimAssist: 'auto' };
+  const ASSIST: Settings['aimAssist'][] = ['auto', 'off', 'light', 'strong'];
   function resetSetting() {
     if (setI === 0) settings.quality = DEFAULTS.quality;
     if (setI === 1) settings.sens = DEFAULTS.sens;
     if (setI === 2) { settings.volume = DEFAULTS.volume; applyVolume(rhythm); }
+    if (setI === 3) settings.aimAssist = DEFAULTS.aimAssist;
     saveSettings(); renderSettings();
   }
   function changeSetting(d: number) {
     if (setI === 0) settings.quality = QUAL[(QUAL.indexOf(settings.quality) + d + 3) % 3];
     if (setI === 1) settings.sens = Math.round(Math.min(3, Math.max(0.2, settings.sens + d * 0.1)) * 10) / 10;
     if (setI === 2) { settings.volume = Math.round(Math.min(1, Math.max(0, settings.volume + d * 0.1)) * 10) / 10; applyVolume(rhythm); }
+    if (setI === 3) settings.aimAssist = ASSIST[(ASSIST.indexOf(settings.aimAssist ?? 'auto') + d + ASSIST.length) % ASSIST.length];
     saveSettings(); renderSettings();
   }
 
@@ -300,13 +305,13 @@ export function startMenu(): MenuHandle {
       if (a === 'ok') { if (startI === 0) { show('map'); void prefetch.characters(); } else if (startI === 1) { setI = 0; show('settings'); } else quit(); return; }
       renderStart();
     } else if (screen === 'settings') {
-      if (a === 'up') setI = (setI + 4) % 5;
-      if (a === 'down') setI = (setI + 1) % 5;
+      if (a === 'up') setI = (setI + 5) % 6;
+      if (a === 'down') setI = (setI + 1) % 6;
       if (a === 'reset') { resetSetting(); return; }
-      if (a === 'ok' && setI === 3) { openControls(() => renderSettings()); return; }
+      if (a === 'ok' && setI === 4) { openControls(() => renderSettings()); return; }
       if (a === 'left' || a === 'prev') changeSetting(-1);
       if (a === 'right' || a === 'next') changeSetting(1);
-      if (a === 'back' || (a === 'ok' && setI === 4)) { show('start'); return; }
+      if (a === 'back' || (a === 'ok' && setI === 5)) { show('start'); return; }
       if (a === 'ok') changeSetting(1);
       renderSettings();
     } else if (screen === 'map') {
@@ -349,8 +354,8 @@ export function startMenu(): MenuHandle {
     b.addEventListener('pointerenter', () => { setI = i; renderSettings(); });
     b.addEventListener('click', (e: MouseEvent) => {
       setI = i;
-      if (i === 3) { openControls(() => renderSettings()); return; }
-      if (i === 4) { show('start'); return; }
+      if (i === 4) { openControls(() => renderSettings()); return; }
+      if (i === 5) { show('start'); return; }
       const t = e.target as HTMLElement;
       if (t.closest('.rr-reset')) { resetSetting(); return; }
       const step = t.closest<HTMLElement>('.rr-nudge');

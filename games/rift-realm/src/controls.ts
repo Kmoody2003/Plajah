@@ -50,6 +50,9 @@ export class UnifiedControls {
    *  into the window edge and mouse movement stops, so resting it near a side keeps turning (edge turn). */
   private curX = 0; private curY = 0; private cursorIn = false;
   private hoverLook = true;
+  /** The browser refused to capture the mouse (embedded views such as the Claude pane): main.ts switches to the
+   *  fallback scheme (A / D turn, strong aim assist). Cleared when a capture succeeds. */
+  lockRefused = false;
   private cursorNdc(): { x: number; y: number } | null {
     if (!this.cursorAim || this.isTouchDevice || document.pointerLockElement || this.padAim) return null;
     const r = this.surface.getBoundingClientRect();
@@ -116,9 +119,10 @@ export class UnifiedControls {
       // the mouse already turns the view without a click (hoverLook); a click only fires / strikes, never drag-looks
       if (!this.hoverLook) { dragging = true; lastX = e.clientX; lastY = e.clientY; }
       // like Ravencrest / Era Clash: a click on the scene (re)takes the pointer lock for always-on mouse look
-      if (!this.isTouchDevice && !this.cursorAim) (this.surface.requestPointerLock?.() as Promise<void> | undefined)?.catch?.(() => { this.hoverLook = true; /* refused: look follows the mouse without a drag */ });
+      if (!this.isTouchDevice && !this.cursorAim) (this.surface.requestPointerLock?.() as Promise<void> | undefined)?.catch?.(() => { this.hoverLook = true; this.lockRefused = true; });
     });
-    document.addEventListener('pointerlockerror', () => { this.hoverLook = true; });
+    document.addEventListener('pointerlockerror', () => { this.hoverLook = true; this.lockRefused = true; });
+    document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement === this.surface) this.lockRefused = false; });
     // while playing, the OS cursor is hidden: without pointer lock it stayed visible and read as the aim, though shots
     // go through the crosshair (main.ts toggles body.rr-ingame)
     const hide = document.createElement('style');
@@ -133,7 +137,7 @@ export class UnifiedControls {
         this.cursorIn = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
         this.curX = e.clientX; this.curY = e.clientY;
         // cursor aim: the mouse only moves the crosshair (the edges still turn the view); otherwise it looks
-        if (this.cursorIn && !this.cursorAim) { this.pendingLookX += e.movementX; this.pendingLookY += e.movementY; }
+        // without a captured mouse the cursor doesn't turn the camera (it would wander off the game); edges still do
         return;
       }
       if (!dragging) return;

@@ -2,6 +2,8 @@
 // code listens for (player.ts, controls.ts, combat/melee.ts, danger/eat.ts, main.ts); the player's bindings are
 // translated onto it, so remapping needs no changes in those files.
 //
+// Third person plays like Gears of War: right mouse aims (zooms over the shoulder), left fires, F melee, Q swaps
+// shoulder, A / D strafe with the camera on the mouse.
 // Defaults (Kenne): the specials sit on the number row above WASD, and the mouse's extra side buttons come premapped —
 // Mouse 4 (back) = Soul Surge, Mouse 5 (forward) = Guard. Mice whose driver sends number keys for their side buttons
 // (many Razer mice) land on the number-row specials as they are.
@@ -21,11 +23,12 @@ export const RR_ACTIONS: ActionDef[] = [
   { id: 'crouch', label: 'Crouch (toggle)', group: 'Movement', canonical: K('KeyC'), defaults: [K('KeyC')], padCanonical: 13 },
   // combat
   { id: 'fire', label: 'Fire (fists: light attack)', group: 'Combat', canonical: M(0), defaults: [M(0)], padCanonical: 7 },
-  { id: 'melee', label: 'Melee strike (fists: heavy)', group: 'Combat', canonical: M(2), defaults: [M(2)] },
+  { id: 'melee', label: 'Melee strike (fists: heavy)', group: 'Combat', canonical: M(2), defaults: [] },
   { id: 'light', label: 'Light strike / finisher', group: 'Combat', canonical: K('KeyF'), defaults: [K('KeyF'), K('KeyE')], padCanonical: 2 },
   { id: 'heavy', label: 'Heavy strike', group: 'Combat', canonical: K('KeyG'), defaults: [K('KeyG')] },
   { id: 'guard', label: 'Guard / parry (hold)', group: 'Combat', canonical: K('KeyX'), defaults: [K('KeyX'), M(4)], padCanonical: 11 },
-  { id: 'aim', label: 'Aim down sights (hold)', group: 'Combat', canonical: K('KeyZ'), defaults: [K('KeyZ')], padCanonical: 6 },
+  { id: 'aim', label: 'Aim (hold) — zoom over the shoulder', group: 'Combat', canonical: K('KeyZ'), defaults: [M(2), K('KeyZ')], padCanonical: 6 },
+  { id: 'shoulder', label: 'Swap shoulder', group: 'Combat', canonical: K('F8'), defaults: [K('KeyQ')] },
   { id: 'lock', label: 'Lock on', group: 'Combat', canonical: K('Tab'), defaults: [K('Tab')] },
   { id: 'reload', label: 'Reload', group: 'Combat', canonical: K('KeyR'), defaults: [K('KeyR')], padCanonical: 14 },
   // specials and weapons (the number row)
