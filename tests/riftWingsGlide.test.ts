@@ -7,7 +7,7 @@ import { Glide, GLIDE, type GlideInput } from '../games/rift-realm/src/glide';
 
 /** A stand-in for the rig's wings: open chases the target at a fixed rate. */
 function fakeRig() {
-  const wings = { open: 0, target: { open: 0, sweep: 1, liftL: 0, liftR: 0 }, mesh: new THREE.Mesh(), view: null as unknown };
+  const wings = { open: 0, target: { open: 0, sweep: 1, liftL: 0, liftR: 0 }, mesh: new THREE.Mesh(), view: null as unknown, setAimClear() {} };
   const root = new THREE.Group(); root.add(new THREE.Group());
   return { wings, root, setPoseLayer() {}, poseLayerW: 0 } as unknown as Parameters<Glide['pose']>[0] & { wings: typeof wings };
 }
