@@ -754,10 +754,11 @@ export class PlayerController {
       this.camera.position.copy(eyePos);
       this.camera.lookAt(eyePos.clone().add(lookDir));
     } else {
-      // Era Clash / Ravencrest framing: centred behind the character, the pivot a little over the head so the
+      // Era Clash / Ravencrest framing: centred behind the character, the pivot over the head so the
       // body sits just under the crosshair; the camera looks straight down the aim, so the centre of the screen
       // (the crosshair) is exactly where shots and strikes go
-      const pivot = eyePos.clone().setY(eyePos.y + 0.42);
+      // high enough that the hood clears the crosshair; looking down (and leaning into a run) needs more
+      const pivot = eyePos.clone().setY(eyePos.y + 0.7 + Math.max(0, -this.pitch) * 0.9);
       const backDir = lookDir.clone().negate();
       const maxD = this.world ? this.world.rayDistance(pivot, backDir, this.camDist) - 0.3 : this.camDist;
       // a wall behind pulls the boom in at once; it eases back out (no popping)
