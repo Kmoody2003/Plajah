@@ -100,7 +100,8 @@ export class UnifiedControls {
     // Tab (and middle mouse, below) toggles the lock-on
     window.addEventListener('keydown', (e) => { if (e.code === 'Tab') { e.preventDefault(); if (!e.repeat) this.queuedLock = true; } });
     // Z holds aim down sights; T switches gun / fists (middle mouse does too)
-    window.addEventListener('keydown', (e) => { if (e.code === 'KeyZ') this.aimHeld = true; if (e.code === 'KeyT' && !e.repeat) this.queuedFists = true; });
+    // gun <-> fists is 5 / middle mouse (input/actions.ts); T belongs to Pray now
+    window.addEventListener('keydown', (e) => { if (e.code === 'KeyZ') this.aimHeld = true; });
     window.addEventListener('keyup', (e) => { if (e.code === 'KeyZ') this.aimHeld = false; });
   }
 

@@ -769,7 +769,7 @@ async function boot() {
     surgeTag.textContent = resonance >= 2.0 ? 'SOUL SURGE READY [Q]' : 'SURGE AT 2.0x RESONANCE';
     {
       const c = player.weapons.getCharge();
-      const label = player.fists ? 'FISTS  ·  MMB / T: gun' : c.overheated ? 'OVERHEATED' : c.venting ? 'VENTING' : c.shotsLeft === 0 ? 'SPIRIT DRAINED · FIND CHARGE'
+      const label = player.fists ? 'FISTS  ·  MMB / 5: gun' : c.overheated ? 'OVERHEATED' : c.venting ? 'VENTING' : c.shotsLeft === 0 ? 'SPIRIT DRAINED · FIND CHARGE'
         : `SPIRIT ${Math.round(c.charge)} / ${c.max}${c.heat > 0.6 ? '  ·  [R] VENT' : ''}${player.crouched ? '  · CROUCHED' : ''}`;
       if (hudLabel.textContent !== label) { hudLabel.textContent = label; hudLabel.style.color = c.overheated ? '#fb923c' : c.shotsLeft === 0 ? '#fb7185' : '#e2f3ff'; }
       const cw = `${(c.frac * 100).toFixed(1)}%`, hw = `${(c.heat * 100).toFixed(1)}%`;
