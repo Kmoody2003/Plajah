@@ -22,6 +22,7 @@
  * ~0.3 ms on the Arc iGPU machine's CPU at the low setting (2 substeps, 1 iteration).
  */
 import * as THREE from 'three/webgpu';
+import { dot, fract, positionWorld, screenCoordinate, sin, uniform, vec2 } from 'three/tsl';
 
 export interface BatWingPose {
   /** 0 folded … 1 spread (the modelled pose). */
@@ -163,8 +164,17 @@ export class BatWings {
     this.tri = new Uint32Array(wt.map((v) => map[v]));
     wg.setIndex(new THREE.BufferAttribute(this.tri, 1));
     void N;
-    const mat = (body.material as THREE.Material).clone();
+    const mat = (body.material as THREE.MeshStandardNodeMaterial).clone();
     mat.side = THREE.DoubleSide;
+    // aim keep-out: wing fragments inside a thin cone round the camera's aim ray are dropped (dithered rim), so a
+    // spread wing never covers the crosshair; the camera is read at render time (no lag). Off with setAimClear(null).
+    const clear = this.clear;
+    const uO = uniform(new THREE.Vector3()).onRenderUpdate(() => (clear.cam ? clear.cam.getWorldPosition(clear.o) : clear.o.set(0, -1e6, 0)));
+    const uD = uniform(new THREE.Vector3(0, 0, -1)).onRenderUpdate(() => (clear.cam ? clear.cam.getWorldDirection(clear.d) : clear.d));
+    const uT = uniform(0).onRenderUpdate(() => (clear.cam ? clear.tan : 0));
+    const rel = positionWorld.sub(uO), along = rel.dot(uD), off = rel.sub(uD.mul(along)).length();
+    const grain = fract(sin(dot(screenCoordinate.xy, vec2(12.9898, 78.233))).mul(43758.5453));
+    mat.maskNode = uT.lessThanEqual(0).or(along.lessThan(0)).or(off.div(along.max(0.01)).greaterThan(uT.mul(grain.mul(0.35).add(0.8))));
     this.mesh = new THREE.Mesh(wg, mat);
     this.mesh.name = 'bat_wings';
     this.mesh.frustumCulled = false;
@@ -351,6 +361,10 @@ export class BatWings {
     }
   }
 
+  private clear = { cam: null as THREE.Camera | null, tan: 0, o: new THREE.Vector3(), d: new THREE.Vector3(0, 0, -1) };
+  /** Keep the aim clear: drop wing pixels within `tan` (radius / distance) of `cam`'s aim ray; null turns it off. */
+  setAimClear(cam: THREE.Camera | null, tan = 0.075) { this.clear.cam = cam; this.clear.tan = tan; }
+
   /** Snap the membrane to the skinned pose (after a teleport or a respawn). */
   reset() { this.first = true; }
 
@@ -440,7 +454,7 @@ export class BatWings {
     }
     this.lastRoot.copy(this._root); this.hasRoot = true;
     this.solve(dt);
-    this.write();
+    if (this.mesh.visible) this.write();     // hidden (e.g. first person): keep simulating, skip the mesh upload
     this.lastMs = performance.now() - t0;
   }
 

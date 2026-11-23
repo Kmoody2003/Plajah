@@ -3,7 +3,7 @@
 // gentle steering, banking into turns, lifted and pushed by the wind). Landing folds the wings.
 //
 // player.ts calls update() once per frame after the jump input, steer() / fall() in place of the air control and
-// gravity while `gliding`, and pose() before the rig updates. All the numbers are in GLIDE (the tuning table).
+// gravity while `gliding`, and pose() before the rig updates. First person never draws the wings. All the numbers are in GLIDE (the tuning table).
 import * as THREE from 'three/webgpu';
 import type { CharacterRig } from './characters';
 import { windAt } from './secondary';
@@ -43,16 +43,8 @@ export const GLIDE = {
   glideLift: -0.18,
   /** How much the inside wing drops into a turn (rad of wing lift per rad of bank). */
   wingBank: 0.7,
-  /** First person: how far forward the wings sweep (×0.42 rad) so they frame the view, gliding / running. */
-  fpSweepGlide: 1.6,
-  fpSweepRun: 1.5,
-  /** First person: extra lift (rad) so the wings ride high, framing the top corners above the gun. */
-  fpLift: 0.6,
-  /** First person: the wings are drawn this far back (m) and down, off the camera, so they frame the view's edges. */
-  fpBack: 0.35,
-  fpDown: 0,
-  /** First person: the wings' tilt up into the view (rad): as if glancing down mid-glide, spread along the top edges. */
-  fpTilt: 0,
+  /** Third person: radius / distance of the window kept clear of wing round the aim ray (~4 % of screen height). */
+  aimClear: 0.075,
   /** Weight of the glide pose clip (wing_hover) over the body. */
   poseWeight: 0.8,
 } as const;
@@ -60,7 +52,6 @@ export type GlideTuning = { -readonly [K in keyof typeof GLIDE]: number };
 /** Live tuning (the Studio or the console may change it): `__rr.player.glide.tune({ sink: 2 })`. */
 const T: GlideTuning = { ...GLIDE };
 
-const _c2 = new THREE.Vector3(), _c = new THREE.Vector3(), _fm = new THREE.Matrix4(), _m2 = new THREE.Matrix4();
 
 export interface GlideInput {
   onGround: boolean;
@@ -163,35 +154,27 @@ export class Glide {
   }
 
   /** Wing pose and the glide clip on the rig, and in first person the wings drawn without the body. */
-  pose(rig: CharacterRig | null, opts: { firstPerson: boolean; yaw: number; scene: THREE.Object3D | null; camera?: THREE.Camera; pitch?: number }) {
+  pose(rig: CharacterRig | null, opts: { firstPerson: boolean; yaw: number; scene?: THREE.Object3D | null; camera?: THREE.Camera; pitch?: number }) {
     this.lastYaw = opts.yaw;
     const w = rig?.wings ?? null;
     this.hasWings = !!w;
     if (!rig || !w) return;
     this.open = w.open;
     w.target.open = this.wantOpen;
-    // first person: swept forward so the leading edges and tips frame the top corners of the view
-    w.target.sweep = opts.firstPerson ? (this.gliding ? -T.fpSweepGlide : -T.fpSweepRun) : this.gliding ? 0 : this.wasGround ? 1 : 0.5;
-    const base = (this.gliding ? T.glideLift : 0) + (opts.firstPerson ? T.fpLift : 0);
-    const tip = this.gliding && !opts.firstPerson ? this.bank * T.wingBank : 0;   // first person keeps them symmetric
+    w.target.sweep = this.gliding ? 0 : this.wasGround ? 1 : 0.5;
+    const base = this.gliding ? T.glideLift : 0;
+    const tip = this.gliding ? this.bank * T.wingBank : 0;
     w.target.liftL = base + tip;
     w.target.liftR = base - tip;
     rig.setPoseLayer('wing_hover');                                   // weight 0 unless gliding: it fades in and out
     rig.poseLayerW = this.gliding ? T.poseWeight : 0;
-    // first person hides the body (vesselMesh): the wings are then drawn on the camera, laid out as they sit on the
-    // body (model frame, so no bank / bob / lag), the eye at the lens and tilted up into view, so they frame the top
-    // edges at any look angle instead of filling the view or vanishing behind it
+    // first person: the camera is in the head, and your own back is out of sight: the wings are not drawn at all
+    // (Kenne: they must never cover the view). They keep simulating, so they're in the right state on switching back.
     const model = rig.root.children[0] ?? rig.root;
-    const cam = opts.firstPerson ? opts.camera ?? null : null;
-    const want = cam ?? model;
-    if (w.mesh.parent !== want) want.add(w.mesh);
-    w.mesh.visible = !cam || w.open > 0.15;
-    if (cam) {
-      model.updateWorldMatrix(true, false);
-      const eyeH = cam.getWorldPosition(_c).y - model.getWorldPosition(_c2).y;
-      // camera space (forward -Z) ← tilt ← eye to the origin, set back / down ← turn the model's +Z forward to -Z
-      _fm.makeRotationX(T.fpTilt).multiply(_m2.makeTranslation(0, -eyeH - T.fpDown, T.fpBack)).multiply(_m2.makeRotationY(Math.PI));
-      w.view = { frame: _fm, ref: model };
-    } else w.view = null;
+    if (w.mesh.parent !== model) model.add(w.mesh);
+    w.view = null;
+    w.mesh.visible = !opts.firstPerson;
+    // third person: the centred camera looks over his back, so keep a small window round the crosshair clear
+    w.setAimClear(opts.firstPerson ? null : opts.camera ?? null, T.aimClear);
   }
 }
