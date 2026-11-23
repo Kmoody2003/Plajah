@@ -23,6 +23,7 @@ import { Tracers, recipe } from './weapons';
 import { UnifiedControls } from './controls';
 import { Targeting } from './targeting';
 import { createDanger } from './danger';
+import { createEnts } from './ents';
 import { Melee } from './combat/melee';
 import { COMBAT, DEFAULT_TUNING, applyCombatTuning, initCombatTuning, resetCombatTuning, type Archetype } from './combat/tuning';
 import { PlajahGamesBridge } from './plajahBridge';
@@ -235,6 +236,15 @@ async function boot() {
     onKill: (xp, name) => { score += Math.round(xp * 4 * resonance); plajah.creditXp(Math.round(xp * resonance), enemies.wave); plajah.unlock('rift_realm_first_blood'); showBeatFeedback(`${name.toUpperCase()} DOWN · +${xp} XP`, '#ffb366'); },
   });
   const foes = () => (danger ? danger.foes(enemies.enemies) : enemies.enemies);
+  // Tree ents (ents/*, the Wilds): a ~40 % chance per session of a 46 m walking guardian, rooted among the canopy or
+  // crossing the forest; it helps, ignores or threatens you by your soul's alignment and fights the rift's creatures.
+  const ents = createEnts({
+    scene, camera, collision, vfx, player, enemies, danger, level: levelId, lo: tier === 'low',
+    sound: (k, g, pan) => rhythm.playEnt(k, g, pan),
+    hurt: (dmg) => { if (player.downed) return; startMatch(); player.hp = Math.max(0, player.hp - dmg); if (player.hp === 0) downPlayer(match.on); else player.takeHit(dmg); },
+    say: (t, c) => showBeatFeedback(t, c),
+  });
+  if (ents) await ents.prepare(renderer, camera);
 
   if (controls.isTouchDevice) {
     touchHud.classList.add('on');
@@ -730,6 +740,7 @@ async function boot() {
     }
 
     danger?.update(dt);
+    ents?.update(dt);
     if (bladeT > 0) { bladeT -= dt; if (player.bladeEdge(bladeA, bladeB)) blade.push(bladeA, bladeB); if (bladeT <= 0) blade.emitting = false; }
     if (dashT > 0) { dashT -= dt; dashTrail.push(dashP.copy(player.object.position).setY(player.object.position.y + 1.0)); if (dashT <= 0) dashTrail.emitting = false; }
     vfx.update(dt, camera);
@@ -826,7 +837,7 @@ async function boot() {
 
   if (new URLSearchParams(location.search).has('rrdebug')) {
     loading.release(); await entered;
-    (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match, targeting, rhythm, danger };
+    (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, objectives, match, targeting, rhythm, danger, ents };
     // combat checks: __rr.combat.arena(['rusher', 'caster', 'brute']) clears the field and rings those around you;
     // .passive(true) freezes their AI; .tune({...}) edits the table live; .state() reads the fight
     (window as any).__rr.combat = {

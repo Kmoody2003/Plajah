@@ -495,6 +495,52 @@ export class RhythmEngine {
   playGuardBreak() { this.blip('sawtooth', 600, 70, 0.35, 0.18); this.sample('hit', { gain: 1, rate: 0.6, send: 0.5 }); }
   playLaunch() { this.blip('triangle', 200, 900, 0.25, 0.14); }
   playEvade() { this.blip('sine', 700, 1400, 0.18, 0.08); }
+
+  // -- tree ents (ents/): a giant's footfall, its smash, the creak of a body made of wood, a groan, a blessing ------
+  private entNoise: AudioBuffer | null = null;
+  /** gain 0…1 (the ents scale it by distance), pan −1…1. Synthesised: no samples needed. */
+  playEnt(kind: 'step' | 'smash' | 'groan' | 'creak' | 'bless', gain = 1, pan = 0) {
+    const ctx = this.ctx;
+    if (!ctx || !this.master || gain < 0.01) return;
+    if (!this.entNoise) {
+      const b = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), d = b.getChannelData(0);
+      let lp = 0; for (let i = 0; i < d.length; i++) { lp = lp * 0.96 + (Math.random() * 2 - 1) * 0.04; d[i] = lp * 6; } // brown-ish rumble
+      this.entNoise = b;
+    }
+    const t = ctx.currentTime, out = ctx.createStereoPanner(); out.pan.value = Math.max(-1, Math.min(1, pan));
+    out.connect(this.sfxIn ?? this.master);
+    if (this.reverbSend) { const s = ctx.createGain(); s.gain.value = 0.6; out.connect(s).connect(this.reverbSend); }
+    const env = (node: AudioNode, g0: number, at: number, a: number, dur: number) => {
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t + at); g.gain.linearRampToValueAtTime(g0 * gain, t + at + a); g.gain.exponentialRampToValueAtTime(0.0001, t + at + dur);
+      node.connect(g).connect(out); return g;
+    };
+    const thud = (f0: number, f1: number, at: number, dur: number, g0: number) => {
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(f0, t + at); o.frequency.exponentialRampToValueAtTime(f1, t + at + dur);
+      env(o, g0, at, 0.012, dur); o.start(t + at); o.stop(t + at + dur + 0.05);
+    };
+    const rumble = (fc: number, at: number, dur: number, g0: number, q = 0.7) => {
+      const n = ctx.createBufferSource(); n.buffer = this.entNoise; n.playbackRate.value = 0.8 + Math.random() * 0.3;
+      const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = fc; f.Q.value = q;
+      n.connect(f); env(f, g0, at, 0.02, dur); n.start(t + at, Math.random()); n.stop(t + at + dur + 0.05);
+    };
+    // wood under strain: a buzzy low tone through a narrow, wandering band (fibres creaking)
+    const creak = (f: number, at: number, dur: number, g0: number) => {
+      const o = ctx.createOscillator(); o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f, t + at);
+      for (let k = 1; k <= 6; k++) o.frequency.linearRampToValueAtTime(f * (0.8 + Math.random() * 0.5), t + at + (dur * k) / 6);
+      const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 9;
+      bp.frequency.setValueAtTime(380 + Math.random() * 200, t + at); bp.frequency.linearRampToValueAtTime(620 + Math.random() * 300, t + at + dur);
+      const am = ctx.createOscillator(), amg = ctx.createGain(); am.frequency.value = 9 + Math.random() * 8; amg.gain.value = 0.5;
+      const g = env(o.connect(bp), g0, at, dur * 0.25, dur);
+      am.connect(amg).connect(g.gain); am.start(t + at); am.stop(t + at + dur + 0.05);
+      o.start(t + at); o.stop(t + at + dur + 0.05);
+    };
+    if (kind === 'step') { thud(62, 26, 0, 1.3, 0.9); rumble(160, 0, 1.6, 0.8); creak(70, 0.05, 0.9, 0.12); rumble(900, 0.02, 0.35, 0.12, 1.5); }
+    else if (kind === 'smash') { thud(70, 22, 0, 2.0, 1.1); rumble(220, 0, 2.6, 1.0); rumble(2200, 0, 0.5, 0.35, 0.9); creak(55, 0, 1.2, 0.16); }
+    else if (kind === 'groan') { creak(42, 0, 2.6, 0.22); creak(63, 0.3, 2.2, 0.12); rumble(120, 0, 2.8, 0.35); }
+    else if (kind === 'creak') { creak(58 + Math.random() * 20, 0, 1.8, 0.16); rumble(140, 0, 1.4, 0.2); }
+    else { for (const [f, d] of [[392, 0], [523, 0.12], [659, 0.24], [784, 0.36]] as const) this.blip('sine', f, f * 1.002, 2.2, 0.05 * gain, d); creak(50, 0, 1.6, 0.08); }
+  }
   playInterrupt() { this.blip('square', 1400, 300, 0.12, 0.1); }
   /** Soul-Rend: low swell, the tear, the release. */
   playRend(stage: 0 | 1 | 2) {

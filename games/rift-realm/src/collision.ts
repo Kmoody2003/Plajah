@@ -23,6 +23,8 @@ export class CollisionWorld {
   terrain: TerrainField | null = null;
   /** Trunk columns found automatically on instanced trees (x, z, r, y0, y1), hashed in 8 m cells. */
   private cols = new Map<number, number[][]>();
+  /** Moving solid columns [x, z, r, y0, y1] (a tree ent's legs and body), refilled by their owner every frame. */
+  readonly movers: number[][] = [];
   readonly stats = { autoTrunks: 0, autoMeshes: 0 };
 
   constructor(private root: THREE.Object3D) {}
@@ -180,6 +182,22 @@ export class CollisionWorld {
         }
       }
     }
+    // moving columns (2D ray-circle, within each column's height)
+    if (this.movers.length) {
+      const hl = Math.hypot(dir.x, dir.z);
+      if (hl > 1e-4) {
+        const ux = dir.x / hl, uz = dir.z / hl;
+        for (const tr of this.movers) {
+          const ox = origin.x - tr[0], oz = origin.z - tr[1];
+          const b = ox * ux + oz * uz, c = ox * ox + oz * oz - tr[2] * tr[2], disc = b * b - c;
+          if (disc < 0) continue;
+          const hd = -b - Math.sqrt(disc);
+          if (hd < 0) continue;
+          const td = hd / hl, y = origin.y + dir.y * td;
+          if (td < d && y > tr[3] && y < tr[4]) d = td;
+        }
+      }
+    }
     const t = this.terrain;
     if (t) {
       // march the ground in 1 m steps (finer near), then refine the crossing
@@ -286,6 +304,13 @@ export class CollisionWorld {
   }
 
   private resolveCols(pos: THREE.Vector3, radius: number, height: number) {
+    for (const tr of this.movers) {
+      if (pos.y > tr[4] || pos.y + height < tr[3]) continue;
+      const dx = pos.x - tr[0], dz = pos.z - tr[1], d = Math.hypot(dx, dz), min = tr[2] + radius;
+      if (d >= min) continue;
+      const ux = d > 1e-5 ? dx / d : 1, uz = d > 1e-5 ? dz / d : 0;
+      pos.x += ux * (min - d); pos.z += uz * (min - d);
+    }
     if (!this.cols.size) return;
     for (const tr of this.colsNear(pos.x, pos.z, radius + 3, this.near)) {
       if (pos.y > tr[4] || pos.y + height < tr[3]) continue;
