@@ -5,6 +5,7 @@
 // hide the cracks between levels. The finest level of chunks far behind the camera is freed.
 import * as THREE from 'three/webgpu';
 import type { SurfaceSource } from './field';
+import { chunkArrays, type ChunkArrays, type PatchOptions } from './chunkArrays';
 
 export interface ChunkLod { seg: number; range: number }
 
@@ -33,55 +34,21 @@ export interface ChunkOptions {
   name?: string;
 }
 
-/** One square ground patch centred on (cx, cz): seg × seg quads sampled from the surface, holes cut, skirts round the
- *  edge (to hide cracks between detail levels). Shared by the fixed-world and streaming chunk managers. */
+/** One square ground patch centred on (cx, cz) as a BufferGeometry (chunkArrays.ts builds the arrays). Shared by the
+ *  fixed-world and streaming chunk managers. */
 export function chunkGeometry(S: SurfaceSource, cx: number, cz: number, C: number, seg: number, skirt: number,
-  o: Pick<ChunkOptions, 'holed' | 'mayHaveHoles' | 'uvScale'> & { gridNormals?: boolean } = {}): THREE.BufferGeometry {
-  const step = C / seg, x0 = cx - C / 2, z0 = cz - C / 2, v = seg + 1, uvk = 1 / (o.uvScale ?? 8), e = Math.max(1, step * 0.5);
-  const nGrid = v * v, nSkirt = 4 * seg * 2, nv = nGrid + nSkirt;
-  const pos = new Float32Array(nv * 3), nor = new Float32Array(nv * 3), uvs = new Float32Array(nv * 2);
-  // gridNormals: sample one ring beyond the patch once and take normals from neighbours (5× fewer height reads)
-  const vb = v + 2, hb = o.gridNormals ? new Float32Array(vb * vb) : null;
-  if (hb) for (let j = 0; j < vb; j++) for (let i = 0; i < vb; i++) hb[i + j * vb] = S.surface(x0 + (i - 1) * step, z0 + (j - 1) * step);
-  for (let j = 0; j <= seg; j++) for (let i = 0; i <= seg; i++) {
-    const x = x0 + i * step, z = z0 + j * step, k = i + j * v;
-    let nx: number, ny: number, nz: number, h: number;
-    if (hb) {
-      const c = i + 1 + (j + 1) * vb, dx = hb[c - 1] - hb[c + 1], dz = hb[c - vb] - hb[c + vb], l = Math.hypot(dx, 2 * step, dz);
-      nx = dx / l; ny = (2 * step) / l; nz = dz / l; h = hb[c];
-    } else { const n = S.normal(x, z, e); nx = n[0]; ny = n[1]; nz = n[2]; h = S.surface(x, z); }
-    pos[k * 3] = x; pos[k * 3 + 1] = h; pos[k * 3 + 2] = z;
-    nor[k * 3] = nx; nor[k * 3 + 1] = ny; nor[k * 3 + 2] = nz;
-    uvs[k * 2] = x * uvk; uvs[k * 2 + 1] = z * uvk;
-  }
-  const hasHoles = !!o.holed && (o.mayHaveHoles ? o.mayHaveHoles(cx, cz, C) : true);
-  const idx: number[] = [];
-  for (let j = 0; j < seg; j++) for (let i = 0; i < seg; i++) {
-    const a = i + j * v, b = a + 1, c = a + v, d = c + 1;
-    if (hasHoles && o.holed!(x0 + (i + 0.5) * step, z0 + (j + 0.5) * step)) continue;
-    idx.push(a, c, b, b, c, d);
-  }
-  // skirts round the edge hide the cracks between detail levels
-  let w = nGrid;
-  const edge = (list: number[]) => {
-    for (let k = 0; k < list.length - 1; k++) {
-      const p = list[k], q = list[k + 1], base = w;
-      for (const s of [p, q]) {
-        pos[w * 3] = pos[s * 3]; pos[w * 3 + 1] = pos[s * 3 + 1] - skirt; pos[w * 3 + 2] = pos[s * 3 + 2];
-        nor[w * 3] = nor[s * 3]; nor[w * 3 + 1] = nor[s * 3 + 1]; nor[w * 3 + 2] = nor[s * 3 + 2];
-        uvs[w * 2] = uvs[s * 2]; uvs[w * 2 + 1] = uvs[s * 2 + 1]; w++;
-      }
-      idx.push(p, base, q, q, base, base + 1);
-    }
-  };
-  const row = (j: number) => Array.from({ length: v }, (_, i) => i + j * v), col = (i: number) => Array.from({ length: v }, (_, j) => i + j * v);
-  edge(row(0)); edge(row(seg).reverse()); edge(col(0).reverse()); edge(col(seg));
+  o: PatchOptions = {}): THREE.BufferGeometry {
+  return geometryFromArrays(chunkArrays(S, cx, cz, C, seg, skirt, o));
+}
+
+/** Wrap built arrays (from here or the mesh worker) in a geometry; the bounding sphere comes with them. */
+export function geometryFromArrays(a: ChunkArrays): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
-  g.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
-  g.setIndex(nv > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
-  g.computeBoundingSphere();
+  g.setAttribute('position', new THREE.BufferAttribute(a.pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(a.nor, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(a.uv, 2));
+  g.setIndex(new THREE.BufferAttribute(a.index, 1));
+  g.boundingSphere = new THREE.Sphere(new THREE.Vector3(a.sphere[0], a.sphere[1], a.sphere[2]), a.sphere[3]);
   return g;
 }
 

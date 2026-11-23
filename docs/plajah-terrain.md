@@ -175,8 +175,23 @@ Results:
   394 evicted. The far grid took 2.2 s and spawn 4.9 s. Terrain work was 3.1 ms median and 28 ms p99. Frame times were
   not meaningful because the pane was hidden. Picture: `docs/plajah-terrain/expanse-stream-phase6.jpg` (fog-washed).
 
-Not done: hitch-free frame timing on a visible, quiet machine; a game using it (the Wilds are 2 km and bake whole).
-Next for this phase: build meshes off the main thread in a worker, and streamed vegetation.
+**Meshing off the main thread.** `meshWorker.ts` keeps a mirror of the field (the far grid, plus tiles as they arrive
+and leave) and builds patch arrays from `chunkArrays.ts`, the three-free patch builder. It hands them back as
+transferables, with the bounding sphere. `WorkerMesher` is the main-thread side; `StreamingChunks({ mesher })`
+keeps up to 8 jobs in flight, nearest first, and drops results that are stale. The field moved to `streamField.ts`
+(three-free) and gained tile listeners. Same 55 s flight in the browser (80 m/s, GPU tiles):
+
+| | Main-thread terrain work, median | p99 | max |
+|---|---|---|---|
+| Meshing on the main thread | 0.5 ms | 5.3 ms | 8.8 ms |
+| Meshing on the worker | 0.5 ms | 3.0 ms | 9.3 ms |
+
+There were no gaps in the chunk set in either mode. Caveats: the pane was hidden, so frame times aren't meaningful.
+Wrapping the arrays happens in promise callbacks outside the measured slice (cheap: no copies). The remaining ~9 ms
+spikes are planning or GC. Holes (`holed`) aren't supported on the worker, so those levels mesh on the main thread.
+
+Not done: hitch-free frame timing on a visible, quiet machine; a game using streaming (the Wilds are 2 km and bake
+whole); streamed vegetation.
 
 Order matters: 1 is pure refactor and unlocks everything; 3 (erosion) is the biggest visual jump; 5 is where it becomes
 "a living ecosystem".

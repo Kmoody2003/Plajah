@@ -327,3 +327,53 @@ test('streaming chunks: build within view, rebuild when the fine tile lands, dro
   assert.ok(Math.abs(c.liveChunks - first) < 25, 'the live set stays the same size');
   c.dispose();
 });
+
+// ── phase 6b: meshing off the main thread ───────────────────────────────────────────────────────────────────────────
+import { chunkArrays } from '../services/terrain/chunkArrays';
+import { WorkerMesher, createMeshWorkerHandler, type WorkerLike } from '../services/terrain/meshWorker';
+
+/** An in-process "worker": messages are cloned and delivered on a later tick, like the real thing. */
+function fakeWorker(): WorkerLike {
+  const w: WorkerLike = { onmessage: null, postMessage: (m) => { const copy = structuredClone(m) as never; setTimeout(() => handle(copy), 0); } };
+  const handle = createMeshWorkerHandler((m) => setTimeout(() => w.onmessage?.({ data: m }), 0));
+  return w;
+}
+
+test('patch arrays: mesh-normal path reads the surface as before; grid normals agree; sphere bounds the patch', () => {
+  const f = new HeightField({ height: (x, z) => Math.sin(x / 60) * 3 + z * 0.1, world: { x0: -200, z0: -200, size: 400, cell: 1 } });
+  const a = chunkArrays(f, 50, 50, 100, 10, 1.2), b = chunkArrays(f, 50, 50, 100, 10, 1.2, { gridNormals: true });
+  const k = 3 + 4 * 11, x = a.pos[k * 3], z = a.pos[k * 3 + 2], n = f.normal(x, z, 5);
+  assert.equal(a.pos[k * 3 + 1], f.surface(x, z));
+  assert.ok(Math.abs(a.nor[k * 3] - n[0]) < 1e-6 && Math.abs(a.nor[k * 3 + 1] - n[1]) < 1e-6);
+  assert.ok(Math.abs(b.nor[k * 3] - a.nor[k * 3]) < 0.02 && Math.abs(b.nor[k * 3 + 1] - a.nor[k * 3 + 1]) < 0.02);
+  const [sx, sy, sz, r] = a.sphere;
+  for (let i = 0; i < a.pos.length; i += 3) assert.ok(Math.hypot(a.pos[i] - sx, a.pos[i + 1] - sy, a.pos[i + 2] - sz) <= r + 1e-3);
+});
+
+test('worker mesher: mirrors the field and builds the same arrays as the main thread', async () => {
+  const h = (x: number, z: number) => Math.sin(x / 31) * 5 + Math.cos(z / 47) * 3;
+  const f = new StreamedHeightField({ height: h, bounds: { x0: -1000, z0: -1000, size: 2000 }, tile: 200, cell: 2, farCell: 20, radius: 250 });
+  const m = new WorkerMesher(fakeWorker(), f);
+  const far = await m.build(450, 450, 100, 20, 3);                     // no tile there yet: far grid
+  assert.deepEqual(Array.from(far.pos), Array.from(chunkArrays(f, 450, 450, 100, 20, 3, { gridNormals: true }).pos));
+  f.focus(0, 0); f.flush();
+  const fine = await m.build(50, 50, 100, 20, 1.2);
+  assert.deepEqual(Array.from(fine.pos), Array.from(chunkArrays(f, 50, 50, 100, 20, 1.2, { gridNormals: true }).pos), 'the worker saw the fine tile');
+  f.focus(900, 900); f.flush();                                          // the origin tiles are evicted, here and there
+  const after = await m.build(50, 50, 100, 20, 1.2);
+  assert.deepEqual(Array.from(after.pos), Array.from(chunkArrays(f, 50, 50, 100, 20, 1.2, { gridNormals: true }).pos));
+  m.dispose();
+});
+
+test('streaming chunks with a worker: requests go out nearest first, meshes land asynchronously', async () => {
+  const THREE = await import('three/webgpu');
+  const f = new StreamedHeightField({ height: (x, z) => (x - z) * 0.02, bounds: { x0: -2000, z0: -2000, size: 4000 }, tile: 200, cell: 4, farCell: 40, radius: 300 });
+  const mesher = new WorkerMesher(fakeWorker(), f);
+  const c = new StreamingChunks(f, new THREE.MeshBasicNodeMaterial(), { chunk: 100, lods: [{ seg: 8, range: 200 }, { seg: 4, range: 500 }], mesher, maxInFlight: 6 });
+  c.update({ x: 0, z: 0 });
+  assert.equal(c.liveChunks, 0, 'nothing built on the main thread');
+  assert.equal(c.inFlight, 6);
+  for (let k = 0; k < 60 && (c.inFlight || c.liveChunks < 60); k++) { await new Promise((r) => setTimeout(r, 1)); c.update({ x: 0, z: 0 }); }
+  assert.ok(c.liveChunks > 60, `meshes arrived (${c.liveChunks})`);
+  mesher.dispose(); c.dispose();
+});
