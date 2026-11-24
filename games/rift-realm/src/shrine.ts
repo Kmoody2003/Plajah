@@ -12,6 +12,8 @@ import { StaticKit, boulder, fbm3, octagon, polyPrism, rng, taperTube } from './
 import { circuitTexture, fernTexture, grassTexture, mossTexture, pbr } from './textures';
 import { SPAWN_A, SPAWN_B, buildForestMap } from './cyberforest';
 import type { JumpPad } from './jumpPads';
+import type { Portal } from './portals';
+import type { TrialPad } from './trials';
 
 export interface LevelInfo { id: string; name: string; track: 'main' | 'combat'; accentHex: number }
 export interface Level {
@@ -30,6 +32,12 @@ export interface Level {
   controlPoints?: { id: string; name: string; pos: THREE.Vector3; radius: number }[];
   /** Jump pads (jumpPads.ts): step in, get thrown on a fixed arc to a landing spot. */
   jumpPads?: JumpPad[];
+  /** Map portals (portals.ts): walk in to travel to another level. */
+  portals?: Portal[];
+  /** Trial runes (trials.ts): stand on one to start that solo trial. */
+  trialPads?: TrialPad[];
+  /** A hub (the Void Sanctum): no endless waves; you pick a map portal or a trial. */
+  hub?: boolean;
   setBiome(index: number): { name: string; track: 'main' | 'combat' };
   /** After the renderer is up (GPU bakes such as tree impostors) — main awaits it before the first frame. */
   prepare?(renderer: THREE.WebGPURenderer, camera: THREE.Camera): Promise<void> | void;

@@ -15,6 +15,7 @@ import { buildVolcanic } from '../volcanic';
 import { buildMarsh } from '../marsh';
 import { buildCelestial } from '../celestial';
 import { buildElderwood } from '../elderwood';
+import { buildSanctum } from '../sanctum';
 import { preloadWildsTerrain } from '../world/terrain';
 import type { GameLevel, LevelDefaults, Look, Marker, Zone } from '../../../../services/gamestudio/schema';
 import { effectiveLook, effectiveMarkers, effectiveZones } from '../../../../services/gamestudio/schema';
@@ -39,6 +40,8 @@ export const LEVEL_MODULES: LevelModule[] = [
   { id: 'rift-realm.volcanic', param: 'volcanic', build: buildVolcanic, sets: ['volc-basalt', 'volc-rock', 'volc-ash', 'volc-steel', 'volc-lava'], look: { exposure: 1.25, far: 900 } },
   { id: 'rift-realm.marsh', param: 'marsh', build: buildMarsh, sets: ['marsh-mud', 'marsh-wood', 'marsh-water', 'glacial-brick'], look: { exposure: 1.1, far: 500 } },
   { id: 'rift-realm.celestial', param: 'celestial', build: buildCelestial, sets: ['celestial-marble', 'celestial-obsidian', 'glacial-brick'], look: { exposure: 1.0, far: 900 } },
+  // the Void Sanctum Arena: the tournament hub (map portals + the Trials)
+  { id: 'rift-realm.sanctum', param: 'sanctum', build: buildSanctum, sets: ['celestial-obsidian'], look: { exposure: 1.05, far: 600 } },
 ];
 
 export const moduleByParam = (param: string | null | undefined) => LEVEL_MODULES.find(m => m.param === param) ?? LEVEL_MODULES[0];
