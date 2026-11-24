@@ -4,6 +4,7 @@
 // (finer levels built on demand, a few per update so streaming never stalls a frame), with skirts round the edges to
 // hide the cracks between levels. The finest level of chunks far behind the camera is freed.
 import * as THREE from 'three/webgpu';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { SurfaceSource } from './field';
 import { chunkArrays, type ChunkArrays, type PatchOptions } from './chunkArrays';
 
@@ -31,6 +32,8 @@ export interface ChunkOptions {
   buildsPerUpdate?: number;
   /** Seconds between distance checks. */
   interval?: number;
+  /** Far chunks merge into blocks of N×N chunks (one draw per block when all of it is at the coarsest level); 1 = off. Default 4. */
+  farBlock?: number;
   name?: string;
 }
 
@@ -58,8 +61,11 @@ export class TerrainChunks {
   readonly group = new THREE.Group();
   readonly chunkSize: number;
   readonly lods: ChunkLod[];
-  private chunks: { cx: number; cz: number; meshes: (THREE.Mesh | null)[]; lod: number }[] = [];
+  private chunks: { cx: number; cz: number; meshes: (THREE.Mesh | null)[]; lod: number; block: number }[] = [];
   private t = 1;
+  /** Far blocks: N×N chunks that are all at the coarsest level draw as ONE merged mesh (one draw per 400 m instead of
+   *  16 — the far ring was most of the terrain's ~150 draw calls a frame and only ~130 triangles each). */
+  private blocks: { chunks: number[]; mesh: THREE.Mesh | null; on: boolean }[] = [];
 
   constructor(private source: SurfaceSource, private material: THREE.Material, protected opts: ChunkOptions = {}) {
     this.group.name = opts.name ?? 'terrain';
@@ -67,8 +73,14 @@ export class TerrainChunks {
     this.lods = opts.lods ?? DEFAULT_LODS;
     const size = opts.size ?? (opts.half ?? 1000) * 2, x0 = opts.x0 ?? -size / 2, z0 = opts.z0 ?? -size / 2;
     const n = Math.round(size / this.chunkSize);
-    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++)
-      this.chunks.push({ cx: x0 + (i + 0.5) * this.chunkSize, cz: z0 + (j + 0.5) * this.chunkSize, meshes: this.lods.map(() => null), lod: -1 });
+    const off = typeof location !== 'undefined' && new URLSearchParams(location.search).get('batch') === '0'; // A/B
+    const B = Math.max(1, off ? 1 : opts.farBlock ?? 4), nb = Math.ceil(n / B);
+    for (let k = 0; k < nb * nb; k++) this.blocks.push({ chunks: [], mesh: null, on: false });
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const block = B > 1 && this.lods.length > 1 ? Math.floor(i / B) + Math.floor(j / B) * nb : -1;
+      if (block >= 0) this.blocks[block].chunks.push(this.chunks.length);
+      this.chunks.push({ cx: x0 + (i + 0.5) * this.chunkSize, cz: z0 + (j + 0.5) * this.chunkSize, meshes: this.lods.map(() => null), lod: -1, block });
+    }
   }
 
   private build(cx: number, cz: number, lod: number) {
@@ -100,15 +112,38 @@ export class TerrainChunks {
       }
       if (lod === c.lod) continue;
       if (c.lod >= 0 && c.meshes[c.lod]) this.group.remove(c.meshes[c.lod]!);
-      this.group.add(c.meshes[lod]!);
+      if (!(c.block >= 0 && this.blocks[c.block].on && lod === L.length - 1)) this.group.add(c.meshes[lod]!);
       c.lod = lod;
       // free the finest level of chunks far behind us
       if (lod > 0 && c.meshes[0] && L.length > 1 && d > L[1].range) { c.meshes[0]!.geometry.dispose(); c.meshes[0] = null; }
+    }
+    this.updateBlocks();
+  }
+
+  /** Swap whole far blocks to their merged mesh (built once, the first time all of a block is far) and back. */
+  private updateBlocks() {
+    const far = this.lods.length - 1;
+    for (const b of this.blocks) {
+      if (!b.chunks.length) continue;
+      const all = b.chunks.every((k) => this.chunks[k].lod === far && this.chunks[k].meshes[far]);
+      if (all === b.on) continue;
+      if (all && !b.mesh) {
+        const g = mergeGeometries(b.chunks.map((k) => this.chunks[k].meshes[far]!.geometry), false);
+        if (!g) { b.chunks = []; continue; } // attributes differ: leave this block to its chunks
+        g.computeBoundingSphere();
+        const m = new THREE.Mesh(g, this.material);
+        m.receiveShadow = true; m.castShadow = false; m.matrixAutoUpdate = false; m.name = `${this.group.name}-far-block`;
+        b.mesh = m;
+      }
+      b.on = all;
+      for (const k of b.chunks) { const c = this.chunks[k], m = c.meshes[far]; if (!m || c.lod !== far) continue; if (all) this.group.remove(m); else this.group.add(m); }
+      if (all) this.group.add(b.mesh!); else if (b.mesh) this.group.remove(b.mesh);
     }
   }
 
   /** Drop every built mesh (e.g. after the height field is re-baked); the next update rebuilds. */
   invalidate() {
+    for (const b of this.blocks) { if (b.mesh) { this.group.remove(b.mesh); b.mesh.geometry.dispose(); b.mesh = null; } b.on = false; }
     for (const c of this.chunks) {
       if (c.lod >= 0 && c.meshes[c.lod]) this.group.remove(c.meshes[c.lod]!);
       for (const m of c.meshes) m?.geometry.dispose();

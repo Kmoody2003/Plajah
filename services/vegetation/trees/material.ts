@@ -4,7 +4,7 @@
 // stands and turned into the tree's own frame. Sway = trunk bow (height²) + bend (flexibility summed from the base —
 // continuous at joints) + each branch's own swing (phase per branch) + leaf flutter (leaves only).
 import * as THREE from 'three/webgpu';
-import { attribute, color, float, max, mix, normalView, positionLocal, positionViewDirection, sin, smoothstep, texture, time, uniform, uv, vec2, vec3, normalGeometry, positionGeometry } from 'three/tsl';
+import { attribute, cameraPosition, color, float, length, max, mix, normalView, normalWorld, positionLocal, positionViewDirection, positionWorld, pow, sin, smoothstep, texture, time, uniform, uv, vec2, vec3, normalGeometry, positionGeometry } from 'three/tsl';
 import type { TreeSpecies } from '../species';
 import { pushAt, toLocal, windAt } from '../wind';
 
@@ -51,9 +51,33 @@ function swayed(sp: TreeSpecies, height: number, leaves: boolean): N {
   return positionLocal.add(off);
 }
 
+/**
+ * The light the canopy transmits (shared by every leaf material): the direction TOWARD the sun (world), its colour ×
+ * intensity. Zero until a level sets it (impostor bakes then carry no sun glow). setLeafLight() every frame, or
+ * syncLeafLight(light) with the level's key DirectionalLight.
+ */
+export const leafLight = { dir: uniform(new THREE.Vector3(0, 1, 0)), color: uniform(new THREE.Color(0, 0, 0)), /** 0…1 crown-depth shading (A/B) */ crown: uniform(1) };
+const _ld = new THREE.Vector3(), _lt = new THREE.Vector3();
+/** ?canopy=0: the old leaves (no crown depth, no sun through them) for A/B. */
+const CANOPY_OFF = typeof location !== 'undefined' && new URLSearchParams(location.search).get('canopy') === '0';
+if (CANOPY_OFF) leafLight.crown.value = 0;
+export function setLeafLight(dirToSun: THREE.Vector3, col: THREE.Color, intensity: number) {
+  (leafLight.dir.value as THREE.Vector3).copy(dirToSun).normalize();
+  (leafLight.color.value as THREE.Color).copy(col).multiplyScalar(CANOPY_OFF ? 0 : intensity);
+}
+/** Takes the direction and strength from a DirectionalLight (position → target); the moon works too, dimly. */
+export function syncLeafLight(l: THREE.DirectionalLight | null | undefined, gain = 1) {
+  if (!l) { (leafLight.color.value as THREE.Color).setRGB(0, 0, 0); return; }
+  l.getWorldPosition(_ld); l.target.getWorldPosition(_lt);
+  setLeafLight(_ld.sub(_lt), l.color, l.intensity * gain);
+}
+
 export interface TreeMaterials { wood: THREE.MeshStandardNodeMaterial; leaves: THREE.MeshStandardNodeMaterial; cables: THREE.MeshStandardNodeMaterial | null }
 
-export function treeMaterials(sp: TreeSpecies, height: number, o: { beat?: N } = {}): TreeMaterials {
+/** The crown's ellipsoid in the tree's own frame (base at the origin): centre height, vertical and horizontal radii. */
+export interface Crown { cy: number; ry: number; rh: number }
+
+export function treeMaterials(sp: TreeSpecies, height: number, o: { beat?: N; crown?: Crown } = {}): TreeMaterials {
   const beat: N = o.beat ?? uniform(0);
   // ── bark: the art's bark set, tinted; glowing conduit veins in long bands (Cyber Forest) ──
   const wood = new THREE.MeshStandardNodeMaterial({ roughness: 0.9 });
@@ -84,11 +108,25 @@ export function treeMaterials(sp: TreeSpecies, height: number, o: { beat?: N } =
   const leaves = new THREE.MeshStandardNodeMaterial({ side: THREE.DoubleSide, alphaTest: 0.42, roughness: 0.8 });
   const atlas = tex(sp.leaves.atlas, true, false);
   const c: N = texture(atlas, uv());
-  leaves.colorNode = c.rgb.mul(color(sp.leaves.tint));
   leaves.opacityNode = c.a;
-  // translucency: cards seen edge-on / from behind glow softly with the transmission colour (cheap, no extra pass)
+  // crown depth: leaves deep inside the crown and on its underside get less sky and sun (the art's dark, soft crowns
+  // with bright rims) — an ellipsoid around the crown, measured on the un-swayed position
+  const cb = sp.trunk.crownBase, cr: Crown = o.crown ?? { cy: height * (1 + cb) / 2, ry: Math.max(0.5, height * (1 - cb) / 2), rh: Math.max(0.5, height * 0.32) };
+  const rel: N = vec3(positionGeometry.x.div(cr.rh), positionGeometry.y.sub(cr.cy).div(cr.ry), positionGeometry.z.div(cr.rh));
+  const outer: N = smoothstep(float(0.25), float(1.0), length(rel));               // 0 at the core, 1 at the rim
+  const top: N = smoothstep(float(-0.9), float(0.7), rel.y);                       // underside → top
+  const occl: N = outer.mul(0.55).add(top.mul(0.45)).clamp(0, 1);
+  leaves.colorNode = c.rgb.mul(color(sp.leaves.tint)).mul(mix(float(1), occl.mul(0.62).add(0.38), leafLight.crown));
+  // translucency, lit by the sun: looking toward the sun through the canopy (forward scatter) and cards lit from
+  // behind glow with the transmission colour; the rim of the crown transmits most, the core hardly at all.
+  // A small view-angle term keeps a little of it at night / with no sun set.
+  const toFrag: N = positionWorld.sub(cameraPosition).normalize();
+  const fwd: N = pow(max(toFrag.dot(leafLight.dir), float(0)), float(5));
+  const backLit: N = max(normalWorld.dot(leafLight.dir).negate(), float(0));
+  const trans: N = c.rgb.mul(color(sp.leaves.transmission)).mul(leafLight.color).mul(fwd.mul(0.55).add(backLit.mul(0.3))).mul(outer.mul(0.8).add(0.2));
   const back: N = float(1).sub(normalView.dot(positionViewDirection).abs()).mul(0.5).add(0.15);
-  let em: N = c.rgb.mul(color(sp.leaves.transmission)).mul(back.mul(0.35));
+  // the old view-angle glow, kept faint (it lit every leaf the same whatever the sun did); full strength with ?canopy=0
+  let em: N = c.rgb.mul(color(sp.leaves.transmission)).mul(back.mul(mix(float(0.35), float(0.12).mul(occl), leafLight.crown))).add(trans);
   if (sp.leaves.glow) {
     const g = sp.leaves.glow;
     const glowMask: N = smoothstep(float(0.05), float(0.35), max(c.b.sub(c.r), c.g.sub(c.r).mul(0.6)));

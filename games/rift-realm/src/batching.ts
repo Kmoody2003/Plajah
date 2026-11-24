@@ -49,3 +49,22 @@ export function mergeRigid(root: THREE.Object3D, keep?: (m: THREE.Mesh) => boole
   }
   return out;
 }
+
+/**
+ * A simplified index buffer over the SAME vertices (meshoptimizer): vertex order, attributes and anything indexed by
+ * vertex (vertex-animation textures, skin weights) stay valid. `ratio` of the triangles, `error` relative to the
+ * mesh's extent. Null when meshoptimizer is unavailable or the result is no smaller.
+ */
+export async function simplifyIndex(geo: THREE.BufferGeometry, ratio: number, error = 0.02): Promise<THREE.BufferAttribute | null> {
+  const { MeshoptSimplifier } = await import('meshoptimizer');
+  if (!MeshoptSimplifier.supported) return null;
+  await MeshoptSimplifier.ready;
+  const pa = geo.getAttribute('position'), n = pa.count;
+  const pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { pos[i * 3] = pa.getX(i); pos[i * 3 + 1] = pa.getY(i); pos[i * 3 + 2] = pa.getZ(i); }
+  const src = geo.index ? Uint32Array.from(geo.index.array as ArrayLike<number>) : Uint32Array.from({ length: n }, (_, i) => i);
+  const target = Math.max(3, Math.floor((src.length * ratio) / 3) * 3);
+  const [out] = MeshoptSimplifier.simplify(src, pos, 3, target, error, ['Prune']);
+  if (!out.length || out.length >= src.length * 0.9) return null;
+  return new THREE.BufferAttribute(n < 65536 ? Uint16Array.from(out) : out, 1);
+}

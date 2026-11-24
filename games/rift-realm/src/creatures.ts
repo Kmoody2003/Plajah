@@ -9,6 +9,7 @@
 // raptor arms, stinger) and a TSL vertex program animates them — gallop / trot / tripod scuttle, wing buzz, strikes.
 // One geometry + one material per kind; per-creature gait phase, speed and attack come in through object uniforms.
 import * as THREE from 'three/webgpu';
+import { simplifyIndex } from './batching';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { CreatureRig, loadRig, type RigTemplate } from './creatureRig';
@@ -449,7 +450,7 @@ export class MothSwarm {
   constructor(parent: THREE.Object3D, anchors: THREE.Vector3[], n: number, wingspan = 0.75) {
     const R = lcg(99);
     for (let i = 0; i < n; i++) this.m.push({ a: anchors[i % anchors.length], r: 1 + R() * 2.8, h: 1.2 + R() * 2.6, w: 0.5 + R() * 0.7, ph: R() * 6.28, s: 0.75 + R() * 0.5 });
-    loader.loadAsync(BASE + 'glow_moth.glb').then((gltf) => {
+    loader.loadAsync(BASE + 'glow_moth.glb').then(async (gltf) => {
       let src: THREE.Mesh | null = null;
       gltf.scene.traverse((o) => { if (!src && (o as THREE.Mesh).isMesh) src = o as THREE.Mesh; });
       if (!src) return;
@@ -460,6 +461,10 @@ export class MothSwarm {
       // centre it on the body (the model's feet sit at y = 0) so it turns about its middle
       const ty = -(bb.min.y + bb.max.y) / 2, tz = -(bb.min.z + bb.max.z) / 2;
       geo.translate(0, ty, tz); geo.scale(k, k, k); geo.computeBoundingBox();
+      // the generated moth is ~14k triangles for a 0.75 m insect (×20 = 280k a frame): ~12 % keeps its silhouette.
+      // A new index over the same vertices, so the baked fly clip (indexed by vertex) still lines up.
+      const lean = new URLSearchParams(location.search).get('batch') === '0' ? null : await simplifyIndex(geo, 0.12, 0.01).catch(() => null);
+      if (lean) geo.setIndex(lean);
       const rgn = new Float32Array(geo.attributes.position.count * 4);
       const info = wingMasks('moth', geo, rgn);
       geo.setAttribute('rgn', new THREE.BufferAttribute(rgn, 4));

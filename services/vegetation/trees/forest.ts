@@ -60,7 +60,10 @@ export class Forest {
         const low = buildTreeGeometry(growTree(sp, seed, { scale: 1, detail: 0.3 }), sp, { radial: 5 });
         // one material set per species (the first seed's height): each set is its own shader pipelines, and six seeds of
         // seven species compiling 42 sets made the page take minutes to start
-        const mats = matCache.get(si) ?? matCache.set(si, treeMaterials(sp, full.height, { beat: o.beat })).get(si)!;
+        // the crown's ellipsoid (from this seed's leaf cards) drives the leaves' crown-depth shading
+        full.leaves.computeBoundingBox();
+        const lb = full.leaves.boundingBox!, crown = { cy: (lb.min.y + lb.max.y) / 2, ry: Math.max(0.5, (lb.max.y - lb.min.y) / 2), rh: Math.max(0.5, Math.max(lb.max.x - lb.min.x, lb.max.z - lb.min.z) / 2) };
+        const mats = matCache.get(si) ?? matCache.set(si, treeMaterials(sp, full.height, { beat: o.beat, crown })).get(si)!;
         const make = (geo: THREE.BufferGeometry, mat: THREE.Material, castShadow: boolean, lod: 'near' | 'mid' = 'near') => {
           const g = geo.clone();
           g.setAttribute('aInst', new THREE.InstancedBufferAttribute(new Float32Array(mine.length * 4), 4));

@@ -13,6 +13,7 @@
 // The levels still see the two content tiers (shrine.ts Tier 'low' | 'high'); a profile maps onto one of them.
 import * as THREE from 'three/webgpu';
 import type { Tier } from './shrine';
+import { simplifyIndex } from './batching';
 
 export type GfxProfile = 'low' | 'intel' | 'high';
 
@@ -169,4 +170,73 @@ export class EmptyInstanceSkip {
       else if (!empty && ud.emptySkip !== undefined) { if (m.layers.mask === 0) m.layers.mask = ud.emptySkip; delete ud.emptySkip; }
     }
   }
+}
+
+/**
+ * Distance LOD for heavy static meshes (the sheet-built place models are ~60k triangles each and were drawn whole even
+ * 650 m away). Every mesh over `minTris` gets two simplified index buffers over the same vertices (batching.ts
+ * simplifyIndex: 25 % and 6 %), as geometries sharing its attributes. tick() picks one by the mesh's projected radius
+ * in pixels (full under `near` px … smallest). Every other plain mesh (not instanced / skinned / always-drawn) is
+ * tracked too, and any of them under 1.5 px is culled (empty layer mask, like EmptyInstanceSkip): props a pixel wide.
+ * New meshes (models that stream in) are picked up by a rescan every 2 s. Shadows use the same choice.
+ */
+export class HeavyMeshLod {
+  private list: { m: THREE.Mesh; lods: THREE.BufferGeometry[]; r: number; c: THREE.Vector3 }[] = [];
+  private seen = new WeakSet<THREE.Object3D>();
+  private scanT = 1e9; private t = 0;
+  private v = new THREE.Vector3(); private cp = new THREE.Vector3();
+  constructor(private root: THREE.Object3D, private camera: THREE.PerspectiveCamera, private o: { minTris?: number; near?: number; mid?: number } = {}) {}
+  tick(dt: number, viewHeight: number) {
+    if ((this.scanT += dt) > 2) { this.scanT = 0; this.scan(); }
+    if ((this.t += dt) < 0.1) return;
+    this.t = 0;
+    const k = (viewHeight / 2) / Math.tan((this.camera.fov * Math.PI) / 360), near = this.o.near ?? 140, mid = this.o.mid ?? 36;
+    this.camera.getWorldPosition(this.cp);
+    for (const e of this.list) {
+      const m = e.m;
+      this.v.copy(e.c).applyMatrix4(m.matrixWorld);
+      const s = m.matrixWorld.getMaxScaleOnAxis(), r = e.r * s, d = Math.max(0.1, this.v.distanceTo(this.cp) - r);
+      const px = (r / d) * k;
+      if (e.lods.length > 1) { const g = px > near ? e.lods[0] : px > mid ? e.lods[1] : e.lods[2] ?? e.lods[1]; if (m.geometry !== g) m.geometry = g; }
+      const ud = m.userData;
+      if (px < 1.5 && ud.lodCull === undefined) { ud.lodCull = m.layers.mask; m.layers.mask = 0; }
+      else if (px >= 1.5 && ud.lodCull !== undefined) { if (m.layers.mask === 0) m.layers.mask = ud.lodCull; delete ud.lodCull; }
+    }
+  }
+  private scan() {
+    const min = this.o.minTris ?? 20000;
+    // meshes that left the scene: restore what we changed, forget them (they're tracked again if they come back)
+    this.list = this.list.filter((e) => {
+      let p: THREE.Object3D | null = e.m; while (p && p !== this.root) p = p.parent;
+      if (p) return true;
+      const ud = e.m.userData; if (ud.lodCull !== undefined) { if (e.m.layers.mask === 0) e.m.layers.mask = ud.lodCull; delete ud.lodCull; }
+      if (e.lods.length) e.m.geometry = e.lods[0];
+      this.seen.delete(e.m);
+      return false;
+    });
+    this.root.traverse((x) => {
+      const m = x as THREE.Mesh;
+      if (!m.isMesh || this.seen.has(m)) return;
+      this.seen.add(m);
+      if ((m as THREE.InstancedMesh).isInstancedMesh || (m as THREE.SkinnedMesh).isSkinnedMesh || m.frustumCulled === false || !m.geometry?.attributes.position || /terrain/.test(m.name)) return;
+      const g = m.geometry, tris = (g.index ? g.index.count : g.attributes.position.count) / 3;
+      if (!g.boundingSphere) g.computeBoundingSphere();
+      const e = { m, lods: [] as THREE.BufferGeometry[], r: g.boundingSphere!.radius, c: g.boundingSphere!.center.clone() };
+      this.list.push(e);
+      if (tris < min || g.groups.length > 1 || Array.isArray(m.material) || m.morphTargetInfluences) return;
+      void (async () => {
+        const lods = [g];
+        for (const ratio of [0.25, 0.06]) {
+          const idx = await simplifyIndex(g, ratio, ratio < 0.1 ? 0.05 : 0.02).catch(() => null);
+          if (!idx) break;
+          const l = new THREE.BufferGeometry();
+          for (const [name, a] of Object.entries(g.attributes)) l.setAttribute(name, a);
+          l.setIndex(idx); l.boundingSphere = g.boundingSphere; l.boundingBox = g.boundingBox;
+          lods.push(l);
+        }
+        e.lods = lods;
+      })();
+    });
+  }
+  stats() { return { meshes: this.list.length, withLods: this.list.filter((e) => e.lods.length > 1).length, culled: this.list.filter((e) => e.m.userData.lodCull !== undefined).length }; }
 }

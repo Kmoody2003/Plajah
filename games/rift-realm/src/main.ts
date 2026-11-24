@@ -9,7 +9,8 @@ import { Objectives } from './objectives';
 import { applyStudioProject } from './studio/projectHook';
 import { createRules } from './studio/rulesHost';
 import { createPost } from './post';
-import { DynamicResolution, EmptyInstanceSkip, capShadowMaps, intelShadows, pickGfx } from './gfx';
+import { DynamicResolution, EmptyInstanceSkip, HeavyMeshLod, capShadowMaps, intelShadows, pickGfx } from './gfx';
+import { syncLeafLight } from '../../../services/vegetation/trees/material';
 import { wetten } from './wetness';
 import { JumpPads } from './jumpPads';
 import { ModeRunner, resolveMode } from './modes';
@@ -129,6 +130,8 @@ async function boot() {
   const shadowRig = gfx.profile === 'intel' && gfx.shadows && tier === 'low' ? intelShadows(scene, { mapSize: gfx.shadowMapMax, every: 2 }) : null;
   // empty instanced meshes skip three's per-object work (gfx.ts); ?emptyskip=0 turns it off (A/B)
   const emptySkip = new URLSearchParams(location.search).get('emptyskip') === '0' ? null : new EmptyInstanceSkip(scene);
+  // heavy static meshes (place models ~60k tris) get simplified LODs by screen size (gfx.ts); ?lod=0 turns it off
+  const heavyLod = new URLSearchParams(location.search).get('lod') === '0' ? null : new HeavyMeshLod(scene, camera);
   if (shadowRig) console.info(`[gfx] shadows: ${shadowRig.casters} casters added, key light ${shadowRig.light.shadow.mapSize.x}`);
   // wet forest: damp surfaces, glossy wet patches, puddle shine (?dry turns it off); models that stream in later get it too
   if (!new URLSearchParams(location.search).has('dry')) {
@@ -849,7 +852,9 @@ async function boot() {
       cinQ.setFromRotationMatrix(cinM.lookAt(cinPos, cinLook, THREE.Object3D.DEFAULT_UP));
       camera.position.lerp(cinPos, cinW); camera.quaternion.slerp(cinQ, cinW);
     }
-    shadowRig?.tick(); emptySkip?.tick(realDt);
+    shadowRig?.tick(); emptySkip?.tick(realDt); heavyLod?.tick(realDt, renderer.domElement.height);
+    // light through the canopy follows the level's sun (skyCycle tags it scene.userData.godrays; fades out at night)
+    syncLeafLight((scene.userData.godrays as THREE.DirectionalLight | undefined) ?? shadowRig?.light, 0.5 * ((scene.userData.godraysGain as { value: number } | undefined)?.value ?? 1));
     if (post) post.render(); else renderer.render(scene, camera);
     if (!once) dynres?.afterRender(realDt);
     if (cinW > 0) { camera.position.copy(camSave.pos); camera.quaternion.copy(camSave.quat); }
@@ -888,7 +893,7 @@ async function boot() {
 
   if (new URLSearchParams(location.search).has('rrdebug')) {
     loading.release(); await entered;
-    (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, gfx, dynres, objectives, match, targeting, rhythm, danger, ents, pads: jumpPads, modes, arenaDesc, portals };
+    (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, gfx, dynres, heavyLod, objectives, match, targeting, rhythm, danger, ents, pads: jumpPads, modes, arenaDesc, portals };
     // combat checks: __rr.combat.arena(['rusher', 'caster', 'brute']) clears the field and rings those around you;
     // .passive(true) freezes their AI; .tune({...}) edits the table live; .state() reads the fight
     (window as any).__rr.combat = {
