@@ -9,6 +9,7 @@ import { StaticKit, boulder, fbm3, noise3, rng } from './geom';
 import { builders } from './structures';
 import { pbr, circuitTexture } from './textures';
 import type { Level, LevelInfo, Tier } from './shrine';
+import type { JumpPad } from './jumpPads';
 
 interface Island { x: number; y: number; z: number; r: number; depth: number; seed: number }
 const ISLANDS: Record<'ledge' | 'centre' | 'castle' | 'towers' | 'portal' | 'west2', Island> = {
@@ -19,6 +20,12 @@ const ISLANDS: Record<'ledge' | 'centre' | 'castle' | 'towers' | 'portal' | 'wes
   portal: { x: 54, y: 4, z: -8, r: 19, depth: 56, seed: 5 },
   west2: { x: -24, y: 16, z: -60, r: 8, depth: 24, seed: 6 },
 };
+/** The lit cavern hollowed into the centre island's underside (art: the glowing chamber under the ruin court). A rock dome
+ *  round a flagstone floor, opening south through a tunnel onto a lip that juts out over the void, toward the ledge. */
+// (its floor stays above y -12: player.ts treats anything lower, off an open world, as out of the world)
+const CAVE = { x: 2, y: -10.5, z: 4, r: 10, tx0: -4.25, tx1: 8.25, tz1: 32, lipZ: 38, ceil: -3 };
+/** True where the centre crag's shell is cut away for the cavern's mouth (inside the tunnel's walls, floor and ceiling). */
+const inCaveMouth = (x: number, y: number, z: number) => x > CAVE.tx0 + 0.2 && x < CAVE.tx1 - 0.2 && y > CAVE.y - 1.2 && y < CAVE.ceil && z > CAVE.z;
 
 export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const lo = tier === 'low';
@@ -41,7 +48,7 @@ export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
   }
   const rockSrc = pbr('celestial-obsidian', { maps: ['normal', 'roughness'], tint: 0x6a6070, normalScale: 1.5 });
   // island rock: obsidian sides, grass + moss on top faces
-  const rock = new THREE.MeshStandardNodeMaterial({ map: rockSrc.map, normalMap: rockSrc.normalMap, roughnessMap: rockSrc.roughnessMap, roughness: 1 });
+  const rock = new THREE.MeshStandardNodeMaterial({ map: rockSrc.map, normalMap: rockSrc.normalMap, roughnessMap: rockSrc.roughnessMap, roughness: 1, side: THREE.DoubleSide }); // double-sided: the centre crag is opened for the cavern, its inside reads as rock
   // the obsidian albedo is near-black: lift its luminance into a weathered grey-brown crag, as in the concept
   rock.colorNode = vec3(luminance(tslTexture(rock.map!, uv()).rgb).mul(2.2).add(0.2)).mul(color(0x9a8c88));
   const grassTop = new THREE.MeshStandardNodeMaterial({ map: rockSrc.map, normalMap: rockSrc.normalMap, roughness: 0.95 });
@@ -61,6 +68,19 @@ export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const fallsMat = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
   fallsMat.colorNode = vec3(0.8, 0.9, 1.0).mul(float(0.9).add(tslTexture(circuit, uv().mul(vec2(0.5, 0.15)).add(vec2(0, time.mul(0.8)))).r.mul(0.4)));
   fallsMat.opacityNode = smoothstep(float(1.0), float(0.6), uv().y.oneMinus()).mul(smoothstep(float(0.0), float(0.15), uv().x)).mul(smoothstep(float(1.0), float(0.85), uv().x)).mul(0.32); // misty sheets, not white boards
+
+  // drop the triangles whose centre passes `cut` (an opening in a shell)
+  const cutTris = (geo: THREE.BufferGeometry, cut: (x: number, y: number, z: number) => boolean) => {
+    const g = geo.index ? geo.toNonIndexed() : geo, p = g.attributes.position, keep: number[] = [];
+    for (let t = 0; t < p.count; t += 3) {
+      const cx = (p.getX(t) + p.getX(t + 1) + p.getX(t + 2)) / 3, cy = (p.getY(t) + p.getY(t + 1) + p.getY(t + 2)) / 3, cz = (p.getZ(t) + p.getZ(t + 1) + p.getZ(t + 2)) / 3;
+      if (!cut(cx, cy, cz)) for (let k = 0; k < 3; k++) keep.push(p.getX(t + k), p.getY(t + k), p.getZ(t + k));
+    }
+    const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.Float32BufferAttribute(keep, 3)); out.computeVertexNormals();
+    return out;
+  };
+  const jumpPads: JumpPad[] = [];
+  const uRiftFlash = uniform(0);
 
   // ── islands: a grassy top disc over an inverted crag of floating rock ────────────────────────────────
   const islandTop = (i: Island) => {
@@ -88,7 +108,7 @@ export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
       p.setXYZ(k, x * (1 + n * 0.5), y * (1 + n * 0.2), z * (1 + n * 0.5));
     }
     kit.place(crag, i.x, i.y + 0.05, i.z);
-    kit.add(rock, crag, { tpm: 0.12 });
+    kit.add(rock, i === ISLANDS.centre ? cutTris(crag, inCaveMouth) : crag, { tpm: 0.12 });
     // a thick rim course so the edge reads as a cliff, not a paper disc
     const nRim = lo ? 18 : 34;
     for (let k = 0; k < nRim; k++) {
@@ -122,9 +142,91 @@ export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
       if (k % 2) { const g = new THREE.OctahedronGeometry(0.7, 0); kit.place(g, C.x + Math.cos(a + 0.3) * (rr - 2), C.y + 1.2, C.z + Math.sin(a + 0.3) * (rr - 2), R(), 0, 0, 0.6, 2.0, 0.6); kit.add(crystal, g, { solid: false, tpm: 1 }); }
     }
     for (let k = 0; k < 6; k++) { const a = R() * 6.28; kit.box(ruin, 2.6, 0.8, 0.9, C.x + Math.cos(a) * 6, C.y + 1.8, C.z - 2 + Math.sin(a) * 6, a, { tpm: 0.5 }); }
-    // the lit cavern in the island's underside (art: glowing chamber below the court)
-    const cave = new THREE.PointLight(0x3ff0ff, 120, 30, 2); cave.position.set(C.x + 2, C.y - 10, C.z + 6); group.add(cave);
-    for (let k = 0; k < 6; k++) { const g = new THREE.OctahedronGeometry(1 + R(), 0); kit.place(g, C.x - 4 + R() * 12, C.y - 13 + R() * 4, C.z + 2 + R() * 8, R(), R(), 0, 0.7, 2.2, 0.7); kit.add(crystal, g, { solid: false, tpm: 1 }); }
+    buildCavern();
+  }
+
+  // ── the cavern under the centre island (art: the lit chamber hollowed into the court's underside) ──────────
+  // A real room: a flagstone floor (y -10.5) under a rough rock dome (crown y -3), crystal clusters and hanging crystal
+  // stalactites, a rift pool in the middle. It opens south through a tunnel onto a lip over the void. Way in: a hard-light
+  // ramp down from the ledge (Team A). Way out: the rift vent on the lip throws you back up onto the ledge. A close-range
+  // flank under the B court, and the lit window the concept shows under the island.
+  function buildCavern() {
+    const { x: cx, y: fy, z: cz, r } = CAVE;
+    const caveRock = new THREE.MeshStandardNodeMaterial({ map: rockSrc.map, normalMap: rockSrc.normalMap, roughness: 1, side: THREE.DoubleSide });
+    caveRock.colorNode = vec3(luminance(tslTexture(rockSrc.map!, uv()).rgb).mul(1.6).add(0.12)).mul(color(0x8a7e92));
+    // floor: the room's disc + the tunnel and the lip, as fitted flagstones on a rock bed
+    kit.prism(caveRock, 28, r + 0.6, r - 1, 2, cx, fy - 2, cz, 0, { tpm: 0.3 });
+    const tw = CAVE.tx1 - CAVE.tx0, tmx = (CAVE.tx0 + CAVE.tx1) / 2;
+    kit.box(caveRock, tw + 3, 2, CAVE.lipZ - cz, tmx, fy - 1, (cz + CAVE.lipZ) / 2, 0, { tpm: 0.3 });
+    for (let x = cx - r + 1; x < cx + r; x += 2.1) for (let z = cz - r + 1; z < CAVE.lipZ - 0.5; z += 2.1) {
+      const inRoom = Math.hypot(x - cx, z - cz) < r - 0.6, inTunnel = x > CAVE.tx0 + 0.6 && x < CAVE.tx1 - 0.6 && z > cz;
+      if (!inRoom && !inTunnel) continue;
+      kit.box(ruin, 2.0, 0.2, 2.0, x + (R() - 0.5) * 0.15, fy + 0.06 + R() * 0.05, z + (R() - 0.5) * 0.15, (R() - 0.5) * 0.06, { tpm: 0.5, solid: false, shadow: false });
+    }
+    // the dome: a lumpy hemisphere with a wedge open toward the tunnel (+z)
+    const open = Math.asin((CAVE.tx1 - cx - 0.7) / r);
+    const dome = new THREE.SphereGeometry(r, lo ? 28 : 44, lo ? 10 : 16, Math.PI / 2 + open, Math.PI * 2 - open * 2, 0, Math.PI / 2);
+    {
+      const p = dome.attributes.position;
+      for (let k = 0; k < p.count; k++) {
+        const x = p.getX(k), y = p.getY(k), z = p.getZ(k), n = fbm3(x * 0.25 + 7, y * 0.25, z * 0.25) - 0.5;
+        const sc = 1 + n * 0.28 * Math.min(1, y / 1.5);
+        p.setXYZ(k, x * sc, y * (1 + n * 0.12), z * sc);
+      }
+      dome.computeVertexNormals();
+    }
+    kit.place(dome, cx, fy, cz, 0, 0, 0, 1, (CAVE.ceil - fy + 0.2) / r, 1);
+    kit.add(caveRock, dome, { tpm: 0.2 });
+    // the tunnel to the mouth: rock walls, a ceiling slab, framed by fallen ruin blocks
+    // (walls start where the dome meets them, so they don't split the room; the crag rock is double-sided, so any nook left
+    // between the dome's crown and the walls shows rock)
+    const wz0 = cz + Math.sqrt(r * r - (CAVE.tx1 - cx) ** 2) - 0.5;
+    for (const x of [CAVE.tx0 - 0.75, CAVE.tx1 + 0.75]) kit.box(caveRock, 1.5, CAVE.ceil - fy + 1.6, CAVE.tz1 - wz0, x, (fy + CAVE.ceil) / 2 + 0.3, (wz0 + CAVE.tz1) / 2, 0, { tpm: 0.3 });
+    kit.box(caveRock, tw + 3, 1.6, CAVE.tz1 - cz - 3, tmx, CAVE.ceil + 0.8, (cz + 3 + CAVE.tz1) / 2, 0, { tpm: 0.3 });
+    for (let k = 0; k < (lo ? 6 : 12); k++) {
+      const s = k % 2 ? 1 : -1, z = 14 + R() * (CAVE.tz1 - 13), b = boulder(0.7 + R() * 1.2, 300 + k, 2);
+      kit.place(b, s > 0 ? CAVE.tx1 + 0.2 : CAVE.tx0 - 0.2, fy + R() * 9, z, R() * 6); kit.add(rock, b, { tpm: 0.3, shadow: false });
+    }
+    for (let k = 0; k < 5; k++) { const b = boulder(1.2 + R() * 1.4, 340 + k, 2); kit.place(b, CAVE.tx0 - 1 + k * (tw + 2) / 4, CAVE.ceil + 1.2, CAVE.tz1 + 0.3, R() * 6); kit.add(rock, b, { tpm: 0.3, shadow: false }); } // the mouth's brow
+    // crystal clusters round the walls (low cover where they're big), crystal stalactites from the dome
+    for (let k = 0; k < (lo ? 7 : 12); k++) {
+      const a = Math.PI / 2 + open + 0.25 + (k / (lo ? 7 : 12)) * (Math.PI * 2 - open * 2 - 0.5), rr = r - 1.4 - R() * 0.8;
+      const x = cx - Math.cos(a) * rr, z = cz + Math.sin(a) * rr, big = k % 3 === 0;
+      for (let j = 0; j < (big ? 4 : 2); j++) {
+        const g = new THREE.OctahedronGeometry(big ? 0.7 + R() * 0.5 : 0.35 + R() * 0.3, 0);
+        kit.place(g, x + (R() - 0.5) * 1.2, fy + (big ? 1.1 : 0.6), z + (R() - 0.5) * 1.2, R() * 6, (R() - 0.5) * 0.5, (R() - 0.5) * 0.5, 0.6, 2.4, 0.6);
+        kit.add(crystal, g, { solid: big, tpm: 1 });
+      }
+    }
+    for (let k = 0; k < (lo ? 8 : 18); k++) {
+      const a = R() * Math.PI * 2, rr = R() * (r - 3), x = cx + Math.cos(a) * rr, z = cz + Math.sin(a) * rr, len = 0.8 + R() * 2.2;
+      const top = fy + (CAVE.ceil - fy) * Math.sqrt(Math.max(0, 1 - (rr / r) ** 2)) - 0.3;
+      const g = new THREE.ConeGeometry(0.2 + R() * 0.25, len, 5); g.rotateX(Math.PI);
+      kit.place(g, x, top - len / 2, z, R() * 6); kit.add(k % 3 ? caveRock : crystal, g, { solid: false, shadow: false, tpm: 1 });
+    }
+    // the rift pool at the centre: a sunken basin of light, the room's glow
+    kit.prism(ruin, 12, 2.6, 2.8, 0.45, cx, fy, cz, 0, { tpm: 0.6 });
+    const poolMat = new THREE.MeshBasicNodeMaterial();
+    poolMat.colorNode = mix(cyan, violet, sin(time.mul(0.7).add(uv().x.mul(6))).mul(0.5).add(0.5)).mul(float(1.6).add(uBeatPulse.mul(1.0)));
+    const pool = new THREE.Mesh(new THREE.CircleGeometry(2.2, 28), poolMat); pool.rotation.x = -Math.PI / 2; pool.position.set(cx, fy + 0.46, cz); group.add(pool);
+    const shaft = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    shaft.colorNode = cyan; shaft.opacityNode = uv().y.mul(0.16);
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 2.1, CAVE.ceil - fy - 0.5, 20, 1, true), shaft); col.name = 'cavern light shaft';
+    col.position.set(cx, fy + 0.4 + (CAVE.ceil - fy - 0.5) / 2, cz); group.add(col);
+    const cave = new THREE.PointLight(0x3ff0ff, 140, 26, 2); cave.position.set(cx, fy + 4, cz); group.add(cave);
+    if (!lo) { const v = new THREE.PointLight(0xb06bff, 60, 20, 2); v.position.set(tmx, fy + 4, 20); group.add(v); }
+
+    // the rift vent on the lip: a jump pad back up onto the ledge
+    const ventMat = new THREE.MeshBasicNodeMaterial();
+    ventMat.colorNode = violet.mul(float(1.8).add(uBeatPulse.mul(0.8)).add(uRiftFlash.mul(3)));
+    const vx = 2, vz = CAVE.lipZ - 3;
+    kit.prism(ruin, 16, 1.4, 1.5, 0.3, vx, fy, vz, 0, { tpm: 0.6 });
+    const vd = new THREE.Mesh(new THREE.CircleGeometry(1.15, 28), ventMat); vd.rotation.x = -Math.PI / 2; vd.position.set(vx, fy + 0.31, vz); group.add(vd);
+    const vb = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 1.1, 10, 16, 1, true), shaft); vb.name = 'rift vent beam'; vb.position.set(vx, fy + 5.3, vz); group.add(vb);
+    const L = ISLANDS.ledge;
+    jumpPads.push({ name: 'rift vent', pos: new THREE.Vector3(vx, fy + 0.3, vz), radius: 1.2, to: new THREE.Vector3(L.x + 7, L.y + 1.8, L.z - 1), apex: 3, flash: uRiftFlash });
+    // ruin rails along the lip's open edges (the void is below)
+    for (const x of [CAVE.tx0 - 1.2, CAVE.tx1 + 1.2]) kit.box(ruin, 0.6, 0.9, CAVE.lipZ - CAVE.tz1, x, fy + 0.45, (CAVE.tz1 + CAVE.lipZ) / 2, 0, { tpm: 0.5 });
   }
 
   // ── castle island (W, point A): the big keep with waterfalls pouring off the rim ─────────────────────
@@ -167,7 +269,10 @@ export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const ribbon = (a: Island, b: Island, w = 3.4, lift = 3) => {
     const A = new THREE.Vector3(a.x, a.y + 0.2, a.z), Bv = new THREE.Vector3(b.x, b.y + 0.2, b.z);
     const dir = Bv.clone().sub(A).setY(0).normalize();
-    const start = A.clone().addScaledVector(dir, a.r * 0.85), end = Bv.clone().addScaledVector(dir, -b.r * 0.85);
+    ribbonPts(A.clone().addScaledVector(dir, a.r * 0.85), Bv.clone().addScaledVector(dir, -b.r * 0.85), w, lift);
+  };
+  const ribbonPts = (start: THREE.Vector3, end: THREE.Vector3, w = 3.4, lift = 3) => {
+    const dir = end.clone().sub(start).setY(0).normalize();
     const mid = start.clone().lerp(end, 0.5).add(new THREE.Vector3(0, lift, 0));
     const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
     const n = 40, pos: number[] = [], uvs: number[] = [], idx: number[] = [];
@@ -194,6 +299,8 @@ export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const I = ISLANDS;
   ribbon(I.ledge, I.centre); ribbon(I.ledge, I.castle, 3, 6); ribbon(I.centre, I.castle, 3.4, 5); ribbon(I.centre, I.towers, 3, 8);
   ribbon(I.centre, I.portal); ribbon(I.towers, I.portal, 3, 6); ribbon(I.castle, I.west2, 2.6, 6); ribbon(I.west2, I.towers, 2.6, 4);
+  // down from the ledge's east rim to the cavern's lip (a steep hard-light slide; the rift vent is the fast way back up)
+  ribbonPts(new THREE.Vector3(I.ledge.x + 11, I.ledge.y + 0.2, I.ledge.z), new THREE.Vector3(6.5, CAVE.y + 0.05, CAVE.lipZ - 0.5), 3, 0);
 
   kit.build(group);
 
@@ -246,6 +353,7 @@ export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
   scene.add(group);
 
   const enemySpots = [[0, -2, 0], [8, 6, 0], [-8, -8, 0], [10, -10, 0], [-6, 10, 0], [-52, -20, 9], [-44, -30, 9], [14, -50, 12], [50, -8, 4], [56, 2, 4], [-30, 44, 10]].map(([x, z, y]) => new THREE.Vector3(x, y + 1.6, z));
+  enemySpots.push(new THREE.Vector3(CAVE.x - 5, CAVE.y + 0.2, CAVE.z - 2), new THREE.Vector3(CAVE.x + 5, CAVE.y + 0.2, CAVE.z + 3), new THREE.Vector3(CAVE.x, CAVE.y + 0.2, 22));
   const info: LevelInfo = { id: 'celestial-void', name: 'Celestial Void Citadel', track: 'main', accentHex: 0x3ff0ff };
   let elapsed = 0;
   return {
@@ -253,6 +361,7 @@ export function buildCelestial(scene: THREE.Scene, tier: Tier = 'high'): Level {
     spawns: { a: { pos: new THREE.Vector3(-32, 10.6, 48), yaw: -0.5 }, b: { pos: new THREE.Vector3(50, 4.6, -8), yaw: Math.PI / 2 } },
     enemySpots,
     hazardBelow: -25,
+    jumpPads,
     controlPoints: [
       { id: 'A', name: 'Castle Isle', pos: new THREE.Vector3(-50, 9.2, -16), radius: 6 },
       { id: 'B', name: 'Ruin Court', pos: new THREE.Vector3(2, 1.4, -2), radius: 6.5 },
