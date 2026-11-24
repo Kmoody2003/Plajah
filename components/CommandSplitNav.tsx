@@ -172,13 +172,31 @@ export interface CommandSplitNavProps {
   onSelectArticle?: (article: any) => void;
   onSelectGame?: (game: any) => void;
   onSelectLiveFeed?: (feed: any) => void;
+  /** Shown at the top of the labelled column (the Elevate org pillar: org, my departments, org pages). */
+  topSlot?: React.ReactNode;
+  /** The org the top slot belongs to. While set, the column is in "org mode": the org pillar replaces the
+   *  Pinned list and the category list, with only `orgPinnedIds` under "Pinned · Discover". Picking a
+   *  category on the rail shows that category (with a way back); a new org resets to org mode. */
+  orgKey?: string;
+  orgName?: string;
+  orgPinnedIds?: string[];
+  /** Shown at the bottom of the labelled column ("Show all of Plajah" for scoped rails). */
+  footerSlot?: React.ReactNode;
+  /** Experience scope (services/experienceScope): only these destinations show. null = everything. */
+  allowedIds?: Set<string> | null;
 }
 
 const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
   view, onNavigate, hasUser, displayName, subtitle, avatarUrl, accountSlot, linkedAccounts = [], playerController,
   notificationCount = 0, onOpenAria, onGoLive, onOpenNotifications, onOpenAccountSwitcher,
   onSignOut, onExitNew, slim, onVisitUser, onSelectItem, onSelectArticle, onSelectGame, onSelectLiveFeed,
+  topSlot, footerSlot, allowedIds, orgKey, orgName, orgPinnedIds,
 }) => {
+  const [catPicked, setCatPicked] = useState(false);
+  // Arriving on an org (or the Elevate directory) always opens the org view, even for the same org as before.
+  useEffect(() => { setCatPicked(false); }, [orgKey]);
+  useEffect(() => { if (view === 'ORG_HUB' || view === 'PLAJAH_ELEVATE') setCatPicked(false); }, [view]);
+  const allowed = (id: string) => !allowedIds || allowedIds.has(id);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem('plajah_cmdsplit_collapsed') === '1'; } catch { return false; }
   });
@@ -217,12 +235,19 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
 
   const go = (id: ViewId) => { setLauncher(false); setFlyoutOpen(false); onNavigate(id); };
 
-  const visibleSection = (s: NavSection): NavDest[] => s.items.filter(i => !i.requiresUser || hasUser);
+  const visibleSection = (s: NavSection): NavDest[] => s.items.filter(i => (!i.requiresUser || hasUser) && allowed(i.id));
+  // A scoped rail pins exactly its spaces; otherwise the usual pins.
+  const orgMode = !!topSlot && !catPicked;
+  const pinnedIds: ViewId[] = orgMode && orgPinnedIds
+    ? (orgPinnedIds as ViewId[]).filter(id => !!destById(id) && allowed(id))
+    : allowedIds ? (Array.from(allowedIds) as ViewId[]).filter(id => !!destById(id)) : PINNED_IDS;
+  const sectionShown = (i: number) => visibleSection(NAV_SECTIONS[i]).length > 0;
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [] as NavDest[];
-    return ALL_DESTS.filter(d => (!d.requiresUser || hasUser) && (d.label.toLowerCase().includes(q)));
-  }, [query, hasUser]);
+    return ALL_DESTS.filter(d => (!d.requiresUser || hasUser) && allowed(d.id) && (d.label.toLowerCase().includes(q)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, hasUser, allowedIds]);
 
   const tier1W = slim ? 60 : 68;
   const tier2W = slim ? 190 : 212;
@@ -242,8 +267,8 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
   const Tier2List = (
     <>
       <div className="px-4 pt-3.5 pb-2 font-display italic text-[1.1rem] text-white flex items-center gap-2">
-        {React.createElement(NAV_SECTIONS[openCat].icon, { size: 17, style: plajahIconStroke })}
-        <span>{NAV_SECTIONS[openCat].key}</span>
+        {React.createElement(orgMode ? Landmark : NAV_SECTIONS[openCat].icon, { size: 17, style: plajahIconStroke })}
+        <span>{orgMode ? 'Elevate' : NAV_SECTIONS[openCat].key}</span>
       </div>
       <button onClick={openLauncher}
         className="mx-3 mb-2 flex items-center gap-2 text-[.75rem] text-white/45 hover:text-white bg-white/[0.045] hover:bg-white/[0.08] border border-white/[0.12] rounded-xl px-3 py-2 transition-colors">
@@ -251,21 +276,28 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
         <span className="ml-auto text-[.58rem] font-bold border border-white/15 rounded px-1.5 py-0.5">Ctrl K</span>
       </button>
       <div className="flex-1 overflow-y-auto custom-scrollbar pb-2">
-        <div className="text-[.58rem] font-black uppercase tracking-[0.2em] text-white/35 px-4 pt-2 pb-1">Pinned</div>
-        {PINNED_IDS.map(id => { const d = destById(id); if (!d) return null; const A = d.icon; return (
+        {orgMode && <div className="px-3 pt-1">{topSlot}</div>}
+        {topSlot && !orgMode && (
+          <button onClick={() => setCatPicked(false)} className="mx-3 mb-1 flex items-center gap-1.5 text-[.75rem] font-semibold text-[#D0BCFF] hover:text-white">
+            <ChevronLeft size={13} /> Back to {orgName || 'your organization'}
+          </button>
+        )}
+        <div className="text-[.58rem] font-black uppercase tracking-[0.2em] text-white/35 px-4 pt-2 pb-1">{orgMode ? 'Pinned · Discover' : 'Pinned'}</div>
+        {pinnedIds.map(id => { const d = destById(id); if (!d) return null; const A = d.icon; return (
           <button key={id} onClick={() => go(id)}
             className={`w-full flex items-center gap-3 px-4 py-2.5 text-[.82rem] font-semibold text-white/90 hover:bg-white/[0.07] transition-colors ${view === id ? 'bg-white/[0.09] shadow-[inset_3px_0_0_#D40055]' : ''}`}>
             <A size={16} className="shrink-0 opacity-80" style={plajahIconStroke} /> {d.label}
           </button>
         ); })}
-        <div className="text-[.58rem] font-black uppercase tracking-[0.2em] text-white/35 px-4 pt-3 pb-1">{NAV_SECTIONS[openCat].key}</div>
-        {visibleSection(NAV_SECTIONS[openCat]).map(d => { const A = d.icon; return (
+        {!allowedIds && !orgMode && <div className="text-[.58rem] font-black uppercase tracking-[0.2em] text-white/35 px-4 pt-3 pb-1">{NAV_SECTIONS[openCat].key}</div>}
+        {!allowedIds && !orgMode && visibleSection(NAV_SECTIONS[openCat]).map(d => { const A = d.icon; return (
           <button key={d.id} onClick={() => go(d.id)}
             className={`w-full flex items-center gap-3 px-4 py-2.5 text-[.82rem] font-semibold text-white/90 hover:bg-white/[0.07] transition-colors ${view === d.id ? 'bg-white/[0.09] shadow-[inset_3px_0_0_#D40055]' : ''}`}>
             <A size={16} className="shrink-0 opacity-80" style={plajahIconStroke} /> {d.label}
           </button>
         ); })}
       </div>
+      {footerSlot && <div className="px-3 pb-2">{footerSlot}</div>}
       {playerController && (
         <div className="px-3 py-3 border-t border-[var(--border-color)]">
           <p className="pj-eyebrow mb-2 text-[var(--on-surface-variant)]">Nano controller</p>
@@ -317,12 +349,12 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
             className="w-10 h-10 rounded-xl grid place-items-center font-display italic text-white text-[1rem] mb-1"
             style={{ background: 'linear-gradient(135deg,#6B0099 0%,#D40055 55%,#FF8C00 100%)' }}>P</button>
           <div className="w-10 h-px bg-white/[0.08] my-2" />
-          {NAV_SECTIONS.map((s, i) => (
+          {NAV_SECTIONS.map((s, i) => !sectionShown(i) ? null : (
             <button key={s.key} title={s.key}
-              onClick={() => { setOpenCat(i); if (collapsed) setFlyoutOpen(true); }}
-              className={`relative grid place-items-center w-[46px] h-[46px] rounded-[13px] transition-colors shrink-0 ${i === openCat ? 'text-white' : 'text-white/55 hover:text-white hover:bg-white/[0.08]'}`}
-              style={i === openCat ? { background: 'linear-gradient(135deg,#6B0099,#00DAF3)', boxShadow: '0 0 18px rgba(0,218,243,.32)' } : undefined}>
-              {React.createElement(s.icon, { size: 20, style: i === openCat ? undefined : plajahIconStroke })}
+              onClick={() => { setOpenCat(i); setCatPicked(true); if (collapsed) setFlyoutOpen(true); }}
+              className={`relative grid place-items-center w-[46px] h-[46px] rounded-[13px] transition-colors shrink-0 ${i === openCat && !orgMode ? 'text-white' : 'text-white/55 hover:text-white hover:bg-white/[0.08]'}`}
+              style={i === openCat && !orgMode ? { background: 'linear-gradient(135deg,#6B0099,#00DAF3)', boxShadow: '0 0 18px rgba(0,218,243,.32)' } : undefined}>
+              {React.createElement(s.icon, { size: 20, style: i === openCat && !orgMode ? undefined : plajahIconStroke })}
             </button>
           ))}
           <div className="w-10 h-px bg-white/[0.08] my-2" />
@@ -395,7 +427,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
                 </>
               )}
               {query && <UniversalCommandResults query={query} onNavigate={onNavigate} onClose={() => setLauncher(false)} onVisitUser={onVisitUser} onSelectItem={onSelectItem} onSelectArticle={onSelectArticle} onSelectGame={onSelectGame} onSelectLiveFeed={onSelectLiveFeed} />}
-              {(query ? [{ key: results.length + ' result' + (results.length === 1 ? '' : 's'), icon: Search, items: results }] as NavSection[] : NAV_SECTIONS).map((s, si) => (
+              {(query ? [{ key: results.length + ' result' + (results.length === 1 ? '' : 's'), icon: Search, items: results }] as NavSection[] : NAV_SECTIONS.filter(x => visibleSection(x).length > 0)).map((s, si) => (
                 <div key={si}>
                   <div className="text-[.6rem] font-black uppercase tracking-[0.2em] text-white/40 mt-5 mb-2.5 flex items-center gap-1.5">{React.createElement(s.icon, { size: 12, style: plajahIconStroke })} {query ? `Pages & tools · ${s.key}` : s.key}</div>
                   <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(92px,1fr))' }}>

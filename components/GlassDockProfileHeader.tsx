@@ -33,10 +33,15 @@ import {
   Heart,
   Lock,
   AtSign,
+  Rocket,
+  GraduationCap,
+  Ticket,
+  ChevronDown,
+  MoreHorizontal,
 } from 'lucide-react';
 import { UserProfile, AppView, Album, MerchItem, FeaturedProjectRef } from '../types';
 import { getSocialLinks } from '../services/socialLinks';
-import { resolveAcademiaHubs, hubsAreSchoolAffiliated } from '../services/academiaHubs';
+import { resolveAcademiaHubs } from '../services/academiaHubs';
 import { isPartneredStatus, statusLabel, canHaveRelationshipStatus } from '../services/relationships';
 import PioneerGoldFrame from './PioneerGoldFrame';
 import SafeAvatarViewer from './SafeAvatarViewer';
@@ -50,6 +55,7 @@ import ProfileLiveTiles from './profile/ProfileLiveTiles';
 import ProfileFeaturedProject from './profile/ProfileFeaturedProject';
 import ProfileSupportRail from './profile/ProfileSupportRail';
 import ProfileOrgBanner from './elevate/ProfileOrgBanner';
+import ProfileMenu, { MenuHead, MenuItem, MenuDivider, MENU_ITEM_CLS } from './profile/ProfileMenu';
 import {
   useRadioNowPlaying,
   useChannelNowPlaying,
@@ -94,6 +100,8 @@ interface GlassDockProfileHeaderProps {
   onOpenMerch: () => void;
 }
 
+const RAIL_BTN = 'inline-flex h-[42px] items-center justify-center gap-2 rounded-full px-5 text-[10px] font-black uppercase tracking-widest transition-all';
+const RAIL_GLASS = 'border border-white/15 bg-white/5 text-white hover:bg-white/10';
 const BRAND_GRADIENT = 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)';
 
 const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
@@ -153,8 +161,7 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
   // "My Academia Hub" identity pill (Concept B) — role-aware, cyan when
   // school-affiliated, brand when a platform learner; popover when multi-role.
   const academiaHubs = React.useMemo(() => resolveAcademiaHubs(profile), [profile]);
-  const hubsSchool = hubsAreSchoolAffiliated(academiaHubs);
-  const [showHubMenu, setShowHubMenu] = React.useState(false);
+  const isTeacher = profile.accountType === 'TEACHER' || (profile as any).isTeacher || (!!profile.teacherVerification && profile.teacherVerification !== 'UNVERIFIED');
 
   return (
     <div className={`relative ${isMobile ? '' : ''}`}>
@@ -255,53 +262,6 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
                 </div>
               </PioneerGoldFrame>
 
-              {/* Actions under avatar — Avatar Studio / Teacher / Share / Stat Card */}
-              <div className="relative z-10 flex flex-col items-stretch gap-1.5 w-full max-w-[190px] mt-1">
-                {isOwnProfile && onNavigate && (profile.accountType === 'TEACHER' || (profile as any).isTeacher || (!!profile.teacherVerification && profile.teacherVerification !== 'UNVERIFIED')) && (
-                  <button
-                    onClick={() => onNavigate('ACADEMIA_HOME')}
-                    className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#3FB98E]/15 border border-[#3FB98E]/30 text-[#3FB98E] text-[9px] font-black uppercase tracking-widest hover:bg-[#3FB98E]/25 transition-all"
-                  >
-                    🎓 Teacher Dashboard
-                  </button>
-                )}
-                {isOwnProfile && onNavigate && (
-                  <button
-                    onClick={() => onNavigate('AVATAR_STUDIO')}
-                    className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-[#ff8c00]/15 border border-[#ff8c00]/30 text-[#ff8c00] text-[9px] font-black uppercase tracking-widest hover:bg-[#ff8c00]/25 transition-all"
-                  >
-                    Avatar Studio
-                  </button>
-                )}
-                <ShareButton
-                  title={`${profile.displayName}'s Profile`}
-                  text={`Check out ${profile.displayName} on Plajah!`}
-                  url={`${window.location.origin}/profile/${profile.uid}`}
-                  imageUrl={profile.statCardImageUrl || profile.photoURL || profile.coverArt}
-                  artist={profile.displayName}
-                  label={isOwnProfile ? 'Share My Profile' : 'Share Profile'}
-                  iconSize={13}
-                  style={{ background: BRAND_GRADIENT }}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full text-white text-[9px] font-black uppercase tracking-widest shadow-lg hover:brightness-110 transition-all"
-                />
-                <button
-                  onClick={onShowStatCard}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full text-white text-[9px] font-black uppercase tracking-widest shadow-lg hover:brightness-110 transition-all"
-                  style={{ background: BRAND_GRADIENT }}
-                >
-                  <Sparkles size={13} /> Stat Card
-                </button>
-                {/* Admin Panel sits with the other owner tools, UNDER Stat Card — it used to
-                    float in the identity pill row where visitors' eyes land first. */}
-                {isOwnProfile && (profile.role === 'admin' || profile.role === 'staff') && (
-                  <button
-                    onClick={() => { window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ADMIN_DASHBOARD' } })); }}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-red-600/15 border border-red-500/50 text-red-200 text-[9px] font-black uppercase tracking-widest hover:bg-red-600/25 transition-all"
-                  >
-                    <Shield size={12} /> Admin Panel
-                  </button>
-                )}
-              </div>
             </div>
 
             {/* ── Identity column ── */}
@@ -375,151 +335,147 @@ const GlassDockProfileHeader: React.FC<GlassDockProfileHeaderProps> = ({
                 )}
               </div>
 
-              {/* Action pills. The marquee rework stripped this row down to what a visitor
-                  actually needs plus Plajah+ — Claim Pioneer Reward, Pay It Forward, X Feed
-                  and Admin Panel were removed from the card (Admin moved under Stat Card;
-                  the other three live in the creator tools / feed where they belong). */}
+              {/* Action rail. One primary action, one secondary, and everything else behind a menu
+                  (More for visitors, My tools for the owner). Nothing was removed: Mailing List,
+                  Gifts, Challenge, Party, the Academia hubs, Avatar Studio, Teacher Dashboard,
+                  Start a Room, Create Event, Welcome Package and Admin Panel are all in the menus. */}
               <div className={`flex flex-wrap items-center gap-2.5 mt-5 ${isMobile ? 'justify-center' : ''}`}>
-                {/* Own-profile pills */}
-                {isOwnProfile && (
+                {isOwnProfile ? (
                   <>
+                    <ShareButton
+                      title={`${profile.displayName}'s Profile`}
+                      text={`Check out ${profile.displayName} on Plajah!`}
+                      url={`${window.location.origin}/profile/${profile.uid}`}
+                      imageUrl={profile.statCardImageUrl || profile.photoURL || profile.coverArt}
+                      artist={profile.displayName}
+                      label="Share My Profile"
+                      iconSize={13}
+                      className={`${RAIL_BTN} bg-small-orange text-black hover:brightness-110 border border-transparent`}
+                    />
+                    <button onClick={onShowStatCard} className={`${RAIL_BTN} ${RAIL_GLASS}`}>
+                      <Sparkles size={13} /> Stat Card
+                    </button>
                     <PlajahPlusButton
                       creatorId={profile.uid}
                       creatorName={profile.displayName}
                       isOwnProfile={true}
                       onOpenLanding={onOpenPlajahPlusLanding}
                     />
-                    <button
-                      onClick={() => window.dispatchEvent(new CustomEvent('plajah:start-room'))}
-                      className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full bg-[#FF8C00] px-4 text-[10px] font-black uppercase tracking-widest text-black transition-all hover:brightness-110"
+                    <ProfileMenu
+                      width={300}
+                      trigger={({ toggle, aria }) => (
+                        <button onClick={toggle} {...aria} className={`${RAIL_BTN} text-white border border-transparent hover:brightness-110`} style={{ background: BRAND_GRADIENT }}>
+                          My tools <ChevronDown size={12} aria-hidden="true" />
+                        </button>
+                      )}
                     >
-                      <span className="h-2 w-2 rounded-full bg-[#e23b3b] animate-pulse" /> Start a Room
-                    </button>
-                    <CreateEventButton host={{ kind: 'user' }} className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#6B0099] via-[#D40055] to-[#FF8C00] px-4 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:brightness-110" />
+                      {close => (
+                        <>
+                          <MenuHead>Create</MenuHead>
+                          {onNavigate && (
+                            <MenuItem title="Creator Hub" sub="Your daily creator tools" icon={<Rocket size={15} />} onClick={() => { close(); onNavigate('CREATOR'); }} />
+                          )}
+                          {onNavigate && (
+                            <MenuItem title="Avatar Studio" icon={<Sparkles size={15} />} onClick={() => { close(); onNavigate('AVATAR_STUDIO'); }} />
+                          )}
+                          <MenuItem
+                            title="Start a Room"
+                            sub="Go live with people"
+                            icon={<span className="h-2 w-2 rounded-full bg-[#e23b3b]" />}
+                            onClick={() => { close(); window.dispatchEvent(new CustomEvent('plajah:start-room')); }}
+                          />
+                          <CreateEventButton host={{ kind: 'user' }} label="Create event" className={MENU_ITEM_CLS} />
+                          <MenuHead>Work and school</MenuHead>
+                          {onNavigate && isTeacher && (
+                            <MenuItem title="Teacher Dashboard" icon={<GraduationCap size={15} />} onClick={() => { close(); onNavigate('ACADEMIA_HOME'); }} />
+                          )}
+                          {onNavigate && academiaHubs.map(h => (
+                            <MenuItem key={h.id} title={h.label} sub={h.sub} icon={<span>{h.icon}</span>} onClick={() => { close(); onNavigate(h.view); }} />
+                          ))}
+                          <MenuItem
+                            title="Welcome Package"
+                            icon={<Ticket size={15} />}
+                            onClick={() => { close(); window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'WELCOME_PACKAGE' } })); }}
+                          />
+                          {(profile.role === 'admin' || profile.role === 'staff') && (
+                            <>
+                              <MenuDivider />
+                              <MenuItem
+                                title="Admin Panel"
+                                sub="Staff and admins only"
+                                icon={<Shield size={15} />}
+                                onClick={() => { close(); window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'ADMIN_DASHBOARD' } })); }}
+                              />
+                            </>
+                          )}
+                        </>
+                      )}
+                    </ProfileMenu>
                   </>
-                )}
-
-                {/* Visitor pills */}
-                {!isOwnProfile && (
+                ) : (
                   <>
                     <button
                       onClick={onFollowToggle}
-                      className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-full px-[18px] font-black text-[10px] uppercase tracking-widest transition-all ${
+                      className={`${RAIL_BTN} ${
                         following
-                          ? 'bg-white/10 text-white hover:bg-red-500/20 hover:text-red-500'
-                          : 'bg-small-orange text-black hover:scale-105 active:scale-95'
+                          ? 'bg-white/10 text-white border border-white/15 hover:bg-red-500/20 hover:text-red-400'
+                          : 'bg-small-orange text-black border border-transparent hover:brightness-110'
                       }`}
                     >
                       {following ? <UserMinus size={12} /> : <UserPlus size={12} />}
                       {following ? 'Unfollow' : 'Follow'}
                     </button>
-                    <button
-                      onClick={onMailingListToggle}
-                      className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-full px-[18px] font-black text-[10px] uppercase tracking-widest transition-all ${
-                        isSubscribed
-                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                          : 'bg-white/5 border border-white/10 text-white hover:bg-white/10'
-                      }`}
-                    >
-                      <Mail size={12} />
-                      {isSubscribed ? 'Subscribed' : 'Mailing List'}
-                    </button>
-                    <button
-                      onClick={onOpenDonation}
-                      className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full border border-white/10 bg-white/5 px-[18px] font-black text-[10px] uppercase tracking-widest transition-all hover:bg-white/10"
-                    >
-                      <HeartHandshake size={12} className="text-small-orange" />
-                      Gifts
-                    </button>
+                    {onMessage && (
+                      <button onClick={() => onMessage(uid)} className={`${RAIL_BTN} ${RAIL_GLASS}`}>
+                        <MessageSquare size={12} /> Message
+                      </button>
+                    )}
                     <PlajahPlusButton
                       creatorId={profile.uid}
                       creatorName={profile.displayName}
                       isOwnProfile={false}
                       onOpenLanding={onOpenPlajahPlusLanding}
                     />
-                    {onMessage && !isOwnProfile && (
-                      <button
-                        onClick={() => onMessage(uid)}
-                        className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full bg-small-orange px-[18px] font-black text-[10px] uppercase tracking-widest text-white transition-all hover:bg-small-orange/80"
-                      >
-                        <MessageSquare size={12} />
-                        Message
-                      </button>
-                    )}
-                    {!isOwnProfile && (
-                      <ChallengeButton
-                        uid={profile.uid}
-                        name={profile.displayName || 'Player'}
-                        source="profile"
-                        className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full border border-fuchsia-400/30 bg-fuchsia-500/10 px-[18px] font-black text-[10px] uppercase tracking-widest text-fuchsia-200 transition-all hover:bg-fuchsia-500/20"
-                      />
-                    )}
-                    {!isOwnProfile && (
-                      <InviteToPartyButton
-                        uid={profile.uid}
-                        name={profile.displayName || 'Player'}
-                        label="Party"
-                        className="inline-flex h-[42px] items-center justify-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-500/10 px-[18px] font-black text-[10px] uppercase tracking-widest text-cyan-200 transition-all hover:bg-cyan-500/20"
-                      />
-                    )}
-                  </>
-                )}
-
-                {/* My Academia Hub — Concept B identity pill. Cyan = verified-school
-                    affiliation, brand gradient = Plajah Learn (platform). Single hub
-                    navigates straight in; multiple roles open a small switcher. */}
-                {onNavigate && academiaHubs.length > 0 && (
-                  <div className="relative">
-                    <button
-                      onClick={() => {
-                        if (academiaHubs.length === 1) onNavigate(academiaHubs[0].view);
-                        else setShowHubMenu(s => !s);
-                      }}
-                      className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-full px-[18px] font-black text-[10px] uppercase tracking-widest transition-all hover:brightness-110 ${
-                        hubsSchool
-                          ? 'text-[#031a24] shadow-[0_6px_20px_rgba(0,218,243,0.32)]'
-                          : 'text-white shadow-[0_6px_20px_rgba(212,0,85,0.3)]'
-                      }`}
-                      style={{
-                        background: hubsSchool
-                          ? 'linear-gradient(135deg, #00DAF3, #3B82F6)'
-                          : 'linear-gradient(120deg, #6B0099, #D40055 55%, #FF8C00)',
-                      }}
-                    >
-                      {hubsSchool ? '🎓' : '📚'}{' '}
-                      {isOwnProfile
-                        ? 'My Academia Hub'
-                        : `${academiaHubs[0].label}`}
-                      {academiaHubs.length > 1 && (
-                        <span className="ml-0.5 rounded-full bg-black/25 px-1.5 py-0.5 text-[9px]">+{academiaHubs.length - 1}</span>
+                    <ShareButton
+                      title={`${profile.displayName}'s Profile`}
+                      text={`Check out ${profile.displayName} on Plajah!`}
+                      url={`${window.location.origin}/profile/${profile.uid}`}
+                      imageUrl={profile.statCardImageUrl || profile.photoURL || profile.coverArt}
+                      artist={profile.displayName}
+                      iconSize={15}
+                      className="inline-flex h-[42px] w-[42px] items-center justify-center rounded-full border border-white/15 bg-white/5 text-white hover:bg-white/10 transition-all"
+                    />
+                    <ProfileMenu
+                      width={300}
+                      align="right"
+                      trigger={({ toggle, aria }) => (
+                        <button onClick={toggle} {...aria} aria-label="More actions" className="inline-flex h-[42px] w-[42px] items-center justify-center rounded-full border border-white/15 bg-white/5 text-white hover:bg-white/10 transition-all">
+                          <MoreHorizontal size={18} aria-hidden="true" />
+                        </button>
                       )}
-                    </button>
-                    {showHubMenu && academiaHubs.length > 1 && (
-                      <div className="absolute left-0 top-[50px] z-50 w-[290px] overflow-hidden rounded-2xl border border-white/[0.17] bg-[#0c0b14]/[0.99] shadow-[0_24px_60px_rgba(0,0,0,0.6)]">
-                        <div className="border-b border-white/10 px-4 py-3 text-[11px] font-black uppercase tracking-widest text-white/70">
-                          Your Academia hubs
-                        </div>
-                        {academiaHubs.map(h => (
-                          <button
-                            key={h.id}
-                            onClick={() => { setShowHubMenu(false); onNavigate(h.view); }}
-                            className="flex w-full items-center gap-3 border-t border-white/5 px-4 py-3 text-left transition-all hover:bg-white/[0.06] first:border-t-0"
-                          >
-                            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-lg" style={{ background: h.school ? 'rgba(0,218,243,0.14)' : 'rgba(212,0,85,0.14)' }}>{h.icon}</span>
-                            <span className="min-w-0 flex-1">
-                              <span className="flex items-center gap-2 text-[13px] font-bold text-white">
-                                {h.label}
-                                <span className={`rounded-full px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider ${h.school ? 'bg-[#00DAF3]/[0.16] text-[#00DAF3]' : 'bg-[#D40055]/[0.16] text-[#ff5c97]'}`}>
-                                  {h.school ? 'School' : 'Plajah Learn'}
-                                </span>
-                              </span>
-                              <span className="mt-0.5 block truncate text-[11px] text-white/40">{h.sub}</span>
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                    >
+                      {close => (
+                        <>
+                          <MenuHead>More from this creator</MenuHead>
+                          <MenuItem
+                            title={isSubscribed ? 'Subscribed to mailing list' : 'Mailing list'}
+                            sub={isSubscribed ? 'Tap to unsubscribe' : 'Get their updates by email'}
+                            icon={<Mail size={15} />}
+                            onClick={() => { onMailingListToggle(); close(); }}
+                          />
+                          <MenuItem title="Send a gift" sub="Direct to the creator" icon={<HeartHandshake size={15} className="text-small-orange" />} onClick={() => { close(); onOpenDonation(); }} />
+                          <MenuItem title="Stat Card" icon={<Sparkles size={15} />} onClick={() => { close(); onShowStatCard(); }} />
+                          <MenuDivider />
+                          <ChallengeButton uid={profile.uid} name={profile.displayName || 'Player'} source="profile" className={MENU_ITEM_CLS} />
+                          <InviteToPartyButton uid={profile.uid} name={profile.displayName || 'Player'} label="Party" className={MENU_ITEM_CLS} />
+                          {onNavigate && academiaHubs.length > 0 && <MenuDivider />}
+                          {onNavigate && academiaHubs.map(h => (
+                            <MenuItem key={h.id} title={h.label} sub={h.sub} icon={<span>{h.icon}</span>} onClick={() => { close(); onNavigate(h.view); }} />
+                          ))}
+                        </>
+                      )}
+                    </ProfileMenu>
+                  </>
                 )}
               </div>
 

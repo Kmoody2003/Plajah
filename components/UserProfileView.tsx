@@ -1,4 +1,6 @@
 import FastImage from './ui/FastImage';
+import { ThemeSwatchRow } from './settings/themeOptions';
+import type { ThemeType } from '../types';
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { filterReleased } from '../services/releases/visibility';
 // Scheduled ("Release later") videos stay hidden from visitors; the owner keeps seeing their own.
@@ -129,6 +131,7 @@ import ProfileFeed from './ProfileFeed';
 import InterestsNotebook from './InterestsNotebook';
 import VideoTab from './VideoTab';
 import ScrollableTabRow from './ScrollableTabRow';
+import ProfileFold from './profile/ProfileFold';
 import WorldManagerView from './WorldManagerView';
 import WorldBadge from './WorldBadge';
 import PodcastEpisodeList from './PodcastEpisodeList';
@@ -176,6 +179,9 @@ interface UserProfileViewProps {
   onOpenOrg?: (orgId: string) => void;
   /** Navigate a Platform Pulse notification to its post/asset/activity. */
   onNotificationNavigate?: (n: any) => void;
+  /** Own profile only: current interface theme + setter for the swatch row under the avatar. */
+  currentTheme?: ThemeType;
+  onSetTheme?: (t: ThemeType) => void;
   initialTab?: 'FEED' | 'CONTENT' | 'FOLLOWING' | 'FRIENDS' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS';
 }
 
@@ -267,7 +273,9 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   onOpenCreator,
   onOpenOrg,
   onNotificationNavigate,
-  initialTab
+  initialTab,
+  currentTheme,
+  onSetTheme
 }) => {
   const { enabled: shellNext } = useShellNext();
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -285,7 +293,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const { playTrack } = useGlobalPlayerState();
-  const [activeTab, setActiveTab] = useState<'FEED' | 'ATHLETE_STATS' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'DEBATES' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS' | 'MY_STATS' | 'ARTIST_SERVICES' | 'BRAND_CONNECT'>(initialTab || 'FEED');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'FEED' | 'ATHLETE_STATS' | 'CONTENT' | 'ARTICLES' | 'FOLLOWING' | 'FRIENDS' | 'DEBATES' | 'MERCH' | 'PHOTOS' | 'LIVE_TV' | 'GAMES' | 'APPS' | 'MANAGE' | 'LIVE_CHAT' | 'LIBRARY' | 'MEMBERS' | 'INTERESTS' | 'VIDEOS' | 'WORLDS' | 'ARTIST_DETAIL' | 'PODCASTS' | 'THEMES' | 'MY_HABITS' | 'MY_STATS' | 'ARTIST_SERVICES' | 'BRAND_CONNECT'>(initialTab || 'OVERVIEW');
   const [showAdCreator, setShowAdCreator] = useState(false);
   const [myUserAd, setMyUserAd] = useState<UserAd | null>(null);
   const [feedInitialType, setFeedInitialType] = useState<'PERSONAL' | 'GLOBAL' | 'X_FEED' | 'MASTODON' | 'BLUESKY' | 'THREADS'>(
@@ -327,7 +335,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
-  const dragTabRef = useRef<number | null>(null);
+  const dragTabRef = useRef<number | string | null>(null);
   const [isXMenuOpen, setIsXMenuOpen] = useState(false);
   const [hnsAlbum, setHnsAlbum] = useState<Album | null>(null);
   const [signInAction, setSignInAction] = useState<string | null>(null);
@@ -1059,6 +1067,9 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                   ✦ Avatar Studio
                 </button>
               )}
+              {isOwnProfile && onSetTheme && (
+                <ThemeSwatchRow current={currentTheme} onPick={onSetTheme} />
+              )}
               <ShareButton
                 title={`${profile.displayName}'s Profile`}
                 text={`Check out ${profile.displayName} on Plajah!`}
@@ -1425,69 +1436,220 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           </div>
         )}
 
-        {/* Affirmation Banner — unique per profile, rotates daily */}
+        {/* Section nav — five sections (six for the owner), sub-tabs only inside the section you are in. */}
         {(() => {
-          const quotes = [
-            { text: "Create without limits. The world needs what only you can make.", category: "creativity" },
-            { text: "Every great artist was once a beginner. Keep going.", category: "growth" },
-            { text: "Your story is worth telling. Your voice is worth hearing.", category: "creativity" },
-            { text: "Consistency beats perfection. Show up, ship it, grow.", category: "growth" },
-            { text: "The best time to share your art was yesterday. The next best time is now.", category: "creativity" },
-            { text: "You are not too late. The world is still waiting for your work.", category: "motivation" },
-            { text: "Doubt is just creativity looking for permission. Grant it.", category: "creativity" },
-            { text: "Small steps daily build empires. Trust the process.", category: "growth" },
-            { text: "Your passion is proof that you belong here. Own it.", category: "motivation" },
-            { text: "Connection starts with one brave post. Make it.", category: "connection" },
-            { text: "Art is not what you make — it is how you make people feel.", category: "creativity" },
-            { text: "Rest is part of the process. You are still growing.", category: "growth" },
-            { text: "The right people will always find your work. Keep creating.", category: "motivation" },
-            { text: "Every upload is a conversation started. Someone needed to hear it.", category: "connection" },
-            { text: "You don't need permission to be great. You already have it.", category: "motivation" },
-            { text: "Collaboration multiplies talent. Reach out today.", category: "connection" },
-            { text: "Progress over perfection — always.", category: "growth" },
-            { text: "Your next fan is waiting for content you haven't posted yet.", category: "motivation" },
-            { text: "Creativity is contagious. Pass it on.", category: "creativity" },
-            { text: "The platform grows when you share something real.", category: "connection" },
-            { text: "Every listen, every view, every read — someone chose you.", category: "motivation" },
-            { text: "Build something worth returning to.", category: "creativity" },
-            { text: "One post can change someone's entire day.", category: "connection" },
-            { text: "The gap between dreaming and doing is just one action.", category: "growth" },
-            { text: "Your art is an act of generosity. Keep giving.", category: "creativity" },
-            { text: "Communities thrive when individuals show up authentically.", category: "connection" },
-            { text: "Momentum is built post by post, day by day.", category: "growth" },
-            { text: "What you share today becomes someone's discovery tomorrow.", category: "motivation" },
-            { text: "Greatness lives inside consistency.", category: "growth" },
-            { text: "Say what only you can say. The world is listening.", category: "creativity" },
+          const allTabs = [
+            { id: 'OVERVIEW', label: 'Overview' },
+            ...(profile?.accountType === 'ATHLETE' ? [{ id: 'ATHLETE_STATS', label: 'Athlete' }] : []),
+            { id: 'FEED', label: isOwnProfile ? 'Feed' : 'Their Feed' },
+            { id: 'CONTENT', label: 'Creations' },
+            { id: 'PODCASTS', label: 'Podcasts' },
+            { id: 'WORLDS', label: 'Worlds' },
+            { id: 'ARTICLES', label: 'Articles' },
+            { id: 'PHOTOS', label: 'Photos' },
+            { id: 'VIDEOS', label: 'Videos' },
+            { id: 'THEMES', label: 'Themes' },
+            { id: 'APPS', label: 'Apps' },
+            ...(profile?.accountType !== 'FAN' ? [
+              { id: 'LIVE_TV', label: 'Live TV' },
+              { id: 'GAMES', label: 'Games' },
+              { id: 'LIVE_CHAT', label: 'Live Chat' },
+              { id: 'MERCH', label: 'Store' },
+              { id: 'ARTIST_DETAIL', label: 'Special' }
+            ] : []),
+            { id: 'FOLLOWING', label: 'Following' },
+            { id: 'FRIENDS', label: 'Friends' },
+            { id: 'DEBATES', label: 'Debates' },
+            { id: 'INTERESTS', label: 'Interests' },
+            ...(isOwnProfile ? [{ id: 'LIBRARY', label: 'Library' }] : []),
+            ...(isOwnProfile ? [{ id: 'MY_STATS', label: 'My Stats' }] : []),
+            ...(isOwnProfile ? [{ id: 'MY_HABITS', label: 'My Habits' }] : []),
+            ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'MANAGE', label: 'Management' }] : []),
+            ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'ARTIST_SERVICES', label: 'Artist Services' }] : []),
+            ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'BRAND_CONNECT', label: 'Brand Connect' }] : []),
+            ...(profile?.accountType !== 'FAN' ? [{ id: 'MEMBERS', label: 'Backstage' }] : [])
           ];
-          // Seed combines profile UID chars + day number → unique per profile, rotates daily
-          const day = Math.floor(Date.now() / 86400000);
-          const uidSeed = uid.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-          const idx = (day * 7 + uidSeed) % quotes.length;
-          const quote = quotes[idx];
+
+          // Saved owner order still applies, within each section. New tabs append at the end.
+          const orderedTabs = tabOrder.length > 0
+            ? [
+                ...tabOrder.map(id => allTabs.find(t => t.id === id)).filter(Boolean) as typeof allTabs,
+                ...allTabs.filter(t => !tabOrder.includes(t.id))
+              ]
+            : allTabs;
+
+          const saveOrder = (order: string[]) => {
+            setTabOrder(order);
+            if (isOwnProfile) {
+              try { localStorage.setItem(`plajah-tab-order-${uid}`, JSON.stringify(order)); } catch {}
+            }
+          };
+          const reorder = (fromId: string, toId: string) => {
+            const ids = orderedTabs.map(t => t.id);
+            const f = ids.indexOf(fromId);
+            const t = ids.indexOf(toId);
+            if (f < 0 || t < 0 || f === t) return;
+            const [moved] = ids.splice(f, 1);
+            ids.splice(t, 0, moved);
+            saveOrder(ids);
+          };
+
+          const SECTIONS: { id: string; label: string; ids: string[]; fixed?: boolean }[] = [
+            { id: 'overview', label: 'Overview', ids: ['OVERVIEW', 'ATHLETE_STATS'], fixed: true },
+            { id: 'feed', label: 'Feed', ids: ['FEED', 'DEBATES', 'LIVE_CHAT'] },
+            { id: 'create', label: 'Create', ids: ['CONTENT', 'PODCASTS', 'ARTICLES', 'PHOTOS', 'VIDEOS', 'WORLDS', 'THEMES', 'APPS', 'GAMES'] },
+            { id: 'watch', label: 'Watch & Shop', ids: ['LIVE_TV', 'MERCH', 'ARTIST_DETAIL', 'MEMBERS'] },
+            { id: 'people', label: 'People', ids: ['FOLLOWING', 'FRIENDS', 'INTERESTS'] },
+            { id: 'manage', label: 'Manage', ids: ['LIBRARY', 'MY_STATS', 'MY_HABITS', 'MANAGE', 'ARTIST_SERVICES', 'BRAND_CONNECT'] },
+          ];
+          const sections = SECTIONS
+            .map(sec => ({
+              ...sec,
+              tabs: (sec.fixed ? allTabs : orderedTabs).filter(t => sec.ids.includes(t.id)),
+            }))
+            .filter(sec => sec.tabs.length > 0);
+          const curSec = sections.find(sec => sec.tabs.some(t => t.id === activeTab)) || sections[0];
+
+          const moveTab = (id: string, dir: -1 | 1) => {
+            const list = curSec.tabs;
+            const i = list.findIndex(t => t.id === id);
+            const target = list[i + dir];
+            if (target) reorder(id, target.id);
+          };
+
           return (
-            <div className="mt-10 mb-2 relative overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02] px-8 py-4 flex items-center gap-6">
-              <div className="absolute inset-0 bg-gradient-to-r from-small-orange/5 via-transparent to-violet-500/5 pointer-events-none" />
-              <div className="w-px h-8 bg-gradient-to-b from-small-orange to-violet-500 shrink-0 rounded-full opacity-70" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[11px] lg:text-xs font-medium text-white/60 italic leading-relaxed truncate">"{quote.text}"</p>
+            <div className={`mt-10 lg:mt-12 sticky ${isMobile ? 'top-14' : 'top-0'} z-40 -mx-4 px-4 lg:mx-0 lg:px-0 py-2 flex flex-col gap-2`}>
+              <div
+                className="relative rounded-full px-2 py-1.5 backdrop-blur-2xl backdrop-saturate-150"
+                style={{ background: 'linear-gradient(180deg, rgba(20,18,28,0.72), rgba(12,10,18,0.62))' }}
+              >
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-0 pointer-events-none rounded-full"
+                  style={{
+                    padding: 1,
+                    background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)',
+                    WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
+                    WebkitMaskComposite: 'xor',
+                    maskComposite: 'exclude',
+                  }}
+                />
+                <ScrollableTabRow innerClassName="gap-1 py-0.5 px-0.5">
+                  {sections.map(sec => {
+                    const on = sec.id === curSec.id;
+                    return (
+                      <button
+                        key={sec.id}
+                        onClick={() => setActiveTab(sec.tabs[0].id as any)}
+                        aria-current={on ? 'page' : undefined}
+                        className={`h-10 px-5 rounded-full text-[10px] lg:text-xs font-black uppercase tracking-[0.18em] whitespace-nowrap border transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00DAF3] ${
+                          on
+                            ? 'text-white border-transparent shadow-[0_0_18px_rgba(212,0,85,0.35)]'
+                            : 'text-white/70 border-transparent hover:text-white hover:bg-white/[0.07]'
+                        }`}
+                        style={on ? { background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' } : undefined}
+                      >
+                        {sec.label}
+                      </button>
+                    );
+                  })}
+                </ScrollableTabRow>
               </div>
-              <span className="shrink-0 text-[8px] font-black uppercase tracking-[0.3em] text-white/20">— Plajah</span>
+
+              {curSec.tabs.length > 1 && (
+                <ScrollableTabRow innerClassName="gap-2 py-0.5 px-1">
+                  {curSec.tabs.map((tab, idx) => {
+                    const on = activeTab === tab.id;
+                    const canDrag = isOwnProfile && !curSec.fixed;
+                    return (
+                      <div
+                        key={tab.id}
+                        className="flex items-center flex-shrink-0 group/tab"
+                        draggable={canDrag}
+                        onDragStart={() => { dragTabRef.current = tab.id as any; }}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          const from = dragTabRef.current as any as string | null;
+                          if (!from || from === tab.id || !curSec.tabs.some(t => t.id === from)) return;
+                          reorder(from, tab.id);
+                        }}
+                        onDragEnd={() => { dragTabRef.current = null; }}
+                      >
+                        {canDrag && (
+                          <button
+                            onClick={() => moveTab(tab.id, -1)}
+                            disabled={idx === 0}
+                            className="opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100 transition-opacity p-0.5 text-white/40 hover:text-white/80 disabled:opacity-0 disabled:pointer-events-none"
+                            aria-label={`Move ${tab.label} left`}
+                          >
+                            <ChevronLeft size={10} />
+                          </button>
+                        )}
+                        <button
+                          id={`tab-${tab.id}`}
+                          onClick={() => {
+                            setActiveTab(tab.id as any);
+                            document.getElementById(`tab-${tab.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                          }}
+                          aria-current={on ? 'page' : undefined}
+                          className={`h-9 px-4 rounded-full text-xs font-bold whitespace-nowrap border transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00DAF3] ${
+                            canDrag ? 'cursor-grab active:cursor-grabbing' : ''
+                          } ${
+                            on
+                              ? 'text-white border-small-orange bg-small-orange/15'
+                              : 'text-white/70 border-white/10 bg-white/[0.03] hover:text-white hover:bg-white/[0.07]'
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                        {canDrag && (
+                          <button
+                            onClick={() => moveTab(tab.id, 1)}
+                            disabled={idx === curSec.tabs.length - 1}
+                            className="opacity-0 group-hover/tab:opacity-100 focus-visible:opacity-100 transition-opacity p-0.5 text-white/40 hover:text-white/80 disabled:opacity-0 disabled:pointer-events-none"
+                            aria-label={`Move ${tab.label} right`}
+                          >
+                            <ChevronRight size={10} />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </ScrollableTabRow>
+              )}
             </div>
           );
         })()}
 
+        {/* Tab Content */}
+        <div className="mt-12">
+          <AnimatePresence mode="wait">
+            {activeTab === 'OVERVIEW' ? (
+              <motion.div key="overview" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="flex flex-col gap-6 -mt-6">
         {/* Podcasts the user follows — most recent episodes, above Latest Releases */}
-        <FollowedPodcastsCarousel podcasts={subscribedPodcasts} onOpen={onSelectAlbum} />
+        {subscribedPodcasts.length > 0 && (
+          <ProfileFold title="Followed podcasts" hint="Most recent episodes" count={subscribedPodcasts.length} accent="linear-gradient(135deg,#D40055,#FF8C00)">
+            <FollowedPodcastsCarousel podcasts={subscribedPodcasts} onOpen={onSelectAlbum} />
+          </ProfileFold>
+        )}
 
         {/* Radio Presets Row */}
+        {(isOwnProfile || ((profile.radioPresets as any)?.length ?? 0) > 0) && (
+          <ProfileFold title="Radio presets" hint="Stations kept close" count={(profile.radioPresets as any)?.length ?? 0} accent="linear-gradient(135deg,#0E7490,#00DAF3)">
         <RadioPresetsRow
           presets={profile.radioPresets}
           isOwnProfile={isOwnProfile}
           onOpenRadio={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'RADIO', artistId: profile.uid, params: { artistId: profile.uid } } }))}
         />
+          </ProfileFold>
+        )}
 
         {/* Favorite Live TV+ channels — same area as the radio presets */}
+        {(isOwnProfile || ((profile.favoriteChannels as any)?.length ?? 0) > 0) && (
+          <ProfileFold title="Favorite channels" hint="Live TV+" count={(profile.favoriteChannels as any)?.length ?? 0} accent="linear-gradient(135deg,#6B0099,#D40055)">
         <FavoriteChannelsRow favorites={profile.favoriteChannels} isOwnProfile={isOwnProfile} ownerUid={profile.uid} />
+          </ProfileFold>
+        )}
 
         {/* Latest Releases Highlight Section */}
         <div className="mt-12">
@@ -1566,14 +1728,6 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
               </motion.div>
             ))}
             
-            {/* If no releases, show placeholders */}
-            {[...Array(Math.max(0, 6 - [
-              ...content, ...articles, ...merch, ...(profile.games || []), ...releasedVideos(profile.videos)
-            ].length))].map((_, i) => (
-              <div key={`empty-${i}`} className="aspect-[4/5] rounded-2xl border border-dashed border-white/5 flex items-center justify-center">
-                <Sparkles size={16} className="text-white/5" />
-              </div>
-            ))}
           </div>
         </div>
 
@@ -1641,218 +1795,8 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           </div>
         )}
 
-        {/* Tabs Container (Sticky & Overflow Scroll) */}
-        {(() => {
-          const allTabs = [
-            { id: 'FEED', label: isOwnProfile ? 'Feed' : 'Their Feed' },
-            ...(profile?.accountType === 'ATHLETE' ? [{ id: 'ATHLETE_STATS', label: '🏆 Athlete' }] : []),
-            { id: 'CONTENT', label: 'Creations' },
-            { id: 'PODCASTS', label: 'Podcasts' },
-            { id: 'WORLDS', label: 'Worlds' },
-            { id: 'ARTICLES', label: 'Articles' },
-            { id: 'PHOTOS', label: 'Photos' },
-            { id: 'VIDEOS', label: 'Videos' },
-            { id: 'THEMES', label: 'Themes' },
-            { id: 'APPS', label: 'Apps' },
-            ...(profile?.accountType !== 'FAN' ? [
-              { id: 'LIVE_TV', label: 'Live TV' },
-              { id: 'GAMES', label: 'Games' },
-              { id: 'LIVE_CHAT', label: 'Live Chat' },
-              { id: 'MERCH', label: 'Store' },
-              { id: 'ARTIST_DETAIL', label: 'Special' }
-            ] : []),
-            { id: 'FOLLOWING', label: 'Following' },
-            { id: 'FRIENDS', label: 'Friends' },
-            { id: 'DEBATES', label: '⚔️ Debates' },
-            { id: 'INTERESTS', label: 'Interests' },
-            ...(isOwnProfile ? [{ id: 'LIBRARY', label: 'Library' }] : []),
-            ...(isOwnProfile ? [{ id: 'MY_STATS', label: 'My Stats' }] : []),
-            ...(isOwnProfile ? [{ id: 'MY_HABITS', label: 'My Habits' }] : []),
-            ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'MANAGE', label: 'Management' }] : []),
-            ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'ARTIST_SERVICES', label: 'Artist Services' }] : []),
-            ...(isOwnProfile && profile?.accountType !== 'FAN' ? [{ id: 'BRAND_CONNECT', label: 'Brand Connect' }] : []),
-            ...(profile?.accountType !== 'FAN' ? [{ id: 'MEMBERS', label: 'Backstage' }] : [])
-          ];
-
-          // Apply saved order: put saved-order IDs first, append any new tabs at the end
-          const orderedTabs = tabOrder.length > 0
-            ? [
-                ...tabOrder.map(id => allTabs.find(t => t.id === id)).filter(Boolean) as typeof allTabs,
-                ...allTabs.filter(t => !tabOrder.includes(t.id))
-              ]
-            : allTabs;
-
-          const saveOrder = (order: string[]) => {
-            setTabOrder(order);
-            if (isOwnProfile) {
-              try { localStorage.setItem(`plajah-tab-order-${uid}`, JSON.stringify(order)); } catch {}
-            }
-          };
-
-          const moveTab = (idx: number, dir: -1 | 1) => {
-            const ids = orderedTabs.map(t => t.id);
-            const target = idx + dir;
-            if (target < 0 || target >= ids.length) return;
-            [ids[idx], ids[target]] = [ids[target], ids[idx]];
-            saveOrder(ids);
-          };
-
-          const handleDragStart = (idx: number) => { dragTabRef.current = idx; };
-          const handleDragOver = (e: React.DragEvent, idx: number) => {
-            e.preventDefault();
-            if (dragTabRef.current === null || dragTabRef.current === idx) return;
-            const ids = orderedTabs.map(t => t.id);
-            const [moved] = ids.splice(dragTabRef.current, 1);
-            ids.splice(idx, 0, moved);
-            dragTabRef.current = idx;
-            saveOrder(ids);
-          };
-          const handleDragEnd = () => { dragTabRef.current = null; };
-
-          // ── Glass Dock: segmented glass tabs (pill style, brand-gradient active) ──
-          // Drives the exact same activeTab state and tab list as the classic bar.
-          if (shellNext) {
-            return (
-              <div className={`mt-12 lg:mt-16 sticky ${isMobile ? 'top-14' : 'top-0'} z-40 -mx-4 px-4 lg:mx-0 lg:px-0 py-2`}>
-                <div
-                  className="relative rounded-full px-2 py-1.5 backdrop-blur-2xl backdrop-saturate-150"
-                  style={{ background: 'linear-gradient(180deg, rgba(20,18,28,0.6), rgba(12,10,18,0.5))' }}
-                >
-                  {/* 1px brand hairline */}
-                  <div
-                    aria-hidden="true"
-                    className="absolute inset-0 pointer-events-none rounded-full"
-                    style={{
-                      padding: 1,
-                      background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)',
-                      WebkitMask: 'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
-                      WebkitMaskComposite: 'xor',
-                      maskComposite: 'exclude',
-                    }}
-                  />
-                  <ScrollableTabRow innerClassName="gap-1.5 py-0.5 px-0.5">
-                    {orderedTabs.map((tab, idx) => {
-                      const active = activeTab === tab.id;
-                      return (
-                        <div
-                          key={tab.id}
-                          className="flex items-center flex-shrink-0 group/tab"
-                          draggable={isOwnProfile}
-                          onDragStart={() => handleDragStart(idx)}
-                          onDragOver={(e) => handleDragOver(e, idx)}
-                          onDragEnd={handleDragEnd}
-                        >
-                          {isOwnProfile && (
-                            <button
-                              onClick={() => moveTab(idx, -1)}
-                              disabled={idx === 0}
-                              className="opacity-0 group-hover/tab:opacity-100 transition-opacity p-0.5 text-white/20 hover:text-white/60 disabled:opacity-0 disabled:pointer-events-none"
-                              aria-label="Move tab left"
-                            >
-                              <ChevronLeft size={10} />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => {
-                              setActiveTab(tab.id as any);
-                              const el = document.getElementById(`tab-${tab.id}`);
-                              el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                            }}
-                            id={`tab-${tab.id}`}
-                            className={`px-4 py-2 rounded-full text-[10px] lg:text-xs font-black uppercase tracking-[0.2em] transition-all whitespace-nowrap border ${
-                              isOwnProfile ? 'cursor-grab active:cursor-grabbing' : ''
-                            } ${
-                              active
-                                ? 'text-white border-transparent shadow-[0_0_18px_rgba(212,0,85,0.35)]'
-                                : 'text-white/40 border-white/10 bg-white/[0.03] hover:text-white/80 hover:bg-white/[0.07]'
-                            }`}
-                            style={active ? { background: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' } : undefined}
-                          >
-                            {tab.label}
-                          </button>
-                          {isOwnProfile && (
-                            <button
-                              onClick={() => moveTab(idx, 1)}
-                              disabled={idx === orderedTabs.length - 1}
-                              className="opacity-0 group-hover/tab:opacity-100 transition-opacity p-0.5 text-white/20 hover:text-white/60 disabled:opacity-0 disabled:pointer-events-none"
-                              aria-label="Move tab right"
-                            >
-                              <ChevronRight size={10} />
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </ScrollableTabRow>
-                </div>
-              </div>
-            );
-          }
-
-          return (
-            <div className={`mt-12 lg:mt-16 sticky ${isMobile ? 'top-14' : 'top-0'} bg-black/55 backdrop-blur-2xl backdrop-saturate-150 z-40 border-b border-white/[0.08] -mx-4 px-4 lg:mx-0 lg:px-0`}>
-              <ScrollableTabRow innerClassName="gap-1 py-2 translate-y-[1px] px-1">
-                {orderedTabs.map((tab, idx) => (
-                  <div
-                    key={tab.id}
-                    className="flex items-center flex-shrink-0 group/tab"
-                    draggable={isOwnProfile}
-                    onDragStart={() => handleDragStart(idx)}
-                    onDragOver={(e) => handleDragOver(e, idx)}
-                    onDragEnd={handleDragEnd}
-                  >
-                    {/* Left arrow — own profile only */}
-                    {isOwnProfile && (
-                      <button
-                        onClick={() => moveTab(idx, -1)}
-                        disabled={idx === 0}
-                        className="opacity-0 group-hover/tab:opacity-100 transition-opacity p-0.5 text-white/20 hover:text-white/60 disabled:opacity-0 disabled:pointer-events-none"
-                        aria-label="Move tab left"
-                      >
-                        <ChevronLeft size={10} />
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => {
-                        setActiveTab(tab.id as any);
-                        const el = document.getElementById(`tab-${tab.id}`);
-                        el?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                      }}
-                      id={`tab-${tab.id}`}
-                      className={`pb-4 px-2 text-[10px] lg:text-xs font-black uppercase tracking-[0.2em] lg:tracking-[0.3em] transition-all border-b-2 whitespace-nowrap ${
-                        isOwnProfile ? 'cursor-grab active:cursor-grabbing' : ''
-                      } ${
-                        activeTab === tab.id
-                          ? 'text-small-orange border-small-orange'
-                          : 'text-white/20 border-transparent hover:text-white/40'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-
-                    {/* Right arrow — own profile only */}
-                    {isOwnProfile && (
-                      <button
-                        onClick={() => moveTab(idx, 1)}
-                        disabled={idx === orderedTabs.length - 1}
-                        className="opacity-0 group-hover/tab:opacity-100 transition-opacity p-0.5 text-white/20 hover:text-white/60 disabled:opacity-0 disabled:pointer-events-none"
-                        aria-label="Move tab right"
-                      >
-                        <ChevronRight size={10} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </ScrollableTabRow>
-            </div>
-          );
-        })()}
-
-        {/* Tab Content */}
-        <div className="mt-12">
-          <AnimatePresence mode="wait">
-            {activeTab === 'ATHLETE_STATS' ? (
+              </motion.div>
+            ) : activeTab === 'ATHLETE_STATS' ? (
               <motion.div key="athlete-stats" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
                 <AthleteCareerCard
                   inline

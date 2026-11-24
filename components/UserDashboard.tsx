@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { THEME_OPTIONS } from './settings/themeOptions';
 import { createPortal } from 'react-dom';
 import { UserProfile, Album, Video, Photo, Track, MerchItem, IPWorld, ThemeType } from '../types';
 import {
@@ -96,15 +97,6 @@ interface UserDashboardProps {
   onOpenOrg?: (orgId: string) => void;
 }
 
-const THEME_OPTIONS: { id: ThemeType; label: string; bg: string; text: string }[] = [
-  { id: 'DARK',     label: 'Dark',    bg: '#020202',             text: '#ffffff' },
-  { id: 'LIGHT',    label: 'Light',   bg: '#f8fafc',             text: '#0f172a' },
-  { id: 'PLAJAH',   label: 'Plajah',  bg: 'linear-gradient(135deg,#6B0099,#FF8C00)', text: '#ffffff' },
-  { id: 'ETHEREAL', label: 'Ethereal',bg: '#131314',             text: '#e5e2e3' },
-  { id: 'NEBULA',   label: 'Nebula',  bg: 'linear-gradient(135deg,#050510,#1a1a3e)', text: '#ffffff' },
-  { id: 'CITRUS',   label: 'Citrus',  bg: 'linear-gradient(135deg,#0f0500,#FF3B00)', text: '#ffffff' },
-  { id: 'PASTEL',   label: 'Pastel',  bg: '#fdf6e3',             text: '#2aa198' },
-];
 
 const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentTheme, onSetTheme, onOpenTVStudio, onOpenScriptStudio, initialTab, onOpenOrg }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null);
