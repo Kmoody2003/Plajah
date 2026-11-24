@@ -159,10 +159,10 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
   const billingNav = useBillingNav();
   const [peopleTab, setPeopleTab] = useState<PeopleTab | undefined>(() => (initialSection && LEGACY_PEOPLE[initialSection]) || undefined);
   const [navOpen, setNavOpen] = useState(false);
-  // The org document only takes layout edits from the owner, IT admins and org admins (firestore.rules).
-  const canEditSidebarLayout = isOwner || (!!uid && ((org.admins || []).includes(uid) || (org.itAdminUids || []).includes(uid)));
   const [donationTotals, setDonationTotals] = useState<Record<string, number>>({});
   const uid = auth.currentUser?.uid;
+  // The org document only takes layout edits from the owner, IT admins and org admins (firestore.rules).
+  const canEditSidebarLayout = isOwner || (!!uid && ((org.admins || []).includes(uid) || (org.itAdminUids || []).includes(uid)));
 
   useEffect(() => {
     if (initialSection) setSection(initialSection);
