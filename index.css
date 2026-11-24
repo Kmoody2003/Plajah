@@ -995,13 +995,16 @@ body {
   max-width: 100%;
 }
 
-body.has-custom-background {
+body.has-custom-background,
+body.has-theme-bg {
   background-color: transparent !important;
   background-image: none !important;
 }
 
 body.has-custom-background::before,
-body.has-custom-background::after {
+body.has-custom-background::after,
+body.has-theme-bg::before,
+body.has-theme-bg::after {
   display: none !important;
 }
 

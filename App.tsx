@@ -147,6 +147,9 @@ import PlatformBumperPlayer from './components/tv/PlatformBumperPlayer';
 import LiveFollowPills from './components/LiveFollowPills';
 import { useLiveAlertsPref } from './hooks/useLiveAlertsPref';
 import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
+import ThemeSpecBackground from './components/ThemeSpecBackground';
+import { useEffectiveThemeSpec, setUserThemeSpec } from './services/themeRuntime';
+import { applyPalette } from './services/themePalette';
 import { startContrastGuard, measureImageUrl, setBackgroundTone, clearBackgroundTone } from './services/themeContrast';
 import TvUnavailableNotice from './components/TvUnavailableNotice';
 import TvTopTabs from './components/TvTopTabs';
@@ -4055,6 +4058,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     root.classList.toggle('perf-low', getPerfTier() === 'low');
   });
 
+  const effectiveSpec = useEffectiveThemeSpec();
   useEffect(() => {
     const themeClasses: Record<ThemeType, string> = {
       'DARK': '',
@@ -4070,6 +4074,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     // Preserve has-custom-background — className= replaces everything,
     // so we re-add it after the theme class is applied.
     const hadCustomBg = document.body.classList.contains('has-custom-background');
+    const hadThemeBg = document.body.classList.contains('has-theme-bg');
+    const hadThemeMedia = document.body.classList.contains('theme-bg-media');
     // Hard TV-first: on a television the big-screen theme is the ONLY theme. Anything that
     // tries to set a phone/desktop theme (a resize handler, a restored preference, a stray
     // setTheme) is overridden here rather than at each call site, so a remote can never end
@@ -4078,9 +4084,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     // Themes are desktop personalisation. A TV gets one high-contrast look built for distance
     // viewing — and pinning it means the alternate themes' gradients and background media are
     // never requested at all, which on a 2GB TV matters more than the styling does.
-    document.body.className = platform.isTV || !themesAllowed() ? 'theme-big-screen' : themeClasses[theme];
+    const lookTheme: ThemeType = effectiveSpec?.base ?? theme;
+    document.body.className = platform.isTV || !themesAllowed() ? 'theme-big-screen' : themeClasses[lookTheme];
     if (hadCustomBg) document.body.classList.add('has-custom-background');
-  }, [theme]);
+    if (hadThemeBg) document.body.classList.add('has-theme-bg');
+    if (hadThemeMedia) document.body.classList.add('theme-bg-media');
+  }, [theme, effectiveSpec?.base]);
+
+  // Personal theme spec → runtime (an org's spec overrides it while its page is open), then the
+  // four accent levels are written as CSS variables with auto-readable ink variants.
+  useEffect(() => { setUserThemeSpec(userProfile?.themeSpec ?? null); }, [userProfile?.themeSpec]);
+  useEffect(() => {
+    if (getPlatformInfo().isTV || !themesAllowed()) { applyPalette(null, 'BIG_SCREEN'); return; }
+    applyPalette(effectiveSpec?.palette, effectiveSpec?.base ?? theme);
+  }, [effectiveSpec?.palette, effectiveSpec?.base, theme]);
 
   useEffect(() => {
     if (theme !== 'BIG_SCREEN') return;
@@ -4589,6 +4606,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // Measure the real brightness of the custom background so the scrim (and the contrast guard)
   // are sized to the image, not guessed.
   useEffect(() => {
+    if (document.body.classList.contains('has-theme-bg')) return; // a Theme Studio background owns the tone
     const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
     const bgAllowed = activeProfile?.customBgEnabled !== false;
     const themeAllowed = activeProfile?.customThemeEnabled !== false;
@@ -4928,8 +4946,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               {/* Base theme gradient — always present so the background is never blank */}
               <div
                 className="absolute inset-0 transition-all duration-700"
-                style={{ background: THEME_BG[theme] ?? THEME_BG.PLAJAH }}
+                style={{ background: THEME_BG[effectiveSpec?.base ?? theme] ?? THEME_BG.PLAJAH }}
               />
+              <ThemeSpecBackground />
               <AnimatePresence mode="wait">
                 {(() => {
                   // A looping video under blur-[40px] plus a full-viewport backdrop-blur is the

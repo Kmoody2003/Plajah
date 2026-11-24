@@ -1835,6 +1835,8 @@ export interface UserProfile {
   hiddenSections?: string[];
   savedThemePresets?: string[];
   activeThemePresetId?: string;
+  /** Personal custom theme (palette + background + pack). Cloud-saved with the profile. */
+  themeSpec?: ThemeSpec;
   videos?: Video[];
   videoPlaylists?: VideoPlaylist[];
   articles?: Article[];
@@ -2923,6 +2925,8 @@ export interface Organization {
   accentColor?: string;
   /** Default left-sidebar layout while someone is on this org's page (members can still change their own). See services/orgSidebarLayout. */
   sidebarDefault?: { enabled: boolean; hidden: string[]; updatedAt?: number; updatedBy?: string };
+  /** Org theme: while someone is on this org's pages the platform wears it (palette, background, emoji/sticker/GIF pack). Members can opt out per-org. */
+  themeSpec?: ThemeSpec;
 
   // Ownership & staff
   creatorId: string;
@@ -4417,6 +4421,29 @@ export interface ScriptData {
   pageCount?: number;
   ownerId?: string;
   createdAt?: number;
+  updatedAt?: number;
+}
+
+/** Custom emojis / stickers / GIFs that travel with a theme (an org's pack shows on its pages). */
+export interface ThemePackItem { id: string; name: string; url: string }
+export interface ThemePack { emojis: ThemePackItem[]; stickers: ThemePackItem[]; gifs: ThemePackItem[] }
+
+/**
+ * A complete, user- or org-authored theme: base look + 4-level accent palette + background
+ * (solid / gradient / pattern / media preset) + optional pack. See services/themePalette.ts,
+ * services/themeBackground.ts and components/settings/ThemeStudio.tsx.
+ */
+export interface ThemeSpec {
+  id?: string;
+  name?: string;
+  base: ThemeType;
+  palette?: import('./services/themePalette').ThemePalette;
+  background?: import('./services/themeBackground').ThemeBackground;
+  /** When background.kind === 'media': photos/videos to play as a slideshow (loops through in order). */
+  mediaAssets?: { id: string; url: string; type: 'PHOTO' | 'VIDEO' }[];
+  /** Seconds each photo stays up in a slideshow (videos play to their end). */
+  slideSeconds?: number;
+  pack?: ThemePack;
   updatedAt?: number;
 }
 

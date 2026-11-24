@@ -32,14 +32,18 @@ export function downloadTelaVectorSvg(device: TelaVectorDevice, name: string) {
   downloadBlob(new Blob([telaVectorSvg(device)], { type: 'image/svg+xml' }), `${safeName(name)}.svg`);
 }
 
-export async function downloadTelaVectorPng(device: TelaVectorDevice, name: string) {
+/** Render a vector page to a PNG blob (shared by Export and Save-as-theme). */
+export async function telaVectorPngBlob(device: TelaVectorDevice): Promise<Blob> {
   const svg = telaVectorSvg(device); const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
   try {
     const image = await new Promise<HTMLImageElement>((resolve, reject) => { const element = new Image(); element.onload = () => resolve(element); element.onerror = reject; element.src = url; });
     const canvas = document.createElement('canvas'); canvas.width = device.width; canvas.height = device.height;
     const context = canvas.getContext('2d'); if (!context) throw new Error('Canvas export is unavailable.');
     context.drawImage(image, 0, 0);
-    const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('PNG encoding failed.')), 'image/png'));
-    downloadBlob(blob, `${safeName(name)}.png`);
+    return await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('PNG encoding failed.')), 'image/png'));
   } finally { URL.revokeObjectURL(url); }
+}
+
+export async function downloadTelaVectorPng(device: TelaVectorDevice, name: string) {
+  downloadBlob(await telaVectorPngBlob(device), `${safeName(name)}.png`);
 }

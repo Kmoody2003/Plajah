@@ -151,7 +151,10 @@ html body.theme-light button[class*="bg-blue-"], html body.theme-light button[cl
 html body.theme-light button[class*="bg-green-"] { color: #fff !important; }
 
 /* ── Custom background: always sits behind a theme-matched scrim ─────────── */
-#universal-background .pj-bg-scrim {
+#universal-background .pj-bg-scrim { display: none; }
+body.has-custom-background #universal-background .pj-bg-scrim,
+body.theme-bg-media #universal-background .pj-bg-scrim {
+  display: block;
   position: absolute; inset: 0; pointer-events: none;
   background: var(--pj-scrim);
   -webkit-backdrop-filter: blur(var(--pj-scrim-blur)) saturate(120%);
@@ -159,14 +162,14 @@ html body.theme-light button[class*="bg-green-"] { color: #fff !important; }
   transition: background-color .6s ease;
 }
 /* Tone engine (services/themeContrast.ts) sets data-bg-tone from the real image luminance. */
-body.has-custom-background[data-bg-tone="bright"].theme-light { --pj-scrim: rgba(226, 232, 240, 0.66); }
-body.has-custom-background[data-bg-tone="bright"]:not(.theme-light):not(.theme-pastel) { --pj-scrim: rgba(0, 0, 0, 0.58); }
-body.has-custom-background[data-bg-tone="dark"].theme-light { --pj-scrim: rgba(226, 232, 240, 0.78); }
-body.has-custom-background[data-bg-tone="dark"]:not(.theme-light):not(.theme-pastel) { --pj-scrim: rgba(0, 0, 0, 0.30); }
-body.has-custom-background.theme-light { --pj-surface: rgba(255, 255, 255, 0.55); }
+body:is(.has-custom-background, .has-theme-bg)[data-bg-tone="bright"].theme-light { --pj-scrim: rgba(226, 232, 240, 0.66); }
+body:is(.has-custom-background, .has-theme-bg)[data-bg-tone="bright"]:not(.theme-light):not(.theme-pastel) { --pj-scrim: rgba(0, 0, 0, 0.58); }
+body:is(.has-custom-background, .has-theme-bg)[data-bg-tone="dark"].theme-light { --pj-scrim: rgba(226, 232, 240, 0.78); }
+body:is(.has-custom-background, .has-theme-bg)[data-bg-tone="dark"]:not(.theme-light):not(.theme-pastel) { --pj-scrim: rgba(0, 0, 0, 0.30); }
+body:is(.has-custom-background, .has-theme-bg).theme-light { --pj-surface: rgba(255, 255, 255, 0.55); }
 
 /* ── Elevate (.ev-scope) follows the theme ───────────────────────────────── */
-body.has-custom-background .ev-scope { background: transparent; }
+body:is(.has-custom-background, .has-theme-bg) .ev-scope { background: transparent; }
 body.theme-light .ev-scope {
   --ev-chrome: #dde3ea;
   --ev-panel: rgba(255, 255, 255, 0.58);

@@ -59,6 +59,7 @@ const ElevateTelaOperationsSuite = lazy(() => import('./ElevateTelaOperationsSui
 const GrowthHub = lazy(() => import('../growth/GrowthHub'));
 const GrantHub = lazy(() => import('./GrantHub'));
 const OrgSidebarLayoutEditor = lazy(() => import('./OrgSidebarLayoutEditor'));
+const OrgThemeEditor = lazy(() => import('./OrgThemeEditor'));
 const OrgCrewPanel = lazy(() => import('../crew/OrgCrewPanel'));
 const OrgCentralCalendarHub = lazy(() => import('./OrgCentralCalendarHub'));
 const VolunteerMemberManageHub = lazy(() => import('./VolunteerMemberManageHub'));
@@ -78,6 +79,7 @@ const SECTION_SUB: Partial<Record<SectionKey, string>> = {
   education: 'Christian Education, Academia Teacher Dashboard, Google Forms/Docs & PDF → Interactive Tela & Mastery.',
   tela_ops: 'Facilities & Room Floorplan Tela, Multi-Week Matrix & Blockouts, Child Ratios & Paging, Automated Workflows, Camp Logistics & Non-Cash IRS Receipts.',
   grants: 'Find federal grants that fit, then let Aria fill in your applications — and learn the process in Grant School.',
+  org_theme: 'Colours, background and emoji/sticker/GIF pack that Plajah wears while people are on your page.',
   sidebar_layout: 'The default left sidebar on your page — turn sections of Plajah on or off. Everyone can still switch to their own.',
   calendar: 'Centralized Organization Calendar built on Postman — detects cross-department timing conflicts and ranks weighted substitutes.',
   content_hq: 'Organization Asset Management — manage Christian Education assignments, Original Docs, Interactive Tela Documents, Answer Keys, and department uploads.',
@@ -112,7 +114,8 @@ export type SectionKey =
   | 'my_settings'
   | 'grants'
   | 'crew'
-  | 'sidebar_layout';
+  | 'sidebar_layout'
+  | 'org_theme';
 /** Manage nav categories, in display order. */
 type NavGroup = 'home' | 'people' | 'programs' | 'content' | 'money' | 'settings';
 const GROUP_LABEL = (faith: boolean): Record<NavGroup, string> => ({
@@ -229,6 +232,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
     { key: 'grants' as const, group: 'money', label: 'Grants', icon: Landmark, show: can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING') || isOwner },
     // Settings
     { key: 'security' as const, group: 'settings', label: 'Security & Privacy', icon: ShieldCheck, show: can('MANAGE_ROSTER') || can('MANAGE_GIVING') || can('MANAGE_ACCOUNTING') || isOwner },
+    { key: 'org_theme' as const, group: 'settings', label: 'Org Theme', icon: Palette, show: canEditSidebarLayout },
     { key: 'sidebar_layout' as const, group: 'settings', label: 'Sidebar Layout', icon: PanelLeft, show: canEditSidebarLayout },
   ] as { key: SectionKey; group: NavGroup; label: string; icon: any; show: boolean; badge?: number }[]).filter(n => n.show), [can, faith, isOwner, myMembership, showMoney, moneyInbox.count, org.admins, org.itAdminUids, uid, isDeptHead, members]);
   const groupLabels = GROUP_LABEL(faith);
@@ -633,6 +637,7 @@ const ElevateOps: React.FC<Props> = ({ org: initialOrg, isOwner, onClose, onOrgC
                 />
               )}
               {section === 'grants' && <GrantHub org={org} />}
+              {section === 'org_theme' && <OrgThemeEditor org={org} canEdit={canEditSidebarLayout} onOrgChange={setOrg} />}
               {section === 'sidebar_layout' && <OrgSidebarLayoutEditor org={org} canEdit={canEditSidebarLayout} onOrgChange={setOrg} />}
               {section === 'crew' && <OrgCrewPanel org={org} onOpenSection={k => setSection(k as SectionKey)} />}
             </Suspense>

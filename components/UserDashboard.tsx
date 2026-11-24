@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { THEME_OPTIONS } from './settings/themeOptions';
+import ThemeStudio from './settings/ThemeStudio';
+import { setUserThemeSpec, isOrgThemeOptedOut, setOrgThemeOptOut } from '../services/themeRuntime';
 import { createPortal } from 'react-dom';
 import { UserProfile, Album, Video, Photo, Track, MerchItem, IPWorld, ThemeType } from '../types';
 import {
@@ -1044,6 +1046,31 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                     <p className="mt-3 text-[9px] font-bold text-white/20 uppercase tracking-widest ml-2">Theme is saved to your account and persists across devices.</p>
                   </div>
                 )}
+
+                <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-small-orange mb-2 flex items-center gap-2">
+                    <Sparkles size={14} /> Custom Theme
+                  </h3>
+                  <p className="text-xs text-white/60 mb-5">Set your accent colours, generate a palette from any colour, and use a solid, gradient, pattern, photo, video or slideshow background. Text colours are picked for you so everything stays readable.</p>
+                  {profile && (
+                    <ThemeStudio
+                      scope="user"
+                      value={profile.themeSpec ?? (currentTheme ? { base: currentTheme } : undefined)}
+                      uploadPath={`themes/${profile.uid}`}
+                      onSave={async (spec) => {
+                        await updateUserProfile(profile.uid, { themeSpec: spec });
+                        setProfile({ ...profile, themeSpec: spec });
+                        setUserThemeSpec(spec);
+                      }}
+                      footer={
+                        <label className="flex items-center gap-3 text-sm text-white/80 cursor-pointer">
+                          <input type="checkbox" className="w-4 h-4 accent-[#FF8C00]" defaultChecked={!isOrgThemeOptedOut('*')} onChange={e => setOrgThemeOptOut('*', !e.target.checked)} />
+                          Let organizations restyle Plajah while I’m on their page
+                        </label>
+                      }
+                    />
+                  )}
+                </div>
 
                 <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5">
                   <h3 className="text-xs font-black uppercase tracking-widest text-small-orange mb-6 flex items-center gap-2">

@@ -101,35 +101,69 @@ function pageBackdrop(): RGBA {
   return light ? { r: 221, g: 227, b: 234, a: 1 } : { r: 8, g: 8, b: 12, a: 1 };
 }
 
-function backdropFor(el: Element, page: RGBA): RGBA | null {
-  const stack: RGBA[] = [];
-  let n: Element | null = el;
-  while (n && n !== document.body && n !== document.documentElement) {
+type Backdrop = { bg: RGBA; media: boolean; mediaKnown: boolean };
+
+const mediaLumCache = new WeakMap<Element, number | null>();
+
+function mediaLuminance(el: Element): number | null {
+  if (mediaLumCache.has(el)) return mediaLumCache.get(el)!;
+  let lum: number | null = null;
+  if (el instanceof HTMLImageElement && el.complete && el.naturalWidth) lum = sampleLuminance(el, el.naturalWidth, el.naturalHeight);
+  else if (el instanceof HTMLVideoElement && el.readyState >= 2) lum = sampleLuminance(el, el.videoWidth, el.videoHeight);
+  else if (el instanceof HTMLCanvasElement) lum = sampleLuminance(el, el.width, el.height);
+  mediaLumCache.set(el, lum);
+  return lum;
+}
+
+const grey = (lum: number): RGBA => {
+  const g = Math.round(255 * Math.pow(Math.max(0, Math.min(1, lum)), 1 / 2.2));
+  return { r: g, g, b: g, a: 1 };
+};
+
+/**
+ * What is really painted behind this text? Hit-tests the centre of the text and composites every
+ * background beneath it, so photos, videos and stacked frosted panels are all seen — not just
+ * the parent chain. (The first version only walked ancestors and so judged hero text over a
+ * photo against the empty page colour.)
+ */
+function backdropFor(el: Element, page: RGBA): Backdrop {
+  const r = el.getBoundingClientRect();
+  const x = Math.min(innerWidth - 1, Math.max(1, r.left + r.width / 2));
+  const y = Math.min(innerHeight - 1, Math.max(1, r.top + r.height / 2));
+  const hit = document.elementsFromPoint(x, y);
+  const idx = hit.indexOf(el);
+  const below: Element[] = [];
+  if (idx >= 0) for (let i = idx + 1; i < hit.length; i++) below.push(hit[i]);
+  else { let n: Element | null = el.parentElement; while (n) { below.push(n); n = n.parentElement; } }
+  let acc: RGBA = page;
+  let media = false, mediaKnown = false;
+  for (let i = below.length - 1; i >= 0; i--) {
+    const n = below[i];
+    if (n === document.body || n === document.documentElement) continue;
+    if (n.closest('#universal-background')) continue; // modelled by `page` (scrim + tone)
     const cs = getComputedStyle(n);
-    if (cs.backgroundImage !== 'none' && !cs.backgroundImage.startsWith('linear-gradient(0deg, rgba(0')) {
-      // Photos / gradients: unknowable without painting — leave it to the author.
-      if (cs.backgroundImage.includes('url(')) return null;
+    const isEl = n instanceof HTMLImageElement || n instanceof HTMLVideoElement || n instanceof HTMLCanvasElement;
+    if (isEl || cs.backgroundImage.includes('url(')) {
+      media = true;
+      const l = isEl ? mediaLuminance(n) : null;
+      if (l !== null) { acc = grey(l); mediaKnown = true; } else acc = grey(0.06); // unknown: heroes are almost always dark
+      continue;
     }
     const bg = parseColor(cs.backgroundColor);
-    if (bg && bg.a > 0) {
-      stack.push(bg);
-      if (bg.a >= 0.98) break;
-    }
-    n = n.parentElement;
+    if (bg && bg.a > 0) acc = over(bg, acc);
   }
-  let acc: RGBA = page;
-  for (let i = stack.length - 1; i >= 0; i--) acc = over(stack[i], acc);
-  return acc;
+  return { bg: acc, media, mediaKnown };
 }
 
 const ink = (dark: boolean, muted: boolean) =>
-  dark ? (muted ? 'rgb(71,85,105)' : 'rgb(15,23,42)') : (muted ? 'rgb(203,213,225)' : 'rgb(248,250,252)');
+  dark ? (muted ? 'rgb(71,85,105)' : 'rgb(15,23,42)') : (muted ? 'rgb(226,232,240)' : 'rgb(255,255,255)');
 
 let revertList: HTMLElement[] = [];
 
 export function resetContrastGuard() {
   for (const el of revertList) {
     el.style.removeProperty('color');
+    el.style.removeProperty('text-shadow');
     el.removeAttribute('data-pj-contrast');
   }
   revertList = [];
@@ -156,8 +190,7 @@ export function runContrastGuard(root: ParentNode = document.body): number {
     if (cs.visibility === 'hidden' || cs.display === 'none' || parseFloat(cs.opacity) < 0.05) continue;
     const fg = parseColor(cs.color);
     if (!fg) continue;
-    const bg = backdropFor(el, page);
-    if (!bg) continue;
+    const { bg, media } = backdropFor(el, page);
     const fgOver = over(fg, { ...bg, a: 1 });
     const ratio = contrastRatio(fgOver, bg);
     const size = parseFloat(cs.fontSize);
@@ -168,6 +201,8 @@ export function runContrastGuard(root: ParentNode = document.body): number {
     const muted = fg.a < 0.8 && size < 14 ? false : fg.a < 0.8;
     const h = el as HTMLElement;
     h.style.setProperty('color', ink(bgIsLight, muted), 'important');
+    // Over photography the average is a guess; a soft halo keeps text readable either way.
+    if (media) h.style.setProperty('text-shadow', bgIsLight ? '0 1px 2px rgba(255,255,255,.7)' : '0 1px 3px rgba(0,0,0,.6)', 'important');
     h.setAttribute('data-pj-contrast', '1');
     revertList.push(h);
     fixed++;

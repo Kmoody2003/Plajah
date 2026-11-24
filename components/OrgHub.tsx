@@ -59,6 +59,7 @@ import ReelloDeptChannelsRow from './reello/ReelloDeptChannelsRow';
 import OrgMediaShelf from './orgPublish/OrgMediaShelf';
 import RelloChurchViewer from './elevate/RelloChurchViewer';
 import { setActiveOrgSidebar } from '../services/orgSidebarLayout';
+import { setOrgThemeScope } from '../services/themeRuntime';
 import { ORG_PAGE_EVENT, takePendingOrgPage, useShellLeftRail, type OrgPageTarget } from '../services/experienceScope';
 import { ElevateScopePillar } from './elevate/ElevateScopePillar';
 import { setLastOrgId } from '../services/elevateHome';
@@ -467,6 +468,11 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
     setActiveOrgSidebar({ orgId: org.id, orgName: org.name, layout: org.sidebarDefault || null, org, membership: myMembership && myMembership.status === 'ACTIVE' ? myMembership : null });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [org, myMembership?.id, myMembership?.status, myMembership?.ministryIds?.join(','), myMembership?.ministryRoles?.length]);
+  // Org theme: the platform wears the org's look while its page is open.
+  useEffect(() => {
+    setOrgThemeScope(org.id, org.themeSpec);
+    return () => setOrgThemeScope(null, null);
+  }, [org.id, org.themeSpec]);
   // Plajah ID: the org's permanent identity. Its owner/admins mint it on first visit (routes/plajahId.ts checks).
   const orgPjId = useOrgPlajahId(isDemoOrg(org) ? undefined : org.id, isOwner || !!org.admins?.includes(auth.currentUser?.uid || ''));
   // Top-bar layouts have no app sidebar: the page draws the Elevate pillar itself for members.

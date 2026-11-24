@@ -180,8 +180,8 @@ export const ThemePresetManager: React.FC<ThemePresetManagerProps> = ({ currentU
     <div className="space-y-12 w-full h-full text-white">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter italic">Theme Presets</h2>
-          <p className="text-white/40 text-sm font-bold uppercase tracking-widest mt-2">{isAdmin ? 'Manage Global Themes' : 'Manage Profile Aesthetic Templates'}</p>
+          <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter italic">{isAdmin ? 'Theme Presets' : 'My Themes'}</h2>
+          <p className="text-white/40 text-sm font-bold uppercase tracking-widest mt-2">{isAdmin ? 'Manage Global Themes' : 'Your saved backgrounds · save pages from Tela here'}</p>
         </div>
         <button 
           onClick={() => setShowCreator(true)}

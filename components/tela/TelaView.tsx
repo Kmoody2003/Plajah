@@ -68,7 +68,8 @@ import { classifyTelaAsset, instantiateTelaTemplate, makeShapeObject, TELA_CREAT
 import { answerLayoutForObject, findTelaLayoutMatch, makeAnswerGuide, makeTelaQuestionField, rememberApprovedTelaLayout, type TelaQuestionDraft } from '../../services/telaAssignmentEngine';
 import { autoFormatTelaAssignment, type TelaAutoFormatReport } from '../../services/telaAssignmentAutoFormat';
 import { downloadTelaHtml } from '../../services/telaHtmlExport';
-import { downloadTelaBoard, downloadTelaPage, downloadTelaVectorPng, downloadTelaVectorSvg } from '../../services/telaPageExport';
+import { downloadTelaBoard, downloadTelaPage, downloadTelaVectorPng, downloadTelaVectorSvg, telaVectorPngBlob } from '../../services/telaPageExport';
+import { saveImageAsTheme } from '../../services/themeLibrary';
 import { hydrateTelaDomainDoc, syncTelaBaseCellToDomain, syncTelaNotesToDomain, syncTelaWriterToDomain } from '../../services/telaDomainAdapters';
 import { consolidateTelaTraceObjects, traceBitmapToTela, type TelaTracePreset } from '../../services/telaImageTrace';
 import { isTelaDocumentModelInstalled, rebuildDocumentIntelligently, refineDocumentRegionMask, TELA_SEGMENT_MODEL, type TelaDetectedResponseField, type TelaModelProgress } from '../../services/telaDocumentIntelligence';
@@ -441,6 +442,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const [orgNames, setOrgNames] = useState<Record<string, string>>({});
   const [canvasesOpen, setCanvasesOpen] = useState(false);
   const [deviceMenuOpen, setDeviceMenuOpen] = useState(false);
+  const [themeSave, setThemeSave] = useState<{ title: string; busy: boolean; msg: string | null } | null>(null);
   const [appMenuOpen, setAppMenuOpen] = useState<'FILE' | 'INSERT' | 'DOCUMENT' | 'EDIT' | 'EXPORT' | 'ASSIGNMENT' | null>(null);
   const [presetMenuOpen, setPresetMenuOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -4166,7 +4168,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               <button className={menuBarItem} onClick={() => { exportPdf(); setAppMenuOpen(null); }} disabled={!activeFrame}><FileDown size={14}/>Export page as PDF</button>
               <button className={menuBarItem} onClick={() => { if (activeFrame) downloadTelaHtml(doc, activeFrame.id); setAppMenuOpen(null); }} disabled={!activeFrame}><Monitor size={14}/>Export page as HTML</button>
               <button className={menuBarItem} onClick={() => { if (activeFrame) downloadTelaPage(doc, activeFrame); setAppMenuOpen(null); }} disabled={!activeFrame}><FileDown size={14}/>Export editable page data<span className="ml-auto text-[9px] text-white/25">JSON</span></button>
-              {activeVectorDevice() && <><button className={menuBarItem} onClick={() => { const vector = activeVectorDevice(); if (vector) { logTelaExport(doc, 'Vector SVG'); downloadTelaVectorSvg(vector, activeFrame?.label || doc.title); } setAppMenuOpen(null); }}><Shapes size={14}/>Export vector page<span className="ml-auto text-[9px] text-white/25">SVG</span></button><button className={menuBarItem} onClick={() => { const vector = activeVectorDevice(); if (vector) logTelaExport(doc, 'Rendered page (PNG)'); void downloadTelaVectorPng(vector, activeFrame?.label || doc.title); setAppMenuOpen(null); }}><ImageIcon size={14}/>Export rendered page<span className="ml-auto text-[9px] text-white/25">PNG</span></button></>}
+              {activeVectorDevice() && <><button className={menuBarItem} onClick={() => { const vector = activeVectorDevice(); if (vector) { logTelaExport(doc, 'Vector SVG'); downloadTelaVectorSvg(vector, activeFrame?.label || doc.title); } setAppMenuOpen(null); }}><Shapes size={14}/>Export vector page<span className="ml-auto text-[9px] text-white/25">SVG</span></button><button className={menuBarItem} onClick={() => { const vector = activeVectorDevice(); if (vector) logTelaExport(doc, 'Rendered page (PNG)'); void downloadTelaVectorPng(vector, activeFrame?.label || doc.title); setAppMenuOpen(null); }}><ImageIcon size={14}/>Export rendered page<span className="ml-auto text-[9px] text-white/25">PNG</span></button><button className={menuBarItem} onClick={() => { setThemeSave({ title: activeFrame?.label || doc.title || '', busy: false, msg: null }); setAppMenuOpen(null); }}><Palette size={14}/>Save page as theme<span className="ml-auto text-[9px] text-white/25">My Themes</span></button></>}
               <div className="h-px my-1 bg-white/[.07]"/>
               <button className={menuBarItem} onClick={() => { downloadTelaBoard(doc); setAppMenuOpen(null); }}><LayoutPanelTop size={14}/>Export whole Tela board<span className="ml-auto text-[9px] text-white/25">.tela</span></button>
             </>}
@@ -6216,6 +6218,34 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           document.body,
         );
       })()}
+
+      {themeSave && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-label="Save page as theme" onClick={() => !themeSave.busy && setThemeSave(null)}>
+          <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-[#14141a] p-5 space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="text-base font-black text-white">Save page as theme</div>
+            <p className="text-xs text-white/60">Saves this page to <b>My Themes</b> (your Themes library). Open it there to apply it as your background.</p>
+            <input autoFocus value={themeSave.title} onChange={e => setThemeSave({ ...themeSave, title: e.target.value })} placeholder="Theme name" maxLength={80}
+              className="w-full rounded-lg bg-white/[0.07] border border-white/20 px-3 py-2 text-sm text-white outline-none focus:border-[#FF8C00]" />
+            {themeSave.msg && <div className="text-xs text-white/80" role="status">{themeSave.msg}</div>}
+            <div className="flex justify-end gap-2">
+              <button className="px-3 py-2 rounded-lg text-sm font-bold border border-white/20 text-white/80" disabled={themeSave.busy} onClick={() => setThemeSave(null)}>{themeSave.msg?.startsWith('Saved') ? 'Done' : 'Cancel'}</button>
+              <button className="px-4 py-2 rounded-lg text-sm font-black bg-[#FF8C00] text-black disabled:opacity-50" disabled={themeSave.busy || !themeSave.title.trim() || !!themeSave.msg?.startsWith('Saved')}
+                onClick={async () => {
+                  const vector = activeVectorDevice();
+                  if (!vector) { setThemeSave({ ...themeSave, msg: 'This page can’t be rendered as a background — use a vector/art page.' }); return; }
+                  setThemeSave({ ...themeSave, busy: true, msg: null });
+                  try {
+                    const image = await telaVectorPngBlob(vector);
+                    await saveImageAsTheme({ title: themeSave.title, image });
+                    setThemeSave(t => t && { ...t, busy: false, msg: 'Saved to My Themes.' });
+                  } catch (e: any) {
+                    setThemeSave(t => t && { ...t, busy: false, msg: e?.message || 'Could not save the theme.' });
+                  }
+                }}>{themeSave.busy ? 'Saving…' : 'Save theme'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Author-in-place flying menu ─────────────────────────────────────── */}
       {vectorContextMenu.node}
