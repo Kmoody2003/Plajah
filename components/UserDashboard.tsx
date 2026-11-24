@@ -235,6 +235,18 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
     );
   };
 
+  /**
+   * Appearance changes (background picture/video, the on/off switches) apply the moment you make
+   * them: saved straight to your account, and the app's live profile listener repaints the page.
+   * They used to sit in the form as a draft until the separate Save button was pressed — so a
+   * picture could be uploaded, never show, and be lost on reload.
+   */
+  const saveAppearance = async (patch: Partial<UserProfile>) => {
+    setProfile(prev => (prev ? { ...prev, ...patch } : prev));
+    try { await updateUserProfile(user.uid, patch); }
+    catch (err) { console.error(err); alert('Could not save that change. Please try again.'); }
+  };
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
@@ -1085,12 +1097,13 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                             type="text" 
                             value={profile.frostedBackground || ''}
                             onChange={(e) => setProfile({ ...profile, frostedBackground: e.target.value })}
+                            onBlur={(e) => saveAppearance({ frostedBackground: e.target.value.trim(), ...(e.target.value.trim() ? { customBgEnabled: true } : {}) })}
                             placeholder="https://images.unsplash.com/..."
                             className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-5 text-sm font-bold outline-none focus:ring-2 ring-white/20 transition-all font-mono"
                           />
                           <FileUploader 
                             type="PHOTO" 
-                            onUploadComplete={(url) => setProfile({ ...profile, frostedBackground: url })}
+                            onUploadComplete={(url) => saveAppearance({ frostedBackground: url, customBgEnabled: true })}
                             className="shrink-0"
                           />
                         </div>
@@ -1099,7 +1112,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                              <img loading="lazy" decoding="async" src={profile.frostedBackground || null} className="w-full h-full object-cover blur-sm opacity-50 group-hover:blur-0 group-hover:opacity-100 transition-all" />
                              <button 
                                type="button"
-                               onClick={() => setProfile({ ...profile, frostedBackground: '' })}
+                               onClick={() => saveAppearance({ frostedBackground: '' })}
                                className="absolute top-2 right-2 p-2 bg-black/60 text-white rounded-full hover:bg-red-500 transition-all"
                              >
                                <Trash2 size={14} />
@@ -1118,12 +1131,13 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                             type="text" 
                             value={profile.videoBackgroundUrl || ''}
                             onChange={(e) => setProfile({ ...profile, videoBackgroundUrl: e.target.value })}
+                            onBlur={(e) => saveAppearance({ videoBackgroundUrl: e.target.value.trim(), ...(e.target.value.trim() ? { customBgEnabled: true } : {}) })}
                             placeholder="https://...mp4"
                             className="flex-1 bg-white/5 border border-white/10 rounded-2xl p-5 text-sm font-bold outline-none focus:ring-2 ring-white/20 transition-all font-mono"
                           />
                           <FileUploader 
                             type="VIDEO" 
-                            onUploadComplete={(url) => setProfile({ ...profile, videoBackgroundUrl: url })}
+                            onUploadComplete={(url) => saveAppearance({ videoBackgroundUrl: url, customBgEnabled: true })}
                             className="shrink-0"
                           />
                         </div>
@@ -1132,7 +1146,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                           <div className="flex items-center gap-3">
                             <button 
                               type="button"
-                              onClick={() => setProfile({ ...profile, videoBackgroundBlur: profile.videoBackgroundBlur === false ? true : false })}
+                              onClick={() => saveAppearance({ videoBackgroundBlur: profile.videoBackgroundBlur === false })}
                               className={`w-10 h-6 rounded-full transition-all relative ${profile.videoBackgroundBlur !== false ? 'bg-small-orange' : 'bg-white/10'}`}
                             >
                               <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${profile.videoBackgroundBlur !== false ? 'left-5' : 'left-1'}`} />
@@ -1143,7 +1157,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                           <div className="flex items-center gap-3">
                             <button 
                               type="button"
-                              onClick={() => setProfile({ ...profile, videoBackgroundFrosted: profile.videoBackgroundFrosted === false ? true : false })}
+                              onClick={() => saveAppearance({ videoBackgroundFrosted: profile.videoBackgroundFrosted === false })}
                               className={`w-10 h-6 rounded-full transition-all relative ${profile.videoBackgroundFrosted !== false ? 'bg-small-orange' : 'bg-white/10'}`}
                             >
                               <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${profile.videoBackgroundFrosted !== false ? 'left-5' : 'left-1'}`} />
@@ -1164,7 +1178,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                              )}
                              <button 
                                type="button"
-                               onClick={() => setProfile({ ...profile, videoBackgroundUrl: '' })}
+                               onClick={() => saveAppearance({ videoBackgroundUrl: '' })}
                                className="absolute top-4 right-4 p-2 bg-black/60 text-white rounded-full hover:bg-red-500 transition-all opacity-0 group-hover:opacity-100"
                              >
                                <Trash2 size={14} />
@@ -1185,7 +1199,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                     </div>
                     <button
                       type="button"
-                      onClick={() => setProfile({ ...profile, customBgEnabled: profile.customBgEnabled === false ? true : false })}
+                      onClick={() => saveAppearance({ customBgEnabled: profile.customBgEnabled === false })}
                       className={`w-14 h-8 rounded-full transition-all relative shrink-0 ${profile.customBgEnabled !== false ? 'bg-small-orange' : 'bg-white/10'}`}
                     >
                       <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${profile.customBgEnabled !== false ? 'left-7' : 'left-1'}`} />
@@ -1199,7 +1213,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                     </div>
                     <button
                       type="button"
-                      onClick={() => setProfile({ ...profile, customThemeEnabled: profile.customThemeEnabled === false ? true : false })}
+                      onClick={() => saveAppearance({ customThemeEnabled: profile.customThemeEnabled === false })}
                       className={`w-14 h-8 rounded-full transition-all relative shrink-0 ${profile.customThemeEnabled !== false ? 'bg-small-orange' : 'bg-white/10'}`}
                     >
                       <div className={`absolute top-1 w-6 h-6 rounded-full bg-white transition-all ${profile.customThemeEnabled !== false ? 'left-7' : 'left-1'}`} />
