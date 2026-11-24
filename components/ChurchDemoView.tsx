@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { setActiveOrgSidebar } from '../services/orgSidebarLayout';
+import { ORG_PAGE_EVENT, useShellLeftRail, type OrgPageTarget } from '../services/experienceScope';
+import { ElevateScopePillar } from './elevate/ElevateScopePillar';
 import {
   ChevronLeft, Users, Image as ImageIcon, Calendar, Play, Heart, MessageSquare,
   MapPin, Clock, Ticket, ShoppingBag, ArrowRight, Home, HandHeart, Church, MessageCircle,
@@ -93,6 +95,19 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
     setActiveOrgSidebar({ orgId: c.id, orgName: c.name, layout: null, org: c, membership: null });
     return () => setActiveOrgSidebar(null);
   }, [c]);
+  // Top-bar layouts have no app sidebar: the demo page shows the Elevate pillar itself, and its links open tabs here.
+  const shellLeftRail = useShellLeftRail();
+  useEffect(() => {
+    const on = (e: Event) => {
+      const t = (e as CustomEvent<OrgPageTarget>).detail;
+      if (!t || t.orgId !== c.id) return;
+      setMode('member');
+      if (t.ministryId) { setTab('MINISTRIES'); setMinistryId(t.ministryId); }
+      else if (t.tab) { setTab((['HOME', 'MINISTRIES', 'MOBILIZE', 'PHOTOS', 'EVENTS', 'WATCH', 'PRAYER', 'LIBRARY', 'STAFF', 'GIVE'].includes(t.tab) ? t.tab : 'HOME') as Tab); setMinistryId(null); }
+    };
+    window.addEventListener(ORG_PAGE_EVENT, on);
+    return () => window.removeEventListener(ORG_PAGE_EVENT, on);
+  }, [c.id]);
 
   // Public page · Member home · Staff — the same three views every Elevate org page carries.
   const MODES = [
@@ -116,12 +131,19 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
       <EvScope className="h-full overflow-y-auto scrollbar-hide">
         <DemoRibbon label="church" accent={V} ctaText="Create your church" onCreate={onCreate} />
         {modeToggle}
-        <div key="hub" className="max-w-[1280px] mx-auto px-4 sm:px-8 py-6 ev-fade">
-          <ChurchMemberHub
-            org={c}
-            onOpenGive={() => { setMode('member'); setTab('GIVE'); }}
-            onOpenMinistry={id => { setMode('member'); setMinistryId(id); }}
-          />
+        <div key="hub" className="max-w-[1440px] mx-auto px-4 sm:px-8 py-6 ev-fade flex gap-6 items-start">
+          {!shellLeftRail && (
+            <aside aria-label={`${c.name} navigation`} className="hidden lg:block shrink-0 w-56 self-start sticky top-[108px]">
+              <ElevateScopePillar org={c} membership={null} onOpenOrg={() => {}} onOrgPage discoverLabel={false} />
+            </aside>
+          )}
+          <div className="min-w-0 flex-1">
+            <ChurchMemberHub
+              org={c}
+              onOpenGive={() => { setMode('member'); setTab('GIVE'); }}
+              onOpenMinistry={id => { setMode('member'); setMinistryId(id); }}
+            />
+          </div>
         </div>
       </EvScope>
     );
@@ -166,6 +188,11 @@ const ChurchDemoView: React.FC<{ onBack?: () => void; onCreate: () => void; onVi
       <EvTabs tabs={TABS} value={ministryId ? null : tab} onChange={k => { setTab(k as Tab); setMinistryId(null); }} top={52} />
 
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-8 flex flex-wrap gap-5 items-start">
+        {!shellLeftRail && (
+          <aside aria-label={`${c.name} navigation`} className="hidden lg:block shrink-0 w-56 self-start sticky top-[108px]">
+            <ElevateScopePillar org={c} membership={null} onOpenOrg={() => {}} onOrgPage discoverLabel={false} />
+          </aside>
+        )}
         <div className="min-w-0 space-y-10" style={{ flex: '999 1 420px' }}>
         <div key={ministryId || tab} className="ev-fade space-y-10">
         {/* ── Ministry detail (drill-down) ── */}

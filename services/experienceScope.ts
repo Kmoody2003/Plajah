@@ -26,6 +26,8 @@ const DAY = 86_400_000;
 export const STARTER_NAV: readonly string[] = ['FEED', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'BOOKS', 'PLAJAH_LABS', 'USER_PROFILE', 'CHAT', 'POSTMAN', 'HELP_CENTER'];
 /** "Pinned · Discover" under the org block for Elevate-scoped people. */
 export const ELEVATE_DISCOVER_NAV: readonly string[] = ['FEED', 'USER_PROFILE', 'CHAT', 'POSTMAN', 'PLAJAH_ELEVATE', 'HELP_CENTER'];
+/** "Pinned · Discover" under an org's pillar on its Elevate page (New Nav org mode). */
+export const ORG_PINNED_NAV: readonly string[] = ['FEED', 'USER_PROFILE', 'CHAT'];
 
 export interface ScopeProfile {
   navScope?: NavScope;
@@ -119,4 +121,25 @@ export function requestOrgPage(t: OrgPageTarget): void {
 export function takePendingOrgPage(orgId: string): OrgPageTarget | null {
   if (pending && pending.orgId === orgId) { const t = pending; pending = null; return t; }
   return null;
+}
+
+// ── Does the app shell have a left sidebar right now? ─────────────────────────────────────────────
+// The classic sidebar and the Command Split nav carry the Elevate pillar; the top-bar layouts (and phones)
+// have no left column, so the org page draws the pillar itself in that case.
+const RAIL_EVENT = 'plajah:shell-left-rail';
+let shellLeftRail = true;
+export function setShellLeftRail(on: boolean): void {
+  if (shellLeftRail === on) return;
+  shellLeftRail = on;
+  window.dispatchEvent(new CustomEvent(RAIL_EVENT));
+}
+export function useShellLeftRail(): boolean {
+  const [v, setV] = useState(shellLeftRail);
+  useEffect(() => {
+    const on = () => setV(shellLeftRail);
+    window.addEventListener(RAIL_EVENT, on);
+    setV(shellLeftRail);
+    return () => window.removeEventListener(RAIL_EVENT, on);
+  }, []);
+  return v;
 }

@@ -36,6 +36,7 @@ import ClubAnalyticsDashboard from './ClubAnalyticsDashboard';
 import MerchManager from './MerchManager';
 import ClubInviteLink from './ClubInviteLink';
 import ClubMembershipPaywall from './ClubMembershipPaywall';
+import ClubJoinRequests from './ClubJoinRequests';
 import ClubChannelSidebar from './ClubChannelSidebar';
 import type { ClubChannel } from '../types';
 
@@ -606,13 +607,15 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                 <UserMinus size={12} /> Leave
               </button>
             ) : membership?.status === 'PENDING' ? (
-              <span className="px-5 py-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-full text-[10px] font-black uppercase tracking-widest">Pending</span>
+              <span className="px-5 py-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-full text-[10px] font-black uppercase tracking-widest">Requested</span>
+            ) : membership?.status === 'DECLINED' ? (
+              <span className="px-5 py-2.5 bg-white/5 border border-white/15 text-white/50 rounded-full text-[10px] font-black uppercase tracking-widest" title="A club admin didn’t approve your request">Not approved</span>
             ) : (
               <button
                 onClick={() => setShowJoinModal(true)}
                 disabled={joining}
                 className="px-6 py-3 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-white/90 transition-all flex items-center gap-2">
-                <UserPlus size={12} /> {isPaidClub ? `Join · $${club.monthlyPrice}/mo` : 'Join Club'}
+                <UserPlus size={12} /> {isPaidClub ? `Join · $${club.monthlyPrice}/mo` : (club.isPrivate || club.joinProcess !== 'AUTO') ? 'Request to join' : 'Join Club'}
               </button>
             ))}
           </div>
@@ -1057,6 +1060,8 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
           {/* MEMBERS */}
           {activeTab === 'MEMBERS' && (
             <motion.div key="members" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              {/* Admins: who asked to join (private clubs / clubs that approve each member). */}
+              {isAdmin && <ClubJoinRequests clubId={club.id} onApproved={m => setMembers(ms => [...ms, m])} />}
               <h2 className="text-xs font-black uppercase tracking-widest opacity-60 mb-8">{members.length} Members</h2>
               <div className="space-y-2">
                 {members.map(mem => (

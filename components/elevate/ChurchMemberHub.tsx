@@ -74,6 +74,10 @@ import VespersRecap from '../scripture/VespersRecap';
 import { sessionIdFor } from '../../services/kairosService';
 import ElevateMobilizeHub from './ElevateMobilizeHub';
 import MyOrgTasksAndDepartments from './MyOrgTasksAndDepartments';
+import TodayForYou from './TodayForYou';
+import OrgThread from './OrgThread';
+import HostEventsPublic from '../events/HostEventsPublic';
+import { DEMO_CHURCH_FEED, DEMO_CHURCH_EVENTS } from '../../data/demoShowcase';
 import InstallAppCard from './InstallAppCard';
 import MinistryPage from './MinistryPage';
 import { ensureDefaultTemplatedClassrooms, type ChurchProgram } from '../../services/churchEducationService';
@@ -128,33 +132,19 @@ function getStudioNavItems(orgType: Organization['orgType'] | undefined, vocab: 
   badge?: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
 }> {
-  if (orgType === 'CULTURAL') {
-    return [
-      { id: 'SANCTUARY_STUDIO', label: 'Institution Hub & Live TV', badge: 'LIVE', icon: Sparkles },
-      { id: 'MOBILIZE_AND_SHIFTS', label: 'Docent Shifts, Spokes & Impact', badge: 'SHIFTS', icon: Calendar },
-      { id: 'COMMUNICATIONS', label: 'Communications · Chat & Discussions', badge: 'FORUM', icon: MessagesSquare },
-      { id: 'DEVOTIONAL_AND_BIBLE_365', label: 'Daily Reflection & Reading 365', badge: 'DAY 289', icon: Flame },
-      { id: 'RECENT_LESSONS_AND_VESPERS', label: 'Lectures & Exhibition Briefs', icon: GraduationCap },
-      { id: 'HYMNS_PRAYERS_AND_SCORES', label: 'Repertoire, Scores & Archives', badge: 'LOREA', icon: Music },
-    ];
-  }
-  if (orgType === 'NONPROFIT') {
-    return [
-      { id: 'SANCTUARY_STUDIO', label: 'Mission Hub & Live TV', badge: 'LIVE', icon: Sparkles },
-      { id: 'MOBILIZE_AND_SHIFTS', label: 'Action, Shifts & Petitions', badge: 'ACTION', icon: Calendar },
-      { id: 'COMMUNICATIONS', label: 'Communications · Chat & Discussions', badge: 'FORUM', icon: MessagesSquare },
-      { id: 'DEVOTIONAL_AND_BIBLE_365', label: 'Daily Mission & Reading 365', badge: 'DAY 289', icon: Flame },
-      { id: 'RECENT_LESSONS_AND_VESPERS', label: 'Trainings & Field Briefs', icon: GraduationCap },
-      { id: 'HYMNS_PRAYERS_AND_SCORES', label: 'Anthems, Media & Stories', badge: 'LOREA', icon: Music },
-    ];
-  }
+  // Short, plain names (the long showcase names were noise). Same sections for every org type.
+  const words = orgType === 'CULTURAL'
+    ? { serve: 'Shifts', reading: 'Daily reflection', lessons: 'Lectures', prayer: 'Archives' }
+    : orgType === 'NONPROFIT'
+    ? { serve: 'Take action', reading: 'Daily reading', lessons: 'Trainings', prayer: 'Stories' }
+    : { serve: 'Serve', reading: 'Daily reading', lessons: 'Lessons', prayer: vocab.prayersCollection.split(/[ &·]/)[0] || 'Prayer' };
   return [
     { id: 'SANCTUARY_STUDIO', label: 'Home', icon: Sparkles },
-    { id: 'MOBILIZE_AND_SHIFTS', label: 'Serve & shifts', icon: Calendar },
-    { id: 'COMMUNICATIONS', label: 'Communications', badge: 'CHAT & FORUM', icon: MessagesSquare },
-    { id: 'DEVOTIONAL_AND_BIBLE_365', label: `${vocab.dailyDevotional} · Bible in a year`, icon: Flame },
-    { id: 'RECENT_LESSONS_AND_VESPERS', label: `${vocab.serviceRecap}s & lessons`, icon: GraduationCap },
-    { id: 'HYMNS_PRAYERS_AND_SCORES', label: vocab.prayersCollection, icon: Music },
+    { id: 'MOBILIZE_AND_SHIFTS', label: words.serve, icon: Calendar },
+    { id: 'COMMUNICATIONS', label: 'Messages', icon: MessagesSquare },
+    { id: 'DEVOTIONAL_AND_BIBLE_365', label: words.reading, icon: Flame },
+    { id: 'RECENT_LESSONS_AND_VESPERS', label: words.lessons, icon: GraduationCap },
+    { id: 'HYMNS_PRAYERS_AND_SCORES', label: words.prayer, icon: Music },
   ];
 }
 
@@ -472,70 +462,77 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
     if (!(org.ministries || []).some(m => m.id === id)) { onOpenMinistry?.(id); return; }
     setOpenDept(prev => ({ id, classId, n: (prev?.n || 0) + 1 }));
   };
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [showInstall, setShowInstall] = useState(false);
+  const [showAllWork, setShowAllWork] = useState(false);
   const openClass = (classId: string) => { if (eduDept) openDepartment(eduDept.id, classId); else setSection('RECENT_LESSONS_AND_VESPERS'); };
 
-  return (
-    <div className="my-2 space-y-8">
-      {/* ── Greeting + in-service presence (schedule + GPS auto-engage drives Lectio follow-along) ── */}
-      <div className="flex flex-wrap justify-between items-end gap-4">
-        <div className="min-w-0">
-          <EvLabel>{memberRoleTitle ? `${memberRoleTitle} · ` : ''}{org.name}</EvLabel>
-          <h1 className="m-0 mt-2 ev-display text-white" style={{ fontSize: 'clamp(2.5rem, 5vw, 3.75rem)' }}>
-            {greetingLine}
-          </h1>
-        </div>
-        {demo ? (
-          <button
-            onClick={() => setSimulateInSanctuary(v => !v)}
-            className="ev-btn ev-btn-ghost"
-            title={`${autoEngageStatus.activeServiceLabel} · ${autoEngageStatus.coordinatesLabel}`}
-          >
-            {autoEngageStatus.autoEngaged
-              ? <><span className="ev-live-dot" /> In the sanctuary · Verse follows the service</>
-              : <><Navigation size={14} className="text-[#A49CB2]" /> Away · Verse on standby</>}
-          </button>
-        ) : nextServiceLabel ? (
-          <div className="flex items-center gap-2 text-[13px] text-[#A49CB2]">
-            <Clock size={14} /> {nextServiceLabel}
-          </div>
-        ) : null}
-        {!demo && membership?.status === 'ACTIVE' && (
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent('plajah:open-stage-upload', { detail: { orgId: org.id } }))}
-            className="ev-btn ev-btn-ghost"
-            title="Send an announcement image, video or backing track to the Stage operator"
-          >
-            <Megaphone size={14} className="text-[#FF8C00]" /> Send to Stage
-          </button>
-        )}
-      </div>
+  const homeOn = !openDept && section === 'SANCTUARY_STUDIO';
+  const readingRef = demo ? { book: 43, bookName: 'John', chapter: 8, verse: 12 } : activeDevo.scriptureRef;
+  const readingQuote = demo ? 'I am the light of the world. He who follows me will not walk in the darkness, but will have the light of life.' : activeDevo.scriptureQuote;
+  const readingCite = demo ? 'John 8:12' : activeDevo.scriptureDisplay;
+  const alsoToday = getBibleInAYearDay(todayDayNum).passages;
+  const firstService = (org.serviceTimes || [])[0];
+  const subLine = demo
+    ? (autoEngageStatus.autoEngaged ? 'In the sanctuary · Verse follows the service' : `Next: ${firstService ? `${firstService.day} ${firstService.time}` : 'Sunday'}`)
+    : firstService ? `Next: ${firstService.label || vocab.mainService} · ${firstService.day} ${firstService.time}` : org.name;
 
-      {/* ── Member home navigation ── */}
-      <nav aria-label="Member home" className="flex gap-6 overflow-x-auto scrollbar-hide border-b" style={{ borderColor: EV.line }}>
+  return (
+    <div className="my-2">
+      {/* ── Greeting: one line + next gathering; Give and a ⋯ menu for the occasional tools ── */}
+      <div className="flex flex-wrap items-end justify-between gap-3 pb-4">
+        <div className="min-w-0">
+          <h1 className="m-0 ev-display text-white" style={{ fontSize: 'clamp(1.75rem, 3vw, 2.1rem)', lineHeight: 1.1 }}>{greetingLine}</h1>
+          <p className="m-0 mt-1.5 text-[14px]" style={{ color: EV.muted }}>{memberRoleTitle ? `${memberRoleTitle} · ` : ''}{subLine}</p>
+        </div>
+        <div className="flex items-center gap-2 relative">
+          {onOpenGive && <button onClick={onOpenGive} className="ev-btn ev-btn-light" style={{ minHeight: 38 }}><HeartHandshake size={14} /> Give</button>}
+          <button onClick={() => setMoreOpen(v => !v)} aria-haspopup="menu" aria-expanded={moreOpen} aria-label="More" className="ev-btn ev-btn-ghost" style={{ minHeight: 38, padding: '0 12px' }}>⋯</button>
+          {moreOpen && (
+            <div role="menu" className="absolute right-0 top-full mt-2 z-[60] w-64 rounded-2xl border p-1.5 shadow-2xl" style={{ background: EV.panel, borderColor: EV.line }}>
+              {!demo && membership?.status === 'ACTIVE' && (
+                <button role="menuitem" onClick={() => { setMoreOpen(false); window.dispatchEvent(new CustomEvent('plajah:open-stage-upload', { detail: { orgId: org.id } })); }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-left text-[13px] text-white hover:bg-white/[0.06]">
+                  <Megaphone size={14} className="text-[#FF8C00]" /> Send to Stage
+                </button>
+              )}
+              <button role="menuitem" onClick={() => { setMoreOpen(false); setShowInstall(v => !v); }}
+                className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-left text-[13px] text-white hover:bg-white/[0.06]">
+                <Sparkles size={14} className="text-[#D0BCFF]" /> Install the {org.name} app
+              </button>
+              {demo && (
+                <button role="menuitem" onClick={() => { setMoreOpen(false); setSimulateInSanctuary(v => !v); }}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-left text-[13px] text-white hover:bg-white/[0.06]">
+                  <Navigation size={14} className="text-[#A49CB2]" /> {autoEngageStatus.autoEngaged ? 'Leave the sanctuary (demo)' : 'Pretend I’m in the sanctuary (demo)'}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      {showInstall && <div className="pb-4"><InstallAppCard orgName={org?.name} /></div>}
+
+      {/* ── Member home tabs: short names, pinned under the page's mode bar ── */}
+      <nav aria-label="Member home" className="sticky z-30 -mx-4 sm:-mx-8 px-4 sm:px-8 flex gap-6 overflow-x-auto scrollbar-hide border-b"
+        style={{ top: 52, borderColor: EV.line, background: 'rgba(14,12,19,0.94)', backdropFilter: 'blur(16px)' }}>
         {studioNavItems.map(item => (
-          <button key={item.id} onClick={() => { setSection(item.id); setOpenDept(null); }} className="ev-tab" aria-current={!openDept && section === item.id ? 'page' : undefined}>
+          <button key={item.id} onClick={() => { setSection(item.id); setOpenDept(null); }} className="ev-tab shrink-0" aria-current={!openDept && section === item.id ? 'page' : undefined}>
             {item.label}
           </button>
         ))}
       </nav>
 
-      {/* ── My departments: one tab per department this member is in ── */}
+      <div className="flex flex-wrap gap-6 items-start pt-6">
+      {/* ── Main column ── */}
+      <div className="min-w-0 space-y-6" style={{ flex: '999 1 420px' }}>
+      {/* Departments live in the left pillar; on narrow screens (no pillar) they stay as a chip row. */}
       {myDepartments.length > 0 && (
-        <nav aria-label="My departments" className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mt-4">
-          <span className="text-[10px] font-black uppercase tracking-[0.18em] text-[#A49CB2] shrink-0 pr-1">My departments</span>
+        <nav aria-label="My departments" className="lg:hidden flex items-center gap-2 overflow-x-auto scrollbar-hide">
           {myDepartments.map(m => {
             const active = openDept?.id === m.id;
             return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => (active ? setOpenDept(null) : openDepartment(m.id))}
-                aria-current={active ? 'page' : undefined}
-                className={`shrink-0 h-9 px-3.5 rounded-full text-[13px] font-bold inline-flex items-center gap-1.5 border transition ${
-                  active ? 'bg-[#7A1FC0] border-[#E2C27E]/60 text-white' : 'bg-white/[0.04] border-white/12 text-white/75 hover:text-white hover:bg-white/[0.08]'
-                }`}
-              >
-                {m.iconEmoji && <span aria-hidden="true">{m.iconEmoji}</span>}
+              <button key={m.id} type="button" onClick={() => (active ? setOpenDept(null) : openDepartment(m.id))} aria-current={active ? 'page' : undefined}
+                className={`shrink-0 h-9 px-3.5 rounded-full text-[13px] font-bold border transition ${active ? 'bg-[#7A1FC0] border-[#E2C27E]/60 text-white' : 'bg-white/[0.04] border-white/12 text-white/75 hover:text-white'}`}>
                 {m.name}
               </button>
             );
@@ -543,26 +540,52 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
         </nav>
       )}
 
-      {/* ── MAIN STUDIO BODY ── */}
       <div className="space-y-8">
-        {/* My work: departments, tasks & shifts, classes — first thing on Home, above the viewer. */}
-        {!openDept && section === 'SANCTUARY_STUDIO' && (
-          <MyOrgTasksAndDepartments
-            org={org}
-            membership={membership}
-            departments={myDepartments}
-            programs={programs}
-            seesAllClasses={canEditContent}
-            onOpenDepartment={id => openDepartment(id)}
-            onOpenClass={openClass}
-            onOpenServe={() => setSection('MOBILIZE_AND_SHIFTS')}
-          />
+        {/* Home: one "Today for you" card, then the members' feed. */}
+        {homeOn && (
+          <div className="ev-fade space-y-5">
+            <TodayForYou
+              org={org}
+              departments={myDepartments}
+              programs={programs}
+              seesAllClasses={canEditContent}
+              demo={demo}
+              onOpenClass={openClass}
+              onOpenServe={() => setSection('MOBILIZE_AND_SHIFTS')}
+              onSeeAll={() => setShowAllWork(v => !v)}
+              seeAllOpen={showAllWork}
+            />
+            {showAllWork && (
+              <MyOrgTasksAndDepartments
+                org={org}
+                membership={membership}
+                departments={myDepartments}
+                programs={programs}
+                seesAllClasses={canEditContent}
+                onOpenDepartment={id => openDepartment(id)}
+                onOpenClass={openClass}
+                onOpenServe={() => setSection('MOBILIZE_AND_SHIFTS')}
+              />
+            )}
+            {demo ? (
+              <div className="space-y-3">
+                {DEMO_CHURCH_FEED.map(p => (
+                  <article key={p.id} className="rounded-2xl p-4 border" style={{ background: EV.panel, borderColor: EV.line }}>
+                    <div className="flex items-center gap-2.5">
+                      <img src={p.authorPhoto} className="w-9 h-9 rounded-full object-cover" alt="" />
+                      <div><p className="m-0 text-[14px] font-bold text-white">{p.author}</p><p className="m-0 text-[12px]" style={{ color: EV.muted }}>{p.when} ago · Members</p></div>
+                    </div>
+                    <p className="m-0 mt-3 text-[15px] leading-relaxed text-white/90">{p.text}</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <OrgThread org={org} myMembership={membership || null} readOnly={membership?.status !== 'ACTIVE'} />
+            )}
+          </div>
         )}
 
-        {/* Install Plajah as a web app on this device (hidden once installed). */}
-        {!openDept && section === 'SANCTUARY_STUDIO' && <InstallAppCard orgName={org?.name} />}
-
-        {/* A department opened from the tab row (Christian Ed shows its class tabs + class gallery). */}
+        {/* A department opened from the pillar or the chip row (Christian Ed shows its class tabs + class gallery). */}
         {openDept && openDeptMinistry && (
           <div className="ev-fade">
             <MinistryPage
@@ -574,214 +597,6 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
               initialClassId={openDept.classId}
               embedded
             />
-          </div>
-        )}
-
-        {/* PERSISTENT LIVE STREAM & MINISTRY TV CHANNEL CAROUSEL (Always mounted under the tabs so switching tabs never interrupts watching) */}
-        <RelloChurchViewer
-          org={org}
-          inSanctuaryAutoEngaged={inServiceNow}
-          onOpenFullLectio={ref => setFullLectioRef(ref)}
-          defaultPlayerExpanded={true}
-          viewerIsOrgMember={membership?.status === 'ACTIVE'}
-          compact={!!openDept}
-          onExpand={() => setOpenDept(null)}
-        />
-
-        {/* ═══════════════════════════════════════════════════════════════════════
-            TAB 1: SANCTUARY STUDIO OVERVIEW
-            ═══════════════════════════════════════════════════════════════════════ */}
-        {!openDept && section === 'SANCTUARY_STUDIO' && (
-          <div className="ev-fade space-y-8">
-            {/* Verse · today's reading on Vellum. Demo: sample church plan with Sunday's Stage cues in the
-                margin. Real church: today's devotional passage only — no invented notes, plan or progress. */}
-            {!demo ? (
-              <EvLectioSheet
-                planLabel={`Verse · ${vocab.dailyDevotional}`}
-                reference={activeDevo.scriptureDisplay}
-                verses={[{ n: activeDevo.scriptureRef.verse ?? 1, text: activeDevo.scriptureQuote }]}
-                onContinue={() => setFullLectioRef(activeDevo.scriptureRef)}
-              />
-            ) : (
-            <EvLectioSheet
-              planLabel="Verse · Through John with the church"
-              progressLabel="Gospel of John · 38%"
-              reference="John 8:12–14"
-              verses={[
-                { n: 12, text: 'Again, therefore, Jesus spoke to them, saying, “I am the light of the world. He who follows me will not walk in the darkness, but will have the light of life.”', highlight: true },
-                { n: 13, text: 'The Pharisees therefore said to him, “You testify about yourself. Your testimony is not valid.”' },
-                { n: 14, text: 'Jesus answered them, “Even if I testify about myself, my testimony is true, for I know where I came from, and where I am going…”' },
-              ]}
-              notes={[
-                { src: 'Stage · Sunday 14:20', text: 'Light isn’t a lamp we carry — it’s a Person we follow.' },
-                { src: 'Cross-reference', text: 'Isaiah 9:2 — “the people who walked in darkness have seen a great light.”' },
-                { src: 'Your note', text: 'Where am I still walking in the dark this week?' },
-              ]}
-              onContinue={() => setFullLectioRef({ book: 43, bookName: 'John', chapter: 8, verse: 12 })}
-              onAddNote={() => setFullLectioRef({ book: 43, bookName: 'John', chapter: 8, verse: 12 })}
-              footnote="Day 23 of 60 · 212 of the church read this today"
-            />
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* My Assigned Departments & Ministry Activities (7 cols) */}
-              <div
-                className="lg:col-span-7 rounded-3xl p-5 border space-y-4"
-                style={{
-                  background: 'rgba(24, 20, 31, 0.78)',
-                  borderColor: 'rgba(216, 210, 226, 0.18)',
-                }}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <div className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#E2C27E]">
-                      {t('My Covenant Departments & Ministry Roster', 'My ministries')}
-                    </div>
-                    <h3 className="text-lg font-bold text-white mt-0.5">
-                      {t('Active Ministry Activities & Upcoming Shifts', 'Where you serve')}
-                    </h3>
-                  </div>
-                  {onOpenGive && (
-                    <button
-                      onClick={onOpenGive}
-                      className="px-3.5 py-1.5 rounded-xl text-xs font-black text-black flex items-center gap-1.5"
-                      style={{ background: '#E2C27E' }}
-                    >
-                      <HeartHandshake size={13} />
-                      <span>{t('Sanctuary Giving', 'Give')}</span>
-                    </button>
-                  )}
-                </div>
-
-                {assignedMinistries.length === 0 && (
-                  <div className="ev-panel p-6 text-[15px] text-[#A49CB2] space-y-3">
-                    <div>You haven&apos;t joined a ministry yet.</div>
-                    {(org.ministries || []).length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {(org.ministries || []).filter(m => !m.parentId && !m.isInternal).slice(0, 8).map(m => (
-                          <button
-                            key={m.id}
-                            onClick={() => openDepartment(m.id)}
-                            className="ev-btn ev-btn-ghost"
-                            style={{ minHeight: 32, fontSize: 13 }}
-                          >
-                            {m.iconEmoji ? `${m.iconEmoji} ` : ''}{m.name}
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-[13px]">{org.name} hasn&apos;t listed its ministries here yet.</div>
-                    )}
-                  </div>
-                )}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {assignedMinistries.map(m => (
-                    <div
-                      key={m.id}
-                      onClick={() => openDepartment(m.id)}
-                      className="p-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 cursor-pointer transition-all flex flex-col justify-between gap-2"
-                    >
-                      <div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-bold text-white">
-                            {m.iconEmoji ? `${m.iconEmoji} ` : ''}
-                            {m.name}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase bg-[#7A1FC0]/60 text-[#D8D2E2] border border-[#D8D2E2]/25">
-                            {t('Active Member', 'Member')}
-                          </span>
-                        </div>
-                        {m.description && (
-                          <p className="text-xs text-white/65 mt-1 leading-snug">{m.description}</p>
-                        )}
-                      </div>
-                      {m.meetingTime && (
-                        <div className="text-[10px] font-mono text-[#E2C27E] flex items-center gap-1 pt-1 border-t border-white/10">
-                          <Clock size={10} />
-                          <span>{m.meetingTime}</span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-xs text-white/65">
-                    {t(
-                      'Multi-shift volunteer scheduling, automatic waitlists, covenants & spoke watch parties:',
-                      'Volunteer shifts and ways to serve'
-                    )}
-                  </span>
-                  <button
-                    onClick={() => setSection('MOBILIZE_AND_SHIFTS')}
-                    className="px-3.5 py-2 rounded-xl text-xs font-black text-white bg-[#7A1FC0] hover:bg-[#7A1FC0] border border-[#E2C27E]/50 flex items-center gap-1.5"
-                  >
-                    <Calendar size={13} className="text-[#E2C27E]" />
-                    <span>{t('Open Shifts, Covenants & Impact Passport →', 'Serve & shifts →')}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Today's Devotional & 365-Day Bible Snapshot Card (5 cols) */}
-              <div
-                className="lg:col-span-5 rounded-3xl p-5 border flex flex-col justify-between gap-4"
-                style={{
-                  background:
-                    'linear-gradient(155deg, rgba(122, 31, 192,0.28) 0%, rgba(16,8,32,0.92) 100%)',
-                  borderColor: 'rgba(226, 194, 126, 0.3)',
-                }}
-              >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-[#E2C27E]">
-                      {devotionalHourLabel(activeDevo.liturgicalHour, vocab, liturgical)}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full text-[9.5px] font-bold bg-[#E2C27E]/15 text-[#F0D9A6] border border-[#E2C27E]/35">
-                      Bible in a Year · Day {todayDayNum} / 365
-                    </span>
-                  </div>
-                  <h3
-                    className="text-xl font-bold text-white leading-snug"
-                    style={{ fontFamily: 'var(--font-display, "Outfit", "Space Grotesk", "Inter", sans-serif)', letterSpacing: '-0.02em' }}
-                  >
-                    {activeDevo.title}
-                  </h3>
-                  {demo ? (
-                    <blockquote className="p-3 rounded-xl bg-black/40 border-l-2 border-[#E2C27E] text-xs italic text-[#D8D2E2]/90 font-serif">
-                      “{activeDevo.scriptureQuote}” —{' '}
-                      <b className="not-italic text-[#E2C27E]">{activeDevo.scriptureDisplay}</b>
-                    </blockquote>
-                  ) : (
-                    // The reading sheet above already carries the devotional passage; list today's plan instead.
-                    <div className="flex flex-wrap gap-1.5">
-                      {getBibleInAYearDay(todayDayNum).passages.map(p => (
-                        <button
-                          key={p.category}
-                          onClick={() => setFullLectioRef(p.ref)}
-                          className="px-2.5 py-1 rounded-lg bg-black/40 border border-white/10 text-[11px] font-bold text-[#D8D2E2] hover:text-white"
-                        >
-                          {p.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-xs text-white/75 leading-relaxed line-clamp-3">
-                    {activeDevo.reflectionParagraphs[0]}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10">
-                  <button
-                    onClick={() => setSection('DEVOTIONAL_AND_BIBLE_365')}
-                    className="px-3.5 py-2 rounded-xl text-xs font-black text-black flex items-center gap-1.5"
-                    style={{ background: '#E2C27E' }}
-                  >
-                    <Flame size={13} />
-                    <span>{t('Open Devotional & 365-Day Plan', 'Open devotional & reading plan')}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -1264,6 +1079,69 @@ export const ChurchMemberHub: React.FC<ChurchMemberHubProps> = ({
             )}
           </div>
         )}
+      </div>
+
+      </div>
+
+      {/* ── Right column (Home): the video, today's reading right under it, then this week. One player
+          instance for every tab; off Home it floats as the mini player so watching never stops. ── */}
+      <aside aria-label="Watch and today's reading" className="min-w-0 space-y-4"
+        style={homeOn ? { flex: '1 1 320px', maxWidth: 420 } : { flex: '0 0 0px', width: 0 }}>
+        <RelloChurchViewer
+          org={org}
+          layout="column"
+          inSanctuaryAutoEngaged={inServiceNow}
+          onOpenFullLectio={ref => setFullLectioRef(ref)}
+          defaultPlayerExpanded={true}
+          viewerIsOrgMember={membership?.status === 'ACTIVE'}
+          compact={!homeOn}
+          onExpand={() => { setOpenDept(null); setSection('SANCTUARY_STUDIO'); }}
+        />
+        {homeOn && (
+          <>
+            <section aria-label="Today's reading" className="rounded-2xl px-5 py-[18px]" style={{ background: EV.vellum, color: EV.vellumInk }} data-testid="todays-reading">
+              <div className="flex items-center justify-between">
+                <p className="m-0 text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: EV.vellumGold }}>Today’s reading</p>
+                <span className="text-[11px]" style={{ color: EV.vellumMuted }}>Day {todayDayNum} of 365</span>
+              </div>
+              <div className="h-1 rounded-full mt-2.5" style={{ background: 'rgba(34,28,20,0.12)' }} aria-hidden="true">
+                <div className="h-1 rounded-full" style={{ width: `${Math.min(100, Math.round((todayDayNum / 365) * 100))}%`, background: EV.vellumGold }} />
+              </div>
+              <blockquote className="m-0 mt-3.5 ev-scripture text-[19px] leading-[1.5]">“{readingQuote}”</blockquote>
+              <p className="m-0 mt-2.5 text-[13px] font-semibold">{readingCite}</p>
+              {alsoToday.length > 0 && (
+                <p className="m-0 mt-2.5 text-[13px] leading-relaxed" style={{ color: '#4A4033' }}>
+                  Also today:{' '}
+                  {alsoToday.map((p, i) => (
+                    <React.Fragment key={p.category}>
+                      {i > 0 && ' · '}
+                      <button onClick={() => setFullLectioRef(p.ref)} className="underline decoration-dotted underline-offset-2 hover:no-underline">{p.label}</button>
+                    </React.Fragment>
+                  ))}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2 mt-3.5">
+                <button onClick={() => setFullLectioRef(readingRef)} className="min-h-[36px] px-3.5 rounded-full text-[12px] font-semibold" style={{ background: EV.vellumInk, color: EV.vellum }}>Read today</button>
+                <button onClick={() => setSection('DEVOTIONAL_AND_BIBLE_365')} className="min-h-[36px] px-3.5 rounded-full text-[12px] font-semibold border" style={{ borderColor: 'rgba(34,28,20,0.2)' }}>Reflection</button>
+              </div>
+            </section>
+
+            <section aria-label="This week" className="rounded-2xl border px-4 pt-3.5 pb-2" style={{ background: EV.panel, borderColor: EV.line }}>
+              <p className="m-0 mb-2 text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: EV.muted }}>This week</p>
+              {demo ? (
+                DEMO_CHURCH_EVENTS.slice(0, 2).map(e => (
+                  <div key={e.id} className="flex items-center gap-3 py-2.5 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <span className="w-14 shrink-0 text-[12px] font-bold" style={{ color: EV.muted }}>{e.date.split(',')[0]}</span>
+                    <span className="text-[14px] font-semibold text-white truncate">{e.title}</span>
+                  </div>
+                ))
+              ) : (
+                <HostEventsPublic host={{ kind: 'org', id: org.id, name: org.name }} accent={EV.violet} limit={2} emptyText="Nothing on the calendar this week." />
+              )}
+            </section>
+          </>
+        )}
+      </aside>
       </div>
 
       {/* Full-Screen Lectio Reader Modal when opened from Mini-Bible or 365-Day Plan */}

@@ -59,7 +59,8 @@ import ReelloDeptChannelsRow from './reello/ReelloDeptChannelsRow';
 import OrgMediaShelf from './orgPublish/OrgMediaShelf';
 import RelloChurchViewer from './elevate/RelloChurchViewer';
 import { setActiveOrgSidebar } from '../services/orgSidebarLayout';
-import { ORG_PAGE_EVENT, takePendingOrgPage, type OrgPageTarget } from '../services/experienceScope';
+import { ORG_PAGE_EVENT, takePendingOrgPage, useShellLeftRail, type OrgPageTarget } from '../services/experienceScope';
+import { ElevateScopePillar } from './elevate/ElevateScopePillar';
 import { setLastOrgId } from '../services/elevateHome';
 import OrgSwitcher from './elevate/OrgSwitcher';
 import PlajahIdCard from './PlajahIdCard';
@@ -468,6 +469,14 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
   }, [org, myMembership?.id, myMembership?.status, myMembership?.ministryIds?.join(','), myMembership?.ministryRoles?.length]);
   // Plajah ID: the org's permanent identity. Its owner/admins mint it on first visit (routes/plajahId.ts checks).
   const orgPjId = useOrgPlajahId(isDemoOrg(org) ? undefined : org.id, isOwner || !!org.admins?.includes(auth.currentUser?.uid || ''));
+  // Top-bar layouts have no app sidebar: the page draws the Elevate pillar itself for members.
+  const shellLeftRail = useShellLeftRail();
+  const inPagePillar = !shellLeftRail && myMembership?.status === 'ACTIVE' && isElevateOrg(org.orgType);
+  const pagePillar = inPagePillar ? (
+    <aside aria-label={`${org.name} navigation`} className="hidden lg:block shrink-0 w-56 self-start sticky top-[108px]">
+      <ElevateScopePillar org={org} membership={myMembership} uid={auth.currentUser?.uid} onOpenOrg={() => {}} onOrgPage discoverLabel={false} />
+    </aside>
+  ) : null;
   const elevate = isElevateOrg(org.orgType);
   const faith = isFaithOrg(org.orgType);
   const can = (p: Parameters<typeof elevateCan>[2]) => isOwner || elevateCan(myMembership, org, p);
@@ -560,7 +569,9 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
     return (
       <EvScope ref={pageScrollRef} className="h-full overflow-y-auto scrollbar-hide">
         {modeToggle}
-        <div key="member" className="max-w-[1280px] mx-auto px-4 sm:px-8 py-6 ev-fade">
+        <div key="member" className="max-w-[1440px] mx-auto px-4 sm:px-8 py-6 ev-fade flex gap-6 items-start">
+          {pagePillar}
+          <div className="min-w-0 flex-1">
           <Suspense fallback={<div className="flex justify-center py-20"><Loader2 className="animate-spin text-white/30" size={24} /></div>}>
             <ChurchMemberHub
               org={org}
@@ -570,6 +581,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
               onOpenMinistry={id => { setView('public'); setTab('MINISTRIES'); setOpenMinistry(id); }}
             />
           </Suspense>
+          </div>
         </div>
       </EvScope>
     );
@@ -640,6 +652,7 @@ const OrgProfile: React.FC<{ org: Organization; isOwner: boolean; onBack: () => 
       <EvTabs tabs={orgTabs.map(t => ({ k: t.k, label: t.label }))} value={ministryOpen ? null : tab} onChange={k => { setTab(k as ElevateOrgTab); setOpenMinistry(null); }} top={52} />
 
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 py-8 flex flex-wrap gap-5 items-start">
+        {pagePillar}
         <div className="min-w-0 space-y-8" style={{ flex: '999 1 420px' }}>
         {applyFor && <ApplyModal posting={applyFor} orgName={org.name} onClose={() => setApplyFor(null)} />}
 

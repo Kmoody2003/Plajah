@@ -46,11 +46,13 @@ interface PillarProps {
   onOpenOrg: (orgId: string) => void;
   /** Is the org page showing right now (highlights Home). */
   onOrgPage?: boolean;
+  /** End with the "Pinned · Discover" heading (off when the host nav prints its own). */
+  discoverLabel?: boolean;
 }
 
 const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
-export const ElevateScopePillar: React.FC<PillarProps> = ({ org, membership, uid, collapsed, onOpenOrg, onOrgPage }) => {
+export const ElevateScopePillar: React.FC<PillarProps> = ({ org, membership, uid, collapsed, onOpenOrg, onOrgPage, discoverLabel = true }) => {
   const depts = useMemo(() => (membership ? memberDepartments(org, membership, uid || '') : []), [org, membership, uid]);
   const go = (t: { tab?: string; ministryId?: string }) => { requestOrgPage({ orgId: org.id, ...t }); onOpenOrg(org.id); };
   const links = orgLinks(org.orgType);
@@ -113,7 +115,7 @@ export const ElevateScopePillar: React.FC<PillarProps> = ({ org, membership, uid
           );
         })}
       </section>
-      <p className="px-1 -mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-white/45">Pinned · Discover</p>
+      {discoverLabel && <p className="px-1 -mb-2 text-[10px] font-bold uppercase tracking-[0.14em] text-white/45">Pinned · Discover</p>}
     </div>
   );
 };

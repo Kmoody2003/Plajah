@@ -1,15 +1,14 @@
 // MinistryPage — public page for one ministry/department: about, meeting time, Follow, specialized workspace (Christian Education / Music Department), and its thread.
-import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Clock, UserPlus, Check, Store, Eye } from 'lucide-react';
+import React, { useState } from 'react';
+import { ArrowLeft, Clock, Store, Eye } from 'lucide-react';
 import type { Organization, OrgMembership, Ministry } from '../../types';
 import OrgThread from './OrgThread';
 import OrgStoreSection from './OrgStoreSection';
-import { followMinistry, unfollowMinistry, listenFollowedState } from '../../services/orgFollowService';
-import { auth } from '../../services/backendService';
 import { isEducationMinistry, isMusicDepartmentMinistry } from '../../services/elevateTemplates';
 import ChurchEducation from '../church/ChurchEducation';
 import { ChurchMusicDepartmentHub, type MusicSubCategoryKey } from './ChurchMusicDepartmentHub';
 import PrayerCallCard from './prayerCall/PrayerCallCard';
+import GroupMembershipButton, { GroupJoinRequests } from './GroupMembershipButton';
 
 const MinistryPage: React.FC<{
   org: Organization;
@@ -23,13 +22,7 @@ const MinistryPage: React.FC<{
   /** Inside the member home: no page padding (the home already has it). */
   embedded?: boolean;
 }> = ({ org, ministry, myMembership, onBack, onVisitUser, onOrgChange, initialClassId, embedded = false }) => {
-  const [following, setFollowing] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [manageShop, setManageShop] = useState(false);
-  useEffect(
-    () => listenFollowedState(org.id, s => setFollowing(s.ministries.includes(ministry.id))),
-    [org.id, ministry.id]
-  );
   // Re-read the ministry from the latest org so audience switches reflect immediately.
   const live = org.ministries?.find(m => m.id === ministry.id) || ministry;
 
@@ -55,19 +48,6 @@ const MinistryPage: React.FC<{
       (live.headUids || []).includes(myMembership.userId) ||
       // Heads/admins of this department hold it as a ministry role.
       (myMembership.ministryRoles || []).some(r => r.ministryId === live.id && /HEAD|ADMIN|DIRECTOR|LEAD/i.test(r.roleKey)));
-
-  const toggle = async () => {
-    if (!auth.currentUser) {
-      alert('Sign in to follow.');
-      return;
-    }
-    setBusy(true);
-    try {
-      following ? await unfollowMinistry(org.id, live.id) : await followMinistry(org.id, live.id);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <div
@@ -102,28 +82,12 @@ const MinistryPage: React.FC<{
           )}
           {live.leaderName && <p className="text-[10px] text-white/40 mt-1">Led by {live.leaderName}</p>}
         </div>
-        {live.allowFollowers && (
-          <button
-            onClick={toggle}
-            disabled={busy}
-            className={`flex items-center gap-1.5 px-5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest shrink-0 disabled:opacity-40 ${
-              following
-                ? 'bg-white/10 text-white border border-white/15'
-                : 'bg-small-orange text-black'
-            }`}
-          >
-            {following ? (
-              <>
-                <Check size={12} /> Following
-              </>
-            ) : (
-              <>
-                <UserPlus size={12} /> Follow
-              </>
-            )}
-          </button>
-        )}
+        {/* Member · Follow (public) · Requested · Request to join (leaders approve) */}
+        <GroupMembershipButton org={org} ministry={live} myMembership={myMembership} />
       </div>
+
+      {/* Leaders: people asking to join this group. */}
+      {canEdit && <GroupJoinRequests org={org} ministry={live} />}
 
       {/* Prayer Call: live card for this ministry's members, Start for its leaders (faith orgs only; renders nothing otherwise). */}
       <PrayerCallCard org={org} ministry={live} />

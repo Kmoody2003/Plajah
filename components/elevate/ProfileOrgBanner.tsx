@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { ArrowUpRight, Bell, Check, Church, Clock, KeyRound, Loader2, UserCheck } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ArrowUpRight, Bell, Check, Church, ChevronDown, Clock, KeyRound, Loader2, UserCheck } from 'lucide-react';
 import type { OrgMembership, UserProfile } from '../../types';
 import { auth } from '../../services/backendService';
 import {
@@ -36,6 +36,17 @@ const ProfileOrgBanner: React.FC<ProfileOrgBannerProps> = ({
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
   const [myMemberships, setMyMemberships] = useState<Map<string, OrgMembership>>(new Map());
   const [busyFollowId, setBusyFollowId] = useState<string | null>(null);
+  const [openOrgId, setOpenOrgId] = useState<string | null>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!openOrgId) return;
+    const onDown = (e: MouseEvent) => { if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpenOrgId(null); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpenOrgId(null); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [openOrgId]);
 
   useEffect(() => {
     let alive = true;
@@ -112,124 +123,105 @@ const ProfileOrgBanner: React.FC<ProfileOrgBannerProps> = ({
     }
   };
 
+  const openItem = orgs.find(o => o.orgId === openOrgId) || null;
+  const itemBtn =
+    'flex w-full items-center gap-3 rounded-[14px] px-3 py-2.5 text-left text-[13px] font-bold text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00DAF3] transition-colors';
+  const iconBox = 'grid h-8 w-8 shrink-0 place-items-center rounded-[10px]';
+
   return (
-    <div className={`mt-4 space-y-2.5 max-w-2xl ${isMobile ? 'mx-auto text-left' : ''}`}>
-      <p className="text-[9px] font-black uppercase tracking-[0.25em] text-[#C4B5FD]/80 flex items-center gap-1.5">
-        <Church size={11} className="text-[#C4B5FD]" />
-        {orgs.some(o => o.isOfficialAccount) ? 'Organization & Elevate Hub' : 'Organization & Ministry Affiliation'}
-      </p>
+    <div
+      ref={wrapRef}
+      className={`relative mt-4 flex flex-wrap items-center gap-2.5 ${isMobile ? 'justify-center' : ''}`}
+    >
+      <span className="text-[10px] font-black uppercase tracking-[0.25em] text-white/60">
+        {orgs.some(o => o.isOfficialAccount) ? 'Elevate Hub' : 'Affiliations'} &middot; {orgs.length}
+      </span>
 
-      <div className="space-y-2.5">
-        {orgs.map(item => {
-          const isFol = followedIds.has(item.orgId);
-          const myMem = myMemberships.get(item.orgId);
-          const isMember = myMem?.status === 'ACTIVE';
-          const isPending = myMem?.status === 'PENDING';
-
-          return (
-            <div
-              key={item.orgId}
-              className="rounded-2xl border border-[#7A1FC0]/30 bg-gradient-to-r from-[#7A1FC0]/15 via-white/[0.03] to-[#7A1FC0]/10 p-3.5 transition-all"
-            >
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleOpenOrg(item.orgId)}
-                  className="flex items-center gap-3 min-w-0 flex-1 text-left group"
-                >
-                  <span className="w-11 h-11 rounded-xl overflow-hidden bg-white/10 border border-white/15 shrink-0 grid place-items-center text-xs font-black text-white/70">
-                    {item.orgLogoUrl ? (
-                      <img src={item.orgLogoUrl} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <Church size={18} className="text-[#C4B5FD]" />
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1.5 text-sm font-black text-white group-hover:text-[#C4B5FD] transition-colors truncate">
-                      {item.orgName}
-                      <ArrowUpRight size={13} className="text-[#C4B5FD] shrink-0" />
-                    </span>
-                    <span className="block text-[10px] font-bold text-white/55 truncate">
-                      {[item.roleTitle, item.ministryName].filter(Boolean).join(' · ') || item.tagline || 'Open Org / Elevate Page'}
-                    </span>
-                  </span>
-                </button>
-
-                {/* Action buttons: Open Org Page · Follow Org · Claim / Request Membership */}
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenOrg(item.orgId)}
-                    className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 border border-white/15 text-[9px] font-black uppercase tracking-widest text-white flex items-center gap-1 transition-all"
-                  >
-                    Org / Elevate Page <ArrowUpRight size={11} />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleToggleFollow(item.orgId)}
-                    disabled={busyFollowId === item.orgId}
-                    title="Follow this organization for public updates & streams (no approval needed)"
-                    className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1 transition-all ${
-                      isFol
-                        ? 'bg-white/10 text-white border border-white/20'
-                        : 'bg-small-orange text-black hover:brightness-110'
-                    }`}
-                  >
-                    {busyFollowId === item.orgId ? (
-                      <Loader2 size={10} className="animate-spin" />
-                    ) : isFol ? (
-                      <Check size={10} />
-                    ) : (
-                      <Bell size={10} />
-                    )}
-                    {isFol ? 'Following Org' : 'Follow Org'}
-                  </button>
-
-                  {isMember ? (
-                    <span className="px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-[9px] font-black uppercase tracking-widest flex items-center gap-1">
-                      <Check size={10} /> Org Member
-                    </span>
-                  ) : isPending ? (
-                    <span
-                      title="Your membership onboarding request is awaiting approval from organization leadership"
-                      className="px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-200 text-[9px] font-black uppercase tracking-widest flex items-center gap-1"
-                    >
-                      <Clock size={10} /> Membership Pending Approval
-                    </span>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => openElevateGatewayModal({ orgKey: item.orgId, mode: 'claim' })}
-                        title="Already a member of this organization? Claim your pre-provisioned membership seat or create your account."
-                        className="px-3 py-1.5 rounded-full bg-gradient-to-r from-[#7A1FC0] to-[#7A1FC0] text-white text-[9px] font-black uppercase tracking-widest hover:brightness-110 flex items-center gap-1 shadow-[0_4px_14px_rgba(122,31,192,0.3)] transition-all"
-                      >
-                        <KeyRound size={10} /> Claim My Org Membership
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openElevateGatewayModal({ orgKey: item.orgId, mode: 'join' })}
-                        title="Request organization membership (doubles as member onboarding + Plajah account creation; requires org approval)."
-                        className="px-3 py-1.5 rounded-full bg-[#7A1FC0]/15 hover:bg-[#7A1FC0]/25 border border-[#7A1FC0]/40 text-[#C4B5FD] text-[9px] font-black uppercase tracking-widest flex items-center gap-1 transition-all"
-                      >
-                        <UserCheck size={10} /> Request Membership
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {!isMember && (
-                <p className="mt-2 pt-2 border-t border-white/5 text-[10px] text-white/40 leading-relaxed">
-                  <span className="text-white/60 font-bold">Following vs. Membership:</span> Following gives you public updates.{' '}
-                  <span className="text-[#C4B5FD] font-semibold">Org Membership</span> is for real people who belong to {item.orgName}, requires approval from leadership, and doubles as member onboarding + creating or claiming your account.
-                </p>
+      {orgs.map((item, i) => {
+        const showName = i === 0;
+        return (
+          <button
+            key={item.orgId}
+            type="button"
+            onClick={() => setOpenOrgId(prev => (prev === item.orgId ? null : item.orgId))}
+            aria-haspopup="menu"
+            aria-expanded={openOrgId === item.orgId}
+            aria-label={item.orgName}
+            title={[item.orgName, item.roleTitle].filter(Boolean).join(' · ')}
+            className={`inline-flex h-12 items-center gap-2.5 rounded-full border border-white/15 bg-white/5 hover:bg-white/10 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00DAF3] ${
+              showName ? 'pl-1.5 pr-4' : 'px-1.5'
+            }`}
+          >
+            <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-xl bg-white/10 border border-white/15">
+              {item.orgLogoUrl ? (
+                <img src={item.orgLogoUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <Church size={16} className="text-[#C4B5FD]" />
               )}
+            </span>
+            {showName && <span className="max-w-[200px] truncate text-[13px] font-bold text-white">{item.orgName}</span>}
+            {showName && <ChevronDown size={12} className="text-white/60" aria-hidden="true" />}
+          </button>
+        );
+      })}
+
+      {openItem && (() => {
+        const isFol = followedIds.has(openItem.orgId);
+        const myMem = myMemberships.get(openItem.orgId);
+        const isMember = myMem?.status === 'ACTIVE';
+        const isPending = myMem?.status === 'PENDING';
+        return (
+          <div
+            role="menu"
+            className="absolute left-0 top-full z-50 mt-2 w-[340px] max-w-[calc(100vw-32px)] rounded-[22px] border border-white/15 bg-[#0e0b17] p-2 shadow-[0_24px_60px_rgba(0,0,0,0.6)]"
+          >
+            <div className="px-3 pt-3 pb-2">
+              <p className="text-[10px] font-black uppercase tracking-[0.25em] text-white/60 truncate">{openItem.orgName}</p>
+              <p className="mt-1.5 text-[12px] font-medium text-white/60 truncate">
+                {[openItem.roleTitle, openItem.ministryName].filter(Boolean).join(' · ') || openItem.tagline || 'Organization'}
+              </p>
             </div>
-          );
-        })}
-      </div>
+            <button type="button" role="menuitem" className={itemBtn} onClick={() => { setOpenOrgId(null); handleOpenOrg(openItem.orgId); }}>
+              <span className={`${iconBox} bg-white/[0.08]`}><ArrowUpRight size={15} /></span>
+              <span>Open Org / Elevate page<span className="block text-[11px] font-medium text-white/60">Their public page</span></span>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className={itemBtn}
+              disabled={busyFollowId === openItem.orgId}
+              onClick={() => handleToggleFollow(openItem.orgId)}
+            >
+              <span className={`${iconBox} ${isFol ? 'bg-white/[0.08]' : 'bg-small-orange text-black'}`}>
+                {busyFollowId === openItem.orgId ? <Loader2 size={14} className="animate-spin" /> : isFol ? <Check size={14} /> : <Bell size={14} />}
+              </span>
+              <span>{isFol ? 'Following org' : 'Follow org'}<span className="block text-[11px] font-medium text-white/60">Public updates, no approval needed</span></span>
+            </button>
+            {isMember ? (
+              <div className={`${itemBtn} cursor-default hover:bg-transparent`}>
+                <span className={`${iconBox} bg-emerald-500/20 text-emerald-300`}><UserCheck size={14} /></span>
+                <span>You are a member</span>
+              </div>
+            ) : isPending ? (
+              <div className={`${itemBtn} cursor-default hover:bg-transparent`}>
+                <span className={`${iconBox} bg-amber-500/20 text-amber-200`}><Clock size={14} /></span>
+                <span>Membership pending<span className="block text-[11px] font-medium text-white/60">Awaiting approval from leadership</span></span>
+              </div>
+            ) : (
+              <>
+                <button type="button" role="menuitem" className={itemBtn} onClick={() => { setOpenOrgId(null); openElevateGatewayModal({ orgKey: openItem.orgId, mode: 'claim' }); }}>
+                  <span className={`${iconBox} bg-[#7A1FC0] text-white`}><KeyRound size={14} /></span>
+                  <span>Claim my membership<span className="block text-[11px] font-medium text-white/60">Already a member? Claim your seat or create your account</span></span>
+                </button>
+                <button type="button" role="menuitem" className={itemBtn} onClick={() => { setOpenOrgId(null); openElevateGatewayModal({ orgKey: openItem.orgId, mode: 'join' }); }}>
+                  <span className={`${iconBox} bg-white/[0.08] text-[#C4B5FD]`}><UserCheck size={14} /></span>
+                  <span>Request membership<span className="block text-[11px] font-medium text-white/60">For real members. Needs leadership approval.</span></span>
+                </button>
+              </>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 };
