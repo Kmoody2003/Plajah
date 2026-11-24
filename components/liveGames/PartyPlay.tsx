@@ -6,6 +6,7 @@ import { usePartyGame } from './usePartyGame';
 import { Scoreboard } from './SketchRushPlay';
 import { isGuest } from '../../services/liveGames/client';
 import { PARTY_TITLES, type PartyKind } from '../../services/liveGames/party';
+import { ParlorStage3D } from './ParlorStage3D';
 
 const THEME: Record<PartyKind, { from: string; icon: React.ReactNode; chip: string }> = {
   trivia: { from: 'from-[#0d3b66] via-[#132a52] to-[#0b1630]', icon: <Brain size={12} />, chip: 'from-sky-500 to-indigo-600' },
@@ -20,6 +21,7 @@ export default function PartyPlay({ gid, compact = false, onOpenFull }: { gid: s
   const { game, mine, me, secondsLeft } = L;
   const [text, setText] = useState('');
   const [nick, setNick] = useState('');
+  const [stage3d, setStage3d] = useState(!compact);
 
   if (L.missing) return <Box kind="trivia" compact={compact}><p className="p-6 text-center text-sm text-white/70">This game has closed.</p></Box>;
   if (!game) return <Box kind="trivia" compact={compact}><div className="flex h-40 items-center justify-center"><Loader2 className="animate-spin text-white/60" /></div></Box>;
@@ -30,15 +32,25 @@ export default function PartyPlay({ gid, compact = false, onOpenFull }: { gid: s
 
   return (
     <Box kind={k} compact={compact}>
-      <div className="flex items-center gap-2 px-3 pt-3">
+      {!compact && stage3d && <ParlorStage3D kind={k} status={game.status} secondsLeft={secondsLeft} />}
+      <div className="relative z-10 flex items-center gap-2 px-3 pt-3">
         <span className={`flex items-center gap-1 rounded-full bg-gradient-to-r ${THEME[k].chip} px-2.5 py-1 text-[11px] font-black uppercase tracking-wide`}>{THEME[k].icon} {PARTY_TITLES[k]}</span>
+        {!compact && (
+          <button
+            type="button"
+            onClick={() => setStage3d((v) => !v)}
+            className="rounded-full border border-white/15 bg-black/35 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/80 hover:bg-black/55"
+          >
+            {stage3d ? '3D Stage: On' : '3D Stage: Off'}
+          </button>
+        )}
         {game.status !== 'ended' && game.status !== 'lobby' && <span className="flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold uppercase"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />Live</span>}
         <span className="ml-auto flex items-center gap-1 text-xs text-white/70"><Users size={13} />{game.players}</span>
         {game.round > 0 && <span className="text-xs text-white/70">{game.round}/{game.settings.rounds}</span>}
         {secondsLeft > 0 && game.status !== 'reveal' && <span className={`min-w-[2.6rem] rounded-full px-2 py-0.5 text-center text-sm font-black tabular-nums ${secondsLeft <= 5 ? 'animate-pulse bg-red-500' : 'bg-white/15'}`}>{secondsLeft}s</span>}
       </div>
 
-      <div className={`grid gap-3 p-3 ${compact ? '' : 'md:grid-cols-[1fr_17rem]'}`}>
+      <div className={`relative z-10 grid gap-3 p-3 ${compact ? '' : 'md:grid-cols-[1fr_17rem]'}`}>
         <div className="min-w-0 space-y-3">
           {game.status === 'lobby' && <Panel><div className="text-lg font-black">Waiting for {game.hostName} to start</div><div className="text-sm text-white/60">{game.players} joined so far</div></Panel>}
 
@@ -141,7 +153,7 @@ export default function PartyPlay({ gid, compact = false, onOpenFull }: { gid: s
         )}
       </div>
 
-      <div className="px-3 pb-3">
+      <div className="relative z-10 px-3 pb-3">
         {isGuest() && me && me.name.startsWith('Guest ') && game.status !== 'ended' && (
           <form className="mb-2 flex gap-2" onSubmit={e => { e.preventDefault(); if (nick.trim()) void L.join(nick.trim()); }}>
             <input value={nick} onChange={e => setNick(e.target.value)} maxLength={24} placeholder="Pick a nickname (optional)" className="flex-1 rounded-xl bg-white/10 px-3 py-2 text-sm outline-none placeholder:text-white/40" />
@@ -156,7 +168,7 @@ export default function PartyPlay({ gid, compact = false, onOpenFull }: { gid: s
 }
 
 function Box({ kind, compact, children }: { kind: PartyKind; compact: boolean; children: React.ReactNode }) {
-  return <div className={`overflow-hidden text-white ${compact ? 'rounded-2xl' : 'rounded-3xl'} bg-gradient-to-br ${THEME[kind].from} shadow-xl ring-1 ring-white/10`}>{children}</div>;
+  return <div className={`relative overflow-hidden text-white ${compact ? 'rounded-2xl' : 'rounded-3xl'} bg-gradient-to-br ${THEME[kind].from} shadow-xl ring-1 ring-white/10`}>{children}</div>;
 }
 function Panel({ children }: { children: React.ReactNode }) {
   return <div className="rounded-xl bg-black/25 p-3">{children}</div>;

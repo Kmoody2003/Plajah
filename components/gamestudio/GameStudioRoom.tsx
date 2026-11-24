@@ -16,6 +16,7 @@ import { allLevels, goalSentence } from '../../services/gamestudio/story/schema'
 import { placeModules, storyNames } from '../../services/gamestudio/story/build';
 import { ruleNames } from '../../services/gamestudio/rulePlayer';
 import { BEAT_COLOR, RulesPanel, StoryPanel } from './StoryPanel';
+import { AriaAssetPanel } from './AriaAssetPanel';
 
 const CreativeSyncPill = React.lazy(() => import('../creative/CreativeCloudPanels').then(m => ({ default: m.CreativeSyncPill })));
 const CreativeVersionHistory = React.lazy(() => import('../creative/CreativeCloudPanels').then(m => ({ default: m.CreativeVersionHistory })));
@@ -62,7 +63,7 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
   const project = useHistory(history);
   const [levelId, setLevelId] = useState(project.startLevel);
   const [mode, setMode] = useState<'edit' | 'play'>('edit');
-  const [left, setLeft] = useState<'outline' | 'props' | 'story'>('outline');
+  const [left, setLeft] = useState<'outline' | 'props' | 'story' | 'aria'>('outline');
   const [frameReady, setFrameReady] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [selected, setSelected] = useState<string | null>(null);
@@ -286,11 +287,12 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
 
     <div className="flex-1 flex min-h-0">
       {/* outline / props palette */}
-      {mode === 'edit' && <aside className="shrink-0 flex flex-col min-h-0" style={{ width: left === 'story' ? 312 : 236, background: C.panel, borderRight: `1px solid ${C.line}` }}>
+      {mode === 'edit' && <aside className="shrink-0 flex flex-col min-h-0" style={{ width: left === 'story' || left === 'aria' ? 324 : 236, background: C.panel, borderRight: `1px solid ${C.line}` }}>
         <div className="flex p-2 gap-1" role="tablist">
-          {(['outline', 'props', 'story'] as const).map(t => <button key={t} role="tab" aria-selected={left === t} onClick={() => setLeft(t)} className="flex-1 h-7 rounded-md text-[12px] font-bold" style={{ background: left === t ? 'rgba(255,255,255,.1)' : 'transparent' }} data-testid={`gs-tab-${t}`}>{t === 'outline' ? 'Level' : t === 'props' ? 'Props' : 'Story'}</button>)}
+          {(['outline', 'props', 'story', 'aria'] as const).map(t => <button key={t} role="tab" aria-selected={left === t} onClick={() => setLeft(t)} className="flex-1 h-7 rounded-md text-[12px] font-bold" style={{ background: left === t ? 'rgba(255,255,255,.1)' : 'transparent', color: t === 'aria' ? C.accent : undefined }} data-testid={`gs-tab-${t}`}>{t === 'outline' ? 'Level' : t === 'props' ? 'Props' : t === 'story' ? 'Story' : 'Aria'}</button>)}
         </div>
-        {left === 'story' ? <div className="flex-1 overflow-auto"><StoryPanel project={project} apply={apply} onOpenLevel={openLevel}/></div>
+        {left === 'aria' ? <div className="flex-1 overflow-auto"><AriaAssetPanel levelId={lvl.id} apply={apply}/></div>
+        : left === 'story' ? <div className="flex-1 overflow-auto"><StoryPanel project={project} apply={apply} onOpenLevel={openLevel}/></div>
         : left === 'outline' ? <div className="flex-1 overflow-auto px-2 pb-2" data-testid="gs-outline">
           <div className="text-[11px] font-bold tracking-[.16em] uppercase px-1 pb-2" style={{ color: C.dim }}>{lvl.name}</div>
           {storyLevel && project.story && <div className="mx-1 mb-3 p-2 rounded-lg text-[11.5px] leading-snug" style={{ background: 'rgba(255,255,255,.03)', border: `1px solid ${C.line}` }} data-testid="gs-story-context">

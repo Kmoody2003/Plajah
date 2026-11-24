@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "lib": ["ES2022", "DOM"],
+    "jsx": "react-jsx",
+    "types": ["node", "@webgpu/types"]
+  },
+  "include": [
+    "playkit/index.ts",
+    "playkit/core/**/*.ts",
+    "playkit/input/**/*.ts",
+    "playkit/physics/**/*.ts",
+    "playkit/audio/**/*.ts",
+    "playkit/platform/**/*.ts",
+    "playkit/modes/**/*.ts",
+    "playkit/render/**/*.ts",
+    "playkit/world/**/*.ts",
+    "playkit/adapters/**/*.ts",
+    "playkit/character/organicRig.ts",
+    "services/argilla/poly/subd.ts",
+    "services/cad/nurbs.ts",
+    "services/gamestudio/compiler/**/*.ts",
+    "services/gamestudio/pipelines/**/*.ts",
+    "services/gamestudio/ariaAgent.ts",
+    "services/gamestudio/imageToAsset.ts",
+    "components/gamestudio/AriaAssetPanel.tsx",
+    "components/liveGames/ParlorStage3D.tsx"
+  ]
+}
