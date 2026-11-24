@@ -571,3 +571,64 @@ export const adminConfig = {
   hasServiceAccount: () => !!serviceAccount(),                       // literal SA key (needed by the local seeder)
   hasCredentials: () => !!serviceAccount() || onManagedPlatform(),  // SA key OR Cloud Run ADC (for the API endpoints)
 };
+
+// ── Real counts and counters (platform metrics) ──────────────────────────────────
+
+export interface CountFilter { field: string; value: string | number | boolean; op?: 'EQUAL' | 'GREATER_THAN' | 'GREATER_THAN_OR_EQUAL' | 'LESS_THAN' | 'LESS_THAN_OR_EQUAL' }
+
+const filterValue = (v: string | number | boolean) =>
+  typeof v === 'string' ? { stringValue: v } : typeof v === 'boolean' ? { booleanValue: v } : Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+
+/** The true number of documents in a collection (optionally filtered) via a server-side count
+ *  aggregation — not a capped client read. Returns null when the count could not be taken, so a
+ *  failure never shows up as "0". */
+export async function fsCount(collection: string, filters: CountFilter[] = []): Promise<number | null> {
+  const ff = filters.map(f => ({ fieldFilter: { field: { fieldPath: f.field }, op: f.op || 'EQUAL', value: filterValue(f.value) } }));
+  const where = ff.length === 0 ? undefined : ff.length === 1 ? ff[0] : { compositeFilter: { op: 'AND', filters: ff } };
+  try {
+    const res = await fetch(`${baseFor(collection)}:runAggregationQuery`, {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify({ structuredAggregationQuery: { structuredQuery: { from: [{ collectionId: collection }], ...(where ? { where } : {}) }, aggregations: [{ alias: 'n', count: {} }] } }),
+    });
+    if (!res.ok) return null;
+    const rows = await res.json() as any[];
+    const n = rows?.[0]?.result?.aggregateFields?.n?.integerValue;
+    return n === undefined ? null : Number(n);
+  } catch { return null; }
+}
+
+/** Query with range operators, newest-first, for admin read models. Server-side only. */
+export async function fsQueryRange(
+  collection: string,
+  filters: CountFilter[],
+  limit = 200,
+  orderBy?: { field: string; direction: 'ASCENDING' | 'DESCENDING' },
+): Promise<Array<{ id: string; data: Record<string, any> }>> {
+  const ff = filters.map(f => ({ fieldFilter: { field: { fieldPath: f.field }, op: f.op || 'EQUAL', value: filterValue(f.value) } }));
+  const where = ff.length === 0 ? undefined : ff.length === 1 ? ff[0] : { compositeFilter: { op: 'AND', filters: ff } };
+  const body = { structuredQuery: { from: [{ collectionId: collection }], ...(where ? { where } : {}), limit, ...(orderBy ? { orderBy: [{ field: { fieldPath: orderBy.field }, direction: orderBy.direction }] } : {}) } };
+  try {
+    const res = await fetch(`${baseFor(collection)}:runQuery`, { method: 'POST', headers: await authHeaders(), body: JSON.stringify(body) });
+    if (!res.ok) return [];
+    const rows = await res.json() as any[];
+    return rows.filter(r => r.document).map(r => ({ id: String(r.document.name).split('/').pop()!, data: r.document.fields ? fromFields(r.document.fields) : {} }));
+  } catch { return []; }
+}
+
+/** Set some fields and atomically add to others in one write (creates the doc when absent). */
+export async function fsIncrementFields(path: string, set: Record<string, unknown>, increments: Record<string, number>): Promise<boolean> {
+  const root = docRootFor(path);
+  try {
+    const res = await fetch(`https://firestore.googleapis.com/v1/${root}:commit`, {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify({ writes: [{
+        update: { name: `${root}/${path}`, fields: toFields(set) },
+        updateMask: { fieldPaths: Object.keys(set) },
+        updateTransforms: Object.entries(increments).map(([fieldPath, by]) => ({ fieldPath, increment: { integerValue: String(Math.trunc(by)) } })),
+      }] }),
+    });
+    return res.ok;
+  } catch { return false; }
+}

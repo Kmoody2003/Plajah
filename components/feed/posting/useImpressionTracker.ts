@@ -74,6 +74,8 @@ export function useImpressionTracker(opts: ImpressionTrackerOptions): (el: HTMLE
     handlers.set(el, {
       enter: () => {
         if (visibleSince.current !== null) return;
+        // Tell the page whose post is on screen (the ad column follows the person in view).
+        try { window.dispatchEvent(new CustomEvent('plajah:feed-focus', { detail: { uid: cfg.current.authorId } })); } catch { /* ignore */ }
         visibleSince.current = Date.now();
         if (!counted.current) {
           timer.current = setTimeout(() => {

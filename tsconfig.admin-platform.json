@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true, "allowJs": false, "skipLibCheck": true },
+  "include": [
+    "routes/adminPlatform.ts", "routes/adPlatform.ts", "services/adEvents.ts", "services/adminPlatformService.ts",
+    "components/admin/AdminOverview.tsx", "components/admin/AdminAdPlatform.tsx", "components/AdminAdDashboard.tsx",
+    "components/AdminDashboard.tsx", "components/tv/AdBreakBumper.tsx", "services/analyticsService.ts"
+  ]
+}

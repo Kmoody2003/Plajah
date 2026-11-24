@@ -1,3 +1,4 @@
+import { reportAdEvent } from '../../services/adEvents';
 import { thumb, THUMB, onThumbError } from '../../src/lib/imageThumb';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Heart, Plus, HeartHandshake, Radio, Check } from 'lucide-react';
@@ -230,6 +231,8 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
     [plan, idx],
   );
   const imageAd = active?.kind === 'image' ? ads.find(a => a.imageUrl === active.url) : undefined;
+  // A site ad placement on screen = one impression; a click on it = one click (routes/adPlatform.ts).
+  useEffect(() => { if (imageAd?.id) reportAdEvent(imageAd.id, 'impression', 'config'); }, [imageAd?.id]);
   const showFm = !!active && (active.kind === 'fm' || active.kind === 'upnext' || (active.kind === 'image' && !imageAd));
 
   // Plajah FM's host for this hour says one fill-in line over the first FM stretch (a caption until
@@ -276,7 +279,7 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
       )}
 
       {imageAd && (
-        <a href={imageAd.linkUrl || undefined} target="_blank" rel="noopener noreferrer" className="absolute inset-0 block z-10">
+        <a href={imageAd.linkUrl || undefined} target="_blank" rel="noopener noreferrer" onClick={() => reportAdEvent(imageAd.id, 'click', 'config')} className="absolute inset-0 block z-10">
           <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 100% at 50% 0%, #14002b 0%, #04030a 70%)' }} />
           <img key={imageAd.id} src={imageAd.imageUrl} className="absolute inset-0 w-full h-full object-contain" alt={imageAd.title} />
           <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/50 backdrop-blur border border-white/10">

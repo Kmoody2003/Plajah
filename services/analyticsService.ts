@@ -317,6 +317,30 @@ export async function fetchAdminAnalytics(): Promise<AdminAnalytics> {
     });
   }
 
+  // The reads above are capped (200 albums, 100 games, 500 follows …) and load every user document, so
+  // the totals they give are floors, not counts. The server counts the real totals; use them when it can.
+  try {
+    const { fetchPlatformOverview } = await import('./adminPlatformService');
+    const ov = await fetchPlatformOverview();
+    const keep = (real: number | null, fallback: number) => (real == null ? fallback : real);
+    kpis.totalUsers = keep(ov.people.total, kpis.totalUsers);
+    kpis.newUsersLast30d = keep(ov.people.new30d, kpis.newUsersLast30d);
+    kpis.totalAlbums = keep(ov.content.albums, kpis.totalAlbums);
+    kpis.totalVideos = keep(ov.content.videos, kpis.totalVideos);
+    kpis.totalPosts = keep(ov.content.posts, kpis.totalPosts);
+    kpis.totalArticles = keep(ov.content.articles, kpis.totalArticles);
+    kpis.totalGames = keep(ov.content.games, kpis.totalGames);
+    kpis.totalPhotos = keep(ov.content.photos, kpis.totalPhotos);
+    kpis.totalWorlds = keep(ov.content.worlds, kpis.totalWorlds);
+    kpis.totalFollows = keep(ov.content.follows, kpis.totalFollows);
+    kpis.totalLiveStreams = keep(ov.content.liveFeed, kpis.totalLiveStreams);
+    const real: Record<string, number | null> = { Music: ov.content.albums, Video: ov.content.videos, Posts: ov.content.posts, Articles: ov.content.articles, Games: ov.content.games, Photos: ov.content.photos, Worlds: ov.content.worlds };
+    for (const c of contentBreakdown) if (real[c.name] != null) c.count = real[c.name] as number;
+    if (ov.signups.every(x => x.count != null)) ov.signups.forEach((x, i) => { recentSignups[i] = { date: x.label, count: x.count as number }; });
+  } catch (e) {
+    console.warn('[analytics] server totals unavailable; totals below are capped client reads:', (e as Error)?.message);
+  }
+
   return { kpis, contentBreakdown, topMusic, topVideos, topPosts, topUsers, recentSignups };
 }
 

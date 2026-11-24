@@ -60,6 +60,7 @@ import {
   Hash,
   HeartPulse,
   Clapperboard,
+  LayoutDashboard,
 } from 'lucide-react';
 
 /**
@@ -123,7 +124,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, SystemStats, AdConfig, Track, Album, Video, Photo, PostThemeBackground, InteractiveZone, SystemSettingsConfig, Universe, Playlist, VideoPlaylist } from '../types';
 import { 
   fetchAllUsers, 
-  fetchSystemStats, 
   fetchAdConfigs, 
   updateAdConfig, 
   deleteAdConfig,
@@ -180,6 +180,65 @@ import BillingFlagsAdmin from './billing/BillingFlagsAdmin';
 import PodFlagsAdmin from './pod/PodFlagsAdmin';
 import AdminFilmIngestVault from './admin/AdminFilmIngestVault';
 import AdminThreatProtection from './admin/AdminThreatProtection';
+import AdminOverview from './admin/AdminOverview';
+import AdminAdPlatform from './admin/AdminAdPlatform';
+
+/** The System Admin sections, grouped by what an admin is trying to do. One list drives the sidebar. */
+export const ADMIN_NAV: Array<{ title: string; items: Array<{ id: string; label: string; icon: React.ComponentType<{ size?: number }> }> }> = [
+  { title: 'Command', items: [
+    { id: 'OVERVIEW', label: 'Overview', icon: LayoutDashboard },
+    { id: 'ARIA_HQ', label: 'Aria HQ', icon: Activity },
+  ] },
+  { title: 'Insights', items: [
+    { id: 'ANALYTICS', label: 'Analytics', icon: BarChart3 },
+    { id: 'SITE_HEALTH', label: 'Site Health', icon: Activity },
+    { id: 'USER_HEALTH', label: 'User Health', icon: Activity },
+    { id: 'MEDIA_HEALTH', label: 'Media Health', icon: HeartPulse },
+    { id: 'UPLOAD_REPORTS', label: 'Upload Reports', icon: UploadCloud },
+    { id: 'ERRORS', label: 'Errors', icon: AlertTriangle },
+  ] },
+  { title: 'Trust & Safety', items: [
+    { id: 'THREAT_PROTECTION', label: 'Threat Protection (CSO)', icon: ShieldAlert },
+    { id: 'CONTENT_REPORTS', label: 'Content Reports', icon: ShieldAlert },
+    { id: 'API_KEYS', label: 'API Keys', icon: Lock },
+  ] },
+  { title: 'Money & Growth', items: [
+    { id: 'ADS', label: 'Ad Platform', icon: Megaphone },
+    { id: 'BILLING_FLAGS', label: 'Billing flags', icon: BarChart3 },
+    { id: 'POD_FLAGS', label: 'Print launch', icon: BookOpen },
+    { id: 'NOTIFY', label: 'Push Broadcast', icon: Bell },
+  ] },
+  { title: 'People', items: [
+    { id: 'ASSETS', label: 'User Assets', icon: FolderTree },
+    { id: 'PUBLISH_AS', label: 'Publish for User', icon: UploadCloud },
+    { id: 'STAFF', label: 'Staff Accounts', icon: Lock },
+    { id: 'ACHIEVEMENTS', label: 'Achievements & Points', icon: Trophy },
+  ] },
+  { title: 'Content & Media', items: [
+    { id: 'LIBRARY', label: 'Public Library', icon: LibraryBig },
+    { id: 'CURATED', label: 'Curated Content', icon: Sparkles },
+    { id: 'FILM_INGEST', label: 'Archive Film Vault', icon: HardDrive },
+    { id: 'CHORA_STREAMS', label: 'Chora Streaming', icon: Music },
+    { id: 'MUSIC_LAB', label: 'Music Lab', icon: Music },
+    { id: 'LIVE_FEEDS', label: 'Live Feeds', icon: Radio },
+    { id: 'CHANNEL_NUMBERS', label: 'Channel Numbers', icon: Hash },
+    { id: 'ENDLESS_HOUR', label: 'Endless Hour', icon: Radio },
+    { id: 'PLATFORM_MEDIA', label: 'Plajah Media Library', icon: Tv },
+    { id: 'EXPERIENCES', label: 'Experiences', icon: Clapperboard },
+    { id: 'SPORTS_AGENTS', label: 'Sports Agents', icon: Trophy },
+  ] },
+  { title: 'Site Appearance', items: [
+    { id: 'THEMES', label: 'Theme Manager', icon: Palette },
+    { id: 'LANDING_BG', label: 'Landing Background', icon: ImageIcon },
+    { id: 'CLUB_COVER_MEDIA', label: 'Club Cover Media', icon: VideoIcon },
+    { id: 'SPORTS_HERO', label: 'Sports Hero Images', icon: ImageIcon },
+    { id: 'UNIVERSE', label: 'Universe Manager', icon: Globe },
+  ] },
+  { title: 'System', items: [
+    { id: 'FEATURES', label: 'Feature Toggles', icon: Zap },
+    { id: 'MAINTENANCE', label: 'Maintenance', icon: Settings },
+  ] },
+];
 
 interface AdminDashboardProps {
   onBack: () => void;
@@ -212,10 +271,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'UPLOAD_REPORTS' | 'NOTIFY' | 'CHORA_STREAMS' | 'MEDIA_HEALTH' | 'EXPERIENCES' | 'BILLING_FLAGS' | 'POD_FLAGS' | 'PLATFORM_MEDIA' | 'CHANNEL_NUMBERS' | 'ENDLESS_HOUR' | 'FILM_INGEST' | 'MUSIC_LAB' | 'THREAT_PROTECTION' | 'CONTENT_REPORTS' | 'PUBLISH_AS' | 'API_KEYS' | 'ARIA_HQ'>('STATS');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'UPLOAD_REPORTS' | 'NOTIFY' | 'CHORA_STREAMS' | 'MEDIA_HEALTH' | 'EXPERIENCES' | 'BILLING_FLAGS' | 'POD_FLAGS' | 'PLATFORM_MEDIA' | 'CHANNEL_NUMBERS' | 'ENDLESS_HOUR' | 'FILM_INGEST' | 'MUSIC_LAB' | 'THREAT_PROTECTION' | 'CONTENT_REPORTS' | 'PUBLISH_AS' | 'API_KEYS' | 'ARIA_HQ'>('OVERVIEW');
   // The user the "Publish for User" tab opens on (set from the User Assets "Publish for this user" button).
   const [publishFor, setPublishFor] = useState<UserProfile | null>(null);
-  const [stats, setStats] = useState<SystemStats | null>(null);
+  const [navFilter, setNavFilter] = useState('');
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   const [contentLicensingOn, setContentLicensingOn] = useState(false);
   useEffect(() => {
@@ -375,15 +434,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      const [s, u, a, bgs, gi, uni] = await Promise.all([
-        fetchSystemStats(),
+      const [u, a, bgs, gi, uni] = await Promise.all([
         fetchAllUsers({ admin: true }),
         fetchAdConfigs(),
         fetchThemeBackgrounds(),
         fetchGlobalArchiveItems(),
         fetchUniverses()
       ]);
-      setStats(s);
       setUsers(u);
       setAds(a);
       setThemeBackgrounds(bgs);
@@ -656,60 +713,41 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
         {/* Twenty-four tabs do not fit on a laptop. Without this the list was simply clipped —
             no scrollbar, no indication anything was below — and every tab past about the
             eleventh was unreachable rather than merely hidden. */}
-        <nav className="flex-1 min-h-0 overflow-y-auto space-y-2 -mr-3 pr-3">
-          {[
-            { id: 'THREAT_PROTECTION', label: 'Threat Protection (CSO)', icon: ShieldAlert },
-            { id: 'ANALYTICS', label: 'Analytics', icon: BarChart3 },
-            { id: 'SITE_HEALTH', label: 'Site Health', icon: Activity },
-            { id: 'USER_HEALTH', label: 'User Health', icon: Activity },
-            { id: 'NOTIFY', label: 'Push Broadcast', icon: Bell },
-            { id: 'ERRORS', label: 'Errors', icon: AlertTriangle },
-            { id: 'UPLOAD_REPORTS', label: 'Upload Reports', icon: UploadCloud },
-            { id: 'CONTENT_REPORTS', label: 'Content Reports', icon: ShieldAlert },
-            { id: 'STATS', label: 'Stats (Legacy)', icon: Database },
-            { id: 'SPORTS_AGENTS', label: 'Sports Agents', icon: Trophy },
-            { id: 'LIBRARY', label: 'Public Library', icon: LibraryBig },
-            { id: 'FILM_INGEST', label: 'Archive Film Vault', icon: HardDrive },
-            { id: 'CHORA_STREAMS', label: 'Chora Streaming', icon: Music },
-            { id: 'MUSIC_LAB', label: 'Music Lab', icon: Music },
-            { id: 'MEDIA_HEALTH', label: 'Media Health', icon: HeartPulse },
-            { id: 'EXPERIENCES', label: 'Experiences', icon: Clapperboard },
-            { id: 'BILLING_FLAGS', label: 'Billing flags', icon: BarChart3 },
-            { id: 'POD_FLAGS', label: 'Print launch', icon: BookOpen },
-            { id: 'ASSETS', label: 'User Assets', icon: FolderTree },
-            { id: 'PUBLISH_AS', label: 'Publish for User', icon: UploadCloud },
-            { id: 'API_KEYS', label: 'API Keys', icon: Lock },
-            { id: 'ARIA_HQ', label: 'Aria HQ', icon: Activity },
-            { id: 'ADS', label: 'Ad Platform', icon: Megaphone },
-            { id: 'THEMES', label: 'Theme Manager', icon: Palette },
-            { id: 'ACHIEVEMENTS', label: 'Achievements & Points', icon: Trophy },
-            { id: 'LIVE_FEEDS', label: 'Live Feeds', icon: Radio },
-            { id: 'CHANNEL_NUMBERS', label: 'Channel Numbers', icon: Hash },
-            { id: 'ENDLESS_HOUR', label: 'Endless Hour', icon: Radio },
-            { id: 'PLATFORM_MEDIA', label: 'Plajah Media Library', icon: Tv },
-            { id: 'LANDING_BG', label: 'Landing Background', icon: ImageIcon },
-            { id: 'CLUB_COVER_MEDIA', label: 'Club Cover Media', icon: VideoIcon },
-            { id: 'SPORTS_HERO', label: 'Sports Hero Images', icon: ImageIcon },
-            { id: 'CURATED', label: 'Curated Content', icon: Sparkles },
-            { id: 'FEATURES', label: 'Feature Toggles', icon: Zap },
-            { id: 'MAINTENANCE', label: 'Maintenance', icon: Settings },
-            { id: 'STAFF', label: 'Staff Accounts', icon: Lock },
-            { id: 'UNIVERSE', label: 'Universe Manager', icon: Globe },
-          ].map(item => (
-            <button 
-              key={item.id}
-              onClick={() => setActiveTab(item.id as any)}
-              className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all ${
-                activeTab === item.id 
-                  ? 'bg-white text-black shadow-xl scale-[1.02]' 
-                  : 'text-white/40 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              <item.icon size={18} />
-              <span className="text-[10px] font-black uppercase tracking-widest">{item.label}</span>
-            </button>
-          ))}
+        <div className="shrink-0 mb-4">
+          <input
+            value={navFilter}
+            onChange={e => setNavFilter(e.target.value)}
+            placeholder="Find a section…"
+            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3 text-[11px] text-white placeholder-white/30 outline-none focus:border-white/30"
+          />
+        </div>
+        <nav className="flex-1 min-h-0 overflow-y-auto space-y-5 -mr-3 pr-3">
+          {ADMIN_NAV.map(group => {
+            const q = navFilter.trim().toLowerCase();
+            const items = q ? group.items.filter(i => i.label.toLowerCase().includes(q)) : group.items;
+            if (!items.length) return null;
+            return (
+              <div key={group.title} className="space-y-1">
+                <p className="px-4 pb-1 text-[9px] font-black uppercase tracking-[0.3em] text-white/25">{group.title}</p>
+                {items.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id as any)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all ${
+                      activeTab === item.id
+                        ? 'bg-white text-black shadow-xl'
+                        : 'text-white/40 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    <item.icon size={16} />
+                    <span className="text-[10px] font-black uppercase tracking-widest text-left">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
         </nav>
+
 
         <button 
           onClick={onBack}
@@ -726,88 +764,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
           {/* Appears on every tab once a rotating API key is within two weeks of lapsing. */}
           {activeTab !== 'API_KEYS' && <KeyRotationBanner onOpen={() => setActiveTab('API_KEYS')} />}
           <AnimatePresence mode="wait">
-            {activeTab === 'STATS' && stats && (
-              <motion.div 
-                key="stats"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="space-y-12"
-              >
-                <header className="space-y-2">
-                  <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Site Health</h1>
-                  <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Real-time platform performance metrics</p>
-                </header>
-
-                {/* Top Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                  {[
-                    { label: 'Total Users', value: stats.totalUsers, icon: Users, color: 'text-blue-500' },
-                    { label: 'Active (24h)', value: stats.activeUsers24h, icon: Activity, color: 'text-green-500' },
-                    { label: 'Storage Used', value: formatSize(stats.globalStorage.total), icon: HardDrive, color: 'text-purple-500' },
-                    { label: 'Daily Bandwidth', value: formatSize(stats.globalBandwidth.daily), icon: BarChart3, color: 'text-orange-500' },
-                  ].map(stat => (
-                    <div key={stat.label} className="p-8 bg-white/5 border border-white/5 rounded-[2.5rem] relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <stat.icon size={64} />
-                      </div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">{stat.label}</p>
-                      <p className={`text-3xl font-black tracking-tight ${stat.color}`}>{stat.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Storage Breakdown */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="p-10 bg-white/5 border border-white/5 rounded-[3rem] space-y-8">
-                    <h3 className="text-xl font-black uppercase tracking-widest flex items-center gap-3">
-                      <Database className="text-purple-500" size={20} />
-                      Storage per Section
-                    </h3>
-                    <div className="space-y-6">
-                      {[
-                        { label: 'Music & Audio', value: stats.globalStorage.audio, color: 'bg-blue-500' },
-                        { label: 'Video Content', value: stats.globalStorage.video, color: 'bg-red-500' },
-                        { label: 'Photos & Art', value: stats.globalStorage.photos, color: 'bg-green-500' },
-                      ].map(item => (
-                        <div key={item.label} className="space-y-2">
-                          <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                            <span className="text-white/40">{item.label}</span>
-                            <span>{formatSize(item.value)}</span>
-                          </div>
-                          <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-full ${item.color}`} 
-                              style={{ width: `${(item.value / stats.globalStorage.total) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="p-10 bg-white/5 border border-white/5 rounded-[3rem] space-y-8">
-                    <h3 className="text-xl font-black uppercase tracking-widest flex items-center gap-3">
-                      <BarChart3 className="text-orange-500" size={20} />
-                      Global Activity
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      {[
-                        { label: 'Music Albums', value: stats.sectionUsage.music },
-                        { label: 'Videos Uploaded', value: stats.sectionUsage.video },
-                        { label: 'Books in Shelf', value: stats.sectionUsage.books },
-                        { label: 'Photos Shared', value: stats.sectionUsage.photos },
-                      ].map(item => (
-                        <div key={item.label} className="p-6 bg-black/40 rounded-3xl border border-white/5">
-                          <p className="text-[9px] font-black uppercase tracking-widest text-white/20 mb-1">{item.label}</p>
-                          <p className="text-2xl font-black">{item.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
+            {activeTab === 'OVERVIEW' && <AdminOverview key="overview" onNavigate={t => setActiveTab(t as any)} />}
 
             {activeTab === 'SPORTS_AGENTS' && (
               <motion.div
@@ -1195,91 +1152,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
               </motion.div>
             )}
 
-            {activeTab === 'ADS' && (
-              <motion.div 
-                key="ads"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="space-y-12"
-              >
-                <header className="flex items-end justify-between">
-                  <div className="space-y-2">
-                    <h1 className="text-6xl md:text-[12rem] font-black uppercase tracking-tighter text-white leading-[0.8] italic select-none">Ad Platform</h1>
-                  <p className="text-white/40 text-sm font-bold uppercase tracking-widest mt-2">Configure campaigns, placements and revenue streams</p>
-                    <p className="text-white/40 text-sm font-bold uppercase tracking-widest">Manage site-wide advertising and placements</p>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      setEditingAd({});
-                      setShowAdModal(true);
-                    }}
-                    className="flex items-center gap-2 px-8 py-4 bg-white text-black rounded-full text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
-                  >
-                    <Plus size={16} /> Create New Campaign
-                  </button>
-                </header>
-
-                <div className="grid grid-cols-1 gap-6">
-                  {ads.map(ad => (
-                    <div key={ad.id} className="p-8 bg-white/5 border border-white/5 rounded-[3rem] flex flex-col md:flex-row gap-8 items-center">
-                      <img src={ad.imageUrl || null} alt="" className="w-full md:w-64 h-32 rounded-2xl object-cover border border-white/10" />
-                      <div className="flex-1 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h3 className="text-xl font-black uppercase tracking-tight">{ad.title}</h3>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-white/40">{ad.placement} Placement</p>
-                          </div>
-                          <div className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                            ad.isActive ? 'bg-green-500/20 text-green-400' : 'bg-white/5 text-white/20'
-                          }`}>
-                            {ad.isActive ? 'Active' : 'Paused'}
-                          </div>
-                        </div>
-                        <div className="flex gap-8">
-                          <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-white/20 mb-1">Impressions</p>
-                            <p className="text-lg font-black">{ad.impressions.toLocaleString()}</p>
-                          </div>
-                          <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-white/20 mb-1">Clicks</p>
-                            <p className="text-lg font-black">{ad.clicks.toLocaleString()}</p>
-                          </div>
-                          <div>
-                            <p className="text-[9px] font-black uppercase tracking-widest text-white/20 mb-1">CTR</p>
-                            <p className="text-lg font-black">
-                              {ad.impressions > 0 ? ((ad.clicks / ad.impressions) * 100).toFixed(2) : '0.00'}%
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => {
-                            setEditingAd(ad);
-                            setShowAdModal(true);
-                          }}
-                          className="p-4 bg-white/5 hover:bg-white/10 rounded-2xl transition-all"
-                        >
-                          <Settings size={20} />
-                        </button>
-                        <button 
-                          onClick={async () => {
-                            if (window.confirm('Delete this ad?')) {
-                              await deleteAdConfig(ad.id);
-                              setAds(ads.filter(a => a.id !== ad.id));
-                            }
-                          }}
-                          className="p-4 bg-white/5 hover:bg-red-500/20 hover:text-red-500 rounded-2xl transition-all"
-                        >
-                          <Trash2 size={20} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
+            {activeTab === 'ADS' && <AdminAdPlatform key="ads" />}
 
             {activeTab === 'THEMES' && (
               <motion.div 
