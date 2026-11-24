@@ -40,15 +40,15 @@ interface Spec {
   xp: number; tint: number;            // tell / hit colour
 }
 const SPECS: Record<PredatorKind, Spec> = {
-  wolf: { name: 'Feral Wolf', body: 'wolf', size: 1.05, hp: 70, run: 9.6, walk: 2.4, dmg: 11, reach: 2.4, tell: 0.45, strike: 0.25, recover: 0.7, sight: 34, fov: 130, nightEyes: true, xp: 25, tint: 0xff6a2a },
+  wolf: { name: 'Feral Wolf', body: 'wolf', size: 1.05, hp: 70, run: 9.6, walk: 2.4, dmg: 11, reach: 2.4, tell: 0.6, strike: 0.38, recover: 0.8, sight: 34, fov: 130, nightEyes: true, xp: 25, tint: 0xff6a2a },
   mantis: { name: 'Ambush Mantis', body: 'mantis', size: 1.0, hp: 120, run: 7.2, walk: 1.3, dmg: 22, reach: 3.3, tell: 0.75, strike: 0.25, recover: 1.1, sight: 20, fov: 170, ambush: 'foliage', venom: true, xp: 45, tint: 0xb6ff3a },
   wasp: { name: 'Plasma Wasp', body: 'wasp', size: 0.95, hp: 45, run: 8, walk: 2.5, dmg: 14, reach: 2.2, tell: 1.2, strike: 0.2, recover: 1.3, sight: 40, fov: 360, fly: { cruise: 4, perch: 9, attack: 3.2 }, ranged: 24, ambush: 'above', shock: true, xp: 30, tint: 0xff9a2a },
   bat: { name: 'Storm Bat', body: 'bat', size: 0.9, hp: 35, run: 10.5, walk: 3, dmg: 8, reach: 2.3, tell: 0.4, strike: 0.35, recover: 0.8, sight: 28, fov: 300, nightEyes: true, fly: { cruise: 3.2, attack: 0.2 }, shock: true, xp: 18, tint: 0x6ae8ff },
-  stalker: { name: 'Lumen Stalker', body: 'wolf', size: 1.5, hp: 230, run: 11.5, walk: 1.8, dmg: 26, reach: 3.0, tell: 0.6, strike: 0.3, recover: 1.0, sight: 42, fov: 150, nightEyes: true, xp: 90, tint: 0xff3a5a },
+  stalker: { name: 'Lumen Stalker', body: 'wolf', size: 1.5, hp: 230, run: 11.5, walk: 1.8, dmg: 26, reach: 3.0, tell: 0.75, strike: 0.42, recover: 1.1, sight: 42, fov: 150, nightEyes: true, xp: 90, tint: 0xff3a5a },
 };
 
 type State = 'idle' | 'patrol' | 'alert' | 'track' | 'stalk' | 'circle' | 'charge' | 'tell' | 'strike' | 'recover'
-  | 'retreat' | 'flee' | 'hide' | 'perch' | 'feed' | 'dead';
+  | 'retreat' | 'flee' | 'hide' | 'perch' | 'feed' | 'search' | 'dead';
 
 /** Something a predator can hunt: the player, or one of the rift's creatures. */
 export interface Prey { pos: THREE.Vector3; enemy: Enemy | null; quarry?: Quarry }
@@ -66,6 +66,8 @@ export interface PredatorEnv {
   /** Clear line between two points (no world in between). */
   clear(a: THREE.Vector3, b: THREE.Vector3): boolean;
   hurtPlayer(dmg: number, why: string): void;
+  /** Where the player is looking (flat, normalised): stalkers freeze in it and flank out of it. */
+  facing?(): THREE.Vector3 | null;
   /** A bite from outside the player's view turns them to face it (player.faceThreat). */
   faceThreat?(from: THREE.Vector3): void;
   damageEnemy(e: Enemy, dmg: number, dir: THREE.Vector3): boolean;   // true = killed
@@ -116,6 +118,12 @@ export class Predator {
   /** Dying on its rig's death clip (no code topple then). */
   deathClip = false;
   biteT = 0;
+  /** Gave the chase up: ignores the player for this long (unless hit or they walk right up). */
+  ignoreT = 0;
+  /** Where the pounce goes: follows the target through the first half of the wind-up, then locks (dodge it). */
+  readonly pounce = new THREE.Vector3();
+  /** The pounce line on the ground (made on first use). */
+  pounceLine: THREE.Mesh | null = null;
   readonly den: Den;
   private lastPos = new THREE.Vector3();
 
@@ -169,6 +177,7 @@ export class PredatorDirector {
   readonly noises: Noise[] = [];
   readonly crumbs: Crumb[] = [];
   private boltGeo = new THREE.SphereGeometry(0.16, 10, 8);
+  private lineGeo = new THREE.BoxGeometry(1, 0.02, 1);
   private moteGeo = new THREE.IcosahedronGeometry(0.22, 1);
   private moteMat = new THREE.MeshBasicNodeMaterial({ color: 0x7dffb0, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
   private max: number;
@@ -234,6 +243,7 @@ export class PredatorDirector {
     this.group.remove(p.mesh);
     const i = this.list.indexOf(p); if (i >= 0) this.list.splice(i, 1);
     if (p.pack) { p.pack.members = p.pack.members.filter((m) => m !== p); if (p.pack.token === p) p.pack.token = null; }
+    if (p.pounceLine) { this.group.remove(p.pounceLine); p.pounceLine = null; }
   }
 
   // ── damage from the player / hazards ─────────────────────────────────────────────────────────────────────────────
@@ -269,6 +279,7 @@ export class PredatorDirector {
     this.env.audio.play('screech', c, { gain: 0.8, rate: 0.6 });
     const d = this.dens.find((q) => q.live.includes(p)); if (d) d.deadAt.push(this.clock);
     if (p.pack) { p.pack.members = p.pack.members.filter((m) => m !== p); if (p.pack.token === p) p.pack.token = null; }
+    if (p.pounceLine) { this.group.remove(p.pounceLine); p.pounceLine = null; }
     // a life-mote rises from it
     const m = new THREE.Mesh(this.moteGeo, this.moteMat); m.position.copy(c); this.group.add(m);
     this.motes.push({ mesh: m, life: 30, heal: Math.round(8 + p.spec.xp * 0.25) });
@@ -299,7 +310,7 @@ export class PredatorDirector {
     let range = s.sight * (s.nightEyes ? 1 + 0.25 * night : 1 - 0.2 * night);
     if (p.state === 'hide' || p.state === 'perch') range *= 0.6;   // an ambusher watches a small patch
     const pr = range * (crouched ? 0.55 : sprinting ? 1.1 : 1);
-    const seenP = sees(player.pos, pr, true);
+    const seenP = p.ignoreT > 0 && player.pos.distanceTo(p.pos) > 7 ? 0 : sees(player.pos, pr, true);
     // the rift's creatures are loud and bright: seen without a sight line, inside the territory
     let bestE: Enemy | null = null, bestEd = Infinity;
     for (const e of enemies) {
@@ -392,9 +403,10 @@ export class PredatorDirector {
     const tgt = p.target, toT = tgt ? tmp.subVectors(tgt.pos, p.pos).setY(0) : null, dT = toT ? toT.length() : Infinity;
     const homeD = Math.hypot(p.pos.x - p.home.x, p.pos.z - p.home.z);
     // too far from home: give the chase up
-    if (p.engaged && homeD > p.den.r + 70) { p.state = 'patrol'; p.target = null; p.aware = 0; p.goal.copy(p.home); p.t = 10; }
-    // lost you: long out of sight and far off → go and search where it last saw you, then give up
-    else if (p.engaged && tgt && !tgt.enemy && !tgt.quarry && p.aware < 0.05 && dT > 25) { p.state = 'alert'; p.t = 8; p.target = null; }
+    p.ignoreT -= dt;
+    if (p.engaged && homeD > p.den.r + 70) { p.state = 'patrol'; p.target = null; p.aware = 0; p.goal.copy(p.home); p.t = 10; p.ignoreT = 20; }
+    // lost you: out of sight and far off → search where it last saw you for a while, then give up and go home
+    else if (p.engaged && tgt && !tgt.enemy && !tgt.quarry && p.aware < 0.05 && dT > 22) { p.state = 'search'; p.t = 7; p.target = null; p.goal.copy(p.lastKnown); }
     let crouch = 0, want = 0;
     switch (p.state) {
       case 'idle':
@@ -414,6 +426,13 @@ export class PredatorDirector {
         want = 0.6; p.body.glow = Math.min(p.body.glow, 0.45);
         if (p.t <= 0) { p.state = 'patrol'; p.t = 8; this.pickPatrol(p); }
         break;
+      case 'search': {
+        // nose down round the spot it lost you: small loops, a sniff, a growl; then it gives up for good
+        want = s.walk * 1.4; crouch = 0.5;
+        if (p.goal.distanceTo(tmp2.copy(p.pos).setY(p.goal.y)) < 1.5) { const a = Math.random() * 6.28, r = 3 + Math.random() * 5; p.goal.set(p.lastKnown.x + Math.sin(a) * r, p.lastKnown.y, p.lastKnown.z + Math.cos(a) * r); }
+        if (p.t <= 0) { p.state = 'patrol'; p.aware = 0; p.goal.copy(p.home); p.t = 14; p.ignoreT = 25; env.audio.play('growl', p.chest(tmp2), { gain: 0.5, rate: 0.85, gap: 2 }); }
+        break;
+      }
       case 'alert':
         want = s.walk * 2; p.goal.copy(p.lastKnown);
         if (p.goal.distanceTo(tmp2.copy(p.pos).setY(p.goal.y)) < 2 || p.t <= 0) { p.state = 'idle'; p.t = 3; }
@@ -429,18 +448,29 @@ export class PredatorDirector {
       }
       case 'stalk': {
         if (!tgt) { p.state = 'patrol'; break; }
-        crouch = s.body === 'mantis' ? 0.6 : 1; want = s.walk * 1.6;
+        crouch = s.body === 'mantis' ? 0.6 : 1; want = s.walk * 1.8;
         // a flank point behind the target (players: away from where they look), preferring one out of their sight
         if (p.senseT > 0.2) this.flankPoint(p, tgt, 9);
+        // watched: it freezes low (a still shape among the ferns) and creeps on when you look away
+        if (!tgt.enemy && !tgt.quarry && dT > 12 && this.watched(p, tgt)) { want = 0; p.body.glow = Math.min(p.body.glow, 0.5); }
         if (dT < 11 || p.t <= 0) { p.state = p.pack ? 'circle' : 'charge'; p.t = p.pack ? 2 + Math.random() * 2 : 5; }
         break;
       }
       case 'circle': {
         if (!tgt) { p.state = 'patrol'; break; }
         want = s.run * 0.55; crouch = 0.5;
-        p.slot += dt * 0.5 * (p.id % 2 ? 1 : -1);
-        p.goal.set(tgt.pos.x + Math.sin(p.slot) * 8, tgt.pos.y, tgt.pos.z + Math.cos(p.slot) * 8);
         const pk = p.pack;
+        const f = !tgt.enemy && !tgt.quarry ? env.facing?.() : null;
+        if (pk && f) {
+          // the pack splits round you: the first in front where you can see it, the others out wide and behind
+          const live = pk.members.filter((m) => m.alive), i = Math.max(0, live.indexOf(p));
+          const off = i === 0 ? 0 : (i % 2 ? 1 : -1) * (1.95 + 0.45 * Math.floor((i - 1) / 2));
+          const a = Math.atan2(f.x, f.z) + off + Math.sin(this.clock * 0.5 + i) * 0.2;
+          p.goal.set(tgt.pos.x + Math.sin(a) * 8.5, tgt.pos.y, tgt.pos.z + Math.cos(a) * 8.5);
+        } else {
+          p.slot += dt * 0.5 * (p.id % 2 ? 1 : -1);
+          p.goal.set(tgt.pos.x + Math.sin(p.slot) * 8, tgt.pos.y, tgt.pos.z + Math.cos(p.slot) * 8);
+        }
         const night = env.night() > 0.5;
         if (pk && !pk.token && p.t <= 0 && p.attackCd <= 0) { pk.token = p; pk.tokenT = 4; p.state = 'charge'; p.t = 4; }
         else if (!pk && p.t <= 0) { p.state = 'charge'; p.t = 4; }
@@ -457,7 +487,7 @@ export class PredatorDirector {
           if (dT < s.ranged && p.attackCd <= 0 && env.clear(p.chest(tmp2), tmp3.copy(tgt.pos).setY(tgt.pos.y + 1))) this.startTell(p);
         } else {
           p.goal.copy(tgt.pos);
-          if (dT < s.reach + (s.fly ? 2.5 : 0.8)) this.startTell(p);
+          if (dT < s.reach + (s.fly ? 2.5 : s.body === 'wolf' ? 3.2 : 0.8)) this.startTell(p);
         }
         if (p.t <= 0) { p.state = p.pack ? 'circle' : 'stalk'; p.t = 2; }
         break;
@@ -465,8 +495,10 @@ export class PredatorDirector {
       case 'tell': {
         // the wind-up: it stops and squares up, the body coils (creatures.ts uTell), the glow flares
         want = s.fly && !s.ranged ? s.walk : 0;
-        if (tgt) p.goal.copy(tgt.pos);
         const k = 1 - Math.max(0, p.t) / s.tell;
+        if (tgt && k < 0.5) p.pounce.lerp(tgt.pos, Math.min(1, dt * 10));
+        p.goal.copy(tgt && k < 0.5 ? tgt.pos : p.pounce);
+        if (!s.fly && !s.ranged) this.showPounce(p, k);
         p.body.tell = Math.min(1, k * 1.4); p.body.glow = 1 + k * 2.4;
         if (Math.random() < dt * 8) env.vfx.spawn(PREDATOR_TELL, p.chest(tmp2), { tint: s.tint, count: 0.6 });
         if (p.t <= 0) this.strike(p);
@@ -474,7 +506,9 @@ export class PredatorDirector {
       }
       case 'strike': {
         want = s.fly ? s.run * 1.3 : s.run * 1.6;               // the lunge carries it through
-        if (tgt && !s.ranged) p.goal.copy(tgt.pos);
+        // flyers home in; a pouncer goes where it locked (a sidestep makes it miss), carrying a little past
+        if (tgt && !s.ranged) { if (s.fly) p.goal.copy(tgt.pos); else p.goal.copy(p.pounce).addScaledVector(tmp2.subVectors(p.pounce, p.pos).setY(0).normalize(), 1.5); }
+        if (p.pounceLine) p.pounceLine.visible = false;
         if (!p.struck && tgt && !s.ranged) {
           const d = tgt.pos.distanceTo(p.pos);
           if (d < s.reach + 0.5 && Math.abs(tgt.pos.y - (p.pos.y + p.body.hover)) < 2.6 + p.body.hover) {
@@ -518,6 +552,7 @@ export class PredatorDirector {
     if (s.body === 'wolf' && s.size > 1.2 && ['patrol', 'track', 'alert', 'idle'].includes(p.state)) crouch = Math.max(crouch, 0.55); // the stalker always prowls low
     p.body.crouch += (crouch - p.body.crouch) * Math.min(1, dt * 5);
     if (p.state !== 'tell' && p.state !== 'strike') p.body.tell += (0 - p.body.tell) * Math.min(1, dt * 6);
+    if (p.state !== 'tell' && p.pounceLine?.visible) p.pounceLine.visible = false;
     p.speed += (want - p.speed) * Math.min(1, dt * (want > p.speed ? 4 : 6));
   }
 
@@ -525,6 +560,7 @@ export class PredatorDirector {
     const s = p.spec;
     if (p.attackCd > 0) return;
     p.state = 'tell'; p.t = s.tell; p.struck = false;
+    if (p.target) p.pounce.copy(p.target.pos);
     const c = p.chest(tmp2);
     if (s.body === 'wasp') this.env.audio.play('buzz', c, { gain: 1.1, rate: 1.3 });
     else if (s.body === 'bat') this.env.audio.play('screech', c, { gain: 1 });
@@ -575,6 +611,29 @@ export class PredatorDirector {
     if (s.shock) env.status.apply('shock', 0.6);
   }
 
+  /** Is the player looking at it (inside a 35° cone, with a sight line)? */
+  private watched(p: Predator, tgt: Prey) {
+    const f = this.env.facing?.(); if (!f) return false;
+    const dx = p.pos.x - tgt.pos.x, dz = p.pos.z - tgt.pos.z, d = Math.hypot(dx, dz);
+    if (d > 32 || (dx * f.x + dz * f.z) / d < 0.82) return false;
+    return this.env.clear(tmp3.copy(tgt.pos).setY(tgt.pos.y + 1.6), p.chest(tmp2));
+  }
+
+  /** The pounce line: a red streak on the ground from the predator to where it will land, brightening through the tell. */
+  private showPounce(p: Predator, k: number) {
+    if (!p.pounceLine) {
+      const m = new THREE.MeshBasicNodeMaterial({ color: p.spec.tint, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+      p.pounceLine = new THREE.Mesh(this.lineGeo, m); p.pounceLine.renderOrder = 4; p.pounceLine.frustumCulled = false;
+      this.group.add(p.pounceLine);
+    }
+    const L = p.pounceLine, dx = p.pounce.x - p.pos.x, dz = p.pounce.z - p.pos.z, len = Math.hypot(dx, dz) + 1.5;
+    L.visible = true;
+    L.position.set(p.pos.x + dx / 2, this.env.ground(p.pos.x + dx / 2, p.pos.z + dz / 2) + 0.08, p.pos.z + dz / 2);
+    L.rotation.set(0, Math.atan2(dx, dz), 0);
+    L.scale.set(0.35 + k * 0.5, 1, len);
+    (L.material as THREE.MeshBasicNodeMaterial).opacity = 0.15 + k * 0.75;
+  }
+
   private flankPoint(p: Predator, tgt: Prey, r: number) {
     // candidates round the target; score: behind them (players: their facing is unknown here, so use the side away
     // from the target's line to its den), short travel, and out of the target's sight line
@@ -587,6 +646,8 @@ export class PredatorDirector {
       const pt = tmp2.set(x, y + 1, z);
       let sc = -Math.abs(k) * 0.4 + Math.abs(k) * (p.id % 3 === 0 ? 0.5 : 0.25);   // pack members fan out to the sides
       if (!this.env.clear(eye, pt)) sc += 1.2;                                       // cover between it and the target
+      const f = !tgt.enemy && !tgt.quarry ? this.env.facing?.() : null;               // the player: get round behind them
+      if (f) sc -= ((x - tgt.pos.x) * f.x + (z - tgt.pos.z) * f.z) / r * 0.9;
       if (sc > best) { best = sc; p.goal.set(x, y, z); }
     }
   }

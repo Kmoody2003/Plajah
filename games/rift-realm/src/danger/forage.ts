@@ -56,6 +56,9 @@ export class Forage {
   private seen = new Set<string>();
   private regenLeft = 0; private regenRate = 0; private regenAcc = 0;
   private lureT = 0;
+  /** How full you are: each heal you eat adds to it (meat more), it wears off over ~20 s, and heals land smaller while
+   *  you're full, so berries can't be spammed in a fight. */
+  sated = 0;
   /** Damage dealt multiplier (Furyberry) and move multiplier (Swiftpod), read by the game. */
   dmgMul = 1; moveMul = 1;
   shield = 0;
@@ -195,8 +198,8 @@ export class Forage {
   private apply(e: ForageKind['effect'], k: ForageKind) {
     const env = this.env, st = env.status;
     switch (e.kind) {
-      case 'heal': env.heal(e.amount); break;
-      case 'regen': this.regenLeft = e.seconds; this.regenRate = e.amount / e.seconds; st.buff('regen', 'REGEN', '#7dffb0', e.seconds); break;
+      case 'heal': env.heal(Math.round(e.amount * this.fullMul(k))); break;
+      case 'regen': { const a = e.amount * this.fullMul(k); this.regenLeft = e.seconds; this.regenRate = a / e.seconds; st.buff('regen', 'REGEN', '#7dffb0', e.seconds); break; }
       case 'haste': st.buff('haste', 'SWIFT', '#9cff4a', e.seconds); this.hasteMul = e.mul; break;
       case 'fury': st.buff('fury', 'FURY', '#ff4860', e.seconds); this.furyMul = e.mul; break;
       case 'resonance': env.addResonance(e.amount); break;
@@ -208,6 +211,14 @@ export class Forage {
       case 'charge': env.charge?.(e.amount, 'chargecap'); st.buff('charge', `SPIRIT +${e.amount}`, '#ffe46a', 2.5); break;
       case 'blessing': st.buff('blessed', 'BLESSED', '#fff0b0', e.seconds); if (e.heal) env.heal(e.heal); break;
     }
+  }
+
+  /** A heal's size while full (and fills you up): 1 when empty, ~0.6 after two in a row, ~0.45 after three. */
+  private fullMul(k: ForageKind) {
+    const m = 1 / (1 + 0.35 * this.sated);
+    this.sated += k.shape === 'meat' ? 1.5 : k.shape === 'water' ? 0.4 : 1;
+    if (m < 0.85) this.env.status.buff('sated', `SATED ×${m.toFixed(1)}`, '#c8d8a0', 4);
+    return m;
   }
 
   /** The kind table (the eat action reads names / eat times). */
@@ -236,6 +247,7 @@ export class Forage {
   update(dt: number, playerPos: THREE.Vector3, active: boolean) {
     const env = this.env, st = env.status;
     this.uPhase.value = env.phase();
+    this.sated = Math.max(0, this.sated - dt / 20);
     // effects on timers
     this.moveMul = st.buffLeft('haste') > 0 ? this.hasteMul : 1;
     this.dmgMul = st.buffLeft('fury') > 0 ? this.furyMul : 1;

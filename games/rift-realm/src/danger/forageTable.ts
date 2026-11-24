@@ -44,7 +44,7 @@ export interface ForageKind {
 export const FORAGE_KINDS: Record<string, ForageKind> = {
   // ── fungi ──
   lumencap: { name: 'Lumencap', good: true, shape: 'cap', color: 0x0e3a4a, glow: 0x3ae6ff, rhythm: 'breath', tell: 'none', effect: { kind: 'regen', amount: 40, seconds: 10 }, hint: 'Lumencap: heals you over 10 s. Its glow breathes slowly.', respawn: 90 },
-  mimicap: { name: 'Mimic Cap', good: false, shape: 'cap', color: 0x0e3a4a, glow: 0x3ae6ff, rhythm: 'flicker', tell: 'ring', effect: { kind: 'poison', seconds: 8 }, hint: 'Mimic Cap: poisons you. It flickers fast, and close up there is a pale ring under the cap.', respawn: 90 },
+  mimicap: { name: 'Mimic Cap', good: false, shape: 'cap', color: 0x0e3a4a, glow: 0x3ae6ff, rhythm: 'flicker', tell: 'ring', effect: { kind: 'poison', seconds: 6 }, hint: 'Mimic Cap: poisons you. It flickers fast, and close up there is a pale ring under the cap.', respawn: 90 },
   pulsecap: { name: 'Pulsecap', good: true, shape: 'cap', color: 0x2a0e4a, glow: 0xb36aff, rhythm: 'beat', tell: 'none', effect: { kind: 'resonance', amount: 1 }, hint: 'Pulsecap: +1.0 resonance. It pulses ON the beat.', respawn: 75 },
   dreamcap: { name: 'Dreamcap', good: false, shape: 'cap', color: 0x2a0e4a, glow: 0xb36aff, rhythm: 'offbeat', tell: 'spines', effect: { kind: 'blur', seconds: 8 }, hint: 'Dreamcap: blurs your vision. It pulses OFF the beat, with fine spines on the stem.', respawn: 75 },
   // ── berries ──
@@ -63,7 +63,7 @@ export const FORAGE_KINDS: Record<string, ForageKind> = {
   swampwater: { name: 'Swamp Water', good: false, shape: 'water', color: 0x2a3a14, glow: 0x6a8a2a, rhythm: 'steady', tell: 'none', effect: { kind: 'poison', seconds: 5 }, hint: 'Swamp water: makes you sick. Drink from running water instead.', respawn: 0, eat: 1.2 },
   toxicwater: { name: 'Toxic Water', good: false, shape: 'water', color: 0x2a4a0c, glow: 0x8cff2a, rhythm: 'steady', tell: 'none', effect: { kind: 'poison', seconds: 10, dmg: 8 }, hint: 'Toxic water: poison. The glowing green pools are never safe.', respawn: 0, eat: 1.2 },
   // ── spirit: charge mushrooms (the fungi that hold spirit energy) and what bonded creatures give ──
-  chargecap: { name: 'Chargecap', good: true, shape: 'cap', color: 0x2a2408, glow: 0xffe46a, rhythm: 'beat', tell: 'none', effect: { kind: 'charge', amount: 40 }, hint: 'Chargecap: spirit charge for your gun. Gold gills that pulse on the beat; spirit motes rise off it.', respawn: 100 },
+  chargecap: { name: 'Chargecap', good: true, shape: 'cap', color: 0x2a2408, glow: 0xffe46a, rhythm: 'beat', tell: 'none', effect: { kind: 'charge', amount: 35 }, hint: 'Chargecap: spirit charge for your gun. Gold gills that pulse on the beat; spirit motes rise off it.', respawn: 140 },
   spiritgift: { name: 'Spirit Gift', good: true, shape: 'gift', color: 0x3a3424, glow: 0xfff0b0, rhythm: 'breath', tell: 'none', effect: { kind: 'blessing', seconds: 30, heal: 20 }, hint: 'Spirit Gift: from a creature that trusts you. Heals a little and softens hits for 30 s.', respawn: 0, eat: 0.8 },
   shellfruit: { name: 'Shellfruit', good: true, shape: 'fruit', color: 0x3a4a5a, glow: 0x8fd8ff, rhythm: 'steady', tell: 'none', effect: { kind: 'shield', amount: 40, seconds: 20 }, hint: 'Shellfruit: a 40-point shield for 20 s.', respawn: 120 },
 };

@@ -20,6 +20,8 @@ import type { PlayerStatus } from './status';
 import { mycelGuideEmissive, setGuide } from './guideNode';
 import { forest, type ForestEvent } from './forest';
 
+/** A spirit fungus holds this much charge and refills this fast (a top-up on the way, not a turret to camp). */
+const SPIRIT_STORE = 45, SPIRIT_REFILL = 0.75;
 /** Healthy mushrooms eaten → connection level. */
 const LEVELS = [0, 1, 3, 6, 10];
 const GUIDE_R = [28, 45, 65, 90, 120];
@@ -166,10 +168,10 @@ export class Mycelium {
   private buildSites() {
     for (const it of this.env.forage.items) {
       if (it.k.shape !== 'cap') continue;
-      const spirit = it.kind === 'chargecap' || (it.k.good && hash(it.id) < 0.14);
-      this.sites.push({ x: it.pos.x, y: it.pos.y, z: it.pos.z, item: it, spirit, store: 60, plumeT: hash(it.id + 'p') * 2 });
+      const spirit = it.kind === 'chargecap' || (it.k.good && hash(it.id) < 0.1);
+      this.sites.push({ x: it.pos.x, y: it.pos.y, z: it.pos.z, item: it, spirit, store: SPIRIT_STORE, plumeT: hash(it.id + 'p') * 2 });
     }
-    for (const f of this.env.hazardFungi()) this.sites.push({ x: f.x, y: f.y, z: f.z, spirit: hash(`${f.x},${f.z}`) < 0.2, store: 60, plumeT: 1 });
+    for (const f of this.env.hazardFungi()) this.sites.push({ x: f.x, y: f.y, z: f.z, spirit: hash(`${f.x},${f.z}`) < 0.15, store: SPIRIT_STORE, plumeT: 1 });
   }
 
   /** A healthy mushroom was eaten: the connection deepens. */
@@ -271,7 +273,7 @@ export class Mycelium {
     // ── spirit: fungi that hold charge recharge the gun when you stand close ──
     for (const st of this.sites) {
       if (!st.spirit || (st.item && !st.item.alive)) continue;
-      st.store = Math.min(60, st.store + dt * 2);
+      st.store = Math.min(SPIRIT_STORE, st.store + dt * SPIRIT_REFILL);
       const d = Math.hypot(st.x - pp.x, st.z - pp.z);
       if (d > 35) continue;
       if ((st.plumeT -= dt) <= 0 && st.store > 10) { st.plumeT = env.lo ? 1.2 : 0.6; env.vfx.spawn(SPIRIT_PLUME, this.v.set(st.x, st.y + 0.5, st.z)); }

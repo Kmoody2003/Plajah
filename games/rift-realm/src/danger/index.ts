@@ -79,6 +79,7 @@ export class Danger {
   private hurtCd = new Map<string, number>();
   private foesArr: Enemy[] = [];
   private v = new THREE.Vector3();
+  private face = new THREE.Vector3();
   private sayT = 0;
   readonly wilds: boolean;
 
@@ -116,6 +117,7 @@ export class Danger {
       clear: (a, b) => { const d = this.v.subVectors(b, a), L = d.length(); if (L < 0.5) return true; d.divideScalar(L); return col.rayDistance(a, d, L) >= L - 0.4; },
       hurtPlayer: hurt,
       faceThreat: (from: THREE.Vector3) => this.ctx.player.faceThreat(from),
+      facing: () => { const c = this.ctx.camera.getWorldDirection(this.face).setY(0); return c.lengthSq() > 1e-4 ? c.normalize() : null; },
       damageEnemy: (e, dmg, dir) => !!ctx.enemies.damageEnemy(e.id, dmg, dir, 1.2)?.killed,
       heal: (n) => { const p = ctx.player; if (p.downed) return; p.hp = Math.min(p.maxHp, p.hp + n); ctx.say(`LIFE MOTE +${n} HP`, '#7dffb0'); },
       onKill: () => { /* the player's kills are reported by damageId; hazard and creature kills give nothing */ },

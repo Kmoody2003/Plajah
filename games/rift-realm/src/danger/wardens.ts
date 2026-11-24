@@ -38,15 +38,15 @@ export interface ComboDef {
 export const WARDEN_COMBOS: Record<string, ComboDef> = {
   oak: { move: 'root-grapple', name: 'Grapple Rend', key: 'strike', fx: 'thornbreak', window: 3, dmg: 60, r: 11, color: 0x9cff6a },
   banyan: { move: 'root-cage', name: 'Void Burst', key: 'surge', fx: 'void-burst', window: 4, dmg: 120, r: 10, color: 0xb36aff },
-  baobab: { move: 'chest-slam', name: 'Rising Reap', key: 'strike', fx: 'rising-reap', window: 1.5, dmg: 55, r: 18, color: 0x7ae8ff },
+  baobab: { move: 'chest-slam', name: 'Rising Reap', key: 'strike', fx: 'rising-reap', window: 1.8, dmg: 55, r: 18, color: 0x7ae8ff },
   bioluminescent: { move: 'lumen-pulse', name: 'Lumen Charge', key: 'dash', fx: 'lumen-charge', window: 3, dmg: 40, r: 18, color: 0x3ae6ff },
   cherry: { move: 'petal-storm', name: 'Petal Storm', key: 'heavy', fx: 'petal-storm', window: 10, dmg: 45, r: 16, color: 0xffa8d8 },
   fungal: { move: 'spore-burst', name: 'Spore Bloom', key: 'passive', fx: 'spore-bloom', window: 12, dmg: 18, r: 15, color: 0xffb04a },
-  ironwood: { move: 'thorn-field', name: 'Thornbreak', key: 'strike', fx: 'thornbreak', window: 1.8, dmg: 70, r: 16, color: 0xff4a3a },
+  ironwood: { move: 'thorn-field', name: 'Thornbreak', key: 'strike', fx: 'thornbreak', window: 2, dmg: 70, r: 16, color: 0xff4a3a },
   pine: { move: 'sap-wave', name: 'Ember Rain', key: 'fire', fx: 'ember-rain', window: 3, dmg: 60, r: 4, color: 0xffa030 },
-  sequoia: { move: 'titan-hammer', name: 'Hammerfall Leap', key: 'jump', fx: 'skyroot-leap', window: 1.8, dmg: 90, r: 10, color: 0xc8ff9a },
+  sequoia: { move: 'titan-hammer', name: 'Hammerfall Leap', key: 'jump', fx: 'skyroot-leap', window: 2, dmg: 90, r: 10, color: 0xc8ff9a },
   mangrove: { move: 'bog-drag', name: 'Mire Reap', key: 'strike', fx: 'thornbreak', window: 3.5, dmg: 55, r: 13, color: 0x8ac86a },
-  willow: { move: 'vine-lash', name: 'Willow Lash', key: 'strike', fx: 'willow-lash', window: 2, dmg: 50, r: 25, color: 0xb8ff6a },
+  willow: { move: 'vine-lash', name: 'Willow Lash', key: 'strike', fx: 'willow-lash', window: 2.2, dmg: 50, r: 25, color: 0xb8ff6a },
   birch: { move: 'blizzard', name: 'Frost Lock', key: 'strike', fx: 'frost-lock', window: 4, dmg: 30, r: 22, color: 0xbfe8ff },
 };
 /** The shared moves (any warden, and every warden before its own body lands). */
@@ -125,7 +125,16 @@ const METEOR_TELL: Recipe = {
 const COMBO_FLASH: Recipe = {
   id: 'combo_flash',
   emitters: [{ layer: 'add', shape: 'soft', count: [10, 14], life: [0.3, 0.6], speed: [2, 5], spread: 1, size: [0.12, 0.02], color: ['tint+white', 'tint'], intensity: 3 }],
+  light: { color: 0xffffff, intensity: 14, range: 12, life: 0.25 },
+  shake: 0.2,
 };
+/** The big finishers land with a heavier jolt. */
+const COMBO_SLAM: Recipe = {
+  id: 'combo_slam',
+  emitters: [{ layer: 'add', shape: 'ring', count: 1, life: 0.45, speed: 0, size: [0.6, 9], color: ['tint+white', 'tint'], intensity: 1.6, alpha: [0.9, 0] }],
+  shake: 0.55,
+};
+const HEAVY: ComboFx[] = ['rising-reap', 'void-burst', 'thornbreak', 'skyroot-leap', 'warden-hurl', 'frost-lock'];
 
 /** Each combo's stinger (dz_wd_*.mp3, cut from the matching co-op clip). */
 const SFX: Record<ComboFx, string> = {
@@ -214,6 +223,7 @@ export class Wardens {
     this.chip = document.createElement('div');
     this.chip.style.cssText = 'position:fixed;right:18px;bottom:152px;z-index:12;pointer-events:none;padding:4px 10px;border:1px solid #8aff9a88;border-radius:3px;background:#03120ab0;color:#b8ffc0;font:700 11px system-ui;letter-spacing:.1em;display:none';
     document.body.append(this.prompt, this.chip);
+    env.scene.add(this.ring);
     this.unsub.push(forest.subscribe('ent-move', (ev) => this.onMove(ev)));
   }
 
@@ -265,17 +275,30 @@ export class Wardens {
 
   // ── synergy windows ──
   private onMove(ev: ForestEvent) {
-    if (ev.data.phase !== 'hit') return;
+    const phase = ev.data.phase;
     const E = this.ents(), id = Number(ev.data.id), move = String(ev.data.move ?? '');
     const w = E?.list().find((q) => q.id === id), c = this.comboFor(w?.kind ?? 'placeholder', move);
     if (!c) return;
     const pp = this.env.player.object.position, at = new THREE.Vector3(ev.pos.x, this.env.ground(ev.pos.x, ev.pos.z), ev.pos.z);
-    if (Math.hypot(at.x - pp.x, at.z - pp.z) > c.r + 14 || this.env.soul() <= -0.3) return;
+    if (Math.hypot(at.x - pp.x, at.z - pp.z) > c.r + 14 || this.env.soul() <= -0.3) { if (phase !== 'tell') this.heads = null; return; }
+    if (phase === 'tell') { this.heads = { c, at, t: 3 }; return; }
+    if (phase === 'end') { if (this.heads?.c === c) this.heads = null; return; }
+    this.heads = null;
     this.open(c, id, at);
   }
+  /** A warden is winding up a move with a combo: the heads-up (prompt, dim) and the ring where it lands. */
+  private heads: { c: ComboDef; at: THREE.Vector3; t: number } | null = null;
+  private popT = 9;
+  private ring = (() => {
+    const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+    const g = new THREE.RingGeometry(0.93, 1, 64); g.rotateX(-Math.PI / 2);
+    const mesh = new THREE.Mesh(g, m); mesh.visible = false; mesh.renderOrder = 5; mesh.frustumCulled = false;
+    return mesh;
+  })();
   /** Open a synergy window (also for scripted / debug use: `__rr.danger.wardens.open(...)`). */
   open(c: ComboDef, wardenId: number, at: THREE.Vector3) {
     this.win = { c, wardenId, at, t: c.window };
+    this.popT = 0;
     const env = this.env;
     if (c.key === 'passive' || c.fx === 'frost-lock' || c.fx === 'petal-storm') env.audio.play(SFX[c.fx], env.player.object.position, { gain: 0.8 });
     switch (c.fx) {   // passive halves land as the window opens
@@ -301,6 +324,8 @@ export class Wardens {
     env.audio.play(SFX[c.fx], pp, { gain: 0.9 });
     forest.notify('warden-combo', pp, { combo: c.name, fx: c.fx }, 'player');
     env.vfx.spawn(COMBO_FLASH, this.v.copy(pp).setY(pp.y + 1.2), { tint: c.color });
+    if (HEAVY.includes(c.fx)) env.vfx.spawn(COMBO_SLAM, this.v.copy(at).setY(at.y + 0.15), { tint: c.color });
+    this.popT = 0;
     const dmg = (f: Foe, d: number, o?: Parameters<WardensEnv['hit']>[3]) => env.hit(f, Math.round(d), at, o);
     switch (c.fx) {
       case 'rising-reap': {
@@ -431,14 +456,34 @@ export class Wardens {
       if (w.t <= 0) this.win = null;
       else if (this.pressed.has(w.c.key)) { this.fire(w.c, w.at); this.win = null; }
     }
-    const show = this.win;
+    this.popT += dt;
+    if (this.heads && (this.heads.t -= dt) <= 0) this.heads = null;
+    const show = this.win, hd = !show ? this.heads : null;
     if (show) {
-      const col = `#${show.c.color.toString(16).padStart(6, '0')}`;
-      this.prompt.style.color = col;
+      const col = `#${show.c.color.toString(16).padStart(6, '0')}`, frac = show.t / show.c.window;
+      this.prompt.style.color = frac < 0.35 && Math.floor(this.clock * 8) % 2 ? '#ffffff' : col;   // flashes as it runs out
       this.label.textContent = `[${this.keyName(show.c.key)}]  ${show.c.name.toUpperCase()}`;
-      this.bar.style.width = `${Math.max(0, (show.t / show.c.window) * 100)}%`;
+      this.bar.style.width = `${Math.max(0, frac * 100)}%`;
       this.prompt.style.opacity = '1';
+      this.prompt.style.transform = `translateX(-50%) scale(${(1 + Math.max(0, 0.25 - this.popT) * 1.6).toFixed(3)})`;
+    } else if (hd && hd.c.key !== 'passive') {
+      this.prompt.style.color = `#${hd.c.color.toString(16).padStart(6, '0')}`;
+      this.label.textContent = `GET READY · [${this.keyName(hd.c.key)}] ${hd.c.name.toUpperCase()}`;
+      this.bar.style.width = '0%';
+      this.prompt.style.opacity = '0.6';
+      this.prompt.style.transform = 'translateX(-50%) scale(0.9)';
     } else this.prompt.style.opacity = '0';
+    // the ring on the ground: where the warden's move lands (the tell), then the combo's reach while the window is open
+    const rg = show ? { c: show.c, at: show.at } : hd;
+    this.ring.visible = !!rg && rg.c.fx !== 'bark-ward' && rg.c.fx !== 'grove-blessing';
+    if (rg && this.ring.visible) {
+      this.ring.position.copy(rg.at).setY(rg.at.y + 0.12);
+      const r = Math.min(rg.c.r, 22);
+      this.ring.scale.setScalar(show ? r : r * (1.15 - 0.15 * Math.sin(this.clock * 6)));
+      const m = this.ring.material as THREE.MeshBasicNodeMaterial;
+      m.color.set(rg.c.color);
+      m.opacity = show ? 0.55 + 0.3 * Math.sin(this.clock * 10) : 0.25 + 0.15 * Math.sin(this.clock * 6);
+    }
     this.pressed.clear();
     // looks
     for (let i = this.arcs.length - 1; i >= 0; i--) { const a = this.arcs[i]; if ((a.t -= dt) <= 0) { this.env.scene.remove(a.obj); a.obj.geometry.dispose(); this.arcs.splice(i, 1); } }
