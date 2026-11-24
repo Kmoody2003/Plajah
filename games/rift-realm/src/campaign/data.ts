@@ -1,9 +1,11 @@
 // Vesselbound campaigns: one per playable vessel. A chapter = one map + an ordered list of steps, bracketed by intro and
 // outro card beats (docs/rift-realm-campaign.md).
 //
-// CANON: Vesselbound sits in Kenne's Legend of Elohim universe. No story text here is canon. Every line marked PH is an
-// empty slot waiting for Kenne's words, and the game shows it as a placeholder. Chapter titles are working titles
-// (proposed). Never write Void / Elohim lore into this file without Kenne's text.
+// CANON: Vesselbound sits in Kenne's Legend of Elohim universe. Kenne's premise (docs/rift-realm-campaign.md §0): souls
+// the Void tore from their bodies fight the Banished Angel's annual tournament in the Rift for one second life; three
+// tries each; every level ends in a titan; Lucifer's demons try to corrupt the light souls. Card TEXT is still Kenne's to
+// write: every line marked PH is an empty slot (the beat it holds is described from the canon, never invented), and the
+// game shows it as a placeholder. Chapter titles are working titles (proposed).
 import type { VesselId } from '../vessels';
 
 export type CampaignId = 'aegis' | 'stalker' | 'seraph' | 'lumen' | 'sylva' | 'pyre' | 'nyx';
@@ -65,13 +67,21 @@ export interface Campaign {
 // ── placeholder helpers: clearly marked empty slots, never invented story ──
 const PH = (speaker: string, what: string): Card => ({ speaker, ph: true, lines: [`[Placeholder: ${what}. Story by Kenne.]`] });
 const NARR = 'Narrator';
+/** Kenne's canon host; his name is still open */
+const ANGEL = 'The Banished Angel';
+const DEMON = '[Demon]';
+const TITAN = '[Titan]';
 
-/** A stub chapter: map + steps drafted from the doc, story slots empty. */
+const B = (label: string): Step => ({ kind: 'boss', label });
+/** Canon: every level ends with a titan you must beat to pass (the Boss Hunt champion stands in for titan bodies). */
+const withTitan = (steps: Step[]): Step[] => (steps[steps.length - 1]?.kind === 'boss' ? steps : [...steps, B('Defeat the titan')]);
+
+/** A stub chapter: map + steps drafted from the doc, story slots empty; it always ends in a titan. */
 function stub(n: number, title: string, level: string, summary: string, steps: Step[], who: string): Chapter {
   return {
     n, title, level, summary, lives: 3, stub: true,
     intro: [PH(NARR, `${who}, chapter ${n} intro`)],
-    steps,
+    steps: withTitan(steps),
     outro: [PH(NARR, `${who}, chapter ${n} outro`)],
   };
 }
@@ -79,7 +89,6 @@ const R = (at: Spot, label: string): Step => ({ kind: 'reach', at, label });
 const C = (count: number, label: string, mix?: Archetype[]): Step => ({ kind: 'clear', count, label, mix });
 const S = (seconds: number, label: string): Step => ({ kind: 'survive', seconds, label });
 const T = (rounds: number, label: string): Step => ({ kind: 'trials', rounds, label });
-const B = (label: string): Step => ({ kind: 'boss', label });
 const E = (seconds: number, label: string, at?: Spot): Step => ({ kind: 'explore', seconds, label, at });
 
 /** The four vessels Antigravity is building: five placeholder chapters each, locked until the body and VesselId land. */
@@ -92,43 +101,66 @@ function forge(id: CampaignId, name: string, title: string, hex: string, maps: s
 
 export const CAMPAIGNS: Campaign[] = [
   {
+    // Kenne: the first campaign. His origin is still open (placeholder).
+    id: 'stalker', name: 'Void Stalker', title: 'Shadow-Beast Frame', vessel: 'stalker', hex: '#e879f9',
+    chapters: [
+      {
+        n: 1, title: 'The Torn', level: 'shrine', lives: 3,
+        summary: 'Torn from his body, Void Stalker wakes in the Rift and the Banished Angel names the stakes. Reach the monolith, break the first wave, hold the ring, then face the first titan.',
+        intro: [
+          PH(NARR, 'how the Void tore Void Stalker\'s soul from his body (his origin)'),
+          PH('Void Stalker', 'his first words on waking in the Rift'),
+          PH(ANGEL, 'the welcome: the annual tournament, the one second life, the three tries, final judgment'),
+        ],
+        steps: [
+          R('center', 'Reach the monolith'),
+          { kind: 'card', cards: [PH(ANGEL, 'the first trial begins: prove your will')] },
+          C(4, 'Break the first wave', ['rusher', 'rusher', 'caster', 'rusher']),
+          S(45, 'Hold the ring'),
+          { kind: 'card', cards: [PH(TITAN, 'the first titan rises: light or evil, it must be beaten to pass')] },
+          B('Defeat the titan'),
+        ],
+        outro: [
+          PH(ANGEL, 'the first trial passed; what lies ahead'),
+          PH(DEMON, 'a first whisper from Hell: the corruption thread begins'),
+        ],
+      },
+      stub(2, 'Wardens of the Hollow', 'elderwood', 'The Grovewardens\' forest. Find the Great Oak and drive back the demon horde.', [E(45, 'Find the way into the Hollow', { objective: 0 }), R({ objective: 0 }, 'Reach the Great Oak'), C(6, 'Drive back the demon horde')], 'Void Stalker'),
+      stub(3, 'Drowned Whispers', 'marsh', 'Four trials through the stilt village; a demon makes its first offer.', [T(4, 'The drowned trials'), { kind: 'card', cards: [PH(DEMON, 'the first corruption offer')] }, R({ objective: 0 }, 'Reach the sunken shrine')], 'Void Stalker'),
+      stub(4, 'Witness in the Ice', 'glacial', 'A test of worthiness in the ice cave.', [R('far', 'Reach the ice cave'), S(90, 'Endure the cold')], 'Void Stalker'),
+      stub(5, 'Ember Pact', 'volcanic', 'Hell at its strongest; the second corruption beat.', [C(8, 'Break the demon line'), { kind: 'card', cards: [PH(DEMON, 'the pact, or the threat')] }, R('far', 'Reach the throne hall')], 'Void Stalker'),
+      stub(6, 'The Last Rift', 'celestial', 'The final trials, the final titan, and the second life.', [T(5, 'The final trials'), B('Defeat the final titan')], 'Void Stalker'),
+    ],
+  },
+  {
+    // a working example (chapter 1 tuned); re-outlined around the canon once Void Stalker's shape is approved
     id: 'aegis', name: 'Aegis', title: 'The Oathbound Bulwark', vessel: 'aegis', hex: '#fbbf24',
     chapters: [
       {
         n: 1, title: 'First Oath', level: 'shrine', lives: 3,
-        summary: 'Reach the monolith, break the first wave, hold the ring, then face the champion.',
+        summary: 'Reach the monolith, break the first wave, hold the ring, then face the titan.',
         intro: [
-          PH(NARR, 'opening narration: where and when this begins'),
-          PH('Aegis', "Aegis's first line: who they are, why they are here"),
-          PH('[Speaker]', 'who sends Aegis into the shrine, and why'),
+          PH(NARR, 'how Aegis came to the Rift (origin)'),
+          PH('Aegis', "Aegis's first line in the Rift"),
+          PH(ANGEL, 'the tournament and its rules, as Aegis hears them'),
         ],
         steps: [
           R('center', 'Reach the monolith'),
           { kind: 'card', cards: [PH('Aegis', 'a line on arriving at the monolith')] },
           C(4, 'Break the first wave', ['rusher', 'rusher', 'caster', 'rusher']),
           S(45, 'Hold the ring'),
-          { kind: 'card', cards: [PH('[Speaker]', 'the champion is announced')] },
-          B('Defeat the champion'),
+          { kind: 'card', cards: [PH(TITAN, 'the titan rises')] },
+          B('Defeat the titan'),
         ],
         outro: [
-          PH('Aegis', 'a line after the champion falls'),
+          PH('Aegis', 'a line after the titan falls'),
           PH(NARR, 'chapter close and the hook into chapter 2'),
         ],
       },
       stub(2, 'Hold the Line', 'glacial', 'Take the battlement and hold it.', [R('far', 'Reach the battlement'), S(90, 'Hold the battlement'), C(6, 'Clear the yard')], 'Aegis'),
-      stub(3, 'Ember Wall', 'volcanic', 'Three trials, the forge hall, then the champion.', [T(3, 'Trials of the forge'), R({ objective: 1 }, 'Reach the forge hall'), B('Defeat the champion')], 'Aegis'),
+      stub(3, 'Ember Wall', 'volcanic', 'Three trials, the forge hall, then the titan.', [T(3, 'Trials of the forge'), R({ objective: 1 }, 'Reach the forge hall')], 'Aegis'),
       stub(4, 'Drowned Vigil', 'marsh', 'Find the sunken shrine and keep watch.', [E(40, 'Search the marsh'), R({ objective: 0 }, 'Reach the sunken shrine'), S(120, 'Keep the vigil')], 'Aegis'),
-      stub(5, 'The Last Bulwark', 'celestial', 'Five trials and a final duel.', [T(5, 'Climb the citadel'), B('[Placeholder: the final rival]')], 'Aegis'),
-    ],
-  },
-  {
-    id: 'stalker', name: 'Void Stalker', title: 'Shadow-Beast Frame', vessel: 'stalker', hex: '#e879f9',
-    chapters: [
-      stub(1, 'Into the Hollow', 'elderwood', 'Explore the Hollow, reach the Great Oak, clear the deck.', [E(45, 'Find the way into the Hollow', { objective: 0 }), R({ objective: 0 }, 'Reach the Great Oak'), C(5, 'Clear the deck')], 'Void Stalker'),
-      stub(2, 'Night Hunt', 'marsh', 'Four trials through the stilt village.', [T(4, 'The night hunt')], 'Void Stalker'),
-      stub(3, 'Glass and Ice', 'glacial', 'Find the ice cave and its champion.', [R('far', 'Reach the ice cave'), B('Defeat the champion')], 'Void Stalker'),
-      stub(4, 'Ash Run', 'volcanic', 'Survive the trenches, reach the throne hall.', [S(90, 'Survive the trenches'), R('far', 'Reach the throne hall')], 'Void Stalker'),
-      stub(5, 'Edge of the Rift', 'celestial', 'Clear the islands, then the final duel.', [C(8, 'Clear the islands'), B('[Placeholder: the final rival]')], 'Void Stalker'),
+      stub(5, 'The Last Bulwark', 'celestial', 'Five trials and the final titan.', [T(5, 'Climb the citadel'), B('Defeat the final titan')], 'Aegis'),
     ],
   },
   {
@@ -136,9 +168,9 @@ export const CAMPAIGNS: Campaign[] = [
     chapters: [
       stub(1, 'Fall', 'celestial', 'Reach the far island and clear it.', [R('far', 'Reach the far island'), C(4, 'Clear the island')], 'Seraph-9'),
       stub(2, 'Signal', 'shrine', 'Hold, then reach the node.', [S(60, 'Hold the ring'), R({ objective: 1 }, 'Reach the power node')], 'Seraph-9'),
-      stub(3, 'Frost Choir', 'glacial', 'Four trials, then the champion.', [T(4, 'The frost choir'), B('Defeat the champion')], 'Seraph-9'),
+      stub(3, 'Frost Choir', 'glacial', 'Four trials, then the titan.', [T(4, 'The frost choir'), B('Defeat the titan')], 'Seraph-9'),
       stub(4, 'Canopy', 'elderwood', 'Explore the canopy and visit three spots.', [E(40, 'Explore the canopy'), R({ objective: 0 }, 'Reach the first spot'), R({ objective: 1 }, 'Reach the second spot'), R({ objective: 2 }, 'Reach the third spot')], 'Seraph-9'),
-      stub(5, 'Sanctum', 'sanctum', 'Five trials and a final duel in the hub.', [T(5, 'The sanctum trials'), B('[Placeholder: the final rival]')], 'Seraph-9'),
+      stub(5, 'Sanctum', 'sanctum', 'Five trials and a final duel in the hub.', [T(5, 'The sanctum trials'), B('Defeat the final titan')], 'Seraph-9'),
     ],
   },
   // map leanings for the forge vessels are guesses from the names alone (proposed): Kenne decides

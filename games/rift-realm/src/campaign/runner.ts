@@ -65,7 +65,7 @@ export class CampaignRunner {
     if (s.kind === 'reach' || (s.kind === 'explore' && this.target)) detail = this.target ? ` · ${Math.round(this.dist(this.target))} m` : '';
     if (s.kind === 'explore') detail += ` · ${fmtTime(Math.max(0, s.seconds - this.stepT))}`;
     if (s.kind === 'clear') detail = ` · ${this.alive()} left`;
-    if (this.nestedOn) { const nt = this.nested.title(); if (nt) detail = ` · ${nt.replace(/^[^·]+·\s*/, '').replace(/\s*·\s*♦*$/, '')}`; } // the mode's own name and lives off
+    if (this.nestedOn) { const nt = this.nested.title(); if (nt) detail = ` · ${nt.replace(/^[^·]+·\s*/, '').replace(/\s*·\s*♦*$/, '').replace('champion', 'titan')}`; } // the mode's own name and lives off; canon: titans
     return `${s.label}${detail} · ${k}/${n.length}${lives}`;
   }
 
