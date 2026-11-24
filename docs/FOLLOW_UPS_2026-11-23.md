@@ -4,7 +4,8 @@ Integration branch: `feat/apex-elohim`. Everything below is committed on it; **n
 
 ## 0. Before production
 
-- [ ] Run the full build and the test suites (`npm run build`, plus admin-platform, group-join, playkit and studio tests) on the merged branch. Read the exit line, not just the output.
+- [x] Verified on the merged branch 2026-11-23: `npm run build` exit 0; node tests pass (adPlatform 5, groupJoin 7, playkit 10+11+5+4, studioCompilerPipelines 6); `tsconfig.playkit.json` clean.
+- [ ] Plain `tsc --noEmit` (the `lint` script) runs out of memory even at 12 GB. `tsconfig.admin-platform.json` reports ~12 errors, all in files this work did not touch (AlbumCreator, archiveContentService, organizationService `APPROVAL` default, storyIntelService, Ora xrSession). Pre-existing; fix separately.
 - [ ] The commit `chore: shared wiring …` holds `App.tsx`, `server.ts`, `types.ts`, `services/backendService.ts` hunks for the admin, groups and profile commits. Those three commits only build **together**; do not cherry-pick one alone.
 - [ ] `master` held two commits that duplicate local work (`cf1c4e21` org-scoped home, `308a71ad` Resend signup email). Merged in; confirm no double-applied hunks.
 - [ ] Firestore rules have ~zero headroom (see rules size limit note). Groups / join requests / ad metrics were written to avoid new client rules. Confirm before deploying rules.
