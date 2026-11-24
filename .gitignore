@@ -182,3 +182,7 @@ games/era-clash-3d/review/
 
 # native HQ game package dev installs (scripts/games/buildGamePackage.ts --install): never deployed
 public/pkg-dev/
+
+# Local scratch
+/tmp/
+.tmp-light/
