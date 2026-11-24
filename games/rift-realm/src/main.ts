@@ -341,7 +341,7 @@ async function boot() {
       const res = enemies.damageEnemy(enemyId, dmg, dir, 0, { source: 'shot' });
       if (res) {
         startMatch();
-        melee.onShot(res); // shots interrupt wind-ups, fill the stagger meter, keep launched enemies up
+        melee.onShot(res, enemies.byId(enemyId)); // shots interrupt wind-ups, fill the stagger meter, keep launched enemies up; a strike right after closes in (gun-fu)
         if (!quiet || res.killed) rhythm.playHit(res.killed);
         if (!quiet) rhythm.playSfx(w.sounds.impact, { gain: 0.55, send: 0.3 });
         showHit(hits[0].point, dmg, res.killed);
@@ -370,6 +370,7 @@ async function boot() {
     if (!player.enabled) return;
     const beat = rhythm.evaluateBeat(); // first: on the beat a shot costs less spirit charge and builds less heat
     if (!player.useRound(beat.quality)) return; // venting, switching, down, overheated, or drained (player.onDryFire clicks)
+    melee.shotFired(); // gun-fu: a strike that has landed cancels into the shot (combat/melee.ts)
     combatT = Math.min(combatT, 3); // firing keeps the combat music going
     player.faceAimNow(); // third person: the gun points at the crosshair point when the shot leaves it
     const spec = player.vessel;

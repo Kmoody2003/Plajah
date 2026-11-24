@@ -110,8 +110,11 @@ export interface CombatTuning {
     /** How many enemies may be winding up / swinging a melee attack at once, and ranged. */
     maxMeleeTokens: number;
     maxRangedTokens: number;
-    /** Seconds an enemy keeps a token after its attack (others wait their turn). */
+    /** Taking turns: an enemy that has waited this much longer for a token goes before the one asking now. */
     tokenCooldown: number;
+    /** Suppressing fire: while a squad-mate presses the player in melee, casters / the boss without a token pin them with
+     *  quick, light, untelegraphed bolts aimed where the player is heading (no hit-stun: they chip, they don't stop a combo). */
+    suppress: { dmg: number; gap: [number, number]; spread: number; speed: number; minDist: number; maxDist: number };
     /** Beyond this the old navigation (control points / stairs routing) takes over. */
     engageDist: number;
     /** Distance at which enemies waiting for a token circle. */
@@ -127,6 +130,11 @@ export interface CombatTuning {
     buffer: number;
     /** Light within this long after a dash = the dash-in strike. */
     dashStrikeWindow: number;
+    /** Gun-fu: a strike within this long after a shot that hit lunges in to that enemy as the dash-in strike (up to
+     *  shotLinkRange m away), for shotLinkMul damage. Shots cancel a strike's recovery once it has landed. */
+    shotLinkWindow: number;
+    shotLinkRange: number;
+    shotLinkMul: number;
     /** Block: damage taken while guarding, guard meter, regen per s, perfect-parry window (s before a hit). */
     blockMul: number;
     guard: number;
@@ -168,6 +176,7 @@ export const DEFAULT_TUNING: CombatTuning = {
     maxMeleeTokens: 2,
     maxRangedTokens: 2,
     tokenCooldown: 0.6,
+    suppress: { dmg: 3, gap: [0.45, 0.8], spread: 0.12, speed: 26, minDist: 5, maxDist: 24 },
     engageDist: 28,
     circleDist: 6.5,
     mix: [5, 3, 2],
@@ -218,6 +227,9 @@ export const DEFAULT_TUNING: CombatTuning = {
     comboWindow: 0.42,
     buffer: 0.25,
     dashStrikeWindow: 0.35,
+    shotLinkWindow: 0.5,
+    shotLinkRange: 9,
+    shotLinkMul: 1.15,
     blockMul: 0.2,
     guard: 100,
     guardRegen: 22,

@@ -121,6 +121,12 @@ export interface Enemy {
   flinch: number;
   /** Seconds left sliding round cover (no clear shot). */
   blockedT: number;
+  /** Taking turns: which token it last asked for and was refused, how long it has been waiting, how fresh the ask is. */
+  wantTok: 'melee' | 'ranged' | null;
+  waitT: number;
+  wantT: number;
+  /** Suppressing fire: seconds to its next pinning bolt. */
+  suppressT: number;
   ring: THREE.Mesh;
   ringMat: THREE.MeshBasicNodeMaterial;
 }
@@ -177,6 +183,8 @@ const BOLT_GLOW_GEO = new THREE.SphereGeometry(0.48, 12, 8);
 const TELE_COL: Record<EnemyAttack['kind'], number> = { melee: 0xff3b4e, charge: 0xff7a2a, slam: 0xffb020, bolt: 0xb46bff, barrage: 0xd946ef };
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _u = new THREE.Vector3(), _flee = new THREE.Vector3();
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
+/** The pinning bolt (suppress()); dmg / speed come from COMBAT.ai.suppress. */
+const SUPPRESS: EnemyAttack = { id: 'suppress', kind: 'bolt', startup: 0, active: 0.05, recovery: 0, dmg: 3, range: 26, cone: 0, weight: 0, minDist: 0, maxDist: 26 };
 const angDiff = (a: number, b: number) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 
 export class EnemyManager {
@@ -189,6 +197,9 @@ export class EnemyManager {
   playerForward = new THREE.Vector3(0, 0, -1);
   /** Chest height above the player's feet (crouched is lower). */
   playerChest = 1.3;
+  /** Where the player is heading (m/s, from their movement): suppressing fire leads them. */
+  playerVel = new THREE.Vector3();
+  private lastPlayerPos: THREE.Vector3 | null = null;
   /** Debug / arena: force every new spawn to this archetype. */
   forceArchetype: Archetype | null = null;
   /** Freeze the AI (debug arena): enemies stand still and don't attack. */
@@ -341,7 +352,7 @@ export class EnemyManager {
       air: 0, vy: 0, juggle: 0, spiked: false, groundY: y,
       push: new THREE.Vector3(), chargeDir: new THREE.Vector3(),
       dodgeCd: rand(0.5, 1.5), parried: false,
-      slot: Math.random() * Math.PI * 2, flinch: 0, blockedT: 0,
+      slot: Math.random() * Math.PI * 2, flinch: 0, blockedT: 0, wantTok: null, waitT: 0, wantT: 0, suppressT: rand(0.4, 1),
       ring, ringMat,
     };
     this.enemies.push(enemy);
@@ -361,8 +372,15 @@ export class EnemyManager {
     const max = kind === 'melee' ? COMBAT.ai.maxMeleeTokens : COMBAT.ai.maxRangedTokens;
     // the boss always gets its turn; a dazed / airborne holder doesn't block the others
     for (const id of set) { const o = this.byId(id); if (!o || o.token !== kind) set.delete(id); }
-    if (!e.boss && set.size >= max) return false;
-    set.add(e.id); e.token = kind;
+    const refuse = () => { if (e.wantTok !== kind) e.waitT = 0; e.wantTok = kind; e.wantT = 0.9; return false; };
+    if (!e.boss) {
+      if (set.size >= max) return refuse();
+      // take turns: a squad-mate that has been waiting for this token clearly longer goes first
+      for (const o of this.enemies) {
+        if (o !== e && !o.token && o.wantTok === kind && o.wantT > 0 && o.waitT > e.waitT + COMBAT.ai.tokenCooldown) return refuse();
+      }
+    }
+    set.add(e.id); e.token = kind; e.wantTok = null; e.waitT = 0; e.wantT = 0;
     return true;
   }
   private dropToken(e: Enemy) {
@@ -668,6 +686,8 @@ export class EnemyManager {
     this.updateCorpses(dt);
     enemyBodies.playerPos.copy(playerPos);
     this.updateBolts(dt, playerPos, world, onPlayerHit);
+    if (this.lastPlayerPos && dt > 1e-4) this.playerVel.subVectors(playerPos, this.lastPlayerPos).divideScalar(dt).setY(0).clampLength(0, 14);
+    (this.lastPlayerPos ??= new THREE.Vector3()).copy(playerPos);
     // pack slots: engaged enemies spread around the player (by their current bearing, so nobody crosses over)
     const engaged = this.enemies.filter((e) => e.mesh.position.distanceToSquared(playerPos) < COMBAT.ai.engageDist ** 2);
     engaged.sort((a, b) => Math.atan2(a.mesh.position.x - playerPos.x, a.mesh.position.z - playerPos.z) - Math.atan2(b.mesh.position.x - playerPos.x, b.mesh.position.z - playerPos.z));
@@ -795,6 +815,8 @@ export class EnemyManager {
     const t = e.tune;
     const pos = e.mesh.position;
     e.mesh.rotation.y += angDiff(Math.atan2(toPlayer.x, toPlayer.z), e.mesh.rotation.y) * Math.min(1, dt * 8);
+    // waiting its turn for a token (takeToken): the wait counts while the ask is fresh
+    if (e.wantT > 0) { e.wantT -= dt; e.waitT += dt; } else { e.wantTok = null; e.waitT = 0; }
 
     // pick an attack that fits the distance, if a token is free
     if (e.attackCooldown <= 0 && !this.passive) {
@@ -836,6 +858,23 @@ export class EnemyManager {
     pos.addScaledVector(v, speed * dt);
     // a cornered caster blinks away
     if (!melee && dist < 3.5 && e.dodgeCd <= 0) this.dodge(e, _u.copy(toPlayer).multiplyScalar(-1).addScaledVector(side, e.strafeSign * 0.7), 'dodge_back');
+    this.suppress(e, dt, dist, playerPos);
+  }
+
+  /** Suppressing fire: while a squad-mate is closing on / swinging at the player, a caster (or the boss) with no token
+   *  of its own keeps them pinned with quick light bolts led toward where they're running. */
+  private suppress(e: Enemy, dt: number, dist: number, playerPos: THREE.Vector3) {
+    const S = COMBAT.ai.suppress;
+    if (this.passive || e.token || !(e.archetype === 'caster' || e.boss)) return;
+    if ((e.suppressT -= dt) > 0) return;
+    e.suppressT = rand(S.gap[0], S.gap[1]);
+    let pressing = false;
+    for (const id of this.tokens.melee) if (id !== e.id) { pressing = true; break; }
+    if (!pressing || dist < S.minDist || dist > S.maxDist || !this.lineOfSight(e, playerPos, dist)) return;
+    const lead = (dist / S.speed) * 0.8;
+    const at = _flee.copy(playerPos).addScaledVector(this.playerVel, lead).setY(playerPos.y + this.playerChest);
+    this.throwBolt(e, { ...SUPPRESS, dmg: S.dmg, speed: S.speed }, at, (Math.random() - 0.5) * 2 * S.spread);
+    if (e.rig?.has('shoot')) e.rig.play('shoot', 0.6, 0.35);
   }
 
   private lineOfSight(e: Enemy, playerPos: THREE.Vector3, dist: number) {

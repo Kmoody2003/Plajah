@@ -41,6 +41,8 @@ const SLASHES = { slash: SLASH, perfect: SLASH_PERFECT, shadow: SLASH_SHADOW } a
 const TIERS: [number, string, string][] = [[3, 'ECHO', '#7dd3fc'], [6, 'CADENCE', '#38bdf8'], [10, 'CRESCENDO', '#a78bfa'], [16, 'FORTISSIMO', '#f472b6'], [25, 'SYMPHONY', '#fbbf24']];
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _whip = new THREE.Vector3();
+/** Gun-fu close-in rush speed (m/s): a 9 m link arrives in about 0.35 s. */
+const LINK_SPEED = 22;
 
 export class Melee {
   move: PlayerMove | null = null;
@@ -56,6 +58,10 @@ export class Melee {
   private bufferT = 0;
   counterT = 0;
   private sinceDash = 9;
+  /** Gun-fu: time since a shot hit, and who it hit (a strike right after lunges in to them). */
+  private sinceShot = 9;
+  private shotTarget: Enemy | null = null;
+  private moveLink = false;
   private iframeT = 0;
   combo = 0;
   private comboT = 0;
@@ -73,7 +79,7 @@ export class Melee {
   private mouseBlock = false;
   exec: { e: Enemy; t: number; stage: number; variant: 'rend' | 'resonant' | 'sky'; fp: boolean; side: THREE.Vector3 } | null = null;
   /** Debug: counts of what happened (for the arena checks). */
-  readonly stats = { swings: 0, hits: 0, blocks: 0, parries: 0, evades: 0, guardBreaks: 0, launches: 0, rends: 0, interrupts: 0, hitsTaken: 0 };
+  readonly stats = { swings: 0, hits: 0, blocks: 0, parries: 0, evades: 0, guardBreaks: 0, launches: 0, rends: 0, interrupts: 0, hitsTaken: 0, cancels: 0, links: 0, suppressed: 0 };
   private hud: HTMLDivElement;
   private hudN: HTMLDivElement;
   private hudSub: HTMLDivElement;
@@ -155,9 +161,17 @@ export class Melee {
     const p = this.h.player, C = COMBAT.player;
     let key: string;
     let counter = false;
+    // gun-fu: shot someone a moment ago and they're close enough to close on? the strike lunges in to them
+    const st = this.shotTarget && this.h.enemies.enemies.includes(this.shotTarget) ? this.shotTarget : null;
+    const linkD = st ? st.mesh.position.distanceTo(p.object.position) : 99;
+    // mid-chain with them already in reach of a light strike, the chain carries on instead
+    const inReach = !!st && linkD < (C.moves.l1?.range ?? 2.4) + 0.4 * (st.mesh.scale.x - 1) + (st.boss ? 0.6 : 0) + 0.3;
+    const link = this.sinceShot < C.shotLinkWindow && linkD < C.shotLinkRange && (this.windowT <= 0 || !inReach);
+    this.moveLink = false;
     if (this.counterT > 0) { key = 'C' + kind; counter = true; }
     else if (!p.grounded) key = 'A' + kind;
     else if (this.sinceDash < C.dashStrikeWindow) key = 'D' + kind;
+    else if (link && !this.move) { key = 'D' + kind; this.moveLink = true; this.sinceShot = 9; }
     else {
       const prev = this.move || this.windowT > 0 ? this.chain : '';
       key = prev + kind;
@@ -213,13 +227,19 @@ export class Melee {
     // aim the swing at the target in reach (third person especially: it may not be dead ahead), step in toward it
     const pos = p.object.position;
     this.moveFwd.set(-Math.sin(p.yaw), 0, -Math.cos(p.yaw));
-    const tg = this.target(m.range * (m.lunge ? 2.2 : 1.8));
+    const tg = this.moveLink && this.shotTarget ? this.shotTarget : this.target(m.range * (m.lunge ? 2.2 : 1.8));
+    if (this.moveLink) { this.stats.links++; h.feedback('GUN-FU · CLOSE IN', '#7dd3fc'); }
     if (tg) {
       _v.subVectors(tg.mesh.position, pos).setY(0);
       const d = _v.length();
       if (d > 0.2) this.moveFwd.copy(_v).divideScalar(d);
       const t = m.startup + m.active * 0.5;
-      if (d > 1.5) p.lunge(this.moveFwd, Math.min(m.lunge ?? 9, (d - 1.3) / t), t);
+      if (this.moveLink && d > 1.5) {
+        // gun-fu close-in: a fast rush that covers the whole gap; the strike's startup stretches until it arrives
+        const need = Math.max(t, (d - 1.3) / LINK_SPEED);
+        this.moveT = t - need;
+        p.lunge(this.moveFwd, (d - 1.3) / need, need);
+      } else if (d > 1.5) p.lunge(this.moveFwd, Math.min(m.lunge ?? 9, (d - 1.3) / t), t);
     } else if (m.lunge) p.lunge(this.moveFwd, m.lunge * 0.6, m.startup + m.active);
     if (!p.grounded) p.airHang(total + 0.2);
     h.enemies.strikeIncoming(pos, this.moveFwd, m.range);
@@ -237,7 +257,8 @@ export class Melee {
     const chest = _v.copy(pos).setY(pos.y + 1.15).addScaledVector(this.moveFwd, 0.6).clone();
     h.vfx.slash(perfect && m.slash === 'slash' ? SLASH_PERFECT : SLASHES[m.slash], chest, { forward: this.moveFwd, tilt: m.tilt * (this.flip ? -1 : 1), flip: this.flip, tint, scale: m.scale });
     this.flip = !this.flip;
-    const beatMul = perfect ? C.beatPerfect : this.moveQ === 'GOOD' ? C.beatGood : 1;
+    // the beat is a bonus only: off the beat a strike does its full damage (never below 1x, whatever the table says)
+    const beatMul = Math.max(1, perfect ? C.beatPerfect : this.moveQ === 'GOOD' ? C.beatGood : 1);
     const resMul = 1 + (h.resonance.get() - 1) * 0.12;
     let hits = 0, launched = false;
     for (const e of [...h.enemies.enemies]) {
@@ -249,7 +270,7 @@ export class Melee {
       if (dist > reach || Math.abs(dy) > (m.id === 'air' || m.id === 'spike' ? 3.8 : 2.6)) continue;
       if (dist > 0.01) toE.divideScalar(dist);
       if (!m.around && this.moveFwd.dot(toE) < m.cone && dist > 1.2) continue;
-      const dmg = Math.round(m.dmg * beatMul * resMul * (counter ? C.counterMul : 1) * (h.dmgMul?.() ?? 1));
+      const dmg = Math.round(m.dmg * beatMul * resMul * (counter ? C.counterMul : 1) * (this.moveLink ? C.shotLinkMul : 1) * (h.dmgMul?.() ?? 1));
       const res = h.enemies.damageEnemy(e.id, dmg, toE, m.knock, {
         source: 'melee', hitstun: m.hitstun * (perfect ? 1.2 : 1), guardDmg: m.guardDmg * (perfect ? 1.3 : 1),
         launch: m.launch, spike: m.spike, unblockable: counter,
@@ -311,9 +332,20 @@ export class Melee {
   }
 
   /** A shot landed (main.ts): interrupts and air shots count into the fight. */
-  onShot(res: HitResult) {
+  /** A shot left the gun (main.ts fireShot): gun-fu cancels a strike that has already landed into the shot; the
+   *  chain stays open, so shoot → strike → shoot → strike flows. */
+  shotFired() {
+    const m = this.move;
+    if (!m || this.exec || !(this.hitDone || this.moveT > m.startup + m.active)) return;
+    this.move = null; this.buffered = null;
+    this.windowT = COMBAT.player.comboWindow;
+    this.stats.cancels++;
+  }
+
+  onShot(res: HitResult, e?: Enemy | null) {
     const h = this.h;
     if (res.killed) return;
+    if (e && !res.dodged) { this.sinceShot = 0; this.shotTarget = e; }
     if (res.interrupted) { this.stats.interrupts++; h.rhythm.playInterrupt(); h.feedback('INTERRUPT!', '#fde047'); this.bump(0.15); }
     else if (res.dazed) h.feedback('STAGGERED · DASH IN!', '#fbbf24');
     if (res.airborne) { this.combo++; this.comboT = 1.8; if (this.combo % 3 === 0) h.feedback('AIR JUGGLE', '#a78bfa'); }
@@ -366,6 +398,8 @@ export class Melee {
       this.shake(0.12);
       return { outcome: 'blocked', dmg: Math.round(s.dmg * C.blockMul) };
     }
+    // suppressing fire chips you, but doesn't stop a combo or stun you (enemies.ts: squad-mates pin you while one closes)
+    if (s.attack.id === 'suppress') { this.stats.suppressed++; whip(0.3); return { outcome: 'hit', dmg: s.dmg }; }
     if (this.blocking && s.unblockable) h.feedback('UNBLOCKABLE · DASH OUT!', '#fb923c');
     // took it: the swing is cut, a short hit-stun
     this.stats.hitsTaken++; whip(0.1);
@@ -480,6 +514,7 @@ export class Melee {
     if (this.slowT > 0) { this.slowT -= dt; if (this.slowT <= 0) this.slowScale = 1; }
     const gdt = dt * this.timeScale;
     this.sinceDash += gdt;
+    this.sinceShot += gdt;
     this.iframeT = Math.max(0, this.iframeT - gdt);
     this.counterT = Math.max(0, this.counterT - dt);
     this.stunT = Math.max(0, this.stunT - gdt);
