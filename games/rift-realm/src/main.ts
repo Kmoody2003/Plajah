@@ -17,6 +17,9 @@ import { ModeRunner, resolveMode } from './modes';
 import { describeArena } from './modes/arena';
 import { showModeResult } from './modes/result';
 import { Portals, travelTo } from './portals';
+import { CampaignRunner } from './campaign/runner';
+import { resolveCampaign } from './campaign/data';
+import { cloud as campaignCloud } from './campaign/progress';
 import { getKTX2, initKTX2 } from './textures';
 // front end + loading (menu/*): Start → Map → Character → loading screen; prefetch and the faster shader precompile
 import { applyVolume, menuSkipped, prefetch, settings as menuSettings, startMenu } from './menu/menu';
@@ -87,8 +90,10 @@ async function boot() {
   }
   menu?.attachRenderer(renderer, view);
   const choice = menu ? await menu.choice : null;
-  const pickMap = MAPS.find((m) => m.param === (choice?.level ?? new URLSearchParams(location.search).get('level') ?? 'elderwood')) ?? MAPS[0];
-  const pickChar = CHARS.find((c) => c.id === (choice?.vessel ?? 'aegis')) ?? CHARS[0];
+  // a campaign chapter (menu Campaign screen, or ?campaign=<vessel>&chapter=<n>) decides the map and the vessel
+  const camp = resolveCampaign(choice?.campaign ?? null);
+  const pickMap = MAPS.find((m) => m.param === (camp?.chapter.level ?? choice?.level ?? new URLSearchParams(location.search).get('level') ?? 'elderwood')) ?? MAPS[0];
+  const pickChar = CHARS.find((c) => c.id === (camp?.campaign.vessel ?? choice?.vessel ?? 'aegis')) ?? CHARS[0];
   const loading = new LoadScreen({ mapName: pickMap.name, mapVideo: pickMap.video, mapPoster: pickMap.poster, charName: pickChar.name, charVideo: pickChar.turn, charPoster: pickChar.turnPoster, accent: pickMap.accent });
   // batched, parallel shader precompile with progress (menu/fastCompile.ts); ?fastcompile=0 = three's own
   if (new URLSearchParams(location.search).get('fastcompile') !== '0') {
@@ -115,7 +120,7 @@ async function boot() {
   const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 260);
   scene.add(camera);
 
-  const levelId = choice?.level ?? new URLSearchParams(location.search).get('level') ?? 'elderwood';
+  const levelId = camp?.chapter.level ?? choice?.level ?? new URLSearchParams(location.search).get('level') ?? 'elderwood';
   if (!getKTX2()) initKTX2(renderer);
   // one table of levels (studio/levelModules.ts), shared with the Game Studio
   const levelModule = moduleByParam(levelId);
@@ -182,13 +187,15 @@ async function boot() {
   scene.add(player.object);
   if (choice) player.setVessel(choice.vessel); // the vessel picked on the character screen
   else { const v = new URLSearchParams(location.search).get('vessel'); if (v && v in VESSELS) player.setVessel(v as VesselId); } // carried through a hub portal
+  if (camp?.campaign.vessel) player.setVessel(camp.campaign.vessel); // a campaign is played as its own vessel
 
   // a Studio level with rules decides who arrives and how the level ends (studio/rulesHost.ts); else the endless trials run
   const ruled = !!studioLook?.level.rules.some(r => r.enabled);
   initCombatTuning(); // combat/tuning.ts: the Studio's / a saved override applies before anyone spawns
   // the game mode (modes/index.ts): the menu's Mode step, else ?mode=<id> (or the old ?trials=); Free Roam by default.
   // Any map hosts any mode; a hub (the Void Sanctum) starts empty and its runes start one.
-  const picked = resolveMode(choice?.mode);
+  let picked = resolveMode(camp ? 'campaign' : choice?.mode);
+  if (picked.mode.id === 'campaign' && !camp) picked = resolveMode('explore'); // ?mode=campaign with no chapter
   const mode = ruled ? null : picked.mode;
   const enemies = new EnemyManager(scene, collision, arena.enemySpots, !!mode?.autoWaves && !arena.hub);
   const targeting = new Targeting(camera, collision);
@@ -237,6 +244,24 @@ async function boot() {
       showModeResult(r, () => { resume(); again(); }, resume, arena.hub ? undefined : () => travelTo('sanctum', player.vessel.id));
     },
   }, arena.trialPads ?? []) : null;
+  // campaign chapter (campaign/runner.ts): intro beat → objectives → outro, progress saved (device + Plajah cloud)
+  const campaign = camp && !ruled ? new CampaignRunner({
+    scene, foes: enemies, arena: arenaDesc, playerPos: () => player.object.position,
+    banner: (t, hex) => showBeatFeedback(t, hex),
+    freeze: (on) => {
+      if (on) { player.enabled = false; if (document.pointerLockElement) { releasingLock = true; document.exitPointerLock(); } }
+      else enterRift(controls.isTouchDevice);
+    },
+    mood: (m) => rhythm.setMood(m),
+    respawn: () => { player.hp = player.maxHp; player.spawnAt(arena.spawns.a.pos, arena.spawns.a.yaw); },
+    goto: (n) => {
+      const q = new URLSearchParams(location.search);
+      if (n === null) { q.delete('campaign'); q.delete('chapter'); q.set('menustart', 'campaign'); } else { q.set('campaign', camp.campaign.id); q.set('chapter', String(n)); }
+      location.search = q.toString();
+    },
+  }, camp.campaign, camp.chapter) : null;
+  let campaignPending = !!campaign;
+  void campaignCloud.sync();
   // a scripted mode starts on the first played frame (the HUD's banner isn't up yet during boot)
   let modePending = mode?.scripted ? mode.id : null;
   let modeNote = picked.fellBack ? `${picked.asked} isn't ready yet · Free Roam` : null;
@@ -672,6 +697,7 @@ async function boot() {
     score = Math.max(0, score - 150);
     rules?.playerDowned();
     modes?.playerDowned();
+    campaign?.playerDowned();
     if (match.on) match.downs++;
     showBeatFeedback(toSpawn ? 'DOWNED · BACK AT SPAWN' : 'DOWNED', '#fb7185');
     player.goDown(() => {
@@ -751,6 +777,8 @@ async function boot() {
       if (modeNote) { showBeatFeedback(modeNote.toUpperCase(), '#94a3b8'); modeNote = null; }
       if (modePending) { modes!.start(modePending); modePending = null; }
       modes?.update(dt);
+      if (campaignPending) { campaignPending = false; void campaign!.start(); }
+      campaign?.update(dt);
       portals?.update(dt, player.object.position, player.enabled && !player.downed);
       // lava / abyss hazard
       hazardCooldown = Math.max(0, hazardCooldown - dt);
@@ -828,7 +856,7 @@ async function boot() {
       rhythm.setTrack(b.track);
       showBeatFeedback(`TRIAL ${enemies.wave} · ${b.name.toUpperCase()}`, '#fbbf24');
     }
-    waveText.textContent = rules ? rules.title : modes?.title() ?? (arena.hub ? `${currentBiomeName} · stand on a mode rune or take a portal` : `Trial ${enemies.wave} · ${currentBiomeName}`);
+    waveText.textContent = rules ? rules.title : campaign?.title() ?? modes?.title() ?? (arena.hub ? `${currentBiomeName} · stand on a mode rune or take a portal` : `Trial ${enemies.wave} · ${currentBiomeName}`);
     surgeTag.textContent = resonance >= 2.0 ? 'SOUL SURGE READY [Q]' : 'SURGE AT 2.0x RESONANCE';
     {
       const c = player.weapons.getCharge();
@@ -894,6 +922,7 @@ async function boot() {
   if (new URLSearchParams(location.search).has('rrdebug')) {
     loading.release(); await entered;
     (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, gfx, dynres, heavyLod, objectives, match, targeting, rhythm, danger, ents, pads: jumpPads, modes, arenaDesc, portals };
+    (window as any).__rr.campaign = campaign;
     // combat checks: __rr.combat.arena(['rusher', 'caster', 'brute']) clears the field and rings those around you;
     // .passive(true) freezes their AI; .tune({...}) edits the table live; .state() reads the fight
     (window as any).__rr.combat = {

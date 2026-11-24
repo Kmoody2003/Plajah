@@ -1,7 +1,10 @@
 // The Mode step of the front end: Start → Map → Mode → Character → Loading. Any map hosts any mode (modes/index.ts);
 // placeholder modes (PvP, Co-op) show as "coming soon" and can't be picked. Self-contained: its own markup and styles,
 // driven by menu.ts (render / move / pick / back), so the frozen menu data files stay untouched.
-import { MODES, type ModeId } from '../modes';
+import { MODES as ALL_MODES, type ModeId } from '../modes';
+
+/** The Mode step lists every mode but the hidden ones (the campaign has its own screens). */
+const MODES = ALL_MODES.filter((m) => !m.hidden);
 
 const CSS = `
 .rr-mode .rr-mode-list{position:absolute;left:6vw;top:22vh;width:min(560px,44vw);display:flex;flex-direction:column;gap:10px}

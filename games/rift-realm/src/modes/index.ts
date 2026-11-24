@@ -6,11 +6,14 @@
 //   survival  Wave Survival: hold out against escalating waves; three downs and it's over.
 //   trials    Trials (time attack): five rounds, the champion last; your time is the score.
 //   boss      Boss Hunt: the champion waits at the far objective with an escort; find it and bring it down.
+//   campaign  Story chapters (campaign/*): a map + a scripted objective list with intro / outro beats; reuses this
+//             runner for its survive / trials / boss steps. Picked from the menu's Campaign screen or
+//             ?campaign=<vessel>&chapter=<n>, never from the Mode step (hidden).
 //   pvp, coop placeholders (not ready: they fall back to Free Roam).
 import * as THREE from 'three/webgpu';
 import type { ArenaDescriptor } from './arena';
 
-export type ModeId = 'explore' | 'survival' | 'trials' | 'boss' | 'pvp' | 'coop';
+export type ModeId = 'explore' | 'survival' | 'trials' | 'boss' | 'campaign' | 'pvp' | 'coop';
 
 export interface ModeRules {
   win: string;
@@ -44,6 +47,8 @@ export interface ModeDef {
   domination: boolean;
   /** A structured run (ModeRunner drives it); none = the game's own loop. */
   scripted: boolean;
+  /** Not listed on the menu's Mode step (the campaign has its own screens). */
+  hidden?: boolean;
 }
 
 export const MODES: ModeDef[] = [
@@ -59,6 +64,9 @@ export const MODES: ModeDef[] = [
   { id: 'boss', name: 'Boss Hunt', blurb: 'The champion waits at the far end of the map with its escort. Hunt it down.', hex: '#fb7185', ready: true,
     rules: { win: 'defeat the champion', lose: 'downed 3 times', score: 'time', waves: 'none', respawn: 'spawn', lives: 3 },
     needs: { spawns: 1, anchors: 1, objectives: 1, bounds: true }, autoWaves: false, domination: false, scripted: true },
+  { id: 'campaign', name: 'Campaign', blurb: 'One story per vessel: chapters of objectives with intro and outro beats.', hex: '#f0abfc', ready: true, hidden: true,
+    rules: { win: 'clear the chapter objectives', lose: 'downed too often', score: 'time', waves: 'scripted', respawn: 'in-place', lives: 3 },
+    needs: { spawns: 1, anchors: 4, objectives: 1, bounds: true }, autoWaves: false, domination: false, scripted: false },
   { id: 'pvp', name: 'PvP Arena', blurb: 'Vessel against vessel. Coming with the Gamer Network.', hex: '#38bdf8', ready: false,
     rules: { win: 'most points', lose: 'fewer points', score: 'points', waves: 'none', respawn: 'spawn' },
     needs: { spawns: 2, anchors: 6, objectives: 3, bounds: true }, autoWaves: false, domination: true, scripted: false },
@@ -91,6 +99,8 @@ export interface ModeFoes {
   spawnAt(pos: THREE.Vector3, archetype: Archetype): unknown;
   clear(): void;
 }
+/** Per-run overrides (the campaign's steps): a shorter survival clock, fewer trial rounds. */
+export interface ModeRunOpts { timer?: number; rounds?: number }
 export interface ModeResult { mode: ModeId; won: boolean; time: number; kills: number; downs: number; rounds: number }
 export interface ModeHost {
   scene: THREE.Scene;
@@ -119,6 +129,9 @@ export class ModeRunner {
   private dwell = new Map<ModePad, number>();
   private beacon: THREE.Mesh | null = null;
   private boss: { mesh: THREE.Object3D; hp: number } | null = null;
+  private opts: ModeRunOpts = {};
+  private get rounds() { return this.opts.rounds ?? ROUNDS; }
+  private get timer() { return this.opts.timer ?? this.mode?.rules.timer ?? 180; }
 
   constructor(private host: ModeHost, private pads: ModePad[] = []) {
     const prev = host.foes.onKilled;
@@ -133,8 +146,8 @@ export class ModeRunner {
     if (!m) return null;
     if (this.state === 'done') return `${m.name} · done`;
     const lives = m.rules.lives ? ` · ${'♦'.repeat(Math.max(0, m.rules.lives - this.downs))}` : '';
-    if (m.id === 'trials') return `${m.name} · round ${this.round}/${ROUNDS} · ${fmtTime(this.t)}`;
-    if (m.id === 'survival') return `${m.name} · ${fmtTime(Math.max(0, (m.rules.timer ?? 0) - this.t))} left · ${this.kills} kills${lives}`;
+    if (m.id === 'trials') return `${m.name} · round ${this.round}/${this.rounds} · ${fmtTime(this.t)}`;
+    if (m.id === 'survival') return `${m.name} · ${fmtTime(Math.max(0, this.timer - this.t))} left · ${this.kills} kills${lives}`;
     if (m.id === 'boss') {
       const b = this.boss, p = this.host.playerPos();
       const d = b && b.hp > 0 ? ` · champion ${Math.round(Math.hypot(b.mesh.position.x - p.x, b.mesh.position.z - p.z))} m` : '';
@@ -143,9 +156,10 @@ export class ModeRunner {
     return m.name;
   }
 
-  start(id: ModeId) {
+  start(id: ModeId, opts: ModeRunOpts = {}) {
     const m = modeById(id);
     if (!m || !m.scripted) return;
+    this.opts = opts;
     const f = this.host.foes;
     f.clear(); this.clearBeacon();
     this.mode = m; this.state = 'run'; this.round = 0; this.t = 0; this.kills = 0; this.downs = 0; this.topUp = 0; this.boss = null;
@@ -185,7 +199,7 @@ export class ModeRunner {
     const f = this.host.foes;
     this.round++;
     f.wave = this.round; // the archetype mix follows the wave (combat/tuning.ts): brutes from round 2; the HUD banners it
-    if (this.round < ROUNDS) f.spawnWave(2 + this.round);
+    if (this.round < this.rounds) f.spawnWave(2 + this.round);
     else { const s = this.far(this.host.arena.foeSpots); if (s[0]) f.spawnAt(s[0], 'boss'); if (s[1]) f.spawnAt(s[1], 'caster'); if (s[2]) f.spawnAt(s[2], 'rusher'); }
     this.state = 'run';
   }
@@ -193,7 +207,8 @@ export class ModeRunner {
   private finish(won: boolean) {
     this.state = 'done'; this.clearBeacon();
     const r: ModeResult = { mode: this.mode!.id, won, time: this.t, kills: this.kills, downs: this.downs, rounds: this.round };
-    this.host.finished(r, () => this.start(r.mode));
+    const opts = this.opts;
+    this.host.finished(r, () => this.start(r.mode, opts));
   }
 
   update(dt: number) {
@@ -215,12 +230,12 @@ export class ModeRunner {
     const id = this.mode.id;
     if (id === 'trials') {
       if (this.state === 'run' && alive === 0) {
-        if (this.round >= ROUNDS) return this.finish(true);
+        if (this.round >= this.rounds) return this.finish(true);
         this.state = 'break'; this.breakT = BREATHER;
         this.host.banner(`ROUND ${this.round} CLEAR · ${fmtTime(this.t)}`, this.mode.hex);
       } else if (this.state === 'break' && (this.breakT -= dt) <= 0) this.nextRound();
     } else if (id === 'survival') {
-      const T = this.mode.rules.timer ?? 180;
+      const T = this.timer;
       if (this.t >= T) { f.clear(); return this.finish(true); }
       f.wave = 1 + Math.floor(this.t / 30);           // escalates every 30 s (brutes from the second)
       const want = 3 + Math.floor(this.t / 30);

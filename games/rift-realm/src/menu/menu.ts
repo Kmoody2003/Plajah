@@ -20,12 +20,15 @@ import { WEAPONS } from '../weapons';
 import { VESSELS, type VesselId } from '../vessels';
 import { openControls } from './controlsPanel';
 import { modeScreen } from './modeSelect';
+import { campaignScreens } from './campaignSelect';
+import { cloud as campaignCloud } from '../campaign/progress';
 
 export type Quality = 'auto' | 'low' | 'high';
-export interface MenuChoice { level: string; vessel: VesselId; quality: Quality; /** game mode id (modes/index.ts) */ mode: string }
+export interface MenuChoice { level: string; vessel: VesselId; quality: Quality; /** game mode id (modes/index.ts) */ mode: string;
+  /** a campaign chapter (campaign/data.ts), when mode is 'campaign' */ campaign?: { id: string; chapter: number } }
 
 const qs = () => new URLSearchParams(location.search);
-export const menuSkipped = () => { const q = qs(); return q.has('rrdebug') || q.get('studio') === '1' || q.get('menu') === '0'; };
+export const menuSkipped = () => { const q = qs(); return q.has('rrdebug') || q.get('studio') === '1' || q.get('menu') === '0' || q.has('campaign'); };
 
 // ── settings (saved) ──
 const SKEY = 'rift-realm-settings';
@@ -104,8 +107,10 @@ export function startMenu(): MenuHandle {
   const startLevel = qs().get('level');
   let mapI = Math.max(0, MAPS.findIndex((m) => m.param === startLevel));
   let charI = 0;
-  let screen: 'start' | 'settings' | 'map' | 'mode' | 'char' | 'done' = 'start';
+  let screen: 'start' | 'settings' | 'map' | 'mode' | 'char' | 'camp' | 'chap' | 'done' = 'start';
   const modeScr = modeScreen(qs().get('mode')); // the Mode step (menu/modeSelect.ts)
+  const campScr = campaignScreens(); // Campaign → Chapter (menu/campaignSelect.ts)
+  void campaignCloud.sync().then(() => { if (screen === 'camp') campScr.renderCamp(root); });
   let startI = 0, setI = 0;
   let renderer: THREE.WebGPURenderer | null = null, view: HTMLElement | null = null, pedestal: Pedestal | null = null;
   let audioOn = false;
@@ -123,7 +128,7 @@ export function startMenu(): MenuHandle {
       <div class="rr-rune"><svg viewBox="0 0 200 200"><circle cx="100" cy="100" r="92"/><circle cx="100" cy="100" r="74"/><path d="M100 8 L180 146 L20 146 Z"/><path d="M100 192 L20 54 L180 54 Z"/></svg></div>
       <div class="rr-title"><div class="rr-kicker">The Void Tournament</div><h1>Vesselbound</h1><div class="rr-sub">Fight on the pulse. Every beat is a blade.</div></div>
       <nav class="rr-list">
-        <button data-i="0">Start</button><button data-i="1">Settings</button><button data-i="2">Quit</button>
+        <button data-i="0">Start</button><button data-i="1">Campaign</button><button data-i="2">Settings</button><button data-i="3">Quit</button>
       </nav>
       <div class="rr-hint"><kbd>↑↓</kbd> choose · <kbd>Enter</kbd> / <kbd>A</kbd> select</div>
     </section>
@@ -143,7 +148,7 @@ export function startMenu(): MenuHandle {
         <button class="rr-go">Choose map <kbd>Enter</kbd></button></div>
       <div class="rr-cards">${MAPS.map((m, i) => `<button class="rr-card" data-i="${i}" style="--accent:${m.accent}"><img src="${m.poster}" alt="" loading="eager"><span>${m.name}</span></button>`).join('')}</div>
       <div class="rr-hint"><kbd>←→</kbd> / <kbd>LB RB</kbd> browse · <kbd>Enter</kbd> / <kbd>A</kbd> choose · <kbd>Esc</kbd> / <kbd>B</kbd> back</div>
-    </section>${modeScr.html}
+    </section>${modeScr.html}${campScr.html}
     <section class="rr-scr rr-char">
       <header class="rr-step"><b>3</b> Choose your vessel <em class="rr-char-map"></em></header>
       <div class="rr-char-left"><div class="rr-kicker rr-char-role"></div><h2 class="rr-char-name"></h2><div class="rr-char-title"></div>
@@ -186,6 +191,8 @@ export function startMenu(): MenuHandle {
     if (s === 'settings') renderSettings();
     if (s === 'map') renderMap();
     if (s === 'mode') modeScr.render(root, MAPS[mapI].name);
+    if (s === 'camp') { campScr.renderCamp(root); campBg(); }
+    if (s === 'chap') { campScr.renderChap(root); campBg(); }
     if (s === 'char') { renderChar(); startPedestal(); } else stopPedestal();
   }
   function renderStart() { $$('.rr-start .rr-list button').forEach((b, i) => b.classList.toggle('focus', i === startI)); }
@@ -303,9 +310,9 @@ export function startMenu(): MenuHandle {
     if (screen === 'done') return;
     wakeAudio();
     if (screen === 'start') {
-      if (a === 'up' || a === 'left') startI = (startI + 2) % 3;
-      if (a === 'down' || a === 'right') startI = (startI + 1) % 3;
-      if (a === 'ok') { if (startI === 0) { show('map'); void prefetch.characters(); } else if (startI === 1) { setI = 0; show('settings'); } else quit(); return; }
+      if (a === 'up' || a === 'left') startI = (startI + 3) % 4;
+      if (a === 'down' || a === 'right') startI = (startI + 1) % 4;
+      if (a === 'ok') { if (startI === 0) { show('map'); void prefetch.characters(); } else if (startI === 1) { show('camp'); void prefetch.characters(); } else if (startI === 2) { setI = 0; show('settings'); } else quit(); return; }
       renderStart();
     } else if (screen === 'settings') {
       if (a === 'up') setI = (setI + 5) % 6;
@@ -327,6 +334,16 @@ export function startMenu(): MenuHandle {
       if (a === 'right' || a === 'next' || a === 'down') { modeScr.move(1); modeScr.render(root, MAPS[mapI].name); }
       if (a === 'ok' && modeScr.pick()) show('char');
       if (a === 'back') show('map');
+    } else if (screen === 'camp') {
+      if (a === 'left' || a === 'prev' || a === 'up') { campScr.moveCamp(-1); campScr.renderCamp(root); campBg(); }
+      if (a === 'right' || a === 'next' || a === 'down') { campScr.moveCamp(1); campScr.renderCamp(root); campBg(); }
+      if (a === 'ok' && campScr.campReady()) show('chap');
+      if (a === 'back') show('start');
+    } else if (screen === 'chap') {
+      if (a === 'left' || a === 'prev' || a === 'up') { campScr.moveChap(-1); campScr.renderChap(root); campBg(); }
+      if (a === 'right' || a === 'next' || a === 'down') { campScr.moveChap(1); campScr.renderChap(root); campBg(); }
+      if (a === 'ok') { const p = campScr.pick(); if (p) finishCampaign(p); }
+      if (a === 'back') show('camp');
     } else if (screen === 'char') {
       if (a === 'left' || a === 'prev' || a === 'up') { charI = (charI + CHARS.length - 1) % CHARS.length; renderChar(); }
       if (a === 'right' || a === 'next' || a === 'down') { charI = (charI + 1) % CHARS.length; renderChar(); }
@@ -338,6 +355,22 @@ export function startMenu(): MenuHandle {
     // inside Plajah (an iframe or opened from the arcade) go back; on its own, to the Plajah home page
     if (window.parent !== window) { window.parent.postMessage({ source: 'rift-realm', type: 'quit' }, '*'); return; }
     if (history.length > 1) history.back(); else location.href = '/';
+  }
+  // the Campaign screens show the focused chapter's map behind them, and start fetching it
+  function campBg() {
+    const m = MAPS.find((x) => x.param === campScr.focusLevel);
+    if (m) setBg(m.video, m.poster);
+    window.clearTimeout(focusTimer);
+    focusTimer = window.setTimeout(() => { prefetch.files(campScr.focusLevel); if (renderer) void prefetch.level(moduleByParam(campScr.focusLevel)); }, 450);
+  }
+  function finishCampaign(p: { id: string; chapter: number; level: string; vessel: VesselId }) {
+    screen = 'done';
+    stopPedestal();
+    window.removeEventListener('keydown', onKey);
+    padOn = false;
+    root.classList.add('rr-leave');
+    window.setTimeout(() => { root.querySelectorAll('video').forEach((v) => v.pause()); root.remove(); }, 700);
+    resolve({ level: p.level, vessel: p.vessel, quality: settings.quality, mode: 'campaign', campaign: { id: p.id, chapter: p.chapter } });
   }
   function finish() {
     screen = 'done';
@@ -376,11 +409,12 @@ export function startMenu(): MenuHandle {
   });
   $('.rr-map .rr-go').addEventListener('click', () => act('ok'));
   modeScr.mount(root, () => act('ok'));
+  campScr.mount(root, { okCamp: () => act('ok'), okChap: () => act('ok') });
   $('.rr-char .rr-go').addEventListener('click', () => act('ok'));
   $('.rr-arrow.l').addEventListener('click', () => act('left'));
   $('.rr-arrow.r').addEventListener('click', () => act('right'));
   $$('.rr-tab').forEach((t, i) => t.addEventListener('click', () => { charI = i; renderChar(); }));
-  root.addEventListener('wheel', (e) => { if (screen === 'map' || screen === 'mode' || screen === 'char') act(e.deltaY > 0 || e.deltaX > 0 ? 'next' : 'prev'); }, { passive: true });
+  root.addEventListener('wheel', (e) => { if (screen === 'map' || screen === 'mode' || screen === 'char' || screen === 'camp' || screen === 'chap') act(e.deltaY > 0 || e.deltaX > 0 ? 'next' : 'prev'); }, { passive: true });
 
   // controller: edge-triggered buttons, a repeating left stick, the right stick turns the vessel
   let padOn = true;
@@ -409,7 +443,8 @@ export function startMenu(): MenuHandle {
   const padTimer = window.setInterval(() => { if (!padOn) { window.clearInterval(padTimer); return; } if (document.hidden) pollPad(); }, 100);
   window.addEventListener('gamepadconnected', () => root.classList.add('rr-pad'));
 
-  show('start');
+  // back from a campaign chapter (its result panel's CAMPAIGN button): open on the Campaign screen
+  show(qs().get('menustart') === 'campaign' ? 'camp' : 'start');
   // a little first-paint life even before the first video frame
   window.setTimeout(() => root.classList.add('rr-in'), 30);
 
@@ -425,6 +460,7 @@ export function startMenu(): MenuHandle {
       r.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
       r.setSize(window.innerWidth, window.innerHeight);
       if (screen === 'map' || screen === 'mode' || screen === 'char') void prefetch.level(moduleByParam(MAPS[mapI].param));
+      if (screen === 'camp' || screen === 'chap') void prefetch.level(moduleByParam(campScr.focusLevel));
       if (screen === 'char') startPedestal();
     },
   };
