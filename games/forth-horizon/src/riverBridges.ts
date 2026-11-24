@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { buildHeroBridge } from './heroBridge';
 import { mergeByMaterial } from './carBatch';
 import { GRID } from './grid';
+import { buildSubdClassicalCapitalMesh } from '../../../playkit/world/architecturalForms';
 
 /**
  * The two high-level river bridges. Shipping uses this river, so the deck clears the water by 46 m (the tallest ships need about 40): the main span is the cable-stayed hero bridge
@@ -74,10 +75,15 @@ export function buildRiverBridges(o: { ground: (x: number, z: number) => number;
     let pk = 0;
     for (const p of piers) for (const s of [-1, 1]) { const h = p.top - p.bot; tp.set(p.x + nx * s * (br.width / 2 - 3.2), p.bot + h / 2, p.z + nz * s * (br.width / 2 - 3.2)); sc.set(2.4, h, 2.4); pil.setMatrixAt(pk++, m4.compose(tp, q, sc)); }
     pil.count = pk; pil.castShadow = pil.receiveShadow = true; group.add(pil);
-    // the cross-beam on each pier cap
-    const caps = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), conc, piers.length + 1); let ck = 0;
-    for (const p of piers) { tp.set(p.x, p.top + 0.3, p.z); sc.set(2.8, 1.5, br.width - 1.5); caps.setMatrixAt(ck++, m4.compose(tp, q, sc)); }
-    caps.count = ck; caps.castShadow = true; group.add(caps);
+    // Sculpted Catmull-Clark SubD cantilevered pier hammerhead cross-beams (single InstancedMesh draw call!)
+    const capSrc = buildSubdClassicalCapitalMesh({ radiusM: 0.42, heightM: 1.0, levels: 2 });
+    const capGeo = new THREE.BufferGeometry();
+    capGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(capSrc.positions), 3));
+    if (capSrc.normals) capGeo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(capSrc.normals), 3));
+    capGeo.setIndex(new THREE.BufferAttribute(new Uint32Array(capSrc.indices), 1));
+    const caps = new THREE.InstancedMesh(capGeo, conc, piers.length + 1); let ck = 0;
+    for (const p of piers) { tp.set(p.x, p.top - 0.55, p.z); sc.set(2.8, 1.65, br.width - 1.5); caps.setMatrixAt(ck++, m4.compose(tp, q, sc)); }
+    caps.count = ck; caps.castShadow = true; caps.receiveShadow = true; group.add(caps);
     sc.set(1, 1, 1);
   }
   return { group, decks, path, updateLed: (t, n) => { for (const f of leds) f(t, n); } };

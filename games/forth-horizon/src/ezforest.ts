@@ -4,6 +4,18 @@
 import * as THREE from 'three';
 import { Tree } from '@dgreenheck/ez-tree';
 import { NEAR_R, cardLodUniforms } from './trees';
+import { buildPlaykitGrownTreeVariantMeshes } from '../../../playkit/world/architecturalForms';
+import type { IndexedTriMesh } from '../../../services/gamestudio/compiler/schema';
+
+function triMeshToWebGLGeo(m: IndexedTriMesh): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(m.positions), 3));
+  if (m.normals) g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(m.normals), 3));
+  if (m.uvs) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(m.uvs), 2));
+  g.setIndex(new THREE.BufferAttribute(new Uint32Array(m.indices), 1));
+  if (!m.normals) g.computeVertexNormals();
+  return g;
+}
 
 const TEX = '/games/ravencrest/assets/trees/';
 const tl = new THREE.TextureLoader();
@@ -58,6 +70,28 @@ function makeVariants(): Variant[] {
       t.branchesMesh.geometry.dispose(); t.leavesMesh.geometry.dispose();
       VARIANTS.push({ conifer, bark, leaves, barkType: o.bark.type === 'oak' || o.bark.type === 'willow' ? 'oak' : o.bark.type === 'birch' ? 'birch' : 'pine', leafType: o.leaves?.type ?? 'oak', width: Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / h });
     } catch (e) { console.warn('[trees] variant failed', preset, e); }
+  }
+  // Fold in Plajah's own Space-Colonization botanical species (with 3D crown normal transfer!)
+  // so Apex's Great Lakes forests share the unified Plajah vegetation catalog alongside ez-tree!
+  const PLAYKIT_APEX_SPECIES: Array<[string, number]> = [
+    ['nordic-spruce', 107],
+    ['coastal-windswept-cedar', 211],
+    ['fable-ancient-oak', 307],
+    ['autumn-maple', 409],
+  ];
+  for (const [speciesId, seed] of PLAYKIT_APEX_SPECIES) {
+    try {
+      const grown = buildPlaykitGrownTreeVariantMeshes(speciesId, seed, 240);
+      if (!grown) continue;
+      VARIANTS.push({
+        conifer: grown.conifer,
+        bark: triMeshToWebGLGeo(grown.bark),
+        leaves: triMeshToWebGLGeo(grown.leaves),
+        barkType: grown.barkType,
+        leafType: grown.leafType,
+        width: grown.widthRatio,
+      });
+    } catch (e) { console.warn('[trees] playkit species failed', speciesId, e); }
   }
   return VARIANTS;
 }

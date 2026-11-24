@@ -35,10 +35,11 @@ let erosion: DecodedRaster | null = null;
 /** The last baked Wilds ground (its 2 m world grid shades far chunks; see terrainMaterial). */
 let bakedWilds: WorldTerrain | null = null;
 
-/** Load the Wilds' baked layers before the level builds. Opt-in for now: `?erosion=1` (or `?erosion`). */
+/** Load the Wilds' pre-baked erosion layers by default (`?erosion=0` or `?erosion=off` disables). */
 export async function preloadWildsTerrain(force = false) {
-  const on = force || (typeof location !== 'undefined' && new URLSearchParams(location.search).has('erosion'));
-  if (!on || erosion) return;
+  const q = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('erosion') : null;
+  const disabled = !force && (q === '0' || q === 'off' || q === 'false');
+  if (disabled || erosion) return;
   try { erosion = await loadRaster(EROSION_URL); console.info('[wilds] erosion loaded', erosion.meta); }
   catch (e) { console.warn('[wilds] erosion not loaded; plain terrain', e); }
 }
@@ -92,7 +93,11 @@ export function terrainMaterial(beat: { value: number }) {
   const k = tslTexture(mossG, wp.mul(1 / 97)).g, k2 = tslTexture(mossB, wp.mul(1 / 71).add(vec2(0.5, 0.2))).g;
   const base = mix(b.mul(0.75), g.mul(0.45), smoothstep(float(0.62), float(0.82), k2));
   const lum = a.dot(vec3(0.3, 0.5, 0.2));
-  const moss = mix(base, a.mul(0.6), smoothstep(float(0.62), float(0.8), k).mul(smoothstep(float(0.6), float(0.2), lum))).mul(vec3(0.4, 0.58, 0.36));
+  // warm yellow-green moss (the stills' floor), with patches of fallen leaves: brown-amber litter where the big noise dips
+  const moss0 = mix(base, a.mul(0.6), smoothstep(float(0.62), float(0.8), k).mul(smoothstep(float(0.6), float(0.2), lum))).mul(vec3(0.46, 0.58, 0.3));
+  const litter = vec3(0.2, 0.12, 0.055).mul(b.dot(vec3(0.3, 0.5, 0.2)).mul(1.4).add(0.35));
+  const litterK = smoothstep(float(0.42), float(0.3), k2).mul(smoothstep(float(0.35), float(0.6), lum)).mul(0.85);
+  const moss = mix(moss0, litter, litterK);
   // rock: side-projected on the steep faces (x/z planes by the normal), grey-green
   const rx = rockMap ? tslTexture(rockMap, positionWorld.zy.mul(1 / 7)).rgb : vec3(0.35);
   const rz = rockMap ? tslTexture(rockMap, positionWorld.xy.mul(1 / 7)).rgb : vec3(0.35);

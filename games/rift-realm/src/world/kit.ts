@@ -9,6 +9,17 @@ import { art, barkTube } from '../cyberforest';
 import type { WildsCtx } from './registry';
 import type { WorldTerrain } from './terrain';
 import { riftFallSheet } from '../creek';
+import {
+  buildBimCanopyTreehouse,
+  buildCanopyDeckSubstructure,
+  buildNurbsKneeBrace,
+  buildNurbsLanternGeometry,
+  buildNurbsStoneArch,
+  buildSubdCorbelCapital,
+  buildSubdCrenelMerlon,
+} from '../../../../playkit/world/canopyArchitecture';
+import { InstancedBatchCollector, SpatialChunkController } from '../../../../playkit/world/spatialChunker';
+import type { LocalLookVolume } from '../../../../playkit/render/liveLighting';
 
 export type P3 = { x: number; y: number; z: number };
 
@@ -16,10 +27,16 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
   const { kit, B, mats, group, lo } = ctx;
   const H = (x: number, z: number) => terrain.surface(x, z);
   const cyan = color(0x2ae6ff);
-  const barkGeos: THREE.BufferGeometry[] = [];      // living trunks and logs (merged into one mesh, solid)
-  const trimGeos: THREE.BufferGeometry[] = [];      // roots, braces, ladder rails (merged, not solid)
+  const barkGeos: THREE.BufferGeometry[] = [];      // living trunks and logs (spatially chunked, solid)
+  const trimGeos: THREE.BufferGeometry[] = [];      // roots, NURBS boughs, collars, braces (spatially chunked, smooth normals)
   const clears: number[][] = [];
   const lights: { x: number; y: number; z: number; c: number; i: number; d: number }[] = [];
+  const giProbes: { x: number; y: number; z: number; kind: 'canopy' | 'interior' | 'clearing' }[] = [];
+  const lookVolumes: LocalLookVolume[] = [];
+  const batcher = new InstancedBatchCollector();
+  const spatialChunks = new SpatialChunkController(220);
+  const unitPuddleGeo = new THREE.CircleGeometry(1, 24);
+  const unitMossPlaneGeo = new THREE.PlaneGeometry(1, 1);
 
   // ── emissive materials ─────────────────────────────────────────────────────────────────────────────────────
   const glow = (hex: number, k = 1.6) => { const m = new THREE.MeshStandardNodeMaterial({ color: 0x050608, roughness: 0.4 }); m.emissiveNode = color(hex).mul(float(k).add(uniformBeat(ctx).mul(0.6))); return m; };
@@ -73,31 +90,50 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
         const a = (k / 5) * 6.28 + x, len = tr * 3 + 3, ex = x + Math.sin(a) * len, ez = z + Math.cos(a) * len;
         trimGeos.push(barkTube(new THREE.CatmullRomCurve3([new THREE.Vector3(x, gy + tr * 1.6, z), new THREE.Vector3(x + Math.sin(a) * len * 0.5, gy + 0.6, z + Math.cos(a) * len * 0.5), new THREE.Vector3(ex, H(ex, ez) - 0.3, ez)]), tr * 0.45, 0.15, 7, 7, 0.5, k + z));
       }
-      for (let k = 0; k < 4; k++) { // struts under the deck
-        const a = (k / 4) * Math.PI * 2 + 0.4, ox = x + Math.sin(a) * (r - 1), oz = z + Math.cos(a) * (r - 1);
-        trimGeos.push(barkTube(new THREE.LineCurve3(new THREE.Vector3(x + Math.sin(a) * tr, y - Math.min(7, r), z + Math.cos(a) * tr), new THREE.Vector3(ox, y - 0.45, oz)), 0.3, 0.26, 3, 7, 0.1, k));
-      }
-    } else if (y - gy > 1.5) { // posts down to the ground
+      // Full Plajah NURBS + Catmull-Clark SubD upper canopy support architecture:
+      // swept living support boughs, sculpted trunk collar, curved timber knee-braces & under-deck ring truss!
+      const sub = buildCanopyDeckSubstructure({
+        centerX: x, centerZ: z, deckY: y, deckRadiusM: r, trunkRadiusM: tr,
+        lowTier: lo, seed: x * 0.17 + z * 0.31,
+      });
+      trimGeos.push(...sub.barkSupportGeos);
+      for (const tg of sub.timberTrussGeos) kit.add(mats.darkWood, tg, { tpm: 0.55, solid: false });
+      giProbes.push({ x, y: y + 1.8, z, kind: 'canopy' });
+    } else if (y - gy > 1.5) { // posts down to the ground + curved NURBS timber knee-braces under deck
+      const brace = buildNurbsKneeBrace({ spanM: 1.5, riseM: 1.6, widthM: 0.24, depthM: 0.26, lowTier: lo });
       for (let k = 0; k < sides; k++) {
         const a = (k / sides) * Math.PI * 2 + rot, px = x + Math.sin(a) * (r - 0.6), pz = z + Math.cos(a) * (r - 0.6);
         barkGeos.push(barkTube(new THREE.LineCurve3(new THREE.Vector3(px, H(px, pz) - 0.5, pz), new THREE.Vector3(px, y - 0.4, pz)), 0.35, 0.3, 3, 7, 0.15, k + x));
+        const br = brace.clone();
+        kit.place(br, px, y - 2.0, pz, a + Math.PI);
+        kit.add(mats.darkWood, br, { tpm: 0.6, solid: false });
       }
+      giProbes.push({ x, y: y + 1.8, z, kind: 'canopy' });
     }
     const isOpen = (a: number) => (o.open ?? []).some((q) => Math.abs(Math.atan2(Math.sin(a - q), Math.cos(a - q))) < Math.max(0.16, 1.6 / r));
     const per = Math.max(sides, Math.round((2 * Math.PI * r) / 2.4));
     if (o.crenel) {
-      // the eh-01 look: a low stone wall round the deck with merlons, gaps where the bridges land
+      // the eh-01 look: low stone parapet with Catmull-Clark SubD chamfered carved-stone merlons
+      const segW = (2 * Math.PI * r) / per + 0.05;
+      const merlonGeo = buildSubdCrenelMerlon(segW * 0.64, 0.66, 0.78, lo);
       for (let k = 0; k < per; k++) {
         const a = ((k + 0.5) / per) * Math.PI * 2; if (isOpen(a)) continue;
-        const px = x + Math.sin(a) * (r - 0.45), pz = z + Math.cos(a) * (r - 0.45), w = (2 * Math.PI * r) / per + 0.05;
-        kit.box(mats.stone, w, 0.9, 0.7, px, y + 0.45, pz, a + Math.PI / 2, { tpm: 0.6 });
-        if (k % 2 === 0) kit.box(mats.stone, w * 0.6, 0.6, 0.75, px, y + 1.2, pz, a + Math.PI / 2, { tpm: 0.6 });
+        const px = x + Math.sin(a) * (r - 0.45), pz = z + Math.cos(a) * (r - 0.45);
+        kit.box(mats.stone, segW, 0.9, 0.7, px, y + 0.45, pz, a + Math.PI / 2, { tpm: 0.6 });
+        if (k % 2 === 0) {
+          const mg = merlonGeo.clone();
+          kit.place(mg, px, y + 0.88, pz, a + Math.PI / 2);
+          kit.add(mats.stone, mg, { tpm: 0.6 });
+        }
       }
     } else if (o.rail !== false) {
       for (let k = 0; k < per; k++) {
         const a0 = (k / per) * Math.PI * 2, a1 = ((k + 1) / per) * Math.PI * 2;
         const p0 = { x: x + Math.sin(a0) * (r - 0.3), z: z + Math.cos(a0) * (r - 0.3) }, p1 = { x: x + Math.sin(a1) * (r - 0.3), z: z + Math.cos(a1) * (r - 0.3) };
-        if (!isOpen(a0)) kit.box(mats.darkWood, 0.22, 1.25, 0.22, p0.x, y + 0.62, p0.z, a0, { tpm: 1 });
+        if (!isOpen(a0)) {
+          kit.box(mats.darkWood, 0.22, 1.28, 0.22, p0.x, y + 0.64, p0.z, a0, { tpm: 1 });
+          kit.box(metal, 0.28, 0.1, 0.28, p0.x, y + 1.3, p0.z, a0, { solid: false, shadow: false });
+        }
         if (isOpen(a0) || isOpen(a1)) continue;
         const c = new THREE.QuadraticBezierCurve3(new THREE.Vector3(p0.x, y + 1.1, p0.z), new THREE.Vector3((p0.x + p1.x) / 2, y + 0.88, (p0.z + p1.z) / 2), new THREE.Vector3(p1.x, y + 1.1, p1.z));
         kit.add(mats.rope, taperTube(c, 0.05, 0.05, 5, 5), { solid: false, shadow: false });
@@ -106,8 +142,8 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
       }
     }
     if (o.rune != null) runeCircle(x + (o.trunk !== false ? Math.sin(0.7) * r * 0.55 : 0), y, z + (o.trunk !== false ? Math.cos(0.7) * r * 0.55 : 0), Math.min(3.2, r * 0.32), o.rune);
-    if (o.hut != null) { const a = o.hut, hp = { x: x + Math.sin(a) * r * 0.55, z: z + Math.cos(a) * r * 0.55 }; hut(hp.x, y, hp.z, a, 3.4, 2.8, 2.5); }
-    if (o.lamp !== false) lamp(x + Math.sin(2.2) * (r - 1.2), y + 2.4, z + Math.cos(2.2) * (r - 1.2));
+    if (o.hut != null) { const a = o.hut, hp = { x: x + Math.sin(a) * r * 0.55, z: z + Math.cos(a) * r * 0.55 }; hut(hp.x, y, hp.z, a + Math.PI, 3.6, 3.0, 2.8); }
+    if (o.lamp !== false) lamp(x + Math.sin(2.2) * (r - 1.2), y + 2.5, z + Math.cos(2.2) * (r - 1.2));
     return { x, y, z, r, rim: (a: number, inset = 0.3) => ({ x: x + Math.sin(a) * (r - inset), y, z: z + Math.cos(a) * (r - inset) }) };
   };
   type Deck = ReturnType<typeof deck>;
@@ -143,44 +179,82 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
         kit.add(mats.rope, taperTube(new THREE.LineCurve3(p, p.clone().add(new THREE.Vector3(0, 1.05, 0))), 0.025, 0.025, 1, 4), { solid: false, shadow: false });
       }
       if (o.broken) continue;
+      // Under-deck catenary support cable so bridges visibly bear load across canopy spans
+      const underPts = Array.from({ length: 13 }, (_, k) => at(k / 12).add(new THREE.Vector3(ox * 0.85, -0.18, oz * 0.85)));
+      kit.add(mats.rope, taperTube(new THREE.CatmullRomCurve3(underPts), 0.055, 0.055, 20, 5), { solid: false, shadow: false });
       for (let k = 0; k < 10; k++) {
         const p0 = at(k / 10), p1 = at((k + 1) / 10), mid = p0.clone().add(p1).multiplyScalar(0.5);
         kit.box(B.invisible, 0.15, 1.1, Math.hypot(p1.x - p0.x, p1.z - p0.z) + 0.1, mid.x + ox * 1.05, mid.y + 0.55, mid.z + oz * 1.05, yaw, { shadow: false });
+      }
+    }
+    // Carved timber anchor pylons at both ends of the suspension bridge
+    for (const end of [a, b]) {
+      for (const sd of [-1, 1]) {
+        const ox = Math.cos(yaw) * sd * (width * 0.56), oz = -Math.sin(yaw) * sd * (width * 0.56);
+        kit.box(mats.darkWood, 0.28, 2.1, 0.28, end.x + ox, end.y + 0.95, end.z + oz, yaw, { tpm: 0.9, solid: false });
+        kit.box(metal, 0.34, 0.12, 0.34, end.x + ox, end.y + 2.02, end.z + oz, yaw, { solid: false, shadow: false });
       }
     }
   };
   /** Bridge between two decks, landing in each rail's opening. */
   const link = (d1: Deck, d2: Deck, o: { width?: number; sag?: number; broken?: boolean } = {}) => bridge(d1.rim(toward(d1, d2)), d2.rim(toward(d2, d1)), o);
 
-  // ── buildings ─────────────────────────────────────────────────────────────────────────────────────────────────
+  // ── walk-in CAD/BIM buildings (bimTo3D walls/doors/recessed windows + NURBS eave braces) ──────────────────────
   const hut = (x: number, y: number, z: number, yaw: number, w: number, d: number, h: number, o: { door?: boolean; lit?: boolean } = {}) => {
+    const built = buildBimCanopyTreehouse({
+      widthM: w,
+      depthM: d,
+      heightM: h,
+      hasDoor: o.door !== false,
+      lit: o.lit !== false,
+      hasPorch: o.door !== false && w >= 3.2,
+      lowTier: lo,
+    });
+    for (const g of built.wallGeos) { kit.place(g, x, y, z, yaw); kit.add(mats.darkWood, g, { tpm: 0.55 }); }
+    for (const g of built.roofAndTrimGeos) { kit.place(g, x, y, z, yaw); kit.add(mats.wood, g, { tpm: 0.55 }); }
+    for (const g of built.floorGeos) { kit.place(g, x, y, z, yaw); kit.add(mats.wood, g, { tpm: 0.45 }); }
+    for (const g of built.windowGlowGeos) { kit.place(g, x, y, z, yaw); kit.add(amberGlow, g, { solid: false, shadow: false }); }
+    for (const g of built.metalTrimGeos) { kit.place(g, x, y, z, yaw); kit.add(metal, g, { solid: false, shadow: false }); }
+    const [lx, ly, lz] = built.interiorLightOffset;
     const fx = Math.sin(yaw), fz = Math.cos(yaw), sx = Math.cos(yaw), sz = -Math.sin(yaw);
-    // walls: back + sides solid, the front with a door gap
-    kit.box(mats.darkWood, w, h, 0.25, x - fx * d / 2, y + h / 2, z - fz * d / 2, yaw, { tpm: 0.6 });
-    for (const s of [-1, 1]) kit.box(mats.darkWood, 0.25, h, d, x + sx * s * w / 2, y + h / 2, z + sz * s * w / 2, yaw, { tpm: 0.6 });
-    if (o.door === false) kit.box(mats.darkWood, w, h, 0.25, x + fx * d / 2, y + h / 2, z + fz * d / 2, yaw, { tpm: 0.6 });
-    else for (const s of [-1, 1]) kit.box(mats.darkWood, w * 0.32, h, 0.25, x + fx * d / 2 + sx * s * w * 0.34, y + h / 2, z + fz * d / 2 + sz * s * w * 0.34, yaw, { tpm: 0.6 });
-    // pitched roof, eaves out over the walls
-    for (const s of [-1, 1]) kit.box(mats.wood, w / 2 * 1.25, 0.18, d + 0.9, x + sx * s * w * 0.28, y + h + w * 0.2, z + sz * s * w * 0.28, yaw, { tpm: 0.6, rz: -s * 0.62 });
-    if (o.lit !== false) { const wx = x + fx * (d / 2 + 0.01), wz = z + fz * (d / 2 + 0.01); kit.box(amberGlow, w * 0.18, h * 0.22, 0.05, wx + sx * w * 0.34, y + h * 0.62, wz + sz * w * 0.34, yaw, { solid: false, shadow: false }); }
+    const wx = x + sx * lx + fx * lz, wy = y + ly, wz = z + sz * lx + fz * lz;
+    if (o.lit !== false) {
+      lights.push({ x: wx, y: wy, z: wz, c: 0xffa850, i: 18, d: 11 });
+    }
+    giProbes.push({ x: wx, y: wy, z: wz, kind: 'interior' });
   };
   const lamp = (x: number, y: number, z: number, hex = 0xffb050, i = 22) => {
-    kit.box(mats.lamp, 0.3, 0.45, 0.3, x, y, z, 0, { solid: false, shadow: false });
-    lights.push({ x, y, z, c: hex, i, d: 14 });
+    // Revolved NURBS hanging iron lantern cage + glowing core + support post/bracket
+    const { frame, core } = buildNurbsLanternGeometry(1.0, lo);
+    kit.place(frame, x, y, z, 0);
+    kit.place(core, x, y, z, 0);
+    kit.add(metal, frame, { solid: false, shadow: false });
+    kit.add(mats.lamp, core, { solid: false, shadow: false });
+    // Slender iron suspension davit rod rising above the lantern finial
+    kit.box(metal, 0.08, 0.7, 0.08, x, y + 0.72, z, 0, { solid: false, shadow: false });
+    lights.push({ x, y, z, c: hex, i, d: 16 });
   };
 
-  // ── stone ─────────────────────────────────────────────────────────────────────────────────────────────────────
-  /** Pointed (gothic) or round arch on two piers; width = clear opening. */
+  // ── stone (NURBS gothic/round arch vaults + Catmull-Clark SubD carved pillar capitals) ────────────────────────
+  /** Pointed (gothic) or round NURBS arch on two piers; width = clear opening. */
   const arch = (x: number, z: number, yaw: number, w: number, h: number, o: { y?: number; pointed?: boolean; depth?: number; broken?: number } = {}) => {
     const y = o.y ?? H(x, z), dx = Math.cos(yaw), dz = -Math.sin(yaw), dep = o.depth ?? 1.2, pier = Math.max(0.9, w * 0.18);
-    for (const s of [-1, 1]) kit.box(mats.stone, pier, h, dep, x + dx * s * (w / 2 + pier / 2), y + h / 2, z + dz * s * (w / 2 + pier / 2), yaw, { tpm: 0.5 });
-    const n = 9, rise = o.pointed === false ? w / 2 : w * 0.62;
-    for (let j = 0; j < n; j++) {
-      if (o.broken && j >= n - o.broken) continue;
-      const t = (j + 0.5) / n, ang = Math.PI * t, ox = -Math.cos(ang) * (w / 2 + pier * 0.4);
-      const oy = o.pointed === false ? Math.sin(ang) * rise : Math.pow(Math.sin(ang), 0.75) * rise;
-      kit.box(mats.stone, (Math.PI * w) / (2 * n) + 0.45, 0.7, dep, x + dx * ox, y + h + oy, z + dz * ox, yaw, { tpm: 0.5, rz: -Math.cos(ang) * (o.pointed === false ? 1.2 : 0.8) });
+    const capGeo = buildSubdCorbelCapital(pier * 0.55, 0.55, lo);
+    for (const s of [-1, 1]) {
+      const px = x + dx * s * (w / 2 + pier / 2), pz = z + dz * s * (w / 2 + pier / 2);
+      kit.box(mats.stone, pier, h, dep, px, y + h / 2, pz, yaw, { tpm: 0.5 });
+      const cg = capGeo.clone();
+      kit.place(cg, px, y + h - 0.18, pz, yaw);
+      kit.add(mats.stone, cg, { tpm: 0.55 });
     }
+    const rise = o.pointed === false ? w * 0.5 : w * 0.64;
+    const intact = o.broken ? Math.max(0.32, 1 - o.broken / 9) : 1;
+    const archGeo = buildNurbsStoneArch({
+      widthM: w, riseM: rise, depthM: dep, ribThicknessM: Math.max(0.55, pier * 0.68),
+      pointed: o.pointed !== false, intactFraction: intact, lowTier: lo,
+    });
+    kit.place(archGeo, x, y + h + 0.08, z, yaw);
+    kit.add(mats.stone, archGeo, { tpm: 0.5 });
   };
   /** Broken stone wall: blocks with a ragged top. */
   const ruinWall = (x: number, z: number, yaw: number, len: number, h: number, seed = 1) => {
@@ -191,9 +265,11 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
     }
   };
   const pillar = (x: number, z: number, h: number, r = 0.7, y = H(x, z)) => {
-    kit.prism(mats.stone, 10, r * 1.25, r * 1.35, 0.6, x, y - 0.1, z, 0, { tpm: 0.5 });
-    kit.prism(mats.stone, 10, r, r * 1.05, h, x, y + 0.5, z, 0, { tpm: 0.5 });
-    kit.prism(mats.stone, 10, r * 1.3, r * 1.1, 0.6, x, y + 0.5 + h, z, 0, { tpm: 0.5 });
+    kit.prism(mats.stone, 10, r * 1.25, r * 1.38, 0.6, x, y - 0.1, z, 0, { tpm: 0.5 });
+    kit.prism(mats.stone, 10, r, r * 1.06, h, x, y + 0.5, z, 0, { tpm: 0.5 });
+    const cap = buildSubdCorbelCapital(r * 0.92, 0.68, lo);
+    kit.place(cap, x, y + 0.45 + h, z, 0);
+    kit.add(mats.stone, cap, { tpm: 0.55 });
   };
   // ── paved floors: real flagstones, not a textured plane. Each stone is its own bevelled slab (an irregular outline,
   //    chipped corners), laid in running-bond rows with gaps, heaved and tilted by a few cm; in a few hollows the stones
@@ -292,8 +368,14 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
       }
     }
     for (const [qx, qz, qr] of pits) {
-      const m = new THREE.Mesh(new THREE.CircleGeometry(qr * 1.15, 28), puddleMat); m.rotation.set(-Math.PI / 2, 0, rnd() * 6.28);
-      m.scale.set(1 + rnd() * 0.6, 1, 1); m.position.set(qx, y + 0.06, qz); m.renderOrder = 2; group.add(m);
+      const rScale = qr * 1.15;
+      batcher.addTRS(
+        'wilds-puddles', unitPuddleGeo, puddleMat,
+        qx, y + 0.06, qz,
+        -Math.PI / 2, 0, rnd() * 6.28,
+        rScale * (1 + rnd() * 0.6), rScale, 1,
+        { castShadow: false, receiveShadow: true, renderOrder: 2, name: 'wilds-puddles:instanced' },
+      );
     }
   };
   const discPave = (x: number, z: number, r: number, y: number, n = 32, o: { pits?: number[][]; seed?: number } = {}) => paving(Array.from({ length: n }, (_, k) => [x + Math.sin((k / n) * 6.283) * r, z + Math.cos((k / n) * 6.283) * r] as [number, number]), y, o);
@@ -354,11 +436,18 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
   };
 
   // ── glowing bits: circuit lines, rune circles, rings, screens, crystals ─────────────────────────────────────
+  // Share decal node materials by (tex.uuid, tint, k) to cut redundant WGSL shader compilations on cold boot!
+  const decalMatCache = new Map<string, THREE.MeshBasicNodeMaterial>();
   const decal = (tex: THREE.Texture, x: number, y: number, z: number, w: number, d: number, yaw: number, tint: number, k = 1.4) => {
-    const m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-    const tx = tslTexture(tex);
-    m.colorNode = tx.rgb.mul(color(tint)).mul(float(k).add(uniformBeat(ctx).mul(0.8)));
-    m.opacityNode = tx.a;
+    const mk = `${tex.uuid}:${tint}:${k.toFixed(2)}`;
+    let m = decalMatCache.get(mk);
+    if (!m) {
+      m = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+      const tx = tslTexture(tex);
+      m.colorNode = tx.rgb.mul(color(tint)).mul(float(k).add(uniformBeat(ctx).mul(0.8)));
+      m.opacityNode = tx.a;
+      decalMatCache.set(mk, m);
+    }
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d), m);
     mesh.rotation.set(-Math.PI / 2, 0, yaw); mesh.position.set(x, y + 0.06, z); mesh.renderOrder = 2;
     group.add(mesh); return mesh;
@@ -434,7 +523,13 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
     const spot = () => { for (let t = 0; t < 8; t++) { const a = rnd() * 6.283, d = Math.sqrt(rnd()) * r, px = x + Math.sin(a) * d, pz = z + Math.cos(a) * d; if (!o.keepClear?.(px, pz)) return [px, pz]; } return null; };
     for (let k = 0; k < (o.moss ?? 24); k++) {
       const p = spot(); if (!p) continue; const sz = 1.2 + rnd() * 3.2;
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(sz * (1 + rnd()), sz), mossDecal); m.rotation.set(-Math.PI / 2, 0, rnd() * 6.28); m.position.set(p[0], y + 0.07, p[1]); m.renderOrder = 1; group.add(m);
+      batcher.addTRS(
+        'wilds-moss-decals', unitMossPlaneGeo, mossDecal,
+        p[0], y + 0.07, p[1],
+        -Math.PI / 2, 0, rnd() * 6.28,
+        sz * (1 + rnd()), sz, 1,
+        { castShadow: false, receiveShadow: true, renderOrder: 1, name: 'wilds-moss-decals:instanced' },
+      );
     }
     for (let k = 0; k < (o.slabs ?? 22); k++) { // heaved and broken flagstones
       const p = spot(); if (!p) continue; const w = 0.6 + rnd() * 0.7, d = 0.45 + rnd() * 0.6;
@@ -453,20 +548,32 @@ export function makeKit(ctx: WildsCtx, terrain: WorldTerrain) {
     // no grass blades on paving: the forest grass is a knee-high teal carpet; the green on the floor is moss, mounds, plants
   };
 
-  /** Merge the trunk/trim geometry into the level (call once, after every place is built). */
+  /** Spatially chunk trunks/trim/vines for GPU frustum & shadow culling, and flush all instanced prop batches! */
   const finish = () => {
-    const tg = barkGeos.length ? mergeAll(barkGeos) : null;
-    if (tg) { const m = new THREE.Mesh(tg, mats.bark); m.castShadow = !lo; m.receiveShadow = true; m.userData.collide = true; m.name = 'wilds-trunks'; group.add(m); }
-    const rg = trimGeos.length ? mergeAll(trimGeos) : null;
-    if (rg) { const m = new THREE.Mesh(rg, mats.bark); m.castShadow = !lo; m.receiveShadow = true; m.name = 'wilds-trim'; group.add(m); }
-    const vg = vineGeos.length ? mergeAll(vineGeos) : null;
-    if (vg) { const m = new THREE.Mesh(vg, vineMat); m.receiveShadow = true; m.name = 'wilds-glow-vines'; group.add(m); }
-    console.info(`[wilds] ${stoneCount} flagstones, ${vineGeos.length} glow vines`);
+    const trunkChunks = spatialChunks.addChunkedGeometryGroup(group, barkGeos, mats.bark, {
+      name: 'wilds-trunks', castShadow: !lo, receiveShadow: true, collide: true,
+    });
+    const trimChunks = spatialChunks.addChunkedGeometryGroup(group, trimGeos, mats.bark, {
+      name: 'wilds-trim', castShadow: !lo, receiveShadow: true, collide: false,
+    });
+    const vineChunks = spatialChunks.addChunkedGeometryGroup(group, vineGeos, vineMat, {
+      name: 'wilds-glow-vines', castShadow: false, receiveShadow: true, collide: false,
+    });
+    const instancedCount = batcher.totalInstances;
+    const instancedMeshes = batcher.flush(group);
+    group.userData.wildsLights = lights;
+    group.userData.wildsGiProbes = giProbes;
+    group.userData.wildsLookVolumes = lookVolumes;
+    group.userData.spatialChunks = spatialChunks;
+    console.info(
+      `[wilds] ${stoneCount} flagstones, ${vineGeos.length} glow vines, ${lights.length} lights, ${giProbes.length} GI probes, `
+      + `${trunkChunks.length + trimChunks.length + vineChunks.length} spatial chunks, ${instancedCount} props -> ${instancedMeshes.length} instanced draws`,
+    );
   };
 
   return {
     H, deck, bridge, link, clutter, glowVines, grassy, mossRock, mound, toward, hut, lamp, arch, ruinWall, pillar, paving, discPave, rocks, rockSpots, circuit, runeCircle, ring, screen, crystal, crates, sandbags, waterfall, finish,
-    barkGeos, trimGeos, lights, clears,
+    barkGeos, trimGeos, lights, giProbes, lookVolumes, batcher, clears,
     mats: { cyanGlow, amberGlow, violetGlow, goldGlow, crystalMat, metal, canvasMat, sandbag, crate, fallMat },
   };
 }

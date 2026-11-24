@@ -9,6 +9,14 @@ import type { WildsCtx } from './registry';
 import type { WorldTerrain } from './terrain';
 import { type Kit, uniformBeat } from './kit';
 import { GREAT_FALLS, NEON_FALLS, POOL_FALLS, POOL_STREAM, RIVER, gorgeX, place, placeY, polyNear } from './layout';
+import {
+  buildBimStoneTower,
+  buildNurbsArchBridge,
+  buildNurbsKneeBrace,
+  buildNurbsPortalFrame,
+  buildNurbsVaultRibs,
+  buildSubdCarvedConsole,
+} from '../../../../playkit/world/canopyArchitecture';
 
 // the hollow's Great Oak deck (elderwood.ts OAK / DECK_R / DECK_Y)
 const OAK = { x: 2, z: -36 }, DECK_R = 22, DECK_Y = 12;
@@ -115,13 +123,14 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
       const sx = -122, sz = -292, sy = H(sx, sz);
       B.flight(mats.stone, sx + 14, H(sx + 14, sz), sz, -Math.PI / 2, sy + 0.5, 3, 0.3, 0.4);
     }
-    // seedpods: vines over the lookout hung with glowing pods (eh-11)
+    // seedpods: vines over the lookout hung with glowing pods (eh-11) — instanced via K.batcher (1 draw call)
     {
       const s = N.get('seedpods')!, sy = y(s);
+      const podGeo = new THREE.SphereGeometry(0.28, 10, 8);
       for (let k = 0; k < 14; k++) {
         const a = R() * 6.283, r = 1 + R() * 6, px = s.x + Math.sin(a) * r, pz = s.z + Math.cos(a) * r, top = sy + 9 + R() * 4, len = 2 + R() * 5;
         ctx.plantSpots.push({ x: px, y: top, z: pz, yaw: R() * 6.28, species: 3, scale: len / 5 });
-        const pod = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), K.mats.goldGlow); pod.scale.set(1, 1.7, 1); pod.position.set(px, top - len - 0.3, pz); group.add(pod);
+        K.batcher.addTRS('wilds-seedpods', podGeo, K.mats.goldGlow, px, top - len - 0.3, pz, 0, 0, 0, 1, 1.7, 1, { castShadow: false, receiveShadow: false, name: 'wilds-seedpods:instanced' });
       }
       K.lamp(s.x + 1.5, sy + 2.2, s.z, 0xffd27a, 18);
     }
@@ -154,25 +163,24 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
     for (let k = 0; k < 30; k++) { const [x, z] = ringOf(v.x, v.z, 18, 46); fungus(k % 2, x, z, 1 + R() * 1.6); }
   }
 
-  // ═══ the Settlement: stone tower houses, treehouses, a bridge between them, cable path, crystals ══════════════════
+  // ═══ the Settlement: walk-in CAD/BIM stone tower houses, treehouses, bridges, cable path, crystals ═══════════════
   {
     const s = place('settlement'), sy = placeY(s);
     const towers = [[-14, -10, 8, 18, 0.2], [10, -16, 7, 22, -0.3], [16, 10, 9, 14, 0.5]] as const;
     for (const [dx, dz, w, h, yaw] of towers) {
       const x = s.x + dx, z = s.z + dz;
-      kit.box(mats.stone, w, h, w, x, sy + h / 2 - 0.5, z, yaw, { tpm: 0.4 });
-      kit.box(mats.darkWood, w + 1.6, 0.4, w + 1.6, x, sy + h, z, yaw, { tpm: 0.5 });
-      K.hut(x, sy + h + 0.2, z, yaw, w * 0.7, w * 0.6, 3.2);
-      // windows lit in rows, wooden balconies on two storeys
       const fx = Math.sin(yaw), fz = Math.cos(yaw), sxv = Math.cos(yaw), szv = -Math.sin(yaw);
-      for (let st = 1; st < h / 4; st++) for (const s2 of [-1, 1]) {
-        if ((st + s2) % 3 === 0) continue;
-        kit.box(K.mats.amberGlow, 0.9, 1.3, 0.1, x + fx * (w / 2 + 0.03) + sxv * s2 * w * 0.25, sy + st * 4, z + fz * (w / 2 + 0.03) + szv * s2 * w * 0.25, yaw, { solid: false, shadow: false });
-        kit.box(K.mats.amberGlow, 0.1, 1.3, 0.9, x + sxv * (w / 2 + 0.03) + fx * s2 * w * 0.25, sy + st * 4 + 1, z + szv * (w / 2 + 0.03) + fz * s2 * w * 0.25, yaw, { solid: false, shadow: false });
-      }
-      kit.box(mats.wood, w * 0.8, 0.25, 2.2, x + fx * (w / 2 + 1.1), sy + 8, z + fz * (w / 2 + 1.1), yaw, { tpm: 0.5 });
-      B.steelStair(K.mats.metal, x - sxv * (w / 2 + 1) - fx * (w / 2 - 0.5), sy, z - szv * (w / 2 + 1) - fz * (w / 2 - 0.5), yaw, sy + 8, 1.4);
-      K.lamp(x + fx * (w / 2 + 0.6), sy + 3.2, z + fz * (w / 2 + 0.6));
+      // Real multi-story walk-in CAD/BIM Stone Tower (bimTo3D walls/entry/recessed windows + SubD battlements + NURBS balcony braces)
+      const built = buildBimStoneTower({ widthM: w, heightM: h, balconyHeightM: 8, lowTier: lo });
+      for (const g of built.stoneGeos) { kit.place(g, x, sy - 0.3, z, yaw); kit.add(mats.stone, g, { tpm: 0.42 }); }
+      for (const g of built.timberGeos) { kit.place(g, x, sy - 0.3, z, yaw); kit.add(mats.darkWood, g, { tpm: 0.5 }); }
+      for (const g of built.windowGlowGeos) { kit.place(g, x, sy - 0.3, z, yaw); kit.add(K.mats.amberGlow, g, { solid: false, shadow: false }); }
+      for (const g of built.metalGeos) { kit.place(g, x, sy - 0.3, z, yaw); kit.add(K.mats.metal, g, { solid: false, shadow: false }); }
+      K.hut(x, sy + h + 0.05, z, yaw, w * 0.68, w * 0.58, 3.2);
+      B.steelStair(K.mats.metal, x - sxv * (w / 2 + 1) - fx * (w / 2 - 0.5), sy, z - szv * (w / 2 + 1) - fz * (w / 2 - 0.5), yaw, sy + 7.8, 1.4);
+      K.lamp(x + fx * (w / 2 + 0.8), sy + 3.4, z + fz * (w / 2 + 0.8));
+      K.lights.push({ x, y: sy + 2.4, z, c: 0xffa850, i: 18, d: 12 });
+      K.giProbes.push({ x, y: sy + 2.2, z, kind: 'interior' });
     }
     const t1 = K.deck(s.x - 26, s.z + 18, sy + 10, 5.5, { hut: 0.8, open: [0.6, 2.4] });
     const t2 = K.deck(s.x + 30, s.z - 26, sy + 12, 5.5, { hut: 2.9, open: [-1.6, 2.6] });
@@ -224,18 +232,20 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
     glowAt(s.x, H(s.x, s.z) + 2, s.z);
   }
   {
-    // the Digital Bridge: a stone span over the river, cyan rails (the blueprint's crossing)
+    // the Digital Bridge: sculpted twin-arch NURBS stone span over the river with SubD pier capital & cyan conduit rails
     const b = place('digital-bridge'), n = polyNear(RIVER, b.x, b.z), a = RIVER[n.i], c = RIVER[n.i + 1];
     const flow = Math.atan2(c[0] - a[0], c[1] - a[1]), across = flow + Math.PI / 2, L = 34;
     const y = Math.max(H(b.x + Math.sin(across) * L / 2, b.z + Math.cos(across) * L / 2), H(b.x - Math.sin(across) * L / 2, b.z - Math.cos(across) * L / 2)) + 0.3;
-    kit.box(mats.stone, 5, 0.8, L, b.x, y - 0.4, b.z, across, { tpm: 0.4 });
+    const pierH = Math.max(5, y - H(b.x, b.z) + 2);
+    const bridgeBuilt = buildNurbsArchBridge({ lengthM: L, widthM: 5.4, pierHeightM: pierH, lowTier: lo });
+    for (const g of bridgeBuilt.stoneGeos) { kit.place(g, b.x, y, b.z, across); kit.add(mats.stone, g, { tpm: 0.42 }); }
+    for (const g of bridgeBuilt.glowGeos) { kit.place(g, b.x, y, b.z, across); kit.add(K.mats.cyanGlow, g, { solid: false, shadow: false }); }
+    for (const g of bridgeBuilt.metalGeos) { kit.place(g, b.x, y, b.z, across); kit.add(K.mats.metal, g, { solid: false, shadow: false }); }
     for (const s of [-1, 1]) {
-      const ox = Math.cos(across) * s * 2.3, oz = -Math.sin(across) * s * 2.3;
-      kit.box(K.mats.cyanGlow, 0.18, 0.12, L, b.x + ox, y + 1.0, b.z + oz, across, { solid: false });
+      const ox = Math.cos(across) * s * 2.45, oz = -Math.sin(across) * s * 2.45;
       kit.box(B.invisible, 0.3, 1.2, L, b.x + ox, y + 0.6, b.z + oz, across, { shadow: false });
-      for (let k = -2; k <= 2; k++) kit.box(mats.stone, 0.4, 1.1, 0.4, b.x + ox + Math.sin(across) * k * 8, y + 0.5, b.z + oz + Math.cos(across) * k * 8, across, { tpm: 0.6 });
     }
-    kit.prism(mats.stone, 8, 2.2, 2.8, y - H(b.x, b.z) + 2, b.x, H(b.x, b.z) - 2, b.z, 0, { tpm: 0.4 });
+    K.lights.push({ x: b.x, y: y + 1.8, z: b.z, c: 0x2ae6ff, i: 22, d: 18 });
     out.clear.push([b.x, b.z, 18]);
   }
   // the falls: Neon Falls (Highland rim), the Great Falls (head of the Gorge), the pool stream into the Gorge
@@ -325,6 +335,8 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
       kit.box(mats.darkWood, 0.15, 1.0, len, t.x + Math.sin(am) * (r0 + 0.1), (yy0 + yy1) / 2 + 0.5, t.z + Math.cos(am) * (r0 + 0.1), am + Math.PI / 2, { tpm: 1, rx: -Math.atan2(yy1 - yy0, len) });
       if (i % 3 === 0) kit.box(mats.darkWood, 0.18, 1.1, 0.18, t.x + Math.sin(a0) * (r0 + 0.1), yy0 + 0.55, t.z + Math.cos(a0) * (r0 + 0.1), a0, { tpm: 1 });
     }
+    const consoleGeo = buildSubdCarvedConsole(1.45, 1.05, 0.78, lo);
+    const innerBrace = buildNurbsKneeBrace({ spanM: 3.4, riseM: 3.2, widthM: 0.28, depthM: 0.34, lowTier: lo });
     for (const [ry, label] of [[yTop, 'BUNKER'], [yTop + 12, 'COMMS'], [yTop + 24, 'LOOKOUT']] as const) {
       // an annulus floor at the door level, open in the middle (the void with the glowing conduits)
       const ring: [number, number][] = [], hole: [number, number][] = [];
@@ -332,10 +344,19 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
       for (let k = 39; k >= 0; k--) { const a = (k / 40) * 6.283; hole.push([t.x + Math.sin(a) * 4.5, t.z + Math.cos(a) * 4.5]); }
       const d = polyRing(ring, hole, ry);
       void d;
+      // Curved NURBS timber ribs supporting each hollow annulus ring from the inner bark wall
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2 + 0.2;
+        const br = innerBrace.clone();
+        kit.place(br, t.x + Math.sin(a) * (R0 - 0.6), ry - 3.3, t.z + Math.cos(a) * (R0 - 0.6), a + Math.PI);
+        kit.add(mats.darkWood, br, { tpm: 0.55, solid: false });
+      }
       for (let k = 0; k < 4; k++) {
         const a = Math.PI + 0.9 + k * 0.5, px = t.x + Math.sin(a) * (R0 - 2), pz = t.z + Math.cos(a) * (R0 - 2);
         K.screen(px, ry + 1.6, pz, a + Math.PI, 1.6, 0.9, [label, `NODE ${k + 1}`, 'SIGNAL OK'], '#5dff9c');
-        kit.box(K.mats.metal, 1.4, 1.0, 0.7, px, ry + 0.5, pz, a + Math.PI, {});
+        const cg = consoleGeo.clone();
+        kit.place(cg, px, ry, pz, a + Math.PI);
+        kit.add(K.mats.metal, cg, { tpm: 0.8 });
       }
       K.sandbags(t.x + Math.sin(-2.2) * (R0 - 2.5), t.z + Math.cos(-2.2) * (R0 - 2.5), -2.2 + Math.PI / 2, 4, ry);
       K.crates(t.x + Math.sin(-1.4) * (R0 - 2.5), t.z + Math.cos(-1.4) * (R0 - 2.5), -1.4, 3, ry);
@@ -348,6 +369,7 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
     green.emissiveNode = color(0x5dff7a).mul(float(0.9).add(sin(time.mul(2).add(positionWorld.y.mul(0.4))).mul(0.3)).add(beat.mul(0.5)));
     for (let k = 0; k < 4; k++) { const a = k * 1.57 + 0.4; const c = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, yCrown - yBot - 4, 10), green); c.position.set(t.x + Math.sin(a) * 2.2, (yCrown + yBot) / 2, t.z + Math.cos(a) * 2.2); group.add(c); }
     K.bridge({ x: north.x, y: yTop + 0.05, z: north.z - 6 }, { x: north.x, y: yTop + 0.05, z: north.z + 1 }, { width: 3, sag: 0 });
+    K.lookVolumes.push({ id: 'titan-tree-bunker', name: 'Titan Tree Hollow', center: [t.x, yTop + 8, t.z], radiusM: R0 + 1, featherM: 6, preset: 'titan-bunker' });
     out.clear.push([t.x, t.z, R0 + 8]);
     glowAt(t.x, yTop + 2, t.z);
   }
@@ -370,7 +392,13 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
     for (const [dx, dz, w, d] of [[-6, 0, 0.2, 9], [0, -4.5, 12, 0.2], [0, 4.5, 12, 0.2]] as const) {
       kit.box(mats.darkWood, Math.max(w, 0.15), 1.1, Math.max(d, 0.15), bx + dx, oy + 0.55, bz + dz, 0, { tpm: 0.8 });
     }
-    for (let k = 0; k < 4; k++) { const z = bz - 4 + k * 2.6; const c = new THREE.LineCurve3(new THREE.Vector3(bx - 5.6, oy - 0.4, z), new THREE.Vector3(o.x - 1, oy - 14, z)); K.barkGeos.push(tubeOf(c, 0.16)); }
+    const cliffBrace = buildNurbsKneeBrace({ spanM: 5.2, riseM: 7.5, widthM: 0.34, depthM: 0.42, lowTier: lo });
+    for (let k = 0; k < 4; k++) {
+      const z = bz - 4 + k * 2.6;
+      const g = cliffBrace.clone();
+      kit.place(g, o.x - 3.6, oy - 7.8, z, -Math.PI / 2);
+      kit.add(K.mats.metal, g, { tpm: 0.5, solid: false });
+    }
     kit.box(mats.darkWood, 0.4, 4.2, 9, o.x + 6, oy + 2.1, o.z, 0, { tpm: 0.6 });   // the shelter's back wall
     kit.box(mats.wood, 6, 0.25, 10, o.x + 3.4, oy + 4.3, o.z, 0, { tpm: 0.6, rz: 0.18 });
     K.screen(o.x + 5.6, oy + 2.3, o.z - 1.5, -Math.PI / 2, 3, 1.7, ['ZONE 05 OUTPOST', 'PERIMETER 98%', 'FALLS SECTOR'], '#46e8ff');
@@ -448,13 +476,16 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
       for (const s of [-1, 1]) rockWall(x0 + run / 2, 354 + s * 3.6, run, 1.6, 9);
       kit.box(mats.rock, run, 2, 9, x0 + run / 2, FY + 7.2, 354, 0, { tpm: 0.25 });
     }
-    // the hall: 22 × 16, 8 m high
+    // the hall: 22 × 16, 8 m high — vaulted with swept NURBS cavern ribs & SubD boss keystones!
     const cx = 268, cz = 354;
     kit.box(mats.stone, 22, 0.6, 16, cx, FY - 0.3, cz, 0, { tpm: 0.35 });
     kit.box(mats.rock, 24, 2, 18, cx, FY + 9, cz, 0, { tpm: 0.25 });
     rockWall(cx + 11.8, cz, 1.6, 18, 9); rockWall(cx, cz + 8.8, 24, 1.6, 9);
     rockWall(cx - 11.8, cz + 5.5, 1.6, 7, 9); rockWall(cx - 11.8, cz - 5.5, 1.6, 7, 9);
     rockWall(cx - 6, cz - 8.8, 12, 1.6, 9); rockWall(cx + 8, cz - 8.8, 8, 1.6, 9);   // a gap north to the Rift Vault corridor
+    const crystalRibs = buildNurbsVaultRibs({ spanWidthM: 21, hallLengthM: 15, springHeightM: 3.4, vaultRiseM: 5.0, bays: 3, pointed: false, lowTier: lo });
+    for (const g of crystalRibs.stoneGeos) { kit.place(g, cx, FY, cz, 0); kit.add(mats.stone, g, { tpm: 0.42, solid: false }); }
+    for (const g of crystalRibs.accentGeos) { kit.place(g, cx, FY, cz, 0); kit.add(K.mats.cyanGlow, g, { solid: false, shadow: false }); }
     K.rocks(cx, cz, 10, 9, [0.6, 1.4], 91);
     for (const [dx, dz, h] of [[-8, 5, 4], [6, 6, 5], [9, -5, 3.5], [-4, -6, 3], [2, 1, 2.2]] as const) K.crystal(cx + dx, cz + dz, h, FY, dx * 10 + dz);
     for (let k = 0; k < 4; k++) { // the armoury lockers along the east wall, AMMO screens
@@ -464,7 +495,8 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
     for (let k = 0; k < 3; k++) kit.box(K.mats.metal, 3.2, 0.08, 2.4, cx - 3 + k * 3.4, FY + 0.04, cz + 1, 0, { solid: false });
     K.crates(cx - 6, cz + 6.5, 0.3, 4, FY);
     K.lamp(cx, FY + 6.8, cz, 0x9ff6ff, 24);
-    // the corridor north and the Rift Vault: rune pillars, gold circuit lines, a portal on a dais
+    K.lookVolumes.push({ id: 'crystal-vault', name: 'Crystal Vault', center: [cx, FY + 3.5, cz], radiusM: 14, featherM: 6, preset: 'crystal-vault' });
+    // the corridor north and the Rift Vault: vaulted gothic NURBS nave, rune pillars, gold circuit lines, sculpted NURBS portal
     kit.box(mats.stone, 5, 0.6, 12, 270, FY - 0.3, 342, 0, { tpm: 0.35 });
     for (const s of [-1, 1]) rockWall(270 + s * 3.3, 342, 1.6, 12, 7);
     kit.box(mats.rock, 8, 2, 12, 270, FY + 7, 342, 0, { tpm: 0.25 });
@@ -472,6 +504,9 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
     kit.box(mats.stone, 18, 0.6, 30, rx, FY - 0.3, rz, 0, { tpm: 0.33 });
     kit.box(mats.stone, 20, 2, 32, rx, FY + 11, rz, 0, { tpm: 0.3 });
     for (const s of [-1, 1]) B.gothicWall(mats.stone, rx + s * 9.5, rz, Math.PI / 2, 30, 10, 4, FY, 1.6, 0.75);
+    const riftRibs = buildNurbsVaultRibs({ spanWidthM: 17.4, hallLengthM: 28, springHeightM: 4.5, vaultRiseM: 5.8, bays: 5, pointed: true, lowTier: lo });
+    for (const g of riftRibs.stoneGeos) { kit.place(g, rx, FY, rz, 0); kit.add(mats.stone, g, { tpm: 0.42, solid: false }); }
+    for (const g of riftRibs.accentGeos) { kit.place(g, rx, FY, rz, 0); kit.add(K.mats.goldGlow, g, { solid: false, shadow: false }); }
     kit.box(mats.stone, 20, 10, 1.6, rx, FY + 5, rz - 15.5, 0, { tpm: 0.35 });
     kit.box(mats.stone, 7, 10, 1.6, rx - 6.5, FY + 5, rz + 15.5, 0, { tpm: 0.35 }); kit.box(mats.stone, 7, 10, 1.6, rx + 6.5, FY + 5, rz + 15.5, 0, { tpm: 0.35 });
     for (let k = 0; k < 4; k++) for (const s of [-1, 1]) {
@@ -481,20 +516,25 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
     K.circuit(rx, FY, rz + 4, 8, 16, Math.PI, 0xffc864, 71); K.circuit(rx, FY, rz - 6, 8, 10, Math.PI, 0xffc864, 72);
     B.flight(mats.stone, rx, FY, rz - 7, Math.PI, FY + 1.5, 8, 0.25, 0.4);
     kit.box(mats.stone, 12, 1.5, 6, rx, FY + 0.75, rz - 12, 0, { tpm: 0.4 });
-    // the portal: a stone ring, a swirling disc of light
-    const ringGeo = new THREE.TorusGeometry(4.2, 0.7, 10, 48);
-    const ringMesh = new THREE.Mesh(ringGeo, mats.stone); ringMesh.position.set(rx, FY + 6.4, rz - 13.5); group.add(ringMesh);
+    // the portal: sculpted fluted NURBS monolith ring + inner glowing rune collar + swirling disc of light
+    const portalBuilt = buildNurbsPortalFrame(4.2, 0.72, lo);
+    kit.place(portalBuilt.stoneFrame, rx, FY + 6.4, rz - 13.5, 0);
+    kit.add(mats.stone, portalBuilt.stoneFrame, { tpm: 0.45 });
+    kit.place(portalBuilt.runeRing, rx, FY + 6.4, rz - 13.5, 0);
+    kit.add(K.mats.cyanGlow, portalBuilt.runeRing, { solid: false, shadow: false });
     const swirl = new THREE.MeshBasicNodeMaterial({ transparent: true, side: THREE.DoubleSide, depthWrite: false });
     const c = uv().sub(vec2(0.5)), r = c.length(), ang = atan(c.y, c.x);
     const arms = sin(ang.mul(3).add(r.mul(18)).sub(time.mul(2.2))).mul(0.5).add(0.5);
     swirl.colorNode = mix(color(0x3a4cff), color(0xf2f6ff), arms.mul(smoothstep(float(0.5), float(0.0), r))).mul(float(1.6).add(beat.mul(0.6)));
     swirl.opacityNode = smoothstep(float(0.5), float(0.42), r).mul(0.92);
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(4.0, 48), swirl); disc.position.copy(ringMesh.position); group.add(disc);
-    for (let k = 0; k < 10; k++) { // floating rune cards
-      const card = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 1.0), K.mats.cyanGlow); const a = (k / 10) * 6.283;
-      card.position.set(rx + Math.sin(a) * 6, FY + 3 + (k % 3) * 1.4, rz - 10 + Math.cos(a) * 3); card.rotation.y = a; group.add(card);
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(4.0, 48), swirl); disc.position.set(rx, FY + 6.4, rz - 13.5); group.add(disc);
+    const cardGeo = new THREE.PlaneGeometry(0.7, 1.0);
+    for (let k = 0; k < 10; k++) { // floating rune cards — batched into 1 instanced draw call
+      const a = (k / 10) * 6.283;
+      K.batcher.addTRS('rift-rune-cards', cardGeo, K.mats.cyanGlow, rx + Math.sin(a) * 6, FY + 3 + (k % 3) * 1.4, rz - 10 + Math.cos(a) * 3, 0, a, 0, 1, 1, 1, { castShadow: false, receiveShadow: false, name: 'rift-rune-cards:instanced' });
     }
     K.lamp(rx - 7, FY + 2.2, rz - 13, 0x9fe8ff, 18); K.lamp(rx + 7, FY + 2.2, rz - 13, 0x9fe8ff, 18);
+    K.lookVolumes.push({ id: 'rift-vault', name: 'Rift Sanctum', center: [rx, FY + 4.5, rz], radiusM: 17, featherM: 7, preset: 'rift-sanctum' });
     glowAt(cx, FY + 3, cz); glowAt(rx, FY + 4, rz - 10);
   }
 
@@ -527,11 +567,14 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
       }
     }
     // stilt huts and the terminal platforms at the junctions
+    const mireConsole = buildSubdCarvedConsole(1.25, 1.08, 0.65, lo);
     for (const [x, z, yaw] of [[-330, 620, 0.3], [-450, 700, 2.0], [-240, 730, -0.5], [-160, 640, 1.2], [-250, 500, 0.8]] as const) {
       const d = K.deck(x, z, deckY + 0.2, 5, { trunk: false, sides: 6, open: [0, 1, 2, 3, 4, 5].map((k) => k * 1.047), lamp: true });
       void d;
       K.hut(x + Math.sin(yaw) * 1.5, deckY + 0.2, z + Math.cos(yaw) * 1.5, yaw, 3.6, 3, 2.6);
-      kit.box(K.mats.metal, 1.2, 1.1, 0.6, x - Math.sin(yaw) * 2.5, deckY + 0.75, z - Math.cos(yaw) * 2.5, yaw, {});
+      const cg = mireConsole.clone();
+      kit.place(cg, x - Math.sin(yaw) * 2.5, deckY + 0.2, z - Math.cos(yaw) * 2.5, yaw);
+      kit.add(K.mats.metal, cg, { tpm: 0.8 });
       K.screen(x - Math.sin(yaw) * 2.5, deckY + 1.9, z - Math.cos(yaw) * 2.5, yaw, 1.6, 1.0, ['MIRE NODE', 'FLOW 0.4', 'LINK OK'], '#5dffb0');
       out.clear.push([x, z, 8]);
       glowAt(x, deckY + 2, z);
@@ -660,6 +703,11 @@ export function buildPlaces(ctx: WildsCtx, T: WorldTerrain, K: Kit): PlaceOut {
       for (let k = 0; k < 18; k++) fungus(0, k0.x + (R() - 0.5) * 16, k0.z + (R() - 0.5) * 42, 0.9 + R() * 0.9, ky);
       giant(k0.x - 6.8, k0.z - 4, ky + 28, 0);   // the tree that broke through the nave (kept off the aisle)
       K.lamp(k0.x, ky + 9, k0.z - L / 2 + 4, 0x9fc8ff, 28);
+      // Swept pointed NURBS gothic vault ribs spanning the cathedral nave + cool blue Cathedral GI look volume!
+      const cathRibs = buildNurbsVaultRibs({ spanWidthM: Wd - 1.2, hallLengthM: L - 6, springHeightM: 12.2, vaultRiseM: 6.2, bays: 4, pointed: true, lowTier: lo });
+      for (const g of cathRibs.stoneGeos) { kit.place(g, k0.x, ky, k0.z, 0); kit.add(mats.stone, g, { tpm: 0.4, solid: false }); }
+      for (const g of cathRibs.accentGeos) { kit.place(g, k0.x, ky, k0.z, 0); kit.add(K.mats.cyanGlow, g, { solid: false, shadow: false }); }
+      K.lookVolumes.push({ id: 'elder-cathedral', name: 'Elder Cathedral', center: [k0.x, ky + 5, k0.z], radiusM: 22, featherM: 10, preset: 'cathedral-blue' });
       out.clear.push([k0.x, k0.z, 28]);
       glowAt(k0.x, ky + 2, k0.z);
     }

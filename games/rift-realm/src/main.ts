@@ -11,6 +11,7 @@ import { createRules } from './studio/rulesHost';
 import { createPost } from './post';
 import { DynamicResolution, EmptyInstanceSkip, HeavyMeshLod, capShadowMaps, intelShadows, pickGfx } from './gfx';
 import { syncLeafLight } from '../../../services/vegetation/trees/material';
+import { createPlaykitPostPipeline } from '../../../playkit/render/unifiedPost';
 import { wetten } from './wetness';
 import { JumpPads } from './jumpPads';
 import { ModeRunner, resolveMode } from './modes';
@@ -152,7 +153,25 @@ async function boot() {
   await loading.stage('collision');
   const collision = new CollisionWorld(arena.group);
   collision.rebuild();
-  const post = gfx.post ? createPost(renderer, scene, camera, { scaled: gfx.post === 'scaled' }) : null;
+  const postFlags = new URLSearchParams(location.search).get('post') ?? '';
+  const post = gfx.post
+    // the unified playkit post pipeline is opt-in (?post=playkit) until it's finished: by default the game's own
+    // post (post.ts, where the light pass lives) runs, so the new lighting isn't overridden on the high tier
+    ? (!postFlags.includes('playkit') || gfx.post === 'scaled'
+        ? createPost(renderer, scene, camera, { scaled: gfx.post === 'scaled' })
+        : (createPlaykitPostPipeline(renderer, scene, camera, {
+            ao: true,
+            // Water SSR already runs in creek.ts; full-scene SSR stays 1 flag away (?post=ssr) to protect frame budget
+            ssr: false,
+            ssrScale: 0.5,
+            fxaa: true,
+            bloom: 'full',
+            lut: true,
+            lutPreset: 'elderwood-still',
+            lutStrength: 0.36,
+            debugFlags: postFlags,
+          }) ?? createPost(renderer, scene, camera)))
+    : null;
   // dynamic resolution (intel profile): the internal scale follows the GPU frame time (gfx.ts)
   const setScale = (post as { setScale?: (s: number) => void } | null)?.setScale;
   const dynres = gfx.dynres && setScale ? new DynamicResolution(gfx.dynres, renderer, setScale) : null;

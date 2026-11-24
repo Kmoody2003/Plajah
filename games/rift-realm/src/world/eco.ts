@@ -65,17 +65,18 @@ export const WILDS_ECO: EcoRule[] = [
   { id: 'redwood-fern', kind: 'plant', layer: 'around', species: 8, hosts: [6], hostWhere: inside, prob: 1, count: [3, 5], ring: [1.6, 4.2], trunkScaled: true, clear: [1.2, 1.8], scale: [0.9, 1.8] },
   { id: 'redwood-leafy', kind: 'plant', layer: 'around', species: 7, hosts: [6], hostWhere: inside, prob: 1, count: [2, 4], ring: [1.6, 4.2], trunkScaled: true, clear: [1.2, 1.8], scale: [0.9, 1.8] },
   { id: 'redwood-shelf', kind: 'fungus', layer: 'around', species: 4, hosts: [6], hostWhere: inside, prob: 1, count: [3, 3], ring: [0, 0], onTrunk: [2, 6], scale: [1.2, 2.4] },
-  { id: 'fern', kind: 'plant', layer: 'around', species: 0, hosts: [0, 1, 2, 3], hostWhere: inside, prob: 0.39, count: [1, 2], ring: [2.5, 7.5], clear: [1.6, 2.4], scale: [0.9, 1.8] },
-  { id: 'bush', kind: 'plant', layer: 'around', species: 1, hosts: [0, 1, 2, 3], hostWhere: inside, prob: 0.26, count: [1, 2], ring: [2.5, 7.5], clear: [1.6, 2.4], scale: [0.9, 1.8] },
-  { id: 'glowcap', kind: 'fungus', layer: 'around', species: 0, hosts: [0, 1, 2, 3], hostWhere: inside, prob: 0.1, count: [1, 1], ring: [2, 5], sink: 0.08, scale: (_s, r) => (1 + r * 1.2) / 1.16 },
-  { id: 'glowcap-tall', kind: 'fungus', layer: 'around', species: 1, hosts: [0, 1, 2, 3], hostWhere: inside, prob: 0.043, count: [1, 1], ring: [2, 5], sink: 0.08, scale: (_s, r) => (1 + r * 1.2) / 1.48 },
-  { id: 'trunk-shelf', kind: 'fungus', layer: 'around', species: 4, hosts: [0, 1, 2, 3], hostWhere: inside, prob: 0.078, count: [1, 1], ring: [0, 0], onTrunk: [3.4, 4.7], scale: [1.1, 1.9] },
+  { id: 'fern', kind: 'plant', layer: 'around', species: 0, hosts: [0, 1, 2, 3], hostWhere: inside, prob: 0.62, count: [1, 3], ring: [2.2, 7.5], clear: [1.5, 2.3], scale: [0.95, 1.9] },
+  { id: 'bush', kind: 'plant', layer: 'around', species: 1, hosts: [0, 1, 2, 3], hostWhere: inside, prob: 0.42, count: [1, 2], ring: [2.4, 7.5], clear: [1.5, 2.3], scale: [0.95, 1.85] },
+  { id: 'glowcap', kind: 'fungus', layer: 'around', species: 0, hosts: [0, 1, 2, 3], hostWhere: inside, prob: 0.18, count: [1, 2], ring: [1.8, 5.2], sink: 0.08, scale: (_s, r) => (1 + r * 1.25) / 1.16 },
+  { id: 'glowcap-tall', kind: 'fungus', layer: 'around', species: 1, hosts: [0, 1, 2, 3], hostWhere: inside, prob: 0.085, count: [1, 1], ring: [2, 5], sink: 0.08, scale: (_s, r) => (1 + r * 1.25) / 1.48 },
+  { id: 'trunk-shelf', kind: 'fungus', layer: 'around', species: 4, hosts: [0, 1, 2, 3], hostWhere: inside, prob: 0.14, count: [1, 2], ring: [0, 0], onTrunk: [3.2, 5.0], scale: [1.1, 2.0] },
   // ── along the rivers ──
-  { id: 'riverside-flowers', kind: 'plant', layer: 'ground', species: 2, cell: 5, density: 0.42, where: RIVERSIDE, scale: [0.9, 1.8] },
-  { id: 'riverside-crystals', kind: 'plant', layer: 'ground', species: 4, cell: 5, density: 0.14, where: RIVERSIDE, scale: [0.9, 1.8] },
-  // ── only with the erosion maps: life that follows the water ──
-  { id: 'wet-ferns', kind: 'plant', layer: 'ground', species: 0, cell: 9, density: 0.5, needsMaps: true, wet: [0.66, 0.82], up: [0.85, 0.92], clear: [1.6, 2.4], scale: [1, 1.9] },
-  { id: 'channel-glowcaps', kind: 'fungus', layer: 'ground', species: 0, cell: 11, density: 0.45, needsMaps: true, flow: [0.34, 0.42], up: [0.8, 0.9], clear: [1.2, 2], sink: 0.08, scale: (_s, r) => (1 + r * 1.4) / 1.16 },
+  { id: 'riverside-flowers', kind: 'plant', layer: 'ground', species: 2, cell: 5, density: 0.48, where: RIVERSIDE, scale: [0.9, 1.85] },
+  { id: 'riverside-ferns', kind: 'plant', layer: 'ground', species: 8, cell: 6, density: 0.52, where: RIVERSIDE, scale: [0.85, 1.7] },
+  { id: 'riverside-crystals', kind: 'plant', layer: 'ground', species: 4, cell: 5, density: 0.16, where: RIVERSIDE, scale: [0.9, 1.8] },
+  // ── with the erosion maps (enabled by default): life that follows the water ──
+  { id: 'wet-ferns', kind: 'plant', layer: 'ground', species: 0, cell: 8.5, density: 0.65, needsMaps: true, wet: [0.62, 0.80], up: [0.84, 0.92], clear: [1.5, 2.3], scale: [1.0, 1.95] },
+  { id: 'channel-glowcaps', kind: 'fungus', layer: 'ground', species: 0, cell: 10, density: 0.58, needsMaps: true, flow: [0.32, 0.42], up: [0.8, 0.9], clear: [1.2, 2], sink: 0.08, scale: (_s, r) => (1 + r * 1.45) / 1.16 },
 ];
 
 export interface WildsEcoInput {

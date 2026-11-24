@@ -32,3 +32,32 @@ export const CF_TURF: GrassSpecies = {
 };
 
 export const CYBER_FOREST_GRASS = [CF_GLOW_GRASS, CF_TURF];
+
+// ── Elderwood Wilds floor (the art stills behind the level: Mossy Floor, Great Oak, Portal Plaza) ──
+// The stills' forest floor is moss, ferns and leaf litter in warm yellow-greens, with the cyan glow only as accents. The
+// Wilds keep the glow tufts as rarer, tighter clumps and swap the knee-high teal turf for short warm moss-grass.
+
+/** The glow tufts as accents: fewer, tighter clumps, shorter, olive blades with the cyan glow only at the tips (the
+ *  Wilds' ground grows tufts almost everywhere, so teal blades read as a teal carpet). */
+export const WILDS_GLOW_TUFTS: GrassSpecies = {
+  ...CF_GLOW_GRASS, id: 'wilds-glow-tufts', name: 'Wilds glow tufts',
+  blade: { ...CF_GLOW_GRASS.blade, height: 0.6 },
+  density: 8,
+  clump: { size: 2.2, strength: 0.95 },
+  color: { base: 0x22200f, mid: 0x4e6328, tip: 0xa2c070, jitter: 0.25, streak: 0.5 },
+  glow: { color: 0x3fdcff, strength: 0.12, from: 0.75, beat: 0.3 },
+};
+
+/** Short warm moss-grass: the floor between the ferns (yellow-green tips over dark earth, no glow). */
+export const WILDS_MOSS_TURF: GrassSpecies = {
+  kind: 'grass', id: 'wilds-moss-turf', name: 'Wilds moss turf',
+  blade: { height: 0.22, heightJitter: 0.45, width: 0.035, curve: 0.4, splay: 0.6 },
+  density: 52,
+  clump: { size: 3, strength: 0.5 },
+  color: { base: 0x24261a, mid: 0x5a6c2a, tip: 0xb0b454, jitter: 0.28, streak: 0.25 },
+  translucency: 0.55,
+  wind: { sway: 0.4, flutter: 0.5 },
+  provenance: { art: ['Shooter/eh-08 mossy forest floor (still)'] },
+};
+
+export const WILDS_FLOOR_GRASS = [WILDS_GLOW_TUFTS, WILDS_MOSS_TURF];

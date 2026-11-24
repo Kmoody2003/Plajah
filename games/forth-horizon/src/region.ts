@@ -100,6 +100,9 @@ const lensRain = new LensRain();
 const roadWater = new WetRoad();
 import type { SurfaceType } from './world';
 import { GRID } from './grid';
+import { PlaykitRegistry } from '../../../playkit/core/registry';
+import { APEX_SUPERCAR_VEHICLE_CONFIG } from '../../../playkit/adapters/verticalAdapters';
+import { ClusteredLightManager } from '../../../playkit/render/clusteredLights';
 
 const BASE = '/games/forth-horizon/region/';
 
@@ -135,6 +138,16 @@ queueMicrotask(() => { (window as unknown as { setTod: (k: string) => void }).se
 initKTX2(renderer);
 
 const scene = new THREE.Scene();
+// Mount Plajah Motorsport: Apex onto the unified Playkit engine registry, supercar suspension spec & clustered light manager
+const apexPlaykitRegistry = new PlaykitRegistry();
+const apexClusteredLights = new ClusteredLightManager({ maxTotalLights: 256, far: 260 });
+(window as unknown as { __apexPlaykit?: unknown }).__apexPlaykit = {
+  registry: apexPlaykitRegistry,
+  template: apexPlaykitRegistry.getGenreTemplate('racer'),
+  vehicleConfig: APEX_SUPERCAR_VEHICLE_CONFIG,
+  clusteredLights: apexClusteredLights,
+  geometryStack: ['nurbs-opera-sails', 'bim-grand-civic', 'subd-capitals', 'nurbs-glasshouse', 'nurbs-festival-canopy', 'nurbs-yacht-hull', 'playkit-space-colonization-trees'],
+};
 atmosphere?.prepare(scene);
 scene.background = new THREE.Color(0x9bb7d4);
 scene.fog = new THREE.Fog(0x9bb7d4, 12000, 42000);

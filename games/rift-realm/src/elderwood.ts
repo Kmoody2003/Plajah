@@ -25,7 +25,7 @@ import { CF_PLATFORM_OAK, CYBER_FOREST_TREES, ELDERWOOD_TREES } from '../../../s
 import { addImpulse, updateWind } from '../../../services/vegetation/wind';
 import { bakeGround } from '../../../services/vegetation/grass/ground';
 import { GrassField } from '../../../services/vegetation/grass/field';
-import { CYBER_FOREST_GRASS } from '../../../services/vegetation/catalog/cyberForestGrass';
+import { CYBER_FOREST_GRASS, WILDS_FLOOR_GRASS } from '../../../services/vegetation/catalog/cyberForestGrass';
 import { PlantField, type PlantSpot } from '../../../services/vegetation/plants/field';
 import { nebulaSky } from './nebulaSky';
 import { setWaterSky } from './water';
@@ -35,6 +35,21 @@ import { FungusField, type FungusSpot } from '../../../services/vegetation/fungi
 import { CYBER_FOREST_FUNGI } from '../../../services/vegetation/catalog/cyberForestFungi';
 import type { WildsBuilt, WildsHooks } from './world/registry';
 import { wildsHooks } from './world/index';
+import {
+  buildBimCanopyTreehouse,
+  buildCanopyDeckSubstructure,
+  buildNurbsKneeBrace,
+  buildNurbsLanternGeometry,
+  buildNurbsSupportBough,
+} from '../../../playkit/world/canopyArchitecture';
+import {
+  PlaykitSceneLightingController,
+  enhanceMaterialWithPlaykitGi,
+  type LocalLookVolume,
+  type WorldLightSpec,
+  type WorldProbeSite,
+} from '../../../playkit/render/liveLighting';
+import type { SpatialChunkController } from '../../../playkit/world/spatialChunker';
 
 /** The open world round the hollow (world/*, docs/rift-realm-open-world.md track 1); `?classic` plays the 152 m arena alone. */
 const WORLD: WildsHooks | null = typeof location !== 'undefined' && new URLSearchParams(location.search).has('classic') ? null : wildsHooks();
@@ -160,11 +175,45 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const darkWood = pbr('marsh-wood', { maps: ['normal', 'roughness'], tint: 0x6e5a48, normalScale: 1.2 });
   const stone = pbr('glacial-brick', { maps: ['normal', 'roughness', 'ao'], tint: 0x8b9686, normalScale: 1.2 });
   const rock = pbr('volc-rock', { maps: ['normal', 'roughness'], tint: 0x8a9488, normalScale: 1.3 });
+  // Shared Playkit Clustered Forward+ lighting + baked L2 SH9 GI probes + TSL micro-detail relief
+  const playkitLighting = new PlaykitSceneLightingController(group, {
+    lowTier: lo,
+    activePointLights: lo ? 6 : 16,
+    maxLightDistanceM: lo ? 65 : 115,
+  });
+  const enhanceShared = (m: THREE.Material, opts: Parameters<typeof enhanceMaterialWithPlaykitGi>[2]) => {
+    const nm = m as THREE.MeshStandardNodeMaterial;
+    if ((nm as unknown as { isMeshStandardNodeMaterial?: boolean })?.isMeshStandardNodeMaterial) {
+      enhanceMaterialWithPlaykitGi(nm, playkitLighting.uniforms, opts);
+    }
+  };
+  enhanceShared(bark, { detailTiling: 6.5, detailStrength: 0.24, giBounceStrength: 0.22, sssColorHex: 0x265c3c, sssStrength: 0.08 });
+  enhanceShared(wood, { detailTiling: 9.0, detailStrength: 0.22, giBounceStrength: 0.24 });
+  enhanceShared(darkWood, { detailTiling: 8.0, detailStrength: 0.24, giBounceStrength: 0.26 });
+  enhanceShared(stone, { detailTiling: 7.5, detailStrength: 0.26, giBounceStrength: 0.20 });
+  enhanceShared(rock, { detailTiling: 5.5, detailStrength: 0.28, giBounceStrength: 0.20, sssColorHex: 0x224c38, sssStrength: 0.06 });
   const rope = new THREE.MeshStandardNodeMaterial({ color: 0x8a7656, roughness: 0.95 });
+  const ironMat = new THREE.MeshStandardNodeMaterial({ color: 0x343d44, roughness: 0.42, metalness: 0.78 });
   const lampMat = new THREE.MeshStandardNodeMaterial({ color: 0x2a1a08, roughness: 0.5 });
   lampMat.emissiveNode = color(0xffb050).mul(float(2.2).add(uBeatPulse.mul(0.6)));
   const runeMat = new THREE.MeshStandardNodeMaterial({ color: 0x03141a, roughness: 0.3 });
   runeMat.emissiveNode = cyan.mul(float(1.1).add(uBeatPulse.mul(1.2)));
+  const placeLantern = (x: number, y: number, z: number, scale = 1.0) => {
+    const { frame, core } = buildNurbsLanternGeometry(scale, lo);
+    kit.place(frame, x, y, z, 0);
+    kit.place(core, x, y, z, 0);
+    kit.add(ironMat, frame, { solid: false, shadow: false });
+    kit.add(lampMat, core, { solid: false, shadow: false });
+    kit.box(ironMat, 0.08, 0.65 * scale, 0.08, x, y + 0.68 * scale, z, 0, { solid: false, shadow: false });
+  };
+  const placeCanopyShelter = (x: number, y: number, z: number, yaw: number, w: number, d: number, h: number) => {
+    const built = buildBimCanopyTreehouse({ widthM: w, depthM: d, heightM: h, hasDoor: true, lit: true, hasPorch: w >= 3.2, lowTier: lo });
+    for (const g of built.wallGeos) { kit.place(g, x, y, z, yaw); kit.add(darkWood, g, { tpm: 0.55 }); }
+    for (const g of built.roofAndTrimGeos) { kit.place(g, x, y, z, yaw); kit.add(wood, g, { tpm: 0.55 }); }
+    for (const g of built.floorGeos) { kit.place(g, x, y, z, yaw); kit.add(wood, g, { tpm: 0.45 }); }
+    for (const g of built.windowGlowGeos) { kit.place(g, x, y, z, yaw); kit.add(lampMat, g, { solid: false, shadow: false }); }
+    for (const g of built.metalTrimGeos) { kit.place(g, x, y, z, yaw); kit.add(ironMat, g, { solid: false, shadow: false }); }
+  };
 
   // ── terrain (the open world streams its own) ────────────────────────────────────────────────────────────────
   if (!W) {
@@ -227,18 +276,19 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
       ]);
       rootGeos.push(barkTube(rc, 1.7, 0.25, 9, 9, 0.5, k * 3.1));
     }
+    // Sculpted NURBS upper crown limbs bridging the 24 m great_oak.glb trunk smoothly into CF_GREAT_OAK's canopy
+    const upperLimbBase = buildNurbsSupportBough({ reachM: 14.5, dropM: 8.5, baseRadiusM: 1.25, tipRadiusM: 0.32, swayM: 1.4, lowTier: lo });
     for (let b = 0; b < (lo ? 6 : 10); b++) { // great limbs above the deck
-      const a = (b / (lo ? 6 : 10)) * 6.28 + R() * 0.4, by = gy + 20 + R() * 14, bl = 11 + R() * 9;
-      const bc = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(OAK.x, by, OAK.z),
-        new THREE.Vector3(OAK.x + Math.sin(a) * bl * 0.5, by + bl * 0.25, OAK.z + Math.cos(a) * bl * 0.5),
-        new THREE.Vector3(OAK.x + Math.sin(a) * bl, by + bl * 0.35 + R() * 3, OAK.z + Math.cos(a) * bl),
-      ]);
-      void bc; R(); // (the grown crown has its own limbs; the R() keeps the level's other random draws unchanged)
+      const a = (b / (lo ? 6 : 10)) * 6.28 + R() * 0.4, by = gy + 17.5 + R() * 8.5, bl = 11 + R() * 9;
+      const limbScale = bl / 14.5;
+      const g = upperLimbBase.clone();
+      kit.place(g, OAK.x + Math.sin(a) * (TRUNK_R * 0.55), by, OAK.z + Math.cos(a) * (TRUNK_R * 0.55), a, (b % 2 ? 1 : -1) * limbScale, limbScale * 0.9, limbScale);
+      rootGeos.push(g);
+      R(); R(); // keep the level's remaining RNG sequence unchanged
     }
   }
 
-  // ── the treetop deck round the oak: planks on radial beams, a rope rail with gaps for the bridges/stairs/nets ─
+  // ── the treetop deck round the oak: planks on radial beams, NURBS boughs & SubD collar, CAD/BIM shelters ──
   const openings = [A_WEST, A_EAST, A_STAIR, A_NET1, A_NET2, ...(WORLD ? [A_NORTH] : [])];
   const isOpen = (a: number, half = 0.09) => openings.some((o) => Math.abs(Math.atan2(Math.sin(a - o), Math.cos(a - o))) < half);
   {
@@ -247,6 +297,13 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     for (let i = N - 1; i >= 0; i--) { const a = (i / N) * Math.PI * 2; hole.push([OAK.x + Math.sin(a) * (TRUNK_R + 0.4), OAK.z + Math.cos(a) * (TRUNK_R + 0.4)]); }
     const deck = polyPrism(outer, [hole], DECK_Y - 0.45, DECK_Y);
     kit.add(wood, deck.top, { tpm: 0.35 }); kit.add(darkWood, deck.sides, { tpm: 0.5 });
+    // Full Plajah NURBS living support boughs, Catmull-Clark SubD trunk collar & curved timber knee-braces
+    const oakSub = buildCanopyDeckSubstructure({
+      centerX: OAK.x, centerZ: OAK.z, deckY: DECK_Y, deckRadiusM: DECK_R, trunkRadiusM: TRUNK_R,
+      boughCount: lo ? 8 : 12, lowTier: lo, seed: 7.7,
+    });
+    rootGeos.push(...oakSub.barkSupportGeos);
+    for (const tg of oakSub.timberTrussGeos) kit.add(darkWood, tg, { tpm: 0.5, solid: false });
     for (let i = 0; i < 16; i++) { // radial beams under the planks, and posts down to the mound at the outer ring
       const a = (i / 16) * Math.PI * 2, mid = rimAt(a, (TRUNK_R + DECK_R) / 2);
       kit.box(darkWood, 0.5, 0.6, DECK_R - TRUNK_R, mid.x, DECK_Y - 0.75, mid.z, a, { tpm: 0.5 });
@@ -256,13 +313,16 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
         treeGeos.push(barkTube(c, 0.45, 0.4, 3, 8, 0.2, i));
       }
     }
-    // rope rail: posts every ~2.4 m with a hanging rope between them
+    // rope rail: posts every ~2.4 m with iron cap finials & hanging rope between them
     const posts = Math.round((2 * Math.PI * DECK_R) / 2.4);
     for (let i = 0; i < posts; i++) {
       const a0 = (i / posts) * Math.PI * 2, a1 = ((i + 1) / posts) * Math.PI * 2;
       if (isOpen(a0) && isOpen(a1)) continue;
       const p0 = rimAt(a0, DECK_R - 0.3), p1 = rimAt(a1, DECK_R - 0.3);
-      if (!isOpen(a0)) kit.box(darkWood, 0.22, 1.25, 0.22, p0.x, DECK_Y + 0.62, p0.z, a0, { tpm: 1 });
+      if (!isOpen(a0)) {
+        kit.box(darkWood, 0.22, 1.25, 0.22, p0.x, DECK_Y + 0.62, p0.z, a0, { tpm: 1 });
+        kit.box(ironMat, 0.28, 0.1, 0.28, p0.x, DECK_Y + 1.28, p0.z, a0, { solid: false, shadow: false });
+      }
       if (isOpen(a0) || isOpen(a1)) continue;
       const c = new THREE.QuadraticBezierCurve3(new THREE.Vector3(p0.x, DECK_Y + 1.1, p0.z), new THREE.Vector3((p0.x + p1.x) / 2, DECK_Y + 0.85, (p0.z + p1.z) / 2), new THREE.Vector3(p1.x, DECK_Y + 1.1, p1.z));
       kit.add(rope, taperTube(c, 0.05, 0.05, 6, 5), { solid: false, shadow: false });
@@ -274,12 +334,12 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
       const p = rimAt(a, DECK_R - 0.3);
       kit.box(B.invisible, 2.6, 1.2, 0.2, p.x, DECK_Y + 0.6, p.z, a, { shadow: false });   // local x runs along the rim
     }
-    // two little shelters on the deck (the art's lean-to huts) for cover, crates round OBJ A
+    // two walk-in CAD/BIM canopy shelters on the Great Oak deck + revolved NURBS hanging lanterns
     for (const a of [-1.25, 1.35]) {
-      const p = rimAt(a, DECK_R - 5);
-      kit.box(darkWood, 3.6, 2.4, 2.6, p.x, DECK_Y + 1.2, p.z, a, { tpm: 0.5 });
-      kit.box(wood, 4.2, 0.25, 3.4, p.x, DECK_Y + 2.6, p.z, a, { tpm: 0.5, rx: 0.18 });
-      const l = rimAt(a, DECK_R - 3.2); kit.box(lampMat, 0.3, 0.45, 0.3, l.x, DECK_Y + 2.0, l.z, 0, { solid: false });
+      const p = rimAt(a, DECK_R - 5.2);
+      placeCanopyShelter(p.x, DECK_Y, p.z, a + Math.PI, 4.0, 3.0, 2.8);
+      const l = rimAt(a, DECK_R - 3.0);
+      placeLantern(l.x, DECK_Y + 2.3, l.z, 1.15);
     }
     for (const [da, dr] of [[-0.35, 9], [0.7, 10], [0.05, 18], [0.55, 17], [-0.8, 15], [1.0, 16]] as const) {
       const p = rimAt(da, dr), s = 1.0 + R() * 0.3;
@@ -336,16 +396,21 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     for (let k = 11; k >= 0; k--) { const a = (k / 12) * Math.PI * 2; hole.push([p.x + Math.sin(a) * (PLAT_TRUNK + 0.3), p.z + Math.cos(a) * (PLAT_TRUNK + 0.3)]); }
     const d = polyPrism(outer, [hole], DECK_Y - 0.4, DECK_Y);
     kit.add(wood, d.top, { tpm: 0.35 }); kit.add(darkWood, d.sides, { tpm: 0.5 });
-    for (let k = 0; k < 4; k++) { // diagonal struts from the trunk to the deck's underside
-      const a = (k / 4) * Math.PI * 2 + 0.4, o = { x: p.x + Math.sin(a) * (PLAT_R - 1), z: p.z + Math.cos(a) * (PLAT_R - 1) };
-      const c = new THREE.LineCurve3(new THREE.Vector3(p.x + Math.sin(a) * PLAT_TRUNK, DECK_Y - 6, p.z + Math.cos(a) * PLAT_TRUNK), new THREE.Vector3(o.x, DECK_Y - 0.45, o.z));
-      treeGeos.push(barkTube(c, 0.3, 0.26, 3, 7, 0.1, k));
-    }
+    // Full Plajah NURBS living support boughs + SubD trunk collar + curved timber knee-braces
+    const platSub = buildCanopyDeckSubstructure({
+      centerX: p.x, centerZ: p.z, deckY: DECK_Y, deckRadiusM: PLAT_R, trunkRadiusM: PLAT_TRUNK,
+      lowTier: lo, seed: p.x * 0.21 + p.z * 0.13,
+    });
+    rootGeos.push(...platSub.barkSupportGeos);
+    for (const tg of platSub.timberTrussGeos) kit.add(darkWood, tg, { tpm: 0.55, solid: false });
     const open = (a: number) => openTo.some((o) => Math.abs(Math.atan2(Math.sin(a - o), Math.cos(a - o))) < 0.3);
     for (let k = 0; k < 16; k++) {
       const a = (k / 16) * Math.PI * 2, a1 = ((k + 1) / 16) * Math.PI * 2;
       const p0 = { x: p.x + Math.sin(a) * (PLAT_R - 0.4), z: p.z + Math.cos(a) * (PLAT_R - 0.4) }, p1 = { x: p.x + Math.sin(a1) * (PLAT_R - 0.4), z: p.z + Math.cos(a1) * (PLAT_R - 0.4) };
-      if (!open(a)) kit.box(darkWood, 0.2, 1.2, 0.2, p0.x, DECK_Y + 0.6, p0.z, a, { tpm: 1 });
+      if (!open(a)) {
+        kit.box(darkWood, 0.2, 1.2, 0.2, p0.x, DECK_Y + 0.6, p0.z, a, { tpm: 1 });
+        kit.box(ironMat, 0.26, 0.09, 0.26, p0.x, DECK_Y + 1.22, p0.z, a, { solid: false, shadow: false });
+      }
       if (open(a) || open(a1)) continue;
       kit.add(rope, taperTube(new THREE.LineCurve3(new THREE.Vector3(p0.x, DECK_Y + 1.1, p0.z), new THREE.Vector3(p1.x, DECK_Y + 1.1, p1.z)), 0.05, 0.05, 2, 5), { solid: false, shadow: false });
       const mid = { x: (p0.x + p1.x) / 2, z: (p0.z + p1.z) / 2 };
@@ -353,11 +418,10 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     }
     if (hut) {
       const a = openTo[0] + Math.PI, hp = { x: p.x + Math.sin(a) * 4.2, z: p.z + Math.cos(a) * 4.2 };
-      kit.box(darkWood, 3.0, 2.3, 2.4, hp.x, DECK_Y + 1.15, hp.z, a, { tpm: 0.5 });
-      kit.box(wood, 3.6, 0.22, 3.0, hp.x, DECK_Y + 2.5, hp.z, a, { tpm: 0.5, rx: 0.2 });
+      placeCanopyShelter(hp.x, DECK_Y, hp.z, openTo[0], 3.4, 2.7, 2.6);
     }
     const lamp = { x: p.x + 1.2, z: p.z + 1.2 };
-    kit.box(lampMat, 0.3, 0.45, 0.3, lamp.x, DECK_Y + 2.6, lamp.z, 0, { solid: false });
+    placeLantern(lamp.x, DECK_Y + 2.6, lamp.z, 1.0);
     R(); // its crown is grown: CF_PLATFORM_OAK in the forest below
     oakSpots.push({ x: p.x, y: gy, z: p.z, yaw: p.x * 0.37, species: 5, scale: (DECK_Y + 24 - gy) / CF_PLATFORM_OAK.height });
   };
@@ -384,10 +448,20 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
         const p = at(k / 12).add(new THREE.Vector3(ox, 0, oz));
         kit.add(rope, taperTube(new THREE.LineCurve3(p, p.clone().add(new THREE.Vector3(0, 1.05, 0))), 0.025, 0.025, 1, 4), { solid: false, shadow: false });
       }
+      // under-deck catenary support cable so canopy spans visibly bear load
+      const underPts = Array.from({ length: 13 }, (_, k) => at(k / 12).add(new THREE.Vector3(ox * 0.85, -0.18, oz * 0.85)));
+      kit.add(rope, taperTube(new THREE.CatmullRomCurve3(underPts), 0.055, 0.055, 18, 5), { solid: false, shadow: false });
       // guard: invisible rail segments
       for (let k = 0; k < 8; k++) {
         const p0 = at(k / 8), p1 = at((k + 1) / 8), mid = p0.clone().add(p1).multiplyScalar(0.5);
         kit.box(B.invisible, 0.15, 1.1, Math.hypot(p1.x - p0.x, p1.z - p0.z) + 0.1, mid.x + ox * 1.05, mid.y + 0.55, mid.z + oz * 1.05, yaw, { shadow: false });
+      }
+    }
+    for (const [ex, ey, ez] of [[ax, ay, az], [bx, by, bz]] as const) {
+      for (const s of [-1, 1]) {
+        const ox = Math.cos(yaw) * s * (width * 0.56), oz = -Math.sin(yaw) * s * (width * 0.56);
+        kit.box(darkWood, 0.26, 2.0, 0.26, ex + ox, ey + 0.9, ez + oz, yaw, { tpm: 0.9, solid: false });
+        kit.box(ironMat, 0.32, 0.1, 0.32, ex + ox, ey + 1.92, ez + oz, yaw, { solid: false, shadow: false });
       }
     }
   };
@@ -463,7 +537,14 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
       kit.box(darkWood, 4.8, 1.0, 0.2, TOWER.x + ox, y0 + TOWER_TOP + 0.65, TOWER.z + oz, a, { tpm: 0.6 });
     }
     kit.box(wood, 5.6, 0.25, 5.6, TOWER.x, y0 + 12.4, TOWER.z, 0, { tpm: 0.5, rx: 0.0 });   // roof
-    kit.box(lampMat, 0.3, 0.45, 0.3, TOWER.x + 1.6, y0 + TOWER_TOP + 2.2, TOWER.z + 1.6, 0, { solid: false });
+    const wtBrace = buildNurbsKneeBrace({ spanM: 1.0, riseM: 1.1, widthM: 0.2, depthM: 0.22, lowTier: lo });
+    for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2 + Math.PI / 4;
+      const g = wtBrace.clone();
+      kit.place(g, TOWER.x + Math.sin(a) * 1.9, y0 + TOWER_TOP - 1.2, TOWER.z + Math.cos(a) * 1.9, a);
+      kit.add(darkWood, g, { tpm: 0.6, solid: false });
+    }
+    placeLantern(TOWER.x + 1.6, y0 + TOWER_TOP + 2.2, TOWER.z + 1.6, 1.0);
     // ladder: rails + rungs, and a steep walkable ramp behind them
     const lb = { x: TOWER.x, z: TOWER.z + 2.4 + 5.0 };
     B.ramp(lb.x, y0 + 0.05, lb.z, TOWER.x, y0 + TOWER_TOP + 0.15, TOWER.z + 2.35, 1.4);
@@ -719,11 +800,15 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   forest.group.userData.noCollide = true;
   {
     const cols: number[][] = (group.userData.trunkColumns as number[][] | undefined) ?? [];
+    const terrainRef = group.userData.terrain as { addTrunk?: (x: number, z: number, r: number, y0: number, y1: number) => void } | undefined;
     for (const t of forestSpotsV) {
       const sp = ELDERWOOD_TREES[t.species];
       if (!sp?.trunk) continue;
       const r = sp.trunk.radius * t.scale * (1 + Math.min(0.35, (sp.trunk.buttress ?? 0) * 0.3));
-      cols.push([t.x, t.z, Math.max(0.2, r * 0.9), t.y - 1, t.y + sp.height * t.scale * (sp.trunk.crownBase ?? 0.5)]);
+      const y0 = t.y - 1, y1 = t.y + sp.height * t.scale * (sp.trunk.crownBase ?? 0.5);
+      cols.push([t.x, t.z, Math.max(0.2, r * 0.9), y0, y1]);
+      // Ensure Platform Oaks (species 5) also register in WorldTerrain's spatial trunk grid
+      if (t.species === 5) terrainRef?.addTrunk?.(t.x, t.z, Math.max(0.4, r * 0.85), y0, y1);
     }
     group.userData.trunkColumns = cols;
   }
@@ -748,7 +833,8 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     const wet = dist(x, z, POOL) < 22 ? 1.25 : 1;
     return [path * edge * 0.75 * wet, Math.max(path, 0.25) * edge];
   }, W ? { trampleRes: 1024 } : {});
-  const grass = new GrassField(CYBER_FOREST_GRASS, grassGround, { lowTier: lo, beat: uBeatPulse, shadows: false });
+  // the open-world Wilds use the stills' floor (warm moss-grass, glow tufts as accents); the hollow keeps its own grass
+  const grass = new GrassField(W ? WILDS_FLOOR_GRASS : CYBER_FOREST_GRASS, grassGround, { lowTier: lo, beat: uBeatPulse, shadows: false });
   group.add(grass.group);
   // vines hang from the grown trees' branches (not the code crowns), never reaching the ground
   for (const hp of forest.hangPoints(lo ? 1 : 2, (t) => (Math.abs(t.x) < BOUND + 10 && Math.abs(t.z) < BOUND + 10) || (!!wb && wb.vineKeep(t)), 11)) {
@@ -781,6 +867,40 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
     pl(POOL.x, -1, POOL.z, 0x40e0d0, 40, 20);
     pl(TOWER.x + 1.6, H(TOWER.x, TOWER.z) + TOWER_TOP + 2.2, TOWER.z + 1.6, 0xffb060, 18, 12);
     pl(CHAPEL.x, 4, CHAPEL.z, 0x8a6cff, 30, 16);
+  }
+  // Feed all hollow platform lanterns, walk-in canopy shelter hearths & Wilds lights into Playkit's
+  // 256-light Clustered Forward+ controller + bake L2 SH9 GI probes across canopy decks & interiors!
+  {
+    const clusterSpecs: WorldLightSpec[] = [];
+    for (const p of Object.values(PLATS)) {
+      clusterSpecs.push({ x: p.x + 1.2, y: DECK_Y + 2.6, z: p.z + 1.2, colorHex: 0xffb050, intensity: 22, range: 16 });
+    }
+    for (const a of [-1.25, 1.35]) {
+      const sp = rimAt(a, DECK_R - 5.2);
+      clusterSpecs.push({ x: sp.x, y: DECK_Y + 2.0, z: sp.z, colorHex: 0xffa850, intensity: 18, range: 12 });
+    }
+    const wildsLights = (group.userData.wildsLights as Array<{ x: number; y: number; z: number; c: number; i: number; d: number }> | undefined) ?? [];
+    for (const wl of wildsLights) {
+      clusterSpecs.push({ x: wl.x, y: wl.y, z: wl.z, colorHex: wl.c, intensity: wl.i, range: wl.d });
+    }
+    playkitLighting.addLights(clusterSpecs);
+
+    const probeSites: WorldProbeSite[] = [
+      { x: OAK.x, y: DECK_Y + 2.0, z: OAK.z, kind: 'canopy' },
+      ...Object.values(PLATS).map((p): WorldProbeSite => ({ x: p.x, y: DECK_Y + 1.8, z: p.z, kind: 'canopy' })),
+      ...[-1.25, 1.35].map((a): WorldProbeSite => { const sp = rimAt(a, DECK_R - 5.2); return { x: sp.x, y: DECK_Y + 1.8, z: sp.z, kind: 'interior' }; }),
+      { x: POOL.x, y: 0.5, z: POOL.z, kind: 'water' },
+      { x: MONOLITH.x, y: H(MONOLITH.x, MONOLITH.z) + 2.0, z: MONOLITH.z, kind: 'clearing' },
+      ...(((group.userData.wildsGiProbes as WorldProbeSite[] | undefined) ?? [])),
+    ];
+    playkitLighting.bakeProbes(probeSites);
+    // Register per-place Local Look & GI Volumes (Ruined Chapel cool-blue + Elder Cathedral, Vaults, Titan Bunker)
+    const wildsLookVolumes = (group.userData.wildsLookVolumes as LocalLookVolume[] | undefined) ?? [];
+    playkitLighting.addLookVolumes([
+      { id: 'hollow-chapel', name: 'Ruined Chapel', center: [CHAPEL.x, H(CHAPEL.x, CHAPEL.z) + 4, CHAPEL.z], radiusM: 10, featherM: 6, preset: 'cathedral-blue' },
+      ...wildsLookVolumes,
+    ]);
+    group.userData.playkitLighting = playkitLighting;
   }
 
   // the sky: a colour nebula, aurora curtains over the treeline, stars, the moon (nebulaSky.ts). It is the background,
@@ -915,6 +1035,8 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
         const sx = Math.round(pp.x / 4) * 4, sz = Math.round(pp.z / 4) * 4, sy = Math.round(pp.y / 4) * 4;
         const mo = (moon.userData.offset as THREE.Vector3 | undefined) ?? MOON_OFF; moon.target.position.set(sx, sy, sz); moon.position.set(sx + mo.x, sy + mo.y, sz + mo.z);
       }
+      playkitLighting.update(dt, viewCam, pp, pulse, Math.min(1, moon.intensity / 3.5));
+      (group.userData.spatialChunks as SpatialChunkController | undefined)?.updateShadowCulling(pp.x, pp.z, lo ? 75 : 115);
       for (const b of beacons) b.intensity = 45 + pulse * 25;
       for (const l of spawnLights) l.intensity = 26 + pulse * 8;
     },

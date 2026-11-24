@@ -9,6 +9,7 @@ import { builders } from '../structures';
 import { pbr } from '../textures';
 import { prefabById, resolvedParams } from '../../../../services/gamestudio/prefabs';
 import type { Instance, ParamValue } from '../../../../services/gamestudio/schema';
+import { spawnPlaykitInstance } from '../../../../playkit/world/prefabSpawner';
 
 type Mats = Record<string, THREE.Material>;
 let mats: Mats | null = null;
@@ -75,6 +76,12 @@ function mergeTurned(kit: StaticKit, sub: StaticKit, x: number, y: number, z: nu
 
 /** Build one instance into its own group (World view: rebuild a single piece on edit). */
 export function instanceGroup(inst: Instance): THREE.Group {
+  const playkitSpawned = spawnPlaykitInstance(inst, { tagBvhCollide: true });
+  if (playkitSpawned) {
+    playkitSpawned.group.name = `instance:${inst.id}`;
+    playkitSpawned.group.userData.instanceId = inst.id;
+    return playkitSpawned.group;
+  }
   const g = new THREE.Group();
   g.name = `instance:${inst.id}`;
   g.userData.instanceId = inst.id;
@@ -88,9 +95,19 @@ export function buildInstances(parent: THREE.Object3D, instances: Instance[]): n
   if (!instances.length) return 0;
   const kit = new StaticKit();
   let built = 0;
-  for (const inst of instances) if (buildInstance(kit, inst)) built++;
   const g = new THREE.Group();
   g.name = 'studio-instances';
+  for (const inst of instances) {
+    if (buildInstance(kit, inst)) {
+      built++;
+    } else {
+      const pk = spawnPlaykitInstance(inst, { tagBvhCollide: true });
+      if (pk) {
+        g.add(pk.group);
+        built++;
+      }
+    }
+  }
   kit.build(g);
   parent.add(g);
   return built;

@@ -1,5 +1,24 @@
 import * as THREE from 'three';
 import { Kit, PAL, mat, seeded } from './kit';
+import {
+  buildBimCivicInteriorShell,
+  buildNurbsCupolaDomeMesh,
+  buildNurbsSailShellMesh,
+  buildNurbsTensileCanopyMesh,
+  buildNurbsYachtHullMesh,
+  buildSubdClassicalCapitalMesh,
+} from '../../../../playkit/world/architecturalForms';
+import type { IndexedTriMesh } from '../../../../services/gamestudio/compiler/schema';
+
+function indexedToGeo(m: IndexedTriMesh): THREE.BufferGeometry {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(m.positions), 3));
+  if (m.normals) g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(m.normals), 3));
+  if (m.uvs) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(m.uvs), 2));
+  g.setIndex(new THREE.BufferAttribute(new Uint32Array(m.indices), 1));
+  if (!m.normals) g.computeVertexNormals();
+  return g;
+}
 
 /**
  * Civic riverfront pieces for the Plajah asset library, sized from Kenne's sheets (D:\plajah game assets deign from promtps\racer\civic riverfront):
@@ -10,15 +29,21 @@ import { Kit, PAL, mat, seeded } from './kit';
  */
 const STONE = 0xd9d2c3, LIME = 0xe8e2d4, GLASS_CIV = 0x6f8fa3, WHITE_SHELL = 0xf4f2ec, BRONZE = 0x6b5a3a, WOOD = 0x8a5a36, SAND = 0xe3d3a8;
 
-/** a curved shell (a slice of a sphere) for the opera roof: `r` radius, opening `phi` wide, tilted to face +z */
-function shell(k: Kit, x: number, y: number, z: number, r: number, phi: number, tilt: number, ry: number, m: THREE.Material): void {
-  const g = new THREE.SphereGeometry(r, 24, 12, -phi / 2, phi, 0, Math.PI * 0.5);
-  const mesh = new THREE.Mesh(g, m); mesh.position.set(x, y, z); mesh.rotation.set(tilt, ry, 0); mesh.castShadow = mesh.receiveShadow = true; k.g.add(mesh);
+/** Swept double-curved NURBS architectural sail shell (replaces plain SphereGeometry slices) */
+function shell(k: Kit, x: number, y: number, z: number, r: number, _phi: number, tilt: number, ry: number, m: THREE.Material): void {
+  const g = indexedToGeo(buildNurbsSailShellMesh({ widthM: r * 1.45, heightM: r * 1.18, depthM: r * 1.35, segsU: 9, segsV: 10 }));
+  const matDS = m.clone();
+  matDS.side = THREE.DoubleSide;
+  const mesh = new THREE.Mesh(g, matDS);
+  mesh.position.set(x, y, z);
+  mesh.rotation.set(tilt * 0.25, ry + Math.PI, 0);
+  mesh.castShadow = mesh.receiveShadow = true;
+  k.g.add(mesh);
 }
 
-/** the modern opera hall: a stepped stone podium, a glazed foyer and a cluster of white sail shells over the halls (about 180 x 120 m) */
+/** the modern opera hall: a stepped stone podium, glazed foyers and swept double-curved NURBS sail shells (about 180 x 120 m) */
 export function operaHall(seed = 1): THREE.Group {
-  const k = new Kit('lib:opera-hall'), podium = mat(0xc9b9a0, 0.8), white = mat(WHITE_SHELL, 0.35, 0.05), glass = mat(GLASS_CIV, 0.12, 0.35);
+  const k = new Kit('lib:opera-hall'), podium = mat(0xc9b9a0, 0.8), white = mat(WHITE_SHELL, 0.32, 0.08), glass = mat(GLASS_CIV, 0.12, 0.38);
   k.slab(0, 0, 0, 180, 6, 120, podium);
   for (let i = 0; i < 8; i++) k.slab(0, i * 0.75, 60 + 4 + i * 1.2, 70, 0.75, 2.4, podium);              // the grand stair to the forecourt
   k.slab(-35, 6, 8, 46, 14, 60, glass); k.slab(35, 6, 8, 40, 12, 52, glass);                         // the two halls' glazed walls
@@ -27,18 +52,39 @@ export function operaHall(seed = 1): THREE.Group {
   return k.g;
 }
 
-/** a grand civic building: stone block with a tall colonnade on the front, wings, a podium stair and flags (about 90 x 50 m) */
+/** a grand civic building: real CAD/BIM multi-room core (`bimTo3D`), recessed glazed bays, colonnade with Catmull-Clark SubD capitals (about 90 x 50 m) */
 export function grandCivicBuilding(seed = 1, w = 90, d = 50, h = 24): THREE.Group {
-  const k = new Kit('lib:grand-civic-building'), stone = mat(STONE, 0.85), glass = mat(PAL.glass, 0.2, 0.3);
+  const k = new Kit('lib:grand-civic-building'), stone = mat(STONE, 0.85), lime = mat(LIME, 0.75), glass = mat(PAL.glass, 0.16, 0.35), slabMat = mat(0xbdb4a4, 0.82);
   k.slab(0, 0, 0, w, 2, d, mat(0xcfc6b4, 0.85));
-  k.slab(0, 2, 0, w, h, d, stone);
-  k.slab(0, 2 + h, 0, w + 1, 1.4, d + 1, mat(0xcbc2b0, 0.8));
+  // Real CAD/BIM multi-room civic interior & recessed window wall shell (compiled via Plajah architecturePipeline + bimTo3D!)
+  const bim = buildBimCivicInteriorShell({ id: `civic-${seed}`, name: 'Grand Civic Hall', widthM: w, depthM: d, stories: 3, storyHeightM: h / 3 });
+  for (const wall of bim.walls) {
+    const m = new THREE.Mesh(indexedToGeo(wall), stone);
+    m.position.y = 2; m.castShadow = m.receiveShadow = true; k.g.add(m);
+  }
+  for (const sl of bim.slabs) {
+    const m = new THREE.Mesh(indexedToGeo(sl), slabMat);
+    m.position.y = 2; m.receiveShadow = true; k.g.add(m);
+  }
+  for (const win of bim.windows) {
+    const m = new THREE.Mesh(indexedToGeo(win), glass);
+    m.position.y = 2; k.g.add(m);
+  }
+  k.slab(0, 2 + h, 0, w + 1.4, 1.4, d + 1.4, mat(0xcbc2b0, 0.8));
   k.slab(0, 2 + h + 1.4, -d * 0.1, w * 0.45, 5, d * 0.5, stone);                                        // attic storey
   const cols = 10, cw = w * 0.42;
-  for (let i = 0; i < cols; i++) { const x = -cw / 2 + (i / (cols - 1)) * cw; k.cyl(x, 2, d / 2 + 3, 0.9, h - 2, mat(LIME, 0.75), 16); }
-  k.slab(0, h, d / 2 + 3, cw + 4, 2, 7, stone);                                                           // entablature
+  const capGeo = indexedToGeo(buildSubdClassicalCapitalMesh({ radiusM: 0.95, heightM: 1.35, levels: 2 }));
+  for (let i = 0; i < cols; i++) {
+    const x = -cw / 2 + (i / (cols - 1)) * cw;
+    k.cyl(x, 2, d / 2 + 3, 0.9, h - 3.2, lime, 16);
+    const cap = new THREE.Mesh(capGeo, lime);
+    cap.position.set(x, h - 1.25, d / 2 + 3);
+    cap.castShadow = cap.receiveShadow = true;
+    k.g.add(cap);
+  }
+  k.slab(0, h, d / 2 + 3, cw + 4.4, 2, 7.2, stone);                                                      // entablature
   for (let i = 0; i < 6; i++) k.slab(0, i * 0.35, d / 2 + 8 + i * 0.8, cw + 8, 0.35, 1.6, mat(0xcfc6b4, 0.85));
-  for (const s of [-1, 1]) for (let f = 0; f < 5; f++) for (let c = 0; c < 4; c++) k.slab(s * (w / 2 - 6 - c * 6), 4 + f * 4.4, d / 2 + 0.05, 2.4, 2.8, 0.1, glass);
+  for (const s of [-1, 1]) for (let f = 0; f < 5; f++) for (let c = 0; c < 4; c++) k.slab(s * (w / 2 - 6 - c * 6), 4 + f * 4.4, d / 2 + 0.08, 2.4, 2.8, 0.14, glass);
   for (const s of [-1, 1]) { k.beam([s * (cw / 2 + 8), 0, d / 2 + 14], [s * (cw / 2 + 8), 14, d / 2 + 14], 0.1, mat(PAL.steel, 0.4, 0.7)); k.slab(s * (cw / 2 + 8) + s * 1.3, 11.5, d / 2 + 14, 2.6, 1.6, 0.05, mat(s > 0 ? 0x2b4c8c : 0xb83a2e, 0.8)); }
   return k.g;
 }
@@ -60,22 +106,32 @@ export function glassMuseum(seed = 1): THREE.Group {
   return k.g;
 }
 
-/** the botanical glasshouse conservatory: a cross-plan glass house, a tall central dome and smaller domes on the arms (about 120 x 120 m) */
+/** the botanical glasshouse conservatory: cross-plan glasshouse crowned by revolved ogival NURBS cupolas (about 120 x 120 m) */
 export function botanicalGlasshouse(seed = 1): THREE.Group {
   const k = new Kit('lib:botanical-glasshouse'), glass = mat(0xa8c6c8, 0.06, 0.45), frame = mat(0xf0f0ea, 0.5, 0.3), base = mat(STONE, 0.85);
   for (const [w, d] of [[110, 26], [26, 110]]) { k.slab(0, 0, 0, w, 1.2, d, base); k.slab(0, 1.2, 0, w, 10, d, glass); const g = new THREE.CylinderGeometry(d / 2, d / 2, w, 20, 1, false, 0, Math.PI); const m = new THREE.Mesh(g, glass); m.rotation.set(0, w > d ? 0 : Math.PI / 2, Math.PI / 2); m.position.y = 11.2; k.g.add(m); }
-  k.dome(0, 11.2, 0, 22, 24, glass); k.cyl(0, 34, 0, 2.4, 3, frame, 12);
-  for (const [x, z] of [[50, 0], [-50, 0], [0, 50], [0, -50]]) k.dome(x, 11.2, z, 11, 10, glass);
-  for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; k.beam([Math.cos(a) * 22, 11.2, Math.sin(a) * 22], [0, 35.2, 0], 0.18, frame); }
+  const mainCupola = new THREE.Mesh(indexedToGeo(buildNurbsCupolaDomeMesh({ radiusM: 22, heightM: 24, segments: 18 })), glass);
+  mainCupola.position.y = 11.2; mainCupola.castShadow = true; k.g.add(mainCupola);
+  const armCupolaGeo = indexedToGeo(buildNurbsCupolaDomeMesh({ radiusM: 11, heightM: 10.5, segments: 12 }));
+  for (const [x, z] of [[50, 0], [-50, 0], [0, 50], [0, -50]]) {
+    const am = new THREE.Mesh(armCupolaGeo, glass);
+    am.position.set(x, 11.2, z); k.g.add(am);
+  }
+  for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; k.beam([Math.cos(a) * 22, 11.2, Math.sin(a) * 22], [0, 36.5, 0], 0.18, frame); }
   return k.g;
 }
 
-/** the main arched festival stage rig (24 m roof system): deck, arched roof, truss towers, LED walls, line-array towers, sub stacks; faces +z */
+/** the main arched festival stage rig (24 m roof system): deck, swept NURBS tensile canopy, truss towers, LED walls; faces +z */
 export function festivalStage(seed = 1): THREE.Group {
-  const k = new Kit('lib:festival-stage'), truss = mat(0xc8ccd0, 0.4, 0.75), black = mat(0x151617, 0.8), roof = mat(0xe6e6e2, 0.7), led = mat(0x101820, 0.3, 0.2, 0x2a4a80);
+  const k = new Kit('lib:festival-stage'), truss = mat(0xc8ccd0, 0.4, 0.75), black = mat(0x151617, 0.8), roof = mat(0xe6e6e2, 0.65), led = mat(0x101820, 0.3, 0.2, 0x2a4a80);
   k.slab(0, 0, 0, 30, 2, 18, black);                                                                    // deck
   for (const x of [-15, 15]) for (const z of [-8, 8]) k.slab(x, 0, z, 0.8, 16, 0.8, truss);
-  const g = new THREE.CylinderGeometry(16, 16, 20, 24, 1, true, -Math.PI / 2, Math.PI); const m = new THREE.Mesh(g, roof); m.rotation.set(Math.PI / 2, 0, 0); m.scale.set(1, 1, 0.35); m.position.set(0, 16, 0); m.material.side = THREE.DoubleSide; k.g.add(m);
+  const canopyMat = roof.clone();
+  canopyMat.side = THREE.DoubleSide;
+  const canopy = new THREE.Mesh(indexedToGeo(buildNurbsTensileCanopyMesh({ widthM: 32, depthM: 20, archRiseM: 6.2 })), canopyMat);
+  canopy.position.set(0, 15.8, 0.5);
+  canopy.castShadow = true;
+  k.g.add(canopy);
   k.slab(0, 2, -8.6, 28, 13, 0.4, black);                                                               // back wall
   for (const s of [-1, 1]) { k.slab(s * 21, 4, 2, 10, 6, 0.4, led); k.slab(s * 19, 0, 6, 1, 20, 1, truss); k.slab(s * 19, 10, 7.2, 1.4, 8, 1.4, black); k.slab(s * 18.5, 0, 10, 4, 2.4, 2.4, black); }
   return k.g;
@@ -96,16 +152,19 @@ export function amphitheatreBowl(r0 = 28, r1 = 90, rows = 24): THREE.Group {
   return k.g;
 }
 
-/** a luxury motor yacht along local z (bow at +z): hull, two or three decks of superstructure, a mast; 20-60 m long */
+/** a luxury motor yacht along local z (bow at +z): flared double-curved NURBS hull, multi-deck superstructure, mast; 20-60 m long */
 export function yacht(seed = 1, len = 30): THREE.Group {
-  const r = seeded(seed), k = new Kit('lib:yacht'), hull = mat(r() < 0.7 ? 0xf4f4f2 : 0x1f2a36, 0.3, 0.2), deck = mat(0xbf9a6a, 0.7), glass = mat(0x1d2a33, 0.1, 0.4), white = mat(0xf7f7f5, 0.35, 0.1);
-  const w = len * 0.2, s = new THREE.Shape(); s.moveTo(-w / 2, 0); s.lineTo(w / 2, 0); s.lineTo(w / 2, len * 0.62); s.quadraticCurveTo(w * 0.3, len * 0.92, 0, len); s.quadraticCurveTo(-w * 0.3, len * 0.92, -w / 2, len * 0.62); s.closePath();
-  const g = new THREE.ExtrudeGeometry(s, { depth: len * 0.07, bevelEnabled: false }); g.rotateX(-Math.PI / 2); g.translate(0, -len * 0.02, len / 2);
-  const hm = new THREE.Mesh(g, hull); hm.castShadow = hm.receiveShadow = true; k.g.add(hm);
-  k.slab(0, len * 0.05, -len * 0.05, w * 0.92, 0.1, len * 0.85, deck);
+  const r = seeded(seed), k = new Kit('lib:yacht'), hull = mat(r() < 0.7 ? 0xf4f4f2 : 0x1f2a36, 0.25, 0.24), deck = mat(0xbf9a6a, 0.7), glass = mat(0x1d2a33, 0.08, 0.45), white = mat(0xf7f7f5, 0.35, 0.1);
+  const w = len * 0.21;
+  const hullMat = hull.clone();
+  hullMat.side = THREE.DoubleSide;
+  const hm = new THREE.Mesh(indexedToGeo(buildNurbsYachtHullMesh({ lengthM: len, beamM: w, freeboardM: len * 0.085 })), hullMat);
+  hm.castShadow = hm.receiveShadow = true;
+  k.g.add(hm);
+  k.slab(0, len * 0.068, -len * 0.05, w * 0.86, 0.12, len * 0.82, deck);
   const decks = len > 35 ? 3 : 2;
-  for (let i = 0; i < decks; i++) { const dl = len * (0.5 - i * 0.12), dw = w * (0.8 - i * 0.1), y = len * 0.05 + i * 2.6; k.slab(0, y, -len * 0.06 - i * len * 0.02, dw, 2.5, dl, white); k.slab(0, y + 0.8, -len * 0.06 - i * len * 0.02 + 0.05, dw + 0.06, 0.9, dl * 0.9, glass); }
-  k.beam([0, len * 0.05 + decks * 2.6, -len * 0.1], [0, len * 0.05 + decks * 2.6 + 4, -len * 0.12], 0.08, white);
+  for (let i = 0; i < decks; i++) { const dl = len * (0.5 - i * 0.12), dw = w * (0.78 - i * 0.1), y = len * 0.072 + i * 2.6; k.slab(0, y, -len * 0.06 - i * len * 0.02, dw, 2.5, dl, white); k.slab(0, y + 0.8, -len * 0.06 - i * len * 0.02 + 0.05, dw + 0.06, 0.9, dl * 0.9, glass); }
+  k.beam([0, len * 0.072 + decks * 2.6, -len * 0.1], [0, len * 0.072 + decks * 2.6 + 4, -len * 0.12], 0.08, white);
   return k.g;
 }
 
