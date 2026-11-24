@@ -173,7 +173,7 @@ export function classifyPerf(s: PerfSample): PerfVerdict {
 /**
  * Which effects each tier can afford, and why.
  *  - customBackground: looping video/photo behind a 40px blur + 100px backdrop frost. By far
- *    the most expensive thing the app draws. 'high' only.
+ *    the most expensive thing the app draws. 'high', or 'medium' off-TV.
  *  - visualizer: a per-frame canvas driven by an AudioContext analyser. 'high' only.
  *  - parallax / motion backdrops: cheap on paper, but they force a full-viewport repaint.
  *  - blur (backdrop-filter): pervasive in the chrome, and the single worst offender on TV
@@ -189,6 +189,9 @@ export function effectAllowed(effect: PerfEffect, tier: PerfTier, isTV: boolean,
 
   switch (effect) {
     case 'customBackground':
+      // A user-chosen background is personalisation, not decoration: a mid-tier laptop keeps it
+      // (it was silently dropped there before). Only low tiers and TVs lose it.
+      return tier === 'high' || (tier === 'medium' && !isTV);
     case 'visualizer':
       return tier === 'high';
     case 'parallax':

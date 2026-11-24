@@ -147,6 +147,7 @@ import PlatformBumperPlayer from './components/tv/PlatformBumperPlayer';
 import LiveFollowPills from './components/LiveFollowPills';
 import { useLiveAlertsPref } from './hooks/useLiveAlertsPref';
 import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
+import { startContrastGuard, measureImageUrl, setBackgroundTone, clearBackgroundTone } from './services/themeContrast';
 import TvUnavailableNotice from './components/TvUnavailableNotice';
 import TvTopTabs from './components/TvTopTabs';
 import TvSpine, { useTvSpineInset } from './components/tv/TvSpine';
@@ -650,10 +651,10 @@ const THEME_BG: Record<string, string> = {
     '#020202',
   ].join(','),
   LIGHT: [
-    'radial-gradient(ellipse 80% 60% at 25% 15%, rgba(186,230,255,0.55) 0%, transparent 65%)',
+    'radial-gradient(ellipse 80% 60% at 25% 15%, rgba(147,197,253,0.42) 0%, transparent 65%)',
     'radial-gradient(ellipse 60% 50% at 75% 80%, rgba(253,186,234,0.40) 0%, transparent 65%)',
     'radial-gradient(ellipse 50% 40% at 55% 45%, rgba(221,214,254,0.30) 0%, transparent 60%)',
-    '#f8fafc',
+    '#dde3ea',
   ].join(','),
   PASTEL: '#fdf6e3',
   BIG_SCREEN: '#00050a',
@@ -4160,10 +4161,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     switch (theme) {
       case 'LIGHT':
         return {
-          bg: 'bg-[#FDFDFD]',
-          text: 'text-black',
-          subtext: 'text-black/60',
-          nav: 'bg-white/80 border-black/5',
+          bg: 'bg-[#dde3ea]',
+          text: 'text-slate-900',
+          subtext: 'text-slate-600',
+          nav: 'bg-white/55 backdrop-blur-xl border-white/60',
           tabActive: 'text-small-orange border-small-orange shadow-[0_4px_12px_rgba(255,140,0,0.2)]',
           tabInactive: 'text-black/30 hover:text-black',
         };
@@ -4585,6 +4586,35 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     }
   }, [view, visitedProfile, userProfile, activeTheme]);
 
+  // Measure the real brightness of the custom background so the scrim (and the contrast guard)
+  // are sized to the image, not guessed.
+  useEffect(() => {
+    const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
+    const bgAllowed = activeProfile?.customBgEnabled !== false;
+    const themeAllowed = activeProfile?.customThemeEnabled !== false;
+    let url: string | null = null;
+    if (themeAllowed && activeTheme?.assets?.length) {
+      const a = activeTheme.assets[themeAssetIndex % activeTheme.assets.length];
+      if (a.type !== 'VIDEO') url = a.url;
+    } else if (bgAllowed && activeProfile?.frostedBackground && !activeProfile?.videoBackgroundUrl) {
+      url = activeProfile.frostedBackground;
+    }
+    if (!url) {
+      // Video / no image: assume the safest (bright) scrim when a background is present.
+      if (document.body.classList.contains('has-custom-background')) setBackgroundTone(null); else clearBackgroundTone();
+      return;
+    }
+    let live = true;
+    measureImageUrl(url).then(l => { if (live) setBackgroundTone(l); });
+    return () => { live = false; };
+  }, [view, visitedProfile, userProfile, activeTheme, themeAssetIndex]);
+
+  // Last line of defence for text: re-checks real rendered contrast and fixes what CSS missed.
+  useEffect(() => {
+    if (getPlatformInfo().isTV) return;
+    return startContrastGuard(() => getPerfTier() !== 'low' && theme !== 'BIG_SCREEN' && theme !== 'PHONE');
+  }, [theme]);
+
   useEffect(() => {
     const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
     const curId = activeProfile?.activeThemePresetId || null;
@@ -4983,6 +5013,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   );
                 })()}
               </AnimatePresence>
+              {/* Theme-matched scrim: keeps text readable over any custom photo/video. */}
+              <div className="pj-bg-scrim" />
             </div>
 
             {shouldEnableEffect('visualizer') && <BackgroundFrequencyGraph />}

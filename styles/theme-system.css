@@ -1,0 +1,207 @@
+/* Plajah theme system v2 — readable text on every surface, a dimmer frosted Light,
+   custom backgrounds that stay legible, and Elevate / Academia that follow the theme.
+
+   Loaded from index.css. Selectors are prefixed `html body` so they out-rank the legacy
+   `.theme-*` rules in index.css regardless of source order. Text colours are never picked
+   per page: pages keep their Tailwind classes (text-white, text-white/60 …) and this layer
+   re-maps them per theme to ink that passes WCAG AA on that theme's surface. */
+
+/* ── Tokens ──────────────────────────────────────────────────────────────── */
+:root {
+  --pj-text: #ffffff;
+  --pj-text-2: rgba(255, 255, 255, 0.78);
+  --pj-text-muted: rgba(255, 255, 255, 0.62);
+  --pj-text-faint: rgba(255, 255, 255, 0.45);
+  --pj-accent-ink: #ffb454;            /* accent used AS text — must pass on the surface */
+  --pj-link: #9ec5ff;
+  --pj-surface: rgba(255, 255, 255, 0.04);
+  --pj-surface-2: rgba(255, 255, 255, 0.08);
+  --pj-edge: rgba(255, 255, 255, 0.10);
+  --pj-scrim: rgba(0, 0, 0, 0.38);      /* sits between a custom background and the UI */
+  --pj-scrim-blur: 28px;
+  --pj-glass-blur: 18px;
+}
+
+/* LIGHT — dimmed paper, not searing white. Surfaces are frosted glass. */
+body.theme-light {
+  --bg-color: #dde3ea;
+  --pj-text: #0f172a;
+  --pj-text-2: #1e293b;
+  --pj-text-muted: #475569;            /* 6.4:1 on #dde3ea */
+  --pj-text-faint: #64748b;            /* 4.6:1 */
+  --pj-accent-ink: #b45309;            /* 4.9:1 — orange that can be read */
+  --pj-link: #1d4ed8;
+  --pj-surface: rgba(255, 255, 255, 0.42);
+  --pj-surface-2: rgba(255, 255, 255, 0.62);
+  --pj-edge: rgba(255, 255, 255, 0.70);
+  --pj-scrim: rgba(226, 232, 240, 0.52);
+  --pj-glass-blur: 22px;
+  --text-primary: #0f172a;
+  --on-surface-variant: #475569;
+  --card-bg: rgba(255, 255, 255, 0.42);
+  --surface-variant: rgba(255, 255, 255, 0.34);
+  --border-color: rgba(15, 23, 42, 0.10);
+  --accent-color: #b45309;
+  --text-secondary: #b45309;
+}
+html body.theme-light {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(147, 197, 253, 0.40) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 55% at 85% 85%, rgba(196, 181, 253, 0.34) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 60% 45%, rgba(253, 186, 116, 0.18) 0%, transparent 60%),
+    #dde3ea;
+}
+body.theme-light::before { opacity: 0.05; }
+
+/* PASTEL — keep the notebook look, fix the 2.9:1 teal. */
+body.theme-pastel {
+  --text-primary: #0b4f4a;             /* 8.1:1 on #fdf6e3 */
+  --chat-bubble-text: #0b4f4a;
+  --pj-text: #0b4f4a;
+  --pj-text-2: #0f3d44;
+  --pj-text-muted: #35585a;
+  --pj-text-faint: #55726f;
+  --pj-accent-ink: #9a3412;
+  --pj-link: #1d4ed8;
+  --pj-surface: #eee8d5;
+  --pj-surface-2: #e6dfc6;
+  --pj-edge: rgba(7, 54, 66, 0.18);
+}
+
+/* Dark-family themes: make sure muted text clears 4.5:1 on their surfaces. */
+body.theme-plajah, body.theme-nebula, body.theme-citrus, body.theme-ethereal {
+  --pj-text-muted: rgba(255, 255, 255, 0.70);
+  --pj-text-faint: rgba(255, 255, 255, 0.52);
+  --pj-accent-ink: #ffb454;
+  --pj-scrim: rgba(8, 0, 16, 0.42);
+}
+
+/* ── Text on LIGHT / PASTEL: re-map the "white on dark" utilities ─────────── */
+html body.theme-light .text-white,
+html body.theme-light .text-primary,
+html body.theme-light .text-white\/90,
+html body.theme-light .text-white\/80,
+html body.theme-light .text-white\/70,
+html body.theme-light .text-gray-100, html body.theme-light .text-gray-200, html body.theme-light .text-gray-300,
+html body.theme-light .text-zinc-100,  html body.theme-light .text-zinc-200,  html body.theme-light .text-zinc-300,
+html body.theme-light .text-neutral-100, html body.theme-light .text-neutral-200, html body.theme-light .text-neutral-300,
+html body.theme-light .text-slate-100, html body.theme-light .text-slate-200, html body.theme-light .text-slate-300,
+html body.theme-pastel .text-white, html body.theme-pastel .text-primary {
+  color: var(--pj-text) !important;
+}
+html body.theme-light .text-white\/60, html body.theme-light .text-white\/50, html body.theme-light .text-white\/40,
+html body.theme-light .text-primary\/60, html body.theme-light .text-primary\/50, html body.theme-light .text-primary\/40,
+html body.theme-light .text-gray-400, html body.theme-light .text-zinc-400, html body.theme-light .text-neutral-400, html body.theme-light .text-slate-400,
+html body.theme-pastel .text-white\/60, html body.theme-pastel .text-white\/50, html body.theme-pastel .text-white\/40 {
+  color: var(--pj-text-muted) !important;
+}
+html body.theme-light .text-white\/30, html body.theme-light .text-white\/20,
+html body.theme-light .text-primary\/30, html body.theme-light .text-primary\/20,
+html body.theme-light .text-gray-500, html body.theme-light .text-zinc-500, html body.theme-light .text-neutral-500, html body.theme-light .text-slate-500,
+html body.theme-pastel .text-white\/30, html body.theme-pastel .text-white\/20 {
+  color: var(--pj-text-faint) !important;
+}
+html body.theme-light .text-white\/10, html body.theme-light .text-white\/5,
+html body.theme-light .text-primary\/10, html body.theme-light .text-primary\/5 {
+  color: rgba(15, 23, 42, 0.28) !important;   /* decorative only */
+}
+/* Orange / amber text is unreadable on light surfaces — deepen it. */
+html body.theme-light .text-small-orange,
+html body.theme-light .text-orange-300, html body.theme-light .text-orange-400, html body.theme-light .text-orange-500,
+html body.theme-light .text-amber-300,  html body.theme-light .text-amber-400,  html body.theme-light .text-amber-500,
+html body.theme-light .text-yellow-300, html body.theme-light .text-yellow-400 { color: var(--pj-accent-ink) !important; }
+html body.theme-light .text-blue-300, html body.theme-light .text-blue-400, html body.theme-light .text-sky-300, html body.theme-light .text-sky-400,
+html body.theme-light .text-cyan-300, html body.theme-light .text-cyan-400 { color: var(--pj-link) !important; }
+html body.theme-light .text-green-300, html body.theme-light .text-green-400, html body.theme-light .text-emerald-300, html body.theme-light .text-emerald-400 { color: #166534 !important; }
+html body.theme-light .text-red-300, html body.theme-light .text-red-400, html body.theme-light .text-rose-300, html body.theme-light .text-rose-400 { color: #b91c1c !important; }
+html body.theme-light .text-purple-300, html body.theme-light .text-purple-400, html body.theme-light .text-violet-300, html body.theme-light .text-violet-400,
+html body.theme-light .text-indigo-300, html body.theme-light .text-indigo-400, html body.theme-light .text-fuchsia-300, html body.theme-light .text-fuchsia-400,
+html body.theme-light .text-pink-300, html body.theme-light .text-pink-400 { color: #6d28d9 !important; }
+
+/* Icons keep their own colour (the old rule forced every svg orange). */
+html body.theme-light svg { color: inherit !important; stroke: currentColor !important; }
+
+/* ── Frosted glass surfaces (Light) ──────────────────────────────────────── */
+html body.theme-light .m3-card,
+html body.theme-light .glass-morphism,
+html body.theme-light [class*="bg-white/"],
+html body.theme-light [class*="bg-black/"],
+html body.theme-light .bg-black,
+html body.theme-light [class*="bg-zinc-9"], html body.theme-light [class*="bg-gray-9"],
+html body.theme-light [class*="bg-neutral-9"], html body.theme-light [class*="bg-slate-9"],
+html body.theme-light [class*="bg-zinc-8"], html body.theme-light [class*="bg-gray-8"] {
+  background-color: var(--pj-surface) !important;
+  -webkit-backdrop-filter: blur(var(--pj-glass-blur)) saturate(165%) !important;
+  backdrop-filter: blur(var(--pj-glass-blur)) saturate(165%) !important;
+  border-color: var(--pj-edge) !important;
+  box-shadow: 0 8px 30px rgba(51, 65, 85, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.55) !important;
+}
+html body.theme-light [class*="border-white/"] { border-color: rgba(15, 23, 42, 0.10) !important; }
+html body.theme-light input, html body.theme-light textarea, html body.theme-light select {
+  color: var(--pj-text) !important;
+  background-color: rgba(255, 255, 255, 0.55);
+  border-color: rgba(15, 23, 42, 0.16);
+}
+html body.theme-light input::placeholder, html body.theme-light textarea::placeholder { color: var(--pj-text-faint) !important; }
+/* Solid colour fills keep white text. */
+html body.theme-light [class*="bg-gradient-"] .text-white,
+html body.theme-light [class*="bg-gradient-"].text-white,
+html body.theme-light button[class*="bg-orange-"], html body.theme-light button[class*="bg-purple-"],
+html body.theme-light button[class*="bg-blue-"], html body.theme-light button[class*="bg-red-"],
+html body.theme-light button[class*="bg-green-"] { color: #fff !important; }
+
+/* ── Custom background: always sits behind a theme-matched scrim ─────────── */
+#universal-background .pj-bg-scrim {
+  position: absolute; inset: 0; pointer-events: none;
+  background: var(--pj-scrim);
+  -webkit-backdrop-filter: blur(var(--pj-scrim-blur)) saturate(120%);
+  backdrop-filter: blur(var(--pj-scrim-blur)) saturate(120%);
+  transition: background-color .6s ease;
+}
+/* Tone engine (services/themeContrast.ts) sets data-bg-tone from the real image luminance. */
+body.has-custom-background[data-bg-tone="bright"].theme-light { --pj-scrim: rgba(226, 232, 240, 0.66); }
+body.has-custom-background[data-bg-tone="bright"]:not(.theme-light):not(.theme-pastel) { --pj-scrim: rgba(0, 0, 0, 0.58); }
+body.has-custom-background[data-bg-tone="dark"].theme-light { --pj-scrim: rgba(226, 232, 240, 0.78); }
+body.has-custom-background[data-bg-tone="dark"]:not(.theme-light):not(.theme-pastel) { --pj-scrim: rgba(0, 0, 0, 0.30); }
+body.has-custom-background.theme-light { --pj-surface: rgba(255, 255, 255, 0.55); }
+
+/* ── Elevate (.ev-scope) follows the theme ───────────────────────────────── */
+body.has-custom-background .ev-scope { background: transparent; }
+body.theme-light .ev-scope {
+  --ev-chrome: #dde3ea;
+  --ev-panel: rgba(255, 255, 255, 0.58);
+  --ev-raised: rgba(255, 255, 255, 0.78);
+  --ev-line: rgba(15, 23, 42, 0.12);
+  --ev-ink: #0f172a;
+  --ev-ink-2: #1e293b;
+  --ev-muted: #475569;
+  --ev-violet-text: #6d28d9;
+  --ev-gold: #8a5a0a;
+  --ev-ember: #c2410c;
+}
+body.theme-pastel .ev-scope {
+  --ev-chrome: #fdf6e3; --ev-panel: #eee8d5; --ev-raised: #e6dfc6;
+  --ev-line: rgba(7, 54, 66, 0.16); --ev-ink: #0b3b40; --ev-ink-2: #0f4a50; --ev-muted: #3d5f60;
+  --ev-violet-text: #5b21b6; --ev-gold: #7a5c22;
+}
+body.theme-plajah .ev-scope { --ev-chrome: #12001c; --ev-panel: rgba(45, 0, 64, 0.72); --ev-raised: rgba(70, 8, 96, 0.7); --ev-muted: #c3b2d6; }
+body.theme-nebula .ev-scope { --ev-chrome: #070716; --ev-panel: rgba(18, 18, 48, 0.72); --ev-raised: rgba(30, 30, 72, 0.7); --ev-muted: #aeb3dd; }
+body.theme-citrus .ev-scope { --ev-chrome: #120600; --ev-panel: rgba(54, 20, 6, 0.74); --ev-raised: rgba(78, 28, 8, 0.7); --ev-muted: #d9b9a6; }
+body.theme-ethereal .ev-scope { --ev-chrome: #0b0b14; --ev-panel: rgba(30, 24, 44, 0.74); --ev-raised: rgba(44, 36, 62, 0.7); --ev-muted: #b6aecb; }
+body.theme-light .ev-btn-ghost { border-color: rgba(15, 23, 42, 0.22); }
+body.theme-light .ev-btn-ghost:hover, body.theme-light .ev-row-link:hover { background: rgba(15, 23, 42, 0.05); }
+body.theme-light .ev-btn-light { background: #0f172a; color: #f8fafc; }
+body.theme-light .ev-panel { -webkit-backdrop-filter: blur(20px) saturate(160%); backdrop-filter: blur(20px) saturate(160%); box-shadow: 0 8px 30px rgba(51, 65, 85, 0.10), inset 0 1px 0 rgba(255,255,255,.55); }
+/* The Word stays on vellum paper in every theme. */
+html body.theme-light .ev-sheet .text-white, html body.theme-light .ev-sheet .text-primary { color: var(--ev-vellum-ink) !important; }
+
+/* ── Academia follows the theme ──────────────────────────────────────────── */
+body.theme-light, body.theme-pastel {
+  --pj-ink: #0f172a; --pj-ink-soft: #475569; --pj-paper: #e6ebf1;
+}
+body:not(.theme-light):not(.theme-pastel) {
+  --pj-ink: #f1f5f9; --pj-ink-soft: #b5bfce; --pj-paper: #0d0d12;
+  --pj-rule: rgba(255, 255, 255, 0.12); --pj-primary-soft: rgba(52, 211, 153, 0.12);
+}
+
+[data-pj-contrast] { transition: color .2s ease; }
