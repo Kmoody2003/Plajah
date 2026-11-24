@@ -580,6 +580,7 @@ const RelloView = retryLazy(() => import('./components/RelloView'));
 
 import { useGlobalPlayer, useGlobalPlayerState, useGlobalPlayerProgress } from './contexts/GlobalPlayerContext';
 import PromoBillboard from './components/ads/PromoBillboard';
+import { reportAdEvent } from './services/adEvents';
 import OnAirBillboard from './components/ads/OnAirBillboard';
 import { panelPromos } from './services/promos/platformPromos';
 
@@ -591,7 +592,33 @@ type AdSlot =
   | { kind: 'product'; product: import('./data/demoShowcase').DemoProduct }
   | { kind: 'store'; product: import('./types').StoreProduct }
   | { kind: 'promo'; promo: import('./services/promos/platformPromos').PlajahPromo }
-  | { kind: 'onair'; focus: 'show' | string };
+  | { kind: 'onair'; focus: 'show' | string }
+  | { kind: 'live'; profile: import('./types').UserProfile };
+
+/** What to call a slot in the ad-event log (services/adEvents → admin Ad Platform). */
+const adSlotIdentity = (s: AdSlot): { id: string; kind: import('./services/adEvents').AdSourceKind } => {
+  switch (s.kind) {
+    case 'custom_ad': return { id: s.ad.id, kind: 'userAd' };
+    case 'album': return { id: s.album.id, kind: 'album' };
+    case 'promo': return { id: s.promo.id, kind: 'promo' };
+    case 'onair': return { id: `onair-${s.focus}`, kind: 'onair' };
+    case 'store': return { id: (s.product as any).id || 'store', kind: 'store' };
+    case 'product': return { id: (s.product as any).id || 'product', kind: 'product' };
+    case 'live': return { id: `live-${s.profile.uid}`, kind: 'live' };
+    case 'profile': return { id: `profile-${s.profile.uid}`, kind: 'profile' };
+    default: return { id: 'plajah-plus', kind: 'plus' };
+  }
+};
+
+/** Mounts once per slot shown (the slot's motion.div is keyed per rotation), so one mount = one impression. */
+const AdBeacon: React.FC<{ slot: AdSlot }> = ({ slot }) => {
+  useEffect(() => {
+    const { id, kind } = adSlotIdentity(slot);
+    reportAdEvent(id, 'impression', kind);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return null;
+};
 
 const AD_DURATION: Record<AdSlot['kind'], number> = {
   promo:     30000,
@@ -602,6 +629,7 @@ const AD_DURATION: Record<AdSlot['kind'], number> = {
   custom_ad: 30000,
   product:   20000,
   store:     20000,
+  live:      30000,
 };
 
 // ~14-frame crossfade at 60 fps ≈ 233 ms
@@ -725,7 +753,7 @@ import SpatialUIRoot from './components/SpatialUIRoot';
 import SidebarSearch from './components/SidebarSearch';
 import OrgSidebarLayoutBanner from './components/OrgSidebarLayoutBanner';
 import { useActiveOrgSidebar, useOrgSidebarChoice, resolveOrgHiddenSections, SIDEBAR_SECTION_IDS } from './services/orgSidebarLayout';
-import { resolveNavScope, scopeAllowedNav, starterDay, orgAdsOnly, useScopeTick, requestOrgPage, type NavScope } from './services/experienceScope';
+import { resolveNavScope, scopeAllowedNav, starterDay, orgAdsOnly, useScopeTick, requestOrgPage, setShellLeftRail, ORG_PINNED_NAV, type NavScope } from './services/experienceScope';
 import { isElevateOrg as isElevateOrgType } from './services/elevateTemplates';
 import { ElevateScopePillar, ScopeFooter } from './components/elevate/ElevateScopePillar';
 import { useMyElevateOrgs, pickHomeOrg, takePendingOrg, rememberRosterOrgs } from './services/elevateHome';
@@ -1817,12 +1845,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // The org whose pillar / news rail shows: the org page on screen (active members get their departments
   // pinned), else an Elevate-scoped person's home org.
   const onOrgPage = view === 'ORG_HUB' && !!activeOrgSidebar?.org;
-  const pillarOrg = onOrgPage && activeOrgSidebar?.org && (activeOrgSidebar.membership || navScope === 'elevate')
+  // On an Elevate org page the pillar is that org's (members get their departments; visitors the org's pages).
+  // On the Elevate directory, or anywhere for Elevate-scoped people, it's your own org.
+  const pillarOrg = onOrgPage && activeOrgSidebar?.org && isElevateOrgType(activeOrgSidebar.org.orgType)
     ? { org: activeOrgSidebar.org, membership: activeOrgSidebar.membership || null }
-    : navScope === 'elevate' && homeOrg ? homeOrg : null;
+    : (navScope === 'elevate' || view === 'PLAJAH_ELEVATE') && homeOrg ? homeOrg : null;
   const railOrg = onOrgPage && activeOrgSidebar?.org && isElevateOrgType(activeOrgSidebar.org.orgType)
     ? activeOrgSidebar.org
-    : navScope === 'elevate' ? homeOrg?.org || null : null;
+    : navScope === 'elevate' && (view === 'PLAJAH_ELEVATE' || view === 'ORG_HUB') ? homeOrg?.org || null : null;
   const authCreatedMs = (() => { const t = Date.parse((user as any)?.metadata?.creationTime || ''); return Number.isFinite(t) ? t : undefined; })();
   const railAdsOk = !!railOrg && !orgAdsOnly(userProfile as any, authCreatedMs);
   const openOrgFromPillar = (orgId: string) => { setOrgHubInitial({ orgId }); setView('ORG_HUB'); };
@@ -1990,12 +2020,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [radioOpenFm, setRadioOpenFm] = useState(false);
   useEffect(() => { if (view !== 'RADIO') setRadioOpenFm(false); }, [view]);
   const [adSlotIdx, setAdSlotIdx] = useState(0);
+  // Second, independent ad cell (always a different ad from the first) + the context cell: the person in view
+  // (profile owner, or whoever's post is on screen in the feed). See the ad column in the render below.
+  const [adSlotIdx2, setAdSlotIdx2] = useState(3);
+  const [ctxSlot, setCtxSlot] = useState<AdSlot | null>(null);
+  const [feedFocusUid, setFeedFocusUid] = useState<string | null>(null);
   const [showPlajahPlusBillboard, setShowPlajahPlusBillboard] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   // Adaptive nav layout — slim rail on compact desktop (12–20"), horizontal bar on
   // touch tablets, split pillars as an opt-in. See hooks/useNavLayout.
   const navLayout = useNavLayout();
   const shellNext = useShellNext();
+  // Tell org pages whether a left sidebar (classic or Command Split) is on screen; without one they draw
+  // the Elevate pillar themselves (top-bar layouts).
+  const shellHasLeftRail = !isPublicView && !getPlatformInfo().isTV && !isMobile && theme !== 'PHONE' && !navLayout.isBar;
+  useEffect(() => { setShellLeftRail(shellHasLeftRail); }, [shellHasLeftRail]);
   const tvLineup = useTvLineup();
   // Lineup rail's live inset (it slides away while you browse) — see useTvSpineInset.
   const tvSpineInset = useTvSpineInset(getPlatformInfo().isTV && tvLineup.enabled);
@@ -4650,6 +4689,47 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     return () => clearTimeout(t);
   }, [adSlotIdx, adSlots]);
 
+  // Second cell rotates on its own clock.
+  useEffect(() => {
+    if (adSlots.length === 0) return;
+    const current = adSlots[adSlotIdx2 % adSlots.length];
+    const t = setTimeout(() => setAdSlotIdx2(i => i + 1), AD_DURATION[current.kind] + 4000);
+    return () => clearTimeout(t);
+  }, [adSlotIdx2, adSlots]);
+
+  // The feed tells us whose post is on screen (PostCard's impression observer dispatches this).
+  useEffect(() => {
+    const onFocus = (e: Event) => {
+      const uid = (e as CustomEvent).detail?.uid;
+      if (typeof uid === 'string' && uid) setFeedFocusUid(uid);
+    };
+    window.addEventListener('plajah:feed-focus', onFocus);
+    return () => window.removeEventListener('plajah:feed-focus', onFocus);
+  }, []);
+
+  // Context cell: on a profile page it is that person; in the feed it is the author in view. Their live broadcast
+  // first, else an ad for their content (own ad, newest release), else their profile card. No context = a normal ad.
+  const ctxUid = view === 'USER_PROFILE' ? viewedUserId : view === 'FEED' ? feedFocusUid : null;
+  useEffect(() => {
+    if (!ctxUid) { setCtxSlot(null); return; }
+    let alive = true;
+    const t = setTimeout(() => {
+      Promise.all([
+        fetchUserProfile(ctxUid).catch(() => null),
+        loadUserAd(ctxUid).catch(() => null),
+        fetchLatestAlbumForUser(ctxUid).catch(() => null),
+      ]).then(([profile, ad, album]) => {
+        if (!alive) return;
+        if (!profile) { setCtxSlot(null); return; }
+        if (profile.liveStreamConfig?.isActive) setCtxSlot({ kind: 'live', profile });
+        else if (ad) setCtxSlot({ kind: 'custom_ad', ad, profile });
+        else if (album) setCtxSlot({ kind: 'album', album, profile });
+        else setCtxSlot({ kind: 'profile', profile });
+      });
+    }, 350); // settle while the feed scrolls
+    return () => { alive = false; clearTimeout(t); };
+  }, [ctxUid]);
+
   // A shared link keeps the loader up (never the globe launch page) until the shared item has
   // taken over the screen: ends once something other than LANDING shows, or after 8s.
   useEffect(() => {
@@ -4985,10 +5065,33 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   <EducationRail uid={userProfile?.uid} onNavigate={(v) => setView(v as AppView)} />
                 </Suspense>
               ) : (
+              <>
+              {((n: number) => {
+                // Elevate pages keep one ad under the org news. Everywhere else the column is two cells, always two
+                // different ads: the top one follows the person in view when there is one.
+                const topIdx = adSlotIdx % n;
+                let bottom = adSlotIdx2;
+                for (let k = 0; k < n && adSlots.length > 1; k++) {
+                  const cand = adSlots[bottom % n] as any;
+                  const sameAsTop = bottom % n === topIdx;
+                  const sameAsCtx = !!(ctxSlot && cand?.profile?.uid && cand.profile.uid === (ctxSlot as any).profile?.uid);
+                  if (!sameAsTop && !sameAsCtx) break;
+                  bottom++;
+                }
+                return railOrg
+                  ? [{ idx: adSlotIdx, forced: undefined as AdSlot | undefined }]
+                  : [{ idx: adSlotIdx, forced: (ctxSlot || undefined) as AdSlot | undefined }, { idx: bottom, forced: undefined as AdSlot | undefined }];
+              })(adSlots.length || 1).map((cell, cellN, cells) => (
+              <div
+                key={cellN}
+                className={`absolute inset-x-0 overflow-hidden ${
+                  cells.length === 1 ? 'inset-y-0' : cellN === 0 ? 'top-0 h-1/2 border-b border-white/[0.06]' : 'bottom-0 h-1/2'
+                }`}
+              >
               <AnimatePresence mode="sync">
-              {(() => {
+              {((adSlotIdx: number, forced?: AdSlot) => {
                 const slots = adSlots.length > 0 ? adSlots : [{ kind: 'plus' as const }];
-                const currentSlot = slots[adSlotIdx % slots.length];
+                const currentSlot = forced || slots[adSlotIdx % slots.length];
                 const dotTotal = Math.min(slots.length, 7);
                 const dotActive = adSlotIdx % dotTotal;
                 const poolSize = dotTotal; // keep for dot rendering compat
@@ -5017,6 +5120,29 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       dotCount={dotTotal}
                       dotIdx={dotActive}
                     />
+                  );
+                } else if (currentSlot.kind === 'live') {
+                  const lp = currentSlot.profile;
+                  slotContent = (
+                    <button
+                      key={`live-${lp.uid}`}
+                      onClick={() => { setLiveChannelFocus({ plajahId: (lp as any).plajahId, ownerId: lp.uid }); setView('LIVE_HUB' as AppView); }}
+                      className="group relative block w-full h-full text-left overflow-hidden cursor-pointer"
+                      style={{ background: 'radial-gradient(120% 80% at 50% 20%, #3a0a2a 0%, #0b0610 70%)' }}
+                    >
+                      {(lp.customPhotoURL || lp.photoURL) && (
+                        <img src={(lp.customPhotoURL || lp.photoURL) as string} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-[1200ms]" />
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+                      <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-600 text-white text-[9px] font-black uppercase tracking-[0.25em]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> On air
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                        <p className="text-[8px] font-black uppercase tracking-[0.3em] text-small-orange mb-1">Live broadcast</p>
+                        <p className="text-white font-black text-lg leading-tight line-clamp-2 mb-2.5">{lp.displayName}</p>
+                        <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-small-orange text-black text-[10px] font-black uppercase tracking-widest group-hover:scale-105 transition-transform">Watch live</span>
+                      </div>
+                    </button>
                   );
                 } else if (currentSlot.kind === 'custom_ad') {
                   slotContent = (
@@ -5308,18 +5434,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
                 return (
                   <motion.div
-                    key={adSlotIdx}
+                    key={forced ? `ctx-${(forced as any).profile?.uid || 'x'}-${forced.kind}` : adSlotIdx}
                     className="absolute inset-0"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: fadeS, ease: 'linear' }}
+                    onClickCapture={() => { const ident = adSlotIdentity(currentSlot as AdSlot); reportAdEvent(ident.id, 'click', ident.kind); }}
                   >
                     {slotContent}
+                    <AdBeacon slot={currentSlot as AdSlot} />
                   </motion.div>
                 );
-              })()}
+              })(cell.idx, cell.forced)}
               </AnimatePresence>
+              </div>
+              ))}
+              </>
               )}
               </div>
               )}
@@ -5427,6 +5558,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onSelectGame={handleSelectGame}
                 onSelectLiveFeed={setActiveLiveFeed}
                 slim={navLayout.isSlim || navLayout.isSplit}
+                allowedIds={scopeAllowed}
+                orgKey={pillarOrg?.org.id}
+                orgName={pillarOrg?.org.name}
+                orgPinnedIds={ORG_PINNED_NAV as string[]}
+                topSlot={pillarOrg ? (
+                  <ElevateScopePillar
+                    org={pillarOrg.org}
+                    membership={pillarOrg.membership}
+                    uid={user?.uid}
+                    onOpenOrg={openOrgFromPillar}
+                    onOrgPage={view === 'ORG_HUB' && activeOrgSidebar?.orgId === pillarOrg.org.id}
+                    discoverLabel={false}
+                  />
+                ) : undefined}
+                footerSlot={navScope !== 'full' ? (
+                  <ScopeFooter scope={navScope} orgName={pillarOrg?.org.name} starter={starterDay(userProfile as any)} onShowAll={showAllOfPlajah} />
+                ) : undefined}
               />
             ) : (
             <aside className={`${isSidebarCollapsed ? 'w-24' : (theme === 'BIG_SCREEN' ? 'w-24 hover:w-80' : (navLayout.isSlim || navLayout.isSplit) ? 'w-52' : 'w-80')} border-r border-white/[0.07] hidden lg:flex flex-col ${(navLayout.isSlim || navLayout.isSplit) && !isSidebarCollapsed ? 'p-3 lg:p-4' : 'p-4 lg:p-6'} sticky top-0 h-screen glass-high transition-colors duration-300 group/sidebar z-50 overflow-x-hidden shrink-0`}>
@@ -8028,7 +8176,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </ErrorBoundary>
               </div>
             )}
-            {view === 'CREATOR' && user && <UserDashboard user={user} initialTab={dashboardInitialTab} onOpenOrg={(orgId) => { setOrgHubInitial({ orgId }); setView('ORG_HUB'); }} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
+            {view === 'CREATOR' && user && <UserDashboard user={user} initialTab={dashboardInitialTab} currentTheme={theme} onSetTheme={handleSetTheme} onOpenOrg={(orgId) => { setOrgHubInitial({ orgId }); setView('ORG_HUB'); }} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
             {view === 'CREATOR_COURSES' && (
               <CreatorCoursesHub
                 key={creatorCourseId || 'hub'}
@@ -8495,6 +8643,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <ErrorBlock key={viewedUserId} componentName="UserProfileView">
                 <UserProfileView
                   uid={viewedUserId}
+                  currentTheme={theme}
+                  onSetTheme={handleSetTheme}
                   onBack={() => { handleBackToDashboard(); setInitialProfileTab(undefined); }}
                   onSelectAlbum={handleSelectItem}
                   onSelectGame={handleSelectGame}

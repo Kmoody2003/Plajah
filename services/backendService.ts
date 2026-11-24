@@ -10226,40 +10226,8 @@ export const deleteUserAd = async (id: string): Promise<void> => {
   await deleteDoc(doc(db, 'userAds', id));
 };
 
-export const fetchSystemStats = async (): Promise<SystemStats> => {
-  // In a real app, this would be aggregated by a Cloud Function
-  // For now, we'll simulate it by fetching some counts
-  try {
-    const usersSnap = await getDocs(collection(db, 'users'));
-    const albumsSnap = await getDocs(collection(db, 'albums'));
-    const videosSnap = await getDocs(collection(db, 'videos'));
-    const photosSnap = await getDocs(collection(db, 'photos'));
-
-    return {
-      totalUsers: usersSnap.size,
-      activeUsers24h: Math.floor(usersSnap.size * 0.4), // Simulated
-      globalStorage: {
-        total: 1024 * 1024 * 500, // 500MB simulated
-        audio: 1024 * 1024 * 200,
-        video: 1024 * 1024 * 250,
-        photos: 1024 * 1024 * 50
-      },
-      globalBandwidth: {
-        daily: 1024 * 1024 * 100,
-        monthly: 1024 * 1024 * 3000
-      },
-      sectionUsage: {
-        music: albumsSnap.size,
-        video: videosSnap.size,
-        books: 12, // Public domain books
-        photos: photosSnap.size
-      }
-    };
-  } catch (e) {
-    console.error("Failed to fetch system stats:", e);
-    throw e;
-  }
-};
+// fetchSystemStats was removed: it returned simulated storage, bandwidth and active-user figures.
+// Real platform numbers come from the server (services/adminPlatformService.ts → /api/admin/platform).
 
 export const fetchAdConfigs = async (): Promise<AdConfig[]> => {
   const path = 'ads';

@@ -103,6 +103,8 @@ import { createTerraLawRouter } from './routes/terraLaw';
 import { createMusicLawRouter } from './routes/musicLaw';
 import { createGrantsRouter } from './routes/grants';
 import { createAdminKeysRouter } from './routes/adminKeys';
+import { createAdminPlatformRouter } from './routes/adminPlatform';
+import { createAdPlatformRouter } from './routes/adPlatform';
 import { createCrewRouter } from './routes/crew';
 import { createOnAirRouter } from './routes/onair';
 import { createLexiconRouter } from './routes/lexicon';
@@ -170,6 +172,7 @@ import { reelloOrgChannelsRouter } from './routes/reelloOrgChannels';
 import { createOrgMediaRouter } from './routes/orgMedia';
 import { authMethodsRouter } from './routes/authMethods';
 import { plajahIdRouter } from './routes/plajahId';
+import { elevateGroupsRouter } from './routes/elevateGroups';
 // Anti-bot layer (docs/ANTI_BOT_PLAYBOOK.md): App Check monitor, signup-check, shared limits.
 import { antiAbuseRouter } from './routes/antiAbuse';
 import { createAppCheckMiddleware, verifyAppCheckTokenStrict } from './services/appCheckServer';
@@ -15234,6 +15237,12 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use(createGrantsRouter({ limiter: apiLimiter }));
   // Admin countdown for API keys that expire on a schedule (SAM.gov: 90 days). Dates only, never the key.
   app.use('/api/admin/key-rotation', createAdminKeysRouter({ authMiddleware, requireAdmin: requireVerifiedAdmin, limiter: apiLimiter }));
+  // Real platform metrics + admin action log, and the ad platform (event recording + admin console data/actions).
+  app.use('/api/admin/platform', createAdminPlatformRouter({ authMiddleware, requireAdmin: requireVerifiedAdmin, limiter: apiLimiter }));
+  app.use(createAdPlatformRouter({
+    authMiddleware, requireAdmin: requireVerifiedAdmin, limiter: apiLimiter,
+    eventLimiter: rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests' } }),
+  }));
   // Aria Crew: org crew (Front Desk, Grants Scout…) + the HQ crew's daily briefing. HQ routes need the
   // verified token facts authMiddleware sets, so it runs in front of /hq only; the router re-checks admin.
   app.use('/api/crew/hq', authMiddleware);
@@ -15563,6 +15572,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use('/api/auth-methods', express.json({ limit: '2kb' }), authMethodsRouter);
   // Plajah ID (docs/plajah-id.md): permanent person / org identities with hash-chained history. Server-only data.
   app.use('/api/plajah-id', apiLimiter, express.json({ limit: '4kb' }), plajahIdRouter);
+  // Ask to join a ministry / department / sub-group; its leaders approve (routes/elevateGroups.ts).
+  app.use('/api/elevate/groups', apiLimiter, express.json({ limit: '4kb' }), elevateGroupsRouter);
   // POST /api/auth/signup-check (disposable-domain gate, strict per-IP) + POST /api/security/csp-report.
   app.use('/api', antiAbuseRouter);
 

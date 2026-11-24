@@ -2645,7 +2645,8 @@ export interface ClubMembership {
   clubId: string;
   userId: string;
   role: ClubRole;
-  status: 'ACTIVE' | 'PENDING' | 'BANNED';
+  /** DECLINED = a club admin turned down this person's request (services/clubRequests). */
+  status: 'ACTIVE' | 'PENDING' | 'BANNED' | 'DECLINED';
   displayName: string;
   photoUrl?: string;
   questionnaireAnswers?: string[];
