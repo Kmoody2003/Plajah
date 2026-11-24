@@ -12,7 +12,9 @@ import { createPost } from './post';
 import { DynamicResolution, EmptyInstanceSkip, capShadowMaps, intelShadows, pickGfx } from './gfx';
 import { wetten } from './wetness';
 import { JumpPads } from './jumpPads';
-import { Trials, isTrialMode, showTrialResult } from './trials';
+import { ModeRunner, resolveMode } from './modes';
+import { describeArena } from './modes/arena';
+import { showModeResult } from './modes/result';
 import { Portals, travelTo } from './portals';
 import { getKTX2, initKTX2 } from './textures';
 // front end + loading (menu/*): Start → Map → Character → loading screen; prefetch and the faster shader precompile
@@ -181,10 +183,11 @@ async function boot() {
   // a Studio level with rules decides who arrives and how the level ends (studio/rulesHost.ts); else the endless trials run
   const ruled = !!studioLook?.level.rules.some(r => r.enabled);
   initCombatTuning(); // combat/tuning.ts: the Studio's / a saved override applies before anyone spawns
-  // ?trials=gauntlet|survival|duel runs a structured Trial (trials.ts) instead of the endless one; a hub (the Void Sanctum) starts empty
-  const trialParam = new URLSearchParams(location.search).get('trials');
-  const trialMode = !ruled && isTrialMode(trialParam) ? trialParam : null;
-  const enemies = new EnemyManager(scene, collision, arena.enemySpots, !ruled && !trialMode && !arena.hub);
+  // the game mode (modes/index.ts): the menu's Mode step, else ?mode=<id> (or the old ?trials=); Free Roam by default.
+  // Any map hosts any mode; a hub (the Void Sanctum) starts empty and its runes start one.
+  const picked = resolveMode(choice?.mode);
+  const mode = ruled ? null : picked.mode;
+  const enemies = new EnemyManager(scene, collision, arena.enemySpots, !!mode?.autoWaves && !arena.hub);
   const targeting = new Targeting(camera, collision);
   let moveAmt = 0; // 0…1 how hard the player is moving (aim assist widens on the run)
   const objectives = new Objectives(scene, arena.controlPoints ?? [], (x, z, y) => collision.groundAt(x, z, y, 10));
@@ -195,7 +198,7 @@ async function boot() {
   const MATCH_SCORE = 100, MATCH_SECONDS = 8 * 60;
   // The match waits for you (Kenne: "keeps telling me defeat with no activity fighting against me" — enemies took the
   // points while he explored): it starts when you step onto a point, land a hit or get hit; until then nobody captures.
-  const match = { on: !!arena.controlPoints?.length && !ruled && !trialMode, started: false, over: false, time: 0, downs: 0, kills: 0 };
+  const match = { on: !!arena.controlPoints?.length && !!mode?.domination, started: false, over: false, time: 0, downs: 0, kills: 0 };
   const startMatch = () => { if (!match.on || match.started || match.over) return; match.started = true; showBeatFeedback('MATCH ON · HOLD A / B / C', '#38bdf8'); };
   if (match.on) enemies.onKilled = () => { match.kills++; };
   const endMatch = (won: boolean, draw = false) => {
@@ -218,18 +221,22 @@ async function boot() {
   let hazardCooldown = 0;
   const jumpPads = arena.jumpPads?.length ? new JumpPads(arena.jumpPads) : null;
   const portals = arena.portals?.length ? new Portals(arena.portals, () => player.vessel.id, (p) => showBeatFeedback(`TO ${p.name.toUpperCase()}`, '#c4b5fd')) : null;
-  const trials = !ruled && (trialMode || arena.trialPads?.length) ? new Trials({
-    foes: enemies, spots: arena.enemySpots, playerPos: () => player.object.position,
+  // what modes need from this map (spawns, bounds, anchors, objective spots), derived from the level
+  const arenaDesc = describeArena(arena, (x, z, y) => collision.groundAt(x, z, y, 60));
+  const modes = !ruled ? new ModeRunner({
+    scene, foes: enemies, arena: arenaDesc, playerPos: () => player.object.position,
     banner: (t, hex) => showBeatFeedback(t, hex),
     finished: (r, again) => {
       rhythm.setMood(r.won ? 'victory' : 'defeat');
       player.enabled = false;
       if (document.pointerLockElement) document.exitPointerLock();
       const resume = () => { player.enabled = true; player.hp = player.maxHp; rhythm.setMood('explore'); };
-      showTrialResult(r, () => { resume(); again(); }, resume, arena.hub ? undefined : () => travelTo('sanctum', player.vessel.id));
+      showModeResult(r, () => { resume(); again(); }, resume, arena.hub ? undefined : () => travelTo('sanctum', player.vessel.id));
     },
   }, arena.trialPads ?? []) : null;
-  let trialPending = trialMode; // started on the first played frame (the HUD's banner isn't up yet during boot)
+  // a scripted mode starts on the first played frame (the HUD's banner isn't up yet during boot)
+  let modePending = mode?.scripted ? mode.id : null;
+  let modeNote = picked.fellBack ? `${picked.asked} isn't ready yet · Free Roam` : null;
   const rules = ruled && studioLook ? createRules({
     scene, enemies, player, level: studioLook.level, names: studioLook.names, fallbackSpots: arena.enemySpots,
     groundAt: (x, z, y) => collision.groundAt(x, z, y, 10),
@@ -661,7 +668,7 @@ async function boot() {
     resonance = 1.0;
     score = Math.max(0, score - 150);
     rules?.playerDowned();
-    trials?.playerDowned();
+    modes?.playerDowned();
     if (match.on) match.downs++;
     showBeatFeedback(toSpawn ? 'DOWNED · BACK AT SPAWN' : 'DOWNED', '#fb7185');
     player.goDown(() => {
@@ -738,8 +745,9 @@ async function boot() {
 
     if (player.enabled) {
       jumpPads?.update(dt, player);
-      if (trialPending) { trials!.start(trialPending); trialPending = null; }
-      trials?.update(dt);
+      if (modeNote) { showBeatFeedback(modeNote.toUpperCase(), '#94a3b8'); modeNote = null; }
+      if (modePending) { modes!.start(modePending); modePending = null; }
+      modes?.update(dt);
       portals?.update(dt, player.object.position, player.enabled && !player.downed);
       // lava / abyss hazard
       hazardCooldown = Math.max(0, hazardCooldown - dt);
@@ -817,7 +825,7 @@ async function boot() {
       rhythm.setTrack(b.track);
       showBeatFeedback(`TRIAL ${enemies.wave} · ${b.name.toUpperCase()}`, '#fbbf24');
     }
-    waveText.textContent = rules ? rules.title : trials?.title() ?? (arena.hub ? `${currentBiomeName} · stand on a Trial rune or take a portal` : `Trial ${enemies.wave} · ${currentBiomeName}`);
+    waveText.textContent = rules ? rules.title : modes?.title() ?? (arena.hub ? `${currentBiomeName} · stand on a mode rune or take a portal` : `Trial ${enemies.wave} · ${currentBiomeName}`);
     surgeTag.textContent = resonance >= 2.0 ? 'SOUL SURGE READY [Q]' : 'SURGE AT 2.0x RESONANCE';
     {
       const c = player.weapons.getCharge();
@@ -880,7 +888,7 @@ async function boot() {
 
   if (new URLSearchParams(location.search).has('rrdebug')) {
     loading.release(); await entered;
-    (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, gfx, dynres, objectives, match, targeting, rhythm, danger, ents, pads: jumpPads, trials, portals };
+    (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, gfx, dynres, objectives, match, targeting, rhythm, danger, ents, pads: jumpPads, modes, arenaDesc, portals };
     // combat checks: __rr.combat.arena(['rusher', 'caster', 'brute']) clears the field and rings those around you;
     // .passive(true) freezes their AI; .tune({...}) edits the table live; .state() reads the fight
     (window as any).__rr.combat = {

@@ -13,7 +13,7 @@ import { circuitTexture, fernTexture, grassTexture, mossTexture, pbr } from './t
 import { SPAWN_A, SPAWN_B, buildForestMap } from './cyberforest';
 import type { JumpPad } from './jumpPads';
 import type { Portal } from './portals';
-import type { TrialPad } from './trials';
+import type { ModePad } from './modes';
 
 export interface LevelInfo { id: string; name: string; track: 'main' | 'combat'; accentHex: number }
 export interface Level {
@@ -34,8 +34,8 @@ export interface Level {
   jumpPads?: JumpPad[];
   /** Map portals (portals.ts): walk in to travel to another level. */
   portals?: Portal[];
-  /** Trial runes (trials.ts): stand on one to start that solo trial. */
-  trialPads?: TrialPad[];
+  /** Mode runes (modes/index.ts): stand on one to start that game mode (the Void Sanctum hub). */
+  trialPads?: ModePad[];
   /** A hub (the Void Sanctum): no endless waves; you pick a map portal or a trial. */
   hub?: boolean;
   setBiome(index: number): { name: string; track: 'main' | 'combat' };

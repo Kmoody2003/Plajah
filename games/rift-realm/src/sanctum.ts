@@ -6,7 +6,7 @@
 //   W  Elderwood Hollow   → ?level=elderwood
 //   E  Emberfall Caldera  → ?level=volcanic  (the forge crater's stand-in until its own map is built)
 //   N  Sunken Cathedral   → ?level=marsh     (the flooded ruin's stand-in until its own map is built)
-// Three Trial runes on the floor start the solo Trials here (trials.ts): Gauntlet, Survival, Duel. Two hovering rune
+// Three runes on the floor start a game mode here (modes/index.ts): Trials, Wave Survival, Boss Hunt. Two hovering rune
 // platforms (VA-11) are reached by jump pads. The rim is open: the fall into the Void is the hazard (VA-06).
 // Frame: +z = south (Team A spawn), y up, metres. Platform top y = 0.
 import * as THREE from 'three/webgpu';
@@ -17,7 +17,7 @@ import { pbr } from './textures';
 import type { Level, LevelInfo, Tier } from './shrine';
 import type { JumpPad } from './jumpPads';
 import type { Portal } from './portals';
-import { TRIAL_MODES, type TrialMode, type TrialPad } from './trials';
+import { modeById, type ModeId, type ModePad } from './modes';
 
 const APO = 22;                       // main octagon apothem (≈ 44 m across: the Skirmish footprint)
 const R_OCT = APO / Math.cos(Math.PI / 8);
@@ -207,11 +207,11 @@ export function buildSanctum(scene: THREE.Scene, tier: Tier = 'high'): Level {
   }
 
   // ── the Trial runes (VA-11): stand on one to start that trial ────────────────────────────────────────
-  const trialPads: TrialPad[] = [];
+  const trialPads: ModePad[] = [];
   {
-    const modes: [TrialMode, number][] = [['gauntlet', -Math.PI / 2], ['survival', Math.PI / 6], ['duel', (5 * Math.PI) / 6]];
-    for (const [mode, a] of modes) {
-      const x = Math.cos(a) * 10.5, z = Math.sin(a) * 10.5, hex = TRIAL_MODES[mode].hex, fill = uniform(0);
+    const modes: [ModeId, number, string][] = [['trials', -Math.PI / 2, 'Five rounds, against the clock'], ['survival', Math.PI / 6, 'Hold out three minutes'], ['boss', (5 * Math.PI) / 6, 'Hunt the champion']];
+    for (const [mode, a, sub] of modes) {
+      const x = Math.cos(a) * 10.5, z = Math.sin(a) * 10.5, hex = modeById(mode)!.hex, fill = uniform(0);
       kit.prism(obsidian, 16, 2.4, 2.5, 0.18, x, 0, z, 0, { tpm: 0.6 });
       const t = new THREE.TorusGeometry(2.45, 0.06, 4, 32); t.rotateX(Math.PI / 2); kit.place(t, x, 0.19, z); kit.add(goldMat, t, { solid: false, shadow: false, tpm: 1 });
       const rm = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
@@ -223,7 +223,7 @@ export function buildSanctum(scene: THREE.Scene, tier: Tier = 'high'): Level {
       }
       const m = new THREE.Mesh(new THREE.CircleGeometry(2.3, 48), rm); m.rotation.x = -Math.PI / 2; m.position.set(x, 0.2, z); m.name = 'trial rune decal'; group.add(m);
       trialPads.push({ pos: new THREE.Vector3(x, 0.18, z), radius: 2.0, mode, fill });
-      label(TRIAL_MODES[mode].name.toUpperCase(), TRIAL_MODES[mode].blurb, hex, x, 3.4, z, 4.6);
+      label(modeById(mode)!.name.toUpperCase(), sub, hex, x, 3.4, z, 4.6);
     }
   }
 

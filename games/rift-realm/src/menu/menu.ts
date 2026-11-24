@@ -19,9 +19,10 @@ import { RhythmEngine } from '../rhythm';
 import { WEAPONS } from '../weapons';
 import { VESSELS, type VesselId } from '../vessels';
 import { openControls } from './controlsPanel';
+import { modeScreen } from './modeSelect';
 
 export type Quality = 'auto' | 'low' | 'high';
-export interface MenuChoice { level: string; vessel: VesselId; quality: Quality }
+export interface MenuChoice { level: string; vessel: VesselId; quality: Quality; /** game mode id (modes/index.ts) */ mode: string }
 
 const qs = () => new URLSearchParams(location.search);
 export const menuSkipped = () => { const q = qs(); return q.has('rrdebug') || q.get('studio') === '1' || q.get('menu') === '0'; };
@@ -103,7 +104,8 @@ export function startMenu(): MenuHandle {
   const startLevel = qs().get('level');
   let mapI = Math.max(0, MAPS.findIndex((m) => m.param === startLevel));
   let charI = 0;
-  let screen: 'start' | 'settings' | 'map' | 'char' | 'done' = 'start';
+  let screen: 'start' | 'settings' | 'map' | 'mode' | 'char' | 'done' = 'start';
+  const modeScr = modeScreen(qs().get('mode')); // the Mode step (menu/modeSelect.ts)
   let startI = 0, setI = 0;
   let renderer: THREE.WebGPURenderer | null = null, view: HTMLElement | null = null, pedestal: Pedestal | null = null;
   let audioOn = false;
@@ -141,9 +143,9 @@ export function startMenu(): MenuHandle {
         <button class="rr-go">Choose map <kbd>Enter</kbd></button></div>
       <div class="rr-cards">${MAPS.map((m, i) => `<button class="rr-card" data-i="${i}" style="--accent:${m.accent}"><img src="${m.poster}" alt="" loading="eager"><span>${m.name}</span></button>`).join('')}</div>
       <div class="rr-hint"><kbd>←→</kbd> / <kbd>LB RB</kbd> browse · <kbd>Enter</kbd> / <kbd>A</kbd> choose · <kbd>Esc</kbd> / <kbd>B</kbd> back</div>
-    </section>
+    </section>${modeScr.html}
     <section class="rr-scr rr-char">
-      <header class="rr-step"><b>2</b> Choose your vessel <em class="rr-char-map"></em></header>
+      <header class="rr-step"><b>3</b> Choose your vessel <em class="rr-char-map"></em></header>
       <div class="rr-char-left"><div class="rr-kicker rr-char-role"></div><h2 class="rr-char-name"></h2><div class="rr-char-title"></div>
         <p class="rr-char-design"></p><div class="rr-lore"></div></div>
       <div class="rr-stage"><video class="rr-turn" muted loop playsinline preload="auto"></video><div class="rr-stage-ring"></div><div class="rr-stage-note"></div>
@@ -183,6 +185,7 @@ export function startMenu(): MenuHandle {
     if (s === 'start' || s === 'settings') { if (!bgSrc || !MAPS.some((m) => m.video === bgSrc)) cycleStart(); renderStart(); }
     if (s === 'settings') renderSettings();
     if (s === 'map') renderMap();
+    if (s === 'mode') modeScr.render(root, MAPS[mapI].name);
     if (s === 'char') { renderChar(); startPedestal(); } else stopPedestal();
   }
   function renderStart() { $$('.rr-start .rr-list button').forEach((b, i) => b.classList.toggle('focus', i === startI)); }
@@ -317,13 +320,18 @@ export function startMenu(): MenuHandle {
     } else if (screen === 'map') {
       if (a === 'left' || a === 'prev' || a === 'up') { mapI = (mapI + MAPS.length - 1) % MAPS.length; renderMap(); }
       if (a === 'right' || a === 'next' || a === 'down') { mapI = (mapI + 1) % MAPS.length; renderMap(); }
-      if (a === 'ok') { if (renderer) void prefetch.level(moduleByParam(MAPS[mapI].param)); prefetch.files(MAPS[mapI].param); show('char'); }
+      if (a === 'ok') { if (renderer) void prefetch.level(moduleByParam(MAPS[mapI].param)); prefetch.files(MAPS[mapI].param); show('mode'); }
       if (a === 'back') show('start');
+    } else if (screen === 'mode') {
+      if (a === 'left' || a === 'prev' || a === 'up') { modeScr.move(-1); modeScr.render(root, MAPS[mapI].name); }
+      if (a === 'right' || a === 'next' || a === 'down') { modeScr.move(1); modeScr.render(root, MAPS[mapI].name); }
+      if (a === 'ok' && modeScr.pick()) show('char');
+      if (a === 'back') show('map');
     } else if (screen === 'char') {
       if (a === 'left' || a === 'prev' || a === 'up') { charI = (charI + CHARS.length - 1) % CHARS.length; renderChar(); }
       if (a === 'right' || a === 'next' || a === 'down') { charI = (charI + 1) % CHARS.length; renderChar(); }
       if (a === 'ok') finish();
-      if (a === 'back') show('map');
+      if (a === 'back') show('mode');
     }
   }
   function quit() {
@@ -338,7 +346,7 @@ export function startMenu(): MenuHandle {
     padOn = false;
     root.classList.add('rr-leave');
     window.setTimeout(() => { root.querySelectorAll('video').forEach((v) => v.pause()); root.remove(); }, 700);
-    resolve({ level: MAPS[mapI].param, vessel: CHARS[charI].id, quality: settings.quality });
+    resolve({ level: MAPS[mapI].param, vessel: CHARS[charI].id, quality: settings.quality, mode: modeScr.current });
   }
 
   // keyboard
@@ -367,11 +375,12 @@ export function startMenu(): MenuHandle {
     c.addEventListener('click', () => { mapI = i; act('ok'); });
   });
   $('.rr-map .rr-go').addEventListener('click', () => act('ok'));
+  modeScr.mount(root, () => act('ok'));
   $('.rr-char .rr-go').addEventListener('click', () => act('ok'));
   $('.rr-arrow.l').addEventListener('click', () => act('left'));
   $('.rr-arrow.r').addEventListener('click', () => act('right'));
   $$('.rr-tab').forEach((t, i) => t.addEventListener('click', () => { charI = i; renderChar(); }));
-  root.addEventListener('wheel', (e) => { if (screen === 'map' || screen === 'char') act(e.deltaY > 0 || e.deltaX > 0 ? 'next' : 'prev'); }, { passive: true });
+  root.addEventListener('wheel', (e) => { if (screen === 'map' || screen === 'mode' || screen === 'char') act(e.deltaY > 0 || e.deltaX > 0 ? 'next' : 'prev'); }, { passive: true });
 
   // controller: edge-triggered buttons, a repeating left stick, the right stick turns the vessel
   let padOn = true;
@@ -415,7 +424,7 @@ export function startMenu(): MenuHandle {
       if (!r.domElement.parentElement) v.appendChild(r.domElement);
       r.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
       r.setSize(window.innerWidth, window.innerHeight);
-      if (screen === 'map' || screen === 'char') void prefetch.level(moduleByParam(MAPS[mapI].param));
+      if (screen === 'map' || screen === 'mode' || screen === 'char') void prefetch.level(moduleByParam(MAPS[mapI].param));
       if (screen === 'char') startPedestal();
     },
   };
