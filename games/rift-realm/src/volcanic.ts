@@ -13,6 +13,7 @@ import { builders } from './structures';
 import { circuitTexture } from './decals';
 import { pbr } from './textures';
 import type { Level, LevelInfo, Tier } from './shrine';
+import type { JumpPad } from './jumpPads';
 
 const smooth = (e0: number, e1: number, x: number) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
 const box = (x: number, z: number, x0: number, x1: number, z0: number, z1: number, edge: number) =>
@@ -92,6 +93,8 @@ export function volcanicHeight(x: number, z: number): number {
   return h + (fbm3(x * 0.12, 5, z * 0.12) - 0.5) * 0.25 * (1 - ch);
 }
 
+interface Puff { s: THREE.Sprite; x: number; y: number; z: number; v: number; age: number; life: number; size: number; peak: number }
+
 export function buildVolcanic(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const lo = tier === 'low';
   const group = new THREE.Group();
@@ -100,6 +103,11 @@ export function buildVolcanic(scene: THREE.Scene, tier: Tier = 'high'): Level {
   const B = builders(kit);
   const R = rng(911);
   const ember = color(0xff6a1c);
+  // the forge's overhead mezzanine vents (jump pads) and its smoke, filled by buildForge, run in update()
+  const jumpPads: JumpPad[] = [];
+  const uVentFlash = uniform(0);
+  const smoke: Puff[] = [];
+  const smokeSrc: [number, number, number, number][] = []; // x, y, z, spread (where puffs are born)
 
   // ── materials (Obsidian Volcanic Compound sheets) ───────────────────────────────────────────────────
   const desat = (m: THREE.MeshStandardNodeMaterial, keep: number) => {
@@ -518,6 +526,100 @@ export function buildVolcanic(scene: THREE.Scene, tier: Tier = 'high'): Level {
       if (lo && z !== -72) continue;
       const l = new THREE.PointLight(0xff6a20, i, d, 2); l.position.set(x, y, z); group.add(l);
     }
+    buildMezzanine(cyan);
+    buildForgeSmoke();
+  }
+
+  // ── the forge's overhead steel mezzanine (art: the steel gallery running over the forge floor) ───────────
+  // A grated spine at y 3.2 down the middle of the hall, right over the lava channel, hung from the ceiling beams. Two
+  // steel stairs climb to it from the walkways (arms at z -65), and two forge vents on the walkways are jump pads that
+  // throw you straight up onto it: a fast mid-height lane between the walkways and the throne hall stair.
+  function buildMezzanine(cyanM: THREE.Material) {
+    const FL = FORGE_FLOOR, MZ = 3.2, z0 = -49, z1 = -78.5, x0 = -36.5, x1 = -33.5;
+    const zc = (z0 + z1) / 2, len = z0 - z1;
+    kit.box(grate, x1 - x0, 0.2, len, (x0 + x1) / 2, MZ - 0.1, zc, 0, { tpm: 0.5 });          // the spine deck
+    for (const x of [x0 + 0.1, x1 - 0.1]) kit.box(steel, 0.2, 0.45, len, x, MZ - 0.42, zc, 0, { tpm: 1, shadow: false }); // side girders
+    // arms out to the two stair heads (z -64..-66)
+    for (const [ax0, ax1] of [[-39.4, x0], [x1, -30.6]] as const) {
+      kit.box(grate, ax1 - ax0, 0.2, 2, (ax0 + ax1) / 2, MZ - 0.1, -65, 0, { tpm: 0.5 });
+      for (const z of [-64.1, -65.9]) kit.box(steel, ax1 - ax0, 0.45, 0.2, (ax0 + ax1) / 2, MZ - 0.42, z, 0, { tpm: 1, shadow: false });
+    }
+    B.steelStair(steel, -38.6, FL, -55, Math.PI, MZ, 1.4);   // west walkway → arm (top at z -63.9)
+    B.steelStair(steel, -31.4, FL, -55, Math.PI, MZ, 1.4);   // east walkway → arm
+    // rails: a steel top rail and an invisible blocker, open where the arms join and where the vents' arcs come in
+    const rail = (x: number, za: number, zb: number) => {
+      const l = za - zb, z = (za + zb) / 2;
+      kit.box(steel, 0.07, 0.07, l, x, MZ + 1.05, z, 0, { tpm: 1, shadow: false, solid: false });
+      kit.box(B.invisible, 0.1, 1.2, l, x, MZ + 0.6, z, 0, { shadow: false });
+      for (let k = za - 1; k > zb; k -= 2.5) kit.box(steel, 0.06, 1.05, 0.06, x, MZ + 0.52, k, 0, { tpm: 1, shadow: false, solid: false });
+    };
+    rail(x0 + 0.05, z0, -64); rail(x0 + 0.05, -66, -70); rail(x0 + 0.05, -74, z1);
+    rail(x1 - 0.05, z0, -64); rail(x1 - 0.05, -66, -71); rail(x1 - 0.05, -75, z1);
+    for (const z of [z0, z1]) {
+      kit.box(steel, x1 - x0, 0.07, 0.07, (x0 + x1) / 2, MZ + 1.05, z, 0, { tpm: 1, shadow: false, solid: false });
+      kit.box(B.invisible, x1 - x0, 1.2, 0.1, (x0 + x1) / 2, MZ + 0.6, z, 0, { shadow: false });
+    }
+    // hangers up to the ceiling beams (y 6.5), and cyan conduit lights under the deck edges
+    for (let z = -51; z > z1 + 1; z -= 6) for (const x of [x0 + 0.15, x1 - 0.15]) kit.box(steel, 0.1, 6.35 - MZ, 0.1, x, (MZ + 6.35) / 2, z, 0, { tpm: 1, shadow: false, solid: false });
+    for (const x of [x0 + 0.02, x1 - 0.02]) kit.box(cyanM, 0.03, 0.05, len - 1, x, MZ - 0.66, zc, 0, { solid: false, shadow: false, tpm: 1 });
+    // the forge vents: grated rings over a molten throat; step in and the updraught throws you onto the spine
+    const throat = new THREE.MeshBasicNodeMaterial();
+    {
+      const c = tslTexture(lavaSrc.map!, uv().mul(1.5).add(vec2(time.mul(0.05), time.mul(0.11)))).rgb;
+      throat.colorNode = c.mul(luminance(c).mul(4).add(1)).mul(vec3(1.5, 0.75, 0.3)).mul(float(1).add(uBeatPulse.mul(0.6)).add(uVentFlash.mul(2.5)));
+    }
+    // low, fast arcs: the ceiling beams are at 6.3, so the top of the arc (feet) stays under 4.4 and the head clears them
+    const vents: [number, number, THREE.Vector3][] = [[-39.8, -73.5, new THREE.Vector3(-35, MZ + 0.1, -71.5)], [-29.5, -69.5, new THREE.Vector3(-35, MZ + 0.1, -73.5)]];
+    for (const [x, z, to] of vents) {
+      kit.prism(steel, 16, 1.25, 1.35, 0.3, x, FL, z, 0, { tpm: 1 });                         // collar (a step)
+      const t = new THREE.Mesh(new THREE.CircleGeometry(1.05, 24), throat); t.rotation.x = -Math.PI / 2; t.position.set(x, FL + 0.31, z); group.add(t);
+      for (let k = -2; k <= 2; k++) kit.box(steel, 0.08, 0.06, 2.1 * Math.sqrt(1 - (k / 2.6) ** 2), x + k * 0.4, FL + 0.34, z, 0, { tpm: 1, shadow: false, solid: false });
+      jumpPads.push({ name: 'forge vent', pos: new THREE.Vector3(x, FL + 0.3, z), radius: 1.1, to, apex: 1.0, flash: uVentFlash });
+      smokeSrc.push([x, FL + 0.6, z, 0.5]);
+    }
+    const vl = new THREE.PointLight(0xff7a2a, lo ? 0 : 14, 9, 2); vl.position.set(-35, MZ + 2.2, -66); if (!lo) group.add(vl);
+  }
+
+  // ── forge smoke: soft puffs rising off the lava channel, the falls' basins, the vents and the reactor, pooling into a
+  // haze under the ceiling (the art's forge is thick with it). Sprites (never colliders), recycled in update().
+  function buildForgeSmoke() {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d')!;
+    const SR = rng(77);
+    for (let i = 0; i < 9; i++) {
+      const x = 40 + SR() * 48, y = 40 + SR() * 48, r = 22 + SR() * 26;
+      const rg = g.createRadialGradient(x, y, 0, x, y, r);
+      rg.addColorStop(0, 'rgba(255,255,255,0.55)'); rg.addColorStop(0.6, 'rgba(255,255,255,0.18)'); rg.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = rg; g.fillRect(0, 0, 128, 128);
+    }
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    for (const z of [-52, -58, -64, -70, -76]) smokeSrc.push([-35, -5, z, 1.6]);                  // the channel
+    for (const [x, z] of [[-42.5, -64.5], [-42.5, -76.5], [-27.5, -79.5]] as const) smokeSrc.push([x, FORGE_FLOOR + 1, z, 0.8]); // fall basins
+    smokeSrc.push([-35, 3.5, -80.5, 1.2]);                                                          // reactor
+    const N = lo ? 18 : 44;
+    for (let i = 0; i < N; i++) {
+      const m = new THREE.SpriteNodeMaterial({ map: tex, transparent: true, depthWrite: false });
+      m.color = new THREE.Color(0x9a7a68); m.opacity = 0; // lit warm from the lava below
+      const s = new THREE.Sprite(m); s.name = 'forge smoke'; s.frustumCulled = false; s.renderOrder = 2;
+      group.add(s);
+      const p: Puff = { s, x: 0, y: 0, z: 0, v: 0, age: 0, life: 1, size: 1, peak: 0.3 };
+      respawnPuff(p); p.age = SR() * p.life; // start mid-life so the hall is already smoky
+      smoke.push(p);
+    }
+    // the haze pooled under the ceiling: a slow, drifting noise sheet seen from below
+    const hm = new THREE.MeshBasicNodeMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide });
+    hm.colorNode = color(0x5c4e47).mul(float(1).add(uBeatPulse.mul(0.15)));
+    const n = tslTexture(tex, uv().mul(vec2(3, 7)).add(vec2(time.mul(0.008), time.mul(-0.012)))).a;
+    hm.opacityNode = n.mul(0.55).add(0.12);
+    const haze = new THREE.Mesh(new THREE.PlaneGeometry(18, 40), hm); haze.name = 'forge smoke haze';
+    haze.rotation.x = Math.PI / 2; haze.position.set(-35, 6.1, -62); group.add(haze);
+  }
+  function respawnPuff(p: Puff) {
+    const src = smokeSrc[Math.floor(Math.random() * smokeSrc.length)];
+    p.x = src[0] + (Math.random() - 0.5) * 2 * src[3]; p.y = src[1]; p.z = src[2] + (Math.random() - 0.5) * 2 * src[3];
+    p.v = 0.5 + Math.random() * 0.7; p.age = 0; p.life = Math.max(2, (6.4 - p.y) / p.v); p.size = 2.2 + Math.random() * 1.8;
+    p.peak = 0.35 + Math.random() * 0.25;
+    (p.s.material as THREE.SpriteNodeMaterial).rotation = Math.random() * Math.PI * 2;
   }
 
   // ── INSIDE THE KEEP: the throne hall (art: "Obsidian volcanic compound throne room") ──────────────────
@@ -622,7 +724,7 @@ export function buildVolcanic(scene: THREE.Scene, tier: Tier = 'high'): Level {
 
   const enemySpots = [[-12, 4], [0, 12], [-16, -10], [8, -4], [-2, 26], [10, 26], [-38, -6], [-36, 10], [44, -20], [46, 0], [23, 18], [-14, -50], [-30, -40]].map(([x, z]) => new THREE.Vector3(x, Math.max(0, volcanicHeight(x, z)) + 0.1, z));
   // the forge walkways and the throne hall
-  enemySpots.push(new THREE.Vector3(-40.5, FORGE_FLOOR + 0.1, -66), new THREE.Vector3(-29.5, FORGE_FLOOR + 0.1, -75), new THREE.Vector3(-16, TIER + 0.1, -70));
+  enemySpots.push(new THREE.Vector3(-35, 3.3, -60), new THREE.Vector3(-40.5, FORGE_FLOOR + 0.1, -66), new THREE.Vector3(-29.5, FORGE_FLOOR + 0.1, -75), new THREE.Vector3(-16, TIER + 0.1, -70));
   const info: LevelInfo = { id: 'obsidian-volcanic', name: 'Obsidian Volcanic Compound', track: 'combat', accentHex: 0xff6a1c };
   let elapsed = 0;
   return {
@@ -630,6 +732,7 @@ export function buildVolcanic(scene: THREE.Scene, tier: Tier = 'high'): Level {
     spawns: { a: { pos: new THREE.Vector3(-32, LEDGE + 0.4, 38), yaw: -0.75 }, b: { pos: new THREE.Vector3(-16, TIER + 0.4, -45), yaw: Math.PI } },
     enemySpots,
     hazardBelow: LAVA_Y + 1.5,
+    jumpPads,
     controlPoints: [
       { id: 'A', name: 'West Breach', pos: new THREE.Vector3(-38, 0, -4), radius: 6 },
       { id: 'B', name: 'Compound', pos: new THREE.Vector3(-4, 0, 4), radius: 6.5 },
@@ -648,6 +751,15 @@ export function buildVolcanic(scene: THREE.Scene, tier: Tier = 'high'): Level {
         p.setY(i, y); p.setX(i, p.getX(i) + Math.sin(elapsed + i) * dt * 0.4);
       }
       p.needsUpdate = true;
+      // forge smoke: rise, swell, fade in then out, drift; reborn at a source
+      for (const q of smoke) {
+        q.age += dt;
+        if (q.age >= q.life) respawnPuff(q);
+        const t = q.age / q.life, y = Math.min(6.2, q.y + q.v * q.age);
+        q.s.position.set(q.x + Math.sin(elapsed * 0.3 + q.size * 7) * t * 1.5, y, q.z + Math.cos(elapsed * 0.25 + q.size * 5) * t * 1.2);
+        const sc = q.size * (1 + t * 2.6); q.s.scale.set(sc, sc, 1);
+        (q.s.material as THREE.SpriteNodeMaterial).opacity = q.peak * Math.min(1, t * 5) * Math.min(1, (1 - t) * 3);
+      }
     },
     resolveDynamicGates() { /* none */ },
   };
