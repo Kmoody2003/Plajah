@@ -10,6 +10,8 @@ import {
   type ShareDestinationOption,
 } from './PlatformGroupSharePicker';
 import { auth } from '../services/firebase';
+import ChatForwardPicker from './chat/ChatForwardPicker';
+import { parsePlajahUrl } from '../services/chat/chatEmbed';
 
 // Show the "your link plays music" guide at most once per session.
 let _embedGuideShown = false;
@@ -56,6 +58,8 @@ const ShareButton: React.FC<ShareButtonProps> = ({
   onPostToPlajah, plajahLabel, contentType, pollData, postText, authorName, authorPhoto, ctaText, showModeUrl, defaultOrgId, children
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [chatPickerOpen, setChatPickerOpen] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [posting, setPosting] = useState(false);
   const [posted, setPosted] = useState(false);
@@ -353,6 +357,15 @@ const ShareButton: React.FC<ShareButtonProps> = ({
                 <span className="text-[9px] font-bold text-white/30 truncate">{shareUrl}</span>
               </div>
 
+              {auth?.currentUser && (
+                <button
+                  onClick={() => setChatPickerOpen(true)}
+                  className="w-full mb-3 flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-white/10 hover:bg-small-orange hover:text-white transition-all text-[10px] font-black uppercase tracking-widest"
+                >
+                  {sentTo ? <><Check size={14} /> Sent to {sentTo}</> : <><MessageCircle size={14} /> Send in Chat</>}
+                </button>
+              )}
+
               <div className="grid grid-cols-3 gap-3">
                 {SHARE_OPTIONS.map((opt) => (
                   <button
@@ -376,6 +389,27 @@ const ShareButton: React.FC<ShareButtonProps> = ({
         )}
       </AnimatePresence>
       </Portal>
+      {chatPickerOpen && (
+        <ChatForwardPicker
+          heading="Send in chat"
+          layer={1010}
+          previewLabel={cleanTitle || shareUrl}
+          onSend={async (roomId) => {
+            const actions = await import('../services/chat/chatActions');
+            // Plajah content (song, album, Reello, video, Cinema title, file transfer) plays inline in the chat.
+            const embed = parsePlajahUrl(url || shareUrl);
+            if (embed) {
+              await actions.sendEmbedToRoom(roomId, {
+                ...embed, title: cleanTitle || undefined, subtitle: artist || undefined, imageUrl: imageUrl || undefined,
+              });
+            } else {
+              await actions.sendLinkToRoom(roomId, [cleanTitle, shareUrl].filter(Boolean).join('\n'));
+            }
+          }}
+          onClose={() => setChatPickerOpen(false)}
+          onForwarded={(name) => { setChatPickerOpen(false); setSentTo(name); setTimeout(() => setSentTo(null), 2500); }}
+        />
+      )}
       {showGuide && <EmbedShareGuide title={title} imageUrl={imageUrl} onClose={() => setShowGuide(false)} />}
     </div>
   );

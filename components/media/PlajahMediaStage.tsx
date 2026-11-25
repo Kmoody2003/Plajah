@@ -5,7 +5,10 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePlayableSource } from './usePlayableSource';
+// Lazy: the stage stays free of Firebase at cold start (OS "Open With" launches).
+const SendFileToChat = React.lazy(() => import('../chat/SendFileToChat'));
 import {
+  MessageCircle,
   Archive,
   ChevronLeft,
   ChevronRight,
@@ -217,6 +220,7 @@ export const PlajahMediaStage: React.FC<PlajahMediaStageProps> = ({
   const [showPlaylist, setShowPlaylist] = useState(mode !== 'embedded' && items.length > 1);
   const [showInfo, setShowInfo] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [chatSendOpen, setChatSendOpen] = useState(false);
   const [escalatedPhotoEditor, setEscalatedPhotoEditor] = useState(false);
 
   // Image transform state
@@ -527,6 +531,15 @@ export const PlajahMediaStage: React.FC<PlajahMediaStageProps> = ({
 
   return (
     <div ref={containerRef} className={shellClass}>
+      {chatSendOpen && (
+        <React.Suspense fallback={null}>
+          <SendFileToChat
+            file={{ name: current.name, url: current.url, mimeType: current.mimeType, size: current.size }}
+            onClose={() => setChatSendOpen(false)}
+            onSent={(room) => flashToast(`Sent to ${room}`)}
+          />
+        </React.Suspense>
+      )}
       {/* Unified Header Chrome */}
       <header className="h-12 px-3 flex items-center justify-between gap-2 border-b border-white/10 bg-black/35 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
@@ -619,6 +632,16 @@ export const PlajahMediaStage: React.FC<PlajahMediaStageProps> = ({
               title="Save locally"
             >
               <Download size={15} />
+            </button>
+          )}
+
+          {current.url && (
+            <button
+              onClick={() => setChatSendOpen(true)}
+              className="p-1.5 rounded-lg hover:bg-white/10 text-white/70 hover:text-white cursor-pointer"
+              title="Send in chat — plays inline"
+            >
+              <MessageCircle size={15} />
             </button>
           )}
 

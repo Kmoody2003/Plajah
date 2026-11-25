@@ -36,6 +36,13 @@ let messages: ChatMessage[] = [
     text: 'Meeting recap: Worship Team · Oct 28\nRehearsal moves to 6:30 on Thursdays. Dana sends the new schedule by Friday; Sam brings the extra mic stands Saturday.',
     meetingRecap: { recordingId: 'lab-rec', title: 'Worship Team · Oct 28', durationSec: 1742, mode: 'CLOUD', hostName: 'Kenne', speakers: ['Kenne', 'Dana Reyes', 'Sam Okafor'], actionCount: 2 },
   }),
+  // Plajah content shared in — plays inline (components/chat/ChatEmbedCard).
+  base('e1', 'lab-dana', 'Dana Reyes', 56, { type: 'MEDIA', text: 'Shared: Sunday Anthems', embed: { kind: 'ALBUM', id: 'lab-album', title: 'Sunday Anthems' } }),
+  base('e2', 'lab-sam', 'Sam Okafor', 57, { text: 'This one for the opener 🔥 http://127.0.0.1:3183/share?type=album&id=lab-album&track=t2' }),
+  base('e3', ME, 'Kenne', 58, { type: 'MEDIA', text: 'Shared: Forest walk', embed: { kind: 'REELLO', id: 'lab-video', title: 'Forest walk' } }),
+  base('e4', 'lab-dana', 'Dana Reyes', 59, { type: 'MEDIA', text: 'Shared: The Fall Festival', embed: { kind: 'MOVIE', id: 'lab-film', title: 'The Fall Festival' } }),
+  base('e5', 'lab-sam', 'Sam Okafor', 60, { text: 'Photos from setup http://127.0.0.1:3183/?view=transfer&id=lab-transfer' }),
+  base('e6', ME, 'Kenne', 61, { attachment: { url: '/academia/baobab.jpg', name: 'stage-plot.jpg', size: 120_000, mime: 'image/jpeg', kind: 'image' } }),
 ];
 const subs = new Set<(m: ChatMessage[]) => void>();
 const emit = () => subs.forEach(s => s([...messages]));
@@ -82,3 +89,17 @@ export const fetchUserContent = async () => [];
 export const markMessageAsSeen = async () => {};
 export const updateTypingStatus = async () => {};
 export const uploadFile = async (_path: string, blob: Blob) => URL.createObjectURL(blob);
+
+// Shared-content lookups for the inline embed samples.
+const labAlbum: any = {
+  id: 'lab-album', title: 'Sunday Anthems', artist: 'Worship Team', coverImage: '/academia/cherry.jpg',
+  tracks: [
+    { id: 't1', title: 'Opening Anthem', artist: 'Worship Team', url: '/audio/anthems/aus.mp3', duration: 60 },
+    { id: 't2', title: 'Second Anthem', artist: 'Worship Team', url: '/audio/anthems/bra.mp3', duration: 60 },
+  ],
+};
+export const fetchAlbumById = async (id: string) => (id === 'lab-album' ? labAlbum : null);
+export const fetchProjectFromCloud = async (id: string) =>
+  id === 'lab-film' ? { id, title: 'The Fall Festival', artist: 'Plajah Films', price: 4.99, coverImage: '/academia/archipelago.jpg', tracks: [] } : null;
+export const fetchVideoById = async (id: string) =>
+  id === 'lab-video' ? { id, title: 'Forest walk', artist: 'Sam Okafor', url: '/backdrops/forest-loop-03.mp4', thumbnailUrl: '/academia/baobab.jpg', isRello: true } : null;

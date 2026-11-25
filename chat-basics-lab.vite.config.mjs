@@ -33,6 +33,23 @@ export default defineConfig({
         return (resolved && SHIMS.get(path.resolve(resolved.id))) || null;
       },
     },
+    {
+      // A public Send transfer for the inline file-share sample (services/drive/transfersClient.inspectPublic).
+      name: 'lab-transfer',
+      configureServer(server) {
+        server.middlewares.use('/api/drive/transfers/lab-transfer', (_req, res) => {
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({
+            id: 'lab-transfer', title: 'Festival setup photos', message: '', passwordRequired: false, locked: false,
+            expiresAt: Date.now() + 6 * 86400000, totalBytes: 410000, downloadCount: 0, maxDownloads: null,
+            files: [
+              { fileId: 'f1', name: 'setup-1.jpg', size: 210000, mime: 'image/jpeg', downloadUrl: '/academia/archipelago.jpg' },
+              { fileId: 'f2', name: 'walkthrough.mp4', size: 200000, mime: 'video/mp4', downloadUrl: '/academia/book-opens.mp4' },
+            ],
+          }));
+        });
+      },
+    },
     react(), tailwindcss(),
   ],
   optimizeDeps: { entries: ['chat-basics-lab.html'] },

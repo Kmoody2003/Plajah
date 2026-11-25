@@ -25,6 +25,8 @@ import ReportDialog from './safety/ReportDialog';
 import ChatForwardPicker from './chat/ChatForwardPicker';
 import ChatNotifyPanel from './chat/ChatNotifyPanel';
 import { ChatAttachmentCard, ChatLinkPreviewCard } from './chat/ChatMessageExtras';
+import ChatEmbedCard from './chat/ChatEmbedCard';
+import { embedForMessage, cleanEmbed } from '../services/chat/chatEmbed';
 import { MeetingRecapCard, MeetingRecordingsPanel } from './meetings/MeetingRecapCard';
 import { HuddleBanner } from './meetings/Huddle';
 import { ScheduleMeetingDialog, MeetingInviteCard } from './meetings/ScheduleMeeting';
@@ -985,6 +987,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
       senderPhoto: auth.currentUser?.photoURL || '',
       mediaId: media.id,
       mediaType: 'ALBUM',
+      embed: cleanEmbed({ kind: 'ALBUM', id: media.id, title: media.title, subtitle: media.artist, imageUrl: media.coverThumb || media.coverImage }),
       text: await encryptText(`Shared: ${media.title}`, room.id),
       type: 'MEDIA',
     });
@@ -1491,6 +1494,11 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
         )}
         {displayedMessages.map((msg, i) => {
           const isMe = msg.senderId === uid;
+          // Plajah content (song, album, Reello, video, Cinema, file transfer) plays inline in the bubble.
+          const sharedEmbed = embedForMessage(msg);
+          const captionText = sharedEmbed
+            ? (sharedEmbed.url ? (msg.text || '').replace(sharedEmbed.url, '').trim() : (/^Shared: /.test(msg.text || '') ? '' : (msg.text || '')))
+            : '';
           const isSeen = (msg.seenBy?.length ?? 0) > (isMe ? 1 : 0);
           const showName = !isMe && room.type !== 'PRIVATE';
           const senderProfile = profiles[msg.senderId];
@@ -1633,15 +1641,14 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                     <MeetingRecapCard roomId={room.id} recap={msg.meetingRecap} summary={(msg.text || '').replace(/^Meeting recap: [^\n]*\n?/, '')} />
                   ) : msg.attachment ? (
                     <ChatAttachmentCard attachment={msg.attachment} />
-                  ) : msg.type === 'MEDIA' ? (
-                    <div className="flex items-center gap-3 min-w-[180px]">
-                      <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
-                        <Music size={14} className="text-white/50" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-black uppercase truncate">{msg.text?.replace(/^Shared: /, '') || 'Media'}</p>
-                        <p className="text-[8px] text-white/40 uppercase">{msg.mediaType}</p>
-                      </div>
+                  ) : sharedEmbed ? (
+                    <div className="flex flex-col gap-2">
+                      {captionText && (
+                        <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">
+                          <RichText text={captionText} clean={false} scripturePreview={false} />
+                        </p>
+                      )}
+                      <ChatEmbedCard embed={sharedEmbed.embed} />
                     </div>
                   ) : (
                     <p className={`leading-relaxed break-words whitespace-pre-wrap ${
@@ -1651,7 +1658,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                       <RichText text={msg.text || ''} clean={false} scripturePreview={false} />
                     </p>
                   )}
-                  {msg.linkPreview && !msg.attachment && <ChatLinkPreviewCard preview={msg.linkPreview} />}
+                  {msg.linkPreview && !msg.attachment && !sharedEmbed && <ChatLinkPreviewCard preview={msg.linkPreview} />}
                 </div>
 
                 {!readOnly && (threadReplies.length > 0 || !!room.workspaceType) && (

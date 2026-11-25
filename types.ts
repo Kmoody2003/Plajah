@@ -4798,6 +4798,8 @@ export interface ChatMessage {
   attachment?: ChatAttachment;
   /** Card for the first link in `text`, captured at send time (never in protected threads). */
   linkPreview?: { url: string; title: string; description?: string; image?: string; siteName: string };
+  /** Plajah content shared in (song, album, Reello, video, Cinema title, file transfer) — plays inline. See services/chat/chatEmbed. */
+  embed?: import('./services/chat/chatEmbed').ChatEmbed;
   /** Display name of the original author when this was forwarded from another room. */
   forwardedFrom?: string;
   /** Recap card for a recorded meeting (chat_rooms/{id}/recordings/{recordingId}). */

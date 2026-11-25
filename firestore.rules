@@ -2530,9 +2530,9 @@ service cloud.firestore {
            request.resource.data.deletedAt is number &&
            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deletedAt', 'text', 'voiceUrl', 'imageUrl', 'gifUrl',
              'videoNoteUrl', 'mediaId', 'mediaType', 'telaDocument', 'attachment', 'linkPreview', 'reactions', 'isPinned',
-             'replyToText', 'storagePath', 'forwardedFrom', 'meetingRecap', 'meetingInvite']) &&
+             'replyToText', 'storagePath', 'forwardedFrom', 'meetingRecap', 'meetingInvite', 'embed']) &&
            !request.resource.data.keys().hasAny(['text', 'voiceUrl', 'imageUrl', 'gifUrl', 'videoNoteUrl', 'mediaId',
-             'telaDocument', 'attachment', 'linkPreview', 'storagePath', 'meetingRecap', 'meetingInvite']))
+             'telaDocument', 'attachment', 'linkPreview', 'storagePath', 'meetingRecap', 'meetingInvite', 'embed']))
         );
         allow delete: if isAdmin()
           || (isAuthenticated() && resource.data.senderId == request.auth.uid)

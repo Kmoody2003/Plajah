@@ -128,7 +128,7 @@ export function roomUnreadCount(
 /** Content fields a delete clears; the doc stays as a "Message deleted" tombstone. */
 export const TOMBSTONE_CLEAR_KEYS = [
   'text', 'voiceUrl', 'imageUrl', 'gifUrl', 'videoNoteUrl', 'mediaId', 'mediaType', 'telaDocument',
-  'attachment', 'linkPreview', 'reactions', 'isPinned', 'replyToText', 'storagePath', 'forwardedFrom', 'meetingRecap', 'meetingInvite',
+  'attachment', 'linkPreview', 'reactions', 'isPinned', 'replyToText', 'storagePath', 'forwardedFrom', 'meetingRecap', 'meetingInvite', 'embed',
 ] as const;
 
 export const isTombstone = (m: { deletedAt?: number | null }) => typeof m.deletedAt === 'number';
@@ -187,8 +187,9 @@ export function formatBytes(n: number): string {
 }
 
 /** Room-list preview line for a message (lastMessage). */
-export function previewLine(m: { text?: string; type?: string; attachment?: { name?: string } | null }): string {
+export function previewLine(m: { text?: string; type?: string; attachment?: { name?: string } | null; embed?: { title?: string } | null }): string {
   if (m.attachment?.name) return `📎 ${m.attachment.name}`;
+  if (!m.text && m.embed) return `🎵 ${m.embed.title || 'Shared media'}`;
   if (m.text) return m.text;
   switch (m.type) {
     case 'VOICE': return 'Voice note';
@@ -203,7 +204,7 @@ export function previewLine(m: { text?: string; type?: string; attachment?: { na
 
 /** Fields copied when a message is forwarded. Text is re-encrypted for the target room by the caller. */
 export const FORWARD_COPY_KEYS = [
-  'type', 'voiceUrl', 'imageUrl', 'gifUrl', 'videoNoteUrl', 'mediaId', 'mediaType', 'attachment', 'linkPreview',
+  'type', 'voiceUrl', 'imageUrl', 'gifUrl', 'videoNoteUrl', 'mediaId', 'mediaType', 'attachment', 'linkPreview', 'embed',
 ] as const;
 
 /** Ephemeral / private messages never leave their room. */

@@ -9,6 +9,8 @@ import { TYPE } from '../src/lib/designSystem';
 interface MiniMusicPlayerProps {
   album: Album;
   autoPlay?: boolean;
+  /** Narrow hosts (a chat bubble): the transport controls drop onto their own row so the title has room. */
+  compact?: boolean;
 }
 
 /** Albums a post auto-paused on scroll-away (so coming back resumes instead of restarting). */
@@ -16,7 +18,7 @@ const autoPausedAlbums = new Set<string>();
 /** Albums a post started on its own (autoplay), not the listener. */
 const autoStartedAlbums = new Set<string>();
 
-const MiniMusicPlayer: React.FC<MiniMusicPlayerProps> = ({ album, autoPlay = false }) => {
+const MiniMusicPlayer: React.FC<MiniMusicPlayerProps> = ({ album, autoPlay = false, compact = false }) => {
   // Plays through the GLOBAL player (not a private <audio>), so the post's song is the one the mini
   // player, lock screen and queue know about, and its analyser drives the post's Show Mode visualizer.
   const gp = useGlobalPlayerState();
@@ -91,8 +93,8 @@ const MiniMusicPlayer: React.FC<MiniMusicPlayerProps> = ({ album, autoPlay = fal
   const prevTrack = () => { if (currentTrackIndex > 0) userPlay(currentTrackIndex - 1); };
 
   return (
-    <div ref={containerRef} className="bg-black/40 backdrop-blur-md border border-white/10 rounded-3xl p-4 overflow-hidden group">
-      <div className="flex items-center gap-4">
+    <div ref={containerRef} className={`bg-black/40 backdrop-blur-md border border-white/10 rounded-3xl ${compact ? 'p-3' : 'p-4'} overflow-hidden group`}>
+      <div className={compact ? 'flex flex-wrap items-center gap-3' : 'flex items-center gap-4'}>
         {/* Album Art */}
         <div className="relative w-16 h-16 flex-shrink-0">
           <img
@@ -130,7 +132,7 @@ const MiniMusicPlayer: React.FC<MiniMusicPlayerProps> = ({ album, autoPlay = fal
         </div>
 
         {/* Controls */}
-        <div className="flex items-center gap-2">
+        <div className={compact ? 'w-full flex items-center justify-center gap-2 -mb-1' : 'flex items-center gap-2'}>
           <button onClick={prevTrack} className="tap p-2 text-white/40 hover:text-white transition-all">
             <SkipBack size={16} fill="currentColor" />
           </button>

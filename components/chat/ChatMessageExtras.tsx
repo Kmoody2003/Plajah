@@ -11,7 +11,7 @@ const KIND_LABEL: Record<AttachmentKind, string> = {
   archive: 'Archive', audio: 'Audio', video: 'Video', image: 'Image', file: 'File',
 };
 
-/** A shared file in a chat bubble: plays audio/video inline, opens everything else in a new tab. */
+/** A shared file in a chat bubble: plays audio/video and shows images/PDFs inline; opens everything else in a new tab. */
 export const ChatAttachmentCard: React.FC<{ attachment: ChatAttachment }> = ({ attachment: a }) => {
   const Icon = KIND_ICON[a.kind] || FileIcon;
   return (
@@ -20,6 +20,12 @@ export const ChatAttachmentCard: React.FC<{ attachment: ChatAttachment }> = ({ a
         <video src={a.url} controls playsInline preload="metadata" className="rounded-xl w-full max-h-[260px] bg-black" />
       )}
       {a.kind === 'audio' && <audio src={a.url} controls preload="metadata" className="w-full" />}
+      {a.kind === 'image' && (
+        <a href={a.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+          <img src={a.url} alt={a.name} loading="lazy" className="rounded-xl w-full max-h-[320px] object-cover bg-black/30" />
+        </a>
+      )}
+      {a.kind === 'pdf' && <iframe src={a.url} title={a.name} className="w-full h-[280px] rounded-xl bg-white" />}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-white/10 grid place-items-center shrink-0">
           <Icon size={18} className="text-white/80" />

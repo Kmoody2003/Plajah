@@ -17,6 +17,7 @@ import {
   TOMBSTONE_CLEAR_KEYS, attachmentKind, buildForwardPayload, DEFAULT_QUIET_HOURS, isValidHHMM,
   type ChatAttachment, type RoomPrefs, type QuietHours,
 } from './chatCore';
+import { cleanEmbed, embedKindLabel, type ChatEmbed } from './chatEmbed';
 
 const me = () => auth.currentUser?.uid ?? null;
 
@@ -101,6 +102,57 @@ export async function forwardMessage(targetRoomId: string, message: Record<strin
     senderName: u.displayName || 'Anonymous',
     senderPhoto: u.photoURL || '',
     forwardedFrom: String(message.senderName || 'Someone').slice(0, 100),
+  } as any);
+}
+
+// ── Share Plajah content into a chat ──────────────────────────────────────────
+
+/**
+ * Send a song, album, Reello, video, Cinema title or file transfer into a room. The bubble plays it
+ * inline (components/chat/ChatEmbedCard); `note` is an optional caption the sender typed.
+ */
+export async function sendEmbedToRoom(roomId: string, embed: ChatEmbed, note?: string): Promise<void> {
+  const u = auth.currentUser;
+  if (!u) throw new Error('Sign in to send in chat.');
+  const clean = cleanEmbed(embed);
+  const caption = (note || '').trim() || `Shared: ${clean.title || embedKindLabel(clean.kind)}`;
+  await sendMessage(roomId, {
+    senderId: u.uid,
+    senderName: u.displayName || 'Anonymous',
+    senderPhoto: u.photoURL || '',
+    type: 'MEDIA',
+    embed: clean,
+    text: await encryptText(caption.slice(0, 2000), roomId),
+  } as any);
+}
+
+/** Send a plain link (anything that isn't Plajah content we can play inline). */
+export async function sendLinkToRoom(roomId: string, text: string): Promise<void> {
+  const u = auth.currentUser;
+  if (!u) throw new Error('Sign in to send in chat.');
+  const plain = text.trim().slice(0, 4000);
+  const id = await sendMessage(roomId, {
+    senderId: u.uid,
+    senderName: u.displayName || 'Anonymous',
+    senderPhoto: u.photoURL || '',
+    type: 'TEXT',
+    text: await encryptText(plain, roomId),
+  } as any);
+  const pv = await previewForMessage(roomId, plain).catch(() => null);
+  if (pv && id) await updateDoc(doc(db, 'chat_rooms', roomId, 'messages', String(id)), { linkPreview: pv }).catch(() => {});
+}
+
+/** Send a file from the user's own files: uploaded as a chat attachment, so it plays/views inline. */
+export async function sendFileToRoom(roomId: string, file: File, onProgress?: (p: number) => void): Promise<void> {
+  const u = auth.currentUser;
+  if (!u) throw new Error('Sign in to send in chat.');
+  const attachment = await uploadChatAttachment(roomId, file, onProgress);
+  await sendMessage(roomId, {
+    senderId: u.uid,
+    senderName: u.displayName || 'Anonymous',
+    senderPhoto: u.photoURL || '',
+    type: 'TEXT',
+    attachment,
   } as any);
 }
 

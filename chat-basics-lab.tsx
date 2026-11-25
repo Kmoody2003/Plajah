@@ -9,6 +9,7 @@ import '/index.css';
 import ChatWindow from './components/ChatWindow';
 import ChatSystem from './components/ChatSystem';
 import { CallProvider } from './contexts/CallContext';
+import { GlobalPlayerProvider } from './contexts/GlobalPlayerContext';
 import { MeetingRecordPanel, RecordingNotice, LiveCaptionsOverlay } from './components/meetings/MeetingRecordPanel';
 import { ScheduleMeetingDialog, MeetingInviteCard } from './components/meetings/ScheduleMeeting';
 import MeetingJoinPage from './components/meetings/MeetingJoinPage';
@@ -52,7 +53,7 @@ createRoot(document.getElementById('root')!).render(
     : view === 'join' ? <MeetingJoinPage meetingId={LAB_MEETING.id} onExit={() => {}} />
     : (
       <div style={{ height: '100vh', maxWidth: 760, margin: '0 auto' }}>
-        <ChatWindow room={LAB_ROOM} onOpenCollab={() => {}} />
+        <GlobalPlayerProvider><ChatWindow room={LAB_ROOM} onOpenCollab={() => {}} /></GlobalPlayerProvider>
       </div>
     ),
 );

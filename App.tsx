@@ -2981,9 +2981,30 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (v) selectItemRef.current(v);
     };
     const onLive = (e: Event) => { const f = (e as CustomEvent<{ feed?: LiveFeed }>).detail?.feed; if (f) setActiveLiveFeed(f); };
+    // A Cinema title shared into chat (components/chat/ChatEmbedCard): resolve it the way /share?type=movie does.
+    const onMovie = async (e: Event) => {
+      const id = (e as CustomEvent<{ id?: string }>).detail?.id;
+      if (!id) return;
+      const m = await import('./services/backendService');
+      let it: any = await m.fetchProjectFromCloud(id).catch(() => null);
+      if (!it) it = await m.fetchVideoById(id).catch(() => null);
+      if (!it) {
+        try {
+          const arch = await import('./services/archiveContentService');
+          const raw = await arch.fetchArchiveVideoById(id);
+          if (raw) it = arch.archiveVideoToAlbum(raw);
+        } catch { /* not an archive title */ }
+      }
+      if (it) { setSelectedMovieItem(it); setView('MOVIE_UX'); }
+    };
     window.addEventListener('plajah:open-video', onVideo);
     window.addEventListener('plajah:open-live-feed', onLive);
-    return () => { window.removeEventListener('plajah:open-video', onVideo); window.removeEventListener('plajah:open-live-feed', onLive); };
+    window.addEventListener('plajah:open-movie', onMovie);
+    return () => {
+      window.removeEventListener('plajah:open-video', onVideo);
+      window.removeEventListener('plajah:open-live-feed', onLive);
+      window.removeEventListener('plajah:open-movie', onMovie);
+    };
   }, []);
 
   // A local video the user wants to share: sharing means uploading it to Reello, so open the upload flow
