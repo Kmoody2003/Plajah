@@ -4,7 +4,7 @@
 // A game feeds positions every frame (or every network tick):
 //   voice.spatial.setListener({ x, y, z }, { x: fx, y: 0, z: fz })   // where I am, which way I face
 //   voice.spatial.setPeer(uid, { x, y, z })                           // where each other player is
-// Units are the game's own (metres in Forth Horizon). Players without a position yet are heard at full
+// Units are the game's own (metres in Plajah Motorsport Apex). Players without a position yet are heard at full
 // volume, centred, so voice works before the first state arrives.
 
 export interface Vec3 { x: number; y: number; z: number }

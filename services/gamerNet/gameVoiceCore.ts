@@ -1,4 +1,4 @@
-// Game voice without React or Firebase — for games that run on their own page (Forth Horizon inside
+// Game voice without React or Firebase — for games that run on their own page (Plajah Motorsport Apex inside
 // IframeGameFrame). Gets a LiveKit token from /api/gamer/chat/voice with the player's ID token, publishes the mic
 // (audio only), and plays every other player through SpatialVoice so far-away drivers fade out.
 //

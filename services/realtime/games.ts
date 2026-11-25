@@ -25,9 +25,9 @@ export interface RealtimeGameDef {
 
 export const FH_RACE = 'fh-race';
 
-const forthHorizonRace: RealtimeGameDef = {
+const apexRace: RealtimeGameDef = {
   id: FH_RACE,
-  title: 'Forth Horizon · Ironport Grand Circuit',
+  title: 'Plajah Motorsport Apex · Ironport Grand Circuit',
   tickHz: 20,
   minPlayers: 2,
   maxPlayers: 8,
@@ -39,6 +39,6 @@ const forthHorizonRace: RealtimeGameDef = {
   referee: () => new RaceReferee({ laps: 3, maxProgressPerSec: 0.05, maxSpeedMps: 140, finishGraceMs: 45_000, maxRaceMs: 20 * 60_000 }),
 };
 
-export const REALTIME_GAMES: Readonly<Record<string, RealtimeGameDef>> = { [forthHorizonRace.id]: forthHorizonRace };
+export const REALTIME_GAMES: Readonly<Record<string, RealtimeGameDef>> = { [apexRace.id]: apexRace };
 export const realtimeGame = (id: unknown): RealtimeGameDef | null =>
   typeof id === 'string' && Object.prototype.hasOwnProperty.call(REALTIME_GAMES, id) ? REALTIME_GAMES[id] : null;

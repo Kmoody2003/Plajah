@@ -20,7 +20,7 @@ This plan **merges** three earlier docs. It doesn't replace them; it says how th
 | Symptom | Evidence |
 |---|---|
 | Every first-party game is hand-written code with its own copy of the engine | `games/era-clash-3d/src/core/` copies Ravencrest's core; `games/rift-realm/src/{collision,post,controls}.ts` and `games/forth-horizon/src/physics.ts` are separate again |
-| Levels are code, not documents | `rift-realm/src/shrine.ts`, `era-clash-3d/src/otsu.ts`, the Forth Horizon region builders: a creator can't open them |
+| Levels are code, not documents | `rift-realm/src/shrine.ts`, `era-clash-3d/src/otsu.ts`, the Plajah Motorsport Apex region builders: a creator can't open them |
 | 3D tools are separate rooms with separate stores | Plajah 3D rooms (`components/argilla/*`), Character Forge (CLI, `scripts/eraclash3d/forge.ts`), rig builder (`services/vtuber/rigBuilder`, run from a lab), mocap (`components/mocap/CaptureRoom.tsx`, its own lab) |
 | Game logic lives in TypeScript only | waves, triggers, scoring and AI are functions in each game's `main.ts` |
 | `playkit` exists only as a stub | `playkit/character/*` (5 files); the rest of the extraction in Playables §4 hasn't happened |
@@ -79,7 +79,7 @@ Tela vision, it is not a standalone app.
 | Room | Simple (idea people) | Pro | Existing tool it absorbs |
 |---|---|---|---|
 | **Idea** | Describe the game, pick a genre template, drop in reference art → playable blockout | Edit the generated project directly | Playables "Picture Walk" flow, Aria game lens + Game Council |
-| **World** | Paint ground, drag roads and rivers, click to scatter, drop props | Gizmos, numeric transforms, snapping, terrain tiles, nav and zones, 2.5D play band | Era Clash `ground/grassField/otsu`, Forth Horizon region tools, picture → level (Studio §4) |
+| **World** | Paint ground, drag roads and rivers, click to scatter, drop props | Gizmos, numeric transforms, snapping, terrain tiles, nav and zones, 2.5D play band | Era Clash `ground/grassField/otsu`, Plajah Motorsport Apex region tools, picture → level (Studio §4) |
 | **Props** | "Make me a stone lantern" or upload a picture, then tweak sliders | Plajah 3D modeling: SDF clay, poly, hard surface, UVs, LODs | `components/argilla/ModelingRoom`, `engines/tela-3d`, `services/argilla/{hardSurface,poly}`, Plajah Build CAD import |
 | **Characters** | Upload a portrait or turnaround → rigged, dressed character | The Forge stages one by one, weights, face shapes, wardrobe | Character Forge (from CLI to a room), `rigBuilder` (face), `autoRig.py`, `argilla/creature` (multi-legged), `playkit/character` |
 | **Motion** | Record yourself on camera, or pick from the library | Clip trim, foot lock, retarget, blend trees, state machine | `CaptureRoom` + `services/mocap`, two-phone capture, CMU library |
@@ -115,7 +115,7 @@ form. Genre templates are bundles of behaviours, rules, a camera and a HUD:
 | Template | First-party proof game |
 |---|---|
 | Arena shooter (1st/3rd person) | Rift Realm |
-| Racer (circuit / open region) | Apex (Forth Horizon), Kith Racing |
+| Racer (circuit / open region) | Plajah Motorsport Apex, Kith Racing |
 | Fighter (2.5D / 3D) | Era Clash |
 | Platformer (2D/2.5D) | Kith Quest |
 | Adventure / horror walk | Ravencrest |
@@ -235,7 +235,7 @@ stories, and turning a story into a game the author can play and edit.
 2. *Break down:* a **Game Breakdown** document: chapters → levels, each level has a goal, a place (a World
    location), who is there (World characters as enemies/allies/NPCs), the new mechanic, the beat it
    carries, the item/MacGuffin, and the rules as sentences ("Reach the bell tower before the tide").
-3. *Pick a template:* arena shooter, platformer (Kith Quest), racer (Forth Horizon), fighter (Era Clash),
+3. *Pick a template:* arena shooter, platformer (Kith Quest), racer (Plajah Motorsport Apex), fighter (Era Clash),
    adventure. The breakdown says why ("the story is a chase, so the levels are races").
 4. *Build up:* the breakdown becomes **ops** on the Game Project (addLevel, markers, zones, rules,
    props from the kit). It is the same op layer the editor uses, so every generated piece shows up in

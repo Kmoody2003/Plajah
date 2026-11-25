@@ -21,7 +21,8 @@
 
 import type { OlrSource } from './olr';
 import { geohashEncode } from './geohash';
-import { queryArcGisGeoJson, type ArcGisQueryOptions } from './detroitAdapter';
+import { queryArcGisGeoJson, DETROIT_LAYERS, type ArcGisQueryOptions } from './detroitAdapter';
+import { applyOwnerPolicy, type OwnerPolicy } from './ownerPrivacy';
 import type { TerraParcel, GeoJsonGeometry, TerraJurisdiction } from './terraTypes';
 
 export type CountyJurisdiction = Exclude<TerraJurisdiction, 'detroit'>;
@@ -42,6 +43,10 @@ export interface CountySource {
   pinField: string;
   addressField: string;
   zipField: string;
+  /** What owner information may surface (see ownerPrivacy.ts). */
+  ownerPolicy: OwnerPolicy;
+  /** The county's own record for one parcel, for "View the official record". */
+  recordUrl: (parcelNumber: string) => string;
   /** Turn a typed PIN into the stored form, or null when it can't be one. */
   normalizePin: (raw: string) => string | null;
   normalize: (feature: any) => TerraParcel | null;
@@ -88,6 +93,21 @@ function improvedFromClass(code?: string): boolean | undefined {
   return undefined;
 }
 
+/** The publisher's own HTML view of one parcel record (ArcGIS `f=html`). */
+export function recordQueryUrl(layerUrl: string, pinField: string, pin: string): string {
+  const where = `${pinField} = '${pin.replace(/'/g, "''")}'`;
+  return `${layerUrl}/query?where=${encodeURIComponent(where)}&outFields=*&returnGeometry=false&f=html`;
+}
+
+/**
+ * Where a person goes for the owner of record: the publisher's own page for the
+ * parcel. Terra omits private owners but never hides that the record exists.
+ */
+export function officialRecordUrl(parcel: Pick<TerraParcel, 'jurisdiction' | 'parcelNumber'>): string | undefined {
+  if (parcel.jurisdiction === 'detroit') return recordQueryUrl(DETROIT_LAYERS.parcels, 'parcel_id', parcel.parcelNumber);
+  return isCountyJurisdiction(parcel.jurisdiction) ? COUNTY_SOURCES[parcel.jurisdiction].recordUrl(parcel.parcelNumber) : undefined;
+}
+
 function source(c: { id: string; label: string; layerUrl: string; attribution: string }): OlrSource {
   return {
     system: `${c.id}-county-gis:parcels`,
@@ -118,17 +138,20 @@ function base(c: CountySource, parcelNumber: string, geometry: GeoJsonGeometry |
 
 // ─── Oakland County ──────────────────────────────────────────────────────────
 
+const OAKLAND_URL = 'https://gisservices.oakgov.com/arcgis/rest/services/Enterprise/EnterpriseOpenParcelDataMapService/MapServer/1';
 const OAKLAND: CountySource = {
   id: 'oakland',
   label: 'Oakland County GIS',
   short: 'Oakland Co.',
-  layerUrl: 'https://gisservices.oakgov.com/arcgis/rest/services/Enterprise/EnterpriseOpenParcelDataMapService/MapServer/1',
+  layerUrl: OAKLAND_URL,
   attribution: 'Data: Oakland County, Michigan — Access Oakland (provided as-is, without warranty)',
   extent: { xmin: -83.6944, ymin: 42.4261, xmax: -83.0744, ymax: 42.8936 },
   center: { lat: 42.5803, lng: -83.2455 }, // Birmingham / Troy
   pinField: 'PIN',
   addressField: 'SITEADDRESS',
   zipField: 'SITEZIP5',
+  ownerPolicy: 'organizations-only',
+  recordUrl: pin => recordQueryUrl(OAKLAND_URL, 'PIN', pin),
   // Stored as 10 digits ("2504276018"); people type it as "25-04-276-018".
   normalizePin: raw => {
     const d = raw.replace(/[\s-]/g, '');
@@ -163,17 +186,20 @@ const OAKLAND: CountySource = {
 
 // ─── Ottawa County ───────────────────────────────────────────────────────────
 
+const OTTAWA_URL = 'https://gis.miottawa.org/arcgis/rest/services/HostedServices/ParcelsPublic/FeatureServer/0';
 const OTTAWA: CountySource = {
   id: 'ottawa',
   label: 'Ottawa County GIS',
   short: 'Ottawa Co.',
-  layerUrl: 'https://gis.miottawa.org/arcgis/rest/services/HostedServices/ParcelsPublic/FeatureServer/0',
+  layerUrl: OTTAWA_URL,
   attribution: 'Data: © County of Ottawa, Michigan — public parcel layer (provided as-is, without warranty)',
   extent: { xmin: -86.2714, ymin: 42.7675, xmax: -85.7821, ymax: 43.2060 },
   center: { lat: 42.9634, lng: -86.0101 }, // Allendale / Jenison
   pinField: 'FinalPIN',
   addressField: 'PropertyAddress',
   zipField: 'PropertyZip',
+  ownerPolicy: 'organizations-only',
+  recordUrl: pin => recordQueryUrl(OTTAWA_URL, 'FinalPIN', pin),
   // Stored dashed ("70-14-17-408-017"); accept the packed 12-digit form too.
   normalizePin: raw => {
     const d = raw.replace(/[\s-]/g, '');
@@ -226,7 +252,9 @@ export function countiesInBounds(b: { south: number; west: number; north: number
 
 async function query(c: CountySource, opts: ArcGisQueryOptions): Promise<TerraParcel[]> {
   const feats = await queryArcGisGeoJson(c.layerUrl, opts);
-  return feats.map(c.normalize).filter((p): p is TerraParcel => p !== null);
+  // The owner field is read only to classify it, then dropped for private
+  // individuals before the record goes anywhere (ownerPrivacy.ts).
+  return feats.map(c.normalize).filter((p): p is TerraParcel => p !== null).map(p => applyOwnerPolicy(p, c.ownerPolicy));
 }
 
 /**

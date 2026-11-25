@@ -244,7 +244,7 @@ describe('Track 1 — Wilds EcoSystem Lush Undergrowth & Erosion-Driven Flora', 
   });
 });
 
-describe('Vesselbound Landmarks & Apex (Forth Horizon) NURBS / SubD / CAD-BIM / Grown Trees', () => {
+describe('Vesselbound Landmarks & Plajah Motorsport Apex NURBS / SubD / CAD-BIM / Grown Trees', () => {
   it('builds walk-in CAD/BIM Settlement Stone Towers and twin-arch NURBS Digital Bridge spans', () => {
     const tower = buildBimStoneTower({ widthM: 8, heightM: 18, balconyHeightM: 8 });
     assert.ok(tower.stoneGeos.length >= 16, 'BIM walls, plinth, corner quoins, NURBS door arch & 12 SubD merlons');

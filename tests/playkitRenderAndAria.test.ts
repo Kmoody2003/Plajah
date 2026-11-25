@@ -187,7 +187,7 @@ describe('Phase 4 — Aria Studio Production Agent End-to-End Orchestration', ()
     const matHandle = createPlaykitTslMaterial(ADVANCED_PBR_PRESETS['hero-skin']);
     assert.ok(matHandle.material && matHandle.uProbeAmbient);
 
-    // 4. Verify Era Clash 3D, Ravencrest, Apex (Forth Horizon), and Cyber Forest vegetation preservation
+    // 4. Verify Era Clash 3D, Ravencrest, Plajah Motorsport Apex, and Cyber Forest vegetation preservation
     assert.equal(CYBER_FOREST_TREES.length, 4);
     assert.equal(APEX_SUPERCAR_VEHICLE_CONFIG.wheelOffsets.length, 4);
     assert.ok(LEGACY_VERTICAL_PROFILES['era-clash-3d']);

@@ -1,4 +1,4 @@
-// Plajah Games iframe bridge client for Forth Horizon (XP + Achievements).
+// Plajah Games iframe bridge client for Plajah Motorsport Apex (XP + Achievements).
 
 export type ForthAchievementTrigger =
   | 'forth_first_lap'

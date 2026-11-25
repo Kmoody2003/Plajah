@@ -6,7 +6,7 @@ the art references we have and build procedural versions. Point to free model li
 system. This isn't just for this game — it's for the Plajah infrastructure."*
 
 This is a **platform service** (`services/vegetation`), not a Rift Realm feature. Every Plajah world uses it: the games
-(Rift Realm, Era Clash 3D, Ravencrest, Forth Horizon, Apex Elohim, Kith), Plajah 3D / Argilla (author a species from art),
+(Rift Realm, Era Clash 3D, Ravencrest, Plajah Motorsport Apex, Apex Elohim, Kith), Plajah 3D / Argilla (author a species from art),
 Terra (real-world forests), Game Studio (scatter in levels creators build), Museion's Living Forest, Fabula/Stage previz.
 
 ## 1. Why a new system (what's wrong today)
@@ -132,7 +132,7 @@ with our wind and impostors, and variants come from the seed. Scans can also sta
    the Glowing Mushrooms sheet ≥95%.
 5. **Library importers**: Poly Haven / ambientCG / Fab / QSM datasets → Species with licence records; Game Studio
    and Plajah 3D UI ("Make a species from this art / scan").
-6. **Migrate** Ravencrest, Era Clash, Forth Horizon, Museion, Kith onto the service; delete the copies.
+6. **Migrate** Ravencrest, Era Clash, Plajah Motorsport Apex, Museion, Kith onto the service; delete the copies.
 
 ## 6. Open decisions (Kenne)
 - Megascans: use once the Fab licence is confirmed per asset, or CC0-only (Poly Haven / ambientCG) to stay clean?
@@ -214,7 +214,7 @@ with our wind and impostors, and variants come from the seed. Scans can also sta
   byte-identical **Ravencrest** `foliage.ts` / Era Clash `core/foliage.ts` are now one module,
   `trees/foliageCards.ts`, with the kit's LCG inlined so trees grow exactly as before (both games build; not yet
   checked in a browser). Still to migrate: Era Clash forest/grass/undergrowth (needs realistic species + seasons),
-  Ravencrest forest + cloth wind, Forth Horizon scatter/grass (other lanes active there), Museion's TreeGrower, Kith.
+  Ravencrest forest + cloth wind, Plajah Motorsport Apex scatter/grass (other lanes active there), Museion's TreeGrower, Kith.
 
 ## Stopgap in the meantime
 Superseded 2026-11-20: Elderwood's forest is grown by the service; the image-to-3D tree GLBs are no longer loaded.

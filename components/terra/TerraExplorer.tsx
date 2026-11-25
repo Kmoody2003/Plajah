@@ -31,7 +31,7 @@ import type { TerraParcel, TerraCivicRecord, CivicRecordKind } from '../../servi
 import { fetchParcelsInBounds, clearParcelCellCache, fetchCivicForParcel, fetchParcel } from '../../services/terra/terraService';
 import { searchTerra, browseForSale, type TerraSearchHit, type TerraSearchResult, type ForSaleResult, type ForSaleScope } from '../../services/terra/terraSearch';
 import { fetchDetroitStreets, fetchDetroitParcels, type StreetSegment } from '../../services/terra/detroitAdapter';
-import { fetchCountyParcelsInBounds, fetchCountyParcelsAround, isCountyJurisdiction, countiesInBounds, COUNTY_LIST } from '../../services/terra/countyParcels';
+import { fetchCountyParcelsInBounds, fetchCountyParcelsAround, isCountyJurisdiction, countiesInBounds, officialRecordUrl, COUNTY_LIST } from '../../services/terra/countyParcels';
 import { surveyParcel, outerRing, type ParcelSurvey } from '../../services/terra/survey/parcelSurvey';
 import { formatBearing } from '../../services/terra/survey/cogo';
 import { ParcelSurveyPanel } from './ParcelSurveyPanel';
@@ -452,6 +452,25 @@ const MapKey: React.FC<{ survey: ParcelSurvey | null; activeInfra: Set<InfraKind
 
 // ─── Inspector ───────────────────────────────────────────────────────────────
 
+/**
+ * Owner of record. Organizations are named; a private individual is never named
+ * here (services/terra/ownerPrivacy.ts) — the link goes to the publisher's own
+ * public record instead, so the information stays one deliberate step away and
+ * Terra never becomes the place it is compiled.
+ */
+const OwnerOfRecord: React.FC<{ parcel: TerraParcel }> = ({ parcel }) => {
+  const url = officialRecordUrl(parcel);
+  const link = url ? (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="text-white/45 hover:text-white underline underline-offset-2 font-normal ml-1.5"
+       title="The owner of record, on the publisher's own site">Official record ↗</a>
+  ) : null;
+  if (parcel.ownerKind === 'organization' && parcel.taxpayerName) return <span>{parcel.taxpayerName}{link}</span>;
+  // "Private owner", not "individual": misclassification errs toward privacy, so a
+  // few organizations land here too, and the label stays true either way.
+  if (parcel.ownerKind === 'individual') return <span className="text-white/55">Private owner{link}</span>;
+  return <span className="text-white/40">—{link}</span>;
+};
+
 const Row: React.FC<{ k: string; v: React.ReactNode }> = ({ k, v }) => (
   <div className="flex items-center justify-between gap-3 py-1.5 border-b border-white/[0.05] last:border-0">
     <span className={label}>{k}</span>
@@ -520,6 +539,7 @@ const ParcelInspector: React.FC<{ parcel: TerraParcel | null; survey?: ParcelSur
         <Row k="Lot" v={parcel.frontageFt && parcel.depthFt
           ? `${fmtNum(parcel.frontageFt)} × ${fmtNum(parcel.depthFt)} ft`
           : fmtNum(parcel.lotSqFt, ' sqft')} />
+        <Row k="Owner" v={<OwnerOfRecord parcel={parcel} />} />
         <Row k="Assessed" v={fmtMoney(parcel.assessedValue)} />
         <Row k="Taxable" v={fmtMoney(parcel.taxableValue)} />
         <Row k="Last sale" v={parcel.lastSalePrice

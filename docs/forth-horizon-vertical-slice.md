@@ -1,4 +1,4 @@
-# Forth Horizon — Vertical Slice Architecture (Legends of Elohim)
+# Plajah Motorsport Apex — Vertical Slice Architecture (Legends of Elohim)
 
 ## Vision
 A unified Forza Motorsport (closed-circuit precision) + Forza Horizon (open-world exploration) + multi-domain vehicle simulation (Road → Air → Water → Space) set in **Forth America** within the **Legends of Elohim** universe, powered by **Plajah FM / Chora** for live radio, virtual DJs, and procedural/generative soundtracks.

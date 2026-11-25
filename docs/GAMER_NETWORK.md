@@ -203,7 +203,7 @@ changing the API, the tickets or the ledger.
 | Standings → ledger bodies (multiplayer Elo) | `services/realtime/settle.ts` |
 | API: queue, codes, tickets, result intake | `routes/gamerRealtime.ts` (mounted by `routes/gamerNet.ts` at `/rt`) |
 | Browser client (tickets, clock sync, reconnect) | `services/realtime/client.ts` |
-| First client: Forth Horizon online race | `games/forth-horizon/src/onlineMultiplayer.ts` (`joinServerRace`), `onlineLobby.ts`, `region.ts` |
+| First client: Plajah Motorsport Apex online race | `games/forth-horizon/src/onlineMultiplayer.ts` (`joinServerRace`), `onlineLobby.ts`, `region.ts` |
 | Tests | `npm run test:realtime` · `npm run typecheck:realtime` |
 | Lab | `npm run realtime:lab` → `http://127.0.0.1:4341/region.html?as=alice` and `?as=bob` |
 | Image | `services/realtime/deploy/Dockerfile` (build from the repo root) |
@@ -251,7 +251,7 @@ same seat replaces the first (close code 4001).
 ### Results are server-authoritative
 
 Clients never send a result. The room passes every accepted state to the game's **referee**, and only the referee decides
-finishes. `RaceReferee` (Forth Horizon) reads progress = `lap + splineT` from the car's state. It caps progress at
+finishes. `RaceReferee` (Plajah Motorsport Apex) reads progress = `lap + splineT` from the car's state. It caps progress at
 `maxProgressPerSec` (no lap under 20 s at Ironport) and never lets it go backwards. It counts a violation for a position jump
 faster than `maxSpeedMps` and flags a player out after 40 violations. It times each finish on the server clock from GO and gives
 everyone else `finishGraceMs` after the first finisher. If everyone else is out, the last car running wins by forfeit.
@@ -300,7 +300,7 @@ drivers are never played. See `docs/GAMER_TOGETHER.md`.
 **Inside Plajah** the game runs in `IframeGameFrame`, which answers the same-origin game's `{type:'plajah.gamerToken.request'}`
 with the player's Firebase ID token. On a lab host (`127.0.0.1`/`localhost`), `?as=<name>` signs in as the lab's stub user.
 
-**Lab:** `npm run realtime:lab` starts Forth Horizon's dev server, the real `/api/gamer` router (memory store, realtime on)
+**Lab:** `npm run realtime:lab` starts Plajah Motorsport Apex's dev server, the real `/api/gamer` router (memory store, realtime on)
 and the realtime server (`ws://127.0.0.1:4342`) in one process. Open `…/region.html?as=alice` and `…/region.html?as=bob` in **two
 windows side by side** (a background tab stops drawing frames, so it stops sending its car). Then Menu → Online Circuit Race → Create room /
 Join with the code → Ready in both. `RT_LAB_FAST=1` makes it a 1-lap race. Histories: `/api/gamer/history/<name>`.

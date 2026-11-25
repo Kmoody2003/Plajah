@@ -43,7 +43,7 @@ Built 2026-11-21 on the Gamer Network (`docs/GAMER_NETWORK.md`). Reuses the plat
 | Chat + voice under a board | `components/games/together/MatchTogether.tsx` (used by `CyberTicTacToe` and `GameParts` `MatchPanel`) |
 | Proximity voice (Web Audio HRTF, distance gate) | `services/gamerNet/spatialVoice.ts` |
 | Game voice without React/Firebase (for games on their own page) | `services/gamerNet/gameVoiceCore.ts` (`GameVoiceSession`) |
-| Forth Horizon race voice | `games/forth-horizon/src/onlineMultiplayer.ts` (`startVoice`, positions in `step`) + **🎙 Voice** in `onlineLobby.ts`; in the race a chip bottom-left, **M** mutes. Clear within ~25 m, silent past 180 m. |
+| Plajah Motorsport Apex race voice | `games/forth-horizon/src/onlineMultiplayer.ts` (`startVoice`, positions in `step`) + **🎙 Voice** in `onlineLobby.ts`; in the race a chip bottom-left, **M** mutes. Clear within ~25 m, silent past 180 m. |
 | Party voice → stream (consenting voices only) | `services/gamerNet/partyStreamBus.ts` → `LiveAudioMixer` source `'party'` (`services/liveAudioMixer.ts`), subscribed in `MobileLiveStreamer`, shown in `LiveSoundSheet` |
 | Invite button | `components/games/together/InviteToPartyButton.tsx` (in `GlassDockProfileHeader`, `ChatWindow`) |
 | Party dock (self-mounting) | `components/games/together/PartyDock.tsx` — `ensurePartyDock()` from `GamesView`, `showPartyDock()` from the Games home, `App.tsx` handles `game-party:<id>` |

@@ -49,7 +49,7 @@ Integration branch: `feat/apex-elohim`. Everything below is committed on it; **n
 
 - [ ] `playkit/` (engine, render, physics, platform bridge) and the Game Studio compiler / pipelines / Aria agent landed with tests but have not been run in a full app build; run `tsconfig.playkit.json` type-check and the playkit/studio tests.
 - [ ] `components/liveGames/ParlorStage3D.tsx` + `PartyPlay.tsx`: party-game 3D stage needs an in-browser check.
-- [ ] Rift Realm (Elderwood, kit, places, terrain) and Forth Horizon (civic, bridges, forest): working-tree edits committed as one batch; check the Elderwood/Wilds scenes still load.
+- [ ] Rift Realm (Elderwood, kit, places, terrain) and Plajah Motorsport Apex (civic, bridges, forest): working-tree edits committed as one batch; check the Elderwood/Wilds scenes still load.
 - [ ] `scripts/riftrealm/colab/` Hunyuan batch notebook committed as-is; generated output stays out of git (`/tmp/` ignored).
 - [ ] Game memory notes list their own open items (Rift Realm, Apex, Era Clash, Vesselbound); this file does not duplicate them.
 

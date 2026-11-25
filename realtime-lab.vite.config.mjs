@@ -1,4 +1,4 @@
-// Realtime lab: Forth Horizon (its own dev config) + the REAL /api/gamer router on an in-memory store with
+// Realtime lab: Plajah Motorsport Apex (its own dev config) + the REAL /api/gamer router on an in-memory store with
 // realtime switched on + the realtime WebSocket server, all in one process. Sign-in is stubbed by ?as=<name>.
 //   npm run realtime:lab   (or: npx vite --config realtime-lab.vite.config.mjs)
 //   tab 1: http://127.0.0.1:4341/region.html?as=alice   tab 2: http://127.0.0.1:4341/region.html?as=bob

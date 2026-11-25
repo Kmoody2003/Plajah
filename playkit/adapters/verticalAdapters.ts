@@ -24,7 +24,7 @@ export function createPlaykitVegetationScene(opts: VegetationSceneOptions): Vege
   return new VegetationScene(opts);
 }
 
-/** High-speed road/circuit supercar preset preserving Apex / Forth Horizon vehicle dynamics. */
+/** High-speed road/circuit supercar preset preserving Plajah Motorsport Apex vehicle dynamics. */
 export const APEX_SUPERCAR_VEHICLE_CONFIG: VehicleConfig = {
   massKg: 1380,
   maxEngineForce: 22_000,

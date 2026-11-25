@@ -73,9 +73,12 @@ export interface TerraParcel {
   lastSaleDate?: string;
   lastSalePrice?: number;
 
-  // Owner of record (public record; see the redistribution note in the OLR spec)
+  // Owner of record. Organizations only: a private individual's name and mailing
+  // address never enter Terra (services/terra/ownerPrivacy.ts). `ownerKind` says
+  // which it was, so the UI can say "Owned by a private individual".
   taxpayerName?: string;
   taxpayerAddress?: string;
+  ownerKind?: 'organization' | 'individual';
 
   // Flags that must SUPPRESS envelope computation rather than adjust it
   localHistoricDistrict?: string;
