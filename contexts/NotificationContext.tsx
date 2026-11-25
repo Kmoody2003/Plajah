@@ -3,6 +3,7 @@ import { AppNotification } from '../types';
 import { fetchNotifications, markNotificationAsRead, auth, db } from '../services/backendService';
 import { onAuthStateChanged } from 'firebase/auth';
 import { collection, query, where, writeBatch, getDocs } from 'firebase/firestore';
+import { getLocalNotifications, subscribeLocalNotifications, markLocalNotificationRead, clearLocalNotifications, isLocalNotificationId } from '../services/localNotifications';
 
 interface NotificationContextType {
   notifications: AppNotification[];
@@ -15,9 +16,17 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [remote, setNotifications] = useState<AppNotification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentUid, setCurrentUid] = useState<string | null>(null);
+  // On-device notices (a new build waiting, a tour offer) share the list with server ones.
+  const [localTick, setLocalTick] = useState(0);
+  useEffect(() => subscribeLocalNotifications(() => setLocalTick(t => t + 1)), []);
+  const notifications = React.useMemo(
+    () => [...getLocalNotifications(currentUid), ...remote].sort((a, b) => b.timestamp - a.timestamp),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [remote, currentUid, localTick],
+  );
 
   useEffect(() => {
     // onAuthStateChanged ignores a returned cleanup, so the old code leaked one notifications listener per
@@ -44,6 +53,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const markAsRead = async (id: string) => {
+    if (isLocalNotificationId(id)) { markLocalNotificationRead(id.slice('local:'.length)); return; }
     try {
       await markNotificationAsRead(id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
@@ -53,6 +63,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   };
 
   const clearAll = useCallback(async () => {
+    clearLocalNotifications();
     if (!currentUid) return;
     try {
       const q = query(collection(db, 'notifications'), where('userId', '==', currentUid));

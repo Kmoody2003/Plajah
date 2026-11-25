@@ -781,7 +781,7 @@ import { installHealthMonitor } from './services/healthMonitor';
 import { useHardwareBack } from './hooks/useHardwareBack';
 import { useNavLayout } from './hooks/useNavLayout';
 import { useShellNext } from './hooks/useShellNext';
-import CommandSplitNav from './components/CommandSplitNav';
+import CommandSplitNav, { NAV_SECTIONS } from './components/CommandSplitNav';
 import CommandSplitBar from './components/CommandSplitBar';
 import CommandPlayer from './components/CommandPlayer';
 import { ChoraNavBar, NavLayoutSwitcher, type NavPage } from './components/ChoraCompactNav';
@@ -2728,33 +2728,37 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     return () => window.removeEventListener('resize', checkDevice);
   }, [view]);
 
+  // The "More" sheet retracts after a stretch of inactivity. Only interaction WITH the sheet or the
+  // tab bar keeps it open - window-level scroll / mouse-move noise (video, URL bar, emulated
+  // hover) used to reset the timer forever, so on phones it never closed. Typing in its search
+  // box pauses the timer; leaving the field restarts it. A tap outside dismisses it at once.
   useEffect(() => {
     if (!isBottomSectionExpanded) return;
-
-    let timeout: ReturnType<typeof setTimeout>;
-
-    const resetTimer = () => {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        setIsBottomSectionExpanded(false);
-      }, 6000);
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const arm = () => {
+      if (timeout) clearTimeout(timeout);
+      if (drawerSearchFocused) return;
+      timeout = setTimeout(() => setIsBottomSectionExpanded(false), 8000);
     };
-
-    resetTimer(); // Start initial timer
-
-    window.addEventListener('touchstart', resetTimer);
-    window.addEventListener('mousemove', resetTimer);
-    window.addEventListener('scroll', resetTimer);
-    window.addEventListener('click', resetTimer);
-
+    const inside = (e: Event) => {
+      const t = e.target as Element | null;
+      return !!t && typeof t.closest === 'function' && !!t.closest('[data-more-sheet], [data-mobile-tabbar]');
+    };
+    const onActivity = (e: Event) => { if (inside(e)) arm(); };
+    const onOutside = (e: Event) => { if (!inside(e)) setIsBottomSectionExpanded(false); };
+    arm();
+    document.addEventListener('pointerdown', onActivity, true);
+    document.addEventListener('scroll', onActivity, true);
+    document.addEventListener('keydown', arm, true);
+    document.addEventListener('pointerdown', onOutside, true);
     return () => {
-      clearTimeout(timeout);
-      window.removeEventListener('touchstart', resetTimer);
-      window.removeEventListener('mousemove', resetTimer);
-      window.removeEventListener('scroll', resetTimer);
-      window.removeEventListener('click', resetTimer);
+      if (timeout) clearTimeout(timeout);
+      document.removeEventListener('pointerdown', onActivity, true);
+      document.removeEventListener('scroll', onActivity, true);
+      document.removeEventListener('keydown', arm, true);
+      document.removeEventListener('pointerdown', onOutside, true);
     };
-  }, [isBottomSectionExpanded]);
+  }, [isBottomSectionExpanded, drawerSearchFocused]);
 
   const handleExperiencePicked = async (mode: ExperienceMode) => {
     setShowExperiencePicker(false);
@@ -3564,8 +3568,19 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         // own, neither the first-run overlay nor the idle tooltips; the compass toggle stays opt-in.
         const acctCreated = Date.parse(u.metadata?.creationTime || '') || 0;
         const withinFirstDay = acctCreated > 0 && Date.now() - acctCreated < 24 * 60 * 60 * 1000;
-        setHasSeenSmartGuide(!!p?.hasSeenSmartGuide || doorEntry || !withinFirstDay); // door entries and accounts older than 24h skip the first-run overlay
-        setSmartGuideEnabled(withinFirstDay ? (p?.smartGuideEnabled ?? (doorEntry ? false : !p?.hasSeenSmartGuide)) : false);
+        // Explainers never take over the screen: the first-run overlay and the idle hint bubbles only
+        // run if the person switched Smart Guide on themselves. A new account gets ONE notification
+        // offering the tour instead.
+        setHasSeenSmartGuide(true);
+        setSmartGuideEnabled(!!p?.smartGuideEnabled);
+        if (withinFirstDay && !doorEntry && !p?.hasSeenSmartGuide && firstTime('smart_guide_offer')) {
+          import('./services/localNotifications').then(m => m.addLocalNotification({
+            id: 'smart-guide-offer',
+            title: 'Want a quick tour?',
+            message: 'Turn on Smart Guide and Plajah will point things out as you explore. You can switch it off any time from the compass in the sidebar.',
+            link: 'pj:smart-guide',
+          })).catch(() => {});
+        }
         // Load linked accounts for hot-switch. The DEVICE roster (localStorage) is
         // the source of truth so saved slots survive account switches; seed it from
         // the profile's list on first run, then upsert the now-active account.
@@ -4425,6 +4440,18 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const link = notif.link as string | undefined;
     const targetId = notif.targetId as string | undefined;
     if (!link) return;
+
+    // On-device notices (services/localNotifications): apply a waiting update / start the tour.
+    if (link === 'pj:reload') {
+      const { applyPendingUpdate, removeLocalNotification } = await import('./services/localNotifications');
+      if (!applyPendingUpdate()) { removeLocalNotification('sw-update'); window.location.reload(); }
+      return;
+    }
+    if (link === 'pj:smart-guide') {
+      setSmartGuideEnabled(true);
+      if (userProfile?.uid) updateUserProfile(userProfile.uid, { smartGuideEnabled: true } as any).catch(() => {});
+      return;
+    }
 
     // Plajah games (routes/gamerSocial.ts): `game-challenge:<id>` / `game-match:<id>` open the game overlay in place.
     if (link.startsWith('game-challenge:') || link.startsWith('game-match:')) {
@@ -6622,6 +6649,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               {/* Fixed bottom tab bar — 5 primary destinations + narrow More trigger */}
               <nav
                 ref={setMobileNavEl}
+                data-mobile-tabbar
                 onTouchStart={onNavTouchStart}
                 onTouchEnd={onNavTouchEnd}
                 className={`fixed bottom-0 left-0 right-0 z-[150] glass-nav gpu transition-all duration-300 ${DEFAULT_PERSONAS[activePersonaKey]?.haloClass || ''}`}
@@ -6769,6 +6797,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <AnimatePresence>
                 {isBottomSectionExpanded && (
                   <motion.div
+                    data-more-sheet
                     initial={{ y: '100%', opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: '100%', opacity: 0 }}
@@ -6798,52 +6827,56 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 p-4">
-                      {[
+                    {(() => {
+                      // The whole platform, grouped exactly like the desktop navigation (NAV_SECTIONS),
+                      // plus the personal shortcuts that used to be missing here: Elevate, Settings,
+                      // Notifications. De-duplicated so a destination appears once.
+                      type Tile = { id: string; icon: any; label: string; action?: () => void };
+                      const quick: Tile[] = [
                         { id: 'USER_PROFILE', icon: User, label: 'Profile' },
-                        { id: 'DASHBOARD', icon: Home, label: 'Home' },
-                        { id: 'MUSIC', icon: Music2, label: 'Music' },
-                        { id: 'VIDEOS', icon: VideoIcon, label: 'Videos' },
-                        { id: 'MOVIES_TV', icon: Film, label: 'Movies' },
-                        { id: 'BOOKS', icon: BookOpen, label: 'Lorea' },
-                        { id: 'PLAJAH_LABS', icon: FlaskConical, label: 'Labs' },
-                        { id: 'PLAJAH_HOME', icon: Home, label: 'Home' },
-                        { id: 'ARTICLES', icon: Newspaper, label: 'Newsstand' },
-                        { id: 'RADIO', icon: Radio, label: 'Radio' },
-                        { id: 'LIVE_HUB', icon: Sparkles, label: 'Live' },
-                        { id: 'GAMES', icon: Gamepad2, label: 'Games' },
-                        { id: 'APPS', icon: AppWindow, label: 'Apps' },
-                        { id: 'CLUBS', icon: Users, label: 'Clubs' },
-                        { id: 'CHAT', icon: MessageSquare, label: 'Chat' },
-                        { id: 'FEED', icon: Rss, label: 'Social' },
-                        { id: 'CLASSROOMS', icon: GraduationCap, label: 'Academia' },
-                        { id: 'GLOBAL_PHOTOS', icon: Camera, label: 'Photos' },
+                        { id: 'ELEVATE_HUB', icon: Landmark, label: 'Elevate', action: () => { handleGlobalNavigate('ELEVATE_HUB'); } },
+                        { id: 'CREATOR', icon: Settings, label: 'Settings' },
+                        { id: 'NOTIFICATIONS', icon: Bell, label: 'Alerts', action: () => setNotifDrawerTrigger({ tab: 'ALERTS', ts: Date.now() }) },
                         { id: 'PLAJAH_DRIVE', icon: HardDrive, label: 'Files' },
-                        { id: 'SEARCH', icon: Search, label: 'Search' },
                         { id: 'HELP_CENTER', icon: HelpCircle, label: 'Help' },
-                      ].map(section => {
-                        const Icon = section.icon;
-                        const isActive = view === section.id;
-                        return (
-                          <button
-                            key={section.id}
-                            onClick={() => {
-                              if (section.id === 'USER_PROFILE') {
-                                if (user) handleVisitUser(user.uid);
-                                else loginWithGoogle();
-                              } else {
-                                setView(section.id as any);
-                              }
-                              setIsBottomSectionExpanded(false);
-                            }}
-                            className={`flex flex-col items-center gap-2 p-3 rounded-m3-lg transition-all android-press ${isActive ? 'bg-small-orange/15 border border-small-orange/30' : 'glass-low m3-state-hover'}`}
-                          >
-                            <Icon size={22} className={isActive ? 'text-small-orange' : 'text-white/60'} />
-                            <span className={`text-[8px] font-black uppercase tracking-wider text-center leading-tight ${isActive ? 'text-small-orange' : 'text-white/50'}`}>{section.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                      ];
+                      const seen = new Set<string>(quick.map(t => t.id));
+                      const groups: { key: string; items: Tile[] }[] = [{ key: 'You', items: quick }];
+                      for (const sec of NAV_SECTIONS) {
+                        const items = sec.items.filter(it => { if (seen.has(it.id)) return false; seen.add(it.id); return true; });
+                        if (items.length) groups.push({ key: sec.key, items });
+                      }
+                      return groups.map(g => (
+                        <div key={g.key} className="px-4 pt-3">
+                          <div className="text-[9px] font-black uppercase tracking-[0.2em] text-white/35 px-1 pb-2">{g.key}</div>
+                          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                            {g.items.map(section => {
+                              const Icon = section.icon;
+                              const isActive = view === section.id || (section.id === 'ELEVATE_HUB' && (view === 'ORG_HUB' || view === 'PLAJAH_ELEVATE'));
+                              return (
+                                <button
+                                  key={section.id}
+                                  onClick={() => {
+                                    if (section.action) section.action();
+                                    else if (section.id === 'USER_PROFILE') {
+                                      if (user) handleVisitUser(user.uid);
+                                      else loginWithGoogle();
+                                    } else {
+                                      setView(section.id as any);
+                                    }
+                                    setIsBottomSectionExpanded(false);
+                                  }}
+                                  className={`flex flex-col items-center gap-2 p-3 rounded-m3-lg transition-all android-press ${isActive ? 'bg-small-orange/15 border border-small-orange/30' : 'glass-low m3-state-hover'}`}
+                                >
+                                  <Icon size={22} className={isActive ? 'text-small-orange' : 'text-white/60'} />
+                                  <span className={`text-[8px] font-black uppercase tracking-wider text-center leading-tight ${isActive ? 'text-small-orange' : 'text-white/50'}`}>{section.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ));
+                    })()}
                     {/* Auth row at bottom of drawer */}
                     {!user && (
                       <div className="flex gap-3 px-4 pb-4">

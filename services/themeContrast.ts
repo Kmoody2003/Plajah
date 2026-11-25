@@ -114,6 +114,31 @@ function pageBackdrop(): RGBA {
   return light ? { r: 221, g: 227, b: 234, a: 1 } : { r: 8, g: 8, b: 12, a: 1 };
 }
 
+/**
+ * What a CSS gradient adds up to, as one colour. The stops of every gradient layer are pooled and
+ * averaged (weighted by their alpha), which is plenty to answer "is this surface dark or light, and
+ * how opaque?" — the first version ignored gradients entirely, so a dark gradient card looked like
+ * the light page behind it and kept dark text.
+ */
+function gradientInfo(bgImage: string): { avg: RGBA; lum: number; maxLum: number; stops: number } | null {
+  if (!bgImage.includes('gradient')) return null;
+  const cols = (bgImage.match(/rgba?\([^)]*\)/g) || []).map(parseColor).filter(Boolean) as RGBA[];
+  if (!cols.length) return null;
+  const visible = cols.filter(c => c.a >= 0.25);
+  const wsum = cols.reduce((a, c) => a + c.a, 0);
+  if (!visible.length || wsum <= 0) return null;
+  const r = cols.reduce((a, c) => a + c.r * c.a, 0) / wsum;
+  const g = cols.reduce((a, c) => a + c.g * c.a, 0) / wsum;
+  const b = cols.reduce((a, c) => a + c.b * c.a, 0) / wsum;
+  const avgA = cols.reduce((a, c) => a + c.a, 0) / cols.length;
+  return {
+    avg: { r, g, b, a: avgA },
+    lum: luminance({ r, g, b }),
+    maxLum: Math.max(...visible.map(c => luminance(c))),
+    stops: cols.length,
+  };
+}
+
 type Backdrop = { bg: RGBA; media: boolean; mediaKnown: boolean; confidentDark: boolean };
 
 const mediaLumCache = new WeakMap<Element, number | null>();
@@ -149,8 +174,10 @@ function backdropFor(el: Element, page: RGBA, textRect?: DOMRect): Backdrop {
   const hit = inView ? document.elementsFromPoint(x, y) : [];
   const idx = hit.indexOf(el);
   const below: Element[] = [];
-  if (idx >= 0) for (let i = idx + 1; i < hit.length; i++) below.push(hit[i]);
-  else { let n: Element | null = el.parentElement; while (n) { below.push(n); n = n.parentElement; } }
+  // Start AT the element itself: text sitting directly on its own fill (a pill, a button) is judged
+  // against that fill, not just against whatever is behind it.
+  if (idx >= 0) for (let i = idx; i < hit.length; i++) below.push(hit[i]);
+  else { let n: Element | null = el; while (n) { below.push(n); n = n.parentElement; } }
   let acc: RGBA = page;
   let media = false, mediaKnown = false, confidentDark = false;
   for (let i = below.length - 1; i >= 0; i--) {
@@ -173,8 +200,13 @@ function backdropFor(el: Element, page: RGBA, textRect?: DOMRect): Backdrop {
       const backdrop = (() => {
         const b = n.getBoundingClientRect();
         const slack = 2;
-        return b.left <= r.left + slack && b.right >= r.right - slack && b.top <= r.top + slack && b.bottom >= r.bottom - slack
-          && b.width * b.height >= r.width * r.height * 3 && Math.min(b.width, b.height) >= 60;
+        const ix = Math.max(0, Math.min(b.right, r.right) - Math.max(b.left, r.left));
+        const iy = Math.max(0, Math.min(b.bottom, r.bottom) - Math.max(b.top, r.top));
+        const overlap = ix * iy;
+        const centreIn = r.left + r.width / 2 >= b.left - slack && r.left + r.width / 2 <= b.right + slack
+          && r.top + r.height / 2 >= b.top - slack && r.top + r.height / 2 <= b.bottom + slack;
+        // Mostly over the media (headings that wrap past its edge still count), media at least as big.
+        return centreIn && overlap >= r.width * r.height * 0.5 && b.width * b.height >= r.width * r.height * 1.1 && Math.min(b.width, b.height) >= 60;
       })();
       if (!backdrop) continue;
       media = true;
@@ -183,6 +215,15 @@ function backdropFor(el: Element, page: RGBA, textRect?: DOMRect): Backdrop {
     }
     const bg = parseColor(cs.backgroundColor);
     if (bg && bg.a > 0) { acc = over(bg, acc); if (bg.a >= 0.85 && luminance(bg) < 0.12) confidentDark = true; if (bg.a >= 0.85 && luminance(bg) > 0.5) confidentDark = false; }
+    // Gradient fills sit on top of the flat colour.
+    const gi = gradientInfo(cs.backgroundImage);
+    if (gi && gi.avg.a > 0.05) {
+      acc = over({ ...gi.avg, a: Math.min(1, gi.avg.a) }, acc);
+      // A mostly-opaque gradient that is dark overall (a saturated brand gradient, a dark card) is
+      // hard evidence of a dark backdrop; a light opaque one cancels it.
+      if (gi.avg.a >= 0.8 && gi.lum < 0.25) confidentDark = true;
+      else if (gi.avg.a >= 0.8 && gi.lum > 0.5) confidentDark = false;
+    }
   }
   return { bg: acc, media, mediaKnown, confidentDark };
 }
@@ -218,10 +259,10 @@ function darkFill(cs: CSSStyleDeclaration): boolean {
   if (cs.backgroundImage.includes('url(')) return false; // a picture, not a plain panel
   const bg = parseColor(cs.backgroundColor);
   if (bg && bg.a >= 0.5 && luminance(bg) < 0.12) return true;
-  if (cs.backgroundImage.includes('gradient')) {
-    const cols = (cs.backgroundImage.match(/rgba?\([^)]*\)/g) || []).map(parseColor).filter(Boolean) as RGBA[];
-    if (cols.length && cols.every(c => c.a >= 0.3 && luminance(c) < 0.12)) return true;
-  }
+  // A gradient panel is dark when its visible stops are all dark and it is reasonably opaque.
+  // Bright stops (the orange end of the brand gradient) mean it is a coloured control, not a panel.
+  const gi = gradientInfo(cs.backgroundImage);
+  if (gi && gi.avg.a >= 0.4 && gi.lum < 0.14 && gi.maxLum < 0.2) return true;
   return false;
 }
 
@@ -251,7 +292,18 @@ export function adaptSurfaces(): number {
       if (!fill || fill.a < 0.95) continue;
     }
     if (el.closest(KEEP_DARK)) continue;
-    if (!form && el.querySelector('video,canvas,iframe')) continue;
+    if (!form) {
+      // Players and embeds keep their dark stage. A canvas only does when it IS the panel (fills most
+      // of it); a DAW / mastering page with meters, scopes and grids drawn on canvases is still
+      // theme chrome around them. (Skipping every container that held a canvas left whole
+      // studio pages black.)
+      if (el.querySelector('video,iframe')) continue;
+      const cv = el.querySelector('canvas');
+      if (cv) {
+        const cr = cv.getBoundingClientRect();
+        if (cr.width * cr.height >= r.width * r.height * 0.7) continue;
+      }
+    }
     el.setAttribute('data-pj-surface', '1');
     surfaceSig.set(el, sig);
     surfaceList.push(el);

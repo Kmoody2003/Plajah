@@ -45,7 +45,7 @@ const muxAuth = 'Basic ' + Buffer.from(`${env.MUX_TOKEN_ID}:${env.MUX_TOKEN_SECR
 const [itemsFile, ...flags] = process.argv.slice(2);
 const APPLY = flags.includes('--apply');
 if (!itemsFile) { console.error('usage: migrateMuxToBunny.mts <items.json> [--apply]'); process.exit(1); }
-const items: { muxAssetId: string; doc: string; track?: string; master?: string; title?: string }[] = JSON.parse(fs.readFileSync(itemsFile, 'utf8'));
+const items: { muxAssetId: string; doc: string; track?: string; master?: string; title?: string; finishUpload?: { uploadId: string; playbackId: string } }[] = JSON.parse(fs.readFileSync(itemsFile, 'utf8'));
 fs.mkdirSync(`${MASTERS}/mux`, { recursive: true });
 
 // Last successful log entry per asset: skip finished work, and let --apply reuse a dry run's Bunny video
@@ -136,9 +136,9 @@ async function patchAlbumTracks(docPath: string, albumFields: Record<string, any
   if (!r.ok) throw new Error(`patch ${docPath} tracks: ${r.status} ${(await r.text()).slice(0, 200)}`);
 }
 
-async function patchDoc(docPath: string, fields: Record<string, string>) {
+async function patchDoc(docPath: string, fields: Record<string, string | null>) {
   const mask = Object.keys(fields).map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
-  const body = { fields: Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, { stringValue: v }])) };
+  const body = { fields: Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v === null ? { nullValue: null } : { stringValue: v }])) };
   const r = await fetch(`${FS}/${docPath}?${mask}&currentDocument.exists=true`, {
     method: 'PATCH', headers: { Authorization: `Bearer ${fsToken()}`, 'x-goog-user-project': PROJECT, 'content-type': 'application/json' }, body: JSON.stringify(body),
   });
@@ -165,6 +165,10 @@ for (const it of items) {
       entry.bunnyVideoId = reuse; entry.reused = true;
       console.log(`→ ${it.doc} reusing Bunny ${reuse} from the dry run`);
     } else {
+      if (!(it.master && fs.existsSync(it.master))) {
+        const st = fs.statfsSync(MASTERS);
+        if (st.bavail * st.bsize < 15e9) { console.error('   ✗ under 15 GB free on the masters drive — stopping (re-run resumes)'); break; }
+      }
       const master = it.master && fs.existsSync(it.master) ? it.master : await pullMuxMaster(it.muxAssetId);
       const size = fs.statSync(master).size;
       entry.master = master; entry.bytes = size;
@@ -212,7 +216,14 @@ for (const it of items) {
           entry.mirror = mirror;
         }
       } else {
-        await patchDoc(it.doc, patch);
+        const full: Record<string, string | null> = { ...patch };
+        if (it.finishUpload) {
+          // Doc stuck on a Mux upload that did finish (Mux never wrote back): complete it like the poller would.
+          const fresh = await readDoc(it.doc);
+          if (fresh?.muxUploadId?.stringValue !== it.finishUpload.uploadId) throw new Error('doc no longer waits on that Mux upload');
+          Object.assign(full, { muxAssetId: it.muxAssetId, muxPlaybackId: it.finishUpload.playbackId, muxUploadId: null });
+        }
+        await patchDoc(it.doc, full);
       }
       entry.applied = true;
     }

@@ -24,7 +24,23 @@ export interface ThemePalette {
   accent4: string;
   /** Levels the user fixed by hand; generation never overwrites these. */
   locked?: Partial<Record<'accent1' | 'accent2' | 'accent3' | 'accent4', boolean>>;
+  /**
+   * Text roles the user fixed by hand (hex). A role left out is generated from the palette. Either
+   * way the colour that reaches the page is nudged until it passes its contrast target on the
+   * active surface, so a chosen colour can never make text unreadable.
+   */
+  text?: Partial<Record<TextRole, string>>;
 }
+
+export type TextRole = 'heading' | 'primary' | 'sub' | 'desc' | 'link';
+
+export const TEXT_ROLES: { key: TextRole; label: string; hint: string; target: number }[] = [
+  { key: 'heading', label: 'Headings',     hint: 'Page and section titles',            target: 7 },
+  { key: 'primary', label: 'Primary text', hint: 'Names, rows, the main line of a card', target: 7 },
+  { key: 'sub',     label: 'Sublines',     hint: 'The line under a title',              target: 4.5 },
+  { key: 'desc',    label: 'Descriptions', hint: 'Helper copy, captions, metadata',     target: 4.5 },
+  { key: 'link',    label: 'Links',        hint: 'Tappable text',                       target: 4.5 },
+];
 
 export const SCHEME_LABELS: Record<PaletteScheme, { label: string; hint: string }> = {
   monochrome:    { label: 'Monochrome',          hint: 'One hue, varied depth — calm and cohesive' },
@@ -161,6 +177,46 @@ export function generateAllPalettes(secondary: string, accent1 = '#ff8c00'): The
 
 export const DEFAULT_PALETTE: ThemePalette = generatePalette('#6b0099', 'analogous', '#ff8c00');
 
+// ── text roles ─────────────────────────────────────────────────────────────
+
+/** Linear blend of two hex colours: t=0 → a, t=1 → b. */
+export function mixHex(a: string, b: string, t: number): string {
+  const ra = hexToRgb(a), rb = hexToRgb(b);
+  if (!ra || !rb) return a;
+  return rgbToHex({ r: ra.r + (rb.r - ra.r) * t, g: ra.g + (rb.g - ra.g) * t, b: ra.b + (rb.b - ra.b) * t });
+}
+
+/**
+ * Text colours derived from a palette and a surface: the hue of the palette's accents tints the
+ * ink (so text feels part of the theme) while lightness is solved for contrast.
+ *   primary  near-ink tinted toward accent 2
+ *   heading  a deep/bright shade of accent 2's hue
+ *   sub      primary eased toward the surface
+ *   desc     primary eased further toward the surface
+ *   link     accent 2 made readable
+ */
+export function autoTextRoles(p: ThemePalette, surface: string): Record<TextRole, string> {
+  const light = isLight(surface);
+  const h = hexToHsl(p.accent2);
+  const primary = readableOn(mixHex(inkFor(surface), p.accent2, light ? 0.10 : 0.12), surface, 7);
+  const heading = readableOn(hslToHex({ h: h.h, s: Math.min(0.62, Math.max(0.3, h.s)), l: light ? 0.2 : 0.9 }), surface, 7);
+  const sub = readableOn(mixHex(primary, surface, 0.24), surface, 4.5);
+  const desc = readableOn(mixHex(primary, surface, 0.42), surface, 4.5);
+  const link = readableOn(p.accent2, surface, 4.5);
+  return { heading, primary, sub, desc, link };
+}
+
+/** Auto roles with the user's overrides on top — each one re-solved for contrast. */
+export function resolveTextRoles(p: ThemePalette, surface: string): Record<TextRole, string> {
+  const auto = autoTextRoles(p, surface);
+  const out = { ...auto };
+  for (const r of TEXT_ROLES) {
+    const custom = p.text?.[r.key];
+    if (custom && hexToRgb(custom)) out[r.key] = readableOn(custom.startsWith('#') ? custom : '#' + custom, surface, r.target);
+  }
+  return out;
+}
+
 // ── applying ────────────────────────────────────────────────────────────────
 
 /** The surface colour each built-in theme text sits on (used to compute the `ink` variants). */
@@ -185,6 +241,31 @@ export function paletteVars(p: ThemePalette, surface: string): Record<string, st
   // :root as var(--text-secondary). A var() is resolved where it is DECLARED, so overriding
   // --text-secondary lower down never reached it. Set the token itself, on <body>.
   v['--color-small-orange'] = v['--pj-a1-ink'];
+
+  // Text roles (headings / primary / sublines / descriptions / links) — always contrast-solved.
+  const t = resolveTextRoles(p, surface);
+  v['--pj-t-heading'] = t.heading;
+  v['--pj-t-primary'] = t.primary;
+  v['--pj-t-sub'] = t.sub;
+  v['--pj-t-desc'] = t.desc;
+  v['--pj-t-link'] = t.link;
+  // The light/pastel remaps in theme-system.css read these tokens, so they follow the roles too.
+  v['--pj-text'] = t.primary;
+  v['--pj-text-2'] = t.primary;
+  v['--pj-text-muted'] = t.sub;
+  v['--pj-text-faint'] = t.desc;
+  v['--text-primary'] = t.primary;
+
+  // The selection gradient: the Plajah brand gradient, or the palette's own three accents.
+  v['--pj-grad-select'] = `linear-gradient(135deg, ${p.accent2} 0%, ${p.accent3} 52%, ${p.accent1} 100%)`;
+  // Text ON that gradient. No single colour is perfect across a purple -> orange sweep, so choose by the
+  // gradient's overall lightness: white (with a soft shadow for the bright end) on a dark/mid gradient
+  // like the brand one, dark ink only when the whole gradient is light.
+  const stops = [p.accent2, p.accent3, p.accent1];
+  const avgLum = stops.reduce((a, c) => { const r = hexToRgb(c); return a + (r ? relLuminance(r) : 0); }, 0) / stops.length;
+  const lightGradient = avgLum > 0.42;
+  v['--pj-grad-on'] = lightGradient ? '#0f172a' : '#ffffff';
+  v['--pj-grad-shadow'] = lightGradient ? 'none' : '0 1px 2px rgba(0, 0, 0, 0.32)';
   return v;
 }
 
@@ -195,8 +276,9 @@ export function applyPalette(p: ThemePalette | null | undefined, themeId: string
   const body = document.body;
   appliedKeys.forEach(k => body.style.removeProperty(k));
   appliedKeys.clear();
-  if (!p) { body.removeAttribute('data-pj-palette'); return; }
+  if (!p) { body.removeAttribute('data-pj-palette'); body.removeAttribute('data-pj-text'); return; }
   body.setAttribute('data-pj-palette', '1');
+  body.setAttribute('data-pj-text', '1');
   const vars = paletteVars(p, THEME_SURFACE[themeId] ?? THEME_SURFACE.DARK);
   for (const [k, val] of Object.entries(vars)) { body.style.setProperty(k, val); appliedKeys.add(k); }
 }
