@@ -162,6 +162,16 @@
         Square150x150Logo="Assets\Experiences\Academia.Square150x150Logo.png"
         Square44x44Logo="Assets\Experiences\Academia.Square44x44Logo.png" />
     </Application>
+    <!-- Plajah Files: the File Explorer (This PC, Recent, Drive, Content HQ, FTP/SFTP/WebDAV/NAS) with
+         its own Start entry, so it can be pinned to Start/taskbar or dragged out as a desktop shortcut. -->
+    <Application Id="PlajahFiles" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true" uap10:Parameters="--experience=files">
+      <uap:VisualElements
+        DisplayName="Plajah Files"
+        Description="Plajah Files - your PC, recent files, Plajah Drive, Content HQ and FTP servers in one explorer."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Experiences\Files.Square150x150Logo.png"
+        Square44x44Logo="Assets\Experiences\Files.Square44x44Logo.png" />
+    </Application>
   </Applications>
 
   <Capabilities>

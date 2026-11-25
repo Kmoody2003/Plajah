@@ -2781,6 +2781,9 @@ export const useGlobalPlayerState = () => {
   return context;
 };
 
+/** Same as useGlobalPlayerState, but null outside the provider (e.g. the local-media shell). */
+export const useOptionalGlobalPlayerState = () => useContext(GlobalPlayerContext) ?? null;
+
 export const useGlobalPlayerProgress = () => {
   const context = useContext(GlobalPlayerProgressContext);
   if (context === undefined) {

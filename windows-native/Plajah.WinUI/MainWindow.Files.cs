@@ -99,6 +99,14 @@ public sealed partial class MainWindow
                     return true;
                 }
 
+                case "FILES_GET_RECENT":
+                {
+                    var limit = Math.Clamp(GetInt(root, "limit", 150), 1, 500);
+                    var res = await Task.Run(() => WindowsRecentItems.List(limit));
+                    PostBridgeResult(responseType, reqId, res);
+                    return true;
+                }
+
                 case "FILES_CREATE_FOLDER":
                 {
                     var parentPath = GetStr(root, "parentPath");

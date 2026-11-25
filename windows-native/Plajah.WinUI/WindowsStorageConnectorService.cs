@@ -126,20 +126,53 @@ internal sealed class WindowsStorageConnectorService
 
         if (string.IsNullOrWhiteSpace(host)) return new { success = false, error = "Host is required" };
 
+        // Opening/playing a remote file: with no target given, fetch it into a per-location cache
+        // so Files can preview it through localmedia.plajah like any local file.
+        if (op == "download_to_local" && string.IsNullOrWhiteSpace(localPath))
+        {
+            var fileName = Path.GetFileName((remotePath ?? "").Replace('\\', '/').TrimEnd('/'));
+            if (string.IsNullOrWhiteSpace(fileName)) return new { success = false, error = "Pick a file to open" };
+            foreach (var c in Path.GetInvalidFileNameChars()) fileName = fileName.Replace(c, '_');
+            var safeId = new string((string.IsNullOrEmpty(id) ? host : id).Select(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_' ? ch : '_').ToArray());
+            var remoteDirHash = Convert.ToHexString(System.Security.Cryptography.SHA1.HashData(Encoding.UTF8.GetBytes(remotePath ?? "")))[..10];
+            localPath = Path.Combine(Path.GetTempPath(), "PlajahRemoteCache", safeId, remoteDirHash, fileName);
+        }
+
+        // Implicit FTPS (TLS from the first byte, usually port 990) is not something FtpWebRequest can do.
+        // Most servers that offer it also take explicit TLS on 21, so try that instead.
+        var implicitFtps = proto == "ftps";
+        if (implicitFtps)
+        {
+            proto = "ftpes";
+            if (port == 990) port = 21;
+        }
+
         try
         {
             return proto switch
             {
                 "smb" => await HandleSmbAsync(host, remotePath, op, newName, localPath),
                 "webdav" or "webdavs" => await HandleWebDavAsync(proto == "webdavs", host, port, user, secret, remotePath, op, newName, localPath),
-                "ftp" or "ftps" or "ftpes" => await HandleFtpAsync(proto != "ftp", proto == "ftp", passive, host, port, user, secret, remotePath, op, newName, localPath),
+                "ftp" or "ftpes" => await HandleFtpAsync(proto != "ftp", proto == "ftp", passive, host, port, user, secret, remotePath, op, newName, localPath),
                 "sftp" => await HandleSftpAsync(host, port, user, remotePath, op),
                 _ => new { success = false, error = $"Protocol '{proto}' is not supported natively yet." },
+            };
+        }
+        catch (Exception ex) when (implicitFtps)
+        {
+            return new
+            {
+                success = false,
+                error = $"This site is set to implicit FTPS (port 990), which Plajah connects to as explicit TLS on port {port}, and that failed ({ex.Message}). Ask the host whether FTPES on port 21 is enabled, or switch the location to SFTP.",
             };
         }
         catch (WebException wex) when (wex.Response is FtpWebResponse ftpResp && !string.IsNullOrWhiteSpace(ftpResp.StatusDescription))
         {
             return new { success = false, error = ftpResp.StatusDescription.Trim() };
+        }
+        catch (WebException wex) when (wex.Status == WebExceptionStatus.Timeout)
+        {
+            return new { success = false, error = $"{host} did not answer in time. Check the host and port, or try switching passive mode in the location settings." };
         }
         catch (Exception ex)
         {
@@ -356,10 +389,12 @@ internal sealed class WindowsStorageConnectorService
         var req = (FtpWebRequest)WebRequest.Create(uri);
         req.EnableSsl = useSsl;
         req.UsePassive = usePassive;
-        if (!string.IsNullOrEmpty(user))
-        {
-            req.Credentials = new NetworkCredential(user, secret ?? string.Empty);
-        }
+        req.UseBinary = true;
+        // Default is 100 s per call with no feedback; a dead host should fail fast. Transfers keep a
+        // long read/write window so big files are not cut off.
+        req.Timeout = 30_000;
+        req.ReadWriteTimeout = 10 * 60_000;
+        req.Credentials = new NetworkCredential(string.IsNullOrEmpty(user) ? "anonymous" : user, secret ?? string.Empty);
 
         if (op == "download_to_local" && !string.IsNullOrWhiteSpace(localPath))
         {
@@ -418,7 +453,8 @@ internal sealed class WindowsStorageConnectorService
                 var reqDir = (FtpWebRequest)WebRequest.Create(uri);
                 reqDir.EnableSsl = useSsl;
                 reqDir.UsePassive = usePassive;
-                if (!string.IsNullOrEmpty(user)) reqDir.Credentials = new NetworkCredential(user, secret ?? string.Empty);
+                reqDir.Timeout = 30_000;
+                reqDir.Credentials = new NetworkCredential(string.IsNullOrEmpty(user) ? "anonymous" : user, secret ?? string.Empty);
                 reqDir.Method = WebRequestMethods.Ftp.RemoveDirectory;
                 using var _2 = (FtpWebResponse)reqDir.GetResponse();
             }
@@ -438,10 +474,25 @@ internal sealed class WindowsStorageConnectorService
         long size = 0;
         string name;
 
+        long modified = 0;
         if (parts[0].Length >= 10 && (parts[0][0] == 'd' || parts[0][0] == '-' || parts[0][0] == 'l') && parts.Length >= 9)
         {
             long.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out size);
             name = string.Join(' ', parts.Skip(8));
+            // Symlinks list as "name -> target".
+            if (parts[0][0] == 'l')
+            {
+                var arrow = name.IndexOf(" -> ", StringComparison.Ordinal);
+                if (arrow > 0) name = name[..arrow];
+            }
+            // "Nov 24 21:05" (this year) or "Nov 24  2025".
+            var stamp = $"{parts[5]} {parts[6]} {parts[7]}";
+            if (DateTime.TryParseExact(stamp, new[] { "MMM d HH:mm", "MMM dd HH:mm", "MMM d yyyy", "MMM dd yyyy" },
+                    CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AllowWhiteSpaces, out var dt))
+            {
+                if (!parts[7].Contains(':') || dt <= DateTime.UtcNow.AddDays(2)) modified = new DateTimeOffset(dt.ToUniversalTime()).ToUnixTimeMilliseconds();
+                else modified = new DateTimeOffset(dt.AddYears(-1).ToUniversalTime()).ToUnixTimeMilliseconds();
+            }
         }
         else
         {
@@ -457,7 +508,7 @@ internal sealed class WindowsStorageConnectorService
             fullPath = $"{prefix}{name}",
             isDirectory = isDir,
             size,
-            lastModified = 0L,
+            lastModified = modified,
             extension = isDir ? "" : Path.GetExtension(name),
         };
     }

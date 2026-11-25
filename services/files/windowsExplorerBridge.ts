@@ -114,6 +114,31 @@ export async function listWindowsDirectory(
   };
 }
 
+/** File Explorer's Recent items (%APPDATA%\Microsoft\Windows\Recent), newest first, shortcuts resolved. */
+export async function getWindowsRecentItems(limit = 150): Promise<{ entries: UnifiedEntry[]; error?: string }> {
+  if (!isWindowsApp()) return { entries: [] };
+  const reqId = nextReqId('recent');
+  try {
+    const res = await requestNativeResponse<{
+      requestId: string;
+      success: boolean;
+      entries?: Array<WindowsRawEntry & { lastOpened?: number }>;
+      error?: string;
+    }>('FILES_GET_RECENT', 'FILES_GET_RECENT_RESULT', { requestId: reqId, limit }, m => m?.requestId === reqId, 30_000);
+    if (!res?.success) return { entries: [], error: res?.error || 'Could not read Recent items' };
+    return {
+      entries: (res.entries || []).map(e => ({
+        ...windowsEntryToUnified(e, parentUnifiedPath(e.fullPath)),
+        // Sort/show by when it was last opened, like Explorer's Recent view.
+        lastModified: Number(e.lastOpened || e.lastModified || 0),
+      })),
+    };
+  } catch (err: any) {
+    // Older desktop packages don't know FILES_GET_RECENT and never answer.
+    return { entries: [], error: 'Recent files need the latest Plajah desktop app.' };
+  }
+}
+
 async function fileOp<T = { success: boolean; path?: string; error?: string }>(
   requestType: string,
   responseType: string,

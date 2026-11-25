@@ -29,6 +29,8 @@ export const EXPERIENCES = [
   { slug: 'pixels',       name: 'Pixels',       icon: 'Aperture',       from: '#00F5A0', to: '#00B4F5' },
   { slug: 'chora_studio', name: 'ChoraStudio',  icon: 'AudioWaveform',  from: '#6B0099', to: '#D40055' },
   { slug: 'academia',     name: 'Academia',     icon: 'GraduationCap',  from: '#3B82F6', to: '#A78BFA' },
+  // Plajah Files (File Explorer + Drive). Windows Start entry only; Android reaches Files from the More drawer.
+  { slug: 'files',        name: 'Files',        icon: 'FolderOpen',     from: '#F59E0B', to: '#38BDF8', windowsOnly: true },
 ];
 
 function glyphInner(iconName) {
@@ -91,8 +93,11 @@ const ANDROID_RES = join(root, 'android/app/src/main/res');
 const DENSITIES = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
 const WIN_ASSETS = join(root, 'windows-native/Plajah.WinUI/Assets/Experiences');
 
+// `node scripts/generate-experience-icons.mjs files` regenerates just that slug.
+const only = process.argv.slice(2);
 for (const exp of EXPERIENCES) {
-  for (const [d, m] of Object.entries(DENSITIES)) {
+  if (only.length && !only.includes(exp.slug)) continue;
+  if (!exp.windowsOnly) for (const [d, m] of Object.entries(DENSITIES)) {
     const dir = join(ANDROID_RES, `mipmap-${d}`);
     // Legacy (pre-API-26) square + round launcher icons, 48dp.
     await png(iconSvg(exp), 48 * m, join(dir, `ic_launch_${exp.slug}.png`));

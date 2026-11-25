@@ -144,6 +144,8 @@ export function scheduleSync(uid: string | undefined, force = false) {
 export function recordListen(uid: string | undefined, track: any, album: any) {
   try {
     if (!track?.id) return;
+    // Files played from this device's disk (Plajah Files) can't be replayed elsewhere; keep them out of synced history.
+    if (String(track.id).startsWith('localfile_')) return;
     const u = uid || 'anon';
     load(u);
     const e: Omit<ListenEntry, 'playCount'> = {

@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardPaste,
+  Clock,
   Cloud,
   Columns2,
   Copy,
@@ -51,6 +52,8 @@ import {
   X,
 } from 'lucide-react';
 import { auth } from '../../services/backendService';
+import { useOptionalGlobalPlayerState } from '../../contexts/GlobalPlayerContext';
+import type { Album, Track } from '../../types';
 import { fetchUserOrganizations } from '../../services/organizationService';
 import { createDriveApi, formatBytes } from '../../services/drive/client';
 import PlajahDrive, { type DriveOrg } from '../drive/PlajahDrive';
@@ -73,6 +76,7 @@ import {
   copyWindowsEntries,
   createWindowsFolder,
   deleteWindowsEntries,
+  getWindowsRecentItems,
   getWindowsStorageRoots,
   invokeWindowsConnectorOp,
   listWindowsDirectory,
@@ -128,7 +132,8 @@ type SidebarSection =
   | { kind: 'sync' }
   | { kind: 'transfers' }
   | { kind: 'connector'; location: ConnectedLocationMeta; path: string }
-  | { kind: 'mesh' };
+  | { kind: 'mesh' }
+  | { kind: 'recent' };
 
 function renderKindBadge(entry: UnifiedEntry) {
   if (entry.isDirectory) {
@@ -208,7 +213,14 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
 
   // Selection & Clipboard
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
-  const [clipboard, setClipboard] = useState<{ mode: 'copy' | 'cut'; sourceKind: 'local' | 'connector'; paths: string[] } | null>(null);
+  const [clipboard, setClipboard] = useState<{
+    mode: 'copy' | 'cut';
+    sourceKind: 'local' | 'connector';
+    paths: string[];
+    /** Connector copies: where the paths live, and which of them are folders. */
+    location?: ConnectedLocationMeta;
+    dirs?: string[];
+  } | null>(null);
 
   // Inspector / Unified Stage
   const [previewItem, setPreviewItem] = useState<StageMediaItem | null>(null);
@@ -232,6 +244,24 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
     rect: { left: number; top: number; right: number; bottom: number };
   } | null>(null);
   const [pinnedAudioEntry, setPinnedAudioEntry] = useState<UnifiedEntry | null>(null);
+
+  // Music: songs opened here play in the app's own Plajah player (bar + full player, keeps going
+  // while you browse) unless the person picks the in-Files Chora Deck stage.
+  const globalPlayer = useOptionalGlobalPlayerState();
+  const [musicTarget, setMusicTarget] = useState<'player' | 'deck'>(() => {
+    try { return localStorage.getItem('plajah:files-music-target') === 'deck' ? 'deck' : 'player'; } catch { return 'player'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('plajah:files-music-target', musicTarget); } catch { /* ignore */ }
+  }, [musicTarget]);
+  // A song or video previewing here (preview pane or Chora Deck) autoplays: pause the Plajah player
+  // so two things never play at once.
+  useEffect(() => {
+    if (previewItem && (previewItem.mediaKind === 'AUDIO' || previewItem.mediaKind === 'VIDEO') && globalPlayer?.isPlaying) {
+      globalPlayer.pause();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewItem]);
   const hoverIntentTimerRef = useRef<number | null>(null);
   const hoverCloseTimerRef = useRef<number | null>(null);
 
@@ -457,6 +487,18 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
       } finally {
         setLoading(false);
       }
+    } else if (active.kind === 'recent') {
+      setLoading(true);
+      setDirError(null);
+      try {
+        const res = await getWindowsRecentItems(200);
+        if (res.error) setDirError(res.error);
+        setSortBy('modified');
+        setSortAsc(false);
+        setEntries(res.entries);
+      } finally {
+        setLoading(false);
+      }
     } else if (active.kind === 'connector') {
       setLoading(true);
       setDirError(null);
@@ -478,6 +520,11 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
               id: `conn:${loc.id}:${r.fullPath}`,
               path: r.fullPath,
               parentPath: active.path,
+              // Remote paths are not on this disk: no localmedia URL or thumbnail. Opening a file
+              // fetches it into the cache first (openConnectorFile).
+              streamUrl: undefined,
+              downloadUrl: undefined,
+              thumbUrl: undefined,
             }));
             setEntries(mapped);
           }
@@ -563,18 +610,118 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
     [visibleEntries, selectedIds],
   );
 
+  // The device root a path lives under (longest match), or an ad-hoc root for that folder.
+  const rootForPath = useCallback((p: string): StorageRoot => {
+    const lower = p.toLowerCase();
+    const hit = [...localRoots]
+      .filter(r => r.path && lower.startsWith(r.path.toLowerCase()))
+      .sort((a, b) => b.path.length - a.path.length)[0];
+    if (hit) return hit;
+    const label = p.replace(/[\/]+$/, '').split(/[\/]/).pop() || p;
+    return { id: `custom:${p}`, label, kind: 'local', path: p, writable: true };
+  }, [localRoots]);
+
+  /** Play songs in the app's Plajah player, with the rest of the folder's songs as the queue. */
+  const playInPlajahPlayer = useCallback((item: StageMediaItem, siblings: StageMediaItem[]): boolean => {
+    if (!globalPlayer || !item.url) return false;
+    const songs = siblings.filter(s => s.mediaKind === 'AUDIO' && s.url);
+    if (!songs.some(s => s.url === item.url)) songs.unshift(item);
+    const hash = (str: string) => {
+      let h = 5381;
+      for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+      return (h >>> 0).toString(36);
+    };
+    const folder = item.folderPath || parentUnifiedPath(item.fullPath || '') || '';
+    const folderLabel = folder.replace(/[\/]+$/, '').split(/[\/]/).pop() || 'Plajah Files';
+    const tracks: Track[] = songs.map((s, i) => ({
+      // Plain ids (no path separators): they key the player's caches and must never hit a server doc.
+      id: `localfile_${hash(s.fullPath || s.url)}`,
+      title: s.name.replace(/\.[^.]+$/, ''),
+      artist: folderLabel,
+      url: s.url,
+      mediaKind: 'AUDIO',
+      albumTitle: folderLabel,
+      folderPath: s.folderPath,
+      trackNo: i + 1,
+    }));
+    const album = {
+      id: `localfolder_${hash(folder || item.url)}`,
+      title: folderLabel,
+      artist: 'Plajah Files',
+      coverImage: '',
+      description: folder,
+      tracks,
+      createdAt: Date.now(),
+      themeColor: '#f59e0b',
+    } as Album;
+    const start = tracks[songs.findIndex(s => s.url === item.url)] || tracks[0];
+    globalPlayer.playTrack(start, album, 'LIBRARY', undefined, true);
+    choraHoverAudio.stop();
+    return true;
+  }, [globalPlayer]);
+
+  // "Chora" on a song: start it (and the folder) in the Plajah player, then go to Chora.
+  const sendToChora = (item: StageMediaItem) => {
+    playInPlajahPlayer(item, folderPlaylist);
+    setLightboxOpen(false);
+    onSendToChora?.(item);
+  };
+
+  // In Plajah Player mode a single click on a song only selects it (no autoplaying preview);
+  // double-click / Enter plays it in the player.
+  const songsGoToPlayer = (entry: UnifiedEntry) =>
+    entry.mediaKind === 'AUDIO' && musicTarget === 'player' && Boolean(globalPlayer);
+
+  const openStageItem = (item: StageMediaItem, siblings: StageMediaItem[]) => {
+    if (item.mediaKind === 'AUDIO' && musicTarget === 'player' && playInPlajahPlayer(item, siblings)) {
+      // The player is the music UI now; don't leave a second copy playing in the preview pane.
+      if (previewItem?.mediaKind === 'AUDIO') setPreviewItem(null);
+      flash(`Playing ${item.name} in the Plajah player`);
+      return;
+    }
+    setPreviewItem(item);
+    setLightboxOpen(true);
+  };
+
+  /** FTP / SFTP / WebDAV / SMB file: bring it into the local cache, then open it like a local file. */
+  const openConnectorFile = async (loc: ConnectedLocationMeta, entry: UnifiedEntry) => {
+    if (!isWindowsApp()) {
+      if (entry.streamUrl) openStageItem(toStageMediaItem(entry), [toStageMediaItem(entry)]);
+      else flash('Opening server files needs the Plajah desktop app.');
+      return;
+    }
+    flash(`Fetching ${entry.name} from ${loc.name}…`);
+    const secret = await resolveConnectorSecret(loc.id);
+    const res = await invokeWindowsConnectorOp(loc, 'download_to_local', { remotePath: entry.path, secret });
+    if (!res.success || !res.localPath) {
+      flash(res.error || `Could not fetch ${entry.name}`);
+      return;
+    }
+    const local = windowsEntryToUnified(
+      { name: entry.name, fullPath: res.localPath, isDirectory: false, size: entry.size, lastModified: entry.lastModified },
+      parentUnifiedPath(res.localPath),
+    );
+    const item = toStageMediaItem(local);
+    setTransferToast(null);
+    openStageItem(item, [item]);
+  };
+
   const handleOpenEntry = (entry: UnifiedEntry) => {
     if (entry.isDirectory) {
       if (active.kind === 'local') {
         navigateTo({ kind: 'local', root: active.root, path: entry.path });
       } else if (active.kind === 'connector') {
         navigateTo({ kind: 'connector', location: active.location, path: entry.path });
+      } else if (active.kind === 'recent') {
+        navigateTo({ kind: 'local', root: rootForPath(entry.path), path: entry.path });
       }
       return;
     }
-    const item = toStageMediaItem(entry);
-    setPreviewItem(item);
-    setLightboxOpen(true);
+    if (active.kind === 'connector') {
+      void openConnectorFile(active.location, entry);
+      return;
+    }
+    openStageItem(toStageMediaItem(entry), folderPlaylist);
   };
 
   const handleCreateFolder = async () => {
@@ -637,8 +784,66 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
     }
   };
 
+  const baseName = (p: string) => p.replace(/[\/]+$/, '').split(/[\/]/).pop() || p;
+
+  /** Server → this PC. Files only; folders are skipped and counted. */
+  const downloadConnectorPaths = async (
+    loc: ConnectedLocationMeta, paths: string[], dirs: string[], targetDir: string, removeAfter = false,
+  ): Promise<number> => {
+    const secret = await resolveConnectorSecret(loc.id);
+    const files = paths.filter(p => !dirs.includes(p));
+    let done = 0;
+    for (let i = 0; i < files.length; i++) {
+      const name = baseName(files[i]);
+      flash(`Downloading ${name} (${i + 1}/${files.length}) from ${loc.name}…`);
+      const r = await invokeWindowsConnectorOp(loc, 'download_to_local', {
+        remotePath: files[i], localPath: joinUnifiedPath(targetDir, name), secret,
+      });
+      if (!r.success) { flash(`${name}: ${r.error || 'download failed'}`); return done; }
+      if (removeAfter) await invokeWindowsConnectorOp(loc, 'delete', { remotePath: files[i], secret });
+      done++;
+    }
+    const skipped = paths.length - files.length;
+    flash(`Downloaded ${done} file(s) to ${targetDir}${skipped ? ` — ${skipped} folder(s) skipped, open them to copy their files` : ''}`);
+    return done;
+  };
+
   const handlePaste = async () => {
-    if (!clipboard || active.kind !== 'local') return;
+    if (!clipboard) return;
+    // Server → this PC
+    if (clipboard.sourceKind === 'connector' && clipboard.location && active.kind === 'local' && isWindowsApp()) {
+      await downloadConnectorPaths(clipboard.location, clipboard.paths, clipboard.dirs || [], active.path, clipboard.mode === 'cut');
+      if (clipboard.mode === 'cut') setClipboard(null);
+      refreshCurrentDir();
+      return;
+    }
+    // This PC → server
+    if (clipboard.sourceKind === 'local' && active.kind === 'connector' && isWindowsApp()) {
+      const loc = active.location;
+      const secret = await resolveConnectorSecret(loc.id);
+      const files = clipboard.paths.filter(p => !(clipboard.dirs || []).includes(p));
+      let done = 0;
+      for (let i = 0; i < files.length; i++) {
+        const name = baseName(files[i]);
+        flash(`Uploading ${name} (${i + 1}/${files.length}) to ${loc.name}…`);
+        const r = await invokeWindowsConnectorOp(loc, 'upload_from_local', {
+          localPath: files[i], remotePath: `${active.path.replace(/\/+$/, '')}/${name}`, secret,
+        });
+        if (!r.success) { flash(`${name}: ${r.error || 'upload failed'}`); refreshCurrentDir(); return; }
+        done++;
+      }
+      if (clipboard.mode === 'cut' && done === files.length && files.length) await deleteWindowsEntries(files, true);
+      const skipped = clipboard.paths.length - files.length;
+      flash(`Uploaded ${done} file(s) to ${loc.name}${skipped ? ` — ${skipped} folder(s) skipped` : ''}`);
+      if (clipboard.mode === 'cut') setClipboard(null);
+      refreshCurrentDir();
+      return;
+    }
+    if (clipboard.sourceKind === 'connector' && active.kind === 'connector') {
+      flash('Copying between two servers isn’t supported yet — paste into a folder on this PC first.');
+      return;
+    }
+    if (active.kind !== 'local') return;
     if (isWindowsApp()) {
       if (clipboard.mode === 'copy') await copyWindowsEntries(clipboard.paths, active.path);
       else await moveWindowsEntries(clipboard.paths, active.path);
@@ -649,6 +854,17 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
     if (clipboard.mode === 'cut') setClipboard(null);
     flash('Paste complete');
     refreshCurrentDir();
+  };
+
+  const copySelectionToClipboard = (mode: 'copy' | 'cut') => {
+    setClipboard({
+      mode,
+      sourceKind: active.kind === 'connector' ? 'connector' : 'local',
+      paths: selectedEntries.map(e => e.path),
+      dirs: selectedEntries.filter(e => e.isDirectory).map(e => e.path),
+      location: active.kind === 'connector' ? active.location : undefined,
+    });
+    flash(`${mode === 'copy' ? 'Copied' : 'Cut'} ${selectedEntries.length} item(s) — open a folder and Paste`);
   };
 
   const handleZipSelected = async () => {
@@ -719,7 +935,9 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
       ? splitBreadcrumbs(active.root.label, active.root.path, active.path)
       : active.kind === 'connector'
         ? [{ label: active.location.name, path: active.location.remoteDir || '/' }, { label: active.path, path: active.path }]
-        : [];
+        : active.kind === 'recent'
+          ? [{ label: 'Recent (from File Explorer)', path: '' }]
+          : [];
 
   return (
     <div className="h-[calc(100vh-48px)] min-h-[580px] w-full flex flex-col bg-[#07080d] text-white overflow-hidden select-none">
@@ -819,6 +1037,18 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
               </button>
             </div>
             <div className="space-y-0.5">
+              {isWindowsApp() && (
+                <button
+                  onClick={() => navigateTo({ kind: 'recent' })}
+                  className={`w-full px-2.5 py-1.5 rounded-xl text-left text-xs flex items-center gap-2 cursor-pointer ${
+                    active.kind === 'recent' ? 'bg-amber-500/20 text-amber-200 border border-amber-500/30' : 'hover:bg-white/8 text-white/80'
+                  }`}
+                  title="Files and folders you opened recently in Windows File Explorer"
+                >
+                  <Clock size={13} className={active.kind === 'recent' ? 'text-amber-300 shrink-0' : 'text-white/50 shrink-0'} />
+                  <span className="truncate font-medium">Recent</span>
+                </button>
+              )}
               {localRoots.length === 0 ? (
                 <button
                   onClick={handlePickWebLocalFolder}
@@ -1047,7 +1277,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
             </div>
           )}
 
-          {(active.kind === 'local' || active.kind === 'connector') && (
+          {(active.kind === 'local' || active.kind === 'connector' || active.kind === 'recent') && (
             <>
               {/* Explorer Address & Action Bar */}
               <div className="px-3 py-2 border-b border-white/10 bg-[#0d1018] space-y-2 shrink-0">
@@ -1165,6 +1395,18 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
                     <Music size={12} />
                     <span>Chora Auto</span>
                   </button>
+                  {globalPlayer && (
+                    <button
+                      onClick={() => setMusicTarget(t => (t === 'player' ? 'deck' : 'player'))}
+                      className="px-2 py-1 rounded-lg border text-[11px] font-medium cursor-pointer flex items-center gap-1 bg-white/8 border-white/10 text-white/80 hover:text-white"
+                      title={musicTarget === 'player'
+                        ? 'Songs play in the Plajah player and keep going while you browse. Click to open songs in the Chora Deck stage instead.'
+                        : 'Songs open in the Chora Deck stage here in Files. Click to play them in the Plajah player instead.'}
+                    >
+                      <Music size={12} className={musicTarget === 'player' ? 'text-sky-300' : 'text-orange-300'} />
+                      <span>Play in: {musicTarget === 'player' ? 'Plajah Player' : 'Chora Deck'}</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => setViewMode(m => (m === 'list' ? 'grid' : 'list'))}
                     className="p-1.5 rounded-lg bg-white/8 hover:bg-white/14 cursor-pointer"
@@ -1186,13 +1428,13 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
                   {selectedEntries.length > 0 && (
                     <>
                       <button
-                        onClick={() => setClipboard({ mode: 'copy', sourceKind: 'local', paths: selectedEntries.map(e => e.path) })}
+                        onClick={() => copySelectionToClipboard('copy')}
                         className="px-2.5 py-1 rounded-lg bg-white/8 hover:bg-white/14 flex items-center gap-1 cursor-pointer"
                       >
                         <Copy size={13} /> Copy ({selectedEntries.length})
                       </button>
                       <button
-                        onClick={() => setClipboard({ mode: 'cut', sourceKind: 'local', paths: selectedEntries.map(e => e.path) })}
+                        onClick={() => copySelectionToClipboard('cut')}
                         className="px-2.5 py-1 rounded-lg bg-white/8 hover:bg-white/14 flex items-center gap-1 cursor-pointer"
                       >
                         <Scissors size={13} /> Move
@@ -1224,6 +1466,25 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
                           <Archive size={13} /> Extract
                         </button>
                       )}
+                      {active.kind === 'connector' && isWindowsApp() && (
+                        <button
+                          onClick={() => {
+                            const dl = localRoots.find(r => r.id === 'win:downloads') || localRoots[0];
+                            if (!dl) { flash('No local folder to download into.'); return; }
+                            void downloadConnectorPaths(
+                              active.location,
+                              selectedEntries.map(e => e.path),
+                              selectedEntries.filter(e => e.isDirectory).map(e => e.path),
+                              dl.path,
+                            );
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 flex items-center gap-1 cursor-pointer"
+                          title="Download the selected files into your Downloads folder"
+                        >
+                          <Download size={13} /> Download
+                        </button>
+                      )}
+                      {active.kind !== 'connector' && (<>
                       <button
                         onClick={() => handleUploadItemsToDrive(selectedEntries.filter(e => !e.isDirectory).map(toStageMediaItem))}
                         className="px-2.5 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-200 flex items-center gap-1 cursor-pointer"
@@ -1239,6 +1500,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
                       >
                         <Send size={13} /> Send
                       </button>
+                      </>)}
                       {isAndroidFilesAvailable() && active.kind === 'local' && (
                         <button
                           onClick={() => shareAndroidEntries(selectedEntries.map(e => e.path))}
@@ -1256,7 +1518,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
                     </>
                   )}
 
-                  {clipboard && active.kind === 'local' && (
+                  {clipboard && (active.kind === 'local' || (active.kind === 'connector' && isWindowsApp())) && (
                     <button
                       onClick={handlePaste}
                       className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 flex items-center gap-1 cursor-pointer"
@@ -1388,7 +1650,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
                           onMouseLeave={handleEntryHoverLeave}
                           onClick={() => {
                             setSelectedIds(new Set([entry.id]));
-                            if (!entry.isDirectory) setPreviewItem(toStageMediaItem(entry));
+                            if (!entry.isDirectory && !songsGoToPlayer(entry)) setPreviewItem(toStageMediaItem(entry));
                           }}
                           onDoubleClick={() => handleOpenEntry(entry)}
                           className={`group rounded-2xl p-2.5 border transition cursor-pointer flex flex-col gap-2 ${
@@ -1489,7 +1751,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
                             onMouseLeave={handleEntryHoverLeave}
                             onClick={() => {
                               setSelectedIds(new Set([entry.id]));
-                              if (!entry.isDirectory) setPreviewItem(toStageMediaItem(entry));
+                              if (!entry.isDirectory && !songsGoToPlayer(entry)) setPreviewItem(toStageMediaItem(entry));
                             }}
                             onDoubleClick={() => handleOpenEntry(entry)}
                             className={`cursor-pointer transition ${
@@ -1560,7 +1822,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
         )}
 
         {/* ── RIGHT EMBEDDED QUICK-VIEW MEDIA & DOC STAGE (DESKTOP / TABLET) ── */}
-        {showPreviewPane && previewItem && !lightboxOpen && (active.kind === 'local' || active.kind === 'connector') && (
+        {showPreviewPane && previewItem && !lightboxOpen && (active.kind === 'local' || active.kind === 'connector' || active.kind === 'recent') && (
           <aside className="w-80 xl:w-96 shrink-0 hidden md:block fold:hidden">
             <PlajahMediaStage
               activeItem={previewItem}
@@ -1576,14 +1838,14 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
               }}
               onDownloadCloud={it => it.url && handleSaveCloudItemToCurrentLocal(it.url, it.name)}
               onOpenCinemaPlayer={onOpenCinemaPlayer}
-              onSendToChora={onSendToChora}
+              onSendToChora={globalPlayer || onSendToChora ? sendToChora : undefined}
               onDeleted={() => refreshCurrentDir()}
             />
           </aside>
         )}
 
         {/* ── COMPACT DOCKED QUICK-VIEW BAR (PORTRAIT PHONES / NARROW WINDOWS) ── */}
-        {showPreviewPane && previewItem && !lightboxOpen && (active.kind === 'local' || active.kind === 'connector') && (
+        {showPreviewPane && previewItem && !lightboxOpen && (active.kind === 'local' || active.kind === 'connector' || active.kind === 'recent') && (
           <div className="md:hidden fold:flex border-t border-white/12 bg-[#0b0d14] px-3 py-2.5 flex items-center gap-2 shrink-0">
             <div className="min-w-0 flex-1" onClick={() => setLightboxOpen(true)}>
               <div className="text-xs font-semibold truncate">{previewItem.name}</div>
@@ -1649,7 +1911,7 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
           }}
           onDownloadCloud={it => it.url && handleSaveCloudItemToCurrentLocal(it.url, it.name)}
           onOpenCinemaPlayer={onOpenCinemaPlayer}
-          onSendToChora={onSendToChora}
+          onSendToChora={globalPlayer || onSendToChora ? sendToChora : undefined}
           onDeleted={() => refreshCurrentDir()}
         />
       )}
@@ -1691,10 +1953,10 @@ export const PlajahFilesWorkspace: React.FC<PlajahFilesWorkspaceProps> = ({
           else setLightboxOpen(true);
         }}
         onSendToChora={
-          onSendToChora
+          globalPlayer || onSendToChora
             ? it => {
                 const match = visibleEntries.find(e => e.id === it.id);
-                onSendToChora(match ? toStageMediaItem(match) : { id: it.id, name: it.name, url: it.streamUrl || it.url, fullPath: it.fullPath || it.path, mimeType: it.mimeType, size: it.size });
+                sendToChora(match ? toStageMediaItem(match) : { id: it.id, name: it.name, url: it.streamUrl || it.url, fullPath: it.fullPath || it.path, mimeType: it.mimeType, size: it.size });
               }
             : undefined
         }

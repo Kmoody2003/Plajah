@@ -137,7 +137,13 @@ function verifyUnlockToken(secret: string, transferId: string, token: string | u
 }
 
 function getSecret(deps: TransferDeps): string {
-  return deps.tokenSecret || process.env.TRANSFER_TOKEN_SECRET || process.env.ADMIN_SEED_KEY || 'plajah-transfer-dev-secret';
+  const s = deps.tokenSecret || process.env.TRANSFER_TOKEN_SECRET || process.env.HQ_STREAM_SECRET || process.env.ADMIN_SEED_KEY;
+  if (s) return s;
+  // A guessable secret would let anyone mint unlock tokens for password-protected links.
+  if (process.env.K_SERVICE || process.env.NODE_ENV === 'production') {
+    throw new TransferError('not_configured', 'Transfer links are not configured on this server.', 503);
+  }
+  return 'plajah-transfer-dev-secret';
 }
 
 export async function beginTransfer(
