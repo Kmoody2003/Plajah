@@ -1082,7 +1082,7 @@ body[data-pj-creative] #universal-background::after {
     radial-gradient(70% 60% at 60% 105%, color-mix(in srgb, var(--pj-a3, #00DAF3) 22%, transparent), transparent 70%);
 }
 /* Light + pastel: adapted panels are more see-through and blur harder. */
-html body.theme-light[data-pj-creative] [data-pj-surface] {
+html body.theme-light[data-pj-creative] [data-pj-surface]:not(.absolute, [class*="inset-"], [class*="aspect-"] *, [class*="thumb" i] *, figure *) {
   background-color: rgba(255, 255, 255, calc(.46 * var(--pj-ui-alpha, 1))) !important;
   -webkit-backdrop-filter: blur(26px) saturate(170%) !important;
   backdrop-filter: blur(26px) saturate(170%) !important;
@@ -1094,7 +1094,7 @@ html body.theme-pastel[data-pj-creative] [data-pj-surface] {
   backdrop-filter: blur(22px) saturate(140%) !important;
 }
 /* Dark themes: translucent panels get a real frosted blur (opaque ones are left exactly as drawn). */
-body[data-pj-creative]:not(.theme-light):not(.theme-pastel) :is([class*="bg-black/"], [class*="bg-white/"], [class*="bg-zinc-900/"], [class*="bg-slate-900/"], [class*="bg-gray-900/"], [class*="bg-neutral-900/"], [class*="bg-[#0"][class*="/"], [class*="bg-[#1"][class*="/"]):not(video, canvas, img, .pj-no-frost, [data-keep-dark]) {
+body[data-pj-creative]:not(.theme-light):not(.theme-pastel) :is([class*="bg-black/"], [class*="bg-white/"], [class*="bg-zinc-900/"], [class*="bg-slate-900/"], [class*="bg-gray-900/"], [class*="bg-neutral-900/"], [class*="bg-[#0"][class*="/"], [class*="bg-[#1"][class*="/"]):not(video, canvas, img, .pj-no-frost, [data-keep-dark], .absolute, .fixed, .pointer-events-none, [class*="inset-"], [class*="aspect-"] *, [class*="thumb" i], [class*="thumb" i] *, [class*="cover" i], [class*="cover" i] *, [class*="poster" i] *, figure *, :has(> img), :has(> video)) {
   -webkit-backdrop-filter: blur(16px) saturate(140%);
   backdrop-filter: blur(16px) saturate(140%);
 }
