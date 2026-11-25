@@ -13,6 +13,9 @@ export function audioStart() {
   master.connect(ctx.destination);
 }
 
+/** The shared AudioContext once the player has started (a browser lets sound begin only after a click). */
+export const audioContext = () => ctx;
+
 function tone(freq: number, dur: number, type: OscillatorType, vol: number, delay = 0, slideTo?: number) {
   if (!ctx || !master) return;
   const t = ctx.currentTime + delay;

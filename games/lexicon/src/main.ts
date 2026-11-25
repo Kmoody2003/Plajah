@@ -28,6 +28,7 @@ import { POWER_LABEL, WORDS, wordByText } from './words';
 import { STARTING_WORDS, VILLAGERS, villagerGraph } from './content';
 import { buildGlossa, buildTemple, mat, PAL, personModel, textSprite, type BuiltLevel, type SigilView } from './world';
 import { audioStart, sfx } from './audio';
+import { duckMusic, musicTracks, playMusic, toggleMusic } from './music';
 import { inStudio, joinStudio, postToStudio } from './studio';
 
 // ── setup ──
@@ -169,6 +170,7 @@ addEventListener('keydown', (e) => {
   if (mode === 'lyre' && e.code === 'KeyQ' && !e.repeat) { lyreNote('Q'); return; }
   if (mode === 'challenge' && /^Digit[1-4]$/.test(e.code)) { answer(Number(e.code.slice(5)) - 1); return; }
   if (e.repeat) return;
+  if (e.code === 'KeyM' && mode !== 'lyre') { toast('Music', toggleMusic() ? 'On' : 'Off'); return; }
   keys.add(e.code);
   const a = keyAction[e.code]; if (a) input.setAction(a, true);
 });
@@ -658,6 +660,7 @@ function autoPlay(w: string) { [...w].forEach((c, i) => setTimeout(() => { if (m
 function castSong(w: string) {
   const def = wordByText(w); if (!def) return;
   sfx.song(); rules?.emit('songPlayed', { song: w }); bridge.creditXp(3);
+  duckMusic(0.25, 0.3); setTimeout(() => { if (!boss) duckMusic(1, 1.5); }, 2600); // the Lyre's song over the score
   if (def.power === 'time' && lvl.id === 'glossa') {
     const day = save.tod > 0.25 && save.tod < 0.75; save.tod = day ? 0.02 : 0.5; persist();
     story(day ? 'The Song of Time pulls the night across the sky.' : 'The Song of Time calls the sun back.');
@@ -722,13 +725,13 @@ let pillarWords: string[] = [];
 function startBoss(wave: number) {
   if (boss || save.templeDone || !lvl.arena) { if (save.templeDone) story('The hall is quiet. The Redactor is gone.'); return; }
   boss = spawnEnemy('redactor', lvl.arena.x, lvl.arena.z, wave);
-  bossRound = 0; blotT = 3; sfx.boss();
+  bossRound = 0; blotT = 3; sfx.boss(); duckMusic(0.3, 1.2);
   show('boss', true); story('“Every word you keep, I will strike out.” The Redactor descends.');
   nextRound(ROUNDS[0]);
 }
 function endBoss(won: boolean) {
   if (!boss && !task) return;
-  show('boss', false); task = null;
+  show('boss', false); task = null; duckMusic(1, 2.5);
   if (lvl?.pillars) for (const p of lvl.pillars) setPillarLabel(p, '—');
   if (boss && !won) { scene.remove(boss.g); boss.alive = false; }
   boss = null;
@@ -1091,6 +1094,7 @@ async function boot() {
   requestAnimationFrame(loop);
   const begin = () => {
     audioStart();
+    playMusic(musicTracks(project.assets)[0]); // the main theme
     $('title').style.display = 'none'; mode = 'play'; canvas.focus();
     if (lvl.id === 'glossa' && !save.met.includes('elder')) setTimeout(() => talk('elder'), 700);
   };

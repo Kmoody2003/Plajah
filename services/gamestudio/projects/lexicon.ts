@@ -3,7 +3,7 @@
 // Markers place the player and the Unwritten (enemySpot name = which kind spawns there), zones are the
 // trigger boxes the rules wait on, and the rules read as sentences in the Studio's Rules panel.
 
-import { GAME_PROJECT_KIND, GAME_PROJECT_VERSION, type GameLevel, type GameProject, type Marker, type Rule } from '../schema';
+import { GAME_PROJECT_KIND, GAME_PROJECT_VERSION, type GameLevel, type AssetRef, type GameProject, type Marker, type Rule } from '../schema';
 
 const spot = (id: string, name: string, x: number, z: number): Marker => ({ id, kind: 'enemySpot', name, pos: [x, 0, z] });
 const rule = (id: string, when: Rule['when'], ...doActs: Rule['do']): Rule => ({ id, enabled: true, when, if: [], do: doActs });
@@ -62,11 +62,17 @@ export const LEXICON_NAMES: Record<string, string> = {
   'item:words': 'words',
 };
 
+/** The score: Kenne's own tracks (the first is the main theme). Add a track: its file in
+ * public/games/lexicon/assets/music, and a line here. */
+export const LEXICON_MUSIC: AssetRef[] = [
+  { id: 'music:main-theme', kind: 'audio', url: '/games/lexicon/assets/music/explorers-path.mp3', license: 'owner', source: "Kenne, Lexicon score ideas: The Explorer's Path (main theme)" },
+];
+
 export function lexiconProject(now = Date.now()): GameProject {
   return {
     kind: GAME_PROJECT_KIND, version: GAME_PROJECT_VERSION, id: 'lexicon', name: 'Lexicon: The Unwriting',
     template: 'adventure', runtime: { game: 'lexicon' }, startLevel: 'glossa',
-    levels: [structuredClone(glossa), structuredClone(temple)], assets: [], rules: [],
+    levels: [structuredClone(glossa), structuredClone(temple)], assets: LEXICON_MUSIC.map((a) => ({ ...a })), rules: [],
     createdAt: now, updatedAt: now,
   };
 }
