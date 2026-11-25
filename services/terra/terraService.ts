@@ -22,6 +22,7 @@ import { hashListingRecord, validateListingRecord } from './olr';
 import { packParcel, unpackParcel, type TerraParcel, type TerraCivicRecord, type ZoningRule, type TerraIngestionSummary, type TerraBuildingEnergy, type TerraBusinessLicense, type TerraRentalCompliance } from './terraTypes';
 import { addressKey, businessNameKey } from './normalize';
 import { coverBounds, type GeoBounds } from './geohash';
+import { fetchCountyParcel, isCountyJurisdiction } from './countyParcels';
 
 export const TERRA_COLLECTIONS = {
   parcels: 'terraParcels',
@@ -110,6 +111,10 @@ export const saveParcels = (parcels: TerraParcel[]) =>
   writeEnvelopeBatch(TERRA_COLLECTIONS.parcels, parcels.map(p => ({ id: p.id, data: packParcel(p) })));
 
 export async function fetchParcel(parcelId: string): Promise<TerraParcel | null> {
+  // County parcels aren't stored — they're read live from the county layer.
+  if (isCountyJurisdiction(parcelId.split(':')[0])) {
+    try { return await fetchCountyParcel(parcelId); } catch { return null; }
+  }
   try {
     const snap = await getDoc(doc(db, TERRA_COLLECTIONS.parcels, parcelId));
     return snap.exists() ? unpackParcel((snap.data() as TerraEnvelope<TerraParcel>).data) : null;

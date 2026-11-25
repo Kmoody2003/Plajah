@@ -31,6 +31,7 @@ import type { TerraParcel, TerraCivicRecord, CivicRecordKind } from '../../servi
 import { fetchParcelsInBounds, clearParcelCellCache, fetchCivicForParcel, fetchParcel } from '../../services/terra/terraService';
 import { searchTerra, browseForSale, type TerraSearchHit, type TerraSearchResult, type ForSaleResult, type ForSaleScope } from '../../services/terra/terraSearch';
 import { fetchDetroitStreets, fetchDetroitParcels, type StreetSegment } from '../../services/terra/detroitAdapter';
+import { fetchCountyParcelsInBounds, fetchCountyParcelsAround, isCountyJurisdiction, countiesInBounds, COUNTY_LIST } from '../../services/terra/countyParcels';
 import { surveyParcel, outerRing, type ParcelSurvey } from '../../services/terra/survey/parcelSurvey';
 import { formatBearing } from '../../services/terra/survey/cogo';
 import { ParcelSurveyPanel } from './ParcelSurveyPanel';
@@ -90,6 +91,14 @@ function vintageOf(parcel: TerraParcel | null): string {
 // ─── Map ─────────────────────────────────────────────────────────────────────
 
 const DETROIT_CENTER: [number, number] = [42.3548, -83.0864];
+/** City limits plus a margin (Detroit parcel layer extent). */
+const DETROIT_EXTENT = { west: -83.30, east: -82.90, south: 42.25, north: 42.46 };
+
+/** Jump targets for the header. Counties are parcel-only (no zoning, civic feeds or streets yet). */
+const REGIONS = [
+  { id: 'detroit', label: 'Detroit', lat: DETROIT_CENTER[0], lng: DETROIT_CENTER[1], hint: 'City of Detroit: parcels, zoning, civic records' },
+  ...COUNTY_LIST.map(c => ({ id: c.id, label: c.short.replace(' Co.', ''), lat: c.center.lat, lng: c.center.lng, hint: `${c.label}: parcels only, read live from the county` })),
+];
 
 const ParcelMap: React.FC<{
   parcels: TerraParcel[];
@@ -102,7 +111,7 @@ const ParcelMap: React.FC<{
   /** City street centrelines for the current viewport. */
   streets?: StreetSegment[];
   /** Fly here when it changes — search results move the map, not just filter it. */
-  focus?: { lat: number; lng: number; key: number } | null;
+  focus?: { lat: number; lng: number; key: number; zoom?: number } | null;
   /** Survey overlay for the selected parcel: side dimensions + the record boundary. */
   survey?: ParcelSurvey | null;
   /** Public infrastructure overlays (hydrants, covers, lights, ROW records, footprints). */
@@ -363,7 +372,7 @@ const ParcelMap: React.FC<{
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !focus) return;
-    try { map.setView([focus.lat, focus.lng], Math.max(map.getZoom(), 17)); } catch { /* mid-teardown */ }
+    try { map.setView([focus.lat, focus.lng], focus.zoom ?? Math.max(map.getZoom(), 17)); } catch { /* mid-teardown */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focus?.key, mapReady]);
 
@@ -526,7 +535,7 @@ const ParcelInspector: React.FC<{ parcel: TerraParcel | null; survey?: ParcelSur
           <Row k="Sides" v={`${survey.mapped.sides.length}${survey.mapped.isRectangular ? ' · rectangular' : ''}`} />
           <Row k="Map area" v={`${fmtNum(survey.mapped.areaSqFt)} sqft · ${(survey.mapped.areaSqFt / 43560).toFixed(3)} ac`} />
           <Row k="Perimeter" v={`${survey.mapped.perimeter.toFixed(1)} ft`} />
-          <p className="text-[9px] text-white/30 leading-relaxed pt-1.5">From the city parcel map, not a survey.</p>
+          <p className="text-[9px] text-white/30 leading-relaxed pt-1.5">From the {parcel.jurisdiction === 'detroit' ? 'city' : 'county'} parcel map, not a survey.</p>
           <Row k="Legal desc." v={survey.record
             ? `metes & bounds · ${survey.record.misclosure < 0.005 ? 'closes' : `1:${Math.round(survey.record.precision).toLocaleString()}`}`
             : survey.legal.plat?.liber ? `platted · L${survey.legal.plat.liber} P${survey.legal.plat.page}` : survey.legal.raw ? 'lot description' : '—'} />
@@ -786,10 +795,11 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
     const ctl = new AbortController();
     const xs = ring.map(c => c[0]), ys = ring.map(c => c[1]);
     const pad = 0.0007;
-    fetchDetroitParcels({
-      envelope: { xmin: Math.min(...xs) - pad, ymin: Math.min(...ys) - pad, xmax: Math.max(...xs) + pad, ymax: Math.max(...ys) + pad },
-      maxRecords: 600, signal: ctl.signal,
-    }).then(rows => setBlockParcels({ id: selected.id, rows })).catch(() => { /* falls back to the viewport parcels */ });
+    const envelope = { xmin: Math.min(...xs) - pad, ymin: Math.min(...ys) - pad, xmax: Math.max(...xs) + pad, ymax: Math.max(...ys) + pad };
+    (isCountyJurisdiction(selected.jurisdiction)
+      ? fetchCountyParcelsAround(selected.jurisdiction, envelope, { maxRecords: 600, signal: ctl.signal })
+      : fetchDetroitParcels({ envelope, maxRecords: 600, signal: ctl.signal })
+    ).then(rows => setBlockParcels({ id: selected.id, rows })).catch(() => { /* falls back to the viewport parcels */ });
     return () => ctl.abort();
   }, [surveyOpen, selected, blockParcels?.id]);
   // Separate effect: sharing one with the adjoiner fetch let that fetch's
@@ -824,6 +834,7 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
   const MIN_PARCEL_ZOOM = 14;
   const viewportTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastViewport = useRef<{ south: number; west: number; north: number; east: number; zoom: number } | null>(null);
+  const viewportReq = useRef(0);
 
   const loadViewport = useCallback((immediate = false) => {
     if (viewportTimer.current) clearTimeout(viewportTimer.current);
@@ -835,9 +846,25 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
       if (vp.zoom < MIN_PARCEL_ZOOM) { setZoomedOut(true); setLoading(false); return; }
       setZoomedOut(false);
       setLoading(true);
-      fetchParcelsInBounds(vp)
-        .then(setParcels)
-        .finally(() => setLoading(false));
+      // Detroit comes from the ingested store; Oakland/Ottawa straight from each
+      // county's layer (only when the view touches that county). Each source
+      // draws as soon as it answers, so a slow store never holds a county back;
+      // a newer viewport drops a stale answer.
+      const req = ++viewportReq.current;
+      let city: TerraParcel[] | null = null;
+      let county: TerraParcel[] | null = countiesInBounds(vp).length ? null : [];
+      // Only Detroit is in the store; a view wholly outside the city skips the read.
+      const touchesDetroit = vp.west <= DETROIT_EXTENT.east && vp.east >= DETROIT_EXTENT.west && vp.south <= DETROIT_EXTENT.north && vp.north >= DETROIT_EXTENT.south;
+      if (!touchesDetroit) city = [];
+      const publish = () => {
+        if (req !== viewportReq.current) return;
+        setParcels([...(city ?? []), ...(county ?? [])]);
+        if (city !== null && county !== null) setLoading(false);
+      };
+      if (city === null) fetchParcelsInBounds(vp).catch(() => [] as TerraParcel[]).then(r => { city = r; publish(); });
+      if (county === null) {
+        fetchCountyParcelsInBounds(vp).catch(() => [] as TerraParcel[]).then(r => { county = r; publish(); });
+      }
       // Streets come straight from the city layer (server-side spatial filter),
       // independent of the parcel read so one slow source can't block the other.
       fetchDetroitStreets(vp).then(setStreets).catch(() => { /* context only */ });
@@ -873,10 +900,15 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
   // The search box no longer filters the viewport (that only ever matched what
   // was already on screen). It queries the city's layers and moves the map.
   const visible = parcels;
+  // Credit whichever county layers are on screen.
+  const countyCredit = useMemo(() => {
+    const ids = new Set(visible.map(p => p.jurisdiction).filter(j => j !== 'detroit'));
+    return COUNTY_LIST.filter(c => ids.has(c.id)).map(c => c.short.replace(' Co.', ' County')).join(', ');
+  }, [visible]);
   const [searchBusy, setSearchBusy] = useState(false);
   const [searchResult, setSearchResult] = useState<TerraSearchResult | null>(null);
   const [panel, setPanel] = useState<'none' | 'search' | 'forsale'>('none');
-  const [focus, setFocus] = useState<{ lat: number; lng: number; key: number } | null>(null);
+  const [focus, setFocus] = useState<{ lat: number; lng: number; key: number; zoom?: number } | null>(null);
   const pendingSelect = useRef<string | null>(null);
   const searchSeq = useRef(0);
 
@@ -942,10 +974,19 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
           </div>
           <div>
             <h1 className="text-sm font-black uppercase tracking-widest text-white">Terra</h1>
-            <p className="text-[10px] font-bold" style={{ color: ACCENT }}>Detroit · every parcel, public record</p>
+            <p className="text-[10px] font-bold" style={{ color: ACCENT }}>Detroit, Oakland &amp; Ottawa · every parcel, public record</p>
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            <div className="flex items-center gap-1" role="group" aria-label="Jump to area">
+              {REGIONS.map(r => (
+                <button key={r.id} onClick={() => setFocus({ lat: r.lat, lng: r.lng, zoom: 15, key: Date.now() })}
+                  title={r.hint}
+                  className="px-2.5 py-2 rounded-xl bg-white/5 border border-white/10 text-white/50 text-[10px] font-black uppercase tracking-widest hover:text-white/80 hover:border-white/25 transition-colors">
+                  {r.label}
+                </button>
+              ))}
+            </div>
             <form className="relative" onSubmit={e => { e.preventDefault(); runSearch(q); }}>
               <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25" />
               <input
@@ -1087,7 +1128,7 @@ export const TerraExplorer: React.FC<{ onOpenPassport?: (parcelId: string) => vo
               <button onClick={() => setSourcesOpen(true)}
                 className="pointer-events-auto min-w-0 truncate text-[9px] font-mono text-white/40 hover:text-white/80 tracking-wider bg-black/50 rounded px-1.5 py-0.5"
                 title={TERRA_SHORT_NOTICE}>
-                Data: City of Detroit, DWSD, PLA, Mapillary (CC BY-SA) · Not a survey · Sources & terms
+                {countyCredit ? `${countyCredit} · ` : ''}Data: City of Detroit, DWSD, PLA, Mapillary (CC BY-SA) · Not a survey · Sources & terms
               </button>
             </div>
             {noticeGate && (

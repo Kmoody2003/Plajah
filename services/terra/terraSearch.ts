@@ -19,6 +19,7 @@
 
 import { queryArcGisGeoJson, DETROIT_LAYERS } from './detroitAdapter';
 import { fetchPublishableListings } from './terraService';
+import { searchCountyParcels, COUNTY_LIST } from './countyParcels';
 import type { OpenListingRecord, PropertyType } from './olr';
 
 export type TerraHitKind = 'parcel' | 'business' | 'landbank' | 'listing';
@@ -80,6 +81,8 @@ export function classifyQuery(raw: string): TerraSearchResult['mode'] {
   if (/^\d{5}(-\d{4})?$/.test(q)) return 'zip';
   // Detroit parcel ids look like "02001910-5" / "22012345." — digits then a separator.
   if (/^\d{6,}[-.]?\w*\.?$/.test(q) && /[-.]/.test(q)) return 'parcel';
+  // Oakland ("25-04-276-018" / 10 digits) and Ottawa ("70-14-17-408-017") PINs.
+  if (COUNTY_LIST.some(c => c.normalizePin(q) !== null)) return 'parcel';
   return 'text';
 }
 
@@ -244,13 +247,18 @@ export async function searchTerra(raw: string): Promise<TerraSearchResult> {
   }
 
   const needle = t;
-  const [parcels, businesses, landBank, listings] = await Promise.all([
-    parcelWhere ? guard('City parcels', errors, () => searchParcels(parcelWhere!)) : Promise.resolve([]),
+  // A county-format PIN isn't a Detroit parcel id, so don't ask Detroit for it.
+  const countyPin = mode === 'parcel' && COUNTY_LIST.some(c => c.normalizePin(t) !== null);
+  const [detroitParcels, countyParcels, businesses, landBank, listings] = await Promise.all([
+    parcelWhere && !countyPin ? guard('City parcels', errors, () => searchParcels(parcelWhere!)) : Promise.resolve([]),
+    guard('County parcels', errors, async () => (await searchCountyParcels(t, mode, { houseNo, streetWord }))
+      .map(h => ({ kind: 'parcel' as const, id: `parcel:${h.parcelId}`, title: h.title, subtitle: h.subtitle, parcelId: h.parcelId, lat: h.lat, lng: h.lng }))),
     bizWhere ? guard('Business licences', errors, () => searchBusinesses(bizWhere!, mode === 'zip' ? 40 : PER_GROUP)) : Promise.resolve([]),
     dlbaWhere ? guard('Land Bank', errors, () => searchLandBank(dlbaWhere!)) : Promise.resolve([]),
     guard('Terra listings', errors, async () =>
       (await activeListings()).filter(r => listingMatches(r, needle)).slice(0, PER_GROUP).map(listingHit)),
   ]);
+  const parcels = [...detroitParcels, ...countyParcels];
   return { query, mode, addressLike, parcels, businesses, landBank, listings, errors };
 }
 

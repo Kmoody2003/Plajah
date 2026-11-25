@@ -14,7 +14,9 @@
 
 import type { OlrSource } from './olr';
 
-export type TerraJurisdiction = 'detroit';
+/** Detroit is fully ingested (civic feeds, zoning). Counties are parcel-only,
+ *  read live — see services/terra/countyParcels.ts. */
+export type TerraJurisdiction = 'detroit' | 'oakland' | 'ottawa';
 
 // ─── Parcel — the spine ──────────────────────────────────────────────────────
 

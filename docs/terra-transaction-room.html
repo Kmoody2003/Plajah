@@ -1,0 +1,447 @@
+<title>Terra Transaction Room</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;700;800;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column (Plajah dark shell) with full-width tables, spec sections as cards, Terra orange as the action color */
+:root {
+  --bg: #020202;
+  --card: rgba(255,255,255,0.03);
+  --card-2: rgba(255,255,255,0.06);
+  --border: rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.14);
+  --fg: #f4f2f7;
+  --fg-2: rgba(244,242,247,0.70);
+  --fg-3: rgba(244,242,247,0.42);
+  --orange: #FF8C00;
+  --orange-soft: rgba(255,140,0,0.12);
+  --purple: #6B0099;
+  --magenta: #D40055;
+  --magenta-soft: rgba(212,0,85,0.14);
+  --cyan: #00DAF3;
+  --cyan-soft: rgba(0,218,243,0.10);
+  --blue: #5B8DEF;
+  --blue-soft: rgba(91,141,239,0.12);
+  --success: #06D6A0;
+  --success-soft: rgba(6,214,160,0.12);
+  --warning: #F59E0B;
+  --warning-soft: rgba(245,158,11,0.13);
+  --code-bg: rgba(255,255,255,0.04);
+  --grad-warm: linear-gradient(120deg, #6B0099 0%, #D40055 55%, #FF8C00 100%);
+  --font-display: "Outfit", "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", "Manrope", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --r-card: 24px;
+  --r-sm: 12px;
+  --r-full: 9999px;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f8fafc; --card: #ffffff; --card-2: #f1f0f5; --border: rgba(20,10,30,0.09); --border-strong: rgba(20,10,30,0.18);
+    --fg: #14101a; --fg-2: rgba(20,16,26,0.72); --fg-3: rgba(20,16,26,0.48);
+    --orange: #C25E00; --orange-soft: rgba(255,140,0,0.12); --magenta: #B00048; --magenta-soft: rgba(212,0,85,0.09);
+    --cyan: #00799A; --cyan-soft: rgba(0,170,200,0.10); --blue: #2F5FC4; --blue-soft: rgba(91,141,239,0.12);
+    --success: #038A66; --success-soft: rgba(6,214,160,0.12); --warning: #A86400; --warning-soft: rgba(245,158,11,0.14);
+    --code-bg: #f1f0f5; color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f8fafc; --card: #ffffff; --card-2: #f1f0f5; --border: rgba(20,10,30,0.09); --border-strong: rgba(20,10,30,0.18);
+  --fg: #14101a; --fg-2: rgba(20,16,26,0.72); --fg-3: rgba(20,16,26,0.48);
+  --orange: #C25E00; --orange-soft: rgba(255,140,0,0.12); --magenta: #B00048; --magenta-soft: rgba(212,0,85,0.09);
+  --cyan: #00799A; --cyan-soft: rgba(0,170,200,0.10); --blue: #2F5FC4; --blue-soft: rgba(91,141,239,0.12);
+  --success: #038A66; --success-soft: rgba(6,214,160,0.12); --warning: #A86400; --warning-soft: rgba(245,158,11,0.14);
+  --code-bg: #f1f0f5; color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 980px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 72px; }
+
+/* hero */
+.hero { margin-top: calc(-1 * env(safe-area-inset-top, 0px)); padding-top: calc(env(safe-area-inset-top, 0px) + 56px); padding-bottom: 40px; position: relative; }
+.hero::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 4px; background: var(--grad-warm); }
+.eyebrow { font-family: var(--font-display); font-weight: 800; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--orange); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.eyebrow .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--fg-3); }
+.eyebrow .muted { color: var(--fg-3); }
+h1 { font-family: var(--font-display); font-weight: 900; font-size: clamp(2.25rem, 7vw, 3.6rem); line-height: 1.02; letter-spacing: -0.025em; margin: 14px 0 16px; text-wrap: balance; }
+.lede { font-size: 1.075rem; color: var(--fg-2); max-width: 64ch; margin: 0; }
+.notice { margin-top: 22px; display: inline-flex; gap: 10px; align-items: flex-start; padding: 10px 14px; border-radius: var(--r-sm); background: var(--warning-soft); color: var(--fg); font-size: 13px; max-width: 70ch; }
+.notice b { color: var(--warning); font-family: var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; font-size: 11px; white-space: nowrap; padding-top: 2px; }
+
+/* nav */
+.toc { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 36px; }
+.toc a { font-family: var(--font-display); font-weight: 700; font-size: 12px; letter-spacing: 0.02em; color: var(--fg-2); text-decoration: none; padding: 6px 12px; border-radius: var(--r-full); border: 1px solid var(--border); background: var(--card); }
+.toc a:hover, .toc a:focus-visible { color: var(--fg); border-color: var(--orange); outline: none; }
+
+/* sections */
+section { margin-top: 48px; scroll-margin-top: 24px; }
+.sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.sec-num { font-family: var(--font-mono); font-size: 12px; color: var(--fg-3); }
+h2 { font-family: var(--font-display); font-weight: 800; font-size: clamp(1.4rem, 4vw, 1.75rem); letter-spacing: -0.01em; line-height: 1.15; margin: 0; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; margin: 26px 0 10px; }
+p { margin: 0 0 12px; max-width: 72ch; }
+.sub { color: var(--fg-2); }
+ul.clean, ol.clean { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; max-width: 74ch; }
+ul.clean li::marker { color: var(--orange); }
+ol.clean li::marker { color: var(--orange); font-family: var(--font-mono); font-size: 13px; }
+code { font-family: var(--font-mono); font-size: 0.86em; background: var(--code-bg); padding: 1px 6px; border-radius: 6px; }
+
+/* card + grids */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r-card); padding: 22px; min-width: 0; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 12px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px; }
+@media (max-width: 760px) { .grid3, .grid2 { grid-template-columns: 1fr; } }
+.lane-label { font-family: var(--font-display); font-weight: 800; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; display: block; }
+.lane-plajah .lane-label { color: var(--orange); }
+.lane-partner .lane-label { color: var(--cyan); }
+.lane-person .lane-label { color: var(--blue); }
+.lane-plajah { border-top: 3px solid var(--orange); }
+.lane-partner { border-top: 3px solid var(--cyan); }
+.lane-person { border-top: 3px solid var(--blue); }
+.card p:last-child, .card ul:last-child { margin-bottom: 0; }
+.card .small { font-size: 14px; color: var(--fg-2); }
+
+/* rules */
+.rules { display: grid; gap: 10px; counter-reset: r; }
+.rule { display: grid; grid-template-columns: 34px 1fr; gap: 14px; align-items: start; padding: 16px 18px; border-radius: 18px; background: var(--card); border: 1px solid var(--border); }
+.rule .n { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--orange-soft); color: var(--orange); font-family: var(--font-display); font-weight: 900; }
+.rule h4 { margin: 4px 0 4px; font-family: var(--font-display); font-weight: 800; font-size: 1rem; }
+.rule p { margin: 0; color: var(--fg-2); font-size: 14px; }
+
+/* pills */
+.pill { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-display); font-weight: 800; font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 9px; border-radius: var(--r-full); white-space: nowrap; vertical-align: 2px; }
+.pill.gate { background: var(--magenta-soft); color: var(--magenta); }
+.pill.pending { background: var(--warning-soft); color: var(--warning); }
+.pill.ok { background: var(--success-soft); color: var(--success); }
+
+/* tables */
+.tbl { overflow-x: auto; border: 1px solid var(--border); border-radius: 18px; background: var(--card); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 560px; }
+th { text-align: left; font-family: var(--font-display); font-weight: 800; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-3); padding: 12px 14px; border-bottom: 1px solid var(--border-strong); background: var(--card-2); }
+td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--fg-2); }
+td:first-child { color: var(--fg); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--fg); white-space: nowrap; }
+.cite { font-family: var(--font-mono); font-size: 12px; color: var(--fg-3); white-space: nowrap; }
+
+/* lifecycle */
+.flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; }
+.st { font-family: var(--font-mono); font-size: 12.5px; padding: 6px 11px; border-radius: var(--r-full); border: 1px solid var(--border-strong); background: var(--card-2); color: var(--fg); white-space: nowrap; }
+.st.hot { border-color: var(--orange); color: var(--orange); background: var(--orange-soft); }
+.st.end { border-color: var(--success); color: var(--success); background: var(--success-soft); }
+.st.stop { border-color: var(--magenta); color: var(--magenta); background: var(--magenta-soft); }
+.arr { color: var(--fg-3); font-size: 13px; padding: 0 2px; }
+.flow-note { margin-top: 14px; font-size: 13.5px; color: var(--fg-2); }
+.map { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; margin-top: 16px; }
+.map div { font-size: 13px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--card-2); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.map code { background: none; padding: 0; }
+.map .resos { color: var(--blue); font-family: var(--font-mono); font-size: 12px; }
+
+/* code block */
+pre.block { margin: 0; overflow-x: auto; background: var(--code-bg); border: 1px solid var(--border); border-radius: 18px; padding: 18px 20px; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.65; color: var(--fg); }
+pre.block .c { color: var(--fg-3); }
+pre.block .k { color: var(--orange); }
+pre.block .t { color: var(--cyan); }
+
+/* money flow */
+.money { display: grid; gap: 8px; }
+.mrow { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); gap: 10px; align-items: center; }
+.node { padding: 10px 14px; border-radius: var(--r-sm); background: var(--card-2); border: 1px solid var(--border); font-weight: 600; font-size: 14px; }
+.node.escrow { border-color: var(--cyan); color: var(--cyan); background: var(--cyan-soft); }
+.node.pj { border-color: var(--orange); color: var(--orange); background: var(--orange-soft); }
+.edge { font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-3); text-align: center; white-space: nowrap; }
+.edge::after { content: " →"; color: var(--fg-2); }
+@media (max-width: 560px) { .mrow { grid-template-columns: 1fr; } .edge { text-align: left; } .edge::after { content: " ↓"; } }
+
+/* build order */
+.steps { display: grid; gap: 8px; }
+.step { display: grid; grid-template-columns: 42px 1fr; gap: 12px; align-items: center; padding: 12px 16px; border-radius: 16px; background: var(--card); border: 1px solid var(--border); }
+.step .n { font-family: var(--font-display); font-weight: 900; font-size: 1.4rem; color: var(--orange); text-align: center; }
+.step b { font-family: var(--font-display); font-weight: 700; }
+.step span { color: var(--fg-2); font-size: 14px; }
+
+.foot { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--fg-3); font-size: 13px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.brand { font-family: var(--font-display); font-weight: 900; letter-spacing: 0.02em; background: var(--grad-warm); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; }
+a { color: var(--orange); }
+:focus-visible { outline: 2px solid var(--orange); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+html { scroll-behavior: smooth; }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow">Plajah Terra <span class="dot"></span> <span class="muted">Product spec</span> <span class="dot"></span> <span class="muted">Draft · 25 Nov 2026</span> <span class="dot"></span> <span class="muted">Detroit first</span></div>
+    <h1>Terra Transaction Room</h1>
+    <p class="lede">How a homeowner sells their own property, or a buyer and seller who already found each other close a direct sale, entirely on Plajah, and end with a deed the Wayne County Register of Deeds records like any other.</p>
+    <div class="notice"><b>Not legal advice</b><span>Items marked <span class="pill gate">Attorney gate</span> need sign-off from a Michigan real estate attorney before launch.</span></div>
+  </header>
+
+  <nav class="toc" aria-label="Sections">
+    <a href="#line">The line</a><a href="#rules">Hard rules</a><a href="#roles">Roles</a><a href="#lifecycle">Lifecycle</a><a href="#deadlines">Deadlines</a><a href="#data">Data model</a><a href="#agents">Agent work</a><a href="#verify">Seller verification</a><a href="#partners">Partners</a><a href="#money">Money flow</a><a href="#permits">Permit Binder</a><a href="#expansion">Expansion</a><a href="#build">Build order</a><a href="#open">Open decisions</a>
+  </nav>
+
+  <section id="line">
+    <div class="sec-head"><span class="sec-num">01</span><h2>Plajah coordinates. Licensed parties perform the legal acts.</h2></div>
+    <div class="grid3">
+      <div class="card lane-plajah"><span class="lane-label">Plajah does</span><p class="small">Listing, offers, documents, deadlines, checklists, plain-language explanations, and the audit trail.</p></div>
+      <div class="card lane-partner"><span class="lane-label">Licensed partner does</span><p class="small">Title search sign-off and title insurance, escrow of all money, remote online notarization, e-recording, settlement statement, 1099-S, FIRPTA.</p></div>
+      <div class="card lane-person"><span class="lane-label">The person does</span><p class="small">Signs, pays, makes every decision, and submits the filings that must come from them: Property Transfer Affidavit, principal residence exemption, permits.</p></div>
+    </div>
+  </section>
+
+  <section id="rules">
+    <div class="sec-head"><span class="sec-num">02</span><h2>Hard rules</h2></div>
+    <div class="rules">
+      <div class="rule"><div class="n">1</div><div><h4>Plajah holds no money</h4><p>Earnest money, closing funds and seller proceeds move between the parties and the title/escrow partner only. No smart contract, wallet or Plajah balance ever holds them. This is Plajah's own rule, and money-transmitter law points the same way.</p></div></div>
+      <div class="rule"><div class="n">2</div><div><h4>Flat fees only for real estate <span class="pill gate">Attorney gate</span></h4><p>A fee tied to the price or to a closed sale risks being "acting as a broker" under MCL 339.2501. The platform's 5% direct-sales fee never applies to a property sale.</p></div></div>
+      <div class="rule"><div class="n">3</div><div><h4>The recorded deed is the legal record</h4><p>Michigan is a race-notice state: priority comes from recording at the county. Plajah's event chain mirrors that record and audits the process. It is never "the title."</p></div></div>
+      <div class="rule"><div class="n">4</div><div><h4>Templates, not legal advice <span class="pill gate">Attorney gate</span></h4><p>Deeds and purchase agreements use attorney-approved templates filled from the parties' own answers, with a one-tap "attorney review" option. This guards against unauthorized practice of law.</p></div></div>
+    </div>
+  </section>
+
+  <section id="roles">
+    <div class="sec-head"><span class="sec-num">03</span><h2>Parties and roles</h2></div>
+    <p class="sub">Every person in a room is bound to a Plajah ID (PJ-…), not an email. Sellers pass owner-of-record verification before a listing can go live.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Role</th><th>Who</th><th>Can</th></tr></thead>
+      <tbody>
+        <tr><td>Seller</td><td>All owners of record, plus a spouse where Michigan homestead rules require</td><td>Edit listing, accept or counter, sign, upload disclosures</td></tr>
+        <tr><td>Buyer</td><td>The offeror(s)</td><td>Make and counter offers, sign, upload proof of funds or pre-approval</td></tr>
+        <tr><td>Title</td><td>Partner title agency licensed by DIFS</td><td>Post commitment, settlement statement and wire instructions; close</td></tr>
+        <tr><td>Lender</td><td>Buyer's lender</td><td>Post approval and conditions, Closing Disclosure date</td></tr>
+        <tr><td>Attorney</td><td>Optional, either side</td><td>Read everything, comment, approve documents</td></tr>
+        <tr><td>Inspector / appraiser</td><td>Invited per task</td><td>Upload a report into one slot</td></tr>
+        <tr><td>Notary</td><td>Online notarization partner</td><td>Session link, notarial certificate</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="lifecycle">
+    <div class="sec-head"><span class="sec-num">04</span><h2>Lifecycle</h2></div>
+    <div class="card">
+      <div class="flow">
+        <span class="st">draft</span><span class="arr">→</span><span class="st">verified</span><span class="arr">→</span><span class="st hot">listed</span><span class="arr">→</span><span class="st">offer received</span><span class="arr">→</span><span class="st hot">under contract</span><span class="arr">→</span><span class="st">contingencies</span><span class="arr">→</span><span class="st">clear to close</span><span class="arr">→</span><span class="st">signing</span><span class="arr">→</span><span class="st">funded</span><span class="arr">→</span><span class="st end">recorded</span><span class="arr">→</span><span class="st">post close</span><span class="arr">→</span><span class="st end">closed</span>
+      </div>
+      <p class="flow-note">Offers loop through counter and reject until one is accepted. Contingencies cover disclosure, inspection, financing, appraisal and title; each is cleared or waived. From any state a room can move to <span class="st stop" style="font-size:11.5px;padding:2px 8px">terminated</span>, with a reason and a deposit instruction sent to title. Transitions are checked on the server: required documents, signatures and deadlines must be in place. The app can only request a move.</p>
+      <div class="map" aria-label="Room state to listing status">
+        <div><code>listed</code><span class="resos">Active</span></div>
+        <div><code>under contract</code><span class="resos">ActiveUnderContract</span></div>
+        <div><code>clear to close</code><span class="resos">Pending</span></div>
+        <div><code>recorded</code><span class="resos">Closed</span></div>
+        <div><code>terminated</code><span class="resos">Active / Withdrawn</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="deadlines">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Deadlines the room enforces</h2></div>
+    <p class="sub">Michigan defaults, editable per contract. Reminders go out 48 and 24 hours before each one.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Clock</th><th>Default</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td>Offer expiration</td><td>Set by the offeror</td><td class="cite">Purchase agreement</td></tr>
+        <tr><td>Seller Disclosure termination right</td><td class="num">72 h in person · 120 h by mail</td><td class="cite">MCL 565.954</td></tr>
+        <tr><td>Lead paint inspection (built before 1978)</td><td class="num">10 days unless waived</td><td class="cite">42 USC 4852d</td></tr>
+        <tr><td>Inspection contingency</td><td class="num">10 days</td><td class="cite">Purchase agreement</td></tr>
+        <tr><td>Financing commitment</td><td class="num">21–30 days</td><td class="cite">Purchase agreement</td></tr>
+        <tr><td>Closing Disclosure to buyer (financed)</td><td class="num">≥ 3 business days before signing</td><td class="cite">12 CFR 1026.19</td></tr>
+        <tr><td>Property Transfer Affidavit (buyer files)</td><td class="num">45 days after transfer</td><td class="cite">MCL 211.27a</td></tr>
+        <tr><td>Mortgage discharge recorded by seller's lender</td><td class="num">28 days after payoff</td><td class="cite">MCL 565.44</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="data">
+    <div class="sec-head"><span class="sec-num">06</span><h2>Data model</h2></div>
+    <p class="sub">All transaction data is server-only: reads and writes go through <code>/api/terra/tx/*</code> with the service account, like Terra ingestion and Plajah ID. Files sit in Firebase Storage behind signed links, scoped by who may see them.</p>
+<pre class="block"><span class="k">terraTx</span>/{txId}
+  parcelId       <span class="t">"detroit:&lt;parcelNumber&gt;"</span>   <span class="c">join to terraParcels</span>
+  listingKey?    <span class="c">terraListings/{key}</span>
+  state          <span class="c">lifecycle state</span>
+  parties        { [pjId]: { role, uid, verifiedAt?, displayName } }
+  terms          <span class="c">price, deposit, contingencies, closing date, inclusions</span>
+  deadlines      [{ kind, dueAt, satisfiedAt?, waivedAt?, waivedBy? }]
+  partners       { title?, ron?, erecord? }
+  head           { eventSeq, eventHash }   <span class="c">tip of the hash chain</span>
+  recording?     { liber, page, instrumentNo, recordedAt, county }
+
+<span class="k">terraTx</span>/{txId}/<span class="k">events</span>/{seq}    <span class="c">append-only, hash-chained</span>
+  seq, type, actorPjId, at, payload, prevHash, hash
+
+<span class="k">terraTx</span>/{txId}/<span class="k">offers</span>/{offerId}
+  fromPjId, version, terms, status, expiresAt, docId
+
+<span class="k">terraTx</span>/{txId}/<span class="k">docs</span>/{docId}
+  kind, version, storagePath, sha256, uploadedBy,
+  signatures [{ pjId, method, at, sha256AtSign }], visibility
+
+<span class="k">terraTx</span>/{txId}/<span class="k">tasks</span>/{taskId}
+  owner role, status, due, linked doc kind</pre>
+    <h3>The smart contract is this event chain</h3>
+    <ul class="clean">
+      <li>Every event's fingerprint includes the previous one, so any rewrite of history is detectable. Same pattern as Plajah ID history and the listing content hash.</li>
+      <li>A signature locks to the exact bytes signed. A new version of a document needs new signatures.</li>
+      <li>Later, the chain's tip can be anchored to a public chain or timestamp authority at key moments (accepted, recorded). Anchoring only: no value is ever on-chain.</li>
+    </ul>
+  </section>
+
+  <section id="agents">
+    <div class="sec-head"><span class="sec-num">07</span><h2>What Aria does in the room</h2></div>
+    <p class="sub">Agents propose; a person confirms. Nothing is signed, sent, filed or paid by an agent.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Step</th><th>Agent does</th><th>Starts from</th></tr></thead>
+      <tbody>
+        <tr><td>Price</td><td>Comparable sales and assessed value range, each with its date</td><td>Parcel roll, sale data, listings</td></tr>
+        <tr><td>Listing</td><td>Drafts the description, checks Fair Housing language, makes the listing film</td><td>Parcel structure fields</td></tr>
+        <tr><td>Seller disclosure</td><td>Prefills what records show: year built, permits, blight tickets, lead service line, flood zone. The seller answers the rest</td><td>Civic records, infrastructure layers, site context</td></tr>
+        <tr><td>Lead paint</td><td>Flags it as required for homes built before 1978 and generates the federal disclosure</td><td>Parcel</td></tr>
+        <tr><td>Offers</td><td>Compares offers side by side (net to seller, contingencies, financing risk) and drafts a counter from the seller's own words</td><td>Offers</td></tr>
+        <tr><td>Title prep</td><td>Pulls the chain of title, open liens, county tax status and Land Bank deed restrictions; explains each title exception in plain words</td><td>Register of Deeds, Treasurer, parcel</td></tr>
+        <tr><td>Legal description</td><td>Reconciles the deed's description with the parcel roll and the survey engine; flags lines that don't close and encroachments</td><td>Terra survey engine</td></tr>
+        <tr><td>Deed draft</td><td>Fills the template (warranty, covenant or quit-claim) and checks Michigan recording format: margins, typed names, preparer, return address</td><td class="cite">MCL 565.201</td></tr>
+        <tr><td>Transfer tax</td><td>State $3.75 and Wayne County $0.55 per $500; flags exemptions and when form L-4258 is needed</td><td>Price</td></tr>
+        <tr><td>Before closing</td><td>Checklist: water final read (an unpaid bill can become a lien), tax proration, payoff letter, HOA, utilities, keys</td><td>—</td></tr>
+        <tr><td>After closing</td><td>Prefills Forms 2766 and 2368 for the buyer to file, sets the listing to Closed, notes the new owner until the next roll</td><td>Recording</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="verify">
+    <div class="sec-head"><span class="sec-num">08</span><h2>Seller verification</h2></div>
+    <p class="sub">Deed fraud on vacant Detroit lots is real. A listing can't go live until every step passes; a mismatch blocks it, never "warn and continue."</p>
+    <ol class="clean">
+      <li>Identity check: government ID plus a live selfie through a verification partner. Plajah keeps only the result.</li>
+      <li>Name match against the owner on the parcel roll <em>and</em> the last vesting deed at the Register of Deeds. This covers roll lag, trusts, LLCs and estates.</li>
+      <li>Entity and estate sellers upload their authority: operating agreement and resolution, probate letters of authority, or trust certification.</li>
+      <li>Vacant land or an out-of-state owner adds a code mailed to the tax-bill address.</li>
+    </ol>
+  </section>
+
+  <section id="partners">
+    <div class="sec-head"><span class="sec-num">09</span><h2>Partners</h2></div>
+    <div class="tbl"><table>
+      <thead><tr><th>Need</th><th>Partner</th><th>Paid how</th></tr></thead>
+      <tbody>
+        <tr><td>Title, escrow, settlement, 1099-S, FIRPTA</td><td>Michigan-licensed title agency with an API</td><td>By the parties at closing</td></tr>
+        <tr><td>Notarization</td><td>State-approved online notarization platform</td><td>Per session</td></tr>
+        <tr><td>Recording</td><td>Approved e-recording submitter for the county</td><td>Per document</td></tr>
+        <tr><td>Wire safety</td><td>Wire-fraud verification service</td><td>Per closing</td></tr>
+        <tr><td>Identity</td><td>Identity verification provider</td><td>Per check</td></tr>
+        <tr><td>Mortgage</td><td>The buyer's own lender. Plajah only verifies the pre-approval</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+    <p class="sub" style="margin-top:12px">Wire instructions appear only from the title partner's verified channel, never from an uploaded file or a chat message.</p>
+  </section>
+
+  <section id="money">
+    <div class="sec-head"><span class="sec-num">10</span><h2>Money flow</h2></div>
+    <div class="card money">
+      <div class="mrow"><div class="node">Buyer</div><div class="edge">earnest money</div><div class="node escrow">Title escrow</div></div>
+      <div class="mrow"><div class="node">Buyer</div><div class="edge">closing funds</div><div class="node escrow">Title escrow</div></div>
+      <div class="mrow"><div class="node escrow">Title escrow</div><div class="edge">payoff</div><div class="node">Seller's lender</div></div>
+      <div class="mrow"><div class="node escrow">Title escrow</div><div class="edge">taxes, fees</div><div class="node">County and state</div></div>
+      <div class="mrow"><div class="node escrow">Title escrow</div><div class="edge">proceeds</div><div class="node">Seller</div></div>
+      <div class="mrow"><div class="node">Buyer or seller</div><div class="edge">flat fee</div><div class="node pj">Plajah (separate charge)</div></div>
+    </div>
+    <p class="sub" style="margin-top:12px">Plajah only records a "funds confirmed" event when the title partner reports it.</p>
+  </section>
+
+  <section id="permits">
+    <div class="sec-head"><span class="sec-num">11</span><h2>Permit Binder</h2></div>
+    <p>The same room pattern for Detroit permits and applications. <strong>Plajah hosts the files and the checklist; the person submits on the government portal under their own account.</strong></p>
+    <div class="grid2">
+      <div class="card"><span class="lane-label" style="color:var(--orange)">Plajah does</span><ul class="clean small"><li>Works out which permits a project needs from zoning and the project description</li><li>Checks the document list and fills what it can</li><li>Packages a ready-to-upload set, named the way the portal expects</li><li>Links straight to the official form, or the portal's front page where deep links aren't supported</li></ul></div>
+      <div class="card"><span class="lane-label" style="color:var(--magenta)">Plajah never</span><ul class="clean small"><li>Submits on someone's behalf</li><li>Stores their portal password</li><li>Reads anything behind their login</li></ul><p class="small" style="margin-top:12px">A sale room links the parcel's permit binders, so open permits surface in the seller disclosure and title prep.</p></div>
+    </div>
+    <h3>Detroit portal map <span class="pill ok">Checked 25 Nov 2026</span></h3>
+    <p class="sub">None of these portals has a public submission API, so linking out is the only route. "Form" means Plajah can open the exact form; "Module" means it can open the right section, and the person picks the record type after signing in.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Need</th><th>Portal</th><th>Link depth</th><th>Their login</th><th>Typical documents</th></tr></thead>
+      <tbody>
+        <tr><td>Building permit</td><td>eLAPS (Accela): aca-prod.accela.com/DETROIT</td><td>Module</td><td>Yes</td><td>Sealed architect/engineer drawings, site plan with lot lines, specs; Wayne County soil erosion permit if needed; licensed contractor on the account</td></tr>
+        <tr><td>Electrical, plumbing, mechanical</td><td>eLAPS Permits</td><td>Module</td><td>Yes, contractor licence registered with the city</td><td>Contractor licence, scope of work</td></tr>
+        <tr><td>Fee estimate, permit search, inspections</td><td>eLAPS</td><td>Module</td><td>Search is public</td><td>—</td></tr>
+        <tr><td>Zoning variance or appeal (BZA)</td><td>detroitmi.gov Board of Zoning Appeals; eLAPS Planning</td><td>Form page / module</td><td>Yes for eLAPS</td><td>Application, fee, plans; owners within 300 ft are notified</td></tr>
+        <tr><td>Special land use</td><td>eLAPS Planning → Hearings</td><td>Module</td><td>Yes</td><td>Site plan; approval is recorded at the Register of Deeds</td></tr>
+        <tr><td>Rental registration + Certificate of Compliance</td><td>eLAPS Code Enforcement (via detroitmi.gov/rental)</td><td>Module</td><td>Yes</td><td>Ownership forms, inspection, lead clearance where it applies</td></tr>
+        <tr><td>Demolition</td><td>eLAPS Permits</td><td>Module</td><td>Yes, licensed wrecking contractor</td><td>To confirm: likely asbestos survey and utility disconnects</td></tr>
+        <tr><td>Right of way, sidewalk, curb cut</td><td>DPW on OpenGov: detroitmi.portal.opengov.com</td><td>Portal</td><td>Yes</td><td>Sealed drawings, contractor surety bond, dimensions</td></tr>
+        <tr><td>Historic District Commission</td><td>Application for Work Approval (Survey123)</td><td>Form</td><td>No</td><td>Project review request, photos and drawings; then a BSEED permit</td></tr>
+        <tr><td>Water or sewer connection</td><td>DWSD plan submittal (Smartsheet form)</td><td>Form</td><td>No</td><td>Approved engineering plans, application packet; may also need plumbing and right-of-way permits</td></tr>
+        <tr><td>Final water bill for a sale</td><td>DWSD Real Estate Closing Bill (Smartsheet form)</td><td>Form</td><td>No</td><td>Address and closing details. Allow up to 30 days; an unpaid balance passes to the buyer</td></tr>
+        <tr><td>Land Bank purchase or side lot</td><td>buildingdetroit.org</td><td>Program page</td><td>Yes</td><td>Side lots $100 for the next-door homeowner, with proof of residence</td></tr>
+        <tr><td>Delinquent property tax</td><td>Wayne County Treasurer: pta.waynecounty.com</td><td>Search page</td><td>No</td><td>—</td></tr>
+        <tr><td>Deed records</td><td>Wayne County Register of Deeds: wayne.mi.publicsearch.us</td><td>Search page</td><td>Optional (pay per session for images)</td><td>—</td></tr>
+      </tbody>
+    </table></div>
+    <p class="sub" style="margin-top:12px">Terra can already read open Detroit records to show a parcel's permit history: building, trade and demolition permits, plan reviews, certificates of occupancy, right-of-way permits and Land Bank sales.</p>
+  </section>
+
+  <section id="expansion">
+    <div class="sec-head"><span class="sec-num">12</span><h2>Beyond Detroit</h2></div>
+    <p>Terra is Detroit-only because zoning rules are hand-encoded per city. Parcels alone (shape, owner, value) are much cheaper to add. The plan: add parcel-only counties and cities first, so search, the property passport, listings and the Transaction Room work there, then encode zoning city by city.</p>
+    <p>Michigan has no open statewide parcel layer: the state keeps one for internal use and points to each county. Each source below was checked live on 25 November 2026.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Where</th><th>Parcels</th><th>Owner</th><th>Value</th><th>Sales</th><th>Terms</th></tr></thead>
+      <tbody>
+        <tr><td>Detroit (live today)</td><td class="num">377,940</td><td>Yes</td><td>Yes</td><td>Yes</td><td><span class="pill ok">In use</span></td></tr>
+        <tr><td>Oakland County</td><td class="num">490,819</td><td>Yes</td><td>Yes</td><td>—</td><td><span class="pill ok">Next</span> Terms of use are as-is, no non-commercial clause</td></tr>
+        <tr><td>Macomb County (Warren, Sterling Heights)</td><td class="num">332,993</td><td>Yes</td><td>Yes</td><td>—</td><td><span class="pill pending">Ask</span> No licence stated</td></tr>
+        <tr><td>Kent County (Grand Rapids)</td><td class="num">232,246</td><td>—</td><td>Yes</td><td>—</td><td><span class="pill pending">Ask</span> Open layer now needs a token; public layer has no owners</td></tr>
+        <tr><td>Ottawa County</td><td class="num">115,316</td><td>Yes</td><td>Yes</td><td>—</td><td><span class="pill ok">Next</span> Published for public apps; full export free</td></tr>
+        <tr><td>Ingham County</td><td class="num">101,873</td><td>Yes</td><td>Yes</td><td>—</td><td><span class="pill pending">Ask</span> No licence stated</td></tr>
+        <tr><td>Kalamazoo County</td><td class="num">100,505</td><td>Yes</td><td>Yes</td><td>—</td><td><span class="pill pending">Ask</span> No licence stated</td></tr>
+        <tr><td>Saginaw County</td><td class="num">97,157</td><td>Yes</td><td>Yes</td><td>Yes</td><td><span class="pill pending">Ask</span> No licence stated</td></tr>
+        <tr><td>Muskegon County</td><td class="num">84,816</td><td>Yes</td><td>Yes</td><td>—</td><td><span class="pill pending">Ask</span> Licence not found</td></tr>
+        <tr><td>Allegan County</td><td class="num">67,988</td><td>Yes</td><td>Yes</td><td>—</td><td><span class="pill pending">Ask</span> No licence stated</td></tr>
+        <tr><td>Eaton County</td><td class="num">46,450</td><td>Yes</td><td>Yes</td><td>—</td><td><span class="pill pending">Ask</span> Copyright notice only</td></tr>
+        <tr><td>Ann Arbor (city)</td><td class="num">32,001</td><td>Yes</td><td>Yes</td><td>Yes</td><td><span class="pill pending">Ask</span> City copyright, licence not found</td></tr>
+        <tr><td>Grand Traverse County</td><td class="num">56,797</td><td>Yes</td><td>Yes</td><td>Yes</td><td><span class="pill gate">Permission</span> County sells its GIS data</td></tr>
+        <tr><td>Genesee County (Flint)</td><td class="num">189,790</td><td>Yes</td><td>Yes</td><td>—</td><td><span class="pill gate">No redistribution</span> Terms forbid passing it on</td></tr>
+        <tr><td>Lansing (city)</td><td class="num">42,987</td><td>—</td><td>—</td><td>—</td><td><span class="pill gate">Non-commercial</span> CC BY-NC</td></tr>
+      </tbody>
+    </table></div>
+    <ul class="clean" style="margin-top:14px">
+      <li><strong>No open data:</strong> Wayne County outside Detroit (only a 2015 shapefile), Washtenaw, Livingston, Jackson, Berrien, Monroe, St. Clair, Bay and Marquette offer viewers or paid data only. Options: each city's or township's assessor, a records request, or a licensed statewide feed (Regrid, about $12k a year for Michigan, per end user and not sublicensable).</li>
+      <li><strong>A blank licence is not permission.</strong> Get a short written data-sharing agreement from each "Ask" county before using its data commercially.</li>
+      <li><strong>Owner names are personal data</strong> wherever they appear, so set display and retention rules before adding them.</li>
+      <li><strong>Layer names change every year</strong> (2025, 2026 editions), so the loader finds the current layer through each county's data hub instead of hard-coding it.</li>
+      <li><strong>Recording:</strong> Oakland County accepts e-recording through CSC, eRecording Partners Network, Simplifile and HopDox. Wayne County's recording page lists only in-person and mail, so confirm e-recording with the Register of Deeds before choosing a partner.</li>
+    </ul>
+    <h3>Not in version 1</h3>
+    <ul class="clean">
+      <li>Seller financing and land contracts. Detroit has a history of abuse, and federal and state loan-originator rules apply. Version 2, with required attorney review and a recorded memorandum.</li>
+      <li>Commercial property, buildings over 4 units, new construction, short sales, probate sales without letters of authority.</li>
+      <li>Anywhere outside Wayne County.</li>
+    </ul>
+  </section>
+
+  <section id="build">
+    <div class="sec-head"><span class="sec-num">13</span><h2>Build order</h2></div>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div><b>Room core</b> <span>data, event chain, server routes, roles, deadline engine. Manual uploads, no partners yet.</span></div></div>
+      <div class="step"><div class="n">2</div><div><b>Seller verification</b> <span>identity plus owner-of-record match.</span></div></div>
+      <div class="step"><div class="n">3</div><div><b>Disclosures</b> <span>Seller Disclosure and lead paint, prefilled from Terra.</span></div></div>
+      <div class="step"><div class="n">4</div><div><b>Offers</b> <span>offer, counter and accept on the attorney-approved purchase agreement.</span></div></div>
+      <div class="step"><div class="n">5</div><div><b>Title partner</b> <span>order, commitment, settlement, escrow status.</span></div></div>
+      <div class="step"><div class="n">6</div><div><b>Closing</b> <span>deed builder, transfer tax, online notarization, e-recording.</span></div></div>
+      <div class="step"><div class="n">7</div><div><b>After closing</b> <span>buyer filings, listing and parcel sync.</span></div></div>
+      <div class="step"><div class="n">8</div><div><b>Permit Binder</b></div></div>
+    </div>
+  </section>
+
+  <section id="open">
+    <div class="sec-head"><span class="sec-num">14</span><h2>Open decisions</h2></div>
+    <ul class="clean">
+      <li>Which title agency to partner with, and whether it covers online notarization and e-recording itself.</li>
+      <li>The flat fee amount, and who pays it.</li>
+      <li>Purchase agreement: commission an attorney-drafted by-owner form, or license an existing one.</li>
+      <li>Which identity verification provider.</li>
+      <li>Whether to anchor the event chain publicly in version 1.</li>
+    </ul>
+  </section>
+
+  <footer class="foot"><span><span class="brand">Plajah</span> · Terra</span><span>Draft spec · 25 November 2026</span></footer>
+</div>

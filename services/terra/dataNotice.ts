@@ -91,6 +91,12 @@ export const TERRA_SOURCES: TerraSource[] = [
     accuracy: 'Compiled from City Council journal records; the linked council PDF is the record.', credit: 'ROW vacations & openings: City of Detroit DPW Maps & Records' },
   { id: 'footprints', name: 'Building footprints', publisher: 'City of Detroit (with SEMCOG building attributes)', url: `${ORG}/Detroit_Building_Footprints_(Public_Safety)/FeatureServer/0`, licence: NO_LICENCE,
     accuracy: 'Roof outlines from imagery (2020); eaves read as building. Heights and stories are estimates.', credit: 'Building footprints: City of Detroit / SEMCOG' },
+  { id: 'oakland-parcels', name: 'Parcels — Oakland County', publisher: 'Oakland County, Michigan (Tax Parcel Plus)', url: 'https://gisservices.oakgov.com/arcgis/rest/services/Enterprise/EnterpriseOpenParcelDataMapService/MapServer/1',
+    licence: 'Published through Access Oakland; its terms of use provide the data as-is under Michigan law with no non-commercial restriction stated. Read live, not copied.',
+    accuracy: 'County tax parcel map. Owner names are withheld on many records. No sale history in this layer.', credit: 'Parcels: Oakland County, Michigan' },
+  { id: 'ottawa-parcels', name: 'Parcels — Ottawa County', publisher: 'County of Ottawa, Michigan (ParcelsPublic)', url: 'https://gis.miottawa.org/arcgis/rest/services/HostedServices/ParcelsPublic/FeatureServer/0',
+    licence: '© County of Ottawa. Published for use in public applications; read live, not copied.',
+    accuracy: 'County tax parcel map with legal descriptions as entered on the roll. No sale history in this layer.', credit: 'Parcels: © County of Ottawa, Michigan' },
 ];
 
 /** Credits for the layers actually involved, for footers and exports. */
