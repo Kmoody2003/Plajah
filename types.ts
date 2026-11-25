@@ -1835,6 +1835,14 @@ export interface UserProfile {
   hiddenSections?: string[];
   savedThemePresets?: string[];
   activeThemePresetId?: string;
+  /** Custom-background controls (services/backgroundControls.ts). */
+  bgSource?: 'auto' | 'image' | 'video';
+  bgThemeOpacity?: number;
+  bgBlend?: string;
+  bgBlurPx?: number;
+  bgFrostPct?: number;
+  bgVeilPct?: number;
+  bgUiAlphaPct?: number;
   /** Personal custom theme (palette + background + pack). Cloud-saved with the profile. */
   themeSpec?: ThemeSpec;
   videos?: Video[];

@@ -18,7 +18,7 @@
   --pj-surface-2: rgba(255, 255, 255, 0.08);
   --pj-edge: rgba(255, 255, 255, 0.10);
   --pj-scrim: rgba(0, 0, 0, 0.38);      /* sits between a custom background and the UI */
-  --pj-scrim-blur: 28px;
+  --pj-scrim-blur: 4px;   /* was 28px: a second heavy blur on top of the media's own */
   --pj-glass-blur: 18px;
 }
 
@@ -177,6 +177,7 @@ body.has-custom-background #universal-background .pj-bg-scrim,
 body.theme-bg-media #universal-background .pj-bg-scrim {
   display: block;
   position: absolute; inset: 0; pointer-events: none;
+  opacity: var(--pj-veil, 1);               /* the "Readability veil" control */
   background: var(--pj-scrim);
   -webkit-backdrop-filter: blur(var(--pj-scrim-blur)) saturate(120%);
   backdrop-filter: blur(var(--pj-scrim-blur)) saturate(120%);
@@ -187,7 +188,9 @@ body:is(.has-custom-background, .has-theme-bg)[data-bg-tone="bright"].theme-ligh
 body:is(.has-custom-background, .has-theme-bg)[data-bg-tone="bright"]:not(.theme-light):not(.theme-pastel) { --pj-scrim: rgba(0, 0, 0, 0.58); }
 body:is(.has-custom-background, .has-theme-bg)[data-bg-tone="dark"].theme-light { --pj-scrim: rgba(226, 232, 240, 0.78); }
 body:is(.has-custom-background, .has-theme-bg)[data-bg-tone="dark"]:not(.theme-light):not(.theme-pastel) { --pj-scrim: rgba(0, 0, 0, 0.30); }
-body:is(.has-custom-background, .has-theme-bg).theme-light { --pj-surface: rgba(255, 255, 255, 0.55); }
+body:is(.has-custom-background, .has-theme-bg).theme-light { --pj-surface: rgba(255, 255, 255, calc(0.55 * var(--pj-ui-alpha, 1))); }
+/* "Panel opacity": full-page theme fills let the custom background show through as it drops. */
+body:is(.has-custom-background, .has-theme-bg) .bg-theme { background-color: color-mix(in srgb, var(--bg-color) calc(var(--pj-ui-alpha, 1) * 100%), transparent); }
 
 /* ── Elevate (.ev-scope) follows the theme ───────────────────────────────── */
 body:is(.has-custom-background, .has-theme-bg) .ev-scope { background: transparent; }

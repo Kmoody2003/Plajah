@@ -148,6 +148,7 @@ import LiveFollowPills from './components/LiveFollowPills';
 import { useLiveAlertsPref } from './hooks/useLiveAlertsPref';
 import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
 import ThemeSpecBackground from './components/ThemeSpecBackground';
+import { resolveBgControls } from './services/backgroundControls';
 import { useEffectiveThemeSpec, setUserThemeSpec, setUserBaseTheme } from './services/themeRuntime';
 import { applyPalette } from './services/themePalette';
 import { startContrastGuard, measureImageUrl, setBackgroundTone, clearBackgroundTone } from './services/themeContrast';
@@ -4632,6 +4633,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     }
   }, [view, visitedProfile, userProfile, activeTheme]);
 
+  // Veil strength + interface-panel opacity for the custom background (see theme-system.css).
+  useEffect(() => {
+    const p = view === 'USER_PROFILE' ? visitedProfile : userProfile;
+    const c = resolveBgControls(p);
+    const b = document.body;
+    b.style.setProperty('--pj-veil', String(c.veilPct / 100));
+    b.style.setProperty('--pj-ui-alpha', String(c.uiPct / 100));
+  }, [view, visitedProfile, userProfile]);
+
   // Measure the real brightness of the custom background so the scrim (and the contrast guard)
   // are sized to the image, not guessed.
   useEffect(() => {
@@ -4999,8 +5009,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   const bgAllowed = customBgEnabled !== false;
                   const themeAllowed = customThemeEnabled !== false;
 
+                  const ctl = resolveBgControls(activeProfile);
                   let finalVideoUrl = bgAllowed ? videoBackgroundUrl : null;
                   let finalPhotoUrl = bgAllowed ? frostedBackground : null;
+                  // Still / video toggle: when both are uploaded the person chooses which one plays.
+                  if (ctl.source === 'image' && finalPhotoUrl) finalVideoUrl = null;
+                  else if (ctl.source === 'video' && finalVideoUrl) finalPhotoUrl = null;
 
                   // Evaluate active theme assets
                   if (themeAllowed && activeTheme && activeTheme.assets && activeTheme.assets.length > 0) {
@@ -5045,17 +5059,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                                  e.currentTarget.play(); // No other assets, just loop
                              }
                           }}
-                          className={`w-full h-full object-cover transition-all duration-1000 ${videoBackgroundBlur !== false ? 'blur-[40px] scale-105' : ''}`}
+                          className="w-full h-full object-cover transition-all duration-700"
+                          style={{ filter: ctl.blurPx ? `blur(${ctl.blurPx}px)` : undefined, transform: ctl.blurPx ? `scale(${1 + ctl.blurPx / 300})` : undefined }}
                         />
                       ) : finalPhotoUrl ? (
                         <div
-                          className={`w-full h-full bg-cover bg-center transition-all duration-1000 ${videoBackgroundBlur !== false ? 'blur-[40px] scale-105' : ''}`}
-                          style={{ backgroundImage: `url(${finalPhotoUrl})` }}
+                          className="w-full h-full bg-cover bg-center transition-all duration-700"
+                          style={{ backgroundImage: `url(${finalPhotoUrl})`, filter: ctl.blurPx ? `blur(${ctl.blurPx}px)` : undefined, transform: ctl.blurPx ? `scale(${1 + ctl.blurPx / 300})` : undefined }}
                         />
                       ) : null}
                       
-                      {videoBackgroundFrosted !== false && shouldEnableEffect('blur') && (
-                        <div className="absolute inset-0 backdrop-blur-[100px] bg-black/30" />
+                      {/* The THEME's own gradient laid over the media with its own opacity + blend mode —
+                          0 shows the picture/video untouched, more lets the theme's colour wash through. */}
+                      {ctl.themeOpacity > 0 && (
+                        <div className="absolute inset-0" style={{ background: THEME_BG[theme] ?? THEME_BG.PLAJAH, opacity: ctl.themeOpacity / 100, mixBlendMode: ctl.blend as React.CSSProperties['mixBlendMode'] }} />
+                      )}
+                      {ctl.frostPct > 0 && shouldEnableEffect('blur') && (
+                        <div className="absolute inset-0" style={{ backdropFilter: `blur(${Math.round(ctl.frostPct * 0.6)}px)`, WebkitBackdropFilter: `blur(${Math.round(ctl.frostPct * 0.6)}px)`, background: `rgba(0,0,0,${(ctl.frostPct / 300).toFixed(3)})` }} />
                       )}
                     </motion.div>
                   );

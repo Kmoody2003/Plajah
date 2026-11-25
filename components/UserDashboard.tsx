@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { THEME_OPTIONS } from './settings/themeOptions';
 import ThemeStudio from './settings/ThemeStudio';
 import { setUserThemeSpec, isOrgThemeOptedOut, setOrgThemeOptOut } from '../services/themeRuntime';
+import { resolveBgControls, BLEND_MODES } from '../services/backgroundControls';
 import { createPortal } from 'react-dom';
 import { UserProfile, Album, Video, Photo, Track, MerchItem, IPWorld, ThemeType } from '../types';
 import {
@@ -1191,6 +1192,66 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                     </div>
                   </div>
                 </div>
+
+                {(() => {
+                  // Background layers: how much of the picture/video you can actually SEE under the theme.
+                  const c = resolveBgControls(profile);
+                  const hasStill = !!profile.frostedBackground;
+                  const hasVideo = !!profile.videoBackgroundUrl;
+                  type NumKey = 'bgThemeOpacity' | 'bgBlurPx' | 'bgFrostPct' | 'bgVeilPct' | 'bgUiAlphaPct';
+                  const slider = (label: string, hint: string, key: NumKey, value: number, min: number, max: number, unit: string) => (
+                    <label className="block">
+                      <div className="flex items-baseline justify-between gap-3 mb-1">
+                        <span className="text-[11px] font-black uppercase tracking-widest text-white/70">{label}</span>
+                        <span className="text-xs font-bold tabular-nums text-white/60">{value}{unit}</span>
+                      </div>
+                      <input type="range" min={min} max={max} value={value} className="w-full accent-[#FF8C00]"
+                        onChange={e => setProfile({ ...profile, [key]: +e.target.value } as typeof profile)}
+                        onPointerUp={e => saveAppearance({ [key]: +(e.currentTarget as HTMLInputElement).value } as Partial<typeof profile>)}
+                        onKeyUp={e => saveAppearance({ [key]: +(e.currentTarget as HTMLInputElement).value } as Partial<typeof profile>)} />
+                      <div className="text-[10px] text-white/45 mt-0.5">{hint}</div>
+                    </label>
+                  );
+                  return (
+                    <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5 mb-8 space-y-6">
+                      <div>
+                        <h3 className="text-xs font-black uppercase tracking-widest text-small-orange mb-1">Background Layers</h3>
+                        <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Choose what shows, and how much of it you can see under the theme</p>
+                      </div>
+                      {hasStill && hasVideo && (
+                        <div>
+                          <div className="text-[11px] font-black uppercase tracking-widest text-white/70 mb-2">Show</div>
+                          <div className="inline-flex rounded-full border border-white/15 p-1 gap-1" role="group" aria-label="Background source">
+                            {([['auto', 'Auto'], ['image', 'Still picture'], ['video', 'Video']] as const).map(([id, label]) => (
+                              <button key={id} type="button" aria-pressed={c.source === id} onClick={() => saveAppearance({ bgSource: id })}
+                                className="px-4 py-1.5 rounded-full text-xs font-black text-white/70">{label}</button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="grid sm:grid-cols-2 gap-x-8 gap-y-5">
+                        {slider('Blur', 'Soften the picture or video itself. 0 keeps it sharp.', 'bgBlurPx', c.blurPx, 0, 60, 'px')}
+                        {slider('Frost', 'A frosted-glass veil right over the media.', 'bgFrostPct', c.frostPct, 0, 100, '%')}
+                        {slider('Theme colour over it', 'Lay the theme’s own gradient over the media. 0 shows the media only.', 'bgThemeOpacity', c.themeOpacity, 0, 100, '%')}
+                        {slider('Readability veil', 'Tint between the background and your pages, to keep text clear.', 'bgVeilPct', c.veilPct, 0, 100, '%')}
+                        {slider('Panel opacity', 'Lower it to let the background show through panels and cards.', 'bgUiAlphaPct', c.uiPct, 20, 100, '%')}
+                        <label className="block">
+                          <div className="text-[11px] font-black uppercase tracking-widest text-white/70 mb-1">Blend</div>
+                          <select value={c.blend} disabled={c.themeOpacity === 0}
+                            onChange={e => saveAppearance({ bgBlend: e.target.value })}
+                            className="w-full bg-white/10 border border-white/15 rounded-xl px-3 py-2 text-sm font-bold text-white outline-none disabled:opacity-40">
+                            {BLEND_MODES.map(b => <option key={b.id} value={b.id} className="bg-[#14141a]">{b.label}</option>)}
+                          </select>
+                          <div className="text-[10px] text-white/45 mt-0.5">How the theme colour mixes into the media (needs “Theme colour over it” above 0).</div>
+                        </label>
+                      </div>
+                      <button type="button" className="text-xs font-bold text-white/60 underline"
+                        onClick={() => saveAppearance({ bgSource: 'auto', bgThemeOpacity: 0, bgBlend: 'normal', bgBlurPx: 12, bgFrostPct: 10, bgVeilPct: 55, bgUiAlphaPct: 100 })}>
+                        Reset to defaults
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 <div className="p-8 bg-white/5 rounded-[2.5rem] border border-white/5 mb-8 space-y-6">
                   <div className="flex items-center justify-between">
