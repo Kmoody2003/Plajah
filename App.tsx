@@ -4619,7 +4619,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   // The saved profile with any unsaved Settings → Appearance edits laid over it, so the look is live.
   const appearancePreview = useProfilePreview();
-  const lookProfile = useMemo(() => (appearancePreview && userProfile ? { ...userProfile, ...appearancePreview } : userProfile), [userProfile, appearancePreview]);
+  // On someone's profile page their background/theme is shown to visitors, but only while that page is
+  // open: nothing is written to the visitor's own settings, so it can never stick globally.
+  const lookProfile = useMemo(() => {
+    if (view === 'USER_PROFILE' && visitedProfile) return visitedProfile;
+    return appearancePreview && userProfile ? { ...userProfile, ...appearancePreview } : userProfile;
+  }, [view, visitedProfile, userProfile, appearancePreview]);
 
   useEffect(() => {
     const activeProfile = lookProfile;
