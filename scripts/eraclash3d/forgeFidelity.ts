@@ -84,6 +84,22 @@ const byName = new Map<string, number>(gltf.nodes.map((n: { name?: string }, i: 
  * against the body's capsules, as the game shows them standing: the playkit's own SpringBones, run for two seconds.
  */
 const forge = gltf.nodes.find((n: { extras?: { forge?: unknown } }) => n.extras?.forge)?.extras.forge;
+/**
+ * Bend an elbow by `bend` rad about its hinge: the axis across the upper arm and the body's forward (+z), so the forearm
+ * folds forward and up whatever the arm's swing. Lexicon's scribe.ts holds its staff arm the same way.
+ */
+function elbowBend(arm: THREE.Object3D, fore: THREE.Object3D, bend: number) {
+  const a = new THREE.Vector3(), f = new THREE.Vector3();
+  arm.getWorldPosition(a); fore.getWorldPosition(f);
+  const down = f.sub(a).normalize();
+  const axis = new THREE.Vector3().crossVectors(down, new THREE.Vector3(0, 0, 1));
+  if (axis.lengthSq() < 1e-6) return;
+  axis.normalize();
+  // into the forearm's parent (the upper arm) frame: the bend is applied before the forearm's own rest rotation
+  const pq = new THREE.Quaternion(); arm.getWorldQuaternion(pq);
+  axis.applyQuaternion(pq.invert());
+  fore.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(axis, bend));
+}
 function worlds(pose: Record<string, number[]>): M4[] {
   const joints = new Set<number>(gltf.skins?.[0]?.joints ?? []);
   const objs: THREE.Object3D[] = gltf.nodes.map((n: { name?: string; translation?: number[]; rotation?: number[]; scale?: number[] }, i: number) => {
@@ -99,6 +115,13 @@ function worlds(pose: Record<string, number[]>): M4[] {
   gltf.nodes.forEach((n: { children?: number[] }, i: number) => n.children?.forEach((c) => objs[i].add(objs[c])));
   for (let i = 0; i < N; i++) if (parent[i] < 0) root.add(objs[i]);
   root.updateMatrixWorld(true);
+  for (const side of ['Left', 'Right']) {
+    const bend = pose[`__elbow:${side}`]?.[0];
+    const arm = objs.find((o) => o.name === `${side}Arm`), fore = objs.find((o) => o.name === `${side}ForeArm`);
+    if (bend === undefined || !arm || !fore) continue;
+    elbowBend(arm, fore, bend);
+    root.updateMatrixWorld(true);
+  }
   if (forge?.springs?.length && !args.includes('--no-springs')) {
     const springs = new SpringBones(root, forge.springs, forge.capsules);
     springs.reset();
@@ -109,6 +132,7 @@ function worlds(pose: Record<string, number[]>): M4[] {
   for (const o of objs) if (o.name === 'quill_staff' && o.parent) {
     const pq = new THREE.Quaternion(), hp = new THREE.Vector3();
     o.parent.getWorldQuaternion(pq); o.parent.getWorldPosition(hp);
+    holdY = hp.y;
     o.quaternion.copy(pq.clone().invert());
     // its foot on the ground (the soles are at y = 0) under the hand
     o.position.copy(o.parent.worldToLocal(new THREE.Vector3(hp.x, 0, hp.z)));
@@ -544,6 +568,13 @@ function partIoU(r: ReturnType<typeof render>, v: ViewName, name: string, shift:
   return uni ? inter / uni : 0;
 }
 
+// where the staff hand was in the last posing (world y, m), and where a staff is gripped: forgeBuild's STAFF.grip
+// (1.2 m up from its foot, standing on the ground). The art grips it there; a fit that only matched the staff's outline
+// let the hand drop to the waist (the staff, stood under the hand, still lands on the art's), so the fit holds the hand
+// to the grip too
+let holdY = NaN;
+const STAFF_GRIP = 1.2;
+
 // ---- the art's pose, fitted ---------------------------------------------------------------------------------------
 // arms hang from the A (rotate about the body's forward axis), elbows bend a little, legs stand apart. A figure that
 // holds a staff (a quill_staff node) gets its own right arm: forward and bent at the elbow, as a staff is held.
@@ -555,7 +586,9 @@ function poseOf(p: Pose) {
     const R = sx < 0 && p.rArm !== undefined;
     const arm = R ? p.rArm! : p.arm, fwd = R ? p.rArmFwd ?? p.armFwd : p.armFwd, elbow = R ? p.rElbow ?? p.elbow : p.elbow;
     o[`${s}Arm`] = qmul(qaxis([1, 0, 0], -fwd), qaxis([0, 0, 1], -sx * arm));
-    o[`${s}ForeArm`] = qaxis([1, 0, 0], -elbow);
+    // the elbow bends about its real hinge (found in worlds(): across the upper arm and the body's forward), so the
+    // forearm folds forward and up; the forearm bone's own x axis lies sideways on this rig and swung it out flat
+    o[`__elbow:${s}`] = [elbow];
     // stagger: the near (left) leg forward and the far one back, as a turnaround's profile often stands
     // legFwd: both legs forward of the torso together (the figure's weight a little back), feet kept flat
     const st = sx * (p.stagger ?? 0) + (p.legFwd ?? 0);
@@ -584,6 +617,8 @@ function fitPose(): Pose {
         if (off !== null) s += 0.5 * Math.max(0, 1 - off / 150);
       }
     }
+    // the hand at the staff's grip: 10 cm off costs about as much as a part's IoU falling 0.4
+    if (HOLDS_STAFF && Number.isFinite(holdY)) s -= 4 * Math.abs(holdY - STAFF_GRIP);
     return s;
   };
   let best = iouOf(p);

@@ -50,7 +50,22 @@ export async function loadScribe(url = SCRIBE_URL): Promise<ScribeModel | null> 
   const X = new THREE.Vector3(1, 0, 0), Z = new THREE.Vector3(0, 0, 1);
   // the scorer's pose is applied over the bind pose (pose × rest), so the target is fixed: keep it
   const armHold = stance?.rArm !== undefined && holdArm ? qa(X, -(stance.rArmFwd ?? 0)).multiply(qa(Z, stance.rArm)).multiply(holdArm.quaternion.clone()) : null;
-  const foreHold = stance?.rElbow !== undefined && holdFore ? qa(X, -stance.rElbow).multiply(holdFore.quaternion.clone()) : null;
+  // the elbow bends about its hinge, as the scorer bends it (forgeFidelity elbowBend): the axis across the upper arm (held
+  // at its target) and the body's forward (+z in the model's own space), in the upper arm's frame
+  const foreHold = (() => {
+    if (stance?.rElbow === undefined || !holdFore || !holdArm || !armHold) return null;
+    const rest = holdArm.quaternion.clone();
+    holdArm.quaternion.copy(armHold); model.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(model.matrixWorld).invert();
+    const a = new THREE.Vector3().setFromMatrixPosition(holdArm.matrixWorld).applyMatrix4(inv);
+    const f = new THREE.Vector3().setFromMatrixPosition(holdFore.matrixWorld).applyMatrix4(inv);
+    const axis = new THREE.Vector3().crossVectors(f.sub(a).normalize(), Z).normalize();
+    const mq = new THREE.Quaternion(); model.getWorldQuaternion(mq);
+    const aq = new THREE.Quaternion(); holdArm.getWorldQuaternion(aq);
+    axis.applyQuaternion(mq.invert().multiply(aq).invert()); // model frame -> the upper arm's frame
+    holdArm.quaternion.copy(rest); model.updateMatrixWorld(true);
+    return qa(axis, stance.rElbow).multiply(holdFore.quaternion.clone());
+  })();
   let holdW = 1;
   const bone = (n: string) => model.getObjectByName(n) as THREE.Bone | undefined;
   const spine = bone('Spine1'), armR = bone('RightArm'), foreR = bone('RightForeArm'), hips = bone('Hips');
@@ -58,7 +73,8 @@ export async function loadScribe(url = SCRIBE_URL): Promise<ScribeModel | null> 
   // the quill-staff stands upright beside him (the art), riding the right hand's position, not its grip axis (a katana
   // grip points it forward): it leans a little with his movement and sweeps through a strike
   const staff = model.getObjectByName('quill_staff');
-  const hand = bone('RightHand');
+  // the palm (the Forge's hand socket, where the scorer stands it too), not the wrist bone 8 cm back from the fist
+  const hand = model.getObjectByName('socket_hand_R') ?? bone('RightHand');
   if (staff) { root.attach(staff); }
   const hp = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), tilt = new THREE.Quaternion(), rq = new THREE.Quaternion();
   let lean = 0;

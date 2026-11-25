@@ -367,8 +367,17 @@ held too far forward was simply not seen. Now:
 - `prep_scribe_art.py` drops islands at a view's crop edge that stand over 20 px clear of the figure: the side view had
   carried a sliver of the back view's cloak (the back view's own staff crest, also at its edge, stays).
 Scored on the stricter scorer, the committed Scribe and the rebuilt one match (66.3% / 66.0%, side shape 49% / 48%, side
-staff 21%); the gain is that the side staff is measured, and the fitted stance (extras.forge.stance) now holds the staff
-arm low with the elbow bent, as the art does (rArmFwd 0.12, rElbow 0.8, was 0.53 / 1.2).
+staff 21%); the gain is that the side staff is measured.
+
+Elbow and grip (same day, after checking in game). That fit gamed the outline: the hand dropped to the waist, open, and
+the staff (stood under the hand) still landed on the art's. Two fixes:
+- the fit holds the staff hand at the staff's grip (STAFF.grip, 1.2 m; the art grips it there): 10 cm off costs 0.4;
+- elbows bend about their real hinge (`elbowBend`: the axis across the upper arm and the body's forward, in the upper
+  arm's frame) instead of the forearm bone's own x, which lies sideways on this rig and swung the forearm out flat.
+  Lexicon's scribe.ts bends its stance the same way, and stands the staff under the palm socket, not the wrist.
+Stance now rArm 0.63, rArmFwd 0.06, rElbow 1.4: in game the forearm comes up forward and the hand holds the staff at the
+chest, as the art draws it. Score 62.6% (head 51%: the staff's crest now stands beside the face in the head band, and
+misses the art's crest); the staff part is 12%, a thin pole a few cm off.
 
 Not done yet: a belt pouch shows through the cloak's side; the
 strike and roll are procedural over the locomotion (CMU 02_05 is a strike capture to try); the GLB is 8.5 MB (KTX2 next).
