@@ -1,0 +1,59 @@
+{
+  "id": "scribe",
+  "name": "The Scribe",
+  "note": "Lexicon's hero, from Kenne's turnaround and design sheet (Word gaem/Nov 24 - 22_56; prepared by scripts/lexicon/prep_scribe_art.py). The first Forge character outside Era Clash: locs over an undercut, the scholar-adventurer kit, a quill-staff instead of a sword.",
+  "art": {
+    "portrait": "D:/Plajah Runtime/forge/scribe-ref/front.png",
+    "turnaround": "D:/Plajah Runtime/forge/scribe-ref/sheet.png",
+    "views": [
+      "front",
+      "side",
+      "back"
+    ]
+  },
+  "body": {
+    "height": 1.78,
+    "build": 0.97,
+    "musculature": 0.5,
+    "weight": 0.06,
+    "age": 20
+  },
+  "head": {
+    "forward": 0.01,
+    "up": 0.006,
+    "scale": 1.08,
+    "width": 0.95,
+    "neck": 1.05
+  },
+  "kit": "scholar-adventurer",
+  "hair": {
+    "style": "locs",
+    "count": 130,
+    "length": 0.15
+  },
+  "hold": {
+    "Right": "Right:katana",
+    "Left": "Left:relaxed"
+  },
+  "out": {
+    "character": "public/games/lexicon/assets/characters/scribe.glb",
+    "kit": "D:/Plajah Runtime/eraclash3d/forge/scribe/kit"
+  },
+  "gates": {
+    "overall": 0.95,
+    "part": 0.8,
+    "head": 0.85
+  },
+  "look": {
+    "palette": {
+      "hair": "#2a1d14",
+      "gold": "#d9a94a"
+    }
+  },
+  "paint": {
+    "skip": [
+      "face"
+    ],
+    "headSides": true
+  }
+}

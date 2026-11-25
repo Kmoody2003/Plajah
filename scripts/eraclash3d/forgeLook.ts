@@ -11,7 +11,9 @@ import type { ForgeCharacter } from '../../services/argilla/creature/exportCreat
 import { ARMS_MATERIALS } from './forgeArmsLook';
 
 export const ART = 'public/games/era-clash/assets/sprite-samurai.png';
-const NAMES = ['skin', 'lacquer', 'lacquerBlack', 'gold', 'iron', 'leather', 'silk', 'silkRed', 'hakama', 'kosode', 'koteCloth', 'kyahan', 'obi', 'tabi', 'hair', 'katana_steel', 'hairCards', 'straw'] as const;
+const NAMES = ['skin', 'lacquer', 'lacquerBlack', 'gold', 'iron', 'leather', 'silk', 'silkRed', 'hakama', 'kosode', 'koteCloth', 'kyahan', 'obi', 'tabi', 'hair', 'katana_steel', 'hairCards', 'straw',
+  // scholar-adventurer kit (Lexicon's Scribe): the wardrobe's pieces and the body-cut garments
+  'jerkin', 'sash', 'belt', 'pack', 'brass', 'linen', 'glass', 'cloak', 'shirt', 'trousers', 'boots', 'gloves', 'staffWood', 'quill', 'quillGlow'] as const;
 /** The arms' materials follow (forgeArmsLook.ts paints them from the codex and the flat-lay's colours). */
 export const MATERIAL_INDEX = Object.fromEntries([...NAMES, ...ARMS_MATERIALS].map((n, i) => [n, i])) as Record<string, number>;
 
@@ -59,8 +61,17 @@ function skinTone(rgb: RGB): [number, number, number, number] {
   return [rgb[0] * 0.45 + neutral[0] * 0.55, rgb[1] * 0.45 + neutral[1] * 0.55, rgb[2] * 0.45 + neutral[2] * 0.55, 1];
 }
 
-export function haruMaterials(): GMaterial[] {
+/** Colours of the scholar-adventurer kit (the Scribe's sheet swatches: navy, leather, saddle, brass, cyan, parchment);
+ *  a spec's `look.palette` (hex sRGB by material) overrides any of them. */
+const SCHOLAR: Record<string, string> = {
+  jerkin: '#674836', sash: '#343c51', belt: '#4a3222', pack: '#7a5232', brass: '#e6c983', linen: '#ebdbc1', glass: '#bcd8e0',
+  cloak: '#343c51', shirt: '#8a7d6a', trousers: '#3a3328', boots: '#3e2a1c', gloves: '#4a3222', staffWood: '#6b4a2f', quill: '#d8c8a0', quillGlow: '#b1f9f6',
+};
+const hexLin = (h: string): RGB => { const n = parseInt(h.replace('#', ''), 16); return [toLinear(((n >> 16) & 255) / 255), toLinear(((n >> 8) & 255) / 255), toLinear((n & 255) / 255)]; };
+
+export function haruMaterials(palette: Record<string, string> = {}): GMaterial[] {
   const p = artPalette();
+  const sc = (n: string) => hexLin(palette[n] ?? SCHOLAR[n]);
   const c = (rgb: RGB, k = 1): [number, number, number, number] => [rgb[0] * k, rgb[1] * k, rgb[2] * k, 1];
   const byName: Record<(typeof NAMES)[number], GMaterial> = {
     skin: { name: 'skin', color: skinTone(p.skin), metallic: 0, roughness: 0.52, sheen: { color: [0.55, 0.22, 0.16], roughness: 0.55 }, specular: { factor: 0.5 } },
@@ -85,13 +96,32 @@ export function haruMaterials(): GMaterial[] {
     katana_steel: { name: 'katana_steel', color: [0.78, 0.8, 0.84, 1], metallic: 1, roughness: 0.14 },
     // strand cards: alpha-tested, both sides, the highlight stretched across the strands
     hairCards: { name: 'hairCards', color: [0.016, 0.013, 0.012, 1], metallic: 0, roughness: 0.42, alphaMode: 'MASK', alphaCutoff: 0.35, anisotropy: { strength: 0.75, rotation: Math.PI / 2 }, specular: { factor: 0.45 } },
+    // ---- scholar-adventurer: oiled leathers, wool, linen, brass and the quill's light ----
+    jerkin: { name: 'jerkin', color: [...sc('jerkin'), 1], metallic: 0, roughness: 0.58, clearcoat: { factor: 0.2, roughness: 0.45 } },
+    belt: { name: 'belt', color: [...sc('belt'), 1], metallic: 0, roughness: 0.55, clearcoat: { factor: 0.25, roughness: 0.4 } },
+    pack: { name: 'pack', color: [...sc('pack'), 1], metallic: 0, roughness: 0.6, clearcoat: { factor: 0.2, roughness: 0.45 } },
+    boots: { name: 'boots', color: [...sc('boots'), 1], metallic: 0, roughness: 0.62, clearcoat: { factor: 0.15, roughness: 0.45 } },
+    gloves: { name: 'gloves', color: [...sc('gloves'), 1], metallic: 0, roughness: 0.6 },
+    sash: { name: 'sash', color: [...sc('sash'), 1], metallic: 0, roughness: 0.85, sheen: { color: [0.3, 0.32, 0.5], roughness: 0.6 } },
+    cloak: { name: 'cloak', color: [...sc('cloak'), 1], metallic: 0, roughness: 0.9, sheen: { color: [0.3, 0.32, 0.5], roughness: 0.7 } },
+    shirt: { name: 'shirt', color: [...sc('shirt'), 1], metallic: 0, roughness: 0.88, sheen: { color: [0.4, 0.38, 0.32], roughness: 0.7 } },
+    trousers: { name: 'trousers', color: [...sc('trousers'), 1], metallic: 0, roughness: 0.9, sheen: { color: [0.25, 0.24, 0.2], roughness: 0.7 } },
+    linen: { name: 'linen', color: [...sc('linen'), 1], metallic: 0, roughness: 0.85 },
+    brass: { name: 'brass', color: [...sc('brass'), 1], metallic: 1, roughness: 0.34 },
+    glass: { name: 'glass', color: [...sc('glass'), 1], metallic: 0, roughness: 0.08, clearcoat: { factor: 1, roughness: 0.02 } },
+    staffWood: { name: 'staffWood', color: [...sc('staffWood'), 1], metallic: 0, roughness: 0.55, clearcoat: { factor: 0.35, roughness: 0.3 } },
+    quill: { name: 'quill', color: [...sc('quill'), 1], metallic: 0, roughness: 0.6, sheen: { color: [0.8, 0.75, 0.6], roughness: 0.5 } },
+    // the feather-blade's light: cyan, emissive, so the game's bloom picks it up (Lexicon identity: cyan = song)
+    quillGlow: { name: 'quillGlow', color: [...sc('quillGlow'), 1], metallic: 0, roughness: 0.3, emissive: sc('quillGlow') },
   };
+  // a spec's palette recolours any material by name (e.g. the Scribe's locs: dark brown, not Haru's black)
+  for (const [n, hex] of Object.entries(palette)) { const m = (byName as Record<string, GMaterial>)[n]; if (m && !SCHOLAR[n]) m.color = [...hexLin(hex), 1]; }
   for (const m of Object.values(byName)) if (m.sheen && m.name !== 'skin') {
     const k = m.name.startsWith('silk') ? 2.6 : 1.9;
     m.sheen = { color: [Math.min(1, m.color[0] * k + 0.015), Math.min(1, m.color[1] * k + 0.015), Math.min(1, m.color[2] * k + 0.02)], roughness: m.sheen.roughness };
   }
   return [
-    ...NAMES.map((n) => ({ ...byName[n], doubleSided: n === 'gold' || n === 'katana_steel' || n === 'obi' || n === 'hairCards' })),
+    ...NAMES.map((n) => ({ ...byName[n], doubleSided: n === 'gold' || n === 'katana_steel' || n === 'obi' || n === 'hairCards' || n === 'cloak' || n === 'jerkin' || n === 'sash' || n === 'belt' || n === 'quill' || n === 'quillGlow' })),
     // placeholders until the arms are painted (forgeArmsLook.ts)
     ...ARMS_MATERIALS.map((n) => ({ name: n, color: [0.3, 0.3, 0.3, 1] as [number, number, number, number], metallic: 0, roughness: 0.5 })),
   ];
@@ -159,6 +189,9 @@ export async function paintHaru(c: ForgeCharacter, work: string, log: (s: string
   const detail: Record<string, [number, number, number]> = {
     hakama: [W, 0.35, 90], kosode: [W, 0.35, 90], koteCloth: [W, 0.45, 110], kyahan: [W, 0.35, 90], obi: [W, 0.35, 70], tabi: [W, 0.3, 110],
     silk: [CORD, 1, 1], silkRed: [CORD, 1, 1], lacquer: [PEEL, 0.4, 4], lacquerBlack: [PEEL, 0.4, 4], iron: [HAM, 0.6, 12], gold: [HAM, 0.2, 20],
+    // scholar-adventurer: woven wool and linen; leathers get the orange-peel grain; brass is hammered
+    cloak: [W, 0.35, 70], sash: [W, 0.35, 70], shirt: [W, 0.4, 110], trousers: [W, 0.35, 90], linen: [W, 0.35, 90],
+    jerkin: [PEEL, 0.6, 6], belt: [PEEL, 0.5, 8], pack: [PEEL, 0.6, 6], boots: [PEEL, 0.5, 6], gloves: [PEEL, 0.5, 8], brass: [HAM, 0.25, 20],
   };
   c.images = images;
   c.materials = c.materials.map((m) => {

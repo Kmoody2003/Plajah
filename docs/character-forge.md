@@ -312,3 +312,39 @@ The bar for everything after:
 2. Chen and Roland.
 3. The townsfolk's kosode bodies on the crowd level of detail.
 4. The Forge room in Game Studio.
+
+## Second character: the Scribe (Lexicon, 2026-11-25)
+
+The first Forge character outside Era Clash, built the Forge's way — capability as pieces and spec fields, nothing
+Scribe-only in the pipeline. Spec: `scripts/eraclash3d/characters/scribe/forge.json`; art prepared from Kenne's sheets by
+`scripts/lexicon/prep_scribe_art.py` (the turnaround's front/side/back views on a flat ground, the design sheet's head
+close-up as the portrait) into `D:/Plajah Runtime/forge/scribe-ref/`. Output: `public/games/lexicon/assets/characters/scribe.glb`.
+
+What the Forge gained (Haru builds as before; his GLB differs only by the new, unused material entries):
+- **Spec fields** (`forgeSpec.ts`): `hair.style` ('ponytail' | 'locs'), `hold` (hand poses), `look.palette` (material
+  colours). The chin height now scales with the spec's height.
+- **Hair** (`hairSystem.ts` `locs()`): locs over an undercut as tapered tubes, gold cuffs on a few front locs.
+- **Wardrobe** (`wardrobe.ts`): the `scholar-adventurer` preset — `jerkin` (with a cloth-simulated split skirt), `belt`,
+  `bracers`, `pauldrons`, `cloak` (cloth-simulated, with a rolled hood), `backpack`, `compass`, `quillStaff`; and the
+  body-cut `shirt` (sleeves and stand collar), `trousers`, `boots`, `gloves`. Haru's topknot is now its own `chonmage`
+  piece in his presets, so other characters don't get it.
+- **Build** (`forgeBuild.ts`): the codex sword only for a kit with `katana`; the quill-staff in the right-hand socket;
+  a jerkin covers the chest to the neck (no kosode V). **Kit export** (`forgeKit.ts`): no codex arms without a katana.
+- **Look** (`forgeLook.ts`): the scholar materials (leathers, wool, linen, brass, glass, staff wood, the quill's cyan glow).
+
+In Lexicon (`games/lexicon/src/scribe.ts`): playkit's `forgeRig` (correctives, grips, cloak and skirt cloth), Era
+Clash's `retarget` with CMU walk 02_01 / run 02_03 (idle = the walk capture's standing start), the staff kept upright
+at the hand. Review shots: `node scripts/lexicon/shots.mjs scribe-front scribe-side scribe-back scribe-face`.
+
+Scored (2026-11-25, `scripts/eraclash3d/characters/scribe/report.md`): fit-head (5 passes), paint and score ran. Overall
+46.2% (built) → 74.1% (painted) → 78.1% (side view flipped, staff stood on the ground, face fit ignoring the staff, bigger
+head) — and **72.4% as shipped**: the full repaint of the face from the turnaround's small heads put the side view's
+profile on his cheek (a ghost face), so the Scribe keeps the portrait face (spec `paint.skip: ["face"]`). Head 67.5%
+(gate 85%), head part 76.7% (3 short). Weakest parts: staff 28%, arms 35%, legs 35% — the scorer's pose is fitted to the
+front view only and hangs the arms, while the art holds the staff forward with the elbow bent; fitting the pose to the
+side view is the next big gain. The Forge also gained, for any character: a per-kit parts list in the scorer, a face
+profile scan that ignores props in front of the face, `paint.skip` / `paint.headSides` in the spec, a staff held upright
+by the scorer as in the game. Haru's face fit and build are unchanged (profile 6.8 mm, same pieces).
+
+Not done yet: a belt pouch shows through the cloak's side; the
+strike and roll are procedural over the locomotion (CMU 02_05 is a strike capture to try); the GLB is 8.5 MB (KTX2 next).

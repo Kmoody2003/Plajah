@@ -169,7 +169,9 @@ export async function exportKit(opts: {
   const arms = ownedArms(ctx);
   const codexBuilt = new Set<string>();
   const cm = (a: (typeof arms)[number], text: string) => ({ id: a.id, label: text, era: a.period, refs: (a as unknown as { sources?: string[] }).sources ?? [] });
-  for (const a of arms.length ? arms : [null]) {
+  // a character without a sword in the kit (the Scribe and his quill-staff) gets no codex arms
+  const armed = kit.pieces.some((p) => p.id === 'katana');
+  for (const a of !armed ? [] : arms.length ? arms : [null]) {
     const k = buildArm(a);
     const cm2 = (id: string, text: string) => a ? { ...cm(a, text), id } : { id, label: text, era: 'Sengoku–early Edo (c. 1570–1620)', refs: [] };
     const cut = a ? `${Math.round(a.dims.nagasa * 100)} cm blade${a.features.bohi ? ' with bo-hi' : ''}, ${a.features.hamon} hamon, ${Math.round(a.dims.tsuka * 100)} cm tsuka` : '70 cm blade';

@@ -380,12 +380,28 @@ export const PIECES: Record<string, { params: (keyof ArmourFit)[]; body?: boolea
   tabi: { params: [], body: true, note: 'split-toe socks (cut from the body)' },
   katana: { params: ['sayaDown', 'sayaOut', 'sayaLift', 'sayaAround'], note: 'katana in hand, saya in the obi (wants obi)' },
   kabuto: { params: [], note: 'helmet (hidden unless the game asks)' },
+  chonmage: { params: [], note: 'topknot (Haru): the hair gathered at the crown and folded forward' },
+  // ---- scholar-adventurer (Lexicon's Scribe): a fantasy traveller's leathers ----
+  jerkin: { params: [], note: 'leather jerkin over the torso, its skirt split front and sides to the knee (cloth)' },
+  shirt: { params: [], body: true, note: 'linen shirt sleeves (cut from the body)' },
+  trousers: { params: [], body: true, note: 'dark wool trousers (cut from the body)' },
+  boots: { params: [], body: true, note: 'tall buckled boots to below the knee, the cuff turned down (cut from the body)' },
+  gloves: { params: [], body: true, note: 'leather gloves (cut from the body)' },
+  belt: { params: [], note: 'belt and navy sash at the waist, buckle, two pouches' },
+  bracers: { params: [], note: 'leather bracers with cream straps over the forearms' },
+  pauldrons: { params: [], note: 'two-lame leather shoulder guards' },
+  cloak: { params: [], note: 'hooded scholar cloak from the shoulders to the calves, open in front (cloth)' },
+  backpack: { params: [], note: 'leather satchel-pack on the back, two shoulder straps' },
+  compass: { params: [], note: 'brass cipher-compass on a chain at the belt' },
+  quillStaff: { params: [], note: 'the quill-staff in the right hand (its mesh is built by the Forge build)' },
 };
 /** Kits as piece lists. A spec names one ("kit": "tosei-gusoku") or composes its own ({ preset, pieces, add, without }). */
 export const KIT_PRESETS: Record<string, string[]> = {
-  'tosei-gusoku': ['do', 'watagami', 'kusazuri', 'sode', 'kote', 'suneate', 'hakama', 'eri', 'kosode', 'obi', 'hachimaki', 'waraji', 'tabi', 'katana', 'kabuto'],
+  'tosei-gusoku': ['do', 'watagami', 'kusazuri', 'sode', 'kote', 'suneate', 'hakama', 'eri', 'kosode', 'obi', 'hachimaki', 'waraji', 'tabi', 'katana', 'kabuto', 'chonmage'],
   // the same man out of armour: a ronin's kosode, hakama and sash, his sword in it
-  'kosode-hakama': ['hakama', 'eri', 'kosode', 'obi', 'hachimaki', 'waraji', 'tabi', 'katana'],
+  'kosode-hakama': ['hakama', 'eri', 'kosode', 'obi', 'hachimaki', 'waraji', 'tabi', 'katana', 'chonmage'],
+  // Lexicon's Scribe (Word gaem turnaround): leathers over linen, the navy hooded cloak, pack, compass and quill-staff
+  'scholar-adventurer': ['jerkin', 'shirt', 'trousers', 'boots', 'gloves', 'belt', 'bracers', 'pauldrons', 'cloak', 'backpack', 'compass', 'quillStaff'],
 };
 export type KitSpec = string | { preset?: string; pieces?: string[]; add?: string[]; without?: string[] };
 /** A kit spec resolved to its pieces, in build order. */
@@ -994,9 +1010,167 @@ function kitOf(anatomy: HumanAnatomy, field: Field, fit: ArmourFit, wanted: Set<
     void head;
   }
 
-  // ---- Hair: the cap over the scalp and the chonmage topknot ------------------------------------------------------
-  current = ''; // (the character's own, whatever he wears)
+  // ==== Scholar-adventurer (Lexicon's Scribe; Word gaem/Nov 24 turnaround and design sheet) =========================
+  // A fantasy traveller's kit, not a period one: leather jerkin with a split skirt, belt over a navy sash, bracers,
+  // shoulder guards, a hooded cloak, a pack and a brass compass. Shirt sleeves, trousers, boots and gloves are cut from
+  // the body by the Forge build (PIECES[..].body). Sizes read off the sheet against a 1.78 m figure.
+  const REF_SCRIBE = ['The Scribe — character turnaround and design sheet (Kenne, Lexicon art, 2026-11-24)'];
+  const ERA_FANTASY = 'Fantasy (Lexicon)';
+  const pieceF = (id: string, label: string) => { current = id; if (wanted.has(id)) w.pieces.push({ id, label, era: ERA_FANTASY, refs: REF_SCRIBE }); };
+  const trunkBone = (y: number): HumanJoint => (y < 1.08 ? 'Hips' : y < 1.22 ? 'Spine' : y < 1.36 ? 'Spine1' : 'Spine2');
+
+  pieceF('jerkin', 'Leather jerkin: fitted over the chest, belted, its skirt split at the front and sides to the knee');
   {
+    // the torso shell from the hips up to the base of the neck (the art's jerkin closes high, a narrow shirt collar above)
+    const yLo = 0.98, yHi = 1.47;
+    sheet(Cl('jerkin'), 64, 14, (u, v) => {
+      const a = u * Math.PI * 2, y = yLo + (yHi - yLo) * v, sc = sec(y);
+      const r = sc.radius(a) + 0.014 + (v > 0.92 ? (v - 0.92) * 0.12 : 0);
+      return [Math.cos(a) * r, y, sc.cz + Math.sin(a) * r];
+    }, (u, v) => trunkBone(yLo + (yHi - yLo) * v), [2, 0.6]);
+    // the skirt: four panels (front left/right, back left/right) parted at the front and the sides, flaring a little
+    const hem = 0.5, top = 1.0;
+    const panels: [number, number][] = [[Math.PI / 2 + 0.06, Math.PI - 0.1], [0.1, Math.PI / 2 - 0.06], [Math.PI + 0.1, 1.5 * Math.PI - 0.02], [1.5 * Math.PI + 0.02, 2 * Math.PI - 0.1]];
+    panels.forEach(([a0, a1], i) => {
+      const f = (u: number, v: number): Vec3 => {
+        const a = a0 + (a1 - a0) * u, y = top - (top - hem) * v;
+        const sc = sec(Math.max(0.9, y));
+        // follows the hips, then hangs straight past the thighs with a slight flare toward the hem
+        const r = sc.radius(a) + 0.018 + 0.04 * smooth01(v * 1.4) + 0.015 * v * v;
+        return [Math.cos(a) * r, y, sc.cz + Math.sin(a) * r];
+      };
+      sheet(Cl('jerkin'), 14, 10, f, 'Hips', [0.5, 0.5]);
+      const sim = clothGrid(`jerkinSkirt${i}`, 'jerkin', 8, 7, f, (v) => ({ pin: v < 0.12 ? 1 : 0, maxDist: v < 0.12 ? 0 : 0.06 * v }), { drive: 3, damping: 1.4, radius: 0.012 });
+      sim.wrapU = false;
+      w.clothSims.push(sim);
+    });
+  }
+
+  pieceF('belt', 'Belt over a navy sash: brass buckle, two leather pouches on the hips');
+  {
+    const yb = 1.04;
+    // the sash under the belt (navy, wider), then the belt
+    sheet(Cl('sash'), 72, 3, (u, v) => { const a = u * Math.PI * 2, y = yb + 0.03 + v * 0.06, sc = sec(y); const r = sc.radius(a) + 0.02; return [Math.cos(a) * r, y, sc.cz + Math.sin(a) * r]; }, 'Spine', [2, 0.1]);
+    sheet(Cl('belt'), 72, 3, (u, v) => { const a = u * Math.PI * 2, y = yb - 0.022 + v * 0.045, sc = sec(y); const r = sc.radius(a) + 0.026; return [Math.cos(a) * r, y, sc.cz + Math.sin(a) * r]; }, 'Hips', [3, 0.1]);
+    const sb = sec(yb), front = sb.cz + sb.radius(Math.PI / 2) + 0.03;
+    plate(A('brass'), 2, 2, (u, v) => [-0.03 + u * 0.06, yb - 0.025 + v * 0.05, front + 0.004], 0.006, 'Hips');
+    for (const sx of [1, -1]) {
+      const a = Math.PI / 2 - sx * 0.95, r = sb.radius(a) + 0.04;
+      const c: Vec3 = [Math.cos(a) * r, yb - 0.08, sb.cz + Math.sin(a) * r];
+      const out = norm([Math.cos(a), 0, Math.sin(a)]), side = norm(cross([0, 1, 0], out));
+      // a pouch: a box with a rounded flap
+      plate(A('pack'), 3, 3, (u, v) => add(add(c, mul(side, (u - 0.5) * 0.1)), [0, (v - 0.5) * 0.1, 0]), 0.045, 'Hips');
+      plate(A('pack'), 3, 2, (u, v) => add(add(add(c, mul(side, (u - 0.5) * 0.105)), [0, 0.03 + v * 0.025, 0]), mul(out, 0.006 + v * 0.004)), 0.006, 'Hips');
+    }
+  }
+
+  pieceF('bracers', 'Leather bracers over the forearms, cream straps');
+  for (const sd of ['Left', 'Right'] as const) {
+    const el = J(`${sd}ForeArm` as HumanJoint), wr = J(`${sd}Hand` as HumanJoint);
+    const axis = norm(sub(wr, el)), ref: Vec3 = Math.abs(axis[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+    const e1 = norm(cross(axis, ref)), e2 = cross(e1, axis);
+    const t0 = 0.3, t1 = 0.95;
+    const secs = new Map<number, (a: number) => number>();
+    const f = (u: number, v: number): Vec3 => {
+      const t = t0 + (t1 - t0) * v, c = lerp(el, wr, t), a = u * Math.PI * 2;
+      const k = Math.round(v * 6);
+      let sc = secs.get(k);
+      if (!sc) { const raw = limbSection(field, lerp(el, wr, t0 + (t1 - t0) * (k / 6)), e1, e2, 32, 0.08); sc = (x: number) => Math.max(raw(x), 0.025); secs.set(k, sc); }
+      return add(c, mul(norm(add(mul(e1, Math.cos(a)), mul(e2, Math.sin(a)))), sc(a) + 0.007 + 0.006 * v));
+    };
+    plate(A('jerkin'), 24, 6, f, 0.004, `${sd}ForeArm`, [1, 0.5]);
+    for (const tv of [0.25, 0.55, 0.85]) {
+      const ring: Vec3[] = [];
+      const c = lerp(el, wr, t0 + (t1 - t0) * tv);
+      for (let k = 0; k <= 24; k++) { const p = f(k / 24, tv); ring.push(add(p, mul(norm(sub(p, c)), 0.003))); }
+      tube(A('linen'), ring, 0.006, 4, `${sd}ForeArm`, 0.35);
+    }
+  }
+
+  pieceF('pauldrons', 'Two-lame leather shoulder guards');
+  for (const sd of ['Left', 'Right'] as const) {
+    const sh = J(`${sd}Arm` as HumanJoint), sx = sd === 'Left' ? 1 : -1;
+    for (let lame = 0; lame < 2; lame++) {
+      plate(A('jerkin'), 10, 4, (u, v) => {
+        // a curved plate over the shoulder cap, the lower lame lapping the upper
+        const a = (u - 0.5) * 2.4, drop = lame * 0.045 + v * 0.06;
+        const R = 0.075 + lame * 0.006;
+        return [sh[0] + sx * (0.02 + Math.cos(a) * 0.02 + drop * 0.25), sh[1] + 0.06 - drop, sh[2] + Math.sin(a) * R];
+      }, 0.005, `${sd}Arm`, [0.4, 0.3]);
+    }
+  }
+
+  pieceF('cloak', 'Hooded scholar cloak: navy wool with a rune-embroidered border, from the shoulders to the calves');
+  {
+    // a cape over the shoulders and back, open in front: from the collar line at the neck down to mid-calf. The angle
+    // runs round from the wearer's front left to front right behind the back (θ: 0 = +x, π/2 = front)
+    const yTop = 1.47, yHem = 0.3;
+    // open wide in front: in profile the art's cloak hangs behind the arm, its front edges at the shoulders' line
+    const aFrom = Math.PI / 2 + 0.95, aTo = Math.PI / 2 + 2 * Math.PI - 0.95;
+    const f = (u: number, v: number): Vec3 => {
+      const a = aFrom + (aTo - aFrom) * u, y = yTop - (yTop - yHem) * v;
+      const sc = sec(Math.max(0.95, Math.min(1.45, y)));
+      // over the shoulders (wide at the top: it rests on the pauldrons), then hanging clear of the pack and the skirt
+      const shoulder = 0.03 * (1 - smooth01(v * 4)) * Math.abs(Math.cos(a));
+      const back = Math.max(0, -Math.sin(a)) * (0.11 * smooth01(v * 3)); // clears the pack
+      // flaring toward the hem, as the art falls: out to the sides and back, never forward
+      const r = sc.radius(a) + 0.03 + shoulder + back + (0.05 * v + 0.12 * v * v) * (1 - 0.8 * Math.max(0, Math.sin(a)));
+      return [Math.cos(a) * r, y, sc.cz + Math.sin(a) * r];
+    };
+    sheet(Cl('cloak'), 48, 24, f, (u, v) => (v < 0.2 ? 'Spine2' : 'Spine1'), [2.4, 1.4]);
+    const sim = clothGrid('cloak', 'cloak', 20, 14, f, (v) => ({ pin: v < 0.08 ? 1 : 0, maxDist: v < 0.08 ? 0 : 0.18 * Math.min(1, v * 1.4) }), { drive: 1.6, damping: 1.0, radius: 0.016, bend: 6e-4 });
+    sim.wrapU = false;
+    w.clothSims.push(sim);
+    // the hood, down: a soft roll of cloth round the back of the neck
+    const ring: Vec3[] = [];
+    for (let k = 0; k <= 24; k++) {
+      const a = aFrom + (aTo - aFrom) * (k / 24), sc = sec(1.46);
+      const r = sc.radius(a) + 0.04 + 0.015 * Math.max(0, -Math.sin(a));
+      ring.push([Math.cos(a) * r, 1.48 + 0.02 * Math.max(0, -Math.sin(a)), sc.cz + Math.sin(a) * r]);
+    }
+    tube(Cl('cloak'), ring, (t) => 0.014 + 0.012 * Math.sin(Math.PI * t), 10, 'Spine2', 0.6);
+    // the clasp at the wearer's left collarbone
+    const cl = sec(1.44), ca = Math.PI / 2 + 0.6, cr = cl.radius(ca) + 0.05;
+    plate(A('brass'), 3, 3, (u, v) => [Math.cos(ca) * cr + (u - 0.5) * 0.04, 1.44 + (v - 0.5) * 0.04, cl.cz + Math.sin(ca) * cr + 0.008], 0.006, 'Spine2');
+  }
+
+  pieceF('backpack', 'Leather pack on the back: two buckled straps over the flap, shoulder straps');
+  {
+    const sc = sec(1.3), back = sc.cz - sc.radius(-Math.PI / 2) - 0.035;
+    const W2 = 0.15, H2 = 0.17, D = 0.11, yc = 1.27;
+    plate(A('pack'), 6, 6, (u, v) => [(u - 0.5) * 2 * W2, yc + (v - 0.5) * 2 * H2, back - D], D, 'Spine2', [0.6, 0.6]);
+    plate(A('pack'), 6, 4, (u, v) => [(u - 0.5) * 2 * (W2 + 0.006), yc + H2 + 0.004 - v * H2 * 1.3, back - D - 0.008 - 0.004 * Math.sin(Math.PI * u)], 0.005, 'Spine2');
+    for (const sx of [-1, 1]) {
+      plate(A('belt'), 1, 6, (u, v) => [sx * 0.07 + (u - 0.5) * 0.03, yc + H2 - v * H2 * 1.6, back - D - 0.016], 0.004, 'Spine2');
+      plate(A('brass'), 1, 1, (u, v) => [sx * 0.07 + (u - 0.5) * 0.035, yc - H2 * 0.35 + (v - 0.5) * 0.03, back - D - 0.021], 0.004, 'Spine2');
+      // shoulder strap: over the shoulder from the pack's top to under the arm
+      const sh = J(sx > 0 ? 'LeftShoulder' : 'RightShoulder');
+      const pts: Vec3[] = [[sx * 0.09, yc + H2, back - 0.02], [sx * 0.11, sh[1] + 0.07, sh[2] - 0.05], [sx * 0.13, sh[1] + 0.04, sh[2] + 0.07], [sx * 0.14, yc + 0.02, sc.cz + sc.radius(Math.PI / 2 - sx * 0.6) + 0.03]];
+      tube(A('belt'), pts, 0.012, 4, 'Spine2', 0.3);
+    }
+  }
+
+  pieceF('compass', 'Brass cipher-compass on a chain at the belt');
+  {
+    const sb = sec(1.0), a = Math.PI / 2 - 0.55, r = sb.radius(a) + 0.05;
+    const c: Vec3 = [Math.cos(a) * r, 0.9, sb.cz + Math.sin(a) * r];
+    const out = norm([Math.cos(a), 0, Math.sin(a)]);
+    const right = norm(cross([0, 1, 0], out));
+    const disc = (rad: number, depth: number, mat: string) => plate(A(mat), 16, 2, (u, v) => {
+      const t = u * Math.PI * 2, rr = rad * v;
+      return add(add(c, add(mul(right, Math.cos(t) * rr), [0, Math.sin(t) * rr, 0])), mul(out, depth));
+    }, 0.012, 'Hips');
+    disc(0.042, 0.012, 'brass');
+    disc(0.03, 0.019, 'glass');
+    const chain: Vec3[] = [add(c, [0, 0.045, 0.01]), add(c, [-0.02, 0.09, 0.012]), [c[0] - 0.05, 1.02, c[2] - 0.01]];
+    tube(A('brass'), chain, 0.0025, 4, 'Hips');
+  }
+
+  pieceF('quillStaff', 'The quill-staff: brass-wound shaft, a feather blade of light (built by the Forge build in the right hand)');
+
+  // ---- Hair: the chonmage topknot (a piece now, so a character without it has none) ----------------------------------
+  current = 'chonmage';
+  if (on()) {
     const head = J('Head');
     void head;
     const hb = w.hair;
@@ -1006,6 +1180,7 @@ function kitOf(anatomy: HumanAnatomy, field: Field, fit: ArmourFit, wanted: Set<
     tube(hb, pts, (t) => 0.012 * (1 - t * 0.35), 10, 'Head');
     tube(hb, [add(base, [0, 0.012, 0]), add(base, [0, 0.02, 0.002])], 0.0135, 10, 'Head');
   }
+  current = '';
   // what pieces not worn added to the rig goes (hands keep their grip sockets: any character can be handed a weapon)
   const keep = (it: object) => { const o = owner.get(it) ?? ''; return o === '' || wanted.has(o) || /^socket_hand/.test((it as { name?: string }).name ?? ''); };
   for (const arr of [w.bones, w.springs, w.clothSims, w.sockets] as object[][]) { const k = arr.filter(keep); arr.length = 0; Array.prototype.push.apply(arr, k); }

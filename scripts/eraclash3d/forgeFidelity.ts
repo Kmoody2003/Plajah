@@ -20,6 +20,7 @@ import sharp from 'sharp';
 import { PNG } from 'pngjs';
 import { HARU_SHEET, HEAD_WARP_FILE, loadHeadWarp, type HeadWarp } from './forgeFaceFit';
 import { spec, WORK_DIR } from './forgeSpec';
+import { kitPieces } from '../../services/argilla/creature/wardrobe';
 import * as THREE from 'three/webgpu';
 import { SpringBones } from '../../playkit/character/springBones';
 
@@ -103,6 +104,16 @@ function worlds(pose: Record<string, number[]>): M4[] {
     springs.reset();
     for (let k = 0; k < 120; k++) { springs.update(1 / 60); root.updateMatrixWorld(true); }
   }
+  // a staff is held upright at the hand whatever the hand's angle (Lexicon's scribe.ts holds it so in the game, and the
+  // art draws it so): its world rotation is cleared after posing
+  for (const o of objs) if (o.name === 'quill_staff' && o.parent) {
+    const pq = new THREE.Quaternion(), hp = new THREE.Vector3();
+    o.parent.getWorldQuaternion(pq); o.parent.getWorldPosition(hp);
+    o.quaternion.copy(pq.clone().invert());
+    // its foot on the ground (the soles are at y = 0) under the hand
+    o.position.copy(o.parent.worldToLocal(new THREE.Vector3(hp.x, 0, hp.z)));
+    o.updateMatrixWorld(true);
+  }
   return objs.map((o) => Float64Array.from(o.matrixWorld.elements));
 }
 
@@ -110,12 +121,27 @@ function worlds(pose: Record<string, number[]>): M4[] {
 // coarse for the face: the UVs are kept and sampled per pixel)
 interface Tri { p: number[]; n: number[]; uv: number[] | null; mat: ReturnType<typeof matColour>; tail?: boolean; part: number; tint?: number[] }
 
-/** The parts the art is scored by, one by one (forgeFidelity --parts). */
-export const PARTS = ['head', 'do', 'kusazuri', 'sode', 'arms', 'obi', 'hakama', 'shins', 'feet', 'sword'] as const;
+/** The parts the art is scored by, one by one (forgeFidelity --parts): by the kit the character wears. */
+const SAMURAI_PARTS = ['head', 'do', 'kusazuri', 'sode', 'arms', 'obi', 'hakama', 'shins', 'feet', 'sword'];
+const SCHOLAR_PARTS = ['head', 'jerkin', 'skirt', 'cloak', 'arms', 'belt', 'legs', 'boots', 'pack', 'staff'];
+const SCHOLAR = kitPieces(spec.kit).includes('jerkin');
+export const PARTS: readonly string[] = SCHOLAR ? SCHOLAR_PARTS : SAMURAI_PARTS;
 /** Which part a triangle is: from its mesh, its material and the bone it mostly moves with. */
 function partOf(node: string, mat: string, joint: string): number {
-  const P = (n: (typeof PARTS)[number]) => PARTS.indexOf(n);
+  const P = (n: string) => PARTS.indexOf(n);
   const m = mat.replace(/_painted$/, '');
+  if (SCHOLAR) {
+    if (/quill_staff/.test(node) || /^(staffWood|quill|quillGlow)$/.test(m)) return P('staff');
+    if (/_head$/.test(node) || /^(Head|LeftEye|RightEye)/.test(joint) || m === 'hair' || m === 'hairCards') return P('head');
+    if (m === 'cloak') return P('cloak');
+    if (m === 'pack' || m === 'belt' || m === 'brass') { if (/Spine2/.test(joint)) return P('pack'); return P('belt'); }
+    if (m === 'sash' || m === 'glass') return P('belt');
+    if (m === 'boots' || /(Foot|ToeBase)$/.test(joint)) return P('boots');
+    if (m === 'jerkin') return /UpLeg$/.test(joint) ? P('skirt') : /(Arm|ArmTwist|ForeArm|ForeArmTwist)$/.test(joint) ? P('arms') : P('jerkin');
+    if (m === 'trousers' || /(UpLeg|Leg)$/.test(joint)) return P('legs');
+    if (/(Arm|ArmTwist|ForeArm|ForeArmTwist|Hand)$|Hand(Thumb|Index|Middle|Ring|Pinky)/.test(joint)) return P('arms');
+    return P('jerkin');
+  }
   if (/saya|wakizashi|sheathed/.test(node) || /^(Sageo|Saya)/.test(joint) || m === 'sageo') return P('sword');
   if (/_head$/.test(node) || /^(Head|Tail_|HairLock|LeftEye|RightEye)/.test(joint) || m === 'hairCards') return P('head');
   if (/^Kusazuri/.test(joint)) return P('kusazuri');
@@ -452,7 +478,7 @@ for (const v of ['front', 'side', 'back'] as ViewName[]) for (const name of PART
 /** How well one model part overlaps the art's (IoU), in a rendered view; null when the art's part isn't cut yet. */
 function partIoU(r: ReturnType<typeof render>, v: ViewName, name: string, shift: number): number | null {
   const A = artParts.get(`${v}:${name}`); if (!A) return null;
-  const p = PARTS.indexOf(name as (typeof PARTS)[number]);
+  const p = PARTS.indexOf(name);
   let inter = 0, uni = 0;
   for (let y = 0; y < r.H; y++) for (let x = 0; x < r.W; x++) {
     const i = y * r.W + x, mx = x - shift;

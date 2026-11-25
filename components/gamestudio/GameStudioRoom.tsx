@@ -15,6 +15,7 @@ import { coerceParam, KITS, newInstance, prefabById, resolvedParams, type ParamS
 import { allLevels, goalSentence } from '../../services/gamestudio/story/schema';
 import { placeModules, storyNames } from '../../services/gamestudio/story/build';
 import { ruleNames } from '../../services/gamestudio/rulePlayer';
+import { lexiconProject } from '../../services/gamestudio/projects/lexicon';
 import { BEAT_COLOR, RulesPanel, StoryPanel } from './StoryPanel';
 import { AriaAssetPanel } from './AriaAssetPanel';
 
@@ -29,7 +30,7 @@ export interface GameStudioRoomProps {
   /** Open this project instead of the last one on this device. */
   initialProject?: GameProject;
   /** Where the game pages are served (a dev server or lab). Default: the shipped build, or the game's dev server in dev. */
-  runtimeOrigin?: string;
+  runtimeOrigin?: string | Record<string, string>;
   /** Cloud autosave (default on; labs without sign-in can turn it off). */
   cloud?: boolean;
 }
@@ -43,6 +44,12 @@ const ZONE_DOT = '#4ade80';
 const LAST_KEY = 'plajah.gamestudio.last';
 const projKey = (id: string) => `plajah.gamestudio.project:${id}`;
 type Send = (msg: StudioToGame extends infer M ? (M extends StudioToGame ? Omit<M, 'source'> : never) : never) => void;
+
+/** Games a new project can start from: an empty project on a runtime, or a full starter project (first-party games, dogfood rule). */
+const STARTERS: { id: string; name: string; make: () => GameProject }[] = [
+  { id: 'rift-realm', name: 'Rift Realm (arena shooter)', make: () => newProjectFor('rift-realm') },
+  { id: 'lexicon', name: 'Lexicon: The Unwriting (adventure)', make: () => ({ ...lexiconProject(), id: `game_${Date.now().toString(36)}` }) },
+];
 
 function loadLast(): GameProject | null {
   try {
@@ -87,7 +94,7 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
   const kit: PrefabDef[] = KITS[project.runtime.game] ?? [];
   const rl = rt && runtimeLevel(rt, lvl.module.id);
   const dev = !!(import.meta as any).env?.DEV;
-  const src = rt && rl ? runtimeUrl(rt, mode === 'edit' ? 'studio' : 'play', rl, { dev, origin: runtimeOrigin }) : '';
+  const src = rt && rl ? runtimeUrl(rt, mode === 'edit' ? 'studio' : 'play', rl, { dev, origin: typeof runtimeOrigin === 'string' ? runtimeOrigin : runtimeOrigin?.[rt.id] }) : '';
   const markers = effectiveMarkers(lvl, def);
   const selMarker = markers.find(m => m.id === selected) ?? null;
   const selInst = lvl.instances.find(i => i.id === selected) ?? null;
@@ -258,6 +265,11 @@ export default function GameStudioRoom({ level = 'simple', onLevel, onClose, ini
     <div className="flex items-center gap-2 px-3 h-12 shrink-0" style={{ background: C.bar, borderBottom: `1px solid ${C.line}` }}>
       <Gamepad2 size={18} style={{ color: C.accent }}/>
       <input aria-label="Project name" value={project.name} onChange={e => { if (e.target.value.trim()) apply({ op: 'setProjectName', name: e.target.value }); }} className="bg-transparent text-[14px] font-bold outline-none w-[170px] px-1 rounded" data-testid="gs-name"/>
+      <select aria-label="Start a new game from" value="" onChange={e => { const s = STARTERS.find(x => x.id === e.target.value); if (!s) return; const p = withRuntimeLevels(s.make()); history.reset(p); setLevelId(p.startLevel); setSelected(null); setNotice(`New game from ${s.name}.`); }}
+        className="h-8 px-2 rounded-lg text-[12px] outline-none" style={{ background: 'transparent', border: `1px solid ${C.line}`, color: C.dim }} data-testid="gs-starter">
+        <option value="">Start from…</option>
+        {STARTERS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+      </select>
       {cloud && <div className="shrink-0 whitespace-nowrap"><Suspense fallback={null}><CreativeSyncPill kind={GAME_CLOUD_KIND} localId={project.id}/></Suspense></div>}
       {project.levels.length <= 5 ? <div className="flex gap-1 ml-2 min-w-0 overflow-x-auto" role="tablist" aria-label="Levels">
         {project.levels.map(l => <button key={l.id} role="tab" aria-selected={l.id === lvl.id} onClick={() => setLevelId(l.id)} className="h-8 px-3 rounded-lg text-[12.5px] font-semibold whitespace-nowrap" style={{ background: l.id === lvl.id ? 'rgba(56,189,248,.16)' : 'transparent', border: `1px solid ${l.id === lvl.id ? C.accent : C.line}` }} data-testid={`gs-level-${l.id}`}>{l.name}</button>)}

@@ -10,7 +10,8 @@ import * as runtime from '../../services/gamestudio/runtime';
 import { validateProject } from '../../services/gamestudio/validate';
 
 const q = new URLSearchParams(location.search);
-const origin = q.get('game') ?? 'http://127.0.0.1:4335';
+// one dev server per runtime: ?game= overrides Rift Realm's, ?lexicon= Lexicon's
+const origin = { 'rift-realm': q.get('game') ?? 'http://127.0.0.1:4335', lexicon: q.get('lexicon') ?? 'http://127.0.0.1:4392' };
 (window as any).gameStudio = { ops, runtime, validateProject };
 
 function Lab() {

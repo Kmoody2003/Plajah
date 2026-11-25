@@ -21,6 +21,8 @@ export interface RuleHost {
   lose(): void;
   restartFromCheckpoint(): void;
   unlockLevel?(level: string): void;
+  /** Adventure template: open a named gate/door. */
+  openGate?(gate: string): void;
   /** A rule fired: its id and how it reads. */
   fired?(rule: Rule, sentence: string): void;
 }
@@ -137,6 +139,7 @@ export class RulePlayer {
       }
       case 'giveItem': h.giveItem(String(a.item ?? '')); break;
       case 'unlockLevel': h.unlockLevel?.(String(a.level ?? '')); break;
+      case 'openGate': h.openGate?.(String(a.gate ?? '')); break;
       case 'winLevel': this.end('won'); h.setTimer(null); h.win(typeof a.next === 'string' ? a.next : undefined); break;
       case 'loseLevel': this.end('lost'); h.setTimer(null); h.lose(); break;
       case 'restartFromCheckpoint': h.restartFromCheckpoint(); break;
@@ -201,6 +204,10 @@ function matches(r: Rule, args: Record<string, ParamValue | undefined>): boolean
     case 'waveCleared': return w.wave === undefined || w.wave === args.wave;
     case 'pointHeld': return w.seconds === undefined || w.seconds === args.seconds;
     case 'itemsCollected': return (!w.item || w.item === args.item) && Number(args.count ?? 0) === Number(w.count ?? 1);
+    case 'songPlayed': return !w.song || w.song === args.song;
+    case 'puzzleSolved': return !w.kind || w.kind === args.kind;
+    case 'talkedTo': return !w.who || w.who === args.who;
+    case 'gateOpened': return !w.gate || w.gate === args.gate;
     default: return true;
   }
 }

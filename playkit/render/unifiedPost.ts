@@ -66,8 +66,15 @@ export interface PlaykitPostOptions {
   lut?: boolean;
   lutPreset?: PlaykitLutPreset;
   lutStrength?: number;
-  /** Override query-string debug flags (e.g. 'noao,norays,ssr,traa,fsr,nolut,nograde'). */
+  /** Override query-string debug flags (e.g. 'noao,norays,ssr,traa,fsr,nolut,nograde,nostylize'). */
   debugFlags?: string;
+  /**
+   * Optional stylize stage, run on the graded colour before vignette/AA (e.g. playkit/render/manuscriptLook:
+   * ink contour, paper, erasure field). Gets the colour, the depth texture, a normal sampler (when AO or SSR
+   * made one) and the scene camera; returns the new colour node.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  stylize?: (ctx: { color: any; depth: any; normal: any; camera: THREE.Camera }) => any;
 }
 
 export interface PlaykitPostHandle {
@@ -314,6 +321,16 @@ export function createPlaykitPostPipeline(
         if (look.warm) c = mix(c, c.mul(vec3(1.07, 1.0, 0.84)), smoothstep(float(0.08), float(0.6), luminance(c)).mul(look.warm));
       }
       activePasses.push('grade');
+    }
+
+    // 5b. Optional stylize stage (drawn looks: ink, paper, erasure fields)
+    if (opts.stylize && !dbg.includes('nostylize')) {
+      try {
+        c = opts.stylize({ color: c, depth: depthTex, normal: sceneNormal, camera }).rgb;
+        activePasses.push('stylize');
+      } catch (err) {
+        console.warn('[playkit-post] stylize skipped:', err);
+      }
     }
 
     // 6. Gentle optical vignette

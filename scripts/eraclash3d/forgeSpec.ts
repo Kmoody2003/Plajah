@@ -27,6 +27,17 @@ export interface ForgeSpec {
   kit: KitSpec;
   out: { character: string; kit: string };
   gates: { overall: number; part: number; head: number };
+  /** Hair style (hairSystem.ts): 'ponytail' (Haru, the default) or 'locs' (over an undercut). */
+  hair?: { style: 'ponytail' | 'locs'; count?: number; length?: number };
+  /** The hand poses the game holds (grips(): katana, fist, relaxed); default Right:katana, Left:relaxed. */
+  hold?: { Right?: string; Left?: string };
+  /** Material colours by name, hex sRGB (forgeLook.ts haruMaterials), over the kit's defaults. */
+  look?: { palette?: Record<string, string> };
+  /**
+   * Painting from the turnaround (forgePaint.ts): materials left as built (e.g. 'face' and 'scalp' when the portrait is
+   * much sharper than the sheet's small heads), and whether the head's sides are painted from the sheet's side view.
+   */
+  paint?: { skip?: string[]; headSides?: boolean };
 }
 /** The turnaround measured (forge intake): each view's columns, the soles' row, the chin's row, the face's length. */
 export interface SheetIntake {

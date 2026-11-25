@@ -19,7 +19,7 @@ import {
   meshField, bodyField, settleOnField, relaxMesh, compact, humanSkinWeights, bakeCorrective, nearestOnBody, neighbours,
   type BodyMesh, type CorrectiveSpec,
 } from '../../services/argilla/creature/humanFinish';
-import { buildKit, kitPieces, quatFromBasis, unitBox, MeshBuilder, type Wardrobe } from '../../services/argilla/creature/wardrobe';
+import { buildKit, kitPieces, quatFromBasis, unitBox, tube, MeshBuilder, type Wardrobe } from '../../services/argilla/creature/wardrobe';
 import { PNG } from 'pngjs';
 import { ear } from '../../services/argilla/creature/ears';
 import { hiltInSaya, merged, mirroredZ } from '../../services/argilla/creature/koshirae';
@@ -32,7 +32,7 @@ import { spec, WORK_DIR, dataFile, portraitLandmarks, flatLayPieceDir } from './
 import { flatLayPaint } from './forgeKitPaint';
 import { fitFaceToArt, paintHeadFromSheet, HARU_SHEET, loadHeadWarp, headWarpMap, warpField, HEAD_WARP_FILE } from './forgeFaceFit';
 import { CANONICAL_INDICES } from '../../services/vtuber/rigBuilder/canonicalFace';
-import { fitScalp, ponytail, strandAtlas, hairlineAt } from '../../services/argilla/creature/hairSystem';
+import { fitScalp, ponytail, locs, strandAtlas, hairlineAt } from '../../services/argilla/creature/hairSystem';
 import * as THREE from 'three';
 import { buildArkitShapes, ARKIT_SHAPES } from '../../services/vtuber/rigBuilder/arkitShapes';
 import { transferFace } from '../../services/vtuber/rigBuilder/transferFace';
@@ -58,6 +58,8 @@ async function main() {
   // the face's shape from Muse's art (forgeFaceFit.ts), and the head grown and moved forward to meet it as the
   // turnaround's side view has it; the average face when the art is not on this machine
   const pieces = kitPieces(spec.kit);
+  /** The chin's height: Haru's measured 1.537 m at 1.74 m, scaled with the spec's height. */
+  const CHIN_Y = 1.537 * ((spec.body.height ?? 1.74) / 1.74);
   const wears = (p: string) => pieces.includes(p);
   const REF = process.env.FORGE_FACE_ART ?? spec.art.portrait;
   const refMarks = portraitLandmarks();
@@ -66,7 +68,7 @@ async function main() {
   const bodyFit = fs.existsSync(BODY_FIT_FILE) ? JSON.parse(fs.readFileSync(BODY_FIT_FILE, 'utf8')) : {};
   let tune: HumanTune = { ...HARU_TUNE, ...spec.body, ...bodyFit };
   if (fs.existsSync(refMarks) && fs.existsSync(HARU_SHEET.path) && process.env.FORGE_FACE_FIT !== '0') {
-    const fit = await fitFaceToArt({ landmarks: refMarks, chinY: 1.537 });
+    const fit = await fitFaceToArt({ landmarks: refMarks, chinY: CHIN_Y });
     tune = { ...tune, face: fit.points, head: HARU_HEAD };
     log(`face fitted to the art: ${JSON.stringify(fit.report)}`);
   }
@@ -159,7 +161,10 @@ async function main() {
     for (let i = 0; i < 4; i++) { const d = field.d(q[0], q[1], q[2]) - lift; const g = field.grad(q[0], q[1], q[2]); q = [q[0] - g[0] * d, q[1] - g[1] * d, q[2] - g[2] * d]; }
     return { p: q, n: field.grad(q[0], q[1], q[2]) };
   };
-  const hair = ponytail(scalp, { headBone: 'Head', columns: 4, snap });
+  const hairStyle = spec.hair?.style ?? 'ponytail';
+  const hair = hairStyle === 'locs'
+    ? locs(scalp, { headBone: 'Head', snap, count: spec.hair?.count, length: spec.hair?.length })
+    : ponytail(scalp, { headBone: 'Head', columns: 4, snap });
   // ears (the canonical face has none): on the side of the head, top at the brow, a little behind the head's middle
   const ears = new MeshBuilder();
   for (const sx of [1, -1]) {
@@ -174,11 +179,12 @@ async function main() {
 
   // ---- The arms, from the context stage (context.json): built from the Heritage Codex, worn as the record says ------
   const context = loadContext();
-  const sword = wornSword(context);
+  // only a character who wears the katana gets the codex's sword (the Scribe carries a quill-staff, built below)
+  const sword = wears('katana') ? wornSword(context) : null;
   const koshirae = buildArm(sword);
   const armsNotes: string[] = [];
   const obiSock = kit.sockets.find((s) => s.name === 'socket_obi_katana');
-  const worn = obiSock ? wear(sword, obiSock, anatomy.byName.Hips.at, armsNotes) : null;
+  const worn = obiSock && wears('katana') ? wear(sword, obiSock, anatomy.byName.Hips.at, armsNotes) : null;
   const sayaMeshes = worn?.mirror ? mirroredZ(koshirae.saya) : koshirae.saya;
   const sheathedHiltMeshes = worn?.mirror ? mirroredZ(hiltInSaya(koshirae)) : hiltInSaya(koshirae);
   if (worn?.mirror) armsNotes.push('the kurikata turned to the omote, the face away from the body');
@@ -197,18 +203,25 @@ async function main() {
   // garments cut from the body itself: they inherit its weights and correctives exactly
   const dominant = (v: number) => HUMAN_JOINTS[skin.skinIndex[v * 4]] as string;
   const P = (v: number): Vec3 => [body.positions[v * 3], body.positions[v * 3 + 1], body.positions[v * 3 + 2]];
-  const collarY = (p: Vec3) => (p[2] > 0.0 ? Math.min(1.47, 1.33 + Math.abs(p[0]) * 1.5) : 1.47);
+  // the kosode's V-neck shows the chest in front; a jerkin over a stand-collar shirt covers it to the neck
+  const collarY = (p: Vec3) => (wears('jerkin') ? 1.475 * CHIN_Y / 1.537 : p[2] > 0.0 ? Math.min(1.47, 1.33 + Math.abs(p[0]) * 1.5) : 1.47);
   const allRegions: Record<string, (v: number) => boolean> = {
     kosode: (v) => { const p = P(v), b = dominant(v); return p[1] > 0.93 && p[1] < collarY(p) && /^(Hips|Spine|Spine1|Spine2|Neck|LeftShoulder|RightShoulder)$/.test(b); },
     // the sleeve runs on into a fingerless glove over the palm and the back of the hand (the art's navy tekko gloves)
     koteCloth: (v) => /^(Left|Right)(Arm|ArmTwist|ForeArm|ForeArmTwist|Hand)$/.test(dominant(v)),
     kyahan: (v) => /^(Left|Right)Leg$/.test(dominant(v)) && P(v)[1] < 0.5, // up to the hakama's gather under the knee
     tabi: (v) => /^(Left|Right)(Foot|ToeBase)$/.test(dominant(v)),
+    // scholar-adventurer: linen sleeves, trousers to the boots, tall boots, gloves
+    // the sleeves, and the stand collar over the upper chest and neck (above the jerkin, under the collar line)
+    shirt: (v) => { const b = dominant(v), p = P(v); return /^(Left|Right)(Arm|ArmTwist|ForeArm|ForeArmTwist)$/.test(b) || (/^(Spine2|Neck|LeftShoulder|RightShoulder)$/.test(b) && p[1] > (wears('jerkin') ? 1.45 : 1.36) && p[1] < collarY(p)); },
+    trousers: (v) => { const b = dominant(v); return /UpLeg$/.test(b) || (/^(Left|Right)Leg$/.test(b) && P(v)[1] >= 0.5) || (b === 'Hips' && P(v)[1] < 1.0); },
+    boots: (v) => /^(Left|Right)(Foot|ToeBase)$/.test(dominant(v)) || (/^(Left|Right)Leg$/.test(dominant(v)) && P(v)[1] < 0.5),
+    gloves: (v) => /^(Left|Right)Hand/.test(dominant(v)) || /^(Left|Right)Hand(Thumb|Index|Middle|Ring|Pinky)/.test(dominant(v)),
   };
   /** Which piece each body-cut garment belongs to: cut only if the character wears it. */
-  const CUT_BY: Record<string, string> = { kosode: 'kosode', koteCloth: 'kote', kyahan: 'suneate', tabi: 'tabi' };
+  const CUT_BY: Record<string, string> = { kosode: 'kosode', koteCloth: 'kote', kyahan: 'suneate', tabi: 'tabi', shirt: 'shirt', trousers: 'trousers', boots: 'boots', gloves: 'gloves' };
   const regions = Object.fromEntries(Object.entries(allRegions).filter(([k]) => wears(CUT_BY[k])));
-  const OFFSET: Record<string, number> = { kosode: 0.009, koteCloth: 0.0075, kyahan: 0.03, tabi: 0.0035 };
+  const OFFSET: Record<string, number> = { kosode: 0.009, koteCloth: 0.0075, kyahan: 0.03, tabi: 0.0035, shirt: 0.007, trousers: 0.009, boots: 0.016, gloves: 0.003 };
   const offsetPieces = Object.fromEntries(Object.entries(regions).map(([name, sel]) => [name, cutOffset(body, skin, correctives, sel, OFFSET[name])]));
   log(`body-cut garments: ${Object.entries(offsetPieces).map(([k, p]) => `${k} ${p.mesh.positions.length / 3}`).join(', ')}`);
 
@@ -217,7 +230,7 @@ async function main() {
   const covered = (v: number) => {
     const p = P(v), b = dominant(v);
     if (Object.values(regions).some((sel) => sel(v))) return true;
-    if (/^(Hips|Spine|Spine1|Spine2)$/.test(b) && (wears('kosode') || wears('do'))) return true;
+    if (/^(Hips|Spine|Spine1|Spine2)$/.test(b) && (wears('kosode') || wears('do') || wears('jerkin'))) return true;
     if (/UpLeg$/.test(b) && wears('hakama')) return true;
     if (/(Left|Right)Leg$/.test(b) && wears('hakama') && p[1] > (armourFit.hakGather ?? 0.47) - 0.02) return true;
     if (/(Arm|ArmTwist)$/.test(b) && /^(Left|Right)Arm/.test(b) && (wears('kosode') || wears('kote'))) return true;
@@ -249,7 +262,8 @@ async function main() {
   // ---- Armour: rigid plates, one bone per vertex -------------------------------------------------------------
   const armourPrims: GPrim[] = [];
   for (const [mat, mb] of kit.armour) armourPrims.push(rigidPrim(mb, boneIndex, mat, 0));
-  armourPrims.push(rigidPrim(hair.mesh, boneIndex, 'hairCards', 0), rigidPrim(hair.cord, boneIndex, 'silk', 0), rigidPrim(ears, boneIndex, 'skin', 0));
+  // ponytail: strand cards + a silk cord; locs: solid locs + gold cuffs
+  armourPrims.push(rigidPrim(hair.mesh, boneIndex, hairStyle === 'locs' ? 'hair' : 'hairCards', 0), rigidPrim(hair.cord, boneIndex, hairStyle === 'locs' ? 'gold' : 'silk', 0), rigidPrim(ears, boneIndex, 'skin', 0));
   if (sayaRig) armourPrims.push(rigidPrim(sayaRig.cord, boneIndex, 'sageo', 0));
   log(`armour: ${armourPrims.reduce((n, p) => n + p.positions.length / 3, 0)} verts in ${armourPrims.length} primitives`);
 
@@ -267,7 +281,8 @@ async function main() {
   const sockets: ForgeSocket[] = kit.sockets.filter((s) => s.name !== 'socket_obi_wakizashi' || process.env.FORGE_WAKIZASHI === '1').map((s) => {
     const z = cross(s.x, s.y);
     const meshes: ForgeSocket['meshes'] = [];
-    if (s.name === 'socket_hand_R') meshes.push({ name: 'katana', at: [0, 0.05, 0], prims: localPrims(merged(koshirae.blade, koshirae.hilt)), markers: [{ name: 'katana_base', at: koshirae.base }, { name: 'katana_tip', at: koshirae.tip }] });
+    if (s.name === 'socket_hand_R' && wears('quillStaff')) meshes.push({ name: 'quill_staff', prims: localPrims(quillStaff()), markers: [{ name: 'staff_base', at: [0, 0, 0] }, { name: 'staff_tip', at: [0, STAFF.length, 0] }] });
+    if (s.name === 'socket_hand_R' && wears('katana')) meshes.push({ name: 'katana', at: [0, 0.05, 0], prims: localPrims(merged(koshirae.blade, koshirae.hilt)), markers: [{ name: 'katana_base', at: koshirae.base }, { name: 'katana_tip', at: koshirae.tip }] });
     if (s.name === 'socket_obi_katana' && worn) {
       meshes.push({ name: 'katana_saya', prims: localPrims(sayaMeshes) });
       // the katana as the art draws it, sheathed: its hilt out of the saya (the game hides it while the blade is drawn)
@@ -288,14 +303,14 @@ async function main() {
   const extras = {
     forge: {
       version: 3,
-      height: 1.8, // crown with the topknot to the sole
+      height: hairStyle === 'ponytail' ? 1.8 : (spec.body.height ?? 1.74) + 0.07, // crown (with the topknot or locs) to the sole
       springs: kit.springs,
       cloth: kit.clothSims,
       capsules: anatomy.capsules.map((c) => ({ bone: c.bone, a: sub(c.a, anatomy.byName[c.bone].at), b: sub(c.b, anatomy.byName[c.bone].at), r: c.r })),
       drivers,
       twists: Object.entries(TWIST_JOINTS).map(([bone, t]) => ({ bone, driver: t.driver, share: t.share, axis: norm(sub(anatomy.byName[t.parent as HumanJoint].tip, anatomy.byName[t.parent as HumanJoint].at)) })),
       grips: grips(anatomy),
-      hold: { Right: 'Right:katana', Left: 'Left:relaxed' },
+      hold: { Right: spec.hold?.Right ?? 'Right:katana', Left: spec.hold?.Left ?? 'Left:relaxed' },
       // who the character is (forge context): how they carry themself, and what the Forge read it from
       bearing: context?.bearing,
       context: context ? { archetype: context.recognised.archetype, tradition: context.recognised.tradition, sword: sword ? { id: sword.id, dims: sword.dims, features: sword.features, carry: sword.carry } : null } : undefined,
@@ -322,9 +337,9 @@ async function main() {
   const onStrip = (c: Vec3, nz: number) => !(Math.abs(c[0]) < 0.035 && c[2] > centreZ) && ((nz < 0.25 && c[2] < sideZ) || (nz < -0.15 && c[2] < centreZ));
   const headPrim = faceUvPrim(head, arkit, atlasFace.uvOf, onStrip);
   // the sides and back of the head from the turnaround's side and back views
-  if (fromArt && fs.existsSync(HARU_SHEET.path)) {
+  if (fromArt && fs.existsSync(HARU_SHEET.path) && spec.paint?.headSides !== false) {
     const toSrgb = (c: number) => 255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055);
-    atlasFace = { ...atlasFace, png: await paintHeadFromSheet(atlasFace.png, { ...headPrim, uvs: headPrim.uvs! }, { chinY: 1.537, frontSkin: fromArt.skin.map(toSrgb), front: 0.72, faceZ: sideZ - 0.005, browY, seamY: SEAM }) /* behind the face's outline only: the profile's cheek highlight must not stripe the face */ };
+    atlasFace = { ...atlasFace, png: await paintHeadFromSheet(atlasFace.png, { ...headPrim, uvs: headPrim.uvs! }, { chinY: CHIN_Y, frontSkin: fromArt.skin.map(toSrgb), front: 0.72, faceZ: sideZ - 0.005, browY, seamY: SEAM }) /* behind the face's outline only: the profile's cheek highlight must not stripe the face */ };
     log('head: sides and back painted from the sheet');
   }
   fs.writeFileSync(path.join(WORK, 'face_atlas.png'), atlasFace.png);
@@ -363,7 +378,7 @@ async function main() {
       ],
     rigid: NAKED ? [] : [{ name: 'kabuto', bone: 'Head', prims: kabuto }, ...lacing],
     sockets: NAKED ? sockets.filter((s) => s.name === 'socket_hand_R') : sockets,
-    materials: haruMaterials(),
+    materials: haruMaterials(spec.look?.palette),
     images: [],
     extras,
   };
@@ -702,6 +717,40 @@ function rigidPrim(mb: MeshBuilder, boneIndex: Map<string, number>, mat: string,
 function rigidWorldPrim(mb: MeshBuilder, mat: string): GPrim {
   return { positions: new Float32Array(mb.pos), normals: new Float32Array(mb.nor), uvs: new Float32Array(mb.uv), indices: new Uint32Array(mb.idx), material: MATERIAL_INDEX[mat] };
 }
+/**
+ * The quill-staff (Lexicon's Scribe, design sheet): 1.85 m from the foot spike to the feather's tip (measured off the
+ * turnaround against the figure), a wooden shaft wound with brass at the grip (1.2 m up) and twisted brass under the
+ * head, a brass crown cradling a feather-blade with a cyan core. Built from its foot (local y = 0) up, so a game or the
+ * scorer stands it on the ground under the hand (it is held upright, not along the hand's grip axis).
+ */
+export const STAFF = { length: 1.85, grip: 1.2 };
+function quillStaff(): Map<string, MeshBuilder> {
+  const wood = new MeshBuilder(), brass = new MeshBuilder(), quill = new MeshBuilder(), glow = new MeshBuilder();
+  const B = 'socket', G = STAFF.grip, head = 1.46;
+  tube(brass, [[0, 0, 0], [0, 0.11, 0]], (t) => 0.004 + 0.012 * t, 8, B); // the foot spike
+  tube(wood, [[0, 0.1, 0], [0, head, 0]], (t) => 0.016 - 0.002 * t, 10, B);
+  for (let k = 0; k < 6; k++) tube(brass, [[0, G - 0.06 + k * 0.025, 0], [0, G - 0.05 + k * 0.025, 0]], 0.0185, 10, B);
+  const twist: [number, number, number][] = [];
+  for (let k = 0; k <= 40; k++) { const t = k / 40, a = t * Math.PI * 8; twist.push([Math.cos(a) * 0.018, head - 0.3 + t * 0.3, Math.sin(a) * 0.018]); }
+  tube(brass, twist, 0.0045, 6, B);
+  for (let k = 0; k < 4; k++) {
+    const a = (k / 4) * Math.PI * 2 + Math.PI / 4, pts: [number, number, number][] = [];
+    for (let i = 0; i <= 8; i++) { const t = i / 8; pts.push([Math.cos(a) * (0.018 + 0.032 * Math.sin(t * Math.PI * 0.8)), head + t * 0.12, Math.sin(a) * (0.018 + 0.032 * Math.sin(t * Math.PI * 0.8))]); }
+    tube(brass, pts, (t) => 0.006 * (1 - 0.6 * t), 6, B);
+  }
+  // the feather blade: a flat vane to the tip, widest a third of the way up, the cyan core along its middle
+  const vane = (mb: MeshBuilder, w: number, z: number) => {
+    const n = 14, base = mb.count, y0 = head + 0.04, L = STAFF.length - y0;
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, y = y0 + t * L, half = w * Math.sin(Math.PI * Math.min(1, t * 1.15)) * (1 - 0.25 * t);
+      mb.vert([-half, y, z], [0, 0, 1], 0, t, B); mb.vert([half, y + 0.01 * Math.sin(t * 6), z], [0, 0, 1], 1, t, B);
+    }
+    for (let i = 0; i < n; i++) mb.quad(base + i * 2, base + i * 2 + 1, base + i * 2 + 3, base + i * 2 + 2);
+  };
+  vane(quill, 0.06, 0); vane(glow, 0.024, 0.002); vane(glow, 0.024, -0.002);
+  return new Map([['staffWood', wood], ['brass', brass], ['quill', quill], ['quillGlow', glow]]);
+}
+
 function localPrims(meshes: Map<string, MeshBuilder>): GPrim[] {
   return [...meshes].map(([mat, mb]) => rigidWorldPrim(mb, mat));
 }

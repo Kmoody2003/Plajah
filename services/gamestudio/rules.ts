@@ -22,6 +22,11 @@ export const EVENTS: Record<string, VerbSpec> = {
   itemsCollected: { id: 'itemsCollected', says: '{count} {item} are collected', params: { count: 'number', item: 'item' } },
   playerDowned: { id: 'playerDowned', says: 'the player goes down' },
   waveCleared: { id: 'waveCleared', says: 'wave {wave} is cleared', params: { wave: 'number' } },
+  // adventure template (Lexicon first): songs, puzzles, conversations, gates
+  songPlayed: { id: 'songPlayed', says: 'the player plays {song}', params: { song: 'text' } },
+  puzzleSolved: { id: 'puzzleSolved', says: 'a {kind} puzzle is solved', params: { kind: 'text' } },
+  talkedTo: { id: 'talkedTo', says: 'the player talks to {who}', params: { who: 'cast' } },
+  gateOpened: { id: 'gateOpened', says: '{gate} opens', params: { gate: 'text' } },
 };
 
 export const ACTIONS: Record<string, VerbSpec> = {
@@ -34,6 +39,7 @@ export const ACTIONS: Record<string, VerbSpec> = {
   giveItem: { id: 'giveItem', says: 'give the player {item}', params: { item: 'item' } },
   unlockLevel: { id: 'unlockLevel', says: 'unlock {level}', params: { level: 'level' } },
   restartFromCheckpoint: { id: 'restartFromCheckpoint', says: 'restart from the last checkpoint' },
+  openGate: { id: 'openGate', says: 'open {gate}', params: { gate: 'text' } },
 };
 
 const OP_WORD: Record<RuleCond['op'], string> = { '==': 'is', '!=': 'is not', '<': 'is under', '<=': 'is at most', '>': 'is over', '>=': 'is at least' };

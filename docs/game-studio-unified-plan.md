@@ -293,6 +293,30 @@ for everything the Studio exports: WebGPU on native APIs (D3D12, Vulkan, Metal) 
 bakes (LODs, KTX2, meshopt) for Windows, Android, iOS and Mac. First slice built 2026-11-18
 (`services/gamestudio/photo3d/*`, 19 tests, one real run on a conga photo).
 
+## 7c. Lexicon: the first adventure-template runtime (2026-11-24)
+
+Lexicon: The Unwriting (a word + math adventure in the Ocarina of Time mould) is the second Studio runtime and
+the first on the `adventure` template. Built the dogfood way: the game boots from its Game Project
+(`services/gamestudio/projects/lexicon.ts`: two levels, markers, trigger zones, rules as sentences), runs its
+rules in the RulePlayer, and the Studio opens it from the new "Start from…" menu.
+
+New shared pieces (any game can use them):
+- `playkit/adventure/`: `lockOn` (Z-target pick/cycle/keep), `followCamera` (orbit, lock-on framing, boom
+  pull-in against walls/trees), `dialogue` (dialogue graphs as data with `has:`/`do:` strings), `instrument`
+  (notes → songs, the ocarina pattern; Lexicon's songs are words typed letter by letter).
+- `playkit/learning/challenges`: four-choice letter, arithmetic and word-weight (A=1…Z=26) challenges from any
+  word bank, plus always-solvable sum gates. Ready for Academia games.
+- Rule vocabulary: events `songPlayed`, `puzzleSolved`, `talkedTo`, `gateOpened`; action `openGate`.
+
+Game: `games/lexicon` (dev :4392, `npm run lexicon:dev|build`, bundle `public/games/lexicon/play`), PlaykitEngine
+(timeScale slows the world during a rescue), UnifiedInputBuffer, PlajahPlatformBridge, Games catalog entry
+`lexicon`. Tests: `npm run test:lexicon-game`. Debug: `?lexdebug` exposes `__lex` (`step()` drives frames when the
+Browser pane is hidden; `capture(name)` writes `games/lexicon/review/`).
+
+Not yet: an edit-mode World view (Lexicon's `studio.html` equivalent, marker dragging), villagers / sigils /
+word bank as project data instead of `games/lexicon/src/content.ts`, art pass (Character Forge villagers and
+Scribe, Plajah Terrain, vegetation kit; today's art is primitives), recorded audio, touch controls.
+
 ## 8. Decisions for Kenne
 
 1. **Pilot game:** Rift Realm (recommended) or Era Clash Chapter I.

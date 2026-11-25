@@ -36,6 +36,20 @@ export const RUNTIMES: Record<string, Runtime> = {
     studioPage: 'studio.html',
     playPage: 'index.html',
   },
+  // Lexicon: The Unwriting — the first adventure-template runtime (lock-on, songs, dialogue, word/math gates).
+  lexicon: {
+    id: 'lexicon',
+    name: 'Lexicon: The Unwriting',
+    template: 'adventure',
+    levels: [
+      { module: 'lexicon.glossa', param: 'glossa', name: 'Glossa Hollow' },
+      { module: 'lexicon.temple', param: 'temple', name: 'Temple of Numerals' },
+    ],
+    devOrigin: 'http://localhost:4392',
+    prodBase: '/games/lexicon/play/',
+    studioPage: 'index.html',
+    playPage: 'index.html',
+  },
 };
 
 export const runtimeLevel = (rt: Runtime, moduleId: string) => rt.levels.find(l => l.module === moduleId);

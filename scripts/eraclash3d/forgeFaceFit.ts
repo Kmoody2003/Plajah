@@ -61,7 +61,11 @@ export async function fitFaceToArt(opts: { landmarks: string; chinY: number; she
   const cx = m.centre(sh.side.x0, sh.side.x1);
   const rows: { y: number; d: number }[] = [];
   for (let row = Math.round(sh.chin - sh.faceLength) + 3; row <= sh.chin - 2; row++) {
-    let x = sh.side.x0; while (x < sh.side.x1 && !m.art[row * m.W + x]) x++;
+    // walk out from the head toward the front and stop at the first real gap: a prop held in front of the face (the
+    // Scribe's quill-staff) is ink further out, not the profile. On a clean profile this is the first pixel from the front.
+    let x = Math.min(cx, sh.side.x1 - 1), gap = 0, edge = x;
+    while (x > sh.side.x0) { x--; if (m.art[row * m.W + x]) { edge = x; gap = 0; } else if (++gap > 6) break; }
+    x = edge;
     const y = (sh.sole - row) / ppm, zm = midZ(y);
     if (!Number.isNaN(zm)) rows.push({ y, d: (cx - x) / ppm - zm });
   }

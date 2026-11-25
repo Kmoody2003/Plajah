@@ -343,4 +343,58 @@ export function ponytail(s: Scalp, opts: { headBone: string; columns: number; sn
   return { mesh: mb, cord, bones, springs, guides: guides.length, tie: tie.p };
 }
 
+/**
+ * Locs over an undercut (the Scribe's turnaround and portrait, Lexicon): short-to-medium locs grown from the top of the
+ * head, falling forward over the brow and down at the back; the sides and nape are shaved (the scalp paint carries the
+ * fade). Locs are thick and round, so each is a tapered tube (real geometry), not a strand card. A few front locs carry
+ * gold cuffs near their tips. Rigid on the head: they are short enough not to need springs.
+ * Returns the ponytail's shape: `mesh` (locs, material 'hair'), `cord` (the cuffs, material 'gold').
+ */
+export function locs(s: Scalp, opts: { headBone: string; snap?: Snap; count?: number; length?: number; cuffs?: number; sweep?: number }) {
+  const mb = new MeshBuilder(), cord = new MeshBuilder();
+  const H = opts.headBone;
+  let r = 13;
+  const rand = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
+  const count = opts.count ?? 78, L = opts.length ?? 0.11, sweep = opts.sweep ?? 0.2;
+  const inside = (p: Vec3) => {
+    const q = sub(p, s.centre);
+    return (q[0] / s.radii[0]) ** 2 + (q[1] / s.radii[1]) ** 2 + (q[2] / s.radii[2]) ** 2 < 1;
+  };
+  let cuffs = opts.cuffs ?? 4, guides = 0;
+  for (let k = 0; k < count; k++) {
+    // roots on the top: a golden-angle spiral, kept above the undercut (high at the sides, lower at front and back)
+    const a = k * 2.39996 + rand() * 0.2;
+    const side = Math.abs(Math.sin(a));
+    const eMin = 0.42 + 0.38 * side;               // radians above the brow line
+    const e = eMin + (Math.PI / 2 - eMin) * Math.sqrt((k + 0.5) / count) * (0.85 + rand() * 0.15);
+    const root = scalpPoint(s, a, Math.min(e, 1.5), 0.004);
+    const front = Math.cos(a) > 0.2, back = Math.cos(a) < -0.3;
+    // the art's locs part off-centre and fall to the subject's right over the brow
+    const lean: Vec3 = front ? norm([-0.45, 0, 1]) : back ? [0, 0, -1] : norm([Math.sin(a), 0, Math.cos(a) * 0.3]);
+    const len = L * (front ? 1.05 : back ? 0.95 : 0.75) * (0.75 + rand() * 0.45);
+    const pts: Vec3[] = [];
+    let p = root.p, d = norm(add(mul(root.n, 1.1), mul(lean, sweep)));
+    const steps = 9;
+    for (let i = 0; i <= steps; i++) {
+      pts.push(p);
+      const t = i / steps;
+      // stand up off the scalp, then bow over and fall: gravity grows along the loc
+      d = norm(add(add(mul(d, 1), mul([0, -1, 0], 0.25 + 0.6 * t)), mul(lean, 0.08)));
+      let q = add(p, mul(d, len / steps));
+      if (inside(q)) { const out = scalpPoint(s, Math.atan2(q[0] - s.centre[0], q[2] - s.centre[2]), Math.asin(Math.max(-1, Math.min(1, (q[1] - s.centre[1]) / s.radii[1]))), 0.006); q = out.p; }
+      if (opts.snap && i < 2) q = opts.snap(q, 0.006).p;
+      p = q;
+    }
+    const rad = 0.0072 + rand() * 0.0022;
+    tube(mb, pts, (t: number) => rad * (1 - 0.35 * t * t), 7, H);
+    guides++;
+    if (front && cuffs > 0 && rand() > 0.5) {
+      cuffs--;
+      const i = steps - 3, c = pts[i], c2 = pts[i + 1];
+      tube(cord, [lerp(c, c2, 0.1), lerp(c, c2, 0.9)], rad * 1.45, 10, H);
+    }
+  }
+  return { mesh: mb, cord, bones: [] as Chain[], springs: [] as { bones: string[]; stiffness: number; drag: number; gravity: number; radius: number; maxAngle: number }[], guides, tie: s.centre };
+}
+
 export { lerp, dot };

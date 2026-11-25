@@ -67,4 +67,8 @@ export const FIRST_PARTY_BRIDGE_CONFIGS: Record<string, IframeGameBridgeConfig> 
     achievementPrefix: 'rift_realm_',
     dailyXpCap: 500,
   },
+  lexicon: {
+    achievementPrefix: 'lexicon_',
+    dailyXpCap: 500,
+  },
 };

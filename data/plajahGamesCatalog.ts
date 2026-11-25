@@ -400,6 +400,55 @@ export const PLAJAH_GAMES_CATALOG: PlajahGameEntry[] = [
     directUrl: '/games/rift-realm/play/index.html',
   },
 
+  // ── LEXICON: THE UNWRITING (adventure template, built in the Game Studio) ──────────────────────
+  {
+    id: 'lexicon',
+    title: 'Lexicon: The Unwriting',
+    subtitle: 'Early build · A 3D word and math adventure · Rescue words, save language',
+    category: 'ADVENTURE_3D',
+    categoryLabel: 'Adventure · Words & Math',
+    badge: 'Plajah Original · Early Build',
+    engine: 'Three.js · Plajah playkit adventure kit · Game Studio project',
+    playersLabel: '1 Player',
+    duration: 'About 30 minutes for the first temple',
+    accentGradient: 'from-amber-400/30 via-indigo-800/25 to-slate-950',
+    accentColor: '#E8C26A',
+    thumbnailUrl: '/games/screens/lexicon-village.jpg',
+    screenshots: [
+      { url: '/games/screens/lexicon-village.jpg', caption: 'Glossa Hollow · the Word Well, the villagers and the Temple of Numerals' },
+      { url: '/games/screens/lexicon-night.jpg', caption: 'Night falls, and the Unwriting walks' },
+      { url: '/games/screens/lexicon-redactor.jpg', caption: 'The Redactor · strike the pillar whose word answers the riddle' },
+    ],
+    description: 'Something is unwriting the world. Lock on, strike, then answer what binds each stolen word: a missing letter, a sum, a word’s weight. Every word you save is kept in the Archive.',
+    longDescription: 'Lexicon is a 3D adventure in which words are living things and the Unwriting is erasing them, and with them the minds of the people who spoke them. Lock on to the Unwritten, strike until they falter, then answer what binds the word while time slows: restore a missing letter, break a sum, or weigh a word with A = 1 to Z = 26. Saved words return villagers’ voices, open the Cipher Gate, and become songs you type on the Lyre to wake sigils and turn day to night. The first dungeon, the Temple of Numerals, ends in a fight with the Redactor, who can only be hurt by striking the right word. The game is built in the Plajah Game Studio, so its levels and rules are open to edit.',
+    features: [
+      'Lock-on combat where every rescue is a word or math puzzle',
+      'The Lyre: type a saved word to play it as a song (Light, Time, Growing, Rain, Opening)',
+      'Glossa Hollow with a day and night cycle, villagers to help and sigils to wake',
+      'The Temple of Numerals and the Redactor boss fight',
+      'Built from a Game Studio project: levels, markers and rules are editable',
+    ],
+    controls: [
+      'Early build: placeholder art and synth sound, more temples to come',
+      'Move: WASD · Camera: mouse or arrows · Strike: J or click · Roll: Space',
+      'Lock on: Shift or right mouse (R cycles) · Talk / use: E · Lyre: Q · Archive: Tab · Answer: 1–4',
+      'Controller: X strike · B roll · A talk · LT lock on · Y lyre · Back archive · D-pad answers',
+    ],
+    commercial: {
+      tagline: 'SAVE THE WORDS. SAVE THE WORLD.',
+      durationSec: 10,
+      musicVibe: 'Plucked lyre over a warm pad',
+      scenes: [
+        { headline: 'THE UNWRITING', subline: 'Words are going blank', callout: 'RESCUE THEM', imageUrl: '/games/screens/lexicon-village.jpg', accentColor: '#E8C26A' },
+        { headline: 'STRIKE THE WORD', subline: 'The Redactor fears the right answer', callout: 'BOSS FIGHT', imageUrl: '/games/screens/lexicon-redactor.jpg', accentColor: '#9FB4D9' },
+      ],
+    },
+    achievementTriggers: ['lexicon_first_word', 'lexicon_ten_words', 'lexicon_villagers', 'lexicon_cipher', 'lexicon_redactor'],
+    synergy: { inviteFriend: true, liveStream: true, postToFeed: true },
+    launch: { type: 'iframe', url: '/games/lexicon/play/index.html', title: 'Lexicon: The Unwriting' },
+    directUrl: '/games/lexicon/play/index.html',
+  },
+
   // ── PROJECT FIRSTLIGHT (Plajah Sports 3D football; same game as the Sports page) ─────────────────
   {
     id: 'firstlight',

@@ -31,7 +31,9 @@ export interface PaintCtx {
 
 /** Meshes painted: everything the turnaround draws — clothes, armour, skin, scalp and face (FORGE_PAINT_SKIP narrows it). */
 const PAINT_NODES = /_(cloth|armour|head|body)$/;
-const SKIP_MATERIALS = new RegExp(`^(${process.env.FORGE_PAINT_SKIP ?? 'hairCards|sageo'})$`);
+// the spec can keep materials as built (forgeSpec paint.skip), the env var still narrows it further
+import { spec as forgeSpec } from './forgeSpec';
+const SKIP_MATERIALS = new RegExp(`^(${process.env.FORGE_PAINT_SKIP ?? ['hairCards', 'sageo', ...(forgeSpec.paint?.skip ?? [])].join('|')})$`);
 
 export async function paintFromSheet(c: PaintCtx) {
   const g = c.gltf;

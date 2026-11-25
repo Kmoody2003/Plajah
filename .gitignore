@@ -179,6 +179,7 @@ windows-native/tools/CadDwg/obj/
 # Era Clash 3D: build intermediates and review captures (regenerable)
 games/era-clash-3d/assets-src/
 games/era-clash-3d/review/
+games/lexicon/review/
 
 # native HQ game package dev installs (scripts/games/buildGamePackage.ts --install): never deployed
 public/pkg-dev/
