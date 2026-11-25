@@ -19,6 +19,7 @@
 import type { OlrSource } from './olr';
 import { geohashEncode } from './geohash';
 import { addressKey, businessNameKey } from './normalize';
+import { applyOwnerPolicy, scrubRaw, type OwnerPolicy } from './ownerPrivacy';
 import type {
   TerraParcel, TerraCivicRecord, GeoJsonGeometry, TerraEnergyReading, TerraBuildingEnergy,
   TerraBusinessLicense, TerraRentalCompliance, RentalComplianceState,
@@ -47,6 +48,9 @@ export const DETROIT_LAYERS = {
   // here — no third-party tile provider, no API key, nothing to licence.
   streets:          `${ORG}/Detroit_Street_Centerline/FeatureServer/0`,
 } as const;
+
+/** Detroit's parcel file names every taxpayer; Terra keeps organizations only. */
+export const DETROIT_OWNER_POLICY: OwnerPolicy = 'organizations-only';
 
 export const DETROIT_ATTRIBUTION = 'Data: City of Detroit Open Data Portal (provided as-is, without warranty)';
 
@@ -210,7 +214,7 @@ export function normalizeParcel(feature: any): TerraParcel | null {
   const geometry: GeoJsonGeometry | undefined = feature.geometry ?? undefined;
   const { lat, lng } = centroidOf(geometry);
 
-  return {
+  return applyOwnerPolicy<TerraParcel>({
     id: `detroit:${parcelNumber}`,
     jurisdiction: 'detroit',
     parcelNumber,
@@ -252,7 +256,7 @@ export function normalizeParcel(feature: any): TerraParcel | null {
     ward: str(pick(p, 'ward')),
     sources: [source('parcels')],
     updatedAt: Date.now(),
-  };
+  }, DETROIT_OWNER_POLICY);
 }
 
 function civicFrom(
@@ -280,7 +284,9 @@ function civicFrom(
     occurredAt: built.occurredAt,
     amount: built.amount,
     lat, lng,
-    raw: p,
+    // Public concern stays public: the record, an organization owner and the
+    // inspector are kept; a private owner's name and address are not (ownerPrivacy.ts).
+    raw: scrubRaw(p),
     sources: [source(layer)],
     updatedAt: Date.now(),
   };
