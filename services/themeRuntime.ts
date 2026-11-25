@@ -17,6 +17,9 @@ import type { ThemeSpec, ThemeType } from '../types';
 let userSpec: ThemeSpec | null = null;
 let userBase: ThemeType | null = null;
 let orgScope: { orgId: string; spec: ThemeSpec } | null = null;
+/** Unsaved edits in a Theme Studio: shown live, above everything, until saved or abandoned. */
+let previewSpec: ThemeSpec | null = null;
+let previewDerived: { src: ThemeSpec; base: ThemeType | null; out: ThemeSpec } | null = null;
 const listeners = new Set<() => void>();
 let snapshot: ThemeSpec | null = null;
 let orgDerived: { src: ThemeSpec; base: ThemeType | null; out: ThemeSpec } | null = null;
@@ -39,13 +42,23 @@ function orgFor(spec: ThemeSpec): ThemeSpec {
   return out;
 }
 
+function previewFor(spec: ThemeSpec): ThemeSpec {
+  if (previewDerived && previewDerived.src === spec && previewDerived.base === userBase) return previewDerived.out;
+  const out: ThemeSpec = { ...spec, base: userBase ?? spec.base };
+  previewDerived = { src: spec, base: userBase, out };
+  return out;
+}
+
 function recompute() {
   let next: ThemeSpec | null = null;
-  if (userSpec) next = userSpec;                                                     // 1. my own theme wins
+  if (previewSpec) next = previewFor(previewSpec);                                   // 0. live, unsaved edits
+  else if (userSpec) next = userSpec;                                                     // 1. my own theme wins
   else if (orgScope && !isOrgThemeOptedOut(orgScope.orgId)) next = orgFor(orgScope.spec); // 2. org fallback
   if (next !== snapshot) { snapshot = next; listeners.forEach(l => l()); }
 }
 
+/** Live preview of a spec being edited. Pass null to drop it (after save, or when the editor closes). */
+export function setPreviewThemeSpec(spec: ThemeSpec | null) { previewSpec = spec; recompute(); }
 export function setUserThemeSpec(spec: ThemeSpec | null | undefined) { userSpec = spec ?? null; recompute(); }
 /** The visitor's own base look, so an org theme can never flip it. */
 export function setUserBaseTheme(base: ThemeType | null) { if (base !== userBase) { userBase = base; recompute(); } }

@@ -3,6 +3,7 @@ import { THEME_OPTIONS } from './settings/themeOptions';
 import ThemeStudio from './settings/ThemeStudio';
 import { setUserThemeSpec, isOrgThemeOptedOut, setOrgThemeOptOut } from '../services/themeRuntime';
 import { resolveBgControls, BLEND_MODES } from '../services/backgroundControls';
+import { previewProfile, clearProfilePreview } from '../services/appearancePreview';
 import { createPortal } from 'react-dom';
 import { UserProfile, Album, Video, Photo, Track, MerchItem, IPWorld, ThemeType } from '../types';
 import {
@@ -144,6 +145,9 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
     loadUserWorlds();
   }, [user.uid]);
 
+  // Leaving Settings drops any unsaved live preview (saved values come back from the profile).
+  useEffect(() => () => clearProfilePreview(), []);
+
   const loadUserWorlds = async () => {
     const worlds = await fetchUserWorlds(user.uid);
     setUserWorlds(worlds);
@@ -244,6 +248,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
    */
   const saveAppearance = async (patch: Partial<UserProfile>) => {
     setProfile(prev => (prev ? { ...prev, ...patch } : prev));
+    previewProfile(patch);
     try { await updateUserProfile(user.uid, patch); }
     catch (err) { console.error(err); alert('Could not save that change. Please try again.'); }
   };
@@ -354,7 +359,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
   const goTo = (target: string) => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target } }));
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row h-screen overflow-hidden bg-[#020202] relative">
+    <div className="pj-settings-root flex-1 flex flex-col lg:flex-row h-screen overflow-hidden bg-[#020202] relative">
       {/* Phone: touch-first drill-down (groups → pages) replaces the sidebar. */}
       {isPhone && mobileNav === 'list' && (
         <SettingsPhoneMenu
@@ -1206,7 +1211,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                         <span className="text-xs font-bold tabular-nums text-white/60">{value}{unit}</span>
                       </div>
                       <input type="range" min={min} max={max} value={value} className="w-full accent-[#FF8C00]"
-                        onChange={e => setProfile({ ...profile, [key]: +e.target.value } as typeof profile)}
+                        onChange={e => { setProfile({ ...profile, [key]: +e.target.value } as typeof profile); previewProfile({ [key]: +e.target.value } as Partial<typeof profile>); }}
                         onPointerUp={e => saveAppearance({ [key]: +(e.currentTarget as HTMLInputElement).value } as Partial<typeof profile>)}
                         onKeyUp={e => saveAppearance({ [key]: +(e.currentTarget as HTMLInputElement).value } as Partial<typeof profile>)} />
                       <div className="text-[10px] text-white/45 mt-0.5">{hint}</div>
@@ -1218,6 +1223,24 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                         <h3 className="text-xs font-black uppercase tracking-widest text-small-orange mb-1">Background Layers</h3>
                         <p className="text-[10px] font-bold text-white/30 uppercase tracking-widest">Choose what shows, and how much of it you can see under the theme</p>
                       </div>
+                      {/* Live preview: the same layer stack the page uses, so every slider moves something you can see. */}
+                      {(hasStill || hasVideo) && (() => {
+                        const showVideo = hasVideo && (c.source === 'video' || (c.source === 'auto' && !!profile.videoBackgroundUrl));
+                        const mediaStyle: React.CSSProperties = { filter: c.blurPx ? `blur(${c.blurPx}px)` : undefined, transform: c.blurPx ? `scale(${1 + c.blurPx / 300})` : undefined };
+                        return (
+                          <div className="relative h-44 rounded-2xl overflow-hidden border border-white/10 bg-black">
+                            {showVideo
+                              ? <video src={profile.videoBackgroundUrl} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" style={mediaStyle} />
+                              : <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${profile.frostedBackground})`, ...mediaStyle }} />}
+                            {c.themeOpacity > 0 && <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg,var(--pj-a1,#6B0099),var(--pj-a2,#D40055))', opacity: c.themeOpacity / 100, mixBlendMode: c.blend as React.CSSProperties['mixBlendMode'] }} />}
+                            {c.frostPct > 0 && <div className="absolute inset-0" style={{ backdropFilter: `blur(${Math.round(c.frostPct * 0.6)}px)`, background: `rgba(0,0,0,${(c.frostPct / 300).toFixed(3)})` }} />}
+                            <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.55)', opacity: c.veilPct / 100 }} />
+                            <div className="absolute left-4 bottom-4 right-4 rounded-xl border border-white/20 px-4 py-3 text-xs font-bold text-white" style={{ background: `rgba(20,20,28,${c.uiPct / 100})`, backdropFilter: 'blur(10px)' }}>
+                              Preview: a panel over your background
+                            </div>
+                          </div>
+                        );
+                      })()}
                       {hasStill && hasVideo && (
                         <div>
                           <div className="text-[11px] font-black uppercase tracking-widest text-white/70 mb-2">Show</div>

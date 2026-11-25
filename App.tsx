@@ -149,6 +149,7 @@ import { useLiveAlertsPref } from './hooks/useLiveAlertsPref';
 import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
 import ThemeSpecBackground from './components/ThemeSpecBackground';
 import { resolveBgControls } from './services/backgroundControls';
+import { useProfilePreview } from './services/appearancePreview';
 import { useEffectiveThemeSpec, setUserThemeSpec, setUserBaseTheme } from './services/themeRuntime';
 import { applyPalette } from './services/themePalette';
 import { startContrastGuard, measureImageUrl, setBackgroundTone, clearBackgroundTone } from './services/themeContrast';
@@ -4616,8 +4617,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     await updateGamePlayCount(game.id);
   };
 
+  // The saved profile with any unsaved Settings → Appearance edits laid over it, so the look is live.
+  const appearancePreview = useProfilePreview();
+  const lookProfile = useMemo(() => (appearancePreview && userProfile ? { ...userProfile, ...appearancePreview } : userProfile), [userProfile, appearancePreview]);
+
   useEffect(() => {
-    const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
+    const activeProfile = lookProfile;
     const bgAllowed = activeProfile?.customBgEnabled !== false;
     const themeAllowed = activeProfile?.customThemeEnabled !== false;
     // Only mark the body as having a custom background when something will actually render.
@@ -4631,16 +4636,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else {
       document.body.classList.remove('has-custom-background');
     }
-  }, [view, visitedProfile, userProfile, activeTheme]);
+  }, [lookProfile, activeTheme]);
 
   // Veil strength + interface-panel opacity for the custom background (see theme-system.css).
   useEffect(() => {
-    const p = view === 'USER_PROFILE' ? visitedProfile : userProfile;
+    const p = lookProfile;
     const c = resolveBgControls(p);
     const b = document.body;
     b.style.setProperty('--pj-veil', String(c.veilPct / 100));
     b.style.setProperty('--pj-ui-alpha', String(c.uiPct / 100));
-  }, [view, visitedProfile, userProfile]);
+  }, [lookProfile]);
 
   // Creative studios get frosted-glass panels over an ambient palette wash (theme-system.css).
   useEffect(() => {
@@ -4653,7 +4658,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // are sized to the image, not guessed.
   useEffect(() => {
     if (document.body.classList.contains('has-theme-bg')) return; // a Theme Studio background owns the tone
-    const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
+    const activeProfile = lookProfile;
     const bgAllowed = activeProfile?.customBgEnabled !== false;
     const themeAllowed = activeProfile?.customThemeEnabled !== false;
     let url: string | null = null;
@@ -4671,7 +4676,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     let live = true;
     measureImageUrl(url).then(l => { if (live) setBackgroundTone(l); });
     return () => { live = false; };
-  }, [view, visitedProfile, userProfile, activeTheme, themeAssetIndex]);
+  }, [lookProfile, activeTheme, themeAssetIndex]);
 
   // Last line of defence for text: re-checks real rendered contrast and fixes what CSS missed.
   useEffect(() => {
@@ -4680,7 +4685,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   }, [theme]);
 
   useEffect(() => {
-    const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
+    const activeProfile = lookProfile;
     const curId = activeProfile?.activeThemePresetId || null;
     if (curId !== activeThemeId) {
       setActiveThemeId(curId);
@@ -4692,7 +4697,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         setActiveTheme(null);
       }
     }
-  }, [view, visitedProfile, userProfile, activeThemeId]);
+  }, [lookProfile, activeThemeId]);
 
   useEffect(() => {
     if (!activeTheme || !activeTheme.assets || activeTheme.assets.length <= 1) return;
@@ -4983,7 +4988,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             homeLabel={isElevateHome() || (userProfile as any)?.elevateHome ? 'Elevate' : 'your home'}
           />
         ) : (
-          <div className={`h-real-screen w-full flex flex-col relative z-0 overflow-hidden bg-transparent no-select ${((view === 'USER_PROFILE' ? visitedProfile : userProfile)?.frostedBackground || (view === 'USER_PROFILE' ? visitedProfile : userProfile)?.videoBackgroundUrl) ? 'is-custom-bg' : ''}`}>
+          <div className={`h-real-screen w-full flex flex-col relative z-0 overflow-hidden bg-transparent no-select ${(lookProfile?.frostedBackground || lookProfile?.videoBackgroundUrl) ? 'is-custom-bg' : ''}`}>
             {/* Universal Background Layer — inline styles bypass CSS/Tailwind layer conflicts */}
             <div
               id="universal-background"
@@ -5001,7 +5006,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   // single most expensive thing on the page, and TV compositors handle it worst.
                   // The base gradient above stays unconditional, so dropping this is never blank.
                   if (!shouldEnableEffect('customBackground')) return null;
-                  const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
+                  const activeProfile = lookProfile;
                   if (!activeProfile) return null;
 
                   const {

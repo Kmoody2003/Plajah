@@ -1124,3 +1124,12 @@ html body[data-pj-app="stage"] .pj-stage {
   backdrop-filter: blur(24px) saturate(150%);
   color: var(--pj-text, #fff);
 }
+
+/* Settings used to paint a solid #020202 over the whole page, which hid the custom background no
+   matter what the Background Layers sliders said. With a background set it is a light frost now,
+   and "Panel opacity" decides how much of it you see through. */
+html body:is(.has-custom-background, .has-theme-bg) .pj-settings-root {
+  background-color: rgba(2, 2, 6, calc(.5 * var(--pj-ui-alpha, 1))) !important;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+}
+html body.theme-light:is(.has-custom-background, .has-theme-bg) .pj-settings-root { background-color: rgba(236, 240, 246, calc(.5 * var(--pj-ui-alpha, 1))) !important; }
