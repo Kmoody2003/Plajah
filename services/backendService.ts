@@ -3690,19 +3690,19 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
       const persistedTracks: any[] = Array.isArray((cloudAlbum as any).tracks) ? (cloudAlbum as any).tracks : [];
       const persistedSeasons: any[] = Array.isArray((cloudAlbum as any).seasons) ? (cloudAlbum as any).seasons : [];
       for (const { trackId, uploadId } of pendingTrackMux) {
-        pollMuxUploadUntilReady(uploadId, async (playbackId, assetId) => {
+        pollHostedUploadUntilReady(uploadId, async (fields) => {
           const t = persistedTracks.find(x => x.id === trackId);
-          if (t) { t.muxPlaybackId = playbackId; t.muxAssetId = assetId; t.muxUploadId = null; }
+          if (t) Object.assign(t, fields);
           try { await updateDoc(doc(db, 'albums', album.id), removeUndefined({ tracks: persistedTracks })); } catch {}
-          try { await updateDoc(doc(db, 'videos', `sys_${album.id}_${trackId}`), { muxPlaybackId: playbackId, muxAssetId: assetId }); } catch {}
+          try { await updateDoc(doc(db, 'videos', `sys_${album.id}_${trackId}`), fields); } catch {}
         }, 450, 4000);
       }
       for (const { seasonId, episodeId, uploadId } of pendingEpisodeMux) {
-        pollMuxUploadUntilReady(uploadId, async (playbackId, assetId) => {
+        pollHostedUploadUntilReady(uploadId, async (fields) => {
           const ep = persistedSeasons.find(s => s.id === seasonId)?.episodes?.find((x: any) => x.id === episodeId);
-          if (ep) { ep.muxPlaybackId = playbackId; ep.muxAssetId = assetId; ep.muxUploadId = null; }
+          if (ep) Object.assign(ep, fields);
           try { await updateDoc(doc(db, 'albums', album.id), removeUndefined({ seasons: persistedSeasons })); } catch {}
-          try { await updateDoc(doc(db, 'videos', `sys_${album.id}_${seasonId}_${episodeId}`), { muxPlaybackId: playbackId, muxAssetId: assetId }); } catch {}
+          try { await updateDoc(doc(db, 'videos', `sys_${album.id}_${seasonId}_${episodeId}`), fields); } catch {}
         }, 450, 4000);
       }
     }
@@ -3843,19 +3843,22 @@ export const publishToCloud = async (album: Album, onProgress?: (status: string,
       // Poll for playback IDs from direct Mux uploads (music videos uploaded via uploadVideoFileMux)
       for (const { videoId, uploadId } of pendingMuxUploads) {
         const docId = `sys_${cloudAlbum.id}_${videoId}`;
-        pollMuxUploadUntilReady(uploadId, async (playbackId, assetId) => {
+        const ownThumb = videosToPublish.find(v => v.id === docId)?.thumbnailUrl;
+        pollHostedUploadUntilReady(uploadId, async (fields, poster) => {
           try {
-            await updateDoc(doc(db, videosCollectionPath, docId), { muxPlaybackId: playbackId, muxAssetId: assetId });
+            await updateDoc(doc(db, videosCollectionPath, docId), { ...fields, ...(poster && !ownThumb ? { thumbnailUrl: poster } : {}) });
           } catch {}
-        }, 60, 4000);
+        }, 450, 4000);
       }
 
       // Kick off Mux transcoding in background for URL-based videos (no direct upload)
+      const { isOnBunny } = await import('./video/bunnyUpload');
       for (const v of videosToPublish) {
         const srcUrl = v.url ?? '';
         if (
           srcUrl &&
           !v.muxPlaybackId &&
+          !isOnBunny(v as any) &&
           !srcUrl.includes('youtube.com') &&
           !srcUrl.includes('youtu.be') &&
           !srcUrl.includes('vimeo.com')
@@ -7164,8 +7167,8 @@ export const uploadPersonalVideo = async (video: Partial<Video>, file: File, onP
     await setDoc(doc(db, 'personal_videos', id), removeUndefined({ ...newVideo, ownerId: uid }));
     // Patch in the Mux playback id once transcode finishes so the locker can stream it.
     if (muxUploadId) {
-      pollMuxUploadUntilReady(muxUploadId, async (playbackId, assetId) => {
-        try { await updateDoc(doc(db, 'personal_videos', id), { muxPlaybackId: playbackId, muxAssetId: assetId, muxUploadId: null }); } catch {}
+      pollHostedUploadUntilReady(muxUploadId, async (fields, poster) => {
+        try { await updateDoc(doc(db, 'personal_videos', id), { ...fields, ...(poster && !newVideo.thumbnailUrl ? { thumbnailUrl: poster } : {}) }); } catch {}
       }, 450, 4000);
     }
     return newVideo;
@@ -7946,16 +7949,127 @@ export const seedMockUsers = async () => {
 
 // --- VIDEO FEATURES ---
 
-// Upload a video file directly to Mux (browser → Mux, skipping Firebase Storage).
-// Uses Mux's UpChunk for a RESUMABLE, chunked upload: multi-GB films survive
-// dropped connections (each chunk auto-retries, the whole upload resumes from the
-// last good chunk instead of restarting). This is what makes large professional
-// uploads reliable — a single PUT would restart from 0% on any network blip.
-// Returns the Mux upload ID so we can poll for the playback ID afterwards.
+// Upload a video file straight to the video host (browser → host, skipping Firebase Storage).
+// Host = Bunny Stream when the server says so (GET /api/video-host/provider), otherwise Mux.
+// Both are RESUMABLE and chunked (Mux: UpChunk; Bunny: TUS), so multi-GB films survive dropped
+// connections. Returns a hosted-upload ref — a Mux upload id, or "bunny:<guid>" — which callers
+// store in `muxUploadId` (the "still processing" marker) and hand to pollHostedUploadUntilReady().
+// `opts.forceMux` keeps flows that depend on Mux-only features (Dossier captions/assets) on Mux.
 export const uploadVideoFileMux = async (
   file: File,
   onProgress?: (p: number) => void,
   existing?: { id: string; url: string },   // pass to RESUME an interrupted upload
+  ledger?: { surface: import('./uploadReports').UploadSurface; role: string; targetId?: string; targetTitle?: string },
+  opts?: { forceMux?: boolean },
+): Promise<string> => {
+  const hosted = await import('./video/bunnyUpload');
+  const toBunny = existing
+    ? hosted.isBunnyUploadRef(existing.id)
+    : !opts?.forceMux && (await hosted.videoUploadProvider()).provider === 'bunny';
+  if (toBunny) return uploadVideoFileBunny(file, onProgress, existing, ledger);
+  return uploadVideoFileMuxOnly(file, onProgress, existing, ledger);
+};
+
+// Bunny Stream branch of uploadVideoFileMux: same ledger row, resume entry, and Pause/Resume tray.
+const uploadVideoFileBunny = async (
+  file: File,
+  onProgress: ((p: number) => void) | undefined,
+  existing: { id: string; url: string } | undefined,
+  ledger: { surface: import('./uploadReports').UploadSurface; role: string; targetId?: string; targetTitle?: string } | undefined,
+): Promise<string> => {
+  const hosted = await import('./video/bunnyUpload');
+  const { beginUploadAttempt } = await import('./uploadReports');
+  const attempt = beginUploadAttempt({
+    surface: ledger?.surface || 'OTHER', role: ledger?.role || 'VIDEO',
+    fileName: file.name, sizeBytes: file.size, contentType: file.type,
+    targetId: ledger?.targetId, targetTitle: ledger?.targetTitle,
+    transport: existing ? `bunny:resume:${hosted.bunnyGuidOfRef(existing.id)}` : 'bunny',
+  });
+  let ticket: import('./video/bunnyUpload').BunnyUploadTicket;
+  try {
+    const trace = [
+      attempt.id ? `ua=${attempt.id}` : '',
+      auth.currentUser?.uid ? `uid=${auth.currentUser.uid}` : '',
+      ledger?.targetId ? `target=${ledger.targetId}` : '',
+      ledger?.surface ? `via=${ledger.surface}` : '',
+    ].filter(Boolean).join(';');
+    ticket = existing
+      ? await hosted.resumeBunnyUpload(getRequiredIdToken, hosted.bunnyGuidOfRef(existing.id))
+      : await hosted.createBunnyUpload(getRequiredIdToken, file.name.replace(/\.[^.]+$/, ''), trace);
+  } catch (e: any) {
+    // No bytes sent: same contract as Mux, so uploadVideo() may fall back to Firebase Storage.
+    if (e && typeof e === 'object') e.muxUnavailable = true;
+    attempt.settle('FAILED', e);
+    throw e;
+  }
+  const ref = `${hosted.BUNNY_REF}${ticket.videoId}`;
+  attempt.attach({ transport: ref });
+  saveResumable({
+    uploadId: ref, uploadUrl: '',
+    fileName: file.name, fileSize: file.size,
+    title: file.name.replace(/\.[^.]+$/, ''),
+    createdAt: Date.now(), progress: 0,
+  });
+  const handle = await hosted.uploadToBunny(file, ticket, p => {
+    onProgress?.(p); updateResumableProgress(p); updateTransfer(ref, { progress: p }); attempt.beat(p, Math.round((p / 100) * file.size));
+  });
+  registerTransfer({
+    id: ref, fileName: file.name, progress: 0, paused: false,
+    pause: () => { handle.pause(); updateTransfer(ref, { paused: true }); },
+    resume: () => { handle.resume(); updateTransfer(ref, { paused: false }); },
+  });
+  try {
+    await handle.done;
+  } catch (err: any) {
+    removeTransfer(ref);
+    attempt.settle('FAILED', err);
+    throw err; // flagged resumable: the ResumeUploadPrompt continues it against the same video
+  }
+  removeTransfer(ref);
+  clearResumable();
+  attempt.settle('COMPLETED');
+  return ref;
+};
+
+/**
+ * Resolves a hosted-upload ref (Mux upload id or "bunny:<guid>") once it can play, handing the caller
+ * the exact fields to write onto its doc / track / episode — Mux ids, or the Bunny fields (with
+ * url = Bunny HLS so players that only know `url` play it). Always includes muxUploadId: null.
+ * `poster` is the host's generated frame: write it as thumbnailUrl only where the creator set none
+ * (Mux posters are derived from muxPlaybackId by the players, so it's undefined for Mux).
+ */
+export const pollHostedUploadUntilReady = (
+  ref: string,
+  onReady: (fields: Record<string, any>, poster?: string) => void | Promise<void>,
+  maxAttempts = 30,
+  intervalMs = 3000,
+): void => {
+  if (!ref.startsWith('bunny:')) {
+    void pollMuxUploadUntilReady(ref, (playbackId, assetId) => onReady({ muxPlaybackId: playbackId, muxAssetId: assetId, muxUploadId: null }), maxAttempts, intervalMs);
+    return;
+  }
+  void (async () => {
+    const hosted = await import('./video/bunnyUpload');
+    const { bunnyDocFields } = await import('./video/playback');
+    const guid = hosted.bunnyGuidOfRef(ref);
+    try {
+      const s = await hosted.waitForBunnyReady(getRequiredIdToken, guid, { intervalMs, timeoutMs: maxAttempts * intervalMs });
+      const cdnHost = s.hlsUrl ? new URL(s.hlsUrl).host : (await hosted.videoUploadProvider()).cdnHost;
+      if (!cdnHost) return;
+      const { thumbnailUrl, ...fields } = bunnyDocFields(guid, cdnHost);
+      await onReady({ ...fields, muxUploadId: null }, thumbnailUrl);
+    } catch (e: any) {
+      // Timed out or failed: the Bunny webhook still finishes top-level `videos` docs server-side.
+      console.warn('[bunny] upload not ready:', guid, e?.message);
+    }
+  })();
+};
+
+// Mux branch of uploadVideoFileMux (the original implementation).
+const uploadVideoFileMuxOnly = async (
+  file: File,
+  onProgress?: (p: number) => void,
+  existing?: { id: string; url: string },
   ledger?: { surface: import('./uploadReports').UploadSurface; role: string; targetId?: string; targetTitle?: string },
 ): Promise<string> => {
   // Open the attempt row BEFORE any network call. A film upload that dies mid-transfer
@@ -8058,8 +8172,8 @@ export const resumeVideoUpload = async (
     timestamp: Date.now(),
   });
   await setDoc(doc(db, 'videos', id), newVideo as any);
-  pollMuxUploadUntilReady(entry.uploadId, async (playbackId, assetId) => {
-    await updateDoc(doc(db, 'videos', id), { muxPlaybackId: playbackId, muxAssetId: assetId, muxUploadId: null }).catch(() => {});
+  pollHostedUploadUntilReady(entry.uploadId, async (fields, poster) => {
+    await updateDoc(doc(db, 'videos', id), { ...fields, ...(poster ? { thumbnailUrl: poster } : {}) }).catch(() => {});
   }, 450, 4000);
   return id;
 };
@@ -8196,21 +8310,18 @@ export const uploadVideo = async (video: Partial<Video>, onProgress?: (p: number
   }
 
   if (muxUploadId) {
-    // Direct-upload path: poll Mux for the playback ID once the asset is ready.
-    // 450 attempts × 4s = 30 minutes — enough for feature-length movie files.
-    pollMuxUploadUntilReady(muxUploadId, async (playbackId, assetId) => {
+    // Direct-upload path: poll the host (Mux or Bunny) until the video can play.
+    // 450 attempts × 4s = 30 minutes — enough for feature-length movie files. Bunny uploads that
+    // outlive this tab are finished server-side by the Bunny webhook.
+    pollHostedUploadUntilReady(muxUploadId, async (fields, poster) => {
       try {
-        await updateDoc(doc(db, 'videos', id), {
-          muxPlaybackId: playbackId,
-          muxAssetId: assetId,
-          muxUploadId: null, // clear once resolved
-        });
+        await updateDoc(doc(db, 'videos', id), { ...fields, ...(poster && !thumbUrl ? { thumbnailUrl: poster } : {}) });
       } catch {}
-      // Re-stamp from the transcoded asset: Mux's master playlist DECLARES frame rate and exact VOD
+      // Re-stamp from the transcoded asset: the host's master playlist DECLARES frame rate and exact VOD
       // duration, so this supersedes the locally measured (possibly fps-estimated) source timebase.
       // Fire-and-forget — a failed stamp must never undo an upload that already succeeded.
       try {
-        const info = await extractTimeInfoFromUrl(`https://stream.mux.com/${playbackId}.m3u8`);
+        const info = await extractTimeInfoFromUrl(fields.muxPlaybackId ? `https://stream.mux.com/${fields.muxPlaybackId}.m3u8` : fields.url);
         if (info.timebase) await updateDoc(doc(db, 'videos', id), { timebase: info.timebase, duration: Math.round(info.timebase.durationSec) });
         else if (info.durationSec > 0) await updateDoc(doc(db, 'videos', id), { duration: Math.round(info.durationSec) });
       } catch {}
@@ -10557,6 +10668,10 @@ export const finalizeLiveRecording = async (
 };
 
 export const createMuxAssetFromUrl = async (url: string): Promise<{ assetId: string; playbackId: string | undefined }> => {
+  // Choke point for every "re-ingest into Mux" backfill: a video already on Bunny Stream must never
+  // be copied back into Mux (it would double-bill and fork the playback source).
+  const { isOnBunny } = await import('./video/bunnyUpload');
+  if (isOnBunny({ url })) throw new Error('This video is hosted on Bunny Stream; not re-ingesting into Mux.');
   const idToken = await getRequiredIdToken();
 
   // Try the server-side route first (works when server.ts is running locally or deployed)
@@ -10588,8 +10703,9 @@ export const bulkOptimizeVideosToMux = async (
   onProgress?: (done: number, total: number, currentTitle?: string) => void,
   gapMs = 800,
 ): Promise<{ eligible: number; optimized: number; failed: number }> => {
+  const { isOnBunny } = await import('./video/bunnyUpload');
   const eligible = (videos || []).filter(v =>
-    !v.muxPlaybackId && !(v as any).muxUploadId && !!v.url &&
+    !v.muxPlaybackId && !(v as any).muxUploadId && !!v.url && !isOnBunny(v as any) &&
     !v.url.includes('youtube.com') && !v.url.includes('youtu.be') && !v.url.includes('vimeo.com'),
   );
   let optimized = 0, failed = 0;

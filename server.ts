@@ -139,6 +139,9 @@ import { createGamerTogether } from './routes/gamerTogether';
 import { fsQuery as gamerFsQuery } from './services/firebaseAdminRest';
 import { driveRouter } from './routes/drive';
 import { driveTransfersRouter } from './routes/driveTransfers';
+import { createBunnyStreamRouter, bunnyWebhookHandler, finishedDocPatch, type HostedVideoRecord } from './routes/bunnyStream';
+import { bunnyStreamConfig, type BunnyStreamConfig } from './services/bunnyStream/core';
+import { createVideo as bunnyCreateVideo, getVideo as bunnyGetVideo, tusUploadAuth as bunnyTusUploadAuth, verifyWebhook as verifyBunnyWebhook, type BunnyVideo } from './services/bunnyStream/server';
 import { createGenCloudRouter, onPackCheckoutCompleted, onPackChargeRefunded, type PackWebhookDeps } from './routes/genCloud';
 import { adaptersFromEnv as genCloudAdapters } from './services/genCloud/providers';
 import { ledgerStore as genCloudLedgerStore, jobStore as genCloudJobStore, LEDGER_COLLECTION as GENCLOUD_LEDGERS } from './services/genCloud/store';
@@ -3849,7 +3852,7 @@ async function startServer() {
     max: 300,
     standardHeaders: true,
     legacyHeaders: false,
-    skip: req => req.path === '/api/stripe/webhook' || req.path === '/api/stripe/connect-webhook' || req.path === '/api/mux/webhook' || req.path === '/api/merch/stripe-webhook',
+    skip: req => req.path === '/api/stripe/webhook' || req.path === '/api/stripe/connect-webhook' || req.path === '/api/mux/webhook' || req.path === '/api/bunny/webhook' || req.path === '/api/merch/stripe-webhook',
     message: { error: 'Request rate limit exceeded' },
   });
   // Security & IT Council edge (services/securityCouncil/telemetry.ts): O(1) per-request telemetry, plus —
@@ -3880,7 +3883,7 @@ async function startServer() {
     '/api/onair/durations']);
   // Signed webhooks registered further down verify an HMAC over the exact bytes, so their
   // own express.raw must see the untouched body — parsing it here broke every signature.
-  const RAW_BODY_ROUTES = new Set(['/api/merch/stripe-webhook', '/api/mux/webhook', '/api/campaigns/webhook/resend', '/api/meetings/sfu/webhook']);
+  const RAW_BODY_ROUTES = new Set(['/api/merch/stripe-webhook', '/api/mux/webhook', '/api/bunny/webhook','/api/campaigns/webhook/resend', '/api/meetings/sfu/webhook']);
   app.use((req, res, next) => {
     if (LARGE_BODY_ROUTES.has(req.path) || RAW_BODY_ROUTES.has(req.path)) return next();
     return tightJson(req, res, next);
@@ -15469,6 +15472,30 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     userCard: async uid => { const u = await gamerUserDoc(uid); return u ? { name: String(u.displayName || u.username || 'Player'), photo: String(u.photoURL || u.avatarUrl || ''), isChild: u.isChild === true || u.accountType === 'CHILD' } : null; },
     appendEvent: gamerRouter.appendEvent,
   }));
+  // On-demand video on Bunny Stream (routes/bunnyStream.ts) — Mux replacement for VOD. OFF until
+  // BUNNY_STREAM_ENABLED=1 + BUNNY_STREAM_* are set: /provider answers 'mux', the rest 503 bunny_off.
+  {
+    const cfg = () => bunnyStreamConfig(process.env);
+    const store = {
+      get: async (guid: string) => (await fsGet(`hostedVideos/${guid}`)) as HostedVideoRecord | null,
+      set: (guid: string, rec: HostedVideoRecord) => fsSet(`hostedVideos/${guid}`, rec as any),
+      patch: (guid: string, fields: Partial<HostedVideoRecord>) => fsPatch(`hostedVideos/${guid}`, fields as any),
+    };
+    const api = { createVideo: bunnyCreateVideo, getVideo: bunnyGetVideo, tusUploadAuth: bunnyTusUploadAuth };
+    // Finish `videos` docs still waiting on this upload (muxUploadId = "bunny:<guid>"), so a closed tab
+    // can't leave a video stuck in "processing". Album tracks/episodes are nested and finish client-side.
+    const onReady = async (c: BunnyStreamConfig, guid: string, v: BunnyVideo) => {
+      for (const row of await gamerFsQuery('videos', [{ field: 'muxUploadId', value: `bunny:${guid}` }], 10)) {
+        await fsPatch(`videos/${row.id}`, finishedDocPatch(c.cdnHost, guid, row.data, v));
+      }
+    };
+    app.post('/api/bunny/webhook', express.raw({ type: '*/*', limit: '64kb' }), bunnyWebhookHandler({ config: cfg, store, api, verify: verifyBunnyWebhook, onReady }));
+    app.use('/api/video-host', rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false }), createBunnyStreamRouter({
+      config: cfg, store, api, isAdmin: isPlatformAdminReq,
+      uploadGuards: [authMiddleware, requireCapability('canUpload')],
+      readGuards: [authMiddleware],
+    }));
+  }
   // Plajah Drive (B2 + Bunny). Answers 503 drive_off until DRIVE_ENABLED=1.
   app.use('/api/drive/transfers', rateLimit({ windowMs: 60 * 1000, max: 180, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '64kb' }), driveTransfersRouter);
   app.use('/api/drive', rateLimit({ windowMs: 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '64kb' }), driveRouter);

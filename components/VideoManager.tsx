@@ -3,6 +3,7 @@ import { Video, VideoPlaylist, Album, Track } from '../types';
 import { rescheduleVideo, fetchUserVideos, deleteVideo, updateVideoSettings, fetchVideoPlaylists, createVideoPlaylist, fetchUserAlbums, updateAlbum, updateUserProfile, uploadVideo, activateFastChannel, updateFastChannelEnabled } from '../services/backendService';
 import { Video as VideoIcon, Plus, Trash2, ArrowLeft, Play, Settings, ListMusic, Check, X, Globe, Lock, Tv, Layers, Radio, ShieldCheck, Upload, Film, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import UploadManager from './UploadManager';
+import { isOnBunny } from '../services/video/bunnyUpload';
 import MediaThumb from './ui/MediaThumb';
 import PodcastManager from './PodcastManager';
 import FastChannelManager from './FastChannelManager';
@@ -69,10 +70,10 @@ const VideoManager: React.FC<VideoManagerProps> = ({ user, onBack, seedFile, onS
     onSeedConsumed?.();
   }, [seedFile]);
 
-  // Videos that would benefit from a Mux transcode: a raw upload with a URL, not already on Mux,
-  // not an external embed Mux can't ingest.
+  // Videos that would benefit from a Mux transcode: a raw upload with a URL, not already on Mux or
+  // Bunny, not an external embed Mux can't ingest.
   const eligibleForMux = videos.filter(v =>
-    !v.muxPlaybackId && !(v as any).muxUploadId && !!v.url &&
+    !v.muxPlaybackId && !(v as any).muxUploadId && !!v.url && !isOnBunny(v as any) &&
     !v.url.includes('youtube.com') && !v.url.includes('youtu.be') && !v.url.includes('vimeo.com'));
 
   const handleBulkOptimize = async () => {

@@ -91,7 +91,8 @@ export async function uploadExperience(args: { slotId: string; file: File; onPro
   await saveExperience(base);
   let uploadId: string;
   try {
-    uploadId = await uploadVideoFileMux(args.file, args.onProgress, undefined, { surface: 'OTHER', role: 'DOSSIER_FILM', targetId: `exp_${cat.id}`, targetTitle: cat.title });
+    // Stays on Mux: this flow reads Mux assets directly (status, captions) — see refreshExperience.
+    uploadId = await uploadVideoFileMux(args.file, args.onProgress, undefined, { surface: 'OTHER', role: 'DOSSIER_FILM', targetId: `exp_${cat.id}`, targetTitle: cat.title }, { forceMux: true });
   } catch (e: any) {
     await patchExperience(cat.id, { status: 'errored', error: String(e?.message || e).slice(0, 300) });
     throw e;

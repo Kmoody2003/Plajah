@@ -204,6 +204,7 @@
     "fabula:lottie": "tsx scripts/buildFabulaLottieLibrary.ts",
     "tela:proof": "npx tsx scripts/telaGallery.ts tela-proof.html all",
     "test:disc": "npx tsx --test tests/disc.test.ts tests/discMux.test.ts",
+    "test:bunny": "npx tsx --test tests/bunnyStream.test.ts",
     "typecheck:disc": "tsc -p tsconfig.disc.json",
     "test:studio": "npx tsx --test tests/studio.test.ts"
   },

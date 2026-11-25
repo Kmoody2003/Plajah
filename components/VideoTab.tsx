@@ -739,28 +739,26 @@ const VideoTab: React.FC<VideoTabProps> = ({ profile, isOwner, onSelectVideo, mo
 
     (async () => {
       try {
-        const { fetchAllVideos, updateVideo, pollMuxUploadUntilReady, createMuxAssetFromUrl } = await import('../services/backendService');
+        const { fetchAllVideos, updateVideo, pollHostedUploadUntilReady, createMuxAssetFromUrl } = await import('../services/backendService');
+        const { isOnBunny } = await import('../services/video/bunnyUpload');
         const allVideos = await fetchAllVideos();
 
-        // Case B: direct uploads still processing — resume polling by upload ID
-        const pendingUploads = allVideos.filter(v => !v.muxPlaybackId && (v as any).muxUploadId);
+        // Case B: direct uploads still processing (Mux or Bunny) — resume polling by upload ref
+        const pendingUploads = allVideos.filter(v => !v.muxPlaybackId && !(v as any).bunnyVideoId && (v as any).muxUploadId);
         for (const v of pendingUploads) {
           const uploadId = (v as any).muxUploadId as string;
-          console.log(`[Mux Backfill] Resuming poll for direct upload: ${v.id}`);
-          pollMuxUploadUntilReady(uploadId, async (playbackId, assetId) => {
-            await updateVideo(v.id, {
-              muxPlaybackId: playbackId,
-              muxAssetId: assetId,
-              muxUploadId: null,
-            } as any);
-            console.log(`[Mux Backfill] ✓ direct upload resolved: ${v.id} → ${playbackId}`);
+          console.log(`[Video Backfill] Resuming poll for direct upload: ${v.id}`);
+          pollHostedUploadUntilReady(uploadId, async (fields, poster) => {
+            await updateVideo(v.id, { ...fields, ...(poster && !v.thumbnailUrl ? { thumbnailUrl: poster } : {}) } as any);
+            console.log(`[Video Backfill] ✓ direct upload resolved: ${v.id}`);
           }, 300, 5000);
         }
 
-        // Case A: URL-based videos not yet in Mux
+        // Case A: URL-based videos not yet in Mux (never videos already on Bunny)
         const toBackfill = allVideos.filter(v =>
           !v.muxPlaybackId &&
           !(v as any).muxUploadId &&
+          !isOnBunny(v as any) &&
           v.url &&
           !v.url.includes('youtube.com') &&
           !v.url.includes('youtu.be') &&

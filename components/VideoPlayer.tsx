@@ -45,12 +45,17 @@ import { doc } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
 import { db } from '../services/firebase';
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
+import { resolvePlayback } from '../services/video/playback';
+import { bunnyMp4Url } from '../services/bunnyStream/core';
 
 // ── Mux HLS player ────────────────────────────────────────────────────────────
 // Uses a native <video> element + HLS.js so the Plajah player UI is always on
 // top with no MuxPlayer web-component controls overlapping.
 interface MuxHlsVideoProps {
-  playbackId: string;
+  /** Mux playback id (builds the stream.mux.com URL)… */
+  playbackId?: string;
+  /** …or any HLS playlist URL (Bunny Stream). Wins over playbackId. */
+  src?: string;
   muted: boolean;
   poster?: string;
   className?: string;
@@ -65,7 +70,7 @@ interface MuxHlsVideoProps {
 }
 
 const MuxHlsVideo = React.memo(React.forwardRef<HTMLVideoElement, MuxHlsVideoProps>(
-  ({ playbackId, muted, poster, className, onVideoReady, onPlay, onPause, onError, onEnded, children, hasSubtitles }, _ref) => {
+  ({ playbackId, src, muted, poster, className, onVideoReady, onPlay, onPause, onError, onEnded, children, hasSubtitles }, _ref) => {
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const hlsRef   = useRef<any>(null);
 
@@ -76,7 +81,7 @@ const MuxHlsVideo = React.memo(React.forwardRef<HTMLVideoElement, MuxHlsVideoPro
       // Notify parent immediately — controls work before HLS is ready
       onVideoReady(video);
 
-      const streamUrl = `https://stream.mux.com/${playbackId}.m3u8`;
+      const streamUrl = src || `https://stream.mux.com/${playbackId}.m3u8`;
 
       const tryHls = async () => {
         try {
@@ -121,7 +126,7 @@ const MuxHlsVideo = React.memo(React.forwardRef<HTMLVideoElement, MuxHlsVideoPro
 
       tryHls();
       return () => { hlsRef.current?.destroy(); hlsRef.current = null; };
-    }, [playbackId]);
+    }, [playbackId, src]);
 
     return (
       <video
@@ -452,6 +457,8 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ video: initialVideo, onB
   // HLS; when the MSE attempt errors we drop to this. Needs Mux static renditions (MP4 support)
   // on the asset — if absent it 404s and we land on the same error state as before (no regression).
   const [muxMp4Error, setMuxMp4Error] = useState(false);
+  // Bunny stream failed on a video that also has a Mux id → play the Mux copy instead.
+  const [hostFallback, setHostFallback] = useState(false);
   const [isLiked, setIsLiked]       = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [isMuted, setIsMuted]       = useState(false);
@@ -600,7 +607,7 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ video: initialVideo, onB
   }, [video.url, setYtPlayer]);
 
   // Fresh playback state per video — never carry a prior title's fallback errors over.
-  useEffect(() => { setVideoError(false); setMuxMp4Error(false); }, [video.id]);
+  useEffect(() => { setVideoError(false); setMuxMp4Error(false); setHostFallback(false); }, [video.id]);
 
   // Real-time listener: pick up muxPlaybackId / url the moment Mux finishes
   // processing — even if that's 20 minutes after the upload completed.
@@ -1104,6 +1111,58 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ video: initialVideo, onB
       return <iframe src={`https://archive.org/embed/${id}?autoplay=1`} className="w-full h-full" allow="autoplay; fullscreen" allowFullScreen />;
     }
 
+    // Bunny Stream HLS first when the video has it. A migrated video (Bunny + Mux ids) that fails on
+    // Bunny drops to its Mux stream via hostFallback; a Bunny-only one goes to Bunny's MP4 below.
+    const hosted = resolvePlayback(video as any);
+    const bunnyDoc = hosted?.provider === 'bunny';
+    const onBunny = bunnyDoc && !hostFallback;
+    if (onBunny && !videoError) {
+      return (
+        <MuxHlsVideo
+          src={hosted!.src}
+          muted={isMuted}
+          poster={video.thumbnailUrl || video.coverImageUrl || hosted!.poster}
+          className="w-full h-full object-contain cursor-pointer"
+          onVideoReady={el => {
+            localVideoRef.current = el;
+            setVideoElement(el);
+            el.muted  = isMuted;
+            el.volume = isMuted ? 0 : volume;
+          }}
+          onPlay={() => resume()}
+          onPause={() => pause()}
+          onError={() => (video.muxPlaybackId ? setHostFallback(true) : setVideoError(true))}
+          onEnded={handleVideoEnded}
+          hasSubtitles={hasSubtitles}
+        >
+          <SubtitleTracks video={video} />
+        </MuxHlsVideo>
+      );
+    }
+
+    // Bunny-only video whose HLS failed (no MSE, e.g. Android TV WebView) → Bunny's MP4 fallback.
+    if (onBunny && videoError && !video.muxPlaybackId && !muxMp4Error) {
+      return (
+        <video
+          ref={el => { setVideoElement(el); localVideoRef.current = el; }}
+          src={bunnyMp4Url((video as any).bunnyCdnHost, (video as any).bunnyVideoId, 720)}
+          playsInline
+          crossOrigin={hasSubtitles ? 'anonymous' : undefined}
+          className="w-full h-full object-contain cursor-pointer"
+          onClick={togglePlay}
+          autoPlay
+          muted={isMuted}
+          onCanPlay={e => { const v = e.currentTarget; if (v.paused) v.play().catch(() => { v.muted = true; setIsMuted(true); v.play().catch(() => {}); }); }}
+          onPlay={() => resume()}
+          onPause={() => pause()}
+          onError={() => { console.warn('[PlajahTV] Bunny MP4 fallback failed'); setMuxMp4Error(true); }}
+          onEnded={handleVideoEnded}
+        >
+          <SubtitleTracks video={video} />
+        </video>
+      );
+    }
+
     // Mux HLS stream — native <video> + HLS.js, no web-component overlay
     if (video.muxPlaybackId && !videoError) {
       return (
@@ -1131,7 +1190,7 @@ const VideoPlayerInner: React.FC<VideoPlayerProps> = ({ video: initialVideo, onB
 
     // Mux progressive-MP4 fallback — after Mux HLS/MSE fails, before giving up. This is the
     // path that lets Mux-only titles play on Android TV WebViews (no MSE required).
-    if (video.muxPlaybackId && videoError && !muxMp4Error && !url) {
+    if (video.muxPlaybackId && videoError && !muxMp4Error && (!url || bunnyDoc)) {
       return (
         <video
           ref={el => { setVideoElement(el); localVideoRef.current = el; }}

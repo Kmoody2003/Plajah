@@ -149,12 +149,16 @@ const PostVideo: React.FC<PostVideoProps> = ({ url, id, muxPlaybackId, poster, t
     return () => document.removeEventListener('fullscreenchange', onFsChange);
   }, []);
 
-  // Attach the Mux HLS engine once the user taps play.
+  // HLS source: the Mux stream, or a direct .m3u8 url (Bunny Stream uploads store their playlist in `url`).
+  const directIsHls = !!directUrl && /\.m3u8(\?|$)/i.test(directUrl);
+  const hlsSrc = playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : directIsHls ? directUrl : undefined;
+
+  // Attach the HLS engine once the user taps play.
   useEffect(() => {
     const video = videoRef.current;
-    if (!active || !video || !playbackId || mp4Fallback) return;
+    if (!active || !video || !hlsSrc || mp4Fallback) return;
     let disposed = false;
-    const streamUrl = `https://stream.mux.com/${playbackId}.m3u8`;
+    const streamUrl = hlsSrc;
     setIsBuffering(true);
     (async () => {
       try {
@@ -196,12 +200,15 @@ const PostVideo: React.FC<PostVideoProps> = ({ url, id, muxPlaybackId, poster, t
       hlsRef.current?.destroy?.();
       hlsRef.current = null;
     };
-  }, [active, playbackId, mp4Fallback]);
+  }, [active, hlsSrc, mp4Fallback]);
 
-  // Prioritize Mux HLS stream; only set <video src> when using Mux MP4 fallback or when no Mux playbackId exists.
+  // Prioritize the HLS stream; only set <video src> for an MP4 fallback or a plain (non-HLS) file.
+  // Bunny's MP4 fallback sits next to its playlist (play_720p.mp4, library "MP4 Fallback" on).
   const fallbackOrDirectSrc = playbackId
     ? (mp4Fallback ? `https://stream.mux.com/${playbackId}/high.mp4` : undefined)
-    : directUrl;
+    : directIsHls
+      ? (mp4Fallback ? directUrl!.replace(/\/playlist\.m3u8(\?.*)?$/i, '/play_720p.mp4') : undefined)
+      : directUrl;
   const hasSource = Boolean(playbackId || directUrl);
   const muxPosterFallback = playbackId ? `https://image.mux.com/${playbackId}/thumbnail.webp?time=1` : undefined;
   const effectivePoster = resolvedPoster || muxPosterFallback;
