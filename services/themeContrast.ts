@@ -158,20 +158,33 @@ function backdropFor(el: Element, page: RGBA): Backdrop {
 const ink = (dark: boolean, muted: boolean) =>
   dark ? (muted ? 'rgb(71,85,105)' : 'rgb(15,23,42)') : (muted ? 'rgb(226,232,240)' : 'rgb(255,255,255)');
 
+/**
+ * Stability rules (the first version flickered):
+ *  - A fix is remembered per element together with the className it was computed for. A pass
+ *    that finds the same element, same className, still carrying our marker does NOTHING — so a
+ *    steady page costs no style writes at all and nothing can blink.
+ *  - Fixes are only torn down when the theme/background actually changes (resetContrastGuard),
+ *    or when that one element's classes change (selected <-> unselected), in which case just it
+ *    is re-evaluated.
+ *  - No CSS transition on the corrected colour: it lands in one frame.
+ */
+const fixedFor = new WeakMap<Element, string>();
 let revertList: HTMLElement[] = [];
 
+function unfix(el: HTMLElement) {
+  el.style.removeProperty('color');
+  el.style.removeProperty('text-shadow');
+  el.removeAttribute('data-pj-contrast');
+  fixedFor.delete(el);
+}
+
 export function resetContrastGuard() {
-  for (const el of revertList) {
-    el.style.removeProperty('color');
-    el.style.removeProperty('text-shadow');
-    el.removeAttribute('data-pj-contrast');
-  }
+  for (const el of revertList) unfix(el);
   revertList = [];
 }
 
 export function runContrastGuard(root: ParentNode = document.body): number {
   if (typeof document === 'undefined') return 0;
-  resetContrastGuard();
   const page = pageBackdrop();
   let visited = 0, fixed = 0;
   const walker = document.createTreeWalker(root as Node, NodeFilter.SHOW_TEXT, {
@@ -180,10 +193,16 @@ export function runContrastGuard(root: ParentNode = document.body): number {
   const seen = new Set<Element>();
   let node: Node | null;
   while ((node = walker.nextNode()) && visited < MAX_NODES) {
-    const el = node.parentElement;
+    const el = node.parentElement as HTMLElement | null;
     if (!el || seen.has(el) || SKIP.has(el.tagName.toUpperCase())) continue;
     seen.add(el);
     visited++;
+    const cls = typeof el.className === 'string' ? el.className : '';
+    // Already corrected for exactly this state — leave it alone (this is what stops the flicker).
+    if (el.hasAttribute('data-pj-contrast') && fixedFor.get(el) === cls) { fixed++; continue; }
+    // State changed since we fixed it: judge its NATURAL colour again.
+    if (el.hasAttribute('data-pj-contrast')) unfix(el);
+
     const rect = el.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0 || rect.bottom < 0 || rect.top > innerHeight) continue; // offscreen / hidden
     const cs = getComputedStyle(el);
@@ -198,35 +217,43 @@ export function runContrastGuard(root: ParentNode = document.body): number {
     const need = size >= 24 || (size >= 18.66 && bold) ? 3 : 4.5;
     if (ratio >= need) continue;
     const bgIsLight = luminance(bg) > 0.4;
-    const muted = fg.a < 0.8 && size < 14 ? false : fg.a < 0.8;
-    const h = el as HTMLElement;
-    h.style.setProperty('color', ink(bgIsLight, muted), 'important');
+    const muted = fg.a < 0.8;
+    el.style.setProperty('color', ink(bgIsLight, muted), 'important');
     // Over photography the average is a guess; a soft halo keeps text readable either way.
-    if (media) h.style.setProperty('text-shadow', bgIsLight ? '0 1px 2px rgba(255,255,255,.7)' : '0 1px 3px rgba(0,0,0,.6)', 'important');
-    h.setAttribute('data-pj-contrast', '1');
-    revertList.push(h);
+    if (media) el.style.setProperty('text-shadow', bgIsLight ? '0 1px 2px rgba(255,255,255,.7)' : '0 1px 3px rgba(0,0,0,.6)', 'important');
+    el.setAttribute('data-pj-contrast', '1');
+    fixedFor.set(el, cls);
+    revertList.push(el);
     fixed++;
   }
   return fixed;
 }
 
-/** Debounced, idle-scheduled guard that re-runs on DOM changes and theme/background changes. */
+/**
+ * Idle-scheduled guard.
+ *  - DOM additions / class changes → a cheap incremental pass (steady elements are skipped).
+ *  - Theme, background tone or palette change → full reset first, then a pass.
+ */
 export function startContrastGuard(enabled: () => boolean): () => void {
   let timer: number | undefined;
-  const schedule = (delay = 450) => {
+  let needFullReset = false;
+  const schedule = (delay: number) => {
     window.clearTimeout(timer);
     timer = window.setTimeout(() => {
       if (!enabled()) { resetContrastGuard(); return; }
-      const run = () => runContrastGuard();
-      (window as any).requestIdleCallback ? (window as any).requestIdleCallback(run, { timeout: 1200 }) : run();
+      const run = () => { if (needFullReset) { resetContrastGuard(); needFullReset = false; } runContrastGuard(); };
+      (window as any).requestIdleCallback ? (window as any).requestIdleCallback(run, { timeout: 1500 }) : run();
     }, delay);
   };
-  const mo = new MutationObserver(muts => {
-    // Ignore our own attribute/style writes so the guard doesn't loop.
+  // Content changes: incremental.
+  const content = new MutationObserver(muts => {
     if (muts.every(m => m.type === 'attributes' && (m.attributeName === 'style' || m.attributeName === 'data-pj-contrast'))) return;
-    schedule();
+    schedule(600);
   });
-  mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'data-bg-tone'] });
+  content.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'], characterData: false });
+  // Global look changes (theme class, bg tone, palette vars on <body style>): full re-evaluation.
+  const look = new MutationObserver(() => { needFullReset = true; schedule(200); });
+  look.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-bg-tone', 'data-pj-palette', 'style'] });
   schedule(150);
-  return () => { mo.disconnect(); window.clearTimeout(timer); resetContrastGuard(); };
+  return () => { content.disconnect(); look.disconnect(); window.clearTimeout(timer); resetContrastGuard(); };
 }

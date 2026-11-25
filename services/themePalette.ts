@@ -181,6 +181,10 @@ export function paletteVars(p: ThemePalette, surface: string): Record<string, st
   v['--text-secondary'] = v['--pj-a1-ink'];
   v['--accent-color'] = p.accent1;
   v['--pj-accent-ink'] = v['--pj-a1-ink'];
+  // Tailwind's text-/bg-/border-small-orange read --color-small-orange, which index.css declares on
+  // :root as var(--text-secondary). A var() is resolved where it is DECLARED, so overriding
+  // --text-secondary lower down never reached it. Set the token itself, on <body>.
+  v['--color-small-orange'] = v['--pj-a1-ink'];
   return v;
 }
 
@@ -191,7 +195,8 @@ export function applyPalette(p: ThemePalette | null | undefined, themeId: string
   const body = document.body;
   appliedKeys.forEach(k => body.style.removeProperty(k));
   appliedKeys.clear();
-  if (!p) return;
+  if (!p) { body.removeAttribute('data-pj-palette'); return; }
+  body.setAttribute('data-pj-palette', '1');
   const vars = paletteVars(p, THEME_SURFACE[themeId] ?? THEME_SURFACE.DARK);
   for (const [k, val] of Object.entries(vars)) { body.style.setProperty(k, val); appliedKeys.add(k); }
 }
