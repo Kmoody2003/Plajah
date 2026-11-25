@@ -37,6 +37,7 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
   { id: 'account', title: 'Account & Security', desc: 'Account type, emails and connected accounts.', icon: KeyRound, tint: '#a78bfa', pages: [
     { id: 'ACCOUNT', label: 'Account type', desc: 'Fan, Artist, Brand, Teacher and more. Choose what your account unlocks.', icon: Sparkles, keywords: 'business page role capability delete' },
     { id: 'ALIASES', label: 'Emails & aliases', desc: 'The addresses tied to your account.', icon: Mail, keywords: 'email address' },
+    { id: 'PASSKEYS', label: 'Passkeys', desc: 'Fingerprint, face or Windows Hello for signing and sign-in.', icon: Fingerprint, keywords: 'passkey biometric fingerprint face windows hello touch id security sign' },
     { id: 'CONNECTED_SERVICES', label: 'Connected services', desc: 'Accounts and keys you have linked to Plajah.', icon: Link2, keywords: 'api key stripe google youtube' },
     { id: 'NETWORKS', label: 'Social networks', desc: 'Post to and read from other networks.', icon: Share2, keywords: 'fediverse mastodon bluesky facebook instagram' },
     { id: 'FAMILY', label: 'Family', desc: 'Manage child and guardian accounts.', icon: Baby, keywords: 'child parent guardian kids' },

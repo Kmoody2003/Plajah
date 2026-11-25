@@ -522,6 +522,7 @@ const AmboOperatorWindow = retryLazy(() => import('./components/scripture/AmboOp
 const TelehealthJoinPage = retryLazy(() => import('./components/clinic/TelehealthJoinPage'));
 const ShowViewerPage = retryLazy(() => import('./components/photo/show/ShowViewerPage'));
 import { parseShowLink } from './services/slideshow/showPosts';
+const TelaSignPage = retryLazy(() => import('./components/tela/sign/TelaSignPage'));
 const AmboPartyEventReceiver = retryLazy(() => import('./components/scripture/AmboPartyEventReceiver'));
 import { registerEventDevice } from './services/ambo/amboPartyEventService';
 import PartyToastHost from './components/party/PartyToastHost';
@@ -559,6 +560,8 @@ const LawLibrary = retryLazy(() => import('./components/terra/LawLibrary'));
 const ListingFilm = retryLazy(() => import('./components/terra/ListingFilm'));
 const TerraFeed = retryLazy(() => import('./components/terra/TerraFeed'));
 const TerraListings = retryLazy(() => import('./components/terra/ListingsManager'));
+const TerraLawLibrary = retryLazy(() => import('./components/terra/TerraLawLibrary'));
+const CivicDesk = retryLazy(() => import('./components/terra/civic/CivicDesk'));
 const AdPackageManager = retryLazy(() => import('./components/AdPackageManager'));
 const ArtistProjectManager = retryLazy(() => import('./components/ArtistProjectManager'));
 const ChoraArtistManager = retryLazy(() => import('./components/ChoraArtistManager'));
@@ -825,6 +828,18 @@ const App: React.FC = () => {
     );
   }
 
+  // Tela Sign: a signer opens ?view=sign&env=…&s=…&t=… — a standalone signing page, no app shell.
+  if (typeof window !== 'undefined') {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('view') === 'sign' && q.get('env')) {
+      return (
+        <Suspense fallback={<div className="fixed inset-0 bg-[#0d0c13] flex items-center justify-center text-white/40 font-mono text-sm">Opening the document…</div>}>
+          <TelaSignPage />
+        </Suspense>
+      );
+    }
+  }
+
   // Check for ?view=pitch-music|pitch-film|pitch-writer|research and ?room=<id> on load
   const searchParamsOnLoad = new URLSearchParams(window.location.search);
   const channelShareOnLoad = typeof window !== 'undefined' ? parseChannelShareParams(window.location.search, window.location.pathname) : null;
@@ -860,6 +875,8 @@ const App: React.FC = () => {
     pitchParam === 'apps'         ? 'APPS'               :
     pitchParam === 'crossover'    ? 'CROSSOVER'          :
     pitchParam === 'terra'        ? 'TERRA'              :
+    // ?view=law&law=<id> is a shared section from the full-text statute reader (TerraLawLibrary).
+    (pitchParam === 'law' || searchParamsOnLoad.get('law') !== null) ? 'TERRA_STATUTES' :
     pitchParam === 'business'     ? 'PLAJAH_BUSINESS'    :
     pitchParam === 'elevate' || pitchParam === 'plajah-elevate' || searchParamsOnLoad.get('elevate') !== null ? 'PLAJAH_ELEVATE' :
     pitchParam === 'home'         ? 'PLAJAH_HOME'        :
@@ -879,7 +896,7 @@ const App: React.FC = () => {
   const hasDeepLink = (() => {
     if (channelShareOnLoad) return true;
     const sp = new URLSearchParams(window.location.search);
-    if (['id', 'type', 'reello', 'video', 'v', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view', 'g', 'atlas', 'party', 'collection', 'film', 'channel', 'ch', 'plajahId'].some(k => sp.get(k))) return true;
+    if (['id', 'type', 'reello', 'video', 'v', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view', 'law', 'g', 'atlas', 'party', 'collection', 'film', 'channel', 'ch', 'plajahId'].some(k => sp.get(k))) return true;
     if (/^#g\//.test(window.location.hash)) return true;
     // /link (TV sign-in approval) must not bounce a signed-out visitor to LANDING — they may
     // need to sign in on the phone first and then approve, and losing the ?c= code mid-flow
@@ -3125,6 +3142,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('TERRA_FEED');
     } else if (target === 'TERRA_LISTINGS') {
       setView('TERRA_LISTINGS');
+    } else if (target === 'TERRA_STATUTES') {
+      setView('TERRA_STATUTES');
+    } else if (target === 'TERRA_DESK') {
+      setView('TERRA_DESK');
     } else if (target === 'TERRA_PASSPORT') {
       setTerraPassportTarget(params?.terraTarget || null);
       setView('TERRA_PASSPORT');
@@ -7306,7 +7327,29 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'TERRA' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <TerraHub onNavigate={handleGlobalNavigate} />
+                <TerraHub onNavigate={handleGlobalNavigate} isAdmin={userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com'} />
+              </Suspense>
+            )}
+
+            {/* Two law views: TERRA_STATUTES is the full-text Michigan reader (ingested MCL + Constitution,
+                shareable section links); TERRA_LAW is the plain-words lookup (live MCL search, eCFR,
+                Detroit code) that parcels open with their zoning district. */}
+            {view === 'TERRA_STATUTES' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <TerraLawLibrary onBack={() => goBack('TERRA')} />
+              </Suspense>
+            )}
+
+            {view === 'TERRA_DESK' && (userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com') && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <CivicDesk
+                  onBack={() => goBack('TERRA')}
+                  onOpenMap={() => setView('TERRA_MAP')}
+                  onOpenLaw={(id) => {
+                    try { const u = new URL(window.location.href); u.searchParams.set('view', 'law'); u.searchParams.set('law', id); window.history.replaceState(window.history.state, '', u.toString()); } catch { /* URL sync is optional */ }
+                    setView('TERRA_STATUTES');
+                  }}
+                />
               </Suspense>
             )}
 

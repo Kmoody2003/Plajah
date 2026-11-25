@@ -1864,6 +1864,8 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (resource.data.get('subjectUid', '') == request.auth.uid || isAdmin());
       allow write: if false;
     }
+    // passkeys, telaSignEnvelopes, telaSignLocks: server-only (routes/passkeys.ts, routes/telaSign.ts).
+    // No match block on purpose: default deny, and the compiled ruleset has no headroom.
     match /ledgerHeads/{workKey} {
       allow read, write: if false;
     }

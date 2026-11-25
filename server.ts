@@ -98,8 +98,10 @@ import { createMusicDownloadRouter } from './routes/musicDownload';
 import { createFastVoteRouter } from './routes/fastVote';
 import { cleanRedeemUnits, isInternalPushLink, muxAssetReadable, muxOwnerOf, muxOwnerTag, pushMatchesNotification, ticketActionAllowed } from './services/serverGuards';
 import { createMuseumRouter } from './routes/museum';
-import { createDataCommonsRouter } from './routes/dataCommons';
 import { createTerraLawRouter } from './routes/terraLaw';
+import { createTelaSignRouter, firestoreSignStore } from './routes/telaSign';
+import { createPasskeyRouter, firestorePasskeyStore } from './routes/passkeys';
+import { createDataCommonsRouter } from './routes/dataCommons';
 import { createMusicLawRouter } from './routes/musicLaw';
 import { createGrantsRouter } from './routes/grants';
 import { createAdminKeysRouter } from './routes/adminKeys';
@@ -15233,9 +15235,26 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   fastVotePledgeHook = fastVote.onPledgeCheckoutCompleted;
   app.use(fastVote.router);
   app.use(createMuseumRouter({ limiter: apiLimiter }));
-  app.use(createDataCommonsRouter({ limiter: apiLimiter }));
-  // Terra Law Library: Michigan Compiled Laws (1 req/s gate to legislature.mi.gov) + eCFR search.
+  // Terra Law Library: live MCL search (1 req/s gate) + eCFR, and the ingested unofficial copy in data/terraLaw/*
   app.use(createTerraLawRouter({ limiter: apiLimiter }));
+  // Tela Sign: the server is the only writer of envelopes and audit trails — routes/telaSign.ts
+  // Passkeys (Windows Hello, fingerprint, face): public keys only, never biometrics — routes/passkeys.ts
+  const passkeyStore = firestorePasskeyStore();
+  app.use(createPasskeyRouter({
+    authMiddleware, limiter: apiLimiter, store: passkeyStore,
+    secret: () => process.env.TELA_SIGN_SECRET || '',
+    origin: () => process.env.VITE_APP_URL || 'https://plajah.com',
+  }));
+  app.use(createTelaSignRouter({
+    authMiddleware, limiter: apiLimiter, store: firestoreSignStore(), passkeys: passkeyStore,
+    optionalUid: async (req: any) => {
+      const h = String(req.headers.authorization || '');
+      return h.startsWith('Bearer ') ? ((await verifyFirebaseToken(h.slice(7)))?.uid ?? null) : null;
+    },
+    secret: () => process.env.TELA_SIGN_SECRET || '',
+    origin: () => process.env.VITE_APP_URL || 'https://plajah.com',
+  }));
+  app.use(createDataCommonsRouter({ limiter: apiLimiter }));
   app.use(createMusicLawRouter({ limiter: apiLimiter }));
   app.use(createGrantsRouter({ limiter: apiLimiter }));
   // Admin countdown for API keys that expire on a schedule (SAM.gov: 90 days). Dates only, never the key.

@@ -187,3 +187,6 @@ public/pkg-dev/
 # Local scratch
 /tmp/
 .tmp-light/
+
+# Terra Law Library: Michigan law source downloads (scripts/terra/ingestMichiganLaw.ts)
+.terra-law-src/
