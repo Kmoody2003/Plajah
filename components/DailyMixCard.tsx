@@ -65,7 +65,7 @@ const DailyMixCard: React.FC<DailyMixCardProps> = ({ onSelectAlbum, onVisitUser,
   if (!mix || mix.trackCount === 0) return null;
 
   return (
-    <div className={`relative rounded-3xl overflow-hidden border border-white/12 ${className}`}
+    <div className={`pj-dark-stage pj-keep-dark relative rounded-3xl overflow-hidden border border-white/12 ${className}`}
       style={{ background: 'radial-gradient(120% 130% at 88% -10%, rgba(212,0,85,.22), transparent 55%), radial-gradient(90% 120% at 4% 110%, rgba(0,218,243,.14), transparent 55%), linear-gradient(160deg,#150c22,#0b0813 60%,#100a12)' }}>
       <div className="p-6 sm:p-7">
         {/* header */}

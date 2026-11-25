@@ -1059,3 +1059,13 @@ html body :is([role="tab"][aria-selected="true"], button[aria-pressed="true"], [
 /* Pillar / rail: the current destination's marker is the gradient. */
 html body .pj-rail-btn[style*="gradient"] { background-image: var(--pj-grad-select) !important; }
 
+
+/* ═══ Dark stages ═══════════════════════════════════════════════════════════
+   A card with its own fixed dark artwork (Chora Daily Mix, hero banners) keeps light text in
+   EVERY theme: the Light/Pastel/role remaps must not turn its white text into dark ink.
+   Mark the card with .pj-dark-stage; the guard also treats it as keep-dark. */
+html body .pj-dark-stage :is([class*="text-white"], h1, h2, h3, h4, p, span, div, button, a, svg):not(:where([class*="text-transparent"], [class*="bg-clip-text"], [class*="text-[#"], [class*="text-small-orange"])) { color: rgba(255,255,255,.92) !important; }
+html body .pj-dark-stage :is([class*="text-white/6"], [class*="text-white/5"], [class*="text-white/4"], [class*="text-white/3"], [class*="text-white/2"]) { color: rgba(255,255,255,.62) !important; }
+html body .pj-dark-stage h1, html body .pj-dark-stage h2, html body .pj-dark-stage h3 { color: #fff !important; }
+html body .pj-dark-stage [class*="text-[#FF8C00]"] { color: #FFB45A !important; }
+html body .pj-dark-stage [class*="text-[#C56BFF]"], html body .pj-dark-stage [class*="text-[#D0BCFF]"] { color: #D9A8FF !important; }
