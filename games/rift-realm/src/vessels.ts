@@ -1,11 +1,11 @@
 // Playable non-human Soul Vessel classes (Tron-meets-Fable cyber-arcane frames).
 import * as THREE from 'three/webgpu';
 
-export type VesselId = 'aegis' | 'stalker' | 'seraph';
+export type VesselId = 'aegis' | 'stalker' | 'seraph' | 'sylva' | 'pyre';
 
 export interface VesselSpec {
   id: VesselId;
-  key: '1' | '2' | '3';
+  key: '1' | '2' | '3' | '6' | '7';
   name: string;
   archetype: string;
   weaponName: string;
@@ -85,9 +85,49 @@ export const VESSELS: Record<VesselId, VesselSpec> = {
     primaryColor: 0xfbbf24,
     accentColor: 0xa855f7,
   },
+  sylva: {
+    id: 'sylva',
+    key: '6',
+    name: 'Sylva',
+    archetype: 'Living Treant Grappler',
+    weaponName: 'Briar Spore-Cannon',
+    maxHp: 120,
+    moveSpeed: 9.4,
+    dashSpeed: 29,
+    gravity: 26,
+    pellets: 3,
+    spreadRad: 0.032,
+    burstCount: 1,
+    burstDelayMs: 0,
+    dmgPerfect: 20,
+    dmgGood: 13,
+    dmgOff: 6,
+    primaryColor: 0xf59e0b,
+    accentColor: 0x4ade80,
+  },
+  pyre: {
+    id: 'pyre',
+    key: '7',
+    name: 'Pyre',
+    archetype: 'Obsidian Forge Golem',
+    weaponName: 'Ember Slag-Breaker',
+    maxHp: 155,
+    moveSpeed: 8.2,
+    dashSpeed: 25,
+    gravity: 29,
+    pellets: 4,
+    spreadRad: 0.042,
+    burstCount: 1,
+    burstDelayMs: 0,
+    dmgPerfect: 18,
+    dmgGood: 12,
+    dmgOff: 6,
+    primaryColor: 0xf97316,
+    accentColor: 0x38bdf8,
+  },
 };
 
-export const VESSEL_ORDER: VesselId[] = ['aegis', 'stalker', 'seraph'];
+export const VESSEL_ORDER: VesselId[] = ['aegis', 'stalker', 'seraph', 'sylva', 'pyre'];
 
 /** Build a distinct 3rd-person non-human silhouette for each Soul Vessel. */
 export function buildVesselMesh(spec: VesselSpec): THREE.Group {

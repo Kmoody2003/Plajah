@@ -17,11 +17,12 @@
 // characters.ts (+Z along the fingers = barrel forward, +Y toward the thumb). `tpOffset` corrects a socket that
 // disagrees, without touching the model.
 import * as THREE from 'three/webgpu';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeRigid } from './batching';
 import { abs, color, float, mix, mx_fractal_noise_float, mx_noise_float, positionLocal, smoothstep, uniform, vec3 } from 'three/tsl';
 import type { Recipe } from '../../../services/vfx';
 import { RECIPES } from '../../../services/vfx';
-import type { VesselId } from './vessels';
+import { VESSEL_ORDER, type VesselId } from './vessels';
 
 // ── Data table (Game Studio edits these; patchWeapon merges a partial over one) ─────────────────────────────────────
 
@@ -159,6 +160,30 @@ export const WEAPONS: Record<VesselId, WeaponSpec> = {
     tpOffset: { rot: HAND_R_ROT, pos: [0, 0, 0] },
     fpHip: [0.15, -0.225, -0.48],
   },
+  sylva: {
+    id: 'sylva', name: 'Briar Spore-Cannon',
+    energy: { capacity: 105, costPerShot: 7, heatPerShot: 0.19, coolPerSec: 0.62, coolDelay: 0.32, overheatSec: 1.45, regenPerSec: 1.0, ventCost: 5, ventSec: 0.85, beat: { perfect: { cost: 0.5, heat: 0.3 }, good: { cost: 0.8, heat: 0.75 } } },
+    magSize: 15, reloadSec: 0.85, reloadClip: 'reload', phases: RIFLE_PHASES, switchSec: 0.48,
+    recoil: { pitch: 0.025, yaw: [0.004, -0.004, 0.003, -0.005], resetSec: 0.45, recover: 0.7, recoverRate: 9, kickBack: 0.08, kickRot: 0.1 },
+    spread: { hip: 0.015, bloomPerShot: 0.25, adsMul: 0.38 },
+    adsFov: 0.78, adsSec: 0.15, adsSens: 0.78,
+    fx: { muzzle: 'muzzle_chord', impact: 'impact_chord', impactPerfect: 'hit_perfect', tracer: { style: 'bolt', core: 0.018, glow: 0.07, life: 0.17, speed: 140, length: 2.8, trace: 0.1 } },
+    sounds: { magOut: 'vent_hiss', magIn: 'vent_chime', charge: 'charge_r', dry: 'dry', switch: 'switch', impact: 'imp_chord', overheat: 'overheat', recharge: 'recharge' },
+    tpOffset: { rot: HAND_R_ROT, pos: [0, 0, 0] },
+    fpHip: [0.155, -0.225, -0.47],
+  },
+  pyre: {
+    id: 'pyre', name: 'Ember Slag-Breaker',
+    energy: { capacity: 110, costPerShot: 10, heatPerShot: 0.26, coolPerSec: 0.58, coolDelay: 0.36, overheatSec: 1.65, regenPerSec: 0.85, ventCost: 7, ventSec: 0.95, beat: { perfect: { cost: 0.5, heat: 0.3 }, good: { cost: 0.8, heat: 0.75 } } },
+    magSize: 11, reloadSec: 0.95, reloadClip: 'reload', phases: RIFLE_PHASES, switchSec: 0.54,
+    recoil: { pitch: 0.044, yaw: [0.006, -0.007, 0.005], resetSec: 0.6, recover: 0.55, recoverRate: 7, kickBack: 0.12, kickRot: 0.15 },
+    spread: { hip: 0.02, bloomPerShot: 0.36, adsMul: 0.48 },
+    adsFov: 0.84, adsSec: 0.17, adsSens: 0.8,
+    fx: { muzzle: 'muzzle_scatter', impact: 'impact_scatter', impactPerfect: 'hit_perfect', tracer: { style: 'streak', core: 0.018, glow: 0.06, life: 0.14, speed: 185, length: 2.6 } },
+    sounds: { magOut: 'vent_hiss', magIn: 'vent_chime', charge: 'charge_r', dry: 'dry', switch: 'switch', impact: 'imp_scatter', overheat: 'overheat', recharge: 'recharge' },
+    tpOffset: { rot: HAND_R_ROT, pos: [0, 0, 0] },
+    fpHip: [0.16, -0.23, -0.46],
+  },
 };
 
 /** Merge a partial spec over a weapon (Game Studio / a level's project). */
@@ -243,10 +268,10 @@ export class WeaponEnergy {
   }
 
   /** After being downed: cool, and at least half charged. */
-  reset() { for (const id of ['aegis', 'stalker', 'seraph'] as VesselId[]) { const v = this.st(id); v.heat = 0; v.cool = 0; v.vent = 0; v.charge = Math.max(v.charge, WEAPONS[id].energy.capacity * 0.5); } }
+  reset() { for (const id of VESSEL_ORDER) { const v = this.st(id); v.heat = 0; v.cool = 0; v.vent = 0; v.charge = Math.max(v.charge, WEAPONS[id].energy.capacity * 0.5); } }
 
   update(dt: number) {
-    for (const id of ['aegis', 'stalker', 'seraph'] as VesselId[]) {
+    for (const id of VESSEL_ORDER) {
       const v = this.st(id), e = WEAPONS[id].energy;
       v.since += dt;
       if (v.cool > 0) {                         // overheated: the heat bleeds off over the forced cool-down
@@ -726,17 +751,67 @@ function buildChord(glow: Glow): Omit<WeaponModel, 'heat'> {
   return { root, muzzle, mag: mg, magHome, sight: V(0, 0.208, 0.06), support: V(0, 0.07, 0.4), charge: V(0.04, 0.115, -0.01), glow, tips };
 }
 
-/** Build one vessel's gun. `fp` = first-person copy (no shadows, drawn over the world). */
+/** Sculpted Batch-6 PBR + emissive 3D GLB weapon mapping per playable Soul Vessel. */
+const VESSEL_WEAPON_GLB: Record<VesselId, { url: string; scale: number; rotX: number; rotY: number; rotZ: number; offset: [number, number, number] }> = {
+  aegis:   { url: '/games/rift-realm/assets/weapons/paladin_tech_lance.glb', scale: 0.62, rotX: Math.PI / 2, rotY: 0, rotZ: 0, offset: [0, 0.08, 0.08] },
+  stalker: { url: '/games/rift-realm/assets/weapons/void_scythe.glb',        scale: 0.56, rotX: Math.PI / 2, rotY: 0, rotZ: Math.PI / 2, offset: [0, 0.06, 0.06] },
+  seraph:  { url: '/games/rift-realm/assets/weapons/lumen_chakram.glb',      scale: 0.52, rotX: Math.PI / 2, rotY: 0, rotZ: 0, offset: [0, 0.09, 0.22] },
+  sylva:   { url: '/games/rift-realm/assets/weapons/sylva_bow.glb',          scale: 0.68, rotX: 0, rotY: Math.PI / 2, rotZ: 0, offset: [0, 0.06, 0.24] },
+  pyre:    { url: '/games/rift-realm/assets/weapons/magma_battleaxe.glb',    scale: 0.68, rotX: Math.PI / 2, rotY: 0, rotZ: 0, offset: [0, 0.07, 0.12] },
+};
+
+const sculptedWeaponCache = new Map<VesselId, Promise<THREE.Object3D | null>>();
+
+function loadSculptedWeapon(id: VesselId): Promise<THREE.Object3D | null> {
+  let p = sculptedWeaponCache.get(id);
+  if (!p) {
+    const spec = VESSEL_WEAPON_GLB[id];
+    p = new GLTFLoader().loadAsync(spec.url).then((g) => g.scene).catch(() => null);
+    sculptedWeaponCache.set(id, p);
+  }
+  return p;
+}
+
+/** Build one vessel's gun/weapon. `fp` = first-person copy (no shadows, drawn over the world).
+ *  Mounts the procedural frame synchronously (preserving muzzle/sight/mag anchors), then upgrades in place to
+ *  the real sculpted PBR + emissive GLB from `/games/rift-realm/assets/weapons/` as soon as it loads. */
 export function buildWeapon(id: VesselId, fp = false): WeaponModel {
   const glow = makeGlow();
   const heat = uniform(0);
   (glow as unknown as { heat: Glow }).heat = heat;   // glowMat reads it
-  const m: WeaponModel = { ...(id === 'aegis' ? buildLance(glow) : id === 'stalker' ? buildScatter(glow) : buildChord(glow)), heat };
+  const m: WeaponModel = { ...(id === 'aegis' ? buildLance(glow) : (id === 'stalker' || id === 'pyre') ? buildScatter(glow) : buildChord(glow)), heat };
   m.root.name = `weapon_${id}${fp ? '_fp' : ''}`;
   finish(m.root, fp);
   // one draw per material (the Halo Lance was 63 draws): everything but the magazine, which moves on a reload
   const moving = new Set<THREE.Object3D>(); m.mag.traverse((o) => { moving.add(o); });
   mergeRigid(m.root, (x) => !moving.has(x));
+
+  // Async upgrade to real sculpted 3D weapon GLB (keeps procedural muzzle/tips/mag anchors intact)
+  const spec = VESSEL_WEAPON_GLB[id];
+  if (spec) {
+    void loadSculptedWeapon(id).then((src) => {
+      if (!src) return;
+      // Hide procedural geometry meshes while preserving muzzle/tips anchor Object3Ds
+      m.root.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.visible = false; });
+      const holder = new THREE.Group();
+      holder.name = `sculpted_${id}`;
+      const clone = src.clone(true);
+      clone.scale.setScalar(spec.scale);
+      clone.rotation.set(spec.rotX, spec.rotY, spec.rotZ);
+      clone.position.set(...spec.offset);
+      clone.traverse((o) => {
+        const meshObj = o as THREE.Mesh;
+        if (!meshObj.isMesh) return;
+        const mats = Array.isArray(meshObj.material) ? meshObj.material : [meshObj.material];
+        for (const mt of mats) {
+          if ('emissiveIntensity' in mt) (mt as THREE.MeshStandardMaterial).emissiveIntensity = 1.35;
+        }
+      });
+      holder.add(clone);
+      finish(holder, fp);
+      m.root.add(holder);
+    });
+  }
   return m;
 }
 
@@ -799,7 +874,7 @@ export class WeaponViewmodel {
 
   constructor() {
     this.trim = new THREE.MeshStandardNodeMaterial({ color: 0x38bdf8, emissive: 0x38bdf8, emissiveIntensity: 1.2, roughness: 0.3 });
-    for (const id of ['aegis', 'stalker', 'seraph'] as VesselId[]) {
+    for (const id of VESSEL_ORDER) {
       const m = buildWeapon(id, true);
       m.root.visible = id === this.current;
       this.models.set(id, m);

@@ -38,7 +38,7 @@ const SFX: Record<string, number> = {
 };
 const AMB = ['amb_forest', 'amb_stream', 'amb_drone'] as const;
 /** Each vessel's own gun voice (vessels.ts ids). */
-const GUN: Record<string, string> = { aegis: 'lance', stalker: 'scatter', seraph: 'chord' };
+const GUN: Record<string, string> = { aegis: 'lance', stalker: 'scatter', seraph: 'chord', sylva: 'chord', pyre: 'scatter' };
 export type Ambience = 'forest' | 'none';
 const AMB_MIX: Record<Ambience, Record<string, number>> = {
   forest: { amb_forest: 0.42, amb_stream: 0.14, amb_drone: 0.16 },

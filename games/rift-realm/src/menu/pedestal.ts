@@ -6,6 +6,8 @@ import { assets, CharacterRig } from '../characters';
 import { buildWeapon, WEAPONS } from '../weapons';
 import { VESSELS, type VesselId } from '../vessels';
 
+export type PedestalModel = 'stalker' | 'paladin' | 'seraph' | 'sylva' | 'pyre';
+
 export class Pedestal {
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(30, 1, 0.1, 50);
@@ -19,7 +21,7 @@ export class Pedestal {
   /** where on screen the pedestal stands (0…1 of the viewport width) */
   centerX = 0.5;
 
-  constructor(private renderer: THREE.WebGPURenderer, private model: (id: VesselId) => 'stalker' | 'paladin') {
+  constructor(private renderer: THREE.WebGPURenderer, private model: (id: VesselId) => PedestalModel) {
     (globalThis as { __pedestal?: unknown }).__pedestal = this; // console checks / tuning
     this.camera.position.set(0, 1.45, 7.6);
     this.camera.lookAt(0, 1.0, 0);
@@ -92,9 +94,15 @@ export class Pedestal {
   private build(id: VesselId) {
     let entry = this.rigs.get(id);
     if (!entry) {
-      const asset = this.model(id) === 'paladin' ? assets.paladin ?? assets.stalker : assets.stalker;
+      const mkind = this.model(id);
+      const asset = mkind === 'paladin' ? assets.paladin ?? assets.stalker
+        : mkind === 'seraph' ? assets.seraph ?? assets.stalker
+        : mkind === 'sylva' ? assets.sylva ?? assets.stalker
+        : mkind === 'pyre' ? assets.pyre ?? assets.stalker
+        : assets.stalker;
       if (!asset) return null;
-      const rig = new CharacterRig(asset, this.model(id) === 'paladin' ? 2.05 : 1.9);
+      const height = mkind === 'paladin' ? 2.05 : mkind === 'seraph' ? 1.78 : mkind === 'sylva' ? 2.04 : mkind === 'pyre' ? 2.15 : 1.9;
+      const rig = new CharacterRig(asset, height);
       const root = new THREE.Group();
       root.add(rig.root);
       // the vessel's gun in the right hand, as the game hangs it (player.showTpGun)
@@ -107,7 +115,7 @@ export class Pedestal {
         holder.add(m.root); socket.add(holder);
         rig.grip('Right', 'dagger');
       }
-      entry = { rig, root, hero: new HeroPose(rig, this.model(id)) };
+      entry = { rig, root, hero: new HeroPose(rig, mkind) };
       this.rigs.set(id, entry);
     }
     return entry;
@@ -194,7 +202,7 @@ class HeroPose {
     return true;
   }
 
-  constructor(rig: CharacterRig, private kind: 'stalker' | 'paladin') {
+  constructor(rig: CharacterRig, private kind: PedestalModel) {
     const r = rig as unknown as { loco: { name: string; act: THREE.AnimationAction }[]; actions: Map<string, THREE.AnimationAction> };
     // no aim crouch: the rig's standing clip is stopped and the body rests in its bind pose (upright, weapon planted),
     // which the layer below turns into the hero stance; a named clip replaces it once a real hero idle exists
@@ -234,11 +242,11 @@ class HeroPose {
 
   /** The standing clip per body ('' = bind pose). hero_idle is the characters track's menu stance (mocap: tall,
    *  chest up, weapon low and ready; short loops, so played slow). The clips named "idle" are not standing idles. */
-  static clip: Record<'stalker' | 'paladin', string> = { stalker: 'hero_idle', paladin: 'hero_idle' };
+  static clip: Record<PedestalModel, string> = { stalker: 'hero_idle', paladin: 'hero_idle', seraph: 'hero_idle', sylva: 'hero_idle', pyre: 'hero_idle' };
   static clipRate = 0.38;
   /** Per-body tweaks on top of k. On the bind pose the layer does the whole stance (the Stalker's arms come in: +);
    *  on a hero clip, which already stands tall, it only adds a lighter lift, the look past the camera and the breath. */
-  static kindK: Record<'stalker' | 'paladin', Partial<typeof HeroPose.k>> = { stalker: { arms: 0.3 }, paladin: { arms: 0 } };
+  static kindK: Record<PedestalModel, Partial<typeof HeroPose.k>> = { stalker: { arms: 0.3 }, paladin: { arms: 0 }, seraph: { arms: 0.14 }, sylva: { arms: 0.12 }, pyre: { arms: 0 } };
   static clipK: Partial<typeof HeroPose.k> = { chest: 0.04, shoulders: 0.05, drop: 0.01, arms: 0, neck: 0.04 };
   private onClip = false;
 

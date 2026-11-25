@@ -39,6 +39,8 @@ export class PlayerController {
   readonly object = new THREE.Group();
   vesselMesh = new THREE.Group();
   private rig: CharacterRig | null = null;
+  /** Per-vessel cached CharacterRig + wrapper + third-person gun so switching vessels swaps real 3D bodies cleanly. */
+  private vesselRigs = new Map<VesselId, { rig: CharacterRig; wrap: THREE.Group; gun?: WeaponModel }>();
   /** Wings deploy on the run; in the air with wings out he glides (glide.ts, tuning in GLIDE). */
   readonly glide = new Glide();
   readonly viewmodel = new THREE.Group();
@@ -47,7 +49,7 @@ export class PlayerController {
   /** Spirit energy + heat per vessel (weapons.ts). The world refills it: player.weapons.addCharge(amount, source);
    *  read it with getCharge(); onDry / onOverheat / onCharge fire as it changes. */
   readonly weapons = new WeaponEnergy();
-  /** Third-person guns on the rig's hand_r_weapon socket, one per vessel (the shown one is visible). */
+  /** Third-person guns on the active rig's hand_r_weapon socket, one per vessel (the shown one is visible). */
   private tpGuns = new Map<VesselId, WeaponModel>();
   private tpShown: VesselId | null = null;
 
@@ -200,6 +202,8 @@ export class PlayerController {
       if (e.code === 'Digit1') this.setVessel('aegis');
       if (e.code === 'Digit2') this.setVessel('stalker');
       if (e.code === 'Digit3') this.setVessel('seraph');
+      if (e.code === 'Digit6') this.setVessel('sylva');
+      if (e.code === 'Digit7') this.setVessel('pyre');
       // Q by default (input/actions.ts): third person swaps shoulder; first person turns you right round (quick 180)
       if (e.code === 'F8' && !e.repeat) { if (this.firstPerson) this.quickTurn(); else this.shoulderSide = -this.shoulderSide; }
     });
@@ -246,6 +250,17 @@ export class PlayerController {
     this.setVessel(next);
   }
 
+  /** Which CharacterAsset and standing height (m) each Soul Vessel class uses in third person. */
+  private vesselAssetFor(id: VesselId): { asset: NonNullable<typeof assets.stalker>; height: number } | null {
+    if (id === 'aegis' && assets.paladin) return { asset: assets.paladin, height: 2.02 };
+    if (id === 'seraph' && assets.seraph) return { asset: assets.seraph, height: 1.78 };
+    if (id === 'sylva' && assets.sylva) return { asset: assets.sylva, height: 2.04 };
+    if (id === 'pyre' && assets.pyre) return { asset: assets.pyre, height: 2.15 };
+    if (assets.stalker) return { asset: assets.stalker, height: 1.9 };
+    const fallback = assets.paladin ?? assets.seraph ?? assets.sylva ?? assets.pyre;
+    return fallback ? { asset: fallback, height: 1.9 } : null;
+  }
+
   setVessel(id: VesselId) {
     const spec = VESSELS[id];
     if (this.vessel.id !== id && this.downedT <= 0 && this.enabled) {
@@ -261,16 +276,23 @@ export class PlayerController {
     this.hp = Math.max(1, Math.round(spec.maxHp * hpRatio));
 
     this.object.remove(this.vesselMesh);
-    if (assets.stalker) {
-      // the Void Stalker is the playable body for every vessel class; the class sets stats + weapon
-      if (!this.rig) {
-        this.rig = new CharacterRig(assets.stalker, 1.9);
+    const chosen = this.vesselAssetFor(id);
+    if (chosen) {
+      let cached = this.vesselRigs.get(id);
+      if (!cached) {
+        const rig = new CharacterRig(chosen.asset, chosen.height);
         const wrap = new THREE.Group();
-        this.rig.root.rotation.y = Math.PI; // rig faces +Z, the player's forward is -Z
-        wrap.add(this.rig.root);
-        this.vesselMesh = wrap;
+        rig.root.rotation.y = Math.PI; // rig faces +Z, the player's forward is -Z
+        wrap.add(rig.root);
+        cached = { rig, wrap };
+        this.vesselRigs.set(id, cached);
       }
+      this.rig = cached.rig;
+      this.vesselMesh = cached.wrap;
+      this.vesselMesh.rotation.set(0, this.bodyYaw - this.yaw, this.bank, 'YXZ');
+      this.tpShown = null; // ensure the active rig mounts/shows this vessel's third-person gun
     } else {
+      this.rig = null;
       this.vesselMesh = buildVesselMesh(spec);
     }
     this.vesselMesh.visible = !this.firstPerson;
@@ -294,13 +316,14 @@ export class PlayerController {
     this.onFists?.(on);
   }
 
-  /** Hang the vessel's gun in the rig's right hand (hand_r_weapon socket); built once per vessel. */
+  /** Hang the vessel's gun in the active rig's right hand (hand_r_weapon socket); built once per vessel rig. */
   private showTpGun(id: VesselId) {
     if (this.tpShown === id || !this.rig) return;
-    const socket = this.rig.socket('hand_r_weapon');
-    if (!socket) return;
-    let m = this.tpGuns.get(id);
+    const cached = this.vesselRigs.get(id);
+    let m = cached?.gun;
     if (!m) {
+      const socket = this.rig.socket('hand_r_weapon');
+      if (!socket) return;
       m = buildWeapon(id);
       const spec = WEAPONS[id];
       // the socket sits inside the scaled skeleton: undo its scale so the gun keeps its real size
@@ -312,8 +335,11 @@ export class PlayerController {
       holder.position.set(...spec.tpOffset.pos);
       holder.add(m.root);
       socket.add(holder);
+      if (cached) cached.gun = m;
       this.tpGuns.set(id, m);
       this.rig.grip('Right', 'dagger');
+    } else {
+      this.tpGuns.set(id, m);
     }
     for (const [k, g] of this.tpGuns) g.root.visible = k === id && !this.fists;
     this.tpShown = id;
@@ -571,7 +597,10 @@ export class PlayerController {
     this.crouched = this.downedT <= 0 && (this.crouchToggle || this.keys.has('ControlLeft') || this.keys.has('ControlRight') || !!input?.crouchHeld);
     if (input?.crouchPressed) this.crouchToggle = !this.crouchToggle;
     if (input?.reloadPressed) this.reload();
-    if (this.rig) this.rig.crouch = this.crouched;
+    if (this.rig) {
+      this.rig.crouch = this.crouched;
+      this.rig.runRifle = !this.fists && !this.crouched && !this.glide.gliding;
+    }
     this.lockT = Math.max(0, this.lockT - dt);
     if (this.turnLeft > 0) { const s = Math.min(this.turnLeft, dt * Math.PI / 0.2); this.yaw += s; this.turnLeft -= s; }
     // hit from behind / the side: whip round to face the attacker, camera with him (Ravencrest faceThreat)

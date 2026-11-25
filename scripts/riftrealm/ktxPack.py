@@ -63,7 +63,10 @@ def pack_glb(path):
     res = write_glb(j, bytes(out))
     dst = os.path.join(os.path.dirname(path), 'gpu', os.path.basename(path))
     os.makedirs(os.path.dirname(dst), exist_ok=True)
-    open(dst, 'wb').write(res)
+    tmp = dst + '.tmp'
+    with open(tmp, 'wb') as f:
+        f.write(res)
+    os.replace(tmp, dst)
     print(f'{os.path.basename(path):24s} {os.path.getsize(path) / 1e6:5.1f} MB -> {len(res) / 1e6:5.1f} MB', flush=True)
 
 

@@ -46,7 +46,244 @@ export interface CharacterAsset {
   rootMotion?: Record<string, RootMotion>;
   source?: Record<string, { video: string; from: number; to: number; note: string }>;
 }
-export const assets: { stalker: CharacterAsset | null; paladin: CharacterAsset | null } = { stalker: null, paladin: null };
+export const assets: {
+  stalker: CharacterAsset | null;
+  paladin: CharacterAsset | null;
+  seraph: CharacterAsset | null;
+  sylva: CharacterAsset | null;
+  pyre: CharacterAsset | null;
+  extra: Record<string, CharacterAsset | null>;
+} = { stalker: null, paladin: null, seraph: null, sylva: null, pyre: null, extra: {} };
+
+export interface RosterEntry {
+  id: string;
+  name: string;
+  category: 'vessel' | 'hero' | 'enemy' | 'boss' | 'mount' | 'warden';
+  rig: 'forge58' | 'quadruped' | 'winged_dragon' | 'boss';
+  heightM: number;
+  clipsJson: boolean;
+}
+
+/** Complete Vesselbound / Rift Realm rigged character, mount, colossal boss & Grovewarden roster on disk. */
+export const CHARACTER_ROSTER: readonly RosterEntry[] = [
+  // Core playable Soul Vessels & companions (Batch 0 + Batch 1)
+  { id: 'robot_paladin', name: 'Aegis (Robot Paladin)', category: 'vessel', rig: 'forge58', heightM: 2.02, clipsJson: true },
+  { id: 'robot_paladin_armed', name: 'Aegis — Armed Boss (Lance & Shield)', category: 'boss', rig: 'forge58', heightM: 2.35, clipsJson: true },
+  { id: 'void_stalker', name: 'Stalker (Void Stalker)', category: 'vessel', rig: 'forge58', heightM: 1.90, clipsJson: true },
+  { id: 'seraph_9', name: 'Seraph-9', category: 'vessel', rig: 'forge58', heightM: 1.78, clipsJson: true },
+  { id: 'sylva', name: 'Sylva (Rootwarden)', category: 'vessel', rig: 'forge58', heightM: 2.04, clipsJson: true },
+  { id: 'pyre', name: 'Pyre (Cinder Smith)', category: 'vessel', rig: 'forge58', heightM: 2.15, clipsJson: true },
+  { id: 'lumen', name: 'Lumen (Cyber Cherub)', category: 'hero', rig: 'forge58', heightM: 1.48, clipsJson: true },
+  { id: 'nyx', name: 'Nyx (Shadow Panther)', category: 'mount', rig: 'quadruped', heightM: 1.15, clipsJson: false },
+  // Batch 2A — Major Bosses & Flagship Heroes
+  { id: 'fallen_archangel', name: 'Fallen Archangel', category: 'boss', rig: 'forge58', heightM: 2.65, clipsJson: true },
+  { id: 'prism_archon', name: 'Prism Archon', category: 'boss', rig: 'forge58', heightM: 2.35, clipsJson: true },
+  { id: 'cyber_minotaur', name: 'Cyber-Minotaur', category: 'boss', rig: 'forge58', heightM: 2.75, clipsJson: true },
+  { id: 'dragon_knight', name: 'Celestial Dragon Knight', category: 'hero', rig: 'forge58', heightM: 2.25, clipsJson: true },
+  { id: 'cyber_harpy', name: 'Cyber Harpy Sentinel', category: 'enemy', rig: 'forge58', heightM: 2.05, clipsJson: true },
+  { id: 'magma_titan', name: 'Magma-Core Cyber-Titan', category: 'boss', rig: 'forge58', heightM: 4.50, clipsJson: true },
+  // Batch 2B — Humanoid Heroes, Assassins & Warlords
+  { id: 'cyber_assassin', name: 'Mantis-Blade Cyber-Assassin', category: 'enemy', rig: 'forge58', heightM: 1.92, clipsJson: true },
+  { id: 'shadow_assassin', name: 'Neon-Magenta Shadow Assassin', category: 'hero', rig: 'forge58', heightM: 1.88, clipsJson: true },
+  { id: 'female_warrior', name: 'Valkyrie Templar', category: 'hero', rig: 'forge58', heightM: 1.90, clipsJson: true },
+  { id: 'sorceress', name: 'Frost-Rune Sorceress', category: 'hero', rig: 'forge58', heightM: 1.80, clipsJson: true },
+  { id: 'demon_warrior', name: 'Pyre-Blade Berserker Demon', category: 'boss', rig: 'forge58', heightM: 2.45, clipsJson: true },
+  { id: 'pyre_knight', name: 'Pyre-Knight Berserker', category: 'boss', rig: 'forge58', heightM: 2.40, clipsJson: true },
+  { id: 'gorgon_construct', name: 'Cyber-Arcane Gorgon Construct', category: 'boss', rig: 'forge58', heightM: 2.30, clipsJson: true },
+  // Batch 2C — Operatives, Golems, Mounts & Colossal World Bosses
+  { id: 'android_a', name: 'Synthetic Operative A', category: 'enemy', rig: 'forge58', heightM: 1.92, clipsJson: true },
+  { id: 'android_b', name: 'Synthetic Operative 09', category: 'enemy', rig: 'forge58', heightM: 1.84, clipsJson: true },
+  { id: 'moss_golem', name: 'Moss-Covered Golem Warden', category: 'boss', rig: 'forge58', heightM: 3.60, clipsJson: true },
+  { id: 'panther_demon', name: 'Predatory Shadow-Beast Stalker', category: 'enemy', rig: 'quadruped', heightM: 1.35, clipsJson: false },
+  { id: 'light_panther_mount', name: 'Cybernetic Light-Panther Mount', category: 'mount', rig: 'quadruped', heightM: 1.28, clipsJson: false },
+  { id: 'cyber_dragon_mount', name: 'Mechanical Cyber-Dragon Mount', category: 'mount', rig: 'winged_dragon', heightM: 2.10, clipsJson: false },
+  { id: 'crystal_stag', name: 'Celestial Crystal-Antlered Light-Stag', category: 'mount', rig: 'quadruped', heightM: 2.15, clipsJson: false },
+  { id: 'obsidian_rhino', name: 'Volcanic Obsidian Light-Rhino Mount', category: 'mount', rig: 'quadruped', heightM: 2.10, clipsJson: false },
+  { id: 'rune_dragon', name: 'Glacial Rune-Dragon Archon', category: 'boss', rig: 'winged_dragon', heightM: 5.50, clipsJson: false },
+  { id: 'marsh_kraken', name: 'Bio-Cybernetic Marshland Kraken', category: 'boss', rig: 'boss', heightM: 5.00, clipsJson: false },
+  { id: 'void_leviathan', name: 'Colossal Obsidian Void Leviathan', category: 'boss', rig: 'boss', heightM: 6.00, clipsJson: false },
+  // Batch 5 — All 12 Living Grovewardens (Tree Ents, matching src/ents/wardens.ts)
+  { id: 'ent_ancient_oak', name: 'Ancient Oak Grovewarden', category: 'warden', rig: 'forge58', heightM: 41.0, clipsJson: true },
+  { id: 'ent_banyan', name: 'Banyan Grovewarden', category: 'warden', rig: 'forge58', heightM: 38.4, clipsJson: true },
+  { id: 'ent_baobab', name: 'Baobab Grovewarden', category: 'warden', rig: 'forge58', heightM: 36.2, clipsJson: true },
+  { id: 'ent_bioluminescent', name: 'Bioluminescent Grovewarden', category: 'warden', rig: 'forge58', heightM: 37.9, clipsJson: true },
+  { id: 'ent_cherry_blossom', name: 'Cherry Blossom Grovewarden', category: 'warden', rig: 'forge58', heightM: 37.0, clipsJson: true },
+  { id: 'ent_fungal_spore', name: 'Fungal Spore Grovewarden', category: 'warden', rig: 'forge58', heightM: 36.6, clipsJson: true },
+  { id: 'ent_ironwood_thorn', name: 'Ironwood Thorn Grovewarden', category: 'warden', rig: 'forge58', heightM: 40.1, clipsJson: true },
+  { id: 'ent_pine_sentinel', name: 'Pine Sentinel Grovewarden', category: 'warden', rig: 'forge58', heightM: 43.0, clipsJson: true },
+  { id: 'ent_sequoia', name: 'Giant Sequoia Grovewarden', category: 'warden', rig: 'forge58', heightM: 44.0, clipsJson: true },
+  { id: 'ent_swamp_mangrove', name: 'Swamp Mangrove Grovewarden', category: 'warden', rig: 'forge58', heightM: 37.4, clipsJson: true },
+  { id: 'ent_weeping_willow', name: 'Weeping Willow Grovewarden', category: 'warden', rig: 'forge58', heightM: 39.2, clipsJson: true },
+  { id: 'ent_white_birch', name: 'White Birch Grovewarden', category: 'warden', rig: 'forge58', heightM: 42.0, clipsJson: true },
+];
+
+export const ROSTER_BY_ID: Record<string, RosterEntry> = Object.fromEntries(CHARACTER_ROSTER.map((r) => [r.id, r]));
+
+export interface CreatureEntry {
+  id: string;
+  name: string;
+  arch: 'wolf' | 'deer' | 'mantis' | 'wasp' | 'bat' | 'moth' | 'biped' | 'serpent' | 'crawler' | 'floater';
+  heightM: number;
+  url: string;
+}
+
+/** Complete 24-species Cyber Forest & Elderwood multi-view rigged fauna roster (embedded clips, JPEG PBR+emissive). */
+export const CREATURE_ROSTER: readonly CreatureEntry[] = [
+  // Core 6 Elderwood multi-view upgrades
+  { id: 'electric_wolf', name: 'Electric Wolf', arch: 'wolf', heightM: 1.25, url: '/games/rift-realm/assets/creatures/rigged/electric_wolf.glb' },
+  { id: 'lumen_deer', name: 'Lumen Deer', arch: 'deer', heightM: 1.85, url: '/games/rift-realm/assets/creatures/rigged/lumen_deer.glb' },
+  { id: 'venom_mantis', name: 'Venom Mantis', arch: 'mantis', heightM: 1.70, url: '/games/rift-realm/assets/creatures/rigged/venom_mantis.glb' },
+  { id: 'plasma_wasp', name: 'Plasma Wasp', arch: 'wasp', heightM: 1.35, url: '/games/rift-realm/assets/creatures/rigged/plasma_wasp.glb' },
+  { id: 'storm_bat', name: 'Storm Bat', arch: 'bat', heightM: 1.50, url: '/games/rift-realm/assets/creatures/rigged/storm_bat.glb' },
+  { id: 'glow_moth', name: 'Glow Moth', arch: 'moth', heightM: 1.15, url: '/games/rift-realm/assets/creatures/rigged/glow_moth.glb' },
+  // Batch 3A Flagship Apex & Fauna
+  { id: 'apex_drake', name: 'Apex Drake', arch: 'wolf', heightM: 1.95, url: '/games/rift-realm/assets/creatures/rigged/apex_drake.glb' },
+  { id: 'amphibian_brute', name: 'Amphibian Brute', arch: 'biped', heightM: 2.35, url: '/games/rift-realm/assets/creatures/rigged/amphibian_brute.glb' },
+  { id: 'shadow_stalker_beast', name: 'Shadow Stalker Beast', arch: 'wolf', heightM: 1.25, url: '/games/rift-realm/assets/creatures/rigged/shadow_stalker_beast.glb' },
+  { id: 'bio_sloth', name: 'Bioluminescent Sloth', arch: 'biped', heightM: 2.10, url: '/games/rift-realm/assets/creatures/rigged/bio_sloth.glb' },
+  { id: 'cryo_panther', name: 'Cryo-Elemental Panther', arch: 'wolf', heightM: 1.35, url: '/games/rift-realm/assets/creatures/rigged/cryo_panther.glb' },
+  { id: 'hydro_serpent', name: 'Hydro-Kinetic Serpent', arch: 'serpent', heightM: 2.40, url: '/games/rift-realm/assets/creatures/rigged/hydro_serpent.glb' },
+  // Batch 3B Cyber Forest Fauna
+  { id: 'bio_axolotl', name: 'Bioluminescent Axolotl', arch: 'wolf', heightM: 0.75, url: '/games/rift-realm/assets/creatures/rigged/bio_axolotl.glb' },
+  { id: 'cyan_bat', name: 'Cyan-Core Bat', arch: 'bat', heightM: 1.45, url: '/games/rift-realm/assets/creatures/rigged/cyan_bat.glb' },
+  { id: 'glow_beetle', name: 'Glow Beetle', arch: 'mantis', heightM: 1.30, url: '/games/rift-realm/assets/creatures/rigged/glow_beetle.glb' },
+  { id: 'blue_axolotl', name: 'Azure Bio-Axolotl', arch: 'wolf', heightM: 0.80, url: '/games/rift-realm/assets/creatures/rigged/blue_axolotl.glb' },
+  { id: 'bio_turtle', name: 'Bioluminescent Turtle', arch: 'wolf', heightM: 1.05, url: '/games/rift-realm/assets/creatures/rigged/bio_turtle.glb' },
+  { id: 'sky_jelly', name: 'Sky Jellyfish', arch: 'floater', heightM: 1.65, url: '/games/rift-realm/assets/creatures/rigged/sky_jelly.glb' },
+  { id: 'cyber_dragonfly', name: 'Cyber Dragonfly', arch: 'wasp', heightM: 1.15, url: '/games/rift-realm/assets/creatures/rigged/cyber_dragonfly.glb' },
+  { id: 'electric_newt', name: 'Electric Newt', arch: 'wolf', heightM: 0.90, url: '/games/rift-realm/assets/creatures/rigged/electric_newt.glb' },
+  { id: 'acid_hornet', name: 'Acid Hornet', arch: 'wasp', heightM: 1.35, url: '/games/rift-realm/assets/creatures/rigged/acid_hornet.glb' },
+  { id: 'venom_caterpillar', name: 'Venom Caterpillar', arch: 'crawler', heightM: 0.95, url: '/games/rift-realm/assets/creatures/rigged/venom_caterpillar.glb' },
+  { id: 'poison_salamander', name: 'Poison Salamander', arch: 'wolf', heightM: 0.85, url: '/games/rift-realm/assets/creatures/rigged/poison_salamander.glb' },
+  { id: 'venom_toad', name: 'Venomous Acid Toad', arch: 'wolf', heightM: 1.25, url: '/games/rift-realm/assets/creatures/rigged/venom_toad.glb' },
+];
+
+export interface WeaponEntry {
+  id: string;
+  name: string;
+  kind: 'lance' | 'shield' | 'sword' | 'scythe' | 'dagger' | 'axe' | 'hammer' | 'spear' | 'bow' | 'chakram' | 'staff' | 'trident';
+  lengthM: number;
+  url: string;
+}
+
+/** Complete 14-item standalone socketable 3D PBR + emissive weapon roster (Batch 6). */
+export const WEAPON_ROSTER: readonly WeaponEntry[] = [
+  { id: 'paladin_tech_lance', name: 'Paladin Tech-Lance', kind: 'lance', lengthM: 2.15, url: '/games/rift-realm/assets/weapons/paladin_tech_lance.glb' },
+  { id: 'paladin_tower_shield', name: 'Paladin Tower Shield', kind: 'shield', lengthM: 1.28, url: '/games/rift-realm/assets/weapons/paladin_tower_shield.glb' },
+  { id: 'cyber_greatsword', name: 'Cyber Greatsword', kind: 'sword', lengthM: 1.75, url: '/games/rift-realm/assets/weapons/cyber_greatsword.glb' },
+  { id: 'void_scythe', name: 'Void Energy Scythe', kind: 'scythe', lengthM: 2.05, url: '/games/rift-realm/assets/weapons/void_scythe.glb' },
+  { id: 'frost_longsword', name: 'Glacial Frost Longsword', kind: 'sword', lengthM: 1.45, url: '/games/rift-realm/assets/weapons/frost_longsword.glb' },
+  { id: 'shadow_dagger', name: 'Shadow Assassin Dagger', kind: 'dagger', lengthM: 0.58, url: '/games/rift-realm/assets/weapons/shadow_dagger.glb' },
+  { id: 'magma_battleaxe', name: 'Magma-Core Battleaxe', kind: 'axe', lengthM: 1.38, url: '/games/rift-realm/assets/weapons/magma_battleaxe.glb' },
+  { id: 'rune_warhammer', name: 'Arcane Rune Warhammer', kind: 'hammer', lengthM: 1.42, url: '/games/rift-realm/assets/weapons/rune_warhammer.glb' },
+  { id: 'solar_shield', name: 'Solar Aegis Shield', kind: 'shield', lengthM: 0.95, url: '/games/rift-realm/assets/weapons/solar_shield.glb' },
+  { id: 'elderwood_spear', name: 'Elderwood Living Spear', kind: 'spear', lengthM: 2.15, url: '/games/rift-realm/assets/weapons/elderwood_spear.glb' },
+  { id: 'sylva_bow', name: 'Sylva Rootwarden Bow', kind: 'bow', lengthM: 1.48, url: '/games/rift-realm/assets/weapons/sylva_bow.glb' },
+  { id: 'lumen_chakram', name: 'Lumen Celestial Chakram', kind: 'chakram', lengthM: 0.68, url: '/games/rift-realm/assets/weapons/lumen_chakram.glb' },
+  { id: 'storm_staff', name: 'Tempest Storm Staff', kind: 'staff', lengthM: 2.10, url: '/games/rift-realm/assets/weapons/storm_staff.glb' },
+  { id: 'coral_trident', name: 'Abyssal Coral Trident', kind: 'trident', lengthM: 2.18, url: '/games/rift-realm/assets/weapons/coral_trident.glb' },
+];
+
+export interface WardrobeEntry {
+  id: string;
+  name: string;
+  slot: 'head' | 'chest' | 'shoulder' | 'belt' | 'gauntlet' | 'greave' | 'back' | 'weapon';
+  mountBone: string;
+  heightM: number;
+  url: string;
+}
+
+/** Complete 21-piece modular 3D Vessel Wardrobe / Armor roster (Batch 7). */
+export const WARDROBE_ROSTER: readonly WardrobeEntry[] = [
+  { id: 'aegis_helm', name: 'Aegis Visored Helm', slot: 'head', mountBone: 'Head', heightM: 0.34, url: '/games/rift-realm/assets/wardrobe/aegis_helm.glb' },
+  { id: 'aegis_chestplate', name: 'Aegis Soul-Core Chestplate', slot: 'chest', mountBone: 'Spine2', heightM: 0.52, url: '/games/rift-realm/assets/wardrobe/aegis_chestplate.glb' },
+  { id: 'aegis_pauldron', name: 'Aegis Stone-Gold Pauldron', slot: 'shoulder', mountBone: 'LeftArm', heightM: 0.32, url: '/games/rift-realm/assets/wardrobe/aegis_pauldron.glb' },
+  { id: 'aegis_belt', name: 'Aegis Paladin Belt', slot: 'belt', mountBone: 'Hips', heightM: 0.18, url: '/games/rift-realm/assets/wardrobe/aegis_belt.glb' },
+  { id: 'aegis_gauntlet', name: 'Aegis Stone-Gold Gauntlet', slot: 'gauntlet', mountBone: 'LeftForeArm', heightM: 0.34, url: '/games/rift-realm/assets/wardrobe/aegis_gauntlet.glb' },
+  { id: 'aegis_greave', name: 'Aegis Armored Greave', slot: 'greave', mountBone: 'LeftLeg', heightM: 0.42, url: '/games/rift-realm/assets/wardrobe/aegis_greave.glb' },
+  { id: 'lumen_halo', name: 'Lumen Celestial Halo', slot: 'head', mountBone: 'Head', heightM: 0.54, url: '/games/rift-realm/assets/wardrobe/lumen_halo.glb' },
+  { id: 'lumen_golden_wings', name: 'Lumen Golden Filigree Wings', slot: 'back', mountBone: 'Spine2', heightM: 0.95, url: '/games/rift-realm/assets/wardrobe/lumen_golden_wings.glb' },
+  { id: 'lumen_chestplate', name: 'Lumen Enamel Cuirass', slot: 'chest', mountBone: 'Spine2', heightM: 0.44, url: '/games/rift-realm/assets/wardrobe/lumen_chestplate.glb' },
+  { id: 'lumen_pauldron', name: 'Lumen Filigree Pauldron', slot: 'shoulder', mountBone: 'LeftArm', heightM: 0.30, url: '/games/rift-realm/assets/wardrobe/lumen_pauldron.glb' },
+  { id: 'lumen_greave', name: 'Lumen Enamel Greave', slot: 'greave', mountBone: 'LeftLeg', heightM: 0.40, url: '/games/rift-realm/assets/wardrobe/lumen_greave.glb' },
+  { id: 'nyx_fin_crest', name: 'Nyx Magenta Fin Crest', slot: 'back', mountBone: 'Spine2', heightM: 0.56, url: '/games/rift-realm/assets/wardrobe/nyx_fin_crest.glb' },
+  { id: 'nyx_visor', name: 'Nyx Neon Hex Visor', slot: 'head', mountBone: 'Head', heightM: 0.16, url: '/games/rift-realm/assets/wardrobe/nyx_visor.glb' },
+  { id: 'nyx_chitin_blade', name: 'Nyx Chitin Forearm Blade', slot: 'weapon', mountBone: 'RightHand', heightM: 0.68, url: '/games/rift-realm/assets/wardrobe/nyx_chitin_blade.glb' },
+  { id: 'pyre_molten_hammer', name: 'Pyre Molten Forge Hammer', slot: 'weapon', mountBone: 'RightHand', heightM: 1.55, url: '/games/rift-realm/assets/wardrobe/pyre_molten_hammer.glb' },
+  { id: 'pyre_obsidian_chest', name: 'Pyre Obsidian Chestplate', slot: 'chest', mountBone: 'Spine2', heightM: 0.54, url: '/games/rift-realm/assets/wardrobe/pyre_obsidian_chest.glb' },
+  { id: 'pyre_iron_pauldron', name: 'Pyre Forged Iron Pauldron', slot: 'shoulder', mountBone: 'LeftArm', heightM: 0.34, url: '/games/rift-realm/assets/wardrobe/pyre_iron_pauldron.glb' },
+  { id: 'pyre_smith_belt', name: 'Pyre Blacksmith Tool Belt', slot: 'belt', mountBone: 'Hips', heightM: 0.32, url: '/games/rift-realm/assets/wardrobe/pyre_smith_belt.glb' },
+  { id: 'sylva_antler_crown', name: 'Sylva Amber Antler Crown', slot: 'head', mountBone: 'Head', heightM: 0.52, url: '/games/rift-realm/assets/wardrobe/sylva_antler_crown.glb' },
+  { id: 'maris_coral_crown', name: 'Maris Reef Coral Crown', slot: 'head', mountBone: 'Head', heightM: 0.36, url: '/games/rift-realm/assets/wardrobe/maris_coral_crown.glb' },
+  { id: 'maris_shell_pauldron', name: 'Maris Pearl Shell Mantle', slot: 'chest', mountBone: 'Spine2', heightM: 0.34, url: '/games/rift-realm/assets/wardrobe/maris_shell_pauldron.glb' },
+];
+
+export interface EnvAssetEntry {
+  id: string;
+  name: string;
+  sub: string;
+  heightM: number;
+  url: string;
+}
+
+/** Complete 18-species Cyber Forest Flora, Mushroom, Fungi, Plant & Tree roster (Batch 8). */
+export const FLORA_ROSTER: readonly EnvAssetEntry[] = [
+  { id: 'neon_mushroom_cluster', name: 'Neon Circuit Mushroom Cluster', sub: 'mushroom', heightM: 2.4, url: '/games/rift-realm/assets/flora/neon_mushroom_cluster.glb' },
+  { id: 'bio_tall_mushroom', name: 'Bioluminescent Tall Mushroom', sub: 'mushroom', heightM: 3.2, url: '/games/rift-realm/assets/flora/bio_tall_mushroom.glb' },
+  { id: 'cyber_toadstool', name: 'Cybernetic Alien Toadstool', sub: 'mushroom', heightM: 2.1, url: '/games/rift-realm/assets/flora/cyber_toadstool.glb' },
+  { id: 'bio_shelf_fungi', name: 'Bioluminescent Shelf Fungi', sub: 'fungi', heightM: 1.65, url: '/games/rift-realm/assets/flora/bio_shelf_fungi.glb' },
+  { id: 'spore_bubble_fungi', name: 'Spore-Emitting Bulb Fungi', sub: 'fungi', heightM: 2.2, url: '/games/rift-realm/assets/flora/spore_bubble_fungi.glb' },
+  { id: 'cf_blue_mushroom_cluster', name: 'Electric Blue Mushroom Cluster', sub: 'mushroom', heightM: 2.3, url: '/games/rift-realm/assets/flora/cf_blue_mushroom_cluster.glb' },
+  { id: 'crystalline_flower_plant', name: 'Crystalline Quartz Flower', sub: 'plant', heightM: 2.6, url: '/games/rift-realm/assets/flora/crystalline_flower_plant.glb' },
+  { id: 'glowing_flower_pod', name: 'Glowing Violet Flower Pod', sub: 'plant', heightM: 1.85, url: '/games/rift-realm/assets/flora/glowing_flower_pod.glb' },
+  { id: 'carnivorous_maw_plant', name: 'Bio-Mechanical Carnivorous Maw', sub: 'plant', heightM: 2.8, url: '/games/rift-realm/assets/flora/carnivorous_maw_plant.glb' },
+  { id: 'cyber_glowing_fern', name: 'Cybernetic Glowing Fern', sub: 'plant', heightM: 1.6, url: '/games/rift-realm/assets/flora/cyber_glowing_fern.glb' },
+  { id: 'cyber_resin_stump', name: 'Glowing Amber Resin Stump', sub: 'prop', heightM: 2.4, url: '/games/rift-realm/assets/flora/cyber_resin_stump.glb' },
+  { id: 'cyber_lotus_aquatic', name: 'Cybernetic Aquatic Lotus', sub: 'plant', heightM: 1.3, url: '/games/rift-realm/assets/flora/cyber_lotus_aquatic.glb' },
+  { id: 'bioluminescent_tree', name: 'Bioluminescent Violet Tree', sub: 'tree', heightM: 11.5, url: '/games/rift-realm/assets/flora/bioluminescent_tree.glb' },
+  { id: 'cyber_willow_tree', name: 'Cyan Weeping Cyber Willow', sub: 'tree', heightM: 12.0, url: '/games/rift-realm/assets/flora/cyber_willow_tree.glb' },
+  { id: 'cyber_canopy_tree', name: 'Elderwood Cyber Canopy Tree', sub: 'tree', heightM: 13.0, url: '/games/rift-realm/assets/flora/cyber_canopy_tree.glb' },
+  { id: 'cyber_oak_tree', name: 'Cybernetic Sentinel Oak', sub: 'tree', heightM: 14.5, url: '/games/rift-realm/assets/flora/cyber_oak_tree.glb' },
+  { id: 'cyber_mangrove_tree', name: 'Cybernetic Root Mangrove', sub: 'tree', heightM: 10.5, url: '/games/rift-realm/assets/flora/cyber_mangrove_tree.glb' },
+  { id: 'cyber_hollow_log', name: 'Armored Hollow Log Tunnel', sub: 'prop', heightM: 2.8, url: '/games/rift-realm/assets/flora/cyber_hollow_log.glb' },
+];
+
+/** Complete 18-structure Multi-View Biome Architecture roster across Cyber Forest, Emberfall Caldera & Sunken Cathedral (Batch 9). */
+export const STRUCTURE_ROSTER: readonly EnvAssetEntry[] = [
+  { id: 'struct_great_oak', name: 'Great Oak Sanctuary', sub: 'cyber-forest', heightM: 24.0, url: '/games/rift-realm/assets/structures/struct_great_oak.glb' },
+  { id: 'struct_central_platform', name: 'Central Rune Tree Platform', sub: 'cyber-forest', heightM: 12.0, url: '/games/rift-realm/assets/structures/struct_central_platform.glb' },
+  { id: 'struct_outpost_cabin', name: 'Timber Outpost Cabin', sub: 'cyber-forest', heightM: 6.5, url: '/games/rift-realm/assets/structures/struct_outpost_cabin.glb' },
+  { id: 'struct_ruined_chapel', name: 'Mossy Ruined Forest Chapel', sub: 'cyber-forest', heightM: 9.5, url: '/games/rift-realm/assets/structures/struct_ruined_chapel.glb' },
+  { id: 'struct_watchtower', name: 'Forest Timber Watchtower', sub: 'cyber-forest', heightM: 13.0, url: '/games/rift-realm/assets/structures/struct_watchtower.glb' },
+  { id: 'struct_rune_monolith', name: 'Glowing Rune Monolith', sub: 'cyber-forest', heightM: 7.5, url: '/games/rift-realm/assets/structures/struct_rune_monolith.glb' },
+  { id: 'struct_ruin_arch', name: 'Moss-Draped Ruin Archway', sub: 'cyber-forest', heightM: 6.8, url: '/games/rift-realm/assets/structures/struct_ruin_arch.glb' },
+  { id: 'struct_forge_platform', name: 'Central Forge Arena Platform', sub: 'emberfall-caldera', heightM: 6.0, url: '/games/rift-realm/assets/structures/struct_forge_platform.glb' },
+  { id: 'struct_ruined_forge_hall', name: 'Ruined Caldera Forge Hall', sub: 'emberfall-caldera', heightM: 10.0, url: '/games/rift-realm/assets/structures/struct_ruined_forge_hall.glb' },
+  { id: 'struct_magma_vent', name: 'Obsidian Magma Vent Crater', sub: 'emberfall-caldera', heightM: 5.5, url: '/games/rift-realm/assets/structures/struct_magma_vent.glb' },
+  { id: 'struct_collapsed_furnace', name: 'Collapsed Volcanic Furnace', sub: 'emberfall-caldera', heightM: 8.5, url: '/games/rift-realm/assets/structures/struct_collapsed_furnace.glb' },
+  { id: 'struct_obsidian_monolith', name: 'Molten Obsidian Monolith', sub: 'emberfall-caldera', heightM: 8.5, url: '/games/rift-realm/assets/structures/struct_obsidian_monolith.glb' },
+  { id: 'struct_sunken_nave', name: 'Sunken Cathedral Nave', sub: 'sunken-cathedral', heightM: 14.0, url: '/games/rift-realm/assets/structures/struct_sunken_nave.glb' },
+  { id: 'struct_bell_tower', name: 'Cathedral Gothic Bell Tower', sub: 'sunken-cathedral', heightM: 18.0, url: '/games/rift-realm/assets/structures/struct_bell_tower.glb' },
+  { id: 'struct_collapsed_arch', name: 'Flooded Cathedral Bridge Arch', sub: 'sunken-cathedral', heightM: 8.0, url: '/games/rift-realm/assets/structures/struct_collapsed_arch.glb' },
+  { id: 'struct_altar_relic', name: 'Cathedral Reliquary Altar', sub: 'sunken-cathedral', heightM: 3.6, url: '/games/rift-realm/assets/structures/struct_altar_relic.glb' },
+  { id: 'struct_rose_window', name: 'Gothic Stained-Glass Rose Window', sub: 'sunken-cathedral', heightM: 9.5, url: '/games/rift-realm/assets/structures/struct_rose_window.glb' },
+  { id: 'struct_gargoyle_column', name: 'Carved Gargoyle Stone Column', sub: 'sunken-cathedral', heightM: 7.5, url: '/games/rift-realm/assets/structures/struct_gargoyle_column.glb' },
+];
+
+/** Load any additional Vesselbound roster character (e.g. 'lumen', 'nyx', bosses, mounts) on demand. */
+export async function loadCharacterAsset(id: string): Promise<CharacterAsset | null> {
+  if (id === 'void_stalker' && assets.stalker) return assets.stalker;
+  if (id === 'robot_paladin' && assets.paladin) return assets.paladin;
+  if (id === 'seraph_9' && assets.seraph) return assets.seraph;
+  if (id === 'sylva' && assets.sylva) return assets.sylva;
+  if (id === 'pyre' && assets.pyre) return assets.pyre;
+  if (id in assets.extra) return assets.extra[id];
+  const a = await load(`${id}.glb`);
+  const meta = ROSTER_BY_ID[id];
+  if (a && (!meta || meta.clipsJson)) await videoClips(a, id);
+  assets.extra[id] = a;
+  return a;
+}
 
 async function load(file: string): Promise<CharacterAsset | null> {
   try {
@@ -90,8 +327,20 @@ async function videoClips(asset: CharacterAsset | null, id: string) {
 }
 
 export async function preloadCharacters() {
-  [assets.stalker, assets.paladin] = await Promise.all([load('void_stalker.glb'), load('robot_paladin.glb')]);
-  await Promise.all([videoClips(assets.stalker, 'void_stalker'), videoClips(assets.paladin, 'robot_paladin')]);
+  [assets.stalker, assets.paladin, assets.seraph, assets.sylva, assets.pyre] = await Promise.all([
+    load('void_stalker.glb'),
+    load('robot_paladin.glb'),
+    load('seraph_9.glb'),
+    load('sylva.glb'),
+    load('pyre.glb'),
+  ]);
+  await Promise.all([
+    videoClips(assets.stalker, 'void_stalker'),
+    videoClips(assets.paladin, 'robot_paladin'),
+    videoClips(assets.seraph, 'seraph_9'),
+    videoClips(assets.sylva, 'sylva'),
+    videoClips(assets.pyre, 'pyre'),
+  ]);
 }
 
 /** Gun / guard clips that also get an upper-body-only copy (the legs keep the locomotion underneath). */
@@ -140,6 +389,10 @@ export class CharacterRig {
   crouch = false;
   private crouchW = 0;
   private crouchAct: { act: THREE.AnimationAction; nat: number } | null = null;
+  /** True while running with a vessel gun drawn (blends the mocap `run_rifle` clip into forward runs). */
+  runRifle = false;
+  private runRifleW = 0;
+  private runRifleAct: { act: THREE.AnimationAction; nat: number } | null = null;
   /** Upper-body-only copies of the gun clips: they play over a run without touching the legs. */
   private upper = new Map<string, THREE.AnimationAction>();
   private spine: THREE.Bone[] = [];
@@ -205,6 +458,13 @@ export class CharacterRig {
       cw.setEffectiveWeight(0);
       const rm = asset.rootMotion?.crouch_walk;
       this.crouchAct = { act: cw, nat: rm && rm.durationSec > 0 ? Math.max(0.4, Math.hypot(rm.dx, rm.dz) / rm.durationSec * (height / h)) : 1.1 };
+    }
+    const rr = this.actions.get('run_rifle');
+    if (rr) {
+      rr.setLoop(THREE.LoopRepeat, Infinity).play();
+      rr.setEffectiveWeight(0);
+      const rm = asset.rootMotion?.run_rifle;
+      this.runRifleAct = { act: rr, nat: rm && rm.durationSec > 0 ? Math.max(1.8, Math.hypot(rm.dx, rm.dz) / rm.durationSec * (height / h)) : 3.6 };
     }
     // legs + hips are left to the locomotion; everything above the hips (spine, arms, head) takes the gun clip
     const lower = /(^|[:_|])?(Hips|LeftUpLeg|RightUpLeg|LeftLeg|RightLeg|LeftFoot|RightFoot|LeftToe\w*|RightToe\w*)$/;
@@ -343,13 +603,21 @@ export class CharacterRig {
       this.crouchAct.act.setEffectiveWeight(this.crouchW * (1 - ow));
       this.crouchAct.act.timeScale = move < 0.05 ? 0 : THREE.MathUtils.clamp(speed / this.crouchAct.nat, 0.5, 2);
     }
+    // rifle run: swaps in for forward run/sprint when a vessel gun is drawn
+    const rrWant = this.runRifle && this.runRifleAct ? Math.min(1, (target.run ?? 0) + (target.sprint ?? 0)) : 0;
+    this.runRifleW += (rrWant - this.runRifleW) * k;
+    if (this.runRifleAct) {
+      this.runRifleAct.act.setEffectiveWeight(this.runRifleW * (1 - ow) * (1 - this.crouchW));
+      this.runRifleAct.act.timeScale = THREE.MathUtils.clamp(speed / this.runRifleAct.nat, 0.6, 2.4);
+    }
     // each cycle plays at (ground speed / its own speed), so planted feet stay planted (within sane cadence limits)
     const rateOf = (l: { nat: number }) => (l.nat > 0 ? THREE.MathUtils.clamp(speed / l.nat, 0.6, 2.6) : 1);
     const run = this.loco.find((l) => l.name === 'run');
     const rate = run ? rateOf(run) : 1;
     for (const l of this.loco) {
       l.w += ((target[l.name] ?? 0) - l.w) * k;
-      l.act.setEffectiveWeight(l.w * (1 - ow) * (1 - this.crouchW));
+      const gunCut = (l.name === 'run' || l.name === 'sprint') ? (1 - this.runRifleW) : 1;
+      l.act.setEffectiveWeight(l.w * gunCut * (1 - ow) * (1 - this.crouchW));
       if (l.name === 'run') l.act.timeScale = !hasBack && back > fwd + 0.2 ? -rate : rate;
       else if (l.name === 'sprint' || l.name === 'run_back' || l.name === 'walk' || l.name === 'walk_back') l.act.timeScale = rateOf(l);
       else if (l.name.startsWith('strafe')) {

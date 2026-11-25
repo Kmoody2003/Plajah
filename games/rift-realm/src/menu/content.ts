@@ -40,7 +40,7 @@ export const MAPS: MapCard[] = [
 export interface CharCard {
   id: VesselId; name: string; title: string; role: string;
   /** which in-engine model stands on the pedestal */
-  model: 'stalker' | 'paladin';
+  model: 'stalker' | 'paladin' | 'seraph' | 'sylva' | 'pyre';
   turn: string; turnPoster: string; combat: string; combatPoster: string;
   /** canon facts we have (design lines from the Void Sanctum roster); empty where there is none */
   design: string;
@@ -75,14 +75,31 @@ export const CHARS: CharCard[] = [
       { name: 'Hunter’s Pace', key: 'Shift', text: 'The fastest vessel and the longest dash in the roster.' },
       ...SHARED,
     ] },
-  { id: 'seraph', name: 'Seraph-9', title: 'Fallen-Tech Cherub', role: 'Support · Aerial', model: 'stalker',
-    standIn: 'In-engine body: the Void Stalker frame until the Seraph-9 model lands',
+  { id: 'seraph', name: 'Seraph-9', title: 'Fallen-Tech Cherub', role: 'Support · Aerial', model: 'seraph',
     turn: M + 'chars/seraph-turn.mp4', turnPoster: M + 'chars/seraph-turn.webp', combat: M + 'chars/seraph-combat.mp4', combatPoster: M + 'chars/seraph-combat.webp',
-    design: 'Prism-crystal head and halo, feathered wings and hovering golden wing-blades.',
+    design: 'Armored white-and-gold tech-cherub with a crystal prism core head, floating golden crystal wing-blades and a halo energy emitter.',
     backstory: null,
     abilities: [
       { name: 'Chord Repeater', key: 'LMB', text: 'A three-round burst on every beat from three cycling barrels.' },
       { name: 'Light Frame', key: 'Space', text: 'Lighter gravity: longer jumps and hang time.' },
+      ...SHARED,
+    ] },
+  { id: 'sylva', name: 'Sylva', title: 'The Rootwarden', role: 'Grappler · Control', model: 'sylva',
+    turn: M + 'maps/elderwood.mp4', turnPoster: M + 'maps/elderwood.webp', combat: M + 'maps/elderwood.mp4', combatPoster: M + 'maps/elderwood.webp',
+    design: 'Living treant warrior with glowing antler branches, amber sap veins, vine-wrapped arms and coiled root greaves.',
+    backstory: null,
+    abilities: [
+      { name: 'Briar Spore-Cannon', key: 'LMB', text: 'Tri-bolt amber sap volley with crisp midrange control and fast heat bleed.' },
+      { name: 'Living Bark', key: '—', text: 'High spirit regeneration and durable treant frame.' },
+      ...SHARED,
+    ] },
+  { id: 'pyre', name: 'Pyre', title: 'The Cinder Smith', role: 'Brawler · Power', model: 'pyre',
+    turn: M + 'maps/volcanic.mp4', turnPoster: M + 'maps/volcanic.webp', combat: M + 'maps/volcanic.mp4', combatPoster: M + 'maps/volcanic.webp',
+    design: 'Obsidian-and-iron forge golem laced with molten lava cracks, carved cyan runes and a shoulder-slung ember warhammer.',
+    backstory: null,
+    abilities: [
+      { name: 'Ember Slag-Breaker', key: 'LMB', text: 'Heavy molten scatter blast built for close-range armor breaking.' },
+      { name: 'Crucible Bulk', key: '—', text: 'Highest integrity in the roster (155 HP) for frontline brawls.' },
       ...SHARED,
     ] },
 ];

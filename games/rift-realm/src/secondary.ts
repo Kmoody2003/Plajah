@@ -90,13 +90,122 @@ const PALADIN: SoftRegionSpec[] = [
   },
 ];
 
+/** Seraph-9: floating crystal wing-blades (spring-damped hover & sweep) + hovering halo emitter ring on Spine2. */
+const SERAPH: SoftRegionSpec[] = [
+  {
+    name: 'crystal wing L', bone: 'Spine2', hz: 2.2, zeta: 0.34, inertia: 0.72, drag: 0.035, max: 0.14, inward: 0.04,
+    select: (p, j) => {
+      const sp = J(j, 'Spine2'), hd = J(j, 'Head');
+      return ss(0.18, 0.32, p.x) * ss(sp.y - 0.15, sp.y + 0.05, p.y) * ss(hd.y + 0.45, hd.y + 0.25, p.y) * ss(0.05, 0.14, sp.z - p.z);
+    },
+  },
+  {
+    name: 'crystal wing R', bone: 'Spine2', hz: 2.25, zeta: 0.34, inertia: 0.72, drag: 0.035, max: 0.14, inward: 0.04,
+    select: (p, j) => {
+      const sp = J(j, 'Spine2'), hd = J(j, 'Head');
+      return ss(0.18, 0.32, -p.x) * ss(sp.y - 0.15, sp.y + 0.05, p.y) * ss(hd.y + 0.45, hd.y + 0.25, p.y) * ss(0.05, 0.14, sp.z - p.z);
+    },
+  },
+  {
+    name: 'halo emitter', bone: 'Spine2', hz: 1.8, zeta: 0.42, inertia: 0.5, drag: 0.015, max: 0.06, inward: 0.02,
+    select: (p, j) => {
+      const hd = J(j, 'Head');
+      return ss(hd.y + 0.26, hd.y + 0.36, p.y);
+    },
+  },
+];
+
+/** Sylva (Rootwarden): hanging arm moss/vines and lower frond tendrils sway in the wind and combat turns. */
+const SYLVA: SoftRegionSpec[] = [
+  {
+    name: 'vine L', bone: 'LeftForeArm', hz: 1.85, zeta: 0.30, inertia: 0.65, drag: 0.065, max: 0.16, inward: 0.03,
+    select: (p, j) => {
+      const f = J(j, 'LeftForeArm'), h = J(j, 'LeftHand');
+      return ss(0.18, 0.28, p.x) * ss(f.y + 0.06, f.y - 0.18, p.y) * ss(h.y - 0.34, h.y - 0.04, p.y);
+    },
+  },
+  {
+    name: 'vine R', bone: 'RightForeArm', hz: 1.9, zeta: 0.30, inertia: 0.65, drag: 0.065, max: 0.16, inward: 0.03,
+    select: (p, j) => {
+      const f = J(j, 'RightForeArm'), h = J(j, 'RightHand');
+      return ss(0.18, 0.28, -p.x) * ss(f.y + 0.06, f.y - 0.18, p.y) * ss(h.y - 0.34, h.y - 0.04, p.y);
+    },
+  },
+];
+
+/** Pyre (Cinder Smith): heavy leather smith apron swings at the hips over the obsidian greaves. */
+const PYRE: SoftRegionSpec[] = [
+  {
+    name: 'smith apron', bone: 'Hips', hz: 1.5, zeta: 0.36, inertia: 0.78, drag: 0.025, max: 0.12, inward: 0.012,
+    select: (p, j) => {
+      const h = J(j, 'Hips'), k = J(j, 'LeftLeg');
+      return ss(h.y - 0.04, h.y - 0.36, p.y) * ss(k.y - 0.08, k.y + 0.06, p.y) * ss(0.05, 0.14, p.z - h.z) * ss(0.28, 0.16, Math.abs(p.x));
+    },
+  },
+];
+
+/** Flowing rear cloak/cape (Dragon Knight, Valkyrie Templar, Frost-Rune Sorceress, Shadow Assassin coat-tails). */
+const CAPE: SoftRegionSpec[] = [
+  {
+    name: 'cape L', bone: 'Spine2', hz: 1.55, zeta: 0.28, inertia: 0.68, drag: 0.085, max: 0.22, inward: 0.025,
+    select: (p, j) => {
+      const sp = J(j, 'Spine2'), h = J(j, 'Hips'), k = J(j, 'LeftLeg');
+      return ss(sp.y - 0.05, h.y - 0.35, p.y) * ss(k.y - 0.35, k.y - 0.05, p.y)
+        * ss(0.06, 0.16, h.z - p.z) * ss(-0.04, 0.06, p.x) * ss(0.08, 0.14, legDist(p, j));
+    },
+  },
+  {
+    name: 'cape R', bone: 'Spine2', hz: 1.60, zeta: 0.28, inertia: 0.68, drag: 0.085, max: 0.22, inward: 0.025,
+    select: (p, j) => {
+      const sp = J(j, 'Spine2'), h = J(j, 'Hips'), k = J(j, 'RightLeg');
+      return ss(sp.y - 0.05, h.y - 0.35, p.y) * ss(k.y - 0.35, k.y - 0.05, p.y)
+        * ss(0.06, 0.16, h.z - p.z) * ss(-0.04, 0.06, -p.x) * ss(0.08, 0.14, legDist(p, j));
+    },
+  },
+];
+
+/** Articulated feathered/metallic dorsal wings (Fallen Archangel, Cyber Harpy Sentinel) spring-damped on Spine2. */
+const FEATHER_WINGS: SoftRegionSpec[] = [
+  {
+    name: 'wing L', bone: 'Spine2', hz: 1.9, zeta: 0.34, inertia: 0.62, drag: 0.05, max: 0.18, inward: 0.03,
+    select: (p, j) => {
+      const sp = J(j, 'Spine2');
+      return ss(0.24, 0.42, p.x) * ss(0.04, 0.14, sp.z - p.z) * ss(0.10, 0.18, armDist(p, j));
+    },
+  },
+  {
+    name: 'wing R', bone: 'Spine2', hz: 1.95, zeta: 0.34, inertia: 0.62, drag: 0.05, max: 0.18, inward: 0.03,
+    select: (p, j) => {
+      const sp = J(j, 'Spine2');
+      return ss(0.24, 0.42, -p.x) * ss(0.04, 0.14, sp.z - p.z) * ss(0.10, 0.18, armDist(p, j));
+    },
+  },
+];
+
 /** Wing tuning for the Void Stalker (see BatWingTuning); the low tier halves the solver work. */
 const WINGS: Partial<BatWingTuning> = {};
 
-export type CharacterKind = 'void_stalker' | 'robot_paladin' | 'other';
+export type CharacterKind =
+  | 'void_stalker' | 'robot_paladin' | 'seraph_9' | 'lumen' | 'sylva' | 'pyre'
+  | 'fallen_archangel' | 'cyber_harpy' | 'dragon_knight' | 'female_warrior' | 'sorceress' | 'shadow_assassin'
+  | 'other';
 export function characterKind(model: THREE.Object3D): CharacterKind {
   let k: CharacterKind = 'other';
-  model.traverse((o) => { if (o.name === 'void_stalker' || o.name === 'void_stalker_body') k = 'void_stalker'; else if (k === 'other' && /robot_paladin/.test(o.name)) k = 'robot_paladin'; });
+  model.traverse((o) => {
+    if (o.name === 'void_stalker' || o.name === 'void_stalker_body') k = 'void_stalker';
+    else if (k === 'other' && /robot_paladin/.test(o.name)) k = 'robot_paladin';
+    else if (k === 'other' && /seraph_9/.test(o.name)) k = 'seraph_9';
+    else if (k === 'other' && /lumen/.test(o.name)) k = 'lumen';
+    else if (k === 'other' && /sylva/.test(o.name)) k = 'sylva';
+    else if (k === 'other' && /pyre_knight/.test(o.name)) k = 'other';
+    else if (k === 'other' && /\bpyre\b|^pyre/.test(o.name)) k = 'pyre';
+    else if (k === 'other' && /fallen_archangel/.test(o.name)) k = 'fallen_archangel';
+    else if (k === 'other' && /cyber_harpy/.test(o.name)) k = 'cyber_harpy';
+    else if (k === 'other' && /dragon_knight/.test(o.name)) k = 'dragon_knight';
+    else if (k === 'other' && /female_warrior/.test(o.name)) k = 'female_warrior';
+    else if (k === 'other' && /sorceress/.test(o.name)) k = 'sorceress';
+    else if (k === 'other' && /shadow_assassin/.test(o.name)) k = 'shadow_assassin';
+  });
   return k;
 }
 
@@ -108,7 +217,14 @@ const lowTier = () => tier === 'low';
 /** `?soft=0` turns the outfit swing off, `?wings=0` leaves the cloak rigid (A/B checks). */
 export function buildSecondary(model: THREE.Object3D, opts: { wings?: boolean } = {}) {
   const kind = characterKind(model);
-  const specs = kind === 'void_stalker' ? STALKER : kind === 'robot_paladin' ? PALADIN : [];
+  const specs = kind === 'void_stalker' ? STALKER
+    : kind === 'robot_paladin' ? PALADIN
+    : kind === 'seraph_9' ? SERAPH
+    : kind === 'sylva' ? SYLVA
+    : kind === 'pyre' ? PYRE
+    : (kind === 'fallen_archangel' || kind === 'cyber_harpy') ? FEATHER_WINGS
+    : (kind === 'dragon_knight' || kind === 'female_warrior' || kind === 'sorceress' || kind === 'shadow_assassin') ? CAPE
+    : [];
   // wings first: they split the cloak off the body mesh (a cloned geometry), then the outfit masks go on that body
   const wantWings = (opts.wings ?? kind === 'void_stalker') && q.get('wings') !== '0';
   const wings = wantWings ? BatWings.create(model, { tuning: { ...WINGS, ...(lowTier() ? { maxSubsteps: 2, iterations: 1, spacing: 0.085, normalsEvery: 2 } : {}) } }) : null;
