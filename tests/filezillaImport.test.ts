@@ -234,3 +234,43 @@ test('upsertConnectedLocation edits in place, updates/clears secrets, and heals 
     else (globalThis as any).window = origWindow;
   }
 });
+
+test('FileZilla 3.68 Account logon (Logontype 4 + Protocol 6 + Account) preserves all fields', () => {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<FileZilla3 version="3.68.1" platform="windows">
+\t<Servers>
+\t\t<Server>
+\t\t\t<Host>203.0.113.10</Host>
+\t\t\t<Port>21</Port>
+\t\t\t<Protocol>6</Protocol>
+\t\t\t<Type>0</Type>
+\t\t\t<User>demo</User>
+\t\t\t<Pass encoding="base64">${b64('demo-secret-123')}</Pass>
+\t\t\t<Account>impact</Account>
+\t\t\t<Logontype>4</Logontype>
+\t\t\t<PasvMode>MODE_PASSIVE</PasvMode>
+\t\t\t<EncodingType>Auto</EncodingType>
+\t\t\t<BypassProxy>0</BypassProxy>
+\t\t\t<Name>New site</Name>
+\t\t\t<SyncBrowsing>0</SyncBrowsing>
+\t\t\t<DirectoryComparison>0</DirectoryComparison>
+\t\t</Server>
+\t</Servers>
+</FileZilla3>`;
+
+  const parsed = parseFileZillaCandidates(xml);
+  assert.equal(parsed.candidates.length, 1);
+  assert.equal(parsed.skipped, 0);
+  const s = parsed.candidates[0];
+  assert.equal(s.name, 'New site');
+  assert.equal(s.protocol, 'ftp');
+  assert.equal(s.host, '203.0.113.10');
+  assert.equal(s.port, 21);
+  assert.equal(s.user, 'demo');
+  assert.equal(s.account, 'impact');
+  assert.equal(s.logon, 'account');
+  assert.equal(s.passwordState, 'readable');
+  assert.equal(s.password, 'demo-secret-123');
+  assert.equal(s.passive, true);
+  assert.equal(s.remoteDir, '/');
+});

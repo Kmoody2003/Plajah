@@ -49,6 +49,7 @@ export interface FileZillaSiteCandidate {
   host: string;
   port: number;
   user: string;
+  account?: string;
   remoteDir: string;
   passive: boolean;
   passwordState: PasswordState;
@@ -87,6 +88,7 @@ export function parseFileZillaCandidates(xml: string): {
       host,
       port: site.port,
       user: site.user,
+      ...(site.account ? { account: site.account } : {}),
       remoteDir: site.remoteDir || '/',
       passive: site.passive ?? true,
       passwordState: site.passwordState,
@@ -171,6 +173,7 @@ export async function upsertConnectedLocation(
 
   const list = loadSavedConnectors();
   const existing = list.find(l => l.id === id);
+  const account = typeof input.account === 'string' && input.account.trim().length > 0 ? input.account.trim() : undefined;
   const meta: ConnectedLocationMeta = {
     id,
     name: input.name || host,
@@ -178,6 +181,7 @@ export async function upsertConnectedLocation(
     host,
     port: input.port,
     user: input.user,
+    ...(account ? { account } : {}),
     remoteDir: input.remoteDir || '/',
     passive: input.passive ?? true,
     source: input.source,
@@ -229,7 +233,12 @@ export async function importFileZillaSites(xml: string): Promise<{
 
   for (const site of parsed.candidates) {
     const dup = existing.find(
-      e => e.host === site.host && e.port === site.port && e.user === site.user && e.protocol === site.protocol,
+      e =>
+        e.host === site.host &&
+        e.port === site.port &&
+        e.user === site.user &&
+        (e.account || '') === (site.account || '') &&
+        e.protocol === site.protocol,
     );
     const meta = await upsertConnectedLocation({
       id: dup?.id,
@@ -238,6 +247,7 @@ export async function importFileZillaSites(xml: string): Promise<{
       host: site.host,
       port: site.port,
       user: site.user,
+      account: site.account,
       remoteDir: site.remoteDir || '/',
       passive: site.passive,
       source: 'filezilla',

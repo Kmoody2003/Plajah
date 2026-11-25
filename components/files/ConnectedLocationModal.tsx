@@ -52,6 +52,7 @@ export const ConnectedLocationModal: React.FC<ConnectedLocationModalProps> = ({
   const [host, setHost] = useState('');
   const [port, setPort] = useState('22');
   const [user, setUser] = useState('');
+  const [account, setAccount] = useState('');
   const [secret, setSecret] = useState('');
   const [showSecret, setShowSecret] = useState(false);
   const [hasExistingSecret, setHasExistingSecret] = useState(false);
@@ -87,6 +88,7 @@ export const ConnectedLocationModal: React.FC<ConnectedLocationModalProps> = ({
       setHost(initialLocation.host || '');
       setPort(String(initialLocation.port || DEFAULT_PORTS[normProto] || 21));
       setUser(initialLocation.user || '');
+      setAccount(initialLocation.account || '');
       setRemoteDir(initialLocation.remoteDir || '/');
       setPassive(initialLocation.passive ?? true);
       setHasExistingSecret(Boolean(initialLocation.hasSecret));
@@ -109,6 +111,7 @@ export const ConnectedLocationModal: React.FC<ConnectedLocationModalProps> = ({
       setHost('');
       setPort('22');
       setUser('');
+      setAccount('');
       setSecret('');
       setHasExistingSecret(false);
       setRemoteDir('/');
@@ -131,6 +134,7 @@ export const ConnectedLocationModal: React.FC<ConnectedLocationModalProps> = ({
     setHost(site.host);
     setPort(String(site.port || DEFAULT_PORTS[site.protocol] || 21));
     setUser(site.user || '');
+    setAccount(site.account || '');
     setSecret(site.password ?? '');
     setClearSecret(false);
     setRemoteDir(site.remoteDir || '/');
@@ -138,7 +142,12 @@ export const ConnectedLocationModal: React.FC<ConnectedLocationModalProps> = ({
     if (!initialLocation) {
       setSource('filezilla');
       const existing = loadSavedConnectors().find(
-        e => e.host === site.host && e.port === site.port && e.user === site.user && e.protocol === site.protocol,
+        e =>
+          e.host === site.host &&
+          e.port === site.port &&
+          e.user === site.user &&
+          (e.account || '') === (site.account || '') &&
+          e.protocol === site.protocol,
       );
       setEditingId(existing?.id);
       setHasExistingSecret(Boolean(site.password || existing?.hasSecret));
@@ -184,6 +193,7 @@ export const ConnectedLocationModal: React.FC<ConnectedLocationModalProps> = ({
         host: cleanedHost,
         port: parsedPort,
         user: user.trim(),
+        account: isFtpFamily(protocol) ? account.trim() || undefined : undefined,
         remoteDir: remoteDir.trim() || '/',
         passive,
         source,
@@ -214,13 +224,21 @@ export const ConnectedLocationModal: React.FC<ConnectedLocationModalProps> = ({
         const targetProto = isSelected ? protocol : s.protocol;
         const targetPort = isSelected ? parseInt(port, 10) || DEFAULT_PORTS[targetProto] || s.port : s.port;
         const targetUser = isSelected ? user.trim() : s.user;
+        const targetAccount = isSelected
+          ? (isFtpFamily(targetProto) ? account.trim() || undefined : undefined)
+          : s.account;
         const targetName = isSelected ? name.trim() || s.name : s.name;
         const targetDir = isSelected ? remoteDir.trim() || '/' : s.remoteDir || '/';
         const targetPassive = isSelected ? passive : s.passive;
         const targetSecret = isSelected ? (clearSecret ? undefined : secret) : s.password;
 
         const dup = existing.find(
-          e => e.host === targetHost && e.port === targetPort && e.user === targetUser && e.protocol === targetProto,
+          e =>
+            e.host === targetHost &&
+            e.port === targetPort &&
+            e.user === targetUser &&
+            (e.account || '') === (targetAccount || '') &&
+            e.protocol === targetProto,
         );
         const saved = await upsertConnectedLocation({
           id: isSelected ? editingId || dup?.id : dup?.id,
@@ -229,6 +247,7 @@ export const ConnectedLocationModal: React.FC<ConnectedLocationModalProps> = ({
           host: targetHost,
           port: targetPort,
           user: targetUser,
+          account: targetAccount,
           remoteDir: targetDir,
           passive: targetPassive,
           source: 'filezilla',
@@ -579,6 +598,18 @@ export const ConnectedLocationModal: React.FC<ConnectedLocationModalProps> = ({
             {passwordHint && (
               <div className="text-[11px] text-amber-200/85 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2">
                 {passwordHint}
+              </div>
+            )}
+
+            {isFtpFamily(protocol) && (
+              <div>
+                <label className="block text-[11px] text-white/55 mb-1">Account (FTP ACCT — optional)</label>
+                <input
+                  value={account}
+                  onChange={e => setAccount(e.target.value)}
+                  placeholder="Optional (used by FileZilla Account logon type)"
+                  className="w-full px-3 py-2 rounded-xl bg-black/45 border border-white/12 text-xs text-white"
+                />
               </div>
             )}
 

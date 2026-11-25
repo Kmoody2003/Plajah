@@ -60,6 +60,7 @@ export interface ConnectedLocationMeta {
   host: string;
   port: number;
   user: string;
+  account?: string;
   remoteDir: string;
   passive?: boolean;
   source: 'filezilla' | 'manual';

@@ -7,8 +7,11 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Security;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Windows.Security.Credentials;
@@ -121,6 +124,7 @@ internal sealed class WindowsStorageConnectorService
         var host = SanitizeHost(location.TryGetProperty("host", out var hEl) ? hEl.GetString() ?? "" : "");
         var port = location.TryGetProperty("port", out var ptEl) && ptEl.TryGetInt32(out var pv) ? pv : 21;
         var user = location.TryGetProperty("user", out var uEl) ? uEl.GetString() ?? "" : "";
+        var account = location.TryGetProperty("account", out var aEl) ? aEl.GetString() ?? "" : "";
         var passive = !location.TryGetProperty("passive", out var pasvEl) || pasvEl.ValueKind != JsonValueKind.False;
         var secret = !string.IsNullOrEmpty(secretOverride) ? secretOverride : GetSecret(id);
 
@@ -153,7 +157,7 @@ internal sealed class WindowsStorageConnectorService
             {
                 "smb" => await HandleSmbAsync(host, remotePath, op, newName, localPath),
                 "webdav" or "webdavs" => await HandleWebDavAsync(proto == "webdavs", host, port, user, secret, remotePath, op, newName, localPath),
-                "ftp" or "ftpes" => await HandleFtpAsync(proto != "ftp", proto == "ftp", passive, host, port, user, secret, remotePath, op, newName, localPath),
+                "ftp" or "ftpes" => await HandleFtpAsync(proto != "ftp", proto == "ftp", passive, host, port, user, account, secret, remotePath, op, newName, localPath),
                 "sftp" => await HandleSftpAsync(host, port, user, remotePath, op),
                 _ => new { success = false, error = $"Protocol '{proto}' is not supported natively yet." },
             };
@@ -366,10 +370,14 @@ internal sealed class WindowsStorageConnectorService
     }
 
     private static async Task<object> HandleFtpAsync(
-        bool useSsl, bool allowTlsUpgrade, bool usePassive, string host, int port, string user, string? secret, string remotePath, string op, string? newName, string? localPath)
+        bool useSsl, bool allowTlsUpgrade, bool usePassive, string host, int port, string user, string account, string? secret, string remotePath, string op, string? newName, string? localPath)
     {
         return await Task.Run<object>(() =>
         {
+            if (!string.IsNullOrWhiteSpace(account))
+            {
+                return ExecuteFtpWithAccount(useSsl, allowTlsUpgrade, host, port, user, account, secret, remotePath, op, newName, localPath);
+            }
             try
             {
                 return ExecuteFtpOp(useSsl, usePassive, host, port, user, secret, remotePath, op, newName, localPath);
@@ -379,6 +387,250 @@ internal sealed class WindowsStorageConnectorService
                 return ExecuteFtpOp(true, usePassive, host, port, user, secret, remotePath, op, newName, localPath);
             }
         });
+    }
+
+    private static (int Code, string Message) ReadFtpReply(StreamReader reader)
+    {
+        var first = reader.ReadLine();
+        if (first == null) return (0, "Connection closed by FTP server");
+        if (first.Length < 3 || !int.TryParse(first[..3], out var code))
+        {
+            return (0, first);
+        }
+        var sb = new StringBuilder(first);
+        // Multi-line RFC 959 reply: "NNN-..." continues until "NNN ..."
+        if (first.Length >= 4 && first[3] == '-')
+        {
+            var endPrefix = $"{first[..3]} ";
+            while (reader.ReadLine() is { } line)
+            {
+                sb.Append('\n').Append(line);
+                if (line.StartsWith(endPrefix, StringComparison.Ordinal)) break;
+            }
+        }
+        return (code, sb.ToString());
+    }
+
+    private static (int Code, string Message) SendFtpCmd(StreamWriter writer, StreamReader reader, string cmd)
+    {
+        writer.Write(cmd);
+        writer.Write("\r\n");
+        writer.Flush();
+        return ReadFtpReply(reader);
+    }
+
+    private static bool IsPrivateOrZeroIpv4(string ip)
+    {
+        if (ip == "0.0.0.0" || ip.StartsWith("127.", StringComparison.Ordinal) || ip.StartsWith("10.", StringComparison.Ordinal) || ip.StartsWith("192.168.", StringComparison.Ordinal))
+            return true;
+        if (ip.StartsWith("172.", StringComparison.Ordinal))
+        {
+            var parts = ip.Split('.');
+            if (parts.Length == 4 && int.TryParse(parts[1], out var second) && second >= 16 && second <= 31)
+                return true;
+        }
+        return false;
+    }
+
+    private static TcpClient OpenPasvDataClient(StreamWriter writer, StreamReader reader, string controlHost)
+    {
+        var (code, msg) = SendFtpCmd(writer, reader, "PASV");
+        if (code != 227) throw new InvalidOperationException($"FTP PASV failed: {msg}");
+        var m = Regex.Match(msg, @"\((\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\)");
+        if (!m.Success) throw new InvalidOperationException($"Could not parse FTP PASV response: {msg}");
+        var pasvIp = $"{m.Groups[1].Value}.{m.Groups[2].Value}.{m.Groups[3].Value}.{m.Groups[4].Value}";
+        var pasvPort = int.Parse(m.Groups[5].Value, CultureInfo.InvariantCulture) * 256 + int.Parse(m.Groups[6].Value, CultureInfo.InvariantCulture);
+        var targetHost = IsPrivateOrZeroIpv4(pasvIp) && !IsPrivateOrZeroIpv4(controlHost) ? controlHost : pasvIp;
+        var dataClient = new TcpClient { ReceiveTimeout = 10 * 60_000, SendTimeout = 10 * 60_000 };
+        if (!dataClient.ConnectAsync(targetHost, pasvPort).Wait(30_000))
+        {
+            dataClient.Dispose();
+            throw new TimeoutException($"Timed out opening FTP data connection to {targetHost}:{pasvPort}");
+        }
+        return dataClient;
+    }
+
+    private static object ExecuteFtpWithAccount(
+        bool useSsl, bool allowTlsUpgrade, string host, int port, string user, string account, string? secret, string remotePath, string op, string? newName, string? localPath)
+    {
+        try
+        {
+            return RunFtpAccountSession(useSsl, host, port, user, account, secret, remotePath, op, newName, localPath);
+        }
+        catch (InvalidOperationException ex) when (!useSsl && allowTlsUpgrade && (
+            ex.Message.Contains("TLS", StringComparison.OrdinalIgnoreCase)
+            || ex.Message.Contains("SSL", StringComparison.OrdinalIgnoreCase)
+            || ex.Message.Contains("encrypt", StringComparison.OrdinalIgnoreCase)
+            || ex.Message.Contains("cleartext", StringComparison.OrdinalIgnoreCase)
+            || ex.Message.Contains("secure", StringComparison.OrdinalIgnoreCase)))
+        {
+            return RunFtpAccountSession(true, host, port, user, account, secret, remotePath, op, newName, localPath);
+        }
+    }
+
+    private static object RunFtpAccountSession(
+        bool useSsl, string host, int port, string user, string account, string? secret, string remotePath, string op, string? newName, string? localPath)
+    {
+        using var control = new TcpClient { ReceiveTimeout = 30_000, SendTimeout = 30_000 };
+        if (!control.ConnectAsync(host, port).Wait(30_000))
+        {
+            return new { success = false, error = $"Timed out connecting to {host}:{port}" };
+        }
+
+        Stream ctrlStream = control.GetStream();
+        var reader = new StreamReader(ctrlStream, Encoding.UTF8, false, 4096, leaveOpen: true);
+        var writer = new StreamWriter(ctrlStream, new UTF8Encoding(false), 4096, leaveOpen: true) { NewLine = "\r\n" };
+
+        try
+        {
+            var greeting = ReadFtpReply(reader);
+            if (greeting.Code < 200 || greeting.Code >= 300)
+            {
+                return new { success = false, error = $"FTP greeting failed: {greeting.Message}" };
+            }
+
+            if (useSsl)
+            {
+                var auth = SendFtpCmd(writer, reader, "AUTH TLS");
+                if (auth.Code != 234) return new { success = false, error = $"FTP AUTH TLS failed: {auth.Message}" };
+                var ssl = new SslStream(ctrlStream, leaveInnerStreamOpen: false);
+                ssl.AuthenticateAsClient(host);
+                ctrlStream = ssl;
+                reader = new StreamReader(ctrlStream, Encoding.UTF8, false, 4096, leaveOpen: true);
+                writer = new StreamWriter(ctrlStream, new UTF8Encoding(false), 4096, leaveOpen: true) { NewLine = "\r\n" };
+                SendFtpCmd(writer, reader, "PBSZ 0");
+                SendFtpCmd(writer, reader, "PROT P");
+            }
+
+            var loginUser = string.IsNullOrEmpty(user) ? "anonymous" : user;
+            var uReply = SendFtpCmd(writer, reader, $"USER {loginUser}");
+            if (uReply.Code >= 400) throw new InvalidOperationException(uReply.Message);
+
+            var needAcct = uReply.Code == 332;
+            if (uReply.Code == 331)
+            {
+                var pReply = SendFtpCmd(writer, reader, $"PASS {secret ?? string.Empty}");
+                if (pReply.Code >= 400) throw new InvalidOperationException(pReply.Message);
+                needAcct = pReply.Code == 332;
+            }
+
+            if (needAcct)
+            {
+                var aReply = SendFtpCmd(writer, reader, $"ACCT {account}");
+                if (aReply.Code >= 400) throw new InvalidOperationException(aReply.Message);
+            }
+
+            var clean = "/" + (remotePath ?? "/").TrimStart('/');
+
+            if (op == "list")
+            {
+                SendFtpCmd(writer, reader, "TYPE A");
+                if (clean != "/")
+                {
+                    var cwd = SendFtpCmd(writer, reader, $"CWD {clean}");
+                    if (cwd.Code >= 400) return new { success = false, error = cwd.Message };
+                }
+                using var dataClient = OpenPasvDataClient(writer, reader, host);
+                var listReply = SendFtpCmd(writer, reader, "LIST");
+                if (listReply.Code is not (125 or 150)) return new { success = false, error = listReply.Message };
+
+                var entries = new List<object>();
+                Stream dataStream = dataClient.GetStream();
+                if (useSsl)
+                {
+                    var dataSsl = new SslStream(dataStream, leaveInnerStreamOpen: false);
+                    dataSsl.AuthenticateAsClient(host);
+                    dataStream = dataSsl;
+                }
+                using (var dataReader = new StreamReader(dataStream, Encoding.UTF8))
+                {
+                    while (dataReader.ReadLine() is { } line)
+                    {
+                        var parsed = ParseFtpListLine(line, clean);
+                        if (parsed != null) entries.Add(parsed);
+                    }
+                }
+                ReadFtpReply(reader); // 226 Transfer complete
+                return new { success = true, entries };
+            }
+
+            if (op == "download_to_local" && !string.IsNullOrWhiteSpace(localPath))
+            {
+                SendFtpCmd(writer, reader, "TYPE I");
+                using var dataClient = OpenPasvDataClient(writer, reader, host);
+                var retr = SendFtpCmd(writer, reader, $"RETR {clean}");
+                if (retr.Code is not (125 or 150)) return new { success = false, error = retr.Message };
+                var dir = Path.GetDirectoryName(localPath);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                Stream dataStream = dataClient.GetStream();
+                if (useSsl)
+                {
+                    var dataSsl = new SslStream(dataStream, leaveInnerStreamOpen: false);
+                    dataSsl.AuthenticateAsClient(host);
+                    dataStream = dataSsl;
+                }
+                using (dataStream)
+                using (var fs = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                {
+                    dataStream.CopyTo(fs);
+                }
+                ReadFtpReply(reader);
+                return new { success = true, localPath };
+            }
+
+            if (op == "upload_from_local" && !string.IsNullOrWhiteSpace(localPath) && File.Exists(localPath))
+            {
+                SendFtpCmd(writer, reader, "TYPE I");
+                using var dataClient = OpenPasvDataClient(writer, reader, host);
+                var stor = SendFtpCmd(writer, reader, $"STOR {clean}");
+                if (stor.Code is not (125 or 150)) return new { success = false, error = stor.Message };
+                Stream dataStream = dataClient.GetStream();
+                if (useSsl)
+                {
+                    var dataSsl = new SslStream(dataStream, leaveInnerStreamOpen: false);
+                    dataSsl.AuthenticateAsClient(host);
+                    dataStream = dataSsl;
+                }
+                using (dataStream)
+                using (var fs = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                {
+                    fs.CopyTo(dataStream);
+                }
+                ReadFtpReply(reader);
+                return new { success = true };
+            }
+
+            if (op == "mkdir")
+            {
+                var mkd = SendFtpCmd(writer, reader, $"MKD {clean}");
+                return mkd.Code < 400 ? new { success = true } : new { success = false, error = mkd.Message };
+            }
+
+            if (op == "rename" && !string.IsNullOrWhiteSpace(newName))
+            {
+                var rnfr = SendFtpCmd(writer, reader, $"RNFR {clean}");
+                if (rnfr.Code >= 400) return new { success = false, error = rnfr.Message };
+                var parent = clean.Contains('/') ? clean[..clean.LastIndexOf('/')] : "";
+                var target = newName.StartsWith('/') ? newName : $"{parent}/{newName}";
+                var rnto = SendFtpCmd(writer, reader, $"RNTO {target}");
+                return rnto.Code < 400 ? new { success = true } : new { success = false, error = rnto.Message };
+            }
+
+            if (op == "delete")
+            {
+                var dele = SendFtpCmd(writer, reader, $"DELE {clean}");
+                if (dele.Code < 400) return new { success = true };
+                var rmd = SendFtpCmd(writer, reader, $"RMD {clean}");
+                return rmd.Code < 400 ? new { success = true } : new { success = false, error = rmd.Message };
+            }
+
+            return new { success = false, error = $"Unsupported FTP op: {op}" };
+        }
+        finally
+        {
+            try { writer.Write("QUIT\r\n"); writer.Flush(); } catch { /* ignore */ }
+            try { ctrlStream.Dispose(); } catch { /* ignore */ }
+        }
     }
 
     private static object ExecuteFtpOp(
