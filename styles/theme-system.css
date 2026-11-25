@@ -1069,3 +1069,58 @@ html body .pj-dark-stage :is([class*="text-white/6"], [class*="text-white/5"], [
 html body .pj-dark-stage h1, html body .pj-dark-stage h2, html body .pj-dark-stage h3 { color: #fff !important; }
 html body .pj-dark-stage [class*="text-[#FF8C00]"] { color: #FFB45A !important; }
 html body .pj-dark-stage [class*="text-[#C56BFF]"], html body .pj-dark-stage [class*="text-[#D0BCFF]"] { color: #D9A8FF !important; }
+
+/* ═══ Creative apps: frosted glass ═════════════════════════════════════════════
+   App.tsx tags <body data-pj-creative> on Chora, Melos, Fabula, Stage, Tela, Pixels and the other
+   studios. Their panels become frosted glass over an ambient colour wash that is drawn from the
+   person's palette, so the theme shows THROUGH the tools instead of being walled off behind them. */
+body[data-pj-creative] #universal-background::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(60% 55% at 12% 8%, color-mix(in srgb, var(--pj-a1, #6B0099) 34%, transparent), transparent 70%),
+    radial-gradient(55% 50% at 92% 18%, color-mix(in srgb, var(--pj-a2, #D40055) 26%, transparent), transparent 70%),
+    radial-gradient(70% 60% at 60% 105%, color-mix(in srgb, var(--pj-a3, #00DAF3) 22%, transparent), transparent 70%);
+}
+/* Light + pastel: adapted panels are more see-through and blur harder. */
+html body.theme-light[data-pj-creative] [data-pj-surface] {
+  background-color: rgba(255, 255, 255, calc(.46 * var(--pj-ui-alpha, 1))) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(170%) !important;
+  backdrop-filter: blur(26px) saturate(170%) !important;
+  box-shadow: 0 8px 28px rgba(51, 65, 85, .10), inset 0 1px 0 rgba(255, 255, 255, .6);
+}
+html body.theme-pastel[data-pj-creative] [data-pj-surface] {
+  background-color: rgba(253, 246, 227, calc(.62 * var(--pj-ui-alpha, 1))) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(140%) !important;
+  backdrop-filter: blur(22px) saturate(140%) !important;
+}
+/* Dark themes: translucent panels get a real frosted blur (opaque ones are left exactly as drawn). */
+body[data-pj-creative]:not(.theme-light):not(.theme-pastel) :is([class*="bg-black/"], [class*="bg-white/"], [class*="bg-zinc-900/"], [class*="bg-slate-900/"], [class*="bg-gray-900/"], [class*="bg-neutral-900/"], [class*="bg-[#0"][class*="/"], [class*="bg-[#1"][class*="/"]):not(video, canvas, img, .pj-no-frost, [data-keep-dark]) {
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+
+/* ═══ Plajah Stage (AmboProPresenter) ═════════════════════════════════════════
+   Stage reads its ground / header / glass / hairline from --st-* (fallbacks = its original dark
+   look). Light and pastel swap them for frosted light glass; dark themes keep dark but let the
+   background show a little through. */
+html body.theme-light[data-pj-app="stage"] {
+  --st-ground: rgba(236, 240, 246, .72);
+  --st-header: rgba(255, 255, 255, .66);
+  --st-glass: rgba(255, 255, 255, .55);
+  --st-line: rgba(15, 23, 42, .14);
+}
+html body.theme-pastel[data-pj-app="stage"] {
+  --st-ground: rgba(250, 243, 224, .8);
+  --st-header: rgba(255, 252, 240, .72);
+  --st-glass: rgba(255, 252, 240, .6);
+  --st-line: rgba(88, 66, 30, .16);
+}
+html body:not(.theme-light):not(.theme-pastel)[data-pj-app="stage"].has-custom-background,
+html body:not(.theme-light):not(.theme-pastel)[data-pj-app="stage"].has-theme-bg {
+  --st-ground: rgba(10, 7, 17, .8);
+}
+html body[data-pj-app="stage"] .pj-stage {
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  backdrop-filter: blur(24px) saturate(150%);
+  color: var(--pj-text, #fff);
+}

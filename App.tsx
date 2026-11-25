@@ -4642,6 +4642,13 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     b.style.setProperty('--pj-ui-alpha', String(c.uiPct / 100));
   }, [view, visitedProfile, userProfile]);
 
+  // Creative studios get frosted-glass panels over an ambient palette wash (theme-system.css).
+  useEffect(() => {
+    const creative = /^(MUSIC|MELOS|MELOS_BEATS|AMBO|AMBO_PRO|TELA.*|PLAJAH_PIXELS|PODCAST_STUDIO|SPATIAL_MIXER|EVENT_PRODUCTION_STUDIO|TERRA_STUDIO|CROSSOVER|SMART_DIRECTOR|AVATAR_STUDIO|FABULA|CHORA.*|ARTIST_MANAGER|CREATOR_HUB|MEDIA_CONVERTER)$/.test(String(view));
+    if (creative) document.body.setAttribute('data-pj-creative', ''); else document.body.removeAttribute('data-pj-creative');
+    return () => document.body.removeAttribute('data-pj-creative');
+  }, [view]);
+
   // Measure the real brightness of the custom background so the scrim (and the contrast guard)
   // are sized to the image, not guessed.
   useEffect(() => {
