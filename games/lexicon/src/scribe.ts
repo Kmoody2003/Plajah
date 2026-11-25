@@ -43,6 +43,15 @@ export async function loadScribe(url = SCRIBE_URL): Promise<ScribeModel | null> 
   const act = Object.fromEntries(Object.entries(clips).map(([k, c]) => { const a = mixer.clipAction(c); a.play(); a.setEffectiveWeight(0); return [k, a]; })) as Record<keyof typeof clips, THREE.AnimationAction>;
   act.idle.setEffectiveWeight(1);
   const rig = forgeRig(model);
+  // the art's stance, fitted by the Forge's scorer (extras.forge.stance): the right arm forward and bent round the staff
+  const stance = (findForgeExtras(model) as unknown as { stance?: { rArm?: number; rArmFwd?: number; rElbow?: number } }).stance;
+  const holdArm = model.getObjectByName('RightArm'), holdFore = model.getObjectByName('RightForeArm');
+  const qa = (ax: THREE.Vector3, a: number) => new THREE.Quaternion().setFromAxisAngle(ax, a);
+  const X = new THREE.Vector3(1, 0, 0), Z = new THREE.Vector3(0, 0, 1);
+  // the scorer's pose is applied over the bind pose (pose × rest), so the target is fixed: keep it
+  const armHold = stance?.rArm !== undefined && holdArm ? qa(X, -(stance.rArmFwd ?? 0)).multiply(qa(Z, stance.rArm)).multiply(holdArm.quaternion.clone()) : null;
+  const foreHold = stance?.rElbow !== undefined && holdFore ? qa(X, -stance.rElbow).multiply(holdFore.quaternion.clone()) : null;
+  let holdW = 1;
   const bone = (n: string) => model.getObjectByName(n) as THREE.Bone | undefined;
   const spine = bone('Spine1'), armR = bone('RightArm'), foreR = bone('RightForeArm'), hips = bone('Hips');
   const w = { idle: 1, walk: 0, run: 0 };
@@ -70,6 +79,11 @@ export async function loadScribe(url = SCRIBE_URL): Promise<ScribeModel | null> 
       // the captured walk was recorded at ~1.4 m/s and the run at ~3.6 m/s: play them at the speed the Scribe moves
       act.walk.setEffectiveTimeScale(Math.max(0.6, speed / 1.4)); act.run.setEffectiveTimeScale(Math.max(0.6, speed / 3.6));
       mixer.update(dt);
+      // hold the staff the way the art does: fully when standing, looser walking, loosest running, let go to strike
+      const want = strike > 0 ? 0 : 1 - 0.35 * w.walk - 0.6 * w.run;
+      holdW += (want - holdW) * (1 - Math.exp(-dt * 8));
+      if (armHold && holdArm) holdArm.quaternion.slerp(armHold, holdW);
+      if (foreHold && holdFore) holdFore.quaternion.slerp(foreHold, holdW);
       // the strike: a sweep of the staff across the body, the chest turning into it (over the locomotion)
       if (strike > 0 && spine && armR && foreR) {
         const s = Math.sin(strike * Math.PI);

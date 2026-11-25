@@ -489,13 +489,17 @@ function partIoU(r: ReturnType<typeof render>, v: ViewName, name: string, shift:
 }
 
 // ---- the art's pose, fitted ---------------------------------------------------------------------------------------
-// arms hang from the A (rotate about the body's forward axis), elbows bend a little, legs stand apart
-function poseOf(p: { arm: number; armFwd: number; elbow: number; leg: number; stagger?: number; legFwd?: number }) {
+// arms hang from the A (rotate about the body's forward axis), elbows bend a little, legs stand apart. A figure that
+// holds a staff (a quill_staff node) gets its own right arm: forward and bent at the elbow, as a staff is held.
+type Pose = { arm: number; armFwd: number; elbow: number; leg: number; stagger?: number; legFwd?: number; rArm?: number; rArmFwd?: number; rElbow?: number };
+function poseOf(p: Pose) {
   const o: Record<string, number[]> = {};
   for (const sx of [1, -1]) {
     const s = sx > 0 ? 'Left' : 'Right';
-    o[`${s}Arm`] = qmul(qaxis([1, 0, 0], -p.armFwd), qaxis([0, 0, 1], -sx * p.arm));
-    o[`${s}ForeArm`] = qaxis([1, 0, 0], -p.elbow);
+    const R = sx < 0 && p.rArm !== undefined;
+    const arm = R ? p.rArm! : p.arm, fwd = R ? p.rArmFwd ?? p.armFwd : p.armFwd, elbow = R ? p.rElbow ?? p.elbow : p.elbow;
+    o[`${s}Arm`] = qmul(qaxis([1, 0, 0], -fwd), qaxis([0, 0, 1], -sx * arm));
+    o[`${s}ForeArm`] = qaxis([1, 0, 0], -elbow);
     // stagger: the near (left) leg forward and the far one back, as a turnaround's profile often stands
     // legFwd: both legs forward of the torso together (the figure's weight a little back), feet kept flat
     const st = sx * (p.stagger ?? 0) + (p.legFwd ?? 0);
@@ -504,20 +508,29 @@ function poseOf(p: { arm: number; armFwd: number; elbow: number; leg: number; st
   }
   return o;
 }
-function fitPose() {
-  let p = { arm: 0.66, armFwd: 0.0, elbow: 0.15, leg: 0.06, stagger: 0, legFwd: 0 };
-  const iouOf = (q: typeof p) => {
+const HOLDS_STAFF = gltf.nodes.some((n: { name?: string }) => n.name === 'quill_staff');
+function fitPose(): Pose {
+  let p: Pose = { arm: 0.66, armFwd: 0.0, elbow: 0.15, leg: 0.06, stagger: 0, legFwd: 0 };
+  // a staff is held in front of the body, the elbow bent near a right angle: start there and let the search settle it
+  if (HOLDS_STAFF) p = { ...p, rArm: 0.55, rArmFwd: 0.35, rElbow: 1.2 };
+  const iouOf = (q: Pose) => {
     const tris = posedTris(poseOf(q));
     let s = 0;
-    // the whole figure, and the arms against the art's own arms (they decide the pose; a figure IoU barely feels them)
-    for (const v of ['front', 'side'] as ViewName[]) { const r = render(tris, v); const sc = score(r, v, false); s += sc.regions.torso.iou + sc.regions.legs.iou + 2 * (partIoU(r, v, 'arms', sc.shift) ?? 0); }
+    // the whole figure, and the arms against the art's own arms (they decide the pose; a figure IoU barely feels them);
+    // a held staff too: where the hand is decides where it stands
+    for (const v of ['front', 'side'] as ViewName[]) {
+      const r = render(tris, v); const sc = score(r, v, false);
+      s += sc.regions.torso.iou + sc.regions.legs.iou + 2 * (partIoU(r, v, 'arms', sc.shift) ?? 0);
+      if (HOLDS_STAFF) s += 2 * (partIoU(r, v, 'staff', sc.shift) ?? 0);
+    }
     return s;
   };
   let best = iouOf(p);
-  const steps: [keyof typeof p, number][] = [['arm', 0.08], ['leg', 0.03], ['stagger', 0.05], ['legFwd', 0.04], ['armFwd', 0.1], ['elbow', 0.12]];
+  const steps: [keyof Pose, number][] = [['arm', 0.08], ['leg', 0.03], ['stagger', 0.05], ['legFwd', 0.04], ['armFwd', 0.1], ['elbow', 0.12]];
+  if (HOLDS_STAFF) steps.push(['rArm', 0.08], ['rArmFwd', 0.12], ['rElbow', 0.15]);
   for (let round = 0; round < 2; round++) for (const [k, d] of steps) for (const dir of [1, -1]) {
     for (let tries = 0; tries < 3; tries++) {
-      const q = { ...p, [k]: p[k] + dir * d / (round + 1) };
+      const q = { ...p, [k]: (p[k] as number) + dir * d / (round + 1) };
       const s = iouOf(q);
       if (s > best) { best = s; p = q; } else break;
     }
@@ -559,7 +572,9 @@ const t0 = Date.now();
 // --fast: the last fitted pose, shape only, no images (the armour fit runs this many times)
 const FAST = args.includes('--fast');
 const lastPose = (() => { try { return JSON.parse(fs.readFileSync(path.join(outDir, 'fidelity.json'), 'utf8')).pose; } catch { return null; } })();
-const pose = FAST && lastPose && !args.includes('--refit-pose') ? lastPose : fitPose();
+// painting, cutting the parts and --reuse-pose take the pose the last full score fitted (the search takes minutes)
+const REUSE = FAST || args.includes('--paint') || args.includes('--parts') || args.includes('--reuse-pose');
+const pose = REUSE && lastPose && !args.includes('--refit-pose') ? lastPose : fitPose();
 if (FAST) {
   const tr = posedTris(poseOf(pose));
   const out: Record<string, Record<string, unknown>> = {};

@@ -311,6 +311,9 @@ async function main() {
       twists: Object.entries(TWIST_JOINTS).map(([bone, t]) => ({ bone, driver: t.driver, share: t.share, axis: norm(sub(anatomy.byName[t.parent as HumanJoint].tip, anatomy.byName[t.parent as HumanJoint].at)) })),
       grips: grips(anatomy),
       hold: { Right: spec.hold?.Right ?? 'Right:katana', Left: spec.hold?.Left ?? 'Left:relaxed' },
+      // the art's stance as the scorer fitted it (forgeFidelity fitPose: arm hang, elbow, legs, a staff-holding right
+      // arm): a game can stand the character the way the art draws them (Lexicon's scribe.ts)
+      stance: (() => { try { return JSON.parse(fs.readFileSync(path.join(WORK, 'fidelity', 'fidelity.json'), 'utf8')).pose; } catch { return undefined; } })(),
       // who the character is (forge context): how they carry themself, and what the Forge read it from
       bearing: context?.bearing,
       context: context ? { archetype: context.recognised.archetype, tradition: context.recognised.tradition, sword: sword ? { id: sword.id, dims: sword.dims, features: sword.features, carry: sword.carry } : null } : undefined,

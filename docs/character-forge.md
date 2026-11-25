@@ -346,5 +346,13 @@ side view is the next big gain. The Forge also gained, for any character: a per-
 profile scan that ignores props in front of the face, `paint.skip` / `paint.headSides` in the spec, a staff held upright
 by the scorer as in the game. Haru's face fit and build are unchanged (profile 6.8 mm, same pieces).
 
+Pose pass (2026-11-25): the scorer's pose search gives a staff holder (a `quill_staff` node) its own right arm
+(`rArm`, `rArmFwd`, `rElbow`), scored with the staff part as well as the arms; it settled on the arm forward and the elbow
+bent ~70° (arm 0.79, forward 0.53, elbow 1.2). Paint and parts now reuse the last fitted pose (`--reuse-pose`; the search
+takes ~7 min). The build writes the fitted pose into `extras.forge.stance`, and Lexicon's `scribe.ts` blends the right
+arm to it (fully standing, looser walking and running, released for a strike). Scores: arms 35 → 39%, staff 28 → 32%,
+overall 71.9% (flat). Open: in the scorer's side view the staff does not render at the hand (the front view and the game
+place it right), so the side score still misses it; the idle (the walk capture's first frames) reads as mid-step.
+
 Not done yet: a belt pouch shows through the cloak's side; the
 strike and roll are procedural over the locomotion (CMU 02_05 is a strike capture to try); the GLB is 8.5 MB (KTX2 next).
