@@ -188,8 +188,8 @@ export const DisplaySheet: React.FC<{
   skins: { id: string; label: string; bg: string; ink: string }[]; skinId: string; onSkin: (id: string) => void;
   size: number; onSize: (n: number) => void;
   avail: { slug: string; label: string }[]; active: string[]; onToggle: (slug: string) => void;
-  canon: BibleCanon; onCanon: (c: BibleCanon) => void; onPlates: () => void;
-}> = ({ open, onClose, skins, skinId, onSkin, size, onSize, avail, active, onToggle, canon, onCanon, onPlates }) => (
+  canon: BibleCanon; onCanon: (c: BibleCanon) => void; onPlates: () => void; onLanguages?: () => void;
+}> = ({ open, onClose, skins, skinId, onSkin, size, onSize, avail, active, onToggle, canon, onCanon, onPlates, onLanguages }) => (
   <Sheet open={open} onClose={onClose} title="Text & translations">
     <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Translations {active.length > 1 && '· side by side'}</p>
     <div className="flex flex-wrap gap-2 mb-5">
@@ -200,6 +200,10 @@ export const DisplaySheet: React.FC<{
             className={`h-11 px-4 rounded-full text-[12px] font-black uppercase tracking-widest border ${on ? 'bg-[#d4af37] border-[#d4af37] text-black' : 'border-white/15 text-white/60'}`}>{t.label}</button>
         );
       })}
+      {onLanguages && (
+        <button onClick={() => { onClose(); onLanguages(); }}
+          className="h-11 px-4 rounded-full text-[12px] font-black uppercase tracking-widest border border-dashed border-[#d4af37]/60 text-[#d4af37]">+ Languages</button>
+      )}
     </div>
 
     <p className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Page</p>

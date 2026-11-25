@@ -225,6 +225,13 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
+    // ── Verse Bible library — public-domain and open-licence Scripture JSON ──
+    // Built by scripts/bibleLibrary/build_library.py, uploaded by an admin.
+    match /bible/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // ── Public-domain sheet music copies (scripts/scores/mirrorScores.mts) ────
     match /scores/{allPaths=**} {
       allow read: if true;

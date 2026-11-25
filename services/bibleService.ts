@@ -2,6 +2,8 @@
 // Source: getbible.net v2 (public, no key). Parallel translations are fetched
 // per chapter and aligned by verse number for the side-by-side reader.
 
+import { fetchLibraryChapter, isLibrarySlug } from './bibleLibrary';
+
 const GETBIBLE = 'https://api.getbible.net/v2';
 
 export interface BibleTranslation {
@@ -83,6 +85,11 @@ const cache = new Map<string, BibleVerse[]>();
 export async function fetchChapter(slug: string, bookNum: number, chapter: number): Promise<BibleVerse[]> {
   const key = `${slug}/${bookNum}/${chapter}`;
   if (cache.has(key)) return cache.get(key)!;
+  if (isLibrarySlug(slug)) {
+    const verses = await fetchLibraryChapter(slug, bookNum, chapter);
+    if (verses.length) cache.set(key, verses);
+    return verses;
+  }
   try {
     const res = await fetch(`${GETBIBLE}/${slug}/${bookNum}/${chapter}.json`);
     if (!res.ok) throw new Error(String(res.status));

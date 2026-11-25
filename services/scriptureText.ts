@@ -11,6 +11,7 @@ import { fetchChapter, BOOKS, TRANSLATIONS, type BibleVerse } from './bibleServi
 import { formatRef, type ScriptureRef } from './scriptureRef';
 import { editionBooks } from './bibleCanon';
 import { parseBundledCatholic, parseBundledKjv } from './bundledBibleCore';
+import { ensureLibraryIndex, isLibrarySlug, libraryEntry } from './bibleLibrary';
 
 const KEY_PREFIX = 'pj.bible.v1.';
 /** Translations are fixed texts; the only reason to expire is a bad fetch. */
@@ -99,6 +100,7 @@ export async function getChapter(
     chapter = typeof chapterOrSlug === 'number' ? chapterOrSlug : 1;
   }
 
+  if (isLibrarySlug(slug)) await ensureLibraryIndex(slug);
   const meta = booksForTranslation(slug).find(b => b.num === book);
   if (!meta || !Number.isInteger(chapter) || chapter < 1 || chapter > meta.chapters) return [];
   if (slug === 'kjv') await hydrateBundledKjv();
@@ -193,7 +195,7 @@ export async function fetchRefText(
   maxVerses = 12,
 ): Promise<ResolvedRef | null> {
   const label = formatRef(ref, 'display');
-  const translation = TRANSLATIONS.find(t => t.slug === slug)?.label ?? slug.toUpperCase();
+  const translation = TRANSLATIONS.find(t => t.slug === slug)?.label ?? libraryEntry(slug)?.title ?? slug.toUpperCase();
 
   const chapters: number[] = [];
   const endChapter = ref.endChapter ?? ref.chapter;
@@ -263,6 +265,7 @@ export async function preloadTranslation(
   signal?: { cancelled: boolean },
 ): Promise<number> {
   const jobs: Array<{ book: number; chapter: number; label: string }> = [];
+  if (isLibrarySlug(slug)) await ensureLibraryIndex(slug);
   for (const b of booksForTranslation(slug)) {
     for (let c = 1; c <= b.chapters; c++) jobs.push({ book: b.num, chapter: c, label: b.name });
   }
@@ -299,6 +302,7 @@ export const TOTAL_CHAPTERS = BOOKS.reduce((n, b) => n + b.chapters, 0);
 export async function localCoverage(slug: string): Promise<number> {
   if (slug === 'kjv' && await hydrateBundledKjv()) return 1;
   if (slug === 'douayrheims' && await hydrateCatholic()) return 1;
+  if (isLibrarySlug(slug)) await ensureLibraryIndex(slug);
   const prefix = `${KEY_PREFIX}${slug}/`;
   const supported = booksForTranslation(slug);
   const total = supported.reduce((n, book) => n + book.chapters, 0);

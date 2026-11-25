@@ -35,6 +35,8 @@ import { verseNotes } from '../../services/readerNotes';
 import CanonBookPicker from './CanonBookPicker';
 import { canonBooks, canonMark, type BibleCanon } from '../../services/bibleCanon';
 import { TRANSLATIONS } from '../../services/bibleService';
+import { asTranslation, libraryEntry, loadCatalog, readPicks, writePicks, isLibrarySlug } from '../../services/bibleLibrary';
+import BibleLibraryPicker from './BibleLibraryPicker';
 import LectioConcordance from './LectioConcordance';
 import LectioHistory from './LectioHistory';
 import LectioLexicon from './LectioLexicon';
@@ -111,7 +113,19 @@ const LectioReader: React.FC<Props> = ({ openAt, followSessionId, followMode = '
 
   const [canon, setCanon] = useState<BibleCanon>(startCanon);
   const visibleBooks = useMemo(()=>canonBooks(canon),[canon]);
-  const avail = useMemo(() => canon==='catholic' ? TRANSLATIONS.filter(t=>t.slug==='douayrheims') : canon==='orthodox' ? TRANSLATIONS.filter(t=>t.slug===(book.testament==='OT'?'lxx':'textusreceptus')) : translationsForBook(book.testament).filter(t=>t.slug!=='douayrheims'), [book,canon]);
+  // Translations the reader added from the hosted library (every language Plajah may host).
+  const [picks, setPicks] = useState<string[]>(() => readPicks());
+  const [catalogReady, setCatalogReady] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  useEffect(() => { if (picks.length) void loadCatalog().then(() => setCatalogReady(true)); }, [picks.length]);
+  const pickTranslations = useMemo(() => picks.map(s => libraryEntry(s)).filter(Boolean).map(e => ({ entry: e!, t: asTranslation(e!) }))
+    .filter(({ entry, t }) => (canon === 'protestant' || entry.dc) && (t.testament === 'BOTH' || t.testament === book.testament || book.num > 66))
+    .map(({ t }) => t), [picks, catalogReady, canon, book]); // eslint-disable-line react-hooks/exhaustive-deps
+  const avail = useMemo(() => [...(canon==='catholic' ? TRANSLATIONS.filter(t=>t.slug==='douayrheims') : canon==='orthodox' ? TRANSLATIONS.filter(t=>t.slug===(book.testament==='OT'?'lxx':'textusreceptus')) : translationsForBook(book.testament).filter(t=>t.slug!=='douayrheims')), ...pickTranslations], [book,canon,pickTranslations]);
+  const togglePick = useCallback((slug: string) => {
+    setPicks(prev => { const next = prev.includes(slug) ? prev.filter(s => s !== slug) : [...prev, slug]; writePicks(next); return next; });
+    setActive(prev => prev.includes(slug) ? (prev.length > 1 ? prev.filter(s => s !== slug) : prev) : [...prev, slug]);
+  }, []);
   const [active, setActive] = useState<string[]>([startCanon==='catholic'?'douayrheims':startCanon==='orthodox'?(book.testament==='OT'?'lxx':'textusreceptus'):DEFAULT_TRANSLATION]);
   const [data, setData] = useState<Record<string, BibleVerse[]>>({});
   const [loading, setLoading] = useState(true);
@@ -499,6 +513,10 @@ const LectioReader: React.FC<Props> = ({ openAt, followSessionId, followMode = '
               {t.label}
             </button>
           ))}
+          <button onClick={() => setLibraryOpen(true)} title="Bibles in every language"
+            className="px-2 py-[3px] rounded-full text-[8.5px] font-black uppercase tracking-widest border border-dashed border-[#d4af37]/50 text-[#d4af37] hover:bg-[#d4af37]/10">
+            + Languages
+          </button>
           {active.length > 1 && <Columns2 size={11} className="text-white/25" />}
 
           <div className="ml-auto flex items-center gap-1.5">
@@ -643,6 +661,15 @@ const LectioReader: React.FC<Props> = ({ openAt, followSessionId, followMode = '
                 })}
               </div>
             )}
+            {/* Open-licence texts must carry their copyright and licence wherever they are shown. */}
+            {active.filter(isLibrarySlug).map(s => libraryEntry(s)).filter(Boolean).map(e => (
+              <p key={e!.id} className="mt-6 text-[10px] leading-relaxed" style={{ color: skin.muted }}>
+                <span className="font-semibold">{e!.fullTitle || e!.title}</span> ·{' '}
+                {!/public domain/i.test(e!.copyright) && <>{e!.copyright} · </>}
+                {e!.licenceUrl ? <a href={e!.licenceUrl} target="_blank" rel="noreferrer" className="underline">{e!.licence}</a> : e!.licence} ·{' '}
+                <a href={e!.source} target="_blank" rel="noreferrer" className="underline">eBible.org</a>
+              </p>
+            ))}
           </div>
         </div>
         {isMobile && (
@@ -881,9 +908,10 @@ const LectioReader: React.FC<Props> = ({ openAt, followSessionId, followMode = '
           <DisplaySheet open={sheet === 'display'} onClose={() => setSheet(null)}
             skins={SKINS} skinId={skinId} onSkin={id => { setSkinId(id); localStorage.setItem(SKIN_KEY, id); }}
             size={size} onSize={setSize} avail={avail} active={active} onToggle={toggleTranslation}
-            canon={canon} onCanon={switchCanon} onPlates={() => setCouncilModalOpen(true)} />
+            canon={canon} onCanon={switchCanon} onPlates={() => setCouncilModalOpen(true)} onLanguages={() => setLibraryOpen(true)} />
         </>
       )}
+      {libraryOpen && <BibleLibraryPicker picks={picks} onToggle={togglePick} onClose={() => setLibraryOpen(false)} />}
       <LectioCouncilPlatesModal
         open={councilModalOpen}
         onClose={() => setCouncilModalOpen(false)}

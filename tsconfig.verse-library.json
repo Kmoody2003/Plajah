@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "services/bibleLibrary.ts", "services/bibleService.ts", "services/bibleCanon.ts", "services/scriptureText.ts",
+    "components/scripture/BibleLibraryPicker.tsx", "components/scripture/LectioReader.tsx", "components/scripture/LectioMobile.tsx",
+    "tests/bibleLibrary.test.ts"
+  ]
+}

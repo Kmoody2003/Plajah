@@ -122,6 +122,7 @@
     "test:tax": "npx tsx --test tests/taxCore.test.ts tests/drawerCore.test.ts tests/registerHardening.test.ts tests/storedValueCore.test.ts",
     "test:stored": "npx tsx --test tests/storedValueCore.test.ts",
     "test:kairos": "npx tsx --test tests/kairosService.test.ts",
+    "test:verse-library": "npx tsx --test tests/bibleLibrary.test.ts",
     "test:vespers": "npx tsx --test tests/vespersService.test.ts",
     "test:serviceNotes": "npx tsx --test tests/serviceNotes.test.ts",
     "test:civics": "npx tsx --test tests/comparativeCivics.test.ts",

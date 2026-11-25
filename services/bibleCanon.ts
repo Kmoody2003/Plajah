@@ -1,4 +1,5 @@
 import { BOOKS, type BibleBook } from './bibleService';
+import { isLibrarySlug, libraryBookChapters } from './bibleLibrary';
 
 export type BibleCanon = 'protestant' | 'catholic' | 'orthodox';
 const extra = (num: number, name: string, chapters: number): BibleBook => ({ num, name, chapters, testament: 'OT' });
@@ -17,7 +18,18 @@ export function canonMark(book: BibleBook): { color: string; label: string } {
   if (book.num===19 && book.chapters===151) return {color:'#c084fc',label:'Shared book · Orthodox Psalm 151'};
   return {color:'#e2e8f0',label:'Shared book'};
 }
+const EXTRA_BOOKS: BibleBook[] = [extra(87,'Prayer of Manasseh',1),extra(88,'2 Esdras',16)];
+/** A hosted-library translation's own books, in Catholic/Orthodox order where it has them. */
+function libraryBooks(slug: string): BibleBook[] {
+  const have = libraryBookChapters(slug);
+  if (!have) return BOOKS;
+  const order = [...CATHOLIC_BOOKS, ...ORTHODOX_BOOKS, ...EXTRA_BOOKS];
+  const seen = new Set<number>(), out: BibleBook[] = [];
+  for (const b of order) if (have.has(b.num) && !seen.has(b.num)) { seen.add(b.num); out.push({ ...b, chapters: have.get(b.num)! }); }
+  return out;
+}
 export function editionBooks(slug: string): BibleBook[] {
+  if (isLibrarySlug(slug)) return libraryBooks(slug);
   if (slug==='douayrheims') return CATHOLIC_BOOKS;
   if (slug==='lxx') return ORTHODOX_BOOKS.filter(b=>b.testament==='OT');
   return BOOKS.filter(b=>slug==='codex'?b.testament==='OT':slug==='textusreceptus'?b.testament==='NT':true);
