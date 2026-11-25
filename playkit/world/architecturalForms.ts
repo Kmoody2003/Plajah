@@ -2,7 +2,7 @@
 //
 // Renderer-Agnostic Plajah Architectural, Marine & Botanical Geometry Builders.
 // 100% Pure TypeScript (zero `three` or `three/webgpu` imports — returns `IndexedTriMesh`),
-// so WebGL games (Plajah Motorsport: Apex / `games/forth-horizon`), WebGPU games
+// so WebGL games (Plajah Motorsport: Apex / `games/apex`), WebGPU games
 // (Vesselbound / Era Clash / Ravencrest / Kith / Firstlight), Game Studio, and 3rd-party
 // creator projects ALL run the exact same NURBS, Catmull-Clark SubD, CAD/BIM, and
 // Space-Colonization Vegetation kernels!

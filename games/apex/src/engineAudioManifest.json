@@ -1,0 +1,750 @@
+{
+  "version": 1,
+  "source": "3D Vehicle Asset Library (24 Engine Stand Studies)",
+  "banks": {
+    "i4_commuter": {
+      "id": "i4_commuter",
+      "label": "Everyday I4 Commuter",
+      "arch": "commuter-i4",
+      "aggression": 0,
+      "gain": 0.72,
+      "redlineRpm": 6200,
+      "basePath": "/games/apex/sfx/engines/i4_commuter",
+      "texUrl": "/games/apex/tex/engines/i4_commuter.jpg",
+      "sourceFile": "Car_engine_running_on_stand_188b3783.mp4",
+      "slices": {
+        "idle": {
+          "start": 12.8,
+          "centroidHz": 488.1,
+          "f0Hz": 115.0
+        },
+        "mid": {
+          "start": 2.45,
+          "centroidHz": 609.4,
+          "f0Hz": 120.0
+        },
+        "high": {
+          "start": 5.65,
+          "centroidHz": 1164.5,
+          "f0Hz": 270.0
+        },
+        "decel": {
+          "start": 9.95
+        }
+      }
+    },
+    "crossover_turbo": {
+      "id": "crossover_turbo",
+      "label": "Crossover Turbo V6",
+      "arch": "suv-v6",
+      "aggression": 1,
+      "gain": 0.78,
+      "redlineRpm": 6500,
+      "basePath": "/games/apex/sfx/engines/crossover_turbo",
+      "texUrl": "/games/apex/tex/engines/crossover_turbo.jpg",
+      "sourceFile": "Crossover_engine_revving_and_idling_b5ea733e.mp4",
+      "slices": {
+        "idle": {
+          "start": 1.85,
+          "centroidHz": 430.7,
+          "f0Hz": 120.0
+        },
+        "mid": {
+          "start": 3.45,
+          "centroidHz": 750.8,
+          "f0Hz": 140.0
+        },
+        "high": {
+          "start": 7.55,
+          "centroidHz": 1142.0,
+          "f0Hz": 390.0
+        },
+        "decel": {
+          "start": 11.75
+        }
+      }
+    },
+    "diesel_van": {
+      "id": "diesel_van",
+      "label": "Turbo Diesel Delivery Van",
+      "arch": "diesel-i4",
+      "aggression": 1,
+      "gain": 0.8,
+      "redlineRpm": 4400,
+      "basePath": "/games/apex/sfx/engines/diesel_van",
+      "texUrl": "/games/apex/tex/engines/diesel_van.jpg",
+      "sourceFile": "Diesel_delivery_van_engine_sounds_3bf51f36.mp4",
+      "slices": {
+        "idle": {
+          "start": 10.55,
+          "centroidHz": 994.1,
+          "f0Hz": 85.0
+        },
+        "mid": {
+          "start": 7.8,
+          "centroidHz": 1028.8,
+          "f0Hz": 130.0
+        },
+        "high": {
+          "start": 6.3,
+          "centroidHz": 1081.0,
+          "f0Hz": 110.0
+        },
+        "decel": {
+          "start": 9.2
+        }
+      }
+    },
+    "diesel_truck_a": {
+      "id": "diesel_truck_a",
+      "label": "Heavy Diesel Truck",
+      "arch": "diesel-v8",
+      "aggression": 1,
+      "gain": 0.84,
+      "redlineRpm": 3800,
+      "basePath": "/games/apex/sfx/engines/diesel_truck_a",
+      "texUrl": "/games/apex/tex/engines/diesel_truck_a.jpg",
+      "sourceFile": "Diesel_engine_revving_and_braking_06db449d.mp4",
+      "slices": {
+        "idle": {
+          "start": 10.55,
+          "centroidHz": 972.0,
+          "f0Hz": 115.0
+        },
+        "mid": {
+          "start": 8.25,
+          "centroidHz": 1009.7,
+          "f0Hz": 110.0
+        },
+        "high": {
+          "start": 3.05,
+          "centroidHz": 1079.9,
+          "f0Hz": 100.0
+        },
+        "decel": {
+          "start": 12.85
+        }
+      }
+    },
+    "diesel_semi": {
+      "id": "diesel_semi",
+      "label": "Heavy Semi Diesel Turbo",
+      "arch": "diesel-v8",
+      "aggression": 2,
+      "gain": 0.88,
+      "redlineRpm": 3200,
+      "basePath": "/games/apex/sfx/engines/diesel_semi",
+      "texUrl": "/games/apex/tex/engines/diesel_semi.jpg",
+      "sourceFile": "Diesel_engine_revving_and_braking_d797b1ab.mp4",
+      "slices": {
+        "idle": {
+          "start": 6.85,
+          "centroidHz": 855.2,
+          "f0Hz": 80.0
+        },
+        "mid": {
+          "start": 11.95,
+          "centroidHz": 1006.1,
+          "f0Hz": 60.0
+        },
+        "high": {
+          "start": 5.2,
+          "centroidHz": 945.7,
+          "f0Hz": 100.0
+        },
+        "decel": {
+          "start": 6.25
+        }
+      }
+    },
+    "diesel_pickup": {
+      "id": "diesel_pickup",
+      "label": "6.7L Turbo Diesel Pickup",
+      "arch": "diesel-v8",
+      "aggression": 1,
+      "gain": 0.85,
+      "redlineRpm": 4200,
+      "basePath": "/games/apex/sfx/engines/diesel_pickup",
+      "texUrl": "/games/apex/tex/engines/diesel_pickup.jpg",
+      "sourceFile": "Diesel_pickup_truck_engine_revving_0da5cc32.mp4",
+      "slices": {
+        "idle": {
+          "start": 11.95,
+          "centroidHz": 1011.3,
+          "f0Hz": 185.0
+        },
+        "mid": {
+          "start": 7.75,
+          "centroidHz": 1084.8,
+          "f0Hz": 130.0
+        },
+        "high": {
+          "start": 5.05,
+          "centroidHz": 1178.4,
+          "f0Hz": 110.0
+        },
+        "decel": {
+          "start": 11.45
+        }
+      }
+    },
+    "hatch_i4": {
+      "id": "hatch_i4",
+      "label": "Compact Hatchback Turbo I4",
+      "arch": "i4-turbo",
+      "aggression": 1,
+      "gain": 0.76,
+      "redlineRpm": 6500,
+      "basePath": "/games/apex/sfx/engines/hatch_i4",
+      "texUrl": "/games/apex/tex/engines/hatch_i4.jpg",
+      "sourceFile": "Hatchback_engine_vibrating_and_r\u2026_0e0024f7.mp4",
+      "slices": {
+        "idle": {
+          "start": 12.8,
+          "centroidHz": 900.8,
+          "f0Hz": 70.0
+        },
+        "mid": {
+          "start": 7.55,
+          "centroidHz": 942.6,
+          "f0Hz": 150.0
+        },
+        "high": {
+          "start": 8.9,
+          "centroidHz": 1095.4,
+          "f0Hz": 180.0
+        },
+        "decel": {
+          "start": 4.95
+        }
+      }
+    },
+    "hybrid_i4": {
+      "id": "hybrid_i4",
+      "label": "Hybrid Atkinson I4 + eMotor",
+      "arch": "hybrid",
+      "aggression": 0,
+      "gain": 0.64,
+      "redlineRpm": 5800,
+      "basePath": "/games/apex/sfx/engines/hybrid_i4",
+      "texUrl": "/games/apex/tex/engines/hybrid_i4.jpg",
+      "sourceFile": "Hybrid_engine_acceleration_and_b\u2026_d97dd324.mp4",
+      "slices": {
+        "idle": {
+          "start": 12.65,
+          "centroidHz": 814.8,
+          "f0Hz": 110.0
+        },
+        "mid": {
+          "start": 10.45,
+          "centroidHz": 835.9,
+          "f0Hz": 130.0
+        },
+        "high": {
+          "start": 7.0,
+          "centroidHz": 896.5,
+          "f0Hz": 140.0
+        },
+        "decel": {
+          "start": 1.8
+        }
+      }
+    },
+    "hypercar_tt_v8": {
+      "id": "hypercar_tt_v8",
+      "label": "Hypercar Twin-Turbo V8",
+      "arch": "tt-v8",
+      "aggression": 4,
+      "gain": 1.0,
+      "redlineRpm": 8800,
+      "basePath": "/games/apex/sfx/engines/hypercar_tt_v8",
+      "texUrl": "/games/apex/tex/engines/hypercar_tt_v8.jpg",
+      "sourceFile": "Hypercar_engine_revs_and_roars_cf56bb36.mp4",
+      "slices": {
+        "idle": {
+          "start": 0.3,
+          "centroidHz": 523.9,
+          "f0Hz": 110.0
+        },
+        "mid": {
+          "start": 10.25,
+          "centroidHz": 860.6,
+          "f0Hz": 310.0
+        },
+        "high": {
+          "start": 9.1,
+          "centroidHz": 1227.1,
+          "f0Hz": 120.0
+        },
+        "decel": {
+          "start": 12.3
+        }
+      }
+    },
+    "megacar_w16": {
+      "id": "megacar_w16",
+      "label": "Megacar Quad-Turbo W16",
+      "arch": "w16-quad",
+      "aggression": 4,
+      "gain": 1.04,
+      "redlineRpm": 9200,
+      "basePath": "/games/apex/sfx/engines/megacar_w16",
+      "texUrl": "/games/apex/tex/engines/megacar_w16.jpg",
+      "sourceFile": "Megacar_engine_revs_and_roars_a048907f.mp4",
+      "slices": {
+        "idle": {
+          "start": 12.8,
+          "centroidHz": 544.1,
+          "f0Hz": 215.0
+        },
+        "mid": {
+          "start": 2.35,
+          "centroidHz": 656.1,
+          "f0Hz": 140.0
+        },
+        "high": {
+          "start": 9.45,
+          "centroidHz": 914.6,
+          "f0Hz": 400.0
+        },
+        "decel": {
+          "start": 12.05
+        }
+      }
+    },
+    "muscle_v8": {
+      "id": "muscle_v8",
+      "label": "High-Displacement Muscle V8",
+      "arch": "muscle-v8",
+      "aggression": 3,
+      "gain": 0.96,
+      "redlineRpm": 6800,
+      "basePath": "/games/apex/sfx/engines/muscle_v8",
+      "texUrl": "/games/apex/tex/engines/muscle_v8.jpg",
+      "sourceFile": "Muscle_car_engine_revving_a7857eb6.mp4",
+      "slices": {
+        "idle": {
+          "start": 12.8,
+          "centroidHz": 546.8,
+          "f0Hz": 120.0
+        },
+        "mid": {
+          "start": 2.1,
+          "centroidHz": 811.8,
+          "f0Hz": 150.0
+        },
+        "high": {
+          "start": 9.7,
+          "centroidHz": 1056.1,
+          "f0Hz": 420.0
+        },
+        "decel": {
+          "start": 10.7
+        }
+      }
+    },
+    "perf_coupe_i6": {
+      "id": "perf_coupe_i6",
+      "label": "Twin-Turbo Inline-6 Coupe",
+      "arch": "i6-turbo",
+      "aggression": 3,
+      "gain": 0.94,
+      "redlineRpm": 7600,
+      "basePath": "/games/apex/sfx/engines/perf_coupe_i6",
+      "texUrl": "/games/apex/tex/engines/perf_coupe_i6.jpg",
+      "sourceFile": "Performance_coupe_engine_acceler\u2026_f7739a69.mp4",
+      "slices": {
+        "idle": {
+          "start": 0.3,
+          "centroidHz": 400.4,
+          "f0Hz": 120.0
+        },
+        "mid": {
+          "start": 2.95,
+          "centroidHz": 527.6,
+          "f0Hz": 160.0
+        },
+        "high": {
+          "start": 6.9,
+          "centroidHz": 968.7,
+          "f0Hz": 390.0
+        },
+        "decel": {
+          "start": 11.2
+        }
+      }
+    },
+    "pickup_v8": {
+      "id": "pickup_v8",
+      "label": "Everyday Gas Pickup V8",
+      "arch": "pickup-v8",
+      "aggression": 1,
+      "gain": 0.82,
+      "redlineRpm": 5800,
+      "basePath": "/games/apex/sfx/engines/pickup_v8",
+      "texUrl": "/games/apex/tex/engines/pickup_v8.jpg",
+      "sourceFile": "Pickup_truck_engine_running_and_07e242b7.mp4",
+      "slices": {
+        "idle": {
+          "start": 12.8,
+          "centroidHz": 834.0,
+          "f0Hz": 80.0
+        },
+        "mid": {
+          "start": 8.95,
+          "centroidHz": 902.0,
+          "f0Hz": 310.0
+        },
+        "high": {
+          "start": 6.75,
+          "centroidHz": 1032.5,
+          "f0Hz": 410.0
+        },
+        "decel": {
+          "start": 8.2
+        }
+      }
+    },
+    "rotary_twin": {
+      "id": "rotary_twin",
+      "label": "High-Rev Twin Rotary ITB",
+      "arch": "rotary",
+      "aggression": 3,
+      "gain": 0.96,
+      "redlineRpm": 9500,
+      "basePath": "/games/apex/sfx/engines/rotary_twin",
+      "texUrl": "/games/apex/tex/engines/rotary_twin.jpg",
+      "sourceFile": "Rotary_engine_revving_and_backfi\u2026_daf625e7.mp4",
+      "slices": {
+        "idle": {
+          "start": 12.8,
+          "centroidHz": 554.7,
+          "f0Hz": 200.0
+        },
+        "mid": {
+          "start": 10.15,
+          "centroidHz": 790.5,
+          "f0Hz": 210.0
+        },
+        "high": {
+          "start": 7.55,
+          "centroidHz": 1041.7,
+          "f0Hz": 420.0
+        },
+        "decel": {
+          "start": 10.45
+        }
+      }
+    },
+    "suv_v6_stock": {
+      "id": "suv_v6_stock",
+      "label": "Stock Everyday 3.6L V6 SUV",
+      "arch": "suv-v6",
+      "aggression": 0,
+      "gain": 0.7,
+      "redlineRpm": 6200,
+      "basePath": "/games/apex/sfx/engines/suv_v6_stock",
+      "texUrl": "/games/apex/tex/engines/suv_v6_stock.jpg",
+      "sourceFile": "SUV_engine_bay_running_audio_2af2a48e.mp4",
+      "slices": {
+        "idle": {
+          "start": 12.1,
+          "centroidHz": 961.5,
+          "f0Hz": 355.0
+        },
+        "mid": {
+          "start": 8.7,
+          "centroidHz": 1112.3,
+          "f0Hz": 110.0
+        },
+        "high": {
+          "start": 5.9,
+          "centroidHz": 1205.1,
+          "f0Hz": 150.0
+        },
+        "decel": {
+          "start": 6.6
+        }
+      }
+    },
+    "sports_car_gt": {
+      "id": "sports_car_gt",
+      "label": "Carbon-Plenum NA GT V8",
+      "arch": "sports-v8",
+      "aggression": 3,
+      "gain": 0.95,
+      "redlineRpm": 8000,
+      "basePath": "/games/apex/sfx/engines/sports_car_gt",
+      "texUrl": "/games/apex/tex/engines/sports_car_gt.jpg",
+      "sourceFile": "Sports_car_engine_revving_037e9b79.mp4",
+      "slices": {
+        "idle": {
+          "start": 0.85,
+          "centroidHz": 693.9,
+          "f0Hz": 100.0
+        },
+        "mid": {
+          "start": 8.95,
+          "centroidHz": 891.8,
+          "f0Hz": 370.0
+        },
+        "high": {
+          "start": 4.65,
+          "centroidHz": 1147.8,
+          "f0Hz": 140.0
+        },
+        "decel": {
+          "start": 13.0
+        }
+      }
+    },
+    "sports_sedan_20t": {
+      "id": "sports_sedan_20t",
+      "label": "2.0L Turbo Sport / Touring",
+      "arch": "i4-turbo",
+      "aggression": 2,
+      "gain": 0.9,
+      "redlineRpm": 7200,
+      "basePath": "/games/apex/sfx/engines/sports_sedan_20t",
+      "texUrl": "/games/apex/tex/engines/sports_sedan_20t.jpg",
+      "sourceFile": "Sports_sedan_engine_revving_and_67016be1.mp4",
+      "slices": {
+        "idle": {
+          "start": 12.8,
+          "centroidHz": 469.3,
+          "f0Hz": 110.0
+        },
+        "mid": {
+          "start": 2.15,
+          "centroidHz": 738.0,
+          "f0Hz": 140.0
+        },
+        "high": {
+          "start": 6.85,
+          "centroidHz": 1047.9,
+          "f0Hz": 375.0
+        },
+        "decel": {
+          "start": 12.25
+        }
+      }
+    },
+    "supercar_v12": {
+      "id": "supercar_v12",
+      "label": "6.5L Exotic V12",
+      "arch": "v12",
+      "aggression": 4,
+      "gain": 1.0,
+      "redlineRpm": 9000,
+      "basePath": "/games/apex/sfx/engines/supercar_v12",
+      "texUrl": "/games/apex/tex/engines/supercar_v12.jpg",
+      "sourceFile": "Supercar_V12_engine_revving_audio_5563dca7.mp4",
+      "slices": {
+        "idle": {
+          "start": 12.8,
+          "centroidHz": 634.7,
+          "f0Hz": 130.0
+        },
+        "mid": {
+          "start": 3.05,
+          "centroidHz": 883.1,
+          "f0Hz": 320.0
+        },
+        "high": {
+          "start": 6.65,
+          "centroidHz": 1128.2,
+          "f0Hz": 130.0
+        },
+        "decel": {
+          "start": 9.8
+        }
+      }
+    },
+    "supercar_v10": {
+      "id": "supercar_v10",
+      "label": "5.2L Exotic V10",
+      "arch": "na-v10",
+      "aggression": 4,
+      "gain": 0.98,
+      "redlineRpm": 8600,
+      "basePath": "/games/apex/sfx/engines/supercar_v10",
+      "texUrl": "/games/apex/tex/engines/supercar_v10.jpg",
+      "sourceFile": "Supercar_engine_revving_58e38d9c.mp4",
+      "slices": {
+        "idle": {
+          "start": 0.3,
+          "centroidHz": 571.8,
+          "f0Hz": 200.0
+        },
+        "mid": {
+          "start": 10.65,
+          "centroidHz": 885.3,
+          "f0Hz": 360.0
+        },
+        "high": {
+          "start": 5.1,
+          "centroidHz": 1175.1,
+          "f0Hz": 125.0
+        },
+        "decel": {
+          "start": 11.4
+        }
+      }
+    },
+    "sc_v8_blower": {
+      "id": "sc_v8_blower",
+      "label": "Supercharged Blower V8",
+      "arch": "sc-v8",
+      "aggression": 3,
+      "gain": 0.98,
+      "redlineRpm": 7600,
+      "basePath": "/games/apex/sfx/engines/sc_v8_blower",
+      "texUrl": "/games/apex/tex/engines/sc_v8_blower.jpg",
+      "sourceFile": "Supercharged_V8_engine_revving_3c509d3c.mp4",
+      "slices": {
+        "idle": {
+          "start": 11.85,
+          "centroidHz": 587.2,
+          "f0Hz": 120.0
+        },
+        "mid": {
+          "start": 8.25,
+          "centroidHz": 720.6,
+          "f0Hz": 340.0
+        },
+        "high": {
+          "start": 5.7,
+          "centroidHz": 956.7,
+          "f0Hz": 410.0
+        },
+        "decel": {
+          "start": 7.85
+        }
+      }
+    },
+    "turbo_i5": {
+      "id": "turbo_i5",
+      "label": "Turbocharged Inline-5 Rally",
+      "arch": "i5-turbo",
+      "aggression": 3,
+      "gain": 0.95,
+      "redlineRpm": 7800,
+      "basePath": "/games/apex/sfx/engines/turbo_i5",
+      "texUrl": "/games/apex/tex/engines/turbo_i5.jpg",
+      "sourceFile": "Turbocharged_inline-5_engine_acc\u2026_eb52150c.mp4",
+      "slices": {
+        "idle": {
+          "start": 12.8,
+          "centroidHz": 616.2,
+          "f0Hz": 330.0
+        },
+        "mid": {
+          "start": 0.85,
+          "centroidHz": 1118.5,
+          "f0Hz": 60.0
+        },
+        "high": {
+          "start": 6.95,
+          "centroidHz": 1144.2,
+          "f0Hz": 230.0
+        },
+        "decel": {
+          "start": 11.3
+        }
+      }
+    },
+    "v6_suv_sport": {
+      "id": "v6_suv_sport",
+      "label": "Turbocharged Sport V6 SUV",
+      "arch": "suv-v6",
+      "aggression": 2,
+      "gain": 0.86,
+      "redlineRpm": 6800,
+      "basePath": "/games/apex/sfx/engines/v6_suv_sport",
+      "texUrl": "/games/apex/tex/engines/v6_suv_sport.jpg",
+      "sourceFile": "V6_SUV_engine_revving_audio_944a6c9f.mp4",
+      "slices": {
+        "idle": {
+          "start": 11.7,
+          "centroidHz": 699.2,
+          "f0Hz": 170.0
+        },
+        "mid": {
+          "start": 3.7,
+          "centroidHz": 863.9,
+          "f0Hz": 220.0
+        },
+        "high": {
+          "start": 6.9,
+          "centroidHz": 1087.0,
+          "f0Hz": 395.0
+        },
+        "decel": {
+          "start": 10.75
+        }
+      }
+    },
+    "v6_sedan": {
+      "id": "v6_sedan",
+      "label": "3.5L DOHC Executive V6",
+      "arch": "v6-sedan",
+      "aggression": 0,
+      "gain": 0.72,
+      "redlineRpm": 6400,
+      "basePath": "/games/apex/sfx/engines/v6_sedan",
+      "texUrl": "/games/apex/tex/engines/v6_sedan.jpg",
+      "sourceFile": "V6_engine_revving_and_driving_9cde6641.mp4",
+      "slices": {
+        "idle": {
+          "start": 0.3,
+          "centroidHz": 762.0,
+          "f0Hz": 120.0
+        },
+        "mid": {
+          "start": 10.05,
+          "centroidHz": 868.3,
+          "f0Hz": 130.0
+        },
+        "high": {
+          "start": 6.2,
+          "centroidHz": 1098.4,
+          "f0Hz": 190.0
+        },
+        "decel": {
+          "start": 7.0
+        }
+      }
+    },
+    "v8_lux_suv": {
+      "id": "v8_lux_suv",
+      "label": "Twin-Turbo Luxury V8 SUV",
+      "arch": "tt-v8",
+      "aggression": 2,
+      "gain": 0.9,
+      "redlineRpm": 6800,
+      "basePath": "/games/apex/sfx/engines/v8_lux_suv",
+      "texUrl": "/games/apex/tex/engines/v8_lux_suv.jpg",
+      "sourceFile": "V8_luxury_SUV_engine_accelerating_404ecf9a.mp4",
+      "slices": {
+        "idle": {
+          "start": 11.55,
+          "centroidHz": 476.4,
+          "f0Hz": 120.0
+        },
+        "mid": {
+          "start": 7.65,
+          "centroidHz": 785.1,
+          "f0Hz": 300.0
+        },
+        "high": {
+          "start": 6.65,
+          "centroidHz": 978.0,
+          "f0Hz": 375.0
+        },
+        "decel": {
+          "start": 7.45
+        }
+      }
+    }
+  }
+}

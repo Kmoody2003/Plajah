@@ -1,0 +1,86 @@
+{
+  "id": "vanguard",
+  "name": "Vanguard Apex GT",
+  "glb": "/games/apex/car/vanguard_base.glb",
+  "paint": "0x8f98a6",
+  "accent": "0xd92323",
+  "cuts": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Oriented 60k-face Hunyuan3D shell from tightly cropped car/vanguard/views/frame0.png (0.00 deg symmetry, Taubin-smoothed). Positions measured from vanguard_base.glb.",
+  "wheels": {
+    "frontZ": 1.42,
+    "rearZ": -1.50,
+    "frontX": 0.90,
+    "rearX": 0.90,
+    "scale": 1.04,
+    "discardR": 0.382,
+    "centreY": 0.368,
+    "tyreR": 0.368,
+    "rimR": 0.258
+  },
+  "panels": {
+    "doorL": { "hinge": [0.96, 0.0, 0.82], "axis": [0.22, 0.975, 0], "open": -1.05 },
+    "doorR": { "hinge": [-0.96, 0.0, 0.82], "axis": [-0.22, 0.975, 0], "open": 1.05 }
+  },
+  "panelBoxes": {
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 0.86,
+    "roofEdge": 1.16,
+    "pillarBase": 0.96,
+    "pillarTop": 0.22,
+    "doorFront": 0.84,
+    "doorRear": -0.46,
+    "windBase": 1.08,
+    "windTop": 0.22,
+    "rearTop": -0.82,
+    "rearBase": -1.42,
+    "rearBase2": -1.40,
+    "windHalfW": 0.60,
+    "rearHalfW": 0.42,
+    "sideWindow": [
+      [-0.50, 0.94],
+      [0.76, 0.88],
+      [0.64, 1.02],
+      [0.34, 1.14],
+      [0.00, 1.18],
+      [-0.40, 1.14],
+      [-0.72, 1.02]
+    ],
+    "handle": [-0.22, 0.78]
+  },
+  "front": {
+    "openings": [
+      { "name": "lowerCentre", "mesh": "hex", "poly": [[-0.44, 0.12], [0.44, 0.12], [0.50, 0.34], [-0.50, 0.34]] },
+      { "name": "cornerR", "mesh": "hex", "poly": [[0.58, 0.14], [0.94, 0.16], [0.96, 0.38], [0.56, 0.40]] },
+      { "name": "cornerL", "mesh": "hex", "poly": [[-0.56, 0.40], [-0.96, 0.38], [-0.94, 0.16], [-0.58, 0.14]] }
+    ]
+  },
+  "engine": { "z": -1.05, "layout": "mid-v8", "arch": "tt-v8", "texUrl": "/games/apex/tex/engines/hypercar_tt_v8.jpg" },
+  "trunk": false,
+  "cabin": { "yOffset": -0.17, "zOffset": 0.14, "cowlZ": 1.08, "cowlY": 0 },
+  "exhaust": { "z": -2.20, "y": 0.48, "xs": [-0.22, 0.22] },
+  "aero": {
+    "splitterZ": 1.98,
+    "splitterW": 0,
+    "splitterY": 0.06,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 1.72,
+    "diffuserFins": 4,
+    "wing": { "type": "none", "width": 0, "y": 0, "z": 0 }
+  },
+  "lamps": {
+    "head": { "x": 0.57, "y": 0.50, "w": 0.35, "h": 0.078, "tilt": 0.078, "style": "blade" },
+    "tail": { "x": 0.58, "y": 0.72, "len": 0.38, "style": "full-blade" }
+  },
+  "shader": {
+    "bumperFrontY": 0.42,
+    "bumperRearY": 0.62,
+    "skirtY": 0.22,
+    "archLipAdd": 0.04,
+    "wingCarbonZ": -1.78,
+    "wingCarbonY": 0.92
+  }
+}

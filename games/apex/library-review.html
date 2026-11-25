@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Apex library review</title>
+<style>
+  body { margin: 0; background: #1c1d20; color: #ddd; font: 13px system-ui, sans-serif; }
+  .row { display: grid; grid-template-columns: 1fr; gap: 6px; padding: 10px 14px 18px; border-bottom: 1px solid #333; }
+  .row h2 { margin: 0; font-size: 15px; font-weight: 600; }
+  .sheet { max-width: 100%; height: 190px; object-fit: contain; object-position: left; background: #eee; }
+  .views { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .views canvas { width: 100%; height: auto; background: #9fb2c4; }
+</style>
+</head>
+<body>
+<div id="rows"></div>
+<script type="module">
+// Plajah 3D builds of the district sheets beside their sheets (src/library/modelled.ts places them in the game): front, side, raised three-quarter.
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const idx = await fetch('/games/apex/library/index.json').then((r) => r.json());
+const W = 640, H = 400;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const loader = new GLTFLoader();
+for (const p of idx.pieces) {
+  const row = document.createElement('div'); row.className = 'row';
+  row.innerHTML = `<h2>${p.id.replace(/_/g, ' ')}</h2><img class="sheet" src="/games/apex/library/sheets/${p.id}.png"><div class="views"></div>`;
+  document.getElementById('rows').appendChild(row);
+  const scene = new THREE.Scene(); scene.background = new THREE.Color(0x9fb2c4);
+  scene.add(new THREE.HemisphereLight(0xeef4ff, 0x6b6253, 1.5));
+  const sun = new THREE.DirectionalLight(0xfff1dc, 2.4); sun.position.set(0.6, 1, 0.8); scene.add(sun);
+  const g = (await loader.loadAsync(`/games/apex/library/${p.id}.glb`)).scene;
+  const b = new THREE.Box3().setFromObject(g), s = b.getSize(new THREE.Vector3()), c = b.getCenter(new THREE.Vector3());
+  g.position.sub(c); scene.add(g);
+  const r = Math.max(s.x, s.y, s.z);
+  const cam = new THREE.PerspectiveCamera(24, W / H, r * 0.01, r * 20);
+  for (const [name, dir] of [['front', [0, 0.05, 1]], ['side', [1, 0.05, 0]], ['three-quarter', [0.8, 0.55, 0.9]]]) {
+    const d = new THREE.Vector3(...dir).normalize();
+    cam.position.copy(d.multiplyScalar(r * 2.6)); cam.lookAt(0, 0, 0);
+    renderer.render(scene, cam);
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H; cv.getContext('2d').drawImage(renderer.domElement, 0, 0); cv.title = name;
+    row.querySelector('.views').appendChild(cv);
+  }
+}
+document.body.dataset.ready = '1';
+</script>
+</body>
+</html>

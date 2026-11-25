@@ -1,16 +1,16 @@
 // Build the Apex district library pieces with Plajah 3D's build-from-sheet (services/argilla/understand/sheetBuild.ts), one asset sheet each
-// (games/forth-horizon/tools/district_sheets.py mini). Runs in the Plajah 3D lab (argilla-lab, :3214) against the Tela 3D runtime (:51124).
+// (games/apex/tools/district_sheets.py mini). Runs in the Plajah 3D lab (argilla-lab, :3214) against the Tela 3D runtime (:51124).
 // usage: node scripts/apex-build-district-assets.mjs <mini sheets dir> [id,id,...]
-// Writes games/forth-horizon/assets-src/district/<id>/{sheet.png,shape.glb,body.glb,painted.glb,report.json} and
-// then games/forth-horizon/tools/district_game_glb.py makes the game copies (public/games/forth-horizon/library/<id>.glb, 1k JPEG textures) and index.json.
+// Writes games/apex/assets-src/district/<id>/{sheet.png,shape.glb,body.glb,painted.glb,report.json} and
+// then games/apex/tools/district_game_glb.py makes the game copies (public/games/apex/library/<id>.glb, 1k JPEG textures) and index.json.
 import {chromium} from 'playwright';
 import fs from 'node:fs';
 import path from 'node:path';
 
 const dir = path.resolve(process.argv[2]);
 const only = (process.argv[3] || '').split(',').filter(Boolean);
-const manifest = JSON.parse(fs.readFileSync('games/forth-horizon/tools/data/district_assets.json', 'utf8'));
-const SRC = 'games/forth-horizon/assets-src/district';
+const manifest = JSON.parse(fs.readFileSync('games/apex/tools/data/district_assets.json', 'utf8'));
+const SRC = 'games/apex/assets-src/district';
 const browser = await chromium.launch({args: ['--enable-gpu', '--ignore-gpu-blocklist']});
 const page = await browser.newPage();
 page.on('console', (m) => { if (m.type() === 'error') console.log('  [page]', m.text().slice(0, 300)); });
@@ -40,4 +40,4 @@ for (const a of manifest.assets) {
   await fetch('http://127.0.0.1:51124/tela3d/release', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'}).catch(() => {});
 }
 await browser.close();
-console.log('next: "D:/Plajah Runtime/tela3d-py/Scripts/python.exe" games/forth-horizon/tools/district_game_glb.py (game copies + index.json), then review at /library-review.html');
+console.log('next: "D:/Plajah Runtime/tela3d-py/Scripts/python.exe" games/apex/tools/district_game_glb.py (game copies + index.json), then review at /library-review.html');

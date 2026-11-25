@@ -7,7 +7,7 @@
 // from the night fog (coloured by the nebula environment) to a blue-green day haze that warms toward the sun, and to
 // amber at golden hour. The post chain's godrays use the same light, so shafts follow the sun (and the moon).
 //
-// Weather: the six states of Apex's weather (games/forth-horizon/src/weather.ts: clear, partly cloudy, overcast, fog,
+// Weather: the six states of Apex's weather (games/apex/src/weather.ts: clear, partly cloudy, overcast, fog,
 // rain, thunderstorm — each a set of multipliers on sun, sky light, haze, clouds, rain and wind), switched by a
 // sporadic director: short spells, sudden squalls, fog banks rolling in, breaks of sun. Rain, splashes, lightning
 // bolts and thunder that arrives by distance are Era Clash's Weather (games/era-clash-3d/src/core/weather.ts, WebGPU).
@@ -18,7 +18,7 @@
 import * as THREE from 'three/webgpu';
 import { smoothstep, cameraPosition, color, densityFogFactor, float, fog, max, mix, normalize, pmremTexture, positionWorld, uniform, vec3, vec4 } from 'three/tsl';
 import { SkyMesh } from 'three/addons/objects/SkyMesh.js';
-import { WEATHERS, type WxParams } from '../../../forth-horizon/src/weather';
+import { WEATHERS, type WxParams } from '../../../apex/src/weather';
 import { Weather } from '../../../era-clash-3d/src/core/weather';
 import { auroraCurtains, volumetricClouds, AURORA_PALETTES } from '../../../../services/sky';
 

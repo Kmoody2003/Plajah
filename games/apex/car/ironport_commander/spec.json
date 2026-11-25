@@ -1,0 +1,224 @@
+{
+  "id": "ironport_commander",
+  "name": "Ironport Commander 4x4",
+  "glb": "/games/apex/car/ironport_commander_base.glb",
+  "paint": "0x3c4c3e",
+  "accent": "0x181c1a",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (ironport_commander_base.glb, L=4.91m W=2.08m H=1.94m).",
+  "wheels": {
+    "frontZ": 1.474,
+    "rearZ": -1.402,
+    "frontX": 0.707,
+    "rearX": 0.699,
+    "scale": 1.157,
+    "discardR": 0.427,
+    "centreY": 0.411,
+    "tyreR": 0.411,
+    "rimR": 0.264,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.937,
+        0.0,
+        0.974
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.937,
+        0.0,
+        0.974
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.423,
+        0.954
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.708,
+        1.183,
+        0.974
+      ],
+      [
+        0.708,
+        1.663,
+        2.296
+      ]
+    ],
+    "trunk": [
+      [
+        -0.624,
+        1.263,
+        -2.336
+      ],
+      [
+        0.624,
+        1.643,
+        -2.253
+      ]
+    ],
+    "roof": [
+      [
+        -0.719,
+        1.741,
+        -1.99
+      ],
+      [
+        0.719,
+        2.084,
+        0.609
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.423,
+    "roofEdge": 1.881,
+    "pillarBase": 0.934,
+    "pillarTop": 0.609,
+    "doorFront": 0.974,
+    "doorRear": -0.376,
+    "windBase": 0.934,
+    "windTop": 0.609,
+    "rearTop": -1.99,
+    "rearBase": -2.233,
+    "rearBase2": -2.213,
+    "windHalfW": 0.719,
+    "rearHalfW": 0.676,
+    "sideWindow": [
+      [
+        -2.03,
+        1.453
+      ],
+      [
+        0.934,
+        1.443
+      ],
+      [
+        0.894,
+        1.615
+      ],
+      [
+        0.792,
+        1.78
+      ],
+      [
+        0.609,
+        1.851
+      ],
+      [
+        -1.95,
+        1.851
+      ],
+      [
+        -2.07,
+        1.734
+      ],
+      [
+        -2.09,
+        1.473
+      ]
+    ],
+    "handle": [
+      0.139,
+      1.283
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.394,
+    "layout": "front-v8",
+    "arch": "pickup-v8",
+    "texUrl": "/games/apex/tex/engines/pickup_v8.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.524,
+    "zOffset": -0.304,
+    "cowlZ": 0.884,
+    "cowlY": 1.443
+  },
+  "exhaust": {
+    "z": -2.323,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.421,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.583,
+      "y": 0.914,
+      "w": 0.271,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.604,
+      "y": 0.909,
+      "len": 0.312,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.674,
+    "grilleHiY": 0.964,
+    "grilleStyle": "truck"
+  }
+}

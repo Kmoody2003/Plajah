@@ -6,15 +6,15 @@ You are picking up a browser racing game called **Apex Elohim** (pre-alpha), par
 
 An open-world racing game in Three.js (WebGL, not WebGPU). You drive the Kestrel Sovereign GT-R through downtown Ironport (real Detroit streets), along the Great Lakes coast and a rally trail. It has its own vehicle physics, a broadcast replay, dynamic weather (rain, puddles, aquaplaning, spray), flowing water, 3D trees and grass, a photoreal city, controller and touch input.
 
-It is listed in Plajah Games and opens in an iframe. Production URL path: `/games/forth-horizon/play/region.html`.
+It is listed in Plajah Games and opens in an iframe. Production URL path: `/games/apex/play/region.html`.
 
 ## 2. Where everything is
 
-All game source is in `games/forth-horizon/` (the folder name is old; the game is Apex Elohim).
+All game source is in `games/apex/` (the folder name is old; the game is Apex Elohim).
 
 | Path | What it is |
 |---|---|
-| `games/forth-horizon/src/region.ts` | The main game (about 2,700 lines): terrain, city, streets, curbs, weather hookup, driving, camera, menus, render loop |
+| `games/apex/src/region.ts` | The main game (about 2,700 lines): terrain, city, streets, curbs, weather hookup, driving, camera, menus, render loop |
 | `src/physics.ts` | Vehicle model (gears, suspension, tyres, drift). Do not rewrite it; tune only |
 | `src/scancar.ts`, `scanparts.ts`, `car.ts` | The car: a scanned body cut into panels with hinges, glass, interior |
 | `src/weather.ts` | Weather presets, rain, lightning |
@@ -28,9 +28,9 @@ All game source is in `games/forth-horizon/` (the folder name is old; the game i
 | `src/inputs.ts` | Gamepad and touch controls |
 | `src/ao.ts` | Ambient occlusion pass (new, needs verification) |
 | `src/grade.ts` | Colour grade (LUTs) and lens options (new, needs verification) |
-| `games/forth-horizon/region.html` | The page and the Settings panel |
-| `games/forth-horizon/tools/*.py` | Asset pipelines (see section 6) |
-| `public/games/forth-horizon/` | Shipped assets and the built game (`play/`) |
+| `games/apex/region.html` | The page and the Settings panel |
+| `games/apex/tools/*.py` | Asset pipelines (see section 6) |
+| `public/games/apex/` | Shipped assets and the built game (`play/`) |
 | `docs/apex-elohim/` | Design notes; `texture-prompts.md` lists the Flow texture prompts |
 
 Also relevant: `data/plajahGamesCatalog.ts` (the Games listing), `components/games/IframeGameFrame.tsx`.
@@ -38,7 +38,7 @@ Also relevant: `data/plajahGamesCatalog.ts` (the Games listing), `components/gam
 ## 3. Running and checking it
 
 ```bash
-node ./node_modules/vite/bin/vite.js --config games/forth-horizon/vite.config.mjs      # dev server, port 4332
+node ./node_modules/vite/bin/vite.js --config games/apex/vite.config.mjs      # dev server, port 4332
 ```
 
 Open `http://127.0.0.1:4332/region.html`. Use `127.0.0.1`.
@@ -52,7 +52,7 @@ Debug handle in the browser console: `window.regionViewer`:
 - `debug().cityItems` and `debug().cityPath` for placing the camera.
 - `apexGrade.set(lutId, lensId, amount)` sets the colour grade and lens.
 
-Build the playable page: `node ./node_modules/vite/bin/vite.js build --config games/forth-horizon/vite.config.mjs` (writes `public/games/forth-horizon/play/`). **Read the build's own exit line.** A wrapper can say 0 when the build failed.
+Build the playable page: `node ./node_modules/vite/bin/vite.js build --config games/apex/vite.config.mjs` (writes `public/games/apex/play/`). **Read the build's own exit line.** A wrapper can say 0 when the build failed.
 
 Baseline performance on the dev machine: about 38 to 40 fps in the browser pane with rain, trees and the city. Measure frame rate after each rendering change and tell the owner if it drops by more than about 5 fps.
 
@@ -61,7 +61,7 @@ Baseline performance on the dev machine: about 38 to 40 fps in the browser pane 
 1. Many other sessions share this checkout. **Stage and commit only files you changed for this game.** Never `git add -A` at the repo root. Never touch files under `era-clash`, `rift-realm`, `ravencrest`, or `kith` unless the task says so.
 2. **Do not push to `master`.** A push to `master` is a production deploy. Commit to a branch and let the owner decide. If the owner asks you to ship, do it from a clean worktree that contains only this game's files, and run the full site build first.
 3. Keep raw media out of git. No raw PNG textures, no zips, no source art. Large source files belong in `D:\plajah game assets deign from promtps\racer\`.
-4. Anything the game loads must exist in `public/` (the deployed site has no access to the D: drive). The Ironport city models and textures are packed into `public/games/forth-horizon/ironport/` by `tools/pack_ironport.py`.
+4. Anything the game loads must exist in `public/` (the deployed site has no access to the D: drive). The Ironport city models and textures are packed into `public/games/apex/ironport/` by `tools/pack_ironport.py`.
 5. Never use the jumbled texture-atlas image of the car as a modelling reference. The scanned body is the car's shell.
 6. Safety and honesty: do not claim something works unless you saw it work in the browser. Say what you did not check.
 7. Budgets: texture memory matters. Colour maps 2048, normal and roughness 1024. No new always-on full-screen pass costing more than about 2 ms without telling the owner.

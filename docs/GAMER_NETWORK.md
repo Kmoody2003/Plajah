@@ -203,7 +203,7 @@ changing the API, the tickets or the ledger.
 | Standings → ledger bodies (multiplayer Elo) | `services/realtime/settle.ts` |
 | API: queue, codes, tickets, result intake | `routes/gamerRealtime.ts` (mounted by `routes/gamerNet.ts` at `/rt`) |
 | Browser client (tickets, clock sync, reconnect) | `services/realtime/client.ts` |
-| First client: Plajah Motorsport Apex online race | `games/forth-horizon/src/onlineMultiplayer.ts` (`joinServerRace`), `onlineLobby.ts`, `region.ts` |
+| First client: Plajah Motorsport Apex online race | `games/apex/src/onlineMultiplayer.ts` (`joinServerRace`), `onlineLobby.ts`, `region.ts` |
 | Tests | `npm run test:realtime` · `npm run typecheck:realtime` |
 | Lab | `npm run realtime:lab` → `http://127.0.0.1:4341/region.html?as=alice` and `?as=bob` |
 | Image | `services/realtime/deploy/Dockerfile` (build from the repo root) |
@@ -242,7 +242,7 @@ same seat replaces the first (close code 4001).
 | `{t:'leave'}` | `{t:'tick', n, at, s:[{seat,…}]}`: changed states every tick, a full snapshot once a second |
 | | `{t:'finish', seat, place, timeMs}` · `{t:'result', result}` · `{t:'recorded', ok}` · `{t:'left', seat}` |
 
-* **Tick:** per game, clamped to 5–60 Hz (`fh-race`: 20). An optional `interestRadius` sends only nearby players' states.
+* **Tick:** per game, clamped to 5–60 Hz (`apex-race`: 20). An optional `interestRadius` sends only nearby players' states.
 * **Lobby → countdown:** when everyone connected is ready and there are at least `min` players (a queued match: all
   of them). Unreadying or dropping during the countdown goes back to the lobby. Seats that weren't on the grid at GO are removed.
 * **Reconnect:** a dropped seat is held for `reconnectGraceMs` (20 s). After that it's freed in the lobby and counts as a DNF in a race.
@@ -269,7 +269,7 @@ It then fixes the ledger plan in the match doc, so a retry replays exactly the s
   `nextRating` (tested).
 * **Anti-farming:** each entry names one opponent (1v1: the other player; a field: the winner names the runner-up and everyone
   else names the player directly ahead). So `score.ts`'s cap applies unchanged: `PAIR_DAILY_CAP` (5) counted matches per opponent per UTC day (tested).
-* Leaderboards accept realtime game ids: `/leaderboard?game=fh-race`.
+* Leaderboards accept realtime game ids: `/leaderboard?game=apex-race`.
 
 ### Deploy (not done: nothing is deployed or pushed)
 

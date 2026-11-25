@@ -1,0 +1,233 @@
+{
+  "id": "zephyr_emotion",
+  "name": "Zephyr E-Motion",
+  "glb": "/games/apex/car/zephyr_emotion_base.glb",
+  "paint": "0x364a5e",
+  "accent": "0x22d4ff",
+  "cuts": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (zephyr_emotion_base.glb, L=4.86m W=2.04m H=1.44m).",
+  "wheels": {
+    "frontZ": 1.401,
+    "rearZ": -1.429,
+    "frontX": 0.794,
+    "rearX": 0.784,
+    "scale": 1.08,
+    "discardR": 0.398,
+    "centreY": 0.383,
+    "tyreR": 0.383,
+    "rimR": 0.268,
+    "style": "forged"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.919,
+        0.0,
+        0.958
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.919,
+        0.0,
+        0.958
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.065,
+        0.944
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    },
+    "trunk": {
+      "hinge": [
+        0.0,
+        1.085,
+        -2.13
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": 0.85
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.674,
+        0.825,
+        0.964
+      ],
+      [
+        0.674,
+        1.305,
+        2.251
+      ]
+    ],
+    "trunk": [
+      [
+        -0.592,
+        0.925,
+        -2.291
+      ],
+      [
+        0.592,
+        1.285,
+        -2.15
+      ]
+    ],
+    "roof": [
+      [
+        -0.661,
+        1.282,
+        -1.246
+      ],
+      [
+        0.661,
+        1.563,
+        0.442
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.065,
+    "roofEdge": 1.402,
+    "pillarBase": 0.924,
+    "pillarTop": 0.442,
+    "doorFront": 0.958,
+    "doorRear": -0.986,
+    "windBase": 0.924,
+    "windTop": 0.442,
+    "rearTop": -1.246,
+    "rearBase": -2.13,
+    "rearBase2": -2.1,
+    "windHalfW": 0.661,
+    "rearHalfW": 0.58,
+    "sideWindow": [
+      [
+        -0.926,
+        1.095
+      ],
+      [
+        0.898,
+        1.085
+      ],
+      [
+        0.858,
+        1.186
+      ],
+      [
+        0.7,
+        1.308
+      ],
+      [
+        0.442,
+        1.382
+      ],
+      [
+        -1.186,
+        1.382
+      ],
+      [
+        -1.406,
+        1.274
+      ],
+      [
+        -1.026,
+        1.125
+      ]
+    ],
+    "handle": [
+      -0.194,
+      0.925
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.51,
+    "layout": "ev",
+    "arch": "ev",
+    "texUrl": "/games/apex/tex/engines/hybrid_i4.jpg"
+  },
+  "trunk": true,
+  "cabin": {
+    "yOffset": 0.063,
+    "zOffset": -0.201,
+    "cowlZ": 0.874,
+    "cowlY": 1.065
+  },
+  "exhaust": {
+    "z": -2.317,
+    "y": 0.22,
+    "xs": []
+  },
+  "aero": {
+    "splitterZ": 2.42,
+    "splitterW": 0,
+    "splitterY": 0.11,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.551,
+      "y": 0.575,
+      "w": 0.286,
+      "h": 0.075,
+      "tilt": 0.025,
+      "style": "u-drl"
+    },
+    "tail": {
+      "x": 0.531,
+      "y": 0.701,
+      "len": 0.286,
+      "style": "full-blade"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.36,
+    "bumperRearY": 0.38,
+    "skirtY": 0.2,
+    "archLipAdd": 0.045,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.335,
+    "grilleHiY": 0.615,
+    "grilleStyle": "ev"
+  }
+}

@@ -1,6 +1,6 @@
 # Atmosphere prototype — 2026-11-17
 
-Implemented in `games/forth-horizon/src/atmosphere.ts`. Integration in `region.ts` is opt-in with `?atmosphere=1`; omit it or use `?atmosphere=0` for the unchanged baseline. No resolution, culling, shadow or performance-governor settings were changed.
+Implemented in `games/apex/src/atmosphere.ts`. Integration in `region.ts` is opt-in with `?atmosphere=1`; omit it or use `?atmosphere=0` for the unchanged baseline. No resolution, culling, shadow or performance-governor settings were changed.
 
 The shader integrates exponential height density along the view ray, adds bounded sun-facing tint, and retains existing far-fog coverage. Near-horizontal rays use a stable series limit. World position is reconstructed from the actual model-view vertex, including instancing. Map mode uses the original fog. Existing material compile hooks/cache keys are composed; Three's global shader chunks are not mutated. No extra framebuffer, texture lookup or fullscreen pass is added.
 

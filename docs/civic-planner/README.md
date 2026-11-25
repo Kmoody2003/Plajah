@@ -38,4 +38,4 @@ Plain JSON/binary layers with no game code inside: `heightmap`, `water`, `landcl
 - Every generator is a pure function of layers + rule pack; Apex-specific names and landmarks live in a setting pack.
 
 ## Status (2026-11-17)
-Working for Apex: terrain, streets, zones, buildings, parking, port, rail/airport, power with dry-land routing and underground river cables. First rule pack and audit: `games/forth-horizon/tools/civic/`. Next: move per-map constants out of the generators into the rule pack, add water/sewer/stormwater and flood margin, then split a game-agnostic `civic/` package out of `games/forth-horizon/tools`.
+Working for Apex: terrain, streets, zones, buildings, parking, port, rail/airport, power with dry-land routing and underground river cables. First rule pack and audit: `games/apex/tools/civic/`. Next: move per-map constants out of the generators into the rule pack, add water/sewer/stormwater and flood margin, then split a game-agnostic `civic/` package out of `games/apex/tools`.

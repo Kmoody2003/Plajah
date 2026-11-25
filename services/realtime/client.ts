@@ -2,7 +2,7 @@
 // then one WebSocket to the room's realtime shard. Clock sync by ping/pong (the lowest-RTT sample wins),
 // automatic reconnect inside the grace window using the room's resume ticket.
 //
-//   const rt = new RealtimeClient({ apiBase: '', getToken, game: 'fh-race', onEvent });
+//   const rt = new RealtimeClient({ apiBase: '', getToken, game: 'apex-race', onEvent });
 //   const matchId = await rt.quickMatch();            // or createPrivate() / joinCode(code)
 //   await rt.connect(matchId);
 //   rt.setReady(true); rt.sendState({ x, z, yaw, lap, splineT, ... });   // 20 Hz

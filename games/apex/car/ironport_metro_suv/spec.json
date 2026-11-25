@@ -1,0 +1,224 @@
+{
+  "id": "ironport_metro_suv",
+  "name": "Ironport Metro SUV",
+  "glb": "/games/apex/car/ironport_metro_suv_base.glb",
+  "paint": "0x727882",
+  "accent": "0x1c2024",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (ironport_metro_suv_base.glb, L=4.76m W=2.08m H=1.89m).",
+  "wheels": {
+    "frontZ": 1.42,
+    "rearZ": -1.442,
+    "frontX": 0.644,
+    "rearX": 0.64,
+    "scale": 1.124,
+    "discardR": 0.415,
+    "centreY": 0.399,
+    "tyreR": 0.399,
+    "rimR": 0.256,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.936,
+        0.0,
+        0.981
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.936,
+        0.0,
+        0.981
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.442,
+        1.003
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.707,
+        1.202,
+        1.023
+      ],
+      [
+        0.707,
+        1.682,
+        2.22
+      ]
+    ],
+    "trunk": [
+      [
+        -0.624,
+        1.282,
+        -2.26
+      ],
+      [
+        0.624,
+        1.662,
+        -2.183
+      ]
+    ],
+    "roof": [
+      [
+        -0.644,
+        1.664,
+        -1.691
+      ],
+      [
+        0.644,
+        2.028,
+        0.59
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.442,
+    "roofEdge": 1.804,
+    "pillarBase": 0.983,
+    "pillarTop": 0.59,
+    "doorFront": 0.981,
+    "doorRear": -0.369,
+    "windBase": 0.983,
+    "windTop": 0.59,
+    "rearTop": -1.691,
+    "rearBase": -2.163,
+    "rearBase2": -2.143,
+    "windHalfW": 0.644,
+    "rearHalfW": 0.498,
+    "sideWindow": [
+      [
+        -1.731,
+        1.472
+      ],
+      [
+        0.941,
+        1.462
+      ],
+      [
+        0.901,
+        1.594
+      ],
+      [
+        0.785,
+        1.724
+      ],
+      [
+        0.59,
+        1.774
+      ],
+      [
+        -1.651,
+        1.774
+      ],
+      [
+        -1.771,
+        1.688
+      ],
+      [
+        -1.791,
+        1.492
+      ]
+    ],
+    "handle": [
+      0.146,
+      1.302
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.34,
+    "layout": "front-v8",
+    "arch": "suv-v6",
+    "texUrl": "/games/apex/tex/engines/v6_suv_sport.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.468,
+    "zOffset": -0.242,
+    "cowlZ": 0.933,
+    "cowlY": 1.462
+  },
+  "exhaust": {
+    "z": -2.263,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.374,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.583,
+      "y": 0.853,
+      "w": 0.27,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.603,
+      "y": 0.931,
+      "len": 0.312,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.613,
+    "grilleHiY": 0.903,
+    "grilleStyle": "truck"
+  }
+}

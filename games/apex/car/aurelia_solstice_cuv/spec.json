@@ -1,0 +1,224 @@
+{
+  "id": "aurelia_solstice_cuv",
+  "name": "Aurelia Solstice Crossover",
+  "glb": "/games/apex/car/aurelia_solstice_cuv_base.glb",
+  "paint": "0xb85024",
+  "accent": "0x1a1c20",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (aurelia_solstice_cuv_base.glb, L=4.62m W=2.08m H=1.88m).",
+  "wheels": {
+    "frontZ": 1.378,
+    "rearZ": -1.341,
+    "frontX": 0.699,
+    "rearX": 0.688,
+    "scale": 1.119,
+    "discardR": 0.413,
+    "centreY": 0.397,
+    "tyreR": 0.397,
+    "rimR": 0.255,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.936,
+        0.0,
+        0.941
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.936,
+        0.0,
+        0.941
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.367,
+        1.05
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.707,
+        1.127,
+        1.07
+      ],
+      [
+        0.707,
+        1.607,
+        2.15
+      ]
+    ],
+    "trunk": [
+      [
+        -0.624,
+        1.207,
+        -2.19
+      ],
+      [
+        0.624,
+        1.587,
+        -2.194
+      ]
+    ],
+    "roof": [
+      [
+        -0.862,
+        1.666,
+        -1.792
+      ],
+      [
+        0.862,
+        2.019,
+        0.496
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.367,
+    "roofEdge": 1.806,
+    "pillarBase": 1.03,
+    "pillarTop": 0.496,
+    "doorFront": 0.941,
+    "doorRear": -0.409,
+    "windBase": 1.03,
+    "windTop": 0.496,
+    "rearTop": -1.792,
+    "rearBase": -2.174,
+    "rearBase2": -2.154,
+    "windHalfW": 0.862,
+    "rearHalfW": 0.495,
+    "sideWindow": [
+      [
+        -1.832,
+        1.397
+      ],
+      [
+        0.901,
+        1.387
+      ],
+      [
+        0.861,
+        1.551
+      ],
+      [
+        0.718,
+        1.709
+      ],
+      [
+        0.496,
+        1.776
+      ],
+      [
+        -1.752,
+        1.776
+      ],
+      [
+        -1.872,
+        1.666
+      ],
+      [
+        -1.892,
+        1.417
+      ]
+    ],
+    "handle": [
+      0.106,
+      1.227
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.298,
+    "layout": "front-v8",
+    "arch": "i4-turbo",
+    "texUrl": "/games/apex/tex/engines/sports_sedan_20t.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.459,
+    "zOffset": -0.285,
+    "cowlZ": 0.98,
+    "cowlY": 1.387
+  },
+  "exhaust": {
+    "z": -2.181,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.3,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.582,
+      "y": 0.815,
+      "w": 0.27,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.603,
+      "y": 0.914,
+      "len": 0.312,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.575,
+    "grilleHiY": 0.865,
+    "grilleStyle": "truck"
+  }
+}

@@ -1,0 +1,221 @@
+{
+  "id": "zephyr_titan_ev",
+  "name": "Zephyr Titan EV SUV",
+  "glb": "/games/apex/car/zephyr_titan_ev_base.glb",
+  "paint": "0x667486",
+  "accent": "0x38bdf8",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (zephyr_titan_ev_base.glb, L=5.04m W=2.08m H=1.89m).",
+  "wheels": {
+    "frontZ": 1.534,
+    "rearZ": -1.484,
+    "frontX": 0.721,
+    "rearX": 0.713,
+    "scale": 1.125,
+    "discardR": 0.415,
+    "centreY": 0.399,
+    "tyreR": 0.399,
+    "rimR": 0.256,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.937,
+        0.0,
+        1.095
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.937,
+        0.0,
+        1.095
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.349,
+        1.146
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.708,
+        1.109,
+        1.166
+      ],
+      [
+        0.708,
+        1.589,
+        2.361
+      ]
+    ],
+    "trunk": [
+      [
+        -0.625,
+        1.189,
+        -2.401
+      ],
+      [
+        0.625,
+        1.569,
+        -2.397
+      ]
+    ],
+    "roof": [
+      [
+        -0.651,
+        1.697,
+        -1.877
+      ],
+      [
+        0.651,
+        2.029,
+        0.375
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.349,
+    "roofEdge": 1.837,
+    "pillarBase": 1.126,
+    "pillarTop": 0.375,
+    "doorFront": 1.095,
+    "doorRear": -0.255,
+    "windBase": 1.126,
+    "windTop": 0.375,
+    "rearTop": -1.877,
+    "rearBase": -2.377,
+    "rearBase2": -2.357,
+    "windHalfW": 0.651,
+    "rearHalfW": 0.507,
+    "sideWindow": [
+      [
+        -1.917,
+        1.379
+      ],
+      [
+        1.055,
+        1.369
+      ],
+      [
+        1.015,
+        1.554
+      ],
+      [
+        0.735,
+        1.73
+      ],
+      [
+        0.375,
+        1.807
+      ],
+      [
+        -1.837,
+        1.807
+      ],
+      [
+        -1.957,
+        1.681
+      ],
+      [
+        -1.977,
+        1.399
+      ]
+    ],
+    "handle": [
+      0.26,
+      1.209
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.454,
+    "layout": "ev",
+    "arch": "ev",
+    "texUrl": "/games/apex/tex/engines/hybrid_i4.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.469,
+    "zOffset": -0.33,
+    "cowlZ": 1.076,
+    "cowlY": 1.369
+  },
+  "exhaust": {
+    "z": -2.4,
+    "y": 0.36,
+    "xs": []
+  },
+  "aero": {
+    "splitterZ": 2.511,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.583,
+      "y": 0.815,
+      "w": 0.271,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.604,
+      "y": 0.868,
+      "len": 0.312,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.575,
+    "grilleHiY": 0.865,
+    "grilleStyle": "ev"
+  }
+}

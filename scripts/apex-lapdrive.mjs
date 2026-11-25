@@ -1,4 +1,4 @@
-// Apex lap check: drives a whole circuit with a scripted autopilot in the running dev server (preview "forth-horizon", port 4332) on the real GPU and reports
+// Apex lap check: drives a whole circuit with a scripted autopilot in the running dev server (preview "apex", port 4332) on the real GPU and reports
 // how the car tracks the designed line: distance off the line, car height vs the road's design height (mean, worst and where), stalls, resets, page errors.
 // It idles on the map first (so the map cinematic is running) and presses a real W, which used to end the drive. Steering sign is calibrated at the start.
 // The game takes ~9 GB of RAM in one tab: check free memory first. Off-line runs (offRuns) are the autopilot running wide, not the road.

@@ -39,7 +39,7 @@ Many are close to seamless (sand, grass, gravel, hay, cobble, pavers). The kerb,
 pit-lane sheets are single placed designs, not repeating tiles.
 
 ## 3. Wired in this pass (viewer `/region.html`)
-- 25 reference textures copied to `public/games/forth-horizon/tex/` (1024 wide):
+- 25 reference textures copied to `public/games/apex/tex/` (1024 wide):
   `tools/prep_textures.py`.
 - Streets use the reference asphalt (with its lane marks), arterials and freeways the highway
   asphalt, sidewalks the concrete paver sheet.

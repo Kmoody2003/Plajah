@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { SaveHost, SAVE_MAX_BYTES, type CloudSaveDoc, type SaveStore, type StoreOutcome } from '../services/gameSaveCore';
 import { CloudSave, type Transport } from '../packages/first-party-games/cloudSave';
-import { attachCloud, mergeGarageJson, progressScore } from '../games/forth-horizon/src/garage/cloud';
-import { Garage, type StorageLike } from '../games/forth-horizon/src/garage/progress';
+import { attachCloud, mergeGarageJson, progressScore } from '../games/apex/src/garage/cloud';
+import { Garage, type StorageLike } from '../games/apex/src/garage/progress';
 
 /** an in-memory stand-in for the Firestore layer with the same optimistic-concurrency rule */
 class MemStore implements SaveStore {

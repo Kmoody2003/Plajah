@@ -1,7 +1,7 @@
 /**
  * extractCarSfx.mjs — Extracts and categorizes real engine, exhaust backfire,
  * turbo/EV, tire screech, gravel, brake thermal hiss, and curb-strike thump
- * samples from the Apex Elohim motion-study .mp4 videos into public/games/forth-horizon/sfx/.
+ * samples from the Apex Elohim motion-study .mp4 videos into public/games/apex/sfx/.
  */
 
 import fs from 'node:fs';
@@ -10,7 +10,7 @@ import { execFileSync } from 'node:child_process';
 
 const FFMPEG = 'C:\\Users\\Kenne\\AppData\\Local\\ms-playwright\\ffmpeg-1011\\ffmpeg-win64.exe';
 const SRC_DIR = 'D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22';
-const OUT_DIR = path.resolve(process.cwd(), 'public/games/forth-horizon/sfx');
+const OUT_DIR = path.resolve(process.cwd(), 'public/games/apex/sfx');
 
 const CLIPS = [
   { file: 'Muscle_car_suspension_study_9ac957de.mp4', out: 'v8_muscle_loop.mp3', start: 0.8, dur: 3.6, category: 'engine' },

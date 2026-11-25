@@ -1,0 +1,225 @@
+{
+  "id": "kodiak",
+  "name": "Meridian Kodiak 1500",
+  "glb": "/games/apex/car/kodiak_base.glb",
+  "paint": "0x1e3426",
+  "accent": "0x24262a",
+  "cuts": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (kodiak_base.glb, L=5.49m W=2.22m H=2.11m).",
+  "wheels": {
+    "frontZ": 1.802,
+    "rearZ": -1.643,
+    "frontX": 0.68,
+    "rearX": 0.68,
+    "scale": 1.18,
+    "discardR": 0.436,
+    "centreY": 0.419,
+    "tyreR": 0.419,
+    "rimR": 0.293,
+    "style": "offroad"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.998,
+        0.0,
+        1.268
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.998,
+        0.0,
+        1.268
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.559,
+        1.248
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.732,
+        1.319,
+        1.268
+      ],
+      [
+        0.732,
+        1.799,
+        2.563
+      ]
+    ],
+    "trunk": [
+      [
+        -0.643,
+        1.419,
+        -2.603
+      ],
+      [
+        0.643,
+        1.779,
+        -1.326
+      ]
+    ],
+    "roof": [
+      [
+        -0.799,
+        1.925,
+        -1.046
+      ],
+      [
+        0.799,
+        2.225,
+        0.682
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.559,
+    "roofEdge": 2.045,
+    "pillarBase": 1.228,
+    "pillarTop": 0.682,
+    "doorFront": 1.268,
+    "doorRear": -1.106,
+    "windBase": 1.228,
+    "windTop": 0.682,
+    "rearTop": -1.046,
+    "rearBase": -1.306,
+    "rearBase2": -1.276,
+    "windHalfW": 0.799,
+    "rearHalfW": 0.565,
+    "sideWindow": [
+      [
+        -1.046,
+        1.589
+      ],
+      [
+        1.208,
+        1.579
+      ],
+      [
+        1.168,
+        1.734
+      ],
+      [
+        0.975,
+        1.909
+      ],
+      [
+        0.682,
+        2.025
+      ],
+      [
+        -0.986,
+        2.025
+      ],
+      [
+        -1.206,
+        1.86
+      ],
+      [
+        -1.146,
+        1.619
+      ]
+    ],
+    "handle": [
+      -0.099,
+      1.419
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.722,
+    "layout": "front-v8",
+    "arch": "diesel-v8",
+    "texUrl": "/games/apex/tex/engines/diesel_pickup.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.28,
+    "zOffset": -0.091,
+    "cowlZ": 1.178,
+    "cowlY": 1.559
+  },
+  "exhaust": {
+    "z": -2.618,
+    "y": 0.34,
+    "xs": [
+      -0.48,
+      -0.35,
+      0.35,
+      0.48
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.725,
+    "splitterW": 0,
+    "splitterY": 0.24,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.599,
+      "y": 0.886,
+      "w": 0.311,
+      "h": 0.075,
+      "tilt": 0.025,
+      "style": "u-drl"
+    },
+    "tail": {
+      "x": 0.577,
+      "y": 1.081,
+      "len": 0.377,
+      "style": "double-u"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.52,
+    "bumperRearY": 0.52,
+    "skirtY": 0.34,
+    "archLipAdd": 0.045,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.62,
+    "grilleHiY": 0.926,
+    "grilleStyle": "truck"
+  }
+}

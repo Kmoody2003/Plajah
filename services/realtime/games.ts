@@ -23,10 +23,10 @@ export interface RealtimeGameDef {
   referee(): Referee;
 }
 
-export const FH_RACE = 'fh-race';
+export const APEX_RACE = 'apex-race';
 
 const apexRace: RealtimeGameDef = {
-  id: FH_RACE,
+  id: APEX_RACE,
   title: 'Plajah Motorsport Apex · Ironport Grand Circuit',
   tickHz: 20,
   minPlayers: 2,

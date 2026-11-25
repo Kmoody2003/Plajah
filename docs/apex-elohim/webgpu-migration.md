@@ -28,4 +28,4 @@ Real terrain + all 9,467 city buildings as one instanced draw, sun shadow, heigh
 5. **GPU-driven extras:** compute culling for instanced sets, compute grass/particles.
 
 ## How to run the spike
-Dev server (`preview: forth-horizon`, port 4332): `/webgpu-spike.html` (WebGPU) and `/webgpu-spike.html?webgl=1`. The HUD shows backend, frame time, draw calls and triangles.
+Dev server (`preview: apex`, port 4332): `/webgpu-spike.html` (WebGPU) and `/webgpu-spike.html?webgl=1`. The HUD shows backend, frame time, draw calls and triangles.

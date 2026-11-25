@@ -19,7 +19,7 @@ This plan **merges** three earlier docs. It doesn't replace them; it says how th
 
 | Symptom | Evidence |
 |---|---|
-| Every first-party game is hand-written code with its own copy of the engine | `games/era-clash-3d/src/core/` copies Ravencrest's core; `games/rift-realm/src/{collision,post,controls}.ts` and `games/forth-horizon/src/physics.ts` are separate again |
+| Every first-party game is hand-written code with its own copy of the engine | `games/era-clash-3d/src/core/` copies Ravencrest's core; `games/rift-realm/src/{collision,post,controls}.ts` and `games/apex/src/physics.ts` are separate again |
 | Levels are code, not documents | `rift-realm/src/shrine.ts`, `era-clash-3d/src/otsu.ts`, the Plajah Motorsport Apex region builders: a creator can't open them |
 | 3D tools are separate rooms with separate stores | Plajah 3D rooms (`components/argilla/*`), Character Forge (CLI, `scripts/eraclash3d/forge.ts`), rig builder (`services/vtuber/rigBuilder`, run from a lab), mocap (`components/mocap/CaptureRoom.tsx`, its own lab) |
 | Game logic lives in TypeScript only | waves, triggers, scoring and AI are functions in each game's `main.ts` |

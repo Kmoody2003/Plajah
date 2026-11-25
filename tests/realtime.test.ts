@@ -7,7 +7,7 @@ import type { AddressInfo } from 'node:net';
 import { signTicket, verifyTicket, resumeTicket, signBody, verifyBody, RESULT_SIG_HEADER, RESULT_TS_HEADER, type TicketPayload } from '../services/realtime/ticket';
 import { RaceReferee } from '../services/realtime/referee';
 import { RelayRoom, cleanState, type Peer, type RoomResult } from '../services/realtime/room';
-import { REALTIME_GAMES, FH_RACE, type RealtimeGameDef } from '../services/realtime/games';
+import { REALTIME_GAMES, APEX_RACE, type RealtimeGameDef } from '../services/realtime/games';
 import { settlementPlan } from '../services/realtime/settle';
 import { startRealtimeServer } from '../services/realtime/server';
 import { resultPoster } from '../services/realtime/resultPoster';
@@ -20,7 +20,7 @@ import { createGamerRouter } from '../routes/gamerNet';
 const SECRET = 'ticket-secret-0123456789abcdef';
 const RSECRET = 'result-secret-0123456789abcdef';
 const T0 = Date.UTC(2026, 10, 21, 12, 0, 0);
-const ticket = (o: Partial<TicketPayload> = {}): TicketPayload => ({ k: 'join', room: 'm1', game: FH_RACE, uid: 'alice', seat: 0, name: 'Alice', min: 2, rated: true, iat: T0, exp: T0 + 60_000, ...o });
+const ticket = (o: Partial<TicketPayload> = {}): TicketPayload => ({ k: 'join', room: 'm1', game: APEX_RACE, uid: 'alice', seat: 0, name: 'Alice', min: 2, rated: true, iat: T0, exp: T0 + 60_000, ...o });
 
 // ── tickets ─────────────────────────────────────────────────────────────────────────
 test('ticket: sign/verify round trip', () => {
@@ -53,10 +53,10 @@ test('ticket: resume tickets live longer and verify with the same secret', () =>
 });
 
 test('result signature: canonical body, skew window, tamper', () => {
-  const body = { matchId: 'm1', standings: [{ uid: 'a', place: 1 }, { uid: 'b', place: 2 }], game: FH_RACE };
+  const body = { matchId: 'm1', standings: [{ uid: 'a', place: 1 }, { uid: 'b', place: 2 }], game: APEX_RACE };
   const sig = signBody(body, RSECRET, T0);
   // Key order doesn't matter (canonical JSON), values do.
-  assert.equal(verifyBody({ game: FH_RACE, standings: body.standings, matchId: 'm1' }, String(T0), sig, RSECRET, T0 + 1000), true);
+  assert.equal(verifyBody({ game: APEX_RACE, standings: body.standings, matchId: 'm1' }, String(T0), sig, RSECRET, T0 + 1000), true);
   assert.equal(verifyBody({ ...body, matchId: 'm2' }, T0, sig, RSECRET, T0), false);
   assert.equal(verifyBody(body, T0, sig, 'wrong-secret-0123456789', T0), false);
   assert.equal(verifyBody(body, T0, sig, RSECRET, T0 + 6 * 60_000), false, 'stale');
@@ -100,7 +100,7 @@ test('cleanState: flat, bounded, finite only', () => {
 
 // ── room lifecycle (fake peers, fake clock) ─────────────────────────────────────────
 const fastDef = (over: Partial<RealtimeGameDef> = {}): RealtimeGameDef => ({
-  ...REALTIME_GAMES[FH_RACE], countdownMs: 1000, reconnectGraceMs: 2000,
+  ...REALTIME_GAMES[APEX_RACE], countdownMs: 1000, reconnectGraceMs: 2000,
   referee: () => new RaceReferee({ laps: 1, maxProgressPerSec: 1, maxSpeedMps: 1000, finishGraceMs: 3000, maxRaceMs: 60_000 }),
   ...over,
 });
@@ -195,7 +195,7 @@ test('room: a replaced socket is kicked and its close is ignored', () => {
 // ── settlement ──────────────────────────────────────────────────────────────────────
 test('settle: 1v1 matches the turn-based Elo; a field uses pairwise Elo and names one opponent', () => {
   const plan = settlementPlan({
-    matchId: 'm', game: FH_RACE, rated: true, at: T0,
+    matchId: 'm', game: APEX_RACE, rated: true, at: T0,
     standings: [{ uid: 'b', place: 2, timeMs: null, dnf: true }, { uid: 'a', place: 1, timeMs: 61_500, dnf: false }],
     stats: { a: { rating: 1200, rated: 0 }, b: { rating: 1300, rated: 25 } },
   });
@@ -205,13 +205,13 @@ test('settle: 1v1 matches the turn-based Elo; a field uses pairwise Elo and name
   ]);
   assert.equal(plan[0].note, 'P1/2 · 1:01.50');
   const three = settlementPlan({
-    matchId: 'm3', game: FH_RACE, rated: true, at: T0,
+    matchId: 'm3', game: APEX_RACE, rated: true, at: T0,
     standings: [{ uid: 'a', place: 1, timeMs: 1, dnf: false }, { uid: 'b', place: 2, timeMs: 2, dnf: false }, { uid: 'c', place: 3, timeMs: 3, dnf: false }],
     stats: {},
   });
   assert.deepEqual(three.map(e => [e.uid, e.opponentUid, e.rank, e.players]), [['a', 'b', 1, 3], ['b', 'a', 2, 3], ['c', 'b', 3, 3]]);
   assert.ok(three[0].ratingAfter! > 1200 && three[1].ratingAfter === 1200 && three[2].ratingAfter! < 1200);
-  const unrated = settlementPlan({ matchId: 'u', game: FH_RACE, rated: false, at: T0, standings: three.map(e => ({ uid: e.uid, place: e.rank!, timeMs: 1, dnf: false })), stats: {} });
+  const unrated = settlementPlan({ matchId: 'u', game: APEX_RACE, rated: false, at: T0, standings: three.map(e => ({ uid: e.uid, place: e.rank!, timeMs: 1, dnf: false })), stats: {} });
   assert.ok(unrated.every(e => e.ratingAfter === e.ratingBefore));
 });
 
@@ -229,7 +229,7 @@ async function stack(opts: { postFetch?: typeof fetch } = {}) {
   const apiUrl = `http://127.0.0.1:${(api.address() as AddressInfo).port}`;
   const def = fastDef({ countdownMs: 300, tickHz: 30, referee: () => new RaceReferee({ laps: 1, maxProgressPerSec: 4, maxSpeedMps: 1000, finishGraceMs: 2000, maxRaceMs: 30_000 }) });
   const rt = await startRealtimeServer({
-    port: 0, host: '127.0.0.1', ticketSecret: SECRET, games: id => (id === FH_RACE ? def : null), lingerMs: 2000,
+    port: 0, host: '127.0.0.1', ticketSecret: SECRET, games: id => (id === APEX_RACE ? def : null), lingerMs: 2000,
     postResult: resultPoster({ apiUrl, secret: RSECRET, backoffMs: [0, 200], fetch: opts.postFetch as never }),
   });
   return { store, api, apiUrl, rt, rtUrl: `ws://127.0.0.1:${rt.port}`, close: async () => { await rt.close(); await new Promise(r => api.close(r)); } };
@@ -239,7 +239,7 @@ function client(apiUrl: string, uid: string) {
   const events: RtEvent[] = [];
   const waiters: Array<{ pred: (e: RtEvent) => boolean; res: (e: RtEvent) => void }> = [];
   const c = new RealtimeClient({
-    apiBase: apiUrl, game: FH_RACE, getToken: async () => `tok-${uid}`,
+    apiBase: apiUrl, game: APEX_RACE, getToken: async () => `tok-${uid}`,
     onEvent: e => { events.push(e); for (const w of [...waiters]) if (w.pred(e)) { waiters.splice(waiters.indexOf(w), 1); w.res(e); } },
   });
   const until = (pred: (e: RtEvent) => boolean, ms = 5000) => {
@@ -326,9 +326,9 @@ test('api: unsigned or forged results are refused; the per-opponent daily cap st
       method: 'POST', headers: { 'content-type': 'application/json', [RESULT_TS_HEADER]: String(ts), [RESULT_SIG_HEADER]: signBody(body, secret, ts) }, body: JSON.stringify(body),
     });
     const api = (uid: string, path: string, body?: unknown) => fetch(`${s.apiUrl}/api/gamer/rt${path}`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer tok-${uid}` }, body: JSON.stringify(body ?? {}) }).then(r => r.json());
-    const result = (matchId: string, winner = 'alice', loser = 'bob') => ({ matchId, game: FH_RACE, rated: false, startedAt: Date.now() - 60_000, endedAt: Date.now(), standings: [{ seat: 0, uid: winner, name: 'W', place: 1, timeMs: 60_000, dnf: false, progress: 1 }, { seat: 1, uid: loser, name: 'L', place: 2, timeMs: null, dnf: true, progress: 0.5 }] });
+    const result = (matchId: string, winner = 'alice', loser = 'bob') => ({ matchId, game: APEX_RACE, rated: false, startedAt: Date.now() - 60_000, endedAt: Date.now(), standings: [{ seat: 0, uid: winner, name: 'W', place: 1, timeMs: 60_000, dnf: false, progress: 1 }, { seat: 1, uid: loser, name: 'L', place: 2, timeMs: null, dnf: true, progress: 0.5 }] });
 
-    const { matchId, code } = await api('alice', '/private', { game: FH_RACE });
+    const { matchId, code } = await api('alice', '/private', { game: APEX_RACE });
     await api('bob', '/join', { code });
     // A client posting its own "result" has no signature → 401. Forged secret → 401.
     const naked = await fetch(`${s.apiUrl}/api/gamer/rt/result`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer tok-alice' }, body: JSON.stringify(result(matchId)) });
@@ -341,15 +341,15 @@ test('api: unsigned or forged results are refused; the per-opponent daily cap st
     assert.equal((await (await post(result(matchId))).json()).already, true);
 
     for (let i = 0; i < PAIR_DAILY_CAP + 1; i++) {
-      const m = await api('alice', '/private', { game: FH_RACE });
+      const m = await api('alice', '/private', { game: APEX_RACE });
       await api('bob', '/join', { code: m.code });
       assert.equal((await post(result(m.matchId))).status, 200);
     }
     const prof = await (await fetch(`${s.apiUrl}/api/gamer/profile/alice`)).json();
-    assert.equal(prof.profile.games[FH_RACE].wins, PAIR_DAILY_CAP + 2);
+    assert.equal(prof.profile.games[APEX_RACE].wins, PAIR_DAILY_CAP + 2);
     // play points: 15 per counted win, counted at most PAIR_DAILY_CAP times a day against the same opponent.
     assert.equal(prof.profile.scoreCard.play, 15 * PAIR_DAILY_CAP);
-    const lb = await (await fetch(`${s.apiUrl}/api/gamer/leaderboard?game=${FH_RACE}`)).json();
-    assert.equal(lb.game, FH_RACE);
+    const lb = await (await fetch(`${s.apiUrl}/api/gamer/leaderboard?game=${APEX_RACE}`)).json();
+    assert.equal(lb.game, APEX_RACE);
   } finally { await s.close(); }
 });

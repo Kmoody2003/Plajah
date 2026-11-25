@@ -3,8 +3,8 @@
 //
 //   GET    /rt/config                     { enabled, games }
 //   POST   /rt/queue    {game}            rated 1v1 matchmaking → { status, matchId? }
-//   GET    /rt/queue?game=fh-race         poll (also tries to pair)
-//   DELETE /rt/queue?game=fh-race         leave
+//   GET    /rt/queue?game=apex-race         poll (also tries to pair)
+//   DELETE /rt/queue?game=apex-race         leave
 //   POST   /rt/private  {game}            friendly room with a code → { matchId, code }
 //   POST   /rt/join     {code}            take the next seat → { matchId }
 //   GET    /rt/match/:id                  roster + status

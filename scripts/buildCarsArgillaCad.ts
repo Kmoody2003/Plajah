@@ -11,7 +11,7 @@ import path from 'node:path';
 import type { HardPart, ProfileStation } from '../services/argilla/hardSurface';
 import { buildCarCadModel, packCadModelToGlb, type CarCadBlueprint } from '../services/cad/carCadBuilder';
 
-const OUT_DIR = path.resolve(process.cwd(), 'games/forth-horizon/assets-src/cars');
+const OUT_DIR = path.resolve(process.cwd(), 'games/apex/assets-src/cars');
 
 function wheelWellCarves(trackWidth: number, wheelRadius: number, frontZ: number, rearZ: number, archClearance = 0.09): HardPart[] {
   const r = wheelRadius + archClearance;

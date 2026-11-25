@@ -1,0 +1,224 @@
+{
+  "id": "aureon_prestige",
+  "name": "Aureon Prestige V8 SUV",
+  "glb": "/games/apex/car/aureon_prestige_base.glb",
+  "paint": "0x727880",
+  "accent": "0x1a1c20",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (aureon_prestige_base.glb, L=5.10m W=2.08m H=1.90m).",
+  "wheels": {
+    "frontZ": 1.525,
+    "rearZ": -1.577,
+    "frontX": 0.748,
+    "rearX": 0.737,
+    "scale": 1.128,
+    "discardR": 0.416,
+    "centreY": 0.4,
+    "tyreR": 0.4,
+    "rimR": 0.257,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.936,
+        0.0,
+        1.085
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.936,
+        0.0,
+        1.085
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.331,
+        1.159
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.707,
+        1.091,
+        1.179
+      ],
+      [
+        0.707,
+        1.571,
+        2.389
+      ]
+    ],
+    "trunk": [
+      [
+        -0.624,
+        1.171,
+        -2.429
+      ],
+      [
+        0.624,
+        1.551,
+        -2.425
+      ]
+    ],
+    "roof": [
+      [
+        -0.814,
+        1.686,
+        -1.983
+      ],
+      [
+        0.814,
+        2.035,
+        0.464
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.331,
+    "roofEdge": 1.826,
+    "pillarBase": 1.139,
+    "pillarTop": 0.464,
+    "doorFront": 1.085,
+    "doorRear": -0.265,
+    "windBase": 1.139,
+    "windTop": 0.464,
+    "rearTop": -1.983,
+    "rearBase": -2.405,
+    "rearBase2": -2.385,
+    "windHalfW": 0.814,
+    "rearHalfW": 0.576,
+    "sideWindow": [
+      [
+        -2.023,
+        1.361
+      ],
+      [
+        1.045,
+        1.351
+      ],
+      [
+        1.005,
+        1.539
+      ],
+      [
+        0.775,
+        1.717
+      ],
+      [
+        0.464,
+        1.796
+      ],
+      [
+        -1.943,
+        1.796
+      ],
+      [
+        -2.063,
+        1.668
+      ],
+      [
+        -2.083,
+        1.381
+      ]
+    ],
+    "handle": [
+      0.25,
+      1.191
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.445,
+    "layout": "front-v8",
+    "arch": "pickup-v8",
+    "texUrl": "/games/apex/tex/engines/pickup_v8.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.475,
+    "zOffset": -0.334,
+    "cowlZ": 1.089,
+    "cowlY": 1.351
+  },
+  "exhaust": {
+    "z": -2.433,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.536,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.582,
+      "y": 0.783,
+      "w": 0.27,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.603,
+      "y": 0.927,
+      "len": 0.312,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.543,
+    "grilleHiY": 0.833,
+    "grilleStyle": "truck"
+  }
+}

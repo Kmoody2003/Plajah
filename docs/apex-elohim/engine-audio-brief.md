@@ -1,6 +1,6 @@
 # Apex Elohim: engine and tyre sound, source material brief
 
-**Status:** the game uses the synthesised engine, tyre, gravel and brake sounds only. The earlier sample layers were cut from the soundtracks of reference videos and are switched off (`USE_VIDEO_SAMPLES = false` in `games/forth-horizon/src/audio.ts`). They carried tyre squeal and road noise inside the engine loop and did not follow what the car was doing.
+**Status:** the game uses the synthesised engine, tyre, gravel and brake sounds only. The earlier sample layers were cut from the soundtracks of reference videos and are switched off (`USE_VIDEO_SAMPLES = false` in `games/apex/src/audio.ts`). They carried tyre squeal and road noise inside the engine loop and did not follow what the car was doing.
 
 ## What good source material looks like
 

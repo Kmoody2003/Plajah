@@ -1,0 +1,224 @@
+{
+  "id": "aurelia_monarch",
+  "name": "Aurelia Monarch V8 SUV",
+  "glb": "/games/apex/car/aurelia_monarch_base.glb",
+  "paint": "0x2c425e",
+  "accent": "0xd0d6de",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (aurelia_monarch_base.glb, L=5.08m W=2.08m H=1.90m).",
+  "wheels": {
+    "frontZ": 1.591,
+    "rearZ": -1.317,
+    "frontX": 0.718,
+    "rearX": 0.71,
+    "scale": 1.129,
+    "discardR": 0.417,
+    "centreY": 0.401,
+    "tyreR": 0.401,
+    "rimR": 0.257,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.936,
+        0.0,
+        1.15
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.936,
+        0.0,
+        1.15
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.396,
+        1.155
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.707,
+        1.156,
+        1.175
+      ],
+      [
+        0.707,
+        1.636,
+        2.38
+      ]
+    ],
+    "trunk": [
+      [
+        -0.624,
+        1.236,
+        -2.42
+      ],
+      [
+        0.624,
+        1.616,
+        -2.459
+      ]
+    ],
+    "roof": [
+      [
+        -0.848,
+        1.694,
+        -2.144
+      ],
+      [
+        0.848,
+        2.036,
+        0.631
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.396,
+    "roofEdge": 1.834,
+    "pillarBase": 1.135,
+    "pillarTop": 0.631,
+    "doorFront": 1.15,
+    "doorRear": -0.2,
+    "windBase": 1.135,
+    "windTop": 0.631,
+    "rearTop": -2.144,
+    "rearBase": -2.439,
+    "rearBase2": -2.419,
+    "windHalfW": 0.848,
+    "rearHalfW": 0.573,
+    "sideWindow": [
+      [
+        -2.184,
+        1.426
+      ],
+      [
+        1.11,
+        1.416
+      ],
+      [
+        1.07,
+        1.58
+      ],
+      [
+        0.89,
+        1.738
+      ],
+      [
+        0.631,
+        1.804
+      ],
+      [
+        -2.104,
+        1.804
+      ],
+      [
+        -2.224,
+        1.694
+      ],
+      [
+        -2.244,
+        1.446
+      ]
+    ],
+    "handle": [
+      0.315,
+      1.256
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.511,
+    "layout": "front-v8",
+    "arch": "pickup-v8",
+    "texUrl": "/games/apex/tex/engines/pickup_v8.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.476,
+    "zOffset": -0.333,
+    "cowlZ": 1.085,
+    "cowlY": 1.416
+  },
+  "exhaust": {
+    "z": -2.42,
+    "y": 0.36,
+    "xs": [
+      -0.46,
+      0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.529,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.583,
+      "y": 0.845,
+      "w": 0.27,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.603,
+      "y": 0.961,
+      "len": 0.312,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.605,
+    "grilleHiY": 0.895,
+    "grilleStyle": "truck"
+  }
+}

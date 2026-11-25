@@ -192,6 +192,6 @@ describe('Phase 4 — Aria Studio Production Agent End-to-End Orchestration', ()
     assert.equal(APEX_SUPERCAR_VEHICLE_CONFIG.wheelOffsets.length, 4);
     assert.ok(LEGACY_VERTICAL_PROFILES['era-clash-3d']);
     assert.ok(LEGACY_VERTICAL_PROFILES.ravencrest);
-    assert.ok(LEGACY_VERTICAL_PROFILES['apex-forth-horizon']);
+    assert.ok(LEGACY_VERTICAL_PROFILES['apex-motorsport']);
   });
 });

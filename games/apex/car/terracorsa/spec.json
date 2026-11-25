@@ -1,0 +1,238 @@
+{
+  "id": "terracorsa",
+  "name": "Aurelia Terra Corsa",
+  "glb": "/games/apex/car/terracorsa_base.glb",
+  "paint": "0xd8d8d4",
+  "accent": "0xc82228",
+  "cuts": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (terracorsa_base.glb, L=4.45m W=2.04m H=1.48m).",
+  "wheels": {
+    "frontZ": 1.075,
+    "rearZ": -1.588,
+    "frontX": 0.819,
+    "rearX": 0.822,
+    "scale": 1.08,
+    "discardR": 0.398,
+    "centreY": 0.383,
+    "tyreR": 0.383,
+    "rimR": 0.268,
+    "style": "forged"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.918,
+        0.0,
+        0.632
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.918,
+        0.0,
+        0.632
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.188,
+        0.717
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    },
+    "trunk": {
+      "hinge": [
+        0.0,
+        1.208,
+        -1.871
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": 0.85
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.673,
+        0.948,
+        0.737
+      ],
+      [
+        0.673,
+        1.428,
+        2.044
+      ]
+    ],
+    "trunk": [
+      [
+        -0.591,
+        1.048,
+        -2.084
+      ],
+      [
+        0.591,
+        1.408,
+        -1.891
+      ]
+    ],
+    "roof": [
+      [
+        -0.654,
+        1.311,
+        -1.357
+      ],
+      [
+        0.654,
+        1.596,
+        0.33
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.188,
+    "roofEdge": 1.431,
+    "pillarBase": 0.697,
+    "pillarTop": 0.33,
+    "doorFront": 0.632,
+    "doorRear": -1.145,
+    "windBase": 0.697,
+    "windTop": 0.33,
+    "rearTop": -1.357,
+    "rearBase": -1.871,
+    "rearBase2": -1.841,
+    "windHalfW": 0.654,
+    "rearHalfW": 0.502,
+    "sideWindow": [
+      [
+        -1.085,
+        1.218
+      ],
+      [
+        0.572,
+        1.208
+      ],
+      [
+        0.532,
+        1.275
+      ],
+      [
+        0.481,
+        1.363
+      ],
+      [
+        0.33,
+        1.411
+      ],
+      [
+        -1.297,
+        1.411
+      ],
+      [
+        -1.517,
+        1.339
+      ],
+      [
+        -1.185,
+        1.248
+      ]
+    ],
+    "handle": [
+      -0.436,
+      1.048
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.314,
+    "layout": "front-v8",
+    "arch": "sports-v8",
+    "texUrl": "/games/apex/tex/engines/sports_car_gt.jpg"
+  },
+  "trunk": true,
+  "cabin": {
+    "yOffset": 0.096,
+    "zOffset": -0.257,
+    "cowlZ": 0.647,
+    "cowlY": 1.188
+  },
+  "exhaust": {
+    "z": -2.08,
+    "y": 0.24,
+    "xs": [
+      -0.48,
+      -0.35,
+      0.35,
+      0.48
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.197,
+    "splitterW": 0,
+    "splitterY": 0.11,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.551,
+      "y": 0.61,
+      "w": 0.286,
+      "h": 0.075,
+      "tilt": 0.025,
+      "style": "u-drl"
+    },
+    "tail": {
+      "x": 0.53,
+      "y": 0.827,
+      "len": 0.347,
+      "style": "double-u"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.36,
+    "bumperRearY": 0.38,
+    "skirtY": 0.2,
+    "archLipAdd": 0.045,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.37,
+    "grilleHiY": 0.65,
+    "grilleStyle": "sport"
+  }
+}

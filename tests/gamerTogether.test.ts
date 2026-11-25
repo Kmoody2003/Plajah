@@ -321,7 +321,7 @@ test('router: teams, team voice, party search, stream consent; realtime-room voi
     assert.equal((await h.call('bob', 'POST', '/party/stream', { on: false })).json.party.streaming, null);
 
     // realtime room voice: players only, blocked people listed for the listener to drop
-    await h.store.createOnce('gamerRtMatches', 'race1', { id: 'race1', game: 'fh-race', status: 'open', players: ['carl', 'dave', 'ann'] });
+    await h.store.createOnce('gamerRtMatches', 'race1', { id: 'race1', game: 'apex-race', status: 'open', players: ['carl', 'dave', 'ann'] });
     const rv = await h.call('carl', 'POST', '/chat/voice', { scope: 'rt_race1' });
     assert.equal(rv.status, 200); assert.equal(rv.json.room, 'grt-race1'); assert.equal(rv.json.cap, 12);
     assert.deepEqual(rv.json.exclude, ['dave'], 'carl blocked dave');

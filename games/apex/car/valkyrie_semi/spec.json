@@ -1,0 +1,183 @@
+{
+  "id": "valkyrie_semi",
+  "name": "Valkyrie Class-8 Semi Tractor",
+  "glb": "/games/apex/car/valkyrie_semi_base.glb",
+  "paint": "0xdce0e6",
+  "accent": "0x282c34",
+  "cuts": false,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (valkyrie_semi_base.glb, L=7.40m W=2.51m H=3.49m).",
+  "wheels": {
+    "frontZ": 2.214,
+    "rearZ": -2.206,
+    "frontX": 0.776,
+    "rearX": 0.672,
+    "scale": 1.38,
+    "discardR": 0.51,
+    "centreY": 0.49,
+    "tyreR": 0.49,
+    "rimR": 0.315,
+    "style": "heavy"
+  },
+  "panels": {},
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.853,
+        1.556,
+        3.443
+      ],
+      [
+        0.853,
+        2.036,
+        3.539
+      ]
+    ],
+    "trunk": [
+      [
+        -0.753,
+        1.636,
+        -3.579
+      ],
+      [
+        0.753,
+        2.016,
+        0.165
+      ]
+    ],
+    "roof": [
+      [
+        -0.903,
+        3.017,
+        0.678
+      ],
+      [
+        0.903,
+        3.633,
+        1.665
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.796,
+    "roofEdge": 3.157,
+    "pillarBase": 3.403,
+    "pillarTop": 1.665,
+    "doorFront": 1.684,
+    "doorRear": 0.334,
+    "windBase": 3.403,
+    "windTop": 1.665,
+    "rearTop": 0.678,
+    "rearBase": 0.185,
+    "rearBase2": 0.205,
+    "windHalfW": 0.903,
+    "rearHalfW": 0.795,
+    "sideWindow": [
+      [
+        0.638,
+        1.826
+      ],
+      [
+        1.644,
+        1.816
+      ],
+      [
+        1.604,
+        2.368
+      ],
+      [
+        1.675,
+        2.858
+      ],
+      [
+        1.665,
+        3.127
+      ],
+      [
+        0.718,
+        3.127
+      ],
+      [
+        0.598,
+        2.721
+      ],
+      [
+        0.578,
+        1.846
+      ]
+    ],
+    "handle": [
+      0.849,
+      1.656
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.864,
+    "layout": "front-v8",
+    "arch": "diesel-v8",
+    "texUrl": "/games/apex/tex/engines/diesel_pickup.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.55,
+    "zOffset": 0.516,
+    "cowlZ": 3.353,
+    "cowlY": 1.816
+  },
+  "exhaust": {
+    "z": -3.515,
+    "y": 0.36,
+    "xs": [
+      -0.62
+    ]
+  },
+  "aero": {
+    "splitterZ": 3.687,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.702,
+      "y": 0.993,
+      "w": 0.326,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.728,
+      "y": 0.806,
+      "len": 0.376,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.46,
+    "bumperRearY": 0.46,
+    "skirtY": 0.32,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.753,
+    "grilleHiY": 1.043,
+    "grilleStyle": "truck"
+  }
+}

@@ -1,0 +1,236 @@
+{
+  "id": "velox_estate",
+  "name": "Velox Touring Estate",
+  "glb": "/games/apex/car/velox_estate_base.glb",
+  "paint": "0x6a7874",
+  "accent": "0x1c2024",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (velox_estate_base.glb, L=4.86m W=1.94m H=1.52m).",
+  "wheels": {
+    "frontZ": 1.397,
+    "rearZ": -1.461,
+    "frontX": 0.703,
+    "rearX": 0.694,
+    "scale": 1.027,
+    "discardR": 0.38,
+    "centreY": 0.365,
+    "tyreR": 0.365,
+    "rimR": 0.234,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.873,
+        0.0,
+        0.992
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.873,
+        0.0,
+        0.992
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.105,
+        1.104
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    },
+    "trunk": {
+      "hinge": [
+        0.0,
+        1.125,
+        -2.127
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": 0.85
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.66,
+        0.865,
+        1.124
+      ],
+      [
+        0.66,
+        1.345,
+        2.268
+      ]
+    ],
+    "trunk": [
+      [
+        -0.582,
+        0.945,
+        -2.308
+      ],
+      [
+        0.582,
+        1.325,
+        -2.147
+      ]
+    ],
+    "roof": [
+      [
+        -0.548,
+        1.325,
+        -1.806
+      ],
+      [
+        0.548,
+        1.66,
+        0.281
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.105,
+    "roofEdge": 1.465,
+    "pillarBase": 1.084,
+    "pillarTop": 0.281,
+    "doorFront": 0.992,
+    "doorRear": -0.358,
+    "windBase": 1.084,
+    "windTop": 0.281,
+    "rearTop": -1.806,
+    "rearBase": -2.127,
+    "rearBase2": -2.107,
+    "windHalfW": 0.548,
+    "rearHalfW": 0.483,
+    "sideWindow": [
+      [
+        -1.846,
+        1.135
+      ],
+      [
+        0.952,
+        1.125
+      ],
+      [
+        0.912,
+        1.256
+      ],
+      [
+        0.636,
+        1.386
+      ],
+      [
+        0.281,
+        1.435
+      ],
+      [
+        -1.766,
+        1.435
+      ],
+      [
+        -1.886,
+        1.35
+      ],
+      [
+        -1.906,
+        1.155
+      ]
+    ],
+    "handle": [
+      0.157,
+      0.965
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.317,
+    "layout": "front-v8",
+    "arch": "v6-sedan",
+    "texUrl": "/games/apex/tex/engines/v6_sedan.jpg"
+  },
+  "trunk": true,
+  "cabin": {
+    "yOffset": 0.1,
+    "zOffset": -0.336,
+    "cowlZ": 1.034,
+    "cowlY": 1.125
+  },
+  "exhaust": {
+    "z": -2.301,
+    "y": 0.26,
+    "xs": [
+      -0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.415,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.543,
+      "y": 0.609,
+      "w": 0.252,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.563,
+      "y": 0.718,
+      "len": 0.291,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.32,
+    "bumperRearY": 0.34,
+    "skirtY": 0.2,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.369,
+    "grilleHiY": 0.659,
+    "grilleStyle": "sport"
+  }
+}

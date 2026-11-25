@@ -2,7 +2,7 @@
 
 A light, Cities: Skylines-flavoured layer under the map editor (F2) and the region view. It is **the logic of that game, not the game**:
 it decides where people live and work, which roads and rails matter, and what moves along them, so the world looks lived in and the roads you draw have consequences.
-Code: `games/forth-horizon/src/sim/` (pure TypeScript, no three.js, tested with `node:test`) and `src/simLayer.ts`, `src/railScenes.ts`, `src/airportScenes.ts` (drawing).
+Code: `games/apex/src/sim/` (pure TypeScript, no three.js, tested with `node:test`) and `src/simLayer.ts`, `src/railScenes.ts`, `src/airportScenes.ts` (drawing).
 
 ## Kept from Skylines
 | Idea | How it is done here |

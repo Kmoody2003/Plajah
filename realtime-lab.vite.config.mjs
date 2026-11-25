@@ -8,7 +8,7 @@ import { defineConfig } from 'vite';
 import express from 'express';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
-import fhConfig from './games/forth-horizon/vite.config.mjs';
+import apexConfig from './games/apex/vite.config.mjs';
 
 const repo = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
 const API_PORT = 4341, RT_PORT = 4342;
@@ -22,16 +22,16 @@ function realtimeLab() {
       const { memoryGamerStore } = await load('services/gamerNet/store.ts');
       const { startRealtimeServer } = await load('services/realtime/server.ts');
       const { resultPoster } = await load('services/realtime/resultPoster.ts');
-      const { REALTIME_GAMES, FH_RACE } = await load('services/realtime/games.ts');
+      const { REALTIME_GAMES, APEX_RACE } = await load('services/realtime/games.ts');
       const { RaceReferee } = await load('services/realtime/referee.ts');
       const ticketSecret = randomBytes(24).toString('hex'), resultSecret = randomBytes(24).toString('hex');
       const fast = process.env.RT_LAB_FAST === '1';
       const def = fast
-        ? { ...REALTIME_GAMES[FH_RACE], referee: () => new RaceReferee({ laps: 1, maxProgressPerSec: 2, maxSpeedMps: 140, finishGraceMs: 20_000, maxRaceMs: 10 * 60_000 }) }
-        : REALTIME_GAMES[FH_RACE];
+        ? { ...REALTIME_GAMES[APEX_RACE], referee: () => new RaceReferee({ laps: 1, maxProgressPerSec: 2, maxSpeedMps: 140, finishGraceMs: 20_000, maxRaceMs: 10 * 60_000 }) }
+        : REALTIME_GAMES[APEX_RACE];
       const store = memoryGamerStore();
       const rt = await startRealtimeServer({
-        port: RT_PORT, host: '127.0.0.1', ticketSecret, games: (id) => (id === FH_RACE ? def : null),
+        port: RT_PORT, host: '127.0.0.1', ticketSecret, games: (id) => (id === APEX_RACE ? def : null),
         postResult: resultPoster({ apiUrl: `http://127.0.0.1:${API_PORT}`, secret: resultSecret, log: (m) => console.log('[realtime]', m) }),
         log: (m) => console.log('[realtime]', m),
       });
@@ -56,7 +56,7 @@ function realtimeLab() {
 }
 
 export default defineConfig((env) => {
-  const base = fhConfig(env);
+  const base = apexConfig(env);
   return {
     ...base,
     plugins: [...base.plugins, realtimeLab()],

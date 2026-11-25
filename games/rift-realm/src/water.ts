@@ -1,4 +1,4 @@
-// Rift Realm water — the Apex (forth-horizon/src/water.ts) water technique, ported to TSL node materials and tuned for
+// Rift Realm water — the Apex (apex/src/water.ts) water technique, ported to TSL node materials and tuned for
 // the fantasy cyber-forest. Kenne (2026-11-22): "we got to get the water looking amazing… you did such a good job with
 // the water in Apex, why not use similar thing but tune for the levels' aesthetics".
 //

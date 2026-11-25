@@ -1,0 +1,221 @@
+{
+  "id": "nexis_e03",
+  "name": "Nexis E-03 EV Hatch",
+  "glb": "/games/apex/car/nexis_e03_base.glb",
+  "paint": "0x7c8ca0",
+  "accent": "0x22d4ff",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (nexis_e03_base.glb, L=4.16m W=1.84m H=1.54m).",
+  "wheels": {
+    "frontZ": 1.273,
+    "rearZ": -1.327,
+    "frontX": 0.64,
+    "rearX": 0.64,
+    "scale": 0.96,
+    "discardR": 0.355,
+    "centreY": 0.341,
+    "tyreR": 0.341,
+    "rimR": 0.219,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.828,
+        0.0,
+        0.892
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.828,
+        0.0,
+        0.892
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.117,
+        0.944
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.626,
+        0.877,
+        0.964
+      ],
+      [
+        0.626,
+        1.357,
+        1.919
+      ]
+    ],
+    "trunk": [
+      [
+        -0.552,
+        0.957,
+        -1.959
+      ],
+      [
+        0.552,
+        1.337,
+        -1.902
+      ]
+    ],
+    "roof": [
+      [
+        -0.618,
+        1.351,
+        -1.677
+      ],
+      [
+        0.618,
+        1.681,
+        0.445
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.117,
+    "roofEdge": 1.491,
+    "pillarBase": 0.924,
+    "pillarTop": 0.445,
+    "doorFront": 0.892,
+    "doorRear": -0.458,
+    "windBase": 0.924,
+    "windTop": 0.445,
+    "rearTop": -1.677,
+    "rearBase": -1.882,
+    "rearBase2": -1.862,
+    "windHalfW": 0.618,
+    "rearHalfW": 0.468,
+    "sideWindow": [
+      [
+        -1.717,
+        1.147
+      ],
+      [
+        0.852,
+        1.137
+      ],
+      [
+        0.812,
+        1.274
+      ],
+      [
+        0.668,
+        1.409
+      ],
+      [
+        0.445,
+        1.461
+      ],
+      [
+        -1.637,
+        1.461
+      ],
+      [
+        -1.757,
+        1.371
+      ],
+      [
+        -1.777,
+        1.167
+      ]
+    ],
+    "handle": [
+      0.057,
+      0.977
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.193,
+    "layout": "ev",
+    "arch": "ev",
+    "texUrl": "/games/apex/tex/engines/hybrid_i4.jpg"
+  },
+  "trunk": false,
+  "cabin": {
+    "yOffset": 0.121,
+    "zOffset": -0.271,
+    "cowlZ": 0.874,
+    "cowlY": 1.137
+  },
+  "exhaust": {
+    "z": -1.963,
+    "y": 0.26,
+    "xs": []
+  },
+  "aero": {
+    "splitterZ": 2.075,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.515,
+      "y": 0.626,
+      "w": 0.239,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.534,
+      "y": 0.74,
+      "len": 0.276,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.32,
+    "bumperRearY": 0.34,
+    "skirtY": 0.2,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.386,
+    "grilleHiY": 0.676,
+    "grilleStyle": "ev"
+  }
+}

@@ -20,15 +20,15 @@ Terra (real-world forests), Game Studio (scatter in levels creators build), Muse
 |---|---|---|---|
 | ez-tree species, near instanced + far baked crossed-billboards, wind | ravencrest `forest.ts`, era-clash `core/forest.ts` (fork, best) | high | → `grow/` + `lod/` |
 | Branch-skeleton trees + leaf-cluster cards | ravencrest `foliage.ts` = era-clash `core/foliage.ts` (byte-identical copy) | high | → `grow/` |
-| World wind: veering direction, gust bands travelling downwind on the GPU | era-clash `core/wind.ts`; ravencrest `physics.ts` Wind; GLSL copies in forth-horizon, museion, kithParty | good | → `wind/` (one field) |
+| World wind: veering direction, gust bands travelling downwind on the GPU | era-clash `core/wind.ts`; ravencrest `physics.ts` Wind; GLSL copies in apex, museion, kithParty | good | → `wind/` (one field) |
 | Real blade grass, camera tiles, seeded per cell, blade→tuft LOD, fade | era-clash `grassField.ts` | high | → `grass/` |
-| Blade clusters + **trample / vehicle wake** | `services/realtimeSim/strandFurEngine.ts` (used by forth-horizon grass) | high | → `grass/` + `wind/` interaction |
+| Blade clusters + **trample / vehicle wake** | `services/realtimeSim/strandFurEngine.ts` (used by apex grass) | high | → `grass/` + `wind/` interaction |
 | Undergrowth species (ferns, azalea, iris…) per tile, near/far LOD | era-clash `undergrowth.ts` | high | → `plants/` |
-| Map-wide hash-per-cell scatter (nothing stored per plant), land class/slope/road rules, one draw per species | forth-horizon `vegetation.ts` | high, best design | → `scatter/` (move to GPU) |
+| Map-wide hash-per-cell scatter (nothing stored per plant), land class/slope/road rules, one draw per species | apex `vegetation.ts` | high, best design | → `scatter/` (move to GPU) |
 | Tested tree grower, skeleton→mesh, per-species botanical leaf outlines | museion `flora/TreeGrower.ts`, `treeGeometry.ts`, `leafShapes.ts` (+tests) | high | → `grow/`, `leaves/` |
 | Cyber Forest dressing (art-cut cards, no wind) | rift-realm `cyberforest.ts`, `elderwood.ts` | stylised | first consumer to migrate |
 
-Nothing uses compute shaders yet; only forth-horizon grass reacts to a player/vehicle; impostors are 2-view crossed
+Nothing uses compute shaders yet; only apex grass reacts to a player/vehicle; impostors are 2-view crossed
 billboards; fungi have no system at all.
 
 ## 2. Architecture
@@ -120,7 +120,7 @@ with our wind and impostors, and variants come from the seed. Scans can also sta
 
 ## 5. Phases (each ends with a check against the art and a perf number on both tiers)
 
-1. **Core**: `species/`, `wind/` (merge era-clash + ravencrest + strandFur interaction), `scatter/` (forth-horizon
+1. **Core**: `species/`, `wind/` (merge era-clash + ravencrest + strandFur interaction), `scatter/` (apex
    design on GPU), `lod/` hemi-octahedral impostors, `materials/` foliage BSDF. Gate: era-clash forest runs on it with
    no visual loss; 10k trees in Elderwood at 60 fps on the RTX, ≥30 on the iGPU low tier.
 2. **Trees**: growers (museion TreeGrower + ez-tree backends + space colonization in a crown hull), leaves/bark from

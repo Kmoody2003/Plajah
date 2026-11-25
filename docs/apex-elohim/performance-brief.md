@@ -3,7 +3,7 @@
 Goal: **60 fps on desktop (Intel Arc iGPU/dGPU class), 30 fps stable on low-power TV hardware**, while moving the look toward the 17 reference shots in `docs/apex-elohim/reference-scenes.md` (Forza Horizon / Series X–S level). Do not trade the look away; find cost that buys nothing visible.
 
 ## What it is
-Three.js (WebGL2) open-world racer, `games/forth-horizon`, entry `src/region.ts` (~3.9k lines), Vite, dev port 4332 (`/region.html`). Runs full-screen in an iframe inside the Plajah React app (`components/games/IframeGameFrame.tsx`) or in its own window.
+Three.js (WebGL2) open-world racer, `games/apex`, entry `src/region.ts` (~3.9k lines), Vite, dev port 4332 (`/region.html`). Runs full-screen in an iframe inside the Plajah React app (`components/games/IframeGameFrame.tsx`) or in its own window.
 
 ## Render chain (per frame)
 `EffectComposer`: RenderPass (depth texture on renderTarget2) → `AoPass` (screen-space occlusion) → UnrealBloom → cinematic pass (speed blur, sun shafts, fringing, vignette, grain) → grade/LUT → output. Option: CSM shadows (3 cascades) else single sun shadow. PCFSoft. ACES tone mapping.

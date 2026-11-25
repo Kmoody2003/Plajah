@@ -1,4 +1,4 @@
-// Headless visual check for Plajah Motorsport: Apex: drives the running dev server (preview "forth-horizon", port 4332) in Playwright Chromium on the real GPU
+// Headless visual check for Plajah Motorsport: Apex: drives the running dev server (preview "apex", port 4332) in Playwright Chromium on the real GPU
 // (Direct3D 11 through ANGLE; --swiftshader falls back to software), puts the game's debug camera at each shot, lets streaming settle and screenshots it.
 // Also reports the frame time the page itself measures (requestAnimationFrame) at each shot.
 // usage: node scripts/apex-shots.mjs [outDir] [--swiftshader] [--only name,name] [--tod noon] [--w 1600 --h 900] [--shots extra.json ([[name,[x,y,z],[ax,ay,az]],...])]

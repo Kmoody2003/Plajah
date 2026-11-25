@@ -1,8 +1,8 @@
 # Car pipeline: reference art to a drivable, trainable car
 
 Every car in Apex Elohim goes through the same steps. Each step writes its numbers into the car's `spec.json` and one line into
-`games/forth-horizon/car/_training/runs.jsonl`, so the next car starts from measured priors instead of guesses.
-First car through it: Kestrel Sovereign GT-R (`games/forth-horizon/car/sovereign/`).
+`games/apex/car/_training/runs.jsonl`, so the next car starts from measured priors instead of guesses.
+First car through it: Kestrel Sovereign GT-R (`games/apex/car/sovereign/`).
 
 ## Rule zero (Kenne, 2026-11-16): never reference the texture atlas picture
 Do not open or use the scan's baked texture atlas image (a jumbled collage of car fragments) as a reference; it misleads about where
@@ -27,7 +27,7 @@ are real pieces on the scan body.
 1. **Intake.** Put the turntable video frames in `views/` (`frame0..7.png`). Cut the car out of each (`cutouts.py`, rembg) to `cut0..7.png`.
 2. **Profile fit.** `fit_profile.py` reads the side cut-outs and writes `fit.json` (roofline, ride height, wheel columns, front/rear widths).
 3. **Mesh.** `gen_hunyuan.mjs [frame]` calls the local Tela 3D runtime (Hunyuan3D-2mini, port 51124) for one frame. `orient.py` rotates it
-   (nose +Z, ground at y = 0, 4.78 m) to `sov_base.glb`; the painted copy goes to `public/games/forth-horizon/car/`.
+   (nose +Z, ground at y = 0, 4.78 m) to `sov_base.glb`; the painted copy goes to `public/games/apex/car/`.
    Single-image meshes are guessed on the far side. Prefer a multi-view mesh when one is available.
 
    **Which Plajah workflow:** the shape generator is **Tela 3D**, also used by Argilla's generated-geometry route
@@ -38,7 +38,7 @@ are real pieces on the scan body.
    meshes for the measured shell-and-parts assembly described here.
 
    For a file-based job without the HTTP service, use the installed Tela Python:
-   `"D:\Plajah Runtime\tela3d-py\Scripts\python.exe" -u games/forth-horizon/car/run_tela_shell.py --car corsair --frame 0`.
+   `"D:\Plajah Runtime\tela3d-py\Scripts\python.exe" -u games/apex/car/run_tela_shell.py --car corsair --frame 0`.
    This imports the existing `engines/tela-3d/tela3d_runtime.py` and calls its own `cut_out` and `image_to_mesh`
    functions. It uses the Sovereign settings (Hunyuan-mini, 380 octree, 5 steps, 60k faces, 0.92 foreground),
    existing offline weights, and the engine's temperature guard. `--check` reports installed backend and GPU

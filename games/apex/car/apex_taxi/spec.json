@@ -1,0 +1,236 @@
+{
+  "id": "apex_taxi",
+  "name": "Apex Metro Taxi Cab",
+  "glb": "/games/apex/car/apex_taxi_base.glb",
+  "paint": "0xe2b21c",
+  "accent": "0x16181c",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (apex_taxi_base.glb, L=4.92m W=1.94m H=1.53m).",
+  "wheels": {
+    "frontZ": 1.457,
+    "rearZ": -1.371,
+    "frontX": 0.688,
+    "rearX": 0.695,
+    "scale": 1.036,
+    "discardR": 0.383,
+    "centreY": 0.368,
+    "tyreR": 0.368,
+    "rimR": 0.236,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.874,
+        0.0,
+        0.976
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.874,
+        0.0,
+        0.976
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.032,
+        0.956
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    },
+    "trunk": {
+      "hinge": [
+        0.0,
+        1.052,
+        -1.668
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": 0.85
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.66,
+        0.792,
+        0.976
+      ],
+      [
+        0.66,
+        1.272,
+        2.3
+      ]
+    ],
+    "trunk": [
+      [
+        -0.582,
+        0.872,
+        -2.34
+      ],
+      [
+        0.582,
+        1.252,
+        -1.688
+      ]
+    ],
+    "roof": [
+      [
+        -0.796,
+        1.335,
+        -0.61
+      ],
+      [
+        0.796,
+        1.673,
+        0.041
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.032,
+    "roofEdge": 1.475,
+    "pillarBase": 0.936,
+    "pillarTop": 0.041,
+    "doorFront": 0.976,
+    "doorRear": -0.374,
+    "windBase": 0.936,
+    "windTop": 0.041,
+    "rearTop": -0.61,
+    "rearBase": -1.668,
+    "rearBase2": -1.648,
+    "windHalfW": 0.796,
+    "rearHalfW": 0.588,
+    "sideWindow": [
+      [
+        -0.65,
+        1.062
+      ],
+      [
+        0.936,
+        1.052
+      ],
+      [
+        0.896,
+        1.218
+      ],
+      [
+        0.508,
+        1.378
+      ],
+      [
+        0.041,
+        1.445
+      ],
+      [
+        -0.57,
+        1.445
+      ],
+      [
+        -0.69,
+        1.333
+      ],
+      [
+        -0.71,
+        1.082
+      ]
+    ],
+    "handle": [
+      0.141,
+      0.892
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.377,
+    "layout": "front-v8",
+    "arch": "v6-sedan",
+    "texUrl": "/games/apex/tex/engines/v6_sedan.jpg"
+  },
+  "trunk": true,
+  "cabin": {
+    "yOffset": 0.113,
+    "zOffset": -0.125,
+    "cowlZ": 0.886,
+    "cowlY": 1.052
+  },
+  "exhaust": {
+    "z": -2.345,
+    "y": 0.26,
+    "xs": [
+      -0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.447,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.544,
+      "y": 0.591,
+      "w": 0.252,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.563,
+      "y": 0.704,
+      "len": 0.291,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.32,
+    "bumperRearY": 0.34,
+    "skirtY": 0.2,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.351,
+    "grilleHiY": 0.641,
+    "grilleStyle": "sport"
+  }
+}

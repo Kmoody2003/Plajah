@@ -54,7 +54,7 @@ While checking the Mill Road junction I found the coast highway missing from the
 - **Trees on scenic roads.** The tree and grass clearance only knew the circuits and the coastal highway, so roads outside a circuit (Kettle Pass, Mill Road, Orchard Lane) could have trees on them. It now has every scenic road.
 
 ## Testing while the graphics work runs
-The graphics session saves files every minute or so, and each save reloads the page on the main dev server (port 4332), which killed long checks. There is now a second dev server, `forth-horizon-check` on port 4333 (`vite.check.config.mjs`), with no hot reload or file watching: a page keeps running what it loaded. The shot and lap scripts take `APEX_URL=http://127.0.0.1:4333`. It serves the working tree, so it includes whatever the graphics session has saved.
+The graphics session saves files every minute or so, and each save reloads the page on the main dev server (port 4332), which killed long checks. There is now a second dev server, `apex-check` on port 4333 (`vite.check.config.mjs`), with no hot reload or file watching: a page keeps running what it loaded. The shot and lap scripts take `APEX_URL=http://127.0.0.1:4333`. It serves the working tree, so it includes whatever the graphics session has saved.
 
 ## Festival stunts
 - **Decision:** re-planned on today's roads, with two planner changes:

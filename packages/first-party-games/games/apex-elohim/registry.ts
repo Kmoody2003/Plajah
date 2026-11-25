@@ -5,8 +5,8 @@
 import type { Game, WebApp } from '../../../../types';
 import type { IframeGameBridgeConfig } from '../era-clash/registry';
 
-export const APEX_ELOHIM_URL = '/games/forth-horizon/play/region.html';
-export const APEX_ELOHIM_THUMBNAIL_URL = '/games/forth-horizon/screenshots/rain-chase.jpg';
+export const APEX_ELOHIM_URL = '/games/apex/play/region.html';
+export const APEX_ELOHIM_THUMBNAIL_URL = '/games/apex/screenshots/rain-chase.jpg';
 
 export const APEX_ELOHIM_GAME: Game = {
   id: 'apex-elohim',

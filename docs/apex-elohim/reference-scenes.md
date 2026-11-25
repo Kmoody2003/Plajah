@@ -2,7 +2,7 @@
 
 Each scene needs a named site on the map, a camera spot (photo mode / replay cam), and the props listed. Permission given 2026-11-16 to add paved and dirt roads and a creek branching off the waterways.
 
-The camera spots live in `games/forth-horizon/src/referenceScenes.ts` (`REF_SCENES`; `window.refScenes` in the game). They also play in the idle cinematic tour. What a place was missing for its shot is built there by `buildReferenceDressing()` (plain geometry, no materials work: the look is the graphics lane's).
+The camera spots live in `games/apex/src/referenceScenes.ts` (`REF_SCENES`; `window.refScenes` in the game). They also play in the idle cinematic tour. What a place was missing for its shot is built there by `buildReferenceDressing()` (plain geometry, no materials work: the look is the graphics lane's).
 
 Shoot them all with:
 

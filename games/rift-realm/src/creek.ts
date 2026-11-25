@@ -1,7 +1,7 @@
 // Creek and swamp water for the Elderwood Wilds (river, pool stream, the vale slough). Kenne via the shooter session
 // (2026-11-22): "make the water look and move like a real creek or river, at least as good as the water in Apex".
 //
-// Apex (forth-horizon/src/water.ts) reads a baked flow map (current, depth, shoreline) and advects tileable ripple
+// Apex (apex/src/water.ts) reads a baked flow map (current, depth, shoreline) and advects tileable ripple
 // normals along it in two cross-fading phases, tints by depth, mirrors the sky with Fresnel plus sun glints, foams the
 // banks and the fast water, feathers the shoreline by depth and draws rain rings. Here the same model rides the river
 // ribbons themselves: every vertex carries its current (m/s), white water (rapids, rocks, falls), depth over the bed

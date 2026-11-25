@@ -57,7 +57,7 @@ export const LEGACY_VERTICAL_PROFILES = {
     vegetationSpecies: ['autumn-maple', 'marsh-cypress', 'fable-ancient-oak'],
     features: ['ktx2-polyhaven', 'verlet-cloth-wind', 'bushido-stances', 'lens-splatter', 'nightmare-events'],
   },
-  'apex-forth-horizon': {
+  'apex-motorsport': {
     template: 'racer' as const,
     stagePreset: 'firstlight-primetime-stadium' as const,
     vegetationSpecies: ['coastal-windswept-cedar', 'nordic-spruce', 'tropical-royal-palm'],

@@ -41,10 +41,10 @@ new cut trail. Service park at Otter Creek.
 - Elevation is a design target. Heightmap generation is the next build step.
 
 ## Terrain build (first pass)
-- `games/forth-horizon/tools/build_region.py` makes the height field from the satellite tile
-  and the circuit data. Output goes to `public/games/forth-horizon/region/`
+- `games/apex/tools/build_region.py` makes the height field from the satellite tile
+  and the circuit data. Output goes to `public/games/apex/region/`
   (`height.f32`, `albedo.jpg`, `region.json`). Datum: lake surface = 0 m, 12 m per sample.
-- View it with `npm run forth:dev`, then open `/region.html`. It has camera presets, a
+- View it with `npm run apex:dev`, then open `/region.html`. It has camera presets, a
   tunnel x-ray toggle, a height exaggeration slider, and fly-through laps of the cliff
   raceway and the city circuit.
 - Circuits are graded into the terrain: the city is flat, the rally follows smoothed
@@ -55,9 +55,9 @@ new cut trail. Service park at Otter Creek.
   authored terrain, and there are no buildings or trees yet.
 
 ## City buildings (first pass)
-- `games/forth-horizon/tools/place_city.py` splits the downtown slice into lots from the
+- `games/apex/tools/place_city.py` splits the downtown slice into lots from the
   street lattice, then places all 36 hero buildings and generic buildings by district
-  rules. Output: `public/games/forth-horizon/region/city.json` (860 buildings) and
+  rules. Output: `public/games/apex/region/city.json` (860 buildings) and
   `city_debug.png`.
 - The viewer loads the models from the Ironport package folder (`/ironport-assets/`).
   To stay inside GPU memory it uses the Quest-tier textures and base colour only, and
@@ -73,7 +73,7 @@ new cut trail. Service park at Otter Creek.
 - Decision: mix of real Detroit centrelines (downtown blocks) and a hand-authored harbor,
   riverfront and country connections. The mock satellite is used to infer the setting,
   not as the street source.
-- `games/forth-horizon/tools/fetch_detroit_streets.ts` pulled 2,470 downtown centreline
+- `games/apex/tools/fetch_detroit_streets.ts` pulled 2,470 downtown centreline
   segments through Terra's adapter (public Detroit open data, bounding box only). Saved to
   `tools/data/detroit_streets.json`.
 - `tools/city_plan_real.py` rotates them so the river runs down the left edge and writes
@@ -197,11 +197,11 @@ new cut trail. Service park at Otter Creek.
 - Cause: asphalt and sidewalks were separate ribbons along every centreline, so they overlapped and crossed at intersections, and the paver tile was about 2.6 m per repeat of a 1.4 m-block texture.
 - Now `tools/build_city_mask.py` bakes the street network to `region/city_mask.png` (R carriageway, G sidewalk, 1.5 m/px, 2494 x 3841). Carriageways are unions of strokes, so crossings merge into one surface; a morphological close gives rounded kerb returns; the sidewalk wraps the corners. The terrain shader paints asphalt (4 m tile), pavers (1.7 m tile) and a concrete kerb band from the mask. Seamless tiles `asphalt_plain.jpg` and `paver_plain.jpg` are cut from the reference sheets.
 - Concrete barriers are now jersey-profile geometry (0.81 m tall, 3.05 m long) textured from the Concrete Crash Barriers sheet: grey, hazard-stripe and worn red/white.
-- Not done: crosswalks, lane markings in the mask (1.5 m/px is too coarse for centre lines), kerb height (the kerb is painted, not raised), and the 30 foliage sprites in `public/games/forth-horizon/sprites/` (cut from the sheets by `tools/build_sprites.py`) are not in the viewer yet.
+- Not done: crosswalks, lane markings in the mask (1.5 m/px is too coarse for centre lines), kerb height (the kerb is painted, not raised), and the 30 foliage sprites in `public/games/apex/sprites/` (cut from the sheets by `tools/build_sprites.py`) are not in the viewer yet.
 - Building PBR: full base, normal and roughness maps now load (set `?lowtex` to fall back to base-only). Not yet judged visually.
 
 ## Photographic trees
-- `tools/build_sprites.py` and `tools/build_conifers.py` cut individual trees and plants out of the foliage sheets into `public/games/forth-horizon/sprites/` (white pines, red oaks, weeping willow, street trees, coastal shrubs, reeds, ferns, logs). 38 sprites; only the trees are used so far.
+- `tools/build_sprites.py` and `tools/build_conifers.py` cut individual trees and plants out of the foliage sheets into `public/games/apex/sprites/` (white pines, red oaks, weeping willow, street trees, coastal shrubs, reeds, ferns, logs). 38 sprites; only the trees are used so far.
 - Street trees (12,867) are now two crossed photographic cards each, in `buildStreetscape`.
 - `tools/build_forest.py` scatters 90,000 forest trees where the satellite is dark green (outside the city and off the water); conifers dominate the Pinewood north-west, broadleaf and autumn oaks elsewhere.
 - Cards do not cast shadows and use flat upward normals. Measured 53 fps in the Browser pane on the forest view.
@@ -236,7 +236,7 @@ new cut trail. Service park at Otter Creek.
 - The map screen's chequered strips were replaced by solid ember-gradient rails, since the checks read like a transparency grid.
 
 ## Music
-- Source folder: `racer/Music apex elohim/` (the four files now live there). `tools/prep_music.py` copies the distinct tracks into `public/games/forth-horizon/music/` and writes `music.json` (menu list and driving list). Titles containing "apex elohim" are menu tracks; the rest play while driving. Run it again whenever songs are added.
+- Source folder: `racer/Music apex elohim/` (the four files now live there). `tools/prep_music.py` copies the distinct tracks into `public/games/apex/music/` and writes `music.json` (menu list and driving list). Titles containing "apex elohim" are menu tracks; the rest play while driving. Run it again whenever songs are added.
 - `apex elohim.mp3` and `apex elohim 2.mp3` are still byte-identical (same MD5), so the script uses one; the rest are High-Speed Ritual and High-Speed Ritua 2l.
 - Behaviour: menu tracks on the map screen and briefings; the driving tracks alternate and advance when one ends; 1.6 s crossfades; starts on the first click or key press; volume slider in Settings > Audio.
 - Verified: the menu track loads after a click. Not verified by ear: levels, crossfade, driving tracks.

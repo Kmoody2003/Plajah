@@ -1,0 +1,236 @@
+{
+  "id": "nexis_strada",
+  "name": "Nexis Strada Sedan",
+  "glb": "/games/apex/car/nexis_strada_base.glb",
+  "paint": "0xaeb4bc",
+  "accent": "0x1c2028",
+  "cuts": true,
+  "traffic": true,
+  "frame": "car frame: x across (+left), y up from ground, z along (+nose), metres, origin centred on x/z",
+  "measuredFrom": "Multi-view matched 60k-face Class-A symmetric Hunyuan3D shell (nexis_strada_base.glb, L=4.72m W=1.94m H=1.52m).",
+  "wheels": {
+    "frontZ": 1.489,
+    "rearZ": -1.241,
+    "frontX": 0.64,
+    "rearX": 0.64,
+    "scale": 1.027,
+    "discardR": 0.38,
+    "centreY": 0.365,
+    "tyreR": 0.365,
+    "rimR": 0.234,
+    "style": "street"
+  },
+  "panels": {
+    "doorL": {
+      "hinge": [
+        0.874,
+        0.0,
+        1.014
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": -1.0
+    },
+    "doorR": {
+      "hinge": [
+        -0.874,
+        0.0,
+        1.014
+      ],
+      "axis": [
+        0,
+        1,
+        0
+      ],
+      "open": 1.0
+    },
+    "hood": {
+      "hinge": [
+        0.0,
+        1.097,
+        0.994
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": -0.92
+    },
+    "trunk": {
+      "hinge": [
+        0.0,
+        1.117,
+        -1.987
+      ],
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "open": 0.85
+    }
+  },
+  "panelBoxes": {
+    "hood": [
+      [
+        -0.66,
+        0.857,
+        1.014
+      ],
+      [
+        0.66,
+        1.337,
+        2.199
+      ]
+    ],
+    "trunk": [
+      [
+        -0.582,
+        0.937,
+        -2.239
+      ],
+      [
+        0.582,
+        1.317,
+        -2.007
+      ]
+    ],
+    "roof": [
+      [
+        -0.779,
+        1.313,
+        -1.286
+      ],
+      [
+        0.779,
+        1.66,
+        0.429
+      ]
+    ],
+    "preserveHood": true,
+    "preserveTrunk": true,
+    "preserveRoof": true
+  },
+  "glass": {
+    "belt": 1.097,
+    "roofEdge": 1.453,
+    "pillarBase": 0.974,
+    "pillarTop": 0.429,
+    "doorFront": 1.014,
+    "doorRear": -0.336,
+    "windBase": 0.974,
+    "windTop": 0.429,
+    "rearTop": -1.286,
+    "rearBase": -1.987,
+    "rearBase2": -1.967,
+    "windHalfW": 0.779,
+    "rearHalfW": 0.471,
+    "sideWindow": [
+      [
+        -1.326,
+        1.127
+      ],
+      [
+        0.974,
+        1.117
+      ],
+      [
+        0.934,
+        1.247
+      ],
+      [
+        0.721,
+        1.375
+      ],
+      [
+        0.429,
+        1.423
+      ],
+      [
+        -1.246,
+        1.423
+      ],
+      [
+        -1.366,
+        1.339
+      ],
+      [
+        -1.386,
+        1.147
+      ]
+    ],
+    "handle": [
+      0.179,
+      0.957
+    ]
+  },
+  "front": {
+    "openings": []
+  },
+  "engine": {
+    "z": 1.409,
+    "layout": "front-v8",
+    "arch": "commuter-i4",
+    "texUrl": "/games/apex/tex/engines/i4_commuter.jpg"
+  },
+  "trunk": true,
+  "cabin": {
+    "yOffset": 0.1,
+    "zOffset": -0.189,
+    "cowlZ": 0.924,
+    "cowlY": 1.117
+  },
+  "exhaust": {
+    "z": -2.236,
+    "y": 0.26,
+    "xs": [
+      -0.46
+    ]
+  },
+  "aero": {
+    "splitterZ": 2.355,
+    "splitterW": 0,
+    "splitterY": 0.2,
+    "splitterStruts": false,
+    "canards": false,
+    "diffuserW": 0,
+    "diffuserFins": 0,
+    "wing": {
+      "type": "none",
+      "width": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "lamps": {
+    "head": {
+      "x": 0.544,
+      "y": 0.635,
+      "w": 0.252,
+      "h": 0.082,
+      "tilt": 0.015,
+      "style": "swept"
+    },
+    "tail": {
+      "x": 0.563,
+      "y": 0.71,
+      "len": 0.291,
+      "style": "twin-bar"
+    }
+  },
+  "shader": {
+    "bumperFrontY": 0.32,
+    "bumperRearY": 0.34,
+    "skirtY": 0.2,
+    "archLipAdd": 0.042,
+    "wingCarbonZ": -9.0,
+    "wingCarbonY": 9.0,
+    "grilleLoY": 0.395,
+    "grilleHiY": 0.685,
+    "grilleStyle": "sport"
+  }
+}

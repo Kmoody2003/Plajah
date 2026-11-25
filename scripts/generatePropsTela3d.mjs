@@ -14,7 +14,7 @@ import path from 'node:path';
 
 const TELA3D_URL = process.env.TELA3D_URL || 'http://127.0.0.1:51124';
 const REFS_DIR = 'D:\\plajah game assets deign from promtps\\racer\\Nov 15 - 14_22';
-const OUT_DIR = path.resolve('games/forth-horizon/assets-src/props');
+const OUT_DIR = path.resolve('games/apex/assets-src/props');
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 const args = Object.fromEntries(

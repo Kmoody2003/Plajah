@@ -68,6 +68,9 @@
         ]
       }
     ],
+    "redirects": [
+      { "source": "/games/forth-horizon/:rest*", "destination": "/games/apex/:rest", "type": 301 }
+    ],
     "rewrites": [
       {
         "source": "/api/**",

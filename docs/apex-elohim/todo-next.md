@@ -59,7 +59,7 @@ python tools/build_city_mask.py             # street widths (real-world, freeway
 python tools/build_curbs.py
 python tools/civic/district_audit.py        # what is left: region/district_audit.json
 ```
-(all with `IRONPORT_PKG=public/games/forth-horizon/ironport`).
+(all with `IRONPORT_PKG=public/games/apex/ironport`).
 
 ## Name (open)
 Kenne likes "Apex" and is open to fresh takes. Candidates written 2026-11-16 (the game is a Lake Michigan / Detroit-flavoured open-world racer in the Legend of Elohim universe):
