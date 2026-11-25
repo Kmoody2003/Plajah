@@ -17,6 +17,17 @@
 type RGBA = { r: number; g: number; b: number; a: number };
 
 const parseColor = (c: string): RGBA | null => {
+  c = c.trim();
+  // Custom properties come back exactly as authored/minified — often #rrggbbaa, which the first
+  // version could not read (it fell back to a BLACK scrim and judged light pages dark).
+  if (c[0] === '#') {
+    let h = c.slice(1);
+    if (h.length === 3 || h.length === 4) h = h.split('').map(x => x + x).join('');
+    if (h.length !== 6 && h.length !== 8) return null;
+    const n = parseInt(h.slice(0, 6), 16);
+    if (Number.isNaN(n)) return null;
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255, a: h.length === 8 ? parseInt(h.slice(6), 16) / 255 : 1 };
+  }
   const m = c.match(/rgba?\(([^)]+)\)/);
   if (!m) return null;
   const p = m[1].split(/[,/ ]+/).filter(Boolean).map(parseFloat);
@@ -79,7 +90,9 @@ export function measureImageUrl(url: string): Promise<number | null> {
 
 // ── Contrast guard ──────────────────────────────────────────────────────────
 
-const MAX_NODES = 1800;
+/** Text nodes scanned per pass / nodes actually measured per pass. Scanning is cheap; measuring is not. */
+const MAX_SCAN = 9000;
+const MAX_MEASURE = 2600;
 const SKIP = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'CANVAS', 'VIDEO', 'SVG', 'IMG', 'IFRAME', 'TEXTAREA', 'OPTION']);
 
 /** Colour that sits behind the UI when the page background is custom (scrim over the image). */
@@ -101,7 +114,7 @@ function pageBackdrop(): RGBA {
   return light ? { r: 221, g: 227, b: 234, a: 1 } : { r: 8, g: 8, b: 12, a: 1 };
 }
 
-type Backdrop = { bg: RGBA; media: boolean; mediaKnown: boolean };
+type Backdrop = { bg: RGBA; media: boolean; mediaKnown: boolean; confidentDark: boolean };
 
 const mediaLumCache = new WeakMap<Element, number | null>();
 
@@ -130,13 +143,14 @@ function backdropFor(el: Element, page: RGBA): Backdrop {
   const r = el.getBoundingClientRect();
   const x = Math.min(innerWidth - 1, Math.max(1, r.left + r.width / 2));
   const y = Math.min(innerHeight - 1, Math.max(1, r.top + r.height / 2));
-  const hit = document.elementsFromPoint(x, y);
+  const inView = r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
+  const hit = inView ? document.elementsFromPoint(x, y) : [];
   const idx = hit.indexOf(el);
   const below: Element[] = [];
   if (idx >= 0) for (let i = idx + 1; i < hit.length; i++) below.push(hit[i]);
   else { let n: Element | null = el.parentElement; while (n) { below.push(n); n = n.parentElement; } }
   let acc: RGBA = page;
-  let media = false, mediaKnown = false;
+  let media = false, mediaKnown = false, confidentDark = false;
   for (let i = below.length - 1; i >= 0; i--) {
     const n = below[i];
     if (n === document.body || n === document.documentElement) continue;
@@ -144,15 +158,18 @@ function backdropFor(el: Element, page: RGBA): Backdrop {
     const cs = getComputedStyle(n);
     const isEl = n instanceof HTMLImageElement || n instanceof HTMLVideoElement || n instanceof HTMLCanvasElement;
     if (isEl || cs.backgroundImage.includes('url(')) {
-      media = true;
       const l = isEl ? mediaLuminance(n) : null;
-      if (l !== null) { acc = grey(l); mediaKnown = true; } else acc = grey(0.06); // unknown: heroes are almost always dark
+      // Only a LARGE picture/video behind the text is a hero. Avatars, thumbnails and icons are not.
+      const big = (() => { const b = n.getBoundingClientRect(); return b.width >= innerWidth * 0.3 && b.height >= 120; })();
+      if (!big) continue;
+      media = true;
+      if (l !== null) { acc = grey(l); mediaKnown = true; confidentDark = l < 0.25; } else { acc = grey(0.06); confidentDark = true; } // unknown: heroes are almost always dark
       continue;
     }
     const bg = parseColor(cs.backgroundColor);
-    if (bg && bg.a > 0) acc = over(bg, acc);
+    if (bg && bg.a > 0) { acc = over(bg, acc); if (bg.a >= 0.85 && luminance(bg) < 0.12) confidentDark = true; if (bg.a >= 0.85 && luminance(bg) > 0.5) confidentDark = false; }
   }
-  return { bg: acc, media, mediaKnown };
+  return { bg: acc, media, mediaKnown, confidentDark };
 }
 
 const ink = (dark: boolean, muted: boolean) =>
@@ -168,6 +185,62 @@ const ink = (dark: boolean, muted: boolean) =>
  *    is re-evaluated.
  *  - No CSS transition on the corrected colour: it lands in one frame.
  */
+// ── Surface adaptation ──────────────────────────────────────────────────────
+/**
+ * Plenty of pages hard-code near-black panels (bg-[#0a0a0f], inline background:#07070b, dark
+ * gradients). Class remapping in CSS cannot reach those, so on light/pastel themes this pass
+ * finds genuinely dark, mostly-opaque panels and tags them `data-pj-surface`; theme-system.css
+ * gives tagged panels the theme's frosted surface. It never touches: anything holding or sitting
+ * on video / canvas / iframe / a photo (players, heroes, ad slots), tiny elements, full-screen
+ * modal dimmers, or anything opted out with data-keep-dark / .pj-keep-dark.
+ */
+const SURFACE_SELECTOR = 'div,section,aside,main,header,footer,nav,article,ul,form,table,dialog,[role="dialog"],[role="menu"],[role="listbox"],input,textarea,select';
+const KEEP_DARK = '[data-keep-dark],.pj-keep-dark,.ev-leaf,#universal-background,video,canvas,iframe';
+const surfaceSig = new WeakMap<Element, string>();
+let surfaceList: HTMLElement[] = [];
+
+function darkFill(cs: CSSStyleDeclaration): boolean {
+  if (cs.backgroundImage.includes('url(')) return false; // a picture, not a plain panel
+  const bg = parseColor(cs.backgroundColor);
+  if (bg && bg.a >= 0.5 && luminance(bg) < 0.12) return true;
+  if (cs.backgroundImage.includes('gradient')) {
+    const cols = (cs.backgroundImage.match(/rgba?\([^)]*\)/g) || []).map(parseColor).filter(Boolean) as RGBA[];
+    if (cols.length && cols.every(c => c.a >= 0.3 && luminance(c) < 0.12)) return true;
+  }
+  return false;
+}
+
+export function unadaptSurfaces() {
+  for (const el of surfaceList) { el.removeAttribute('data-pj-surface'); surfaceSig.delete(el); }
+  surfaceList = [];
+}
+
+export function adaptSurfaces(): number {
+  let n = 0, measured = 0;
+  const els = document.body.querySelectorAll<HTMLElement>(SURFACE_SELECTOR);
+  for (let i = 0; i < els.length && measured < 2600; i++) {
+    const el = els[i];
+    const sig = (typeof el.className === 'string' ? el.className : '') + '|' + (el.getAttribute('style') || '');
+    if (el.hasAttribute('data-pj-surface')) { if (surfaceSig.get(el) === sig) { n++; continue; } el.removeAttribute('data-pj-surface'); }
+    const r = el.getBoundingClientRect();
+    const form = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT';
+    if (r.bottom < -innerHeight || r.top > innerHeight * 2) continue;
+    if (!form && (r.width < 120 || r.height < 36)) continue;
+    measured++;
+    const cs = getComputedStyle(el);
+    if (!darkFill(cs)) continue;
+    // Full-screen dimmers behind modals must stay dark.
+    if (cs.position === 'fixed' && r.width >= innerWidth * 0.9 && r.height >= innerHeight * 0.9) continue;
+    if (el.closest(KEEP_DARK)) continue;
+    if (!form && el.querySelector('video,canvas,iframe')) continue;
+    el.setAttribute('data-pj-surface', '1');
+    surfaceSig.set(el, sig);
+    surfaceList.push(el);
+    n++;
+  }
+  return n;
+}
+
 const fixedFor = new WeakMap<Element, string>();
 let revertList: HTMLElement[] = [];
 
@@ -181,18 +254,23 @@ function unfix(el: HTMLElement) {
 export function resetContrastGuard() {
   for (const el of revertList) unfix(el);
   revertList = [];
+  unadaptSurfaces();
 }
 
 export function runContrastGuard(root: ParentNode = document.body): number {
   if (typeof document === 'undefined') return 0;
   const page = pageBackdrop();
-  let visited = 0, fixed = 0;
+  const lightTheme = document.body.classList.contains('theme-light') || document.body.classList.contains('theme-pastel');
+  if (lightTheme && luminance(page) < 0.4) { page.r = 221; page.g = 227; page.b = 234; page.a = 1; }
+  // Panels first, so the text pass below judges the backgrounds as they will actually look.
+  if (lightTheme) adaptSurfaces(); else if (surfaceList.length) unadaptSurfaces();
+  let visited = 0, measured = 0, fixed = 0;
   const walker = document.createTreeWalker(root as Node, NodeFilter.SHOW_TEXT, {
     acceptNode: n => (n.nodeValue && n.nodeValue.trim().length > 1 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),
   });
   const seen = new Set<Element>();
   let node: Node | null;
-  while ((node = walker.nextNode()) && visited < MAX_NODES) {
+  while ((node = walker.nextNode()) && visited < MAX_SCAN && measured < MAX_MEASURE) {
     const el = node.parentElement as HTMLElement | null;
     if (!el || seen.has(el) || SKIP.has(el.tagName.toUpperCase())) continue;
     seen.add(el);
@@ -204,12 +282,20 @@ export function runContrastGuard(root: ParentNode = document.body): number {
     if (el.hasAttribute('data-pj-contrast')) unfix(el);
 
     const rect = el.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0 || rect.bottom < 0 || rect.top > innerHeight) continue; // offscreen / hidden
+    // Cover one screen above and below so text is already right when it scrolls into view.
+    if (rect.width === 0 || rect.height === 0 || rect.bottom < -innerHeight || rect.top > innerHeight * 2) continue;
+    measured++;
     const cs = getComputedStyle(el);
     if (cs.visibility === 'hidden' || cs.display === 'none' || parseFloat(cs.opacity) < 0.05) continue;
     const fg = parseColor(cs.color);
     if (!fg) continue;
-    const { bg, media } = backdropFor(el, page);
+    const bd = backdropFor(el, page);
+    const { media } = bd;
+    let bg = bd.bg;
+    // Light themes put light frosted glass over everything by construction. A model that says
+    // "dark" without hard evidence (real dark media, or an opaque dark fill) is a model error —
+    // trust the theme, never flip to white on a guess.
+    if (lightTheme && !bd.confidentDark && luminance(bg) < 0.4) bg = { ...page, a: 1 };
     const fgOver = over(fg, { ...bg, a: 1 });
     const ratio = contrastRatio(fgOver, bg);
     const size = parseFloat(cs.fontSize);
@@ -254,6 +340,10 @@ export function startContrastGuard(enabled: () => boolean): () => void {
   // Global look changes (theme class, bg tone, palette vars on <body style>): full re-evaluation.
   const look = new MutationObserver(() => { needFullReset = true; schedule(200); });
   look.observe(document.body, { attributes: true, attributeFilter: ['class', 'data-bg-tone', 'data-pj-palette', 'style'] });
+  // Scrolling reveals text that was never judged. Capture phase so inner scroll containers count.
+  const onScroll = () => schedule(140);
+  window.addEventListener('scroll', onScroll, { capture: true, passive: true });
+  window.addEventListener('resize', onScroll, { passive: true });
   schedule(150);
-  return () => { content.disconnect(); look.disconnect(); window.clearTimeout(timer); resetContrastGuard(); };
+  return () => { content.disconnect(); look.disconnect(); window.removeEventListener('scroll', onScroll, true); window.removeEventListener('resize', onScroll); window.clearTimeout(timer); resetContrastGuard(); };
 }

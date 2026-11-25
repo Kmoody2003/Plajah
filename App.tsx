@@ -148,7 +148,7 @@ import LiveFollowPills from './components/LiveFollowPills';
 import { useLiveAlertsPref } from './hooks/useLiveAlertsPref';
 import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
 import ThemeSpecBackground from './components/ThemeSpecBackground';
-import { useEffectiveThemeSpec, setUserThemeSpec } from './services/themeRuntime';
+import { useEffectiveThemeSpec, setUserThemeSpec, setUserBaseTheme } from './services/themeRuntime';
 import { applyPalette } from './services/themePalette';
 import { startContrastGuard, measureImageUrl, setBackgroundTone, clearBackgroundTone } from './services/themeContrast';
 import TvUnavailableNotice from './components/TvUnavailableNotice';
@@ -4084,20 +4084,22 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     // Themes are desktop personalisation. A TV gets one high-contrast look built for distance
     // viewing — and pinning it means the alternate themes' gradients and background media are
     // never requested at all, which on a 2GB TV matters more than the styling does.
-    const lookTheme: ThemeType = effectiveSpec?.base ?? theme;
+    // The person's own Light/Dark/Pastel/… is never overridden — not by a spec, not by an org.
+    const lookTheme: ThemeType = theme;
     document.body.className = platform.isTV || !themesAllowed() ? 'theme-big-screen' : themeClasses[lookTheme];
     if (hadCustomBg) document.body.classList.add('has-custom-background');
     if (hadThemeBg) document.body.classList.add('has-theme-bg');
     if (hadThemeMedia) document.body.classList.add('theme-bg-media');
-  }, [theme, effectiveSpec?.base]);
+  }, [theme]);
 
   // Personal theme spec → runtime (an org's spec overrides it while its page is open), then the
   // four accent levels are written as CSS variables with auto-readable ink variants.
   useEffect(() => { setUserThemeSpec(userProfile?.themeSpec ?? null); }, [userProfile?.themeSpec]);
+  useEffect(() => { setUserBaseTheme(theme); }, [theme]);
   useEffect(() => {
     if (getPlatformInfo().isTV || !themesAllowed()) { applyPalette(null, 'BIG_SCREEN'); return; }
-    applyPalette(effectiveSpec?.palette, effectiveSpec?.base ?? theme);
-  }, [effectiveSpec?.palette, effectiveSpec?.base, theme]);
+    applyPalette(effectiveSpec?.palette, theme);
+  }, [effectiveSpec?.palette, theme]);
 
   useEffect(() => {
     if (theme !== 'BIG_SCREEN') return;
@@ -4946,7 +4948,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               {/* Base theme gradient — always present so the background is never blank */}
               <div
                 className="absolute inset-0 transition-all duration-700"
-                style={{ background: THEME_BG[effectiveSpec?.base ?? theme] ?? THEME_BG.PLAJAH }}
+                style={{ background: THEME_BG[theme] ?? THEME_BG.PLAJAH }}
               />
               <ThemeSpecBackground />
               <AnimatePresence mode="wait">

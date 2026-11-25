@@ -255,7 +255,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
   const IconBtn: React.FC<{ title: string; onClick?: () => void; active?: boolean; children: React.ReactNode; className?: string; badge?: number }> =
     ({ title, onClick, active, children, className = '', badge }) => (
     <button title={title} onClick={onClick}
-      className={`relative grid place-items-center w-11 h-11 rounded-[13px] transition-colors shrink-0 ${active ? 'text-white' : 'text-white/55 hover:text-white hover:bg-white/[0.08]'} ${className}`}
+      className={`pj-rail-btn relative grid place-items-center w-11 h-11 rounded-[13px] transition-colors shrink-0 ${active ? 'text-white' : 'text-white/55 hover:text-white hover:bg-white/[0.08]'} ${className}`}
       style={active ? { background: 'linear-gradient(135deg,#6B0099,#D40055)', boxShadow: '0 6px 22px rgba(212,0,85,.32)' } : undefined}>
       {children}
       {!!badge && badge > 0 && (
@@ -271,7 +271,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
         <span>{orgMode ? 'Elevate' : NAV_SECTIONS[openCat].key}</span>
       </div>
       <button onClick={openLauncher}
-        className="mx-3 mb-2 flex items-center gap-2 text-[.75rem] text-white/45 hover:text-white bg-white/[0.045] hover:bg-white/[0.08] border border-white/[0.12] rounded-xl px-3 py-2 transition-colors">
+        className="pj-nav-search mx-3 mb-2 flex items-center gap-2 text-[.75rem] text-white/45 hover:text-white bg-white/[0.045] hover:bg-white/[0.08] border border-white/[0.12] rounded-xl px-3 py-2 transition-colors">
         <Search size={13} /> Jump to anything
         <span className="ml-auto text-[.58rem] font-bold border border-white/15 rounded px-1.5 py-0.5">Ctrl K</span>
       </button>
@@ -285,14 +285,16 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
         <div className="text-[.58rem] font-black uppercase tracking-[0.2em] text-white/35 px-4 pt-2 pb-1">{orgMode ? 'Pinned · Discover' : 'Pinned'}</div>
         {pinnedIds.map(id => { const d = destById(id); if (!d) return null; const A = d.icon; return (
           <button key={id} onClick={() => go(id)}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 text-[.82rem] font-semibold text-white/90 hover:bg-white/[0.07] transition-colors ${view === id ? 'bg-white/[0.09] shadow-[inset_3px_0_0_#D40055]' : ''}`}>
+            aria-current={view === id ? 'page' : undefined}
+            className={`pj-nav-row w-full flex items-center gap-3 px-4 py-2.5 text-[.82rem] font-semibold text-white/90 hover:bg-white/[0.07] transition-colors ${view === id ? 'bg-white/[0.09] shadow-[inset_3px_0_0_#D40055]' : ''}`}>
             <A size={16} className="shrink-0 opacity-80" style={plajahIconStroke} /> {d.label}
           </button>
         ); })}
         {!allowedIds && !orgMode && <div className="text-[.58rem] font-black uppercase tracking-[0.2em] text-white/35 px-4 pt-3 pb-1">{NAV_SECTIONS[openCat].key}</div>}
         {!allowedIds && !orgMode && visibleSection(NAV_SECTIONS[openCat]).map(d => { const A = d.icon; return (
           <button key={d.id} onClick={() => go(d.id)}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 text-[.82rem] font-semibold text-white/90 hover:bg-white/[0.07] transition-colors ${view === d.id ? 'bg-white/[0.09] shadow-[inset_3px_0_0_#D40055]' : ''}`}>
+            aria-current={view === d.id ? 'page' : undefined}
+            className={`pj-nav-row w-full flex items-center gap-3 px-4 py-2.5 text-[.82rem] font-semibold text-white/90 hover:bg-white/[0.07] transition-colors ${view === d.id ? 'bg-white/[0.09] shadow-[inset_3px_0_0_#D40055]' : ''}`}>
             <A size={16} className="shrink-0 opacity-80" style={plajahIconStroke} /> {d.label}
           </button>
         ); })}
@@ -339,7 +341,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
       <PlajahIconGradientDefs />
       <div className="relative flex sticky top-0 h-screen z-50 shrink-0">
         {/* Tier 1 — category rail */}
-        <nav className="flex flex-col items-center gap-1.5 py-3.5 h-screen overflow-y-auto custom-scrollbar border-r border-white/[0.07]"
+        <nav className="pj-rail flex flex-col items-center gap-1.5 py-3.5 h-screen overflow-y-auto custom-scrollbar border-r border-white/[0.07]"
           style={{ width: tier1W, background: 'linear-gradient(180deg,rgba(20,13,32,0.45),rgba(14,10,22,0.50))', backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)' }}>
           <button onClick={() => setCollapsed(c => !c)} title={collapsed ? 'Expand' : 'Collapse'}
             className="grid place-items-center w-10 h-6 rounded-lg text-white/50 hover:text-white hover:bg-white/[0.08] mb-1">
@@ -352,7 +354,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
           {NAV_SECTIONS.map((s, i) => !sectionShown(i) ? null : (
             <button key={s.key} title={s.key}
               onClick={() => { setOpenCat(i); setCatPicked(true); if (collapsed) setFlyoutOpen(true); }}
-              className={`relative grid place-items-center w-[46px] h-[46px] rounded-[13px] transition-colors shrink-0 ${i === openCat && !orgMode ? 'text-white' : 'text-white/55 hover:text-white hover:bg-white/[0.08]'}`}
+              className={`pj-rail-btn relative grid place-items-center w-[46px] h-[46px] rounded-[13px] transition-colors shrink-0 ${i === openCat && !orgMode ? 'text-white' : 'text-white/55 hover:text-white hover:bg-white/[0.08]'}`}
               style={i === openCat && !orgMode ? { background: 'linear-gradient(135deg,#6B0099,#00DAF3)', boxShadow: '0 0 18px rgba(0,218,243,.32)' } : undefined}>
               {React.createElement(s.icon, { size: 20, style: i === openCat && !orgMode ? undefined : plajahIconStroke })}
             </button>
@@ -386,7 +388,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
 
         {/* Tier 2 — labelled sub-column (inline when expanded) */}
         {!collapsed && (
-          <div className="flex flex-col h-screen overflow-hidden border-r border-white/[0.07]"
+          <div className="pj-pillar flex flex-col h-screen overflow-hidden border-r border-white/[0.07]"
             style={{ width: tier2W, background: 'linear-gradient(160deg,rgba(20,13,32,0.40),rgba(14,10,22,0.45))', backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)' }}>
             {Tier2List}
           </div>
@@ -394,7 +396,7 @@ const CommandSplitNav: React.FC<CommandSplitNavProps> = ({
 
         {/* Collapsed flyout */}
         {collapsed && (
-          <div className={`absolute top-0 h-screen flex flex-col z-40 border-r border-white/[0.14] shadow-2xl transition-all duration-200 ${flyoutOpen ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 -translate-x-2 pointer-events-none'}`}
+          <div className={`pj-pillar absolute top-0 h-screen flex flex-col z-40 border-r border-white/[0.14] shadow-2xl transition-all duration-200 ${flyoutOpen ? 'opacity-100 translate-x-0 pointer-events-auto' : 'opacity-0 -translate-x-2 pointer-events-none'}`}
             style={{ left: tier1W, width: tier2W, background: 'linear-gradient(160deg,rgba(20,13,32,0.42),rgba(14,10,22,0.48))', backdropFilter: 'blur(28px)', WebkitBackdropFilter: 'blur(28px)' }}
             onMouseLeave={() => setFlyoutOpen(false)}>
             {Tier2List}

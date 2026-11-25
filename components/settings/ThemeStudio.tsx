@@ -28,6 +28,8 @@ interface Props {
   onSave: (spec: ThemeSpec) => Promise<void>;
   /** Org scope only: lets the editor tell the viewer their page theme is on/off. */
   footer?: React.ReactNode;
+  /** User scope: picking a main theme here also switches the live platform theme. */
+  onBaseChange?: (base: ThemeType) => void;
 }
 
 const TABS = [
@@ -48,17 +50,18 @@ const Swatch: React.FC<{ color: string; label: string; ink?: string; size?: numb
   </div>
 );
 
-const ThemeStudio: React.FC<Props> = ({ value, scope, uploadPath, canEdit = true, onSave, footer }) => {
+const ThemeStudio: React.FC<Props> = ({ value, scope, uploadPath, canEdit = true, onSave, footer, onBaseChange }) => {
   const [tab, setTab] = useState<Tab>('colors');
   const [spec, setSpec] = useState<ThemeSpec>(() => ({ base: 'DARK', ...(value || {}) } as ThemeSpec));
   const [busy, setBusy] = useState(false);
+  const [cleared, setCleared] = useState(false); // Reset pressed: save WITHOUT a palette
   const [uploading, setUploading] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const packFileRef = useRef<HTMLInputElement>(null);
   const [packKind, setPackKind] = useState<keyof ThemePack>('emojis');
 
-  const set = (patch: Partial<ThemeSpec>) => { setSpec(s => ({ ...s, ...patch })); setMsg(null); };
+  const set = (patch: Partial<ThemeSpec>) => { setSpec(s => ({ ...s, ...patch })); setCleared(false); setMsg(null); };
   const surface = THEME_SURFACE[spec.base] ?? THEME_SURFACE.DARK;
   const palette: ThemePalette = spec.palette ?? generatePalette('#6b0099', 'analogous');
   const bg: ThemeBackground = spec.background ?? { kind: 'default' };
@@ -112,7 +115,7 @@ const ThemeStudio: React.FC<Props> = ({ value, scope, uploadPath, canEdit = true
   const save = async () => {
     setBusy(true); setMsg(null);
     // JSON round-trip drops `undefined` (Firestore throws on it).
-    try { await onSave(JSON.parse(JSON.stringify({ ...spec, id: spec.id || newId(), updatedAt: Date.now() })) as ThemeSpec); setMsg('Saved.'); }
+    try { await onSave(JSON.parse(JSON.stringify({ ...spec, palette: cleared ? undefined : (spec.palette ?? palette), id: spec.id || newId(), updatedAt: Date.now() })) as ThemeSpec); setMsg('Saved.'); }
     catch (e) { setMsg('Could not save — try again.'); console.error(e); }
     finally { setBusy(false); }
   };
@@ -186,11 +189,13 @@ const ThemeStudio: React.FC<Props> = ({ value, scope, uploadPath, canEdit = true
       {tab === 'colors' && (
         <div className="space-y-4">
           <div className={card}>
-            <div className="text-sm font-black text-white mb-2">Main theme</div>
-            <p className="text-xs text-white/55 mb-3">The surface everything sits on. Text colour is chosen automatically to contrast it — you never pick text by hand.</p>
+            <div className="text-sm font-black text-white mb-2">{scope === 'org' ? 'Preview on' : 'Main theme'}</div>
+            <p className="text-xs text-white/55 mb-3">{scope === 'org'
+              ? 'Visitors keep their own Light / Dark / Pastel choice on your page — your theme adds your colours, background and pack on top. This only changes the preview.'
+              : 'The surface everything sits on. Text colour is chosen automatically to contrast it — you never pick text by hand.'}</p>
             <div className="flex flex-wrap gap-2">
               {THEME_OPTIONS.map(t => (
-                <button key={t.id} type="button" disabled={!canEdit} onClick={() => set({ base: t.id as ThemeType })}
+                <button key={t.id} type="button" disabled={!canEdit} onClick={() => { set({ base: t.id as ThemeType }); if (scope === 'user') onBaseChange?.(t.id as ThemeType); }}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold text-white ${spec.base === t.id ? 'border-[#FF8C00]' : 'border-white/20 hover:border-white/50'}`}>
                   <span className="w-4 h-4 rounded-full border border-white/30" style={{ background: t.bg }} />{t.label}{spec.base === t.id && <Check size={12} />}
                 </button>
@@ -362,7 +367,7 @@ const ThemeStudio: React.FC<Props> = ({ value, scope, uploadPath, canEdit = true
         <button type="button" onClick={save} disabled={busy || !canEdit} className="px-5 py-2.5 rounded-xl font-black text-sm bg-[#FF8C00] text-black disabled:opacity-50 inline-flex items-center gap-2">
           {busy && <Loader2 size={14} className="animate-spin" />} {scope === 'org' ? 'Save org theme' : 'Save my theme'}
         </button>
-        <button type="button" disabled={busy || !canEdit} onClick={() => { setSpec({ base: spec.base }); setMsg('Cleared — save to apply.'); }} className="px-4 py-2.5 rounded-xl text-sm font-bold border border-white/20 text-white/80">Reset</button>
+        <button type="button" disabled={busy || !canEdit} onClick={() => { setSpec({ base: spec.base }); setCleared(true); setMsg('Cleared — save to apply.'); }} className="px-4 py-2.5 rounded-xl text-sm font-bold border border-white/20 text-white/80">Reset</button>
         {msg && <span className="text-sm text-white/80" role="status">{msg}</span>}
       </div>
       {footer}

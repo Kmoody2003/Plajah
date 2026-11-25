@@ -1067,7 +1067,8 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                   {profile && (
                     <ThemeStudio
                       scope="user"
-                      value={profile.themeSpec ?? (currentTheme ? { base: currentTheme } : undefined)}
+                      value={profile.themeSpec ? { ...profile.themeSpec, base: currentTheme ?? profile.themeSpec.base } : (currentTheme ? { base: currentTheme } : undefined)}
+                      onBaseChange={onSetTheme}
                       uploadPath={`themes/${profile.uid}`}
                       onSave={async (spec) => {
                         await updateUserProfile(profile.uid, { themeSpec: spec });
@@ -1077,7 +1078,7 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                       footer={
                         <label className="flex items-center gap-3 text-sm text-white/80 cursor-pointer">
                           <input type="checkbox" className="w-4 h-4 accent-[#FF8C00]" defaultChecked={!isOrgThemeOptedOut('*')} onChange={e => setOrgThemeOptOut('*', !e.target.checked)} />
-                          Let organizations restyle Plajah while I’m on their page
+                          Let organizations add their colours and background on their page (my own custom theme and Light/Dark choice always win)
                         </label>
                       }
                     />

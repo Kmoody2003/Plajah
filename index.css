@@ -155,15 +155,17 @@ body.theme-light {
   stroke: var(--text-secondary) !important;
 }
 
+/* NB: attribute selectors match the whole class string, so [class*="bg-white/"] also matched
+   hover:bg-white/[0.07] on every nav row and forced a grey slab + hard border + bevel on it.
+   Match only classes that START a token, and never force a border or shadow here — the refined
+   glass lives in styles/theme-system.css. */
 .theme-light .m3-card,
 .theme-light .glass-morphism,
-.theme-light [class*="bg-white/"],
-.theme-light [class*="bg-black/"] {
+.theme-light :is([class^="bg-white/"], [class*=" bg-white/"]),
+.theme-light :is([class^="bg-black/"], [class*=" bg-black/"]) {
   background-color: var(--card-bg) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.5) !important;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07) !important;
 }
 
 .theme-light .text-white\/5,

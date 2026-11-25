@@ -22,6 +22,19 @@
   --pj-glass-blur: 18px;
 }
 
+/* Tailwind's bg-theme / bg-theme-card / border-theme / text-small-orange read these tokens, which
+   index.css declares on :root as var(--bg-color) etc. A var() is resolved where it is DECLARED,
+   and the theme classes live on <body> — so on :root it always saw the dark default and every
+   bg-theme surface (Postman, panels, menus …) stayed black in every theme. Re-declaring them on
+   <body> makes them resolve against the active theme. (An applied palette overrides
+   --color-small-orange inline, which still wins.) */
+body {
+  --color-theme: var(--bg-color);
+  --color-theme-card: var(--card-bg);
+  --color-theme-border: var(--border-color);
+  --color-small-orange: var(--text-secondary);
+}
+
 /* LIGHT — dimmed paper, not searing white. Surfaces are frosted glass. */
 body.theme-light {
   --bg-color: #dde3ea;
@@ -122,19 +135,27 @@ html body.theme-light .text-pink-300, html body.theme-light .text-pink-400 { col
 html body.theme-light svg { color: inherit !important; stroke: currentColor !important; }
 
 /* ── Frosted glass surfaces (Light) ──────────────────────────────────────── */
+/* Token-START matching (^= / " x"): the old [class*=] form also hit hover:bg-white/… and
+   turned every nav row into a bordered grey slab. */
 html body.theme-light .m3-card,
 html body.theme-light .glass-morphism,
-html body.theme-light [class*="bg-white/"],
-html body.theme-light [class*="bg-black/"],
-html body.theme-light .bg-black,
-html body.theme-light [class*="bg-zinc-9"], html body.theme-light [class*="bg-gray-9"],
-html body.theme-light [class*="bg-neutral-9"], html body.theme-light [class*="bg-slate-9"],
-html body.theme-light [class*="bg-zinc-8"], html body.theme-light [class*="bg-gray-8"] {
+html body.theme-light :is(
+  [class^="bg-white/"], [class*=" bg-white/"],
+  [class^="bg-black/"], [class*=" bg-black/"],
+  [class^="bg-black "], [class*=" bg-black "], [class$=" bg-black"],
+  [class^="bg-zinc-9"], [class*=" bg-zinc-9"], [class^="bg-gray-9"], [class*=" bg-gray-9"],
+  [class^="bg-neutral-9"], [class*=" bg-neutral-9"], [class^="bg-slate-9"], [class*=" bg-slate-9"],
+  [class^="bg-zinc-8"], [class*=" bg-zinc-8"], [class^="bg-gray-8"], [class*=" bg-gray-8"]
+) {
   background-color: var(--pj-surface) !important;
   -webkit-backdrop-filter: blur(var(--pj-glass-blur)) saturate(165%) !important;
   backdrop-filter: blur(var(--pj-glass-blur)) saturate(165%) !important;
   border-color: var(--pj-edge) !important;
-  box-shadow: 0 8px 30px rgba(51, 65, 85, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.55) !important;
+}
+/* Depth only on real panels, not on every chip and row. */
+html body.theme-light :is(.m3-card, .glass-morphism, .ev-panel),
+html body.theme-light :is([class^="bg-white/"], [class*=" bg-white/"], [class^="bg-black/"], [class*=" bg-black/"]):is([class*="rounded-2xl"], [class*="rounded-3xl"], [class*="rounded-[2"]) {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 28px -12px rgba(51, 65, 85, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.7) !important;
 }
 html body.theme-light [class*="border-white/"] { border-color: rgba(15, 23, 42, 0.10) !important; }
 html body.theme-light input, html body.theme-light textarea, html body.theme-light select {
@@ -849,3 +870,74 @@ html body[data-pj-palette] :is(
 ) { --tw-gradient-to: var(--pj-a4) !important; }
 html body[data-pj-palette] [class*="accent-["] { accent-color: var(--pj-a1) !important; }
 html body[data-pj-palette] a:not([class*="text-"]) { color: var(--pj-a2-ink); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Pillars (CommandSplitNav): the icon rail and the labelled list.
+   Light themes get a proper frosted-glass treatment: a soft white panel with a bright top-left
+   edge, rows that are quiet until hovered, and a raised "selected" card with an accent bar.
+   (Previously every row inherited a grey slab, a hard white border and a bevel.)
+   ═══════════════════════════════════════════════════════════════════════════ */
+html body.theme-light .pj-rail,
+html body.theme-light .pj-pillar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.66) 0%, rgba(255, 255, 255, 0.42) 100%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(170%) !important;
+  backdrop-filter: blur(26px) saturate(170%) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 1px 0 0 rgba(15, 23, 42, 0.05), 16px 0 38px -24px rgba(51, 65, 85, 0.38) !important;
+}
+html body.theme-light .pj-rail { background: linear-gradient(180deg, rgba(255, 255, 255, 0.54) 0%, rgba(255, 255, 255, 0.34) 100%) !important; }
+
+html body.theme-light .pj-nav-row {
+  width: calc(100% - 20px) !important;
+  margin: 2px 10px;
+  border-radius: 12px;
+  background: transparent !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: var(--pj-text) !important;
+  transition: background-color .15s ease, box-shadow .15s ease;
+}
+html body.theme-light .pj-nav-row:hover {
+  background: rgba(255, 255, 255, 0.72) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
+}
+html body.theme-light .pj-nav-row[aria-current="page"] {
+  background: rgba(255, 255, 255, 0.94) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 8px 18px -10px rgba(51, 65, 85, 0.4), inset 3px 0 0 var(--pj-a1, #ff8c00) !important;
+}
+html body.theme-light .pj-nav-row svg { color: var(--pj-text-muted) !important; opacity: 1 !important; }
+html body.theme-light .pj-nav-row[aria-current="page"] svg { color: var(--pj-a1-ink, #b45309) !important; }
+
+html body.theme-light .pj-nav-search {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border: 1px solid rgba(15, 23, 42, 0.10) !important;
+  border-radius: 12px;
+  color: var(--pj-text-muted) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
+}
+html body.theme-light .pj-nav-search:hover { background: #fff !important; color: var(--pj-text) !important; }
+html body.theme-light .pj-nav-search span { border-color: rgba(15, 23, 42, 0.16) !important; color: var(--pj-text-muted) !important; }
+
+html body.theme-light .pj-rail-btn:not([style*="gradient"]) { color: var(--pj-text-muted) !important; }
+html body.theme-light .pj-rail-btn:not([style*="gradient"]):hover { background: rgba(255, 255, 255, 0.8) !important; color: var(--pj-text) !important; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important; }
+/* The selected category keeps its gradient and white icon. */
+html body.theme-light .pj-rail-btn[style*="gradient"], html body.theme-light .pj-rail-btn[style*="gradient"] svg { color: #fff !important; }
+
+/* Hard-coded dark panels found by services/themeContrast.ts adaptSurfaces() on light themes. */
+html body.theme-light [data-pj-surface] {
+  background-color: var(--pj-surface) !important;
+  background-image: none !important;
+  -webkit-backdrop-filter: blur(var(--pj-glass-blur)) saturate(165%) !important;
+  backdrop-filter: blur(var(--pj-glass-blur)) saturate(165%) !important;
+  border-color: var(--pj-edge) !important;
+  color: var(--pj-text);
+}
+html body.theme-pastel [data-pj-surface] {
+  background-color: var(--pj-surface) !important;
+  background-image: none !important;
+  border-color: var(--pj-edge) !important;
+  color: var(--pj-text);
+}
+

@@ -17,6 +17,7 @@ import {
 } from '../services/archiveContentService';
 import { searchGoogleBooks, GoogleBook } from '../services/googleBooksService';
 import { fetchPublicBooks, syncPublicDomainAsset } from '../services/backendService';
+import { useBodyLook } from '../services/themeRuntime';
 import { importComic } from '../services/comicImport';
 import { CLASSIC_BOOKS, findClassicBook, getClassicBookTextUrl, resolveAudiobookCover } from '../data/classicBooks';
 import { prefetchBookContent } from '../services/bookContentService';
@@ -380,7 +381,16 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
   ]);
 
   // Lorea Landing interactive state — Hero right-hand book uses the real "The Golden Thread" living picture book
-  const [loreaTheme, setLoreaTheme] = useState<'plajah' | 'dark' | 'pastel'>('plajah');
+  // Lorea follows the platform theme unless the reader pins one of the chips below.
+  type LoreaPick = 'auto' | 'plajah' | 'dark' | 'light' | 'pastel';
+  const platformLook = useBodyLook();
+  const [loreaPick, setLoreaPickState] = useState<LoreaPick>(() => {
+    try { return (localStorage.getItem('lorea:theme') as LoreaPick) || 'auto'; } catch { return 'auto'; }
+  });
+  const setLoreaTheme = (v: LoreaPick) => { setLoreaPickState(v); try { v === 'auto' ? localStorage.removeItem('lorea:theme') : localStorage.setItem('lorea:theme', v); } catch { /* private mode */ } };
+  const loreaTheme: 'plajah' | 'dark' | 'light' | 'pastel' = loreaPick !== 'auto' ? loreaPick
+    : platformLook === 'light' ? 'light' : platformLook === 'pastel' ? 'pastel' : platformLook === 'dark' ? 'dark' : 'plajah';
+  const loreaLightish = loreaTheme === 'pastel' || loreaTheme === 'light';
   const [goldenSpreadIdx, setGoldenSpreadIdx] = useState<number>(2); // Start on Spread 3 ("One night, the thread gave a tug. Tug, tug, tug...")
   const [bookFlipped, setBookFlipped] = useState(false);
   const [isPlayingReadAloud, setIsPlayingReadAloud] = useState(false);
@@ -968,6 +978,22 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
             radial-gradient(850px 460px at 90% 42%, rgba(255, 140, 0, 0.14), transparent 65%),
             linear-gradient(180deg, #fdf6e3 0%, #f7ebd2 100%);
         }
+        .lorea-landing-root[data-lt="light"]{
+          color-scheme:light;--bg:#dde3ea;--fg:#0f172a;--sec:#b45309;--acc:#6b0099;--accfg:#ffffff;--card:rgba(255,255,255,.58);--bd:rgba(15,23,42,.12);--dim:#475569;--glow:rgba(107,0,153,.14);--grad:linear-gradient(135deg,#6B0099,#D40055,#FF8C00);--rail:rgba(15,23,42,.06);--rail-bd:rgba(15,23,42,.14);
+          background-image:
+            radial-gradient(1100px 540px at 88% 0%, rgba(147, 197, 253, 0.42), transparent 65%),
+            radial-gradient(950px 500px at 8% 4%, rgba(196, 181, 253, 0.36), transparent 65%),
+            radial-gradient(850px 460px at 90% 42%, rgba(253, 186, 116, 0.22), transparent 65%),
+            linear-gradient(180deg, #e3e8ef 0%, #d6dde7 100%);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 18px 50px -28px rgba(51,65,85,.35);
+        }
+        .lorea-landing-root[data-lt="light"] .hero h1,
+        .lorea-landing-root[data-lt="pastel"] .hero h1{text-shadow:none}
+        /* The user's / org's palette recolours Lorea's accents too. */
+        body[data-pj-palette] .lorea-landing-root{
+          --sec:var(--pj-a1-ink);--acc:var(--pj-a2);--accfg:var(--pj-a2-on);--glow:color-mix(in srgb,var(--pj-a2) 30%,transparent);
+          --grad:linear-gradient(135deg,var(--pj-a2) 0%,var(--pj-a3) 52%,var(--pj-a1) 100%);
+        }
         @keyframes lorea-typewriter-loop {
           0%, 4% { width: 0ch; }
           48%, 78% { width: 54ch; }
@@ -1250,12 +1276,12 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
                   }
                   className="w-full h-full object-cover object-top"
                   style={{
-                    opacity: loreaTheme === 'pastel' ? 0.22 : 0.34,
+                    opacity: loreaLightish ? 0.22 : 0.34,
                     filter:
-                      loreaTheme === 'pastel'
+                      loreaLightish
                         ? 'sepia(0.35) contrast(1.08) brightness(0.95)'
                         : 'sepia(0.28) saturate(1.25) contrast(1.15) brightness(0.88)',
-                    mixBlendMode: loreaTheme === 'pastel' ? 'multiply' : 'luminosity',
+                    mixBlendMode: loreaLightish ? 'multiply' : 'luminosity',
                   }}
                 />
                 <div
@@ -1286,7 +1312,9 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
           className="absolute inset-x-0 top-0 h-[920px]"
           style={{
             background:
-              loreaTheme === 'pastel'
+              loreaTheme === 'light'
+                ? 'radial-gradient(960px 520px at 24% 36%, rgba(221,227,234,0.92) 0%, rgba(221,227,234,0.68) 52%, transparent 82%)'
+                : loreaTheme === 'pastel'
                 ? 'radial-gradient(960px 520px at 24% 36%, rgba(253,246,227,0.92) 0%, rgba(253,246,227,0.68) 52%, transparent 82%)'
                 : 'radial-gradient(960px 520px at 24% 36%, rgba(20,0,34,0.88) 0%, rgba(20,0,34,0.58) 54%, transparent 84%), linear-gradient(180deg, rgba(22,0,36,0.28) 0%, transparent 45%, rgba(22,0,36,0.68) 100%)',
           }}
@@ -1397,14 +1425,15 @@ const BookTab: React.FC<BookTabProps> = ({ onSelectBook, onVisitUser, onCreateBo
           <div className="themes" role="group" aria-label="Preview theme">
             <PlajahPlusBanner variant="PILL" />
             <span style={{ marginLeft: 8 }}>Theme</span>
-            {(['plajah', 'dark', 'pastel'] as const).map(th => (
+            {(['auto', 'plajah', 'dark', 'light', 'pastel'] as const).map(th => (
               <button
                 key={th}
                 type="button"
-                aria-pressed={loreaTheme === th}
+                aria-pressed={loreaPick === th}
+                title={th === 'auto' ? 'Match the platform theme' : undefined}
                 onClick={() => setLoreaTheme(th)}
               >
-                {th === 'plajah' ? 'Plajah' : th === 'dark' ? 'Dark' : 'Pastel'}
+                {th === 'auto' ? 'Match site' : th === 'plajah' ? 'Plajah' : th === 'dark' ? 'Dark' : th === 'light' ? 'Light' : 'Pastel'}
               </button>
             ))}
           </div>
