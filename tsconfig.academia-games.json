@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "services/academiaGames/**/*.ts",
+    "components/academiaGames/**/*.ts",
+    "components/academiaGames/**/*.tsx",
+    "tests/academiaGames.test.ts"
+  ]
+}
