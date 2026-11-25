@@ -4395,6 +4395,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             gets the GPU to itself (the old two-leaf layout never ran both at full size). */}
         {cinemaStageNow === 'ART' && <AtmosphericBackground album={album} analyser={globalAnalyser} isPlaying={playingHere} />}
 
+        {/* Light / pastel themes: a frosted theme wash between the dark ambient layers and the content, so the track list and side panels take the theme (see theme-system.css). */}
+        <div data-pj-wash className="pj-album-wash fixed inset-0 z-[1]" aria-hidden="true" />
         <div className="relative z-10">
           <CinemaProsceniumHero
             backdropSrc={activeVideo?.coverImageUrl || currentTrack?.images?.[0] || album.coverImage || undefined}

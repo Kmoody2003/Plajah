@@ -941,3 +941,65 @@ html body.theme-pastel [data-pj-surface] {
   color: var(--pj-text);
 }
 
+/* ── Album page (PlayerView): immersive dark ambient art → theme wash ─────────
+   The page stacks a blurred cover and an animated canvas behind its content. On light themes a
+   frosted wash sits between them and the content so the track list, side panels and tabs take the
+   theme; the hero keeps its photograph and white-on-photo title. */
+.pj-album-wash { display: none; }
+html body.theme-light .pj-album-wash {
+  display: block;
+  background: rgba(221, 227, 234, 0.86);
+  -webkit-backdrop-filter: blur(26px) saturate(150%);
+  backdrop-filter: blur(26px) saturate(150%);
+}
+html body.theme-pastel .pj-album-wash { display: block; background: rgba(253, 246, 227, 0.9); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Creative apps: bridge each app's OWN tokens to the platform theme.
+   (Apps built on plain Tailwind — Tela, Chora Studio, Pixels — are covered by the generic
+   engine in services/themeContrast.ts; these have token systems or scoped stylesheets of
+   their own, so the cleanest fix is to swap their tokens, never a second codepath.)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Fabula Studio shell (.fs-root) reads --text-color, which nothing defined → fixed light grey. */
+body.theme-light, body.theme-pastel { --text-color: var(--pj-text); }
+
+/* Fabula NLE — tokens live on :root in its <style>; Fabula.jsx tags <body data-pj-app="fabula">. */
+html body.theme-light[data-pj-app="fabula"] {
+  --bg:#dde3ea; --bg2:#d3dae3; --panel:rgba(255,255,255,.66); --panel2:rgba(255,255,255,.82);
+  --w04:rgba(15,23,42,.04); --w08:rgba(15,23,42,.08); --w40:rgba(15,23,42,.52);
+  --line:rgba(15,23,42,.14); --line-2:rgba(15,23,42,.08); --line-hi:rgba(15,23,42,.30);
+}
+html body.theme-pastel[data-pj-app="fabula"] {
+  --bg:#fdf6e3; --bg2:#f1e8cf; --panel:#eee8d5; --panel2:#e6dfc6;
+  --w04:rgba(7,54,66,.05); --w08:rgba(7,54,66,.09); --w40:rgba(7,54,66,.55);
+  --line:rgba(7,54,66,.18); --line-2:rgba(7,54,66,.10); --line-hi:rgba(7,54,66,.32);
+}
+html body.theme-light[data-pj-app="fabula"] .studio, html body.theme-pastel[data-pj-app="fabula"] .studio { color: var(--pj-text); }
+html body.theme-light[data-pj-app="fabula"] :is(.glass, .glass-dark, .glass-card) {
+  background: rgba(255,255,255,.62); box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 8px 24px -14px rgba(51,65,85,.28);
+}
+html body.theme-pastel[data-pj-app="fabula"] :is(.glass, .glass-dark, .glass-card) { background: #eee8d5; }
+html body.theme-light[data-pj-app="fabula"] ::-webkit-scrollbar-track { background: #cfd6df; }
+html body.theme-light[data-pj-app="fabula"] ::-webkit-scrollbar-thumb { background: #98a3b3; }
+
+/* Melos / Chora Studio — a skin is a token swap on .melos. Platform Light/Pastel become the
+   default skin; skins the person picked deliberately (Onion Skin, …) are left alone. */
+html body.theme-light .melos:not([data-skin]),
+html body.theme-light .melos[data-skin="LAMPLIGHT"] {
+  --mel-ground:#dde3ea; --mel-rail:#cfd6df; --mel-paper:rgba(255,255,255,.55); --mel-paper-2:rgba(255,255,255,.78);
+  --mel-edge:rgba(15,23,42,.13); --mel-hover:rgba(15,23,42,.05);
+  --mel-ink:#0f172a; --mel-dim:#475569; --mel-faint:#64748b;
+  --mel-accent:var(--pj-a2-ink, #6d28d9); --mel-hand:var(--pj-a2-ink, #6d28d9);
+  --mel-lamp:radial-gradient(78% 62% at 40% 26%, rgba(255,255,255,.55), rgba(255,255,255,.12) 46%, transparent 72%);
+  --mel-rail-wash:linear-gradient(to bottom, rgba(107,0,153,.07), transparent 55%);
+  --mel-blk-sh:0 10px 26px -16px rgba(51,65,85,.5); --mel-grain-op:.025; color-scheme: light;
+}
+html body.theme-pastel .melos:not([data-skin]),
+html body.theme-pastel .melos[data-skin="LAMPLIGHT"] {
+  --mel-ground:#fdf6e3; --mel-rail:#f1e8cf; --mel-paper:rgba(255,248,231,.8); --mel-paper-2:#eee8d5;
+  --mel-edge:rgba(7,54,66,.18); --mel-hover:rgba(7,54,66,.06);
+  --mel-ink:#073642; --mel-dim:#3d5f60; --mel-faint:#55726f;
+  --mel-accent:#5b21b6; --mel-hand:#5b21b6; --mel-lamp:none; --mel-rail-wash:none; --mel-blk-sh:0 8px 20px -14px rgba(7,54,66,.4); --mel-grain-op:.03; color-scheme: light;
+}
+

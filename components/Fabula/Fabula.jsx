@@ -667,6 +667,8 @@ function CopyBtn({ text, label = "COPY", small }) {
 
 /* ════════════════════════ APP ════════════════════════ */
 export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenWritersDesk } = {}) {
+  // Lets styles/theme-system.css bridge this editor's own tokens (--bg, --panel, --line …) to the platform theme.
+  useEffect(() => { document.body.dataset.pjApp = 'fabula'; return () => { if (document.body.dataset.pjApp === 'fabula') delete document.body.dataset.pjApp; }; }, []);
   /* ----- splash ----- */
   const [splash, setSplash] = useState(true);
   const [splashOut, setSplashOut] = useState(false);

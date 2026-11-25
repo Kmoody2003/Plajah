@@ -139,8 +139,10 @@ const grey = (lum: number): RGBA => {
  * the parent chain. (The first version only walked ancestors and so judged hero text over a
  * photo against the empty page colour.)
  */
-function backdropFor(el: Element, page: RGBA): Backdrop {
-  const r = el.getBoundingClientRect();
+function backdropFor(el: Element, page: RGBA, textRect?: DOMRect): Backdrop {
+  // Measure the glyphs, not the element box: a block-level heading spans the full width of its
+  // hero, which made the photo behind it look "not much bigger than the text".
+  const r = textRect && textRect.width > 0 && textRect.height > 0 ? textRect : el.getBoundingClientRect();
   const x = Math.min(innerWidth - 1, Math.max(1, r.left + r.width / 2));
   const y = Math.min(innerHeight - 1, Math.max(1, r.top + r.height / 2));
   const inView = r.bottom > 0 && r.top < innerHeight && r.right > 0 && r.left < innerWidth;
@@ -156,12 +158,25 @@ function backdropFor(el: Element, page: RGBA): Backdrop {
     if (n === document.body || n === document.documentElement) continue;
     if (n.closest('#universal-background')) continue; // modelled by `page` (scrim + tone)
     const cs = getComputedStyle(n);
+    // A theme wash (e.g. the album page's frosted layer) sits ABOVE the dark ambient art beneath it:
+    // everything under it no longer shows through, so restart the model from the wash itself.
+    if (n.hasAttribute('data-pj-wash') && cs.display !== 'none') {
+      const w = parseColor(cs.backgroundColor);
+      if (w && w.a > 0) { acc = over(w, { r: 128, g: 128, b: 128, a: 1 }); media = false; mediaKnown = false; confidentDark = false; continue; }
+    }
     const isEl = n instanceof HTMLImageElement || n instanceof HTMLVideoElement || n instanceof HTMLCanvasElement;
     if (isEl || cs.backgroundImage.includes('url(')) {
       const l = isEl ? mediaLuminance(n) : null;
-      // Only a LARGE picture/video behind the text is a hero. Avatars, thumbnails and icons are not.
-      const big = (() => { const b = n.getBoundingClientRect(); return b.width >= innerWidth * 0.3 && b.height >= 120; })();
-      if (!big) continue;
+      // Media counts as the text's BACKDROP when it actually sits behind it: it contains the text
+      // box, is clearly larger than it, and isn't an icon. (An earlier viewport-relative size test
+      // skipped narrow columns — an ad slot's photo — and judged their text against the light page.)
+      const backdrop = (() => {
+        const b = n.getBoundingClientRect();
+        const slack = 2;
+        return b.left <= r.left + slack && b.right >= r.right - slack && b.top <= r.top + slack && b.bottom >= r.bottom - slack
+          && b.width * b.height >= r.width * r.height * 3 && Math.min(b.width, b.height) >= 60;
+      })();
+      if (!backdrop) continue;
       media = true;
       if (l !== null) { acc = grey(l); mediaKnown = true; confidentDark = l < 0.25; } else { acc = grey(0.06); confidentDark = true; } // unknown: heroes are almost always dark
       continue;
@@ -229,8 +244,12 @@ export function adaptSurfaces(): number {
     measured++;
     const cs = getComputedStyle(el);
     if (!darkFill(cs)) continue;
-    // Full-screen dimmers behind modals must stay dark.
-    if (cs.position === 'fixed' && r.width >= innerWidth * 0.9 && r.height >= innerHeight * 0.9) continue;
+    // Full-screen DIMMERS behind modals must stay dark — they are translucent. An OPAQUE fixed
+    // full-screen fill is an app shell (Build Studio, editors) and should take the theme.
+    if (cs.position === 'fixed' && r.width >= innerWidth * 0.9 && r.height >= innerHeight * 0.9) {
+      const fill = parseColor(cs.backgroundColor);
+      if (!fill || fill.a < 0.95) continue;
+    }
     if (el.closest(KEEP_DARK)) continue;
     if (!form && el.querySelector('video,canvas,iframe')) continue;
     el.setAttribute('data-pj-surface', '1');
@@ -289,7 +308,9 @@ export function runContrastGuard(root: ParentNode = document.body): number {
     if (cs.visibility === 'hidden' || cs.display === 'none' || parseFloat(cs.opacity) < 0.05) continue;
     const fg = parseColor(cs.color);
     if (!fg) continue;
-    const bd = backdropFor(el, page);
+    let textRect: DOMRect | undefined;
+    try { const rg = document.createRange(); rg.selectNodeContents(node); textRect = rg.getBoundingClientRect(); } catch { /* fall back to the element box */ }
+    const bd = backdropFor(el, page, textRect);
     const { media } = bd;
     let bg = bd.bg;
     // Light themes put light frosted glass over everything by construction. A model that says
