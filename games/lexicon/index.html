@@ -26,6 +26,16 @@
   #boss .bar { height:8px; background:rgba(255,255,255,.15); border-radius:4px; margin:6px 0; overflow:hidden; }
   #boss .fill { height:100%; background: linear-gradient(90deg, #fff, var(--hush)); width:100%; transition: width .4s; }
   #boss .task { font-size:19px; color: var(--gold); }
+  #quest { top:76px; left:20px; font-size:17px; color: var(--gold); max-width:46vw; display:none; }
+  #quest .m { font-size:13px; color: var(--paper); opacity:.7; margin-left:6px; }
+  #tip { bottom:52px; left:18px; max-width:min(420px,44vw); font-size:15px; line-height:1.55; background:rgba(20,26,46,.72); border:1px solid rgba(232,194,106,.4); border-radius:12px; padding:10px 14px; display:none; }
+  #tip .key { background:rgba(255,255,255,.2); color:#fff; }
+  #tip::after { content:'G hides the guide'; display:block; font-size:11px; opacity:.55; margin-top:4px; }
+  #waypoint { position:fixed; pointer-events:none; display:none; width:0; height:0; border-top:14px solid transparent; border-bottom:14px solid transparent; border-left:24px solid var(--gold); filter: drop-shadow(0 2px 4px rgba(0,0,0,.6)); }
+  #howto { z-index:5; }
+  #howto ol { margin:6px 0 0; padding-left:22px; font-size:16px; line-height:1.6; }
+  #howto li { margin-bottom:8px; }
+  #howto li b { color:#7a4a00; }
   #songs { bottom:16px; left:18px; font-size:12px; opacity:.8; }
   #songs b { color: var(--gold); }
 
@@ -85,6 +95,9 @@
 <div id="lang" class="hud">Language preserved <span id="langN">0</span> / <span id="langT">0</span><div class="bar"><div class="fill" id="langFill"></div></div></div>
 <div id="clock" class="hud"></div>
 <div id="songs" class="hud"></div>
+<div id="quest" class="hud"></div>
+<div id="tip" class="hud"></div>
+<div id="waypoint"></div>
 <div id="prompt" class="hud"></div>
 <div id="toast" class="hud"></div>
 <div id="story" class="hud"></div>
@@ -124,16 +137,29 @@
 
 <div id="pause" class="panel" style="text-align:center">
   <h2>Paused</h2>
-  <div style="display:flex;gap:10px;justify-content:center;margin-top:14px"><button class="btn" id="pResume">Resume</button><button class="btn" id="pExit">Exit to Plajah</button></div>
+  <div style="display:flex;gap:10px;justify-content:center;margin-top:14px"><button class="btn" id="pResume">Resume</button><button class="btn" id="pHow">How to play</button><button class="btn" id="pExit">Exit to Plajah</button></div>
 </div>
 
+<div id="howto" class="panel">
+  <h2>How to play</h2>
+  <div class="sub">Something is unwriting the world. You are the Scribe: win the words back and keep them safe. A gold light always shows where to go next.</div>
+  <ol>
+    <li><b>Talk.</b> Walk to Elder Mira by the well and press <span class="key">E</span>. Villagers have each lost one word.</li>
+    <li><b>Fight the Unwritten.</b> Hold <span class="key">Shift</span> to lock on and strike with <span class="key">J</span> or a click. Two hits and it falters.</li>
+    <li><b>Answer to rescue the word.</b> A word, a sum or a weight appears. Pick the answer with <span class="key">1</span>–<span class="key">4</span> before the bar runs out. The word is yours.</li>
+    <li><b>Give words back.</b> Bring a villager their lost word. They give you a new one, often a song.</li>
+    <li><b>Play songs.</b> Press <span class="key">Q</span> for the Lyre and type a song word, letter by letter. Shrines answer the right song: LIGHT wakes the lantern, TIME turns the day.</li>
+    <li><b>Weigh words.</b> With four words, open the Cipher Gate to the north: A = 1 … Z = 26, pick words that add up to its number. The Temple of Numerals waits beyond.</li>
+  </ol>
+  <div style="text-align:center;margin-top:10px"><button class="btn" id="howtoClose">Got it</button></div>
+</div>
 <div id="title">
   <h1>LEXI<span>CON</span></h1>
   <div class="tag">Something is unwriting the world. Words are going blank, and with them the minds of the people who spoke them.<br/>Rescue the words. Keep them in the Archive. Save language.</div>
-  <button class="btn" id="startBtn">Begin</button>
+  <div style="display:flex;gap:12px"><button class="btn" id="startBtn">Begin</button><button class="btn" id="howtoBtn" style="background:transparent;color:var(--paper);border:1px solid rgba(243,234,210,.5)">How to play</button></div>
   <div class="controls">
     Move <span class="key">WASD</span> · Camera <span class="key">mouse</span> / <span class="key">arrows</span> · Strike <span class="key">J</span> / <span class="key">click</span> · Roll <span class="key">Space</span><br/>
-    Lock on <span class="key">Shift</span> / <span class="key">right mouse</span> · Talk / use <span class="key">E</span> · Lyre <span class="key">Q</span> · Archive <span class="key">Tab</span> · Answer <span class="key">1</span>–<span class="key">4</span> · Music <span class="key">M</span><br/>
+    Lock on <span class="key">Shift</span> / <span class="key">right mouse</span> · Talk / use <span class="key">E</span> · Lyre <span class="key">Q</span> · Archive <span class="key">Tab</span> · Answer <span class="key">1</span>–<span class="key">4</span> · Music <span class="key">M</span> · Guide <span class="key">G</span><br/>
     Controller: X strike · B roll · A talk · LT lock on · Y lyre · Back archive · D-pad answers
   </div>
 </div>

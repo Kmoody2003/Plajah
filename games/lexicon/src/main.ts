@@ -30,6 +30,7 @@ import { buildGlossa, buildTemple, mat, PAL, personModel, textSprite, type Built
 import { audioStart, sfx } from './audio';
 import { duckMusic, musicTracks, playMusic, toggleMusic } from './music';
 import { inStudio, joinStudio, postToStudio } from './studio';
+import { nextStep, tipHtml, type GuideStep } from './guide';
 
 // ── setup ──
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -157,6 +158,61 @@ function clockText() {
 }
 const show = (id: string, v: boolean) => { $(id).style.display = v ? 'block' : 'none'; };
 
+// ── the guide: the next goal on the HUD, a gold beacon where it is, and the keys for it (guide.ts) ──
+let guideOn = localStorage.getItem('lexicon_guide') !== '0';
+let step: GuideStep | null = null;
+const beacon = (() => {
+  const g = new THREE.Group(); g.name = 'guide-beacon';
+  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.16, 40, 12, 1, true).translate(0, 22, 0),
+    new THREE.MeshBasicMaterial({ color: 0xffd36a, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, fog: false }));
+  const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.22), new THREE.MeshBasicMaterial({ color: 0xffe08a, fog: false }));
+  gem.position.y = 3.4; gem.name = 'gem';
+  g.add(beam, gem); g.visible = false; scene.add(g);
+  return g;
+})();
+const guideState = () => ({
+  level: lvl.id, words, starting: STARTING_WORDS, freed: save.freed, met: save.met, sigils: save.sigils, gates: save.gates, templeDone: save.templeDone,
+  songs: [...words].map((w) => ({ w, power: wordByText(w)?.power ?? 'none' })).filter((s) => s.power !== 'none'),
+  enemies: enemies.filter((e) => e.alive && e.state !== 'bound' && e.state !== 'dying').sort((a, b) => Math.hypot(a.x - P.x, a.z - P.z) - Math.hypot(b.x - P.x, b.z - P.z)).map((e) => ({ kind: e.kind, x: e.x, z: e.z })),
+  player: [P.x, P.z] as [number, number],
+});
+const _bp = new THREE.Vector3();
+function updateGuide(t: number) {
+  const next = lvl && mode !== 'title' ? nextStep(guideState()) : null;
+  if (next?.id !== step?.id) {
+    // a new goal: say it once, then keep it on the HUD
+    if (step && next && mode === 'play') { sfx.note('E'); toast('New goal', next.goal); }
+    $('tip').innerHTML = next ? tipHtml(next.tip) : '';
+  }
+  step = next;
+  const playing = mode === 'play' && guideOn && !!step;
+  const q = $('quest');
+  q.style.display = step && mode !== 'title' ? 'block' : 'none';
+  $('tip').style.display = playing ? 'block' : 'none';
+  if (step) {
+    const d = step.at ? Math.round(Math.hypot(step.at[0] - P.x, step.at[1] - P.z)) : 0;
+    q.innerHTML = `◆ ${step.goal}${step.at && d > 3 ? ` <span class="m">${d} m</span>` : ''}`;
+  }
+  // the beacon stands at the goal; an arrow at the screen edge points to it when it's out of view
+  const arrow = $('waypoint');
+  if (!playing || !step?.at) { beacon.visible = false; arrow.style.display = 'none'; return; }
+  const [x, z] = step.at;
+  beacon.visible = Math.hypot(x - P.x, z - P.z) > 2.5;
+  beacon.position.set(x, lvl.heightAt(x, z), z);
+  const gem = beacon.getObjectByName('gem')!; gem.rotation.y = t * 1.6; gem.position.y = 3.4 + Math.sin(t * 2.2) * 0.25;
+  _bp.set(x, beacon.position.y + 3.4, z).project(camera);
+  const behind = _bp.z > 1;
+  let sx = _bp.x, sy = _bp.y;
+  if (behind) { sx = -sx; sy = -sy; }
+  const onScreen = !behind && Math.abs(sx) < 0.92 && Math.abs(sy) < 0.88;
+  if (onScreen || Math.hypot(x - P.x, z - P.z) < 2.5) { arrow.style.display = 'none'; return; }
+  const k = 0.88 / Math.max(Math.abs(sx), Math.abs(sy), 1e-3);
+  const ex = sx * k, ey = sy * k;
+  arrow.style.display = 'block';
+  arrow.style.left = `${(ex * 0.5 + 0.5) * innerWidth}px`; arrow.style.top = `${(-ey * 0.5 + 0.5) * innerHeight}px`;
+  arrow.style.transform = `translate(-50%,-50%) rotate(${Math.atan2(-ey, ex)}rad)`;
+}
+
 // ── input ──
 const input = new UnifiedInputBuffer();
 const keys = new Set<string>();
@@ -171,6 +227,7 @@ addEventListener('keydown', (e) => {
   if (mode === 'challenge' && /^Digit[1-4]$/.test(e.code)) { answer(Number(e.code.slice(5)) - 1); return; }
   if (e.repeat) return;
   if (e.code === 'KeyM' && mode !== 'lyre') { toast('Music', toggleMusic() ? 'On' : 'Off'); return; }
+  if (e.code === 'KeyG' && mode !== 'lyre') { guideOn = !guideOn; localStorage.setItem('lexicon_guide', guideOn ? '1' : '0'); toast('Guide', guideOn ? 'On' : 'Off · the goal stays at the top left'); return; }
   keys.add(e.code);
   const a = keyAction[e.code]; if (a) input.setAction(a, true);
 });
@@ -494,6 +551,8 @@ function openChallenge(e: Enemy) {
   $('chKind').textContent = e.kind === 'hushling' ? 'A Hushling falters. Restore the word.' : e.kind === 'numeral' ? 'A Numeral cracks. Break the sum.' : 'A Glyphmaw gapes. Weigh the word.';
   $('chPrompt').textContent = c.prompt;
   $('chSub').textContent = c.sub;
+  // the first few times: say how to answer
+  if (words.size - STARTING_WORDS.length < 2) $('chSub').innerHTML += '<div style="margin-top:6px;font-style:italic">Press <span class="key">1</span>–<span class="key">4</span> or click your answer before the red bar runs out.</div>';
   const box = $('chChoices'); box.innerHTML = '';
   const dpad = ['▲', '▶', '▼', '◀'];
   c.choices.forEach((txt, i) => { const b = document.createElement('button'); b.className = 'btn'; b.innerHTML = `<span class="key">${i + 1} ${dpad[i]}</span>${txt}`; b.onclick = () => answer(i); box.appendChild(b); });
@@ -713,6 +772,9 @@ $('ciOpen').onclick = () => {
 };
 $('ciClose').onclick = closePanel;
 $('pResume').onclick = closePanel;
+$('howtoBtn').onclick = () => show('howto', true);
+$('pHow').onclick = () => show('howto', true);
+$('howtoClose').onclick = () => show('howto', false);
 $('pExit').onclick = () => window.parent.postMessage({ type: 'plajah.exit' }, '*');
 
 // ── the Redactor ──
@@ -995,6 +1057,7 @@ function frameTick(dt: number) {
     $('clock').textContent = clockText();
     const it = mode === 'play' ? interactable() : null;
     const pr = $('prompt'); pr.style.display = it ? 'block' : 'none'; if (it) pr.innerHTML = `<span class="key" style="background:rgba(255,255,255,.2)">E</span>${it.label}`;
+    updateGuide(performance.now() / 1000);
     statT += dt; if (statT > 2) { statT = 0; postToStudio({ type: 'stats', frameMs: engine.budget.frameMs, draws: engine.budget.drawCalls, triangles: engine.budget.triangles } as never); }
   }
 }
