@@ -56,6 +56,25 @@ def runs(occ, min_len):
     return out
 
 
+def label4(mask):
+    """4-connected labels of a boolean mask (0 = ground), without scipy."""
+    h, w = mask.shape
+    lab = np.zeros((h, w), np.int32)
+    n = 0
+    for y0_, x0_ in zip(*np.nonzero(mask)):
+        if lab[y0_, x0_]: continue
+        n += 1
+        lab[y0_, x0_] = n
+        stack = [(y0_, x0_)]
+        while stack:
+            y, x = stack.pop()
+            for yy, xx in ((y - 1, x), (y + 1, x), (y, x - 1), (y, x + 1)):
+                if 0 <= yy < h and 0 <= xx < w and mask[yy, xx] and not lab[yy, xx]:
+                    lab[yy, xx] = n
+                    stack.append((yy, xx))
+    return lab
+
+
 # ---- turnaround: four views, keep front / side / back ----
 sheet = np.asarray(Image.open(find("Scholar_standing_for_character_r")).convert("RGB"))
 H, W, _ = sheet.shape
@@ -79,6 +98,24 @@ for a, b in keep:
     if cr:
         ka, kb = max(cr, key=lambda t: t[1] - t[0])
         cm[:, :ka] = False; cm[:, kb:] = False
+    # a neighbour's cloak can share the figure's columns (beside the side view's staff), so a run can't drop it: an
+    # island apart from the figure that touches the kept run's edge AND stands clear of the figure (over 20 px) is the
+    # neighbour's, and goes too. (The staff's glowing crest is an island too, at the edge in the back view, but it sits
+    # just above its staff.)
+    lab = label4(cm)
+    if lab.max() > 1:
+        sizes = np.bincount(lab.ravel())[1:]
+        fig = int(np.argmax(sizes)) + 1
+        near = lab == fig
+        for _ in range(20):                      # the figure grown 20 px (4-neighbour steps)
+            g = near.copy(); g[1:] |= near[:-1]; g[:-1] |= near[1:]; g[:, 1:] |= near[:, :-1]; g[:, :-1] |= near[:, 1:]; near = g
+        cols = np.nonzero(cm.any(axis=0))[0]
+        lo, hi = cols.min(), cols.max()
+        for k in range(1, lab.max() + 1):
+            if k == fig: continue
+            xs = np.nonzero((lab == k).any(axis=0))[0]
+            if (xs.min() <= lo + 2 or xs.max() >= hi - 2) and not (near & (lab == k)).any():
+                cm[lab == k] = False
     crop[~cm] = 255                              # flat white ground (the intake samples the corner colour)
     if (a, b) == keep[1]:
         crop = crop[:, ::-1].copy()              # the Forge's side view faces left (the sheet's faces right)

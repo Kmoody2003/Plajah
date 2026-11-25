@@ -259,18 +259,61 @@ const bg = [S[(5 * SW + 5) * 4], S[(5 * SW + 5) * 4 + 1], S[(5 * SW + 5) * 4 + 2
 const artMask = new Uint8Array(SW * SHh);
 for (let i = 0; i < SW * SHh; i++) artMask[i] = Math.abs(S[i * 4] - bg[0]) + Math.abs(S[i * 4 + 1] - bg[1]) + Math.abs(S[i * 4 + 2] - bg[2]) > 40 ? 1 : 0;
 const centreOf = (x0: number, x1: number) => { const xs: number[] = []; for (let y = 400; y < 1250; y += 4) for (let x = x0; x < x1; x++) if (artMask[y * SW + x]) xs.push(x); xs.sort((a, b) => a - b); return xs[xs.length >> 1]; };
+// the model's chin height: 1.537 m measured on the Forge's figure. (Scaling it with the figure's height was tried for the
+// 1.78 m Scribe and measured worse: head IoU 0.70 -> 0.37. FORGE_CHIN_MODEL overrides it to A/B a scale.)
 let chinModel = 1.537;
-for (const n of gltf.nodes) if (n.extras?.forge?.tune) chinModel = 1.537;
+if (process.env.FORGE_CHIN_MODEL) chinModel = Number(process.env.FORGE_CHIN_MODEL);
 const ppm = (SH.sole - SH.chin) / chinModel;
 type ViewName = 'front' | 'side' | 'back';
 const VIEWS: Record<ViewName, { x0: number; x1: number; cx: number; proj: (p: number[]) => [number, number, number] }> = {} as never;
+// each view renders a little past the art figure's own columns (up to 80 px, never past half the gap to the next view):
+// a model part beyond the art's outline (a staff held too far forward) then counts as a miss instead of being clipped away
+const ORDER = ([['front', SH.front], ['side', SH.side], ['back', SH.back]] as const).slice().sort((a, b) => a[1].x0 - b[1].x0);
+const MARGIN = new Map<string, [number, number]>();
+ORDER.forEach(([name, r], i) => {
+  const left = i ? r.x0 - ORDER[i - 1][1].x1 : r.x0, right = i < ORDER.length - 1 ? ORDER[i + 1][1].x0 - r.x1 : SW - r.x1;
+  MARGIN.set(name, [Math.max(0, Math.min(80, Math.floor(left / 2))), Math.max(0, Math.min(80, Math.floor(right / 2)))]);
+});
 for (const [name, r] of [['front', SH.front], ['side', SH.side], ['back', SH.back]] as const) {
   const cx = centreOf(r.x0, r.x1);
   // [screen x, screen y, nearness]
   const proj = name === 'front' ? (p: number[]): [number, number, number] => [cx + p[0] * ppm, SH.sole - p[1] * ppm, p[2]]
     : name === 'side' ? (p: number[]): [number, number, number] => [cx - p[2] * ppm, SH.sole - p[1] * ppm, p[0]]
       : (p: number[]): [number, number, number] => [cx - p[0] * ppm, SH.sole - p[1] * ppm, -p[2]];
-  VIEWS[name] = { x0: r.x0, x1: r.x1, cx, proj };
+  const [ml, mr] = MARGIN.get(name)!;
+  VIEWS[name] = { x0: r.x0 - ml, x1: r.x1 + mr, cx, proj };
+}
+// the margins can reach a neighbour's figure (the front view's cloak flaring into the gap beside the side view): each
+// connected piece of the art belongs to the view whose own columns hold most of it, and a view's window keeps only
+// its own (the windows never overlap: each margin is at most half the gap)
+{
+  const panels = [['front', SH.front], ['side', SH.side], ['back', SH.back]] as const;
+  const label = new Int32Array(SW * SHh).fill(-1), owner: number[] = [];
+  const stack: number[] = [];
+  for (let i0 = 0; i0 < SW * SHh; i0++) {
+    if (!artMask[i0] || label[i0] >= 0) continue;
+    const id = owner.length, count = [0, 0, 0];
+    let sx = 0, n = 0;
+    label[i0] = id; stack.push(i0);
+    while (stack.length) {
+      const i = stack.pop()!, x = i % SW;
+      sx += x; n++;
+      panels.forEach(([, r], k) => { if (x >= r.x0 && x < r.x1) count[k]++; });
+      for (const j of [x > 0 ? i - 1 : -1, x < SW - 1 ? i + 1 : -1, i - SW, i + SW]) if (j >= 0 && j < SW * SHh && artMask[j] && label[j] < 0) { label[j] = id; stack.push(j); }
+    }
+    // an island wholly in a gap (a cloak's flared tip, cut loose by the background key) belongs to the nearest view
+    const gapOf = (r: { x0: number; x1: number }) => { const c = sx / n; return c < r.x0 ? r.x0 - c : c > r.x1 ? c - r.x1 : 0; };
+    owner.push(count.some((c) => c > 0) ? count.indexOf(Math.max(...count)) : panels.map(([, r]) => gapOf(r)).reduce((bi, d, k, a) => (d < a[bi] ? k : bi), 0));
+  }
+  let dropped = 0;
+  panels.forEach(([name], k) => {
+    const { x0, x1 } = VIEWS[name];
+    for (let y = 0; y < SHh; y++) for (let x = Math.max(0, x0); x < Math.min(SW, x1); x++) {
+      const i = y * SW + x;
+      if (artMask[i] && owner[label[i]] !== k) { artMask[i] = 0; dropped++; }
+    }
+  });
+  if (args.includes('--debug-staff')) console.log(`art mask: ${dropped} px of a neighbour's figure left out of the view windows`);
 }
 // the model's figure is centred like the art's: on its own median column through the body
 // (applied after rendering, by the shift that best overlays the two)
@@ -475,6 +518,19 @@ for (const v of ['front', 'side', 'back'] as ViewName[]) for (const name of PART
   for (let i = 0; i < m.length; i++) m[i] = png.data[i * 4] > 127 ? 1 : 0;
   artParts.set(`${v}:${name}`, m);
 }
+/** How far (px, sideways) one model part stands from the art's, in a rendered view: a held staff that misses the art's
+ * entirely has an IoU of 0 at every nearby pose, so the fit needs this to find its way; null when the art's part isn't cut. */
+function partOffset(r: ReturnType<typeof render>, v: ViewName, name: string, shift: number): number | null {
+  const A = artParts.get(`${v}:${name}`); if (!A) return null;
+  const p = PARTS.indexOf(name);
+  let ax = 0, an = 0, mx = 0, mn = 0;
+  for (let y = 0; y < r.H; y++) for (let x = 0; x < r.W; x++) {
+    const i = y * r.W + x;
+    if (A[i]) { ax += x; an++; }
+    if (r.partId[i] === p) { mx += x + shift; mn++; }
+  }
+  return an && mn ? Math.abs(ax / an - mx / mn) : null;
+}
 /** How well one model part overlaps the art's (IoU), in a rendered view; null when the art's part isn't cut yet. */
 function partIoU(r: ReturnType<typeof render>, v: ViewName, name: string, shift: number): number | null {
   const A = artParts.get(`${v}:${name}`); if (!A) return null;
@@ -521,11 +577,25 @@ function fitPose(): Pose {
     for (const v of ['front', 'side'] as ViewName[]) {
       const r = render(tris, v); const sc = score(r, v, false);
       s += sc.regions.torso.iou + sc.regions.legs.iou + 2 * (partIoU(r, v, 'arms', sc.shift) ?? 0);
-      if (HOLDS_STAFF) s += 2 * (partIoU(r, v, 'staff', sc.shift) ?? 0);
+      if (HOLDS_STAFF) {
+        s += 2 * (partIoU(r, v, 'staff', sc.shift) ?? 0);
+        // and nearer is better, before it overlaps at all (0 px off: +0.5; 150 px or more: 0)
+        const off = partOffset(r, v, 'staff', sc.shift);
+        if (off !== null) s += 0.5 * Math.max(0, 1 - off / 150);
+      }
     }
     return s;
   };
   let best = iouOf(p);
+  // the staff arm can fold two ways that both put the fist at the staff from the front (upper arm forward and the
+  // elbow open, or upper arm down and the elbow shut): a step-by-step search keeps whichever it starts in, so first
+  // try a coarse grid of the two and start from the best
+  if (HOLDS_STAFF) {
+    for (const fwd of [0, 0.2, 0.4, 0.6, 0.8]) for (const el of [0.8, 1.1, 1.4, 1.7, 2.0, 2.3]) {
+      const q = { ...p, rArmFwd: fwd, rElbow: el }, sc = iouOf(q);
+      if (sc > best) { best = sc; p = q; }
+    }
+  }
   const steps: [keyof Pose, number][] = [['arm', 0.08], ['leg', 0.03], ['stagger', 0.05], ['legFwd', 0.04], ['armFwd', 0.1], ['elbow', 0.12]];
   if (HOLDS_STAFF) steps.push(['rArm', 0.08], ['rArmFwd', 0.12], ['rElbow', 0.15]);
   for (let round = 0; round < 2; round++) for (const [k, d] of steps) for (const dir of [1, -1]) {
@@ -617,6 +687,18 @@ if (args.includes('--paint')) {
   process.exit(0);
 }
 const tris = posedTris(poseOf(pose));
+if (args.includes('--debug-staff')) {
+  const st = tris.filter((t) => PARTS[t.part] === 'staff');
+  const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+  for (const t of st) for (let k = 0; k < 9; k++) { lo[k % 3] = Math.min(lo[k % 3], t.p[k]); hi[k % 3] = Math.max(hi[k % 3], t.p[k]); }
+  console.log('staff tris', st.length, 'world lo', lo.map((x) => x.toFixed(3)), 'hi', hi.map((x) => x.toFixed(3)));
+  for (const v of ['front', 'side'] as ViewName[]) {
+    const V = VIEWS[v], a = V.proj(lo), b = V.proj(hi);
+    const r = render(st, v); let n = 0; for (const m of r.mask) n += m;
+    console.log(v, 'panel', V.x0, V.x1, 'cx', V.cx.toFixed(0), 'staff x', a[0].toFixed(0), b[0].toFixed(0), 'y', a[1].toFixed(0), b[1].toFixed(0), 'rendered px', n);
+  }
+  process.exit(0);
+}
 if (args.includes('--calibrate')) {
   const cal = calibrate(tris);
   fs.writeFileSync(path.join(outDir, 'materials.json'), JSON.stringify(cal, null, 2));

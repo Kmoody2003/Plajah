@@ -354,5 +354,21 @@ arm to it (fully standing, looser walking and running, released for a strike). S
 overall 71.9% (flat). Open: in the scorer's side view the staff does not render at the hand (the front view and the game
 place it right), so the side score still misses it; the idle (the walk capture's first frames) reads as mid-step.
 
+Side staff (2026-11-25). The staff was at the hand; the side view clipped it to the art figure's own columns, so a staff
+held too far forward was simply not seen. Now:
+- each view renders up to 80 px past the art figure (never past half the gap to the next view), so what lies outside the
+  art's outline counts as a miss;
+- every connected piece of the art belongs to the view whose columns hold most of it (an island in a gap goes to the
+  nearest), and a view sees only its own;
+- a pole-shaped part (at least 6x as tall as wide) that the model holds off the art's figure is slid sideways onto the
+  art's own pole before SAM is prompted (its other piece follows within 90 px), so it gets a cut at all;
+- the pose fit adds a sideways-distance term for the staff (an IoU of 0 at every nearby pose gives it nothing to follow),
+  and seeds the staff arm from a grid of upper-arm swing x elbow bend (two folds put the fist at the staff from the front).
+- `prep_scribe_art.py` drops islands at a view's crop edge that stand over 20 px clear of the figure: the side view had
+  carried a sliver of the back view's cloak (the back view's own staff crest, also at its edge, stays).
+Scored on the stricter scorer, the committed Scribe and the rebuilt one match (66.3% / 66.0%, side shape 49% / 48%, side
+staff 21%); the gain is that the side staff is measured, and the fitted stance (extras.forge.stance) now holds the staff
+arm low with the elbow bent, as the art does (rArmFwd 0.12, rElbow 0.8, was 0.53 / 1.2).
+
 Not done yet: a belt pouch shows through the cloak's side; the
 strike and roll are procedural over the locomotion (CMU 02_05 is a strike capture to try); the GLB is 8.5 MB (KTX2 next).

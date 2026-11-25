@@ -75,7 +75,9 @@ export function scoreParts(views: PartView[], sheet: { W: number; H: number; dat
     const W = v.x1 - v.x0, H = v.r.H;
     // the art's view, and each model part shifted onto it
     const artPng = new PNG({ width: W, height: H });
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const si = (y * sheet.W + v.x0 + x) * 4, di = (y * W + x) * 4; artPng.data[di] = sheet.data[si]; artPng.data[di + 1] = sheet.data[si + 1]; artPng.data[di + 2] = sheet.data[si + 2]; artPng.data[di + 3] = 255; }
+    // (only this view's own figure: what the mask leaves out, a neighbour's cloak in the margin, is shown as background)
+    const bgPx = [sheet.data[0], sheet.data[1], sheet.data[2]];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const mi = y * sheet.W + v.x0 + x, si = mi * 4, di = (y * W + x) * 4, own = sheet.mask[mi] === 1; artPng.data[di] = own ? sheet.data[si] : bgPx[0]; artPng.data[di + 1] = own ? sheet.data[si + 1] : bgPx[1]; artPng.data[di + 2] = own ? sheet.data[si + 2] : bgPx[2]; artPng.data[di + 3] = 255; }
     const imgFile = path.join(work, `${v.name}.png`);
     fs.writeFileSync(imgFile, PNG.sync.write(artPng));
     const model = parts.map(() => new Uint8Array(W * H));
@@ -87,16 +89,51 @@ export function scoreParts(views: PartView[], sheet: { W: number; H: number; dat
     const jobs: Record<string, unknown>[] = [];
     const jobsOf: Record<string, string[]> = {};
     const thinPart: Record<string, boolean> = {};
+    const slid = new Map<string, number>(); // part -> how far its first off-figure piece slid onto the art's own
     parts.forEach((name, p) => {
       jobsOf[name] = [];
       pieces(model[p], W, H, 40).forEach((piece, k) => {
         // a thin part (a sword, a cord: nowhere more than ~8 px from its edge) is prompted along its length, and told
         // "not this" right beside it, where SAM would otherwise spill into whatever it lies across (the sash it is
         // thrust through); a broad part is prompted from deep inside, as before
-        const dIn = chamfer(piece, W, H, false);
+        let dIn = chamfer(piece, W, H, false);
         let maxD = 0; for (let i = 0; i < W * H; i++) if (piece[i] && dIn[i] > maxD) maxD = dIn[i];
         const thin = maxD < 8;
         thinPart[name] = (thinPart[name] ?? true) && thin;
+        // a part the model holds off the art's figure (a staff held further out than the art holds it) would get
+        // no prompts and so never a cut, and the pose fit would never learn where it belongs: slide it sideways onto the
+        // art's own pole (on the figure along its length, clear of it 5-12 px either side), if one is there
+        let onFig = 0, all = 0; for (let i = 0; i < W * H; i++) if (piece[i]) { all++; onFig += figure(i) ? 1 : 0; }
+        // only a part that is a pole as a whole (at least 6x as tall as wide): a pack strap or a cloak edge off the
+        // figure is a shape miss, not a thing held
+        let bx0 = W, bx1 = 0, by0 = H, by1 = 0;
+        for (let i = 0; i < W * H; i++) if (model[p][i]) { const x = i % W, y = (i / W) | 0; bx0 = Math.min(bx0, x); bx1 = Math.max(bx1, x); by0 = Math.min(by0, y); by1 = Math.max(by1, y); }
+        if (all && onFig / all < 0.3 && by1 - by0 >= 6 * (bx1 - bx0 + 1)) {
+          const dOut = chamfer(piece.map((q) => 1 - q) as unknown as Uint8Array, W, H, false);
+          const on: number[] = [], ring: number[] = [];
+          for (let i = 0; i < W * H; i++) { if (piece[i]) on.push(i); else if (dOut[i] >= 5 && dOut[i] <= 12) ring.push(i); }
+          const fig = (i: number, dx: number) => { const x = i % W + dx; return x >= 0 && x < W && sheet.mask[((i / W) | 0) * sheet.W + v.x0 + x] === 1 ? 1 : 0; };
+          const fit = (dx: number) => { let a = 0, b = 0; for (const i of on) a += fig(i, dx); for (const i of ring) b += fig(i, dx); return a / on.length - b / Math.max(1, ring.length); };
+          let bestDx = 0, best = fit(0);
+          for (let dx = -240; dx <= 240; dx += 2) { const f = fit(dx); if (f > best + 0.02) { best = f; bestDx = dx; } }
+          // the part's other piece (the staff above and below the hand) is the same thing, though the art may lean it
+          // where the model stands it straight: it slides about as far, and need only lie on the art's pole
+          const prior = slid.get(name);
+          let near = false;
+          if (prior !== undefined) {
+            let nb = -1, nd = prior;
+            for (let dx = prior - 90; dx <= prior + 90; dx += 2) { const f = fit(dx); if (f > nb) { nb = f; nd = dx; } }
+            if (nb > 0.2) { best = nb; bestDx = nd; near = true; }
+          }
+          if (bestDx && (best > 0.35 || near)) {
+            slid.set(name, bestDx);
+            const moved = new Uint8Array(W * H);
+            for (const i of on) { const x = i % W + bestDx; if (x >= 0 && x < W) moved[i + bestDx] = 1; }
+            piece = moved;
+            dIn = chamfer(piece, W, H, false);
+            console.log(`  ${v.name} ${name}#${k}: held off the art's figure, slid ${bestDx} px onto its own (fit ${best.toFixed(2)})`);
+          } else console.log(`  ${v.name} ${name}#${k}: off the art's figure, no pole of its own found (best ${best.toFixed(2)} at ${bestDx})`);
+        }
         let area = 0; for (let i = 0; i < W * H; i++) area += piece[i];
         if (!thin && area < 250) return;
         const inside = thin ? (() => { const out: number[] = []; for (let i = 0; i < W * H; i++) if (piece[i] && dIn[i] >= Math.max(1, maxD * 0.55) && figure(i)) out.push(i); return out; })() : insideOf(piece);
