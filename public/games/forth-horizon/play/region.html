@@ -39,8 +39,8 @@
     #hud { position:fixed; right:14px; bottom:14px; padding:10px 14px; background:var(--panel); border:1px solid var(--border); border-radius:16px; backdrop-filter:blur(12px); font:500 11px var(--font-mono); line-height:1.6; min-width:200px; }
     #msg { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); font:600 15px var(--font-display); letter-spacing:.2em; opacity:.9; }
   </style>
-  <script type="module" crossorigin src="/games/forth-horizon/play/assets/region-B1lzC2Ua.js"></script>
-  <link rel="modulepreload" crossorigin href="/games/forth-horizon/play/assets/ao-Ddup-ZC5.js">
+  <script type="module" crossorigin src="/games/forth-horizon/play/assets/region-KukPONyW.js"></script>
+  <link rel="modulepreload" crossorigin href="/games/forth-horizon/play/assets/ao-CrAcRInI.js">
   <link rel="stylesheet" crossorigin href="/games/forth-horizon/play/assets/region-CD3hialW.css">
 </head>
 <body>
@@ -51,7 +51,9 @@
     <label class="sh-row"><span>Music volume</span><input type="range" id="musicVol" min="0" max="1" step="0.05" value="0.6" /></label>
     <label class="sh-row"><span>Engine and tyre volume</span><input type="range" id="engVol" min="0" max="1.5" step="0.05" value="1.0" /></label>
     <label class="sh-row"><span>Chora Radio ( [ / ] )</span><span style="display:flex;gap:6px;align-items:center"><button id="radioPrev" type="button">&lsaquo;</button><b id="radioLabel" style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Plajah FM</b><button id="radioNext" type="button">&rsaquo;</button></span></label>
+    <label class="sh-row"><span>Radio host voices (device speech)</span><input type="checkbox" id="tHostVoice" /></label>
     <div class="sh-group">Driving</div>
+    <label class="sh-row"><span>Call out red lights and stop signs</span><input type="checkbox" id="tTrafficCalls" checked /></label>
     <label class="sh-row"><span>Weather</span><select id="wxsel"><option value="auto" selected>Dynamic (race forecast)</option><option value="clear">Clear</option><option value="partly">Partly</option><option value="overcast">Overcast</option><option value="fog">Fog</option><option value="rain">Rain</option><option value="storm">Storm</option></select></label>
     <label class="sh-row"><span>Car, parts and tuning</span><a href="showroom.html" style="color:#FF8C00;font:700 11px Outfit,sans-serif;letter-spacing:.14em;text-decoration:none">OPEN GARAGE</a></label>
     <label class="sh-row"><span>Racing line (L)</span><input type="checkbox" id="tLine" checked /></label>
@@ -60,9 +62,11 @@
     <div class="sh-group">Graphics</div>
     <label class="sh-row"><span>Time of day</span><select id="tod"><option value="golden">Golden hour</option><option value="clear">Clear day</option><option value="sunset">Sunset</option><option value="dusk">Dusk</option><option value="night">Night</option><option value="sunrise">Sunrise</option></select></label>
     <label class="sh-row"><span>GPU preference</span><select id="gpuPreference" title="Requests a GPU after reload. The browser and OS choose the adapter; Performance shows the GPU actually in use."><option value="default">System default</option><option value="low-power">Power-saving GPU</option><option value="high-performance">High-performance GPU</option></select></label>
-    <label class="sh-row"><span>Shadows</span><select id="shadowSel"><option value="basic">Basic (default)</option><option value="cascaded">Cascaded (experimental, washes out the ground)</option></select></label>
-    <label class="sh-row"><span>Building models</span><select id="modSel"><option value="v3">v3 detailed</option><option value="v1">v1 (previous)</option></select></label>
-    <label class="sh-row"><span>Building textures</span><select id="texSel"><option value="v3">v3 photoreal</option><option value="v1">v1 (previous)</option></select></label>
+    <label class="sh-row"><span>Shadows</span><select id="shadowSel"><option value="basic">Basic (default)</option><option value="cascaded">Cascaded (sharp near + far)</option></select></label>
+    <label class="sh-row"><span>Playkit GI &amp; local lights</span><input type="checkbox" id="tPkGi" checked /></label>
+    <label class="sh-row"><span>FSR 1 upscaling (sharp &amp; fast)</span><input type="checkbox" id="tFsr" checked /></label>
+    <label class="sh-row"><span>Building models</span><select id="modSel"><option value="v4">v4 Colab HD</option><option value="v3">v3 detailed</option><option value="v1">v1 (previous)</option></select></label>
+    <label class="sh-row"><span>Building textures</span><select id="texSel"><option value="v4">v4 Colab 2K PBR</option><option value="v3">v3 photoreal</option><option value="v1">v1 (previous)</option></select></label>
     <label class="sh-row"><span>Bloom</span><input type="checkbox" id="tFx" checked /></label>
     <label class="sh-row"><span>Colour grade (LUT)</span><select id="lutSel"><option value="none">Off</option></select></label>
     <label class="sh-row"><span>Grade strength</span><input type="range" id="lutAmt" min="0" max="1" step="0.05" value="1" /></label>

@@ -19,13 +19,13 @@ def enc(path):
     if os.path.exists(out) and os.path.getmtime(out) >= os.path.getmtime(path):
         return path, 'skip'
     stem = os.path.splitext(os.path.basename(path))[0]
-    linear = any(stem.endswith(k) for k in ('_nrm', '_normal', '_rgh', '_roughness', '_ao'))
+    linear = any(stem.endswith(k) for k in ('_nrm', '_normal', '_rgh', '_roughness', '_ao', '_orm', '_hgt'))
     colour = not linear
     args = [KTX, 'create', '--format', 'R8G8B8_SRGB' if colour else 'R8G8B8_UNORM', '--assign-tf', 'srgb' if colour else 'linear', '--generate-mipmap']
     if stem.endswith(('_rgh', '_roughness', '_ao')):
         args += ['--encode', 'basis-lz', '--clevel', '2', '--qlevel', '220']
     else:
-        args += ['--encode', 'uastc', '--uastc-quality', '1', '--uastc-rdo', '--uastc-rdo-l', '2', '--zstd', '19']
+        args += ['--encode', 'uastc', '--uastc-quality', '1', '--uastc-rdo', '--uastc-rdo-l', '2', '--zstd', '9']
     r = subprocess.run(args + [path, out], capture_output=True, text=True)
     return path, 'ok' if r.returncode == 0 else 'FAIL ' + (r.stderr or r.stdout).strip()[:200]
 
@@ -36,7 +36,7 @@ if __name__ == '__main__':
         if os.path.isfile(a): files.append(a)                                   # single images (jpg or png), e.g. the tiling detail maps in tex/
         else: files += glob.glob(os.path.join(a, '**', '*.jpg'), recursive=True)
     tot0 = tot1 = bad = 0
-    with ThreadPoolExecutor(4) as pool:
+    with ThreadPoolExecutor(8) as pool:
         for p, s in pool.map(enc, files):
             if s.startswith('FAIL'): bad += 1; print(p, s)
     for f in files:

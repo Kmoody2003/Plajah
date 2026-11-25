@@ -18,7 +18,7 @@ export class GpuTextureLoader {
   constructor(private manager: THREE.LoadingManager) { this.plain = new THREE.TextureLoader(manager); }
   load(url: string, onLoad?: (t: THREE.Texture) => void, onProgress?: (e: ProgressEvent) => void, onError?: (e: unknown) => void): THREE.Texture | null {
     const real = this.manager.resolveURL(url);
-    if (!ktx || !/\.(jpe?g|png)$/i.test(real) || !real.includes('/ironport/textures-v3/')) return this.plain.load(url, onLoad, onProgress, onError);
+    if (!ktx || !/\.(jpe?g|png)$/i.test(real) || !/\/ironport\/textures-v[34]\//.test(real)) return this.plain.load(url, onLoad, onProgress, onError);
     const twin = real.replace(/\.(jpe?g|png)$/i, '.ktx2');
     ktx.load(twin, (t) => onLoad?.(t), onProgress, () => { this.plain.load(real, onLoad, onProgress, onError); });
     return null;

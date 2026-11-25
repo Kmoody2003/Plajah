@@ -6,9 +6,9 @@
 // (the same size-for-distance rule the old per-instance culler used), a share of the instances per frame.
 import * as THREE from 'three';
 
-export interface CityPart { geometry: THREE.BufferGeometry; material: THREE.Material; transforms: THREE.Matrix4[]; castShadow: boolean }
+export interface CityPart { geometry: THREE.BufferGeometry; material: THREE.Material; transforms: THREE.Matrix4[]; castShadow: boolean; maxDist?: number }
 
-interface Batch { mesh: THREE.BatchedMesh; ids: Int32Array; spheres: Float32Array; vis: Uint8Array }
+interface Batch { mesh: THREE.BatchedMesh; ids: Int32Array; spheres: Float32Array; vis: Uint8Array; maxDist: number }
 
 /** position / normal / uv (+ colour when the material uses it) as plain float arrays with an index: every geometry in one BatchedMesh must have the same attributes */
 function normalise(g: THREE.BufferGeometry, colours: boolean): THREE.BufferGeometry {
@@ -21,7 +21,7 @@ function normalise(g: THREE.BufferGeometry, colours: boolean): THREE.BufferGeome
   out.setAttribute('position', copy('position', 3, 0));
   if (g.getAttribute('normal')) out.setAttribute('normal', copy('normal', 3, 0)); else { out.setAttribute('normal', copy('position', 3, 0)); }
   out.setAttribute('uv', copy('uv', 2, 0));
-  if (colours) out.setAttribute('color', copy('color', g.getAttribute('color')?.itemSize ?? 3, 1));
+  if (colours) out.setAttribute('color', copy('color', 3, 1));
   if (g.index) out.setIndex(new THREE.BufferAttribute(Uint32Array.from(g.index.array as ArrayLike<number>), 1));
   else { const idx = new Uint32Array(n); for (let i = 0; i < n; i++) idx[i] = i; out.setIndex(new THREE.BufferAttribute(idx, 1)); }
   if (!g.getAttribute('normal')) out.computeVertexNormals();
@@ -35,7 +35,7 @@ function matKey(mat: THREE.Material): string {
   const tx = (t?: THREE.Texture | null): string => (t ? String(t.userData?.srcKey ?? t.source?.uuid ?? t.uuid) + ':' + t.repeat.x.toFixed(2) + ',' + t.repeat.y.toFixed(2) + ':' + t.offset.x.toFixed(2) + ',' + t.offset.y.toFixed(2) : '-');
   return [m.type, m.roughness.toFixed(2), m.metalness.toFixed(2), m.emissive?.getHexString(), m.emissiveIntensity.toFixed(2), m.envMapIntensity.toFixed(2), m.opacity.toFixed(2), m.transparent ? 1 : 0, m.side, m.vertexColors ? 1 : 0,
     m.visible ? 1 : 0, m.alphaTest, m.colorWrite ? 1 : 0, m.depthWrite ? 1 : 0, m.blending, m.flatShading ? 1 : 0, tx(m.alphaMap),
-    m.normalScale ? m.normalScale.x.toFixed(1) + ',' + m.normalScale.y.toFixed(1) : '-', tx(m.map), tx(m.normalMap), tx(m.roughnessMap), tx(m.metalnessMap), tx(m.aoMap), tx(m.emissiveMap), m.onBeforeCompile === THREE.Material.prototype.onBeforeCompile ? '' : String(m.customProgramCacheKey?.() ?? 'patched')].join('|');
+    m.normalScale ? m.normalScale.x.toFixed(1) + ',' + m.normalScale.y.toFixed(1) : '-', tx(m.map), tx(m.normalMap), tx(m.roughnessMap), tx(m.metalnessMap), tx(m.aoMap), tx(m.emissiveMap), String(m.userData?.v4HeightKey ?? ''), String(m.userData?.v4OrmKey ?? ''), m.onBeforeCompile === THREE.Material.prototype.onBeforeCompile ? '' : String(m.customProgramCacheKey?.() ?? 'patched')].join('|');
 }
 
 export class CityBatches {
@@ -53,7 +53,8 @@ export class CityBatches {
       if (!p.transforms.length) continue;
       const pm = p.material as THREE.MeshStandardMaterial;
       if (!pm.visible || (pm.transparent && pm.opacity <= 0.01) || !pm.colorWrite) continue;      // parts the model never shows (hidden or fully transparent): batching them would draw them
-      const key = matKey(p.material) + (p.castShadow ? '|s' : '|n');
+      const md = p.maxDist ?? Infinity;
+      const key = matKey(p.material) + (p.castShadow ? '|s' : '|n') + (Number.isFinite(md) ? `|d${md}` : '');
       let b = buckets.get(key); if (!b) buckets.set(key, b = []);
       b.push(p);
     }
@@ -99,7 +100,7 @@ export class CityBatches {
       }
       for (const g of geos.values()) g.dispose();
       mesh.computeBoundingBox(); mesh.computeBoundingSphere();
-      this.batches.push({ mesh, ids, spheres, vis: new Uint8Array(insts).fill(1) });
+      this.batches.push({ mesh, ids, spheres, vis: new Uint8Array(insts).fill(1), maxDist: list[0].maxDist ?? Infinity });
       this.group.add(mesh);
     }
   }
@@ -108,15 +109,16 @@ export class CityBatches {
   update(cam: THREE.Vector3, slice = 0, slices = 1): void {
     const vd = this.viewDist, sd = this.shadowDist;
     for (const b of this.batches) {
-      const s = b.spheres, n = b.ids.length;
+      const s = b.spheres, n = b.ids.length, bMax = b.maxDist;
+      const effVd = Math.min(vd, bMax);
       for (let i = slice; i < n; i += slices) {
         let on = 1;
-        if (vd !== Infinity) {
+        if (effVd !== Infinity) {
           const dx = s[i * 4] - cam.x, dz = s[i * 4 + 2] - cam.z, r = s[i * 4 + 3];
           const dy = Math.max(0, Math.abs(s[i * 4 + 1] - cam.y) - r);
           const dd = Math.sqrt(dx * dx + dz * dz + dy * dy) - r;
-          const lim = Math.min(vd, Math.max(250, r * 24));
-          on = dd < lim || dd < sd ? 1 : 0;
+          const lim = Number.isFinite(bMax) ? Math.min(effVd, bMax) : Math.min(effVd, Math.max(250, r * 24));
+          on = dd < lim || (b.mesh.castShadow && dd < sd) ? 1 : 0;
         }
         if (on !== b.vis[i]) { b.vis[i] = on; b.mesh.setVisibleAt(b.ids[i], on === 1); }
       }

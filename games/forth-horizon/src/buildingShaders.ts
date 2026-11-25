@@ -19,6 +19,11 @@
  *     - Used ONLY on windowless v1 boxes (never stacked over v3 buildings that already have real 3D windows).
  */
 import * as THREE from 'three';
+import {
+  PK_WEBGL_GI_PARS,
+  buildPlaykitGiInjectGlsl,
+  type PlaykitWebGLGiUniforms,
+} from '../../../playkit/render/webglLighting';
 
 const SHARED_GLSL = `
 float bh2(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -172,9 +177,19 @@ vec3 facadeWeatherAAA(vec3 col, vec3 fw, vec3 wn, float dist, float wet, out flo
 }
 `;
 
+export interface FacadeV4Maps {
+  /** Neural Depth Anything V2 architectural height map (white = proud / extruded, black = recessed) */
+  heightMap?: THREE.Texture | null;
+  /** Neural calibrated ORM map: R = Cavity/Micro-AO, G = Toksvig-filtered Physical Roughness, B = Metalness */
+  ormMap?: THREE.Texture | null;
+  /** Parallax relief depth in metres (default 0.28 for hero facades, 0.16 for shared masonry) */
+  parallaxDepth?: number;
+}
+
 /**
  * Masonry, brick, concrete, steel, wood, and hero landmark facades:
- * - textureGrad steep parallax (zero D3D11 X3595 warnings)
+ * - textureGrad steep parallax occlusion mapping (true neural height map on v4; luminance fallback on v1/v3; zero D3D11 X3595 warnings)
+ * - directional parallax self-shadowing + neural ORM (cavity AO, Toksvig-filtered roughness, physical metalness)
  * - mortar/stone crevice contrast, street-canyon AO, rainwater streaks, per-building tonal breakup
  * - hero landmark sheets separate reflective sky-mirror windows + warm office glow from matte masonry
  * - exponential aerial perspective depth scattering
@@ -184,16 +199,36 @@ export function patchFacadeMasonry(
   isHero: boolean,
   wetU: { value: number },
   nightU: { value: number },
-  sunDirU?: { value: THREE.Vector3 }
+  sunDirU?: { value: THREE.Vector3 },
+  v4?: FacadeV4Maps,
+  gi?: PlaykitWebGLGiUniforms
 ): void {
   if (isHero) mat.envMapIntensity = Math.max(mat.envMapIntensity ?? 1.0, 2.6);
   const sDirU = sunDirU ?? { value: new THREE.Vector3(-0.7, 0.45, -0.2).normalize() };
+  const hMap = v4?.heightMap ?? null;
+  const oMap = v4?.ormMap ?? null;
+  const hasH = !!hMap;
+  const hasO = !!oMap;
+  const hasGi = !!gi;
+  const pomDepth = v4?.parallaxDepth ?? (isHero ? 0.28 : 0.16);
+  mat.userData.v4HeightKey = hMap ? String(hMap.userData?.srcKey ?? hMap.uuid) : '';
+  mat.userData.v4OrmKey = oMap ? String(oMap.userData?.srcKey ?? oMap.uuid) : '';
+  if (hasGi) mat.userData.__playkitWebglGi = true;
+
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = (sh, r) => {
     prev?.call(mat, sh, r);
     sh.uniforms.uWetF = wetU;
     sh.uniforms.uNightF = nightU;
     sh.uniforms.uSunF = sDirU;
+    if (gi) Object.assign(sh.uniforms, gi);
+    if (hasH) {
+      sh.uniforms.uHeightMap = { value: hMap };
+      sh.uniforms.uPomDepth = { value: pomDepth };
+    }
+    if (hasO) {
+      sh.uniforms.uOrmMap = { value: oMap };
+    }
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vFW;\nvarying vec3 vFWN;')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -210,12 +245,61 @@ export function patchFacadeMasonry(
         vFW = (modelMatrix * fwp).xyz;
         vFWN = fnm * normal;`);
 
-    let fs = sh.fragmentShader
-      .replace('#include <common>', `#include <common>\nvarying vec3 vFW;\nvarying vec3 vFWN;\nuniform float uWetF, uNightF;\nuniform vec3 uSunF;\n${SHARED_GLSL}`)
-      .replace('#include <logdepthbuf_fragment>', `#include <logdepthbuf_fragment>
+    const v4UniformDecls = (hasH ? 'uniform sampler2D uHeightMap;\nuniform float uPomDepth;\n' : '') + (hasO ? 'uniform sampler2D uOrmMap;\n' : '');
+    const pomBlock = hasH ? `
         vec2 pUv = vMapUv;
+        vec2 pDUx = dFdx(vMapUv), pDUy = dFdy(vMapUv);
         float fMicro = 0.5;
         float heroGlass = 0.0;
+        float pomShadow = 1.0;
+        {
+          float pDist = length(vViewPosition);
+          float pFade = 1.0 - smoothstep(${isHero ? '42.0, 108.0' : '20.0, 68.0'}, pDist);
+          if (pFade > 0.02) {
+            vec3 pN = normalize(vNormal);
+            mat3 pT = getTangentFrame(-vViewPosition, pN, vMapUv);
+            vec3 pV = normalize(vViewPosition);
+            vec3 pt = vec3(dot(pV, pT[0]), dot(pV, pT[1]), dot(pV, pT[2]));
+            float uvA = dot(pDUx, pDUx) + dot(pDUy, pDUy);
+            float pA = dot(dFdx(vViewPosition), dFdx(vViewPosition)) + dot(dFdy(vViewPosition), dFdy(vViewPosition));
+            float upm = sqrt(uvA / max(pA, 1e-8));
+            vec2 pDir = pt.xy / max(pt.z, 0.38) * (uPomDepth * upm) * pFade;
+            const float LAY = ${isHero ? '4.0' : '3.0'};
+            vec2 pStep = pDir / LAY;
+            float cur = 0.0, prevCur = 0.0;
+            vec2 uvc = vMapUv, prevUv = vMapUv;
+            float hmap = 1.0 - textureGrad(uHeightMap, uvc, pDUx, pDUy).r;
+            float prevH = hmap;
+            for (int i = 0; i < ${isHero ? '4' : '3'}; i++) {
+              if (cur >= hmap) break;
+              prevUv = uvc; prevCur = cur; prevH = hmap;
+              uvc -= pStep;
+              cur += 1.0 / LAY;
+              hmap = 1.0 - textureGrad(uHeightMap, uvc, pDUx, pDUy).r;
+            }
+            // Linear secant refinement between last two steps eliminates grazing-angle stair-stepping
+            float afterD = hmap - cur;
+            float beforeD = prevH - prevCur;
+            float wt = clamp(afterD / min(-1e-4, afterD - beforeD), 0.0, 1.0);
+            pUv = mix(uvc, prevUv, wt);
+            // 1-tap directional micro-shadow along sun vector in tangent space (near camera only)
+            if (pFade > 0.18) {
+              vec3 sV = normalize((viewMatrix * vec4(normalize(uSunF), 0.0)).xyz);
+              vec3 st = vec3(dot(sV, pT[0]), dot(sV, pT[1]), dot(sV, pT[2]));
+              if (st.z > 0.08) {
+                vec2 sStep = st.xy / max(st.z, 0.42) * (uPomDepth * 0.55 * upm) * pFade;
+                float hHere = textureGrad(uHeightMap, pUv, pDUx, pDUy).r;
+                float hSun = textureGrad(uHeightMap, pUv + sStep, pDUx, pDUy).r;
+                pomShadow = 1.0 - clamp((hSun - hHere) * 1.95 * pFade, 0.0, 0.36);
+              }
+            }
+          }
+        }` : `
+        vec2 pUv = vMapUv;
+        vec2 pDUx = dFdx(vMapUv), pDUy = dFdy(vMapUv);
+        float fMicro = 0.5;
+        float heroGlass = 0.0;
+        float pomShadow = 1.0;
         {
           float pDist = length(vViewPosition);
           float pFade = 1.0 - smoothstep(42.0, 132.0, pDist);
@@ -224,8 +308,7 @@ export function patchFacadeMasonry(
             mat3 pT = getTangentFrame(-vViewPosition, pN, vMapUv);
             vec3 pV = normalize(vViewPosition);
             vec3 pt = vec3(dot(pV, pT[0]), dot(pV, pT[1]), dot(pV, pT[2]));
-            vec2 dUx = dFdx(vMapUv), dUy = dFdy(vMapUv);
-            float uvA = dot(dUx, dUx) + dot(dUy, dUy);
+            float uvA = dot(pDUx, pDUx) + dot(pDUy, pDUy);
             float pA = dot(dFdx(vViewPosition), dFdx(vViewPosition)) + dot(dFdy(vViewPosition), dFdy(vViewPosition));
             float upm = sqrt(uvA / max(pA, 1e-8));
             vec2 pDir = pt.xy / max(pt.z, 0.35) * (0.22 * upm) * pFade;
@@ -233,19 +316,30 @@ export function patchFacadeMasonry(
             vec2 pStep = pDir / LAY;
             float cur = 0.0;
             vec2 uvc = vMapUv;
-            float hmap = 1.0 - smoothstep(0.08, 0.62, dot(textureGrad(map, uvc, dUx, dUy).rgb, vec3(0.299, 0.587, 0.114)));
+            float hmap = 1.0 - smoothstep(0.08, 0.62, dot(textureGrad(map, uvc, pDUx, pDUy).rgb, vec3(0.299, 0.587, 0.114)));
             for (int i = 0; i < 4; i++) {
               if (cur >= hmap) break;
               uvc -= pStep;
               cur += 1.0 / LAY;
-              hmap = 1.0 - smoothstep(0.08, 0.62, dot(textureGrad(map, uvc, dUx, dUy).rgb, vec3(0.299, 0.587, 0.114)));
+              hmap = 1.0 - smoothstep(0.08, 0.62, dot(textureGrad(map, uvc, pDUx, pDUy).rgb, vec3(0.299, 0.587, 0.114)));
             }
             pUv = uvc;
           }
-        }`);
+        }`;
+
+    const ormSample = hasO ? `
+        vec3 v4Orm = textureGrad(uOrmMap, pUv, pDUx, pDUy).rgb;
+        float v4Ao = clamp(v4Orm.r, 0.25, 1.0);
+        float v4Rgh = clamp(v4Orm.g, 0.03, 0.98);
+        float v4Mtl = clamp(v4Orm.b, 0.0, 1.0);` : '';
+
+    const giPars = hasGi ? PK_WEBGL_GI_PARS : '';
+    let fs = sh.fragmentShader
+      .replace('#include <common>', `#include <common>\nvarying vec3 vFW;\nvarying vec3 vFWN;\nuniform float uWetF, uNightF;\nuniform vec3 uSunF;\n${giPars}${v4UniformDecls}${SHARED_GLSL}`)
+      .replace('#include <logdepthbuf_fragment>', `#include <logdepthbuf_fragment>\n${pomBlock}`);
 
     const heroDetect = isHero ? `
-        // Separate baked window glass on hero architectural facade sheets into true sky-mirror + lit office rooms
+        // Separate window glass on hero architectural facade sheets into true sky-mirror + lit office rooms
         vec3 heroGlassCol = vec3(0.18, 0.26, 0.36);
         {
           vec3 wnH = normalize(vFWN);
@@ -255,7 +349,10 @@ export function patchFacadeMasonry(
           float satH = (maxC - minC) / max(maxC, 0.05);
           float coolTint = smoothstep(rawC.r - 0.03, rawC.r + 0.06, rawC.b);
           float darkPane = 1.0 - smoothstep(0.20, 0.52, dot(rawC, vec3(0.299, 0.587, 0.114)));
-          heroGlass = isWallH * clamp((1.0 - smoothstep(0.15, 0.34, satH)) * (0.42 * coolTint + 0.58 * darkPane), 0.0, 1.0);
+          float heurGlass = clamp((1.0 - smoothstep(0.15, 0.34, satH)) * (0.42 * coolTint + 0.58 * darkPane), 0.0, 1.0);
+          ${hasO
+            ? 'float neuralGlass = smoothstep(0.24, 0.10, v4Rgh) * (1.0 - smoothstep(0.28, 0.50, v4Mtl));\n          heroGlass = isWallH * clamp(max(neuralGlass, heurGlass * smoothstep(0.55, 0.22, v4Rgh)), 0.0, 1.0);'
+            : 'heroGlass = isWallH * heurGlass;'}
           if (heroGlass > 0.04) {
             vec3 rdH = normalize(vFW - cameraPosition);
             vec3 gNH = normalize(vec3(wnH.x, 0.0, wnH.z) + vec3(1e-5, 0.0, 0.0));
@@ -273,25 +370,33 @@ export function patchFacadeMasonry(
         }` : '';
 
     fs = fs
-      .replace('#include <map_fragment>', THREE.ShaderChunk.map_fragment.replace(/vMapUv/g, 'pUv') + heroDetect + `
+      .replace('#include <map_fragment>', THREE.ShaderChunk.map_fragment.replace(/vMapUv/g, 'pUv') + ormSample + heroDetect + `
         float bldDist = length(vViewPosition);
+        vec3 weathered = facadeWeatherAAA(diffuseColor.rgb, vFW, normalize(vFWN), bldDist, uWetF, fMicro);
+        ${hasO ? 'weathered *= mix(0.58, 1.06, v4Ao);' : ''}
+        weathered *= pomShadow;
         diffuseColor.rgb = mix(
-          facadeWeatherAAA(diffuseColor.rgb, vFW, normalize(vFWN), bldDist, uWetF, fMicro),
+          weathered,
           ${isHero ? 'heroGlassCol' : 'diffuseColor.rgb * vec3(0.32, 0.39, 0.48)'},
           heroGlass * 0.88
         );
         /*__BLD_COL__*/`)
       .replace('#include <roughnessmap_fragment>', THREE.ShaderChunk.roughnessmap_fragment.replace(/vRoughnessMapUv/g, 'pUv') + `
-        roughnessFactor = clamp(roughnessFactor * (0.82 + 0.34 * fMicro), 0.30, 0.96);
+        ${hasO
+          ? 'roughnessFactor = clamp(v4Rgh * (0.90 + 0.20 * fMicro), 0.03, 0.97);'
+          : 'roughnessFactor = clamp(roughnessFactor * (0.82 + 0.34 * fMicro), 0.30, 0.96);'}
         roughnessFactor = mix(roughnessFactor, 0.032, heroGlass);
         roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.44, uWetF);
         /*__BLD_RGH__*/`)
       .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
+        ${hasO ? 'metalnessFactor = max(metalnessFactor, v4Mtl);' : ''}
         metalnessFactor = mix(metalnessFactor, 0.16, heroGlass);
         /*__BLD_MTL__*/`)
       .replace('#include <normal_fragment_maps>', THREE.ShaderChunk.normal_fragment_maps.replace(/vNormalMapUv/g, 'pUv') + `
         if (heroGlass > 0.05) normal = normalize(mix(normal, nonPerturbedNormal, heroGlass * 0.94));
         /*__BLD_NRM__*/`)
+      .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        ${hasGi ? buildPlaykitGiInjectGlsl('1.0 - heroGlass * 0.72') : ''}`)
       .replace('#include <dithering_fragment>', `
         gl_FragColor.rgb = applyAerialDepth(gl_FragColor.rgb, vFW, uSunF, length(vViewPosition), uNightF);
         #include <dithering_fragment>`);
@@ -310,7 +415,7 @@ export function patchFacadeMasonry(
 
     sh.fragmentShader = fs;
   };
-  mat.customProgramCacheKey = () => (isHero ? 'hero-facade-aaa-v5' : 'facade-masonry-aaa-v5');
+  mat.customProgramCacheKey = () => `${isHero ? 'hero-facade' : 'facade-masonry'}-aaa-v6-${hasH ? 'h' : '0'}${hasO ? 'o' : '0'}${hasGi ? '-gi' : ''}`;
 }
 
 /**
@@ -325,13 +430,16 @@ export function patchGlassInterior(
   nightU: { value: number },
   curtainU: { value: number },
   sunDirU?: { value: THREE.Vector3 },
-  isV3Model = true
+  isV3Model = true,
+  gi?: PlaykitWebGLGiUniforms
 ): void {
   mat.metalness = 0.14;
   mat.roughness = 0.032;
   mat.envMapIntensity = 4.2;
   mat.color.setHex(0xffffff);
   const sDirU = sunDirU ?? { value: new THREE.Vector3(-0.7, 0.45, -0.2).normalize() };
+  const hasGi = !!gi;
+  if (hasGi) mat.userData.__playkitWebglGi = true;
   const tintKey = /bronze/i.test(mat.name) ? 'bronze' : /cerulean/i.test(mat.name) ? 'cerulean' : 'blue';
   const tintVec = tintKey === 'bronze'
     ? 'vec3(0.92, 0.80, 0.68)'
@@ -344,6 +452,7 @@ export function patchGlassInterior(
     sh.uniforms.uCurtain = curtainU;
     sh.uniforms.uSunG = sDirU;
     sh.uniforms.uIsV3 = { value: isV3Model ? 1.0 : 0.0 };
+    if (gi) Object.assign(sh.uniforms, gi);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vGW;\nvarying vec3 vGN;')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -365,6 +474,7 @@ export function patchGlassInterior(
         varying vec3 vGW; varying vec3 vGN;
         uniform float uNightG, uCurtain, uIsV3;
         uniform vec3 uSunG;
+        ${hasGi ? PK_WEBGL_GI_PARS : ''}
         ${SHARED_GLSL}`)
       .replace('#include <map_fragment>', `#include <map_fragment>
         vec3 gNorm = normalize(vGN);
@@ -440,13 +550,15 @@ export function patchGlassInterior(
           vec3 warpV = (viewMatrix * vec4(gPaneJitter.x, gPaneJitter.y, -gPaneJitter.x, 0.0)).xyz;
           normal = normalize(mix(normal, normalize(nonPerturbedNormal + warpV), gWall * (0.60 + 0.40 * gGlass)));
         }`)
+      .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        ${hasGi ? buildPlaykitGiInjectGlsl('0.35 * (1.0 - gGlass * 0.65)') : ''}`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         totalEmissiveRadiance += gEmis;`)
       .replace('#include <dithering_fragment>', `
         gl_FragColor.rgb = applyAerialDepth(gl_FragColor.rgb, vGW, uSunG, length(vViewPosition), uNightG);
         #include <dithering_fragment>`);
   };
-  mat.customProgramCacheKey = () => 'glass-interior-v4-' + tintKey + (isV3Model ? '-v3' : '-v1');
+  mat.customProgramCacheKey = () => 'glass-interior-v4-' + tintKey + (isV3Model ? '-v3' : '-v1') + (hasGi ? '-gi' : '');
 }
 
 /**

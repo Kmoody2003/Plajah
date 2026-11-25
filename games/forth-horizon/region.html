@@ -60,9 +60,11 @@
     <div class="sh-group">Graphics</div>
     <label class="sh-row"><span>Time of day</span><select id="tod"><option value="golden">Golden hour</option><option value="clear">Clear day</option><option value="sunset">Sunset</option><option value="dusk">Dusk</option><option value="night">Night</option><option value="sunrise">Sunrise</option></select></label>
     <label class="sh-row"><span>GPU preference</span><select id="gpuPreference" title="Requests a GPU after reload. The browser and OS choose the adapter; Performance shows the GPU actually in use."><option value="default">System default</option><option value="low-power">Power-saving GPU</option><option value="high-performance">High-performance GPU</option></select></label>
-    <label class="sh-row"><span>Shadows</span><select id="shadowSel"><option value="basic">Basic (default)</option><option value="cascaded">Cascaded (experimental, washes out the ground)</option></select></label>
-    <label class="sh-row"><span>Building models</span><select id="modSel"><option value="v3">v3 detailed</option><option value="v1">v1 (previous)</option></select></label>
-    <label class="sh-row"><span>Building textures</span><select id="texSel"><option value="v3">v3 photoreal</option><option value="v1">v1 (previous)</option></select></label>
+    <label class="sh-row"><span>Shadows</span><select id="shadowSel"><option value="basic">Basic (default)</option><option value="cascaded">Cascaded (sharp near + far)</option></select></label>
+    <label class="sh-row"><span>Playkit GI &amp; local lights</span><input type="checkbox" id="tPkGi" checked /></label>
+    <label class="sh-row"><span>FSR 1 upscaling (sharp &amp; fast)</span><input type="checkbox" id="tFsr" checked /></label>
+    <label class="sh-row"><span>Building models</span><select id="modSel"><option value="v4">v4 Colab HD</option><option value="v3">v3 detailed</option><option value="v1">v1 (previous)</option></select></label>
+    <label class="sh-row"><span>Building textures</span><select id="texSel"><option value="v4">v4 Colab 2K PBR</option><option value="v3">v3 photoreal</option><option value="v1">v1 (previous)</option></select></label>
     <label class="sh-row"><span>Bloom</span><input type="checkbox" id="tFx" checked /></label>
     <label class="sh-row"><span>Colour grade (LUT)</span><select id="lutSel"><option value="none">Off</option></select></label>
     <label class="sh-row"><span>Grade strength</span><input type="range" id="lutAmt" min="0" max="1" step="0.05" value="1" /></label>

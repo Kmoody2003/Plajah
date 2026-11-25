@@ -14,7 +14,7 @@ import { groundU, loadGroundArrays } from './groundArrays';
 import { buildYards, type YardData } from './yards';
 import { buildTrench, type TrenchLine } from './trench';
 import { CityBatches, type CityPart } from './cityBatch';
-import { patchFacadeMasonry, patchGlassInterior, patchPunchedInterior } from './buildingShaders';
+import { patchFacadeMasonry, patchGlassInterior, patchPunchedInterior, type FacadeV4Maps } from './buildingShaders';
 import { makeSovereign } from './car';
 import { makeRivalCar, type RivalCarVariant } from './rivalCars';
 import { garage, cloud, activeSpec, hasCar, RunTracker, PathProgress, refParSec, showBanner, showCard, showRaceResultsOverlay, DeliveryGame, makeSpots, TIER_LIST, type RaceFinishStanding } from './garageGame';
@@ -103,6 +103,9 @@ import { GRID } from './grid';
 import { PlaykitRegistry } from '../../../playkit/core/registry';
 import { APEX_SUPERCAR_VEHICLE_CONFIG } from '../../../playkit/adapters/verticalAdapters';
 import { ClusteredLightManager } from '../../../playkit/render/clusteredLights';
+import { PK_WEBGL_GI_PARS, buildPlaykitGiInjectGlsl, patchPointLightVisibilitySkip } from '../../../playkit/render/webglLighting';
+import { Fsr1WebGLPass } from '../../../playkit/render/fsr1Webgl';
+import { ApexPlaykitLighting } from './apexLighting';
 
 const BASE = '/games/forth-horizon/region/';
 
@@ -138,14 +141,47 @@ queueMicrotask(() => { (window as unknown as { setTod: (k: string) => void }).se
 initKTX2(renderer);
 
 const scene = new THREE.Scene();
-// Mount Plajah Motorsport: Apex onto the unified Playkit engine registry, supercar suspension spec & clustered light manager
+// Mount Plajah Motorsport: Apex onto the unified Playkit engine registry, supercar suspension spec,
+// live L2 SH9 GI probes, district LocalLookVolumes & clustered light manager
+const TV_MODE_BOOT = (() => { try { return new URLSearchParams(location.search).get('tv') === '1' || localStorage.getItem('apex.tv') === '1'; } catch { return false; } })();
 const apexPlaykitRegistry = new PlaykitRegistry();
 const apexClusteredLights = new ClusteredLightManager({ maxTotalLights: 256, far: 260 });
+const apexLighting = new ApexPlaykitLighting({
+  scene,
+  clusterManager: apexClusteredLights,
+  lowTier: TV_MODE_BOOT,
+});
+try {
+  const pkGiFlag = new URLSearchParams(location.search).get('gi') ?? localStorage.getItem('apex.pkgi');
+  if (pkGiFlag === '0') apexLighting.controller.setEnabled(false);
+} catch { /* storage blocked */ }
 (window as unknown as { __apexPlaykit?: unknown }).__apexPlaykit = {
   registry: apexPlaykitRegistry,
   template: apexPlaykitRegistry.getGenreTemplate('racer'),
   vehicleConfig: APEX_SUPERCAR_VEHICLE_CONFIG,
   clusteredLights: apexClusteredLights,
+  lighting: apexLighting,
+  probeVolume: apexLighting.controller.probeVolume,
+  giUniforms: apexLighting.uniforms,
+  setGiEnabled: (on: boolean) => apexLighting.controller.setEnabled(on),
+  setGiStrength: (v: number) => apexLighting.controller.setGiStrength(v),
+  status: () => ({
+    giEnabled: apexLighting.controller.enabled,
+    probes: apexLighting.controller.probeVolume.count,
+    totalLights: apexLighting.controller.totalRegisteredLights,
+    activeClusterLights: apexLighting.controller.latestClusterBinning?.activeLightCount ?? 0,
+    pointPool: apexLighting.controller.activeLightPoolSize,
+    activeLookVolume: apexLighting.controller.activeLookVolumeId,
+    activeLookVolumeName: apexLighting.controller.activeLookVolumeName,
+    interiorMix: +apexLighting.controller.fogMod.interiorMix.toFixed(3),
+    giUpper: '#' + apexLighting.uniforms.uPkGiUpper.value.getHexString(),
+    giLower: '#' + apexLighting.uniforms.uPkGiLower.value.getHexString(),
+    shadows: SHADOWS,
+    csmActive: !!csm,
+    fsrEnabled: fsrEnabled,
+    fsrUpscaled: fsr1Pass?.lastUpscaled ?? false,
+    renderScale: +renderScale.toFixed(2),
+  }),
   geometryStack: ['nurbs-opera-sails', 'bim-grand-civic', 'subd-capitals', 'nurbs-glasshouse', 'nurbs-festival-canopy', 'nurbs-yacht-hull', 'playkit-space-colonization-trees'],
 };
 atmosphere?.prepare(scene);
@@ -169,21 +205,49 @@ const sunDir = new THREE.Vector3(-0.5, 0.7, -0.4).normalize();
 // Settings > Graphics > Shadows: "cascaded" (default) or "basic" (the earlier single shadow map, lighter on weak GPUs); changing it reloads the page.
 // The cascaded option is experimental and OFF by default: with it the cascade lights stack on the ground and the streets wash out to a flat beige (the street textures
 // "glitched" and the streets off the circuit looked untextured). Basic is the default until the cascade masking is fixed.
-// Building textures: v3 is the photoreal delivery of 2026-11-16 (36 hero facades + 24 shared materials, tools/pack_ironport_v3.py); v1 is the earlier packed set with our Flow
-// replacements. ?tex=v1 or v3, or Settings. Hero sheets listed in V3_HOLD keep v1 because their v3 layout does not fit the model (checked building by building).
-let TEXSET: 'v1' | 'v3' = 'v3';
-try { const q = new URLSearchParams(location.search).get('tex') ?? localStorage.getItem('apex.tex'); if (q === 'v1' || q === 'v3') TEXSET = q; } catch { /* storage blocked */ }
+// Building textures: v4 is the Colab GPU 2K Neural PBR set (delit albedo, Marigold normals, calibrated ORM + Depth Anything V2 height, tools/colab/ingest_ironport_colab.mjs);
+// v3 is the 1K photoreal delivery of 2026-11-16; v1 is the earlier packed set with Flow replacements. ?tex=v1|v3|v4 or Settings.
+// When no explicit choice is pinned, buildCity() auto-promotes to v4 once ironport/v4-manifest.json is present.
+let TEXSET: 'v1' | 'v3' | 'v4' = 'v3';
+let TEXSET_EXPLICIT = false;
+try { const q = new URLSearchParams(location.search).get('tex') ?? localStorage.getItem('apex.tex'); if (q === 'v1' || q === 'v3' || q === 'v4') { TEXSET = q; TEXSET_EXPLICIT = true; } } catch { /* storage blocked */ }
 const V3_HOLD = new Set<string>([]);
-// Building models: v3 is the detail pass (real doors, framed windows, trim; the same 86 buildings with identical footprints), v1 the earlier models. ?models=v1 or v3, or Settings.
-let MODELSET: 'v1' | 'v3' = 'v3';
-try { const q = new URLSearchParams(location.search).get('models') ?? localStorage.getItem('apex.models'); if (q === 'v1' || q === 'v3') MODELSET = q; } catch { /* storage blocked */ }
+// Building models: v4 is the Colab GPU Plajah Architectural Modeler pass (depth-displaced hero reliefs, 3D curtain-wall fins, architectural cornices/eaves & CUDA raytraced vertex AO);
+// v3 is the detail pass; v1 the earlier models. ?models=v1|v3|v4 or Settings.
+let MODELSET: 'v1' | 'v3' | 'v4' = 'v3';
+let MODELSET_EXPLICIT = false;
+try { const q = new URLSearchParams(location.search).get('models') ?? localStorage.getItem('apex.models'); if (q === 'v1' || q === 'v3' || q === 'v4') { MODELSET = q; MODELSET_EXPLICIT = true; } } catch { /* storage blocked */ }
 let SHADOWS = 'basic';
-try { SHADOWS = localStorage.getItem('apex.shadows') === 'cascaded' ? 'cascaded' : 'basic'; } catch { /* storage blocked */ }
-const csm = SHADOWS === 'cascaded' ? new CSM({ maxFar: 700, cascades: 2, mode: 'practical', parent: scene, shadowMapSize: 2048, lightDirection: sunDir.clone().negate(), camera, lightIntensity: 2.4, shadowBias: -0.0004 }) : null;
+try {
+  const qs = new URLSearchParams(location.search).get('shadows');
+  const saved = qs ?? localStorage.getItem('apex.shadows');
+  SHADOWS = saved === 'cascaded' ? 'cascaded' : 'basic';
+} catch { /* storage blocked */ }
+const csm = SHADOWS === 'cascaded' ? new CSM({ maxFar: 560, cascades: 2, mode: 'practical', parent: scene, shadowMapSize: 2048, lightDirection: sunDir.clone().negate(), camera, lightIntensity: 2.4, shadowBias: -0.0004 }) : null;
+let lastCsmNear = camera.near, lastCsmFar = camera.far, lastCsmAspect = camera.aspect;
 if (csm) {
   sun.visible = false; sun.castShadow = false;
+  // Guard Three.js CSM_FADE Cascade-0 margin=0 divide-by-zero (0.25 * pow(0.0, 2.0) = 0 -> dist/0 NaN on D3D11/ANGLE)
+  if (THREE.ShaderChunk.lights_fragment_begin.includes('float ratio = clamp( dist / margin, 0.0, 1.0 );')) {
+    THREE.ShaderChunk.lights_fragment_begin = THREE.ShaderChunk.lights_fragment_begin.replace(
+      'float ratio = clamp( dist / margin, 0.0, 1.0 );',
+      'float ratio = (UNROLLED_LOOP_INDEX == 0 && linearDepth < cascadeCenter) ? 1.0 : clamp( dist / max(margin, 1e-4), 0.0, 1.0 );',
+    );
+  }
+  // Re-apply PointLight BRDF visibility skip since CSM replaced ShaderChunk.lights_fragment_begin
+  patchPointLightVisibilitySkip();
   csm.fade = true;
-  csm.lights.forEach((l, i) => { l.shadow.normalBias = [0.1, 0.9][i] ?? 1; });
+  // Cascade 0 (near car & street canyon): razor-sharp 2048x2048; Cascade 1 (mid city): lean 1024x1024 for Intel Arc
+  csm.lights.forEach((l, i) => {
+    l.shadow.normalBias = [0.28, 0.95][i] ?? 1.0;
+    l.shadow.bias = [-0.0004, -0.0008][i] ?? -0.0008;
+    if (i > 0) {
+      l.shadow.mapSize.set(1024, 1024);
+      l.shadow.map?.dispose();
+      l.shadow.map = null;
+    }
+  });
+  csm.updateFrustums();
 } else {
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -194,14 +258,19 @@ if (csm) {
 const csmCast = [true, true, true];                 // which cascades draw a shadow map (debug / quality switch)
 (window as unknown as { csmCast: boolean[] }).csmCast = csmCast;
 const csmDone = new WeakSet<THREE.Material>();
-/** make a lit material use the cascades; chains whatever shader patch it already has (the stock CSM setup would replace it) */
+/** Make any lit material use CSM cascades, preserving existing onBeforeCompile & customProgramCacheKey so zero materials double-light! */
 function csmSetup(m: THREE.Material): void {
   if (!csm || csmDone.has(m)) return;
+  const x = m as unknown as Record<string, boolean>;
+  if (!(x.isMeshStandardMaterial || x.isMeshPhysicalMaterial || x.isMeshLambertMaterial || x.isMeshPhongMaterial)) return;
   csmDone.add(m);
   const mm = m as THREE.MeshStandardMaterial;
   mm.defines = mm.defines || {};
   mm.defines.USE_CSM = 1; mm.defines.CSM_CASCADES = csm.cascades; if (csm.fade) mm.defines.CSM_FADE = '';
   const prev = mm.onBeforeCompile;
+  const prevKeyFn = mm.customProgramCacheKey.bind(mm);
+  const isDefaultKey = mm.customProgramCacheKey === THREE.Material.prototype.customProgramCacheKey;
+  const fixedKey = isDefaultKey ? prevKeyFn() : '';
   const breaks: THREE.Vector2[] = [];
   mm.onBeforeCompile = (shader, r) => {
     prev?.call(mm, shader, r);
@@ -210,9 +279,22 @@ function csmSetup(m: THREE.Material): void {
     shader.uniforms.CSM_cascades = { value: breaks }; shader.uniforms.cameraNear = { value: camera.near }; shader.uniforms.shadowFar = { value: far };
     (csm.shaders as unknown as Map<THREE.Material, unknown>).set(mm, shader);
   };
+  mm.customProgramCacheKey = () => `${isDefaultKey ? fixedKey : prevKeyFn()}|csm${csm.cascades}${csm.fade ? 'f' : ''}`;
   (csm.shaders as unknown as Map<THREE.Material, unknown>).set(mm, null);
   mm.needsUpdate = true;
 }
+const csmWatched = new WeakSet<THREE.Object3D>();
+/** Auto-attach CSM to every mesh the moment it enters the scene graph (before its first draw call, preventing 2x sun washout on streets/terrain). */
+function watchCsm(root: THREE.Object3D): void {
+  if (!csm) return;
+  const m = (root as THREE.Mesh).material;
+  if (m) { if (Array.isArray(m)) m.forEach(csmSetup); else csmSetup(m); }
+  if (csmWatched.has(root)) return;
+  csmWatched.add(root);
+  root.addEventListener('childadded', (ev) => watchCsm(ev.child));
+  for (const ch of root.children) watchCsm(ch);
+}
+if (csm) watchCsm(scene);
 // ---------- shader warm-up ----------
 // Three compiles a material the first frame it is drawn, and several hundred materials come into view the moment a race starts (trees, grass, buildings with the cascade
 // patch). Do that work during the menu instead: once the city, forest and grass exist, compile everything with the drive-mode groups switched on, then upload the textures
@@ -346,7 +428,9 @@ const terrV = { value: new THREE.Vector2(16512, 9216) };                  // wor
 const classTex = new THREE.TextureLoader().load('/games/forth-horizon/region/landclass.png');
 classTex.colorSpace = THREE.NoColorSpace; classTex.minFilter = THREE.LinearFilter; classTex.generateMipmaps = false;
 function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
+  m.userData.__playkitWebglGi = true;
   m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, apexLighting.uniforms);
     sh.uniforms.tGA = groundU.tGA; sh.uniforms.tGP = groundU.tGP; sh.uniforms.uGroundOn = groundU.uGroundOn; sh.uniforms.uGTune = groundU.uGTune;     // the ground's own PBR materials (groundArrays.ts)
     sh.uniforms.uCam = { value: new THREE.Vector3() };
     sh.uniforms.uMapFade = mapFadeU;
@@ -364,7 +448,7 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
       .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nvarying vec3 vWNorm;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWPos = (modelMatrix * vec4(position, 1.0)).xyz;\nvWNorm = normalize(mat3(modelMatrix) * normal);');
     sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vWPos;\nvarying vec3 vWNorm;\nuniform highp sampler2DArray tGA;\nuniform highp sampler2DArray tGP;\nuniform float uGroundOn;\nuniform vec4 uGTune;\nuniform sampler2D tMask;\nuniform sampler2D tAsph;\nuniform sampler2D tPave;\nuniform vec4 uMask;\nuniform float uWet;\nuniform float uPool;\nuniform float uMapFade;\nuniform vec2 uEdge;\nuniform vec3 uCam;\nuniform sampler2D tClass;\nuniform vec2 uTerr;\nuniform vec2 uTerrO;\nfloat tHash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\nfloat tNoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(tHash(i), tHash(i + vec2(1.0, 0.0)), f.x), mix(tHash(i + vec2(0.0, 1.0)), tHash(i + vec2(1.0, 1.0)), f.x), f.y); }\n' + PUDDLE_GLSL)
+      .replace('#include <common>', '#include <common>\n' + PK_WEBGL_GI_PARS + 'varying vec3 vWPos;\nvarying vec3 vWNorm;\nuniform highp sampler2DArray tGA;\nuniform highp sampler2DArray tGP;\nuniform float uGroundOn;\nuniform vec4 uGTune;\nuniform sampler2D tMask;\nuniform sampler2D tAsph;\nuniform sampler2D tPave;\nuniform vec4 uMask;\nuniform float uWet;\nuniform float uPool;\nuniform float uMapFade;\nuniform vec2 uEdge;\nuniform vec3 uCam;\nuniform sampler2D tClass;\nuniform vec2 uTerr;\nuniform vec2 uTerrO;\nfloat tHash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }\nfloat tNoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(tHash(i), tHash(i + vec2(1.0, 0.0)), f.x), mix(tHash(i + vec2(0.0, 1.0)), tHash(i + vec2(1.0, 1.0)), f.x), f.y); }\n' + PUDDLE_GLSL)
       .replace('#include <dithering_fragment>', `#include <dithering_fragment>
       gl_FragColor.a *= mix(1.0, smoothstep(0.0, 1300.0, min(uEdge.x - abs(vWPos.x - uTerrO.x), uEdge.y - abs(vWPos.z - uTerrO.y))), uMapFade);`)
       .replace('#include <map_fragment>', `#include <map_fragment>
@@ -546,7 +630,9 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
       diffuseColor.rgb *= 1.0 - 0.14 * uWet;           // wet ground everywhere`)
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, mix(0.55, 1.0, gTR), gTW);\nroughnessFactor = mix(roughnessFactor, gRockR, gRockW);\nroughnessFactor = mix(roughnessFactor, 0.42, gWet);\nroughnessFactor = mix(roughnessFactor, 0.06, gPud);')
       .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.02, gPud);')
-      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n{ if (gPud > 0.01 || gWet > 0.01) { float fBase = clamp(1.0 - clamp(dot(geometryNormal, geometryViewDir), 0.0, 1.0), 0.0, 1.0); float fW = fBase * fBase * fBase; reflectedLight.indirectSpecular = min(max(reflectedLight.indirectSpecular, vec3(0.0)), vec3(16.0)) * (1.0 + gPud * (0.18 + 0.65 * fW) + gWet * 0.10 * fW); } }');
+      .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+      ${buildPlaykitGiInjectGlsl('0.78')}
+      { if (gPud > 0.01 || gWet > 0.01) { float fBase = clamp(1.0 - clamp(dot(geometryNormal, geometryViewDir), 0.0, 1.0), 0.0, 1.0); float fW = fBase * fBase * fBase; reflectedLight.indirectSpecular = min(max(reflectedLight.indirectSpecular, vec3(0.0)), vec3(16.0)) * (1.0 + gPud * (0.18 + 0.65 * fW) + gWet * 0.10 * fW); } }`);
     sh.fragmentShader = injectRoadPbr(sh.fragmentShader, 'vWPos.xz');
     Object.assign(sh.uniforms, roadUniforms);
     sh.fragmentShader = sh.fragmentShader
@@ -568,6 +654,7 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
       }`);
     m.userData.shader = sh;
   };
+  m.customProgramCacheKey = () => 'apex-terrain-detail-pkgi-v1';
 }
 
 let composer: EffectComposer | null = null;
@@ -577,6 +664,8 @@ let bloomPass: UnrealBloomPass | null = null;
 let outputPass: OutputPass | null = null;
 let gradePass: GradePass | null = null;
 let aaPass: ShaderPass | SMAAPass | null = null;
+let fsr1Pass: Fsr1WebGLPass | null = null;
+let fsrEnabled = (() => { try { const q = new URLSearchParams(location.search).get('fsr') ?? localStorage.getItem('apex.fsr'); return q !== '0'; } catch { return true; } })();
 const USE_SMAA = (() => { try { return new URLSearchParams(location.search).get('aa') === 'smaa'; } catch { return false; } })();
 let dbgCam: { pos: THREE.Vector3; at: THREE.Vector3 } | null = null;     // review tool: window.regionViewer.cam(x,y,z, tx,ty,tz) holds the camera still; cam() releases it
 let fxOn = true;
@@ -767,6 +856,10 @@ try {
     });
   }
   composer.addPass(aaPass);
+  // AMD FidelityFX FSR 1.0 (EASU directional upscale + RCAS sharpening) — matches Vesselbound's Intel iGPU profile
+  fsr1Pass = new Fsr1WebGLPass({ sharpness: 0.30 });
+  fsr1Pass.enabled = fsrEnabled;
+  composer.addPass(fsr1Pass);
 } catch (e) { console.warn('post effects unavailable', e); composer = null; }
 
 let meta: RegionMeta;
@@ -849,6 +942,7 @@ function buildTerrain(): void {
   tex.anisotropy = 4;
   terrainMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, metalness: 0, transparent: false });
   applyTerrainDetail(terrainMat);
+  csmSetup(terrainMat);
   terrain = new THREE.Group();
   terrain.name = 'terrain-tiles';
   if (TERRAIN_LOD) populateTerrainLOD(terrain, terrainMat, nx, ny, pos, uv, nor); else populateTiledTerrain(terrain, terrainMat, nx, ny, pos, uv, nor, 8, 6);
@@ -1135,6 +1229,7 @@ function buildHarbor(): void {
     harborGroup.add(ribbon(pts, null, 3.2, 0x57534d, 0.4));
     harborGroup.add(ribbon(pts, null, 0.35, 0xb8b2a6, 0.5));
   }
+  apexLighting.registerHarborLights(h, hAt);
 }
 
 async function loadHarbor(): Promise<void> {
@@ -1795,7 +1890,8 @@ async function buildStreetscape(): Promise<void> {
   pole.frustumCulled = arm.frustumCulled = head.frustumCulled = false;
   scapeGroup.add(pole, arm, head);
   chunkInstanced(scapeGroup);
-  console.log('streetscape', trees.length, 'trees', ln, 'lights');
+  const regLamps = apexLighting.registerStreetLights(lights, hAt, exag);
+  console.log('streetscape', trees.length, 'trees', ln, 'lights (playkit clustered:', regLamps + ')');
   (window as any).scapeCount = [trees.length, ln];
 }
 
@@ -1814,8 +1910,8 @@ function addRoofDetails(items: CityItem[]): void {
     const gy = groundMin(it) - 0.35, top = gy + it.h;
     const r0 = hash(cx, cz), r1 = hash(cz, cx + 7), r2 = hash(cx + 3, cz - 5);
     const at = (u: number, v: number): [number, number] => [cx + u * c + v * sn, cz - u * sn + v * c];
-    // cornice: only for legacy v1 plain boxes (v3 models already have sculpted 3D parapets & tapered tops)
-    if (MODELSET !== 'v3') {
+    // cornice: only for legacy v1 plain boxes (v3/v4 models already have sculpted 3D parapets & tapered tops)
+    if (MODELSET === 'v1') {
       cornice.push({ x: cx, y: top - 0.45, z: cz, sx: it.w + 0.9, sy: 0.9, sz: it.d + 0.9, ry: phi, c: 0x6e6c66 });
       if (it.h > 30) cornice.push({ x: cx, y: gy + 3.2, z: cz, sx: it.w + 0.5, sy: 0.6, sz: it.d + 0.5, ry: phi, c: 0x5c5a55 });
     }
@@ -1885,6 +1981,8 @@ function stoneMaterial(): THREE.MeshStandardMaterial {
   return m;
 }
 function addTowerGeometry(items: CityItem[]): void {
+  // v4 towers already have Plajah-modeled sculpted parapets, molded cornices, mechanical penthouses & spires (no repetitive setback boxes!)
+  if (MODELSET === 'v4') return;
   type T = { x: number; y: number; z: number; sx: number; sy: number; sz: number; ry: number };
   const glass: T[] = [], stone: T[] = [];
   for (const it of items) {
@@ -1892,8 +1990,8 @@ function addTowerGeometry(items: CityItem[]): void {
     const cx = it.bx ?? it.x, cz = it.bz ?? it.z, phi = it.rotY, c = Math.cos(phi), sn = Math.sin(phi);
     const gy = groundMin(it) - 0.35, top = gy + it.h;
     const at = (u: number, v: number): [number, number] => [cx + u * c + v * sn, cz - u * sn + v * c];
-    // podium & corner piers: only for legacy v1 boxes (v3 towers already have real 3D ground lobbies, doors, and sculpted piers)
-    if (MODELSET !== 'v3') {
+    // podium & corner piers: only for legacy v1 boxes (v3/v4 towers already have real 3D ground lobbies, doors, and sculpted piers)
+    if (MODELSET === 'v1') {
       if (it.h > 60) stone.push({ x: cx, y: gy + 4.4, z: cz, sx: it.w + 1.4, sy: 8.8, sz: it.d + 1.4, ry: phi });
       if (it.h > 55) for (const [u, v] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { const [x, z] = at(u * (it.w / 2), v * (it.d / 2)); stone.push({ x, y: gy + it.h * 0.49, z, sx: 1.1, sy: it.h * 0.98, sz: 1.1, ry: phi }); }
     }
@@ -1917,7 +2015,7 @@ function addTowerGeometry(items: CityItem[]): void {
   };
   const gm = new THREE.MeshStandardMaterial({ color: 0x25384a, roughness: 0.4, metalness: 0.6 });
   gm.name = 'tex-shared-07-glass-curtain-blue_mat';
-  patchGlassInterior(gm, nightU, curtainU, sunDirU, false);
+  patchGlassInterior(gm, nightU, curtainU, sunDirU, false, apexLighting.uniforms);
   make(glass, gm);
   make(stone, stoneMaterial());
   console.log('tower geometry', { glassTiers: glass.length, stone: stone.length });
@@ -1930,7 +2028,11 @@ let cityBatches: CityBatches | null = null;
 const cityGroup = new THREE.Group();
 scene.add(cityGroup);
 let cityItems: CityItem[] = [];
-const IRON = MODELSET === 'v3' ? '/games/forth-horizon/ironport/models-v3/' : '/games/forth-horizon/ironport/models/';
+const IRON_BASE = (kind: string, slug: string, v4Set: Set<string>): string => {
+  if (MODELSET === 'v4' && v4Set.has(`${kind}/${slug}`)) return '/games/forth-horizon/ironport/models-v4/';
+  if (MODELSET === 'v3' || MODELSET === 'v4') return '/games/forth-horizon/ironport/models-v3/';
+  return '/games/forth-horizon/ironport/models/';
+};
 
 function groundMin(it: CityItem): number {
   const cx = it.bx ?? it.x, cz = it.bz ?? it.z, c = Math.cos(it.rotY), s = Math.sin(it.rotY);
@@ -1976,29 +2078,52 @@ async function buildCity(): Promise<void> {
   });
   buildCollision();
   buildCivic().catch((e) => console.error('civic riverfront failed', e));
+  // Check optional Colab GPU v4 upgrade manifest (models-v4 / textures-v4 with 2K neural PBR + ORM + height + baked vertex AO).
+  interface V4Manifest { version?: number; models?: string[]; textures?: string[]; hasOrm?: boolean; hasHeight?: boolean }
+  const v4Man = await fetch('/games/forth-horizon/ironport/v4-manifest.json').then((r) => (r.ok ? r.json() : null)).catch(() => null) as V4Manifest | null;
+  const v4Models = new Set<string>(v4Man?.models ?? []);
+  const v4Tex = new Set<string>(v4Man?.textures ?? []);
+  const v4HasOrm = v4Man?.hasOrm !== false && v4Tex.size > 0;
+  const v4HasHeight = v4Man?.hasHeight !== false && v4Tex.size > 0;
+  if (!MODELSET_EXPLICIT && v4Models.size > 0) {
+    MODELSET = 'v4';
+    const ms = document.getElementById('modSel') as HTMLSelectElement | null;
+    if (ms) ms.value = 'v4';
+  }
+  if (!TEXSET_EXPLICIT && v4Tex.size > 0) {
+    TEXSET = 'v4';
+    const ts = document.getElementById('texSel') as HTMLSelectElement | null;
+    if (ts) ts.value = 'v4';
+  }
+  if (v4Models.size || v4Tex.size) {
+    console.log('ironport v4 manifest:', { models: v4Models.size, textures: v4Tex.size, activeModel: MODELSET, activeTex: TEXSET });
+  }
   // Review viewer budget: Quest-tier textures (smaller), one GPU copy per shared texture, base colour only.
   const manager = new THREE.LoadingManager();
   // Rich building materials: base, normal (the bump) and roughness for every material, one GPU copy per texture.
-  // Shared materials at full 1024; the 1600 hero facades come from the 1024 tier to stay inside the GPU budget.
+  // Shared materials at full 1024 (2048 KTX2 on v4); hero facades at 1024 (2048 KTX2 on v4).
   // `?lowtex` falls back to the earlier base-colour-only budget.
   const LOW = location.search.includes('lowtex');
   const TINY = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
   // photographic 2048 sets (colour with occlusion folded in, normal and roughness at 1024) for the most-used materials: tools/prep_flow_textures.py
   const FLOW = new Set(['tex-shared-01-red-brick', 'tex-shared-04-limestone', 'tex-shared-05-white-marble', 'tex-shared-07-glass-curtain-blue', 'tex-shared-14-steel-panel', 'tex-shared-15-concrete-boardformed', 'tex-shared-16-concrete-weathered', 'tex-shared-17-white-stucco', 'tex-shared-18-timber-siding', 'tex-shared-21-corrugated-steel', 'tex-hero-01-ironport-towers',
     'tex-shared-02-weathered-brick', 'tex-shared-03-orange-brick', 'tex-shared-06-granite', 'tex-shared-08-glass-curtain-cerulean', 'tex-shared-09-glass-curtain-bronze', 'tex-shared-10-terracotta', 'tex-shared-12-bronze-metal', 'tex-shared-13-copper-roof', 'tex-shared-23-slate-roof', 'tex-shared-24-stone-rubble', 'tex-hero-31-city-hall']);
-  // the glTFs point at ../../textures/<set>/<name>_<map>.png: photographic sets come from tex/bld, everything else from the packed copy (tools/pack_ironport.py)
+  // the glTFs point at ../../textures/<set>/<name>_<map>.png: route v4 -> textures-v4 (when present), v3 -> textures-v3, v1 -> tex/bld or textures
   manager.setURLModifier((u) => {
-    const fm0 = u.match(/(tex-(?:shared|hero)-[a-z0-9-]+)_(base|nrm|rgh)\.png/);
+    const fm0 = u.match(/(tex-(?:shared|hero)-[a-z0-9-]+)_(base|nrm|rgh|orm|hgt)\.png/);
     if (!fm0) return u;
     const fm = [fm0[0], fm0[1].startsWith('tex-hero') ? 'hero-facades' : 'shared', fm0[1], fm0[2]];
     if (LOW && fm[3] !== 'base') return TINY;
-    if (TEXSET === 'v3' && !V3_HOLD.has(fm[2])) return `/games/forth-horizon/ironport/textures-v3/${fm[1]}/${fm[2]}_${fm[3]}.jpg`;
+    // Skip redundant _rgh download when v4 neural _orm supplies calibrated roughness + AO + metalness directly
+    if (TEXSET === 'v4' && v4HasOrm && fm[3] === 'rgh' && v4Tex.has(fm[2])) return TINY;
+    if (TEXSET === 'v4' && v4Tex.has(fm[2])) return `/games/forth-horizon/ironport/textures-v4/${fm[1]}/${fm[2]}_${fm[3]}.jpg`;
+    if ((TEXSET === 'v3' || TEXSET === 'v4') && !V3_HOLD.has(fm[2])) return `/games/forth-horizon/ironport/textures-v3/${fm[1]}/${fm[2]}_${fm[3]}.jpg`;
     if (FLOW.has(fm[2])) return `/games/forth-horizon/tex/bld/${fm[2]}_${fm[3]}.jpg`;
     return `/games/forth-horizon/ironport/textures/${fm[1]}/${fm[2]}_${fm[3]}.jpg`;
   });
-  manager.addHandler(/tex-(shared|hero)-[a-z0-9-]+_(base|nrm|rgh)\.png/, new GpuTextureLoader(manager) as unknown as THREE.Loader);
+  manager.addHandler(/tex-(shared|hero)-[a-z0-9-]+_(base|nrm|rgh|orm|hgt)\.png/, new GpuTextureLoader(manager) as unknown as THREE.Loader);
   const loader = new GLTFLoader(manager);
-  // All 86 models used to load at once, and every one asks for its own copy of each texture: with the detailed v3 models that is thousands of requests in flight and the browser
+  // All 86 models used to load at once, and every one asks for its own copy of each texture: with the detailed v3/v4 models that is thousands of requests in flight and the browser
   // refuses some (net::ERR_INSUFFICIENT_RESOURCES), which left buildings out. So: a few models at a time, and the cache answers a texture a second model asks for again.
   THREE.Cache.enabled = true;
   let loadSlots = 2;
@@ -2008,22 +2133,82 @@ async function buildCity(): Promise<void> {
     try { return await f(); } finally { const w = loadWaiters.shift(); if (w) w(); else loadSlots++; }
   };
   const texCache = new Map<string, THREE.Texture>();
-  const finishMat = (mat: THREE.MeshStandardMaterial): void => {
+  const swapLoader = new GpuTextureLoader(manager);
+  const swapTex = new Map<string, Promise<THREE.Texture>>();
+  const loadSwap = (name: string, suffix: 'base' | 'nrm' | 'rgh' | 'orm' | 'hgt'): Promise<THREE.Texture> => {
+    const url = `${name}_${suffix}.png`;                          // the URL modifier above points it at the packed jpg/ktx2 of whichever texture set is on
+    const cached = texCache.get(url);
+    if (cached) return Promise.resolve(cached);
+    if (!swapTex.has(url)) swapTex.set(url, limited(() => swapLoader.loadAsync(url)));
+    return swapTex.get(url)!;
+  };
+  // Canonical GPU Texture sharing pool: prevents WebGLRenderer from allocating 1,000+ duplicate Texture2D objects per variant/clone!
+  const sharedTexPool = new Map<string, THREE.Texture>();
+  const getSharedTex = (baseTx: THREE.Texture, ref: THREE.Texture, srcKey: string, cs: string): THREE.Texture => {
+    const isComp = (baseTx as THREE.CompressedTexture).isCompressedTexture === true;
+    const fy = isComp ? baseTx.flipY : ref.flipY;
+    const key = `${srcKey}|${ref.wrapS}|${ref.wrapT}|${ref.repeat.x.toFixed(2)},${ref.repeat.y.toFixed(2)}|${ref.offset.x.toFixed(2)},${ref.offset.y.toFixed(2)}|${ref.rotation.toFixed(2)}|${fy ? 1 : 0}|${cs}`;
+    let tx = sharedTexPool.get(key);
+    if (!tx) {
+      const sameProps = baseTx.wrapS === ref.wrapS && baseTx.wrapT === ref.wrapT
+        && baseTx.repeat.equals(ref.repeat) && baseTx.offset.equals(ref.offset)
+        && baseTx.rotation === ref.rotation && baseTx.colorSpace === cs && (isComp || baseTx.flipY === ref.flipY);
+      if (sameProps && !baseTx.userData._pooled) {
+        tx = baseTx;
+        tx.userData._pooled = true;
+      } else {
+        tx = baseTx.clone();
+        if (!isComp) tx.flipY = ref.flipY;
+        tx.wrapS = ref.wrapS; tx.wrapT = ref.wrapT; tx.repeat.copy(ref.repeat); tx.offset.copy(ref.offset); tx.rotation = ref.rotation; tx.center.copy(ref.center);
+        tx.colorSpace = cs;
+        if (!isComp && (baseTx.flipY !== ref.flipY || baseTx.colorSpace !== cs)) tx.needsUpdate = true;
+      }
+      tx.userData.srcKey = srcKey;
+      tx.anisotropy = Math.min(4, ref.anisotropy || 4);
+      sharedTexPool.set(key, tx);
+    }
+    return tx;
+  };
+  const loadV4Extras = async (mat: THREE.MeshStandardMaterial): Promise<FacadeV4Maps | undefined> => {
+    if (LOW || TEXSET !== 'v4' || !mat.map || /glass/i.test(mat.name)) return undefined;
+    const stem = mat.name.replace(/_mat.*$/, '');
+    if (!v4Tex.has(stem)) return undefined;
+    const [ormBase, hgtBase] = await Promise.all([
+      v4HasOrm ? loadSwap(stem, 'orm').catch(() => null) : Promise.resolve(null),
+      v4HasHeight ? loadSwap(stem, 'hgt').catch(() => null) : Promise.resolve(null),
+    ]);
+    if (!ormBase && !hgtBase) return undefined;
+    return {
+      ormMap: ormBase ? getSharedTex(ormBase, mat.map, `${stem}_orm.png`, THREE.NoColorSpace) : null,
+      heightMap: hgtBase ? getSharedTex(hgtBase, mat.map, `${stem}_hgt.png`, THREE.NoColorSpace) : null,
+      parallaxDepth: /hero/i.test(mat.name) ? 0.28 : 0.16,
+    };
+  };
+  const finishMat = (mat: THREE.MeshStandardMaterial, v4Maps?: FacadeV4Maps): void => {
     // Reset onBeforeCompile before patching so cloned variant materials never stack duplicate shader passes
     mat.onBeforeCompile = THREE.Material.prototype.onBeforeCompile;
-    const isV3 = MODELSET === 'v3';
+    const isDetailed = MODELSET === 'v3' || MODELSET === 'v4';
     if (/glass/i.test(mat.name)) {
-      patchGlassInterior(mat, nightU, curtainU, sunDirU, isV3);
+      patchGlassInterior(mat, nightU, curtainU, sunDirU, isDetailed, apexLighting.uniforms);
       mat.needsUpdate = true;
       return;
     }
     const isHero = /hero/i.test(mat.name);
-    // Only synthesize procedural punched windows on legacy windowless v1 boxes — v3 models already have real 3D recessed windows & frames!
-    const isPunched = !isV3 && /06-granite|04-limestone|16-concrete|15-concrete|17-white-stucco/.test(mat.name) && !!mat.map;
+    // Only synthesize procedural punched windows on legacy windowless v1 boxes — v3/v4 models already have real 3D recessed windows & frames!
+    const isPunched = !isDetailed && /06-granite|04-limestone|16-concrete|15-concrete|17-white-stucco/.test(mat.name) && !!mat.map;
     const isMetalTrim = /12-bronze|14-steel|21-corrugated|13-copper/.test(mat.name);
-    if (mat.normalMap) mat.normalScale.set(isHero ? 2.2 : 2.6, isHero ? 2.2 : 2.6);
-    mat.envMapIntensity = (isHero || isPunched) ? 1.85 : isMetalTrim ? 1.65 : 1.05;
-    if (mat.map && mat.normalMap && !LOW) patchFacadeMasonry(mat, isHero, wetU, nightU, sunDirU);
+    const hasV4 = !!(v4Maps?.ormMap || v4Maps?.heightMap);
+    // Drop redundant roughnessMap/metalnessMap when v4 ORM provides all three channels in one fetch
+    if (v4Maps?.ormMap) {
+      mat.roughnessMap = null;
+      mat.metalnessMap = null;
+    }
+    if (mat.normalMap) {
+      const nScale = hasV4 ? (isHero ? 1.55 : 1.75) : (isHero ? 2.2 : 2.6);
+      mat.normalScale.set(nScale, nScale);
+    }
+    mat.envMapIntensity = (isHero || isPunched) ? 1.95 : isMetalTrim ? 1.75 : 1.1;
+    if (mat.map && mat.normalMap && !LOW) patchFacadeMasonry(mat, isHero, wetU, nightU, sunDirU, v4Maps, apexLighting.uniforms);
     if (isPunched) patchPunchedInterior(mat, nightU, curtainU, sunDirU);
     mat.needsUpdate = true;
   };
@@ -2031,8 +2216,9 @@ async function buildCity(): Promise<void> {
   const load = (kind: string, slug: string): Promise<THREE.Object3D | null> => {
     const key = kind + '/' + slug;
     if (!protos.has(key)) {
-      protos.set(key, limited(() => loader.loadAsync(`${IRON}${kind}/${slug}_lod0.gltf`)).then((g) => {
+      protos.set(key, limited(() => loader.loadAsync(`${IRON_BASE(kind, slug, v4Models)}${kind}/${slug}_lod0.gltf`)).then(async (g) => {
         const json = g.parser.json as { textures?: { source: number }[]; images?: { uri?: string }[] };
+        const matJobs: Promise<void>[] = [];
         g.scene.traverse((o) => {
           const m = o as THREE.Mesh;
           if (!m.isMesh) return;
@@ -2045,12 +2231,15 @@ async function buildCity(): Promise<void> {
               const assoc = g.parser.associations.get(tx) as { textures?: number } | undefined;
               const uri = assoc?.textures != null ? json.images?.[json.textures?.[assoc.textures]?.source ?? -1]?.uri : undefined;
               if (!uri) continue;
-              const have = texCache.get(uri);
-              if (have && have !== tx) { tx.dispose(); (mat as any)[k] = have; } else { tx.userData.srcKey = uri.split('/').pop() ?? uri; texCache.set(uri, tx); }
+              // Canonicalize by basename so bare 'tex-shared-*.png' and '../../textures/shared/tex-shared-*.png' share ONE GPU texture!
+              const cacheKey = uri.split('/').pop() ?? uri;
+              const have = texCache.get(cacheKey);
+              if (have && have !== tx) { tx.dispose(); (mat as any)[k] = have; } else { tx.userData.srcKey = cacheKey; texCache.set(cacheKey, tx); }
             }
-            finishMat(mat);
+            matJobs.push(loadV4Extras(mat).then((v4m) => finishMat(mat, v4m)));
           }
         });
+        await Promise.all(matJobs);
         return g.scene;
       }).catch((e) => { console.warn('model failed', key, e); return null; }));
     }
@@ -2067,13 +2256,6 @@ async function buildCity(): Promise<void> {
     const t = Math.sin(it.x * 12.9898 + it.z * 78.233 + it.rotY * 3.1) * 43758.5453;
     const u = t - Math.floor(t);
     return u < 0.34 ? 0 : 1 + Math.min(n - 2, Math.floor(((u - 0.34) / 0.66) * (n - 1)));
-  };
-  const swapLoader = new GpuTextureLoader(manager);
-  const swapTex = new Map<string, Promise<THREE.Texture>>();
-  const loadSwap = (name: string, suffix: 'base' | 'nrm' | 'rgh'): Promise<THREE.Texture> => {
-    const url = `${name}_${suffix}.png`;                          // the URL modifier above points it at the packed jpg of whichever texture set is on
-    if (!swapTex.has(url)) swapTex.set(url, limited(() => swapLoader.loadAsync(url)));
-    return swapTex.get(url)!;
   };
   const vprotos = new Map<string, Promise<THREE.Object3D | null>>();
   const variantProto = (kind: string, slug: string, v: number): Promise<THREE.Object3D | null> => {
@@ -2100,20 +2282,17 @@ async function buildCity(): Promise<void> {
           nm.name = to + '_mat';
           made.set(mat, nm);
           const set = async (k: 'map' | 'normalMap' | 'roughnessMap', suffix: 'base' | 'nrm' | 'rgh'): Promise<void> => {
+            if (suffix === 'rgh' && TEXSET === 'v4' && v4HasOrm && v4Tex.has(to)) { nm.roughnessMap = null; return; }
             const old = mat[k] as THREE.Texture | null;
             if (!old) return;
             const baseTx = await loadSwap(to, suffix);
-            const tx = baseTx.clone();
-            tx.userData.srcKey = `${to}_${suffix}.png`;
-            const isComp = (tx as THREE.CompressedTexture).isCompressedTexture === true;
-            if (!isComp) tx.flipY = old.flipY;
-            tx.wrapS = old.wrapS; tx.wrapT = old.wrapT; tx.repeat.copy(old.repeat); tx.offset.copy(old.offset); tx.rotation = old.rotation; tx.center.copy(old.center);
-            tx.colorSpace = old.colorSpace; tx.anisotropy = Math.min(4, old.anisotropy || 4);
-            // Share baseTx's already-uploaded GPU image instead of forcing duplicate D3D11 Texture2D re-uploads per clone
-            if (!isComp && (baseTx.flipY !== old.flipY || baseTx.colorSpace !== old.colorSpace)) tx.needsUpdate = true;
-            nm[k] = tx;
+            nm[k] = getSharedTex(baseTx, old, `${to}_${suffix}.png`, old.colorSpace);
           };
-          jobs.push((async () => { await Promise.all([set('map', 'base'), set('normalMap', 'nrm'), set('roughnessMap', 'rgh')]); finishMat(nm as THREE.MeshStandardMaterial); })());
+          jobs.push((async () => {
+            await Promise.all([set('map', 'base'), set('normalMap', 'nrm'), set('roughnessMap', 'rgh')]);
+            const v4m = await loadV4Extras(nm as THREE.MeshStandardMaterial);
+            finishMat(nm as THREE.MeshStandardMaterial, v4m);
+          })());
           return nm;
         };
         m.material = Array.isArray(m.material) ? m.material.map((x) => swap(x as THREE.MeshStandardMaterial)) : swap(m.material as THREE.MeshStandardMaterial);
@@ -2153,9 +2332,16 @@ async function buildCity(): Promise<void> {
     for (const m of meshes) {
       if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
       const transforms = placements.map((placement) => placement.clone().multiply(m.matrixWorld));
-      const castShadow = (m.geometry.boundingSphere?.radius ?? 5) >= 4.5;
+      const isV4Micro = /__v4_/.test(m.name);
+      const isHeroRelief = kind === 'hero' && /_front$/i.test(m.name);
+      // Main building shells cast exact macro shadows; micro-trims & high-poly hero front reliefs skip shadow pass to cut shadow tris in half!
+      const castShadow = !isV4Micro && !isHeroRelief && (m.geometry.boundingSphere?.radius ?? 5) >= 4.5;
       // hero landmarks keep their own meshes: one (Central Station) drew a stray roof slab when batched, and the ~90 heroes cost few draws
-      if (CITY_BATCH && kind !== 'hero') { cityParts.push({ geometry: m.geometry, material: m.material as THREE.Material, transforms, castShadow }); continue; }
+      if (CITY_BATCH && kind !== 'hero') {
+        // Cull generic v4 micro-trims (cornices, pilasters, eaves, chimneys) cleanly beyond 200 m so close-up 3D stays full detail while distant skyline stays lean
+        cityParts.push({ geometry: m.geometry, material: m.material as THREE.Material, transforms, castShadow, maxDist: isV4Micro ? 200 : undefined });
+        continue;
+      }
       const batch = new InstanceVisibility(m.geometry, m.material, transforms);
       if (!castShadow) batch.mesh.castShadow = false;
       cityVisibility.batches.push(batch);
@@ -4937,6 +5123,7 @@ async function boot(): Promise<void> {
     if (cc) { cliffDesign = designCliffTrack(cc as { xz: number[][]; y?: number[]; tunnel?: { from: number; to: number } }); carveCliffRaceway(heights, meta.width, meta.height, meta.mpp, cliffDesign); cliffIx = indexTrack(cliffDesign); (window as unknown as { cliffDesign: unknown }).cliffDesign = cliffDesign; }
   }
   buildTerrain();
+  apexLighting.populateRegion(meta, hAt);
   buildOverlays();
   // the Plajah 3D builds of the district sheets (src/library/modelled.ts): loaded before the districts are dressed, each falls back to its code-built piece
   console.log('library models', JSON.stringify(await preloadModelledPieces()));
@@ -5058,6 +5245,25 @@ document.getElementById('driverally')!.addEventListener('click', () => startDriv
   const texSel = document.getElementById('texSel') as HTMLSelectElement | null;
   if (texSel) { texSel.value = TEXSET; texSel.addEventListener('change', () => { try { localStorage.setItem('apex.tex', texSel.value); } catch { /* storage blocked */ } location.reload(); }); }
   shSel.addEventListener('change', () => { try { localStorage.setItem('apex.shadows', shSel.value); } catch { /* storage blocked */ } location.reload(); });
+  const pkGiCb = document.getElementById('tPkGi') as HTMLInputElement | null;
+  if (pkGiCb) {
+    pkGiCb.checked = apexLighting.controller.enabled;
+    pkGiCb.addEventListener('change', () => {
+      apexLighting.controller.setEnabled(pkGiCb.checked);
+      try { localStorage.setItem('apex.pkgi', pkGiCb.checked ? '1' : '0'); } catch { /* storage blocked */ }
+    });
+  }
+  const fsrCb = document.getElementById('tFsr') as HTMLInputElement | null;
+  if (fsrCb) {
+    fsrCb.checked = fsrEnabled;
+    fsrCb.addEventListener('change', () => {
+      fsrEnabled = fsrCb.checked;
+      if (fsr1Pass) fsr1Pass.enabled = fsrEnabled;
+      try { localStorage.setItem('apex.fsr', fsrEnabled ? '1' : '0'); } catch { /* storage blocked */ }
+      if (!fsrEnabled && renderScale < 1 && IS_INTEL_IGPU) renderScale = 1;
+      applyRenderScale();
+    });
+  }
   // colour grade and lens options (the platform's LUT library and film/tape lenses)
   const lutSel = document.getElementById('lutSel') as HTMLSelectElement, lutAmt = document.getElementById('lutAmt') as HTMLInputElement, lensSel = document.getElementById('lensSel') as HTMLSelectElement;
   for (const l of GAME_LUTS) { const o = document.createElement('option'); o.value = l.id; o.textContent = l.label; lutSel.appendChild(o); }
@@ -5136,12 +5342,23 @@ addEventListener('resize', () => {
 
 
 // ── Frame-rate governor & GPU Quality Tiers (`low` / `mid` / `high`). Target 60 fps (30 on TV / low-power with ?tv=1); dynamic resolution + tier stepping hold TARGET_MS. ──
-const TV_MODE = (() => { try { return new URLSearchParams(location.search).get('tv') === '1' || localStorage.getItem('apex.tv') === '1'; } catch { return false; } })();
+const TV_MODE = TV_MODE_BOOT;
+const IS_INTEL_IGPU = (() => {
+  try {
+    const gl = renderer.getContext();
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    const rStr = ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) ?? '').toLowerCase() : '';
+    return /\b(intel|arc|uhd|hd graphics|iris)\b/.test(rStr) && !/\b(arc a7[57]0|arc b5[78]0)\b/.test(rStr);
+  } catch { return false; }
+})();
 let perfTier: PerfTier = detectInitialTier(renderer, TV_MODE);
 let tierCfg = TIER_CONFIGS[perfTier];
 const TARGET_MS = TV_MODE ? 1000 / 30 : 1000 / 60;
-const BASE_PR = Math.min(devicePixelRatio, TV_MODE ? 1 : 1.5);
-let renderScale = TV_MODE ? 0.75 : perfTier === 'low' ? 0.8 : 1, govAcc = 0, govN = 0, govMax = 0, govLast = 0, govHold = 0, govPrev = 0, govFrom = 1, govDropped = false, govNoDrop = 0;
+// On integrated Intel GPUs (Arc iGPU / Iris / UHD), cap canvas DPR at 1.0x on large viewports (still 1:1 CSS crisp)
+// and start FSR 1 internal scale at 0.67x (matching Vesselbound's Intel iGPU profile in rift-realm/src/gfx.ts)
+const BASE_PR = Math.min(devicePixelRatio, TV_MODE ? 1 : (IS_INTEL_IGPU && innerWidth * innerHeight > 1100 * 700 ? 1.0 : 1.5));
+const explicitScale = (() => { try { const q = parseFloat(new URLSearchParams(location.search).get('scale') ?? ''); return Number.isFinite(q) && q >= 0.5 && q <= 1 ? q : null; } catch { return null; } })();
+let renderScale = explicitScale ?? (TV_MODE ? 0.75 : perfTier === 'low' ? 0.8 : (IS_INTEL_IGPU && fsrEnabled ? 0.67 : 1)), govAcc = 0, govN = 0, govMax = 0, govLast = 0, govHold = 0, govPrev = 0, govFrom = 1, govDropped = false, govNoDrop = 0;
 function applyPerfTier(next: PerfTier): void {
   perfTier = next;
   tierCfg = TIER_CONFIGS[next];
@@ -5154,18 +5371,24 @@ function applyPerfTier(next: PerfTier): void {
   (window as unknown as { perfTier?: PerfTier }).perfTier = next;
 }
 function applyRenderScale(): void {
-  const pr = Math.max(0.5, BASE_PR * renderScale);
-  renderer.setPixelRatio(pr);
+  const internalPr = Math.max(0.5, BASE_PR * renderScale);
+  const useFsrScale = !!(composer && fsr1Pass && fsrEnabled);
+  // With FSR 1 enabled, keep canvas at full crisp native DPR while internal render targets scale dynamically!
+  const canvasPr = useFsrScale ? BASE_PR : internalPr;
+  renderer.setPixelRatio(canvasPr);
   renderer.setSize(innerWidth, innerHeight);
+  let iw = Math.max(1, Math.floor(innerWidth * internalPr));
+  let ih = Math.max(1, Math.floor(innerHeight * internalPr));
   if (composer) {
-    composer.setPixelRatio?.(pr);
+    composer.setPixelRatio?.(internalPr);
     composer.setSize(innerWidth, innerHeight);
+    iw = Math.max(1, composer.renderTarget2.width);
+    ih = Math.max(1, composer.renderTarget2.height);
     // Recreate DepthTexture at exact renderTarget2 pixel dimensions so D3D11 FBO never goes INCOMPLETE_DIMENSIONS -> black
-    const dw = Math.max(1, Math.floor(innerWidth * pr)), dh = Math.max(1, Math.floor(innerHeight * pr));
     const oldDepth = composer.renderTarget2.depthTexture;
-    if (oldDepth && (oldDepth.image?.width !== dw || oldDepth.image?.height !== dh)) {
+    if (oldDepth && (oldDepth.image?.width !== iw || oldDepth.image?.height !== ih)) {
       oldDepth.dispose();
-      const nextDepth = new THREE.DepthTexture(dw, dh);
+      const nextDepth = new THREE.DepthTexture(iw, ih);
       nextDepth.type = THREE.UnsignedIntType;
       composer.renderTarget2.depthTexture = nextDepth;
       composer.renderTarget2.dispose();
@@ -5174,11 +5397,11 @@ function applyRenderScale(): void {
   }
   // Keep UnrealBloomPass at quarter resolution (capped at 480x270) after composer.setSize resizes passes
   bloomPass?.setSize(
-    Math.min(480, Math.max(160, Math.floor(innerWidth * pr * 0.25))),
-    Math.min(270, Math.max(90, Math.floor(innerHeight * pr * 0.25)))
+    Math.min(480, Math.max(160, Math.floor(iw * 0.25))),
+    Math.min(270, Math.max(90, Math.floor(ih * 0.25)))
   );
   if (aaPass && 'uniforms' in aaPass && aaPass.uniforms?.uInvRes) {
-    aaPass.uniforms.uInvRes.value.set(1 / Math.max(1, innerWidth * pr), 1 / Math.max(1, innerHeight * pr));
+    aaPass.uniforms.uInvRes.value.set(1 / iw, 1 / ih);
   }
   grassField?.setQuality(renderScale * (perfTier === 'low' ? 0.75 : perfTier === 'mid' ? 0.88 : 1));
   for (const tf of treeFields) tf.setQuality(renderScale * (perfTier === 'low' ? 0.75 : perfTier === 'mid' ? 0.88 : 1));
@@ -5206,7 +5429,7 @@ function governFrames(nowMs: number): void {
 }
 let tvNext = 0;
 applyPerfTier(perfTier);
-if (TV_MODE || renderScale < 0.99) applyRenderScale();
+if (TV_MODE || IS_INTEL_IGPU || renderScale < 0.99) applyRenderScale();
 
 // Car-to-car contact: each car is three circles along its length; overlap pushes the player out and swaps momentum along the contact normal (the other car is heavier or lighter by `otherMass`).
 const CAR_CIRCLES = [-1.45, 0, 1.45], CAR_R = 1.0;
@@ -5414,6 +5637,14 @@ function frame(now: number): void {
     if (camera.position.distanceToSquared(ft) >= 900 * 900) shadowStride = 4;
     if (csm) {
       camera.updateMatrixWorld();
+      if (
+        Math.abs(camera.near - lastCsmNear) > 0.05 ||
+        Math.abs(camera.far - lastCsmFar) > 50 ||
+        Math.abs(camera.aspect - lastCsmAspect) > 0.005
+      ) {
+        lastCsmNear = camera.near; lastCsmFar = camera.far; lastCsmAspect = camera.aspect;
+        csm.updateFrustums();
+      }
       csm.lightDirection.copy(sunDir).negate();
       csm.update();
       for (let i = 0; i < csm.lights.length; i++) { const l = csm.lights[i]; l.intensity = sun.intensity; l.color.copy(sun.color); l.castShadow = csmCast[i]; }        // constant: flipping it recompiles every shader
@@ -5457,15 +5688,29 @@ function frame(now: number): void {
     u.uHasSkyMask.value = aoPass?.aoOn ? 1 : 0;
     (u.uSunCol.value as THREE.Color).copy(sun.color);
   }
+  // Update Playkit unified SH9 GI probes, district LocalLookVolumes, clustered streetlamps/tunnels & car headlights
+  {
+    const nk = NIGHT_K[todKey] ?? 0;
+    const wDim = Math.min(1, wx.cur.cloudDark * 0.68 + wx.cur.rain * 0.42);
+    const focus = driving ? driving.pos : controls.target;
+    apexLighting.update(dt, camera, focus, nk, wDim, sunDir, mapMode);
+    const hlOn = !!driving && !mapMode && !replay.active && (nk > 0.25 || wx.cur.wet > 0.35 || apexLighting.controller.fogMod.interiorMix > 0.35);
+    const brkAmt = driving && !replay.active && (keys.has('Space') || keys.has('KeyS') || keys.has('ArrowDown')) ? 0.9 : 0;
+    apexLighting.updateVehicleLights(!!driving && !mapMode && !replay.active, driving?.pos, driving?.yaw ?? 0, hlOn, brkAmt);
+  }
   if (aoPass) {
-    // the atmosphere (ao.ts): dual-layer Rayleigh aerial perspective + low-altitude valley mist + warm Mie sun scatter; off on the map
+    // the atmosphere (ao.ts): dual-layer Rayleigh aerial perspective + low-altitude valley mist + warm Mie sun scatter + Playkit district mood; off on the map
     const f = aoPass.fog, w = wx.cur;
     const nk = NIGHT_K[todKey] ?? 0;
+    const fm = apexLighting.controller.fogMod;
     aoPass.aoOn = !mapMode && tierCfg.aoEnabled;
     f.on = !mapMode;
-    f.density = 0.000155 * (1 + w.fogGrey * 4.5 + w.rain * 1.4);
+    f.density = 0.000155 * (1 + w.fogGrey * 4.5 + w.rain * 1.4) * fm.densityMul;
     f.falloff = 1 / 420;
-    if (scene.fog instanceof THREE.Fog) f.color.copy(scene.fog.color);
+    if (scene.fog instanceof THREE.Fog) {
+      f.color.copy(scene.fog.color);
+      if (fm.tintWeight > 0.002) f.color.lerp(fm.tintColor, fm.tintWeight);
+    }
     f.sunColor.copy(sun.color).multiplyScalar(Math.min(1.65, 0.35 + sun.intensity * 0.48));
     f.sunDir.copy(sunDir);
     aoPass.contactShadow = mapMode ? 0 : Math.max(0, (1 - w.cloudDark * 1.15) * (1 - nk)) * 0.85;
@@ -5482,8 +5727,9 @@ function frame(now: number): void {
     cinePass.uniforms.uExposure.value = renderer.toneMappingExposure;
   }
   if (aaPass && 'uniforms' in aaPass && aaPass.uniforms?.uInvRes) {
-    const pr = renderer.getPixelRatio();
-    aaPass.uniforms.uInvRes.value.set(1 / Math.max(1, innerWidth * pr), 1 / Math.max(1, innerHeight * pr));
+    const aw = Math.max(1, composer?.renderTarget2.width ?? Math.floor(innerWidth * renderer.getPixelRatio()));
+    const ah = Math.max(1, composer?.renderTarget2.height ?? Math.floor(innerHeight * renderer.getPixelRatio()));
+    aaPass.uniforms.uInvRes.value.set(1 / aw, 1 / ah);
   }
   const __t2 = performance.now();
   const probeMask = (TV_MODE || perfTier === 'low') ? 3 : 1;
