@@ -61,6 +61,44 @@ export const AdminVisualSiteEditor: React.FC<AdminVisualSiteEditorProps> = ({
   const [telemetryQuickOpen, setTelemetryQuickOpen] = useState<boolean>(false);
   // The floating dock rests collapsed; hovering or focusing it opens the full pill.
   const [dockHover, setDockHover] = useState(false);
+  // The dock must never sit on top of the page's own controls. It rests as a small dot; it opens
+  // only on a deliberate hover (a short delay, so a cursor passing through the corner doesn't pop
+  // it open), collapses again a moment after the pointer leaves or after a spell of no
+  // interaction (touch screens never fire mouseleave), and can be hidden outright for the session.
+  const [dockHidden, setDockHidden] = useState<boolean>(() => { try { return sessionStorage.getItem('pj:admin-dock-hidden') === '1'; } catch { return false; } });
+  const dockOpenTimer = useRef<number | undefined>(undefined);
+  const dockCloseTimer = useRef<number | undefined>(undefined);
+  const openDockSoon = (delay = 380) => {
+    window.clearTimeout(dockCloseTimer.current);
+    window.clearTimeout(dockOpenTimer.current);
+    dockOpenTimer.current = window.setTimeout(() => setDockHover(true), delay);
+  };
+  const closeDockSoon = (delay = 1400) => {
+    window.clearTimeout(dockOpenTimer.current);
+    window.clearTimeout(dockCloseTimer.current);
+    dockCloseTimer.current = window.setTimeout(() => setDockHover(false), delay);
+  };
+  const hideDock = () => {
+    setDockHidden(true); setDockHover(false);
+    try { sessionStorage.setItem('pj:admin-dock-hidden', '1'); } catch { /* private mode */ }
+  };
+  // Alt+Shift+A brings it back (and hides it again).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+        setDockHidden(h => { const n = !h; try { n ? sessionStorage.setItem('pj:admin-dock-hidden', '1') : sessionStorage.removeItem('pj:admin-dock-hidden'); } catch { /* */ } return n; });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+  // Touch / keyboard: an open dock with nothing pinned open folds itself away after a quiet spell.
+  useEffect(() => {
+    if (!dockHover || editMode || telemetryQuickOpen || drawerOpen) return;
+    const t = window.setTimeout(() => setDockHover(false), 5000);
+    return () => window.clearTimeout(t);
+  }, [dockHover, editMode, telemetryQuickOpen, drawerOpen]);
+  useEffect(() => () => { window.clearTimeout(dockOpenTimer.current); window.clearTimeout(dockCloseTimer.current); }, []);
   const [config, setConfig] = useState<PageVisualConfig | null>(null);
   const [telemetry, setTelemetry] = useState<LiveTelemetrySnapshot | null>(null);
   const [simTraffic, setSimTraffic] = useState<boolean>(() => isSimulatedTrafficEnabled());
@@ -636,7 +674,7 @@ export const AdminVisualSiteEditor: React.FC<AdminVisualSiteEditorProps> = ({
       {/* ── 3. FLOATING ADMIN COMMAND BAR & LIVE TELEMETRY PILL ── */}
       <div
         data-pj-admin-editor-ui="true"
-        className="fixed bottom-5 right-5 z-[9990] flex flex-col items-end gap-2.5"
+        className={`fixed bottom-5 right-5 z-[9990] flex-col items-end gap-2.5 ${(dockHidden && !editMode && !drawerOpen && !telemetryQuickOpen) ? 'hidden' : 'hidden lg:flex'}`}
       >
         {/* Quick Telemetry Popover when clicking the Live Presence counter */}
         {telemetryQuickOpen && telemetry && (
@@ -795,12 +833,13 @@ export const AdminVisualSiteEditor: React.FC<AdminVisualSiteEditorProps> = ({
         {!(dockHover || editMode || telemetryQuickOpen || drawerOpen) ? (
           <button
             type="button"
-            onMouseEnter={() => setDockHover(true)}
+            onMouseEnter={() => openDockSoon()}
+            onMouseLeave={() => window.clearTimeout(dockOpenTimer.current)}
             onFocus={() => setDockHover(true)}
-            onClick={() => setDockHover(true)}
+            onClick={() => { window.clearTimeout(dockOpenTimer.current); setDockHover(true); }}
             aria-label={`Admin tools · ${telemetry?.totalActiveNow ?? 1} live`}
-            title="Admin tools"
-            className="h-9 pl-2.5 pr-3 rounded-full flex items-center gap-1.5 bg-[#13111C]/80 border border-white/12 text-white/80 shadow-[0_8px_24px_rgba(0,0,0,0.5)] opacity-70 hover:opacity-100 transition-opacity"
+            title="Admin tools (Alt+Shift+A hides this)"
+            className="h-9 pl-2.5 pr-3 rounded-full flex items-center gap-1.5 bg-[#13111C]/80 border border-white/12 text-white/80 shadow-[0_8px_24px_rgba(0,0,0,0.5)] opacity-40 hover:opacity-100 transition-opacity scale-90 origin-bottom-right"
           >
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />
@@ -810,8 +849,9 @@ export const AdminVisualSiteEditor: React.FC<AdminVisualSiteEditorProps> = ({
           </button>
         ) : (
         <div
-          onMouseLeave={() => setDockHover(false)}
-          onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDockHover(false); }}
+          onMouseEnter={() => { window.clearTimeout(dockCloseTimer.current); }}
+          onMouseLeave={() => closeDockSoon()}
+          onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) closeDockSoon(600); }}
           className="flex items-center gap-2 rounded-full p-1.5 bg-[#13111C]/90 backdrop-blur-2xl border border-white/15 shadow-[0_16px_40px_rgba(0,0,0,0.75)]"
         >
           {/* Live Telemetry Counter Pill */}
@@ -863,6 +903,14 @@ export const AdminVisualSiteEditor: React.FC<AdminVisualSiteEditorProps> = ({
             title="Open Admin Web Page Studio & Councils"
           >
             <Sliders size={15} />
+          </button>
+          <button
+            onClick={hideDock}
+            className="p-2 rounded-full bg-white/[0.04] hover:bg-white/[0.12] text-white/45 hover:text-white transition-all"
+            title="Hide this for the session (Alt+Shift+A brings it back)"
+            aria-label="Hide admin dock"
+          >
+            <X size={13} />
           </button>
         </div>
         )}

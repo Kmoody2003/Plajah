@@ -4,6 +4,7 @@ import ReactDOM from 'react-dom/client';
 import ErrorBoundary from './components/ErrorBoundary';
 import { isMediaLaunch } from './src/lib/launchTarget';
 import { CHANGELOG } from './data/changelog';
+import { addLocalNotification } from './services/localNotifications';
 import { isChunkLoadError, recoverFromStaleChunk } from './src/lib/staleChunk';
 
 // @ts-ignore
@@ -271,8 +272,16 @@ if (isNativeWindows) {
         return;
       }
 
-      // Desktop / web: user-driven only, never automatic.
-      showUpdateToast(() => updateSW(true));
+      // Desktop / web: no popup. A new build waiting is just a notification (with the plain-English
+      // changes in it); tapping it applies the update. Nothing takes over the screen.
+      (window as any).__plajahApplyUpdate = () => updateSW(true);
+      const top = CHANGELOG.slice(0, 5);
+      addLocalNotification({
+        id: 'sw-update',
+        title: 'A new version of Plajah is ready',
+        message: (top.length ? top.map(e => `• ${e.title}`).join('\n') + '\n\n' : '') + 'Tap to reload and get these changes.',
+        link: 'pj:reload',
+      });
     },
     onOfflineReady() {
       console.log('[SW] App ready for offline use.');

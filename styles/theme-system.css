@@ -905,7 +905,12 @@ html body.theme-light .pj-nav-row:hover {
 }
 html body.theme-light .pj-nav-row[aria-current="page"] {
   background: rgba(255, 255, 255, 0.94) !important;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 8px 18px -10px rgba(51, 65, 85, 0.4), inset 3px 0 0 var(--pj-a1, #ff8c00) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08), 0 8px 18px -10px rgba(51, 65, 85, 0.4) !important;
+  position: relative;
+}
+html body.theme-light .pj-nav-row[aria-current="page"]::before {
+  content: ''; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px; border-radius: 3px;
+  background: var(--pj-grad-select);
 }
 html body.theme-light .pj-nav-row svg { color: var(--pj-text-muted) !important; opacity: 1 !important; }
 html body.theme-light .pj-nav-row[aria-current="page"] svg { color: var(--pj-a1-ink, #b45309) !important; }
@@ -1002,4 +1007,52 @@ html body.theme-pastel .melos[data-skin="LAMPLIGHT"] {
   --mel-ink:#073642; --mel-dim:#3d5f60; --mel-faint:#55726f;
   --mel-accent:#5b21b6; --mel-hand:#5b21b6; --mel-lamp:none; --mel-rail-wash:none; --mel-blk-sh:0 8px 20px -14px rgba(7,54,66,.4); --mel-grain-op:.03; color-scheme: light;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Text roles. When a palette is applied (body[data-pj-text]) text takes the person's role
+   colours — headings, primary, sublines, descriptions, links — in EVERY theme. The colours are
+   contrast-solved in services/themePalette.ts, so a chosen hue can tint text but never sink it.
+   Gradient-clipped headings and text on solid fills are left alone.
+   ═══════════════════════════════════════════════════════════════════════════ */
+html body[data-pj-text] :is(h1, h2, h3, h4):not(:where([class*="text-transparent"], [class*="bg-clip-text"])) { color: var(--pj-t-heading) !important; }
+html body[data-pj-text] :is(
+  .text-white, .text-primary, [class~="text-white/90"], [class~="text-white/80"], [class~="text-white/95"],
+  .text-gray-100, .text-gray-200, .text-zinc-100, .text-zinc-200, .text-slate-100, .text-slate-200, .text-neutral-100, .text-neutral-200
+):not(:where([class*="text-transparent"], [class*="bg-clip-text"])) { color: var(--pj-t-primary) !important; }
+html body[data-pj-text] :is(
+  [class~="text-white/70"], [class~="text-white/60"], [class~="text-white/65"], [class~="text-white/75"], [class~="text-white/55"],
+  .text-gray-300, .text-zinc-300, .text-slate-300, .text-neutral-300
+):not(:where([class*="text-transparent"], [class*="bg-clip-text"])) { color: var(--pj-t-sub) !important; }
+html body[data-pj-text] :is(
+  [class~="text-white/50"], [class~="text-white/45"], [class~="text-white/40"], [class~="text-white/35"], [class~="text-white/30"],
+  .text-gray-400, .text-gray-500, .text-zinc-400, .text-zinc-500, .text-slate-400, .text-slate-500, .text-neutral-400, .text-neutral-500
+):not(:where([class*="text-transparent"], [class*="bg-clip-text"])) { color: var(--pj-t-desc) !important; }
+html body[data-pj-text] a:not([class*="text-"]):not([class*="bg-"]) { color: var(--pj-t-link) !important; }
+/* White text on solid colour fills keeps its contrast colour. */
+html body[data-pj-text] :is(
+  [class*="bg-gradient-"], [class*="bg-small-orange"], [class*="bg-orange-5"], [class*="bg-orange-6"],
+  [class*="bg-purple-5"], [class*="bg-purple-6"], [class*="bg-violet-5"], [class*="bg-violet-6"], [class*="bg-blue-5"], [class*="bg-blue-6"],
+  [class*="bg-red-5"], [class*="bg-red-6"], [class*="bg-green-5"], [class*="bg-green-6"], [class*="bg-pink-5"], [class*="bg-pink-6"]
+) :is(.text-white, [class~="text-white/90"], [class~="text-white/80"]) { color: var(--pj-grad-on, #fff) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The Plajah gradient marks "where you are / what is selected".
+   Selected tabs, pressed toggles and checked pills wear the gradient (the brand gradient, or the
+   palette's own accents once one is saved). Only pill-shaped controls: underline-style tabs and
+   plain links keep their own treatment.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root { --pj-grad-select: linear-gradient(135deg, #6B0099 0%, #D40055 52%, #FF8C00 100%); --pj-grad-on: #ffffff; --pj-grad-shadow: 0 1px 2px rgba(0, 0, 0, 0.32); }
+html body :is(
+  [role="tab"][aria-selected="true"], button[aria-pressed="true"], [role="radio"][aria-checked="true"], button[aria-current="true"]
+):is([class*="rounded-full"], [class*="rounded-xl"], [class*="rounded-lg"], [class*="rounded-2xl"], [class*="rounded-md"]):not([class*="border-b"]):not([class*="pj-swatch"]):not(.pj-nav-row) {
+  background-image: var(--pj-grad-select) !important;
+  background-color: transparent !important;
+  color: var(--pj-grad-on) !important;
+  text-shadow: var(--pj-grad-shadow, 0 1px 2px rgba(0, 0, 0, 0.32));
+  border-color: transparent !important;
+  box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--pj-a2, #D40055) 80%, transparent) !important;
+}
+html body :is([role="tab"][aria-selected="true"], button[aria-pressed="true"], [role="radio"][aria-checked="true"]):is([class*="rounded"]) :is(svg, span, i) { color: var(--pj-grad-on) !important; }
+/* Pillar / rail: the current destination's marker is the gradient. */
+html body .pj-rail-btn[style*="gradient"] { background-image: var(--pj-grad-select) !important; }
 

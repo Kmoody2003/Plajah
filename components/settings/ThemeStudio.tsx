@@ -3,8 +3,8 @@ import { Check, Loader2, Lock, Unlock, Palette, Image as ImageIcon, Smile, Plus,
 import type { ThemePack, ThemePackItem, ThemeSpec, ThemeType } from '../../types';
 import { THEME_OPTIONS } from './themeOptions';
 import {
-  SCHEME_LABELS, THEME_SURFACE, contrast, generateAllPalettes, generatePalette, hexToRgb, paletteVars,
-  type PaletteScheme, type ThemePalette,
+  SCHEME_LABELS, THEME_SURFACE, TEXT_ROLES, autoTextRoles, contrast, generateAllPalettes, generatePalette, hexToRgb, paletteVars, resolveTextRoles,
+  type PaletteScheme, type TextRole, type ThemePalette,
 } from '../../services/themePalette';
 import {
   GRADIENT_PRESETS, PATTERN_LIST, DEFAULT_PATTERN, backgroundCss, gradientFromPalette,
@@ -74,6 +74,12 @@ const ThemeStudio: React.FC<Props> = ({ value, scope, uploadPath, canEdit = true
     setPalette({ ...palette, locked: { ...palette.locked, [k]: !palette.locked?.[k] } });
   const regenerate = (scheme: PaletteScheme, secondary = palette.accent2) =>
     setPalette(generatePalette(secondary, scheme, palette.accent1, palette));
+  // Text roles: the colour that actually reaches the page is always contrast-solved; a role with no
+  // custom value is generated from the palette.
+  const roles = useMemo(() => resolveTextRoles(palette, surface), [palette, surface]);
+  const autoRoles = useMemo(() => autoTextRoles(palette, surface), [palette, surface]);
+  const setRole = (k: TextRole, hex: string) => setPalette({ ...palette, text: { ...palette.text, [k]: safeHex(hex, roles[k]) } });
+  const autoRole = (k: TextRole) => { const next = { ...palette.text }; delete next[k]; setPalette({ ...palette, text: next }); };
   const generated = useMemo(() => generateAllPalettes(palette.accent2, palette.accent1), [palette.accent2, palette.accent1]);
 
   const previewCss = backgroundCss(bg) || undefined;
@@ -172,8 +178,8 @@ const ThemeStudio: React.FC<Props> = ({ value, scope, uploadPath, canEdit = true
         )}
         <div className="relative p-5 flex flex-wrap items-center gap-4" style={{ background: 'rgba(0,0,0,.12)' }}>
           <div className="rounded-2xl p-4 min-w-[220px]" style={{ background: 'rgba(255,255,255,.12)', backdropFilter: 'blur(14px)', color: vars['--pj-a1-on'] ? undefined : undefined }}>
-            <div className="text-base font-black" style={{ color: spec.base === 'LIGHT' || spec.base === 'PASTEL' ? '#0f172a' : '#fff' }}>Welcome home</div>
-            <div className="text-xs mt-0.5" style={{ color: spec.base === 'LIGHT' || spec.base === 'PASTEL' ? '#475569' : 'rgba(255,255,255,.72)' }}>Sunday service · 10:00 AM</div>
+            <div className="text-base font-black" style={{ color: roles.heading }}>Welcome home</div>
+            <div className="text-xs mt-0.5" style={{ color: roles.sub }}>Sunday service · 10:00 AM</div>
             <div className="flex gap-2 mt-3 flex-wrap">
               {([1, 2, 3, 4] as const).map(n => (
                 <span key={n} className="px-3 py-1 rounded-full text-xs font-bold" style={{ background: vars[`--pj-a${n}`], color: vars[`--pj-a${n}-on`] }}>Level {n}</span>
@@ -210,6 +216,37 @@ const ThemeStudio: React.FC<Props> = ({ value, scope, uploadPath, canEdit = true
             {levelRow('accent3', 'Third', 'Highlights, tags, charts')}
             {levelRow('accent4', 'Fourth', 'Badges and decoration')}
             <p className="text-[11px] text-white/50">“Aa” shows each accent used as text on this theme; it is auto-adjusted to stay at 4.5:1 or better. Lock a level to keep it when you regenerate.</p>
+          </div>
+
+          <div className={card + ' space-y-3'}>
+            <div className="text-sm font-black text-white">Text colours</div>
+            <p className="text-xs text-white/55">Your palette tints the text on every page. Pick a colour for each kind of text — whatever you choose is nudged just enough to stay easy to read on this theme, so it can colour text but never sink it. Leave a role on Auto and it follows your palette.</p>
+            <div className="rounded-xl border border-white/10 p-4 space-y-1" style={{ background: surface }}>
+              <div className="text-lg font-black" style={{ color: roles.heading }}>Sunday gathering</div>
+              <div className="text-sm font-bold" style={{ color: roles.primary }}>Great Faith Ministries · 10:00 AM</div>
+              <div className="text-xs font-semibold" style={{ color: roles.sub }}>Pastor Dave Ellison · Sanctuary</div>
+              <div className="text-xs" style={{ color: roles.desc }}>Doors open at 9:30. Childcare is available for ages 0–5.</div>
+              <div className="text-xs font-bold underline" style={{ color: roles.link }}>Plan your visit →</div>
+            </div>
+            {TEXT_ROLES.map(r => {
+              const custom = !!palette.text?.[r.key];
+              return (
+                <div key={r.key} className="flex items-center gap-3">
+                  <input type="color" value={custom ? safeHex(palette.text![r.key]!, roles[r.key]) : autoRoles[r.key]} disabled={!canEdit}
+                    onChange={e => setRole(r.key, e.target.value)}
+                    className="w-10 h-10 rounded-lg bg-transparent border border-white/20 cursor-pointer" aria-label={`${r.label} colour`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-white">{r.label}</div>
+                    <div className="text-[11px] text-white/55">{r.hint}</div>
+                  </div>
+                  <span className="text-xs font-bold px-2 py-1 rounded-md" style={{ color: roles[r.key], background: surface }} title="Contrast on this theme">
+                    Aa {contrast(roles[r.key], surface).toFixed(1)}:1
+                  </span>
+                  <button type="button" disabled={!canEdit || !custom} onClick={() => autoRole(r.key)}
+                    className={chip(!custom)} title="Follow the palette automatically">Auto</button>
+                </div>
+              );
+            })}
           </div>
 
           <div className={card + ' space-y-3'}>
