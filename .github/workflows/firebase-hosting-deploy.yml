@@ -15,13 +15,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Node 20 LTS for the firebase deploy: Node 24's undici keep-alive triggers
       # "premature close" retries against Google APIs, and the retry of the non-idempotent
       # Hosting release POST then 400s as "already the current active version" (the first
       # POST actually succeeded). Node 20 avoids the premature-close churn.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
@@ -75,9 +75,9 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
 
@@ -168,12 +168,12 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Node 20, same as build_and_deploy: the SPA build OOMs under Node 24 at the same
       # 8 GB heap (2026-10-23), while Node 20 builds the identical tree. The image itself is
       # built by Cloud Run from the Dockerfile, so the runner's Node only drives the build.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: 'npm'
