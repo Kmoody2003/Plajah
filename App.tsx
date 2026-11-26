@@ -756,6 +756,8 @@ import { ActiveIdentityProvider } from './contexts/ActiveIdentityContext';
 import ProjectTray from './components/ProjectTray';
 
 import SpatialToggle from './components/SpatialToggle';
+import NativeShellSwitch from './components/NativeShellSwitch';
+import { nativeShellAvailable } from './services/nativeShell';
 import SpatialImage from './components/SpatialImage';
 import { useSpatial } from './contexts/SpatialContext';
 import ArchiveItemCard from './components/ArchiveItemCard';
@@ -6923,6 +6925,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         </div>
                       ));
                     })()}
+                    {/* Android app only: hand off to the native shell (Beta). Kept here and in
+                        Settings rather than as a banner over the app. */}
+                    {nativeShellAvailable() && (
+                      <div className="px-4 pt-4">
+                        <NativeShellSwitch variant="row" className="rounded-m3-lg glass-low" />
+                      </div>
+                    )}
+                    <div className="h-3" />
                     {/* Auth row at bottom of drawer */}
                     {!user && (
                       <div className="flex gap-3 px-4 pb-4">

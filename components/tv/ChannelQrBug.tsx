@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import Logo from '../Logo';
-import { QrCode, Check, Copy } from 'lucide-react';
+import { QrCode, Check, X } from 'lucide-react';
 import { getChannelQrDataUrlSync, generateChannelQrDataUrl } from '../../services/fast/channelQrService';
 
 export interface ChannelQrBugProps {
@@ -12,17 +12,18 @@ export interface ChannelQrBugProps {
   channelName?: string;
   /** Position and wrapper styling classes (defaults to lower-left corner) */
   className?: string;
-  /** Duration the bug stays on in ms (default: 2 minutes = 120,000 ms) */
+  /** Duration the bug stays on in ms (default: 30 seconds) */
   activeDurationMs?: number;
-  /** Duration the bug stays off in ms (default: 1 minute = 60,000 ms) */
+  /** Duration the bug stays off in ms (default: 4m30s, so it comes back every 5 minutes) */
   inactiveDurationMs?: number;
   /** Don't auto-dissolve while the user hovers with a pointer */
   pauseOnHover?: boolean;
 }
 
-const DEFAULT_ACTIVE_MS = 2 * 60 * 1000;   // 2 minutes ON
-const DEFAULT_INACTIVE_MS = 1 * 60 * 1000; // 1 minute OFF
-const COMPACT_BELOW_W = 640;
+const DEFAULT_ACTIVE_MS = 30 * 1000;            // 30 seconds ON
+const DEFAULT_INACTIVE_MS = 4.5 * 60 * 1000;    // then OFF — back once every 5 minutes
+// Below this frame size the bug is only a small QR chip (tap to open the card).
+const COMPACT_BELOW_W = 900;
 const COMPACT_BELOW_H = 420;
 const EXPANDED_MS = 10 * 1000;
 
@@ -34,8 +35,9 @@ const EXPANDED_MS = 10 * 1000;
  * 1. High-contrast QR code pointing directly to the channel's share link (no sign-in required).
  * 2. Text: "Scan to watch this channel on your device" rendered with vibrant Plajah color branding.
  * 3. "plajah.com" underneath it with the official Plajah chevron logo.
- * 4. Automatic 2-minute ON / 1-minute OFF cadence with a smooth dissolve fade.
+ * 4. Shows for 30 seconds, then dissolves and returns every 5 minutes.
  * 5. On a small frame, a QR chip instead; tapping it opens the card so someone nearby can scan it.
+ * 6. A close button dismisses it until the next 5-minute appearance.
  */
 export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
   shareUrl,
@@ -116,7 +118,8 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
     };
   }, [shareUrl]);
 
-  // 2-minute ON, 1-minute OFF cyclic timer with smooth dissolve
+  // 30s ON, then OFF until the next 5-minute appearance, with a smooth dissolve.
+  const scheduleRef = useRef<(currentlyOn: boolean) => void>(() => {});
   useEffect(() => {
     if (!shareUrl) return;
 
@@ -141,9 +144,11 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
 
         const nextState = !currentlyOn;
         setVisible(nextState);
+        if (!nextState) setExpanded(false);
         scheduleNext(nextState);
       }, delay);
     };
+    scheduleRef.current = scheduleNext;
 
     scheduleNext(true);
 
@@ -152,6 +157,14 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [shareUrl, activeDurationMs, inactiveDurationMs, pauseOnHover]);
+
+  // Close button: hide now; it comes back on the regular 5-minute cadence.
+  const dismiss = useCallback((e: React.SyntheticEvent) => {
+    e.stopPropagation();
+    setExpanded(false);
+    setVisible(false);
+    scheduleRef.current(false);
+  }, []);
 
   const handleCopy = useCallback(
     (e: React.MouseEvent) => {
@@ -186,28 +199,38 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
       onMouseLeave={() => setIsHovered(false)}
     >
       {compact && !expanded ? (
-        <button
-          type="button"
-          aria-label="Show QR code for this channel"
-          onClick={(e) => {
-            e.stopPropagation();
-            setExpanded(true);
-          }}
-          className="w-11 h-11 min-h-0 p-0 grid place-items-center"
-        >
-          <span className="w-8 h-8 rounded-lg grid place-items-center bg-black/55 backdrop-blur-md border border-white/20 text-white/90">
-            <QrCode size={18} />
-          </span>
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            aria-label="Show QR code for this channel"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded(true);
+            }}
+            className="w-10 h-10 min-h-0 p-0 grid place-items-center"
+          >
+            <span className="w-7 h-7 rounded-lg grid place-items-center bg-black/55 backdrop-blur-md border border-white/20 text-white/90">
+              <QrCode size={15} />
+            </span>
+          </button>
+          <button
+            type="button"
+            aria-label="Hide QR code"
+            onClick={dismiss}
+            className="absolute -top-0.5 -right-0.5 w-4 h-4 min-h-0 p-0 rounded-full grid place-items-center bg-black/80 border border-white/25 text-white/80"
+          >
+            <X size={9} strokeWidth={3} />
+          </button>
+        </div>
       ) : (
       <div
         onClick={handleCopy}
         title="Scan with phone camera or click to copy direct link"
         style={compact ? { maxWidth: Math.max(0, frame.w - 24) } : undefined}
-        className="group relative flex items-center gap-3.5 px-3.5 py-2.5 sm:px-4 sm:py-3 rounded-2xl bg-black/85 hover:bg-black/95 backdrop-blur-md border border-white/20 hover:border-white/35 shadow-[0_12px_40px_rgba(0,0,0,0.8)] cursor-pointer transition-colors max-w-[380px]"
+        className="group relative flex items-center gap-2.5 pl-2 pr-3 py-2 rounded-xl bg-black/80 hover:bg-black/90 backdrop-blur-md border border-white/15 hover:border-white/30 shadow-[0_8px_24px_rgba(0,0,0,0.7)] cursor-pointer transition-colors max-w-[260px]"
       >
         {/* Crisp QR Code Tile */}
-        <div className="relative w-[92px] h-[92px] sm:w-[104px] sm:h-[104px] rounded-xl bg-white p-2 shrink-0 flex items-center justify-center shadow-lg border border-white/40">
+        <div className="relative w-[64px] h-[64px] rounded-lg bg-white p-1 shrink-0 flex items-center justify-center shadow-lg border border-white/40">
           {qrDataUrl ? (
             <img
               src={qrDataUrl}
@@ -217,7 +240,7 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
-              <QrCode size={30} className="text-gray-400 animate-pulse" />
+              <QrCode size={22} className="text-gray-400 animate-pulse" />
             </div>
           )}
         </div>
@@ -225,7 +248,7 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
         {/* Text & Branding */}
         <div className="flex flex-col justify-center min-w-0 pr-1">
           {/* Main callout with Plajah color branding in the text */}
-          <p className="font-black text-[11px] sm:text-[12px] uppercase tracking-wide leading-[1.25] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+          <p className="font-black text-[9.5px] uppercase tracking-wide leading-[1.25] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
             <span className="bg-gradient-to-r from-[#FF8C00] via-[#FF3366] to-[#C77DFF] bg-clip-text text-transparent">
               Scan to watch this channel
             </span>
@@ -236,23 +259,33 @@ export const ChannelQrBug: React.FC<ChannelQrBugProps> = ({
           </p>
 
           {/* Underneath: plajah.com written small with the chevron logo */}
-          <div className="flex items-center gap-1.5 mt-2">
-            <Logo size={14} className="shrink-0" />
-            <span className="text-[10.5px] sm:text-[11.5px] font-bold tracking-wider text-white/85 lowercase">
+          <div className="flex items-center gap-1 mt-1.5">
+            <Logo size={11} className="shrink-0" />
+            <span className="text-[9.5px] font-bold tracking-wider text-white/85 lowercase">
               plajah.com
             </span>
             {channelNumber && (
-              <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/15 text-white/90 border border-white/15 ml-0.5">
+              <span className="text-[8px] font-black uppercase tracking-wider px-1 py-px rounded bg-white/15 text-white/90 border border-white/15 ml-0.5">
                 CH {channelNumber}
               </span>
             )}
           </div>
         </div>
 
+        <button
+          type="button"
+          aria-label="Hide QR code"
+          title="Hide (comes back in 5 minutes)"
+          onClick={dismiss}
+          className="absolute -top-2 -right-2 w-5 h-5 min-h-0 p-0 rounded-full grid place-items-center bg-black/90 border border-white/25 text-white/80 hover:text-white z-10"
+        >
+          <X size={11} strokeWidth={3} />
+        </button>
+
         {/* Copy confirmation toast overlay */}
         {copied && (
-          <div className="absolute inset-0 rounded-2xl bg-black/95 backdrop-blur-sm border border-emerald-500/50 flex items-center justify-center gap-2 text-emerald-400 text-xs font-black uppercase tracking-wider animate-fadeIn">
-            <Check size={14} className="stroke-[3]" /> Link Copied
+          <div className="absolute inset-0 rounded-xl bg-black/95 backdrop-blur-sm border border-emerald-500/50 flex items-center justify-center gap-2 text-emerald-400 text-xs font-black uppercase tracking-wider animate-fadeIn">
+            <Check size={12} className="stroke-[3]" /> Link Copied
           </div>
         )}
       </div>

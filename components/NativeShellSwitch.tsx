@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, ArrowRight, Loader2 } from 'lucide-react';
+import { Sparkles, ArrowRight, Loader2, ChevronRight } from 'lucide-react';
 import { nativeShellAvailable, switchToNativeShell } from '../services/nativeShell';
 
 // "Switch to Native app" — the web-side entry into the native Jetpack Compose shell
@@ -10,8 +10,11 @@ import { nativeShellAvailable, switchToNativeShell } from '../services/nativeShe
 //
 // The reverse switch (Native → Classic) lives in the native shell's own settings,
 // so this side only needs the one direction.
+//
+// variant 'row' is a plain list row — used in the phone's More drawer and the
+// Settings list, so the switch no longer sits as a big banner above everything.
 
-const NativeShellSwitch: React.FC<{ className?: string }> = ({ className }) => {
+const NativeShellSwitch: React.FC<{ className?: string; variant?: 'card' | 'row'; onBeforeSwitch?: () => void }> = ({ className, variant = 'card', onBeforeSwitch }) => {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -21,6 +24,7 @@ const NativeShellSwitch: React.FC<{ className?: string }> = ({ className }) => {
     if (busy) return;
     setBusy(true);
     setFailed(false);
+    onBeforeSwitch?.();
     const ok = await switchToNativeShell();
     // On success the activity is already being torn down and relaunched, so this
     // component unmounts; only a failure path needs to reset UI state.
@@ -29,6 +33,30 @@ const NativeShellSwitch: React.FC<{ className?: string }> = ({ className }) => {
       setBusy(false);
     }
   };
+
+  if (variant === 'row') {
+    return (
+      <button
+        onClick={go}
+        disabled={busy}
+        className={`w-full flex items-center gap-3 pl-3.5 pr-4 py-3 min-h-[56px] text-left active:bg-white/[0.06] disabled:opacity-70 ${className || ''}`}
+      >
+        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#6B0099] to-[#D40055] flex items-center justify-center shrink-0">
+          {busy ? <Loader2 size={17} className="text-white animate-spin" /> : <Sparkles size={17} className="text-white" />}
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="flex items-center gap-2">
+            <span className="text-[15px] font-medium text-white truncate">Native app</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.12em] text-[#FF8C00] bg-[#FF8C00]/15 px-1.5 py-0.5 rounded-full">Beta</span>
+          </span>
+          <span className="block text-xs text-white/40 truncate">
+            {failed ? 'Couldn’t switch — try again' : 'Switch to the fully-native Android experience'}
+          </span>
+        </span>
+        <ChevronRight size={19} className="text-white/25 shrink-0" />
+      </button>
+    );
+  }
 
   return (
     <div className={className}>

@@ -3,6 +3,7 @@ import { ChevronRight, ChevronLeft, LogOut, Search, Settings, Shield } from 'luc
 import { auth } from '../../services/firebase';
 import { UserAvatar } from '../avatar/UserAvatar';
 import NativeShellSwitch from '../NativeShellSwitch';
+import { nativeShellAvailable } from '../../services/nativeShell';
 import {
   SETTINGS_GROUPS, SettingsGroup, SettingsPage, groupOfPage, searchPages, visiblePages,
 } from './settingsMap';
@@ -237,7 +238,6 @@ export const SettingsPhoneMenu: React.FC<Common & {
         <div className="px-4 pt-4 pb-10 space-y-4">
           <ProfileCard who={who} onClick={() => onSelect('PROFILE')} />
           <SearchBox value={q} onChange={setQ} />
-          <NativeShellSwitch />
           {q.trim() ? <Results q={q} can={can} onPick={pick} compact /> : (
             <>
               <div className="px-2 text-[11px] font-black uppercase tracking-[0.2em] text-white/30">All settings</div>
@@ -256,6 +256,14 @@ export const SettingsPhoneMenu: React.FC<Common & {
                     </button>
                   );
                 })}
+              </div>
+            </>
+          )}
+          {!q.trim() && nativeShellAvailable() && (
+            <>
+              <div className="px-2 text-[11px] font-black uppercase tracking-[0.2em] text-white/30">App experience</div>
+              <div className="rounded-3xl bg-white/[0.03] border border-white/8 overflow-hidden">
+                <NativeShellSwitch variant="row" />
               </div>
             </>
           )}

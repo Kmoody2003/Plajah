@@ -1149,6 +1149,17 @@ const LiveTvPlus: React.FC<{
   const [lensStatus, setLensStatus] = useState('');
   const [lutId, setLutId] = useState('');
   const [lookPanel, setLookPanel] = useState<'lens' | 'lut' | null>(null);
+  // Channel identity card (logo / name / account, top-left): shows for 5 seconds on every tune,
+  // then gets out of the picture. The close button hides it early.
+  const IDENT_MS = 5000;
+  const [identVisible, setIdentVisible] = useState(true);
+  const identKey = selected ? (selected.id || selected.number) : '';
+  useEffect(() => {
+    if (!identKey) return;
+    setIdentVisible(true);
+    const t = setTimeout(() => setIdentVisible(false), IDENT_MS);
+    return () => clearTimeout(t);
+  }, [identKey]);
   const channelVideoRef = useRef<HTMLVideoElement | null>(null);
   const fastSlotsRef = useRef<FastChannelSlot[]>([]);
   const fastSchedRef = useRef<FastChannelSchedule | null>(null);
@@ -1519,9 +1530,15 @@ const LiveTvPlus: React.FC<{
           </div>
         )}
 
-        {/* Now-playing overlay (top-left) */}
+        {/* Now-playing overlay (top-left) — fades out after 5s, or on its close button */}
         {selected && (!compact || immersive) && (
-          <div className="absolute top-4 left-4 z-20 max-w-[60%]">
+          <div className={`absolute top-4 left-4 z-20 max-w-[60%] transition-all duration-700 ${identVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}
+            aria-hidden={!identVisible}>
+            <button type="button" aria-label="Hide channel info" title="Hide"
+              onClick={(e) => { e.stopPropagation(); setIdentVisible(false); }}
+              className="absolute -top-2 -right-7 w-6 h-6 min-h-0 p-0 rounded-full grid place-items-center bg-black/70 border border-white/20 text-white/80 hover:text-white">
+              <X size={12} strokeWidth={3} />
+            </button>
             <ChannelLogo src={selected.logo} name={selected.name} size={44} className="mb-2 shadow-lg" />
             <div className="inline-flex items-center gap-2 mb-2">
               <span className="text-[10px] font-black px-2 py-0.5 rounded-md" style={{ background: selected.badge === 'LIVE' ? '#e11' : selected.badge === 'FAST' ? '#36c5f0' : selected.accent, color: '#000' }}>
