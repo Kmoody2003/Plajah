@@ -42,6 +42,7 @@ Wants=plajah-live-auth.service
 [Service]
 User=live
 EnvironmentFile=/etc/plajah-live/env
+StateDirectory=plajah-live
 ExecStart=/opt/mediamtx/mediamtx /opt/mediamtx/mediamtx.yml
 Restart=always
 RestartSec=2

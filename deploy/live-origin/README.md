@@ -55,6 +55,19 @@ on the API. If any value is missing, everything stays on Mux (`services/livewire
 
 Verified 2026-11-26 with a real run (browser-style WebM → relay → origin → Bunny): live after about 7 s, and the segment decodes.
 
+## Recordings (safety net)
+
+Every live is recorded on the box: `/var/lib/plajah-live/rec/live/<streamId>/src/*.mp4` (fMP4, 1 h files,
+**deleted after 7 days**). The playback server is on 127.0.0.1:9996, localhost only. To pull an MP4 for a stream:
+
+```
+ssh -i ~/.ssh/plajah_live root@178.156.241.166 'curl -s "http://127.0.0.1:9996/list?path=live/<streamId>/src"'
+# then GET the returned url (format=mp4) on the box, or scp the file from /var/lib/plajah-live/rec
+```
+
+In-app Go Live replays don't depend on this: the host's device records and uploads them (liveCloudRecorder).
+Automatic replay upload for OBS/encoder streams (origin → Bunny Stream → stream archive) isn't built yet.
+
 ## Redeploy
 
 ```

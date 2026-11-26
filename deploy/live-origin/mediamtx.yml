@@ -28,8 +28,19 @@ hlsSegmentCount: 7
 hlsAlwaysRemux: yes
 hlsAllowOrigins: ['*']
 
+# Playback server (recordings as MP4 by time range), localhost only. The firewall does not open 9996.
+playback: yes
+playbackAddress: 127.0.0.1:9996
+
 pathDefaults:
   overridePublisher: yes
+  # Safety-net recording of every live (fMP4, 1 h files, kept 7 days) until replays are uploaded
+  # to Plajah automatically. Only the 'src' rung matters; a ladder rung would be recorded as well.
+  record: yes
+  recordPath: /var/lib/plajah-live/rec/%path/%Y-%m-%d_%H-%M-%S-%f_%z
+  recordFormat: fmp4
+  recordSegmentDuration: 1h
+  recordDeleteAfter: 168h
 
 paths:
   '~^live/[A-Za-z0-9_-]{6,128}/(src|1080p|720p|480p|360p|av1_1080p|av1_720p|audio)$':
