@@ -13,7 +13,7 @@
  * The scalp is described by an ellipsoid fitted to the head, so the same code styles any head the Forge makes.
  */
 import type { Vec3 } from '../engine';
-import { MeshBuilder, tube } from './wardrobe';
+import { MeshBuilder, tube, sheet } from './wardrobe';
 
 const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -395,6 +395,105 @@ export function locs(s: Scalp, opts: { headBone: string; snap?: Snap; count?: nu
     }
   }
   return { mesh: mb, cord, bones: [] as Chain[], springs: [] as { bones: string[]; stiffness: number; drag: number; gravity: number; radius: number; maxAngle: number }[], guides, tie: s.centre };
+}
+
+/**
+ * Plaited hair (Lexicon's Elder Mira: silver hair swept back, a braid across the crown, two long plaits falling in front
+ * of the shoulders; the back loose to the shoulders). Real geometry like locs: the swept layer is thin tapered tubes
+ * lying on the scalp, each plait three strands turning round a centreline. Rigid on the head.
+ *   frontPlaits  how far the two front plaits fall below the ear, metres (0: none)
+ *   backLength   how far the loose hair falls below the nape (0: gathered)
+ *   crown        a braid across the crown from ear to ear
+ * Returns `mesh` (material 'hair') and `cord` (the ties, material 'gold').
+ */
+export function braids(s: Scalp, opts: { headBone: string; snap?: Snap; count?: number; frontPlaits?: number; backLength?: number; crown?: boolean; thick?: number }) {
+  const mb = new MeshBuilder(), cord = new MeshBuilder();
+  const H = opts.headBone;
+  let r = 29;
+  const rand = () => { r = (r * 16807) % 2147483647; return r / 2147483647; };
+  const count = opts.count ?? 150, back = opts.backLength ?? 0.16, front = opts.frontPlaits ?? 0.42, thick = opts.thick ?? 1;
+  const nape = s.centre[1] - s.radii[1] * 0.55;
+  const outside = (q: Vec3, lift: number) => {
+    const c = sub(q, s.centre), k = (c[0] / s.radii[0]) ** 2 + (c[1] / s.radii[1]) ** 2 + (c[2] / s.radii[2]) ** 2;
+    if (k >= 1 || q[1] < nape) return q;
+    const a = Math.atan2(c[0], c[2]), e = Math.asin(Math.max(-1, Math.min(1, c[1] / s.radii[1])));
+    return scalpPoint(s, a, e, lift).p;
+  };
+  // the mass: a shell of hair over the scalp from the hairline back, standing off it as full hair does (fuller at the
+  // sides), and the loose hair at the back falling from the nape
+  const eLow = (a: number) => (Math.cos(a) > 0 ? 0.1 * Math.cos(a) : -0.6 * -Math.cos(a)) - 0.08 * Math.abs(Math.sin(a));
+  const loft = (a: number, e: number) => (0.018 + (0.03 * Math.abs(Math.sin(a)) + 0.014 * Math.max(0, -Math.cos(a))) * (1 - Math.max(0, e) / 1.7)) * thick;
+  sheet(mb, 48, 16, (u, v) => { const a = -Math.PI + 2 * Math.PI * u, e = eLow(a) + (1.56 - eLow(a)) * v; return scalpPoint(s, a, e, loft(a, e)).p; }, H);
+  if (back > 0) {
+    const fall = (u: number, v: number): Vec3 => {
+      const a = Math.PI - 1.3 + 2.6 * u, top = scalpPoint(s, a, eLow(a), loft(a, eLow(a))).p;
+      return add(top, [Math.sin(a) * 0.012 * v, -back * v, -0.02 * v]);
+    };
+    sheet(mb, 20, 6, fall, H);
+  }
+  // the swept layer: roots along the hairline and over the top, combed back over the crown to the nape, then loose
+  for (let k = 0; k < count; k++) {
+    const a = (rand() - 0.5) * 2 * Math.PI * 0.62;            // front half and the sides
+    const e = 0.05 + rand() * 0.25 + 0.25 * Math.abs(Math.sin(a));
+    const root = scalpPoint(s, a, e, 0.003);
+    const pts: Vec3[] = [];
+    // over the head along the meridian of this azimuth, then down the back
+    const side = Math.sin(a);
+    const steps = 14;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      if (t < 0.7) {
+        const tt = t / 0.7;
+        // swing from the root's azimuth round toward the back, rising over the crown
+        const aa = a + (Math.sign(a || 1) * Math.PI - a) * tt * (Math.abs(side) > 0.7 ? 0.85 : 1);
+        const ee = e + (1.2 - e) * Math.sin(Math.PI * tt) * (1 - 0.5 * Math.abs(side)) - 0.3 * tt * tt;
+        pts.push(scalpPoint(s, aa, ee, loft(aa, ee) + 0.002 + 0.003 * Math.sin(Math.PI * tt)).p);
+      } else {
+        const tt = (t - 0.7) / 0.3, last = pts[pts.length - 1];
+        pts.push(outside(add(last, [side * 0.006, -back / (steps * 0.3), -0.006]), 0.006));
+        void tt;
+      }
+    }
+    if (opts.snap) pts[0] = opts.snap(pts[0], 0.004).p;
+    const rad = (0.0038 + rand() * 0.0016) * thick;
+    tube(mb, pts, (t: number) => rad * (1 - 0.5 * t * t), 5, H);
+  }
+  // a plait: three strands turning round a centreline
+  const plait = (centre: Vec3[], width: number, tie: boolean) => {
+    const n = centre.length;
+    for (let strand = 0; strand < 3; strand++) {
+      const pts: Vec3[] = [];
+      for (let i = 0; i < n; i++) {
+        const c = centre[i], d = norm(sub(centre[Math.min(n - 1, i + 1)], centre[Math.max(0, i - 1)]));
+        const ref: Vec3 = Math.abs(d[1]) > 0.9 ? [0, 0, 1] : [0, 1, 0];
+        const n1 = norm(cross(d, ref)), n2 = cross(n1, d);
+        const ph = strand * (2 * Math.PI / 3) + i * 0.9;
+        const taper = 1 - 0.45 * (i / (n - 1));
+        pts.push(add(c, add(mul(n1, Math.sin(ph) * width * 0.55 * taper), mul(n2, Math.sin(2 * ph) * width * 0.22 * taper))));
+      }
+      tube(mb, pts, (t: number) => width * 0.42 * (1 - 0.4 * t), 6, H);
+    }
+    if (tie) { const a = centre[n - 3], b = centre[n - 2]; tube(cord, [a, b], width * 0.5, 8, H); }
+  };
+  if (opts.crown ?? true) {
+    const c: Vec3[] = [];
+    for (let i = 0; i <= 28; i++) { const a = -1.5 + (3.0 * i) / 28, e = 0.95 - 0.35 * Math.abs(Math.sin(a)) ** 3; c.push(scalpPoint(s, a, e, loft(a, e) + 0.01).p); }
+    plait(c, 0.016 * thick, false);
+  }
+  if (front > 0) {
+    for (const sx of [1, -1]) {
+      // from the temple behind the ear, down in front of the shoulder
+      const top = scalpPoint(s, sx * 1.55, 0.05, 0.01).p;
+      const c: Vec3[] = [];
+      const steps = 22;
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        c.push([top[0] + sx * (0.025 * Math.sin(Math.PI * Math.min(1, t * 3)) + 0.02 * t), top[1] - front * t - 0.03 * Math.min(1, t * 4), top[2] + 0.07 * Math.min(1, t * 2.5)]);
+      }
+      plait(c, 0.02 * thick, true);
+    }
+  }
+  return { mesh: mb, cord, bones: [] as Chain[], springs: [] as { bones: string[]; stiffness: number; drag: number; gravity: number; radius: number; maxAngle: number }[], guides: count, tie: s.centre };
 }
 
 export { lerp, dot };

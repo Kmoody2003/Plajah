@@ -32,7 +32,7 @@ import { spec, WORK_DIR, dataFile, portraitLandmarks, flatLayPieceDir } from './
 import { flatLayPaint } from './forgeKitPaint';
 import { fitFaceToArt, paintHeadFromSheet, HARU_SHEET, loadHeadWarp, headWarpMap, warpField, HEAD_WARP_FILE } from './forgeFaceFit';
 import { CANONICAL_INDICES } from '../../services/vtuber/rigBuilder/canonicalFace';
-import { fitScalp, ponytail, locs, strandAtlas, hairlineAt } from '../../services/argilla/creature/hairSystem';
+import { fitScalp, ponytail, locs, braids, strandAtlas, hairlineAt } from '../../services/argilla/creature/hairSystem';
 import * as THREE from 'three';
 import { buildArkitShapes, ARKIT_SHAPES } from '../../services/vtuber/rigBuilder/arkitShapes';
 import { transferFace } from '../../services/vtuber/rigBuilder/transferFace';
@@ -164,7 +164,9 @@ async function main() {
   const hairStyle = spec.hair?.style ?? 'ponytail';
   const hair = hairStyle === 'locs'
     ? locs(scalp, { headBone: 'Head', snap, count: spec.hair?.count, length: spec.hair?.length })
-    : ponytail(scalp, { headBone: 'Head', columns: 4, snap });
+    : hairStyle === 'braids'
+      ? braids(scalp, { headBone: 'Head', snap, count: spec.hair?.count, frontPlaits: spec.hair?.frontPlaits, backLength: spec.hair?.length, crown: spec.hair?.crown })
+      : ponytail(scalp, { headBone: 'Head', columns: 4, snap });
   // ears (the canonical face has none): on the side of the head, top at the brow, a little behind the head's middle
   const ears = new MeshBuilder();
   for (const sx of [1, -1]) {
@@ -263,7 +265,7 @@ async function main() {
   const armourPrims: GPrim[] = [];
   for (const [mat, mb] of kit.armour) armourPrims.push(rigidPrim(mb, boneIndex, mat, 0));
   // ponytail: strand cards + a silk cord; locs: solid locs + gold cuffs
-  armourPrims.push(rigidPrim(hair.mesh, boneIndex, hairStyle === 'locs' ? 'hair' : 'hairCards', 0), rigidPrim(hair.cord, boneIndex, hairStyle === 'locs' ? 'gold' : 'silk', 0), rigidPrim(ears, boneIndex, 'skin', 0));
+  armourPrims.push(rigidPrim(hair.mesh, boneIndex, hairStyle === 'ponytail' ? 'hairCards' : 'hair', 0), rigidPrim(hair.cord, boneIndex, hairStyle === 'ponytail' ? 'silk' : 'gold', 0), rigidPrim(ears, boneIndex, 'skin', 0));
   if (sayaRig) armourPrims.push(rigidPrim(sayaRig.cord, boneIndex, 'sageo', 0));
   log(`armour: ${armourPrims.reduce((n, p) => n + p.positions.length / 3, 0)} verts in ${armourPrims.length} primitives`);
 

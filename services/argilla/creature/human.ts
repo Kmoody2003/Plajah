@@ -55,8 +55,13 @@ export interface HumanTune {
   musculature: number;
   /** 0 lean … 1 heavy: fat over the muscle. */
   weight: number;
-  /** Years; only shapes the face and posture lightly. */
+  /** Years; only shapes the face and posture lightly (the head's carriage comes from the fitted face, not from here). */
   age: number;
+  /**
+   * 0 male … 1 female (default 0): narrower shoulders and a lighter frame, wider hips and pelvis, a defined waist, the
+   * bust, a slimmer neck. Any value between blends, so a creator can set it to match the art.
+   */
+  sex?: number;
   /**
    * The face's 468 landmarks already placed in metres (rest pose, +z forward), e.g. fitted to a character's art
    * (scripts/eraclash3d/forgeFaceFit.ts). Without it the canonical MediaPipe face is used at an average size.
@@ -156,8 +161,12 @@ const FINGER_PLAN: Record<Exclude<FingerName, 'Thumb'>, { across: number; back: 
 export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
   const k = tune.height / 1.74;
   const P = (x: number, y: number, z: number): Vec3 => [x * k, y * k, z * k];
-  const W = tune.build;
-  const M = tune.musculature, F = tune.weight;
+  const SX = Math.max(0, Math.min(1, tune.sex ?? 0));
+  // a woman's shoulders sit about 10% narrower for her height, her hips about 8% wider
+  const W = tune.build * mix(1, 0.9, SX), HIP = mix(1, 1.1, SX);
+  const M = tune.musculature * mix(1, 0.75, SX), F = tune.weight;
+  // age: past 60 the bust sits lower
+  const STOOP = Math.max(0, Math.min(1, (tune.age - 60) / 25));
   const J = {} as Record<HumanJoint, Vec3>;
   const tips = {} as Record<HumanJoint, Vec3>;
 
@@ -226,8 +235,8 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
     }
   }
 
-  J.LeftUpLeg = P(0.088, 0.925, 0.0);
-  J.LeftLeg = P(0.094, 0.505, 0.012);
+  J.LeftUpLeg = P(0.088 * HIP, 0.925, 0.0);
+  J.LeftLeg = P(0.094 * mix(1, 1.03, SX), 0.505, 0.012);
   J.LeftFoot = P(0.098, 0.082, -0.022);
   J.LeftToeBase = P(0.116, 0.022, 0.118);
   tips.LeftUpLeg = J.LeftLeg; tips.LeftLeg = J.LeftFoot; tips.LeftFoot = J.LeftToeBase; tips.LeftToeBase = P(0.124, 0.02, 0.19);
@@ -248,7 +257,7 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
   // ---- Bones ----------------------------------------------------------------------------------------
   const R = (name: string): number => {
     const b = name.replace(/^(Left|Right)/, '');
-    const m = mix(0.9, 1.15, M) * mix(1, 1.15, F);
+    const m = mix(0.9, 1.15, M) * mix(1, 1.15, F) * (/^(Neck|Arm|ArmTwist|ForeArm|ForeArmTwist|Hand)$/.test(b) ? mix(1, 0.88, SX) : 1);
     const table: Record<string, number> = {
       Hips: 0.12, Spine: 0.11, Spine1: 0.115, Spine2: 0.13, Neck: 0.055, Head: 0.09, Eye: 0.012,
       Shoulder: 0.05, Arm: 0.048, ArmTwist: 0.046, ForeArm: 0.04, ForeArmTwist: 0.034, Hand: 0.028,
@@ -367,9 +376,9 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
 
   for (const sx of [1, -1]) {
     const X = (v: Vec3): Vec3 => [v[0] * sx, v[1], v[2]];
-    // pelvis bowl and the flank above it
-    cone('Hips', X(P(0.06, 0.95, 0.0)), 0.085, X(P(0.075, 1.02, 0.005)), 0.08, 0.04);
-    cone('Spine', X(P(0.055, 1.06, 0.0)), 0.085, X(P(0.06, 1.13, 0.0)), 0.083, 0.04);
+    // pelvis bowl and the flank above it (a woman's pelvis wider, her waist drawn in above it)
+    cone('Hips', X(P(0.06 * HIP, 0.95, 0.0)), 0.085 * mix(1, 1.08, SX), X(P(0.075 * HIP, 1.02, 0.005)), 0.08 * mix(1, 1.02, SX), 0.04);
+    cone('Spine', X(P(0.055 * mix(1, 0.92, SX), 1.06, 0.0)), 0.085 * mix(1, 0.9, SX), X(P(0.06 * mix(1, 0.92, SX), 1.13, 0.0)), 0.083 * mix(1, 0.88, SX), 0.04);
     // rib cage: wider than deep, a pair of eggs leaning in at the top
     cone('Spine1', X(P(0.06, 1.16, 0.005)), 0.092, X(P(0.068, 1.25, 0.005)), 0.1 * W, 0.04);
     cone('Spine2', X(P(0.068, 1.27, 0.0)), 0.1 * W, X(P(0.055, 1.38, -0.01)), 0.085 * W, 0.04);
@@ -379,7 +388,13 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
     cone(S(sideJ, 'Shoulder'), X(P(0.06, 1.38, -0.075)), 0.03, X(P(0.13 * W, 1.41, -0.05)), 0.03, 0.03);
     // pectoral shelf and the buttock line
     cone('Spine2', X(P(0.045, 1.33, 0.07)), 0.045, X(P(0.11, 1.35, 0.045)), 0.04, 0.03);
-    cone('Hips', X(P(0.07, 0.94, -0.05)), 0.075, X(P(0.08, 0.88, -0.04)), 0.07, 0.04, S(sideJ, 'UpLeg'));
+    cone('Hips', X(P(0.07 * HIP, 0.94, -0.05)), 0.075 * mix(1, 1.08, SX), X(P(0.08 * HIP, 0.88, -0.04)), 0.07 * mix(1, 1.08, SX), 0.04, S(sideJ, 'UpLeg'));
+    // the bust: over the pectoral shelf, lower and fuller with weight and age
+    if (SX > 0.05) {
+      const sag = 0.012 * STOOP + 0.008 * F;
+      const at = X(P(0.058, 1.305 - sag, 0.085 + 0.012 * SX));
+      cone('Spine2', X(P(0.05, 1.335, 0.06)), 0.04 * SX, at, 0.048 * SX * mix(0.9, 1.15, F), 0.035);
+    }
   }
   // belly front and the neck
   // the belly: flat and held over trained abdominals, rounder with weight
@@ -393,7 +408,7 @@ export function buildHumanAnatomy(tune: HumanTune = HARU_TUNE): HumanAnatomy {
   }
   const neckR = hf.neck ?? 1;
   // with a fitted head the neck meets the skull further back and lower, leaving the angle under the chin open
-  cone('Neck', P(0, 1.44, -0.015), 0.058 * neckR, HX(tune.head ? P(0, 1.57, -0.022) : P(0, 1.58, -0.005)), 0.05 * neckR, 0.03, 'Head');
+  cone('Neck', P(0, 1.44, -0.015), 0.058 * neckR * mix(1, 0.86, SX), HX(tune.head ? P(0, 1.57, -0.022) : P(0, 1.58, -0.005)), 0.05 * neckR, 0.03, 'Head');
 
   for (const s of ['Left', 'Right'] as HumanSide[]) {
     const j = (n: string) => J[S(s, n)];

@@ -1,0 +1,321 @@
+{
+  "note": "Written by forge context (forgeContext.ts) from the Heritage Codex, the flat-lay, Plajah's museum layer and the Combat Atlas. Confirm or override with a \"context\" block in forge.json.",
+  "recognised": {
+    "archetype": {
+      "id": "elder",
+      "label": "Elder",
+      "confidence": 1,
+      "cues": [
+        "spec context"
+      ],
+      "runnerUp": {
+        "id": "civilian",
+        "confidence": 0.736
+      }
+    },
+    "tradition": {
+      "id": "fantasy-village",
+      "culture": "Fantasy village (Lexicon, Glossa Hollow)",
+      "era": "Invented; late-medieval European dress",
+      "years": [
+        1300,
+        1500
+      ],
+      "confidence": 1,
+      "cues": [
+        "spec context"
+      ],
+      "runnerUp": {
+        "id": "jp-sengoku",
+        "confidence": 0
+      }
+    }
+  },
+  "body": {
+    "bounds": {
+      "build": [
+        0.82,
+        0.94,
+        1.04
+      ],
+      "musculature": [
+        0,
+        0.15,
+        0.35
+      ],
+      "weight": [
+        0.1,
+        0.32,
+        0.6
+      ]
+    },
+    "why": "Elder: the anatomy's sliders are searched inside these"
+  },
+  "bearing": {
+    "label": "settled",
+    "chest": -2,
+    "chin": 2,
+    "shoulders": 2,
+    "stanceWidth": 0.95,
+    "knees": 3,
+    "notes": [
+      "The upper back rounds a little and the head carries forward; the weight sits back on the heels.",
+      "Hands rest low and still; nothing is braced for."
+    ]
+  },
+  "studies": [],
+  "arms": [],
+  "companions": [],
+  "wear": [
+    "Keys, purses and books hang from a girdle or belt at the hip, as medieval householders and scholars carried them."
+  ],
+  "museum": {
+    "searched": "2026-11-26",
+    "objects": [
+      {
+        "q": "medieval gown",
+        "title": "Tea gown",
+        "date": "ca. 1885",
+        "culture": "British",
+        "medium": "silk",
+        "museum": "The Metropolitan Museum of Art",
+        "url": "https://www.metmuseum.org/art/collection/search/158314",
+        "image": "https://images.metmuseum.org/CRDImages/ci/web-large/86.172_front_CP4.jpg"
+      },
+      {
+        "q": "medieval gown",
+        "title": "E29: English Roman Catholic Church in the Gothic Style, 1275–1300",
+        "date": "c. 1937",
+        "culture": "Designed by Narcissa Niblack Thorne",
+        "medium": "Miniature room, mixed media",
+        "museum": "Art Institute of Chicago",
+        "url": "https://www.artic.edu/artworks/43784",
+        "image": "https://www.artic.edu/iiif/2/8e29271d-e364-1a31-79f6-957c68097496/full/500,/0/default.jpg"
+      },
+      {
+        "q": "medieval gown",
+        "title": "Enthroned Virgin and Child",
+        "date": "c. 1480",
+        "culture": "Spain, Burgos, 15th century",
+        "medium": "alabaster with traces of gilding and polychromy",
+        "museum": "Cleveland Museum of Art",
+        "url": "https://clevelandart.org/art/2008.145",
+        "image": "https://openaccess-cdn.clevelandart.org/2008.145/2008.145_web.jpg"
+      },
+      {
+        "q": "medieval gown",
+        "title": "Pier Gonella live 2026",
+        "date": "2026-07-04",
+        "culture": "Demetrio99",
+        "medium": "Pier Gonella live in 2026",
+        "museum": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Pier_Gonella_live_2026.jpg",
+        "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/45/Pier_Gonella_live_2026.jpg/960px-Pier_Gonella_live_2026.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail"
+      },
+      {
+        "q": "medieval gown",
+        "title": "兜跋毘沙門天立像",
+        "date": "12世紀",
+        "culture": "Japan Search",
+        "medium": "cultural, art",
+        "museum": "Japan Search",
+        "url": "https://colbase.nich.go.jp/collection_items/narahaku/754-0",
+        "image": "https://colbase.nich.go.jp/media/narahaku/754-0/image/slideshow_s/D018342.jpg"
+      },
+      {
+        "q": "medieval gown",
+        "title": "Martyrdom of Saint Barbara",
+        "date": "1480/1490",
+        "culture": "German 15th Century",
+        "medium": "woodcut in brown, hand-colored in red lake, green, blue, yellow, gold, and orange",
+        "museum": "National Gallery of Art",
+        "url": "https://www.nga.gov/artworks/3799",
+        "image": "https://api.nga.gov/iiif/cce56715-ae8b-493c-a78e-66b6aa37d1a5/full/!600,600/0/default.jpg"
+      },
+      {
+        "q": "girdle book",
+        "title": "Girdle",
+        "date": "late 16th or early 17th century",
+        "culture": "Unknown",
+        "medium": "Silver gilt",
+        "museum": "The Metropolitan Museum of Art",
+        "url": "https://www.metmuseum.org/art/collection/search/198822",
+        "image": "https://images.metmuseum.org/CRDImages/es/web-large/125040.jpg"
+      },
+      {
+        "q": "girdle book",
+        "title": "Neues Bild-und Musterbuch (New Picture and Sample Book)",
+        "date": "1771",
+        "culture": "Johann Michael Kirschbaum (German, active c. 1771)",
+        "medium": "Paper; printed",
+        "museum": "Art Institute of Chicago",
+        "url": "https://www.artic.edu/artworks/6618",
+        "image": "https://www.artic.edu/iiif/2/a550f2e1-d5d1-856f-74f0-41b7b9aba875/full/500,/0/default.jpg"
+      },
+      {
+        "q": "girdle book",
+        "title": "Girdlebook-Nuremberg-GN-Hs17231",
+        "date": "1471",
+        "culture": "Unknown authorUnknown author",
+        "medium": "",
+        "museum": "Wikimedia Commons",
+        "url": "https://commons.wikimedia.org/wiki/File:Girdlebook-Nuremberg-GN-Hs17231.png",
+        "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c1/Girdlebook-Nuremberg-GN-Hs17231.png/960px-Girdlebook-Nuremberg-GN-Hs17231.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail"
+      },
+      {
+        "q": "girdle book",
+        "title": "Fotoreproductie van een prent van de omslag van The Girdle Book, een gebedenboek uit 1540-1576",
+        "date": "c. 1866 - in or before 1876",
+        "culture": "Rijksmuseum",
+        "medium": "",
+        "museum": "Rijksmuseum",
+        "url": "https://www.rijksmuseum.nl/en/collection/RP-F-2001-7-63-1",
+        "image": "https://iiif.micr.io/IlKGY/full/600,/0/default.jpg"
+      },
+      {
+        "q": "girdle book",
+        "title": "七大寺日記",
+        "date": "13世紀",
+        "culture": "Japan Search",
+        "medium": "cultural, art",
+        "museum": "Japan Search",
+        "url": "https://colbase.nich.go.jp/collection_items/narahaku/792-0",
+        "image": "https://colbase.nich.go.jp/media/narahaku/792-0/image/slideshow_s/H029882.jpg"
+      },
+      {
+        "q": "girdle book",
+        "title": "Chinese woodcut: Shingles and other itchy rashes",
+        "date": "",
+        "culture": "Wellcome Collection",
+        "medium": "Digital Images",
+        "museum": "Wellcome Collection",
+        "url": "https://wellcomecollection.org/works/w57xyf3g",
+        "image": "https://iiif.wellcomecollection.org/image/L0038805/full/!600,600/0/default.jpg"
+      },
+      {
+        "q": "medieval spectacles",
+        "title": "Bookcase (one of a pair)",
+        "date": "ca. 1715",
+        "culture": "Niccolo Michetti",
+        "medium": "Walnut and poplar; iron hinges and locks, metal wire; antique silk and linen brocatelle door curtains (not original)",
+        "museum": "The Metropolitan Museum of Art",
+        "url": "https://www.metmuseum.org/art/collection/search/236757",
+        "image": "https://images.metmuseum.org/CRDImages/es/web-large/DP106709.jpg"
+      },
+      {
+        "q": "medieval spectacles",
+        "title": "Table Fountain",
+        "date": "c. 1320–40",
+        "culture": "France, Paris",
+        "medium": "gilt-silver and translucent enamels",
+        "museum": "Cleveland Museum of Art",
+        "url": "https://clevelandart.org/art/1924.859",
+        "image": "https://openaccess-cdn.clevelandart.org/1924.859/1924.859_web.jpg"
+      },
+      {
+        "q": "medieval spectacles",
+        "title": "日本書紀巻第十残巻（紙背　性霊集）",
+        "date": "9世紀",
+        "culture": "Japan Search",
+        "medium": "cultural, art",
+        "museum": "Japan Search",
+        "url": "https://colbase.nich.go.jp/collection_items/narahaku/1190-0",
+        "image": "https://colbase.nich.go.jp/media/narahaku/1190-0/image/slideshow_s/H031228.jpg"
+      },
+      {
+        "q": "medieval spectacles",
+        "title": "Turkish men riding on horseback in a tournament watched by people on a balcony. Engraving by J.B. Liénard after J.B. Hilaire.",
+        "date": "1782",
+        "culture": "Jean Baptiste Hilaire",
+        "medium": "Pictures",
+        "museum": "Wellcome Collection",
+        "url": "https://wellcomecollection.org/works/wwu9zqk2",
+        "image": "https://iiif.wellcomecollection.org/image/V0040449/full/!600,600/0/default.jpg"
+      },
+      {
+        "q": "medieval spectacles",
+        "title": "Saint Benedict Presenting his Rule to Benedictine and Cistercian Monks in a Historiated Initial \"O\" from a Choirbook",
+        "date": "1394/95",
+        "culture": "Italian (Siena)",
+        "medium": "Manuscript cutting with tempera and gold leaf, with rounded gothica textualis inscriptions in black ink, ruled in red, on parchment",
+        "museum": "Art Institute of Chicago",
+        "url": "https://www.artic.edu/artworks/10927",
+        "image": "https://www.artic.edu/iiif/2/54f0b704-7108-5b91-1d0f-585758267fb4/full/500,/0/default.jpg"
+      },
+      {
+        "q": "chatelaine keys medieval",
+        "title": "Chatelaine",
+        "date": "fourth quarter 19th century",
+        "culture": "probably French",
+        "medium": "metal, enamel, paper",
+        "museum": "The Metropolitan Museum of Art",
+        "url": "https://www.metmuseum.org/art/collection/search/156786",
+        "image": "https://images.metmuseum.org/CRDImages/ci/web-large/61.148.14a-b_CP4.jpg"
+      },
+      {
+        "q": "chatelaine keys medieval",
+        "title": "多聞天立像",
+        "date": "11～12世紀",
+        "culture": "Japan Search",
+        "medium": "cultural, art",
+        "museum": "Japan Search",
+        "url": "https://colbase.nich.go.jp/collection_items/narahaku/755-0",
+        "image": "https://colbase.nich.go.jp/media/narahaku/755-0/image/slideshow_s/H063468.jpg"
+      },
+      {
+        "q": "chatelaine keys medieval",
+        "title": "Chatelaine with calendar",
+        "date": "probably late 18th century",
+        "culture": "Unknown",
+        "medium": "Steel, enameled gold",
+        "museum": "The Metropolitan Museum of Art",
+        "url": "https://www.metmuseum.org/art/collection/search/238870",
+        "image": "https://images.metmuseum.org/CRDImages/es/web-large/DP-17550-025.jpg"
+      },
+      {
+        "q": "chatelaine keys medieval",
+        "title": "十一面観音立像",
+        "date": "12世紀",
+        "culture": "Japan Search",
+        "medium": "cultural, art",
+        "museum": "Japan Search",
+        "url": "https://colbase.nich.go.jp/collection_items/narahaku/832-0",
+        "image": "https://colbase.nich.go.jp/media/narahaku/832-0/image/slideshow_s/D018347.jpg"
+      },
+      {
+        "q": "chatelaine keys medieval",
+        "title": "Watch and chatelaine",
+        "date": "ca. 1775",
+        "culture": "V. Blanck",
+        "medium": "Gold, agate, diamonds, sapphires, rubies, emeralds, carnelian",
+        "museum": "The Metropolitan Museum of Art",
+        "url": "https://www.metmuseum.org/art/collection/search/196968",
+        "image": "https://images.metmuseum.org/CRDImages/es/web-large/DP-44908-001.jpg"
+      },
+      {
+        "q": "chatelaine keys medieval",
+        "title": "未来を拓いた「一本の水路」－大久保利通“最期の夢”と開拓者の軌跡　郡山・猪苗代－　ストーリー動画",
+        "date": "",
+        "culture": "Japan Search",
+        "medium": "cultural, regional",
+        "museum": "Japan Search",
+        "url": "https://cb.bunka.go.jp/ja/contents/e5cf72d2-4ca1-4a90-9b68-1a0ece2ac4e5",
+        "image": "https://players.streaks.jp/fourmix/ce3425b1b3594dc196665f4190b2c011/index.html?m=adde763d05e44e4d95abb605c528fbf7"
+      }
+    ],
+    "materials": {
+      "gold": 4,
+      "silk": 2,
+      "silver": 2,
+      "paper": 2,
+      "wood": 1,
+      "iron": 1,
+      "steel": 1
+    }
+  },
+  "atlas": [],
+  "sources": [
+    "Kenne, Lexicon villager design sheets (Word gaem, 2026)",
+    "Margaret Scott, Medieval Dress and Fashion (British Library, 2007)"
+  ]
+}

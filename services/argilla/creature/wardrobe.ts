@@ -394,6 +394,15 @@ export const PIECES: Record<string, { params: (keyof ArmourFit)[]; body?: boolea
   backpack: { params: [], note: 'leather satchel-pack on the back, two shoulder straps' },
   compass: { params: [], note: 'brass cipher-compass on a chain at the belt' },
   quillStaff: { params: [], note: 'the quill-staff in the right hand (its mesh is built by the Forge build)' },
+  // village kits (Lexicon's villagers, Kenne's design sheets + turnarounds): built from the body's joints, any height
+  gown: { params: [], note: 'long gown: fitted bodice to the neck, the skirt to the ankle (cloth)' },
+  overrobe: { params: [], note: 'open over-robe from the shoulders to mid-calf, bell sleeves, embroidered borders (cloth)' },
+  capelet: { params: [], note: 'hooded shoulder capelet closed at the throat with a brooch, the hood down (cloth)' },
+  wideSash: { params: [], note: 'wide woven sash wrapped at the waist, its two ends hanging in front' },
+  beltPouch: { params: [], note: 'narrow belt low on the hips with a leather pouch on the right' },
+  keys: { params: [], note: 'two iron keys on a ring at the belt' },
+  tome: { params: [], note: 'a leather-bound chronicle with brass corners hanging at the left hip' },
+  spectacles: { params: [], note: 'round wire-rimmed spectacles' },
 };
 /** Kits as piece lists. A spec names one ("kit": "tosei-gusoku") or composes its own ({ preset, pieces, add, without }). */
 export const KIT_PRESETS: Record<string, string[]> = {
@@ -402,6 +411,8 @@ export const KIT_PRESETS: Record<string, string[]> = {
   'kosode-hakama': ['hakama', 'eri', 'kosode', 'obi', 'hachimaki', 'waraji', 'tabi', 'katana', 'chonmage'],
   // Lexicon's Scribe (Word gaem turnaround): leathers over linen, the navy hooded cloak, pack, compass and quill-staff
   'scholar-adventurer': ['jerkin', 'shirt', 'trousers', 'boots', 'gloves', 'belt', 'bracers', 'pauldrons', 'cloak', 'backpack', 'compass', 'quillStaff'],
+  // Lexicon's Elder Mira (town matriarch & chronicler): plum gown, blue over-robe, purple hooded capelet, woven sash
+  'elder-chronicler': ['gown', 'overrobe', 'capelet', 'wideSash', 'beltPouch', 'keys', 'tome', 'spectacles', 'boots'],
 };
 export type KitSpec = string | { preset?: string; pieces?: string[]; add?: string[]; without?: string[] };
 /** A kit spec resolved to its pieces, in build order. */
@@ -1167,6 +1178,193 @@ function kitOf(anatomy: HumanAnatomy, field: Field, fit: ArmourFit, wanted: Set<
   }
 
   pieceF('quillStaff', 'The quill-staff: brass-wound shaft, a feather blade of light (built by the Forge build in the right hand)');
+
+  // ==== Village kits (Lexicon's villagers; Kenne's design sheets and their turnarounds) ============================
+  // Heights come from the body's own joints (kH = height / 1.74), so the same pieces dress a tall guard or a small
+  // elder. θ runs round the body: 0 = +x (the wearer's left), π/2 = front.
+  const REF_VILLAGE = ['Lexicon villager design sheets and turnarounds (Kenne, Word gaem/Nov 24 - 22_56, 2026-11-25)'];
+  const pieceV = (id: string, label: string) => { current = id; if (wanted.has(id)) w.pieces.push({ id, label, era: ERA_FANTASY, refs: REF_VILLAGE }); };
+  const kH = anatomy.tune.height / 1.74;
+  const hipY = J('Hips')[1], waistY = J('Spine')[1] - 0.015 * kH, neckY = J('Neck')[1], shY = J('LeftArm')[1];
+  const ankleY = J('LeftFoot')[1] + 0.035 * kH, kneeY = J('LeftLeg')[1];
+  const trunkR = (a: number, y: number) => { const sc = sec(Math.max(0.95 * kH, Math.min(1.45 * kH, y))); return { r: sc.radius(a), cz: sc.cz }; };
+  // the gown's skirt: from the waist, out over the hips, then falling with a gentle flare to the ankle
+  const skirtTop = waistY + 0.01 * kH;
+  const gownR = (a: number, y: number) => {
+    const v = Math.max(0, Math.min(1, (skirtTop - y) / (skirtTop - ankleY)));
+    const t = trunkR(a, Math.max(y, hipY - 0.04 * kH));
+    return { r: t.r + 0.018 + (0.04 * smooth01(v * 2.2) + 0.012 * v * v) * kH, cz: t.cz, v };
+  };
+  const ringAt = (y: number, f: (a: number) => number, cz: (a: number) => number, a0 = 0, a1 = Math.PI * 2, n = 48): Vec3[] => {
+    const out: Vec3[] = [];
+    for (let k = 0; k <= n; k++) { const a = a0 + (a1 - a0) * (k / n); const r = f(a); out.push([Math.cos(a) * r, y, cz(a) + Math.sin(a) * r]); }
+    return out;
+  };
+
+  pieceV('gown', 'Long gown: a fitted bodice to the neck, the skirt to the ankle');
+  {
+    const yHi = neckY - 0.01 * kH;
+    sheet(Cl('gown'), 64, 14, (u, v) => {
+      const a = u * Math.PI * 2, y = skirtTop + (yHi - skirtTop) * v, t = trunkR(a, y);
+      const r = t.r + 0.01 + (v > 0.9 ? (v - 0.9) * 0.1 : 0);
+      return [Math.cos(a) * r, y, t.cz + Math.sin(a) * r];
+    }, (u, v) => trunkBone((skirtTop + (yHi - skirtTop) * v) / kH), [2, 0.6]);
+    const f = (u: number, v: number): Vec3 => {
+      const a = u * Math.PI * 2, y = skirtTop - (skirtTop - ankleY) * v, g = gownR(a, y);
+      return [Math.cos(a) * g.r, y, g.cz + Math.sin(a) * g.r];
+    };
+    sheet(Cl('gown'), 72, 22, f, 'Hips', [2.6, 1.2]);
+    w.clothSims.push(clothGrid('gown', 'gown', 28, 14, f, (v) => ({ pin: v < 0.07 ? 1 : 0, maxDist: v < 0.07 ? 0 : 0.14 * v * kH }), { drive: 2, damping: 1.2, radius: 0.02 }));
+    // the embroidered hem
+    tube(Cl('trim'), ringAt(ankleY + 0.02 * kH, (a) => gownR(a, ankleY + 0.02 * kH).r + 0.004, (a) => gownR(a, ankleY).cz, 0, Math.PI * 2, 72), 0.008, 4, 'Hips', 0.4);
+  }
+
+  pieceV('overrobe', 'Open over-robe: from the shoulders to mid-calf, open down the front, bell sleeves, embroidered borders');
+  {
+    const yTop = neckY - 0.03 * kH, yHem = kneeY - 0.2 * kH, gap = 0.42;
+    const aFrom = Math.PI / 2 + gap, aTo = Math.PI / 2 + 2 * Math.PI - gap;
+    const robeR = (a: number, y: number) => {
+      const t = trunkR(a, y), shoulder = 0.025 * (1 - smooth01((yTop - y) / (0.12 * kH))) * Math.abs(Math.cos(a));
+      const below = y < skirtTop ? gownR(a, y).r + 0.016 : 0;
+      // wool over wool: it stands off the body, and below the chest it falls in an A-line, widest at the sides and behind
+      const fall = Math.max(0, Math.min(1, (yTop - 0.18 * kH - y) / (yTop - 0.18 * kH - yHem)));
+      const flare = (0.035 + (0.13 * Math.abs(Math.cos(a)) + 0.07 * Math.max(0, -Math.sin(a)) + 0.03) * smooth01(fall * 1.3)) * kH;
+      return { r: Math.max(t.r + 0.024 + shoulder + flare, below + flare * 0.5), cz: t.cz };
+    };
+    const f = (u: number, v: number): Vec3 => {
+      const a = aFrom + (aTo - aFrom) * u, y = yTop - (yTop - yHem) * v, R = robeR(a, y);
+      return [Math.cos(a) * R.r, y, R.cz + Math.sin(a) * R.r];
+    };
+    sheet(Cl('robe'), 60, 26, f, (u, v) => { const y = yTop - (yTop - yHem) * v; return y < hipY ? 'Hips' : trunkBone(y / kH); }, [2.4, 1.4]);
+    const sim = clothGrid('overrobe', 'robe', 22, 14, f, (v) => { const y = yTop - (yTop - yHem) * v; const pinned = y > skirtTop; return { pin: pinned ? 1 : 0, maxDist: pinned ? 0 : 0.12 * v * kH }; }, { drive: 2, damping: 1.2, radius: 0.02 });
+    sim.wrapU = false;
+    w.clothSims.push(sim);
+    // borders: down both front edges and round the hem
+    for (const u of [0.002, 0.998]) { const edge: Vec3[] = []; for (let k = 0; k <= 26; k++) edge.push(f(u, k / 26)); tube(Cl('trim'), edge, 0.012, 4, (t) => (yTop - (yTop - yHem) * t < hipY ? 'Hips' : 'Spine1'), 0.35); }
+    const hem: Vec3[] = []; for (let k = 0; k <= 60; k++) hem.push(f(k / 60, 0.985));
+    tube(Cl('trim'), hem, 0.014, 4, 'Hips', 0.35);
+    // bell sleeves over each arm, the cuff with an embroidered band
+    for (const sd of ['Left', 'Right'] as const) {
+      const sh = J(`${sd}Arm` as HumanJoint), el = J(`${sd}ForeArm` as HumanJoint), wr = J(`${sd}Hand` as HumanJoint);
+      const along = (t: number): Vec3 => (t < 0.5 ? lerp(sh, el, t * 2) : lerp(el, wr, (t - 0.5) * 2 * 0.86));
+      const dir = (t: number): Vec3 => norm(t < 0.5 ? sub(el, sh) : sub(wr, el));
+      const rad = (t: number) => (0.066 - 0.006 * Math.min(1, t * 2) + 0.05 * smooth01((t - 0.5) / 0.5)) * kH;
+      const sf = (u: number, v: number): Vec3 => {
+        const c = along(v), d = dir(v), ref: Vec3 = Math.abs(d[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+        const e1 = norm(cross(d, ref)), e2 = cross(e1, d), a = u * Math.PI * 2;
+        // the bell hangs: its lower side drops further than its upper
+        const sag = 0.025 * kH * smooth01((v - 0.6) / 0.4) * Math.max(0, -Math.sin(a));
+        return add(add(c, mul(norm(add(mul(e1, Math.cos(a)), mul(e2, Math.sin(a)))), rad(v))), [0, -sag, 0]);
+      };
+      sheet(Cl('robe'), 28, 14, sf, (u, v) => (v < 0.5 ? `${sd}Arm` : `${sd}ForeArm`), [0.8, 0.8]);
+      const cuff: Vec3[] = []; for (let k = 0; k <= 28; k++) cuff.push(sf(k / 28, 0.995));
+      tube(Cl('trim'), cuff, 0.016, 4, `${sd}ForeArm`, 0.35);
+    }
+  }
+
+  pieceV('capelet', 'Hooded shoulder capelet: over the shoulders to the upper arm, pointed at the back, a brooch at the throat');
+  {
+    const yTop = neckY + 0.012 * kH, drop = 0.2 * kH;
+    const f = (u: number, v: number): Vec3 => {
+      const a = Math.PI / 2 + u * Math.PI * 2, backness = Math.max(0, -Math.sin(a)), sideness = Math.abs(Math.cos(a));
+      const y = yTop - (drop + 0.12 * kH * sideness + 0.18 * kH * backness * backness) * v;
+      const t = trunkR(a, Math.max(y, shY - 0.1 * kH));
+      // over the shoulder caps, then down the tops of the arms: the A-pose carries the arm out ~0.9 m per metre it drops
+      const overArm = sideness ** 1.2 * Math.max(0, (shY + 0.03 * kH - y) * 0.95 + 0.035 * kH);
+      const r = t.r + 0.035 * kH + overArm + 0.025 * kH * v;
+      return [Math.cos(a) * r, y, t.cz + Math.sin(a) * r];
+    };
+    sheet(Cl('capelet'), 56, 12, f, 'Spine2', [2, 0.6]);
+    const hem: Vec3[] = []; for (let k = 0; k <= 56; k++) hem.push(f(k / 56, 0.99));
+    tube(Cl('trim'), hem, 0.01, 4, 'Spine2', 0.35);
+    // the hood, down: a soft fold of cloth behind the neck
+    tube(Cl('capelet'), ringAt(yTop + 0.045 * kH, (a) => trunkR(a, neckY - 0.02 * kH).r + 0.06 + 0.05 * Math.max(0, -Math.sin(a)), (a) => trunkR(a, neckY).cz, Math.PI / 2 + 0.9, Math.PI / 2 + 2 * Math.PI - 0.9, 24), (t) => (0.025 + 0.05 * Math.sin(Math.PI * t)) * kH, 12, 'Spine2', 0.75);
+    // the brooch at the throat
+    const t = trunkR(Math.PI / 2, neckY - 0.03 * kH), c: Vec3 = [0, neckY - 0.035 * kH, t.cz + t.r + 0.045];
+    plate(A('brass'), 10, 2, (u, v) => [c[0] + Math.cos(u * Math.PI * 2) * 0.022 * v * kH, c[1] + Math.sin(u * Math.PI * 2) * 0.022 * v * kH, c[2]], 0.006, 'Spine2');
+  }
+
+  pieceV('wideSash', 'Wide woven sash wrapped at the waist, its two ends hanging in front with fringes');
+  {
+    const y0 = waistY - 0.045 * kH, y1 = waistY + 0.05 * kH;
+    const sr = (a: number, y: number) => Math.max(trunkR(a, y).r + 0.05, y < skirtTop ? gownR(a, y).r + 0.03 : 0);
+    sheet(Cl('sash'), 72, 4, (u, v) => { const a = u * Math.PI * 2, y = y0 + (y1 - y0) * v, t = trunkR(a, y); const r = sr(a, y); return [Math.cos(a) * r, y, t.cz + Math.sin(a) * r]; }, 'Spine', [2, 0.15]);
+    // the knot's two ends: hanging just right of centre to the knee
+    for (const [da, len] of [[0.18, 0.42], [0.32, 0.36]] as [number, number][]) {
+      const a = Math.PI / 2 + da, t = trunkR(a, waistY);
+      const r0 = sr(a, waistY) + 0.008;
+      const top: Vec3 = [Math.cos(a) * r0, waistY, t.cz + Math.sin(a) * r0];
+      const out = norm([Math.cos(a), 0, Math.sin(a)]), right = norm(cross([0, 1, 0], out));
+      const endF = (u: number, v: number): Vec3 => {
+        const y = waistY - len * kH * v;
+        const push = Math.max(0, (y < skirtTop ? gownR(a, y).r + 0.03 : 0) - r0);
+        return add(add(add(top, mul(right, (u - 0.5) * 0.075 * kH)), [0, -len * kH * v, 0]), mul(out, push));
+      };
+      plate(A('sash'), 3, 10, endF, 0.004, 'Hips', [0.3, 0.8]);
+      for (let k = 0; k < 6; k++) { const p0 = endF(k / 5, 1); tube(A('trim'), [p0, add(p0, [0, -0.04 * kH, 0.002])], 0.0025, 3, 'Hips'); }
+    }
+  }
+
+  pieceV('beltPouch', 'Narrow leather belt low on the hips with a tooled pouch on the right');
+  {
+    const yb = hipY - 0.03 * kH;
+    const br = (a: number) => (yb < skirtTop ? gownR(a, yb).r : trunkR(a, yb).r) + 0.03;
+    sheet(Cl('belt'), 72, 2, (u, v) => { const a = u * Math.PI * 2, y = yb - 0.012 * kH + v * 0.024 * kH; const r = br(a); return [Math.cos(a) * r, y, trunkR(a, yb).cz + Math.sin(a) * r]; }, 'Hips', [3, 0.1]);
+    const a = Math.PI / 2 + 0.9, r = br(a) + 0.035, cz = trunkR(a, yb).cz;
+    const c: Vec3 = [Math.cos(a) * r, yb - 0.08 * kH, cz + Math.sin(a) * r];
+    const out = norm([Math.cos(a), 0, Math.sin(a)]), side = norm(cross([0, 1, 0], out));
+    plate(A('pack'), 3, 3, (u, v) => add(add(c, mul(side, (u - 0.5) * 0.11 * kH)), [0, (v - 0.5) * 0.1 * kH, 0]), 0.04, 'Hips');
+    plate(A('pack'), 3, 2, (u, v) => add(add(add(c, mul(side, (u - 0.5) * 0.115 * kH)), [0, (0.02 + v * 0.03) * kH, 0]), mul(out, 0.022 + v * 0.004)), 0.006, 'Hips');
+  }
+
+  pieceV('keys', 'Two iron keys on a ring at the belt');
+  {
+    const yb = hipY - 0.04 * kH, a = Math.PI / 2 + 0.5;
+    const r = (yb < skirtTop ? gownR(a, yb).r : trunkR(a, yb).r) + 0.045, cz = trunkR(a, yb).cz;
+    const ring: Vec3 = [Math.cos(a) * r, yb, cz + Math.sin(a) * r];
+    const side = norm(cross([0, 1, 0], [Math.cos(a), 0, Math.sin(a)]));
+    const loop: Vec3[] = []; for (let k = 0; k <= 16; k++) { const t = (k / 16) * Math.PI * 2; loop.push(add(ring, add(mul(side, Math.cos(t) * 0.018), [0, Math.sin(t) * 0.018, 0]))); }
+    tube(A('iron'), loop, 0.003, 4, 'Hips');
+    for (const [dx, len] of [[-0.01, 0.1], [0.012, 0.085]] as [number, number][]) {
+      const top = add(ring, add(mul(side, dx), [0, -0.018, 0]));
+      const bow: Vec3[] = []; for (let k = 0; k <= 12; k++) { const t = (k / 12) * Math.PI * 2; bow.push(add(top, add(mul(side, Math.cos(t) * 0.011), [0, -0.012 + Math.sin(t) * 0.011, 0]))); }
+      tube(A('iron'), bow, 0.0028, 4, 'Hips');
+      const bottom = add(top, [0, -len * kH, 0]);
+      tube(A('iron'), [add(top, [0, -0.024, 0]), bottom], 0.0035, 5, 'Hips');
+      plate(A('iron'), 1, 1, (u, v) => add(add(bottom, mul(side, u * 0.02)), [0, v * 0.022, 0]), 0.004, 'Hips');
+    }
+  }
+
+  pieceV('tome', 'A leather-bound chronicle with brass corners hanging at the left hip');
+  {
+    const yb = hipY - 0.06 * kH, a = Math.PI / 2 - 0.95;
+    const r = (yb < skirtTop ? gownR(a, yb).r : trunkR(a, yb).r) + 0.045, cz = trunkR(a, yb).cz;
+    const c: Vec3 = [Math.cos(a) * r, yb - 0.04 * kH, cz + Math.sin(a) * r];
+    const out = norm([Math.cos(a), 0, Math.sin(a)]), side = norm(cross([0, 1, 0], out));
+    const Wb = 0.075 * kH, Hb = 0.105 * kH, D = 0.05 * kH;
+    plate(A('pack'), 3, 3, (u, v) => add(add(add(c, mul(side, (u - 0.5) * 2 * Wb)), [0, (v - 0.5) * 2 * Hb, 0]), mul(out, D * 0.5)), D, 'Hips');
+    plate(A('parchment'), 2, 2, (u, v) => add(add(add(c, mul(side, Wb + 0.002)), [0, (v - 0.5) * 2 * (Hb - 0.008), 0]), mul(out, D * (0.15 + 0.7 * u))), 0.002, 'Hips');
+    for (const su of [-1, 1]) for (const sv of [-1, 1]) {
+      const k = add(add(add(c, mul(side, su * (Wb - 0.012))), [0, sv * (Hb - 0.012), 0]), mul(out, D + 0.002));
+      plate(A('brass'), 1, 1, (u, v) => add(add(k, mul(side, (u - 0.5) * 0.026)), [0, (v - 0.5) * 0.026, 0]), 0.003, 'Hips');
+    }
+    tube(A('belt'), [add(c, [0, Hb, 0]), add(c, [0, Hb + 0.05 * kH, -0.01])], 0.006, 4, 'Hips', 0.4);
+  }
+
+  pieceV('spectacles', 'Round wire-rimmed spectacles');
+  {
+    const eyes = (['Left', 'Right'] as const).map((sd) => J(`${sd}Eye` as HumanJoint));
+    const lens = eyes.map((e) => add(e, [0, 0.002 * kH, 0.03 * kH] as Vec3));
+    const R = 0.017 * kH;
+    for (const [i, c] of lens.entries()) {
+      const rim: Vec3[] = []; for (let k = 0; k <= 24; k++) { const t = (k / 24) * Math.PI * 2; rim.push(add(c, [Math.cos(t) * R, Math.sin(t) * R, 0])); }
+      tube(A('brass'), rim, 0.0014, 4, 'Head');
+      const sx = i === 0 ? 1 : -1, outer = add(c, [sx * R, 0.003, 0]);
+      tube(A('brass'), [outer, add(outer, [sx * 0.012, 0, -0.02]), [sx * 0.072 * kH, c[1] + 0.004, c[2] - 0.09 * kH]], 0.0013, 4, 'Head');
+    }
+    const mid = lerp(lens[0], lens[1], 0.5);
+    tube(A('brass'), [add(lens[0], [-R, 0.004, 0]), add(mid, [0, 0.008, 0.004]), add(lens[1], [R, 0.004, 0])], 0.0014, 4, 'Head');
+  }
 
   // ---- Hair: the chonmage topknot (a piece now, so a character without it has none) ----------------------------------
   current = 'chonmage';

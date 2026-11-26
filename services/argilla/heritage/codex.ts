@@ -51,9 +51,22 @@ export const ARCHETYPES: Archetype[] = [
   {
     id: 'civilian',
     label: 'Civilian',
-    cues: { kosode: 1, hakama: 1, robe: 1, apron: 1, scholar: 3, merchant: 3, farmer: 3 },
-    body: { build: [0.92, 1.0, 1.08], musculature: [0.2, 0.45, 0.7], weight: [0.1, 0.3, 0.6] },
+    cues: { kosode: 1, hakama: 1, robe: 1, apron: 1, scholar: 3, merchant: 3, farmer: 3, gown: 2, overrobe: 1, capelet: 1, wideSash: 1, villager: 4 },
+    body: { build: [0.85, 1.0, 1.08], musculature: [0.1, 0.45, 0.7], weight: [0.1, 0.3, 0.6] },
     bearing: { label: 'at ease', chest: 0, chin: 0, shoulders: 0, stanceWidth: 1, knees: 2, notes: ['Relaxed upright posture; no guard held.'] },
+    studies: [],
+  },
+  {
+    // the old of a village: a chronicler, an archivist, a council elder (Lexicon's Mira, Oren, Thorne)
+    id: 'elder',
+    label: 'Elder',
+    cues: { spectacles: 2, tome: 2, cane: 3, elder: 4, archivist: 4, chronicler: 4, matriarch: 4, 'elder-chronicler': 4 },
+    body: { build: [0.82, 0.94, 1.04], musculature: [0.0, 0.15, 0.35], weight: [0.1, 0.32, 0.6] },
+    bearing: {
+      label: 'settled',
+      chest: -2, chin: 2, shoulders: 2, stanceWidth: 0.95, knees: 3,
+      notes: ['The upper back rounds a little and the head carries forward; the weight sits back on the heels.', 'Hands rest low and still; nothing is braced for.'],
+    },
     studies: [],
   },
 ];
@@ -81,6 +94,21 @@ export interface Tradition {
 }
 
 export const TRADITIONS: Tradition[] = [
+  {
+    // Lexicon's Glossa Hollow: an invented world, dressed as the creator's sheets draw it (wool robes, linen, leather,
+    // brass), anchored to the late-medieval European dress those sheets borrow from; no arms of its own
+    id: 'fantasy-village',
+    culture: 'Fantasy village (Lexicon, Glossa Hollow)',
+    era: 'Invented; late-medieval European dress',
+    years: [1300, 1500],
+    cues: { gown: 3, overrobe: 3, capelet: 3, wideSash: 2, tome: 3, keys: 1, spectacles: 1, quillStaff: 4, jerkin: 2, cloak: 1, 'elder-chronicler': 4, 'scholar-adventurer': 4 },
+    arms: [],
+    companions: [],
+    wear: ['Keys, purses and books hang from a girdle or belt at the hip, as medieval householders and scholars carried them.'],
+    museum: ['medieval gown', 'girdle book', 'medieval spectacles', 'chatelaine keys medieval'],
+    atlas: [],
+    sources: ['Kenne, Lexicon villager design sheets (Word gaem, 2026)', 'Margaret Scott, Medieval Dress and Fashion (British Library, 2007)'],
+  },
   {
     id: 'jp-sengoku',
     culture: 'Japanese (samurai)',

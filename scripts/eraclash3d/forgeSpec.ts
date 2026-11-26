@@ -27,8 +27,11 @@ export interface ForgeSpec {
   kit: KitSpec;
   out: { character: string; kit: string };
   gates: { overall: number; part: number; head: number };
-  /** Hair style (hairSystem.ts): 'ponytail' (Haru, the default) or 'locs' (over an undercut). */
-  hair?: { style: 'ponytail' | 'locs'; count?: number; length?: number };
+  /**
+   * Hair style (hairSystem.ts): 'ponytail' (Haru, the default), 'locs' (over an undercut) or 'braids' (swept back, a
+   * crown braid and front plaits: `frontPlaits` their length below the ear, `length` the loose hair below the nape).
+   */
+  hair?: { style: 'ponytail' | 'locs' | 'braids'; count?: number; length?: number; frontPlaits?: number; crown?: boolean };
   /** The hand poses the game holds (grips(): katana, fist, relaxed); default Right:katana, Left:relaxed. */
   hold?: { Right?: string; Left?: string };
   /** Material colours by name, hex sRGB (forgeLook.ts haruMaterials), over the kit's defaults. */
