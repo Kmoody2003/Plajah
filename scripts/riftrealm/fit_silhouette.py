@@ -34,7 +34,9 @@ def raster(V, F, ax):
     px, py, s = frame(V, ax); P = np.stack([px, py], 1)
     m = np.zeros((H, W), np.uint8)
     tri = np.round(P[F] * 4).astype(np.int32)   # 2 bits sub-pixel
-    cv2.fillPoly(m, list(tri), 1, lineType=cv2.LINE_8, shift=2)
+    # Fill per-triangle (batch cv2.fillPoly uses even-odd rule across overlapping faces -> Swiss-cheese holes!)
+    for t in tri:
+        cv2.fillConvexPoly(m, t, 1, lineType=cv2.LINE_8, shift=2)
     return m > 0, px, py, s
 
 

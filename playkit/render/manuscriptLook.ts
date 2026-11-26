@@ -37,6 +37,9 @@ export interface ErasureZone { x: number; z: number; radius: number; amount: num
 export interface PlaykitStylizeContext {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   color: any; depth: any; /** a SampleNode (`.sample(uv)` → view normal) or null */ normal: any; camera: THREE.Camera;
+  /** Optional direct texture node when no intermediate AO/SSR/bloom modified colorTex (skips redundant full-res RTT!). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sourceTex?: any;
 }
 
 export interface ManuscriptHandle {

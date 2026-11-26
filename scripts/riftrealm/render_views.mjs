@@ -58,7 +58,7 @@ const size = box.getSize(new THREE.Vector3()), ctr = box.getCenter(new THREE.Vec
 const out = { tris, bones, clips: g.animations.map(a => a.name + ':' + a.duration.toFixed(2)), maps: mats, bbox: { min: box.min.toArray(), max: box.max.toArray() } };
 const H = Math.max(size.y * 1.1, 0.01); const cam = new THREE.OrthographicCamera(-H / 2, H / 2, H / 2, -H / 2, 0.01, 100);
 const shots = {};
-for (const [name, dir] of [['front', [0, 0, 1]], ['side', [1, 0, 0]], ['back', [0, 0, -1]], ['three_q', [0.7, 0.15, 0.7]]]) {
+for (const [name, dir] of [['front', [0, 0, 1]], ['side', [1, 0, 0]], ['right', [-1, 0, 0]], ['back', [0, 0, -1]], ['three_q', [0.7, 0.15, 0.7]]]) {
   cam.position.set(ctr.x + dir[0] * 10, ctr.y + dir[1] * 10, ctr.z + dir[2] * 10); cam.lookAt(ctr.x, ctr.y, ctr.z); cam.updateMatrixWorld();
   r.render(scene, cam); shots[name] = r.domElement.toDataURL('image/png');
 }

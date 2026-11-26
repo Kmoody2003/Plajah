@@ -124,19 +124,22 @@ def main():
     ap.add_argument("--mesh", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--view", action="append", required=True, help="dir=path.png (front/back/left/right)")
+    ap.add_argument("--view-weight", action="append", default=[], help="optional override dir=weight (e.g. left=0.22)")
     ap.add_argument("--faces", type=int, default=60000)
     ap.add_argument("--res", type=int, default=2048)
     ap.add_argument("--no-recenter", action="store_true", help="keep the mesh where it is (a part of a larger model)")
     ap.add_argument("--min-facing", type=float, default=0.0,
                     help="ignore texels a view sees at a grazing angle (cos below this); the fill paints them instead")
+    ap.add_argument("--facing-pow", type=float, default=3.0,
+                    help="cosine exponent for view blending (higher = crisper faces/props, less cross-view cheek ghosting)")
     _paint(ap.parse_args())
 
 
-def paint(mesh, views, out, faces=60000, res=2048, recenter=True, min_facing=0.0):
+def paint(mesh, views, out, faces=60000, res=2048, recenter=True, min_facing=0.0, facing_pow=3.0):
     """Library entry (the tela-3d runtime's /tela3d/paint-views): views = {"front": path, "yaw:30": path, ...}."""
     import types
     _paint(types.SimpleNamespace(mesh=mesh, out=out, view=[f"{k}={v}" for k, v in views.items()], faces=faces, res=res,
-                                 no_recenter=not recenter, min_facing=min_facing))
+                                 no_recenter=not recenter, min_facing=min_facing, facing_pow=facing_pow))
 
 
 def _paint(a):
@@ -168,6 +171,10 @@ def _paint(a):
     samples, _ = trimesh.sample.sample_surface_even(mesh, 1_500_000)
     acc = np.zeros((len(tp), 3)); wsum = np.zeros(len(tp))
     eps = 0.012 * mesh.extents.max()
+    view_weights = dict(VIEW_WEIGHT)
+    for vw in getattr(a, "view_weight", None) or []:
+        vn, vv = vw.split("=", 1)
+        view_weights[vn] = float(vv)
     for spec in a.view:
         name, path = spec.split("=", 1)
         img = np.asarray(Image.open(path).convert("RGBA")).astype(np.float32)
@@ -185,8 +192,9 @@ def _paint(a):
         visible = (tp @ d) >= zb[jy, jx] - eps
         rgba = bilinear(img, px, py)
         cosf = np.clip(tn @ d, 0, 1)
-        facing = np.where(cosf >= a.min_facing, cosf, 0) ** 3
-        wv = facing * visible * (rgba[:, 3] / 255.0 > 0.5) * VIEW_WEIGHT.get(name, 1.0)
+        fpow = float(getattr(a, "facing_pow", 3.0))
+        facing = np.where(cosf >= a.min_facing, cosf, 0) ** fpow
+        wv = facing * visible * (rgba[:, 3] / 255.0 > 0.5) * view_weights.get(name, 1.0)
         acc += rgba[:, :3] * wv[:, None]; wsum += wv
 
     base = np.zeros((R, R, 3), np.float32)

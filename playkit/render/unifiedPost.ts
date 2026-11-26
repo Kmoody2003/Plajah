@@ -74,7 +74,7 @@ export interface PlaykitPostOptions {
    * made one) and the scene camera; returns the new colour node.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  stylize?: (ctx: { color: any; depth: any; normal: any; camera: THREE.Camera }) => any;
+  stylize?: (ctx: { color: any; depth: any; normal: any; camera: THREE.Camera; sourceTex?: any }) => any;
 }
 
 export interface PlaykitPostHandle {
@@ -182,7 +182,7 @@ export function createPlaykitPostPipeline(
     const useSsr = (opts.ssr || dbg.includes('ssr')) && !dbg.includes('nossr');
     const useTraa = (opts.traa || dbg.includes('traa')) && !dbg.includes('notraa');
     const useFxaa = !useTraa && (opts.fxaa ?? true) && !dbg.includes('nofxaa');
-    const useFsr = (opts.fsr1 || dbg.includes('fsr') || (opts.internalScale != null && opts.internalScale < 0.99)) && !dbg.includes('nofsr');
+    const useFsr = opts.fsr1 !== false && (opts.fsr1 || dbg.includes('fsr') || (opts.internalScale != null && opts.internalScale < 0.99)) && !dbg.includes('nofsr');
     const useLut = (opts.lut ?? true) && !dbg.includes('nolut') && !dbg.includes('nograde');
     const bloomMode = dbg.includes('nobloom') ? false : (opts.bloom ?? 'full');
 
@@ -297,13 +297,13 @@ export function createPlaykitPostPipeline(
     if (bloomMode === 'full') {
       const glow = bloom(c, look.bloomStrength ?? 0.45, look.bloomRadius ?? 0.5, look.bloomThreshold ?? 0.82);
       bloomStrengthControl = glow.strength;
-      c = c.add(glow);
+      c = c.add(glow.rgb);
       activePasses.push('bloom:full');
     } else if (bloomMode === 'lean') {
       const uLean = uniform(look.bloomStrength ?? 0.36);
       bloomStrengthControl = uLean;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const bright = vec4((max as any)(c.sub(float(look.bloomThreshold ?? 0.9)), float(0)), 1);
+      const bright = vec4((max as any)(c.rgb.sub(float(look.bloomThreshold ?? 0.9)), float(0)), 1);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const blurred = gaussianBlur(toInternalRtt(bright, 0.25) as never, float(2.0) as never, 4) as any;
       c = c.add(blurred.rgb.mul(uLean));
@@ -323,11 +323,12 @@ export function createPlaykitPostPipeline(
       activePasses.push('grade');
     }
 
-    // 5b. Optional stylize stage (drawn looks: ink, paper, erasure fields)
+    // 5b. Optional stylize stage (drawn looks: ink, paper, erasure fields, or Apex direct-texture CAS/haze/rain!)
     if (opts.stylize && !dbg.includes('nostylize')) {
       try {
-        c = opts.stylize({ color: c, depth: depthTex, normal: sceneNormal, camera }).rgb;
-        activePasses.push('stylize');
+        const directTex = (!useAo && !useSsr && !rays && !bloomMode) ? colorTex : undefined;
+        c = opts.stylize({ color: c, depth: depthTex, normal: sceneNormal, camera, sourceTex: directTex }).rgb;
+        activePasses.push(directTex ? 'stylize:direct' : 'stylize');
       } catch (err) {
         console.warn('[playkit-post] stylize skipped:', err);
       }
@@ -336,7 +337,7 @@ export function createPlaykitPostPipeline(
     // 6. Gentle optical vignette
     const vig = smoothstep(float(0.95), float(0.35), length(screenUV.sub(vec2(0.5, 0.5))).mul(1.25)).mul(0.35).add(0.65);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let composed: any = vec4(c.mul(vig), float(1.0));
+    let composed: any = vec4(c.rgb.mul(vig), float(1.0));
 
     // 7. Optional TRAA (shimmer-free foliage/cables) or FXAA + Optional FSR1/RCAS upscale
     if (useTraa) {

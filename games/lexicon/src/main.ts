@@ -242,16 +242,42 @@ addEventListener('mouseup', (e) => { if (e.button === 0) input.setAction('melee'
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 addEventListener('mousemove', (e) => { if (document.pointerLockElement === canvas) input.addLookDelta(e.movementX, e.movementY, 'keyboard-mouse'); });
 
+/**
+ * The controller to read: the first one with the browser's standard layout (Xbox / PlayStation pads). A racing wheel,
+ * pedals or a flight stick also show up as gamepads, often in slot 0, with axes that rest at full travel; read as a
+ * stick, they walk the Scribe in a circle and lock out the keyboard. Each pad's resting axes are learnt when it is
+ * first seen, so stick drift doesn't count as a push either.
+ */
+const padRest = new Map<string, number[]>();
+// a key released while the window was away (alt-tab, another pane) never sends its keyup: let everything go on blur
+function releaseAll() {
+  for (const code of keys) { const a = keyAction[code]; if (a) input.setAction(a, false); }
+  keys.clear(); input.setAction('melee', false); input.setAction('altFire', false);
+  input.setMoveStick(0, 0, 'keyboard-mouse');
+}
+addEventListener('blur', releaseAll);
+document.addEventListener('visibilitychange', () => { if (document.hidden) releaseAll(); });
+function activePad() {
+  const pad = [...(navigator.getGamepads?.() ?? [])].find((p) => p && p.connected && p.mapping === 'standard');
+  if (!pad) return null;
+  const key = `${pad.index}:${pad.id}`;
+  let rest = padRest.get(key);
+  if (!rest) { rest = pad.axes.map((a) => (Math.abs(a) < 0.35 ? a : 0)); padRest.set(key, rest); }
+  const axes = pad.axes.map((a, i) => (Math.abs(a - rest![i]) < 0.18 ? 0 : a));
+  return { axes, buttons: pad.buttons };
+}
 function readKeys() {
   const x = (keys.has('KeyD') ? 1 : 0) - (keys.has('KeyA') ? 1 : 0);
   const y = (keys.has('KeyW') ? 1 : 0) - (keys.has('KeyS') ? 1 : 0);
-  const pad = navigator.getGamepads?.()[0];
-  const padMoving = pad && (Math.abs(pad.axes[0]) > 0.16 || Math.abs(pad.axes[1]) > 0.16);
-  if (!padMoving) input.setMoveStick(x, y, 'keyboard-mouse');
+  const pad = activePad();
+  const padMoving = !!pad && (pad.axes[0] !== 0 || pad.axes[1] !== 0);
+  // the keyboard always wins while a key is held; the pad drives only when it is actually pushed
+  if (x || y || !padMoving) input.setMoveStick(x, y, 'keyboard-mouse');
   const lx = (keys.has('ArrowRight') ? 1 : 0) - (keys.has('ArrowLeft') ? 1 : 0), ly = (keys.has('ArrowDown') ? 1 : 0) - (keys.has('ArrowUp') ? 1 : 0);
   if (lx || ly) input.addLookDelta(lx * 9, ly * 6, 'keyboard-mouse');
   if (pad) {
     input.ingestGamepad(pad, 1 / 60);
+    if (x || y) input.setMoveStick(x, y, 'keyboard-mouse');
     const lt = pad.buttons[6]; const ltDown = !!(lt?.pressed || (lt?.value ?? 0) > 0.4);
     if (ltDown !== padLT) { padLT = ltDown; input.setAction('altFire', ltDown, 'gamepad'); }
   }
@@ -1167,7 +1193,7 @@ async function boot() {
 void boot();
 
 if (DEBUG) (window as unknown as { __lex: unknown }).__lex = {
-  get state() { return { scribe: !!scribe, mode, level: lvl?.id, P: { x: P.x, z: P.z, hp: P.hp }, words: [...words], enemies: enemies.filter((e) => e.alive).map((e) => ({ k: e.kind, x: e.x, z: e.z, s: e.state })), save, task: task?.text, budget: engine.budget, rules: rules?.log }; },
+  get state() { return { scribe: !!scribe, mode, level: lvl?.id, P: { x: P.x, z: P.z, hp: P.hp }, words: [...words], enemies: enemies.filter((e) => e.alive).map((e) => ({ k: e.kind, x: e.x, z: e.z, s: e.state })), save, task: task?.text, budget: engine.budget, rules: rules?.log, move: frame ? [frame.moveX, frame.moveY] : null, keys: [...keys] }; },
   give: (...w: string[]) => w.forEach((x) => freeWord(x.toUpperCase())),
   step: (n = 1, dt = 1 / 60) => { for (let i = 0; i < n; i++) frameTick(dt); },
   /** Render one frame and save the canvas to games/lexicon/review/<name> (dev server only). */

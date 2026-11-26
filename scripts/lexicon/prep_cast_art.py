@@ -68,7 +68,9 @@ def prep(name):
         "back": img[H // 2 + m:H - m, W // 2 + m:W - m],
     }
     figs = {k: cut(v) for k, v in quad.items()}
-    figs["side"] = figs["side"][:, ::-1].copy()      # the Forge's side view faces left (the turnaround's faces right)
+    # The Forge's side view faces left; Oren's turnaround side panel already faces left, the other 11 face right.
+    if name != "oren":
+        figs["side"] = figs["side"][:, ::-1].copy()
     # one line for the soles, the views' own scale kept (they were drawn together)
     hmax = max(f.shape[0] for f in figs.values())
     gap = 120
