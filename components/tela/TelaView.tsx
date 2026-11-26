@@ -15,7 +15,7 @@ import { onBeforeSignOut, whenAuthKnown } from '../../services/userScope';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  BarChart3, Blend, BookHeart, BookOpen, Brush, CheckCircle2, ChevronDown, ChevronLeft, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Eye, EyeOff, Feather, FileDown, FilePlus2, FileText, FileUp, FlipHorizontal, Folder, FormInput,
+  BarChart3, Blend, BookHeart, BookOpen, Brush, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Circle, CircleHelp, Clipboard, Copy, CopyPlus, Database, Eye, EyeOff, Feather, FileDown, FilePlus2, FileText, FileUp, FlipHorizontal, Folder, FormInput,
   Grid3X3, Hand, Hexagon, Image as ImageIcon, ImagePlus, Lasso, Layers, LayoutPanelTop, Link as LinkIcon, Link2, Loader2, Maximize2, Minimize2,
   Minus, Monitor, ShieldAlert, ShieldCheck, MousePointer2, MousePointerClick, Music2, Paintbrush, Eraser, Palette, Pencil, PenLine, PenTool, Pipette, Plus, SquarePlus, Redo2, Cpu, Images, Library as LibraryIcon, Scan, Shapes, Sliders, Sparkles, Spline, Square, Star, TextQuote, Trash2, Type, Undo2, Wand2, X, ZoomIn, History as HistoryIcon, Printer, Box as BoxIcon, MoreHorizontal, GraduationCap, LayoutTemplate, Ruler, Dna, CircuitBoard, Scissors } from 'lucide-react';
 import { NON_PRINTING_LABEL, isNonPrinting, type SpotColor } from '../../services/print/types';
@@ -115,6 +115,7 @@ import { TelaTypographyStudio } from './TelaTypographyStudio';
 import { TelaToolOptionsBar, DEFAULT_TYPE, type TelaTypeDefaults } from './TelaToolOptionsBar';
 import type { Selection, SelectionTool } from '../../services/tela/raster/selectionWorkflow';
 import { TelaToolRail, type TelaRailItem, type TelaRailSection } from './TelaToolRail';
+import { loadTelaLayout, readLocalTelaLayout, saveTelaLayout, writeLocalTelaLayout, type TelaLayout } from '../../services/tela/telaLayoutPref';
 import {
   invertSelection,
   selectAll,
@@ -235,6 +236,9 @@ const STUDIO_PRO_TOOLS: RailTool[] = [
   { id: 'zoom', group: 'view', icon: <ZoomIn size={16} />, label: 'Zoom', desc: 'Click to zoom in. Alt-click zooms out.' },
   { id: 'artboard', group: 'view', icon: <Maximize2 size={16} />, label: 'Artboard size', desc: 'Drag the page edges to resize the artboard.' },
 ];
+
+/** Rail groups that stay out in Simple view; the rest wait behind "More tools". */
+const SIMPLE_RAIL_SECTIONS = new Set(['select', 'text']);
 
 const RAIL_SECTION_TEXT = {
   select: { title: 'Select', shortTitle: 'Select', blurb: 'Pick and move things' },
@@ -429,6 +433,33 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
   const [posture, setPosture] = useState<Posture>('STUDIO');
   const [studioDocView, setStudioDocView] = useState<'focus' | 'continuous'>('focus');
   const [studioRightTab, setStudioRightTab] = useState<'layers' | 'pages' | 'comic'>('layers');
+  // First visit opens in Simple view: Select, Text and Layers up front, every other tool tucked
+  // behind "More tools" (nothing removed). "All tools" switches for good. The choice lives on the
+  // account (users/{uid}/prefs/tela) so it follows the user; localStorage paints first and covers
+  // signed-out use. A choice made on this device before signing in is carried up to the account.
+  const [telaLayout, setTelaLayout] = useState<TelaLayout>(() => readLocalTelaLayout() ?? 'simple');
+  const simpleView = telaLayout === 'simple';
+  const chooseTelaLayout = (next: TelaLayout) => {
+    setTelaLayout(next);
+    writeLocalTelaLayout(next);
+    const uid = auth.currentUser?.uid;
+    if (uid) void saveTelaLayout(uid, next);
+  };
+  useEffect(() => auth.onAuthStateChanged(user => {
+    if (!user) return;
+    void loadTelaLayout(user.uid).then(saved => {
+      if (saved) { setTelaLayout(saved); writeLocalTelaLayout(saved); return; }
+      const local = readLocalTelaLayout();
+      if (local) void saveTelaLayout(user.uid, local);
+    });
+  }), []);
+  const [makePrompt, setMakePrompt] = useState('');
+  const [makeNote, setMakeNote] = useState<{ text: string; prompt: string } | null>(null);
+  useEffect(() => {
+    if (!makeNote) return;
+    const timer = window.setTimeout(() => setMakeNote(null), 9000);
+    return () => window.clearTimeout(timer);
+  }, [makeNote]);
   const [cam, setCam] = useState({ x: 0, y: 0, z: 1 });
   const [activeFrameId, setActiveFrameId] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('clean');
@@ -2761,6 +2792,45 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
     openDoc(next); setShowHome(false); if(kind==='BOARD')setPosture('BOARD');
   };
 
+  // "What are you making today?" — the menu-bar prompt. Plain words pick the page or template to
+  // start from (no AI call, so it works signed out and offline); anything it doesn't recognize goes
+  // to Aria with the words already typed. The first matching rule wins, so specific kinds come first.
+  const startFromPrompt = (raw: string) => {
+    const text = raw.trim();
+    if (!text) return;
+    const has = (re: RegExp) => re.test(text.toLowerCase());
+    const routes: Array<[RegExp, string, () => void]> = [
+      [/\b(comic|manga|graphic novel|storyboard)/, 'Opened a comic page with panels.', () => { if (!activeFrame?.isComicPage) addComicPageFrame('action-4-grid'); setStudioRightTab('comic'); }],
+      [/\b(r[eé]sum[eé]|cv|portfolio)\b/, 'Started a résumé from a template.', () => void createHomeDocument('RESUME')],
+      [/\b(lesson|worksheet|syllabus|class plan)/, 'Started a lesson plan.', () => void createHomeDocument('LESSON')],
+      [/\b(newsletter|bulletin)/, 'Started a newsletter.', () => void createHomeDocument('NEWSLETTER')],
+      [/\b(proposal|pitch|grant)/, 'Started a proposal.', () => void createHomeDocument('PROPOSAL')],
+      [/\b(screenplay|script|treatment|novel|short story)/, 'Started a story treatment. The Writing studio is under More tools for long drafts.', () => void createHomeDocument('SCREENPLAY')],
+      [/\b(research|thesis|lab notes|study notes)/, 'Started a research notebook.', () => void createHomeDocument('RESEARCH')],
+      [/\b(report|essay|paper)\b/, 'Started a report.', () => void createHomeDocument('REPORT')],
+      [/\b(song|lyric)/, 'Added a songwriting page.', addSongwritingPage],
+      [/\b(poem|poetry|verse)/, 'Added a poetry page.', addPoetryPage],
+      [/\b(spreadsheet|budget|sheet|invoice|ledger)/, 'Added a spreadsheet.', addGridSheet],
+      [/\b(chart|graph|data vi[sz])/, 'Added a chart.', addChartFrame],
+      [/\b(database|inventory|roster|table of)/, 'Added a database table.', addBaseTable],
+      [/\b(form|survey|sign.?up|questionnaire|rsvp)/, 'Added a form people can fill in.', addFormFrame],
+      [/\b(notes?|journal|diary)\b/, 'Added a notes stack.', () => addNotesFrame(false)],
+      [/\b(photo|picture|image|retouch|edit (a|my) pic)/, 'Added an image canvas with layers. Drop a photo onto it to start.', addImageCanvas],
+      [/\b(slides?|presentation|deck|story post|reel|thumbnail)/, 'Added a screen-size frame.', addScreenFrame],
+      [/\b(poster|flyer|logo|card|invitation|banner|sticker|t-?shirt|design|brochure|menu)/, 'Added a design artboard. Ready-made designs are open to choose from.', () => { addVectorArtboard(); setStudioCreativeLibraryOpen(true); }],
+      [/\b(letter|document|doc|memo|page)\b/, 'Added a writing page.', addWriterPage],
+    ];
+    const hit = routes.find(([re]) => has(re));
+    setMakePrompt('');
+    if (!hit) {
+      window.dispatchEvent(new CustomEvent('OPEN_ARIA', { detail: { prompt: `I'm making ${text} in Tela. Help me get started.` } }));
+      setMakeNote(null);
+      return;
+    }
+    hit[2]();
+    setMakeNote({ text: hit[1], prompt: text });
+  };
+
   // Tela → New → Photo show: the studio opens over Tela; the published show becomes a presentation doc.
   const createShowDocument = async () => {
     const r = await askShow(undefined, 'Make Tela presentation');
@@ -3751,7 +3821,8 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           )}
         </div>
 
-        {/* Creative Suites Compact Pill Group */}
+        {/* Creative Suites Compact Pill Group — tucked in Simple view (still on the rail under More tools) */}
+        {!simpleView && <>
         <button
           onClick={() => setLocalStudioOpen(true)}
           className="@max-[1360px]:hidden shrink-0 flex items-center gap-1 h-8 px-2.5 rounded-[8px] text-[.7rem] font-bold text-[#FF8C00] bg-[#D40055]/10 border border-[#D40055]/30 hover:bg-[#D40055]/20 transition-all"
@@ -3774,6 +3845,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
           <BookOpen size={12} className={comicLayoutMode ? 'text-white' : 'text-purple-300'} />
           <span>Comic Page</span>
         </button>
+        </>}
 
         {(classwork || isEducator) && (
           <button
@@ -3981,7 +4053,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
 
       {/* Menu bar + integrated Page Size Presets & Custom W×H Fields */}
       <nav className="shrink-0 flex items-center gap-1 px-3 h-10 relative z-[90]" style={{ background: '#0b0810', borderBottom: '1px solid rgba(255,255,255,.075)' }}>
-        {(['FILE','EDIT','SELECT','INSERT','DOCUMENT','EXPORT','ASSIGNMENT'] as const).map(menu => <div key={menu} className="relative">
+        {(['FILE','EDIT','SELECT','INSERT','DOCUMENT','EXPORT','ASSIGNMENT'] as const).filter(menu => menu !== 'ASSIGNMENT' || !simpleView || classwork || isEducator).map(menu => <div key={menu} className="relative">
           <button onClick={() => setAppMenuOpen(open => open === menu ? null : menu)} className={menuBarButton} style={{ color: appMenuOpen === menu ? '#fff' : 'rgba(255,255,255,.58)', background: appMenuOpen === menu ? 'rgba(255,255,255,.09)' : 'transparent' }}>{menu[0] + menu.slice(1).toLowerCase()}</button>
           {appMenuOpen === menu && <div className="absolute left-0 top-[31px] min-w-[265px] max-h-[calc(100vh-100px)] overflow-y-auto custom-scrollbar p-1.5 rounded-[11px]" style={{ background: 'rgba(20,13,30,.985)', border: '1px solid rgba(255,255,255,.13)', boxShadow: '0 18px 55px rgba(0,0,0,.55)' }} onMouseLeave={() => setAppMenuOpen(null)}>
             {menu === 'FILE' && <>
@@ -4198,9 +4270,44 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
             if (activeFrame) dispatchOp({ type: 'SET_FRAME_ORIENTATION', frameId: activeFrame.id, orientation });
           }}
         />
-        <span className="ml-auto text-[9px] text-white/28 truncate max-w-[26vw] @max-[1180px]:hidden">
-          {doc.title || 'Untitled'} · {activeFrame?.label || 'Page'} ({doc.frames.length})
-        </span>
+        <form
+          role="search"
+          aria-label="What are you making today?"
+          className="relative flex-1 min-w-[180px] max-w-[460px] ml-auto"
+          onSubmit={event => { event.preventDefault(); startFromPrompt(makePrompt); }}
+        >
+          <Sparkles size={13} aria-hidden className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#D0BCFF] pointer-events-none" />
+          <input
+            value={makePrompt}
+            onChange={event => { setMakePrompt(event.target.value); if (makeNote) setMakeNote(null); }}
+            onKeyDown={event => { if (event.key === 'Escape') { setMakePrompt(''); setMakeNote(null); (event.target as HTMLInputElement).blur(); } }}
+            placeholder="What are you making today?"
+            aria-label="What are you making today?"
+            className="w-full h-[30px] pl-8 pr-9 rounded-full text-[.74rem] text-white placeholder:text-white/45 outline-none transition-colors bg-white/[.06] border border-white/[.12] hover:border-white/[.2] focus:border-[#D0BCFF]/70 focus:bg-white/[.09]"
+          />
+          <button type="submit" aria-label="Start" disabled={!makePrompt.trim()} className="absolute right-1 top-1/2 -translate-y-1/2 w-[24px] h-[24px] grid place-items-center rounded-full text-white disabled:opacity-35 transition-opacity" style={{ background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))' }}>
+            <ChevronRight size={13} aria-hidden />
+          </button>
+          {makeNote && (
+            <div role="status" className="absolute left-0 right-0 top-[36px] z-[96] px-3 py-2 rounded-[10px] text-[.7rem] leading-snug text-white/85" style={{ background: 'rgba(20,13,30,.985)', border: '1px solid rgba(255,255,255,.13)', boxShadow: '0 12px 34px rgba(0,0,0,.5)' }}>
+              <span>{makeNote.text}</span>
+              <button
+                type="button"
+                className="ml-2 font-bold text-[#8FF5FF] hover:underline"
+                onClick={() => { window.dispatchEvent(new CustomEvent('OPEN_ARIA', { detail: { prompt: `I'm making ${makeNote.prompt} in Tela. Help me get started.` } })); setMakeNote(null); }}
+              >Ask Aria to help</button>
+            </div>
+          )}
+        </form>
+        <button
+          type="button"
+          onClick={() => chooseTelaLayout(simpleView ? 'full' : 'simple')}
+          aria-pressed={!simpleView}
+          title={simpleView ? 'Show every tool on the rail and toolbar' : 'Go back to the simple layout: Select, Text and Layers up front'}
+          className="shrink-0 h-[30px] px-2.5 rounded-[8px] text-[.68rem] font-bold text-white/70 hover:text-white hover:bg-white/[.08] transition-colors flex items-center gap-1.5"
+        >
+          <Sliders size={13} aria-hidden /> {simpleView ? 'All tools' : 'Simple view'}
+        </button>
       </nav>
 
       {importError && (
@@ -4451,7 +4558,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
         return (
           <div className="flex-1 flex flex-row min-h-0 h-full overflow-hidden relative">
             {/* Left tool rail: named sections of labeled tools (Persistent) */}
-            <TelaToolRail sections={railSections} />
+            <TelaToolRail sections={simpleView ? railSections.map(section => SIMPLE_RAIL_SECTIONS.has(section.id) ? section : { ...section, tucked: true }) : railSections} />
 
             {/* Center stage — rulers + canvas (supports desktop file drops on ANY page) */}
             <div
@@ -5008,11 +5115,14 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
               </div>
 
               {/* Variant 2: Docked Bottom Motion Timeline + Collapsible 36px Mini Transport & Tela Document Stats Bar */}
+              {/* Tucked in Simple view unless the user is working on a comic page. */}
+              {(!simpleView || comicLayoutMode || activeFrame.isComicPage) && (
               <TelaComicBottomTransportAndTimeline
                 ctrl={comicVariant2Ctrl}
                 comicModeActive={comicLayoutMode}
                 onToggleComicMode={toggleInlineComicLayoutMode}
               />
+              )}
 
               <input
                 ref={studioFileRef}
@@ -5053,7 +5163,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                 >
                   Pages ({doc.frames.length})
                 </button>
-                <button
+                {(!simpleView || activeFrame.isComicPage || comicLayoutMode) && <button
                   onClick={() => {
                     if (!activeFrame.isComicPage) {
                       addComicPageFrame('action-4-grid');
@@ -5069,7 +5179,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentCha
                   }`}
                 >
                   <BookOpen size={11} className="text-[#D0BCFF]" /> Comic
-                </button>
+                </button>}
                 {studioSelIds.length > 1 && <span className="ml-auto text-[9px] font-extrabold text-[var(--pj-cyan,#00DAF3)]">{studioSelIds.length} sel</span>}
               </div>
 

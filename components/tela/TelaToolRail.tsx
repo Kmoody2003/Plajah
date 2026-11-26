@@ -3,7 +3,7 @@
 // One tab stop for the whole rail, arrow keys move inside it (the WAI-ARIA toolbar pattern).
 import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { ChevronRight, LayoutGrid, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 
 export interface TelaRailItem {
   id: string;
@@ -29,10 +29,14 @@ export interface TelaRailSection {
   defaultCollapsed?: boolean;
   /** Keeps the section open while it holds the running mode, whatever was saved. */
   forceOpen?: boolean;
+  /** Simple view: the section waits behind the rail's "More tools" toggle until it is wanted.
+   *  A tucked section still shows when it holds the running tool or is forced open. */
+  tucked?: boolean;
 }
 
 const COMPACT_KEY = 'tela.rail.compact';
 const COLLAPSED_KEY = 'tela.rail.collapsed';
+const MORE_KEY = 'tela.rail.moreOpen';
 const FOCUS_RING = 'outline-none focus-visible:ring-2 focus-visible:ring-[#00DAF3] focus-visible:ring-inset';
 
 const readStored = (key: string): string | null => {
@@ -58,6 +62,13 @@ export const TelaToolRail: React.FC<{ sections: TelaRailSection[] }> = ({ sectio
     try { return JSON.parse(readStored(COLLAPSED_KEY) || '{}'); } catch { return {}; }
   });
   const [tip, setTip] = useState<TipState | null>(null);
+  const [moreOpen, setMoreOpen] = useState(() => readStored(MORE_KEY) === '1');
+  const toggleMore = () => setMoreOpen(value => { writeStored(MORE_KEY, value ? '0' : '1'); return !value; });
+
+  const stayOut = (section: TelaRailSection) => !!section.tucked && !section.forceOpen && !section.items.some(item => item.active);
+  const shown = sections.filter(section => !stayOut(section));
+  const tucked = sections.filter(stayOut);
+  const tuckedCount = tucked.reduce((n, section) => n + section.items.length, 0);
 
   const isCollapsed = (section: TelaRailSection) =>
     !section.forceOpen && (collapsedById[section.id] ?? !!section.defaultCollapsed);
@@ -122,6 +133,63 @@ export const TelaToolRail: React.FC<{ sections: TelaRailSection[] }> = ({ sectio
     onClick: hideTip,
   });
 
+  const renderSection = (section: TelaRailSection) => {
+    const collapsed = isCollapsed(section);
+    const headingId = `${uid}-${section.id}-heading`;
+    const bodyId = `${uid}-${section.id}-body`;
+    const runningInside = collapsed && section.items.some(item => item.active);
+    return (
+      <section key={section.id} aria-labelledby={headingId} className="shrink-0 pb-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <h3 id={headingId} className="m-0">
+          <button
+            type="button"
+            aria-expanded={!collapsed}
+            aria-controls={bodyId}
+            aria-label={section.title}
+            {...tipProps({ title: section.title, desc: section.blurb })}
+            onClick={() => { hideTip(); toggleSection(section); }}
+            className={`w-full text-left hover:bg-white/[.05] transition-colors ${compact ? 'px-1 pt-2 pb-1' : 'px-3 pt-2.5 pb-1.5'} ${FOCUS_RING}`}
+          >
+            <span className={`flex items-center gap-1 ${compact ? 'justify-center' : ''}`}>
+              {!compact && <ChevronRight size={13} aria-hidden className="shrink-0 text-white/60 transition-transform" style={{ transform: collapsed ? 'none' : 'rotate(90deg)' }} />}
+              <span className={`font-bold text-white/85 truncate ${compact ? 'text-[10px]' : 'text-[12px]'}`}>{compact ? section.shortTitle : section.title}</span>
+              {runningInside && <span aria-hidden className="w-1.5 h-1.5 rounded-full shrink-0 bg-[#00DAF3]" />}
+            </span>
+            {!compact && <span className="block pl-[17px] mt-0.5 text-[11px] leading-[1.3] text-white/60" style={{ whiteSpace: 'normal' }}>{section.blurb}</span>}
+          </button>
+        </h3>
+        <div id={bodyId} hidden={collapsed} className={compact ? 'flex flex-col items-center gap-0.5' : 'flex flex-col gap-0.5 px-1.5'}>
+          {section.items.map(item => {
+            const descId = `${uid}-${section.id}-${item.id}-desc`;
+            return (
+              <React.Fragment key={item.id}>
+                <button
+                  type="button"
+                  aria-label={item.label}
+                  aria-describedby={descId}
+                  aria-pressed={item.active}
+                  aria-keyshortcuts={item.shortcut?.replace(/\s/g, '')}
+                  disabled={item.disabled}
+                  {...tipProps({ title: item.label, desc: item.desc, shortcut: item.shortcut })}
+                  onClick={() => { hideTip(); item.onClick(); }}
+                  className={`relative flex items-center rounded-[8px] transition-colors disabled:opacity-45 disabled:cursor-wait ${compact ? 'w-9 h-9 justify-center' : 'w-full h-8 gap-2.5 px-2'} ${item.active ? 'text-white' : 'text-white/80 hover:text-white hover:bg-white/[.08]'} ${FOCUS_RING}`}
+                  style={item.active ? { background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))' } : undefined}
+                >
+                  <span aria-hidden className="shrink-0 grid place-items-center">{item.icon}</span>
+                  {!compact && <span className="flex-1 min-w-0 text-left text-[12.5px] font-medium truncate">{item.label}</span>}
+                  {!compact && item.shortcut && item.shortcut.length === 1 && (
+                    <kbd className={`shrink-0 text-[10px] font-semibold font-[inherit] ${item.active ? 'text-white/90' : 'text-white/55'}`}>{item.shortcut}</kbd>
+                  )}
+                </button>
+                <span id={descId} className="sr-only">{item.desc}</span>
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </section>
+    );
+  };
+
   return (
     <div
       ref={railRef}
@@ -148,62 +216,28 @@ export const TelaToolRail: React.FC<{ sections: TelaRailSection[] }> = ({ sectio
         </button>
       </div>
 
-      {sections.map(section => {
-        const collapsed = isCollapsed(section);
-        const headingId = `${uid}-${section.id}-heading`;
-        const bodyId = `${uid}-${section.id}-body`;
-        const runningInside = collapsed && section.items.some(item => item.active);
-        return (
-          <section key={section.id} aria-labelledby={headingId} className="shrink-0 pb-1.5" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-            <h3 id={headingId} className="m-0">
-              <button
-                type="button"
-                aria-expanded={!collapsed}
-                aria-controls={bodyId}
-                aria-label={section.title}
-                {...tipProps({ title: section.title, desc: section.blurb })}
-                onClick={() => { hideTip(); toggleSection(section); }}
-                className={`w-full text-left hover:bg-white/[.05] transition-colors ${compact ? 'px-1 pt-2 pb-1' : 'px-3 pt-2.5 pb-1.5'} ${FOCUS_RING}`}
-              >
-                <span className={`flex items-center gap-1 ${compact ? 'justify-center' : ''}`}>
-                  {!compact && <ChevronRight size={13} aria-hidden className="shrink-0 text-white/60 transition-transform" style={{ transform: collapsed ? 'none' : 'rotate(90deg)' }} />}
-                  <span className={`font-bold text-white/85 truncate ${compact ? 'text-[10px]' : 'text-[12px]'}`}>{compact ? section.shortTitle : section.title}</span>
-                  {runningInside && <span aria-hidden className="w-1.5 h-1.5 rounded-full shrink-0 bg-[#00DAF3]" />}
-                </span>
-                {!compact && <span className="block pl-[17px] mt-0.5 text-[11px] leading-[1.3] text-white/60" style={{ whiteSpace: 'normal' }}>{section.blurb}</span>}
-              </button>
-            </h3>
-            <div id={bodyId} hidden={collapsed} className={compact ? 'flex flex-col items-center gap-0.5' : 'flex flex-col gap-0.5 px-1.5'}>
-              {section.items.map(item => {
-                const descId = `${uid}-${section.id}-${item.id}-desc`;
-                return (
-                  <React.Fragment key={item.id}>
-                    <button
-                      type="button"
-                      aria-label={item.label}
-                      aria-describedby={descId}
-                      aria-pressed={item.active}
-                      aria-keyshortcuts={item.shortcut?.replace(/\s/g, '')}
-                      disabled={item.disabled}
-                      {...tipProps({ title: item.label, desc: item.desc, shortcut: item.shortcut })}
-                      onClick={() => { hideTip(); item.onClick(); }}
-                      className={`relative flex items-center rounded-[8px] transition-colors disabled:opacity-45 disabled:cursor-wait ${compact ? 'w-9 h-9 justify-center' : 'w-full h-8 gap-2.5 px-2'} ${item.active ? 'text-white' : 'text-white/80 hover:text-white hover:bg-white/[.08]'} ${FOCUS_RING}`}
-                      style={item.active ? { background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))' } : undefined}
-                    >
-                      <span aria-hidden className="shrink-0 grid place-items-center">{item.icon}</span>
-                      {!compact && <span className="flex-1 min-w-0 text-left text-[12.5px] font-medium truncate">{item.label}</span>}
-                      {!compact && item.shortcut && item.shortcut.length === 1 && (
-                        <kbd className={`shrink-0 text-[10px] font-semibold font-[inherit] ${item.active ? 'text-white/90' : 'text-white/55'}`}>{item.shortcut}</kbd>
-                      )}
-                    </button>
-                    <span id={descId} className="sr-only">{item.desc}</span>
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          </section>
-        );
-      })}
+      {shown.map(renderSection)}
+
+      {tucked.length > 0 && (
+        <>
+          <button
+            type="button"
+            data-rail-chrome
+            aria-expanded={moreOpen}
+            aria-label={moreOpen ? 'Tuck the extra tools away' : `More tools (${tuckedCount})`}
+            {...tipProps({ title: moreOpen ? 'Fewer tools' : 'More tools', desc: moreOpen ? 'Tuck the extra tool groups away again.' : `${tucked.map(section => section.title).join(', ')}. Nothing is removed, it just waits here until you want it.` })}
+            onClick={() => { hideTip(); toggleMore(); }}
+            className={`shrink-0 flex items-center gap-2 text-white/70 hover:text-white hover:bg-white/[.05] transition-colors ${compact ? 'flex-col justify-center py-2 text-[10px] font-bold' : 'h-10 px-3 text-[12px] font-bold'} ${FOCUS_RING}`}
+            style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <LayoutGrid size={compact ? 15 : 14} aria-hidden className="shrink-0 text-[#00DAF3]" />
+            <span className={compact ? '' : 'flex-1 text-left'}>{moreOpen ? (compact ? 'Less' : 'Fewer tools') : (compact ? 'More' : 'More tools')}</span>
+            {!compact && <span className="text-[10.5px] font-semibold text-white/45">{moreOpen ? '' : tuckedCount}</span>}
+            {!compact && <ChevronRight size={13} aria-hidden className="shrink-0 text-white/60 transition-transform" style={{ transform: moreOpen ? 'rotate(90deg)' : 'none' }} />}
+          </button>
+          {moreOpen && tucked.map(renderSection)}
+        </>
+      )}
 
       {tip && createPortal(
         <div
