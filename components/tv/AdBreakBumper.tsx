@@ -13,6 +13,10 @@ import PollSpot from './PollSpot';
 import { HostCaption, useOnAirHost, useHostLine } from '../radio/OnAirHost';
 import { songFactsFromTrack } from '../../services/onair/station';
 import { playHostClip } from '../../services/onair/client';
+import VastAdPlayer from '../ads/VastAdPlayer';
+import { fetchAdNetwork } from '../../services/ads/googleAds';
+import { currentAdAudience } from '../../services/ads/useNetworkAds';
+import { NETWORK_SPOT_URL, networkSpotSec, videoTagFor } from '../../services/ads/networkAds';
 
 /**
  * AdBreakBumper — plays a FAST/TV ad break as ONE sequential timeline (see services/fast/breakPlan):
@@ -67,6 +71,8 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
   const [gift, setGift] = useState(false);
   const [liked, setLiked] = useState(false);
   const [added, setAdded] = useState(false);
+  /** The network ad's VAST tag for this break, when it has a reserved spot (the third-party share). */
+  const [vastTag, setVastTag] = useState<string | null>(null);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const dipRef = useRef<HTMLDivElement>(null);
@@ -101,14 +107,20 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
     startRef.current = performance.now();
     completedRef.current = false;
     (async () => {
-      const [tracks, adConfigs, platBumpers, platPromos, platAds] = await Promise.all([
+      const [tracks, adConfigs, platBumpers, platPromos, platAds, net] = await Promise.all([
         fetchRadioTracks().catch(() => [] as Track[]),
         fetchAdConfigs().catch(() => [] as AdConfig[]),
         totalSec >= 12 ? fetchPlatformMedia('PLATFORM_BUMPER').catch(() => []) : Promise.resolve([]),
         totalSec >= 12 ? fetchPlatformMedia('CHANNEL_PROMO').catch(() => []) : Promise.resolve([]),
         totalSec >= 12 ? fetchPlatformMedia('PLATFORM_AD').catch(() => []) : Promise.resolve([]),
+        fetchAdNetwork(),
       ]);
       if (!alive) return;
+      // Network ad (Google Ad Manager VAST): one reserved spot in breaks long enough, never for a
+      // restricted viewer. If it doesn't fill, its time becomes Plajah FM (markFailed below).
+      const tag = currentAdAudience() === 'general' ? videoTagFor(net.config) : null;
+      const netSec = tag ? networkSpotSec(totalSec) : 0;
+      if (netSec) setVastTag(tag);
       if (tracks.length) {
         const pos = getSatellitePosition(tracks);
         seekRef.current = pos.offsetSeconds;
@@ -150,6 +162,7 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
         spots,
         images: activeAds.map(a => ({ url: a.imageUrl as string, title: a.title, durSec: 0 })),
         hasUpNext,
+        reservedSpot: netSec ? { url: NETWORK_SPOT_URL, title: 'Sponsored', durSec: netSec } : null,
       }));
     })();
     return () => { alive = false; };
@@ -227,7 +240,7 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
 
   const active = plan && idx >= 0 ? plan[idx] : null;
   const videoSegs = useMemo(
-    () => (plan || []).map((s, i) => ({ s, i })).filter(({ s, i }) => (s.kind === 'spot' || s.kind === 'ident') && s.url && i >= idx && i <= idx + 1),
+    () => (plan || []).map((s, i) => ({ s, i })).filter(({ s, i }) => (s.kind === 'spot' || s.kind === 'ident') && s.url && s.url !== NETWORK_SPOT_URL && i >= idx && i <= idx + 1),
     [plan, idx],
   );
   const imageAd = active?.kind === 'image' ? ads.find(a => a.imageUrl === active.url) : undefined;
@@ -274,6 +287,18 @@ const AdBreakBumper: React.FC<Props> = ({ channelName, durationSec, upcoming = [
           onError={() => markFailed(s.id)}
         />
       ))}
+      {/* The network ad's reserved spot. Ending early (or no fill) hands the rest of its time to Plajah FM. */}
+      {active?.kind === 'spot' && active.url === NETWORK_SPOT_URL && vastTag && (
+        <VastAdPlayer
+          key={active.id}
+          tagUrl={vastTag}
+          placement="tv_break"
+          muted={muted}
+          maxSec={active.durSec}
+          onDone={() => markFailed(active.id)}
+          className="absolute inset-0 z-[12] bg-black"
+        />
+      )}
       {active?.kind === 'spot' && (
         <div className="absolute bottom-0 inset-x-0 h-1.5 z-[11]" style={{ background: `linear-gradient(90deg, ${ORANGE}, ${MAGENTA}, ${PURPLE})` }} />
       )}

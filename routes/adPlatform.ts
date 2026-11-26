@@ -10,12 +10,16 @@
 // POST /api/admin/ads/packages/:id/active  { isActive }
 // POST /api/admin/ads/off-platform/:id/status { status, note? }
 // POST /api/admin/ads/bounties/:id/status  { status: OPEN|IN_PROGRESS|COMPLETED }
+// GET  /api/ads/network                    public: the network-ad setup the app + web games load
+// GET  /ads.txt                            authorized sellers, built from the network-ad setup
+// GET|POST /api/admin/ads/network          read / save the network-ad setup (systemConfig/settings.adNetwork)
 //
 // Admin routes: platform admins only, and every change is written to the admin audit log.
 // No route here moves money. Off-platform refunds and bounty payouts stay in Stripe.
 import express from 'express';
 import { fsGet, fsList, fsIncrementFields, fsPatch, fsQueryRange } from '../services/firebaseAdminRest';
 import { recordAdminAudit } from './adminPlatform';
+import { buildAdsTxt, normalizeAdNetwork, type AdNetworkConfig } from '../services/ads/networkAds';
 
 export interface AdPlatformDeps {
   authMiddleware: express.RequestHandler;
@@ -38,7 +42,7 @@ export const BOUNTY_STATUSES = ['OPEN', 'IN_PROGRESS', 'COMPLETED'] as const;
 
 const ID = /^[A-Za-z0-9_-]{1,80}$/;
 const dayKey = (ms: number) => new Date(ms).toISOString().slice(0, 10);
-const SOURCE_KINDS = new Set(['config', 'userAd', 'album', 'promo', 'onair', 'store', 'product', 'live', 'profile', 'plus', 'other']);
+const SOURCE_KINDS = new Set(['config', 'userAd', 'album', 'promo', 'onair', 'store', 'product', 'live', 'profile', 'plus', 'network', 'other']);
 
 export function createAdPlatformRouter(deps: AdPlatformDeps) {
   const router = express.Router();
@@ -143,6 +147,55 @@ export function createAdPlatformRouter(deps: AdPlatformDeps) {
   act('/api/admin/ads/bounties/:id/status', 'adSyncBounties', b => (BOUNTY_STATUSES as readonly string[]).includes(b.status) ? { status: b.status } : 'bad status');
   act('/api/admin/ads/off-platform/:id/status', 'offPlatformPromotions', b => (OFF_PLATFORM_STATUSES as readonly string[]).includes(b.status)
     ? { status: b.status, ...(typeof b.note === 'string' ? { adminNote: b.note.slice(0, 500) } : {}) } : 'bad status');
+
+  // ── Network ads (Google Ad Manager / AdSense): the third-party share ────────
+  // The setup lives on systemConfig/settings.adNetwork, next to adRatios. Reads are cached briefly
+  // because every page load asks; a save clears the cache so the admin sees it at once.
+  let netCache: { at: number; config: AdNetworkConfig; thirdPartyPct: number } | null = null;
+  const NET_TTL_MS = 60_000;
+  const readNetwork = async () => {
+    if (netCache && now() - netCache.at < NET_TTL_MS) return netCache;
+    const s = await get('systemConfig/settings');
+    const pct = Number(s?.adRatios?.thirdParty);
+    netCache = { at: now(), config: normalizeAdNetwork(s?.adNetwork), thirdPartyPct: Number.isFinite(pct) ? Math.max(0, Math.min(90, pct)) : 0 };
+    return netCache;
+  };
+
+  // Public: what the app and web games need to load the right tags. Nothing here is secret.
+  router.get('/api/ads/network', async (_req, res) => {
+    const { config, thirdPartyPct } = await readNetwork();
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    if (!config.enabled) return res.json({ config: { enabled: false }, thirdPartyPct: 0 });
+    const { adsTxtExtra: _omit, updatedAt: _u, ...pub } = config;
+    res.json({ config: pub, thirdPartyPct });
+  });
+
+  router.get('/ads.txt', async (_req, res) => {
+    const { config } = await readNetwork();
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.send(buildAdsTxt(config));
+  });
+
+  router.get('/api/admin/ads/network', ...gate, async (_req, res) => {
+    netCache = null;
+    const { config, thirdPartyPct } = await readNetwork();
+    res.json({ config, thirdPartyPct, adsTxt: buildAdsTxt(config) });
+  });
+
+  router.post('/api/admin/ads/network', ...gate, express.json({ limit: '32kb' }), async (req: any, res) => {
+    const config = normalizeAdNetwork(req.body?.config);
+    // Switching on with nothing to load would only produce empty slots: say what's missing instead.
+    if (config.enabled && !config.testMode && !config.railUnitPath && !config.videoTagUrl && !config.audioTagUrl && !(config.gamesEnabled && config.adsensePubId)) {
+      return res.status(400).json({ error: 'Add at least one ad unit, VAST tag or AdSense publisher id, or switch on test mode.' });
+    }
+    const saved = { ...config, updatedAt: now() };
+    const ok = await patch('systemConfig/settings', { adNetwork: saved });
+    if (!ok) return res.status(502).json({ error: 'write failed' });
+    netCache = null;
+    await audit(req.uid, 'ads.network.update', 'systemConfig/settings', { enabled: saved.enabled, testMode: saved.testMode, networkCode: saved.networkCode, gamesEnabled: saved.gamesEnabled });
+    res.json({ ok: true, config: saved, adsTxt: buildAdsTxt(saved) });
+  });
 
   return router;
 }

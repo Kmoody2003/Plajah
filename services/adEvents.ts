@@ -4,7 +4,7 @@
  * Fire-and-forget: a failed beacon never affects the viewer. The server (routes/adPlatform.ts) turns
  * these into the impression / click figures in the admin Ad Platform; before this nothing recorded them.
  */
-export type AdSourceKind = 'config' | 'userAd' | 'album' | 'promo' | 'onair' | 'store' | 'product' | 'live' | 'profile' | 'plus' | 'other';
+export type AdSourceKind = 'config' | 'userAd' | 'album' | 'promo' | 'onair' | 'store' | 'product' | 'live' | 'profile' | 'plus' | 'network' | 'other';
 
 const recentImpressions = new Map<string, number>();
 /** The same placement in the same panel counts once per this long, however often React re-renders it. */

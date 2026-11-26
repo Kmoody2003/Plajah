@@ -54,3 +54,9 @@ export const setAdPackageActive = (id: string, isActive: boolean) => post(`/api/
 export const setCampaignStatus = (id: string, status: 'ACTIVE' | 'PAUSED' | 'COMPLETED') => post(`/api/admin/ads/campaigns/${id}/status`, { status });
 export const setBountyStatus = (id: string, status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED') => post(`/api/admin/ads/bounties/${id}/status`, { status });
 export const setOffPlatformStatus = (id: string, status: string, note?: string) => post(`/api/admin/ads/off-platform/${id}/status`, { status, note });
+
+/** Network ads (Google Ad Manager / AdSense): the third-party share's setup + the ads.txt it produces. */
+export interface AdNetworkAdmin { config: import('./ads/networkAds').AdNetworkConfig; thirdPartyPct: number; adsTxt: string }
+export const fetchAdNetworkAdmin = () => call<AdNetworkAdmin>('/api/admin/ads/network');
+export const saveAdNetworkAdmin = (config: import('./ads/networkAds').AdNetworkConfig) =>
+  call<{ ok: boolean; config: import('./ads/networkAds').AdNetworkConfig; adsTxt: string }>('/api/admin/ads/network', { method: 'POST', body: JSON.stringify({ config }) });

@@ -9,6 +9,9 @@ import { AD_SLOT_DISTRIBUTION, SUBSCRIPTION_BOOST_PCT, ACHIEVEMENT_BOOST, POINTS
 import { AD_PACKAGES, OFF_PLATFORM_PACKAGES } from '../../services/stripeService';
 import { PLAJAH_PROMOS } from '../../services/promos/platformPromos';
 import FileUploader from '../FileUploader';
+import { fetchAdNetworkAdmin, saveAdNetworkAdmin } from '../../services/adminPlatformService';
+import { DEFAULT_AD_NETWORK, type AdNetworkConfig } from '../../services/ads/networkAds';
+import { resetAdNetworkCache } from '../../services/ads/googleAds';
 import type { AdConfig, AdRatioConfig } from '../../types';
 import { Header, Stat, Panel, Pill, Btn, Empty, Table, nf, usd, cents, pct, when, useLoad } from './adminUi';
 
@@ -400,6 +403,7 @@ const Rotation: React.FC = () => {
         </div>
         <p className="text-[10px] text-white/30 mt-3">The slot allocator’s built-in default is {Math.round(AD_SLOT_DISTRIBUTION.USER_PROMO * 100)} / {Math.round(AD_SLOT_DISTRIBUTION.CONTENT_PARTNER * 100)} / {Math.round(AD_SLOT_DISTRIBUTION.THIRD_PARTY * 100)} (user / partner / third-party); this setting is what the platform stores for it.</p>
       </Panel>
+      <NetworkAds />
       <Panel title="How boost is earned" sub="Rules in services/adAlgorithmService, shown so support can explain a creator’s placement">
         <div className="grid md:grid-cols-3 gap-3 text-[11px] text-white/60">
           <div className="p-4 bg-black/30 rounded-2xl"><p className="font-black text-white mb-1">Subscription</p>{Object.entries(SUBSCRIPTION_BOOST_PCT).map(([t, p]) => <p key={t}>Tier {t}: +{p}%</p>)}</div>
@@ -413,6 +417,71 @@ const Rotation: React.FC = () => {
         </Table>
       </Panel>
     </div>
+  );
+};
+
+// ── Network ads: who fills the third-party share ────────────────────────────
+
+const NetworkAds: React.FC = () => {
+  const { data, error, reload } = useLoad(fetchAdNetworkAdmin);
+  const [draft, setDraft] = useState<AdNetworkConfig | null>(null);
+  const [msg, setMsg] = useState('');
+  const [saving, setSaving] = useState(false);
+  const c: AdNetworkConfig = draft || data?.config || DEFAULT_AD_NETWORK;
+  const set = <K extends keyof AdNetworkConfig>(k: K, v: AdNetworkConfig[K]) => setDraft({ ...c, [k]: v });
+  const save = async () => {
+    setSaving(true); setMsg('');
+    try { await saveAdNetworkAdmin(c); resetAdNetworkCache(); setDraft(null); setMsg('Saved'); reload(); }
+    catch (e: any) { setMsg('Failed: ' + (e?.message || e)); }
+    finally { setSaving(false); }
+  };
+  const text = (k: 'networkCode' | 'railUnitPath' | 'videoTagUrl' | 'audioTagUrl' | 'adsensePubId', name: string, ph: string, hint?: string) => (
+    <label className="text-[10px] text-white/40 block">{name}
+      <input className="w-full bg-black/40 rounded-xl px-4 py-3 text-sm mt-1 font-mono" placeholder={ph} value={c[k]} onChange={e => set(k, e.target.value)} />
+      {hint && <span className="block mt-1 text-white/25">{hint}</span>}
+    </label>
+  );
+  const toggle = (k: 'enabled' | 'testMode' | 'gamesEnabled' | 'restrictSignedOut', name: string, hint: string) => (
+    <label className="flex items-start gap-3 p-3 bg-black/30 rounded-2xl cursor-pointer">
+      <input type="checkbox" className="mt-1" checked={c[k]} onChange={e => set(k, e.target.checked)} />
+      <span><span className="block text-[12px] font-bold text-white">{name}</span><span className="block text-[10px] text-white/40">{hint}</span></span>
+    </label>
+  );
+  return (
+    <Panel title="Network ads (third-party share)" sub="Google Ad Manager and AdSense fill the third-party % above. Plajah’s own ads fill in whenever Google has none.">
+      {error && <Empty>{error}</Empty>}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <Pill tone={data?.config.enabled ? (data.config.testMode ? 'warn' : 'good') : 'mute'}>{data?.config.enabled ? (data.config.testMode ? 'On: Google test ads' : 'On') : 'Off'}</Pill>
+        <Pill tone="mute">Share {data?.thirdPartyPct ?? '—'}%</Pill>
+        <Pill tone="mute">Never shown to child, under-18 or education accounts</Pill>
+      </div>
+      <div className="grid md:grid-cols-2 gap-3 mb-4">
+        {toggle('enabled', 'Network ads on', 'Master switch for every surface: side ad panel, TV breaks, Plajah FM, web games.')}
+        {toggle('testMode', 'Test mode', 'Use Google’s public sample ads (they never pay). Safe before your account is approved.')}
+        {toggle('gamesEnabled', 'Ads in web games', 'One short ad as Era Clash / Lexicon load (needs the AdSense publisher id).')}
+        {toggle('restrictSignedOut', 'No network ads for signed-out visitors', 'Treat visitors who aren’t signed in like child accounts.')}
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        {text('networkCode', 'Ad Manager network code', '21812345678')}
+        {text('railUnitPath', 'Side ad panel unit', '/21812345678/plajah_rail', 'Ad Manager → Inventory → Ad units. Sizes 300×250, 250×250, 200×200.')}
+        {text('videoTagUrl', 'TV break VAST tag', 'https://pubads.g.doubleclick.net/gampad/ads?…', 'One 15–30 s spot in breaks of 40 s or more.')}
+        {text('audioTagUrl', 'Plajah FM tune-in VAST tag', 'https://pubads.g.doubleclick.net/gampad/ads?…', 'At most once per listener per 30 min. Empty = use the TV tag.')}
+        {text('adsensePubId', 'AdSense publisher id', 'ca-pub-1234567890123456', 'Also writes Google’s line into ads.txt.')}
+      </div>
+      <label className="text-[10px] text-white/40 block mt-4">Other ads.txt sellers (one per line)
+        <textarea rows={3} className="w-full bg-black/40 rounded-xl px-4 py-3 text-[12px] mt-1 font-mono" placeholder="adinplay.com, 12345, DIRECT" value={c.adsTxtExtra} onChange={e => set('adsTxtExtra', e.target.value)} />
+      </label>
+      <div className="flex items-center gap-3 mt-4">
+        <Btn tone="primary" disabled={!draft || saving} onClick={save}>{saving ? 'Saving…' : 'Save network ads'}</Btn>
+        {draft && <Btn onClick={() => setDraft(null)}>Discard</Btn>}
+        {msg && <span className={'text-[11px] font-bold ' + (msg === 'Saved' ? 'text-emerald-400' : 'text-red-400')}>{msg}</span>}
+      </div>
+      <div className="mt-5">
+        <p className="text-[10px] font-black uppercase tracking-widest text-white/40 mb-2">plajah.com/ads.txt (what Google checks)</p>
+        <pre className="text-[11px] bg-black/40 rounded-xl p-3 text-white/70 whitespace-pre-wrap">{data?.adsTxt || '—'}</pre>
+      </div>
+      <p className="text-[10px] text-white/30 mt-3">Do these in your Google accounts, not here: block sensitive categories (dating, gambling, alcohol, politics) under Ad Manager → Protections; switch on Privacy &amp; messaging so EU/UK visitors get Google’s consent message.</p>
+    </Panel>
   );
 };
 

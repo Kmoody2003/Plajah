@@ -590,9 +590,14 @@ import PromoBillboard from './components/ads/PromoBillboard';
 import { reportAdEvent } from './services/adEvents';
 import OnAirBillboard from './components/ads/OnAirBillboard';
 import { panelPromos } from './services/promos/platformPromos';
+import NetworkAdSlot from './components/ads/NetworkAdSlot';
+import { useNetworkAds, setAdAudience } from './services/ads/useNetworkAds';
+import { adAudienceFor, interleaveNetworkSlots, railUnitFor } from './services/ads/networkAds';
 
 type AdSlot =
   | { kind: 'plus' }
+  /** The third-party share: a Google Ad Manager ad, or a Plajah promo when Google has nothing. */
+  | { kind: 'network'; n: number }
   | { kind: 'profile'; profile: import('./types').UserProfile }
   | { kind: 'album'; album: import('./types').Album; profile: import('./types').UserProfile }
   | { kind: 'custom_ad'; ad: import('./types').UserAd; profile: import('./types').UserProfile }
@@ -613,6 +618,8 @@ const adSlotIdentity = (s: AdSlot): { id: string; kind: import('./services/adEve
     case 'product': return { id: (s.product as any).id || 'product', kind: 'product' };
     case 'live': return { id: `live-${s.profile.uid}`, kind: 'live' };
     case 'profile': return { id: `profile-${s.profile.uid}`, kind: 'profile' };
+    // Google's own impressions are logged by NetworkAdSlot; a click here can only be on the Plajah fallback.
+    case 'network': return { id: 'network-fallback', kind: 'promo' };
     default: return { id: 'plajah-plus', kind: 'plus' };
   }
 };
@@ -620,6 +627,7 @@ const adSlotIdentity = (s: AdSlot): { id: string; kind: import('./services/adEve
 /** Mounts once per slot shown (the slot's motion.div is keyed per rotation), so one mount = one impression. */
 const AdBeacon: React.FC<{ slot: AdSlot }> = ({ slot }) => {
   useEffect(() => {
+    if (slot.kind === 'network') return; // NetworkAdSlot reports a filled Google ad itself
     const { id, kind } = adSlotIdentity(slot);
     reportAdEvent(id, 'impression', kind);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -637,6 +645,7 @@ const AD_DURATION: Record<AdSlot['kind'], number> = {
   product:   20000,
   store:     20000,
   live:      30000,
+  network:   30000,
 };
 
 // ~14-frame crossfade at 60 fps ≈ 233 ms
@@ -2036,7 +2045,26 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   });
   const [isBottomSectionExpanded, setIsBottomSectionExpanded] = useState(false);
   const [drawerSearchFocused, setDrawerSearchFocused] = useState(false);
-  const [adSlots, setAdSlots] = useState<AdSlot[]>([]);
+  const [houseAdSlots, setAdSlots] = useState<AdSlot[]>([]);
+  // Network ads: who this viewer is for ad purposes (children, under-18s and education accounts get
+  // none), published for every surface, then the third-party share spread through the rail.
+  const netAds = useNetworkAds();
+  const restrictSignedOut = !!netAds?.config.restrictSignedOut;
+  useEffect(() => {
+    const p: any = effectiveProfile;
+    setAdAudience(adAudienceFor({
+      signedIn: !!user,
+      isChild: !!activeChildProfile || !!p?.isChild,
+      accountType: p?.accountType,
+      birthYear: p?.birthYear,
+      isEducation: isEducationAccount(effectiveProfile),
+    }, { restrictSignedOut }));
+  }, [user, effectiveProfile, activeChildProfile, restrictSignedOut]);
+  const railUnit = netAds?.allowed ? railUnitFor(netAds.config) : null;
+  const adSlots = useMemo<AdSlot[]>(
+    () => (railUnit && netAds ? interleaveNetworkSlots<AdSlot>(houseAdSlots, netAds.thirdPartyPct, n => ({ kind: 'network', n })) : houseAdSlots),
+    [houseAdSlots, railUnit, netAds?.thirdPartyPct], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   // The side pillar's Plajah FM cards open the radio straight on Plajah FM (not the Live Radio browser).
   const [radioOpenFm, setRadioOpenFm] = useState(false);
   useEffect(() => { if (view !== 'RADIO') setRadioOpenFm(false); }, [view]);
@@ -5349,6 +5377,24 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       </div>
                     </button>
                   );
+                } else if (currentSlot.kind === 'network') {
+                  /* ── Third-party share: Google Ad Manager, or a Plajah promo when it has no ad ── */
+                  const promos = panelPromos();
+                  const fallbackPromo = promos.length ? promos[currentSlot.n % promos.length] : null;
+                  slotContent = railUnit ? (
+                    <NetworkAdSlot
+                      key={`network-${currentSlot.n}-${adSlotIdx}`}
+                      unitPath={railUnit}
+                      fallback={fallbackPromo ? (
+                        <PromoBillboard
+                          promo={fallbackPromo}
+                          dotCount={dotTotal}
+                          dotIdx={dotActive}
+                          onTune={ch => { setLiveChannelFocus({ plajahId: ch.plajahId, ownerId: ch.ownerId }); setView('LIVE_HUB' as AppView); }}
+                        />
+                      ) : null}
+                    />
+                  ) : null;
                 } else if (currentSlot.kind !== 'profile') {
                   /* ── Plajah+ subscription tiers billboard ── */
                   slotContent = (

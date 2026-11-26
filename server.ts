@@ -11218,7 +11218,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     // Without this, those endpoints return the HTML shell (e.g. RSS news
     // parsed to 0 items → "No articles found").
     app.use((req, res, next) => {
-      if (req.path.startsWith('/api/') || req.path.startsWith('/t/')) return next();
+      if (req.path.startsWith('/api/') || req.path.startsWith('/t/') || req.path === '/ads.txt') return next();
       // Vite's SPA fallback answers ANY unknown path with index.html — including a missing
       // on-device model file under /models/ (transformers.js then hands HTML to ONNX Runtime:
       // "protobuf parsing failed"). A model path that isn't in public/ is a 404, full stop.
@@ -11245,7 +11245,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     app.get('*all', async (req, res, next) => {
       // API routes registered after this catch-all (/api/fetch-rss, /api/cora,
       // MUSE agent) must not be served the SPA shell — let them resolve.
-      if (req.path.startsWith('/api/') || req.path.startsWith('/t/') || req.path.startsWith('/i/')) return next();   // /t/* = public ticket page (ticketServer); /i/* = evite page (eviteServer)
+      if (req.path.startsWith('/api/') || req.path.startsWith('/t/') || req.path.startsWith('/i/') || req.path === '/ads.txt') return next();   // /t/* = public ticket page (ticketServer); /i/* = evite page (eviteServer)
       // Hosting falls back here for /assets/** it doesn't have (this container's own bundle hashes,
       // which differ from the hosting build). A hashed file that isn't in dist/ is a 404 — never the shell.
       if (req.path.startsWith('/assets/')) return res.status(404).end();

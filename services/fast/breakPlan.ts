@@ -37,6 +37,8 @@ export interface BreakPlanInput {
   /** Fixed-length still frames from the ad rail; only used when there are no video spots. */
   images?: BreakCandidate[];
   hasUpNext: boolean;
+  /** A spot that must air if it fits (the network ad, see services/ads/networkAds). Placed before the rest. */
+  reservedSpot?: BreakCandidate | null;
   rng?: () => number;
 }
 
@@ -79,7 +81,8 @@ export function planBreak(input: BreakPlanInput): BreakSeg[] {
   // Reserve Plajah FM's share first (head card), then spend the rest on whole spots.
   const upNext = input.hasUpNext ? upNextLength(span) : 0;
   const reserve = span >= 12 ? Math.max(upNext, MIN_FM_SEC) : span;
-  const room = span - reserve;
+  const reserved = input.reservedSpot && input.reservedSpot.durSec > 0.5 && input.reservedSpot.durSec <= span - reserve + EPS ? input.reservedSpot : null;
+  const room = span - reserve - (reserved ? reserved.durSec : 0);
 
   const video = input.spots.filter(s => s.durSec > 0.5);
   const pool = video.length ? video : (input.images || []).map(i => ({ ...i, durSec: IMAGE_SPOT_SEC }));
@@ -110,7 +113,7 @@ export function planBreak(input: BreakPlanInput): BreakSeg[] {
   const leftover = Math.max(0, room - spotsSec);
   let head = reserve;
   let tail = 0;
-  if (best.length) {
+  if (best.length || reserved) {
     if (leftover > SPLIT_ABOVE_SEC) { tail = round3(leftover / 2); head += leftover - tail; }
     else if (leftover >= MIN_TAIL_SEC + 1) { tail = leftover; }
     else head += leftover;
@@ -122,6 +125,7 @@ export function planBreak(input: BreakPlanInput): BreakSeg[] {
   // Head: the up-next card, then plain Plajah FM for any remainder. Audio runs straight through both.
   if (upNext > 0 && head > upNext + EPS) { push('upnext', upNext); push('fm', head - upNext); }
   else push(upNext > 0 ? 'upnext' : 'fm', head);
+  if (reserved) push('spot', reserved.durSec, { url: reserved.url, title: reserved.title });
   for (const c of best) push(kind, c.durSec, { url: c.url, title: c.title });
   if (tail > EPS) push(input.hasUpNext && tail >= MIN_TAIL_SEC ? 'upnext' : 'fm', tail);
   if (close) push('ident', close.durSec, { url: close.url, title: close.title });

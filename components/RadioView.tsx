@@ -14,6 +14,16 @@ import { getRadioPresets, toggleRadioPreset, subscribeRadioPresets, isRadioPrese
 import { OnAirHostCard, TodayLineup, useOnAirHost, useHostLine } from './radio/OnAirHost';
 import { songFactsFromTrack } from '../services/onair/station';
 import { playHostClip, fetchStationLengths } from '../services/onair/client';
+import VastAdPlayer from './ads/VastAdPlayer';
+import { useNetworkAds } from '../services/ads/useNetworkAds';
+import { audioTagFor } from '../services/ads/networkAds';
+
+/** Plajah FM plays at most one network spot per listener in this long (only when tuning in). */
+const FM_PREROLL_COOLDOWN_MS = 30 * 60_000;
+const FM_PREROLL_KEY = 'plajah.fmPrerollAt';
+const prerollDue = () => {
+  try { return Date.now() - Number(sessionStorage.getItem(FM_PREROLL_KEY) || 0) > FM_PREROLL_COOLDOWN_MS; } catch { return false; }
+};
 
 /** Real song lengths onto a queue (uploads never stored them; the station clock needs them). */
 const withLengths = (queue: Track[], lengths: Record<string, number | null>): Track[] =>
@@ -290,7 +300,23 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
     playTrack(track, radioAlbum, 'RADIO', pos.offsetSeconds > 1 ? pos.offsetSeconds : undefined, true);
   };
 
+  // Network ads: Plajah FM (not artists' own stations) may open with one sponsor spot as you tune in,
+  // at most once per half hour, never for a restricted viewer. Then the live broadcast, joined where
+  // it is at that moment, so the spot never puts you behind the station clock.
+  const netAds = useNetworkAds();
+  const [prerollTag, setPrerollTag] = useState<string | null>(null);
+  const startListening = () => {
+    const tag = netAds?.allowed && !activeStationId ? audioTagFor(netAds.config) : null;
+    if (tag && tracks.length && prerollDue()) {
+      try { sessionStorage.setItem(FM_PREROLL_KEY, String(Date.now())); } catch { /* */ }
+      setPrerollTag(tag);
+      return;
+    }
+    tuneIn();
+  };
+
   const handlePlayPause = () => {
+    if (prerollTag) return;
     if (tunedIn) {
       if (globalIsPlaying) { pause(); return; }
       // Paused for more than a minute → rejoin live, like turning a radio back on.
@@ -298,7 +324,7 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
       resume();
       return;
     }
-    tuneIn();
+    startListening();
   };
 
   const handleLike = async () => {
@@ -363,6 +389,21 @@ const RadioView: React.FC<RadioViewProps> = ({ onBack, artistId, openPlajahFm })
 
   return (
     <div className="h-full bg-transparent text-white overflow-hidden flex flex-col lg:flex-row">
+      {prerollTag && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-xl">
+            <p className="mb-2 text-[10px] font-black uppercase tracking-[0.35em] text-white/60">Plajah FM starts right after this</p>
+            <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/10 bg-black">
+              <VastAdPlayer
+                tagUrl={prerollTag}
+                placement="fm_tunein"
+                maxSec={30}
+                onDone={() => { setPrerollTag(null); tuneIn(); }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       {/* Station Directory Sidebar */}
       <aside className="w-full lg:w-80 border-r border-white/5 bg-theme-card/30 flex flex-col h-1/3 lg:h-full">
         <div className="p-6 border-b border-white/5">
