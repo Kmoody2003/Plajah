@@ -27,7 +27,7 @@ import { execSync } from 'node:child_process';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { bunnyStreamConfig, videoStatusState } from '../../services/bunnyStream/core.ts';
-import { createVideo, getVideo, uploadVideoBody, tusUploadAuth } from '../../services/bunnyStream/server.ts';
+import { createVideo, deleteVideo, getVideo, uploadVideoBody, tusUploadAuth } from '../../services/bunnyStream/server.ts';
 import { bunnyDocFields } from '../../services/video/playback.ts';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
@@ -51,11 +51,23 @@ fs.mkdirSync(`${MASTERS}/mux`, { recursive: true });
 // Last successful log entry per asset: skip finished work, and let --apply reuse a dry run's Bunny video
 // instead of uploading it a second time.
 const prior = new Map<string, any>();
+const stranded = new Map<string, string>();
 if (fs.existsSync(LOG)) for (const l of fs.readFileSync(LOG, 'utf8').split('\n').filter(Boolean)) {
-  const e = JSON.parse(l); if (e.ok) prior.set(e.muxAssetId, e);
+  let e: any; try { e = JSON.parse(l); } catch { continue; } // a run killed mid-write can leave a torn line
+  if (e.ok) { prior.set(e.muxAssetId, e); stranded.delete(e.muxAssetId); }
+  else if (e.bunnyVideoId && !prior.has(e.muxAssetId)) stranded.set(e.muxAssetId, e.bunnyVideoId); // failed after its upload began
 }
 const done = new Set<string>([...prior.values()].filter(e => e.applied || !APPLY).map(e => e.muxAssetId));
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+// Home internet drops a request now and then ("fetch failed"): retry network errors with backoff.
+// Streamed bodies can't be replayed, so those calls get one try.
+const netFetch = globalThis.fetch;
+globalThis.fetch = (async (input: any, init?: RequestInit) => {
+  for (let n = 1; ; n++) {
+    try { return await netFetch(input, init); }
+    catch (e) { if (n >= 6 || init?.body instanceof ReadableStream) throw e; await sleep(2000 * n); }
+  }
+}) as typeof fetch;
 const fsToken = () => execSync('gcloud auth print-access-token', { encoding: 'utf8' }).trim();
 
 async function mux(p: string, init: RequestInit = {}) {
@@ -67,7 +79,8 @@ async function mux(p: string, init: RequestInit = {}) {
 async function pullMuxMaster(assetId: string): Promise<string> {
   const dest = `${MASTERS}/mux/${assetId}.mp4`;
   if (fs.existsSync(dest) && fs.statSync(dest).size > 0) return dest;
-  await mux(`/assets/${assetId}/master-access`, { method: 'PUT', body: JSON.stringify({ master_access: 'temporary' }) });
+  await mux(`/assets/${assetId}/master-access`, { method: 'PUT', body: JSON.stringify({ master_access: 'temporary' }) })
+    .catch(e => { if (!/Download already exists/.test(e.message)) throw e; }); // left on by an interrupted run
   try {
     let url: string | undefined;
     for (let i = 0; i < 180 && !url; i++) {
@@ -158,12 +171,19 @@ for (const it of items) {
     if (docFields.muxAssetId?.stringValue && docFields.muxAssetId.stringValue !== it.muxAssetId) throw new Error('doc points at a different Mux asset');
     if (docFields.bunnyVideoId?.stringValue) throw new Error(`doc already on Bunny (${docFields.bunnyVideoId.stringValue})`);
 
-    const reuse = prior.get(it.muxAssetId)?.bunnyVideoId as string | undefined;
+    let reuse = prior.get(it.muxAssetId)?.bunnyVideoId as string | undefined;
+    const left = stranded.get(it.muxAssetId);
+    if (!reuse && left) {
+      // An earlier run died after creating this Bunny video: keep it if the upload landed, else clear it away.
+      const s = await getVideo(bunny, left).catch(() => null);
+      if (s && ![0, 5, 6].includes(s.status)) reuse = left;
+      else if (s) await deleteVideo(bunny, left).catch(() => {});
+    }
     let v: { guid: string };
     if (reuse) {
       v = { guid: reuse };
       entry.bunnyVideoId = reuse; entry.reused = true;
-      console.log(`→ ${it.doc} reusing Bunny ${reuse} from the dry run`);
+      console.log(`→ ${it.doc} reusing Bunny ${reuse} from an earlier run`);
     } else {
       if (!(it.master && fs.existsSync(it.master))) {
         const st = fs.statfsSync(MASTERS);
@@ -178,12 +198,26 @@ for (const it of items) {
       entry.bunnyVideoId = v.guid;
       fs.appendFileSync(LOG, JSON.stringify({ ...entry, ok: false, stage: 'created' }) + '\n'); // orphan trail if the upload dies
       if (size < 1e9) await uploadVideoBody(bunny, v.guid, Readable.toWeb(fs.createReadStream(master)) as ReadableStream, size);
-      else await tusUpload(v.guid, master, size, title); // big films: resumable 50 MB chunks with retries
+      else {
+        // big films: resumable 50 MB chunks with retries. Bunny sometimes drops a TUS session (404 mid-upload):
+        // delete that video and start once more on a fresh one, so no empty video is left behind.
+        try { await tusUpload(v.guid, master, size, title); }
+        catch (e: any) {
+          console.log(`   tus failed (${String(e.message).slice(0, 80)}), retrying on a fresh Bunny video`);
+          await deleteVideo(bunny, v.guid).catch(() => {});
+          v = await createVideo(bunny, title);
+          entry.bunnyVideoId = v.guid;
+          fs.appendFileSync(LOG, JSON.stringify({ ...entry, ok: false, stage: 'created' }) + '\n');
+          await tusUpload(v.guid, master, size, title);
+        }
+      }
     }
-    let state = 'processing';
+    let state = 'processing', fails = 0;
     for (let i = 0; i < 1080 && state !== 'ready'; i++) { // up to 3 h (feature films on the free encoder)
       await sleep(10_000);
-      const s = await getVideo(bunny, v.guid);
+      let s;
+      try { s = await getVideo(bunny, v.guid); fails = 0; }
+      catch (e) { if (++fails > 30) throw e; continue; } // ride out network blips while Bunny encodes
       state = videoStatusState(s.status);
       if (state === 'errored') throw new Error(`Bunny failed to encode (status ${s.status})`);
       if (i % 6 === 0) process.stdout.write(`   encoding ${s.encodeProgress}%\n`);
