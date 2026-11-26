@@ -301,7 +301,7 @@ test('moderation: Claude fallback scores via structured output; refusal blocks; 
   const { claudeModerator, firstAvailable, promptModerator } = await import('../services/genCloud/moderation');
   const sent: any[] = [];
   const reply = (j: any) => (async (_u: any, init: any) => { sent.push(JSON.parse(init.body)); return new Response(JSON.stringify(j), { status: 200 }); }) as any;
-  const ok = claudeModerator('K', reply({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ sexual: 0.01, 'sexual/minors': 0, 'self-harm/instructions': 0, 'illicit/violent': 0, 'hate/threatening': 0, 'harassment/threatening': 0, 'violence/graphic': 0.2 }) }] }));
+  const ok = claudeModerator('K', reply({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ sexual: 0.01, 'sexual/minors': 0, 'sexual/real-person': 0, 'weapons/instructions': 0, 'self-harm/instructions': 0, 'threat/real-person': 0, 'violence/graphic': 0.2 }) }] }));
   const r = await ok({ text: 'a fox in snow' });
   assert.ok('scores' in r && r.scores['violence/graphic'] === 0.2);
   assert.equal(sent[0].output_config.format.type, 'json_schema');

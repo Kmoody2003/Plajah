@@ -95,11 +95,18 @@ test('allowance: granted once per month, frozen when the plan has none', () => {
 // ── moderation ──────────────────────────────────────────────────────────────────────────────────
 
 test('moderation: minors always blocked, explicit only for verified adults, outage allows', async () => {
+  // Criminal content is blocked for everyone…
   assert.equal(judgePrompt({ 'sexual/minors': 0.2 }, facts({ verifiedAdult: true })).ok, false);
-  assert.equal(judgePrompt({ sexual: 0.6 }, facts()).ok, false);
-  assert.equal(judgePrompt({ sexual: 0.6 }, facts({ verifiedAdult: true })).ok, true);
+  assert.equal(judgePrompt({ 'sexual/real-person': 0.9 }, facts({ verifiedAdult: true })).ok, false);
+  assert.equal(judgePrompt({ 'weapons/instructions': 0.9 }, facts()).ok, false);
+  assert.equal(judgePrompt({ 'threat/real-person': 0.9 }, facts()).ok, false);
+  // …story content is not: adult themes, gore, fictional threats are left to the provider filters.
+  assert.equal(judgePrompt({ sexual: 0.6 }, facts()).ok, true);
+  assert.equal(judgePrompt({ 'violence/graphic': 0.95, 'hate/threatening': 0.9, 'harassment/threatening': 0.9 }, facts()).ok, true);
+  assert.equal(judgePrompt({ 'illicit/violent': 0.7 }, facts()).ok, true);
+  // Restricted accounts stay sheltered.
   assert.equal(judgePrompt({ 'violence/graphic': 0.7 }, facts({ restricted: true })).ok, false);
-  assert.equal(judgePrompt({ 'violence/graphic': 0.7 }, facts()).ok, true);
+  assert.equal(judgePrompt({ sexual: 0.6 }, facts({ restricted: true })).ok, false);
   const down = promptModerator(async () => ({ error: 'openai:not_configured' }));
   assert.equal((await down({ engine: 'spark-image', prompt: 'x' }, facts())).ok, true);
 });
