@@ -8265,7 +8265,7 @@ export const createMuxLiveStream = async (): Promise<{
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Failed to create live stream' }));
-    throw new Error(err.error || 'Failed to create Mux live stream');
+    throw new Error(err.error || 'Could not create the live stream');
   }
   return res.json();
 };
@@ -8278,7 +8278,7 @@ export const endMuxLiveStream = async (streamId: string): Promise<{ assetId: str
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: 'Failed to end stream' }));
-    throw new Error(err.error || 'Failed to end Mux live stream');
+    throw new Error(err.error || 'Could not end the live stream');
   }
   const data = await res.json();
   return { assetId: data.assetId ?? null, playbackId: data.playbackId ?? null };

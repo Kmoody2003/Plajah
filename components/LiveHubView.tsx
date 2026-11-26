@@ -657,7 +657,7 @@ const LiveHubView: React.FC<LiveHubViewProps> = ({ onBack, currentUser, onJoinPo
               <div className="flex flex-col items-center justify-center py-20 gap-3 text-white/20">
                 <PlayCircle size={40} strokeWidth={1.5} />
                 <p className="text-sm font-black uppercase tracking-widest">No replays yet</p>
-                <p className="text-xs text-center max-w-xs">Streams you end will appear here as rewatchable replays. Mux processes the recording for a few minutes after the stream ends.</p>
+                <p className="text-xs text-center max-w-xs">Streams you end will appear here as rewatchable replays. The recording takes a few minutes to process after the stream ends.</p>
               </div>
             )}
 

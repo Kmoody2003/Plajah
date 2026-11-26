@@ -165,7 +165,7 @@ export function attachLiveMuxRelay(server: Server, deps: MuxRelayDeps, opts: {
         }
 
         mux = await getMux();
-        if (!mux) return refuse(ws, 'unavailable', 'Mux is not configured on this server.');
+        if (!mux) return refuse(ws, 'unavailable', 'Live streaming is not configured on this server.');
 
         // Reuse the stream's Mux live stream on reconnect (keeps ONE continuous live for viewers).
         let streamKey = '';
@@ -187,7 +187,7 @@ export function attachLiveMuxRelay(server: Server, deps: MuxRelayDeps, opts: {
           });
           liveStreamId = ls.id; streamKey = ls.stream_key ?? ''; playbackId = ls.playback_ids?.[0]?.id ?? '';
         }
-        if (!streamKey || !playbackId) return refuse(ws, 'unavailable', 'Mux did not return a stream key.');
+        if (!streamKey || !playbackId) return refuse(ws, 'unavailable', 'Could not start the live stream.');
         const timer = abandonTimers.get(streamId); if (timer) { clearTimeout(timer); abandonTimers.delete(streamId); }
         await setState(prev?.state === 'live' && prev?.liveStreamId === liveStreamId ? 'live' : 'connecting');
 
