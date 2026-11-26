@@ -32,6 +32,8 @@ interface MuxStreamInfo {
   rtmpUrl: string;
   srtUrl: string;
   playbackId: string | null;
+  playbackUrl?: string | null;
+  provider?: 'livewire';
 }
 
 interface LowerThird {
@@ -217,7 +219,9 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
     setGoLiveError('');
     try {
       let url = externalUrl;
-      if (streamType === 'MUX' && muxStream?.playbackId) {
+      if (streamType === 'MUX' && muxStream?.playbackUrl) {
+        url = muxStream.playbackUrl; // Plajah's own origin via Bunny
+      } else if (streamType === 'MUX' && muxStream?.playbackId) {
         url = `https://stream.mux.com/${muxStream.playbackId}.m3u8`;
       } else if (streamType !== 'EXTERNAL') {
         url = `plajah://live/${currentUser.uid}`;
@@ -231,7 +235,7 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
         isPublic: true,
         streamType,
       };
-      if (streamType === 'MUX' && muxStream) {
+      if (streamType === 'MUX' && muxStream && !muxStream.playbackUrl) {
         feedPayload.muxPlaybackId = muxStream.playbackId;
         feedPayload.muxStreamId = muxStream.streamId;
       }
@@ -253,7 +257,8 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
     if (muxStream?.streamId) {
       try {
         const { assetId, playbackId } = await endMuxLiveStream(muxStream.streamId);
-        await saveStreamArchive({
+        // Origin streams have no server-side recording yet: nothing to archive.
+        if (muxStream.provider !== 'livewire') await saveStreamArchive({
           ownerId: currentUser?.uid ?? '',
           ownerName: currentUser?.displayName || 'User',
           ownerPhoto: currentUser?.photoURL || '',
@@ -287,7 +292,9 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
   };
 
   if (isLive) {
-    const liveUrl = streamType === 'MUX' && muxStream?.playbackId
+    const liveUrl = streamType === 'MUX' && muxStream?.playbackUrl
+      ? muxStream.playbackUrl
+      : streamType === 'MUX' && muxStream?.playbackId
       ? `https://stream.mux.com/${muxStream.playbackId}.m3u8`
       : `${window.location.origin}?livestream=${liveFeedId}`;
 
@@ -618,14 +625,15 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
                           </div>
 
                           {/* Live preview — Plajah player, zero Mux UI */}
-                          {muxStream.playbackId && (
+                          {(muxStream.playbackId || muxStream.playbackUrl) && (
                             <div className="rounded-2xl overflow-hidden border border-white/10">
                               <p className="text-white/40 text-[10px] font-black uppercase tracking-widest px-3 pt-3 pb-2">
                                 {muxSignalStatus === 'active' ? 'Live Preview' : 'Preview (will appear once your encoder connects)'}
                               </p>
                               <div className="aspect-video">
                                 <PlajahLivePlayer
-                                  playbackId={muxStream.playbackId}
+                                  playbackId={muxStream.playbackId || undefined}
+                                  src={muxStream.playbackUrl || undefined}
                                   isLive
                                   autoPlay
                                   muted

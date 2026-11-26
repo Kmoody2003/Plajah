@@ -8365,6 +8365,9 @@ export const createMuxLiveStream = async (): Promise<{
   rtmpUrl: string;
   srtUrl: string;
   playbackId: string | null;
+  /** Set when the server streams through Plajah's own origin + Bunny (LIVE_PROVIDER=livewire). */
+  playbackUrl?: string | null;
+  provider?: 'livewire';
 }> => {
   const idToken = await getRequiredIdToken();
   const res = await fetch('/api/mux/live/create', {

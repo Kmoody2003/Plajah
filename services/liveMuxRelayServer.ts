@@ -17,6 +17,10 @@
 // The Mux stream key never leaves the server. streams/{id}.muxLive = { liveStreamId, playbackId, state }
 // where state ∈ connecting | live | reconnecting | ended (viewers switch to HLS on 'live').
 //
+// LIVE_PROVIDER=livewire (services/livewire/originLive.ts): same protocol, but ffmpeg pushes RTMP to our
+// own origin (plajah-live-1) with a signed per-stream token instead of Mux, and muxLive carries
+// provider:'livewire' + playbackUrl (the Bunny HLS URL) with an empty playbackId. Nothing to delete at end.
+//
 // Limits: RELAY_MAX_PER_INSTANCE concurrent transcodes (default 4; each is ~1 vCPU at 720p30),
 // one relay per stream per instance, 4 MB frames, Origin allow-list.
 
@@ -25,6 +29,7 @@ import { WebSocketServer } from 'ws';
 type WebSocket = any;
 import type { IncomingMessage, Server } from 'node:http';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { liveProvider, originLiveConfig, originIngest, originPlaybackUrl, originIsLive, type OriginLiveConfig } from './livewire/originLive';
 
 export const MUX_RELAY_PATH = '/api/live/mux-relay';
 const MUX_RTMP = 'rtmps://global-live.mux.com:443/app';
@@ -70,8 +75,15 @@ export function attachLiveMuxRelay(server: Server, deps: MuxRelayDeps, opts: {
   /** Test seams: a fake Mux client and encoder process. */
   mux?: () => Promise<any | null>;
   spawnEncoder?: (args: string[]) => ChildProcessWithoutNullStreams;
+  /** Test seams for the Livewire origin path. */
+  provider?: () => 'livewire' | 'mux';
+  originConfig?: () => OriginLiveConfig | null;
+  originIsLive?: (cfg: OriginLiveConfig, streamId: string) => Promise<boolean>;
 } = {}) {
   const getMux = opts.mux ?? muxClient;
+  const pickProvider = opts.provider ?? (() => liveProvider());
+  const getOrigin = opts.originConfig ?? (() => originLiveConfig());
+  const checkOrigin = opts.originIsLive ?? ((cfg: OriginLiveConfig, id: string) => originIsLive(cfg, id));
   const spawnEncoder = opts.spawnEncoder ?? ((args: string[]) => spawn('ffmpeg', args, { stdio: ['pipe', 'ignore', 'pipe'] }) as ChildProcessWithoutNullStreams);
   const origins = opts.allowedOrigins ?? ORIGIN_OK;
   const maxRelays = opts.maxPerInstance ?? (Number(process.env.RELAY_MAX_PER_INSTANCE) || 4);
@@ -101,9 +113,12 @@ export function attachLiveMuxRelay(server: Server, deps: MuxRelayDeps, opts: {
     let mux: any = null;
     let liveStreamId = '';
     let playbackId = '';
+    let provider: 'mux' | 'livewire' = 'mux';
+    let playbackUrl = '';
     let alive = true;
+    const liveFields = (state: string) => ({ liveStreamId, playbackId, state, updatedAt: Date.now(), ...(provider === 'livewire' ? { provider, playbackUrl } : {}) });
     const setState = (state: string) =>
-      deps.patchDoc('streams', streamId, { muxLive: { liveStreamId, playbackId, state, updatedAt: Date.now() } }).catch(() => false);
+      deps.patchDoc('streams', streamId, { muxLive: liveFields(state) }).catch(() => false);
     ws.on('pong', () => { alive = true; });
     const beat = setInterval(() => { if (!alive) return ws.terminate(); alive = false; try { ws.ping(); } catch { /* */ } }, 30_000);
     const helloTimer = setTimeout(() => { if (!started) refuse(ws, 'denied', 'No hello.'); }, 15_000);
@@ -132,6 +147,23 @@ export function attachLiveMuxRelay(server: Server, deps: MuxRelayDeps, opts: {
         if (!(await deps.canGoLive(who.uid))) return refuse(ws, 'denied', "Your account can't go live right now — see the Appeal Center.");
         if (active.has(streamId)) { try { active.get(streamId)!.ws.terminate(); } catch { /* */ } active.delete(streamId); }
         if (active.size >= maxRelays) return refuse(ws, 'busy', 'Relay at capacity — staying on direct connections.');
+
+        // Our own origin: no stream to create — the path is the Plajah stream id, and a reconnect just
+        // publishes to the same path again (MediaMTX overridePublisher), so viewers keep one live.
+        const cfg = pickProvider() === 'livewire' ? getOrigin() : null;
+        if (cfg) {
+          provider = 'livewire';
+          const prev = doc.muxLive && typeof doc.muxLive === 'object' ? doc.muxLive : null;
+          liveStreamId = `lw:${streamId}`;
+          playbackUrl = originPlaybackUrl(cfg, streamId);
+          const timer = abandonTimers.get(streamId); if (timer) { clearTimeout(timer); abandonTimers.delete(streamId); }
+          await setState(prev?.state === 'live' && prev?.liveStreamId === liveStreamId ? 'live' : 'connecting');
+          startEncoder(originIngest(cfg, streamId, who.uid).rtmpUrl);
+          send(ws, { type: 'ready', playbackId, playbackUrl });
+          watchActive(streamId, () => checkOrigin(cfg, streamId), liveFields);
+          return;
+        }
+
         mux = await getMux();
         if (!mux) return refuse(ws, 'unavailable', 'Mux is not configured on this server.');
 
@@ -159,17 +191,13 @@ export function attachLiveMuxRelay(server: Server, deps: MuxRelayDeps, opts: {
         const timer = abandonTimers.get(streamId); if (timer) { clearTimeout(timer); abandonTimers.delete(streamId); }
         await setState(prev?.state === 'live' && prev?.liveStreamId === liveStreamId ? 'live' : 'connecting');
 
-        ff = spawnEncoder(ffmpegArgs(`${MUX_RTMP}/${streamKey}`));
-        active.set(streamId, { ws, ff });
-        ff.stderr.on('data', (b: Buffer) => { const s = String(b).trim(); if (s) console.warn(`[mux-relay ${streamId}] ${s.slice(0, 300)}`); });
-        ff.stdin.on('error', () => { /* ffmpeg exited; handled on 'exit' */ });
-        ff.on('exit', code => {
-          if (active.get(streamId)?.ff === ff) active.delete(streamId);
-          ff = null;
-          if (!ended) { send(ws, { type: 'encoder-exit', code }); try { ws.close(1011, 'encoder'); } catch { /* */ } }
-        });
+        startEncoder(`${MUX_RTMP}/${streamKey}`);
         send(ws, { type: 'ready', playbackId });
-        watchActive(streamId, liveStreamId, playbackId);
+        const lsId = liveStreamId;
+        watchActive(streamId, async () => {
+          const m = await getMux();
+          return (await m?.video.liveStreams.retrieve(lsId))?.status === 'active';
+        }, liveFields);
       } catch (e: any) {
         console.error('[mux-relay] hello failed', e?.message);
         refuse(ws, 'unavailable', 'Relay error — staying on direct connections.');
@@ -193,27 +221,40 @@ export function attachLiveMuxRelay(server: Server, deps: MuxRelayDeps, opts: {
       abandonTimers.set(streamId, t);
     });
 
+    function startEncoder(target: string) {
+      const proc = spawnEncoder(ffmpegArgs(target));
+      ff = proc;
+      active.set(streamId, { ws, ff: proc });
+      // Never log the target: for the origin it carries the publish token.
+      proc.stderr.on('data', (b: Buffer) => { const s = String(b).trim(); if (s) console.warn(`[mux-relay ${streamId}] ${s.slice(0, 300)}`); });
+      proc.stdin.on('error', () => { /* ffmpeg exited; handled on 'exit' */ });
+      proc.on('exit', code => {
+        if (active.get(streamId)?.ff === proc) active.delete(streamId);
+        if (ff === proc) ff = null;
+        if (!ended) { send(ws, { type: 'encoder-exit', code }); try { ws.close(1011, 'encoder'); } catch { /* */ } }
+      });
+    }
+
     async function finish(byHost: boolean) {
       if (ff) { try { ff.stdin.end(); } catch { /* */ } const f = ff; setTimeout(() => { try { f.kill('SIGKILL'); } catch { /* */ } }, 3000); ff = null; }
       if (active.get(streamId)?.ws === ws) active.delete(streamId);
       if (!liveStreamId) return;
       await setState('ended');
+      if (provider === 'livewire') return; // the origin path closes when the publisher stops
       try { const m = mux || await getMux(); await m?.video.liveStreams.delete(liveStreamId); } catch (e: any) { console.warn('[mux-relay] delete failed', liveStreamId, e?.message, byHost ? '(host end)' : '(abandoned)'); }
     }
   }
 
-  /** Poll Mux until the live stream is receiving (status 'active'), then flip the doc to 'live' so
-   *  viewers switch to HLS only once there's something to play. */
-  function watchActive(streamId: string, liveStreamId: string, playbackId: string) {
+  /** Poll the provider (Mux status, or our origin's playlist) until it is receiving, then flip the doc
+   *  to 'live' so viewers switch to HLS only once there's something to play. */
+  function watchActive(streamId: string, isActive: () => Promise<boolean>, fields: (state: string) => Record<string, any>) {
     let tries = 0;
     const tick = async () => {
       const cur = active.get(streamId);
       if (!cur || tries++ > 40) return;
       try {
-        const m = await getMux();
-        const ls = await m?.video.liveStreams.retrieve(liveStreamId);
-        if (ls?.status === 'active') {
-          await deps.patchDoc('streams', streamId, { muxLive: { liveStreamId, playbackId, state: 'live', updatedAt: Date.now() } });
+        if (await isActive()) {
+          await deps.patchDoc('streams', streamId, { muxLive: fields('live') });
           return;
         }
       } catch { /* retry */ }

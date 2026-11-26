@@ -15,7 +15,9 @@ const b64u = (b: Buffer | string) => Buffer.from(b).toString('base64url');
 const sign = (payload: string, secret: string) => createHmac('sha256', secret).update(payload).digest();
 
 export const STREAM_ID_RE = /^[A-Za-z0-9_-]{6,128}$/;
-export const RUNG_RE = /^(1080p|720p|480p|360p|av1_1080p|av1_720p|audio)$/;
+// 'src' = the broadcaster's single passthrough stream (before the GPU ladder ships). Mirrored on
+// plajah-live-1 in /opt/plajah-live/auth.mjs — keep the two in step.
+export const RUNG_RE = /^(src|1080p|720p|480p|360p|av1_1080p|av1_720p|audio)$/;
 
 export function signPublishToken(g: PublishGrant, secret: string): string {
   if (!secret || secret.length < 32) throw new Error('LIVEWIRE_SECRET must be at least 32 characters');

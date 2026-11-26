@@ -20,7 +20,7 @@ function fakeEncoder() {
   return proc;
 }
 
-async function setup(docs: Record<string, any>) {
+async function setup(docs: Record<string, any>, extra: Record<string, any> = {}) {
   const created: string[] = []; const deleted: string[] = []; const spawned: any[] = []; const writes: any[] = [];
   const mux = {
     video: { liveStreams: {
@@ -35,7 +35,7 @@ async function setup(docs: Record<string, any>) {
     getDoc: async (_c, id) => docs[id] ?? null,
     patchDoc: async (_c, id, f) => { writes.push({ id, ...f }); docs[id] = { ...docs[id], ...f }; return true; },
     canGoLive: async uid => uid !== 'restricted',
-  }, { mux: async () => mux, spawnEncoder: (args) => { const p = fakeEncoder(); p.args = args; spawned.push(p); return p; } });
+  }, { mux: async () => mux, spawnEncoder: (args) => { const p = fakeEncoder(); p.args = args; spawned.push(p); return p; }, provider: () => 'mux', ...extra });
   await new Promise<void>(r => server.listen(0, '127.0.0.1', () => r()));
   const port = (server.address() as any).port;
   const open = (streamId: string) => new WebSocket(`ws://127.0.0.1:${port}${MUX_RELAY_PATH}?streamId=${streamId}`, { headers: { origin: 'https://plajah.com' } });
@@ -112,5 +112,75 @@ test('foreign origins are rejected at upgrade', async () => {
   const ws = new WebSocket(`ws://127.0.0.1:${port}${MUX_RELAY_PATH}?streamId=abcdef`, { headers: { origin: 'https://evil.example' } });
   const err = await new Promise<any>(r => ws.once('error', r));
   assert.match(String(err?.message), /400/);
+  t.server.close();
+});
+
+// ── Livewire origin (LIVE_PROVIDER=livewire) ────────────────────────────────────────────────────
+import { verifyPublishToken } from '../services/livewire/token';
+import { liveProvider, originLiveConfig, originIngest, originPlaybackUrl, isOriginStreamId, newOriginStreamId } from '../services/livewire/originLive';
+
+const ORIGIN = { originHost: '203.0.113.9', cdnHost: 'plajahlive.b-cdn.net', secret: 's'.repeat(40), pullSecret: 'pull' };
+
+test('origin config: livewire only when switched on and complete', () => {
+  const full = { LIVE_PROVIDER: 'livewire', LIVE_ORIGIN_HOST: '203.0.113.9', LIVE_CDN_HOST: 'https://plajahlive.b-cdn.net/', LIVEWIRE_SECRET: 's'.repeat(40), LIVE_PULL_SECRET: 'p' };
+  assert.equal(liveProvider(full), 'livewire');
+  assert.equal(originLiveConfig(full)?.cdnHost, 'plajahlive.b-cdn.net');
+  assert.equal(liveProvider({ ...full, LIVE_PROVIDER: '' }), 'mux');
+  assert.equal(liveProvider({ ...full, LIVEWIRE_SECRET: 'short' }), 'mux');
+  assert.equal(liveProvider({ ...full, LIVE_CDN_HOST: '' }), 'mux');
+});
+
+test('origin ingest: token is bound to the stream path and verifies with the shared secret', () => {
+  const ing = originIngest(ORIGIN, 'streamABC', 'host-uid', 3600, 1_000_000);
+  const token = decodeURIComponent(ing.rtmpUrl.split('pass=')[1]);
+  assert.match(ing.rtmpUrl, /^rtmp:\/\/203\.0\.113\.9\/live\/streamABC\/src\?user=pub&pass=/);
+  assert.equal(ing.obsServer + '/' + ing.obsStreamKey, ing.rtmpUrl);
+  assert.equal(verifyPublishToken(token, ORIGIN.secret, 1_000_000)?.streamId, 'streamABC');
+  assert.equal(verifyPublishToken(token, ORIGIN.secret, 1_000_000 + 3601), null);
+  assert.equal(originPlaybackUrl(ORIGIN, 'streamABC'), 'https://plajahlive.b-cdn.net/live/streamABC/src/index.m3u8');
+  assert.throws(() => originIngest(ORIGIN, '../x', 'u'));
+  const id = newOriginStreamId(); assert.ok(isOriginStreamId(id), id);
+});
+
+test('livewire: relay pushes to our origin, goes live when the origin has it, no Mux calls', async () => {
+  let originUp = false;
+  const t = await setup({ lw1stream: { ownerUid: 'host', isLive: true } }, {
+    provider: () => 'livewire', originConfig: () => ORIGIN, originIsLive: async () => originUp,
+  });
+  const ws = t.open('lw1stream');
+  await new Promise(r => ws.once('open', r));
+  ws.send(JSON.stringify({ type: 'hello', token: 'tok-host' }));
+  const ready = await t.next(ws);
+  assert.equal(ready.type, 'ready');
+  assert.equal(ready.playbackUrl, 'https://plajahlive.b-cdn.net/live/lw1stream/src/index.m3u8');
+  const target = t.spawned[0].args.at(-1);
+  assert.match(target, /^rtmp:\/\/203\.0\.113\.9\/live\/lw1stream\/src\?user=pub&pass=/);
+  assert.equal(t.docs.lw1stream.muxLive.provider, 'livewire');
+  assert.equal(t.docs.lw1stream.muxLive.state, 'connecting');
+  originUp = true;
+  await new Promise(r => setTimeout(r, 3300));   // watchActive's first tick
+  assert.equal(t.docs.lw1stream.muxLive.state, 'live');
+  assert.equal(t.docs.lw1stream.muxLive.playbackUrl, ready.playbackUrl);
+  ws.send(JSON.stringify({ type: 'end' }));
+  await new Promise(r => ws.once('close', r));
+  await new Promise(r => setTimeout(r, 50));
+  assert.equal(t.docs.lw1stream.muxLive.state, 'ended');
+  assert.deepEqual(t.created, []);
+  assert.deepEqual(t.deleted, []);
+  t.server.close();
+});
+
+test('livewire: a reconnect republishes to the same path and stays live', async () => {
+  const t = await setup({ lw2stream: { ownerUid: 'host', isLive: true, muxLive: { liveStreamId: 'lw:lw2stream', state: 'live' } } }, {
+    provider: () => 'livewire', originConfig: () => ORIGIN, originIsLive: async () => true,
+  });
+  const ws = t.open('lw2stream');
+  await new Promise(r => ws.once('open', r));
+  ws.send(JSON.stringify({ type: 'hello', token: 'tok-host' }));
+  await t.next(ws);
+  assert.equal(t.docs.lw2stream.muxLive.state, 'live');
+  assert.match(t.spawned[0].args.at(-1), /\/live\/lw2stream\/src\?/);
+  ws.send(JSON.stringify({ type: 'end' }));
+  await new Promise(r => ws.once('close', r));
   t.server.close();
 });

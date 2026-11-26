@@ -6871,6 +6871,24 @@ async function startServer() {
   // Auth + per-user rate limit protects against stream creation abuse and billing attacks
   app.post('/api/mux/live/create', authMiddleware, requireCapability('canGoLive'), muxLiveRateLimit, express.json(), async (req, res) => {
     try {
+      // LIVE_PROVIDER=livewire: our own origin (plajah-live-1) + Bunny instead of Mux. Same response
+      // shape; playbackId is null and playbackUrl is the Bunny HLS URL (services/livewire/originLive.ts).
+      const lw = await import('./services/livewire/originLive.js');
+      const lwCfg = lw.liveProvider() === 'livewire' ? lw.originLiveConfig() : null;
+      if (lwCfg) {
+        const id = lw.newOriginStreamId();
+        const ing = lw.originIngest(lwCfg, id, String((req as any).uid));
+        return res.json({
+          streamId: id,
+          streamKey: ing.obsStreamKey,
+          rtmpUrl: ing.obsServer,
+          srtUrl: ing.srtUrl,
+          playbackId: null,
+          playbackUrl: lw.originPlaybackUrl(lwCfg, id),
+          provider: 'livewire',
+          expiresAt: ing.expiresAt,
+        });
+      }
       const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
       if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
         return res.status(500).json({ error: 'Mux integration is not configured.' });
@@ -6911,6 +6929,9 @@ async function startServer() {
   app.delete('/api/mux/live/:streamId', authMiddleware, async (req, res) => {
     try {
       const { streamId } = req.params;
+      // Origin streams have nothing to tear down: the path closes when the encoder stops, and the
+      // publish token expires on its own. No recording yet on this path (assetId null).
+      if ((await import('./services/livewire/originLive.js')).isOriginStreamId(streamId)) return res.json({ ok: true, assetId: null, playbackId: null });
       const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
       if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
         return res.status(500).json({ error: 'Mux integration is not configured.' });
@@ -6947,6 +6968,12 @@ async function startServer() {
   app.get('/api/mux/live/:streamId/status', authMiddleware, async (req, res) => {
     try {
       const { streamId } = req.params;
+      const lw = await import('./services/livewire/originLive.js');
+      if (lw.isOriginStreamId(streamId)) {
+        const cfg = lw.originLiveConfig();
+        if (!cfg) return res.status(500).json({ error: 'Live origin is not configured.' });
+        return res.json({ status: (await lw.originIsLive(cfg, streamId)) ? 'active' : 'idle', playbackId: null, playbackUrl: lw.originPlaybackUrl(cfg, streamId) });
+      }
       const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
       if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
         return res.status(500).json({ error: 'Mux integration is not configured.' });
