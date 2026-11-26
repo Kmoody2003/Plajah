@@ -5,6 +5,7 @@
 // UNVERIFIED against the live APIs (no keys were used to build this) — the first staging run of
 // each adapter must confirm field names. Every call goes through an injected fetch.
 
+import { getEngine } from './catalog';
 import type { GenOutput, GenRequest, ProviderAdapter, ProviderPoll, ProviderRoute, ProviderSubmit } from './types';
 
 type Fetch = typeof fetch;
@@ -24,21 +25,65 @@ const b64ToBytes = (b64: string) => new Uint8Array(Buffer.from(b64, 'base64'));
 
 // ── fal (queue API) ─────────────────────────────────────────────────────────────────────────────
 // POST https://queue.fal.run/<model> → { request_id, status_url, response_url }. We keep the two
-// URLs fal hands back (as the job id) instead of rebuilding them: nested model ids map to queue
-// paths in ways that have changed before.
+// URLs fal hands back (as the job id) instead of rebuilding them: fal builds them from owner/app
+// only, so a URL rebuilt from the full endpoint path answers 405.
+// Input shapes differ per model family (read from each model's /api page, 2026-11-26): FLUX v1.1 and
+// schnell take image_size, Kontext takes aspect_ratio, Veo wants duration "8s", Kling/Seedance/Hailuo
+// want a bare "5". generate_audio defaults to true on Veo/Kling/Seedance and roughly doubles the price,
+// so it is sent explicitly from the engine's audio flag.
 
-export function falAdapter(key: string | undefined, f: Fetch = fetch): ProviderAdapter {
+const FAL_IMAGE_SIZE: Record<NonNullable<GenRequest['aspect']>, string> = {
+  '1:1': 'square_hd', '16:9': 'landscape_16_9', '9:16': 'portrait_16_9', '4:3': 'landscape_4_3', '3:4': 'portrait_4_3',
+};
+
+export function falBody(model: string, req: GenRequest, audio = false): Record<string, unknown> {
+  if (model.startsWith('elevenlabs/')) {
+    const body: Record<string, unknown> = { text: req.text ?? req.prompt ?? '' };
+    // fal takes ElevenLabs voice names ("Rachel"), not raw voice ids; unknown values fall back to fal's default.
+    if (req.voiceId && /^[A-Za-z][A-Za-z ]{1,30}$/.test(req.voiceId)) body.voice = req.voiceId;
+    return body;
+  }
+  const body: Record<string, unknown> = { prompt: req.prompt };
+  if (req.imageUrl) body.image_url = req.imageUrl;
+  if (/\/(flux\/schnell|flux-pro\/v1\.1)/.test(model)) {
+    if (req.aspect) body.image_size = FAL_IMAGE_SIZE[req.aspect];
+    if (req.count) body.num_images = req.count;
+    body.enable_safety_checker = true;
+    return body;
+  }
+  if (model.includes('kontext')) {
+    if (req.aspect) body.aspect_ratio = req.aspect;
+    if (req.count) body.num_images = req.count;
+    return body;
+  }
+  // Video
+  const s = req.seconds;
+  const aspect = req.aspect;
+  if (model.includes('veo3')) {
+    if (s) body.duration = `${s}s`;
+    if (req.resolution) body.resolution = req.resolution;
+    if (aspect === '16:9' || aspect === '9:16') body.aspect_ratio = aspect;
+    body.generate_audio = audio;
+    return body;
+  }
+  if (model.includes('hailuo')) {
+    if (s) body.duration = s > 6 ? '10' : '6';
+    return body;
+  }
+  if (s) body.duration = String(s);
+  if (model.includes('seedance') && req.resolution) body.resolution = req.resolution;
+  if (aspect) body.aspect_ratio = aspect;
+  body.generate_audio = audio;
+  return body;
+}
+
+export function falAdapter(key: string | undefined, f: Fetch = fetch, audioFor: (req: GenRequest) => boolean = () => false): ProviderAdapter {
   const headers = () => ({ Authorization: `Key ${key}`, 'Content-Type': 'application/json' });
   return {
     id: 'fal',
     configured: () => !!key,
     async submit(route: ProviderRoute, req: GenRequest): Promise<ProviderSubmit> {
-      const body: Record<string, unknown> = { prompt: req.prompt };
-      if (req.imageUrl) body.image_url = req.imageUrl;
-      if (req.count) body.num_images = req.count;
-      if (req.aspect) body.aspect_ratio = req.aspect;
-      if (req.seconds) body.duration = String(req.seconds);
-      if (req.resolution) body.resolution = req.resolution;
+      const body = falBody(route.model, req, audioFor(req));
       const r = await json(await f(`https://queue.fal.run/${route.model}`, { method: 'POST', headers: headers(), body: JSON.stringify(body) }), 'fal submit');
       if (!r.status_url || !r.response_url) throw new Error('fal submit: no queue URLs');
       return { providerJobId: JSON.stringify({ s: r.status_url, r: r.response_url }) };
@@ -49,11 +94,14 @@ export function falAdapter(key: string | undefined, f: Fetch = fetch): ProviderA
       if (st.status === 'IN_QUEUE') return { status: 'queued' };
       if (st.status === 'IN_PROGRESS') return { status: 'running' };
       if (st.status !== 'COMPLETED') return { status: 'failed', error: String(st.error || st.status) };
+      if (st.error) return { status: 'failed', error: String(st.error) };
       const res = await json(await f(r, { headers: headers() }), 'fal result');
+      if (Array.isArray(res.has_nsfw_concepts) && res.has_nsfw_concepts.some(Boolean)) return { status: 'failed', error: 'fal: safety filter' };
       const outputs: GenOutput[] = [];
       for (const im of res.images ?? []) outputs.push({ url: im.url, mime: im.content_type || 'image/png', width: im.width, height: im.height });
       if (res.image?.url) outputs.push({ url: res.image.url, mime: res.image.content_type || 'image/png' });
       if (res.video?.url) outputs.push({ url: res.video.url, mime: res.video.content_type || 'video/mp4' });
+      if (res.audio?.url) outputs.push({ url: res.audio.url, mime: res.audio.content_type || 'audio/mpeg' });
       return outputs.length ? { status: 'succeeded', outputs } : { status: 'failed', error: 'fal: empty result' };
     },
     async download(url: string) { return bytesOf(await f(url), 'fal download'); },
@@ -214,7 +262,7 @@ export function elevenlabsAdapter(key: string | undefined, f: Fetch = fetch): Pr
 /** Build every adapter from server env. */
 export function adaptersFromEnv(env: Record<string, string | undefined>, f: Fetch = fetch) {
   return {
-    fal: falAdapter(env.FAL_KEY, f),
+    fal: falAdapter(env.FAL_KEY, f, req => !!getEngine(req.engine)?.audio),
     runware: runwareAdapter(env.RUNWARE_API_KEY, f),
     google: googleAdapter(env.GOOGLE_AI_API_KEY || env.GEMINI_API_KEY, f),
     minimax: minimaxAdapter(env.MINIMAX_API_KEY, f),

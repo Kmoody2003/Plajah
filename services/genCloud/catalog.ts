@@ -7,8 +7,15 @@
 
 import type { Engine, EngineId, ProviderRoute } from './types';
 
+// Routes run end to end against the live API through the real adapter (request accepted, result
+// downloaded, size/length/audio checked). 2026-11-26 fal smoke test: D:/plajah-tmp/fal-test/run.mts.
+const VERIFIED = new Set([
+  'fal:fal-ai/flux/schnell', 'fal:fal-ai/flux-pro/v1.1', 'fal:fal-ai/veo3.1/fast',
+  'fal:fal-ai/kling-video/v3/pro/text-to-video', 'fal:elevenlabs/tts/eleven-v4-turbo',
+]);
+
 const r = (provider: ProviderRoute['provider'], model: string, costPerUnit: ProviderRoute['costPerUnit']): ProviderRoute =>
-  ({ provider, model, costPerUnit, verified: false });
+  ({ provider, model, costPerUnit, verified: VERIFIED.has(`${provider}:${model}`) });
 
 export const ENGINES: Engine[] = [
   // ── Images ──────────────────────────────────────────────────────────────────────────────────
@@ -50,8 +57,9 @@ export const ENGINES: Engine[] = [
   {
     id: 'motion', name: 'Motion', kind: 'video', lane: 'standard',
     blurb: 'Smooth 1080p shots',
-    credits: { '720p': 21, '1080p': 25 }, durations: [4, 6, 8], resolutions: ['720p', '1080p'],
+    credits: { '720p': 23, '1080p': 25 }, durations: [4, 6, 8], resolutions: ['720p', '1080p'],
     routes: [r('google', 'veo-3.1-fast-generate-preview', { '720p': 0.10, '1080p': 0.12 }),
+      r('fal', 'fal-ai/veo3.1/fast', { '720p': 0.15, '1080p': 0.15 }),
       r('minimax', 'MiniMax-Hailuo-03', { '720p': 0.08, '1080p': 0.08 })],
   },
   {
@@ -64,33 +72,34 @@ export const ENGINES: Engine[] = [
   {
     id: 'motion-multi', name: 'Motion Multi-shot', kind: 'video', lane: 'premium', adultOnly: true,
     blurb: 'Several actions in one shot',
-    credits: { '720p': 45, '1080p': 100 }, durations: [5, 10], resolutions: ['720p', '1080p'],
-    routes: [r('fal', 'bytedance/seedance/v2.5/text-to-video', { '720p': 0.23, '1080p': 0.57 })],
+    // fal list price 2026-11-26: $0.473/s at 720p, $1.164/s at 1080p (the earlier 45/100 credits sold below cost).
+    credits: { '720p': 75, '1080p': 180 }, durations: [5, 10], resolutions: ['720p', '1080p'],
+    routes: [r('fal', 'bytedance/seedance-2.5/us/text-to-video', { '720p': 0.473, '1080p': 1.164 })],
   },
   {
     id: 'cinema', name: 'Cinema', kind: 'video', lane: 'premium', audio: true,
     blurb: 'Film-quality shots with sound and dialogue',
     credits: { '1080p': 70 }, durations: [4, 6, 8], resolutions: ['1080p'],
-    routes: [r('google', 'veo-3.1-generate-preview', { '1080p': 0.40 })],
+    routes: [r('google', 'veo-3.1-generate-preview', { '1080p': 0.40 }), r('fal', 'fal-ai/veo3.1', { '1080p': 0.40 })],
   },
   {
     id: 'cinema-4k', name: 'Cinema 4K', kind: 'video', lane: 'premium', audio: true,
     blurb: 'Cinema at 4K',
     credits: { '4k': 100 }, durations: [4, 6, 8], resolutions: ['4k'],
-    routes: [r('google', 'veo-3.1-generate-preview', { '4k': 0.60 })],
+    routes: [r('google', 'veo-3.1-generate-preview', { '4k': 0.60 }), r('fal', 'fal-ai/veo3.1', { '4k': 0.60 })],
   },
   // ── Voice (credits per minute of speech) ────────────────────────────────────────────────────
   {
     id: 'voice', name: 'Voice', kind: 'voice', lane: 'standard',
     blurb: 'Natural narration',
     credits: { default: 9 },
-    routes: [r('elevenlabs', 'eleven_flash_v2_5', { default: 0.045 })],
+    routes: [r('elevenlabs', 'eleven_flash_v2_5', { default: 0.045 }), r('fal', 'elevenlabs/tts/eleven-v4-turbo', { default: 0.045 })],
   },
   {
     id: 'voice-studio', name: 'Voice Studio', kind: 'voice', lane: 'premium',
     blurb: 'Expressive performance voice',
     credits: { default: 18 },
-    routes: [r('elevenlabs', 'eleven_v3', { default: 0.09 })],
+    routes: [r('elevenlabs', 'eleven_v3', { default: 0.09 }), r('fal', 'elevenlabs/tts/eleven-v4', { default: 0.09 })],
   },
 ];
 

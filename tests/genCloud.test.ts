@@ -10,7 +10,7 @@ import { canUseEngine, type AccountFacts } from '../services/genCloud/tiers';
 import {
   emptyLedger, grantMonthly, grantPack, hold, settle, release, lapse, balance, prune, LedgerError, MONTH, DAY,
 } from '../services/genCloud/ledger';
-import { falAdapter, googleAdapter, minimaxAdapter, elevenlabsAdapter } from '../services/genCloud/providers';
+import { falAdapter, falBody, googleAdapter, minimaxAdapter, elevenlabsAdapter } from '../services/genCloud/providers';
 import { submitJob, pollJob, GenError, type GatewayDeps, type GenJob } from '../services/genCloud/gateway';
 import type { ProviderAdapter } from '../services/genCloud/types';
 
@@ -141,6 +141,48 @@ test('fal: queue submit → status → result, key only in header', async () => 
   assert.ok(seen.every(s => !s.url.includes('KEY')));
 });
 
+test('fal: request bodies follow each model family', () => {
+  const schnell = falBody('fal-ai/flux/schnell', { engine: 'spark-image', prompt: 'p', aspect: '16:9', count: 2 });
+  assert.equal(schnell.image_size, 'landscape_16_9');
+  assert.equal(schnell.aspect_ratio, undefined);
+  assert.equal(schnell.num_images, 2);
+  const kontext = falBody('fal-ai/flux-pro/kontext', { engine: 'edit-image', prompt: 'p', aspect: '9:16', imageUrl: 'https://x/i.png' });
+  assert.equal(kontext.aspect_ratio, '9:16');
+  assert.equal(kontext.image_url, 'https://x/i.png');
+  const veo = falBody('fal-ai/veo3.1', { engine: 'cinema', prompt: 'p', seconds: 8, resolution: '1080p', aspect: '1:1' }, true);
+  assert.equal(veo.duration, '8s');
+  assert.equal(veo.aspect_ratio, undefined, 'Veo only takes 16:9 / 9:16');
+  assert.equal(veo.generate_audio, true);
+  const fast = falBody('fal-ai/veo3.1/fast', { engine: 'motion', prompt: 'p', seconds: 6 });
+  assert.equal(fast.generate_audio, false, 'silent engines must not pay for audio');
+  const kling = falBody('fal-ai/kling-video/v3/pro/text-to-video', { engine: 'motion-pro', prompt: 'p', seconds: 5, resolution: '1080p' });
+  assert.equal(kling.duration, '5');
+  assert.equal(kling.resolution, undefined);
+  const seed = falBody('bytedance/seedance-2.5/us/text-to-video', { engine: 'motion-multi', prompt: 'p', seconds: 10, resolution: '720p' });
+  assert.equal(seed.duration, '10');
+  assert.equal(seed.resolution, '720p');
+  const tts = falBody('elevenlabs/tts/eleven-v4-turbo', { engine: 'voice', prompt: '', text: 'hello', voiceId: '21m00Tcm4TlvDq8ikWAM' });
+  assert.equal(tts.text, 'hello');
+  assert.equal(tts.voice, undefined, 'raw ElevenLabs ids are not fal voice names');
+});
+
+test('fal: audio result and safety-filtered images', async () => {
+  const f = fakeFetch([
+    [/queue\.fal\.run\/elevenlabs/, () => ({ request_id: 'a', status_url: 'https://queue.fal.run/s/a', response_url: 'https://queue.fal.run/r/a' })],
+    [/\/s\/a$/, () => ({ status: 'COMPLETED' })],
+    [/\/r\/a$/, () => ({ audio: { url: 'https://cdn.fal/v.mp3' } })],
+    [/\/s\/n$/, () => ({ status: 'COMPLETED' })],
+    [/\/r\/n$/, () => ({ images: [{ url: 'https://cdn.fal/n.png' }], has_nsfw_concepts: [true] })],
+  ]);
+  const a = falAdapter('KEY', f);
+  const route = getEngine('voice')!.routes.find(r => r.provider === 'fal')!;
+  const sub = await a.submit(route, { engine: 'voice', prompt: '', text: 'hi' });
+  const p = await a.poll(route, sub.providerJobId);
+  assert.equal(p.outputs![0].mime, 'audio/mpeg');
+  const n = await a.poll(route, JSON.stringify({ s: 'https://queue.fal.run/s/n', r: 'https://queue.fal.run/r/n' }));
+  assert.equal(n.status, 'failed');
+});
+
 test('google: Imagen returns bytes synchronously; Veo long-running op polls to a video', async () => {
   const f = fakeFetch([
     [/imagen-4\.0-generate-001:predict$/, () => ({ predictions: [{ bytesBase64Encoded: Buffer.from('png').toString('base64'), mimeType: 'image/png' }] })],
@@ -218,7 +260,7 @@ test('gateway: first route errors → falls back to the second; async poll compl
   });
   let job = await submitJob('u1', 'u1', acct('nova'), { engine: 'motion', prompt: 'waves', seconds: 6, resolution: '1080p' }, h.deps);
   assert.equal(job.status, 'running');
-  assert.equal(job.routeIndex, 1);
+  assert.equal(job.routeIndex, 2, "fal (route 1) is not configured here, so minimax takes it");
   assert.equal(balance(h.ledger(), T0).held, 150);
   job = await pollJob(job, h.deps);
   assert.equal(job.status, 'succeeded');
@@ -253,4 +295,20 @@ test('gateway: plan, moderation and balance are checked before any provider call
   await assert.rejects(submitJob('u1', 'u1', acct('nova'), { engine: 'motion', prompt: 'forbidden thing', seconds: 6 }, h.deps), (e: any) => e.code === 'blocked');
   await assert.rejects(submitJob('u1', 'u1', acct('nova'), { engine: 'cinema', prompt: 'x', seconds: 8 }, h.deps), (e: any) => e instanceof LedgerError);
   assert.equal(called, 0);
+});
+
+test('moderation: Claude fallback scores via structured output; refusal blocks; OpenAI first', async () => {
+  const { claudeModerator, firstAvailable, promptModerator } = await import('../services/genCloud/moderation');
+  const sent: any[] = [];
+  const reply = (j: any) => (async (_u: any, init: any) => { sent.push(JSON.parse(init.body)); return new Response(JSON.stringify(j), { status: 200 }); }) as any;
+  const ok = claudeModerator('K', reply({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify({ sexual: 0.01, 'sexual/minors': 0, 'self-harm/instructions': 0, 'illicit/violent': 0, 'hate/threatening': 0, 'harassment/threatening': 0, 'violence/graphic': 0.2 }) }] }));
+  const r = await ok({ text: 'a fox in snow' });
+  assert.ok('scores' in r && r.scores['violence/graphic'] === 0.2);
+  assert.equal(sent[0].output_config.format.type, 'json_schema');
+  assert.ok(sent[0].messages[0].content.includes('<prompt>'));
+  const refused = claudeModerator('K', reply({ stop_reason: 'refusal', content: [] }));
+  const mod = promptModerator(firstAvailable(async () => ({ error: 'openai:not_configured' }), refused));
+  const v = await mod({ engine: 'spark-image', prompt: 'x' }, acct('glow'));
+  assert.equal(v.ok, false);
+  assert.deepEqual(await claudeModerator(undefined)({ text: 'x' }), { error: 'claude:not_configured' });
 });
