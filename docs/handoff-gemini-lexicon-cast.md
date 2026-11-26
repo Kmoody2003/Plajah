@@ -133,23 +133,11 @@ Rerun Mira first, from `build` with `--force`, and compare with pass 2.
    mocap and `forgeRig`). The villagers' stand-in figures are built in `games/lexicon/src/world.ts` (`personModel`), and
    their data is in `games/lexicon/src/content.ts`.
 
-## Uncommitted files from this session (yours to commit when Kenne says)
+## Where the code stands
 
-Modified:
-- `scripts/eraclash3d/forgeBuild.ts`
-- `scripts/eraclash3d/forgeLook.ts`
-- `scripts/eraclash3d/forgeSpec.ts`
-- `services/argilla/creature/hairSystem.ts`
-- `services/argilla/creature/human.ts`
-- `services/argilla/creature/wardrobe.ts`
-- `services/argilla/heritage/codex.ts`
-
-New:
-- `docs/lexicon-direction.md`
-- `docs/handoff-gemini-lexicon-cast.md`
-- `scripts/lexicon/prep_cast_art.py`
-- `scripts/eraclash3d/characters/mira/`
-- `public/games/lexicon/assets/characters/mira.glb` (pass 2 output)
+Everything above is committed as `bfecbd8c` on `feat/apex-elohim` (not pushed). The one file left out on purpose is
+`public/games/lexicon/assets/characters/mira.glb`: it's the start of the stopped pass 3 (built, not painted or scored),
+so it doesn't match the report. Your first Mira rerun replaces it; commit the model once it's painted and scored.
 
 Other people's uncommitted work is on this branch too (`games/apex/...`, `scripts/video/...`, `mocks/...`). Leave it
 alone.
