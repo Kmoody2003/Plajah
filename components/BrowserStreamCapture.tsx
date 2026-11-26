@@ -251,7 +251,7 @@ export default function BrowserStreamCapture({ streamId, streamKey, onStreamStar
           <div className="absolute inset-0 flex items-center justify-center bg-black/60">
             <div className="flex flex-col items-center gap-2">
               <Loader2 size={24} className="text-orange-400 animate-spin"/>
-              <p className="text-white/60 text-sm">{state === 'requesting' ? 'Requesting camera access…' : 'Connecting to Mux WHIP…'}</p>
+              <p className="text-white/60 text-sm">{state === 'requesting' ? 'Requesting camera access…' : 'Connecting…'}</p>
             </div>
           </div>
         )}

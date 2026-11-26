@@ -6843,7 +6843,7 @@ async function startServer() {
 
       const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
       if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
-        return res.status(500).json({ error: 'Mux integration is not configured.' });
+        return res.status(500).json({ error: 'Live video is not configured on this server.' });
       }
 
       const Mux = (await import('@mux/mux-node')).default;
@@ -6892,7 +6892,7 @@ async function startServer() {
       }
       const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
       if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
-        return res.status(500).json({ error: 'Mux integration is not configured.' });
+        return res.status(500).json({ error: 'Live video is not configured on this server.' });
       }
       const Mux = (await import('@mux/mux-node')).default;
       const mux = new Mux({ tokenId: MUX_TOKEN_ID, tokenSecret: MUX_TOKEN_SECRET });
@@ -6935,7 +6935,7 @@ async function startServer() {
       if ((await import('./services/livewire/originLive.js')).isOriginStreamId(streamId)) return res.json({ ok: true, assetId: null, playbackId: null });
       const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
       if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
-        return res.status(500).json({ error: 'Mux integration is not configured.' });
+        return res.status(500).json({ error: 'Live video is not configured on this server.' });
       }
       const Mux = (await import('@mux/mux-node')).default;
       const mux = new Mux({ tokenId: MUX_TOKEN_ID, tokenSecret: MUX_TOKEN_SECRET });
@@ -6977,7 +6977,7 @@ async function startServer() {
       }
       const { MUX_TOKEN_ID, MUX_TOKEN_SECRET } = process.env;
       if (!MUX_TOKEN_ID || !MUX_TOKEN_SECRET) {
-        return res.status(500).json({ error: 'Mux integration is not configured.' });
+        return res.status(500).json({ error: 'Live video is not configured on this server.' });
       }
       const Mux = (await import('@mux/mux-node')).default;
       const mux = new Mux({ tokenId: MUX_TOKEN_ID, tokenSecret: MUX_TOKEN_SECRET });

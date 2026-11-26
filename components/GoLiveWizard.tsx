@@ -140,7 +140,7 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
       setMuxStream(info);
       setSignalOk(true);
     } catch (err: any) {
-      setMuxError(err.message || 'Failed to create Mux live stream');
+      setMuxError(err.message || 'Could not create the live stream');
     } finally {
       setMuxCreating(false);
     }
@@ -624,7 +624,7 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
                             <p className="font-bold text-white/40">ffmpeg: <span className="font-mono text-white/30">ffmpeg -i input … -f mpegts "{muxStream.srtUrl}"</span></p>
                           </div>
 
-                          {/* Live preview — Plajah player, zero Mux UI */}
+                          {/* Live preview — Plajah player */}
                           {(muxStream.playbackId || muxStream.playbackUrl) && (
                             <div className="rounded-2xl overflow-hidden border border-white/10">
                               <p className="text-white/40 text-[10px] font-black uppercase tracking-widest px-3 pt-3 pb-2">
@@ -750,7 +750,7 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
                   <h2 className="text-white font-black text-xl uppercase tracking-tight mb-2">Ready to go live?</h2>
                   <div className="space-y-3">
                     {[
-                      { label: 'Stream Type', value: streamType === 'QUICK' ? 'Quick Mobile' : streamType === 'STUDIO' ? 'Studio Broadcast' : streamType === 'MUX' ? 'Mux Pro Stream' : streamType === 'SPORTS' ? '🏈 Sports Broadcast' : 'External Stream' },
+                      { label: 'Stream Type', value: streamType === 'QUICK' ? 'Quick Mobile' : streamType === 'STUDIO' ? 'Studio Broadcast' : streamType === 'MUX' ? 'Pro Stream (OBS / RTMP)' : streamType === 'SPORTS' ? '🏈 Sports Broadcast' : 'External Stream' },
                       { label: 'Title', value: title || '(untitled)' },
                       { label: 'Category', value: category || '(none)' },
                       { label: 'Lower Thirds', value: `${lowerThirds.filter(lt => lt.title).length} configured` },
@@ -765,7 +765,7 @@ const GoLiveWizardInner: React.FC<GoLiveWizardProps> = ({ onClose, currentUser }
                     <div className={`flex items-center gap-3 p-4 rounded-2xl border ${muxStream ? 'border-green-500/30 bg-green-500/10' : 'border-yellow-500/30 bg-yellow-500/10'}`}>
                       {muxStream ? <Check size={18} className="text-green-400" /> : <AlertCircle size={18} className="text-yellow-400" />}
                       <p className={`text-sm font-bold ${muxStream ? 'text-green-400' : 'text-yellow-400'}`}>
-                        {muxStream ? 'Mux stream credentials ready — connect OBS and go live' : 'No Mux stream created yet — go back to Signal step'}
+                        {muxStream ? 'Stream credentials ready — connect OBS and go live' : 'No stream created yet — go back to the Signal step'}
                       </p>
                     </div>
                   ) : streamType === 'SPORTS' ? (

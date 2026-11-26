@@ -1725,7 +1725,7 @@ function MobileStreamer({ onClose, clubId, isPrivate, liveOverlay, onOpenStudio,
                     relayStatus === 'live' ? 'bg-emerald-500/80 text-white'
                     : relayStatus === 'connecting' || relayStatus === 'reconnecting' ? 'bg-amber-500/80 text-black'
                     : 'bg-black/60 text-white/60'}`}>
-                  {relayStatus === 'live' ? 'Mux live' : relayStatus === 'connecting' ? 'Linking' : relayStatus === 'reconnecting' ? 'Relinking' : 'Direct'}
+                  {relayStatus === 'live' ? 'Broadcasting' : relayStatus === 'connecting' ? 'Linking' : relayStatus === 'reconnecting' ? 'Relinking' : 'Direct'}
                 </div>
               )}
               {/* Sound — share device audio / a file under your mic */}
