@@ -13,10 +13,19 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { color, dot, mix, texture, uniform, vec3 } from 'three/tsl';
 
-export type RigKind = 'wolf' | 'mantis' | 'wasp' | 'deer' | 'bat' | 'moth';
+export type RigKind =
+  | 'wolf' | 'mantis' | 'wasp' | 'deer' | 'bat' | 'moth'
+  | 'apex_drake' | 'amphibian_brute' | 'cryo_panther' | 'shadow_stalker_beast'
+  | 'hydro_serpent' | 'bio_sloth' | 'bio_axolotl' | 'cyan_bat' | 'glow_beetle'
+  | 'blue_axolotl' | 'bio_turtle' | 'sky_jelly' | 'cyber_dragonfly'
+  | 'electric_newt' | 'acid_hornet' | 'venom_caterpillar' | 'poison_salamander' | 'venom_toad';
 
 const FILES: Record<RigKind, string> = {
   wolf: 'electric_wolf', mantis: 'venom_mantis', wasp: 'plasma_wasp', deer: 'lumen_deer', bat: 'storm_bat', moth: 'glow_moth',
+  apex_drake: 'apex_drake', amphibian_brute: 'amphibian_brute', cryo_panther: 'cryo_panther', shadow_stalker_beast: 'shadow_stalker_beast',
+  hydro_serpent: 'hydro_serpent', bio_sloth: 'bio_sloth', bio_axolotl: 'bio_axolotl', cyan_bat: 'cyan_bat', glow_beetle: 'glow_beetle',
+  blue_axolotl: 'blue_axolotl', bio_turtle: 'bio_turtle', sky_jelly: 'sky_jelly', cyber_dragonfly: 'cyber_dragonfly',
+  electric_newt: 'electric_newt', acid_hornet: 'acid_hornet', venom_caterpillar: 'venom_caterpillar', poison_salamander: 'poison_salamander', venom_toad: 'venom_toad',
 };
 const BASE = '/games/rift-realm/assets/creatures/rigged/';
 
@@ -28,6 +37,24 @@ const LOCO: Record<RigKind, { clip: string; stride: number; min: number }> = {
   wasp: { clip: 'fly', stride: 0, min: 1 },
   bat: { clip: 'fly', stride: 0, min: 1 },
   moth: { clip: 'fly', stride: 0, min: 1 },
+  apex_drake: { clip: 'run', stride: 3.1, min: 0.55 },
+  amphibian_brute: { clip: 'walk', stride: 2.2, min: 0.5 },
+  cryo_panther: { clip: 'run', stride: 2.8, min: 0.55 },
+  shadow_stalker_beast: { clip: 'run', stride: 3.0, min: 0.55 },
+  hydro_serpent: { clip: 'walk', stride: 2.0, min: 0.5 },
+  bio_sloth: { clip: 'walk', stride: 1.2, min: 0.45 },
+  bio_axolotl: { clip: 'run', stride: 1.1, min: 0.45 },
+  cyan_bat: { clip: 'fly', stride: 0, min: 1 },
+  glow_beetle: { clip: 'walk', stride: 0.9, min: 0.5 },
+  blue_axolotl: { clip: 'run', stride: 1.1, min: 0.45 },
+  bio_turtle: { clip: 'run', stride: 1.0, min: 0.4 },
+  sky_jelly: { clip: 'fly', stride: 0, min: 1 },
+  cyber_dragonfly: { clip: 'fly', stride: 0, min: 1 },
+  electric_newt: { clip: 'run', stride: 1.1, min: 0.45 },
+  acid_hornet: { clip: 'fly', stride: 0, min: 1 },
+  venom_caterpillar: { clip: 'walk', stride: 0.85, min: 0.45 },
+  poison_salamander: { clip: 'run', stride: 1.0, min: 0.45 },
+  venom_toad: { clip: 'run', stride: 1.2, min: 0.45 },
 };
 
 export interface RigTemplate {

@@ -988,12 +988,13 @@ export function buildForestMap(kit: StaticKit, group: THREE.Group, scene: THREE.
   // ── creatures (the level's turnarounds): the forest fights back with Electric Wolves, Venom Mantises and Plasma
   //    Wasps; a herd of Lumen Deer grazes the grove and bolts when you come close ───────────────────────────────
   preloadCreatures(['wolf', 'mantis', 'wasp', 'deer', 'bat']);
-  const MUL: Record<CreatureKind, [number, number]> = { wolf: [1.35, 0.8], mantis: [0.8, 1.5], wasp: [1.1, 0.6], deer: [1, 1], bat: [1.2, 0.7] };
+  const MUL: Partial<Record<CreatureKind, [number, number]>> = { wolf: [1.35, 0.8], mantis: [0.8, 1.5], wasp: [1.1, 0.6], deer: [1, 1], bat: [1.2, 0.7] };
   enemyBodies.make = (id, boss) => {
     const k: CreatureKind = boss ? 'mantis' : (['wolf', 'bat', 'wolf', 'mantis', 'wasp', 'bat'] as const)[id % 6];
     const b = new CreatureBody(k);
     if (!b.hover) walkers.push(b.root);
-    return { root: b.root, hover: b.hover, height: b.height, speedMul: MUL[k][0], hpMul: MUL[k][1], update: (dt, sp) => b.update(dt, sp), attack: () => b.attack(), rig: b.rig };
+    const m = MUL[k] ?? [1, 1];
+    return { root: b.root, hover: b.hover, height: b.height, speedMul: m[0], hpMul: m[1], update: (dt, sp) => b.update(dt, sp), attack: () => b.attack(), rig: b.rig };
   };
   type Deer = { b: CreatureBody; home: THREE.Vector3; tx: number; tz: number; wait: number; flee: number; speed: number };
   const herd: Deer[] = [];

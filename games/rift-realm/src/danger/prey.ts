@@ -11,14 +11,28 @@ import type { VfxSystem } from '../../../../services/vfx';
 import { KILL_BURST } from '../../../../services/vfx';
 import type { DangerAudio } from './audio';
 
-export type PreyKind = 'deer' | 'stag';
+export type PreyKind =
+  | 'deer' | 'stag'
+  | 'turtle' | 'axolotl' | 'blue_axolotl' | 'sloth' | 'beetle'
+  | 'jelly' | 'dragonfly' | 'newt' | 'salamander' | 'caterpillar' | 'toad';
 export interface Herd { id: string; kind: PreyKind; x: number; z: number; r: number; n: number }
 
-interface PreySpec { name: string; body: CreatureKind; size: number; hp: number; run: number; walk: number; meat: string; bites: number; kick?: number }
+interface PreySpec { name: string; body: CreatureKind; size: number; hp: number; run: number; walk: number; meat: string; bites: number; kick?: number; fly?: boolean; shy?: number }
 export const PREY_SPECS: Record<PreyKind, PreySpec> = {
   deer: { name: 'Lumen Deer', body: 'deer', size: 1, hp: 40, run: 9, walk: 1.3, meat: 'venison', bites: 3 },
   // a stag stands its ground a moment when cornered and kicks
   stag: { name: 'Crystal Stag', body: 'deer', size: 1.3, hp: 85, run: 10, walk: 1.2, meat: 'stagmeat', bites: 4, kick: 12 },
+  turtle: { name: 'Bioluminescent Turtle', body: 'bio_turtle', size: 1.05, hp: 90, run: 2.2, walk: 0.7, meat: 'venison', bites: 3, shy: 0.4 },
+  axolotl: { name: 'Bioluminescent Axolotl', body: 'bio_axolotl', size: 1.0, hp: 32, run: 5.5, walk: 1.1, meat: 'venison', bites: 2, shy: 0.65 },
+  blue_axolotl: { name: 'Azure Bio-Axolotl', body: 'blue_axolotl', size: 1.0, hp: 32, run: 5.8, walk: 1.2, meat: 'venison', bites: 2, shy: 0.65 },
+  sloth: { name: 'Bioluminescent Sloth', body: 'bio_sloth', size: 1.1, hp: 65, run: 2.8, walk: 0.85, meat: 'venison', bites: 3, shy: 0.35 },
+  beetle: { name: 'Glow Beetle', body: 'glow_beetle', size: 1.05, hp: 35, run: 4.5, walk: 1.1, meat: 'venison', bites: 2, shy: 0.45 },
+  jelly: { name: 'Sky Jellyfish', body: 'sky_jelly', size: 1.15, hp: 38, run: 4.2, walk: 1.4, meat: 'venison', bites: 2, fly: true, shy: 0.2 },
+  dragonfly: { name: 'Cyber Dragonfly', body: 'cyber_dragonfly', size: 1.05, hp: 28, run: 9.5, walk: 3.4, meat: 'venison', bites: 1, fly: true, shy: 0.55 },
+  newt: { name: 'Electric Newt', body: 'electric_newt', size: 1.05, hp: 34, run: 6.2, walk: 1.3, meat: 'venison', bites: 2, shy: 0.6 },
+  salamander: { name: 'Poison Salamander', body: 'poison_salamander', size: 1.05, hp: 38, run: 5.6, walk: 1.2, meat: 'stagmeat', bites: 2, shy: 0.5 },
+  caterpillar: { name: 'Venom Caterpillar', body: 'venom_caterpillar', size: 1.1, hp: 42, run: 3.0, walk: 0.9, meat: 'stagmeat', bites: 2, shy: 0.35 },
+  toad: { name: 'Venomous Acid Toad', body: 'venom_toad', size: 1.1, hp: 55, run: 5.0, walk: 1.0, meat: 'stagmeat', bites: 2, shy: 0.45 },
 };
 
 export interface PreyEnv {
@@ -28,6 +42,8 @@ export interface PreyEnv {
   hurtPlayer(dmg: number, why: string): void;
   /** How close the player may come before `p` bolts (the soul and the creature's trust change it; danger/bonds.ts). */
   fearR?(p: Prey, base: number): number;
+  lo?: boolean;
+  wilds?: boolean;
 }
 
 let nextId = 200000; // apart from enemy (1…) and predator (100000…) ids
@@ -78,38 +94,70 @@ export class Prey {
 
 export interface Carcass { id: number; kind: PreyKind; meat: string; bites: number; pos: THREE.Vector3; obj: THREE.Object3D; body: CreatureBody; life: number; sinking: number }
 
-const ACTIVE_R = 160, DESPAWN_R = 240, RESPAWN = 150;
+const ACTIVE_R = 210, DESPAWN_R = 300, RESPAWN = 90;
 const tmp = new THREE.Vector3();
+const FOREST_ROAM: PreyKind[] = ['deer', 'deer', 'stag', 'jelly', 'dragonfly', 'sloth', 'beetle', 'salamander', 'caterpillar', 'toad'];
+const WATER_ROAM: PreyKind[] = ['turtle', 'axolotl', 'blue_axolotl', 'newt', 'dragonfly', 'jelly', 'toad'];
 
 export class PreyDirector {
   readonly group = new THREE.Group();
   readonly list: Prey[] = [];
   readonly carcasses: Carcass[] = [];
-  private herds: { herd: Herd; live: Prey[]; deadAt: number[] }[];
-  private clock = 0; private herdT = 0;
+  private herds: { herd: Herd; live: Prey[]; deadAt: number[]; dynamic?: boolean }[];
+  private clock = 0; private herdT = 0; private roamCd = 0;
   private cid = 1;
+  private maxLive: number;
 
   constructor(private env: PreyEnv, herds: Herd[]) {
     this.group.name = 'danger-prey';
     env.scene.add(this.group);
     this.herds = herds.map((herd) => ({ herd, live: [], deadAt: [] }));
+    this.maxLive = env.lo ? 28 : 54;
   }
 
   private manage(player: THREE.Vector3) {
-    for (const h of this.herds) {
+    for (let hi = this.herds.length - 1; hi >= 0; hi--) {
+      const h = this.herds[hi];
       const d = Math.hypot(h.herd.x - player.x, h.herd.z - player.z);
       for (let i = h.live.length - 1; i >= 0; i--) {
         const p = h.live[i];
         if (!p.alive) { h.live.splice(i, 1); continue; }
         if (p.pos.distanceTo(player) > DESPAWN_R) { this.drop(p); h.live.splice(i, 1); }
       }
+      if (h.dynamic && h.live.length === 0 && d > DESPAWN_R * 0.7) { this.herds.splice(hi, 1); continue; }
       h.deadAt = h.deadAt.filter((t) => this.clock - t < RESPAWN);
       if (d > ACTIVE_R) continue;
-      while (h.live.length + h.deadAt.length < h.herd.n) {
-        const a = Math.random() * Math.PI * 2, r = Math.random() * h.herd.r * 0.6, x = h.herd.x + Math.cos(a) * r, z = h.herd.z + Math.sin(a) * r;
-        if (Math.hypot(x - player.x, z - player.z) < 25) break;
+      while (h.live.length + h.deadAt.length < h.herd.n && this.list.length < this.maxLive) {
+        const a = Math.random() * Math.PI * 2, r = Math.random() * h.herd.r * 0.65, x = h.herd.x + Math.cos(a) * r, z = h.herd.z + Math.sin(a) * r;
+        if (Math.hypot(x - player.x, z - player.z) < 16) break;
         const p = new Prey(h.herd, new THREE.Vector3(x, this.env.ground(x, z), z));
         h.live.push(p); this.list.push(p); this.group.add(p.mesh);
+      }
+    }
+    // Dynamic roaming wildlife ring: wherever the player explores in the 2 km Wilds, keep the surrounding forest alive.
+    if (this.env.wilds !== false && this.roamCd <= 0 && this.list.length < this.maxLive) {
+      const nearTarget = this.env.lo ? 6 : 11;
+      let near = 0;
+      for (const p of this.list) if (p.alive && p.pos.distanceTo(player) < 125) near++;
+      if (near < nearTarget) {
+        this.roamCd = 3.5;
+        const a = Math.random() * Math.PI * 2;
+        const dist = 42 + Math.random() * 68;
+        const cx = THREE.MathUtils.clamp(player.x + Math.cos(a) * dist, -840, 840);
+        const cz = THREE.MathUtils.clamp(player.z + Math.sin(a) * dist, -840, 840);
+        const gy = this.env.ground(cx, cz);
+        const pool = gy < -32 || Math.hypot(cx - 235, cz - 170) < 120 ? WATER_ROAM : FOREST_ROAM;
+        const kind = pool[Math.floor(Math.random() * pool.length)];
+        const count = kind === 'stag' || kind === 'sloth' ? 2 : 2 + Math.floor(Math.random() * 2);
+        const herd: Herd = { id: `roam-${kind}-${this.cid++}`, kind, x: cx, z: cz, r: 28, n: count };
+        const entry = { herd, live: [] as Prey[], deadAt: [] as number[], dynamic: true };
+        for (let k = 0; k < count && this.list.length < this.maxLive; k++) {
+          const oa = Math.random() * Math.PI * 2, or = 2 + Math.random() * 10;
+          const x = cx + Math.cos(oa) * or, z = cz + Math.sin(oa) * or;
+          const p = new Prey(herd, new THREE.Vector3(x, this.env.ground(x, z), z));
+          entry.live.push(p); this.list.push(p); this.group.add(p.mesh);
+        }
+        this.herds.push(entry);
       }
     }
   }
@@ -180,22 +228,24 @@ export class PreyDirector {
 
   update(dt: number, player: THREE.Vector3, crouched: boolean, threats: THREE.Vector3[]) {
     this.clock += dt;
+    this.roamCd = Math.max(0, this.roamCd - dt);
     if ((this.herdT -= dt) <= 0) { this.herdT = 1; this.manage(player); }
     const env = this.env;
     for (const p of this.list) {
       p.t -= dt; p.kickCd -= dt;
       p.body.glow += (1 - p.body.glow) * Math.min(1, dt * 3);
-      // senses: you (crouched you get much closer), predators near
+      // senses: you (crouched you get much closer), predators near (gentle flyers & turtles are less skittish)
       const pd = p.pos.distanceTo(player);
-      const base = crouched ? 6 : 16, fr = env.fearR ? env.fearR(p, base) : base;
+      const shy = p.spec.shy ?? 1;
+      const base = (crouched ? 6 : 16) * shy, fr = env.fearR ? env.fearR(p, base) : base;
       if (p.state !== 'flee' && p.state !== 'stand' && pd < fr) this.bolt(p, player);
-      for (const t of threats) if (p.state !== 'flee' && t.distanceTo(p.pos) < 20) { this.bolt(p, t); break; }
+      for (const t of threats) if (p.state !== 'flee' && t.distanceTo(p.pos) < 20 * shy) { this.bolt(p, t); break; }
       let want = 0;
       if (p.come && p.state !== 'flee' && p.state !== 'stand') {   // walking up to the player (a gift)
         p.state = 'walk'; p.t = 2; p.goal.copy(p.come); want = p.spec.walk * 2.2;
         if (Math.hypot(p.come.x - p.pos.x, p.come.z - p.pos.z) < 2.2) { p.come = null; p.state = 'graze'; p.t = 4; want = 0; }
-      } else if (p.state === 'graze') { if (p.t <= 0) { p.state = 'walk'; p.t = 6; const a = Math.random() * 6.28, r = Math.random() * p.herd.r; p.goal.set(p.herd.x + Math.cos(a) * r, 0, p.herd.z + Math.sin(a) * r); } }
-      else if (p.state === 'walk') { want = p.spec.walk; if (Math.hypot(p.goal.x - p.pos.x, p.goal.z - p.pos.z) < 1 || p.t <= 0) { p.state = 'graze'; p.t = 3 + Math.random() * 6; } }
+      } else if (p.state === 'graze') { if (p.t <= 0) { p.state = 'walk'; p.t = p.spec.fly ? 8 : 6; const a = Math.random() * 6.28, r = Math.random() * p.herd.r; p.goal.set(p.herd.x + Math.cos(a) * r, 0, p.herd.z + Math.sin(a) * r); } }
+      else if (p.state === 'walk') { want = p.spec.walk; if (Math.hypot(p.goal.x - p.pos.x, p.goal.z - p.pos.z) < 1 || p.t <= 0) { p.state = 'graze'; p.t = p.spec.fly ? 1.2 + Math.random() * 2.5 : 3 + Math.random() * 6; } }
       else if (p.state === 'flee') {
         want = p.spec.run;
         tmp.subVectors(p.pos, p.fear).setY(0).normalize();
@@ -221,7 +271,7 @@ export class PreyDirector {
         let dy = Math.atan2(p.fear.x - p.pos.x, p.fear.z - p.pos.z) - p.mesh.rotation.y; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); p.mesh.rotation.y += dy * Math.min(1, dt * 8);
       }
       p.pos.y += (env.ground(p.pos.x, p.pos.z) - p.pos.y) * Math.min(1, dt * 10);
-      env.resolve(p.pos, 0.45 * p.spec.size, 1.6);
+      if (!p.spec.fly) env.resolve(p.pos, 0.45 * p.spec.size, 1.6);
       const sp = Math.hypot(p.pos.x - p.last.x, p.pos.z - p.last.z) / Math.max(dt, 1e-3);
       p.last.copy(p.pos);
       p.body.update(dt, sp);

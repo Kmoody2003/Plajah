@@ -31,6 +31,9 @@ import { PlayerController } from './player';
 import { EnemyManager, enemyNav } from './enemies';
 import { VESSEL_ORDER, VESSELS, type VesselId } from './vessels';
 import { Tracers, recipe } from './weapons';
+import { GrappleHook } from './grapple';
+import { sampleWaterAt } from './waterPhysics';
+import { WorldArmory } from './loadouts';
 import { UnifiedControls } from './controls';
 import { Targeting } from './targeting';
 import { createDanger } from './danger';
@@ -146,7 +149,7 @@ async function boot() {
   }
   await loading.stage('prepare');
   await arena.prepare?.(renderer, camera);
-  camera.far = levelModule.look.far; camera.updateProjectionMatrix(); renderer.toneMappingExposure = levelModule.look.exposure;
+  camera.far = Math.max(camera.far, levelModule.look.far); camera.updateProjectionMatrix(); renderer.toneMappingExposure = levelModule.look.exposure;
   // Game Studio Play view: the project's edits to this level (spawns, enemy spots, control points, props, look) apply before anyone spawns.
   const studioLook = await applyStudioProject(levelId, arena);
   if (studioLook) { camera.far = studioLook.far; camera.updateProjectionMatrix(); renderer.toneMappingExposure = studioLook.exposure; }
@@ -333,6 +336,107 @@ async function boot() {
   });
   if (ents) await ents.prepare(renderer, camera);
 
+  // ── Stream water physics, swimming, cliff climbing, double jump VFX, retracting grapple hook & World Armory ──
+  const isWilds = levelId === 'elderwood' && !new URLSearchParams(location.search).has('classic');
+  if (levelId === 'elderwood') {
+    player.waterSampler = (x, z, gy) => sampleWaterAt(x, z, gy, isWilds);
+  }
+  vfx.recipes.double_jump = {
+    id: 'double_jump',
+    emitters: [
+      { layer: 'add', shape: 'ring', count: 1, life: 0.34, speed: 0, size: [0.35, 2.3], color: ['tint+white', 'tint'], intensity: 1.8, alpha: [0.95, 0] },
+      { layer: 'add', shape: 'soft', count: [12, 16], life: [0.25, 0.48], speed: [2.2, 5.2], spread: Math.PI * 0.45, radius: 0.4, size: [0.12, 0.03], color: ['tint+white', 'tint'], intensity: 2.2, drag: 1.8 },
+    ],
+  };
+  vfx.recipes.water_splash = {
+    id: 'water_splash',
+    emitters: [
+      { layer: 'alpha', shape: 'ring', count: 1, life: 0.75, speed: 0, size: [0.4, 2.8], color: [0xb8f3ff, 0x38bdf8], alpha: [0.55, 0] },
+      { layer: 'alpha', shape: 'soft', count: [10, 16], life: [0.35, 0.75], speed: [2.0, 5.4], spread: 0.75, radius: 0.4, size: [0.1, 0.28], color: [0xdcf7ff, 0x7dd3fc], alpha: [0.65, 0], gravity: 9.5, drag: 0.6 },
+    ],
+  };
+  vfx.recipes.grapple_latch = {
+    id: 'grapple_latch',
+    emitters: [
+      { layer: 'add', shape: 'ring', count: 1, life: 0.3, speed: 0, size: [0.2, 1.8], color: ['tint+white', 'tint'], intensity: 2.0, alpha: [0.95, 0] },
+      { layer: 'add', shape: 'spark', count: [12, 18], life: [0.25, 0.45], speed: [4, 9], spread: Math.PI * 0.5, size: [0.1, 0.02], color: ['tint+white', 'tint'], intensity: 2.4, gravity: 8 },
+    ],
+  };
+
+  const grapple = new GrappleHook(scene);
+  let lastGrappleHint = 0;
+  player.onGrapple = () => {
+    if (!player.enabled || player.downed) return;
+    const { origin, dir } = player.getAimRay();
+    const res = grapple.trigger(player.vessel, origin, dir, collision, player.loadoutStats.grappleRangeMul);
+    if (res === 'fired') {
+      vfx.spawn(vfx.recipes.grapple_latch, grapple.anchor, { dir: [grapple.normal.x, grapple.normal.y, grapple.normal.z], tint: player.vessel.grapple!.color });
+      rhythm.playDash(true);
+      showBeatFeedback(`${player.vessel.grapple!.label} LATCHED`, `#${player.vessel.grapple!.color.toString(16).padStart(6, '0')}`);
+    } else if (res === 'detached') {
+      player.setGrapplePull(false);
+    } else if (res === 'unsupported') {
+      const now = performance.now();
+      if (now - lastGrappleHint > 2400) {
+        lastGrappleHint = now;
+        showBeatFeedback(`NO GRAPPLE ON ${player.vessel.name.toUpperCase()} · USE [2] STALKER OR [6] SYLVA`, '#94a3b8');
+      }
+    } else if (res === 'no_target') {
+      const now = performance.now();
+      if (now - lastGrappleHint > 1200) {
+        lastGrappleHint = now;
+        showBeatFeedback('AIM AT A CLIFF, TREE OR LEDGE TO GRAPPLE', '#94a3b8');
+      }
+    }
+  };
+  player.onGrappleSlingshot = () => { grapple.cancel(true); rhythm.playDash(true); };
+  player.onDoubleJump = (pos) => {
+    vfx.spawn(vfx.recipes.double_jump, pos, { dir: [0, 1, 0], tint: player.loadoutStats.accentColor ?? player.vessel.primaryColor });
+    rhythm.playDash(true);
+  };
+  player.onWaterSplash = (pos, strength) => {
+    vfx.spawn(vfx.recipes.water_splash, pos, { dir: [0, 1, 0], scale: Math.max(0.6, Math.min(2.0, strength)) });
+  };
+  player.onDrownTick = (dmg) => {
+    if (player.downed) return;
+    player.hp = Math.max(0, player.hp - dmg);
+    showBeatFeedback(`OUT OF AIR -${dmg}`, '#38bdf8');
+    if (player.hp === 0) downPlayer(match.on);
+  };
+  player.onClimbMantle = () => { rhythm.playDash(false); };
+
+  let galeHasteT = 0;
+  const armory = new WorldArmory({
+    scene,
+    wilds: isWilds,
+    ground: (x, z) => collision.terrain ? collision.terrain.heightAt(x, z, 1e4) : (collision.groundAt(x, z, 80, 200) ?? 0),
+    onApply: (preset, stats) => {
+      player.applyLoadout(preset, stats);
+      updateVesselUI(player.vessel.id);
+    },
+    onItemEffect: (effect) => {
+      if (effect === 'heal') { player.hp = Math.min(player.maxHp, player.hp + 65); }
+      else if (effect === 'charge') { player.weapons.addCharge(60, 'spirit_cell'); resonance = Math.min(4.0, resonance + 1.0); }
+      else if (effect === 'haste') { galeHasteT = 20; }
+      rhythm.playSurge();
+    },
+    say: (t, c) => showBeatFeedback(t, c),
+  });
+  // Pick up nearby glowing world weapons / armor / items on H before danger/eat handles foraging
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'KeyH' && !e.repeat && player.enabled && !player.downed && armory.nearbyPickup) {
+      if (armory.tryPickup()) { e.stopImmediatePropagation(); rhythm.playDash(true); }
+    }
+  }, true);
+
+  // Underwater tint vignette & compact Traversal HUD (Grapple lock, Swimming current / Breath, Climbing grip)
+  const uwOverlay = document.createElement('div');
+  uwOverlay.style.cssText = 'position:fixed;inset:0;z-index:8;pointer-events:none;background:radial-gradient(circle at 50% 45%, rgba(12,90,118,0.22), rgba(4,36,56,0.62));opacity:0;transition:opacity .25s';
+  const travHud = document.createElement('div');
+  travHud.style.cssText = 'position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:12;pointer-events:none;display:flex;gap:10px;align-items:center;font:800 11px/1.2 system-ui,sans-serif;letter-spacing:.1em;color:#e2f3ff;text-shadow:0 1px 6px #000';
+  document.body.append(uwOverlay, travHud);
+  let lastTravHtml = '';
+
   if (controls.isTouchDevice) {
     touchHud.classList.add('on');
   }
@@ -456,9 +560,12 @@ async function boot() {
 
     if (resonance >= 4.0) plajah.unlock('rift_realm_perfect_resonance');
 
-    // a normal shot does the vessel's full damage; on the beat it hits harder (GOOD halfway to PERFECT)
-    const baseDmg =
-      beat.quality === 'PERFECT' ? spec.dmgPerfect : beat.quality === 'GOOD' ? Math.round((spec.dmgGood + spec.dmgPerfect) / 2) : spec.dmgGood;
+    // a normal shot does the vessel's full damage scaled by equipped Armory weapon/gear bonuses
+    const baseDmg = Math.round((
+      beat.quality === 'PERFECT' ? spec.dmgPerfect : beat.quality === 'GOOD' ? Math.round((spec.dmgGood + spec.dmgPerfect) / 2) : spec.dmgGood
+    ) * player.loadoutStats.dmgMul);
+    const shotColor = player.loadoutStats.accentColor ?? spec.primaryColor;
+    const totalPellets = spec.pellets + player.loadoutStats.pelletsBonus;
 
     const triggerBurst = () => {
       if (player.vessel.id !== spec.id || player.downed) return; // switched away mid-burst
@@ -466,11 +573,11 @@ async function boot() {
       player.triggerMuzzleFlash();
       // the shot leaves the real barrel tip (the Chord Repeater cycles its three barrels)
       const muzzle = player.getMuzzleWorldPos(true), d = player.getAimRay().dir;
-      vfx.spawn(recipe(player.weapon.fx.muzzle), muzzle, { dir: [d.x, d.y, d.z], tint: spec.primaryColor });
+      vfx.spawn(recipe(player.weapon.fx.muzzle), muzzle, { dir: [d.x, d.y, d.z], tint: shotColor });
       // bloom: hip fire on the move sprays, standing and aiming is near-exact (player.spreadRad, weapons.ts spread)
       const spread = player.spreadRad(spec.spreadRad);
-      for (let p = 0; p < spec.pellets; p++) {
-        fireSingleRay(beat.quality, spread, baseDmg, spec.primaryColor, muzzle, p > 0);
+      for (let p = 0; p < totalPellets; p++) {
+        fireSingleRay(beat.quality, spread, baseDmg, shotColor, muzzle, p > 0);
       }
       player.recoil();
     };
@@ -574,7 +681,7 @@ async function boot() {
   // Close combat (combat/melee.ts): light / heavy chains, guard + perfect parry, launchers, guard breaks, Soul-Rend.
   const melee = new Melee({
     player, enemies, vfx, rhythm, targeting, camera,
-    dmgMul: () => danger?.dmgMul ?? 1, // Furyberry (danger/forage.ts)
+    dmgMul: () => (danger?.dmgMul ?? 1) * player.loadoutStats.dmgMul, // Furyberry + Armory weapon/gear bonus
     rayDistance: (o, d, m) => collision.rayDistance(o, d, m),
     resonance: { get: () => resonance, set: (v) => { resonance = v; if (resonance >= 4.0) plajah.unlock('rift_realm_perfect_resonance'); } },
     addScore: (pts) => { score += pts; },
@@ -774,7 +881,50 @@ async function boot() {
       player.flickX *= Math.exp(-dt * 6);
     }
     player.aiming = targeting.isLocked || input.aimHeld; // right mouse / LT holds aim down sights
+    // Retracting Grapple Hook probe & active reel pull
+    const gRay = player.getAimRay();
+    const gStatus = grapple.probe(player.vessel, gRay.origin, gRay.dir, collision, player.loadoutStats.grappleRangeMul);
+    const gStep = grapple.update(dt, player.vessel, player.grappleHandPos(), player.object.position);
+    if (gStep.arrived) {
+      player.finishGrappleVault();
+    } else {
+      player.setGrapplePull(gStep.pulling, gStep.vx, gStep.vy, gStep.vz);
+    }
+    if (galeHasteT > 0) galeHasteT = Math.max(0, galeHasteT - dt);
+    if (player.loadoutStats.chargeRegenMul > 1 && player.enabled && !player.downed) {
+      player.weapons.addCharge((player.loadoutStats.chargeRegenMul - 1) * 3.5 * dt, 'gear');
+    }
     player.update(dt, rhythm.pulse, input);
+    if (galeHasteT > 0) player.moveMul *= 1.28;
+    armory.update(dt, player.object.position, player.enabled && !player.downed);
+    uwOverlay.style.opacity = player.underwater ? '1' : '0';
+    {
+      const pills: string[] = [];
+      if (gStatus.available) {
+        const gc = `#${(player.vessel.grapple?.color ?? 0x38bdf8).toString(16).padStart(6, '0')}`;
+        const txt = gStatus.phase !== 'idle'
+          ? `${gStatus.label} RETRACTING · [SPACE] SLINGSHOT`
+          : gStatus.cooldown > 0
+            ? `${gStatus.label} ${gStatus.cooldown.toFixed(1)}s`
+            : gStatus.aimDist !== null
+              ? `[E] ${gStatus.label} · ${Math.round(gStatus.aimDist)}m`
+              : `${gStatus.label} READY`;
+        pills.push(`<div style="padding:4px 9px;border:1px solid ${gStatus.aimDist !== null || gStatus.phase !== 'idle' ? gc : '#475569'};border-radius:4px;background:#030d18cc;color:${gStatus.aimDist !== null || gStatus.phase !== 'idle' ? gc : '#94a3b8'}">${txt}</div>`);
+      }
+      if (player.climbing) {
+        pills.push(`<div style="padding:4px 9px;border:1px solid #c084fc;border-radius:4px;background:#0f061acc;color:#e9d5ff">CLIMBING · GRIP ${Math.round(player.climbStamina)}% · [SPACE] KICK · [C] DROP</div>`);
+      }
+      if (player.swimming) {
+        const curTxt = player.waterFlowSpeed > 0.6 ? ` · CURRENT ${player.waterFlowSpeed.toFixed(1)}m/s` : '';
+        const airTxt = player.underwater || player.breath < 99 ? ` · AIR ${Math.round(player.breath)}%` : '';
+        pills.push(`<div style="padding:4px 9px;border:1px solid #2dd4bf;border-radius:4px;background:#031820cc;color:#99f6e4">SWIMMING${curTxt}${airTxt} · [SPACE] UP · [C] DIVE</div>`);
+      }
+      if (galeHasteT > 0) {
+        pills.push(`<div style="padding:4px 9px;border:1px solid #fbbf24;border-radius:4px;background:#1a1204cc;color:#fde68a">GALE SURGE ${Math.ceil(galeHasteT)}s</div>`);
+      }
+      const html = pills.join('');
+      if (html !== lastTravHtml) { lastTravHtml = html; travHud.innerHTML = html; }
+    }
     if (document.body.classList.contains('rr-ingame') !== player.enabled) document.body.classList.toggle('rr-ingame', player.enabled); // no OS cursor in play
     // bodies are solid: the player can't walk through enemies or predators (pushed out sideways, a boss is wider)
     if (player.enabled) {
@@ -828,7 +978,8 @@ async function boot() {
         // evade (dash i-frames), block, perfect parry or take it (combat/melee.ts)
         const { outcome, dmg: raw } = melee.incoming(strike);
         if (outcome === 'hit' || outcome === 'blocked') player.faceThreat(strike.from); // a hit from behind turns you to face it
-        const dmg = danger && raw > 0 ? danger.absorb(raw) : raw; // a Shellfruit shield soaks it first
+        const soaked = danger && raw > 0 ? danger.absorb(raw) : raw; // a Shellfruit shield soaks it first
+        const dmg = soaked > 0 ? Math.max(1, Math.round(soaked * (1 - player.loadoutStats.dmgReduce))) : 0;
         if (dmg > 0) {
           player.hp = Math.max(0, player.hp - dmg);
           if (player.hp === 0) downPlayer(match.on);
@@ -940,7 +1091,7 @@ async function boot() {
 
   if (new URLSearchParams(location.search).has('rrdebug')) {
     loading.release(); await entered;
-    (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, gfx, dynres, heavyLod, objectives, match, targeting, rhythm, danger, ents, pads: jumpPads, modes, arenaDesc, portals };
+    (window as any).__rr = { vfx, tracers, player, camera, enemies, arena, collision, renderer, scene, post, THREE, frame, tier, gfx, dynres, heavyLod, objectives, match, targeting, rhythm, danger, ents, grapple, armory, pads: jumpPads, modes, arenaDesc, portals };
     (window as any).__rr.campaign = campaign;
     // combat checks: __rr.combat.arena(['rusher', 'caster', 'brute']) clears the field and rings those around you;
     // .passive(true) freezes their AI; .tune({...}) edits the table live; .state() reads the fight

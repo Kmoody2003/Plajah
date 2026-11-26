@@ -1,24 +1,25 @@
 // 1st / 3rd-person Soul Vessel controller with swappable classes, capsule physics, touch & gamepad.
 import * as THREE from 'three/webgpu';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { CollisionWorld } from './collision';
 import type { InputState } from './controls';
 import { assets, CharacterRig } from './characters';
 import { VESSELS, VESSEL_ORDER, buildVesselMesh, type VesselId, type VesselSpec } from './vessels';
 import { WEAPONS, WeaponEnergy, WeaponViewmodel, buildWeapon, type ReloadPhases, type WeaponModel, type WeaponSpec } from './weapons';
 import { Glide } from './glide';
+import { stepWaterBuoyancy, type WaterSample } from './waterPhysics';
+import { LOOT_CATALOG, type ComputedLoadoutStats, type LoadoutPreset } from './loadouts';
 
 // Feel: fast, nimble, upbeat. Snappy ground control, full air control at a lower rate,
-// double jump, coyote time + jump buffer, and dash charges so movement chains.
-// Ground control follows Ravencrest / Era Clash 3D (linear accel toward the wanted velocity, decel a bit harder),
-// scaled to Rift Realm's faster runs: ~0.25 s to top speed, ~0.2 s to stop.
+// high double jump, coyote time + jump buffer, rock-cliff climbing, swimming with river current, and dash charges.
 const ACCEL = 40;          // m/s²
 const DECEL = 50;          // m/s²
 const KEY_TURN = 2.2;      // rad/s: A / D turn the character in the follow camera (Era Clash's 3.6 was too fast here)
 const TURN = 16;           // rad/s: the body turns to face where it's going (Ravencrest TURN)
 const FACE_AIM_AFTER = 0.7; // s the body keeps facing the aim after a shot or a strike
 const AIR_ACCEL = 26;      // still steerable mid-air
-const JUMP_VEL = 10.8;
-const DOUBLE_JUMP_VEL = 9.6;
+const JUMP_VEL = 11.4;
+const DOUBLE_JUMP_VEL = 12.6;
 const COYOTE = 0.12;       // can still jump this long after leaving a ledge
 const JUMP_BUFFER = 0.14;  // a jump pressed this early before landing still fires
 const DASH_TIME = 0.16;
@@ -169,8 +170,49 @@ export class PlayerController {
   hp = 130;
   maxHp = 130;
 
+  // ── Traversal state: swimming (stream buoyancy + current), rock-face climbing, grapple hook & loadout gear ──
+  swimming = false;
+  underwater = false;
+  wading = false;
+  waterSubmerged = 0;
+  waterFlowSpeed = 0;
+  breath = 100;
+  private splashCd = 0;
+  private wasInWater = false;
+  private drownTick = 0;
+
+  climbing = false;
+  climbStamina = 100;
+  readonly climbNormal = new THREE.Vector3(0, 0, 1);
+  private climbCooldown = 0;
+  private climbDustCd = 0;
+
+  /** Active retracting grapple pull velocity (set by main.ts from GrappleHook.update). */
+  grappleActive = false;
+  private grappleVel = new THREE.Vector3();
+
+  /** Water physics sampler provided by main.ts (matches world/water.ts rivers, streams, pool & vale). */
+  waterSampler: ((x: number, z: number, groundY: number) => WaterSample | null) | null = null;
+
+  /** Active custom loadout bonuses & mounted 3D gear meshes on character rig bones. */
+  loadoutStats: ComputedLoadoutStats = {
+    dmgMul: 1, maxHpBonus: 0, dmgReduce: 0, moveMul: 1, swimMul: 1, climbMul: 1,
+    grappleRangeMul: 1, chargeRegenMul: 1, pelletsBonus: 0, accentColor: null,
+  };
+  private activeLoadout: LoadoutPreset | null = null;
+  private loadoutGearObjs: THREE.Object3D[] = [];
+  private customWeaponObj: THREE.Object3D | null = null;
+  private loadoutGearToken = 0;
+  private lootGlbCache = new Map<string, Promise<THREE.Object3D | null>>();
+
   onToggleView?: (fp: boolean) => void;
   onDash?: () => void;
+  onDoubleJump?: (pos: THREE.Vector3) => void;
+  onGrapple?: () => void;
+  onGrappleSlingshot?: () => void;
+  onWaterSplash?: (pos: THREE.Vector3, strength: number) => void;
+  onDrownTick?: (dmg: number) => void;
+  onClimbMantle?: (pos: THREE.Vector3) => void;
   onSwitchVessel?: (spec: VesselSpec) => void;
   onSoulSurge?: () => void;
   onStrike?: () => void;
@@ -196,7 +238,8 @@ export class PlayerController {
       if (e.code === 'KeyV') this.toggleView();
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') this.triggerDash();
       if (e.code === 'KeyQ') this.onSoulSurge?.();
-      if (e.code === 'KeyF' || e.code === 'KeyE') { if (!this.onStrike) this.strikeAnim(); this.onStrike?.(); }
+      if (e.code === 'KeyE' && !e.repeat) this.onGrapple?.();
+      if (e.code === 'KeyF') { if (!this.onStrike) this.strikeAnim(); this.onStrike?.(); }
       if (e.code === 'KeyR') this.reload();
       if (e.code === 'KeyC') this.crouchToggle = !this.crouchToggle;
       if (e.code === 'Digit1') this.setVessel('aegis');
@@ -272,8 +315,8 @@ export class PlayerController {
     }
     const hpRatio = this.maxHp > 0 ? this.hp / this.maxHp : 1;
     this.vessel = spec;
-    this.maxHp = spec.maxHp;
-    this.hp = Math.max(1, Math.round(spec.maxHp * hpRatio));
+    this.maxHp = spec.maxHp + this.loadoutStats.maxHpBonus;
+    this.hp = Math.max(1, Math.round(this.maxHp * hpRatio));
 
     this.object.remove(this.vesselMesh);
     const chosen = this.vesselAssetFor(id);
@@ -300,10 +343,161 @@ export class PlayerController {
 
     this.weapons.current = id;
     this.weaponVM.select(id);
-    this.weaponVM.setTrim(spec.primaryColor);
+    this.weaponVM.setTrim(this.loadoutStats.accentColor ?? spec.primaryColor);
     if (this.switchT <= 0) this.showTpGun(id);
+    void this.mountLoadoutGear();
 
     this.onSwitchVessel?.(spec);
+  }
+
+  /** Apply an active Armory loadout: switch vessel if requested, update bonuses, and mount 3D weapon/shield/armor GLBs. */
+  applyLoadout(preset: LoadoutPreset, stats: ComputedLoadoutStats) {
+    this.activeLoadout = preset;
+    this.loadoutStats = stats;
+    if (preset.vessel !== this.vessel.id) {
+      this.setVessel(preset.vessel);
+    } else {
+      const ratio = this.maxHp > 0 ? this.hp / this.maxHp : 1;
+      this.maxHp = this.vessel.maxHp + stats.maxHpBonus;
+      this.hp = Math.max(1, Math.round(this.maxHp * ratio));
+      this.weaponVM.setTrim(stats.accentColor ?? this.vessel.primaryColor);
+      void this.mountLoadoutGear();
+    }
+  }
+
+  private loadLootGlb(url: string): Promise<THREE.Object3D | null> {
+    let p = this.lootGlbCache.get(url);
+    if (!p) {
+      p = new GLTFLoader().loadAsync(url).then((g) => g.scene).catch(() => null);
+      this.lootGlbCache.set(url, p);
+    }
+    return p;
+  }
+
+  private findRigBone(names: string[]): THREE.Object3D | null {
+    if (!this.rig) return null;
+    for (const target of names) {
+      let found: THREE.Object3D | null = null;
+      this.rig.root.traverse((o) => {
+        if (found) return;
+        const clean = o.name.replace(/^.*[:|]/, '');
+        if (clean === target) found = o;
+      });
+      if (found) return found;
+    }
+    return null;
+  }
+
+  /** Mount picked-up 3D weapons, off-hand shields, and modular armor GLBs onto the active CharacterRig's bones. */
+  private async mountLoadoutGear() {
+    const token = ++this.loadoutGearToken;
+    for (const o of this.loadoutGearObjs) o.removeFromParent();
+    this.loadoutGearObjs = [];
+    if (this.customWeaponObj) { this.customWeaponObj.removeFromParent(); this.customWeaponObj = null; }
+    const preset = this.activeLoadout;
+    const rig = this.rig;
+    if (!preset || !rig) return;
+
+    const attachToBone = async (
+      url: string,
+      boneNames: string[],
+      pos: [number, number, number],
+      rot: [number, number, number],
+      scl: [number, number, number],
+      isCustomWeapon = false,
+    ) => {
+      const bone = this.findRigBone(boneNames);
+      if (!bone) return;
+      const src = await this.loadLootGlb(url);
+      if (!src || token !== this.loadoutGearToken || this.rig !== rig) return;
+      const clone = src.clone(true);
+      if (scl[0] * scl[1] * scl[2] < 0) {
+        clone.traverse((o) => {
+          const m = o as THREE.Mesh;
+          if (!m.isMesh || !m.material) return;
+          const fix = (mat: THREE.Material) => { const c = mat.clone(); c.side = THREE.DoubleSide; return c; };
+          m.material = Array.isArray(m.material) ? m.material.map(fix) : fix(m.material);
+        });
+      }
+      // Undo bone's world scale so real-world-metre GLBs match the character proportionally
+      bone.updateWorldMatrix(true, false);
+      const ws = bone.getWorldScale(new THREE.Vector3());
+      const inv = 1 / Math.max(1e-4, ws.x);
+      const holder = new THREE.Group();
+      holder.scale.set(scl[0] * inv, scl[1] * inv, scl[2] * inv);
+      holder.position.set(pos[0] * inv, pos[1] * inv, pos[2] * inv);
+      holder.rotation.set(...rot);
+      holder.add(clone);
+      bone.add(holder);
+      if (isCustomWeapon) this.customWeaponObj = holder;
+      else this.loadoutGearObjs.push(holder);
+    };
+
+    // Custom picked-up primary 3D weapon
+    if (preset.weaponId) {
+      const def = LOOT_CATALOG[preset.weaponId];
+      if (def?.url) {
+        await attachToBone(def.url, ['RightHand', 'hand_r_weapon'], [-0.02, -0.04, 0.06], [0.24, 0, -0.24], [0.88, 0.88, 0.88], true);
+      }
+    }
+    // Off-hand shield on LeftForeArm
+    if (preset.shieldId) {
+      const def = LOOT_CATALOG[preset.shieldId];
+      if (def?.url) {
+        await attachToBone(def.url, ['LeftForeArm', 'LeftHand'], [0.14, -0.14, 0.05], [0, 1.43, -0.21], [0.84, 0.84, 0.84]);
+      }
+    }
+    // Modular 3D armor slots
+    for (const [slot, id] of Object.entries(preset.armor)) {
+      if (!id) continue;
+      const def = LOOT_CATALOG[id];
+      if (!def?.url) continue;
+      if (slot === 'head') {
+        const pos: [number, number, number] =
+          id === 'lumen_halo' ? [0, 0.22, -0.10] :
+          id === 'nyx_visor' ? [0, 0.06, 0.11] :
+          id.includes('crown') ? [0, 0.14, 0.0] : [0, -0.06, 0.02];
+        await attachToBone(def.url, ['Head'], pos, [0, 0, 0], [0.96, 0.96, 0.96]);
+      } else if (slot === 'chest') {
+        await attachToBone(def.url, ['Spine2'], [0, -0.18, 0.04], [0, 0, 0], [0.96, 0.96, 0.96]);
+      } else if (slot === 'back') {
+        await attachToBone(def.url, ['Spine2'], [0, -0.22, -0.14], [0, 0, 0], [1.0, 1.0, 1.0]);
+      } else if (slot === 'belt') {
+        await attachToBone(def.url, ['Hips'], [0, -0.09, 0.01], [0, 0, 0], [1.0, 1.0, 1.0]);
+      } else if (slot === 'shoulder') {
+        await attachToBone(def.url, ['LeftArm', 'LeftShoulder'], [0.04, -0.08, 0], [0, 0, 0], [0.95, 0.95, 0.95]);
+        await attachToBone(def.url, ['RightArm', 'RightShoulder'], [-0.04, -0.08, 0], [0, 0, 0], [-0.95, 0.95, 0.95]);
+      }
+    }
+  }
+
+  /** World origin of the grapple launcher (left wrist/shoulder in 3rd person, lower-left screen in 1st person). */
+  grappleHandPos(out = new THREE.Vector3()): THREE.Vector3 {
+    if (this.firstPerson) return out.set(-0.24, -0.18, -0.5).applyMatrix4(this.camera.matrixWorld);
+    const lh = this.findRigBone(['LeftHand', 'LeftForeArm']);
+    if (lh) { lh.updateWorldMatrix(true, false); return lh.getWorldPosition(out); }
+    return out.copy(this.object.position).add(new THREE.Vector3(0, 1.32, 0));
+  }
+
+  /** Drive retracting grapple pull velocity from main.ts. */
+  setGrapplePull(active: boolean, vx = 0, vy = 0, vz = 0) {
+    this.grappleActive = active;
+    if (active) {
+      this.climbing = false;
+      this.swimming = false;
+      this.onGround = false;
+      this.grappleVel.set(vx, vy, vz);
+    }
+  }
+
+  /** Vault boost + double-jump refresh when retracting grapple reaches the anchor ledge. */
+  finishGrappleVault() {
+    this.grappleActive = false;
+    this.vy = Math.max(this.vy, 9.8);
+    this.vel.multiplyScalar(0.55);
+    this.airJumps = 1;
+    this.onGround = false;
+    this.rig?.play('jump', 0.8);
   }
 
   /** Switch between gun and hand-to-hand on the fly: the gun is put away (both views) and comes back out. */
@@ -654,27 +848,117 @@ export class PlayerController {
     }
 
     this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
+    this.climbCooldown = Math.max(0, this.climbCooldown - dt);
+    this.splashCd = Math.max(0, this.splashCd - dt);
+    this.climbDustCd = Math.max(0, this.climbDustCd - dt);
+
+    // ── 1. Sample physics-accurate water at player's feet ──
+    const posNow = this.object.position;
+    const rawGroundY = this.world?.terrain
+      ? this.world.terrain.heightAt(posNow.x, posNow.z, posNow.y + 1.2)
+      : (this.world?.groundAt(posNow.x, posNow.z, posNow.y + 1.0, 20) ?? posNow.y);
+    const water = this.waterSampler ? this.waterSampler(posNow.x, posNow.z, rawGroundY) : null;
+    const subDepthNow = water ? Math.max(0, water.y - posNow.y) : 0;
+    const inSwimDepth = !!water && subDepthNow >= HEIGHT * 0.56;
+    const inWadeDepth = !!water && subDepthNow >= 0.25 && !inSwimDepth;
+
+    // Entry splash when jumping / stepping into stream or pool
+    if (water && subDepthNow > 0.28 && !this.wasInWater && this.splashCd <= 0) {
+      this.splashCd = 0.45;
+      this.onWaterSplash?.(new THREE.Vector3(posNow.x, water.y, posNow.z), Math.min(2.2, 0.7 + Math.abs(this.vy) * 0.14));
+    }
+    this.wasInWater = !!water && subDepthNow > 0.28;
+    this.wading = inWadeDepth;
+    this.waterSubmerged = water ? Math.min(1, subDepthNow / HEIGHT) : 0;
+    this.waterFlowSpeed = water ? water.speed : 0;
+
+    if (inSwimDepth && !this.grappleActive) {
+      this.swimming = true;
+      this.climbing = false;
+      this.onGround = false;
+      this.airJumps = 1;
+    } else if (!inSwimDepth && this.swimming) {
+      this.swimming = false;
+    }
+    if (!water) { this.underwater = false; }
+
+    // ── 2. Rock-face & cliff climbing latch detection ──
+    const wantDrop = this.keys.has('KeyC') || this.keys.has('ControlLeft') || this.keys.has('ControlRight');
+    const moveFwdHeld = this.keys.has('KeyW') || this.keys.has('ArrowUp') || (input?.moveY ?? 0) > 0.25;
+    const moveBackHeld = this.keys.has('KeyS') || this.keys.has('ArrowDown') || (input?.moveY ?? 0) < -0.25;
+    const moveRightHeld = (this.keys.has('KeyD') || this.keys.has('ArrowRight') ? 1 : 0) - (this.keys.has('KeyA') || this.keys.has('ArrowLeft') ? 1 : 0) + (input?.moveX ?? 0);
+
+    if (!this.climbing && !this.swimming && !this.grappleActive && this.enabled && this.downedT <= 0 && this.world && this.climbCooldown <= 0 && this.climbStamina > 14 && wish.lengthSq() > 0.15) {
+      const probeDir = wish.clone().setY(0).normalize();
+      const chestOrig = new THREE.Vector3(posNow.x, posNow.y + 1.15, posNow.z);
+      const hit = this.world.raycastHit(chestOrig, probeDir, RADIUS + 0.54);
+      if (hit && hit.normal.y >= -0.25 && hit.normal.y < 0.48 && hit.distance <= RADIUS + 0.54) {
+        // Confirm it's a real rock face / cliff / wall (either airborne or wall extends above waist)
+        const hiOrig = new THREE.Vector3(posNow.x, posNow.y + 1.55, posNow.z);
+        const hiHit = this.world.raycastHit(hiOrig, probeDir, RADIUS + 0.68);
+        if (!this.onGround || (hiHit && hiHit.normal.y < 0.52)) {
+          this.climbing = true;
+          this.climbNormal.copy(hit.normal).setY(0).normalize();
+          if (this.climbNormal.lengthSq() < 0.01) this.climbNormal.copy(probeDir).negate();
+          this.vel.set(0, 0, 0);
+          this.vy = 0;
+          this.onGround = false;
+          this.airJumps = 1;
+        }
+      }
+    }
+
+    // ── 3. Jump / Double Jump / Grapple Slingshot / Wall-Kick / Water Breach ──
     this.coyote = this.onGround ? COYOTE : Math.max(0, this.coyote - dt);
     if (this.jumpBuffer > 0) {
-      if (this.coyote > 0) {
+      if (this.grappleActive) {
+        // Mid-reel grapple slingshot!
+        this.jumpBuffer = 0;
+        this.grappleActive = false;
+        this.vy = Math.max(this.vy, 11.6);
+        this.airJumps = 1;
+        this.onGrappleSlingshot?.();
+        this.onDoubleJump?.(this.object.position.clone());
+      } else if (this.climbing) {
+        // Wall-kick up and away from rock face
+        this.climbing = false;
+        this.climbCooldown = 0.28;
+        this.jumpBuffer = 0;
+        this.vy = 11.4;
+        this.vel.copy(this.climbNormal).multiplyScalar(7.6);
+        this.airJumps = 1;
+        this.onDoubleJump?.(this.object.position.clone());
+        this.rig?.play('jump', 0.85);
+      } else if (this.swimming && water && posNow.y + HEIGHT * 0.9 >= water.y - 0.18) {
+        // Breach leap out of the stream onto the bank
+        this.swimming = false;
+        this.jumpBuffer = 0;
+        this.vy = 10.6;
+        this.airJumps = 1;
+        this.onWaterSplash?.(new THREE.Vector3(posNow.x, water.y, posNow.z), 1.4);
+        this.rig?.play('jump', 0.85);
+      } else if (this.coyote > 0) {
         this.vy = JUMP_VEL;
         this.coyote = 0;
         this.jumpBuffer = 0;
         this.onGround = false;
-      } else if (this.airJumps > 0) {
+      } else if (this.airJumps > 0 && !this.swimming) {
+        // Enhanced Double Jump: higher arc + forward air boost + energy shockwave ring
         this.vy = DOUBLE_JUMP_VEL;
+        if (wish.lengthSq() > 0.04) this.vel.addScaledVector(wish, 2.4);
         this.airJumps--;
         this.jumpBuffer = 0;
+        this.onDoubleJump?.(this.object.position.clone());
         this.rig?.play('attack_2', 0.6); // flip-ish flourish on the double jump
       }
     }
 
-    // wings + glide: deploy on the run, glide in the air with wings out (running jump, or hold jump while falling)
+    // wings + glide: deploy on the run, glide in the air with wings out (paused while swimming, climbing, or grappling)
     this.glide.update(dt, {
       onGround: this.onGround, hsp: Math.hypot(this.vel.x, this.vel.z), vy: this.vy,
-      jumpHeld: this.enabled && this.spaceHeld, crouch: this.crouched,
+      jumpHeld: this.enabled && this.spaceHeld && !this.swimming && !this.climbing && !this.grappleActive, crouch: this.crouched,
       combat: this.aiming || this.blocking || this.moveLock < 1,
-      busy: this.dashTimer > 0 || this.lungeT > 0 || this.hangT > 0 || this.downedT > 0, pos: this.object.position,
+      busy: this.dashTimer > 0 || this.lungeT > 0 || this.hangT > 0 || this.downedT > 0 || this.swimming || this.climbing || this.grappleActive, pos: this.object.position,
       groundBelow: this.glide.gliding && this.world ? this.object.position.y - (this.world.groundAt(this.object.position.x, this.object.position.z, this.object.position.y, 40) ?? -1e9) : undefined,
     });
 
@@ -684,31 +968,143 @@ export class PlayerController {
       if (this.dashRecharge >= DASH_RECHARGE) { this.dashRecharge = 0; this.dashCharges++; }
     }
 
-    if (this.lungeT > 0) {
-      this.lungeT -= dt;
-      this.vel.copy(this.lungeV);
-      if (this.lungeT <= 0) this.vel.multiplyScalar(0.25);
-    } else if (this.dashTimer > 0) {
-      this.dashTimer -= dt;
-      this.vel.copy(this.dashDir).multiplyScalar(this.vessel.dashSpeed);
-      if (this.dashTimer <= 0) this.vel.multiplyScalar(DASH_CARRY); // keep the momentum, don't stop dead
+    // ── 4. Active Movement Integration (Grapple / Climb / Swim / Ground & Air) ──
+    const moveBonus = this.loadoutStats.moveMul;
+    if (this.grappleActive) {
+      this.vel.set(this.grappleVel.x, 0, this.grappleVel.z);
+      this.vy = this.grappleVel.y;
+    } else if (this.climbing && this.world) {
+      // Continuously probe rock surface ahead; auto-mantle when reaching the cliff top!
+      const intoWall = this.climbNormal.clone().negate();
+      const waistHit = this.world.raycastHit(new THREE.Vector3(posNow.x, posNow.y + 0.85, posNow.z), intoWall, RADIUS + 0.95);
+      const topHit = this.world.raycastHit(new THREE.Vector3(posNow.x, posNow.y + 1.65, posNow.z), intoWall, RADIUS + 1.05);
+
+      if (wantDrop || this.climbStamina <= 0) {
+        this.climbing = false;
+        this.climbCooldown = 0.35;
+      } else if (waistHit && !topHit && moveFwdHeld) {
+        // Smooth auto ledge mantle over the cliff lip!
+        this.climbing = false;
+        this.climbCooldown = 0.35;
+        this.vy = 8.4;
+        this.vel.copy(intoWall).multiplyScalar(5.4);
+        this.climbStamina = Math.min(100, this.climbStamina + 25);
+        this.airJumps = 1;
+        this.onClimbMantle?.(posNow.clone());
+        this.rig?.play('jump', 0.8);
+      } else if (!waistHit && !topHit) {
+        this.climbing = false;
+        this.climbCooldown = 0.25;
+      } else {
+        const refHit = waistHit ?? topHit!;
+        if (refHit.normal.y < 0.55) {
+          const nFlat = refHit.normal.clone().setY(0);
+          if (nFlat.lengthSq() > 0.01) this.climbNormal.lerp(nFlat.normalize(), Math.min(1, dt * 10)).normalize();
+        }
+        const upDir = (moveFwdHeld ? 1 : 0) - (moveBackHeld ? 1 : 0);
+        const sideDir = THREE.MathUtils.clamp(moveRightHeld, -1, 1);
+        // Right along the rock face when facing into it: cross(intoWall, UP) = cross(-climbNormal, UP)
+        const wallRight = new THREE.Vector3(-this.climbNormal.z, 0, this.climbNormal.x).normalize();
+        const cSpd = this.loadoutStats.climbMul * this.moveMul;
+        this.vy = upDir > 0 ? 4.8 * cSpd : upDir < 0 ? -5.4 * cSpd : 0;
+        // Gently hug the cliff face so curved rock surfaces stay attached
+        const hug = (refHit.distance - (RADIUS + 0.08)) * 4.5;
+        this.vel.copy(wallRight).multiplyScalar(sideDir * 3.8 * cSpd).addScaledVector(intoWall, THREE.MathUtils.clamp(hug, -2.5, 2.5));
+        const movingWall = Math.abs(upDir) + Math.abs(sideDir) > 0.05;
+        this.climbStamina = Math.max(0, this.climbStamina - dt * (movingWall ? 7.5 : 2.2));
+        if (movingWall && this.climbDustCd <= 0) {
+          this.climbDustCd = 0.38;
+          this.rig?.play('dash', 0.32, 0.55);
+        }
+      }
+    } else if (this.swimming && water) {
+      // Physics-accurate Archimedes buoyancy + downstream stream current + swim thrust
+      const swimSpd = 6.2 * this.loadoutStats.swimMul * this.moveMul * (this.dashTimer > 0 ? 1.85 : 1);
+      if (this.dashTimer > 0) this.dashTimer = Math.max(0, this.dashTimer - dt);
+      const diveHeld = this.keys.has('KeyC') || this.keys.has('ControlLeft') || this.keys.has('ControlRight');
+      const swimVert = (this.spaceHeld ? 1 : 0) - (diveHeld ? 1 : 0);
+      const resW = stepWaterBuoyancy({
+        feetY: posNow.y,
+        bodyHeight: HEIGHT,
+        vx: this.vel.x,
+        vy: this.vy,
+        vz: this.vel.z,
+        wishX: wish.x * swimSpd,
+        wishZ: wish.z * swimSpd,
+        swimVertical: swimVert,
+        gravity: this.vessel.gravity,
+        dt,
+        water,
+        clock: this.clock,
+      });
+      this.vel.set(resW.vx, 0, resW.vz);
+      this.vy = resW.vy;
+      this.underwater = resW.underwater;
+      this.waterSubmerged = resW.submerged;
+      this.climbStamina = Math.min(100, this.climbStamina + dt * 32);
+
+      // Periodic surface wake & swim-stroke splash VFX
+      const swimSpdNow = Math.hypot(this.vel.x, this.vel.z);
+      if (!this.underwater && (swimSpdNow > 1.2 || water.turbulence > 0.35) && this.splashCd <= 0) {
+        this.splashCd = Math.max(0.22, 0.55 - swimSpdNow * 0.04);
+        this.onWaterSplash?.(new THREE.Vector3(posNow.x, water.y, posNow.z), 0.45 + water.turbulence * 0.5);
+      }
     } else {
-      const target = wish.multiplyScalar(this.vessel.moveSpeed * (1 - this.aimBlend * 0.08) * (this.crouched ? 0.45 : 1) * this.moveLock * (this.blocking ? 0.45 : 1) * this.moveMul);
-      const moving = wish.lengthSq() > 0;
-      if (this.onGround) {
-        // Ravencrest / Era Clash: a straight-line change toward the wanted velocity at a fixed rate
-        const dv = target.clone().sub(this.vel).setY(0);
-        const step = (target.lengthSq() > this.vel.lengthSq() ? ACCEL : DECEL) * dt;
-        if (dv.length() > step) dv.setLength(step);
-        this.vel.add(dv);
-      } else if (this.glide.gliding) this.glide.steer(this.vel, wish, dt);
-      else this.vel.lerp(target, Math.min(1, (moving ? AIR_ACCEL : 2) * dt));
+      // Standard ground / air movement + wading stream drag & current
+      this.climbStamina = Math.min(100, this.climbStamina + dt * (this.onGround ? 38 : 6));
+      if (this.lungeT > 0) {
+        this.lungeT -= dt;
+        this.vel.copy(this.lungeV);
+        if (this.lungeT <= 0) this.vel.multiplyScalar(0.25);
+      } else if (this.dashTimer > 0) {
+        this.dashTimer -= dt;
+        this.vel.copy(this.dashDir).multiplyScalar(this.vessel.dashSpeed);
+        if (this.dashTimer <= 0) this.vel.multiplyScalar(DASH_CARRY); // keep the momentum, don't stop dead
+      } else {
+        const wadeMul = this.wading ? 1 - this.waterSubmerged * 0.35 : 1;
+        const target = wish.multiplyScalar(this.vessel.moveSpeed * moveBonus * wadeMul * (1 - this.aimBlend * 0.08) * (this.crouched ? 0.45 : 1) * this.moveLock * (this.blocking ? 0.45 : 1) * this.moveMul);
+        const moving = wish.lengthSq() > 0;
+        if (this.onGround) {
+          const dv = target.clone().sub(this.vel).setY(0);
+          const step = (target.lengthSq() > this.vel.lengthSq() ? ACCEL : DECEL) * dt;
+          if (dv.length() > step) dv.setLength(step);
+          this.vel.add(dv);
+        } else if (this.glide.gliding) this.glide.steer(this.vel, wish, dt);
+        else this.vel.lerp(target, Math.min(1, (moving ? AIR_ACCEL : 2) * dt));
+      }
+      // Stream current pushes waders downstream & throws footstep splashes
+      if (this.wading && water) {
+        const resW = stepWaterBuoyancy({
+          feetY: posNow.y, bodyHeight: HEIGHT,
+          vx: this.vel.x, vy: this.vy, vz: this.vel.z,
+          wishX: 0, wishZ: 0, swimVertical: 0,
+          gravity: this.vessel.gravity, dt, water, clock: this.clock,
+        });
+        this.vel.set(resW.vx, 0, resW.vz);
+        if (Math.hypot(this.vel.x, this.vel.z) > 1.8 && this.splashCd <= 0) {
+          this.splashCd = 0.42;
+          this.onWaterSplash?.(new THREE.Vector3(posNow.x, water.y, posNow.z), 0.35);
+        }
+      }
+
+      if (this.hangT > 0) { this.hangT -= dt; this.vy = Math.max(this.vy - this.vessel.gravity * dt * 0.3, -1.5); } // air string hang
+      else if (this.glide.gliding) this.vy = this.glide.fall(this.vy, dt);
+      else this.vy -= this.vessel.gravity * dt * (this.vy < 0 ? 1.35 : 1); // falls faster than it rises: snappy arcs
     }
 
-    if (this.hangT > 0) { this.hangT -= dt; this.vy = Math.max(this.vy - this.vessel.gravity * dt * 0.3, -1.5); } // air string hang
-    else if (this.glide.gliding) this.vy = this.glide.fall(this.vy, dt);
-    else this.vy -= this.vessel.gravity * dt * (this.vy < 0 ? 1.35 : 1); // falls faster than it rises: snappy arcs
-    // sub-step so a 34 m/s dash can't tunnel through a thin wall (≤ 0.25 m per collision pass)
+    // Underwater breath / oxygen meter
+    if (this.underwater) {
+      this.breath = Math.max(0, this.breath - dt * 7.5);
+      if (this.breath <= 0) {
+        this.drownTick -= dt;
+        if (this.drownTick <= 0) { this.drownTick = 1.2; this.onDrownTick?.(8); }
+      }
+    } else {
+      this.breath = Math.min(100, this.breath + dt * 32);
+      this.drownTick = 0;
+    }
+
+    // sub-step so a 34 m/s dash or retracting grapple can't tunnel through a thin wall (≤ 0.25 m per collision pass)
     const travel = Math.hypot(this.vel.x * dt, this.vy * dt, this.vel.z * dt);
     const steps = this.world ? Math.min(6, Math.max(1, Math.ceil(travel / 0.25))) : 1;
     const wasAir = !this.onGround;
@@ -721,11 +1117,10 @@ export class PlayerController {
       pos.y += (this.vy * dt) / steps;
       if (this.world) {
         const res = this.world.resolve(pos, RADIUS, HEIGHT);
-        if (res.onGround && this.vy < 0) this.vy = 0;
-        grounded = res.onGround;
-        // walk up stairs and kerbs: on the ground and blocked sideways, look for a step just ahead (the ground a
-        // capsule-radius in front, no higher than STEP_UP) and lift onto it, then carry on the move
-        if ((grounded || this.onGround) && this.vy <= 0.5) {
+        if (res.onGround && this.vy < 0 && !this.swimming && !this.climbing && !this.grappleActive) this.vy = 0;
+        grounded = res.onGround && !this.swimming && !this.climbing && !this.grappleActive;
+        // walk up stairs and kerbs: on the ground and blocked sideways, look for a step just ahead
+        if ((grounded || this.onGround) && this.vy <= 0.5 && !this.swimming && !this.climbing && !this.grappleActive) {
           _want.set(this.vel.x, 0, this.vel.z).multiplyScalar(dt / steps);
           const wl = _want.length();
           if (wl > 1e-4) {
@@ -748,9 +1143,8 @@ export class PlayerController {
             }
           }
         }
-        // stand on the highest ground under the body's footprint: lifts it out of stair edges it was sinking into,
-        // and keeps it glued to stairs and slopes on the way down instead of bouncing off each step
-        if ((grounded || (this.onGround && this.vy <= 0)) && this.lungeT <= 0) {
+        // stand on the highest ground under the body's footprint
+        if ((grounded || (this.onGround && this.vy <= 0)) && this.lungeT <= 0 && !this.swimming && !this.climbing && !this.grappleActive) {
           const g = this.footGround(pos);
           if (g !== null) {
             const d = g - pos.y;
@@ -766,7 +1160,7 @@ export class PlayerController {
       if (this.onGround) {
         this.airJumps = 1;
         if (wasAir && fallVy < -6) this.landKick = Math.min(1, -fallVy / 22);
-        if (wasAir && fallVy < -13) this.rig?.play('land', 0.85); // the Void Stalker's crouched landing (motion video)
+        if (wasAir && fallVy < -13) this.rig?.play('land', 0.85);
       }
     }
 
@@ -777,52 +1171,47 @@ export class PlayerController {
       this.object.position.copy(this.lastSafe);
       this.vel.set(0, 0, 0);
       this.vy = 0;
-    } else if (this.onGround) {
+    } else if (this.onGround && !this.wading && !this.swimming) {
       this.lastSafe.copy(this.object.position);
     }
 
     this.object.rotation.y = this.yaw;
-    // Body facing (Ravencrest / Era Clash action controls): it turns toward where it's going at TURN rad/s, the
-    // shortest way round, banking into the turn; aiming, first person, lock-on and the moment after a shot or a
-    // strike square it up to the aim instead, so the gun points down the crosshair and the legs strafe.
     const hsp0 = Math.hypot(this.vel.x, this.vel.z);
-    // bloom follows movement (running ~half open, airborne more), and settles at ~2.5 /s once you stand still
     const bloomT = Math.min(1, (hsp0 / 9) * 0.5 + (this.onGround ? 0 : 0.55)) * (this.crouched ? 0.6 : 1);
     this.bloom += (bloomT - this.bloom) * Math.min(1, dt * (bloomT > this.bloom ? 6 : 2.5));
-    // gun out: the body always faces the aim and the legs strafe (Fortnite / CoD); the fists follow camera keeps the
-    // body facing the way it turns (backing up with S doesn't spin him round)
-    // Gears: running, the body faces where it's going; aiming, shooting (for a moment after) or locked on, it squares up
-    // to the crosshair point and the legs strafe
-    const faceAim = this.firstPerson || this.aiming || this.faceAimT > 0 || this.lockT > 0 || this.keyTurning;
+    const faceAim = !this.climbing && (this.firstPerson || this.aiming || this.faceAimT > 0 || this.lockT > 0 || this.keyTurning);
     let want: number | null = null;
-    if (faceAim) {
-      // third person: square up to the point under the crosshair, so the gun visibly points at what you aim at (the
-      // camera sits over the shoulder, so a body parallel to the view would point beside the target)
+    if (this.climbing) {
+      // Face directly into the cliff rock face
+      want = Math.atan2(this.climbNormal.x, this.climbNormal.z);
+    } else if (faceAim) {
       if (!this.firstPerson && this.aimPointOk) want = Math.atan2(-(this.aimPoint.x - this.object.position.x), -(this.aimPoint.z - this.object.position.z));
       else want = this.yaw;
-    }
-    else if (hsp0 > 0.6) want = Math.atan2(-this.vel.x, -this.vel.z);
+    } else if (hsp0 > 0.6) want = Math.atan2(-this.vel.x, -this.vel.z);
     let turned = 0;
     if (want !== null) {
       const d = Math.atan2(Math.sin(want - this.bodyYaw), Math.cos(want - this.bodyYaw));
       turned = THREE.MathUtils.clamp(d, -TURN * dt, TURN * dt);
       this.bodyYaw += turned;
     }
-    const bankT = this.glide.gliding ? this.glide.bank : faceAim ? 0 : THREE.MathUtils.clamp(-(turned / Math.max(dt, 1e-3)) * 0.035 * Math.min(1, hsp0 / 9), -0.22, 0.22);
+    const swimRoll = this.swimming ? Math.sin(this.clock * 4.5) * 0.14 * Math.min(1, hsp0 / 3) : 0;
+    const bankT = this.glide.gliding ? this.glide.bank : this.swimming ? swimRoll : faceAim ? 0 : THREE.MathUtils.clamp(-(turned / Math.max(dt, 1e-3)) * 0.035 * Math.min(1, hsp0 / 9), -0.22, 0.22);
     this.bank += (bankT - this.bank) * (1 - Math.exp(-dt * 10));
-    // the camera stays on the mouse: a camera that turns itself bends camera-relative movement into circles
-    // (Ravencrest's own rule); the mouse is also the aim here
     this.object.rotation.y = this.yaw;
     this.vesselMesh.rotation.set(0, this.bodyYaw - this.yaw, this.bank, 'YXZ');
     if (this.rig) {
-      const sp = hsp0;
+      const sp = this.swimming ? Math.max(2.6, hsp0 * 0.9) : this.climbing ? Math.hypot(hsp0, this.vy) * 0.85 : hsp0;
       const lx = this.vel.x * Math.cos(this.bodyYaw) - this.vel.z * Math.sin(this.bodyYaw);
       const lz = -(this.vel.x * Math.sin(this.bodyYaw) + this.vel.z * Math.cos(this.bodyYaw));
-      // the chest and gun tilt to the point under the crosshair (third person), so the barrel points at it
       let ap = this.pitch;
       if (!this.firstPerson && this.aimPointOk) { const c = this.chestPos(_chest2), dx = this.aimPoint.x - c.x, dz = this.aimPoint.z - c.z; ap = Math.atan2(this.aimPoint.y - c.y, Math.hypot(dx, dz)); }
-      this.rig.aimPitch = this.firstPerson ? 0 : ap;
+      this.rig.aimPitch = this.firstPerson || this.swimming || this.climbing ? 0 : ap;
       this.glide.pose(this.rig, { firstPerson: this.firstPerson, yaw: this.bodyYaw, scene: this.object.parent, camera: this.camera, pitch: this.pitch });
+      // Smooth forward prone swimming posture when swimming in streams/pools!
+      if (this.swimming && !this.glide.gliding) {
+        this.rig.glidePose.w = 0.82;
+        this.rig.glidePose.pitch = this.underwater ? 1.28 : 1.08 + Math.sin(this.clock * 4.5) * 0.06;
+      }
       this.rig.update(dt, sp, lx, lz);
     } else {
       this.vesselMesh.position.y = Math.sin(performance.now() * 0.004) * 0.05 + pulse * 0.04;
@@ -910,7 +1299,8 @@ export class PlayerController {
       tg.mag.visible = !(p >= ph.out && p < ph.in);
       tg.glow.value += (1 + pulse * 0.7 + this.muzzleFlash * 2 - tg.glow.value) * Math.min(1, dt * 12);
       tg.heat.value = this.weapons.getCharge().heat;
-      tg.root.visible = !this.firstPerson && !this.fists && !(this.switchT > 0 && Math.abs(this.switchT / this.switchLen - 0.5) < 0.12);
+      tg.root.visible = !this.firstPerson && !this.fists && !this.customWeaponObj && !(this.switchT > 0 && Math.abs(this.switchT / this.switchLen - 0.5) < 0.12);
+      if (this.customWeaponObj) this.customWeaponObj.visible = !this.firstPerson && !this.fists;
     }
   }
 }

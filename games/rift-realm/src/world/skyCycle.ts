@@ -54,7 +54,7 @@ const C = (h: number) => new THREE.Color(h);
 const NIGHT = { hemi: C(0x8c96e6), ground: C(0x1c3024), hemiI: 1.7, moon: C(0xcfe2ff), moonI: 3.0 };
 // low key like the art: the sun does the lighting (warm shafts), the sky fill is a dim green-grey bounce, so the shade
 // under the canopy reads dark and the AO shows (a 2.7 fill lit everything evenly and the forest went flat and pale)
-const DAY = { hemi: C(0xa9bf9c), ground: C(0x2c3a1e), hemiI: 1.05, sun: C(0xffd9a2), sunI: 6.0, haze: C(0x76846a), glow: C(0xffd890), density: 0.011, exposure: 1.0, env: 0.12 };
+const DAY = { hemi: C(0xa9bf9c), ground: C(0x2c3a1e), hemiI: 1.05, sun: C(0xffd9a2), sunI: 6.0, haze: C(0x76846a), glow: C(0xffd890), density: 0.0048, exposure: 1.0, env: 0.12 };
 const GOLD = { hemi: C(0xe8b49a), sun: C(0xff9b55), haze: C(0x9c8c86), glow: C(0xffb070) };
 const GREY = C(0x7f878a);
 const NIGHT_DENSITY = 0.0032;
@@ -89,10 +89,10 @@ export function createSkyCycle(scene: THREE.Scene, group: THREE.Object3D, render
   const env = scene.environment;
   const nightCol: N = env ? (pmremTexture(env as N, normalize(vec3(view.x, max(view.y, float(0.05)), view.z)), float(0.55)) as N).mul(0.85) : mix(color(0x0f3038), color(0x1c1f48), smoothstep(-0.05, 0.5, view.y));
   const dayCol: N = mix(uHaze, uGlow, view.dot(uSun).max(0).pow(5).mul(uGlowK));
-  // height fog: thick on the forest floor, thinning over ~35 m, so trunks fade into mist in layers and the canopy and sky
-  // stay clear (one flat density washed the whole frame out)
-  const uFogBase = uniform(0), uFogH = uniform(35);
-  const heightK: N = float(1).sub(smoothstep(0, 1, positionWorld.y.sub(uFogBase).div(uFogH).clamp(0, 3).div(3))).mul(0.8).add(0.2);
+  // height fog: thick on the forest floor, thinning over ~28 m so the misty understory reads deep while towering 40 m
+  // Grovewardens and high canopies remain unmistakably visible across the distant skyline
+  const uFogBase = uniform(0), uFogH = uniform(28);
+  const heightK: N = float(1).sub(smoothstep(0, 1, positionWorld.y.sub(uFogBase).div(uFogH).clamp(0, 1))).mul(0.82).add(0.18);
   (scene as unknown as { fogNode: unknown }).fogNode = fog(mix(nightCol, dayCol, uDay), densityFogFactor(uDens).mul(heightK));
   scene.fog = null;
 

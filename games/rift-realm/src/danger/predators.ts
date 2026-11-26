@@ -44,7 +44,13 @@ const SPECS: Record<PredatorKind, Spec> = {
   mantis: { name: 'Ambush Mantis', body: 'mantis', size: 1.0, hp: 120, run: 7.2, walk: 1.3, dmg: 22, reach: 3.3, tell: 0.75, strike: 0.25, recover: 1.1, sight: 20, fov: 170, ambush: 'foliage', venom: true, xp: 45, tint: 0xb6ff3a },
   wasp: { name: 'Plasma Wasp', body: 'wasp', size: 0.95, hp: 45, run: 8, walk: 2.5, dmg: 14, reach: 2.2, tell: 1.2, strike: 0.2, recover: 1.3, sight: 40, fov: 360, fly: { cruise: 4, perch: 9, attack: 3.2 }, ranged: 24, ambush: 'above', shock: true, xp: 30, tint: 0xff9a2a },
   bat: { name: 'Storm Bat', body: 'bat', size: 0.9, hp: 35, run: 10.5, walk: 3, dmg: 8, reach: 2.3, tell: 0.4, strike: 0.35, recover: 0.8, sight: 28, fov: 300, nightEyes: true, fly: { cruise: 3.2, attack: 0.2 }, shock: true, xp: 18, tint: 0x6ae8ff },
-  stalker: { name: 'Lumen Stalker', body: 'wolf', size: 1.5, hp: 230, run: 11.5, walk: 1.8, dmg: 26, reach: 3.0, tell: 0.75, strike: 0.42, recover: 1.1, sight: 42, fov: 150, nightEyes: true, xp: 90, tint: 0xff3a5a },
+  stalker: { name: 'Shadow Stalker', body: 'shadow_stalker_beast', size: 1.15, hp: 230, run: 11.5, walk: 2.1, dmg: 26, reach: 3.1, tell: 0.75, strike: 0.42, recover: 1.1, sight: 42, fov: 150, nightEyes: true, xp: 90, tint: 0xff3a5a },
+  panther: { name: 'Cryo Panther', body: 'cryo_panther', size: 1.12, hp: 115, run: 11.2, walk: 2.6, dmg: 18, reach: 2.7, tell: 0.55, strike: 0.34, recover: 0.85, sight: 38, fov: 150, nightEyes: true, xp: 48, tint: 0x60e8ff },
+  drake: { name: 'Apex Drake', body: 'apex_drake', size: 1.1, hp: 195, run: 9.8, walk: 2.3, dmg: 25, reach: 3.4, tell: 0.78, strike: 0.4, recover: 1.05, sight: 40, fov: 160, xp: 80, tint: 0xff5a2a },
+  brute: { name: 'Amphibian Brute', body: 'amphibian_brute', size: 1.1, hp: 185, run: 7.4, walk: 1.7, dmg: 24, reach: 3.2, tell: 0.82, strike: 0.36, recover: 1.2, sight: 28, fov: 160, venom: true, xp: 70, tint: 0x7eff4a },
+  serpent: { name: 'Hydro Serpent', body: 'hydro_serpent', size: 1.08, hp: 110, run: 8.8, walk: 2.2, dmg: 17, reach: 2.9, tell: 0.62, strike: 0.3, recover: 0.9, sight: 30, fov: 180, venom: true, xp: 46, tint: 0x38f0d8 },
+  hornet: { name: 'Acid Hornet', body: 'acid_hornet', size: 1.0, hp: 52, run: 8.8, walk: 2.8, dmg: 15, reach: 2.2, tell: 1.05, strike: 0.22, recover: 1.2, sight: 38, fov: 360, fly: { cruise: 3.8, perch: 8.5, attack: 3.0 }, ranged: 22, ambush: 'above', venom: true, xp: 34, tint: 0xaaff2a },
+  cyan_bat: { name: 'Cyan Canopy Bat', body: 'cyan_bat', size: 0.96, hp: 42, run: 10.8, walk: 3.2, dmg: 9, reach: 2.3, tell: 0.42, strike: 0.34, recover: 0.8, sight: 30, fov: 300, nightEyes: true, fly: { cruise: 3.5, attack: 0.3 }, shock: true, xp: 22, tint: 0x38f2ff },
 };
 
 type State = 'idle' | 'patrol' | 'alert' | 'track' | 'stalk' | 'circle' | 'charge' | 'tell' | 'strike' | 'recover'
@@ -163,7 +169,7 @@ interface Mote { mesh: THREE.Mesh; life: number; heal: number }
 export interface Noise { pos: THREE.Vector3; r: number; t: number }
 export interface Crumb { pos: THREE.Vector3; t: number }
 
-const ACTIVE_R = 150, DESPAWN_R = 230, RESPAWN_SEC = 120;
+const ACTIVE_R = 195, DESPAWN_R = 280, RESPAWN_SEC = 90;
 const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), tmp3 = new THREE.Vector3();
 
 export class PredatorDirector {
@@ -186,7 +192,7 @@ export class PredatorDirector {
     this.group.name = 'danger-predators';
     env.scene.add(this.group);
     this.dens = dens.map((den) => ({ den, live: [], deadAt: [], pack: null }));
-    this.max = env.lo ? 9 : 16;
+    this.max = env.lo ? 16 : 28;
   }
 
   /** A sound predators may hear: gunshots, footsteps, blasts. */

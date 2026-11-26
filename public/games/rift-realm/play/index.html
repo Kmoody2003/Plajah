@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Rift Realm — Void Tournament</title>
+  <title>Vesselbound — The Void Tournament</title>
   <style>
     * { box-sizing: border-box; user-select: none; -webkit-user-select: none; touch-action: none; }
     html, body {
@@ -50,7 +50,8 @@
       color: #04050a; background: linear-gradient(90deg, #38bdf8, #f59e0b);
       border: none; box-shadow: 0 0 24px #38bdf866;
     }
-    #startBtn:hover { filter: brightness(1.1); }
+    #startBtn:hover, #menuBtn:hover { filter: brightness(1.1); }
+    #menuBtn { margin-left: 10px; padding: 12px 22px; font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer; color: #e2ecf8; background: transparent; border: 1px solid #d9b26a88; }
     .levels { display: flex; gap: 10px; justify-content: center; margin: 0 0 18px; flex-wrap: wrap; }
     .lvl { min-width: 190px; padding: 10px 14px; cursor: pointer; color: #cfe8ff; background: #0b1424cc; border: 1px solid #38bdf855; font: 600 12.5px 'Segoe UI', sans-serif; letter-spacing: .06em; text-align: left; }
     .lvl span { display: block; font-weight: 400; font-size: 11px; color: #8ba4c0; margin-top: 3px; }
@@ -189,6 +190,8 @@
       border-color: #fbbf24; color: #fbbf24; background: #f59e0b22;
       box-shadow: 0 0 22px #f59e0b33; font-size: 14px;
     }
+    .t-extra { right: 184px; bottom: 26px; grid-template-columns: 52px; gap: 10px; }
+    .t-btn.small { width: 52px; height: 52px; font-size: 9px; letter-spacing: .06em; }
     #btnView {
       position: fixed; right: 20px; top: 88px; pointer-events: auto;
       padding: 6px 10px; font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
@@ -200,8 +203,9 @@
       #hudRight { right: 12px; top: 12px; }
     }
   </style>
-  <script type="module" crossorigin src="/games/rift-realm/play/assets/main-YfFr5oZW.js"></script>
-  <link rel="modulepreload" crossorigin href="/games/rift-realm/play/assets/runtime-CkUkWJEG.js">
+  <script type="module" crossorigin src="/games/rift-realm/play/assets/main-BuorhG1d.js"></script>
+  <link rel="modulepreload" crossorigin href="/games/rift-realm/play/assets/levelModules-CLPCOSfo.js">
+  <link rel="stylesheet" crossorigin href="/games/rift-realm/play/assets/main-BM9X9f4O.css">
 </head>
 <body>
   <div id="view"></div>
@@ -224,6 +228,8 @@
       <div class="v-pill active" id="v-aegis">[1] Aegis</div>
       <div class="v-pill" id="v-stalker">[2] Stalker</div>
       <div class="v-pill" id="v-seraph">[3] Seraph-9</div>
+      <div class="v-pill" id="v-sylva">[6] Sylva</div>
+      <div class="v-pill" id="v-pyre">[7] Pyre</div>
     </div>
   </div>
 
@@ -245,35 +251,33 @@
       <button class="t-btn" id="btnSurge" style="border-color: #a855f7; color: #e9d5ff;">SURGE</button>
       <button class="t-btn fire" id="btnFire">FIRE</button>
     </div>
+    <div class="t-actions t-extra">
+      <button class="t-btn small" id="btnFists">FISTS</button>
+      <button class="t-btn small" id="btnLock">LOCK</button>
+      <button class="t-btn small" id="btnReload">RELOAD</button>
+      <button class="t-btn small" id="btnGuard">GUARD</button>
+    </div>
   </div>
 
   <div id="hudBottom">
-    <b>WASD</b> Move · <b>LMB</b> Fire · <b>RMB</b> Aim · <b>F</b> Melee / Finisher · <b>MMB / Tab</b> Lock-on · <b>Shift</b> Dash · <b>Q</b> Surge · <b>1/2/3</b> Vessel · <b>V</b> 1st/3rd · <b>B</b> Realm
+    <b>WASD</b> Move / Climb Cliffs · <b>Space ×2</b> Double Jump / Swim Up / Wall-Kick · <b>E</b> Grapple (Stalker / Sylva) · <b>H</b> Pick Up / Forage · <b>L</b> Loadouts · <b>[ ]</b> Cycle Loadout · <b>LMB</b> Fire · <b>RMB / F</b> Melee · <b>C / Ctrl</b> Crouch / Dive · <b>Shift</b> Dash / Swim Surge · <b>1/2/3/6/7</b> Vessel · <b>I</b> Bag · <b>V</b> 1st/3rd
   </div>
 
-  <div id="overlay">
+  <!-- Pause panel (Esc). The front end (Start / Map / Character / Loading) is built by src/menu/*. -->
+  <div id="overlay" class="hidden">
     <div class="panel">
-      <div class="kicker">Rift Realm · The Void Tournament</div>
-      <h1>Rift Realm</h1>
-      <p class="lore">
-        Banished between worlds with a fallen Archangel, disembodied souls inhabit arcane-forged vessels in a shifting dark-fantasy labyrinth.
-        Fight COD/DOOM-fast on the <b>124 BPM</b> pulse, survive the living maze traps, and finish staggered foes with a <b>Soul-Rend Strike</b>.
-      </p>
-      <div class="levels" id="levelPick">
-        <button class="lvl" data-level="elderwood">Elderwood Hollow<span>Cyber Forest · Domination A/B/C</span></button>
-        <button class="lvl" data-level="shrine">Cyber-Forest Shrine<span>3v3 Skirmish</span></button>
-        <button class="lvl" data-level="glacial">Glacial Citadel<span>6v6 Arena · 12v12 Battleground</span></button>
-        <button class="lvl" data-level="volcanic">Obsidian Volcanic Compound<span>6v6 Arena · 12v12 Battleground</span></button>
-        <button class="lvl" data-level="marsh">Sunken Marshland Village<span>6v6 Arena · 12v12 Battleground</span></button>
-        <button class="lvl" data-level="celestial">Celestial Void Citadel<span>6v6 Arena · 12v12 Battleground</span></button>
-      </div>
-      <button id="startBtn">Enter The Rift</button>
+      <div class="kicker">Vesselbound · The Void Tournament</div>
+      <h1>Paused</h1>
+      <p class="lore">The rift holds its breath. Step back in when you are ready.</p>
+      <button id="startBtn">Resume</button>
+      <button id="controlsBtn" class="ghost">Controls</button>
+      <button id="menuBtn" class="ghost">Quit to menu</button>
       <div class="controls">
-        <b>WASD</b> Move · <b>LMB</b> Shoot on Beat (hold) · <b>RMB</b> Aim down sights (hold) · <b>F / E</b> Melee &amp; Soul-Rend Finisher · <b>Shift</b> Dash<br/>
-        <b>MMB / Tab</b> Lock-on (run &amp; gun) · <b>Q</b> Soul Surge · <b>1/2/3</b> Vessel · <b>V</b> 1st / 3rd Person
+        <b>WASD</b> Move &amp; Climb Cliffs · <b>Space ×2</b> Double Jump / Swim Up / Wall-Kick · <b>E</b> Retracting Grapple (Stalker &amp; Sylva) · <b>H</b> Pick Up Weapons &amp; Gear / Forage · <b>L</b> Armory &amp; Loadouts (<b>[ ]</b> Quick-Swap)<br/>
+        <b>LMB</b> Shoot on Beat · <b>RMB / F</b> Melee &amp; Finisher · <b>Z</b> Aim · <b>R</b> Vent · <b>C / Ctrl</b> Crouch / Dive · <b>Shift</b> Dash / Swim Surge · <b>I</b> Bag · <b>T</b> Pray · <b>Y</b> Warden · <b>1/2/3/6/7</b> Vessel · <b>V</b> 1st / 3rd
       </div>
     </div>
   </div>
-
+
 </body>
 </html>

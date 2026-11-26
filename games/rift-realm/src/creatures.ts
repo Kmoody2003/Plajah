@@ -15,7 +15,12 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { CreatureRig, loadRig, type RigTemplate } from './creatureRig';
 import { attribute, color, cos, dot, float, floor, fract, ivec2, max, mix, mod, positionLocal, sign, sin, smoothstep, texture, textureLoad, time, uniform, uv, vec3, vertexIndex } from 'three/tsl';
 
-export type CreatureKind = 'wolf' | 'mantis' | 'wasp' | 'deer' | 'bat';
+export type CreatureKind =
+  | 'wolf' | 'mantis' | 'wasp' | 'deer' | 'bat'
+  | 'apex_drake' | 'amphibian_brute' | 'cryo_panther' | 'shadow_stalker_beast'
+  | 'hydro_serpent' | 'bio_sloth' | 'bio_axolotl' | 'cyan_bat' | 'glow_beetle'
+  | 'blue_axolotl' | 'bio_turtle' | 'sky_jelly' | 'cyber_dragonfly'
+  | 'electric_newt' | 'acid_hornet' | 'venom_caterpillar' | 'poison_salamander' | 'venom_toad';
 
 interface Spec {
   file: string;
@@ -34,6 +39,24 @@ const SPECS: Record<CreatureKind, Spec> = {
   wasp: { file: 'plasma_wasp.glb', height: 1.8, hip: 0.32, stride: 1.0, swing: 0.05, lift: 0, bob: 0, phases: [0, 0.5, 0.25, 0.75], hover: 1.7 },
   deer: { file: 'lumen_deer.glb', height: 2.3, hip: 0.4, stride: 1.8, swing: 0.24, lift: 0.1, bob: 0.03, phases: [0, 0.5, 0.5, 0] },
   bat: { file: 'storm_bat.glb', height: 1.6, hip: 0.36, stride: 1, swing: 0, lift: 0, bob: 0, phases: [0, 0.5, 0.5, 0], hover: 2.4 },
+  apex_drake: { file: 'apex_drake.glb', height: 2.35, hip: 0.42, stride: 3.1, swing: 0.32, lift: 0.12, bob: 0.05, phases: [0, 0.14, 0.5, 0.64] },
+  amphibian_brute: { file: 'amphibian_brute.glb', height: 2.15, hip: 0.42, stride: 2.2, swing: 0.26, lift: 0.1, bob: 0.05, phases: [0, 0.5, 0.5, 0] },
+  cryo_panther: { file: 'cryo_panther.glb', height: 1.55, hip: 0.44, stride: 2.8, swing: 0.36, lift: 0.12, bob: 0.05, phases: [0, 0.12, 0.5, 0.62] },
+  shadow_stalker_beast: { file: 'shadow_stalker_beast.glb', height: 1.95, hip: 0.44, stride: 3.0, swing: 0.36, lift: 0.12, bob: 0.05, phases: [0, 0.12, 0.5, 0.62] },
+  hydro_serpent: { file: 'hydro_serpent.glb', height: 1.55, hip: 0.3, stride: 2.0, swing: 0.18, lift: 0.05, bob: 0.03, phases: [0, 0.5, 0.5, 0] },
+  bio_sloth: { file: 'bio_sloth.glb', height: 1.35, hip: 0.4, stride: 1.2, swing: 0.16, lift: 0.06, bob: 0.03, phases: [0, 0.5, 0.5, 0] },
+  bio_axolotl: { file: 'bio_axolotl.glb', height: 0.88, hip: 0.35, stride: 1.1, swing: 0.18, lift: 0.06, bob: 0.02, phases: [0, 0.5, 0.5, 0] },
+  cyan_bat: { file: 'cyan_bat.glb', height: 1.45, hip: 0.36, stride: 1.0, swing: 0, lift: 0, bob: 0, phases: [0, 0.5, 0.5, 0], hover: 2.3 },
+  glow_beetle: { file: 'glow_beetle.glb', height: 0.85, hip: 0.32, stride: 0.9, swing: 0.12, lift: 0.05, bob: 0.02, phases: 'tripod' },
+  blue_axolotl: { file: 'blue_axolotl.glb', height: 0.86, hip: 0.35, stride: 1.1, swing: 0.18, lift: 0.06, bob: 0.02, phases: [0, 0.5, 0.5, 0] },
+  bio_turtle: { file: 'bio_turtle.glb', height: 1.08, hip: 0.32, stride: 1.0, swing: 0.12, lift: 0.05, bob: 0.02, phases: [0, 0.5, 0.5, 0] },
+  sky_jelly: { file: 'sky_jelly.glb', height: 1.85, hip: 0.3, stride: 1.0, swing: 0, lift: 0, bob: 0.12, phases: [0, 0.5, 0.5, 0], hover: 3.8 },
+  cyber_dragonfly: { file: 'cyber_dragonfly.glb', height: 1.15, hip: 0.32, stride: 1.0, swing: 0, lift: 0, bob: 0.06, phases: [0, 0.5, 0.25, 0.75], hover: 1.85 },
+  electric_newt: { file: 'electric_newt.glb', height: 0.92, hip: 0.34, stride: 1.1, swing: 0.18, lift: 0.06, bob: 0.02, phases: [0, 0.5, 0.5, 0] },
+  acid_hornet: { file: 'acid_hornet.glb', height: 1.5, hip: 0.32, stride: 1.0, swing: 0.05, lift: 0, bob: 0, phases: [0, 0.5, 0.25, 0.75], hover: 1.85 },
+  venom_caterpillar: { file: 'venom_caterpillar.glb', height: 0.95, hip: 0.28, stride: 0.85, swing: 0.12, lift: 0.04, bob: 0.02, phases: 'tripod' },
+  poison_salamander: { file: 'poison_salamander.glb', height: 0.88, hip: 0.34, stride: 1.0, swing: 0.16, lift: 0.05, bob: 0.02, phases: [0, 0.5, 0.5, 0] },
+  venom_toad: { file: 'venom_toad.glb', height: 1.25, hip: 0.36, stride: 1.2, swing: 0.2, lift: 0.12, bob: 0.06, phases: [0, 0.5, 0.5, 0] },
 };
 const BASE = '/games/rift-realm/assets/creatures/';
 
@@ -410,7 +433,12 @@ export class CreatureBody {
   }
 }
 
-export function preloadCreatures(kinds: CreatureKind[]) { for (const k of kinds) load(k); }
+export function preloadCreatures(kinds: CreatureKind[]) {
+  for (const k of kinds) {
+    void loadRig(k);
+    if (k === 'wolf' || k === 'mantis' || k === 'wasp' || k === 'deer' || k === 'bat') load(k);
+  }
+}
 
 /** Skin a rig's clip on the CPU into a float texture of vertex positions (frames × vertices, row-major in a W-wide
  *  texture), in the rig mesh's own space mapped through `xf`. For instanced crowds that can't each carry a skeleton. */

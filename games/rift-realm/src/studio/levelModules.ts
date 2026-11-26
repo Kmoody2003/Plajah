@@ -33,8 +33,8 @@ export interface LevelModule {
 }
 
 export const LEVEL_MODULES: LevelModule[] = [
-  // Level 1: Elderwood Hollow (the Cyber Forest, laid out from the CF-24 tactical map) is the default level
-  { id: 'rift-realm.elderwood', param: 'elderwood', build: buildElderwood, preload: () => preloadWildsTerrain(), sets: ['marsh-wood', 'glacial-brick', 'volc-rock'], look: { exposure: 1.1, far: 320 } },
+  // Level 1: Elderwood Hollow & 2 km Elderwood Wilds (far 1400 m so towering 40 m Grovewardens read across the canopy)
+  { id: 'rift-realm.elderwood', param: 'elderwood', build: buildElderwood, preload: () => preloadWildsTerrain(), sets: ['marsh-wood', 'glacial-brick', 'volc-rock'], look: { exposure: 1.1, far: 1400 } },
   { id: 'rift-realm.shrine', param: 'shrine', build: buildShrine, sets: ['volc-basalt', 'glacial-brick', 'marsh-mud', 'volc-steel'], look: { exposure: 1.15, far: 260 } },
   { id: 'rift-realm.glacial', param: 'glacial', build: buildGlacial, sets: ['glacial-ground', 'glacial-brick', 'celestial-obsidian', 'glacial-ice', 'volc-steel'], look: { exposure: 0.78, far: 700 } },
   { id: 'rift-realm.volcanic', param: 'volcanic', build: buildVolcanic, sets: ['volc-basalt', 'volc-rock', 'volc-ash', 'volc-steel', 'volc-lava'], look: { exposure: 1.25, far: 900 } },

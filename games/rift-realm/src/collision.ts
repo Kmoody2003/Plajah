@@ -232,6 +232,113 @@ export class CollisionWorld {
     return d;
   }
 
+  /**
+   * Raycast returning the exact closest hit distance, world point, outward surface normal, and hit source.
+   * Used by rock-face / cliff climbing and the retracting grappling hook.
+   */
+  raycastHit(
+    origin: THREE.Vector3,
+    dir: THREE.Vector3,
+    max: number,
+  ): { distance: number; point: THREE.Vector3; normal: THREE.Vector3; kind: 'bvh' | 'terrain' | 'trunk' } | null {
+    let bestD = max;
+    const bestN = new THREE.Vector3(0, 1, 0);
+    let bestKind: 'bvh' | 'terrain' | 'trunk' | null = null;
+
+    if (this.bvh) {
+      const hit = this.bvh.raycastFirst(new THREE.Ray(origin, dir), THREE.DoubleSide);
+      if (hit && hit.distance < bestD) {
+        bestD = hit.distance;
+        if (hit.face?.normal) {
+          bestN.copy(hit.face.normal).normalize();
+          if (bestN.dot(dir) > 0) bestN.negate();
+        } else {
+          bestN.copy(dir).negate();
+        }
+        bestKind = 'bvh';
+      }
+    }
+
+    // Check trunk columns & moving columns (radial outward cylinder normal)
+    const testCols = (list: Iterable<ArrayLike<number>>) => {
+      const hl = Math.hypot(dir.x, dir.z);
+      if (hl <= 1e-4) return;
+      const ux = dir.x / hl, uz = dir.z / hl;
+      for (const tr of list) {
+        const ox = origin.x - tr[0], oz = origin.z - tr[1];
+        const b = ox * ux + oz * uz, c = ox * ox + oz * oz - tr[2] * tr[2], disc = b * b - c;
+        if (disc < 0) continue;
+        const hd = -b - Math.sqrt(disc);
+        if (hd < 0) continue;
+        const td = hd / hl, y = origin.y + dir.y * td;
+        if (td < bestD && y > tr[3] && y < tr[4]) {
+          bestD = td;
+          const hx = origin.x + dir.x * td - tr[0], hz = origin.z + dir.z * td - tr[1];
+          const l = Math.hypot(hx, hz) || 1;
+          bestN.set(hx / l, 0, hz / l);
+          bestKind = 'trunk';
+        }
+      }
+    };
+
+    if (this.cols.size) {
+      const hl = Math.hypot(dir.x, dir.z);
+      if (hl > 1e-4) {
+        const ux = dir.x / hl, uz = dir.z / hl;
+        for (let s = 0; s < bestD * hl + 4; s += 6) {
+          testCols(this.colsNear(origin.x + ux * s, origin.z + uz * s, 6, this.near));
+        }
+      }
+    }
+    if (this.movers.length) testCols(this.movers);
+
+    const t = this.terrain;
+    if (t) {
+      let prev = 0;
+      for (let s = 0.25; s < bestD; s += s < 6 ? 0.25 : 0.9) {
+        const px = origin.x + dir.x * s, py = origin.y + dir.y * s, pz = origin.z + dir.z * s;
+        if (py < t.heightAt(px, pz, py)) {
+          let a = prev, b = s;
+          for (let k = 0; k < 6; k++) {
+            const m = (a + b) / 2;
+            const mx = origin.x + dir.x * m, my = origin.y + dir.y * m, mz = origin.z + dir.z * m;
+            if (my < t.heightAt(mx, mz, my)) b = m; else a = m;
+          }
+          if (a < bestD) {
+            bestD = a;
+            const hx = origin.x + dir.x * a, hy = origin.y + dir.y * a, hz = origin.z + dir.z * a;
+            const e = 0.55;
+            const nx = t.heightAt(hx - e, hz, hy + 1) - t.heightAt(hx + e, hz, hy + 1);
+            const nz = t.heightAt(hx, hz - e, hy + 1) - t.heightAt(hx, hz + e, hy + 1);
+            const ny = 2 * e;
+            const nl = Math.hypot(nx, ny, nz) || 1;
+            bestN.set(nx / nl, ny / nl, nz / nl);
+            bestKind = 'terrain';
+          }
+          break;
+        }
+        prev = s;
+      }
+      if (t.trunksNear && bestD > 0.5) {
+        const hl = Math.hypot(dir.x, dir.z);
+        if (hl > 1e-4) {
+          const ux = dir.x / hl, uz = dir.z / hl;
+          for (let s = 0; s < bestD * hl; s += 6) {
+            testCols(t.trunksNear(origin.x + ux * s, origin.z + uz * s, 8));
+          }
+        }
+      }
+    }
+
+    if (!bestKind) return null;
+    return {
+      distance: bestD,
+      point: origin.clone().addScaledVector(dir, bestD),
+      normal: bestN.clone(),
+      kind: bestKind,
+    };
+  }
+
   /** Push a capsule out of the terrain and the trunks. Returns whether it stands on walkable ground. */
   private resolveTerrain(pos: THREE.Vector3, radius: number, height: number): boolean {
     const t = this.terrain!;

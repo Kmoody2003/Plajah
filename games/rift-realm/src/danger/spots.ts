@@ -8,7 +8,7 @@
 // and Glowcap Stream crackle with electrified fungi, the Gorge and the escarpment shed rocks, the Sunken Ruins pit is a
 // magma rift with vents, the Violet Vale is thick with spore pods. Night opens extra dens (`night: true`).
 
-export type PredatorKind = 'wolf' | 'mantis' | 'wasp' | 'bat' | 'stalker';
+export type PredatorKind = 'wolf' | 'mantis' | 'wasp' | 'bat' | 'stalker' | 'panther' | 'drake' | 'brute' | 'serpent' | 'hornet' | 'cyan_bat';
 import type { Herd } from './prey';
 export type { Herd };
 
@@ -40,35 +40,53 @@ export interface Hazard {
 
 // ── predators ───────────────────────────────────────────────────────────────────────────────────────────────────
 export const DENS: Den[] = [
-  // the hollow's edge: a pack that comes in off the Mossy Floor (three-way fights with the rift's creatures)
-  { id: 'mossy-pack', kind: 'wolf', x: -58, z: -40, r: 26, n: 3 },
+  // the hollow's edge & immediate rim: active packs & flyers right outside the clearing
+  { id: 'mossy-pack', kind: 'wolf', x: -58, z: -40, r: 28, n: 3 },
+  { id: 'hollow-panther-e', kind: 'panther', x: 112, z: -38, r: 42, n: 2 },
+  { id: 'hollow-hornets-s', kind: 'hornet', x: 24, z: 118, r: 36, n: 3 },
+  { id: 'hollow-cyanbats-nw', kind: 'cyan_bat', x: -115, z: -98, r: 42, n: 3 },
+  { id: 'hollow-serpent-sw', kind: 'serpent', x: -112, z: 66, r: 36, n: 2 },
   // High Canopy
-  { id: 'ruins-pack', kind: 'wolf', x: -40, z: -200, r: 45, n: 4 },
-  { id: 'seedpod-wasps', kind: 'wasp', x: 118, z: -250, r: 30, n: 2 },
-  { id: 'canopy-mantis', kind: 'mantis', x: 60, z: -150, r: 22, n: 1 },
+  { id: 'ruins-pack', kind: 'wolf', x: -40, z: -200, r: 48, n: 4 },
+  { id: 'canopy-panthers-w', kind: 'panther', x: -148, z: -185, r: 46, n: 2 },
+  { id: 'canopy-drake-e', kind: 'drake', x: 155, z: -195, r: 46, n: 2 },
+  { id: 'seedpod-wasps', kind: 'wasp', x: 118, z: -250, r: 34, n: 3 },
+  { id: 'canopy-mantis', kind: 'mantis', x: 60, z: -150, r: 26, n: 2 },
   // Westwood
-  { id: 'settlement-pack', kind: 'wolf', x: -300, z: -40, r: 50, n: 3 },
-  { id: 'village-mantis', kind: 'mantis', x: -300, z: -150, r: 24, n: 2 },
-  { id: 'glowcap-wasps', kind: 'wasp', x: -400, z: 190, r: 34, n: 2 },
-  { id: 'titan-bats', kind: 'bat', x: -150, z: 300, r: 40, n: 3 },
+  { id: 'westwood-pack-mid', kind: 'wolf', x: -205, z: -22, r: 48, n: 3 },
+  { id: 'settlement-pack', kind: 'wolf', x: -300, z: -40, r: 52, n: 4 },
+  { id: 'village-mantis', kind: 'mantis', x: -300, z: -150, r: 28, n: 2 },
+  { id: 'west-hornets', kind: 'hornet', x: -355, z: 85, r: 42, n: 3 },
+  { id: 'glowcap-wasps', kind: 'wasp', x: -400, z: 190, r: 36, n: 3 },
+  { id: 'glowcap-brute', kind: 'brute', x: -255, z: 245, r: 42, n: 2 },
+  { id: 'titan-bats', kind: 'bat', x: -150, z: 300, r: 44, n: 4 },
   // the river and the Gorge
-  { id: 'stream-mantis', kind: 'mantis', x: 225, z: 150, r: 22, n: 2 },
-  { id: 'gorge-pack', kind: 'wolf', x: 170, z: 420, r: 50, n: 4 },
-  { id: 'falls-bats', kind: 'bat', x: 250, z: 360, r: 35, n: 3 },
+  { id: 'river-serpents', kind: 'serpent', x: 155, z: 205, r: 38, n: 2 },
+  { id: 'stream-mantis', kind: 'mantis', x: 225, z: 150, r: 26, n: 2 },
+  { id: 'stream-brutes', kind: 'brute', x: 268, z: 225, r: 40, n: 2 },
+  { id: 'gorge-pack', kind: 'wolf', x: 170, z: 420, r: 52, n: 4 },
+  { id: 'gorge-drake', kind: 'drake', x: 215, z: 325, r: 44, n: 2 },
+  { id: 'falls-bats', kind: 'bat', x: 250, z: 360, r: 38, n: 4 },
   // the Violet Vale and the Mire
-  { id: 'mire-mantis', kind: 'mantis', x: -300, z: 600, r: 30, n: 2 },
-  { id: 'vale-wasps', kind: 'wasp', x: 40, z: 580, r: 40, n: 3 },
+  { id: 'mire-mantis', kind: 'mantis', x: -300, z: 600, r: 34, n: 2 },
+  { id: 'mire-brutes', kind: 'brute', x: -225, z: 530, r: 44, n: 2 },
+  { id: 'vale-serpents', kind: 'serpent', x: -75, z: 615, r: 44, n: 2 },
+  { id: 'vale-wasps', kind: 'wasp', x: 40, z: 580, r: 42, n: 3 },
+  { id: 'vale-hornets', kind: 'hornet', x: 125, z: 555, r: 42, n: 3 },
   // the Redwood Ruins
-  { id: 'plaza-pack', kind: 'wolf', x: 440, z: -60, r: 50, n: 3 },
-  { id: 'cathedral-mantis', kind: 'mantis', x: 250, z: -390, r: 26, n: 2 },
-  { id: 'zone10-wasps', kind: 'wasp', x: 450, z: -360, r: 34, n: 2 },
-  // night only: Lumen Stalkers prowl alone, bats swarm, the big packs come down from the ridges
-  { id: 'stalker-hollow', kind: 'stalker', x: 70, z: -70, r: 60, n: 1, night: true },
-  { id: 'stalker-west', kind: 'stalker', x: -220, z: 80, r: 70, n: 1, night: true },
-  { id: 'stalker-east', kind: 'stalker', x: 320, z: -180, r: 70, n: 1, night: true },
-  { id: 'stalker-vale', kind: 'stalker', x: -100, z: 520, r: 80, n: 2, night: true },
-  { id: 'night-pack-n', kind: 'wolf', x: 0, z: -110, r: 60, n: 4, night: true },
-  { id: 'night-bats-ruins', kind: 'bat', x: 380, z: -150, r: 45, n: 3, night: true },
+  { id: 'redwood-panthers', kind: 'panther', x: 315, z: -175, r: 48, n: 3 },
+  { id: 'plaza-pack', kind: 'wolf', x: 440, z: -60, r: 52, n: 4 },
+  { id: 'shrine-drakes', kind: 'drake', x: 525, z: -215, r: 48, n: 2 },
+  { id: 'cathedral-mantis', kind: 'mantis', x: 250, z: -390, r: 30, n: 2 },
+  { id: 'zone10-wasps', kind: 'wasp', x: 450, z: -360, r: 36, n: 3 },
+  { id: 'ruins-cyanbats', kind: 'cyan_bat', x: 405, z: -445, r: 46, n: 4 },
+  // night only: Shadow Stalkers prowl alone, bats swarm, the big packs come down from the ridges
+  { id: 'stalker-hollow', kind: 'stalker', x: 70, z: -70, r: 65, n: 1, night: true },
+  { id: 'stalker-west', kind: 'stalker', x: -220, z: 80, r: 75, n: 2, night: true },
+  { id: 'stalker-east', kind: 'stalker', x: 320, z: -180, r: 75, n: 2, night: true },
+  { id: 'stalker-vale', kind: 'stalker', x: -100, z: 520, r: 85, n: 2, night: true },
+  { id: 'night-pack-n', kind: 'wolf', x: 0, z: -110, r: 62, n: 4, night: true },
+  { id: 'night-bats-ruins', kind: 'bat', x: 380, z: -150, r: 48, n: 4, night: true },
 ];
 
 // ── hazards ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -199,14 +217,50 @@ export const DEMO_FORAGE: ForagePatch[] = [
 ];
 export const DEMO_HERDS: Herd[] = [{ id: 'demo-herd', kind: 'deer', x: -56, z: -30, r: 10, n: 3 }];
 
-// ── prey herds (danger/prey.ts): open glades and riverbanks, away from the hazards ──
+// ── prey herds & ambient wildlife (danger/prey.ts): lush herds, flyers & water fauna across all regions ──
 export const HERDS: Herd[] = [
-  { id: 'canopy-deer', kind: 'deer', x: -10, z: -150, r: 30, n: 4 },
-  { id: 'west-deer', kind: 'deer', x: -250, z: -100, r: 35, n: 5 },
-  { id: 'glowcap-stags', kind: 'stag', x: -380, z: 120, r: 35, n: 3 },
-  { id: 'river-deer', kind: 'deer', x: 160, z: 120, r: 30, n: 4 },
+  // Elderwood Hollow rim & inner ring (immediate signs of forest life stepping out of spawn)
+  { id: 'hollow-deer-w', kind: 'deer', x: -102, z: 18, r: 28, n: 3 },
+  { id: 'hollow-jellies-e', kind: 'jelly', x: 98, z: 22, r: 34, n: 3 },
+  { id: 'hollow-dragonflies-s', kind: 'dragonfly', x: 34, z: 96, r: 26, n: 3 },
+  { id: 'hollow-beetles-nw', kind: 'beetle', x: -64, z: -104, r: 24, n: 3 },
+  { id: 'hollow-sloths-ne', kind: 'sloth', x: 84, z: -92, r: 26, n: 2 },
+  { id: 'hollow-turtles-sw', kind: 'turtle', x: -94, z: 88, r: 24, n: 2 },
+  // High Canopy (north)
+  { id: 'canopy-deer', kind: 'deer', x: -10, z: -150, r: 34, n: 4 },
+  { id: 'canopy-jellies', kind: 'jelly', x: -120, z: -210, r: 40, n: 3 },
+  { id: 'canopy-stags', kind: 'stag', x: 110, z: -165, r: 34, n: 2 },
+  { id: 'canopy-sloths', kind: 'sloth', x: 25, z: -260, r: 30, n: 3 },
+  { id: 'canopy-beetles', kind: 'beetle', x: -185, z: -140, r: 28, n: 3 },
+  // Westwood & Glowcap Hollow
+  { id: 'west-deer', kind: 'deer', x: -250, z: -100, r: 38, n: 5 },
+  { id: 'west-sloths', kind: 'sloth', x: -210, z: 45, r: 32, n: 3 },
+  { id: 'settlement-dragonflies', kind: 'dragonfly', x: -340, z: -90, r: 32, n: 4 },
+  { id: 'glowcap-stags', kind: 'stag', x: -380, z: 120, r: 38, n: 3 },
+  { id: 'glowcap-jellies', kind: 'jelly', x: -410, z: 195, r: 38, n: 4 },
+  { id: 'glowcap-toads', kind: 'toad', x: -355, z: 245, r: 30, n: 3 },
+  { id: 'titan-caterpillars', kind: 'caterpillar', x: -165, z: 250, r: 32, n: 3 },
+  // River, Glowcap Stream & Gorge
+  { id: 'river-deer', kind: 'deer', x: 160, z: 120, r: 34, n: 4 },
+  { id: 'stream-axolotls', kind: 'axolotl', x: 235, z: 145, r: 26, n: 4 },
+  { id: 'stream-blue-axolotls', kind: 'blue_axolotl', x: 215, z: 245, r: 28, n: 3 },
+  { id: 'stream-dragonflies', kind: 'dragonfly', x: 245, z: 185, r: 30, n: 4 },
+  { id: 'river-turtles', kind: 'turtle', x: 285, z: 42, r: 28, n: 3 },
+  { id: 'gorge-newts', kind: 'newt', x: 185, z: 405, r: 30, n: 3 },
+  { id: 'gorge-jellies', kind: 'jelly', x: 210, z: 465, r: 38, n: 3 },
+  // Violet Vale & Mangrove Mire
   { id: 'vale-stags', kind: 'stag', x: -120, z: 600, r: 45, n: 3 },
-  { id: 'vale-deer', kind: 'deer', x: 80, z: 520, r: 40, n: 5 },
-  { id: 'plaza-deer', kind: 'deer', x: 360, z: -40, r: 30, n: 4 },
-  { id: 'cathedral-stags', kind: 'stag', x: 300, z: -340, r: 35, n: 2 },
+  { id: 'vale-deer', kind: 'deer', x: 80, z: 520, r: 42, n: 5 },
+  { id: 'vale-jellies', kind: 'jelly', x: 15, z: 590, r: 48, n: 4 },
+  { id: 'mire-turtles', kind: 'turtle', x: -315, z: 615, r: 34, n: 4 },
+  { id: 'mire-toads', kind: 'toad', x: -260, z: 585, r: 32, n: 3 },
+  { id: 'mire-salamanders', kind: 'salamander', x: -350, z: 540, r: 32, n: 3 },
+  { id: 'mire-axolotls', kind: 'blue_axolotl', x: -190, z: 635, r: 34, n: 3 },
+  // Redwood Ruins (east / north-east)
+  { id: 'plaza-deer', kind: 'deer', x: 360, z: -40, r: 34, n: 4 },
+  { id: 'redwood-beetles', kind: 'beetle', x: 320, z: -210, r: 32, n: 3 },
+  { id: 'redwood-newts', kind: 'newt', x: 430, z: -185, r: 30, n: 3 },
+  { id: 'cathedral-stags', kind: 'stag', x: 300, z: -340, r: 38, n: 3 },
+  { id: 'cathedral-jellies', kind: 'jelly', x: 255, z: -410, r: 40, n: 3 },
+  { id: 'shrine-salamanders', kind: 'salamander', x: 545, z: -245, r: 34, n: 3 },
 ];

@@ -914,22 +914,32 @@ export function buildElderwood(scene: THREE.Scene, tier: Tier = 'high'): Level {
   scene.fog = new THREE.FogExp2(sky.horizon.getHex(), FOG);
   scene.add(group);
 
-  // ── the forest fights back: wolves, mantises, wasps, bats; deer graze the hollow; moths round every light ─────
-  preloadCreatures(['wolf', 'mantis', 'wasp', 'deer', 'bat']);
-  const MUL: Record<CreatureKind, [number, number]> = { wolf: [1.35, 0.8], mantis: [0.8, 1.5], wasp: [1.1, 0.6], deer: [1, 1], bat: [1.2, 0.7] };
+  // ── the forest fights back: wolves, mantises, wasps, bats; deer, sky jellies & dragonflies roam the hollow; moths round lights ─
+  preloadCreatures(['wolf', 'mantis', 'wasp', 'deer', 'bat', 'sky_jelly', 'cyber_dragonfly', 'bio_turtle', 'glow_beetle']);
+  const MUL: Partial<Record<CreatureKind, [number, number]>> = { wolf: [1.35, 0.8], mantis: [0.8, 1.5], wasp: [1.1, 0.6], deer: [1, 1], bat: [1.2, 0.7] };
   enemyBodies.make = (id, boss) => {
     const k: CreatureKind = boss ? 'mantis' : (['wolf', 'bat', 'wolf', 'mantis', 'wasp', 'bat'] as const)[id % 6];
     const b = new CreatureBody(k);
     if (!b.hover) walkers.push(b.root);
-    return { root: b.root, hover: b.hover, height: b.height, speedMul: MUL[k][0], hpMul: MUL[k][1], update: (dt, sp) => b.update(dt, sp), attack: () => b.attack(), rig: b.rig };
+    const m = MUL[k] ?? [1, 1];
+    return { root: b.root, hover: b.hover, height: b.height, speedMul: m[0], hpMul: m[1], update: (dt, sp) => b.update(dt, sp), attack: () => b.attack(), rig: b.rig };
   };
   type Deer = { b: CreatureBody; home: THREE.Vector3; tx: number; tz: number; wait: number; flee: number; speed: number };
   const herd: Deer[] = [];
-  for (const [hx, hz] of [[-40, -50], [36, -40], [-62, 40], [10, 64]].slice(0, lo ? 2 : 4)) {
-    for (let k = 0; k < 2 + Math.floor(R() * 2); k++) {
-      const b = new CreatureBody('deer', 0.85 + R() * 0.3), x = hx + (R() - 0.5) * 8, z = hz + (R() - 0.5) * 8;
+  for (const [hx, hz, kind, count] of [
+    [-40, -50, 'deer', 3],
+    [36, -40, 'deer', 3],
+    [-62, 40, 'deer', 2],
+    [10, 64, 'deer', 2],
+    [-18, 22, 'sky_jelly', 2],
+    [28, 46, 'cyber_dragonfly', 3],
+    [-46, -12, 'glow_beetle', 2],
+  ] as [number, number, CreatureKind, number][]) {
+    if (lo && herd.length >= 9) break;
+    for (let k = 0; k < (lo ? Math.min(2, count) : count); k++) {
+      const b = new CreatureBody(kind, 0.88 + R() * 0.28), x = hx + (R() - 0.5) * 10, z = hz + (R() - 0.5) * 10;
       b.root.position.set(x, H(x, z), z); b.root.rotation.y = R() * 6.28; group.add(b.root);
-      herd.push({ b, home: new THREE.Vector3(hx, 0, hz), tx: x, tz: z, wait: R() * 6, flee: 0, speed: 0 });
+      herd.push({ b, home: new THREE.Vector3(hx, 0, hz), tx: x, tz: z, wait: R() * 5, flee: 0, speed: 0 });
     }
   }
   const deerOk = (x: number, z: number) => !inStructure(x, z, 0) && Math.abs(x) < BOUND - 3 && Math.abs(z) < BOUND - 3;

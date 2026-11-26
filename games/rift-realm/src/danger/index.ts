@@ -13,8 +13,8 @@ import { DangerAudio } from './audio';
 import { PlayerStatus } from './status';
 import { HazardField } from './hazards';
 import { PredatorDirector, type Predator, type Prey } from './predators';
-import { DEMO_FORAGE, DEMO_HAZARDS, DEMO_HERDS, DENS, FORAGE, HAZARDS, HERDS, inHollow } from './spots';
-import { PreyDirector } from './prey';
+import { DEMO_FORAGE, DEMO_HAZARDS, DEMO_HERDS, DENS, FORAGE, HAZARDS, HERDS, inHollow, type PredatorKind } from './spots';
+import { PreyDirector, type PreyKind } from './prey';
 import { EatAction } from './eat';
 import { RIVER, polyNear } from '../world/layout';
 import { Forage } from './forage';
@@ -132,6 +132,7 @@ export class Danger {
       scene: ctx.scene, vfx: ctx.vfx, audio: this.audio, ground,
       resolve: (p, r, h) => col.resolve(p, r, h), hurtPlayer: hurt,
       fearR: (p, base) => this.bonds ? this.bonds.fearR(p, base) : base,
+      lo: ctx.lo, wilds: this.wilds,
     }, [...(this.wilds ? HERDS : []), ...(demo ? DEMO_HERDS : [])]);
     const patches = [...(this.wilds ? FORAGE : FORAGE.filter((f) => inHollow(f.x, f.z))), ...(demo ? DEMO_FORAGE : [])];
     this.forage = new Forage({
@@ -410,9 +411,9 @@ export class Danger {
   }
 
   /** Debug / scripted encounters: `__rr.danger.spawn('mantis', x, z)`. */
-  spawn(kind: 'wolf' | 'mantis' | 'wasp' | 'bat' | 'stalker', x: number, z: number) { return this.predators.spawnAt(kind, x, z); }
+  spawn(kind: PredatorKind, x: number, z: number) { return this.predators.spawnAt(kind, x, z); }
   /** Debug: a small herd of prey at (x, z). */
-  herd(kind: 'deer' | 'stag', x: number, z: number, n = 3) { return this.prey.spawnHerd(kind, x, z, n); }
+  herd(kind: PreyKind, x: number, z: number, n = 3) { return this.prey.spawnHerd(kind, x, z, n); }
 
   /** Debug (window.__rr.danger). */
   debug() {

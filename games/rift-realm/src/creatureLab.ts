@@ -7,7 +7,13 @@ import { MothSwarm } from './creatures';
 
 const q = new URLSearchParams(location.search);
 const kind = (q.get('kind') ?? 'wolf') as RigKind;
-const HEIGHT: Record<RigKind, number> = { wolf: 1.45, mantis: 2.5, wasp: 1.8, deer: 2.3, bat: 1.6, moth: 0.9 };
+const HEIGHT: Partial<Record<RigKind, number>> = {
+  wolf: 1.45, mantis: 2.5, wasp: 1.8, deer: 2.3, bat: 1.6, moth: 0.9,
+  apex_drake: 2.35, amphibian_brute: 2.15, cryo_panther: 1.55, shadow_stalker_beast: 1.95,
+  hydro_serpent: 1.55, bio_sloth: 1.35, bio_axolotl: 0.88, cyan_bat: 1.45, glow_beetle: 0.85,
+  blue_axolotl: 0.86, bio_turtle: 1.08, sky_jelly: 1.85, cyber_dragonfly: 1.15,
+  electric_newt: 0.92, acid_hornet: 1.5, venom_caterpillar: 0.95, poison_salamander: 0.88, venom_toad: 1.25,
+};
 
 const renderer = new THREE.WebGPURenderer({ antialias: true, alpha: q.has('alpha') });
 renderer.setPixelRatio(Math.min(2, devicePixelRatio));
@@ -27,7 +33,7 @@ if (!q.has('alpha')) {
   scene.add(new THREE.GridHelper(16, 32, 0x3a4450, 0x2a323a));
 }
 
-const H = HEIGHT[kind];
+const H = HEIGHT[kind] ?? 1.5;
 const view = q.get('view') ?? 'three';
 const D = H * 2.6;
 const views: Record<string, [number, number, number]> = { side: [D * 1.3, H * 0.5, 0], front: [0, H * 0.5, D * 1.3], back: [0, H * 0.5, -D * 1.3], three: [D, H * 0.8, D] };

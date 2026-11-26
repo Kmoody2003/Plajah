@@ -3,6 +3,19 @@ import * as THREE from 'three/webgpu';
 
 export type VesselId = 'aegis' | 'stalker' | 'seraph' | 'sylva' | 'pyre';
 
+export interface GrappleSpec {
+  /** Max tether reach in metres. */
+  range: number;
+  /** Retraction pull speed (m/s). */
+  pullSpeed: number;
+  /** Cooldown between grapple launches (s). */
+  cooldown: number;
+  /** Glow colour of the retracting cable. */
+  color: number;
+  /** HUD badge label. */
+  label: string;
+}
+
 export interface VesselSpec {
   id: VesselId;
   key: '1' | '2' | '3' | '6' | '7';
@@ -22,6 +35,8 @@ export interface VesselSpec {
   dmgOff: number;
   primaryColor: number;
   accentColor: number;
+  /** Present ONLY on grapple-capable vessels (Void Stalker & Sylva); absent on heavy/winged vessels. */
+  grapple?: GrappleSpec;
 }
 
 export const VESSELS: Record<VesselId, VesselSpec> = {
@@ -64,6 +79,7 @@ export const VESSELS: Record<VesselId, VesselSpec> = {
     dmgOff: 4,
     primaryColor: 0xd946ef,
     accentColor: 0x38bdf8,
+    grapple: { range: 52, pullSpeed: 31, cooldown: 2.2, color: 0xd946ef, label: 'VOID TETHER' },
   },
   seraph: {
     id: 'seraph',
@@ -104,6 +120,7 @@ export const VESSELS: Record<VesselId, VesselSpec> = {
     dmgOff: 6,
     primaryColor: 0xf59e0b,
     accentColor: 0x4ade80,
+    grapple: { range: 56, pullSpeed: 29, cooldown: 1.8, color: 0x4ade80, label: 'BRIAR VINE HOOK' },
   },
   pyre: {
     id: 'pyre',

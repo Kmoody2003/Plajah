@@ -14,6 +14,7 @@ import { buildPlaces } from './places';
 import { CORE, HALF, PLACES, POOL_STREAM, RIVER, TRAILS, WATER_Y, plateauMask, polyNear, setCoreHeight, worldHeight } from './layout';
 import { SHOTS } from './shots';
 import { buildWildsWater } from './water';
+import { sampleWaterAt } from '../waterPhysics';
 
 const MODELS = '/games/rift-realm/assets/elderwood/';
 
@@ -201,16 +202,8 @@ function buildWilds(ctx: WildsCtx, terrain: WorldTerrain): WildsBuilt {
   (globalThis as unknown as { __wilds?: unknown }).__wilds = { terrain, chunks, places: PLACES, shots: SHOTS, height: worldHeight, trees: trees.length,
     /** The clock and weather now (danger: night spawns follow the real sky). */
     sky: () => cycle?.state() ?? null,
-    /** Water at (x, z): its surface height and kind (danger: drinking). The river, the pool stream and their falls are
-     *  clean; the vale's standing water (the slough round the Mangrove Mire) is swamp. Null on dry ground. */
-    waterAt: (x: number, z: number): { y: number; kind: 'clean' | 'swamp' } | null => {
-      for (const [pts, pad] of [[RIVER, 1.5], [POOL_STREAM, 0.8]] as const) {
-        const n = polyNear(pts, x, z), a = pts[n.i], b = pts[Math.min(pts.length - 1, n.i + 1)];
-        if (n.d < (a[3] + (b[3] - a[3]) * n.t) / 2 + pad) return { y: a[2] + (b[2] - a[2]) * n.t + 0.85, kind: 'clean' };
-      }
-      if (Math.abs(z - 620) < 380 && terrain.surface(x, z) < WATER_Y) return { y: WATER_Y, kind: 'swamp' };
-      return null;
-    } };
+    /** Physics-accurate water at (x, z): surface height, depth, downstream flow velocity, turbulence & kind. */
+    waterAt: (x: number, z: number) => sampleWaterAt(x, z, terrain.surface(x, z), true) };
 
   return {
     treeSpots: trees,

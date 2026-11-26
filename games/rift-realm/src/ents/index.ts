@@ -214,9 +214,9 @@ export class Ents {
     try { this.bus()?.notify(kind, { x, z }, data, 'ent'); } catch { /* the network is optional */ }
   }
 
-  /** Find a rooted spot among the canopy: forested (trunks round it), clear in the middle, dry, gently sloped,
-   *  out of the hollow and the danger zones, 110–280 m from the middle so a player can come across it. */
-  findSpot(near = new THREE.Vector3(), rMin = 110, rMax = 280, redwood = false): THREE.Vector3 | null {
+  /** Find a rooted/patrol spot among the canopy: forested (trunks round it), clear in the middle, dry, gently sloped,
+   *  out of the hollow and the danger zones, keeping `minSep` m away from other wardens. */
+  findSpot(near = new THREE.Vector3(), rMin = 110, rMax = 280, redwood = false, minSep = 0): THREE.Vector3 | null {
     const T = this.ctx.collision.terrain, W = (globalThis as unknown as { __wilds?: { waterAt?(x: number, z: number): unknown } }).__wilds;
     const clears = (globalThis as unknown as { __wildsClearings?: () => number[][] }).__wildsClearings?.() ?? [];
     const H = this.ground;
@@ -224,15 +224,16 @@ export class Ents {
     for (let i = 0; i < 500; i++) {
       const r = rMin + this.R() * (rMax - rMin), a = this.R() * Math.PI * 2;
       const x = near.x + Math.cos(a) * r, z = near.z + Math.sin(a) * r;
-      if (Math.abs(x) < CORE + 30 && Math.abs(z) < CORE + 30) continue;
-      if (Math.hypot(x, z) > 900) continue;
+      if (Math.abs(x) < CORE + 26 && Math.abs(z) < CORE + 26) continue;
+      if (Math.hypot(x, z) > 860) continue;
+      if (minSep > 0 && this.guards.some((g) => Math.hypot(g.ent.pos.x - x, g.ent.pos.z - z) < minSep)) continue;
       if (W?.waterAt?.(x, z)) continue;
-      if (clears.some((c) => Math.hypot(x - c[0], z - c[1]) < c[2] + 14)) continue;
+      if (clears.some((c) => Math.hypot(x - c[0], z - c[1]) < c[2] + 12)) continue;
       const h = H(x, z);
-      if (Math.max(...[[8, 0], [-8, 0], [0, 8], [0, -8]].map(([dx, dz]) => Math.abs(H(x + dx, z + dz) - h))) > 4.5) continue;
+      if (Math.max(...[[8, 0], [-8, 0], [0, 8], [0, -8]].map(([dx, dz]) => Math.abs(H(x + dx, z + dz) - h))) > 5.0) continue;
       let n = 0, dmin = Infinity;
       if (T?.trunksNear) for (const tr of T.trunksNear(x, z, 24)) { const d = Math.hypot(tr[0] - x, tr[1] - z); if (d < 24) n++; dmin = Math.min(dmin, d - tr[2]); }
-      if (dmin < 6.5) continue;
+      if (dmin < 5.5) continue;
       // the redwoods (x > 220, z < 40) stand 50 m tall: an ent among them passes for a tree best
       const score = n + (redwood && x > 220 && z < 40 ? 6 : 0);
       if (score > bestN) { bestN = score; best = new THREE.Vector3(x, h, z); if (score >= 12) break; }
@@ -241,13 +242,15 @@ export class Ents {
   }
 
   spawn(mode: 'stand' | 'walk', at?: THREE.Vector3 | null, yaw = this.R() * Math.PI * 2, warden: Warden = pickWarden(this.R)) {
-    const p = at ?? this.findSpot(undefined, 110, mode === 'stand' ? 340 : 280, mode === 'stand');
+    const p = at ?? this.findSpot(undefined, 110, mode === 'stand' ? 340 : 280, mode === 'stand', 180);
     if (!p) { console.warn('[ents] no spot found'); return null; }
     const ent = new Ent(this.seed + this.guards.length * 101, this.ground, p.x, p.z, yaw, this.ctx.lo, warden);
+    // never frustum-cull giant 40 m wardens when their ground pivot sits near a viewport edge
+    ent.root.traverse((o) => { if ((o as THREE.Mesh).isMesh) o.frustumCulled = false; });
     ent.rooted = mode === 'stand';
     ent.update(0);
     this.group.add(ent.root);
-    const g: Guard = { id: this.nextId++, kind: warden.id, hp: Math.round(150 * warden.height), maxHp: Math.round(150 * warden.height), sigCd: 3, follow: null, ent, mode, home: p.clone(), think: 0, cd: 0, threatCd: 0, idleT: 0, pauseT: 0, stirT: 60 + this.R() * 80, tendAt: null, fighting: false, warned: false, lastSaid: -99, impostor: null, lod: 0 };
+    const g: Guard = { id: this.nextId++, kind: warden.id, hp: Math.round(150 * warden.height), maxHp: Math.round(150 * warden.height), sigCd: 3, follow: null, ent, mode, home: p.clone(), think: 0, cd: 0, threatCd: 0, idleT: 0, pauseT: 0, stirT: 35 + this.R() * 45, tendAt: null, fighting: false, warned: false, lastSaid: -99, impostor: null, lod: 0 };
     ent.onStep = (side, at) => this.footfall(g, at);
     ent.onAct = (kind, at, phase, move) => this.acted(g, kind, at, phase, move);
     ent.avoid = (pt) => {
@@ -256,7 +259,12 @@ export class Ents {
       if (d < 6.5) { const k = d > 0.01 ? 6.5 / d : 1; pt.x = pp.x + (d > 0.01 ? dx : 1) * k; pt.z = pp.z + (d > 0.01 ? dz : 0) * k; }
     };
     this.guards.push(g);
-    console.info(`[ents] a ${mode === 'stand' ? 'rooted' : 'walking'} ${warden.name} at (${p.x.toFixed(0)}, ${p.z.toFixed(0)})`);
+    // Start roaming wardens with an active forest patrol waypoint immediately so they stride & tend from frame 1.
+    if (mode === 'walk') {
+      const firstGoal = this.findSpot(p, 55, 160);
+      if (firstGoal) ent.goal = firstGoal;
+    }
+    console.info(`[ents] a ${mode === 'stand' ? 'rooted' : 'roaming'} ${warden.name} at (${p.x.toFixed(0)}, ${p.z.toFixed(0)})`);
     return g;
   }
 
@@ -270,14 +278,15 @@ export class Ents {
         const copy = g.ent.root.clone(true);
         copy.position.set(0, 0, 0); copy.rotation.set(0, 0, 0); copy.updateMatrixWorld(true);
         const sc = this.ctx.scene;
-        const atlas = await bakeImpostor(renderer, [copy], { frames: this.ctx.lo ? 5 : 6, size: this.ctx.lo ? 768 : 1024, environment: sc.environment as THREE.Texture | null, envIntensity: sc.environmentIntensity });
-        const im = impostorMesh(atlas, 1, impostorMaterial(atlas, { brightness: sc.environment ? 1.0 : 1.3, flipV: true }));
-        im.name = 'ent-impostor'; im.count = 0;
+        const atlas = await bakeImpostor(renderer, [copy], { frames: this.ctx.lo ? 5 : 6, size: this.ctx.lo ? 512 : 768, environment: sc.environment as THREE.Texture | null, envIntensity: sc.environmentIntensity });
+        const im = impostorMesh(atlas, 1, impostorMaterial(atlas, { brightness: sc.environment ? 1.05 : 1.35, flipV: true }));
+        im.name = 'ent-impostor'; im.count = 0; im.frustumCulled = false;
         this.group.add(im); g.impostor = im;
         try { await renderer.compileAsync(im, camera, sc); } catch { /* compiles on first draw */ }
       } catch (e) { console.warn('[ents] impostor bake', e); }
     }
-    console.info(`[ents] ready: compiled in ${Math.round(t1 - t0)} ms, impostor baked in ${Math.round(performance.now() - t1)} ms`);
+    this.lods();
+    console.info(`[ents] ready (${this.guards.length} wardens): compiled in ${Math.round(t1 - t0)} ms, impostors baked in ${Math.round(performance.now() - t1)} ms`);
   }
 
   // ── what it does ──
@@ -368,11 +377,12 @@ export class Ents {
     if (g.mode === 'walk') {
       if (!ent.goal) {
         if (g.pauseT > 0) return;
-        g.pauseT = 5 + this.R() * 9;
-        if (this.R() < 0.3) { const t = this.v.set(ent.pos.x + Math.sin(ent.yaw) * 11, 0, ent.pos.z + Math.cos(ent.yaw) * 11); t.y = this.ground(t.x, t.z); ent.start('tend', t); return; }
-        // the next stretch of its walk: somewhere in the forest, drifting through where the player roams
-        const centre = this.R() < 0.6 ? pp : g.home;
-        const spot = this.findSpot(centre, 70, 200);
+        g.pauseT = 3 + this.R() * 6;
+        if (this.R() < 0.38) { const t = this.v.set(ent.pos.x + Math.sin(ent.yaw) * 11, 0, ent.pos.z + Math.cos(ent.yaw) * 11); t.y = this.ground(t.x, t.z); ent.start('tend', t); return; }
+        // Patrol own forest region so multiple wardens stay spread across different areas; the closest may drift within sight of the player.
+        const isClosest = this.guards.every((o) => o === g || o.ent.pos.distanceToSquared(pp) >= dP * dP);
+        const centre = isClosest && dP < 360 && this.R() < 0.4 ? pp : g.home;
+        const spot = this.findSpot(centre, 65, 210);
         if (spot) ent.goal = spot;
       }
     } else {
@@ -380,8 +390,8 @@ export class Ents {
       if (dh > 5) { ent.rooted = false; ent.goal = g.home.clone(); g.idleT = 0; }
       else if (!ent.goal && (g.idleT += 0.4) > 6) ent.rooted = true;
       if (ent.rooted && g.stirT <= 0) {
-        // now and then a rooted ent stirs and tends the ground at its feet
-        g.stirT = 80 + this.R() * 100;
+        // now and then a rooted ent stirs, tends the ground at its feet, or uproots to tend a nearby grove
+        g.stirT = 50 + this.R() * 70;
         const t = this.v.set(ent.pos.x + Math.sin(ent.yaw) * 11, 0, ent.pos.z + Math.cos(ent.yaw) * 11); t.y = this.ground(t.x, t.z);
         ent.start('tend', t);
       }
@@ -483,7 +493,7 @@ export class Ents {
   }
 
   /** Listen to the forest network: a hurt tree ('tree-hit') or a fungus bursting in alarm calls the nearest ent
-   *  (within 400 m) to come and tend it. The news reaches each ent through the roots (it travels at ROOT_SPEED). */
+   *  (within 450 m) to come and tend it. The news reaches each ent through the roots (it travels at ROOT_SPEED). */
   private bindBus() {
     const b = this.bus();
     if (!b || this.busBound) return;
@@ -491,11 +501,16 @@ export class Ents {
     const call = (ev: { pos: { x: number; z: number }; data: Record<string, unknown> }, why: string) => {
       const d = ev.pos;
       if (!d || !Number.isFinite(d.x) || !Number.isFinite(d.z)) return;
-      let best: Guard | null = null, bd = 400;
+      let best: Guard | null = null, bd = 450;
       for (const g of this.guards) { const dd = Math.hypot(g.ent.pos.x - d.x, g.ent.pos.z - d.z); if (dd < bd) { bd = dd; best = g; } }
       if (best && !best.tendAt) { best.tendAt = new THREE.Vector3(d.x, 0, d.z); console.info(`[ents] the forest calls (${why}) at (${d.x.toFixed(0)}, ${d.z.toFixed(0)})`); }
     };
-    const at = () => this.guards[0]?.ent.pos ?? null;
+    const at = () => {
+      const pp = this.ctx.player.object.position;
+      let best: THREE.Vector3 | null = null, bd = Infinity;
+      for (const g of this.guards) { const d = g.ent.pos.distanceToSquared(pp); if (d < bd) { bd = d; best = g.ent.pos; } }
+      return best;
+    };
     this.busOff.push(b.subscribe('tree-hit', (ev) => call(ev, 'tree-hit'), { at }));
     this.busOff.push(b.subscribe('fungus', (ev) => { if (ev.data?.act === 'burst') call(ev, 'fungus burst'); }, { at }));
   }
@@ -517,9 +532,10 @@ export class Ents {
         if (!pl.downed && pl.hp > 0 && pl.object.position.distanceTo(ent.act.target) < 9) pl.hp = Math.min(pl.maxHp, pl.hp + 9 * dt);
         if (((this.clock * 1.25) | 0) !== (((this.clock - dt) * 1.25) | 0)) this.ctx.vfx.spawn(ENT_MOTES, ent.act.target, { dir: [0, 1, 0], count: 0.5 });
       }
-      // only animate what can matter: near or on screen; a far rooted ent is static
+      // keep walking/distant giants animating smoothly across the skyline
       const dc = this.cam.distanceTo(ent.pos);
-      if (dc < 900 || ent.walking || ent.busy) ent.update(dt);
+      if (dc < 1400 || ent.walking || ent.busy) ent.update(dt);
+      if (g.lod === 2 && g.impostor && ent.walking) setImpostor(g.impostor, 0, ent.pos.x, ent.pos.y, ent.pos.z, ent.yaw, 1);
       // solid legs and body: moving trunk columns [x, z, r, y0, y1]
       const J = ent.joints;
       for (const s of ['Left', 'Right'] as const) {
@@ -534,9 +550,9 @@ export class Ents {
     if ((this.lodT -= dt) <= 0) { this.lodT = 0.25; this.lods(); }
   }
 
-  /** Near: everything. Mid: no flowers, moss, limb leaves or small trees. Far: the impostor card. */
+  /** Near: everything. Mid: full 3D silhouette towering above the canopy up to 520–850 m. Far: the impostor card out to the horizon. */
   private lods() {
-    const near = this.ctx.lo ? 170 : 250, mid = this.ctx.lo ? 450 : 650;
+    const near = this.ctx.lo ? 180 : 300, mid = this.ctx.lo ? 520 : 850;
     for (const g of this.guards) {
       const d = this.cam.distanceTo(g.ent.pos);
       const lod: 0 | 1 | 2 = d < near ? 0 : d < mid || !g.impostor ? 1 : 2;
@@ -596,17 +612,76 @@ export class Ents {
   }
 }
 
-/** The Wilds only (not ?classic): roll the session's encounter (about 40 %), stand (70 %) or walk (30 %). */
+/** Distinct forest regions across the 2 km Wilds so 2–6 roaming wardens tend different areas of the forest. */
+const WARDEN_REGIONS: [number, number, number, number][] = [
+  [0, -240, 40, 150],      // High Canopy (north)
+  [-300, -70, 40, 150],    // Westwood & Settlement
+  [-300, 210, 40, 150],    // Glowcap Hollow & Titan Ridge
+  [230, 130, 40, 140],     // Glowcap Stream & River (east)
+  [370, -230, 40, 160],    // Redwood Ruins & Elder Cathedral (NE)
+  [-90, 560, 40, 160],     // Violet Vale & Mangrove Mire (south)
+  [165, 450, 40, 140],     // Gorge Rim (SE)
+];
+
+/** The Wilds only (not ?classic): randomly select 2–6 distinct Grovewardens roaming & tending different regions each session. */
 export function createEnts(ctx: EntsCtx): Ents | null {
   const q = new URLSearchParams(location.search);
   const want = q.get('ent');
   if (want === '0' || ctx.level !== 'elderwood' || q.has('classic')) return null;
-  const forced = want === '1' || want === 'stand' || want === 'walk' || q.has('warden');
   const seed = Math.floor(Math.random() * 1e9);
-  if (!forced && Math.random() >= 0.4) return null;
   const ents = new Ents(ctx, seed);
-  const mode = want === 'stand' || want === 'walk' ? want : Math.random() < 0.7 ? 'stand' : 'walk';
-  const w = wardenById(q.get('warden'));
-  if (!ents.spawn(mode, null, undefined, w ?? undefined)) { ents.dispose(); return null; }
+
+  // ?ent=N spawns an exact count (1–12); otherwise randomly choose 2 to 6 wardens each session.
+  const parsedN = want && /^\d+$/.test(want) ? parseInt(want, 10) : NaN;
+  const targetCount = Number.isFinite(parsedN)
+    ? clamp(parsedN, 1, WARDENS.length)
+    : 2 + Math.floor(Math.random() * 5); // 2, 3, 4, 5, or 6
+
+  // Pick distinct warden species (respecting ?warden=<id> as the first choice if set).
+  const pool = [...WARDENS];
+  const picks: Warden[] = [];
+  const forcedWarden = wardenById(q.get('warden'));
+  if (forcedWarden) {
+    picks.push(forcedWarden);
+    const idx = pool.indexOf(forcedWarden);
+    if (idx >= 0) pool.splice(idx, 1);
+  }
+  while (picks.length < targetCount && pool.length > 0) {
+    const total = pool.reduce((t, w) => t + w.weight, 0);
+    let r = Math.random() * total;
+    let chosenIdx = pool.length - 1;
+    for (let i = 0; i < pool.length; i++) {
+      r -= pool[i].weight;
+      if (r <= 0) { chosenIdx = i; break; }
+    }
+    picks.push(pool.splice(chosenIdx, 1)[0]);
+  }
+
+  // Shuffle the outer forest regions so every session puts wardens in different areas.
+  const regions = [...WARDEN_REGIONS].sort(() => Math.random() - 0.5);
+
+  for (let i = 0; i < picks.length; i++) {
+    const w = picks[i];
+    const mode: 'stand' | 'walk' =
+      want === 'stand' ? 'stand' :
+      want === 'walk' ? 'walk' :
+      (i < 2 || Math.random() < 0.85 ? 'walk' : 'stand');
+
+    // Warden #1 starts in the near-horizon ring (115–220 m from the Hollow) so players can spot a giant in the distance;
+    // the remaining 1–5 patrol distinct shuffled forest regions with >= 180 m separation.
+    let spot: THREE.Vector3 | null = null;
+    if (i === 0) {
+      spot = ents.findSpot(new THREE.Vector3(0, 0, 0), 115, 220, false, 180);
+    } else {
+      const reg = regions[(i - 1) % regions.length];
+      spot = ents.findSpot(new THREE.Vector3(reg[0], 0, reg[1]), reg[2], reg[3], w.id === 'sequoia', 180);
+    }
+    // Fallback to anywhere in the Wilds if a regional spot was tight
+    if (!spot) spot = ents.findSpot(new THREE.Vector3(0, 0, 0), 120, 620, w.id === 'sequoia', 150);
+    if (spot) ents.spawn(mode, spot, undefined, w);
+  }
+
+  if (ents.guards.length === 0) { ents.dispose(); return null; }
+  console.info(`[ents] session spawned ${ents.guards.length} Grovewardens (${picks.map((p) => p.name).join(', ')})`);
   return ents;
 }
