@@ -1,0 +1,36 @@
+# plajah-live-1 — Livewire origin (MediaMTX v1.21.4).
+# Streams in over RTMP/SRT; standard fMP4 HLS out (not LL-HLS, so Bunny can cache segments).
+logLevel: info
+
+# Every publish/read is decided by /opt/plajah-live/auth.mjs (mirrors services/livewire/token.ts).
+authMethod: http
+authHTTPAddress: http://127.0.0.1:9100/auth
+authHTTPExclude: []
+
+api: yes
+apiAddress: 127.0.0.1:9997
+metrics: yes
+metricsAddress: 127.0.0.1:9998
+
+rtsp: no
+rtmp: yes
+rtmpAddress: :1935
+srt: yes
+srtAddress: :8890
+webrtc: no
+moq: no
+
+hls: yes
+hlsAddress: :8888
+hlsVariant: fmp4
+hlsSegmentDuration: 2s
+hlsSegmentCount: 7
+hlsAlwaysRemux: yes
+hlsAllowOrigins: ['*']
+
+pathDefaults:
+  overridePublisher: yes
+
+paths:
+  '~^live/[A-Za-z0-9_-]{6,128}/(src|1080p|720p|480p|360p|av1_1080p|av1_720p|audio)$':
+    source: publisher

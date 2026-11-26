@@ -2349,9 +2349,11 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
   // Audience on Mux: once the host's relay is live, an audience member watches the Mux HLS program
   // (host + guests composed) instead of pulling a P2P copy from the host's phone. Guests on stage
   // stay real-time on WebRTC. Any HLS failure falls back to P2P for this viewer.
-  const [muxLive, setMuxLive] = useState<{ playbackId?: string; state?: string } | null>(null);
+  // playbackId (Mux) or playbackUrl (our origin via Bunny) — liveHlsUrl() takes either.
+  const [muxLive, setMuxLive] = useState<{ playbackId?: string; playbackUrl?: string; state?: string } | null>(null);
+  const hlsSource = muxLive?.playbackUrl || muxLive?.playbackId || '';
   const [hlsFailed, setHlsFailed] = useState(false);
-  const onMux = !isGuest && !hlsFailed && !!muxLive?.playbackId && (muxLive.state === 'live' || muxLive.state === 'reconnecting');
+  const onMux = !isGuest && !hlsFailed && !!hlsSource && (muxLive?.state === 'live' || muxLive?.state === 'reconnecting');
   usePresence(streamLive ? `live_${streamId}` : null);   // the host counts Mux viewers from presence
 
   // 'stage' topology: normally a recv-only viewer, but once the host brings me on I re-key as a
@@ -2499,7 +2501,12 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
         setGuests(Array.isArray(data.guests) ? data.guests : []);
         setOwnerUid(typeof data.ownerUid === 'string' ? data.ownerUid : null);
         const ml = data.muxLive && typeof data.muxLive === 'object' ? data.muxLive : null;
-        setMuxLive(ml ? { playbackId: typeof ml.playbackId === 'string' ? ml.playbackId : undefined, state: ml.state } : null);
+        setMuxLive(ml ? {
+          playbackId: typeof ml.playbackId === 'string' && ml.playbackId ? ml.playbackId : undefined,
+          // Only our Bunny live paths (the relay writes this; never let a doc point viewers elsewhere).
+          playbackUrl: typeof ml.playbackUrl === 'string' && /^https:\/\/[a-z0-9-]+\.b-cdn\.net\/live\/[A-Za-z0-9_-]+\/src\/index\.m3u8$/.test(ml.playbackUrl) ? ml.playbackUrl : undefined,
+          state: ml.state,
+        } : null);
       }
     });
   }, [streamId]);
@@ -2514,11 +2521,11 @@ function MobileViewer({ streamId, title, ownerName, onClose }: {
   // Mux program → the same <video> (lenses, emotes and taps stay bound to it).
   useEffect(() => {
     const v = videoRef.current;
-    if (!onMux || !v || !muxLive?.playbackId) return;
-    const detach = attachLiveHls(v, muxLive.playbackId, () => setHlsFailed(true));
+    if (!onMux || !v || !hlsSource) return;
+    const detach = attachLiveHls(v, hlsSource, () => setHlsFailed(true));
     setConnected(true); setConnecting(false);
     return detach;
-  }, [onMux, muxLive?.playbackId]);
+  }, [onMux, hlsSource]);
 
   useEffect(() => {
     if (onMux) return;

@@ -3,10 +3,15 @@
  * viewer keeps its lens overlay / emote layer / tap handlers bound to the same element it used for
  * the P2P stream. hls.js with low-latency tuning; native HLS on Safari/iOS.
  *
+ * `source` is a Mux playback id, or a full https HLS URL (Plajah's own origin via Bunny).
  * Returns a detach function. `onFatal` fires when playback can't continue (caller falls back to P2P).
  */
-export function attachLiveHls(video: HTMLVideoElement, playbackId: string, onFatal?: () => void): () => void {
-  const url = `https://stream.mux.com/${playbackId}.m3u8`;
+export function liveHlsUrl(source: string): string {
+  return /^https:\/\//.test(source) ? source : `https://stream.mux.com/${source}.m3u8`;
+}
+
+export function attachLiveHls(video: HTMLVideoElement, source: string, onFatal?: () => void): () => void {
+  const url = liveHlsUrl(source);
   let hls: any = null;
   let disposed = false;
   video.srcObject = null;
