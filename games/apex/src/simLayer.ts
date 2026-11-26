@@ -9,6 +9,7 @@ import { denseArea } from './sim/signals';
 import { buildIntersections, type IntersectionLayer } from './intersections';
 import { buildRailScenes, type RailScenes } from './railScenes';
 import { buildAirportScenes, type AirportScenes } from './airportScenes';
+import { createTrafficLibraryMaterial, loadCarLibraryModels, type LibraryVehicleRole } from './carLibraryInstancer';
 
 /**
  * The simulation layer in the game: the map editor's roads, zones, rails, stations and airport become a road graph, a rail network and an airfield; the terrain is graded for the rails
@@ -41,7 +42,10 @@ export class SimLayer {
   readonly world: SimWorld;
   readonly rail: RailScenes | null;
   readonly airport: AirportScenes | null;
-  private cars: THREE.InstancedMesh;
+  private carGroup = new THREE.Group();
+  private carBuckets = new Map<LibraryVehicleRole, THREE.InstancedMesh>();
+  private carRoles: LibraryVehicleRole[] = [];
+  private trafficVisible = true;
   /** stop lines, crosswalks, signals and stop signs, from the sim's junction control */
   readonly junctions: IntersectionLayer;
   private t = 0;
@@ -50,7 +54,7 @@ export class SimLayer {
   private _m4 = new THREE.Matrix4();
   private _q = new THREE.Quaternion();
   private _up = new THREE.Vector3(0, 1, 0);
-  private _sc = new THREE.Vector3();
+  private _sc = new THREE.Vector3(1, 1, 1);
   private _p = new THREE.Vector3();
   private _col = new THREE.Color();
   private groundCache = new Float32Array(320 * 3); // [lastX, lastZ, cachedY] per slot
@@ -64,11 +68,33 @@ export class SimLayer {
     this.airport = plan.L ? buildAirportScenes({ L: plan.L, sim: this.world.air, ground: o.ground }) : null;
     if (this.rail) this.group.add(this.rail.group);
     if (this.airport) this.group.add(this.airport.group);
-    const geo = new THREE.BoxGeometry(1.85, 1.35, 4.3); geo.translate(0, 0.75, 0);
-    this.cars = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ roughness: 0.45, metalness: 0.45 }), 320);
-    this.cars.frustumCulled = false; this.cars.count = 0; this.cars.castShadow = false;
-    this.group.add(this.cars);
+    this.carGroup.name = 'sim-library-traffic';
+    this.group.add(this.carGroup);
     this.groundCache.fill(-1e9);
+    // Load ALL 26 real 3D Car Library models (sedans, SUVs, sports/muscle, EVs, pickups, city transit bus, shuttles, tow/haulers, taxis, police & semis!)
+    void loadCarLibraryModels().then((models) => {
+      const heavyRoles = new Set<LibraryVehicleRole>(['truck', 'semi', 'bus', 'tow', 'hauler', 'carrier', 'tactical']);
+      const roles: LibraryVehicleRole[] = [
+        'sedan', 'suv', 'coupe', 'pickup', 'estate', 'luxsuv', 'crew', 'van', 'taxi', 'police',
+        'sport_gt', 'muscle', 'ev_sedan', 'overland', 'hatch', 'hd_pickup', 'municipal', 'commander', 'shuttle',
+        'truck', 'semi', 'bus', 'tow', 'hauler', 'carrier', 'tactical',
+      ];
+      for (const role of roles) {
+        const mod = models.get(role);
+        if (!mod) continue;
+        const mat = createTrafficLibraryMaterial(role, mod.size);
+        const cap = heavyRoles.has(role) ? 48 : 64;
+        const im = new THREE.InstancedMesh(mod.geometry, mat, cap);
+        im.frustumCulled = false;
+        im.count = 0;
+        im.castShadow = false;
+        im.receiveShadow = true;
+        this.carBuckets.set(role, im);
+        this.carGroup.add(im);
+        if (!heavyRoles.has(role)) this.carRoles.push(role);
+      }
+      this.carGroup.visible = this.trafficVisible;
+    });
   }
 
   /** true within r metres of a rail line or the airfield: nothing grows or is built there */
@@ -76,14 +102,37 @@ export class SimLayer {
   get surfaces(): THREE.Mesh[] { return this.airport?.surfaces ?? []; }
 
   /** public traffic is off on a closed circuit: the cars are hidden (the sim keeps running) while a race or time trial is on */
-  setPublicTraffic(on: boolean): void { this.cars.visible = on; }
+  setPublicTraffic(on: boolean): void { this.trafficVisible = on; this.carGroup.visible = on; }
+
+  /**
+   * Map Overview mode: hides close-up AI traffic cars & road intersections to keep 60 FPS,
+   * while keeping the operating Railroad (3 lines, 8 stations, live Freight & Passenger trains!)
+   * and Halcyon International Airport (Runway 09/27, Terminal, Hangars, live Flights!) VISIBLE!
+   */
+  setMapOverview(on: boolean): void {
+    this.group.visible = true;
+    this.carGroup.visible = !on && this.trafficVisible;
+    this.junctions.group.visible = !on;
+    if (this.rail) this.rail.group.visible = true;
+    if (this.airport) this.airport.group.visible = true;
+  }
+
+  /** Lightweight 60-FPS Map Overview step: advances live Freight/Passenger Trains and Scheduled Flights without stepping street cars. */
+  updateTransitOnly(dt: number): void {
+    this.t += dt;
+    const stepDt = Math.min(dt, 0.1);
+    this.world.trains?.step(stepDt);
+    this.world.air?.step(stepDt);
+    this.rail?.update(this.t, stepDt);
+    this.airport?.update(this.t, stepDt);
+  }
 
   update(dt: number, cam: THREE.Vector3): void {
     this.t += dt;
     this.rail?.update(this.t, dt);
     this.airport?.update(this.t, dt);
     // During closed-circuit races when public traffic is hidden, throttle background traffic stepping to 15 Hz so it never competes with race-start frame times
-    if (!this.cars.visible) {
+    if (!this.trafficVisible || this.carBuckets.size === 0) {
       this.stepAcc += dt;
       if (++this.hiddenSkip < 4) return;
       this.hiddenSkip = 0;
@@ -109,25 +158,42 @@ export class SimLayer {
     const gc = this.groundCache;
     const gFn = this.o.carGround ?? this.o.ground;
     const maxVisDist2 = 380 * 380;
-    let n = 0;
+    const counts = new Map<LibraryVehicleRole, number>();
+    for (const role of this.carBuckets.keys()) counts.set(role, 0);
+
     const list = this.world.cars;
-    for (let i = 0; i < list.length && n < 320; i++) {
+    for (let i = 0; i < list.length && i < 320; i++) {
       const c = list[i];
       const dx = c.x - cam.x, dz = c.z - cam.z;
       if (dx * dx + dz * dz > maxVisDist2) continue;
+      const heavyPool: LibraryVehicleRole[] = ['truck', 'semi', 'bus', 'tow', 'hauler', 'carrier', 'tactical'].filter((r) => this.carBuckets.has(r as LibraryVehicleRole)) as LibraryVehicleRole[];
+      const role: LibraryVehicleRole = c.kind === 'truck'
+        ? (heavyPool[i % Math.max(1, heavyPool.length)] ?? 'pickup')
+        : this.carRoles[i % Math.max(1, this.carRoles.length)] ?? 'sedan';
+      const im = this.carBuckets.get(role);
+      if (!im) continue;
+      const slot = counts.get(role) ?? 0;
+      if (slot >= im.instanceMatrix.count) continue;
+
       q.setFromAxisAngle(up, c.yaw);
-      if (c.kind === 'truck') sc.set(1.25, 1.7, 1.9); else sc.set(1, 1, 1);
-      const base = n * 3;
+      sc.set(1, 1, 1);
+      const base = i * 3;
       let gy = gc[base + 2];
       if (gy < -1e8 || Math.abs(c.x - gc[base]) + Math.abs(c.z - gc[base + 1]) > 2.2) {
-        gy = gFn(c.x, c.z) + 0.05;
+        gy = gFn(c.x, c.z) + 0.03;
         gc[base] = c.x;
         gc[base + 1] = c.z;
         gc[base + 2] = gy;
       }
       p.set(c.x, gy, c.z);
-      this.cars.setMatrixAt(n, m4.compose(p, q, sc)); this.cars.setColorAt(n, col.setHex(c.color)); n++;
+      im.setMatrixAt(slot, m4.compose(p, q, sc));
+      im.setColorAt(slot, col.setHex(c.color));
+      counts.set(role, slot + 1);
     }
-    this.cars.count = n; this.cars.instanceMatrix.needsUpdate = true; if (this.cars.instanceColor) this.cars.instanceColor.needsUpdate = true;
+    for (const [role, im] of this.carBuckets) {
+      im.count = counts.get(role) ?? 0;
+      im.instanceMatrix.needsUpdate = true;
+      if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    }
   }
 }

@@ -9,6 +9,9 @@ import { batchStatic } from './carBatch';
 import { buildBodyGeometry } from './sovbody';
 import { buildDetailedEngine, type EngineArch } from './engineModels';
 import { type Vtx, toTris, toGeometry, clipRegion, splitUnion, boxRegion, sideRegion, toMesh, thicken, plane, type Tri, type Region } from './scanparts';
+import { createApexCarPaintTslMaterial } from './tsl/carPaintTsl';
+import { sanitizeObjectForWebGPU } from './tsl/apexMaterialsTsl';
+import { getRegionTslContext } from './tsl/webgpuRuntime';
 import sovSpec from '../car/sovereign/spec.json';
 import corsairSpec from '../car/corsair/spec.json';
 import vanguardSpec from '../car/vanguard/spec.json';
@@ -881,6 +884,7 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
   const uni = { uPaint: { value: new THREE.Vector3(paint.r, paint.g, paint.b) }, uFlake: { value: 0.30 }, uFinish: { value: 0 }, uPearl: { value: new THREE.Vector3(paint.r, paint.g, paint.b) }, uPearlAmt: { value: 0 } };
   const mat = new THREE.MeshPhysicalMaterial({ metalness: 0.42, roughness: 0.34, clearcoat: 0.52, clearcoatRoughness: 0.16, ior: 1.46, specularIntensity: 0.50, envMapIntensity: 0.78, side: THREE.DoubleSide });
   mat.userData.allowCarProbe = true; // Class-A Taubin + crease-preserving smoothed normals: enable real-time local skyline/bridge/neon CarProbe reflections on clearcoat paint
+  mat.userData.__apexCarPaintSpec = { spec, origin: origin.clone(), size: bsz.clone(), cuts, discardWheels: !noDisc, paintHex: paint.getHex() };
   const grilleStyleNum = spec.shader?.grilleStyle === 'ev' ? 0 : spec.shader?.grilleStyle === 'truck' ? 2 : 1;
   const gLoY = spec.shader?.grilleLoY ?? (grilleStyleNum === 2 ? 0.52 : 0.34);
   const gHiY = spec.shader?.grilleHiY ?? (grilleStyleNum === 2 ? 1.02 : 0.60);
@@ -1309,16 +1313,17 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
   const lightPools = buildGroundLightPools(origin);
   g.add(lightPools.group);
   const wl = [[true, true, W.frontX, W.frontZ], [true, false, -W.frontX, W.frontZ], [false, true, W.rearX, W.rearZ], [false, false, -W.rearX, W.rearZ]] as [boolean, boolean, number, number][];
-  const WH: { spin: THREE.Group; steer: THREE.Group; discMat: THREE.MeshPhysicalMaterial; front: boolean; left: boolean }[] = [];
+  const WH: { root: THREE.Group; baseY: number; spin: THREE.Group; steer: THREE.Group; discMat: THREE.MeshPhysicalMaterial; front: boolean; left: boolean }[] = [];
   for (const [front, left, x, z] of wl) {
     const w = wheel(front, left, W.style);
-    w.root.position.set(origin.x + x, origin.y + (front ? 0.352 : 0.358) * W.scale, origin.z + z);
+    const baseY = origin.y + (front ? 0.352 : 0.358) * W.scale;
+    w.root.position.set(origin.x + x, baseY, origin.z + z);
     w.root.scale.setScalar(W.scale);
     if (!noDisc) g.add(w.root);
-    WH.push({ spin: w.spin, steer: w.steer, discMat: w.discMat, front, left });
+    WH.push({ root: w.root, baseY, spin: w.spin, steer: w.steer, discMat: w.discMat, front, left });
   }
-  // about 1,200 small meshes were 1,200 draw calls a frame: merge what cannot move relative to its parent (carBatch.ts); ?nobatch keeps the original for comparing
-  if (!location.search.includes('nobatch')) { const st = batchStatic(g, [...WH.flatMap((w) => [w.spin, w.steer]), ...Object.values(pivots).map((p) => p.pivot)]); console.log('car batched', st.before, '->', st.after, 'meshes'); (window as unknown as { carBatch: unknown }).carBatch = st; }
+  // about 1,200 small meshes were 1,200 draw calls a frame: merge what cannot move relative to its parent (carBatch.ts); keep wheel roots movable for real 4-corner suspension travel!
+  if (!location.search.includes('nobatch')) { const st = batchStatic(g, [...WH.flatMap((w) => [w.root, w.spin, w.steer]), ...Object.values(pivots).map((p) => p.pivot)]); console.log('car batched', st.before, '->', st.after, 'meshes'); (window as unknown as { carBatch: unknown }).carBatch = st; }
   let ang = 0;
   let rotorHeat = 0;
   return {
@@ -1337,7 +1342,7 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
       toggle: (k) => { const p = pivots[k]; if (p) p.target = p.target > 0.5 ? 0 : 1; },
       set: (k, t) => { const p = pivots[k]; if (p) p.target = t; },
     },
-    update(speed: number, steer: number, dt: number, _lights?: boolean, brake = 0, wetNight = 0) {
+    update(speed: number, steer: number, dt: number, _lights?: boolean, brake = 0, wetNight = 0, wheelComp?: readonly [number, number, number, number]) {
       ang += (speed / (W.tyreR || 0.355)) * dt;
       // Thermal brake rotor glow under heavy high-speed braking + HDR brake-light surge
       const heatTarget = brake > 0.15 && Math.abs(speed) > 8 ? Math.min(1, brake * Math.min(1, Math.abs(speed) / 42)) : 0;
@@ -1347,10 +1352,15 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
       lamps.ledW.emissiveIntensity = 4.2 + wetNight * 2.6;
       lightPools.rearMat.opacity = Math.min(0.46, (0.08 + brake * 0.24) * (0.18 + wetNight * 1.1));
       lightPools.frontMat.opacity = Math.min(0.42, 0.04 + wetNight * 0.36);
-      for (const w of WH) {
+      for (let wi = 0; wi < WH.length; wi++) {
+        const w = WH[wi];
         w.spin.rotation.x = w.left ? -ang : ang;
         w.steer.rotation.y = w.front ? steer : 0;
         w.discMat.emissiveIntensity = w.front ? glow : glow * 0.72;
+        if (wheelComp) {
+          const comp = Math.max(-0.15, Math.min(0.16, wheelComp[wi] ?? 0));
+          w.root.position.y = w.baseY + comp;
+        }
       }
       for (const k of pnames) {
         const p = pivots[k];
@@ -1408,13 +1418,25 @@ export function loadSovereignScan(): Promise<CarRig> {
   return loadScanCar(SCAN_SPECS.kestrel);
 }
 
+interface OpponentWheelTemplate {
+  root: THREE.Group;
+  discMat?: THREE.MeshPhysicalMaterial;
+  front: boolean;
+  left: boolean;
+}
+
 interface OpponentTemplate {
   spec: ScanSpec;
   origin: THREE.Vector3;
   bsz: THREE.Vector3;
+  quality: 'hero' | 'traffic';
+  cuts: boolean;
   bodyGeos: THREE.BufferGeometry[];
+  glassGeo: THREE.BufferGeometry | null;
   bakedMap: THREE.Texture | null;
-  extras: THREE.Group;
+  staticExtras: THREE.Group;
+  lampSource: { group: THREE.Group; ledR: THREE.MeshStandardMaterial; ledW: THREE.MeshStandardMaterial };
+  wheelTemplates: OpponentWheelTemplate[];
 }
 
 const opponentTemplates = new Map<string, Promise<OpponentTemplate>>();
@@ -1432,7 +1454,7 @@ function buildOpponentWheel(front: boolean, left: boolean): THREE.Group {
   const s = left ? 1 : -1;
   const r = front ? 0.352 : 0.358;
   const w = front ? 0.265 : 0.305;
-  // Clean exterior-only performance tire + concave 10-spoke alloy wheel + brake disc + red caliper (~700 tris total, shared mats -> batches to 5 draws!)
+  // Lightweight performance tire + concave 10-spoke alloy wheel + brake disc + caliper for distant traffic
   const tread = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, 24, 1, false), oppWheelMats.tire);
   tread.rotation.z = Math.PI / 2;
   g.add(tread);
@@ -1467,8 +1489,9 @@ function buildOpponentWheel(front: boolean, left: boolean): THREE.Group {
   return g;
 }
 
-async function getOpponentTemplate(id: string): Promise<OpponentTemplate> {
-  let prom = opponentTemplates.get(id);
+async function getOpponentTemplate(id: string, quality: 'hero' | 'traffic'): Promise<OpponentTemplate> {
+  const key = `${quality}:${id}`;
+  let prom = opponentTemplates.get(key);
   if (prom) return prom;
   const spec = SCAN_SPECS[id] ?? SCAN_SPECS.kestrel;
   prom = (async () => {
@@ -1484,77 +1507,220 @@ async function getOpponentTemplate(id: string): Promise<OpponentTemplate> {
     const bmin = bb.min.clone(), bsz = bb.getSize(new THREE.Vector3());
     const origin = spec.body === 'modelled' ? new THREE.Vector3(0, 0, 0) : new THREE.Vector3(bmin.x + bsz.x / 2, bmin.y, bmin.z + bsz.z / 2);
 
+    const cuts = quality === 'hero' && spec.cuts !== false;
+    const gl = spec.glass;
+    const fr = spec.front;
+    const roofBox = spec.panelBoxes?.roof ?? [[-0.6, 1.22, gl.rearTop], [0.6, 1.6, gl.windTop]];
+    const hoodBox = spec.panelBoxes?.hood ?? [[-0.74, 0.78, gl.windBase + 0.04], [0.74, 1.3, 2.02]];
+    const trunkBox = spec.panelBoxes?.trunk ?? [[-0.82, 0.95, -2.45], [0.82, 1.3, gl.rearBase - 0.02]];
+    const windHW = gl.windHalfW ?? 0.58;
+    const rearHW = gl.rearHalfW ?? 0.52;
+    const windMinY = gl.belt - 0.04;
+    const rearMinY = gl.belt + 0.04;
+    const glassTopY = gl.roofEdge + 0.12;
+
+    const frontPrism = (poly: number[][], zLo: number): Region => {
+      const r: Region = [];
+      for (let i = 0; i < poly.length; i++) {
+        const [x0, y0] = poly[i], [x1, y1] = poly[(i + 1) % poly.length];
+        const nx = y1 - y0, ny = -(x1 - x0), len = Math.hypot(nx, ny) || 1;
+        r.push(plane(nx / len, ny / len, 0, (nx * x0 + ny * y0) / len, false));
+      }
+      r.push(plane(0, 0, -1, -zLo, false));
+      return r;
+    };
+    const sideGlass = (s: number): Region[] => {
+      const a = sideRegion(gl.sideWindow, s, 0.58, false);
+      const b = sideRegion(gl.sideWindow, s, 0.4, false);
+      b.push(plane(0, 0, -1, 0.05, false));
+      b.push(s > 0 ? plane(-1, 0, -0.089, -0.5756, false) : plane(1, 0, -0.089, -0.5756, false));
+      return [a, b];
+    };
+    const windGlass: Region = [
+      plane(0, 0, 1, gl.windBase, false), plane(0, 0, -1, -gl.windTop, false), plane(0, -1, 0, -windMinY, false), plane(0, 1, 0, glassTopY, false),
+      plane(1, 0, -0.13, windHW - 0.13 * gl.windTop, false), plane(-1, 0, -0.13, windHW - 0.13 * gl.windTop, false),
+    ];
+    const rearGlass: Region = [
+      plane(0, 0, 1, gl.rearTop, false), plane(0, 0, -1, -gl.rearBase2, false), plane(0, -1, 0, -rearMinY, false), plane(0, 1, 0, glassTopY, false),
+      plane(1, 0, 0, rearHW, false), plane(-1, 0, 0, rearHW, false),
+    ];
+
     const bodyGeos: THREE.BufferGeometry[] = [];
+    const allGlassTris: Tri[] = [];
     const shells: THREE.Mesh[] = [];
     let bakedMap: THREE.Texture | null = null;
     const dummyMat = new THREE.MeshBasicMaterial();
+
     for (const m of rawMeshes) {
       const geo0 = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();
       if (!geo0.attributes.uv) geo0.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(geo0.attributes.position.count * 2), 2));
       smoothNormals(geo0);
       const bm = (m.material as THREE.MeshStandardMaterial).map;
       if (bm && !bakedMap) bakedMap = bm;
-      bodyGeos.push(geo0);
       shells.push(new THREE.Mesh(geo0, dummyMat));
-    }
 
-    // Build shared exterior-only hardware (aero, lamps, 4 lightweight wheels, contact shadow) and batch to ~7 meshes!
-    const extras = new THREE.Group();
+      if (cuts) {
+        // Player-grade mesh surgery: real cut transparent glass openings, recessed grille intakes, and clean roof/hood/trunk skins!
+        let tris = toTris(geo0);
+        for (const op of fr.openings) tris = clipRegion(tris, toMesh(frontPrism(op.poly, 1.6), origin), 0, 'outside');
+        const toGeom = (r: Region): Region => toMesh(r, origin);
+        let rest = tris;
+        for (const r of [windGlass, rearGlass, ...sideGlass(1), ...sideGlass(-1)].map(toGeom)) {
+          const sg = splitUnion(rest, [r], 0);
+          rest = sg.rest;
+          for (let k = 0; k < sg.panel.length; k++) allGlassTris.push(sg.panel[k]);
+        }
+        if (!spec.panelBoxes?.preserveRoof) {
+          rest = clipRegion(rest, toGeom(boxRegion(roofBox[0], roofBox[1], [false, false, false, false, false, false])), 0, 'outside');
+          rest = rest.concat(topSkin(tris, origin, [roofBox[0][0], roofBox[1][0], roofBox[0][2], roofBox[1][2]], 36, 40));
+        }
+        if (!spec.panelBoxes?.preserveHood) {
+          rest = clipRegion(rest, toGeom(boxRegion(hoodBox[0], hoodBox[1], [false, false, false, false, false, false])), 0, 'outside');
+          rest = rest.concat(topSkin(tris, origin, [hoodBox[0][0], hoodBox[1][0], hoodBox[0][2], hoodBox[1][2]], 36, 42));
+        }
+        if (!spec.panelBoxes?.preserveTrunk) {
+          rest = clipRegion(rest, toGeom(boxRegion(trunkBox[0], trunkBox[1], [false, false, false, false, false, false])), 0, 'outside');
+          rest = rest.concat(topSkin(tris, origin, [trunkBox[0][0], trunkBox[1][0], Math.max(trunkBox[0][2], -2.32), trunkBox[1][2]], 36, 12));
+        }
+        bodyGeos.push(toGeometry(rest));
+      } else {
+        bodyGeos.push(geo0);
+      }
+    }
+    const glassGeo = allGlassTris.length ? toGeometry(allGlassTris) : null;
+
+    // Shared exterior + cockpit hardware batched ONCE per template into ~6 draw calls!
+    const staticExtras = new THREE.Group();
     const frame = new THREE.Group();
     frame.position.copy(origin);
-    extras.add(frame);
+    staticExtras.add(frame);
     if (spec.exhaust) frame.add(buildAero(spec.exhaust, spec.aero));
-    extras.updateMatrixWorld(true);
-    const lamps = buildLamps(shells, origin, spec.lamps);
-    frame.add(lamps.group);
-    extras.add(buildContactShadow(origin, spec.wheels));
+
+    if (quality === 'hero') {
+      const accentHex = spec.accent ? Number(spec.accent) : 0xb9531a;
+      const cabGrp = buildCabin(accentHex, spec.cabin, false);
+      cabGrp.scale.x = Math.min(1.0, Math.max(0.68, (bsz.x - 0.56) / 1.56));
+      frame.add(cabGrp);
+      frame.add(buildCowl(spec.cabin?.cowlZ, spec.cabin?.cowlY));
+      frame.add(buildDriver(accentHex, spec.cabin));
+      frame.add(buildFront(shells, origin, cuts ? fr.openings : []));
+      frame.add(buildUnderbody(spec));
+    } else {
+      // Traffic lightweight interior shadow caster core
+      const shadowHull = new THREE.Mesh(
+        new THREE.BoxGeometry(bsz.x * 0.78, bsz.y * 0.62, bsz.z * 0.84),
+        oppWheelMats.dark,
+      );
+      shadowHull.position.set(origin.x, origin.y + bsz.y * 0.42, origin.z);
+      shadowHull.castShadow = true;
+      shadowHull.receiveShadow = false;
+      staticExtras.add(shadowHull);
+    }
+
+    staticExtras.updateMatrixWorld(true);
+    const lampSource = buildLamps(shells, origin, spec.lamps);
+    // Batch lamp housing sub-meshes once per template (~28 -> ~5 draws) while keeping ledR & ledW materials distinct for per-car braking
+    batchStatic(lampSource.group, []);
+    staticExtras.add(buildContactShadow(origin, spec.wheels));
+    batchStatic(staticExtras, []);
+    staticExtras.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) {
+        if (quality === 'hero') { m.castShadow = false; m.receiveShadow = true; }
+        else if (m.material !== oppWheelMats.dark) { m.castShadow = false; m.receiveShadow = true; }
+      }
+    });
+
+    // Pre-build and batch all 4 wheel rigs ONCE per template (~100 sub-meshes/wheel -> ~5 batched draws/wheel = saves >4,000 draws across an 11-car grid!)
     const W = spec.wheels;
     const wl = [[true, true, W.frontX, W.frontZ], [true, false, -W.frontX, W.frontZ], [false, true, W.rearX, W.rearZ], [false, false, -W.rearX, W.rearZ]] as [boolean, boolean, number, number][];
+    const wheelTemplates: OpponentWheelTemplate[] = [];
     for (const [front, left, x, z] of wl) {
-      const w = buildOpponentWheel(front, left);
-      w.position.set(origin.x + x, origin.y + (front ? 0.352 : 0.358) * W.scale, origin.z + z);
-      w.scale.setScalar(W.scale);
-      extras.add(w);
+      if (quality === 'hero') {
+        const w = wheel(front, left, W.style);
+        w.steer.name = 'opp-steer';
+        w.spin.name = 'opp-spin';
+        batchStatic(w.root, [w.spin, w.steer]);
+        w.root.position.set(origin.x + x, origin.y + (front ? 0.352 : 0.358) * W.scale, origin.z + z);
+        w.root.scale.setScalar(W.scale);
+        wheelTemplates.push({ root: w.root, discMat: w.discMat, front, left });
+      } else {
+        const rootW = new THREE.Group();
+        const steerGrp = new THREE.Group();
+        steerGrp.name = 'opp-steer';
+        const spinGrp = buildOpponentWheel(front, left);
+        spinGrp.name = 'opp-spin';
+        batchStatic(spinGrp, []);
+        steerGrp.add(spinGrp);
+        rootW.add(steerGrp);
+        rootW.position.set(origin.x + x, origin.y + (front ? 0.352 : 0.358) * W.scale, origin.z + z);
+        rootW.scale.setScalar(W.scale);
+        wheelTemplates.push({ root: rootW, front, left });
+      }
     }
-    batchStatic(extras, []);
-    extras.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (m.isMesh) { m.castShadow = false; m.receiveShadow = true; }
-    });
-    // Low-poly 12-tri interior shadow-caster core (replaces 60k-face shadow pass per opponent!)
-    const shadowHull = new THREE.Mesh(
-      new THREE.BoxGeometry(bsz.x * 0.78, bsz.y * 0.62, bsz.z * 0.84),
-      oppWheelMats.dark
-    );
-    shadowHull.position.set(origin.x, origin.y + bsz.y * 0.42, origin.z);
-    shadowHull.castShadow = true;
-    shadowHull.receiveShadow = false;
-    extras.add(shadowHull);
-    return { spec, origin, bsz, bodyGeos, bakedMap, extras };
+
+    return { spec, origin, bsz, quality, cuts, bodyGeos, glassGeo, bakedMap, staticExtras, lampSource, wheelTemplates };
   })();
-  opponentTemplates.set(id, prom);
+  opponentTemplates.set(key, prom);
   return prom;
 }
 
+const oppGlassMat = new THREE.MeshPhysicalMaterial({
+  color: 0x05080d,
+  roughness: 0.05,
+  metalness: 0.02,
+  ior: 1.52,
+  reflectivity: 0.65,
+  transparent: true,
+  opacity: 0.72,
+  clearcoat: 0.65,
+  clearcoatRoughness: 0.06,
+  envMapIntensity: 1.15,
+  side: THREE.DoubleSide,
+});
+oppGlassMat.userData.allowCarProbe = true;
+
 /**
- * Lightweight exterior-only instance of a built high-performance scan car for AI race opponents.
- * Reuses cached geometry & compiled scan-car shader with per-opponent metallic livery (~9 draw calls/car).
+ * High-quality scan-car instance for AI race opponents (`quality = 'hero'`, matching the player's
+ * hero car visual fidelity: cut transparent glass, cockpit + helmeted driver, metallic flake OEM
+ * paint + CarProbe reflections, recessed grille, real spinning/steering alloy wheels with glowing
+ * brake rotors, active HDR brake/headlights + wet ground light pools, and aerodynamic body shadows)
+ * or lightweight free-roam traffic (`quality = 'traffic'`).
  */
-export async function loadScanOpponentCar(id: string, paintHex: number | string): Promise<THREE.Group> {
-  const tpl = await getOpponentTemplate(id);
-  const { spec, origin, bsz, bodyGeos, bakedMap, extras } = tpl;
+export async function loadScanOpponentCar(
+  id: string,
+  paintHex: number | string,
+  quality: 'hero' | 'traffic' = 'hero',
+): Promise<THREE.Group> {
+  const tpl = await getOpponentTemplate(id, quality);
+  const { spec, origin, bsz, cuts, bodyGeos, glassGeo, bakedMap, staticExtras, lampSource, wheelTemplates } = tpl;
   const W = spec.wheels;
   const paint = new THREE.Color(paintHex);
   const mapTex = bakedMap ?? (() => { const d = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); d.needsUpdate = true; return d; })();
   const pmin = [new THREE.Vector3(9, 9, 9), new THREE.Vector3(9, 9, 9), new THREE.Vector3(9, 9, 9), new THREE.Vector3(9, 9, 9)];
   const pmax = [new THREE.Vector3(9, 9, 9), new THREE.Vector3(9, 9, 9), new THREE.Vector3(9, 9, 9), new THREE.Vector3(9, 9, 9)];
-  const mat = new THREE.MeshPhysicalMaterial({ map: mapTex, metalness: 0.42, roughness: 0.34, clearcoat: 0.52, clearcoatRoughness: 0.16, ior: 1.46, specularIntensity: 0.50, envMapIntensity: 0.74, side: THREE.DoubleSide });
+  const mat = new THREE.MeshPhysicalMaterial({
+    map: mapTex,
+    metalness: 0.42,
+    roughness: 0.34,
+    clearcoat: 0.52,
+    clearcoatRoughness: 0.16,
+    ior: 1.46,
+    specularIntensity: 0.50,
+    envMapIntensity: 0.78,
+    side: THREE.DoubleSide,
+  });
+  mat.userData.allowCarProbe = true;
+  mat.userData.__apexCarPaintSpec = { spec, origin: origin.clone(), size: bsz.clone(), cuts, discardWheels: true, paintHex: paint.getHex() };
+
   const grilleStyleNum = spec.shader?.grilleStyle === 'ev' ? 0 : spec.shader?.grilleStyle === 'truck' ? 2 : 1;
   const gLoY = spec.shader?.grilleLoY ?? (grilleStyleNum === 2 ? 0.52 : 0.34);
   const gHiY = spec.shader?.grilleHiY ?? (grilleStyleNum === 2 ? 1.02 : 0.60);
+  const hasPhysOpenings = cuts && spec.front.openings.length > 0 ? 1 : 0;
+
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uPaint = { value: new THREE.Vector3(paint.r, paint.g, paint.b) };
-    sh.uniforms.uFlake = { value: 0.36 };
+    sh.uniforms.uFlake = { value: 0.32 };
     sh.uniforms.uFinish = { value: 0 };
     sh.uniforms.uPearl = { value: new THREE.Vector3(paint.r, paint.g, paint.b) };
     sh.uniforms.uPearlAmt = { value: 0 };
@@ -1562,11 +1728,12 @@ export async function loadScanOpponentCar(id: string, paintHex: number | string)
     sh.uniforms.uLen = { value: bsz.z };
     sh.uniforms.uWid = { value: bsz.x };
     sh.uniforms.uDisc = { value: 1 };
-    sh.uniforms.uCut = { value: 0 }; // shader renders crisp smoked jet-black glass + honeycomb grille + carbon trim in one pass!
+    sh.uniforms.uCut = { value: cuts ? 1 : 0 };
+    sh.uniforms.uHasOpen = { value: hasPhysOpenings };
     sh.uniforms.uGrille = { value: new THREE.Vector4(gLoY, gHiY, grilleStyleNum === 2 ? 0.28 : 0.14, grilleStyleNum) };
     sh.uniforms.uSide = { value: Array.from({ length: 8 }, (_, i) => new THREE.Vector2(spec.glass.sideWindow[i % spec.glass.sideWindow.length][0], spec.glass.sideWindow[i % spec.glass.sideWindow.length][1])) };
     sh.uniforms.uGl = { value: new THREE.Vector4(spec.glass.windTop, spec.glass.windBase, spec.glass.rearBase2, spec.glass.rearTop) };
-    sh.uniforms.uGlY = { value: new THREE.Vector4(spec.glass.belt - 0.05, spec.glass.belt - 0.01, (spec.glass.windHalfW ?? 0.58) + 0.04, (spec.glass.rearHalfW ?? 0.52) + 0.05) };
+    sh.uniforms.uGlY = { value: new THREE.Vector4(spec.glass.belt - 0.04, spec.glass.belt + 0.04, spec.glass.windHalfW ?? 0.58, spec.glass.rearHalfW ?? 0.52) };
     sh.uniforms.uWh = { value: new THREE.Vector4(W.frontZ, W.rearZ, W.centreY, W.discardR) };
     sh.uniforms.uWr = { value: new THREE.Vector2(W.tyreR, W.rimR) };
     sh.uniforms.uTrim = { value: new THREE.Vector4(spec.shader?.bumperFrontY ?? 0.58, spec.shader?.bumperRearY ?? 0.62, spec.shader?.skirtY ?? 0.30, spec.shader?.archLipAdd ?? 0.095) };
@@ -1579,7 +1746,7 @@ export async function loadScanOpponentCar(id: string, paintHex: number | string)
     sh.uniforms.uPMax = { value: pmax };
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vObj;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvObj = position;');
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-      uniform float uFlake, uFinish, uPearlAmt, uCut, uHeadSlope; uniform vec3 uPearl; uniform vec2 uSide[8], uWingC; uniform vec4 uGl, uGlY, uTrim, uHeadL, uTailL, uGrille;
+      uniform float uFlake, uFinish, uPearlAmt, uCut, uHasOpen, uHeadSlope; uniform vec3 uPearl; uniform vec2 uSide[8], uWingC; uniform vec4 uGl, uGlY, uTrim, uHeadL, uTailL, uGrille;
       bool inSide(vec2 p) { for (int i = 0; i < 8; i++) { int j = i == 7 ? 0 : i + 1; vec2 e = uSide[j] - uSide[i]; if (dot(vec2(e.y, -e.x), p - uSide[i]) > 0.0) return false; } return true; }
       float h31(vec3 p) { p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33); return fract((p.x + p.y) * p.z); }
       uniform float uDisc, uLen, uWid; uniform vec3 uPaint, uOrg; uniform vec4 uWh; uniform vec2 uWr; uniform vec3 uPMin[4]; uniform vec3 uPMax[4]; varying vec3 vObj;
@@ -1598,8 +1765,8 @@ export async function loadScanOpponentCar(id: string, paintHex: number | string)
       bool glass = uCut < 0.5 && ((ax > 0.45 && inSide(vec2(cp.z, cp.y))) || (cp.z > uGl.x && cp.z < uGl.y && ax < uGlY.z - 0.08 + 0.13 * (cp.z - uGl.x) && cp.y > uGlY.x) || (cp.z > uGl.z && cp.z < uGl.w && ax < uGlY.w && cp.y > uGlY.y));
       bool nose = zN > 0.42;
       float gHalfW = uGrille.w > 1.5 ? uWid * 0.30 : uWid * 0.24;
-      bool grille = uGrille.w > 0.5 && nose && ax < gHalfW && cp.y > uGrille.x && cp.y < uGrille.y;
-      bool intake = nose && ax < uWid * 0.36 && cp.y > uGrille.z && cp.y < uGrille.x - 0.03;
+      bool grille = uHasOpen < 0.5 && uGrille.w > 0.5 && nose && ax < gHalfW && cp.y > uGrille.x && cp.y < uGrille.y;
+      bool intake = uHasOpen < 0.5 && nose && ax < uWid * 0.36 && cp.y > uGrille.z && cp.y < uGrille.x - 0.03;
       bool headL = nose && ax > uHeadL.x && ax < uHeadL.y && cp.y > uHeadL.z + (ax - uHeadL.x) * uHeadSlope && cp.y < uHeadL.w + (ax - uHeadL.x) * uHeadSlope;
       bool tailL = zN < -0.40 && ax >= uTailL.x && ax < uTailL.y && cp.y > uTailL.z && cp.y < uTailL.w;
       bool bumper = (zN > 0.44 && cp.y < uTrim.x) || (zN < -0.44 && cp.y < uTrim.y);
@@ -1613,28 +1780,49 @@ export async function loadScanOpponentCar(id: string, paintHex: number | string)
       float aoUnder = mix(0.58, 1.0, smoothstep(-0.55, 0.12, normalize(vNormal).y));
       float ao = aoGround * aoArch * aoUnder;
       {
+        float fl = h31(floor(cp * 1100.0));
         float ndv = clamp(abs(dot(normalize(vNormal), normalize(vViewPosition))), 0.0, 1.0);
-        col *= mix(0.72, 1.10, pow(ndv, 0.55)) * mix(0.74, 1.0, ao);
+        float flop = mix(0.72, 1.10, pow(ndv, 0.55));
+        col *= mix(1.0, flop, step(uFinish, 0.5));
+        float aaF = 1.0 - smoothstep(0.35, 1.0, length(fwidth(cp)) * 1100.0);
+        col *= 1.0 + uFlake * (fl - 0.5) * 0.55 * aaF;
+        gRough = clamp(gRough + (fl - 0.5) * 0.05 * uFlake * aaF, 0.14, 0.90);
+        col *= mix(0.74, 1.0, ao);
       }
       if (tyre) { col = vec3(0.016, 0.016, 0.018); gBody = 0.0; gMetal = 0.0; gRough = 0.88; }
       else if (rim) { col = vec3(0.04); gBody = 0.0; gMetal = 0.92; gRough = 0.30; }
       else if (glass) {
         float ndvG = clamp(abs(dot(normalize(vNormal), normalize(vViewPosition))), 0.0, 1.0);
-        col = mix(vec3(0.025, 0.036, 0.052), vec3(0.004, 0.006, 0.010), pow(ndvG, 0.68));
-        gBody = 0.72; gMetal = 0.04; gRough = 0.06;
+        col = mix(vec3(0.025, 0.036, 0.052), vec3(0.005, 0.007, 0.011), pow(ndvG, 0.7));
+        gBody = 0.75; gMetal = 0.04; gRough = 0.06;
       }
       else if (headL) { col = vec3(0.010, 0.012, 0.016); gBody = 0.25; gMetal = 0.35; gRough = 0.10; }
       else if (tailL) { col = vec3(0.02, 0.004, 0.004); gBody = 0.25; gMetal = 0.2; gRough = 0.10; }
       else if (grille || intake) {
-        float hd = hexEdge(vec2(cp.x, cp.y), 0.026);
-        float wire = smoothstep(0.35, 0.44, hd);
-        float bars = grille ? smoothstep(0.80, 0.94, 0.5 + 0.5 * sin(cp.y * (uGrille.w > 1.5 ? 62.0 : 95.0))) : 0.0;
-        col = mix(vec3(0.004, 0.004, 0.005), uGrille.w > 1.5 ? vec3(0.36, 0.38, 0.42) : vec3(0.18, 0.20, 0.23), max(wire * 0.72, bars * 0.78));
-        gBody = 0.0; gMetal = 0.68; gRough = 0.38;
+        float fe = grille
+          ? min(min(gHalfW - ax, cp.y - uGrille.x), uGrille.y - cp.y)
+          : min(min(uWid * 0.36 - ax, cp.y - uGrille.z), (uGrille.x - 0.03) - cp.y);
+        float hd = hexEdge(vec2(cp.x, cp.y), 0.024);
+        float wire = smoothstep(0.35, 0.43, hd);
+        float depth = smoothstep(0.0, 0.09, fe);
+        float barFreq = uGrille.w > 1.5 ? 62.0 : 95.0;
+        float bars = grille ? smoothstep(0.80, 0.94, 0.5 + 0.5 * sin(cp.y * barFreq)) : 0.0;
+        float frame = 1.0 - smoothstep(0.014, 0.026, fe);
+        vec3 holeC = vec3(0.003, 0.003, 0.004);
+        vec3 wireC = (uGrille.w > 1.5 ? vec3(0.46, 0.48, 0.52) : vec3(0.28, 0.30, 0.34)) * (0.32 + 0.68 * (1.0 - depth * 0.65));
+        col = mix(holeC, wireC, max(wire * 0.80, bars * (uGrille.w > 1.5 ? 0.92 : 0.65)));
+        vec3 frameC = uGrille.w > 1.5 ? vec3(0.22, 0.24, 0.27) : vec3(0.022, 0.024, 0.028);
+        col = mix(col, frameC, frame);
+        gBody = 0.0; gMetal = mix(0.68, 0.85, frame); gRough = mix(0.38, 0.24, frame);
       }
       else if (carbonWing) { col = vec3(0.020, 0.022, 0.026); gBody = 0.52; gMetal = 0.28; gRough = 0.28; }
-      else if (bumper || skirt || archLip) { col = vec3(0.015, 0.016, 0.018) * mix(0.65, 1.0, ao); gBody = 0.10; gMetal = 0.12; gRough = 0.62; }
+      else if (bumper || skirt || archLip) {
+        float grain = (h31(floor(cp * 420.0)) - 0.5) * 0.006;
+        col = vec3(0.015 + grain, 0.016 + grain, 0.018 + grain) * mix(0.65, 1.0, ao);
+        gBody = 0.10; gMetal = 0.12; gRough = 0.62;
+      }
       if (!gl_FrontFacing && zN > 0.30 && cp.y > 0.5) discard;
+      if (!gl_FrontFacing) { col *= 0.88; gLamp = vec3(0.0); }
       diffuseColor.rgb = col;
     `)
     .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = gRough;')
@@ -1642,15 +1830,92 @@ export async function loadScanOpponentCar(id: string, paintHex: number | string)
     .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += gLamp;')
     .replace('#include <lights_physical_fragment>', '#include <lights_physical_fragment>\nmaterial.clearcoat *= gBody;');
   };
-  mat.customProgramCacheKey = () => 'scan-car-opp-v3';
+  mat.customProgramCacheKey = () => 'scan-car-hero-opp-v4';
+
+  const tslCtx = getRegionTslContext();
+  let finalBodyMat: THREE.Material = mat;
+  if (tslCtx) {
+    finalBodyMat = createApexCarPaintTslMaterial({
+      spec,
+      origin,
+      size: bsz,
+      paintHex: paint.getHex(),
+      bakedMap: mapTex,
+      cuts,
+      discardWheels: true,
+      opponent: true,
+      gi: tslCtx.gi,
+    }).material as unknown as THREE.Material;
+  }
 
   const g = new THREE.Group();
   for (const geo of bodyGeos) {
-    const bm = new THREE.Mesh(geo, mat);
-    bm.castShadow = false; // shadow handled by the 12-tri interior shadowHull in extras!
+    const bm = new THREE.Mesh(geo, finalBodyMat);
+    bm.castShadow = quality === 'hero';
     bm.receiveShadow = true;
     g.add(bm);
   }
-  g.add(extras.clone(true));
+  if (glassGeo) {
+    const gm = new THREE.Mesh(glassGeo, oppGlassMat);
+    gm.castShadow = false;
+    gm.receiveShadow = false;
+    g.add(gm);
+  }
+  g.add(staticExtras.clone(true));
+
+  // Per-instance active LED headlamps & brake lights (cloned materials so each rival brakes independently!)
+  const ledR = lampSource.ledR.clone();
+  const ledW = lampSource.ledW.clone();
+  const lampClone = lampSource.group.clone(true);
+  lampClone.position.copy(origin);
+  lampClone.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    if (m.material === lampSource.ledR) m.material = ledR;
+    else if (m.material === lampSource.ledW) m.material = ledW;
+  });
+  g.add(lampClone);
+
+  const lightPools = quality === 'hero' ? buildGroundLightPools(origin) : null;
+  if (lightPools) g.add(lightPools.group);
+
+  // Clone the pre-batched hero wheel rigs (shared GPU vertex buffers, ~5 draws/wheel, independent spin/steer & thermal brake-rotor glow!)
+  const wheels: Array<{ spin: THREE.Object3D; steer: THREE.Object3D; discMat?: THREE.MeshPhysicalMaterial; front: boolean; left: boolean }> = [];
+  for (const wt of wheelTemplates) {
+    const cloned = wt.root.clone(true);
+    const steerObj = cloned.getObjectByName('opp-steer') ?? cloned;
+    const spinObj = cloned.getObjectByName('opp-spin') ?? steerObj;
+    let discMat: THREE.MeshPhysicalMaterial | undefined;
+    if (wt.discMat) {
+      discMat = wt.discMat.clone();
+      cloned.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (m.isMesh && m.material === wt.discMat) m.material = discMat!;
+      });
+    }
+    g.add(cloned);
+    wheels.push({ spin: spinObj, steer: steerObj, discMat, front: wt.front, left: wt.left });
+  }
+
+  let ang = 0;
+  let rotorHeat = 0;
+  g.userData.update = (speed: number, steer: number, dt: number, _lights?: boolean, brake = 0, wetNight = 0): void => {
+    ang += (speed / (W.tyreR || 0.355)) * dt;
+    const heatTarget = brake > 0.15 && Math.abs(speed) > 8 ? Math.min(1, brake * Math.min(1, Math.abs(speed) / 42)) : 0;
+    rotorHeat += (heatTarget - rotorHeat) * Math.min(1, dt * (heatTarget > rotorHeat ? 2.4 : 0.65));
+    const glow = Math.max(0, (rotorHeat - 0.18) / 0.82) * 3.8;
+    ledR.emissiveIntensity = 3.6 + brake * 5.4 + wetNight * 1.4;
+    ledW.emissiveIntensity = 4.2 + wetNight * 2.6;
+    if (lightPools) {
+      lightPools.rearMat.opacity = Math.min(0.46, (0.08 + brake * 0.24) * (0.18 + wetNight * 1.1));
+      lightPools.frontMat.opacity = Math.min(0.42, 0.04 + wetNight * 0.36);
+    }
+    for (const w of wheels) {
+      w.spin.rotation.x = w.left ? -ang : ang;
+      w.steer.rotation.y = w.front ? steer : 0;
+      if (w.discMat) w.discMat.emissiveIntensity = w.front ? glow : glow * 0.72;
+    }
+  };
+  if (tslCtx) sanitizeObjectForWebGPU(g);
   return g;
 }

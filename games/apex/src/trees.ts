@@ -2,11 +2,13 @@
 // as an actual tree model (trunk, layered conifer boughs or lobed broadleaf crowns, vertex-coloured, swaying in the wind) and its card is discarded by the card
 // material (see `cardLod`). Trees are selected from a spatial grid a few times a second, so the cost is bounded by how many are near, not by the forest.
 import * as THREE from 'three';
+import { createApexTreeTslMaterial } from './tsl/worldTsl';
+import { getRegionTslContext } from './tsl/webgpuRuntime';
 
-export const NEAR_R = 195;
+export const NEAR_R = 260;
 export const cardLodUniforms = { uNearR: { value: NEAR_R - 14 } };
 
-/** patch a sprite card material so cards cross-fade smoothly out as the 3D tree models take over (zero harsh popping!) */
+/** patch a sprite card material so distant cards stay 100% full scale and dissolve via IGN screen-door dither into 3D trees (zero shrinking/growing!) */
 export function cardLod(mat: THREE.MeshStandardMaterial): void {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uNearR = cardLodUniforms.uNearR;
@@ -14,15 +16,19 @@ export function cardLod(mat: THREE.MeshStandardMaterial): void {
       .replace('#include <begin_vertex>', `#include <begin_vertex>
 #ifdef USE_INSTANCING
 vTreeD = distance(cameraPosition.xz, (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz);
-float cardFade = smoothstep(uNearR - 8.0, uNearR + 14.0, vTreeD);
-transformed *= cardFade;
 #else
 vTreeD = 1e5;
 #endif`);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vTreeD;\nuniform float uNearR;')
-      .replace('void main() {', 'void main() {\n  if (vTreeD < uNearR - 8.0) discard;');
+      .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+  float cardFade = smoothstep(uNearR - 12.0, uNearR + 14.0, vTreeD);
+  if (cardFade <= 0.005) discard;
+  if (cardFade < 0.995) {
+    float cardIgn = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
+    if (cardIgn < (1.0 - cardFade)) discard;
+  }`);
   };
-  mat.customProgramCacheKey = () => 'cardlod-v3';
+  mat.customProgramCacheKey = () => 'cardlod-v4';
 }
 
 function rng(seed: number): () => number { let s = seed % 2147483647; if (s <= 0) s += 2147483646; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
@@ -129,9 +135,9 @@ export class TreeField {
   private accT = 0;
   private uTime = { value: 0 };
   private uWind = { value: 0.3 };
-  private cap = 1800;
+  private cap = 2200;
   private effRadius = NEAR_R;
-  private effCap = 1800;
+  private effCap = 2200;
   private _buckets: number[] = [];
   private _m4 = new THREE.Matrix4();
   private _q = new THREE.Quaternion();
@@ -147,30 +153,37 @@ export class TreeField {
       let a = this.grid.get(k); if (!a) { a = []; this.grid.set(k, a); }
       a.push({ x: p[0], z: p[1], conifer: !!p[2], k: p[3], s: p[4] ?? 1 });
     }
+    const tslCtx = getRegionTslContext();
     const mk = (g: THREE.BufferGeometry): THREE.InstancedMesh => {
-      const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
-      m.onBeforeCompile = (sh) => {
-        sh.uniforms.uTime = this.uTime; sh.uniforms.uWind = this.uWind;
-        // leaf breakup: foliage edges (where the surface turns away from the eye) are eaten into by hashed gaps, so the crown reads as leaves, not a solid ball
-        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vLeaf; varying vec3 vObj;\nfloat lh(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }')
-          .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
-          if (vLeaf > 0.5) {
-            float edge = 1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition)));
-            float n = lh(floor(vObj * 3.2)) * 0.6 + lh(floor(vObj * 7.5) + 3.0) * 0.4;
-            if (n < edge * edge * 0.9 + 0.04) discard;
-          }`);
-        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aLeaf; varying float vLeaf; varying vec3 vObj;\nuniform float uTime, uWind;')
-          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLeaf = aLeaf; vObj = position;')
-          .replace('#include <begin_vertex>', `#include <begin_vertex>
-            #ifdef USE_INSTANCING
-            vec3 ib = vec3(instanceMatrix[3].x, 0.0, instanceMatrix[3].z);
-            float h01 = clamp(position.y / 17.0, 0.0, 1.0);
-            float sw = uWind * h01 * h01 * 0.9;
-            transformed.x += sin(uTime * 1.5 + ib.x * 0.07 + position.y * 0.3) * sw + sin(uTime * 3.1 + position.z * 1.7 + ib.z * 0.11) * sw * 0.25;
-            transformed.z += cos(uTime * 1.2 + ib.z * 0.06) * sw * 0.7;
-            #endif`);
-      };
-      m.customProgramCacheKey = () => 'treefield';
+      let m: THREE.Material;
+      if (tslCtx) {
+        m = createApexTreeTslMaterial(tslCtx.foliage, tslCtx.gi) as unknown as THREE.Material;
+      } else {
+        const wm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0, side: THREE.DoubleSide });
+        wm.onBeforeCompile = (sh) => {
+          sh.uniforms.uTime = this.uTime; sh.uniforms.uWind = this.uWind;
+          // leaf breakup: foliage edges (where the surface turns away from the eye) are eaten into by hashed gaps, so the crown reads as leaves, not a solid ball
+          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vLeaf; varying vec3 vObj;\nfloat lh(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }')
+            .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
+            if (vLeaf > 0.5) {
+              float edge = 1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition)));
+              float n = lh(floor(vObj * 3.2)) * 0.6 + lh(floor(vObj * 7.5) + 3.0) * 0.4;
+              if (n < edge * edge * 0.9 + 0.04) discard;
+            }`);
+          sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aLeaf; varying float vLeaf; varying vec3 vObj;\nuniform float uTime, uWind;')
+            .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLeaf = aLeaf; vObj = position;')
+            .replace('#include <begin_vertex>', `#include <begin_vertex>
+              #ifdef USE_INSTANCING
+              vec3 ib = vec3(instanceMatrix[3].x, 0.0, instanceMatrix[3].z);
+              float h01 = clamp(position.y / 17.0, 0.0, 1.0);
+              float sw = uWind * h01 * h01 * 0.9;
+              transformed.x += sin(uTime * 1.5 + ib.x * 0.07 + position.y * 0.3) * sw + sin(uTime * 3.1 + position.z * 1.7 + ib.z * 0.11) * sw * 0.25;
+              transformed.z += cos(uTime * 1.2 + ib.z * 0.06) * sw * 0.7;
+              #endif`);
+        };
+        wm.customProgramCacheKey = () => 'treefield';
+        m = wm;
+      }
       const im = new THREE.InstancedMesh(g, m, this.cap);
       im.count = 0; im.frustumCulled = false; im.castShadow = false;
       this.group.add(im); this.meshes.push(im);

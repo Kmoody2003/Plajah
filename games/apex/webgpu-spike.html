@@ -3,14 +3,28 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Apex WebGPU spike</title>
+  <title>Plajah Motorsport: Apex · Unified Playkit WebGPU + TSL</title>
   <style>
-    html, body { margin: 0; height: 100%; background: #0b0710; overflow: hidden; }
-    #hud { position: fixed; left: 12px; top: 12px; z-index: 2; padding: 10px 14px; border-radius: 14px; background: rgba(30, 8, 48, .72); color: #eadcff; font: 600 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre; }
+    html, body { margin: 0; height: 100%; background: #0b0710; overflow: hidden; font-family: Inter, system-ui, sans-serif; }
+    #hud { position: fixed; left: 12px; top: 12px; z-index: 2; padding: 10px 14px; border-radius: 14px; background: rgba(26, 0, 38, .78); border: 1px solid rgba(255,255,255,.12); backdrop-filter: blur(12px); color: #eadcff; font: 600 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre; }
+    #bar { position: fixed; left: 12px; bottom: 14px; z-index: 2; display: flex; gap: 8px; flex-wrap: wrap; }
+    #bar button, #bar a { background: rgba(26,0,38,.82); color: #fff; border: 1px solid rgba(255,255,255,.16); border-radius: 999px; padding: 7px 14px; font: 700 11px/1 Inter, sans-serif; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; text-decoration: none; }
+    #bar button:hover, #bar a:hover { border-color: #FF8C00; color: #FF8C00; }
   </style>
 </head>
 <body>
-  <div id="hud">starting…</div>
+  <div id="hud">booting Playkit WebGPU + TSL…</div>
+  <div id="bar">
+    <button id="btnGolden" type="button">Golden Hour</button>
+    <button id="btnClear" type="button">Clear Day</button>
+    <button id="btnNight" type="button">Night + Lamps</button>
+    <button id="btnWet" type="button">Toggle Wet Road</button>
+    <button id="btnLens" type="button">Film Lens: Off</button>
+    <a href="/webgpu-spike.html?post=ssr&wet=1">WebGPU + SSR</a>
+    <a href="/showroom.html?webgpu=1">Showroom WebGPU</a>
+    <a href="/webgpu-spike.html?webgl=1">Compare WebGL2</a>
+    <a href="/region.html">Back to Apex</a>
+  </div>
   <script type="module" src="/src/spike/webgpuSpike.ts"></script>
 </body>
 </html>

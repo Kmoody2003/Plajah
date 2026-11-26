@@ -87,7 +87,7 @@ function cyl(parent: THREE.Object3D, r: number, h: number, x: number, y: number,
   const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, seg), m); mesh.position.set(x, y, z); mesh.rotation.x = rotX; mesh.rotation.z = rotZ; mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
 }
 /** a copy of a texture tiled so a face of w x h metres shows tiles of the given size */
-function tiled(t: THREE.Texture, w: number, h: number, tw: number, th: number): THREE.Texture { const c = t.clone(); c.needsUpdate = true; c.repeat.set(w / tw, h / th); return c; }
+function tiled(t: THREE.Texture, w: number, h: number, tw: number, th: number): THREE.Texture { const c = t.clone(); if (c.image) c.needsUpdate = true; c.repeat.set(w / tw, h / th); return c; }
 
 export interface GarageBuilding {
   group: THREE.Group;

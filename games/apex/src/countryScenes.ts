@@ -157,6 +157,79 @@ function noiseTex(base: [number, number, number], speck: number, tracks: boolean
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repX, repY); t.anisotropy = 4; return t;
 }
 
+/**
+ * Photoreal crushed-limestone gravel & dusty Michigan dirt shoulder texture (512x512 RGBA):
+ * - u = 0.00..0.16: asphalt-dust & broken aggregate collar gripping the road edge seamlessly
+ * - u = 0.16..0.68: graded crushed gravel, warm tan earth, subtle off-edge tire wear & pebble grain
+ * - u = 0.68..1.00: irregular organic noise-feathered alpha fade into roadside grass/ditch (zero harsh seam!)
+ */
+let cachedGravelShoulderTex: THREE.CanvasTexture | null = null;
+function gravelShoulderTex(): THREE.CanvasTexture {
+  if (cachedGravelShoulderTex) return cachedGravelShoulderTex;
+  const N = 512;
+  const c = document.createElement('canvas');
+  c.width = c.height = N;
+  const ctx = c.getContext('2d')!;
+  const img = ctx.createImageData(N, N);
+  const d = img.data;
+  const r = rng(407);
+  // Tileable value noise across Y (along road) so shoulder texture repeats cleanly with zero visible seam
+  const GY = 64, GX = 32;
+  const grid = new Float32Array(GX * GY);
+  for (let i = 0; i < grid.length; i++) grid[i] = r();
+  const sampleN = (u: number, v: number, freqX: number, freqY: number): number => {
+    const fx = u * freqX, fy = ((v % 1) + 1) % 1 * freqY;
+    const x0 = Math.floor(fx) % GX, y0 = Math.floor(fy) % GY;
+    const x1 = (x0 + 1) % GX, y1 = (y0 + 1) % GY;
+    const tx = fx - Math.floor(fx), ty = fy - Math.floor(fy);
+    const sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+    const a = grid[y0 * GX + x0], b = grid[y0 * GX + x1];
+    const e = grid[y1 * GX + x0], f = grid[y1 * GX + x1];
+    return (a + (b - a) * sx) * (1 - sy) + (e + (f - e) * sx) * sy;
+  };
+  for (let y = 0; y < N; y++) {
+    const v = y / N;
+    for (let x = 0; x < N; x++) {
+      const u = x / (N - 1); // 0 = road asphalt edge, 1 = outer grass verge
+      const macro = sampleN(u, v, 8, 12);
+      const mid = sampleN(u, v, 18, 28);
+      const pebble = r();
+      const grit = (pebble - 0.5) * 46 + (mid - 0.5) * 28;
+      // Transition from weathered asphalt dust near edge (u < 0.16) -> warm crushed limestone/tan dirt -> dark earthy verge
+      const tAsph = Math.min(1, Math.max(0, (u - 0.04) / 0.18));
+      const tEarth = Math.min(1, Math.max(0, (u - 0.50) / 0.42));
+      let cr = 74 * (1 - tAsph) + 148 * tAsph;
+      let cg = 72 * (1 - tAsph) + 136 * tAsph;
+      let cb = 70 * (1 - tAsph) + 114 * tAsph;
+      // Blend outer dirt edge slightly darker & earthier where grass roots take hold
+      cr = cr * (1 - tEarth * 0.28) + 92 * (tEarth * 0.28);
+      cg = cg * (1 - tEarth * 0.22) + 86 * (tEarth * 0.22);
+      cb = cb * (1 - tEarth * 0.34) + 60 * (tEarth * 0.34);
+      // Subtle scattered bright limestone chips & dark pebbles
+      if (pebble > 0.90) { cr += 34; cg += 32; cb += 26; }
+      else if (pebble < 0.09) { cr -= 32; cg -= 30; cb -= 26; }
+      const idx = (y * N + x) * 4;
+      d[idx] = Math.max(0, Math.min(255, Math.round(cr + grit)));
+      d[idx + 1] = Math.max(0, Math.min(255, Math.round(cg + grit * 0.95)));
+      d[idx + 2] = Math.max(0, Math.min(255, Math.round(cb + grit * 0.85)));
+      // Inner lip softly grips the asphalt edge; outer edge organically feathers out with wavy noise!
+      const innerA = Math.min(1, u / 0.05);
+      const edgeNoise = (macro - 0.5) * 0.26 + (mid - 0.5) * 0.12;
+      const outerA = 1 - Math.min(1, Math.max(0, (u - (0.58 + edgeNoise)) / 0.34));
+      const alpha = innerA * outerA * outerA * (3 - 2 * outerA);
+      d[idx + 3] = Math.max(0, Math.min(255, Math.round(alpha * 246)));
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = THREE.ClampToEdgeWrapping;
+  t.wrapT = THREE.RepeatWrapping;
+  t.anisotropy = 8;
+  cachedGravelShoulderTex = t;
+  return t;
+}
+
 /** weathered cliff rock: level strata across u, joints across v, lichen speckle (bump: the same layout in grey) */
 function cliffRockTex(bump = false): THREE.CanvasTexture {
   const N = 512, c = document.createElement('canvas'); c.width = c.height = N;
@@ -204,10 +277,19 @@ function straight(xz: number[][], step: number): Pt[] {
 
 export interface RoadNetwork { roads: { kind: 'paved' | 'dirt' | 'drive'; xz: number[][]; half?: number; /** a town street (user_streets.json): it gets curbs and sidewalks */ town?: boolean }[] }
 
-export function buildCountryScenes(o: { ground: (x: number, z: number) => number; roadMaterial?: THREE.Material; network?: RoadNetwork; shoreline?: Shoreline }): CountryScenes {
+export function buildCountryScenes(o: {
+  ground: (x: number, z: number) => number;
+  roadMaterial?: THREE.Material;
+  roadMaterial4Lane?: THREE.Material;
+  plainRoadMaterial?: THREE.Material;
+  network?: RoadNetwork;
+  shoreline?: Shoreline;
+}): CountryScenes {
   const group = new THREE.Group(); group.name = 'country-scenes';
   const roads: THREE.Mesh[] = [];
   const asphalt = o.roadMaterial ?? new THREE.MeshStandardMaterial({ color: 0x2b2c2e, roughness: 0.85 });
+  const asphalt4 = o.roadMaterial4Lane ?? asphalt;
+  const plainAsphalt = o.plainRoadMaterial ?? new THREE.MeshStandardMaterial({ color: 0x35373c, roughness: 0.86, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
   const dirtMat = new THREE.MeshStandardMaterial({ map: noiseTex([128, 104, 78], 90, true, 1, 1), roughness: 1 });
   // driveways: brushed concrete, no markings, a touch below the street surface so the street wins where they meet at the curb
   const driveMat = (() => {
@@ -234,9 +316,11 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
       const y = i0 >= 0 && i >= i0 && i <= i1 ? yEnd0 + (yEnd1 - yEnd0) * ((i - i0) / Math.max(1, i1 - i0)) : o.ground(p.x, p.z) + lift;
       ys.push(y);
       const nx = -dz * half, nz = dx * half;
-      // the cross-slope of the ground under each edge (level only on the causeway deck)
+      // Civil-engineered cross-slope clamp: max 6.5% transverse camber (never 28% sideways cliff twist!)
       const onDeck = i0 >= 0 && i >= i0 && i <= i1, gc = o.ground(p.x, p.z);
-      const e1 = onDeck ? 0 : Math.max(-1, Math.min(1, o.ground(p.x + nx, p.z + nz) - gc)), e2 = onDeck ? 0 : Math.max(-1, Math.min(1, o.ground(p.x - nx, p.z - nz) - gc));
+      const maxEdge = Math.min(0.32, half * 0.065);
+      const e1 = onDeck ? 0 : Math.max(-maxEdge, Math.min(maxEdge, o.ground(p.x + nx, p.z + nz) - gc));
+      const e2 = onDeck ? 0 : Math.max(-maxEdge, Math.min(maxEdge, o.ground(p.x - nx, p.z - nz) - gc));
       pos.push(p.x + nx, y + e1, p.z + nz, p.x - nx, y + e2, p.z - nz);
       uv.push(0, dist / uvLen, 1, dist / uvLen);
     }
@@ -261,12 +345,15 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
   const bridgeRuns: { line: Pt[]; i0: number; i1: number; half: number; ys: number[]; gy: number[] }[] = [];
   const pavedRuns: CountryScenes['pavedRuns'] = [], driveMouths: Pt[] = [];
   if (o.network) {
-    const mk = (kind: 'paved' | 'dirt' | 'drive'): { pos: number[]; uv: number[]; idx: number[]; v: number } => ({ pos: [], uv: [], idx: [], v: 0 });
-    const acc = { paved: mk('paved'), dirt: mk('dirt'), drive: mk('drive') };
+    const mk = (): { pos: number[]; uv: number[]; idx: number[]; v: number } => ({ pos: [], uv: [], idx: [], v: 0 });
+    const acc = { paved2: mk(), paved4: mk(), dirt: mk(), drive: mk() };
+    const shAcc = mk();
     for (const r of o.network.roads) {
       const line = r.kind === 'drive' ? straight(r.xz, 3) : catmull(r.xz.map(([x, z]) => ({ x, z })), 8);
       if (line.length < 2) continue;
-      const half = r.half ?? (r.kind === 'paved' ? 3.6 : 2.6), a = acc[r.kind];
+      const half = r.half ?? (r.kind === 'paved' ? 3.6 : 2.6);
+      const bucket = r.kind === 'paved' ? (half >= 6.8 ? 'paved4' : 'paved2') : r.kind;
+      const a = acc[bucket];
       // heights: the drawn ground, held up over streams so the road crosses them as a causeway rather than dipping into the water
       const gy = line.map((p) => o.ground(p.x, p.z));
       // heights: the road follows the ground; wherever the ground under it is water it becomes a bridge: a level deck from bank to bank, eased onto it over 48 m on each side
@@ -277,6 +364,12 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
         while (i < gy.length) {
           if (gy[i] >= WATER) { i++; continue; }
           let j = i; while (j + 1 < gy.length && gy[j + 1] < WATER) j++;
+          // Only construct a bridge deck when BOTH sides connect to dry land banks (never build dead-end bridges over open water!)
+          if (i === 0 || j === gy.length - 1) {
+            for (let k = i; k <= j; k++) ys[k] = Math.max(gy[k], 2.2) + 0.08;
+            i = j + 1;
+            continue;
+          }
           const lo = Math.max(0, i - 1), hi = Math.min(gy.length - 1, j + 1);
           const deck = Math.max(gy[lo], gy[hi], 3.2) + 1.2;
           for (let k = Math.max(0, i - RAMP); k <= Math.min(gy.length - 1, j + RAMP); k++) {
@@ -292,27 +385,190 @@ export function buildCountryScenes(o: { ground: (x: number, z: number) => number
       else if (r.kind === 'drive') driveMouths.push(line[0], line[line.length - 1]);
       let dist = 0;
       const base = a.v;
+      const maxCross = Math.min(0.32, half * 0.065);
       for (let i = 0; i < line.length; i++) {
         const p = line[i], pa = line[Math.max(0, i - 1)], pb = line[Math.min(line.length - 1, i + 1)];
         let dx = pb.x - pa.x, dz = pb.z - pa.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
         if (i > 0) dist += Math.hypot(p.x - line[i - 1].x, p.z - line[i - 1].z);
-        // across the road the surface follows the ground's own cross-slope (a road laid level at its centre height floated an edge over the hillside: a lip where
-        // the rally stage or a verge met it); a bridge deck or its ramps stays level
+        // Civil-engineered cross-slope clamp (max 6.5% camber): prevents roller-coaster 28% sideways tilt on hills while keeping bridges level
         const onGround = Math.abs(ys[i] - gy[i] - (r.kind === 'drive' ? 0.07 : 0.1)) < 0.05;
         const xl = p.x - dz * half, zl = p.z + dx * half, xr = p.x + dz * half, zr = p.z - dx * half;
-        const el = onGround ? Math.max(-1, Math.min(1, o.ground(xl, zl) - gy[i])) : 0, er = onGround ? Math.max(-1, Math.min(1, o.ground(xr, zr) - gy[i])) : 0;
+        const el = onGround ? Math.max(-maxCross, Math.min(maxCross, o.ground(xl, zl) - gy[i])) : 0;
+        const er = onGround ? Math.max(-maxCross, Math.min(maxCross, o.ground(xr, zr) - gy[i])) : 0;
         a.pos.push(xl, ys[i] + el, zl, xr, ys[i] + er, zr);
         if (r.kind === 'drive') a.uv.push(0, dist / (half * 2), 1, dist / (half * 2)); else a.uv.push(0, dist / 8, 1, dist / 8);
         (r.kind === 'dirt' ? netDirt : netPaved).push({ x: p.x, z: p.z, h: half });
       }
       for (let i = 0; i < line.length - 1; i++) { const q = base + i * 2; a.idx.push(q, q + 2, q + 1, q + 1, q + 2, q + 3); }
       a.v += line.length * 2;
+      // Add feathered crushed-limestone gravel & dirt roadside shoulders along every rural paved road (blending asphalt -> gravel -> grass!)
+      if (r.kind === 'paved') {
+        const skBase = a.v;
+        const skirtOut = 0.48;
+        for (let i = 0; i < line.length; i++) {
+          const p = line[i], pa = line[Math.max(0, i - 1)], pb = line[Math.min(line.length - 1, i + 1)];
+          let dx = pb.x - pa.x, dz = pb.z - pa.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+          const onGround = Math.abs(ys[i] - gy[i] - 0.1) < 0.05;
+          const xl = p.x - dz * half, zl = p.z + dx * half, xr = p.x + dz * half, zr = p.z - dx * half;
+          const el = onGround ? Math.max(-maxCross, Math.min(maxCross, o.ground(xl, zl) - gy[i])) : 0;
+          const er = onGround ? Math.max(-maxCross, Math.min(maxCross, o.ground(xr, zr) - gy[i])) : 0;
+          const xlo = p.x - dz * (half + skirtOut), zlo = p.z + dx * (half + skirtOut);
+          const xro = p.x + dz * (half + skirtOut), zro = p.z - dx * (half + skirtOut);
+          const ylo = Math.min(ys[i] + el - 0.05, o.ground(xlo, zlo) - 0.16);
+          const yro = Math.min(ys[i] + er - 0.05, o.ground(xro, zro) - 0.16);
+          a.pos.push(xl, ys[i] + el, zl, xlo, ylo, zlo, xr, ys[i] + er, zr, xro, yro, zro);
+          a.uv.push(0, i * 0.5, 0.12, i * 0.5, 1, i * 0.5, 0.88, i * 0.5);
+        }
+        for (let i = 0; i < line.length - 1; i++) {
+          const q = skBase + i * 4;
+          a.idx.push(q, q + 1, q + 4, q + 1, q + 5, q + 4);
+          a.idx.push(q + 2, q + 6, q + 3, q + 3, q + 6, q + 7);
+        }
+        a.v += line.length * 4;
+
+        // Crushed gravel & dusty dirt shoulder verges on rural paved roads (skipped on elevated bridges & curbed town streets)
+        if (!r.town) {
+          const shBase = shAcc.v;
+          const shoulderW = half >= 6.8 ? 2.15 : 1.75;
+          let shDist = 0;
+          for (let i = 0; i < line.length; i++) {
+            const p = line[i], pa = line[Math.max(0, i - 1)], pb = line[Math.min(line.length - 1, i + 1)];
+            let dx = pb.x - pa.x, dz = pb.z - pa.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+            if (i > 0) shDist += Math.hypot(p.x - line[i - 1].x, p.z - line[i - 1].z);
+            const onGround = Math.abs(ys[i] - gy[i] - 0.1) < 0.05;
+            const inOff = Math.max(1.5, half - 0.14);
+            const outOff = half + shoulderW;
+            const xli = p.x - dz * inOff, zli = p.z + dx * inOff;
+            const xlo = p.x - dz * outOff, zlo = p.z + dx * outOff;
+            const xri = p.x + dz * inOff, zri = p.z - dx * inOff;
+            const xro = p.x + dz * outOff, zro = p.z - dx * outOff;
+            const el = onGround ? Math.max(-maxCross, Math.min(maxCross, o.ground(xli, zli) - gy[i])) : 0;
+            const er = onGround ? Math.max(-maxCross, Math.min(maxCross, o.ground(xri, zri) - gy[i])) : 0;
+            // Tuck slightly below bridge deck when spanning water so shoulders never float off bridge sides
+            const yDrop = onGround ? 0 : -2.5;
+            const yli = ys[i] + el + 0.014 + yDrop;
+            const ylo = o.ground(xlo, zlo) + 0.032 + yDrop;
+            const yri = ys[i] + er + 0.014 + yDrop;
+            const yro = o.ground(xro, zro) + 0.032 + yDrop;
+            const vCoord = shDist / 7.5;
+            shAcc.pos.push(xli, yli, zli, xlo, ylo, zlo, xri, yri, zri, xro, yro, zro);
+            shAcc.uv.push(0, vCoord, 1, vCoord, 0, vCoord, 1, vCoord);
+          }
+          for (let i = 0; i < line.length - 1; i++) {
+            const onG0 = Math.abs(ys[i] - gy[i] - 0.1) < 0.05;
+            const onG1 = Math.abs(ys[i + 1] - gy[i + 1] - 0.1) < 0.05;
+            if (!onG0 || !onG1) continue;
+            const q = shBase + i * 4;
+            shAcc.idx.push(q, q + 1, q + 4, q + 1, q + 5, q + 4);
+            shAcc.idx.push(q + 2, q + 6, q + 3, q + 3, q + 6, q + 7);
+          }
+          shAcc.v += line.length * 4;
+        }
+      }
     }
-    for (const kind of ['paved', 'dirt', 'drive'] as const) {
+    for (const [kind, mat] of [['paved2', asphalt], ['paved4', asphalt4], ['dirt', dirtMat], ['drive', driveMat]] as const) {
       const a = acc[kind]; if (!a.pos.length) continue;
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(a.pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(a.uv, 2)); g.setIndex(a.idx); g.computeVertexNormals();
-      const m = new THREE.Mesh(g, kind === 'paved' ? asphalt : kind === 'drive' ? driveMat : dirtMat); m.receiveShadow = true; m.name = 'country-' + kind;
+      const m = new THREE.Mesh(g, mat); m.receiveShadow = true; m.name = 'country-' + kind;
       group.add(m); roads.push(m);
+    }
+    if (shAcc.idx.length) {
+      const sg = new THREE.BufferGeometry();
+      sg.setAttribute('position', new THREE.Float32BufferAttribute(shAcc.pos, 3));
+      sg.setAttribute('uv', new THREE.Float32BufferAttribute(shAcc.uv, 2));
+      sg.setIndex(shAcc.idx);
+      sg.computeVertexNormals();
+      const sm = new THREE.Mesh(
+        sg,
+        new THREE.MeshStandardMaterial({
+          map: gravelShoulderTex(),
+          roughness: 0.94,
+          metalness: 0,
+          transparent: true,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          polygonOffset: true,
+          polygonOffsetFactor: -5,
+          polygonOffsetUnits: -10,
+        }),
+      );
+      sm.receiveShadow = true;
+      sm.renderOrder = 1;
+      sm.name = 'country-gravel-shoulders';
+      group.add(sm);
+    }
+    // ---- Clean US road cross-section / intersection aprons (plain asphalt pads over every junction so double-yellow lines never clash in an X!) ----
+    if (pavedRuns.length > 1) {
+      const IC = 32;
+      const segGrid = new Map<number, number[]>();
+      pavedRuns.forEach((run, ri) => {
+        for (let i = 0; i < run.line.length - 1; i++) {
+          const p = run.line[i], q = run.line[i + 1];
+          const gx0 = Math.floor((Math.min(p.x, q.x) - 10) / IC), gx1 = Math.floor((Math.max(p.x, q.x) + 10) / IC);
+          const gz0 = Math.floor((Math.min(p.z, q.z) - 10) / IC), gz1 = Math.floor((Math.max(p.z, q.z) + 10) / IC);
+          for (let gx = gx0; gx <= gx1; gx++) for (let gz = gz0; gz <= gz1; gz++) {
+            const k = gx * 100003 + gz;
+            let list = segGrid.get(k);
+            if (!list) { list = []; segGrid.set(k, list); }
+            list.push(ri, i);
+          }
+        }
+      });
+      const junctions: { x: number; y: number; z: number; r: number }[] = [];
+      const segCross = (ax: number, az: number, bx: number, bz: number, cx: number, cz: number, dx: number, dz: number): [number, number] | null => {
+        const rx = bx - ax, rz = bz - az, sx = dx - cx, sz = dz - cz;
+        const denom = rx * sz - rz * sx;
+        if (Math.abs(denom) < 1e-4) return null;
+        const t = ((cx - ax) * sz - (cz - az) * sx) / denom;
+        const u = ((cx - ax) * rz - (cz - az) * rx) / denom;
+        if (t >= -0.08 && t <= 1.08 && u >= -0.08 && u <= 1.08) return [ax + rx * t, az + rz * t];
+        return null;
+      };
+      for (const list of segGrid.values()) {
+        for (let aIdx = 0; aIdx < list.length; aIdx += 2) {
+          const rA = list[aIdx], iA = list[aIdx + 1];
+          const pA = pavedRuns[rA].line[iA], qA = pavedRuns[rA].line[iA + 1];
+          for (let bIdx = aIdx + 2; bIdx < list.length; bIdx += 2) {
+            const rB = list[bIdx];
+            if (rB === rA) continue;
+            const iB = list[bIdx + 1];
+            const pB = pavedRuns[rB].line[iB], qB = pavedRuns[rB].line[iB + 1];
+            const hit = segCross(pA.x, pA.z, qA.x, qA.z, pB.x, pB.z, qB.x, qB.z);
+            if (!hit) continue;
+            const rad = Math.max(pavedRuns[rA].half, pavedRuns[rB].half) + 2.4;
+            if (junctions.some((j) => Math.hypot(j.x - hit[0], j.z - hit[1]) < rad * 1.4)) continue;
+            const jy = Math.max(o.ground(hit[0], hit[1]) + 0.135, (pavedRuns[rA].ys[iA] + pavedRuns[rB].ys[iB]) * 0.5 + 0.032);
+            junctions.push({ x: hit[0], y: jy, z: hit[1], r: rad });
+          }
+        }
+      }
+      if (junctions.length) {
+        const jPos: number[] = [], jUv: number[] = [], jIdx: number[] = [];
+        const segs = 12;
+        for (const j of junctions) {
+          const base = jPos.length / 3;
+          jPos.push(j.x, j.y, j.z); jUv.push(0.5, 0.5);
+          for (let k = 0; k < segs; k++) {
+            const ang = (k / segs) * Math.PI * 2;
+            const px = j.x + Math.cos(ang) * j.r, pz = j.z + Math.sin(ang) * j.r;
+            // Follow ground elevation softly at apron rim so apron never floats on mild slopes
+            const py = Math.max(j.y - 0.14, Math.min(j.y + 0.14, o.ground(px, pz) + 0.13));
+            jPos.push(px, py, pz);
+            jUv.push(0.5 + Math.cos(ang) * 0.5, 0.5 + Math.sin(ang) * 0.5);
+          }
+          for (let k = 0; k < segs; k++) jIdx.push(base, base + 1 + ((k + 1) % segs), base + 1 + k);
+        }
+        const jg = new THREE.BufferGeometry();
+        jg.setAttribute('position', new THREE.Float32BufferAttribute(jPos, 3));
+        jg.setAttribute('uv', new THREE.Float32BufferAttribute(jUv, 2));
+        jg.setIndex(jIdx);
+        jg.computeVertexNormals();
+        const jm = new THREE.Mesh(jg, plainAsphalt);
+        jm.receiveShadow = true;
+        jm.name = 'country-intersections';
+        group.add(jm);
+        roads.push(jm);
+      }
     }
     // bridges wherever a road crosses water: concrete fascia and parapets along both edges, a soffit under the deck and piers down to the bed every 22 m
     if (bridgeRuns.length) {

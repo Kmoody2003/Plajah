@@ -6,14 +6,14 @@
   <title>Plajah Motorsport: Apex · Pre-alpha</title>
   <link rel="icon" type="image/svg+xml" href="/games/apex/brand/apex-mark.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <style>
     /* Plajah design tokens (styles/plajah-ds.css): brand is theme-invariant */
     :root {
       --pj-purple:#6B0099; --pj-magenta:#D40055; --pj-orange:#FF8C00; --pj-cyan:#00DAF3; --pj-lilac:#D0BCFF;
       --pj-glass:rgba(26,0,38,.62); --pj-hair:rgba(255,255,255,.10);
       --font-display:'Outfit','Space Grotesk',sans-serif; --font-body:'Inter','Manrope',sans-serif; --font-mono:'JetBrains Mono',monospace;
-      --bg:#1a0026; --panel:var(--pj-glass); --border:var(--pj-hair); --accent:var(--pj-orange);
+      --bg:#0d0418; --panel:var(--pj-glass); --border:var(--pj-hair); --accent:var(--pj-orange);
     }
     * { box-sizing:border-box; }
     html, body { margin:0; height:100%; background:var(--bg); overflow:hidden; font-family:var(--font-body); color:#fff; }
@@ -36,14 +36,200 @@
     select option, select optgroup { background:#1b0830; color:#eadcff; }
     select { background:rgba(255,255,255,.08); color:#fff; border:1px solid var(--border); border-radius:999px; padding:3px 8px; font:600 11px var(--font-display); }
     input[type=range] { flex:1; }
-    #hud { position:fixed; right:14px; bottom:14px; padding:10px 14px; background:var(--panel); border:1px solid var(--border); border-radius:16px; backdrop-filter:blur(12px); font:500 11px var(--font-mono); line-height:1.6; min-width:200px; }
-    #msg { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); font:600 15px var(--font-display); letter-spacing:.2em; opacity:.9; }
+    #hud { position:fixed; right:14px; bottom:14px; padding:10px 14px; background:var(--panel); border:1px solid var(--border); border-radius:16px; backdrop-filter:blur(12px); font:500 11px var(--font-mono); line-height:1.6; min-width:200px; visibility:hidden; }
+    #msg { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); font:600 15px var(--font-display); letter-spacing:.2em; opacity:.9; display:none; }
+
+    /* Full-page Plajah Motorsport: Apex boot splash screen (renders at t=0 before JS, hides unfinished map/menu pop-in) */
+    #bootSplash {
+      position:fixed; inset:0; z-index:9990;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      background:#090312;
+      overflow:hidden;
+      transition:opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1);
+    }
+    #bootSplash.boot-done {
+      opacity:0; transform:scale(1.035); pointer-events:none;
+    }
+    #bootSplash .bs-still {
+      position:absolute; inset:-4%; pointer-events:none;
+      background:url('/games/apex/brand/boot-still.jpg') center 56% / cover no-repeat;
+      opacity:.46;
+      filter:saturate(1.16) contrast(1.06) brightness(.82);
+      transform:scale(1.04);
+      animation:bsKenBurns 18s ease-out infinite alternate;
+    }
+    #bootSplash .bs-vignette {
+      position:absolute; inset:0; pointer-events:none;
+      background:
+        radial-gradient(ellipse 76% 62% at 50% 48%, rgba(22,4,36,.34) 0%, rgba(16,3,28,.78) 62%, rgba(7,2,14,.96) 100%),
+        linear-gradient(125deg, rgba(107,0,153,.42) 0%, rgba(212,0,85,.18) 38%, rgba(255,140,0,.16) 72%, rgba(0,218,243,.20) 100%),
+        linear-gradient(180deg, rgba(10,2,20,.72) 0%, rgba(10,2,20,.10) 28%, rgba(10,2,20,.22) 72%, rgba(8,2,16,.88) 100%);
+    }
+    #bootSplash .bs-grid {
+      position:absolute; inset:0; pointer-events:none; opacity:.14;
+      background-image:
+        linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+      background-size:64px 64px;
+      mask-image:radial-gradient(ellipse 70% 60% at 50% 50%, #000 10%, transparent 80%);
+      -webkit-mask-image:radial-gradient(ellipse 70% 60% at 50% 50%, #000 10%, transparent 80%);
+    }
+    #bootSplash .bs-glow-a, #bootSplash .bs-glow-b {
+      position:absolute; border-radius:50%; filter:blur(90px); pointer-events:none;
+    }
+    #bootSplash .bs-glow-a {
+      width:520px; height:520px; left:calc(50% - 340px); top:calc(50% - 290px);
+      background:radial-gradient(circle, rgba(255,140,0,.22), transparent 68%);
+      animation:bsPulseA 5s ease-in-out infinite alternate;
+    }
+    #bootSplash .bs-glow-b {
+      width:480px; height:480px; left:calc(50% - 100px); top:calc(50% - 160px);
+      background:radial-gradient(circle, rgba(0,218,243,.18), transparent 68%);
+      animation:bsPulseB 5.6s ease-in-out infinite alternate;
+    }
+    #bootSplash .bs-streaks {
+      position:absolute; inset:0; pointer-events:none; overflow:hidden; opacity:.45;
+    }
+    #bootSplash .bs-streak {
+      position:absolute; height:2px; width:42vw; border-radius:99px;
+      background:linear-gradient(90deg, transparent, rgba(255,140,0,.7), rgba(0,218,243,.9), transparent);
+      transform:rotate(-8deg);
+      animation:bsStreak 2.8s cubic-bezier(.4,0,.2,1) infinite;
+    }
+    #bootSplash .bs-streak:nth-child(1) { top:24%; left:-45vw; animation-delay:0s; }
+    #bootSplash .bs-streak:nth-child(2) { top:74%; left:-45vw; animation-delay:1.1s; width:34vw; }
+    #bootSplash .bs-streak:nth-child(3) { top:54%; left:-45vw; animation-delay:1.95s; width:28vw; opacity:.6; }
+
+    #bootSplash .bs-center {
+      position:relative; z-index:2; display:flex; flex-direction:column; align-items:center;
+      text-align:center; padding:0 24px; max-width:680px; width:100%;
+    }
+    #bootSplash .bs-logo-wrap {
+      position:relative; width:min(540px, 84vw); margin-bottom:26px;
+      display:flex; align-items:center; justify-content:center;
+    }
+    #bootSplash .bs-logo {
+      display:block; width:100%; height:auto;
+      filter:drop-shadow(0 12px 38px rgba(0,0,0,.72)) drop-shadow(0 0 28px rgba(255,140,0,.22));
+      animation:bsFloat 3.4s ease-in-out infinite alternate;
+    }
+    #bootSplash .bs-spinner-row {
+      display:flex; align-items:center; gap:12px; margin-bottom:16px;
+    }
+    #bootSplash .bs-ring-mini {
+      width:24px; height:24px; flex:0 0 24px;
+      animation:bsSpinFast 1.25s cubic-bezier(.55,.15,.45,.85) infinite;
+    }
+    #bootSplash .bs-sub {
+      margin:0; font:600 11px var(--font-mono); letter-spacing:.26em;
+      text-transform:uppercase; color:rgba(208,188,255,.78);
+    }
+    #bootSplash .bs-bar-wrap {
+      width:min(440px, 84vw);
+    }
+    #bootSplash .bs-bar-track {
+      position:relative; height:6px; border-radius:99px; overflow:hidden;
+      background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.08);
+      box-shadow:inset 0 1px 4px rgba(0,0,0,.6);
+    }
+    #bootSplash .bs-bar-fill {
+      position:relative; height:100%; width:6%; border-radius:99px;
+      background:linear-gradient(90deg, var(--pj-magenta), var(--pj-orange), var(--pj-cyan));
+      box-shadow:0 0 16px rgba(255,140,0,.55);
+      transition:width .42s cubic-bezier(.22,1,.36,1);
+    }
+    #bootSplash .bs-bar-fill::after {
+      content:''; position:absolute; inset:0;
+      background:linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+      transform:translateX(-100%);
+      animation:bsShimmer 1.35s ease-in-out infinite;
+    }
+    #bootSplash .bs-meta {
+      display:flex; justify-content:space-between; align-items:center; gap:12px;
+      margin-top:11px; font:600 11px var(--font-mono); letter-spacing:.12em;
+      text-transform:uppercase; color:rgba(255,255,255,.72);
+    }
+    #bootSplash .bs-pct {
+      color:var(--pj-orange); font-weight:700; min-width:38px; text-align:right;
+    }
+    #bootSplash .bs-dots {
+      display:inline-flex; gap:5px; margin-top:26px; opacity:.7;
+    }
+    #bootSplash .bs-dots span {
+      width:5px; height:5px; border-radius:50%; background:var(--pj-cyan);
+      animation:bsDot 1.2s ease-in-out infinite;
+    }
+    #bootSplash .bs-dots span:nth-child(2) { animation-delay:.18s; background:var(--pj-orange); }
+    #bootSplash .bs-dots span:nth-child(3) { animation-delay:.36s; background:var(--pj-magenta); }
+    #bootAudioBtn {
+      margin-top:20px; padding:7px 16px; border-radius:999px;
+      border:1px solid rgba(255,140,0,.42); background:rgba(26,0,38,.58);
+      color:rgba(255,255,255,.88); font:600 11px var(--font-mono); letter-spacing:.14em;
+      text-transform:uppercase; cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+      transition:border-color .25s, background .25s, opacity .3s;
+    }
+    #bootAudioBtn:hover { border-color:var(--pj-cyan); background:rgba(0,218,243,.14); }
+    #bootAudioBtn.is-playing { border-color:rgba(0,218,243,.45); color:var(--pj-cyan); }
+    #bootAudioBtn .bs-eq { display:inline-flex; align-items:flex-end; gap:2px; height:10px; }
+    #bootAudioBtn .bs-eq i { display:block; width:2px; height:3px; background:currentColor; border-radius:2px; }
+    #bootAudioBtn.is-playing .bs-eq i { animation:bsEq .85s ease-in-out infinite alternate; }
+    #bootAudioBtn.is-playing .bs-eq i:nth-child(2) { animation-delay:.2s; }
+    #bootAudioBtn.is-playing .bs-eq i:nth-child(3) { animation-delay:.4s; }
+
+    @keyframes bsEq { from { height:2px; } to { height:10px; } }
+
+    @keyframes bsKenBurns { from { transform:scale(1.03) translate3d(0,0,0); } to { transform:scale(1.11) translate3d(-1.2%, -1%, 0); } }
+    @keyframes bsSpinSlow { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+    @keyframes bsSpinFast { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+    @keyframes bsFloat { from { transform:translateY(0px); } to { transform:translateY(-5px); } }
+    @keyframes bsPulseA { from { opacity:.6; transform:scale(.94); } to { opacity:1; transform:scale(1.08); } }
+    @keyframes bsPulseB { from { opacity:.5; transform:scale(1.05); } to { opacity:.95; transform:scale(.92); } }
+    @keyframes bsStreak { 0% { transform:translateX(0) rotate(-8deg); opacity:0; } 20% { opacity:1; } 80% { opacity:1; } 100% { transform:translateX(155vw) rotate(-8deg); opacity:0; } }
+    @keyframes bsShimmer { 0% { transform:translateX(-100%); } 100% { transform:translateX(220%); } }
+    @keyframes bsDot { 0%, 80%, 100% { transform:scale(.65); opacity:.35; } 40% { transform:scale(1.25); opacity:1; } }
   </style>
-  <script type="module" crossorigin src="/games/apex/play/assets/region-_oAi4kpc.js"></script>
-  <link rel="modulepreload" crossorigin href="/games/apex/play/assets/ao-2HJjrSVc.js">
-  <link rel="stylesheet" crossorigin href="/games/apex/play/assets/region-CD3hialW.css">
+  <script type="module" crossorigin src="/games/apex/play/assets/region-D_5c23O7.js"></script>
+  <link rel="modulepreload" crossorigin href="/games/apex/play/assets/ao-DEdob2P2.js">
+  <link rel="modulepreload" crossorigin href="/games/apex/play/assets/apexWebGpuAdapter-Cr76CFOP.js">
+  <link rel="stylesheet" crossorigin href="/games/apex/play/assets/region-Q_O_uD2I.css">
 </head>
 <body>
+  <div id="bootSplash" role="status" aria-live="polite" aria-label="Loading Plajah Motorsport: Apex">
+    <div class="bs-still"></div>
+    <div class="bs-vignette"></div>
+    <div class="bs-grid"></div>
+    <div class="bs-glow-a"></div>
+    <div class="bs-glow-b"></div>
+    <div class="bs-streaks"><div class="bs-streak"></div><div class="bs-streak"></div><div class="bs-streak"></div></div>
+    <div class="bs-center">
+      <div class="bs-logo-wrap">
+        <img class="bs-logo" src="/games/apex/brand/apex-logo.svg" alt="Plajah Motorsport: Apex" />
+      </div>
+      <div class="bs-spinner-row">
+        <svg class="bs-ring-mini" viewBox="0 0 40 40" aria-hidden="true">
+          <defs>
+            <linearGradient id="bsArcGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#FF8C00" />
+              <stop offset="55%" stop-color="#D40055" />
+              <stop offset="100%" stop-color="#00DAF3" />
+            </linearGradient>
+          </defs>
+          <circle cx="20" cy="20" r="16" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="3" />
+          <circle cx="20" cy="20" r="16" fill="none" stroke="url(#bsArcGrad)" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="48 60" />
+        </svg>
+        <div class="bs-sub">IRONPORT REGION &middot; GREAT LAKES COAST &middot; 150 KM&sup2;</div>
+      </div>
+      <div class="bs-bar-wrap">
+        <div class="bs-bar-track"><div id="bootBarFill" class="bs-bar-fill"></div></div>
+        <div class="bs-meta">
+          <span id="bootStage">INITIALIZING IRONPORT REGION</span>
+          <span id="bootPct" class="bs-pct">6%</span>
+        </div>
+      </div>
+      <div class="bs-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+      <button id="bootAudioBtn" type="button"><span class="bs-eq" aria-hidden="true"><i></i><i></i><i></i></span><span id="bootAudioLabel">STARTING SOUNDTRACK…</span></button>
+    </div>
+  </div>
   <div id="view"></div>
   <div id="panel">
     <div class="sh-head"><span class="sh-title">Settings</span><button id="shClose" class="sh-x" aria-label="Close settings">&times;</button></div>
@@ -60,7 +246,10 @@
     <label class="sh-row"><span>Braking assist</span><input type="checkbox" id="tBrkAssist" checked /></label>
     <label class="sh-row"><span>Steering assist</span><input type="checkbox" id="tStrAssist" checked /></label>
     <div class="sh-group">Graphics</div>
-    <label class="sh-row"><span>Time of day</span><select id="tod"><option value="golden">Golden hour</option><option value="clear">Clear day</option><option value="sunset">Sunset</option><option value="dusk">Dusk</option><option value="night">Night</option><option value="sunrise">Sunrise</option></select></label>
+    <label class="sh-row"><span>Render engine <b id="rendererBadge" style="font-family:var(--font-mono);color:#00DAF3;margin-left:4px">WebGPU</b></span><select id="rendererSel"><option value="webgpu">WebGPU + Playkit SSR</option><option value="webgl">WebGL2 (Legacy)</option></select></label>
+    <label class="sh-row"><span>Time of day</span><select id="tod"><option value="dynamic">Dynamic 24h cycle</option><option value="realtime">Match local time (real clock)</option><option value="golden" selected>Golden hour</option><option value="clear">Clear day</option><option value="sunset">Sunset</option><option value="dusk">Dusk</option><option value="night">Night</option><option value="sunrise">Sunrise</option></select></label>
+    <label class="sh-row"><span>Solar clock <b id="todClock" style="font-family:var(--font-mono);color:#ffd166;margin-left:6px">17:30</b></span><input type="range" id="todHour" min="0" max="24" step="0.1" value="17.5" /></label>
+    <label class="sh-row"><span>Depth of field (cinematic)</span><input type="checkbox" id="tDof" checked /></label>
     <label class="sh-row"><span>GPU preference</span><select id="gpuPreference" title="Requests a GPU after reload. The browser and OS choose the adapter; Performance shows the GPU actually in use."><option value="default">System default</option><option value="low-power">Power-saving GPU</option><option value="high-performance">High-performance GPU</option></select></label>
     <label class="sh-row"><span>Shadows</span><select id="shadowSel"><option value="basic">Basic (default)</option><option value="cascaded">Cascaded (sharp near + far)</option></select></label>
     <label class="sh-row"><span>Playkit GI &amp; local lights</span><input type="checkbox" id="tPkGi" checked /></label>

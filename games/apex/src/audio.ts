@@ -6,6 +6,16 @@ import { ChoraRadioManager, type RadioPreset } from './choraRadio';
 import { InCarEngineSynth } from './inCarEngineAudio';
 
 export type StationInfo = RadioPreset;
+export type SirenMode = 'wail' | 'yelp' | 'phaser';
+
+export interface NearbyVehicleAudioSample {
+  distanceM: number;
+  approachMps: number;
+  rpm: number;
+  pitchBaseHz: number;
+  isEv?: boolean;
+  isPoliceSiren?: boolean;
+}
 
 export class GameAudio {
   private ctx: AudioContext | null = null;
@@ -22,6 +32,21 @@ export class GameAudio {
   private gravelGain: GainNode | null = null;
   private brakeGain: GainNode | null = null;
   private musicGain: GainNode | null = null;
+  // Player & AI Police Siren + Air Horn synthesizer
+  private sirenOscA: OscillatorNode | null = null;
+  private sirenOscB: OscillatorNode | null = null;
+  private sirenGain: GainNode | null = null;
+  private aiSirenOsc: OscillatorNode | null = null;
+  private aiSirenGain: GainNode | null = null;
+  private sirenOn = false;
+  private sirenMode: SirenMode = 'wail';
+  private sirenPhase = 0;
+  private aiSirenPhase = 0;
+  // Nearby AI rival / traffic Doppler engine bed (closest vehicle within 75 m)
+  private rivalOscA: OscillatorNode | null = null;
+  private rivalOscB: OscillatorNode | null = null;
+  private rivalFilter: BiquadFilterNode | null = null;
+  private rivalGain: GainNode | null = null;
   private noiseBuffer: AudioBuffer | null = null;
   private lastThumpAt = 0;
   private lastBackfireAt = 0;
@@ -215,7 +240,153 @@ export class GameAudio {
     musicGain.connect(master);
     this.musicGain = musicGain;
 
+    // Authentic Police Grille-Speaker Emergency Siren Bus (WAIL / YELP / PHASER, cleanly toggleable ON/OFF)
+    const sirenShaper = ctx.createWaveShaper();
+    const sCurve = new Float32Array(128);
+    for (let i = 0; i < 128; i++) {
+      const x = (i * 2) / 127 - 1;
+      sCurve[i] = Math.tanh(x * 1.9);
+    }
+    sirenShaper.curve = sCurve;
+    const sirenBand = ctx.createBiquadFilter();
+    sirenBand.type = 'bandpass';
+    sirenBand.frequency.value = 1180;
+    sirenBand.Q.value = 1.15;
+    const sirenGain = ctx.createGain();
+    sirenGain.gain.value = 0;
+    const sirenOscA = ctx.createOscillator();
+    sirenOscA.type = 'sawtooth';
+    sirenOscA.frequency.value = 720;
+    const sirenOscB = ctx.createOscillator();
+    sirenOscB.type = 'triangle';
+    sirenOscB.frequency.value = 1440;
+    const sirenMixB = ctx.createGain();
+    sirenMixB.gain.value = 0.38;
+    sirenOscA.connect(sirenShaper);
+    sirenOscB.connect(sirenMixB).connect(sirenShaper);
+    sirenShaper.connect(sirenBand).connect(sirenGain).connect(master);
+    sirenOscA.start();
+    sirenOscB.start();
+    this.sirenOscA = sirenOscA;
+    this.sirenOscB = sirenOscB;
+    this.sirenGain = sirenGain;
+
+    // Distant AI Police Cruiser Doppler Siren Bus (for pursuing AI cops in Robber/Cop mode)
+    const aiSirenBand = ctx.createBiquadFilter();
+    aiSirenBand.type = 'bandpass';
+    aiSirenBand.frequency.value = 1050;
+    aiSirenBand.Q.value = 1.4;
+    const aiSirenGain = ctx.createGain();
+    aiSirenGain.gain.value = 0;
+    const aiSirenOsc = ctx.createOscillator();
+    aiSirenOsc.type = 'sawtooth';
+    aiSirenOsc.frequency.value = 760;
+    aiSirenOsc.connect(aiSirenBand).connect(aiSirenGain).connect(master);
+    aiSirenOsc.start();
+    this.aiSirenOsc = aiSirenOsc;
+    this.aiSirenGain = aiSirenGain;
+
+    // Nearby AI Racer / Pursuit / Heavy Traffic Doppler Engine Bed
+    const rivalOscA = ctx.createOscillator();
+    rivalOscA.type = 'sawtooth';
+    rivalOscA.frequency.value = 90;
+    const rivalOscB = ctx.createOscillator();
+    rivalOscB.type = 'triangle';
+    rivalOscB.frequency.value = 180;
+    const rivalFilter = ctx.createBiquadFilter();
+    rivalFilter.type = 'lowpass';
+    rivalFilter.frequency.value = 620;
+    rivalFilter.Q.value = 1.8;
+    const rivalGain = ctx.createGain();
+    rivalGain.gain.value = 0;
+    rivalOscA.connect(rivalFilter);
+    rivalOscB.connect(rivalFilter);
+    rivalFilter.connect(rivalGain).connect(master);
+    rivalOscA.start();
+    rivalOscB.start();
+    this.rivalOscA = rivalOscA;
+    this.rivalOscB = rivalOscB;
+    this.rivalFilter = rivalFilter;
+    this.rivalGain = rivalGain;
+
     this.nextStepTime = ctx.currentTime + 0.05;
+  }
+
+  get isSirenOn(): boolean { return this.sirenOn; }
+  get currentSirenMode(): SirenMode { return this.sirenMode; }
+
+  setSirenEnabled(on: boolean): boolean {
+    this.sirenOn = on;
+    if (!on && this.sirenGain && this.ctx) {
+      this.sirenGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.045);
+    }
+    return this.sirenOn;
+  }
+
+  toggleSiren(): boolean {
+    this.ensureStarted();
+    return this.setSirenEnabled(!this.sirenOn);
+  }
+
+  cycleSirenMode(): SirenMode {
+    const order: SirenMode[] = ['wail', 'yelp', 'phaser'];
+    this.sirenMode = order[(order.indexOf(this.sirenMode) + 1) % order.length];
+    return this.sirenMode;
+  }
+
+  /** Dual-tone low brass police cruiser air horn burst ("HONK!") */
+  triggerAirHorn(durationSec = 0.42): void {
+    this.ensureStarted();
+    if (!this.ctx || !this.master || this.muted || this.paused) return;
+    const now = this.ctx.currentTime;
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 620;
+    bp.Q.value = 0.9;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.001, now);
+    g.gain.linearRampToValueAtTime(0.24, now + 0.025);
+    g.gain.setValueAtTime(0.22, now + Math.max(0.08, durationSec - 0.06));
+    g.gain.exponentialRampToValueAtTime(0.001, now + durationSec);
+    bp.connect(g).connect(this.master);
+    for (const hz of [392, 493.88]) {
+      const o = this.ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(hz, now);
+      o.connect(bp);
+      o.start(now);
+      o.stop(now + durationSec + 0.03);
+    }
+  }
+
+  /** Update nearby closest rival / pursuit cruiser engine & distant Doppler siren */
+  updateNearbyVehicles(closest: NearbyVehicleAudioSample | null, closestAiCop: { distanceM: number; approachMps: number } | null, dt = 0.016): void {
+    if (!this.ctx || !this.rivalGain || !this.rivalOscA || !this.rivalOscB || !this.rivalFilter) return;
+    const now = this.ctx.currentTime;
+    if (closest && closest.distanceM < 78) {
+      const att = Math.max(0, 1 - closest.distanceM / 78);
+      const doppler = Math.max(0.76, Math.min(1.28, 340 / Math.max(240, 340 - closest.approachMps)));
+      const hz = Math.max(38, (closest.pitchBaseHz + (closest.rpm / 60) * (closest.isEv ? 4.2 : 1.35)) * doppler);
+      this.rivalOscA.frequency.setTargetAtTime(hz, now, 0.035);
+      this.rivalOscB.frequency.setTargetAtTime(hz * (closest.isEv ? 1.5 : 2.02), now, 0.035);
+      this.rivalFilter.frequency.setTargetAtTime(closest.isEv ? 2200 : 320 + att * 1150, now, 0.04);
+      this.rivalGain.gain.setTargetAtTime(att * att * (closest.isEv ? 0.07 : 0.13), now, 0.05);
+    } else {
+      this.rivalGain.gain.setTargetAtTime(0, now, 0.08);
+    }
+
+    if (this.aiSirenOsc && this.aiSirenGain) {
+      if (closestAiCop && closestAiCop.distanceM < 135) {
+        this.aiSirenPhase = (this.aiSirenPhase + dt * 0.28) % 1;
+        const sweep = 0.5 - 0.5 * Math.cos(this.aiSirenPhase * Math.PI * 2);
+        const doppler = Math.max(0.78, Math.min(1.25, 340 / Math.max(240, 340 - closestAiCop.approachMps)));
+        const att = Math.max(0, 1 - closestAiCop.distanceM / 135);
+        this.aiSirenOsc.frequency.setTargetAtTime((650 + sweep * 820) * doppler, now, 0.03);
+        this.aiSirenGain.gain.setTargetAtTime(att * att * 0.11, now, 0.06);
+      } else {
+        this.aiSirenGain.gain.setTargetAtTime(0, now, 0.08);
+      }
+    }
   }
 
   /** hosts that bring their own music (the region game) turn the built-in groove off */
@@ -287,8 +458,12 @@ export class GameAudio {
           ? 'hypercar_tt_v8'
           : 'sports_car_gt'));
 
-    // Primary in-car RPM-locked physical-modeling engine (zero drive-by Doppler / rev-up loops!)
-    if (this.inCarEngine && bankId && !isEv) {
+    // Primary in-car RPM-locked physical-modeling + real video-clip hybrid engine (all 81 cars + multi-harmonic EVs!)
+    if (this.inCarEngine && isEv) {
+      this.inCarEngine.updateEv(state, spec, throttle);
+      this.engGain.gain.setTargetAtTime(0.0001, now, 0.03);
+      this.forcedGain?.gain.setTargetAtTime(0, now, 0.03);
+    } else if (this.inCarEngine && bankId && !isEv) {
       this.inCarEngine.update(state, spec, throttle, bankId, dt);
       // Mute legacy raw sawtooth fallback & legacy forcedOsc (handled inside InCarEngineSynth)
       this.engGain.gain.setTargetAtTime(0.0001, now, 0.03);
@@ -296,14 +471,26 @@ export class GameAudio {
     } else {
       this.inCarEngine?.setMuted(true);
       this.engFilter.frequency.setTargetAtTime(220 + rpmFrac * 1850 + throttle * 480, now, 0.035);
-      this.engGain.gain.setTargetAtTime(isEv ? 0.012 : 0.0001, now, 0.035);
-      // EV inverter whine
-      if (this.forcedOsc && this.forcedGain && isEv) {
-        const speedFrac = Math.min(1, state.speedMps / spec.topSpeedMps);
-        this.forcedOsc.frequency.setTargetAtTime(280 + speedFrac * 2100, now, 0.03);
-        this.forcedGain.gain.setTargetAtTime(0.02 + (throttle * 0.045 + (state.isBraking ? 0.03 : 0)) * (0.2 + speedFrac), now, 0.04);
+      this.engGain.gain.setTargetAtTime(0.0001, now, 0.035);
+      this.forcedGain?.gain.setTargetAtTime(0, now, 0.04);
+    }
+
+    // Active Player Police Siren Oscillator Sweep (WAIL / YELP / PHASER)
+    if (this.sirenOscA && this.sirenOscB && this.sirenGain) {
+      if (this.sirenOn && !this.paused && !this.muted) {
+        const rate = this.sirenMode === 'wail' ? 0.24 : this.sirenMode === 'yelp' ? 2.85 : 8.2;
+        this.sirenPhase = (this.sirenPhase + dt * rate) % 1;
+        const sweep = this.sirenMode === 'phaser'
+          ? (this.sirenPhase < 0.5 ? this.sirenPhase * 2 : (1 - this.sirenPhase) * 2)
+          : (0.5 - 0.5 * Math.cos(this.sirenPhase * Math.PI * 2));
+        const loHz = this.sirenMode === 'wail' ? 630 : this.sirenMode === 'yelp' ? 670 : 710;
+        const hiHz = this.sirenMode === 'wail' ? 1480 : this.sirenMode === 'yelp' ? 1560 : 1620;
+        const hz = loHz + (hiHz - loHz) * sweep;
+        this.sirenOscA.frequency.setTargetAtTime(hz, now, 0.015);
+        this.sirenOscB.frequency.setTargetAtTime(hz * 2.0, now, 0.015);
+        this.sirenGain.gain.setTargetAtTime(0.145, now, 0.035);
       } else {
-        this.forcedGain?.gain.setTargetAtTime(0, now, 0.04);
+        this.sirenGain.gain.setTargetAtTime(0, now, 0.045);
       }
     }
 

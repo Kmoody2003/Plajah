@@ -4,7 +4,7 @@
  */
 
 import * as THREE from 'three';
-import { sharedPbrTex } from './library/kit';
+import { buildRuralArchPbrMaterial } from './library/kit';
 
 const TEX_BASE = '/games/apex/tex/';
 const loader = new THREE.TextureLoader();
@@ -16,13 +16,15 @@ function loadPbr(
   metalness = 0.04,
   roughness = 0.85
 ): THREE.MeshStandardMaterial {
-  // Use fast GPU-friendly shared v3 JPG triplets for all tex-shared-* sets (cuts ~200 MB RAM/VRAM vs 2K PNGs)
+  // Use 2K Neural PBR world-triplanar TSL on WebGPU (zero async clone crash + zero stretched UVs!) & safe cloned PBR on WebGL2
   if (stem.startsWith('tex-shared-')) {
-    const map = sharedPbrTex(stem, 'base').clone();
-    const normalMap = sharedPbrTex(stem, 'nrm').clone();
-    const roughnessMap = sharedPbrTex(stem, 'rgh').clone();
-    for (const t of [map, normalMap, roughnessMap]) { t.repeat.set(repX, repY); }
-    return new THREE.MeshStandardMaterial({ map, normalMap, normalScale: new THREE.Vector2(1.25, 1.25), roughnessMap, metalness, roughness });
+    return buildRuralArchPbrMaterial(stem, {
+      tileMeters: Math.max(2.6, 8.0 / Math.max(repX, 1)),
+      repX,
+      repY,
+      metalness,
+      roughness,
+    });
   }
   const baseFile = stem.startsWith('ground_') ? `${stem}.png` : `${stem}_base.png`;
   const map = loader.load(`${TEX_BASE}${baseFile}`);
@@ -67,8 +69,7 @@ export function buildCityExpansion(opts: CityExpansionOptions): THREE.Group {
   const orangeBrickMat = loadPbr('tex-shared-03-orange-brick', 3, 2, 0.02, 0.88);
   const concreteBoardMat = loadPbr('tex-shared-15-concrete-boardformed', 2, 2, 0.03, 0.88);
 
-  // Coastline & Cross-River City
-  const paverBrickMat = loadPbr('ground_paver_brick', 6, 3, 0.02, 0.86);
+  // Cross-River City
   const glassBlueMat = loadPbr('tex-shared-07-glass-curtain-blue', 3, 5, 0.72, 0.18);
   const glassCeruleanMat = loadPbr('tex-shared-08-glass-curtain-cerulean', 3, 5, 0.72, 0.18);
   const glassBronzeMat = loadPbr('tex-shared-09-glass-curtain-bronze', 3, 5, 0.75, 0.20);
@@ -280,56 +281,14 @@ export function buildCityExpansion(opts: CityExpansionOptions): THREE.Group {
   }
   root.add(industrialGroup);
 
-  // ── 3. COASTLINE & CROSS-RIVER CITY DISTRICT (Batched into InstancedMeshes!) ──
+  // ── 3. CROSS-RIVER CITY SKYLINE DISTRICT (Coastline & Riverfront Seawalls/Piers now built to exact contours in coastalWorld.ts & riverfrontWorld.ts) ──
   const coastCityGroup = new THREE.Group();
-  coastCityGroup.name = 'CoastlineAndCrossRiverCity';
+  coastCityGroup.name = 'CrossRiverCity';
 
-  const coastSeawalls: THREE.Matrix4[] = [];
-  const coastRiverWalls: THREE.Matrix4[] = [];
-  const coastPaverBoxes: THREE.Matrix4[] = [];
-  const coastPierDecks: THREE.Matrix4[] = [];
-  const coastPierPilings: THREE.Matrix4[] = [];
   const riverLimestone: THREE.Matrix4[] = [];
   const riverGlassBatches: [THREE.Matrix4[], THREE.Matrix4[], THREE.Matrix4[]] = [[], [], []];
 
-  // 3A. Lake Michigan Coastline Seawalls, Boardwalks & Piers (x: -7650..-6950, z: -3300..1500)
-  const pierLocations: [number, number, number, number][] = [
-    [-7020, 980, 48, 12],   // Harborfest Waterfront main pier
-    [-7060, 1160, 38, 10],  // Harborfest South pier
-    [-7560, -1180, 42, 10], // Lakeshore Bluffs Mid pier
-    [-7320, -3250, 36, 9],  // Lighthouse Point pier
-  ];
-
-  for (const [px, pz, len, wid] of pierLocations) {
-    const py = Math.max(opts.ground(px, pz), 1.4);
-    lotM.makeTranslation(px, py, pz);
-
-    pushPart(coastSeawalls, len * 0.5 - 2, -1.0, 0, 0, 0, 0, 3.2, 3.6, wid + 22);
-    pushPart(coastPaverBoxes, len * 0.5 + 6, 0.25, 0, 0, 0, 0, 14, 0.45, wid + 24);
-    pushPart(coastPierDecks, 0, 0.65, 0, 0, 0, 0, len, 0.55, wid);
-
-    for (let x = -len * 0.45; x <= len * 0.45; x += 8) {
-      for (const zOff of [-wid * 0.42, wid * 0.42]) {
-        pushPart(coastPierPilings, x, -1.6, zOff, 0, 0, 0, 1, 1, 1);
-      }
-    }
-  }
-
-  // 3B. Ironport Riverfront Seawalls & Brick-Paver Riverwalk (North & South banks at x: 6150..7750)
-  for (let rx = 6200; rx <= 7680; rx += 160) {
-    // River center around x=6400..7600 is z ≈ 120..180
-    for (const side of [-1, 1]) {
-      const rz = 155 + side * 68;
-      if (!opts.clearCheck(rx, rz)) continue;
-      const ry = Math.max(opts.ground(rx, rz), 1.2);
-      lotM.makeTranslation(rx, ry, rz);
-
-      pushPart(coastRiverWalls, 0, -1.0, -side * 4.5, 0, 0, 0, 148, 3.2, 2.8);
-      pushPart(coastPaverBoxes, 0, 0.2, 0, 0, 0, 0, 148, 0.35, 9);
-    }
-  }
-
-  // 3C. Cross-River City Mid-Rise & High-Rise Towers (North bank z: -1800..-240, South bank z: 280..1180)
+  // Cross-River City Mid-Rise & High-Rise Towers (North bank z: -1800..-240, South bank z: 280..1180)
   const randCity = makeRng(9055);
   const glassMats = [glassBlueMat, glassCeruleanMat, glassBronzeMat];
 
@@ -373,11 +332,6 @@ export function buildCityExpansion(opts: CityExpansionOptions): THREE.Group {
     pushPart(riverLimestone, 0, th + crownH + 1.6, 0, 0, 0, 0, tw * 0.36, 3.2, td * 0.36);
   }
 
-  emitBatch(coastCityGroup, unitBox, coastSeawalls, concreteBoardMat, true, true);
-  emitBatch(coastCityGroup, unitBox, coastRiverWalls, concreteBoardMat, false, true);
-  emitBatch(coastCityGroup, unitBox, coastPaverBoxes, paverBrickMat, false, true);
-  emitBatch(coastCityGroup, unitBox, coastPierDecks, timberSidingMat, true, true);
-  emitBatch(coastCityGroup, new THREE.CylinderGeometry(0.32, 0.36, 5.2, 10), coastPierPilings, timberSidingMat, false, false);
   emitBatch(coastCityGroup, unitBox, riverLimestone, limestoneMat, true, true);
   for (let g = 0; g < glassMats.length; g++) {
     emitBatch(coastCityGroup, unitBox, riverGlassBatches[g], glassMats[g], true, true);

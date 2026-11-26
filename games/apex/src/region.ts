@@ -1,6 +1,26 @@
 // Region terrain viewer: height field + satellite albedo + circuits, for design review.
 import * as THREE from 'three';
+import * as THREE_GPU from 'three/webgpu';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { createPlaykitPostPipeline, type PlaykitPostHandle, type PlaykitLutPreset } from '../../../playkit/render/unifiedPost';
+import { PlaykitSceneLightingController } from '../../../playkit/render/liveLighting';
+import {
+  createApexFacadeTslMaterial,
+  createApexGlassTslMaterial,
+  createApexUsRoadTslMaterial,
+  sanitizeGeometryForWebGPU,
+  sanitizeObjectForWebGPU,
+} from './tsl/apexMaterialsTsl';
+import {
+  createApexCirrusTslMaterial,
+  createApexIronportTerrainTslMaterial,
+  createApexTreeCardLodTslMaterial,
+  type ApexIronportTerrainTslHandle,
+} from './tsl/worldTsl';
+import { createApexPostStage, type ApexPostStageHandle } from './tsl/apexPostTsl';
+import { upgradeCarRigToWebGPU } from './tsl/apexWebGpuAdapter';
+import { initRegionTslContext, isRegionWebGpuRequested } from './tsl/webgpuRuntime';
+import { ApexSocialHud } from './apexSocialHud';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { GpuTextureLoader, initKTX2 } from './ktx2';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -18,15 +38,23 @@ import { patchFacadeMasonry, patchGlassInterior, patchPunchedInterior, type Faca
 import { makeSovereign } from './car';
 import { makeRivalCar, type RivalCarVariant } from './rivalCars';
 import { garage, cloud, activeSpec, hasCar, RunTracker, PathProgress, refParSec, showBanner, showCard, showRaceResultsOverlay, DeliveryGame, makeSpots, TIER_LIST, type RaceFinishStanding } from './garageGame';
+import { CAR_BY_ID, stockSpec } from './garage/catalog';
 import { medalFor } from './garage/progress';
 import { smoothClosedPath } from './circuitSmooth';
 import { PhotoMode } from './photo';
 import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
 import { hasScanCar, loadScanCarById, loadScanOpponentCar, RACE_OPPONENT_SCAN_IDS, TRAFFIC_SCAN_IDS } from './scancar';
-import { Replay } from './broadcastReplay';
+import {
+  Replay,
+  REPLAY_FLAG_AIRBORNE,
+  REPLAY_FLAG_DRIFT,
+  REPLAY_FLAG_HEADLIGHTS,
+  REPLAY_FLAG_TUNNEL,
+} from './broadcastReplay';
+import { createApexRegionBridge } from './tsl/regionWebGpuBridge';
 import { createCarState, stepCarPhysics, setWorldBounds, type CarState, type CarInput } from './physics';
-import { CARS } from './manufacturers';
-import { GameAudio } from './audio';
+import { CARS, type CarSpec } from './manufacturers';
+import { GameAudio, type NearbyVehicleAudioSample } from './audio';
 import { Sky } from './sky';
 import { WaterSurface } from './water';
 import { DriveInput } from './inputs';
@@ -36,9 +64,21 @@ import { buildCliffRacewayCircuit } from './circuits/cliffRaceway';
 import { carveCliffRaceway, designCliffTrack, indexTrack, cliffSurface, type TrackDesign, type TrackIndex } from './circuits/cliffTrack';
 import { buildCountryScenes, carveCreek, type CountryScenes, type RoadNetwork, type Shoreline, carveShoreline } from './countryScenes';
 import { buildRuralOpenWorldDetail } from './ruralDetail';
+import { activateRuralOmniTextures } from './library/kit';
 import { buildCityExpansion } from './cityExpansion';
+import { buildCoastalWorld } from './coastalWorld';
+import { buildRiverfrontWorld } from './riverfrontWorld';
+import { buildRuralRoadNetwork, buildRuralTownPads, buildRuralTowns, RURAL_TOWNS } from './ruralTownsAndRoads';
 import { buildRiverBridges, carveRiverReaches, routeOverBridges, gradeFromFoot, bridgeCorridors } from './riverBridges';
-import { gradeRoads, corridor, type GradeRoad, type GradeClass } from './roadGrade';
+import {
+  gradeRoads,
+  corridor,
+  sanitizeRoadPolyline,
+  softenTrackBermApron,
+  type GradeRoad,
+  type GradeClass,
+  type SanitizeStats,
+} from './roadGrade';
 import { carveScenicRoads, buildScenicRoads, scenicCorridors, railIndex, railPenetration, type ScenicRoad, type RailSeg } from './scenicRoads';
 import { createMapEditor, ROAD_STYLE, type RoadKind, type UserMap } from './mapEditor';
 import { CompetitionEngine } from './racingAI';
@@ -50,14 +90,15 @@ import { HOSTS } from '../../../services/onair/hosts';
 import { onAirNow } from '../../../services/onair/station';
 import { CopsAndRobbersMode, type PursuitRoleChoice } from './copsAndRobbers';
 import { OnlineSessionManager } from './onlineMultiplayer';
-import { openOnlineRaceLobby } from './onlineLobby';
+import { openOnlineMultiplayerHub, openOnlineRaceLobby } from './onlineLobby';
 import { RealtimeClient } from '../../../services/realtime/client';
-import { SpatialCuller, runWithConcurrency, populateTiledTerrain, populateTerrainLOD, detectInitialTier, TIER_CONFIGS, type PerfTier } from './enginePerf';
+import { SpatialCuller, runWithConcurrency, populateTiledTerrain, populateTerrainLOD, detectInitialTier, detectWebGpuTierAsync, TIER_CONFIGS, type PerfTier } from './enginePerf';
 import { harborDetail } from './harborDetail';
 import { duneDetail } from './duneDetail';
 import { Vegetation } from './vegetation';
 import { buildIndustrialCircuit, buildJerseyBarrierRibbon, concreteBarrierMaterial, carveCourseFormation, carveIndustrialCutting, industrialProfile, type GradeFeature } from './industrialCircuit';
-import { shippingContainerMaterials } from './library/industrial';
+import { quayCrane, shippingContainerMaterials } from './library/industrial';
+import { WorldCollisionAndBreakables } from './worldPhysicsProps';
 import { buildIronworksDistrict } from './ironworksDistrict';
 import { preloadModelledPieces } from './library/modelled';
 import { sharedPbrTex } from './library/kit';
@@ -66,15 +107,17 @@ import { HERO_SCENES } from './heroScenes';
 import { glassSelects } from './glassSelect';
 import { buildParkingLots } from './parkingLots';
 import { buildUtilities, type UtilitiesData } from './utilities';
-import { mergeByMaterial } from './carBatch';
+import { mergeByMaterial, mergeStaticScenery } from './carBatch';
 import { SimLayer, carveSim, planSim, type SimPlan } from './simLayer';
 import { REF_SCENES, autumnLeaf, buildReferenceDressing, type RefDressing } from './referenceScenes';
 import { buildTownSidewalks } from './townStreets';
 import { buildParkedCars } from './parkedCars';
+import { loadCarLibraryModels } from './carLibraryInstancer';
 import { denseArea } from './sim/signals';
 import type { UserMapData } from './sim/data';
 import { buildPortDistrict, carvePlatform, inPort, type PortData } from './portDistrict';
-import { injectRoadPbr, roadUniforms, loadRoadPbr, loadPbr1K, roadRipples } from './roadpbr';
+import { injectRoadPbr, roadUniforms, loadRoadPbr, loadPbr1K, roadRipples, createUsRoadTexture } from './roadpbr';
+import { buildWildlifeWorld, type WildlifeWorld } from './wildlifeWorld';
 loadRoadPbr();
 import { SprayFx, DustFx, puddleDepth, PUDDLE_GLSL } from './spray';
 import { TreeField, cardLod } from './trees';
@@ -87,7 +130,7 @@ import { CSM } from 'three/addons/csm/CSM.js';
 import { GradePass, GAME_LENSES, GAME_LUTS, type GameLens } from './grade';
 import { WeatherRig, WEATHERS, worstOf, forecastText } from './weather';
 import { LensRain, LENS_RAIN_GLSL } from './lensRain';
-import { RacingHud, type MapLandmark, type MapOpponent } from './racingHud';
+import { RacingHud, type MapLandmark, type MapOpponent, type MapRoadLayer } from './racingHud';
 import { WetRoad, waterContact } from './wetRoad';
 import { BlackGuard } from './blackGuard';
 import { FrameProfiler, gpuPreference } from './performance';
@@ -124,26 +167,52 @@ const msg = document.getElementById('msg') as HTMLElement;
 
 let requestedGpu: WebGLPowerPreference = 'default';
 try { requestedGpu = gpuPreference(new URLSearchParams(location.search).get('gpu') ?? localStorage.getItem('apex.gpu')); } catch { /* use browser default */ }
-const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: requestedGpu });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+const USE_WEBGPU = isRegionWebGpuRequested();
+const renderer: THREE.WebGLRenderer = (USE_WEBGPU
+  ? new THREE_GPU.WebGPURenderer({
+      antialias: false,
+      powerPreference: requestedGpu === 'default' ? 'high-performance' : requestedGpu,
+    })
+  : new THREE.WebGLRenderer({ antialias: false, powerPreference: requestedGpu })) as unknown as THREE.WebGLRenderer;
+renderer.setPixelRatio(Math.min(devicePixelRatio, USE_WEBGPU ? 1.0 : 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
-renderer.shadowMap.autoUpdate = false;
-renderer.shadowMap.needsUpdate = true;
+if (!USE_WEBGPU) {
+  renderer.shadowMap.autoUpdate = false;
+  renderer.shadowMap.needsUpdate = true;
+}
 view.appendChild(renderer.domElement);
 const frameProfiler = new FrameProfiler(renderer);
-const carProbe = new CarProbe(renderer);              // the hero car's own reflections (carProbe.ts)
-(window as unknown as { carProbe: CarProbe }).carProbe = carProbe;
+const carProbe: CarProbe | null = USE_WEBGPU ? null : new CarProbe(renderer);              // WebGPU uses Playkit SSR + PMREM natively
+if (carProbe) (window as unknown as { carProbe: CarProbe }).carProbe = carProbe;
 queueMicrotask(() => { (window as unknown as { setTod: (k: string) => void }).setTod = (k: string) => setTimeOfDay(k); });   // review hook: daylight for looking at materials
-initKTX2(renderer);
+if (!USE_WEBGPU) initKTX2(renderer);
 
 const scene = new THREE.Scene();
+frameProfiler.scene = scene;
 // Mount Plajah Motorsport: Apex onto the unified Playkit engine registry, supercar suspension spec,
 // live L2 SH9 GI probes, district LocalLookVolumes & clustered light manager
 const TV_MODE_BOOT = (() => { try { return new URLSearchParams(location.search).get('tv') === '1' || localStorage.getItem('apex.tv') === '1'; } catch { return false; } })();
+const webgpuLighting: PlaykitSceneLightingController | null = USE_WEBGPU
+  ? new PlaykitSceneLightingController(scene, { activePointLights: 0, lowTier: TV_MODE_BOOT })
+  : null;
+const tslRegionCtx = USE_WEBGPU && webgpuLighting ? initRegionTslContext(webgpuLighting.uniforms, 246) : null;
+const apexPostStage: ApexPostStageHandle | null = USE_WEBGPU ? createApexPostStage() : null;
+let webgpuPost: PlaykitPostHandle | null = null;
+let webgpuReady = !USE_WEBGPU;
+let webgpuTerrainHandle: ApexIronportTerrainTslHandle | null = null;
+let webgpuActiveLens: GameLens = 'none';
+let webgpuActiveLut = 'none';
+let webgpuLutAmt = 1;
+try {
+  webgpuActiveLut = localStorage.getItem('apex.lut') ?? 'none';
+  webgpuActiveLens = (localStorage.getItem('apex.lens') as GameLens) ?? 'none';
+  const a = parseFloat(localStorage.getItem('apex.lutAmt') ?? '');
+  if (!Number.isNaN(a)) webgpuLutAmt = a;
+} catch { /* storage blocked */ }
 const apexPlaykitRegistry = new PlaykitRegistry();
 const apexClusteredLights = new ClusteredLightManager({ maxTotalLights: 256, far: 260 });
 const apexLighting = new ApexPlaykitLighting({
@@ -176,6 +245,9 @@ try {
     interiorMix: +apexLighting.controller.fogMod.interiorMix.toFixed(3),
     giUpper: '#' + apexLighting.uniforms.uPkGiUpper.value.getHexString(),
     giLower: '#' + apexLighting.uniforms.uPkGiLower.value.getHexString(),
+    renderer: USE_WEBGPU ? 'webgpu' : 'webgl2',
+    webgpuActive: USE_WEBGPU && webgpuReady,
+    webgpuPasses: webgpuPost?.activePasses ?? [],
     shadows: SHADOWS,
     csmActive: !!csm,
     fsrEnabled: fsrEnabled,
@@ -223,7 +295,7 @@ try {
   const saved = qs ?? localStorage.getItem('apex.shadows');
   SHADOWS = saved === 'cascaded' ? 'cascaded' : 'basic';
 } catch { /* storage blocked */ }
-const csm = SHADOWS === 'cascaded' ? new CSM({ maxFar: 560, cascades: 2, mode: 'practical', parent: scene, shadowMapSize: 2048, lightDirection: sunDir.clone().negate(), camera, lightIntensity: 2.4, shadowBias: -0.0004 }) : null;
+const csm = !USE_WEBGPU && SHADOWS === 'cascaded' ? new CSM({ maxFar: 560, cascades: 2, mode: 'practical', parent: scene, shadowMapSize: 2048, lightDirection: sunDir.clone().negate(), camera, lightIntensity: 2.4, shadowBias: -0.0004 }) : null;
 let lastCsmNear = camera.near, lastCsmFar = camera.far, lastCsmAspect = camera.aspect;
 if (csm) {
   sun.visible = false; sun.castShadow = false;
@@ -312,15 +384,22 @@ function preloadHeroCar(): void {
     prewarmCar = car;
     void (car.userData.scanPromise as Promise<void> | undefined)?.then(async () => {
       if (prewarmCar !== car || driving) return;
-      csmSweep(true);
-      try { await (renderer as unknown as { compileAsync(s: THREE.Scene, c: THREE.Camera): Promise<void> }).compileAsync(scene, camera); } catch { /* ok */ }
+      if (!USE_WEBGPU) {
+        csmSweep(true);
+        try { await (renderer as unknown as { compileAsync(s: THREE.Scene, c: THREE.Camera): Promise<void> }).compileAsync(scene, camera); } catch { /* ok */ }
+      }
       if (prewarmCar === car && !driving) scene.remove(car);
     });
   } catch (e) { console.warn('hero car preload failed', e); }
 }
 async function warmShaders(): Promise<void> {
-  if (warmed) return;
+  if (warmed || driving || (USE_WEBGPU && !webgpuReady)) return;
   warmed = true;
+  if (USE_WEBGPU) {
+    sanitizeObjectForWebGPU(scene);
+    if (!driving && !prewarmCar) preloadHeroCar();
+    return;
+  }
   csmSweep(true);
   const groups = [forestGroup, scapeGroup, furnitureGroup, streetGroup, cityGroup];
   const was = groups.map((g) => g.visible);
@@ -334,10 +413,18 @@ async function warmShaders(): Promise<void> {
     for (const m of Array.isArray(ms) ? ms : [ms]) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap'] as const) { const t = (m as unknown as Record<string, THREE.Texture | null>)[k]; if (t && (t as THREE.Texture).isTexture && (t as THREE.Texture).image) tex.add(t); }
   });
   const q = [...tex];
-  const step = (): void => { const t = q.pop(); if (!t) { console.log('warm-up done'); return; } try { renderer.initTexture(t); } catch { /* not ready */ } requestAnimationFrame(step); };
+  let skip = 0;
+  const step = (): void => {
+    if (!q.length) { console.log('warm-up done'); return; }
+    // Never upload idle background textures mid-race (prevents Lap 1 D3D11 upload stutters)
+    if (driving || (skip++ & 1) === 1) { requestAnimationFrame(step); return; }
+    const t = q.pop()!;
+    try { renderer.initTexture(t); } catch { /* not ready */ }
+    requestAnimationFrame(step);
+  };
   requestAnimationFrame(step);
 }
-const warmTimer = setInterval(() => { if ((window as unknown as { cityCount?: number }).cityCount && treeFields.length >= 3 && (grassField || vegetation) && !warmed) { clearInterval(warmTimer); void warmShaders(); } }, 600);
+const warmTimer = setInterval(() => { if (!driving && (window as unknown as { cityCount?: number }).cityCount && treeFields.length >= 3 && (grassField || vegetation) && !warmed) { clearInterval(warmTimer); void warmShaders(); } }, 800);
 let csmTick = 0;
 const csmVisited = new WeakSet<THREE.Object3D>();
 /** every lit material in the scene must use the cascades, or it is lit three times over: scan only newly added nodes */
@@ -370,14 +457,34 @@ function gameTex(name: string, repeat = true): THREE.Texture {
 
 interface Tod { sky: string; sun: number; sunInt: number; sunPos: [number, number, number]; hemiSky: number; hemiGround: number; hemiInt: number; fog: number; fogNear: number; fogFar: number; exposure: number; env: number }
 const TOD: Record<string, Tod> = {
-  clear:   { sky: 'sky_clear',   sun: 0xfff6e6, sunInt: 3.5, sunPos: [-6000, 12000, -4000], hemiSky: 0xaad2ff, hemiGround: 0x5c5b52, hemiInt: 1.45, fog: 0xb6d2ec, fogNear: 9000, fogFar: 42000, exposure: 1.05, env: 1.15 },
-  golden:  { sky: 'sky_golden',  sun: 0xffc884, sunInt: 3.7, sunPos: [-12000, 5200, -2000], hemiSky: 0x9ec6f7, hemiGround: 0x585348, hemiInt: 1.35, fog: 0xbcd0e2, fogNear: 7000, fogFar: 38000, exposure: 1.08, env: 1.15 },
-  sunset:  { sky: 'sky_sunset',  sun: 0xff8c48, sunInt: 3.1, sunPos: [-13000, 2500, -1500], hemiSky: 0x7c98cf, hemiGround: 0x3b3544, hemiInt: 1.1, fog: 0x9ea2bd, fogNear: 6000, fogFar: 34000, exposure: 1.12, env: 1.05 },
-  dusk:    { sky: 'sky_dusk',    sun: 0x9296cc, sunInt: 1.15, sunPos: [-13000, 900, -1200], hemiSky: 0x6278ba, hemiGround: 0x242836, hemiInt: 0.85, fog: 0x546390, fogNear: 4000, fogFar: 30000, exposure: 1.25, env: 0.95 },
-  night:   { sky: 'sky_night',   sun: 0x8aa8e0, sunInt: 0.35, sunPos: [-8000, 9000, -5000], hemiSky: 0x2a3d66, hemiGround: 0x151a26, hemiInt: 0.62, fog: 0x0e1628, fogNear: 2500, fogFar: 24000, exposure: 1.45, env: 1.0 },
-  sunrise: { sky: 'sky_sunrise', sun: 0xffc694, sunInt: 3.0, sunPos: [12000, 3500, 2000], hemiSky: 0xa4c4eb, hemiGround: 0x4c484c, hemiInt: 1.18, fog: 0xc2cfe0, fogNear: 6000, fogFar: 34000, exposure: 1.08, env: 1.08 },
+  clear:   { sky: 'sky_clear',   sun: 0xfff6e6, sunInt: 3.5, sunPos: [-6000, 12000, -4000], hemiSky: 0xaad2ff, hemiGround: 0x5c5b52, hemiInt: 1.45, fog: 0xb6d2ec, fogNear: 9000, fogFar: 42000, exposure: 1.05, env: 1.18 },
+  golden:  { sky: 'sky_golden',  sun: 0xffc884, sunInt: 3.7, sunPos: [-12000, 5200, -2000], hemiSky: 0x9ec6f7, hemiGround: 0x585348, hemiInt: 1.35, fog: 0xbcd0e2, fogNear: 7000, fogFar: 38000, exposure: 1.08, env: 1.18 },
+  sunset:  { sky: 'sky_sunset',  sun: 0xff8c48, sunInt: 3.1, sunPos: [-13000, 2500, -1500], hemiSky: 0x7c98cf, hemiGround: 0x3b3544, hemiInt: 1.1, fog: 0x9ea2bd, fogNear: 6000, fogFar: 34000, exposure: 1.12, env: 1.08 },
+  dusk:    { sky: 'sky_dusk',    sun: 0x9296cc, sunInt: 1.15, sunPos: [-13000, 900, -1200], hemiSky: 0x6278ba, hemiGround: 0x242836, hemiInt: 0.85, fog: 0x546390, fogNear: 4000, fogFar: 30000, exposure: 1.25, env: 0.96 },
+  night:   { sky: 'sky_night',   sun: 0x8aa8e0, sunInt: 0.38, sunPos: [-8000, 9000, -5000], hemiSky: 0x2a3d66, hemiGround: 0x151a26, hemiInt: 0.65, fog: 0x0e1628, fogNear: 2500, fogFar: 24000, exposure: 1.42, env: 1.0 },
+  sunrise: { sky: 'sky_sunrise', sun: 0xffc694, sunInt: 3.0, sunPos: [12000, 3500, 2000], hemiSky: 0xa4c4eb, hemiGround: 0x4c484c, hemiInt: 1.18, fog: 0xc2cfe0, fogNear: 6000, fogFar: 34000, exposure: 1.08, env: 1.10 },
 };
-const pmrem = new THREE.PMREMGenerator(renderer);
+const PRESET_HOURS: Record<string, number> = {
+  night: 23.0, sunrise: 6.4, clear: 12.8, golden: 17.5, sunset: 19.2, dusk: 20.3,
+};
+interface SolarStop {
+  h: number; sky: string; sun: number; sunInt: number; hemiSky: number; hemiGround: number;
+  hemiInt: number; fog: number; fogNear: number; fogFar: number; exposure: number; env: number;
+  nightK: number; mist: number;
+}
+const SOLAR_STOPS: SolarStop[] = [
+  { h: 0.0,  sky: 'sky2_night',   sun: 0x8aa8e0, sunInt: 0.36, hemiSky: 0x283a62, hemiGround: 0x141924, hemiInt: 0.64, fog: 0x0d1526, fogNear: 2500, fogFar: 24000, exposure: 1.42, env: 0.96, nightK: 1.00, mist: 0.30 },
+  { h: 5.0,  sky: 'sky2_dusk',    sun: 0x7c86b8, sunInt: 0.65, hemiSky: 0x45588c, hemiGround: 0x1d2230, hemiInt: 0.74, fog: 0x354266, fogNear: 3500, fogFar: 28000, exposure: 1.30, env: 0.94, nightK: 0.76, mist: 0.55 },
+  { h: 6.4,  sky: 'sky2_sunrise', sun: 0xffb882, sunInt: 3.05, hemiSky: 0xa4c4eb, hemiGround: 0x4c484c, hemiInt: 1.18, fog: 0xc8cfdc, fogNear: 5800, fogFar: 34000, exposure: 1.08, env: 1.10, nightK: 0.14, mist: 0.72 },
+  { h: 9.0,  sky: 'sky2_clear',   sun: 0xfff2dc, sunInt: 3.45, hemiSky: 0xaad4ff, hemiGround: 0x5c5b52, hemiInt: 1.40, fog: 0xb8d4ee, fogNear: 8200, fogFar: 40000, exposure: 1.06, env: 1.18, nightK: 0.00, mist: 0.28 },
+  { h: 13.0, sky: 'sky2_clear',   sun: 0xfff8ee, sunInt: 3.65, hemiSky: 0xb2d8ff, hemiGround: 0x626058, hemiInt: 1.48, fog: 0xb8d6f0, fogNear: 9500, fogFar: 44000, exposure: 1.04, env: 1.22, nightK: 0.00, mist: 0.12 },
+  { h: 17.5, sky: 'sky2_golden',  sun: 0xffc680, sunInt: 3.72, hemiSky: 0x9ec6f7, hemiGround: 0x585348, hemiInt: 1.35, fog: 0xc2d0e0, fogNear: 6800, fogFar: 38000, exposure: 1.08, env: 1.18, nightK: 0.00, mist: 0.34 },
+  { h: 19.2, sky: 'sky2_sunset',  sun: 0xff8644, sunInt: 3.15, hemiSky: 0x7c98cf, hemiGround: 0x3b3544, hemiInt: 1.10, fog: 0xa4a2bc, fogNear: 5800, fogFar: 34000, exposure: 1.13, env: 1.08, nightK: 0.12, mist: 0.56 },
+  { h: 20.3, sky: 'sky2_dusk',    sun: 0x8c92cc, sunInt: 1.12, hemiSky: 0x5c72b4, hemiGround: 0x222634, hemiInt: 0.84, fog: 0x4c5c88, fogNear: 4000, fogFar: 30000, exposure: 1.26, env: 0.96, nightK: 0.58, mist: 0.48 },
+  { h: 21.8, sky: 'sky2_night',   sun: 0x8aa8e0, sunInt: 0.38, hemiSky: 0x2a3d66, hemiGround: 0x151a26, hemiInt: 0.64, fog: 0x0e1628, fogNear: 2500, fogFar: 24000, exposure: 1.42, env: 0.98, nightK: 1.00, mist: 0.30 },
+  { h: 24.0, sky: 'sky2_night',   sun: 0x8aa8e0, sunInt: 0.36, hemiSky: 0x283a62, hemiGround: 0x141924, hemiInt: 0.64, fog: 0x0d1526, fogNear: 2500, fogFar: 24000, exposure: 1.42, env: 0.96, nightK: 1.00, mist: 0.30 },
+];
+let pmrem: THREE.PMREMGenerator | null = USE_WEBGPU ? null : new THREE.PMREMGenerator(renderer);
 let skyTex: THREE.Texture | null = null;
 const mapFadeU = { value: 0 };
 const wetU = { value: 0 };
@@ -388,26 +495,181 @@ let waterMesh: THREE.Mesh | null = null;
 let waterSurface: WaterSurface | null = null;
 let mapMode = false;
 let todKey = 'golden';
+let todMode: 'preset' | 'dynamic' | 'realtime' = 'preset';
+let cycleHour = 17.5;
+let lastIblSkyName = '';
+let lastClockUiMs = 0;
+let dofEnabled = true;
+try { dofEnabled = localStorage.getItem('apex.dof') !== '0'; } catch { /* ok */ }
+const curTod = {
+  sunCol: new THREE.Color(0xffc884),
+  hemiSky: new THREE.Color(0x9ec6f7),
+  hemiGround: new THREE.Color(0x585348),
+  fogCol: new THREE.Color(0xbcd0e2),
+  sunInt: 3.7, hemiInt: 1.35, fogNear: 7000, fogFar: 38000, exposure: 1.08, env: 1.18, nightK: 0, mistBoost: 0.3,
+};
+const _cA = new THREE.Color(), _cB = new THREE.Color(), _moonV = new THREE.Vector3();
+
+function fmtClock24(hour24: number): string {
+  const hNorm = ((hour24 % 24) + 24) % 24;
+  const hh = Math.floor(hNorm);
+  const mm = Math.floor((hNorm - hh) * 60);
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+function localRealHour(): number {
+  const d = new Date();
+  return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600;
+}
+function syncTodClockUi(force = false): void {
+  const now = performance.now();
+  if (!force && now - lastClockUiMs < 450) return;
+  lastClockUiMs = now;
+  const clk = document.getElementById('todClock');
+  const rng = document.getElementById('todHour') as HTMLInputElement | null;
+  const tag = todMode === 'realtime' ? ' · LOCAL' : todMode === 'dynamic' ? ' · 24H' : '';
+  if (clk) clk.textContent = fmtClock24(cycleHour) + tag;
+  if (rng && document.activeElement !== rng) rng.value = (((cycleHour % 24) + 24) % 24).toFixed(1);
+}
+function applySolarHour(hour24: number, forcePresetPose = false): void {
+  const h = ((hour24 % 24) + 24) % 24;
+  cycleHour = h;
+  let a = SOLAR_STOPS[0], b = SOLAR_STOPS[SOLAR_STOPS.length - 1];
+  for (let i = 0; i < SOLAR_STOPS.length - 1; i++) {
+    if (h >= SOLAR_STOPS[i].h && h <= SOLAR_STOPS[i + 1].h) { a = SOLAR_STOPS[i]; b = SOLAR_STOPS[i + 1]; break; }
+  }
+  const span = Math.max(1e-4, b.h - a.h);
+  const uRaw = Math.max(0, Math.min(1, (h - a.h) / span));
+  const u = uRaw * uRaw * (3 - 2 * uRaw);
+
+  curTod.sunCol.copy(_cA.setHex(a.sun)).lerp(_cB.setHex(b.sun), u);
+  curTod.hemiSky.copy(_cA.setHex(a.hemiSky)).lerp(_cB.setHex(b.hemiSky), u);
+  curTod.hemiGround.copy(_cA.setHex(a.hemiGround)).lerp(_cB.setHex(b.hemiGround), u);
+  curTod.fogCol.copy(_cA.setHex(a.fog)).lerp(_cB.setHex(b.fog), u);
+  curTod.sunInt = a.sunInt + (b.sunInt - a.sunInt) * u;
+  curTod.hemiInt = a.hemiInt + (b.hemiInt - a.hemiInt) * u;
+  curTod.fogNear = a.fogNear + (b.fogNear - a.fogNear) * u;
+  curTod.fogFar = a.fogFar + (b.fogFar - a.fogFar) * u;
+  curTod.exposure = a.exposure + (b.exposure - a.exposure) * u;
+  curTod.env = a.env + (b.env - a.env) * u;
+  curTod.nightK = a.nightK + (b.nightK - a.nightK) * u;
+  curTod.mistBoost = a.mist + (b.mist - a.mist) * u;
+
+  // Continuous Michigan (43 deg N) East->South->West solar arc + opposite lunar arc
+  if (forcePresetPose && TOD[todKey]) {
+    const t = TOD[todKey];
+    sun.position.set(...t.sunPos);
+    sunDir.set(...t.sunPos).normalize();
+    _moonV.set(-sunDir.x * 0.7 + 0.35, Math.max(0.38, 0.72 - sunDir.y * 0.4), -sunDir.z * 0.7 - 0.35).normalize();
+  } else {
+    const solarPhase = ((h - 6.0) / 12.0) * Math.PI; // 0 = sunrise East, PI/2 = solar noon, PI = sunset West
+    const sunElev = Math.sin(solarPhase) * 0.86;
+    const sunAzX = Math.cos(solarPhase) * 0.94;
+    const sunAzZ = -0.34 - Math.sin(solarPhase) * 0.22;
+    if (sunElev > -0.04) {
+      sunDir.set(sunAzX, Math.max(0.055, sunElev), sunAzZ).normalize();
+    } else {
+      // Soft moonlight key light direction at night so night shadows & car reflections stay crisp
+      const moonElev = Math.max(0.28, -sunElev * 0.85);
+      sunDir.set(-sunAzX * 0.85, moonElev, -sunAzZ * 0.85).normalize();
+    }
+    sun.position.copy(sunDir).multiplyScalar(14000);
+    _moonV.set(-sunAzX * 0.85, Math.max(0.26, -Math.sin(solarPhase) * 0.85 + 0.22), -sunAzZ * 0.85).normalize();
+  }
+  sky.setMoonDir(_moonV);
+  sun.color.copy(curTod.sunCol);
+  sun.intensity = curTod.sunInt;
+  hemi.color.copy(curTod.hemiSky);
+  hemi.groundColor.copy(curTod.hemiGround);
+  hemi.intensity = curTod.hemiInt;
+  tintClouds(curTod.sunCol.getHex(), curTod.hemiSky.getHex());
+  if (!mapMode) {
+    if (scene.fog instanceof THREE.Fog) {
+      scene.fog.color.copy(curTod.fogCol);
+      scene.fog.near = curTod.fogNear;
+      scene.fog.far = curTod.fogFar;
+    } else {
+      scene.fog = new THREE.Fog(curTod.fogCol.getHex(), curTod.fogNear, curTod.fogFar);
+    }
+    scene.background = curTod.fogCol.clone();
+  }
+  renderer.toneMappingExposure = curTod.exposure;
+  scene.environmentIntensity = curTod.env;
+
+  const domSky = u < 0.5 ? a.sky : b.sky;
+  sky.setBlendedBase(a.sky, b.sky, u, (tx) => {
+    if (domSky === lastIblSkyName && scene.environment) return;
+    lastIblSkyName = domSky;
+    tx.mapping = THREE.EquirectangularReflectionMapping;
+    skyTex = tx;
+    if (pmrem) {
+      try { scene.environment = pmrem.fromEquirectangular(tx).texture; } catch { /* wait for init */ }
+    }
+  });
+  syncTodClockUi();
+}
+function stepDayNight(dt: number): void {
+  if (cineOn) return;
+  if (todMode === 'realtime') {
+    applySolarHour(localRealHour(), false);
+  } else if (todMode === 'dynamic') {
+    // Full 24h cycle in 12 real minutes (smooth sunrise -> noon -> golden -> sunset -> dusk -> starry night!)
+    applySolarHour(cycleHour + dt * (24 / 720), false);
+  }
+}
 function setTimeOfDay(key: string): void {
+  if (key === 'realtime') {
+    todKey = 'realtime';
+    todMode = 'realtime';
+    applySolarHour(localRealHour(), false);
+    syncTodClockUi(true);
+    return;
+  }
+  if (key === 'dynamic') {
+    todKey = 'dynamic';
+    todMode = 'dynamic';
+    applySolarHour(cycleHour, false);
+    syncTodClockUi(true);
+    return;
+  }
   const t = TOD[key];
   if (!t) return;
   todKey = key;
+  todMode = 'preset';
+  cycleHour = PRESET_HOURS[key] ?? 17.5;
+  curTod.sunCol.setHex(t.sun);
+  curTod.hemiSky.setHex(t.hemiSky);
+  curTod.hemiGround.setHex(t.hemiGround);
+  curTod.fogCol.setHex(t.fog);
+  curTod.sunInt = t.sunInt;
+  curTod.hemiInt = t.hemiInt;
+  curTod.fogNear = t.fogNear;
+  curTod.fogFar = t.fogFar;
+  curTod.exposure = t.exposure;
+  curTod.env = t.env;
+  curTod.nightK = key === 'night' ? 1 : key === 'dusk' ? 0.55 : key === 'sunrise' ? 0.15 : key === 'sunset' ? 0.10 : 0;
+  curTod.mistBoost = key === 'sunrise' ? 0.72 : key === 'sunset' ? 0.54 : key === 'dusk' ? 0.46 : key === 'golden' ? 0.34 : 0.16;
   tintClouds(t.sun, t.hemiSky);
   sun.color.setHex(t.sun); sun.intensity = t.sunInt; sun.position.set(...t.sunPos); sunDir.set(...t.sunPos).normalize();
   hemi.color.setHex(t.hemiSky); hemi.groundColor.setHex(t.hemiGround); hemi.intensity = t.hemiInt;
   if (!mapMode) { scene.fog = new THREE.Fog(t.fog, t.fogNear, t.fogFar); scene.background = new THREE.Color(t.fog); }
   renderer.toneMappingExposure = t.exposure;
   scene.environmentIntensity = t.env;
-  sky.setBase(t.sky.replace('sky_', 'sky2_'), (tx) => {
+  const skyName = t.sky.replace('sky_', 'sky2_');
+  sky.setBase(skyName, (tx) => {
+    lastIblSkyName = skyName;
     tx.mapping = THREE.EquirectangularReflectionMapping;
     skyTex = tx;
-    scene.environment = pmrem.fromEquirectangular(tx).texture;
+    if (pmrem) {
+      try { scene.environment = pmrem.fromEquirectangular(tx).texture; } catch { /* wait for init */ }
+    }
   });
+  syncTodClockUi(true);
 }
 
 const maskVec = new THREE.Vector4(0, 0, 1, 1);
 let roadMask: { data: Uint8ClampedArray; w: number; h: number } | null = null;
 const maskTex = new THREE.Texture();
+let loadedCityMaskTex: THREE.Texture | null = null;
 fetch('/games/apex/region/city_mask.json').then((r) => r.json()).then((m) => {
   maskVec.set(m.x0, m.z0, m.w, m.h);
   new THREE.TextureLoader().load('/games/apex/region/city_mask.png', (t) => {
@@ -418,6 +680,8 @@ fetch('/games/apex/region/city_mask.json').then((r) => r.json()).then((m) => {
       const cx = cv.getContext('2d', { willReadFrequently: true })!; cx.drawImage(t.image as CanvasImageSource, 0, 0);
       roadMask = { data: cx.getImageData(0, 0, cv.width, cv.height).data, w: cv.width, h: cv.height };
     } catch { roadMask = null; }
+    loadedCityMaskTex = t;
+    webgpuTerrainHandle?.setMaskTexture(t);
     maskTex.image = t.image; maskTex.flipY = false; maskTex.colorSpace = THREE.NoColorSpace; maskTex.wrapS = maskTex.wrapT = THREE.ClampToEdgeWrapping;
     maskTex.minFilter = THREE.LinearMipmapLinearFilter; maskTex.magFilter = THREE.LinearFilter; maskTex.generateMipmaps = true; maskTex.anisotropy = 8; maskTex.needsUpdate = true;
   });
@@ -470,37 +734,148 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
       float fade = 1.0 - smoothstep(250.0, 1500.0, camD);
       vec3 smoothN = normalize(vWNorm); if (smoothN.y < 0.0) smoothN = -smoothN;
       vec2 gTN = vec2(0.0); float gTW = 0.0, gTR = 0.0;                // the ground material's normal (x,y), how much of it applies, its roughness
+      vec2 gUrbanN = vec2(0.0); float gUrbanW = 0.0, gUrbanR = 0.86;   // crisp multi-scale urban concrete/paver/park detail beyond the track
       vec3 gRockN = vec3(0.0); float gRockW = 0.0, gRockR = 0.84;      // world-space cliff strata & snow crystalline normal relief
-      if (fade > 0.01 && road < 0.995 && (walk * (1.0 - kerb)) < 0.995) {
-        vec3 b = diffuseColor.rgb;                                       // the satellite colour
-        float lum = dot(b, vec3(0.299, 0.587, 0.114));
-        float greenness = clamp((b.g - max(b.r, b.b)) * 7.0, 0.0, 1.0);
-        float dark = 1.0 - smoothstep(0.12, 0.3, lum);
-        vec3 cls = texture2D(tClass, vec2((vWPos.x - uTerrO.x) / uTerr.x + 0.5, 1.0 - ((vWPos.z - uTerrO.y) / uTerr.y + 0.5))).rgb;
-        float sandy = cls.r, forestK = max(cls.g, dark * greenness), fieldK = cls.b * (1.0 - forestK);
-        float rockK = smoothstep(0.22, 0.48, 1.0 - smoothN.y);           // smooth per-pixel interpolated slope (no flat polygon facets!)
-        // field rows (farmland): alternating soil and crop
-        vec2 fcell = floor(vWPos.xz / 160.0); float fh = tHash(fcell);
-        float rowsK = 0.5 + 0.5 * sin((fh > 0.5 ? vWPos.z : vWPos.x) * 1.3 + fh * 40.0);
-        float macro = tNoise(vWPos.xz / 55.0) * 0.6 + tNoise(vWPos.xz / 17.0) * 0.4;
+      // ── 100% Real Procedural Multi-Biome PBR Terrain (ZERO blurry satellite pixels at ANY distance!) ──
+      // Strictly preserves Ironport's exact heightfield, coastlines (vWPos.y), landclass.png (sand/forest/farmland),
+      // and city_mask.png (urban streets/sidewalks/parcels) while synthesizing razor-sharp ground from 0 m to 20 km.
+      vec3 satHint = diffuseColor.rgb;
+      float satChroma = max(satHint.r, max(satHint.g, satHint.b)) - min(satHint.r, min(satHint.g, satHint.b));
+      vec3 cls = texture2D(tClass, vec2((vWPos.x - uTerrO.x) / uTerr.x + 0.5, 1.0 - ((vWPos.z - uTerrO.y) / uTerr.y + 0.5))).rgb;
+      // Greater Ironport Urban, Industrial, Harbor & West-Bank Metro envelope:
+      // city_mask.png starts at x = 4494 (East Bank), so extend crisp urban/suburban ground cleanly across the
+      // West Bank riverfront, Ironworks, Port, Harbor & Suburbs so farmland NEVER spills onto urban riverbanks!
+      float metroX = smoothstep(1850.0, 2650.0, vWPos.x);
+      float metroZ = smoothstep(-4150.0, -3450.0, vWPos.z) * (1.0 - smoothstep(3050.0, 3650.0, vWPos.z));
+      float metroCore = clamp(max(inMask ? 1.0 : 0.0, metroX * metroZ), 0.0, 1.0);
+      // Suburban residential lawn ring around the outer West Bank & northern suburbs (manicured yards, NOT crop furrows!)
+      float suburbBand = smoothstep(1400.0, 2100.0, vWPos.x) * (1.0 - metroCore) * smoothstep(-3200.0, -2400.0, vWPos.z) * (1.0 - smoothstep(2200.0, 3100.0, vWPos.z));
+      float urbanAny = clamp(metroCore + suburbBand * 0.75, 0.0, 1.0);
+
+      float shoreBand = (1.0 - smoothstep(1.1, 4.6, vWPos.y)) * (urbanAny > 0.4 ? 0.18 : 1.0);
+      float wetShore = 1.0 - smoothstep(0.15, 1.55, vWPos.y);
+      float sandy = clamp(max(cls.r, shoreBand * 0.92) * (1.0 - metroCore * 0.72), 0.0, 1.0);
+      float forestK = clamp(cls.g * (1.0 - shoreBand * 0.75), 0.0, 1.0);
+      // Farmland crop parcels ONLY in genuine rural agricultural zones (strictly excluded from West & East Bank urban/suburban metro!)
+      float fieldK = clamp(cls.b * (1.0 - forestK * 0.85) * (1.0 - sandy * 0.85) * (1.0 - urbanAny), 0.0, 1.0);
+      float rockK = smoothstep(0.22, 0.48, 1.0 - smoothN.y);
+      float macroA = tNoise(vWPos.xz / 240.0);
+      float macroB = tNoise(vWPos.xz / 68.0);
+      float macroC = tNoise(vWPos.xz / 19.0);
+      float macro = macroA * 0.42 + macroB * 0.36 + macroC * 0.22;
+
+      // Redrawn Michigan agricultural farmland parcels (sharp field dividers, alternating crop types & directional furrows)
+      vec2 farmWarp = vWPos.xz + vec2(tNoise(vWPos.xz / 900.0) - 0.5, tNoise(vWPos.xz / 900.0 + 9.3) - 0.5) * 18.0;
+      vec2 parcelSz = vec2(210.0, 260.0);
+      vec2 fcell = floor(farmWarp / parcelSz);
+      vec2 fuv = fract(farmWarp / parcelSz);
+      float fh = tHash(fcell);
+      float fh2 = tHash(fcell + vec2(17.3, 41.9));
+      // Subdivide half of parcels into tighter twin fields for authentic Midwest patchwork scale
+      if (fh > 0.48) {
+        vec2 subSz = fh > 0.74 ? vec2(105.0, 260.0) : vec2(210.0, 130.0);
+        fcell = floor(farmWarp / subSz);
+        fuv = fract(farmWarp / subSz);
+        fh = tHash(fcell);
+        fh2 = tHash(fcell + vec2(17.3, 41.9));
+      }
+      float borderDist = min(min(fuv.x, 1.0 - fuv.x) * parcelSz.x, min(fuv.y, 1.0 - fuv.y) * parcelSz.y);
+      float hedgerow = 1.0 - smoothstep(2.2, 6.2, borderDist);         // grassy field divider & headland strip
+      float rowCoord = (fh2 > 0.5 ? farmWarp.x : farmWarp.y);
+      float rowsK = 0.5 + 0.5 * sin(rowCoord * 1.45 + fh * 31.0);
+      float rowsFine = 0.5 + 0.5 * sin(rowCoord * 4.2 + fh * 17.0);
+      // 6 distinct authentic Great Lakes crop & soil palettes (sharp from Map Overview AND close-up!)
+      vec3 cropCol;
+      float cropSoilMix = 0.0;
+      if (fh < 0.18) {
+        // Freshly plowed rich dark Michigan loam furrows
+        cropCol = mix(vec3(0.088, 0.064, 0.044), vec3(0.145, 0.106, 0.072), rowsK * 0.7 + macroC * 0.3);
+        cropSoilMix = 0.88;
+      } else if (fh < 0.36) {
+        // Golden sunlit wheat / barley crop rows
+        cropCol = mix(vec3(0.24, 0.19, 0.088), vec3(0.36, 0.285, 0.125), rowsK * 0.55 + macroB * 0.45);
+        cropSoilMix = 0.22;
+      } else if (fh < 0.56) {
+        // Lush emerald corn & soybean crop rows with dark soil between furrows
+        cropCol = mix(vec3(0.068, 0.125, 0.042), vec3(0.115, 0.215, 0.066), rowsK * 0.65 + rowsFine * 0.20 + macroC * 0.15);
+        cropSoilMix = 0.18;
+      } else if (fh < 0.74) {
+        // Mowed alfalfa / hayfield pasture with subtle tractor swath bands
+        float swath = 0.5 + 0.5 * sin(rowCoord * 0.22 + fh * 12.0);
+        cropCol = mix(vec3(0.128, 0.205, 0.068), vec3(0.175, 0.248, 0.085), swath * 0.55 + macroB * 0.45);
+        cropSoilMix = 0.10;
+      } else if (fh < 0.88) {
+        // Harvested golden stubble / fallow field
+        cropCol = mix(vec3(0.205, 0.175, 0.108), vec3(0.295, 0.242, 0.148), rowsK * 0.45 + macro * 0.55);
+        cropSoilMix = 0.48;
+      } else {
+        // Rich spring clover & meadow pasture
+        cropCol = mix(vec3(0.098, 0.182, 0.064), vec3(0.155, 0.228, 0.086), macro * 0.75 + rowsK * 0.25);
+        cropSoilMix = 0.08;
+      }
+      vec3 hedgeCol = mix(vec3(0.055, 0.105, 0.042), vec3(0.105, 0.155, 0.062), macroC);
+      cropCol = mix(cropCol, hedgeCol, hedgerow * 0.88);
+      cropCol *= 0.88 + 0.24 * macroB;
+
+      // Crisp procedural base colours for every biome (eliminates blurry low-res satellite map at EVERY altitude!)
+      vec3 wetSandCol = mix(vec3(0.11, 0.096, 0.078), vec3(0.16, 0.14, 0.112), macroC);
+      vec3 beachSandCol = mix(vec3(0.36, 0.305, 0.215), vec3(0.46, 0.395, 0.285), macroB * 0.6 + macroC * 0.4);
+      vec3 duneCol = mix(beachSandCol, vec3(0.18, 0.205, 0.095), smoothstep(3.0, 9.5, vWPos.y) * (0.35 + 0.45 * macroB));
+      vec3 coastCol = mix(duneCol, wetSandCol, wetShore);
+      vec3 forestCol = mix(vec3(0.052, 0.094, 0.038), vec3(0.098, 0.148, 0.058), macro * 0.7 + macroC * 0.3);
+      vec3 meadowCol = mix(vec3(0.095, 0.172, 0.058), vec3(0.168, 0.222, 0.082), macro * 0.68 + macroC * 0.32);
+      // Higher alpine hills & northern ridges transition naturally to cooler heather & sunlit stone-meadow
+      float altK = smoothstep(95.0, 250.0, vWPos.y);
+      meadowCol = mix(meadowCol, mix(vec3(0.145, 0.162, 0.105), vec3(0.185, 0.175, 0.135), macroB), altK * 0.65);
+      // Clean urban base (park turf + architectural concrete/gravel lots; never raw blurry satellite roofs)
+      float satGreen = clamp((satHint.g - max(satHint.r, satHint.b)) * 6.0, 0.0, 1.0);
+      float urbanParkK = clamp(max(forestK * 0.85, satGreen * 0.9), 0.0, 1.0);
+      vec3 urbanLotMacro = mix(vec3(0.22, 0.225, 0.232), vec3(0.295, 0.292, 0.286), macroB * 0.65 + macroC * 0.35);
+      vec3 urbanParkMacro = mix(vec3(0.088, 0.168, 0.058), vec3(0.135, 0.212, 0.076), macroB);
+      vec3 urbanMacroCol = mix(urbanLotMacro, urbanParkMacro, urbanParkK);
+
+      float open = (1.0 - forestK) * (1.0 - sandy);
+      vec3 synthMacro = meadowCol;
+      synthMacro = mix(synthMacro, cropCol, fieldK);
+      synthMacro = mix(synthMacro, forestCol, forestK);
+      synthMacro = mix(synthMacro, coastCol, sandy);
+      // Clean urban concrete/plaza/park ground across BOTH East Bank (city_mask) AND West Bank urban/industrial riverfront!
+      if (urbanAny > 0.01) {
+        float lotGrid = step(0.42, tNoise(vWPos.xz / 42.0));
+        // West Bank & Harbor industrial/downtown core leans hard-surface concrete/yards + riverside parks; outer suburbs lean lush lawns + residential driveways
+        float hardUrban = clamp(metroCore * (1.0 - urbanParkK * 0.78) * (0.55 + 0.45 * lotGrid), 0.0, 1.0);
+        vec3 suburbYard = mix(urbanParkMacro * (0.92 + 0.16 * macroC), urbanLotMacro * 1.06, smoothstep(0.55, 0.82, tNoise(vWPos.xz / 24.0)) * 0.45);
+        vec3 metroGround = mix(suburbYard, urbanMacroCol, clamp(metroCore * 0.85 + hardUrban * 0.35, 0.0, 1.0));
+        float maskBlend = inMask
+          ? smoothstep(0.0, 0.04, min(min(muv.x, 1.0 - muv.x), min(muv.y, 1.0 - muv.y)))
+          : urbanAny;
+        synthMacro = mix(synthMacro, metroGround, maskBlend * (1.0 - sandy * 0.72));
+      }
+      // Subtle alpine snow cap above 265 m on gentler high mountain ridges
+      float alpineSnow = smoothstep(265.0, 365.0, vWPos.y + (macroB - 0.5) * 32.0) * smoothstep(0.52, 0.82, smoothN.y);
+      synthMacro = mix(synthMacro, vec3(0.84, 0.88, 0.92), alpineSnow);
+
+      // Commit the crisp procedural macro albedo immediately so NO raw blurry satellite pixel is ever shown!
+      diffuseColor.rgb = synthMacro;
+
+      if (road < 0.995 && (walk * (1.0 - kerb)) < 0.995) {
         float wv[8];
-        float open = (1.0 - forestK) * (1.0 - sandy);
-        float gk = clamp((b.g - b.r * 0.92) * 5.0 + uGTune.y, 0.0, 1.0);          // Michigan is green: lean to meadow unless the photo is clearly brown
-        wv[0] = open * (0.3 + 0.7 * gk) * (1.0 - fieldK * 0.7) * (0.6 + 0.8 * macro);
-        wv[1] = open * (1.0 - gk) * 0.6 * (1.0 - fieldK * 0.5) * (1.4 - 0.8 * macro) + fieldK * rowsK * 0.8;
+        wv[0] = open * (1.0 - fieldK * 0.72) * (0.65 + 0.7 * macro) + fieldK * hedgerow * 0.8;
+        wv[1] = open * 0.32 * (1.3 - 0.7 * macro) + fieldK * (1.0 - cropSoilMix) * 0.95;
         wv[2] = forestK * (1.0 - sandy);
-        wv[3] = fieldK * (1.0 - rowsK) * 0.9 + open * (1.0 - gk) * 0.05;
-        wv[4] = (1.0 - gk) * (1.0 - sandy) * (1.0 - forestK) * 0.06;
-        wv[5] = sandy;
-        wv[6] = fieldK * (1.0 - rowsK) * 0.25 * macro;
+        wv[3] = fieldK * cropSoilMix * (1.0 - hedgerow) * 1.15;
+        wv[4] = wetShore * 0.45 + open * 0.05;
+        wv[5] = sandy * (1.0 - wetShore * 0.35);
+        wv[6] = fieldK * cropSoilMix * 0.22 * macroC + wetShore * 0.55;
         wv[7] = 0.0;
         float tot = 0.0;
         for (int i = 0; i < 7; i++) { wv[i] *= (1.0 - rockK); tot += wv[i]; }
         wv[7] = rockK; tot += rockK;
         float tile[8]; tile[0] = 3.6; tile[1] = 3.4; tile[2] = 4.2; tile[3] = 4.0; tile[4] = 3.0; tile[5] = 4.6; tile[6] = 3.6; tile[7] = 6.5;
         vec3 alb = vec3(0.0); vec4 surf = vec4(0.0); float wsum = 0.0;
-        // Skip all biome 2DArray texture fetches beyond uGTune.z (where near == 0), and blend only the Top-2 dominant biomes (cuts max fetches from 24 -> 6 with zero visual loss)
-        if (camD < uGTune.z && uGroundOn > 0.5) {
+        // High-res PBR 2DArray texture detail up to 1150 m (Top-2 dominant biomes = max 6 texture fetches!)
+        float detailFar = max(uGTune.z, 1150.0);
+        if (camD < detailFar && uGroundOn > 0.5) {
           int b0 = 0, b1 = 0;
           float w0 = -1.0, w1 = -1.0;
           for (int i = 0; i < 8; i++) {
@@ -509,7 +884,7 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
             else if (wi > w1) { w1 = wi; b1 = i; }
           }
           vec2 dPdx = dFdx(vWPos.xz), dPdy = dFdy(vWPos.xz);
-          bool useRot = camD < 185.0;
+          bool useRot = camD < 210.0;
           mat2 rot = mat2(1.0, 0.0, 0.0, 1.0);
           if (useRot) { float ra = tNoise(vWPos.xz / 31.0) * 6.2831; rot = mat2(cos(ra), sin(ra), -sin(ra), cos(ra)); }
           for (int k = 0; k < 2; k++) {
@@ -533,29 +908,42 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
         }
         if (wsum > 0.01) {
           alb /= wsum; surf /= wsum;
-          float near = (1.0 - smoothstep(uGTune.z * 0.18, uGTune.z, camD)) * fade;
+          float near = (1.0 - smoothstep(detailFar * 0.22, detailFar, camD)) * (1.0 - alpineSnow);
           float al = max(dot(alb, vec3(0.299, 0.587, 0.114)), 0.04);
-          // keep the photo's large-scale light and shade (fields, clearings, worn patches) as a gentle tint, and the material's detail at full strength
-          vec3 ground = alb * mix(1.0, clamp(lum / al, 0.55, 1.6), uGTune.x) * (1.0 + (macro - 0.5) * 0.22);
-          ground *= mix(1.0, surf.a, 0.55);                              // occlusion in the cracks
-          diffuseColor.rgb = mix(b, ground, near);
-          gTN = surf.rg * 2.0 - 1.0; gTW = near; gTR = surf.b;
+          float ml = max(dot(synthMacro, vec3(0.299, 0.587, 0.114)), 0.04);
+          // Modulate PBR micro-detail albedo smoothly into our crisp procedural biome palette (keeps zero satellite blur!)
+          vec3 pbrTinted = mix(alb * clamp(ml / al, 0.52, 1.55), synthMacro * (0.58 + 0.84 * (alb / al)), 0.55);
+          pbrTinted *= mix(1.0, surf.a, 0.55);
+          diffuseColor.rgb = mix(diffuseColor.rgb, pbrTinted, near);
+          gTN = surf.rg * 2.0 - 1.0;
+          // Add subtle directional crop-furrow & beach wind-ripple normal relief
+          if (fieldK > 0.1) {
+            float furDeriv = cos(rowCoord * 1.45 + fh * 31.0) * 0.42 * fieldK * (1.0 - hedgerow);
+            gTN += (fh2 > 0.5 ? vec2(furDeriv, 0.0) : vec2(0.0, furDeriv));
+          }
+          if (sandy > 0.15 && wetShore < 0.8) {
+            float sandRip = cos(vWPos.x * 2.4 + vWPos.z * 0.9 + macroC * 4.0) * 0.22 * sandy;
+            gTN += vec2(sandRip, sandRip * 0.35);
+          }
+          gTW = near;
+          gTR = mix(surf.b, 0.24, wetShore * 0.82);
         } else {
-          diffuseColor.rgb *= 1.0 + (macro - 0.5) * 0.34 * fade;
+          // Far-distance crisp micro-contrast & farmland furrow relief (prevents smooth plastic look from aerials)
+          diffuseColor.rgb *= 1.0 + (macroC - 0.5) * 0.22;
+          gTR = mix(0.88, 0.24, wetShore * 0.82);
         }
         // Wine-country tulip flower beds: rich sunlit petal clusters + dark green leaf furrows visible across the valley
-        float chroma = max(b.r, max(b.g, b.b)) - min(b.r, min(b.g, b.b));
-        if (vWPos.z < -4200.0 && vWPos.y < 140.0 && chroma > 0.18 && b.g < max(b.r, b.b) * 0.90) {
-          float tNear = (1.0 - smoothstep(120.0, 680.0, camD)) * smoothstep(0.18, 0.32, chroma);
+        if (vWPos.z < -4200.0 && vWPos.y < 140.0 && satChroma > 0.20 && satHint.g < max(satHint.r, satHint.b) * 0.90) {
+          float tNear = smoothstep(0.20, 0.34, satChroma);
           float row = 0.5 + 0.5 * sin(vWPos.x * 5.2 + tNoise(vWPos.xz / 18.0) * 1.6);
           float bloom = smoothstep(0.26, 0.72, tNoise(vWPos.xz * 3.1) * 0.65 + tNoise(vWPos.xz * 9.5) * 0.35);
           float speck = tNoise(vWPos.xz * 12.0);
           vec3 stemCol = vec3(0.05, 0.14, 0.04) * (0.7 + 0.5 * speck);
-          vec3 petalCol = b * (0.78 + 0.52 * speck);
+          vec3 petalCol = satHint * (0.78 + 0.52 * speck);
           vec3 tulip = mix(stemCol, petalCol, bloom * (0.28 + 0.72 * row));
           diffuseColor.rgb = mix(diffuseColor.rgb, tulip, tNear * 0.92);
-          gTN = mix(gTN, vec2((speck - 0.5) * 1.6, (bloom - 0.5) * 1.6), tNear * 0.85);
-          gTW = max(gTW, tNear * 0.85);
+          gTN = mix(gTN, vec2((speck - 0.5) * 1.6, (bloom - 0.5) * 1.6), tNear * 0.85 * fade);
+          gTW = max(gTW, tNear * 0.85 * fade);
           gTR = mix(gTR, 0.74, tNear);
         }
       }
@@ -600,25 +988,71 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
           gRockR = 0.38 + 0.22 * s1;
         }
       }
+      if ((inMask || metroCore > 0.25) && (road + walk + kerb) < 0.995) {
+        // Urban parcels, plazas, parking aprons, industrial yards & city parks across BOTH riverbanks:
+        // crisp multi-scale architectural pavers, weathered concrete & manicured park turf (zero blurry satellite pixels!)
+        float parcelMask = (inMask ? 1.0 : metroCore) * (1.0 - clamp(road + walk, 0.0, 1.0)) * (1.0 - smoothstep(320.0, 1850.0, camD));
+        if (parcelMask > 0.005) {
+          vec2 up = vWPos.xz;
+          float hardLot = (1.0 - urbanParkK) * (1.0 - sandy * 0.8);
+          // Architectural plaza / concrete lot grid with weathered aggregate & expansion joints
+          vec2 lotG = fract(up / 4.2);
+          float lotSeamX = 1.0 - smoothstep(0.0, 0.032, min(lotG.x, 1.0 - lotG.x));
+          float lotSeamY = 1.0 - smoothstep(0.0, 0.032, min(lotG.y, 1.0 - lotG.y));
+          float lotSeam = max(lotSeamX, lotSeamY) * (1.0 - smoothstep(45.0, 220.0, camD));
+          vec3 lotTexA = texture2D(tPave, up / 3.4).rgb;
+          vec3 lotTexB = texture2D(tPave, up / 13.5 + 0.27).rgb;
+          float lotStain = 0.82 + 0.30 * tNoise(up / 18.0) * (0.75 + 0.35 * tNoise(up / 4.8));
+          vec3 lotCol = mix(lotTexA, lotTexA * (0.62 + 0.72 * lotTexB), 0.50) * lotStain * (1.0 - 0.24 * lotSeam);
+          float lotLum = max(dot(lotCol, vec3(0.299, 0.587, 0.114)), 0.05);
+          float baseLum = max(dot(urbanLotMacro, vec3(0.299, 0.587, 0.114)), 0.05);
+          lotCol *= clamp(baseLum / lotLum, 0.68, 1.32);
+          // Urban parks, medians & manicured lawns with subtle stadium/park mower stripes
+          float turfStripe = 1.0 + 0.085 * sin(up.x * 1.15 + up.y * 0.32);
+          float turfFine = 0.82 + 0.34 * tNoise(up / 1.6) * (0.7 + 0.4 * tNoise(up / 6.2));
+          vec3 parkCol = urbanParkMacro * turfStripe * turfFine;
+          vec3 urbanBase = mix(parkCol, lotCol, hardLot);
+          diffuseColor.rgb = mix(diffuseColor.rgb, urbanBase, parcelMask * (0.62 + 0.32 * hardLot));
+          // Tactile analytical normal relief for plazas, concrete aprons & city lawns
+          float nH1 = tNoise(up / 1.8), nH2 = tNoise((up + vec2(0.35, 0.0)) / 1.8), nH3 = tNoise((up + vec2(0.0, 0.35)) / 1.8);
+          vec2 microN = vec2(nH2 - nH1, nH3 - nH1) * (2.6 + 1.4 * hardLot);
+          vec2 seamN = vec2((lotG.x < 0.5 ? -1.0 : 1.0) * lotSeamX, (lotG.y < 0.5 ? -1.0 : 1.0) * lotSeamY) * 0.65 * hardLot;
+          gUrbanN = microN + seamN;
+          gUrbanW = max(gUrbanW, parcelMask * (0.55 + 0.35 * hardLot));
+          gUrbanR = mix(0.92, 0.78 + 0.14 * lotTexB.r, hardLot);
+        }
+      }
       if (inMask && (road + walk + kerb) > 0.002) {
         vec2 sp = vWPos.xz;
         vec3 col = diffuseColor.rgb;
         if (walk > 0.005) {
           vec2 slabF = fract(sp / 1.7);
-          float joint = 1.0 - smoothstep(0.0, 0.045, min(min(slabF.x, 1.0 - slabF.x), min(slabF.y, 1.0 - slabF.y)));
+          float jointX = 1.0 - smoothstep(0.0, 0.045, min(slabF.x, 1.0 - slabF.x));
+          float jointY = 1.0 - smoothstep(0.0, 0.045, min(slabF.y, 1.0 - slabF.y));
+          float joint = max(jointX, jointY);
           float stain = 0.84 + 0.24 * tNoise(sp / 9.5);
           vec3 pave = texture2D(tPave, sp / 1.7).rgb * (0.84 + 0.20 * fract(sin(dot(floor(sp / 1.7), vec2(12.9898, 78.233))) * 43758.5453)) * stain;
-          pave *= 1.0 - 0.28 * joint * (1.0 - smoothstep(25.0, 85.0, camD));
+          float jFade = 1.0 - smoothstep(25.0, 110.0, camD);
+          pave *= 1.0 - 0.28 * joint * jFade;
           col = mix(col, pave * 0.88, walk);
+          // Crisp sidewalk joint bevel & brushed concrete normal relief
+          float wN0 = tNoise(sp / 0.85), wNx = tNoise((sp + vec2(0.18, 0.0)) / 0.85), wNz = tNoise((sp + vec2(0.0, 0.18)) / 0.85);
+          vec2 walkN = vec2((slabF.x < 0.5 ? -1.0 : 1.0) * jointX, (slabF.y < 0.5 ? -1.0 : 1.0) * jointY) * 0.72 * jFade + vec2(wNx - wN0, wNz - wN0) * 2.2 * jFade;
+          gUrbanN = mix(gUrbanN, walkN, walk);
+          gUrbanW = max(gUrbanW, walk * (0.45 + 0.55 * jFade));
+          gUrbanR = mix(gUrbanR, 0.74 + 0.18 * stain, walk);
         }
-        col = mix(col, vec3(0.46, 0.45, 0.43) * (0.78 + 0.34 * tNoise(sp / 0.85)) * (0.88 + 0.20 * tNoise(sp / 3.1)), kerb);
+        col = mix(col, vec3(0.56, 0.55, 0.52) * (0.78 + 0.34 * tNoise(sp / 0.85)) * (0.88 + 0.20 * tNoise(sp / 3.1)), kerb);
         if (road > 0.005) {
           vec3 a1 = texture2D(tAsph, sp / 3.2).rgb, a2 = texture2D(tAsph, sp / 12.5 + 0.37).rgb;
           float cellN = fract(sin(dot(floor(sp / 6.0), vec2(12.9898, 78.233))) * 43758.5453);
           float cellM = fract(sin(dot(floor(sp / 23.0), vec2(39.3468, 11.135))) * 24634.6345);
-          vec3 asph = mix(a1, a1 * (0.55 + a2 * 0.9), 0.55) * (0.86 + 0.18 * cellN) * (0.88 + 0.18 * cellM);
+          float patchMacro = 0.88 + 0.22 * tNoise(sp / 28.0);
+          vec3 asph = mix(a1, a1 * (0.55 + a2 * 0.9), 0.55) * (0.86 + 0.18 * cellN) * (0.88 + 0.18 * cellM) * patchMacro;
           asph *= 1.0 - 0.22 * smoothstep(0.78, 0.98, cellN) * smoothstep(0.3, 0.9, a2.r);
-          col = mix(col, asph * 1.12, road);
+          // On Map Overview (uMapFade > 0.5) deepen asphalt contrast so every downtown/suburban street reads crisply from orbit
+          vec3 roadCol = mix(asph * 1.12, vec3(0.085, 0.095, 0.115), uMapFade * 0.72);
+          col = mix(col, roadCol, road);
         }
         gWet = uWet * max(road, walk * 0.7);
         gRoad = road;
@@ -628,7 +1062,7 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
         diffuseColor.rgb = col;
       }
       diffuseColor.rgb *= 1.0 - 0.14 * uWet;           // wet ground everywhere`)
-      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, mix(0.55, 1.0, gTR), gTW);\nroughnessFactor = mix(roughnessFactor, gRockR, gRockW);\nroughnessFactor = mix(roughnessFactor, 0.42, gWet);\nroughnessFactor = mix(roughnessFactor, 0.06, gPud);')
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, mix(0.55, 1.0, gTR), gTW);\nroughnessFactor = mix(roughnessFactor, gUrbanR, gUrbanW * (1.0 - road));\nroughnessFactor = mix(roughnessFactor, gRockR, gRockW);\nroughnessFactor = mix(roughnessFactor, 0.42, gWet);\nroughnessFactor = mix(roughnessFactor, 0.06, gPud);')
       .replace('#include <metalnessmap_fragment>', '#include <metalnessmap_fragment>\nmetalnessFactor = mix(metalnessFactor, 0.02, gPud);')
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
       ${buildPlaykitGiInjectGlsl('0.78')}
@@ -639,12 +1073,14 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
       {
         float dfade = gTW * (1.0 - road) * (1.0 - gPud);
-        if (dfade > 0.002 || gRockW > 0.002) {
+        float ufade = gUrbanW * (1.0 - road) * (1.0 - gPud);
+        if (dfade > 0.002 || ufade > 0.002 || gRockW > 0.002) {
           vec3 nWv = inverseTransformDirection(normal, viewMatrix);
-          if (dfade > 0.002) {
+          if (dfade > 0.002 || ufade > 0.002) {
             vec3 refA = abs(nWv.z) > 0.9 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 0.0, 1.0);
             vec3 T = normalize(cross(refA, nWv)), B = cross(nWv, T);
-            nWv = normalize(nWv + (T * gTN.x + B * gTN.y) * 1.42 * dfade);
+            if (dfade > 0.002) nWv = normalize(nWv + (T * gTN.x + B * gTN.y) * 1.42 * dfade);
+            if (ufade > 0.002) nWv = normalize(nWv + (T * gUrbanN.x + B * gUrbanN.y) * 0.85 * ufade);
           }
           if (gRockW > 0.002) {
             nWv = normalize(nWv + gRockN * 0.55 * gRockW);
@@ -654,7 +1090,7 @@ function applyTerrainDetail(m: THREE.MeshStandardMaterial): void {
       }`);
     m.userData.shader = sh;
   };
-  m.customProgramCacheKey = () => 'apex-terrain-detail-pkgi-v1';
+  m.customProgramCacheKey = () => 'apex-terrain-detail-pkgi-v2';
 }
 
 let composer: EffectComposer | null = null;
@@ -686,7 +1122,7 @@ renderer.domElement.addEventListener('webglcontextrestored', () => {
   ctxLostEl.style.display = 'none';
   console.warn('[apex] WebGL context restored');
 });
-try {
+if (!USE_WEBGPU) try {
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
   // the scene is drawn into the composer's read buffer: match depthTexture pixel dimensions to renderTarget2 (pixelRatio-scaled)
@@ -933,24 +1369,46 @@ function buildTerrain(): void {
   tmpGeo.dispose();
 
   if (terrain) {
-    if (TERRAIN_LOD) populateTerrainLOD(terrain, terrainMat, nx, ny, pos, uv, nor); else populateTiledTerrain(terrain, terrainMat, nx, ny, pos, uv, nor, 8, 6);
+    if (TERRAIN_LOD) {
+    const lodD = (USE_WEBGPU && perfTier !== 'high') ? [0, 750, 1700, 3800] : [0, 1700, 3200, 5800];
+    populateTerrainLOD(terrain, terrainMat, nx, ny, pos, uv, nor, 144, lodD);
+  } else populateTiledTerrain(terrain, terrainMat, nx, ny, pos, uv, nor, 8, 6);
     return;
   }
   terrV.value.set(meta.width * meta.mpp, meta.height * meta.mpp); terrO.value.set(GRID.ox, GRID.oz);
   const tex = new THREE.TextureLoader().load(BASE + (hiRes ? 'albedo_hi.jpg' : 'albedo.jpg'));
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
-  terrainMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, metalness: 0, transparent: false });
-  applyTerrainDetail(terrainMat);
-  csmSetup(terrainMat);
+  if (USE_WEBGPU && tslRegionCtx) {
+    webgpuTerrainHandle = createApexIronportTerrainTslMaterial({
+      albedoMap: tex,
+      maskMap: loadedCityMaskTex ?? maskTex,
+      classMap: classTex,
+      asphaltMap: loadPbr1K('ground_asphalt_dry.png', true, 0x35373c, 1024),
+      paveMap: loadPbr1K('ground_concrete_sidewalk.png', true, 0xa2a09a, 512),
+      maskVec,
+      terrSize: terrV.value,
+      terrOrigin: terrO.value,
+      edge: edgeU.value,
+      gi: tslRegionCtx.gi,
+    });
+    terrainMat = webgpuTerrainHandle.material as unknown as THREE.MeshStandardMaterial;
+  } else {
+    terrainMat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95, metalness: 0, transparent: false });
+    applyTerrainDetail(terrainMat);
+    csmSetup(terrainMat);
+  }
   terrain = new THREE.Group();
   terrain.name = 'terrain-tiles';
-  if (TERRAIN_LOD) populateTerrainLOD(terrain, terrainMat, nx, ny, pos, uv, nor); else populateTiledTerrain(terrain, terrainMat, nx, ny, pos, uv, nor, 8, 6);
+  if (TERRAIN_LOD) {
+    const lodD = (USE_WEBGPU && perfTier !== 'high') ? [0, 750, 1700, 3800] : [0, 1700, 3200, 5800];
+    populateTerrainLOD(terrain, terrainMat, nx, ny, pos, uv, nor, 144, lodD);
+  } else populateTiledTerrain(terrain, terrainMat, nx, ny, pos, uv, nor, 8, 6);
   scene.add(terrain);
   // water: region footprint, extended far to the west so the Great Lake runs to the horizon
   const rw = meta.width * meta.mpp, rh = meta.height * meta.mpp, ext = 60000;
   edgeU.value.set(rw / 2, rh / 2);                                               // half extents of the map, for the soft edge fade
-  waterSurface = new WaterSurface(scene, rw, rh, ext, edgeU.value, GRID.ox - rw / 2, GRID.oz - rh / 2, atmosphere);
+  waterSurface = new WaterSurface(scene, rw, rh, ext, edgeU.value, GRID.ox - rw / 2, GRID.oz - rh / 2, atmosphere, (x, z) => hAt(x, z));
   waterMesh = waterSurface.mesh;
 }
 
@@ -1060,8 +1518,15 @@ harborGroup.name = 'harbor-group';
 scene.add(harborGroup);
 let harbor: HarborPlan | null = null;
 
+const stdMatPool = new Map<string, THREE.MeshStandardMaterial>();
 function stdMat(color: number, rough = 0.85, metal = 0): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
+  const key = `${color}|${rough.toFixed(2)}|${metal.toFixed(2)}`;
+  let m = stdMatPool.get(key);
+  if (!m) {
+    m = new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: metal });
+    stdMatPool.set(key, m);
+  }
+  return m;
 }
 function box(w: number, h: number, d: number, color: number, x: number, y: number, z: number, parent: THREE.Object3D, metal = 0): THREE.Mesh {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), stdMat(color, 0.7, metal));
@@ -1069,21 +1534,13 @@ function box(w: number, h: number, d: number, color: number, x: number, y: numbe
   parent.add(m);
   return m;
 }
+let craneSeed = 1;
 function craneGroup(): THREE.Group {
-  // ship-to-shore gantry crane: local +z is toward the water, local x along the quay
-  const g = new THREE.Group();
-  const steel = 0xb9bfc7, dark = 0x5d646d;
-  for (const sx of [-14, 14]) for (const sz of [-14, 14]) box(2.4, 38, 2.4, steel, sx, 19, sz, g, 0.3);
-  box(32, 3, 34, steel, 0, 39, 0, g, 0.3);
-  for (const sx of [-14, 14]) box(2, 2, 34, dark, sx, 30, 0, g);
-  box(3, 3.2, 78, steel, 0, 44, 22, g, 0.3);
-  box(3, 3.2, 26, steel, 0, 44, -26, g, 0.3);
-  box(6, 5, 6, 0xe0b040, 0, 41, 6, g);
-  box(1, 22, 1, dark, 0, 55, -4, g);
-  return g;
+  // Plajah Industrial Library ship-to-shore A-frame container gantry crane (portal legs, stay cables, trolley cab & boom)
+  return quayCrane(craneSeed++);
 }
 function shipGroup(type: string, len: number, beam: number): THREE.Group {
-  // local +x is the bow
+  // local +x is the bow: flared hull with crimson anti-fouling boot-top, bridge wings, tinted navigation windows, radar mast & corrugated ISO containers
   const g = new THREE.Group();
   const shape = new THREE.Shape();
   shape.moveTo(-len / 2, -beam / 2);
@@ -1092,26 +1549,36 @@ function shipGroup(type: string, len: number, beam: number): THREE.Group {
   shape.quadraticCurveTo(len * 0.46, beam * 0.35, len * 0.28, beam / 2);
   shape.lineTo(-len / 2, beam / 2);
   shape.closePath();
-  const hullGeo = new THREE.ExtrudeGeometry(shape, { depth: 15, bevelEnabled: false });
-  hullGeo.rotateX(-Math.PI / 2);
-  const hull = new THREE.Mesh(hullGeo, stdMat(type === 'container' ? 0x7a2a22 : 0x2f4a6b, 0.7, 0.1));
-  hull.position.y = -8;
-  g.add(hull);
-  box(len * 0.98, 0.6, beam * 0.98, 0x5b5f64, 0, 7.1, 0, g);
-  box(16, 22, beam * 0.72, 0xe8eaee, -len / 2 + 20, 18, 0, g);
-  box(5, 8, 5, 0xc23b2b, -len / 2 + 14, 32, 0, g);
+  const lowGeo = new THREE.ExtrudeGeometry(shape, { depth: 7.5, bevelEnabled: false });
+  lowGeo.rotateX(-Math.PI / 2);
+  const lowHull = new THREE.Mesh(lowGeo, stdMat(0x7a1e18, 0.72, 0.12));
+  lowHull.position.y = -8;
+  g.add(lowHull);
+  const upGeo = new THREE.ExtrudeGeometry(shape, { depth: 8.5, bevelEnabled: false });
+  upGeo.rotateX(-Math.PI / 2);
+  const upHull = new THREE.Mesh(upGeo, stdMat(type === 'container' ? 0x22384e : 0x2f4a6b, 0.68, 0.22));
+  upHull.position.y = -0.5;
+  g.add(upHull);
+  box(len * 0.96, 0.7, beam * 0.96, 0x4b5056, 0, 8.2, 0, g, 0.15);
+  // Multi-tier accommodation block + cantilevered bridge wings + panoramic dark windows + radar mast
+  const bx = -len / 2 + 20;
+  box(16, 20, beam * 0.72, 0xe8eaee, bx, 18.5, 0, g);
+  box(10, 4.0, beam * 1.02, 0xe8eaee, bx + 2, 27.5, 0, g);
+  box(10.3, 1.8, beam * 0.94, 0x101c28, bx + 2.4, 27.8, 0, g, 0.65);
+  box(5, 8.5, 5, 0xc23b2b, bx - 6, 32, 0, g, 0.2);
+  box(0.55, 11, 0.55, 0x9aa2aa, bx + 2, 35, 0, g, 0.55);
   if (type === 'container') {
     const cols = [0x2f6fb0, 0xc9482e, 0x3e9a5a, 0xd8a52a, 0x8a8f96, 0x5b3f8a];
     const bays = Math.floor((len * 0.62) / 12.6);
     const across = Math.floor((beam - 6) / 2.7);
     const geo = new THREE.BoxGeometry(12.2, 2.6, 2.5);
-    const im = new THREE.InstancedMesh(geo, stdMat(0xffffff, 0.8), bays * across * 4);
+    const im = new THREE.InstancedMesh(geo, shippingContainerMaterials(), bays * across * 4);
     const m4 = new THREE.Matrix4(), col = new THREE.Color();
     let n = 0;
     for (let b = 0; b < bays; b++) for (let a = 0; a < across; a++) {
       const tiers = 1 + ((b * 7 + a * 3) % 4);
       for (let t = 0; t < tiers; t++) {
-        m4.makeTranslation(-len / 2 + 44 + b * 12.6 + 6, 8.7 + t * 2.62, (a - (across - 1) / 2) * 2.7);
+        m4.makeTranslation(-len / 2 + 44 + b * 12.6 + 6, 9.7 + t * 2.62, (a - (across - 1) / 2) * 2.7);
         im.setMatrixAt(n, m4);
         im.setColorAt(n, col.setHex(cols[(b * 5 + a * 3 + t) % cols.length]));
         n++;
@@ -1120,7 +1587,7 @@ function shipGroup(type: string, len: number, beam: number): THREE.Group {
     im.count = n;
     g.add(im);
   } else {
-    for (let i = 0; i < 5; i++) box(24, 3, beam * 0.66, 0x555a50, -len / 2 + 50 + i * 30, 8.8, 0, g);
+    for (let i = 0; i < 5; i++) box(24, 3.2, beam * 0.68, 0x5c6058, -len / 2 + 50 + i * 30, 9.8, 0, g, 0.2);
   }
   return g;
 }
@@ -1153,7 +1620,7 @@ function buildHarbor(): void {
   wg.computeVertexNormals();
   harborGroup.add(new THREE.Mesh(wg, new THREE.MeshStandardMaterial({ color: 0x8e9093, roughness: 0.95, side: THREE.DoubleSide })));
   const bIm = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.45, 0.6, 1.0, 8), stdMat(0x23262b), Math.max(bol.length, 1));
-  bol.forEach((b, i) => { m4.makeTranslation(b[0], b[1] + 0.5, b[2]); bIm.setMatrixAt(i, m4); });
+  bol.forEach((b, i) => { m4.makeTranslation(b[0], b[1] + 0.5, b[2]); bIm.setMatrixAt(i, m4); worldPhys.addBreakable(b[0], b[1], b[2], 'bollard', 0.65); });
   harborGroup.add(bIm);
   const pIm = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.28, 0.4, 24, 6), stdMat(0x40454c), Math.max(poles.length, 1));
   const hIm = new THREE.InstancedMesh(new THREE.BoxGeometry(4, 0.8, 1.2), new THREE.MeshBasicMaterial({ color: 0xfff1c4 }), Math.max(poles.length, 1));
@@ -1205,7 +1672,7 @@ function buildHarbor(): void {
   }
   // tank farm
   const tIm = new THREE.InstancedMesh(new THREE.CylinderGeometry(9, 9, 16, 20), stdMat(0xd7d9dc, 0.6, 0.2), Math.max(h.tanks.length, 1));
-  h.tanks.forEach((t, i) => { m4.makeTranslation(t[0], Math.max(hAt(t[0], t[1]), 1.6) * exag + 8, t[1]); tIm.setMatrixAt(i, m4); });
+  h.tanks.forEach((t, i) => { m4.makeTranslation(t[0], Math.max(hAt(t[0], t[1]), 1.6) * exag + 8, t[1]); tIm.setMatrixAt(i, m4); worldPhys.addSolidCylinder(t[0], t[1], 9.2, 'pillar'); });
   harborGroup.add(tIm);
   // gantry cranes
   for (const c of h.cranes) {
@@ -1213,6 +1680,7 @@ function buildHarbor(): void {
     g.position.set(c.c[0], Math.max(hAt(c.c[0], c.c[1]), 1.6) * exag, c.c[1]);
     g.rotation.y = phi + (c.dir < 0 ? Math.PI : 0);
     harborGroup.add(g);
+    worldPhys.addSolidBox(c.c[0], c.c[1], 8.5, 14, g.rotation.y, 'pillar');
   }
   // ships
   for (const b of h.berths) {
@@ -1220,6 +1688,63 @@ function buildHarbor(): void {
     g.position.set(b.c[0], 0, b.c[1]);
     g.rotation.y = phi;
     harborGroup.add(g);
+    // Escort harbor tugboat berthed right off each ship's bow/quarter
+    const tug = new THREE.Group();
+    tug.position.set(b.c[0] + ex[0] * (b.len * 0.42), 0, b.c[1] + ex[1] * (b.len * 0.42) + 28);
+    tug.rotation.y = phi + 0.25;
+    box(22, 3.0, 8.2, 0x7a1e18, 0, -0.6, 0, tug, 0.12);
+    box(23, 2.2, 8.6, 0x1e262e, 0, 1.8, 0, tug, 0.25);
+    box(10, 4.0, 6.0, 0xb82e24, -1.5, 4.6, 0, tug, 0.18);
+    box(6.0, 3.4, 5.2, 0xeaece8, 0.5, 8.2, 0, tug, 0.08);
+    box(1.4, 4.6, 1.4, 0xc83c24, -4.0, 8.4, 0, tug, 0.22);
+    harborGroup.add(tug);
+  }
+  // Additional moored Great Lakes shipping vessels along deepwater harbor approach + working yard RTG straddle cranes & reach stackers
+  {
+    const extraBerths: [number, number, 'container' | 'bulk', number, number, number][] = [
+      [5840, -1620, 'container', 210, 32, phi],
+      [5480, -1040, 'bulk', 185, 28, phi + 0.12],
+      [6020, -1480, 'container', 195, 30, phi],
+    ];
+    for (const [sx, sz, stype, slen, sbeam, srot] of extraBerths) {
+      if (hAt(sx, sz) < -0.5) {
+        const sg = shipGroup(stype, slen, sbeam);
+        sg.position.set(sx, 0, sz);
+        sg.rotation.y = srot;
+        harborGroup.add(sg);
+      }
+    }
+    const rtgY = stdMat(0xe0a21c, 0.45, 0.55), rtgR = stdMat(0xc23526, 0.48, 0.45), rtgD = stdMat(0x23262b, 0.85, 0.25);
+    for (const t of h.terminals) {
+      const ey = [-ex[1], ex[0]];
+      for (const frac of [-0.28, 0.22]) {
+        const rx = t.c[0] + ex[0] * t.w * frac, rz = t.c[1] + ex[1] * t.w * frac;
+        if (hAt(rx, rz) < 1.3) continue;
+        const gy = Math.max(hAt(rx, rz), 1.6) * exag;
+        const rtg = new THREE.Group();
+        rtg.position.set(rx, gy, rz);
+        rtg.rotation.y = phi;
+        const span = 22;
+        for (const sx of [-4.4, 4.4]) {
+          for (const sz of [-span * 0.5, span * 0.5]) {
+            const leg = new THREE.Mesh(new THREE.BoxGeometry(1.1, 16, 1.1), rtgY); leg.position.set(sx, 8, sz); rtg.add(leg);
+            const bog = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.5, 1.6), rtgD); bog.position.set(sx, 0.8, sz); rtg.add(bog);
+          }
+          const beam = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.3, span + 1.2), rtgR); beam.position.set(sx, 16.3, 0); rtg.add(beam);
+        }
+        const spr = new THREE.Mesh(new THREE.BoxGeometry(12.2, 0.9, 2.5), rtgR); spr.position.set(0, 12.0, 0); rtg.add(spr);
+        harborGroup.add(rtg);
+        // Reach stacker & yard tractor staged beside terminal aisle
+        const rsx = rx + ey[0] * (span * 0.65), rsz = rz + ey[1] * (span * 0.65);
+        if (hAt(rsx, rsz) >= 1.3) {
+          const rs = new THREE.Group(); rs.position.set(rsx, gy, rsz); rs.rotation.y = phi + 0.35;
+          box(6.5, 2.0, 3.0, 0xc23526, 0, 1.5, 0, rs, 0.35);
+          const bm = box(8.0, 0.8, 0.9, 0x262b30, 2.1, 4.3, 0, rs, 0.6); bm.rotation.z = 0.48;
+          box(4.6, 0.45, 2.4, 0xe0a21c, 5.5, 6.2, 0, rs, 0.45);
+          harborGroup.add(rs);
+        }
+      }
+    }
   }
   harborGroup.add(harborDetail(h, (x, z) => Math.max(hAt(x, z), 1.6) * exag));
   // rail yard
@@ -1229,7 +1754,9 @@ function buildHarbor(): void {
     harborGroup.add(ribbon(pts, null, 3.2, 0x57534d, 0.4));
     harborGroup.add(ribbon(pts, null, 0.35, 0xb8b2a6, 0.5));
   }
+  mergeStaticScenery(harborGroup, 600);
   apexLighting.registerHarborLights(h, hAt);
+  scheduleCullerReindex();
 }
 
 async function loadHarbor(): Promise<void> {
@@ -1344,6 +1871,7 @@ async function buildStreets(): Promise<void> {
   buildCurbs().catch((e) => console.warn('curbs failed', e));
   buildStreetMarks();
   buildTownExtras();
+  rebuildMapRoads();
 }
 // Once the street runs are in: curbs and sidewalks along the town streets (src/townStreets.ts; downtown keeps the ones painted from the street mask), and parked cars
 // at the city curbs and in the driveways (src/parkedCars.ts). Built once.
@@ -1362,6 +1890,8 @@ function buildTownExtras(): void {
       skip: (x, z) => roadDist(x, z) < 9 || hAt(x, z) < 2.5 || insideBuilding(x, z, 0.8) || !!(simLayer?.junctions.near(x, z, 3)) || onCourse(x, z, 1, [IND, HARB, CIV]),
     });
     furnitureGroup.add(parked.group);
+    for (const pc of parked.cars) worldPhys.addSolidBox(pc.x, pc.z, 0.96, 2.25, pc.yaw, 'car');
+    void loadCarLibraryModels().then(() => scheduleCullerReindex());
   }
   if (!refDress) {
     refDress = buildReferenceDressing({
@@ -1371,6 +1901,8 @@ function buildTownExtras(): void {
       streets: streetRuns.map((r) => ({ line: r.p.map(([x, z]) => ({ x, z })), half: ({ street: 4.25, arterial: 7, freeway: 6.25, ramp: 2.75 } as Record<string, number>)[r.c] ?? 4.25 })),
     });
     furnitureGroup.add(refDress.group);
+    mergeStaticScenery(refDress.group, 500);
+    scheduleCullerReindex();
     console.log('reference dressing', JSON.stringify(refDress.counts));
   }
 }
@@ -1411,7 +1943,7 @@ function buildStreetMarks(): void {
       while (next <= travelled + L) {
         const s = next - travelled, x = a[0] + ux * s, z = a[1] + uz * s;
         next += PERIOD;
-        if (roadDist(x, z) < 8 || crossing(x, z, ri) || hAt(x, z) < 1.2) continue;
+        if (roadDist(x, z) < 8 || crossing(x, z, ri) || hAt(x, z) < 1.2 || trenchHole(x, z)) continue;
         q.setFromAxisAngle(up, Math.atan2(ux, uz));
         const y = meshH(x, z) + 0.05;
         if (r.c === 'arterial') for (const o of [-0.2, 0.2]) { m4.compose(new THREE.Vector3(x - uz * o, y, z + ux * o), q, new THREE.Vector3(1, 1, DASH / 3.2)); yellow.push(m4.clone()); }
@@ -1465,10 +1997,18 @@ async function buildCurbs(): Promise<void> {
         shift = Math.max(0, 7.8 - Math.sqrt(best));
       }
       const sx = nx * shift, sz = nz * shift;
+      const segLen = Math.hypot(qx - px, qz - pz);
+      if (segLen < 0.2 || hAt(px + sx, pz + sz) < 1.2 || hAt(qx + sx, qz + sz) < 1.2 || trenchHole(mx + sx, mz + sz)) continue;
       const y0p = meshH(px + sx, pz + sz) + 0.01, y0q = meshH(qx + sx, qz + sz) + 0.01;
+      // Civil-engineering guard: skip impossible vertical/cliff curb shards and drape outer sidewalk slab cleanly to terrain
+      if (Math.abs(y0q - y0p) / segLen > 0.24) continue;
+      const exP = px + sx + nx * SLAB, ezP = pz + sz + nz * SLAB;
+      const exQ = qx + sx + nx * SLAB, ezQ = qz + sz + nz * SLAB;
+      const ySlabP = Math.max(y0p + H - 0.22, Math.min(y0p + H + 0.22, meshH(exP, ezP) + 0.06));
+      const ySlabQ = Math.max(y0q + H - 0.22, Math.min(y0q + H + 0.22, meshH(exQ, ezQ) + 0.06));
       const A0 = [px + sx, y0p, pz + sz], B0 = [qx + sx, y0q, qz + sz], A1 = [px + sx, y0p + H, pz + sz], B1 = [qx + sx, y0q + H, qz + sz];
       const C1 = [px + sx + nx * TOP, y0p + H, pz + sz + nz * TOP], D1 = [qx + sx + nx * TOP, y0q + H, qz + sz + nz * TOP];
-      const E1 = [px + sx + nx * SLAB, y0p + H, pz + sz + nz * SLAB], F1 = [qx + sx + nx * SLAB, y0q + H, qz + sz + nz * SLAB];
+      const E1 = [exP, ySlabP, ezP], F1 = [exQ, ySlabQ, ezQ];
       quad(A0, B0, B1, A1, cFace);
       quad(A1, B1, D1, C1, cTop);
       quad(C1, D1, F1, E1, cSlab);
@@ -1516,7 +2056,11 @@ function loadSprites(): Promise<SpriteSet> {
       new THREE.TextureLoader().load('/games/apex/sprites/' + e.file, (t) => {
         t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.generateMipmaps = true;
         res({ file: e.file, w: e.w, h: e.h, tex: t, kind: e.cat });
-      }, undefined, () => res({ file: e.file, w: e.w, h: e.h, tex: new THREE.Texture(), kind: e.cat }));
+      }, undefined, () => {
+        const dt = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1);
+        dt.needsUpdate = true;
+        res({ file: e.file, w: e.w, h: e.h, tex: dt, kind: e.cat });
+      });
     });
     const want = (names: string[]): Promise<SpriteDef[]> => Promise.all(man.filter((e) => names.includes(e.file)).map(load));
     const [urban, autumn, conifer, broad] = await Promise.all([
@@ -1558,7 +2102,7 @@ function patchTreeCard(mat: THREE.MeshStandardMaterial, lod: boolean): void {
         }
         #endif`);
   };
-  mat.customProgramCacheKey = () => (lod ? 'treecard-lod-v2' : 'treecard-v2');
+  mat.customProgramCacheKey = () => (lod ? 'treecard-lod-v3' : 'treecard-v3');
 }
 function addTreeCards(parent: THREE.Object3D, list: { x: number; z: number; def: SpriteDef; h: number }[], lod = false): void {
   const by = new Map<SpriteDef, typeof list>();
@@ -1569,10 +2113,14 @@ function addTreeCards(parent: THREE.Object3D, list: { x: number; z: number; def:
     const mkey = def.file + (lod ? ':lod' : '');
     let mat = spriteMats.get(mkey);
     if (!mat) {
-      // Higher alphaTest (0.76) cuts out the dark semi-transparent matte halo baked into sprite PNG edges
-      mat = new THREE.MeshStandardMaterial({ map: def.tex, alphaTest: 0.76, side: THREE.DoubleSide, roughness: 0.94, metalness: 0 });
-      if (lod) cardLod(mat);
-      patchTreeCard(mat, lod);
+      if (USE_WEBGPU && tslRegionCtx) {
+        mat = createApexTreeCardLodTslMaterial(def.tex, tslRegionCtx.foliage, tslRegionCtx.gi) as unknown as THREE.MeshStandardMaterial;
+      } else {
+        // Higher alphaTest (0.76) cuts out the dark semi-transparent matte halo baked into sprite PNG edges
+        mat = new THREE.MeshStandardMaterial({ map: def.tex, alphaTest: 0.76, side: THREE.DoubleSide, roughness: 0.94, metalness: 0 });
+        if (lod) cardLod(mat);
+        patchTreeCard(mat, lod);
+      }
       spriteMats.set(mkey, mat);
     }
     // Partition massive regional tree-card arrays into frustum- and distance-cullable 520 m cells so off-screen / 8 km-away trees are skipped
@@ -1634,8 +2182,8 @@ let utilData: UtilitiesData | null = null;          // power plant, substations,
 let portData: PortData | null = null;               // the Ironworks port district: graded platform, quay, piers, containers, tank farm (tools/plan_port_district.py)
 let vegetation: Vegetation | null = null;            // the streamed grass, shrub and rock system (src/vegetation.ts); ?veg=old brings back the previous grass
 /** the Ravencrest/Era Clash trees (ez-tree skeletons, bark scans, painted leaves); the simple procedural trees only if those fail to build */
-function mkTrees(pts: number[][], h: (x: number, z: number) => number, ex: () => number): TreeLayer {
-  try { return new EzTreeField(pts, h, ex); } catch (e) { console.warn('high-quality trees unavailable, using simple trees', e); return new TreeField(pts, h, ex); }
+function mkTrees(pts: number[][], h: (x: number, z: number) => number, ex: () => number, syncCardLod = false): TreeLayer {
+  try { return new EzTreeField(pts, h, ex, syncCardLod); } catch (e) { console.warn('high-quality trees unavailable, using simple trees', e); return new TreeField(pts, h, ex); }
 }
 // ---------- keep trees and grass off the roads ----------
 // Every circuit's centreline, the coastal highway and the painted road mask are checked: nothing grows on tarmac, pavement or the course.
@@ -1649,6 +2197,13 @@ function ensureRoadHash(): Map<number, number[]> {
   const hw = meta.coastal_highway?.xz ?? [];
   for (let i = 0; i < hw.length; i++) add(hw[i][0], hw[i][1]);
   for (const r of scenicData) for (let i = 0; i < r.xz.length; i += 2) add(r.xz[i][0], r.xz[i][1]);   // every scenic road (not only the ones a circuit uses): no tree on Kettle Pass
+  for (const r of countryNet?.roads ?? []) {
+    if (r.kind === 'drive') continue;
+    for (let i = 0; i < r.xz.length - 1; i++) {
+      const a = r.xz[i], b = r.xz[i + 1], steps = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 12));
+      for (let k = 0; k <= steps; k++) add(a[0] + (b[0] - a[0]) * (k / steps), a[1] + (b[1] - a[1]) * (k / steps));
+    }
+  }
   roadHash = h;
   return h;
 }
@@ -1704,6 +2259,26 @@ function vegOk(x: number, z: number, extra = 0): boolean {
   if (parkingLots && parkingLots.near(x, z, 3 + extra)) return false;
   return true;
 }
+/** Tighter roadside clearance for low 3D grass, wildflowers & farm crops so lush verge grass hugs both shoulders right up to the asphalt without ever growing ON tarmac. */
+function grassOk(x: number, z: number): boolean {
+  if (hAt(x, z) <= 1.55) return false;
+  if (paintedRoad(x, z, 0.45, true)) return false;
+  if (onCourse(x, z, 1.1, TARMAC_CIRCUITS)) return false;
+  if (countryScenes && (countryScenes.pavedNear(x, z, 1.05) || countryScenes.dirtNear(x, z, 0.35))) return false;
+  if (insideBuilding(x, z, 1.0)) return false;
+  if (bridgeNear && bridgeNear(x, z, 8.5)) return false;
+  if (indNear && indNear(x, z, 6.5)) return false;
+  if (harborNear && harborNear(x, z, 6.5)) return false;
+  if (civicNear && civicNear(x, z, 6.5)) return false;
+  if (portData && inPort(portData, x, z, 10)) return false;
+  if (utilData && inPort({ platform: utilData.platform } as PortData, x, z, 10)) return false;
+  if (simLayer && simLayer.near(x, z, 4.5)) return false;
+  if (townWalks && townWalks.near(x, z, 0.2)) return false;
+  if (parkingLots && parkingLots.near(x, z, 1.2)) return false;
+  return true;
+}
+const worldPhys = new WorldCollisionAndBreakables();
+scene.add(worldPhys.group);
 const forestGroup = new THREE.Group();
 scene.add(forestGroup);
 async function buildForest(): Promise<void> {
@@ -1721,8 +2296,13 @@ async function buildForest(): Promise<void> {
     list.push({ x: p[0], z: p[1], def, h: (p[2] ? 15 + p[3] * 9 : 13 + p[3] * 7) });
   }
   addTreeCards(forestGroup, list, true);
-  const tf = mkTrees(pts, hAt, () => exag);
+  const tf = mkTrees(pts, hAt, () => exag, true);
   forestGroup.add(tf.group); treeFields.push(tf);
+  for (const p of pts) {
+    const s = p[4] ?? 1;
+    if (s < 0.52) worldPhys.addBreakable(p[0], hAt(p[0], p[1]) * exag, p[1], 'sapling', 0.65);
+    else worldPhys.addSolidCylinder(p[0], p[1], Math.max(0.45, Math.min(0.82, 0.52 * s)), 'tree');
+  }
   console.log('forest', list.length);
   // trees along the cliff raceway and the rally trail: lining both verges, off the tarmac, away from the water
   const verge: number[][] = [];
@@ -1749,9 +2329,9 @@ async function buildForest(): Promise<void> {
   {
     const zt = await fetch(BASE + 'zone_trees.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as number[][] | null;
     if (zt) for (const t of zt) if (vegOk(t[0], t[1], 1)) verge.push(t);
-    // back-yard trees behind the houses (tools/relay_houses.py)
+    // back-yard trees behind the houses (tools/relay_houses.py) — strictly filtered off roads & intersections
     const yt = await fetch(BASE + 'yard_trees.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as number[][] | null;
-    if (yt) for (const t of yt) verge.push(t);
+    if (yt) for (const t of yt) if (vegOk(t[0], t[1], 1.5)) verge.push(t);
   }
   const vlist = verge.map((p) => {
     const set = p[2] ? sp.conifer : sp.broad;
@@ -1760,11 +2340,16 @@ async function buildForest(): Promise<void> {
   addTreeCards(forestGroup, vlist, true);
   const vf = mkTrees(verge, hAt, () => exag);
   forestGroup.add(vf.group); treeFields.push(vf);
+  for (const p of verge) {
+    const s = p[4] ?? 1;
+    if (s < 0.55) worldPhys.addBreakable(p[0], hAt(p[0], p[1]) * exag, p[1], 'sapling', 0.65);
+    else worldPhys.addSolidCylinder(p[0], p[1], Math.max(0.44, Math.min(0.76, 0.48 * s)), 'tree');
+  }
   console.log('verge trees', verge.length);
-  // real grass around the camera, on green ground only, never on roads, pavement or the course
+  // real grass around the camera, hugging both highway/rural verges cleanly while staying strictly off asphalt and buildings
   if (!location.search.includes('veg=old')) {
     if (!vegetation) {
-      vegetation = new Vegetation({ rw: meta.width * meta.mpp, rh: meta.height * meta.mpp, classUrl: BASE + 'landclass.png', albedoUrl: BASE + 'albedo.jpg', ground: meshH, ok: (x, z) => vegOk(x, z) });
+      vegetation = new Vegetation({ rw: meta.width * meta.mpp, rh: meta.height * meta.mpp, classUrl: BASE + 'landclass.png', albedoUrl: BASE + 'albedo.jpg', ground: meshH, ok: (x, z) => grassOk(x, z) });
       scene.add(vegetation.group);
     }
   } else {
@@ -1868,8 +2453,13 @@ async function buildStreetscape(): Promise<void> {
   addTreeCards(scapeGroup, okTrees.map((t) => ({ x: t[0], z: t[1], def: autumnLeaf(t[0], t[1], t[3]) !== undefined ? sp.autumn[Math.floor(t[3] * sp.autumn.length) % sp.autumn.length] ?? pickStreet(t[3]) : pickStreet(t[3]), h: (8 + t[3] * 5) * t[2] / 1.2 })), true);
   // up close the street trees are real 3D trees (the cards take over beyond ~150 m)
   { const tf = mkTrees(okTrees.map((t) => { const leaf = autumnLeaf(t[0], t[1], t[3]); return leaf === undefined ? [t[0], t[1], 0, t[3], 0.62 * t[2] + 0.2] : [t[0], t[1], 0, t[3], 0.62 * t[2] + 0.2, leaf]; }), hAt, () => exag); scapeGroup.add(tf.group); treeFields.push(tf); }
+  for (const t of okTrees) {
+    if (t[2] < 0.85) worldPhys.addBreakable(t[0], hAt(t[0], t[1]) * exag, t[1], 'sapling', 0.55);
+    else worldPhys.addSolidCylinder(t[0], t[1], 0.44 * t[2], 'tree');
+  }
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
-  // street lights: pole, arm, emissive lamp head
+  const zeroM4 = new THREE.Matrix4().makeScale(0, 0, 0);
+  // street lights: pole, arm, emissive lamp head (individually smashable & launchable on high-speed impact!)
   const ln = lights.length;
   const pole = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.09, 0.14, 8.6, 6), stdMat(0x3c4047, 0.6, 0.5), ln);
   const arm = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.1, 2.4), stdMat(0x3c4047, 0.6, 0.5), ln);
@@ -1885,8 +2475,14 @@ async function buildStreetscape(): Promise<void> {
     arm.setMatrixAt(i, m4);
     m4.compose(new THREE.Vector3(l[0] + fx * 2.1, gy + 8.4, l[1] + fz * 2.1), q, new THREE.Vector3(1, 1, 1));
     head.setMatrixAt(i, m4);
+    worldPhys.addBreakable(l[0], gy, l[1], 'pole', 0.55, () => {
+      pole.setMatrixAt(i, zeroM4); pole.instanceMatrix.needsUpdate = true;
+      arm.setMatrixAt(i, zeroM4); arm.instanceMatrix.needsUpdate = true;
+      head.setMatrixAt(i, zeroM4); head.instanceMatrix.needsUpdate = true;
+    });
   });
   pole.name = arm.name = head.name = 'street-light';
+  pole.userData.chunked = arm.userData.chunked = head.userData.chunked = true;
   pole.frustumCulled = arm.frustumCulled = head.frustumCulled = false;
   scapeGroup.add(pole, arm, head);
   chunkInstanced(scapeGroup);
@@ -2023,10 +2619,164 @@ function addTowerGeometry(items: CityItem[]): void {
 
 // ---------- city buildings ----------
 interface CityItem { kind: 'hero' | 'generic'; slug: string; x: number; z: number; rotY: number; w: number; d: number; h: number; sx?: number; sy?: number; sz?: number; bx?: number; bz?: number }
-const CITY_BATCH = !location.search.includes('citybatch=0');      // ?citybatch=0: the old one-InstancedMesh-per-part city, for comparing
+const CITY_BATCH = !USE_WEBGPU && !location.search.includes('citybatch=0'); // WebGPU uses hardware InstancedMesh (BatchedMesh loops per-instance drawIndexed without multi_draw)
 let cityBatches: CityBatches | null = null;
+let cityCoreReady = false;
+let resolveCityCore: (() => void) | null = null;
+const cityCorePromise = new Promise<void>((res) => { resolveCityCore = res; });
+let cityFullyBuilt = false;
 const cityGroup = new THREE.Group();
 scene.add(cityGroup);
+// Ultra-fast 2-draw-call architectural skyline proxy for 60 FPS Map Overview mode (~55k tris instead of 95M tris at 4.9 km altitude!)
+const mapSkylineGroup = new THREE.Group();
+mapSkylineGroup.name = 'map-skyline';
+mapSkylineGroup.visible = false;
+scene.add(mapSkylineGroup);
+const mapWorldProxyGroup = new THREE.Group();
+mapWorldProxyGroup.name = 'map-world-proxy';
+mapWorldProxyGroup.visible = false;
+scene.add(mapWorldProxyGroup);
+const mapRoadsGroup = new THREE.Group();
+mapRoadsGroup.name = 'map-roads-overlay';
+mapRoadsGroup.visible = false;
+scene.add(mapRoadsGroup);
+
+function rebuildMapRoads(): void {
+  if (!meta) return;
+  mapRoadsGroup.clear();
+  const hwyPos: number[] = [], hwyIdx: number[] = [];
+  const spinePos: number[] = [], spineIdx: number[] = [];
+  const pavedPos: number[] = [], pavedIdx: number[] = [];
+  const dirtPos: number[] = [], dirtIdx: number[] = [];
+  const pushRibbon = (pts: number[][], width: number, lift: number, outPos: number[], outIdx: number[], ys?: number[]): void => {
+    if (!pts || pts.length < 2) return;
+    const base = outPos.length / 3;
+    const n = pts.length;
+    for (let i = 0; i < n; i++) {
+      const p = pts[i], a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
+      const dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1;
+      const nx = (-dz / l) * width * 0.5, nz = (dx / l) * width * 0.5;
+      const y = (ys ? ys[i] : meshH(p[0], p[1])) + lift;
+      outPos.push(p[0] + nx, y, p[1] + nz, p[0] - nx, y, p[1] - nz);
+    }
+    for (let i = 0; i < n - 1; i++) {
+      const k = base + i * 2;
+      outIdx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3);
+    }
+  };
+  if (meta.freeway?.xz) {
+    pushRibbon(meta.freeway.xz, 24, 1.4, hwyPos, hwyIdx);
+    pushRibbon(meta.freeway.xz, 4.2, 1.75, spinePos, spineIdx);
+  }
+  if (meta.coastal_highway?.xz) {
+    pushRibbon(meta.coastal_highway.xz, 18, 1.35, hwyPos, hwyIdx);
+    pushRibbon(meta.coastal_highway.xz, 3.4, 1.7, spinePos, spineIdx);
+  }
+  if (shoreHw?.xz) {
+    pushRibbon(shoreHw.xz, 18, 1.4, hwyPos, hwyIdx, shoreHw.y);
+    pushRibbon(shoreHw.xz, 3.4, 1.75, spinePos, spineIdx, shoreHw.y);
+  }
+  for (const r of countryNet?.roads ?? []) {
+    if (r.xz.length < 2) continue;
+    if (r.kind === 'dirt') pushRibbon(r.xz, Math.max(8.5, (r.half ?? 4) * 2.1), 1.05, dirtPos, dirtIdx);
+    else pushRibbon(r.xz, Math.max(11.5, (r.half ?? 5) * 2.1), 1.2, pavedPos, pavedIdx);
+  }
+  for (const sr of scenicData) {
+    if (sr.surface === 'paved') {
+      pushRibbon(sr.xz, Math.max(14, sr.half * 2.2), 1.3, hwyPos, hwyIdx, sr.y);
+      pushRibbon(sr.xz, 2.8, 1.65, spinePos, spineIdx, sr.y);
+    } else {
+      pushRibbon(sr.xz, Math.max(10, sr.half * 2.1), 1.1, dirtPos, dirtIdx, sr.y);
+    }
+  }
+  for (const run of streetRuns) {
+    if (run.p.length < 2) continue;
+    const w = run.c === 'freeway' ? 22 : run.c === 'arterial' ? 15 : 10.5;
+    pushRibbon(run.p, w, 1.15, run.c === 'freeway' ? hwyPos : pavedPos, run.c === 'freeway' ? hwyIdx : pavedIdx);
+  }
+  const emitRoad = (pos: number[], idx: number[], color: number, name: string): void => {
+    if (!idx.length) return;
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    const m = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -6 });
+    const mesh = new THREE.Mesh(g, m);
+    mesh.name = name;
+    mesh.frustumCulled = false;
+    mapRoadsGroup.add(mesh);
+  };
+  emitRoad(hwyPos, hwyIdx, 0x262b34, 'map-highways');
+  emitRoad(spinePos, spineIdx, 0xe8b956, 'map-highway-center');
+  emitRoad(pavedPos, pavedIdx, 0x353b46, 'map-paved-roads');
+  emitRoad(dirtPos, dirtIdx, 0xa89270, 'map-dirt-roads');
+  mapRoadsGroup.visible = mapMode;
+}
+function buildMapSkyline(items: CityItem[]): void {
+  mapSkylineGroup.clear();
+  if (!items.length) return;
+  const boxes: CityItem[] = [];
+  const cyls: CityItem[] = [];
+  for (const it of items) {
+    if (it.kind === 'hero' && /rencen|rotunda|cylinder|silo|tank/i.test(it.slug)) cyls.push(it);
+    else boxes.push(it);
+  }
+  const skyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.42, metalness: 0.34 });
+  skyMat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vMapW; varying vec3 vMapN;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+        vMapN = normal;
+        #ifdef USE_INSTANCING
+          vMapW = (modelMatrix * instanceMatrix * vec4(position, 1.0)).xyz;
+        #else
+          vMapW = (modelMatrix * vec4(position, 1.0)).xyz;
+        #endif`);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vMapW; varying vec3 vMapN;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        float isRoof = step(0.65, vMapN.y);
+        float floorBand = 0.86 + 0.14 * step(0.38, fract(vMapW.y * 0.24));
+        float hLift = mix(0.76, 1.12, clamp(vMapW.y / 95.0, 0.0, 1.0));
+        diffuseColor.rgb *= mix(floorBand * hLift, 1.12, isRoof);`);
+  };
+  skyMat.customProgramCacheKey = () => 'map-skyline-proxy-v1';
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  const pos = new THREE.Vector3(), sc = new THREE.Vector3(), col = new THREE.Color();
+  const buildInst = (list: CityItem[], geo: THREE.BufferGeometry): void => {
+    if (!list.length) return;
+    const im = new THREE.InstancedMesh(geo, skyMat, list.length);
+    for (let i = 0; i < list.length; i++) {
+      const it = list[i];
+      const h = Math.max(4, it.h * (it.sy ?? 1));
+      const w = Math.max(4, it.w * (it.sx ?? 1));
+      const d = Math.max(4, it.d * (it.sz ?? 1));
+      const gy = groundMin(it) - 0.6;
+      const cx = it.bx ?? it.x, cz = it.bz ?? it.z;
+      q.setFromAxisAngle(up, it.rotY);
+      pos.set(cx, gy * exag + h * 0.5, cz);
+      sc.set(w, h, d);
+      m4.compose(pos, q, sc);
+      im.setMatrixAt(i, m4);
+      const seed = Math.abs(Math.sin(cx * 0.017 + cz * 0.023));
+      if (it.kind === 'hero' || h >= 42) {
+        col.setRGB(0.56 + seed * 0.14, 0.66 + seed * 0.12, 0.78 + seed * 0.12); // sleek glass skyscrapers
+      } else if (h >= 18) {
+        col.setRGB(0.68 + seed * 0.14, 0.64 + seed * 0.11, 0.59 + seed * 0.10); // mid-rise limestone & brick blocks
+      } else {
+        col.setRGB(0.54 + seed * 0.14, 0.52 + seed * 0.12, 0.49 + seed * 0.10); // low-rise urban/industrial fabric
+      }
+      im.setColorAt(i, col);
+    }
+    im.instanceMatrix.needsUpdate = true;
+    if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    im.castShadow = false;
+    im.receiveShadow = false;
+    im.frustumCulled = false;
+    mapSkylineGroup.add(im);
+  };
+  buildInst(boxes, new THREE.BoxGeometry(1, 1, 1));
+  buildInst(cyls, new THREE.CylinderGeometry(0.5, 0.5, 1, 16));
+}
 let cityItems: CityItem[] = [];
 const IRON_BASE = (kind: string, slug: string, v4Set: Set<string>): string => {
   if (MODELSET === 'v4' && v4Set.has(`${kind}/${slug}`)) return '/games/apex/ironport/models-v4/';
@@ -2059,6 +2809,7 @@ async function buildCivic(): Promise<void> {
   const d = buildCivicRiverfront({ plan, ground: (x, z) => meshH(x, z), water: (x, z) => hAt(x, z) < 2.5, blocked: (x, z, r) => onCourse(x, z, r) || paintedRoad(x, z, r) || insideBuilding(x, z, r) });
   mergeByMaterial(d.group, 400);
   furnitureGroup.add(d.group);
+  scheduleCullerReindex();
   civicSpots = d.spots; civicShore = plan.shore;
   (window as unknown as { civicSpots: unknown }).civicSpots = civicSpots;
   console.log('civic riverfront', JSON.stringify(d.counts));
@@ -2079,8 +2830,11 @@ async function buildCity(): Promise<void> {
   buildCollision();
   buildCivic().catch((e) => console.error('civic riverfront failed', e));
   // Check optional Colab GPU v4 upgrade manifest (models-v4 / textures-v4 with 2K neural PBR + ORM + height + baked vertex AO).
-  interface V4Manifest { version?: number; models?: string[]; textures?: string[]; hasOrm?: boolean; hasHeight?: boolean }
+  interface V4Manifest { version?: number; models?: string[]; textures?: string[]; ruralTextures?: string[]; hasOrm?: boolean; hasHeight?: boolean }
   const v4Man = await fetch('/games/apex/ironport/v4-manifest.json').then((r) => (r.ok ? r.json() : null)).catch(() => null) as V4Manifest | null;
+  if (v4Man?.ruralTextures?.length) {
+    activateRuralOmniTextures(v4Man.ruralTextures);
+  }
   const v4Models = new Set<string>(v4Man?.models ?? []);
   const v4Tex = new Set<string>(v4Man?.textures ?? []);
   const v4HasOrm = v4Man?.hasOrm !== false && v4Tex.size > 0;
@@ -2126,11 +2880,17 @@ async function buildCity(): Promise<void> {
   // All 86 models used to load at once, and every one asks for its own copy of each texture: with the detailed v3/v4 models that is thousands of requests in flight and the browser
   // refuses some (net::ERR_INSUFFICIENT_RESOURCES), which left buildings out. So: a few models at a time, and the cache answers a texture a second model asks for again.
   THREE.Cache.enabled = true;
-  let loadSlots = 2;
+  // 6 concurrent HTTP/KTX2 slots saturate browser + 4 Basis workers cleanly; pause distant downtown generic loads during rural spawn/fly-in so Kettle Crossing & vernon_police compile and present frames immediately!
+  let loadSlots = 6;
   const loadWaiters: (() => void)[] = [];
   const limited = async <T,>(f: () => Promise<T>): Promise<T> => {
     if (loadSlots > 0) loadSlots--; else await new Promise<void>((r) => loadWaiters.push(r));
-    try { return await f(); } finally { const w = loadWaiters.shift(); if (w) w(); else loadSlots++; }
+    try {
+      while (driving && !mapMode && driveIntro?.active) {
+        await new Promise<void>((r) => setTimeout(r, 250));
+      }
+      return await f();
+    } finally { const w = loadWaiters.shift(); if (w) w(); else loadSlots++; }
   };
   const texCache = new Map<string, THREE.Texture>();
   const swapLoader = new GpuTextureLoader(manager);
@@ -2161,7 +2921,8 @@ async function buildCity(): Promise<void> {
         if (!isComp) tx.flipY = ref.flipY;
         tx.wrapS = ref.wrapS; tx.wrapT = ref.wrapT; tx.repeat.copy(ref.repeat); tx.offset.copy(ref.offset); tx.rotation = ref.rotation; tx.center.copy(ref.center);
         tx.colorSpace = cs;
-        if (!isComp && (baseTx.flipY !== ref.flipY || baseTx.colorSpace !== cs)) tx.needsUpdate = true;
+        if (!isComp && !tx.image) { tx.version = 0; if (tx.source) tx.source.version = 0; }
+        else if (!isComp && (baseTx.flipY !== ref.flipY || baseTx.colorSpace !== cs)) tx.needsUpdate = true;
       }
       tx.userData.srcKey = srcKey;
       tx.anisotropy = Math.min(4, ref.anisotropy || 4);
@@ -2184,14 +2945,61 @@ async function buildCity(): Promise<void> {
       parallaxDepth: /hero/i.test(mat.name) ? 0.28 : 0.16,
     };
   };
-  const finishMat = (mat: THREE.MeshStandardMaterial, v4Maps?: FacadeV4Maps): void => {
+  const webgpuGlassCache = new Map<string, THREE.Material>();
+  const webgpuFacadeCache = new Map<string, THREE.Material>();
+  const finishMat = (mat: THREE.MeshStandardMaterial, v4Maps?: FacadeV4Maps, hasVtxColors = false): THREE.Material => {
+    if (USE_WEBGPU && tslRegionCtx) {
+      if (/glass/i.test(mat.name)) {
+        const tint = /bronze/i.test(mat.name) ? 'bronze' : /cerulean/i.test(mat.name) ? 'cerulean' : 'blue';
+        let gm = webgpuGlassCache.get(tint);
+        if (!gm) {
+          gm = createApexGlassTslMaterial({ tint, shared: tslRegionCtx.shared, gi: tslRegionCtx.gi }) as unknown as THREE.Material;
+          gm.name = 'glass_' + tint;
+          webgpuGlassCache.set(tint, gm);
+        }
+        return gm;
+      }
+      if (mat.map && !LOW) {
+        const isHero = /hero/i.test(mat.name);
+        const vtx = hasVtxColors || Boolean(mat.vertexColors);
+        const tintHex = mat.color?.getHex() ?? 0xffffff;
+        const mKey = [
+          mat.map.userData?.srcKey ?? mat.map.uuid,
+          mat.normalMap?.userData?.srcKey ?? '-',
+          v4Maps?.ormMap?.userData?.srcKey ?? '-',
+          v4Maps?.heightMap?.userData?.srcKey ?? '-',
+          isHero ? 1 : 0,
+          vtx ? 1 : 0,
+          tintHex.toString(16),
+        ].join('|');
+        let fm = webgpuFacadeCache.get(mKey);
+        if (!fm) {
+          fm = createApexFacadeTslMaterial({
+            map: mat.map,
+            normalMap: mat.normalMap,
+            ormMap: v4Maps?.ormMap ?? null,
+            heightMap: v4Maps?.heightMap ?? null,
+            isHero,
+            vertexColors: vtx,
+            tintHex,
+            shared: tslRegionCtx.shared,
+            gi: tslRegionCtx.gi,
+          }) as unknown as THREE.Material;
+          fm.name = mat.name;
+          webgpuFacadeCache.set(mKey, fm);
+        }
+        return fm;
+      }
+      mat.onBeforeCompile = THREE.Material.prototype.onBeforeCompile;
+      return mat;
+    }
     // Reset onBeforeCompile before patching so cloned variant materials never stack duplicate shader passes
     mat.onBeforeCompile = THREE.Material.prototype.onBeforeCompile;
     const isDetailed = MODELSET === 'v3' || MODELSET === 'v4';
     if (/glass/i.test(mat.name)) {
       patchGlassInterior(mat, nightU, curtainU, sunDirU, isDetailed, apexLighting.uniforms);
       mat.needsUpdate = true;
-      return;
+      return mat;
     }
     const isHero = /hero/i.test(mat.name);
     // Only synthesize procedural punched windows on legacy windowless v1 boxes — v3/v4 models already have real 3D recessed windows & frames!
@@ -2211,6 +3019,7 @@ async function buildCity(): Promise<void> {
     if (mat.map && mat.normalMap && !LOW) patchFacadeMasonry(mat, isHero, wetU, nightU, sunDirU, v4Maps, apexLighting.uniforms);
     if (isPunched) patchPunchedInterior(mat, nightU, curtainU, sunDirU);
     mat.needsUpdate = true;
+    return mat;
   };
   const protos = new Map<string, Promise<THREE.Object3D | null>>();
   const load = (kind: string, slug: string): Promise<THREE.Object3D | null> => {
@@ -2219,11 +3028,15 @@ async function buildCity(): Promise<void> {
       protos.set(key, limited(() => loader.loadAsync(`${IRON_BASE(kind, slug, v4Models)}${kind}/${slug}_lod0.gltf`)).then(async (g) => {
         const json = g.parser.json as { textures?: { source: number }[]; images?: { uri?: string }[] };
         const matJobs: Promise<void>[] = [];
+        if (USE_WEBGPU) sanitizeObjectForWebGPU(g.scene);
         g.scene.traverse((o) => {
           const m = o as THREE.Mesh;
           if (!m.isMesh) return;
-          const mats = Array.isArray(m.material) ? m.material : [m.material];
-          for (const mat of mats as THREE.MeshStandardMaterial[]) {
+          const hasVtxCol = Boolean(m.geometry?.getAttribute?.('color'));
+          const isArr = Array.isArray(m.material);
+          const mats = (isArr ? m.material : [m.material]) as THREE.MeshStandardMaterial[];
+          const outMats: THREE.Material[] = [...mats];
+          mats.forEach((mat, mi) => {
             if (LOW) { if (mat.normalMap) { mat.normalMap.dispose(); mat.normalMap = null; } if (mat.roughnessMap) { mat.roughnessMap.dispose(); mat.roughnessMap = null; } }
             for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap'] as const) {
               const tx = mat[k] as THREE.Texture | null;
@@ -2234,10 +3047,14 @@ async function buildCity(): Promise<void> {
               // Canonicalize by basename so bare 'tex-shared-*.png' and '../../textures/shared/tex-shared-*.png' share ONE GPU texture!
               const cacheKey = uri.split('/').pop() ?? uri;
               const have = texCache.get(cacheKey);
-              if (have && have !== tx) { tx.dispose(); (mat as any)[k] = have; } else { tx.userData.srcKey = cacheKey; texCache.set(cacheKey, tx); }
+              if (have && have !== tx) { if (!tx.userData?._sharedTiny) tx.dispose(); (mat as any)[k] = have; } else { tx.userData.srcKey = cacheKey; texCache.set(cacheKey, tx); }
             }
-            matJobs.push(loadV4Extras(mat).then((v4m) => finishMat(mat, v4m)));
-          }
+            matJobs.push(loadV4Extras(mat).then((v4m) => {
+              const finalM = finishMat(mat, v4m, hasVtxCol);
+              outMats[mi] = finalM;
+              m.material = isArr ? outMats : outMats[0];
+            }));
+          });
         });
         await Promise.all(matJobs);
         return g.scene;
@@ -2252,7 +3069,10 @@ async function buildCity(): Promise<void> {
   try { variantTypes = ((await (await fetch(BASE + 'generic_variants.json')).json()) as { types: typeof variantTypes }).types; } catch { /* no variants: every building keeps its own materials */ }
   const variantOf = (it: CityItem): number => {
     if (location.search.includes('variants=0') || it.kind !== 'generic' || !variantTypes[it.slug]?.schemes?.length) return 0;     // ?variants=0: every building keeps its own materials
-    const n = variantTypes[it.slug].schemes.length;
+    // On WebGPU mid/low iGPUs (without BatchedMesh multi_draw), cap generic variants to 2 schemes instead of 6 to slash city draw calls by 3x!
+    const rawN = variantTypes[it.slug].schemes.length;
+    const n = (USE_WEBGPU && perfTier !== 'high') ? Math.min(2, rawN) : rawN;
+    if (n <= 1) return 0;
     const t = Math.sin(it.x * 12.9898 + it.z * 78.233 + it.rotY * 3.1) * 43758.5453;
     const u = t - Math.floor(t);
     return u < 0.34 ? 0 : 1 + Math.min(n - 2, Math.floor(((u - 0.34) / 0.66) * (n - 1)));
@@ -2291,7 +3111,15 @@ async function buildCity(): Promise<void> {
           jobs.push((async () => {
             await Promise.all([set('map', 'base'), set('normalMap', 'nrm'), set('roughnessMap', 'rgh')]);
             const v4m = await loadV4Extras(nm as THREE.MeshStandardMaterial);
-            finishMat(nm as THREE.MeshStandardMaterial, v4m);
+            const finalM = finishMat(nm as THREE.MeshStandardMaterial, v4m, Boolean(m.geometry?.getAttribute?.('color')));
+            if (finalM !== nm) {
+              made.set(mat, finalM);
+              if (Array.isArray(m.material)) {
+                m.material = m.material.map((xm) => (xm === nm ? finalM : xm));
+              } else if (m.material === nm) {
+                m.material = finalM;
+              }
+            }
           })());
           return nm;
         };
@@ -2310,11 +3138,40 @@ async function buildCity(): Promise<void> {
     groups.get(key)!.push(it);
   }
   cityGroup.clear();
+  buildMapSkyline(cityItems);
+  const showBuildings = (document.getElementById('tBld') as HTMLInputElement).checked;
+  cityGroup.visible = !mapMode && showBuildings;
+  mapSkylineGroup.visible = mapMode && showBuildings;
   cityVisibility.batches = [];
   cityBatches?.dispose(); cityBatches = null;
-  const cityParts: CityPart[] = [];
+  cityCoreReady = false;
+  cityFullyBuilt = false;
+  if (CITY_BATCH) {
+    cityBatches = new CityBatches([]);
+    cityGroup.add(cityBatches.group);
+  }
+  // Priority-sort building groups so Downtown / Grand Circuit Hero Landmarks & Lap-1 corridor buildings
+  // load and appear FIRST, instead of waiting for every distant suburb block to finish!
+  const DT_X = 5250, DT_Z = 1450;
+  const groupPri = (key: string, items: CityItem[]): number => {
+    if (key.startsWith('hero/')) return 0;
+    let bestD = Infinity, maxH = 0;
+    for (const it of items) {
+      const d = Math.hypot((it.bx ?? it.x) - DT_X, (it.bz ?? it.z) - DT_Z);
+      if (d < bestD) bestD = d;
+      if (it.h > maxH) maxH = it.h;
+    }
+    if (bestD < 1350 || maxH >= 24) return 0;
+    if (bestD < 2700) return 1;
+    return 2;
+  };
+  const allEntries = [...groups.entries()].map(([key, items]) => ({ key, items, pri: groupPri(key, items) }));
+  const wave0 = allEntries.filter((e) => e.pri === 0);
+  const wave12 = allEntries.filter((e) => e.pri > 0).sort((a, b) => a.pri - b.pri);
+
   let done = 0;
-  await runWithConcurrency([...groups.entries()], 3, async ([key, items]) => {
+  const loadGroupInto = async (entry: { key: string; items: CityItem[] }, outParts: CityPart[]): Promise<void> => {
+    const { key, items } = entry;
     const [kind, rest] = key.split('/');
     const [slug, vs] = rest.split('#');
     const proto = await variantProto(kind, slug, Number(vs));
@@ -2331,36 +3188,71 @@ async function buildCity(): Promise<void> {
     });
     for (const m of meshes) {
       if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
-      const transforms = placements.map((placement) => placement.clone().multiply(m.matrixWorld));
       const isV4Micro = /__v4_/.test(m.name);
+      // On WebGPU mid/low iGPUs, skip __v4_* micro-trim sub-meshes (cornices/mullions/caps) that otherwise create 1,500+ extra InstancedMesh draw calls!
+      if (isV4Micro && USE_WEBGPU && perfTier !== 'high') continue;
+      const transforms = placements.map((placement) => placement.clone().multiply(m.matrixWorld));
       const isHeroRelief = kind === 'hero' && /_front$/i.test(m.name);
       // Main building shells cast exact macro shadows; micro-trims & high-poly hero front reliefs skip shadow pass to cut shadow tris in half!
       const castShadow = !isV4Micro && !isHeroRelief && (m.geometry.boundingSphere?.radius ?? 5) >= 4.5;
-      // hero landmarks keep their own meshes: one (Central Station) drew a stray roof slab when batched, and the ~90 heroes cost few draws
-      if (CITY_BATCH && kind !== 'hero') {
-        // Cull generic v4 micro-trims (cornices, pilasters, eaves, chimneys) cleanly beyond 200 m so close-up 3D stays full detail while distant skyline stays lean
-        cityParts.push({ geometry: m.geometry, material: m.material as THREE.Material, transforms, castShadow, maxDist: isV4Micro ? 200 : undefined });
+      // Batch generic buildings AND shared-material hero sub-meshes (glass, trims, __v4_* cornices/pilasters, roofs)
+      // into CityBatches to eliminate ~280 redundant 1-instance hero draws! Keep hero-unique facades & central-station unbatched.
+      const matName = ((m.material as THREE.Material)?.name ?? '');
+      const canBatchHeroShared = kind === 'hero' && slug !== 'central-station' && !/hero/i.test(matName);
+      if (CITY_BATCH && (kind !== 'hero' || canBatchHeroShared)) {
+        // Cull v4 micro-trims (cornices, pilasters, eaves, chimneys) cleanly beyond 145 m so close-up 3D stays full detail while distant skyline stays lean
+        outParts.push({ geometry: m.geometry, material: m.material as THREE.Material, transforms, castShadow, maxDist: isV4Micro ? 145 : undefined });
         continue;
       }
       const batch = new InstanceVisibility(m.geometry, m.material, transforms);
       if (!castShadow) batch.mesh.castShadow = false;
+      if (isV4Micro) batch.maxDist = 175;
       cityVisibility.batches.push(batch);
       cityGroup.add(batch.mesh);
     }
     done += items.length;
-  });
-  if (CITY_BATCH && cityParts.length) {
-    // every part sharing a material in one multi-draw (cityBatch.ts): ~100 draws for the whole city instead of thousands
-    cityBatches = new CityBatches(cityParts);
-    cityGroup.add(cityBatches.group);
+  };
+
+  // Wave 0: Downtown + Grand Circuit Hero Landmarks & Tall/Corridor Generics -> placed IMMEDIATELY before Lap 1!
+  const wave0Parts: CityPart[] = [];
+  await runWithConcurrency(wave0, 6, (entry) => loadGroupInto(entry, wave0Parts));
+  if (CITY_BATCH && cityBatches && wave0Parts.length) {
+    await cityBatches.appendPartsSliced(wave0Parts, 8);
+  }
+  cityCoreReady = true;
+  resolveCityCore?.();
+  resolveCityCore = null;
+  (window as any).cityCount = done;
+  console.log('city Wave 0 (Downtown/Lap-1 core) ready:', done, 'of', cityItems.length, 'batches:', cityBatches?.drawCalls ?? 0);
+
+  // Wave 1 (single merged wave for all outer city parts): avoids creating 15+ duplicate BatchedMesh sets per material!
+  // Streams quietly in the background, then builds ONE clean merged set of BatchedMeshes time-sliced at 4 ms/frame.
+  const wave1Parts: CityPart[] = [];
+  await runWithConcurrency(wave12, driving ? 4 : 6, (entry) => loadGroupInto(entry, wave1Parts));
+  if (CITY_BATCH && cityBatches && wave1Parts.length) {
+    await cityBatches.appendPartsSliced(wave1Parts, driving ? 4 : 8);
+  }
+
+  cityFullyBuilt = true;
+  if (CITY_BATCH && cityBatches) {
     console.log('city batched:', cityBatches.drawCalls, 'draws,', cityBatches.instances, 'instances');
   }
   console.log('city buildings placed', done, 'of', cityItems.length);
   (window as any).cityCount = done;
   lastInput = performance.now();
-  addRoofDetails(cityItems);
-  buildStreetscape().then(() => spatialCuller.indexGroups([furnitureGroup, scapeGroup, zoneGroup])).catch((e) => console.error('streetscape failed', e));
-  buildZones().then(() => spatialCuller.indexGroups([furnitureGroup, scapeGroup, zoneGroup])).catch((e) => console.error('zones failed', e));
+  // Defer heavy rooftop/streetscape/zone passes slightly if mid-race so Lap 1 never stutters
+  const finishExtras = (): void => {
+    addRoofDetails(cityItems);
+    buildStreetscape().then(() => scheduleCullerReindex()).catch((e) => console.error('streetscape failed', e));
+    buildZones().then(() => scheduleCullerReindex()).catch((e) => console.error('zones failed', e));
+  };
+  if (driving) {
+    const waitIdle = setInterval(() => {
+      if (!driving) { clearInterval(waitIdle); finishExtras(); }
+    }, 1500);
+  } else {
+    finishExtras();
+  }
 }
 
 // ---------- industrial yards and waterfront rows (region/zones.json, made by tools/infill_waterfront.py) ----------
@@ -2460,17 +3352,25 @@ for (const [alt, size, rep, seed, vx, vz, op] of [[2900, 62000, 2.8, 7, 0.0075, 
   tex.repeat.set(rep, rep);
   const geo = new THREE.PlaneGeometry(size, size);
   geo.rotateX(-Math.PI / 2);
-  const cmat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: op, depthWrite: false, fog: false, side: THREE.DoubleSide });
-  // Smooth circular edge fade so square cloud plane boundaries never cut a hard line across the sky
-  cmat.onBeforeCompile = (sh) => {
-    sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 vCloudUv;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCloudUv = uv;');
-    sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec2 vCloudUv;')
-      .replace('#include <dithering_fragment>', 'gl_FragColor.a *= smoothstep(1.0, 0.25, length(vCloudUv * 2.0 - 1.0));\n#include <dithering_fragment>');
-  };
-  cmat.customProgramCacheKey = () => 'cloud-radial-fade';
+  let cmat: THREE.Material;
+  if (USE_WEBGPU) {
+    const tc = createApexCirrusTslMaterial(tex);
+    tc.opacity = op;
+    cmat = tc as unknown as THREE.Material;
+  } else {
+    const wc = new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: op, depthWrite: false, fog: false, side: THREE.DoubleSide });
+    // Smooth circular edge fade so square cloud plane boundaries never cut a hard line across the sky
+    wc.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec2 vCloudUv;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvCloudUv = uv;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying vec2 vCloudUv;')
+        .replace('#include <dithering_fragment>', 'gl_FragColor.a *= smoothstep(1.0, 0.25, length(vCloudUv * 2.0 - 1.0));\n#include <dithering_fragment>');
+    };
+    wc.customProgramCacheKey = () => 'cloud-radial-fade';
+    cmat = wc;
+  }
   const mesh = new THREE.Mesh(geo, cmat);
   mesh.position.set(0, alt, -4500);
   mesh.renderOrder = 5;
@@ -2505,20 +3405,20 @@ const cloudBase = new Map<THREE.Mesh, number>();
 const WX_GREY = new THREE.Color(0x7d8794), WX_TINT = new THREE.Color(0.52, 0.58, 0.68), tmpC = new THREE.Color();
 let wxGripSpec: typeof CARS.kestrel | null = null;       // the car's spec with the weather's grip folded in
 function stepWeather(dt: number): void {
+  stepDayNight(dt);
   wx.step(dt, camera.position, mapMode, driving ? Math.abs(driving.ps.speedMps) : 0, false);
-  const w = wx.cur, t = TOD[todKey];
+  const w = wx.cur;
   // Don't soak or pool the race track while hovering storm forecast cards on the overview menu
   if (!mapMode) {
     roadWater.pooling = poolLevel;
     roadWater.update(dt, w.rain, w.sun, w.wind);
   }
   w.wet = mapMode ? 0 : roadWater.wetness;
-  if (!t) return;
   const f = wx.flash;
-  sun.intensity = t.sunInt * w.sun * (1 + f * 2.5);
-  hemi.intensity = t.hemiInt * w.hemi * (1 + f * 1.6);
-  renderer.toneMappingExposure = t.exposure + w.exposure + f * 0.45;
-  scene.environmentIntensity = t.env * (0.45 + 0.55 * w.sun) * (1 + f);
+  sun.intensity = curTod.sunInt * w.sun * (1 + f * 2.5);
+  hemi.intensity = curTod.hemiInt * w.hemi * (1 + f * 1.6);
+  renderer.toneMappingExposure = curTod.exposure + w.exposure + f * 0.45;
+  scene.environmentIntensity = curTod.env * (0.45 + 0.55 * w.sun) * (1 + f);
   wetU.value = w.wet;
   for (const l of cloudLayers) {
     const m = l.mesh.material as THREE.MeshBasicMaterial;
@@ -2528,20 +3428,20 @@ function stepWeather(dt: number): void {
     if (f > 0.05) m.color.lerp(tmpC.set(0xdfe8ff), f * 0.6);
   }
   if (mapMode) {
-    if (terrainMat) terrainMat.color.set(0xffffff).lerp(WX_TINT, Math.min(1, w.fogGrey * 0.7 + w.rain * 0.25));
+    if (terrainMat && !USE_WEBGPU) terrainMat.color.set(0xffffff).lerp(WX_TINT, Math.min(1, w.fogGrey * 0.7 + w.rain * 0.25));
   } else {
-    if (terrainMat) terrainMat.color.set(0xffffff);
+    if (terrainMat && !USE_WEBGPU) terrainMat.color.set(0xffffff);
     if (scene.fog instanceof THREE.Fog) {
-      scene.fog.color.set(t.fog).lerp(WX_GREY, w.fogGrey).multiplyScalar(1 - w.cloudDark * 0.35 + f * 0.4);
-      scene.fog.near = t.fogNear * w.fogNear; scene.fog.far = t.fogFar * w.fogFar;
+      scene.fog.color.copy(curTod.fogCol).lerp(WX_GREY, w.fogGrey).multiplyScalar(1 - w.cloudDark * 0.35 + f * 0.4);
+      scene.fog.near = curTod.fogNear * w.fogNear; scene.fog.far = curTod.fogFar * w.fogFar;
     }
     scene.backgroundIntensity = 1 - 0.62 * w.fogGrey * (1 - f * 0.7);
   }
   if (mapMode) scene.backgroundIntensity = 1;
-  // the sky dome: panorama + procedural detail, with the weather blending in a real overcast and storm sky
+  // the sky dome: physical Rayleigh/Mie + blended panorama + weather overcast/storm + moon/stars
   {
-    const night = NIGHT_K[todKey] ?? 0;
-    skyFog.set(t.fog).lerp(WX_GREY, w.fogGrey).multiplyScalar(1 - w.cloudDark * 0.35);
+    const night = curTod.nightK;
+    skyFog.copy(curTod.fogCol).lerp(WX_GREY, w.fogGrey).multiplyScalar(1 - w.cloudDark * 0.35);
     sky.setVisible(!mapMode);
     sky.update(dt, camera, {
       sunDir, sunCol: sun.color, sunAmt: (1 - night) * Math.min(1, w.sun * 1.3 + 0.1), night, fog: skyFog, fogAmt: w.fogGrey,
@@ -2550,7 +3450,7 @@ function stepWeather(dt: number): void {
     });
   }
   if (waterSurface) {
-    const night = NIGHT_K[todKey] ?? 0;
+    const night = curTod.nightK;
     waterSurface.setSky(sky.baseTexture());
     // the menu's high view: put the sun low in the direction the camera faces (drifting a little) so a glitter path runs across the water toward the viewer
     if (mapMode) {
@@ -2558,8 +3458,8 @@ function stepWeather(dt: number): void {
       wSun.set(Math.sin(az) * 0.94, 0.34, Math.cos(az) * 0.94).normalize();
     }
     waterSurface.update(dt, {
-      glint: mapMode ? 1 : 0,
-      sunDir: mapMode ? wSun : sunDir, sunCol: sun.color, sunAmt: (1 - night) * Math.min(1, w.sun * 1.3 + 0.1), wind: Math.min(1, 0.12 + w.rain * 0.5 + w.cloudDark * 0.5), rain: w.rain,
+      glint: mapMode ? 1 : Math.max(0.42, w.sun * 0.72),
+      sunDir: mapMode ? wSun : sunDir, sunCol: sun.color, sunAmt: (1 - night) * Math.min(1, w.sun * 1.3 + 0.1), wind: Math.min(1, 0.24 + w.wind * 0.6 + w.rain * 0.45 + w.cloudDark * 0.35), rain: w.rain,
       storm: Math.min(1, Math.max(0, (w.cloudDark - 0.6) / 0.3)), fog: scene.fog instanceof THREE.Fog ? scene.fog.color : skyFog,
       fogNear: scene.fog instanceof THREE.Fog ? scene.fog.near : 1e6, fogFar: scene.fog instanceof THREE.Fog ? scene.fog.far : 2e6,
       skyDim: (1 - w.cloudDark * 0.5) * (1 - night * 0.85) + f * 0.6, mapFade: mapFadeU.value,
@@ -2568,7 +3468,20 @@ function stepWeather(dt: number): void {
   // water collects while it rains and drains away slowly after
   poolLevel = roadWater.pooling;
   poolU.value = poolLevel;
-  { const nk = NIGHT_K[todKey] ?? 0; nightU.value = Math.min(1, nk + w.cloudDark * 0.45 * (1 - nk)); }
+  { const nk = curTod.nightK; nightU.value = Math.min(1, nk + w.cloudDark * 0.45 * (1 - nk)); }
+  if (tslRegionCtx) {
+    tslRegionCtx.shared.uWet.value = w.wet;
+    tslRegionCtx.shared.uPool.value = poolLevel;
+    tslRegionCtx.shared.uNight.value = nightU.value;
+    (tslRegionCtx.shared.uSunDir.value as THREE.Vector3).copy(sunDir);
+    (tslRegionCtx.foliage.uSunDir.value as THREE.Vector3).copy(sunDir);
+    (tslRegionCtx.foliage.uSunCol.value as THREE.Color).copy(sun.color);
+  }
+  if (webgpuTerrainHandle) {
+    webgpuTerrainHandle.uniforms.uWet.value = w.wet;
+    webgpuTerrainHandle.uniforms.uPool.value = poolLevel;
+    webgpuTerrainHandle.uniforms.uMapFade.value = mapFadeU.value;
+  }
   roadUniforms.uRainR.value = w.rain; roadUniforms.uTimeR.value += dt;
   spray.setTint(skyFog, 1.12);
   if (driving && !mapMode && w.rain > 0.1) {                        // rain bouncing off the road around the camera
@@ -2586,7 +3499,7 @@ function stepWeather(dt: number): void {
     dust.wind.set(Math.sin(wx.cur.wind * 2.0) * (0.4 + wx.cur.wind * 4), Math.cos(wx.cur.wind * 2.0) * (0.3 + wx.cur.wind * 3));
     dust.update(dt);
   }
-  for (const m of driveSurfaces) {
+  if (!USE_WEBGPU) for (const m of driveSurfaces) {
     const mm = m.material as THREE.MeshStandardMaterial;
     mm.roughness = 0.84 - 0.34 * w.wet; mm.color.setScalar(1 - 0.24 * w.wet);
     if (!mm.userData.pud) {                      // the road meshes carry the same localized puddles as the terrain's painted roads
@@ -2634,6 +3547,7 @@ function updateProbe(dt: number): void {
   const hide: THREE.Object3D[] = [s.car, spray.points, dust.points, forestGroup, scapeGroup];
   const was = hide.map((o) => o.visible);
   hide.forEach((o) => { o.visible = false; });
+  if (!pmrem) return;
   const next = pmrem.fromScene(scene, 0, 1, 14000, { size: 96, position: new THREE.Vector3(s.pos.x, s.car.position.y + 2.5, s.pos.z) });
   hide.forEach((o, i) => { o.visible = was[i]; });
   const old = probeRT; probeRT = next;
@@ -2668,12 +3582,28 @@ function fadeTo(a: HTMLAudioElement, target: number, ms: number, done?: () => vo
   tick();
 }
 let musicLists: { menu: { file: string }[]; drive: { file: string }[] } = { menu: [{ file: 'menu0.mp3' }], drive: [{ file: 'drive0.mp3' }] };
-fetch(MUSIC_BASE + 'music.json').then((r) => r.json()).then((m) => { musicLists = m; }).catch(() => undefined);
+let musicInFlight = false;
+function syncBootAudioPill(state: 'playing' | 'tap'): void {
+  const btn = document.getElementById('bootAudioBtn');
+  const lbl = document.getElementById('bootAudioLabel');
+  if (!btn || !lbl) return;
+  if (state === 'playing') {
+    btn.classList.add('is-playing');
+    lbl.textContent = 'SOUNDTRACK PLAYING';
+  } else {
+    btn.classList.remove('is-playing');
+    lbl.textContent = 'TAP ANYWHERE FOR SOUNDTRACK';
+  }
+}
 let menuIdx = 0;
-function playMusic(kind: 'menu' | 'drive'): void {
+function playMusic(kind: 'menu' | 'drive', allowAutoplayProbe = false): void {
   musicWanted = kind;
-  if (!musicUnlocked) return;
-  if (curAudio && curAudio.dataset.kind === kind && !curAudio.paused && !curAudio.ended) return;
+  if (!musicUnlocked && !allowAutoplayProbe) return;
+  if (curAudio && curAudio.dataset.kind === kind && !curAudio.paused && !curAudio.ended) {
+    syncBootAudioPill('playing');
+    return;
+  }
+  if (musicInFlight && !musicUnlocked) return;
   const list = musicLists[kind].length ? musicLists[kind] : musicLists.menu;
   const file = kind === 'menu' ? list[menuIdx++ % list.length].file : list[driveIdx++ % list.length].file;
   const next = new Audio(MUSIC_BASE + file);
@@ -2681,12 +3611,24 @@ function playMusic(kind: 'menu' | 'drive'): void {
   next.volume = 0;
   next.loop = false;
   next.onended = () => { if (musicWanted === kind) playMusic(kind); };
+  musicInFlight = true;
   next.play().then(() => {
+    musicInFlight = false;
+    musicUnlocked = true;
+    removeEventListener('pointerdown', unlockMusic);
+    removeEventListener('keydown', unlockMusic);
     const prev = curAudio;
     curAudio = next;
+    syncBootAudioPill('playing');
     fadeTo(next, musicVol * musicDuck, 1600);
     if (prev) fadeTo(prev, 0, 1200, () => { prev.pause(); });
-  }).catch(() => undefined);
+  }).catch(() => {
+    musicInFlight = false;
+    if (!musicUnlocked) {
+      menuIdx = Math.max(0, menuIdx - 1);
+      syncBootAudioPill('tap');
+    }
+  });
 }
 function setMusicVolume(v: number): void {
   musicVol = v;
@@ -2706,6 +3648,13 @@ const unlockMusic = (): void => {
 };
 addEventListener('pointerdown', unlockMusic);
 addEventListener('keydown', unlockMusic);
+// Kick off the Apex menu soundtrack right on the full-page boot splash screen (autoplays immediately when browser allows,
+// otherwise cleanly arms the splash tap-anywhere audio trigger so it starts seamlessly during loading!)
+fetch(MUSIC_BASE + 'music.json')
+  .then((r) => r.json())
+  .then((m) => { musicLists = m; })
+  .catch(() => undefined)
+  .finally(() => { if (musicWanted === 'menu') playMusic('menu', true); });
 
 // ---------- map screen (game menu feel) ----------
 const MAP_BG = 0x070b12;
@@ -2876,6 +3825,131 @@ const settingsEl = document.getElementById('panel') as HTMLElement;
 glassSelects(settingsEl);                          // frosted purple dropdowns with an orange highlight (the browser's own option list is white on white here)
 const toggleSettings = (open?: boolean): void => { settingsEl.style.display = (open ?? settingsEl.style.display !== 'block') ? 'block' : 'none'; };
 gearBtn.onclick = () => toggleSettings();
+const cineBtn = document.createElement('button');
+cineBtn.id = 'heroShowcaseBtn';
+cineBtn.textContent = 'HERO SHOWCASE';
+cineBtn.style.cssText = 'position:fixed;right:68px;top:19px;height:36px;padding:0 14px;display:inline-flex;align-items:center;background:rgba(26,0,38,.62);color:#00DAF3;border:1px solid rgba(0,218,243,.42);border-radius:999px;backdrop-filter:blur(12px);font:700 11px Outfit,sans-serif;letter-spacing:.16em;cursor:pointer;z-index:21';
+cineBtn.onclick = (e) => { e.stopPropagation(); startCine(); };
+document.body.appendChild(cineBtn);
+const onlineHubBtn = document.createElement('button');
+onlineHubBtn.id = 'onlineHubBtn';
+onlineHubBtn.textContent = 'ONLINE';
+onlineHubBtn.style.cssText = 'position:fixed;right:218px;top:19px;height:36px;padding:0 15px;display:inline-flex;align-items:center;gap:6px;background:linear-gradient(90deg,rgba(212,0,85,.78),rgba(255,140,0,.78));color:#fff;border:1px solid rgba(255,255,255,.26);border-radius:999px;backdrop-filter:blur(12px);font:800 11px Outfit,sans-serif;letter-spacing:.16em;cursor:pointer;z-index:21;box-shadow:0 6px 20px rgba(212,0,85,.35)';
+const launchOnlineHub = (initialTab: 'world' | 'race' = 'race', circuitId = 'ironport_grand_circuit'): void => {
+  openOnlineMultiplayerHub(onlineSession, {
+    apiBase: RT_API,
+    circuitId,
+    initialTab,
+    onEnterOpenWorld: () => {
+      startDrive('free');
+    },
+    onEnterGrid: (chosenCircuit) => {
+      const cid = chosenCircuit || circuitId;
+      startDrive(cid);
+      // Human field only when racing on the Plajah Realtime server so server standings match what everyone sees
+      if (onlineSession.rt) {
+        if (competition) competition.racers = competition.racers.filter((r) => r.isPlayer);
+        aiGroup.clear(); aiMeshes = [];
+      }
+    },
+    onBanner: (t, k) => showBanner(t, k, 5200),
+    onCancel: () => { /* stays on current view */ },
+  });
+};
+onlineHubBtn.onclick = (e) => { e.stopPropagation(); launchOnlineHub(onlineSession.mode === 'persistent_world' ? 'world' : 'race'); };
+document.body.appendChild(onlineHubBtn);
+// Live Ironport Transit & Aviation Schedule Board (Halcyon Intl Airport Flights + Operating Freight & Passenger Rail)
+const transitBtn = document.createElement('button');
+transitBtn.id = 'transitBtn';
+transitBtn.textContent = 'TRANSIT';
+transitBtn.style.cssText = 'position:fixed;right:318px;top:19px;height:36px;padding:0 14px;display:inline-flex;align-items:center;gap:6px;background:rgba(16,8,30,.78);color:#00DAF3;border:1px solid rgba(0,218,243,.45);border-radius:999px;backdrop-filter:blur(12px);font:800 11px Outfit,sans-serif;letter-spacing:.16em;cursor:pointer;z-index:21';
+const transitPanel = document.createElement('div');
+transitPanel.id = 'transitPanel';
+transitPanel.style.cssText = 'position:fixed;right:20px;top:66px;width:min(440px,94vw);max-height:76vh;overflow:auto;padding:16px 18px;border-radius:20px;background:rgba(14,5,26,.92);border:1px solid rgba(0,218,243,.35);backdrop-filter:blur(18px);box-shadow:0 24px 70px rgba(0,0,0,.68);color:#f3ecff;font:400 12px/1.45 Inter,system-ui,sans-serif;display:none;z-index:55';
+// Static header + action buttons live outside the 1 Hz table refresh so clicks NEVER drop during live timetable updates!
+transitPanel.innerHTML = `
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div><div style="font:800 10px 'JetBrains Mono',monospace;letter-spacing:.22em;color:#00DAF3">IRONPORT LIVE OPERATIONS</div><div style="font:900 17px Outfit,sans-serif">AIRPORT &amp; RAIL TIMETABLE</div></div>
+    <button id="transitClose" type="button" style="padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.16);font:700 10px Outfit,sans-serif;cursor:pointer">CLOSE</button>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+    <button id="tJumpAirport" type="button" style="padding:6px 11px;border-radius:999px;background:linear-gradient(90deg,#00DAF3,#00a6d6);color:#090312;border:0;font:800 10px Outfit,sans-serif;letter-spacing:.1em;cursor:pointer">WATCH AIRPORT</button>
+    <button id="tDriveAirport" type="button" style="padding:6px 11px;border-radius:999px;background:rgba(0,218,243,.14);color:#00DAF3;border:1px solid rgba(0,218,243,.4);font:700 10px Outfit,sans-serif;cursor:pointer">DRIVE AIRPORT</button>
+    <button id="tJumpKettle" type="button" style="padding:6px 11px;border-radius:999px;background:linear-gradient(90deg,#D40055,#FF8C00);color:#fff;border:0;font:800 10px Outfit,sans-serif;letter-spacing:.1em;cursor:pointer">WATCH RAIL TOWN</button>
+    <button id="tDriveKettle" type="button" style="padding:6px 11px;border-radius:999px;background:rgba(255,140,0,.14);color:#FF8C00;border:1px solid rgba(255,140,0,.4);font:700 10px Outfit,sans-serif;cursor:pointer">DRIVE KETTLE CROSSING</button>
+  </div>
+  <div id="transitTables"></div>`;
+document.body.appendChild(transitBtn);
+document.body.appendChild(transitPanel);
+const transitTablesEl = transitPanel.querySelector('#transitTables') as HTMLElement;
+let transitOpen = false;
+let lastTransitRenderMs = 0;
+function renderTransitBoard(): void {
+  if (!transitOpen) return;
+  const flights = simLayer?.world.air?.schedule() ?? [];
+  const trains = simLayer?.world.trains?.schedule() ?? [];
+  const fmtEta = (s: number): string => s <= 2 ? 'NOW' : s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
+  const flightRows = flights.length
+    ? flights.map((f) => `<tr style="border-bottom:1px solid rgba(255,255,255,.07)"><td style="padding:5px 4px;font:700 11px 'JetBrains Mono',monospace;color:${f.direction === 'ARR' ? '#00DAF3' : '#FF8C00'}">${f.flightNo}</td><td style="padding:5px 4px">${f.city}</td><td style="padding:5px 4px;font:700 10px 'JetBrains Mono',monospace">${f.gateLabel}</td><td style="padding:5px 4px;font:700 10px 'JetBrains Mono',monospace;color:#ffd166">${f.status}</td><td style="padding:5px 4px;text-align:right;font:600 11px 'JetBrains Mono',monospace">${fmtEta(f.etaSec)}</td></tr>`).join('')
+    : '<tr><td colspan="5" style="padding:8px;opacity:.6">Airport initializing…</td></tr>';
+  const trainRows = trains.length
+    ? trains.map((t) => `<tr style="border-bottom:1px solid rgba(255,255,255,.07)"><td style="padding:5px 4px;font:700 11px 'JetBrains Mono',monospace;color:${t.kind === 'passenger' ? '#68f2ff' : '#ffb86c'}">${t.serviceNo}</td><td style="padding:5px 4px">${t.serviceName}</td><td style="padding:5px 4px">${t.nextStop}</td><td style="padding:5px 4px;font:700 10px 'JetBrains Mono',monospace;color:${t.state === 'dwell' ? '#00f5d4' : t.state === 'hold' ? '#ff7b8a' : '#e0d6ff'}">${t.state === 'dwell' ? 'BOARDING' : t.state === 'hold' ? 'HOLD' : `${t.speedKmh} km/h`}</td><td style="padding:5px 4px;text-align:right;font:600 11px 'JetBrains Mono',monospace">${fmtEta(t.etaSec)}</td></tr>`).join('')
+    : '<tr><td colspan="5" style="padding:8px;opacity:.6">Rail timetable initializing…</td></tr>';
+  transitTablesEl.innerHTML = `
+    <div style="font:800 10px 'JetBrains Mono',monospace;letter-spacing:.16em;color:#FF8C00;margin:6px 0 4px">HALCYON INTL AIRPORT (KIPT · RWY 09/27) — LIVE FLIGHTS</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:12px;font-size:11px"><thead><tr style="color:#9db0c8;text-align:left;border-bottom:1px solid rgba(255,255,255,.14)"><th>FLT</th><th>ROUTE</th><th>GATE</th><th>STATUS</th><th style="text-align:right">ETA</th></tr></thead><tbody>${flightRows}</tbody></table>
+    <div style="font:800 10px 'JetBrains Mono',monospace;letter-spacing:.16em;color:#00DAF3;margin:6px 0 4px">IRONPORT REGIONAL RAIL — PASSENGER &amp; FREIGHT</div>
+    <table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr style="color:#9db0c8;text-align:left;border-bottom:1px solid rgba(255,255,255,.14)"><th>TRAIN</th><th>SERVICE</th><th>NEXT STOP</th><th>STATE</th><th style="text-align:right">ETA</th></tr></thead><tbody>${trainRows}</tbody></table>`;
+}
+(transitPanel.querySelector('#transitClose') as HTMLButtonElement).onclick = (e) => { e.stopPropagation(); transitOpen = false; transitPanel.style.display = 'none'; };
+(transitPanel.querySelector('#tJumpAirport') as HTMLButtonElement).onclick = (e) => { e.stopPropagation(); preset('airport'); };
+(transitPanel.querySelector('#tDriveAirport') as HTMLButtonElement).onclick = (e) => { e.stopPropagation(); transitOpen = false; transitPanel.style.display = 'none'; freeSpawn = { p: [-4850, 3915], q: [-4350, 3915] }; startDrive('free'); };
+(transitPanel.querySelector('#tJumpKettle') as HTMLButtonElement).onclick = (e) => { e.stopPropagation(); preset('kettle'); };
+(transitPanel.querySelector('#tDriveKettle') as HTMLButtonElement).onclick = (e) => { e.stopPropagation(); transitOpen = false; transitPanel.style.display = 'none'; freeSpawn = { p: [-1520, 1380], q: [-1460, 1490] }; startDrive('free'); };
+transitBtn.onclick = (e) => {
+  e.stopPropagation();
+  transitOpen = !transitOpen;
+  transitPanel.style.display = transitOpen ? 'block' : 'none';
+  if (transitOpen) renderTransitBoard();
+};
+// Live Cops & Robbers Pursuit HUD Banner (Role, APB/Hideout Distance, Vehicle Health, [F] On Foot)
+const pursuitHudEl = document.createElement('div');
+pursuitHudEl.id = 'pursuitHud';
+pursuitHudEl.style.cssText = 'position:fixed;left:50%;top:62px;transform:translateX(-50%);z-index:35;min-width:min(460px,92vw);padding:10px 18px;border-radius:16px;background:rgba(12,6,24,.88);border:1px solid rgba(255,70,95,.55);backdrop-filter:blur(14px);box-shadow:0 16px 46px rgba(0,0,0,.55);color:#fff;font:600 12px/1.4 Inter,sans-serif;display:none;pointer-events:none';
+document.body.appendChild(pursuitHudEl);
+
+// Interactive Police Cruiser Siren ON/OFF + Tone + Air Horn Controls (visible in Cop Pursuit & Free Roam in Police Interceptor)
+const policeControlsEl = document.createElement('div');
+policeControlsEl.id = 'policeControls';
+policeControlsEl.style.cssText = 'position:fixed;left:50%;top:138px;transform:translateX(-50%);z-index:38;display:none;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:rgba(9,14,28,.86);border:1px solid rgba(100,175,255,.45);backdrop-filter:blur(12px);box-shadow:0 12px 32px rgba(0,0,0,.48);pointer-events:auto';
+policeControlsEl.innerHTML = `
+  <button id="sirenToggleBtn" type="button" style="height:30px;padding:0 14px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.08);color:#dce8ff;font:800 11px Outfit,sans-serif;letter-spacing:.14em;cursor:pointer">SIREN: OFF [G]</button>
+  <button id="sirenModeBtn" type="button" style="height:30px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#9ed4ff;font:700 11px Outfit,sans-serif;letter-spacing:.12em;cursor:pointer">TONE: WAIL [T]</button>
+  <button id="sirenHornBtn" type="button" style="height:30px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,190,70,.35);background:rgba(255,160,30,.14);color:#ffd57e;font:700 11px Outfit,sans-serif;letter-spacing:.12em;cursor:pointer">AIR HORN [H]</button>
+`;
+document.body.appendChild(policeControlsEl);
+const sirenToggleBtn = policeControlsEl.querySelector('#sirenToggleBtn') as HTMLButtonElement;
+const sirenModeBtn = policeControlsEl.querySelector('#sirenModeBtn') as HTMLButtonElement;
+const sirenHornBtn = policeControlsEl.querySelector('#sirenHornBtn') as HTMLButtonElement;
+function isPlayerPoliceCar(): boolean {
+  return !!driving && (pursuitMode?.role === 'cop' || driving.car.userData.carId === 'vernon_police');
+}
+function syncPoliceControlsUi(): void {
+  const show = isPlayerPoliceCar() && !mapMode && !replay.active;
+  policeControlsEl.style.display = show ? 'flex' : 'none';
+  if (!show) return;
+  policeControlsEl.style.top = pursuitMode ? '138px' : '64px';
+  const on = gameAudio.isSirenOn;
+  const mode = gameAudio.currentSirenMode.toUpperCase();
+  sirenToggleBtn.textContent = on ? `SIREN: ON · ${mode} [G]` : 'SIREN: OFF [G]';
+  sirenToggleBtn.style.background = on ? 'linear-gradient(90deg,#e0243d,#1e6eff)' : 'rgba(255,255,255,.08)';
+  sirenToggleBtn.style.color = on ? '#ffffff' : '#dce8ff';
+  sirenToggleBtn.style.boxShadow = on ? '0 0 18px rgba(40,130,255,.55)' : 'none';
+  sirenModeBtn.textContent = `TONE: ${mode} [T]`;
+}
+sirenToggleBtn.onclick = (e) => { e.stopPropagation(); gameAudio.toggleSiren(); syncPoliceControlsUi(); };
+sirenModeBtn.onclick = (e) => { e.stopPropagation(); gameAudio.cycleSirenMode(); syncPoliceControlsUi(); };
+sirenHornBtn.onclick = (e) => { e.stopPropagation(); gameAudio.triggerAirHorn(); };
 // developer tools, on the local dev server only: draw roads and zones (F2)
 if (/^(127\.0\.0\.1|localhost)$/.test(location.hostname)) {
   const editBtn = document.createElement('button');
@@ -2893,79 +3967,232 @@ function applyMapOffset(): void {
   camera.updateProjectionMatrix();
 }
 
-// ---------- idle beauty shots: after 10 s with the map menu untouched the camera goes cruising over the region; any input brings the menu back ----------
+// ---------- photorealistic idle hero showcase: after 25 s on the map menu, curated low-altitude cinema dolly shots glide through Ironport ----------
 const cineFade = document.createElement('div');
-cineFade.style.cssText = 'position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;z-index:15;transition:opacity .9s';
+cineFade.style.cssText = 'position:fixed;inset:0;background:#07030e;opacity:0;pointer-events:none;z-index:15;transition:opacity .95s cubic-bezier(.22,1,.36,1)';
 document.body.appendChild(cineFade);
-let cineOn = false, cineIdx = 0, cineT = 0, cineShots: { from: THREE.Vector3; to: THREE.Vector3; at: THREE.Vector3; dur: number }[] = [];
+const cineOverlay = document.createElement('div');
+cineOverlay.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:14;display:none;font-family:Outfit,Inter,sans-serif;color:#fff';
+cineOverlay.innerHTML = `
+  <div style="position:absolute;left:0;right:0;top:0;height:6vh;background:linear-gradient(180deg,rgba(6,2,12,.92),rgba(6,2,12,.72))"></div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:6vh;background:linear-gradient(0deg,rgba(6,2,12,.92),rgba(6,2,12,.72))"></div>
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 56%,rgba(8,2,16,.48) 100%)"></div>
+  <div data-c="cap" style="position:absolute;left:44px;bottom:calc(6vh + 22px);padding:10px 18px;background:rgba(14,6,26,.68);backdrop-filter:blur(12px);border-left:4px solid #FF8C00;border-radius:0 8px 8px 0">
+    <div data-c="tag" style="font:700 10px 'JetBrains Mono',monospace;letter-spacing:.26em;color:#00DAF3;text-transform:uppercase">IRONPORT SHOWCASE</div>
+    <div data-c="title" style="font:800 20px Outfit,sans-serif;letter-spacing:.08em;margin-top:2px">DOWNTOWN SKYLINE</div>
+  </div>
+  <div style="position:absolute;right:44px;bottom:calc(6vh + 24px);font:600 11px 'JetBrains Mono',monospace;letter-spacing:.14em;opacity:.72;text-transform:uppercase">Move mouse or press any key to return to map</div>`;
+document.body.appendChild(cineOverlay);
+const cineTagEl = cineOverlay.querySelector('[data-c="tag"]') as HTMLElement;
+const cineTitleEl = cineOverlay.querySelector('[data-c="title"]') as HTMLElement;
+
+interface CineHeroShot {
+  from: THREE.Vector3;
+  to: THREE.Vector3;
+  atFrom: THREE.Vector3;
+  atTo: THREE.Vector3;
+  dur: number;
+  fov: number;
+  tod: string;
+  wet: number;
+  tag: string;
+  title: string;
+}
+let cineOn = false, cineIdx = 0, cineT = 0, cineShots: CineHeroShot[] = [];
+let cineSavedLut: { lut: string; amt: number } | null = null;
+let cineBaseFov = 55;
 let lastInput = performance.now();
-function buildCineShots(): typeof cineShots {
-  const out: typeof cineShots = [];
+
+function buildCineShots(): CineHeroShot[] {
+  const out: CineHeroShot[] = [];
   const V = (x: number, y: number, z: number): THREE.Vector3 => new THREE.Vector3(x, y, z);
-  const add = (from: THREE.Vector3, to: THREE.Vector3, at: THREE.Vector3, dur = 9): void => { out.push({ from, to, at, dur }); };
   const g = (x: number, z: number): number => meshH(x, z);
-  const city = meta.circuits.ironport_grand_circuit, cliff = meta.circuits.great_lakes_cliff_raceway, rally = meta.circuits.pinewood_rally_stage;
-  const cc = centroid(city), cl = centroid(cliff), rc = centroid(rally);
-  add(V(3900, 240, 520), V(4350, 190, 700), V(5700, 70, 860));                                          // downtown from the river
-  add(V(cc.x - 900, 700, cc.z + 1100), V(cc.x - 450, 520, cc.z + 800), V(cc.x, 30, cc.z));            // the city circuit from above
-  add(V(2900, g(2900, 3250) + 45, 3250), V(3300, g(3300, 3150) + 70, 3150), V(3800, 46, 2770));      // Halcyon Gateway Bridge
-  add(V(5600, g(5600, -3500) + 70, -3500), V(5780, g(5780, -3560) + 80, -3560), V(6280, 46, -3888)); // Northgate Bridge
-  add(V(cl.x - 1800, 900, cl.z + 1500), V(cl.x - 1300, 700, cl.z + 1300), V(cl.x, 60, cl.z));          // the cliff raceway
-  add(V(rc.x - 1200, 900, rc.z + 1700), V(rc.x - 800, 700, rc.z + 1400), V(rc.x, 20, rc.z));          // the rally stage
-  add(V(-6500, 330, 1500), V(-6350, 300, 1150), V(-5400, 40, 500));                                     // dunes and the lake shore
-  if (shoreHw) {                                                                                         // the open gallery on the shoreline highway
+  const add = (
+    from: THREE.Vector3,
+    to: THREE.Vector3,
+    atFrom: THREE.Vector3,
+    atTo: THREE.Vector3,
+    tag: string,
+    title: string,
+    opts?: { dur?: number; fov?: number; tod?: string; wet?: number },
+  ): void => {
+    out.push({
+      from,
+      to,
+      atFrom,
+      atTo,
+      dur: opts?.dur ?? 9.5,
+      fov: opts?.fov ?? 36,
+      tod: opts?.tod ?? 'golden',
+      wet: opts?.wet ?? 0.18,
+      tag,
+      title,
+    });
+  };
+
+  // 1. Low-altitude riverfront push toward the v4 Colab HD Downtown Skyline & RenCen towers (440 m — crisp & haze-free!)
+  add(
+    V(5080, 46, 1490), V(5320, 34, 1340),
+    V(5610, 74, 1140), V(5640, 62, 1080),
+    'DOWNTOWN IRONPORT · GOLDEN HOUR', 'WATERFRONT SKYLINE APPROACH',
+    { dur: 10, fov: 35, tod: 'golden', wet: 0.24 },
+  );
+  // 2. Ironport Grand Circuit street-level canyon glide along the main straight & start/finish gantry
+  if (cityPath.length > 24) {
+    const a = cityPath[cityPath.length - 18], b = cityPath[cityPath.length - 4], c = cityPath[10];
+    const ga = g(a.x, a.z), gb = g(b.x, b.z), gc = g(c.x, c.z);
+    add(
+      V(a.x + 2.4, ga + 3.2, a.z), V(b.x + 1.2, gb + 2.4, b.z),
+      V(c.x, gc + 4.5, c.z), V(c.x, gc + 8.5, c.z),
+      'IRONPORT GRAND CIRCUIT · STREET CANYON', 'START / FINISH STRAIGHT',
+      { dur: 9, fov: 38, tod: 'sunset', wet: 0.38 },
+    );
+  }
+  // 3. Halcyon Gateway cable-stayed bridge low sweeping hero pass
+  add(
+    V(3160, g(3160, 3140) + 34, 3140), V(3440, g(3440, 2980) + 52, 2980),
+    V(3810, 48, 2770), V(3840, 58, 2740),
+    'GREAT LAKES CROSSING · SUNSET', 'HALCYON GATEWAY BRIDGE',
+    { dur: 9.5, fov: 35, tod: 'sunset', wet: 0.28 },
+  );
+  // 4. Civic Riverfront Opera Hall & Marina twilight reflection sweep
+  if (civicSpots['opera hall']) {
+    const L = civicSpots['opera hall'];
+    add(
+      V(L[0] - 185, Math.max(g(L[0] - 185, L[2] - 55), 3) + 26, L[2] - 55),
+      V(L[0] - 145, Math.max(g(L[0] - 145, L[2] + 35), 3) + 20, L[2] + 35),
+      V(L[0], L[1] + 16, L[2]), V(L[0], L[1] + 14, L[2]),
+      'CIVIC RIVERFRONT · TWILIGHT', 'GRAND OPERA HALL & MARINA',
+      { dur: 9.5, fov: 36, tod: 'dusk', wet: 0.42 },
+    );
+  }
+  // 5. Northgate Bridge crisp sunrise reveal
+  add(
+    V(5660, g(5660, -3540) + 46, -3540), V(5860, g(5860, -3610) + 56, -3610),
+    V(6280, 48, -3888), V(6300, 52, -3880),
+    'NORTH HARBOR · SUNRISE', 'NORTHGATE SUSPENSION SPAN',
+    { dur: 9, fov: 35, tod: 'sunrise', wet: 0.16 },
+  );
+  // 6. Campus Martius downtown crest overlooking the financial district skyscrapers
+  add(
+    V(5460, g(5460, 1080) + 36, 1080), V(5680, g(5680, 1030) + 42, 1030),
+    V(5860, 74, 1190), V(5820, 68, 1220),
+    'IRONPORT FINANCIAL DISTRICT', 'CAMPUS MARTIUS CREST',
+    { dur: 9, fov: 36, tod: 'golden', wet: 0.30 },
+  );
+  // 7. Ironworks Container Terminal & Harbor Cranes
+  if (portData?.cranes?.length) {
+    const cr = portData.cranes[0];
+    add(
+      V(cr.x - 165, Math.max(g(cr.x - 165, cr.z + 90), 4) + 28, cr.z + 90),
+      V(cr.x - 115, Math.max(g(cr.x - 115, cr.z + 135), 4) + 22, cr.z + 135),
+      V(cr.x, 22, cr.z), V(cr.x + 25, 26, cr.z),
+      'IRONWORKS INDUSTRIAL CIRCUIT', 'CONTAINER TERMINAL QUAY',
+      { dur: 9, fov: 36, tod: 'golden', wet: 0.34 },
+    );
+  }
+  // 8. Shoreline Highway cliff gallery overhang
+  if (shoreHw) {
     const i = Math.floor((shoreHw.gallery.from + shoreHw.gallery.to) / 2), q = shoreHw.xz[i], y = shoreHw.y[i];
-    add(V(q[0] - 260, y + 55, q[1] - 260), V(q[0] - 190, y + 40, q[1] - 120), V(q[0], y + 4, q[1] + 60));
+    add(
+      V(q[0] - 210, y + 36, q[1] - 210), V(q[0] - 155, y + 26, q[1] - 95),
+      V(q[0], y + 6, q[1] + 55), V(q[0], y + 5, q[1] + 85),
+      'SUPERIOR COAST · ROCK GALLERY', 'SHORELINE CLIFF OVERHANG',
+      { dur: 9, fov: 36, tod: 'golden', wet: 0.14 },
+    );
   }
-  if (countryScenes) for (const k of [0, 2, 3]) { const sh = countryScenes.shots[k]; if (sh) add(V(...sh.cam), V(sh.cam[0] + 8, sh.cam[1] + 3, sh.cam[2] - 8), V(...sh.at), 8); }
-  // the reference scenes (docs/apex-elohim/reference-scenes.md) the covered bridge and barn shots above do not already cover: a slow push toward each
-  for (const r of REF_SCENES) {
-    if (r.n === 1 || r.n === 6) continue;
-    const gy = (x: number, z: number): number => (r.rel ? g(x, z) : 0), c = V(r.cam[0], r.cam[1] + gy(r.cam[0], r.cam[2]), r.cam[2]), a = V(r.at[0], r.at[1] + gy(r.at[0], r.at[2]), r.at[2]);
-    add(c, c.clone().lerp(a, 0.06), a, 8);
+  // 9. Countryside Millbrook Covered Bridge & Pinewood Valley
+  if (countryScenes?.shots?.[0]) {
+    const sh = countryScenes.shots[0];
+    add(
+      V(...sh.cam), V(sh.cam[0] + 10, sh.cam[1] + 2.5, sh.cam[2] - 10),
+      V(...sh.at), V(sh.at[0], sh.at[1] + 0.5, sh.at[2]),
+      'PINEWOOD VALLEY · COUNTRYSIDE', 'MILLBROOK COVERED BRIDGE',
+      { dur: 8.5, fov: 38, tod: 'golden', wet: 0.10 },
+    );
   }
+  // 10. Dune Coast & Great Lakes golden horizon
+  add(
+    V(-6320, g(-6320, 1280) + 42, 1280), V(-6160, g(-6160, 1020) + 34, 1020),
+    V(-5450, 26, 520), V(-5380, 24, 460),
+    'WEST COAST · DUNES', 'GREAT LAKES HORIZON',
+    { dur: 9, fov: 36, tod: 'sunset', wet: 0.08 },
+  );
   return out;
 }
+
+function applyCineShotMood(s: CineHeroShot): void {
+  setTimeOfDay(s.tod);
+  wx.setWeather(s.wet > 0.32 ? 'partly' : 'clear', false, true);
+  roadWater.wetness = s.wet;
+  roadWater.pooling = s.wet > 0.34 ? 0.18 : 0.04;
+  wetU.value = roadWater.wetness;
+  poolU.value = roadWater.pooling;
+  camera.fov = s.fov;
+  camera.updateProjectionMatrix();
+  cineTagEl.textContent = s.tag;
+  cineTitleEl.textContent = s.title;
+}
+
+let cineStartedAt = 0;
 function startCine(): void {
-  if (cineOn) return;
+  if (cineOn || driving) return;
   cineShots = buildCineShots();
   if (!cineShots.length) return;
-  cineOn = true; cineT = 0; cineIdx = Math.floor(Math.random() * cineShots.length);
-  setMapMode(false);                                                   // the real world, in its golden light, not the map backdrop
-  setTimeOfDay('golden'); wx.setWeather('partly', false, true);
-  menuEl.style.display = 'block'; backBtn.style.display = 'none';
-  (menuEl.querySelector('#mapCardsWrap') as HTMLElement).style.opacity = '0';
-  (menuEl.querySelector('#mapCardsWrap') as HTMLElement).style.pointerEvents = 'none';
+  cineOn = true; cineT = 0; cineIdx = 0; cineStartedAt = performance.now();
+  cineBaseFov = camera.fov;
+  setMapMode(false);                                                   // full photoreal world: shadows, SSAO, skyline, trees, wet sheen
+  // Apply Plajah AgX warm cinema LUT during idle showcase, restoring user's choice cleanly on exit
+  if (gradePass) {
+    cineSavedLut = { lut: gradePass.lut, amt: gradePass.lutAmount };
+    if (gradePass.lut === 'none') { gradePass.lut = 'fable-warm'; gradePass.lutAmount = 0.55; }
+  }
+  applyCineShotMood(cineShots[0]);
+  menuEl.style.display = 'none'; backBtn.style.display = 'none';
+  cineOverlay.style.display = 'block';
   controls.autoRotate = false; controls.enabled = false; tween = null;
-  labelGroup.visible = false;                                          // no map labels in a beauty shot
+  labelGroup.visible = false;
+  furnitureGroup.traverse((o) => { if (o instanceof THREE.Sprite) o.visible = false; });
 }
+(window as unknown as { startCine?: () => void }).startCine = startCine;
+
 function endCine(quiet = false): void {                              // quiet: a drive is starting, so don't fall back to the overview
   if (!cineOn) return;
   cineOn = false; cineFade.style.opacity = '0';
+  cineOverlay.style.display = 'none';
+  if (gradePass && cineSavedLut) { gradePass.lut = cineSavedLut.lut; gradePass.lutAmount = cineSavedLut.amt; cineSavedLut = null; }
+  camera.fov = cineBaseFov; camera.updateProjectionMatrix();
   controls.enabled = true; labelGroup.visible = (document.getElementById('tLab') as HTMLInputElement).checked;
+  furnitureGroup.traverse((o) => { if (o instanceof THREE.Sprite) o.visible = true; });
   const w = menuEl.querySelector('#mapCardsWrap') as HTMLElement; w.style.opacity = '1'; w.style.pointerEvents = 'auto';
   if (!quiet) preset('overview');
 }
 function stepCine(dt: number, now: number): void {
   if (!cineOn) {
     const cityReady = ((window as unknown as { cityCount?: number }).cityCount ?? 0) > 0;
-    if (cityReady && mapMode && menuEl.style.display === 'block' && briefEl.style.display === 'none' && settingsEl.style.display !== 'block' && !mapEditor?.isOpen() && !driving && now - lastInput > 45000) startCine();
+    if (cityReady && bootDismissed && mapMode && menuEl.style.display === 'block' && briefEl.style.display === 'none' && settingsEl.style.display !== 'block' && !mapEditor?.isOpen() && !driving && now - lastInput > 25000) startCine();
     return;
   }
   const s = cineShots[cineIdx];
   cineT += dt;
-  const k = Math.min(1, cineT / s.dur), e = k * k * (3 - 2 * k) * 0.5 + k * 0.5;      // a slow glide, eased only a little
+  const k = Math.min(1, cineT / s.dur);
+  const e = k * k * (3 - 2 * k) * 0.45 + k * 0.55;      // motorized cinema dolly glide
   camera.position.lerpVectors(s.from, s.to, e);
-  controls.target.copy(s.at);
-  camera.lookAt(s.at);
-  cineFade.style.opacity = cineT < 0.9 || cineT > s.dur - 0.9 ? '1' : '0';
-  if (cineT >= s.dur) { cineIdx = (cineIdx + 1) % cineShots.length; cineT = 0; }
+  controls.target.lerpVectors(s.atFrom, s.atTo, e);
+  camera.lookAt(controls.target);
+  cineFade.style.opacity = cineT < 0.85 || cineT > s.dur - 0.85 ? '1' : '0';
+  if (cineT >= s.dur) {
+    cineIdx = (cineIdx + 1) % cineShots.length;
+    cineT = 0;
+    applyCineShotMood(cineShots[cineIdx]);
+  }
 }
 for (const ev of ['pointermove', 'pointerdown', 'keydown', 'wheel', 'touchstart'] as const) {
   addEventListener(ev, (e) => {
     if (ev === 'pointermove' && Math.abs((e as PointerEvent).movementX) + Math.abs((e as PointerEvent).movementY) < 2) return;
-    lastInput = performance.now();
-    if (cineOn) endCine();
+    const now = performance.now();
+    lastInput = now;
+    if (cineOn && now - cineStartedAt > 450) endCine();
   }, { passive: true });
 }
 
@@ -2975,22 +4202,71 @@ function setMapMode(on: boolean): void {
   vignette.style.display = on ? 'block' : 'none';
   menuEl.style.display = on ? 'block' : 'none';
   backBtn.style.display = on ? 'none' : 'block';
+  cineBtn.style.display = on ? 'inline-flex' : 'none';
+  onlineHubBtn.style.right = on ? '218px' : '304px';
+  onlineHubBtn.style.top = on ? '19px' : '16px';
+  transitBtn.style.right = on ? '316px' : '408px';
+  transitBtn.style.top = on ? '19px' : '16px';
   controls.autoRotate = on;
   controls.autoRotateSpeed = 0.35;
   applyMapOffset();
   mapFadeU.value = on ? 1 : 0;
+  if (webgpuTerrainHandle) webgpuTerrainHandle.uniforms.uMapFade.value = on ? 1 : 0;
   if (on) playMusic('menu');
-  if (terrainMat) { terrainMat.transparent = on; terrainMat.needsUpdate = true; }
+  // Keep WebGPU terrain strictly opaque (border fades smoothly into mapBackdrop color in TSL) — avoids transparent sorting glitches & shader recompiles!
+  if (terrainMat && !USE_WEBGPU) { terrainMat.transparent = on; terrainMat.needsUpdate = true; }
+  // 60 FPS Map Overview Mode: swap 95M-tri full city for 2-draw-call skyline proxy, disable shadow passes & sub-pixel close-up micro-props
+  // (restored instantaneously when flying down into a circuit, entering hero showcase, or starting a race!)
+  const showBuildings = (document.getElementById('tBld') as HTMLInputElement).checked;
+  cityGroup.visible = !on && showBuildings;
+  mapSkylineGroup.visible = on && showBuildings;
+  mapWorldProxyGroup.visible = on && showBuildings;
+  mapRoadsGroup.visible = on;
+  // Never turn autoUpdate back on in WebGPU/WebGL driving mode — spatialCuller throttles shadow redraws every shadowStride frames!
+  renderer.shadowMap.autoUpdate = false;
+  if (!on) renderer.shadowMap.needsUpdate = true;
   if (on) {
     mapBackdrop = mapBackdrop ?? makeMapBackdrop();
     scene.background = mapBackdrop;
-    forestGroup.visible = false; scapeGroup.visible = false;
+    forestGroup.visible = false;
+    scapeGroup.visible = false;
+    streetGroup.visible = false;
+    roofGroup.visible = false;
+    harborGroup.visible = false;
+    furnitureGroup.visible = false;
+    zoneGroup.visible = false;
+    worldPhys.group.visible = false;
+    for (const l of cloudLayers) l.mesh.visible = false;
+    if (parked) parked.group.visible = false;
+    if (townWalks) townWalks.group.visible = false;
+    if (refDress) refDress.group.visible = false;
+    if (parkingLots) parkingLots.group.visible = false;
+    if (wildlifeWorld) wildlifeWorld.group.visible = false;
+    if (simLayer) simLayer.setMapOverview(true);
     scene.fog = new THREE.Fog(0x000000, 1e6, 2e6);          // never null: adding or removing fog recompiles every shader in the scene
     circuitGroup.visible = true;
+    placeNext = 0;                                         // immediately cull close-up hardware on entering map mode
   } else {
-    forestGroup.visible = true; scapeGroup.visible = (document.getElementById('tScape') as HTMLInputElement).checked;
+    forestGroup.visible = true;
+    scapeGroup.visible = (document.getElementById('tScape') as HTMLInputElement).checked;
+    streetGroup.visible = (document.getElementById('tStr') as HTMLInputElement).checked;
+    roofGroup.visible = showBuildings;
+    harborGroup.visible = (document.getElementById('tHar') as HTMLInputElement).checked;
+    furnitureGroup.visible = true;
+    zoneGroup.visible = true;
+    worldPhys.group.visible = true;
+    for (const l of cloudLayers) l.mesh.visible = true;
+    if (parked) parked.group.visible = true;
+    if (townWalks) townWalks.group.visible = true;
+    if (refDress) refDress.group.visible = true;
+    if (parkingLots) parkingLots.group.visible = true;
+    if (wildlifeWorld) wildlifeWorld.group.visible = true;
+    if (simLayer) simLayer.setMapOverview(false);
+    renderer.shadowMap.needsUpdate = true;
     setTimeOfDay(todKey);
     circuitGroup.visible = (document.getElementById('tCirc') as HTMLInputElement).checked;
+    placeNext = 0;
+    for (const tf of treeFields) tf.update(0.016, camera.position);
   }
 }
 
@@ -3073,6 +4349,8 @@ function openPursuitBrief(): void {
   briefEl.querySelectorAll<HTMLButtonElement>('.pr').forEach((b) => { b.onclick = () => { hideBrief(); startDrive('free', undefined, b.dataset.r as PursuitRoleChoice); }; });
   (document.getElementById('briefBack') as HTMLElement).onclick = () => preset('overview');
 }
+addMenuCard('ONLINE OPEN WORLD', 'Ironport Online (32P)', 'Shared open map · live drivers · gamertags · voice', '#00DAF3', () => launchOnlineHub('world'));
+addMenuCard('ONLINE RACE LOBBY', 'Ranked & Private Lobbies', '12-player matchmaking · room codes · all circuits', '#FF8C00', () => launchOnlineHub('race'));
 addMenuCard('PURSUIT MODE', 'Cops & Robbers', 'Heist getaway or police chase · pick your side', '#4d8dff', openPursuitBrief);
 addMenuCard('COURIER MODE', 'Delivery shift','Passengers · food · packages · beat the clock, chain the drops', '#00f5d4', openCourierBrief);
 addMenuCard('GARAGE', 'Cars, parts and tuning', 'Showroom · upgrades · tuning · objectives', '#ffd166', () => { location.href = 'showroom.html'; });
@@ -3105,11 +4383,12 @@ function centroid(c: CircuitDef): THREE.Vector3 {
 }
 let tween: { p0: THREE.Vector3; t0: THREE.Vector3; p1: THREE.Vector3; t1: THREE.Vector3; t: number; dur: number } | null = null;
 let tweenOn = false;
-function look(pos: THREE.Vector3, target: THREE.Vector3): void {
-  if (tweenOn) {
+function look(pos: THREE.Vector3, target: THREE.Vector3, instant = false): void {
+  if (tweenOn && !instant) {
     tween = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos.clone(), t1: target.clone(), t: 0, dur: 1.5 };
     return;
   }
+  tween = null;
   camera.position.copy(pos);
   controls.target.copy(target);
   controls.update();
@@ -3148,6 +4427,8 @@ function preset(name: string, keepMap = false): void {
   if (name === 'superior' && meta.circuits.superior_range_circuit) { const c = centroid(meta.circuits.superior_range_circuit); look(new THREE.Vector3(c.x + 4200, 3600, c.z + 5200), new THREE.Vector3(c.x - 200, 200, c.z)); }
   if (name === 'escarpment' && meta.circuits.escarpment_circuit) { const c = centroid(meta.circuits.escarpment_circuit); look(new THREE.Vector3(c.x + 1800, 1500, c.z + 2600), new THREE.Vector3(c.x, 180, c.z - 300)); }
   if (name === 'dunes') look(new THREE.Vector3(-6500, 1500, 1500), new THREE.Vector3(-5200, 10, 400));
+  if (name === 'airport') look(new THREE.Vector3(-5650, 175, 3780), new THREE.Vector3(-4550, 16, 4220), true);
+  if (name === 'kettle') look(new THREE.Vector3(-1760, 155, 1760), new THREE.Vector3(-1460, 14, 1450), true);
 }
 
 // ---------- fly lap ----------
@@ -3181,7 +4462,10 @@ let trackKit: TrackKit | null = null;
 let goClock = 99;
 const furnitureGroup = new THREE.Group();
 scene.add(furnitureGroup);
-let cityRoadMat: THREE.Material | null = null;                  // the city circuit's asphalt (lane markings, wet-road shading), shared with the cliff raceway
+let cityRoadMat: THREE.Material | null = null;                  // US MUTCD 2-lane asphalt (double-yellow center, white outer fog lines, wet-road PBR)
+let usRoadMat4Lane: THREE.Material | null = null;               // US MUTCD 4-lane highway/freeway asphalt (double-yellow divider + dashed white lanes)
+let usRoadMatPlain: THREE.Material | null = null;               // Clean unmarked weathered asphalt for intersection aprons (prevents X line clashes!)
+let wildlifeWorld: WildlifeWorld | null = null;
 let cityPath: { x: number; y: number; z: number }[] = [];       // dense path (about 6 m) for timing and barriers
 function densify(c: CircuitDef, step: number): { x: number; y: number; z: number }[] {
   const out: { x: number; y: number; z: number }[] = [];
@@ -3295,10 +4579,40 @@ function buildFurniture(): void {
     furnitureGroup.add(km);
     driveSurfaces.push(km);
   }
-  // racing surface over the street, the reference asphalt with its lane marks
+  // racing surface over the street: crisp US MUTCD asphalt (double solid amber-yellow centerline + solid white outer fog lines)
   const roadAcc: Acc = { pos: [], idx: [], uv: [] };
   addRibbonUV(roadAcc, P.map((p) => [p.x, p.z]), 11, RIBBON_LIFT, 6.2);
-  { const rm = accMeshTex(roadAcc, gameTex('asphalt_highway'), 0.8, -4); furnitureGroup.add(rm); driveSurfaces.push(rm); cityRoadMat = rm.material as THREE.Material; }
+  {
+    const rm = accMeshTex(roadAcc, createUsRoadTexture('2lane'), 0.8, -4);
+    if (USE_WEBGPU && tslRegionCtx) {
+      cityRoadMat = createApexUsRoadTslMaterial({ map: createUsRoadTexture('2lane'), shared: tslRegionCtx.shared, gi: tslRegionCtx.gi, polygonOffsetFactor: -4, roughness: 0.80 }) as unknown as THREE.Material;
+      rm.material = cityRoadMat;
+      usRoadMat4Lane = createApexUsRoadTslMaterial({ map: createUsRoadTexture('4lane'), shared: tslRegionCtx.shared, gi: tslRegionCtx.gi, polygonOffsetFactor: -4, roughness: 0.80 }) as unknown as THREE.Material;
+      usRoadMatPlain = createApexUsRoadTslMaterial({ map: createUsRoadTexture('plain'), shared: tslRegionCtx.shared, gi: tslRegionCtx.gi, polygonOffsetFactor: -6, roughness: 0.82 }) as unknown as THREE.Material;
+    } else {
+      cityRoadMat = rm.material as THREE.Material;
+      usRoadMat4Lane = new THREE.MeshStandardMaterial({
+        map: createUsRoadTexture('4lane'),
+        roughness: 0.8,
+        metalness: 0,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -4,
+        polygonOffsetUnits: -8,
+      });
+      usRoadMatPlain = new THREE.MeshStandardMaterial({
+        map: createUsRoadTexture('plain'),
+        roughness: 0.82,
+        metalness: 0,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -6,
+        polygonOffsetUnits: -12,
+      });
+    }
+    furnitureGroup.add(rm);
+    driveSurfaces.push(rm);
+  }
   // start and finish gantry with a chequered line
   const [gx, gz] = tan(0);
   const g0 = P[0];
@@ -3362,13 +4676,26 @@ function buildFurniture(): void {
   // Other two race circuits: Pinewood Rally Stage & Great Lakes Cliff Raceway
   const rallyCircuit = meta.circuits.pinewood_rally_stage;
   if (rallyCircuit) {
-    rallyNear = makeCorridor(densify(rallyCircuit, 6));
+    const rallyDense = densify(rallyCircuit, 6);
+    rallyNear = makeCorridor(rallyDense);
     const builtRally = buildPinewoodRallyCircuit({
       circuit: rallyCircuit,
-      ground: (x, z) => hAt(x, z) * exag,
+      ground: (x, z) => meshH(x, z),
       exag,
     });
     furnitureGroup.add(builtRally.group);
+    if (builtRally.road) { driveSurfaces.push(builtRally.road); surfGrid = null; }
+    // Register breakable wooden fence posts & corner rally signs along the off-road rally verges so you can smash right through them!
+    for (let i = 4; i < rallyDense.length - 4; i += 6) {
+      const a = rallyDense[i - 1], b = rallyDense[i + 1];
+      const dx = b.x - a.x, dz = b.z - a.z, len = Math.hypot(dx, dz) || 1;
+      const nx = -dz / len, nz = dx / len;
+      const p = rallyDense[i];
+      for (const side of [-1, 1]) {
+        const px = p.x + nx * side * 5.6, pz = p.z + nz * side * 5.6;
+        worldPhys.addBreakable(px, meshH(px, pz), pz, (i % 18 === 0) ? 'sign' : 'fence', 0.85);
+      }
+    }
   }
   const cliffCircuit = meta.circuits.great_lakes_cliff_raceway;
   if (cliffCircuit && cliffDesign) {
@@ -3402,7 +4729,14 @@ function buildFurniture(): void {
       if (cur.length > 1) pieces.push(cur);
       return pieces.map((xz) => ({ ...r, xz }));
     }) } : undefined;
-    countryScenes = buildCountryScenes({ ground: (x, z) => meshH(x, z), roadMaterial: cityRoadMat ?? undefined, network: netOff, shoreline: shoreHw ?? undefined });
+    countryScenes = buildCountryScenes({
+      ground: (x, z) => meshH(x, z),
+      roadMaterial: cityRoadMat ?? undefined,
+      roadMaterial4Lane: usRoadMat4Lane ?? undefined,
+      plainRoadMaterial: usRoadMatPlain ?? undefined,
+      network: netOff,
+      shoreline: shoreHw ?? undefined,
+    });
     furnitureGroup.add(countryScenes.group);
     driveSurfaces.push(...countryScenes.roads);
     surfGrid = null;
@@ -3464,10 +4798,14 @@ function buildFurniture(): void {
 
   if (simPlan && (simPlan.net || simPlan.L || simPlan.data.zones.length)) {
     // no signal pole or stop sign on a painted street or inside the city circuit's barriers (they stand 1.4 m past its 5.5 m half width)
+    if (simLayer) scene.remove(simLayer.group);
     const gcx = meta.circuits.ironport_grand_circuit as { xz?: number[][]; y?: number[] } | undefined;
     const inCircuit = gcx?.xz ? makeCorridor(smoothClosedPath(gcx.xz, gcx.y, 12, 6).xz.map((p) => ({ x: p[0], z: p[1] }))) : null;
     simLayer = new SimLayer(simPlan, { ground: (x, z) => meshH(x, z), carGround: (x, z) => groundH(x, z), water: (x, z) => hAt(x, z) < 2.5, keepOut: (x, z) => paintedRoad(x, z, 0.5) || !!inCircuit?.(x, z, 7.6) });
-    furnitureGroup.add(simLayer.group);
+    simLayer.group.userData.dynamicInstanced = true;
+    // Add directly to scene (not furnitureGroup) so operating Rail & Halcyon Airport stay live & visible even on 60 FPS Map Overview!
+    scene.add(simLayer.group);
+    simLayer.setMapOverview(mapMode);
     driveSurfaces.push(...simLayer.surfaces);
     surfGrid = null;
   }
@@ -3486,7 +4824,11 @@ function buildFurniture(): void {
     if (moved) console.log('pylons moved off the race courses', moved);
   }
   if (utilData) { const ug = buildUtilities(utilData, (x, z) => meshH(x, z)).group; const mb = mergeByMaterial(ug, 600); console.log('utilities meshes', mb.before, '->', mb.after); furnitureGroup.add(ug); }   // pylons and yards: one draw per material per 600 m cell
-  if (parkingData && parkingData.length) { parkingLots = buildParkingLots(parkingData, (x, z) => meshH(x, z)); furnitureGroup.add(parkingLots.group); }
+  if (parkingData && parkingData.length) {
+    parkingLots = buildParkingLots(parkingData, (x, z) => meshH(x, z));
+    furnitureGroup.add(parkingLots.group);
+    for (const pc of parkingLots.cars) worldPhys.addSolidBox(pc.x, pc.z, 0.96, 2.25, pc.yaw, 'car');
+  }
   if (portData) {
     const wy = waterMesh ? waterMesh.position.y : 0;
     // nothing of the port stands on a race course (the new Ironworks runs across the old port yards): a container block, crane, tank or the flare on the
@@ -3506,27 +4848,102 @@ function buildFurniture(): void {
     const portOff: PortData = { ...pd, cranes: pd.cranes.filter((c) => !onC(c.x, c.z, 18)), containers: pd.containers.filter((b) => !blockOn(b)), tanks: pd.tanks.filter((t) => !onC(t.x, t.z, t.r + 9)),
       pipeRack: pipeOnCourse(pd.pipeRack) ? [] : pd.pipeRack, flare: pd.flare.length >= 2 && onC(pd.flare[0], pd.flare[1], 12) ? [] : pd.flare,
       fence: pd.fence.some((q, i) => { const r = pd.fence[(i + 1) % pd.fence.length]; for (let t = 0; t <= 1; t += 0.1) if (onC(q[0] + (r[0] - q[0]) * t, q[1] + (r[1] - q[1]) * t, 1)) return true; return false; }) ? [] : pd.fence };
-    furnitureGroup.add(buildPortDistrict(portOff, { waterY: wy }).group);
+    const portBuilt = buildPortDistrict(portOff, { waterY: wy });
+    const portGrp = portBuilt.group;
+    for (const sol of portBuilt.solids) worldPhys.addSolidBox(sol.x, sol.z, sol.hw, sol.hd, sol.rot, sol.kind);
+    for (const t of portOff.tanks) worldPhys.addSolidCylinder(t.x, t.z, t.r + 0.5, 'pillar');
+    mergeStaticScenery(portGrp, 500);
+    furnitureGroup.add(portGrp);
   }
 
-  // Rural Horizon open-world architecture & Festival Outpost
-  const ruralGroup = buildRuralOpenWorldDetail({
-    ground: (x, z) => hAt(x, z) * exag,
-    clearCheck: (x, z) => surfaceAtXZ(x, z) === 'grass' && !insideBuilding(x, z, 28),
+  // Rural Horizon open-world farmland architecture, silos, hay bales, breakable pasture fences & Festival Outpost
+  const ruralBuilt = buildRuralOpenWorldDetail({
+    ground: (x, z) => meshH(x, z),
+    clearCheck: (x, z) => surfaceAtXZ(x, z) === 'grass' && !insideBuilding(x, z, 28) && !onCourse(x, z, 18) && !paintedRoad(x, z, 16),
+    ruralRoads: (countryNet?.roads ?? []).filter((r) => !r.town).map((r) => r.xz),
   });
-  furnitureGroup.add(ruralGroup);
+  for (const sol of ruralBuilt.solids) worldPhys.addSolidBox(sol.x, sol.z, sol.hw, sol.hd, sol.rot, sol.kind);
+  for (const brk of ruralBuilt.breakables) worldPhys.addBreakable(brk.x, brk.y, brk.z, brk.kind, brk.radius);
+  mergeStaticScenery(ruralBuilt.group, 500);
+  furnitureGroup.add(ruralBuilt.group);
 
-  // Suburbs, Industrial Zone, Coastline & Cross-River City District
+  // Real 3D Great Lakes Coastline Geometry, Riprap Rocks, Boardwalks, Piers, Lighthouses & Drivable Lakeside Streets
+  mapWorldProxyGroup.clear();
+  if (shoreHw) {
+    const coastalBuilt = buildCoastalWorld({
+      shoreline: shoreHw,
+      ground: (x, z) => meshH(x, z),
+      rawGround: (x, z) => hAt(x, z),
+      blocked: (x, z, r) => onCourse(x, z, r) || paintedRoad(x, z, r) || insideBuilding(x, z, r),
+      roadMaterial: cityRoadMat ?? undefined,
+    });
+    furnitureGroup.add(coastalBuilt.group);
+    mapWorldProxyGroup.add(coastalBuilt.mapProxy);
+    if (coastalBuilt.decks.length) {
+      driveSurfaces.push(...coastalBuilt.decks);
+      surfGrid = null;
+    }
+    for (const sol of coastalBuilt.solids) worldPhys.addSolidBox(sol.x, sol.z, sol.hw, sol.hd, sol.rot, sol.kind);
+    for (const brk of coastalBuilt.breakables) worldPhys.addBreakable(brk.x, brk.y, brk.z, brk.kind, brk.radius);
+    console.log('coastal world', JSON.stringify(coastalBuilt.counts));
+  }
+
+  // Full Dual-Bank Ironport Riverfront (West Bank + East Bank seawalls, riverwalks, marinas, yachts, lofts & working wharves)
+  {
+    const rfBuilt = buildRiverfrontWorld({
+      ground: (x, z) => meshH(x, z),
+      rawGround: (x, z) => hAt(x, z),
+      blocked: (x, z, r) => onCourse(x, z, r) || paintedRoad(x, z, r) || insideBuilding(x, z, r),
+    });
+    furnitureGroup.add(rfBuilt.group);
+    mapWorldProxyGroup.add(rfBuilt.mapProxy);
+    for (const sol of rfBuilt.solids) worldPhys.addSolidBox(sol.x, sol.z, sol.hw, sol.hd, sol.rot, sol.kind);
+    for (const brk of rfBuilt.breakables) worldPhys.addBreakable(brk.x, brk.y, brk.z, brk.kind, brk.radius);
+    console.log('riverfront world', JSON.stringify(rfBuilt.counts));
+  }
+  // Four Zoned Rural Small Towns (Kettle Crossing, Section Corners, Maple Ridge, Cedar Creek) + Map Overview Town/Airport Labels
+  {
+    const rtBuilt = buildRuralTowns({
+      ground: (x, z) => meshH(x, z),
+      blocked: (x, z, r) => onCourse(x, z, r) || paintedRoad(x, z, r) || insideBuilding(x, z, r) || !!simLayer?.near(x, z, r + 6),
+      roads: (countryNet?.roads ?? []).filter((r) => r.kind !== 'drive'),
+    });
+    furnitureGroup.add(rtBuilt.group);
+    mapWorldProxyGroup.add(rtBuilt.mapProxy);
+    for (const sol of rtBuilt.solids) worldPhys.addSolidBox(sol.x, sol.z, sol.hw, sol.hd, sol.rot, sol.kind);
+    for (const brk of rtBuilt.breakables) worldPhys.addBreakable(brk.x, brk.y, brk.z, brk.kind, brk.radius);
+    for (const town of RURAL_TOWNS) {
+      labelGroup.add(label(town.name, town.x, meshH(town.x, town.z) + 55, town.z, '#ffd98a', 0.85));
+    }
+    labelGroup.add(label('Halcyon Intl Airport (KIPT)', -4750, meshH(-4750, 4150) + 75, 4150, '#7ff7ff', 0.95));
+    console.log('rural towns', JSON.stringify(rtBuilt.counts));
+  }
+  // Living Michigan Countryside Wildlife: grazing cows & horses beside pasture hay bales, shy woodland white-tail deer & soaring bird flocks
+  {
+    if (wildlifeWorld) scene.remove(wildlifeWorld.group);
+    wildlifeWorld = buildWildlifeWorld({
+      ground: (x, z) => meshH(x, z),
+      clearCheck: (x, z) => vegOk(x, z, 4.0) && !insideBuilding(x, z, 8),
+    });
+    wildlifeWorld.group.visible = !mapMode;
+    scene.add(wildlifeWorld.group);
+    console.log('wildlife', JSON.stringify(wildlifeWorld.counts));
+  }
+  mapWorldProxyGroup.visible = mapMode && (document.getElementById('tBld') as HTMLInputElement).checked;
+  rebuildMapRoads();
+
+  // Suburbs, Industrial Zone & Cross-River City District
   const cityExpGroup = buildCityExpansion({
     ground: (x, z) => hAt(x, z) * exag,
     clearCheck: (x, z) => !insideBuilding(x, z, 24),
   });
+  mergeStaticScenery(cityExpGroup, 500);
   furnitureGroup.add(cityExpGroup);
 
   // the two high-level river bridges (deck 46 m over the water, so the ships pass beneath): Halcyon Gateway in the south, Northgate at the head of the waterway
   {
     const rb = buildRiverBridges({ ground: (x, z) => meshH(x, z), roadMaterial: cityRoadMat ?? undefined });
-    furnitureGroup.add(rb.group);
+    scene.add(rb.group);                                   // keep the two landmark bridges visible on the 60 FPS Map Overview even while furnitureGroup is hidden!
     driveSurfaces.push(...rb.decks);
     surfGrid = null;
     bridgeNear = makeCorridor(rb.path);
@@ -3553,7 +4970,7 @@ function buildFurniture(): void {
       }
       return best < 900 ? [bx, bz] : null;
     };
-    if (festivalData) furnitureGroup.add(buildFestival(festivalData, (x, z) => groundH(x, z), roadDir));   // stand on the road surface (decks, raised beds), not the terrain under it                         // Chora Fest stages and stunt furniture
+    if (festivalData) { const fg = buildFestival(festivalData, (x, z) => groundH(x, z), roadDir); mergeStaticScenery(fg, 500); furnitureGroup.add(fg); }   // stand on the road surface (decks, raised beds), not the terrain under it                         // Chora Fest stages and stunt furniture
     // Chora Fest progression: Fest Points, Stage Passes, outposts and their opening sets (src/festProgress.ts), saved with the garage
     if (festivalData && !festProg) festProg = createFestProgress({
       festival: festivalData, scenic: scenicData, save: garage.save, persist: () => garage.persist(), banner: (t, k) => showBanner(t, k),
@@ -3603,7 +5020,22 @@ function buildFurniture(): void {
     }
     heroBridgeUpdate = rb.updateLed;
   }
-  spatialCuller.indexGroups([furnitureGroup, scapeGroup, zoneGroup]);
+  scheduleCullerReindex(true);
+}
+
+let cullerReindexTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleCullerReindex(immediate = false): void {
+  const run = (): void => {
+    cullerReindexTimer = null;
+    spatialCuller.indexGroups([furnitureGroup, scapeGroup, zoneGroup, roofGroup, harborGroup]);
+  };
+  if (immediate) {
+    if (cullerReindexTimer) { clearTimeout(cullerReindexTimer); cullerReindexTimer = null; }
+    run();
+    return;
+  }
+  if (cullerReindexTimer) clearTimeout(cullerReindexTimer);
+  cullerReindexTimer = setTimeout(run, 120);
 }
 
 /** the depressed downtown freeways (trench.ts): bed, walls, medians and overpasses, once the street mask (which holds the cut) has loaded */
@@ -3620,6 +5052,7 @@ async function buildTrenchLayer(): Promise<void> {
   furnitureGroup.add(t.group);
   driveSurfaces.push(...t.surfaces);
   surfGrid = null;
+  scheduleCullerReindex();
   console.log('freeway trench:', td.lines.length, 'lines,', t.overpasses, 'overpasses');
 }
 let heroBridgeUpdate: ((elapsed: number, nightFactor: number) => void) | null = null;
@@ -3919,9 +5352,35 @@ const VIEW_NAMES =['Chase', 'Far chase', 'Hood', 'Dash', 'Driver'];
 let pedalT = 0, pedalB = 0;
 let carY = -1e9, carPitch = 0, carRoll = 0, slopePS = 0, slopeRS = 0;
 let camYawOff = 0, camPitchOff = 0, camZoom = 1, camIdle = 0, lookBack = false;
+const apexBridge = createApexRegionBridge(renderer);
+(window as unknown as { apexEngine: unknown }).apexEngine = apexBridge.diagnostics;
+
 const replay = new Replay({
   camera,
   car: () => driving?.car ?? null,
+  opponents: () => {
+    const out: Array<{ mesh: THREE.Object3D; speed?: number; steer?: number; pitch?: number; roll?: number; brake?: number; wetNight?: number }> = [];
+    const wnNow = Math.min(1, wx.cur.wet * 0.85 + (NIGHT_K[todKey] ?? 0) * 1.15);
+    if (competition && aiMeshes.length) {
+      let aiIdx = 0;
+      for (const r of competition.racers) {
+        if (r.isPlayer) continue;
+        const m = aiMeshes[aiIdx++];
+        if (m) out.push({ mesh: m, speed: r.state.forwardSpeed, steer: r.state.steerAngle, pitch: m.rotation.x, roll: m.rotation.z, brake: r.brakeAmt, wetNight: wnNow });
+      }
+    }
+    if (trafficMgr && trafficMeshes.length) {
+      for (let i = 0; i < trafficMgr.vehicles.length && i < trafficMeshes.length; i++) {
+        out.push({ mesh: trafficMeshes[i], speed: trafficMgr.vehicles[i].speedMps, wetNight: wnNow });
+      }
+    }
+    if (onlineSession.mode !== 'offline') {
+      for (const rem of onlineSession.remotes.values()) {
+        if (rem.mesh) out.push({ mesh: rem.mesh, speed: rem.vel?.length() ?? 0, wetNight: wnNow });
+      }
+    }
+    return out;
+  },
   hAt: (x, z) => hAt(x, z),
   exag: () => exag,
   blocked: (x, z) => {
@@ -3934,8 +5393,33 @@ const replay = new Replay({
     }
     return false;
   },
-  lapInfo: () => (driving?.circuitId === 'ironport_grand_circuit' ? 'IRONPORT GRAND CIRCUIT' : 'FREE ROAM'),
+  buildingTopAt: (x, z, margin) => {
+    const gx = Math.floor(x / CELL), gz = Math.floor(z / CELL);
+    let maxTop = -Infinity;
+    for (let ox = -1; ox <= 1; ox++) {
+      for (let oz = -1; oz <= 1; oz++) {
+        const list = colGrid.get(`${gx + ox},${gz + oz}`);
+        if (!list) continue;
+        for (const it of list) {
+          const cx = it.bx ?? it.x, cz = it.bz ?? it.z, c = Math.cos(it.rotY), sn = Math.sin(it.rotY);
+          const dx = x - cx, dz = z - cz;
+          if (Math.abs(dx * c - dz * sn) < it.w / 2 + margin && Math.abs(dx * sn + dz * c) < it.d / 2 + margin) {
+            const top = hAt(cx, cz) * exag + Math.max(4, it.h);
+            if (top > maxTop) maxTop = top;
+          }
+        }
+      }
+    }
+    return maxTop;
+  },
+  inTunnel: (x, z) => !!(cliffTunnelNear && cliffTunnelNear(x, z, 14)),
+  lapInfo: () => {
+    const cid = driving?.circuitId;
+    if (!cid || cid === 'free') return 'FREE ROAM';
+    return (RUN_NAMES[cid] ?? meta?.circuits[cid]?.name ?? cid).toUpperCase();
+  },
 });
+apexBridge.setReplayDiagnostics(() => replay.getDiagnostics());
 (window as any).replay = replay;
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 renderer.domElement.addEventListener('pointermove', (e) => {
@@ -3969,18 +5453,26 @@ function makeCar(carId?: string): THREE.Group {
   holder.userData.update = rig.update;
   // swap in the GT-R standard scan car once it has loaded; the stand-in covers the wait
   holder.userData.scanPromise = loadScanCarById(id).then(async (r) => {
+    if (holder.userData.cancelled) return;
     {
       const activeDefId = garage.active ? garage.def(garage.active.uid)?.id : undefined;
       const pc = !qOverride && activeDefId === id ? garage.active?.paint : undefined;
+      if (USE_WEBGPU && tslRegionCtx) {
+        const initHex = pc ? new THREE.Color(pc).getHex() : (id === 'vernon_police' ? 0x121824 : undefined);
+        upgradeCarRigToWebGPU(r, tslRegionCtx.gi, initHex);
+      }
       if (pc) r.paint?.set({ color: new THREE.Color(pc).getHex() });
     }
     // compile the scan car's shaders before it is shown: the first render of its heavy paint / glass materials used to stall the frame the car appeared in. The compile starts with the car visible
     // (it only sees visible objects) and the car is hidden again before anything is drawn; the stand-in covers the wait.
     r.group.visible = true; holder.add(r.group);
     let compiled: Promise<unknown> | null = null;
-    try { compiled = renderer.compileAsync(scene, camera); } catch { compiled = null; }
+    if (!USE_WEBGPU) {
+      try { compiled = renderer.compileAsync(scene, camera); } catch { compiled = null; }
+    }
     r.group.visible = false;
     try { await compiled; } catch { /* compile errors surface on the first render, as before */ }
+    if (holder.userData.cancelled) { holder.remove(r.group); return; }
     r.group.visible = true; holder.userData.update = r.update; holder.userData.panels = r.panels;
     // the stand-in is finished: stop drawing it and free its geometry
     // the scan car casts the sun's shadow (skip sub-28 cm interior/hardware parts to save >100k shadow tris), and keeps the stand-in's soft contact shadow under it
@@ -4198,6 +5690,12 @@ let challengeMgr: OpenWorldChallengeManager | null = null;
 let pursuitMode: CopsAndRobbersMode | null = null;
 const onlineSession = new OnlineSessionManager((text) => { msg.textContent = text; });
 if ((import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV) (window as unknown as Record<string, unknown>).__fhOnline = onlineSession; // dev servers only: inspect the online session from the console / lab scripts
+const socialHud = new ApexSocialHud({
+  session: onlineSession,
+  apiBase: new URLSearchParams(location.search).get('api') ?? '',
+  onOpenHub: () => launchOnlineHub(onlineSession.mode === 'persistent_world' ? 'world' : 'race'),
+});
+(window as unknown as { apexSocialHud: ApexSocialHud }).apexSocialHud = socialHud;
 const remoteGroup = new THREE.Group();
 scene.add(remoteGroup);
 const spatialCuller = new SpatialCuller();
@@ -4207,6 +5705,23 @@ scene.add(aiGroup, trafficGroup);
 let aiMeshes: THREE.Group[] = [];
 let trafficMeshes: THREE.Group[] = [];
 
+function makePlayerNameTag(name: string): THREE.Sprite {
+  const c = document.createElement('canvas'); c.width = 384; c.height = 72;
+  const g = c.getContext('2d')!;
+  g.fillStyle = 'rgba(14,4,26,0.78)';
+  g.strokeStyle = 'rgba(0,218,243,0.85)';
+  g.lineWidth = 3;
+  g.beginPath(); g.roundRect(8, 10, 368, 52, 26); g.fill(); g.stroke();
+  g.fillStyle = '#00DAF3'; g.beginPath(); g.arc(34, 36, 7, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#ffffff'; g.font = '800 26px Outfit, Inter, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'middle';
+  g.fillText(name.slice(0, 18), 54, 37);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false }));
+  sp.scale.set(3.4, 0.64, 1);
+  sp.position.set(0, 2.35, 0);
+  sp.renderOrder = 10;
+  return sp;
+}
 function makeTrafficOrAiCarMesh(paintHex: number | string, variant: RivalCarVariant | number = 0): THREE.Group {
   return makeRivalCar(paintHex, variant);
 }
@@ -4221,6 +5736,7 @@ function teardownRun(): void {
   clearVictoryCine();
   if (delivery) { const d = delivery; delivery = null; d.quit(); d.dispose(); }
   if (pursuitMode) { scene.remove(pursuitMode.group); pursuitMode = null; }
+  pursuitHudEl.style.display = 'none';
   runTracker = null; stagePath = null; stageFinished = false; lastCompLap = 1; raceClockStart = 0;
   competition = null; trafficMgr = null; challengeMgr = null;
   aiGroup.clear(); trafficGroup.clear();
@@ -4236,7 +5752,9 @@ function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole
   if (pursuitRole && driving) {
     pursuitMode = new CopsAndRobbersMode(pursuitRole, driving.pos, driving.yaw, groundH);
     scene.add(pursuitMode.group);
-    msg.textContent = `${pursuitMode.statusText} · [F] BAIL OUT / ON FOOT`;
+    pursuitHudEl.style.display = 'block';
+    msg.textContent = `${pursuitMode.statusText} · [G] SIREN · [F] ON FOOT`;
+    syncPoliceControlsUi();
     return;
   }
   if (courier) { delivery = new DeliveryGame(courier, deliverySpots(), scene, groundH, () => preset('overview')); return; }
@@ -4258,10 +5776,12 @@ function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole
         // Stagger traffic scan-car upgrades so spawning free roam never stalls the GPU on frame 1
         setTimeout(() => {
           if (gen !== runGen || !m.parent) return;
-          void loadScanOpponentCar(trafficId, paintHex).then((realTraffic) => {
+          void loadScanOpponentCar(trafficId, paintHex, 'traffic').then((realTraffic) => {
             if (gen !== runGen || !m.parent) return;
             while (m.children.length) m.remove(m.children[0]);
             m.add(realTraffic);
+            m.userData.update = realTraffic.userData.update;
+            carProbe?.apply(m, 0.78);
           }).catch(() => { /* keep fallback */ });
         }, 450 + idx * 160);
       }
@@ -4288,15 +5808,17 @@ function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole
     m.rotation.y = r.state.yaw;
     aiGroup.add(m);
     aiMeshes.push(m);
-    // Stagger opponent scan-car upgrades cleanly (140 ms apart) so 11 GLB parses never stall the 3-2-1 race start countdown!
+    // Preload player-grade hero opponent scan cars during the pre-race grid hold/countdown (40..1700 ms) so zero GLB swaps hit mid-Lap 1!
     setTimeout(() => {
       if (gen !== runGen || !m.parent) return;
-      void loadScanOpponentCar(oppCarId, r.paintHex).then((realOpp) => {
+      void loadScanOpponentCar(oppCarId, r.paintHex, 'hero').then((realOpp) => {
         if (gen !== runGen || !m.parent) return;
         while (m.children.length) m.remove(m.children[0]);
         m.add(realOpp);
+        m.userData.update = realOpp.userData.update;
+        carProbe?.apply(m, 0.85);
       }).catch(() => { /* keep sculpted fallback */ });
-    }, 280 + idx * 140);
+    }, 40 + idx * 140);
   }
   // Only open point-to-point stages (like Pinewood Rally) use single-pass PathProgress; all closed circuits use multi-lap competition tracking!
   stagePath = isClosed ? null : new PathProgress(pts);
@@ -4340,7 +5862,7 @@ function finishRun(timeSec: number, lapsDone = 1): void {
     canReplay,
     autoReplaySec: 12,
     onReplay: () => {
-      if (victoryCine) victoryCine.dismissUi = null;
+      if (victoryCine) { victoryCine.dismissUi = null; victoryCine.active = false; }
       if (replay.start()) {
         driveHud.style.display = 'none';
         countEl.style.display = 'none';
@@ -4406,11 +5928,79 @@ function garageStep(dt: number, s: DriveState, bumped: boolean): void {
     }
   }
 }
+interface DriveIntroDrone {
+  active: boolean;
+  t: number;
+  dur: number;
+  p0: THREE.Vector3;
+  p1: THREE.Vector3;
+  p2: THREE.Vector3;
+  fromLook: THREE.Vector3;
+  fromFov: number;
+  fromNear: number;
+}
+let driveIntro: DriveIntroDrone | null = null;
+
+function createCopInterceptorSpec(): CarSpec {
+  const def = CAR_BY_ID['vernon_police'];
+  const base = def ? stockSpec(def) : structuredClone(CARS.kestrel);
+  base.id = 'vernon_police';
+  base.manufacturer = 'Vernon';
+  base.model = 'Police Interceptor';
+  base.topSpeedMps = Math.max(base.topSpeedMps, 79);
+  base.corneringGrip = Math.max(base.corneringGrip, 1.09);
+  base.engine.soundBank = 'muscle_v8';
+  base.engine.name = '5.7L Pursuit V8';
+  return base;
+}
+
+function attachPoliceLightbar(car: THREE.Group, roofY = 1.355, barZ = -0.34): void {
+  const existing = car.getObjectByName('police-lightbar');
+  if (existing) car.remove(existing);
+  const bar = new THREE.Group();
+  bar.name = 'police-lightbar';
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x12151c, metalness: 0.78, roughness: 0.28 });
+  // Bolted aluminum stanchion feet extending cleanly down into the roof crown so the lightbar NEVER floats!
+  for (const sx of [-0.42, 0.42]) {
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.09, 0.20), frameMat);
+    foot.position.set(sx, -0.02, 0);
+    bar.add(foot);
+  }
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.036, 0.23), frameMat);
+  base.position.set(0, 0.024, 0);
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(1.00, 0.018, 0.20), frameMat);
+  cap.position.set(0, 0.094, 0);
+  const centerDiv = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.064, 0.22), frameMat);
+  centerDiv.position.set(0, 0.062, 0);
+  const redL = new THREE.Mesh(
+    new THREE.BoxGeometry(0.43, 0.062, 0.21),
+    new THREE.MeshStandardMaterial({ color: 0xff1e2d, emissive: 0xff1e2d, emissiveIntensity: 0.16, roughness: 0.18, metalness: 0.1 }),
+  );
+  redL.position.set(-0.275, 0.062, 0);
+  const blueR = new THREE.Mesh(
+    new THREE.BoxGeometry(0.43, 0.062, 0.21),
+    new THREE.MeshStandardMaterial({ color: 0x1e88ff, emissive: 0x1e88ff, emissiveIntensity: 0.16, roughness: 0.18, metalness: 0.1 }),
+  );
+  blueR.position.set(0.275, 0.062, 0);
+  bar.add(base, cap, centerDiv, redL, blueR);
+  bar.position.set(0, roofY, barZ);
+  car.add(bar);
+  car.userData.sirenLights = [redL, blueR];
+}
+
 function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole?: PursuitRoleChoice): void {
+  // Capture exact live map / circuit-briefing camera pose BEFORE switching out of map mode so we can drone-fly seamlessly into the car!
+  const entryFromPos = camera.position.clone();
+  const entryFromLook = controls.target.clone();
+  const entryFromFov = camera.fov;
+  const entryFromNear = camera.near;
+
+  const resolvedPursuitRole: PursuitRoleChoice | undefined = pursuitRole === 'auto' ? (Math.random() < 0.5 ? 'cop' : 'robber') : pursuitRole;
   endCine(true);                                                       // a drive started without a click (gamepad, script) would otherwise be ended by the first key press
   clearVictoryCine();
   cineFade.style.opacity = '0';
-  applyActiveCar();
+  if (resolvedPursuitRole === 'cop') SOV_SPEC = createCopInterceptorSpec();
+  else applyActiveCar();
   setMapMode(false);
   // Explicitly hide menu/brief overlays even when startDrive is triggered from idle beauty mode (where mapMode was already false)
   menuEl.style.display = 'none';
@@ -4432,31 +6022,59 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
   else if (id === 'great_lakes_cliff_raceway' && cliffDesign) { const d = cliffDesign.pts; p = [d[2].x, d[2].z]; q = [d[6].x, d[6].z]; }     // the engineered line, not the raw survey points (up to 14 m off it)
   else { p = city && cn > 8 ? [cp[cn - 8].x, cp[cn - 8].z] : c!.xz[0]; q = city && cn > 8 ? [cp[cn - 7].x, cp[cn - 7].z] : c!.xz[4]; }
   const yaw = Math.atan2(q[0] - p[0], q[1] - p[1]);
-  const wantCarId = activeCarId();
+  const wantCarId = resolvedPursuitRole === 'cop' ? 'vernon_police' : activeCarId();
   let car: THREE.Group;
   if (driving?.car && driving.car.userData.carId === wantCarId) {
     car = driving.car;
+    prewarmCar = null;
   } else if (prewarmCar && prewarmCar.userData.carId === wantCarId) {
     car = prewarmCar;
+    prewarmCar = null;
   } else {
     if (driving?.car) scene.remove(driving.car);
     car = makeCar(wantCarId);
+    prewarmCar = null;
   }
-  prewarmCar = null;
+  if (wantCarId === 'vernon_police') {
+    const mountBar = (): void => {
+      if (car.userData.cancelled) return;
+      attachPoliceLightbar(car, 1.355, -0.34);
+      carProbe?.apply(car, 0.85);
+    };
+    if (car.userData.scanReady) mountBar();
+    else void (car.userData.scanPromise as Promise<void> | undefined)?.then(mountBar);
+  }
   car.position.set(0, 0, 0);
   if (!car.parent) scene.add(car);
   // never spawn under the drawn road: the cliff raceway's road was raised above its survey heights, and the start countdown holds the car still, so a car started under the
   // asphalt stayed stuck in it, nose down
   const y = Math.max((free ? hAt(p[0], p[1]) : city && cn > 8 ? cp[cn - 8].y : c!.y ? c!.y[0] : hAt(p[0], p[1])) * exag, groundH(p[0], p[1]) + 0.05);
   const scanReadyNow = !!car.userData.scanReady;
+  const needCityAtGrid = id === 'ironport_grand_circuit' || id === CIV || id === HARB || id === IND;
+
+  // Seamless curved drone fly-in from the map / circuit-briefing camera straight into the rear chase camera behind the player's car!
+  const carTarget = new THREE.Vector3(p[0], y, p[1]);
+  const flyDist = entryFromPos.distanceTo(carTarget);
+  if (flyDist > 26 && Number.isFinite(flyDist)) {
+    const sy = Math.sin(yaw), cy = Math.cos(yaw);
+    const lx = cy, lz = -sy;
+    const dur = Math.min(2.7, Math.max(1.85, 1.55 + Math.log10(Math.max(10, flyDist)) * 0.34));
+    const p1 = entryFromPos.clone().lerp(carTarget, 0.42);
+    p1.y = Math.max(p1.y, y + Math.min(280, flyDist * 0.24));
+    const p2 = new THREE.Vector3(p[0] - sy * 34 + lx * 14, Math.max(groundH(p[0] - sy * 34, p[1] - cy * 34) + 12, y + 16), p[1] - cy * 34 + lz * 14);
+    driveIntro = { active: true, t: 0, dur, p0: entryFromPos, p1, p2, fromLook: entryFromLook, fromFov: entryFromFov, fromNear: Math.min(180, Math.max(1, entryFromNear)) };
+  } else {
+    driveIntro = null;
+  }
+
   driving = {
-    lock: 3.6,
-    readyHold: scanReadyNow ? 0 : 6.0,
+    lock: driveIntro ? Math.max(3.6, driveIntro.dur + 2.1) : 3.6,
+    readyHold: (!scanReadyNow || (needCityAtGrid && !cityCoreReady)) ? 10.0 : 0,
     gridCompiled: false,
     camDist: 5.8, camH: 1.6, camView: 0, circuitId: id,
     pos: new THREE.Vector3(p[0], y, p[1]), yaw, sp: 0, lat: 0, steer: 0, car,
     startPos: new THREE.Vector3(p[0], y, p[1]), startYaw: yaw,
-    camPos: new THREE.Vector3(p[0] - Math.sin(yaw) * 10, y + 4, p[1] - Math.cos(yaw) * 10),
+    camPos: new THREE.Vector3(p[0] - Math.sin(yaw) * 5.8, y + 1.6, p[1] - Math.cos(yaw) * 5.8),
     hit: 0, ps: createCarState(p[0], y, p[1], yaw),
   };
   carY = -1e9; carPitch = carRoll = slopePS = slopeRS = 0; setMusicDuck(0.4); gameAudio.ensureStarted(); gameAudio.setPaused(false);
@@ -4477,16 +6095,38 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
   camera.near = 1.0; camera.far = 18000; camera.updateProjectionMatrix();      // the map view uses an altitude-adaptive near plane; 1 m / 18 km preserves tight 24-bit road depth precision in chase view
   lapReset();
   buildRacingLine(id);
-  setupRun(id, courier, pursuitRole);
+  setupRun(id, courier, resolvedPursuitRole);
+  gameAudio.setSirenEnabled(false);
+  syncPoliceControlsUi();
+  // Pre-populate grass, wildflowers & farm crops around the car spawn point so fields are ALREADY carpeted before the drone lands!
+  vegetation?.prewarmAt(new THREE.Vector3(p[0], y, p[1]), new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)));
   replay.clear(); driveClock = 0; camYawOff = 0; camPitchOff = 0; camZoom = 1;
   controls.enabled = false;
   circuitGroup.visible = false;      // the review ribbons are drawn wider than the road
   const route = city && cityPath.length ? cityPath.map((p) => ({ x: p.x, z: p.z })) : (c?.xz ?? []).map((p) => ({ x: p[0], z: p[1] }));
-  racingHud.configure(free ? 'Free roam' : c?.name ?? 'Ironport Grand Circuit', route, [
-    meta.coastal_highway.xz.map((p) => ({ x: p[0], z: p[1] })),
-    ...streetRuns.map((r) => r.p.map((p) => ({ x: p[0], z: p[1] }))),
-    ...scenicData.map((r) => r.xz.map((p) => ({ x: p[0], z: p[1] }))),
-  ]);
+  const mapLayers: MapRoadLayer[] = [
+    { kind: 'highway', points: meta.coastal_highway.xz.map((pt) => ({ x: pt[0], z: pt[1] })) },
+    ...(countryNet?.roads ?? [])
+      .filter((r) => r.kind !== 'drive' && r.xz.length >= 2)
+      .map((r): MapRoadLayer => ({
+        kind: r.kind === 'dirt' ? 'dirt' : (r.half ?? 4) >= 6.8 ? 'highway' : 'paved',
+        points: r.xz.map((pt) => ({ x: pt[0], z: pt[1] })),
+      })),
+    ...streetRuns.map((r): MapRoadLayer => ({
+      kind: r.c === 'freeway' || r.c === 'ramp' ? 'highway' : 'paved',
+      points: r.p.map((pt) => ({ x: pt[0], z: pt[1] })),
+    })),
+    ...scenicData.map((r): MapRoadLayer => ({
+      kind: r.surface === 'paved' ? 'paved' : 'dirt',
+      points: r.xz.map((pt) => ({ x: pt[0], z: pt[1] })),
+    })),
+    ...(simPlan?.data.rails ?? []).map((rl): MapRoadLayer => ({
+      kind: 'rail',
+      points: rl.pts.map((pt) => ({ x: pt[0], z: pt[1] })),
+    })),
+    { kind: 'runway', points: [{ x: -5390, z: 4160 }, { x: -4110, z: 4160 }] },
+  ];
+  racingHud.configure(free ? 'Free roam' : c?.name ?? 'Ironport Grand Circuit', route, mapLayers);
   labelGroup.visible = false;
   furnitureGroup.traverse((object) => { if (object instanceof THREE.Sprite) object.visible = false; });
   hud.style.display = 'none';
@@ -4500,8 +6140,13 @@ function stopDrive(): void {
   racingLine = null;
   photo.exit(); photoBtn.style.display = 'none';
   teardownRun();
+  gameAudio.setSirenEnabled(false);
+  gameAudio.updateNearbyVehicles(null, null, 0.016);
+  policeControlsEl.style.display = 'none';
   scene.remove(driving.car);
   driving = null;
+  driveIntro = null;
+  worldPhys.clearDebris();
   if (simLayer) { simLayer.world.player = null; simLayer.world.takePlayerCalls(); }
   festProg?.quiet(); gameAudio.setPaused(true); setMusicDuck(1); wx.setPaused(true); wxPlan = null; if (wxOverride === 'auto') wx.setWeather('partly', false, true);
   camera.near = 5; camera.far = 80000; camera.updateProjectionMatrix();
@@ -4518,19 +6163,23 @@ function stepDrive(dt: number): void {
   const s = driving;
   const inVictory = !!victoryCine?.active;
   if (inVictory && victoryCine) victoryCine.elapsed += dt;
-  const preparing = !inVictory && s.readyHold > 0 && !s.car.userData.scanReady;
+  const needCity = s.circuitId === 'ironport_grand_circuit' || s.circuitId === CIV || s.circuitId === HARB || s.circuitId === IND;
+  const preparing = !inVictory && s.readyHold > 0 && (!s.car.userData.scanReady || (needCity && !cityCoreReady));
   if (preparing) {
     s.readyHold = Math.max(0, s.readyHold - dt);
-    // Keep boxy fallback hidden while real scan car finishes loading/compiling so the real car appears on frame 1 of '3' with zero visible pop-in
-    s.car.visible = false;
+    // Keep boxy fallback hidden while real scan car & Downtown Lap-1 buildings finish loading/compiling
+    s.car.visible = !!s.car.userData.scanReady;
     countEl.style.display = 'block';
-    countEl.textContent = 'GRID';
+    countEl.textContent = (needCity && !cityCoreReady) ? 'LOADING CITY' : 'GRID';
   } else if (!s.gridCompiled) {
     s.car.visible = true;
     s.gridCompiled = true;
     s.readyHold = 0;
     csmSweep(true);
-    try { renderer.compile(scene, camera); } catch { /* ok */ }
+    // Never call blocking full-scene renderer.compile() on WebGPU (compiles all 150 km² districts synchronously for 20-30s!)
+    if (!USE_WEBGPU) {
+      try { renderer.compile(scene, camera); } catch { /* ok */ }
+    }
   } else if (!s.car.visible) {
     s.car.visible = true;
   }
@@ -4543,11 +6192,16 @@ function stepDrive(dt: number): void {
   if (!preparing && !inVictory && s.lock > 0) {
     // Clamp countdown tick dt to 50 ms so a compile frame never skips numbers
     s.lock -= Math.min(dt, 0.05);
-    const n = Math.ceil(s.lock - 0.5);
-    countEl.style.display = 'block';
-    countEl.textContent = n > 0 ? String(n) : s.lock > 0 ? 'GO' : '';
-    if (s.lock <= 0) countEl.style.display = 'none';
-    if (rtHold && 'lobby' in rtHold) countEl.textContent = 'LOBBY';
+    const droneDiving = !!(driveIntro?.active && driveIntro.t < driveIntro.dur * 0.65);
+    if (droneDiving && !(rtHold && 'lobby' in rtHold)) {
+      countEl.style.display = 'none';
+    } else {
+      const n = Math.ceil(s.lock - 0.5);
+      countEl.style.display = 'block';
+      countEl.textContent = n > 0 ? String(n) : s.lock > 0 ? 'GO' : '';
+      if (s.lock <= 0) countEl.style.display = 'none';
+      if (rtHold && 'lobby' in rtHold) countEl.textContent = 'LOBBY';
+    }
   }
   const pad = driveInput.axes;                                  // controller + touch, analog
   const rawGas = inVictory ? 0 : Math.max((keys.has('KeyW') || keys.has('ArrowUp')) ? 1 : 0, pad.throttle);
@@ -4614,22 +6268,34 @@ function stepDrive(dt: number): void {
     }
     groundYHint = null;
   }
-  // Steep off-road embankment gravity pushback: prevents a car that veers onto the high side of a cut/embankment from sticking & driving sideways at 90 degrees!
-  if (!ps.isAirborne && !locked && surfaceAtXZ(ps.pos.x, ps.pos.z) !== 'asphalt') {
+  // Universal steep-bank & road-lip gravity pushback (runs on ALL surfaces including banked curve edges & shoulders!):
+  // prevents a car on a >19 deg steep cut-bank wall or embankment lip from sticking or driving sideways on its door!
+  if (!ps.isAirborne && !locked) {
     const gx = (groundH(ps.pos.x + 1.2, ps.pos.z) - groundH(ps.pos.x - 1.2, ps.pos.z)) / 2.4;
     const gz = (groundH(ps.pos.x, ps.pos.z + 1.2) - groundH(ps.pos.x, ps.pos.z - 1.2)) / 2.4;
     const gMag = Math.hypot(gx, gz);
-    if (gMag > 0.40) {
+    const onAsph = surfaceAtXZ(ps.pos.x, ps.pos.z) === 'asphalt';
+    const bankThresh = onAsph ? 0.36 : 0.32;
+    if (gMag > bankThresh) {
       const ux = gx / gMag, uz = gz / gMag;
       const upDot = ps.vel.x * ux + ps.vel.z * uz;
       if (upDot > 0) {
-        const damp = Math.min(1, dt * 10 * Math.min(3, (gMag - 0.35) * 4));
+        // Hard-reject climbing sideways up un-drivable steep bank walls
+        const damp = Math.min(1.12, dt * 22 * Math.min(3.5, (gMag - bankThresh + 0.12) * 5));
         ps.vel.x -= ux * upDot * damp;
         ps.vel.z -= uz * upDot * damp;
       }
-      const slideAccel = Math.min(22, (gMag - 0.38) * 32) * dt;
+      // Strong real downhill gravity slide pulls the car cleanly back down onto the flat road/level ground
+      const sinTheta = gMag / Math.sqrt(1 + gMag * gMag);
+      const slideAccel = Math.min(32, 9.81 * sinTheta * 2.4 + (gMag - bankThresh) * 28) * dt;
       ps.vel.x -= ux * slideAccel;
       ps.vel.z -= uz * slideAccel;
+      // Gently align yaw downhill when pinned sideways on a steep wall so the car noses back down off the bank
+      if (gMag > 0.44) {
+        const downYaw = Math.atan2(-ux, -uz);
+        const yawDiff = Math.atan2(Math.sin(downYaw - ps.yaw), Math.cos(downYaw - ps.yaw));
+        ps.yaw += yawDiff * Math.min(0.25, dt * 1.4 * Math.min(2, gMag - 0.38));
+      }
       const syE = Math.sin(ps.yaw), cyE = Math.cos(ps.yaw);
       ps.forwardSpeed = ps.vel.x * syE + ps.vel.z * cyE;
       ps.lateralSpeed = ps.vel.x * cyE - ps.vel.z * syE;
@@ -4658,6 +6324,7 @@ function stepDrive(dt: number): void {
     ps.turboBoost += (boostTgt - ps.turboBoost) * (1 - Math.exp(-7 * dt));
   }
   gameAudio.update(ps, SOV_SPEC, locked ? rawGas : input.throttle);          // buildings and barriers are handled below on the real footprints
+  const wetNightNow = Math.min(1, wx.cur.wet * 0.85 + (NIGHT_K[todKey] ?? 0) * 1.15);
   if (competition) {
     competition.step(dt, driveClock, groundH, surfaceAtXZ, [], ps, locked);
     let aiIdx = 0;
@@ -4665,8 +6332,32 @@ function stepDrive(dt: number): void {
       if (r.isPlayer) continue;
       const m = aiMeshes[aiIdx++];
       if (m) {
-        m.position.copy(r.state.pos);
-        m.rotation.y = r.state.yaw;
+        const ax = r.state.pos.x, az = r.state.pos.z, ayaw = r.state.yaw;
+        const afx = Math.sin(ayaw), afz = Math.cos(ayaw), alx = Math.cos(ayaw), alz = -Math.sin(ayaw);
+        const hF = groundH(ax + afx * 1.45, az + afz * 1.45);
+        const hR = groundH(ax - afx * 1.45, az - afz * 1.45);
+        const hL = groundH(ax + alx * 0.82, az + alz * 0.82);
+        const hRi = groundH(ax - alx * 0.82, az - alz * 0.82);
+        const hC = groundH(ax, az);
+        const cl = (g: number): number => Math.max(hC - 0.32, Math.min(hC + 0.32, g));
+        const cF = cl(hF), cR = cl(hR), cL = cl(hL), cRi = cl(hRi);
+        const aSlopeP = Math.max(-0.34, Math.min(0.34, (cF - cR) / 2.9));
+        const aSlopeR = Math.max(-0.24, Math.min(0.24, (cL - cRi) / 1.64));
+        m.position.set(ax, Math.max((cF + cR + cL + cRi) * 0.25, hC - 0.02) + 0.02, az);
+        m.rotation.order = 'YXZ';
+        m.rotation.set(
+          Math.max(-0.36, Math.min(0.36, -Math.atan(aSlopeP) + r.state.pitch * 0.65)),
+          ayaw,
+          Math.max(-0.25, Math.min(0.25, Math.atan(aSlopeR) + r.state.roll * 0.45)),
+        );
+        (m.userData.update as ((sp: number, st: number, dt: number, lights?: boolean, brake?: number, wetNight?: number) => void) | undefined)?.(
+          r.state.forwardSpeed,
+          r.state.steerAngle,
+          dt,
+          wetNightNow > 0.25,
+          r.brakeAmt,
+          wetNightNow,
+        );
       }
       if (!locked) { const hit = carHit(ps, r.state.pos, r.state.yaw, r.state.vel, 1); if (hit > 3) { r.state.vel.multiplyScalar(0.985); } }
     }
@@ -4693,8 +6384,17 @@ function stepDrive(dt: number): void {
     trafficMgr.update(dt, ps);
     for (let i = 0; i < trafficMgr.vehicles.length && i < trafficMeshes.length; i++) {
       const tv = trafficMgr.vehicles[i];
-      trafficMeshes[i].position.copy(tv.pos);
-      trafficMeshes[i].rotation.y = tv.yaw;
+      const tm = trafficMeshes[i];
+      tm.position.copy(tv.pos);
+      tm.rotation.y = tv.yaw;
+      (tm.userData.update as ((sp: number, st: number, dt: number, lights?: boolean, brake?: number, wetNight?: number) => void) | undefined)?.(
+        tv.speedMps,
+        0,
+        dt,
+        wetNightNow > 0.25,
+        tv.speedMps < 1.5 ? 0.8 : 0,
+        wetNightNow,
+      );
       if (!locked) { const hit = carHit(ps, tv.pos, tv.yaw, tv.vel, 1.1); if (hit > 3) { tv.speedMps *= 0.9; } }
     }
   }
@@ -4709,30 +6409,130 @@ function stepDrive(dt: number): void {
   if (pursuitMode) {
     pursuitMode.step(dt, ps, input, groundH, surfaceAtXZ);
     msg.textContent = pursuitMode.statusText;
+    // Live Cops & Robbers Pursuit HUD update (Role badge, APB/Hideout objective, Vehicle Integrity bar)
+    const isCop = pursuitMode.role === 'cop';
+    const hp = Math.max(0, Math.round(pursuitMode.playerCarHealth));
+    const badgeBg = isCop ? 'linear-gradient(90deg,#1a56db,#00daf3)' : 'linear-gradient(90deg,#d40055,#ff8c00)';
+    const subLine = isCop
+      ? `APB: ${pursuitMode.suspectVehicle.colorName} ${pursuitMode.suspectVehicle.make} ${pursuitMode.suspectVehicle.model}`
+      : `HIDEOUT: ${pursuitMode.hideout.name}`;
+    pursuitHudEl.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:5px"><span style="padding:2px 9px;border-radius:999px;background:${badgeBg};font:800 10px Outfit,sans-serif;letter-spacing:.16em">${isCop ? 'COP PURSUIT' : 'ROBBER ESCAPE'}</span><span style="font:700 11px 'JetBrains Mono',monospace;color:#ffd166">${subLine}</span><span style="font:700 11px 'JetBrains Mono',monospace;color:#9ef2ff">HP ${hp}%</span></div><div style="font:600 12px Inter,sans-serif;color:#f4ecff">${pursuitMode.statusText} <span style="opacity:.68;font-size:11px">· [G] Siren · [F] On Foot</span></div><div style="height:4px;margin-top:6px;border-radius:4px;background:rgba(255,255,255,.14);overflow:hidden"><div style="height:100%;width:${hp}%;background:${hp > 40 ? '#00f5d4' : '#ff4d6d'}"></div></div>`;
     if (pursuitMode.playerOnFoot.active) {
       s.pos.copy(pursuitMode.playerOnFoot.pos);
       s.yaw = pursuitMode.playerOnFoot.yaw;
       s.sp = pursuitMode.playerOnFoot.speed;
     }
   }
+  // Sync rooftop police lightbar strobe cleanly with player Siren ON/OFF state (both Cop Pursuit & Free Roam Police Interceptor)
+  {
+    const pLights = s.car.userData.sirenLights as THREE.Mesh[] | undefined;
+    if (pLights && pLights.length >= 2) {
+      if (gameAudio.isSirenOn) {
+        const flashMs = gameAudio.currentSirenMode === 'phaser' ? 80 : gameAudio.currentSirenMode === 'yelp' ? 115 : 165;
+        const flash = Math.floor(performance.now() / flashMs) % 2 === 0;
+        (pLights[0].material as THREE.MeshStandardMaterial).emissiveIntensity = flash ? 3.2 : 0.16;
+        (pLights[1].material as THREE.MeshStandardMaterial).emissiveIntensity = flash ? 0.16 : 3.2;
+      } else {
+        (pLights[0].material as THREE.MeshStandardMaterial).emissiveIntensity = 0.14;
+        (pLights[1].material as THREE.MeshStandardMaterial).emissiveIntensity = 0.14;
+      }
+    }
+    // Nearby AI racer / pursuit / traffic Doppler engine + distant AI police siren audio
+    let closestVeh: NearbyVehicleAudioSample | null = null;
+    let closestDist = 78;
+    const considerVeh = (vx: number, vz: number, velX: number, velZ: number, rpm: number, pitchBaseHz: number, isEv: boolean): void => {
+      const dx = vx - ps.pos.x, dz = vz - ps.pos.z;
+      const dist = Math.hypot(dx, dz);
+      if (dist < 1 || dist >= closestDist) return;
+      closestDist = dist;
+      const approach = -((velX - ps.vel.x) * dx + (velZ - ps.vel.z) * dz) / dist;
+      closestVeh = { distanceM: dist, approachMps: approach, rpm, pitchBaseHz, isEv };
+    };
+    if (competition) {
+      for (const r of competition.racers) {
+        if (r.isPlayer) continue;
+        considerVeh(r.state.pos.x, r.state.pos.z, r.state.vel.x, r.state.vel.z, r.state.rpm, r.spec.engine.pitchBaseHz, r.spec.engine.aspiration === 'Electric');
+      }
+    }
+    if (trafficMgr) {
+      for (const tv of trafficMgr.vehicles) {
+        considerVeh(tv.pos.x, tv.pos.z, tv.vel.x, tv.vel.z, 1500 + tv.speedMps * 85, 42, false);
+      }
+    }
+    let closestAiCop: { distanceM: number; approachMps: number } | null = null;
+    if (pursuitMode) {
+      if (pursuitMode.robberUnit && !pursuitMode.robberUnit.disabled) {
+        const ru = pursuitMode.robberUnit;
+        considerVeh(ru.carState.pos.x, ru.carState.pos.z, ru.carState.vel.x, ru.carState.vel.z, ru.carState.rpm, ru.spec.engine.pitchBaseHz, ru.spec.engine.aspiration === 'Electric');
+      }
+      let bestCopDist = 135;
+      for (const cu of pursuitMode.copUnits) {
+        if (cu.disabled) continue;
+        const dx = cu.carState.pos.x - ps.pos.x, dz = cu.carState.pos.z - ps.pos.z;
+        const dist = Math.hypot(dx, dz);
+        considerVeh(cu.carState.pos.x, cu.carState.pos.z, cu.carState.vel.x, cu.carState.vel.z, cu.carState.rpm, 44, false);
+        if (dist > 1 && dist < bestCopDist) {
+          bestCopDist = dist;
+          const approach = -((cu.carState.vel.x - ps.vel.x) * dx + (cu.carState.vel.z - ps.vel.z) * dz) / dist;
+          closestAiCop = { distanceM: dist, approachMps: approach };
+        }
+      }
+    }
+    gameAudio.updateNearbyVehicles(closestVeh, closestAiCop, dt);
+  }
   if (onlineSession.mode !== 'offline') {
+    const activeCar = garage.active;
+    const activeCarId = activeCar?.carId || 'kestrel';
+    const activePaintHex = (() => {
+      const p = activeCar?.paint;
+      return typeof p === 'string' && /^#[0-9a-f]{6}$/i.test(p) ? parseInt(p.slice(1), 16) : 0xc24d12;
+    })();
     onlineSession.step(dt, ps, {
-      carId: 'kestrel',
-      paintHex: 0xc24d12,
+      carId: activeCarId,
+      paintHex: activePaintHex,
       onFoot: pursuitMode?.playerOnFoot.active,
       pursuitRole: pursuitMode?.role,
       // On the realtime server: laps done this race + position round the lap (0..1); the server referees both.
       lap: onlineSession.rt ? (lap?.started ? Math.max(0, lap.laps - raceStartLaps) : 0) : (lap?.laps ?? 0) + 1,
       splineT: onlineSession.rt && lap?.started && cityPath.length ? lap.idx / cityPath.length : undefined,
     });
+    const remoteCount = onlineSession.remotes.size;
+    onlineHubBtn.textContent = remoteCount > 0 ? `ONLINE · ${remoteCount + 1} LIVE` : 'ONLINE · LIVE';
+    const wnRemote = Math.min(1, wx.cur.wet * 0.85 + curTod.nightK * 1.15);
     for (const r of onlineSession.remotes.values()) {
       if (!r.mesh) {
         r.mesh = makeTrafficOrAiCarMesh(r.paintHex);
+        r.mesh.add(makePlayerNameTag(r.driverName));
         remoteGroup.add(r.mesh);
       }
-      r.mesh.position.copy(r.pos);
+      if (!r.heroRequested) {
+        r.heroRequested = true;
+        const scanId = hasScanCar(r.carId) ? r.carId : 'kestrel';
+        void loadScanOpponentCar(scanId, r.paintHex, 'hero').then((heroMesh) => {
+          if (!heroMesh || !onlineSession.remotes.has(r.peerId)) return;
+          if (r.mesh) remoteGroup.remove(r.mesh);
+          heroMesh.add(makePlayerNameTag(r.driverName));
+          heroMesh.position.copy(r.pos);
+          heroMesh.rotation.y = r.yaw;
+          r.mesh = heroMesh;
+          remoteGroup.add(heroMesh);
+          carProbe?.apply(heroMesh, 0.85);
+        });
+      }
+      const gyR = groundH(r.pos.x, r.pos.z);
+      r.mesh.position.set(r.pos.x, Math.max(gyR + 0.02, r.pos.y), r.pos.z);
+      r.mesh.rotation.order = 'YXZ';
       r.mesh.rotation.y = r.yaw;
+      const fxR = Math.sin(r.yaw), fzR = Math.cos(r.yaw);
+      const gfR = groundH(r.pos.x + fxR * 1.45, r.pos.z + fzR * 1.45);
+      const gbR = groundH(r.pos.x - fxR * 1.45, r.pos.z - fzR * 1.45);
+      r.mesh.rotation.x = -Math.atan(Math.max(-0.38, Math.min(0.38, (gfR - gbR) / 2.9)));
+      (r.mesh.userData.update as ((sp: number, st: number, dt: number, lights?: boolean, brake?: number, wetNight?: number) => void) | undefined)?.(
+        r.speedMps, r.steerAngle, dt, wnRemote > 0.25, r.isBraking ? 0.9 : 0, wnRemote
+      );
     }
+  } else if (onlineHubBtn.textContent !== 'ONLINE') {
+    onlineHubBtn.textContent = 'ONLINE';
   }
   s.pos.set(ps.pos.x, ps.pos.y, ps.pos.z);
   s.yaw = ps.yaw;
@@ -4741,6 +6541,27 @@ function stepDrive(dt: number): void {
   if (collide(s)) {
     gameAudio.playCollision('wall', Math.min(1, Math.max(0.32, Math.hypot(s.sp, s.lat) / 18)));
     s.sp *= 0.86; s.lat *= 0.7; s.hit = 0.4; bumped = true;
+  }
+  if (worldPhys.stepAndCollide(dt, s.pos, s.yaw, ps.vel, groundH, {
+    onSolidHit: (sev, kind, yawKick) => {
+      gameAudio.playCollision(kind === 'car' ? 'car' : 'wall', sev);
+      const syH = Math.sin(s.yaw), cyH = Math.cos(s.yaw);
+      s.sp = ps.vel.x * syH + ps.vel.z * cyH;
+      s.lat = ps.vel.x * cyH - ps.vel.z * syH;
+      ps.angularVel += yawKick;
+      s.hit = Math.max(s.hit, 0.35 + sev * 0.25);
+    },
+    onSmashHit: (kind, bx, by, bz) => {
+      gameAudio.playCollision(kind === 'pole' ? 'car' : 'wall', kind === 'pole' ? 0.52 : 0.32);
+      driveInput.rumble(kind === 'pole' ? 0.65 : 0.35, 0.45, 110);
+      dust.wheel(0.06, bx, by + 0.3, bz, ps.vel.x * 0.4, ps.vel.z * 0.4, Math.max(12, ps.speedMps), 1.0, 1.0, 1.3);
+      const syH = Math.sin(s.yaw), cyH = Math.cos(s.yaw);
+      s.sp = ps.vel.x * syH + ps.vel.z * cyH;
+      s.lat = ps.vel.x * cyH - ps.vel.z * syH;
+      s.hit = Math.max(s.hit, kind === 'pole' ? 0.22 : 0.12);
+    },
+  })) {
+    bumped = true;
   }
   if ((s.circuitId === 'ironport_grand_circuit' || s.circuitId === IND || s.circuitId === HARB || s.circuitId === CIV || s.circuitId === 'great_lakes_cliff_raceway') && barrierCollide(s)) { s.hit = 0.4; bumped = true; }
   else if (s.circuitId !== 'ironport_grand_circuit' && s.circuitId !== IND && s.circuitId !== HARB && s.circuitId !== CIV && s.circuitId !== 'great_lakes_cliff_raceway' && freeRoamBarrierHit(s)) { s.hit = 0.4; bumped = true; }
@@ -4752,8 +6573,8 @@ function stepDrive(dt: number): void {
   const lim = meta.width * meta.mpp / 2 - 80, limz = meta.height * meta.mpp / 2 - 80;
   s.pos.x = Math.max(GRID.ox - lim, Math.min(GRID.ox + lim, s.pos.x));
   s.pos.z = Math.max(GRID.oz - limz, Math.min(GRID.oz + limz, s.pos.z));
-  // in the water (not on a bridge deck over it): back to the start
-  if (hAt(s.pos.x, s.pos.z) < -1.5 && ps.pos.y < 1) { s.pos.copy(s.startPos); s.yaw = s.startYaw; s.sp = 0; s.lat = 0; bumped = true; }
+  // in the water (not on a bridge deck over it): back to the start (mark replay discontinuity so car snaps instead of warping through buildings)
+  if (hAt(s.pos.x, s.pos.z) < -1.5 && ps.pos.y < 1) { s.pos.copy(s.startPos); s.yaw = s.startYaw; s.sp = 0; s.lat = 0; bumped = true; replay.markDiscontinuity(); }
   if (bumped) {                                  // hand the corrected position and speeds back to the physics state
     ps.pos.x = s.pos.x; ps.pos.z = s.pos.z; ps.yaw = s.yaw;
     const sy = Math.sin(s.yaw), cy = Math.cos(s.yaw);
@@ -4761,29 +6582,40 @@ function stepDrive(dt: number): void {
   }
   s.pos.y = ps.pos.y;
   const nfx = Math.sin(s.yaw), nfz = Math.cos(s.yaw), nlx = Math.cos(s.yaw), nlz = -Math.sin(s.yaw);
-  // ground contact: sample the terrain under the four wheels, fit a plane for the body, then lift the car so the highest wheel point still sits on the surface
+  // 5-point ground contact (4 wheels + center belly): conforms tightly to off-road hills, crests, ruts & gravel with true suspension heave!
   const HW = 1.48, HT = 0.81;                                  // half wheelbase and half track of the Sovereign model
   const wg = (ox: number, oz: number): number => groundH(s.pos.x + nlx * ox + nfx * oz, s.pos.z + nlz * ox + nfz * oz);
   const gFL = wg(HT, HW), gFR = wg(-HT, HW), gRL = wg(HT, -HW), gRR = wg(-HT, -HW);
-  const mean = (gFL + gFR + gRL + gRR) / 4;
-  // Physically believable body slope clamps (prevents 90-degree sideways wall-driving tilt on steep embankment lips!)
-  const slopeP = Math.max(-0.44, Math.min(0.44, ((gFL + gFR) - (gRL + gRR)) / 2 / (2 * HW)));
-  const slopeR = Math.max(-0.40, Math.min(0.40, ((gFL + gRL) - (gFR + gRR)) / 2 / (2 * HT)));
-  const lift = Math.max(0, gFL - (mean + slopeP * HW + slopeR * HT), gFR - (mean + slopeP * HW - slopeR * HT), gRL - (mean - slopeP * HW + slopeR * HT), gRR - (mean - slopeP * HW - slopeR * HT));
-  const yWant = (ps.isAirborne ? ps.pos.y : mean + Math.min(lift, 0.45)) + 0.02;
-  carY = carY < -1e8 || Math.abs(carY - yWant) > 1.5 ? yWant : carY + (yWant - carY) * Math.min(1, dt * 22);
+  const gCenter = groundH(s.pos.x, s.pos.z);
+  // Clamp sudden road-deck/curb-lip vertical discontinuities per wheel before computing visual body tilt
+  // so straddling the edge of a banked curve or embankment NEVER flips the car sideways onto its door!
+  const clampEdge = (g: number): number => Math.max(gCenter - 0.34, Math.min(gCenter + 0.34, g));
+  const cFL = clampEdge(gFL), cFR = clampEdge(gFR), cRL = clampEdge(gRL), cRR = clampEdge(gRR);
+  const mean = (cFL + cFR + cRL + cRR) / 4;
+  const onPavedBank = surfaceAtXZ(s.pos.x, s.pos.z) === 'asphalt';
+  const maxBankRoll = onPavedBank ? 0.25 : 0.29;
+  const slopeP = Math.max(-0.36, Math.min(0.36, ((cFL + cFR) - (cRL + cRR)) / 2 / (2 * HW)));
+  const slopeR = Math.max(-maxBankRoll, Math.min(maxBankRoll, ((cFL + cRL) - (cFR + cRR)) / 2 / (2 * HT)));
+  const lift = Math.max(0, cFL - (mean + slopeP * HW + slopeR * HT), cFR - (mean + slopeP * HW - slopeR * HT), cRL - (mean - slopeP * HW + slopeR * HT), cRR - (mean - slopeP * HW - slopeR * HT));
+  const avgComp = (ps.wheelCompression[0] + ps.wheelCompression[1] + ps.wheelCompression[2] + ps.wheelCompression[3]) * 0.25;
+  const floorY = Math.max(mean + Math.min(lift, 0.42), gCenter - 0.03) + 0.02;
+  const yWant = ps.isAirborne ? Math.max(floorY, ps.pos.y) : Math.max(floorY - 0.03, floorY - avgComp * 0.45);
+  // Asymmetric vertical tracking: snap cleanly UP over rising off-road hills/crests (zero ground sinking!), smooth spring droop over dips
+  if (carY < -1e8 || Math.abs(carY - yWant) > 1.5) carY = yWant;
+  else if (yWant > carY) carY = Math.max(floorY - 0.02, carY + (yWant - carY) * Math.min(1, dt * 48));
+  else carY += (yWant - carY) * Math.min(1, dt * 18);
   s.car.position.set(s.pos.x, carY, s.pos.z);
   s.car.rotation.order = 'YXZ';
   s.car.rotation.y = s.yaw;
-  // the body follows the road slope and the suspension, both low-passed so ground noise and spring ringing do not read as bouncing
-  slopePS += (slopeP - slopePS) * Math.min(1, dt * 14); slopeRS += (slopeR - slopeRS) * Math.min(1, dt * 14);
-  carPitch += (ps.pitch * 0.7 - carPitch) * Math.min(1, dt * 7); carRoll += (ps.roll * 0.5 - carRoll) * Math.min(1, dt * 7);
-  s.car.rotation.x = Math.max(-0.45, Math.min(0.45, -Math.atan(slopePS) + carPitch));
-  s.car.rotation.z = Math.max(-0.40, Math.min(0.40, Math.atan(slopeRS) + carRoll));
+  // Responsive road-slope + live 4-corner suspension pitch & roll (clamped strictly to physical bank angles!)
+  slopePS += (slopeP - slopePS) * Math.min(1, dt * 18); slopeRS += (slopeR - slopeRS) * Math.min(1, dt * 18);
+  carPitch += (ps.pitch * 1.0 - carPitch) * Math.min(1, dt * 11); carRoll += (ps.roll * 0.85 - carRoll) * Math.min(1, dt * 11);
+  s.car.rotation.x = Math.max(-0.38, Math.min(0.38, -Math.atan(slopePS) + carPitch));
+  s.car.rotation.z = Math.max(-maxBankRoll, Math.min(maxBankRoll, Math.atan(slopeRS) + carRoll));
   const brakeAmt = Math.max(input.brake, hand ? 0.85 : 0);
-  const wetNightAmt = Math.min(1, wx.cur.wet * 0.85 + (NIGHT_K[todKey] ?? 0) * 1.15);
-  (s.car.userData.update as ((sp: number, st: number, dt: number, lights?: boolean, brake?: number, wetNight?: number) => void) | undefined)?.(
-    s.sp, ps.steerAngle, dt, wetNightAmt > 0.25, brakeAmt, wetNightAmt
+  const wetNightAmt = Math.min(1, wx.cur.wet * 0.85 + curTod.nightK * 1.15);
+  (s.car.userData.update as ((sp: number, st: number, dt: number, lights?: boolean, brake?: number, wetNight?: number, wheelComp?: readonly [number, number, number, number]) => void) | undefined)?.(
+    s.sp, ps.steerAngle, dt, wetNightAmt > 0.25, brakeAmt, wetNightAmt, ps.wheelCompression
   );
   // spray and mist off the four tyres: more from deep water, more at speed, a little from any wet road
   if (!ps.isAirborne && !locked) {
@@ -4798,8 +6630,33 @@ function stepDrive(dt: number): void {
       if (loose > 0) dust.wheel(dt, x, groundH(x, z), z, ps.vel.x, ps.vel.z, spdH, loose * (1 - 0.65 * wx.cur.wet), Math.abs(ps.lateralSpeed) / Math.max(spdH, 4) + (ps.isDrifting ? 0.5 : 0), bigK + 0.4);
     }
   }
-  // Record replay frames while racing (pause recording once victory cutscene begins so the replay captures the actual race!)
-  if (!inVictory && (replay.n === 0 || !locked)) replay.record(driveClock += dt, s.pos.x, s.car.position.y, s.pos.z, s.yaw, s.car.rotation.x, s.car.rotation.z, s.sp, s.steer, s.hit > 0 ? 1 : 0, s.lat);
+  // Record 1:1 frame-accurate replay telemetry once launch begins (never record dead pre-race grid hold frames)
+  if (!inVictory && !locked) {
+    let rFlags = 0;
+    if (ps.isDrifting) rFlags |= REPLAY_FLAG_DRIFT;
+    if (ps.isAirborne) rFlags |= REPLAY_FLAG_AIRBORNE;
+    if (cliffTunnelNear && cliffTunnelNear(s.pos.x, s.pos.z, 14)) rFlags |= REPLAY_FLAG_TUNNEL;
+    if (wetNightAmt > 0.25) rFlags |= REPLAY_FLAG_HEADLIGHTS;
+    const hitImpact = bumped ? Math.min(1, Math.hypot(s.sp, s.lat) / 26) : 0;
+    replay.record({
+      t: (driveClock += dt),
+      x: s.car.position.x,
+      y: s.car.position.y,
+      z: s.car.position.z,
+      yaw: s.car.rotation.y,
+      pitch: s.car.rotation.x,
+      roll: s.car.rotation.z,
+      speed: s.sp,
+      steerAngle: ps.steerAngle,
+      brake: brakeAmt,
+      wetNight: wetNightAmt,
+      latSpeed: s.lat,
+      rpm: ps.rpm,
+      gear: ps.forwardSpeed < -0.5 ? -1 : ps.gear,
+      hit: hitImpact,
+      flags: rFlags,
+    });
+  }
   camIdle += dt;
   const dragging = camIdle < 1.4;
   if (lookBack) camYawOff += (Math.PI - camYawOff) * Math.min(1, dt * 8);
@@ -4819,6 +6676,44 @@ function stepDrive(dt: number): void {
     camera.lookAt(s.pos.x + rightX * 1.1, s.car.position.y + 0.78, s.pos.z + rightZ * 1.1);
     const fovWant = 42;
     if (Math.abs(camera.fov - fovWant) > 0.05) { camera.fov += (fovWant - camera.fov) * Math.min(1, dt * 3.5); camera.updateProjectionMatrix(); }
+    return;
+  }
+  // Seamless curved drone fly-in from map/briefing view straight into the rear chase camera behind the player car!
+  if (driveIntro?.active) {
+    driveIntro.t += Math.min(dt, 0.05);
+    const u = Math.min(1, driveIntro.t / driveIntro.dur);
+    // Quintic smootherstep for silky drone acceleration and soft lock-in deceleration
+    const e = u * u * u * (u * (u * 6 - 15) + 10);
+    const om = 1 - e;
+    const p3 = new THREE.Vector3(
+      s.pos.x - nfx * s.camDist * camZoom,
+      Math.max(groundH(s.pos.x - nfx * s.camDist, s.pos.z - nfz * s.camDist) + 0.9, s.car.position.y + s.camH * camZoom),
+      s.pos.z - nfz * s.camDist * camZoom,
+    );
+    const curPos = new THREE.Vector3()
+      .addScaledVector(driveIntro.p0, om * om * om)
+      .addScaledVector(driveIntro.p1, 3 * om * om * e)
+      .addScaledVector(driveIntro.p2, 3 * om * e * e)
+      .addScaledVector(p3, e * e * e);
+    const minGround = groundH(curPos.x, curPos.z) + 1.1;
+    if (curPos.y < minGround) curPos.y = minGround;
+    const targetEnd = new THREE.Vector3(s.pos.x + nfx * 9, s.car.position.y + 0.95, s.pos.z + nfz * 9);
+    const lookCur = driveIntro.fromLook.clone().lerp(targetEnd, Math.min(1, e * 1.15));
+    s.camPos.copy(curPos);
+    camera.position.copy(curPos);
+    camera.lookAt(lookCur);
+    camera.fov = driveIntro.fromFov + (54 - driveIntro.fromFov) * e;
+    camera.near = Math.max(1.0, driveIntro.fromNear + (1.0 - driveIntro.fromNear) * Math.min(1, u * 1.4));
+    camera.far = 18000 + (40000 - 18000) * (1 - e);
+    camera.updateProjectionMatrix();
+    if (u >= 1) {
+      driveIntro.active = false;
+      driveIntro = null;
+      camera.near = 1.0;
+      camera.far = 18000;
+      camera.fov = 54;
+      camera.updateProjectionMatrix();
+    }
     return;
   }
   // Forza-style views: 0 near chase, 1 far chase, 2 hood, 3 dash, 4 first person (the driver's eyes). Chase views sit at a fixed length behind the car;
@@ -4885,6 +6780,12 @@ function stepDrive(dt: number): void {
       }
     }
   }
+  if (onlineSession.mode !== 'offline' && onlineSession.remotes.size > 0) {
+    opponents = opponents ?? [];
+    for (const r of onlineSession.remotes.values()) {
+      opponents.push({ x: r.pos.x, z: r.pos.z, isLeader: true });
+    }
+  }
   racingHud.update(dt, { speed: ps.forwardSpeed, rpm: ps.rpm, redline: SOV_SPEC.engine.redlineRpm, gear: ps.forwardSpeed < -0.5 ? -1 : ps.gear, gears: SOV_SPEC.gearRatios.length, shift: ps.shiftTimer > 0, x: ps.pos.x, z: ps.pos.z, yaw: ps.yaw, throttle: locked ? rawGas : input.throttle, brake: input.brake, rain: wx.cur.rain, wetness: roadWater.wetness, hydro, drift: ps.isDrifting, collision: s.hit > 0, assist: assistBrakeShown > 0.25, lapHtml: lapTxt, mode: VIEW_NAMES[s.camView], touch: driveInput.touchMode, opponents });
 }
 addEventListener('keydown', (e) => {
@@ -4894,17 +6795,20 @@ addEventListener('keydown', (e) => {
       e.preventDefault();
       if (!replay.active && driving) {
         if (victoryCine?.active) { clearVictoryCine(); preset('overview'); }
-        else { driveHud.style.display = 'block'; s2cam(); gameAudio.setPaused(false); }
+        else { driveHud.style.display = 'block'; syncPoliceControlsUi(); s2cam(); gameAudio.setPaused(false); }
       }
     }
     return;
   }
   if (!driving) return;
-  if (e.code === 'KeyP') { if (replay.start()) { clearVictoryCine(); driveHud.style.display = 'none'; countEl.style.display = 'none'; gameAudio.setPaused(true); } return; }
+  if (e.code === 'KeyP') { if (replay.start()) { clearVictoryCine(); driveHud.style.display = 'none'; policeControlsEl.style.display = 'none'; countEl.style.display = 'none'; gameAudio.setPaused(true); } return; }
+  if (e.code === 'KeyG' && isPlayerPoliceCar()) { e.preventDefault(); gameAudio.toggleSiren(); syncPoliceControlsUi(); return; }
+  if (e.code === 'KeyT' && isPlayerPoliceCar()) { e.preventDefault(); gameAudio.cycleSirenMode(); syncPoliceControlsUi(); return; }
+  if (e.code === 'KeyH' && isPlayerPoliceCar()) { e.preventDefault(); gameAudio.triggerAirHorn(); return; }
   if (e.code === 'KeyB') { lookBack = true; return; }
   if (e.code === 'KeyL') { assist.line = !assist.line; saveAssist(); const cb = document.getElementById('tLine') as HTMLInputElement | null; if (cb) cb.checked = assist.line; return; }
   if (e.code === 'Escape') { preset('overview'); return; }
-  if (e.code === 'KeyR') { driving.pos.copy(driving.startPos); driving.yaw = driving.startYaw; driving.sp = 0; driving.lat = 0; driving.ps = createCarState(driving.startPos.x, driving.startPos.y, driving.startPos.z, driving.startYaw); lapReset(); return; }
+  if (e.code === 'KeyR') { driving.pos.copy(driving.startPos); driving.yaw = driving.startYaw; driving.sp = 0; driving.lat = 0; driving.ps = createCarState(driving.startPos.x, driving.startPos.y, driving.startPos.z, driving.startYaw); lapReset(); replay.markDiscontinuity(); return; }
   if (e.code === 'KeyC' || /^Digit[1-5]$/.test(e.code)) {
     const V = [[5.8, 1.6], [8.6, 2.6]];
     driving.camView = e.code === 'KeyC' ? (driving.camView + 1) % 5 : Number(e.code.slice(5)) - 1;
@@ -4922,8 +6826,116 @@ document.addEventListener('visibilitychange', () => { if (document.hidden) { key
 // after a replay the chase camera starts from wherever the replay left it; snap it behind the car
 function s2cam(): void { if (driving) driving.camPos.copy(camera.position); }
 
+// ---------- full-page boot splash controller ----------
+let bootDismissed = false;
+function setBootProgress(pct: number, stage: string): void {
+  const fill = document.getElementById('bootBarFill');
+  const pctEl = document.getElementById('bootPct');
+  const stageEl = document.getElementById('bootStage');
+  const clamped = Math.max(4, Math.min(100, Math.round(pct)));
+  if (fill) fill.style.width = `${clamped}%`;
+  if (pctEl) pctEl.textContent = `${clamped}%`;
+  if (stageEl) stageEl.textContent = stage;
+}
+function dismissBootSplash(): void {
+  if (bootDismissed) return;
+  bootDismissed = true;
+  setBootProgress(100, 'WELCOME TO IRONPORT');
+  hud.style.visibility = 'visible';
+  const splash = document.getElementById('bootSplash');
+  if (!splash) return;
+  // Wait two painted frames so the GPU has actually presented the fully populated map + menu before fading the curtain
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    splash.classList.add('boot-done');
+    setTimeout(() => splash.remove(), 760);
+  }));
+}
+// Absolute safety guard so the splash can never stall indefinitely even on an offline or degraded GPU
+setTimeout(() => { if (!bootDismissed) dismissBootSplash(); }, 18000);
+
 // ---------- boot ----------
 async function boot(): Promise<void> {
+  if (USE_WEBGPU) {
+    setBootProgress(8, 'INITIALIZING WEBGPU & PLAYKIT PIPELINE');
+    try {
+      await (renderer as unknown as THREE_GPU.WebGPURenderer).init();
+      webgpuReady = true;
+      // Probe real WebGPU GPUDevice.adapterInfo / navigator.gpu adapter (Three r184 does NOT expose backend.adapter!)
+      const gpuDetect = await detectWebGpuTierAsync(renderer, TV_MODE);
+      applyPerfTier(gpuDetect.tier);
+      if (perfTier !== 'high' && !explicitScale) {
+        renderScale = perfTier === 'low' ? 0.85 : 1.0;
+      }
+      // Trim shadow map to 1024x1024 on mid/low iGPUs (4x lower shadow fillrate & eliminates every-3rd-frame hitch!)
+      if (perfTier !== 'high' && sun.shadow.mapSize.x > 1024) {
+        sun.shadow.mapSize.set(1024, 1024);
+        sun.shadow.map?.dispose();
+        sun.shadow.map = null;
+      }
+      // Throttle directional shadow map redraws via spatialCuller (every shadowStride frames) to avoid doubling GPU work every frame
+      renderer.shadowMap.autoUpdate = false;
+      renderer.shadowMap.needsUpdate = true;
+      initKTX2(renderer);
+      pmrem = new THREE_GPU.PMREMGenerator(renderer as unknown as THREE_GPU.WebGPURenderer) as unknown as THREE.PMREMGenerator;
+      scene.userData.look = {
+        aoRadius: 1.15,
+        aoScale: 0.92,
+        bloomStrength: perfTier === 'high' ? 0.30 : 0.24,
+        bloomRadius: 0.44,
+        bloomThreshold: 1.18,
+        contrast: 1.03,
+        toe: 0.015,
+        warm: 0.04,
+      };
+      // Discrete high-tier GPUs (or explicit ?post=1 / ?ssr=1) run the full Playkit MRT+SSR+GTAO+Bloom+CAS+LUT post stack.
+      // Mid/low integrated GPUs (e.g. Intel Xe-LPG) render DIRECTLY to the native 1:1 swapchain with ACESFilmicToneMapping
+      // — zero offscreen 64-bit HalfFloat pass, zero upscaling blur, 100% pixel-sharp & 2.5-3x smoother framerate!
+      const forcePost = location.search.includes('post=1') || location.search.includes('ssr=1');
+      const useSsr = !location.search.includes('nossr') && (perfTier === 'high' || location.search.includes('ssr=1'));
+      webgpuPost = (perfTier === 'high' || forcePost)
+        ? createPlaykitPostPipeline(
+            renderer as unknown as THREE_GPU.WebGPURenderer,
+            scene,
+            camera,
+            {
+              ao: perfTier === 'high',
+              ssr: useSsr,
+              ssrScale: 0.45,
+              fxaa: perfTier === 'high',
+              fsr1: false,
+              internalScale: perfTier === 'high' ? 1.0 : perfTier === 'mid' ? 0.80 : 0.72,
+              bloom: perfTier === 'high' ? 'full' : false,
+              lut: true,
+              lutPreset: 'era-clash-cinema',
+              lutStrength: 0.22,
+              stylize: apexPostStage!.stylize,
+            },
+          )
+        : null;
+      // Native 1:1 CSS pixel canvas on mid/low iGPUs (pixel-sharp direct WebGPU output, zero double-scaling!) + 1.25x on high GPUs
+      renderer.setPixelRatio(Math.min(devicePixelRatio, perfTier === 'high' ? 1.25 : 1.0));
+      webgpuPost?.setInternalScale(perfTier === 'high' ? 1.0 : perfTier === 'mid' ? 0.80 : 0.72);
+      const isNativeGpu = Boolean((renderer as unknown as { backend?: { isWebGPUBackend?: boolean } }).backend?.isWebGPUBackend);
+      const badgeEl = document.getElementById('rendererBadge');
+      if (badgeEl) {
+        badgeEl.textContent = isNativeGpu ? (useSsr ? 'WebGPU · SSR' : webgpuPost ? 'WebGPU · FX' : 'WebGPU') : 'WebGPU-Compat';
+      }
+      console.log('[apex-webgpu] initialized:', {
+        tier: perfTier,
+        gpu: gpuDetect.gpu,
+        nativeWebGPU: isNativeGpu,
+        passes: webgpuPost?.activePasses ?? ['direct'],
+      });
+    } catch (err) {
+      console.error('[apex-webgpu] init failed, falling back to WebGL2 reload:', err);
+      try { localStorage.setItem('apex.renderer', 'webgl'); } catch { /* ignore */ }
+      const u = new URL(location.href);
+      u.searchParams.set('renderer', 'webgl');
+      location.replace(u.href);
+      return;
+    }
+  }
+  setBootProgress(12, 'LOADING IRONPORT ELEVATION & CIRCUITS');
   const [m, buf] = await Promise.all([
     fetch(BASE + 'region.json').then((r) => r.json()) as Promise<RegionMeta>,
     fetch(BASE + 'height.f32').then((r) => r.arrayBuffer()),
@@ -4949,7 +6961,7 @@ async function boot(): Promise<void> {
     }
   }
   for (const f of ['farbank_streets.json', 'user_streets.json']) { const fb = await fetch(BASE + f).then((x) => (x.ok ? x.json() : null)).catch(() => null); if (fb && f === 'user_streets.json') for (const r of fb.roads) r.town = true; if (fb && countryNet) countryNet.roads.push(...fb.roads); else if (fb) countryNet = fb; }
-  { if (!countryNet) countryNet = { roads: [] }; countryNet.roads.push({ kind: 'paved', xz: meta.coastal_highway.xz, half: 6.4 }, { kind: 'paved', xz: meta.freeway.xz, half: 10 }); }
+  { if (!countryNet) countryNet = { roads: [] }; countryNet.roads.push({ kind: 'paved', xz: meta.coastal_highway.xz, half: 6.4 }, { kind: 'paved', xz: meta.freeway.xz, half: 10 }, ...buildRuralRoadNetwork()); }
   userMap = await fetch(BASE + 'user_map.json?t=' + Date.now()).then((x) => (x.ok ? x.json() : null)).catch(() => null);
   if (userMap) {
     const roads = userMap.features.filter((f) => f.type === 'road' && f.kind !== 'creek' && f.pts.length >= 2).map((f) => ({ kind: (f.kind === 'dirt' ? 'dirt' : 'paved') as 'paved' | 'dirt', xz: f.pts, half: ROAD_STYLE[f.kind as RoadKind].half }));
@@ -5007,6 +7019,8 @@ async function boot(): Promise<void> {
   }
   if (portData) carvePlatform(heights, meta.width, meta.height, meta.mpp, portData);
   if (utilData) carvePlatform(heights, meta.width, meta.height, meta.mpp, { platform: utilData.platform } as PortData);
+  // Carve rural small-town graded pads BEFORE planSim() so rail elevations (P.y) & grade crossings match town streets flush!
+  carvePads(heights, meta.width, meta.height, meta.mpp, buildRuralTownPads());
   {
     // the simulation layer: plan the rails and the airfield on the ground as it is, then grade the ground for them
     const cityRuns = await fetch(BASE + 'city_streets.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { c: string; p: number[][] }[] | null;
@@ -5014,7 +7028,28 @@ async function boot(): Promise<void> {
     simPlan = planSim(userMap as unknown as UserMapData | null, { country: countryNet ? [countryNet] : [], city: cityRuns ?? [], shoreline: shoreHw }, (x, z) => hAt(x, z), tall);
     carveSim(simPlan, heights, meta.width, meta.height, meta.mpp);
   }
+  setBootProgress(30, 'GRADING IRONPORT STREETS & HIGHWAYS');
   carveCreek(heights, meta.width, meta.height, meta.mpp);
+  // Civil-engineering berm apron softening BEFORE building pads & road grading:
+  // turns the razor-steep 55% side cliff of Ironport Grand Circuit's 42 m downtown hill into a smooth <=9.5% urban hillside
+  // so downtown towers, building pads, Woodward Ave, Campus Martius, Randolph St & Jefferson Ave sit cleanly without impossible grades!
+  const preTrench = await fetch(BASE + 'trench.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { lines: { xz: number[][]; half: number }[] } | null;
+  const preTrenchLock = corridor((preTrench?.lines ?? []).map((l) => ({ xz: l.xz, r: l.half + 8 })));
+  const gcRaw = meta.circuits.ironport_grand_circuit as { xz?: number[][] } | undefined;
+  const apronStats = gcRaw?.xz ? softenTrackBermApron(heights, meta.width, meta.height, meta.mpp, gcRaw.xz, preTrenchLock) : { cellsRaised: 0, maxRaise: 0 };
+  console.log('downtown berm apron', apronStats);
+  // Civil-engineering road network sanitizer: removes folded <54 deg acute hairpin spikes & underwater cliff-plunge stubs before grading and 3D meshing
+  const sanStats: SanitizeStats = { roadsIn: 0, roadsOut: 0, acuteSpikesRemoved: 0, waterStubsClipped: 0, underwaterDropped: 0 };
+  if (countryNet?.roads) {
+    const cleanedRoads: typeof countryNet.roads = [];
+    for (const r of countryNet.roads) {
+      sanStats.roadsIn++;
+      if (r.kind === 'drive') { cleanedRoads.push(r); sanStats.roadsOut++; continue; }
+      const p = sanitizeRoadPolyline(r.xz, (x, z) => hAt(x, z), sanStats);
+      if (p.length >= 2) { cleanedRoads.push({ ...r, xz: p }); sanStats.roadsOut++; }
+    }
+    countryNet.roads = cleanedRoads;
+  }
   {
     // flat graded pads under every large building and parking lot (pads.ts); houses sit on their small lots as the ground lies
     const cj = await fetch(BASE + 'city.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { items: CityItem[] } | null;
@@ -5067,7 +7102,7 @@ async function boot(): Promise<void> {
   {
     // the road grade pass (roadGrade.ts): every highway and street gets a designed vertical profile (5 % freeways, 6 % highways and arterials, 8 % streets) and the
     // ground is cut or built up to it; the sunken freeway, the bridge approaches, the shoreline highway and the cliff raceway keep their own grading
-    const td = await fetch(BASE + 'trench.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { lines: { xz: number[][]; half: number }[] } | null;
+    const td = preTrench;
     const cc = meta.circuits.great_lakes_cliff_raceway as { xz?: number[][] } | undefined;
     const locked = corridor([
       ...(td?.lines ?? []).map((l) => ({ xz: l.xz, r: l.half + 8 })),
@@ -5094,13 +7129,18 @@ async function boot(): Promise<void> {
     if (gr?.xz && gr.xz.length > 3) roads.push({ xz: gr.xz, half: 4, cls: 'lane' });
     const W8 = { street: 8.5, arterial: 14, freeway: 12.5, ramp: 5.5 } as Record<string, number>;
     const runs = await fetch(BASE + 'city_streets.json').then((x) => (x.ok ? x.json() : null)).catch(() => null) as { c: string; p: number[][] }[] | null;
-    for (const r of runs ?? []) roads.push({ xz: r.p, half: (W8[r.c] ?? 8.5) / 2, cls: r.c === 'freeway' ? 'freeway' : r.c === 'street' ? 'street' : 'highway' });
+    for (const r of runs ?? []) {
+      const sp = sanitizeRoadPolyline(r.p, (x, z) => hAt(x, z), sanStats);
+      if (sp.length >= 2) roads.push({ xz: sp, half: (W8[r.c] ?? 8.5) / 2, cls: r.c === 'freeway' ? 'freeway' : r.c === 'street' ? 'street' : 'highway' });
+    }
     for (const r of countryNet?.roads ?? []) {
       const rr = r as { kind: string; xz: number[][]; half?: number; trail?: boolean; driveway?: boolean; town?: boolean };
       const cls: GradeClass = rr.kind === 'drive' ? 'drive' : rr.kind === 'dirt' || rr.trail ? 'lane' : rr.half === 10 ? 'freeway' : rr.xz === meta.coastal_highway.xz ? 'highway' : rr.town ? 'street' : 'rural';
       roads.push({ xz: rr.xz, half: rr.half ?? 3.6, cls });
     }
     const st = gradeRoads(heights, meta.width, meta.height, meta.mpp, roads, locked, scenicFlat);   // no later road reshapes the ground under a scenic road
+    apexBridge.setCivilStats(apronStats, sanStats, st);
+    console.log('civil road sanitizer', sanStats);
     // the new Ironworks leaves the ground twice: over the Port Branch on a bridge, under it in a cutting. Its design heights come from the graded ground, then
     // the cutting is dug (the rail keeps the height it was planned at and crosses on its own bridge)
     if (gi?.xz && industrialGrade.length) {
@@ -5122,9 +7162,11 @@ async function boot(): Promise<void> {
     const cc = meta.circuits.great_lakes_cliff_raceway;
     if (cc) { cliffDesign = designCliffTrack(cc as { xz: number[][]; y?: number[]; tunnel?: { from: number; to: number } }); carveCliffRaceway(heights, meta.width, meta.height, meta.mpp, cliffDesign); cliffIx = indexTrack(cliffDesign); (window as unknown as { cliffDesign: unknown }).cliffDesign = cliffDesign; }
   }
+  setBootProgress(52, 'SCULPTING TERRAIN, WATER & ATMOSPHERE');
   buildTerrain();
   apexLighting.populateRegion(meta, hAt);
   buildOverlays();
+  setBootProgress(64, 'ASSEMBLING HARBOR, TRACKS & LANDMARKS');
   // the Plajah 3D builds of the district sheets (src/library/modelled.ts): loaded before the districts are dressed, each falls back to its code-built piece
   console.log('library models', JSON.stringify(await preloadModelledPieces()));
   buildFurniture();
@@ -5132,8 +7174,13 @@ async function boot(): Promise<void> {
   lastInput = performance.now();
   cineFade.style.opacity = '0';
   tweenOn = true;
-  setTimeOfDay('golden');
+  const savedTod = (() => { try { return localStorage.getItem('apex.tod'); } catch { return null; } })();
+  const initTod = savedTod && (savedTod === 'realtime' || savedTod === 'dynamic' || TOD[savedTod]) ? savedTod : 'golden';
+  setTimeOfDay(initTod);
+  const todElInit = document.getElementById('tod') as HTMLSelectElement | null;
+  if (todElInit) todElInit.value = initTod;
   msg.remove();
+  setBootProgress(78, 'POPULATING DOWNTOWN SKYLINE & MENU');
   // Configure the heading-up minimap with live regional terrain/water imagery & named landmarks
   {
     const lm: MapLandmark[] = [];
@@ -5152,26 +7199,103 @@ async function boot(): Promise<void> {
     }
     if (portData?.cranes?.length) lm.push({ name: 'Container Port', x: portData.cranes[0].x, z: portData.cranes[0].z, kind: 'industrial' });
     if (portData?.tanks?.length) lm.push({ name: 'Refinery Tanks', x: portData.tanks[0].x, z: portData.tanks[0].z, kind: 'industrial' });
-    racingHud.configureEnvironment(BASE + 'albedo.jpg', { ox: GRID.ox, oz: GRID.oz, w: meta.width * meta.mpp, h: meta.height * meta.mpp }, lm);
+    for (const town of RURAL_TOWNS) lm.push({ name: town.name, x: town.x, z: town.z, kind: 'town' });
+    lm.push({ name: 'Halcyon Intl Airport', x: -4750, z: 4150, kind: 'airport' });
+    // Build live procedural topographic & biome minimap canvas straight from graded heights (replaces stale satellite albedo!)
+    const buildMinimapCanvas = (): HTMLCanvasElement => {
+      const sz = 512;
+      const cv = document.createElement('canvas');
+      cv.width = sz; cv.height = sz;
+      const g = cv.getContext('2d')!;
+      const img = g.createImageData(sz, sz);
+      const rw = meta.width * meta.mpp, rh = meta.height * meta.mpp;
+      const minX = GRID.ox - rw * 0.5, minZ = GRID.oz - rh * 0.5;
+      for (let py = 0; py < sz; py++) {
+        const wz = minZ + (py / (sz - 1)) * rh;
+        for (let px = 0; px < sz; px++) {
+          const wx = minX + (px / (sz - 1)) * rw;
+          const h = hAt(wx, wz);
+          const idx = (py * sz + px) * 4;
+          let r = 24, gr = 44, b = 36;
+          if (h <= 1.55) {
+            const deep = Math.min(1, Math.max(0, (1.55 - h) / 14));
+            r = Math.round(13 - deep * 6);
+            gr = Math.round(38 - deep * 16);
+            b = Math.round(62 - deep * 18);
+          } else if (h < 4.2) {
+            // Coastal beach / sand dunes
+            r = 56; gr = 58; b = 46;
+          } else {
+            const metro = Math.hypot((wx - 5350) / 2200, (wz - 920) / 1900);
+            const elev = Math.min(1, Math.max(0, (h - 4) / 240));
+            const contour = Math.abs(((h % 20) + 20) % 20 - 10) < 0.9 ? 1.10 : 1.0;
+            if (metro < 1.0) {
+              // Urban Ironport dark slate grid backdrop
+              const u = 1 - metro;
+              r = Math.round((26 + u * 16 + elev * 10) * contour);
+              gr = Math.round((34 + u * 14 + elev * 10) * contour);
+              b = Math.round((42 + u * 16 + elev * 12) * contour);
+            } else {
+              // Rural farmland & Michigan pinewoods (subtle farm parcel grid in farmland belt!)
+              const isFarm = wx > -4400 && wx < 2400 && wz > -2200 && wz < 4200 && h < 90;
+              const parcel = isFarm && (((Math.floor(wx / 260) + Math.floor(wz / 210)) & 1) === 0) ? 1.09 : 0.96;
+              r = Math.round((22 + elev * 24) * parcel * contour);
+              gr = Math.round((46 + elev * 20 + (isFarm ? 6 : 0)) * parcel * contour);
+              b = Math.round((30 + elev * 16) * parcel * contour);
+            }
+          }
+          img.data[idx] = Math.min(255, r);
+          img.data[idx + 1] = Math.min(255, gr);
+          img.data[idx + 2] = Math.min(255, b);
+          img.data[idx + 3] = 255;
+        }
+      }
+      g.putImageData(img, 0, 0);
+      return cv;
+    };
+    racingHud.configureEnvironment(buildMinimapCanvas(), { ox: GRID.ox, oz: GRID.oz, w: meta.width * meta.mpp, h: meta.height * meta.mpp }, lm);
   }
   // Eagerly preload & compile the active hero scan car immediately so frame 1 of the first race already has the real model (zero pop-in near '1')
   preloadHeroCar();
-  // Spin up curved 3D blade-strand grass, leafy shrubs & PBR rocks right away (lightweight: ~1 MB, instant on frame 1!)
+  // Spin up curved 3D blade-strand grass, roadside wildflowers, farm crops & PBR rocks right away (lightweight: ~1 MB, instant on frame 1!)
   if (!location.search.includes('veg=old') && !vegetation) {
-    vegetation = new Vegetation({ rw: meta.width * meta.mpp, rh: meta.height * meta.mpp, classUrl: BASE + 'landclass.png', albedoUrl: BASE + 'albedo.jpg', ground: meshH, ok: (x, z) => vegOk(x, z) });
+    vegetation = new Vegetation({ rw: meta.width * meta.mpp, rh: meta.height * meta.mpp, classUrl: BASE + 'landclass.png', albedoUrl: BASE + 'albedo.jpg', ground: meshH, ok: (x, z) => grassOk(x, z) });
     scene.add(vegetation.group);
   }
-  buildStreets().catch((e) => console.error('streets failed', e));
-  buildForest().catch((e) => console.error('forest failed', e));
-  loadHarbor().catch((e) => console.error('harbor failed', e));
-  buildTrenchLayer().catch((e) => console.error('trench failed', e));
-  // Stagger the heaviest 2K ground array pack after city building models finish so D3D11 never spikes Texture2D allocations
+  const streetsP = buildStreets().catch((e) => console.error('streets failed', e));
+  const forestP = buildForest().catch((e) => console.error('forest failed', e));
+  const harborP = loadHarbor().catch((e) => console.error('harbor failed', e));
+  const trenchP = buildTrenchLayer().catch((e) => console.error('trench failed', e));
+  // Stream the 8-layer 512x512 ground PBR array pack cleanly in background (groundArrays.ts yields 16 ms between layers,
+  // so players who enter Drive City or Race right away ALWAYS get full ground PBR relief instead of bare satellite pixels)
   buildCity()
-    .catch((e) => console.error('city failed', e))
+    .catch((e) => {
+      console.error('city failed', e);
+      resolveCityCore?.();
+      resolveCityCore = null;
+    })
     .finally(() => {
       loadGroundArrays().catch((e) => console.error('ground materials failed', e));
     });
-  fetch(BASE + 'yards.json').then((x) => (x.ok ? x.json() : null)).then((y) => { if (y) furnitureGroup.add(buildYards(keepYardsOffCourse(y), (x, z) => meshH(x, z))); }).catch(() => undefined);
+  // Hold the full-page Plajah Motorsport: Apex splash screen until the map, streets, harbor, trench,
+  // downtown Wave-0 skyline, and menu are genuinely populated — then reveal cleanly in one smooth fade!
+  void Promise.race([
+    Promise.allSettled([cityCorePromise, streetsP, harborP, trenchP, forestP]),
+    new Promise<void>((res) => setTimeout(res, 9500)),
+  ]).then(() => {
+    if (USE_WEBGPU) {
+      sanitizeObjectForWebGPU(scene);
+      if (perfTier !== 'high') {
+        vegetation?.setQuality(perfTier === 'low' ? 0.28 : 0.34, false);
+        grassField?.setQuality(perfTier === 'low' ? 0.40 : 0.55);
+        for (const tf of treeFields) tf.setQuality(perfTier === 'low' ? 0.34 : 0.44);
+      }
+    }
+    setBootProgress(96, 'FINALIZING MENU & LIGHTING');
+    lastInput = performance.now();
+    dismissBootSplash();
+  });
+  fetch(BASE + 'yards.json').then((x) => (x.ok ? x.json() : null)).then((y) => { if (y) { const yg = buildYards(keepYardsOffCourse(y), (x, z) => meshH(x, z)); mergeStaticScenery(yg, 500); furnitureGroup.add(yg); scheduleCullerReindex(); } }).catch(() => undefined);
   mapEditor = createMapEditor({
     scene, camera, dom: renderer.domElement, terrain: () => terrain, ground: (x, z) => meshH(x, z),
     topView: () => { const t = controls.target; look(new THREE.Vector3(t.x, Math.max(2500, camera.position.distanceTo(t)), t.z + 1), t.clone()); },
@@ -5216,7 +7340,30 @@ document.getElementById('driverally')!.addEventListener('click', () => startDriv
 }
 (document.getElementById('tCirc') as HTMLInputElement).addEventListener('change', (e) => { circuitGroup.visible = (e.target as HTMLInputElement).checked; });
 (document.getElementById('tHar') as HTMLInputElement).addEventListener('change', (e) => { harborGroup.visible = (e.target as HTMLInputElement).checked; });
-(document.getElementById('tod') as HTMLSelectElement).addEventListener('change', (e) => setTimeOfDay((e.target as HTMLSelectElement).value));
+const todSelEl = document.getElementById('tod') as HTMLSelectElement;
+todSelEl.addEventListener('change', (e) => {
+  const val = (e.target as HTMLSelectElement).value;
+  setTimeOfDay(val);
+  try { localStorage.setItem('apex.tod', val); } catch { /* storage blocked */ }
+});
+const todHourEl = document.getElementById('todHour') as HTMLInputElement | null;
+if (todHourEl) {
+  todHourEl.addEventListener('input', () => {
+    const h = parseFloat(todHourEl.value);
+    if (!Number.isFinite(h)) return;
+    todMode = 'preset';
+    applySolarHour(h, false);
+    syncTodClockUi(true);
+  });
+}
+const dofCbEl = document.getElementById('tDof') as HTMLInputElement | null;
+if (dofCbEl) {
+  dofCbEl.checked = dofEnabled;
+  dofCbEl.addEventListener('change', () => {
+    dofEnabled = dofCbEl.checked;
+    try { localStorage.setItem('apex.dof', dofEnabled ? '1' : '0'); } catch { /* storage blocked */ }
+  });
+}
 (document.getElementById('tFx') as HTMLInputElement).addEventListener('change', (e) => { fxOn = (e.target as HTMLInputElement).checked; });
 (document.getElementById('engVol') as HTMLInputElement).value = String(engVol);
 (document.getElementById('engVol') as HTMLInputElement).addEventListener('input', (e) => { engVol = parseFloat((e.target as HTMLInputElement).value); gameAudio.setLevel(engVol); try { localStorage.setItem('apex.engVol', String(engVol)); } catch { /* storage blocked */ } });
@@ -5231,6 +7378,24 @@ document.getElementById('driverally')!.addEventListener('click', () => startDriv
     const cb = document.getElementById(id) as HTMLInputElement;
     cb.checked = assist[key];
     cb.addEventListener('change', () => { assist[key] = cb.checked; saveAssist(); });
+  }
+  const rendererSel = document.getElementById('rendererSel') as HTMLSelectElement | null;
+  const rendererBadge = document.getElementById('rendererBadge');
+  if (rendererSel) {
+    rendererSel.value = USE_WEBGPU ? 'webgpu' : 'webgl';
+    if (rendererBadge && !USE_WEBGPU) {
+      rendererBadge.textContent = 'WebGL2';
+      rendererBadge.style.color = '#FF8C00';
+    }
+    rendererSel.addEventListener('change', () => {
+      const next = rendererSel.value === 'webgl' ? 'webgl' : 'webgpu';
+      try { localStorage.setItem('apex.renderer', next); } catch { /* storage blocked */ }
+      const url = new URL(location.href);
+      url.searchParams.set('renderer', next);
+      url.searchParams.delete('webgl');
+      url.searchParams.delete('webgpu');
+      location.assign(url.href);
+    });
   }
   const gpuSelect = document.getElementById('gpuPreference') as HTMLSelectElement;
   gpuSelect.value = requestedGpu;
@@ -5269,11 +7434,18 @@ document.getElementById('driverally')!.addEventListener('click', () => startDriv
   for (const l of GAME_LUTS) { const o = document.createElement('option'); o.value = l.id; o.textContent = l.label; lutSel.appendChild(o); }
   for (const l of GAME_LENSES.filter((x) => x.id !== 'none')) { const o = document.createElement('option'); o.value = l.id; o.textContent = l.label; lensSel.appendChild(o); }
   if (gradePass) { lutSel.value = gradePass.lut; lensSel.value = gradePass.lens; lutAmt.value = String(gradePass.lutAmount); }
+  else { lutSel.value = webgpuActiveLut; lensSel.value = webgpuActiveLens; lutAmt.value = String(webgpuLutAmt); }
+  const syncWebGpuGrade = (): void => {
+    if (!webgpuPost) return;
+    const preset: PlaykitLutPreset = webgpuActiveLut === 'none' ? 'era-clash-cinema' : 'fable-warm';
+    const str = webgpuActiveLut === 'none' ? 0.22 : Math.max(0, Math.min(1, webgpuLutAmt * 0.65));
+    webgpuPost.setLut(preset, str);
+  };
   const save = (k: string, v: string): void => { try { localStorage.setItem(k, v); } catch { /* storage blocked */ } };
-  lutSel.addEventListener('change', () => { if (gradePass) gradePass.lut = lutSel.value; save('apex.lut', lutSel.value); });
-  lutAmt.addEventListener('input', () => { if (gradePass) gradePass.lutAmount = parseFloat(lutAmt.value); save('apex.lutAmt', lutAmt.value); });
-  lensSel.addEventListener('change', () => { if (gradePass) gradePass.lens = lensSel.value as GameLens; save('apex.lens', lensSel.value); });
-  (window as unknown as { apexGrade: unknown }).apexGrade = { set: (lut: string, lens: string, amt = 1) => { if (gradePass) { gradePass.lut = lut; gradePass.lens = lens as GameLens; gradePass.lutAmount = amt; } } };
+  lutSel.addEventListener('change', () => { webgpuActiveLut = lutSel.value; if (gradePass) gradePass.lut = lutSel.value; syncWebGpuGrade(); save('apex.lut', lutSel.value); });
+  lutAmt.addEventListener('input', () => { webgpuLutAmt = parseFloat(lutAmt.value); if (gradePass) gradePass.lutAmount = webgpuLutAmt; syncWebGpuGrade(); save('apex.lutAmt', lutAmt.value); });
+  lensSel.addEventListener('change', () => { webgpuActiveLens = lensSel.value as GameLens; if (gradePass) gradePass.lens = webgpuActiveLens; save('apex.lens', lensSel.value); });
+  (window as unknown as { apexGrade: unknown }).apexGrade = { set: (lut: string, lens: string, amt = 1) => { webgpuActiveLut = lut; webgpuActiveLens = lens as GameLens; webgpuLutAmt = amt; if (gradePass) { gradePass.lut = lut; gradePass.lens = lens as GameLens; gradePass.lutAmount = amt; } syncWebGpuGrade(); } };
 }
 (document.getElementById('musicVol') as HTMLInputElement).value = String(musicVol);
 (document.getElementById('musicVol') as HTMLInputElement).addEventListener('input', (e) => setMusicVolume(parseFloat((e.target as HTMLInputElement).value)));
@@ -5312,29 +7484,11 @@ addEventListener('keydown', (e) => {
 document.getElementById('playPursuitAuto')?.addEventListener('click', () => startDrive('free', undefined, 'auto'));
 document.getElementById('playCop')?.addEventListener('click', () => startDrive('free', undefined, 'cop'));
 document.getElementById('playRobber')?.addEventListener('click', () => startDrive('free', undefined, 'robber'));
-document.getElementById('playOnlineWorld')?.addEventListener('click', () => {
-  onlineSession.connectPersistentWorld();
-  startDrive('free');
-});
+document.getElementById('playOnlineWorld')?.addEventListener('click', () => launchOnlineHub('world'));
 // Online race: through the Plajah Realtime server when /api/gamer/rt is switched on (lobby, server countdown,
-// refereed finish order on the gamer ledger); otherwise the old same-browser BroadcastChannel mode.
+// refereed finish order on the gamer ledger); otherwise instant local multi-tab BroadcastChannel mode.
 const RT_API = new URLSearchParams(location.search).get('api') ?? '';
-document.getElementById('playOnlineRace')?.addEventListener('click', () => {
-  void RealtimeClient.enabled(RT_API).then((on) => {
-    if (!on) { onlineSession.joinOnlineRace('ironport_grand_circuit'); startDrive('ironport_grand_circuit'); return; }
-    openOnlineRaceLobby(onlineSession, {
-      apiBase: RT_API, circuitId: 'ironport_grand_circuit',
-      onEnterGrid: () => {
-        startDrive('ironport_grand_circuit');
-        // Human field only: drop the AI grid so the server's finish order is the race everyone sees.
-        if (competition) competition.racers = competition.racers.filter((r) => r.isPlayer);
-        aiGroup.clear(); aiMeshes = [];
-      },
-      onBanner: (t, k) => showBanner(t, k, 5200),
-      onCancel: () => { /* stays on the menu */ },
-    });
-  });
-});
+document.getElementById('playOnlineRace')?.addEventListener('click', () => launchOnlineHub('race', 'ironport_grand_circuit'));
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; applyMapOffset();
   applyRenderScale();
@@ -5344,6 +7498,7 @@ addEventListener('resize', () => {
 // ── Frame-rate governor & GPU Quality Tiers (`low` / `mid` / `high`). Target 60 fps (30 on TV / low-power with ?tv=1); dynamic resolution + tier stepping hold TARGET_MS. ──
 const TV_MODE = TV_MODE_BOOT;
 const IS_INTEL_IGPU = (() => {
+  if (USE_WEBGPU) return false;
   try {
     const gl = renderer.getContext();
     const ext = gl.getExtension('WEBGL_debug_renderer_info');
@@ -5370,15 +7525,28 @@ function applyPerfTier(next: PerfTier): void {
   if (bloomPass) bloomPass.strength = next === 'low' ? 0.34 : 0.42;
   (window as unknown as { perfTier?: PerfTier }).perfTier = next;
 }
+let lastCanvasPr = -1, lastCanvasW = -1, lastCanvasH = -1;
 function applyRenderScale(): void {
-  const internalPr = Math.max(0.5, BASE_PR * renderScale);
+  const effectiveScale = USE_WEBGPU ? Math.max(0.80, Math.min(1.0, renderScale)) : renderScale;
+  const internalPr = Math.max(0.5, BASE_PR * effectiveScale);
   const useFsrScale = !!(composer && fsr1Pass && fsrEnabled);
-  // With FSR 1 enabled, keep canvas at full crisp native DPR while internal render targets scale dynamically!
-  const canvasPr = useFsrScale ? BASE_PR : internalPr;
-  renderer.setPixelRatio(canvasPr);
-  renderer.setSize(innerWidth, innerHeight);
+  // Keep canvas at native 1:1 DPR (0.85..1.0 adaptive when direct WebGPU without post; 1.25x on discrete high GPUs)
+  // and skip redundant setSize() calls that reconfigure the WebGPU swapchain mid-frame!
+  const canvasPr = USE_WEBGPU
+    ? (webgpuPost ? Math.min(BASE_PR, perfTier === 'high' ? 1.25 : 1.0) : Math.max(0.85, Math.min(BASE_PR, effectiveScale)))
+    : (useFsrScale ? Math.min(BASE_PR, perfTier === 'low' ? 1.0 : 1.25) : internalPr);
+  if (Math.abs(canvasPr - lastCanvasPr) > 0.015 || innerWidth !== lastCanvasW || innerHeight !== lastCanvasH) {
+    lastCanvasPr = canvasPr;
+    lastCanvasW = innerWidth;
+    lastCanvasH = innerHeight;
+    renderer.setPixelRatio(canvasPr);
+    renderer.setSize(innerWidth, innerHeight);
+  }
   let iw = Math.max(1, Math.floor(innerWidth * internalPr));
   let ih = Math.max(1, Math.floor(innerHeight * internalPr));
+  if (webgpuPost) {
+    webgpuPost.setInternalScale(effectiveScale);
+  }
   if (composer) {
     composer.setPixelRatio?.(internalPr);
     composer.setSize(innerWidth, innerHeight);
@@ -5403,15 +7571,16 @@ function applyRenderScale(): void {
   if (aaPass && 'uniforms' in aaPass && aaPass.uniforms?.uInvRes) {
     aaPass.uniforms.uInvRes.value.set(1 / iw, 1 / ih);
   }
-  grassField?.setQuality(renderScale * (perfTier === 'low' ? 0.75 : perfTier === 'mid' ? 0.88 : 1));
-  for (const tf of treeFields) tf.setQuality(renderScale * (perfTier === 'low' ? 0.75 : perfTier === 'mid' ? 0.88 : 1));
+  vegetation?.setQuality(perfTier === 'low' ? 0.28 : perfTier === 'mid' ? 0.34 : 1.0, perfTier === 'high');
+  grassField?.setQuality(renderScale * (perfTier === 'low' ? 0.70 : perfTier === 'mid' ? 0.80 : 1));
+  for (const tf of treeFields) tf.setQuality(perfTier === 'low' ? 0.34 : perfTier === 'mid' ? 0.44 : 1.0);
 }
 function governFrames(nowMs: number): void {
   if (govLast) { const d = nowMs - govLast; if (d < 250) { govAcc += d; govN++; if (d > govMax) govMax = d; } }
   govLast = nowMs;
   if (govN < 45 || (window as unknown as { govOff?: boolean }).govOff) { if (govN >= 45) { govAcc = 0; govN = 0; } return; }
   const avg = govAcc / govN; govAcc = 0; govN = 0; govMax = 0;
-  if (nowMs < 30000) return;                                         // the first seconds are texture / shader warm-up hitches, not a steady cost
+  if (nowMs < 12000 || !cityCoreReady) return;                       // wait only for core city wave, then protect FPS right from Lap 1!
   if (govHold > 0) { govHold--; return; }
   let ns = renderScale;
   // A drop that bought less than 6% means the frame is CPU / vertex bound, not fill bound: put the resolution back and stop lowering it for a while (it only costs sharpness).
@@ -5476,22 +7645,36 @@ function cullPlaces(now: number): void {
   if (!placeList.length || now > placeScan) { placeScan = now + 15000; scene.traverse((g) => { if (g.name && (g.name.startsWith('circuit:') || g.name === 'cliffRacewayCircuit' || g.name === 'industrial-circuit' || PLACE_FAR.has(g.name)) && !placeList.includes(g)) placeList.push(g); }); }
   for (const root of placeList) {
     if (!root.userData.chunkDone) { root.userData.chunkDone = true; chunkInstanced(root.parent && root.parent !== scene && root.parent.children.length < 400 ? root.parent : root); }
+    if (mapMode) {
+      // In 60 FPS Map Overview mode, keep major river bridges visible and hide close-up fences/barriers/grandstands/yards/roofs!
+      const keepOnMap = root.name === 'river-bridges';
+      root.visible = keepOnMap;
+      if (keepOnMap) {
+        for (const g of root.children) if (!(g as THREE.InstancedMesh).userData?.chunked) g.visible = true;
+      }
+      continue;
+    }
     root.visible = true;
     for (const g of root.children) {
       if ((g as THREE.InstancedMesh).userData?.chunked) continue;                  // chunks are distance/shadow managed by chunkList below
       let b = placeBoxes.get(g);
       if (!b) { g.visible = true; g.updateMatrixWorld(true); b = new THREE.Box3(); g.traverse((o) => { const m = o as THREE.InstancedMesh; if (!m.isMesh) return; if (m.isInstancedMesh) { m.computeBoundingBox(); if (m.boundingBox) b!.union(m.boundingBox.clone().applyMatrix4(m.matrixWorld)); } else { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); b!.union(m.geometry.boundingBox!.clone().applyMatrix4(m.matrixWorld)); } }); placeBoxes.set(g, b); }
-      g.visible = mapMode || b.distanceToPoint(camera.position) < (PLACE_FAR.has(root.name) ? 1600 : 1100);
+      g.visible = b.distanceToPoint(camera.position) < (PLACE_FAR.has(root.name) ? 1600 : 1100);
     }
   }
   const camX = camera.position.x, camZ = camera.position.z;
   const tierSh = tierCfg.cullShadowDist;
   for (let i = 0; i < chunkList.length; i++) {
     const c = chunkList[i];
+    if (mapMode) {
+      c.m.visible = false;
+      if (c.baseCastShadow) c.m.castShadow = false;
+      continue;
+    }
     const dist = Math.hypot(c.cx - camX, c.cz - camZ) - c.r;
-    const vis = mapMode || dist < c.maxDist;
+    const vis = dist < c.maxDist;
     c.m.visible = vis;
-    if (c.baseCastShadow) c.m.castShadow = vis && !mapMode && dist < Math.min(tierSh, c.maxShadowDist);
+    if (c.baseCastShadow) c.m.castShadow = vis && dist < Math.min(tierSh, c.maxShadowDist);
   }
 }
 
@@ -5537,7 +7720,7 @@ const probePos = new THREE.Vector3();
 // black 3D view guard (src/blackGuard.ts): spots a pure black frame where the scene should be lit, resets the effects, then turns them off; log in localStorage 'apex.blackLog'
 const blackGuard = new BlackGuard({
   renderer, camera,
-  shouldBeLit: () => !mapMode && (NIGHT_K[todKey] ?? 0) < 0.5 && !replay.active,
+  shouldBeLit: () => !mapMode && curTod.nightK < 0.5 && !replay.active,
   fxOn: () => fxOn, setFx: (on) => { fxOn = on; },
   resetPost: () => {
     if (cinePass) { cinePass.uniforms.uSpeed.value = 0; cinePass.uniforms.uShaft.value = 0; cinePass.uniforms.uTime.value = 0; }
@@ -5554,6 +7737,7 @@ const blackGuard = new BlackGuard({
 });
 function frame(now: number): void {
   frameNo++;
+  if (USE_WEBGPU && (!webgpuReady || !bootDismissed)) { requestAnimationFrame(frame); return; }
   if (TV_MODE && now < tvNext) { requestAnimationFrame(frame); return; }
   if (TV_MODE) tvNext = now + 1000 / 30 - 4;
   // When the opaque 2D interactive World Map is open, pause all 3D world updates & WebGL rendering so the map runs at locked 60+ FPS
@@ -5569,7 +7753,18 @@ function frame(now: number): void {
   last = now;
   const __t0 = performance.now();
   driveInput.tick();
-  if (simLayer && !mapMode) { simLayer.setPublicTraffic(!driving || driving.circuitId === 'free'); simLayer.update(dt, camera.position); }
+  if (simLayer) {
+    if (mapMode) {
+      simLayer.updateTransitOnly(dt);
+    } else {
+      simLayer.setPublicTraffic(!driving || driving.circuitId === 'free');
+      simLayer.update(dt, camera.position);
+    }
+  }
+  if (transitOpen && now - lastTransitRenderMs > 900) {
+    lastTransitRenderMs = now;
+    renderTransitBoard();
+  }
   if (vegetation) {
     if (mapMode) vegetation.setEnabled(false);
     else {
@@ -5577,7 +7772,8 @@ function frame(now: number): void {
       vegetation.setWind(0.35 + wx.cur.wind * 0.95 + wx.cur.rain * 0.35);
       vegetation.setWet(wx.cur.wet);
       vegetation.setCarWake(driving ? driving.pos : null, driving ? driving.ps.vel : null);
-      vegetation.update(dt, camera.position);
+      camera.getWorldDirection(tmpSun);
+      vegetation.update(dt, camera.position, tmpSun);
     }
   }
   if (grassField && !mapMode) {
@@ -5593,6 +7789,7 @@ function frame(now: number): void {
   stepCine(dt, now);
   stepWeather(dt);
   refDress?.update(now * 0.001);
+  if (wildlifeWorld && !mapMode) wildlifeWorld.update(dt, now * 0.001, driving ? driving.pos : null);
   heroBridgeUpdate?.(now * 0.001, Math.max(0, Math.min(1, 1 - (sunDir.y + 0.05) * 4)));
   for (const l of cloudLayers) { l.tex.offset.x += l.vx * dt; l.tex.offset.y += l.vz * dt; }
   if (replay.active) replay.step(dt); else if (!photo.active) stepDrive(dt);      // photo mode pauses the drive
@@ -5636,19 +7833,21 @@ function frame(now: number): void {
     sun.position.set(ft.x + sunDir.x * 3000, ft.y + sunDir.y * 3000, ft.z + sunDir.z * 3000);
     if (camera.position.distanceToSquared(ft) >= 900 * 900) shadowStride = 4;
     if (csm) {
-      camera.updateMatrixWorld();
-      if (
-        Math.abs(camera.near - lastCsmNear) > 0.05 ||
-        Math.abs(camera.far - lastCsmFar) > 50 ||
-        Math.abs(camera.aspect - lastCsmAspect) > 0.005
-      ) {
-        lastCsmNear = camera.near; lastCsmFar = camera.far; lastCsmAspect = camera.aspect;
-        csm.updateFrustums();
+      if (!mapMode) {
+        camera.updateMatrixWorld();
+        if (
+          Math.abs(camera.near - lastCsmNear) > 0.05 ||
+          Math.abs(camera.far - lastCsmFar) > 50 ||
+          Math.abs(camera.aspect - lastCsmAspect) > 0.005
+        ) {
+          lastCsmNear = camera.near; lastCsmFar = camera.far; lastCsmAspect = camera.aspect;
+          csm.updateFrustums();
+        }
+        csm.lightDirection.copy(sunDir).negate();
+        csm.update();
+        for (let i = 0; i < csm.lights.length; i++) { const l = csm.lights[i]; l.intensity = sun.intensity; l.color.copy(sun.color); l.castShadow = csmCast[i]; }        // constant: flipping it recompiles every shader
+        csmSweep();
       }
-      csm.lightDirection.copy(sunDir).negate();
-      csm.update();
-      for (let i = 0; i < csm.lights.length; i++) { const l = csm.lights[i]; l.intensity = sun.intensity; l.color.copy(sun.color); l.castShadow = csmCast[i]; }        // constant: flipping it recompiles every shader
-      csmSweep();
     } else {
       {
         const drvSh = driving && !mapMode;
@@ -5677,20 +7876,20 @@ function frame(now: number): void {
     // where the sun is on screen, and how much of it is there to shine through (a low sun in a clear sky; none under overcast or at night)
     const sv = tmpSun.copy(camera.position).addScaledVector(sunDir, 20000).project(camera);
     const svFinite = Number.isFinite(sv.x) && Number.isFinite(sv.y) && Number.isFinite(sv.z);
-    const w = wx.cur, nk = NIGHT_K[todKey] ?? 0;
+    const w = wx.cur, nk = curTod.nightK;
     const vis = svFinite && sv.z < 1 ? 1 : 0;
     const clear = Math.max(0, 1 - w.cloudDark * 1.4) * Math.max(0, 1 - w.fogGrey * 0.8);
     if (svFinite) u.uSun.value.set(Math.max(-2, Math.min(3, sv.x * 0.5 + 0.5)), Math.max(-2, Math.min(3, sv.y * 0.5 + 0.5)));
     else u.uSun.value.set(0.5, 0.8);
     const prevShaft = Number.isFinite(u.uShaft.value) ? u.uShaft.value : 0;
-    const targetShaft = vis * clear * (1 - nk) * (mapMode ? 0 : 0.68);
+    const targetShaft = vis * clear * (1 - nk) * (mapMode ? 0 : 0.74);
     u.uShaft.value = Number.isFinite(targetShaft) ? prevShaft + (targetShaft - prevShaft) * Math.min(1, dt * 3) : 0;
     u.uHasSkyMask.value = aoPass?.aoOn ? 1 : 0;
     (u.uSunCol.value as THREE.Color).copy(sun.color);
   }
   // Update Playkit unified SH9 GI probes, district LocalLookVolumes, clustered streetlamps/tunnels & car headlights
   {
-    const nk = NIGHT_K[todKey] ?? 0;
+    const nk = curTod.nightK;
     const wDim = Math.min(1, wx.cur.cloudDark * 0.68 + wx.cur.rain * 0.42);
     const focus = driving ? driving.pos : controls.target;
     apexLighting.update(dt, camera, focus, nk, wDim, sunDir, mapMode);
@@ -5699,25 +7898,69 @@ function frame(now: number): void {
     apexLighting.updateVehicleLights(!!driving && !mapMode && !replay.active, driving?.pos, driving?.yaw ?? 0, hlOn, brkAmt);
   }
   if (aoPass) {
-    // the atmosphere (ao.ts): dual-layer Rayleigh aerial perspective + low-altitude valley mist + warm Mie sun scatter + Playkit district mood; off on the map
-    const f = aoPass.fog, w = wx.cur;
-    const nk = NIGHT_K[todKey] ?? 0;
-    const fm = apexLighting.controller.fogMod;
-    aoPass.aoOn = !mapMode && tierCfg.aoEnabled;
-    f.on = !mapMode;
-    f.density = 0.000155 * (1 + w.fogGrey * 4.5 + w.rain * 1.4) * fm.densityMul;
-    f.falloff = 1 / 420;
-    if (scene.fog instanceof THREE.Fog) {
-      f.color.copy(scene.fog.color);
-      if (fm.tintWeight > 0.002) f.color.lerp(fm.tintColor, fm.tintWeight);
+    // 60 FPS map overview mode: disable full-screen AO/atmosphere pass completely while on the high map!
+    aoPass.enabled = !mapMode;
+    if (!mapMode) {
+      // the atmosphere (ao.ts): dual-layer Rayleigh aerial perspective + coastal/valley mist + Mie sun scatter + optional real-time cinematic optical DOF
+      const f = aoPass.fog, w = wx.cur;
+      const nk = curTod.nightK;
+      const fm = apexLighting.controller.fogMod;
+      aoPass.aoOn = tierCfg.aoEnabled;
+      f.on = true;
+      f.density = 0.000165 * (1 + w.fogGrey * 4.5 + w.rain * 1.4) * fm.densityMul * (cineOn ? 0.48 : 1.0);
+      f.falloff = 1 / 410;
+      if (scene.fog instanceof THREE.Fog) {
+        f.color.copy(scene.fog.color);
+        if (fm.tintWeight > 0.002) f.color.lerp(fm.tintColor, fm.tintWeight);
+      }
+      f.sunColor.copy(sun.color).multiplyScalar(Math.min(1.75, 0.38 + sun.intensity * 0.50));
+      f.sunDir.copy(sunDir);
+      aoPass.mistBoost = Math.min(1, curTod.mistBoost + w.rain * 0.45 + w.fogGrey * 0.70);
+      aoPass.contactShadow = Math.max(0, (1 - w.cloudDark * 1.15) * (1 - nk)) * 0.88;
+      aoPass.blur = !photo.active && driving && !replay.active ? 0.46 : 0;             // camera motion blur while driving (ao.ts)
+      const wantDof = dofEnabled && !photo.active && !replay.active && perfTier !== 'low';
+      aoPass.dof.strength = wantDof ? (cineOn ? 0.46 : driving ? 0.30 : 0.22) : 0;
+      aoPass.dof.focus = driving ? 10.5 : 26.0;
+      aoPass.dof.farStart = cineOn ? 95 : driving ? 125 : 190;
     }
-    f.sunColor.copy(sun.color).multiplyScalar(Math.min(1.65, 0.35 + sun.intensity * 0.48));
-    f.sunDir.copy(sunDir);
-    aoPass.contactShadow = mapMode ? 0 : Math.max(0, (1 - w.cloudDark * 1.15) * (1 - nk)) * 0.85;
-    aoPass.blur = !mapMode && !photo.active && driving && !replay.active ? 0.5 : 0;             // camera motion blur while driving (ao.ts)
   }
   if (bloomPass) bloomPass.enabled = !mapMode;
   lensRain.update(dt, wx.cur.rain, driving ? Math.abs(driving.ps.speedMps) : 0, !mapMode && !!driving && !replay.active && driving.camView < 3, innerWidth / innerHeight);
+  socialHud.setDrivingMode(!mapMode && !!driving && !photo.active);
+  if (USE_WEBGPU && webgpuLighting) {
+    (webgpuLighting.uniforms.uGiUpper.value as THREE.Color).copy(apexLighting.uniforms.uPkGiUpper.value);
+    (webgpuLighting.uniforms.uGiLower.value as THREE.Color).copy(apexLighting.uniforms.uPkGiLower.value);
+    webgpuLighting.uniforms.uGiInteriorMix.value = apexLighting.uniforms.uPkGiInteriorMix.value;
+    webgpuLighting.uniforms.uDetailStrength.value = apexLighting.controller.enabled ? 1.0 : 0.0;
+  }
+  if (USE_WEBGPU && apexPostStage) {
+    const kmh = driving && !replay.active && Number.isFinite(driving.ps.speedMps) ? Math.abs(driving.ps.speedMps) : 0;
+    const speed01 = Math.min(1, Math.max(0, (kmh - 18) / 62));
+    const w = wx.cur;
+    const fm = apexLighting.controller.fogMod;
+    const fogC = scene.fog instanceof THREE.Fog ? scene.fog.color.clone() : skyFog.clone();
+    if (fm.tintWeight > 0.002) fogC.lerp(fm.tintColor, fm.tintWeight);
+    const wantDof = dofEnabled && !photo.active && !replay.active && perfTier !== 'low' && !mapMode;
+    apexPostStage.update({
+      dt,
+      speed01: mapMode ? 0 : speed01,
+      aspect: Math.max(0.25, innerWidth / Math.max(1, innerHeight)),
+      lens: webgpuActiveLens,
+      lensRain: !mapMode ? lensRain : null,
+      hazeOn: !mapMode,
+      hazeDensity: 0.000135 * (1 + w.fogGrey * 2.0 + w.rain * 0.65) * fm.densityMul * (cineOn ? 0.48 : 1.0),
+      mistBoost: Math.min(1, curTod.mistBoost + w.rain * 0.45 + w.fogGrey * 0.70),
+      fogColor: fogC,
+      sunColor: sun.color,
+      dofStrength: wantDof ? (cineOn ? 0.30 : driving ? 0.14 : 0.12) : 0,
+      dofFarStart: cineOn ? 140 : driving ? 240 : 280,
+      camNear: camera.near,
+      camFar: camera.far,
+      invWidth: 1 / Math.max(1, Math.round(renderer.domElement.width * (perfTier === 'high' ? 1.0 : Math.max(0.72, Math.min(1.0, renderScale))))),
+      invHeight: 1 / Math.max(1, Math.round(renderer.domElement.height * (perfTier === 'high' ? 1.0 : Math.max(0.72, Math.min(1.0, renderScale))))),
+      sharpness: mapMode ? 0.20 : 0.46,
+    });
+  }
   const gradeActive = !!gradePass?.active;
   if (gradePass) gradePass.enabled = gradeActive;
   if (outputPass) outputPass.enabled = gradeActive;
@@ -5732,20 +7975,53 @@ function frame(now: number): void {
     aaPass.uniforms.uInvRes.value.set(1 / aw, 1 / ah);
   }
   const __t2 = performance.now();
-  const probeMask = (TV_MODE || perfTier === 'low') ? 3 : 1;
-  if (driving && !mapMode && !replay.active && (frameNo & probeMask) === 0) {                  // one cube face every other frame (every fourth on TV/low): a full refresh about 5 times a second
-    if (carProbe.step(renderer, scene, probePos.set(driving.pos.x, driving.car.position.y + 1.1, driving.pos.z), [driving.car, spray.points, dust.points, forestGroup, scapeGroup])) carProbe.apply(driving.car, 0.85);
+  // Throttle live car cubemap probe (1 face every 8..12 frames, hiding grass/vegetation/AI/roofs from the tiny 128px cube)
+  // so driving keeps smooth live paint reflections without rendering the entire 4M-tri world twice per frame!
+  const probeStride = (TV_MODE || perfTier === 'low' || IS_INTEL_IGPU) ? 12 : 6;
+  if (carProbe && driving && !mapMode && !replay.active && (frameNo % probeStride) === 0) {
+    const hideList: THREE.Object3D[] = [driving.car, spray.points, dust.points, forestGroup, scapeGroup, aiGroup, trafficGroup, roofGroup];
+    if (vegetation?.group) hideList.push(vegetation.group);
+    if (grassField?.group) hideList.push(grassField.group);
+    if (carProbe.step(renderer, scene, probePos.set(driving.pos.x, driving.car.position.y + 1.1, driving.pos.z), hideList)) {
+      carProbe?.apply(driving.car, 0.85);
+      carProbe?.apply(aiGroup, 0.85);
+      carProbe?.apply(trafficGroup, 0.78);
+    }
   }
-  cityVisibility.viewDist = mapMode ? Infinity : tierCfg.cityViewDist;
-  cityVisibility.shadowDist = mapMode ? 0 : tierCfg.cityShadowDist;
-  cityVisibility.update(camera, csm ? csm.lights : [sun], frameNo % 3, 3);
-  if (cityBatches) { cityBatches.viewDist = cityVisibility.viewDist; cityBatches.shadowDist = cityVisibility.shadowDist; cityBatches.update(camera.position, frameNo % 3, 3); }
-  spatialCuller.update(camera, renderer, mapMode, tierCfg.cullViewDist, tierCfg.cullShadowDist, shadowStride);
+  if (!mapMode) {
+    const firstDriveFrame = !(window as unknown as { __didDriveCull?: boolean }).__didDriveCull;
+    (window as unknown as { __didDriveCull?: boolean }).__didDriveCull = true;
+    cityVisibility.viewDist = cineOn ? Math.max(tierCfg.cityViewDist, 1850) : tierCfg.cityViewDist;
+    cityVisibility.shadowDist = tierCfg.cityShadowDist;
+    cityVisibility.update(camera, csm ? csm.lights : [sun], firstDriveFrame ? 0 : frameNo % 3, firstDriveFrame ? 1 : 3);
+    if (cityBatches) { cityBatches.viewDist = cityVisibility.viewDist; cityBatches.shadowDist = cityVisibility.shadowDist; cityBatches.update(camera.position, frameNo % 3, 3); }
+    spatialCuller.update(camera, renderer, false, tierCfg.cullViewDist, tierCfg.cullShadowDist, shadowStride);
+  }
   const __t3 = performance.now();
   frameProfiler.context = { mode: mapMode ? 'map' : driving ? 'drive' : 'review', weather: wx.name, camera: camera.position.toArray().map((v) => Math.round(v)) };
   frameProfiler.beginRender();
-  atmosphere?.update(scene, camera, sunDir, sun.color, wx.cur.fogGrey, wx.cur.sun, NIGHT_K[todKey] ?? 0, mapMode, now);
-  if (composer && fxOn) {
+  atmosphere?.update(scene, camera, sunDir, sun.color, wx.cur.fogGrey, wx.cur.sun, curTod.nightK, mapMode, now);
+  if (USE_WEBGPU) {
+    const wAny = window as unknown as { __webgpuErrLogged?: boolean; __webgpuPostDisabled?: boolean };
+    try {
+      if (webgpuPost && fxOn && !mapMode && !wAny.__webgpuPostDisabled) {
+        webgpuPost.render();
+      } else {
+        renderer.render(scene, camera);
+      }
+    } catch (err) {
+      if (!wAny.__webgpuErrLogged) {
+        wAny.__webgpuErrLogged = true;
+        console.error('[apex-webgpu] frame render error:', err instanceof Error ? (err.stack || err.message) : err);
+        sanitizeObjectForWebGPU(scene);
+      }
+      if (webgpuPost && fxOn && !mapMode && !wAny.__webgpuPostDisabled) {
+        wAny.__webgpuPostDisabled = true;
+        console.warn('[apex-webgpu] post pipeline failed; falling back to direct WebGPU render');
+        try { renderer.render(scene, camera); } catch { /* ignore */ }
+      }
+    }
+  } else if (composer && fxOn) {
     // Always align ping-pong so RenderPass writes renderTarget2 (with depthTexture) even after tier/AA pass toggles
     composer.readBuffer = composer.renderTarget2;
     composer.writeBuffer = composer.renderTarget1;
@@ -5767,7 +8043,7 @@ function frame(now: number): void {
 // (a 1-pixel read-back), so the times are true frame costs even when the page is in the background (no requestAnimationFrame). Returns ms stats.
 (window as unknown as { __bench: unknown }).__bench = (n: number, pos: number[], at: number[], plain = false) => {
   camera.position.set(pos[0], pos[1], pos[2]); camera.lookAt(at[0], at[1], at[2]); camera.updateMatrixWorld(); camera.updateProjectionMatrix();
-  const gl = renderer.getContext(), px = new Uint8Array(4), t: number[] = [], cull: number[] = [], veg: number[] = [], rend: number[] = [];
+  const gl = !USE_WEBGPU ? renderer.getContext() : null, px = new Uint8Array(4), t: number[] = [], cull: number[] = [], veg: number[] = [], rend: number[] = [];
   const auto = renderer.info.autoReset; renderer.info.autoReset = false;
   const wasMap = mapMode; if (wasMap) setMapMode(false);                       // measure the game as it is played, not the overview map (which shows everything)
   let calls = 0, tris = 0;
@@ -5786,8 +8062,10 @@ function frame(now: number): void {
     spatialCuller.update(camera, renderer, false, tierCfg.cullViewDist, tierCfg.cullShadowDist, tierCfg.shadowStride);
     if (csm) csm.update();
     const t2 = performance.now();
-    if (composer && fxOn && !plain) composer.render(); else renderer.render(scene, camera);
-    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    if (USE_WEBGPU && webgpuPost && fxOn && !plain) webgpuPost.render();
+    else if (composer && fxOn && !plain) composer.render();
+    else renderer.render(scene, camera);
+    if (gl) gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
     const t3 = performance.now();
     if (i >= warm) { t.push(t3 - t0); veg.push(t1 - t0); cull.push(t2 - t1); rend.push(t3 - t2); calls = renderer.info.render.calls; tris = renderer.info.render.triangles; }
   }
@@ -5797,5 +8075,10 @@ function frame(now: number): void {
   const p90 = (a: number[]): number => { const b = [...a].sort((x, y) => x - y); return +b[Math.floor(b.length * 0.9)].toFixed(1); };
   return { median: med(t), p90: p90(t), vegMs: med(veg), cullMs: med(cull), renderMs: med(rend), calls, tris, w: renderer.domElement.width, h: renderer.domElement.height };
 };
-boot().catch((e) => { msg.textContent = 'failed: ' + e; console.error(e); });
+boot().catch((e) => {
+  dismissBootSplash();
+  msg.style.display = 'block';
+  msg.textContent = 'failed: ' + e;
+  console.error(e);
+});
 requestAnimationFrame(frame);

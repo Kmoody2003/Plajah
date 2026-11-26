@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { type AirportLayout, type AirportSim, type Plane, toWorld } from './sim/airport';
 import { distToPoly, pointInPoly, type P2 } from './sim/geom';
+import { piece } from './library/modelled';
 
 /**
  * The airfield in the world: runway with its markings, taxiways, apron with stands, terminal with jet bridges, control tower, hangars,
@@ -123,11 +124,16 @@ export function buildAirportScenes(o: { L: AirportLayout; sim: AirportSim | null
       box(3.2, 3.0, lb, wallMat, u, 5.2, -sgn * (T.lv / 2 + lb / 2), tg);
       box(4.2, 4.2, 4.2, wallMat, u, 5.2, -sgn * (T.lv / 2 + lb), tg);
     }
-    // control tower
-    const tw = new THREE.Group(); tw.position.set(-T.lu * 0.38, 0, 0); tg.add(tw);
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 4.2, 48, 16), wallMat); shaft.position.y = 24; shaft.castShadow = true; tw.add(shaft);
-    const cab = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 5.5, 7, 16), new THREE.MeshStandardMaterial({ color: 0x3b5d78, roughness: 0.15, metalness: 0.6 })); cab.position.y = 51.5; tw.add(cab);
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 1.2, 16), roofMat); cap.position.y = 55.5; tw.add(cap);
+    // control tower: use the real built Plajah library `control_tower.glb` model (with procedural fallback until loaded!)
+    const tw = piece('control_tower', () => {
+      const fb = new THREE.Group();
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(3.2, 4.2, 48, 16), wallMat); shaft.position.y = 24; shaft.castShadow = true; fb.add(shaft);
+      const cab = new THREE.Mesh(new THREE.CylinderGeometry(7.5, 5.5, 7, 16), new THREE.MeshStandardMaterial({ color: 0x3b5d78, emissive: 0x4ca8d8, emissiveIntensity: 0.35, roughness: 0.15, metalness: 0.6 })); cab.position.y = 51.5; fb.add(cab);
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 1.2, 16), roofMat); cap.position.y = 55.5; fb.add(cap);
+      return fb;
+    });
+    tw.position.set(-T.lu * 0.38, 0, 0);
+    tg.add(tw);
     tcenters.push({ x: T.cx, z: T.cz });
   }
   for (const hpoly of L.hangars) {
@@ -170,8 +176,11 @@ export function buildAirportScenes(o: { L: AirportLayout; sim: AirportSim | null
   const planeGroup = new THREE.Group(); planeGroup.name = 'aircraft'; group.add(planeGroup);
   const white = new THREE.MeshStandardMaterial({ color: 0xf1f2f4, roughness: 0.35, metalness: 0.2 });
   const grey = new THREE.MeshStandardMaterial({ color: 0x8a9096, roughness: 0.4, metalness: 0.6 });
+  const navRed = new THREE.MeshBasicMaterial({ color: 0xff2828 });
+  const navGreen = new THREE.MeshBasicMaterial({ color: 0x24ff68 });
+  const landingLightMat = new THREE.MeshBasicMaterial({ color: 0xfff8dc });
   const liveries = [0x1d4e89, 0xb02a37, 0x1f7a4d, 0xd98a00, 0x5b3cc4].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.4, metalness: 0.25 }));
-  const makePlane = (p: Plane): { g: THREE.Group; gear: THREE.Group; prop?: THREE.Mesh } => {
+  const makePlane = (p: Plane): { g: THREE.Group; gear: THREE.Group; prop?: THREE.Mesh; beacon: THREE.Mesh; landing: THREE.Mesh } => {
     const g = new THREE.Group(), gear = new THREE.Group(), tail = liveries[p.id % liveries.length], jet = p.type === 'jet', S = jet ? 1 : 0.55;
     const add = (geo: THREE.BufferGeometry, m: THREE.Material, x: number, y: number, z: number, parent: THREE.Object3D = g): THREE.Mesh => { const mesh = new THREE.Mesh(geo, m); mesh.position.set(x, y, z); mesh.castShadow = true; parent.add(mesh); return mesh; };
     const L0 = 30 * S;
@@ -183,15 +192,20 @@ export function buildAirportScenes(o: { L: AirportLayout; sim: AirportSim | null
     for (const sd of [-1, 1]) {
       const wing = add(new THREE.BoxGeometry((jet ? 17 : 11) * S, 0.35 * S, 5 * S), white, sd * (jet ? 9 : 6) * S, wingY, jet ? -1 * S : 1 * S); wing.rotation.y = sd * (jet ? 0.5 : 0.04);
       if (jet) { add(new THREE.CylinderGeometry(1.15, 1.15, 4.2, 12), grey, sd * 6.5, 2.2, 1.4).rotation.x = Math.PI / 2; add(new THREE.BoxGeometry(0.2, 1.8, 2.2), white, sd * 17, 4.9, -5.6); }
+      // Port (red) & Starboard (green) wingtip navigation lights
+      const nav = add(new THREE.SphereGeometry(0.42 * S, 6, 6), sd > 0 ? navRed : navGreen, sd * (jet ? 17.1 : 11.4) * S, wingY + 0.4 * S, jet ? -5.4 * S : 1 * S);
+      nav.castShadow = false;
       const stab = add(new THREE.BoxGeometry(6.5 * S, 0.3 * S, 2.8 * S), white, sd * 3.8 * S, 5.2 * S, -L0 / 2 - 3.2 * S); stab.rotation.y = sd * 0.35;
     }
     const fin = add(new THREE.BoxGeometry(0.4 * S, 7 * S, 5.5 * S), tail, 0, 8.4 * S, -L0 / 2 - 2.6 * S); fin.rotation.x = -0.28;
+    const beacon = add(new THREE.SphereGeometry(0.48 * S, 6, 6), navRed, 0, 6.5 * S, -1.5 * S); beacon.castShadow = false;
+    const landing = add(new THREE.SphereGeometry(0.65 * S, 8, 8), landingLightMat, 0, 2.8 * S, L0 / 2 + 4.2 * S); landing.castShadow = false;
     let prop: THREE.Mesh | undefined;
     if (!jet) { prop = add(new THREE.BoxGeometry(5.2, 0.35, 0.12), grey, 0, 4.2, L0 / 2 + 5.4 * S); }
     add(new THREE.CylinderGeometry(0.28, 0.28, 3.2 * S, 8), grey, 0, 1.6 * S, 7 * S, gear); add(new THREE.CylinderGeometry(0.4, 0.4, 0.5, 10), grey, 0, 0.45, 7 * S, gear).rotation.z = Math.PI / 2;
     for (const sd of [-1, 1]) { add(new THREE.CylinderGeometry(0.3, 0.3, 2.6 * S, 8), grey, sd * 2.4 * S, 1.4 * S, -2 * S, gear); add(new THREE.CylinderGeometry(0.5, 0.5, 0.7, 10), grey, sd * 2.4 * S, 0.5, -2 * S, gear).rotation.z = Math.PI / 2; }
     g.add(gear); planeGroup.add(g);
-    return { g, gear, prop };
+    return { g, gear, prop, beacon, landing };
   };
   const planes = new Map<number, ReturnType<typeof makePlane>>();
   const update = (now: number, dt: number): void => {
@@ -210,6 +224,8 @@ export function buildAirportScenes(o: { L: AirportLayout; sim: AirportSim | null
       rec.g.position.set(p.x, Y + p.alt + 0.05, p.z);
       rec.g.rotation.set(0, 0, 0, 'YXZ'); rec.g.rotation.y = p.yaw; rec.g.rotation.x = -p.pitch;
       rec.gear.visible = p.alt < 45 && !(p.state === 'climb' && p.alt > 25);
+      rec.beacon.visible = Math.floor(now * 1.8 + p.id * 0.7) % 2 === 0;
+      rec.landing.visible = p.state === 'approach' || p.state === 'rollout' || p.state === 'takeoff' || (p.state === 'climb' && p.alt < 220);
       if (rec.prop) rec.prop.rotation.z = now * 60;
     }
     for (const [id, rec] of planes) if (!live.has(id)) { planeGroup.remove(rec.g); planes.delete(id); }

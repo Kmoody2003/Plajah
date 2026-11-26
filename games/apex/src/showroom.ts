@@ -14,13 +14,21 @@ import { hasScanCar, loadScanCarById } from './scancar';
 import type { CarRig } from './car';
 import { GarageUi } from './garageUi';
 import { garage, cloud } from './garageGame';
-import type { OwnedCar } from './garage/build';
-import { CAR_BY_ID, type CarDef } from './garage/catalog';
+import { buildCar, type OwnedCar } from './garage/build';
+import { CAR_BY_ID, stockSpec, type CarDef } from './garage/catalog';
+import { GameAudio } from './audio';
+import { createCarState, type CarState } from './physics';
 
 const gltf = new GLTFLoader();
 
 
 async function boot(): Promise<void> {
+  // Unified Playkit WebGPU + TSL + SSR Studio Showroom (?webgpu=1) — lazy-loaded so WebGL2 path stays zero-overhead
+  if (new URLSearchParams(location.search).get('webgpu') === '1') {
+    const { bootShowroomWebGpu } = await import('./tsl/showroomWebGpu');
+    await bootShowroomWebGpu();
+    return;
+  }
   const viewEl = document.getElementById('view')!;
   const sheetWrap = document.getElementById('sheetWrap')!;
   const sheetImg = document.getElementById('sheetImg') as HTMLImageElement;
@@ -146,7 +154,25 @@ async function boot(): Promise<void> {
     status.textContent = `${def.make} ${def.name}: 3D model in production`;
   }
 
-  const ui = new GarageUi(garage, { show: (d, o) => { void show(d, o); } });
+  // Showroom engine audition rig: clicking "Rev Engine" plays each car's real video-clip + acoustic DNA startup & rev!
+  const showroomAudio = new GameAudio();
+  showroomAudio.setMusic(false);
+  showroomAudio.setLevel(0.65);
+  let revAnim: { spec: ReturnType<typeof stockSpec>; state: CarState; t: number; dur: number } | null = null;
+  const triggerShowroomRev = (def: CarDef, owned: OwnedCar | null): void => {
+    const spec = owned ? buildCar(owned).spec : stockSpec(def);
+    showroomAudio.ensureStarted();
+    showroomAudio.setPaused(false);
+    const st = createCarState(0, 0, 0, 0);
+    st.rpm = spec.engine.idleRpm;
+    st.gear = 1;
+    revAnim = { spec, state: st, t: 0, dur: 3.4 };
+  };
+
+  const ui = new GarageUi(garage, {
+    show: (d, o) => { revAnim = null; showroomAudio.setPaused(true); void show(d, o); },
+    rev: (d, o) => { triggerShowroomRev(d, o); },
+  });
   (window as unknown as { garageUi: GarageUi }).garageUi = ui;
   const cs = document.getElementById('cloudStatus');
   const label = { idle: '', syncing: 'Saving…', synced: 'Saved to Plajah', offline: 'Saved on this device', conflict: 'Merging…', error: 'Cloud save failed' } as const;
@@ -199,7 +225,20 @@ async function boot(): Promise<void> {
     subject: () => model, panels: () => rig?.panels, grade: () => gradePass, title: () => ui.current().def.make + ' ' + ui.current().def.name,
     onEnter: () => { spin = false; btnSpinEl.classList.remove('on'); },
   });
-  document.getElementById('btnPhoto')!.addEventListener('click', () => photo.enter());
+  const btnPhotoEl = document.getElementById('btnPhoto')!;
+  btnPhotoEl.addEventListener('click', () => photo.enter());
+  if (btnPhotoEl.parentElement) {
+    const gpuBtn = document.createElement('button');
+    gpuBtn.type = 'button';
+    gpuBtn.textContent = 'WebGPU + SSR';
+    gpuBtn.title = 'Switch to Unified Playkit WebGPU + TSL + Real-Time SSR Showroom';
+    gpuBtn.addEventListener('click', () => {
+      const next = new URL(location.href);
+      next.searchParams.set('webgpu', '1');
+      location.href = next.toString();
+    });
+    btnPhotoEl.parentElement.appendChild(gpuBtn);
+  }
   window.addEventListener('keydown', (e) => { if (e.code === 'KeyK' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLSelectElement)) photo.toggle(); });
 
   let last = performance.now();
@@ -207,6 +246,19 @@ async function boot(): Promise<void> {
     requestAnimationFrame(frame);
     const dt = Math.min((now - last) / 1000, 0.05); last = now;
     if (model && spin) model.rotation.y += dt * 0.35;
+    if (revAnim) {
+      revAnim.t += dt;
+      const { spec, state, t, dur } = revAnim;
+      const idle = spec.engine.idleRpm, red = spec.engine.redlineRpm;
+      let thr = 0;
+      if (t < 0.35) { thr = 0.15; state.rpm = idle + (red - idle) * 0.10 * (t / 0.35); }
+      else if (t < 1.35) { thr = 0.96; const f = (t - 0.35) / 1.0; state.rpm = idle + (red - idle) * (0.10 + 0.85 * Math.pow(f, 0.78)); state.turboBoost = Math.min(1, f * 1.1); state.speedMps = f * spec.topSpeedMps * 0.65; }
+      else if (t < 1.75) { thr = 0.04; const f = (t - 1.35) / 0.40; state.rpm = red - (red - idle) * 0.38 * f; state.turboBoost = Math.max(0, 1 - f * 1.8); state.backfireEvent = f < 0.14; }
+      else if (t < 2.45) { thr = 1.0; const f = (t - 1.75) / 0.70; state.rpm = idle + (red - idle) * (0.56 + 0.42 * f); state.turboBoost = Math.min(1, 0.3 + f * 0.8); state.speedMps = (0.5 + 0.4 * f) * spec.topSpeedMps; }
+      else { thr = 0.0; const f = Math.min(1, (t - 2.45) / (dur - 2.45)); state.rpm = red - (red - idle) * Math.pow(f, 0.65); state.turboBoost = Math.max(0, 1 - f * 2.5); state.backfireEvent = f < 0.12; state.speedMps = Math.max(0, (1 - f) * spec.topSpeedMps * 0.4); }
+      showroomAudio.update(state, spec, thr);
+      if (t >= dur) { revAnim = null; showroomAudio.setPaused(true); }
+    }
     if (rig) rig.update(0, 0, dt, brake);                 // the scan car's own animation and lights
     if (camTween2) { camTween2.t = Math.min(1, camTween2.t + dt * 1.6); const k = camTween2.t, e = k * k * (3 - 2 * k); camera.position.lerpVectors(camTween2.fromP, camTween2.toP, e); controls.target.lerpVectors(camTween2.fromT, camTween2.toT, e); if (k >= 1) camTween2 = null; }
     (ring2.material as THREE.MeshBasicMaterial).opacity =0.45 + 0.2 * Math.sin(now / 700);

@@ -48,40 +48,94 @@ export const TIER_CONFIGS: Record<PerfTier, TierConfig> = {
   },
   mid: {
     tier: 'mid',
-    cityViewDist: 2400,
-    cityShadowDist: 145,
-    cullViewDist: 1650,
-    cullShadowDist: 140,
-    shadowStride: 2,
+    cityViewDist: 580,
+    cityShadowDist: 55,
+    cullViewDist: 680,
+    cullShadowDist: 55,
+    shadowStride: 6,
     aoEnabled: true,
     aoStrength: 0.72,
   },
   low: {
     tier: 'low',
-    cityViewDist: 1600,
-    cityShadowDist: 95,
-    cullViewDist: 1150,
-    cullShadowDist: 90,
-    shadowStride: 3,
+    cityViewDist: 440,
+    cityShadowDist: 45,
+    cullViewDist: 520,
+    cullShadowDist: 45,
+    shadowStride: 8,
     aoEnabled: false,
     aoStrength: 0,
   },
 };
 
-export function detectInitialTier(renderer: THREE.WebGLRenderer, tvMode: boolean): PerfTier {
+function classifyGpuTierString(rStr: string): PerfTier | null {
+  const s = rStr.trim().toLowerCase();
+  if (!s) return null;
+  if (/swiftshader|llvmpipe|softpipe|microsoft basic/.test(s)) return 'low';
+  if (/\b(rtx|gtx|radeon rx|arc a7[57]0|arc b5[78]0|apple m[1-9]|geforce)\b/.test(s)) return 'high';
+  if (/\b(intel|arc|uhd|hd graphics|iris|xe-lpg|xe-hpg|xe2|xe graphics|vega|mali|adreno|powervr|amd radeon\(tm\) graphics)\b/.test(s)) return 'mid';
+  return null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function readWebGpuAdapterString(renderer: any): string {
+  const info = (renderer?.backend?.device?.adapterInfo ?? renderer?.backend?.adapter?.info) as
+    | { description?: string; vendor?: string; architecture?: string; device?: string }
+    | undefined;
+  if (!info) return '';
+  return `${info.description ?? ''} ${info.vendor ?? ''} ${info.architecture ?? ''} ${info.device ?? ''}`.trim();
+}
+
+/**
+ * Reliable async WebGPU hardware tier probe (Three.js r184 WebGPUBackend does NOT expose `backend.adapter`,
+ * so read `backend.device.adapterInfo` AND fall back to `navigator.gpu.requestAdapter()`).
+ * Defaults safely to `'mid'` when adapter info is unavailable instead of assuming a discrete RTX GPU.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function detectWebGpuTierAsync(renderer: any, tvMode: boolean): Promise<{ tier: PerfTier; gpu: string }> {
+  try {
+    const q = new URLSearchParams(location.search).get('tier') ?? localStorage.getItem('apex.tier');
+    if (q === 'low' || q === 'mid' || q === 'high') return { tier: q, gpu: `override:${q}` };
+  } catch { /* ignore storage restrictions */ }
+  if (tvMode) return { tier: 'low', gpu: 'tv-mode' };
+
+  let gpuStr = readWebGpuAdapterString(renderer);
+  if (!gpuStr && typeof navigator !== 'undefined' && 'gpu' in navigator) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ad = await (navigator as any).gpu?.requestAdapter?.({ powerPreference: 'high-performance' });
+      const info = ad?.info as { description?: string; vendor?: string; architecture?: string; device?: string } | undefined;
+      if (info) {
+        gpuStr = `${info.description ?? ''} ${info.vendor ?? ''} ${info.architecture ?? ''} ${info.device ?? ''}`.trim();
+      }
+    } catch { /* ignore */ }
+  }
+  const tier = classifyGpuTierString(gpuStr) ?? 'mid';
+  return { tier, gpu: gpuStr || 'unknown-webgpu (default mid)' };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function detectInitialTier(renderer: THREE.WebGLRenderer | any, tvMode: boolean): PerfTier {
   try {
     const q = new URLSearchParams(location.search).get('tier') ?? localStorage.getItem('apex.tier');
     if (q === 'low' || q === 'mid' || q === 'high') return q;
   } catch { /* ignore storage restrictions */ }
   if (tvMode) return 'low';
+  if (renderer?.isWebGPURenderer) {
+    try {
+      const classified = classifyGpuTierString(readWebGpuAdapterString(renderer));
+      if (classified) return classified;
+    } catch { /* ignore */ }
+    // Safe default before async adapterInfo probe finishes: never blind-enable RTX-class MRT+SSR+GTAO+Bloom on iGPUs!
+    return 'mid';
+  }
   try {
     const gl = renderer.getContext();
     const ext = gl.getExtension('WEBGL_debug_renderer_info');
     if (ext) {
       const rStr = String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) ?? '').toLowerCase();
-      if (/swiftshader|llvmpipe|softpipe|microsoft basic/.test(rStr)) return 'low';
-      if (/\b(uhd|hd graphics|iris|vega|mali|adreno|powervr)\b/.test(rStr)) return 'mid';
-      if (/\b(rtx|gtx|radeon rx|arc|apple m[1-9]|geforce)\b/.test(rStr)) return 'high';
+      const classified = classifyGpuTierString(rStr);
+      if (classified) return classified;
     }
   } catch { /* ignore gl probe failure */ }
   return (navigator.hardwareConcurrency || 4) <= 4 ? 'mid' : 'high';
@@ -178,12 +232,43 @@ export class SpatialCuller {
     const box = new THREE.Box3();
     const sphere = new THREE.Sphere();
 
+    const m4 = new THREE.Matrix4();
+    const instSphere = new THREE.Sphere();
+    const isDynamicTree = (node: THREE.Object3D): boolean => {
+      let cur: THREE.Object3D | null = node;
+      while (cur) {
+        if (cur.userData?.dynamicInstanced) return true;
+        cur = cur.parent;
+      }
+      return false;
+    };
+
     for (const root of groups) {
       root.updateMatrixWorld(true);
       root.traverse((obj) => {
-        if ((obj as THREE.Mesh).isMesh && !(obj as THREE.InstancedMesh).isInstancedMesh) {
-          const m = obj as THREE.Mesh;
-          if (!m.geometry) return;
+        const m = obj as THREE.Mesh;
+        if (!m.isMesh || !m.geometry || (m as unknown as { isBatchedMesh?: boolean }).isBatchedMesh) return;
+        const isInst = (m as unknown as THREE.InstancedMesh).isInstancedMesh === true;
+        if (isInst) {
+          if (isDynamicTree(m)) return;
+          const im = m as unknown as THREE.InstancedMesh;
+          if (!im.count) return;
+          if (!im.geometry.boundingSphere) im.geometry.computeBoundingSphere();
+          const baseBs = im.geometry.boundingSphere;
+          if (!baseBs) return;
+          box.makeEmpty();
+          // Sample up to 512 instances evenly to bound static InstancedMeshes in O(1) without blocking boot
+          const stride = Math.max(1, Math.floor(im.count / 512));
+          for (let i = 0; i < im.count; i += stride) {
+            im.getMatrixAt(i, m4);
+            m4.premultiply(im.matrixWorld);
+            instSphere.copy(baseBs).applyMatrix4(m4);
+            box.expandByPoint(instSphere.center);
+          }
+          if (box.isEmpty()) return;
+          box.getBoundingSphere(sphere);
+          sphere.radius += baseBs.radius + 4;
+        } else {
           if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
           const bs = m.geometry.boundingSphere;
           if (!bs) {
@@ -192,34 +277,35 @@ export class SpatialCuller {
           } else {
             sphere.copy(bs).applyMatrix4(m.matrixWorld);
           }
-          const entry: CullEntry = {
-            obj: m,
-            center: sphere.center.clone(),
-            radius: Math.max(2, sphere.radius),
-            baseCastShadow: m.castShadow,
-          };
-          this.entries.push(entry);
-          // an object much bigger than a chunk (a 13 km scenic road, a long bridge) is not bucketed by its centre: from 2.6 km off its centre the whole
-          // chunk went dark, so the road vanished under the car. Big objects get the per-object distance + frustum test every frame instead.
-          if (entry.radius > this.chunkSize * 2) { this.big.push(entry); return; }
-          const cx = Math.floor(entry.center.x / this.chunkSize);
-          const cz = Math.floor(entry.center.z / this.chunkSize);
-          const key = `${cx},${cz}`;
-          let bucket = map.get(key);
-          if (!bucket) {
-            bucket = { cx, cz, list: [], active: true };
-            map.set(key, bucket);
-            this.buckets.push(bucket);
-          }
-          bucket.list.push(entry);
         }
+        const entry: CullEntry = {
+          obj: m,
+          center: sphere.center.clone(),
+          radius: Math.max(2, sphere.radius),
+          baseCastShadow: m.castShadow,
+        };
+        this.entries.push(entry);
+        // an object much bigger than a chunk (a 13 km scenic road, a long bridge) is not bucketed by its centre: from 2.6 km off its centre the whole
+        // chunk went dark, so the road vanished under the car. Big objects get the per-object distance + frustum test every frame instead.
+        if (entry.radius > this.chunkSize * 2) { this.big.push(entry); return; }
+        const cx = Math.floor(entry.center.x / this.chunkSize);
+        const cz = Math.floor(entry.center.z / this.chunkSize);
+        const key = `${cx},${cz}`;
+        let bucket = map.get(key);
+        if (!bucket) {
+          bucket = { cx, cz, list: [], active: true };
+          map.set(key, bucket);
+          this.buckets.push(bucket);
+        }
+        bucket.list.push(entry);
       });
     }
   }
 
   update(
     camera: THREE.Camera,
-    renderer: THREE.WebGLRenderer,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    renderer: THREE.WebGLRenderer | any,
     isMapMode: boolean,
     maxViewDist = 2600,
     maxShadowDist = 240,
@@ -234,10 +320,18 @@ export class SpatialCuller {
       const shadD2 = maxShadowDist * maxShadowDist;
 
       if (isMapMode) {
+        // 60 FPS Map Overview Mode: at 1–5 km map altitude, hide all sub-pixel street/curb/fence/yard/house micro-meshes (<38 m radius)
+        // and frustum-cull macro landmarks (bridges, piers, runways, major highways) so draw calls stay lean (<150 draws instead of 5,300!).
         for (let b = 0; b < this.buckets.length; b++) this.buckets[b].active = true;
         for (let i = 0; i < this.entries.length; i++) {
           const e = this.entries[i];
-          e.obj.visible = true;
+          if (e.radius < 38) {
+            e.obj.visible = false;
+          } else {
+            this.tmpSphere.center.copy(e.center);
+            this.tmpSphere.radius = e.radius;
+            e.obj.visible = this.frustum.intersectsSphere(this.tmpSphere);
+          }
           if (e.baseCastShadow) e.obj.castShadow = false;
         }
       } else {
@@ -289,12 +383,14 @@ export class SpatialCuller {
       }
     }
 
-    // 2. Throttled Shadow Map refresh (cuts shadow-pass GPU cost by 50%–75%)
-    this.shadowFrameToggle = (this.shadowFrameToggle + 1) % Math.max(1, shadowStride);
-    const camMovedSq = this.lastShadowCamPos.distanceToSquared(camera.position);
-    if (this.shadowFrameToggle === 0 || (shadowStride <= 2 && camMovedSq > 25.0)) {
-      renderer.shadowMap.needsUpdate = true;
-      this.lastShadowCamPos.copy(camera.position);
+    // 2. Throttled Shadow Map refresh (never re-render shadow maps during 60 FPS Map Overview mode!)
+    if (!isMapMode) {
+      this.shadowFrameToggle = (this.shadowFrameToggle + 1) % Math.max(1, shadowStride);
+      const camMovedSq = this.lastShadowCamPos.distanceToSquared(camera.position);
+      if (this.shadowFrameToggle === 0 || (shadowStride <= 2 && camMovedSq > 25.0)) {
+        renderer.shadowMap.needsUpdate = true;
+        this.lastShadowCamPos.copy(camera.position);
+      }
     }
   }
 }

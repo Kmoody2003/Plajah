@@ -2,7 +2,7 @@
 // realtime server (services/realtime/server.ts: tick rate, seats, referee). Turn-based games live in
 // services/gamerNet/registry.ts; nothing here is refereed move by move.
 
-import { RaceReferee, type Referee } from './referee';
+import { OpenWorldReferee, RaceReferee, type Referee } from './referee';
 
 export interface RealtimeGameDef {
   id: string;
@@ -24,13 +24,14 @@ export interface RealtimeGameDef {
 }
 
 export const APEX_RACE = 'apex-race';
+export const APEX_WORLD = 'apex-world';
 
 const apexRace: RealtimeGameDef = {
   id: APEX_RACE,
   title: 'Plajah Motorsport Apex · Ironport Grand Circuit',
   tickHz: 20,
   minPlayers: 2,
-  maxPlayers: 8,
+  maxPlayers: 12,
   countdownMs: 4000,
   reconnectGraceMs: 20_000,
   interestRadius: 0,
@@ -39,6 +40,24 @@ const apexRace: RealtimeGameDef = {
   referee: () => new RaceReferee({ laps: 3, maxProgressPerSec: 0.05, maxSpeedMps: 140, finishGraceMs: 45_000, maxRaceMs: 20 * 60_000 }),
 };
 
-export const REALTIME_GAMES: Readonly<Record<string, RealtimeGameDef>> = { [apexRace.id]: apexRace };
+// Forza Horizon-style persistent open-world shard: up to 32 simultaneous drivers on the 150 km² Ironport map,
+// with 950 m spatial interest-radius filtering so bandwidth stays tiny regardless of total region population!
+const apexWorld: RealtimeGameDef = {
+  id: APEX_WORLD,
+  title: 'Plajah Motorsport Apex · Ironport Open World',
+  tickHz: 15,
+  minPlayers: 1,
+  maxPlayers: 32,
+  countdownMs: 0,
+  reconnectGraceMs: 30_000,
+  interestRadius: 950,
+  maxStateBytes: 512,
+  referee: () => new OpenWorldReferee(),
+};
+
+export const REALTIME_GAMES: Readonly<Record<string, RealtimeGameDef>> = {
+  [apexRace.id]: apexRace,
+  [apexWorld.id]: apexWorld,
+};
 export const realtimeGame = (id: unknown): RealtimeGameDef | null =>
   typeof id === 'string' && Object.prototype.hasOwnProperty.call(REALTIME_GAMES, id) ? REALTIME_GAMES[id] : null;

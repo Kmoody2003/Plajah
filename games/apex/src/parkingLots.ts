@@ -1,20 +1,19 @@
 import * as THREE from 'three';
+import { loadCarLibraryModels, populateChunkedLibraryCars } from './carLibraryInstancer';
 
 /**
  * Parking lots (region/parking_lots.json, made by tools/access_and_parking.py): [x, z, width, depth, rotation]. Each is a dark asphalt pad with white stall lines and parked cars, built from
  * three merged meshes however many lots there are. Rotation is the building's (its front is the local +z axis).
  */
-export function buildParkingLots(lots: number[][], ground: (x: number, z: number) => number): { group: THREE.Group; near: (x: number, z: number, r: number) => boolean } {
+export function buildParkingLots(lots: number[][], ground: (x: number, z: number) => number): { group: THREE.Group; near: (x: number, z: number, r: number) => boolean; cars: Array<{ x: number; z: number; yaw: number }> } {
   const group = new THREE.Group(); group.name = 'parking-lots';
   let s = 4242; const r = (): number => (s = (s * 16807) % 2147483647) / 2147483647;
   const asphalt = new THREE.MeshStandardMaterial({ color: 0x2c2d30, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
   const line = new THREE.MeshStandardMaterial({ color: 0xe6e6e0, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 });
   const pos: number[] = [], idx: number[] = [];
   const lpos: number[] = [], lidx: number[] = [];
-  const carGeo = new THREE.BoxGeometry(1.8, 1.35, 4.3); carGeo.translate(0, 0.75, 0);
-  const cars = new THREE.InstancedMesh(carGeo, new THREE.MeshStandardMaterial({ roughness: 0.45, metalness: 0.45 }), 4000);
   const palette = [0xd9d9d6, 0x1f1f22, 0x8a8e93, 0x9b1d20, 0x1f3e73, 0x3a5a40, 0xc9a24a, 0x6b4a2f];
-  let nc = 0; const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sc = new THREE.Vector3(1, 1, 1), p = new THREE.Vector3(), col = new THREE.Color();
+  const carEntries: Array<{ x: number; y: number; z: number; yaw: number; color: number; scaleZ?: number }> = [];
   const grid = new Map<number, number[]>();
   for (const [x, z, w, d, rot] of lots) {
     const c = Math.cos(rot), sn = Math.sin(rot);
@@ -34,11 +33,16 @@ export function buildParkingLots(lots: number[][], ground: (x: number, z: number
         const k0 = lpos.length / 3, nx = 0.06 * c, nz = -0.06 * sn;
         lpos.push(lx0 - nx, y + 0.02, lz0 - nz, lx0 + nx, y + 0.02, lz0 + nz, lx1 - nx, y + 0.02, lz1 - nz, lx1 + nx, y + 0.02, lz1 + nz);
         lidx.push(k0, k0 + 2, k0 + 1, k0 + 1, k0 + 2, k0 + 3);
-        if (r() < 0.55 && nc < 4000) {
+        if (r() < 0.55 && carEntries.length < 4000) {
           const [cx, cz] = to(a + 1.3, bc);
-          q.setFromAxisAngle(up, rot + Math.PI / 2 * 0 + (r() < 0.5 ? 0 : 0));                           // cars park nose-in, long axis along the depth
-          p.set(cx, y, cz); sc.set(1, 1, Math.min(1, rowDepth * 0.7 / 4.3));
-          cars.setMatrixAt(nc, m4.compose(p, q, sc)); cars.setColorAt(nc, col.setHex(palette[Math.floor(r() * palette.length)])); nc++;
+          carEntries.push({
+            x: cx,
+            y: y + 0.02,
+            z: cz,
+            yaw: rot + (r() < 0.35 ? Math.PI : 0),
+            color: palette[Math.floor(r() * palette.length)],
+            scaleZ: Math.min(1, (rowDepth * 0.85) / 4.6),
+          });
         }
       }
     }
@@ -48,11 +52,16 @@ export function buildParkingLots(lots: number[][], ground: (x: number, z: number
   const pad = new THREE.Mesh(g, asphalt); pad.receiveShadow = true; group.add(pad);
   const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lpos, 3)); lg.setIndex(lidx); lg.computeVertexNormals();
   group.add(new THREE.Mesh(lg, line));
-  cars.count = nc; cars.castShadow = false; group.add(cars);
+  const lotCarsGroup = new THREE.Group();
+  lotCarsGroup.name = 'parking-lot-library-cars';
+  group.add(lotCarsGroup);
+  void loadCarLibraryModels().then((models) => {
+    populateChunkedLibraryCars(lotCarsGroup, carEntries, models, false);
+  });
   const near = (x: number, z: number, rr: number): boolean => {
     const a = grid.get(Math.floor(x / 200) * 8192 + Math.floor(z / 200)); if (!a) return false;
     for (let i = 0; i < a.length; i += 3) if (Math.hypot(a[i] - x, a[i + 1] - z) < a[i + 2] + rr) return true;
     return false;
   };
-  return { group, near };
+  return { group, near, cars: carEntries.map((c) => ({ x: c.x, z: c.z, yaw: c.yaw })) };
 }

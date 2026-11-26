@@ -24,6 +24,7 @@ export interface RacerEntry {
   position: number;
   gapToLeaderSec: number;
   finished: boolean;
+  brakeAmt: number;
 }
 
 interface SplineSample {
@@ -177,6 +178,7 @@ export class CompetitionEngine {
         position: i + 1,
         gapToLeaderSec: i * 0.25,
         finished: false,
+        brakeAmt: 1,
       });
     }
 
@@ -229,11 +231,13 @@ export class CompetitionEngine {
         entry.state.lateralSpeed = 0;
         entry.state.speedMps = 0;
         entry.state.gear = 0;
+        entry.brakeAmt = 1;
         entry.state.pos.y = terrainHeight(entry.state.pos.x, entry.state.pos.z);
         continue;
       }
 
       const input = this.computeAIInput(entry, i, safeDt);
+      entry.brakeAmt = input.brake;
       stepCarPhysics(entry.state, entry.spec, input, safeDt, terrainHeight, surfaceAt, colliders);
 
       // Slipstream draft bonus when within 14m directly behind another car

@@ -100,23 +100,48 @@ export function buildReferenceDressing(o: {
   };
   const updates: ((t: number) => void)[] = [];
 
-  // ---- 5: hedgerows along Millbrook Road, and wind turbines on the high ground behind the farm ----
+  // ---- 5: hedgerows along Millbrook Road ONLY (strictly clear of all crossing roads/intersections & upgraded to botanical leafy foliage!) ----
   {
-    const mill = runNear(MILLBROOK[3].x, MILLBROOK[3].z);
+    // Match the true Millbrook Road segment near Millbrook Farm (-1050, -1600), NEVER the 15 km coastal highway!
+    const mill = (() => {
+      let best: { line: Pt[]; ys: number[]; half: number } | null = null;
+      let bd = 45;
+      for (const r of o.paved) {
+        if (r.half > 5.0 || r.line.length > 260) continue; // exclude multi-lane highways & coastal highway
+        for (let i = 0; i < r.line.length; i += 2) {
+          const d = Math.hypot(r.line[i].x - MILLBROOK[3].x, r.line[i].z - MILLBROOK[3].z);
+          if (d < bd) { bd = d; best = r; }
+        }
+      }
+      return best;
+    })();
     const hollow = HOLLOW;
     const hedges: { x: number; y: number; z: number; ry: number; sx: number; sy: number; c: number }[] = [];
+    const nearAnyOtherRoad = (x: number, z: number, skipRun: { line: Pt[]; half: number }): boolean => {
+      for (const r of o.paved) {
+        if (r === skipRun) continue;
+        if (segDist(r.line, x, z) < r.half + 7.5) return true;
+      }
+      return false;
+    };
     if (mill) {
-      const L = mill.line, off = mill.half + 5.5;
-      for (const side of [-1, 1]) for (let i = 1; i < L.length - 1; i++) {
+      const L = mill.line, off = mill.half + 5.8;
+      for (const side of [-1, 1]) for (let i = 2; i < L.length - 2; i += 2) {
         const a = L[i - 1], b = L[i + 1], dx = b.x - a.x, dz = b.z - a.z, l = Math.hypot(dx, dz) || 1, nx = -dz / l * side, nz = dx / l * side;
         const x = L[i].x + nx * off, z = L[i].z + nz * off;
-        if (Math.hypot(x - BRIDGE.at.x, z - BRIDGE.at.z) < 70 || o.water(x, z) || segDist(hollow, x, z) < 12 || o.building(x, z, 3) || o.course?.(x, z, 3)) continue;
+        // Keep strictly within Millbrook Farm zone and completely clear of ALL crossing roads, intersections, driveways & highways!
+        if (Math.hypot(x + 1050, z + 1600) > 540) continue;
+        if (Math.hypot(x - BRIDGE.at.x, z - BRIDGE.at.z) < 70 || o.water(x, z) || segDist(hollow, x, z) < 14 || o.building(x, z, 4) || o.course?.(x, z, 5)) continue;
+        if (o.roadDist(x, z) < 12.5 || nearAnyOtherRoad(x, z, mill) || near(o.mouths, x, z, 8)) continue;
         if (segDist(L, x, z) < off - 0.5) continue;                                        // the inside of a tight bend: the hedge would cross the road
-        if (rnd() < 0.08) continue;                                                         // field gates
-        hedges.push({ x, y: o.ground(x, z) + 0.75, z, ry: Math.atan2(dx, dz), sx: 1.1 + rnd() * 0.5, sy: 1.0 + rnd() * 0.5, c: [0x2f4a22, 0x35552a, 0x2a4220][Math.floor(rnd() * 3)] });
+        if (rnd() < 0.14) continue;                                                         // field gates & natural openings
+        hedges.push({ x, y: o.ground(x, z) + 0.05, z, ry: Math.atan2(dx, dz) + (rnd() - 0.5) * 0.4, sx: 1.05 + rnd() * 0.45, sy: 0.95 + rnd() * 0.45, c: [0x587a3b, 0x648842, 0x4c6e34][Math.floor(rnd() * 3)] });
       }
     }
-    inst(hedgeGeometry(), new THREE.MeshStandardMaterial({ roughness: 0.95 }), hedges, 'hedgerows');
+    const hedgeTex = new THREE.TextureLoader().load('/games/ravencrest/assets/trees/oak_color.png');
+    hedgeTex.colorSpace = THREE.SRGBColorSpace;
+    hedgeTex.anisotropy = 4;
+    inst(hedgeGeometry(), new THREE.MeshStandardMaterial({ map: hedgeTex, alphaTest: 0.34, side: THREE.DoubleSide, roughness: 0.82 }), hedges, 'hedgerows');
     // turbines: the highest ground 450-1150 m round the farm road, 160 m apart, clear of roads and water
     const cand: { x: number; z: number; h: number }[] = [];
     for (let x = -2600; x <= -200; x += 40) for (let z = -3200; z <= -800; z += 40) {
@@ -346,22 +371,26 @@ export function buildReferenceDressing(o: {
   return { group, update: (t) => { for (const u of updates) u(t); }, counts };
 }
 
-/** a hedge section 1 m wide, 1.5 m high, 4.6 m long: overlapping lumpy clumps instead of a box (each vertex pushed by a hash of where it is, so the clumps stay closed) */
+/** Natural multi-card leafy botanical hedge cluster (replaces flat polyhedron icosahedron blobs!). */
 function hedgeGeometry(): THREE.BufferGeometry {
   const parts: THREE.BufferGeometry[] = [];
-  const clumps: [number, number, number, number, number, number][] = [                       // x, y, z, rx, ry, rz
-    [0, -0.1, -1.7, 0.55, 0.7, 0.95], [0.05, 0.05, -0.55, 0.6, 0.78, 0.9], [-0.05, 0, 0.6, 0.58, 0.75, 0.95], [0, -0.05, 1.7, 0.55, 0.7, 0.9],
-    [0, 0.45, -1.1, 0.45, 0.4, 0.8], [0, 0.5, 1.1, 0.45, 0.38, 0.8], [0, -0.55, 0, 0.6, 0.25, 2.3],
+  const cards: [number, number, number, number, number, number, number][] = [
+    [0, 0.72, -1.4, 1.4, 1.45, 0.15, 0.25],
+    [0.12, 0.80, -0.45, 1.5, 1.6, 1.35, -0.18],
+    [-0.1, 0.78, 0.55, 1.45, 1.55, 0.65, 0.22],
+    [0.05, 0.70, 1.45, 1.35, 1.4, 1.95, -0.20],
+    [0, 0.92, 0, 1.85, 1.4, Math.PI * 0.5, 0.32],
+    [0.15, 0.86, -0.8, 1.5, 1.35, 2.4, -0.25],
+    [-0.14, 0.86, 0.85, 1.5, 1.35, 0.95, 0.24],
   ];
-  for (const [x, y, z, rx, ry, rz] of clumps) { const g = new THREE.IcosahedronGeometry(1, 2); g.scale(rx, ry, rz); g.translate(x, y, z); g.deleteAttribute('uv'); parts.push(g); }
-  const g = mergeGeometries(parts, false)!;
-  const pos = g.attributes.position as THREE.BufferAttribute;
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
-    const h = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719) * 43758.5453, n = (h - Math.floor(h)) - 0.5;
-    const f = 1 + n * 0.22;
-    pos.setXYZ(i, x * f, y + (y > 0 ? n * 0.12 : 0), z + n * 0.08);
+  for (const [x, y, z, w, h, ry, tilt] of cards) {
+    const p = new THREE.PlaneGeometry(w, h, 1, 1);
+    p.rotateX(tilt);
+    p.rotateY(ry);
+    p.translate(x, y, z);
+    parts.push(p);
   }
+  const g = mergeGeometries(parts, false)!;
   g.computeVertexNormals();
   return g;
 }

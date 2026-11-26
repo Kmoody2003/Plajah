@@ -8,7 +8,7 @@ import type { Garage } from './garage/progress';
 import { TUNE_PRESETS, TUNE_RANGES, type Tune } from './garage/tuning';
 
 export type Tab = 'showroom' | 'garage' | 'upgrades' | 'tune' | 'goals';
-export interface UiHooks { show(def: CarDef, owned: OwnedCar | null): void; spin?(on: boolean): void }
+export interface UiHooks { show(def: CarDef, owned: OwnedCar | null): void; spin?(on: boolean): void; rev?(def: CarDef, owned: OwnedCar | null): void }
 
 const TAB_LABEL: Record<Tab, string> = { showroom: 'Showroom', garage: 'My garage', upgrades: 'Upgrades', tune: 'Tuning', goals: 'Goals' };
 const BARS: { k: keyof Ratings; label: string }[] = [{ k: 'speed', label: 'Top speed' }, { k: 'acceleration', label: 'Acceleration' }, { k: 'launch', label: 'Launch' }, { k: 'handling', label: 'Handling' }, { k: 'braking', label: 'Braking' }, { k: 'offroad', label: 'Off-road' }];
@@ -89,6 +89,7 @@ export class GarageUi {
       case 'tune-reset': if (this.selUid) { g.resetTune(this.selUid); this.render(); } break;
       case 'starter': { const r = g.claimStarter(id); if (r.ok) { this.els.modal.style.display = 'none'; this.selUid = r.car.uid; this.selDef = id; this.hooks.show(CAR_BY_ID[id], r.car); this.render(); this.toast(`Welcome to the garage. The ${esc(CAR_BY_ID[id].name)} is yours.`, 'ok'); } break; }
       case 'close-modal': this.els.modal.style.display = 'none'; break;
+      case 'rev-engine': { const cur = this.current(); this.hooks.rev?.(cur.def, cur.car); break; }
       case 'export': { const b = new Blob([g.exportJson()], { type: 'application/json' }); const u = URL.createObjectURL(b); const a2 = document.createElement('a'); a2.href = u; a2.download = 'apex-elohim-garage.json'; a2.click(); setTimeout(() => URL.revokeObjectURL(u), 2000); break; }
       case 'import': { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'application/json'; inp.onchange = async () => { const f = inp.files?.[0]; if (!f) return; const r = g.importJson(await f.text()); say(r, 'Garage restored.'); this.selUid = g.active?.uid ?? null; this.render(); }; inp.click(); break; }
     }
@@ -274,6 +275,7 @@ export class GarageUi {
       <p class="sum">${esc(def.summary)}</p>${body}
       <div class="bars">${BARS.map((b) => bar(b.k, b.label)).join('')}</div>
       <div class="specs">${spec}</div>
+      <div class="btnrow" style="margin-top:8px"><button class="btn" data-act="rev-engine" type="button">🔊 Rev Engine</button></div>
       <div class="act">${action}</div>`;
   }
 

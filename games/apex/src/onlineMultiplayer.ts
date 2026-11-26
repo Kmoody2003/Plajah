@@ -25,6 +25,7 @@ import { RealtimeClient, type RtEvent, type RtStanding } from '../../../services
 import type { GameVoiceSession, GameVoiceState } from '../../../services/gamerNet/gameVoiceCore';
 
 export const APEX_RACE_GAME = 'apex-race';
+export const APEX_WORLD_GAME = 'apex-world';
 export type ServerRaceJoin = 'quick' | 'create' | { code: string };
 export interface ServerRaceOpts {
   apiBase: string;
@@ -56,7 +57,7 @@ export function resolveGamerToken(timeoutMs = 3000): Promise<string | null> {
 export type OnlineMode = 'offline' | 'persistent_world' | 'online_race';
 
 export interface RemoteDriverPacket {
-  type: 'state' | 'leave' | 'race_invite' | 'pursuit_apb';
+  type: 'state' | 'leave' | 'race_invite' | 'pursuit_apb' | 'chat';
   peerId: string;
   driverName: string;
   carId: string;
@@ -92,13 +93,17 @@ export interface RemoteDriver {
   vel: THREE.Vector3;
   yaw: number;
   targetYaw: number;
+  steerAngle: number;
   speedMps: number;
+  isDrifting: boolean;
+  isBraking: boolean;
   onFoot: boolean;
   pursuitRole?: PursuitRole;
   lap: number;
   splineT: number;
   lastSeenMs: number;
   mesh?: THREE.Group;
+  heroRequested?: boolean;
 }
 
 export interface PersistentProfile {
@@ -156,9 +161,27 @@ export class OnlineSessionManager {
   private sendAcc = 0;
   private readonly sendInterval = 0.05; // 20 Hz state sync
   private onEvent?: (msg: string) => void;
+  onChat?: (msg: { id: string; senderId: string; sender: string; channel: 'all' | 'lobby' | 'proximity'; text: string; at: number; quick?: string }) => void;
 
   constructor(onEvent?: (msg: string) => void) {
     this.onEvent = onEvent;
+  }
+
+  sendChatMessage(msg: { id: string; senderId: string; sender: string; channel: 'all' | 'lobby' | 'proximity'; text: string; at: number; quick?: string }): void {
+    if (this.mode === 'offline') return;
+    this.broadcastPacket({
+      type: 'chat',
+      peerId: this.peerId,
+      driverName: msg.sender,
+      carId: 'kestrel',
+      paintHex: 0xc24d12,
+      mode: this.mode,
+      roomId: this.roomId,
+      x: 0, y: 0, z: 0, vx: 0, vz: 0, yaw: 0, steerAngle: 0, speedMps: 0,
+      isDrifting: false, isBraking: false,
+      ts: msg.at,
+      payload: JSON.stringify(msg),
+    });
   }
 
   connectPersistentWorld(wsUrl?: string): void {
@@ -175,6 +198,54 @@ export class OnlineSessionManager {
     this.roomId = `race_${circuitId}`;
     this.openTransport(wsUrl);
     this.onEvent?.(`ONLINE RACE LOBBY (${circuitId}) · ${this.profile.driverName}`);
+  }
+
+  /** Online open-world shard through the Plajah Realtime server (32-player 950 m spatial interest-radius cruising). */
+  async joinServerOpenWorld(opts: ServerRaceOpts): Promise<void> {
+    this.disconnect();
+    this.mode = 'persistent_world';
+    this.roomId = 'open-world-na-1';
+    this.standings = [];
+    const rt = new RealtimeClient({ apiBase: opts.apiBase, getToken: opts.getToken, game: APEX_WORLD_GAME, onEvent: e => { this.onRt(e); opts.onRt?.(e); } });
+    this.rt = rt;
+    try {
+      const matchId = opts.how === 'quick' ? await rt.quickMatch()
+        : opts.how === 'create' ? (await rt.createPrivate()).matchId
+        : await rt.joinCode(opts.how.code);
+      if (this.rt !== rt) return;
+      await rt.connect(matchId);
+      rt.setReady(true);
+      this.onEvent?.(`ONLINE OPEN WORLD · ${this.profile.driverName}`);
+    } catch (e) {
+      if (this.rt === rt) { this.rt = null; this.mode = 'offline'; }
+      throw e;
+    }
+  }
+
+  /** Broadcast a convoy/race invite to all drivers in the current open-world session. */
+  sendRaceInvite(circuitId: string, roomCode?: string): void {
+    if (this.mode === 'offline') return;
+    this.broadcastPacket({
+      type: 'race_invite',
+      peerId: this.peerId,
+      driverName: this.profile.driverName,
+      carId: 'kestrel',
+      paintHex: 0xc24d12,
+      mode: this.mode,
+      roomId: this.roomId,
+      x: 0, y: 0, z: 0, vx: 0, vz: 0, yaw: 0, steerAngle: 0, speedMps: 0,
+      isDrifting: false, isBraking: false,
+      ts: Date.now(),
+      payload: JSON.stringify({ circuitId, roomCode: roomCode ?? '' }),
+    });
+  }
+
+  /** Update driver callsign and persist to localStorage. */
+  setDriverName(name: string): void {
+    const clean = name.trim().slice(0, 20);
+    if (!clean) return;
+    this.profile.driverName = clean;
+    savePersistentProfile(this.profile);
   }
 
   /** Online race through the Plajah Realtime server: queue / room code → ticket → room. Resolves once in the lobby. */
@@ -261,6 +332,7 @@ export class OnlineSessionManager {
     this.channel = null;
     this.ws?.close();
     this.ws = null;
+    for (const r of this.remotes.values()) r.mesh?.parent?.remove(r.mesh);
     this.remotes.clear();
     this.mode = 'offline';
   }
@@ -296,11 +368,23 @@ export class OnlineSessionManager {
   private handlePacket(pkt: RemoteDriverPacket): void {
     if (!pkt || pkt.peerId === this.peerId || pkt.roomId !== this.roomId) return;
     if (pkt.type === 'leave') {
+      const dead = this.remotes.get(pkt.peerId);
+      if (dead?.mesh) dead.mesh.parent?.remove(dead.mesh);
       this.remotes.delete(pkt.peerId);
+      return;
+    }
+    if (pkt.type === 'race_invite' && pkt.payload) {
+      this.onEvent?.(`CONVOY INVITE FROM ${pkt.driverName}`);
       return;
     }
     if (pkt.type === 'pursuit_apb' && pkt.payload) {
       this.onEvent?.(pkt.payload);
+      return;
+    }
+    if (pkt.type === 'chat' && pkt.payload) {
+      try {
+        this.onChat?.(JSON.parse(pkt.payload));
+      } catch { /* ignore malformed chat */ }
       return;
     }
 
@@ -317,7 +401,10 @@ export class OnlineSessionManager {
         vel: new THREE.Vector3(pkt.vx, 0, pkt.vz),
         yaw: pkt.yaw,
         targetYaw: pkt.yaw,
+        steerAngle: pkt.steerAngle ?? 0,
         speedMps: pkt.speedMps,
+        isDrifting: Boolean(pkt.isDrifting),
+        isBraking: Boolean(pkt.isBraking),
         onFoot: Boolean(pkt.onFoot),
         pursuitRole: pkt.pursuitRole,
         lap: pkt.lap ?? 1,
@@ -330,7 +417,10 @@ export class OnlineSessionManager {
       r.targetPos.set(pkt.x, pkt.y, pkt.z);
       r.vel.set(pkt.vx, 0, pkt.vz);
       r.targetYaw = pkt.yaw;
+      r.steerAngle = pkt.steerAngle ?? r.steerAngle;
       r.speedMps = pkt.speedMps;
+      r.isDrifting = Boolean(pkt.isDrifting);
+      r.isBraking = Boolean(pkt.isBraking);
       r.onFoot = Boolean(pkt.onFoot);
       r.pursuitRole = pkt.pursuitRole;
       r.lap = pkt.lap ?? r.lap;
@@ -401,6 +491,7 @@ export class OnlineSessionManager {
     const alpha = 1 - Math.exp(-12 * dt);
     for (const [id, r] of this.remotes.entries()) {
       if (now - r.lastSeenMs > 6000) {
+        if (r.mesh) r.mesh.parent?.remove(r.mesh);
         this.remotes.delete(id);
         continue;
       }

@@ -349,11 +349,14 @@ export function stepCarPhysics(
   // ── 5. 4-Corner Spring-Damper-AntiRoll Suspension & Airborne Physics ──
   const halfT = spec.trackWidth * 0.5;
   const halfW = spec.wheelbase * 0.5;
+  // Note: fwd = (sinY, cosY), so (+cosY, -sinY) is LEFT (+X in car-local frame); keep FL/FR/RL/RR aligned with scancar & region.ts!
+  const leftX = rightX;
+  const leftZ = rightZ;
   const cornerCoords: [number, number][] = [
-    [state.pos.x - rightX * halfT + fwdX * halfW, state.pos.z - rightZ * halfT + fwdZ * halfW], // FL
-    [state.pos.x + rightX * halfT + fwdX * halfW, state.pos.z + rightZ * halfT + fwdZ * halfW], // FR
-    [state.pos.x - rightX * halfT - fwdX * halfW, state.pos.z - rightZ * halfT - fwdZ * halfW], // RL
-    [state.pos.x + rightX * halfT - fwdX * halfW, state.pos.z + rightZ * halfT - fwdZ * halfW], // RR
+    [state.pos.x + leftX * halfT + fwdX * halfW, state.pos.z + leftZ * halfT + fwdZ * halfW], // FL (+X, +Z)
+    [state.pos.x - leftX * halfT + fwdX * halfW, state.pos.z - leftZ * halfT + fwdZ * halfW], // FR (-X, +Z)
+    [state.pos.x + leftX * halfT - fwdX * halfW, state.pos.z + leftZ * halfT - fwdZ * halfW], // RL (+X, -Z)
+    [state.pos.x - leftX * halfT - fwdX * halfW, state.pos.z - leftZ * halfT - fwdZ * halfW], // RR (-X, -Z)
   ];
 
   const cornerGround: [number, number, number, number] = [
@@ -362,7 +365,10 @@ export function stepCarPhysics(
     terrainHeight(cornerCoords[2][0], cornerCoords[2][1]),
     terrainHeight(cornerCoords[3][0], cornerCoords[3][1]),
   ];
-  const avgGround = (cornerGround[0] + cornerGround[1] + cornerGround[2] + cornerGround[3]) * 0.25;
+  const centerGround = terrainHeight(state.pos.x, state.pos.z);
+  const avgWheelGround = (cornerGround[0] + cornerGround[1] + cornerGround[2] + cornerGround[3]) * 0.25;
+  // Support plane never drops below a convex crest peak underneath the belly so off-road hilltops never swallow the chassis
+  const avgGround = Math.max(avgWheelGround, centerGround - 0.04);
   const maxT = spec.suspension.travelM;
 
   // Check airborne state & vertical integration
@@ -371,64 +377,72 @@ export function stepCarPhysics(
   state.pos.y += state.verticalVel * safeDt;
 
   if (state.pos.y <= avgGround) {
-    if (wasAirborne && state.verticalVel < -1.6) {
-      state.suspensionImpact = Math.max(state.suspensionImpact, Math.min(1, (-state.verticalVel - 1.2) / 9.0));
+    if (wasAirborne && state.verticalVel < -1.4) {
+      state.suspensionImpact = Math.max(state.suspensionImpact, Math.min(1, (-state.verticalVel - 1.0) / 8.0));
     }
     state.pos.y = avgGround;
     if (state.verticalVel < 0) state.verticalVel = 0;
     state.isAirborne = false;
-  } else if (state.pos.y > avgGround + Math.max(maxT * 0.85, 0.5)) {      // a crest or a drop-off is not a jump: stay planted so the car keeps steering and driving
+  } else if (state.pos.y > avgGround + Math.max(maxT * 0.95, 0.42)) {
     state.isAirborne = true;
   } else {
-    state.pos.y = THREE.MathUtils.lerp(state.pos.y, avgGround, 1 - Math.exp(-26 * safeDt));
+    state.pos.y = THREE.MathUtils.lerp(state.pos.y, avgGround, 1 - Math.exp(-32 * safeDt));
     state.isAirborne = false;
   }
 
   // Longitudinal & lateral weight transfer (Newtons per corner)
   const cgH = spec.cgHeightM ?? (spec.suspension.rideHeightM + 0.36);
   const staticCornerN = (spec.massKg * GRAVITY) * 0.25 + aeroDownforceN * 0.25;
-  const dWLong = ((longAccel * spec.massKg * cgH) / spec.wheelbase) * 0.5;
-  const dWLat = ((latAccel * spec.massKg * cgH) / spec.trackWidth) * 0.5;
+  const dWLong = ((longAccel * spec.massKg * cgH) / spec.wheelbase) * 0.55;
+  const dWLat = ((latAccel * spec.massKg * cgH) / spec.trackWidth) * 0.55;
 
-  // Off-road surface micro-bump excitation
-  const bumpAmp = state.surface === 'asphalt' ? 0 : state.surface === 'grass' ? 0.018 : 0.032;
-  const bumpPhase = state.wheelSpin * 2.3;
+  // Authentic off-road & gravel washboard suspension excitation (per-wheel phase so chassis visibly works over rough ground!)
+  const bumpAmp =
+    state.surface === 'asphalt'
+      ? 0.004
+      : state.surface === 'grass'
+      ? 0.042
+      : state.surface === 'gravel'
+      ? 0.056
+      : 0.048;
+  const bumpPhase = state.wheelSpin * 2.1;
 
   const targetLoads: [number, number, number, number] = [
-    Math.max(0, staticCornerN - dWLong - dWLat), // FL
-    Math.max(0, staticCornerN - dWLong + dWLat), // FR
-    Math.max(0, staticCornerN + dWLong - dWLat), // RL
-    Math.max(0, staticCornerN + dWLong + dWLat), // RR
+    Math.max(0, staticCornerN - dWLong + dWLat), // FL
+    Math.max(0, staticCornerN - dWLong - dWLat), // FR
+    Math.max(0, staticCornerN + dWLong + dWLat), // RL
+    Math.max(0, staticCornerN + dWLong - dWLat), // RR
   ];
 
   // Solve spring-damper per corner with 2 sub-steps
   const subDt = safeDt * 0.5;
   const kSpring = spec.suspension.springRateNm;
   const cDamper = spec.suspension.damperNsM;
-  const antiRollK = kSpring * 0.45 * spec.suspension.antiRollFactor;
+  const antiRollK = kSpring * 0.42 * spec.suspension.antiRollFactor;
 
   for (let sub = 0; sub < 2; sub++) {
     for (let i = 0; i < 4; i++) {
       if (state.isAirborne) {
-        const droop = -maxT * 0.85;
-        state.wheelCompVel[i] = (droop - state.wheelCompression[i]) * 8.0;
-        state.wheelCompression[i] = THREE.MathUtils.lerp(state.wheelCompression[i], droop, 1 - Math.exp(-10 * subDt));
+        const droop = -maxT * 0.88;
+        state.wheelCompVel[i] = (droop - state.wheelCompression[i]) * 9.0;
+        state.wheelCompression[i] = THREE.MathUtils.lerp(state.wheelCompression[i], droop, 1 - Math.exp(-12 * subDt));
         state.wheelLoadN[i] = 0;
         continue;
       }
 
       const groundDelta = cornerGround[i] - avgGround;
       const groundVel = (cornerGround[i] - state.prevCornerGround[i]) / safeDt;
-      if (sub === 0 && Math.abs(groundVel) > 0.45 && state.speedMps > 6) {
-        state.suspensionImpact = Math.max(state.suspensionImpact, Math.min(1, Math.abs(groundVel) / 3.5));
+      if (sub === 0 && Math.abs(groundVel) > 0.35 && state.speedMps > 5) {
+        state.suspensionImpact = Math.max(state.suspensionImpact, Math.min(1, Math.abs(groundVel) / 3.0));
       }
 
-      const surfaceRipple = bumpAmp * Math.sin(bumpPhase + i * 1.7) * Math.min(1, state.speedMps / 12);
+      const speedK = Math.min(1, state.speedMps / 10);
+      const surfaceRipple = bumpAmp * (0.65 * Math.sin(bumpPhase + i * 1.73) + 0.35 * Math.sin(bumpPhase * 2.37 + i * 2.9)) * speedK;
       const oppIdx = i ^ 1; // FL<->FR, RL<->RR
       const arbForce = antiRollK * (state.wheelCompression[oppIdx] - state.wheelCompression[i]);
 
       const targetComp = THREE.MathUtils.clamp(
-        (targetLoads[i] - staticCornerN + arbForce) / kSpring + groundDelta * 0.65 + surfaceRipple,
+        (targetLoads[i] - staticCornerN + arbForce) / kSpring + groundDelta * 0.85 + surfaceRipple,
         -maxT,
         maxT
       );
@@ -436,8 +450,8 @@ export function stepCarPhysics(
       // 2nd-order spring-damper with asymmetric rebound damping (rebound 1.35x stiffer than bump)
       const disp = targetComp - state.wheelCompression[i];
       const dampMult = state.wheelCompVel[i] < 0 ? 1.35 : 1.0;
-      const accel = (disp * (kSpring / (spec.massKg * 0.25)) - state.wheelCompVel[i] * ((cDamper * dampMult) / (spec.massKg * 0.25))) * 0.38;
-      state.wheelCompVel[i] = THREE.MathUtils.clamp(state.wheelCompVel[i] + accel * subDt, -2.5, 2.5);
+      const accel = (disp * (kSpring / (spec.massKg * 0.25)) - state.wheelCompVel[i] * ((cDamper * dampMult) / (spec.massKg * 0.25))) * 0.48;
+      state.wheelCompVel[i] = THREE.MathUtils.clamp(state.wheelCompVel[i] + accel * subDt, -3.2, 3.2);
       state.wheelCompression[i] = THREE.MathUtils.clamp(
         state.wheelCompression[i] + state.wheelCompVel[i] * subDt,
         -maxT,
@@ -448,16 +462,16 @@ export function stepCarPhysics(
   }
   state.prevCornerGround = cornerGround;
 
-  // Body pitch & roll directly from 4-corner suspension deflections
+  // Body pitch & roll directly from 4-corner suspension deflections (matched to Three.js +X=left, +Z=front axes)
   const frontCompAvg = (state.wheelCompression[0] + state.wheelCompression[1]) * 0.5;
   const rearCompAvg = (state.wheelCompression[2] + state.wheelCompression[3]) * 0.5;
   const leftCompAvg = (state.wheelCompression[0] + state.wheelCompression[2]) * 0.5;
   const rightCompAvg = (state.wheelCompression[1] + state.wheelCompression[3]) * 0.5;
 
-  const targetPitch = THREE.MathUtils.clamp((frontCompAvg - rearCompAvg) / spec.wheelbase * 0.85, -0.055, 0.055);
-  const targetRoll = THREE.MathUtils.clamp((rightCompAvg - leftCompAvg) / spec.trackWidth * 0.95, -0.075, 0.075);
-  state.pitch = THREE.MathUtils.lerp(state.pitch, targetPitch, 1 - Math.exp(-14 * safeDt));
-  state.roll = THREE.MathUtils.lerp(state.roll, targetRoll, 1 - Math.exp(-14 * safeDt));
+  const targetPitch = THREE.MathUtils.clamp((frontCompAvg - rearCompAvg) / spec.wheelbase * 1.15, -0.095, 0.095);
+  const targetRoll = THREE.MathUtils.clamp((rightCompAvg - leftCompAvg) / spec.trackWidth * 1.25, -0.11, 0.11);
+  state.pitch = THREE.MathUtils.lerp(state.pitch, targetPitch, 1 - Math.exp(-16 * safeDt));
+  state.roll = THREE.MathUtils.lerp(state.roll, targetRoll, 1 - Math.exp(-16 * safeDt));
 
   // Per-corner slip ratios (for tire smoke, gravel spray, & multi-band audio)
   const latSlip = THREE.MathUtils.clamp(Math.abs(newVLat) / 7.5, 0, 1);

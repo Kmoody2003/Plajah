@@ -76,6 +76,11 @@ function designatorOf(ux: number, uz: number): string {
 export type PlaneState = 'parked' | 'taxi_out' | 'hold' | 'takeoff' | 'climb' | 'approach' | 'rollout' | 'taxi_in' | 'gone';
 export interface Plane {
   id: number; type: 'jet' | 'prop'; state: PlaneState;
+  /** Scheduled commercial/regional flight metadata */
+  flightNo: string;
+  airline: string;
+  city: string;
+  direction: 'ARR' | 'DEP';
   x: number; z: number; /** height above the airfield */ alt: number; yaw: number; pitch: number; v: number;
   gate: number; timer: number;
   /** position along the runway while on it */
@@ -83,29 +88,63 @@ export interface Plane {
   path: P2[]; cum: number[]; ps: number;
 }
 
-const APPROACH_FROM = 9000, TOUCH_U = 320, GLIDE = Math.tan(3 * Math.PI / 180);
+export interface FlightScheduleRow {
+  id: number;
+  flightNo: string;
+  airline: string;
+  city: string;
+  direction: 'ARR' | 'DEP';
+  type: 'jet' | 'prop';
+  gateLabel: string;
+  status: string;
+  etaSec: number;
+  altM: number;
+  x: number;
+  z: number;
+}
+
+const FLIGHT_ROUTES: [string, string, string, 'jet' | 'prop'][] = [
+  ['PJ-104', 'Plajah Air', 'Chicago (ORD)', 'jet'],
+  ['GL-218', 'Great Lakes Jet', 'Detroit (DTW)', 'jet'],
+  ['PJ-312', 'Plajah Air', 'New York (JFK)', 'jet'],
+  ['SR-409', 'Superior Regional', 'Milwaukee (MKE)', 'prop'],
+  ['GL-522', 'Great Lakes Jet', 'Toronto (YYZ)', 'jet'],
+  ['PJ-615', 'Plajah Air', 'Minneapolis (MSP)', 'jet'],
+  ['NC-740', 'Northstar Cargo', 'Denver (DEN)', 'jet'],
+  ['SR-805', 'Superior Regional', 'Traverse City (TVC)', 'prop'],
+];
+
+const APPROACH_FROM = 7800, TOUCH_U = 320, GLIDE = Math.tan(3 * Math.PI / 180);
 
 export class AirportSim {
   planes: Plane[] = [];
   private time = 0;
   private res: [number, number][] = [];            // runway reservations
-  private nextArrival = 20;
+  private nextArrival = 16;
   private id = 0;
+  private routeIdx = 0;
   private seed: number;
   /** how many aircraft the airfield keeps busy; callers turn it down when nobody is looking */
-  activity = 1;
+  activity = 1.6;
   constructor(readonly L: AirportLayout, seed = 3) {
     this.seed = seed;
-    // some gates already occupied, one aircraft on final
-    L.gates.forEach((g, i) => { if ((i + seed) % 2 === 0) this.addParked(i, 20 + i * 37); });
+    // Populate realistic busy regional hub: multiple gates occupied with staggered departures + 1 immediate taxi-out + 1 jet on short final approach!
+    L.gates.forEach((g, i) => {
+      if (i === 0) this.addParked(i, 6);        // departs almost immediately so runway activity starts right away
+      else if (i % 2 === 0 || i < 4) this.addParked(i, 38 + i * 32);
+    });
     if (L.gates.length) this.addArrival(true);
   }
   private rnd(): number { this.seed = (this.seed * 16807) % 2147483647; return (this.seed - 1) / 2147483646; }
-  private plane(type: 'jet' | 'prop', state: PlaneState): Plane {
-    return { id: this.id++, type, state, x: 0, z: 0, alt: 0, yaw: 0, pitch: 0, v: 0, gate: -1, timer: 0, u: 0, path: [], cum: [], ps: 0 };
+  private plane(type: 'jet' | 'prop', state: PlaneState, direction: 'ARR' | 'DEP'): Plane {
+    const [flightNo, airline, city, defType] = FLIGHT_ROUTES[this.routeIdx++ % FLIGHT_ROUTES.length];
+    return {
+      id: this.id++, type: type ?? defType, state, flightNo, airline, city, direction,
+      x: 0, z: 0, alt: 0, yaw: 0, pitch: 0, v: 0, gate: -1, timer: 0, u: 0, path: [], cum: [], ps: 0,
+    };
   }
   private addParked(gate: number, timer: number): void {
-    const g = this.L.gates[gate], p = this.plane(this.rnd() < 0.8 ? 'jet' : 'prop', 'parked');
+    const g = this.L.gates[gate], p = this.plane(this.rnd() < 0.78 ? 'jet' : 'prop', 'parked', 'DEP');
     p.x = g.x; p.z = g.z; p.yaw = g.yaw; p.gate = gate; p.timer = timer; this.planes.push(p);
   }
   private freeGate(): number {
@@ -119,11 +158,11 @@ export class AirportSim {
 
   private addArrival(initial = false): boolean {
     const gate = this.freeGate(); if (gate < 0) return false;
-    const L = this.L, p = this.plane(this.rnd() < 0.8 ? 'jet' : 'prop', 'approach');
-    const dist0 = initial ? 2200 : APPROACH_FROM, speed = 72, eta = this.time + (dist0 + TOUCH_U) / speed;
-    if (this.reserved(eta - 12, eta + 70)) return false;
-    this.reserve(eta - 12, eta + 70);
-    p.u = -dist0 + TOUCH_U * 0 ; p.v = speed; p.gate = gate; p.alt = (dist0 + TOUCH_U) * GLIDE + 10;
+    const L = this.L, p = this.plane(this.rnd() < 0.78 ? 'jet' : 'prop', 'approach', 'ARR');
+    const dist0 = initial ? 1450 : APPROACH_FROM, speed = 72, eta = this.time + (dist0 + TOUCH_U) / speed;
+    if (this.reserved(eta - 12, eta + 65)) return false;
+    this.reserve(eta - 12, eta + 65);
+    p.u = -dist0; p.v = speed; p.gate = gate; p.alt = (dist0 + TOUCH_U) * GLIDE + 10;
     const w = toWorld(L, p.u, 0); p.x = w[0]; p.z = w[1]; p.yaw = Math.atan2(L.ux, L.uz);
     this.planes.push(p); return true;
   }
@@ -143,22 +182,25 @@ export class AirportSim {
     this.res = this.res.filter((r) => r[1] > this.time - 5);
     this.nextArrival -= dt;
     const active = this.planes.filter((p) => p.state !== 'parked').length;
-    if (this.nextArrival <= 0 && active < 2 + Math.round(this.activity) && L.gates.length) {
-      if (this.addArrival()) this.nextArrival = (70 + this.rnd() * 60) / Math.max(0.3, this.activity);
-      else this.nextArrival = 12;
+    if (this.nextArrival <= 0 && active < 3 + Math.round(this.activity) && L.gates.length) {
+      if (this.addArrival()) this.nextArrival = (48 + this.rnd() * 38) / Math.max(0.4, this.activity);
+      else this.nextArrival = 10;
     }
     for (const p of this.planes) {
       switch (p.state) {
         case 'parked':
           p.timer -= dt;
-          if (p.timer <= 0) { p.state = 'taxi_out'; this.setPath(p, this.taxiOutPath(p)); }
+          if (p.timer <= 0) { p.direction = 'DEP'; p.state = 'taxi_out'; this.setPath(p, this.taxiOutPath(p)); }
           break;
         case 'taxi_out': case 'taxi_in': {
           const total = p.cum[p.cum.length - 1];
           const sp = 9 * Math.min(1, Math.max(0.2, (total - p.ps) / 25));
           p.ps += sp * dt; p.v = sp;
           if (p.ps >= total - 0.5) {
-            if (p.state === 'taxi_out') { p.state = 'hold'; p.v = 0; p.timer = 0; } else { p.state = 'parked'; p.v = 0; p.timer = 70 + this.rnd() * 110; const g = L.gates[p.gate]; p.x = g.x; p.z = g.z; p.yaw = g.yaw; break; }
+            if (p.state === 'taxi_out') { p.state = 'hold'; p.v = 0; p.timer = 0; } else {
+              p.state = 'parked'; p.direction = 'DEP'; p.v = 0; p.timer = 55 + this.rnd() * 75;
+              const g = L.gates[p.gate]; p.x = g.x; p.z = g.z; p.yaw = g.yaw; break;
+            }
           }
           const sm = sampleAt(p.path, p.cum, Math.min(p.ps, total));
           p.x = sm.x; p.z = sm.z; p.yaw = Math.atan2(sm.dx, sm.dz); p.alt = 0; p.pitch = 0;
@@ -204,5 +246,43 @@ export class AirportSim {
     }
     this.planes = this.planes.filter((p) => p.state !== 'gone');
     void polyLen;
+  }
+
+  /** Live Arrivals & Departures board snapshot for Halcyon International Airport (KIPT). */
+  schedule(): FlightScheduleRow[] {
+    const statusMap: Record<PlaneState, string> = {
+      approach: 'FINAL APPROACH',
+      rollout: 'LANDING',
+      taxi_in: 'TAXI TO GATE',
+      parked: 'BOARDING',
+      taxi_out: 'TAXI OUT',
+      hold: 'HOLD SHORT RWY',
+      takeoff: 'TAKEOFF ROLL',
+      climb: 'DEPARTED',
+      gone: 'AIRBORNE',
+    };
+    return this.planes.map((p) => {
+      let etaSec = 0;
+      if (p.state === 'approach') etaSec = Math.max(0, Math.round((TOUCH_U - p.u) / Math.max(20, p.v)));
+      else if (p.state === 'parked') etaSec = Math.max(0, Math.round(p.timer));
+      else if (p.state === 'taxi_out' || p.state === 'taxi_in') {
+        const rem = Math.max(0, (p.cum[p.cum.length - 1] ?? 0) - p.ps);
+        etaSec = Math.round(rem / 7);
+      }
+      return {
+        id: p.id,
+        flightNo: p.flightNo,
+        airline: p.airline,
+        city: p.city,
+        direction: p.direction,
+        type: p.type,
+        gateLabel: p.gate >= 0 ? `A${p.gate + 1}` : 'RWY 09',
+        status: statusMap[p.state],
+        etaSec,
+        altM: Math.round(p.alt),
+        x: p.x,
+        z: p.z,
+      };
+    });
   }
 }

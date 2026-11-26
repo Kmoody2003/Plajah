@@ -16,7 +16,7 @@ export class CarProbe {
   constructor(renderer: THREE.WebGLRenderer, size = 128) {
     // UnsignedByteType guarantees the cube capture can never contain NaN or Inf pixels that poison PMREM & bloom on D3D11 GPUs
     this.rt = new THREE.WebGLCubeRenderTarget(size, { type: THREE.UnsignedByteType, generateMipmaps: false });
-    this.cube = new THREE.CubeCamera(0.4, 900, this.rt);
+    this.cube = new THREE.CubeCamera(0.5, 380, this.rt);
     this.pmrem = new THREE.PMREMGenerator(renderer);
   }
 

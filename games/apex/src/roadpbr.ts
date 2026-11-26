@@ -46,15 +46,20 @@ function enqueuePbr(job: () => Promise<void>): void {
 export function loadPbr1K(file: string, srgb: boolean, fallbackHex = 0x808080, maxSize = 1024): THREE.Texture {
   const key = `${maxSize}:${file}`;
   if (cache[key]) return cache[key];
+  const sz = Math.max(64, Math.min(1024, maxSize));
   const c = document.createElement('canvas');
-  c.width = c.height = 4;
+  c.width = c.height = sz;
   const g = c.getContext('2d')!;
   g.fillStyle = '#' + fallbackHex.toString(16).padStart(6, '0');
-  g.fillRect(0, 0, 4, 4);
+  g.fillRect(0, 0, sz, sz);
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.anisotropy = 8;
   tex.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  tex.generateMipmaps = true;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
   cache[key] = tex;
 
   enqueuePbr(() => new Promise<void>((resolve) => {
@@ -66,20 +71,10 @@ export function loadPbr1K(file: string, srgb: boolean, fallbackHex = 0x808080, m
       resolve();
     };
     img.onload = () => {
-      const sz = Math.min(maxSize, img.naturalWidth || maxSize);
-      const hi = document.createElement('canvas');
-      hi.width = hi.height = sz;
-      const ctx = hi.getContext('2d')!;
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, 0, 0, sz, sz);
-      // Free the 4x4 immutable WebGL2 texStorage2D and bind a fresh Source so WebGLTextures
-      // allocates full-size storage instead of calling texSubImage2D into the 4x4 buffer.
-      tex.dispose();
-      tex.source = new THREE.Source(hi);
-      tex.generateMipmaps = true;
-      tex.minFilter = THREE.LinearMipmapLinearFilter;
-      tex.magFilter = THREE.LinearFilter;
+      // Update fixed-size canvas in-place (ZERO tex.dispose() or tex.source swap -> 100% WebGPU bind-group safe!)
+      g.imageSmoothingEnabled = true;
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(img, 0, 0, sz, sz);
       tex.needsUpdate = true;
       finish();
     };
@@ -110,6 +105,101 @@ export function loadRoadPbr(): void {
   roadUniforms.tRA.value = loadPbr1K('ground_asphalt_dry_ao.png', false, 0xd8d8d8, 512);
   // Keep quick fallback warm in case of offline missing png
   void quickTex;
+}
+
+const usRoadTexCache = new Map<string, THREE.CanvasTexture>();
+
+/**
+ * Generates a crisp 1024x1024 US MUTCD-compliant asphalt road albedo texture:
+ * - '2lane': US double-yellow amber centerline (#f0b624) + solid white outer fog edge lines + subtle wheel-track wear
+ * - '4lane': US double-yellow center divider + white dashed same-direction lane dividers + solid white outer fog lines
+ * - 'plain': clean unmarked weathered asphalt for intersection aprons (prevents cross-section stripe collisions!)
+ */
+export function createUsRoadTexture(variant: '2lane' | '4lane' | 'plain'): THREE.CanvasTexture {
+  const cached = usRoadTexCache.get(variant);
+  if (cached) return cached;
+  const W = 512, H = 512;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d')!;
+
+  // Base weathered dark Michigan asphalt aggregate
+  g.fillStyle = '#36383d';
+  g.fillRect(0, 0, W, H);
+  // Deterministic fine mineral aggregate & micro-tar variation
+  let s = variant === '2lane' ? 1337 : variant === '4lane' ? 4242 : 7777;
+  const rnd = (): number => { s = (s * 1664525 + 1013904223) >>> 0; return s / 0x100000000; };
+  for (let i = 0; i < 16000; i++) {
+    const v = 38 + Math.floor(rnd() * 34);
+    g.fillStyle = `rgb(${v},${v + 1},${v + 3})`;
+    g.fillRect(rnd() * W, rnd() * H, 1 + rnd() * 2.2, 1 + rnd() * 2.2);
+  }
+  // Subtle longitudinal tire polishing tracks inside each driving lane
+  const trackXs = variant === '4lane'
+    ? [0.13, 0.21, 0.34, 0.42, 0.58, 0.66, 0.79, 0.87]
+    : variant === '2lane'
+    ? [0.20, 0.34, 0.66, 0.80]
+    : [];
+  for (const tx of trackXs) {
+    const grd = g.createLinearGradient((tx - 0.05) * W, 0, (tx + 0.05) * W, 0);
+    grd.addColorStop(0, 'rgba(18,20,24,0)');
+    grd.addColorStop(0.5, 'rgba(18,20,24,0.20)');
+    grd.addColorStop(1, 'rgba(18,20,24,0)');
+    g.fillStyle = grd;
+    g.fillRect((tx - 0.05) * W, 0, 0.10 * W, H);
+  }
+
+  // Subtle asphalt crack lines
+  g.strokeStyle = 'rgba(20,21,24,0.34)';
+  g.lineWidth = 1.2;
+  for (let k = 0; k < 6; k++) {
+    g.beginPath();
+    let cx = rnd() * W, cy = rnd() * H;
+    g.moveTo(cx, cy);
+    for (let j = 0; j < 7; j++) { cx += (rnd() - 0.5) * 32; cy += 10 + rnd() * 22; g.lineTo(cx, cy); }
+    g.stroke();
+  }
+
+  if (variant !== 'plain') {
+    const edgeOff = variant === '4lane' ? 0.036 : 0.052;
+    const edgeW = variant === '4lane' ? 6 : 8;
+    // US MUTCD Solid White Outer Fog Lines (both shoulders)
+    g.fillStyle = '#e7e7e0';
+    g.fillRect(W * edgeOff - edgeW * 0.5, 0, edgeW, H);
+    g.fillRect(W * (1 - edgeOff) - edgeW * 0.5, 0, edgeW, H);
+
+    // US MUTCD Double Solid Amber-Yellow Centerline (separating opposing traffic!)
+    const yGap = variant === '4lane' ? 7 : 9;
+    const yW = variant === '4lane' ? 6 : 7.5;
+    g.fillStyle = '#edb426';
+    g.fillRect(W * 0.5 - yGap - yW * 0.5, 0, yW, H);
+    g.fillRect(W * 0.5 + yGap - yW * 0.5, 0, yW, H);
+
+    // US MUTCD Dashed White Same-Direction Lane Dividers (4-lane divided highways/arterials)
+    if (variant === '4lane') {
+      g.fillStyle = '#e6e6de';
+      const dashH = Math.round(H * 0.34);
+      const dashY = Math.round(H * 0.14);
+      for (const lx of [0.27, 0.73]) {
+        g.fillRect(W * lx - 3, dashY, 6, dashH);
+      }
+    }
+
+    // Light aggregate wear speckles over paint so markings feel bonded into real tarmac
+    for (let i = 0; i < 900; i++) {
+      const px = rnd() * W, py = rnd() * H;
+      g.fillStyle = 'rgba(48,50,55,0.28)';
+      g.fillRect(px, py, 2, 2);
+    }
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.anisotropy = 8;
+  tex.needsUpdate = true;
+  usRoadTexCache.set(variant, tex);
+  return tex;
 }
 
 const DECL = `
@@ -143,7 +233,7 @@ export function injectRoadPbr(fs: string, wpExpr: string): string {
       float rpFade = 0.0;
       vec2 rwp = ${wpExpr};
       if (gRoad > 0.005) {
-        rpFade = 1.0 - smoothstep(32.0, 135.0, length(vViewPosition));
+        rpFade = 1.0 - smoothstep(55.0, 260.0, length(vViewPosition));
         float rpAO = mix(1.0, texture2D(tRA, rwp / 2.8).r * 0.58 + texture2D(tRA, rwp / 0.72 + 0.21).r * 0.42, rpFade);
         float rpMacro = texture2D(tRA, rwp / 18.0).r;
         // High-frequency aggregate grit, bitumen pores & patchy wear from curated 2K asphalt PBR maps

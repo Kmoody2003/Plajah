@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { loadCarLibraryModels, populateChunkedLibraryCars } from './carLibraryInstancer';
 
 /**
  * Parked cars, so the streets look lived in:
@@ -16,7 +17,7 @@ export function buildParkedCars(o: {
   skip: (x: number, z: number) => boolean;
   downtown: (x: number, z: number) => boolean;
   mouths: { x: number; z: number }[];
-}): { group: THREE.Group; near: (x: number, z: number, r: number) => ParkedCar[]; count: number } {
+}): { group: THREE.Group; near: (x: number, z: number, r: number) => ParkedCar[]; cars: ParkedCar[]; count: number } {
   let seed = 9173; const rnd = (): number => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const cars: ParkedCar[] = [];
   // another street run within r of a point: the junctions, where nobody parks
@@ -64,19 +65,20 @@ export function buildParkedCars(o: {
     if (o.skip(x, z)) continue;
     cars.push({ x, z, yaw: Math.atan2(ux, uz) + (rnd() < 0.7 ? Math.PI : 0) });                                                 // most nose in toward the house, some backed in
   }
-  const geo = new THREE.BoxGeometry(1.82, 1.35, 4.4); geo.translate(0, 0.75, 0);
-  const cabin = new THREE.BoxGeometry(1.6, 0.55, 2.2); cabin.translate(0, 1.62, -0.2);
   const palette = [0xd9d9d6, 0x1f1f22, 0x8a8e93, 0x9b1d20, 0x1f3e73, 0x3a5a40, 0xc9a24a, 0x6b4a2f, 0xeeeeee, 0x4a4f55];
-  const body = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial({ roughness: 0.42, metalness: 0.5 }), Math.max(1, cars.length));
-  const glass = new THREE.InstancedMesh(cabin, new THREE.MeshStandardMaterial({ color: 0x15191d, roughness: 0.15, metalness: 0.6 }), Math.max(1, cars.length));
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), one = new THREE.Vector3(1, 1, 1), col = new THREE.Color();
-  cars.forEach((c, i) => {
-    q.setFromAxisAngle(up, c.yaw); m4.compose(p.set(c.x, o.ground(c.x, c.z) + 0.02, c.z), q, one);
-    body.setMatrixAt(i, m4); glass.setMatrixAt(i, m4); body.setColorAt(i, col.setHex(palette[i % palette.length]));
+  const group = new THREE.Group();
+  group.name = 'parked-cars';
+  const entries = cars.map((c, i) => ({
+    x: c.x,
+    y: o.ground(c.x, c.z) + 0.02,
+    z: c.z,
+    yaw: c.yaw,
+    color: palette[i % palette.length],
+  }));
+  // Populate with real 3D Car Library models (sedans, SUVs, coupes, pickups) chunked by 220 m cells (zero generic blocks!)
+  void loadCarLibraryModels().then((models) => {
+    populateChunkedLibraryCars(group, entries, models, true);
   });
-  body.count = glass.count = cars.length;
-  for (const m of [body, glass]) { m.castShadow = true; m.receiveShadow = true; m.computeBoundingSphere(); }
-  const group = new THREE.Group(); group.name = 'parked-cars'; group.add(body, glass);
   const C = 24, grid = new Map<number, ParkedCar[]>();
   for (const c of cars) { const k = Math.floor(c.x / C) * 100003 + Math.floor(c.z / C); (grid.get(k) ?? (grid.set(k, []), grid.get(k)!)).push(c); }
   const near = (x: number, z: number, r: number): ParkedCar[] => {
@@ -85,5 +87,5 @@ export function buildParkedCars(o: {
     return out;
   };
   console.log('parked cars', curb, 'at the curb,', cars.length - curb, 'in driveways');
-  return { group, near, count: cars.length };
+  return { group, near, cars, count: cars.length };
 }

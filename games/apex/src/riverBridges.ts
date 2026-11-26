@@ -34,7 +34,7 @@ export function buildRiverBridges(o: { ground: (x: number, z: number) => number;
   const rail = new THREE.MeshStandardMaterial({ color: 0xb8bdc2, metalness: 0.6, roughness: 0.45 });
   for (const br of RIVER_BRIDGES) {
     const dx = br.b.x - br.a.x, dz = br.b.z - br.a.z, L = Math.hypot(dx, dz), ux = dx / L, uz = dz / L, nx = -uz, nz = ux;
-    const hero = buildHeroBridge({ start: new THREE.Vector3(br.a.x, br.deck, br.a.z), end: new THREE.Vector3(br.b.x, br.deck, br.b.z), deckWidth: br.width, towerHeight: 118, pierDepth: br.deck + 12, abutmentDepth: Math.max(12, br.deck - Math.min(o.ground(br.a.x, br.a.z), o.ground(br.b.x, br.b.z)) + 3) });
+    const hero = buildHeroBridge({ start: new THREE.Vector3(br.a.x, br.deck, br.a.z), end: new THREE.Vector3(br.b.x, br.deck, br.b.z), deckWidth: br.width, towerHeight: 118, pierDepth: br.deck + 18, abutmentDepth: br.deck + 18 });
     const mb = mergeByMaterial(hero.group); console.log('hero bridge meshes', mb.before, '->', mb.after);   // ~800 static meshes into one draw per material
     group.add(hero.group); leds.push(hero.updateLed);
 
@@ -66,14 +66,35 @@ export function buildRiverBridges(o: { ground: (x: number, z: number) => number;
     let k = 0;
     pts.forEach((p, i) => { if (i % 1 === 0 && (p.y < br.deck - 0.2 || true)) for (const s of [-1, 1]) { tp.set(p.x + nx * s * (br.width / 2 + 0.2), p.y + 0.55, p.z + nz * s * (br.width / 2 + 0.2)); rails.setMatrixAt(k++, m4.compose(tp, q, sc)); } });
     rails.count = k; rails.castShadow = true; group.add(rails);
-    const piers: { x: number; z: number; top: number; bot: number }[] = [];
+    const piers: { x: number; z: number; top: number; botL: number; botR: number }[] = [];
+    const legMinGround = (lx: number, lz: number): number => {
+      // Sample 5 points around the pier footing pad so a column on a steep riverbank or cut NEVER floats in mid-air!
+      let mn = o.ground(lx, lz);
+      for (const [ox, oz] of [[-2.6, 0], [2.6, 0], [0, -2.6], [0, 2.6]]) {
+        mn = Math.min(mn, o.ground(lx + ox, lz + oz));
+      }
+      return Math.min(mn - 4.5, mn < 4.5 ? -7.5 : mn - 4.5);
+    };
     pts.forEach((p, i) => {
       const t = i * step - la;
-      if (i % 4 === 0 && (t < 0 || t > L)) { const gr = o.ground(p.x, p.z); if (p.y - gr > 4) piers.push({ x: p.x, z: p.z, top: p.y - 1.2, bot: gr - 1.5 }); }
+      if (i % 4 === 0 && (t < 0 || t > L)) {
+        const lxL = p.x - nx * (br.width / 2 - 3.2), lzL = p.z - nz * (br.width / 2 - 3.2);
+        const lxR = p.x + nx * (br.width / 2 - 3.2), lzR = p.z + nz * (br.width / 2 - 3.2);
+        const gr = Math.min(o.ground(p.x, p.z), o.ground(lxL, lzL), o.ground(lxR, lzR));
+        if (p.y - gr > 3.2) {
+          piers.push({ x: p.x, z: p.z, top: p.y - 1.2, botL: legMinGround(lxL, lzL), botR: legMinGround(lxR, lzR) });
+        }
+      }
     });
     const pil = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), conc, piers.length * 2 + 1);
     let pk = 0;
-    for (const p of piers) for (const s of [-1, 1]) { const h = p.top - p.bot; tp.set(p.x + nx * s * (br.width / 2 - 3.2), p.bot + h / 2, p.z + nz * s * (br.width / 2 - 3.2)); sc.set(2.4, h, 2.4); pil.setMatrixAt(pk++, m4.compose(tp, q, sc)); }
+    for (const p of piers) for (const s of [-1, 1]) {
+      const bot = s < 0 ? p.botL : p.botR;
+      const h = Math.max(2, p.top - bot);
+      tp.set(p.x + nx * s * (br.width / 2 - 3.2), bot + h / 2, p.z + nz * s * (br.width / 2 - 3.2));
+      sc.set(2.5, h, 2.5);
+      pil.setMatrixAt(pk++, m4.compose(tp, q, sc));
+    }
     pil.count = pk; pil.castShadow = pil.receiveShadow = true; group.add(pil);
     // Sculpted Catmull-Clark SubD cantilevered pier hammerhead cross-beams (single InstancedMesh draw call!)
     const capSrc = buildSubdClassicalCapitalMesh({ radiusM: 0.42, heightM: 1.0, levels: 2 });
@@ -94,9 +115,9 @@ export function buildRiverBridges(o: { ground: (x: number, z: number) => number;
  * The river is cut back to its bed along the centre line (half width, with a 70 m bank), lowering only, so the real shores stay where they are.
  */
 export const RIVER_REACHES: { name: string; line: number[][]; half: number; bed: number }[] = [
-  { name: 'Halcyon crossing', line: [[3830, 2700], [3825, 2790], [3700, 2860], [3560, 2930], [3500, 3020]], half: 215, bed: -4 },
-  // the old satellite bridge left a rim of land (its two edges) right under the Halcyon Gateway deck, bank to bank
-  { name: 'Halcyon old deck', line: [[3465, 2771], [3960, 2795]], half: 45, bed: -4 },
+  { name: 'Halcyon crossing', line: [[3860, 2640], [3825, 2785], [3700, 2860], [3560, 2930], [3490, 3050]], half: 235, bed: -6.0 },
+  // Wide full-channel carve removes ALL baked satellite bridge deck & embankment artifacts bank-to-bank beneath Halcyon Gateway Bridge
+  { name: 'Halcyon old deck', line: [[3360, 2752], [4090, 2796]], half: 108, bed: -6.0 },
 ];
 
 /** where each bridge's approach viaduct comes down to the ground (same rule as buildRiverBridges): roads that use the bridge join it there */

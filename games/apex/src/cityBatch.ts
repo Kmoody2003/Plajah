@@ -32,10 +32,11 @@ function normalise(g: THREE.BufferGeometry, colours: boolean): THREE.BufferGeome
 /** Each building model loads its own copies of the shared materials (same textures, same settings): two materials that would draw the same pixels share a batch (color tints use BatchedMesh.setColorAt). */
 function matKey(mat: THREE.Material): string {
   const m = mat as THREE.MeshStandardMaterial;
+  const isNode = Boolean((mat as unknown as { isNodeMaterial?: boolean }).isNodeMaterial);
   const tx = (t?: THREE.Texture | null): string => (t ? String(t.userData?.srcKey ?? t.source?.uuid ?? t.uuid) + ':' + t.repeat.x.toFixed(2) + ',' + t.repeat.y.toFixed(2) + ':' + t.offset.x.toFixed(2) + ',' + t.offset.y.toFixed(2) : '-');
   return [m.type, m.roughness.toFixed(2), m.metalness.toFixed(2), m.emissive?.getHexString(), m.emissiveIntensity.toFixed(2), m.envMapIntensity.toFixed(2), m.opacity.toFixed(2), m.transparent ? 1 : 0, m.side, m.vertexColors ? 1 : 0,
     m.visible ? 1 : 0, m.alphaTest, m.colorWrite ? 1 : 0, m.depthWrite ? 1 : 0, m.blending, m.flatShading ? 1 : 0, tx(m.alphaMap),
-    m.normalScale ? m.normalScale.x.toFixed(1) + ',' + m.normalScale.y.toFixed(1) : '-', tx(m.map), tx(m.normalMap), tx(m.roughnessMap), tx(m.metalnessMap), tx(m.aoMap), tx(m.emissiveMap), String(m.userData?.v4HeightKey ?? ''), String(m.userData?.v4OrmKey ?? ''), m.onBeforeCompile === THREE.Material.prototype.onBeforeCompile ? '' : String(m.customProgramCacheKey?.() ?? 'patched')].join('|');
+    m.normalScale ? m.normalScale.x.toFixed(1) + ',' + m.normalScale.y.toFixed(1) : '-', tx(m.map), tx(m.normalMap), tx(m.roughnessMap), tx(m.metalnessMap), tx(m.aoMap), tx(m.emissiveMap), String(m.userData?.v4HeightKey ?? ''), String(m.userData?.v4OrmKey ?? ''), isNode ? `tsl:${String(m.userData?.tslKey ?? m.uuid)}:${m.color?.getHexString() ?? ''}` : '', m.onBeforeCompile === THREE.Material.prototype.onBeforeCompile ? '' : String(m.customProgramCacheKey?.() ?? 'patched')].join('|');
 }
 
 export class CityBatches {
@@ -46,8 +47,16 @@ export class CityBatches {
   get drawCalls(): number { return this.batches.length; }
   get instances(): number { return this.batches.reduce((s, b) => s + b.ids.length, 0); }
 
-  constructor(parts: CityPart[]) {
+  constructor(parts: CityPart[] = []) {
     this.group.name = 'city-batched';
+    if (parts.length) this.appendParts(parts);
+  }
+
+  /**
+   * Append a wave of city parts into multi-draw BatchedMeshes incrementally so Downtown / Lap 1
+   * buildings appear right away instead of waiting for every distant suburb model to finish loading.
+   */
+  appendParts(parts: CityPart[]): void {
     const buckets = new Map<string, CityPart[]>();
     for (const p of parts) {
       if (!p.transforms.length) continue;
@@ -105,6 +114,33 @@ export class CityBatches {
     }
   }
 
+  /**
+   * Time-sliced async version of `appendParts` — builds at most `msBudget` ms of BatchedMeshes
+   * per animation frame so streaming city waves never freeze live driving!
+   */
+  async appendPartsSliced(parts: CityPart[], msBudget = 6): Promise<void> {
+    if (!parts.length) return;
+    const buckets = new Map<string, CityPart[]>();
+    for (const p of parts) {
+      if (!p.transforms.length) continue;
+      const pm = p.material as THREE.MeshStandardMaterial;
+      if (!pm.visible || (pm.transparent && pm.opacity <= 0.01) || !pm.colorWrite) continue;
+      const md = p.maxDist ?? Infinity;
+      const key = matKey(p.material) + (p.castShadow ? '|s' : '|n') + (Number.isFinite(md) ? `|d${md}` : '');
+      let b = buckets.get(key); if (!b) buckets.set(key, b = []);
+      b.push(p);
+    }
+    const entries = [...buckets.values()];
+    let t0 = performance.now();
+    for (let bi = 0; bi < entries.length; bi++) {
+      this.appendParts(entries[bi]);
+      if (bi + 1 < entries.length && performance.now() - t0 >= msBudget) {
+        await new Promise<void>((r) => requestAnimationFrame(() => r()));
+        t0 = performance.now();
+      }
+    }
+  }
+
   /** hide what is too small for its distance (and too far to cast a shadow worth having); `slice` of `slices` of the instances are rechecked per call */
   update(cam: THREE.Vector3, slice = 0, slices = 1): void {
     const vd = this.viewDist, sd = this.shadowDist;
@@ -117,7 +153,7 @@ export class CityBatches {
           const dx = s[i * 4] - cam.x, dz = s[i * 4 + 2] - cam.z, r = s[i * 4 + 3];
           const dy = Math.max(0, Math.abs(s[i * 4 + 1] - cam.y) - r);
           const dd = Math.sqrt(dx * dx + dz * dz + dy * dy) - r;
-          const lim = Number.isFinite(bMax) ? Math.min(effVd, bMax) : Math.min(effVd, Math.max(250, r * 24));
+          const lim = Number.isFinite(bMax) ? Math.min(effVd, bMax) : Math.min(effVd, Math.max(185, r * 14));
           on = dd < lim || (b.mesh.castShadow && dd < sd) ? 1 : 0;
         }
         if (on !== b.vis[i]) { b.vis[i] = on; b.mesh.setVisibleAt(b.ids[i], on === 1); }

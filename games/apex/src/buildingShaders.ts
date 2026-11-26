@@ -396,6 +396,17 @@ export function patchFacadeMasonry(
         if (heroGlass > 0.05) normal = normalize(mix(normal, nonPerturbedNormal, heroGlass * 0.94));
         /*__BLD_NRM__*/`)
       .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        {
+          // Physically-based dielectric grazing sky reflection + warm sunlit limestone/brick bounce on architectural facades
+          vec3 wnB = normalize(vFWN);
+          vec3 vdB = normalize(vViewPosition);
+          float fresB = pow(1.0 - clamp(abs(dot(normal, vdB)), 0.0, 1.0), 3.6);
+          float skyUp = 0.5 + 0.5 * wnB.y;
+          vec3 skyFill = mix(vec3(0.08, 0.11, 0.17), vec3(0.42, 0.56, 0.78), (1.0 - uNightF) * skyUp);
+          vec3 warmBounce = mix(vec3(0.05, 0.05, 0.08), vec3(0.46, 0.36, 0.24), (1.0 - uNightF) * (1.0 - skyUp) * clamp(uSunF.y * 2.2, 0.0, 1.0));
+          reflectedLight.indirectSpecular += skyFill * fresB * (0.045 + 0.14 * uWetF) * (1.0 - heroGlass * 0.65);
+          reflectedLight.indirectDiffuse += diffuseColor.rgb * warmBounce * 0.11 * (1.0 - heroGlass);
+        }
         ${hasGi ? buildPlaykitGiInjectGlsl('1.0 - heroGlass * 0.72') : ''}`)
       .replace('#include <dithering_fragment>', `
         gl_FragColor.rgb = applyAerialDepth(gl_FragColor.rgb, vFW, uSunF, length(vViewPosition), uNightF);

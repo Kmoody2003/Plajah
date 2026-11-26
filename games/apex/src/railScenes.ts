@@ -215,8 +215,30 @@ export function buildRailScenes(o: { net: RailNetwork; sim: TrainSim | null; gro
   const pax = new THREE.MeshStandardMaterial({ map: canvasTex(256, 64, (g) => { g.fillStyle = '#dfe3e6'; g.fillRect(0, 0, 256, 64); g.fillStyle = '#1d4e89'; g.fillRect(0, 44, 256, 12); g.fillStyle = '#1b2733'; for (let x = 8; x < 256; x += 32) g.fillRect(x, 12, 22, 20); }, [1, 1]), roughness: 0.45, metalness: 0.35 });
   const paxCab = new THREE.MeshStandardMaterial({ color: 0x1d4e89, roughness: 0.4, metalness: 0.4 });
   const frtLoco = new THREE.MeshStandardMaterial({ color: 0xb8461f, roughness: 0.55, metalness: 0.3 });
+  const locoLightMat = new THREE.MeshBasicMaterial({ color: 0xfff6d2 });
   const frtCols = [0x7a3b2a, 0x4a4f55, 0x6b4a32, 0x2f4a68, 0x8a8f96, 0x5f6f52].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.75, metalness: 0.25 }));
   const tankMat = new THREE.MeshStandardMaterial({ color: 0x25272a, roughness: 0.5, metalness: 0.6 });
+  const bogieMat = new THREE.MeshStandardMaterial({ color: 0x1e2126, roughness: 0.65, metalness: 0.72 });
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x454a52, roughness: 0.38, metalness: 0.88 });
+  const bogieFrameGeo = new THREE.BoxGeometry(1.94, 0.44, 2.75);
+  const wheelSetGeo = new THREE.CylinderGeometry(0.42, 0.42, 1.72, 12);
+  wheelSetGeo.rotateZ(Math.PI / 2);
+  const addBogies = (o2: THREE.Group, L: number): void => {
+    const zOff = Math.max(2.1, L * 0.34);
+    for (const sz of [-zOff, zOff]) {
+      const fr = new THREE.Mesh(bogieFrameGeo, bogieMat);
+      fr.position.set(0, 0.50, sz);
+      o2.add(fr);
+      for (const wz of [-0.9, 0.9]) {
+        const wh = new THREE.Mesh(wheelSetGeo, wheelMat);
+        wh.position.set(0, 0.42, sz + wz);
+        o2.add(wh);
+      }
+    }
+    const under = new THREE.Mesh(new THREE.BoxGeometry(2.58, 0.34, L * 0.95), bogieMat);
+    under.position.set(0, 0.94, 0);
+    o2.add(under);
+  };
   type CarMesh = { mesh: THREE.Object3D; back: number; len: number };
   const meshes = new Map<number, { g: THREE.Group; cars: CarMesh[] }>();
   const makeTrain = (t: Train): { g: THREE.Group; cars: CarMesh[] } => {
@@ -225,18 +247,44 @@ export function buildRailScenes(o: { net: RailNetwork; sim: TrainSim | null; gro
       let mesh: THREE.Object3D;
       const L = t.carLen - 0.6;
       if (t.kind === 'passenger') {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(3.1, 3.7, L), k === 0 || k === t.cars - 1 ? paxCab : pax); m.position.y = 0;
-        const o2 = new THREE.Group(); m.position.y = 2.4; o2.add(m);
-        if (k === 0 || k === t.cars - 1) { const nose = new THREE.Mesh(new THREE.BoxGeometry(2.9, 2.6, 3), paxCab); nose.position.set(0, 2.0, (k === 0 ? 1 : -1) * (L / 2 + 0.6)); o2.add(nose); }
+        const m = new THREE.Mesh(new THREE.BoxGeometry(3.1, 3.45, L), k === 0 || k === t.cars - 1 ? paxCab : pax);
+        const o2 = new THREE.Group();
+        addBogies(o2, L);
+        m.position.y = 2.78;
+        o2.add(m);
+        if (k === 0 || k === t.cars - 1) {
+          const nose = new THREE.Mesh(new THREE.BoxGeometry(2.9, 2.55, 3), paxCab);
+          nose.position.set(0, 2.30, (k === 0 ? 1 : -1) * (L / 2 + 0.6));
+          o2.add(nose);
+          // Bright twin locomotive headlights on lead cab
+          for (const sx of [-0.75, 0.75]) {
+            const hl = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.16), locoLightMat);
+            hl.position.set(sx, 2.25, (k === 0 ? 1 : -1) * (L / 2 + 2.15));
+            o2.add(hl);
+          }
+        }
         mesh = o2;
       } else if (k === 0) {
-        const o2 = new THREE.Group(); const m = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3.8, L), frtLoco); m.position.y = 2.5; o2.add(m);
-        const hood = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.1, L * 0.45), frtLoco); hood.position.set(0, 4.6, -L * 0.2); o2.add(hood); mesh = o2;
+        const o2 = new THREE.Group();
+        addBogies(o2, L);
+        const m = new THREE.Mesh(new THREE.BoxGeometry(3.2, 3.55, L), frtLoco);
+        m.position.y = 2.82;
+        o2.add(m);
+        const hood = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.05, L * 0.45), frtLoco);
+        hood.position.set(0, 4.72, -L * 0.2);
+        o2.add(hood);
+        for (const sx of [-0.85, 0.85]) {
+          const hl = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.42, 0.18), locoLightMat);
+          hl.position.set(sx, 2.38, L / 2 + 0.1);
+          o2.add(hl);
+        }
+        mesh = o2;
       } else {
         const kind = r() < 0.3 ? 'tank' : r() < 0.5 ? 'flat' : 'box', o2 = new THREE.Group();
-        if (kind === 'tank') { const c = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, L - 1, 14), tankMat); c.rotation.x = Math.PI / 2; c.position.y = 2.9; o2.add(c); }
-        else if (kind === 'flat') { const b = new THREE.Mesh(new THREE.BoxGeometry(3, 0.5, L), tankMat); b.position.y = 1.4; o2.add(b); const cc = [0xb5453a, 0x2f6aa5, 0xd9a21b, 0x4d7a4c]; for (let c = 0; c < 2; c++) { const ct = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.7, L / 2 - 0.5), new THREE.MeshStandardMaterial({ color: cc[Math.floor(r() * 4)], roughness: 0.7, metalness: 0.2 })); ct.position.set(0, 3.0, (c - 0.5) * (L / 2)); o2.add(ct); } }
-        else { const b = new THREE.Mesh(new THREE.BoxGeometry(3.0, 3.7, L), frtCols[Math.floor(r() * frtCols.length)]); b.position.y = 2.7; o2.add(b); }
+        addBogies(o2, L);
+        if (kind === 'tank') { const c = new THREE.Mesh(new THREE.CylinderGeometry(1.42, 1.42, L - 1, 14), tankMat); c.rotation.x = Math.PI / 2; c.position.y = 2.50; o2.add(c); }
+        else if (kind === 'flat') { const b = new THREE.Mesh(new THREE.BoxGeometry(3, 0.38, L), tankMat); b.position.y = 1.22; o2.add(b); const cc = [0xb5453a, 0x2f6aa5, 0xd9a21b, 0x4d7a4c]; for (let c = 0; c < 2; c++) { const ct = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.6, L / 2 - 0.5), new THREE.MeshStandardMaterial({ color: cc[Math.floor(r() * 4)], roughness: 0.7, metalness: 0.2 })); ct.position.set(0, 2.70, (c - 0.5) * (L / 2)); o2.add(ct); } }
+        else { const b = new THREE.Mesh(new THREE.BoxGeometry(3.0, 3.45, L), frtCols[Math.floor(r() * frtCols.length)]); b.position.y = 2.78; o2.add(b); }
         mesh = o2;
       }
       mesh.traverse((c) => { if ((c as THREE.Mesh).isMesh) { c.castShadow = true; c.receiveShadow = true; } });
@@ -259,7 +307,7 @@ export function buildRailScenes(o: { net: RailNetwork; sim: TrainSim | null; gro
         if (profileModeAt(P, Math.max(0, Math.min(P.len, t.s - t.dir * c.back))) === 'tunnel') { c.mesh.visible = false; continue; }
         c.mesh.visible = true;
         o.sim.place(t, c.back - c.len / 2, pf); o.sim.place(t, c.back + c.len / 2, pr);
-        c.mesh.position.set(place.x, place.y + 0.4, place.z);
+        c.mesh.position.set(place.x, place.y + 0.03, place.z);
         c.mesh.rotation.set(0, 0, 0, 'YXZ');
         c.mesh.rotation.y = Math.atan2(pf.x - pr.x, pf.z - pr.z);
         c.mesh.rotation.x = -Math.atan2(pf.y - pr.y, Math.hypot(pf.x - pr.x, pf.z - pr.z) || 1);

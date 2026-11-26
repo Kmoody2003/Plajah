@@ -1,29 +1,242 @@
 import * as THREE from 'three';
+import { createApexFacadeTslMaterial, createApexGlassTslMaterial, createApexWorldTriplanarPbrMaterial } from '../tsl/apexMaterialsTsl';
+import { getRegionTslContext } from '../tsl/webgpuRuntime';
 
 /**
  * Shared helpers for the Plajah asset library pieces (src/library/*): a seeded random, a cached PBR material palette
- * wired directly to Ironport's curated photographic v3 architectural texture sets (albedo + normal + roughness),
- * world-metre UV scaling on every primitive (zero stretched brick/steel/concrete on 120 m warehouses), and box /
- * cylinder / prism / beam builders. Every material stays cached so mergeByMaterial keeps draw calls minimal.
+ * wired directly to Ironport's 2K Neural PBR v4 architectural texture sets (delit albedo + Marigold normal + calibrated ORM
+ * + Depth Anything V2 height relief), world-metre triplanar UV projection on WebGPU (zero stretched brick/clapboard/steel),
+ * and box / cylinder / prism / beam builders. Every material stays cached so mergeByMaterial keeps draw calls minimal.
  */
 export type Rand = () => number;
 export function seeded(seed: number): Rand { let s = (seed | 0) % 2147483647 || 1; if (s < 0) s += 2147483646; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
 
+const SHARED_V4 = '/games/apex/ironport/textures-v4/shared/';
 const SHARED_V3 = '/games/apex/ironport/textures-v3/shared/';
 const texLoader = new THREE.TextureLoader();
 const texCache = new Map<string, THREE.Texture>();
+const texPendingClones = new Map<string, THREE.Texture[]>();
 
-export function sharedPbrTex(stem: string, kind: 'base' | 'nrm' | 'rgh'): THREE.Texture {
+export function sharedPbrTex(stem: string, kind: 'base' | 'nrm' | 'rgh' | 'orm' | 'hgt'): THREE.Texture {
   const key = `${stem}_${kind}`;
   let t = texCache.get(key);
   if (!t) {
-    t = texLoader.load(`${SHARED_V3}${stem}_${kind}.jpg`);
+    // Use 2K Colab Neural PBR textures-v4 for base/nrm/orm/hgt; rgh stays on v3 for WebGL fallback compatibility
+    const dir = kind === 'rgh' ? SHARED_V3 : SHARED_V4;
+    t = texLoader.load(`${dir}${stem}_${kind}.jpg`, (loaded) => {
+      const pending = texPendingClones.get(key);
+      if (pending) {
+        texPendingClones.delete(key);
+        for (const c of pending) {
+          c.source = loaded.source;
+          c.needsUpdate = true;
+        }
+      }
+    });
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.anisotropy = 8;
     t.colorSpace = kind === 'base' ? THREE.SRGBColorSpace : THREE.NoColorSpace;
     texCache.set(key, t);
   }
   return t;
+}
+
+/**
+ * WebGPU-safe clone of a shared PBR texture with custom UV repeat.
+ * Three's `Texture.clone()` calls `copy()` which sets `needsUpdate = true` (`version = 1`) even while
+ * an async `TextureLoader` texture still has `image === null`, crashing WebGPU's `image.complete` check.
+ * Resetting `version = 0` until the source image loads eliminates that crash cleanly!
+ */
+export function cloneSharedPbrTex(
+  stem: string,
+  kind: 'base' | 'nrm' | 'rgh' | 'orm' | 'hgt',
+  repX: number,
+  repY: number,
+): THREE.Texture {
+  const key = `${stem}_${kind}`;
+  const base = sharedPbrTex(stem, kind);
+  const c = base.clone();
+  c.repeat.set(repX, repY);
+  if (!c.image) {
+    c.version = 0;
+    if (base.source) base.source.version = 0;
+    const list = texPendingClones.get(key);
+    if (list) list.push(c);
+    else texPendingClones.set(key, [c]);
+  }
+  return c;
+}
+
+/**
+ * Build a photoreal 2K Neural PBR architectural material for rural town storefronts, farmhouses, barns,
+ * silos, civic buildings & stone walls:
+ * - In WebGPU mode: World-space Triplanar 2K `textures-v4` (albedo + Marigold normal + calibrated ORM + Depth Anything V2
+ *   height parallax relief + per-building weathering + Playkit SH9 GI) — ZERO stretched UVs on any scaled building!
+ * - In WebGL2 mode: 2K `textures-v4` albedo + Marigold normal + roughness + world-space triplanar weathering patch!
+ */
+const ruralArchMatCache = new Map<string, THREE.MeshStandardMaterial>();
+const ruralGlassMatCache = new Map<string, THREE.MeshStandardMaterial>();
+
+export function buildRuralArchPbrMaterial(
+  stem: string,
+  opts: { tileMeters?: number; repX?: number; repY?: number; roughness?: number; metalness?: number; tintHex?: number } = {},
+): THREE.MeshStandardMaterial {
+  const tslCtx = getRegionTslContext();
+  const tileM = opts.tileMeters ?? 3.6;
+  const rgh = opts.roughness ?? 0.84;
+  const met = opts.metalness ?? 0.04;
+  const tint = opts.tintHex ?? 0xffffff;
+  const rx = opts.repX ?? 3, ry = opts.repY ?? 2;
+  const cKey = `${tslCtx ? 'gpu' : 'gl'}|${stem}|${tileM.toFixed(2)}|${rx.toFixed(1)}|${ry.toFixed(1)}|${rgh.toFixed(2)}|${met.toFixed(2)}|${tint.toString(16)}`;
+  const cached = ruralArchMatCache.get(cKey);
+  if (cached) return cached;
+
+  let mat: THREE.MeshStandardMaterial;
+  if (tslCtx) {
+    mat = createApexWorldTriplanarPbrMaterial({
+      map: sharedPbrTex(stem, 'base'),
+      normalMap: sharedPbrTex(stem, 'nrm'),
+      ormMap: sharedPbrTex(stem, 'orm'),
+      heightMap: sharedPbrTex(stem, 'hgt'),
+      tileMeters: tileM,
+      roughness: rgh,
+      metalness: met,
+      tintHex: opts.tintHex,
+      shared: tslCtx.shared,
+      gi: tslCtx.gi,
+    }) as unknown as THREE.MeshStandardMaterial;
+  } else {
+    const map = cloneSharedPbrTex(stem, 'base', rx, ry);
+    const normalMap = cloneSharedPbrTex(stem, 'nrm', rx, ry);
+    const roughnessMap = cloneSharedPbrTex(stem, 'rgh', rx, ry);
+    mat = new THREE.MeshStandardMaterial({
+      map,
+      normalMap,
+      normalScale: new THREE.Vector2(1.55, 1.55),
+      roughnessMap,
+      roughness: opts.roughness ?? 0.85,
+      metalness: met,
+      color: tint,
+    });
+  }
+  ruralArchMatCache.set(cKey, mat);
+  return mat;
+}
+
+/** Photoreal reflective glass material for rural storefronts, diners, town halls & farmhouses! */
+export function buildRuralArchGlassMaterial(tint: 'blue' | 'cerulean' | 'bronze' = 'blue'): THREE.MeshStandardMaterial {
+  const tslCtx = getRegionTslContext();
+  const cKey = `${tslCtx ? 'gpu' : 'gl'}|${tint}`;
+  const cached = ruralGlassMatCache.get(cKey);
+  if (cached) return cached;
+  const mat = tslCtx
+    ? (createApexGlassTslMaterial({ tint, shared: tslCtx.shared, gi: tslCtx.gi }) as unknown as THREE.MeshStandardMaterial)
+    : new THREE.MeshStandardMaterial({
+        color: 0x243648,
+        emissive: 0xffc872,
+        emissiveIntensity: 0.30,
+        roughness: 0.10,
+        metalness: 0.35,
+        envMapIntensity: 1.85,
+      });
+  ruralGlassMatCache.set(cKey, mat);
+  return mat;
+}
+
+export type RuralArchetypeId =
+  | 'rural_storefront_brick'
+  | 'rural_storefront_diner'
+  | 'rural_depot_hall'
+  | 'rural_barn_red'
+  | 'rural_farmhouse_clapboard'
+  | 'rural_church_civic';
+
+const RURAL_V4 = '/games/apex/ironport/textures-v4/rural/';
+const activeRuralOmniStems = new Set<string>();
+const ruralOmniMeshes = new Map<RuralArchetypeId, THREE.Mesh[]>();
+const ruralOmniMatCache = new Map<string, THREE.Material>();
+
+function loadRuralOmniTex(stem: RuralArchetypeId, kind: 'base' | 'nrm' | 'orm' | 'hgt' | 'rgh'): THREE.Texture {
+  const key = `rural_omni_${stem}_${kind}`;
+  let t = texCache.get(key);
+  if (!t) {
+    t = texLoader.load(`${RURAL_V4}${stem}_${kind}.jpg`);
+    t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+    t.anisotropy = 8;
+    t.colorSpace = kind === 'base' ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+    texCache.set(key, t);
+  }
+  return t;
+}
+
+function getRuralOmniFacadeMaterial(arch: RuralArchetypeId): THREE.Material {
+  const tslCtx = getRegionTslContext();
+  const cKey = `${tslCtx ? 'gpu' : 'gl'}|${arch}`;
+  const cached = ruralOmniMatCache.get(cKey);
+  if (cached) return cached;
+  let mat: THREE.Material;
+  if (tslCtx) {
+    mat = createApexFacadeTslMaterial({
+      map: loadRuralOmniTex(arch, 'base'),
+      normalMap: loadRuralOmniTex(arch, 'nrm'),
+      ormMap: loadRuralOmniTex(arch, 'orm'),
+      heightMap: loadRuralOmniTex(arch, 'hgt'),
+      isHero: true,
+      parallaxStrength: 0.018,
+      shared: tslCtx.shared,
+      gi: tslCtx.gi,
+    }) as unknown as THREE.Material;
+  } else {
+    mat = new THREE.MeshStandardMaterial({
+      map: loadRuralOmniTex(arch, 'base'),
+      normalMap: loadRuralOmniTex(arch, 'nrm'),
+      normalScale: new THREE.Vector2(1.65, 1.65),
+      roughnessMap: loadRuralOmniTex(arch, 'rgh'),
+      roughness: 0.86,
+      metalness: 0.04,
+    });
+  }
+  ruralOmniMatCache.set(cKey, mat);
+  return mat;
+}
+
+/**
+ * Register a UV-mapped rural hero facade overlay mesh (`PlaneGeometry(1,1)` aligned with `prep_rural_omni_colab.mjs`).
+ * Stays hidden with zero network requests until Colab Omni/FLUX 2K rural textures are ingested into `v4-manifest.json`.
+ */
+export function registerRuralOmniFacadeMesh(arch: RuralArchetypeId, mesh: THREE.Mesh): void {
+  let list = ruralOmniMeshes.get(arch);
+  if (!list) {
+    list = [];
+    ruralOmniMeshes.set(arch, list);
+  }
+  list.push(mesh);
+  if (activeRuralOmniStems.has(arch)) {
+    mesh.material = getRuralOmniFacadeMaterial(arch);
+    mesh.visible = true;
+  } else {
+    mesh.visible = false;
+  }
+}
+
+/** Activate Colab-painted 2K rural UV facades reported by `/games/apex/ironport/v4-manifest.json` (`ruralTextures`). */
+export function activateRuralOmniTextures(stems: string[]): void {
+  let activated = 0;
+  for (const s of stems) {
+    activeRuralOmniStems.add(s);
+    const arch = s as RuralArchetypeId;
+    const list = ruralOmniMeshes.get(arch);
+    if (!list?.length) continue;
+    const mat = getRuralOmniFacadeMaterial(arch);
+    for (const mesh of list) {
+      mesh.material = mat;
+      mesh.visible = true;
+      activated++;
+    }
+  }
+  if (activated > 0) {
+    console.log(`[apex] Activated Colab 2K rural Omni/FLUX UV facades on ${activated} instanced batches (${stems.length} archetypes)`);
+  }
 }
 
 interface PbrSpec {

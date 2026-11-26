@@ -15,6 +15,7 @@
 import * as THREE from 'three';
 import { createCarState, stepCarPhysics, type CarInput, type CarState } from './physics';
 import { CARS, type CarSpec } from './manufacturers';
+import { hasScanCar, loadScanOpponentCar } from './scancar';
 import type { SurfaceType } from './world';
 
 export type PursuitRole = 'cop' | 'robber';
@@ -28,19 +29,31 @@ export interface HideoutSpot {
 }
 
 export interface SuspectVehicleProfile {
+  carId: string;
   make: string;
   model: string;
   colorName: string;
   paintHex: number;
+  glb: string;
+  targetLen: number;
   spec: CarSpec;
 }
 
 const SUSPECT_VEHICLES: SuspectVehicleProfile[] = [
-  { make: 'Kestrel', model: 'Sovereign GT-R', colorName: 'Burnt Orange', paintHex: 0xc24d12, spec: CARS.kestrel },
-  { make: 'Kestrel', model: 'Sidewinder', colorName: 'Racing Yellow', paintHex: 0xd49b00, spec: CARS.kestrel },
-  { make: 'Kuronuma', model: 'GT-6', colorName: 'Pearl White', paintHex: 0xeef2f6, spec: CARS.aurelia },
-  { make: 'Meridian', model: 'Ironhide 440', colorName: 'Midnight Blue', paintHex: 0x172c4e, spec: CARS.kestrel },
-  { make: 'Aurelia', model: 'Veloce Spyder', colorName: 'Racing Red', paintHex: 0xd11919, spec: CARS.aurelia },
+  { carId: 'kestrel', make: 'Kestrel', model: 'Sovereign GT-R', colorName: 'Burnt Orange', paintHex: 0xc24d12, glb: '/games/apex/car/sov_painted.glb', targetLen: 4.65, spec: CARS.kestrel },
+  { carId: 'sidewinder', make: 'Kestrel', model: 'Sidewinder', colorName: 'Racing Yellow', paintHex: 0xd49b00, glb: '/games/apex/car/sidewinder_base.glb', targetLen: 4.60, spec: CARS.kestrel },
+  { carId: 'kuronuma', make: 'Kuronuma', model: 'GT-6', colorName: 'Pearl White', paintHex: 0xeef2f6, glb: '/games/apex/car/kuronuma_base.glb', targetLen: 4.55, spec: CARS.aurelia },
+  { carId: 'ironhide', make: 'Meridian', model: 'Ironhide 440', colorName: 'Midnight Blue', paintHex: 0x172c4e, glb: '/games/apex/car/ironhide_base.glb', targetLen: 4.82, spec: CARS.kestrel },
+  { carId: 'veloce', make: 'Aurelia', model: 'Veloce Spyder', colorName: 'Racing Red', paintHex: 0xd11919, glb: '/games/apex/car/veloce_base.glb', targetLen: 4.62, spec: CARS.aurelia },
+];
+
+/** Real high-quality GT-R standard Scan Car Police Fleet: Interceptors, Tactical SUVs & Heavy Pursuit Trucks! */
+const POLICE_FLEET_UNITS: { carId: string; label: string; paintHex: number; roofY: number; barZ: number }[] = [
+  { carId: 'vernon_police', label: 'Vernon Police Interceptor', paintHex: 0x121824, roofY: 1.355, barZ: -0.34 },
+  { carId: 'ironport_commander', label: 'Ironport Police Commander SUV', paintHex: 0x141b28, roofY: 1.66, barZ: -0.25 },
+  { carId: 'titan_sentinel', label: 'Titan Sentinel Tactical SUV', paintHex: 0x151a22, roofY: 1.72, barZ: -0.20 },
+  { carId: 'kestrel_defender', label: 'Kestrel Defender Armored SUV', paintHex: 0x101824, roofY: 1.68, barZ: -0.24 },
+  { carId: 'kodiak_hd2500', label: 'Kodiak HD2500 Police Truck', paintHex: 0x161c26, roofY: 1.76, barZ: 0.18 },
 ];
 
 const ELUSIVE_HIDEOUTS: { name: string; x: number; z: number }[] = [
@@ -71,47 +84,68 @@ export interface PursuitUnit {
   sirenBar?: THREE.Mesh[];
 }
 
-function makePursuitCarMesh(paintHex: number, isPolice: boolean): { group: THREE.Group; sirenBar: THREE.Mesh[] } {
+let policeSpawnSeq = 0;
+
+function makePursuitCarMesh(
+  paintHex: number,
+  isPolice: boolean,
+  carIdOverride?: string,
+): { group: THREE.Group; sirenBar: THREE.Mesh[] } {
   const g = new THREE.Group();
+  const placeholder = new THREE.Group();
+  // Minimal silhouette placeholder swapped immediately for full GT-R standard Scan Car (real spinning wheels, glass, recessed LED lamps!)
   const body = new THREE.Mesh(
-    new THREE.BoxGeometry(1.94, 0.72, 4.55),
-    new THREE.MeshStandardMaterial({ color: paintHex, metalness: 0.65, roughness: 0.24 })
+    new THREE.BoxGeometry(1.90, 0.66, 4.55),
+    new THREE.MeshStandardMaterial({ color: paintHex, metalness: 0.65, roughness: 0.24 }),
   );
-  body.position.y = 0.66;
-  body.castShadow = true;
-  g.add(body);
+  body.position.y = 0.62;
+  placeholder.add(body);
+  g.add(placeholder);
 
-  const cabin = new THREE.Mesh(
-    new THREE.BoxGeometry(1.58, 0.50, 2.08),
-    new THREE.MeshStandardMaterial({ color: isPolice ? 0xf2f4f8 : 0x0d121d, metalness: 0.2, roughness: 0.15 })
-  );
-  cabin.position.set(0, 1.18, -0.18);
-  g.add(cabin);
-
-  const wGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.26, 14);
-  wGeo.rotateZ(Math.PI * 0.5);
-  const wMat = new THREE.MeshStandardMaterial({ color: 0x14161b, roughness: 0.85 });
-  for (const [wx, wz] of [[-0.88, 1.38], [0.88, 1.38], [-0.88, -1.38], [0.88, -1.38]]) {
-    const w = new THREE.Mesh(wGeo, wMat);
-    w.position.set(wx, 0.35, wz);
-    g.add(w);
-  }
+  const fleet = isPolice ? POLICE_FLEET_UNITS[policeSpawnSeq++ % POLICE_FLEET_UNITS.length] : null;
+  const targetId = carIdOverride ?? fleet?.carId ?? 'kestrel';
+  const finalPaint = isPolice ? (fleet?.paintHex ?? paintHex) : paintHex;
 
   const sirenBar: THREE.Mesh[] = [];
+  const sirenHolder = new THREE.Group();
   if (isPolice) {
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x12151c, metalness: 0.78, roughness: 0.28 });
+    for (const sx of [-0.42, 0.42]) {
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.10, 0.20), frameMat);
+      foot.position.set(sx, -0.025, 0);
+      sirenHolder.add(foot);
+    }
+    const barBase = new THREE.Mesh(new THREE.BoxGeometry(1.04, 0.036, 0.23), frameMat);
+    barBase.position.set(0, 0.024, 0);
+    const barCap = new THREE.Mesh(new THREE.BoxGeometry(1.00, 0.018, 0.20), frameMat);
+    barCap.position.set(0, 0.094, 0);
+    const centerDiv = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.064, 0.22), frameMat);
+    centerDiv.position.set(0, 0.062, 0);
     const redL = new THREE.Mesh(
-      new THREE.BoxGeometry(0.45, 0.12, 0.22),
-      new THREE.MeshStandardMaterial({ color: 0xff1e2d, emissive: 0xff1e2d, emissiveIntensity: 1.5 })
+      new THREE.BoxGeometry(0.43, 0.062, 0.21),
+      new THREE.MeshStandardMaterial({ color: 0xff1e2d, emissive: 0xff1e2d, emissiveIntensity: 2.6, roughness: 0.18 }),
     );
-    redL.position.set(-0.24, 1.49, -0.1);
+    redL.position.set(-0.275, 0.062, 0);
     const blueR = new THREE.Mesh(
-      new THREE.BoxGeometry(0.45, 0.12, 0.22),
-      new THREE.MeshStandardMaterial({ color: 0x1e88ff, emissive: 0x1e88ff, emissiveIntensity: 1.5 })
+      new THREE.BoxGeometry(0.43, 0.062, 0.21),
+      new THREE.MeshStandardMaterial({ color: 0x1e88ff, emissive: 0x1e88ff, emissiveIntensity: 2.6, roughness: 0.18 }),
     );
-    blueR.position.set(0.24, 1.49, -0.1);
-    g.add(redL, blueR);
+    blueR.position.set(0.275, 0.062, 0);
+    sirenHolder.add(barBase, barCap, centerDiv, redL, blueR);
+    sirenHolder.position.set(0, fleet?.roofY ?? 1.355, fleet?.barZ ?? -0.34);
+    g.add(sirenHolder);
     sirenBar.push(redL, blueR);
   }
+
+  // Upgrade to FULL GT-R Standard Scan Car (60k-face mesh + real spinning wheels + brake calipers + glass + recessed LED lights!)
+  const scanId = hasScanCar(targetId) ? targetId : 'kestrel';
+  void loadScanOpponentCar(scanId, finalPaint, 'hero').then((heroMesh) => {
+    if (!heroMesh) return;
+    placeholder.visible = false;
+    g.remove(placeholder);
+    g.add(heroMesh);
+    g.userData.update = heroMesh.userData.update;
+  }).catch(() => { /* keep placeholder on rare offline error */ });
 
   return { group: g, sirenBar };
 }
@@ -335,7 +369,7 @@ export class CopsAndRobbersMode {
       const rx = playerStart.x + fwdX * 340 + rightX * 45;
       const rz = playerStart.z + fwdZ * 340 + rightZ * 45;
       const ry = ground(rx, rz);
-      const { group } = makePursuitCarMesh(sv.paintHex, false);
+      const { group } = makePursuitCarMesh(sv.paintHex, false, sv.carId);
       group.position.set(rx, ry, rz);
       this.group.add(group);
       this.robberUnit = {
@@ -493,6 +527,7 @@ export class CopsAndRobbersMode {
         stepCarPhysics(cop.carState, cop.spec, aiInput, dt, ground, surfaceAt, []);
         cop.mesh.position.copy(cop.carState.pos);
         cop.mesh.rotation.y = cop.carState.yaw;
+        (cop.mesh.userData.update as ((sp: number, st: number, dt: number, lights?: boolean, brake?: number) => void) | undefined)?.(cop.carState.forwardSpeed, cop.carState.steerAngle, dt, true, aiInput.brake);
 
         if (!this.playerOnFoot.active && dist < 3.6) {
           const relSpeed = cop.carState.vel.distanceTo(playerCarState.vel);
@@ -548,6 +583,7 @@ export class CopsAndRobbersMode {
         );
         cop.mesh.position.copy(cop.carState.pos);
         cop.mesh.rotation.y = cop.carState.yaw;
+        (cop.mesh.userData.update as ((sp: number, st: number, dt: number, lights?: boolean, brake?: number) => void) | undefined)?.(cop.carState.forwardSpeed, cop.carState.steerAngle, dt, true, 0);
       }
 
       if (!rob.disabled) {
@@ -575,6 +611,7 @@ export class CopsAndRobbersMode {
         );
         rob.mesh.position.copy(rob.carState.pos);
         rob.mesh.rotation.y = rob.carState.yaw;
+        (rob.mesh.userData.update as ((sp: number, st: number, dt: number, lights?: boolean, brake?: number) => void) | undefined)?.(rob.carState.forwardSpeed, rob.carState.steerAngle, dt, true, 0);
 
         const hitDist = playerCarState.pos.distanceTo(rob.carState.pos);
         if (!this.playerOnFoot.active && hitDist < 3.8) {

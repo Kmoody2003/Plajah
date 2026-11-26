@@ -9,7 +9,8 @@ import { esc } from './garage/outcomeHtml';
 
 // ---------- capture ----------
 export interface CaptureOpts { aspect: number | null; maxPixels: number; watermark: string | null; format: 'jpeg' | 'png' }
-export interface CaptureRig { renderer: THREE.WebGLRenderer; camera: THREE.PerspectiveCamera; composer: EffectComposer | null; render: () => void }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface CaptureRig { renderer: THREE.WebGLRenderer | any; camera: THREE.PerspectiveCamera; composer: EffectComposer | null; render: () => void }
 
 /** the supersample factor that gives the sharpest still the GPU and memory can take: up to 3x the screen, never past maxPixels or the texture limit */
 export function stillScale(w: number, h: number, maxPixels: number, maxTex: number): number {
@@ -27,7 +28,8 @@ export function cropRect(w: number, h: number, aspect: number | null): { x: numb
 export async function capture(rig: CaptureRig, o: CaptureOpts): Promise<{ blob: Blob; width: number; height: number }> {
   const { renderer, composer, camera } = rig;
   const w = innerWidth, h = innerHeight, oldPr = renderer.getPixelRatio();
-  const gl = renderer.getContext(), maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) as number;
+  const gl = typeof renderer.getContext === 'function' ? renderer.getContext() : null;
+  const maxTex = (gl && typeof gl.getParameter === 'function') ? (gl.getParameter(gl.MAX_TEXTURE_SIZE) as number) : 8192;
   const scale = stillScale(w, h, o.maxPixels, Math.min(maxTex, 8192));
   const aspectNow = camera.aspect;
   renderer.setPixelRatio(scale);

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GRID } from './grid';
-import { shippingContainerMaterials } from './library/industrial';
+import { quayCrane, shippingContainerMaterials } from './library/industrial';
 
 /**
  * The Ironworks port district's ground and props (planned in tools/plan_port_district.py, data in region/port_district.json):
@@ -62,10 +62,12 @@ export function carvePlatform(heights: Float32Array, W: number, H: number, mpp: 
 
 function rng(seed: number): () => number { let s = seed | 0 || 1; return () => { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; }
 
-export interface Port { group: THREE.Group }
+export interface PortSolid { x: number; z: number; hw: number; hd: number; rot: number; kind: 'container' | 'pillar' }
+export interface Port { group: THREE.Group; solids: PortSolid[] }
 
 export function buildPortDistrict(p: PortData, o: { waterY: number }): Port {
   const group = new THREE.Group(); group.name = 'port-district';
+  const solids: PortSolid[] = [];
   const r = rng(77), y0 = p.platform.y;
   const conc = new THREE.MeshStandardMaterial({ color: 0x9c9a94, roughness: 0.93 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x2b2d30, roughness: 0.85 });
@@ -89,33 +91,123 @@ export function buildPortDistrict(p: PortData, o: { waterY: number }): Port {
   }
   piles.count = pk; group.add(piles);
 
-  // ---- ships alongside (hull, deck stacks, bridge house) ----
+  // ---- ships alongside (sculpted tapered freighter hulls, red boot-top, bridge windows, radar mast, funnel & ISO containers) ----
+  const bootMat = new THREE.MeshStandardMaterial({ color: 0x7a1e18, roughness: 0.72, metalness: 0.12 });
+  const deckMat = new THREE.MeshStandardMaterial({ color: 0x454a50, roughness: 0.85, metalness: 0.15 });
+  const bridgeMat = new THREE.MeshStandardMaterial({ color: 0xeaece8, roughness: 0.68, metalness: 0.08 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x101c28, roughness: 0.12, metalness: 0.65 });
+  const funnelMat = new THREE.MeshStandardMaterial({ color: 0xc83c24, roughness: 0.55, metalness: 0.25 });
   for (const sh of p.ships) {
     const g = new THREE.Group(); g.position.set(sh.x, 0, sh.z); g.rotation.y = sh.rot; group.add(g);
-    const hull = new THREE.MeshStandardMaterial({ color: sh.color, roughness: 0.7 });
-    box(sh.len, 16, sh.w, hull, 0, o.waterY + 2, 0, 0, g);
-    box(sh.len * 0.28, 5, sh.w * 0.9, hull, -sh.len * 0.36, o.waterY + 12.5, 0, 0, g);
-    box(sh.len * 0.12, 22, sh.w * 0.8, new THREE.MeshStandardMaterial({ color: 0xe8e8e4, roughness: 0.8 }), sh.len * 0.38, o.waterY + 19, 0, 0, g);   // bridge house aft
+    const hull = new THREE.MeshStandardMaterial({ color: sh.color, roughness: 0.68, metalness: 0.22 });
+    const shape = new THREE.Shape();
+    shape.moveTo(-sh.len * 0.5, -sh.w * 0.48);
+    shape.lineTo(sh.len * 0.26, -sh.w * 0.5);
+    shape.quadraticCurveTo(sh.len * 0.45, -sh.w * 0.36, sh.len * 0.5, 0);
+    shape.quadraticCurveTo(sh.len * 0.45, sh.w * 0.36, sh.len * 0.26, sh.w * 0.5);
+    shape.lineTo(-sh.len * 0.5, sh.w * 0.48);
+    shape.closePath();
+    const lowGeo = new THREE.ExtrudeGeometry(shape, { depth: 7.5, bevelEnabled: false }); lowGeo.rotateX(-Math.PI / 2);
+    const lowHull = new THREE.Mesh(lowGeo, bootMat); lowHull.position.y = o.waterY - 5.5; lowHull.receiveShadow = true; g.add(lowHull);
+    const upGeo = new THREE.ExtrudeGeometry(shape, { depth: 9.5, bevelEnabled: false }); upGeo.rotateX(-Math.PI / 2);
+    const upHull = new THREE.Mesh(upGeo, hull); upHull.position.y = o.waterY + 2.0; upHull.castShadow = upHull.receiveShadow = true; g.add(upHull);
+    box(sh.len * 0.90, 0.8, sh.w * 0.92, deckMat, -sh.len * 0.03, o.waterY + 11.7, 0, 0, g);
+    // Multi-tier aft accommodation house + panoramic navigation bridge wings + radar mast + funnel
+    const bx = -sh.len * 0.34;
+    box(sh.len * 0.13, 18, sh.w * 0.78, bridgeMat, bx, o.waterY + 20.5, 0, 0, g);
+    box(sh.len * 0.09, 4.2, sh.w * 1.04, bridgeMat, bx + 1.5, o.waterY + 29.5, 0, 0, g); // bridge wings
+    box(sh.len * 0.092, 1.8, sh.w * 0.96, glassMat, bx + 2.0, o.waterY + 29.8, 0, 0, g); // panoramic windows
+    box(4.8, 9.0, 5.2, funnelMat, bx - 4.5, o.waterY + 33.5, 0, 0, g);
+    box(0.5, 11, 0.5, steel, bx + 1.5, o.waterY + 37, 0, 0, g); // radar mast
     const cont = new THREE.InstancedMesh(new THREE.BoxGeometry(12.2, 2.6, 2.44), shippingContainerMaterials(), 400);
     let ck = 0; const col = new THREE.Color();
-    for (let ix = -6; ix <= 6; ix++) for (let iz = -5; iz <= 5; iz++) for (let l = 0; l < 3; l++) {
-      if (r() < 0.12 || ck >= 400) continue;
+    for (let ix = -5; ix <= 6; ix++) for (let iz = -4; iz <= 4; iz++) for (let l = 0; l < 4; l++) {
+      if (r() < 0.16 || ck >= 400) continue;
       col.setHSL([0.6, 0.02, 0.08, 0.55, 0.0, 0.33][Math.floor(r() * 6)], 0.5 + r() * 0.3, 0.28 + r() * 0.2);
-      place(cont, ck++, ix * 12.4 * 0.5, o.waterY + 11 + l * 2.7, iz * 2.5, 0, 0.5 * 1, 1, 1, col);
+      place(cont, ck++, ix * 12.6 * 0.52 + sh.len * 0.06, o.waterY + 13.4 + l * 2.65, iz * 2.55, 0, 0.52, 1, 1, col);
     }
     cont.count = ck; cont.castShadow = true; g.add(cont);
   }
 
-  // ---- gantry cranes on the quay: legs, deck beam and a boom out over the ship ----
-  for (const c of p.cranes) {
-    const g = new THREE.Group(); g.position.set(c.x, y0, c.z); g.rotation.y = c.rot; group.add(g);
-    const paint = new THREE.MeshStandardMaterial({ color: 0xc23b22, roughness: 0.6, metalness: 0.2 });
-    for (const sx of [-6, 6]) for (const sz of [-9, 9]) box(1.2, 32, 1.2, paint, sx, 16, sz, 0, g);
-    box(14, 2, 22, paint, 0, 32, 0, 0, g);
-    box(2, 2, 70, paint, 0, 34, 14, 0, g);                                       // boom out over the water (+z is toward the river in the crane's frame)
-    box(8, 3, 6, steel, 0, 30, 18, 0, g);
-    for (const sx of [-6, 6]) box(1.4, 1.2, 22, dark, sx, 0.6, 0, 0, g);       // rails
+  // ---- Harbor Tugboats & Additional Coastal Container Feeder Vessel alongside piers ----
+  const tugHullMat = new THREE.MeshStandardMaterial({ color: 0x1c242c, roughness: 0.65, metalness: 0.25 });
+  const tugTrimMat = new THREE.MeshStandardMaterial({ color: 0xb82e24, roughness: 0.58, metalness: 0.18 });
+  const tugFenderMat = new THREE.MeshStandardMaterial({ color: 0x141618, roughness: 0.92 });
+  const addTugboat = (tx: number, tz: number, rotY: number): void => {
+    const tg = new THREE.Group(); tg.position.set(tx, o.waterY, tz); tg.rotation.y = rotY; group.add(tg);
+    box(24, 3.2, 8.6, bootMat, 0, -0.8, 0, 0, tg);
+    box(25, 2.2, 9.0, tugHullMat, 0, 1.8, 0, 0, tg);
+    box(25.4, 0.65, 9.4, tugFenderMat, 0, 2.3, 0, 0, tg); // heavy rubber fender belt
+    box(11.5, 4.2, 6.4, tugTrimMat, -1.5, 4.8, 0, 0, tg);
+    box(6.4, 3.6, 5.4, bridgeMat, 0.5, 8.4, 0, 0, tg);
+    box(6.6, 1.4, 5.6, glassMat, 0.7, 9.0, 0, 0, tg);
+    box(1.5, 4.8, 1.5, funnelMat, -4.2, 8.6, 0, 0, tg);
+    box(0.35, 6.5, 0.35, steel, 0.8, 13.0, 0, 0, tg);
+  };
+  // Moor 3 harbor tugs assisting the container berths & piers
+  if (p.piers.length > 0) {
+    addTugboat(p.piers[0].x + p.piers[0].len + 26, p.piers[0].z - 32, 0.35);
+    addTugboat(p.piers[0].x + p.piers[0].len * 0.45, p.piers[0].z - 28, 0.04);
   }
+  if (p.piers.length > 1) {
+    addTugboat(p.piers[1].x + p.piers[1].len + 24, p.piers[1].z - 30, -0.25);
+  }
+
+  // ---- Working Port Yard Equipment: RTG Straddle Cranes, Reach Stackers, Terminal Yard Tractors/Chassis & High-Mast Floodlights ----
+  const rtgYellow = new THREE.MeshStandardMaterial({ color: 0xe0a21c, roughness: 0.45, metalness: 0.55 });
+  const rtgRed = new THREE.MeshStandardMaterial({ color: 0xc23526, roughness: 0.48, metalness: 0.45 });
+  const floodGlow = new THREE.MeshBasicMaterial({ color: 0xfff3cf });
+  for (let bi = 0; bi < p.containers.length; bi++) {
+    const b = p.containers[bi];
+    const [bx, bz, cols, rows] = b;
+    const spanW = rows * 2.6 + 5.0;
+    const cx = bx + cols * 6.3 + (bi % 2 === 0 ? -4 : 4);
+    const cz = bz + rows * 1.3 - 1.3;
+    // Rubber-Tyred Gantry (RTG) Straddle Crane spanning the container rows!
+    const rtg = new THREE.Group(); rtg.position.set(cx, y0, cz); group.add(rtg);
+    for (const sx of [-4.5, 4.5]) {
+      for (const sz of [-spanW * 0.5, spanW * 0.5]) {
+        box(1.1, 16.5, 1.1, rtgYellow, sx, 8.25, sz, 0, rtg);
+        box(2.8, 1.6, 1.6, dark, sx, 0.85, sz, 0, rtg); // heavy rubber bogie wheels
+      }
+      box(1.1, 1.3, spanW + 1.2, rtgRed, sx, 16.8, 0, 0, rtg);
+    }
+    box(9.8, 1.1, 1.4, rtgYellow, 0, 16.8, -spanW * 0.5, 0, rtg);
+    box(9.8, 1.1, 1.4, rtgYellow, 0, 16.8, spanW * 0.5, 0, rtg);
+    box(12.2, 0.9, 2.5, rtgRed, 0, 12.2, 0, 0, rtg); // spreader beam
+    solids.push({ x: cx, z: cz - spanW * 0.5, hw: 5, hd: 1.5, rot: 0, kind: 'pillar' });
+    solids.push({ x: cx, z: cz + spanW * 0.5, hw: 5, hd: 1.5, rot: 0, kind: 'pillar' });
+
+    // Reach Stacker / Container Handler staged in the transfer lane beside each block
+    const rx = bx - 12, rz = cz + (bi % 2 === 0 ? -4 : 4);
+    const rs = new THREE.Group(); rs.position.set(rx, y0, rz); rs.rotation.y = bi % 2 === 0 ? 0.25 : -0.35; group.add(rs);
+    box(6.8, 2.1, 3.2, rtgRed, 0, 1.6, 0, 0, rs);
+    box(2.2, 1.8, 2.2, glassMat, 1.1, 3.1, 0, 0, rs);
+    const boom = box(8.5, 0.85, 0.95, dark, 2.2, 4.4, 0, 0, rs);
+    boom.rotation.z = 0.48;
+    box(4.8, 0.45, 2.4, rtgYellow, 5.8, 6.4, 0, 0, rs); // top-lift spreader
+    solids.push({ x: rx, z: rz, hw: 4.0, hd: 2.2, rot: rs.rotation.y, kind: 'pillar' });
+  }
+  // Terminal Yard Tractors & 40-ft Flatbed Container Chassis staged under the Ship-to-Shore cranes + High-Mast Yard Floodlights
+  p.cranes.forEach((c, ci) => {
+    const tx = c.x - 16, tz = c.z + (ci % 2 === 0 ? 8 : -8);
+    box(2.5, 2.8, 3.4, rtgYellow, tx, y0 + 1.8, tz - 6.8, 0); // yard tractor cab
+    box(2.5, 0.65, 13.0, dark, tx, y0 + 1.1, tz + 1.5, 0);    // 40-ft container chassis trailer
+    box(2.45, 2.6, 12.2, ci % 2 === 0 ? funnelMat : glassMat, tx, y0 + 2.7, tz + 1.5, 0);
+    // 30 m High-Mast Port Floodlight Tower behind each crane
+    const fx = c.x - 42, fz = c.z;
+    box(0.75, 30, 0.75, steel, fx, y0 + 15, fz, 0);
+    box(4.8, 1.2, 1.4, floodGlow, fx, y0 + 30.2, fz, 0);
+  });
+
+  // ---- Plajah Industrial Library ship-to-shore quay cranes (A-frame, cables, machinery house, trolley cab!) ----
+  p.cranes.forEach((c, ci) => {
+    const g = quayCrane(ci + 1);
+    g.position.set(c.x, y0, c.z);
+    g.rotation.y = c.rot;
+    group.add(g);
+    solids.push({ x: c.x, z: c.z, hw: 8.5, hd: 14, rot: c.rot, kind: 'pillar' });
+  });
 
   // ---- container yard: stacks in rows square to the quay ----
   {
@@ -135,8 +227,11 @@ export function buildPortDistrict(p: PortData, o: { waterY: number }): Port {
       }
     }
     im.count = k; im.castShadow = true; im.receiveShadow = true; group.add(im);
-    // the yard's tarmac, a shade darker than the platform
-    for (const b of p.containers) box(b[2] * 12.6 + 10, 0.12, b[3] * 2.6 + 12, dark, b[0] + b[2] * 6.3, y0 + 0.07, b[1] + b[3] * 1.3 - 1.3, 0);
+    // the yard's tarmac, a shade darker than the platform + register each stack block as a solid obstacle
+    for (const b of p.containers) {
+      box(b[2] * 12.6 + 10, 0.12, b[3] * 2.6 + 12, dark, b[0] + b[2] * 6.3, y0 + 0.07, b[1] + b[3] * 1.3 - 1.3, 0);
+      solids.push({ x: b[0] + b[2] * 6.3, z: b[1] + b[3] * 1.3 - 1.3, hw: b[2] * 6.3, hd: b[3] * 1.3, rot: 0, kind: 'container' });
+    }
   }
 
   // ---- tank farm: cylinders with roofs and stripes, each inside a low bund wall ----
@@ -183,5 +278,5 @@ export function buildPortDistrict(p: PortData, o: { waterY: number }): Port {
     for (let z = 300; z < 600; z += 90) { place(mast, k, 4098, y0 + 12, z, 0); place(lamp, k, 4098, y0 + 24, z, 0); k++; }
     mast.count = k; lamp.count = k; group.add(mast, lamp);
   }
-  return { group };
+  return { group, solids };
 }

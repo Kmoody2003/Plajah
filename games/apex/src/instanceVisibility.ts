@@ -16,6 +16,8 @@ function sphereInFrustum(f: THREE.Frustum, x: number, y: number, z: number, r: n
  */
 export class InstanceVisibility {
   readonly mesh: THREE.InstancedMesh;
+  /** Optional hard per-batch distance cutoff (e.g. 220 m for v4 micro-trims). */
+  maxDist = Infinity;
   private bounds: Float32Array;
   private readonly countTotal: number;
   private source: Float32Array;
@@ -76,16 +78,18 @@ export class InstanceVisibility {
     if (n === 0) { this.mesh.count = 0; this.mesh.visible = false; return 0; }
 
     // Batch-level distance early-out: skip 100s of instances in 1 check
-    const maxLim = viewDist === Infinity ? Infinity : Math.min(viewDist, Math.max(650, this.maxInstR * 40));
+    const effVd = Math.min(viewDist, this.maxDist);
+    const maxLim = effVd === Infinity ? Infinity : (Number.isFinite(this.maxDist) ? effVd : Math.min(effVd, Math.max(550, this.maxInstR * 32)));
+    const effShad = this.mesh.castShadow ? shadowDist : 0;
     const camX = cam ? cam.x : 0;
     const camY = cam ? cam.y : 0;
     const camZ = cam ? cam.z : 0;
     const viewFrustum = frustums[0];
     const fLen = frustums.length;
 
-    if (cam && viewDist !== Infinity) {
+    if (cam && effVd !== Infinity) {
       const bdx = this.bx - camX, bdy = this.by - camY, bdz = this.bz - camZ;
-      const batchCut = Math.max(maxLim, shadowDist) + this.br;
+      const batchCut = Math.max(maxLim, effShad) + this.br;
       if (bdx * bdx + bdy * bdy + bdz * bdz > batchCut * batchCut) {
         this.mesh.count = 0;
         this.mesh.visible = false;
@@ -94,7 +98,7 @@ export class InstanceVisibility {
       if (!sphereInFrustum(viewFrustum, this.bx, this.by, this.bz, this.br)) {
         // Also ensure aggregate sphere intersects at least one shadow frustum if close enough to cast
         let inAnyShadow = false;
-        if (bdx * bdx + bdy * bdy + bdz * bdz <= (shadowDist + this.br) * (shadowDist + this.br)) {
+        if (effShad > 0 && bdx * bdx + bdy * bdy + bdz * bdz <= (effShad + this.br) * (effShad + this.br)) {
           for (let k = 1; k < fLen; k++) {
             if (sphereInFrustum(frustums[k], this.bx, this.by, this.bz, this.br)) { inAnyShadow = true; break; }
           }
@@ -124,16 +128,16 @@ export class InstanceVisibility {
       if (cam) {
         const dx = cx - camX;
         const dz = cz - camZ;
-        const lim = viewDist === Infinity ? Infinity : Math.min(viewDist, Math.max(650, r * 40));
-        const reach = Math.max(lim, shadowDist) + r;
+        const lim = effVd === Infinity ? Infinity : (Number.isFinite(this.maxDist) ? effVd : Math.min(effVd, Math.max(550, r * 32)));
+        const reach = Math.max(lim, effShad) + r;
         // Fast AABB pre-reject before squaring/sqrt
         if (dx > reach || dx < -reach || dz > reach || dz < -reach) continue;
         const dyAbs = cy > camY ? cy - camY : camY - cy;
         const dy = dyAbs > r ? dyAbs - r : 0;
         const d2 = dx * dx + dz * dz + dy * dy;
         const limR = lim + r;
-        const shadR = shadowDist + r;
-        const near = d2 < shadR * shadR;
+        const shadR = effShad + r;
+        const near = effShad > 0 && d2 < shadR * shadR;
         if (d2 >= limR * limR && !near) continue;
 
         if (sphereInFrustum(viewFrustum, cx, cy, cz, r)) {

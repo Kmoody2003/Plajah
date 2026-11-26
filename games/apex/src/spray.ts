@@ -1,5 +1,10 @@
 // Standing water: where puddles collect on the road (the same function drives the road shader and the physics), and the spray and mist a car throws up in them.
 import * as THREE from 'three';
+import * as THREE_GPU from 'three/webgpu';
+import {
+  clamp, float, instancedBufferAttribute, length, mix, positionView, smoothstep, uniform, uv, vec2,
+} from 'three/tsl';
+import { isRegionWebGpuActive } from './tsl/webgpuRuntime';
 
 /** localized puddle pockets (~3-8 m discrete low spots, never wall-to-wall track flooding), identical in GLSL and JS so the puddle you see is the puddle you hit */
 export function puddleNoise(x: number, z: number): number {
@@ -56,7 +61,7 @@ const FRAG = `
 const N = 1400;
 
 export class SprayFx {
-  readonly points: THREE.Points;
+  readonly points: THREE.Object3D;
   private pos = new Float32Array(N * 3);
   private size = new Float32Array(N);
   private alpha = new Float32Array(N);
@@ -67,20 +72,59 @@ export class SprayFx {
   private alpha0 = new Float32Array(N);
   private grav = new Float32Array(N);
   private head = 0;
-  private mat: THREE.ShaderMaterial;
+  private mat: THREE.ShaderMaterial | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private tslTint: any = null;
+  private posAttr: THREE.BufferAttribute;
+  private sizeAttr: THREE.BufferAttribute;
+  private alphaAttr: THREE.BufferAttribute;
 
   constructor(scene: THREE.Scene) {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('aSize', new THREE.BufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('aAlpha', new THREE.BufferAttribute(this.alpha, 1).setUsage(THREE.DynamicDrawUsage));
-    this.mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, uniforms: { uTint: { value: new THREE.Color(0.85, 0.89, 0.93) } } });
-    this.points = new THREE.Points(g, this.mat);
-    this.points.frustumCulled = false; this.points.renderOrder = 6;
-    scene.add(this.points);
+    if (isRegionWebGpuActive()) {
+      this.posAttr = new THREE.InstancedBufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage);
+      this.sizeAttr = new THREE.InstancedBufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage);
+      this.alphaAttr = new THREE.InstancedBufferAttribute(this.alpha, 1).setUsage(THREE.DynamicDrawUsage);
+      const uTint = uniform(new THREE.Color(0.85, 0.89, 0.93));
+      this.tslTint = uTint;
+      const mat = new THREE_GPU.SpriteNodeMaterial({ transparent: true, depthWrite: false });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const aPos: any = instancedBufferAttribute(this.posAttr);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const aSize: any = instancedBufferAttribute(this.sizeAttr);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const aAlpha: any = instancedBufferAttribute(this.alphaAttr);
+      mat.positionNode = aPos;
+      mat.scaleNode = aSize.mul(1.85);
+      const d = length(uv().sub(vec2(0.5, 0.5))).mul(2.0);
+      const nearFade = smoothstep(float(0.8), float(3.5), positionView.z.negate());
+      const soft = float(1.0).sub(smoothstep(float(0.18), float(1.0), d));
+      mat.colorNode = uTint;
+      mat.opacityNode = clamp(soft.mul(aAlpha).mul(nearFade), 0.0, 1.0);
+      const sprite = new THREE.Sprite(mat as unknown as THREE.SpriteMaterial);
+      (sprite as unknown as { count: number }).count = N;
+      sprite.frustumCulled = false;
+      sprite.renderOrder = 6;
+      this.points = sprite;
+      scene.add(this.points);
+    } else {
+      const g = new THREE.BufferGeometry();
+      this.posAttr = new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage);
+      this.sizeAttr = new THREE.BufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage);
+      this.alphaAttr = new THREE.BufferAttribute(this.alpha, 1).setUsage(THREE.DynamicDrawUsage);
+      g.setAttribute('position', this.posAttr);
+      g.setAttribute('aSize', this.sizeAttr);
+      g.setAttribute('aAlpha', this.alphaAttr);
+      this.mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, uniforms: { uTint: { value: new THREE.Color(0.85, 0.89, 0.93) } } });
+      this.points = new THREE.Points(g, this.mat);
+      this.points.frustumCulled = false; this.points.renderOrder = 6;
+      scene.add(this.points);
+    }
   }
 
-  setTint(c: THREE.Color, bright: number): void { (this.mat.uniforms.uTint.value as THREE.Color).copy(c).multiplyScalar(bright); }
+  setTint(c: THREE.Color, bright: number): void {
+    if (this.tslTint) (this.tslTint.value as THREE.Color).copy(c).multiplyScalar(bright);
+    else if (this.mat) (this.mat.uniforms.uTint.value as THREE.Color).copy(c).multiplyScalar(bright);
+  }
 
   emit(x: number, y: number, z: number, vx: number, vy: number, vz: number, size: number, life: number, alpha: number, grav: number): void {
     const i = this.head; this.head = (this.head + 1) % N;
@@ -111,7 +155,7 @@ export class SprayFx {
   update(dt: number): void {
     const decay = Math.exp(-dt * 0.9);
     for (let i = 0; i < N; i++) {
-      if (this.life[i] <= 0) { this.alpha[i] = 0; continue; }
+      if (this.life[i] <= 0) { this.alpha[i] = 0; this.size[i] = 0; continue; }
       this.life[i] -= dt;
       const t = Math.max(0, this.life[i] / this.maxLife[i]);
       this.vel[i * 3 + 1] -= this.grav[i] * dt;
@@ -121,12 +165,12 @@ export class SprayFx {
       this.alpha[i] = this.alpha0[i] * Math.min(1, t * 2.2) * (1 - (1 - t) * 0.3);
       this.size[i] = this.size0[i] * (1 + (1 - t) * (this.grav[i] < 1 ? 2.4 : 0.5));
     }
-    (this.points.geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
-    (this.points.geometry.getAttribute('aSize') as THREE.BufferAttribute).needsUpdate = true;
-    (this.points.geometry.getAttribute('aAlpha') as THREE.BufferAttribute).needsUpdate = true;
+    this.posAttr.needsUpdate = true;
+    this.sizeAttr.needsUpdate = true;
+    this.alphaAttr.needsUpdate = true;
   }
 
-  clear(): void { this.life.fill(0); this.alpha.fill(0); }
+  clear(): void { this.life.fill(0); this.alpha.fill(0); this.size.fill(0); }
 }
 
 // ---------------------------------------------------------------- dust and dirt
@@ -158,7 +202,7 @@ const DFRAG = `
 const DN = 3600;
 
 export class DustFx {
-  readonly points: THREE.Points;
+  readonly points: THREE.Object3D;
   private pos = new Float32Array(DN * 3);
   private size = new Float32Array(DN);
   private alpha = new Float32Array(DN);
@@ -170,24 +214,69 @@ export class DustFx {
   private alpha0 = new Float32Array(DN);
   private grav = new Float32Array(DN);
   private head = 0;
-  private mat: THREE.ShaderMaterial;
+  private mat: THREE.ShaderMaterial | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private tslTint: any = null;
+  private posAttr: THREE.BufferAttribute;
+  private sizeAttr: THREE.BufferAttribute;
+  private alphaAttr: THREE.BufferAttribute;
+  private shadeAttr: THREE.BufferAttribute;
   /** wind on the dust, m/s (x, z) */
   wind = new THREE.Vector2(0.6, 0.2);
 
   constructor(scene: THREE.Scene) {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('aSize', new THREE.BufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('aAlpha', new THREE.BufferAttribute(this.alpha, 1).setUsage(THREE.DynamicDrawUsage));
-    g.setAttribute('aShade', new THREE.BufferAttribute(this.shade, 1).setUsage(THREE.DynamicDrawUsage));
-    this.mat = new THREE.ShaderMaterial({ vertexShader: DVERT, fragmentShader: DFRAG, transparent: true, depthWrite: false, uniforms: { uTint: { value: new THREE.Color(0.6, 0.48, 0.34) } } });
-    this.points = new THREE.Points(g, this.mat);
-    this.points.frustumCulled = false; this.points.renderOrder = 7;
-    scene.add(this.points);
+    if (isRegionWebGpuActive()) {
+      this.posAttr = new THREE.InstancedBufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage);
+      this.sizeAttr = new THREE.InstancedBufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage);
+      this.alphaAttr = new THREE.InstancedBufferAttribute(this.alpha, 1).setUsage(THREE.DynamicDrawUsage);
+      this.shadeAttr = new THREE.InstancedBufferAttribute(this.shade, 1).setUsage(THREE.DynamicDrawUsage);
+      const uTint = uniform(new THREE.Color(0.6, 0.48, 0.34));
+      this.tslTint = uTint;
+      const mat = new THREE_GPU.SpriteNodeMaterial({ transparent: true, depthWrite: false });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const aPos: any = instancedBufferAttribute(this.posAttr);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const aSize: any = instancedBufferAttribute(this.sizeAttr);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const aAlpha: any = instancedBufferAttribute(this.alphaAttr);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const aShade: any = instancedBufferAttribute(this.shadeAttr);
+      mat.positionNode = aPos;
+      mat.scaleNode = aSize.mul(2.1);
+      const d = length(uv().sub(vec2(0.5, 0.5))).mul(2.0);
+      const nearFade = smoothstep(float(0.6), float(4.0), positionView.z.negate());
+      const soft = clamp(aSize.mul(0.8), 0.0, 1.0);
+      const puff = float(1.0).sub(smoothstep(mix(float(0.65), float(0.05), soft), float(1.0), d));
+      mat.colorNode = uTint.mul(aShade);
+      mat.opacityNode = clamp(puff.mul(aAlpha).mul(nearFade), 0.0, 1.0);
+      const sprite = new THREE.Sprite(mat as unknown as THREE.SpriteMaterial);
+      (sprite as unknown as { count: number }).count = DN;
+      sprite.frustumCulled = false;
+      sprite.renderOrder = 7;
+      this.points = sprite;
+      scene.add(this.points);
+    } else {
+      const g = new THREE.BufferGeometry();
+      this.posAttr = new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage);
+      this.sizeAttr = new THREE.BufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage);
+      this.alphaAttr = new THREE.BufferAttribute(this.alpha, 1).setUsage(THREE.DynamicDrawUsage);
+      this.shadeAttr = new THREE.BufferAttribute(this.shade, 1).setUsage(THREE.DynamicDrawUsage);
+      g.setAttribute('position', this.posAttr);
+      g.setAttribute('aSize', this.sizeAttr);
+      g.setAttribute('aAlpha', this.alphaAttr);
+      g.setAttribute('aShade', this.shadeAttr);
+      this.mat = new THREE.ShaderMaterial({ vertexShader: DVERT, fragmentShader: DFRAG, transparent: true, depthWrite: false, uniforms: { uTint: { value: new THREE.Color(0.6, 0.48, 0.34) } } });
+      this.points = new THREE.Points(g, this.mat);
+      this.points.frustumCulled = false; this.points.renderOrder = 7;
+      scene.add(this.points);
+    }
   }
 
   /** the colour of the dust, already lit for the time of day */
-  setTint(c: THREE.Color): void { (this.mat.uniforms.uTint.value as THREE.Color).copy(c); }
+  setTint(c: THREE.Color): void {
+    if (this.tslTint) (this.tslTint.value as THREE.Color).copy(c);
+    else if (this.mat) (this.mat.uniforms.uTint.value as THREE.Color).copy(c);
+  }
 
   private emit(x: number, y: number, z: number, vx: number, vy: number, vz: number, size: number, life: number, alpha: number, grav: number, shade: number): void {
     const i = this.head; this.head = (this.head + 1) % DN;
@@ -229,7 +318,7 @@ export class DustFx {
   update(dt: number): void {
     const drag = Math.exp(-dt * 0.9);
     for (let i = 0; i < DN; i++) {
-      if (this.life[i] <= 0) { this.alpha[i] = 0; continue; }
+      if (this.life[i] <= 0) { this.alpha[i] = 0; this.size[i] = 0; continue; }
       this.life[i] -= dt;
       const t = Math.max(0, this.life[i] / this.maxLife[i]);
       const dust = this.grav[i] < 1;
@@ -241,11 +330,11 @@ export class DustFx {
       this.alpha[i] = this.alpha0[i] * Math.min(1, (1 - t) * 6 + 0.25) * (dust ? t : Math.min(1, t * 3));
       this.size[i] = this.size0[i] * (dust ? 1 + (1 - t) * 3.2 : 1);
     }
-    (this.points.geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
-    (this.points.geometry.getAttribute('aSize') as THREE.BufferAttribute).needsUpdate = true;
-    (this.points.geometry.getAttribute('aAlpha') as THREE.BufferAttribute).needsUpdate = true;
-    (this.points.geometry.getAttribute('aShade') as THREE.BufferAttribute).needsUpdate = true;
+    this.posAttr.needsUpdate = true;
+    this.sizeAttr.needsUpdate = true;
+    this.alphaAttr.needsUpdate = true;
+    this.shadeAttr.needsUpdate = true;
   }
 
-  clear(): void { this.life.fill(0); this.alpha.fill(0); }
+  clear(): void { this.life.fill(0); this.alpha.fill(0); this.size.fill(0); }
 }

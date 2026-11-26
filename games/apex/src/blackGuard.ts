@@ -6,7 +6,8 @@
 import * as THREE from 'three';
 
 export interface BlackGuardHooks {
-  renderer: THREE.WebGLRenderer;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  renderer: THREE.WebGLRenderer | any;
   camera: THREE.PerspectiveCamera;
   /** true when the scene ought to be lit (not map mode, not night) */
   shouldBeLit: () => boolean;
@@ -59,7 +60,12 @@ export class BlackGuard {
   /** call right after the frame is drawn to the screen */
   check(): void {
     if ((++this.frame % 60) !== 30) return;
-    const r = this.h.renderer, gl = r.getContext();
+    const r = this.h.renderer;
+    if (r?.isWebGPURenderer) {
+      if (!this.cameraFinite()) this.h.resetCamera();
+      return;
+    }
+    const gl = typeof r?.getContext === 'function' ? r.getContext() : null;
     if (!gl || gl.isContextLost() || !this.h.shouldBeLit()) return;
     const w = r.domElement.width, hgt = r.domElement.height, px = new Uint8Array(4);
     // four of five points near black (fog and film grain leave a faulted frame a few levels above 0; a stray lit cloud can survive the fault)

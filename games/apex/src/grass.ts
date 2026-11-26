@@ -8,10 +8,10 @@ import * as THREE from 'three';
 import { GRID } from './grid';
 import { buildCurvedBladeClusterGeo, STRAND_WIND_TRAMPLE_GLSL } from '../../../services/realtimeSim/strandFurEngine';
 
-const R_NEAR = 34;       // dense hero carpet around the car (m)
-const CELL_NEAR = 0.44;  // continuous lush blade spacing (no sparse weed patches)
-const R_MID = 96;        // mid-distance meadow reach (m)
-const CELL_MID = 1.08;   // wider scaled clusters blending smoothly into PBR terrain
+const R_NEAR = 44;       // dense hero carpet around the car (m)
+const CELL_NEAR = 0.48;  // continuous lush blade spacing (no sparse weed patches)
+const R_MID = 185;       // long-reach meadow coverage across the whole frame (m)
+const CELL_MID = 1.45;   // wider scaled clusters blending smoothly into PBR terrain
 
 export interface GrassOpts {
   rw: number; rh: number;                                     // region size in metres (centred on the origin)
@@ -40,12 +40,12 @@ export class GrassField {
   private trailIdx = 0;
   private lastTrailPos = new THREE.Vector3(1e9, 0, 1e9);
 
-  private nearCap = 16500;
-  private midCap = 17500;
+  private nearCap = 20000;
+  private midCap = 26000;
   private effNearR = R_NEAR;
   private effMidR = R_MID;
-  private effNearCap = 16500;
-  private effMidCap = 17500;
+  private effNearCap = 20000;
+  private effMidCap = 26000;
   private last = new THREE.Vector2(1e9, 1e9);
   private accT = 0;
   private mat: THREE.MeshStandardMaterial;

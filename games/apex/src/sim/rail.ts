@@ -74,6 +74,9 @@ export function layoutRail(inputs: RailLineInput[], stationsIn: StationInput[], 
 export type TrainKind = 'passenger' | 'freight';
 export interface Train {
   id: number; line: number; kind: TrainKind; dir: 1 | -1;
+  /** Real scheduled transit service identifier & display name */
+  serviceNo: string;
+  serviceName: string;
   /** arc length of the front of the train */
   s: number; v: number; cars: number; carLen: number; len: number;
   state: 'run' | 'dwell' | 'hold';
@@ -87,7 +90,37 @@ export interface Train {
   hidden: boolean;
 }
 
-const ACCEL = { passenger: 0.8, freight: 0.35 }, DECEL = { passenger: 0.9, freight: 0.5 }, CRUISE = { passenger: 36, freight: 21 };
+export interface TrainScheduleRow {
+  id: number;
+  serviceNo: string;
+  serviceName: string;
+  kind: TrainKind;
+  lineName: string;
+  state: 'run' | 'dwell' | 'hold';
+  nextStop: string;
+  etaSec: number;
+  speedKmh: number;
+  x: number;
+  z: number;
+}
+
+const PAX_SERVICES: [string, string][] = [
+  ['AM-101', 'Lakeshore Express'],
+  ['AM-104', 'Ironport Commuter'],
+  ['AM-202', 'Halcyon Beach Flyer'],
+  ['AM-108', 'Airport Rail Link'],
+  ['AM-112', 'Kettle Valley Local'],
+  ['AM-206', 'Coastal Limited'],
+];
+const FRT_SERVICES: [string, string][] = [
+  ['FR-402', 'Ironworks Ore Freight'],
+  ['FR-418', 'Great Lakes Intermodal'],
+  ['FR-435', 'Heartland Grain Manifest'],
+  ['FR-451', 'Port Yards Container'],
+  ['FR-468', 'Superior Timber Haul'],
+];
+
+const ACCEL = { passenger: 0.85, freight: 0.38 }, DECEL = { passenger: 0.95, freight: 0.52 }, CRUISE = { passenger: 38, freight: 22 };
 
 export class TrainSim {
   trains: Train[] = [];
@@ -95,16 +128,20 @@ export class TrainSim {
   private time = 0;
   constructor(readonly net: RailNetwork, seed = 1) {
     let id = 0;
+    let paxIdx = 0, frtIdx = 0;
     for (const line of net.lines) {
       const L = line.profile.len;
       if (L < 400 || line.stops.length < 2) continue;
-      const n = Math.max(1, Math.min(line.kind === 'double' ? 4 : 3, Math.round(L / 3200)));
+      const n = Math.max(line.kind === 'double' ? 4 : 2, Math.min(line.kind === 'double' ? 5 : 3, Math.round(L / 2600)));
       for (let k = 0; k < n; k++) {
         const kind: TrainKind = line.service === 'freight' ? 'freight' : line.service === 'passenger' ? 'passenger' : k % 2 ? 'freight' : 'passenger';
-        const cars = kind === 'passenger' ? 4 : 11, carLen = kind === 'passenger' ? 24 : 16;
+        const cars = kind === 'passenger' ? 5 : 11, carLen = kind === 'passenger' ? 24 : 16;
         const dir: 1 | -1 = line.kind === 'double' ? (k % 2 ? -1 : 1) : 1;
-        const s = L * ((k + 0.5 + ((seed * 7 + k * 3) % 5) * 0.03) / n);
-        const t: Train = { id: id++, line: line.index, kind, dir, s: 0, v: 0, cars, carLen, len: cars * carLen, state: 'run', at: 0, to: 0, dwell: 0, blocks: [], lane: 0, hidden: false };
+        const s = L * ((k + 0.45 + ((seed * 7 + k * 3) % 5) * 0.03) / n);
+        const [serviceNo, serviceName] = kind === 'passenger'
+          ? PAX_SERVICES[paxIdx++ % PAX_SERVICES.length]
+          : FRT_SERVICES[frtIdx++ % FRT_SERVICES.length];
+        const t: Train = { id: id++, line: line.index, kind, dir, serviceNo, serviceName, s: 0, v: 0, cars, carLen, len: cars * carLen, state: 'run', at: 0, to: 0, dwell: 0, blocks: [], lane: 0, hidden: false };
         // start between two stops, already moving
         let behind = 0; for (let i = 0; i < line.stops.length; i++) if (line.stops[i].s <= s) behind = i;
         const ahead = dir > 0 ? behind + 1 : behind;
@@ -216,5 +253,32 @@ export class TrainSim {
     const f = Math.max(0, Math.min(P.pts.length - 1.001, s / 10)), i = Math.floor(f);
     out.y = P.y[i] + (P.y[i + 1] - P.y[i]) * (f - i);
     return out;
+  }
+
+  /** Live operating timetable snapshot for UI schedule board (passenger & freight). */
+  schedule(): TrainScheduleRow[] {
+    const tmp = { x: 0, z: 0, yaw: 0, y: 0 };
+    return this.trains.map((t) => {
+      const line = this.net.lines[t.line];
+      const targetStop = line.stops[t.state === 'dwell' ? t.at : t.to] ?? line.stops[0];
+      const dRem = Math.abs((targetStop?.s ?? t.s) - t.s);
+      const etaSec = t.state === 'dwell'
+        ? Math.max(0, Math.round(t.dwell))
+        : Math.round(dRem / Math.max(8, t.v || CRUISE[t.kind] * 0.75));
+      this.place(t, 0, tmp);
+      return {
+        id: t.id,
+        serviceNo: t.serviceNo,
+        serviceName: t.serviceName,
+        kind: t.kind,
+        lineName: line.name,
+        state: t.state,
+        nextStop: targetStop?.name ?? line.name,
+        etaSec,
+        speedKmh: Math.round(t.v * 3.6),
+        x: tmp.x,
+        z: tmp.z,
+      };
+    });
   }
 }

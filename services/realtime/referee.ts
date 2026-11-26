@@ -128,4 +128,15 @@ export class RaceReferee implements Referee {
   }
 }
 
+/** Persistent open-world cruising shard (Forza Horizon-style): never ends on a lap timer and never flags free-roam exploration. */
+export class OpenWorldReferee implements Referee {
+  private seats = new Set<number>();
+  start(seats: number[]): void { for (const s of seats) this.seats.add(s); }
+  onState(seat: number): void { this.seats.add(seat); }
+  dnf(seat: number): void { this.seats.delete(seat); }
+  drainFinishes(): FinishEvent[] { return []; }
+  done(): boolean { return false; }
+  standings(): Standing[] { return []; }
+}
+
 const round3 = (n: number) => Math.round(n * 1000) / 1000;

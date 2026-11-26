@@ -97,6 +97,8 @@ const APPLY_FRAG = `
   uniform vec3 uFogCol, uSunCol, uSunDir, uCamPos;
   uniform mat4 uProjInv, uCamWorld, uPrevViewProj;
   uniform float uBlur;               // motion blur shutter (0 off, 0.5 = half the frame's camera motion)
+  uniform vec3 uDof;                 // x = strength (0..1), y = focusDist (m), z = farBlurStart (m)
+  uniform float uMistBoost;          // extra humid valley/coastal mist during sunrise/dusk/fog/rain
   varying vec2 vUv;
   vec3 sanitizeHdr(vec3 c) {
     return vec3(
@@ -130,6 +132,36 @@ const APPLY_FRAG = `
     }
     return acc * (1.0 / 7.0);
   }
+  float lin(float d) { float z = d * 2.0 - 1.0; float denom = uFar + uNear - z * (uFar - uNear); return 2.0 * uNear * uFar / max(abs(denom), 1e-4); }
+  // Lightweight depth-gated optical Depth of Field (keeps player car & road razor-sharp while softening distant horizon with golden-angle bokeh!)
+  vec3 opticalDof(vec3 col, float dist) {
+    if (uDof.x <= 0.005) return col;
+    float farCoC = smoothstep(uDof.z, uDof.z * 3.6, dist);
+    float nearCoC = (1.0 - smoothstep(1.2, max(2.2, uDof.y * 0.45), dist)) * 0.55;
+    float coc = max(farCoC, nearCoC) * uDof.x;
+    if (coc <= 0.015) return col;
+    vec2 rad = uHalf * (1.65 + coc * 3.1);
+    vec3 acc = col * 1.4;
+    float wsum = 1.4;
+    // 8 golden-angle optical bokeh taps, depth-gated so crisp foreground silhouettes never bleed halos onto far sky/horizon!
+    vec2 offs[8];
+    offs[0] = vec2( 1.000,  0.000); offs[1] = vec2(-0.737,  0.675);
+    offs[2] = vec2( 0.087, -0.996); offs[3] = vec2( 0.609,  0.793);
+    offs[4] = vec2(-0.985, -0.174); offs[5] = vec2( 0.844, -0.536);
+    offs[6] = vec2(-0.259,  0.966); offs[7] = vec2(-0.462, -0.887);
+    for (int i = 0; i < 8; i++) {
+      float ring = 0.55 + 0.45 * mod(float(i), 2.0);
+      vec2 suv = clamp(vUv + offs[i] * rad * ring, vec2(0.002), vec2(0.998));
+      float dS = texture2D(tDepth, suv).r;
+      float sDist = dS >= 0.9999 ? uFar : lin(dS);
+      // Reject foreground occluders when blurring distant backgrounds
+      float ok = sDist >= dist * 0.72 || nearCoC > 0.05 ? 1.0 : 0.0;
+      vec3 sc = sanitizeHdr(texture2D(tDiffuse, suv).rgb);
+      acc += sc * ok;
+      wsum += ok;
+    }
+    return mix(col, acc / max(wsum, 1e-4), clamp(coc * 0.85, 0.0, 0.88));
+  }
   // Dual-layer AAA aerial perspective: cool Rayleigh height-fog + low river/valley mist + golden Mie forward-scattering toward sun.
   vec3 atmosphere(vec3 col, vec3 wp, vec3 ray, float dist) {
     if (uFog.w < 0.5) return col;
@@ -137,11 +169,11 @@ const APPLY_FRAG = `
     float b = uFog.y, dy = dir.y * dist;
     float seg = abs(b * dy) > 1e-4 ? (1.0 - exp(-clamp(b * dy, -30.0, 30.0))) / (b * dy) : 1.0;
     float amt = uFog.x * exp(-b * max(uCamPos.y, 0.0)) * dist * seg;
-    // Valley & river low-altitude mist hugs terrain below ~48m (covered bridge, Finger Lake, canyons)
+    // Valley & river low-altitude mist hugs terrain below ~52m (amplified at dawn, dusk, fog & rain!)
     float mb = 0.022;
     float mSeg = abs(mb * dy) > 1e-4 ? (1.0 - exp(-clamp(mb * dy, -30.0, 30.0))) / (mb * dy) : 1.0;
-    float mist = uFog.x * 2.1 * exp(-mb * max(uCamPos.y, 0.0)) * dist * mSeg * smoothstep(85.0, 620.0, dist);
-    float op = clamp(min(uFog.z, 1.0 - exp(-clamp(amt + mist * 0.58, 0.0, 30.0))), 0.0, 1.0);
+    float mist = uFog.x * (2.1 + uMistBoost * 2.8) * exp(-mb * max(uCamPos.y, 0.0)) * dist * mSeg * smoothstep(65.0, 560.0, dist);
+    float op = clamp(min(uFog.z, 1.0 - exp(-clamp(amt + mist * 0.62, 0.0, 30.0))), 0.0, 1.0);
     float sd = clamp(dot(dir, uSunDir), 0.0, 1.0);
     float sd2 = sd * sd;
     float sd3 = sd2 * sd;
@@ -150,13 +182,12 @@ const APPLY_FRAG = `
     float sd24 = sd12 * sd12;
     float sd48 = sd24 * sd24;
     // Altitude-graded Rayleigh tint (higher distant towers & ridges pick up crisp sky-blue scatter while valley mist stays soft)
-    float altTint = smoothstep(15.0, 140.0, max(wp.y, 0.0)) * 0.22;
-    vec3 rayleighCol = mix(uFogCol, uFogCol * vec3(0.86, 0.94, 1.12), altTint);
-    float mie = sd3 * 0.26 + sd12 * 0.56 + sd48 * 0.22;
-    vec3 fc = mix(rayleighCol, uSunCol * 1.18, clamp(mie, 0.0, 0.82));
+    float altTint = smoothstep(15.0, 140.0, max(wp.y, 0.0)) * 0.24;
+    vec3 rayleighCol = mix(uFogCol, uFogCol * vec3(0.86, 0.94, 1.14), altTint);
+    float mie = sd3 * 0.28 + sd12 * 0.58 + sd48 * 0.24;
+    vec3 fc = mix(rayleighCol, uSunCol * 1.20, clamp(mie, 0.0, 0.84));
     return sanitizeHdr(mix(col, fc, op));
   }
-  float lin(float d) { float z = d * 2.0 - 1.0; float denom = uFar + uNear - z * (uFar - uNear); return 2.0 * uNear * uFar / max(abs(denom), 1e-4); }
   void main() {
     vec4 col = texture2D(tDiffuse, vUv);
     col.rgb = sanitizeHdr(col.rgb);
@@ -166,6 +197,7 @@ const APPLY_FRAG = `
     vec3 wp = worldAt(dRaw);
     vec3 ray = wp - uCamPos;
     float dist = length(ray);
+    col.rgb = opticalDof(col.rgb, dist);
     col.rgb = motionBlur(col.rgb, wp, dist);
     // Beyond 158m AO is faded to 1.0: skip 8 bilateral depth/AO fetches on distant mountains, water & far skyline
     if (uStrength <= 0.001 || dist > 158.0) { gl_FragColor = vec4(atmosphere(col.rgb, wp, ray, dist), 1.0); return; }
@@ -208,6 +240,10 @@ export class AoPass extends Pass {
   aoOn = true;
   /** camera motion blur shutter: 0 off, 0.5 typical */
   blur = 0;
+  /** real-time cinematic optical depth of field (0 off, 0.35 subtle driving bokeh) */
+  dof = { strength: 0, focus: 12, farStart: 120 };
+  /** extra humid valley/coastal morning & evening mist (0..1) */
+  mistBoost = 0;
   private prevVP = new THREE.Matrix4();
   private prevPos = new THREE.Vector3();
   private sunView = new THREE.Vector3(0, 1, 0);
@@ -226,7 +262,7 @@ export class AoPass extends Pass {
     });
     this.applyMat = new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: APPLY_FRAG, depthTest: false, depthWrite: false,
-      uniforms: { uPrevViewProj: { value: new THREE.Matrix4() }, uBlur: { value: 0 }, uFog: { value: new THREE.Vector4(0, 0, 0, 0) }, uFogCol: { value: new THREE.Color() }, uSunCol: { value: new THREE.Color() }, uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uCamPos: { value: new THREE.Vector3() }, uProjInv: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() }, tDiffuse: { value: null }, tAO: { value: this.aoRT.texture }, tDepth: { value: null }, uHalf: { value: new THREE.Vector2(1 / aw, 1 / ah) }, uStrength: { value: this.strength }, uNear: { value: 0.1 }, uFar: { value: 1000 } },
+      uniforms: { uPrevViewProj: { value: new THREE.Matrix4() }, uBlur: { value: 0 }, uDof: { value: new THREE.Vector3(0, 12, 120) }, uMistBoost: { value: 0 }, uFog: { value: new THREE.Vector4(0, 0, 0, 0) }, uFogCol: { value: new THREE.Color() }, uSunCol: { value: new THREE.Color() }, uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uCamPos: { value: new THREE.Vector3() }, uProjInv: { value: new THREE.Matrix4() }, uCamWorld: { value: new THREE.Matrix4() }, tDiffuse: { value: null }, tAO: { value: this.aoRT.texture }, tDepth: { value: null }, uHalf: { value: new THREE.Vector2(1 / aw, 1 / ah) }, uStrength: { value: this.strength }, uNear: { value: 0.1 }, uFar: { value: 1000 } },
     });
     this.quad = new FullScreenQuad(this.aoMat);
   }
@@ -263,6 +299,8 @@ export class AoPass extends Pass {
     const prevFinite = this.havePrev && this.prevVP.elements.every(Number.isFinite) && Number.isFinite(this.prevPos.x) && Number.isFinite(a.uCamPos.value.x);
     const jump = !prevFinite || this.prevPos.distanceTo(a.uCamPos.value) > 40;
     a.uPrevViewProj.value.copy(this.prevVP); a.uBlur.value = jump || !depth ? 0 : this.blur;
+    (a.uDof.value as THREE.Vector3).set(depth ? this.dof.strength : 0, this.dof.focus, this.dof.farStart);
+    a.uMistBoost.value = this.mistBoost;
     this.prevVP.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
     if (this.prevVP.elements.every(Number.isFinite) && Number.isFinite(a.uCamPos.value.x)) {
       this.prevPos.copy(a.uCamPos.value);

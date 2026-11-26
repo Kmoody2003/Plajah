@@ -3,6 +3,9 @@
 // every frame and applies it to the lights, fog, clouds, terrain wetness and grip. Races have a weather plan (what the sky will do over the race)
 // and the map previews the worst of it as a forecast.
 import * as THREE from 'three';
+import * as THREE_GPU from 'three/webgpu';
+import { attribute, cameraPosition, float, length, positionWorld, smoothstep, uniform } from 'three/tsl';
+import { isRegionWebGpuActive } from './tsl/webgpuRuntime';
 
 export interface WxParams {
   sun: number; hemi: number; exposure: number;     // multipliers on the time-of-day lights, exposure is added
@@ -43,6 +46,8 @@ export class WeatherRig {
   private nextBolt = 6;
   private t = 0;
   private rain: THREE.LineSegments;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private tslRainU: { uOp: any; uCol: any } | null = null;
   private rainPos: Float32Array;
   private off: Float32Array;
   private N = 9000;
@@ -63,23 +68,42 @@ export class WeatherRig {
     this.rainPos = new Float32Array(this.N * 6);
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(this.rainPos, 3));
+    const nrm = new Float32Array(this.N * 6);
+    for (let i = 0; i < this.N * 2; i++) nrm[i * 3 + 1] = 1;
+    g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
     const al = new Float32Array(this.N * 2); for (let i = 0; i < this.N; i++) { al[i * 2] = 1; al[i * 2 + 1] = 0; }       // bright head, fading tail: reads as motion blur
     g.setAttribute('aA', new THREE.BufferAttribute(al, 1));
     // hair-thin streaks; none right at the lens (those read as cartoon lines), thinning out with distance
-    this.rain = new THREE.LineSegments(g, new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false, fog: true,
-      uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uOp: { value: 0 }, uCol: { value: new THREE.Color(0xaabccc) } }]),
-      vertexShader: `attribute float aA; varying float vA;
-        #include <fog_pars_vertex>
-        void main() { vec4 wp = modelMatrix * vec4(position, 1.0); float d = length(cameraPosition - wp.xyz); vA = aA * smoothstep(2.5, 7.0, d) * (1.0 - smoothstep(28.0, 55.0, d)); vec4 mvPosition = viewMatrix * wp; gl_Position = projectionMatrix * mvPosition;
-        #include <fog_vertex>
-        }`,
-      fragmentShader: `uniform float uOp; uniform vec3 uCol; varying float vA;
-        #include <fog_pars_fragment>
-        void main() { gl_FragColor = vec4(uCol, vA * uOp);
-        #include <fog_fragment>
-        }`,
-    }));
+    let rainMat: THREE.Material;
+    if (isRegionWebGpuActive()) {
+      const uOp = uniform(0);
+      const uCol = uniform(new THREE.Color(0xaabccc));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const aA: any = attribute('aA', 'float');
+      const d = length(cameraPosition.sub(positionWorld));
+      const vA = aA.mul(smoothstep(float(2.5), float(7.0), d)).mul(float(1.0).sub(smoothstep(float(28.0), float(55.0), d)));
+      const nm = new THREE_GPU.LineBasicNodeMaterial({ transparent: true, depthWrite: false, fog: true });
+      nm.colorNode = uCol;
+      nm.opacityNode = vA.mul(uOp);
+      this.tslRainU = { uOp, uCol };
+      rainMat = nm as unknown as THREE.Material;
+    } else {
+      rainMat = new THREE.ShaderMaterial({
+        transparent: true, depthWrite: false, fog: true,
+        uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uOp: { value: 0 }, uCol: { value: new THREE.Color(0xaabccc) } }]),
+        vertexShader: `attribute float aA; varying float vA;
+          #include <fog_pars_vertex>
+          void main() { vec4 wp = modelMatrix * vec4(position, 1.0); float d = length(cameraPosition - wp.xyz); vA = aA * smoothstep(2.5, 7.0, d) * (1.0 - smoothstep(28.0, 55.0, d)); vec4 mvPosition = viewMatrix * wp; gl_Position = projectionMatrix * mvPosition;
+          #include <fog_vertex>
+          }`,
+        fragmentShader: `uniform float uOp; uniform vec3 uCol; varying float vA;
+          #include <fog_pars_fragment>
+          void main() { gl_FragColor = vec4(uCol, vA * uOp);
+          #include <fog_fragment>
+          }`,
+      });
+    }
+    this.rain = new THREE.LineSegments(g, rainMat);
     this.rain.frustumCulled = false;
     this.rain.renderOrder = 9;
     this.rain.visible = false;
@@ -159,9 +183,14 @@ export class WeatherRig {
     else this.cameraVelocity.set(0, 0, 0);
     this.lastCamera.copy(cam);
     if (this.rain.visible) {
-      const material = this.rain.material as THREE.ShaderMaterial;
-      material.uniforms.uOp.value = 0.10 + rain * 0.17;
-      (material.uniforms.uCol.value as THREE.Color).setScalar(0.48 + this.flash * 1.5);
+      if (this.tslRainU) {
+        this.tslRainU.uOp.value = 0.10 + rain * 0.17;
+        (this.tslRainU.uCol.value as THREE.Color).setScalar(0.48 + this.flash * 1.5);
+      } else {
+        const material = this.rain.material as THREE.ShaderMaterial;
+        material.uniforms.uOp.value = 0.10 + rain * 0.17;
+        (material.uniforms.uCol.value as THREE.Color).setScalar(0.48 + this.flash * 1.5);
+      }
       const wind = this.cur.wind * (3.5 + Math.sin(this.t * 0.6) * 1.2), windZ = this.cur.wind * Math.sin(this.t * 0.27) * 2;
       const count = Math.floor(this.N * rain);
       this.rain.geometry.setDrawRange(0, count * 2);

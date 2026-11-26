@@ -6,7 +6,7 @@
 // forced-induction spool/BOV flutter, upshift ignition-cut bark, and downshift rev-match blip.
 import type { CarSpec } from './manufacturers';
 import type { CarState } from './physics';
-import { getEngineBank } from './engineAudio';
+import { carAcousticDna, getEngineBank, type CarAcousticDna } from './engineAudio';
 
 interface EngineAcousticProfile {
   /** Base firing pulses per revolution (cylinders / 2 for 4-stroke; 1.5 for 2-rotor rotary) */
@@ -403,7 +403,7 @@ interface SteadyClipBank {
  * This eliminates repeating rev-up ramps and pass-by Doppler sweeps while preserving 100%
  * of the real recorded combustion, valvetrain, intake, and exhaust timbre!
  */
-function extractSteadyLoop(ctx: AudioContext, raw: AudioBuffer): AudioBuffer {
+function extractSteadyLoop(ctx: AudioContext, raw: AudioBuffer, targetSec = 0.56): AudioBuffer {
   const sr = raw.sampleRate;
   const ch0 = raw.getChannelData(0);
   const ch1 = raw.numberOfChannels > 1 ? raw.getChannelData(1) : null;
@@ -417,9 +417,9 @@ function extractSteadyLoop(ctx: AudioContext, raw: AudioBuffer): AudioBuffer {
     mono.set(ch0);
   }
 
-  // Target ~0.34s loop body + ~0.09s equal-power overlap splice (fits comfortably inside ~1.4s clips)
-  const xfade = Math.min(Math.floor(sr * 0.09), Math.floor(total * 0.14));
-  const body = Math.min(Math.floor(sr * 0.34), Math.max(Math.floor(sr * 0.16), total - xfade * 2));
+  // Longer natural steady-state loop (~0.68s idle / ~0.52s mid-high) preserves true V8 lope, diesel clatter, I5 warble, and V10/V12 grain!
+  const xfade = Math.min(Math.floor(sr * 0.11), Math.floor(total * 0.16));
+  const body = Math.min(Math.floor(sr * targetSec), Math.max(Math.floor(sr * 0.24), total - xfade * 2));
   const winLen = body + xfade;
   if (total <= winLen + 64) return raw;
 
@@ -568,6 +568,12 @@ export class InCarEngineSynth {
 
   private activeBankId = '';
   private profile: EngineAcousticProfile = PROFILES.sc_v8_blower;
+  private dna: CarAcousticDna = carAcousticDna('kestrel', 760, 7600, '6.2L SC V8');
+  private evOscA: OscillatorNode;
+  private evOscB: OscillatorNode;
+  private evOscC: OscillatorNode;
+  private evFilter: BiquadFilterNode;
+  private evGain: GainNode;
   private lastGear = 0;
   private lastThrottle = 0;
   private lastBoost = 0;
@@ -725,6 +731,31 @@ export class InCarEngineSynth {
     this.transGain.gain.value = 0.0;
     this.transOsc.connect(this.transBand).connect(this.transGain).connect(this.out);
 
+    // Rich multi-harmonic EV powertrain synthesizer (inverter carrier + gear-mesh fifth + axial-flux upper harmonic)
+    this.evOscA = ctx.createOscillator();
+    this.evOscA.type = 'sine';
+    this.evOscA.frequency.value = 260;
+    this.evOscB = ctx.createOscillator();
+    this.evOscB.type = 'triangle';
+    this.evOscB.frequency.value = 390;
+    this.evOscC = ctx.createOscillator();
+    this.evOscC.type = 'sine';
+    this.evOscC.frequency.value = 780;
+    const evMixB = ctx.createGain();
+    evMixB.gain.value = 0.42;
+    const evMixC = ctx.createGain();
+    evMixC.gain.value = 0.24;
+    this.evFilter = ctx.createBiquadFilter();
+    this.evFilter.type = 'bandpass';
+    this.evFilter.frequency.value = 900;
+    this.evFilter.Q.value = 1.4;
+    this.evGain = ctx.createGain();
+    this.evGain.gain.value = 0.0;
+    this.evOscA.connect(this.evFilter);
+    this.evOscB.connect(evMixB).connect(this.evFilter);
+    this.evOscC.connect(evMixC).connect(this.evFilter);
+    this.evFilter.connect(this.evGain).connect(destination);
+
     this.oscMain.start();
     this.oscSub.start();
     this.oscRasp.start();
@@ -732,47 +763,53 @@ export class InCarEngineSynth {
     this.airModOsc.start();
     this.forcedOsc.start();
     this.transOsc.start();
+    this.evOscA.start();
+    this.evOscB.start();
+    this.evOscC.start();
 
-    this.applyBank('sc_v8_blower', 0);
+    this.applyBank('sc_v8_blower', 0, 'kestrel', 760, 7600, '6.2L SC V8');
   }
 
-  private applyBank(bankId: string, upgradeLevel: number): void {
-    const key = `${bankId}#${upgradeLevel}`;
+  private applyBank(bankId: string, upgradeLevel: number, carId: string, peakHp: number, redlineRpm: number, engineText: string): void {
+    const key = `${carId}:${bankId}#${upgradeLevel}`;
     if (this.activeBankId === key) return;
     this.activeBankId = key;
     const prof = PROFILES[bankId] ?? PROFILES.sports_car_gt;
     this.profile = prof;
+    const dna = carAcousticDna(carId, peakHp, redlineRpm, engineText);
+    this.dna = dna;
 
-    // Build custom Fourier PeriodicWave matching this engine's exact cylinder harmonic spectrum
+    // Build custom Fourier PeriodicWave combining this engine's bank harmonics + unique per-car spectral tilt!
     const h = prof.harmonics;
-    const upgBright = 1 + upgradeLevel * 0.14;
+    const upgBright = 1 + upgradeLevel * 0.14 + dna.brightTilt;
     const real = new Float32Array(h.length + 1);
     const imag = new Float32Array(h.length + 1);
     for (let i = 0; i < h.length; i++) {
-      // Slightly boost upper harmonics when player equips sport/race exhaust upgrades
-      imag[i + 1] = h[i] * (i >= 2 ? upgBright : 1.0);
+      const tilt = i >= 2 ? Math.max(0.35, upgBright) : i === 0 ? Math.max(0.65, 1 - dna.brightTilt * 0.4) : 1.0;
+      imag[i + 1] = h[i] * tilt;
     }
     const waveMain = this.ctx.createPeriodicWave(real, imag, { disableNormalization: false });
     this.oscMain.setPeriodicWave(waveMain);
 
-    // Warm rounded sub-order wave (gives the deep uneven V8 / I5 pulse without harsh buzz)
+    // Warm rounded sub-order wave (gives the deep uneven V8 / I5 / Flat-6 pulse without harsh buzz)
     const subReal = new Float32Array(5);
-    const subImag = new Float32Array([0, 1.0, 0.35, 0.14, 0.05]);
+    const subImag = new Float32Array([0, 1.0, 0.35 + Math.max(0, -dna.brightTilt * 0.3), 0.14, 0.05]);
     this.oscSub.setPeriodicWave(this.ctx.createPeriodicWave(subReal, subImag));
 
     // Mechanical upper rasp wave
     const raspReal = new Float32Array(6);
-    const raspImag = new Float32Array([0, 0.4, 0.85, 0.62, 0.38, 0.22]);
+    const raspImag = new Float32Array([0, 0.4, 0.85, 0.62 * Math.max(0.6, 1 + dna.brightTilt), 0.38, 0.22]);
     this.oscRasp.setPeriodicWave(this.ctx.createPeriodicWave(raspReal, raspImag));
 
-    const drive = Math.min(4.2, prof.drive + upgradeLevel * 0.26);
+    const drive = Math.min(4.2, Math.max(1.05, prof.drive + upgradeLevel * 0.26 + dna.brightTilt * 0.8));
     this.shaper.curve = makeAsymmetricDriveCurve(drive);
-    this.cabinBass.gain.value = prof.cabinBassDb;
-    this.clipLowShelf.gain.value = Math.min(7.5, prof.cabinBassDb * 0.65);
-    this.clipShaper.curve = makeAsymmetricDriveCurve(1.15 + Math.min(1.6, (prof.drive - 1.0) * 0.45 + upgradeLevel * 0.14));
+    this.cabinBass.gain.value = Math.max(1.5, prof.cabinBassDb - dna.brightTilt * 4.5);
+    this.clipLowShelf.gain.value = Math.min(8.0, Math.max(1.0, (prof.cabinBassDb - dna.brightTilt * 3.5) * 0.65));
+    this.clipShaper.curve = makeAsymmetricDriveCurve(1.15 + Math.min(1.65, (prof.drive - 1.0) * 0.45 + upgradeLevel * 0.14 + Math.max(0, dna.brightTilt * 0.45)));
 
     if (this.clipLoadedBank !== bankId) {
       this.clipLoadedBank = bankId;
+      this.clipReady = false;
       void this.activateClipBank(bankId);
     }
   }
@@ -785,18 +822,18 @@ export class InCarEngineSynth {
 
     const p = (async (): Promise<SteadyClipBank | null> => {
       try {
-        const loadOne = async (name: string): Promise<AudioBuffer> => {
+        const loadOne = async (name: string, targetSec: number): Promise<AudioBuffer> => {
           const res = await fetch(`${meta.basePath}/${name}.mp3`);
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const ab = await res.arrayBuffer();
           const decoded = await this.ctx.decodeAudioData(ab);
-          return extractSteadyLoop(this.ctx, decoded);
+          return extractSteadyLoop(this.ctx, decoded, targetSec);
         };
         const [idle, mid, high, decel] = await Promise.all([
-          loadOne('idle'),
-          loadOne('mid'),
-          loadOne('high'),
-          loadOne('decel'),
+          loadOne('idle', 0.68),
+          loadOne('mid', 0.54),
+          loadOne('high', 0.50),
+          loadOne('decel', 0.54),
         ]);
         return { idle, mid, high, decel };
       } catch {
@@ -892,27 +929,57 @@ export class InCarEngineSynth {
     }
   }
 
+  public updateEv(state: CarState, spec: CarSpec, throttle: number): void {
+    const now = this.ctx.currentTime;
+    this.out.gain.setTargetAtTime(0.0001, now, 0.04);
+    const dna = carAcousticDna(spec.id, spec.engine.peakHp, spec.engine.redlineRpm, spec.engine.name);
+    const spdFrac = Math.min(1, Math.abs(state.speedMps) / Math.max(35, spec.topSpeedMps));
+    const rpmFrac = Math.min(1, Math.max(0, (state.rpm - spec.engine.idleRpm) / Math.max(1, spec.engine.redlineRpm - spec.engine.idleRpm)));
+    const drive = Math.max(spdFrac, rpmFrac * 0.75);
+    const load = Math.min(1, Math.max(0, throttle));
+    const regen = state.isBraking && Math.abs(state.speedMps) > 2 ? 0.65 : 0;
+
+    // Distinct EV motor topologies: commuter hum, dual-motor sport fifth, tri-motor turbine, quad-motor hyper, axial-flux Helios X1 chord!
+    const ratios: Record<CarAcousticDna['evVoice'], [number, number, number, number]> = {
+      commuter: [155, 1.50, 2.00, 0.075],
+      sport:    [195, 1.498, 2.50, 0.11],
+      tri:      [225, 1.333, 2.667, 0.13],
+      quad:     [260, 1.50, 3.00, 0.155],
+      axial:    [310, 1.25, 2.98, 0.18],
+    };
+    const [baseHz, rB, rC, maxG] = ratios[dna.evVoice];
+    const f0 = (baseHz + drive * baseHz * 4.4) * dna.pitchScale * (regen > 0 ? 0.94 : 1.0);
+    this.evOscA.frequency.setTargetAtTime(f0, now, 0.025);
+    this.evOscB.frequency.setTargetAtTime(f0 * rB, now, 0.025);
+    this.evOscC.frequency.setTargetAtTime(f0 * rC, now, 0.025);
+    this.evFilter.frequency.setTargetAtTime(Math.min(5800, (480 + drive * 2600 + load * 750) * dna.exhaustShift), now, 0.03);
+    const active = Math.max(0.08, drive * 0.72 + load * 0.45 + regen * 0.55);
+    this.evGain.gain.setTargetAtTime(maxG * active, now, 0.035);
+  }
+
   public update(state: CarState, spec: CarSpec, throttle: number, bankId: string, dt = 0.016): void {
     const now = this.ctx.currentTime;
+    this.evGain.gain.setTargetAtTime(0, now, 0.03);
     const upgLvl = spec.engine.soundUpgradeLevel ?? 0;
-    this.applyBank(bankId, upgLvl);
+    this.applyBank(bankId, upgLvl, spec.id, spec.engine.peakHp, spec.engine.redlineRpm, spec.engine.name);
 
     const prof = this.profile;
+    const dna = this.dna;
     const meta = getEngineBank(bankId);
     const idleRpm = Math.max(650, spec.engine.idleRpm);
     const redlineRpm = Math.max(idleRpm + 1500, spec.engine.redlineRpm);
     const rpm = Math.max(idleRpm * 0.85, Math.min(redlineRpm * 1.03, state.rpm));
     const rpmFrac = Math.min(1, Math.max(0, (rpm - idleRpm) / (redlineRpm - idleRpm)));
 
-    // True cylinder firing frequency (Hz) locked 1:1 to live simulated RPM
-    // Example: 6000 RPM V8 (4 pulses/rev) -> 400 Hz firing fundamental, 200 Hz cross-plane sub-order!
-    // Scaled by 0.5 for deep chesty cockpit fundamental alignment with real exhaust Helmholtz resonance
-    const firingHz = Math.max(22, (rpm / 60) * prof.pulsesPerRev * 0.5);
-    const subHz = Math.max(16, firingHz * prof.subOrder);
+    // True cylinder firing frequency (Hz) locked 1:1 to live simulated RPM + per-car acoustic DNA pitch & firing-order override
+    const pulses = dna.pulsesOverride ?? prof.pulsesPerRev;
+    const subOrder = dna.subOrderOverride ?? prof.subOrder;
+    const firingHz = Math.max(20, (rpm / 60) * pulses * 0.5 * dna.pitchScale);
+    const subHz = Math.max(15, firingHz * subOrder);
     const raspHz = firingHz * prof.raspMult;
 
-    // Subtle mechanical idle lope (authentic cammed idle tremor at low RPM)
-    const idleLope = (1 - Math.min(1, rpmFrac * 4.5)) * (prof.drive > 2.5 ? 0.025 : 0.008) * Math.sin(now * 28.0);
+    // Subtle mechanical idle lope (authentic cammed idle tremor at low RPM, uniquely scaled per car!)
+    const idleLope = (1 - Math.min(1, rpmFrac * 4.5)) * (prof.drive > 2.5 ? 0.025 : 0.008) * dna.lopeMult * Math.sin(now * (25.0 + dna.pitchScale * 4.0));
     const tc = 0.018; // ultra-responsive pitch tracking (~18ms) — instant gear-shift snap!
     this.oscMain.frequency.setTargetAtTime(firingHz * (1 + idleLope), now, tc);
     this.oscSub.frequency.setTargetAtTime(subHz * (1 + idleLope * 1.4), now, tc);
@@ -930,7 +997,7 @@ export class InCarEngineSynth {
 
     // Detect real gear shifts (upshift ignition cut + exhaust bark; downshift rev-match blip!)
     const gear = state.gear;
-    const popScale = Math.min(1, prof.shiftPop + upgLvl * 0.18);
+    const popScale = Math.min(1, Math.max(0, prof.shiftPop + dna.popDelta + upgLvl * 0.18));
     if (this.lastGear > 0 && gear > 0 && gear !== this.lastGear) {
       if (gear > this.lastGear) {
         // Upshift!
@@ -968,8 +1035,8 @@ export class InCarEngineSynth {
     const load = Math.min(1, Math.max(0, throttle));
     const aggBoost = Math.min(1, ((meta?.aggression ?? 2) + upgLvl * 0.65) / 4);
 
-    const intakeF = prof.intakeHz[0] + (prof.intakeHz[1] - prof.intakeHz[0]) * (0.28 * load + 0.72 * rpmFrac);
-    const exhaustF = prof.exhaustHz[0] + (prof.exhaustHz[1] - prof.exhaustHz[0]) * (0.20 * load + 0.80 * rpmFrac);
+    const intakeF = (prof.intakeHz[0] + (prof.intakeHz[1] - prof.intakeHz[0]) * (0.28 * load + 0.72 * rpmFrac)) * dna.intakeShift;
+    const exhaustF = (prof.exhaustHz[0] + (prof.exhaustHz[1] - prof.exhaustHz[0]) * (0.20 * load + 0.80 * rpmFrac)) * dna.exhaustShift;
     this.intakeRes.frequency.setTargetAtTime(intakeF, now, 0.025);
     this.intakeRes.gain.setTargetAtTime(3.5 + load * 7.5 + aggBoost * 2.5, now, 0.03);
     this.exhaustRes.frequency.setTargetAtTime(exhaustF, now, 0.025);
@@ -978,20 +1045,30 @@ export class InCarEngineSynth {
     // Master lowpass tracks throttle load & RPM (prevents any harsh synthetic buzz at low RPM or idle)
     const lpMin = 380 + aggBoost * 240;
     const lpMax = 1450 + aggBoost * 2400;
-    const lpHz = lpMin + (lpMax - lpMin) * (0.18 + load * 0.42 + rpmFrac * 0.48);
+    const lpHz = (lpMin + (lpMax - lpMin) * (0.18 + load * 0.42 + rpmFrac * 0.48)) * dna.exhaustShift;
     // When real clips are active, keep synth sub-foundation warm & chesty underneath so real clips shine on top!
-    this.masterLp.frequency.setTargetAtTime((this.clipReady ? Math.min(lpHz, 520 + rpmFrac * 420) : lpHz) * shiftCut, now, 0.025);
+    this.masterLp.frequency.setTargetAtTime((this.clipReady ? Math.min(lpHz, (520 + rpmFrac * 440) * dna.exhaustShift) : lpHz) * shiftCut, now, 0.025);
 
     // Update 4-layer dual-phase RPM-locked real recorded engine clips (idle -> mid -> high + off-throttle decel overrun)
+    // Calibrated with each bank's measured slices.f0Hz / centroidHz + per-car pitchScale so every car sounds authentically distinct!
     if (this.clipReady && this.clipIdleSrcs.length && this.clipMidSrcs.length && this.clipHighSrcs.length && this.clipDecelSrcs.length) {
-      // Pitch-locked playbackRate kept inside natural 0.72x..1.48x window so real recordings never sound chipmunky
-      const idleRate = 0.84 + rpmFrac * 1.12 + idleLope * 0.6;
-      const midRate = 0.72 + rpmFrac * 0.90;
-      const highRate = 0.64 + rpmFrac * 0.66;
-      const decelRate = 0.72 + rpmFrac * 0.78;
+      const bankRedRatio = Math.max(0.75, Math.min(1.28, redlineRpm / Math.max(3000, meta?.redlineRpm ?? 7000)));
+      const clipPitch = Math.max(0.76, Math.min(1.26, dna.pitchScale * (0.65 + 0.35 * bankRedRatio)));
+      const idleF0 = meta?.slices.idle.f0Hz ?? 120;
+      const midF0 = meta?.slices.mid.f0Hz ?? 180;
+      const highF0 = meta?.slices.high.f0Hz ?? 340;
+      // Gentle F0 anchor normalization keeps each bank in its real recorded octave while preserving natural pitch separation across V8/V10/V12/I4/Diesel!
+      const idleNorm = Math.max(0.84, Math.min(1.18, Math.pow(120 / Math.max(60, idleF0), 0.16)));
+      const midNorm = Math.max(0.84, Math.min(1.18, Math.pow(180 / Math.max(60, midF0), 0.14)));
+      const highNorm = Math.max(0.84, Math.min(1.18, Math.pow(320 / Math.max(90, highF0), 0.14)));
+      const idleRate = (0.82 + rpmFrac * 1.08 + idleLope * 0.6) * clipPitch * idleNorm;
+      const midRate = (0.72 + rpmFrac * 0.88) * clipPitch * midNorm;
+      const highRate = (0.65 + rpmFrac * 0.68) * clipPitch * highNorm;
+      const decelRate = (0.72 + rpmFrac * 0.78) * clipPitch;
       const setDual = (srcs: AudioBufferSourceNode[], rate: number, tcRate: number) => {
-        if (srcs[0]) srcs[0].playbackRate.setTargetAtTime(rate * 0.9955, now, tcRate);
-        if (srcs[1]) srcs[1].playbackRate.setTargetAtTime(rate * 1.0045, now, tcRate);
+        const cl = Math.max(0.55, Math.min(1.65, rate));
+        if (srcs[0]) srcs[0].playbackRate.setTargetAtTime(cl * 0.9955, now, tcRate);
+        if (srcs[1]) srcs[1].playbackRate.setTargetAtTime(cl * 1.0045, now, tcRate);
       };
       setDual(this.clipIdleSrcs, idleRate, 0.022);
       setDual(this.clipMidSrcs, midRate, 0.020);
@@ -1018,13 +1095,15 @@ export class InCarEngineSynth {
       this.clipHighGain.gain.setTargetAtTime(wHigh * onMix * (0.86 + load * 0.34), now, 0.022);
       this.clipDecelGain.gain.setTargetAtTime(decelMix, now, 0.035);
 
-      // Dynamic throttle-reactive cabin/exhaust EQ on the real recorded clips (smooth at cruise, wide open at WOT)
-      const clipCutMin = 1250 + aggBoost * 650;
-      const clipCutMax = 3800 + aggBoost * 4200;
-      const clipCut = clipCutMin + (clipCutMax - clipCutMin) * (0.22 + load * 0.48 + rpmFrac * 0.38);
+      // Dynamic throttle-reactive cabin/exhaust EQ on the real recorded clips tuned by bank centroid + car DNA!
+      const bankCent = meta?.slices.mid.centroidHz ?? 820;
+      const centMul = Math.max(0.75, Math.min(1.30, bankCent / 820));
+      const clipCutMin = (1250 + aggBoost * 650) * dna.exhaustShift * centMul;
+      const clipCutMax = (3800 + aggBoost * 4200) * dna.exhaustShift;
+      const clipCut = Math.min(10500, clipCutMin + (clipCutMax - clipCutMin) * (0.22 + load * 0.48 + rpmFrac * 0.38));
       this.clipLp.frequency.setTargetAtTime(clipCut * (0.65 + 0.35 * shiftCut), now, 0.025);
-      this.clipPresence.frequency.setTargetAtTime(480 + rpmFrac * 1350 + load * 320, now, 0.03);
-      this.clipPresence.gain.setTargetAtTime(0.5 + load * 4.2 + aggBoost * 2.0, now, 0.03);
+      this.clipPresence.frequency.setTargetAtTime((480 + rpmFrac * 1350 + load * 320) * dna.exhaustShift, now, 0.03);
+      this.clipPresence.gain.setTargetAtTime(0.5 + load * 4.2 + aggBoost * 2.0 + dna.brightTilt * 4.0, now, 0.03);
     }
 
     // Balance fundamental, uneven sub-order rumble, upper mechanical rasp, and air-intake growl
@@ -1067,6 +1146,10 @@ export class InCarEngineSynth {
   }
 
   public setMuted(silent: boolean): void {
-    if (silent) this.out.gain.setTargetAtTime(0.0001, this.ctx.currentTime, 0.04);
+    if (silent) {
+      const now = this.ctx.currentTime;
+      this.out.gain.setTargetAtTime(0.0001, now, 0.04);
+      this.evGain.gain.setTargetAtTime(0, now, 0.04);
+    }
   }
 }

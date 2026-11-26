@@ -4,6 +4,8 @@
 // whitecaps, and rain adds ripple rings. Fog and the map-edge fade match the rest of the scene.
 import * as THREE from 'three';
 import type { Atmosphere } from './atmosphere';
+import { createApexWaterTslMaterial, type ApexWaterTslHandle } from './tsl/worldTsl';
+import { isRegionWebGpuActive } from './tsl/webgpuRuntime';
 
 const FLOW_URL = '/games/apex/region/water_flow.png';
 
@@ -53,7 +55,7 @@ const VERT = `
   }`;
 
 const FRAG = `
-  uniform sampler2D tFlow, tNormal, tSky;
+  uniform sampler2D tFlow, tCarve, tNormal, tSky;
   uniform float uTime, uSunAmt, uWind, uRain, uFogNear, uFogFar, uMapFade, uSkyDim, uHaveSky, uStorm, uGlint;
   uniform vec3 uSunDir, uSunCol, uFog;
   uniform vec4 uRegion;
@@ -66,32 +68,50 @@ const FRAG = `
     vec2 fuv = (wp - uRegion.xy) / uRegion.zw;
     bool inside = fuv.x > 0.0 && fuv.x < 1.0 && fuv.y > 0.0 && fuv.y < 1.0;
     vec4 fl = inside ? texture2D(tFlow, fuv) : vec4(0.5, 0.5, 1.0, 0.0);
-    vec2 flow = (fl.rg - 0.5) * 4.0;                      // metres per second
-    float dep = fl.b * fl.b * 12.0;
-    float shore = fl.a;
+    vec4 cv = inside ? texture2D(tCarve, fuv) : vec4(0.0);
+    vec2 flow = (fl.rg - 0.5) * 4.4;                      // metres per second
+    float rawDep = max(fl.b, cv.b);
+    float dep = rawDep * rawDep * 12.0;
+    float shore = fl.a * (1.0 - cv.a * 0.92);
     float spd = length(flow);
-    // wind drift on open water
-    vec2 cur = flow + uWindDir * (0.35 + uWind * 0.8) * (1.0 - smoothstep(0.1, 0.6, spd));
-    // three-scale flow & swell advection (rotated 31 m swell breaks up any repeating 9 m normal-tile grid across open lake)
-    float T = 2.4;
+    // Realistic living current: strong downstream river drift + lively wind-driven lake current (never static!)
+    vec2 riverFallback = vec2(-0.38, 0.92);
+    vec2 windDrift = uWindDir * (0.95 + uWind * 1.45);
+    vec2 baseCur = spd > 0.18 ? flow * 1.35 : mix(windDrift, riverFallback * 1.55, smoothstep(8.5, 2.2, dep) * (inside ? 1.0 : 0.0));
+    vec2 cur = baseCur + uWindDir * (0.42 + uWind * 0.85) * (1.0 - smoothstep(0.4, 1.8, spd));
+    float curSpd = length(cur);
+    vec2 curDir = cur / max(curSpd, 0.001);
+    vec2 curPerp = vec2(-curDir.y, curDir.x);
+
+    // Four-scale continuous current & swell advection (clearly animated from street level, bridges, replays & aerials!)
+    float T = 3.2;
     float ph0 = fract(uTime / T), ph1 = fract(uTime / T + 0.5);
     float wgt = abs(ph0 * 2.0 - 1.0);
-    vec2 a0 = wp / 9.0 - cur * ph0 * T / 9.0, a1 = wp / 9.0 - cur * ph1 * T / 9.0;
-    vec2 b0 = wp / 2.6 - cur * 1.25 * ph0 * T / 2.6 + vec2(0.37, 0.11), b1 = wp / 2.6 - cur * 1.25 * ph1 * T / 2.6 + vec2(0.37, 0.11);
+    // Elongate ripples slightly along current direction so downstream river flow reads unmistakably
+    vec2 flowSpace = vec2(dot(wp, curPerp) * 1.25, dot(wp, curDir) * 0.78);
+    vec2 a0 = flowSpace / 9.5 - vec2(0.0, curSpd * ph0 * T / 9.5);
+    vec2 a1 = flowSpace / 9.5 - vec2(0.0, curSpd * ph1 * T / 9.5);
+    vec2 b0 = wp / 3.1 - cur * 1.45 * ph0 * T / 3.1 + vec2(0.37, 0.11);
+    vec2 b1 = wp / 3.1 - cur * 1.45 * ph1 * T / 3.1 + vec2(0.37, 0.11);
     vec2 wpR = mat2(0.8, -0.6, 0.6, 0.8) * wp;
     vec2 wpR2 = mat2(-0.53, 0.85, -0.85, -0.53) * wp;
-    vec2 c0 = wpR / 37.0 - cur * 0.42 * uTime / 37.0 + vec2(0.19, 0.63);
-    vec2 c1 = wpR2 / 89.0 - cur * 0.28 * uTime / 89.0 + vec2(0.47, 0.29);
+    vec2 c0 = wpR / 26.0 - (cur * 0.85 + uWindDir * 1.35) * uTime / 26.0 + vec2(0.19, 0.63);
+    vec2 c1 = wpR2 / 64.0 - (cur * 0.65 + uWindDir * 1.85) * uTime / 64.0 + vec2(0.47, 0.29);
     vec4 ta0 = texture2D(tNormal, a0);
     vec4 ta1 = texture2D(tNormal, a1);
     vec3 nA = mix(ta0.xyz, ta1.xyz, wgt) * 2.0 - 1.0;
     vec3 nB = mix(nrm(tNormal, b0), nrm(tNormal, b1), wgt);
-    vec3 nC = nrm(tNormal, c0) * 0.55 + nrm(tNormal, c1) * 0.45;
+    vec3 nC = nrm(tNormal, c0) * 0.58 + nrm(tNormal, c1) * 0.42;
+    // Travelling directional swell wave crests so wide bridge/aerial/Hero Showcase shots show continuous flowing motion
+    float swellPhase1 = dot(wp, curDir) * 0.19 - uTime * (1.55 + curSpd * 0.55);
+    float swellPhase2 = dot(wp, uWindDir) * 0.11 - uTime * (1.25 + uWind * 1.15);
+    vec2 dirWave = curDir * cos(swellPhase1) * 0.11 + uWindDir * cos(swellPhase2) * 0.085;
+
     float d3 = length(cameraPosition - vW);
-    float nearFade = 1.0 - smoothstep(65.0, 320.0, d3);
-    float midFade = 1.0 - smoothstep(260.0, 1400.0, d3) * 0.78;
-    float choppy = 0.28 + uWind * 1.05 + spd * 0.22 + uRain * 0.25;
-    vec2 slope = (nA.xy * 0.65 * nearFade + nB.xy * 0.55 * nearFade + nC.xy * 0.72 * midFade) * choppy;
+    float nearFade = 1.0 - smoothstep(140.0, 580.0, d3);
+    float midFade = 1.0 - smoothstep(550.0, 2800.0, d3) * 0.68;
+    float choppy = 0.36 + uWind * 1.10 + curSpd * 0.22 + uRain * 0.28;
+    vec2 slope = (nA.xy * 0.72 * nearFade + nB.xy * 0.58 * nearFade + nC.xy * 0.84 * midFade) * choppy + dirWave * midFade;
     // rain rings
     if (uRain > 0.02) {
       vec2 g = wp * 0.55, id = floor(g), f = fract(g) - 0.5;
@@ -130,17 +150,25 @@ const FRAG = `
     }
     sp = min(sp, 2.4);
     col += uSunCol * sp * max(uSunAmt, uGlint * 0.7) * (1.0 - uStorm * 0.7);
-    // foam: modulate 9 m ripple height with both rotated large swells so whitecaps break up organically with zero square-grid tiling
+    // foam: animated shoreline lap waves + elongated downstream current foam streaks + wind whitecaps
     float hSw = texture2D(tNormal, c0).a * 0.58 + texture2D(tNormal, c1).a * 0.42;
     float hh = mix(ta0.a, ta1.a, wgt) * (0.35 + 0.85 * hSw);
-    float bank = smoothstep(0.62, 1.0, shore) * smoothstep(0.32, 0.78, hh + (1.0 - dep) * 0.1);
-    float fast = smoothstep(1.05, 1.5, spd) * smoothstep(0.50, 0.82, hh) * 0.6;
-    float caps = smoothstep(0.55, 1.0, uWind + uStorm * 0.4) * smoothstep(0.68, 0.92, hh) * 0.8 * midFade;
-    float foam = clamp(bank + fast + caps, 0.0, 1.0);
+    float lapWave = 0.5 + 0.5 * sin(uTime * 2.35 - shore * 14.0 + hSw * 6.0);
+    float bank = smoothstep(0.56, 1.0, shore) * smoothstep(0.28, 0.76, hh + lapWave * 0.26 + (1.0 - dep) * 0.1);
+    float streakTex = texture2D(tNormal, vec2(dot(wp, curPerp) / 7.5, dot(wp, curDir) / 42.0 - uTime * curSpd / 42.0)).a;
+    float currentStreak = smoothstep(0.75, 1.9, curSpd) * smoothstep(0.66, 0.90, streakTex * (0.65 + 0.55 * hSw)) * 0.26 * midFade;
+    float fast = smoothstep(0.95, 1.55, curSpd) * smoothstep(0.48, 0.82, hh) * 0.55;
+    float caps = smoothstep(0.48, 1.0, uWind + uStorm * 0.4) * smoothstep(0.66, 0.90, hh) * 0.78 * midFade;
+    float foam = clamp(bank + fast + caps + currentStreak, 0.0, 1.0);
     col = mix(col, vec3(0.88, 0.92, 0.94) * (0.5 + 0.5 * max(uSunAmt, 0.2)), foam * 0.85);
     float alpha = clamp(0.30 + tdeep * 0.62 + F * 0.35 + foam * 0.5, 0.0, 0.96);
     // Smooth wide shoreline feather eliminates harsh depth-fighting shimmer along shallow river/lake edges
     alpha *= smoothstep(0.02, 0.90, dep + (inside ? 0.0 : 1.0));
+    // Only extend open Great Lake water apron to the WEST & NORTHWEST (never stick out behind inland east/south terrain borders!)
+    float eastBoundary = 1.0 - smoothstep(0.992, 1.003, fuv.x);
+    float southBoundary = 1.0 - smoothstep(0.992, 1.003, fuv.y);
+    float neBoundary = 1.0 - smoothstep(0.68, 0.78, fuv.x) * (1.0 - smoothstep(-0.015, 0.006, fuv.y));
+    alpha *= eastBoundary * southBoundary * neBoundary;
     // fog and the map edge fade
     float fg = smoothstep(uFogNear, uFogFar, dist);
     col = mix(col, uFog, fg);
@@ -155,35 +183,88 @@ export interface WaterState { sunDir: THREE.Vector3; sunCol: THREE.Color; sunAmt
 
 export class WaterSurface {
   readonly mesh: THREE.Mesh;
-  private mat: THREE.ShaderMaterial;
+  private mat: THREE.ShaderMaterial | null = null;
+  private tslWater: ApexWaterTslHandle | null = null;
   private t = 0;
-  constructor(scene: THREE.Scene, rw: number, rh: number, ext: number, edge: THREE.Vector2, x0: number, z0: number, atmosphere?: Atmosphere | null) {
+  constructor(scene: THREE.Scene, rw: number, rh: number, ext: number, edge: THREE.Vector2, x0: number, z0: number, atmosphere?: Atmosphere | null, carvedHeightAt?: (x: number, z: number) => number) {
     const blank = new THREE.DataTexture(new Uint8Array([128, 128, 255, 0]), 1, 1); blank.needsUpdate = true;
-    this.mat = new THREE.ShaderMaterial({
-      vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false,
-      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2,
-      uniforms: {
-        tFlow: { value: blank }, tNormal: { value: normalTexture() }, tSky: { value: blank },
-        uTime: { value: 0 }, uSunAmt: { value: 1 }, uWind: { value: 0.1 }, uRain: { value: 0 }, uFogNear: { value: 9000 }, uFogFar: { value: 42000 }, uMapFade: { value: 0 }, uSkyDim: { value: 1 }, uHaveSky: { value: 0 }, uStorm: { value: 0 }, uGlint: { value: 0 },
-        uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uFog: { value: new THREE.Color(0.7, 0.8, 0.9) },
-        uRegion: { value: new THREE.Vector4(x0, z0, rw, rh) }, uEdge: { value: edge }, uWindDir: { value: new THREE.Vector2(0.8, 0.25).normalize() },
-      },
-    });
+    const carveTex = (() => {
+      if (!carvedHeightAt) {
+        const z = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1); z.needsUpdate = true; return z;
+      }
+      // Build a 512x512 lossless RGBA DataTexture from the LIVE carved heightfield so channels carved
+      // beneath Halcyon Gateway Bridge (and all river reaches) get true depth & clear fake satellite
+      // mid-channel shoreline without ever passing water_flow.png through premultiplied Canvas2D.
+      const sz = 512;
+      const data = new Uint8Array(sz * sz * 4);
+      for (let py = 0; py < sz; py++) {
+        const wz = z0 + ((py + 0.5) / sz) * rh;
+        for (let px = 0; px < sz; px++) {
+          const wx = x0 + ((px + 0.5) / sz) * rw;
+          const gh = carvedHeightAt(wx, wz);
+          if (gh < -0.35) {
+            const o = (py * sz + px) * 4;
+            const carvedDep = Math.min(12, -0.3 - gh);
+            data[o + 2] = Math.min(255, Math.round(Math.sqrt(carvedDep / 12) * 255));
+            if (carvedDep > 1.2) data[o + 3] = Math.min(255, Math.round(Math.min(1, (carvedDep - 1.2) / 1.8) * 255));
+          }
+        }
+      }
+      const ct = new THREE.DataTexture(data, sz, sz, THREE.RGBAFormat);
+      ct.colorSpace = THREE.NoColorSpace; ct.flipY = false; ct.wrapS = ct.wrapT = THREE.ClampToEdgeWrapping;
+      ct.minFilter = THREE.LinearFilter; ct.magFilter = THREE.LinearFilter; ct.generateMipmaps = false;
+      ct.needsUpdate = true;
+      return ct;
+    })();
+    let meshMat: THREE.Material;
+    if (isRegionWebGpuActive()) {
+      this.tslWater = createApexWaterTslMaterial({
+        normalTex: normalTexture(),
+        flowTex: blank,
+        carveTex,
+        region: new THREE.Vector4(x0, z0, rw, rh),
+        edge,
+      });
+      meshMat = this.tslWater.material as unknown as THREE.Material;
+    } else {
+      this.mat = new THREE.ShaderMaterial({
+        vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false,
+        polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2,
+        uniforms: {
+          tFlow: { value: blank }, tCarve: { value: carveTex }, tNormal: { value: normalTexture() }, tSky: { value: blank },
+          uTime: { value: 0 }, uSunAmt: { value: 1 }, uWind: { value: 0.25 }, uRain: { value: 0 }, uFogNear: { value: 9000 }, uFogFar: { value: 42000 }, uMapFade: { value: 0 }, uSkyDim: { value: 1 }, uHaveSky: { value: 0 }, uStorm: { value: 0 }, uGlint: { value: 0.45 },
+          uSunDir: { value: new THREE.Vector3(0, 1, 0) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uFog: { value: new THREE.Color(0.7, 0.8, 0.9) },
+          uRegion: { value: new THREE.Vector4(x0, z0, rw, rh) }, uEdge: { value: edge }, uWindDir: { value: new THREE.Vector2(0.8, 0.25).normalize() },
+        },
+      });
+      atmosphere?.patchCustom(this.mat, 'water');
+      meshMat = this.mat;
+    }
     // Cover the entire region plus a wide ocean apron west, north and south so coastal highways never see a straight water cutoff seam
     const g = new THREE.PlaneGeometry(rw + ext * 1.6, rh + ext * 1.6); g.rotateX(-Math.PI / 2);
-    atmosphere?.patchCustom(this.mat, 'water');
-    this.mesh = new THREE.Mesh(g, this.mat);
+    this.mesh = new THREE.Mesh(g, meshMat);
     this.mesh.position.set(x0 + rw * 0.5 - ext * 0.35, -0.3, z0 + rh * 0.5 - ext * 0.25);
     this.mesh.renderOrder = 2;
     scene.add(this.mesh);
     new THREE.TextureLoader().load(FLOW_URL, (t) => {
-      t.colorSpace = THREE.NoColorSpace; t.flipY = false; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.minFilter = THREE.LinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = false;
-      this.mat.uniforms.tFlow.value = t;
+      t.colorSpace = THREE.NoColorSpace; t.flipY = false; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+      t.minFilter = THREE.LinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = false;
+      if (this.tslWater) this.tslWater.setFlowTexture(t);
+      else if (this.mat) this.mat.uniforms.tFlow.value = t;
     });
   }
-  setSky(tex: THREE.Texture | null): void { if (tex) { this.mat.uniforms.tSky.value = tex; this.mat.uniforms.uHaveSky.value = 1; } }
+  setSky(tex: THREE.Texture | null): void {
+    if (!tex) return;
+    if (this.tslWater) this.tslWater.setSkyTexture(tex);
+    else if (this.mat) { this.mat.uniforms.tSky.value = tex; this.mat.uniforms.uHaveSky.value = 1; }
+  }
   update(dt: number, s: WaterState): void {
     this.t += dt;
+    if (this.tslWater) {
+      this.tslWater.update(dt, s);
+      return;
+    }
+    if (!this.mat) return;
     const u = this.mat.uniforms;
     u.uTime.value = this.t;
     u.uSunDir.value.copy(s.sunDir); u.uSunCol.value.copy(s.sunCol); u.uSunAmt.value = s.sunAmt; u.uWind.value = s.wind; u.uRain.value = s.rain; u.uStorm.value = s.storm;

@@ -17,6 +17,7 @@ export interface PinewoodRallyOptions {
 
 export interface PinewoodRallyResult {
   group: THREE.Group;
+  road?: THREE.Mesh;
   setLights?: (state: 'red' | 'green' | 'off') => void;
 }
 
@@ -1535,5 +1536,5 @@ export function buildPinewoodRallyCircuit(opts: PinewoodRallyOptions): PinewoodR
     }
   };
 
-  return { group, setLights };
+  return { group, road: roadMesh, setLights };
 }

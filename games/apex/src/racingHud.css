@@ -9,7 +9,7 @@
 .race-lap{position:absolute;top:28px;left:50%;transform:translateX(-50%);font:600 12px 'JetBrains Mono',monospace;white-space:nowrap;border-top:2px solid #70dce6;padding:10px 14px;background:linear-gradient(#08111bba,#08111b36)}
 .race-status{position:absolute;bottom:85px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:.17em;color:#90e4e7;font-weight:700}
 .race-status[data-severity=warning]{color:#ffbf77}
-.race-hint{position:absolute;bottom:22px;left:24px;font-size:9px;letter-spacing:.08em;color:#bfccd5b0}
+.race-hint{position:absolute;bottom:14px;left:122px;font-size:9px;letter-spacing:.08em;color:#bfccd5b0}
 .race-touch .race-instruments{bottom:170px;width:240px;height:184px;right:8px}
 @media(max-width:800px){.race-map{top:14px;left:14px;width:154px}.race-map-canvas{width:154px;height:154px}.race-location{font-size:8px}.race-instruments{width:260px;height:199px;right:4px;bottom:8px}.race-lap{top:16px;left:auto;right:76px;transform:none;font-size:10px;max-width:calc(100vw - 250px);overflow:hidden}.race-hint{max-width:48%;font-size:8px;line-height:1.6}.race-status{bottom:44px;font-size:8px;max-width:45%;text-align:center}}
 @media(max-height:480px){.race-map-canvas{width:130px;height:130px}.race-map{width:130px;top:8px}.race-touch .race-instruments{bottom:105px;width:200px;height:153px}.race-location{display:none}}

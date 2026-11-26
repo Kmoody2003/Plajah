@@ -349,11 +349,11 @@ export function buildHeroBridge(opts: HeroBridgeOptions): HeroBridgeHandle {
     caisson.receiveShadow = true;
     towerGroup.add(caisson);
 
-    // Cutwater noses (fore/aft)
-    const noseGeo = new THREE.CylinderGeometry(4.8, 5.2, pierDepth * 0.75, 6);
+    // Cutwater noses (fore/aft) extending full pier depth into the riverbed (never hovering above carved river floor)
+    const noseGeo = new THREE.CylinderGeometry(4.8, 5.4, pierDepth, 6);
     for (const side of [-1, 1]) {
       const nose = new THREE.Mesh(noseGeo, concreteMat);
-      nose.position.set(side * (legSpreadX + 2.2), -pierDepth * 0.45 - 1.6, 0);
+      nose.position.set(side * (legSpreadX + 2.2), -pierDepth * 0.5 - 1.6, 0);
       towerGroup.add(nose);
     }
 

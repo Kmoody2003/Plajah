@@ -106,8 +106,12 @@ export function buildTownSidewalks(
           if (R.lawn && !owns(ri, q) && d < R.half + CURB_TOP + R.lawn + WALK + 0.2) { walk = false; break; }  // the corner belongs to the cross street's walk
         }
         if (walk) {
-          const ya = o.ground(p.x + nx * o0, p.z + nz * o0) + 0.07, yb = o.ground(p.x + nx * o1, p.z + nz * o1) + 0.07;
-          const A = [p.x + nx * o0, Math.max(ya, y + 0.02), p.z + nz * o0], B = [p.x + nx * o1, Math.max(yb, y + 0.02), p.z + nz * o1];
+          const yaRaw = o.ground(p.x + nx * o0, p.z + nz * o0) + 0.07;
+          const ybRaw = o.ground(p.x + nx * o1, p.z + nz * o1) + 0.07;
+          // Civil-engineered sidewalk cross-slope cap: keep walk within realistic bounds of curb & max 8% transverse tilt
+          const ya = Math.max(y + 0.02, Math.min(y + 0.65, yaRaw));
+          const yb = Math.max(ya - 0.14, Math.min(ya + 0.14, ybRaw));
+          const A = [p.x + nx * o0, ya, p.z + nz * o0], B = [p.x + nx * o1, yb, p.z + nz * o1];
           if (prevW) {
             const b0 = wPos.length / 3;
             wPos.push(...prevW, ...A, ...B);

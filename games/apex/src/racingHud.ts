@@ -2,7 +2,11 @@ export interface MapLandmark {
   name: string;
   x: number;
   z: number;
-  kind?: 'city' | 'industrial' | 'nature' | 'water' | 'festival' | 'track';
+  kind?: 'city' | 'industrial' | 'nature' | 'water' | 'festival' | 'track' | 'town' | 'airport';
+}
+export interface MapRoadLayer {
+  points: { x: number; z: number }[];
+  kind: 'highway' | 'paved' | 'dirt' | 'rail' | 'runway';
 }
 export interface MapOpponent {
   x: number;
@@ -27,6 +31,8 @@ const LANDMARK_COLOR: Record<NonNullable<MapLandmark['kind']>, string> = {
   water: '#68dbe4',
   festival: '#ff6fb1',
   track: '#f4f6ee',
+  town: '#ffe29a',
+  airport: '#74f2ff',
 };
 
 /** Fixed DOM and two small canvases; telemetry never rebuilds the HUD every frame. */
@@ -37,9 +43,9 @@ export class RacingHud {
   private lap: HTMLElement;
   private hint: HTMLElement;
   private route: Route = [];
-  private roads: { points: Route; minX: number; minZ: number; maxX: number; maxZ: number }[] = [];
+  private roads: { points: Route; kind: MapRoadLayer['kind']; minX: number; minZ: number; maxX: number; maxZ: number }[] = [];
   private routeName = '';
-  private envImg: HTMLImageElement | null = null;
+  private envImg: HTMLImageElement | HTMLCanvasElement | null = null;
   private envBounds: { ox: number; oz: number; w: number; h: number } | null = null;
   private landmarks: MapLandmark[] = [];
   private time = 0;
@@ -55,19 +61,33 @@ export class RacingHud {
     this.lap = root.querySelector('.race-lap')!;
     this.hint = root.querySelector('.race-hint')!;
   }
-  configureEnvironment(albedoUrl: string, bounds: { ox: number; oz: number; w: number; h: number }, landmarks: MapLandmark[]): void {
+  configureEnvironment(albedoOrCanvas: string | HTMLCanvasElement, bounds: { ox: number; oz: number; w: number; h: number }, landmarks: MapLandmark[]): void {
     this.envBounds = bounds;
     this.landmarks = landmarks;
+    if (typeof albedoOrCanvas !== 'string') {
+      this.envImg = albedoOrCanvas;
+      return;
+    }
     if (!this.envImg) {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      img.src = albedoUrl;
+      img.src = albedoOrCanvas;
       img.onload = () => { this.envImg = img; };
     }
   }
-  configure(name: string, route: Route, roads: Route[]): void {
+  configure(name: string, route: Route, roads: (Route | MapRoadLayer)[]): void {
     this.routeName = name; this.route = route;
-    this.roads = roads.filter((points) => points.length).map((points) => ({ points, minX: Math.min(...points.map((p) => p.x)), minZ: Math.min(...points.map((p) => p.z)), maxX: Math.max(...points.map((p) => p.x)), maxZ: Math.max(...points.map((p) => p.z)) }));
+    this.roads = roads
+      .map((entry) => (Array.isArray(entry) ? { points: entry, kind: 'paved' as const } : entry))
+      .filter((r) => r.points.length > 1)
+      .map((r) => ({
+        points: r.points,
+        kind: r.kind,
+        minX: Math.min(...r.points.map((p) => p.x)),
+        minZ: Math.min(...r.points.map((p) => p.z)),
+        maxX: Math.max(...r.points.map((p) => p.x)),
+        maxZ: Math.max(...r.points.map((p) => p.z)),
+      }));
     this.root.querySelector('.race-location')!.textContent = name;
     this.time = 0;
   }
@@ -106,35 +126,50 @@ export class RacingHud {
     };
     c.save(); c.beginPath(); c.rect(5, 5, 200, 200); c.clip();
 
-    // 1. Live heading-up regional terrain, water, shoreline, forest & urban satellite backdrop
-    if (this.envImg && this.envBounds && this.envImg.complete && this.envImg.naturalWidth > 0) {
-      const b = this.envBounds;
-      const iw = this.envImg.naturalWidth, ih = this.envImg.naturalHeight;
-      const worldMinX = b.ox - b.w * 0.5, worldMinZ = b.oz - b.h * 0.5;
-      // Crop a generous world square around the player so rotation fills the 200x200 viewport cleanly
-      const cropWorld = range * 2.4;
-      const sx = ((data.x - cropWorld * 0.5 - worldMinX) / b.w) * iw;
-      const sy = ((data.z - cropWorld * 0.5 - worldMinZ) / b.h) * ih;
-      const sw = (cropWorld / b.w) * iw;
-      const sh = (cropWorld / b.h) * ih;
-      const drawPx = cropWorld * scale;
-      c.save();
-      c.translate(cx, cy);
-      // Match project(): when yaw=0 (car faces +Z), +Z must point UP (-Y on canvas), +X points RIGHT (+X on canvas)
-      c.scale(1, -1);
-      c.rotate(data.yaw);
-      c.globalAlpha = 0.62;
-      c.drawImage(this.envImg, sx, sy, sw, sh, -drawPx * 0.5, -drawPx * 0.5, drawPx, drawPx);
-      c.restore();
-      // Subtle GPS night-slate tint overlay so bright route, landmarks & cars pop effortlessly
-      c.fillStyle = 'rgba(7,16,26,0.42)';
-      c.fillRect(5, 5, 200, 200);
+    // 1. Live heading-up procedural topographic/biome map backdrop (replaces stale satellite albedo!)
+    const env = this.envImg;
+    if (env && this.envBounds) {
+      const isCanvas = env instanceof HTMLCanvasElement;
+      const ready = isCanvas || (env.complete && env.naturalWidth > 0);
+      if (ready) {
+        const b = this.envBounds;
+        const iw = isCanvas ? env.width : env.naturalWidth;
+        const ih = isCanvas ? env.height : env.naturalHeight;
+        const worldMinX = b.ox - b.w * 0.5, worldMinZ = b.oz - b.h * 0.5;
+        const cropWorld = range * 2.4;
+        const sx = ((data.x - cropWorld * 0.5 - worldMinX) / b.w) * iw;
+        const sy = ((data.z - cropWorld * 0.5 - worldMinZ) / b.h) * ih;
+        const sw = (cropWorld / b.w) * iw;
+        const sh = (cropWorld / b.h) * ih;
+        const drawPx = cropWorld * scale;
+        c.save();
+        c.translate(cx, cy);
+        c.scale(1, -1);
+        c.rotate(data.yaw);
+        c.globalAlpha = isCanvas ? 0.90 : 0.62;
+        c.drawImage(env, sx, sy, sw, sh, -drawPx * 0.5, -drawPx * 0.5, drawPx, drawPx);
+        c.restore();
+        c.fillStyle = isCanvas ? 'rgba(6,13,22,0.18)' : 'rgba(7,16,26,0.42)';
+        c.fillRect(5, 5, 200, 200);
+      }
     }
 
-    // 2. Surrounding road network
+    // 2. Full live vector road, rural dirt, rail & airport runway network
     for (const road of this.roads) {
       if (road.maxX < data.x - range * 1.6 || road.minX > data.x + range * 1.6 || road.maxZ < data.z - range * 1.6 || road.minZ > data.z + range * 1.6) continue;
-      line(road.points, 'rgba(130,158,178,0.48)', 2.4);
+      if (road.kind === 'runway') {
+        line(road.points, 'rgba(230,242,250,0.92)', 5.2);
+      } else if (road.kind === 'rail') {
+        c.save(); c.setLineDash([4, 4]); line(road.points, 'rgba(92,214,232,0.58)', 1.5); c.restore();
+      } else if (road.kind === 'dirt') {
+        c.save(); c.setLineDash([5, 3]); line(road.points, 'rgba(202,164,116,0.72)', 2.0); c.restore();
+      } else if (road.kind === 'highway') {
+        line(road.points, 'rgba(18,22,28,0.85)', 5.2);
+        line(road.points, 'rgba(244,186,74,0.92)', 3.0);
+      } else {
+        line(road.points, 'rgba(15,22,30,0.72)', 4.0);
+        line(road.points, 'rgba(186,208,224,0.82)', 2.3);
+      }
     }
 
     // 3. Active race circuit / route ribbon with dark casing + cyan glow
