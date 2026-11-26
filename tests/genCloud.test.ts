@@ -312,3 +312,14 @@ test('moderation: Claude fallback scores via structured output; refusal blocks; 
   assert.equal(v.ok, false);
   assert.deepEqual(await claudeModerator(undefined)({ text: 'x' }), { error: 'claude:not_configured' });
 });
+
+test('moderation: Pokee scorer reads JSON scores; unavailable or bad output defers to the next moderator', async () => {
+  const { pokeeModerator, firstAvailable, promptModerator } = await import('../services/genCloud/moderation');
+  const chat = (text: string) => (async () => ({ text, model: 'pokee-glm-5.3-flash', inTokens: 1, outTokens: 1 })) as any;
+  const good = pokeeModerator(chat('```json\n{"sexual/minors":0,"weapons/instructions":0.95,"sexual/real-person":0,"self-harm/instructions":0,"threat/real-person":0,"sexual":0,"violence/graphic":0}\n```'), () => true);
+  const v = await promptModerator(good)({ engine: 'spark-image', prompt: 'x' }, acct('glow'));
+  assert.equal(v.ok, false);
+  assert.deepEqual(await pokeeModerator(chat('{}'), () => false)({ text: 'x' }), { error: 'pokee:unavailable' });
+  const fallback = firstAvailable(pokeeModerator(chat('not json'), () => true), async () => ({ scores: { 'sexual/minors': 0 } }));
+  assert.ok('scores' in await fallback({ text: 'x' }));
+});
