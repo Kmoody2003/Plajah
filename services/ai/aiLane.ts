@@ -27,6 +27,9 @@ export const GEMINI_PRICES: Record<string, { in: number; out: number; note?: str
   'gemini-2.5-flash': { in: 0.30, out: 2.50 },
   'gemini-3.6-flash': { in: 0.75, out: 3.75, note: 'rises to $1.50 / $7.50 on 2027-01-01' },
   'gemini-3.8-flash': { in: 0.75, out: 3.75, note: 'rises to $1.50 / $7.50 on 2027-01-01' },
+  // Pokee (services/ai/pokeeLane.ts), from api.pokee.ai/v1/models on 2026-11-26. The default text lane.
+  'pokee-glm-5.3-flash': { in: 0.055, out: 0.20 },
+  'pokee-isaac': { in: 0.07, out: 0.30 },
 };
 
 /**

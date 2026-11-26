@@ -1,5 +1,7 @@
 /**
- * Gemini lane — the platform's server-side cloud model for councils and assistants.
+ * Gemini lane — the platform's server-side cloud model for councils and assistants. Since 2026-11-26
+ * text-only calls on the platform default go to Pokee first (services/ai/pokeeLane.ts, ~6× cheaper),
+ * with Gemini as the fallback and the lane for image/audio input. AI_TEXT_PROVIDER=gemini turns it off.
  *
  * Owner decision (2026-10-25): council and assistant work moves off Anthropic onto Gemini to cut cost;
  * privacy-facing work prefers the user's own PC (services/ai/aiLane.ts) and only comes here with consent.
@@ -15,6 +17,7 @@
  */
 
 import { DEFAULT_CLOUD_MODEL, costUsd } from './aiLane';
+import { POKEE_DEFAULT_TEXT_MODEL, pokeeAvailable, pokeeChat, type PokeeMessage } from './pokeeLane';
 
 export interface GeminiUsage { model: string; inTokens: number; outTokens: number; costUsd: number | null; seconds: number }
 export type LaneFn = (system: string, user: string, maxTokens?: number, opts?: { json?: boolean; temperature?: number }) => Promise<string>;
@@ -50,9 +53,59 @@ export interface GenerateOpts {
  * bill as output. Throws on an empty answer rather than returning "" for callers to misread.
  */
 export async function geminiGenerate(o: GenerateOpts): Promise<{ text: string; usage: GeminiUsage }> {
+  const model = o.model || laneModel();
+  // Text-only work goes to Pokee first (2026-11-26, cost); images/audio and any failure stay on Gemini.
+  const viaPokee = pokeeModelFor(model, o.contents);
+  if (viaPokee) {
+    const started = Date.now();
+    try {
+      const r = await pokeeChat({
+        model: viaPokee, messages: toPokeeMessages(o.system, o.contents), maxTokens: o.maxTokens ?? 1000,
+        temperature: o.temperature ?? 0.3, json: o.json, timeoutMs: o.timeoutMs,
+      });
+      let text = r.text;
+      if (o.json) {
+        // Callers JSON.parse the answer; a model that wraps it in a code fence or prose falls back to Gemini.
+        text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        JSON.parse(text);
+      }
+      const usage: GeminiUsage = { model: r.model, inTokens: r.inTokens, outTokens: r.outTokens, costUsd: costUsd(viaPokee, r.inTokens, r.outTokens), seconds: (Date.now() - started) / 1000 };
+      o.onUsage?.(usage);
+      return { text, usage };
+    } catch (err: any) {
+      if (!geminiConfigured()) throw new Error('The cloud assistant is busy right now. Try again in a moment.');
+      console.warn('[ai] pokee failed, using gemini:', String(err?.message || err).slice(0, 200));
+    }
+  }
   const key = geminiKey();
   if (!key) throw new Error('The cloud assistant is not configured yet.');
-  const model = o.model || laneModel();
+  const gModel = /^pokee-/.test(model) ? DEFAULT_CLOUD_MODEL : model;
+  return geminiOnly({ ...o, model: gModel }, key);
+}
+
+/**
+ * Which Pokee model serves this call, or null for Gemini. An explicit `pokee-*` model always goes to
+ * Pokee; the platform default goes to Pokee when the call is text only. A feature pinned to a specific
+ * Gemini model by its env override keeps that model.
+ */
+export function pokeeModelFor(model: string, contents: GenerateOpts['contents']): string | null {
+  if (!pokeeAvailable()) return null;
+  const textOnly = typeof contents === 'string' || contents.every(t => t.parts.every(p => 'text' in p));
+  if (!textOnly) return null;
+  if (/^pokee-/.test(model)) return model;
+  return model === DEFAULT_CLOUD_MODEL ? (process.env.POKEE_TEXT_MODEL || POKEE_DEFAULT_TEXT_MODEL) : null;
+}
+
+export function toPokeeMessages(system: string | undefined, contents: GenerateOpts['contents']): PokeeMessage[] {
+  const out: PokeeMessage[] = [];
+  if (system) out.push({ role: 'system', content: system });
+  if (typeof contents === 'string') out.push({ role: 'user', content: contents });
+  else for (const t of contents) out.push({ role: t.role === 'model' ? 'assistant' : 'user', content: t.parts.map(p => ('text' in p ? p.text : '')).join('\n') });
+  return out;
+}
+
+async function geminiOnly(o: GenerateOpts & { model: string }, key: string): Promise<{ text: string; usage: GeminiUsage }> {
+  const model = o.model;
   const { GoogleGenAI } = await import('@google/genai');
   const genai = new GoogleGenAI({ apiKey: key, httpOptions: { timeout: o.timeoutMs ?? 90_000 } } as any);
   const started = Date.now();

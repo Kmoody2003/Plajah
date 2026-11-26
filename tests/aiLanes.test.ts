@@ -124,3 +124,50 @@ test('security council defaults to Gemini and parses a Gemini triage verdict', a
   const blocked = (async () => new Response(JSON.stringify({ promptFeedback: { blockReason: 'SAFETY' } }), { status: 200 })) as typeof fetch;
   assert.equal(await triageFinding('g', 'gemini-3.1-flash-lite', { agent: 'medic', severity: 'medium', title: 't', dedupeKey: 'k', evidence: {}, proposedFix: 'f' } as any, blocked), null);
 });
+
+test('pokee lane: text-only default calls go to Pokee; images, pinned Gemini models and failures go to Gemini', async () => {
+  const { pokeeModelFor, toPokeeMessages } = await import('../services/ai/geminiLane');
+  const { _resetPokeeBreaker, pokeeChat, pokeeAvailable } = await import('../services/ai/pokeeLane');
+  const { DEFAULT_CLOUD_MODEL, costUsd } = await import('../services/ai/aiLane');
+  const prev = { k: process.env.POKEE_API_KEY, p: process.env.AI_TEXT_PROVIDER };
+  process.env.POKEE_API_KEY = 'K'; delete process.env.AI_TEXT_PROVIDER; _resetPokeeBreaker();
+  try {
+    assert.equal(pokeeModelFor(DEFAULT_CLOUD_MODEL, 'hello'), 'pokee-glm-5.3-flash');
+    assert.equal(pokeeModelFor('pokee-isaac', 'whole manuscript'), 'pokee-isaac');
+    assert.equal(pokeeModelFor('gemini-3.8-flash', 'hello'), null, 'a feature pinned to Gemini keeps it');
+    assert.equal(pokeeModelFor(DEFAULT_CLOUD_MODEL, [{ role: 'user', parts: [{ text: 'what is this' }, { inlineData: { mimeType: 'image/png', data: 'x' } }] }]), null);
+    assert.deepEqual(toPokeeMessages('sys', [{ role: 'user', parts: [{ text: 'a' }] }, { role: 'model', parts: [{ text: 'b' }] }]),
+      [{ role: 'system', content: 'sys' }, { role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }]);
+    assert.ok(Math.abs(costUsd('pokee-glm-5.3-flash', 1_000_000, 1_000_000)! - 0.255) < 1e-9);
+
+    // An empty account (402) trips the breaker: later calls skip Pokee instead of paying the latency.
+    const f402 = (async () => new Response('{"error":"insufficient_credits"}', { status: 402 })) as any;
+    await assert.rejects(pokeeChat({ messages: [{ role: 'user', content: 'x' }] }, f402));
+    assert.equal(pokeeAvailable(), false);
+    assert.equal(pokeeModelFor(DEFAULT_CLOUD_MODEL, 'hello'), null);
+    _resetPokeeBreaker();
+
+    process.env.AI_TEXT_PROVIDER = 'gemini';
+    assert.equal(pokeeModelFor(DEFAULT_CLOUD_MODEL, 'hello'), null, 'AI_TEXT_PROVIDER=gemini switches Pokee off');
+  } finally {
+    if (prev.k === undefined) delete process.env.POKEE_API_KEY; else process.env.POKEE_API_KEY = prev.k;
+    if (prev.p === undefined) delete process.env.AI_TEXT_PROVIDER; else process.env.AI_TEXT_PROVIDER = prev.p;
+    _resetPokeeBreaker();
+  }
+});
+
+test('pokee lane: chat sends OpenAI shape with the key in the header and reads usage', async () => {
+  const { pokeeChat } = await import('../services/ai/pokeeLane');
+  const prev = process.env.POKEE_API_KEY; process.env.POKEE_API_KEY = 'KEY';
+  const seen: any[] = [];
+  const f = (async (url: string, init: any) => { seen.push({ url, init }); return new Response(JSON.stringify({ model: 'pokee-glm-5.3-flash', choices: [{ message: { content: ' {"ok":true} ' } }], usage: { prompt_tokens: 12, completion_tokens: 5 } }), { status: 200 }); }) as any;
+  try {
+    const r = await pokeeChat({ messages: [{ role: 'user', content: 'x' }], json: true }, f);
+    assert.equal(r.text, '{"ok":true}');
+    assert.equal(r.inTokens, 12); assert.equal(r.outTokens, 5);
+    const body = JSON.parse(seen[0].init.body);
+    assert.equal(body.response_format.type, 'json_object');
+    assert.equal(seen[0].init.headers.Authorization, 'Bearer KEY');
+    assert.ok(!seen[0].url.includes('KEY'));
+  } finally { if (prev === undefined) delete process.env.POKEE_API_KEY; else process.env.POKEE_API_KEY = prev; }
+});

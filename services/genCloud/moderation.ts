@@ -158,3 +158,28 @@ export function geminiModerator(apiKey: string | undefined, f: typeof fetch = fe
     } catch (e: any) { return { error: `gemini:${e?.name === 'TimeoutError' ? 'timeout' : 'bad_response'}` }; }
   };
 }
+
+// ── Pokee (default text lane since 2026-11-26) ───────────────────────────────────────────────
+// Same categories and instructions as the Claude/Gemini scorers, via Pokee's OpenAI-compatible JSON
+// mode (services/ai/pokeeLane.ts, which also trips a breaker when the account is out of credits).
+
+export function pokeeModerator(chat: typeof import('../ai/pokeeLane').pokeeChat, available: () => boolean, model?: string): Moderator {
+  return async ({ text }) => {
+    if (!available()) return { error: 'pokee:unavailable' };
+    try {
+      const r = await chat({
+        model,
+        messages: [
+          { role: 'system', content: `${CLAUDE_MOD_SYSTEM} Answer with one JSON object whose keys are exactly: ${CLAUDE_MOD_CATEGORIES.join(', ')}; each value a number from 0 to 1. No other text.` },
+          { role: 'user', content: `<prompt>\n${text.slice(0, 4000)}\n</prompt>` },
+        ],
+        maxTokens: 300, temperature: 0, json: true, timeoutMs: 15_000,
+      });
+      const parsed = JSON.parse(r.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim());
+      if (!parsed || typeof parsed !== 'object' || !CLAUDE_MOD_CATEGORIES.some(c => c in parsed)) return { error: 'pokee:bad_shape' };
+      const scores: Scores = {};
+      for (const c of CLAUDE_MOD_CATEGORIES) scores[c] = Math.min(1, Math.max(0, Number(parsed[c]) || 0));
+      return { scores };
+    } catch (e: any) { return { error: `pokee:${String(e?.message || e).slice(0, 80)}` }; }
+  };
+}
