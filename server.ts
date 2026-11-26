@@ -147,7 +147,7 @@ import { createVideo as bunnyCreateVideo, getVideo as bunnyGetVideo, tusUploadAu
 import { createGenCloudRouter, onPackCheckoutCompleted, onPackChargeRefunded, type PackWebhookDeps } from './routes/genCloud';
 import { adaptersFromEnv as genCloudAdapters } from './services/genCloud/providers';
 import { ledgerStore as genCloudLedgerStore, jobStore as genCloudJobStore, LEDGER_COLLECTION as GENCLOUD_LEDGERS } from './services/genCloud/store';
-import { promptModerator as genCloudModerator } from './services/genCloud/moderation';
+import { promptModerator as genCloudModerator, firstAvailable as genCloudFirstModerator, claudeModerator as genCloudClaudeModerator, geminiModerator as genCloudGeminiModerator } from './services/genCloud/moderation';
 import { openAiModerate as genCloudOpenAiModerate } from './services/safety/mediaSafetyServer';
 import type { PlanId as GenCloudPlanId } from './services/genCloud/tiers';
 import { createHqB2Router, liveHqB2Deps } from './routes/hqB2';
@@ -15570,7 +15570,10 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       jobs: genCloudJobStore({ get: fsGet, set: fsSet }),
       adapters: genCloudAdapters(process.env),
       routeOverrides: () => process.env.GENCLOUD_ROUTES,
-      moderate: genCloudModerator(genCloudOpenAiModerate),
+      // OpenAI omni-moderation first (free); Claude, then Gemini, score the prompt when it is unset or down.
+      moderate: genCloudModerator(genCloudFirstModerator(genCloudOpenAiModerate,
+        genCloudClaudeModerator(process.env.ANTHROPIC_API_KEY, fetch, process.env.GENCLOUD_MODERATION_MODEL || undefined),
+        genCloudGeminiModerator(process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY, fetch, process.env.GENCLOUD_GEMINI_MODEL || undefined))),
       persist: async (bytes, out, { job, index }) => {
         const ext = out.mime.includes('mp4') ? 'mp4' : out.mime.includes('mpeg') ? 'mp3' : out.mime.includes('jpeg') ? 'jpg' : out.mime.includes('webp') ? 'webp' : 'png';
         const path = `genCloud/${job.uid}/${job.id}-${index}.${ext}`;
