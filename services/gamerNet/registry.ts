@@ -47,7 +47,7 @@ export const gameRules = (id: unknown): GameRules | null => (typeof id === 'stri
  * follows the player across devices. Never queue or rate these: they are not in GAMES.
  */
 export const PLAY_ONLY_GAMES: ReadonlySet<string> = new Set([
-  'ravencrest', 'era-clash-2d', 'era-clash-3d',
+  'ravencrest', 'era-clash-2d', 'era-clash-3d', 'apex-elohim', 'rift-realm', 'lexicon',
   'kith-circuit', 'kith-tennis', 'kith-kombat', 'kith-crystals', 'kith-rhythm', 'kith-quest',
   'sketch-rush', 'brain-rush', 'crowd-says', 'impostor-night', 'firstlight',
 ]);

@@ -1,5 +1,5 @@
-// The card table for Spades, Euchre and Bid Whist. You sit at the bottom, your CPU partner across, the other
-// team left and right. Only legal cards light up; bids and calls show only the options the rules accept.
+// The card table for Spades, Euchre and Bid Whist — refreshed Grand Parlor Lounge felt, linen-textured cards,
+// ornate foil backs, brass dealer puck, and crisp bidding controls. Keeps all data-* hooks intact.
 import React, { useMemo, useState } from 'react';
 import { legalPlays, sortHand, isJoker, SUIT_GLYPH, SUIT_NAME, SUITS, type Play, type TrickRules } from '../../../services/gamerNet/games/cards';
 import * as SP from '../../../services/gamerNet/games/spades';
@@ -8,20 +8,51 @@ import * as BW from '../../../services/gamerNet/games/bidWhist';
 import type { BoardProps } from './TableGame';
 
 const RED = (c: string) => c[1] === 'H' || c[1] === 'D' || c === 'BJ';
+const rankLabel = (c: string) => (c === 'BJ' ? 'BIG' : c === 'LJ' ? 'LTL' : c[0] === 'T' ? '10' : c[0]);
 const label = (c: string) => (c === 'BJ' ? 'Big ★' : c === 'LJ' ? 'Little ★' : `${c[0] === 'T' ? '10' : c[0]}${SUIT_GLYPH[c[1]]}`);
 
 function Card({ c, onClick, dim, raised, small }: { c: string; onClick?(): void; dim?: boolean; raised?: boolean; small?: boolean }) {
+  const isRed = RED(c);
+  const joker = isJoker(c);
+  const suit = joker ? '★' : SUIT_GLYPH[c[1]];
+  const isCourt = joker || ['A', 'K', 'Q', 'J'].includes(c[0]);
   return (
-    <button type="button" data-card={c} onClick={onClick} disabled={!onClick}
-      className={`flex flex-col items-start justify-between rounded-lg border border-slate-300 bg-white px-1.5 py-1 font-semibold shadow transition ${small ? 'h-14 w-10 text-sm' : 'h-20 w-14 text-base sm:h-24 sm:w-16 sm:text-lg'} ${RED(c) ? 'text-rose-600' : 'text-slate-900'} ${dim ? 'opacity-35' : ''} ${raised ? '-translate-y-3 ring-4 ring-cyan-400' : onClick ? 'hover:-translate-y-1' : ''}`}>
-      <span>{label(c)}</span>
-      <span className="self-end text-2xl leading-none">{isJoker(c) ? '★' : SUIT_GLYPH[c[1]]}</span>
+    <button
+      type="button"
+      data-card={c}
+      onClick={onClick}
+      disabled={!onClick}
+      className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border bg-gradient-to-b from-[#fffef9] via-[#faf5e9] to-[#efe6d2] px-1.5 py-1 font-bold shadow-[0_6px_14px_rgba(0,0,0,0.48),inset_0_1px_0_rgba(255,255,255,0.95)] transition-all duration-150 ${
+        isCourt ? 'border-amber-400/80' : 'border-stone-300/90'
+      } ${small ? 'h-16 w-11 text-xs' : 'h-24 w-16 text-sm sm:h-28 sm:w-[4.5rem] sm:text-base'} ${
+        isRed ? 'text-rose-600' : 'text-slate-900'
+      } ${dim ? 'opacity-35 saturate-50' : ''} ${
+        raised ? '-translate-y-3.5 ring-4 ring-amber-400 shadow-[0_14px_24px_rgba(245,158,11,0.35)]' : onClick ? 'hover:-translate-y-2 hover:shadow-[0_12px_20px_rgba(0,0,0,0.6)]' : ''
+      }`}
+    >
+      <div className="flex flex-col items-start leading-none">
+        <span className="tracking-tight">{rankLabel(c)}</span>
+        <span className={small ? 'text-[11px]' : 'text-xs'}>{suit}</span>
+      </div>
+      <span className={`pointer-events-none self-center leading-none ${small ? 'text-xl' : 'text-3xl sm:text-4xl'} ${joker ? 'text-amber-500 drop-shadow-sm' : 'opacity-90'}`}>
+        {suit}
+      </span>
+      {!small && (
+        <div className="flex rotate-180 flex-col items-start leading-none opacity-80">
+          <span className="text-[11px] tracking-tight">{rankLabel(c)}</span>
+        </div>
+      )}
     </button>
   );
 }
 
 const Back = ({ n }: { n: number }) => (
-  <div className="flex items-center gap-1 text-xs text-white/60"><span className="inline-block h-8 w-6 rounded bg-gradient-to-br from-indigo-500 to-fuchsia-600 shadow" />× {n}</div>
+  <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-100/75">
+    <span className="relative inline-flex h-9 w-6 items-center justify-center rounded-md border border-amber-300/60 bg-gradient-to-br from-indigo-900 via-violet-900 to-slate-950 shadow-md">
+      <span className="h-5 w-3 rounded-[2px] border border-amber-300/45 bg-amber-400/10" />
+    </span>
+    <span>× {n}</span>
+  </div>
 );
 
 function rulesOf(game: string, t: any): TrickRules {
@@ -30,7 +61,7 @@ function rulesOf(game: string, t: any): TrickRules {
   return BW.rulesFor(t.bid?.mode ?? 'up', t.trump);
 }
 
-const btn = 'rounded-lg px-3 py-1.5 text-sm font-semibold';
+const btn = 'rounded-xl px-3.5 py-1.5 text-sm font-bold transition shadow-sm';
 
 export default function CardTable({ game, state, you, myTurn, names, onMove }: BoardProps) {
   const t = JSON.parse(state) as any;
@@ -56,11 +87,17 @@ export default function CardTable({ game, state, you, myTurn, names, onMove }: B
 
   const Spot = ({ p, cls }: { p: number; cls: string }) => {
     const s = seat(p);
+    const active = t.turn === p;
     return (
       <div className={`absolute flex flex-col items-center gap-1 ${cls}`}>
-        <span className={`rounded-full px-2 py-0.5 text-xs ${t.turn === p ? 'bg-emerald-500/30 text-emerald-200' : 'bg-black/30 text-white/70'}`}>{name(p)}{p >= 2 ? ' · CPU' : ''}{t.dealer === p ? ' · D' : ''}{game === 'bidwhist' && t.bidder === p ? ' · bid' : ''}{game === 'euchre' && t.maker === p ? ' · called' : ''}</span>
+        <div className={`flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold backdrop-blur-md ${active ? 'border-amber-300/70 bg-amber-400/25 text-amber-100 shadow-[0_0_16px_rgba(251,191,36,0.35)]' : 'border-white/15 bg-black/45 text-white/80'}`}>
+          <span>{name(p)}{p >= 2 ? ' · CPU' : ''}</span>
+          {t.dealer === p && <span title="Dealer" className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-amber-300 text-[10px] font-black text-slate-950">D</span>}
+          {game === 'bidwhist' && t.bidder === p && <span className="text-[10px] font-bold uppercase text-amber-300">bid</span>}
+          {game === 'euchre' && t.maker === p && <span className="text-[10px] font-bold uppercase text-amber-300">called</span>}
+        </div>
         {rel(p) !== 0 && <Back n={t.counts?.[p] ?? 0} />}
-        {s.bidText && <span className="text-xs text-amber-200">{s.bidText}{t.phase === 'play' ? ` · ${t.won?.[p] ?? 0} won` : ''}</span>}
+        {s.bidText && <span className="rounded-full bg-black/45 px-2 py-0.5 text-[11px] font-semibold text-amber-200">{s.bidText}{t.phase === 'play' ? ` · ${t.won?.[p] ?? 0} won` : ''}</span>}
         {s.play && <Card c={s.play.c} small />}
       </div>
     );
@@ -70,50 +107,55 @@ export default function CardTable({ game, state, you, myTurn, names, onMove }: B
   let controls: React.ReactNode = null;
   if (myTurn && game === 'spades' && t.phase === 'bid') {
     controls = (
-      <div className="flex flex-wrap justify-center gap-1.5" data-testid="bid-row">
-        {Array.from({ length: 14 }, (_, n) => <button key={n} type="button" onClick={() => onMove({ bid: n })} className={`${btn} ${n === 0 ? 'bg-fuchsia-500/30' : 'bg-white/10'} hover:bg-white/20`}>{n === 0 ? 'Nil' : n}</button>)}
+      <div className="flex flex-wrap justify-center gap-1.5 rounded-2xl border border-white/10 bg-black/40 p-2.5 backdrop-blur-md" data-testid="bid-row">
+        {Array.from({ length: 14 }, (_, n) => (
+          <button key={n} type="button" onClick={() => onMove({ bid: n })} className={`${btn} ${n === 0 ? 'border border-fuchsia-400/50 bg-fuchsia-500/25 text-fuchsia-100 hover:bg-fuchsia-500/40' : 'border border-white/15 bg-white/10 hover:bg-amber-400/25'}`}>
+            {n === 0 ? 'Nil' : n}
+          </button>
+        ))}
       </div>
     );
   } else if (myTurn && game === 'euchre' && t.phase === 'call1') {
     controls = (
-      <div className="flex items-center justify-center gap-3" data-testid="call-row">
-        <span className="text-sm text-white/70">Upcard</span><Card c={t.upcard} small />
-        <button type="button" onClick={() => onMove({ call: 'order' })} className={`${btn} bg-cyan-500 text-slate-950`}>{t.dealer === you ? 'Pick it up' : 'Order up'}</button>
-        <button type="button" onClick={() => onMove({ call: 'pass' })} className={`${btn} bg-white/10`}>Pass</button>
+      <div className="flex flex-wrap items-center justify-center gap-3 rounded-2xl border border-amber-400/25 bg-black/45 p-3 backdrop-blur-md" data-testid="call-row">
+        <span className="text-xs font-bold uppercase tracking-wider text-amber-200">Upcard</span>
+        <Card c={t.upcard} small />
+        <button type="button" onClick={() => onMove({ call: 'order' })} className={`${btn} bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 hover:brightness-105`}>{t.dealer === you ? 'Pick it up' : 'Order up'}</button>
+        <button type="button" onClick={() => onMove({ call: 'pass' })} className={`${btn} border border-white/15 bg-white/10 hover:bg-white/20`}>Pass</button>
       </div>
     );
   } else if (myTurn && game === 'euchre' && t.phase === 'call2') {
     controls = (
-      <div className="flex flex-wrap items-center justify-center gap-2" data-testid="call-row">
-        <span className="text-sm text-white/70">Name trump</span>
-        {SUITS.filter(s => s !== t.upcard[1]).map(s => <button key={s} type="button" onClick={() => onMove({ call: s })} className={`${btn} bg-white/10 ${s === 'H' || s === 'D' ? 'text-rose-300' : ''}`}>{SUIT_GLYPH[s]} {SUIT_NAME[s]}</button>)}
-        {t.dealer !== you ? <button type="button" onClick={() => onMove({ call: 'pass' })} className={`${btn} bg-white/10`}>Pass</button> : <span className="text-xs text-amber-200">Dealer must call</span>}
+      <div className="flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-amber-400/25 bg-black/45 p-3 backdrop-blur-md" data-testid="call-row">
+        <span className="text-xs font-bold uppercase tracking-wider text-amber-200">Name trump</span>
+        {SUITS.filter(s => s !== t.upcard[1]).map(s => <button key={s} type="button" onClick={() => onMove({ call: s })} className={`${btn} border border-white/15 bg-white/10 hover:bg-white/20 ${s === 'H' || s === 'D' ? 'text-rose-300' : ''}`}>{SUIT_GLYPH[s]} {SUIT_NAME[s]}</button>)}
+        {t.dealer !== you ? <button type="button" onClick={() => onMove({ call: 'pass' })} className={`${btn} border border-white/15 bg-white/10 hover:bg-white/20`}>Pass</button> : <span className="text-xs font-bold text-amber-300">Stick the dealer — must call</span>}
       </div>
     );
   } else if (myTurn && game === 'euchre' && t.phase === 'discard') {
-    controls = <p className="text-center text-sm text-amber-200">You picked up the {label(t.upcard)}. Tap a card to discard.</p>;
+    controls = <p className="rounded-xl border border-amber-400/30 bg-amber-500/15 px-4 py-2 text-center text-sm font-semibold text-amber-100 backdrop-blur-md">You picked up the {label(t.upcard)}. Tap a card from your hand to discard.</p>;
   } else if (myTurn && game === 'bidwhist' && t.phase === 'bid') {
     const bids = (t.bids as any[]).filter(b => b && b !== 'pass');
     const top = bids.reduce((m: number, b: any) => Math.max(m, b.n * 2 + (b.mode === 'no' ? 1 : 0)), 0);
     const stuck = t.dealer === you && !bids.length;
     controls = (
-      <div className="flex flex-col items-center gap-2" data-testid="bid-row">
+      <div className="flex flex-col items-center gap-2 rounded-2xl border border-amber-400/25 bg-black/45 p-3 backdrop-blur-md" data-testid="bid-row">
         {(['up', 'down', 'no'] as const).map(mode => (
           <div key={mode} className="flex items-center gap-1.5">
-            <span className="w-24 text-right text-xs text-white/60">{mode === 'up' ? 'Uptown' : mode === 'down' ? 'Downtown' : 'No trump'}</span>
-            {[3, 4, 5, 6, 7].map(n => { const v = n * 2 + (mode === 'no' ? 1 : 0); return v > top ? <button key={n} type="button" onClick={() => onMove({ bid: { n, mode } })} className={`${btn} bg-white/10 hover:bg-white/20`}>{n}</button> : <span key={n} className="w-9" />; })}
+            <span className="w-24 text-right text-xs font-semibold text-amber-100/75">{mode === 'up' ? 'Uptown' : mode === 'down' ? 'Downtown' : 'No trump'}</span>
+            {[3, 4, 5, 6, 7].map(n => { const v = n * 2 + (mode === 'no' ? 1 : 0); return v > top ? <button key={n} type="button" onClick={() => onMove({ bid: { n, mode } })} className={`${btn} border border-white/15 bg-white/10 hover:bg-amber-400/25`}>{n}</button> : <span key={n} className="w-9" />; })}
           </div>
         ))}
-        {stuck ? <span className="text-xs text-amber-200">Everyone passed — the dealer must bid</span> : <button type="button" onClick={() => onMove({ bid: 'pass' })} className={`${btn} bg-white/10`}>Pass</button>}
+        {stuck ? <span className="text-xs font-bold text-amber-300">Everyone passed — the dealer must bid</span> : <button type="button" onClick={() => onMove({ bid: 'pass' })} className={`${btn} border border-white/15 bg-white/10 hover:bg-white/20`}>Pass</button>}
       </div>
     );
   } else if (myTurn && game === 'bidwhist' && t.phase === 'kitty') {
     const needTrump = t.bid?.mode !== 'no';
     controls = (
-      <div className="flex flex-col items-center gap-2" data-testid="kitty-row">
-        <p className="text-sm text-amber-200">You won the bid ({t.bid.n} {t.bid.mode === 'up' ? 'uptown' : t.bid.mode === 'down' ? 'downtown' : 'no trump'}). Pick 6 cards to lay away{needTrump ? ' and name trump' : ''}. ({picked.length}/6)</p>
-        {needTrump && <div className="flex gap-1.5">{SUITS.map(s => <button key={s} type="button" onClick={() => setTrumpPick(s)} className={`${btn} ${trumpPick === s ? 'bg-cyan-500 text-slate-950' : 'bg-white/10'}`}>{SUIT_GLYPH[s]}</button>)}</div>}
-        <button type="button" disabled={picked.length !== 6 || (needTrump && !trumpPick)} onClick={() => { onMove({ discard: picked, trump: needTrump ? trumpPick : null }); setPicked([]); setTrumpPick(''); }} className={`${btn} bg-cyan-500 text-slate-950 disabled:opacity-40`}>Lay away</button>
+      <div className="flex flex-col items-center gap-2 rounded-2xl border border-amber-400/30 bg-black/45 p-3 backdrop-blur-md" data-testid="kitty-row">
+        <p className="text-sm text-amber-100">You won the bid (<b>{t.bid.n} {t.bid.mode === 'up' ? 'uptown' : t.bid.mode === 'down' ? 'downtown' : 'no trump'}</b>). Pick 6 cards to lay away{needTrump ? ' and name trump' : ''}. ({picked.length}/6)</p>
+        {needTrump && <div className="flex gap-1.5">{SUITS.map(s => <button key={s} type="button" onClick={() => setTrumpPick(s)} className={`${btn} ${trumpPick === s ? 'bg-amber-400 text-slate-950' : 'border border-white/15 bg-white/10'}`}>{SUIT_GLYPH[s]}</button>)}</div>}
+        <button type="button" disabled={picked.length !== 6 || (needTrump && !trumpPick)} onClick={() => { onMove({ discard: picked, trump: needTrump ? trumpPick : null }); setPicked([]); setTrumpPick(''); }} className={`${btn} bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 disabled:opacity-40`}>Lay away</button>
       </div>
     );
   }
@@ -129,34 +171,46 @@ export default function CardTable({ game, state, you, myTurn, names, onMove }: B
 
   return (
     <div className="mx-auto max-w-4xl">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/5 px-3 py-2 text-sm">
-        <span>Us <b className="text-emerald-300">{t.scores[us]}</b>{game === 'spades' ? <span className="text-white/50"> · {t.bags[us]} bags</span> : null} — Them <b className="text-rose-300">{t.scores[them]}</b>{game === 'spades' ? <span className="text-white/50"> · {t.bags[them]} bags</span> : null}</span>
-        <span className="text-white/60">To {target} · Hand {t.handNo}</span>
-        <span>Trump: <b>{game === 'spades' ? '♠ Spades' : trumpText}</b></span>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-amber-400/25 bg-black/45 px-4 py-2.5 text-sm shadow-lg backdrop-blur-md">
+        <span className="flex items-center gap-2">
+          <span className="rounded-lg bg-emerald-500/15 px-2.5 py-0.5 text-emerald-200">Us <b className="text-emerald-300">{t.scores[us]}</b>{game === 'spades' ? <span className="text-xs text-white/55"> · {t.bags[us]}b</span> : null}</span>
+          <span className="text-white/35">vs</span>
+          <span className="rounded-lg bg-rose-500/15 px-2.5 py-0.5 text-rose-200">Them <b className="text-rose-300">{t.scores[them]}</b>{game === 'spades' ? <span className="text-xs text-white/55"> · {t.bags[them]}b</span> : null}</span>
+        </span>
+        <span className="text-xs font-semibold uppercase tracking-wider text-white/65">To {target} · Hand {t.handNo}</span>
+        <span className="rounded-full border border-amber-400/35 bg-amber-500/15 px-3 py-0.5 text-xs font-bold text-amber-200">Trump: {game === 'spades' ? '♠ Spades' : trumpText}</span>
       </div>
-      <div className="relative mx-auto h-[300px] max-w-2xl rounded-[40px] border border-emerald-400/20 bg-emerald-900/40 sm:h-[340px]" data-testid="card-table">
-        <Spot p={(you + 2) % 4} cls="left-1/2 top-3 -translate-x-1/2" />
-        <Spot p={(you + 1) % 4} cls="left-3 top-1/2 -translate-y-1/2" />
-        <Spot p={(you + 3) % 4} cls="right-3 top-1/2 -translate-y-1/2" />
-        <Spot p={you} cls="bottom-3 left-1/2 -translate-x-1/2" />
-        {game === 'euchre' && (t.phase === 'call1' || t.phase === 'call2') && !myTurn && (
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center"><div className="text-xs text-white/60">Upcard</div><Card c={t.upcard} small /></div>
-        )}
-        {t.last && !t.trick.length && t.phase === 'play' && (
-          <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1">
-            <span className="text-xs text-white/60">Last trick · {name(t.lastWinner)} won</span>
-            <div className="flex gap-1">{(t.last as Play[]).map(x => <Card key={x.c} c={x.c} small />)}</div>
-          </div>
-        )}
+
+      {/* Grand Parlor oval card table with padded walnut rail + inlaid brass ring + overhead lamp glow */}
+      <div className="mx-auto max-w-2xl rounded-[54px] border-[8px] border-[#3d2112] bg-[radial-gradient(ellipse_at_center,#147052_0%,#0b4d37_65%,#062c20_100%)] p-1.5 shadow-[0_28px_70px_rgba(0,0,0,0.72),inset_0_0_50px_rgba(0,0,0,0.45)]">
+        <div className="relative h-[320px] rounded-[44px] border border-amber-300/25 sm:h-[360px]" data-testid="card-table">
+          <Spot p={(you + 2) % 4} cls="left-1/2 top-3 -translate-x-1/2" />
+          <Spot p={(you + 1) % 4} cls="left-3 top-1/2 -translate-y-1/2" />
+          <Spot p={(you + 3) % 4} cls="right-3 top-1/2 -translate-y-1/2" />
+          <Spot p={you} cls="bottom-3 left-1/2 -translate-x-1/2" />
+          {game === 'euchre' && (t.phase === 'call1' || t.phase === 'call2') && !myTurn && (
+            <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 rounded-2xl bg-black/35 px-3 py-2 backdrop-blur-sm">
+              <div className="text-[11px] font-bold uppercase tracking-wider text-amber-200">Upcard</div>
+              <Card c={t.upcard} small />
+            </div>
+          )}
+          {t.last && !t.trick.length && t.phase === 'play' && (
+            <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1.5 rounded-2xl border border-white/10 bg-black/35 px-3 py-2 backdrop-blur-sm">
+              <span className="text-[11px] font-semibold text-amber-200">Last trick · {name(t.lastWinner)}</span>
+              <div className="flex gap-1">{(t.last as Play[]).map(x => <Card key={x.c} c={x.c} small />)}</div>
+            </div>
+          )}
+        </div>
       </div>
+
       <div className="mt-3 min-h-[44px]">{controls}</div>
-      <div className="mt-2 flex flex-wrap justify-center gap-1.5 sm:gap-2" data-testid="hand">
+      <div className="mt-2.5 flex flex-wrap justify-center gap-1.5 rounded-2xl border border-white/10 bg-black/30 p-3 backdrop-blur-md sm:gap-2" data-testid="hand">
         {hand.map(c => <Card key={c} c={c} raised={picked.includes(c)} dim={myTurn && t.phase === 'play' && !legal.includes(c)} onClick={clickable(c) ? () => clickCard(c) : undefined} />)}
       </div>
-      <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-white/55" data-testid="log">
+      <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-white/60" data-testid="log">
         {(t.log as string[]).slice(-5).map((l, i) => <span key={i}>{logLine(l)}</span>)}
       </div>
-      {!myTurn && <p className="mt-2 text-center text-sm text-white/50">Waiting for {name(t.turn)}…</p>}
+      {!myTurn && <p className="mt-2 text-center text-sm font-medium text-amber-100/65">Waiting for {name(t.turn)}…</p>}
     </div>
   );
 }

@@ -22,7 +22,7 @@ export interface PartyDoc {
   game: string;
   invites: PartyInvite[];
   /** The latest match the leader started for the party; members' docks jump into it. */
-  match?: { id: string; game: string; seats: string[]; at: number };
+  match?: { id: string; game: string; seats: string[]; at: number; rt?: boolean };
   /** Team channels inside the party (0 = Team A, 1 = Team B); members without a team stay in party voice. */
   teams?: Record<string, 0 | 1>;
   /** The leader sent everyone into matchmaking for this game; each member's dock queues and opens its match. */
@@ -110,7 +110,7 @@ export function invite(d: PartyDoc, by: string, uid: string, now: number): Party
 }
 
 /** The leader started a match for some members; their docks open it. */
-export function startMatch(d: PartyDoc, by: string, m: { id: string; game: string; seats: string[] }, now: number): PartyStep {
+export function startMatch(d: PartyDoc, by: string, m: { id: string; game: string; seats: string[]; rt?: boolean }, now: number): PartyStep {
   const no = leaderOnly(d, by); if (no) return no;
   if (!m.seats.every(u => d.members.some(x => x.uid === u))) return { ok: false, error: 'Everyone in the match must be in the party', status: 400 };
   return { ok: true, doc: bump(d, now, { match: { ...m, at: now } }) };

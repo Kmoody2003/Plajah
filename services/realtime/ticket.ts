@@ -23,6 +23,8 @@ export interface TicketPayload {
   /** Players needed before the room may start (a queued 2-player match: 2). */
   min: number;
   rated: boolean;
+  /** Optional flat room metadata (e.g. circuitId, region), signed by the API so every peer agrees on settings. */
+  meta?: Record<string, string | number | boolean>;
   iat: number;
   exp: number;
 }
@@ -64,10 +66,19 @@ export function verifyTicket(token: unknown, secret: string, now: number): Ticke
   if (!safeEq(sig, mac(secret, body))) return { ok: false, reason: 'signature' };
   let p: TicketPayload;
   try { p = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')); } catch { return { ok: false, reason: 'malformed' }; }
+  const metaOk = p?.meta === undefined || (
+    typeof p.meta === 'object' && p.meta !== null && !Array.isArray(p.meta)
+    && Object.keys(p.meta).length <= 8
+    && Object.entries(p.meta).every(([k, v]) => k.length > 0 && k.length <= 24 && (
+      (typeof v === 'string' && v.length <= 64)
+      || (typeof v === 'number' && Number.isFinite(v))
+      || typeof v === 'boolean'
+    ))
+  );
   const fieldsOk = p && (p.k === 'join' || p.k === 'resume') && typeof p.room === 'string' && p.room.length > 0 && p.room.length <= 64
     && typeof p.game === 'string' && typeof p.uid === 'string' && p.uid.length > 0 && p.uid.length <= 128
     && Number.isInteger(p.seat) && p.seat >= 0 && p.seat < 64 && typeof p.name === 'string'
-    && Number.isInteger(p.min) && typeof p.rated === 'boolean' && typeof p.exp === 'number' && typeof p.iat === 'number';
+    && Number.isInteger(p.min) && typeof p.rated === 'boolean' && typeof p.exp === 'number' && typeof p.iat === 'number' && metaOk;
   if (!fieldsOk) return { ok: false, reason: 'fields' };
   if (now > p.exp) return { ok: false, reason: 'expired' };
   return { ok: true, ticket: p };

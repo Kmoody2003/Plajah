@@ -9,7 +9,7 @@ const base = () => `${(import.meta as any).env?.VITE_APP_URL ?? window.location.
 
 export interface PartyView {
   id: string; leader: string; members: PartyMember[]; code: string; status: 'open' | 'closed'; game: string;
-  match?: { id: string; game: string; seats: string[]; at: number }; v: number; createdAt: number; updatedAt: number; pendingInvites: number;
+  match?: { id: string; game: string; seats: string[]; at: number; rt?: boolean }; v: number; createdAt: number; updatedAt: number; pendingInvites: number;
   teams?: Record<string, 0 | 1>; queue?: { id: string; game: string; at: number } | null;
   streaming?: { uid: string; at: number } | null; streamOk?: string[];
 }
@@ -51,7 +51,8 @@ export const party = {
   promote: (uid: string) => call<PartyState>('POST', '/party/promote', { uid }),
   setGame: (game: string) => call<PartyState>('POST', '/party/game', { game }),
   invite: (to: string) => call<PartyState>('POST', '/party/invite', { to }),
-  play: (game: string, withUid: string) => call<PartyState & { matchId: string }>('POST', '/party/play', { game, with: withUid }),
+  play: (game: string, withUid?: string, meta?: Record<string, string | number | boolean>) =>
+    call<PartyState & { matchId: string; code?: string; rt?: boolean }>('POST', '/party/play', { game, ...(withUid ? { with: withUid } : {}), ...(meta ? { meta } : {}) }),
   setTeam: (team: 0 | 1 | null, uid?: string) => call<PartyState>('POST', '/party/team', { team, uid }),
   queue: (game: string) => call<PartyState>('POST', '/party/queue', { game }),
   stopQueue: () => call<PartyState>('DELETE', '/party/queue'),

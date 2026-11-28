@@ -11,7 +11,7 @@
 
 import { createServer, type Server } from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
-import { realtimeGame, type RealtimeGameDef } from './games';
+import { realtimeGame, type RealtimeGameDef, type RoomMeta } from './games';
 import { RelayRoom, type Peer, type RoomResult } from './room';
 import { verifyTicket, resumeTicket } from './ticket';
 
@@ -47,7 +47,7 @@ export function startRealtimeServer(o: RealtimeServerOpts): Promise<RealtimeServ
   const timers = new Map<string, ReturnType<typeof setInterval>>();
 
   const http = createServer((req, res) => {
-    if (req.url === '/healthz' || req.url === '/') {
+    if (req.url === '/health' || req.url === '/healthz' || req.url === '/') {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end(JSON.stringify({ ok: true, rooms: rooms.size }));
       return;
@@ -61,13 +61,13 @@ export function startRealtimeServer(o: RealtimeServerOpts): Promise<RealtimeServ
     timers.delete(id); rooms.delete(id);
   }
 
-  function roomFor(id: string, gameId: string, min: number, rated: boolean): RelayRoom | null {
+  function roomFor(id: string, gameId: string, min: number, rated: boolean, meta?: RoomMeta): RelayRoom | null {
     const have = rooms.get(id);
     if (have && have.phase !== 'closed') return have;
     if (have) dropRoom(id);
     const def = (o.games ?? realtimeGame)(gameId); if (!def) return null;
     const room: RelayRoom = new RelayRoom({
-      id, def, min: Math.max(def.minPlayers, Math.min(def.maxPlayers, min)), rated, now,
+      id, def, min: Math.max(def.minPlayers, Math.min(def.maxPlayers, min)), rated, meta, now,
       idleMs: o.idleMs, lingerMs: o.lingerMs,
       resume: t => resumeTicket(t, o.ticketSecret, now()),
       onResult: r => {
@@ -102,7 +102,7 @@ export function startRealtimeServer(o: RealtimeServerOpts): Promise<RealtimeServ
       const check = verifyTicket(msg.ticket, o.ticketSecret, now());
       if (check.ok === false) { peer.send({ t: 'error', code: `ticket-${check.reason}`, msg: 'Your join ticket is not valid — rejoin from the lobby' }); peer.close(4003, 'ticket'); return; }
       const t = check.ticket;
-      const room = roomFor(t.room, t.game, t.min, t.rated);
+      const room = roomFor(t.room, t.game, t.min, t.rated, t.meta);
       if (!room) { peer.send({ t: 'error', code: 'game', msg: 'Unknown game' }); peer.close(4004, 'game'); return; }
       const joined = room.join(t, peer);
       if (joined.ok === false) { peer.send({ t: 'error', code: joined.code, msg: joined.msg }); peer.close(4009, joined.code); return; }

@@ -23,7 +23,7 @@ import type { GamerEventBody } from '../services/gamerNet/ledger';
 import { emptyStats, newlyEarned } from '../services/gamerNet/score';
 import { START_RATING } from '../services/gamerNet/rating';
 import { pickOpponent, type Ticket } from '../services/gamerNet/matchmaking';
-import { REALTIME_GAMES, realtimeGame } from '../services/realtime/games';
+import { REALTIME_GAMES, realtimeGame, cleanMeta, type RoomMeta } from '../services/realtime/games';
 import { signTicket, verifyBody, TICKET_TTL_MS, RESULT_SIG_HEADER, RESULT_TS_HEADER } from '../services/realtime/ticket';
 import { settlementPlan } from '../services/realtime/settle';
 import type { GamerAppend } from './gamerNet';
@@ -54,9 +54,24 @@ const s = (v: unknown, max: number) => String(v ?? '').replace(/[\u0000-\u001f]/
 export interface RtMatch {
   id: string; game: string; rated: boolean; status: 'open' | 'done';
   players: string[]; names: string[]; url: string; code?: string;
+  /** True for drop-in persistent open-world shards (shared pool, seats may be recycled via '' holes). */
+  isShard?: boolean;
+  /** Optional room metadata (e.g. circuitId, region), signed into tickets so every peer agrees on settings. */
+  meta?: RoomMeta;
   createdAt: number; updatedAt: number; settled?: boolean; endedAt?: number;
   standings?: Array<{ uid: string; place: number; timeMs: number | null; dnf: boolean }>;
   plan?: GamerEventBody[];
+}
+
+/** Active player count (ignores '' recycled seat holes in drop-in shards). */
+const activeCount = (players: ReadonlyArray<string>) => players.reduce((n, u) => n + (u ? 1 : 0), 0);
+/** Assign a player into the first freed '' hole or append to the end (keeps existing seats stable). */
+function assignSeat(players: string[], names: string[], uid: string, name: string): { players: string[]; names: string[] } {
+  const nextP = [...players], nextN = [...names];
+  const hole = nextP.indexOf('');
+  if (hole >= 0) { nextP[hole] = uid; nextN[hole] = name; }
+  else { nextP.push(uid); nextN.push(name); }
+  return { players: nextP, names: nextN };
 }
 
 /** Sticky shard: the same match id always maps to the same realtime URL. */
@@ -75,18 +90,59 @@ export function createRealtimeRoutes(d: RealtimeRouteDeps): Router {
     const g = (await d.profile(uid))?.fold?.games?.[game] ?? emptyStats();
     return { rating: Number(g.rating) || START_RATING, rated: Number(g.rated) || 0 };
   };
-  async function createMatch(game: string, rated: boolean, players: string[], code?: string): Promise<RtMatch | null> {
+  async function createMatch(game: string, rated: boolean, players: string[], opts: { code?: string; isShard?: boolean; meta?: RoomMeta } = {}): Promise<RtMatch | null> {
     const id = randomUUID(), t = now();
-    const doc: RtMatch = { id, game, rated, status: 'open', players, names: await Promise.all(players.map(nameOf)), url: shardUrl(d.urls, id), createdAt: t, updatedAt: t, ...(code ? { code } : {}) };
+    const doc: RtMatch = {
+      id, game, rated, status: 'open', players, names: await Promise.all(players.map(nameOf)),
+      url: shardUrl(d.urls, id), createdAt: t, updatedAt: t,
+      ...(opts.code ? { code: opts.code } : {}),
+      ...(opts.isShard ? { isShard: true } : {}),
+      ...(opts.meta ? { meta: opts.meta } : {}),
+    };
     return (await store.createOnce(RT_MATCHES, id, doc as unknown as Record<string, unknown>)) === 'created' ? doc : null;
   }
   const view = (m: RtMatch, uid: string | null) => ({
-    match: { id: m.id, game: m.game, rated: m.rated, status: m.status, code: m.code, players: m.players.map((u, seat) => ({ seat, uid: u, name: m.names[seat] ?? 'Player' })), standings: m.standings },
+    match: {
+      id: m.id, game: m.game, rated: m.rated, status: m.status, code: m.code, isShard: !!m.isShard,
+      ...(m.meta ? { meta: m.meta } : {}),
+      players: m.players.map((u, seat) => (u ? { seat, uid: u, name: m.names[seat] ?? 'Player' } : null)).filter(Boolean),
+      standings: m.standings,
+    },
     you: uid ? m.players.indexOf(uid) : -1,
   });
 
+  /** Find an open drop-in shard with space (or open a fresh one) and claim a stable seat for `uid`. */
+  async function joinOrCreateShard(game: string, uid: string, meta?: RoomMeta): Promise<RtMatch | null> {
+    const def = realtimeGame(game);
+    if (!def?.dropIn) return null;
+    const region = typeof meta?.region === 'string' ? meta.region : undefined;
+    const rows = await store.query(RT_MATCHES, [{ field: 'game', value: game }, { field: 'status', value: 'open' }], 25);
+    const fresh = rows
+      .map(x => x.data as RtMatch)
+      .filter(m => m.isShard && now() - Number(m.createdAt) < MATCH_FRESH_MS && (!region || !m.meta?.region || m.meta.region === region));
+    const already = fresh.find(m => m.players.includes(uid));
+    if (already) return already;
+    const name = await nameOf(uid);
+    // Prefer the most populated shard with space so players meet each other.
+    fresh.sort((a, b) => activeCount(b.players) - activeCount(a.players));
+    for (const cand of fresh) {
+      if (activeCount(cand.players) >= def.maxPlayers) continue;
+      const out = await casUpdate(store.cas(RT_MATCHES), cand.id, cur => {
+        const m = cur as RtMatch | null;
+        if (!m || m.status !== 'open' || !m.isShard) return { abort: true, result: null };
+        if (m.players.includes(uid)) return { abort: true, result: m };
+        if (activeCount(m.players) >= def.maxPlayers) return { abort: true, result: null };
+        const next = assignSeat(m.players, m.names, uid, name);
+        const patched: RtMatch = { ...m, players: next.players, names: next.names, updatedAt: now() };
+        return { patch: { players: next.players, names: next.names, updatedAt: patched.updatedAt }, result: patched };
+      });
+      if (out.result) return out.result as RtMatch;
+    }
+    return createMatch(game, false, [uid], { isShard: true, meta });
+  }
+
   r.get('/config', (_req, res) => {
-    res.json({ enabled: true, games: Object.values(REALTIME_GAMES).map(g => ({ id: g.id, title: g.title, tickHz: g.tickHz, minPlayers: g.minPlayers, maxPlayers: g.maxPlayers })) });
+    res.json({ enabled: true, games: Object.values(REALTIME_GAMES).map(g => ({ id: g.id, title: g.title, tickHz: g.tickHz, minPlayers: g.minPlayers, maxPlayers: g.maxPlayers, dropIn: !!g.dropIn })) });
   });
 
   // ───────────────────────────────────────────── matchmaking (rated 1v1)
@@ -118,7 +174,16 @@ export function createRealtimeRoutes(d: RealtimeRouteDeps): Router {
 
   r.post('/queue', async (req, res) => {
     const uid = await d.needUid(req, res); if (!uid) return;
-    const game = s(req.body?.game, 24); if (!realtimeGame(game)) { res.status(400).json({ error: 'Unknown realtime game' }); return; }
+    const game = s(req.body?.game, 24);
+    const def = realtimeGame(game);
+    if (!def) { res.status(400).json({ error: 'Unknown realtime game' }); return; }
+    // Drop-in open-world games (e.g. apex-world) join a shared persistent shard instead of 1v1 Elo pairing.
+    if (def.dropIn) {
+      const shard = await joinOrCreateShard(game, uid, cleanMeta(req.body?.meta));
+      if (!shard) { res.status(503).json({ error: 'Could not join an open-world shard' }); return; }
+      res.json({ status: 'matched', matchId: shard.id, shard: true });
+      return;
+    }
     const { rating } = await statsOf(uid, game);
     const t = now();
     const put = await casUpdate(store.cas(RT_QUEUE), tid(game, uid), () => ({ patch: { game, uid, rating, joinedAt: t, seenAt: t, status: 'waiting', matchId: '' }, result: true }));
@@ -143,14 +208,44 @@ export function createRealtimeRoutes(d: RealtimeRouteDeps): Router {
     res.json(out.ok ? { status: 'left' } : out.result ? { status: 'matched', matchId: out.result } : { status: 'idle' });
   });
 
+  // ───────────────────────────────────────────── drop-in persistent open-world shards
+  r.post('/shard', async (req, res) => {
+    const uid = await d.needUid(req, res); if (!uid) return;
+    const game = s(req.body?.game, 24);
+    const def = realtimeGame(game);
+    if (!def || !def.dropIn) { res.status(400).json({ error: 'That game does not use drop-in shards' }); return; }
+    const shard = await joinOrCreateShard(game, uid, cleanMeta(req.body?.meta));
+    if (!shard) { res.status(503).json({ error: 'Could not open a shard' }); return; }
+    res.json({ matchId: shard.id, players: activeCount(shard.players), maxPlayers: def.maxPlayers, ...(shard.meta ? { meta: shard.meta } : {}) });
+  });
+
+  r.post('/leave', async (req, res) => {
+    const uid = await d.needUid(req, res); if (!uid) return;
+    const matchId = s(req.body?.matchId, 64);
+    if (!matchId) { res.status(400).json({ error: 'Missing matchId' }); return; }
+    const out = await casUpdate(store.cas(RT_MATCHES), matchId, cur => {
+      const m = cur as RtMatch | null;
+      const def = m ? realtimeGame(m.game) : null;
+      if (!m || m.status !== 'open' || !def?.dropIn) return { abort: true, result: false };
+      const seat = m.players.indexOf(uid);
+      if (seat < 0) return { abort: true, result: false };
+      const nextP = [...m.players], nextN = [...m.names];
+      nextP[seat] = ''; nextN[seat] = '';
+      const remaining = activeCount(nextP);
+      return { patch: { players: nextP, names: nextN, updatedAt: now(), ...(remaining === 0 ? { status: 'done' as const } : {}) }, result: true };
+    });
+    res.json({ ok: out.ok || out.result === false });
+  });
+
   // ───────────────────────────────────────────── private rooms (friendly, unrated)
   r.post('/private', async (req, res) => {
     const uid = await d.needUid(req, res); if (!uid) return;
     const game = s(req.body?.game, 24); if (!realtimeGame(game)) { res.status(400).json({ error: 'Unknown realtime game' }); return; }
     const code = Array.from({ length: 6 }, () => CODE_CHARS[randomInt(CODE_CHARS.length)]).join('');
-    const doc = await createMatch(game, false, [uid], code);
+    const meta = cleanMeta(req.body?.meta);
+    const doc = await createMatch(game, false, [uid], { code, meta });
     if (!doc) { res.status(503).json({ error: 'Could not open a room' }); return; }
-    res.json({ matchId: doc.id, code });
+    res.json({ matchId: doc.id, code, ...(doc.meta ? { meta: doc.meta } : {}) });
   });
 
   r.post('/join', async (req, res) => {
@@ -167,10 +262,11 @@ export function createRealtimeRoutes(d: RealtimeRouteDeps): Router {
       const m = cur as RtMatch | null;
       if (!m || m.status !== 'open') return { abort: true, result: 'closed' as const };
       if (m.players.includes(uid)) return { abort: true, result: 'in' as const };
-      if (m.players.length >= def.maxPlayers) return { abort: true, result: 'full' as const };
-      return { patch: { players: [...m.players, uid], names: [...m.names, name], updatedAt: now() }, result: 'ok' as const };
+      if (activeCount(m.players) >= def.maxPlayers) return { abort: true, result: 'full' as const };
+      const next = assignSeat(m.players, m.names, uid, name);
+      return { patch: { players: next.players, names: next.names, updatedAt: now() }, result: 'ok' as const };
     });
-    if (out.ok || out.result === 'in') { res.json({ matchId: hit.id }); return; }
+    if (out.ok || out.result === 'in') { res.json({ matchId: hit.id, game: String(hit.data.game), ...(hit.data.meta ? { meta: hit.data.meta } : {}) }); return; }
     res.status(409).json({ error: out.result === 'full' ? 'That room is full' : 'That room is closed' });
   });
 
@@ -188,9 +284,14 @@ export function createRealtimeRoutes(d: RealtimeRouteDeps): Router {
     const seat = m ? m.players.indexOf(uid) : -1;
     if (!m || seat < 0) { res.status(404).json({ error: 'Match not found' }); return; }
     if (m.status !== 'open' || now() - m.createdAt > MATCH_FRESH_MS) { res.status(409).json({ error: 'This match is over' }); return; }
+    const def = realtimeGame(m.game);
     const t = now(), exp = t + TICKET_TTL_MS;
-    const ticket = signTicket({ k: 'join', room: m.id, game: m.game, uid, seat, name: m.names[seat] ?? 'Player', min: m.rated ? m.players.length : 2, rated: m.rated, iat: t, exp }, d.ticketSecret);
-    res.json({ ticket, url: m.url || shardUrl(d.urls, m.id), seat, expiresAt: exp });
+    const min = m.rated ? activeCount(m.players) : (def?.minPlayers ?? 2);
+    const ticket = signTicket({
+      k: 'join', room: m.id, game: m.game, uid, seat, name: m.names[seat] ?? 'Player',
+      min, rated: m.rated, ...(m.meta ? { meta: m.meta } : {}), iat: t, exp,
+    }, d.ticketSecret);
+    res.json({ ticket, url: m.url || shardUrl(d.urls, m.id), seat, expiresAt: exp, ...(m.meta ? { meta: m.meta } : {}) });
   });
 
   // ───────────────────────────────────────────── results (realtime server → API)

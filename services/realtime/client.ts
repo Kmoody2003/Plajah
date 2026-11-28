@@ -13,9 +13,11 @@ export interface RtPlayer { seat: number; uid: string; name: string; ready: bool
 export interface RtStanding { seat: number; uid: string; name: string; place: number; timeMs: number | null; dnf: boolean; progress: number; why?: string }
 export type RtState = Record<string, number | boolean | string> & { seat: number };
 
+export type RtMeta = Record<string, string | number | boolean>;
+
 export type RtEvent =
   | { type: 'phase'; phase: RtPhase }
-  | { type: 'lobby'; players: RtPlayer[]; min: number }
+  | { type: 'lobby'; players: RtPlayer[]; min: number; meta?: RtMeta }
   | { type: 'countdown'; goAt: number }
   | { type: 'go'; at: number }
   | { type: 'states'; states: RtState[] }
@@ -40,8 +42,10 @@ export class RealtimeClient {
   uid = '';
   matchId = '';
   goAt = 0;
+  meta: RtMeta | undefined = undefined;
   players: RtPlayer[] = [];
   standings: RtStanding[] = [];
+  private isShard = false;
   private ws: WebSocket | null = null;
   private url = '';
   private resume = '';
@@ -87,12 +91,25 @@ export class RealtimeClient {
   }
   async leaveQueue(): Promise<void> { this.queueAbort = true; await this.api('DELETE', `/queue?game=${encodeURIComponent(this.o.game)}`).catch(() => null); this.setPhase('idle'); }
 
-  async createPrivate(): Promise<{ matchId: string; code: string }> {
-    const r = await this.api('POST', '/private', { game: this.o.game });
+  /** Drop-in persistent open-world shard (e.g. apex-world): joins an active shared shard or starts one. */
+  async joinShard(meta?: RtMeta): Promise<string> {
+    this.isShard = true;
+    const r = await this.api('POST', '/shard', { game: this.o.game, ...(meta ? { meta } : {}) });
+    if (r.meta) this.meta = r.meta;
+    return r.matchId;
+  }
+
+  async createPrivate(meta?: RtMeta): Promise<{ matchId: string; code: string; meta?: RtMeta }> {
+    const r = await this.api('POST', '/private', { game: this.o.game, ...(meta ? { meta } : {}) });
+    if (r.meta) this.meta = r.meta;
     this.o.onEvent({ type: 'code', code: r.code });
     return r;
   }
-  async joinCode(code: string): Promise<string> { return (await this.api('POST', '/join', { code })).matchId; }
+  async joinCode(code: string): Promise<string> {
+    const r = await this.api('POST', '/join', { code });
+    if (r.meta) this.meta = r.meta;
+    return r.matchId;
+  }
 
   /** Get a ticket for the match and open the room socket. */
   async connect(matchId: string): Promise<void> {
@@ -100,6 +117,7 @@ export class RealtimeClient {
     this.setPhase('connecting');
     const t = await this.api('POST', '/ticket', { matchId });
     if (!t.url) throw new Error('No realtime server configured');
+    if (t.meta) this.meta = t.meta;
     this.url = t.url;
     this.closedByUs = false;
     this.retries = 0;
@@ -137,10 +155,11 @@ export class RealtimeClient {
         this.retries = 0;
         this.seat = m.seat; this.uid = m.uid; this.resume = m.resume || this.resume;
         this.players = m.players ?? [];
+        if (m.meta) this.meta = m.meta;
         if (typeof m.serverNow === 'number' && this.bestRtt === Infinity) this.offset = m.serverNow - Date.now();
         this.goAt = m.goAt ?? 0;
         this.setPhase(m.phase);
-        this.o.onEvent({ type: 'lobby', players: this.players, min: m.min });
+        this.o.onEvent({ type: 'lobby', players: this.players, min: m.min, meta: this.meta });
         if (m.goAt && m.phase === 'countdown') this.o.onEvent({ type: 'countdown', goAt: m.goAt });
         if (m.states?.length) this.o.onEvent({ type: 'states', states: m.states });
         if (m.result) { this.standings = m.result.standings; this.o.onEvent({ type: 'result', standings: this.standings }); }
@@ -153,8 +172,9 @@ export class RealtimeClient {
       }
       case 'lobby':
         this.players = m.players ?? [];
+        if (m.meta) this.meta = m.meta;
         if (m.phase === 'lobby' && this.phase === 'countdown') { this.goAt = 0; this.setPhase('lobby'); }
-        this.o.onEvent({ type: 'lobby', players: this.players, min: m.min });
+        this.o.onEvent({ type: 'lobby', players: this.players, min: m.min, meta: this.meta });
         return;
       case 'countdown': this.goAt = m.goAt; this.setPhase('countdown'); this.o.onEvent({ type: 'countdown', goAt: m.goAt }); return;
       case 'go': this.setPhase('running'); this.o.onEvent({ type: 'go', at: m.at }); return;
@@ -178,6 +198,11 @@ export class RealtimeClient {
     this.closedByUs = true;
     if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
     if (this.ws) { this.send({ t: 'leave' }); try { this.ws.close(1000, 'left'); } catch { /* closed */ } this.ws = null; }
+    if (this.isShard && this.matchId) {
+      const id = this.matchId;
+      this.isShard = false;
+      void this.api('POST', '/leave', { matchId: id }).catch(() => null);
+    }
     this.setPhase('idle');
   }
 }

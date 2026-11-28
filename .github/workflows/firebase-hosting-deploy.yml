@@ -1,6 +1,7 @@
 name: Deploy to Firebase Hosting
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
@@ -304,3 +305,85 @@ jobs:
         # ↑ The server transpiles ~6k lines via tsx at boot; on 1 vCPU that raced the Cloud Run
         # startup health-check and the revision was killed as "failed to start in time". More CPU +
         # startup CPU boost + memory headroom lets it bind $PORT well inside the window.
+
+  # ── Realtime WebSocket game rooms (services/realtime/) → Cloud Run ──────────
+  # Isolated from hosting and plajah-api so a missing secret or realtime build error never blocks the site.
+  # Deploys only once GAMER_RT_TICKET_SECRET and GAMER_RT_RESULT_SECRET exist in Secret Manager.
+  deploy_realtime:
+    needs: guard_shipped_work
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_GEN_LANG_CLIENT_0665118474 }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Check realtime secrets exist
+        id: check_secrets
+        run: |
+          PROJECT=gen-lang-client-0665118474
+          if gcloud secrets describe GAMER_RT_TICKET_SECRET --project "$PROJECT" >/dev/null 2>&1 \
+             && gcloud secrets describe GAMER_RT_RESULT_SECRET --project "$PROJECT" >/dev/null 2>&1; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Skipping plajah-realtime deploy: GAMER_RT_TICKET_SECRET / GAMER_RT_RESULT_SECRET not created in Secret Manager yet."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and deploy plajah-realtime to Cloud Run
+        if: steps.check_secrets.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          PROJECT=gen-lang-client-0665118474
+          REGION=us-west1
+          IMAGE="$REGION-docker.pkg.dev/$PROJECT/cloud-run-source-deploy/plajah-realtime:${{ github.sha }}"
+          STAGE=$(mktemp -d)
+          trap 'rm -rf "$STAGE"' EXIT
+          mkdir -p "$STAGE/services"
+          cp -r services/realtime "$STAGE/services/realtime"
+          gcloud builds submit "$STAGE" --project "$PROJECT" --region "$REGION" --config /dev/stdin <<EOF
+          steps:
+            - name: gcr.io/cloud-builders/docker
+              args: ['build', '-f', 'services/realtime/deploy/Dockerfile', '-t', '$IMAGE', '.']
+          images: ['$IMAGE']
+          EOF
+          gcloud run deploy plajah-realtime \
+            --image "$IMAGE" \
+            --project "$PROJECT" \
+            --region "$REGION" \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --cpu 1 \
+            --memory 512Mi \
+            --concurrency 1000 \
+            --min-instances 0 \
+            --max-instances 1 \
+            --timeout 3600 \
+            --session-affinity \
+            --set-secrets GAMER_RT_TICKET_SECRET=GAMER_RT_TICKET_SECRET:latest,GAMER_RT_RESULT_SECRET=GAMER_RT_RESULT_SECRET:latest \
+            --set-env-vars GAMER_RT_API_URL=https://plajah.com
+          HTTP_URL=$(gcloud run services describe plajah-realtime --project "$PROJECT" --region "$REGION" --format='value(status.url)')
+          curl -sf "$HTTP_URL/health" >/dev/null
+          RT_URL=$(echo "$HTTP_URL" | sed 's|^https://|wss://|')
+          echo "plajah-realtime deployed and healthy at $RT_URL"
+          EXISTING_URLS=$(gcloud run services describe plajah-api --project "$PROJECT" --region "$REGION" --format="json" | python3 -c "import sys,json; env=json.load(sys.stdin)['spec']['template']['spec']['containers'][0].get('env',[]); print(next((e.get('value','') for e in env if e.get('name')=='GAMER_RT_URLS'),''))" || true)
+          if [ -z "$EXISTING_URLS" ]; then
+            gcloud run services update plajah-api \
+              --project "$PROJECT" \
+              --region "$REGION" \
+              --update-secrets GAMER_RT_TICKET_SECRET=GAMER_RT_TICKET_SECRET:latest,GAMER_RT_RESULT_SECRET=GAMER_RT_RESULT_SECRET:latest \
+              --update-env-vars "GAMER_RT_URLS=$RT_URL"
+            echo "Wired plajah-api GAMER_RT_URLS=$RT_URL"
+          else
+            echo "plajah-api GAMER_RT_URLS already set ($EXISTING_URLS); leaving multi-shard list untouched."
+          fi

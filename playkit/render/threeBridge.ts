@@ -294,6 +294,15 @@ export class PlaykitLiveStage {
   private parlorTension = 0.25;
   private uPulse = uniform(0);
   private resizeObs: ResizeObserver | null = null;
+  private onPointerUp = () => { this.dragging = false; };
+  private onPointerMove = (e: PointerEvent) => {
+    if (!this.dragging) return;
+    this.orbitYaw -= (e.clientX - this.lastPtrX) * 0.008;
+    this.orbitPitch = THREE.MathUtils.clamp(this.orbitPitch + (e.clientY - this.lastPtrY) * 0.006, 0.08, 1.35);
+    this.lastPtrX = e.clientX;
+    this.lastPtrY = e.clientY;
+  };
+  private orbitRing: THREE.Object3D | null = null;
 
   constructor(private container: HTMLElement) {
     this.scene.add(this.stageRoot, this.contentRoot);
@@ -358,14 +367,8 @@ export class PlaykitLiveStage {
       this.lastPtrX = e.clientX;
       this.lastPtrY = e.clientY;
     });
-    window.addEventListener('pointerup', () => { this.dragging = false; });
-    window.addEventListener('pointermove', (e) => {
-      if (!this.dragging) return;
-      this.orbitYaw -= (e.clientX - this.lastPtrX) * 0.008;
-      this.orbitPitch = THREE.MathUtils.clamp(this.orbitPitch + (e.clientY - this.lastPtrY) * 0.006, 0.08, 1.35);
-      this.lastPtrX = e.clientX;
-      this.lastPtrY = e.clientY;
-    });
+    window.addEventListener('pointerup', this.onPointerUp);
+    window.addEventListener('pointermove', this.onPointerMove);
     dom.addEventListener('wheel', (e) => {
       this.orbitDist = THREE.MathUtils.clamp(this.orbitDist + e.deltaY * 0.012, 2.5, 42);
     }, { passive: true });
@@ -394,7 +397,7 @@ export class PlaykitLiveStage {
     this.lights.upsert({ id: 'fill', kind: 'point', position: [10, 5, 8], color: [1, 0.85, 0.65], intensity: 3.5, range: 30 });
   }
 
-  private buildStudioFloor(): void {
+  private buildStudioFloor(gridHex = 0x38bdf8, baseA = 0x0c101b, baseB = 0x161d2e): void {
     const floorMat = new THREE.MeshStandardNodeMaterial({ roughness: 0.6, metalness: 0.35 });
     const gUv = uv().mul(22.0);
     const cell = abs(fract(gUv.sub(0.5)).sub(0.5));
@@ -402,8 +405,8 @@ export class PlaykitLiveStage {
     const radial = uv().sub(0.5).length().mul(2.0);
     const pulseRing = smoothstep(float(0.03), float(0.0), abs(fract(radial.mul(3.0).sub(time.mul(0.12))).sub(0.5)));
 
-    floorMat.colorNode = mix(color(0x0c101b), color(0x161d2e), line);
-    floorMat.emissiveNode = color(0x38bdf8).mul(line.mul(0.22).add(pulseRing.mul(0.45))).mul(float(0.6).add(this.uPulse));
+    floorMat.colorNode = mix(color(baseA), color(baseB), line);
+    floorMat.emissiveNode = color(gridHex).mul(line.mul(0.22).add(pulseRing.mul(0.45))).mul(float(0.6).add(this.uPulse));
 
     const disc = new THREE.Mesh(new THREE.CylinderGeometry(20, 19, 0.4, 32), floorMat);
     disc.position.y = -0.2;
@@ -416,6 +419,7 @@ export class PlaykitLiveStage {
     opts?: { wireframe?: boolean; showProbes?: boolean; cutawayInterior?: boolean },
   ): void {
     this.contentRoot.clear();
+    this.orbitRing = null;
     const grp = ariaResultToThreeGroup(result, opts);
     this.contentRoot.add(grp);
 
@@ -429,44 +433,130 @@ export class PlaykitLiveStage {
     this.autoRotate = true;
   }
 
-  /** Load an animated 3D Parlor Game-Show or Candlelit Fable Tavern venue behind PartyPlay. */
-  loadParlorVenue(kind: 'broadcast' | 'tavern', tension = 0.25): void {
+  /** Load an animated 3D Parlor venue behind PartyPlay, Sketch Rush, Table Classics, or Cyber Tic Tac Toe. */
+  loadParlorVenue(kind: ParlorVenueKind, tension = 0.25): void {
     this.parlorTension = tension;
-    this.applyStagePreset(kind === 'tavern' ? 'parlor-fable-tavern-3d' : 'parlor-broadcast-studio-3d');
-    this.buildStudioFloor();
+    this.orbitRing = null;
+    const presetMap: Record<ParlorVenueKind, keyof typeof STAGE_VISUAL_PRESETS> = {
+      broadcast: 'parlor-broadcast-studio-3d',
+      tavern: 'parlor-fable-tavern-3d',
+      atelier: 'parlor-atelier-3d',
+      lounge: 'parlor-grand-lounge-3d',
+      cyber: 'parlor-cyber-arena-3d',
+    };
+    const palette: Record<ParlorVenueKind, { accent: number; secondary: number; floorGrid: number; floorA: number; floorB: number }> = {
+      broadcast: { accent: 0x38bdf8, secondary: 0xe879f9, floorGrid: 0x38bdf8, floorA: 0x0c101b, floorB: 0x161d2e },
+      tavern:    { accent: 0xf59e0b, secondary: 0xf97316, floorGrid: 0xf59e0b, floorA: 0x160f0b, floorB: 0x241913 },
+      atelier:   { accent: 0xec4899, secondary: 0x38bdf8, floorGrid: 0xec4899, floorA: 0x130a22, floorB: 0x22123c },
+      lounge:    { accent: 0xd97706, secondary: 0x10b981, floorGrid: 0xc2903a, floorA: 0x0b120f, floorB: 0x13201b },
+      cyber:     { accent: 0x00f0ff, secondary: 0xff2bd6, floorGrid: 0x00f0ff, floorA: 0x05060f, floorB: 0x0c1128 },
+    };
+    const pal = palette[kind];
+    this.applyStagePreset(presetMap[kind]);
+    this.buildStudioFloor(pal.floorGrid, pal.floorA, pal.floorB);
     this.contentRoot.clear();
 
-    const accent = kind === 'tavern' ? 0xf59e0b : 0x38bdf8;
-    const secondary = kind === 'tavern' ? 0xf97316 : 0xe879f9;
-
     const ringMat = new THREE.MeshStandardNodeMaterial({
-      color: accent, emissive: accent, emissiveIntensity: 1.4, metalness: 0.85, roughness: 0.2,
+      color: pal.accent, emissive: pal.accent, emissiveIntensity: 1.4, metalness: 0.85, roughness: 0.2,
+    });
+    const secMat = new THREE.MeshStandardNodeMaterial({
+      color: pal.secondary, emissive: pal.secondary, emissiveIntensity: 1.1, metalness: 0.8, roughness: 0.25,
     });
     const pillarMat = createPlaykitTslMaterial(ADVANCED_PBR_PRESETS['fable-masonry']).material;
 
-    // Central raised host stage + glowing overhead halo rings + 6 perimeter arches/pillars
-    const stage = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.8, 0.6, 24), pillarMat);
-    stage.position.y = 0.3;
-    const halo = new THREE.Mesh(new THREE.TorusGeometry(6.2, 0.14, 12, 48), ringMat);
-    halo.position.y = 6.2;
-    halo.rotation.x = Math.PI * 0.5;
-    this.contentRoot.add(stage, halo);
+    // Perimeter columns sit outside the camera orbit radius (~11.4) so they frame the backdrop
+    // without ever passing between the camera lens and the central table/stage.
+    if (kind === 'lounge') {
+      // Grand Parlor Lounge: octagonal mahogany plinth, emerald inlay ring, chandelier halo & 8 fluted brass columns
+      const plinthMat = new THREE.MeshStandardNodeMaterial({ color: 0x3b1f14, roughness: 0.38, metalness: 0.22 });
+      const feltMat = new THREE.MeshStandardNodeMaterial({ color: 0x0d5c45, roughness: 0.85, metalness: 0.05 });
+      const plinth = new THREE.Mesh(new THREE.CylinderGeometry(5.6, 6.2, 0.55, 8), plinthMat);
+      plinth.position.y = 0.28;
+      const felt = new THREE.Mesh(new THREE.CylinderGeometry(4.8, 4.8, 0.08, 8), feltMat);
+      felt.position.y = 0.58;
+      const chandelier = new THREE.Group();
+      const outerHalo = new THREE.Mesh(new THREE.TorusGeometry(5.8, 0.11, 12, 48), ringMat);
+      outerHalo.rotation.x = Math.PI * 0.5;
+      const innerHalo = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.08, 12, 36), secMat);
+      innerHalo.rotation.x = Math.PI * 0.5;
+      chandelier.position.y = 6.6;
+      chandelier.add(outerHalo, innerHalo);
+      this.orbitRing = chandelier;
+      this.contentRoot.add(plinth, felt, chandelier);
 
-    const podMat = new THREE.MeshStandardNodeMaterial({
-      color: 0x161b2e, emissive: secondary, emissiveIntensity: 0.45, metalness: 0.7, roughness: 0.3,
-    });
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2;
-      const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.9, 6.5, 0.9), pillarMat);
-      pillar.position.set(Math.cos(a) * 10.5, 3.25, Math.sin(a) * 10.5);
-      const podium = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.7, 1.2, 8), podMat);
-      podium.position.set(Math.cos(a) * 3.8, 1.2, Math.sin(a) * 3.8);
-      this.contentRoot.add(pillar, podium);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 8.4, 12), pillarMat);
+        col.position.set(Math.cos(a) * 16.2, 4.2, Math.sin(a) * 16.2);
+        const sconce = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), ringMat);
+        sconce.position.set(Math.cos(a) * 15.5, 4.8, Math.sin(a) * 15.5);
+        this.contentRoot.add(col, sconce);
+      }
+    } else if (kind === 'cyber') {
+      // Cyber Neon Grid Chamber: dual counter-rotating holographic rings & 8 synthwave obelisks
+      const gyro = new THREE.Group();
+      gyro.position.y = 4.2;
+      const ringA = new THREE.Mesh(new THREE.TorusGeometry(5.8, 0.12, 14, 64), ringMat);
+      ringA.rotation.set(Math.PI * 0.38, 0.3, 0);
+      const ringB = new THREE.Mesh(new THREE.TorusGeometry(4.3, 0.1, 14, 56), secMat);
+      ringB.rotation.set(-Math.PI * 0.34, -0.4, 0.2);
+      gyro.add(ringA, ringB);
+      this.orbitRing = gyro;
+      const corePad = new THREE.Mesh(new THREE.CylinderGeometry(4.6, 5.2, 0.35, 6), new THREE.MeshStandardNodeMaterial({ color: 0x0a1228, emissive: pal.accent, emissiveIntensity: 0.35, metalness: 0.85, roughness: 0.2 }));
+      corePad.position.y = 0.18;
+      this.contentRoot.add(corePad, gyro);
+
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const ob = new THREE.Mesh(new THREE.BoxGeometry(0.58, 7.6, 0.58), i % 2 === 0 ? ringMat : secMat);
+        ob.position.set(Math.cos(a) * 16.4, 3.8, Math.sin(a) * 16.4);
+        ob.rotation.y = -a;
+        this.contentRoot.add(ob);
+      }
+    } else if (kind === 'atelier') {
+      // Sketch Rush Neon Atelier: central easel dais + 6 glowing gallery frame arches + floating halo
+      const dais = new THREE.Mesh(new THREE.CylinderGeometry(5.0, 5.6, 0.5, 24), pillarMat);
+      dais.position.y = 0.25;
+      const halo = new THREE.Mesh(new THREE.TorusGeometry(6.0, 0.13, 12, 48), ringMat);
+      halo.position.y = 6.0;
+      halo.rotation.x = Math.PI * 0.5;
+      this.orbitRing = halo;
+      this.contentRoot.add(dais, halo);
+
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const frame = new THREE.Mesh(new THREE.TorusGeometry(2.1, 0.11, 8, 4), i % 2 === 0 ? ringMat : secMat);
+        frame.position.set(Math.cos(a) * 15.6, 3.6, Math.sin(a) * 15.6);
+        frame.rotation.y = -a + Math.PI * 0.5;
+        frame.rotation.z = Math.PI * 0.25;
+        this.contentRoot.add(frame);
+      }
+    } else {
+      // Broadcast Studio / Candlelit Tavern: central raised host stage + halo ring + 6 pillars & podiums
+      const stage = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.8, 0.6, 24), pillarMat);
+      stage.position.y = 0.3;
+      const halo = new THREE.Mesh(new THREE.TorusGeometry(6.2, 0.14, 12, 48), ringMat);
+      halo.position.y = 6.2;
+      halo.rotation.x = Math.PI * 0.5;
+      this.orbitRing = halo;
+      this.contentRoot.add(stage, halo);
+
+      const podMat = new THREE.MeshStandardNodeMaterial({
+        color: 0x161b2e, emissive: pal.secondary, emissiveIntensity: 0.45, metalness: 0.7, roughness: 0.3,
+      });
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.95, 7.6, 0.95), pillarMat);
+        pillar.position.set(Math.cos(a) * 16.0, 3.8, Math.sin(a) * 16.0);
+        const podium = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.7, 1.2, 8), podMat);
+        podium.position.set(Math.cos(a) * 3.8, 1.2, Math.sin(a) * 3.8);
+        this.contentRoot.add(pillar, podium);
+      }
     }
 
     this.targetY = 2.6;
-    this.orbitDist = 15.5;
-    this.orbitPitch = 0.28;
+    this.orbitDist = 12.2;
+    this.orbitPitch = 0.34;
     this.autoRotate = true;
   }
 
@@ -481,6 +571,9 @@ export class PlaykitLiveStage {
 
     if (this.autoRotate) {
       this.orbitYaw += dt * (0.22 + this.parlorTension * 0.25);
+    }
+    if (this.orbitRing) {
+      this.orbitRing.rotation.y += dt * (0.18 + this.parlorTension * 0.35);
     }
 
     // Sweep dynamic rim/fill stage lights
@@ -502,6 +595,8 @@ export class PlaykitLiveStage {
   dispose(): void {
     this.disposed = true;
     cancelAnimationFrame(this.rafId);
+    window.removeEventListener('pointerup', this.onPointerUp);
+    window.removeEventListener('pointermove', this.onPointerMove);
     this.resizeObs?.disconnect();
     if (this.renderer?.domElement?.parentNode) {
       this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
@@ -509,3 +604,5 @@ export class PlaykitLiveStage {
     this.renderer?.dispose();
   }
 }
+
+export type ParlorVenueKind = 'broadcast' | 'tavern' | 'atelier' | 'lounge' | 'cyber';

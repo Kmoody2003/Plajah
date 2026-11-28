@@ -12,6 +12,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Users, Copy, Check, Crown, UserMinus, LogOut, Play, Loader2, ChevronDown, Search, Radio } from 'lucide-react';
 import { GAMES } from '../../../services/gamerNet/registry';
+import { REALTIME_GAMES } from '../../../services/realtime/games';
 import { party as api, failed, myUid, OPEN_PARTY_EVENT, type PartyTarget, type PartyView, type PartyPeek } from '../../../services/gamerNet/togetherClient';
 import { gamer, failed as gFailed } from '../../../services/gamerNet/client';
 import { setPartyStreamTrack, type PartyStreamMixer } from '../../../services/gamerNet/partyStreamBus';
@@ -21,8 +22,13 @@ import { useGameVoice, type GameVoice } from './useGameVoice';
 import { GT_CSS } from './togetherCss';
 
 // ── opening a party match: the app opens the game overlay; labs can swap this ──
-type MatchOpener = (m: { id: string; game: string }) => void;
+type MatchOpener = (m: { id: string; game: string; rt?: boolean }) => void;
 let opener: MatchOpener = m => {
+  if (m.rt || REALTIME_GAMES[m.game]) {
+    const target = `/games/apex/play/region.html?rtMatch=${encodeURIComponent(m.id)}&rtGame=${encodeURIComponent(m.game)}`;
+    window.open(target, '_blank', 'noopener');
+    return;
+  }
   if (m.game !== 'ttt') return;   // other games open from their own screens
   void import('../../../services/gamerNet/socialClient').then(s => s.openGameOverlay({ matchId: m.id }));
 };
@@ -48,7 +54,7 @@ export function ensurePartyDock(): void {
   createRoot(el).render(<PartyDockHost />);
 }
 
-const gameTitle = (id: string) => GAMES[id]?.title ?? (id || 'No game picked');
+const gameTitle = (id: string) => GAMES[id]?.title ?? REALTIME_GAMES[id]?.title ?? (id || 'No game picked');
 const TEAM = ['A', 'B'] as const;
 type Room = 'party' | 0 | 1;
 type Search = { game: string; state: 'searching' | 'matched' | 'stopped' | 'error'; msg?: string } | null;
@@ -139,7 +145,7 @@ function PartyDockHost() {
     if (m && uid && m.seats.includes(uid) && opened.current !== m.id && Date.now() - m.at < 10 * 60_000) {
       const seen = sessionStorage.getItem('plajah.party.lastMatch');
       opened.current = m.id;
-      if (seen !== m.id) { sessionStorage.setItem('plajah.party.lastMatch', m.id); opener({ id: m.id, game: m.game }); }
+      if (seen !== m.id) { sessionStorage.setItem('plajah.party.lastMatch', m.id); opener({ id: m.id, game: m.game, rt: m.rt }); }
     }
   }, []);
 
@@ -215,7 +221,11 @@ function PartyPanel({ p, voiceOn, invite, clearInvite, apply, close, voice, room
   const [playWith, setPlayWith] = useState('');
   const leader = p?.leader === me;
   const meMember = p?.members.find(m => m.uid === me);
-  const onlineGames = Object.values(GAMES);
+  const onlineGames = [
+    ...Object.values(GAMES).map(g => ({ id: g.id, title: g.title, rt: false })),
+    ...Object.values(REALTIME_GAMES).map(g => ({ id: g.id, title: `${g.title} (Realtime)`, rt: true })),
+  ];
+  const isRtGame = !!(p?.game && REALTIME_GAMES[p.game]);
 
   useEffect(() => {
     if (!invite || p?.id === invite) { setPeek(null); return; }
@@ -341,6 +351,14 @@ function PartyPanel({ p, voiceOn, invite, clearInvite, apply, close, voice, room
             </div>
           ) : <div className="gx-small" style={{ marginTop: 6 }}>{gameTitle(p.game)} — the leader starts matches</div>}
 
+          {leader && isRtGame && (
+            <div className="gt-row">
+              <button className="gx-btn" style={{ width: '100%' }} disabled={busy || p.members.length < (REALTIME_GAMES[p.game]?.minPlayers ?? 1)} onClick={async () => {
+                const r = await run(() => api.play(p.game));
+                if (r && 'matchId' in r) opener({ id: (r as any).matchId, game: p.game, rt: true });
+              }}><Play size={14} /> Launch {gameTitle(p.game)} room ({p.members.length})</button>
+            </div>
+          )}
           {leader && GAMES[p.game] && p.members.length > 1 && (
             <div className="gt-row">
               <select value={playWith} onChange={e => setPlayWith(e.target.value)} aria-label="Play against">
@@ -353,7 +371,7 @@ function PartyPanel({ p, voiceOn, invite, clearInvite, apply, close, voice, room
               }}><Play size={14} /> Play</button>
             </div>
           )}
-          {leader && GAMES[p.game] && (
+          {leader && (GAMES[p.game] || isRtGame) && (
             <div className="gt-row">
               {p.queue
                 ? <button className="gx-btn ghost" disabled={busy} onClick={() => void run(() => api.stopQueue())}>Stop party search</button>
@@ -369,7 +387,7 @@ function PartyPanel({ p, voiceOn, invite, clearInvite, apply, close, voice, room
             </div>
           )}
           {p.match && p.match.seats.includes(me) && (
-            <div className="gt-row"><button className="gx-btn ghost" onClick={() => opener({ id: p.match!.id, game: p.match!.game })}>Open {gameTitle(p.match.game)} match</button></div>
+            <div className="gt-row"><button className="gx-btn ghost" onClick={() => opener({ id: p.match!.id, game: p.match!.game, rt: p.match!.rt })}>Open {gameTitle(p.match.game)} {p.match.rt ? 'room' : 'match'}</button></div>
           )}
 
           <MatchChat scope={`party_${p.id}`} title="Party chat" />

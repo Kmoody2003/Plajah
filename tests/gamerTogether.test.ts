@@ -104,7 +104,7 @@ test('party: invites expire, only the leader runs the party, kids stay off voice
 // ── routers ─────────────────────────────────────────────────────────────────────────
 const LK = { url: 'wss://lk.example', apiKey: 'key', apiSecret: 'secret-secret-secret' };
 
-async function harness(opts: { voice?: boolean; kids?: string[] } = {}) {
+async function harness(opts: { voice?: boolean; kids?: string[]; rtUrls?: string[] } = {}) {
   const store = memoryGamerStore();
   let clock = 5_000_000;
   const notices: GamerNotice[] = [];
@@ -114,7 +114,11 @@ async function harness(opts: { voice?: boolean; kids?: string[] } = {}) {
   const userCard = async (uid: string) => ({ name: uid[0].toUpperCase() + uid.slice(1), isChild: kids.has(uid) });
   const blockedFor = async (uid: string) => new Set([...blocks].flatMap(p => { const [a, b] = p.split('|'); return a === uid ? [b] : b === uid ? [a] : []; }));
   const app = express();
-  const t = createGamerTogether({ store, verify, userCard, now: () => clock, notify: async n => { notices.push(n); }, blockedFor, livekit: () => (opts.voice ? LK : null) });
+  const t = createGamerTogether({
+    store, verify, userCard, now: () => clock, notify: async n => { notices.push(n); }, blockedFor,
+    livekit: () => (opts.voice ? LK : null),
+    rtUrls: opts.rtUrls ? () => opts.rtUrls! : undefined,
+  });
   app.use('/api/gamer/party', express.json(), t.party);
   app.use('/api/gamer/chat', express.json(), t.chat);
   app.use('/api/gamer', express.json(), createGamerRouter({ store, verify, userCard, now: () => clock }));
@@ -328,5 +332,38 @@ test('router: teams, team voice, party search, stream consent; realtime-room voi
     assert.equal((await h.call('bob', 'POST', '/chat/voice', { scope: 'rt_race1' })).status, 403);
     assert.equal((await h.call('ann', 'POST', '/chat/rt_race1', { text: 'gl all' })).status, 200);
     assert.equal((await h.call('bob', 'GET', '/chat/rt_race1')).status, 403);
+  } finally { h.close(); }
+});
+
+test('router: party leader launches whole party into a realtime room; open-world voice caps at 32', async () => {
+  const h = await harness({ voice: true, rtUrls: ['wss://rt-1.plajah.test'] });
+  try {
+    const p = (await h.call('ann', 'POST', '/party', { game: 'apex-race' })).json.party;
+    await h.call('bob', 'POST', '/party/join', { code: p.code });
+    await h.call('carl', 'POST', '/party/join', { code: p.code });
+
+    // Whole-party realtime launch seats all three members into one gamerRtMatches room with circuit meta.
+    const launched = await h.call('ann', 'POST', '/party/play', { game: 'apex-race', meta: { circuitId: 'harbor_district_circuit' } });
+    assert.equal(launched.status, 200);
+    assert.equal(launched.json.rt, true);
+    assert.equal(launched.json.code.length, 6);
+    assert.equal(launched.json.party.match.rt, true);
+    assert.deepEqual(launched.json.party.match.seats, ['ann', 'bob', 'carl']);
+    const rtDoc = await h.store.get('gamerRtMatches', launched.json.matchId);
+    assert.ok(rtDoc);
+    assert.deepEqual(rtDoc.players, ['ann', 'bob', 'carl']);
+    assert.deepEqual(rtDoc.meta, { circuitId: 'harbor_district_circuit' });
+
+    // Open-world shard voice room scales cap to 32 (matching apex-world maxPlayers).
+    const world = await h.call('ann', 'POST', '/party/play', { game: 'apex-world' });
+    assert.equal(world.status, 200);
+    const wv = await h.call('ann', 'POST', '/chat/voice', { scope: `rt_${world.json.matchId}` });
+    assert.equal(wv.status, 200);
+    assert.equal(wv.json.cap, 32);
+
+    // Party queue also accepts realtime games.
+    const pq = await h.call('ann', 'POST', '/party/queue', { game: 'apex-race' });
+    assert.equal(pq.status, 200);
+    assert.equal(pq.json.party.queue.game, 'apex-race');
   } finally { h.close(); }
 });

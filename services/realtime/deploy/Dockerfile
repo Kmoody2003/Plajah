@@ -11,4 +11,4 @@ RUN npm install --omit=dev --no-audit --no-fund
 # Only the realtime service. settle.ts and client.ts sit in the folder but aren't loaded by main.ts.
 COPY --chown=node:node services/realtime/ ./services/realtime/
 EXPOSE 8080
-CMD ["npx", "tsx", "services/realtime/main.ts"]
+CMD ["./node_modules/.bin/tsx", "services/realtime/main.ts"]

@@ -121,11 +121,23 @@ export const recalculate = (entries: ReadonlyArray<GamerEntry>): GamerFold => [.
 
 // ── first-party achievements, checked after every refereed match ─────────────────────────────
 export interface AchievementDef { id: string; game: string; title: string; points: number; earned(g: GameStats): boolean }
+
+const tableAchievements = (game: string, first: string, streak: string, ten: string, elite: string): AchievementDef[] => [
+  { id: `${game}.first-win`, game, title: first, points: 25, earned: g => g.wins >= 1 },
+  { id: `${game}.streak-3`, game, title: streak, points: 50, earned: g => g.best >= 3 },
+  { id: `${game}.wins-10`, game, title: ten, points: 75, earned: g => g.wins >= 10 },
+  { id: `${game}.rating-1400`, game, title: elite, points: 150, earned: g => g.rating >= 1400 },
+];
+
 export const ACHIEVEMENTS: ReadonlyArray<AchievementDef> = [
-  { id: 'ttt.first-win', game: 'ttt', title: 'First Circuit', points: 25, earned: g => g.wins >= 1 },
-  { id: 'ttt.streak-3', game: 'ttt', title: 'Triple Line', points: 50, earned: g => g.best >= 3 },
-  { id: 'ttt.wins-10', game: 'ttt', title: 'Grid Runner', points: 75, earned: g => g.wins >= 10 },
-  { id: 'ttt.rating-1400', game: 'ttt', title: 'Neon Elite', points: 150, earned: g => g.rating >= 1400 },
+  ...tableAchievements('ttt', 'First Circuit', 'Triple Line', 'Grid Runner', 'Neon Elite'),
+  ...tableAchievements('chess', 'First Checkmate', 'Three-Game Tempo', 'Club Master', 'Grand Parlor'),
+  ...tableAchievements('checkers', 'First King', 'Triple Jump', 'Board Sweeper', 'Crown Sovereign'),
+  ...tableAchievements('dominoes', 'First Bone', 'Domino Run', 'Table Dominator', 'Double-Six Ace'),
+  ...tableAchievements('spades', 'First Book', 'Three-Hand Streak', 'Spade Shark', 'Nil Legend'),
+  ...tableAchievements('euchre', 'First Bower', 'Three-Match March', 'Euchre Ace', 'Right Bower Royalty'),
+  ...tableAchievements('bidwhist', 'Detroit Opener', 'Three-Table Run', 'Boston Regular', 'Uptown Sovereign'),
+  ...tableAchievements('apex-race', 'Checkered Flag', 'Podium Hat Trick', 'Ironport Champion', 'Apex Legend'),
 ];
 export const newlyEarned = (f: GamerFold, game: string): AchievementDef[] => {
   const g = f.games[game]; if (!g) return [];

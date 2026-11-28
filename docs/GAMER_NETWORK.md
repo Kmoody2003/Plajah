@@ -213,11 +213,13 @@ changing the API, the tickets or the ledger.
 | Method | Path | What it does |
 |---|---|---|
 | GET | `/rt/config` | `{ enabled, games }`. `enabled: false` until the secrets are set; the game then falls back to its old local mode |
-| POST/GET/DELETE | `/rt/queue` `{game}` | rated 1v1 matchmaking (same rating window as turn-based, `pickOpponent`) |
-| POST | `/rt/private` `{game}` → `{ matchId, code }` | friendly room (unrated), up to the game's `maxPlayers` |
-| POST | `/rt/join` `{code}` → `{ matchId }` | take the next seat |
-| GET | `/rt/match/:id` | roster + status (players only) |
-| POST | `/rt/ticket` `{matchId}` → `{ ticket, url, seat, expiresAt }` | signed join ticket, only for a player in the match |
+| POST/GET/DELETE | `/rt/queue` `{game}` | rated 1v1 matchmaking (`pickOpponent`); for `dropIn` games (e.g. `apex-world`), joins a shared persistent shard directly |
+| POST | `/rt/shard` `{game, meta?}` | join or open a shared drop-in persistent open-world shard (up to `maxPlayers`, stable recycled seat slots) |
+| POST | `/rt/leave` `{matchId}` | release a player's seat slot in a drop-in shard |
+| POST | `/rt/private` `{game, meta?}` → `{ matchId, code, meta? }` | friendly room (unrated) with optional flat `meta` (e.g. `{ circuitId }`), up to the game's `maxPlayers` |
+| POST | `/rt/join` `{code}` → `{ matchId, game, meta? }` | take the next seat and receive the room's `meta` |
+| GET | `/rt/match/:id` | roster + status + `meta` (players only) |
+| POST | `/rt/ticket` `{matchId}` → `{ ticket, url, seat, expiresAt, meta? }` | signed join ticket, only for a player in the match |
 | POST | `/rt/result` | **realtime server only**: `x-plajah-rt-ts` + `x-plajah-rt-sig` headers |
 
 Storage: `gamerRtMatches/{id}` (`players`, `names`, `url`, `code`, `status`, `standings`, `plan`, `settled`) and `gamerRtQueue/{game}__{uid}`.
@@ -271,21 +273,22 @@ It then fixes the ledger plan in the match doc, so a retry replays exactly the s
   else names the player directly ahead). So `score.ts`'s cap applies unchanged: `PAIR_DAILY_CAP` (5) counted matches per opponent per UTC day (tested).
 * Leaderboards accept realtime game ids: `/leaderboard?game=apex-race`.
 
-### Deploy (not done: nothing is deployed or pushed)
+### Deploy (CI wired in `.github/workflows/firebase-hosting-deploy.yml` → `deploy_realtime`)
 
 1. Generate two random secrets (32+ bytes each, e.g. `openssl rand -hex 32`) and store them in Secret Manager as
    `GAMER_RT_TICKET_SECRET` and `GAMER_RT_RESULT_SECRET`. Server-only. **Never** use `VITE_` names: Vite bakes those into the bundle.
-2. Build and deploy the realtime service from the repo root:
+2. Once both secrets exist, the `deploy_realtime` GitHub Actions job (or `scripts/deploy-realtime-cloudrun.ps1` locally) builds `services/realtime/deploy/Dockerfile` into Artifact Registry (`us-west1-docker.pkg.dev/$PROJECT/cloud-run-source-deploy/plajah-realtime`) and deploys `plajah-realtime` in `us-west1` (co-located with `plajah-api`). Manual build + deploy from the repo root:
    ```
-   docker build -f services/realtime/deploy/Dockerfile -t gcr.io/$PROJECT/plajah-realtime . && docker push gcr.io/$PROJECT/plajah-realtime
-   gcloud run deploy plajah-realtime --image gcr.io/$PROJECT/plajah-realtime --region us-central1 \
+   IMAGE="us-west1-docker.pkg.dev/$PROJECT/cloud-run-source-deploy/plajah-realtime:latest"
+   gcloud builds submit --project "$PROJECT" --region us-west1 --tag "$IMAGE" . # using services/realtime/deploy/Dockerfile
+   gcloud run deploy plajah-realtime --image "$IMAGE" --region us-west1 \
      --timeout 3600 --session-affinity --min-instances 0 --max-instances 1 --concurrency 1000 --cpu 1 --memory 512Mi \
      --set-secrets GAMER_RT_TICKET_SECRET=GAMER_RT_TICKET_SECRET:latest,GAMER_RT_RESULT_SECRET=GAMER_RT_RESULT_SECRET:latest \
      --set-env-vars GAMER_RT_API_URL=https://plajah.com --allow-unauthenticated
    ```
    `--timeout 3600` is the longest a Cloud Run WebSocket can stay open (races last minutes). `--max-instances 1` keeps
    every room on one instance, because rooms live in memory.
-3. On `plajah-api`, set the same two secrets plus `GAMER_RT_URLS=wss://plajah-realtime-….run.app`. `/rt/config` then reports `enabled: true`.
+3. On `plajah-api` (`us-west1`), attach the same two secrets plus `GAMER_RT_URLS=wss://plajah-realtime-….run.app` (`deploy_realtime` and `scripts/deploy-realtime-cloudrun.ps1` do this automatically when `GAMER_RT_URLS` is unset). `/api/gamer/rt/config` then reports `enabled: true`.
 4. **Scaling out (sticky rooms):** deploy more services (`plajah-realtime-2`, …), each with `--max-instances 1`, and list them all
    in `GAMER_RT_URLS` (comma-separated). The API stores `url = urls[sha256(matchId) % n]` on each match, so both players and
    every reconnect reach the same shard. Adding a shard doesn't move existing rooms.

@@ -22,16 +22,15 @@ function realtimeLab() {
       const { memoryGamerStore } = await load('services/gamerNet/store.ts');
       const { startRealtimeServer } = await load('services/realtime/server.ts');
       const { resultPoster } = await load('services/realtime/resultPoster.ts');
-      const { REALTIME_GAMES, APEX_RACE } = await load('services/realtime/games.ts');
+      const { REALTIME_GAMES, APEX_RACE, realtimeGame } = await load('services/realtime/games.ts');
       const { RaceReferee } = await load('services/realtime/referee.ts');
       const ticketSecret = randomBytes(24).toString('hex'), resultSecret = randomBytes(24).toString('hex');
       const fast = process.env.RT_LAB_FAST === '1';
-      const def = fast
-        ? { ...REALTIME_GAMES[APEX_RACE], referee: () => new RaceReferee({ laps: 1, maxProgressPerSec: 2, maxSpeedMps: 140, finishGraceMs: 20_000, maxRaceMs: 10 * 60_000 }) }
-        : REALTIME_GAMES[APEX_RACE];
+      const fastRace = { ...REALTIME_GAMES[APEX_RACE], referee: () => new RaceReferee({ laps: 1, maxProgressPerSec: 2, maxSpeedMps: 140, finishGraceMs: 20_000, maxRaceMs: 10 * 60_000 }) };
       const store = memoryGamerStore();
       const rt = await startRealtimeServer({
-        port: RT_PORT, host: '127.0.0.1', ticketSecret, games: (id) => (id === APEX_RACE ? def : null),
+        port: RT_PORT, host: '127.0.0.1', ticketSecret,
+        games: (id) => (id === APEX_RACE && fast ? fastRace : realtimeGame(id)),
         postResult: resultPoster({ apiUrl: `http://127.0.0.1:${API_PORT}`, secret: resultSecret, log: (m) => console.log('[realtime]', m) }),
         log: (m) => console.log('[realtime]', m),
       });
@@ -41,7 +40,13 @@ function realtimeLab() {
       // Voice needs LiveKit: set MEETINGS_SFU=1 + LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET to try it here; without them it reports "off".
       const { createGamerTogether } = await load('routes/gamerTogether.ts');
       const { livekitConfigFromEnv } = await load('services/meetings/livekitServer.ts');
-      const together = createGamerTogether({ store, verify: async (t) => (t.startsWith('tok-') ? t.slice(4) : null), userCard: async (uid) => ({ name: uid[0].toUpperCase() + uid.slice(1) }), livekit: () => livekitConfigFromEnv() });
+      const together = createGamerTogether({
+        store, verify: async (t) => (t.startsWith('tok-') ? t.slice(4) : null),
+        userCard: async (uid) => ({ name: uid[0].toUpperCase() + uid.slice(1) }),
+        livekit: () => livekitConfigFromEnv(),
+        rtUrls: () => [`ws://127.0.0.1:${RT_PORT}`],
+      });
+      app.use('/api/gamer/party', express.json({ limit: '8kb' }), together.party);
       app.use('/api/gamer/chat', express.json({ limit: '8kb' }), together.chat);
       app.use('/api/gamer', express.json({ limit: '8kb' }), createGamerRouter({
         store,

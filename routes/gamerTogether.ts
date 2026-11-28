@@ -32,6 +32,8 @@ import { randomUUID, randomInt } from 'node:crypto';
 import { casUpdate } from '../services/casCore';
 import type { GamerStore } from '../services/gamerNet/store';
 import { gameRules } from '../services/gamerNet/registry';
+import { realtimeGame, cleanMeta } from '../services/realtime/games';
+import { shardUrl } from './gamerRealtime';
 import { START_RATING } from '../services/gamerNet/rating';
 import * as M from '../services/gamerNet/match';
 import * as C from '../services/gamerNet/chat';
@@ -48,14 +50,15 @@ export interface GamerTogetherDeps {
   blockedFor?(uid: string): Promise<Set<string>>;
   /** LiveKit (docs/MEETINGS_SFU.md). Null = voice answers 503 { available: false }. */
   livekit?: () => LiveKitConfig | null;
+  /** Realtime server shard URLs (GAMER_RT_URLS) so party leaders can launch whole-party realtime rooms. */
+  rtUrls?: () => string[];
   now?: () => number;
 }
 
 const PROFILES = 'gamerProfiles', MATCHES = 'gamerMatches', RT_MATCHES = 'gamerRtMatches', PARTIES = 'gamerParties', PARTY_OF = 'gamerPartyOf', CHAT = 'gamerChat', REPORTS = 'gamerChatReports';
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
-/** Party voice rooms hold the whole party; a match room holds its two players. */
-/** Realtime rooms (routes/gamerRealtime.ts on the realtime branch) hold up to 12 drivers. */
+/** Party voice rooms hold the whole party; realtime rooms scale to the game's maxPlayers (12 for races, 32 for open-world shards). */
 export const VOICE_CAP = { party: P.MAX_PARTY, team: P.MAX_PARTY, match: 2, rt: 12 };
 /** `team_<partyId>_<n>` -> party id + team number. */
 const splitTeam = (id: string): { partyId: string; team: 0 | 1 } => ({ partyId: id.slice(0, -2), team: (id.endsWith('_1') ? 1 : 0) });
@@ -224,7 +227,7 @@ export function createGamerTogether(deps: GamerTogetherDeps): { party: Router; c
     const me = await who(uid);
     await deps.notify?.({
       userId: to, senderId: uid, senderName: me.name, senderPhoto: me.photo, title: 'Party invite',
-      message: `${me.name} invited you to their party${out.doc.game ? ` (${gameRules(out.doc.game)?.title ?? out.doc.game})` : ''}`,
+      message: `${me.name} invited you to their party${out.doc.game ? ` (${gameRules(out.doc.game)?.title ?? realtimeGame(out.doc.game)?.title ?? out.doc.game})` : ''}`,
       link: `game-party:${cur.id}`, targetId: cur.id,
     }).catch(() => {});
     res.json(partyOut(out.doc));
@@ -233,9 +236,37 @@ export function createGamerTogether(deps: GamerTogetherDeps): { party: Router; c
   party.post('/play', async (req, res) => {
     const uid = await needUid(req, res); if (!uid) return;
     const game = s(req.body?.game, 40), withUid = s(req.body?.with, 128);
-    if (!gameRules(game)) { res.status(400).json({ error: 'That game has no online matches yet' }); return; }
+    const rtDef = realtimeGame(game);
+    const tbDef = gameRules(game);
+    if (!tbDef && !rtDef) { res.status(400).json({ error: 'That game has no online matches yet' }); return; }
     const cur = await partyOf(uid); if (!cur) { res.status(404).json({ error: 'You are not in a party' }); return; }
     if (cur.leader !== uid) { res.status(403).json({ error: 'Only the party leader can start a match' }); return; }
+
+    // Whole-party realtime launch (e.g. apex-race, apex-world): seats every party member into one realtime room.
+    if (rtDef) {
+      const urls = deps.rtUrls?.() ?? [];
+      if (!urls.length) { res.status(503).json({ error: 'Realtime game rooms are not enabled yet' }); return; }
+      const members = cur.members.slice(0, rtDef.maxPlayers);
+      if (members.length < rtDef.minPlayers) { res.status(400).json({ error: `Need at least ${rtDef.minPlayers} players in the party` }); return; }
+      const id = randomUUID(), t = now();
+      const code = Array.from({ length: 6 }, () => CODE_CHARS[randomInt(CODE_CHARS.length)]).join('');
+      const meta = cleanMeta(req.body?.meta);
+      const players = members.map(m => m.uid);
+      const names = members.map(m => m.name || 'Player');
+      const rtDoc = {
+        id, game, rated: false, status: 'open', players, names, url: shardUrl(urls, id), code,
+        ...(meta ? { meta } : {}), createdAt: t, updatedAt: t,
+      };
+      if ((await store.createOnce(RT_MATCHES, id, rtDoc as Record<string, unknown>)) !== 'created') {
+        res.status(503).json({ error: 'Could not open a realtime room' }); return;
+      }
+      const out = await partyStep(cur.id, d => P.startMatch(d, uid, { id, game, seats: players, rt: true }, now()));
+      if ('error' in out) { fail(res, out); return; }
+      await chatSystem(C.scopeKey('party', cur.id), `${rtDef.title} room opened (${code}) for ${players.length} players`);
+      res.json({ ...partyOut(out.doc), matchId: id, code, rt: true });
+      return;
+    }
+
     if (withUid === uid || !cur.members.some(m => m.uid === withUid)) { res.status(400).json({ error: 'Pick a party member to play' }); return; }
     const seat = async (u: string): Promise<M.PlayerCard> => {
       const p = await store.get(PROFILES, u); const w = await who(u);
@@ -246,7 +277,7 @@ export function createGamerTogether(deps: GamerTogetherDeps): { party: Router; c
     const out = await partyStep(cur.id, d => P.startMatch(d, uid, { id: doc.id, game, seats: [uid, withUid] }, now()));
     if ('error' in out) { fail(res, out); return; }
     const names = doc.cards.map(c => c.name).join(' vs ');
-    await chatSystem(C.scopeKey('party', cur.id), `${names} — ${gameRules(game)!.title} started`);
+    await chatSystem(C.scopeKey('party', cur.id), `${names} — ${tbDef!.title} started`);
     res.json({ ...partyOut(out.doc), matchId: doc.id });
   });
 
@@ -263,7 +294,7 @@ export function createGamerTogether(deps: GamerTogetherDeps): { party: Router; c
   party.post('/queue', async (req, res) => {
     const uid = await needUid(req, res); if (!uid) return;
     const game = s(req.body?.game, 40);
-    if (!gameRules(game)) { res.status(400).json({ error: 'That game has no online matches yet' }); return; }
+    if (!gameRules(game) && !realtimeGame(game)) { res.status(400).json({ error: 'That game has no online matches yet' }); return; }
     const cur = await partyOf(uid); if (!cur) { res.status(404).json({ error: 'You are not in a party' }); return; }
     const out = await partyStep(cur.id, d => P.startQueue(d, uid, { id: randomUUID(), game }, now()));
     if ('error' in out) { fail(res, out); return; }
@@ -338,10 +369,11 @@ export function createGamerTogether(deps: GamerTogetherDeps): { party: Router; c
       exclude = d.members.map(m => m.uid).filter(u => nope.has(u));
     } else if (scope.kind === 'rt') {
       const r = await store.get(RT_MATCHES, scope.id);
-      const players: string[] = Array.isArray(r?.players) ? r!.players.map(String) : [];
+      const players: string[] = Array.isArray(r?.players) ? r!.players.map(String).filter(Boolean) : [];
       if (!r || !players.includes(uid)) { res.status(403).json({ error: 'Only the players in this room can talk' }); return; }
       if (r.status === 'done') { res.status(409).json({ error: 'This race is over' }); return; }
-      room = `grt-${scope.id}`; cap = VOICE_CAP.rt;
+      const def = realtimeGame(r.game);
+      room = `grt-${scope.id}`; cap = Math.max(VOICE_CAP.rt, def?.maxPlayers ?? VOICE_CAP.rt);
       exclude = players.filter(u => nope.has(u));
     } else {
       const m = (await store.get(MATCHES, scope.id)) as M.MatchDoc | null;

@@ -15485,6 +15485,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
         return new Set([...mine.map((x: any) => String(x.data?.blockedId)), ...theirs.map((x: any) => String(x.data?.blockerId))]);
       },
       livekit: () => livekitConfigFromEnv(),
+      rtUrls: () => (process.env.GAMER_RT_URLS || '').split(',').map(u => u.trim()).filter(Boolean),
     });
     // Chat polls every ~2 s per open panel, so its limit is higher than the party API's.
     app.use('/api/gamer/party', rateLimit({ windowMs: 60 * 1000, max: 120, standardHeaders: true, legacyHeaders: false }), express.json({ limit: '8kb' }), together.party);

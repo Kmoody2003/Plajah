@@ -8,7 +8,7 @@
 // changed since the last tick, plus a full snapshot once a second), keeps seats for a reconnect grace
 // window, and hands the referee's standings to `onResult` exactly once. It never trusts a client result.
 
-import type { RealtimeGameDef } from './games';
+import type { RealtimeGameDef, RoomMeta } from './games';
 import type { PlayerState, Referee, Standing } from './referee';
 import type { TicketPayload } from './ticket';
 
@@ -37,6 +37,8 @@ export interface RoomOpts {
   def: RealtimeGameDef;
   min: number;
   rated: boolean;
+  /** Optional flat room metadata (e.g. circuitId, region), broadcast in welcome & lobby. */
+  meta?: RoomMeta;
   now: () => number;
   onResult(r: RoomResult): void;
   /** Mint a resume ticket for a seat (server wires ticket.resumeTicket). */
@@ -68,6 +70,7 @@ export function cleanState(raw: unknown, maxBytes: number): PlayerState | null {
 export class RelayRoom {
   readonly id: string;
   readonly def: RealtimeGameDef;
+  readonly meta?: RoomMeta;
   phase: Phase = 'lobby';
   goAt = 0;
   startedAt = 0;
@@ -80,8 +83,8 @@ export class RelayRoom {
   private readonly hz: number;
 
   constructor(private opts: RoomOpts) {
-    this.id = opts.id; this.def = opts.def;
-    this.referee = opts.def.referee();
+    this.id = opts.id; this.def = opts.def; this.meta = opts.meta;
+    this.referee = opts.def.referee(opts.meta);
     this.hz = Math.max(5, Math.min(60, opts.def.tickHz));
     this.emptySince = opts.now();
   }
@@ -96,7 +99,9 @@ export class RelayRoom {
   private broadcast(msg: unknown, except?: number): void {
     for (const s of this.seats.values()) if (s.peer && s.seat !== except) s.peer.send(msg);
   }
-  private lobbyUpdate(): void { this.broadcast({ t: 'lobby', phase: this.phase, players: this.roster(), min: this.opts.min, goAt: this.goAt || undefined }); }
+  private lobbyUpdate(): void {
+    this.broadcast({ t: 'lobby', phase: this.phase, players: this.roster(), min: this.opts.min, goAt: this.goAt || undefined, ...(this.meta ? { meta: this.meta } : {}) });
+  }
 
   join(t: TicketPayload, peer: Peer): JoinOut {
     const now = this.opts.now();
@@ -106,17 +111,29 @@ export class RelayRoom {
     if (s && s.uid !== t.uid) return { ok: false, code: 'seat', msg: 'That seat belongs to another player' };
     for (const o of this.seats.values()) if (o.uid === t.uid && o.seat !== t.seat) return { ok: false, code: 'seat', msg: 'You already hold another seat' };
     if (!s) {
-      if (this.phase !== 'lobby') return { ok: false, code: 'started', msg: 'This race already started' };
+      const canDropIn = !!this.def.dropIn && (this.phase === 'running' || this.phase === 'countdown');
+      if (this.phase !== 'lobby' && !canDropIn) return { ok: false, code: 'started', msg: 'This race already started' };
       if (this.seats.size >= this.def.maxPlayers || t.seat >= this.def.maxPlayers) return { ok: false, code: 'full', msg: 'This room is full' };
-      s = { seat: t.seat, uid: t.uid, name: t.name.slice(0, 40) || 'Player', peer: null, ready: false, leftAt: 0, state: null, dirty: false, racing: false, winStart: now, winCount: 0, floods: 0 };
+      const liveNow = !!this.def.dropIn && this.phase === 'running';
+      s = { seat: t.seat, uid: t.uid, name: t.name.slice(0, 40) || 'Player', peer: null, ready: !!this.def.dropIn, leftAt: 0, state: null, dirty: false, racing: liveNow, winStart: now, winCount: 0, floods: 0 };
       this.seats.set(t.seat, s);
+      if (liveNow) this.referee.start([s.seat], now);
     }
     // A second connection for the same seat (new tab, reconnect) replaces the old one.
     if (s.peer && s.peer !== peer) { try { s.peer.send({ t: 'kicked', reason: 'joined elsewhere' }); s.peer.close(4001, 'replaced'); } catch { /* gone */ } }
     s.peer = peer; s.leftAt = 0;
+    // Drop-in shards with zero countdown launch immediately on the first player so no one sits in a lobby.
+    if (this.def.dropIn && this.phase === 'lobby' && this.def.countdownMs === 0 && this.connected >= Math.max(1, this.def.minPlayers)) {
+      this.phase = 'running';
+      this.startedAt = now;
+      s.ready = true;
+      s.racing = true;
+      this.referee.start([s.seat], now);
+    }
     peer.send({
       t: 'welcome', room: this.id, game: this.def.id, seat: s.seat, uid: s.uid, phase: this.phase, tickHz: this.hz, serverNow: now,
       goAt: this.goAt || undefined, players: this.roster(), min: this.opts.min,
+      ...(this.meta ? { meta: this.meta } : {}),
       resume: this.opts.resume?.(t), states: this.snapshot(s.seat), result: this.result ?? undefined,
     });
     this.lobbyUpdate();
@@ -128,8 +145,8 @@ export class RelayRoom {
     const s = this.seats.get(seat);
     if (!s || s.peer !== peer) return;
     s.peer = null; s.ready = false; s.leftAt = this.opts.now();
-    // In the lobby a seat that leaves on purpose is freed; a dropped one keeps its place for the grace window.
-    if (this.phase === 'lobby' && explicit) this.seats.delete(seat);
+    // In the lobby or a drop-in shard, a seat that leaves on purpose is freed immediately.
+    if ((this.phase === 'lobby' || this.def.dropIn) && explicit) this.seats.delete(seat);
     if (this.phase === 'running' && explicit) this.referee.dnf(seat, 'left');
     if (this.phase === 'countdown') { this.phase = 'lobby'; this.goAt = 0; }
     this.broadcast({ t: 'left', seat, explicit });
@@ -208,9 +225,15 @@ export class RelayRoom {
         this.broadcast({ t: 'go', at: now, seats: racing.map(s => s.seat) });
       }
     } else if (this.phase === 'running') {
-      for (const s of this.seats.values()) if (!s.peer && s.leftAt && now - s.leftAt > this.def.reconnectGraceMs) this.referee.dnf(s.seat, 'left');
+      for (const s of [...this.seats.values()]) {
+        if (!s.peer && s.leftAt && now - s.leftAt > this.def.reconnectGraceMs) {
+          this.referee.dnf(s.seat, 'left');
+          if (this.def.dropIn) { this.seats.delete(s.seat); this.lobbyUpdate(); }
+        }
+      }
       for (const f of this.referee.drainFinishes()) this.broadcast({ t: 'finish', ...f });
       if (this.referee.done(now)) this.finish(now);
+      else if (this.def.dropIn && this.emptySince && now - this.emptySince > (this.opts.idleMs ?? 5 * 60_000)) this.close('idle');
     } else if (this.phase === 'finished') {
       if (now - this.finishedAt > (this.opts.lingerMs ?? 15_000) || this.connected === 0) this.close('finished');
       return;

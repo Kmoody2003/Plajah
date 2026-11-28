@@ -3,7 +3,7 @@
     "name": "keep-recent-releases",
     "action": { "type": "Keep" },
     "mostRecentVersions": {
-      "packageNamePrefixes": ["plajah-api"],
+      "packageNamePrefixes": ["plajah-api", "plajah-realtime"],
       "keepCount": 10
     }
   },

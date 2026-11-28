@@ -7,7 +7,7 @@ import type { AddressInfo } from 'node:net';
 import { signTicket, verifyTicket, resumeTicket, signBody, verifyBody, RESULT_SIG_HEADER, RESULT_TS_HEADER, type TicketPayload } from '../services/realtime/ticket';
 import { RaceReferee } from '../services/realtime/referee';
 import { RelayRoom, cleanState, type Peer, type RoomResult } from '../services/realtime/room';
-import { REALTIME_GAMES, APEX_RACE, type RealtimeGameDef } from '../services/realtime/games';
+import { REALTIME_GAMES, APEX_RACE, APEX_WORLD, realtimeGame, type RealtimeGameDef } from '../services/realtime/games';
 import { settlementPlan } from '../services/realtime/settle';
 import { startRealtimeServer } from '../services/realtime/server';
 import { resultPoster } from '../services/realtime/resultPoster';
@@ -21,6 +21,15 @@ const SECRET = 'ticket-secret-0123456789abcdef';
 const RSECRET = 'result-secret-0123456789abcdef';
 const T0 = Date.UTC(2026, 10, 21, 12, 0, 0);
 const ticket = (o: Partial<TicketPayload> = {}): TicketPayload => ({ k: 'join', room: 'm1', game: APEX_RACE, uid: 'alice', seat: 0, name: 'Alice', min: 2, rated: true, iat: T0, exp: T0 + 60_000, ...o });
+
+test('games: legacy fh-race alias resolves with id preserved without polluting REALTIME_GAMES', () => {
+  assert.equal(Object.prototype.hasOwnProperty.call(REALTIME_GAMES, 'fh-race'), false);
+  const legacy = realtimeGame('fh-race');
+  assert.ok(legacy);
+  assert.equal(legacy.id, 'fh-race');
+  assert.equal(legacy.tickHz, REALTIME_GAMES[APEX_RACE].tickHz);
+  assert.equal(realtimeGame(APEX_WORLD)?.dropIn, true);
+});
 
 // ── tickets ─────────────────────────────────────────────────────────────────────────
 test('ticket: sign/verify round trip', () => {
@@ -292,7 +301,10 @@ test('e2e: private room, tickets, synced countdown, race, result signed back ont
     await A.until(e => e.type === 'recorded' && e.ok === true);
     const ha = await (await fetch(`${s.apiUrl}/api/gamer/history/alice`)).json();
     const hb = await (await fetch(`${s.apiUrl}/api/gamer/history/bob`)).json();
-    assert.equal(ha.entries[0].event, 'MATCH_RESULT'); assert.equal(ha.entries[0].result, 'win'); assert.equal(ha.entries[0].source, 'first-party'); assert.equal(ha.entries[0].matchId, matchId);
+    const aliceMatch = ha.entries.find((e: any) => e.event === 'MATCH_RESULT');
+    const aliceAch = ha.entries.find((e: any) => e.event === 'ACHIEVEMENT');
+    assert.ok(aliceMatch); assert.equal(aliceMatch.result, 'win'); assert.equal(aliceMatch.source, 'first-party'); assert.equal(aliceMatch.matchId, matchId);
+    assert.equal(aliceAch?.achievementId, 'apex-race.first-win');
     assert.equal(hb.entries[0].result, 'loss'); assert.equal(hb.entries[0].opponentUid, 'alice');
     const va = await (await fetch(`${s.apiUrl}/api/gamer/verify/alice`)).json();
     assert.equal(va.chain.ok, true); assert.equal(va.scoreMatches, true);
@@ -352,4 +364,89 @@ test('api: unsigned or forged results are refused; the per-opponent daily cap st
     const lb = await (await fetch(`${s.apiUrl}/api/gamer/leaderboard?game=${APEX_RACE}`)).json();
     assert.equal(lb.game, APEX_RACE);
   } finally { await s.close(); }
+});
+
+test('room: drop-in open-world shard (apex-world) starts immediately, accepts late joiners, frees seats and idles out', () => {
+  let now = T0;
+  const worldDef = REALTIME_GAMES[APEX_WORLD];
+  const room = new RelayRoom({ id: 'w1', def: worldDef, min: 1, rated: false, meta: { region: 'ironport' }, now: () => now, onResult: () => {}, idleMs: 10_000 });
+  const a = fakePeer(), b = fakePeer(), c = fakePeer();
+  // First driver enters and the drop-in shard launches immediately into running without waiting in a lobby.
+  assert.deepEqual(room.join(ticket({ room: 'w1', game: APEX_WORLD, uid: 'alice', seat: 0, min: 1, rated: false, meta: { region: 'ironport' } }), a), { ok: true });
+  assert.equal(room.phase, 'running');
+  assert.deepEqual(a.last('welcome').meta, { region: 'ironport' });
+  // Second driver drops into the already-running shard and receives Alice's live car telemetry.
+  room.message(0, a, { t: 'state', s: { x: 100, z: 200, yaw: 0.5 } });
+  assert.deepEqual(room.join(ticket({ room: 'w1', game: APEX_WORLD, uid: 'bob', seat: 1, min: 1, rated: false }), b), { ok: true });
+  assert.equal(b.last('welcome').phase, 'running');
+  assert.equal(b.last('welcome').states.length, 1);
+  // Alice explicitly leaves -> seat 0 is freed so Carol can take seat 0 right away.
+  room.leave(0, a, true);
+  assert.deepEqual(room.join(ticket({ room: 'w1', game: APEX_WORLD, uid: 'carol', seat: 0, min: 1, rated: false }), c), { ok: true });
+  // Everyone leaves -> shard closes cleanly after idleMs.
+  room.leave(1, b, true); room.leave(0, c, true);
+  now += 100; room.tick();
+  assert.equal(room.phase, 'running');
+  now += 10_001; room.tick();
+  assert.equal(room.phase, 'closed');
+});
+
+test('e2e: /rt/shard drop-in pooling + seat recycling and circuitId room meta sync', async () => {
+  const store = memoryGamerStore();
+  const app = express();
+  const gamer = createGamerRouter({
+    store, verify: async t => (t.startsWith('tok-') ? t.slice(4) : null), userCard: async uid => ({ name: uid[0].toUpperCase() + uid.slice(1) }),
+    realtime: { ticketSecret: SECRET, resultSecret: RSECRET, urls: ['ws://placeholder'] },
+  });
+  app.use('/api/gamer', express.json({ limit: '8kb' }), gamer);
+  const api = app.listen(0);
+  await new Promise(r => api.once('listening', r));
+  const apiUrl = `http://127.0.0.1:${(api.address() as AddressInfo).port}`;
+  const rt = await startRealtimeServer({
+    port: 0, host: '127.0.0.1', ticketSecret: SECRET,
+    postResult: resultPoster({ apiUrl, secret: RSECRET }),
+  });
+  const rtUrl = `ws://127.0.0.1:${rt.port}`;
+  try {
+    // 1. Two players calling joinShard() for apex-world land in the SAME open-world shard and sync telemetry.
+    const wA = new RealtimeClient({ apiBase: apiUrl, game: APEX_WORLD, getToken: async () => 'tok-alice', onEvent: () => {} });
+    const wB = new RealtimeClient({ apiBase: apiUrl, game: APEX_WORLD, getToken: async () => 'tok-bob', onEvent: () => {} });
+    const shardA = await wA.joinShard({ region: 'ironport' });
+    const shardB = await wB.joinShard({ region: 'ironport' });
+    assert.equal(shardA, shardB, 'second player joins the existing open-world shard');
+    await pointMatches(store, rtUrl);
+    await wA.connect(shardA);
+    await wB.connect(shardB);
+    await new Promise(r => setTimeout(r, 150));
+    assert.equal(wA.phase, 'running');
+    assert.equal(wB.phase, 'running');
+    assert.deepEqual(wB.meta, { region: 'ironport' });
+    wA.leave();
+    await new Promise(r => setTimeout(r, 100));
+    // Carol takes Alice's recycled seat 0 without shifting Bob's seat 1.
+    const wC = new RealtimeClient({ apiBase: apiUrl, game: APEX_WORLD, getToken: async () => 'tok-carol', onEvent: () => {} });
+    const shardC = await wC.joinShard({ region: 'ironport' });
+    assert.equal(shardC, shardA);
+    await wC.connect(shardC);
+    await new Promise(r => setTimeout(r, 100));
+    assert.equal(wC.seat, 0);
+    assert.equal(wB.seat, 1);
+    wB.leave(); wC.leave();
+
+    // 2. Private race room propagates circuitId metadata from creator -> joiner -> ticket -> WS welcome.
+    const rA = client(apiUrl, 'alice'), rB = client(apiUrl, 'bob');
+    const created = await rA.c.createPrivate({ circuitId: 'pinewood_rally_stage' });
+    assert.equal(created.meta?.circuitId, 'pinewood_rally_stage');
+    const joinedId = await rB.c.joinCode(created.code);
+    assert.equal(joinedId, created.matchId);
+    assert.equal(rB.c.meta?.circuitId, 'pinewood_rally_stage');
+    await pointMatches(store, rtUrl);
+    await rA.c.connect(created.matchId);
+    await rB.c.connect(joinedId);
+    await rB.until(e => e.type === 'lobby' && e.meta?.circuitId === 'pinewood_rally_stage');
+    rA.c.leave(); rB.c.leave();
+  } finally {
+    await rt.close();
+    await new Promise(r => api.close(r));
+  }
 });
