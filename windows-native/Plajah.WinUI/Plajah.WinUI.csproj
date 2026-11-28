@@ -147,7 +147,9 @@
     </Content>
   </ItemGroup>
 
-  <ItemGroup Condition="Exists('..\..\dist')">
+  <!-- Bundle the built site as wwwroot (offline shell). Publish with -p:PlajahBundleSite=false for a small
+       live-site shell that loads https://plajah.com instead (MainWindow falls back to AppUrl when no wwwroot). -->
+  <ItemGroup Condition="Exists('..\..\dist') And '$(PlajahBundleSite)' != 'false'">
     <Content Include="..\..\dist\**\*.*">
       <Link>wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

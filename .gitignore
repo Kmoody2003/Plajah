@@ -55,6 +55,7 @@ public/models/demucs/ort/
 
 # Built APKs — large binaries, not source
 dist-apk/
+dist-msix/
 
 dist-tizen/
 

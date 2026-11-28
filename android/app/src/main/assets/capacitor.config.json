@@ -8,6 +8,11 @@
 		"loggingBehavior": "debug",
 		"minWebViewVersion": 80
 	},
+	"ios": {
+		"appendUserAgent": "Plajah/2.0 iOS",
+		"contentInset": "never",
+		"allowsLinkPreview": false
+	},
 	"plugins": {
 		"PushNotifications": {
 			"presentationOptions": [
