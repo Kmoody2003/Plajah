@@ -1428,7 +1428,7 @@ function renderDialog(n: DialogueNode | null) {
 }
 let dlgSel = 0;
 function updateDlgFocus() {
-  const btns = [...$('dlgChoices').querySelectorAll('button')];
+  const btns = Array.from($('dlgChoices').querySelectorAll('button'));
   btns.forEach((b, i) => b.classList.toggle('pad-focus', i === dlgSel));
 }
 addEventListener('keydown', (e) => {
@@ -2158,7 +2158,7 @@ function frameTick(dt: number) {
 
 let chSel = -1;
 function updateChallengeFocus() {
-  const btns = [...$('chChoices').querySelectorAll('button')];
+  const btns = Array.from($('chChoices').querySelectorAll('button'));
   btns.forEach((b, i) => b.classList.toggle('pad-focus', i === chSel));
 }
 
@@ -2388,10 +2388,10 @@ async function boot() {
       for (const w of STARTING_WORDS) words.add(w);
       P.hp = save.maxHp;
       elk.bonded = false; elk.mounted = false; elk.visible = false; elk.root.visible = false;
-      onboarding.state.movedDist = 0; onboarding.state.lookAccum = 0;
+      onboarding.state.movedDist = 0; onboarding.state.lookedAmt = 0;
       onboarding.state.talkedMira = false; onboarding.state.lassoedHome = false;
       onboarding.state.rolled = false; onboarding.state.rescuedCombat = false; onboarding.state.playedSong = false;
-      onboarding.state.done = false; onboarding.state.step = 'move';
+      onboarding.state.id = 'move_look';
       dayClockSec = 0; todManualOverride = false; save.tod = todFromCycleSec(0);
       loadLevel('glossa', [0, 0, 7], Math.PI);
       persist(true);

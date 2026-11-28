@@ -15,9 +15,11 @@
   #lang { top:16px; right:18px; text-align:right; font-size:14px; letter-spacing:.08em; text-transform:uppercase; }
   #lang .bar { width:220px; height:8px; background:rgba(255,255,255,.15); border-radius:4px; margin-top:6px; overflow:hidden; margin-left:auto; }
   #lang .fill { height:100%; background: linear-gradient(90deg, var(--gold), #fff3c4); width:0%; transition: width .6s; }
-  #clock { top:58px; right:18px; font-size:13px; opacity:.8; }
+  #clock { top:58px; right:18px; font-size:13px; opacity:.82; }
+  #nowPlaying { top:78px; right:18px; font-size:12px; color:var(--gold); opacity:.82; max-width:34vw; text-align:right; }
+  #saveBadge { top:98px; right:18px; font-size:12px; color:#b1f9f6; opacity:0; transition:opacity .45s; letter-spacing:.06em; }
   #level { top:52px; left:20px; font-size:13px; letter-spacing:.12em; text-transform:uppercase; opacity:.75; }
-  #prompt { bottom:18%; left:50%; transform:translateX(-50%); font-size:16px; background:rgba(20,26,46,.72); padding:8px 16px; border-radius:20px; border:1px solid rgba(232,194,106,.4); display:none; }
+  #prompt { bottom:18%; left:50%; transform:translateX(-50%); font-size:16px; background:rgba(20,26,46,.78); padding:8px 16px; border-radius:20px; border:1px solid rgba(232,194,106,.45); display:none; }
   #toast { top:20%; left:50%; transform:translateX(-50%); font-size:22px; text-align:center; max-width:70vw; opacity:0; transition: opacity .5s; }
   #toast small { display:block; font-size:14px; opacity:.8; margin-top:4px; }
   #story { bottom:30px; left:50%; transform:translateX(-50%); font-style:italic; font-size:17px; max-width:70vw; text-align:center; opacity:0; transition: opacity .6s; }
@@ -26,8 +28,40 @@
   #boss .bar { height:8px; background:rgba(255,255,255,.15); border-radius:4px; margin:6px 0; overflow:hidden; }
   #boss .fill { height:100%; background: linear-gradient(90deg, #fff, var(--hush)); width:100%; transition: width .4s; }
   #boss .task { font-size:19px; color: var(--gold); }
-  #songs { bottom:16px; left:18px; font-size:12px; opacity:.8; }
+  #quest { top:76px; left:20px; font-size:17px; color: var(--gold); max-width:46vw; display:none; }
+  #quest .m { font-size:13px; color: var(--paper); opacity:.7; margin-left:6px; }
+  #tip { bottom:52px; left:18px; max-width:min(440px,46vw); font-size:15px; line-height:1.55; background:rgba(20,26,46,.76); border:1px solid rgba(232,194,106,.42); border-radius:12px; padding:10px 14px; display:none; }
+  #tip .key { background:rgba(255,255,255,.2); color:#fff; }
+  #tip::after { content:'G hides the guide'; display:block; font-size:11px; opacity:.55; margin-top:4px; }
+  #waypoint { position:fixed; pointer-events:none; display:none; width:0; height:0; border-top:14px solid transparent; border-bottom:14px solid transparent; border-left:24px solid var(--gold); filter: drop-shadow(0 2px 4px rgba(0,0,0,.6)); }
+  #howto { z-index:5; }
+  #howto ol { margin:6px 0 0; padding-left:22px; font-size:16px; line-height:1.6; }
+  #howto li { margin-bottom:8px; }
+  #howto li b { color:#7a4a00; }
+  #songs { bottom:16px; left:18px; font-size:12px; opacity:.85; }
   #songs b { color: var(--gold); }
+  #elkBadge { bottom:16px; right:18px; font-size:13px; background:rgba(16,38,44,.82); border:1px solid rgba(177,249,246,.55); color:#b1f9f6; padding:6px 12px; border-radius:14px; display:none; }
+
+  #setpiece { top:16px; left:50%; transform:translateX(-50%); width:min(620px,84vw); text-align:center; display:none; background:rgba(14,19,32,.72); border:1px solid rgba(232,194,106,.38); border-radius:14px; padding:10px 18px; backdrop-filter:blur(4px); }
+  #coach { top:16px; left:50%; transform:translateX(-50%); width:min(540px,84vw); text-align:center; display:none; background:rgba(18,24,42,.84); border:1.5px solid rgba(232,194,106,.65); border-radius:14px; padding:11px 18px; box-shadow:0 12px 32px rgba(0,0,0,.45); backdrop-filter:blur(5px); transition:border-color .25s, transform .25s; }
+  #coach.celebrate { border-color:#b1f9f6; box-shadow:0 0 28px rgba(177,249,246,.55); transform:translateX(-50%) scale(1.03); }
+  #coachTitle { font-size:12px; letter-spacing:.18em; text-transform:uppercase; color:var(--gold); margin-bottom:4px; }
+  #coachAction { font-size:18px; color:var(--paper); line-height:1.4; }
+  #coachAction .key { background:rgba(255,255,255,.22); color:#fff; margin:0 3px; }
+  #coachSub { font-size:13px; opacity:.82; margin-top:4px; font-style:italic; }
+  #coachChecks { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:8px; }
+  .coach-chk { font-size:12px; padding:3px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.22); background:rgba(255,255,255,.08); color:var(--paper); }
+  .coach-chk.done { border-color:#b1f9f6; background:rgba(177,249,246,.2); color:#b1f9f6; font-weight:600; }
+  #coachBar { height:5px; background:rgba(255,255,255,.14); border-radius:3px; overflow:hidden; margin-top:8px; }
+  #coachFill { height:100%; width:0%; background:linear-gradient(90deg, #b1f9f6, var(--gold)); transition:width .25s; }
+  #spTitle { font-size:13px; letter-spacing:.22em; text-transform:uppercase; color:var(--gold); }
+  #spLandmark { font-size:20px; margin:2px 0 6px; color:var(--paper); }
+  #spBar { height:8px; background:rgba(255,255,255,.18); border-radius:4px; overflow:hidden; margin-bottom:10px; }
+  #spBarFill { height:100%; width:0%; background:linear-gradient(90deg, #b1f9f6, var(--gold)); }
+  #spPrompt { display:none; background:rgba(20,26,46,.9); border:2px solid var(--gold); border-radius:12px; padding:12px 18px; margin-top:8px; }
+  #spPrompt .q { font-size:20px; color:var(--gold); margin-bottom:6px; }
+  #spPrompt .opts { display:flex; justify-content:space-between; gap:18px; font-size:18px; color:#b1f9f6; font-weight:bold; }
+  #spHint { font-size:13px; opacity:.9; margin-top:6px; }
 
   .panel { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); background: linear-gradient(180deg, #f6eed8, #e9dcb8); color: var(--ink);
     border-radius:14px; padding:22px 26px; box-shadow: 0 20px 60px rgba(0,0,0,.55), inset 0 0 0 2px rgba(20,26,46,.12); display:none; min-width:min(520px,90vw); max-width:92vw; max-height:84vh; overflow:auto; }
@@ -36,12 +70,16 @@
   .btn { pointer-events:auto; cursor:pointer; border:1px solid rgba(20,26,46,.3); background:#fffaf0; color:var(--ink); border-radius:10px; padding:10px 14px; font: inherit; font-size:16px; }
   .btn:hover { background:#fff; border-color: var(--ink); }
   .btn.on { background: var(--ink); color: var(--paper); }
-  .key { display:inline-block; min-width:20px; padding:1px 6px; border-radius:5px; background:rgba(20,26,46,.12); font-size:12px; margin-right:6px; text-align:center; }
+  .btn.pad-focus, .word.pad-focus { outline: 3px solid var(--gold); box-shadow: 0 0 0 2px var(--ink), 0 0 18px rgba(232,194,106,.7); transform: translateY(-1px); }
+  .key { display:inline-block; min-width:20px; padding:1px 6px; border-radius:5px; background:rgba(20,26,46,.12); font-size:12px; margin-right:6px; text-align:center; font-weight:600; }
+  #padMapGrid { display:grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap:6px 14px; margin:12px 0 14px; padding:10px 12px; background:rgba(20,26,46,.07); border-radius:10px; font-size:13px; line-height:1.5; }
+  #padStatus { margin-top:12px; font-size:13px; color:#b1f9f6; letter-spacing:.04em; min-height:18px; }
 
   #challenge { text-align:center; min-width:min(560px,92vw); }
-  #challenge .big { font-size:46px; letter-spacing:.18em; margin:10px 0 6px; font-weight:bold; }
+  #challenge .big { font-size:40px; letter-spacing:.12em; margin:10px 0 6px; font-weight:bold; }
+  #challenge .big.verse { font-size:22px; letter-spacing:.03em; line-height:1.45; font-style:italic; font-weight:600; }
   #challenge .choices { display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; margin-top:16px; }
-  #challenge .choices .btn { font-size:24px; padding:14px; }
+  #challenge .choices .btn { font-size:20px; padding:14px; }
   #challenge .timer { height:6px; background:rgba(20,26,46,.12); border-radius:3px; overflow:hidden; margin-top:14px; }
   #challenge .timer div { height:100%; background: var(--blush); width:100%; }
   #challenge .kind { font-size:12px; letter-spacing:.2em; text-transform:uppercase; opacity:.6; }
@@ -56,28 +94,31 @@
   #lyre .phrase.off { opacity:.35; }
   #lyre .list { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
 
-  #archive .grid, #cipher .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap:8px; }
+  #archive .grid, #cipher .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(165px,1fr)); gap:8px; }
   .word { border:1px solid rgba(20,26,46,.2); border-radius:10px; padding:8px 10px; background:#fffaf0; pointer-events:auto; cursor:default; }
   .word b { font-size:16px; letter-spacing:.06em; }
-  .word .v { float:right; font-size:12px; opacity:.6; }
+  .word .v { float:right; font-size:12px; opacity:.72; }
   .word .d { font-size:12px; opacity:.75; margin-top:3px; font-style:italic; }
   .word.lost { opacity:.35; font-style:italic; }
   .word.sel { background: var(--ink); color: var(--paper); }
+  .word.hint { border:2px solid #0e8c92; background:#e7fcfb; box-shadow:0 0 12px rgba(14,140,146,.35); }
+  .word.sel.hint { background:#113e46; color:#e7fcfb; }
   .word.power b { color:#9a5b00; }
   #cipher .word { cursor:pointer; }
-  #cipher .sum { font-size:30px; text-align:center; margin:10px 0; }
+  #cipher .sum { font-size:26px; text-align:center; margin:10px 0; }
+  #saveSummary { margin-bottom:14px; font-size:14px; color:#b1f9f6; background:rgba(16,38,44,.78); border:1px solid rgba(177,249,246,.42); padding:6px 16px; border-radius:16px; display:none; }
 
   #title { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; background: radial-gradient(ellipse at 50% 40%, rgba(20,26,46,.55), rgba(5,8,16,.92)); }
   #title h1 { font-size: clamp(40px, 7vw, 86px); margin:0; letter-spacing:.08em; color: var(--paper); }
   #title h1 span { color: var(--gold); }
   #title .tag { font-style:italic; font-size:19px; opacity:.85; margin:8px 0 28px; text-align:center; max-width:640px; line-height:1.5; }
-  #title .controls { font-size:13px; opacity:.75; margin-top:22px; line-height:1.9; text-align:center; }
+  #title .controls { font-size:13px; opacity:.78; margin-top:22px; line-height:1.9; text-align:center; }
   #title .btn { font-size:20px; padding:12px 34px; background: var(--gold); border:0; }
   #fade { position:fixed; inset:0; background:#000; opacity:0; pointer-events:none; transition: opacity .6s; }
   #reticle { position:fixed; pointer-events:none; width:34px; height:34px; margin:-17px 0 0 -17px; display:none; }
 </style>
-  <script type="module" crossorigin src="/games/lexicon/play/assets/index-DnOsckUv.js"></script>
   <script src="/games/shared/plajah-game-ads.js" defer></script>
+  <script type="module" crossorigin src="/games/lexicon/play/assets/index-CXVkLUB7.js"></script>
 </head>
 <body>
 <canvas id="c" tabindex="0"></canvas>
@@ -86,11 +127,31 @@
 <div id="level" class="hud"></div>
 <div id="lang" class="hud">Language preserved <span id="langN">0</span> / <span id="langT">0</span><div class="bar"><div class="fill" id="langFill"></div></div></div>
 <div id="clock" class="hud"></div>
+<div id="nowPlaying" class="hud"></div>
+<div id="saveBadge" class="hud">✦ Progress Saved</div>
 <div id="songs" class="hud"></div>
+<div id="elkBadge" class="hud"></div>
+<div id="quest" class="hud"></div>
+<div id="tip" class="hud"></div>
+<div id="waypoint"></div>
 <div id="prompt" class="hud"></div>
 <div id="toast" class="hud"></div>
 <div id="story" class="hud"></div>
 <div id="boss" class="hud"><div class="name">The Redactor</div><div class="bar"><div class="fill" id="bossFill"></div></div><div class="task" id="bossTask"></div></div>
+<div id="setpiece" class="hud">
+  <div id="spTitle"></div>
+  <div id="spLandmark"></div>
+  <div id="spBar"><div id="spBarFill"></div></div>
+  <div id="spPrompt"><div class="q" id="spPromptQ"></div><div class="opts"><span id="spLeft"></span><span id="spRight"></span></div></div>
+  <div id="spHint"></div>
+</div>
+<div id="coach" class="hud">
+  <div id="coachTitle"></div>
+  <div id="coachAction"></div>
+  <div id="coachSub"></div>
+  <div id="coachChecks"></div>
+  <div id="coachBar"><div id="coachFill"></div></div>
+</div>
 <svg id="reticle" viewBox="0 0 34 34"><g fill="none" stroke="#e8c26a" stroke-width="3"><path d="M17 2 L22 10 L12 10 Z" fill="#e8c26a"/><circle cx="17" cy="20" r="10"/></g></svg>
 
 <div id="challenge" class="panel">
@@ -118,25 +179,63 @@
 
 <div id="cipher" class="panel">
   <h2>The Cipher Gate</h2>
-  <div class="sub">Each letter weighs its place in the alphabet (A = 1 … Z = 26). Choose words whose weights add up to the gate's number.</div>
+  <div class="sub">Every word's letter values and total are written right on the tile — zero memorization needed! Pick words whose totals add up to the gate's number.</div>
   <div class="sum" id="ciSum"></div>
   <div class="grid" id="ciGrid"></div>
-  <div style="display:flex;gap:10px;justify-content:center;margin-top:14px"><button class="btn" id="ciOpen">Unseal</button><button class="btn" id="ciClose">Leave</button></div>
+  <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px">
+    <button class="btn" id="ciOpen">Unseal</button>
+    <button class="btn" id="ciHint">Hint</button>
+    <button class="btn" id="ciDiff">Level: Scribe (All Ages)</button>
+    <button class="btn" id="ciClose">Leave</button>
+  </div>
 </div>
 
 <div id="pause" class="panel" style="text-align:center">
   <h2>Paused</h2>
-  <div style="display:flex;gap:10px;justify-content:center;margin-top:14px"><button class="btn" id="pResume">Resume</button><button class="btn" id="pExit">Exit to Plajah</button></div>
+  <div class="sub" id="pauseSub">All controllers supported (Xbox · PlayStation · Nintendo · USB)</div>
+  <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px">
+    <button class="btn" id="pResume">Resume</button>
+    <button class="btn" id="pSave">Save Progress</button>
+    <button class="btn" id="pDiff">Cipher: Scribe (All Ages)</button>
+    <button class="btn" id="pSkipTrack">Next Music Track</button>
+    <button class="btn" id="pHow">Controls &amp; How to Play</button>
+    <button class="btn" id="pPadStyle">Icons: Auto</button>
+    <button class="btn" id="pSkipIntro">Skip / Replay Intro</button>
+    <button class="btn" id="pExit">Exit to Plajah</button>
+  </div>
 </div>
 
+<div id="howto" class="panel">
+  <h2>How to Play &amp; Controller Map</h2>
+  <div class="sub">Something is unwriting the world. You are the Scribe: win the words back, reclaim white-paper Infected Zones, and explore the wilderness.</div>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:8px">
+    <strong style="font-size:15px">Controller Mapping (Xbox-Style · Works on ALL Controllers)</strong>
+    <button class="btn" id="howtoPadStyle" style="font-size:13px;padding:6px 12px">Button Icons: Auto</button>
+  </div>
+  <div id="padMapGrid"></div>
+  <ol>
+    <li><b>Talk &amp; Lasso your first word.</b> Talk to Elder Mira (<span class="key">E</span> / <span class="key">A</span>), walk toward the golden word drifting over the stone bridge, and press <span class="key">C</span> / <span class="key">RB</span> to cast your <b>Word Lasso</b>.</li>
+    <li><b>Reclaim Infected Zones.</b> Once you wake your first word, the Unwriting turns infected areas to white paper and sends packs of enemies. Strike with <span class="key">J</span> / <span class="key">X</span>, answer with <span class="key">1</span>–<span class="key">4</span> or <span class="key">D-Pad</span> to rescue words, and clear the pack to watch living colour bloom back across the land!</li>
+    <li><b>Explore the Waterfall &amp; Deep Vaults.</b> Follow the cobbled creek west to the Roaring Triple Waterfall and climb behind the veil into the Crystal Grotto — solve word, reflection, gear-ratio, and torque vaults, ride the Archive Mine-Cart, and survive the Forest Rapids!</li>
+    <li><b>Ride the Great Forest Elk.</b> Beyond the rapids, summon and bond with the cyan-antlered Great Forest Elk (<span class="key">V</span> / <span class="key">D-Pad ▲</span> to mount/call, <span class="key">Space</span> / <span class="key">A</span> to leap logs, <span class="key">J</span> / <span class="key">X</span> Antler Surge, <span class="key">C</span> / <span class="key">RB</span> mounted Word Lasso).</li>
+    <li><b>Play Songs &amp; Face the Redactor.</b> Press <span class="key">Q</span> / <span class="key">Y</span> for the Lyre (LIGHT, TIME, RAIN, GROW, OPEN, MEND) and weigh your saved words at the Cipher Gate (letter values printed right on every tile, scalable for all ages!) to enter the Temple of Numerals.</li>
+  </ol>
+  <div style="text-align:center;margin-top:10px"><button class="btn" id="howtoClose">Got it</button></div>
+</div>
 <div id="title">
   <h1>LEXI<span>CON</span></h1>
-  <div class="tag">Something is unwriting the world. Words are going blank, and with them the minds of the people who spoke them.<br/>Rescue the words. Keep them in the Archive. Save language.</div>
-  <button class="btn" id="startBtn">Begin</button>
-  <div class="controls">
-    Move <span class="key">WASD</span> · Camera <span class="key">mouse</span> / <span class="key">arrows</span> · Strike <span class="key">J</span> / <span class="key">click</span> · Roll <span class="key">Space</span><br/>
-    Lock on <span class="key">Shift</span> / <span class="key">right mouse</span> · Talk / use <span class="key">E</span> · Lyre <span class="key">Q</span> · Archive <span class="key">Tab</span> · Answer <span class="key">1</span>–<span class="key">4</span><br/>
-    Controller: X strike · B roll · A talk · LT lock on · Y lyre · Back archive · D-pad answers
+  <div class="tag">Something is unwriting the world. Words are going blank, and with them the minds of the people who spoke them.<br/>Rescue the words. Reclaim the erased lands. Save language.</div>
+  <div id="saveSummary"></div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+    <button class="btn" id="startBtn">Begin</button>
+    <button class="btn" id="newGameBtn" style="display:none;background:rgba(20,26,46,.72);color:var(--paper);border:1px solid rgba(232,194,106,.55)">New Journey</button>
+    <button class="btn" id="howtoBtn" style="background:transparent;color:var(--paper);border:1px solid rgba(243,234,210,.5)">Controls &amp; How to Play</button>
+  </div>
+  <div id="padStatus">Plug in any Xbox, PlayStation, Nintendo Switch, or USB controller — ready anytime</div>
+  <div class="controls" id="titleControls">
+    Move <span class="key">WASD</span> · Camera <span class="key">mouse</span> / <span class="key">arrows</span> · Strike <span class="key">J</span> / <span class="key">click</span> · Roll/Jump <span class="key">Space</span> · Word Lasso <span class="key">C</span> / <span class="key">L</span><br/>
+    Lock on <span class="key">Shift</span> / <span class="key">right mouse</span> · Talk / use <span class="key">E</span> · Lyre <span class="key">Q</span> · Great Elk <span class="key">V</span> · Archive <span class="key">Tab</span> · Answer <span class="key">1</span>–<span class="key">4</span> · Music <span class="key">M</span> / Next Track <span class="key">N</span> · Guide <span class="key">G</span><br/>
+    Controller (Xbox / PS / Switch / All): <span class="key">LS</span> Move · <span class="key">RS</span> Look · <span class="key">A</span> Talk/Jump · <span class="key">B</span> Roll/Duck · <span class="key">X</span> Strike · <span class="key">Y</span> Lyre · <span class="key">RB/RT</span> Word Lasso · <span class="key">LT</span> Lock · <span class="key">D-Pad ▲</span> Elk · <span class="key">D-Pad</span> Answers · <span class="key">View</span> Archive · <span class="key">Menu</span> Pause
   </div>
 </div>
 <div id="fade"></div>
