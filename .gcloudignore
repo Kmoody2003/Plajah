@@ -24,8 +24,11 @@ fabula-project
 docs/
 tizen/
 roku/
+apple/
+rust/
 windows-native/
 Plajah_Package_*/
+dist/games/
 public/*
 !public/models/
 public/models/*

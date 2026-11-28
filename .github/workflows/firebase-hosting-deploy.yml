@@ -47,6 +47,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # public/ is ~6.7 GB (games + models + media), so checkout + node_modules + dist/ copy
+      # exceeds ubuntu-latest's ~14 GB free root disk without freeing unused runner toolchains.
+      - name: Free runner disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost /opt/hostedtoolcache/CodeQL
+          df -h
+
       - name: Build
         env:
           # The bundle includes verovio's embedded WASM + onnxruntime — the default Node
@@ -262,6 +269,12 @@ jobs:
       # gate nobody can keep green gets disabled, which is worse than no gate).
       - name: Dependency audit (production deps, critical only)
         run: npm audit --omit=dev --audit-level=critical
+
+      # Same disk headroom as build_and_deploy before npm run build copies public/ -> dist/.
+      - name: Free runner disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /usr/local/share/boost /opt/hostedtoolcache/CodeQL
+          df -h
 
       - name: Build SPA (Dockerfile copies the prebuilt dist/)
         env:
