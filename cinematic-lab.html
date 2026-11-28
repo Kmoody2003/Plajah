@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Cinematic lab · Stage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Lora:ital,wght@0,400;0,600;1,400&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    html, body { margin: 0; background: #0c0b0f; color: #e9e4f5; font: 14px Inter, system-ui, sans-serif; }
+    header { display: flex; gap: 12px; align-items: center; padding: 10px 14px; }
+    button { background: #221f2b; color: inherit; border: 1px solid #3a3546; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+    #label { opacity: .85; }
+    canvas { display: block; width: 100%; height: auto; background: #000; }
+    #drop { padding: 40px; text-align: center; opacity: .6; }
+  </style>
+</head>
+<body>
+  <header>
+    <button id="prev">◀ Prev</button><button id="next">Next ▶</button>
+    <span id="label">Loading…</span>
+  </header>
+  <canvas id="out"></canvas>
+  <div id="drop">Drop a .amboprj here, or open with ?src=/@fs/&lt;path&gt;. Arrow keys step slides.</div>
+  <script type="module" src="/cinematic-lab.ts"></script>
+</body>
+</html>

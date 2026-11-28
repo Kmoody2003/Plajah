@@ -10,6 +10,7 @@ import { VIDEO_TEMPLATES } from './templatesVideo';
 import { AUDIO_TEMPLATES } from './templatesAudio';
 import { DATA_TEMPLATES } from './templatesData';
 import { LYRIC_TEMPLATES } from './templatesLyrics';
+import { CINEMATIC_TEMPLATES } from './templatesCinematic';
 import { FREEFORM_ID, buildFreeformObjects } from './freeform';
 
 const F = (key: string, label: string, def: string, o: Partial<FieldDef> = {}): FieldDef => ({ key, label, default: def, ...o });
@@ -50,7 +51,7 @@ export const SLIDE_TEMPLATES: SlideTemplateDef[] = [
 ];
 
 // Media, data, and lyric templates live in their own files (each registers its live drawers on import).
-SLIDE_TEMPLATES.push(...PHOTO_TEMPLATES, ...VIDEO_TEMPLATES, ...AUDIO_TEMPLATES, ...DATA_TEMPLATES, ...LYRIC_TEMPLATES);
+SLIDE_TEMPLATES.push(...PHOTO_TEMPLATES, ...VIDEO_TEMPLATES, ...AUDIO_TEMPLATES, ...DATA_TEMPLATES, ...LYRIC_TEMPLATES, ...CINEMATIC_TEMPLATES);
 
 export const TEMPLATE_CATEGORIES = ['Welcome', 'Sermon', 'Worship', 'Lyrics', 'Announcements', 'Giving', 'Moments', 'Media', 'Photo', 'Video', 'Audio', 'Data'] as const;
 

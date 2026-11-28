@@ -338,6 +338,7 @@ export class ScriptureSource implements LayerSource {
     const base: ScriptureState = {
       w: this.w, h: this.h, t,
       text: this.text(),
+      lines: this.content.lines,
       reference: this.content.reference ?? '',
       translation: this.content.translation,
       copyright: this.content.copyright,

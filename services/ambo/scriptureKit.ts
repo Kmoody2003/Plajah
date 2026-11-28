@@ -24,6 +24,12 @@ export interface ScriptureState {
   /** Seconds since this scripture came up — drives ambient motion. */
   t: number;
   text: string;
+  /**
+   * The authored lines behind `text` (the SCRIPTURE layer's `lines`). Most looks re-wrap
+   * `text` to their own measure; a look may honour these breaks instead — check that
+   * they still match `text` (during a verse swap the outgoing text differs).
+   */
+  lines?: string[];
   reference: string;
   translation?: string;
   copyright?: string;

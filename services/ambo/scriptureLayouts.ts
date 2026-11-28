@@ -27,6 +27,7 @@ import {
 import { MODERN_ABSTRACT_LAYOUTS } from './scriptureLooks/modernAbstract';
 import { URBAN_GRUNGE_LAYOUTS } from './scriptureLooks/urbanGrunge';
 import { WORSHIP_SCRIPTURE_LAYOUTS } from './worshipVisualizers';
+import { CINEMATIC_STORY_LAYOUTS } from './scriptureLooks/cinematicStory';
 export { aspectClass } from './scriptureKit';
 export type { AspectClass, ScriptureState, LayoutFamily, ScriptureLayout } from './scriptureKit';
 
@@ -623,7 +624,7 @@ export const SCRIPTURE_LAYOUTS: ScriptureLayout[] = [
 ];
 
 // Modern/postmodern/abstract Art Council pieces, urban/grunge, and the 24 Sanctuary Scripture Reading visualizers join the registry here.
-SCRIPTURE_LAYOUTS.push(...MODERN_ABSTRACT_LAYOUTS, ...URBAN_GRUNGE_LAYOUTS, ...WORSHIP_SCRIPTURE_LAYOUTS);
+SCRIPTURE_LAYOUTS.push(...MODERN_ABSTRACT_LAYOUTS, ...URBAN_GRUNGE_LAYOUTS, ...WORSHIP_SCRIPTURE_LAYOUTS, ...CINEMATIC_STORY_LAYOUTS);
 
 export const DEFAULT_SCRIPTURE_LAYOUT = 'sanctuary';
 
