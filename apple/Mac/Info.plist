@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Plajah</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(MARKETING_VERSION)</string>
+	<key>CFBundleVersion</key>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>PlajahFirebaseWebApiKey</key>
+	<string>AIzaSyAhcZm5fKh50H_g9kMTv9wgI-TBAWntd0Y</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.social-networking</string>
+	<key>NSPrincipalClass</key>
+	<string>NSApplication</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>© Plajah</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Plajah uses the camera for Live, Reello recording, video calls and VTuber tracking.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Plajah uses the microphone for Live, calls, Chora recording and Voca read-aloud.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Voca listens while you read aloud so it can follow along. Recognition stays on this Mac when supported.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Plajah finds speakers, displays and stage gear on your network.</string>
+	<key>NSDesktopFolderUsageDescription</key>
+	<string>Plajah Files shows and organises your Desktop.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>Plajah Files shows and organises your Documents.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>Plajah Files shows your Downloads and saves downloads there.</string>
+	<key>NSRemovableVolumesUsageDescription</key>
+	<string>Plajah Files can browse drives and memory cards you connect.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.plajah.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>plajah</string>
+			</array>
+		</dict>
+	</array>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Media</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.image</string>
+				<string>public.movie</string>
+				<string>public.audio</string>
+				<string>com.adobe.pdf</string>
+				<string>public.zip-archive</string>
+				<string>public.plain-text</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

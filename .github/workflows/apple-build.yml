@@ -1,0 +1,56 @@
+name: Apple apps build
+
+# Compiles the iPhone/iPad (Capacitor, ios/), Mac and Apple TV (apple/) apps on a macOS runner,
+# unsigned. This is the compile check for Apple code written on Windows; signing and App Store
+# upload happen in Xcode with the team's certificates (see apple/README.md).
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ios/**'
+      - 'apple/**'
+      - 'capacitor.config.ts'
+      - '.github/workflows/apple-build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    name: iPhone + iPad
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install JS dependencies (Capacitor plugin sources for SPM)
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Sync Capacitor iOS
+        run: npx cap sync ios
+      - name: Build (simulator, unsigned)
+        run: |
+          xcodebuild -project ios/App/App.xcodeproj -scheme App \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | xcpretty || exit ${PIPESTATUS[0]}
+
+  mac-tv:
+    name: Mac + Apple TV
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate Xcode project
+        run: |
+          brew install xcodegen
+          cd apple && xcodegen generate
+      - name: Build Mac (unsigned)
+        run: |
+          xcodebuild -project apple/Plajah.xcodeproj -scheme PlajahMac \
+            -destination 'generic/platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO build | xcpretty || exit ${PIPESTATUS[0]}
+      - name: Build Apple TV (simulator, unsigned)
+        run: |
+          xcodebuild -project apple/Plajah.xcodeproj -scheme PlajahTV \
+            -destination 'generic/platform=tvOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | xcpretty || exit ${PIPESTATUS[0]}

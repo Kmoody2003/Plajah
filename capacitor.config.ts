@@ -31,6 +31,15 @@ const config: CapacitorConfig = {
     minWebViewVersion: 80,
   },
 
+  // iPhone + iPad (ios/App). Same live-site shell as Android; native plugins are in
+  // ios/App/App/Plugins and registered by PlajahBridgeViewController. Apple TV and Mac are separate
+  // native apps in apple/ (tvOS has no web view; the Mac app mirrors the Windows shell).
+  ios: {
+    appendUserAgent: 'Plajah/2.0 iOS',
+    contentInset: 'never',
+    allowsLinkPreview: false,
+  },
+
   plugins: {
     // Push Notifications — wired to Firebase Cloud Messaging
     PushNotifications: {
