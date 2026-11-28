@@ -29,6 +29,10 @@ import {
   enhanceMaterialWithPlaykitGi,
   type PlaykitGiUniforms,
 } from '../../../../playkit/render/liveLighting';
+import {
+  apexHeadlightSpotTsl,
+  type ApexTslSharedUniforms,
+} from './apexMaterialsTsl';
 import type { SkyState } from '../sky';
 import type { WaterState } from '../water';
 
@@ -74,6 +78,8 @@ export interface ApexSkyTslHandle {
   setBaseBlend(blend: number): void;
   setOvercastTexture(t: THREE.Texture): void;
   setStormTexture(t: THREE.Texture): void;
+  setNightOvercastTexture(t: THREE.Texture): void;
+  setNightStormTexture(t: THREE.Texture): void;
   setMoonDir(v: THREE.Vector3): void;
   update(dt: number, st: SkyState): void;
 }
@@ -89,6 +95,8 @@ export function createApexSkyTslMaterial(placeholder?: THREE.Texture): ApexSkyTs
   const nextTexNode = tslTexture(blank);
   const overTexNode = tslTexture(blank);
   const stormTexNode = tslTexture(blank);
+  const nightOverTexNode = tslTexture(blank);
+  const nightStormTexNode = tslTexture(blank);
 
   const uBaseBlend = uniform(0);
   const uMixOver = uniform(0);
@@ -110,51 +118,55 @@ export function createApexSkyTslMaterial(placeholder?: THREE.Texture): ApexSkyTs
   const eqV = asin(clamp(dir.y, -1.0, 1.0)).mul(0.31830989).add(0.5);
   const eqUv = vec2(eqU, eqV);
 
+  const nightWeatherK = smoothstep(float(0.32), float(0.82), uNight);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let col: any = baseTexNode.sample(eqUv).rgb;
   col = mix(col, nextTexNode.sample(eqUv).rgb, uBaseBlend);
-  col = mix(col, overTexNode.sample(eqUv).rgb, uMixOver);
-  col = mix(col, stormTexNode.sample(eqUv).rgb, uMixStorm);
+  const overSample = mix(overTexNode.sample(eqUv).rgb, nightOverTexNode.sample(eqUv).rgb, nightWeatherK);
+  const stormSample = mix(stormTexNode.sample(eqUv).rgb, nightStormTexNode.sample(eqUv).rgb, nightWeatherK);
+  col = mix(col, overSample, uMixOver);
+  col = mix(col, stormSample, uMixStorm);
 
-  // Physical Rayleigh-Mie solar sky grounding matching true sun elevation, color temperature & exposure
+  // Physical Rayleigh-Mie solar sky grounding matching true sun elevation, color temperature & exposure.
+  // Preserve 88% of user's real photographic night panoramas (Milky Way, Moonlit Clouds, Aurora, Urban Night Clouds & Night Lightning)!
   const up = max(dir.y, float(0.0));
   const sunEl = clamp(uSunDir.y, -0.35, 1.0);
-  const dayFactor = smoothstep(float(-0.08), float(0.24), sunEl);
-  const goldenFactor = smoothstep(float(-0.06), float(0.06), sunEl).mul(float(1.0).sub(smoothstep(float(0.14), float(0.42), sunEl)));
-  const twilightFactor = smoothstep(float(-0.22), float(-0.02), sunEl).mul(float(1.0).sub(smoothstep(float(0.02), float(0.16), sunEl)));
+  const notNight = float(1.0).sub(nightWeatherK);
+  const dayFactor = smoothstep(float(-0.08), float(0.24), sunEl).mul(notNight);
+  const goldenFactor = smoothstep(float(-0.06), float(0.06), sunEl).mul(float(1.0).sub(smoothstep(float(0.14), float(0.42), sunEl))).mul(notNight);
+  const twilightFactor = smoothstep(float(-0.22), float(-0.02), sunEl).mul(float(1.0).sub(smoothstep(float(0.02), float(0.16), sunEl))).mul(notNight);
   const sd = max(dot(dir, uSunDir), float(1e-4));
 
   const zenithDay = mix(vec3(0.15, 0.34, 0.68), vec3(0.10, 0.26, 0.64), smoothstep(float(0.15), float(0.7), sunEl));
   const zenithGold = vec3(0.14, 0.25, 0.52);
-  const zenithNight = vec3(0.012, 0.022, 0.052);
+  const zenithNight = vec3(0.006, 0.012, 0.032);
   const physZenith = mix(mix(zenithNight, mix(zenithDay, zenithGold, goldenFactor.mul(0.65)), dayFactor), vec3(0.05, 0.09, 0.22), twilightFactor.mul(0.65));
 
   const horizDay = mix(vec3(0.68, 0.80, 0.94), vec3(0.58, 0.74, 0.92), smoothstep(float(0.2), float(0.7), sunEl));
   const horizGold = vec3(0.98, 0.56, 0.28);
   const horizTwil = vec3(0.42, 0.28, 0.44);
-  const horizNight = vec3(0.028, 0.046, 0.092);
+  const horizNight = vec3(0.020, 0.032, 0.064);
   const physHoriz = mix(mix(horizNight, mix(horizDay, horizGold, goldenFactor.mul(0.85)), dayFactor), horizTwil, twilightFactor.mul(0.75));
   const physSkyBase = mix(physHoriz, physZenith, pow(max(up, float(1e-4)), float(0.48)));
   const physSky = physSkyBase.add(
     uSunCol.mul(pow(sd, float(5.0))).mul(float(1.0).sub(smoothstep(float(0.0), float(0.42), up)))
       .mul(float(0.28).add(goldenFactor.mul(0.55))).mul(dayFactor).mul(float(1.0).sub(uMixOver.mul(0.82))),
   );
-  const physMix = float(0.30).add(goldenFactor.mul(0.16)).add(uNight.mul(0.22)).mul(float(1.0).sub(uMixOver.mul(0.65)));
+  const physMix = mix(float(0.30).add(goldenFactor.mul(0.16)), float(0.10), nightWeatherK).mul(float(1.0).sub(uMixOver.mul(0.65)));
   col = mix(col, physSky, physMix);
   col = col.mul(mix(float(1.0), float(1.18), dayFactor.mul(float(1.0).sub(uMixOver.mul(0.75))).mul(float(1.0).sub(uNight))));
+  // Keep night sky panorama crisp & luminous (Milky Way, Aurora, Moonlit clouds & lightning)
+  col = col.mul(mix(float(1.0), float(1.15), nightWeatherK));
 
   const lum = luminance(col);
   const cloudy = smoothstep(float(0.26), float(0.76), lum.add(float(1.0).sub(uSunAmt).mul(0.14)));
 
-  // Cloud projection structure + sunlit silver-lining & sunset underside alpenglow
-  const cp = vec3(dir.xz.div(up.add(0.18)), float(0.0)).mul(1.7)
-    .add(vec3(uTime.mul(0.012), float(0.0), uTime.mul(0.006)));
+  // Daytime cloud projection micro-structure (disabled at night so photographic Milky Way / Aurora / Night clouds never get muddied!)
+  const cp2 = dir.xz.div(up.add(0.18)).mul(1.7).add(vec2(uTime.mul(0.012), uTime.mul(0.006)));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const n1: any = mx_fractal_noise_float(cp, 3, 2.04, 0.5).mul(0.5).add(0.5);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const n2: any = mx_fractal_noise_float(cp.mul(3.1).add(4.0), 2, 2.07, 0.5).mul(0.5).add(0.5);
-  const detailMask = smoothstep(float(-0.02), float(0.16), dir.y).mul(uDetail);
-  col = col.mul(float(1.0).add(detailMask.mul(n1.sub(0.5).mul(0.82).add(n2.sub(0.5).mul(0.48))).mul(cloudy.add(0.22))));
+  const n1: any = tslNoise2(cp2).mul(0.65).add(tslNoise2(cp2.mul(2.4).add(3.7)).mul(0.35));
+  const detailMask = smoothstep(float(-0.02), float(0.16), dir.y).mul(uDetail).mul(notNight);
+  col = col.mul(float(1.0).add(detailMask.mul(n1.sub(0.5).mul(0.88)).mul(cloudy.add(0.22))));
   col = mix(col, col.mul(float(0.86).add(smoothstep(float(0.34), float(0.66), n1).mul(0.44))), detailMask.mul(0.45).mul(cloudy));
 
   const silver = pow(sd, float(6.0)).mul(float(0.35).add(smoothstep(float(0.38), float(0.78), n1).mul(0.65))).mul(cloudy).mul(detailMask);
@@ -167,38 +179,27 @@ export function createApexSkyTslMaterial(placeholder?: THREE.Texture): ApexSkyTs
   const vis = uSunAmt.mul(float(1.0).sub(uMixOver.mul(0.88)));
   col = col.add(uSunCol.mul(disc.mul(10.5).add(glow.mul(2.5))).mul(vis).mul(float(1.0).sub(uNight)));
 
-  // Night pinpoint multi-hue stars, subtle Milky Way band & moon with cool halo
+  // Subtle pinpoint twinkle overlay (restrained so real photographic Milky Way / Aurora / Moon sky domes shine cleanly!)
   const starVis = smoothstep(float(0.55), float(0.94), uNight)
-    .mul(smoothstep(float(0.04), float(0.28), dir.y))
-    .mul(float(1.0).sub(uMixOver));
-  const gs = dir.mul(225.0);
+    .mul(smoothstep(float(0.06), float(0.32), dir.y))
+    .mul(float(1.0).sub(uMixOver))
+    .mul(float(1.0).sub(uMixStorm));
+  const gs = dir.mul(260.0);
   const gCell = floor(gs);
   const gf = fract(gs).sub(0.5);
   const hStar = tslHash31(gCell);
-  const off = vec3(
-    tslHash31(gCell.add(1.3)),
-    tslHash31(gCell.add(5.7)),
-    tslHash31(gCell.add(9.1)),
-  ).sub(0.5).mul(0.55);
-  const pt = smoothstep(float(0.16), float(0.02), length(gf.sub(off)));
-  const twinkle = sin(uTime.mul(2.8).add(hStar.mul(40.0))).mul(0.20).add(0.80);
-  const star = step(float(0.986), hStar).mul(pt).mul(float(0.35).add(tslHash31(gCell.add(3.1)).mul(0.65))).mul(twinkle);
-  const starHue = mix(vec3(0.80, 0.88, 1.0), vec3(1.0, 0.90, 0.76), tslHash31(gCell.add(7.4)));
-  col = col.add(starHue.mul(star).mul(1.75).mul(starVis));
-
-  const mwBand = dir.x.mul(1.8).add(dir.z.mul(0.9)).sub(0.25);
-  const mw = exp(mwBand.mul(mwBand).mul(-5.5)).mul(smoothstep(float(0.15), float(0.65), dir.y));
-  const mwTex = mx_fractal_noise_float(dir.mul(6.5), 2, 2.07, 0.5).mul(0.5).add(0.5);
-  col = col.add(vec3(0.032, 0.042, 0.075).mul(mw).mul(float(0.45).add(mwTex.mul(0.85))).mul(starVis));
+  const pt = smoothstep(float(0.14), float(0.015), length(gf));
+  const star = step(float(0.992), hStar).mul(pt);
+  col = col.add(vec3(0.90, 0.94, 1.0).mul(star).mul(0.45).mul(starVis));
 
   const md = max(dot(dir, uMoonDir), float(1e-4));
-  const moonGlow = smoothstep(float(0.9993), float(0.9998), md).mul(2.6)
-    .add(pow(md, float(180.0)).mul(0.42))
-    .add(pow(md, float(12.0)).mul(0.07));
-  col = col.add(vec3(0.88, 0.93, 1.0).mul(moonGlow).mul(uNight).mul(float(1.0).sub(uMixOver.mul(0.88))));
+  const moonGlow = smoothstep(float(0.9994), float(0.99985), md).mul(1.8)
+    .add(pow(md, float(180.0)).mul(0.28))
+    .add(pow(md, float(12.0)).mul(0.05));
+  col = col.add(vec3(0.88, 0.93, 1.0).mul(moonGlow).mul(uNight).mul(float(1.0).sub(uMixOver.mul(0.88))).mul(float(1.0).sub(uMixStorm)));
 
   // Weather darkening + lightning flash
-  col = col.mul(float(1.0).sub(uDark.mul(0.34)));
+  col = col.mul(float(1.0).sub(uDark.mul(0.30).mul(notNight)));
   col = col.add(vec3(0.62, 0.72, 1.0).mul(uFlash).mul(cloudy.mul(0.9).add(0.25)));
 
   // Rayleigh + Mie horizon aerial perspective
@@ -229,6 +230,8 @@ export function createApexSkyTslMaterial(placeholder?: THREE.Texture): ApexSkyTs
     setBaseBlend(blend: number) { uBaseBlend.value = Math.max(0, Math.min(1, blend)); },
     setOvercastTexture(t: THREE.Texture) { overTexNode.value = t; },
     setStormTexture(t: THREE.Texture) { stormTexNode.value = t; },
+    setNightOvercastTexture(t: THREE.Texture) { nightOverTexNode.value = t; },
+    setNightStormTexture(t: THREE.Texture) { nightStormTexNode.value = t; },
     setMoonDir(v: THREE.Vector3) { uMoonDir.value.copy(v).normalize(); },
     update(dt: number, st: SkyState) {
       elapsed += dt;
@@ -247,7 +250,7 @@ export function createApexSkyTslMaterial(placeholder?: THREE.Texture): ApexSkyTs
   };
 }
 
-/** High wispy cirrus cloud layer with smooth radial horizon fade (TSL port of `sky.ts` cirrus). */
+/** High wispy cirrus cloud layer with smooth radial horizon fade & dynamic day/sunset/night tinting (TSL port of `sky.ts` cirrus). */
 export function createApexCirrusTslMaterial(cirrusTex: THREE.Texture): THREE.MeshBasicNodeMaterial {
   const mat = new THREE.MeshBasicNodeMaterial({
     transparent: true,
@@ -256,10 +259,14 @@ export function createApexCirrusTslMaterial(cirrusTex: THREE.Texture): THREE.Mes
     fog: false,
     side: THREE.DoubleSide,
   });
+  const uTint = uniform(new THREE.Color(1, 1, 1));
+  const uOp = uniform(1.0);
+  mat.userData.uTint = uTint;
+  mat.userData.uOp = uOp;
   const texSample = tslTexture(cirrusTex, uv());
   const radial = smoothstep(float(1.0), float(0.25), length(uv().mul(2.0).sub(1.0)));
-  mat.colorNode = texSample.rgb;
-  mat.opacityNode = texSample.a.mul(radial);
+  mat.colorNode = texSample.rgb.mul(uTint);
+  mat.opacityNode = texSample.a.mul(radial).mul(uOp);
   return mat;
 }
 
@@ -1001,11 +1008,16 @@ export interface ApexIronportTerrainTslOptions {
   classMap: THREE.Texture;
   asphaltMap: THREE.Texture;
   paveMap: THREE.Texture;
+  grassMap?: THREE.Texture;
+  forestMap?: THREE.Texture;
   maskVec: THREE.Vector4;
   terrSize: THREE.Vector2;
   terrOrigin: THREE.Vector2;
   edge: THREE.Vector2;
+  shared?: ApexTslSharedUniforms;
   gi?: PlaykitGiUniforms;
+  /** Lean iGPU shader: cuts 23 procedural noise calls -> 4 while sampling real tiled grass/forest/asphalt/pave textures! */
+  leanMode?: boolean;
 }
 
 export interface ApexIronportTerrainTslHandle {
@@ -1064,10 +1076,94 @@ export function createApexIronportTerrainTslMaterial(
   const satCol = tslTexture(opts.albedoMap, uv()).rgb;
   const smoothN = normalWorld.y.lessThan(0.0).select(normalWorld.negate(), normalWorld);
   const fade = float(1.0).sub(smoothstep(float(250.0), float(1500.0), camD));
+  // Lean iGPU path: 4 cheap tslNoise2 calls + real tiled grass/forest/asphalt/pave textures -> photorealistic turf & soil with ~5x faster pixel shading!
+  if (opts.leanMode) {
+    const macro = tslNoise2(wp.xz.div(42.0));
+    const micro = tslNoise2(wp.xz.div(3.2));
+    const turfFine = tslNoise2(wp.xz.div(0.85));
+    const luv = wp.xz.sub(uTerrO).div(uTerr).add(0.5);
+    const lc = tslTexture(opts.classMap, clamp(luv, 0.0, 1.0)).rgb;
+    const fSand = lc.r;
+    const fForest = lc.g;
+    const fField = lc.b;
+    const pId = floor(vec2(wp.x.div(260.0), wp.z.div(210.0)));
+    const pHash = tslHash21(pId);
+    const cropRow = sin(mix(wp.x, wp.z, step(float(0.5), pHash)).mul(1.65)).mul(0.08).add(0.95);
+    const nearDetail = float(1.0).sub(smoothstep(float(85.0), float(420.0), camD));
+    // Sample real PBR meadow grass & forest floor textures so hillsides and verges show organic blades, clover & soil grain (NEVER flat solid green!)
+    const grassNearTex = opts.grassMap ? tslTexture(opts.grassMap, wp.xz.div(5.6)).rgb : vec3(0.24, 0.36, 0.14);
+    const grassMacroTex = opts.grassMap ? tslTexture(opts.grassMap, wp.xz.div(24.0).add(vec2(0.37, 0.61))).rgb : grassNearTex;
+    const grassPbr = mix(grassMacroTex, grassNearTex, nearDetail.mul(0.76).add(0.24))
+      .mul(mix(vec3(0.76, 0.84, 0.68), vec3(1.14, 1.08, 0.88), macro))
+      .mul(float(0.82).add(micro.mul(0.22)).add(turfFine.sub(0.5).mul(0.26).mul(nearDetail)));
+    const forestPbr = (opts.forestMap ? tslTexture(opts.forestMap, wp.xz.div(6.2)).rgb : vec3(0.15, 0.22, 0.10))
+      .mul(mix(vec3(0.68, 0.78, 0.62), vec3(1.06, 1.02, 0.86), macro))
+      .mul(float(0.80).add(micro.mul(0.24)).add(turfFine.sub(0.5).mul(0.22).mul(nearDetail)));
+    const pastureC = grassPbr.mul(vec3(0.96, 1.02, 0.90));
+    const wheatC = mix(vec3(0.42, 0.37, 0.17), vec3(0.56, 0.48, 0.23), macro).mul(float(0.84).add(turfFine.mul(0.28).mul(nearDetail)));
+    const soilC = mix(vec3(0.21, 0.16, 0.11), vec3(0.31, 0.24, 0.16), micro).mul(float(0.84).add(turfFine.mul(0.28).mul(nearDetail)));
+    const farmC = mix(pastureC, mix(wheatC, soilC, smoothstep(float(0.68), float(0.86), pHash)), smoothstep(float(0.38), float(0.62), pHash)).mul(cropRow);
+    const forestC = mix(forestPbr, grassPbr.mul(vec3(0.66, 0.78, 0.58)), float(0.24));
+    const sandC = mix(vec3(0.58, 0.50, 0.35), vec3(0.72, 0.64, 0.46), micro).mul(float(0.88).add(turfFine.mul(0.20).mul(nearDetail)));
+    const meadowC = grassPbr;
+    const biomeBase = mix(mix(mix(meadowC, farmC, clamp(fField.mul(1.25), 0.0, 1.0)), forestC, clamp(fForest.mul(1.25), 0.0, 1.0)), sandC, clamp(fSand.mul(1.35), 0.0, 1.0));
+    const satLift = satCol.mul(float(1.0).add(macro.sub(0.5).mul(0.26).mul(fade)));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let col: any = mix(biomeBase, satLift, float(0.18).add(uMapFade.mul(0.26)));
+
+    // Steep coastal basalt cliffs + alpine snow (reusing macro/micro + 1 strata noise)
+    const slopeRaw = float(1.0).sub(smoothN.y);
+    const steep = smoothstep(float(0.20), float(0.46), slopeRaw);
+    const lumB = luminance(col);
+    const snowMask = smoothstep(float(0.68), float(0.88), lumB).mul(smoothstep(float(220.0), float(340.0), wp.y));
+    const rockAmt = steep.mul(float(1.0).sub(snowMask)).mul(float(1.0).sub(road));
+    const strata = tslNoise2(vec2(wp.y.mul(0.28).add(macro.mul(3.5)), wp.x.sub(wp.z).div(55.0)));
+    const rockC = mix(vec3(0.09, 0.095, 0.105), vec3(0.23, 0.22, 0.20), strata.mul(0.65).add(micro.mul(0.35)))
+      .mul(clamp(lumB.div(0.32), 0.65, 1.05));
+    col = mix(col, rockC, rockAmt);
+
+    // City sidewalks, curbs & asphalt roads (reusing single asphaltMap fetch + paveMap fetch)
+    const paveTile = tslTexture(opts.paveMap, wp.xz.div(2.2)).rgb.mul(float(0.86).add(micro.mul(0.20)));
+    col = mix(col, paveTile.mul(0.88), walk);
+    col = mix(col, vec3(0.46, 0.45, 0.43).mul(float(0.84).add(micro.mul(0.26))), kerb);
+    const asph = tslTexture(opts.asphaltMap, wp.xz.div(4.5)).rgb.mul(float(0.88).add(micro.mul(0.22)));
+    col = mix(col, asph.mul(1.10), road);
+
+    const gPud = smoothstep(float(0.56), float(0.72), macro).mul(uPool).mul(road);
+    const gWet = uWet.mul(max(road, walk.mul(0.7)));
+    col = col.mul(float(1.0).sub(gWet.mul(0.26))).mul(float(1.0).sub(gPud.mul(0.30))).mul(float(1.0).sub(uWet.mul(0.14)));
+
+    let rough = mix(float(0.94), float(0.72), rockAmt);
+    rough = mix(rough, float(0.45), snowMask);
+    rough = mix(rough, float(0.84), road);
+    rough = mix(rough, float(0.42), gWet);
+    rough = mix(rough, float(0.05), gPud);
+
+    const edgeFade = mix(
+      float(1.0),
+      smoothstep(float(0.0), float(1300.0), min(uEdge.x.sub(abs(wp.x.sub(uTerrO.x))), uEdge.y.sub(abs(wp.z.sub(uTerrO.y))))),
+      uMapFade,
+    );
+    col = mix(vec3(0.031, 0.067, 0.110), col, edgeFade);
+
+    void modelWorldMatrix; void positionView;
+    mat.colorNode = col;
+    mat.roughnessNode = clamp(rough, 0.04, 0.98);
+    mat.metalnessNode = mix(float(0.0), float(0.06), gPud);
+    mat.opacityNode = keepTrench;
+    if (opts.gi) {
+      enhanceMaterialWithPlaykitGi(mat, opts.gi, { detailStrength: 0, giBounceStrength: 0.16 });
+    }
+    return {
+      material: mat,
+      uniforms: { uWet, uPool, uMapFade },
+      setMaskTexture: (tex: THREE.Texture) => { maskTexNode.value = tex; },
+    };
+  }
   const macro = tslNoise2(wp.xz.div(55.0)).mul(0.6).add(tslNoise2(wp.xz.div(17.0)).mul(0.4));
   const micro = tslNoise2(wp.xz.div(2.8)).mul(0.55).add(tslNoise2(wp.xz.div(0.85)).mul(0.45));
 
-  // Biome-true procedural Michigan landscape (matches updated region.ts + crisp gravel/dirt roadside shoulders!)
+  // Biome-true procedural Michigan landscape + real tiled PBR meadow/forest textures!
   const luv = wp.xz.sub(uTerrO).div(uTerr).add(0.5);
   const lc = tslTexture(opts.classMap, clamp(luv, 0.0, 1.0)).rgb;
   const fSand = lc.r;
@@ -1076,17 +1172,23 @@ export function createApexIronportTerrainTslMaterial(
   const pId = floor(vec2(wp.x.div(260.0), wp.z.div(210.0)));
   const pHash = tslHash21(pId);
   const cropRow = sin(mix(wp.x, wp.z, step(float(0.5), pHash)).mul(1.65)).mul(0.08).add(0.96);
-  const pastureC = mix(vec3(0.20, 0.34, 0.13), vec3(0.32, 0.44, 0.17), macro);
+  const nearDetailHi = float(1.0).sub(smoothstep(float(95.0), float(460.0), camD));
+  const grassPbrHi = (opts.grassMap ? mix(tslTexture(opts.grassMap, wp.xz.div(24.0)).rgb, tslTexture(opts.grassMap, wp.xz.div(5.6)).rgb, nearDetailHi.mul(0.78).add(0.22)) : mix(vec3(0.19, 0.34, 0.14), vec3(0.29, 0.44, 0.18), macro))
+    .mul(mix(vec3(0.78, 0.85, 0.70), vec3(1.12, 1.07, 0.88), macro))
+    .mul(float(0.84).add(micro.mul(0.30)));
+  const forestPbrHi = (opts.forestMap ? tslTexture(opts.forestMap, wp.xz.div(6.2)).rgb : mix(vec3(0.11, 0.20, 0.09), vec3(0.19, 0.28, 0.13), macro))
+    .mul(float(0.82).add(micro.mul(0.30)));
+  const pastureC = grassPbrHi.mul(vec3(0.96, 1.02, 0.90));
   const wheatC = mix(vec3(0.46, 0.41, 0.20), vec3(0.58, 0.50, 0.25), macro);
   const soilC = mix(vec3(0.24, 0.19, 0.13), vec3(0.32, 0.25, 0.17), micro);
   const farmC = mix(pastureC, mix(wheatC, soilC, smoothstep(float(0.68), float(0.86), pHash)), smoothstep(float(0.38), float(0.62), pHash)).mul(cropRow);
-  const forestC = mix(vec3(0.11, 0.20, 0.09), vec3(0.19, 0.28, 0.13), macro).mul(float(0.86).add(micro.mul(0.28)));
+  const forestC = mix(forestPbrHi, grassPbrHi.mul(vec3(0.66, 0.78, 0.58)), float(0.24));
   const sandC = mix(vec3(0.62, 0.54, 0.38), vec3(0.74, 0.66, 0.48), micro);
-  const meadowC = mix(vec3(0.19, 0.34, 0.14), vec3(0.29, 0.44, 0.18), macro).mul(float(0.88).add(micro.mul(0.24)));
+  const meadowC = grassPbrHi;
   const biomeBase = mix(mix(mix(meadowC, farmC, clamp(fField.mul(1.25), 0.0, 1.0)), forestC, clamp(fForest.mul(1.25), 0.0, 1.0)), sandC, clamp(fSand.mul(1.35), 0.0, 1.0));
   const satLift = satCol.mul(float(1.0).add(macro.sub(0.5).mul(0.28).mul(fade)));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let col: any = mix(biomeBase, satLift, float(0.24).add(uMapFade.mul(0.20)));
+  let col: any = mix(biomeBase, satLift, float(0.18).add(uMapFade.mul(0.26)));
 
   // Wine Country tulip flower rows
   const chroma = max(satCol.r, max(satCol.g, satCol.b)).sub(min(satCol.r, min(satCol.g, satCol.b)));
@@ -1197,6 +1299,9 @@ export function createApexIronportTerrainTslMaterial(
   mat.roughnessNode = clamp(rough, 0.04, 0.98);
   mat.metalnessNode = mix(float(0.0), float(0.06), gPud);
   mat.opacityNode = keepTrench;
+  if (opts.shared) {
+    mat.emissiveNode = apexHeadlightSpotTsl(opts.shared, col);
+  }
 
   if (opts.gi) {
     enhanceMaterialWithPlaykitGi(mat, opts.gi, { detailStrength: 0.14, detailTiling: 6.5, giBounceStrength: 0.18 });

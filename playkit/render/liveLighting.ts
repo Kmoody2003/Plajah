@@ -545,12 +545,24 @@ export function enhanceMaterialWithPlaykitGi(
     mat.roughnessNode = baseRough.add(mod.mul(0.32)).clamp(0.08, 0.98);
   }
 
-  // 2) L2 SH9 GI Bounce: upward faces receive subtle canopy/sky bounce; shaded undersides (decks,
-  //    eaves, tree boughs, arches) receive emerald forest floor bounce + warm interior lift!
+  // 2) Energy-conserving L2 SH9 GI Bounce: modulate by surface albedo (matching WebGL2 diffuseColor.rgb * pkFinalGi)
+  //    so shaded undersides receive warm/cool bounce WITHOUT ever washing dark foliage, bark, asphalt, or brick milky-grey!
+  //    CRITICAL: hoist `mat.colorNode` into a single WGSL local variable via `.toVar()` so referencing it in `emissiveNode`
+  //    NEVER duplicates the entire albedo shader graph (terrain noise/biomes, facade parallax, foliage textures) twice per pixel!
   const upT = normalWorld.y.mul(0.5).add(0.5).clamp(0.0, 1.0);
   const hemiGi = mix(gi.uGiLower.rgb, gi.uGiUpper.rgb, upT);
   const warmInt = vec3(0.55, 0.34, 0.14);
-  const giBounce = mix(hemiGi, warmInt, gi.uGiInteriorMix.mul(0.65)).mul(float(giStrength));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let surfAlb: any;
+  if (mat.colorNode) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cachedCol: any = (mat.colorNode as any).toVar();
+    mat.colorNode = cachedCol;
+    surfAlb = cachedCol.rgb;
+  } else {
+    surfAlb = vec3(mat.color.r, mat.color.g, mat.color.b);
+  }
+  const giBounce = mix(hemiGi, warmInt, gi.uGiInteriorMix.mul(0.65)).mul(surfAlb).mul(float(giStrength));
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let emissive: any = mat.emissiveNode ? (mat.emissiveNode as any).add(giBounce) : giBounce;

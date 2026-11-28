@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { type AirportLayout, type AirportSim, type Plane, toWorld } from './sim/airport';
 import { distToPoly, pointInPoly, type P2 } from './sim/geom';
 import { piece } from './library/modelled';
+import { mergeByMaterial, mergeStaticScenery } from './carBatch';
 
 /**
  * The airfield in the world: runway with its markings, taxiways, apron with stands, terminal with jet bridges, control tower, hangars,
@@ -17,7 +18,7 @@ const rng = (seed: number): (() => number) => { let s = seed | 0 || 1; return ()
 
 export interface AirportScenes {
   group: THREE.Group;
-  update: (now: number, dt: number) => void;
+  update: (now: number, dt: number, cam?: THREE.Vector3) => void;
   /** within `pad` metres of runway, taxiway or apron paving */
   paved: (x: number, z: number, pad: number) => boolean;
   /** anywhere on the airfield, including the grass strip and buildings, with a margin */
@@ -132,6 +133,8 @@ export function buildAirportScenes(o: { L: AirportLayout; sim: AirportSim | null
       const cap = new THREE.Mesh(new THREE.CylinderGeometry(8, 8, 1.2, 16), roofMat); cap.position.y = 55.5; fb.add(cap);
       return fb;
     });
+    tw.userData.keep = true;
+    tw.traverse((c) => { c.userData.keep = true; });
     tw.position.set(-T.lu * 0.38, 0, 0);
     tg.add(tw);
     tcenters.push({ x: T.cx, z: T.cz });
@@ -147,6 +150,8 @@ export function buildAirportScenes(o: { L: AirportLayout; sim: AirportSim | null
     mesh.castShadow = mesh.receiveShadow = true; group.add(mesh);
     box(shortSide * 0.7, 9, 0.5, new THREE.MeshStandardMaterial({ color: 0x40464c, roughness: 0.6 }), 0, 4.5, 0, mesh);
   }
+  // Collapse static airport terminal/jet-bridge/hangar/stand-line boxes into ~8 cell draws (preserving drivable surfaces & control_tower GLB!)
+  mergeStaticScenery(group, 600, new Set<THREE.Object3D>(surfaces));
 
   // ---- lights: approach, runway edge, taxiway edge, PAPI ----
   const lampCount = 70 + 2 * Math.ceil(RL / 60) + 8 + 4;
@@ -198,18 +203,32 @@ export function buildAirportScenes(o: { L: AirportLayout; sim: AirportSim | null
       const stab = add(new THREE.BoxGeometry(6.5 * S, 0.3 * S, 2.8 * S), white, sd * 3.8 * S, 5.2 * S, -L0 / 2 - 3.2 * S); stab.rotation.y = sd * 0.35;
     }
     const fin = add(new THREE.BoxGeometry(0.4 * S, 7 * S, 5.5 * S), tail, 0, 8.4 * S, -L0 / 2 - 2.6 * S); fin.rotation.x = -0.28;
-    const beacon = add(new THREE.SphereGeometry(0.48 * S, 6, 6), navRed, 0, 6.5 * S, -1.5 * S); beacon.castShadow = false;
-    const landing = add(new THREE.SphereGeometry(0.65 * S, 8, 8), landingLightMat, 0, 2.8 * S, L0 / 2 + 4.2 * S); landing.castShadow = false;
+    const beacon = add(new THREE.SphereGeometry(0.48 * S, 6, 6), navRed, 0, 6.5 * S, -1.5 * S); beacon.castShadow = false; beacon.userData.keep = true;
+    const landing = add(new THREE.SphereGeometry(0.65 * S, 8, 8), landingLightMat, 0, 2.8 * S, L0 / 2 + 4.2 * S); landing.castShadow = false; landing.userData.keep = true;
     let prop: THREE.Mesh | undefined;
-    if (!jet) { prop = add(new THREE.BoxGeometry(5.2, 0.35, 0.12), grey, 0, 4.2, L0 / 2 + 5.4 * S); }
+    if (!jet) { prop = add(new THREE.BoxGeometry(5.2, 0.35, 0.12), grey, 0, 4.2, L0 / 2 + 5.4 * S); prop.userData.keep = true; }
     add(new THREE.CylinderGeometry(0.28, 0.28, 3.2 * S, 8), grey, 0, 1.6 * S, 7 * S, gear); add(new THREE.CylinderGeometry(0.4, 0.4, 0.5, 10), grey, 0, 0.45, 7 * S, gear).rotation.z = Math.PI / 2;
     for (const sd of [-1, 1]) { add(new THREE.CylinderGeometry(0.3, 0.3, 2.6 * S, 8), grey, sd * 2.4 * S, 1.4 * S, -2 * S, gear); add(new THREE.CylinderGeometry(0.5, 0.5, 0.7, 10), grey, sd * 2.4 * S, 0.5, -2 * S, gear).rotation.z = Math.PI / 2; }
-    g.add(gear); planeGroup.add(g);
+    mergeByMaterial(gear);
+    gear.traverse((c) => { c.userData.keep = true; });
+    g.add(gear);
+    mergeByMaterial(g);
+    planeGroup.add(g);
     return { g, gear, prop, beacon, landing };
   };
   const planes = new Map<number, ReturnType<typeof makePlane>>();
-  const update = (now: number, dt: number): void => {
+  const mid = toWorld(L, RL / 2, 0), side = toWorld(L, RL * 0.4, L.taxiV + 220);
+  const update = (now: number, dt: number, cam?: THREE.Vector3): void => {
     void dt;
+    // Distance-cull the entire airfield (> 2.4 km from runway center) while driving elsewhere in the 150 km² region
+    if (cam) {
+      const dx = mid[0] - cam.x, dz = mid[1] - cam.z;
+      const nearAirfield = dx * dx + dz * dz <= 2400 * 2400;
+      group.visible = nearAirfield;
+      if (!nearAirfield) return;
+    } else {
+      group.visible = true;
+    }
     // approach lights: a chasing flash toward the runway
     if (approach.length && lights.instanceColor) {
       const head = Math.floor(now * 8) % 14;
@@ -250,7 +269,6 @@ export function buildAirportScenes(o: { L: AirportLayout; sim: AirportSim | null
     for (const poly of [L.terminal, ...L.hangars]) if (poly.length >= 3 && (pointInPoly(poly, x, z) || distToPoly(poly, x, z) < margin + 20)) return true;
     return false;
   };
-  const mid = toWorld(L, RL / 2, 0), side = toWorld(L, RL * 0.4, L.taxiV + 220);
   const shots: AirportScenes['shots'] = [
     { name: 'Airport: runway from the lake end', cam: [toWorld(L, -120, 0)[0], Y + 28, toWorld(L, -120, 0)[1]], at: [mid[0], Y + 20, mid[1]] },
     { name: 'Airport: terminal and apron', cam: [side[0], Y + 45, side[1]], at: [L.gates[0] ? L.gates[0].x : mid[0], Y + 4, L.gates[0] ? L.gates[0].z : mid[1]] },

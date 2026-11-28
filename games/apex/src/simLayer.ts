@@ -61,7 +61,8 @@ export class SimLayer {
 
   constructor(private plan: SimPlan, private o: { ground: (x: number, z: number) => number; carGround?: (x: number, z: number) => number; water: (x: number, z: number) => boolean; keepOut?: (x: number, z: number) => boolean }) {
     this.group.name = 'sim-layer';
-    this.world = new SimWorld({ roads: plan.data.roads, zones: plan.data.zones, services: plan.data.services, rail: plan.net, airport: plan.L, water: o.water, maxCars: 240, downtown: plan.tall?.length ? denseArea(plan.tall) : undefined });
+    const isMidGpuInit = typeof window !== 'undefined' && (window as unknown as { perfTier?: string }).perfTier !== 'high';
+    this.world = new SimWorld({ roads: plan.data.roads, zones: plan.data.zones, services: plan.data.services, rail: plan.net, airport: plan.L, water: o.water, maxCars: isMidGpuInit ? 72 : 240, downtown: plan.tall?.length ? denseArea(plan.tall) : undefined });
     this.junctions = buildIntersections(this.world.signals, this.world.graph, o.carGround ?? o.ground, o.keepOut);
     this.group.add(this.junctions.group);
     this.rail = plan.net ? buildRailScenes({ net: plan.net, sim: this.world.trains, ground: o.ground }) : null;
@@ -71,14 +72,17 @@ export class SimLayer {
     this.carGroup.name = 'sim-library-traffic';
     this.group.add(this.carGroup);
     this.groundCache.fill(-1e9);
-    // Load ALL 26 real 3D Car Library models (sedans, SUVs, sports/muscle, EVs, pickups, city transit bus, shuttles, tow/haulers, taxis, police & semis!)
+    // Load real 3D Car Library models: cap to 10 diverse vehicle classes on WebGPU iGPUs (saves 16 redundant InstancedMesh draw calls!)
     void loadCarLibraryModels().then((models) => {
       const heavyRoles = new Set<LibraryVehicleRole>(['truck', 'semi', 'bus', 'tow', 'hauler', 'carrier', 'tactical']);
-      const roles: LibraryVehicleRole[] = [
-        'sedan', 'suv', 'coupe', 'pickup', 'estate', 'luxsuv', 'crew', 'van', 'taxi', 'police',
-        'sport_gt', 'muscle', 'ev_sedan', 'overland', 'hatch', 'hd_pickup', 'municipal', 'commander', 'shuttle',
-        'truck', 'semi', 'bus', 'tow', 'hauler', 'carrier', 'tactical',
-      ];
+      const isMidGpu = typeof window !== 'undefined' && (window as unknown as { perfTier?: string }).perfTier !== 'high';
+      const roles: LibraryVehicleRole[] = isMidGpu
+        ? ['sedan', 'suv', 'pickup', 'muscle', 'truck']
+        : [
+            'sedan', 'suv', 'coupe', 'pickup', 'estate', 'luxsuv', 'crew', 'van', 'taxi', 'police',
+            'sport_gt', 'muscle', 'ev_sedan', 'overland', 'hatch', 'hd_pickup', 'municipal', 'commander', 'shuttle',
+            'truck', 'semi', 'bus', 'tow', 'hauler', 'carrier', 'tactical',
+          ];
       for (const role of roles) {
         const mod = models.get(role);
         if (!mod) continue;
@@ -129,8 +133,8 @@ export class SimLayer {
 
   update(dt: number, cam: THREE.Vector3): void {
     this.t += dt;
-    this.rail?.update(this.t, dt);
-    this.airport?.update(this.t, dt);
+    this.rail?.update(this.t, dt, cam);
+    this.airport?.update(this.t, dt, cam);
     // During closed-circuit races when public traffic is hidden, throttle background traffic stepping to 15 Hz so it never competes with race-start frame times
     if (!this.trafficVisible || this.carBuckets.size === 0) {
       this.stepAcc += dt;
@@ -140,24 +144,25 @@ export class SimLayer {
       this.stepAcc = 0;
       this.world.setFocus(cam.x, cam.z);
       this.world.step(stepDt);
-      this.junctions.update();
+      this.junctions.update(cam);
       return;
     }
 
-    // In free roam with heavy downtown traffic, cap traffic simulation & matrix upload cleanly at ~30 Hz and cull cars > 380 m away from camera
+    // In free roam with heavy downtown traffic, cap traffic simulation & matrix upload cleanly at ~30 Hz and cull far cars
     this.stepAcc += dt;
-    const dense = this.world.cars.length > 60;
-    if (dense && this.stepAcc < 1 / 34) return;
+    const isMidGpu = typeof window !== 'undefined' && (window as unknown as { perfTier?: string }).perfTier !== 'high';
+    const dense = this.world.cars.length > 40;
+    if (dense && this.stepAcc < (isMidGpu ? 1 / 20 : 1 / 34)) return;
     const stepDt = Math.min(this.stepAcc, 0.08);
     this.stepAcc = 0;
     this.world.setFocus(cam.x, cam.z);
     this.world.step(stepDt);
-    this.junctions.update();
+    this.junctions.update(cam);
 
     const m4 = this._m4, q = this._q, up = this._up, sc = this._sc, p = this._p, col = this._col;
     const gc = this.groundCache;
     const gFn = this.o.carGround ?? this.o.ground;
-    const maxVisDist2 = 380 * 380;
+    const maxVisDist2 = isMidGpu ? 240 * 240 : 380 * 380;
     const counts = new Map<LibraryVehicleRole, number>();
     for (const role of this.carBuckets.keys()) counts.set(role, 0);
 
@@ -191,9 +196,13 @@ export class SimLayer {
       counts.set(role, slot + 1);
     }
     for (const [role, im] of this.carBuckets) {
-      im.count = counts.get(role) ?? 0;
-      im.instanceMatrix.needsUpdate = true;
-      if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      const cnt = counts.get(role) ?? 0;
+      im.count = cnt;
+      im.visible = cnt > 0;
+      if (cnt > 0) {
+        im.instanceMatrix.needsUpdate = true;
+        if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      }
     }
   }
 }

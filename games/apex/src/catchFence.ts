@@ -8,6 +8,7 @@ export function catchFence(runs: FencePoint[][]): THREE.Group {
   const positions: number[] = [], uvs: number[] = [], indices: number[] = [];
   const bases: THREE.Matrix4[] = [];
   const steel = 0x30363d, zinc = 0x929a9d;
+  const leanGpu = typeof window !== 'undefined' && (window as unknown as { perfTier?: string }).perfTier !== 'high';
   for (const run of runs) {
     let distance = 0;
     for (let i = 0; i < run.length; i++) {
@@ -20,7 +21,9 @@ export function catchFence(runs: FencePoint[][]): THREE.Group {
       kit.beam(foot, shoulder, 0.11, steel);
       kit.beam(shoulder, tip, 0.11, steel);
       kit.box(p.x, p.y + 0.86, p.z, 0.3, 0.045, 0.3, steel, 1);
-      for (const dx of [-0.105, 0.105]) for (const dz of [-0.105, 0.105]) kit.box(p.x + dx, p.y + 0.9, p.z + dz, 0.035, 0.04, 0.035, zinc, 1);
+      if (!leanGpu) {
+        for (const dx of [-0.105, 0.105]) for (const dz of [-0.105, 0.105]) kit.box(p.x + dx, p.y + 0.9, p.z + dz, 0.035, 0.04, 0.035, zinc, 1);
+      }
       if (i === run.length - 1) continue;
       const length = Math.hypot(next.x - p.x, next.z - p.z);
       if (length < 0.01) continue;

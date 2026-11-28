@@ -2,6 +2,7 @@
 // light towers and the five-lamp start gantry lights. Everything is placed from the circuit's dense path (`P`, about 6 m a sample) and sits on the terrain.
 import * as THREE from 'three';
 import { catchFence } from './catchFence';
+import { DetailBatch } from './detailBatch';
 import { detailedStand, pitGarage } from './trackArchitecture';
 import { RealtimeClothField } from '../../../services/realtimeSim/realtimeCloth';
 
@@ -72,6 +73,7 @@ export class TrackKit {
   private state = -1;
 
   constructor(private k: KitInput) {
+    this.group.name = 'trackkit-group';
     this.group.add(this.cloth.group);
     this.tyreWalls(); this.fencing(); this.stands(); this.pits(); this.marshals(); this.towers(); this.gantryLights();
   }
@@ -163,7 +165,8 @@ export class TrackKit {
       im.instanceMatrix.needsUpdate = true;
       im.computeBoundingSphere();
       im.name = 'trackkit-tyres';
-      im.frustumCulled = true; im.castShadow = true; im.receiveShadow = true;
+      const isMidGpu = typeof window !== 'undefined' && (window as unknown as { perfTier?: string }).perfTier !== 'high';
+      im.frustumCulled = true; im.castShadow = !isMidGpu; im.receiveShadow = true;
       this.group.add(im);
     });
   }
@@ -192,45 +195,45 @@ export class TrackKit {
     this.group.add(catchFence(runs));
   }
 
-  // ---------- grandstands ----------
-  private makeStand(len: number, rows: number): THREE.Group {
-    return detailedStand(len, rows);
-  }
-
+  // ---------- grandstands (all stands batched into ONE DetailBatch -> 3 draws instead of 16!) ----------
   private stands(): void {
     const { P, HALF, gantryAt } = this.k, n = P.length;
     const spots: [number, number, number, number][] = [[gantryAt + 4, 1, 54, 8], [gantryAt + 4, -1, 0, 0], [Math.floor(n * 0.42), 1, 36, 6], [Math.floor(n * 0.7), 1, 36, 6], [Math.floor(n * 0.2), -1, 30, 5]];
+    const standKit = new DetailBatch('Ironport grandstand');
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1);
     for (const [i, side, len, rows] of spots) {
       if (len === 0) continue;
       if (side < 0 && this.inPit(((i % n) + n) % n)) continue;
       // the stand is straight and the track may curve under it: back it off until its whole front edge is clear of the barriers (front row stands at local z 0)
       const clearance = HALF + 4;
       const frontMin = (off: number): number => {
-        const q = this.at(i, off, side); let worst = 1e9;
-        const ox = q.tx * (side < 0 ? -1 : 1), oz = q.tz * (side < 0 ? -1 : 1);
-        for (let t = -0.5; t <= 0.501; t += 0.125) { const x = q.x + ox * len * t, z = q.z + oz * len * t; let d = 1e9; for (let k = 0; k < n; k++) d = Math.min(d, Math.hypot(P[k].x - x, P[k].z - z)); worst = Math.min(worst, d); }
+        const q2 = this.at(i, off, side); let worst = 1e9;
+        const ox = q2.tx * (side < 0 ? -1 : 1), oz = q2.tz * (side < 0 ? -1 : 1);
+        for (let t = -0.5; t <= 0.501; t += 0.125) { const x = q2.x + ox * len * t, z = q2.z + oz * len * t; let d = 1e9; for (let k = 0; k < n; k++) d = Math.min(d, Math.hypot(P[k].x - x, P[k].z - z)); worst = Math.min(worst, d); }
         return worst;
       };
       let off = HALF + 9;
       for (let k = 0; k < 20 && frontMin(off) < clearance; k++) off += 1;
       const p = this.at(i, off, side);
-      const st = this.makeStand(len, rows);
-      st.position.set(p.x, p.y, p.z);
-      // local +x along the track, local +z away from it
-      st.rotation.y = Math.atan2(-p.tz, p.tx) + (side < 0 ? Math.PI : 0);
-      this.group.add(st);
+      q.setFromAxisAngle(up, Math.atan2(-p.tz, p.tx) + (side < 0 ? Math.PI : 0));
+      m4.compose(new THREE.Vector3(p.x, p.y, p.z), q, one);
+      detailedStand(len, rows, standKit, m4);
     }
+    this.group.add(standKit.build());
   }
 
-  // ---------- pit garages ----------
+  // ---------- pit garages (all 42 garages batched into ONE DetailBatch -> 4 draws instead of 168!) ----------
   private pits(): void {
     const { pitFrom, pitTo } = this.k;
+    const pitKit = new DetailBatch('Ironport pit garages');
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), one = new THREE.Vector3(1, 1, 1);
     for (let i = pitFrom; i <= pitTo; i++) {
-      const p = this.at(i, 24.5, -1), garage = pitGarage(i - pitFrom);
-      garage.position.set(p.x, p.y, p.z);
-      garage.rotation.y = Math.atan2(-p.tz, p.tx) + Math.PI;
-      this.group.add(garage);
+      const p = this.at(i, 24.5, -1);
+      q.setFromAxisAngle(up, Math.atan2(-p.tz, p.tx) + Math.PI);
+      m4.compose(new THREE.Vector3(p.x, p.y, p.z), q, one);
+      pitGarage(i - pitFrom, pitKit, m4);
     }
+    this.group.add(pitKit.build());
   }
 
   // ---------- marshal posts with live XPBD/Verlet fluttering cloth flags, one on the outside of every corner ----------

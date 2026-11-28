@@ -33,6 +33,8 @@ export interface ApexLightingInit {
   scene: THREE.Scene;
   clusterManager: ClusteredLightManager;
   lowTier: boolean;
+  /** Override fixed native PointLight pool count (pass 0 on WebGPU to avoid dusk/night WGSL shader recompiles & 4-light fragment stalls). */
+  activePointLights?: number;
 }
 
 export class ApexPlaykitLighting {
@@ -48,8 +50,8 @@ export class ApexPlaykitLighting {
     this.controller = new PlaykitWebGLLightingController(opts.scene, {
       clusterManager: opts.clusterManager,
       lowTier: opts.lowTier,
-      // Fixed small WebGL2 PointLight pool created once before warmShaders() (zero mid-race shader recompiles)
-      activePointLights: opts.lowTier ? 2 : 4,
+      // Fixed small WebGL2 PointLight pool created once before warmShaders() (0 on WebGPU so night transitions NEVER recompile 364 WGSL pipelines!)
+      activePointLights: opts.activePointLights ?? (opts.lowTier ? 2 : 4),
       maxLightDistanceM: opts.lowTier ? 140 : 240,
       palette: {
         skyColor: [0.46, 0.68, 0.96],

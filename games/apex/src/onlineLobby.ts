@@ -80,9 +80,11 @@ export function openOnlineMultiplayerHub(session: OnlineSessionManager, hooks: L
     <div data-k="worldPane" style="display:none;padding:14px;border-radius:14px;background:rgba(0,218,243,.07);border:1px solid rgba(0,218,243,.24);margin-bottom:12px">
       <div style="font:700 11px 'JetBrains Mono',monospace;letter-spacing:.16em;color:#00DAF3;margin-bottom:6px">FORZA-STYLE SHARED IRONPORT MAP · 950 M SPATIAL INTEREST RADIUS</div>
       <div style="color:rgba(255,255,255,.82);margin-bottom:12px">Drop directly into the 150 km&sup2; map with up to 32 live players, floating gamertags, live minimap blips, proximity voice, and instant convoy race invites.</div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
         <button data-a="world-join" style="padding:9px 18px;border-radius:999px;background:linear-gradient(90deg,#00DAF3,#00a6d6);color:#090312;border:0;font:800 12px Outfit,sans-serif;letter-spacing:.12em;cursor:pointer">ENTER ONLINE OPEN WORLD</button>
         <button data-a="world-private" style="padding:9px 14px;border-radius:999px;background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.18);font:700 11px Outfit,sans-serif;letter-spacing:.1em;cursor:pointer">PRIVATE CONVOY SHARD</button>
+        <input data-k="worldCode" placeholder="CONVOY CODE" maxlength="6" style="width:116px;text-transform:uppercase;padding:7px 10px;border-radius:999px;background:rgba(8,2,16,.85);color:#fff;border:1px solid rgba(0,218,243,.32);font:700 12px 'JetBrains Mono',monospace;letter-spacing:.14em;text-align:center" />
+        <button data-a="world-code" style="padding:9px 14px;border-radius:999px;background:rgba(0,218,243,.16);color:#00DAF3;border:1px solid rgba(0,218,243,.45);font:800 11px Outfit,sans-serif;letter-spacing:.12em;cursor:pointer">JOIN CONVOY</button>
       </div>
     </div>
 
@@ -148,6 +150,7 @@ export function openOnlineMultiplayerHub(session: OnlineSessionManager, hooks: L
   callsignInput.addEventListener('change', () => session.setDriverName(callsignInput.value));
   callsignInput.addEventListener('keydown', (ev) => ev.stopPropagation());
   q<HTMLInputElement>('[data-k=code]').addEventListener('keydown', (ev) => ev.stopPropagation());
+  q<HTMLInputElement>('[data-k=worldCode]').addEventListener('keydown', (ev) => ev.stopPropagation());
   circuitSel.addEventListener('change', () => { selectedCircuit = circuitSel.value; });
 
   const renderPlayers = (players: RtPlayer[], min: number) => {
@@ -250,7 +253,9 @@ export function openOnlineMultiplayerHub(session: OnlineSessionManager, hooks: L
     q<HTMLDivElement>('[data-k=pick]').style.display = 'none';
     status.textContent = 'Authenticating with Plajah Realtime…';
     try {
-      await session.joinServerRace(selectedCircuit, { apiBase: hooks.apiBase, getToken: () => resolveGamerToken(), how, onRt });
+      const joined = await session.joinServerRace(selectedCircuit, { apiBase: hooks.apiBase, getToken: () => resolveGamerToken(), how, onRt });
+      selectedCircuit = joined.circuitId;
+      circuitSel.value = selectedCircuit;
       q<HTMLDivElement>('[data-k=room]').style.display = 'block';
       hooks.onEnterGrid(selectedCircuit);
     } catch (err) {
@@ -270,10 +275,15 @@ export function openOnlineMultiplayerHub(session: OnlineSessionManager, hooks: L
     }
     status.textContent = 'Joining Ironport 32-player Open World shard…';
     try {
-      await session.joinServerOpenWorld({ apiBase: hooks.apiBase, getToken: () => resolveGamerToken(), how, onRt });
+      const joined = await session.joinServerOpenWorld({ apiBase: hooks.apiBase, getToken: () => resolveGamerToken(), how, onRt });
       el.remove();
       hooks.onEnterOpenWorld?.();
-      hooks.onBanner(`IRONPORT OPEN WORLD SHARD · LIVE AS ${session.profile.driverName}`, 'ok');
+      hooks.onBanner(
+        joined.code
+          ? `PRIVATE CONVOY SHARD · CODE ${joined.code} · LIVE AS ${session.profile.driverName}`
+          : `IRONPORT OPEN WORLD SHARD · LIVE AS ${session.profile.driverName}`,
+        'ok',
+      );
     } catch (err) {
       status.textContent = err instanceof Error ? err.message : String(err);
     }
@@ -289,7 +299,11 @@ export function openOnlineMultiplayerHub(session: OnlineSessionManager, hooks: L
     const a = (ev.target as HTMLElement).closest('button')?.dataset.a;
     if (a === 'world-join') void startOpenWorld('quick');
     else if (a === 'world-private') void startOpenWorld('create');
-    else if (a === 'quick') void startRace('quick');
+    else if (a === 'world-code') {
+      const code = q<HTMLInputElement>('[data-k=worldCode]').value.trim().toUpperCase();
+      if (code.length === 6) void startOpenWorld({ code });
+      else status.textContent = 'Convoy codes are 6 letters/numbers.';
+    } else if (a === 'quick') void startRace('quick');
     else if (a === 'create') void startRace('create');
     else if (a === 'join') {
       const code = q<HTMLInputElement>('[data-k=code]').value.trim().toUpperCase();

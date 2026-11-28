@@ -17,6 +17,7 @@ export function buildParkedCars(o: {
   skip: (x: number, z: number) => boolean;
   downtown: (x: number, z: number) => boolean;
   mouths: { x: number; z: number }[];
+  onLoaded?: () => void;
 }): { group: THREE.Group; near: (x: number, z: number, r: number) => ParkedCar[]; cars: ParkedCar[]; count: number } {
   let seed = 9173; const rnd = (): number => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const cars: ParkedCar[] = [];
@@ -78,6 +79,7 @@ export function buildParkedCars(o: {
   // Populate with real 3D Car Library models (sedans, SUVs, coupes, pickups) chunked by 220 m cells (zero generic blocks!)
   void loadCarLibraryModels().then((models) => {
     populateChunkedLibraryCars(group, entries, models, true);
+    o.onLoaded?.();
   });
   const C = 24, grid = new Map<number, ParkedCar[]>();
   for (const c of cars) { const k = Math.floor(c.x / C) * 100003 + Math.floor(c.z / C); (grid.get(k) ?? (grid.set(k, []), grid.get(k)!)).push(c); }

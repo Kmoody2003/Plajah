@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { RailLine, RailNetwork, Train, TrainSim } from './sim/rail';
 import { type RailProfile, profileModeAt } from './sim/railProfile';
+import { mergeByMaterial, mergeStaticScenery } from './carBatch';
 
 /**
  * Railways in the world: ballast and rails laid on the carved ground, bridges on piers, tunnel portals, level crossings with flashing lights and gates,
@@ -32,8 +33,8 @@ function frame(P: RailProfile, i: number): { tx: number; tz: number; nx: number;
 
 export interface RailScenes {
   group: THREE.Group;
-  /** call every frame with the clock in seconds */
-  update: (t: number, dt: number) => void;
+  /** call every frame with the clock in seconds; pass `cam` while driving to distance-cull far trains & stations */
+  update: (t: number, dt: number, cam?: THREE.Vector3) => void;
   /** is this point within r metres of the track (for clearing trees and grass)? */
   near: (x: number, z: number, r: number) => boolean;
   /** world-space spots to look at */
@@ -119,6 +120,8 @@ export function buildRailScenes(o: { net: RailNetwork; sim: TrainSim | null; gro
     pillars.forEach((p, k) => { q.setFromAxisAngle(up, p.yaw); const h = Math.max(1, p.y1 - p.y0); im.setMatrixAt(k, m4.compose(tp.set(p.x, p.y0 + h / 2, p.z), q, sc.set(p.w, h, 2.4))); });
     im.castShadow = im.receiveShadow = true; group.add(im);
   }
+  // tunnel portals & stations in a dedicated static group so mergeStaticScenery collapses ~220 boxes into ~15 cell draws!
+  const stationsGroup = new THREE.Group(); stationsGroup.name = 'rail-stations'; group.add(stationsGroup);
   // tunnel portals: a concrete face with an arched opening
   for (const pt of portals) {
     const { P, i } = pt, f = frame(P, i), x = P.pts[i][0], z = P.pts[i][1], y = P.y[i];
@@ -127,7 +130,7 @@ export function buildRailScenes(o: { net: RailNetwork; sim: TrainSim | null; gro
     const hole = new THREE.Path(); hole.moveTo(-ow, 0); hole.lineTo(ow, 0); hole.lineTo(ow, oh - ow * 0.6); hole.absarc(0, oh - ow * 0.6, ow, 0, Math.PI, false); hole.lineTo(-ow, 0); shape.holes.push(hole);
     const mesh = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: 3, bevelEnabled: false }), concrete);
     mesh.rotation.y = Math.atan2(f.tx, f.tz); const back = pt.dir === 1 ? -3 : 0;
-    mesh.position.set(x + f.tx * back, y, z + f.tz * back); mesh.castShadow = mesh.receiveShadow = true; group.add(mesh);
+    mesh.position.set(x + f.tx * back, y, z + f.tz * back); mesh.castShadow = mesh.receiveShadow = true; stationsGroup.add(mesh);
   }
 
   // ---- level crossings ----
@@ -165,6 +168,7 @@ export function buildRailScenes(o: { net: RailNetwork; sim: TrainSim | null; gro
   const brick = new THREE.MeshStandardMaterial({ map: canvasTex(128, 64, (g) => { g.fillStyle = '#8a4a3a'; g.fillRect(0, 0, 128, 64); g.fillStyle = '#6e3a2e'; for (let y = 0; y < 64; y += 8) for (let x = (y / 8) % 2 ? 0 : 8; x < 128; x += 16) g.fillRect(x, y, 14, 6); g.fillStyle = '#243447'; for (let x = 10; x < 128; x += 28) g.fillRect(x, 22, 12, 22); }, [3, 1]), roughness: 0.9 });
   const roofMat = new THREE.MeshStandardMaterial({ color: 0x3d4650, roughness: 0.7, metalness: 0.3 });
   const shedMat = new THREE.MeshStandardMaterial({ map: canvasTex(64, 64, (g) => { g.fillStyle = '#7e8a93'; g.fillRect(0, 0, 64, 64); g.fillStyle = '#6a757d'; for (let x = 0; x < 64; x += 6) g.fillRect(x, 0, 2, 64); }, [10, 1]), roughness: 0.6, metalness: 0.5 });
+  const containerMats = [0xb5453a, 0x2f6aa5, 0xd9a21b, 0x4d7a4c, 0x8a8f96].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7, metalness: 0.2 }));
   const stationShots: RailScenes['shots'] = [];
   for (const line of net.lines) {
     const P = line.profile;
@@ -172,7 +176,7 @@ export function buildRailScenes(o: { net: RailNetwork; sim: TrainSim | null; gro
       if (st.kind === 'terminus') continue;
       const i = Math.max(1, Math.min(P.pts.length - 2, Math.round(st.s / 10))), f = frame(P, i), x = P.pts[i][0], z = P.pts[i][1], y = P.y[i], yaw = Math.atan2(f.tx, f.tz);
       if (profileModeAt(P, st.s) === 'tunnel') continue;
-      const G = new THREE.Group(); G.position.set(x, y, z); G.rotation.y = yaw; group.add(G);   // local +z along the track, +x to the right of travel (north-west of ... mirrors the normal)
+      const G = new THREE.Group(); G.position.set(x, y, z); G.rotation.y = yaw; stationsGroup.add(G);   // local +z along the track, +x to the right of travel (north-west of ... mirrors the normal)
       const dbl = line.tracks === 2, len = st.kind === 'station' ? 120 : st.kind === 'halt' ? 56 : 0;
       const add = (geo: THREE.BufferGeometry, mat: THREE.Material, px: number, py: number, pz: number): THREE.Mesh => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.castShadow = m.receiveShadow = true; G.add(m); return m; };
       // local x of the group (after rotation.y = yaw) points to the right of the tangent: the same side as frame normal's negative; sample it:
@@ -197,8 +201,7 @@ export function buildRailScenes(o: { net: RailNetwork; sim: TrainSim | null; gro
         // freight depot: a long shed, a loading dock and a few stacked containers
         add(new THREE.BoxGeometry(14, 7.5, 46), shedMat, 17 * sides[0], 3.0, 0);
         add(new THREE.BoxGeometry(5, 1.1, 46), concrete, 8.2 * sides[0], -0.4, 0);
-        const cols = [0xb5453a, 0x2f6aa5, 0xd9a21b, 0x4d7a4c, 0x8a8f96];
-        for (let k = 0; k < 6; k++) for (let h = 0; h < 2; h++) add(new THREE.BoxGeometry(2.6, 2.6, 12), new THREE.MeshStandardMaterial({ color: cols[(k * 2 + h) % cols.length], roughness: 0.7, metalness: 0.2 }), 30 * sides[0] + (k % 2) * 3, 1.3 + h * 2.7, -22 + k * 8);
+        for (let k = 0; k < 6; k++) for (let h = 0; h < 2; h++) add(new THREE.BoxGeometry(2.6, 2.6, 12), containerMats[(k * 2 + h) % containerMats.length], 30 * sides[0] + (k % 2) * 3, 1.3 + h * 2.7, -22 + k * 8);
       }
       void sideSign;
       // the name on a board
@@ -209,6 +212,19 @@ export function buildRailScenes(o: { net: RailNetwork; sim: TrainSim | null; gro
       stationShots.push({ name: 'Station: ' + st.name, cam: [x - f.nx * 40 + f.tx * 70, y + 14, z - f.nz * 40 + f.tz * 70], at: [x, y + 2, z] });
     }
   }
+  mergeStaticScenery(stationsGroup, 500);
+  // Precompute bounding centers for O(1) distance-culling of station cells while driving
+  const stationCullList: { m: THREE.Mesh; cx: number; cz: number; r: number }[] = [];
+  stationsGroup.updateMatrixWorld(true);
+  stationsGroup.traverse((obj) => {
+    const m = obj as THREE.Mesh;
+    if (!m.isMesh || !m.geometry) return;
+    if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+    const bs = m.geometry.boundingSphere;
+    if (!bs) return;
+    const sp = bs.clone().applyMatrix4(m.matrixWorld);
+    stationCullList.push({ m, cx: sp.center.x, cz: sp.center.z, r: sp.radius });
+  });
 
   // ---- trains ----
   const trainGroup = new THREE.Group(); trainGroup.name = 'trains'; group.add(trainGroup);
@@ -218,10 +234,9 @@ export function buildRailScenes(o: { net: RailNetwork; sim: TrainSim | null; gro
   const locoLightMat = new THREE.MeshBasicMaterial({ color: 0xfff6d2 });
   const frtCols = [0x7a3b2a, 0x4a4f55, 0x6b4a32, 0x2f4a68, 0x8a8f96, 0x5f6f52].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.75, metalness: 0.25 }));
   const tankMat = new THREE.MeshStandardMaterial({ color: 0x25272a, roughness: 0.5, metalness: 0.6 });
-  const bogieMat = new THREE.MeshStandardMaterial({ color: 0x1e2126, roughness: 0.65, metalness: 0.72 });
-  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x454a52, roughness: 0.38, metalness: 0.88 });
+  const bogieMat = new THREE.MeshStandardMaterial({ color: 0x262a31, roughness: 0.58, metalness: 0.78 });
   const bogieFrameGeo = new THREE.BoxGeometry(1.94, 0.44, 2.75);
-  const wheelSetGeo = new THREE.CylinderGeometry(0.42, 0.42, 1.72, 12);
+  const wheelSetGeo = new THREE.CylinderGeometry(0.42, 0.42, 1.72, 6);
   wheelSetGeo.rotateZ(Math.PI / 2);
   const addBogies = (o2: THREE.Group, L: number): void => {
     const zOff = Math.max(2.1, L * 0.34);
@@ -230,7 +245,7 @@ export function buildRailScenes(o: { net: RailNetwork; sim: TrainSim | null; gro
       fr.position.set(0, 0.50, sz);
       o2.add(fr);
       for (const wz of [-0.9, 0.9]) {
-        const wh = new THREE.Mesh(wheelSetGeo, wheelMat);
+        const wh = new THREE.Mesh(wheelSetGeo, bogieMat);
         wh.position.set(0, 0.42, sz + wz);
         o2.add(wh);
       }
@@ -243,7 +258,9 @@ export function buildRailScenes(o: { net: RailNetwork; sim: TrainSim | null; gro
   const meshes = new Map<number, { g: THREE.Group; cars: CarMesh[] }>();
   const makeTrain = (t: Train): { g: THREE.Group; cars: CarMesh[] } => {
     const g = new THREE.Group(), cars: CarMesh[] = [], r = rng(t.id * 31 + 7);
-    for (let k = 0; k < t.cars; k++) {
+    const isMidGpu = typeof window !== 'undefined' && (window as unknown as { perfTier?: string }).perfTier !== 'high';
+    const numCars = isMidGpu ? Math.min(t.cars, 6) : t.cars;
+    for (let k = 0; k < numCars; k++) {
       let mesh: THREE.Object3D;
       const L = t.carLen - 0.6;
       if (t.kind === 'passenger') {
@@ -282,12 +299,14 @@ export function buildRailScenes(o: { net: RailNetwork; sim: TrainSim | null; gro
       } else {
         const kind = r() < 0.3 ? 'tank' : r() < 0.5 ? 'flat' : 'box', o2 = new THREE.Group();
         addBogies(o2, L);
-        if (kind === 'tank') { const c = new THREE.Mesh(new THREE.CylinderGeometry(1.42, 1.42, L - 1, 14), tankMat); c.rotation.x = Math.PI / 2; c.position.y = 2.50; o2.add(c); }
-        else if (kind === 'flat') { const b = new THREE.Mesh(new THREE.BoxGeometry(3, 0.38, L), tankMat); b.position.y = 1.22; o2.add(b); const cc = [0xb5453a, 0x2f6aa5, 0xd9a21b, 0x4d7a4c]; for (let c = 0; c < 2; c++) { const ct = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.6, L / 2 - 0.5), new THREE.MeshStandardMaterial({ color: cc[Math.floor(r() * 4)], roughness: 0.7, metalness: 0.2 })); ct.position.set(0, 2.70, (c - 0.5) * (L / 2)); o2.add(ct); } }
+        if (kind === 'tank') { const c = new THREE.Mesh(new THREE.CylinderGeometry(1.42, 1.42, L - 1, 8), tankMat); c.rotation.x = Math.PI / 2; c.position.y = 2.50; o2.add(c); }
+        else if (kind === 'flat') { const b = new THREE.Mesh(new THREE.BoxGeometry(3, 0.38, L), tankMat); b.position.y = 1.22; o2.add(b); for (let c = 0; c < 2; c++) { const ct = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.6, L / 2 - 0.5), containerMats[Math.floor(r() * 4)]); ct.position.set(0, 2.70, (c - 0.5) * (L / 2)); o2.add(ct); } }
         else { const b = new THREE.Mesh(new THREE.BoxGeometry(3.0, 3.45, L), frtCols[Math.floor(r() * frtCols.length)]); b.position.y = 2.78; o2.add(b); }
         mesh = o2;
       }
-      mesh.traverse((c) => { if ((c as THREE.Mesh).isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+      mesh.traverse((c) => { if ((c as THREE.Mesh).isMesh) { c.castShadow = false; c.receiveShadow = true; } });
+      // Collapse 10-14 bogie/wheel/body/headlight sub-meshes per train car into 2-4 merged draws!
+      mergeByMaterial(mesh);
       g.add(mesh); cars.push({ mesh, back: k * t.carLen + t.carLen / 2, len: t.carLen });
     }
     trainGroup.add(g);
@@ -295,10 +314,27 @@ export function buildRailScenes(o: { net: RailNetwork; sim: TrainSim | null; gro
   };
   const place = { x: 0, z: 0, yaw: 0, y: 0 }, pf = { x: 0, z: 0, yaw: 0, y: 0 }, pr = { x: 0, z: 0, yaw: 0, y: 0 };
 
-  const update = (now: number, dt: number): void => {
+  let crossingInit = false;
+  const update = (now: number, dt: number, cam?: THREE.Vector3): void => {
+    // Distance-cull station cells while driving (all visible on Map Overview when cam is omitted)
+    if (cam) {
+      for (let i = 0; i < stationCullList.length; i++) {
+        const s = stationCullList[i];
+        const dx = s.cx - cam.x, dz = s.cz - cam.z, reach = 520 + s.r;
+        s.m.visible = dx * dx + dz * dz <= reach * reach;
+      }
+    } else {
+      for (let i = 0; i < stationCullList.length; i++) stationCullList[i].m.visible = true;
+    }
     // trains
     if (o.sim) for (const t of o.sim.trains) {
       let rec = meshes.get(t.id); if (!rec) { rec = makeTrain(t); meshes.set(t.id, rec); }
+      if (cam) {
+        o.sim.place(t, (t.cars * t.carLen) * 0.5, place);
+        const dx = place.x - cam.x, dz = place.z - cam.z;
+        const reach = 360 + t.cars * t.carLen * 0.5;
+        if (dx * dx + dz * dz > reach * reach) { rec.g.visible = false; continue; }
+      }
       const P = net.lines[t.line].profile;
       rec.g.visible = true;
       for (const c of rec.cars) {
@@ -313,22 +349,32 @@ export function buildRailScenes(o: { net: RailNetwork; sim: TrainSim | null; gro
         c.mesh.rotation.x = -Math.atan2(pf.y - pr.y, Math.hypot(pf.x - pr.x, pf.z - pr.z) || 1);
       }
     }
-    // crossings: arms come down 3.5 s after the bells start, lamps flash alternately
-    for (let i = 0; i < lv.length; i++) {
-      const L = lv[i], closed = L.c.closed;
-      L.prog += ((closed ? 1 : 0) - L.prog) * Math.min(1, dt * 1.4);
-      if (!closed && L.prog < 0.02) L.prog = 0;
-      const lift = Math.PI / 2 * (1 - (L.c.closedFor > 1.2 || (!closed && L.prog > 0) ? L.prog : 0));
-      for (const s of [0, 1]) {
-        const sign = s ? 1 : -1, px = L.c.x + L.rx * L.d * sign + L.rgx * (L.hw + 1.6) * -sign, pz = L.c.z + L.rz * L.d * sign + L.rgz * (L.hw + 1.6) * -sign;
-        const dx = L.rgx * sign, dz = L.rgz * sign;                    // across the road, toward its centre line
-        q1.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(-dz, dx)); q2.setFromAxisAngle(new THREE.Vector3(0, 0, 1), lift); q1.multiply(q2);
-        arms.setMatrixAt(i * 2 + s, m4.compose(tp.set(px, L.y + 2.6, pz), q1, sc.set(L.hw + 0.6, 1, 1)));
-        const on = (L.c.closed || L.prog > 0.05) ? (Math.floor(now * 2.4 + s) % 2 ? 1 : 0.12) : 0.1;
-        for (const k of [0, 1]) { lamps.setMatrixAt(i * 4 + s * 2 + k, m4.compose(tp.set(px, L.y + 3.1, pz + 0), q2.identity(), one).setPosition(px + L.rx * (k ? 0.4 : -0.4) * 0.6, L.y + 3.15, pz + L.rz * (k ? 0.4 : -0.4) * 0.6)); lamps.setColorAt(i * 4 + s * 2 + k, colr.setRGB(on * ((k + Math.floor(now * 2.4)) % 2 ? 1 : 0.15), on * 0.05, on * 0.04)); }
+    // crossings: skip per-frame matrix & GPU upload when no level crossing is near the driving camera!
+    let anyCrossingNear = !crossingInit || !cam;
+    if (cam && crossingInit) {
+      for (let i = 0; i < lv.length; i++) {
+        const dx = lv[i].c.x - cam.x, dz = lv[i].c.z - cam.z;
+        if (dx * dx + dz * dz < 280 * 280) { anyCrossingNear = true; break; }
       }
     }
-    if (lv.length) { arms.instanceMatrix.needsUpdate = true; lamps.instanceMatrix.needsUpdate = true; if (lamps.instanceColor) lamps.instanceColor.needsUpdate = true; }
+    if (lv.length && anyCrossingNear) {
+      crossingInit = true;
+      for (let i = 0; i < lv.length; i++) {
+        const L = lv[i], closed = L.c.closed;
+        L.prog += ((closed ? 1 : 0) - L.prog) * Math.min(1, dt * 1.4);
+        if (!closed && L.prog < 0.02) L.prog = 0;
+        const lift = Math.PI / 2 * (1 - (L.c.closedFor > 1.2 || (!closed && L.prog > 0) ? L.prog : 0));
+        for (const s of [0, 1]) {
+          const sign = s ? 1 : -1, px = L.c.x + L.rx * L.d * sign + L.rgx * (L.hw + 1.6) * -sign, pz = L.c.z + L.rz * L.d * sign + L.rgz * (L.hw + 1.6) * -sign;
+          const dx = L.rgx * sign, dz = L.rgz * sign;                    // across the road, toward its centre line
+          q1.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(-dz, dx)); q2.setFromAxisAngle(new THREE.Vector3(0, 0, 1), lift); q1.multiply(q2);
+          arms.setMatrixAt(i * 2 + s, m4.compose(tp.set(px, L.y + 2.6, pz), q1, sc.set(L.hw + 0.6, 1, 1)));
+          const on = (L.c.closed || L.prog > 0.05) ? (Math.floor(now * 2.4 + s) % 2 ? 1 : 0.12) : 0.1;
+          for (const k of [0, 1]) { lamps.setMatrixAt(i * 4 + s * 2 + k, m4.compose(tp.set(px, L.y + 3.1, pz + 0), q2.identity(), one).setPosition(px + L.rx * (k ? 0.4 : -0.4) * 0.6, L.y + 3.15, pz + L.rz * (k ? 0.4 : -0.4) * 0.6)); lamps.setColorAt(i * 4 + s * 2 + k, colr.setRGB(on * ((k + Math.floor(now * 2.4)) % 2 ? 1 : 0.15), on * 0.05, on * 0.04)); }
+        }
+      }
+      arms.instanceMatrix.needsUpdate = true; lamps.instanceMatrix.needsUpdate = true; if (lamps.instanceColor) lamps.instanceColor.needsUpdate = true;
+    }
   };
 
   const near = (x: number, z: number, r: number): boolean => {

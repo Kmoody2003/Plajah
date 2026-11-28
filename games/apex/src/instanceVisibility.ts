@@ -61,8 +61,7 @@ export class InstanceVisibility {
       if (tmp.center.y + tmp.radius > maxY) maxY = tmp.center.y + tmp.radius;
       if (tmp.center.z + tmp.radius > maxZ) maxZ = tmp.center.z + tmp.radius;
       this.source.set(matrix.elements, i * 16);
-      this.mesh.setMatrixAt(i, matrix);
-      this.indices[i] = i;
+      this.indices[i] = -1;
     }
     this.maxInstR = mr;
     if (n > 0) {
@@ -71,6 +70,9 @@ export class InstanceVisibility {
       this.bz = (minZ + maxZ) * 0.5;
       this.br = Math.hypot(maxX - minX, maxY - minY, maxZ - minZ) * 0.5;
     }
+    // Start culled until first CityVisibility.update() pass so streamed Wave 1/2 batches never flash all 11,000+ buildings across the GPU!
+    this.mesh.count = 0;
+    this.mesh.visible = false;
   }
 
   update(frustums: readonly THREE.Frustum[], cam?: THREE.Vector3, viewDist = Infinity, shadowDist = Infinity): number {

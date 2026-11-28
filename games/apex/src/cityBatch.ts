@@ -5,6 +5,7 @@
 // Culling: BatchedMesh frustum-culls each instance against every camera that draws it (the view and the shadow cameras); on top of that update() hides small buildings far away
 // (the same size-for-distance rule the old per-instance culler used), a share of the instances per frame.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export interface CityPart { geometry: THREE.BufferGeometry; material: THREE.Material; transforms: THREE.Matrix4[]; castShadow: boolean; maxDist?: number }
 
@@ -162,4 +163,145 @@ export class CityBatches {
   }
 
   dispose(): void { for (const b of this.batches) b.mesh.dispose(); this.group.clear(); this.batches = []; }
+}
+
+/**
+ * WebGPU-friendly spatial-cell static city merger: instead of 100+ per-model InstancedMeshes
+ * (or BatchedMesh which loops per-instance without WebGPU multi-draw), merges buildings within
+ * each `cellSize` metre square by shared canonical material into frustum+distance-culled static
+ * THREE.Meshes. Slashes Downtown Ironport city draws from ~115 -> ~22 with zero GPU matrix uploads!
+ */
+export class CityCellBatches {
+  readonly group = new THREE.Group();
+  private cells: Array<{ mesh: THREE.Mesh; sphere: THREE.Sphere; baseCastShadow: boolean; maxDist: number }> = [];
+  private instCount = 0;
+  private frustum = new THREE.Frustum();
+  private projScreen = new THREE.Matrix4();
+  viewDist = Infinity;
+  shadowDist = Infinity;
+
+  get drawCalls(): number { return this.cells.length; }
+  get instances(): number { return this.instCount; }
+
+  constructor() {
+    this.group.name = 'city-cells';
+  }
+
+  async appendPartsSliced(parts: CityPart[], cellSize = 360, maxVerts = 80000, msBudget = 10): Promise<void> {
+    if (!parts.length) return;
+    interface Entry { geometry: THREE.BufferGeometry; matrix: THREE.Matrix4 }
+    interface Bucket { material: THREE.Material; castShadow: boolean; maxDist: number; items: Entry[] }
+    const buckets = new Map<string, Bucket>();
+
+    for (const p of parts) {
+      if (!p.transforms.length) continue;
+      const pm = p.material as THREE.MeshStandardMaterial;
+      if (!pm.visible || (pm.transparent && pm.opacity <= 0.01) || !pm.colorWrite) continue;
+      const md = p.maxDist ?? Infinity;
+      const mKey = matKey(p.material) + '|' + (pm.color?.getHexString() ?? 'ffffff') + (p.castShadow ? '|s' : '|n') + (Number.isFinite(md) ? `|d${md}` : '');
+      for (let i = 0; i < p.transforms.length; i++) {
+        const m = p.transforms[i];
+        const tx = m.elements[12], tz = m.elements[14];
+        const cx = Math.floor(tx / cellSize), cz = Math.floor(tz / cellSize);
+        const key = `${cx},${cz}|${mKey}`;
+        let b = buckets.get(key);
+        if (!b) {
+          b = { material: p.material, castShadow: p.castShadow, maxDist: md, items: [] };
+          buckets.set(key, b);
+        }
+        b.items.push({ geometry: p.geometry, matrix: m });
+        this.instCount++;
+      }
+    }
+
+    const normCache = new Map<string, THREE.BufferGeometry>();
+    const getNorm = (g: THREE.BufferGeometry, colours: boolean): THREE.BufferGeometry => {
+      const k = g.uuid + (colours ? '|c' : '');
+      let ng = normCache.get(k);
+      if (!ng) { ng = normalise(g, colours); normCache.set(k, ng); }
+      return ng;
+    };
+
+    const flush = (geos: THREE.BufferGeometry[], material: THREE.Material, castShadow: boolean, maxDist: number): void => {
+      if (!geos.length) return;
+      try {
+        const merged = mergeGeometries(geos, false);
+        if (merged) {
+          merged.computeBoundingSphere();
+          merged.computeBoundingBox();
+          const mesh = new THREE.Mesh(merged, material);
+          mesh.name = 'city-cell';
+          mesh.castShadow = castShadow;
+          mesh.receiveShadow = true;
+          mesh.frustumCulled = false;
+          mesh.matrixAutoUpdate = false;
+          mesh.visible = false;
+          const sphere = merged.boundingSphere ? merged.boundingSphere.clone() : new THREE.Sphere();
+          this.cells.push({ mesh, sphere, baseCastShadow: castShadow, maxDist });
+          this.group.add(mesh);
+        }
+      } catch (e) {
+        console.warn('CityCellBatches: skipped bucket', e);
+      }
+      for (const g of geos) g.dispose();
+    };
+
+    const bucketList = [...buckets.values()];
+    let t0 = performance.now();
+    for (let bi = 0; bi < bucketList.length; bi++) {
+      const b = bucketList[bi];
+      const colours = Boolean((b.material as THREE.MeshStandardMaterial).vertexColors);
+      let geos: THREE.BufferGeometry[] = [];
+      let vSum = 0;
+      for (let i = 0; i < b.items.length; i++) {
+        const it = b.items[i];
+        const ng = getNorm(it.geometry, colours);
+        const vc = ng.getAttribute('position').count;
+        if (geos.length > 0 && vSum + vc > maxVerts) {
+          flush(geos, b.material, b.castShadow, b.maxDist);
+          geos = [];
+          vSum = 0;
+        }
+        const clone = ng.clone();
+        clone.applyMatrix4(it.matrix);
+        geos.push(clone);
+        vSum += vc;
+      }
+      flush(geos, b.material, b.castShadow, b.maxDist);
+      if (bi + 1 < bucketList.length && performance.now() - t0 >= msBudget) {
+        await new Promise<void>((r) => requestAnimationFrame(() => r()));
+        t0 = performance.now();
+      }
+    }
+    for (const ng of normCache.values()) ng.dispose();
+    normCache.clear();
+  }
+
+  update(camera: THREE.Camera, viewDist = this.viewDist, shadowDist = this.shadowDist): void {
+    if (!this.cells.length) return;
+    this.projScreen.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    this.frustum.setFromProjectionMatrix(this.projScreen);
+    const camPos = camera.position;
+    for (let i = 0; i < this.cells.length; i++) {
+      const c = this.cells[i];
+      const sp = c.sphere;
+      const dx = sp.center.x - camPos.x, dy = sp.center.y - camPos.y, dz = sp.center.z - camPos.z;
+      const effVd = Math.min(viewDist, c.maxDist);
+      const lim = effVd + sp.radius + (c.mesh.visible ? 45 : 0);
+      const d2 = dx * dx + dy * dy + dz * dz;
+      const vis = d2 < lim * lim && this.frustum.intersectsSphere(sp);
+      c.mesh.visible = vis;
+      if (c.baseCastShadow) {
+        const sLim = shadowDist + sp.radius;
+        c.mesh.castShadow = vis && shadowDist > 0 && d2 < sLim * sLim;
+      }
+    }
+  }
+
+  dispose(): void {
+    for (const c of this.cells) c.mesh.geometry.dispose();
+    this.group.clear();
+    this.cells = [];
+    this.instCount = 0;
+  }
 }

@@ -22,7 +22,7 @@ import { upgradeCarRigToWebGPU } from './tsl/apexWebGpuAdapter';
 import { initRegionTslContext, isRegionWebGpuRequested } from './tsl/webgpuRuntime';
 import { ApexSocialHud } from './apexSocialHud';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { GpuTextureLoader, initKTX2 } from './ktx2';
+import { GpuTextureLoader, initKTX2, ktxReadyPromise } from './ktx2';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -33,7 +33,9 @@ import { carvePads, type Pad } from './pads';
 import { groundU, loadGroundArrays } from './groundArrays';
 import { buildYards, type YardData } from './yards';
 import { buildTrench, type TrenchLine } from './trench';
-import { CityBatches, type CityPart } from './cityBatch';
+import { CityBatches, CityCellBatches, type CityPart } from './cityBatch';
+import { CityBroadcastLights, type BroadcastLeaderEntry } from './cityBroadcastLights';
+import { IronportSignatureTowers } from './ironportSignatureTowers';
 import { patchFacadeMasonry, patchGlassInterior, patchPunchedInterior, type FacadeV4Maps } from './buildingShaders';
 import { makeSovereign } from './car';
 import { makeRivalCar, type RivalCarVariant } from './rivalCars';
@@ -219,7 +221,24 @@ const apexLighting = new ApexPlaykitLighting({
   scene,
   clusterManager: apexClusteredLights,
   lowTier: TV_MODE_BOOT,
+  // WebGPU evaluates every active PointLight on every fragment without WebGL2's visibility skip, AND toggling PointLight.visible at dusk recompiles all 364 WGSL pipelines!
+  activePointLights: USE_WEBGPU ? 0 : (TV_MODE_BOOT ? 2 : 4),
 });
+// On WebGL2, real native SpotLight + PointLight illuminate ahead; on WebGPU, zero native dynamic lights keep Intel xe-lpg at 33-38 FPS
+// while our zero-cost TSL dual-beam headlight shader (`apexHeadlightSpotTsl`) illuminates road, curbs, barriers, terrain & buildings up to 85 m ahead!
+const playerHeadlightSpot = !USE_WEBGPU ? new THREE.SpotLight(0xfff5e4, 0, 82, 0.56, 0.64, 1.25) : null;
+if (playerHeadlightSpot) {
+  playerHeadlightSpot.castShadow = false;
+  playerHeadlightSpot.position.set(0, -200, 0);
+  playerHeadlightSpot.target.position.set(0, -200, 10);
+  scene.add(playerHeadlightSpot, playerHeadlightSpot.target);
+}
+const playerHeadlightNear = !USE_WEBGPU ? new THREE.PointLight(0xfff0d6, 0, 26, 1.45) : null;
+if (playerHeadlightNear) {
+  playerHeadlightNear.castShadow = false;
+  playerHeadlightNear.position.set(0, -200, 0);
+  scene.add(playerHeadlightNear);
+}
 try {
   const pkGiFlag = new URLSearchParams(location.search).get('gi') ?? localStorage.getItem('apex.pkgi');
   if (pkGiFlag === '0') apexLighting.controller.setEnabled(false);
@@ -457,34 +476,41 @@ function gameTex(name: string, repeat = true): THREE.Texture {
 
 interface Tod { sky: string; sun: number; sunInt: number; sunPos: [number, number, number]; hemiSky: number; hemiGround: number; hemiInt: number; fog: number; fogNear: number; fogFar: number; exposure: number; env: number }
 const TOD: Record<string, Tod> = {
-  clear:   { sky: 'sky_clear',   sun: 0xfff6e6, sunInt: 3.5, sunPos: [-6000, 12000, -4000], hemiSky: 0xaad2ff, hemiGround: 0x5c5b52, hemiInt: 1.45, fog: 0xb6d2ec, fogNear: 9000, fogFar: 42000, exposure: 1.05, env: 1.18 },
-  golden:  { sky: 'sky_golden',  sun: 0xffc884, sunInt: 3.7, sunPos: [-12000, 5200, -2000], hemiSky: 0x9ec6f7, hemiGround: 0x585348, hemiInt: 1.35, fog: 0xbcd0e2, fogNear: 7000, fogFar: 38000, exposure: 1.08, env: 1.18 },
-  sunset:  { sky: 'sky_sunset',  sun: 0xff8c48, sunInt: 3.1, sunPos: [-13000, 2500, -1500], hemiSky: 0x7c98cf, hemiGround: 0x3b3544, hemiInt: 1.1, fog: 0x9ea2bd, fogNear: 6000, fogFar: 34000, exposure: 1.12, env: 1.08 },
-  dusk:    { sky: 'sky_dusk',    sun: 0x9296cc, sunInt: 1.15, sunPos: [-13000, 900, -1200], hemiSky: 0x6278ba, hemiGround: 0x242836, hemiInt: 0.85, fog: 0x546390, fogNear: 4000, fogFar: 30000, exposure: 1.25, env: 0.96 },
-  night:   { sky: 'sky_night',   sun: 0x8aa8e0, sunInt: 0.38, sunPos: [-8000, 9000, -5000], hemiSky: 0x2a3d66, hemiGround: 0x151a26, hemiInt: 0.65, fog: 0x0e1628, fogNear: 2500, fogFar: 24000, exposure: 1.42, env: 1.0 },
-  sunrise: { sky: 'sky_sunrise', sun: 0xffc694, sunInt: 3.0, sunPos: [12000, 3500, 2000], hemiSky: 0xa4c4eb, hemiGround: 0x4c484c, hemiInt: 1.18, fog: 0xc2cfe0, fogNear: 6000, fogFar: 34000, exposure: 1.08, env: 1.10 },
+  clear:   { sky: 'sky_clear',   sun: 0xfff5e4, sunInt: 3.70, sunPos: [-6000, 12000, -4000], hemiSky: 0xa6ceff, hemiGround: 0x555248, hemiInt: 1.24, fog: 0xb4d0ea, fogNear: 9000, fogFar: 42000, exposure: 1.03, env: 1.24 },
+  golden:  { sky: 'sky_golden',  sun: 0xffc074, sunInt: 3.85, sunPos: [-12000, 5200, -2000], hemiSky: 0x90bcf5, hemiGround: 0x4c453a, hemiInt: 1.12, fog: 0xc0cedf, fogNear: 7000, fogFar: 38000, exposure: 1.04, env: 1.26 },
+  sunset:  { sky: 'sky_sunset',  sun: 0xff8440, sunInt: 3.30, sunPos: [-13000, 2500, -1500], hemiSky: 0x7692cc, hemiGround: 0x352f40, hemiInt: 0.98, fog: 0x9ca0bc, fogNear: 6000, fogFar: 34000, exposure: 1.08, env: 1.12 },
+  dusk:    { sky: 'sky_dusk',    sun: 0x9298ce, sunInt: 1.18, sunPos: [-13000, 900, -1200], hemiSky: 0x5e74b6, hemiGround: 0x262936, hemiInt: 0.84, fog: 0x4c5a86, fogNear: 4000, fogFar: 30000, exposure: 1.12, env: 0.56 },
+  night:   { sky: 'sky_night',   sun: 0x9ab8ee, sunInt: 0.68, sunPos: [-8000, 9000, -5000], hemiSky: 0x3b5386, hemiGround: 0x26211c, hemiInt: 0.78, fog: 0x121c32, fogNear: 2800, fogFar: 24000, exposure: 1.12, env: 0.24 },
+  sunrise: { sky: 'sky_sunrise', sun: 0xffc490, sunInt: 3.10, sunPos: [12000, 3500, 2000], hemiSky: 0xa0c0e8, hemiGround: 0x4a4648, hemiInt: 1.14, fog: 0xc2cfe0, fogNear: 6000, fogFar: 34000, exposure: 1.05, env: 1.12 },
 };
 const PRESET_HOURS: Record<string, number> = {
   night: 23.0, sunrise: 6.4, clear: 12.8, golden: 17.5, sunset: 19.2, dusk: 20.3,
 };
+let nightSkyPref = 'sky2_night';
+try {
+  const savedNight = localStorage.getItem('apex.nightSky');
+  if (savedNight && /^sky2_night(?:_moon|_aurora|_cloudy|_storm)?$/.test(savedNight)) nightSkyPref = savedNight;
+} catch { /* ok */ }
+const resolveSkyTexName = (name: string): string => (name === 'sky2_night' ? nightSkyPref : name);
 interface SolarStop {
   h: number; sky: string; sun: number; sunInt: number; hemiSky: number; hemiGround: number;
   hemiInt: number; fog: number; fogNear: number; fogFar: number; exposure: number; env: number;
   nightK: number; mist: number;
 }
 const SOLAR_STOPS: SolarStop[] = [
-  { h: 0.0,  sky: 'sky2_night',   sun: 0x8aa8e0, sunInt: 0.36, hemiSky: 0x283a62, hemiGround: 0x141924, hemiInt: 0.64, fog: 0x0d1526, fogNear: 2500, fogFar: 24000, exposure: 1.42, env: 0.96, nightK: 1.00, mist: 0.30 },
-  { h: 5.0,  sky: 'sky2_dusk',    sun: 0x7c86b8, sunInt: 0.65, hemiSky: 0x45588c, hemiGround: 0x1d2230, hemiInt: 0.74, fog: 0x354266, fogNear: 3500, fogFar: 28000, exposure: 1.30, env: 0.94, nightK: 0.76, mist: 0.55 },
-  { h: 6.4,  sky: 'sky2_sunrise', sun: 0xffb882, sunInt: 3.05, hemiSky: 0xa4c4eb, hemiGround: 0x4c484c, hemiInt: 1.18, fog: 0xc8cfdc, fogNear: 5800, fogFar: 34000, exposure: 1.08, env: 1.10, nightK: 0.14, mist: 0.72 },
-  { h: 9.0,  sky: 'sky2_clear',   sun: 0xfff2dc, sunInt: 3.45, hemiSky: 0xaad4ff, hemiGround: 0x5c5b52, hemiInt: 1.40, fog: 0xb8d4ee, fogNear: 8200, fogFar: 40000, exposure: 1.06, env: 1.18, nightK: 0.00, mist: 0.28 },
-  { h: 13.0, sky: 'sky2_clear',   sun: 0xfff8ee, sunInt: 3.65, hemiSky: 0xb2d8ff, hemiGround: 0x626058, hemiInt: 1.48, fog: 0xb8d6f0, fogNear: 9500, fogFar: 44000, exposure: 1.04, env: 1.22, nightK: 0.00, mist: 0.12 },
-  { h: 17.5, sky: 'sky2_golden',  sun: 0xffc680, sunInt: 3.72, hemiSky: 0x9ec6f7, hemiGround: 0x585348, hemiInt: 1.35, fog: 0xc2d0e0, fogNear: 6800, fogFar: 38000, exposure: 1.08, env: 1.18, nightK: 0.00, mist: 0.34 },
-  { h: 19.2, sky: 'sky2_sunset',  sun: 0xff8644, sunInt: 3.15, hemiSky: 0x7c98cf, hemiGround: 0x3b3544, hemiInt: 1.10, fog: 0xa4a2bc, fogNear: 5800, fogFar: 34000, exposure: 1.13, env: 1.08, nightK: 0.12, mist: 0.56 },
-  { h: 20.3, sky: 'sky2_dusk',    sun: 0x8c92cc, sunInt: 1.12, hemiSky: 0x5c72b4, hemiGround: 0x222634, hemiInt: 0.84, fog: 0x4c5c88, fogNear: 4000, fogFar: 30000, exposure: 1.26, env: 0.96, nightK: 0.58, mist: 0.48 },
-  { h: 21.8, sky: 'sky2_night',   sun: 0x8aa8e0, sunInt: 0.38, hemiSky: 0x2a3d66, hemiGround: 0x151a26, hemiInt: 0.64, fog: 0x0e1628, fogNear: 2500, fogFar: 24000, exposure: 1.42, env: 0.98, nightK: 1.00, mist: 0.30 },
-  { h: 24.0, sky: 'sky2_night',   sun: 0x8aa8e0, sunInt: 0.36, hemiSky: 0x283a62, hemiGround: 0x141924, hemiInt: 0.64, fog: 0x0d1526, fogNear: 2500, fogFar: 24000, exposure: 1.42, env: 0.96, nightK: 1.00, mist: 0.30 },
+  { h: 0.0,  sky: 'sky2_night',   sun: 0x9ab8ee, sunInt: 0.66, hemiSky: 0x395182, hemiGround: 0x25201b, hemiInt: 0.76, fog: 0x111a30, fogNear: 2800, fogFar: 24000, exposure: 1.12, env: 0.22, nightK: 1.00, mist: 0.28 },
+  { h: 5.0,  sky: 'sky2_dusk',    sun: 0x8692c4, sunInt: 0.85, hemiSky: 0x4b6096, hemiGround: 0x242632, hemiInt: 0.80, fog: 0x36446a, fogNear: 3600, fogFar: 28000, exposure: 1.12, env: 0.42, nightK: 0.72, mist: 0.50 },
+  { h: 6.4,  sky: 'sky2_sunrise', sun: 0xffb882, sunInt: 3.05, hemiSky: 0xa0c0e8, hemiGround: 0x4a4648, hemiInt: 1.14, fog: 0xc8cfdc, fogNear: 5800, fogFar: 34000, exposure: 1.05, env: 1.10, nightK: 0.14, mist: 0.68 },
+  { h: 9.0,  sky: 'sky2_clear',   sun: 0xfff2dc, sunInt: 3.55, hemiSky: 0xa6d0ff, hemiGround: 0x56544b, hemiInt: 1.28, fog: 0xb6d2ec, fogNear: 8200, fogFar: 40000, exposure: 1.03, env: 1.22, nightK: 0.00, mist: 0.26 },
+  { h: 13.0, sky: 'sky2_clear',   sun: 0xfff7ec, sunInt: 3.70, hemiSky: 0xadd5ff, hemiGround: 0x5c5950, hemiInt: 1.32, fog: 0xb6d4ee, fogNear: 9500, fogFar: 44000, exposure: 1.02, env: 1.24, nightK: 0.00, mist: 0.12 },
+  { h: 17.5, sky: 'sky2_golden',  sun: 0xffc074, sunInt: 3.85, hemiSky: 0x90bcf5, hemiGround: 0x4c453a, hemiInt: 1.12, fog: 0xc0cedf, fogNear: 6800, fogFar: 38000, exposure: 1.04, env: 1.26, nightK: 0.00, mist: 0.32 },
+  { h: 19.2, sky: 'sky2_sunset',  sun: 0xff8440, sunInt: 3.30, hemiSky: 0x7692cc, hemiGround: 0x352f40, hemiInt: 0.98, fog: 0x9ca0bc, fogNear: 5800, fogFar: 34000, exposure: 1.08, env: 1.12, nightK: 0.14, mist: 0.52 },
+  { h: 20.3, sky: 'sky2_dusk',    sun: 0x9298ce, sunInt: 1.18, hemiSky: 0x5e74b6, hemiGround: 0x262936, hemiInt: 0.84, fog: 0x4c5a86, fogNear: 4000, fogFar: 30000, exposure: 1.12, env: 0.56, nightK: 0.58, mist: 0.44 },
+  { h: 21.8, sky: 'sky2_night',   sun: 0x9ab8ee, sunInt: 0.68, hemiSky: 0x3b5386, hemiGround: 0x26211c, hemiInt: 0.78, fog: 0x121c32, fogNear: 2800, fogFar: 24000, exposure: 1.12, env: 0.24, nightK: 1.00, mist: 0.28 },
+  { h: 24.0, sky: 'sky2_night',   sun: 0x9ab8ee, sunInt: 0.66, hemiSky: 0x395182, hemiGround: 0x25201b, hemiInt: 0.76, fog: 0x111a30, fogNear: 2800, fogFar: 24000, exposure: 1.12, env: 0.22, nightK: 1.00, mist: 0.28 },
 ];
 let pmrem: THREE.PMREMGenerator | null = USE_WEBGPU ? null : new THREE.PMREMGenerator(renderer);
+const pmremCache = new Map<string, THREE.Texture>();
 let skyTex: THREE.Texture | null = null;
 const mapFadeU = { value: 0 };
 const wetU = { value: 0 };
@@ -499,16 +525,41 @@ let todMode: 'preset' | 'dynamic' | 'realtime' = 'preset';
 let cycleHour = 17.5;
 let lastIblSkyName = '';
 let lastClockUiMs = 0;
+let lastCycleApplyMs = 0;
 let dofEnabled = true;
 try { dofEnabled = localStorage.getItem('apex.dof') !== '0'; } catch { /* ok */ }
 const curTod = {
-  sunCol: new THREE.Color(0xffc884),
-  hemiSky: new THREE.Color(0x9ec6f7),
-  hemiGround: new THREE.Color(0x585348),
-  fogCol: new THREE.Color(0xbcd0e2),
-  sunInt: 3.7, hemiInt: 1.35, fogNear: 7000, fogFar: 38000, exposure: 1.08, env: 1.18, nightK: 0, mistBoost: 0.3,
+  sunCol: new THREE.Color(0xffc074),
+  hemiSky: new THREE.Color(0x90bcf5),
+  hemiGround: new THREE.Color(0x4c453a),
+  fogCol: new THREE.Color(0xc0cedf),
+  sunInt: 3.85, hemiInt: 1.12, fogNear: 7000, fogFar: 38000, exposure: 1.04, env: 1.26, nightK: 0, mistBoost: 0.32,
 };
 const _cA = new THREE.Color(), _cB = new THREE.Color(), _moonV = new THREE.Vector3();
+
+function applyCachedPmrem(skyName: string, tx: THREE.Texture, allowGenerateNow: boolean): void {
+  tx.mapping = THREE.EquirectangularReflectionMapping;
+  skyTex = tx;
+  const cached = pmremCache.get(skyName);
+  if (cached) {
+    if (scene.environment !== cached) {
+      scene.environment = cached;
+      lastIblSkyName = skyName;
+    }
+    return;
+  }
+  // Never run synchronous pmrem.fromEquirectangular() mid-drive during 24h cycle (causes 400-1500 ms GPU freeze + hard IBL pop!).
+  // Instead keep the resident IBL texture and smoothly crossfade lighting via continuous scene.environmentIntensity + sun/hemi/sky!
+  if (!allowGenerateNow && scene.environment) return;
+  if (pmrem) {
+    try {
+      const envTex = pmrem.fromEquirectangular(tx).texture;
+      pmremCache.set(skyName, envTex);
+      scene.environment = envTex;
+      lastIblSkyName = skyName;
+    } catch { /* wait for init */ }
+  }
+}
 
 function fmtClock24(hour24: number): string {
   const hNorm = ((hour24 % 24) + 24) % 24;
@@ -590,36 +641,40 @@ function applySolarHour(hour24: number, forcePresetPose = false): void {
     } else {
       scene.fog = new THREE.Fog(curTod.fogCol.getHex(), curTod.fogNear, curTod.fogFar);
     }
-    scene.background = curTod.fogCol.clone();
+    if (scene.background instanceof THREE.Color) scene.background.copy(curTod.fogCol);
+    else scene.background = curTod.fogCol.clone();
   }
   renderer.toneMappingExposure = curTod.exposure;
   scene.environmentIntensity = curTod.env;
 
-  const domSky = u < 0.5 ? a.sky : b.sky;
-  sky.setBlendedBase(a.sky, b.sky, u, (tx) => {
+  const aSky = resolveSkyTexName(a.sky);
+  const bSky = resolveSkyTexName(b.sky);
+  const domSky = u < 0.5 ? aSky : bSky;
+  // Smooth continuous sky panorama crossfade (preloaded in idle time); NEVER rebuild PMREM mid-drive!
+  sky.setBlendedBase(aSky, bSky, u, (tx) => {
     if (domSky === lastIblSkyName && scene.environment) return;
-    lastIblSkyName = domSky;
-    tx.mapping = THREE.EquirectangularReflectionMapping;
-    skyTex = tx;
-    if (pmrem) {
-      try { scene.environment = pmrem.fromEquirectangular(tx).texture; } catch { /* wait for init */ }
-    }
+    applyCachedPmrem(domSky, tx, !scene.environment);
   });
   syncTodClockUi();
 }
 function stepDayNight(dt: number): void {
   if (cineOn) return;
-  if (todMode === 'realtime') {
-    applySolarHour(localRealHour(), false);
-  } else if (todMode === 'dynamic') {
+  if (todMode === 'dynamic') {
     // Full 24h cycle in 12 real minutes (smooth sunrise -> noon -> golden -> sunset -> dusk -> starry night!)
-    applySolarHour(cycleHour + dt * (24 / 720), false);
+    cycleHour = (((cycleHour + dt * (24 / 720)) % 24) + 24) % 24;
+  } else if (todMode !== 'realtime') {
+    return;
   }
+  const now = performance.now();
+  if (now - lastCycleApplyMs < 85) return;
+  lastCycleApplyMs = now;
+  applySolarHour(todMode === 'realtime' ? localRealHour() : cycleHour, false);
 }
 function setTimeOfDay(key: string): void {
   if (key === 'realtime') {
     todKey = 'realtime';
     todMode = 'realtime';
+    sky.preloadCycleSkies();
     applySolarHour(localRealHour(), false);
     syncTodClockUi(true);
     return;
@@ -627,6 +682,7 @@ function setTimeOfDay(key: string): void {
   if (key === 'dynamic') {
     todKey = 'dynamic';
     todMode = 'dynamic';
+    sky.preloadCycleSkies();
     applySolarHour(cycleHour, false);
     syncTodClockUi(true);
     return;
@@ -647,21 +703,21 @@ function setTimeOfDay(key: string): void {
   curTod.exposure = t.exposure;
   curTod.env = t.env;
   curTod.nightK = key === 'night' ? 1 : key === 'dusk' ? 0.55 : key === 'sunrise' ? 0.15 : key === 'sunset' ? 0.10 : 0;
-  curTod.mistBoost = key === 'sunrise' ? 0.72 : key === 'sunset' ? 0.54 : key === 'dusk' ? 0.46 : key === 'golden' ? 0.34 : 0.16;
+  curTod.mistBoost = key === 'sunrise' ? 0.68 : key === 'sunset' ? 0.52 : key === 'dusk' ? 0.44 : key === 'golden' ? 0.32 : 0.16;
   tintClouds(t.sun, t.hemiSky);
   sun.color.setHex(t.sun); sun.intensity = t.sunInt; sun.position.set(...t.sunPos); sunDir.set(...t.sunPos).normalize();
   hemi.color.setHex(t.hemiSky); hemi.groundColor.setHex(t.hemiGround); hemi.intensity = t.hemiInt;
-  if (!mapMode) { scene.fog = new THREE.Fog(t.fog, t.fogNear, t.fogFar); scene.background = new THREE.Color(t.fog); }
+  if (!mapMode) {
+    if (scene.fog instanceof THREE.Fog) { scene.fog.color.setHex(t.fog); scene.fog.near = t.fogNear; scene.fog.far = t.fogFar; }
+    else scene.fog = new THREE.Fog(t.fog, t.fogNear, t.fogFar);
+    if (scene.background instanceof THREE.Color) scene.background.setHex(t.fog);
+    else scene.background = new THREE.Color(t.fog);
+  }
   renderer.toneMappingExposure = t.exposure;
   scene.environmentIntensity = t.env;
-  const skyName = t.sky.replace('sky_', 'sky2_');
+  const skyName = resolveSkyTexName(t.sky.replace('sky_', 'sky2_'));
   sky.setBase(skyName, (tx) => {
-    lastIblSkyName = skyName;
-    tx.mapping = THREE.EquirectangularReflectionMapping;
-    skyTex = tx;
-    if (pmrem) {
-      try { scene.environment = pmrem.fromEquirectangular(tx).texture; } catch { /* wait for init */ }
-    }
+    applyCachedPmrem(skyName, tx, !driving || !scene.environment);
   });
   syncTodClockUi(true);
 }
@@ -1304,7 +1360,9 @@ let hiRes = false;                                   // the 6 m height grid and 
 let terrain: THREE.Group;
 let terrainMat: THREE.MeshStandardMaterial;
 const circuitGroup = new THREE.Group();
+circuitGroup.name = 'circuits';
 const labelGroup = new THREE.Group();
+labelGroup.name = 'labels';
 scene.add(circuitGroup, labelGroup);
 circuitGroup.visible = false;      // the wide review ribbons; the street furniture (barriers, kerbs, gantry) stays on
 let exag = 1;
@@ -1370,8 +1428,11 @@ function buildTerrain(): void {
 
   if (terrain) {
     if (TERRAIN_LOD) {
-    const lodD = (USE_WEBGPU && perfTier !== 'high') ? [0, 750, 1700, 3800] : [0, 1700, 3200, 5800];
-    populateTerrainLOD(terrain, terrainMat, nx, ny, pos, uv, nor, 144, lodD);
+    // On WebGPU mid/low iGPUs, use 240-cell tiles (2,880 m wide, corner radius 2,036 m -> ~42 tiles instead of 72!)
+    // with LOD 0 out to 2650 m (> 2036 m + 614 m buffer so terrain under & ahead of roads NEVER drops to coarse LOD 1!)
+    const tv = (USE_WEBGPU && perfTier !== 'high') ? 240 : 144;
+    const lodD = (USE_WEBGPU && perfTier !== 'high') ? [0, 2650, 4400, 7000] : [0, 1700, 3200, 5800];
+    populateTerrainLOD(terrain, terrainMat, nx, ny, pos, uv, nor, tv, lodD);
   } else populateTiledTerrain(terrain, terrainMat, nx, ny, pos, uv, nor, 8, 6);
     return;
   }
@@ -1386,11 +1447,15 @@ function buildTerrain(): void {
       classMap: classTex,
       asphaltMap: loadPbr1K('ground_asphalt_dry.png', true, 0x35373c, 1024),
       paveMap: loadPbr1K('ground_concrete_sidewalk.png', true, 0xa2a09a, 512),
+      grassMap: loadPbr1K('ground_grass_meadow.png', true, 0x3f642c, 512),
+      forestMap: loadPbr1K('ground_forest_floor.png', true, 0x2a3b1e, 512),
       maskVec,
       terrSize: terrV.value,
       terrOrigin: terrO.value,
       edge: edgeU.value,
+      shared: tslRegionCtx.shared,
       gi: tslRegionCtx.gi,
+      leanMode: perfTier !== 'high',
     });
     terrainMat = webgpuTerrainHandle.material as unknown as THREE.MeshStandardMaterial;
   } else {
@@ -1401,8 +1466,9 @@ function buildTerrain(): void {
   terrain = new THREE.Group();
   terrain.name = 'terrain-tiles';
   if (TERRAIN_LOD) {
-    const lodD = (USE_WEBGPU && perfTier !== 'high') ? [0, 750, 1700, 3800] : [0, 1700, 3200, 5800];
-    populateTerrainLOD(terrain, terrainMat, nx, ny, pos, uv, nor, 144, lodD);
+    const tv = (USE_WEBGPU && perfTier !== 'high') ? 240 : 144;
+    const lodD = (USE_WEBGPU && perfTier !== 'high') ? [0, 2650, 4400, 7000] : [0, 1700, 3200, 5800];
+    populateTerrainLOD(terrain, terrainMat, nx, ny, pos, uv, nor, tv, lodD);
   } else populateTiledTerrain(terrain, terrainMat, nx, ny, pos, uv, nor, 8, 6);
   scene.add(terrain);
   // water: region footprint, extended far to the west so the Great Lake runs to the horizon
@@ -1777,6 +1843,7 @@ async function loadHarbor(): Promise<void> {
 // ---------- city streets ----------
 interface StreetRun { c: string; n: string; p: number[][] }
 const streetGroup = new THREE.Group();
+streetGroup.name = 'streets';
 scene.add(streetGroup);
 interface Acc { pos: number[]; idx: number[]; uv?: number[] }
 function addRibbon(acc: Acc, pts: number[][], width: number, lift: number): void {
@@ -1888,10 +1955,10 @@ function buildTownExtras(): void {
       streets: streetRuns, drives: countryNet?.roads ?? [], ground: (x, z) => meshH(x, z), downtown: dense, mouths: countryScenes.driveMouths,
       // never on the new street circuits' courses (they run along town streets, and a parked car is solid): downtown's are as they were
       skip: (x, z) => roadDist(x, z) < 9 || hAt(x, z) < 2.5 || insideBuilding(x, z, 0.8) || !!(simLayer?.junctions.near(x, z, 3)) || onCourse(x, z, 1, [IND, HARB, CIV]),
+      onLoaded: () => scheduleCullerReindex(),
     });
     furnitureGroup.add(parked.group);
     for (const pc of parked.cars) worldPhys.addSolidBox(pc.x, pc.z, 0.96, 2.25, pc.yaw, 'car');
-    void loadCarLibraryModels().then(() => scheduleCullerReindex());
   }
   if (!refDress) {
     refDress = buildReferenceDressing({
@@ -2108,7 +2175,7 @@ function addTreeCards(parent: THREE.Object3D, list: { x: number; z: number; def:
   const by = new Map<SpriteDef, typeof list>();
   for (const t of list) { if (!by.has(t.def)) by.set(t.def, []); by.get(t.def)!.push(t); }
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), col = new THREE.Color();
-  const CELL_SZ = 1800;
+  const CELL_SZ = (USE_WEBGPU && perfTier !== 'high') ? 2600 : 1800;
   by.forEach((arr, def) => {
     const mkey = def.file + (lod ? ':lod' : '');
     let mat = spriteMats.get(mkey);
@@ -2146,7 +2213,7 @@ function addTreeCards(parent: THREE.Object3D, list: { x: number; z: number; def:
       im.frustumCulled = true;
       im.userData.chunked = true;
       parent.add(im);
-      chunkList.push({ m: im, cx: bs.center.x, cz: bs.center.z, r: bs.radius, baseCastShadow: false, maxDist: 1750, maxShadowDist: 0 });
+      chunkList.push({ m: im, cx: bs.center.x, cz: bs.center.z, r: bs.radius, baseCastShadow: false, maxDist: (USE_WEBGPU && perfTier !== 'high') ? 900 : 1750, maxShadowDist: 0 });
     }
   });
 }
@@ -2280,6 +2347,7 @@ function grassOk(x: number, z: number): boolean {
 const worldPhys = new WorldCollisionAndBreakables();
 scene.add(worldPhys.group);
 const forestGroup = new THREE.Group();
+forestGroup.name = 'forest';
 scene.add(forestGroup);
 async function buildForest(): Promise<void> {
   const res = await fetch(BASE + 'forest.json');
@@ -2290,14 +2358,13 @@ async function buildForest(): Promise<void> {
   const sp = await loadSprites();
   forestGroup.clear();
   const list: { x: number; z: number; def: SpriteDef; h: number }[] = [];
+  const leanCards = USE_WEBGPU && perfTier !== 'high';
   for (const p of pts) {
     const set = p[2] ? sp.conifer : sp.broad;
-    const def = set[Math.floor(((p[0] * 31 + p[1] * 17) % 1 + 1) % 1 * set.length)];
+    // On WebGPU mid/low iGPUs, use 1 shared conifer + 1 shared broadleaf card atlas (cuts distant forest card draws 3x!)
+    const def = leanCards ? set[0] : set[Math.floor(((p[0] * 31 + p[1] * 17) % 1 + 1) % 1 * set.length)];
     list.push({ x: p[0], z: p[1], def, h: (p[2] ? 15 + p[3] * 9 : 13 + p[3] * 7) });
   }
-  addTreeCards(forestGroup, list, true);
-  const tf = mkTrees(pts, hAt, () => exag, true);
-  forestGroup.add(tf.group); treeFields.push(tf);
   for (const p of pts) {
     const s = p[4] ?? 1;
     if (s < 0.52) worldPhys.addBreakable(p[0], hAt(p[0], p[1]) * exag, p[1], 'sapling', 0.65);
@@ -2337,9 +2404,12 @@ async function buildForest(): Promise<void> {
     const set = p[2] ? sp.conifer : sp.broad;
     return { x: p[0], z: p[1], def: set[Math.floor(rr() * set.length)], h: (p[2] ? 15 + p[3] * 9 : 13 + p[3] * 7) * p[4] };
   });
-  addTreeCards(forestGroup, vlist, true);
-  const vf = mkTrees(verge, hAt, () => exag);
-  forestGroup.add(vf.group); treeFields.push(vf);
+  // Combine forest + verge into ONE single card set & ONE single EzTreeField (cuts forest draw calls in half with zero visual change!)
+  addTreeCards(forestGroup, list.concat(vlist), true);
+  const combinedTreePts = pts.concat(verge);
+  const tf = mkTrees(combinedTreePts, hAt, () => exag, true);
+  if (USE_WEBGPU && perfTier !== 'high') tf.setQuality(perfTier === 'low' ? 0.58 : 0.76);
+  forestGroup.add(tf.group); treeFields.push(tf);
   for (const p of verge) {
     const s = p[4] ?? 1;
     if (s < 0.55) worldPhys.addBreakable(p[0], hAt(p[0], p[1]) * exag, p[1], 'sapling', 0.65);
@@ -2361,6 +2431,7 @@ async function buildForest(): Promise<void> {
 
 // ---------- streetscape: street trees and street lights ----------
 const scapeGroup = new THREE.Group();
+scapeGroup.name = 'scape';
 scene.add(scapeGroup);
 function insideBuilding(x: number, z: number, margin: number): boolean {
   const list = colGrid.get(Math.floor(x / CELL) + ',' + Math.floor(z / CELL));
@@ -2452,39 +2523,62 @@ async function buildStreetscape(): Promise<void> {
   const okTrees = trees.filter((t) => roadDist(t[0], t[1]) > 8.5 && !paintedRoad(t[0], t[1], 1.6, false));      // sidewalk trees, never in the carriageway or the course
   addTreeCards(scapeGroup, okTrees.map((t) => ({ x: t[0], z: t[1], def: autumnLeaf(t[0], t[1], t[3]) !== undefined ? sp.autumn[Math.floor(t[3] * sp.autumn.length) % sp.autumn.length] ?? pickStreet(t[3]) : pickStreet(t[3]), h: (8 + t[3] * 5) * t[2] / 1.2 })), true);
   // up close the street trees are real 3D trees (the cards take over beyond ~150 m)
-  { const tf = mkTrees(okTrees.map((t) => { const leaf = autumnLeaf(t[0], t[1], t[3]); return leaf === undefined ? [t[0], t[1], 0, t[3], 0.62 * t[2] + 0.2] : [t[0], t[1], 0, t[3], 0.62 * t[2] + 0.2, leaf]; }), hAt, () => exag); scapeGroup.add(tf.group); treeFields.push(tf); }
+  { const tf = mkTrees(okTrees.map((t) => { const leaf = autumnLeaf(t[0], t[1], t[3]); return leaf === undefined ? [t[0], t[1], 0, t[3], 0.62 * t[2] + 0.2] : [t[0], t[1], 0, t[3], 0.62 * t[2] + 0.2, leaf]; }), hAt, () => exag); if (USE_WEBGPU && perfTier !== 'high') tf.setQuality(perfTier === 'low' ? 0.18 : 0.22); scapeGroup.add(tf.group); treeFields.push(tf); }
   for (const t of okTrees) {
     if (t[2] < 0.85) worldPhys.addBreakable(t[0], hAt(t[0], t[1]) * exag, t[1], 'sapling', 0.55);
     else worldPhys.addSolidCylinder(t[0], t[1], 0.44 * t[2], 'tree');
   }
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion();
   const zeroM4 = new THREE.Matrix4().makeScale(0, 0, 0);
-  // street lights: pole, arm, emissive lamp head (individually smashable & launchable on high-speed impact!)
+  // street lights: spatially chunked into 450 m cells (pole, arm, emissive lamp head — individually smashable!)
+  // Prevents all 3,477 downtown streetlights from drawing unculled across the entire city!
   const ln = lights.length;
-  const pole = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.09, 0.14, 8.6, 6), stdMat(0x3c4047, 0.6, 0.5), ln);
-  const arm = new THREE.InstancedMesh(new THREE.BoxGeometry(0.1, 0.1, 2.4), stdMat(0x3c4047, 0.6, 0.5), ln);
-  const head = new THREE.InstancedMesh(new THREE.BoxGeometry(0.5, 0.14, 0.9), new THREE.MeshBasicMaterial({ color: 0xffe7ae }), ln);
+  const poleGeo = new THREE.CylinderGeometry(0.09, 0.14, 8.6, 6);
+  const armGeo = new THREE.BoxGeometry(0.1, 0.1, 2.4);
+  const headGeo = new THREE.BoxGeometry(0.5, 0.14, 0.9);
+  const poleMat = stdMat(0x3c4047, 0.6, 0.5);
+  const headMat = new THREE.MeshBasicMaterial({ color: 0xffe7ae });
   const e = new THREE.Euler();
-  lights.forEach((l, i) => {
-    const gy = hAt(l[0], l[1]) * exag;
-    q.setFromEuler(e.set(0, l[2], 0));
-    m4.compose(new THREE.Vector3(l[0], gy + 4.3, l[1]), q.identity(), new THREE.Vector3(1, 1, 1));
-    pole.setMatrixAt(i, m4);
-    const fx = Math.sin(l[2]), fz = Math.cos(l[2]);
-    m4.compose(new THREE.Vector3(l[0] + fx * 1.1, gy + 8.5, l[1] + fz * 1.1), q.setFromEuler(e.set(0, l[2], 0)), new THREE.Vector3(1, 1, 1));
-    arm.setMatrixAt(i, m4);
-    m4.compose(new THREE.Vector3(l[0] + fx * 2.1, gy + 8.4, l[1] + fz * 2.1), q, new THREE.Vector3(1, 1, 1));
-    head.setMatrixAt(i, m4);
-    worldPhys.addBreakable(l[0], gy, l[1], 'pole', 0.55, () => {
-      pole.setMatrixAt(i, zeroM4); pole.instanceMatrix.needsUpdate = true;
-      arm.setMatrixAt(i, zeroM4); arm.instanceMatrix.needsUpdate = true;
-      head.setMatrixAt(i, zeroM4); head.instanceMatrix.needsUpdate = true;
+  const lightCell = 450;
+  const lightBuckets = new Map<string, number[][]>();
+  for (const l of lights) {
+    const k = `${Math.floor(l[0] / lightCell)},${Math.floor(l[1] / lightCell)}`;
+    let b = lightBuckets.get(k);
+    if (!b) { b = []; lightBuckets.set(k, b); }
+    b.push(l);
+  }
+  const lightReach = (USE_WEBGPU && perfTier !== 'high') ? 320 : 620;
+  for (const sub of lightBuckets.values()) {
+    const pole = new THREE.InstancedMesh(poleGeo, poleMat, sub.length);
+    const arm = new THREE.InstancedMesh(armGeo, poleMat, sub.length);
+    const head = new THREE.InstancedMesh(headGeo, headMat, sub.length);
+    sub.forEach((l, i) => {
+      const gy = hAt(l[0], l[1]) * exag;
+      q.setFromEuler(e.set(0, l[2], 0));
+      m4.compose(new THREE.Vector3(l[0], gy + 4.3, l[1]), q.identity(), new THREE.Vector3(1, 1, 1));
+      pole.setMatrixAt(i, m4);
+      const fx = Math.sin(l[2]), fz = Math.cos(l[2]);
+      m4.compose(new THREE.Vector3(l[0] + fx * 1.1, gy + 8.5, l[1] + fz * 1.1), q.setFromEuler(e.set(0, l[2], 0)), new THREE.Vector3(1, 1, 1));
+      arm.setMatrixAt(i, m4);
+      m4.compose(new THREE.Vector3(l[0] + fx * 2.1, gy + 8.4, l[1] + fz * 2.1), q, new THREE.Vector3(1, 1, 1));
+      head.setMatrixAt(i, m4);
+      worldPhys.addBreakable(l[0], gy, l[1], 'pole', 0.55, () => {
+        pole.setMatrixAt(i, zeroM4); pole.instanceMatrix.needsUpdate = true;
+        arm.setMatrixAt(i, zeroM4); arm.instanceMatrix.needsUpdate = true;
+        head.setMatrixAt(i, zeroM4); head.instanceMatrix.needsUpdate = true;
+      });
     });
-  });
-  pole.name = arm.name = head.name = 'street-light';
-  pole.userData.chunked = arm.userData.chunked = head.userData.chunked = true;
-  pole.frustumCulled = arm.frustumCulled = head.frustumCulled = false;
-  scapeGroup.add(pole, arm, head);
+    for (const im of [pole, arm, head]) {
+      im.name = 'street-light';
+      im.userData.chunked = true;
+      im.instanceMatrix.needsUpdate = true;
+      im.computeBoundingSphere();
+      im.frustumCulled = true;
+      scapeGroup.add(im);
+      const bs = im.boundingSphere!;
+      chunkList.push({ m: im, cx: bs.center.x, cz: bs.center.z, r: bs.radius, baseCastShadow: false, maxDist: lightReach, maxShadowDist: 0 });
+    }
+  }
   chunkInstanced(scapeGroup);
   const regLamps = apexLighting.registerStreetLights(lights, hAt, exag);
   console.log('streetscape', trees.length, 'trees', ln, 'lights (playkit clustered:', regLamps + ')');
@@ -2619,13 +2713,17 @@ function addTowerGeometry(items: CityItem[]): void {
 
 // ---------- city buildings ----------
 interface CityItem { kind: 'hero' | 'generic'; slug: string; x: number; z: number; rotY: number; w: number; d: number; h: number; sx?: number; sy?: number; sz?: number; bx?: number; bz?: number }
-const CITY_BATCH = !USE_WEBGPU && !location.search.includes('citybatch=0'); // WebGPU uses hardware InstancedMesh (BatchedMesh loops per-instance drawIndexed without multi_draw)
+const CITY_BATCH = !USE_WEBGPU && !location.search.includes('citybatch=0'); // WebGPU uses CityCellBatches / InstancedMesh (BatchedMesh loops per-instance drawIndexed without multi_draw)
 let cityBatches: CityBatches | null = null;
+let cityCellBatches: CityCellBatches | null = null;
+let cityBroadcastLights: CityBroadcastLights | null = null;
+let signatureTowers: IronportSignatureTowers | null = null;
 let cityCoreReady = false;
 let resolveCityCore: (() => void) | null = null;
 const cityCorePromise = new Promise<void>((res) => { resolveCityCore = res; });
 let cityFullyBuilt = false;
 const cityGroup = new THREE.Group();
+cityGroup.name = 'city';
 scene.add(cityGroup);
 // Ultra-fast 2-draw-call architectural skyline proxy for 60 FPS Map Overview mode (~55k tris instead of 95M tris at 4.9 km altitude!)
 const mapSkylineGroup = new THREE.Group();
@@ -2827,6 +2925,36 @@ async function buildCity(): Promise<void> {
     }
     return true;
   });
+  // Build bespoke sculpted architectural landmarks across Downtown Ironport, Grand Circuit & Civic Riverfront Promenade,
+  // clearing only generic filler boxes under their footprints while preserving every historic Detroit hero landmark!
+  if (signatureTowers) { scene.remove(signatureTowers.group); signatureTowers = null; }
+  const heroAvoid = cityItems
+    .filter((it) => it.kind === 'hero' && it.h >= 50)
+    .map((it) => ({ x: it.bx ?? it.x, z: it.bz ?? it.z, r: Math.max(it.w, it.d) * 0.55 + 12 }));
+  signatureTowers = new IronportSignatureTowers({
+    groundAt: (x, z) => Math.max(hAt(x, z) * exag, meshH(x, z)),
+    isWater: (x, z) => hAt(x, z) < 2.0,
+    onCourse: (x, z, pad) => onCourse(x, z, pad),
+    avoidPoints: heroAvoid,
+  });
+  const sigPlaced = signatureTowers.placed;
+  if (sigPlaced.length > 0) {
+    cityItems = cityItems.filter((it) => {
+      if (it.kind === 'hero') return true;
+      const cx = it.bx ?? it.x, cz = it.bz ?? it.z;
+      const halfSpan = Math.max(it.w, it.d) * 0.45;
+      for (const p of sigPlaced) {
+        if (Math.hypot(cx - p.x, cz - p.z) < p.radius + halfSpan) return false;
+      }
+      return true;
+    });
+    for (const p of sigPlaced) {
+      worldPhys.addSolidCylinder(p.x, p.z, Math.max(10, p.radius * 0.50), 'pillar');
+    }
+    signatureTowers.group.visible = !mapMode && (document.getElementById('tBld') as HTMLInputElement).checked;
+    scene.add(signatureTowers.group);
+    console.log('ironport signature towers placed:', sigPlaced.length, sigPlaced.map((p) => p.id + '@(' + Math.round(p.x) + ',' + Math.round(p.z) + ')').join(', '));
+  }
   buildCollision();
   buildCivic().catch((e) => console.error('civic riverfront failed', e));
   // Check optional Colab GPU v4 upgrade manifest (models-v4 / textures-v4 with 2K neural PBR + ORM + height + baked vertex AO).
@@ -2875,30 +3003,44 @@ async function buildCity(): Promise<void> {
     if (FLOW.has(fm[2])) return `/games/apex/tex/bld/${fm[2]}_${fm[3]}.jpg`;
     return `/games/apex/ironport/textures/${fm[1]}/${fm[2]}_${fm[3]}.jpg`;
   });
-  manager.addHandler(/tex-(shared|hero)-[a-z0-9-]+_(base|nrm|rgh|orm|hgt)\.png/, new GpuTextureLoader(manager) as unknown as THREE.Loader);
+  // Geometry-first progressive city streaming on WebGPU: GLTFLoader builds 100% of Wave 0 3D building geometry
+  // immediately using 1x1 material-matched architectural placeholders (~2-3s), then streams 2K BC7/JPG albedos
+  // & Marigold normals asynchronously into the ~20 shared canonical TSL materials with zero geometry reloads!
+  const DEFER_CITY_TEX = USE_WEBGPU && !LOW && !location.search.includes('defertex=0');
+  const deferredTexQueue = new Map<string, { url: string; isBase: boolean }>();
+  const streamedTexDone = new Map<string, THREE.Texture>();
+  const streamBindings = new Map<string, Set<{ mat: THREE.Material; slot: 'map' | 'normalMap'; refTex: THREE.Texture }>>();
+  manager.addHandler(
+    /tex-(shared|hero)-[a-z0-9-]+_(base|nrm|rgh|orm|hgt)\.png/,
+    new GpuTextureLoader(manager, DEFER_CITY_TEX, (cacheKey, rawUrl, isBase) => {
+      if (!streamedTexDone.has(cacheKey) && !deferredTexQueue.has(cacheKey)) {
+        deferredTexQueue.set(cacheKey, { url: rawUrl, isBase });
+      }
+    }) as unknown as THREE.Loader,
+  );
   const loader = new GLTFLoader(manager);
   // All 86 models used to load at once, and every one asks for its own copy of each texture: with the detailed v3/v4 models that is thousands of requests in flight and the browser
   // refuses some (net::ERR_INSUFFICIENT_RESOURCES), which left buildings out. So: a few models at a time, and the cache answers a texture a second model asks for again.
   THREE.Cache.enabled = true;
-  // 6 concurrent HTTP/KTX2 slots saturate browser + 4 Basis workers cleanly; pause distant downtown generic loads during rural spawn/fly-in so Kettle Crossing & vernon_police compile and present frames immediately!
-  let loadSlots = 6;
+  // 8 concurrent geometry/HTTP slots saturate local/CDN fetches cleanly; pause outer Wave 12 during rural spawn/fly-in.
+  let loadSlots = DEFER_CITY_TEX ? 8 : 6;
   const loadWaiters: (() => void)[] = [];
   const limited = async <T,>(f: () => Promise<T>): Promise<T> => {
     if (loadSlots > 0) loadSlots--; else await new Promise<void>((r) => loadWaiters.push(r));
     try {
-      while (driving && !mapMode && driveIntro?.active) {
+      while (cityCoreReady && driving && !mapMode && driveIntro?.active) {
         await new Promise<void>((r) => setTimeout(r, 250));
       }
       return await f();
     } finally { const w = loadWaiters.shift(); if (w) w(); else loadSlots++; }
   };
   const texCache = new Map<string, THREE.Texture>();
-  const swapLoader = new GpuTextureLoader(manager);
+  const swapLoader = new GpuTextureLoader(manager, false);
   const swapTex = new Map<string, Promise<THREE.Texture>>();
   const loadSwap = (name: string, suffix: 'base' | 'nrm' | 'rgh' | 'orm' | 'hgt'): Promise<THREE.Texture> => {
     const url = `${name}_${suffix}.png`;                          // the URL modifier above points it at the packed jpg/ktx2 of whichever texture set is on
     const cached = texCache.get(url);
-    if (cached) return Promise.resolve(cached);
+    if (cached && !cached.userData?._isPlaceholder) return Promise.resolve(cached);
     if (!swapTex.has(url)) swapTex.set(url, limited(() => swapLoader.loadAsync(url)));
     return swapTex.get(url)!;
   };
@@ -2931,7 +3073,8 @@ async function buildCity(): Promise<void> {
     return tx;
   };
   const loadV4Extras = async (mat: THREE.MeshStandardMaterial): Promise<FacadeV4Maps | undefined> => {
-    if (LOW || TEXSET !== 'v4' || !mat.map || /glass/i.test(mat.name)) return undefined;
+    // On WebGPU mid/low integrated GPUs (unified RAM/VRAM), skip extra 2K _orm & _hgt maps (~1.5 GB VRAM saved, keeps full v4 2K albedo + Marigold normal maps!)
+    if (LOW || TEXSET !== 'v4' || !mat.map || /glass/i.test(mat.name) || (USE_WEBGPU && perfTier !== 'high')) return undefined;
     const stem = mat.name.replace(/_mat.*$/, '');
     if (!v4Tex.has(stem)) return undefined;
     const [ormBase, hgtBase] = await Promise.all([
@@ -2953,6 +3096,7 @@ async function buildCity(): Promise<void> {
         const tint = /bronze/i.test(mat.name) ? 'bronze' : /cerulean/i.test(mat.name) ? 'cerulean' : 'blue';
         let gm = webgpuGlassCache.get(tint);
         if (!gm) {
+          // Always use the sky-mirror architectural TSL glass shader (only 3 shared materials across the whole city!)
           gm = createApexGlassTslMaterial({ tint, shared: tslRegionCtx.shared, gi: tslRegionCtx.gi }) as unknown as THREE.Material;
           gm.name = 'glass_' + tint;
           webgpuGlassCache.set(tint, gm);
@@ -2962,15 +3106,19 @@ async function buildCity(): Promise<void> {
       if (mat.map && !LOW) {
         const isHero = /hero/i.test(mat.name);
         const vtx = hasVtxColors || Boolean(mat.vertexColors);
-        const tintHex = mat.color?.getHex() ?? 0xffffff;
+        // Keep full rich TSL facade lighting (2K albedo + Marigold normal relief + CUDA vertex AO + canyon AO + mortar AO + hero sky-mirror glass + Playkit SH9 GI bounce)
+        // on ALL tiers, deduplicated into ~18 shared canonical materials (skipping only heavy 2-tap height parallax & per-pixel GI micro-noise on mid/low iGPUs)!
+        const useHeight = perfTier === 'high' ? (v4Maps?.heightMap ?? null) : null;
+        const tintHex = (isHero || perfTier === 'high') ? (mat.color?.getHex() ?? 0xffffff) : 0xffffff;
         const mKey = [
           mat.map.userData?.srcKey ?? mat.map.uuid,
           mat.normalMap?.userData?.srcKey ?? '-',
           v4Maps?.ormMap?.userData?.srcKey ?? '-',
-          v4Maps?.heightMap?.userData?.srcKey ?? '-',
+          useHeight?.userData?.srcKey ?? '-',
           isHero ? 1 : 0,
           vtx ? 1 : 0,
           tintHex.toString(16),
+          perfTier === 'high' ? 'H' : 'L',
         ].join('|');
         let fm = webgpuFacadeCache.get(mKey);
         if (!fm) {
@@ -2978,20 +3126,53 @@ async function buildCity(): Promise<void> {
             map: mat.map,
             normalMap: mat.normalMap,
             ormMap: v4Maps?.ormMap ?? null,
-            heightMap: v4Maps?.heightMap ?? null,
+            heightMap: useHeight,
             isHero,
             vertexColors: vtx,
             tintHex,
+            leanGi: perfTier !== 'high',
             shared: tslRegionCtx.shared,
             gi: tslRegionCtx.gi,
           }) as unknown as THREE.Material;
           fm.name = mat.name;
           webgpuFacadeCache.set(mKey, fm);
+          if (DEFER_CITY_TEX) {
+            const bindSlot = (srcTx: THREE.Texture | null | undefined, slot: 'map' | 'normalMap'): void => {
+              const ck = srcTx?.userData?.srcKey as string | undefined;
+              if (!ck || !srcTx) return;
+              const already = streamedTexDone.get(ck);
+              if (already) {
+                const tx = getSharedTex(already, srcTx, ck, slot === 'map' ? THREE.SRGBColorSpace : THREE.NoColorSpace);
+                if (slot === 'map') (fm!.userData.__setStreamedAlbedo as ((t: THREE.Texture) => void) | undefined)?.(tx);
+                else (fm!.userData.__setStreamedNormal as ((t: THREE.Texture) => void) | undefined)?.(tx);
+                return;
+              }
+              if (srcTx.userData?._isPlaceholder) {
+                let set = streamBindings.get(ck);
+                if (!set) { set = new Set(); streamBindings.set(ck, set); }
+                set.add({ mat: fm!, slot, refTex: srcTx });
+              }
+            };
+            bindSlot(mat.map, 'map');
+            bindSlot(mat.normalMap, 'normalMap');
+          }
         }
         return fm;
       }
-      mat.onBeforeCompile = THREE.Material.prototype.onBeforeCompile;
-      return mat;
+      // Deduplicate untextured trim/roof MeshStandardMaterials into canonical shared instances so CityCellBatches merges them cleanly
+      const vtx = hasVtxColors || Boolean(mat.vertexColors);
+      const colHex = (mat.color?.getHex() ?? 0xffffff).toString(16);
+      const rQ = Math.round(mat.roughness * 10);
+      const mQ = Math.round(mat.metalness * 10);
+      const sKey = `plain|${colHex}|${rQ}|${mQ}|${vtx ? 1 : 0}|${mat.side}`;
+      let sm = webgpuFacadeCache.get(sKey);
+      if (!sm) {
+        mat.onBeforeCompile = THREE.Material.prototype.onBeforeCompile;
+        mat.vertexColors = vtx;
+        webgpuFacadeCache.set(sKey, mat);
+        sm = mat;
+      }
+      return sm;
     }
     // Reset onBeforeCompile before patching so cloned variant materials never stack duplicate shader passes
     mat.onBeforeCompile = THREE.Material.prototype.onBeforeCompile;
@@ -3069,9 +3250,10 @@ async function buildCity(): Promise<void> {
   try { variantTypes = ((await (await fetch(BASE + 'generic_variants.json')).json()) as { types: typeof variantTypes }).types; } catch { /* no variants: every building keeps its own materials */ }
   const variantOf = (it: CityItem): number => {
     if (location.search.includes('variants=0') || it.kind !== 'generic' || !variantTypes[it.slug]?.schemes?.length) return 0;     // ?variants=0: every building keeps its own materials
-    // On WebGPU mid/low iGPUs (without BatchedMesh multi_draw), cap generic variants to 2 schemes instead of 6 to slash city draw calls by 3x!
+    // On WebGPU mid/low iGPUs (without BatchedMesh multi_draw), keep 1 canonical scheme per generic building type (cuts city draw calls in half!)
+    if (USE_WEBGPU && perfTier !== 'high') return 0;
     const rawN = variantTypes[it.slug].schemes.length;
-    const n = (USE_WEBGPU && perfTier !== 'high') ? Math.min(2, rawN) : rawN;
+    const n = rawN;
     if (n <= 1) return 0;
     const t = Math.sin(it.x * 12.9898 + it.z * 78.233 + it.rotY * 3.1) * 43758.5453;
     const u = t - Math.floor(t);
@@ -3144,24 +3326,37 @@ async function buildCity(): Promise<void> {
   mapSkylineGroup.visible = mapMode && showBuildings;
   cityVisibility.batches = [];
   cityBatches?.dispose(); cityBatches = null;
+  cityCellBatches?.dispose(); cityCellBatches = null;
   cityCoreReady = false;
   cityFullyBuilt = false;
+  const CITY_CELLS = USE_WEBGPU && perfTier !== 'high' && !location.search.includes('citycells=0');
   if (CITY_BATCH) {
     cityBatches = new CityBatches([]);
     cityGroup.add(cityBatches.group);
+  } else if (CITY_CELLS) {
+    cityCellBatches = new CityCellBatches();
+    cityGroup.add(cityCellBatches.group);
   }
-  // Priority-sort building groups so Downtown / Grand Circuit Hero Landmarks & Lap-1 corridor buildings
-  // load and appear FIRST, instead of waiting for every distant suburb block to finish!
+  // Priority-sort building groups so ALL Downtown + Ironport Grand Circuit corridor landmarks & blocks
+  // load in Wave 0 before Lap 1 — zero pop-in along any straight or waterfront turn!
   const DT_X = 5250, DT_Z = 1450;
+  const circuitSamples: Array<[number, number]> = [];
+  for (let i = 0; i < cityPath.length; i += 6) circuitSamples.push([cityPath[i].x, cityPath[i].z]);
   const groupPri = (key: string, items: CityItem[]): number => {
     if (key.startsWith('hero/')) return 0;
-    let bestD = Infinity, maxH = 0;
+    let bestD = Infinity, bestCircuitD2 = Infinity, maxH = 0;
     for (const it of items) {
-      const d = Math.hypot((it.bx ?? it.x) - DT_X, (it.bz ?? it.z) - DT_Z);
+      const ix = it.bx ?? it.x, iz = it.bz ?? it.z;
+      const d = Math.hypot(ix - DT_X, iz - DT_Z);
       if (d < bestD) bestD = d;
       if (it.h > maxH) maxH = it.h;
+      for (let k = 0; k < circuitSamples.length; k++) {
+        const dx = ix - circuitSamples[k][0], dz = iz - circuitSamples[k][1];
+        const d2 = dx * dx + dz * dz;
+        if (d2 < bestCircuitD2) bestCircuitD2 = d2;
+      }
     }
-    if (bestD < 1350 || maxH >= 24) return 0;
+    if (bestD < 1450 || bestCircuitD2 < 850 * 850 || maxH >= 22) return 0;
     if (bestD < 2700) return 1;
     return 2;
   };
@@ -3177,6 +3372,21 @@ async function buildCity(): Promise<void> {
     const proto = await variantProto(kind, slug, Number(vs));
     if (!proto) return;
     proto.updateMatrixWorld(true);
+    // On WebGPU mid/low iGPUs, strip tiny generic sub-meshes & __v4_* micro-trims BEFORE merging each building prototype by material
+    // — collapses 15-30 separate GLTF mesh nodes per generic AND hero skyscraper down to 4-6 clean InstancedMeshes!
+    if (USE_WEBGPU && perfTier !== 'high' && !proto.userData._mergedByMat) {
+      const drop: THREE.Mesh[] = [];
+      proto.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
+        if (/^.*__v4_/.test(m.name) || (kind === 'generic' && (m.geometry.boundingSphere?.radius ?? 5) < 2.8)) drop.push(m);
+      });
+      for (const d of drop) { d.parent?.remove(d); d.geometry.dispose(); }
+      mergeByMaterial(proto);
+      proto.userData._mergedByMat = true;
+      proto.updateMatrixWorld(true);
+    }
     const meshes: THREE.Mesh[] = [];
     proto.traverse((o) => { if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh); });
     const place = new THREE.Matrix4(), rotM = new THREE.Matrix4(), scM = new THREE.Matrix4();
@@ -3189,22 +3399,24 @@ async function buildCity(): Promise<void> {
     for (const m of meshes) {
       if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
       const isV4Micro = /__v4_/.test(m.name);
-      // On WebGPU mid/low iGPUs, skip __v4_* micro-trim sub-meshes (cornices/mullions/caps) that otherwise create 1,500+ extra InstancedMesh draw calls!
-      if (isV4Micro && USE_WEBGPU && perfTier !== 'high') continue;
+      // On WebGPU mid/low iGPUs, skip __v4_* micro-trim & tiny (< 2.8 m) generic sub-meshes that multiply draw calls without changing silhouette
+      if (USE_WEBGPU && perfTier !== 'high' && (isV4Micro || (kind === 'generic' && (m.geometry.boundingSphere?.radius ?? 5) < 2.8))) continue;
       const transforms = placements.map((placement) => placement.clone().multiply(m.matrixWorld));
       const isHeroRelief = kind === 'hero' && /_front$/i.test(m.name);
-      // Main building shells cast exact macro shadows; micro-trims & high-poly hero front reliefs skip shadow pass to cut shadow tris in half!
-      const castShadow = !isV4Micro && !isHeroRelief && (m.geometry.boundingSphere?.radius ?? 5) >= 4.5;
+      const bRad = m.geometry.boundingSphere?.radius ?? 5;
+      // Main building shells cast exact macro shadows; on iGPU mid/low only hero landmarks & tall buildings (>= 12 m radius) cast shadows to cut shadow-pass spikes!
+      const castShadow = !isV4Micro && !isHeroRelief && ((USE_WEBGPU && perfTier !== 'high') ? (kind === 'hero' || bRad >= 12) : bRad >= 4.5);
       // Batch generic buildings AND shared-material hero sub-meshes (glass, trims, __v4_* cornices/pilasters, roofs)
       // into CityBatches to eliminate ~280 redundant 1-instance hero draws! Keep hero-unique facades & central-station unbatched.
       const matName = ((m.material as THREE.Material)?.name ?? '');
       const canBatchHeroShared = kind === 'hero' && slug !== 'central-station' && !/hero/i.test(matName);
-      if (CITY_BATCH && (kind !== 'hero' || canBatchHeroShared)) {
+      if ((CITY_BATCH && (kind !== 'hero' || canBatchHeroShared)) || CITY_CELLS) {
         // Cull v4 micro-trims (cornices, pilasters, eaves, chimneys) cleanly beyond 145 m so close-up 3D stays full detail while distant skyline stays lean
         outParts.push({ geometry: m.geometry, material: m.material as THREE.Material, transforms, castShadow, maxDist: isV4Micro ? 145 : undefined });
         continue;
       }
       const batch = new InstanceVisibility(m.geometry, m.material, transforms);
+      batch.mesh.name = `${kind}/${slug}:${m.name || 'm'}`;
       if (!castShadow) batch.mesh.castShadow = false;
       if (isV4Micro) batch.maxDist = 175;
       cityVisibility.batches.push(batch);
@@ -3213,25 +3425,163 @@ async function buildCity(): Promise<void> {
     done += items.length;
   };
 
-  // Wave 0: Downtown + Grand Circuit Hero Landmarks & Tall/Corridor Generics -> placed IMMEDIATELY before Lap 1!
+  // Progressive 2K BC7/JPG texture streamer: upgrades placeholder textures in-place on the ~20 canonical shared TSL materials
+  // with ZERO shader recompile and ZERO geometry/CityCellBatches rebuild!
+  let streamRunning = false;
+  const streamCityTextures = async (): Promise<void> => {
+    if (!DEFER_CITY_TEX || streamRunning || deferredTexQueue.size === 0) return;
+    streamRunning = true;
+    try {
+      await Promise.race([ktxReadyPromise, new Promise<void>((r) => setTimeout(r, 400))]);
+      const tStart = performance.now();
+      let streamedCount = 0;
+      while (deferredTexQueue.size > 0) {
+        const batch = [...deferredTexQueue.entries()].sort((a, b) => {
+          // Priority 0: shared & hero _base albedos FIRST so buildings look photoreal right away; _nrm Marigold normals SECOND
+          if (a[1].isBase !== b[1].isBase) return a[1].isBase ? -1 : 1;
+          const aShared = a[0].startsWith('tex-shared-') ? 0 : 1;
+          const bShared = b[0].startsWith('tex-shared-') ? 0 : 1;
+          return aShared - bShared;
+        });
+        for (const [ck] of batch) deferredTexQueue.delete(ck);
+        const conc = driving ? 2 : 6;
+        await runWithConcurrency(batch, conc, async ([cacheKey, item]) => {
+          if (streamedTexDone.has(cacheKey)) return;
+          try {
+            const loaded = await swapLoader.loadAsync(item.url);
+            loaded.userData.srcKey = cacheKey;
+            streamedTexDone.set(cacheKey, loaded);
+            const bindings = streamBindings.get(cacheKey);
+            if (bindings) {
+              for (const b of bindings) {
+                const cs = b.slot === 'map' ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+                const tx = getSharedTex(loaded, b.refTex, cacheKey, cs);
+                texCache.set(cacheKey, tx);
+                if (b.slot === 'map') {
+                  const fn = b.mat.userData.__setStreamedAlbedo as ((t: THREE.Texture) => void) | undefined;
+                  if (fn) fn(tx);
+                  else { (b.mat as THREE.MeshStandardMaterial).map = tx; b.mat.needsUpdate = true; }
+                } else {
+                  const fn = b.mat.userData.__setStreamedNormal as ((t: THREE.Texture) => void) | undefined;
+                  if (fn) fn(tx);
+                  else { (b.mat as THREE.MeshStandardMaterial).normalMap = tx; b.mat.needsUpdate = true; }
+                }
+              }
+              streamBindings.delete(cacheKey);
+            } else {
+              texCache.set(cacheKey, loaded);
+            }
+            streamedCount++;
+            if (driving) await new Promise<void>((r) => requestAnimationFrame(() => r()));
+          } catch { /* keep architectural color placeholder if a single texture fails */ }
+        });
+      }
+      if (streamedCount > 0) {
+        console.log(`[apex-stream] streamed ${streamedCount} 2K city textures in ${Math.round(performance.now() - tStart)} ms`);
+      }
+    } finally {
+      streamRunning = false;
+    }
+  };
+
+  // Quietly pre-compile the ~20 canonical shared Downtown building & glass WebGPU pipelines while browsing the Map Overview
+  // so clicking START drops straight into the 3D city with zero WGSL compile stall during countdown '3'!
+  let cityPipelinesWarmed = false;
+  const warmWebGpuCityPipelines = async (): Promise<void> => {
+    if (!USE_WEBGPU || !webgpuReady || cityPipelinesWarmed || driving) return;
+    cityPipelinesWarmed = true;
+    await new Promise<void>((r) => requestAnimationFrame(() => r()));
+    if (driving) return;
+    const t0 = performance.now();
+    const probe = new THREE.Group();
+    const geoPlain = new THREE.PlaneGeometry(0.1, 0.1);
+    const geoVtx = new THREE.PlaneGeometry(0.1, 0.1);
+    const vc = geoVtx.getAttribute('position').count;
+    geoVtx.setAttribute('color', new THREE.BufferAttribute(new Float32Array(vc * 3).fill(1), 3));
+    const seen = new Set<THREE.Material>();
+    for (const m of [...webgpuGlassCache.values(), ...webgpuFacadeCache.values()]) {
+      if (seen.has(m)) continue;
+      seen.add(m);
+      const pm = new THREE.Mesh((m as THREE.MeshStandardMaterial).vertexColors ? geoVtx : geoPlain, m);
+      pm.frustumCulled = false;
+      pm.castShadow = false;
+      pm.receiveShadow = true;
+      probe.add(pm);
+    }
+    try {
+      const ca = (renderer as unknown as { compileAsync?: (o: THREE.Object3D, c: THREE.Camera, ts?: THREE.Scene) => Promise<void> }).compileAsync;
+      if (typeof ca === 'function' && probe.children.length > 0) {
+        await ca.call(renderer, probe, camera, scene);
+        console.log(`[apex-webgpu] pre-warmed ${probe.children.length} shared city pipelines in ${Math.round(performance.now() - t0)} ms`);
+      }
+    } catch (err) {
+      console.warn('[apex-webgpu] city pipeline pre-warm skipped:', err);
+    } finally {
+      geoPlain.dispose();
+      geoVtx.dispose();
+    }
+  };
+
+  // Wave 0: Downtown + Grand Circuit Hero Landmarks & Tall/Corridor Generics -> geometry placed IMMEDIATELY during Map boot!
+  // With DEFER_CITY_TEX + 520 m cells + 36 ms boot slice budget, ALL Wave 0 3D geometry finishes in ~2-3s before Map menu fades in,
+  // and keeps Downtown city draws lean (~50-65 draws instead of 195!) out to 720 m view distance!
+  const wave0T0 = performance.now();
   const wave0Parts: CityPart[] = [];
-  await runWithConcurrency(wave0, 6, (entry) => loadGroupInto(entry, wave0Parts));
+  await runWithConcurrency(wave0, DEFER_CITY_TEX ? 10 : 6, (entry) => loadGroupInto(entry, wave0Parts));
   if (CITY_BATCH && cityBatches && wave0Parts.length) {
     await cityBatches.appendPartsSliced(wave0Parts, 8);
+  } else if (CITY_CELLS && cityCellBatches && wave0Parts.length) {
+    await cityCellBatches.appendPartsSliced(wave0Parts, 520, 140000, driving ? 6 : 36);
   }
   cityCoreReady = true;
   resolveCityCore?.();
   resolveCityCore = null;
   (window as any).cityCount = done;
-  console.log('city Wave 0 (Downtown/Lap-1 core) ready:', done, 'of', cityItems.length, 'batches:', cityBatches?.drawCalls ?? 0);
+  console.log('city Wave 0 (Downtown/Lap-1 core) ready:', done, 'of', cityItems.length, 'batches:', cityBatches?.drawCalls ?? cityCellBatches?.drawCalls ?? 0, 'in', Math.round(performance.now() - wave0T0), 'ms');
+  // Build Downtown architectural crown/pylon lighting + live race broadcast LED video walls & marquee ribbons (all ~5 draw calls!)
+  if (!cityBroadcastLights && cityItems.length > 0 && cityPath.length > 16) {
+    cityBroadcastLights = new CityBroadcastLights({
+      cityItems,
+      cityPath,
+      groundMin,
+      groundAt: (x, z) => Math.max(hAt(x, z) * exag, meshH(x, z)),
+      halfTrackWidth: 5.5,
+      gantryIndex: 0,
+      onCourse: (x, z, pad) => onCourse(x, z, pad, ['ironport_grand_circuit']),
+    });
+    cityBroadcastLights.group.visible = !mapMode;
+    scene.add(cityBroadcastLights.group);
+    console.log('city architectural lights & live LED walls:', JSON.stringify(cityBroadcastLights.counts));
+  }
+  // Immediately stream 2K BC7/JPG facade & normal textures into the ~20 shared materials + pre-warm WebGPU pipelines while on Map Overview!
+  void streamCityTextures();
+  void warmWebGpuCityPipelines();
 
   // Wave 1 (single merged wave for all outer city parts): avoids creating 15+ duplicate BatchedMesh sets per material!
-  // Streams quietly in the background, then builds ONE clean merged set of BatchedMeshes time-sliced at 4 ms/frame.
+  // On WebGPU mid/low iGPUs, gently pace Wave 1 while driving so background GLTF loads & WGSL compiles never stall the countdown or framerate!
   const wave1Parts: CityPart[] = [];
-  await runWithConcurrency(wave12, driving ? 4 : 6, (entry) => loadGroupInto(entry, wave1Parts));
+  const wave1Conc = (USE_WEBGPU && perfTier !== 'high') ? 2 : (driving ? 4 : 6);
+  await runWithConcurrency(wave12, wave1Conc, async (entry) => {
+    if (USE_WEBGPU && perfTier !== 'high' && driving) {
+      // Never allocate outer city GLTF/WebGPU buffers during closed-circuit races or while driving far from Downtown — eliminates mid-race stutters!
+      while (driving && (driving.lock > 0 || driving.circuitId !== 'free' || Math.hypot(driving.pos.x - DT_X, driving.pos.z - DT_Z) > 1650)) {
+        await new Promise((r) => setTimeout(r, 400));
+      }
+      await new Promise((r) => setTimeout(r, 180));
+    }
+    await loadGroupInto(entry, wave1Parts);
+  });
+  if (USE_WEBGPU && perfTier !== 'high' && driving && driving.circuitId !== 'free') {
+    while (driving && driving.circuitId !== 'free') {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  }
   if (CITY_BATCH && cityBatches && wave1Parts.length) {
     await cityBatches.appendPartsSliced(wave1Parts, driving ? 4 : 8);
+  } else if (CITY_CELLS && cityCellBatches && wave1Parts.length) {
+    await cityCellBatches.appendPartsSliced(wave1Parts, 520, 140000, driving ? 4 : 24);
   }
+  if (DEFER_CITY_TEX && deferredTexQueue.size > 0) void streamCityTextures();
 
   cityFullyBuilt = true;
   if (CITY_BATCH && cityBatches) {
@@ -3259,6 +3609,7 @@ async function buildCity(): Promise<void> {
 // Each zone has its outline and is paved: concrete yards under the industrial buildings, a lighter quay strip under the waterfront rows. They sit on the drawn terrain, and they
 // are named on the map. The far bank has them too, so there is something over the river.
 const zoneGroup = new THREE.Group();
+zoneGroup.name = 'zones';
 scene.add(zoneGroup);
 async function buildZones(): Promise<void> {
   const res = await fetch(BASE + 'zones.json');
@@ -3388,15 +3739,15 @@ const NIGHT_K: Record<string, number> = { clear: 0, golden: 0, sunrise: 0.15, su
 const skyFog = new THREE.Color();
 // each race has a plan: what the sky does over the race (seconds from the green light). The map shows the worst of it as the forecast.
 const WEATHER_PLAN: Record<string, { t: number; w: string }[]> = {
-  city: [{ t: 0, w: 'overcast' }, { t: 70, w: 'rain' }, { t: 200, w: 'storm' }],
-  cliff: [{ t: 0, w: 'fog' }, { t: 140, w: 'overcast' }, { t: 320, w: 'partly' }],
+  city: [{ t: 0, w: 'partly' }, { t: 130, w: 'overcast' }, { t: 230, w: 'rain' }],
+  cliff: [{ t: 0, w: 'partly' }, { t: 140, w: 'overcast' }, { t: 320, w: 'partly' }],
   rally: [{ t: 0, w: 'partly' }, { t: 60, w: 'overcast' }, { t: 150, w: 'rain' }],
-  ind: [{ t: 0, w: 'overcast' }, { t: 90, w: 'rain' }, { t: 240, w: 'overcast' }],
+  ind: [{ t: 0, w: 'partly' }, { t: 110, w: 'overcast' }, { t: 240, w: 'rain' }],
   civ: [{ t: 0, w: 'clear' }, { t: 180, w: 'partly' }, { t: 330, w: 'clear' }],        // a fine evening on the riverfront
   harb: [{ t: 0, w: 'partly' }, { t: 120, w: 'overcast' }, { t: 260, w: 'rain' }],       // sea weather rolling in over the harbour
   superior: [{ t: 0, w: 'clear' }, { t: 420, w: 'fog' }, { t: 720, w: 'partly' }],         // clear on the coast, cloud on the pass, sun again in the forest
   escarpment: [{ t: 0, w: 'partly' }, { t: 150, w: 'clear' }, { t: 330, w: 'overcast' }],    // broken cloud by the lake, clear on the crest, cloud coming in for the descent
-  free: [{ t: 0, w: 'clear' }, { t: 240, w: 'partly' }, { t: 540, w: 'overcast' }, { t: 840, w: 'rain' }],
+  free: [{ t: 0, w: 'partly' }, { t: 240, w: 'clear' }, { t: 540, w: 'overcast' }, { t: 840, w: 'rain' }],
 };
 let wxOverride = 'auto';
 try { const o = localStorage.getItem('apex.wx'); if (o && (o === 'auto' || WEATHERS[o])) wxOverride = o; } catch { /* storage blocked */ }
@@ -3420,12 +3771,19 @@ function stepWeather(dt: number): void {
   renderer.toneMappingExposure = curTod.exposure + w.exposure + f * 0.45;
   scene.environmentIntensity = curTod.env * (0.45 + 0.55 * w.sun) * (1 + f);
   wetU.value = w.wet;
+  const nkCloud = curTod.nightK;
   for (const l of cloudLayers) {
     const m = l.mesh.material as THREE.MeshBasicMaterial;
     if (!cloudBase.has(l.mesh)) cloudBase.set(l.mesh, m.opacity);
-    m.opacity = Math.min(0.96, cloudBase.get(l.mesh)! * w.cloud);
-    m.color.set(0xffffff).lerp(tmpC.set(0x2a303c), w.cloudDark * 0.92);
+    const op = Math.min(0.92, cloudBase.get(l.mesh)! * w.cloud) * (1 - nkCloud * 0.52);
+    m.opacity = op;
+    // Tint clouds smoothly from sunlit golden/day -> sunset amber -> deep moonlit midnight navy (NEVER bright white over stars at night!)
+    m.color.set(0xffffff).lerp(curTod.sunCol, 0.24).lerp(curTod.hemiSky, 0.12);
+    m.color.lerp(tmpC.set(0x2a303c), w.cloudDark * 0.88);
+    m.color.lerp(tmpC.set(0x10192e), nkCloud * 0.90);
     if (f > 0.05) m.color.lerp(tmpC.set(0xdfe8ff), f * 0.6);
+    if (m.userData?.uTint?.value) (m.userData.uTint.value as THREE.Color).copy(m.color);
+    if (m.userData?.uOp) m.userData.uOp.value = op;
   }
   if (mapMode) {
     if (terrainMat && !USE_WEBGPU) terrainMat.color.set(0xffffff).lerp(WX_TINT, Math.min(1, w.fogGrey * 0.7 + w.rain * 0.25));
@@ -3433,7 +3791,11 @@ function stepWeather(dt: number): void {
     if (terrainMat && !USE_WEBGPU) terrainMat.color.set(0xffffff);
     if (scene.fog instanceof THREE.Fog) {
       scene.fog.color.copy(curTod.fogCol).lerp(WX_GREY, w.fogGrey).multiplyScalar(1 - w.cloudDark * 0.35 + f * 0.4);
-      scene.fog.near = curTod.fogNear * w.fogNear; scene.fog.far = curTod.fogFar * w.fogFar;
+      // Keep foreground & mid-ground crisp and deep-contrast (no chalky grey haze 40 m ahead of the hood!)
+      const minNear = wx.name === 'fog' ? 220 : 650;
+      const minFar = wx.name === 'fog' ? 1800 : 4800;
+      scene.fog.near = Math.max(minNear, curTod.fogNear * w.fogNear);
+      scene.fog.far = Math.max(minFar, curTod.fogFar * w.fogFar);
     }
     scene.backgroundIntensity = 1 - 0.62 * w.fogGrey * (1 - f * 0.7);
   }
@@ -3565,9 +3927,9 @@ function tintClouds(sun: number, sky: number): void {
 // Menu tracks on the map screen and briefings; the driving tracks alternate while driving (lists in music/music.json, built by tools/prep_music.py). Browsers only
 // allow audio after a first click or key press, so playback starts on the first gesture. Tracks crossfade.
 const MUSIC_BASE = '/games/apex/music/';
-let musicVol = 0.6;
+let musicVol = 0.8;
 try { const v = parseFloat(localStorage.getItem('apex.musicVol') ?? ''); if (!Number.isNaN(v)) musicVol = Math.min(1, Math.max(0, v)); } catch { /* storage blocked */ }
-let musicDuck = 1;                      // the music sits well under the engine while driving
+let musicDuck = 1;                      // stays full 1.0 in-race so player controls exact Music vs Engine vs SFX mix!
 let musicWanted: 'menu' | 'drive' = 'menu';
 let musicUnlocked = false;
 let driveIdx = 0;
@@ -3669,6 +4031,7 @@ document.body.appendChild(vignette);
   document.body.appendChild(tag);
 }
 const menuEl = document.createElement('div');
+menuEl.id = 'menu';
 menuEl.style.cssText = 'position:fixed;inset:0;display:none;pointer-events:none;font-family:Inter,Manrope,sans-serif;color:#fff;user-select:none';
 menuEl.innerHTML = `
   <div id="menuTitle" style="position:absolute;left:44px;top:26px;width:440px">
@@ -4219,12 +4582,15 @@ function setMapMode(on: boolean): void {
   // (restored instantaneously when flying down into a circuit, entering hero showcase, or starting a race!)
   const showBuildings = (document.getElementById('tBld') as HTMLInputElement).checked;
   cityGroup.visible = !on && showBuildings;
+  if (cityBroadcastLights) cityBroadcastLights.group.visible = !on && showBuildings;
+  if (signatureTowers) signatureTowers.group.visible = !on && showBuildings;
   mapSkylineGroup.visible = on && showBuildings;
   mapWorldProxyGroup.visible = on && showBuildings;
   mapRoadsGroup.visible = on;
   // Never turn autoUpdate back on in WebGPU/WebGL driving mode — spatialCuller throttles shadow redraws every shadowStride frames!
   renderer.shadowMap.autoUpdate = false;
-  if (!on) renderer.shadowMap.needsUpdate = true;
+  sun.shadow.autoUpdate = false;
+  if (!on) { renderer.shadowMap.needsUpdate = true; sun.shadow.needsUpdate = true; }
   if (on) {
     mapBackdrop = mapBackdrop ?? makeMapBackdrop();
     scene.background = mapBackdrop;
@@ -4283,6 +4649,7 @@ const BRIEFS: Record<string, { view: string; drive: string; tag: string; name: s
   free: { view: 'downtown', drive: 'free', tag: 'FREE ROAM', name: 'Explore the region', color: '#D0BCFF', lines: ['150 km² open region', 'Port Halcyon, the dune coast, the harbor and the freeway', 'Drive anywhere'], blurb: 'Start on the coastal highway and go wherever the roads lead.' },
 };
 const briefEl = document.createElement('div');
+briefEl.id = 'brief';
 briefEl.style.cssText = 'position:fixed;left:44px;bottom:48px;width:420px;display:none;font-family:Inter,sans-serif;color:#fff;padding:22px 24px;background:rgba(26,0,38,.78);backdrop-filter:blur(16px);border:1px solid rgba(255,255,255,.12);border-radius:28px;box-shadow:0 24px 60px rgba(0,0,0,.55);user-select:none';
 document.body.appendChild(briefEl);
 const countEl = document.createElement('div');
@@ -4461,6 +4828,7 @@ function stepFly(dt: number): void {
 let trackKit: TrackKit | null = null;
 let goClock = 99;
 const furnitureGroup = new THREE.Group();
+furnitureGroup.name = 'furniture';
 scene.add(furnitureGroup);
 let cityRoadMat: THREE.Material | null = null;                  // US MUTCD 2-lane asphalt (double-yellow center, white outer fog lines, wet-road PBR)
 let usRoadMat4Lane: THREE.Material | null = null;               // US MUTCD 4-lane highway/freeway asphalt (double-yellow divider + dashed white lanes)
@@ -4554,26 +4922,51 @@ function buildFurniture(): void {
     if (rWall) furnitureGroup.add(rWall);
     if (hWall) furnitureGroup.add(hWall);
   }
-  // kerbs on the inside of each corner (reference kerb texture)
+  // Crisp uniform-width FIA corner apex kerbs (0.95 m constant width tucked strictly along the inside corner curb;
+  // anchored +4.5 cm above the exact road centerline+edge height with strong polygonOffset so they NEVER z-fight, widen, or chase the car!)
   const corners = c.corners ?? [];
   const kAcc: Acc = { pos: [], idx: [], uv: [] };
+  const KERB_W = 0.95;
+  const KERB_TILE = 2.6;
   for (const cn of corners) {
     let bi2 = 0, best = 1e9;
     for (let i = 0; i < n; i++) { const d = Math.hypot(P[i].x - cn.x, P[i].z - cn.z); if (d < best) { best = d; bi2 = i; } }
     const inside = cn.turn > 0 ? 1 : -1;
-    const kp: number[][] = [];
-    for (let k = -8; k <= 8; k++) {
+    const base = kAcc.pos.length / 3;
+    let dist = 0;
+    let prevX = 0, prevZ = 0;
+    const kHalf = 4; // +/- 4 segments (~48 m strictly around the corner apex — never spilling down straightaways!)
+    const segCount = kHalf * 2 + 1;
+    for (let s = 0; s < segCount; s++) {
+      const k = s - kHalf;
       const i = (bi2 + k + n) % n;
       const [tx, tz] = tan(i);
-      kp.push([P[i].x + -tz * (HALF - 0.6) * inside, P[i].z + tx * (HALF - 0.6) * inside]);
+      const nx = -tz * inside, nz = tx * inside;
+      // Tuck outer edge flush to the curb line (HALF) and inner edge exactly KERB_W (0.95 m) inward
+      const outX = P[i].x + nx * (HALF + 0.02), outZ = P[i].z + nz * (HALF + 0.02);
+      const inX = P[i].x + nx * (HALF - KERB_W), inZ = P[i].z + nz * (HALF - KERB_W);
+      const sCenter = Math.max(hAt(P[i].x, P[i].z) * exag, meshH(P[i].x, P[i].z));
+      const sOut = Math.max(hAt(outX, outZ) * exag, meshH(outX, outZ));
+      const sIn = Math.max(hAt(inX, inZ) * exag, meshH(inX, inZ));
+      const yKerb = Math.max(sCenter, sOut, sIn) + RIBBON_LIFT + 0.045;
+      kAcc.pos.push(inX, yKerb, inZ, outX, yKerb, outZ);
+      if (s > 0) dist += Math.hypot(outX - prevX, outZ - prevZ);
+      prevX = outX; prevZ = outZ;
+      kAcc.uv!.push(0, dist / KERB_TILE, 1, dist / KERB_TILE);
     }
-    addRibbonUV(kAcc, kp, 1.9, RIBBON_LIFT + 0.02, 3.4);      // painted flush with the road: a 50 cm kerb was a ramp the car climbed and rolled on
+    for (let s = 0; s < segCount - 1; s++) {
+      const v = base + s * 2;
+      kAcc.idx.push(v, v + 1, v + 2, v + 1, v + 3, v + 2);
+    }
   }
   {
-    const km = accMeshTex(kAcc, loadPbr1K('ground_rumble_strip.png', true, 0xc8382e, 512), 0.78, -5);
+    const km = accMeshTex(kAcc, loadPbr1K('ground_rumble_strip.png', true, 0xc8382e, 512), 0.78, -9);
     const kMat = km.material as THREE.MeshStandardMaterial;
+    kMat.polygonOffset = true;
+    kMat.polygonOffsetFactor = -9;
+    kMat.polygonOffsetUnits = -18;
     kMat.normalMap = loadPbr1K('ground_rumble_strip_normal.png', false, 0x8080ff, 512);
-    kMat.normalScale = new THREE.Vector2(1.15, 1.15);
+    kMat.normalScale = new THREE.Vector2(1.05, 1.05);
     kMat.roughnessMap = loadPbr1K('ground_rumble_strip_roughness.png', false, 0xc0c0c0, 512);
     kMat.needsUpdate = true;
     furnitureGroup.add(km);
@@ -4616,7 +5009,7 @@ function buildFurniture(): void {
   // start and finish gantry with a chequered line
   const [gx, gz] = tan(0);
   const g0 = P[0];
-  const gy = hAt(g0.x, g0.z) * exag;
+  const gy = Math.max(hAt(g0.x, g0.z) * exag, meshH(g0.x, g0.z));
   const gantry = new THREE.Group();
   box(1.4, 8.5, 1.4, 0x2a2f38, -(HALF + 2.5), 4.25, 0, gantry);
   box(1.4, 8.5, 1.4, 0x2a2f38, HALF + 2.5, 4.25, 0, gantry);
@@ -4647,7 +5040,7 @@ function buildFurniture(): void {
   addRibbonUV(pitAcc, pit, 8, 0.33, 5);
   furnitureGroup.add(accMeshTex(pitAcc, gameTex('pit'), 0.9, -3));
   trackKit = new TrackKit({ P, corners: corners as { x: number; z: number; turn: number }[], ground: (x, z) => hAt(x, z) * exag, HALF, pitFrom: 0, pitTo: 41, gantryAt: 0 });
-  mergeByMaterial(trackKit.group, 600);
+  mergeStaticScenery(trackKit.group, 800);
   furnitureGroup.add(trackKit.group);
   const gridQuad = new THREE.Mesh(new THREE.PlaneGeometry(26, 10.5), new THREE.MeshStandardMaterial({ map: gameTex('grid', false), roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 }));
   gridQuad.rotation.order = 'YXZ';
@@ -4656,17 +5049,18 @@ function buildFurniture(): void {
   gridQuad.position.set(g0.x - gx * 15, hAt(g0.x - gx * 15, g0.z - gz * 15) * exag + RIBBON_LIFT + 0.012, g0.z - gz * 15);      // on the road surface: 40 cm up it buried the car
   furnitureGroup.add(gridQuad);
   furnitureGroup.add(ribbon(pit, null, 0.4, 0xf2f2f2, 0.42));
-  // sector markers at one third and two thirds of the lap
+  // sector markers at one third and two thirds of the lap (exact road-deck max(hAt, meshH) height matching CityBroadcastLights LED signboards mounted atop!)
   [[Math.floor(n / 3), 0x2e7bd6, 'SECTOR 2'], [Math.floor(2 * n / 3), 0xa44cd6, 'SECTOR 3']].forEach(([idx, color, text]) => {
     const p = P[idx as number], [tx, tz] = tan(idx as number);
+    const archY = Math.max(hAt(p.x, p.z) * exag, meshH(p.x, p.z));
     const arch = new THREE.Group();
     box(0.8, 6, 0.8, color as number, -(HALF + 1.8), 3, 0, arch);
     box(0.8, 6, 0.8, color as number, HALF + 1.8, 3, 0, arch);
     box(2 * (HALF + 1.8), 0.8, 0.8, color as number, 0, 6, 0, arch);
-    arch.position.set(p.x, hAt(p.x, p.z) * exag, p.z);
+    arch.position.set(p.x, archY, p.z);
     arch.rotation.y = Math.atan2(tx, tz);
     furnitureGroup.add(arch);
-    furnitureGroup.add(label(text as string, p.x, hAt(p.x, p.z) * exag + 22, p.z, '#' + (color as number).toString(16).padStart(6, '0'), 0.5));
+    furnitureGroup.add(label(text as string, p.x, archY + 22, p.z, '#' + (color as number).toString(16).padStart(6, '0'), 0.5));
   });
   // corner names
   for (const cn of corners) {
@@ -4865,6 +5259,7 @@ function buildFurniture(): void {
   for (const sol of ruralBuilt.solids) worldPhys.addSolidBox(sol.x, sol.z, sol.hw, sol.hd, sol.rot, sol.kind);
   for (const brk of ruralBuilt.breakables) worldPhys.addBreakable(brk.x, brk.y, brk.z, brk.kind, brk.radius);
   mergeStaticScenery(ruralBuilt.group, 500);
+  ruralBuilt.group.name = 'rural-detail';
   furnitureGroup.add(ruralBuilt.group);
 
   // Real 3D Great Lakes Coastline Geometry, Riprap Rocks, Boardwalks, Piers, Lighthouses & Drivable Lakeside Streets
@@ -4877,6 +5272,7 @@ function buildFurniture(): void {
       blocked: (x, z, r) => onCourse(x, z, r) || paintedRoad(x, z, r) || insideBuilding(x, z, r),
       roadMaterial: cityRoadMat ?? undefined,
     });
+    coastalBuilt.group.name = 'coastal-world';
     furnitureGroup.add(coastalBuilt.group);
     mapWorldProxyGroup.add(coastalBuilt.mapProxy);
     if (coastalBuilt.decks.length) {
@@ -4895,6 +5291,7 @@ function buildFurniture(): void {
       rawGround: (x, z) => hAt(x, z),
       blocked: (x, z, r) => onCourse(x, z, r) || paintedRoad(x, z, r) || insideBuilding(x, z, r),
     });
+    rfBuilt.group.name = 'riverfront-world';
     furnitureGroup.add(rfBuilt.group);
     mapWorldProxyGroup.add(rfBuilt.mapProxy);
     for (const sol of rfBuilt.solids) worldPhys.addSolidBox(sol.x, sol.z, sol.hw, sol.hd, sol.rot, sol.kind);
@@ -4908,6 +5305,7 @@ function buildFurniture(): void {
       blocked: (x, z, r) => onCourse(x, z, r) || paintedRoad(x, z, r) || insideBuilding(x, z, r) || !!simLayer?.near(x, z, r + 6),
       roads: (countryNet?.roads ?? []).filter((r) => r.kind !== 'drive'),
     });
+    rtBuilt.group.name = 'RuralSmallTowns';
     furnitureGroup.add(rtBuilt.group);
     mapWorldProxyGroup.add(rtBuilt.mapProxy);
     for (const sol of rtBuilt.solids) worldPhys.addSolidBox(sol.x, sol.z, sol.hw, sol.hd, sol.rot, sol.kind);
@@ -4980,7 +5378,7 @@ function buildFurniture(): void {
       cars: () => simLayer?.world.cars ?? [],
       radio: {
         host: () => gameAudio.currentStation.persona ?? onAirNow() ?? HOSTS[0], station: () => gameAudio.currentStation.name.split(' · ')[0],
-        duck: (on) => { if (driving) setMusicDuck(on ? 0.15 : 0.4); }, voice: () => (document.getElementById('tHostVoice') as HTMLInputElement | null)?.checked ?? false,
+        duck: (on) => { if (driving) setMusicDuck(on ? 0.35 : 1.0); }, voice: () => (document.getElementById('tHostVoice') as HTMLInputElement | null)?.checked ?? false,
       },
     });
     if (festivalData && festProg && !festMap) {
@@ -5095,7 +5493,7 @@ function lapStep(x: number, z: number, now: number): string {
 
 // ---------- driving ----------
 const keys = new Set<string>();
-interface DriveState { lock: number; readyHold: number; gridCompiled: boolean; camDist: number; camH: number; camView: number; circuitId: string; pos: THREE.Vector3; yaw: number; sp: number; lat: number; steer: number; car: THREE.Group; startPos: THREE.Vector3; startYaw: number; camPos: THREE.Vector3; hit: number; ps: CarState }
+interface DriveState { lock: number; readyHold: number; readyStartedAt: number; gridCompiled: boolean; camDist: number; camH: number; camView: number; circuitId: string; pos: THREE.Vector3; yaw: number; sp: number; lat: number; steer: number; car: THREE.Group; startPos: THREE.Vector3; startYaw: number; camPos: THREE.Vector3; hit: number; ps: CarState }
 let driving: DriveState | null = null;
 // racing line and assists (Settings > Driving)
 const assist = { line: true, brake: true, steer: true };
@@ -5156,9 +5554,12 @@ let SOV_SPEC = activeSpec();
 function applyActiveCar(): void { SOV_SPEC = activeSpec(); }
 const gameAudio = new GameAudio();      // engine, supercharger, tyres, brakes, backfire and suspension thumps driven by the physics state
 gameAudio.setMusic(false);              // the region game plays its own tracks
-let engVol = 1.0;
+let engVol = 0.75;
+let sfxVol = 0.85;
 try { const v = parseFloat(localStorage.getItem('apex.engVol') ?? ''); if (!Number.isNaN(v)) engVol = Math.min(1.5, Math.max(0, v)); } catch { /* storage blocked */ }
-gameAudio.setLevel(engVol);
+try { const v = parseFloat(localStorage.getItem('apex.sfxVol') ?? ''); if (!Number.isNaN(v)) sfxVol = Math.min(1.5, Math.max(0, v)); } catch { /* storage blocked */ }
+gameAudio.setEngineLevel(engVol);
+gameAudio.setSfxLevel(sfxVol);
 // the racing surface is a ribbon above the terrain mesh (edge-conforming in addRibbonUV); 12 cm keeps side-slopes and distant Z-buffer precision from peeling back the underlying texture
 const RIBBON_LIFT = 0.12;
 // every drivable surface mesh (the racing-surface ribbon, the kerbs) goes into a 2D triangle grid, so the car's wheels sit on exactly what is drawn,
@@ -5348,6 +5749,9 @@ let driveViewShown = 0;
 const driveInput = new DriveInput();
 driveInput.drivingOn = () => !!driving;
 driveInput.replayOn = () => replay.active;
+driveInput.photoOn = () => photo.active;
+driveInput.settingsOpen = () => settingsEl.style.display === 'block';
+driveInput.toggleSettings = () => toggleSettings();
 const VIEW_NAMES =['Chase', 'Far chase', 'Hood', 'Dash', 'Driver'];
 let pedalT = 0, pedalB = 0;
 let carY = -1e9, carPitch = 0, carRoll = 0, slopePS = 0, slopeRS = 0;
@@ -5446,6 +5850,7 @@ function makeCar(carId?: string): THREE.Group {
   const id = carId ?? activeCarId();
   const qOverride = new URLSearchParams(location.search).get('car');
   const holder = new THREE.Group();
+  holder.name = 'player-car';
   holder.userData.carId = id;
   holder.userData.scanReady = false;
   const rig = makeSovereign();
@@ -5480,7 +5885,7 @@ function makeCar(carId?: string): THREE.Group {
       const m = o as THREE.Mesh;
       if (!m.isMesh || (m.material as THREE.Material).transparent) return;
       if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
-      m.castShadow = (m.geometry.boundingSphere?.radius ?? 1) >= 0.28;
+      m.castShadow = (m.geometry.boundingSphere?.radius ?? 1) >= ((USE_WEBGPU && perfTier !== 'high') ? 1.2 : 0.28);
     });
     let blob: THREE.Object3D | null = null;
     rig.group.traverse((o) => { const m = o as THREE.Mesh; if (!blob && m.isMesh && (m.geometry as THREE.BufferGeometry).type === 'PlaneGeometry' && ((m.material as THREE.MeshBasicMaterial).map as THREE.CanvasTexture | null)?.isCanvasTexture) blob = m; });
@@ -5697,10 +6102,13 @@ const socialHud = new ApexSocialHud({
 });
 (window as unknown as { apexSocialHud: ApexSocialHud }).apexSocialHud = socialHud;
 const remoteGroup = new THREE.Group();
+remoteGroup.name = 'remote-cars';
 scene.add(remoteGroup);
 const spatialCuller = new SpatialCuller();
 const aiGroup = new THREE.Group();
+aiGroup.name = 'ai-cars';
 const trafficGroup = new THREE.Group();
+trafficGroup.name = 'traffic-cars';
 scene.add(aiGroup, trafficGroup);
 let aiMeshes: THREE.Group[] = [];
 let trafficMeshes: THREE.Group[] = [];
@@ -5796,7 +6204,8 @@ function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole
   runTracker = new RunTracker(id, refParSec(pts, isClosed, city ? 5.4 : 4.2));
   const vecPts = pts.map((p) => new THREE.Vector3(p.x, p.y, p.z));
   competition = new CompetitionEngine();
-  competition.createGrid(vecPts, [CARS.kestrel, CARS.aurelia], groundH, { totalLaps: isClosed ? 3 : 1, includePlayer: true });
+  const leanAiGrid = USE_WEBGPU && perfTier !== 'high';
+  competition.createGrid(vecPts, [CARS.kestrel, CARS.aurelia], groundH, { totalLaps: isClosed ? 3 : 1, includePlayer: true, totalCars: leanAiGrid ? 6 : 12 });
   const aiVariants: RivalCarVariant[] = ['gt-track', 'exotic-wedge', 'gt-track', 'sport-coupe'];
   let aiVarIdx = 0;
   for (const r of competition.racers) {
@@ -5808,10 +6217,11 @@ function setupRun(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRole
     m.rotation.y = r.state.yaw;
     aiGroup.add(m);
     aiMeshes.push(m);
-    // Preload player-grade hero opponent scan cars during the pre-race grid hold/countdown (40..1700 ms) so zero GLB swaps hit mid-Lap 1!
+    // Streamlined GT-R scan opponents ('traffic' on iGPUs = ~12 draws/car instead of ~85 draws/car, cutting 1,017 AI draws -> ~72 draws!)
+    const oppQuality = leanAiGrid ? 'traffic' : 'hero';
     setTimeout(() => {
       if (gen !== runGen || !m.parent) return;
-      void loadScanOpponentCar(oppCarId, r.paintHex, 'hero').then((realOpp) => {
+      void loadScanOpponentCar(oppCarId, r.paintHex, oppQuality).then((realOpp) => {
         if (gen !== runGen || !m.parent) return;
         while (m.children.length) m.remove(m.children[0]);
         m.add(realOpp);
@@ -5932,6 +6342,8 @@ interface DriveIntroDrone {
   active: boolean;
   t: number;
   dur: number;
+  startedAt: number;
+  vegWarmed: boolean;
   p0: THREE.Vector3;
   p1: THREE.Vector3;
   p2: THREE.Vector3;
@@ -5982,7 +6394,9 @@ function attachPoliceLightbar(car: THREE.Group, roofY = 1.355, barZ = -0.34): vo
     new THREE.MeshStandardMaterial({ color: 0x1e88ff, emissive: 0x1e88ff, emissiveIntensity: 0.16, roughness: 0.18, metalness: 0.1 }),
   );
   blueR.position.set(0.275, 0.062, 0);
-  bar.add(base, cap, centerDiv, redL, blueR);
+  bar.add(base, cap, centerDiv);
+  mergeByMaterial(bar);
+  bar.add(redL, blueR);
   bar.position.set(0, roofY, barZ);
   car.add(bar);
   car.userData.sirenLights = [redL, blueR];
@@ -6052,24 +6466,27 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
   const scanReadyNow = !!car.userData.scanReady;
   const needCityAtGrid = id === 'ironport_grand_circuit' || id === CIV || id === HARB || id === IND;
 
-  // Seamless curved drone fly-in from the map / circuit-briefing camera straight into the rear chase camera behind the player's car!
+  // Seamless curved aerial drone fly-in from the live Map Overview / briefing camera straight into the rear chase camera behind the player's car!
+  // Wall-clock timed in stepDrive() + high-altitude veg/shadow pause so the swoop stays silky-smooth and NEVER stalls!
   const carTarget = new THREE.Vector3(p[0], y, p[1]);
   const flyDist = entryFromPos.distanceTo(carTarget);
-  if (flyDist > 26 && Number.isFinite(flyDist)) {
+  if (flyDist > 18 && Number.isFinite(flyDist)) {
     const sy = Math.sin(yaw), cy = Math.cos(yaw);
     const lx = cy, lz = -sy;
-    const dur = Math.min(2.7, Math.max(1.85, 1.55 + Math.log10(Math.max(10, flyDist)) * 0.34));
+    const dur = Math.min(2.35, Math.max(1.70, 1.45 + Math.log10(Math.max(10, flyDist)) * 0.28));
     const p1 = entryFromPos.clone().lerp(carTarget, 0.42);
-    p1.y = Math.max(p1.y, y + Math.min(280, flyDist * 0.24));
+    p1.y = Math.max(p1.y, y + Math.min(260, flyDist * 0.22));
     const p2 = new THREE.Vector3(p[0] - sy * 34 + lx * 14, Math.max(groundH(p[0] - sy * 34, p[1] - cy * 34) + 12, y + 16), p[1] - cy * 34 + lz * 14);
-    driveIntro = { active: true, t: 0, dur, p0: entryFromPos, p1, p2, fromLook: entryFromLook, fromFov: entryFromFov, fromNear: Math.min(180, Math.max(1, entryFromNear)) };
+    driveIntro = { active: true, t: 0, dur, startedAt: 0, vegWarmed: false, p0: entryFromPos, p1, p2, fromLook: entryFromLook, fromFov: entryFromFov, fromNear: Math.min(180, Math.max(1, entryFromNear)) };
   } else {
     driveIntro = null;
   }
 
+  (window as unknown as { __didDriveCull?: boolean }).__didDriveCull = false;
   driving = {
-    lock: driveIntro ? Math.max(3.6, driveIntro.dur + 2.1) : 3.6,
-    readyHold: (!scanReadyNow || (needCityAtGrid && !cityCoreReady)) ? 10.0 : 0,
+    lock: driveIntro ? Math.max(3.4, driveIntro.dur + 1.8) : 3.4,
+    readyHold: (!scanReadyNow || (needCityAtGrid && !cityCoreReady)) ? (needCityAtGrid ? 8.0 : 3.0) : 0,
+    readyStartedAt: performance.now(),
     gridCompiled: false,
     camDist: 5.8, camH: 1.6, camView: 0, circuitId: id,
     pos: new THREE.Vector3(p[0], y, p[1]), yaw, sp: 0, lat: 0, steer: 0, car,
@@ -6077,13 +6494,17 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
     camPos: new THREE.Vector3(p[0] - Math.sin(yaw) * 5.8, y + 1.6, p[1] - Math.cos(yaw) * 5.8),
     hit: 0, ps: createCarState(p[0], y, p[1], yaw),
   };
-  carY = -1e9; carPitch = carRoll = slopePS = slopeRS = 0; setMusicDuck(0.4); gameAudio.ensureStarted(); gameAudio.setPaused(false);
-  wx.ensureAudio(); wx.setAudioLevel(engVol); wx.setPaused(false);
+  carY = -1e9; carPitch = carRoll = slopePS = slopeRS = 0; setMusicDuck(1.0); gameAudio.ensureStarted(); gameAudio.setEngineLevel(engVol); gameAudio.setSfxLevel(sfxVol); gameAudio.setPaused(false);
+  wx.ensureAudio(); wx.setAudioLevel(sfxVol); wx.setPaused(false);
+  if (USE_WEBGPU && perfTier !== 'high' && vegetation) {
+    // Reclaim ~420k unused grass triangles inside concrete Downtown Ironport while keeping full lush meadows in Free Roam & rural circuits!
+    vegetation.setQuality(id === 'ironport_grand_circuit' ? 0.16 : (perfTier === 'low' ? 0.38 : 0.50), false);
+  }
   {
     const key = id === 'ironport_grand_circuit' ? 'city' : id === 'great_lakes_cliff_raceway' ? 'cliff' : id === 'pinewood_rally_stage' ? 'rally' : id === IND ? 'ind' : id === HARB ? 'harb' : id === CIV ? 'civ' : id === 'superior_range_circuit' ? 'superior' : id === 'escarpment_circuit' ? 'escarpment' : 'free';
     wxPlan = WEATHER_PLAN[key]; wxPlanT = 0; wxPlanI = 0;
     const startWx = wxOverride === 'auto' ? wxPlan[0].w : wxOverride;
-    wx.setWeather(startWx, false, true);
+    wx.setWeather(startWx, true, true);
     // Match road wetness & puddle level to the race's starting weather (never carry over soaked puddles from card previews or a prior storm race)
     const w0 = WEATHERS[startWx]?.p;
     roadWater.wetness = w0 ? (w0.rain > 0.3 ? 0.55 : w0.wet * 0.25) : 0;
@@ -6098,8 +6519,16 @@ function startDrive(id: string, courier?: 'rookie' | 'pro' | 'legend', pursuitRo
   setupRun(id, courier, resolvedPursuitRole);
   gameAudio.setSirenEnabled(false);
   syncPoliceControlsUi();
-  // Pre-populate grass, wildflowers & farm crops around the car spawn point so fields are ALREADY carpeted before the drone lands!
-  vegetation?.prewarmAt(new THREE.Vector3(p[0], y, p[1]), new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)));
+  // On WebGPU mid/low iGPUs during closed-circuit races (e.g. Ironport Grand Circuit), hide off-track side-street parked cars,
+  // parking lots & skyscraper rooftop HVAC boxes behind the barriers — cuts ~1.6M unseen triangles on the City Circuit!
+  const hideClosedExtras = USE_WEBGPU && perfTier !== 'high' && CLOSED_CIRCUITS.has(id);
+  if (parked) parked.group.visible = !hideClosedExtras;
+  if (parkingLots) parkingLots.group.visible = !hideClosedExtras;
+  roofGroup.visible = !hideClosedExtras;
+  // Pre-populate grass right away ONLY if no curved drone fly-in is active; otherwise warm smoothly as the drone descends so START responds instantly!
+  if (!driveIntro) {
+    vegetation?.prewarmAt(new THREE.Vector3(p[0], y, p[1]), new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)));
+  }
   replay.clear(); driveClock = 0; camYawOff = 0; camPitchOff = 0; camZoom = 1;
   controls.enabled = false;
   circuitGroup.visible = false;      // the review ribbons are drawn wider than the road
@@ -6146,6 +6575,11 @@ function stopDrive(): void {
   scene.remove(driving.car);
   driving = null;
   driveIntro = null;
+  if (!mapMode) {
+    if (parked) parked.group.visible = true;
+    if (parkingLots) parkingLots.group.visible = true;
+    roofGroup.visible = true;
+  }
   worldPhys.clearDebris();
   if (simLayer) { simLayer.world.player = null; simLayer.world.takePlayerCalls(); }
   festProg?.quiet(); gameAudio.setPaused(true); setMusicDuck(1); wx.setPaused(true); wxPlan = null; if (wxOverride === 'auto') wx.setWeather('partly', false, true);
@@ -6164,10 +6598,10 @@ function stepDrive(dt: number): void {
   const inVictory = !!victoryCine?.active;
   if (inVictory && victoryCine) victoryCine.elapsed += dt;
   const needCity = s.circuitId === 'ironport_grand_circuit' || s.circuitId === CIV || s.circuitId === HARB || s.circuitId === IND;
-  const preparing = !inVictory && s.readyHold > 0 && (!s.car.userData.scanReady || (needCity && !cityCoreReady));
+  const readyElapsed = (performance.now() - s.readyStartedAt) * 0.001;
+  const preparing = !inVictory && s.readyHold > 0 && readyElapsed < s.readyHold && (!s.car.userData.scanReady || (needCity && !cityCoreReady));
   if (preparing) {
-    s.readyHold = Math.max(0, s.readyHold - dt);
-    // Keep boxy fallback hidden while real scan car & Downtown Lap-1 buildings finish loading/compiling
+    // Keep boxy fallback hidden while real scan car & Downtown Lap-1 buildings finish loading/compiling (capped by wall-clock readyHold!)
     s.car.visible = !!s.car.userData.scanReady;
     countEl.style.display = 'block';
     countEl.textContent = (needCity && !cityCoreReady) ? 'LOADING CITY' : 'GRID';
@@ -6190,8 +6624,8 @@ function stepDrive(dt: number): void {
   const locked = preparing || (!inVictory && s.lock > 0);
   if (trackKit) { if (locked) goClock = 0; else goClock += dt; trackKit.setLights(locked ? 'red' : goClock < 3.5 ? 'green' : 'off'); }
   if (!preparing && !inVictory && s.lock > 0) {
-    // Clamp countdown tick dt to 50 ms so a compile frame never skips numbers
-    s.lock -= Math.min(dt, 0.05);
+    // Allow countdown to advance cleanly even during a shader-warm frame so '1' never stalls for minutes!
+    s.lock -= Math.min(dt, 0.25);
     const droneDiving = !!(driveIntro?.active && driveIntro.t < driveIntro.dur * 0.65);
     if (droneDiving && !(rtHold && 'lobby' in rtHold)) {
       countEl.style.display = 'none';
@@ -6210,6 +6644,7 @@ function stepDrive(dt: number): void {
   const left = !inVictory && (keys.has('KeyA') || keys.has('ArrowLeft')), right = !inVictory && (keys.has('KeyD') || keys.has('ArrowRight'));
   const hand = !inVictory && (keys.has('Space') || pad.handbrake);
   const kSteer = (left ? 1 : 0) - (right ? 1 : 0);
+  if (!inVictory && pad.recenterCam) { camYawOff = 0; camPitchOff = 0; }
   if (!inVictory && Math.abs(pad.lookX) + Math.abs(pad.lookY) > 0) {            // right stick: free-look
     camYawOff -= pad.lookX * dt * 2.4; camPitchOff = Math.max(-0.12, Math.min(1.1, camPitchOff + pad.lookY * dt * 1.6)); camIdle = 0;
   }
@@ -6613,9 +7048,11 @@ function stepDrive(dt: number): void {
   s.car.rotation.x = Math.max(-0.38, Math.min(0.38, -Math.atan(slopePS) + carPitch));
   s.car.rotation.z = Math.max(-maxBankRoll, Math.min(maxBankRoll, Math.atan(slopeRS) + carRoll));
   const brakeAmt = Math.max(input.brake, hand ? 0.85 : 0);
-  const wetNightAmt = Math.min(1, wx.cur.wet * 0.85 + curTod.nightK * 1.15);
+  const duskAmt = Math.max(0, Math.min(1, (0.24 - sunDir.y) * 2.6));
+  const wetNightAmt = Math.min(1, Math.max(curTod.nightK * 1.15, duskAmt * 0.85, wx.cur.wet * 0.85, wx.cur.cloudDark * 0.45));
+  const headlightsOn = wetNightAmt > 0.16 || apexLighting.controller.fogMod.interiorMix > 0.25;
   (s.car.userData.update as ((sp: number, st: number, dt: number, lights?: boolean, brake?: number, wetNight?: number, wheelComp?: readonly [number, number, number, number]) => void) | undefined)?.(
-    s.sp, ps.steerAngle, dt, wetNightAmt > 0.25, brakeAmt, wetNightAmt, ps.wheelCompression
+    s.sp, ps.steerAngle, dt, headlightsOn, brakeAmt, wetNightAmt, ps.wheelCompression
   );
   // spray and mist off the four tyres: more from deep water, more at speed, a little from any wet road
   if (!ps.isAirborne && !locked) {
@@ -6680,8 +7117,21 @@ function stepDrive(dt: number): void {
   }
   // Seamless curved drone fly-in from map/briefing view straight into the rear chase camera behind the player car!
   if (driveIntro?.active) {
-    driveIntro.t += Math.min(dt, 0.05);
+    // Stamp wall-clock start on the FIRST actually rendered drive frame (after startDrive setup finishes) so a launch frame NEVER teleports past the swoop!
+    const nowMs = performance.now();
+    if (driveIntro.startedAt <= 0) {
+      driveIntro.startedAt = nowMs;
+    } else {
+      driveIntro.t += Math.min(dt, 0.055);
+      // Safety ceiling so an unexpected background tab pause can never trap the camera forever
+      const elapsedS = (nowMs - driveIntro.startedAt) / 1000;
+      if (elapsedS > driveIntro.dur + 3.2) driveIntro.t = driveIntro.dur;
+    }
     const u = Math.min(1, driveIntro.t / driveIntro.dur);
+    if (!driveIntro.vegWarmed && u >= 0.72) {
+      driveIntro.vegWarmed = true;
+      vegetation?.prewarmAt(s.pos, new THREE.Vector3(nfx, 0, nfz));
+    }
     // Quintic smootherstep for silky drone acceleration and soft lock-in deceleration
     const e = u * u * u * (u * (u * 6 - 15) + 10);
     const om = 1 - e;
@@ -6864,17 +7314,20 @@ async function boot(): Promise<void> {
       const gpuDetect = await detectWebGpuTierAsync(renderer, TV_MODE);
       applyPerfTier(gpuDetect.tier);
       if (perfTier !== 'high' && !explicitScale) {
-        renderScale = perfTier === 'low' ? 0.85 : 1.0;
+        renderScale = perfTier === 'low' ? 0.84 : 0.90;
       }
-      // Trim shadow map to 1024x1024 on mid/low iGPUs (4x lower shadow fillrate & eliminates every-3rd-frame hitch!)
+      // Keep crisp 1024x1024 shadows on mid iGPUs (768x768 on low) — CityCellBatches cuts shadow casters to ~8 nearby cells so shadows stay both sharp and fast!
       if (perfTier !== 'high' && sun.shadow.mapSize.x > 1024) {
-        sun.shadow.mapSize.set(1024, 1024);
+        const sSz = perfTier === 'low' ? 768 : 1024;
+        sun.shadow.mapSize.set(sSz, sSz);
         sun.shadow.map?.dispose();
         sun.shadow.map = null;
       }
-      // Throttle directional shadow map redraws via spatialCuller (every shadowStride frames) to avoid doubling GPU work every frame
+      // Throttle directional shadow map redraws via spatialCuller (every shadowStride frames) — set BOTH renderer.shadowMap AND sun.shadow.autoUpdate (WebGPU reads sun.shadow.autoUpdate!)
       renderer.shadowMap.autoUpdate = false;
       renderer.shadowMap.needsUpdate = true;
+      sun.shadow.autoUpdate = false;
+      sun.shadow.needsUpdate = true;
       initKTX2(renderer);
       pmrem = new THREE_GPU.PMREMGenerator(renderer as unknown as THREE_GPU.WebGPURenderer) as unknown as THREE.PMREMGenerator;
       scene.userData.look = {
@@ -7286,14 +7739,16 @@ async function boot(): Promise<void> {
     if (USE_WEBGPU) {
       sanitizeObjectForWebGPU(scene);
       if (perfTier !== 'high') {
-        vegetation?.setQuality(perfTier === 'low' ? 0.28 : 0.34, false);
-        grassField?.setQuality(perfTier === 'low' ? 0.40 : 0.55);
-        for (const tf of treeFields) tf.setQuality(perfTier === 'low' ? 0.34 : 0.44);
+        vegetation?.setQuality(perfTier === 'low' ? 0.38 : 0.50, false);
+        grassField?.setQuality(perfTier === 'low' ? 0.55 : 0.72);
+        for (const tf of treeFields) tf.setQuality(perfTier === 'low' ? 0.58 : 0.76);
       }
     }
     setBootProgress(96, 'FINALIZING MENU & LIGHTING');
     lastInput = performance.now();
     dismissBootSplash();
+    // Quietly preload all 6 24-hour sky panoramas in idle time so 24h cycle transitions NEVER stall or hard-pop mid-drive!
+    setTimeout(() => sky.preloadCycleSkies(), 1200);
   });
   fetch(BASE + 'yards.json').then((x) => (x.ok ? x.json() : null)).then((y) => { if (y) { const yg = buildYards(keepYardsOffCourse(y), (x, z) => meshH(x, z)); mergeStaticScenery(yg, 500); furnitureGroup.add(yg); scheduleCullerReindex(); } }).catch(() => undefined);
   mapEditor = createMapEditor({
@@ -7346,6 +7801,19 @@ todSelEl.addEventListener('change', (e) => {
   setTimeOfDay(val);
   try { localStorage.setItem('apex.tod', val); } catch { /* storage blocked */ }
 });
+const nightSkySelEl = document.getElementById('nightSkySel') as HTMLSelectElement | null;
+if (nightSkySelEl) {
+  nightSkySelEl.value = nightSkyPref;
+  nightSkySelEl.addEventListener('change', () => {
+    const val = nightSkySelEl.value;
+    if (/^sky2_night(_moon|_aurora|_cloudy|_storm)?$/.test(val)) {
+      nightSkyPref = val;
+      try { localStorage.setItem('apex.nightSky', val); } catch { /* storage blocked */ }
+      if (todMode === 'preset') setTimeOfDay(todKey);
+      else applySolarHour(todMode === 'realtime' ? localRealHour() : cycleHour, true);
+    }
+  });
+}
 const todHourEl = document.getElementById('todHour') as HTMLInputElement | null;
 if (todHourEl) {
   todHourEl.addEventListener('input', () => {
@@ -7365,8 +7833,42 @@ if (dofCbEl) {
   });
 }
 (document.getElementById('tFx') as HTMLInputElement).addEventListener('change', (e) => { fxOn = (e.target as HTMLInputElement).checked; });
-(document.getElementById('engVol') as HTMLInputElement).value = String(engVol);
-(document.getElementById('engVol') as HTMLInputElement).addEventListener('input', (e) => { engVol = parseFloat((e.target as HTMLInputElement).value); gameAudio.setLevel(engVol); try { localStorage.setItem('apex.engVol', String(engVol)); } catch { /* storage blocked */ } });
+{
+  const syncPct = (id: string, v: number): void => { const el = document.getElementById(id); if (el) el.textContent = `${Math.round(v * 100)}%`; };
+  const engEl = document.getElementById('engVol') as HTMLInputElement | null;
+  const sfxEl = document.getElementById('sfxVol') as HTMLInputElement | null;
+  const musEl = document.getElementById('musicVol') as HTMLInputElement | null;
+  if (engEl) {
+    engEl.value = String(engVol);
+    syncPct('engVolVal', engVol);
+    engEl.addEventListener('input', () => {
+      engVol = parseFloat(engEl.value);
+      gameAudio.setEngineLevel(engVol);
+      syncPct('engVolVal', engVol);
+      try { localStorage.setItem('apex.engVol', String(engVol)); } catch { /* storage blocked */ }
+    });
+  }
+  if (sfxEl) {
+    sfxEl.value = String(sfxVol);
+    syncPct('sfxVolVal', sfxVol);
+    sfxEl.addEventListener('input', () => {
+      sfxVol = parseFloat(sfxEl.value);
+      gameAudio.setSfxLevel(sfxVol);
+      wx.setAudioLevel(sfxVol);
+      syncPct('sfxVolVal', sfxVol);
+      try { localStorage.setItem('apex.sfxVol', String(sfxVol)); } catch { /* storage blocked */ }
+    });
+  }
+  if (musEl) {
+    musEl.value = String(musicVol);
+    syncPct('musicVolVal', musicVol);
+    musEl.addEventListener('input', () => {
+      const mv = parseFloat(musEl.value);
+      setMusicVolume(mv);
+      syncPct('musicVolVal', mv);
+    });
+  }
+}
 (document.getElementById('wxsel') as HTMLSelectElement).value = wxOverride;
 (document.getElementById('wxsel') as HTMLSelectElement).addEventListener('change', (e) => {
   wxOverride = (e.target as HTMLSelectElement).value;
@@ -7447,11 +7949,14 @@ if (dofCbEl) {
   lensSel.addEventListener('change', () => { webgpuActiveLens = lensSel.value as GameLens; if (gradePass) gradePass.lens = webgpuActiveLens; save('apex.lens', lensSel.value); });
   (window as unknown as { apexGrade: unknown }).apexGrade = { set: (lut: string, lens: string, amt = 1) => { webgpuActiveLut = lut; webgpuActiveLens = lens as GameLens; webgpuLutAmt = amt; if (gradePass) { gradePass.lut = lut; gradePass.lens = lens as GameLens; gradePass.lutAmount = amt; } syncWebGpuGrade(); } };
 }
-(document.getElementById('musicVol') as HTMLInputElement).value = String(musicVol);
-(document.getElementById('musicVol') as HTMLInputElement).addEventListener('input', (e) => setMusicVolume(parseFloat((e.target as HTMLInputElement).value)));
 (document.getElementById('tStr') as HTMLInputElement).addEventListener('change', (e) => { streetGroup.visible = (e.target as HTMLInputElement).checked; });
 (document.getElementById('tScape') as HTMLInputElement).addEventListener('change', (e) => { scapeGroup.visible = (e.target as HTMLInputElement).checked; });
-(document.getElementById('tBld') as HTMLInputElement).addEventListener('change', (e) => { cityGroup.visible = roofGroup.visible = (e.target as HTMLInputElement).checked; });
+(document.getElementById('tBld') as HTMLInputElement).addEventListener('change', (e) => {
+  const vis = (e.target as HTMLInputElement).checked;
+  cityGroup.visible = roofGroup.visible = vis;
+  if (cityBroadcastLights) cityBroadcastLights.group.visible = !mapMode && vis;
+  if (signatureTowers) signatureTowers.group.visible = !mapMode && vis;
+});
 (document.getElementById('tLab') as HTMLInputElement).addEventListener('change', (e) => { labelGroup.visible = (e.target as HTMLInputElement).checked; });
 (document.getElementById('tXray') as HTMLInputElement).addEventListener('change', (e) => {
   const on = (e.target as HTMLInputElement).checked;
@@ -7527,13 +8032,12 @@ function applyPerfTier(next: PerfTier): void {
 }
 let lastCanvasPr = -1, lastCanvasW = -1, lastCanvasH = -1;
 function applyRenderScale(): void {
-  const effectiveScale = USE_WEBGPU ? Math.max(0.80, Math.min(1.0, renderScale)) : renderScale;
+  const effectiveScale = USE_WEBGPU ? Math.max(0.75, Math.min(1.0, renderScale)) : renderScale;
   const internalPr = Math.max(0.5, BASE_PR * effectiveScale);
   const useFsrScale = !!(composer && fsr1Pass && fsrEnabled);
-  // Keep canvas at native 1:1 DPR (0.85..1.0 adaptive when direct WebGPU without post; 1.25x on discrete high GPUs)
-  // and skip redundant setSize() calls that reconfigure the WebGPU swapchain mid-frame!
+  // Keep canvas at native 1:1 DPR (or crisp locked 0.78-0.80 on WebGPU iGPUs — never bounce swapchain size mid-drive!)
   const canvasPr = USE_WEBGPU
-    ? (webgpuPost ? Math.min(BASE_PR, perfTier === 'high' ? 1.25 : 1.0) : Math.max(0.85, Math.min(BASE_PR, effectiveScale)))
+    ? (webgpuPost ? Math.min(BASE_PR, perfTier === 'high' ? 1.25 : 1.0) : Math.max(0.75, Math.min(perfTier === 'high' ? BASE_PR : 1.0, effectiveScale)))
     : (useFsrScale ? Math.min(BASE_PR, perfTier === 'low' ? 1.0 : 1.25) : internalPr);
   if (Math.abs(canvasPr - lastCanvasPr) > 0.015 || innerWidth !== lastCanvasW || innerHeight !== lastCanvasH) {
     lastCanvasPr = canvasPr;
@@ -7571,9 +8075,9 @@ function applyRenderScale(): void {
   if (aaPass && 'uniforms' in aaPass && aaPass.uniforms?.uInvRes) {
     aaPass.uniforms.uInvRes.value.set(1 / iw, 1 / ih);
   }
-  vegetation?.setQuality(perfTier === 'low' ? 0.28 : perfTier === 'mid' ? 0.34 : 1.0, perfTier === 'high');
-  grassField?.setQuality(renderScale * (perfTier === 'low' ? 0.70 : perfTier === 'mid' ? 0.80 : 1));
-  for (const tf of treeFields) tf.setQuality(perfTier === 'low' ? 0.34 : perfTier === 'mid' ? 0.44 : 1.0);
+  vegetation?.setQuality(perfTier === 'low' ? 0.38 : perfTier === 'mid' ? 0.50 : 1.0, perfTier === 'high');
+  grassField?.setQuality(renderScale * (perfTier === 'low' ? 0.72 : perfTier === 'mid' ? 0.85 : 1));
+  for (const tf of treeFields) tf.setQuality(perfTier === 'low' ? 0.58 : perfTier === 'mid' ? 0.76 : 1.0);
 }
 function governFrames(nowMs: number): void {
   if (govLast) { const d = nowMs - govLast; if (d < 250) { govAcc += d; govN++; if (d > govMax) govMax = d; } }
@@ -7582,6 +8086,23 @@ function governFrames(nowMs: number): void {
   const avg = govAcc / govN; govAcc = 0; govN = 0; govMax = 0;
   if (nowMs < 12000 || !cityCoreReady) return;                       // wait only for core city wave, then protect FPS right from Lap 1!
   if (govHold > 0) { govHold--; return; }
+  // On direct WebGPU (without offscreen post target), never oscillate renderScale mid-drive — calling renderer.setSize() reallocates the WebGPU swapchain and causes visible stutters!
+  // Only adjust tier AFTER launch countdown finishes, and allow recovering back UP to mid once steady-state FPS is smooth (> 41 FPS)!
+  if (USE_WEBGPU && !webgpuPost) {
+    if (driving && (driving.lock > 0 || driving.readyHold > 0)) return;
+    if (avg > TARGET_MS * 1.65 && perfTier === 'high') {
+      applyPerfTier('mid');
+      govHold = 4;
+    } else if (avg > 38.0 && perfTier === 'mid') {
+      applyPerfTier('low');
+      govHold = 6;
+    } else if (avg < 24.0 && perfTier === 'low' && !TV_MODE) {
+      applyPerfTier('mid');
+      govHold = 6;
+    }
+    (window as unknown as { govState?: unknown }).govState = { avgMs: +avg.toFixed(1), renderScale: +renderScale.toFixed(2), tv: TV_MODE, tier: perfTier };
+    return;
+  }
   let ns = renderScale;
   // A drop that bought less than 6% means the frame is CPU / vertex bound, not fill bound: put the resolution back and stop lowering it for a while (it only costs sharpness).
   if (govPrev > 0 && govDropped) { govDropped = false; if (avg > govPrev * 0.94) { ns = govFrom; govNoDrop = 8; } }
@@ -7635,14 +8156,19 @@ function carHit(ps: DriveState['ps'], op: THREE.Vector3, oyaw: number, ovel: THR
 // Whole-place culling: dense circuits & Ironport hardware (harbor, catch fencing, grandstands, yards, roof details) are hidden when far and split into frustum-cullable chunks with tiered view/shadow budgets.
 const PLACE_FAR = new Set([
   'river-bridges', 'country-scenes', 'port-district', 'parking-lots', 'utilities',
-  'Ironport harbor hardware', 'Ironport bolted catch fencing', 'Ironport grandstand', 'yards', 'IronportCityExpansion', 'roof-group', 'harbor-group',
+  'Ironport harbor hardware', 'Ironport bolted catch fencing', 'Ironport grandstand', 'trackkit-group', 'yards', 'IronportCityExpansion', 'roof-group', 'harbor-group',
+  'RuralSmallTowns', 'rural-detail', 'coastal-world', 'riverfront-world', 'scenic-roads', 'town-sidewalks', 'parked-cars',
 ]);
 const placeBoxes = new Map<THREE.Object3D, THREE.Box3>();
 let placeNext = 0, placeScan = 0; const placeList: THREE.Object3D[] = [];
 function cullPlaces(now: number): void {
   if (now < placeNext) return;
   placeNext = now + 400;
-  if (!placeList.length || now > placeScan) { placeScan = now + 15000; scene.traverse((g) => { if (g.name && (g.name.startsWith('circuit:') || g.name === 'cliffRacewayCircuit' || g.name === 'industrial-circuit' || PLACE_FAR.has(g.name)) && !placeList.includes(g)) placeList.push(g); }); }
+  // Never run a full-world scene.traverse() mid-drive once places are indexed (eliminates periodic 15 s stutter hiccups!)
+  if (!placeList.length || (!driving && now > placeScan)) {
+    placeScan = now + 15000;
+    scene.traverse((g) => { if (g.name && (g.name.startsWith('circuit:') || g.name === 'cliffRacewayCircuit' || g.name === 'industrial-circuit' || PLACE_FAR.has(g.name)) && !placeList.includes(g)) placeList.push(g); });
+  }
   for (const root of placeList) {
     if (!root.userData.chunkDone) { root.userData.chunkDone = true; chunkInstanced(root.parent && root.parent !== scene && root.parent.children.length < 400 ? root.parent : root); }
     if (mapMode) {
@@ -7654,16 +8180,36 @@ function cullPlaces(now: number): void {
       }
       continue;
     }
+    const hideClosedExtras = USE_WEBGPU && perfTier !== 'high' && !!driving && CLOSED_CIRCUITS.has(driving.circuitId);
+    const hideDowntownOffCircuit = USE_WEBGPU && perfTier !== 'high' && driving?.circuitId === 'ironport_grand_circuit';
+    if (hideClosedExtras && (root.name === 'parked-cars' || root.name === 'parking-lots' || root.name === 'roof-group')) {
+      root.visible = false;
+      continue;
+    }
+    if (hideDowntownOffCircuit && (
+      root.name === 'riverfront-world' || root.name === 'coastal-world' || root.name === 'RuralSmallTowns' ||
+      root.name === 'rural-detail' || root.name === 'yards' || root.name === 'IronportCityExpansion' ||
+      root.name === 'port-district' || root.name === 'town-sidewalks' || root.name === 'country-scenes' ||
+      root.name === 'harbor-group' || root.name === 'utilities'
+    )) {
+      root.visible = false;
+      continue;
+    }
     root.visible = true;
     for (const g of root.children) {
       if ((g as THREE.InstancedMesh).userData?.chunked) continue;                  // chunks are distance/shadow managed by chunkList below
       let b = placeBoxes.get(g);
       if (!b) { g.visible = true; g.updateMatrixWorld(true); b = new THREE.Box3(); g.traverse((o) => { const m = o as THREE.InstancedMesh; if (!m.isMesh) return; if (m.isInstancedMesh) { m.computeBoundingBox(); if (m.boundingBox) b!.union(m.boundingBox.clone().applyMatrix4(m.matrixWorld)); } else { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); b!.union(m.geometry.boundingBox!.clone().applyMatrix4(m.matrixWorld)); } }); placeBoxes.set(g, b); }
-      g.visible = b.distanceToPoint(camera.position) < (PLACE_FAR.has(root.name) ? 1600 : 1100);
+      const placeReach = (USE_WEBGPU && perfTier !== 'high')
+        ? Math.min((hideDowntownOffCircuit ? 680 : tierCfg.cullViewDist + 180), PLACE_FAR.has(root.name) ? 1600 : 1100)
+        : (PLACE_FAR.has(root.name) ? 1600 : 1100);
+      g.visible = b.distanceToPoint(camera.position) < placeReach;
     }
   }
   const camX = camera.position.x, camZ = camera.position.z;
   const tierSh = tierCfg.cullShadowDist;
+  const hideDowntownOffCircuit = USE_WEBGPU && perfTier !== 'high' && driving?.circuitId === 'ironport_grand_circuit';
+  const tierChunkCap = (USE_WEBGPU && perfTier !== 'high') ? (hideDowntownOffCircuit ? 680 : tierCfg.cullViewDist + 180) : Infinity;
   for (let i = 0; i < chunkList.length; i++) {
     const c = chunkList[i];
     if (mapMode) {
@@ -7672,7 +8218,7 @@ function cullPlaces(now: number): void {
       continue;
     }
     const dist = Math.hypot(c.cx - camX, c.cz - camZ) - c.r;
-    const vis = dist < c.maxDist;
+    const vis = dist < Math.min(c.maxDist, tierChunkCap);
     c.m.visible = vis;
     if (c.baseCastShadow) c.m.castShadow = vis && dist < Math.min(tierSh, c.maxShadowDist);
   }
@@ -7687,14 +8233,25 @@ function chunkBudgetFor(m: THREE.Object3D): { cell: number; maxDist: number; max
     if (cur.name) label += ' ' + cur.name;
     cur = cur.parent;
   }
-  if (/catch fencing/i.test(label)) return { cell: 380, maxDist: 340, maxShadowDist: 105 };
-  if (/trackkit-tyres|harbor hardware|yards/i.test(label)) return { cell: 450, maxDist: 480, maxShadowDist: 120 };
-  if (/roof-group|street-light/i.test(label)) return { cell: 620, maxDist: 620, maxShadowDist: 135 };
+  if (/catch fencing/i.test(label)) return { cell: 650, maxDist: 420, maxShadowDist: 90 };
+  if (/trackkit-tyres/i.test(label)) return { cell: 650, maxDist: 280, maxShadowDist: 0 };
+  if (/pit garages|grandstand/i.test(label)) return { cell: 650, maxDist: 560, maxShadowDist: 90 };
+  if (/harbor hardware|yards/i.test(label)) return { cell: 550, maxDist: 560, maxShadowDist: 100 };
+  if (/roof-group|street-light/i.test(label)) return { cell: 620, maxDist: 620, maxShadowDist: 110 };
+  if (/coastal-world|riverfront-world|rural|scenic-roads|country-scenes/i.test(label)) return { cell: 620, maxDist: 640, maxShadowDist: 100 };
   return { cell: 750, maxDist: 1100, maxShadowDist: 180 };
 }
 function chunkInstanced(root: THREE.Object3D): void {
   const big: THREE.InstancedMesh[] = [];
-  root.traverse((o) => { const m = o as THREE.InstancedMesh; if (m.isInstancedMesh && m.count > 450 && !m.userData.chunked) big.push(m); });
+  root.traverse((o) => {
+    const m = o as THREE.InstancedMesh;
+    if (!m.isInstancedMesh || m.userData.chunked || m.userData.dynamicInstanced) return;
+    if (m.count > 450) { big.push(m); return; }
+    if (m.count > 36) {
+      if (!m.boundingSphere) m.computeBoundingSphere();
+      if ((m.boundingSphere?.radius ?? 0) > 450) big.push(m);
+    }
+  });
   const e = new THREE.Matrix4(), v = new THREE.Vector3(), col = new THREE.Color();
   for (const m of big) {
     m.userData.chunked = true; m.updateMatrixWorld(true);
@@ -7765,24 +8322,28 @@ function frame(now: number): void {
     lastTransitRenderMs = now;
     renderTransitBoard();
   }
+  // During the high-altitude portion of the curved Map-to-Car drone swoop, skip ground cell rebuilds so the aerial dive stays 45-60 FPS!
+  const droneHigh = !!(driveIntro?.active && driveIntro.t < driveIntro.dur * 0.65);
   if (vegetation) {
     if (mapMode) vegetation.setEnabled(false);
     else {
       vegetation.setEnabled(true);
-      vegetation.setWind(0.35 + wx.cur.wind * 0.95 + wx.cur.rain * 0.35);
-      vegetation.setWet(wx.cur.wet);
-      vegetation.setCarWake(driving ? driving.pos : null, driving ? driving.ps.vel : null);
-      camera.getWorldDirection(tmpSun);
-      vegetation.update(dt, camera.position, tmpSun);
+      if (!droneHigh) {
+        vegetation.setWind(0.35 + wx.cur.wind * 0.95 + wx.cur.rain * 0.35);
+        vegetation.setWet(wx.cur.wet);
+        vegetation.setCarWake(driving ? driving.pos : null, driving ? driving.ps.vel : null);
+        camera.getWorldDirection(tmpSun);
+        vegetation.update(dt, camera.position, tmpSun);
+      }
     }
   }
-  if (grassField && !mapMode) {
+  if (grassField && !mapMode && !droneHigh) {
     grassField.setWind(0.35 + wx.cur.wind * 0.95 + wx.cur.rain * 0.35);
     grassField.setWet(wx.cur.wet);
     grassField.setCarWake(driving ? driving.pos : null, driving ? driving.ps.vel : null);
     grassField.update(dt, camera.position);
   }
-  if (treeFields.length && !mapMode) for (const tf of treeFields) { tf.setWind(0.25 + wx.cur.rain * 0.5 + wx.cur.cloudDark * 0.4); tf.update(dt, camera.position); }
+  if (treeFields.length && !mapMode && !droneHigh) for (const tf of treeFields) { tf.setWind(0.25 + wx.cur.rain * 0.5 + wx.cur.cloudDark * 0.4); tf.update(dt, camera.position); }
   const __t1 = performance.now();
   stepFly(dt);
   stepTween(dt);
@@ -7793,8 +8354,8 @@ function frame(now: number): void {
   heroBridgeUpdate?.(now * 0.001, Math.max(0, Math.min(1, 1 - (sunDir.y + 0.05) * 4)));
   for (const l of cloudLayers) { l.tex.offset.x += l.vx * dt; l.tex.offset.y += l.vz * dt; }
   if (replay.active) replay.step(dt); else if (!photo.active) stepDrive(dt);      // photo mode pauses the drive
-  if (trackKit && !mapMode) {
-    trackKit.update(dt, camera.position, wx.cur.wind + wx.cur.rain * 0.35, driving ? driving.pos : null, driving ? driving.ps.vel : null);
+  if (trackKit && !mapMode && (!(USE_WEBGPU && perfTier !== 'high') || (frameNo & 1) === 0)) {
+    trackKit.update(dt * ((USE_WEBGPU && perfTier !== 'high') ? 2 : 1), camera.position, wx.cur.wind + wx.cur.rain * 0.35, driving ? driving.pos : null, driving ? driving.ps.vel : null);
   }
   // Real-time shallow-water puddle/wet-road wake fluid simulation around the moving car (< 0.12 ms/frame)
   if (!mapMode && (wx.cur.wet > 0.08 || poolLevel > 0.05)) {
@@ -7814,7 +8375,19 @@ function frame(now: number): void {
   }
   photo.update();
   updateProbe(dt);
-  if (!fly && !driving) controls.update();
+  if (!fly && !driving) {
+    const pad = driveInput.axes;
+    if (Math.abs(pad.mapOrbitX) + Math.abs(pad.mapOrbitY) + Math.abs(pad.mapZoom) > 0) {
+      const off = camera.position.clone().sub(controls.target);
+      const sph = new THREE.Spherical().setFromVector3(off);
+      sph.theta -= pad.mapOrbitX * dt * 1.9;
+      sph.phi = Math.max(0.22, Math.min(Math.PI * 0.46, sph.phi - pad.mapOrbitY * dt * 1.4));
+      sph.radius = Math.max(120, Math.min(9500, sph.radius * (1 - pad.mapZoom * dt * 1.6)));
+      off.setFromSpherical(sph);
+      camera.position.copy(controls.target).add(off);
+    }
+    controls.update();
+  }
   // Altitude-adaptive near/far planes in 3D overview/map/fly views: raises 24-bit depth precision by >50x at map altitude
   // so rivers, lakeshores, and distant roads stay rock-solid with zero Z-fighting jitter.
   if (!driving) {
@@ -7826,11 +8399,35 @@ function frame(now: number): void {
       camera.near = wantNear; camera.far = wantFar; camera.updateProjectionMatrix();
     }
   }
-  let shadowStride = mapMode ? 6 : tierCfg.shadowStride;
+  let shadowStride = mapMode ? 6 : sun.intensity < 0.08 ? 90 : tierCfg.shadowStride;
   {
     const ft = driving ? driving.pos : controls.target;
-    sun.target.position.set(ft.x, ft.y, ft.z);
-    sun.position.set(ft.x + sunDir.x * 3000, ft.y + sunDir.y * 3000, ft.z + sunDir.z * 3000);
+    const drvSh = !csm && !!driving && !mapMode;
+    const sb = drvSh ? (USE_WEBGPU && perfTier !== 'high' ? 130 : 170) : 380;
+    let sx = ft.x, sy = ft.y, sz = ft.z;
+    if (drvSh) {
+      // Lock directional shadow frustum center to the shadow-map texel grid in sun-light space so building shadows glide silky-smooth with zero stepping or crawling!
+      const mapRes = sun.shadow.mapSize.x || 2048;
+      const texelWorld = (2 * sb) / mapRes;
+      const upX = Math.abs(sunDir.y) > 0.98 ? 1 : 0, upY = Math.abs(sunDir.y) > 0.98 ? 0 : 1, upZ = 0;
+      let rx = upY * sunDir.z - upZ * sunDir.y;
+      let ry = upZ * sunDir.x - upX * sunDir.z;
+      let rz = upX * sunDir.y - upY * sunDir.x;
+      const rLen = Math.hypot(rx, ry, rz) || 1;
+      rx /= rLen; ry /= rLen; rz /= rLen;
+      const ux = sunDir.y * rz - sunDir.z * ry;
+      const uy = sunDir.z * rx - sunDir.x * rz;
+      const uz = sunDir.x * ry - sunDir.y * rx;
+      const pR = Math.round((ft.x * rx + ft.y * ry + ft.z * rz) / texelWorld) * texelWorld;
+      const pU = Math.round((ft.x * ux + ft.y * uy + ft.z * uz) / texelWorld) * texelWorld;
+      const pD = ft.x * sunDir.x + ft.y * sunDir.y + ft.z * sunDir.z;
+      sx = rx * pR + ux * pU + sunDir.x * pD;
+      sy = ry * pR + uy * pU + sunDir.y * pD;
+      sz = rz * pR + uz * pU + sunDir.z * pD;
+    }
+    sun.target.position.set(sx, sy, sz);
+    sun.position.set(sx + sunDir.x * 3000, sy + sunDir.y * 3000, sz + sunDir.z * 3000);
+    sun.target.updateMatrixWorld();
     if (camera.position.distanceToSquared(ft) >= 900 * 900) shadowStride = 4;
     if (csm) {
       if (!mapMode) {
@@ -7850,8 +8447,7 @@ function frame(now: number): void {
       }
     } else {
       {
-        const drvSh = driving && !mapMode;
-        const sb = drvSh ? 170 : 380, sc = sun.shadow.camera;
+        const sc = sun.shadow.camera;
         if (sc.right !== sb) {
           sc.left = -sb; sc.right = sb; sc.top = sb; sc.bottom = -sb;
           sc.updateProjectionMatrix();
@@ -7887,15 +8483,38 @@ function frame(now: number): void {
     u.uHasSkyMask.value = aoPass?.aoOn ? 1 : 0;
     (u.uSunCol.value as THREE.Color).copy(sun.color);
   }
-  // Update Playkit unified SH9 GI probes, district LocalLookVolumes, clustered streetlamps/tunnels & car headlights
+  // Update Playkit unified SH9 GI probes, district LocalLookVolumes, clustered streetlamps/tunnels & real 3D car headlights
   {
     const nk = curTod.nightK;
     const wDim = Math.min(1, wx.cur.cloudDark * 0.68 + wx.cur.rain * 0.42);
     const focus = driving ? driving.pos : controls.target;
     apexLighting.update(dt, camera, focus, nk, wDim, sunDir, mapMode);
-    const hlOn = !!driving && !mapMode && !replay.active && (nk > 0.25 || wx.cur.wet > 0.35 || apexLighting.controller.fogMod.interiorMix > 0.35);
+    const duskK = Math.max(0, Math.min(1, (0.24 - sunDir.y) * 2.6));
+    const hlStrength = Math.min(1, Math.max(nk * 1.15, duskK * 0.85, wx.cur.wet * 0.72, apexLighting.controller.fogMod.interiorMix));
+    const hlOn = !!driving && !mapMode && !replay.active && hlStrength > 0.12;
     const brkAmt = driving && !replay.active && (keys.has('Space') || keys.has('KeyS') || keys.has('ArrowDown')) ? 0.9 : 0;
     apexLighting.updateVehicleLights(!!driving && !mapMode && !replay.active, driving?.pos, driving?.yaw ?? 0, hlOn, brkAmt);
+    if (hlOn && driving) {
+      const fx = Math.sin(driving.yaw), fz = Math.cos(driving.yaw);
+      const cyBase = Number.isFinite(driving.car.position.y) ? driving.car.position.y : driving.pos.y;
+      if (tslRegionCtx) {
+        (tslRegionCtx.shared.uHlPos.value as THREE.Vector3).set(driving.pos.x + fx * 2.15, cyBase + 0.96, driving.pos.z + fz * 2.15);
+        (tslRegionCtx.shared.uHlDir.value as THREE.Vector3).set(fx, -0.055, fz).normalize();
+        tslRegionCtx.shared.uHlPower.value = hlStrength;
+      }
+      if (playerHeadlightSpot && playerHeadlightNear) {
+        playerHeadlightSpot.position.set(driving.pos.x + fx * 2.15, cyBase + 0.94, driving.pos.z + fz * 2.15);
+        playerHeadlightSpot.target.position.set(driving.pos.x + fx * 30.0, cyBase + 0.05, driving.pos.z + fz * 30.0);
+        playerHeadlightSpot.target.updateMatrixWorld();
+        playerHeadlightSpot.intensity = hlStrength * 240;
+        playerHeadlightNear.position.set(driving.pos.x + fx * 8.5, cyBase + 1.35, driving.pos.z + fz * 8.5);
+        playerHeadlightNear.intensity = hlStrength * 44;
+      }
+    } else {
+      if (tslRegionCtx) tslRegionCtx.shared.uHlPower.value = 0;
+      if (playerHeadlightSpot) playerHeadlightSpot.intensity = 0;
+      if (playerHeadlightNear) playerHeadlightNear.intensity = 0;
+    }
   }
   if (aoPass) {
     // 60 FPS map overview mode: disable full-screen AO/atmosphere pass completely while on the high map!
@@ -7975,11 +8594,11 @@ function frame(now: number): void {
     aaPass.uniforms.uInvRes.value.set(1 / aw, 1 / ah);
   }
   const __t2 = performance.now();
-  // Throttle live car cubemap probe (1 face every 8..12 frames, hiding grass/vegetation/AI/roofs from the tiny 128px cube)
-  // so driving keeps smooth live paint reflections without rendering the entire 4M-tri world twice per frame!
-  const probeStride = (TV_MODE || perfTier === 'low' || IS_INTEL_IGPU) ? 12 : 6;
-  if (carProbe && driving && !mapMode && !replay.active && (frameNo % probeStride) === 0) {
+  // Throttle live car cubemap probe (and disable on WebGPU mid/low iGPUs where CubeCamera target switches trigger ~200 ms WGSL pipeline/draw hitches; cars reflect crisp scene.environment PMREM instead!)
+  const probeStride = (TV_MODE || perfTier !== 'high' || IS_INTEL_IGPU) ? 24 : 6;
+  if (carProbe && !(USE_WEBGPU && perfTier !== 'high') && driving && !mapMode && !replay.active && (frameNo % probeStride) === 0) {
     const hideList: THREE.Object3D[] = [driving.car, spray.points, dust.points, forestGroup, scapeGroup, aiGroup, trafficGroup, roofGroup];
+    if (simLayer?.group) hideList.push(simLayer.group);
     if (vegetation?.group) hideList.push(vegetation.group);
     if (grassField?.group) hideList.push(grassField.group);
     if (carProbe.step(renderer, scene, probePos.set(driving.pos.x, driving.car.position.y + 1.1, driving.pos.z), hideList)) {
@@ -7991,14 +8610,82 @@ function frame(now: number): void {
   if (!mapMode) {
     const firstDriveFrame = !(window as unknown as { __didDriveCull?: boolean }).__didDriveCull;
     (window as unknown as { __didDriveCull?: boolean }).__didDriveCull = true;
-    cityVisibility.viewDist = cineOn ? Math.max(tierCfg.cityViewDist, 1850) : tierCfg.cityViewDist;
+    const baseCityView = tierCfg.cityViewDist;
+    const baseCullView = tierCfg.cullViewDist;
+    cityVisibility.viewDist = cineOn ? Math.max(baseCityView, 1850) : baseCityView;
     cityVisibility.shadowDist = tierCfg.cityShadowDist;
     cityVisibility.update(camera, csm ? csm.lights : [sun], firstDriveFrame ? 0 : frameNo % 3, firstDriveFrame ? 1 : 3);
     if (cityBatches) { cityBatches.viewDist = cityVisibility.viewDist; cityBatches.shadowDist = cityVisibility.shadowDist; cityBatches.update(camera.position, frameNo % 3, 3); }
-    spatialCuller.update(camera, renderer, false, tierCfg.cullViewDist, tierCfg.cullShadowDist, shadowStride);
+    if (cityCellBatches) { cityCellBatches.update(camera, cityVisibility.viewDist, cityVisibility.shadowDist); }
+    spatialCuller.update(camera, renderer, false, baseCullView, tierCfg.cullShadowDist, shadowStride, sun);
   }
   const __t3 = performance.now();
   frameProfiler.context = { mode: mapMode ? 'map' : driving ? 'drive' : 'review', weather: wx.name, camera: camera.position.toArray().map((v) => Math.round(v)) };
+  // Update Downtown architectural building lighting waves, live LED marquee banners & live 3D race broadcast video walls!
+  if (signatureTowers && !mapMode && signatureTowers.group.visible) {
+    signatureTowers.update(curTod.nightK);
+  }
+  if (cityBroadcastLights && !mapMode && cityBroadcastLights.group.visible) {
+    const nearDowntown = (driving?.circuitId === 'ironport_grand_circuit')
+      || Math.hypot(camera.position.x - 5550, camera.position.z - 950) < 1750;
+    if (nearDowntown) {
+      const meRacer = competition?.racers.find((r) => r.isPlayer);
+      const totalCars = competition?.racers.length ?? 6;
+      const lapTot = driving && CLOSED_CIRCUITS.has(driving.circuitId) ? 3 : 1;
+      const lapCur = Math.min(lapTot, Math.max(1, (meRacer?.lap ?? 0) + 1));
+      const elapsedRace = raceClockStart > 0 ? Math.max(0, driveClock - raceClockStart) : 0;
+      const lb: BroadcastLeaderEntry[] = competition?.racers?.length
+        ? [...competition.racers]
+            .sort((a, b) => a.position - b.position)
+            .slice(0, 4)
+            .map((r) => ({
+              pos: r.position,
+              name: r.isPlayer ? 'YOU · APEX GT' : r.driverName.toUpperCase(),
+              gap: r.position === 1 ? 'LEADER' : `+${Math.max(0, r.gapToLeaderSec).toFixed(2)}s`,
+              isPlayer: r.isPlayer,
+            }))
+        : [
+            { pos: 1, name: 'YOU · KESTREL GT-R', gap: 'LEADER', isPlayer: true },
+            { pos: 2, name: 'V. ROSSI · AURELIA', gap: '+0.42s', isPlayer: false },
+            { pos: 3, name: 'K. TAKAHASHI · APEX', gap: '+1.18s', isPlayer: false },
+          ];
+      const psNow = driving?.ps;
+      const spdMps = psNow && Number.isFinite(psNow.speedMps) ? Math.abs(psNow.speedMps) : 0;
+      const gNow = psNow ? (psNow.forwardSpeed < -0.5 ? 'R' : psNow.gear <= 0 ? 'N' : String(psNow.gear)) : 'N';
+      const rpm01 = psNow && Number.isFinite(psNow.rpm) ? Math.max(0.08, Math.min(1, psNow.rpm / 8200)) : 0.16;
+      const flagText = !driving ? 'APEX LIVE' : driving.lock > 0 ? 'GRID HOLD' : lapCur >= lapTot ? 'FINAL LAP' : 'GREEN FLAG';
+      cityBroadcastLights.update(dt, now, {
+        active: !!driving,
+        circuitName: driving && driving.circuitId !== 'free' ? (meta.circuits[driving.circuitId]?.name ?? 'Ironport Grand Circuit') : 'Ironport Grand Circuit',
+        lapText: `LAP ${lapCur}/${lapTot}`,
+        raceTimeText: fmtT(elapsedRace),
+        speedKmh: spdMps * 3.6,
+        gearLabel: gNow,
+        rpm01,
+        posText: meRacer ? `POS ${meRacer.position}/${totalCars}` : 'FREE ROAM',
+        flagText,
+        nightK: curTod.nightK,
+        playerPos: driving ? driving.pos : null,
+        playerYaw: driving ? driving.yaw : 0,
+        playerSpeedMps: spdMps,
+        leaderboard: lb,
+      });
+      // Capture throttled 320x180 live 3D broadcast footage of the race (skip during high-altitude drone swoop;
+      // hide non-essential props & heavy trackKit fencing/tyres during the tiny 320x180 TV pass so main framerate stays silky!)
+      if (!droneHigh) {
+        cityBroadcastLights.renderBroadcastFeed(
+          renderer,
+          scene,
+          [
+            vegetation?.group, grassField?.group, forestGroup, wildlifeWorld?.group, trackKit?.group,
+            spray.points, dust.points, scapeGroup, roofGroup, harborGroup, zoneGroup,
+            simLayer?.group, parked?.group, parkingLots?.group, townWalks?.group, refDress?.group,
+          ],
+          false,
+        );
+      }
+    }
+  }
   frameProfiler.beginRender();
   atmosphere?.update(scene, camera, sunDir, sun.color, wx.cur.fogGrey, wx.cur.sun, curTod.nightK, mapMode, now);
   if (USE_WEBGPU) {
@@ -8059,6 +8746,7 @@ function frame(now: number): void {
     cityVisibility.viewDist = tierCfg.cityViewDist; cityVisibility.shadowDist = tierCfg.cityShadowDist;
     cityVisibility.update(camera, csm ? csm.lights : [sun], i % 3, 3);
     if (cityBatches) { cityBatches.viewDist = cityVisibility.viewDist; cityBatches.shadowDist = cityVisibility.shadowDist; cityBatches.update(camera.position, i % 3, 3); }
+    if (cityCellBatches) { cityCellBatches.update(camera, cityVisibility.viewDist, cityVisibility.shadowDist); }
     spatialCuller.update(camera, renderer, false, tierCfg.cullViewDist, tierCfg.cullShadowDist, tierCfg.shadowStride);
     if (csm) csm.update();
     const t2 = performance.now();

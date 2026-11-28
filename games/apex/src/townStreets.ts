@@ -11,7 +11,7 @@ import { loadPbr1K } from './roadpbr';
  * - Nothing is laid where the street mask already paints a downtown sidewalk, on bridge decks, or over water.
  * One mesh for the walks and one for the curbs, whatever the number of streets.
  */
-const CURB_H = 0.15, CURB_TOP = 0.2, WALK = 1.5, STEP = 2, CORNER_R = 4.5;     // a residential corner: 4.5 m curb radius
+const CURB_H = 0.15, CURB_TOP = 0.2, WALK = 1.5, STEP = 4, CORNER_R = 4.5;     // a residential corner: 4.5 m curb radius
 
 interface Run { line: Pt[]; ys: number[]; half: number; town: boolean; lawn: number; cum: number[] }
 
@@ -224,22 +224,50 @@ export function buildTownSidewalks(
       }
     }
   }
+  const emitSpatialCells = (pos: number[], uv: number[] | null, idx: number[], mat: THREE.Material, baseName: string, cell = 700): void => {
+    const cells = new Map<string, { pos: number[]; uv: number[]; idx: number[]; map: Map<number, number> }>();
+    for (let t = 0; t < idx.length; t += 3) {
+      const i0 = idx[t], i1 = idx[t + 1], i2 = idx[t + 2];
+      const cx = (pos[i0 * 3] + pos[i1 * 3] + pos[i2 * 3]) / 3;
+      const cz = (pos[i0 * 3 + 2] + pos[i1 * 3 + 2] + pos[i2 * 3 + 2]) / 3;
+      const key = `${Math.floor(cx / cell)},${Math.floor(cz / cell)}`;
+      let b = cells.get(key);
+      if (!b) { b = { pos: [], uv: [], idx: [], map: new Map() }; cells.set(key, b); }
+      for (const vi of [i0, i1, i2]) {
+        let ni = b.map.get(vi);
+        if (ni === undefined) {
+          ni = b.pos.length / 3;
+          b.map.set(vi, ni);
+          b.pos.push(pos[vi * 3], pos[vi * 3 + 1], pos[vi * 3 + 2]);
+          if (uv) b.uv.push(uv[vi * 2], uv[vi * 2 + 1]);
+        }
+        b.idx.push(ni);
+      }
+    }
+    for (const b of cells.values()) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(b.pos, 3));
+      if (uv) g.setAttribute('uv', new THREE.Float32BufferAttribute(b.uv, 2));
+      g.setIndex(b.idx);
+      g.computeVertexNormals();
+      const m = new THREE.Mesh(g, mat);
+      m.receiveShadow = true;
+      m.name = baseName;
+      group.add(m);
+    }
+  };
   if (wPos.length) {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(wPos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(wUv, 2)); g.setIndex(wIdx); g.computeVertexNormals();
-    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({
+    const wMat = new THREE.MeshStandardMaterial({
       map: loadPbr1K('ground_concrete_sidewalk.png', true, 0xd6d3cc, 512),
       normalMap: loadPbr1K('ground_concrete_sidewalk_normal.png', false, 0x8080ff, 512),
       color: 0xd6d3cc, roughness: 0.9,
       polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -6,
-    }));
-    m.receiveShadow = true; m.name = 'town-walks'; group.add(m);
+    });
+    emitSpatialCells(wPos, wUv, wIdx, wMat, 'town-walks', 700);
   }
   if (cPos.length) {
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(cPos, 3)); g.setIndex(cIdx); g.computeVertexNormals();
-    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0xbdbab2, roughness: 0.85, side: THREE.DoubleSide }));
-    m.receiveShadow = true; m.name = 'town-curbs'; group.add(m);
+    const cMat = new THREE.MeshStandardMaterial({ color: 0xbdbab2, roughness: 0.85, side: THREE.DoubleSide });
+    emitSpatialCells(cPos, null, cIdx, cMat, 'town-curbs', 700);
   }
   console.log('town sidewalks', Math.round(walkM / 1000), 'km of walk,', Math.round(curbM / 1000), 'km of curb,', corners, 'corner arcs');
   // keep street trees and props off the walks

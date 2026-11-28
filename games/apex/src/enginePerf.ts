@@ -42,27 +42,27 @@ export const TIER_CONFIGS: Record<PerfTier, TierConfig> = {
     cityShadowDist: 190,
     cullViewDist: 2200,
     cullShadowDist: 180,
-    shadowStride: 2,
+    shadowStride: 1,
     aoEnabled: true,
     aoStrength: 0.85,
   },
   mid: {
     tier: 'mid',
-    cityViewDist: 580,
-    cityShadowDist: 55,
-    cullViewDist: 680,
-    cullShadowDist: 55,
-    shadowStride: 6,
+    cityViewDist: 680,
+    cityShadowDist: 105,
+    cullViewDist: 540,
+    cullShadowDist: 75,
+    shadowStride: 1,
     aoEnabled: true,
     aoStrength: 0.72,
   },
   low: {
     tier: 'low',
-    cityViewDist: 440,
-    cityShadowDist: 45,
-    cullViewDist: 520,
-    cullShadowDist: 45,
-    shadowStride: 8,
+    cityViewDist: 580,
+    cityShadowDist: 80,
+    cullViewDist: 450,
+    cullShadowDist: 60,
+    shadowStride: 2,
     aoEnabled: false,
     aoStrength: 0,
   },
@@ -204,6 +204,7 @@ interface CullEntry {
   center: THREE.Vector3;
   radius: number;
   baseCastShadow: boolean;
+  maxDist: number;
 }
 
 interface ChunkBucket {
@@ -283,6 +284,7 @@ export class SpatialCuller {
           center: sphere.center.clone(),
           radius: Math.max(2, sphere.radius),
           baseCastShadow: m.castShadow,
+          maxDist: typeof m.userData?.maxDist === 'number' ? m.userData.maxDist : Infinity,
         };
         this.entries.push(entry);
         // an object much bigger than a chunk (a 13 km scenic road, a long bridge) is not bucketed by its centre: from 2.6 km off its centre the whole
@@ -309,7 +311,8 @@ export class SpatialCuller {
     isMapMode: boolean,
     maxViewDist = 2600,
     maxShadowDist = 240,
-    shadowStride = 2
+    shadowStride = 2,
+    shadowLight?: THREE.DirectionalLight | null
   ): void {
     // 1. O(1) Spatial-Chunk Frustum + Distance culling with active-chunk state tracking
     if (this.entries.length > 0) {
@@ -342,7 +345,8 @@ export class SpatialCuller {
           this.tmpSphere.center.copy(e.center); this.tmpSphere.radius = e.radius;
           const inFrustum = this.frustum.intersectsSphere(this.tmpSphere);
           e.obj.visible = inFrustum;
-          if (e.baseCastShadow) e.obj.castShadow = inFrustum;
+          // Multi-km region-wide meshes (scenic roads, rail bridges) only cast shadows when close to the player
+          if (e.baseCastShadow) e.obj.castShadow = inFrustum && e.radius <= 600 && dx * dx + dz * dz <= (e.radius + maxShadowDist) * (e.radius + maxShadowDist);
         }
         const camCx = Math.floor(camPos.x / this.chunkSize);
         const camCz = Math.floor(camPos.z / this.chunkSize);
@@ -367,7 +371,9 @@ export class SpatialCuller {
             const dz = e.center.z - camPos.z;
             const d2 = dx * dx + dy * dy + dz * dz;
             const maxR = e.radius;
-            if (d2 > maxD2 + maxR * maxR) {
+            const effMaxD = e.maxDist < maxViewDist ? e.maxDist : maxViewDist;
+            const effMaxD2 = effMaxD * effMaxD;
+            if (d2 > effMaxD2 + maxR * maxR) {
               e.obj.visible = false;
               continue;
             }
@@ -384,11 +390,13 @@ export class SpatialCuller {
     }
 
     // 2. Throttled Shadow Map refresh (never re-render shadow maps during 60 FPS Map Overview mode!)
+    //    Three.js r184 WebGPURenderer checks `light.shadow.autoUpdate / needsUpdate` (not `renderer.shadowMap`), so update BOTH!
     if (!isMapMode) {
       this.shadowFrameToggle = (this.shadowFrameToggle + 1) % Math.max(1, shadowStride);
       const camMovedSq = this.lastShadowCamPos.distanceToSquared(camera.position);
       if (this.shadowFrameToggle === 0 || (shadowStride <= 2 && camMovedSq > 25.0)) {
         renderer.shadowMap.needsUpdate = true;
+        if (shadowLight?.shadow) shadowLight.shadow.needsUpdate = true;
         this.lastShadowCamPos.copy(camera.position);
       }
     }

@@ -55,20 +55,54 @@ function lerpAngle(a: number, b: number, t: number): number {
   return a + d * t;
 }
 
-/** Bounded Catmull-Rom spline interpolation (prevents corner-cutting at 25-30 fps AND prevents overshoot). */
-function boundedCatmull(p0: number, p1: number, p2: number, p3: number, t: number): number {
-  const t2 = t * t;
-  const t3 = t2 * t;
-  const v = 0.5 * (
-    (2 * p1) +
-    (-p0 + p2) * t +
-    (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
-    (-p0 + 3 * p1 - 3 * p2 + p3) * t3
-  );
-  const lo = Math.min(p1, p2);
-  const hi = Math.max(p1, p2);
-  const pad = (hi - lo) * 0.12;
-  return Math.max(lo - pad, Math.min(hi + pad, v));
+/**
+ * Time-weighted monotone Cubic Hermite interpolation (Fritsch-Carlson PCHIP):
+ * Uses actual frame timestamps (t0, t1, t2, t3) so playback has C1-continuous physical velocity
+ * even when recording frames have variable dt (15–60 FPS), with zero surging, stalling, or overshoot!
+ */
+function monotoneHermite(
+  t0: number, p0: number,
+  t1: number, p1: number,
+  t2: number, p2: number,
+  t3: number, p3: number,
+  u: number,
+): number {
+  const h1 = t2 - t1;
+  if (h1 <= 1e-6) return p1;
+  const d1 = (p2 - p1) / h1;
+  const h0 = t1 - t0;
+  const h2 = t3 - t2;
+
+  let m1 = d1;
+  if (h0 > 1e-6) {
+    const d0 = (p1 - p0) / h0;
+    if (d0 * d1 > 0) {
+      const w0 = 2 * h1 + h0;
+      const w1 = h1 + 2 * h0;
+      m1 = (w0 + w1) / (w0 / d0 + w1 / d1);
+    } else {
+      m1 = 0;
+    }
+  }
+
+  let m2 = d1;
+  if (h2 > 1e-6) {
+    const d2 = (p3 - p2) / h2;
+    if (d1 * d2 > 0) {
+      const w1 = 2 * h2 + h1;
+      const w2 = h2 + 2 * h1;
+      m2 = (w1 + w2) / (w1 / d1 + w2 / d2);
+    } else {
+      m2 = 0;
+    }
+  }
+
+  const u2 = u * u;
+  const u3 = u2 * u;
+  return (2 * u3 - 3 * u2 + 1) * p1
+    + (u3 - 2 * u2 + u) * h1 * m1
+    + (-2 * u3 + 3 * u2) * p2
+    + (u3 - u2) * h1 * m2;
 }
 
 export interface ReplayOpponentSource {
@@ -149,6 +183,12 @@ export class Replay {
   private fov = 40;
   private slow = 1;
   private t = 0;
+  private smoothDt = 1 / 60;
+  private poseSmoothReady = false;
+  private sPos = new THREE.Vector3();
+  private sYaw = 0;
+  private sPitch = 0;
+  private sRoll = 0;
   private baseFov = 55;
   private world: DirectorWorld;
 
@@ -404,17 +444,18 @@ export class Replay {
       };
     }
 
-    // Use bounded Catmull-Rom for world position when surrounding frames are continuous (eliminates corner-cutting at 25-30 fps)
+    // Use true time-weighted monotone Cubic Hermite interpolation (C1-continuous velocity even under variable 15–60 fps recording!)
     const p0Idx = lo > 0 && !this.isDiscontinuousPair(lo - 1, lo) ? lo - 1 : lo;
     const p3Idx = hi + 1 < this.n && !this.isDiscontinuousPair(hi, hi + 1) ? hi + 1 : hi;
     const o0 = p0Idx * STRIDE;
     const o3 = p3Idx * STRIDE;
+    const t0 = D[o0], t1 = D[a], t2 = D[b], t3 = D[o3];
 
     return {
       t: clamped,
-      x: boundedCatmull(D[o0 + 1], D[a + 1], D[b + 1], D[o3 + 1], f),
-      y: boundedCatmull(D[o0 + 2], D[a + 2], D[b + 2], D[o3 + 2], f),
-      z: boundedCatmull(D[o0 + 3], D[a + 3], D[b + 3], D[o3 + 3], f),
+      x: monotoneHermite(t0, D[o0 + 1], t1, D[a + 1], t2, D[b + 1], t3, D[o3 + 1], f),
+      y: monotoneHermite(t0, D[o0 + 2], t1, D[a + 2], t2, D[b + 2], t3, D[o3 + 2], f),
+      z: monotoneHermite(t0, D[o0 + 3], t1, D[a + 3], t2, D[b + 3], t3, D[o3 + 3], f),
       yaw: lerpAngle(D[a + 4], D[b + 4], f),
       pitch: D[a + 5] + (D[b + 5] - D[a + 5]) * f,
       roll: D[a + 6] + (D[b + 6] - D[a + 6]) * f,
@@ -500,6 +541,8 @@ export class Replay {
     this.rate = 1;
     this.pt = 0;
     this.slow = 1;
+    this.smoothDt = 1 / 60;
+    this.poseSmoothReady = false;
     this.occludedTimer = 0;
     this.overrideType = null;
     this.overrideReason = '';
@@ -554,8 +597,8 @@ export class Replay {
     if (!this.active) return false;
     if (code === 'Escape') { this.stop(); return true; }
     if (code === 'Space') this.paused = !this.paused;
-    else if (code === 'ArrowRight') this.pt = Math.min(this.length, this.pt + 5);
-    else if (code === 'ArrowLeft') this.pt = Math.max(0, this.pt - 5);
+    else if (code === 'ArrowRight') { this.pt = Math.min(this.length, this.pt + 5); this.poseSmoothReady = false; }
+    else if (code === 'ArrowLeft') { this.pt = Math.max(0, this.pt - 5); this.poseSmoothReady = false; }
     else if (code === 'BracketRight') this.rate = Math.min(4, this.rate * 2);
     else if (code === 'BracketLeft') this.rate = Math.max(0.125, this.rate / 2);
     else if (code === 'KeyG') this.cycleStyle();
@@ -773,24 +816,49 @@ export class Replay {
 
   step(dt: number): void {
     if (!this.active || this.n < 2) return;
-    this.t += dt;
+    // Smooth playback dt gently so display micro-jitter never causes jerky replay clock stepping
+    const clampedDt = Math.min(Math.max(dt, 0.001), 0.05);
+    this.smoothDt += (clampedDt - this.smoothDt) * Math.min(1, clampedDt * 10);
+    const playDt = this.smoothDt;
+    this.t += playDt;
 
     // Only apply dramatic slow-mo on genuine high-impact crashes (>= 0.78), never on ordinary driving or minor kerb taps
     const curS = this.sampleAt(this.pt);
     const nextS = this.sampleAt(this.pt + 0.35);
     const heavyCrash = curS.hit >= 0.78 || nextS.hit >= 0.78;
-    this.slow += ((heavyCrash ? 0.35 : 1) - this.slow) * Math.min(1, dt * 4.5);
+    this.slow += ((heavyCrash ? 0.35 : 1) - this.slow) * Math.min(1, playDt * 4.5);
 
-    if (!this.paused) this.pt += dt * this.rate * this.slow;
+    if (!this.paused) this.pt += playDt * this.rate * this.slow;
     if (this.pt >= this.length) {
       this.pt = 0;
       this.shotIdx = -1;
       this.overrideType = null;
+      this.poseSmoothReady = false;
     }
 
-    const s = this.sampleAt(this.pt);
+    const rawS = this.sampleAt(this.pt);
     const opps = this.sampleOpponentsAt(this.pt);
-    const stepDt = this.paused ? 0 : dt * this.rate * this.slow;
+    const stepDt = this.paused ? 0 : playDt * this.rate * this.slow;
+
+    // Lightly filter sub-frame physics suspension chatter & yaw micro-noise (resets instantly on cut, seek, or >6m discontinuity)
+    let s = rawS;
+    if (!this.poseSmoothReady || Math.hypot(rawS.x - this.sPos.x, rawS.z - this.sPos.z) > 6.0 || (rawS.flags & REPLAY_FLAG_DISCONTINUITY) !== 0) {
+      this.sPos.set(rawS.x, rawS.y, rawS.z);
+      this.sYaw = rawS.yaw;
+      this.sPitch = rawS.pitch;
+      this.sRoll = rawS.roll;
+      this.poseSmoothReady = true;
+    } else if (!this.paused) {
+      const kPos = 1 - Math.exp(-playDt * 34);
+      const kAng = 1 - Math.exp(-playDt * 20);
+      this.sPos.x += (rawS.x - this.sPos.x) * kPos;
+      this.sPos.y += (rawS.y - this.sPos.y) * kPos;
+      this.sPos.z += (rawS.z - this.sPos.z) * kPos;
+      this.sYaw = lerpAngle(this.sYaw, rawS.yaw, kAng);
+      this.sPitch += (rawS.pitch - this.sPitch) * kAng;
+      this.sRoll += (rawS.roll - this.sRoll) * kAng;
+      s = { ...rawS, x: this.sPos.x, y: this.sPos.y, z: this.sPos.z, yaw: this.sYaw, pitch: this.sPitch, roll: this.sRoll };
+    }
     this.applyLivePose(s, stepDt);
 
     if (!this.shots.length) this.plan();
@@ -839,7 +907,7 @@ export class Replay {
     // cleanly cut to an unobstructed camera-car dolly / tunnel-chase rig!
     const clearNow = isSegmentClear3D(this.world, rig.want.x, rig.want.y, rig.want.z, s.x, s.y + 0.72, s.z, 0.85);
     if (!clearNow) {
-      this.occludedTimer += dt;
+      this.occludedTimer += playDt;
       if (this.occludedTimer > 0.14 && activeType !== 'tunnel-chase' && activeType !== 'fender-brake') {
         const inTun = (s.flags & REPLAY_FLAG_TUNNEL) !== 0 || !!this.world.inTunnel?.(s.x, s.z);
         this.overrideType = inTun ? 'tunnel-chase' : 'chase-dolly';
@@ -851,7 +919,7 @@ export class Replay {
         this.fov = rig.fov;
       }
     } else {
-      this.occludedTimer = Math.max(0, this.occludedTimer - dt * 2);
+      this.occludedTimer = Math.max(0, this.occludedTimer - playDt * 2);
     }
 
     const styleMeta = DIRECTOR_STYLES[this.style];
@@ -862,19 +930,20 @@ export class Replay {
       this.fov = rig.fov;
     } else {
       if (rig.follow === 0) this.camPos.copy(rig.want);
-      else this.camPos.lerp(rig.want, 1 - Math.exp(-dt * rig.follow));
-      this.camLook.lerp(rig.look, 1 - Math.exp(-dt * styleMeta.panLag));
-      this.fov += (rig.fov - this.fov) * (1 - Math.exp(-dt * 6.5));
+      else this.camPos.lerp(rig.want, 1 - Math.exp(-playDt * rig.follow));
+      this.camLook.lerp(rig.look, 1 - Math.exp(-playDt * styleMeta.panLag));
+      this.fov += (rig.fov - this.fov) * (1 - Math.exp(-playDt * 6.5));
     }
 
     const cam = this.d.camera;
     cam.position.copy(this.camPos);
     if (activeType !== 'heli' && activeType !== 'fender-brake') {
+      // Subtle low-frequency broadcast camera breathing (eliminates 39/53 rad/s high-frequency aliasing jitter!)
       const speed = Math.abs(s.speed);
       const prox = 1 / Math.max(1, this.camPos.distanceTo(this.camLook) * 0.08);
-      const amp = speed * 0.00028 * styleMeta.shakeScale * (activeType === 'apex-kerb' ? 2.4 : 1.0) * (0.4 + prox);
-      cam.position.x += Math.sin(this.t * 39) * amp;
-      cam.position.y += Math.sin(this.t * 53) * amp;
+      const amp = speed * 0.00008 * styleMeta.shakeScale * (activeType === 'apex-kerb' ? 1.8 : 1.0) * (0.4 + prox);
+      cam.position.x += Math.sin(this.t * 3.1) * amp;
+      cam.position.y += Math.sin(this.t * 4.3) * amp;
     }
     cam.lookAt(this.camLook);
     if (Math.abs(cam.fov - this.fov) > 0.04) {

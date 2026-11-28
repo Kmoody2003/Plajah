@@ -20,6 +20,8 @@ export interface NearbyVehicleAudioSample {
 export class GameAudio {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
+  private engineBus: GainNode | null = null;
+  private sfxBus: GainNode | null = null;
   private inCarEngine: InCarEngineSynth | null = null;
   private engOsc1: OscillatorNode | null = null;
   private engOsc2: OscillatorNode | null = null;
@@ -60,7 +62,9 @@ export class GameAudio {
 
   private muted = false;
   private musicOn = true;
-  private level = 0.42;
+  private level = 1.0;
+  private engineLevel = 0.75;
+  private sfxLevel = 0.85;
   private paused = false;
   private started = false;
   private stationIdx = 0;
@@ -109,9 +113,20 @@ export class GameAudio {
     this.ctx = ctx;
 
     const master = ctx.createGain();
-    master.gain.value = this.muted ? 0 : this.level;
+    master.gain.value = (this.muted || this.paused) ? 0 : this.level;
     master.connect(ctx.destination);
     this.master = master;
+
+    // Dedicated independent Engine bus (0.00 = completely silent .. 1.50) & SFX/Tyres/World bus (0.00 .. 1.50)
+    const engineBus = ctx.createGain();
+    engineBus.gain.value = this.engineLevel;
+    engineBus.connect(master);
+    this.engineBus = engineBus;
+
+    const sfxBus = ctx.createGain();
+    sfxBus.gain.value = this.sfxLevel;
+    sfxBus.connect(master);
+    this.sfxBus = sfxBus;
 
     // Engine multi-harmonic exhaust + sub-octave rumble + waveshaper saturation
     const engFilter = ctx.createBiquadFilter();
@@ -151,7 +166,7 @@ export class GameAudio {
     subGain.connect(shaper);
     shaper.connect(engFilter);
     engFilter.connect(engGain);
-    engGain.connect(master);
+    engGain.connect(engineBus);
     osc1.start();
     osc2.start();
     oscSub.start();
@@ -169,7 +184,7 @@ export class GameAudio {
     const forcedGain = ctx.createGain();
     forcedGain.gain.value = 0;
     forcedOsc.connect(forcedGain);
-    forcedGain.connect(master);
+    forcedGain.connect(engineBus);
     forcedOsc.start();
     this.forcedOsc = forcedOsc;
     this.forcedGain = forcedGain;
@@ -181,8 +196,8 @@ export class GameAudio {
     for (let i = 0; i < bufLen; i++) data[i] = Math.random() * 2 - 1;
     this.noiseBuffer = noiseBuf;
 
-    // Authentic RPM-locked in-car multi-cylinder engine synthesizer (all 24 architecture profiles)
-    this.inCarEngine = new InCarEngineSynth(ctx, master, noiseBuf);
+    // Authentic RPM-locked in-car multi-cylinder engine synthesizer (routes through engineBus so slider dials smoothly to 0%)
+    this.inCarEngine = new InCarEngineSynth(ctx, engineBus, noiseBuf);
 
     // Asphalt tire screech
     const noiseSrc = ctx.createBufferSource();
@@ -199,7 +214,7 @@ export class GameAudio {
 
     noiseSrc.connect(screechFilter);
     screechFilter.connect(screechGain);
-    screechGain.connect(master);
+    screechGain.connect(sfxBus);
     noiseSrc.start();
     this.screechGain = screechGain;
 
@@ -214,7 +229,7 @@ export class GameAudio {
     gravelGain.gain.value = 0;
     gravelSrc.connect(gravelFilter);
     gravelFilter.connect(gravelGain);
-    gravelGain.connect(master);
+    gravelGain.connect(sfxBus);
     gravelSrc.start();
     this.gravelGain = gravelGain;
 
@@ -230,7 +245,7 @@ export class GameAudio {
     brakeGain.gain.value = 0;
     brakeSrc.connect(brakeFilter);
     brakeFilter.connect(brakeGain);
-    brakeGain.connect(master);
+    brakeGain.connect(sfxBus);
     brakeSrc.start();
     this.brakeGain = brakeGain;
 
@@ -264,7 +279,7 @@ export class GameAudio {
     sirenMixB.gain.value = 0.38;
     sirenOscA.connect(sirenShaper);
     sirenOscB.connect(sirenMixB).connect(sirenShaper);
-    sirenShaper.connect(sirenBand).connect(sirenGain).connect(master);
+    sirenShaper.connect(sirenBand).connect(sirenGain).connect(sfxBus);
     sirenOscA.start();
     sirenOscB.start();
     this.sirenOscA = sirenOscA;
@@ -281,7 +296,7 @@ export class GameAudio {
     const aiSirenOsc = ctx.createOscillator();
     aiSirenOsc.type = 'sawtooth';
     aiSirenOsc.frequency.value = 760;
-    aiSirenOsc.connect(aiSirenBand).connect(aiSirenGain).connect(master);
+    aiSirenOsc.connect(aiSirenBand).connect(aiSirenGain).connect(sfxBus);
     aiSirenOsc.start();
     this.aiSirenOsc = aiSirenOsc;
     this.aiSirenGain = aiSirenGain;
@@ -301,7 +316,7 @@ export class GameAudio {
     rivalGain.gain.value = 0;
     rivalOscA.connect(rivalFilter);
     rivalOscB.connect(rivalFilter);
-    rivalFilter.connect(rivalGain).connect(master);
+    rivalFilter.connect(rivalGain).connect(engineBus);
     rivalOscA.start();
     rivalOscB.start();
     this.rivalOscA = rivalOscA;
@@ -337,7 +352,8 @@ export class GameAudio {
   /** Dual-tone low brass police cruiser air horn burst ("HONK!") */
   triggerAirHorn(durationSec = 0.42): void {
     this.ensureStarted();
-    if (!this.ctx || !this.master || this.muted || this.paused) return;
+    const out = this.sfxBus ?? this.master;
+    if (!this.ctx || !out || this.muted || this.paused) return;
     const now = this.ctx.currentTime;
     const bp = this.ctx.createBiquadFilter();
     bp.type = 'bandpass';
@@ -348,7 +364,7 @@ export class GameAudio {
     g.gain.linearRampToValueAtTime(0.24, now + 0.025);
     g.gain.setValueAtTime(0.22, now + Math.max(0.08, durationSec - 0.06));
     g.gain.exponentialRampToValueAtTime(0.001, now + durationSec);
-    bp.connect(g).connect(this.master);
+    bp.connect(g).connect(out);
     for (const hz of [392, 493.88]) {
       const o = this.ctx.createOscillator();
       o.type = 'sawtooth';
@@ -391,10 +407,24 @@ export class GameAudio {
 
   /** hosts that bring their own music (the region game) turn the built-in groove off */
   setMusic(on: boolean) { this.musicOn = on; }
-  /** overall engine / tyre / brake level (0..1.5) */
+  /** Independent engine bus volume (0.00 = completely silent/near-zero .. 1.50) */
+  setEngineLevel(v: number) {
+    this.engineLevel = Math.max(0, Math.min(1.5, v));
+    if (this.engineBus && this.ctx) {
+      this.engineBus.gain.setTargetAtTime(this.engineLevel, this.ctx.currentTime, 0.035);
+    }
+  }
+  /** Independent SFX / tyre / brake / collision / siren bus volume (0.00 .. 1.50) */
+  setSfxLevel(v: number) {
+    this.sfxLevel = Math.max(0, Math.min(1.5, v));
+    if (this.sfxBus && this.ctx) {
+      this.sfxBus.gain.setTargetAtTime(this.sfxLevel, this.ctx.currentTime, 0.035);
+    }
+  }
+  /** Legacy combined setter: scales both engine and SFX buses cleanly. */
   setLevel(v: number) {
-    this.level = v;
-    if (this.master && this.ctx && !this.muted && !this.paused) this.master.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
+    this.setEngineLevel(v);
+    this.setSfxLevel(v);
   }
   /** silence or restore everything (menus, replays) without losing the mute setting */
   setPaused(p: boolean) {
@@ -541,7 +571,8 @@ export class GameAudio {
   }
 
   private triggerBackfire(t: number) {
-    if (!this.ctx || !this.master) return;
+    const out = this.sfxBus ?? this.master;
+    if (!this.ctx || !out) return;
     const realBuf = this.sampleBuffers.get('backfire');
     if (realBuf) {
       const src = this.ctx.createBufferSource();
@@ -549,7 +580,7 @@ export class GameAudio {
       const g = this.ctx.createGain();
       g.gain.value = 0.42;
       src.connect(g);
-      g.connect(this.master);
+      g.connect(out);
       src.start(t);
       return;
     }
@@ -566,7 +597,7 @@ export class GameAudio {
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.085);
     src.connect(filt);
     filt.connect(g);
-    g.connect(this.master);
+    g.connect(out);
     src.start(t);
     src.stop(t + 0.09);
   }
@@ -576,7 +607,8 @@ export class GameAudio {
    * Rate-limited so continuous scraping creates crisp grinding bursts without saturating the master bus.
    */
   playCollision(kind: 'car' | 'wall' | 'scrape', intensity = 0.6): void {
-    if (!this.ctx || !this.master || this.muted || this.paused) return;
+    const out = this.sfxBus ?? this.master;
+    if (!this.ctx || !out || this.muted || this.paused) return;
     const now = this.ctx.currentTime;
     const power = Math.max(0.12, Math.min(1.0, intensity));
     if (kind === 'scrape') {
@@ -594,7 +626,7 @@ export class GameAudio {
       g.gain.setValueAtTime(0.001, now);
       g.gain.linearRampToValueAtTime(0.18 * power, now + 0.014);
       g.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
-      src.connect(bp); bp.connect(g); g.connect(this.master);
+      src.connect(bp); bp.connect(g); g.connect(out);
       src.start(now, Math.random() * 0.4, 0.15);
       return;
     }
@@ -611,7 +643,7 @@ export class GameAudio {
     const subG = ctx.createGain();
     subG.gain.setValueAtTime(0.42 * power, now);
     subG.gain.exponentialRampToValueAtTime(0.001, now + 0.22 + power * 0.10);
-    sub.connect(subG); subG.connect(this.master);
+    sub.connect(subG); subG.connect(out);
     sub.start(now); sub.stop(now + 0.34);
 
     // 2. Broadband crunch (concrete slam / sheet-metal crumple)
@@ -626,7 +658,7 @@ export class GameAudio {
       const g1 = ctx.createGain();
       g1.gain.setValueAtTime(0.46 * power, now);
       g1.gain.exponentialRampToValueAtTime(0.001, now + 0.20 + power * 0.14);
-      n1.connect(f1); f1.connect(g1); g1.connect(this.master);
+      n1.connect(f1); f1.connect(g1); g1.connect(out);
       n1.start(now, Math.random() * 0.4, 0.38);
     }
 
@@ -643,13 +675,14 @@ export class GameAudio {
       const g = ctx.createGain();
       g.gain.setValueAtTime((kind === 'car' ? 0.12 : 0.08) * power / (i + 1), now);
       g.gain.exponentialRampToValueAtTime(0.001, now + 0.14 + power * 0.08);
-      osc.connect(bp); bp.connect(g); g.connect(this.master);
+      osc.connect(bp); bp.connect(g); g.connect(out);
       osc.start(now); osc.stop(now + 0.26);
     }
   }
 
   private triggerSuspensionThump(t: number, intensity: number) {
-    if (!this.ctx || !this.master) return;
+    const out = this.sfxBus ?? this.master;
+    if (!this.ctx || !out) return;
     const realBuf = this.sampleBuffers.get('curb_thud');
     if (realBuf) {
       const src = this.ctx.createBufferSource();
@@ -657,7 +690,7 @@ export class GameAudio {
       const g = this.ctx.createGain();
       g.gain.value = 0.36 * Math.min(1, intensity);
       src.connect(g);
-      g.connect(this.master);
+      g.connect(out);
       src.start(t);
       return;
     }
@@ -670,7 +703,7 @@ export class GameAudio {
     g.gain.setValueAtTime(0.16 * Math.min(1, intensity), t);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
     osc.connect(g);
-    g.connect(this.master);
+    g.connect(out);
     osc.start(t);
     osc.stop(t + 0.13);
   }

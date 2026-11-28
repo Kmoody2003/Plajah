@@ -87,7 +87,7 @@ export class CompetitionEngine {
     circuitPts: THREE.Vector3[],
     specs: CarSpec[],
     ground: (x: number, z: number) => number,
-    options?: { totalLaps?: number; includePlayer?: boolean }
+    options?: { totalLaps?: number; includePlayer?: boolean; totalCars?: number }
   ): RacerEntry[] {
     if (circuitPts.length < 3) {
       throw new Error('CompetitionEngine.createGrid requires at least 3 circuit points.');
@@ -131,7 +131,7 @@ export class CompetitionEngine {
       cumLen + Math.hypot(firstSample.pos.x - lastSample.pos.x, firstSample.pos.z - lastSample.pos.z);
 
     this.racers = [];
-    const totalCars = 12;
+    const totalCars = Math.max(2, Math.min(12, options?.totalCars ?? 12));
 
     for (let i = 0; i < totalCars; i++) {
       const row = Math.floor(i / 2); // 0..5

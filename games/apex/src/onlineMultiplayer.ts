@@ -201,7 +201,7 @@ export class OnlineSessionManager {
   }
 
   /** Online open-world shard through the Plajah Realtime server (32-player 950 m spatial interest-radius cruising). */
-  async joinServerOpenWorld(opts: ServerRaceOpts): Promise<void> {
+  async joinServerOpenWorld(opts: ServerRaceOpts): Promise<{ matchId: string; code?: string }> {
     this.disconnect();
     this.mode = 'persistent_world';
     this.roomId = 'open-world-na-1';
@@ -209,13 +209,22 @@ export class OnlineSessionManager {
     const rt = new RealtimeClient({ apiBase: opts.apiBase, getToken: opts.getToken, game: APEX_WORLD_GAME, onEvent: e => { this.onRt(e); opts.onRt?.(e); } });
     this.rt = rt;
     try {
-      const matchId = opts.how === 'quick' ? await rt.quickMatch()
-        : opts.how === 'create' ? (await rt.createPrivate()).matchId
-        : await rt.joinCode(opts.how.code);
-      if (this.rt !== rt) return;
+      let matchId: string;
+      let code: string | undefined;
+      if (opts.how === 'quick') {
+        matchId = await rt.joinShard({ region: 'ironport' });
+      } else if (opts.how === 'create') {
+        const created = await rt.createPrivate({ region: 'ironport' });
+        matchId = created.matchId;
+        code = created.code;
+      } else {
+        matchId = await rt.joinCode(opts.how.code);
+      }
+      if (this.rt !== rt) return { matchId, code };
       await rt.connect(matchId);
       rt.setReady(true);
       this.onEvent?.(`ONLINE OPEN WORLD · ${this.profile.driverName}`);
+      return { matchId, code };
     } catch (e) {
       if (this.rt === rt) { this.rt = null; this.mode = 'offline'; }
       throw e;
@@ -249,7 +258,7 @@ export class OnlineSessionManager {
   }
 
   /** Online race through the Plajah Realtime server: queue / room code → ticket → room. Resolves once in the lobby. */
-  async joinServerRace(circuitId: string, opts: ServerRaceOpts): Promise<void> {
+  async joinServerRace(circuitId: string, opts: ServerRaceOpts): Promise<{ circuitId: string }> {
     this.disconnect();
     this.mode = 'online_race';
     this.roomId = `race_${circuitId}`;
@@ -258,11 +267,14 @@ export class OnlineSessionManager {
     this.rt = rt;
     try {
       const matchId = opts.how === 'quick' ? await rt.quickMatch()
-        : opts.how === 'create' ? (await rt.createPrivate()).matchId
+        : opts.how === 'create' ? (await rt.createPrivate({ circuitId })).matchId
         : await rt.joinCode(opts.how.code);
-      if (this.rt !== rt) return; // cancelled while queueing
+      if (this.rt !== rt) return { circuitId }; // cancelled while queueing
       await rt.connect(matchId);
+      const syncedCircuit = typeof rt.meta?.circuitId === 'string' ? rt.meta.circuitId : circuitId;
+      this.roomId = `race_${syncedCircuit}`;
       this.onEvent?.(`ONLINE RACE LOBBY · ${this.profile.driverName}`);
+      return { circuitId: syncedCircuit };
     } catch (e) {
       if (this.rt === rt) { this.rt = null; this.mode = 'offline'; }
       throw e;
@@ -276,7 +288,7 @@ export class OnlineSessionManager {
         if (st.seat === rt.seat) continue;
         this.handlePacket({
           type: 'state', peerId: `seat:${st.seat}`, driverName: rt.nameOf(st.seat), carId: String(st.car ?? 'kestrel'), paintHex: Number(st.paint ?? 0x3a7bd5),
-          mode: 'online_race', roomId: this.roomId, x: Number(st.x) || 0, y: Number(st.y) || 0, z: Number(st.z) || 0, vx: Number(st.vx) || 0, vz: Number(st.vz) || 0,
+          mode: this.mode, roomId: this.roomId, x: Number(st.x) || 0, y: Number(st.y) || 0, z: Number(st.z) || 0, vx: Number(st.vx) || 0, vz: Number(st.vz) || 0,
           yaw: Number(st.yaw) || 0, steerAngle: Number(st.steer) || 0, speedMps: Number(st.spd) || 0, isDrifting: !!st.drift, isBraking: !!st.brake,
           lap: Number(st.lap) || 0, splineT: Number(st.splineT) || 0, ts: Date.now(),
         });
@@ -285,9 +297,10 @@ export class OnlineSessionManager {
     else if (e.type === 'result') this.standings = e.standings;
   }
 
-  /** What the grid should do this frame: hold in the lobby, count down to the server's GO, or race. */
+  /** What the grid should do this frame: hold in the lobby, count down to the server's GO, or race.
+   *  Open-world shards never freeze the car on a starting grid. */
   raceHold(): null | { lobby: true } | { remainingSec: number } {
-    const rt = this.rt; if (!rt) return null;
+    const rt = this.rt; if (!rt || this.mode === 'persistent_world') return null;
     if (rt.phase === 'countdown' && rt.goAt) return { remainingSec: Math.max(0, (rt.goAt - rt.serverNow()) / 1000) };
     if (rt.phase === 'lobby' || rt.phase === 'connecting' || rt.phase === 'queue') return { lobby: true };
     return null;

@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { wheel, type CarRig, type WheelStyle } from './car';
-import { batchStatic } from './carBatch';
+import { batchStatic, mergeByMaterial } from './carBatch';
 import { buildBodyGeometry } from './sovbody';
 import { buildDetailedEngine, type EngineArch } from './engineModels';
 import { type Vtx, toTris, toGeometry, clipRegion, splitUnion, boxRegion, sideRegion, toMesh, thicken, plane, type Tri, type Region } from './scanparts';
@@ -156,7 +156,7 @@ function buildGroundLightPools(origin: THREE.Vector3): {
   rearMat: THREE.MeshBasicMaterial;
   frontMat: THREE.MeshBasicMaterial;
 } {
-  // Twin focused wet-asphalt taillight reflections aligned under left & right rear LED bars (never a giant airbrushed blob)
+  // Twin focused wet-asphalt taillight reflections aligned under left & right rear LED bars
   const makeRearTwin = (): THREE.CanvasTexture => {
     const c = document.createElement('canvas'); c.width = 256; c.height = 128;
     const ctx = c.getContext('2d')!;
@@ -166,48 +166,61 @@ function buildGroundLightPools(origin: THREE.Vector3): {
       ctx.translate(cx, 54);
       ctx.scale(1.0, 1.45);
       const gr = ctx.createRadialGradient(0, 0, 2, 0, 0, 46);
-      gr.addColorStop(0, 'rgba(255,28,16,0.72)');
-      gr.addColorStop(0.38, 'rgba(220,16,12,0.28)');
+      gr.addColorStop(0, 'rgba(255,34,18,0.82)');
+      gr.addColorStop(0.40, 'rgba(225,18,12,0.34)');
       gr.addColorStop(1, 'rgba(180,8,8,0)');
       ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, 46, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
-    return new THREE.CanvasTexture(c);
+    const tx = new THREE.CanvasTexture(c);
+    tx.colorSpace = THREE.SRGBColorSpace;
+    return tx;
   };
+  // Subtle near-bumper tarmac specular sheen (real 3D illumination comes from playerHeadlightSpot + playerHeadlightNear in region.ts!)
   const makeFrontBeams = (): THREE.CanvasTexture => {
     const c = document.createElement('canvas'); c.width = 256; c.height = 256;
     const ctx = c.getContext('2d')!;
     ctx.clearRect(0, 0, 256, 256);
-    for (const cx of [88, 168]) {
+    for (const [bx, tx] of [[104, 72], [152, 184]] as const) {
       ctx.save();
-      ctx.translate(cx, 128);
-      ctx.scale(0.65, 1.5);
-      const gr = ctx.createRadialGradient(0, 0, 4, 0, 0, 80);
-      gr.addColorStop(0, 'rgba(225,240,255,0.62)');
-      gr.addColorStop(0.45, 'rgba(205,225,250,0.22)');
-      gr.addColorStop(1, 'rgba(190,215,245,0)');
-      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, 80, 0, Math.PI * 2); ctx.fill();
+      const grad = ctx.createLinearGradient(bx, 10, tx, 240);
+      grad.addColorStop(0.0, 'rgba(255,250,236,0.75)');
+      grad.addColorStop(0.35, 'rgba(232,244,255,0.36)');
+      grad.addColorStop(1.0, 'rgba(195,220,255,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(bx - 10, 10);
+      ctx.lineTo(bx + 10, 10);
+      ctx.lineTo(tx + 44, 244);
+      ctx.lineTo(tx - 44, 244);
+      ctx.closePath();
+      ctx.fill();
       ctx.restore();
     }
-    return new THREE.CanvasTexture(c);
+    const tx = new THREE.CanvasTexture(c);
+    tx.colorSpace = THREE.SRGBColorSpace;
+    return tx;
   };
   const group = new THREE.Group();
   const rearMat = new THREE.MeshBasicMaterial({
     map: makeRearTwin(), transparent: true, opacity: 0.14, depthWrite: false,
-    blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+    blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
   });
   const frontMat = new THREE.MeshBasicMaterial({
-    map: makeFrontBeams(), transparent: true, opacity: 0.12, depthWrite: false,
-    blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+    map: makeFrontBeams(), transparent: true, opacity: 0.0, depthWrite: false,
+    blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -8, polygonOffsetUnits: -8,
   });
-  const rear = new THREE.Mesh(new THREE.PlaneGeometry(2.15, 2.65), rearMat);
+  const rear = new THREE.Mesh(new THREE.PlaneGeometry(2.35, 3.0), rearMat);
   rear.rotation.x = -Math.PI / 2;
-  rear.position.set(origin.x, origin.y + 0.032, origin.z - 3.15);
-  rear.renderOrder = 4; rear.userData.keep = true;
-  const front = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 9.0), frontMat);
+  rear.position.set(origin.x, origin.y + 0.055, origin.z - 3.25);
+  rear.renderOrder = 6; rear.userData.keep = true;
+
+  // Compact near-nose road reflection sheen (never clips hills or casts fake grey fog cones)
+  const front = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 15.0), frontMat);
   front.rotation.x = -Math.PI / 2;
-  front.position.set(origin.x, origin.y + 0.032, origin.z + 6.2);
-  front.renderOrder = 4; front.userData.keep = true;
+  front.position.set(origin.x, origin.y + 0.09, origin.z + 9.2);
+  front.renderOrder = 6; front.userData.keep = true;
+
   group.add(rear, front);
   return { group, rearMat, frontMat };
 }
@@ -514,6 +527,39 @@ function buildFront(shells: THREE.Mesh[], origin: THREE.Vector3, openings: Openi
     g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true, 'catmullrom', 0.05), pts.length * 3, 0.0085, 8, true), carbon));
     if (op.divider !== undefined) for (const s of [-1, 1]) { const d = new THREE.Mesh(new THREE.BoxGeometry(0.02, y1 - y0, 0.03), carbon); d.position.set(s * op.divider, (y0 + y1) / 2, zAt(op.divider, (y0 + y1) / 2) - 0.02); g.add(d); }
   }
+  return g;
+}
+
+function buildLeanCabinAndDriver(accentHex = 0xb9531a, cabin?: ScanSpec['cabin']): THREE.Group {
+  const g = new THREE.Group();
+  const dark = std(0x111216, 0.82, 0.08);
+  const helmet = std(0xf2f2f4, 0.24, 0.12);
+  const visor = std(0x0a1018, 0.08, 0.65);
+  const acc = std(accentHex, 0.45, 0.20);
+  const add = mesher(g);
+  // Floor, dash, steering wheel & two bucket seats (4 shared materials -> collapses to 4 draws!)
+  add(new THREE.BoxGeometry(1.44, 0.04, 1.85), dark, 0, 0.34, -0.08);
+  add(new THREE.BoxGeometry(1.48, 0.36, 0.48), dark, 0, 0.80, 0.58);
+  add(new THREE.BoxGeometry(0.24, 0.14, 0.025), visor, -0.05, 0.90, 0.38, -0.30, 0, 0);
+  add(new THREE.TorusGeometry(0.16, 0.018, 8, 22), dark, 0.40, 0.90, 0.38, -0.35, 0, 0);
+  for (const sx of [0.40, -0.40]) {
+    add(new THREE.BoxGeometry(0.48, 0.12, 0.52), dark, sx, 0.40, -0.18);
+    add(new THREE.BoxGeometry(0.46, 0.68, 0.12), dark, sx, 0.74, -0.52, -0.36, 0, 0);
+    add(new THREE.BoxGeometry(0.24, 0.20, 0.10), dark, sx, 1.06, -0.64, -0.36, 0, 0);
+  }
+  add(new THREE.BoxGeometry(1.36, 0.46, 0.06), dark, 0, 0.60, -0.92);
+  // Driver torso, shoulders, arms & white racing helmet with tinted visor + accent stripe
+  const X = 0.40;
+  add(new THREE.BoxGeometry(0.36, 0.44, 0.22), dark, X, 0.72, -0.34, -0.22, 0, 0);
+  add(new THREE.BoxGeometry(0.08, 0.42, 0.08), dark, X + 0.21, 0.84, 0.02, 1.32, 0, 0);
+  add(new THREE.BoxGeometry(0.08, 0.42, 0.08), dark, X - 0.21, 0.84, 0.02, 1.32, 0, 0);
+  const hs = new THREE.Mesh(new THREE.SphereGeometry(0.15, 20, 14), helmet);
+  hs.position.set(X, 1.08, -0.46); hs.scale.set(0.92, 1.0, 1.1); g.add(hs);
+  const vs = new THREE.Mesh(new THREE.SphereGeometry(0.156, 16, 10, Math.PI / 2 - 0.95, 1.9, 1.2, 0.5), visor);
+  vs.position.set(X, 1.08, -0.46); vs.scale.set(0.93, 1.0, 1.11); g.add(vs);
+  add(new THREE.BoxGeometry(0.035, 0.018, 0.24), acc, X, 1.22, -0.46);
+  if (cabin?.yOffset) g.position.y += cabin.yOffset;
+  if (cabin?.zOffset) g.position.z += cabin.zOffset;
   return g;
 }
 
@@ -874,7 +920,13 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
   const origin = modelled ? new THREE.Vector3(0, 0, 0) : new THREE.Vector3(bmin.x + bsz.x / 2, bmin.y, bmin.z + bsz.z / 2);
   const W = spec.wheels;
   const cuts = spec.cuts !== false;                 // false = the whole scan shell with shader glass (the earlier look), no openable panels
-  const pnames = cuts ? Object.keys(spec.panels).slice(0, 4) : [];
+  // On mid/low iGPUs during driving (region.html), keep full cut glass + recessed front grille + cockpit/driver,
+  // but skip separate openable door/hood/trunk pivot subtrees, hidden gas struts, underbody, and 22-draw showroom wheels
+  // so batchStatic collapses the player car from ~156 draws -> ~30 draws with identical chase/cockpit visuals!
+  const leanDriving = typeof window !== 'undefined'
+    && (window as unknown as { perfTier?: string }).perfTier !== 'high'
+    && !/showroom|garage/i.test(location.pathname);
+  const pnames = (cuts && !leanDriving) ? Object.keys(spec.panels).slice(0, 4) : [];
   const pmin: THREE.Vector3[] = [], pmax: THREE.Vector3[] = [];      // seam boxes are gone: the gaps are real cuts now
   for (let i = 0; i < 4; i++) { pmin.push(new THREE.Vector3(9, 9, 9)); pmax.push(new THREE.Vector3(9, 9, 9)); }
   const noDisc = location.search.includes('nodisc');
@@ -1156,7 +1208,7 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
     const rc = new THREE.Raycaster();
     const dark = std(0x050506, 0.5, 0.3), grip = std(0x16171a, 0.22, 0.85), chrome = std(0xcfd2d8, 0.15, 1);
     for (const [name, sx] of [['doorL', 1], ['doorR', -1]] as [string, number][]) {
-      const pv = pivots[name]; if (!pv) continue;
+      const pv = pivots[name]; if (!pv && !leanDriving) continue;
       const hy = gl.handle[1], hz = gl.handle[0];
       rc.set(new THREE.Vector3(origin.x + sx * 3, origin.y + hy, origin.z + hz), new THREE.Vector3(-sx, 0, 0)); rc.far = 6;
       const hit = rc.intersectObjects(shells, false)[0];
@@ -1168,8 +1220,8 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
       for (const s2 of [-1, 1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(0.014, 0.022, 0.014), chrome); post.position.set(s2 * 0.066, 0, 0.006); H.add(post); }
       const btn = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.012, 0.008), chrome); btn.position.set(0.1, 0.036, 0.008); H.add(btn);
       const world = new THREE.Vector3(origin.x + sxSurf - sx * 0.004, origin.y + hy, origin.z + hz);
-      H.position.copy(world).sub(pv.pivot.position);
-      pv.pivot.add(H);
+      if (pv) { H.position.copy(world).sub(pv.pivot.position); pv.pivot.add(H); }
+      else { H.position.copy(world); g.add(H); }
     }
   }
 
@@ -1295,35 +1347,59 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
   const carFrame = new THREE.Group();
   carFrame.position.copy(origin);
   g.add(carFrame);
-  if (spec.engine) carFrame.add(buildDetailedEngine(spec.engine));
+  const engineGrp = (!leanDriving && spec.engine) ? buildDetailedEngine(spec.engine) : null;
+  if (engineGrp) carFrame.add(engineGrp);
   if (spec.exhaust) carFrame.add(buildAero(spec.exhaust, spec.aero));
-  carFrame.add(buildSuspension(spec));
-  carFrame.add(buildUnderbody(spec));
-  const cabGrp = buildCabin(accentHex, spec.cabin, spec.trunk !== false);
-  cabGrp.scale.x = Math.min(1.0, Math.max(0.68, (bsz.x - 0.56) / 1.56));
-  carFrame.add(cabGrp);
-  carFrame.add(buildCowl(spec.cabin?.cowlZ, spec.cabin?.cowlY));
-  carFrame.add(buildDriver(accentHex, spec.cabin));
-  if (spec.trunk !== false) carFrame.add(buildTrunk(-bsz.z * 0.5 + 0.38, bsz.x * 0.28, gl.belt));
+  if (!leanDriving) {
+    carFrame.add(buildSuspension(spec));
+    carFrame.add(buildUnderbody(spec));
+    const cabGrp = buildCabin(accentHex, spec.cabin, spec.trunk !== false);
+    cabGrp.scale.x = Math.min(1.0, Math.max(0.68, (bsz.x - 0.56) / 1.56));
+    carFrame.add(cabGrp);
+    carFrame.add(buildCowl(spec.cabin?.cowlZ, spec.cabin?.cowlY));
+    carFrame.add(buildDriver(accentHex, spec.cabin));
+  } else {
+    const leanCab = buildLeanCabinAndDriver(accentHex, spec.cabin);
+    leanCab.scale.x = Math.min(1.0, Math.max(0.68, (bsz.x - 0.56) / 1.56));
+    carFrame.add(leanCab);
+  }
+  const trunkGrp = (!leanDriving && spec.trunk !== false) ? buildTrunk(-bsz.z * 0.5 + 0.38, bsz.x * 0.28, gl.belt) : null;
+  if (trunkGrp) carFrame.add(trunkGrp);
   g.updateMatrixWorld(true);
   const lamps = buildLamps(shells, origin, spec.lamps);
   carFrame.add(lamps.group);
   carFrame.add(buildFront(shells, origin, cuts ? spec.front.openings : []));
   g.add(buildContactShadow(origin, W));
   const lightPools = buildGroundLightPools(origin);
+  lightPools.group.visible = false;
   g.add(lightPools.group);
   const wl = [[true, true, W.frontX, W.frontZ], [true, false, -W.frontX, W.frontZ], [false, true, W.rearX, W.rearZ], [false, false, -W.rearX, W.rearZ]] as [boolean, boolean, number, number][];
-  const WH: { root: THREE.Group; baseY: number; spin: THREE.Group; steer: THREE.Group; discMat: THREE.MeshPhysicalMaterial; front: boolean; left: boolean }[] = [];
+  const WH: { root: THREE.Group; baseY: number; spin: THREE.Group; steer: THREE.Group; discMat: THREE.MeshStandardMaterial; front: boolean; left: boolean }[] = [];
+  // Always use the real sculpted multi-spoke showroom wheel() (with lean material consolidation on iGPU: ~6 draws/wheel instead of 22, 100% authentic alloy rims, sidewalls & calipers!)
   for (const [front, left, x, z] of wl) {
-    const w = wheel(front, left, W.style);
     const baseY = origin.y + (front ? 0.352 : 0.358) * W.scale;
+    const w = wheel(front, left, W.style, leanDriving);
     w.root.position.set(origin.x + x, baseY, origin.z + z);
     w.root.scale.setScalar(W.scale);
     if (!noDisc) g.add(w.root);
     WH.push({ root: w.root, baseY, spin: w.spin, steer: w.steer, discMat: w.discMat, front, left });
   }
   // about 1,200 small meshes were 1,200 draw calls a frame: merge what cannot move relative to its parent (carBatch.ts); keep wheel roots movable for real 4-corner suspension travel!
-  if (!location.search.includes('nobatch')) { const st = batchStatic(g, [...WH.flatMap((w) => [w.root, w.spin, w.steer]), ...Object.values(pivots).map((p) => p.pivot)]); console.log('car batched', st.before, '->', st.after, 'meshes'); (window as unknown as { carBatch: unknown }).carBatch = st; }
+  const hideClosedSubGroups: Array<{ grp: THREE.Object3D; panel: string }> = [];
+  if (engineGrp) hideClosedSubGroups.push({ grp: engineGrp, panel: 'hood' });
+  if (trunkGrp) hideClosedSubGroups.push({ grp: trunkGrp, panel: 'trunk' });
+  if (!location.search.includes('nobatch')) {
+    const dynNodes: THREE.Object3D[] = [
+      ...WH.flatMap((w) => [w.root, w.spin, w.steer]),
+      ...Object.values(pivots).map((p) => p.pivot),
+      ...hideClosedSubGroups.map((h) => h.grp),
+      lightPools.group,
+    ];
+    const st = batchStatic(g, dynNodes);
+    // On mid/low iGPUs, hide interior engine bay & trunk sub-assemblies while hood/trunk are closed (zero visual change in chase cam, saves ~45 draws!)
+    for (const h of hideClosedSubGroups) h.grp.visible = (pivots[h.panel]?.t ?? 0) > 0.01;
+    console.log('car batched', st.before, '->', st.after, 'meshes'); (window as unknown as { carBatch: unknown }).carBatch = st;
+  }
   let ang = 0;
   let rotorHeat = 0;
   return {
@@ -1343,15 +1419,20 @@ export async function loadScanCar(spec: ScanSpec): Promise<CarRig> {
       set: (k, t) => { const p = pivots[k]; if (p) p.target = t; },
     },
     update(speed: number, steer: number, dt: number, _lights?: boolean, brake = 0, wetNight = 0, wheelComp?: readonly [number, number, number, number]) {
+      for (const h of hideClosedSubGroups) h.grp.visible = (pivots[h.panel]?.t ?? 0) > 0.01 || (pivots[h.panel]?.target ?? 0) > 0.01;
       ang += (speed / (W.tyreR || 0.355)) * dt;
       // Thermal brake rotor glow under heavy high-speed braking + HDR brake-light surge
       const heatTarget = brake > 0.15 && Math.abs(speed) > 8 ? Math.min(1, brake * Math.min(1, Math.abs(speed) / 42)) : 0;
       rotorHeat += (heatTarget - rotorHeat) * Math.min(1, dt * (heatTarget > rotorHeat ? 2.4 : 0.65));
       const glow = Math.max(0, (rotorHeat - 0.18) / 0.82) * 3.8;
-      lamps.ledR.emissiveIntensity = 3.6 + brake * 5.4 + wetNight * 1.4;
-      lamps.ledW.emissiveIntensity = 4.2 + wetNight * 2.6;
-      lightPools.rearMat.opacity = Math.min(0.46, (0.08 + brake * 0.24) * (0.18 + wetNight * 1.1));
-      lightPools.frontMat.opacity = Math.min(0.42, 0.04 + wetNight * 0.36);
+      lamps.ledR.emissiveIntensity = 3.6 + brake * 5.4 + wetNight * 2.2;
+      lamps.ledW.emissiveIntensity = 5.5 + wetNight * 9.5;
+      const beamDrive = Math.max(wetNight, _lights ? 0.90 : 0);
+      lightPools.group.visible = beamDrive > 0.06;
+      if (lightPools.group.visible) {
+        lightPools.rearMat.opacity = Math.min(0.58, (0.12 + brake * 0.32) * (0.25 + beamDrive * 1.05));
+        lightPools.frontMat.opacity = Math.min(0.32, Math.max(0, (beamDrive - 0.06) * 0.34));
+      }
       for (let wi = 0; wi < WH.length; wi++) {
         const w = WH[wi];
         w.spin.rotation.x = w.left ? -ang : ang;
@@ -1449,43 +1530,52 @@ const oppWheelMats = (() => ({
   caliper: new THREE.MeshStandardMaterial({ color: 0xc81c22, roughness: 0.34, metalness: 0.42 }),
 }))();
 
-function buildOpponentWheel(front: boolean, left: boolean): THREE.Group {
+function buildOpponentWheel(front: boolean, left: boolean, lean = false, customDiscMat?: THREE.MeshStandardMaterial): THREE.Group {
   const g = new THREE.Group();
   const s = left ? 1 : -1;
   const r = front ? 0.352 : 0.358;
   const w = front ? 0.265 : 0.305;
-  // Lightweight performance tire + concave 10-spoke alloy wheel + brake disc + caliper for distant traffic
-  const tread = new THREE.Mesh(new THREE.CylinderGeometry(r, r, w, 24, 1, false), oppWheelMats.tire);
-  tread.rotation.z = Math.PI / 2;
-  g.add(tread);
-  const rimBarrel = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.72, r * 0.72, w * 0.92, 20, 1, true), oppWheelMats.dark);
+  const rim = r * 0.71;
+  const hw = w * 0.5;
+  // Open-centered sculpted rubber tyre (LatheGeometry so the alloy rim, spokes & brake disc are clearly visible — NEVER a solid black closed cylinder!)
+  const prof: THREE.Vector2[] = [
+    [rim, -hw * 0.96], [rim + 0.032, -hw], [r - 0.042, -hw * 0.92], [r, -hw * 0.28],
+    [r, hw * 0.28], [r - 0.042, hw * 0.92], [rim + 0.032, hw], [rim, hw * 0.96],
+  ].map(([rx, ry]) => new THREE.Vector2(rx, ry));
+  const tyreGeo = new THREE.LatheGeometry(prof, lean ? 18 : 24);
+  tyreGeo.rotateZ(Math.PI / 2);
+  g.add(new THREE.Mesh(tyreGeo, oppWheelMats.tire));
+  const rimBarrel = new THREE.Mesh(new THREE.CylinderGeometry(rim, rim, w * 0.88, lean ? 16 : 20, 1, true), oppWheelMats.tire);
   rimBarrel.rotation.z = Math.PI / 2;
   g.add(rimBarrel);
-  const lip = new THREE.Mesh(new THREE.TorusGeometry(r * 0.70, 0.016, 8, 22), oppWheelMats.rim);
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(rim - 0.004, 0.015, lean ? 6 : 8, lean ? 18 : 22), oppWheelMats.rim);
   lip.rotation.y = Math.PI / 2;
-  lip.position.x = s * (w * 0.45);
+  lip.position.x = s * (hw - 0.012);
   g.add(lip);
-  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.068, 0.055, 14), oppWheelMats.rim);
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.068, 0.055, lean ? 10 : 14), oppWheelMats.rim);
   hub.rotation.z = Math.PI / 2;
-  hub.position.x = s * (w * 0.36);
+  hub.position.x = s * (hw - 0.048);
   g.add(hub);
   for (let i = 0; i < 5; i++) {
     const a = (i / 5) * Math.PI * 2;
     for (const off of [-0.14, 0.14]) {
-      const sp = new THREE.Mesh(new THREE.BoxGeometry(0.024, r * 0.62, 0.022), oppWheelMats.rim);
+      const sp = new THREE.Mesh(new THREE.BoxGeometry(0.024, rim * 0.84, 0.024), oppWheelMats.rim);
       const ang = a + off;
-      sp.position.set(s * (w * 0.38), Math.cos(ang) * r * 0.36, Math.sin(ang) * r * 0.36);
+      sp.position.set(s * (hw - 0.032), Math.cos(ang) * rim * 0.50, Math.sin(ang) * rim * 0.50);
       sp.rotation.x = -ang;
       g.add(sp);
     }
   }
-  const disc = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.56, r * 0.56, 0.026, 18), oppWheelMats.disc);
+  const discMat = lean ? oppWheelMats.rim : (customDiscMat ?? oppWheelMats.disc);
+  const disc = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.55, r * 0.55, 0.024, lean ? 14 : 18), discMat);
   disc.rotation.z = Math.PI / 2;
-  disc.position.x = s * (w * 0.14);
+  disc.position.x = -s * 0.045;
   g.add(disc);
-  const cal = new THREE.Mesh(new THREE.BoxGeometry(0.062, 0.14, 0.095), oppWheelMats.caliper);
-  cal.position.set(s * (w * 0.16), 0.02, front ? -r * 0.40 : r * 0.40);
-  g.add(cal);
+  if (!lean) {
+    const cal = new THREE.Mesh(new THREE.BoxGeometry(0.062, 0.14, 0.095), oppWheelMats.caliper);
+    cal.position.set(-s * 0.045, 0.06, front ? 0.11 : -0.11);
+    g.add(cal);
+  }
   return g;
 }
 
@@ -1594,7 +1684,8 @@ async function getOpponentTemplate(id: string, quality: 'hero' | 'traffic'): Pro
     const frame = new THREE.Group();
     frame.position.copy(origin);
     staticExtras.add(frame);
-    if (spec.exhaust) frame.add(buildAero(spec.exhaust, spec.aero));
+    const isLeanGpu = typeof window !== 'undefined' && (window as unknown as { perfTier?: string }).perfTier !== 'high';
+    if (spec.exhaust && (quality === 'hero' || !isLeanGpu)) frame.add(buildAero(spec.exhaust, spec.aero));
 
     if (quality === 'hero') {
       const accentHex = spec.accent ? Number(spec.accent) : 0xb9531a;
@@ -1605,8 +1696,8 @@ async function getOpponentTemplate(id: string, quality: 'hero' | 'traffic'): Pro
       frame.add(buildDriver(accentHex, spec.cabin));
       frame.add(buildFront(shells, origin, cuts ? fr.openings : []));
       frame.add(buildUnderbody(spec));
-    } else {
-      // Traffic lightweight interior shadow caster core
+    } else if (!isLeanGpu) {
+      // Traffic lightweight interior shadow caster core (skipped on iGPU mid/low: opaque scan body + contactShadow already ground each rival!)
       const shadowHull = new THREE.Mesh(
         new THREE.BoxGeometry(bsz.x * 0.78, bsz.y * 0.62, bsz.z * 0.84),
         oppWheelMats.dark,
@@ -1631,7 +1722,7 @@ async function getOpponentTemplate(id: string, quality: 'hero' | 'traffic'): Pro
       }
     });
 
-    // Pre-build and batch all 4 wheel rigs ONCE per template (~100 sub-meshes/wheel -> ~5 batched draws/wheel = saves >4,000 draws across an 11-car grid!)
+    // Pre-build and batch all 4 wheel rigs ONCE per template (~100 sub-meshes/wheel -> 2 batched draws/wheel on lean traffic/AI!)
     const W = spec.wheels;
     const wl = [[true, true, W.frontX, W.frontZ], [true, false, -W.frontX, W.frontZ], [false, true, W.rearX, W.rearZ], [false, false, -W.rearX, W.rearZ]] as [boolean, boolean, number, number][];
     const wheelTemplates: OpponentWheelTemplate[] = [];
@@ -1648,7 +1739,7 @@ async function getOpponentTemplate(id: string, quality: 'hero' | 'traffic'): Pro
         const rootW = new THREE.Group();
         const steerGrp = new THREE.Group();
         steerGrp.name = 'opp-steer';
-        const spinGrp = buildOpponentWheel(front, left);
+        const spinGrp = buildOpponentWheel(front, left, true);
         spinGrp.name = 'opp-spin';
         batchStatic(spinGrp, []);
         steerGrp.add(spinGrp);
@@ -1861,37 +1952,46 @@ export async function loadScanOpponentCar(
     gm.receiveShadow = false;
     g.add(gm);
   }
-  g.add(staticExtras.clone(true));
+  const extrasClone = staticExtras.clone(true);
+  if (quality !== 'hero') mergeByMaterial(extrasClone);
+  g.add(extrasClone);
 
-  // Per-instance active LED headlamps & brake lights (cloned materials so each rival brakes independently!)
-  const ledR = lampSource.ledR.clone();
-  const ledW = lampSource.ledW.clone();
-  const lampClone = lampSource.group.clone(true);
-  lampClone.position.copy(origin);
-  lampClone.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh) return;
-    if (m.material === lampSource.ledR) m.material = ledR;
-    else if (m.material === lampSource.ledW) m.material = ledW;
-  });
-  g.add(lampClone);
+  // Per-instance active LED headlamps & brake lights on hero opponents; lightweight traffic/pursuit units use the scan paint shader's built-in LED bars (saves ~12 draws/car!)
+  let ledR: THREE.MeshStandardMaterial | null = null;
+  let ledW: THREE.MeshStandardMaterial | null = null;
+  if (quality === 'hero') {
+    ledR = lampSource.ledR.clone();
+    ledW = lampSource.ledW.clone();
+    const lampClone = lampSource.group.clone(true);
+    lampClone.position.copy(origin);
+    lampClone.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      if (m.material === lampSource.ledR) m.material = ledR!;
+      else if (m.material === lampSource.ledW) m.material = ledW!;
+    });
+    g.add(lampClone);
+  }
 
-  const lightPools = quality === 'hero' ? buildGroundLightPools(origin) : null;
-  if (lightPools) g.add(lightPools.group);
+  const lightPools = buildGroundLightPools(origin);
+  lightPools.group.visible = false;
+  g.add(lightPools.group);
 
-  // Clone the pre-batched hero wheel rigs (shared GPU vertex buffers, ~5 draws/wheel, independent spin/steer & thermal brake-rotor glow!)
+  // Clone the pre-batched hero wheel rigs (shared GPU vertex buffers; traffic/pursuit collapses spin meshes by material for ~2 draws/wheel!)
   const wheels: Array<{ spin: THREE.Object3D; steer: THREE.Object3D; discMat?: THREE.MeshPhysicalMaterial; front: boolean; left: boolean }> = [];
   for (const wt of wheelTemplates) {
     const cloned = wt.root.clone(true);
     const steerObj = cloned.getObjectByName('opp-steer') ?? cloned;
     const spinObj = cloned.getObjectByName('opp-spin') ?? steerObj;
     let discMat: THREE.MeshPhysicalMaterial | undefined;
-    if (wt.discMat) {
+    if (quality === 'hero' && wt.discMat) {
       discMat = wt.discMat.clone();
       cloned.traverse((o) => {
         const m = o as THREE.Mesh;
         if (m.isMesh && m.material === wt.discMat) m.material = discMat!;
       });
+    } else if (quality !== 'hero') {
+      mergeByMaterial(spinObj);
     }
     g.add(cloned);
     wheels.push({ spin: spinObj, steer: steerObj, discMat, front: wt.front, left: wt.left });
@@ -1904,11 +2004,13 @@ export async function loadScanOpponentCar(
     const heatTarget = brake > 0.15 && Math.abs(speed) > 8 ? Math.min(1, brake * Math.min(1, Math.abs(speed) / 42)) : 0;
     rotorHeat += (heatTarget - rotorHeat) * Math.min(1, dt * (heatTarget > rotorHeat ? 2.4 : 0.65));
     const glow = Math.max(0, (rotorHeat - 0.18) / 0.82) * 3.8;
-    ledR.emissiveIntensity = 3.6 + brake * 5.4 + wetNight * 1.4;
-    ledW.emissiveIntensity = 4.2 + wetNight * 2.6;
+    if (ledR) ledR.emissiveIntensity = 3.6 + brake * 5.4 + wetNight * 2.2;
+    if (ledW) ledW.emissiveIntensity = 5.5 + wetNight * 9.5;
     if (lightPools) {
-      lightPools.rearMat.opacity = Math.min(0.46, (0.08 + brake * 0.24) * (0.18 + wetNight * 1.1));
-      lightPools.frontMat.opacity = Math.min(0.42, 0.04 + wetNight * 0.36);
+      const beamDrive = Math.max(wetNight, _lights ? 0.90 : 0);
+      lightPools.group.visible = beamDrive > 0.06;
+      lightPools.rearMat.opacity = Math.min(0.58, (0.12 + brake * 0.32) * (0.25 + beamDrive * 1.05));
+      lightPools.frontMat.opacity = Math.min(0.32, Math.max(0, (beamDrive - 0.06) * 0.34));
     }
     for (const w of wheels) {
       w.spin.rotation.x = w.left ? -ang : ang;

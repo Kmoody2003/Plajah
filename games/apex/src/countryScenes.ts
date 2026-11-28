@@ -316,12 +316,15 @@ export function buildCountryScenes(o: {
       const y = i0 >= 0 && i >= i0 && i <= i1 ? yEnd0 + (yEnd1 - yEnd0) * ((i - i0) / Math.max(1, i1 - i0)) : o.ground(p.x, p.z) + lift;
       ys.push(y);
       const nx = -dz * half, nz = dx * half;
-      // Civil-engineered cross-slope clamp: max 6.5% transverse camber (never 28% sideways cliff twist!)
+      // Civil-engineered cross-slope clamp: max 6.5% transverse camber, raised evenly if terrain under either edge rises higher so green terrain never pokes through!
       const onDeck = i0 >= 0 && i >= i0 && i <= i1, gc = o.ground(p.x, p.z);
       const maxEdge = Math.min(0.32, half * 0.065);
-      const e1 = onDeck ? 0 : Math.max(-maxEdge, Math.min(maxEdge, o.ground(p.x + nx, p.z + nz) - gc));
-      const e2 = onDeck ? 0 : Math.max(-maxEdge, Math.min(maxEdge, o.ground(p.x - nx, p.z - nz) - gc));
-      pos.push(p.x + nx, y + e1, p.z + nz, p.x - nx, y + e2, p.z - nz);
+      const g1 = o.ground(p.x + nx, p.z + nz), g2 = o.ground(p.x - nx, p.z - nz);
+      const e1 = onDeck ? 0 : Math.max(-maxEdge, Math.min(maxEdge, g1 - gc));
+      const e2 = onDeck ? 0 : Math.max(-maxEdge, Math.min(maxEdge, g2 - gc));
+      const raise = onDeck ? 0 : Math.max(0, g1 + lift - (y + e1), g2 + lift - (y + e2));
+      ys[i] = y + raise;
+      pos.push(p.x + nx, y + raise + e1, p.z + nz, p.x - nx, y + raise + e2, p.z - nz);
       uv.push(0, dist / uvLen, 1, dist / uvLen);
     }
     for (let i = 0; i < n - 1; i++) { const a = i * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
@@ -332,11 +335,11 @@ export function buildCountryScenes(o: {
   };
 
   const millLine = catmull(MILLBROOK, 4), hollowLine = catmull(HOLLOW, 4);
-  const mill = ribbon(millLine, 4.2, 0.12, asphalt, 8, { at: BRIDGE.at, r: BRIDGE.causeway });
-  const millShoulder = ribbon(millLine, 5.8, 0.06, edgeMat, 6, { at: BRIDGE.at, r: BRIDGE.causeway });
+  const mill = ribbon(millLine, 4.2, 0.18, asphalt, 8, { at: BRIDGE.at, r: BRIDGE.causeway });
+  const millShoulder = ribbon(millLine, 5.8, 0.08, edgeMat, 6, { at: BRIDGE.at, r: BRIDGE.causeway });
   millShoulder.mesh.renderOrder = -1;
   group.add(millShoulder.mesh, mill.mesh); roads.push(mill.mesh, millShoulder.mesh);
-  const hollow = ribbon(hollowLine, 3.0, 0.1, dirtMat, 6);
+  const hollow = ribbon(hollowLine, 3.0, 0.16, dirtMat, 6);
   const hollowEdge = ribbon(hollowLine, 4.4, 0.05, edgeMat, 6);
   group.add(hollowEdge.mesh, hollow.mesh); roads.push(hollow.mesh, hollowEdge.mesh);
 
@@ -349,15 +352,16 @@ export function buildCountryScenes(o: {
     const acc = { paved2: mk(), paved4: mk(), dirt: mk(), drive: mk() };
     const shAcc = mk();
     for (const r of o.network.roads) {
-      const line = r.kind === 'drive' ? straight(r.xz, 3) : catmull(r.xz.map(([x, z]) => ({ x, z })), 8);
+      const line = r.kind === 'drive' ? straight(r.xz, 3) : catmull(r.xz.map(([x, z]) => ({ x, z })), r.kind === 'paved' ? 5 : 7);
       if (line.length < 2) continue;
       const half = r.half ?? (r.kind === 'paved' ? 3.6 : 2.6);
       const bucket = r.kind === 'paved' ? (half >= 6.8 ? 'paved4' : 'paved2') : r.kind;
       const a = acc[bucket];
       // heights: the drawn ground, held up over streams so the road crosses them as a causeway rather than dipping into the water
       const gy = line.map((p) => o.ground(p.x, p.z));
-      // heights: the road follows the ground; wherever the ground under it is water it becomes a bridge: a level deck from bank to bank, eased onto it over 48 m on each side
-      const ys = gy.map((g) => g + (r.kind === 'drive' ? 0.07 : 0.1));
+      // heights: lift road deck cleanly over terrain mesh crests (+0.18 m for paved/dirt) so terrain triangle diagonals never poke through asphalt!
+      const baseLift = r.kind === 'drive' ? 0.11 : 0.18;
+      const ys = gy.map((g) => g + baseLift);
       {
         const WATER = 2.5, RAMP = 6;
         let i = 0;
@@ -366,36 +370,65 @@ export function buildCountryScenes(o: {
           let j = i; while (j + 1 < gy.length && gy[j + 1] < WATER) j++;
           // Only construct a bridge deck when BOTH sides connect to dry land banks (never build dead-end bridges over open water!)
           if (i === 0 || j === gy.length - 1) {
-            for (let k = i; k <= j; k++) ys[k] = Math.max(gy[k], 2.2) + 0.08;
+            for (let k = i; k <= j; k++) ys[k] = Math.max(gy[k], 2.2) + 0.14;
             i = j + 1;
             continue;
           }
           const lo = Math.max(0, i - 1), hi = Math.min(gy.length - 1, j + 1);
           const deck = Math.max(gy[lo], gy[hi], 3.2) + 1.2;
           for (let k = Math.max(0, i - RAMP); k <= Math.min(gy.length - 1, j + RAMP); k++) {
-            if (k >= i && k <= j) { ys[k] = deck + 0.1; continue; }
+            if (k >= i && k <= j) { ys[k] = deck + 0.14; continue; }
             const t = k < i ? (k - (i - RAMP)) / RAMP : ((j + RAMP) - k) / RAMP, sm = t * t * (3 - 2 * t);
-            ys[k] = (deck > gy[k] ? gy[k] + (deck - gy[k]) * sm : gy[k]) + 0.1;
+            ys[k] = (deck > gy[k] ? gy[k] + (deck - gy[k]) * sm : gy[k]) + baseLift;
           }
-          if ((j - i + 1) * 8 >= 10) bridgeRuns.push({ line, i0: Math.max(0, i - 1), i1: Math.min(gy.length - 1, j + 1), half, ys, gy });
+          if ((j - i + 1) * 5 >= 10) bridgeRuns.push({ line, i0: Math.max(0, i - 1), i1: Math.min(gy.length - 1, j + 1), half, ys, gy });
           i = j + 1 + RAMP;
         }
+      }
+      // Compute guaranteed terrain-clearing left/right deck heights per sample (samples full cross-section + mid-chord crests so green terrain NEVER pokes through!)
+      const maxCross = Math.min(0.32, half * 0.065);
+      const yLeft = new Float32Array(line.length);
+      const yRight = new Float32Array(line.length);
+      for (let i = 0; i < line.length; i++) {
+        const p = line[i], pa = line[Math.max(0, i - 1)], pb = line[Math.min(line.length - 1, i + 1)];
+        let dx = pb.x - pa.x, dz = pb.z - pa.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+        const onGround = Math.abs(ys[i] - gy[i] - baseLift) < 0.05;
+        if (!onGround) {
+          yLeft[i] = ys[i];
+          yRight[i] = ys[i];
+          continue;
+        }
+        const xl = p.x - dz * half, zl = p.z + dx * half, xr = p.x + dz * half, zr = p.z - dx * half;
+        const gL = o.ground(xl, zl), gR = o.ground(xr, zr);
+        const gML = o.ground(p.x - dz * half * 0.5, p.z + dx * half * 0.5);
+        const gMR = o.ground(p.x + dz * half * 0.5, p.z - dx * half * 0.5);
+        // Check half-step crests ahead/behind centerline so convex hills between samples never poke through the straight road chord
+        const gFwd = o.ground(p.x + dx * 2.5, p.z + dz * 2.5);
+        const gBwd = o.ground(p.x - dx * 2.5, p.z - dz * 2.5);
+        const gCenterPeak = Math.max(gy[i], gML, gMR, (gFwd + gy[i]) * 0.5, (gBwd + gy[i]) * 0.5);
+        let el = Math.max(-maxCross, Math.min(maxCross, gL - gy[i]));
+        let er = Math.max(-maxCross, Math.min(maxCross, gR - gy[i]));
+        // Raise the entire cross-section evenly if any part of the terrain mesh under the carriageway exceeds the clamped deck!
+        let yBase = Math.max(ys[i], gCenterPeak + baseLift);
+        const needL = gL + baseLift - (yBase + el);
+        const needR = gR + baseLift - (yBase + er);
+        const needM = Math.max(gML, gMR) + baseLift - (yBase + (el + er) * 0.5);
+        const extraRaise = Math.max(0, needL, needR, needM);
+        yBase += extraRaise;
+        ys[i] = yBase;
+        yLeft[i] = yBase + el;
+        yRight[i] = yBase + er;
       }
       if (r.kind === 'paved') pavedRuns.push({ line, ys, half, town: !!r.town });
       else if (r.kind === 'drive') driveMouths.push(line[0], line[line.length - 1]);
       let dist = 0;
       const base = a.v;
-      const maxCross = Math.min(0.32, half * 0.065);
       for (let i = 0; i < line.length; i++) {
         const p = line[i], pa = line[Math.max(0, i - 1)], pb = line[Math.min(line.length - 1, i + 1)];
         let dx = pb.x - pa.x, dz = pb.z - pa.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
         if (i > 0) dist += Math.hypot(p.x - line[i - 1].x, p.z - line[i - 1].z);
-        // Civil-engineered cross-slope clamp (max 6.5% camber): prevents roller-coaster 28% sideways tilt on hills while keeping bridges level
-        const onGround = Math.abs(ys[i] - gy[i] - (r.kind === 'drive' ? 0.07 : 0.1)) < 0.05;
         const xl = p.x - dz * half, zl = p.z + dx * half, xr = p.x + dz * half, zr = p.z - dx * half;
-        const el = onGround ? Math.max(-maxCross, Math.min(maxCross, o.ground(xl, zl) - gy[i])) : 0;
-        const er = onGround ? Math.max(-maxCross, Math.min(maxCross, o.ground(xr, zr) - gy[i])) : 0;
-        a.pos.push(xl, ys[i] + el, zl, xr, ys[i] + er, zr);
+        a.pos.push(xl, yLeft[i], zl, xr, yRight[i], zr);
         if (r.kind === 'drive') a.uv.push(0, dist / (half * 2), 1, dist / (half * 2)); else a.uv.push(0, dist / 8, 1, dist / 8);
         (r.kind === 'dirt' ? netDirt : netPaved).push({ x: p.x, z: p.z, h: half });
       }
@@ -404,19 +437,16 @@ export function buildCountryScenes(o: {
       // Add feathered crushed-limestone gravel & dirt roadside shoulders along every rural paved road (blending asphalt -> gravel -> grass!)
       if (r.kind === 'paved') {
         const skBase = a.v;
-        const skirtOut = 0.48;
+        const skirtOut = 0.65;
         for (let i = 0; i < line.length; i++) {
           const p = line[i], pa = line[Math.max(0, i - 1)], pb = line[Math.min(line.length - 1, i + 1)];
           let dx = pb.x - pa.x, dz = pb.z - pa.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
-          const onGround = Math.abs(ys[i] - gy[i] - 0.1) < 0.05;
           const xl = p.x - dz * half, zl = p.z + dx * half, xr = p.x + dz * half, zr = p.z - dx * half;
-          const el = onGround ? Math.max(-maxCross, Math.min(maxCross, o.ground(xl, zl) - gy[i])) : 0;
-          const er = onGround ? Math.max(-maxCross, Math.min(maxCross, o.ground(xr, zr) - gy[i])) : 0;
           const xlo = p.x - dz * (half + skirtOut), zlo = p.z + dx * (half + skirtOut);
           const xro = p.x + dz * (half + skirtOut), zro = p.z - dx * (half + skirtOut);
-          const ylo = Math.min(ys[i] + el - 0.05, o.ground(xlo, zlo) - 0.16);
-          const yro = Math.min(ys[i] + er - 0.05, o.ground(xro, zro) - 0.16);
-          a.pos.push(xl, ys[i] + el, zl, xlo, ylo, zlo, xr, ys[i] + er, zr, xro, yro, zro);
+          const ylo = Math.min(yLeft[i] - 0.08, o.ground(xlo, zlo) - 0.24);
+          const yro = Math.min(yRight[i] - 0.08, o.ground(xro, zro) - 0.24);
+          a.pos.push(xl, yLeft[i], zl, xlo, ylo, zlo, xr, yRight[i], zr, xro, yro, zro);
           a.uv.push(0, i * 0.5, 0.12, i * 0.5, 1, i * 0.5, 0.88, i * 0.5);
         }
         for (let i = 0; i < line.length - 1; i++) {
@@ -435,28 +465,26 @@ export function buildCountryScenes(o: {
             const p = line[i], pa = line[Math.max(0, i - 1)], pb = line[Math.min(line.length - 1, i + 1)];
             let dx = pb.x - pa.x, dz = pb.z - pa.z; const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
             if (i > 0) shDist += Math.hypot(p.x - line[i - 1].x, p.z - line[i - 1].z);
-            const onGround = Math.abs(ys[i] - gy[i] - 0.1) < 0.05;
+            const onGround = Math.abs(ys[i] - gy[i]) < 0.85;
             const inOff = Math.max(1.5, half - 0.14);
             const outOff = half + shoulderW;
             const xli = p.x - dz * inOff, zli = p.z + dx * inOff;
             const xlo = p.x - dz * outOff, zlo = p.z + dx * outOff;
             const xri = p.x + dz * inOff, zri = p.z - dx * inOff;
             const xro = p.x + dz * outOff, zro = p.z - dx * outOff;
-            const el = onGround ? Math.max(-maxCross, Math.min(maxCross, o.ground(xli, zli) - gy[i])) : 0;
-            const er = onGround ? Math.max(-maxCross, Math.min(maxCross, o.ground(xri, zri) - gy[i])) : 0;
             // Tuck slightly below bridge deck when spanning water so shoulders never float off bridge sides
             const yDrop = onGround ? 0 : -2.5;
-            const yli = ys[i] + el + 0.014 + yDrop;
-            const ylo = o.ground(xlo, zlo) + 0.032 + yDrop;
-            const yri = ys[i] + er + 0.014 + yDrop;
-            const yro = o.ground(xro, zro) + 0.032 + yDrop;
+            const yli = yLeft[i] + 0.012 + yDrop;
+            const ylo = o.ground(xlo, zlo) + 0.04 + yDrop;
+            const yri = yRight[i] + 0.012 + yDrop;
+            const yro = o.ground(xro, zro) + 0.04 + yDrop;
             const vCoord = shDist / 7.5;
             shAcc.pos.push(xli, yli, zli, xlo, ylo, zlo, xri, yri, zri, xro, yro, zro);
             shAcc.uv.push(0, vCoord, 1, vCoord, 0, vCoord, 1, vCoord);
           }
           for (let i = 0; i < line.length - 1; i++) {
-            const onG0 = Math.abs(ys[i] - gy[i] - 0.1) < 0.05;
-            const onG1 = Math.abs(ys[i + 1] - gy[i + 1] - 0.1) < 0.05;
+            const onG0 = Math.abs(ys[i] - gy[i]) < 0.85;
+            const onG1 = Math.abs(ys[i + 1] - gy[i + 1]) < 0.85;
             if (!onG0 || !onG1) continue;
             const q = shBase + i * 4;
             shAcc.idx.push(q, q + 1, q + 4, q + 1, q + 5, q + 4);
@@ -466,36 +494,66 @@ export function buildCountryScenes(o: {
         }
       }
     }
+    const emitRoadCells = (
+      pos: number[],
+      uv: number[],
+      idx: number[],
+      mat: THREE.Material,
+      baseName: string,
+      cell = 900,
+      addToRoads = true,
+      renderOrder = 0,
+    ): void => {
+      const cells = new Map<string, { pos: number[]; uv: number[]; idx: number[]; map: Map<number, number> }>();
+      for (let t = 0; t < idx.length; t += 3) {
+        const i0 = idx[t], i1 = idx[t + 1], i2 = idx[t + 2];
+        const cx = (pos[i0 * 3] + pos[i1 * 3] + pos[i2 * 3]) / 3;
+        const cz = (pos[i0 * 3 + 2] + pos[i1 * 3 + 2] + pos[i2 * 3 + 2]) / 3;
+        const key = `${Math.floor(cx / cell)},${Math.floor(cz / cell)}`;
+        let b = cells.get(key);
+        if (!b) { b = { pos: [], uv: [], idx: [], map: new Map() }; cells.set(key, b); }
+        for (const vi of [i0, i1, i2]) {
+          let ni = b.map.get(vi);
+          if (ni === undefined) {
+            ni = b.pos.length / 3;
+            b.map.set(vi, ni);
+            b.pos.push(pos[vi * 3], pos[vi * 3 + 1], pos[vi * 3 + 2]);
+            b.uv.push(uv[vi * 2], uv[vi * 2 + 1]);
+          }
+          b.idx.push(ni);
+        }
+      }
+      for (const b of cells.values()) {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(b.pos, 3));
+        g.setAttribute('uv', new THREE.Float32BufferAttribute(b.uv, 2));
+        g.setIndex(b.idx);
+        g.computeVertexNormals();
+        const m = new THREE.Mesh(g, mat);
+        m.receiveShadow = true;
+        if (renderOrder) m.renderOrder = renderOrder;
+        m.name = baseName;
+        group.add(m);
+        if (addToRoads) roads.push(m);
+      }
+    };
     for (const [kind, mat] of [['paved2', asphalt], ['paved4', asphalt4], ['dirt', dirtMat], ['drive', driveMat]] as const) {
       const a = acc[kind]; if (!a.pos.length) continue;
-      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(a.pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(a.uv, 2)); g.setIndex(a.idx); g.computeVertexNormals();
-      const m = new THREE.Mesh(g, mat); m.receiveShadow = true; m.name = 'country-' + kind;
-      group.add(m); roads.push(m);
+      emitRoadCells(a.pos, a.uv, a.idx, mat, 'country-' + kind, 900, true, 0);
     }
     if (shAcc.idx.length) {
-      const sg = new THREE.BufferGeometry();
-      sg.setAttribute('position', new THREE.Float32BufferAttribute(shAcc.pos, 3));
-      sg.setAttribute('uv', new THREE.Float32BufferAttribute(shAcc.uv, 2));
-      sg.setIndex(shAcc.idx);
-      sg.computeVertexNormals();
-      const sm = new THREE.Mesh(
-        sg,
-        new THREE.MeshStandardMaterial({
-          map: gravelShoulderTex(),
-          roughness: 0.94,
-          metalness: 0,
-          transparent: true,
-          depthWrite: false,
-          side: THREE.DoubleSide,
-          polygonOffset: true,
-          polygonOffsetFactor: -5,
-          polygonOffsetUnits: -10,
-        }),
-      );
-      sm.receiveShadow = true;
-      sm.renderOrder = 1;
-      sm.name = 'country-gravel-shoulders';
-      group.add(sm);
+      const shMat = new THREE.MeshStandardMaterial({
+        map: gravelShoulderTex(),
+        roughness: 0.94,
+        metalness: 0,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -5,
+        polygonOffsetUnits: -10,
+      });
+      emitRoadCells(shAcc.pos, shAcc.uv, shAcc.idx, shMat, 'country-gravel-shoulders', 900, false, 1);
     }
     // ---- Clean US road cross-section / intersection aprons (plain asphalt pads over every junction so double-yellow lines never clash in an X!) ----
     if (pavedRuns.length > 1) {
@@ -855,11 +913,11 @@ export function buildCountryScenes(o: {
         const m2 = new THREE.Mesh(rail, fw); m2.position.set((p.x + q.x) / 2 + nx, o.ground(p.x + nx, p.z + nz) + 1.0, (p.z + q.z) / 2 + nz); m2.rotation.y = ang; group.add(m2);
       }
     }
-    // corn, a field of it, beside the lane: rows of dark-green stalks
-    const stalk = new THREE.InstancedMesh(new THREE.BoxGeometry(0.5, 2.4, 0.5), new THREE.MeshStandardMaterial({ color: 0x4f7a2a, roughness: 0.9 }), 6000);
+    // corn, a field of it, beside the lane: rows of dark-green stalks (kept lean; Vegetation streams 3D farmCrops dynamically around camera)
+    const stalk = new THREE.InstancedMesh(new THREE.BoxGeometry(0.5, 2.4, 0.5), new THREE.MeshStandardMaterial({ color: 0x4f7a2a, roughness: 0.9 }), 1600);
     const r = rng(9), m4 = new THREE.Matrix4(); let k = 0;
-    for (let row = 0; row < 40 && k < 6000; row++) for (let col = 0; col < 150 && k < 6000; col++) {
-      const lx = -1250 + col * 0.9, lz = -1180 + row * 0.8;
+    for (let row = 0; row < 25 && k < 1600; row++) for (let col = 0; col < 64 && k < 1600; col++) {
+      const lx = -1250 + col * 2.1, lz = -1180 + row * 1.3;
       const jx = lx + (r() - 0.5) * 0.3, jz = lz + (r() - 0.5) * 0.3;
       m4.makeScale(1, 0.8 + r() * 0.5, 1).setPosition(jx, o.ground(jx, jz) + 1.1, jz); stalk.setMatrixAt(k++, m4);
     }

@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { getRegionTslContext } from './tsl/webgpuRuntime';
+import { createApexBarrierTslMaterial } from './tsl/apexMaterialsTsl';
 
 let _barrierMats: Record<'grey' | 'hazard' | 'red', THREE.MeshStandardMaterial> | null = null;
 
@@ -130,11 +132,23 @@ export function concreteBarrierMaterial(variant: 'grey' | 'hazard' | 'red' = 'gr
       t.needsUpdate = true;
       return t;
     };
+    const albedoTex = mkT(c, true);
+    const normalTex = mkT(nC, false);
+    const roughTex = mkT(rC, false);
+    const tslCtx = getRegionTslContext();
+    if (tslCtx) {
+      return createApexBarrierTslMaterial({
+        map: albedoTex,
+        normalMap: normalTex,
+        roughnessMap: roughTex,
+        shared: tslCtx.shared,
+      }) as unknown as THREE.MeshStandardMaterial;
+    }
     return new THREE.MeshStandardMaterial({
-      map: mkT(c, true),
-      normalMap: mkT(nC, false),
+      map: albedoTex,
+      normalMap: normalTex,
       normalScale: new THREE.Vector2(1.25, 1.25),
-      roughnessMap: mkT(rC, false),
+      roughnessMap: roughTex,
       roughness: 0.90,
       metalness: 0.04,
       side: THREE.DoubleSide,

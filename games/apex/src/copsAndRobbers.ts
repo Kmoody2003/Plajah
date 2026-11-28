@@ -16,6 +16,7 @@ import * as THREE from 'three';
 import { createCarState, stepCarPhysics, type CarInput, type CarState } from './physics';
 import { CARS, type CarSpec } from './manufacturers';
 import { hasScanCar, loadScanOpponentCar } from './scancar';
+import { mergeByMaterial } from './carBatch';
 import type { SurfaceType } from './world';
 
 export type PursuitRole = 'cop' | 'robber';
@@ -131,15 +132,17 @@ function makePursuitCarMesh(
       new THREE.MeshStandardMaterial({ color: 0x1e88ff, emissive: 0x1e88ff, emissiveIntensity: 2.6, roughness: 0.18 }),
     );
     blueR.position.set(0.275, 0.062, 0);
-    sirenHolder.add(barBase, barCap, centerDiv, redL, blueR);
+    sirenHolder.add(barBase, barCap, centerDiv);
+    mergeByMaterial(sirenHolder);
+    sirenHolder.add(redL, blueR);
     sirenHolder.position.set(0, fleet?.roofY ?? 1.355, fleet?.barZ ?? -0.34);
     g.add(sirenHolder);
     sirenBar.push(redL, blueR);
   }
 
-  // Upgrade to FULL GT-R Standard Scan Car (60k-face mesh + real spinning wheels + brake calipers + glass + recessed LED lights!)
+  // Upgrade to streamlined GT-R Scan Car ('traffic' quality keeps real scan body + spinning wheels + glass + flashing lightbar in ~6 draws instead of 52!)
   const scanId = hasScanCar(targetId) ? targetId : 'kestrel';
-  void loadScanOpponentCar(scanId, finalPaint, 'hero').then((heroMesh) => {
+  void loadScanOpponentCar(scanId, finalPaint, 'traffic').then((heroMesh) => {
     if (!heroMesh) return;
     placeholder.visible = false;
     g.remove(placeholder);
@@ -244,6 +247,7 @@ export class CopsAndRobbersMode {
     playerYaw: number,
     ground: (x: number, z: number) => number
   ) {
+    this.group.name = 'pursuit-mode';
     this.role = choice === 'auto' ? (Math.random() < 0.5 ? 'cop' : 'robber') : choice;
     this.robberIntro = Math.random() < 0.5 ? 'runner' : 'getaway_driver';
     this.suspectVehicle = SUSPECT_VEHICLES[Math.floor(Math.random() * SUSPECT_VEHICLES.length)];
@@ -381,8 +385,9 @@ export class CopsAndRobbersMode {
         mesh: group,
       };
 
-      // Spawn 2 AI Backup Police Cruisers also responding to the call
-      const backupOffsets: [number, number][] = [[-22, -18], [26, -24]];
+      // Spawn AI Backup Police Cruisers responding to the call (1 on mid/low iGPUs, 2 on high tier)
+      const isMidGpu = typeof window !== 'undefined' && (window as unknown as { perfTier?: string }).perfTier !== 'high';
+      const backupOffsets: [number, number][] = isMidGpu ? [[-22, -18]] : [[-22, -18], [26, -24]];
       backupOffsets.forEach(([ox, oz], idx) => {
         const sx = playerStart.x + ox;
         const sz = playerStart.z + oz;

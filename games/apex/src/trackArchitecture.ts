@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { DetailBatch } from './detailBatch';
 
 /** Modular steel grandstand with actual seats, aisles, stairs, handrails and roof trusses. */
-export function detailedStand(length: number, rows: number): THREE.Group {
-  const kit = new DetailBatch('Ironport grandstand');
+export function detailedStand(length: number, rows: number, shared?: DetailBatch, originMatrix?: THREE.Matrix4): THREE.Group {
+  const kit = shared ?? new DetailBatch('Ironport grandstand');
+  if (originMatrix) kit.frame(originMatrix);
   const steel = 0x404952, zinc = 0x9aa4aa, concrete = 0x969893;
   const depth = rows * 1.05 + 1.7, roof = rows * 0.78 + 4.3;
   const aisles = [-length / 3, 0, length / 3];
@@ -47,12 +48,13 @@ export function detailedStand(length: number, rows: number): THREE.Group {
     kit.beam([x, 0.1, depth + 0.3], [x, roof + 0.05, depth + 0.3], 0.09, steel);
   }
   kit.box(0, roof - 0.15, depth + 0.35, length + 0.4, 0.18, 0.25, zinc, 1);
-  return kit.build();
+  return shared ? kit.group : kit.build();
 }
 
 /** One open-front pit garage: no painted-on door pretending to be a room. */
-export function pitGarage(index: number): THREE.Group {
-  const kit = new DetailBatch('Pit garage ' + (index + 1));
+export function pitGarage(index: number, shared?: DetailBatch, originMatrix?: THREE.Matrix4): THREE.Group {
+  const kit = shared ?? new DetailBatch('Pit garage ' + (index + 1));
+  if (originMatrix) kit.frame(originMatrix);
   const wall = 0xc2c2b9, steel = 0x444f58, dark = 0x202933;
   kit.box(0, 0.08, 0, 6.1, 0.16, 8, 0x8b8e8e);
   kit.box(0, 2.1, -3.9, 6.1, 4.2, 0.2, wall);
@@ -73,5 +75,5 @@ export function pitGarage(index: number): THREE.Group {
   for (const z of [-2.5, 1.6]) kit.box(0, 4.1, z, 3.2, 0.07, 0.18, 0xe3e5d5);
   kit.box(1.1, 4.65, -1.3, 1.8, 0.6, 1.4, 0x6b767b, 1);
   for (let z = -1.8; z < -0.7; z += 0.13) kit.box(1.1, 4.97, z, 1.65, 0.025, 0.025, dark, 1);
-  return kit.build();
+  return shared ? kit.group : kit.build();
 }

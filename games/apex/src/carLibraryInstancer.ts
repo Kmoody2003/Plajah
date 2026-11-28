@@ -423,8 +423,13 @@ export function populateChunkedLibraryCars(
   models: Map<LibraryVehicleRole, DecimatedLibraryVehicle>,
   castShadow: boolean,
 ): void {
-  const roles: LibraryVehicleRole[] = (['sedan', 'suv', 'coupe', 'pickup', 'estate', 'luxsuv', 'crew', 'van', 'taxi', 'police'] as LibraryVehicleRole[]).filter((r) => models.has(r));
+  const isMidGpu = typeof window !== 'undefined' && (window as unknown as { perfTier?: string }).perfTier !== 'high';
+  const baseRoles: LibraryVehicleRole[] = isMidGpu
+    ? ['sedan', 'suv', 'coupe', 'pickup']
+    : ['sedan', 'suv', 'coupe', 'pickup', 'estate', 'luxsuv', 'crew', 'van', 'taxi', 'police'];
+  const roles: LibraryVehicleRole[] = baseRoles.filter((r) => models.has(r));
   if (!roles.length || !entries.length) return;
+  const effShadow = castShadow && !isMidGpu;
 
   const CELL = 220;
   const buckets = new Map<string, Array<{ x: number; y: number; z: number; yaw: number; color: number; scaleZ?: number }>>();
@@ -459,12 +464,12 @@ export function populateChunkedLibraryCars(
     }
     im.instanceMatrix.needsUpdate = true;
     if (im.instanceColor) im.instanceColor.needsUpdate = true;
-    im.castShadow = castShadow;
+    im.castShadow = effShadow;
     im.receiveShadow = true;
     im.computeBoundingSphere();
     im.frustumCulled = true;
-    im.userData.maxDist = 300;
-    im.userData.maxShadowDist = castShadow ? 130 : 0;
+    im.userData.maxDist = isMidGpu ? 200 : 300;
+    im.userData.maxShadowDist = effShadow ? 130 : 0;
     parent.add(im);
   });
 }

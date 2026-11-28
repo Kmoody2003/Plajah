@@ -51,17 +51,32 @@ let VARIANTS: Variant[] | null = null;
 function makeVariants(): Variant[] {
   if (VARIANTS) return VARIANTS;
   VARIANTS = [];
-  for (const [conifer, preset, seed] of PRESETS) {
+  const isMidGpu = typeof window !== 'undefined' && (window as unknown as { perfTier?: string }).perfTier !== 'high';
+  const activePresets: [boolean, string, number][] = isMidGpu
+    ? [[true, 'Pine Large', 11], [false, 'Oak Medium', 61], [false, 'Ash Medium', 71]]
+    : PRESETS;
+  for (const [conifer, preset, seed] of activePresets) {
     try {
       const t = new Tree();
       t.loadPreset(preset);
       t.options.seed = seed;
       const o = t.options as unknown as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-      for (const k of Object.keys(o.branch.sections)) o.branch.sections[k] = Math.max(3, Math.round(o.branch.sections[k] * 0.55));
-      for (const k of Object.keys(o.branch.segments)) o.branch.segments[k] = Math.max(3, Math.round(o.branch.segments[k] * 0.50));
+      // Keep bark trunk/boughs lean (low tube segments) while preserving FULL lush leafy canopies:
+      // ez-tree spawns leaves ONLY on the terminal branch level, so when clamping levels 3->2 we boost leaf count & size to keep crowns thick!
+      const origLevels = typeof o.branch.levels === 'number' ? o.branch.levels : 2;
+      const clampedLevels = Math.min(origLevels, 2);
+      if (typeof o.branch.levels === 'number') o.branch.levels = clampedLevels;
+      if (o.branch.children) {
+        for (const k of Object.keys(o.branch.children)) {
+          o.branch.children[k] = Math.max(3, Math.round(o.branch.children[k] * (origLevels > clampedLevels ? 0.82 : 0.72)));
+        }
+      }
+      for (const k of Object.keys(o.branch.sections)) o.branch.sections[k] = Math.max(2, Math.round(o.branch.sections[k] * 0.48));
+      for (const k of Object.keys(o.branch.segments)) o.branch.segments[k] = Math.max(3, Math.round(o.branch.segments[k] * 0.42));
       if (o.leaves) {
-        o.leaves.count = Math.round(o.leaves.count * 0.76);
-        if (typeof o.leaves.size === 'number') o.leaves.size *= 1.32;
+        const levelBoost = origLevels > clampedLevels ? 1.85 : 1.05;
+        o.leaves.count = Math.max(22, Math.round(o.leaves.count * levelBoost));
+        if (typeof o.leaves.size === 'number') o.leaves.size *= origLevels > clampedLevels ? 1.92 : 1.38;
       }
       t.generate();
       const bark = copyGeo(t.branchesMesh.geometry as unknown as Src);
@@ -77,15 +92,17 @@ function makeVariants(): Variant[] {
   }
   // Fold in Plajah's own Space-Colonization botanical species (with 3D crown normal transfer!)
   // so Apex's Great Lakes forests share the unified Plajah vegetation catalog alongside ez-tree!
-  const PLAYKIT_APEX_SPECIES: Array<[string, number]> = [
-    ['nordic-spruce', 107],
-    ['coastal-windswept-cedar', 211],
-    ['fable-ancient-oak', 307],
-    ['autumn-maple', 409],
-  ];
+  const PLAYKIT_APEX_SPECIES: Array<[string, number]> = isMidGpu
+    ? [['nordic-spruce', 107], ['fable-ancient-oak', 307], ['autumn-maple', 409]]
+    : [
+        ['nordic-spruce', 107],
+        ['coastal-windswept-cedar', 211],
+        ['fable-ancient-oak', 307],
+        ['autumn-maple', 409],
+      ];
   for (const [speciesId, seed] of PLAYKIT_APEX_SPECIES) {
     try {
-      const grown = buildPlaykitGrownTreeVariantMeshes(speciesId, seed, 240);
+      const grown = buildPlaykitGrownTreeVariantMeshes(speciesId, seed, 78);
       if (!grown) continue;
       VARIANTS.push({
         conifer: grown.conifer,
@@ -100,7 +117,7 @@ function makeVariants(): Variant[] {
   return VARIANTS;
 }
 
-const LEAF_GREEN: Record<string, number> = { pine: 0x1a461e, oak: 0x26591a, ash: 0x2e641e, aspen: 0x3e6f22 };
+const LEAF_GREEN: Record<string, number> = { pine: 0x265c28, oak: 0x347222, ash: 0x3c7d26, aspen: 0x4e892a };
 /** leaf: an optional per-tree leaf colour (hex), e.g. a street in autumn; it multiplies the leaf material like the usual tint */
 interface Pt { x: number; z: number; conifer: boolean; k: number; s: number; leaf?: number }
 
@@ -307,10 +324,10 @@ export class EzTreeField {
   }
   setQuality(scale: number): void {
     const s = Math.max(0.25, Math.min(1, scale));
-    const nr = NEAR_R * (0.50 + 0.50 * s);
-    // Global 3D tree budget across ALL 9 variants (cards seamlessly fill beyond nr): prevents 6,000+ 3D trees = 10M tris on iGPU!
-    const totalCap = s >= 0.90 ? 720 : Math.max(80, Math.round(60 + 280 * s));
-    const nc = Math.min(this.cap, Math.max(24, Math.ceil(totalCap * 0.35)));
+    const nr = NEAR_R * (0.48 + 0.52 * s);
+    // Global 3D tree budget across active variants (cards seamlessly fill beyond nr): lush nearby groves & street trees under iGPU triangle budget!
+    const totalCap = s >= 0.90 ? 640 : Math.max(105, Math.round(70 + 220 * s));
+    const nc = Math.min(this.cap, Math.max(24, Math.ceil(totalCap * 0.36)));
     this.uFadeEnd.value = nr;
     this.uFadeStart.value = Math.max(60, nr - 24);
     if (this.tslU) { this.tslU.uFadeEnd.value = nr; this.tslU.uFadeStart.value = Math.max(60, nr - 24); }

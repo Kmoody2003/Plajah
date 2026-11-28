@@ -10,7 +10,7 @@ import type { Lamp, SignalSystem } from './sim/signals';
  *  - stop signs on the near right corner, with an ALL WAY plaque at all-way stops.
  * Everything is instanced: about a dozen draws for the whole map. `update` recolours the lamps only when a phase changes.
  */
-export interface IntersectionLayer { group: THREE.Group; update: () => void; near: (x: number, z: number, r: number) => boolean }
+export interface IntersectionLayer { group: THREE.Group; update: (cam?: THREE.Vector3) => void; near: (x: number, z: number, r: number) => boolean }
 
 const LIT: Record<Lamp, number> = { R: 0xff2a14, Y: 0xffb300, G: 0x1dff6a };
 const DARK = [0x2b0b08, 0x2b2108, 0x082b14];
@@ -112,30 +112,81 @@ export function buildIntersections(sig: SignalSystem, g: RoadGraph, ground: (x: 
   const sets: [string, THREE.BufferGeometry, THREE.Material, boolean][] = [
     ['line', flat, paint(0xeeeeea, -4), false],
     ['zebra', flat, paint(0xeeeeea, -4), false],
-    ['pole', new THREE.CylinderGeometry(0.13, 0.17, 7.2, 10), steel, true],
-    ['arm', new THREE.CylinderGeometry(0.09, 0.11, 1, 8).rotateZ(Math.PI / 2), steel, true],
+    ['pole', new THREE.CylinderGeometry(0.13, 0.17, 7.2, 6), steel, false],
+    ['arm', new THREE.CylinderGeometry(0.09, 0.11, 1, 6).rotateZ(Math.PI / 2), steel, false],
     // housing and black back plate in one box (a visor-less head), front face at local z +0.14
-    ['head', new THREE.BoxGeometry(0.42, 1.08, 0.28), new THREE.MeshStandardMaterial({ color: 0x1c1d18, roughness: 0.7 }), true],
-    ['lamp', new THREE.CircleGeometry(0.125, 16), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), false],
-    ['post', new THREE.BoxGeometry(0.06, 2.5, 0.06), steel, true],
-    ['sign', octo, new THREE.MeshStandardMaterial({ map: stopTexture(), roughness: 0.5, side: THREE.DoubleSide }), true],
+    ['head', new THREE.BoxGeometry(0.42, 1.08, 0.28), new THREE.MeshStandardMaterial({ color: 0x1c1d18, roughness: 0.7 }), false],
+    ['lamp', new THREE.CircleGeometry(0.125, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), false],
+    ['post', new THREE.BoxGeometry(0.06, 2.5, 0.06), steel, false],
+    ['sign', octo, new THREE.MeshStandardMaterial({ map: stopTexture(), roughness: 0.5, side: THREE.DoubleSide }), false],
     ['plaque', new THREE.PlaneGeometry(0.46, 0.17), new THREE.MeshStandardMaterial({ map: plaqueTexture(), roughness: 0.5, side: THREE.DoubleSide }), false],
   ];
   let lamps: THREE.InstancedMesh | null = null;
+  const staticCells: { m: THREE.InstancedMesh; cx: number; cz: number; r: number; reach: number }[] = [];
+  const signalPos: number[] = [];
+  for (let i = 0; i < sig.junctions.length; i++) {
+    const j = sig.junctions[i];
+    if (j.control === 'signal') signalPos.push(j.x, j.z);
+  }
+  const CELL = 1800;
   for (const [name, geo, mat, shadow] of sets) {
     const list = lists[name]; if (!list.length) continue;
-    const im = new THREE.InstancedMesh(geo, mat, list.length);
-    list.forEach((m, i) => im.setMatrixAt(i, m));
-    im.castShadow = shadow; im.receiveShadow = name !== 'lamp'; im.name = 'junction-' + name;
-    im.computeBoundingSphere();
-    group.add(im);
-    if (name === 'lamp') lamps = im;
+    if (name === 'lamp') {
+      const im = new THREE.InstancedMesh(geo, mat, list.length);
+      list.forEach((m, i) => im.setMatrixAt(i, m));
+      im.castShadow = false; im.receiveShadow = false; im.name = 'junction-lamp';
+      im.computeBoundingSphere();
+      group.add(im);
+      lamps = im;
+      continue;
+    }
+    // Split region-wide intersection hardware into 1800 m cells so distant town/downtown junctions are culled cleanly without multiplying draw calls!
+    const isMicro = name === 'line' || name === 'zebra' || name === 'post' || name === 'sign' || name === 'plaque';
+    const buckets = new Map<string, THREE.Matrix4[]>();
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i].elements;
+      const key = `${Math.floor(e[12] / CELL)},${Math.floor(e[14] / CELL)}`;
+      let b = buckets.get(key);
+      if (!b) { b = []; buckets.set(key, b); }
+      b.push(list[i]);
+    }
+    for (const sub of buckets.values()) {
+      const im = new THREE.InstancedMesh(geo, mat, sub.length);
+      sub.forEach((m, i) => im.setMatrixAt(i, m));
+      im.castShadow = shadow; im.receiveShadow = true; im.name = 'junction-' + name;
+      im.computeBoundingSphere();
+      const bs = im.boundingSphere!;
+      group.add(im);
+      staticCells.push({ m: im, cx: bs.center.x, cz: bs.center.z, r: bs.radius, reach: isMicro ? 140 : 320 });
+    }
   }
-  // lamp colours: only touched when an approach's lamp changes
+  // lamp colours: only touched when an approach's lamp changes (4 Hz check — signals change every few seconds!)
   const shown = new Int8Array(lampRef.length).fill(-1), col = new THREE.Color();
   const LAMPS: Lamp[] = ['R', 'Y', 'G'];
-  const update = (): void => {
-    if (!lamps) return;
+  let lastLampMs = -1e9;
+  const update = (cam?: THREE.Vector3): void => {
+    if (cam) {
+      for (let i = 0; i < staticCells.length; i++) {
+        const c = staticCells[i];
+        const dx = c.cx - cam.x, dz = c.cz - cam.z, reach = c.reach + c.r;
+        c.m.visible = dx * dx + dz * dz <= reach * reach;
+      }
+      if (lamps) {
+        let nearSig = false;
+        for (let i = 0; i < signalPos.length; i += 2) {
+          const dx = signalPos[i] - cam.x, dz = signalPos[i + 1] - cam.z;
+          if (dx * dx + dz * dz < 460 * 460) { nearSig = true; break; }
+        }
+        lamps.visible = nearSig;
+      }
+    } else {
+      for (let i = 0; i < staticCells.length; i++) staticCells[i].m.visible = true;
+      if (lamps) lamps.visible = true;
+    }
+    if (!lamps || !lamps.visible) return;
+    const now = performance.now();
+    if (now - lastLampMs < 250) return;
+    lastLampMs = now;
     let dirty = false;
     for (let i = 0; i < lampRef.length; i++) {
       const r = lampRef[i], j = sig.junctions[r.j], lit = sig.lamp(j, j.approaches[r.a]) === LAMPS[r.k] ? 1 : 0;

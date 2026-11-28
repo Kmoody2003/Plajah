@@ -188,9 +188,9 @@
     @keyframes bsShimmer { 0% { transform:translateX(-100%); } 100% { transform:translateX(220%); } }
     @keyframes bsDot { 0%, 80%, 100% { transform:scale(.65); opacity:.35; } 40% { transform:scale(1.25); opacity:1; } }
   </style>
-  <script type="module" crossorigin src="/games/apex/play/assets/region-D_5c23O7.js"></script>
-  <link rel="modulepreload" crossorigin href="/games/apex/play/assets/ao-DEdob2P2.js">
-  <link rel="modulepreload" crossorigin href="/games/apex/play/assets/apexWebGpuAdapter-Cr76CFOP.js">
+  <script type="module" crossorigin src="/games/apex/play/assets/region-Bpzlz57e.js"></script>
+  <link rel="modulepreload" crossorigin href="/games/apex/play/assets/ao-fMWhHskE.js">
+  <link rel="modulepreload" crossorigin href="/games/apex/play/assets/apexWebGpuAdapter-DZsjFEfw.js">
   <link rel="stylesheet" crossorigin href="/games/apex/play/assets/region-Q_O_uD2I.css">
 </head>
 <body>
@@ -233,9 +233,10 @@
   <div id="view"></div>
   <div id="panel">
     <div class="sh-head"><span class="sh-title">Settings</span><button id="shClose" class="sh-x" aria-label="Close settings">&times;</button></div>
-    <div class="sh-group">Audio</div>
-    <label class="sh-row"><span>Music volume</span><input type="range" id="musicVol" min="0" max="1" step="0.05" value="0.6" /></label>
-    <label class="sh-row"><span>Engine and tyre volume</span><input type="range" id="engVol" min="0" max="1.5" step="0.05" value="1.0" /></label>
+    <div class="sh-group">Audio Mixer</div>
+    <label class="sh-row"><span>Music volume <b id="musicVolVal" style="font-family:var(--font-mono);color:#ffd166;margin-left:6px">80%</b></span><input type="range" id="musicVol" min="0" max="1" step="0.02" value="0.8" /></label>
+    <label class="sh-row"><span>Engine volume <b id="engVolVal" style="font-family:var(--font-mono);color:#00DAF3;margin-left:6px">75%</b></span><input type="range" id="engVol" min="0" max="1.5" step="0.02" value="0.75" /></label>
+    <label class="sh-row"><span>SFX &amp; tyre volume <b id="sfxVolVal" style="font-family:var(--font-mono);color:#ff9e58;margin-left:6px">85%</b></span><input type="range" id="sfxVol" min="0" max="1.5" step="0.02" value="0.85" /></label>
     <label class="sh-row"><span>Chora Radio ( [ / ] )</span><span style="display:flex;gap:6px;align-items:center"><button id="radioPrev" type="button">&lsaquo;</button><b id="radioLabel" style="font-size:11px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Plajah FM</b><button id="radioNext" type="button">&rsaquo;</button></span></label>
     <label class="sh-row"><span>Radio host voices (device speech)</span><input type="checkbox" id="tHostVoice" /></label>
     <div class="sh-group">Driving</div>
@@ -248,6 +249,7 @@
     <div class="sh-group">Graphics</div>
     <label class="sh-row"><span>Render engine <b id="rendererBadge" style="font-family:var(--font-mono);color:#00DAF3;margin-left:4px">WebGPU</b></span><select id="rendererSel"><option value="webgpu">WebGPU + Playkit SSR</option><option value="webgl">WebGL2 (Legacy)</option></select></label>
     <label class="sh-row"><span>Time of day</span><select id="tod"><option value="dynamic">Dynamic 24h cycle</option><option value="realtime">Match local time (real clock)</option><option value="golden" selected>Golden hour</option><option value="clear">Clear day</option><option value="sunset">Sunset</option><option value="dusk">Dusk</option><option value="night">Night</option><option value="sunrise">Sunrise</option></select></label>
+    <label class="sh-row"><span>Night sky dome</span><select id="nightSkySel"><option value="sky2_night" selected>Milky Way · Starlight</option><option value="sky2_night_moon">Moonlit Clouds</option><option value="sky2_night_aurora">Lake Superior Aurora</option><option value="sky2_night_cloudy">Urban Glow Clouds</option><option value="sky2_night_storm">Midnight Lightning</option></select></label>
     <label class="sh-row"><span>Solar clock <b id="todClock" style="font-family:var(--font-mono);color:#ffd166;margin-left:6px">17:30</b></span><input type="range" id="todHour" min="0" max="24" step="0.1" value="17.5" /></label>
     <label class="sh-row"><span>Depth of field (cinematic)</span><input type="checkbox" id="tDof" checked /></label>
     <label class="sh-row"><span>GPU preference</span><select id="gpuPreference" title="Requests a GPU after reload. The browser and OS choose the adapter; Performance shows the GPU actually in use."><option value="default">System default</option><option value="low-power">Power-saving GPU</option><option value="high-performance">High-performance GPU</option></select></label>

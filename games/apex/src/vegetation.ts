@@ -58,6 +58,7 @@ interface Species {
   geoI?: THREE.InstancedBufferGeometry;
   cells: Map<number, Float32Array>;
   total: number;
+  dirty?: boolean;
 }
 
 function buildLeafyShrubGeo(): THREE.BufferGeometry {
@@ -162,13 +163,22 @@ export class Vegetation {
   private quality = 1.0;
 
   setQuality(q: number, allowGrassShadows = true): void {
-    const next = Math.max(0.28, Math.min(1.0, q));
-    if (Math.abs(next - this.quality) < 0.04) return;
+    const next = Math.max(0.08, Math.min(1.0, q));
+    if (Math.abs(next - this.quality) < 0.03) return;
     this.quality = next;
+    const leanMode = next < 0.35;
+    const skipFarGrass = next < 0.65;
     for (const sp of this.species) {
       if (sp.mesh && (sp.name === 'grass' || sp.name === 'grassMid')) {
         sp.mesh.receiveShadow = allowGrassShadows && sp.name === 'grass';
       }
+      if ((leanMode && (sp.name === 'ferns' || sp.name === 'wildflowers' || sp.name === 'rocks')) || (skipFarGrass && sp.name === 'grassFar')) {
+        sp.cells.clear();
+        sp.total = 0;
+        if (sp.geoI) sp.geoI.instanceCount = 0;
+        if (sp.mesh) sp.mesh.visible = false;
+      }
+      sp.dirty = true;
     }
     this.dirty = true;
     this.pending = true;
@@ -445,7 +455,7 @@ export class Vegetation {
     };
     // Tier 1 (Near hero low-grass carpet, 0–64 m): crisp mowed lawn in towns/populated zones (10–18 cm), natural low pasture grass in open countryside (16–28 cm)
     const grassNear: Species = {
-      name: 'grass', geo: nearBladeGeo, spacing: 0.68, radius: 64, fade: [-1, 0, 44, 64], cap: 26000, seed: 1, cells: new Map(), total: 0,
+      name: 'grass', geo: nearBladeGeo, spacing: 0.74, radius: 60, fade: [-1, 0, 42, 60], cap: 18500, seed: 1, cells: new Map(), total: 0,
       mat: null as unknown as THREE.MeshStandardMaterial,
       rule: (x, z, i, j, s) => {
         if (!isTurfSample(x, z, s)) return null;
@@ -718,32 +728,36 @@ export class Vegetation {
     }
     if (!this.enabled || !this.cls || !this.alb) return;
     this.sinceRebuild += dt;
+    const leanMode = this.quality < 0.35;
+    const moveThresh = leanMode ? 11.0 : 4.5;
     const moved = Math.hypot(cam.x - this.lastCam.x, cam.z - this.lastCam.y);
-    const turned = (this.fwdX * this.lastFwdX + this.fwdZ * this.lastFwdZ) < 0.84;
-    if (moved < 4.5 && !turned && !this.pending && !this.dirty) return;
+    const turned = (this.fwdX * this.lastFwdX + this.fwdZ * this.lastFwdZ) < (leanMode ? 0.72 : 0.84);
+    if (moved < moveThresh && !turned && !this.pending && !this.dirty) return;
     // which cells should exist, and make the nearest in-frustum missing ones inside a responsive time budget
     const t0 = performance.now();
     const bigJump = moved > 45;
-    if (moved >= 4.5 || turned) {
+    if (moved >= moveThresh || turned) {
       this.lastCam.set(cam.x, cam.z);
       this.lastFwdX = this.fwdX;
       this.lastFwdZ = this.fwdZ;
       this.dirty = true;
       this.pending = true;
     }
-    const budget = bigJump ? 7.0 : 2.4;
+    const budget = bigJump ? 4.5 : (leanMode ? 1.0 : 2.4);
     let remaining = false;
-    // Collect missing cells per species and generate ROUND-ROBIN across all tiers (grassFar/grassMid/grassNear/shrubs/rocks)
-    // so dense near-grass cells NEVER starve mid- and far-horizon grass from carpeting the entire visible frame!
+    // Collect missing cells per species and generate ROUND-ROBIN across all tiers (grassNear/vergeWild/grassMid/farmCrops/shrubs)
+    // so dense near-grass cells NEVER starve mid-horizon grass from carpeting the visible frame!
     const queues: Array<{ sp: Species; need: { key: number; ci: number; cj: number; prio: number }[]; idx: number }> = [];
+    const skipFarGrass = this.quality < 0.65;
     for (const sp of this.species) {
-      const rScale = this.quality >= 0.95 ? 1.0 : (0.62 + 0.38 * this.quality);
+      if ((leanMode && (sp.name === 'ferns' || sp.name === 'wildflowers' || sp.name === 'rocks')) || (skipFarGrass && sp.name === 'grassFar')) continue;
+      const rScale = leanMode ? (0.42 + 0.58 * this.quality) : (this.quality >= 0.95 ? 1.0 : (0.62 + 0.38 * this.quality));
       const r = sp.radius * rScale + CELL * 0.65;
       const ci0 = Math.floor((cam.x - r) / CELL), ci1 = Math.floor((cam.x + r) / CELL), cj0 = Math.floor((cam.z - r) / CELL), cj1 = Math.floor((cam.z + r) / CELL);
       // drop cells that are too far
       for (const key of sp.cells.keys()) {
         const ci = Math.floor(key / 8192) - 4096, cj = (key - (ci + 4096) * 8192) - 4096;
-        if (Math.hypot((ci + 0.5) * CELL - cam.x, (cj + 0.5) * CELL - cam.z) > r + CELL) { sp.cells.delete(key); this.dirty = true; }
+        if (Math.hypot((ci + 0.5) * CELL - cam.x, (cj + 0.5) * CELL - cam.z) > r + CELL) { sp.cells.delete(key); sp.dirty = true; this.dirty = true; }
       }
       // missing cells, in-frustum nearest first
       const need: { key: number; ci: number; cj: number; prio: number }[] = [];
@@ -768,7 +782,7 @@ export class Vegetation {
       for (const q of queues) {
         if (q.idx >= q.need.length) continue;
         // Guarantee at least 1 nearest cell for grassNear & vergeWild on round 0 even when budget is tight
-        const burst = q.sp.spacing >= 2.0 ? 3 : q.sp.spacing >= 1.1 ? 2 : 1;
+        const burst = leanMode ? 1 : (q.sp.spacing >= 2.0 ? 3 : q.sp.spacing >= 1.1 ? 2 : 1);
         for (let b = 0; b < burst && q.idx < q.need.length; b++) {
           const isHeroNear = round === 0 && b === 0 && (q.sp.name === 'grass' || q.sp.name === 'vergeWild');
           if (!isHeroNear && performance.now() - t0 > budget) {
@@ -777,6 +791,7 @@ export class Vegetation {
           }
           const n = q.need[q.idx++];
           q.sp.cells.set(n.key, this.genCell(q.sp, n.ci, n.cj));
+          q.sp.dirty = true;
           this.dirty = true;
           progressed = true;
         }
@@ -792,19 +807,35 @@ export class Vegetation {
     }
     this.pending = remaining;
     this.stats.genMs = performance.now() - t0;
-    if (this.dirty && (bigJump || this.sinceRebuild > 0.22)) { this.rebuild(cam); this.dirty = false; this.sinceRebuild = 0; }
+    const rebuildEvery = leanMode ? 0.55 : 0.22;
+    if (this.dirty && (bigJump || this.sinceRebuild > rebuildEvery)) { this.rebuild(cam, bigJump); this.dirty = false; this.sinceRebuild = 0; }
   }
 
   /** pack the live cells into each species' instance buffer (in-frustum nearest cells first so the visible frame is 100% carpeted!) */
-  private rebuild(cam: THREE.Vector3): void {
+  private rebuild(cam: THREE.Vector3, forceAll = false): void {
     let cells = 0, draws = 0;
+    const leanMode = this.quality < 0.35;
+    const skipFarGrass = this.quality < 0.65;
     for (const sp of this.species) {
+      if ((leanMode && (sp.name === 'ferns' || sp.name === 'wildflowers' || sp.name === 'rocks')) || (skipFarGrass && sp.name === 'grassFar')) {
+        sp.total = 0;
+        sp.geoI!.instanceCount = 0;
+        sp.mesh!.visible = false;
+        this.stats.instances[sp.name] = 0;
+        continue;
+      }
+      if (!forceAll && !sp.dirty) {
+        cells += sp.cells.size;
+        if (sp.total > 0) draws++;
+        continue;
+      }
+      sp.dirty = false;
       const arr = sp.buf!.array as Float32Array;
       const list = [...sp.cells.entries()].map(([key, data]) => {
         const ci = Math.floor(key / 8192) - 4096, cj = (key - (ci + 4096) * 8192) - 4096;
         return { data, prio: this.cellPriority((ci + 0.5) * CELL, (cj + 0.5) * CELL, cam) };
       }).sort((a, b) => a.prio - b.prio);
-      const effCap = Math.max(400, Math.round(sp.cap * this.quality));
+      const effCap = Math.max(180, Math.round(sp.cap * this.quality));
       let n = 0;
       for (const c of list) {
         const m = c.data.length / 8;

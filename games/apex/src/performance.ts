@@ -135,12 +135,15 @@ export class FrameProfiler {
     const textures = info?.memory?.textures ?? 0;
     const report = { backend: this.adapter.backend, adapter: this.adapter.family, renderer: this.adapter.renderer, requestedGpu: this.gl?.getContextAttributes?.()?.powerPreference ?? 'high-performance', width: this.renderer.domElement.width, height: this.renderer.domElement.height, context: this.context, targetMs: 1000 / 60, fps: +frame.fps.toFixed(1), frameMedianMs: +frame.median.toFixed(2), frameP95Ms: +frame.p95.toFixed(2), cpuSubmitMedianMs: +cpu.median.toFixed(2), gpuMedianMs: this.gpu.length ? +gpu.median.toFixed(2) : null, calls, triangles, programs, textures };
     let topGroups = '';
+    let topSubs = '';
     if (this.scene) {
       const tally: Array<{ name: string; draws: number; tris: number }> = [];
+      const subs: Array<{ label: string; tris: number; inst: number }> = [];
       for (const root of this.scene.children) {
         if (!root.visible) continue;
         let draws = 0, tris = 0;
-        const walk = (o: THREE.Object3D): void => {
+        const rName = root.name || root.type;
+        const walk = (o: THREE.Object3D, parentName: string): void => {
           if (!o.visible) return;
           const m = o as THREE.Mesh;
           if (m.isMesh && m.geometry) {
@@ -153,20 +156,38 @@ export class FrameProfiler {
                 : inst;
               if (gInst > 0) {
                 draws++;
-                tris += Math.round((verts / 3) * gInst);
+                const t = Math.round((verts / 3) * gInst);
+                tris += t;
+                if (t >= 30000) subs.push({ label: `${rName}/${o.name || parentName}`, tris: t, inst: gInst });
               }
             }
           }
-          for (let i = 0; i < o.children.length; i++) walk(o.children[i]);
+          const nextName = o.name || parentName;
+          for (let i = 0; i < o.children.length; i++) walk(o.children[i], nextName);
         };
-        walk(root);
-        if (draws > 0) tally.push({ name: root.name || root.type, draws, tris });
+        walk(root, rName);
+        if (draws > 0) tally.push({ name: rName, draws, tris });
       }
       tally.sort((a, b) => b.tris - a.tris);
+      subs.sort((a, b) => b.tris - a.tris);
       topGroups = '\nTop: ' + tally.slice(0, 6).map((x) => `${x.name}(${x.draws}d/${(x.tris / 1e6).toFixed(2)}M)`).join(', ');
+      if (subs.length) {
+        topSubs = '\nSub: ' + subs.slice(0, 5).map((x) => `${x.label}[${x.inst}]:${(x.tris / 1e3).toFixed(0)}k`).join(', ');
+      }
+    }
+    const segRaw = (window as unknown as { __seg?: { sim: number[]; mid: number[]; city: number[]; render: number[] } }).__seg;
+    let segStr = '';
+    if (segRaw && segRaw.render.length > 0) {
+      const med = (a: number[]): string => {
+        if (!a.length) return '0';
+        const s = [...a].slice(-30).sort((x, y) => x - y);
+        return s[s.length >> 1].toFixed(1);
+      };
+      const tierTag = (window as unknown as { perfTier?: string }).perfTier ?? '?';
+      segStr = `\nSeg[${tierTag}]: sim ${med(segRaw.sim)}ms · mid ${med(segRaw.mid)}ms · cull ${med(segRaw.city)}ms · render ${med(segRaw.render)}ms`;
     }
     this.output.dataset.report = JSON.stringify(report);
-    this.output.textContent = `${this.adapter.renderer}\n${report.fps} FPS · target 60 / 16.67 ms\nFrame median ${report.frameMedianMs} ms · p95 ${report.frameP95Ms} ms\nCPU submit ${report.cpuSubmitMedianMs} ms · GPU ${report.gpuMedianMs ?? (this.isWebGpu ? 'WebGPU async' : 'timer unavailable')} ms\n${report.calls} draws · ${report.triangles.toLocaleString()} triangles\n${report.programs} programs · ${report.textures} textures\n${this.adapter.compression.map((x) => x.replace('WEBGL_compressed_texture_', '')).join(' / ')} textures supported${topGroups}`;
+    this.output.textContent = `${this.adapter.renderer}\n${report.fps} FPS · target 60 / 16.67 ms\nFrame median ${report.frameMedianMs} ms · p95 ${report.frameP95Ms} ms\nCPU submit ${report.cpuSubmitMedianMs} ms · GPU ${report.gpuMedianMs ?? (this.isWebGpu ? 'WebGPU async' : 'timer unavailable')} ms\n${report.calls} draws · ${report.triangles.toLocaleString()} triangles\n${report.programs} programs · ${report.textures} textures\n${this.adapter.compression.map((x) => x.replace('WEBGL_compressed_texture_', '')).join(' / ')} textures supported${segStr}${topGroups}${topSubs}`;
     if (this.captureUntil && now >= this.captureUntil) {
       const capture = frameStats(this.capture); this.captureUntil = 0;
       this.summary.textContent = `${this.capture.length} frames: ${capture.fps.toFixed(1)} FPS, p95 ${capture.p95.toFixed(2)} ms. ${this.adapter.family === 'intel-arc' ? 'Intel Arc adapter detected.' : 'Not an Intel Arc validation.'}`;

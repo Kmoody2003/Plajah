@@ -42,28 +42,29 @@ const FRAG = `
     // Physical Rayleigh-Mie solar sky grounding so sky panoramas ALWAYS match true sun elevation, exposure & color temperature!
     float up = max(dir.y, 0.0);
     float sunEl = clamp(uSunDir.y, -0.35, 1.0);
-    float dayFactor = smoothstep(-0.08, 0.24, sunEl);
-    float goldenFactor = smoothstep(-0.06, 0.06, sunEl) * (1.0 - smoothstep(0.14, 0.42, sunEl));
-    float twilightFactor = smoothstep(-0.22, -0.02, sunEl) * (1.0 - smoothstep(0.02, 0.16, sunEl));
+    float notNight = 1.0 - smoothstep(0.32, 0.82, uNight);
+    float dayFactor = smoothstep(-0.08, 0.24, sunEl) * notNight;
+    float goldenFactor = smoothstep(-0.06, 0.06, sunEl) * (1.0 - smoothstep(0.14, 0.42, sunEl)) * notNight;
+    float twilightFactor = smoothstep(-0.22, -0.02, sunEl) * (1.0 - smoothstep(0.02, 0.16, sunEl)) * notNight;
     float sd = max(dot(dir, uSunDir), 1e-4);
 
     vec3 zenithDay = mix(vec3(0.15, 0.34, 0.68), vec3(0.10, 0.26, 0.64), smoothstep(0.15, 0.7, sunEl));
     vec3 zenithGold = vec3(0.14, 0.25, 0.52);
-    vec3 zenithNight = vec3(0.012, 0.022, 0.052);
+    vec3 zenithNight = vec3(0.008, 0.015, 0.042);
     vec3 physZenith = mix(zenithNight, mix(zenithDay, zenithGold, goldenFactor * 0.65), dayFactor);
     physZenith = mix(physZenith, vec3(0.05, 0.09, 0.22), twilightFactor * 0.65);
 
     vec3 horizDay = mix(vec3(0.68, 0.80, 0.94), vec3(0.58, 0.74, 0.92), smoothstep(0.2, 0.7, sunEl));
     vec3 horizGold = vec3(0.98, 0.56, 0.28);
     vec3 horizTwil = vec3(0.42, 0.28, 0.44);
-    vec3 horizNight = vec3(0.028, 0.046, 0.092);
+    vec3 horizNight = vec3(0.024, 0.038, 0.078);
     vec3 physHoriz = mix(horizNight, mix(horizDay, horizGold, goldenFactor * 0.85), dayFactor);
     physHoriz = mix(physHoriz, horizTwil, twilightFactor * 0.75);
     vec3 physSky = mix(physHoriz, physZenith, pow(up, 0.48));
     // Warm Mie horizon solar glow band aligned with the actual sun azimuth
     physSky += uSunCol * pow(sd, 5.0) * (1.0 - smoothstep(0.0, 0.42, up)) * (0.28 + 0.55 * goldenFactor) * dayFactor * (1.0 - 0.82 * uMixOver);
     // Re-light sky panorama toward physical radiance while preserving photographic cloud detail
-    float physMix = (0.30 + 0.16 * goldenFactor + 0.22 * uNight) * (1.0 - 0.65 * uMixOver);
+    float physMix = (0.30 + 0.16 * goldenFactor + 0.46 * uNight) * (1.0 - 0.65 * uMixOver);
     col = mix(col, physSky, physMix);
     // Keep panorama bright & crisp in clear daylight (LDR sky photos tend to compress highlight energy)
     col *= mix(1.0, 1.18, dayFactor * (1.0 - uMixOver * 0.75) * (1.0 - uNight));
@@ -242,16 +243,34 @@ export class Sky {
       onLoaded?.(t);
     });
   }
-  /** Smoothly crossfade two sky panoramas for continuous 24h day/night & real-time local clock cycles */
+  /** Smoothly crossfade two sky panoramas for continuous 24h day/night & real-time local clock cycles (zero hard snaps or mid-drive load pops!) */
   setBlendedBase(nameA: string, nameB: string, blend: number, onDominantLoaded?: (t: THREE.Texture) => void): void {
     const clamped = Math.max(0, Math.min(1, blend));
-    const bVal = nameA === nameB ? 0 : clamped;
-    if (this.tslSky) this.tslSky.setBaseBlend(bVal);
-    else if (this.mat) this.mat.uniforms.uBaseBlend.value = bVal;
-    if (this.activeBaseName !== nameA) {
-      this.activeBaseName = nameA;
+    const haveA = !!this.tex[nameA];
+    const haveB = !!this.tex[nameB];
+    // Never snap uBaseBlend onto an unloaded texture — hold current textures smoothly until both panoramas are resident in RAM!
+    if (haveA && haveB) {
+      const bVal = nameA === nameB ? 0 : clamped;
+      if (this.activeBaseName !== nameA) {
+        this.activeBaseName = nameA;
+        this.currentBaseTex = this.tex[nameA];
+        if (this.tslSky) this.tslSky.setBaseTexture(this.tex[nameA]);
+        else if (this.mat) this.mat.uniforms.tBase.value = this.tex[nameA];
+      }
+      if (this.activeNextName !== nameB) {
+        this.activeNextName = nameB;
+        if (this.tslSky) this.tslSky.setNextTexture(this.tex[nameB]);
+        else if (this.mat) this.mat.uniforms.tNext.value = this.tex[nameB];
+      }
+      if (this.tslSky) this.tslSky.setBaseBlend(bVal);
+      else if (this.mat) this.mat.uniforms.uBaseBlend.value = bVal;
+      onDominantLoaded?.(clamped < 0.5 ? this.tex[nameA] : this.tex[nameB]);
+      return;
+    }
+    if (!haveA) {
       this.load(nameA, (t) => {
-        if (this.activeBaseName === nameA) {
+        if (this.activeBaseName === '' || this.activeBaseName === nameA) {
+          this.activeBaseName = nameA;
           this.currentBaseTex = t;
           if (this.tslSky) this.tslSky.setBaseTexture(t);
           else if (this.mat) this.mat.uniforms.tBase.value = t;
@@ -259,16 +278,24 @@ export class Sky {
         }
       });
     }
-    if (this.activeNextName !== nameB) {
-      this.activeNextName = nameB;
+    if (!haveB) {
       this.load(nameB, (t) => {
-        if (this.activeNextName === nameB) {
+        if (this.activeNextName === '' || this.activeNextName === nameB) {
+          this.activeNextName = nameB;
           if (this.tslSky) this.tslSky.setNextTexture(t);
           else if (this.mat) this.mat.uniforms.tNext.value = t;
           if (clamped >= 0.5) onDominantLoaded?.(t);
         }
       });
     }
+  }
+  /** Quietly preload all 24-hour cycle + night-sky variant panoramas in idle time so transitions never stall or pop mid-drive! */
+  preloadCycleSkies(): void {
+    const names = ['sky2_sunrise', 'sky2_clear', 'sky2_golden', 'sky2_sunset', 'sky2_dusk', 'sky2_night', 'sky2_night_moon', 'sky2_night_aurora', 'sky2_night_cloudy', 'sky2_night_storm'];
+    names.forEach((n, idx) => {
+      if (this.tex[n]) return;
+      setTimeout(() => { this.load(n, () => undefined); }, 350 + idx * 320);
+    });
   }
   /** Update moon direction smoothly opposite the solar arc */
   setMoonDir(v: THREE.Vector3): void {
@@ -289,6 +316,12 @@ export class Sky {
     this.load('sky2_storm', (t) => {
       if (this.tslSky) this.tslSky.setStormTexture(t);
       else if (this.mat) this.mat.uniforms.tStorm.value = t;
+    });
+    this.load('sky2_night_cloudy', (t) => {
+      if (this.tslSky) this.tslSky.setNightOvercastTexture(t);
+    });
+    this.load('sky2_night_storm', (t) => {
+      if (this.tslSky) this.tslSky.setNightStormTexture(t);
     });
   }
   private load(name: string, cb: (t: THREE.Texture) => void): void {
@@ -315,8 +348,17 @@ export class Sky {
     this.cirrus.position.x = cam.position.x; this.cirrus.position.z = cam.position.z;
     const cm = this.cirrus.material as THREE.MeshBasicMaterial;
     this.cirrusTex.offset.x += dt * 0.0006;
-    cm.opacity = 0.34 * (1 - st.mixOver * 0.5) * (1 - st.night * 0.7);
-    cm.color?.setScalar(1 - st.dark * 0.7);
+    const cOp = 0.30 * (1 - st.mixOver * 0.5) * (1 - st.night * 0.82);
+    cm.opacity = cOp;
+    const nightDim = Math.max(0.08, 1 - st.night * 0.88);
+    const darkDim = 1 - st.dark * 0.65;
+    cm.color?.setRGB(
+      (0.76 + st.sunCol.r * 0.24) * nightDim * darkDim,
+      (0.80 + st.sunCol.g * 0.20) * nightDim * darkDim,
+      (0.88 + st.sunCol.b * 0.12) * Math.max(0.12, 1 - st.night * 0.82) * darkDim,
+    );
+    if (cm.userData?.uTint?.value && cm.color) (cm.userData.uTint.value as THREE.Color).copy(cm.color);
+    if (cm.userData?.uOp) cm.userData.uOp.value = cOp;
     // birds
     this.birds.visible = st.birds;
     if (st.birds) {

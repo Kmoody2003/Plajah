@@ -154,13 +154,13 @@ export function createApexCarPaintTslMaterial(opts: ApexCarPaintTslOptions): Ape
   const wingCarbonY = spec.shader?.wingCarbonY ?? 9.0;
 
   const mat = new THREE.MeshPhysicalNodeMaterial({
-    metalness: 0.42,
-    roughness: 0.34,
-    clearcoat: 0.58,
-    clearcoatRoughness: 0.14,
-    ior: 1.48,
-    specularIntensity: 0.58,
-    envMapIntensity: isOpponent ? 0.85 : 1.0,
+    metalness: 0.62,
+    roughness: 0.16,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.038,
+    ior: 1.54,
+    specularIntensity: 1.0,
+    envMapIntensity: isOpponent ? 1.45 : 2.15,
     side: THREE.DoubleSide,
     alphaTest: 0.5,
   });
@@ -358,22 +358,28 @@ export function createApexCarPaintTslMaterial(opts: ApexCarPaintTslOptions): Ape
   colNode = colNode.mul(mix(float(0.88), float(1.0), isFront));
 
   mat.colorNode = colNode;
-  mat.roughnessNode = clamp(roughNode, 0.04, 0.96);
-  mat.metalnessNode = clamp(metalNode, 0.0, 1.0);
-  mat.clearcoatNode = clamp(bodyNode.mul(0.62), 0.0, 1.0);
+  mat.roughnessNode = clamp(roughNode.mul(0.68), 0.04, 0.96);
+  mat.metalnessNode = clamp(metalNode.mul(1.22), 0.0, 1.0);
+  mat.clearcoatNode = clamp(bodyNode, 0.0, 1.0);
   mat.opacityNode = keepMask;
 
-  // Physical sky/horizon clearcoat reflection fill so metallic OEM paint stays rich & readable
-  // even inside deep downtown skyscraper canyons before/without dynamic CarProbe capture
+  // Showroom clearcoat reflection layer: crisp sky/horizon dome + moving overhead streetlamp/skyline specular
+  // ribbons gliding across the hood, roof & fenders as you drive through the city canyon (day & night!)
   const rdW = normalize(positionWorld.sub(cameraPosition));
-  const reflW = reflect(rdW, normalize(normalWorld));
-  const envGrad = mix(
-    vec3(0.10, 0.11, 0.14),
-    mix(vec3(0.62, 0.72, 0.86), vec3(0.22, 0.40, 0.72), smoothstep(float(0.0), float(0.65), reflW.y)),
-    smoothstep(float(-0.18), float(0.12), reflW.y),
+  const nW = normalize(normalWorld);
+  const reflW = reflect(rdW, nW);
+  const envSky = mix(
+    vec3(0.08, 0.10, 0.14),
+    mix(vec3(0.72, 0.80, 0.92), vec3(0.24, 0.44, 0.78), smoothstep(float(0.0), float(0.60), reflW.y)),
+    smoothstep(float(-0.14), float(0.10), reflW.y),
   );
-  const fresClear = float(0.02).add(pow(max(float(0.001), float(1.0).sub(ndv)), float(4.2)).mul(0.28));
-  mat.emissiveNode = envGrad.mul(fresClear).mul(bodyNode).mul(0.08);
+  // Subtle crisp skyline & overhead street-light reflection bands moving smoothly in world space
+  const streetBand = smoothstep(float(0.78), float(0.98), sin(positionWorld.x.mul(0.16).add(reflW.x.mul(4.5))).mul(sin(positionWorld.z.mul(0.16).add(reflW.z.mul(4.5)))));
+  const horizonBand = smoothstep(float(-0.04), float(0.06), reflW.y).mul(float(1.0).sub(smoothstep(float(0.06), float(0.28), reflW.y)));
+  const cityStreak = vec3(1.00, 0.88, 0.70).mul(streetBand.mul(smoothstep(float(0.12), float(0.72), reflW.y)).mul(0.55))
+    .add(vec3(0.76, 0.86, 1.00).mul(horizonBand.mul(0.45)));
+  const fresClear = float(0.04).add(pow(max(float(0.001), float(1.0).sub(ndv)), float(3.4)).mul(0.86));
+  mat.emissiveNode = envSky.mul(0.22).add(cityStreak.mul(0.32)).mul(fresClear).mul(bodyNode);
 
   if (opts.gi) {
     enhanceMaterialWithPlaykitGi(mat, opts.gi, { detailStrength: 0, giBounceStrength: 0.03 });

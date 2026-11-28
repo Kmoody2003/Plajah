@@ -23,8 +23,9 @@ function mergeable(m: THREE.Mesh): boolean {
 function matKey(mat: THREE.Material): string {
   const m = mat as THREE.MeshPhysicalMaterial & { map?: THREE.Texture | null; normalMap?: THREE.Texture | null; roughnessMap?: THREE.Texture | null; metalnessMap?: THREE.Texture | null; emissiveMap?: THREE.Texture | null };
   const tx = (t?: THREE.Texture | null): string => (t ? t.uuid : '-');
+  const q = (v?: number): number => (v == null ? -1 : Math.round(v * 20));
   const c = (m.color as THREE.Color | undefined)?.getHexString() ?? '-', e = (m.emissive as THREE.Color | undefined)?.getHexString() ?? '-';
-  return [m.type, c, m.roughness, m.metalness, e, m.emissiveIntensity, m.opacity, m.side, m.flatShading ? 1 : 0, m.envMapIntensity, m.clearcoat ?? 0, m.clearcoatRoughness ?? 0, m.ior ?? 0, tx(m.map), tx(m.normalMap), tx(m.roughnessMap), tx(m.metalnessMap), tx(m.emissiveMap), m.vertexColors ? 1 : 0, m.polygonOffset ? 1 : 0].join('|');
+  return [m.type, c, q(m.roughness), q(m.metalness), e, q(m.emissiveIntensity), q(m.opacity), m.side, m.flatShading ? 1 : 0, q(m.envMapIntensity), q(m.clearcoat), q(m.clearcoatRoughness), q(m.ior), tx(m.map), tx(m.normalMap), tx(m.roughnessMap), tx(m.metalnessMap), tx(m.emissiveMap), m.vertexColors ? 1 : 0, m.polygonOffset ? 1 : 0].join('|');
 }
 
 /**
