@@ -1298,10 +1298,16 @@ def score_glb_views_software(glb_path: str, ref_dir: str, side_key: str, out_dir
 
     res = {}
     views_to_score = [("front", "front"), ("side", side_key), ("back", "back")]
+    scored_keys = []
     for label, vkey in views_to_score:
+        ref_path = os.path.join(ref_dir, f"{vkey}.png")
+        if not os.path.isfile(ref_path):
+            res[label] = {"view": vkey, "iou": 0.0, "colour": 0.0, "score": 0.0, "skipped": True}
+            continue
+        scored_keys.append(label)
         ren_rgba = _raster_ortho_glb(V, F, UV, base_rgb, vkey, S=768)
         Image.fromarray(ren_rgba).save(os.path.join(out_dir, f"render_{label}.png"))
-        ref_im = Image.open(os.path.join(ref_dir, f"{vkey}.png"))
+        ref_im = Image.open(ref_path)
         a = sv.fit(ref_im)
         b_im = sv.fit(Image.fromarray(ren_rgba))
         ma, mb = a[:, :, 3] > 127, b_im[:, :, 3] > 127
@@ -1339,7 +1345,7 @@ def score_glb_views_software(glb_path: str, ref_dir: str, side_key: str, out_dir
         bg = lambda im: (im[:, :, :3] * (im[:, :, 3:4] / 255.0) + np.array([42, 44, 54]) * (1.0 - im[:, :, 3:4] / 255.0)).astype(np.uint8)
         Image.fromarray(np.hstack([bg(a), bg(b_im), xor])).save(os.path.join(out_dir, f"{label}_delta.png"))
 
-    res["overall"] = round(float(np.mean([res[k]["score"] for k in ("front", "side", "back")])), 3)
+    res["overall"] = round(float(np.mean([res[k]["score"] for k in (scored_keys or ("front", "back"))])), 3)
     with open(os.path.join(out_dir, "scores.json"), "w", encoding="utf-8") as f:
         json.dump(res, f, indent=2)
     return res

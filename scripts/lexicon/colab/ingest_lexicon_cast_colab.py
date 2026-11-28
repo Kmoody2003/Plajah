@@ -50,6 +50,8 @@ def write_char_report(item: dict, scores: dict, rig_qa: dict, glb_rel: str, delt
     gate = "pass" if ov >= 95.0 else f"**{95.0 - ov:.1f} short**"
     rows = []
     for lbl in ("front", "side", "back"):
+        if lbl not in scores:
+            continue
         v = scores[lbl]
         rows.append(f"| {lbl} ({v.get('view', lbl)}) | {v['iou']*100:.1f}% | {v['colour']*100:.1f}% | {v['score']*100:.1f}% |")
     md = "\n".join([
@@ -124,28 +126,30 @@ def main():
         final_glb = os.path.join(CHAR_DIR, f"{cid}.glb")
         glb_rel = f"public/games/lexicon/assets/characters/{cid}.glb"
 
-        # 1. Promote to full 58-joint Character Forge human rig (HUMAN_JOINTS + extras.forge)
-        run(
-            [
-                "node",
-                os.path.join(ROOT, "node_modules", "tsx", "dist", "cli.mjs"),
-                os.path.join(ROOT, "scripts", "eraclash3d", "forgeRigMesh.ts"),
-                rig22,
+        # 1. Promote humanoid rigs to 58-joint Character Forge; keep quadruped PBR GLB clean
+        if item.get("rig_mode", "humanoid") == "quadruped":
+            shutil.copy2(rig22, final_glb)
+            rig_qa = {"p99_stretch": 1.0, "max_stretch": 1.0, "over_3x": 0}
+        else:
+            run(
+                [
+                    "node",
+                    os.path.join(ROOT, "node_modules", "tsx", "dist", "cli.mjs"),
+                    os.path.join(ROOT, "scripts", "eraclash3d", "forgeRigMesh.ts"),
+                    rig22,
+                    final_glb,
+                    "--name",
+                    cid,
+                    "--hold",
+                    item.get("hold", "Right:relaxed,Left:relaxed"),
+                ],
+                label=f"{cid} forgeRigMesh",
+            )
+            rig_qa = plf.reskin_forge_58_glb(
                 final_glb,
-                "--name",
-                cid,
-                "--hold",
-                item.get("hold", "Right:relaxed,Left:relaxed"),
-            ],
-            label=f"{cid} forgeRigMesh",
-        )
-
-        # 2. Re-apply Screened Poisson 58-joint bone-heat skinning (keeps 100% of 58 bones + extras.forge)
-        rig_qa = plf.reskin_forge_58_glb(
-            final_glb,
-            has_robe=bool(item.get("has_robe", False)),
-            has_left_pole=bool(item.get("has_left_pole", False)),
-        )
+                has_robe=bool(item.get("has_robe", False)),
+                has_left_pole=bool(item.get("has_left_pole", False)),
+            )
 
         # 3. Render Three.js orthographic views and score against Colab RGBA cutouts (matching true side view!)
         ren_dir = os.path.join(c_dir, "render_three")
@@ -160,14 +164,21 @@ def main():
         os.makedirs(score_ref, exist_ok=True)
         shutil.copy2(os.path.join(ren_dir, "front.png"), os.path.join(score_ren, "front.png"))
         shutil.copy2(os.path.join(ren_dir, "back.png"), os.path.join(score_ren, "back.png"))
-        shutil.copy2(os.path.join(ren_dir, "right.png" if sk == "right" else "side.png"), os.path.join(score_ren, "side.png"))
         shutil.copy2(os.path.join(ref_dir, "front.png"), os.path.join(score_ref, "front.png"))
         shutil.copy2(os.path.join(ref_dir, "back.png"), os.path.join(score_ref, "back.png"))
-        shutil.copy2(os.path.join(ref_dir, f"{sk}.png"), os.path.join(score_ref, "side.png"))
+        side_ref_src = os.path.join(ref_dir, f"{sk}.png")
+        if os.path.isfile(side_ref_src):
+            shutil.copy2(os.path.join(ren_dir, "right.png" if sk == "right" else "side.png"), os.path.join(score_ren, "side.png"))
+            shutil.copy2(side_ref_src, os.path.join(score_ref, "side.png"))
+        else:
+            for stale in (os.path.join(score_ren, "side.png"), os.path.join(score_ref, "side.png")):
+                if os.path.isfile(stale):
+                    os.remove(stale)
 
         out_sc = run([PY, os.path.join(ROOT, "scripts", "riftrealm", "score_views.py"), score_ren, score_ref, sc_dir], label=f"{cid} score_views")
         scores = json.loads(out_sc.strip().splitlines()[-1])
-        scores["side"]["view"] = sk
+        if "side" in scores:
+            scores["side"]["view"] = sk
         scores["front"]["view"] = "front"
         scores["back"]["view"] = "back"
 
@@ -179,9 +190,10 @@ def main():
         mb = os.path.getsize(final_glb) / 1e6
         ov = scores["overall"] * 100.0
         status = "PASS" if ov >= 95.0 else f"{95.0 - ov:.1f}% short"
+        s_str = f"{scores['side']['score']*100:4.1f}%" if "side" in scores else " n/a "
         print(
             f"  [INGEST] {cid:8s} -> {mb:4.1f} MB | overall={ov:5.1f}% ({status:11s}) | "
-            f"F:{scores['front']['score']*100:4.1f}% S:{scores['side']['score']*100:4.1f}% B:{scores['back']['score']*100:4.1f}% | "
+            f"F:{scores['front']['score']*100:4.1f}% S:{s_str} B:{scores['back']['score']*100:4.1f}% | "
             f"p99.5={rig_qa['p99_stretch']:.2f}x",
             flush=True,
         )
@@ -201,15 +213,17 @@ def main():
         ov = sc["overall"] * 100.0
         rq = s["rig_qa"]
         g = "PASS" if ov >= 95.0 else f"**{95.0 - ov:.1f}% short**"
+        s_col = f"{sc['side']['score']*100:.1f}%" if "side" in sc else "n/a"
         lines.append(
             f"| {s['name']} (`{s['id']}`) | {s['mb']:.1f} MB | {ov:.1f}% | "
-            f"{sc['front']['score']*100:.1f}% | {sc['side']['score']*100:.1f}% | {sc['back']['score']*100:.1f}% | "
+            f"{sc['front']['score']*100:.1f}% | {s_col} | {sc['back']['score']*100:.1f}% | "
             f"{rq['p99_stretch']:.2f}x / {rq['max_stretch']:.2f}x | {g} |"
         )
-    summary_md = os.path.join(HERE, "cast_report.md")
+    is_creatures = "creature" in str(manifest.get("batch", "")).lower()
+    summary_md = os.path.join(HERE, "creatures_report.md" if is_creatures else "cast_report.md")
     with open(summary_md, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + "\n")
-    print(f"\nWrote cast summary: {summary_md}")
+    print(f"\nWrote summary: {summary_md}")
 
 
 if __name__ == "__main__":

@@ -62,10 +62,24 @@ export const LEXICON_NAMES: Record<string, string> = {
   'item:words': 'words',
 };
 
-/** The score: Kenne's own tracks (the first is the main theme). Add a track: its file in
- * public/games/lexicon/assets/music, and a line here. */
+/** The score: Kenne's full Lexicon soundtrack from `public/games/lexicon/assets/music`. */
 export const LEXICON_MUSIC: AssetRef[] = [
-  { id: 'music:main-theme', kind: 'audio', url: '/games/lexicon/assets/music/explorers-path.mp3', license: 'owner', source: "Kenne, Lexicon score ideas: The Explorer's Path (main theme)" },
+  { id: 'music:glossa-explorer', kind: 'audio', url: '/games/lexicon/assets/music/explorers-path.mp3', license: 'owner', source: "The Explorer's Path" },
+  { id: 'music:glossa-curious', kind: 'audio', url: '/games/lexicon/assets/music/curious-path.mp3', license: 'owner', source: 'The Curious Path' },
+  { id: 'music:glossa-peaks', kind: 'audio', url: '/games/lexicon/assets/music/folktale-peaks.mp3', license: 'owner', source: 'The Folktale of the Peaks' },
+  { id: 'music:glossa-circle', kind: 'audio', url: '/games/lexicon/assets/music/ancestral-circle.mp3', license: 'owner', source: 'The Ancestral Circle' },
+  { id: 'music:glossa-answer', kind: 'audio', url: '/games/lexicon/assets/music/we-answer.mp3', license: 'owner', source: 'We Answer' },
+  { id: 'music:cavern-call', kind: 'audio', url: '/games/lexicon/assets/music/ancestral-call.mp3', license: 'owner', source: 'Ancestral Call' },
+  { id: 'music:cavern-fracture', kind: 'audio', url: '/games/lexicon/assets/music/conscious-fracture.mp3', license: 'owner', source: 'Conscious Fracture' },
+  { id: 'music:action-ayo', kind: 'audio', url: '/games/lexicon/assets/music/ayo-exciting.mp3', license: 'owner', source: 'Ayo! Ayo!' },
+  { id: 'music:action-drum', kind: 'audio', url: '/games/lexicon/assets/music/talking-drum-call.mp3', license: 'owner', source: "The Talking Drum's Call" },
+  { id: 'music:wilds-guardian', kind: 'audio', url: '/games/lexicon/assets/music/guardian-of-the-grove.mp3', license: 'owner', source: 'The Guardian of the Grove' },
+  { id: 'music:wilds-march', kind: 'audio', url: '/games/lexicon/assets/music/ancestral-march.mp3', license: 'owner', source: 'The Ancestral March' },
+  { id: 'music:temple-hold', kind: 'audio', url: '/games/lexicon/assets/music/hold-the-ground.mp3', license: 'owner', source: 'Hold the Ground' },
+  { id: 'music:temple-firm', kind: 'audio', url: '/games/lexicon/assets/music/stand-firm.mp3', license: 'owner', source: 'Stand Firm' },
+  { id: 'music:combat-fight', kind: 'audio', url: '/games/lexicon/assets/music/word-fight.mp3', license: 'owner', source: 'Word Fight' },
+  { id: 'music:boss-redactor', kind: 'audio', url: '/games/lexicon/assets/music/redactor-boss.mp3', license: 'owner', source: 'Ominous Chants (The Redactor)' },
+  { id: 'music:boss-fullstop', kind: 'audio', url: '/games/lexicon/assets/music/full-stop-lexicon.mp3', license: 'owner', source: 'Full Stop (Lexicon)' },
 ];
 
 export function lexiconProject(now = Date.now()): GameProject {
