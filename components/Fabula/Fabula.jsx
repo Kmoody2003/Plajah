@@ -113,6 +113,8 @@ import { isWindowsApp, pickWindowsFolder, pickWindowsFile, scanWindowsLibrary, c
 import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
 import GeneratePanel from "./GeneratePanel";
 import StoryIntelligencePanel from "./StoryIntelligencePanel";
+import SmartSyncPanel from "./smartSync/SmartSyncPanel";
+import { buildTimeline as buildSmartSyncTimeline } from "../../services/fabula/smartSync/timeline";
 import GenGallery from "../gallery/GenGallery";
 import { galleryForUser } from "../../services/generatedGallery";
 import { directScene, motivationsFrom, continuesFrom, mapCoverage, addPlaceholdersForMissing, breakdownForScene, matchProductionScene, fileSheetResult, placeSuggestionInCut, pullScriptIntoProduction, pushSceneToScript, scoreCueRequest, voiceTagFor, shotRefs, reviewChecklist, reviewPrompt, normalizeReview } from "../../services/fabula/story";
@@ -5119,6 +5121,64 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
     ping(`Multicam group created — ${angles.length} angles. Sync offsets in the inspector.`);
   };
 
+  /* ── SMART SYNC: audio + timecode + transcript + vision lock → segments, graphics flags, council pre-cut ── */
+  const [smartSync, setSmartSync] = useState(null); // { assetIds, mcId }
+  const openSmartSync = (assetIds, mcId = null) => {
+    const ids = (assetIds || []).filter((id) => prod.mediaPool.some((a) => a.id === id && (a.type === "video" || a.type === "audio")));
+    if (ids.length < 2) { ping("Pick at least two cameras or recorders for Smart Sync."); return; }
+    setSmartSync({ assetIds: ids, mcId });
+  };
+  const smartSyncAngles = useMemo(() => {
+    if (!smartSync || !prod) return [];
+    const mc = smartSync.mcId ? prod.mediaPool.find((a) => a.id === smartSync.mcId) : null;
+    return smartSync.assetIds.map((id) => {
+      const a = prod.mediaPool.find((x) => x.id === id);
+      const tc = mc?.angles?.find((g) => g.assetId === id)?.tc || a?.tc || "";
+      return a ? { assetId: a.id, name: a.name, kind: a.type === "audio" ? "audio" : "video", duration: a.duration || 0, url: a.url, tcStart: tc ? tc2sec(tc, vfmt.fps) : null } : null;
+    }).filter(Boolean);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [smartSync, prod?.mediaPool]);
+  // Results live on the multicam asset (minus the transcript, which is too big for the project document).
+  const slimSmartSync = (st, extra = {}) => ({ ...st, words: [], ...extra });
+  const saveSmartSync = (st) => {
+    if (!smartSync?.mcId) return;
+    updateProd((p) => { const m = p.mediaPool.find((x) => x.id === smartSync.mcId); if (m) m.smartSync = slimSmartSync(st, { appliedAt: m.smartSync?.appliedAt }); });
+  };
+  const applySmartSync = (st, o) => {
+    const fpsT = vfmt.fps || 30;
+    let mcId = smartSync?.mcId;
+    const existing = mcId ? prod.mediaPool.find((a) => a.id === mcId) : null;
+    const prevAt = existing?.smartSync?.appliedAt;
+    const kept = clips.filter((c) => !(mcId && c.ssOf === mcId));
+    const keptEnd = kept.reduce((m, c) => Math.max(m, c.start + c.duration), 0);
+    const at = prevAt != null && kept.length < clips.length ? prevAt : (kept.length ? Math.ceil(keptEnd * fpsT) / fpsT : 0);
+    if (!mcId) mcId = uid();
+    const built0 = buildSmartSyncTimeline(st, { mcAssetId: mcId, at, videoTrack: "v1", audioTrack: "a1", gfxTrack: "v2", uid, fps: fpsT, ltSpec: o.ltSpec, verseText: o.verseText, includeSuggested: o.includeSuggested, titleFx: SUB_FX });
+    // Graphics go on the top-most video track that is free across the whole program (never V1).
+    const vids = tracks.filter((t) => t.type === "video" && t.id !== "v1").sort((a, b) => (parseInt(b.id.slice(1), 10) || 0) - (parseInt(a.id.slice(1), 10) || 0));
+    const freeAcross = (tid) => !kept.some((x) => x.trackId === tid && x.start < at + built0.duration && x.start + x.duration > at);
+    const gfxTrack = vids.find((t) => freeAcross(t.id))?.id || "v" + (Math.max(1, ...tracks.filter((t) => t.type === "video").map((t) => parseInt(t.id.slice(1), 10) || 0)) + 1);
+    const added = built0.clips.map((c) => ({ ...c, ssOf: mcId, ...(c.kind === "title" ? { trackId: gfxTrack } : {}) }));
+    updateProd((p) => {
+      let m = p.mediaPool.find((x) => x.id === mcId);
+      if (!m) {
+        m = { id: mcId, name: "MC · " + (st.angles[0]?.name || "Smart Sync").replace(/\.[^.]+$/, ""), type: "multicam", tags: ["smart-sync"], angles: [], duration: 0 };
+        p.mediaPool.push(m);
+      }
+      m.angles = st.angles.map((a) => ({ assetId: a.assetId, offset: built0.offsets[a.assetId] ?? 0, tc: m.angles?.find((g) => g.assetId === a.assetId)?.tc || "" }));
+      m.duration = built0.duration;
+      m.smartSync = slimSmartSync(st, { appliedAt: at });
+      ensureTrackFor(p, "v1"); ensureTrackFor(p, gfxTrack);
+      if (!p.tracks.some((t) => t.id === "a1")) p.tracks.push({ id: "a1", name: "A1", type: "audio" });
+    });
+    applyClips([...kept, ...added]);
+    setMarkers((m) => [...m.filter((x) => x.ssOf !== mcId), ...built0.markers.map((k) => ({ id: uid(), t: k.t, label: k.label, color: k.color, ssOf: mcId }))]);
+    setSmartSync((s) => (s ? { ...s, mcId } : s));
+    setMcSel([]);
+    const nCuts = added.filter((c) => c.kind === "multicam").length, nG = added.filter((c) => c.kind === "title").length;
+    ping(`Smart Sync applied — ${nCuts} shots, ${nG} graphics, ${built0.markers.length} section markers. Ctrl+Z to undo.`);
+  };
+
   const bladeClip = (clipId, at) => {
     const c = clips.find((x) => x.id === clipId);
     if (!c || at <= c.start + 0.05 || at >= c.start + c.duration - 0.05) return null;
@@ -6223,9 +6283,14 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                         </div>
                       ))}
                       {mcSel.length >= 2 && (
-                        <button className="minibtn full" style={{ marginTop: 6 }} onClick={createMulticam}>
-                          <Layers size={12} /> CREATE MULTICAM ({mcSel.length} ANGLES)
-                        </button>
+                        <>
+                          <button className="minibtn full" style={{ marginTop: 6 }} onClick={createMulticam}>
+                            <Layers size={12} /> CREATE MULTICAM ({mcSel.length} ANGLES)
+                          </button>
+                          <button className="minibtn blue full" style={{ marginTop: 4 }} title="Sync by audio, timecode and transcript, confirm with vision, flag scripture / names / giving, and pre-cut the show with the Editor Council" onClick={() => openSmartSync(mcSel)}>
+                            <Sparkles size={12} /> SMART SYNC &amp; PRE-CUT ({mcSel.length})
+                          </button>
+                        </>
                       )}
                       {(prod.mediaPool || []).length > srcPoolCap && (
                         <button className="minibtn full" style={{ marginTop: 4 }} onClick={() => setSrcPoolCap((c) => c + 300)}>
@@ -6710,10 +6775,14 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                               const secs = selMc.angles.map((a) => tc2sec(a.tc || "", vfmt.fps));
                               if (secs.some((s) => s == null)) { setError("Enter a valid source TC (HH:MM:SS:FF) for every angle, then APPLY."); return; }
                               const min = Math.min(...secs);
-                              updateProd((p) => { const m = p.mediaPool.find((x) => x.id === selMc.id); if (m) m.angles.forEach((a, i) => { a.offset = Math.round((secs[i] - min) * 100) / 100; }); });
+                              // offset = source time at multicam 0; multicam 0 = the earliest TC, so a later-starting angle is negative.
+                              updateProd((p) => { const m = p.mediaPool.find((x) => x.id === selMc.id); if (m) m.angles.forEach((a, i) => { a.offset = Math.round((min - secs[i]) * 1000) / 1000; }); });
                               ping("Angles synced by source timecode");
                             }}>⌖ SYNC ANGLES BY SOURCE TC</button>
-                            <div className="dim small">Click an angle mid-playback to cut to it at the playhead (classic multicam cutting). Audio-waveform sync needs server-side analysis — TC and manual offsets cover it here.</div>
+                            <button className="minibtn blue full" style={{ marginTop: 4 }} onClick={() => openSmartSync(selMc.angles.map((g) => g.assetId), selMc.id)}>
+                              <Sparkles size={12} /> {selMc.smartSync ? "SMART SYNC — REVIEW / RE-SYNC" : "SMART SYNC (AUDIO · TRANSCRIPT · VISION)"}
+                            </button>
+                            <div className="dim small">Click an angle mid-playback to cut to it at the playhead (classic multicam cutting). Smart Sync locks angles by waveform, timecode and transcript, checks them with vision, and can pre-cut the program.</div>
                           </>
                         )}
                         {selClip.kind === "media" && (() => {
@@ -7620,7 +7689,7 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                             <div className="inout" style={{ left: markIn * pxPerSec, width: (markOut - markIn) * pxPerSec }} />
                           )}
                           {markers.map((m) => (
-                            <span key={m.id} className="mk" style={{ left: m.t * pxPerSec }} title="Click: go to marker · Double-click: remove"
+                            <span key={m.id} className="mk" style={{ left: m.t * pxPerSec, ...(m.color ? { background: m.color, borderColor: m.color } : {}) }} title={`${m.label ? m.label + " — " : ""}Click: go to marker · Double-click: remove`}
                               onMouseDown={(e) => e.stopPropagation()}
                               onClick={(e) => { e.stopPropagation(); setPlayhead(m.t); }}
                               onDoubleClick={(e) => { e.stopPropagation(); setMarkers((cur) => cur.filter((x) => x.id !== m.id)); }} />
@@ -7804,6 +7873,21 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
           clipAudio={clips.find((c) => c.id === audioEdit.clip.id)?.audio || ensureAudio(audioEdit.clip)}
           onChange={(clean) => updateClipAudio(audioEdit.clip.id, { clean })}
           onClose={() => setAudioEdit(null)} />
+      )}
+      {smartSync && prod && smartSyncAngles.length >= 2 && (
+        <SmartSyncPanel
+          key={smartSync.mcId || smartSync.assetIds.join("|")}
+          angles={smartSyncAngles}
+          mcAsset={smartSync.mcId ? prod.mediaPool.find((a) => a.id === smartSync.mcId) : null}
+          fps={vfmt.fps || 30}
+          vision={claudeVisionJson}
+          llm={callClaudeJson}
+          onSave={saveSmartSync}
+          onApply={applySmartSync}
+          onSeek={(t) => { const mc = smartSync.mcId ? prod.mediaPool.find((a) => a.id === smartSync.mcId) : null; setPlayhead(Math.max(0, (mc?.smartSync?.appliedAt || 0) + t)); }}
+          ping={ping}
+          onClose={() => setSmartSync(null)}
+        />
       )}
       {storyOpen && prod && (
         <StoryIntelligencePanel
@@ -9232,7 +9316,10 @@ export default function Fabula({ currentUser = null, onOpenChoraManager, onOpenW
                         <div className="dim small" style={{ gridColumn: "1 / -1", padding: 8 }}>No media matches the current bin/search. <button className="linkbtn" onClick={() => { setBinFilter("all"); setMediaSearch(""); }}>Show all {(prod.mediaPool || []).length} →</button></div>
                       )}
                       {mcSel.length >= 2 && (
-                        <button className="minibtn full" style={{ gridColumn: "1 / -1" }} onClick={createMulticam}><Layers size={12} /> CREATE MULTICAM ({mcSel.length} ANGLES)</button>
+                        <>
+                          <button className="minibtn full" style={{ gridColumn: "1 / -1" }} onClick={createMulticam}><Layers size={12} /> CREATE MULTICAM ({mcSel.length} ANGLES)</button>
+                          <button className="minibtn blue full" style={{ gridColumn: "1 / -1" }} onClick={() => openSmartSync(mcSel)}><Sparkles size={12} /> SMART SYNC &amp; PRE-CUT ({mcSel.length})</button>
+                        </>
                       )}
                     </div>
                     {filtered.length > perPage && (

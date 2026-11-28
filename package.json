@@ -194,6 +194,7 @@
     "test:vectortrack": "npx tsx --test tests/vectorTrack.test.ts tests/planarTrack.test.ts tests/planarSequence.test.ts",
     "test:fabulagen": "npx tsx --test tests/fabulaGenHandoff.test.ts tests/fabulaMagnific.test.ts tests/fabulaRunway.test.ts",
     "test:fabulastory": "npx tsx --test tests/fabulaStoryIntel.test.ts",
+    "test:smartsync": "npx tsx --test tests/fabulaSmartSync.test.ts",
     "test:gengallery": "npx tsx --test tests/generatedGallery.test.ts",
     "academia:ingest": "npx tsx scripts/ingestOerLibrary.ts",
     "test:runner": "npx tsx --test tests/serviceRunner.test.ts",
