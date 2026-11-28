@@ -154,15 +154,15 @@ interface AmboProPresenterProps {
 }
 
 // ── Plajah design language ──
-const GROUND = '#0A0711';
-const HEADER = 'rgba(10,7,17,0.72)';
+const GROUND = 'var(--st-ground, #0A0711)';
+const HEADER = 'var(--st-header, rgba(10,7,17,0.72))';
 const BRAND = 'linear-gradient(135deg,#6B0099,#D40055)';
 const ORANGE = '#FF8C00';   // the live wire
 const CYAN = '#00DAF3';     // preview / realtime
 const GOLD = '#E3C57E';     // scripture
 const LILAC = '#D0BCFF';
-const glass = 'rgba(255,255,255,0.035)';
-const line = 'rgba(255,255,255,0.09)';
+const glass = 'var(--st-glass, rgba(255,255,255,0.035))';
+const line = 'var(--st-line, rgba(255,255,255,0.09))';
 const line2 = 'rgba(255,255,255,0.15)';
 
 /** A live canvas driven by the shared renderer — Program monitors mirror the single Master Program Bus. */
@@ -2528,6 +2528,8 @@ useEffect(() => {
   // Keep the header on screen. Focus, drag-select and scrollIntoView can scroll an overflow:hidden
   // ancestor (or the document) and strand the top bar above the window; nothing here should ever scroll.
   const amboRootRef = useRef<HTMLDivElement>(null);
+  // Tell the theme engine this is Stage so its --st-* tokens (light / pastel glass) apply.
+  useEffect(() => { document.body.dataset.pjApp = 'stage'; return () => { if (document.body.dataset.pjApp === 'stage') delete document.body.dataset.pjApp; }; }, []);
   useEffect(() => {
     const root = amboRootRef.current;
     const reset = () => {
@@ -2998,7 +3000,7 @@ useEffect(() => {
   );
 
   return (
-    <div ref={amboRootRef} className="fixed inset-0 z-[120] flex flex-col overflow-hidden" style={{ background: GROUND }}>
+    <div ref={amboRootRef} className="pj-stage fixed inset-0 z-[120] flex flex-col overflow-hidden" style={{ background: GROUND }}>
       {/* toolbar — split into 2 rows so controls never collide with native window buttons */}
       <div className="flex-none border-b backdrop-blur-xl" style={{ borderColor: line, background: HEADER }}>
       {/* ── ROW 1: App Bar — identity, menus, project info ── */}

@@ -148,6 +148,8 @@ import LiveFollowPills from './components/LiveFollowPills';
 import { useLiveAlertsPref } from './hooks/useLiveAlertsPref';
 import { measurePerfTier, subscribePerfTier, shouldEnableEffect, getPerfTier } from './services/tvPerformance';
 import ThemeSpecBackground from './components/ThemeSpecBackground';
+import { resolveBgControls } from './services/backgroundControls';
+import { useProfilePreview } from './services/appearancePreview';
 import { useEffectiveThemeSpec, setUserThemeSpec, setUserBaseTheme } from './services/themeRuntime';
 import { applyPalette } from './services/themePalette';
 import { startContrastGuard, measureImageUrl, setBackgroundTone, clearBackgroundTone } from './services/themeContrast';
@@ -4687,8 +4689,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     await updateGamePlayCount(game.id);
   };
 
+  // The saved profile with any unsaved Settings → Appearance edits laid over it, so the look is live.
+  const appearancePreview = useProfilePreview();
+  // On someone's profile page their background/theme is shown to visitors, but only while that page is
+  // open: nothing is written to the visitor's own settings, so it can never stick globally.
+  const lookProfile = useMemo(() => {
+    if (view === 'USER_PROFILE' && visitedProfile) return visitedProfile;
+    return appearancePreview && userProfile ? { ...userProfile, ...appearancePreview } : userProfile;
+  }, [view, visitedProfile, userProfile, appearancePreview]);
+
   useEffect(() => {
-    const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
+    const activeProfile = lookProfile;
     const bgAllowed = activeProfile?.customBgEnabled !== false;
     const themeAllowed = activeProfile?.customThemeEnabled !== false;
     // Only mark the body as having a custom background when something will actually render.
@@ -4702,13 +4713,29 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else {
       document.body.classList.remove('has-custom-background');
     }
-  }, [view, visitedProfile, userProfile, activeTheme]);
+  }, [lookProfile, activeTheme]);
+
+  // Veil strength + interface-panel opacity for the custom background (see theme-system.css).
+  useEffect(() => {
+    const p = lookProfile;
+    const c = resolveBgControls(p);
+    const b = document.body;
+    b.style.setProperty('--pj-veil', String(c.veilPct / 100));
+    b.style.setProperty('--pj-ui-alpha', String(c.uiPct / 100));
+  }, [lookProfile]);
+
+  // Creative studios get frosted-glass panels over an ambient palette wash (theme-system.css).
+  useEffect(() => {
+    const creative = /^(MUSIC|MELOS|MELOS_BEATS|AMBO|AMBO_PRO|TELA.*|PLAJAH_PIXELS|PODCAST_STUDIO|SPATIAL_MIXER|EVENT_PRODUCTION_STUDIO|TERRA_STUDIO|CROSSOVER|SMART_DIRECTOR|AVATAR_STUDIO|FABULA|CHORA.*|ARTIST_MANAGER|CREATOR_HUB|MEDIA_CONVERTER)$/.test(String(view));
+    if (creative) document.body.setAttribute('data-pj-creative', ''); else document.body.removeAttribute('data-pj-creative');
+    return () => document.body.removeAttribute('data-pj-creative');
+  }, [view]);
 
   // Measure the real brightness of the custom background so the scrim (and the contrast guard)
   // are sized to the image, not guessed.
   useEffect(() => {
     if (document.body.classList.contains('has-theme-bg')) return; // a Theme Studio background owns the tone
-    const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
+    const activeProfile = lookProfile;
     const bgAllowed = activeProfile?.customBgEnabled !== false;
     const themeAllowed = activeProfile?.customThemeEnabled !== false;
     let url: string | null = null;
@@ -4726,7 +4753,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     let live = true;
     measureImageUrl(url).then(l => { if (live) setBackgroundTone(l); });
     return () => { live = false; };
-  }, [view, visitedProfile, userProfile, activeTheme, themeAssetIndex]);
+  }, [lookProfile, activeTheme, themeAssetIndex]);
 
   // Last line of defence for text: re-checks real rendered contrast and fixes what CSS missed.
   useEffect(() => {
@@ -4735,7 +4762,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   }, [theme]);
 
   useEffect(() => {
-    const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
+    const activeProfile = lookProfile;
     const curId = activeProfile?.activeThemePresetId || null;
     if (curId !== activeThemeId) {
       setActiveThemeId(curId);
@@ -4747,7 +4774,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         setActiveTheme(null);
       }
     }
-  }, [view, visitedProfile, userProfile, activeThemeId]);
+  }, [lookProfile, activeThemeId]);
 
   useEffect(() => {
     if (!activeTheme || !activeTheme.assets || activeTheme.assets.length <= 1) return;
@@ -5038,7 +5065,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             homeLabel={isElevateHome() || (userProfile as any)?.elevateHome ? 'Elevate' : 'your home'}
           />
         ) : (
-          <div className={`h-real-screen w-full flex flex-col relative z-0 overflow-hidden bg-transparent no-select ${((view === 'USER_PROFILE' ? visitedProfile : userProfile)?.frostedBackground || (view === 'USER_PROFILE' ? visitedProfile : userProfile)?.videoBackgroundUrl) ? 'is-custom-bg' : ''}`}>
+          <div className={`h-real-screen w-full flex flex-col relative z-0 overflow-hidden bg-transparent no-select ${(lookProfile?.frostedBackground || lookProfile?.videoBackgroundUrl) ? 'is-custom-bg' : ''}`}>
             {/* Universal Background Layer — inline styles bypass CSS/Tailwind layer conflicts */}
             <div
               id="universal-background"
@@ -5056,7 +5083,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   // single most expensive thing on the page, and TV compositors handle it worst.
                   // The base gradient above stays unconditional, so dropping this is never blank.
                   if (!shouldEnableEffect('customBackground')) return null;
-                  const activeProfile = view === 'USER_PROFILE' ? visitedProfile : userProfile;
+                  const activeProfile = lookProfile;
                   if (!activeProfile) return null;
 
                   const {
@@ -5071,8 +5098,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   const bgAllowed = customBgEnabled !== false;
                   const themeAllowed = customThemeEnabled !== false;
 
+                  const ctl = resolveBgControls(activeProfile);
                   let finalVideoUrl = bgAllowed ? videoBackgroundUrl : null;
                   let finalPhotoUrl = bgAllowed ? frostedBackground : null;
+                  // Still / video toggle: when both are uploaded the person chooses which one plays.
+                  if (ctl.source === 'image' && finalPhotoUrl) finalVideoUrl = null;
+                  else if (ctl.source === 'video' && finalVideoUrl) finalPhotoUrl = null;
 
                   // Evaluate active theme assets
                   if (themeAllowed && activeTheme && activeTheme.assets && activeTheme.assets.length > 0) {
@@ -5117,17 +5148,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                                  e.currentTarget.play(); // No other assets, just loop
                              }
                           }}
-                          className={`w-full h-full object-cover transition-all duration-1000 ${videoBackgroundBlur !== false ? 'blur-[40px] scale-105' : ''}`}
+                          className="w-full h-full object-cover transition-all duration-700"
+                          style={{ filter: ctl.blurPx ? `blur(${ctl.blurPx}px)` : undefined, transform: ctl.blurPx ? `scale(${1 + ctl.blurPx / 300})` : undefined }}
                         />
                       ) : finalPhotoUrl ? (
                         <div
-                          className={`w-full h-full bg-cover bg-center transition-all duration-1000 ${videoBackgroundBlur !== false ? 'blur-[40px] scale-105' : ''}`}
-                          style={{ backgroundImage: `url(${finalPhotoUrl})` }}
+                          className="w-full h-full bg-cover bg-center transition-all duration-700"
+                          style={{ backgroundImage: `url(${finalPhotoUrl})`, filter: ctl.blurPx ? `blur(${ctl.blurPx}px)` : undefined, transform: ctl.blurPx ? `scale(${1 + ctl.blurPx / 300})` : undefined }}
                         />
                       ) : null}
                       
-                      {videoBackgroundFrosted !== false && shouldEnableEffect('blur') && (
-                        <div className="absolute inset-0 backdrop-blur-[100px] bg-black/30" />
+                      {/* The THEME's own gradient laid over the media with its own opacity + blend mode —
+                          0 shows the picture/video untouched, more lets the theme's colour wash through. */}
+                      {ctl.themeOpacity > 0 && (
+                        <div className="absolute inset-0" style={{ background: THEME_BG[theme] ?? THEME_BG.PLAJAH, opacity: ctl.themeOpacity / 100, mixBlendMode: ctl.blend as React.CSSProperties['mixBlendMode'] }} />
+                      )}
+                      {ctl.frostPct > 0 && shouldEnableEffect('blur') && (
+                        <div className="absolute inset-0" style={{ backdropFilter: `blur(${Math.round(ctl.frostPct * 0.6)}px)`, WebkitBackdropFilter: `blur(${Math.round(ctl.frostPct * 0.6)}px)`, background: `rgba(0,0,0,${(ctl.frostPct / 300).toFixed(3)})` }} />
                       )}
                     </motion.div>
                   );

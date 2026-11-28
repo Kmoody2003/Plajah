@@ -8,8 +8,7 @@ import { addLocalNotification } from './services/localNotifications';
 import { isChunkLoadError, recoverFromStaleChunk } from './src/lib/staleChunk';
 
 // @ts-ignore
-import { registerSW } from 'virtual:pwa-register';
-
+import { registerSW } from 'virtual:pwa-register';
 // Catch the browser's one-time install prompt early, for the Install card on Member Home.
 import './services/pwaInstall';
 
@@ -276,6 +275,39 @@ if (isNativeWindows) {
       // Desktop / web: no popup. A new build waiting is just a notification (with the plain-English
       // changes in it); tapping it applies the update. Nothing takes over the screen.
       (window as any).__plajahApplyUpdate = () => updateSW(true);
+      // No popup, and no waiting on a click either: a stale tab is how fixes read as "it didn't ship".
+      // The waiting build is applied the next time this tab is backgrounded or left alone for a while -
+      // never while it is in use, and never while something is playing (a reload would kill the music).
+      {
+        const playing = () => {
+          try {
+            if ((window as any).__plajahAudioActive?.()) return true;
+            return Array.from(document.querySelectorAll('audio,video')).some(m => !(m as HTMLMediaElement).paused && !(m as HTMLMediaElement).ended);
+          } catch { return false; }
+        };
+        // Never refresh over something half-written: a focused field or editor with content in it.
+        const typing = () => {
+          const a = document.activeElement as HTMLElement | null;
+          if (!a) return false;
+          const tag = a.tagName;
+          if (tag === 'INPUT' || tag === 'TEXTAREA') return !!(a as HTMLInputElement).value;
+          return a.isContentEditable && !!(a.textContent || '').trim();
+        };
+        let idleTimer: ReturnType<typeof setTimeout> | undefined;
+        let applied = false;
+        const tryApply = () => {
+          if (applied || playing() || typing()) return;
+          applied = true;
+          document.removeEventListener('visibilitychange', onVis);
+          updateSW(true);
+        };
+        const onVis = () => { if (document.visibilityState === 'hidden') tryApply(); };
+        document.addEventListener('visibilitychange', onVis);
+        // Left alone for 20 minutes with nothing playing: safe to refresh.
+        const arm = () => { if (idleTimer) clearTimeout(idleTimer); idleTimer = setTimeout(tryApply, 20 * 60_000); };
+        ['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, arm, { passive: true }));
+        arm();
+      }
       const top = CHANGELOG.slice(0, 5);
       addLocalNotification({
         id: 'sw-update',
